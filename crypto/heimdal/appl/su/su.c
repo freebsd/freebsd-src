@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include <config.h>
 
-RCSID("$Id: su.c,v 1.25 2002/09/10 20:03:47 joda Exp $");
+RCSID("$Id: su.c,v 1.26.2.1 2003/05/06 12:06:44 joda Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,8 +56,8 @@ RCSID("$Id: su.c,v 1.25 2002/09/10 20:03:47 joda Exp $");
 #endif
 #ifdef KRB4
 #include <krb.h>
-#include <kafs.h>
 #endif
+#include <kafs.h>
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
@@ -253,13 +253,11 @@ krb5_start_session(void)
     set_tkfile();
     esetenv("KRBTKFILE", tkfile, 1);
             
-#ifdef KRB4
     /* convert creds? */
     if(k_hasafs()) {
 	if (k_setpag() == 0)
 	    krb5_afslog(context, ccache2, NULL, NULL);
     }
-#endif
             
     krb5_cc_close(context, ccache2);
     krb5_cc_destroy(context, ccache);
@@ -546,12 +544,6 @@ main(int argc, char **argv)
 	if (ok == 4)
 	    krb_start_session();
 #endif
-	{
-	    char **p;
-	    for(p = args; *p; p++)
-		printf("%s ", *p);
-	    printf("\n");
-	}
 	execv(shell, args);
     }
     

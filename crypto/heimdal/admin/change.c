@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,11 +33,11 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: change.c,v 1.4 2001/07/23 09:46:40 joda Exp $");
+RCSID("$Id: change.c,v 1.5 2003/04/01 15:04:49 lha Exp $");
 
 static void
 change_entry (krb5_context context, krb5_keytab keytab,
-	      krb5_keytab_entry *entry,
+	      krb5_principal principal, krb5_kvno kvno,
 	      const char *realm, const char *admin_server, int server_port)
 {
     krb5_error_code ret;
@@ -48,7 +48,7 @@ change_entry (krb5_context context, krb5_keytab keytab,
     int num_keys;
     int i;
 
-    ret = krb5_unparse_name (context, entry->principal, &client_name);
+    ret = krb5_unparse_name (context, principal, &client_name);
     if (ret) {
 	krb5_warn (context, ret, "krb5_unparse_name");
 	return;
@@ -59,7 +59,7 @@ change_entry (krb5_context context, krb5_keytab keytab,
     if(realm)
 	conf.realm = (char *)realm;
     else
-	conf.realm = *krb5_princ_realm (context, entry->principal);
+	conf.realm = *krb5_princ_realm (context, principal);
     conf.mask |= KADM5_CONFIG_REALM;
     
     if (admin_server) {
@@ -83,8 +83,7 @@ change_entry (krb5_context context, krb5_keytab keytab,
 	krb5_warn (context, ret, "kadm5_c_init_with_skey_ctx");
 	return;
     }
-    ret = kadm5_randkey_principal (kadm_handle, entry->principal,
-				   &keys, &num_keys);
+    ret = kadm5_randkey_principal (kadm_handle, principal, &keys, &num_keys);
     kadm5_destroy (kadm_handle);
     if (ret) {
 	krb5_warn(context, ret, "kadm5_randkey_principal");
@@ -93,9 +92,9 @@ change_entry (krb5_context context, krb5_keytab keytab,
     for (i = 0; i < num_keys; ++i) {
 	krb5_keytab_entry new_entry;
 
-	new_entry = *entry;
+	new_entry.principal = principal;
 	new_entry.timestamp = time (NULL);
-	++new_entry.vno;
+	new_entry.vno = kvno + 1;
 	new_entry.keyblock  = keys[i];
 
 	ret = krb5_kt_add_entry (context, keytab, &new_entry);
@@ -110,6 +109,11 @@ change_entry (krb5_context context, krb5_keytab keytab,
  * their keys, writing the new keys
  */
 
+struct change_set {
+    krb5_principal principal;
+    krb5_kvno kvno;
+};
+
 int
 kt_change (int argc, char **argv)
 {
@@ -122,8 +126,8 @@ kt_change (int argc, char **argv)
     int server_port = 0;
     int help_flag = 0;
     int optind = 0;
-    int j, max;
-    krb5_principal *princs;
+    int i, j, max;
+    struct change_set *changeset;
     
     struct getargs args[] = {
 	{ "realm",	'r',	arg_string,   NULL, 
@@ -154,12 +158,8 @@ kt_change (int argc, char **argv)
 	return 1;
 
     j = 0;
-    max = 10;
-    princs = malloc (max * sizeof(*princs));
-    if (princs == NULL) {
-	krb5_warnx (context, "malloc: out of memory");
-	goto out;
-    }
+    max = 0;
+    changeset = NULL;
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
@@ -168,20 +168,21 @@ kt_change (int argc, char **argv)
     }
 
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
-	int i;
-	int done = 0;
+	int add = 0;
 
-	for (i = 0; i < j; ++i)
-	    if (krb5_principal_compare (context, princs[i],
-					entry.principal))
+	for (i = 0; i < j; ++i) {
+	    if (krb5_principal_compare (context, changeset[i].principal,
+					entry.principal)) {
+		if (changeset[i].kvno < entry.vno)
+		    changeset[i].kvno = entry.vno;
 		break;
+	    }
+	}
 	if (i < j)
 	    continue;
 
 	if (optind == argc) {
-	    change_entry (context, keytab, &entry, realm, admin_server,
-			  server_port);
-	    done = 1;
+	    add = 1;
 	} else {
 	    for (i = optind; i < argc; ++i) {
 		krb5_principal princ;
@@ -191,40 +192,64 @@ kt_change (int argc, char **argv)
 		    krb5_warn (context, ret, "krb5_parse_name %s", argv[i]);
 		    continue;
 		}
-		if (krb5_principal_compare (context, princ, entry.principal)) {
-		    change_entry (context, keytab, &entry,
-				  realm, admin_server, server_port);
-		    done = 1;
-		}
+		if (krb5_principal_compare (context, princ, entry.principal))
+		    add = 1;
+
 		krb5_free_principal (context, princ);
 	    }
 	}
-	if (done) {
+
+	if (add) {
 	    if (j >= max) {
 		void *tmp;
 
-		max *= 2;
-		tmp = realloc (princs, max * sizeof(*princs));
+		max = max(max * 2, 1);
+		tmp = realloc (changeset, max * sizeof(*changeset));
 		if (tmp == NULL) {
 		    krb5_kt_free_entry (context, &entry);
 		    krb5_warnx (context, "realloc: out of memory");
+		    ret = ENOMEM;
 		    break;
 		}
-		princs = tmp;
+		changeset = tmp;
 	    }
-	    ret = krb5_copy_principal (context, entry.principal, &princs[j]);
+	    ret = krb5_copy_principal (context, entry.principal,
+				       &changeset[j].principal);
 	    if (ret) {
 		krb5_warn (context, ret, "krb5_copy_principal");
 		krb5_kt_free_entry (context, &entry);
 		break;
 	    }
+	    changeset[j].kvno = entry.vno;
 	    ++j;
 	}
 	krb5_kt_free_entry (context, &entry);
     }
-    while (j-- > 0)
-	krb5_free_principal (context, princs[j]);
-    free (princs);
+
+    if (ret == KRB5_KT_END) {
+	for (i = 0; i < j; i++) {
+	    if (verbose_flag) {
+		char *client_name;
+
+		ret = krb5_unparse_name (context, changeset[i].principal, 
+					 &client_name);
+		if (ret) {
+		    krb5_warn (context, ret, "krb5_unparse_name");
+		} else {
+		    printf("Changing %s kvno %d\n", 
+			   client_name, changeset[i].kvno);
+		    free(client_name);
+		}
+	    }
+	    change_entry (context, keytab, 
+			  changeset[i].principal, changeset[i].kvno,
+			  realm, admin_server, server_port);
+	}
+    }
+    for (i = 0; i < j; i++)
+	krb5_free_principal (context, changeset[i].principal);
+    free (changeset);
+
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
  out:
     krb5_kt_close(context, keytab);

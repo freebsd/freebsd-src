@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: 8003.c,v 1.11 2002/03/10 23:47:39 assar Exp $");
+RCSID("$Id: 8003.c,v 1.12 2002/10/31 14:38:49 joda Exp $");
 
 static krb5_error_code
 encode_om_uint32(OM_uint32 n, u_char *p)
@@ -100,56 +100,56 @@ gssapi_krb5_create_8003_checksum (
 		      const krb5_data *fwd_data,
 		      Checksum *result)
 {
-  u_char *p;
+    u_char *p;
 
-  /* 
-   * see rfc1964 (section 1.1.1 (Initial Token), and the checksum value 
-   * field's format) */
-  result->cksumtype = 0x8003;
-  if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG))
-    result->checksum.length = 24 + 4 + fwd_data->length;
-  else 
-    result->checksum.length = 24;
-  result->checksum.data   = malloc (result->checksum.length);
-  if (result->checksum.data == NULL) {
-    *minor_status = ENOMEM;
-    return GSS_S_FAILURE;
-  }
+    /* 
+     * see rfc1964 (section 1.1.1 (Initial Token), and the checksum value 
+     * field's format) */
+    result->cksumtype = 0x8003;
+    if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG))
+	result->checksum.length = 24 + 4 + fwd_data->length;
+    else 
+	result->checksum.length = 24;
+    result->checksum.data   = malloc (result->checksum.length);
+    if (result->checksum.data == NULL) {
+	*minor_status = ENOMEM;
+	return GSS_S_FAILURE;
+    }
   
-  p = result->checksum.data;
-  encode_om_uint32 (16, p);
-  p += 4;
-  if (input_chan_bindings == GSS_C_NO_CHANNEL_BINDINGS) {
-    memset (p, 0, 16);
-  } else {
-    hash_input_chan_bindings (input_chan_bindings, p);
-  }
-  p += 16;
-  encode_om_uint32 (flags, p);
-  p += 4;
+    p = result->checksum.data;
+    encode_om_uint32 (16, p);
+    p += 4;
+    if (input_chan_bindings == GSS_C_NO_CHANNEL_BINDINGS) {
+	memset (p, 0, 16);
+    } else {
+	hash_input_chan_bindings (input_chan_bindings, p);
+    }
+    p += 16;
+    encode_om_uint32 (flags, p);
+    p += 4;
 
-  if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG)) {
+    if (fwd_data->length > 0 && (flags & GSS_C_DELEG_FLAG)) {
 #if 0
-     u_char *tmp;
+	u_char *tmp;
 
-     result->checksum.length = 28 + fwd_data->length;
-     tmp = realloc(result->checksum.data, result->checksum.length);
-     if (tmp == NULL)
-        return ENOMEM;
-     result->checksum.data = tmp;
+	result->checksum.length = 28 + fwd_data->length;
+	tmp = realloc(result->checksum.data, result->checksum.length);
+	if (tmp == NULL)
+	    return ENOMEM;
+	result->checksum.data = tmp;
 
-     p = (u_char*)result->checksum.data + 24;  
+	p = (u_char*)result->checksum.data + 24;  
 #endif
-     *p++ = (1 >> 0) & 0xFF;                   /* DlgOpt */ /* == 1 */
-     *p++ = (1 >> 8) & 0xFF;                   /* DlgOpt */ /* == 0 */
-     *p++ = (fwd_data->length >> 0) & 0xFF;    /* Dlgth  */
-     *p++ = (fwd_data->length >> 8) & 0xFF;    /* Dlgth  */
-     memcpy(p, (unsigned char *) fwd_data->data, fwd_data->length);
+	*p++ = (1 >> 0) & 0xFF;                   /* DlgOpt */ /* == 1 */
+	*p++ = (1 >> 8) & 0xFF;                   /* DlgOpt */ /* == 0 */
+	*p++ = (fwd_data->length >> 0) & 0xFF;    /* Dlgth  */
+	*p++ = (fwd_data->length >> 8) & 0xFF;    /* Dlgth  */
+	memcpy(p, (unsigned char *) fwd_data->data, fwd_data->length);
 
-     p += fwd_data->length;
-  }
+	p += fwd_data->length;
+    }
      
-  return GSS_S_COMPLETE;
+    return GSS_S_COMPLETE;
 }
 
 /*
@@ -172,7 +172,7 @@ gssapi_krb5_verify_8003_checksum(
     static unsigned char zeros[16];
 
     /* XXX should handle checksums > 24 bytes */
-    if(cksum->cksumtype != 0x8003) {
+    if(cksum->cksumtype != 0x8003 || cksum->checksum.length < 24) {
 	*minor_status = 0;
 	return GSS_S_BAD_BINDINGS;
     }
@@ -201,27 +201,33 @@ gssapi_krb5_verify_8003_checksum(
     p += sizeof(hash);
     
     decode_om_uint32(p, flags);
+    p += 4;
 
     if (cksum->checksum.length > 24 && (*flags & GSS_C_DELEG_FLAG)) {
+	if(cksum->checksum.length < 28) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_BINDINGS;
+	}
     
-      p += 4;
-    
-      DlgOpt = (p[0] << 0) | (p[1] << 8 );
-      if (DlgOpt != 1) {
-	  *minor_status = 0;
-	  return GSS_S_BAD_BINDINGS;
-      }
-      
-      p += 2;
-      fwd_data->length = (p[0] << 0) | (p[1] << 8);
-      fwd_data->data = malloc(fwd_data->length);
-      if (fwd_data->data == NULL) {
-	  *minor_status = ENOMEM;
-	  return GSS_S_FAILURE;
-      }
+	DlgOpt = (p[0] << 0) | (p[1] << 8);
+	p += 2;
+	if (DlgOpt != 1) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_BINDINGS;
+	}
 
-      p += 2;
-      memcpy(fwd_data->data, p, fwd_data->length);
+	fwd_data->length = (p[0] << 0) | (p[1] << 8);
+	p += 2;
+	if(cksum->checksum.length < 28 + fwd_data->length) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_BINDINGS;
+	}
+	fwd_data->data = malloc(fwd_data->length);
+	if (fwd_data->data == NULL) {
+	    *minor_status = ENOMEM;
+	    return GSS_S_FAILURE;
+	}
+	memcpy(fwd_data->data, p, fwd_data->length);
     }
     
     return GSS_S_COMPLETE;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: acquire_cred.c,v 1.10 2002/08/20 12:02:45 nectar Exp $");
+RCSID("$Id: acquire_cred.c,v 1.13 2003/04/06 00:31:55 lha Exp $");
 
 static krb5_error_code
 get_keytab(krb5_keytab *keytab)
@@ -95,8 +95,9 @@ static OM_uint32 acquire_initiator_cred
     } else if (handle->principal != NULL &&
 	krb5_principal_compare(gssapi_krb5_context, handle->principal,
 	def_princ) == FALSE) {
-	kret = KRB5_PRINC_NOMATCH;
-	goto end;
+	/* Before failing, lets check the keytab */
+	krb5_free_principal(gssapi_krb5_context, def_princ);
+	def_princ = NULL;
     }
     if (def_princ == NULL) {
 	/* We have no existing credentials cache,
@@ -126,7 +127,36 @@ static OM_uint32 acquire_initiator_cred
 	kret = krb5_cc_store_cred(gssapi_krb5_context, ccache, &cred);
 	if (kret)
 	    goto end;
+	handle->lifetime = cred.times.endtime;
+    } else {
+	krb5_creds in_cred, *out_cred;
+	krb5_const_realm realm;
+
+	memset(&in_cred, 0, sizeof(in_cred));
+	in_cred.client = handle->principal;
+	
+	realm = krb5_principal_get_realm(gssapi_krb5_context, 
+					 handle->principal);
+	if (realm == NULL) {
+	    kret = KRB5_PRINC_NOMATCH; /* XXX */
+	    goto end;
+	}
+
+	kret = krb5_make_principal(gssapi_krb5_context, &in_cred.server, 
+				   realm, KRB5_TGS_NAME, realm, NULL);
+	if (kret)
+	    goto end;
+
+	kret = krb5_get_credentials(gssapi_krb5_context, 0, 
+				    ccache, &in_cred, &out_cred);
+	krb5_free_principal(gssapi_krb5_context, in_cred.server);
+	if (kret)
+	    goto end;
+
+	handle->lifetime = out_cred->times.endtime;
+	krb5_free_creds(gssapi_krb5_context, out_cred);
     }
+
     handle->ccache = ccache;
     ret = GSS_S_COMPLETE;
 
@@ -195,12 +225,32 @@ OM_uint32 gss_acquire_cred
     gss_cred_id_t handle;
     OM_uint32 ret;
 
-    gssapi_krb5_init ();
+    GSSAPI_KRB5_INIT ();
 
-    *minor_status = 0;
+    *output_cred_handle = NULL;
+    if (time_rec)
+	*time_rec = 0;
+    if (actual_mechs)
+	*actual_mechs = GSS_C_NO_OID_SET;
+
+    if (desired_mechs) {
+	OM_uint32 present = 0;
+
+	ret = gss_test_oid_set_member(minor_status, GSS_KRB5_MECHANISM,
+				      desired_mechs, &present); 
+	if (ret)
+	    return ret;
+	if (!present) {
+	    *minor_status = 0;
+	    return GSS_S_BAD_MECH;
+	}
+    }
+
     handle = (gss_cred_id_t)malloc(sizeof(*handle));
-    if (handle == GSS_C_NO_CREDENTIAL)
+    if (handle == GSS_C_NO_CREDENTIAL) {
+	*minor_status = ENOMEM;
         return (GSS_S_FAILURE);
+    }
 
     memset(handle, 0, sizeof (*handle));
 
@@ -219,14 +269,17 @@ OM_uint32 gss_acquire_cred
 	    free(handle);
 	    return (ret);
 	}
-    }
-    if (cred_usage == GSS_C_ACCEPT || cred_usage == GSS_C_BOTH) {
+    } else if (cred_usage == GSS_C_ACCEPT || cred_usage == GSS_C_BOTH) {
 	ret = acquire_acceptor_cred(minor_status, desired_name, time_req,
 	    desired_mechs, cred_usage, handle, actual_mechs, time_rec);
 	if (ret != GSS_S_COMPLETE) {
 	    free(handle);
 	    return (ret);
 	}
+    } else {
+	free(handle);
+	*minor_status = GSS_KRB5_S_G_BAD_USAGE;
+	return GSS_S_FAILURE;
     }
     ret = gss_create_empty_oid_set(minor_status, &handle->mechanisms);
     if (ret == GSS_S_COMPLETE)
@@ -241,8 +294,9 @@ OM_uint32 gss_acquire_cred
 	free(handle);
 	return (ret);
     } 
-    /* XXX */
-    handle->lifetime = time_req;
+    *minor_status = 0;
+    if (time_rec)
+	*time_rec = handle->lifetime;
     handle->usage = cred_usage;
     *output_cred_handle = handle;
     return (GSS_S_COMPLETE);

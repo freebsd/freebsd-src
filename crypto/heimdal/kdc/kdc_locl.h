@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kdc_locl.h,v 1.54 2002/08/19 12:18:07 joda Exp $ 
+ * $Id: kdc_locl.h,v 1.58 2003/03/18 00:23:06 lha Exp $ 
  */
 
 #ifndef __KDC_LOCL_H__
@@ -62,11 +62,12 @@ extern krb5_boolean encode_as_rep_as_tgs_rep;
 extern krb5_boolean check_ticket_addresses;
 extern krb5_boolean allow_null_ticket_addresses;
 extern krb5_boolean allow_anonymous;
+extern int enable_524;
+extern int enable_v4_cross_realm;
 
 #ifdef KRB4
 extern char *v4_realm;
 extern int enable_v4;
-extern int enable_524;
 extern krb5_boolean enable_kaserver;
 #endif
 
@@ -96,15 +97,15 @@ krb5_error_code check_flags(hdb_entry *client, const char *client_name,
 			    hdb_entry *server, const char *server_name,
 			    krb5_boolean is_as_req);
 
-#ifdef KRB4
-krb5_error_code db_fetch4 (const char*, const char*, const char*, hdb_entry**);
-krb5_error_code do_524 (const Ticket*, krb5_data*, const char*, struct sockaddr*);
-krb5_error_code do_version4 (unsigned char*, size_t, krb5_data*, const char*, 
-			     struct sockaddr_in*);
+krb5_error_code get_des_key(hdb_entry*, krb5_boolean, krb5_boolean, Key**);
 krb5_error_code encode_v4_ticket (void*, size_t, const EncTicketPart*, 
 				  const PrincipalName*, size_t*);
-krb5_error_code encrypt_v4_ticket (void*, size_t, des_cblock*, EncryptedData*);
-krb5_error_code get_des_key(hdb_entry*, krb5_boolean, krb5_boolean, Key**);
+krb5_error_code do_524 (const Ticket*, krb5_data*, const char*, struct sockaddr*);
+
+#ifdef KRB4
+krb5_error_code db_fetch4 (const char*, const char*, const char*, hdb_entry**);
+krb5_error_code do_version4 (unsigned char*, size_t, krb5_data*, const char*, 
+			     struct sockaddr_in*);
 int maybe_version4 (unsigned char*, int);
 #endif
 

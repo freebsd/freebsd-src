@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.68 2002/09/04 21:40:04 joda Exp $");
+RCSID("$Id: rsh.c,v 1.71 2003/04/16 20:37:20 joda Exp $");
 
 enum auth_method auth_method;
 #if defined(KRB4) || defined(KRB5)
@@ -87,7 +87,7 @@ loop (int s, int errsock)
 	init_ivecs(1);
 #endif
 
-    if (s >= FD_SETSIZE || errsock >= FD_SETSIZE)
+    if (s >= FD_SETSIZE || (errsock != -1 && errsock >= FD_SETSIZE))
 	errx (1, "fd too large");
     
     FD_ZERO(&real_readset);
@@ -167,7 +167,8 @@ send_krb4_auth(int s,
     int status;
     size_t len;
 
-    status = krb_sendauth (do_encrypt ? KOPT_DO_MUTUAL : 0,
+    /* the normal default for krb4 should be to disable encryption */
+    status = krb_sendauth ((do_encrypt == 1) ? KOPT_DO_MUTUAL : 0,
 			   s, &text, "rcmd",
 			   (char *)hostname, krb_realmofhost (hostname),
 			   getpid(), &msg, &cred, schedule,
@@ -304,6 +305,14 @@ send_krb5_auth(int s,
 	return 1;
     }
 
+    if(do_encrypt == -1) {
+	krb5_appdefault_boolean(context, NULL, 
+				krb5_principal_get_realm(context, server), 
+				"encrypt", 
+				FALSE, 
+				&do_encrypt);
+    }
+
     cksum_data.length = asprintf ((char **)&cksum_data.data,
 				  "%u:%s%s%s",
 				  ntohs(socket_get_port(thataddr)),
@@ -343,6 +352,19 @@ send_krb5_auth(int s,
 			    NULL,
 			    NULL);
 
+    /* do this while we have a principal */
+    if(do_forward == -1 || do_forwardable == -1) {
+	krb5_const_realm realm = krb5_principal_get_realm(context, server);
+	if (do_forwardable == -1)
+	    krb5_appdefault_boolean(context, NULL, realm,
+				    "forwardable", FALSE, 
+				    &do_forwardable);
+	if (do_forward == -1)
+	    krb5_appdefault_boolean(context, NULL, realm,
+				    "forward", FALSE, 
+				    &do_forward);
+    }
+    
     krb5_free_principal(context, server);
     krb5_data_free(&cksum_data);
 
@@ -625,13 +647,23 @@ construct_command (char **res, int argc, char **argv)
 }
 
 static char *
-print_addr (const struct sockaddr_in *sin)
+print_addr (const struct sockaddr *sa)
 {
     char addr_str[256];
     char *res;
+    const char *as = NULL;
 
-    inet_ntop (AF_INET, &sin->sin_addr, addr_str, sizeof(addr_str));
-    res = strdup(addr_str);
+    if(sa->sa_family == AF_INET)
+	as = inet_ntop (sa->sa_family, &((struct sockaddr_in*)sa)->sin_addr, 
+			addr_str, sizeof(addr_str));
+#ifdef HAVE_INET6
+    else if(sa->sa_family == AF_INET6)
+	as = inet_ntop (sa->sa_family, &((struct sockaddr_in6*)sa)->sin6_addr, 
+			addr_str, sizeof(addr_str));
+#endif
+    if(as == NULL)
+	return NULL;
+    res = strdup(as);
     if (res == NULL)
 	errx (1, "malloc: out of memory");
     return res;
@@ -640,7 +672,7 @@ print_addr (const struct sockaddr_in *sin)
 static int
 doit_broken (int argc,
 	     char **argv,
-	     int optind,
+	     int hostindex,
 	     struct addrinfo *ai,
 	     const char *remote_user,
 	     const char *local_user,
@@ -652,14 +684,16 @@ doit_broken (int argc,
     struct addrinfo *a;
 
     if (connect (priv_socket1, ai->ai_addr, ai->ai_addrlen) < 0) {
-	if (ai->ai_next == NULL)
-	    return 1;
-
+	int save_errno = errno;
+	
 	close(priv_socket1);
 	close(priv_socket2);
 
 	for (a = ai->ai_next; a != NULL; a = a->ai_next) {
 	    pid_t pid;
+	    char *adr = print_addr(a->ai_addr);
+	    if(adr == NULL)
+		continue;
 
 	    pid = fork();
 	    if (pid < 0)
@@ -667,25 +701,25 @@ doit_broken (int argc,
 	    else if(pid == 0) {
 		char **new_argv;
 		int i = 0;
-		struct sockaddr_in *sin = (struct sockaddr_in *)a->ai_addr;
 
 		new_argv = malloc((argc + 2) * sizeof(*new_argv));
 		if (new_argv == NULL)
 		    errx (1, "malloc: out of memory");
 		new_argv[i] = argv[i];
 		++i;
-		if (optind == i)
-		    new_argv[i++] = print_addr (sin);
+		if (hostindex == i)
+		    new_argv[i++] = adr;
 		new_argv[i++] = "-K";
 		for(; i <= argc; ++i)
 		    new_argv[i] = argv[i - 1];
-		if (optind > 1)
-		    new_argv[optind + 1] = print_addr(sin);
+		if (hostindex > 1)
+		    new_argv[hostindex + 1] = adr;
 		new_argv[argc + 1] = NULL;
 		execv(PATH_RSH, new_argv);
 		err(1, "execv(%s)", PATH_RSH);
 	    } else {
 		int status;
+		free(adr);
 
 		while(waitpid(pid, &status, 0) < 0)
 		    ;
@@ -693,12 +727,14 @@ doit_broken (int argc,
 		    return 0;
 	    }
 	}
+	errno = save_errno;
+	warn("%s", argv[hostindex]);
 	return 1;
     } else {
 	int ret;
 
 	ret = proto (priv_socket1, priv_socket2,
-		     argv[optind],
+		     argv[hostindex],
 		     local_user, remote_user,
 		     cmd, cmd_len,
 		     send_broken_auth);
@@ -841,7 +877,7 @@ main(int argc, char **argv)
 {
     int priv_port1, priv_port2;
     int priv_socket1, priv_socket2;
-    int optind = 0;
+    int argindex = 0;
     int error;
     struct addrinfo hints, *ai;
     int ret = 1;
@@ -867,11 +903,11 @@ main(int argc, char **argv)
 
     if (argc >= 2 && argv[1][0] != '-') {
 	host = argv[host_index = 1];
-	optind = 1;
+	argindex = 1;
     }
     
     if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
-		&optind))
+		&argindex))
 	usage (1);
 
     if (do_help)
@@ -907,37 +943,12 @@ main(int argc, char **argv)
 	else
 	    use_v5 = 0;
     }
-      
-    if (do_forwardable == -1)
-	do_forwardable = krb5_config_get_bool (context, NULL,
-					       "libdefaults",
-					       "forwardable",
-					       NULL);
-	
-    if (do_forward == -1)
-	do_forward = krb5_config_get_bool (context, NULL,
-					   "libdefaults",
-					   "forward",
-					   NULL);
-    else if (do_forward == 0)
-	do_forwardable = 0;
 
-    if (do_forwardable)
+    /* request for forwardable on the command line means we should
+       also forward */
+    if (do_forwardable == 1)
 	do_forward = 1;
-#endif
-#if defined(KRB4) || defined(KRB5)
-    if (do_encrypt == -1) {
-	/* we want to tell the -x flag from the default encryption
-           option */
-#ifdef KRB5
-	/* the normal default for krb4 should be to disable encryption */
-	if(!krb5_config_get_bool (context, NULL,
-				  "libdefaults",
-				  "encrypt",
-				  NULL))
-#endif
-	    do_encrypt = 0;
-    }
+
 #endif
 
 #if defined(KRB4) && defined(KRB5)
@@ -986,10 +997,10 @@ main(int argc, char **argv)
 #endif
 
     if (host == NULL) {
-	if (argc - optind < 1)
+	if (argc - argindex < 1)
 	    usage (1);
 	else
-	    host = argv[host_index = optind++];
+	    host = argv[host_index = argindex++];
     }
     
     if((tmp = strchr(host, '@')) != NULL) {
@@ -998,7 +1009,7 @@ main(int argc, char **argv)
 	host = tmp;
     }
 
-    if (optind == argc) {
+    if (argindex == argc) {
 	close (priv_socket1);
 	close (priv_socket2);
 	argv[0] = "rlogin";
@@ -1013,7 +1024,7 @@ main(int argc, char **argv)
     if (user == NULL)
 	user = local_user;
 
-    cmd_len = construct_command(&cmd, argc - optind, argv + optind);
+    cmd_len = construct_command(&cmd, argc - argindex, argv + argindex);
     
     /*
      * Try all different authentication methods

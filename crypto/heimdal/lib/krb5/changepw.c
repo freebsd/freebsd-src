@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.37.2.1 2002/10/21 14:31:58 joda Exp $");
+RCSID("$Id: changepw.c,v 1.38 2002/09/29 11:48:34 joda Exp $");
 
 static krb5_error_code
 send_request (krb5_context context,

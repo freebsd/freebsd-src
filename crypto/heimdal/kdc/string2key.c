@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999, 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "headers.h"
 #include <getarg.h>
 
-RCSID("$Id: string2key.c,v 1.19 2002/04/18 10:18:07 joda Exp $");
+RCSID("$Id: string2key.c,v 1.20 2003/03/25 12:28:52 joda Exp $");
 
 int version5;
 int version4;
@@ -42,7 +42,7 @@ int afs;
 char *principal;
 char *cell;
 char *password;
-const char *keytype_str = "des-cbc-md5";
+const char *keytype_str = "des3-cbc-sha1";
 int version;
 int help;
 
@@ -76,8 +76,11 @@ tokey(krb5_context context,
 {
     int i;
     krb5_keyblock key;
+    char *e;
     krb5_string_to_key_salt(context, enctype, password, salt, &key);
-    printf("%s: ", label);
+    krb5_enctype_to_string(context, enctype, &e);
+    printf(label, e);
+    printf(": ");
     for(i = 0; i < key.keyvalue.length; i++)
 	printf("%02x", ((unsigned char*)key.keyvalue.data)[i]);
     printf("\n");
@@ -115,23 +118,35 @@ main(int argc, char **argv)
 	version5 = 1;
 
     ret = krb5_string_to_enctype(context, keytype_str, &etype);
-#if 0
     if(ret) {
 	krb5_keytype keytype;
+	int *etypes;
+	unsigned num;
 	ret = krb5_string_to_keytype(context, keytype_str, &keytype);
-	ret = krb5_keytype_to_enctype(context, keytype, &etype);
+	if(ret)
+	    krb5_err(context, 1, ret, "%s", keytype_str);
+	ret = krb5_keytype_to_enctypes(context, keytype, &num, &etypes);
+	if(ret)
+	    krb5_err(context, 1, ret, "%s", keytype_str);
+	if(num == 0)
+	    krb5_errx(context, 1, "there are no encryption types for that keytype");
+	etype = etypes[0];
+	krb5_enctype_to_string(context, etype, &keytype_str);
+	if(num > 1 && version5)
+	    krb5_warnx(context, "ambiguous keytype, using %s", keytype_str);
     }
-#endif
-    if(ret)
-	krb5_err(context, 1, ret, "%s", keytype_str);
     
     if((etype != ETYPE_DES_CBC_CRC &&
 	etype != ETYPE_DES_CBC_MD4 &&
 	etype != ETYPE_DES_CBC_MD5) &&
-       (afs || version4))
-	krb5_errx(context, 1, 
-		  "DES is the only valid keytype for AFS and Kerberos 4");
-    
+       (afs || version4)) {
+	if(!version5) {
+	    etype = ETYPE_DES_CBC_CRC;
+	} else {
+	    krb5_errx(context, 1, 
+		      "DES is the only valid keytype for AFS and Kerberos 4");
+	}
+    }
 
     if(version5 && principal == NULL){
 	printf("Kerberos v5 principal: ");
@@ -160,20 +175,20 @@ main(int argc, char **argv)
     if(version5){
 	krb5_parse_name(context, principal, &princ);
 	krb5_get_pw_salt(context, princ, &salt);
-	tokey(context, etype, password, salt, "Kerberos v5 key");
+	tokey(context, etype, password, salt, "Kerberos 5 (%s)");
 	krb5_free_salt(context, salt);
     }
     if(version4){
 	salt.salttype = KRB5_PW_SALT;
 	salt.saltvalue.length = 0;
 	salt.saltvalue.data = NULL;
-	tokey(context, ETYPE_DES_CBC_MD5, password, salt, "Kerberos v4 key");
+	tokey(context, ETYPE_DES_CBC_MD5, password, salt, "Kerberos 4");
     }
     if(afs){
 	salt.salttype = KRB5_AFS3_SALT;
 	salt.saltvalue.length = strlen(cell);
 	salt.saltvalue.data = cell;
-	tokey(context, ETYPE_DES_CBC_MD5, password, salt, "AFS key");
+	tokey(context, ETYPE_DES_CBC_MD5, password, salt, "AFS");
     }
     return 0;
 }

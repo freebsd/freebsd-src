@@ -853,6 +853,43 @@ AC_CONFIG_COMMANDS_PRE(
 Usually this means the macro was only invoked conditionally.])
 fi])])
 
+# Add --enable-maintainer-mode option to configure.
+# From Jim Meyering
+
+# Copyright 1996, 1998, 2000, 2001 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+# 02111-1307, USA.
+
+# serial 1
+
+AC_DEFUN([AM_MAINTAINER_MODE],
+[AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
+  dnl maintainer-mode is disabled by default
+  AC_ARG_ENABLE(maintainer-mode,
+[  --enable-maintainer-mode enable make rules and dependencies not useful
+                          (and sometimes confusing) to the casual installer],
+      USE_MAINTAINER_MODE=$enableval,
+      USE_MAINTAINER_MODE=no)
+  AC_MSG_RESULT([$USE_MAINTAINER_MODE])
+  AM_CONDITIONAL(MAINTAINER_MODE, [test $USE_MAINTAINER_MODE = yes])
+  MAINT=$MAINTAINER_MODE_TRUE
+  AC_SUBST(MAINT)dnl
+]
+)
+
 
 # Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
@@ -4759,7 +4796,7 @@ esac
 AC_SUBST(LIB_$1)
 ])
 
-dnl $Id: crypto.m4,v 1.13 2002/09/10 19:55:48 joda Exp $
+dnl $Id: crypto.m4,v 1.16.2.1 2003/05/05 20:08:32 joda Exp $
 dnl
 dnl test for crypto libraries:
 dnl - libcrypto (from openssl)
@@ -4772,8 +4809,10 @@ m4_define([test_headers], [
 		#include <openssl/md4.h>
 		#include <openssl/md5.h>
 		#include <openssl/sha.h>
+		#define OPENSSL_DES_LIBDES_COMPATIBILITY
 		#include <openssl/des.h>
 		#include <openssl/rc4.h>
+		#include <openssl/rand.h>
 		#else
 		#include <md4.h>
 		#include <md5.h>
@@ -4805,6 +4844,9 @@ m4_define([test_body], [
 		MD4_Init(&md4);
 		MD5_Init(&md5);
 		SHA1_Init(&sha1);
+		#ifdef HAVE_OPENSSL
+		RAND_status();
+		#endif
 
 		des_cbc_encrypt(0, 0, 0, schedule, 0, 0);
 		RC4(0, 0, 0, 0);])
@@ -4836,23 +4878,31 @@ if test "$crypto_lib" = "unknown" -a "$with_krb4" != "no"; then
 	ires=
 	for i in $INCLUDE_krb4; do
 		CFLAGS="-DHAVE_OPENSSL $i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=yes ires="$i"; break)
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=yes ires="$i" lres="$j $k"; break 3)
+			done
+		done
 		CFLAGS="$i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=no ires="$i"; break)
-		CFLAGS="-DOLD_HASH_NAMES $i $save_CFLAGS"
-		AC_TRY_COMPILE(test_headers, test_body,
-			openssl=no ires="$i" old_hash=yes; break)
-	done
-	lres=
-	for i in $cdirs; do
-		for j in $clibs; do
-			LIBS="$i $j $save_LIBS"
-			AC_TRY_LINK(test_headers, test_body,
-				lres="$i $j"; break 2)
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=no ires="$i" lres="$j $k"; break 3)
+			done
+		done
+		CFLAGS="-DHAVE_OLD_HASH_NAMES $i $save_CFLAGS"
+		for j in $cdirs; do
+			for k in $clibs; do
+				LIBS="$j $k $save_LIBS"
+				AC_TRY_LINK(test_headers, test_body,
+					openssl=no ires="$i" lres="$j $k"; break 3)
+			done
 		done
 	done
+		
 	CFLAGS="$save_CFLAGS"
 	LIBS="$save_LIBS"
 	if test "$ires" -a "$lres"; then
@@ -4872,21 +4922,27 @@ if test "$crypto_lib" = "unknown" -a "$with_openssl" != "no"; then
 	INCLUDE_des=
 	LIB_des=
 	if test "$with_openssl_include" != ""; then
-		INCLUDE_des="-I${with_openssl}/include"
+		INCLUDE_des="-I${with_openssl_include}"
 	fi
 	if test "$with_openssl_lib" != ""; then
-		LIB_des="-L${with_openssl}/lib"
+		LIB_des="-L${with_openssl_lib}"
 	fi
 	CFLAGS="-DHAVE_OPENSSL ${INCLUDE_des} ${CFLAGS}"
-	LIB_des="${LIB_des} -lcrypto"
-	LIB_des_a="$LIB_des"
-	LIB_des_so="$LIB_des"
-	LIB_des_appl="$LIB_des"
-	LIBS="${LIBS} ${LIB_des}"
-	AC_TRY_LINK(test_headers, test_body, [
-		crypto_lib=libcrypto openssl=yes
-		AC_MSG_RESULT([libcrypto])
-	])
+	saved_LIB_des="$LIB_des"
+	for lres in "" "-lnsl -lsocket"; do
+		LIB_des="${saved_LIB_des} -lcrypto $lres"
+		LIB_des_a="$LIB_des"
+		LIB_des_so="$LIB_des"
+		LIB_des_appl="$LIB_des"
+		LIBS="${LIBS} ${LIB_des}"
+		AC_TRY_LINK(test_headers, test_body, [
+			crypto_lib=libcrypto openssl=yes
+			AC_MSG_RESULT([libcrypto])
+		])
+		if test "$crypto_lib" = libcrypto ; then
+			break;
+		fi
+	done
 	CFLAGS="$save_CFLAGS"
 	LIBS="$save_LIBS"
 fi
@@ -5171,7 +5227,7 @@ AC_SUBST(DBLIB)dnl
 AC_SUBST(LIB_NDBM)dnl
 ])
 
-dnl $Id: roken-frag.m4,v 1.44 2002/09/04 20:57:30 joda Exp $
+dnl $Id: roken-frag.m4,v 1.45 2002/12/18 17:34:25 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
@@ -5316,7 +5372,7 @@ AC_FIND_FUNC(res_nsearch, resolv,
 #include <resolv.h>
 #endif
 ],
-[0,0,0,0,0])
+[0,0,0,0,0,0])
 
 AC_FIND_FUNC(dn_expand, resolv,
 [
@@ -6054,16 +6110,23 @@ sin6.sin6_addr = in6addr_loopback;
 	fi
 fi
 ])
-dnl $Id: check-var.m4,v 1.6 2001/08/21 12:00:16 joda Exp $
+dnl $Id: check-var.m4,v 1.7 2003/02/17 00:44:57 lha Exp $
 dnl
 dnl rk_CHECK_VAR(variable, includes)
 AC_DEFUN([rk_CHECK_VAR], [
 AC_MSG_CHECKING(for $1)
 AC_CACHE_VAL(ac_cv_var_$1, [
+m4_ifval([$2],[
+	AC_TRY_LINK([$2
+	void * foo() { return &$1; }],
+	    [foo()],
+	    ac_cv_var_$1=yes, ac_cv_var_$1=no)])
+if test "$ac_cv_var_$1" != yes ; then
 AC_TRY_LINK([extern int $1;
 int foo() { return $1; }],
 	    [foo()],
 	    ac_cv_var_$1=yes, ac_cv_var_$1=no)
+fi
 ])
 ac_foo=`eval echo \\$ac_cv_var_$1`
 AC_MSG_RESULT($ac_foo)
@@ -6076,6 +6139,7 @@ fi
 
 AC_WARNING_ENABLE([obsolete])
 AU_DEFUN([AC_CHECK_VAR], [rk_CHECK_VAR([$2], [$1])], [foo])
+
 dnl $Id: check-declaration.m4,v 1.3 1999/03/01 13:03:08 joda Exp $
 dnl
 dnl
@@ -6719,7 +6783,7 @@ AH_BOTTOM([
 ])
 
 dnl
-dnl $Id: sunos.m4,v 1.1.4.1 2002/10/21 14:29:36 joda Exp $
+dnl $Id: sunos.m4,v 1.2 2002/10/16 14:42:13 joda Exp $
 dnl
 
 AC_DEFUN([rk_SUNOS],[
@@ -7037,7 +7101,7 @@ AH_BOTTOM([
 ])
 ])
 
-dnl $Id: check-compile-et.m4,v 1.6 2001/09/02 17:08:48 assar Exp $
+dnl $Id: check-compile-et.m4,v 1.7 2003/03/12 16:48:52 lha Exp $
 dnl
 dnl CHECK_COMPILE_ET
 AC_DEFUN([CHECK_COMPILE_ET], [
@@ -7045,6 +7109,7 @@ AC_DEFUN([CHECK_COMPILE_ET], [
 AC_CHECK_PROG(COMPILE_ET, compile_et, [compile_et])
 
 krb_cv_compile_et="no"
+krb_cv_com_err_need_r=""
 if test "${COMPILE_ET}" = "compile_et"; then
 
 dnl We have compile_et.  Now let's see if it supports `prefix' and `index'.
@@ -7073,6 +7138,20 @@ int main(){return (CONFTEST_CODE2 - CONFTEST_CODE1) != 127;}
   ], [krb_cv_compile_et="yes"],[CPPFLAGS="${save_CPPFLAGS}"])
 fi
 AC_MSG_RESULT(${krb_cv_compile_et})
+if test "${krb_cv_compile_et}" = "yes"; then
+  AC_MSG_CHECKING(for if com_err needs to have a initialize_error_table_r)
+  save2_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS"
+  AC_EGREP_CPP(initialize_error_table_r,[#include "conftest_et.c"],
+     [krb_cv_com_err_need_r="initialize_error_table_r(0,0,0,0);"
+      CPPFLAGS="$save2_CPPFLAGS"],
+     [CPPFLAGS="${save_CPPFLAGS}"])
+  if test X"$krb_cv_com_err_need_r" = X ; then
+    AC_MSG_RESULT(no)
+  else
+    AC_MSG_RESULT(yes)
+  fi
+fi
 rm -fr conftest*
 fi
 
@@ -7084,6 +7163,7 @@ if test "${krb_cv_compile_et}" = "yes"; then
   AC_TRY_LINK([#include <com_err.h>],[
     const char *p;
     p = error_message(0);
+    $krb_cv_com_err_need_r
   ],[krb_cv_com_err="yes"],[krb_cv_com_err="no"; CPPFLAGS="${save_CPPFLAGS}"])
   AC_MSG_RESULT(${krb_cv_com_err})
   LIBS="${krb_cv_save_LIBS}"

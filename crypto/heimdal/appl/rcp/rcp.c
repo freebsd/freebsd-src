@@ -41,7 +41,7 @@ uid_t	userid;
 int     errs, remin, remout;
 int     pflag, iamremote, iamrecursive, targetshouldbedirectory;
 int     doencrypt, noencrypt;
-int     usebroken, usekrb5, forwardtkt;
+int     usebroken, usekrb4, usekrb5, forwardtkt;
 char    *port;
 
 #define	CMDNEEDS	64
@@ -61,6 +61,7 @@ static int fflag, tflag;
 static int version_flag, help_flag;
 
 struct getargs args[] = {
+    { NULL,	'4', arg_flag,		&usekrb4,	"use Kerberos 4 authentication" },
     { NULL,	'5', arg_flag,		&usekrb5,	"use Kerberos 5 authentication" },
     { NULL,	'F', arg_flag,		&forwardtkt,	"forward credentials" },
     { NULL,	'K', arg_flag,		&usebroken,	"use BSD authentication" },
@@ -751,6 +752,8 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout)
 
 		i = 0;
 		args[i++] = RSH_PROGRAM;
+		if (usekrb4)
+			args[i++] = "-4";
 		if (usekrb5)
 			args[i++] = "-5";
 		if (usebroken)

@@ -1,10 +1,10 @@
-# $Id: Makefile.am,v 1.51 2002/08/16 20:57:09 joda Exp $
+# $Id: Makefile.am,v 1.51.6.1 2003/05/12 15:20:46 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 lib_LTLIBRARIES = libkadm5srv.la libkadm5clnt.la
-libkadm5srv_la_LDFLAGS = -version-info 7:5:0
-libkadm5clnt_la_LDFLAGS = -version-info 6:3:2
+libkadm5srv_la_LDFLAGS = -version-info 7:6:0
+libkadm5clnt_la_LDFLAGS = -version-info 6:4:2
 sbin_PROGRAMS = dump_log replay_log truncate_log
 
 libkadm5srv_la_LIBADD = ../krb5/libkrb5.la ../hdb/libhdb.la ../roken/libroken.la

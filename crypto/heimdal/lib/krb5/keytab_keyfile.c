@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.14.2.1 2002/10/21 16:07:26 joda Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.15 2002/10/21 15:42:06 joda Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rshd.c,v 1.47 2002/09/03 20:03:26 joda Exp $");
+RCSID("$Id: rshd.c,v 1.51 2003/04/16 19:50:49 joda Exp $");
 
 int
 login_access( struct passwd *user, char *from);
@@ -68,9 +68,7 @@ static int do_kerberos = 0;
 #define DO_KRB5 4
 static int do_vacuous = 0;
 static int do_log = 1;
-#ifdef KRB4
 static int do_newpag = 1;
-#endif
 static int do_addr_verify = 0;
 static int do_keepalive = 1;
 static int do_version;
@@ -100,7 +98,7 @@ syslog_and_die (const char *m, ...)
 
 static void
 fatal (int, const char*, const char *, ...)
-    __attribute__ ((format (printf, 3, 4)));
+    __attribute__ ((noreturn, format (printf, 3, 4)));
 
 static void
 fatal (int sock, const char *what, const char *m, ...)
@@ -122,38 +120,41 @@ fatal (int sock, const char *what, const char *m, ...)
     exit (1);
 }
 
-static void
-read_str (int s, char *str, size_t sz, char *expl)
+static char *
+read_str (int s, size_t sz, char *expl)
 {
-    while (sz > 0) {
-	if (net_read (s, str, 1) != 1)
-	    syslog_and_die ("read: %m");
-	if (*str == '\0')
-	    return;
-	--sz;
-	++str;
+    char *str = malloc(sz);
+    char *p = str;
+    if(str == NULL)
+	fatal(s, NULL, "%s too long", expl);
+    while(p < str + sz) {
+	if(net_read(s, p, 1) != 1)
+	    syslog_and_die("read: %m");
+	if(*p == '\0')
+	    return str;
+	p++;
     }
-    fatal (s, NULL, "%s too long", expl);
+    fatal(s, NULL, "%s too long", expl);
 }
 
 static int
 recv_bsd_auth (int s, u_char *buf,
 	       struct sockaddr_in *thisaddr,
 	       struct sockaddr_in *thataddr,
-	       char *client_username,
-	       char *server_username,
-	       char *cmd)
+	       char **client_username,
+	       char **server_username,
+	       char **cmd)
 {
     struct passwd *pwd;
-
-    read_str (s, client_username, USERNAME_SZ, "local username");
-    read_str (s, server_username, USERNAME_SZ, "remote username");
-    read_str (s, cmd, COMMAND_SZ, "command");
-    pwd = getpwnam(server_username);
+    
+    *client_username = read_str (s, USERNAME_SZ, "local username");
+    *server_username = read_str (s, USERNAME_SZ, "remote username");
+    *cmd = read_str (s, ARG_MAX + 1, "command");
+    pwd = getpwnam(*server_username);
     if (pwd == NULL)
 	fatal(s, NULL, "Login incorrect.");
     if (iruserok(thataddr->sin_addr.s_addr, pwd->pw_uid == 0,
-		 client_username, server_username))
+		 *client_username, *server_username))
 	fatal(s, NULL, "Login incorrect.");
     return 0;
 }
@@ -163,9 +164,9 @@ static int
 recv_krb4_auth (int s, u_char *buf,
 		struct sockaddr *thisaddr,
 		struct sockaddr *thataddr,
-		char *client_username,
-		char *server_username,
-		char *cmd)
+		char **client_username,
+		char **server_username,
+		char **cmd)
 {
     int status;
     int32_t options;
@@ -202,18 +203,18 @@ recv_krb4_auth (int s, u_char *buf,
     if (strncmp (version, KCMD_OLD_VERSION, KRB_SENDAUTH_VLEN) != 0)
 	syslog_and_die ("bad version: %s", version);
 
-    read_str (s, server_username, USERNAME_SZ, "remote username");
-    if (kuserok (&auth, server_username) != 0)
+    *server_username = read_str (s, USERNAME_SZ, "remote username");
+    if (kuserok (&auth, *server_username) != 0)
 	fatal (s, NULL, "Permission denied.");
-    read_str (s, cmd, COMMAND_SZ, "command");
+    *cmd = read_str (s, ARG_MAX + 1, "command");
 
     syslog(LOG_INFO|LOG_AUTH,
 	   "kerberos v4 shell from %s on %s as %s, cmd '%.80s'",
 	   krb_unparse_name_long(auth.pname, auth.pinst, auth.prealm),
 
 	   inet_ntoa(((struct sockaddr_in *)thataddr)->sin_addr),
-	   server_username,
-	   cmd);
+	   *server_username,
+	   *cmd);
 
     memcpy (iv, auth.session, sizeof(iv));
 
@@ -249,6 +250,9 @@ save_krb5_creds (int s,
   
     krb5_cc_initialize(context,ccache,client);
     ret = krb5_rd_cred2(context, auth_context, ccache, &remote_cred);
+    if(ret != 0)
+	syslog(LOG_INFO|LOG_AUTH,
+	       "reading creds: %s", krb5_get_err_text(context, ret));
     krb5_data_free (&remote_cred);
     if (ret)
 	return 0;
@@ -299,9 +303,9 @@ static int
 recv_krb5_auth (int s, u_char *buf,
 		struct sockaddr *thisaddr,
 		struct sockaddr *thataddr,
-		char *client_username,
-		char *server_username,
-		char *cmd)
+		char **client_username,
+		char **server_username,
+		char **cmd)
 {
     u_int32_t len;
     krb5_auth_context auth_context = NULL;
@@ -343,9 +347,9 @@ recv_krb5_auth (int s, u_char *buf,
 	syslog_and_die ("krb5_recvauth: %s",
 			krb5_get_err_text(context, status));
 
-    read_str (s, server_username, USERNAME_SZ, "remote username");
-    read_str (s, cmd, COMMAND_SZ, "command");
-    read_str (s, client_username, COMMAND_SZ, "local username");
+    *server_username = read_str (s, USERNAME_SZ, "remote username");
+    *cmd = read_str (s, ARG_MAX + 1, "command");
+    *client_username = read_str (s, ARG_MAX + 1, "local username");
 
     if(protocol_version == 2) {
 	status = krb5_auth_con_getremotesubkey(context, auth_context, 
@@ -370,8 +374,8 @@ recv_krb5_auth (int s, u_char *buf,
     cksum_data.length = asprintf ((char **)&cksum_data.data,
 				  "%u:%s%s",
 				  ntohs(socket_get_port (thisaddr)),
-				  cmd,
-				  server_username);
+				  *cmd,
+				  *server_username);
 
     status = krb5_verify_authenticator_checksum(context, 
 						auth_context,
@@ -384,38 +388,38 @@ recv_krb5_auth (int s, u_char *buf,
 
     free (cksum_data.data);
 
-    if (strncmp (client_username, "-u ", 3) == 0) {
+    if (strncmp (*client_username, "-u ", 3) == 0) {
 	do_unique_tkfile = 1;
-	memmove (client_username, client_username + 3,
-		 strlen(client_username) - 2);
+	memmove (*client_username, *client_username + 3,
+		 strlen(*client_username) - 2);
     }
 
-    if (strncmp (client_username, "-U ", 3) == 0) {
+    if (strncmp (*client_username, "-U ", 3) == 0) {
 	char *end, *temp_tkfile;
 
 	do_unique_tkfile = 1;
-	if (strncmp (server_username + 3, "FILE:", 5) == 0) {
+	if (strncmp (*client_username + 3, "FILE:", 5) == 0) {
 	    temp_tkfile = tkfile;
 	} else {
 	    strcpy (tkfile, "FILE:");
 	    temp_tkfile = tkfile + 5;
 	}
-	end = strchr(client_username + 3,' ');
-	strncpy(temp_tkfile, client_username + 3, end - client_username - 3);
-	temp_tkfile[end - client_username - 3] = '\0';
-	memmove (client_username, end +1, strlen(end+1)+1);
+	end = strchr(*client_username + 3,' ');
+	strncpy(temp_tkfile, *client_username + 3, end - *client_username - 3);
+	temp_tkfile[end - *client_username - 3] = '\0';
+	memmove (*client_username, end + 1, strlen(end+1)+1);
     }
 
     kerberos_status = save_krb5_creds (s, auth_context, ticket->client);
 
     if(!krb5_kuserok (context,
-		     ticket->client,
-		     server_username))
+		      ticket->client,
+		      *server_username))
 	fatal (s, NULL, "Permission denied.");
 
-    if (strncmp (cmd, "-x ", 3) == 0) {
+    if (strncmp (*cmd, "-x ", 3) == 0) {
 	do_encrypt = 1;
-	memmove (cmd, cmd + 3, strlen(cmd) - 2);
+	memmove (*cmd, *cmd + 3, strlen(*cmd) - 2);
     } else {
 	if(do_encrypt)
 	    fatal (s, NULL, "Encryption is required.");
@@ -438,8 +442,8 @@ recv_krb5_auth (int s, u_char *buf,
 		   "kerberos v5 shell from %s on %s as %s, cmd '%.80s'",
 		   name,
 		   addr_str,
-		   server_username,
-		   cmd);
+		   *server_username,
+		   *cmd);
 	    free (name);
 	}
     }	   
@@ -649,8 +653,7 @@ doit (void)
     socklen_t thisaddr_len, thataddr_len;
     int port;
     int errsock = -1;
-    char client_user[COMMAND_SZ], server_user[USERNAME_SZ];
-    char cmd[COMMAND_SZ];
+    char *client_user, *server_user, *cmd;
     struct passwd *pwd;
     int s = STDIN_FILENO;
     char **env;
@@ -724,18 +727,18 @@ doit (void)
 #ifdef KRB4
 	if ((do_kerberos & DO_KRB4) && 
 	    recv_krb4_auth (s, buf, thisaddr, thataddr,
-			    client_user,
-			    server_user,
-			    cmd) == 0)
+			    &client_user,
+			    &server_user,
+			    &cmd) == 0)
 	    auth_method = AUTH_KRB4;
 	else
 #endif /* KRB4 */
 #ifdef KRB5
 	    if((do_kerberos & DO_KRB5) &&
 	       recv_krb5_auth (s, buf, thisaddr, thataddr,
-			       client_user,
-			       server_user,
-			       cmd) == 0)
+			       &client_user,
+			       &server_user,
+			       &cmd) == 0)
 		auth_method = AUTH_KRB5;
 	    else
 #endif /* KRB5 */
@@ -745,9 +748,9 @@ doit (void)
 	if(recv_bsd_auth (s, buf,
 			  (struct sockaddr_in *)thisaddr,
 			  (struct sockaddr_in *)thataddr,
-			  client_user,
-			  server_user,
-			  cmd) == 0) {
+			  &client_user,
+			  &server_user,
+			  &cmd) == 0) {
 	    auth_method = AUTH_BROKEN;
 	    if(do_vacuous) {
 		printf("Remote host requires Kerberos authentication\n");
@@ -864,16 +867,17 @@ doit (void)
 	    fatal (s, "net_write", "write failed");
     }
 
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
     if(k_hasafs()) {
 	char cell[64];
 
 	if(do_newpag)
 	    k_setpag();
+#ifdef KRB4
 	if (k_afs_cell_of_file (pwd->pw_dir, cell, sizeof(cell)) == 0)
 	    krb_afslog_uid_home (cell, NULL, pwd->pw_uid, pwd->pw_dir);
-
 	krb_afslog_uid_home(NULL, NULL, pwd->pw_uid, pwd->pw_dir);
+#endif
 
 #ifdef KRB5
 	/* XXX */
@@ -883,14 +887,17 @@ doit (void)
 
 	   status = krb5_cc_resolve (context, tkfile, &ccache);
 	   if (!status) {
-	       krb5_afslog_uid_home(context,ccache,NULL,NULL,
+	       if (k_afs_cell_of_file (pwd->pw_dir, cell, sizeof(cell)) == 0)
+		   krb5_afslog_uid_home(context, ccache, cell, NULL,
+					pwd->pw_uid, pwd->pw_dir);
+	       krb5_afslog_uid_home(context, ccache, NULL, NULL,
 				    pwd->pw_uid, pwd->pw_dir);
 	       krb5_cc_close (context, ccache);
 	   }
        }
 #endif /* KRB5 */
     }
-#endif /* KRB4 */
+#endif /* KRB5 || KRB4 */
     execle (pwd->pw_shell, pwd->pw_shell, "-c", cmd, NULL, env);
     err(1, "exec %s", pwd->pw_shell);
 }

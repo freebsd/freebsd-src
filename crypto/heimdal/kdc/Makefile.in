@@ -14,11 +14,11 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am,v 1.43 2001/08/28 08:31:27 assar Exp $
+# $Id: Makefile.am,v 1.44 2003/01/14 05:47:06 lha Exp $
 
 # $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
 
-# $Id: Makefile.am.common,v 1.36 2002/08/19 16:10:25 joda Exp $
+# $Id: Makefile.am.common,v 1.37.2.1 2003/05/08 17:08:09 joda Exp $
 SHELL = @SHELL@
 
 srcdir = @srcdir@
@@ -114,6 +114,7 @@ LIB_roken = @LIB_roken@
 LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+MAINT = @MAINT@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
 NROFF = @NROFF@
@@ -192,7 +193,7 @@ LIB_readline = @LIB_readline@
 
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
 @KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
@@ -216,7 +217,7 @@ kstash_SOURCES = kstash.c headers.h
 
 string2key_SOURCES = string2key.c headers.h
 
-@KRB4_TRUE@krb4_sources = 524.c kerberos4.c kaserver.c rx.h
+@KRB4_TRUE@krb4_sources = kaserver.c rx.h
 @KRB4_FALSE@krb4_sources = 
 
 kdc_SOURCES = \
@@ -227,6 +228,8 @@ kdc_SOURCES = \
 	log.c		\
 	main.c		\
 	misc.c		\
+	524.c		\
+	kerberos4.c	\
 	$(krb4_sources)
 
 
@@ -284,11 +287,11 @@ hpropd_DEPENDENCIES = $(top_builddir)/lib/hdb/libhdb.la \
 	$(top_builddir)/lib/krb5/libkrb5.la \
 	$(top_builddir)/lib/asn1/libasn1.la
 hpropd_LDFLAGS =
-@KRB4_TRUE@am__objects_1 = 524.$(OBJEXT) kerberos4.$(OBJEXT) \
-@KRB4_TRUE@	kaserver.$(OBJEXT)
+@KRB4_TRUE@am__objects_1 = kaserver.$(OBJEXT)
 @KRB4_FALSE@am__objects_1 =
 am_kdc_OBJECTS = config.$(OBJEXT) connect.$(OBJEXT) kerberos5.$(OBJEXT) \
-	log.$(OBJEXT) main.$(OBJEXT) misc.$(OBJEXT) $(am__objects_1)
+	log.$(OBJEXT) main.$(OBJEXT) misc.$(OBJEXT) 524.$(OBJEXT) \
+	kerberos4.$(OBJEXT) $(am__objects_1)
 kdc_OBJECTS = $(am_kdc_OBJECTS)
 kdc_DEPENDENCIES = $(top_builddir)/lib/hdb/libhdb.la \
 	$(top_builddir)/lib/krb5/libkrb5.la \
@@ -334,10 +337,10 @@ all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .et .h .x .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .c .lo .o .obj
-$(srcdir)/Makefile.in:  Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --foreign  kdc/Makefile
-Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 install-binPROGRAMS: $(bin_PROGRAMS)
@@ -614,7 +617,9 @@ info: info-am
 
 info-am:
 
-install-data-am: install-data-local install-man
+install-data-am: install-man
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 
 install-exec-am: install-binPROGRAMS install-libexecPROGRAMS \
 	install-sbinPROGRAMS
@@ -646,14 +651,13 @@ uninstall-man: uninstall-man8
 	clean-libtool clean-sbinPROGRAMS distclean distclean-compile \
 	distclean-generic distclean-libtool distclean-tags distdir dvi \
 	dvi-am info info-am install install-am install-binPROGRAMS \
-	install-data install-data-am install-data-local install-exec \
-	install-exec-am install-info install-info-am \
-	install-libexecPROGRAMS install-man install-man8 \
-	install-sbinPROGRAMS install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-libtool tags uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-info-am \
+	install-data install-data-am install-exec install-exec-am \
+	install-info install-info-am install-libexecPROGRAMS \
+	install-man install-man8 install-sbinPROGRAMS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-libtool tags uninstall \
+	uninstall-am uninstall-binPROGRAMS uninstall-info-am \
 	uninstall-libexecPROGRAMS uninstall-man uninstall-man8 \
 	uninstall-sbinPROGRAMS
 
@@ -781,7 +785,7 @@ dist-hook: dist-cat1-mans dist-cat3-mans dist-cat5-mans dist-cat8-mans
 install-cat-mans:
 	$(SHELL) $(top_srcdir)/cf/install-catman.sh "$(INSTALL_DATA)" "$(mkinstalldirs)" "$(srcdir)" "$(DESTDIR)$(mandir)" '$(CATMANEXT)' $(man_MANS) $(man1_MANS) $(man3_MANS) $(man5_MANS) $(man8_MANS)
 
-install-data-local: install-cat-mans
+install-data-hook: install-cat-mans
 
 .et.h:
 	$(COMPILE_ET) $<

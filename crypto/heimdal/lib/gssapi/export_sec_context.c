@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: export_sec_context.c,v 1.4 2001/02/18 03:39:09 assar Exp $");
+RCSID("$Id: export_sec_context.c,v 1.6 2003/03/16 18:02:52 lha Exp $");
 
 OM_uint32
 gss_export_sec_context (
@@ -51,9 +51,11 @@ gss_export_sec_context (
     OM_uint32 minor;
     krb5_error_code kret;
 
-    gssapi_krb5_init ();
-    if (!((*context_handle)->flags & GSS_C_TRANS_FLAG))
+    GSSAPI_KRB5_INIT ();
+    if (!((*context_handle)->flags & GSS_C_TRANS_FLAG)) {
+	*minor_status = 0;
 	return GSS_S_UNAVAILABLE;
+    }
 
     sp = krb5_storage_emem ();
     if (sp == NULL) {
@@ -145,27 +147,6 @@ gss_export_sec_context (
 	    goto failure;
 	}
 
-#if 0
-    {
-	size_t sz;
-	unsigned char auth_buf[1024];
-
-	ret = encode_Authenticator (auth_buf, sizeof(auth_buf),
-				    ac->authenticator, &sz);
-	if (ret) {
-	    krb5_storage_free (sp);
-	    *minor_status = ret;
-	    return GSS_S_FAILURE;
-	}
-	data.data   = auth_buf;
-	data.length = sz;
-	kret = krb5_store_data (sp, data);
-	if (kret) {
-	    *minor_status = kret;
-	    goto failure;
-	}
-    }
-#endif
     kret = krb5_store_int32 (sp, ac->keytype);
     if (kret) {
 	*minor_status = kret;
@@ -196,6 +177,9 @@ gss_export_sec_context (
 	goto failure;
     data.data   = buffer.value;
     data.length = buffer.length;
+
+    ret = GSS_S_FAILURE;
+
     kret = krb5_store_data (sp, data);
     gss_release_buffer (&minor, &buffer);
     if (kret) {
@@ -213,6 +197,11 @@ gss_export_sec_context (
 	*minor_status = kret;
 	goto failure;
     }
+    kret = krb5_store_int32 (sp, (*context_handle)->lifetime);
+    if (kret) {
+	*minor_status = kret;
+	goto failure;
+    }
 
     kret = krb5_storage_to_data (sp, &data);
     krb5_storage_free (sp);
@@ -226,6 +215,7 @@ gss_export_sec_context (
 				  GSS_C_NO_BUFFER);
     if (ret != GSS_S_COMPLETE)
 	gss_release_buffer (NULL, interprocess_token);
+    *minor_status = 0;
     return ret;
  failure:
     krb5_storage_free (sp);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: parse_units.h,v 1.7 2001/09/04 09:56:00 assar Exp $ */
+/* $Id: parse_units.h,v 1.8 2003/04/16 17:30:54 lha Exp $ */
 
 #ifndef __PARSE_UNITS_H__
 #define __PARSE_UNITS_H__
@@ -43,8 +43,6 @@ struct units {
     const char *name;
     unsigned mult;
 };
-
-typedef struct units units;
 
 int
 parse_units (const char *s, const struct units *units,
