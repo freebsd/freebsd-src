@@ -970,9 +970,11 @@ thread_update_usr_ticks(struct thread *td, int user)
 	if ((ku = td->td_upcall) == NULL)
 		return (-1);
 
-	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
-	if ((tmbx == NULL) || (tmbx == (void *)-1))
-		return (-1);
+	if ((tmbx = td->td_mailbox) == NULL) {
+		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
+		if ((tmbx == NULL) || (tmbx == (void *)-1))
+			return (-1);
+	}
 	if (user) {
 		uticks = td->td_uuticks;
 		td->td_uuticks = 0;
@@ -1292,7 +1294,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		/* NOTREACHED */
 	}
 
-	KASSERT(ku != NULL, ("upcall is NULL\n"));
+	KASSERT(ku != NULL, ("upcall is NULL"));
 	KASSERT(TD_CAN_UNBIND(td) == 0, ("can unbind"));
 
 	if (p->p_numthreads > max_threads_per_proc) {
