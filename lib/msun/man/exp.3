@@ -264,7 +264,8 @@ cases.  Here are reasons for returning x**0 = 1 always:
 .It
 Any program that already tests whether x is zero (or
 infinite or \*(Na) before computing x**0 cannot care
-whether 0**0 = 1 or not. Any program that depends
+whether 0**0 = 1 or not.
+Any program that depends
 upon 0**0 to be invalid is dubious anyway since that
 expression's meaning and, if invalid, its consequences 
 vary from one computer system to another.

@@ -46,20 +46,26 @@ The
 function is used to indicate to the implementation that storage for the
 thread
 .Fa thread
-can be reclaimed when the thread terminates. If
+can be reclaimed when the thread terminates.
+If
 .Fa thread
 has not terminated,
 .Fn pthread_detach
-will not cause it to terminate. The effect of multiple 
+will not cause it to terminate.
+The effect of multiple 
 .Fn pthread_detach
 calls on the same target thread is unspecified.
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_detach
-function will return zero. Otherwise an error number will be returned to
-indicate the error. Note that the function does not change the value
-of errno as it did for some drafts of the standard. These early drafts
-also passed a pointer to pthread_t as the argument. Beware!
+function will return zero.
+Otherwise an error number will be returned to
+indicate the error.
+Note that the function does not change the value
+of errno as it did for some drafts of the standard.
+These early drafts
+also passed a pointer to pthread_t as the argument.
+Beware!
 .Sh ERRORS
 .Fn pthread_detach
 will fail if:

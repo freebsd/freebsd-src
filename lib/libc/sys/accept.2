@@ -150,7 +150,8 @@ for read and write, then calls
 .Fn _thread_sys_accept .
 If the call to
 .Fn _thread_sys_accept
-would block, a context switch is performed. Before returning,
+would block, a context switch is performed.
+Before returning,
 .Fn accept
 unlocks
 .Va s .

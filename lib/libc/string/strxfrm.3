@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strxfrm.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt STRXFRM 3
@@ -78,7 +79,8 @@ two original strings with
 Upon successful completion,
 .Fn strxfrm
 returns the length of the transformed string not including
-the terminating null character. If this value is
+the terminating null character.
+If this value is
 .Fa n
 or more, the contents of
 .Fa dst

@@ -49,7 +49,8 @@ The
 function sends a message to the message queue specified in
 .Fa msqid .
 .Fa msgp
-points to a structure containing the message. This structure should
+points to a structure containing the message.
+This structure should
 consist of the following members:
 .Bd -literal
     long mtype;    /* message type */
@@ -78,7 +79,8 @@ If
 .Fa msgflg
 has
 .Dv IPC_NOWAIT
-mask set in it, the call will return immediately. If
+mask set in it, the call will return immediately.
+If
 .Fa msgflg
 does not have
 .Dv IPC_NOWAIT
@@ -93,7 +95,8 @@ The message queue is removed, in which case -1 will be returned, and
 is set to
 .Er EINVAL .
 .It
-The caller catches a signal. The call returns with
+The caller catches a signal.
+The call returns with
 .Va errno
 set to
 .Er EINTR .
@@ -116,7 +119,8 @@ is set to the pid of the calling process.
 is set to the current time.
 .El
 .Sh RETURN VALUES
-Upon successful completion, 0 is returned. Otherwise, -1 is returned and
+Upon successful completion, 0 is returned.
+Otherwise, -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)getpwent.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
 .\"
 .Dd September 20, 1994
 .Dt GETPWENT 3
@@ -213,6 +214,7 @@ The functions
 and
 .Fn getpwuid ,
 leave their results in an internal static object and return
-a pointer to that object. Subsequent calls to
+a pointer to that object.
+Subsequent calls to
 the same function
 will modify the same object.

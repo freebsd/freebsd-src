@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .TH ZLIB 3 "9 July 1998"
 .SH NAME
 zlib \- compression/decompression library
@@ -27,7 +28,8 @@ The library also supports reading and writing files in
 (.gz) format
 with an interface similar to that of stdio.
 .LP
-The library does not install any signal handler. The decoder checks
+The library does not install any signal handler.
+The decoder checks
 the consistency of the compressed data, so the library should never
 crash even in case of corrupted input.
 .LP

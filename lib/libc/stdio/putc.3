@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)putc.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt PUTC 3
@@ -69,7 +70,8 @@ The
 macro
 acts essentially identically to
 .Fn fputc ,
-but is a macro that expands in-line. It may evaluate
+but is a macro that expands in-line.
+It may evaluate
 .Fa stream
 more than once, so arguments given to
 .Fn putc

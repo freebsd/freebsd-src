@@ -10,6 +10,7 @@
 .\" to anyone/anything when using this software.
 .\"
 .\"     @(#)rand48.3 V1.0 MB 8 Oct 1993
+.\" $FreeBSD$
 .\"
 .Dd October 8, 1993
 .Dt RAND48 3
@@ -49,12 +50,14 @@
 The
 .Fn rand48
 family of functions generates pseudo-random numbers using a linear
-congruential algorithm working on integers 48 bits in size. The
+congruential algorithm working on integers 48 bits in size.
+The
 particular formula employed is
 r(n+1) = (a * r(n) + c) mod m
 where the default values are
 for the multiplicand a = 0xfdeece66d = 25214903917 and
-the addend c = 0xb = 11. The modulo is always fixed at m = 2 ** 48.
+the addend c = 0xb = 11.
+The modulo is always fixed at m = 2 ** 48.
 r(n) is called the seed of the random number generator.
 .Pp
 For all the six generator routines described next, the first
@@ -63,7 +66,8 @@ computational step is to perform a single iteration of the algorithm.
 .Fn drand48
 and
 .Fn erand48
-return values of type double. The full 48 bits of r(n+1) are
+return values of type double.
+The full 48 bits of r(n+1) are
 loaded into the mantissa of the returned value, with the exponent set
 such that the values produced lie in the interval [0.0, 1.0).
 .Pp
@@ -118,7 +122,8 @@ also initializes the internal buffer r(n) of
 and
 .Fn mrand48 ,
 but here all 48 bits of the seed can be specified in an array of 3 shorts,
-where the zeroth member specifies the lowest bits. Again,
+where the zeroth member specifies the lowest bits.
+Again,
 the constant multiplicand and addend of the algorithm are
 reset to the default values given above.
 .Fn seed48

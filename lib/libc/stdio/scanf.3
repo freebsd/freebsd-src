@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
 .\"
 .Dd December 11, 1993
 .Dt SCANF 3
@@ -396,7 +397,8 @@ conversion.
 The value
 .Dv EOF
 is returned if an input failure occurs before any conversion such as an
-end-of-file occurs. If an error or end-of-file occurs after conversion
+end-of-file occurs.
+If an error or end-of-file occurs after conversion
 has begun,
 the number of conversions which were successfully completed is returned.
 .Sh SEE ALSO

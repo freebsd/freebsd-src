@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
 .\"
 .Dd June 4, 1993
 .Dt SYSLOG 3
@@ -62,7 +63,8 @@ writes
 .Fa message
 to the system message logger.
 The message is then written to the system console, log files,
-logged-in users, or forwarded to other machines as appropriate. (See
+logged-in users, or forwarded to other machines as appropriate.
+(See
 .Xr syslogd 8 . )
 .Pp
 The message is identical to a
@@ -70,7 +72,8 @@ The message is identical to a
 format string, except that
 .Ql %m
 is replaced by the current error
-message. (As denoted by the global variable
+message.
+(As denoted by the global variable
 .Va errno ;
 see
 .Xr strerror 3 . )
