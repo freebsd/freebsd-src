@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.10 1993/12/01 15:58:22 ache Exp $
+# $Id: Makefile,v 1.12 1993/12/02 09:56:30 ache Exp $
 #
 
 PROG=	ld
 SRCS=	ld.c symbol.c lib.c shlib.c warnings.c etc.c rrs.c xbits.c md.c
-CFLAGS += -static -I$(.CURDIR) -I$(.CURDIR)/$(MACHINE)
+CFLAGS += -I$(.CURDIR) -I$(.CURDIR)/$(MACHINE)
 
 LDADD+=	-lgnumalloc
 DPADD+= /usr/lib/libgnumalloc.a
