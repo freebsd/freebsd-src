@@ -134,6 +134,7 @@ only forth definitions also support-functions
 : start  ( -- ) ( throws: abort & user-defined )
   s" /boot/defaults/loader.conf" initialize
   include_conf_files
+  include_nextboot_file
   \ Will *NOT* try to load kernel and modules if no configuration file
   \ was succesfully loaded!
   any_conf_read? if
@@ -151,6 +152,7 @@ only forth definitions also support-functions
 : initialize ( -- flag )
   s" /boot/defaults/loader.conf" initialize
   include_conf_files
+  include_nextboot_file
   any_conf_read?
 ;
 
