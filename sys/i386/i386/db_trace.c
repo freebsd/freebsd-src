@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.29 1998/07/08 09:11:43 bde Exp $
+ *	$Id: db_trace.c,v 1.30 1998/07/08 10:53:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -108,7 +108,7 @@ db_numargs(fp)
 		inst = db_get_value((int)argp, 4, FALSE);
 		if ((inst & 0xff) == 0x59)	/* popl %ecx */
 			args = 1;
-		else if ((inst & 0xffff) == 0xc483)	/* addl %n, %esp */
+		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
 			args = ((inst >> 16) & 0xff) / 4;
 		else
 			args = 5;
