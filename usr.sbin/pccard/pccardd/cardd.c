@@ -632,7 +632,7 @@ assign_io(struct slot *sp)
 		cio = cp->io;
 		sio = &(sp->io);
 		xmax = 1;
-		if (cio)
+		if (iosize == 0 && cio)
 			xmax = cisconf->io_blks;
 		for (x = 0; x < xmax; x++) {
 			if (iosize) {
