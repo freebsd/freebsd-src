@@ -1,9 +1,7 @@
-/*	$FreeBSD$ */
-/* $Id: if_lmc_media.c,v 1.23 1999/03/01 15:12:24 explorer Exp $ */
-
-/*-
+/*
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * Copyright (c) LAN Media Corporation 1998, 1999.
+ * Copyright (c) 2000 Stephen Kiernan (sk-ports@vegamuse.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,6 +22,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *	$Id: if_lmc_media.c,v 1.23 1999/03/01 15:12:24 explorer Exp $
  */
 
 /*
@@ -684,24 +685,6 @@ lmc_set_protocol(lmc_softc_t * const sc, lmc_ctl_t *ctl)
 
 		return;
 	}
-
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-	if (ctl->keepalive_onoff != sc->ictl.keepalive_onoff) {
-		switch (ctl->keepalive_onoff) {
-		case LMC_CTL_ON:
-			printf(LMC_PRINTF_FMT ": enabling keepalive\n",
-			       LMC_PRINTF_ARGS);
-			sc->ictl.keepalive_onoff = LMC_CTL_ON;
-			sc->lmc_sppp.pp_flags = PP_CISCO | PP_KEEPALIVE;
-			break;
-		case LMC_CTL_OFF:
-			printf(LMC_PRINTF_FMT ": disabling keepalive\n",
-			       LMC_PRINTF_ARGS);
-			sc->ictl.keepalive_onoff = LMC_CTL_OFF;
-			sc->lmc_sppp.pp_flags = PP_CISCO;
-		}
-	}
-#endif
 }
 
 /*
@@ -718,6 +701,7 @@ static void lmc_t1_write(lmc_softc_t * const sc, int a, int d)
        lmc_mii_writereg(sc, 0, 18, d);
 }
 
+#if 0
 /* XXX future to be integtrated with if_lmc.c for alarms */
 
 static int lmc_t1_read(lmc_softc_t * const sc, int a)
@@ -725,6 +709,7 @@ static int lmc_t1_read(lmc_softc_t * const sc, int a)
        lmc_mii_writereg(sc, 0, 17, a);
        return lmc_mii_readreg(sc, 0, 18);
 }
+#endif
 
 static void
    lmc_t1_init(lmc_softc_t * const sc)
