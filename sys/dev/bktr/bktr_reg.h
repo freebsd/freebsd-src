@@ -213,6 +213,18 @@ struct bt848_registers {
 #define BT848_INT_FMTCHG		(1<<0)
     int		:32;		/* 108, 109,10a,10b */
     BTWORD (gpio_dma_ctl);	/* 10c, 10d,10e,10f */
+#define BT848_DMA_CTL_PL23TP4		(0<<6)	/* planar1 trigger 4 */
+#define BT848_DMA_CTL_PL23TP8		(1<<6)	/* planar1 trigger 8 */
+#define BT848_DMA_CTL_PL23TP16		(2<<6)	/* planar1 trigger 16 */
+#define BT848_DMA_CTL_PL23TP32		(3<<6)	/* planar1 trigger 32 */
+#define BT848_DMA_CTL_PL1TP4		(0<<4)	/* planar1 trigger 4 */
+#define BT848_DMA_CTL_PL1TP8		(1<<4)	/* planar1 trigger 8 */
+#define BT848_DMA_CTL_PL1TP16		(2<<4)	/* planar1 trigger 16 */
+#define BT848_DMA_CTL_PL1TP32		(3<<4)	/* planar1 trigger 32 */
+#define BT848_DMA_CTL_PKTP4		(0<<2)	/* packed trigger 4 */
+#define BT848_DMA_CTL_PKTP8		(1<<2)	/* packed trigger 8 */
+#define BT848_DMA_CTL_PKTP16		(2<<2)	/* packed trigger 16 */
+#define BT848_DMA_CTL_PKTP32		(3<<2)	/* packed trigger 32 */
 #define BT848_DMA_CTL_RISC_EN		(1<<1)
 #define BT848_DMA_CTL_FIFO_EN		(1<<0)
     BTLONG (i2c_data_ctl);	/* 110, 111,112,113 */
@@ -330,8 +342,10 @@ struct format_params {
   int vtotal, vdelay, vactive;
   /* Total unscaled horizontal pixels, pixels before image, image pixels */
   int htotal, hdelay, hactive;
-  /* One might expect this to be hactive / htotal, but maybe not! */
-  float hactive_frac;
+ /* visible active horizontal and vertical : 480 640 for NTSC */
+  int  horizontal, vertical;
+/* frame rate . for ntsc is 30 frames per second */
+  int frame_rate;
 };
 
 
@@ -340,6 +354,12 @@ typedef struct bktr_clip bktr_clip_t;
  * BrookTree 848  info structure, one per bt848 card installed.
  */
 struct bktr_softc {
+#ifdef __bsdi__
+    struct device bktr_dev;	/* base device */
+    struct isadev bktr_id;	/* ISA device */
+    struct intrhand bktr_ih;	/* interrupt vectoring */
+#define pcici_t pci_devaddr_t
+#endif
     bt848_ptr_t base;		/* Bt848 register physical address */
     vm_offset_t phys_base;	/* Bt848 register physical address */
     pcici_t	tag;		/* PCI tag, for doing PCI commands */
@@ -371,7 +391,7 @@ struct bktr_softc {
     u_long	range_enable;	/* enable range checking ?? */
     u_short     capcontrol;     /* reg 0xdc capture control */
     u_short     bktr_cap_ctl;
-    unsigned	flags;
+    volatile u_int	flags;
 #define	METEOR_INITALIZED	0x00000001
 #define	METEOR_OPEN		0x00000002 
 #define	METEOR_MMAP		0x00000004
