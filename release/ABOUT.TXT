@@ -115,7 +115,7 @@ HARDWARE.TXT    compat1x        des		doc             packages
 INSTALL.TXT     compat20        floppies        ports
 README.TXT      compat21        games           proflibs
 RELNOTES.TXT    info            src
-XF8632
+XF86331
 
 If you want to do a CDROM, FTP or NFS installation from this
 distribution directory, all you need to do is make a 1.44Mb floppy
@@ -129,7 +129,7 @@ follows is a more thorough description of each item in more detail:
 The *.TXT files obviously contain documentation (ABOUT.TXT being what
 you're reading now).
 
-The XF8632 directory contains the XFree86 project's 3.2 release and
+The XF86331 directory contains the XFree86 project's 3.3.1 release and
 consists of a series of gzip'd tar files which contain each component
 of the XFree86 distribution.
 
