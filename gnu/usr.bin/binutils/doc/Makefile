@@ -7,12 +7,11 @@ CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc ${GDBDIR}/gdb/mi
 
-INFO = as ld annotate gasp gdb gdbint stabs binutils
+INFO = as ld gasp gdb gdbint stabs binutils
 INFOSECTION=	"Programming & development tools."
 INFOENTRY_as=	"* As: (as).            The GNU assembler."
 INFOENTRY_gasp=	"* Gasp: (gasp).        The GNU Assembler Macro Preprocessor."
 INFOENTRY_ld=	"* Ld: (ld).		The GNU linker."
-INFOENTRY_annotate= "* GDB annotation: (annotate).	Annotations for the GNU Debugger (GDB)."
 INFOENTRY_binutils= "* Binutils: (binutils).		The GNU Binary Utilities."
 
 MAKEINFOFLAGS+= --no-validate
