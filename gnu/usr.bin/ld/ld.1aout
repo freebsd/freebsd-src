@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.16 1997/03/22 02:59:38 jdp Exp $
+.\"	$Id: ld.1,v 1.17 1997/05/29 15:34:34 dfr Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -171,7 +171,7 @@ library with the highest version found in the search path is selected.
 If no shared library is found or the
 .Fl B Ns Ar static
 options is in effect, an archive of the form lib<spec>.a is looked for in
-the library seach path.
+the library search path.
 .It Fl M
 Produce output about the mapping of segments of the input files and the
 values assigned to
@@ -211,7 +211,7 @@ Produce a
 Produce relocatable object file, suitable for another pass through
 .Nm ld.
 .It Fl R
-Record the given path within the executable for run-time libary search.
+Record the given path within the executable for run-time library search.
 This only applies to dynamically linked executables.
 .It Fl S
 Strip all debugger symbols from the output.
@@ -230,8 +230,8 @@ in the absence of any other references to that member.
 .It Fl V Ar version
 Put the given version number into the output shared library
 .Pq if one is created .
-Useful to make shared libaries compatible with other operating
-systems. Eg. SunOS 4.x libraries use version number 3. Defaults to 8.
+Useful to make shared libraries compatible with other operating
+systems. E.g., SunOS 4.x libraries use version number 3. Defaults to 8.
 .It Fl X
 Discard local symbols in the input files that start with the letter
 .Dq L
