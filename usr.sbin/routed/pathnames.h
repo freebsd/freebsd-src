@@ -36,3 +36,8 @@
 #include <paths.h>
 
 #define	_PATH_GATEWAYS	"/etc/gateways"
+
+/* all remotely requested trace files must either start with this prefix
+ * or be the same as the tracefile specified when the daemon was started.
+ */
+#define _PATH_TRACE	"/tmp"

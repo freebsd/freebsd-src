@@ -31,314 +31,483 @@
 .\"
 .\"     @(#)routed.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd December 11, 1993
+.Dd March 1, 1996
 .Dt ROUTED 8
-.Os BSD 4.2
+.Os BSD 4.4
 .Sh NAME
 .Nm routed
 .Nd network routing daemon
 .Sh SYNOPSIS
-.Nm routed
-.Op Fl d
-.Op Fl g
-.Op Fl q
-.Op Fl s
-.Op Fl t
-.Op Ar logfile
+.Nm
+.Op Fl sqdghmpAt
+.Op Fl T Ar tracefile
+.Oo
+.Fl F
+.Ar net Ns Op /mask Ns Op ,metric
+.Oc
+.OP Fl P Ar parms
 .Sh DESCRIPTION
 .Nm Routed
-is invoked at boot time to manage the network routing tables.
-The routing daemon uses a variant of the Xerox NS Routing
-Information Protocol in maintaining up to date kernel routing
-table entries.
-It used a generalized protocol capable of use with multiple
-address types, but is currently used only for Internet routing
-within a cluster of networks.
+is a dameon invoked at boot time to manage the network
+routing tables.
+It uses Routing Information Protocol, RIPv1 (RFC\ 1058),
+RIPv2 (RFC\ 1723),
+and Internet Router Discovery Protocol (RFC 1256)
+to maintain the kernel routing table.
+The version of the RIPv1 protocol implemented
+is based on the RIPv1 protocol implemented in the reference 4.3BSD daemon.
 .Pp
-In normal operation
-.Nm routed
-listens on the
+It listens on the
 .Xr udp 4
 socket for the
 .Xr route 8
 service (see
 .Xr services 5 )
-for routing information packets.  If the host is an
-internetwork router, it periodically supplies copies
-of its routing tables to any directly connected hosts
-and networks.
+for Routing Information Protocol packets.
+It also sends and receives multicast Router Discovery ICMP messages.
+If the host is an router,
+.Nm
+periodically supplies copies
+of its routing tables to any directly connected hosts and networks.
+It also advertise or solicits default routes using Router Discovery
+ICMP messages.
 .Pp
-When
-.Nm routed
-is started, it uses the
-.Dv SIOCGIFCONF
-.Xr ioctl 2
-to find those
+When started (or when a network interface is later turned on),
+.Nm
+uses an AF_ROUTE address family facility to find those
 directly connected interfaces configured into the
-system and marked ``up'' (the software loopback interface
-is ignored).  If multiple interfaces
-are present, it is assumed that the host will forward packets
-between networks.
-.Nm Routed
-then transmits a 
-.Em request
-packet on each interface (using a broadcast packet if
-the interface supports it) and enters a loop, listening
-for
+system and marked "up".
+It adds necessary routes for the interfaces
+to the kernel routing table.
+Soon after being first started, and provided there is at least one
+interface on which RIP has not been disabled,
+.Nm
+deletes all pre-existing
+non-static routes in kernel table.
+Static routes in the kernel table are preserved and
+included in RIP responses if they have a valid RIP metric
+(see
+.Xr route 8 ).
+.Pp
+If more than one interface is present (not counting the loopback interface),
+it is assumed that the host should forward packets among the
+connected networks.
+After transmitting a RIP
 .Em request
 and
-.Em response
-packets from other hosts.
+Router Discovery Advertisements or Solicitations on a new interface,
+the daemon enters a loop, listening for
+RIP request and response and Router Discover packets from other hosts.
 .Pp
 When a
 .Em request
-packet is received, 
-.Nm routed
+packet is received,
+.Nm
 formulates a reply based on the information maintained in its
-internal tables.  The
+internal tables.
+The
 .Em response
 packet generated contains a list of known routes, each marked
-with a ``hop count'' metric (a count of 16, or greater, is
-considered ``infinite'').  The metric associated with each
-route returned provides a metric
-.Em relative to the sender .
+with a "hop count" metric (a count of 16 or greater is
+considered "infinite").
+Advertised metrics reflect the metric associated with interface
+(see
+.Xr ifconfig 8 ),
+so setting the metric on an interface
+is an effective way to steer traffic.
 .Pp
-.Em Response
-packets received by
-.Nm routed
-are used to update the routing tables if one of the following
-conditions is satisfied:
-.Bl -enum
-.It
-No routing table entry exists for the destination network
-or host, and the metric indicates the destination is ``reachable''
-(i.e. the hop count is not infinite).
-.It
-The source host of the packet is the same as the router in the
-existing routing table entry.  That is, updated information is
-being received from the very internetwork router through which
-packets for the destination are being routed.
-.It
-The existing entry in the routing table has not been updated for
-some time (defined to be 90 seconds) and the route is at least
-as cost effective as the current route.
-.It
-The new route describes a shorter route to the destination than
-the one currently stored in the routing tables; the metric of
-the new route is compared against the one stored in the table
-to decide this.
-.El
+Responses do not contain routes with a first hop on the resquesting
+network to implement
+.Em split-horizon .
+Requests from query programs
+such as
+.Xr rtquery 8
+are answered with the complete table.
+.Pp
+The routing table maintained by the daemon
+includes space for several gateways for each destination
+to speed recovery from a failing router.
+RIP
+.Em response
+packets received are used to update the routing tables provided they are
+from one of the several currently recognized gateways or
+advertise a better metric than at least one of the existing
+gateways.
 .Pp
 When an update is applied,
-.Nm routed
-records the change in its internal tables and updates the kernel
-routing table.
-The change is reflected in the next
+.Nm
+records the change in its own tables and updates the kernel routing table
+if the best route to the destination changes.
+The change in the kernel routing tableis reflected in the next batch of
 .Em response
-packet sent.
+packets sent.
+If the next response is not scheduled for a while, a
+.Em flash update
+response containing only recently changed routes is sent.
 .Pp
 In addition to processing incoming packets,
-.Nm routed
+.Nm
 also periodically checks the routing table entries.
 If an entry has not been updated for 3 minutes, the entry's metric
-is set to infinity and marked for deletion.  Deletions are delayed
-an additional 60 seconds to insure the invalidation is propagated
-throughout the local internet.
+is set to infinity and marked for deletion.
+Deletions are delayed until the route has been advertised with
+an infinite metric to insure the invalidation
+is propagated throughout the local internet.
+This is a form of
+.Em poison reverse .
+.Pp
+Routes in the kernel table that are added or changed as a result
+of ICMP Redirect messages are deleted after a while to minimze
+.Em black-holes .
+When a TCP connection suffers a timeout,
+the kernel tells
+.Nm routed ,
+which deletes all redirected routes
+through the gateway involved, advances the age of all RIP routes through
+the gateway to allow an alternate to be chosen, and advances of the
+age of any relevant Router Discovery Protocol default routes.
 .Pp
 Hosts acting as internetwork routers gratuitously supply their
 routing tables every 30 seconds to all directly connected hosts
 and networks.
-The response is sent to the broadcast address on nets capable of that function,
+The response is sent to the broadcast address on nets that support
+broadcasting,
 to the destination address on point-to-point links, and to the router's
 own address on other networks.
-The normal routing tables are bypassed when sending gratuitous responses.
-The reception of responses on each network is used to determine that the
-network and interface are functioning correctly.
-If no response is received on an interface, another route may be chosen
-to route around the interface, or the route may be dropped if no alternative
-is available.
+If RIPv2 is enabled, multicast packets are sent on interfaces that
+support multicasting.
+.Pp
+If no response is received on a remote interface, if there are errors
+while sending responses,
+or if there are more errors than input or output (see
+.Xr netstat 8 ),
+then the cable or some other part of the interface is assumed to be
+disconnected or broken, and routes are adjusted appropriately.
+.Pp
+The
+.Em Internet Router Discovery Protocol
+is handled similarly.
+When the daemon is supplying RIP routes, it also listens for
+Router Discovery Solicitations and sends Advertisements.
+When it is quiet and only listening to other RIP routers, it
+sends Solicitations and listens for Advertisements.
+If it receives
+a good Advertisement, it stops listening for broadcast or multicast
+RIP responses.
+It tracks several advertising routers to speed recovery when the
+currently chosen router dies.
+If all discovered routers disappear,
+the daemon resumes listening to RIP responses.
 .Pp
 Options supported by
 .Nm routed :
 .Bl -tag -width Ds
-.It Fl d
-Enable additional debugging information to be logged,
-such as bad packets received.
-.It Fl g
-This flag is used on internetwork routers to offer a route
-to the ``default'' destination.
-This is typically used on a gateway to the Internet,
-or on a gateway that uses another routing protocol whose routes
-are not reported to other local routers.
 .It Fl s
-Supplying this
-option forces 
-.Nm routed
-to supply routing information whether it is acting as an internetwork
-router or not.
-This is the default if multiple network interfaces are present,
-or if a point-to-point link is in use.
+this option forces
+.Nm
+to supply routing information.
+This is the default if multiple network interfaces are present on which
+RIP or Router Discovery have not been disabled, and if the kernel switch
+ipforwarding=1.
 .It Fl q
-This
 is the opposite of the
 .Fl s
 option.
+.It Fl d
+Do not run in the background.
+This option is meant for interactive use.
+.It Fl g
+This flag is used on internetwork routers to offer a route
+to the "default" destination.
+This is typically used on a gateway to the Internet,
+or on a gateway that uses another routing protocol whose routes
+are not reported to other local routers.
+.It Fl h
+This causes host or point-to-point routes to not be advertised,
+provided there is a network route going the same direction.
+That is a limited kind of aggregation.
+This option is useful on gateways to ethernets that have other gateway
+machines connected with point-to-point links such as SLIP.
+.It Fl m
+This causes the machine to advertise a host or point-to-point route to
+its primary interface.
+It is useful on multi-homed machines such as NFS servers.
+This option should not be used except when the cost of
+the host routes it generates is justified by the popularity of
+the server.
+It is effective only when the machine is supplying
+routing information, because there is more than one interface.
+The
+.Fl m
+option overrides the
+.Fl q
+option to the limited extent of advertising the host route.
+.It Fl p
+causes routes received over point-to-point links to not be timed
+out while the link is idle.
+This is handy for "demand dialed" PPP links that filter routing packets.
+.It Fl A
+do not ignore RIPv2 authentication if we do not care about RIPv2
+authentication.
+This option is required for conformance wiht RFC 1723,
+but it makes little sense and breaks using RIP as a discovery protocol
+to ignore all RIPv2 packets that carry authentication when this machine
+does not care about authentication.
+.It Fl T Ar tracefile
+increases the debugging level to at least 1 and
+causes debugging information to be appended to the file.
 .It Fl t
-If the
-.Fl t
-option is specified, all packets sent or received are
-printed on the standard output.  In addition,
-.Nm routed
-will not divorce itself from the controlling terminal
-so that interrupts from the keyboard will kill the process.
+increases the debugging level, which causes more information to be logged
+on the tracefile specified with
+.Fl T
+or standard out.
+The debugging level can be increased or decreased
+with the
+.Em SIGUSR1
+or
+.Em SIGUSR2
+signals.
+.It Fl F Ar net[/mask][,metric]
+minimize routes in transmissions to network
+.Em net/mask ,
+and synthesizes a default route to this machine with the
+.Em metric .
+The intent is to reduce RIP traffic on slow, point-to-point links
+such as PPP links by replacing many large UDP packets of RIP information
+with a single, small packet containing a "fake" default route.
+If
+.Em metric
+is absent, a value of 14 is assumed to limit
+the spread of the "fake" default route.
+.It Fl P Ar parms
+is equivalent to adding the parameter
+line
+.Em parms
+to the
+.Pa /etc/gateways
+file.
 .El
 .Pp
 Any other argument supplied is interpreted as the name
-of file in which 
-.Nm routed Ns \'s
-actions should be logged.  This log contains information
-about any changes to the routing tables and, if not tracing all packets,
-a history of recent messages sent and received which are related to
-the changed route.
+of a file in which the actions of
+.Nm
+should be logged.
+It is better to use
+.Fl T
+instead of
+appending the name of the trace file to the command.
 .Pp
-In addition to the facilities described above, 
-.Nm routed
-supports the notion of ``distant''
+.Nm
+also supports the notion of
+"distant"
 .Em passive
-and 
+or
 .Em active
-gateways.  When 
-.Nm routed
-is started up, it reads the file
+gateways.
+When
+.Nm
+is started, it reads the file
 .Pa /etc/gateways
-to find gateways which may not be located using
-only information from the
-.Dv SIOCGIFCONF
-.Xr ioctl 2 .
+to find such distant gateways which may not be located using
+only information from a routing socket, to discover if some
+of the local gateways are
+.Em passive ,
+and to obtain other parameters.
 Gateways specified in this manner should be marked passive
 if they are not expected to exchange routing information,
 while gateways marked active
-should be willing to exchange routing information (i.e.
-they should have a
-.Nm routed
-process running on the machine).
-Routes through passive gateways are installed in the
-kernel's routing tables once upon startup.
-Such routes are not included in
-any routing information transmitted.
-Active gateways are treated equally to network
-interfaces.  Routing information is distributed
-to the gateway and if no routing information is
-received for a period of time, the associated
-route is deleted.
+should be willing to exchange RIP packets.
+Routes through
+.Em passive
+gateways are installed in the
+kernel's routing tables once upon startup and are not included in
+transmitted RIP responses.
+.Pp
+Distant active gateways are treated like network interfaces.
+RIP responses are sent
+to the distant
+.Em active
+gateway and if no responses are received
+in turn for a period of the time, the associated route deleted from
+the kernel table and RIP responses advertised via other interfaces.
+If the distant gateway resumes sending RIP responses, the associated
+route is restored.
+.Pp
+Such gateways can be useful on media that do not support broadcasts
+or multicasts but otherwise act like classic shared media like
+Ethernets such as some ATM networks.
+One can list all RIP routers reachable on the ATM network in
+.Pa /etc/gateways
+with a series of
+"host" lines.
+.Pp
 Gateways marked
 .Em external
 are also passive, but are not placed in the kernel
 routing table nor are they included in routing updates.
-The function of external entries is to inform
-.Nm routed
+The function of external entries is to indicate
 that another routing process
-will install such a route, and that alternate routes to that destination
-should not be installed.
+will install such a route if ncessary,
+and that alternate routes to that destination should not be installed
+by
+.Nm routed .
 Such entries are only required when both routers may learn of routes
 to the same destination.
 .Pp
-The 
-.Pa /etc/gateways
-is comprised of a series of lines, each in
-the following format:
+The
+.Em /etc/gateways
+file is comprised of a series of lines, each in
+one of the following formats or consist of parameters described below:
+.Pp
 .Bd -ragged
-.Pf < Cm net No \&|
-.Cm host Ns >
-.Ar name1
+.Cm net
+.Ar Nname[/mask]
 .Cm gateway
-.Ar name2
+.Ar Gname
 .Cm metric
 .Ar value
 .Pf < Cm passive No \&|
-.Cm external Ns >
+.Cm active No \&|
+.Cm extern Ns >
+.Ed
+.Bd -ragged
+.Cm host
+.Ar Hname
+.Cm gateway
+.Ar Gname
+.Cm metric
+.Ar value
+.Pf < Cm passive No \&|
+.Cm active No \&|
+.Cm extern Ns >
 .Ed
 .Pp
-The 
-.Cm net
+.Ar Nname
 or
-.Cm host
-keyword indicates if the route is to a network or specific host.
-.Pp
-.Ar Name1
-is the name of the destination network or host.  This may be a
-symbolic name located in
+.Ar Hname
+is the name of the destination network or host.
+It may be a symbolic network name or an Internet address
+specified in "dot" notation (see
+.Xr inet 3 ).
+(If it is a name, then it must either be defined in
 .Pa /etc/networks
 or
-.Pa /etc/hosts
-(or, if started after
+.Pa /etc/hosts ,
+or
 .Xr named 8 ,
-known to the name server), 
-or an Internet address specified in ``dot'' notation; see
-.Xr inet 3 .
+must have been started before
+.Xr routed Ns .)
 .Pp
-.Ar Name2
-is the name or address of the gateway to which messages should
+.Ar mask
+is an optional number between 1 and 32 indicating the netmask associated
+with
+.Ar Nname .
+.Pp
+.Ar Gname
+is the name or address of the gateway to which RIP responses should
 be forwarded.
 .Pp
 .Ar Value
-is a metric indicating the hop count to the destination host
-or network.
+is the hop count to the destination host or network.
+.Ar " host hname "
+is equivalent to
+.Ar " net  nname/32 ".
 .Pp
 One of the keywords
-.Cm passive
+.Cm passive ,
+.Cm active
 or
 .Cm external
-indicates if the gateway should be treated as 
+must be present to indicate whether the gateway should be treated as
 .Em passive
 or
 .Em active
 (as described above),
 or whether the gateway is
 .Em external
-to the scope of the
-.Nm routed
-protocol.
+to the scope of the RIP protocol.
+.Pp
+Lines that start with neither "net" nor "host" must consist of one
+or more of the following parameter settings:
+.Bl -tag -width Ds
+.It Cm if Ns \&= Ns Ar ifname
+indicates that the other parameters on the line apply to the interface
+name
+.Ar ifname .
+.It Cm subnet Ns \&= Ns Ar nname[/mask]
+causes other routes to be aggregated as if a compatible route to
+Ar nname/mask
+had been received.
+This is useful for filling "holes" in CIDR allocations.
+This parameter must appear by itself on a line.
+.It Cm passwd Ns \&= Ns Ar XXX
+specifies a RIPv2 password that will be included on all RIPv2
+responses sent and checked on all RIPv2 responses received.
+.It Cm no_ag
+turns off aggregation of subnets in RIPv1 and RIPv2 responses.
+.It Cm no_super_ag
+turns off aggregation of networks into supernets in RIPv2 responses.
+.It Cm no_rip
+disables all RIP processing on the specified interface.
+If no interfaces are allowed to process RIP packets,
+.Nm
+acts purely as a router discovery daemon.
+.Ar " No_rip "
+is equivalent to
+.Ar " no_ripv1_in no_ripv2_in no_ripv1_out no_ripv2_out ."
+.It Cm no_ripv1_in
+causes RIPv1 received responses to be ignored.
+.It Cm no_ripv2_in
+causes RIPv2 received responses to be ignored.
+.It Cm ripv2_out
+disables the RIPv2 responses that are otherwise multicast containing
+information that cannot be sent in RIPv2 packets.
+.It Cm no_rdisc
+disables the Internet Router Discovery Protocol.
+.It Cm no_solicit
+disables the tranmission of Router Discovery Solicitations.
+.It Cm send_solicit
+specifies that Router Discovery solicitations should be sent,
+even on point-to-point links,
+which by default only listen to Router Discovery messages.
+.It Cm no_rdisc_adv
+disables the transmission of Router Discovery Advertisements
+.It Cm rdisc_adv
+specifies that Router Discovery advertisements should be sent,
+even on point-to-point links,
+which by default only listen to Router Discovery messages
+.It Cm bcast_rdisc
+specifies that Router Discovery packets should be broadcast instead of
+multicast.
+.It Cm rdisc_pref Ns \&= Ns Ar N
+sets the preference in Router Discovery Advertisements to the integer
+.Ar N .
+.It Cm rdisc_interval Ns \&= Ns Ar N
+sets the nominal interval with which Router Discovery Advertisements
+are transmitted to N seconds and their lifetime to 3*N.
+.It Cm fake_default Ns \&= Ns Ar metric
+has an identical effect to
+.Fl F Ar net[/mask][,metric]
+with the network and mask coming from the affected interface.
+.El
+.Pp
 .Sh FILES
 .Bl -tag -width /etc/gateways -compact
 .It Pa /etc/gateways
 for distant gateways
 .El
 .Sh SEE ALSO
+.Xr gated 8 ,
 .Xr udp 4 ,
 .Xr icmp 4 ,
-.Xr IPXrouted 8
-.\" .Xr XNSrouted 8 ,
-.\" .Xr htable 8
+.Xr htable 8 ,
+.Xr rtquery 8 .
 .Rs
 .%T Internet Transport Protocols
 .%R XSIS 028112
 .%Q Xerox System Integration Standard
 .Re
 .Sh BUGS
-The kernel's routing tables may not correspond to those of
-.Nm routed
-when redirects change or add routes.
-.Nm Routed
-should note any redirects received by reading
-the
-.Tn ICMP
-packets received via a raw socket.
-.Pp
-.Nm Routed
-should incorporate other routing protocols,
-such as Xerox
-.Tn \&NS
-.Pq Xr XNSrouted 8
-and
-.Tn EGP .
-Using separate processes for each requires configuration options
-to avoid redundant or competing routes.
-.Pp
-.Nm Routed
-should listen to intelligent interfaces, such as an
-.Tn IMP ,
-to gather more information.
 It does not always detect unidirectional failures in network interfaces
 (e.g., when the output side fails).
 .Sh HISTORY
