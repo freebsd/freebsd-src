@@ -249,8 +249,12 @@ pw_error(name, err, eval)
 #ifdef YP
 	extern int _use_yp;
 #endif /* YP */
-	if (err)
-		warn("%s", name);
+	if (err) {
+		if (name != NULL)
+			warn("%s", name);
+		else
+			warn(NULL);
+	}
 #ifdef YP
 	if (_use_yp)
 		warnx("NIS information unchanged");
