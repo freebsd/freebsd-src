@@ -471,8 +471,8 @@ device		pmc
 hint.pmc.0.at="isa"
 hint.pmc.0.port="0x8f0"
 device		pmtimer			# Adjust system timer at wakeup time
-#device		cy	1
-#options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		digi
 # BIOS & FEP/OS components of device digi.
 device		digi_CX
