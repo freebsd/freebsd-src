@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.143 1995/09/15 08:31:14 davidg Exp $
+ *	$Id: machdep.c,v 1.144 1995/10/10 05:05:28 bde Exp $
  */
 
 #include "npx.h"
@@ -126,6 +126,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
+#include <machine/random.h>
 
 extern void diediedie __P((void));
 extern void init386 __P((int first));
@@ -1350,6 +1351,9 @@ init386(first)
 #include	"isa.h"
 #if	NISA >0
 	isa_defaultirq();
+#endif
+#ifdef DEVRANDOM
+	rand_initialize();
 #endif
 
 	r_gdt.rd_limit = sizeof(gdt) - 1;
