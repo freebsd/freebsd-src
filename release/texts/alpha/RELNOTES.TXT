@@ -443,7 +443,7 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 4.0-RELEASE and 3.x-RELEASE CDs may be ordered on CDROM from:
+FreeBSD 4.x-RELEASE and 3.x-RELEASE CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
