@@ -5,94 +5,12 @@
  * For copying and distribution information,
  * please see the file <mit-copyright.h>.
  *
- * $Revision: 1.3 $
- * $Date: 1995/09/07 21:37:34 $
- * $State: Exp $
- * $Source: /home/ncvs/src/eBones/usr.sbin/kprop/kprop.c,v $
- * $Author: markm $
- * $Locker:  $
- *
- * $Log: kprop.c,v $
- * Revision 1.3  1995/09/07  21:37:34  markm
- * Major cleanup of eBones code:
- *
- * - Get all functions prototyped or at least defined before use.
- * - Make code compile (Mostly) clean with -Wall set
- * - Start to reduce the degree to which DES aka libdes is built in.
- * - get all functions to the same uniform standard of definition:
- * int
- * foo(a, b)
- * int a;
- * int *b;
- * {
- *    :
- * }
- * - fix numerous bugs exposed by above processes.
- *
- * Note - this replaces the previous work which used an unpopular function
- *  definition style.
- *
- * Revision 1.1.1.1  1995/08/03  07:36:18  mark
- * Import an updated revision of the MIT kprop program for distributing
- * kerberos databases to slave servers.
- *
- * NOTE: This method was abandoned by MIT long ago, this code is close to
- *       garbage,  but it is slightly more secure than using rdist.
- *       There is no documentation available on how to use it, and
- *       it should -not- be built by default.
- *
- * Obtained from:	MIT Project Athena
- *
- * Revision 1.1.1.1  1995/08/02  22:11:44  pst
- * Import an updated revision of the MIT kprop program for distributing
- * kerberos databases to slave servers.
- *
- * NOTE: This method was abandoned by MIT long ago, this code is close to
- *       garbage,  but it is slightly more secure than using rdist.
- *       There is no documentation available on how to use it, and
- *       it should -not- be built by default.
- *
- * Obtained from:	MIT Project Athena
- *
- * Revision 4.7  92/11/10  23:01:06  tytso
- * Removed incompatible #include
- * 
- * Revision 4.6  91/02/28  22:49:34  probe
- * Fixed header file inclusion
- * 
- * Revision 4.5  90/03/20  15:37:57  jon
- * Stop kpropd port number from being bashed (static buffers)
- * Programmer: jtkohl
- * Auditor: jon
- * 
- * Revision 4.4  90/01/02  13:42:40  jtkohl
- * add back in accidentally deleted $ in rcsid string
- * 
- * Revision 4.3  89/12/30  21:22:27  qjb
- * Added #define MAXHOSTNAMELEN if not already defined for the benifit
- * of Unixes that don't have this variable in sys/param.h.
- * 
- * Revision 4.2  89/03/23  10:23:43  jtkohl
- * fix misuse of mkstemp to use mktemp
- * NOENCRYPTION changes
- * 
- * Revision 4.1  89/01/24  20:35:17  root
- * name change
- * 
- * Revision 4.0  89/01/24  18:44:38  wesommer
- * Original version; programmer: wesommer
- * auditor: jon.
- * 
- * Revision 4.4  88/01/08  18:05:21  jon
- * formating changes and rcs header info
- * 
- *
  */
 
 #if 0
 #ifndef	lint
 static char rcsid_kprop_c[] =
-"$Id: kprop.c,v 1.3 1995/09/07 21:37:34 markm Exp $";
+"$Id: kprop.c,v 1.4 1995/10/05 21:30:00 gibbs Exp $";
 #endif	lint
 #endif
 
