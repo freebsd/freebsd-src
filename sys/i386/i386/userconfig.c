@@ -114,24 +114,6 @@
 
 #define _I386_ISA_ISA_DEVICE_H_
 
-/*
- * Per device structure.  This just happens to resemble the old isa_device
- * but that is by accident.  It is NOT the same.
- */
-struct uc_device {
-	int	id_id;		/* device id */
-	char	*id_name;	/* device name */
-	int	id_iobase;	/* base i/o address */
-	u_int	id_irq;		/* interrupt request */
-	int	id_drq;		/* DMA request */
-	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
-	int	id_msize;	/* size of i/o memory */
-	int	id_unit;	/* unit number */
-	int	id_flags;	/* flags */
-	int	id_enabled;	/* is device enabled */
-	struct uc_device *id_next; /* used in uc_devlist in userconfig() */
-};
-
 #undef NPNP
 #define NPNP 0
 
@@ -141,6 +123,7 @@ struct uc_device {
 
 static MALLOC_DEFINE(M_DEVL, "uc_devlist", "uc_device lists in userconfig()");
 
+#include <machine/uc_device.h>
 static struct uc_device *uc_devlist;	/* list read by kget to extract changes */
 static struct uc_device *uc_devtab;	/* fake uc_device table */
 
