@@ -240,8 +240,10 @@ g_disk_start(struct bio *bp)
 	off_t off;
 
 	dp = bp->bio_to->geom->softc;
-	if (dp == NULL || dp->d_destroyed)
+	if (dp == NULL || dp->d_destroyed) {
 		g_io_deliver(bp, ENXIO);
+		return;
+	}
 	error = EJUSTRETURN;
 	switch(bp->bio_cmd) {
 	case BIO_DELETE:
