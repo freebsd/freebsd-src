@@ -1,11 +1,11 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.1 1994/02/21 21:51:51 rgrimes Exp $
+#	$Id: cpio.magic,v 1.2 1994/02/23 16:47:04 rgrimes Exp $
 #
 set_tmp_dir()
 {
 	def_tmp_dir=`pwd`
 	[ "$def_tmp_dir" = "/" ] && def_tmp_dir=/usr/distrib
-	echo -n "Copy files to which directory? [${def_tmp_dir}] "
+	echo -n "Where do we ${1:-put} the distrbution files? [${def_tmp_dir}] "
 	read tmp_dir
 	[ ! "$tmp_dir" ] && tmp_dir=$def_tmp_dir
 	if [ ! -d "$tmp_dir" ]; then
@@ -17,7 +17,7 @@ set_tmp_dir()
 tmp_dir()
 {
 	if [ "$tmp_dir" = "" ]; then
-		set_tmp_dir
+		set_tmp_dir $1
 	fi
 	cd $tmp_dir
 }
@@ -210,6 +210,10 @@ load_fd()
 	echo "Working directory: `pwd`"
 	unset verbose answer drive altdrive device dir subdir tmp interactive
 }
+load_dos()
+{
+	load_fd
+}
 load_qic_tape()
 {
 	tmp_dir
@@ -226,7 +230,8 @@ load_scsi_tape()
 }
 extract()
 {
-	tmp_dir
+	[ X"$1" = X"" ] && { echo "usage: extract dist-prefix"; return; }
+	tmp_dir find
 	echo -n "Would you like to be verbose about this? [n] "
 	read verbose
 	case $verbose in
@@ -249,6 +254,8 @@ extract()
 	done
 	rm -f /tmp/cat /tmp/gunzip /tmp/tar
 	sync
+	[ X"$1" = X"bin" ] && echo "Run \`configure' to complete installation." 
+	echo "(wd is now: `pwd`)"
 }
 configure()
 {
