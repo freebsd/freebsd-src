@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.2 1994/10/20 04:59:56 phk Exp $
+ * $Id: main.c,v 1.3 1994/10/20 06:14:29 phk Exp $
  *
  */
 
@@ -91,17 +91,28 @@ main(int argc, char **argv)
 	if (getenv("STAGE0") || !access("/this_is_boot_flp",R_OK)) {
 		stage0();
 		stage1();
-		/* XXX This is how stage one should output: */
+
+		/* 
+		 * XXX This is how stage one should output:
+		 */
 		devicename[0] = StrAlloc("wd0a");
 		mountpoint[0] = StrAlloc("/");
+
 		devicename[1] = StrAlloc("wd0e");
 		mountpoint[1] = StrAlloc("/usr");
+
+		devicename[2] = StrAlloc("wd0b");
+		mountpoint[2] = StrAlloc("swap");
+		/*
+		 * XXX sort it by mountpoint, so that safe seq of mounting
+		 * is guaranteed
+		 */
 		
 		stage2();
-	} else if (getenv("STAGE3)) {
+	} else if (getenv("STAGE3")) {
 		stage3();
 	} else {
 		fprintf(stderr,"Must setenv STAGE0 or STAGE3");
-
+	}
 	return 0;
 }
