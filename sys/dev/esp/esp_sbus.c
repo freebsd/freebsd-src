@@ -108,7 +108,7 @@ struct esp_softc {
 	struct resource		*sc_irqres;
 	void			*sc_irq;
 
-	struct lsi64854_softc	*sc_dma;	/* pointer to my dma */
+	struct lsi64854_softc	*sc_dma;	/* pointer to my DMA */
 
 	int	sc_pri;				/* SBUS priority */
 };
@@ -202,7 +202,7 @@ esp_sbus_attach(device_t dev)
 
 	/*
 	 * allocate space for dma, in SUNW,fas there are no separate
-	 * dma device
+	 * dma devices
 	 */
 	lsc = malloc(sizeof (struct lsi64854_softc), M_DEVBUF, M_NOWAIT);
 
@@ -568,7 +568,7 @@ void
 esp_dma_stop(struct ncr53c9x_softc *sc)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
-	u_int32_t csr;
+	uint32_t csr;
 
 	csr = L64854_GCSR(esc->sc_dma);
 	csr &= ~D_EN_DMA;
