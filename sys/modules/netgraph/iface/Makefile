@@ -2,21 +2,17 @@
 # $Whistle: Makefile,v 1.2 1999/01/19 19:39:21 archie Exp $
 
 KMOD=		ng_iface
-SRCS= 		ng_iface.c bpfilter.h opt_inet.h opt_atalk.h opt_ipx.h
+SRCS= 		ng_iface.c opt_inet.h opt_atalk.h opt_ipx.h
 MAN8=		ng_iface.8
 KMODDEPS=	netgraph
 
-IFACE_FILTER?=		0	# 0/1 - requires bpf configured in kernel
 IFACE_INET?=		1	# 0/1 - requires INET configured in kernel
 IFACE_NETATALK?=	0	# 0/1 - requires NETATALK configured in kernel
 IFACE_IPX?=		0	# 0/1 - requires IPX configured in kernel
 
 CFLAGS+=	${PROTOS}
 
-CLEANFILES+=	bpfilter.h opt_inet.h opt_atalk.h opt_ipx.h
-
-bpfilter.h:
-	echo "#define NBPFILTER ${IFACE_FILTER}" > bpfilter.h
+CLEANFILES+=	opt_inet.h opt_atalk.h opt_ipx.h
 
 opt_inet.h:
 	touch opt_inet.h
