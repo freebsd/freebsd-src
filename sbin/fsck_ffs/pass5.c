@@ -40,6 +40,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -49,16 +50,18 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
+static void check_maps __P((u_char *, u_char *, int, int, char *, int *,
+				int, int));
+
 void
 pass5()
 {
 	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
-	int inomapsize, blkmapsize, astart, aend, ustart, uend;
+	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
-	ufs_daddr_t dbase, dmax;
-	ufs_daddr_t d;
-	long i, j, k, l, m, n;
+	ufs_daddr_t dbase, dmax, d;
+	int i, j, excessdirs;
 	struct csum *cs;
 	struct csum cstotal;
 	struct inodesc idesc[3];
@@ -92,7 +95,7 @@ pass5()
 				i = fs->fs_contigsumsize;
 				fs->fs_contigsumsize =
 				    MIN(fs->fs_maxcontig, FS_MAXCONTIG);
-				if (CGSIZE(fs) > fs->fs_bsize) {
+				if (CGSIZE(fs) > (u_int)fs->fs_bsize) {
 					pwarn("CANNOT %s CLUSTER MAPS\n", doit);
 					fs->fs_contigsumsize = i;
 				} else if (preen ||
@@ -232,14 +235,14 @@ pass5()
 				break;
 
 			default:
-				if (j < ROOTINO)
+				if (j < (int)ROOTINO)
 					break;
 				errx(EEXIT, "BAD STATE %d FOR INODE I=%ld",
 				    inoinfo(j)->ino_state, j);
 			}
 		}
 		if (c == 0)
-			for (i = 0; i < ROOTINO; i++) {
+			for (i = 0; i < (int)ROOTINO; i++) {
 				setbit(cg_inosused(newcg), i);
 				newcg->cg_cs.cs_nifree--;
 			}
@@ -301,7 +304,8 @@ pass5()
 		cstotal.cs_nifree += newcg->cg_cs.cs_nifree;
 		cstotal.cs_ndir += newcg->cg_cs.cs_ndir;
 		cs = &fs->fs_cs(fs, c);
-		if (memcmp(&newcg->cg_cs, cs, sizeof *cs) != 0 &&
+		if (cursnapshot == 0 &&
+		    memcmp(&newcg->cg_cs, cs, sizeof *cs) != 0 &&
 		    dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
 			memmove(cs, &newcg->cg_cs, sizeof *cs);
 			sbdirty();
@@ -311,7 +315,8 @@ pass5()
 			cgdirty();
 			continue;
 		}
-		if ((memcmp(newcg, cg, basesize) != 0 ||
+		if (cursnapshot == 0 &&
+		    (memcmp(newcg, cg, basesize) != 0 ||
 		     memcmp(&cg_blktot(newcg)[0],
 			  &cg_blktot(cg)[0], sumsize) != 0) &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
@@ -320,101 +325,25 @@ pass5()
 			       &cg_blktot(newcg)[0], (size_t)sumsize);
 			cgdirty();
 		}
-		if (debug) {
-			for (i = 0; i < inomapsize; i++) {
-				j = cg_inosused(newcg)[i];
-				k = cg_inosused(cg)[i];
-				if (j == k)
-					continue;
-				for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
-					if ((j & l) == (k & l))
-						continue;
-					n = c * fs->fs_ipg + i * NBBY + m;
-					if ((j & l) != 0)
-						pwarn("%s INODE %d MARKED %s\n",
-						    "ALLOCATED", n, "FREE");
-					else
-						pwarn("%s INODE %d MARKED %s\n",
-						    "UNALLOCATED", n, "USED");
-				}
+		if (bkgrdflag != 0 || usedsoftdep || debug) {
+			excessdirs = cg->cg_cs.cs_ndir - newcg->cg_cs.cs_ndir;
+			if (excessdirs < 0) {
+				pfatal("LOST %d DIRECTORIES\n", -excessdirs);
+				excessdirs = 0;
 			}
-			astart = ustart = -1;
-			for (i = 0; i < blkmapsize; i++) {
-				j = cg_blksfree(cg)[i];
-				k = cg_blksfree(newcg)[i];
-				if (j == k)
-					continue;
-				for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
-					if ((j & l) == (k & l))
-						continue;
-					n = c * fs->fs_fpg + i * NBBY + m;
-					if ((j & l) != 0) {
-						if (astart == -1) {
-							astart = aend = n;
-							continue;
-						}
-						if (aend + 1 == n) {
-							aend = n;
-							continue;
-						}
-						pwarn("%s FRAGS %d-%d %s\n",
-						    "ALLOCATED", astart, aend,
-						    "MARKED FREE");
-						astart = aend = n;
-					} else {
-						if (ustart == -1) {
-							ustart = uend = n;
-							continue;
-						}
-						if (uend + 1 == n) {
-							uend = n;
-							continue;
-						}
-						pwarn("%s FRAGS %d-%d %s\n",
-						    "UNALLOCATED", ustart, uend,
-						    "MARKED USED");
-						ustart = uend = n;
-					}
-				}
-			}
-			if (astart != -1)
-				pwarn("%s FRAGS %d-%d %s\n",
-				    "ALLOCATED", astart, aend,
-				    "MARKED FREE");
-			if (ustart != -1)
-				pwarn("%s FRAGS %d-%d %s\n",
-				    "UNALLOCATED", ustart, uend,
-				    "MARKED USED");
+			if (excessdirs > 0)
+				check_maps(cg_inosused(newcg), cg_inosused(cg),
+				    inomapsize, cg->cg_cgx * fs->fs_ipg, "DIR",
+				    freedirs, 0, excessdirs);
+			check_maps(cg_inosused(newcg), cg_inosused(cg),
+			    inomapsize, cg->cg_cgx * fs->fs_ipg, "FILE",
+			    freefiles, excessdirs, fs->fs_ipg);
+			check_maps(cg_blksfree(cg), cg_blksfree(newcg),
+			    blkmapsize, cg->cg_cgx * fs->fs_fpg, "FRAG",
+			    freeblks, 0, fs->fs_fpg);
 		}
-		if (usedsoftdep) {
-			for (i = 0; i < inomapsize; i++) {
-				j = cg_inosused(newcg)[i];
-				if ((cg_inosused(cg)[i] & j) == j)
-					continue;
-				for (k = 0; k < NBBY; k++) {
-					if ((j & (1 << k)) == 0)
-						continue;
-					if (cg_inosused(cg)[i] & (1 << k))
-						continue;
-					pwarn("ALLOCATED INODE %d MARKED FREE\n",
-					    c * fs->fs_ipg + i * NBBY + k);
-				}
-			}
-			for (i = 0; i < blkmapsize; i++) {
-				j = cg_blksfree(cg)[i];
-				if ((cg_blksfree(newcg)[i] & j) == j)
-					continue;
-				for (k = 0; k < NBBY; k++) {
-					if ((j & (1 << k)) == 0)
-						continue;
-					if (cg_blksfree(newcg)[i] & (1 << k))
-						continue;
-					pwarn("ALLOCATED FRAG %d MARKED FREE\n",
-					    c * fs->fs_fpg + i * NBBY + k);
-				}
-			}
-		}
-		if (memcmp(cg_inosused(newcg), cg_inosused(cg), mapsize) != 0 &&
+		if (cursnapshot == 0 &&
+		    memcmp(cg_inosused(newcg), cg_inosused(cg), mapsize) != 0 &&
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
 			memmove(cg_inosused(cg), cg_inosused(newcg),
 			      (size_t)mapsize);
@@ -423,11 +352,136 @@ pass5()
 	}
 	if (fs->fs_postblformat == FS_42POSTBLFMT)
 		fs->fs_nrpos = savednrpos;
-	if (memcmp(&cstotal, &fs->fs_cstotal, sizeof *cs) != 0
+	if (cursnapshot == 0 &&
+	    memcmp(&cstotal, &fs->fs_cstotal, sizeof *cs) != 0
 	    && dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
 		memmove(&fs->fs_cstotal, &cstotal, sizeof *cs);
 		fs->fs_ronly = 0;
 		fs->fs_fmod = 0;
 		sbdirty();
+	}
+}
+
+static void
+check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
+	u_char *map1;	/* map of claimed allocations */
+	u_char *map2;	/* map of determined allocations */
+	int mapsize;	/* size of above two maps */
+	int startvalue;	/* resource value for first element in map */
+	char *name;	/* name of resource found in maps */
+	int *opcode;	/* sysctl opcode to free resource */
+	int skip;	/* number of entries to skip before starting to free */
+	int limit;	/* limit on number of entries to free */
+{
+#	define BUFSIZE 16
+	char buf[BUFSIZE];
+	long i, j, k, l, m, n, size;
+	int astart, aend, ustart, uend;
+
+	astart = ustart = aend = uend = -1;
+	for (i = 0; i < mapsize; i++) {
+		j = *map1++;
+		k = *map2++;
+		if (j == k)
+			continue;
+		for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
+			if ((j & l) == (k & l))
+				continue;
+			n = startvalue + i * NBBY + m;
+			if ((j & l) != 0) {
+				if (astart == -1) {
+					astart = aend = n;
+					continue;
+				}
+				if (aend + 1 == n) {
+					aend = n;
+					continue;
+				}
+				if (astart == aend)
+					pfatal("ALLOCATED %s %d MARKED FREE\n",
+					    name, astart);
+				else
+					pfatal("%s %sS %d-%d MARKED FREE\n",
+					    "ALLOCATED", name, astart, aend);
+				astart = aend = n;
+			} else {
+				if (ustart == -1) {
+					ustart = uend = n;
+					continue;
+				}
+				if (uend + 1 == n) {
+					uend = n;
+					continue;
+				}
+				size = uend - ustart + 1;
+				if (size <= skip) {
+					skip -= size;
+					ustart = uend = n;
+					continue;
+				}
+				if (skip > 0) {
+					ustart += skip;
+					size -= skip;
+					skip = 0;
+				}
+				if (size > limit)
+					size = limit;
+				if (debug && size == 1)
+					pwarn("%s %s %d MARKED USED\n",
+					    "UNALLOCATED", name, ustart);
+				else if (debug)
+					pwarn("%s %sS %d-%d MARKED USED\n",
+					    "UNALLOCATED", name, ustart,
+					    ustart + size - 1);
+				if (bkgrdflag != 0) {
+					cmd.value = ustart;
+					cmd.size = size;
+					if (sysctl(opcode, MIBSIZE, 0, 0,
+					    &cmd, sizeof cmd) == -1) {
+						snprintf(buf, BUFSIZE,
+						    "FREE %s", name);
+						rwerror(buf, cmd.value);
+					}
+				}
+				limit -= size;
+				if (limit <= 0)
+					return;
+				ustart = uend = n;
+			}
+		}
+	}
+	if (astart != -1)
+		if (astart == aend)
+			pfatal("ALLOCATED %s %d MARKED FREE\n", name, astart);
+		else
+			pfatal("ALLOCATED %sS %d-%d MARKED FREE\n",
+			    name, astart, aend);
+	if (ustart != -1) {
+		size = uend - ustart + 1;
+		if (size <= skip)
+			return;
+		if (skip > 0) {
+			ustart += skip;
+			size -= skip;
+		}
+		if (size > limit)
+			size = limit;
+		if (debug) {
+			if (size == 1)
+				pwarn("UNALLOCATED %s %d MARKED USED\n",
+				    name, ustart);
+			else
+				pwarn("UNALLOCATED %sS %d-%d MARKED USED\n",
+				    name, ustart, ustart + size - 1);
+		}
+		if (bkgrdflag != 0) {
+			cmd.value = ustart;
+			cmd.size = size;
+			if (sysctl(opcode, MIBSIZE, 0, 0, &cmd,
+			    sizeof cmd) == -1) {
+				snprintf(buf, BUFSIZE, "FREE %s", name);
+				rwerror(buf, cmd.value);
+			}
+		}
 	}
 }
