@@ -1,3 +1,5 @@
+.\"   $Revision: 2.17 $
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -35,26 +37,29 @@
 .Dt ROUTED 8
 .Os BSD 4.4
 .Sh NAME
-.Nm routed
+.Nm routed ,
+.Nm rdisc
 .Nd network RIP and router discovery routing daemon
 .Sh SYNOPSIS
-.Nm
-.Op Fl sqdghmpAt
+.Nm routed
+.Op Fl sqdghmpAtv
 .Op Fl T Ar tracefile
 .Oo
 .Fl F
 .Ar net Ns Op /mask Ns Op ,metric
 .Oc
-.OP Fl P Ar parms
+.Op Fl P Ar parms
 .Sh DESCRIPTION
 .Nm Routed
-is a dameon invoked at boot time to manage the network
+is a daemon invoked at boot time to manage the network
 routing tables.
 It uses Routing Information Protocol, RIPv1 (RFC\ 1058),
 RIPv2 (RFC\ 1723),
 and Internet Router Discovery Protocol (RFC 1256)
 to maintain the kernel routing table.
-The RIPv1 protocol is based on the reference 4.3BSD daemon.
+The RIPv1 protocol is based on the reference
+.Bx 4.3
+daemon.
 .Pp
 It listens on the
 .Xr udp 4
@@ -115,7 +120,7 @@ Advertised metrics reflect the metric associated with interface
 so setting the metric on an interface
 is an effective way to steer traffic.
 .Pp
-Responses do not contain routes with a first hop on the requesting
+Responses do not include routes with a first hop on the requesting
 network to implement in part
 .Em split-horizon .
 Requests from query programs
@@ -160,7 +165,7 @@ of ICMP Redirect messages are deleted after a while to minimize
 .Em black-holes .
 When a TCP connection suffers a timeout,
 the kernel tells
-.Nm routed ,
+.Nm Ns ,
 which deletes all redirected routes
 through the gateway involved, advances the age of all RIP routes through
 the gateway to allow an alternate to be chosen, and advances of the
@@ -179,7 +184,7 @@ support multicasting.
 If no response is received on a remote interface, if there are errors
 while sending responses,
 or if there are more errors than input or output (see
-.Xr netstat 8 ),
+.Xr netstat 1 ),
 then the cable or some other part of the interface is assumed to be
 disconnected or broken, and routes are adjusted appropriately.
 .Pp
@@ -188,20 +193,17 @@ The
 is handled similarly.
 When the daemon is supplying RIP routes, it also listens for
 Router Discovery Solicitations and sends Advertisements.
-When it is quiet and only listening to other RIP routers, it
+When it is quiet and listening to other RIP routers, it
 sends Solicitations and listens for Advertisements.
 If it receives
-a good Advertisement, it stops listening for broadcast or multicast
-RIP responses.
+a good Advertisement and it is not multi-homed,
+it stops listening for broadcast or multicast RIP responses.
 It tracks several advertising routers to speed recovery when the
 currently chosen router dies.
 If all discovered routers disappear,
 the daemon resumes listening to RIP responses.
-.Pp
-While using Router Discovery (which happens by default when
-the system has a single network interface and a Router Discovery Advertisement
-is received), there is a single default route and a variable number of
-redirected host routes in the kernel table.
+It continues listening to RIP while using Router Discovery
+if multi-homed to ensure all interfaces are used.
 .Pp
 The Router Discovery standard requires that advertisements
 have a default "lifetime" of 30 minutes.  That means should
@@ -234,15 +236,13 @@ By default, neither Router Discovery advertisements nor solicitations
 are sent over point to point links (e.g. PPP).
 The netmask associated with point-to-point links (such as SLIP
 or PPP, with the IFF_POINTOPOINT flag) is used by
-.Nm routed
+.Nm
 to infer the netmask used by the remote system when RIPv1 is used.
-
 .Pp
-Options supported by
-.Nm routed :
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl s
-this option forces
+force
 .Nm
 to supply routing information.
 This is the default if multiple network interfaces are present on which
@@ -253,11 +253,13 @@ is the opposite of the
 .Fl s
 option.
 This is the default when only one interface is present.
+With this explicit option, the daemon is always in "quite-mode" for RIP
+and does not supply routing information to other computers.
 .It Fl d
-Do not run in the background.
+do not run in the background.
 This option is meant for interactive use.
 .It Fl g
-This flag is used on internetwork routers to offer a route
+used on internetwork routers to offer a route
 to the "default" destination.
 It is equivalent to
 .Fl F
@@ -266,7 +268,8 @@ and is present mostly for historical reasons.
 A better choice is
 .Fl P Cm pm_rdisc
 on the command line or
-.CM pm_rdisc in the
+.Cm pm_rdisc
+in the
 .Pa /etc/gateways
 file.
 since a larger metric
@@ -276,16 +279,16 @@ This is typically used on a gateway to the Internet,
 or on a gateway that uses another routing protocol whose routes
 are not reported to other local routers.
 Notice that because a metric of 1 is used, this feature is
-dangerous.  It is more commonly accidentally used to create chaos with routing
-loop than to solve problems.
+dangerous.  It is more commonly accidentally used to create chaos with a
+routing loop than to solve problems.
 .It Fl h
-This causes host or point-to-point routes to not be advertised,
+cause host or point-to-point routes to not be advertised,
 provided there is a network route going the same direction.
 That is a limited kind of aggregation.
-This option is useful on gateways to ethernets that have other gateway
+This option is useful on gateways to Ethernets that have other gateway
 machines connected with point-to-point links such as SLIP.
 .It Fl m
-This causes the machine to advertise a host or point-to-point route to
+cause the machine to advertise a host or point-to-point route to
 its primary interface.
 It is useful on multi-homed machines such as NFS servers.
 This option should not be used except when the cost of
@@ -305,14 +308,8 @@ This option is required for conformance with RFC 1723.
 However, it makes no sense and breaks using RIP as a discovery protocol
 to ignore all RIPv2 packets that carry authentication when this machine
 does not care about authentication.
-.It Fl T Ar tracefile
-increases the debugging level to at least 1 and
-causes debugging information to be appended to the trace file.
-Note that because of security concerns, it is wisest to not run
-.Nm routed
-routinely with tracing directed to a file.
 .It Fl t
-increases the debugging level, which causes more information to be logged
+increase the debugging level, which causes more information to be logged
 on the tracefile specified with
 .Fl T
 or standard out.
@@ -322,8 +319,16 @@ with the
 or
 .Em SIGUSR2
 signals or with the
-.Cm rtquery
+.Xr rtquery 8
 command.
+.It Fl T Ar tracefile
+increases the debugging level to at least 1 and
+causes debugging information to be appended to the trace file.
+Note that because of security concerns, it is wisest to not run
+.Nm
+routinely with tracing directed to a file.
+.It Fl v
+display and logs the version of daemon.
 .It Fl F Ar net[/mask][,metric]
 minimize routes in transmissions via interfaces with addresses that match
 .Em net/mask ,
@@ -336,7 +341,6 @@ If
 .Em metric
 is absent, a value of 14 is assumed to limit
 the spread of the "fake" default route.
-
 This is a dangerous feature that when used carelessly can cause routing
 loops.
 Notice also that more than one interface can match the specified network
@@ -361,7 +365,7 @@ It is better to use
 instead of
 appending the name of the trace file to the command.
 .Pp
-.Nm
+.Nm Routed
 also supports the notion of
 "distant"
 .Em passive
@@ -400,10 +404,12 @@ route is restored.
 Such gateways can be useful on media that do not support broadcasts
 or multicasts but otherwise act like classic shared media like
 Ethernets such as some ATM networks.
-One can list all RIP routers reachable on the ATM network in
+One can list all RIP routers reachable on the HIPPI or ATM network in
 .Pa /etc/gateways
 with a series of
 "host" lines.
+Note that it is usually desirable to use RIPv2 in such situations
+to avoid generating lists of inferred host routes.
 .Pp
 Gateways marked
 .Em external
@@ -412,16 +418,17 @@ routing table nor are they included in routing updates.
 The function of external entries is to indicate
 that another routing process
 will install such a route if necessary,
-and that alternate routes to that destination should not be installed
+and that other routes to that destination should not be installed
 by
-.Nm routed .
+.Nm Ns .
 Such entries are only required when both routers may learn of routes
 to the same destination.
 .Pp
 The
-.Em /etc/gateways
+.Pa /etc/gateways
 file is comprised of a series of lines, each in
-one of the following formats or consist of parameters described below:
+one of the following two formats or consist of parameters described later.
+Blank lines and lines starting with '#' are comments.
 .Pp
 .Bd -ragged
 .Cm net
@@ -460,9 +467,9 @@ or
 or
 .Xr named 8 ,
 must have been started before
-.Xr routed Ns .)
+.Nm Ns .)
 .Pp
-.Ar mask
+.Ar Mask
 is an optional number between 1 and 32 indicating the netmask associated
 with
 .Ar Nname .
@@ -473,7 +480,7 @@ be forwarded.
 .Pp
 .Ar Value
 is the hop count to the destination host or network.
-.Ar " host hname "
+.Ar " Host hname "
 is equivalent to
 .Ar " net  nname/32 ".
 .Pp
@@ -491,6 +498,15 @@ or whether the gateway is
 .Cm external
 to the scope of the RIP protocol.
 .Pp
+As can be seen when debugging is turned on with
+.Fl t ,
+such lines create pseudo-interfaces.
+To set parameters for remote or external interfaces,
+a line starting with
+.Cm if=alias(Hname) ,
+.Cm if=remote(Hname) ,
+etc. should be used.
+.Pp
 Lines that start with neither "net" nor "host" must consist of one
 or more of the following parameter settings, separated by commas or
 blanks:
@@ -501,20 +517,27 @@ name
 .Ar ifname .
 .It Cm subnet Ns \&= Ns Ar nname[/mask][,metric]
 advertises a route to network
-.AR nname
+.Ar nname
 with mask
-.AR mask
+.Ar mask
 and the supplied metric (default 1).
 This is useful for filling "holes" in CIDR allocations.
 This parameter must appear by itself on a line.
+The network number must specify a full, 32-bit value, as in 192.0.2.0
+instead of 192.0.2.
 .Pp
 Do not use this feature unless necessary.  It is dangerous.
-.It Cm passwd Ns \&= Ns Ar XXX
-specifies a RIPv2 password that will be included on all RIPv2
-responses sent and checked on all RIPv2 responses received.
-The password must not contain any blanks, tab characters, commas
-or '#' characters.
-.It Cm passwd Ns \&= Ns Ar XXX1[|KeyID[start|stop]]
+.It Cm ripv1_mask Ns \&= Ns Ar nname/mask1,mask2
+specifies that netmask of the network of which
+.Cm nname/mask1\f1
+is
+a subnet should be
+.Cm mask2 .
+For example \f2ripv1_mask=192.0.2.16/28,27\f1 marks 192.0.2.16/28
+as a subnet of 192.0.2.0/27 instead of 192.0.2.0/24.
+It is better to turn on RIPv2 instead of using this facility, for example
+with \f2ripv2_out\f1.
+.It Cm passwd Ns \&= Ns Ar XXX[|KeyID[start|stop]]
 specifies a RIPv2 cleartext password that will be included on
 all RIPv2 responses sent, and checked on all RIPv2 responses received.
 Any blanks, tab characters, commas, or '#', '|', or NULL characters in the
@@ -536,15 +559,15 @@ recently is used, or unless no passwords are valid yet, in which case
 no password is output.
 Incoming packets can carry any password that is valid, will
 be valid within 24 hours, or that was valid within 24 hours.
-.It Cm md5_passwd Ns \&= Ns Ar XXX1|KeyID[start|stop]
-specifes a RIPv2 MD5 password.
+To protect the secrets, the passwd settings are valid only in the
+.Em /etc/gateways
+file and only when that file is readable only by UID 0.
+.It Cm md5_passwd Ns \&= Ns Ar XXX|KeyID[start|stop]
+specifies a RIPv2 MD5 password.
 Except that a
 .Cm KeyID
 is required, this keyword is similar to
 .Cm passwd .
-To protect the secrets, this parameter setting is valid only in the
-.Em /etc/gateways
-file and only when that file is readable only by UID 0.
 .It Cm no_ag
 turns off aggregation of subnets in RIPv1 and RIPv2 responses.
 .It Cm no_super_ag
@@ -557,27 +580,30 @@ disables all RIP processing on the specified interface.
 If no interfaces are allowed to process RIP packets,
 .Nm
 acts purely as a router discovery daemon.
-
+.Pp
 Note that turning off RIP without explicitly turning on router
 discovery advertisements with
 .Cm rdisc_adv
 or
 .Fl s
 causes
-.Nm routed
+.Nm
 to act as a client router discovery daemon, not advertising.
+.It Cm no_rip_mcast
+causes RIPv2 packets to be broadcast instead of multicast.
 .It Cm no_ripv1_in
 causes RIPv1 received responses to be ignored.
 .It Cm no_ripv2_in
 causes RIPv2 received responses to be ignored.
 .It Cm ripv2_out
-turns off RIPv1 output and causes RIPv2 advertisements to be
+turns on RIPv2 output and causes RIPv2 advertisements to be
 multicast when possible.
 .It Cm ripv2
 is equivalent to
 .Cm no_ripv1_in
 and
 .Cm no_ripv1_out .
+This enables RIPv2.
 .It Cm no_rdisc
 disables the Internet Router Discovery Protocol.
 .It Cm no_solicit
@@ -587,24 +613,28 @@ specifies that Router Discovery solicitations should be sent,
 even on point-to-point links,
 which by default only listen to Router Discovery messages.
 .It Cm no_rdisc_adv
-disables the transmission of Router Discovery Advertisements
+disables the transmission of Router Discovery Advertisements.
 .It Cm rdisc_adv
 specifies that Router Discovery Advertisements should be sent,
 even on point-to-point links,
-which by default only listen to Router Discovery messages
+which by default only listen to Router Discovery messages.
 .It Cm bcast_rdisc
 specifies that Router Discovery packets should be broadcast instead of
 multicast.
 .It Cm rdisc_pref Ns \&= Ns Ar N
-sets the preference in Router Discovery Advertisements to the integer
+sets the preference in Router Discovery Advertisements to the optionally
+signed integer
 .Ar N .
+The default preference is 0.
+Default routes with smaller or more negative preferences are preferred by
+clients.
 .It Cm rdisc_interval Ns \&= Ns Ar N
 sets the nominal interval with which Router Discovery Advertisements
 are transmitted to N seconds and their lifetime to 3*N.
 .It Cm fake_default Ns \&= Ns Ar metric
 has an identical effect to
 .Fl F Ar net[/mask][=metric]
-with the network and mask coming from the sepcified interface.
+with the network and mask coming from the specified interface.
 .It Cm pm_rdisc
 is similar to
 .Cm fake_default .
@@ -615,15 +645,17 @@ Unless modified with
 .Cm fake_default ,
 the default route is broadcast with a metric of 14.
 That serves as a "poor man's router discovery" protocol.
-.It Cm trust_gateway Ns \&= Ns Ar rname
+.It Cm trust_gateway Ns \&= Ns Ar rname[|net1/mask1|net2/mask2|...]
 causes RIP packets from that router and other routers named in
 other
 .Cm trust_gateway
-keywords to be accept, and packets from other routers to be ignored.
+keywords to be accepted, and packets from other routers to be ignored.
+If networks are specified, then routes to other networks will be ignored
+from that router.
 .It Cm redirect_ok
 causes RIP to allow ICMP Redirect messages when the system is acting
 as a router and forwarding packets.
-Otherwise, ICMP Redirect messages are are overridden.
+Otherwise, ICMP Redirect messages are overridden.
 .El
 .Pp
 .Sh FILES
@@ -632,9 +664,9 @@ Otherwise, ICMP Redirect messages are are overridden.
 for distant gateways
 .El
 .Sh SEE ALSO
-.Xr gated 8 ,
-.Xr udp 4 ,
 .Xr icmp 4 ,
+.Xr udp 4 ,
+.Xr gated 8 ,
 .Xr htable 8 ,
 .Xr rtquery 8 .
 .Rs
@@ -643,8 +675,8 @@ for distant gateways
 .%Q Xerox System Integration Standard
 .Re
 .Sh BUGS
-It does not always detect unidirectional failures in network interfaces
-(e.g., when the output side fails).
+It does not always detect unidirectional failures in network interfaces,
+for example, when the output side fails.
 .Sh HISTORY
 The
 .Nm

@@ -1,9 +1,11 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/5/93
+# Make `routed` tools for BSD/OS
+# $Revision: 2.15 $
+#	$Id$
 
 PROG=	rtquery
-SRCS=	rtquery.c md5.c
-MAN8=	rtquery.0
-#COPTS=	-g -DDEBUG -Wall
+MAN8=	rtquery.8
+LDADD+=	-lmd
+DPADD+=	${LIBMD}
+#COPTS=	-g -DDEBUG -W -Wall -Wcast-align -Wcast-qual -Winline -Wpointer-arith -Wnested-externs -Wwrite-strings -Wunused
 
-.include "../../Makefile.inc"
 .include <bsd.prog.mk>

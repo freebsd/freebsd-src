@@ -1,5 +1,3 @@
-/* This code could be made a lot faster for PPP */
-
 /* Copyright (C) 1991-2, RSA Data Security, Inc. Created 1991. All
  * rights reserved.
  *
@@ -22,7 +20,7 @@
  * documentation and/or software.
  */
 
-#ident "$Revision: 1.4 $"
+#ident "$Revision: 2.16 $"
 
 #include <strings.h>
 #ifdef sgi
