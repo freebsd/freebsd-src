@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.62 1997/09/20 15:41:46 joerg Exp $
+#	$Id: Makefile,v 1.246.2.63 1997/09/20 17:11:09 joerg Exp $
 #
 # How to roll a release:
 #
@@ -400,6 +400,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
 		mkdir -p etc dev mnt stand/help
+	@cp ${.CURDIR}/../sys/i386/boot/biosboot/boot.help ${RD}/mfsfd/stand
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
