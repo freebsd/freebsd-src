@@ -360,13 +360,15 @@ configure()
 	esac
 
 	echo
-	echo -n "Does your system have access to a nameserver? [n] "
+	echo	"Setting up access to a nameserver:"
+	echo -n	"Do you want to configure /etc/resolv.conf? [n]: "
 	read resp
 	case "$resp" in
 	y*)
 		echo    "OK: Configuring your /etc/resolv.conf"
-		echo	"To fine-tune this configuration, refer to the"
-		echo 	"resolver(5) manual page"
+		echo	"If you need more information about resolv.conf"
+		echo	"type \"man 5 resolver\" once you have COMPLETED"
+		echo	"installation of the binary distribution."
 		echo	""
 
 		nameserver=
