@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: conv.c,v 1.3 1994/09/24 02:54:44 davidg Exp $
  */
 
 #ifndef lint
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)conv.c	8.3 (Berkeley) 4/2/94";
 
 #include <err.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "dd.h"
 #include "extern.h"
