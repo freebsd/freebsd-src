@@ -611,3 +611,19 @@ end
 define y
 echo Check your .gdbinit, it contains a y command\n
 end
+define kldstat
+   set $file = files.tqh_first
+   printf "Id Refs Address    Size     Name\n"
+   while ($file != 0)
+     printf "%2d %4d 0x%8x %8x %s\n",   \
+	$file->id, 			\
+	$file->refs,			\
+	$file->address,			\
+	$file->size,			\
+	$file->filename
+     set $file = $file->link.tqe_next
+   end
+end
+document kldstat
+Equivalent of the kldstat(9) command, without options.
+end
