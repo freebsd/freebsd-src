@@ -33,36 +33,15 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
+#
+#  This the prototype for a "null client" -- that is, a client that
+#  does nothing except forward all mail to a mail hub, plus an extra
+#  line to make the email all appear as coming from "FreeBSD.org".
+#
+
 divert(0)dnl
-VERSIONID(`@(#)freefall.mc	$Revision: 1.11 $')
-OSTYPE(bsd4.4)dnl
-DOMAIN(generic)dnl
-MAILER(local)dnl
-MAILER(smtp)dnl
-FEATURE(mailertable, `hash -o /etc/mailertable')dnl
-define(`UUCP_RELAY', ucbvax.Berkeley.EDU)dnl
-define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`confCW_FILE', `-o /etc/sendmail.cw')dnl
-define(`confCHECKPOINT_INTERVAL', `4')dnl
-define(`confAUTO_REBUILD', `True')dnl
-define(`confMIN_FREE_BLOCKS', `1024')dnl
-define(`confSMTP_MAILER', `smtp8')dnl
-define(`confME_TOO', `True')dnl
-define(`confMCI_CACHE_TIMEOUT', `10m')dnl
-define(`confTO_QUEUEWARN', `1d')dnl
-define(`confTO_QUEUEWARN_NORMAL', `1d')dnl
-define(`confTO_RCPT', `10m')dnl
-define(`confTO_DATABLOCK', `10m')dnl
-define(`confTO_DATAFINAL', `10m')dnl
-define(`confTO_COMMAND', `10m')dnl
-define(`confTO_HOSTSTATUS', `30m')dnl
-define(`confMIN_QUEUE_AGE', `30m')dnl
-define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
-define(`confTRUSTED_USERS', `majordom')dnl
-define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
-          by $j ($v/$Z)$?r with $r$. id $i$?u$|;$.
-          $?ufor $u; $.$b')dnl
-define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
-define(`confMAX_DAEMON_CHILDREN', `8')dnl
-define(`confCONNECTION_THROTTLE_RATE', `1')dnl
+VERSIONID(`@(#)clientproto.mc	8.7 (Berkeley) 3/23/96')
+
+OSTYPE(bsd4.4)
+FEATURE(nullclient, hub.$m)
+MASQUERADE_AS(FreeBSD.org)
