@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #define KERNEL
@@ -52,11 +56,13 @@ extern int errno;
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/ptrace.h>
-#include <vis.h>
+#include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
+#include <unistd.h>
+#include <vis.h>
 #include "ktrace.h"
 
 int timestamp, decimal, fancy = 1, tail, maxdata;
@@ -69,8 +75,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	extern char *optarg;
 	int ch, ktrlen, size;
 	register void *m;
 	int trpoints = ALL_POINTS;
@@ -102,12 +106,8 @@ main(argc, argv)
 			break;
 		case 't':
 			trpoints = getpoints(optarg);
-			if (trpoints < 0) {
-				(void)fprintf(stderr,
-				    "kdump: unknown trace point in %s\n",
-				    optarg);
-				exit(1);
-			}
+			if (trpoints < 0)
+				errx(1, "unknown trace point in %s", optarg);
 			break;
 		default:
 			usage();
@@ -117,36 +117,23 @@ main(argc, argv)
 		usage();
 
 	m = (void *)malloc(size = 1025);
-	if (m == NULL) {
-		(void)fprintf(stderr, "kdump: %s.\n", strerror(ENOMEM));
-		exit(1);
-	}
-	if (!freopen(tracefile, "r", stdin)) {
-		(void)fprintf(stderr,
-		    "kdump: %s: %s.\n", tracefile, strerror(errno));
-		exit(1);
-	}
+	if (m == NULL)
+		errx(1, "%s", strerror(ENOMEM));
+	if (!freopen(tracefile, "r", stdin))
+		err(1, "%s", tracefile);
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
 		if (trpoints & (1<<ktr_header.ktr_type))
 			dumpheader(&ktr_header);
-		if ((ktrlen = ktr_header.ktr_len) < 0) {
-			(void)fprintf(stderr,
-			    "kdump: bogus length 0x%x\n", ktrlen);
-			exit(1);
-		}
+		if ((ktrlen = ktr_header.ktr_len) < 0)
+			errx(1, "bogus length 0x%x", ktrlen);
 		if (ktrlen > size) {
 			m = (void *)realloc(m, ktrlen+1);
-			if (m == NULL) {
-				(void)fprintf(stderr,
-				    "kdump: %s.\n", strerror(ENOMEM));
-				exit(1);
-			}
+			if (m == NULL)
+				errx(1, "%s", strerror(ENOMEM));
 			size = ktrlen;
 		}
-		if (ktrlen && fread_tail(m, ktrlen, 1) == 0) {
-			(void)fprintf(stderr, "kdump: data too short.\n");
-			exit(1);
-		}
+		if (ktrlen && fread_tail(m, ktrlen, 1) == 0)
+			errx(1, "data too short");
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
 		switch (ktr_header.ktr_type) {
