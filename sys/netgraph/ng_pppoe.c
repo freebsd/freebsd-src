@@ -1003,13 +1003,13 @@ AAA
 				log(LOG_NOTICE,
 				    "Switched to nonstandard PPPoE mode due to "
 				    "packet from %*D\n",
-				    sizeof(wh->eh.ether_shost),
+				    ETHER_ADDR_LEN,
 				    wh->eh.ether_shost, ":");
 			} else if (pppoe_mode == PPPOE_KEEPSTANDARD)
 				log(LOG_NOTICE,
 				    "Ignored nonstandard PPPoE packet "
 				    "from %*D\n",
-				    sizeof(wh->eh.ether_shost),
+				    ETHER_ADDR_LEN,
 				    wh->eh.ether_shost, ":");
 			/* fall through */
 		case	ETHERTYPE_PPPOE_DISC:
