@@ -57,7 +57,7 @@ static int comcnrate = CONSPEED;
 void dec_kn20aa_init __P((void));
 static void dec_kn20aa_cons_init __P((void));
 static void dec_kn20aa_intr_init __P((void));
-static int dec_kn20aa_intr_route  __P((device_t, device_t, int));
+static void dec_kn20aa_intr_map  __P((void *));
 static void dec_kn20aa_intr_disable __P((int));
 static void dec_kn20aa_intr_enable __P((int));
 
@@ -92,7 +92,7 @@ dec_kn20aa_init()
 	platform.iobus = "cia";
 	platform.cons_init = dec_kn20aa_cons_init;
 	platform.pci_intr_init  = dec_kn20aa_intr_init;
-	platform.pci_intr_route  = dec_kn20aa_intr_route;
+	platform.pci_intr_map  = dec_kn20aa_intr_map;
 	platform.pci_intr_disable = dec_kn20aa_intr_disable;
 	platform.pci_intr_enable = dec_kn20aa_intr_enable;
 }
@@ -276,11 +276,12 @@ dec_kn20aa_intr_init()
 	dec_kn20aa_intr_enable(31);
 }
 
-static int
-dec_kn20aa_intr_route(device_t pcib, device_t dev, int pin)
+void
+dec_kn20aa_intr_map(void *arg)
 {
-	int intline;
+	pcicfgregs *cfg;
 
+	cfg = (pcicfgregs *)arg;
 	/*
 	 * Slot->interrupt translation.  Appears to work, though it
 	 * may not hold up forever.
@@ -288,46 +289,45 @@ dec_kn20aa_intr_route(device_t pcib, device_t dev, int pin)
 	 * The DEC engineers who did this hardware obviously engaged
 	 * in random drug testing.
 	 */
-	switch (pci_get_slot(dev)) {
+	switch (cfg->slot) {
 	case 11:
 	case 12:
-		intline = ((pci_get_slot(dev) - 11) + 0) * 4;
+		cfg->intline = ((cfg->slot - 11) + 0) * 4;
 		break;
 
 	case 7:
-		intline = 8;
+		cfg->intline = 8;
 		break;
 
 	case 9:
-		intline = 12;
+		cfg->intline = 12;
 		break;
 
 	case 6:				/* 21040 on AlphaStation 500 */
-		intline = 13;
+		cfg->intline = 13;
 		break;
 
 	case 8:
-		intline = 16;
+		cfg->intline = 16;
 		break;
 
 	case 10:			/* 8275EB on AlphaStation 500 */
-		return(255);
+		return;
 
 	default:
-		if (pci_get_bus(dev) == 0) {
+		if(!cfg->bus){
 			printf("dec_kn20aa_intr_map: weird slot %d\n",
-			       pci_get_slot(dev));
-			return(255);
+			    cfg->slot);
+			return;
 		} else {
-			intline = pci_get_slot(dev);
+			cfg->intline = cfg->slot;
 		}
 	}
 
-	intline += pci_get_bus(dev) * 16;
-	if (intline > KN20AA_MAX_IRQ)
-		panic("dec_kn20aa_intr_route: intline too large (%d)\n",
-		      intline);
-	return(intline);
+	cfg->intline += cfg->bus*16;
+	if (cfg->intline > KN20AA_MAX_IRQ)
+		panic("dec_kn20aa_intr_map: cfg->intline too large (%d)\n",
+		    cfg->intline);
 }
 
 void

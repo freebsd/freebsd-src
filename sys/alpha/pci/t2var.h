@@ -29,4 +29,3 @@
 extern vm_offset_t	sable_lynx_base;
 
 extern void t2_init(void);
-extern int t2_intr_route(device_t, device_t, int);

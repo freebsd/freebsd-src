@@ -34,7 +34,9 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+#include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#include <machine/cpuconf.h>
 #include <machine/swiz.h>
 #include <machine/md_var.h>
 
@@ -159,6 +161,19 @@ u_int32_t
 lca_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 		     u_int reg, int width)
 {
+	pcicfgregs cfg;
+
+	if ((reg == PCIR_INTLINE) && (width == 1) && 
+	     (platform.pci_intr_map != NULL)) {
+		cfg.bus = b;
+		cfg.slot = s;
+		cfg.func = f;
+		cfg.intline = 255;
+		platform.pci_intr_map((void *)&cfg);
+		if (cfg.intline != 255)
+			return cfg.intline;
+	}
+
 	switch (width) {
 	case 1:
 		CFGREAD(b, s, f, reg, BYTE, u_int8_t);
