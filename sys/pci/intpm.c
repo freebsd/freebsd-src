@@ -663,20 +663,8 @@ intpm_attach(device_t dev)
                 }
 
 		rid=PCI_BASE_ADDR_SMB;
-#if 0
 		res=bus_alloc_resource(dev,SYS_RES_IOPORT,&rid,
 				       0,~0,1,RF_ACTIVE);
-		if(res==NULL){
-		  device_printf(dev,"IO FAILED Trying Memory\n");
-		  res=bus_alloc_resource(dev,SYS_RES_MEMORY,&rid,0,~0,
-					 1,RF_ACTIVE);
-		}
-#else
-		/*Do as I tell!*/
-		value=pci_read_config(dev,rid,4);
-		res=bus_alloc_resource(dev,SYS_RES_IOPORT,&rid,value&(~1),
-				       (value&(~1))+256,256,RF_ACTIVE);
-#endif
 		if(res==NULL){
 		  device_printf(dev,"Could not allocate Bus space\n");
 		  return ENXIO;
@@ -744,6 +732,7 @@ intpm_probe(device_t dev)
 	  ++ep;
     if(ep->desc!=NULL){
       device_set_desc(dev,ep->desc);
+      bus_set_resource(dev,SYS_RES_IRQ,0,9,1); /* XXX setup intr resource */
       return 0;
     }else{
       return ENXIO;
