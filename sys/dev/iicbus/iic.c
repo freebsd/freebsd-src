@@ -130,6 +130,7 @@ iic_probe(device_t dev)
 static int
 iic_attach(device_t dev)
 {
+	cdevsw_add(&iic_cdevsw);	/* XXX */
 	return (0);
 }
 
@@ -274,4 +275,4 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-DEV_DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, iic_cdevsw, 0, 0);
+DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, 0, 0);
