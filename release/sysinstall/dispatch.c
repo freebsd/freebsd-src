@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.12 1997/03/10 21:11:52 jkh Exp $
+ * $Id: dispatch.c,v 1.13 1997/05/22 00:17:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,13 +47,20 @@ static struct _word {
     { "configRouter",		configRouter		},
     { "configNFSServer",	configNFSServer		},
     { "configSamba",		configSamba		},
-    { "configRegister",		configRegister		},
+    { "configNTP",		configNTP		},
+    { "configPCNFSD",		configPCNFSD		},
+    { "configNFSServer",	configNFSServer		},
     { "configPackages",		configPackages		},
+    { "configRegister",		configRegister		},
+    { "configRouter",		configRouter		},
+    { "configUsers",		configUsers		},
+    { "configXFree86",		configXFree86		},
     { "diskPartitionEditor",	diskPartitionEditor	},
     { "diskPartitionWrite",	diskPartitionWrite	},
     { "diskLabelEditor",	diskLabelEditor		},
     { "diskLabelCommit",	diskLabelCommit		},
     { "distReset",		distReset		},
+    { "distSetCustom",		distSetDeveloper	},
     { "distSetDeveloper",	distSetDeveloper	},
     { "distSetXDeveloper",	distSetXDeveloper	},
     { "distSetKernDeveloper",	distSetKernDeveloper	},
@@ -69,9 +76,14 @@ static struct _word {
     { "docShowDocument",	docShowDocument		},
     { "installCommit",		installCommit		},
     { "installExpress",		installExpress		},
+    { "installNovice",		installNovice		},
     { "installUpgrade",		installUpgrade		},
     { "installFixup",		installFixup		},
+    { "installFixitHoloShell",	installFixitHoloShell	},
+    { "installFixitCDROM",	installFixitCDROM	},
+    { "installFixitFloppy",	installFixitFloppy	},
     { "installFilesystems",	installFilesystems	},
+    { "installVarDefaults",	installVarDefaults	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
@@ -130,16 +142,17 @@ dispatchCommand(char *str)
     if ((cp = index(str, '\n')) != NULL)
 	*cp = '\0';
 
-    /* A command might be a pathname if it's encoded in argv[0], as we also support */
+    /* If it's got a `=' sign in there, assume it's a variable setting */
     if (index(str, '=')) {
 	variable_set(str);
 	i = DITEM_SUCCESS;
     }
     else {
-	if ((cp = index(str, '/')) != NULL)
+	/* A command might be a pathname if it's encoded in argv[0], which we also support */
+	if ((cp = rindex(str, '/')) != NULL)
 	    str = cp + 1;
 	if (!call_possible_resword(str, NULL, &i)) {
-	    msgConfirm("No such command: %s", str);
+	    msgNotify("Warning: No such command ``%s''", str);
 	    i = DITEM_FAILURE;
 	}
     }
