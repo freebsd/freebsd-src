@@ -89,11 +89,13 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	daddr_t diskbn;
 	daddr_t number;
 	struct stat stbuf, devstat;
 	register struct direct *dp;
 	DIR *dirp;
-	char name[BUFSIZ];
+	char name[2 * MAXPATHLEN];
+	char *name_dir_end;
 
 	if (argc < 3) {
 		fprintf(stderr, "usage: badsect bbdir blkno [ blkno ]\n");
@@ -108,9 +110,10 @@ main(argc, argv)
 		perror(name);
 		exit(3);
 	}
+	name_dir_end = name + strlen(name);
 	while ((dp = readdir(dirp)) != NULL) {
-		strcpy(&name[5], dp->d_name);
-		if (stat(name, &devstat) < 0) {
+		strcpy(name_dir_end, dp->d_name);
+		if (lstat(name, &devstat) < 0) {
 			perror(name);
 			exit(4);
 		}
@@ -124,7 +127,13 @@ main(argc, argv)
 			stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
-	if ((fsi = open(name, 0)) < 0) {
+	/*
+	 * Opening of a mounted on device is not allowed.
+	 * Attempt to open the raw device instead.
+	 */
+	memcpy(name_dir_end + 1, name_dir_end, strlen(name_dir_end) + 1);
+	*name_dir_end = 'r';
+	if ((fsi = open(name, O_RDONLY)) < 0) {
 		perror(name);
 		exit(6);
 	}
@@ -132,10 +141,22 @@ main(argc, argv)
 	rdfs(SBOFF, SBSIZE, (char *)fs);
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 	for (argc -= 2, argv += 2; argc > 0; argc--, argv++) {
-		number = atoi(*argv);
+		number = atol(*argv);
 		if (chkuse(number, 1))
 			continue;
-		if (mknod(*argv, IFMT|0600, dbtofsb(fs, number)) < 0) {
+		/*
+		 * Print a warning if converting the block number to a dev_t
+		 * will truncate it.  badsect was not very useful in versions
+		 * of BSD before 4.4 because dev_t was 16 bits and another
+		 * bit was lost by bogus sign extensions.
+		 */
+		diskbn = dbtofsb(fs, number);
+		if ((dev_t)diskbn != diskbn) {
+			printf("sector %d cannot be represented as a dev_t\n",
+			       number);
+			errs++;
+		}
+		else if (mknod(*argv, IFMT|0600, (dev_t)diskbn) < 0) {
 			perror(*argv);
 			errs++;
 		}
