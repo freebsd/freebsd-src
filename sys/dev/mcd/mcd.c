@@ -35,7 +35,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.6 1994/01/18 02:20:15 nate Exp $
+ *	$Id: mcd.c,v 1.7 1994/01/22 18:00:54 ats Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1079,9 +1079,9 @@ static int mcd_toc_entry(int unit, struct ioc_read_toc_entry *te)
 	ret_toc.rt.track = i;
 	if (te->address_format == CD_MSF_FORMAT)
 	{
-		ret_toc.rt.addr[1] = cd->toc[i].hd_pos_msf[0];
-		ret_toc.rt.addr[2] = cd->toc[i].hd_pos_msf[1];
-		ret_toc.rt.addr[3] = cd->toc[i].hd_pos_msf[2];
+		ret_toc.rt.addr.addr[1] = cd->toc[i].hd_pos_msf[0];
+		ret_toc.rt.addr.addr[2] = cd->toc[i].hd_pos_msf[1];
+		ret_toc.rt.addr.addr[3] = cd->toc[i].hd_pos_msf[2];
 	}
 
 	/* copy the data back */
