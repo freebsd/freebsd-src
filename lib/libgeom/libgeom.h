@@ -34,6 +34,8 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
+#include <geom/geom_ctl.h>
+
 void geom_stats_close(void);
 void geom_stats_resync(void);
 int geom_stats_open(void);
@@ -124,5 +126,26 @@ struct gident * geom_lookupid(struct gmesh *gmp, const void *id);
 int geom_xml2tree(struct gmesh *gmp, char *p);
 int geom_gettree(struct gmesh *gmp);
 void geom_deletetree(struct gmesh *gmp);
+
+/* geom_ctl.c */
+
+struct geom_ctl_req;
+
+#ifdef _STDIO_H_			/* limit #include pollution */
+void geom_ctl_dump(struct geom_ctl_req *req, FILE *f);
+#endif
+void geom_ctl_free(struct geom_ctl_req *req);
+struct geom_ctl_req *geom_ctl_get_handle(enum geom_ctl_request req);
+const char *geom_ctl_issue(struct geom_ctl_req *req);
+void geom_ctl_set_class_by_id(struct geom_ctl_req *req, void *id);
+void geom_ctl_set_class_by_name(struct geom_ctl_req *req, const char *name);
+void geom_ctl_set_consumer_by_id(struct geom_ctl_req *req, void *id);
+void geom_ctl_set_consumer_by_name(struct geom_ctl_req *req, const char *name);
+void geom_ctl_set_geom_by_id(struct geom_ctl_req *req, void *id);
+void geom_ctl_set_geom_by_name(struct geom_ctl_req *req, const char *name);
+void geom_ctl_set_meta(struct geom_ctl_req *req, off_t offset, u_int len, void* val);
+void geom_ctl_set_param(struct geom_ctl_req *req, const char *name, int len, void* val);
+void geom_ctl_set_provider_by_id(struct geom_ctl_req *req, void *id);
+void geom_ctl_set_provider_by_name(struct geom_ctl_req *req, const char *name);
 
 #endif /* _LIBGEOM_H_ */
