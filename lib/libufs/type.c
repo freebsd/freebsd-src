@@ -99,6 +99,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	fd = open(name, O_RDONLY);
 	if (fd == -1) {
 		DEBUG("open");
+		disk->d_error = "failed to open disk for reading";
 		return -1;
 	}
 
@@ -109,6 +110,7 @@ ufs_disk_fillout(struct uufsd *disk, const char *name)
 	disk->d_inomax = 0;
 	disk->d_name = name;
 	disk->d_ufs = 0;
+	disk->d_error = NULL;
 
 	if (sbread(disk) == -1) {
 		DEBUG(NULL);
