@@ -85,7 +85,7 @@ structure is defined as:
 .Pp
 .Bd -literal -offset indent -compact
 struct iovec {
-	char   *iov_base;  /* Base address. */
+	void   *iov_base;  /* Base address. */
 	size_t iov_len;    /* Length. */
 };
 .Ed
