@@ -59,6 +59,9 @@ MALLOC_DEFINE(M_CACHE, "cache", "Various Dynamically allocated caches");
 MALLOC_DEFINE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
 
+MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
+MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
+
 static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
@@ -473,7 +476,7 @@ malloc_init(data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 
-	if (type->ks_magic != M_MAGIC) 
+	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
 
 	if (type->ks_limit != 0)
@@ -498,7 +501,7 @@ malloc_uninit(data)
 	struct malloc_type *type = (struct malloc_type *)data;
 	struct malloc_type *t;
 
-	if (type->ks_magic != M_MAGIC) 
+	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
 
 	if (cnt.v_page_count == 0)

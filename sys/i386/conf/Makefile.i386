@@ -41,7 +41,9 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h 
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
+# KAME mandatory flags
+COPTS+=	-D_KERNEL
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".

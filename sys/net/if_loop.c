@@ -67,6 +67,14 @@
 #include <netipx/ipx_if.h>
 #endif
 
+#ifdef INET6
+#ifndef INET
+#include <netinet/in.h>
+#endif
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6.h>
+#endif
+
 #ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
@@ -93,6 +101,8 @@ static int looutput __P((struct ifnet *ifp,
 
 #ifdef TINY_LOMTU
 #define	LOMTU	(1024+512)
+#elif defined(LARGE_LOMTU)
+#define LOMTU	131072
 #else
 #define LOMTU	16384
 #endif
@@ -136,11 +146,41 @@ looutput(ifp, m, dst, rt)
 		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
+	/*
+	 * KAME requires that the packet to be contiguous on the
+	 * mbuf.  We need to make that sure.
+	 * this kind of code should be avoided.
+	 * XXX: fails to join if interface MTU > MCLBYTES.  jumbogram?
+	 */
+	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
+		struct mbuf *n;
+
+		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		if (!n)
+			goto contiguousfail;
+		MCLGET(n, M_DONTWAIT);
+		if (! (n->m_flags & M_EXT)) {
+			m_freem(n);
+			goto contiguousfail;
+		}
+
+		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_pkthdr = m->m_pkthdr;
+		n->m_len = m->m_pkthdr.len;
+		m_freem(m);
+		m = n;
+	}
+	if (0) {
+contiguousfail:
+		printf("looutput: mbuf allocation failed\n");
+	}
+
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 #if 1	/* XXX */
 	switch (dst->sa_family) {
 	case AF_INET:
+	case AF_INET6:
 	case AF_IPX:
 	case AF_NS:
 	case AF_ISO:
@@ -227,6 +267,13 @@ if_simloop(ifp, m, dst, hlen)
 		isr = NETISR_IP;
 		break;
 #endif
+#ifdef INET6
+	case AF_INET6:
+		m->m_flags |= M_LOOP;
+		ifq = &ip6intrq;
+		isr = NETISR_IPV6;
+		break;
+#endif
 #ifdef IPX
 	case AF_IPX:
 		ifq = &ipxintrq;
@@ -285,7 +332,7 @@ lortrequest(cmd, rt, sa)
 		 * should be at least twice the MTU plus a little more for
 		 * overhead.
 		 */
-		rt->rt_rmx.rmx_recvpipe = 
+		rt->rt_rmx.rmx_recvpipe =
 			rt->rt_rmx.rmx_sendpipe = 3 * LOMTU;
 	}
 }
@@ -325,6 +372,10 @@ loioctl(ifp, cmd, data)
 
 #ifdef INET
 		case AF_INET:
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
 			break;
 #endif
 

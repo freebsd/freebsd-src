@@ -66,8 +66,8 @@
 #include <netinet/ip_dummynet.h>
 #endif
 
-static struct inpcbhead ripcb;
-static struct inpcbinfo ripcbinfo;
+struct	inpcbhead ripcb;
+struct	inpcbinfo ripcbinfo;
 
 /*
  * Nominal space allocated to a raw ip socket.
@@ -202,7 +202,7 @@ rip_output(m, so, dst)
 		ip = mtod(m, struct ip *);
 		/* don't allow both user specified and setsockopt options,
 		   and don't allow packet length sizes that will crash */
-		if (((IP_VHL_HL(ip->ip_vhl) != (sizeof (*ip) >> 2)) 
+		if (((IP_VHL_HL(ip->ip_vhl) != (sizeof (*ip) >> 2))
 		     && inp->inp_options)
 		    || (ip->ip_len > m->m_pkthdr.len)
 		    || (ip->ip_len < (IP_VHL_HL(ip->ip_vhl) << 2))) {
@@ -411,12 +411,12 @@ rip_ctlinput(cmd, sa, vip)
 	}
 }
 
-static u_long	rip_sendspace = RIPSNDQ;
-static u_long	rip_recvspace = RIPRCVQ;
+u_long	rip_sendspace = RIPSNDQ;
+u_long	rip_recvspace = RIPRCVQ;
 
-SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
     &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
-SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
     &rip_recvspace, 0, "Maximum incoming raw IP datagram size");
 
 static int
@@ -632,6 +632,6 @@ struct pr_usrreqs rip_usrreqs = {
 	rip_abort, pru_accept_notsupp, rip_attach, rip_bind, rip_connect,
 	pru_connect2_notsupp, in_control, rip_detach, rip_disconnect,
 	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown, 
+	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown,
 	in_setsockaddr, sosend, soreceive, sopoll
 };
