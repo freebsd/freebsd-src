@@ -2412,9 +2412,8 @@ xl_encap(sc, c, m_head)
 	struct xl_chain		*c;
 	struct mbuf		*m_head;
 {
-	struct xl_frag		*f = NULL;
 	int			error;
-	u_int32_t		baddr, status;
+	u_int32_t		status;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -2441,33 +2440,23 @@ xl_encap(sc, c, m_head)
 	if (error) {
 		struct mbuf		*m_new;
 
-		m_new = m_head->m_pkthdr.len > MHLEN ?
-		    m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR) :
-		    m_gethdr(M_DONTWAIT, MT_DATA);
+		m_new = m_defrag(m_head, M_DONTWAIT);
 		if (m_new == NULL) {
 			m_freem(m_head);
 			printf("xl%d: no memory for tx list\n", sc->xl_unit);
 			return(1);
+		} else {
+			m_head = m_new;
 		}
-		m_copydata(m_head, 0, m_head->m_pkthdr.len,	
-					mtod(m_new, caddr_t));
-		m_new->m_pkthdr.len = m_new->m_len = m_head->m_pkthdr.len;
-		m_freem(m_head);
-		m_head = m_new;
-		f = &c->xl_ptr->xl_frag[0];
-		error = bus_dmamap_load(sc->xl_mtag, c->xl_map,
-		    mtod(m_new, void *), MCLBYTES, xl_dma_map_addr,
-		    &baddr, 0);
+
+		error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map,
+			m_head, xl_dma_map_txbuf, c->xl_ptr, 0);
 		if (error) {
-			m_freem(m_new);
+			m_freem(m_head);
 			printf("xl%d: can't map mbuf (error %d)\n",
 			    sc->xl_unit, error);
 			return(1);
 		}
-		f->xl_addr = htole32(baddr);
-		f->xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-		c->xl_ptr->xl_status = htole32(m_new->m_len);
-		c->xl_ptr->xl_next = 0;
 	}
 
 	if (sc->xl_type == XL_TYPE_905B) {
