@@ -349,7 +349,7 @@ set_qstate(int action, const char *lfname)
 		errsav = errno;
 		seteuid(uid);
 		res = SQS_CHGOK;
-		if (res < 0)
+		if (chres < 0)
 			res = SQS_CHGFAIL;
 	} else if (newbits == LOCK_FILE_MODE) {
 		/*
