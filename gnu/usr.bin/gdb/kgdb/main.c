@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <kvm.h>
 #include <limits.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,6 +70,7 @@ static int verbose;
 
 static char crashdir[PATH_MAX];
 static char *kernel;
+static char *remote;
 static char *vmcore;
 
 static void (*kgdb_new_objfile_chain)(struct objfile * objfile);
@@ -76,14 +78,15 @@ static void (*kgdb_new_objfile_chain)(struct objfile * objfile);
 static void
 usage(void)
 {
+
 	fprintf(stderr,
-	    "usage: %s [-v] [-d crashdir] [-n dumpnr] [kernel [core]]\n",
-	    getprogname());
+	    "usage: %s [-v] [-d crashdir] [-c core | -n dumpnr | -r device]\n"
+	    "\t[kernel [core]]\n", getprogname());
 	exit(1);
 }
 
 static void
-use_dump(int nr)
+kernel_from_dumpnr(int nr)
 {
 	char path[PATH_MAX];
 	FILE *info;
@@ -91,18 +94,11 @@ use_dump(int nr)
 	struct stat st;
 	int l;
 
-	snprintf(path, sizeof(path), "%s/vmcore.%d", crashdir, nr);
-	if (stat(path, &st) == -1)
-		err(1, path);
-	if (!S_ISREG(st.st_mode))
-		errx(1, "%s: not a regular file", path);
-
-	vmcore = strdup(path);
-
 	/*
-	 * See if there's a kernel image right here, use it. The kernel
-	 * image is either called kernel.<nr> or is in a subdirectory
-	 * kernel.<nr> and called kernel.
+	 * If there's a kernel image right here in the crash directory, then
+	 * use it.  The kernel image is either called kernel.<nr> or is in a
+	 * subdirectory kernel.<nr> and called kernel.  The latter allows us
+	 * to collect the modules in the same place.
 	 */
 	snprintf(path, sizeof(path), "%s/kernel.%d", crashdir, nr);
 	if (stat(path, &st) == 0) {
@@ -121,9 +117,11 @@ use_dump(int nr)
 	}
 
 	/*
-	 * No kernel image here. Parse the dump header. The kernel object
+	 * No kernel image here.  Parse the dump header.  The kernel object
 	 * directory can be found there and we probably have the kernel
-	 * image in it still.
+	 * image still in it.  The object directory may also have a kernel
+	 * with debugging info (called kernel.debug).  If we have a debug
+	 * kernel, use it.
 	 */
 	snprintf(path, sizeof(path), "%s/info.%d", crashdir, nr);
 	info = fopen(path, "r");
@@ -150,9 +148,6 @@ use_dump(int nr)
 		}
 	}
 	fclose(info);
-
-	if (verbose && kernel == NULL)
-		warnx("dump %d: no kernel found", nr);
 }
 
 static void
@@ -176,9 +171,13 @@ kgdb_interp_command_loop(void *data)
 	static int once = 0;
 
 	if (!once) {
-		symbol_file_add_main (kernel, 0);
-		print_stack_frame(get_current_frame(), -1, 0);
 		once = 1;
+		symbol_file_add_main (kernel, 0);
+		if (remote)
+			push_remote_target (remote, 0);
+		else
+			kgdb_target();
+		print_stack_frame(get_current_frame(), -1, 0);
 	}
 	command_loop();
 }
@@ -199,7 +198,6 @@ kgdb_init(char *argv0 __unused)
 	interp_add(kgdb);
 
 	set_prompt("(kgdb) ");
-	kgdb_target();
 	kgdb_new_objfile_chain = target_new_objfile_hook;
 	target_new_objfile_hook = kgdb_new_objfile;
 }
@@ -207,6 +205,8 @@ kgdb_init(char *argv0 __unused)
 int
 main(int argc, char *argv[])
 {
+	char path[PATH_MAX];
+	struct stat st;
 	struct captured_main_args args;
 	char *s;
 	int ch;
@@ -218,12 +218,21 @@ main(int argc, char *argv[])
 	if (s != NULL)
 		strlcpy(crashdir, s, sizeof(crashdir));
 
-	while ((ch = getopt(argc, argv, "d:n:v")) != -1) {
+	while ((ch = getopt(argc, argv, "c:d:n:r:v")) != -1) {
 		switch (ch) {
-		case 'd':
+		case 'c':	/* use given core file. */
+			if (vmcore != NULL) {
+				warnx("option %c: can only be specified once",
+				    optopt);
+				usage();
+				/* NOTREACHED */
+			}
+			vmcore = strdup(optarg);
+			break;
+		case 'd':	/* lookup dumps in given directory. */
 			strlcpy(crashdir, optarg, sizeof(crashdir));
 			break;
-		case 'n':
+		case 'n':	/* use dump with given number. */
 			dumpnr = strtol(optarg, &s, 0);
 			if (dumpnr < 0 || *s != '\0') {
 				warnx("option %c: invalid kernel dump number",
@@ -232,7 +241,16 @@ main(int argc, char *argv[])
 				/* NOTREACHED */
 			}
 			break;
-		case 'v':
+		case 'r':	/* use given device for remote session. */
+			if (remote != NULL) {
+				warnx("option %c: can only be specified once",
+				    optopt);
+				usage();
+				/* NOTREACHED */
+			}
+			remote = strdup(optarg);
+			break;
+		case 'v':	/* increase verbosity. */
 			verbose++;
 			break;
 		case '?':
@@ -241,40 +259,99 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (((vmcore != NULL) ? 1 : 0) + ((dumpnr >= 0) ? 1 : 0) +
+	    ((remote != NULL) ? 1 : 0) > 1) {
+		warnx("options -c, -n and -r are mutually exclusive");
+		usage();
+		/* NOTREACHED */
+	}
+
 	if (verbose > 1)
 		warnx("using %s as the crash directory", crashdir);
 
-	if (dumpnr >= 0)
-		use_dump(dumpnr);
-
-	if (argc > optind) {
-		if (kernel != NULL)
-			free(kernel);
+	if (argc > optind)
 		kernel = strdup(argv[optind++]);
-	}
-	while (argc > optind) {
-		if (vmcore != NULL)
-			errx(1, "multiple core files specified");
-		vmcore = strdup(argv[optind++]);
+
+	if (argc > optind && (dumpnr >= 0 || remote != NULL)) {
+		warnx("options -n and -r do not take a core file. Ignored");
+		optind = argc;
 	}
 
-	if (kernel == NULL)
-		errx(1, "kernel not specified");
-	if (vmcore == NULL)
-		errx(1, "core file not specified");
+	if (dumpnr >= 0) {
+		snprintf(path, sizeof(path), "%s/vmcore.%d", crashdir, dumpnr);
+		if (stat(path, &st) == -1)
+			err(1, path);
+		if (!S_ISREG(st.st_mode))
+			errx(1, "%s: not a regular file", path);
+		vmcore = strdup(path);
+	} else if (remote != NULL) {
+		if (stat(remote, &st) != 0) {
+			snprintf(path, sizeof(path), "/dev/%s", remote);
+			if (stat(path, &st) != 0) {
+				err(1, "%s", remote);
+				/* NOTREACHED */
+			}
+			free(remote);
+			remote = strdup(path);
+		}
+		if (!S_ISCHR(st.st_mode) && !S_ISFIFO(st.st_mode)) {
+			errx(1, "%s: not a special file, FIFO or socket",
+			    remote);
+			/* NOTREACHED */
+		}
+	} else if (argc > optind) {
+		if (vmcore == NULL)
+			vmcore = strdup(argv[optind++]);
+		if (argc > optind)
+			warnx("multiple core files specified. Ignored");
+	} else if (vmcore == NULL && kernel == NULL) {
+		vmcore = strdup(_PATH_MEM);
+		kernel = strdup(getbootfile());
+	}
 
 	if (verbose) {
-		warnx("kernel image: %s", kernel);
-		warnx("core file: %s", vmcore);
+		if (vmcore != NULL)
+			warnx("core file: %s", vmcore);
+		if (remote != NULL)
+			warnx("device file: %s", remote);
+		if (kernel != NULL)
+			warnx("kernel image: %s", kernel);
 	}
 
-	s = malloc(_POSIX2_LINE_MAX);
-	kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, s);
-	if (kvm == NULL)
-		errx(1, s);
-	free(s);
+	/*
+	 * At this point we must either have a core file or have a kernel
+	 * with a remote target.
+	 */
+	if (remote != NULL && kernel == NULL) {
+		warnx("remote debugging requires a kernel");
+		usage();
+		/* NOTREACHED */
+	}
+	if (vmcore == NULL && remote == NULL) {
+		warnx("need a core file or a device for remote debugging");
+		usage();
+		/* NOTREACHED */
+	}
 
-	kgdb_thr_init();
+	/* If we don't have a kernel image yet, try to find one. */
+	if (kernel == NULL) {
+		if (dumpnr >= 0)
+			kernel_from_dumpnr(dumpnr);
+
+		if (kernel == NULL)
+			errx(1, "couldn't find a suitable kernel image");
+		if (verbose)
+			warnx("kernel image: %s", kernel);
+	}
+
+	if (remote == NULL) {
+		s = malloc(_POSIX2_LINE_MAX);
+		kvm = kvm_openfiles(kernel, vmcore, NULL, O_RDONLY, s);
+		if (kvm == NULL)
+			errx(1, s);
+		free(s);
+		kgdb_thr_init();
+	}
 
 	memset (&args, 0, sizeof args);
 	args.argc = 1;
