@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <pwd.h>
 #include <syslog.h>
@@ -68,9 +69,9 @@ int
 main(int argc, char *argv[])
 {
 	struct passwd *pw;
-	int ch, howto, i, lflag, nflag, qflag, pflag, sverrno;
+	int ch, howto, i, fd, kflag, lflag, nflag, qflag, pflag, sverrno;
 	u_int pageins;
-	char *p;
+	char *kernel, *p;
 	const char *user;
 
 	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
@@ -78,11 +79,15 @@ main(int argc, char *argv[])
 		howto = RB_HALT;
 	} else
 		howto = 0;
-	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "dlnpq")) != -1)
+	kflag = lflag = nflag = qflag = 0;
+	while ((ch = getopt(argc, argv, "dk:lnpq")) != -1)
 		switch(ch) {
 		case 'd':
 			howto |= RB_DUMP;
+			break;
+		case 'k':
+			kflag = 1;
+			kernel = optarg;
 			break;
 		case 'l':
 			lflag = 1;
@@ -115,6 +120,16 @@ main(int argc, char *argv[])
 	if (qflag) {
 		reboot(howto);
 		err(1, NULL);
+	}
+
+	if (kflag) {
+		fd = open("/boot/nextboot.conf", O_WRONLY | O_CREAT, 0444);
+		if (fd > -1) {
+			(void)write(fd, "kernel=\"", 8L);
+			(void)write(fd, kernel, strlen(kernel));
+			(void)write(fd, "\"\n", 2);
+			close(fd);
+		}
 	}
 
 	/* Log the reboot. */
@@ -195,7 +210,7 @@ restart:
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: %s [-dnpq]\n",
+	(void)fprintf(stderr, "usage: %s [-dnpq] [-k kernel]\n",
 	    dohalt ? "halt" : "reboot");
 	exit(1);
 }
