@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.h,v 1.8 1996/02/17 18:14:23 wpaul Exp $
+ *	$Id: pw_yp.h,v 1.3 1996/02/23 16:08:59 wpaul Exp $
  */
 
 #ifdef YP
@@ -60,6 +60,7 @@ extern	char		*yp_server;
 extern	void		yp_submit	__P(( struct passwd * ));
 extern	int		use_yp		__P(( char * , uid_t , int ));
 extern	char		*get_yp_master	__P(( int ));
+extern	int		yp_in_pw_file;
 
 /*
  * Yucky.
@@ -84,7 +85,7 @@ extern	char		*get_yp_master	__P(( int ));
 		} else							\
 			errx(1, "unknown NIS user: uid %u", X);		\
 	} else if (_use_yp == USER_YP_AND_LOCAL) {			\
-		if (!force_local) {					\
+		if (!force_local && (force_yp || yp_in_pw_file)) {	\
 			_use_yp = 1;					\
 			pw = (struct passwd *)&yp_password;		\
 		} else {						\
@@ -113,7 +114,7 @@ extern	char		*get_yp_master	__P(( int ));
 		} else							\
 			errx(1, "unknown NIS user: %s.", X);		\
 	} else if (_use_yp == USER_YP_AND_LOCAL) {			\
-		if (!force_local) {					\
+		if (!force_local && (force_yp || yp_in_pw_file)) {	\
 			_use_yp = 1;					\
 			pw = (struct passwd *)&yp_password;		\
 		} else {						\
