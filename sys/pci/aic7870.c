@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.16 1995/10/26 23:58:59 gibbs Exp $
+ *	$Id: aic7870.c,v 1.17 1995/11/04 14:43:20 bde Exp $
  */
 
 #include <pci.h>
@@ -59,18 +59,17 @@
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 void aic7870_attach __P((pcici_t config_id, int unit));
 
-static u_long aic7870_count;
 static u_char aic3940_count;
 
-struct  pci_device ahc_device = {
+struct  pci_device ahc_pci_driver = {
 	"ahc",
         aic7870_probe,
         aic7870_attach,
-        &aic7870_count,
+        &ahc_unit,
 	NULL
 };
 
-DATA_SET (pcidevice_set, ahc_device);
+DATA_SET (pcidevice_set, ahc_pci_driver);
 
 static  char*
 aic7870_probe (pcici_t tag, pcidi_t type)
@@ -114,15 +113,15 @@ aic7870_attach(config_id, unit)
 	unsigned opri = 0;
 	ahc_type ahc_t = AHC_NONE;
 	ahc_flag ahc_f = AHC_FNONE;
+	struct ahc_data *ahc;
+
         if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
 		return;
 	/*
-	 * Make the offsets the same as for EISA
 	 * The first bit of PCI_BASEADR0 is always
-	 * set hence we subtract 0xc01 instead of the
-	 * 0xc00 that you would expect.
+	 * set hence we mask it off.
 	 */
-	io_port -= 0xc01ul;
+	io_port &= 0xfffffffe;
 
 	switch ((id = pci_conf_read(config_id, PCI_ID_REG))) {
 		case PCI_DEVICE_ID_ADAPTEC_3940U:
@@ -169,27 +168,30 @@ aic7870_attach(config_id, unit)
 		}
 	}
 
-	if(ahcprobe(unit, io_port, ahc_t, ahc_f)){
-		ahc_unit++;
-		/*
-		 * To be compatible with the isa style of
-		 * interrupt handler, we pass the unit number
-		 * not a pointer to our per device structure.
-		 */
-		if(!(pci_map_int(config_id, ahc_pci_intr, (void *)unit,
-			&bio_imask))) {
-			free(ahcdata[unit], M_TEMP);
-			ahcdata[unit] = NULL;
-			return;
-		}
-		/*
-		 * Since ahc_attach will poll, protect ourself
-		 * from the registered interrupt handler.
-		 */
-		opri = splbio();
-		ahc_attach(unit);
-		splx(opri);
+	ahc_reset(io_port);
+
+	if(!(ahc = ahc_alloc(unit, io_port, ahc_t, ahc_f)))
+		return;  /* XXX PCI code should take return status */
+
+	if(!(pci_map_int(config_id, ahcintr, (void *)ahc, &bio_imask))) {
+		ahc_free(ahc);
+		return;
 	}
+	/*
+	 * Protect ourself from spurrious interrupts during
+	 * intialization.
+	 */
+	opri = splbio();
+
+	if(ahc_init(unit)){
+		ahc_free(ahc);
+		splx(opri);
+		return; /* XXX PCI code should take return status */
+	}
+	ahc_unit++;
+
+	ahc_attach(unit);
+	splx(opri);
 	return;
 }
 
