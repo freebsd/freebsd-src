@@ -152,7 +152,7 @@ coda_omount(vfsp, path, data, td)
     /*
      * See if the device table matches our expectations.
      */
-    if (devsw(dev)->d_open != vc_nb_open)
+    if (dev->si_devsw->d_open != vc_nb_open)
     {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
 	return(ENXIO);
