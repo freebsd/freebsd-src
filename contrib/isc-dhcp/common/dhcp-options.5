@@ -109,7 +109,7 @@ The
 .B string
 data type specifies either an NVT ASCII string
 enclosed in double quotes, or a series of octets specified in
-hexadecimal, seperated by colons.   For example:
+hexadecimal, separated by colons.   For example:
 .nf
 .sp 1
   option dhcp-client-identifier "CLIENT-FOO";
@@ -810,7 +810,7 @@ agent should only use the list of scopes provided in this option;
 otherwise, it may use its own static configuration in preference to
 the list provided in this option.
 .PP
-The text string should be a comma-seperated list of scopes that the
+The text string should be a comma-separated list of scopes that the
 SLP agent should use.   It may be omitted, in which case the SLP Agent
 will use the aggregated list of scopes of all directory agents known
 to the SLP agent.
@@ -966,7 +966,7 @@ includes a URL that does not contain a port component, the normal
 default port is assumed (i.e., port 80 for http and port 443 for
 https).  If the list includes a URL that does not contain a path
 component, the path /uap is assumed.   If more than one URL is
-specified in this list, the URLs are seperated by spaces.
+specified in this list, the URLs are separated by spaces.
 .RE
 .PP
 .B option \fBuser-class\fR \fIstring\fR\fB;\fR
@@ -1135,6 +1135,28 @@ Specifies the domain name that the client wishes to use.   This can be a
 fully-qualified domain name, or a single label.   If there is no trailing
 '.' character in the name, it is not fully-qualified, and the server will
 generally update that name in some locally-defined domain.
+.RE
+.PP
+.B option fqdn.hostname \fI--never set--\fB;
+.RS 0.25i
+.PP
+This option should never be set, but it can be read back using the \fBoption\fR
+and \fBconfig-option\fR operators in an expression, in which case it returns
+the first label in the \fBfqdn.fqdn\fR suboption - for example, if
+the value of \fBfqdn.fqdn\fR is "foo.example.com.", then \fBfqdn.hostname\fR
+will be "foo".
+.RE
+.PP
+.B option fqdn.domainname \fI--never set--\fB;
+.RS 0.25i
+.PP
+This option should never be set, but it can be read back using the \fBoption\fR
+and \fBconfig-option\fR operators in an expression, in which case it returns
+all labels after the first label in the \fBfqdn.fqdn\fR suboption - for
+example, if the value of \fBfqdn.fqdn\fR is "foo.example.com.",
+then \fBfqdn.hostname\fR will be "example.com.".   If this suboption value
+is not set, it means that an unqualified name was sent in the fqdn option,
+or that no fqdn option was sent at all.
 .RE
 .PP
 If you wish to use any of these suboptions, we strongly recommend that you
@@ -1347,7 +1369,7 @@ option sql-default-connection-name "PRODZA";
 .PP
 An option whose type is a data string is essentially just a collection
 of bytes, and can be specified either as quoted text, like the text
-type, or as a list of hexadecimal contents seperated by colons whose
+type, or as a list of hexadecimal contents separated by colons whose
 values must be between 0 and FF.   For example:
 .nf
 
@@ -1427,7 +1449,7 @@ length does not include itself or the option code).
 .PP
 The value of this option can be set in one of two ways.   The first
 way is to simply specify the data directly, using a text string or a
-colon-seperated list of hexadecimal values.   For example:
+colon-separated list of hexadecimal values.   For example:
 .PP
 .nf
 option vendor-encapsulated-options
