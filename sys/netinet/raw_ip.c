@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.22 1995/09/21 19:59:43 wollman Exp $
+ *	$Id: raw_ip.c,v 1.19.4.2 1995/10/07 20:17:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,9 +50,10 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
-#include <netinet/in_pcb.h>
 
 #include <netinet/ip_fw.h>
 
@@ -303,6 +304,11 @@ rip_usrreq(so, req, m, nam, control)
 {
 	register int error = 0;
 	register struct inpcb *inp = sotoinpcb(so);
+
+	if (req == PRU_CONTROL)
+		return (in_control(so, (u_long)m, (caddr_t)nam,
+			(struct ifnet *)control));
+
 	switch (req) {
 
 	case PRU_ATTACH:
