@@ -57,6 +57,7 @@ int tick_missed;	/* statistics */
 void
 cpu_initclocks(void)
 {
+	stathz = hz;
 	tick_start(tick_hardclock);
 }
 
@@ -64,20 +65,13 @@ static __inline void
 tick_process(struct clockframe *cf)
 {
 
-#ifdef SMP
 	if (PCPU_GET(cpuid) == 0)
 		hardclock(cf);
-	else {
-		CTR1(KTR_CLK, "tick_process: AP, cpuid=%d", PCPU_GET(cpuid));
-		mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-		hardclock_process(curthread, CLKF_USERMODE(cf));
-		statclock_process(curthread->td_kse, CLKF_PC(cf),
-		    CLKF_USERMODE(cf));
-		mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
-	}
-#else
-	hardclock(cf);
-#endif
+	else
+		hardclock_process(cf);
+	if (profprocs != 0)
+		profclock(cf);
+	statclock(cf);
 }
 
 void

@@ -63,6 +63,7 @@
 
 #include <machine/apic.h>
 #include <machine/atomic.h>
+#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/mpapic.h>
@@ -2603,17 +2604,17 @@ ap_init(void)
  * For statclock, we send an IPI to all CPU's to have them call this
  * function.
  *
- * WARNING! unpend() will call statclock_process() directly and skip this
+ * WARNING! unpend() will call statclock() directly and skip this
  * routine.
  */
 void
-forwarded_statclock(struct trapframe frame)
+forwarded_statclock(struct clockframe frame)
 {
 
-	mtx_lock_spin(&sched_lock);
-	statclock_process(curthread->td_kse, TRAPF_PC(&frame),
-	    TRAPF_USERMODE(&frame));
-	mtx_unlock_spin(&sched_lock);
+	if (profprocs != 0)
+		profclock(&frame);
+	if (pscnt == psdiv)
+		statclock(&frame);
 }
 
 void
@@ -2642,12 +2643,10 @@ forward_statclock(void)
  * routine.
  */
 void
-forwarded_hardclock(struct trapframe frame)
+forwarded_hardclock(struct clockframe frame)
 {
 
-	mtx_lock_spin(&sched_lock);
-	hardclock_process(curthread, TRAPF_USERMODE(&frame));
-	mtx_unlock_spin(&sched_lock);
+	hardclock_process(&frame);
 }
 
 void 

@@ -199,14 +199,15 @@ int	suword64(void *base, int64_t word);
 void	realitexpire(void *);
 
 void	hardclock(struct clockframe *frame);
-void	hardclock_process(struct thread *td, int user);
+void	hardclock_process(struct clockframe *frame);
 void	softclock(void *);
 void	statclock(struct clockframe *frame);
-void	statclock_process(struct kse *ke, register_t pc, int user);
+void	profclock(struct clockframe *frame);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);
-void	setstatclockrate(int hzrate);
+void	cpu_startprofclock(void);
+void	cpu_stopprofclock(void);
 
 /* flags for suser() and suser_cred() */
 #define PRISON_ROOT	1
