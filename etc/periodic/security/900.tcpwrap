@@ -45,7 +45,13 @@ yesterday=`date -v-1d "+%b %e "`
 catmsgs() {
 	find ${LOG} -name 'messages.*' -mtime -2 |
 	    sort -t. -r -n -k 2,2 |
-	    xargs zcat -f
+	    while read f
+	    do
+		case $f in
+		    *.gz)	zcat -f $f;;
+		    *.bz2)	bzcat -f $f;;
+		esac
+	    done
 	[ -f ${LOG}/messages ] && cat $LOG/messages
 }
 
