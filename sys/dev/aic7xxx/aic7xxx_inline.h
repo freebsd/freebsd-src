@@ -1,7 +1,7 @@
 /*
  * Inline routines shareable across OS platforms.
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs.
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#12 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#14 $
  *
  * $FreeBSD$
  */
@@ -117,7 +117,7 @@ static __inline void	ahc_release_untagged_queues(struct ahc_softc *ahc);
 static __inline void
 ahc_freeze_untagged_queues(struct ahc_softc *ahc)
 {
-	if ((ahc->features & AHC_SCB_BTT) == 0)
+	if ((ahc->flags & AHC_SCB_BTT) == 0)
 		ahc->untagged_queue_lock++;
 }
 
@@ -130,7 +130,7 @@ ahc_freeze_untagged_queues(struct ahc_softc *ahc)
 static __inline void
 ahc_release_untagged_queues(struct ahc_softc *ahc)
 {
-	if ((ahc->features & AHC_SCB_BTT) == 0) {
+	if ((ahc->flags & AHC_SCB_BTT) == 0) {
 		ahc->untagged_queue_lock--;
 		if (ahc->untagged_queue_lock == 0)
 			ahc_run_untagged_queues(ahc);
@@ -428,7 +428,7 @@ ahc_intr(struct ahc_softc *ahc)
 #endif
 	}
 
-	if (intstat == 0xFF)
+	if (intstat == 0xFF && (ahc->features & AHC_REMOVABLE) != 0)
 		/* Hot eject */
 		return;
 

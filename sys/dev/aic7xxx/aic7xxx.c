@@ -1,7 +1,7 @@
 /*
  * Core routines and tables shareable across OS platforms.
  *
- * Copyright (c) 1994, 1995, 1996, 1997, 1998, 1999, 2000 Justin T. Gibbs.
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#21 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#24 $
  *
  * $FreeBSD$
  */
@@ -228,7 +228,6 @@ static int		ahc_handle_target_cmd(struct ahc_softc *ahc,
 void
 restart_sequencer(struct ahc_softc *ahc)
 {
-	uint16_t stack[4];
 
 	pause_sequencer(ahc);
 	ahc_outb(ahc, SCSISIGO, 0);		/* De-assert BSY */
@@ -254,21 +253,6 @@ restart_sequencer(struct ahc_softc *ahc)
 		ahc_outb(ahc, CCSCBCTL, 0);
 	}
 	ahc_outb(ahc, MWI_RESIDUAL, 0);
-	/*
-	 * Avoid stack pointer lockup on aic7895 chips where SEQADDR0
-	 * cannot be changed without first writing to SEQADDR1.  This
-	 * seems to only happen if an interrupt or pause occurs mid
-	 * update of the stack pointer (i.e. during a ret).
-	 */
-	stack[0] = ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8);
-	stack[1] = ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8);
-	stack[2] = ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8);
-	stack[3] = ahc_inb(ahc, STACK) | (ahc_inb(ahc, STACK) << 8);
-	if (stack[0] == stack[1]
-	 && stack[1] == stack[2]
-	 && stack[2] == stack[3]
-	 && stack[0] != 0)
-		ahc_outb(ahc, SEQADDR1, 0);
 	ahc_outb(ahc, SEQCTL, FASTMODE);
 	ahc_outb(ahc, SEQADDR0, 0);
 	ahc_outb(ahc, SEQADDR1, 0);
@@ -580,6 +564,10 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       ahc_inb(ahc, SCSIID), ahc_inb(ahc, SCB_SCSIID),
 		       ahc_inb(ahc, SCB_LUN), ahc_inb(ahc, SCB_TAG),
 		       ahc_inb(ahc, SCB_CONTROL));
+		printf("SCSIBUSL == 0x%x, SCSISIGI == 0x%x\n",
+		       ahc_inb(ahc, SCSIBUSL), ahc_inb(ahc, SCSISIGI));
+		printf("SXFRCTL0 == 0x%x\n", ahc_inb(ahc, SXFRCTL0));
+		printf("SEQCTL == 0x%x\n", ahc_inb(ahc, SEQCTL));
 		ahc_dump_card_state(ahc);
 		ahc->msgout_buf[0] = MSG_BUS_DEV_RESET;
 		ahc->msgout_len = 1;
@@ -810,11 +798,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 					   SEARCH_REMOVE);
 		break;
 	}
-	case ABORT_QINSCB:
-	{
-		printf("%s: Abort QINSCB\n", ahc_name(ahc));
-		break;
-	}
 	case NO_FREE_SCB:
 	{
 		printf("%s: No free or disconnected SCBs\n", ahc_name(ahc));
@@ -854,6 +837,9 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       ahc_inb(ahc, SCSIID), ahc_inb(ahc, SCB_SCSIID),
 		       ahc_inb(ahc, SCB_LUN), ahc_inb(ahc, SCB_TAG),
 		       ahc_inb(ahc, SCB_CONTROL));
+		printf("SCSIBUSL == 0x%x, SCSISIGI == 0x%x\n",
+		       ahc_inb(ahc, SCSIBUSL), ahc_inb(ahc, SCSISIGI));
+		ahc_dump_card_state(ahc);
 		panic("for safety");
 		break;
 	}
@@ -1392,6 +1378,7 @@ ahc_alloc_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel)
 	return (tstate);
 }
 
+#ifdef AHC_TARGET_MODE
 /*
  * Free per target mode instance (ID we respond to as a target)
  * transfer negotiation data structures.
@@ -1415,6 +1402,7 @@ ahc_free_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel, int force)
 		free(tstate, M_DEVBUF);
 	ahc->enabled_targets[scsi_id] = NULL;
 }
+#endif
 
 /*
  * Called when we have an active connection to a target on the bus,
@@ -3033,7 +3021,7 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 * This transaction is now at the head of
 		 * the untagged queue for this target.
 		 */
-		if ((ahc->features & AHC_SCB_BTT) == 0) {
+		if ((ahc->flags & AHC_SCB_BTT) == 0) {
 			struct scb_tailq *untagged_q;
 
 			untagged_q = &(ahc->untagged_queues[devinfo->target]);
@@ -4056,7 +4044,7 @@ ahc_init(struct ahc_softc *ahc)
 
 	if ((ahc->features & AHC_TARGETMODE) != 0) {
 		ahc->targetcmds = (struct target_cmd *)ahc->qoutfifo;
-		ahc->qoutfifo = (uint8_t *)&ahc->targetcmds[256];
+		ahc->qoutfifo = (uint8_t *)&ahc->targetcmds[AHC_TMODE_CMDS];
 		ahc->dma_bug_buf = ahc->shared_data_busaddr
 				 + driver_data_size - 1;
 		/* All target command blocks start out invalid. */
@@ -4287,7 +4275,7 @@ ahc_init(struct ahc_softc *ahc)
 	/* There are no untagged SCBs active yet. */
 	for (i = 0; i < 16; i++) {
 		ahc_unbusy_tcl(ahc, BUILD_TCL(i << 4, 0));
-		if ((ahc->features & AHC_SCB_BTT) != 0) {
+		if ((ahc->flags & AHC_SCB_BTT) != 0) {
 			int lun;
 
 			/*
@@ -4420,12 +4408,24 @@ ahc_init(struct ahc_softc *ahc)
 void
 ahc_pause_and_flushwork(struct ahc_softc *ahc)
 {
+	int intstat;
+	int maxloops;
+
+	maxloops = 1000;
 	ahc->flags |= AHC_ALL_INTERRUPTS;
+	intstat = 0;
 	do {
 		ahc_intr(ahc);
 		pause_sequencer(ahc);
 		ahc_clear_critical_section(ahc);
-	} while (ahc_inb(ahc, INTSTAT) & INT_PEND);
+		if (intstat == 0xFF && (ahc->features & AHC_REMOVABLE) != 0)
+			break;
+		maxloops--;
+	} while (((intstat = ahc_inb(ahc, INTSTAT)) & INT_PEND) && --maxloops);
+	if (maxloops == 0) {
+		printf("Infinite interrupt loop, INTSTAT = %x",
+		      ahc_inb(ahc, INTSTAT));
+	}
 	ahc_platform_flushwork(ahc);
 	ahc->flags &= ~AHC_ALL_INTERRUPTS;
 }
@@ -4610,7 +4610,7 @@ ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl)
 	u_int scbid;
 	u_int target_offset;
 
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		u_int saved_scbptr;
 		
 		saved_scbptr = ahc_inb(ahc, SCBPTR);
@@ -4630,7 +4630,7 @@ ahc_unbusy_tcl(struct ahc_softc *ahc, u_int tcl)
 {
 	u_int target_offset;
 
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		u_int saved_scbptr;
 		
 		saved_scbptr = ahc_inb(ahc, SCBPTR);
@@ -4648,7 +4648,7 @@ ahc_busy_tcl(struct ahc_softc *ahc, u_int tcl, u_int scbid)
 {
 	u_int target_offset;
 
-	if ((ahc->features & AHC_SCB_BTT) != 0) {
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		u_int saved_scbptr;
 		
 		saved_scbptr = ahc_inb(ahc, SCBPTR);
@@ -4790,15 +4790,7 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 	} else
 		qinstart = ahc_inb(ahc, QINPOS);
 	qinpos = qinstart;
-
 	next = ahc_inb(ahc, NEXT_QUEUED_SCB);
-	if (qinstart == qintail) {
-		if (next != ahc->next_queued_scb->hscb->tag)
-			qinpos--;
-	} else if (next != ahc->qinfifo[qinstart]) {
-		qinpos--;
-	}
-
 	found = 0;
 	prev_scb = NULL;
 
@@ -4808,25 +4800,6 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		 * until we are done with the abort process.
 		 */
 		ahc_freeze_untagged_queues(ahc);
-	}
-
-	if (action != SEARCH_COUNT && (qinpos != qintail)) {
-		/*
-		 * The sequencer may be in the process of dmaing
-		 * down the SCB at the beginning of the queue.
-		 * This could be problematic if either the first
-		 * or the second SCB is removed from the queue
-		 * (the first SCB includes a pointer to the "next"
-		 * SCB to dma).  If we have the prospect of removing
-		 * any entries, swap the first element in the queue
-		 * with the next HSCB so the sequencer will notice
-		 * that NEXT_QUEUED_SCB has changed during its dma
-		 * attempt and will retry the DMA.
-		 */
-		scb = ahc_lookup_scb(ahc, ahc->qinfifo[qinpos]);
-		ahc->scb_data->scbindex[scb->hscb->tag] = NULL;
-		ahc_swap_with_next_hscb(ahc, scb);
-		ahc->qinfifo[qinpos] = scb->hscb->tag;
 	}
 
 	/*
@@ -4877,6 +4850,44 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		ahc_outb(ahc, HNSCB_QOFF, ahc->qinfifonext);
 	} else {
 		ahc_outb(ahc, KERNEL_QINPOS, ahc->qinfifonext);
+	}
+
+	if (action != SEARCH_COUNT
+	 && (found != 0)
+	 && (qinstart != ahc->qinfifonext)) {
+		/*
+		 * The sequencer may be in the process of dmaing
+		 * down the SCB at the beginning of the queue.
+		 * This could be problematic if either the first,
+		 * or the second SCB is removed from the queue
+		 * (the first SCB includes a pointer to the "next"
+		 * SCB to dma). If we have removed any entries, swap
+		 * the first element in the queue with the next HSCB
+		 * so the sequencer will notice that NEXT_QUEUED_SCB
+		 * has changed during its dma attempt and will retry
+		 * the DMA.
+		 */
+		scb = ahc_lookup_scb(ahc, ahc->qinfifo[qinstart]);
+
+		/*
+		 * ahc_swap_with_next_hscb forces our next pointer to
+		 * point to the reserved SCB for future commands.  Save
+		 * and restore our original next pointer to maintain
+		 * queue integrity.
+		 */
+		next = scb->hscb->next;
+		ahc->scb_data->scbindex[scb->hscb->tag] = NULL;
+		ahc_swap_with_next_hscb(ahc, scb);
+		scb->hscb->next = next;
+		ahc->qinfifo[qinstart] = scb->hscb->tag;
+
+		/* Tell the card about the new head of the qinfifo. */
+		ahc_outb(ahc, NEXT_QUEUED_SCB, scb->hscb->tag);
+
+		/* Fixup the tail "next" pointer. */
+		qintail = ahc->qinfifonext - 1;
+		scb = ahc_lookup_scb(ahc, ahc->qinfifo[qintail]);
+		scb->hscb->next = ahc->next_queued_scb->hscb->tag;
 	}
 
 	/*
@@ -5930,6 +5941,8 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
 
 	printf("SCB count = %d\n", ahc->scb_data->numscbs);
+	printf("Kernel NEXTQSCB = %d\n", ahc->next_queued_scb->hscb->tag);
+	printf("Card NEXTQSCB = %d\n", ahc_inb(ahc, NEXT_QUEUED_SCB));
 	/* QINFIFO */
 	printf("QINFIFO entries: ");
 	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
