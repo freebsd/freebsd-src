@@ -79,8 +79,8 @@ struct sockaddr_dl {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void	link_addr __P((const char *, struct sockaddr_dl *));
-char	*link_ntoa __P((const struct sockaddr_dl *));
+void	link_addr(const char *, struct sockaddr_dl *);
+char	*link_ntoa(const struct sockaddr_dl *);
 __END_DECLS
 
 #endif /* !_KERNEL */

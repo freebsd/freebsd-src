@@ -329,10 +329,10 @@ struct if_nameindex {
 };
 
 __BEGIN_DECLS
-u_int	 if_nametoindex __P((const char *));
-char	*if_indextoname __P((u_int, char *));
-struct	 if_nameindex *if_nameindex __P((void));
-void	 if_freenameindex __P((struct if_nameindex *));
+u_int	 if_nametoindex(const char *);
+char	*if_indextoname(u_int, char *);
+struct	 if_nameindex *if_nameindex(void);
+void	 if_freenameindex(struct if_nameindex *);
 __END_DECLS
 #endif
 

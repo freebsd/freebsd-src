@@ -235,7 +235,7 @@
 #ifdef _KERNEL
 
 struct ifnet;
-extern const char *if_name __P((struct ifnet *));
+extern const char *if_name(struct ifnet *);
 
 #define HAVE_OLD_BPF
 

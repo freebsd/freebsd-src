@@ -173,21 +173,21 @@ static LIST_HEAD(sl_list, sl_softc) sl_list;
 #define TRANS_FRAME_END	 	0xdc		/* transposed frame end */
 #define TRANS_FRAME_ESCAPE 	0xdd		/* transposed frame esc */
 
-static int slisstatic __P((int));
-static void slmarkstatic __P((int));
-static struct sl_softc *slcreate __P((void));
-static void sldestroy __P((struct sl_softc *sc));
-static struct mbuf *sl_btom __P((struct sl_softc *, int));
+static int slisstatic(int);
+static void slmarkstatic(int);
+static struct sl_softc *slcreate(void);
+static void sldestroy(struct sl_softc *sc);
+static struct mbuf *sl_btom(struct sl_softc *, int);
 static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
 static l_close_t	slclose;
 static l_rint_t		slinput;
 static l_ioctl_t	sltioctl;
-static int	slioctl __P((struct ifnet *, u_long, caddr_t));
-static int	slopen __P((dev_t, struct tty *));
-static int	sloutput __P((struct ifnet *,
-	    struct mbuf *, struct sockaddr *, struct rtentry *));
-static int	slstart __P((struct tty *));
+static int	slioctl(struct ifnet *, u_long, caddr_t);
+static int	slopen(dev_t, struct tty *);
+static int	sloutput(struct ifnet *,
+	    struct mbuf *, struct sockaddr *, struct rtentry *);
+static int	slstart(struct tty *);
 
 static struct linesw slipdisc = {
 	slopen,		slclose,	l_noread,	l_nowrite,

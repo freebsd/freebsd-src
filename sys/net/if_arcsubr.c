@@ -77,7 +77,7 @@ MODULE_VERSION(arcnet, 1);
 
 #define ARCNET_ALLOW_BROKEN_ARP
 
-static struct mbuf *arc_defrag __P((struct ifnet *, struct mbuf *));
+static struct mbuf *arc_defrag(struct ifnet *, struct mbuf *);
 
 u_int8_t  arcbroadcastaddr = 0;
 

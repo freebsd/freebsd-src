@@ -131,18 +131,18 @@ struct	arccom {
 extern u_int8_t arcbroadcastaddr;
 extern int arc_ipmtu;	/* XXX new ip only, no RFC 1051! */
 
-void	arc_ifattach __P((struct ifnet *, u_int8_t));
-void	arc_ifdetach __P((struct ifnet *));
-void	arc_storelladdr __P((struct ifnet *, u_int8_t));
-char	*arc_sprintf __P((u_int8_t *));
-int	arc_isphds __P((int));
-void	arc_input __P((struct ifnet *, struct mbuf *));
-int	arc_output __P((struct ifnet *, struct mbuf *,
-	    struct sockaddr *, struct rtentry *));
-int	arc_ioctl __P((struct ifnet *, int, caddr_t));
+void	arc_ifattach(struct ifnet *, u_int8_t);
+void	arc_ifdetach(struct ifnet *);
+void	arc_storelladdr(struct ifnet *, u_int8_t);
+char	*arc_sprintf(u_int8_t *);
+int	arc_isphds(int);
+void	arc_input(struct ifnet *, struct mbuf *);
+int	arc_output(struct ifnet *, struct mbuf *,
+	    struct sockaddr *, struct rtentry *);
+int	arc_ioctl(struct ifnet *, int, caddr_t);
 
-void		arc_frag_init __P((struct ifnet *));
-struct mbuf *	arc_frag_next __P((struct ifnet *));
+void		arc_frag_init(struct ifnet *);
+struct mbuf *	arc_frag_next(struct ifnet *);
 #endif
 
 #endif /* _NET_IF_ARC_H_ */

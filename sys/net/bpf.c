@@ -92,21 +92,21 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_maxbufsize, CTLFLAG_RW,
 static struct bpf_if	*bpf_iflist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
 
-static int	bpf_allocbufs __P((struct bpf_d *));
-static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
-static void	bpf_detachd __P((struct bpf_d *d));
-static void	bpf_freed __P((struct bpf_d *));
-static void	bpf_mcopy __P((const void *, void *, size_t));
-static int	bpf_movein __P((struct uio *, int,
-		    struct mbuf **, struct sockaddr *, int *));
-static int	bpf_setif __P((struct bpf_d *, struct ifreq *));
-static void	bpf_timed_out __P((void *));
+static int	bpf_allocbufs(struct bpf_d *);
+static void	bpf_attachd(struct bpf_d *d, struct bpf_if *bp);
+static void	bpf_detachd(struct bpf_d *d);
+static void	bpf_freed(struct bpf_d *);
+static void	bpf_mcopy(const void *, void *, size_t);
+static int	bpf_movein(struct uio *, int,
+		    struct mbuf **, struct sockaddr *, int *);
+static int	bpf_setif(struct bpf_d *, struct ifreq *);
+static void	bpf_timed_out(void *);
 static __inline void
-		bpf_wakeup __P((struct bpf_d *));
-static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
-		    u_int, void (*)(const void *, void *, size_t)));
-static void	reset_d __P((struct bpf_d *));
-static int	 bpf_setf __P((struct bpf_d *, struct bpf_program *));
+		bpf_wakeup(struct bpf_d *);
+static void	catchpacket(struct bpf_d *, u_char *, u_int,
+		    u_int, void (*)(const void *, void *, size_t));
+static void	reset_d(struct bpf_d *);
+static int	 bpf_setf(struct bpf_d *, struct bpf_program *);
 
 static	d_open_t	bpfopen;
 static	d_close_t	bpfclose;
@@ -1140,7 +1140,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	register struct bpf_d *d;
 	register u_char *pkt;
 	register u_int pktlen, snaplen;
-	register void (*cpfn) __P((const void *, void *, size_t));
+	register void (*cpfn)(const void *, void *, size_t);
 {
 	register struct bpf_hdr *hp;
 	register int totlen, curlen;
@@ -1334,9 +1334,9 @@ bpfdetach(ifp)
 	mtx_unlock(&bpf_mtx);
 }
 
-static void bpf_drvinit __P((void *unused));
+static void bpf_drvinit(void *unused);
 
-static void bpf_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+static void bpf_clone(void *arg, char *name, int namelen, dev_t *dev);
 
 static void
 bpf_clone(arg, name, namelen, dev)

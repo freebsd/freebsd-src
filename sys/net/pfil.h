@@ -42,8 +42,8 @@ struct ifnet;
  */
 struct packet_filter_hook {
         TAILQ_ENTRY(packet_filter_hook) pfil_link;
-        int	(*pfil_func) __P((void *, int, struct ifnet *, int,
-				  struct mbuf **));
+        int	(*pfil_func)(void *, int, struct ifnet *, int,
+				  struct mbuf **);
 	int	pfil_flags;
 };
 
@@ -60,11 +60,11 @@ struct pfil_head {
 	int		ph_init;
 };
 
-struct packet_filter_hook *pfil_hook_get __P((int, struct pfil_head *));
-int	pfil_add_hook __P((int (*func) __P((void *, int,
-	    struct ifnet *, int, struct mbuf **)), int, struct pfil_head *));
-int	pfil_remove_hook __P((int (*func) __P((void *, int,
-	    struct ifnet *, int, struct mbuf **)), int, struct pfil_head *));
+struct packet_filter_hook *pfil_hook_get(int, struct pfil_head *);
+int	pfil_add_hook(int (*func)(void *, int,
+	    struct ifnet *, int, struct mbuf **), int, struct pfil_head *);
+int	pfil_remove_hook(int (*func)(void *, int,
+	    struct ifnet *, int, struct mbuf **), int, struct pfil_head *);
 
 /* XXX */
 #if defined(_KERNEL) && !defined(KLD_MODULE)
