@@ -89,6 +89,9 @@ struct ptrace_lwpinfo {
 	int	pl_event;	/* Event that stopped the LWP. */
 #define	PL_EVENT_NONE	0
 #define	PL_EVENT_SIGNAL	1
+	int	pl_flags;	/* LWP flags. */
+#define	PL_FLAG_SA	0x01	/* M:N thread */
+#define	PL_FLAG_BOUND	0x02	/* M:N bound thread */
 };
 
 #ifdef _KERNEL
