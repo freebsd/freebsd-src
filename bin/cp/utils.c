@@ -140,10 +140,10 @@ copy_file(FTSENT *entp, int dne)
 			for (bufp = p, wresid = fs->st_size; ;
 			    bufp += wcount, wresid -= (size_t)wcount) {
 				wcount = write(to_fd, bufp, wresid);
-				if (wcount >= wresid || wcount <= 0)
+				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
 			}
-			if (wcount != wresid) {
+			if (wcount != (ssize_t)wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 			}
@@ -160,10 +160,10 @@ copy_file(FTSENT *entp, int dne)
 			for (bufp = buf, wresid = rcount; ;
 			    bufp += wcount, wresid -= wcount) {
 				wcount = write(to_fd, bufp, wresid);
-				if (wcount >= wresid || wcount <= 0)
+				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
 			}
-			if (wcount != wresid) {
+			if (wcount != (ssize_t)wresid) {
 				warn("%s", to.p_path);
 				rval = 1;
 				break;
