@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm bus_set_resource
-.Nd Associates a definite resource with a given rid.
+.Nd "associate a definite resource with a given resource ID"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
@@ -42,23 +42,31 @@
 .In sys/rman.h
 .In machine/resource.h
 .Ft int
-.Fn bus_set_resource "device_t dev" "int type" "int rid" "u_long start" "u_long count"
+.Fo bus_set_resource
+.Fa "device_t dev" "int type" "int rid" "u_long start" "u_long count"
+.Fc
 .Sh DESCRIPTION
-Set the start address of the resource type, rid pair to be count long.
-Typically client drivers do not use this interface.
-Bus drivers, however, often use it to setup the resources a client
-driver users.
+The
+.Fn bus_set_resource
+function
+sets the start address of the resource
+.Fa type , rid
+pair to be
+.Fa count
+long.
+Typically, client drivers do not use this interface.
+Bus drivers, however, often use it to set up the resources a client
+driver uses.
 .Pp
-Its arguments are as follows:
-.Bl -item
-.It
-.Fa dev
-is the device to set the resource on.
-.It
-.Fa type
-is the type of resource you want to allocate.
+The arguments are as follows:
+.Bl -tag -width indent
+.It Fa dev
+The device to set the resource on.
+.It Fa type
+The type of resource you want to allocate.
 It is one of:
-.Bl -tag -width SYS_RES_MEMORY
+.Pp
+.Bl -tag -width ".Dv SYS_RES_MEMORY" -compact
 .It Dv SYS_RES_IRQ
 for IRQs
 .It Dv SYS_RES_DRQ
@@ -68,28 +76,20 @@ for I/O ports
 .It Dv SYS_RES_MEMORY
 for I/O memory
 .El
-.It
-.Fa rid
-points to a bus specific handle that identifies the resource being allocated.
-.It
-.Fa start
-is the beginning address of this resource.
-.It
-.Fa count
-is the length of the resource.
+.It Fa rid
+A pointer to a bus specific handle that identifies the resource being allocated.
+.It Fa start
+The start address of this resource.
+.It Fa count
+The length of the resource.
 .El
 .Sh RETURN VALUES
-Zero indicates success.
-Non-zero is an error from errno.h.
-.\".Sh EXAMPLES
-.\".Bd -literal
-.\".Ed
+Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
 .Xr bus_alloc_resource 9 ,
 .Xr bus_get_resource 9 ,
 .Xr device 9 ,
 .Xr driver 9
 .Sh AUTHORS
-.An -nosplit
 This man page was written by
 .An Warner Losh Aq imp@FreeBSD.org .

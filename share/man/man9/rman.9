@@ -30,28 +30,28 @@
 .Os
 .Sh NAME
 .Nm rman ,
-.Nm rman_activate_resource , 
-.Nm rman_await_resource , 
-.Nm rman_deactivate_resource , 
-.Nm rman_fini , 
-.Nm rman_init , 
-.Nm rman_manage_region , 
-.Nm rman_release_resource , 
-.Nm rman_reserve_resource , 
-.Nm rman_reserve_resource_bound , 
-.Nm rman_make_alignment_flags , 
-.Nm rman_get_start , 
-.Nm rman_get_end , 
-.Nm rman_get_size , 
-.Nm rman_get_flags , 
-.Nm rman_set_virtual , 
-.Nm rman_get_virtual , 
-.Nm rman_set_bustag , 
-.Nm rman_get_bustag , 
-.Nm rman_set_bushandle , 
-.Nm rman_get_bushandle , 
-.Nm rman_set_rid , 
-.Nm rman_get_rid   
+.Nm rman_activate_resource ,
+.Nm rman_await_resource ,
+.Nm rman_deactivate_resource ,
+.Nm rman_fini ,
+.Nm rman_init ,
+.Nm rman_manage_region ,
+.Nm rman_release_resource ,
+.Nm rman_reserve_resource ,
+.Nm rman_reserve_resource_bound ,
+.Nm rman_make_alignment_flags ,
+.Nm rman_get_start ,
+.Nm rman_get_end ,
+.Nm rman_get_size ,
+.Nm rman_get_flags ,
+.Nm rman_set_virtual ,
+.Nm rman_get_virtual ,
+.Nm rman_set_bustag ,
+.Nm rman_get_bustag ,
+.Nm rman_set_bushandle ,
+.Nm rman_get_bushandle ,
+.Nm rman_set_rid ,
+.Nm rman_get_rid
 .Nd resource management functions
 .Sh SYNOPSIS
 .In sys/rman.h
@@ -69,36 +69,42 @@
 .Fn rman_manage_region "struct rman *rm" "u_long start" "u_long end"
 .Ft int
 .Fn rman_release_resource "struct resource *r"
-.Ft struct resource *
-.Fn rman_reserve_resource "struct rman *rm" "u_long start" "u_long end" "u_long count" "u_int flags" "struct device *dev"
-.Ft struct resource *
-.Fn rman_reserve_resource_bound "struct rman *rm" "u_long start" "u_long end" "u_long count" "u_long bound" "u_int flags" "struct device *dev"
+.Ft "struct resource *"
+.Fo rman_reserve_resource
+.Fa "struct rman *rm" "u_long start" "u_long end" "u_long count"
+.Fa "u_int flags" "struct device *dev"
+.Fc
+.Ft "struct resource *"
+.Fo rman_reserve_resource_bound
+.Fa "struct rman *rm" "u_long start" "u_long end" "u_long count"
+.Fa "u_long bound" "u_int flags" "struct device *dev"
+.Fc
 .Ft uint32_t
 .Fn rman_make_alignment_flags "uint32_t size"
-.Ft u_long 
-.Fn rman_get_start "struct resource *_r"
 .Ft u_long
-.Fn rman_get_end "struct resource *_r"
+.Fn rman_get_start "struct resource *r"
 .Ft u_long
-.Fn rman_get_size "struct resource *_r"
+.Fn rman_get_end "struct resource *r"
+.Ft u_long
+.Fn rman_get_size "struct resource *r"
 .Ft u_int
-.Fn rman_get_flags "struct resource *_r"
+.Fn rman_get_flags "struct resource *r"
 .Ft void
-.Fn rman_set_virtual "struct resource *_r" "void *_v"
-.Ft void *
-.Fn rman_get_virtual "struct resource *_r"
+.Fn rman_set_virtual "struct resource *r" "void *v"
+.Ft "void *"
+.Fn rman_get_virtual "struct resource *r"
 .Ft void
-.Fn rman_set_bustag "struct resource *_r" "bus_space_tag_t _t"
+.Fn rman_set_bustag "struct resource *r" "bus_space_tag_t t"
 .Ft bus_space_tag_t
-.Fn rman_get_bustag "struct resource *_r"
+.Fn rman_get_bustag "struct resource *r"
 .Ft void
-.Fn rman_set_bushandle "struct resource *_r" "bus_space_handle_t _h"
+.Fn rman_set_bushandle "struct resource *r" "bus_space_handle_t h"
 .Ft bus_space_handle_t
-.Fn rman_get_bushandle "struct resource *_r"
+.Fn rman_get_bushandle "struct resource *r"
 .Ft void
-.Fn rman_set_rid "struct resource *_r" "int _rid"
-.Ft int 
-.Fn rman_get_rid "struct resource *_r"
+.Fn rman_set_rid "struct resource *r" "int rid"
+.Ft int
+.Fn rman_get_rid "struct resource *r"
 .Sh DESCRIPTION
 The
 .Nm
@@ -137,8 +143,8 @@ The
 function frees any structures associated with the structure
 pointed to by the
 .Fa rm
-argument. If any of the resources within the managed
-region have the
+argument.
+If any of the resources within the managed region have the
 .Dv RF_ALLOCATED
 flag set, it will return
 .Er EBUSY ;
@@ -153,7 +159,11 @@ control.
 The
 .Fa rman
 argument points to the region descriptor.
-The start and end arguments specify the bounds of the region.
+The
+.Fa start
+and
+.Fa end
+arguments specify the bounds of the region.
 .Pp
 .Em NOTE :
 This interface is not robust against programming errors which
@@ -162,12 +172,17 @@ add multiple copies of the same region.
 The
 .Fn rman_reserve_resource_bound
 function is where the bulk of the
-.Nm logic is located.
+.Nm
+logic is located.
 It attempts to reserve a contiguous range in the specified region
 .Fa rm
 for the use of the device
 .Fa dev .
-The caller can specify the start and end of an acceptable range, as well as
+The caller can specify the
+.Fa start
+and
+.Fa end
+of an acceptable range, as well as
 alignment, and the code will attempt to find a free segment which fits.
 The default behavior is to allocate an exclusive segment, unless the
 .Dv RF_SHAREABLE
@@ -207,7 +222,7 @@ function marks a resource as active, by setting the
 flag.
 If this is a time shared resource, and the caller has not yet acquired
 the resource, the function returns
-.Er EBUSY.
+.Er EBUSY .
 .Pp
 The
 .Fn rman_deactivate_resource
@@ -238,7 +253,8 @@ function.
 The
 .Fn rman_get_start ,
 .Fn rman_get_end ,
-.Fn rman_get_size , and
+.Fn rman_get_size ,
+and
 .Fn rman_get_flags
 functions return the bounds, size and flags of the previously reserved
 resource
@@ -246,7 +262,8 @@ resource
 .Pp
 The
 .Fn rman_set_bustag
-function associates a bus_space_tag_t
+function associates a
+.Vt bus_space_tag_t
 .Fa t
 with the resource
 .Fa r .
@@ -256,7 +273,8 @@ function is used to retrieve this tag once set.
 .Pp
 The
 .Fn rman_set_bushandle
-function associates a bus_space_handle_t
+function associates a
+.Vt bus_space_handle_t
 .Fa h
 with the resource
 .Fa r .
@@ -276,7 +294,9 @@ The
 .Fn rman_set_rid
 function associates a resource identifier with a resource
 .Fa r .
-The rman_get_rid function retrieves this RID.
+The
+.Fn rman_get_rid
+function retrieves this RID.
 .Pp
 The
 .Fn rman_get_device

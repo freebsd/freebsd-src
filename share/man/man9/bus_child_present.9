@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm bus_child_present
-.Nd Ask the bus driver to see if this device is still really present.
+.Nd "ask the bus driver to see if this device is still really present"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/bus.h
@@ -44,18 +44,22 @@
 .Ft int
 .Fn bus_child_present "device_t dev"
 .Sh DESCRIPTION
-Requests that the parent device driver of
+The
+.Fn bus_child_present
+function requests that the parent device driver of
 .Fa dev
 check to see if the
 hardware represented by
-.Fa dev 
+.Fa dev
 is still physically accessible at this time.
 While the notion of accessible varies from bus to bus, generally
-hardware that is not acceessible cannot be accessed via the bus_space
-methods that would otherwise be used to acceess the device.
+hardware that is not acceessible cannot be accessed via the
+.Fn bus_space*
+methods that would otherwise be used to access the device.
 .Pp
-This does not ask the question 'does this device have children?' which
-can better be answered by
+This does not ask the question
+.Dq does this device have children?
+which can better be answered by
 .Xr device_get_children 9 .
 .Sh RETURN VALUES
 A zero return value indicates that the device is not present in the
@@ -64,19 +68,20 @@ A non-zero return value indicates that the device is present in the
 system, or that the state of the device cannot be determined.
 .Sh EXAMPLES
 This is some example code.
-It only calls stop when the dc device is actually present.
-.Bd -literal
-	device_t dev;
-	dc_softc *sc;
+It only calls stop when the
+.Xr dc 4
+device is actually present.
+.Bd -literal -offset indent
+device_t dev;
+dc_softc *sc;
 
-	sc = device_get_softc(dev);
-	if (bus_child_present(dev))
-		dc_stop(sc);
+sc = device_get_softc(dev);
+if (bus_child_present(dev))
+	dc_stop(sc);
 .Ed
 .Sh SEE ALSO
 .Xr device 9 ,
 .Xr driver 9
 .Sh AUTHORS
-.An -nosplit
 This man page was written by
 .An Warner Losh Aq imp@FreeBSD.org .
