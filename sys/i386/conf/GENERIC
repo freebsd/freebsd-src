@@ -174,6 +174,7 @@ device		ppi		# Parallel port interface device
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card (``Wiseman'')
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
@@ -191,7 +192,6 @@ device		tl		# Texas Instruments ThunderLAN
 device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
-device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		bge		# Broadcom BCM570x (``Tigon III'')
 
