@@ -81,9 +81,7 @@ The topology lock has to be held.
 .El
 .Sh RETURN VALUES
 .Fn g_new_consumer
-returns a pointer to the newly created consumer or
-.Dv NULL
-if an error occured.
+returns a pointer to the newly created consumer.
 .Sh EXAMPLES
 Create consumer, attach it to given provider, gain read access and clean up.
 .Bd -literal -offset indent
@@ -96,8 +94,6 @@ some_function(struct g_geom *mygeom, struct g_provider *pp)
 
 	/* Create new consumer on 'mygeom' geom. */
 	cp = g_new_consumer(mygeom);
-	if (cp == NULL)
-		return;
 	/* Attach newly created consumer to given provider. */
 	if (g_attach(cp, pp) != 0) {
 		g_destroy_consumer(cp);
