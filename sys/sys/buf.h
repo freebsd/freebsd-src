@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.20 1995/07/29 11:42:43 bde Exp $
+ * $Id: buf.h,v 1.21 1995/08/24 12:57:17 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -84,7 +84,6 @@ struct buf {
 					/* For nested b_iodone's. */
 	struct	iodone_chain *b_iodone_chain;
 	struct	vnode *b_vp;		/* Device vnode. */
-	int	b_pfcent;		/* Center page when swapping cluster. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
@@ -96,6 +95,10 @@ struct buf {
 	void	*b_driver1;		/* for private use by the driver */
 	void	*b_driver2;		/* for private use by the driver */
 	void	*b_spc;
+	union	cluster_info {
+		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
+		TAILQ_ENTRY(buf) cluster_entry;
+	} b_cluster;
 	struct	vm_page *b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
 	int		b_npages;
 };
@@ -141,20 +144,6 @@ struct buf {
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
-
-/*
- * This structure describes a clustered I/O.  It is stored in the b_saveaddr
- * field of the buffer on which I/O is done.  At I/O completion, cluster
- * callback uses the structure to parcel I/O's to individual buffers, and
- * then free's this structure.
- */
-struct cluster_save {
-	long	bs_bcount;		/* Saved b_bcount. */
-	long	bs_bufsize;		/* Saved b_bufsize. */
-	void	*bs_saveaddr;		/* Saved b_addr. */
-	int	bs_nchildren;		/* Number of associated buffers. */
-	struct buf **bs_children;	/* List of associated buffers. */
-};
 
 /*
  * number of buffer hash entries
@@ -227,8 +216,7 @@ void	biodone __P((struct buf *));
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, struct buf **));
-void	cluster_wbuild __P((struct vnode *, struct buf *, long, daddr_t, int,
-	    daddr_t));
+void	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t));
 int	physio __P((void (*)(), struct buf *, dev_t, int, u_int (*)(),
 	    struct uio *));
