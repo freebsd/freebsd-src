@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.31 1998/05/21 21:44:25 brian Exp $
+ * $Id: chap.c,v 1.32 1998/05/21 22:55:02 brian Exp $
  *
  *	TODO:
  */
@@ -27,10 +27,11 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#ifdef HAVE_DES
 #include <md4.h>
+#endif
 #include <md5.h>
 #include <stdlib.h>
-#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"
@@ -58,7 +59,9 @@
 #include "bundle.h"
 #include "chat.h"
 #include "datalink.h"
+#ifdef HAVE_DES
 #include "chap_ms.h"
+#endif
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"

@@ -23,15 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.20 1998/06/16 19:40:41 brian Exp $
+ *	$Id: server.c,v 1.21 1998/06/24 19:33:36 brian Exp $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -41,27 +39,11 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "mbuf.h"
 #include "log.h"
-#include "defs.h"
 #include "descriptor.h"
 #include "server.h"
 #include "id.h"
 #include "prompt.h"
-#include "timer.h"
-#include "lqr.h"
-#include "hdlc.h"
-#include "fsm.h"
-#include "lcp.h"
-#include "ccp.h"
-#include "throughput.h"
-#include "link.h"
-#include "mp.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
-#include "bundle.h"
 
 static int
 server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.149 1998/06/25 22:33:15 brian Exp $
+ * $Id: command.c,v 1.150 1998/06/27 14:17:24 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -36,7 +36,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +60,6 @@
 #endif
 #include "lqr.h"
 #include "hdlc.h"
-#include "loadalias.h"
 #include "systems.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -124,7 +122,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/25 22:33:15 $";
+const char VersionDate[] = "$Date: 1998/06/27 14:17:24 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
