@@ -1,17 +1,20 @@
 #       @(#)Makefile    5.6 (Berkeley) 6/23/90
 
+FILES=	makewhatis
 NOMAN=	noman
-CLEANFILES= makewhatis
 
-beforeinstall: makewhatis
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	     makewhatis ${DESTDIR}${BINDIR}
+CLEANFILES+=	${FILES}
 
-.include <bsd.prog.mk>
+all: ${FILES}
 
 makewhatis: makewhatis.sh
 	sed -e 's/%sections%/ "1", "n", "l", "6", "8", "2", "3", "4", "5", "7", "p", "o", NULL/' \
-	-e 's,%zcat%,${zcat},' \
-	-e 's,%compext%,${compext},' \
-	   ${.CURDIR}/makewhatis.sh > makewhatis
+	    -e 's,%compext%,${compext},' \
+	    -e 's,%zcat%,${zcat},' \
+	    ${.CURDIR}/${.TARGET}.sh > ${.TARGET}
 
+install:
+	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	     ${FILES} ${DESTDIR}${BINDIR}
+
+.include <bsd.prog.mk>
