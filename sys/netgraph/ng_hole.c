@@ -162,7 +162,7 @@ ngh_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_HOLE_CLR_STATS:
 		case NGM_HOLE_GETCLR_STATS:
 			/* Sanity check. */
-			if (msg->header.arglen != NG_HOOKLEN + 1) {
+			if (msg->header.arglen != NG_HOOKSIZ) {
 				error = EINVAL;
 				break;
 			}
