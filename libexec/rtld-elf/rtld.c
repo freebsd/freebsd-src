@@ -162,6 +162,9 @@ static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
 extern Elf_Dyn _DYNAMIC;
 #pragma weak _DYNAMIC
+#ifndef RTLD_IS_DYNAMIC
+#define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
+#endif
 
 /*
  * These are the functions the dynamic linker exports to application
@@ -1008,7 +1011,7 @@ init_rtld(caddr_t mapbase)
 #ifdef PIC
     objtmp.relocbase = mapbase;
 #endif
-    if (&_DYNAMIC != 0) {
+    if (RTLD_IS_DYNAMIC()) {
 	objtmp.dynamic = rtld_dynamic(&objtmp);
 	digest_dynamic(&objtmp, 1);
 	assert(objtmp.needed == NULL);
