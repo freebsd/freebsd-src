@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: getNAME.1,v 1.2 1996/08/23 00:55:59 mpp Exp $
+.\" $Id: getNAME.1,v 1.3 1996/08/27 20:04:12 wosch Exp $
 
 .Dd July 8, 1996
 .Dt getNAME 1
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/getNAME
 .Op Fl itw
-.Ar files ...
+.Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,13 +45,13 @@ building
 database entries.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl i
-for building intro entries.
+For building intro entries.
 .It Fl t
-for building toc.
+For building toc.
 .It Fl w
-print type of manual page (OLD, NEW, UNKNOWN).
+Print type of manual page (OLD, NEW, UNKNOWN).
 .El
 .\" .Sh BUGS
 .Sh SEE ALSO
