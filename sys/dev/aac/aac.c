@@ -1549,8 +1549,16 @@ aac_init(struct aac_softc *sc)
 				  offsetof(struct aac_common, ac_printf);
 	ip->PrintfBufferSize = AAC_PRINTF_BUFSIZE;
 
-	/* The adapter assumes that pages are 4K in size */
+	/* 
+	 * The adapter assumes that pages are 4K in size, except on some
+ 	 * broken firmware versions that do the page->byte conversion twice,
+	 * therefore 'assuming' that this value is in 16MB units (2^24).
+	 * Round up since the granularity is so high.
+	 */
 	ip->HostPhysMemPages = ctob(physmem) / AAC_PAGE_SIZE;
+	if (sc->flags & AAC_FLAGS_BROKEN_MEMMAP) {
+		ip->HostPhysMemPages =
+		    (ip->HostPhysMemPages + AAC_PAGE_SIZE) / AAC_PAGE_SIZE;
 	ip->HostElapsedSeconds = time_second;	/* reset later if invalid */
 
 	/*

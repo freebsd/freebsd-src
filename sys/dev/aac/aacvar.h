@@ -369,6 +369,7 @@ struct aac_softc
 						 * 2GB-4GB range */
 #define	AAC_FLAGS_NO4GB		(1 << 6)	/* Can't access host mem >2GB */
 #define	AAC_FLAGS_256FIBS	(1 << 7)	/* Can only do 256 commands */
+#define	AAC_FLAGS_BROKEN_MEMMAP (1 << 8)	/* Broken HostPhysMemPages */
 
 	u_int32_t		supported_options;
 	int			aac_max_fibs;
