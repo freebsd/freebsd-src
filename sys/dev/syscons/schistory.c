@@ -64,6 +64,7 @@ static int		extra_history_size
 				= SC_MAX_HISTORY_SIZE - SC_HISTORY_SIZE*MAXCONS;
 
 /* local functions */
+static void copy_history(sc_vtb_t *from, sc_vtb_t *to);
 static void history_to_screen(scr_stat *scp);
 
 /* allocate a history buffer */
@@ -111,26 +112,58 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 		}
 	}
 
-	/* destroy the previous buffer and allocate a new one */
-	if (prev_history == NULL) {
-		history = (sc_vtb_t *)malloc(sizeof(*history),
-					     M_DEVBUF,
-					     (wait) ? M_WAITOK : M_NOWAIT);
-	} else {
-		extra_history_size += delta;
-		sc_vtb_destroy(prev_history);
-	}
+	/* allocate a new buffer */
+	history = (sc_vtb_t *)malloc(sizeof(*history),
+				     M_DEVBUF,
+				     (wait) ? M_WAITOK : M_NOWAIT);
 	if (history != NULL) {
 		if (lines > min_lines)
 			extra_history_size -= lines - min_lines;
 		sc_vtb_init(history, VTB_RINGBUFFER, scp->xsize, lines,
 			    NULL, wait);
+		sc_vtb_clear(history, scp->sc->scr_map[0x20],
+			     scp->term.cur_color);
+		if (prev_history != NULL)
+			copy_history(prev_history, history);
+		scp->history_pos = sc_vtb_tail(history);
+	} else {
+		scp->history_pos = 0;
 	}
 
-	scp->history_pos = 0;
+	/* destroy the previous buffer */
+	if (prev_history != NULL) {
+		extra_history_size += delta;
+		sc_vtb_destroy(prev_history);
+	}
+
 	scp->history = history;
 
 	return 0;
+}
+
+static void
+copy_history(sc_vtb_t *from, sc_vtb_t *to)
+{
+	int lines;
+	int cols;
+	int cols1;
+	int cols2;
+	int pos;
+	int i;
+
+	lines = sc_vtb_rows(from);
+	cols1 = sc_vtb_cols(from);
+	cols2 = sc_vtb_cols(to);
+	cols = imin(cols1, cols2);
+	pos = sc_vtb_tail(from);
+	for (i = 0; i < lines; ++i) {
+		sc_vtb_append(from, pos, to, cols);
+		if (cols < cols2)
+			sc_vtb_seek(to, sc_vtb_pos(to, 
+						   sc_vtb_tail(to), 
+						   cols2 - cols));
+		pos = sc_vtb_pos(from, pos, cols1);
+	}
 }
 
 void
