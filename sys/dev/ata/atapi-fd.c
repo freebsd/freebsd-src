@@ -44,29 +44,13 @@
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>
 
-/* device structures */
-static	d_open_t	afdopen;
-static	d_close_t	afdclose;
-static	d_ioctl_t	afdioctl;
-static	d_strategy_t	afdstrategy;
-static struct cdevsw afd_cdevsw = {
-	/* open */	afdopen,
-	/* close */	afdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	afdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	afdstrategy,
-	/* name */	"afd",
-	/* maj */	118,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK | D_TRACKCLOSE,
-};
-static struct cdevsw afddisk_cdevsw;
-
 /* prototypes */
+static	disk_open_t	afdopen;
+static	disk_close_t	afdclose;
+#ifdef notyet
+static	disk_ioctl_t	afdioctl;
+#endif
+static	disk_strategy_t	afdstrategy;
 static int afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static int afd_done(struct atapi_request *);
@@ -82,7 +66,6 @@ int
 afdattach(struct ata_device *atadev)
 {
     struct afd_softc *fdp;
-    dev_t dev;
 
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
@@ -104,10 +87,16 @@ afdattach(struct ata_device *atadev)
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_WFD);
-    dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
-    dev->si_drv1 = fdp;
-    fdp->dev = dev;
-    fdp->dev->si_iosize_max = 256 * DEV_BSIZE;
+    fdp->disk.d_open = afdopen;
+    fdp->disk.d_close = afdclose;
+#ifdef notyet
+    fdp->disk.d_ioctl = afdioctl;
+#endif
+    fdp->disk.d_strategy = afdstrategy;
+    fdp->disk.d_name = "afd";
+    fdp->disk.d_drv1 = fdp;
+    fdp->disk.d_maxsize = 256 * DEV_BSIZE;
+    disk_create(fdp->lun, &fdp->disk, 0, NULL, NULL);
 
     afd_describe(fdp);
     atadev->flags |= ATA_D_MEDIA_CHANGED;
@@ -220,9 +209,9 @@ afd_describe(struct afd_softc *fdp)
 }
 
 static int
-afdopen(dev_t dev, int flags, int fmt, struct thread *td)
+afdopen(struct disk *dp)
 {
-    struct afd_softc *fdp = dev->si_drv1;
+    struct afd_softc *fdp = dp->d_drv1;
 
     /* hold off access to we are fully attached */
     while (ata_delayed_attach)
@@ -230,8 +219,7 @@ afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 
     atapi_test_ready(fdp->device);
 
-    if (count_dev(dev) == 1)
-	afd_prevent_allow(fdp, 1);
+    afd_prevent_allow(fdp, 1);
 
     if (afd_sense(fdp))
 	ata_prtdev(fdp->device, "sense media type failed\n");
@@ -248,19 +236,22 @@ afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int 
-afdclose(dev_t dev, int flags, int fmt, struct thread *td)
+afdclose(struct disk *dp)
 {
-    struct afd_softc *fdp = dev->si_drv1;
+    struct afd_softc *fdp = dp->d_drv1;
 
-    if (count_dev(dev) == 1)
-	afd_prevent_allow(fdp, 0); 
+    afd_prevent_allow(fdp, 0); 
+    if (0)
+	afd_eject(fdp, 0);	/* to keep gcc quiet */
+
     return 0;
 }
 
+#ifdef notyet
 static int 
-afdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+afdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 {
-    struct afd_softc *fdp = dev->si_drv1;
+    struct afd_softc *fdp = dp->d_drv1;
 
     switch (cmd) {
     case CDIOCEJECT:
@@ -277,11 +268,12 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	return ENOIOCTL;
     }
 }
+#endif
 
 static void 
 afdstrategy(struct bio *bp)
 {
-    struct afd_softc *fdp = bp->bio_dev->si_drv1;
+    struct afd_softc *fdp = bp->bio_disk->d_drv1;
     int s;
 
     if (fdp->device->flags & ATA_D_DETACHING) {
