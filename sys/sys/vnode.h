@@ -696,45 +696,6 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
-struct vop_close_args;
-static __inline int
-vop_close(struct vop_vector *vp, struct vop_close_args *ap)
-{
-
-	while (vp != NULL && vp->vop_close == NULL)
-		vp = vp->vop_default;
-	return ((vp != NULL) ? vp->vop_close(ap) : EOPNOTSUPP);
-}
- 
-struct vop_kqfilter_args;
-static __inline int
-vop_kqfilter(struct vop_vector *vp, struct vop_kqfilter_args *ap)
-{
-
-	while (vp != NULL && vp->vop_kqfilter == NULL)
-		vp = vp->vop_default;
-	return ((vp != NULL) ? vp->vop_kqfilter(ap) : EOPNOTSUPP);
-}
-
-struct vop_read_args;
-static __inline int
-vop_read(struct vop_vector *vp, struct vop_read_args *ap)
-{
-
-	while (vp != NULL && vp->vop_read == NULL)
-		vp = vp->vop_default;
-	return ((vp != NULL) ? vp->vop_read(ap) : EOPNOTSUPP);
-}
-
-struct vop_write_args;
-static __inline int
-vop_write(struct vop_vector *vp, struct vop_write_args *ap)
-{
-
-	while (vp != NULL && vp->vop_write == NULL)
-		vp = vp->vop_default;
-	return ((vp != NULL) ? vp->vop_write(ap) : EOPNOTSUPP);
-}
 
 #endif /* _KERNEL */
 
