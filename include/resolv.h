@@ -150,6 +150,8 @@ struct __res_state_ext {
 #define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
 #define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
 #define	RES_NOTLDQUERY	0x00004000	/* Don't query TLD names */
+/* KAME extensions: use higher bit to avoid conflict with ISC use */
+#define	RES_USE_EDNS0	0x40000000	/* use EDNS0 */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
@@ -249,6 +251,7 @@ extern const struct res_sym __p_type_syms[];
 #define	res_nameinquery	__res_nameinquery
 #define	res_queriesmatch __res_queriesmatch
 #define	res_close	__res_close
+#define	res_opt		__res_opt
 #define	res_mkupdate	__res_mkupdate
 #define	res_mkupdrec	__res_mkupdrec
 #define	res_freeupdrec	__res_freeupdrec
@@ -303,6 +306,7 @@ int		res_nameinquery __P((const char *, int, int,
 int		res_queriesmatch __P((const u_char *, const u_char *,
 				      const u_char *, const u_char *));
 void		res_close __P((void));
+int		res_opt __P((int, u_char *, int, int));
 const char *	p_section __P((int, int));
 /* XXX The following depend on the ns_updrec typedef in arpa/nameser.h */
 #ifdef _ARPA_NAMESER_H_

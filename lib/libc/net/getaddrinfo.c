@@ -79,7 +79,6 @@
  * - other KAME platforms already nuked FAITH ($GAI), but as FreeBSD
  *   4.0-RELEASE supplies it, we still have the code here.
  * - AI_ADDRCONFIG support is supplied
- * - EDNS0 support is not available due to resolver differences
  * - some of FreeBSD style (#define tabify and others)
  * - classful IPv4 numeric (127.1) is allowed.
  */
@@ -100,6 +99,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#ifdef DEBUG
+#include <syslog.h>
+#endif
 
 #if defined(__KAME__) && defined(INET6)
 # define FAITH
@@ -1695,6 +1697,8 @@ res_queryN(name, target)
 
 		n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
 		    buf, sizeof(buf));
+		if (n > 0 && (_res.options & RES_USE_EDNS0) != 0)
+			n = res_opt(n, buf, sizeof(buf), anslen);
 		if (n <= 0) {
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)

@@ -204,3 +204,40 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
  */
 #undef res_mkquery
 __weak_reference(__res_mkquery, res_mkquery);
+
+/* attach OPT pseudo-RR, as documented in RFC2671 (EDNS0). */
+int
+res_opt(n0, buf, buflen, anslen)
+	int n0;
+	u_char *buf;		/* buffer to put query */
+	int buflen;		/* size of buffer */
+	int anslen;		/* answer buffer length */
+{
+	register HEADER *hp;
+	register u_char *cp;
+
+	hp = (HEADER *) buf;
+	cp = buf + n0;
+	buflen -= n0;
+
+	if (buflen < 1 + RRFIXEDSZ)
+		return -1;
+
+	*cp++ = 0;	/* "." */
+	buflen--;
+
+	__putshort(T_OPT, cp);	/* TYPE */
+	cp += INT16SZ;
+	__putshort(anslen & 0xffff, cp);	/* CLASS = UDP payload size */
+	cp += INT16SZ;
+	*cp++ = NOERROR;	/* extended RCODE */
+	*cp++ = 0;		/* EDNS version */
+	__putshort(0, cp);	/* MBZ */
+	cp += INT16SZ;
+	__putshort(0, cp);	/* RDLEN */
+	cp += INT16SZ;
+	hp->arcount = htons(ntohs(hp->arcount) + 1);
+	buflen -= RRFIXEDSZ;
+
+	return cp - buf;
+}
