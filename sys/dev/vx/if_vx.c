@@ -857,6 +857,12 @@ vxget(sc, totlen)
      */
     sh = splhigh();
 
+    /*
+     * Since we don't set allowLargePackets bit in MacControl register,
+     * we can assume that totlen <= 1500bytes.
+     * The while loop will be performed iff we have a packet with
+     * MLEN < m_len < MINCLSIZE.
+     */
     while (totlen > 0) {
         if (top) {
             m = sc->mb[sc->next_mb];
@@ -874,18 +880,17 @@ vxget(sc, totlen)
             len = MLEN;
         }
         if (totlen >= MINCLSIZE) {
-        MCLGET(m, M_DONTWAIT);
-        if (m->m_flags & M_EXT)
-            len = MCLBYTES;
+	    MCLGET(m, M_DONTWAIT);
+	    if (m->m_flags & M_EXT)
+		len = MCLBYTES;
         }
         len = min(totlen, len);
-        if (len > 3) {
-            len &= ~3;
-            insl(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int32_t *),
-                len / 4);
-        } else
-            insb(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int8_t *),
-                len);
+        if (len > 3)
+            insl(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int32_t *), len / 4);
+	if (len & 3) {
+	    insb(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int8_t *) + (len & ~3),
+		len & 3);
+	}
         m->m_len = len;
         totlen -= len;
         *mp = m;
