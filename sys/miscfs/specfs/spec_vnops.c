@@ -337,17 +337,32 @@ spec_fsync(ap)
 	struct buf *bp;
 	struct buf *nbp;
 	int s;
+	int maxretry = 10000;	/* large, arbitrarily chosen */
 
 	if (!vn_isdisk(vp, NULL))
 		return (0);
 
+loop1:
+	/*
+	 * MARK/SCAN initialization to avoid infinite loops
+	 */
+	s = splbio();
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp;
+	     bp = TAILQ_NEXT(bp, b_vnbufs)) {
+		bp->b_flags &= ~B_SCANNED;
+	}
+	splx(s);
+
 	/*
 	 * Flush all dirty buffers associated with a block device.
 	 */
-loop:
+loop2:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		if ((bp->b_flags & B_SCANNED) != 0)
+			continue;
+		bp->b_flags |= B_SCANNED;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -361,20 +376,27 @@ loop:
 			splx(s);
 			bawrite(bp);
 		}
-		goto loop;
+		goto loop2;
 	}
+
+	/*
+	 * If synchronous the caller expects us to completely resolve all
+	 * dirty buffers in the system.  Wait for in-progress I/O to
+	 * complete (which could include background bitmap writes), then
+	 * retry if dirty blocks still exist.
+	 */
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
-#ifdef DIAGNOSTIC
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
-			vprint("spec_fsync: dirty", vp);
-			splx(s);
-			goto loop;
+			if (--maxretry != 0) {
+				splx(s);
+				goto loop1;
+			}
+			vprint("spec_fsync: giving up on dirty", vp);
 		}
-#endif
 	}
 	splx(s);
 	return (0);
