@@ -106,7 +106,7 @@ static __inline int
 atomic_load_32(volatile uint32_t *v)
 {
 
-	return (__swp(*v, v));
+	return (atomic_op(0, +, v));
 }
 
 static __inline void
@@ -122,20 +122,23 @@ atomic_readandclear_32(volatile u_int32_t *p)
 	return (__swp(0, p));
 }
 
+#ifdef _KERNEL
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 {
-	uint32_t r, e;
-
-	for (e = *p;; e = r) {
-		if (*p == cmpval) {
-			r = __swp(newval, p);
-			if (r == e)
-				return (1);
+	int done;
+	
+	__with_interrupts_disabled(
+	{
+	    	if (*p == cmpval) {
+			*p = newval;
+			done = 1;
 		} else
-			return (0);
-	}
+			done = 0;
+	});
+	return (done);
 }
+#endif
 
 static __inline void
 atomic_add_32(volatile u_int32_t *p, u_int32_t val)
