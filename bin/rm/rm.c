@@ -150,7 +150,6 @@ rm_tree(argv)
 	int needstat;
 	int flags;
 	int rval;
-	int e;
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
@@ -226,7 +225,7 @@ rm_tree(argv)
 		    !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(p->fts_accpath,
 				       p->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
-		if (!rval) {
+		if (rval == 0) {
 			/*
 			 * If we can't read or search the directory, may still be
 			 * able to remove it.  Don't print out the un{read,search}able
@@ -235,9 +234,9 @@ rm_tree(argv)
 			switch (p->fts_info) {
 			case FTS_DP:
 			case FTS_DNR:
-				e = rmdir(p->fts_accpath);
-				if (e == 0 || (fflag && errno == ENOENT)) {
-					if (e == 0 && vflag)
+				rval = rmdir(p->fts_accpath);
+				if (rval == 0 || (fflag && errno == ENOENT)) {
+					if (rval == 0 && vflag)
 						(void)printf("%s\n",
 						    p->fts_accpath);
 					continue;
@@ -245,9 +244,9 @@ rm_tree(argv)
 				break;
 
 			case FTS_W:
-				e = undelete(p->fts_accpath);
-				if (e == 0 || (fflag && errno == ENOENT)) {
-					if (e == 0 && vflag)
+				rval = undelete(p->fts_accpath);
+				if (rval == 0 && (fflag && errno == ENOENT)) {
+					if (vflag)
 						(void)printf("%s\n",
 						    p->fts_accpath);
 					continue;
@@ -257,9 +256,9 @@ rm_tree(argv)
 			default:
 				if (Pflag)
 					rm_overwrite(p->fts_accpath, NULL);
-				e = unlink(p->fts_accpath);
-				if (e == 0 || (fflag && errno == ENOENT)) {
-					if (e == 0 && vflag)
+				rval = unlink(p->fts_accpath);
+				if (rval == 0 || (fflag && errno == ENOENT)) {
+					if (rval == 0 && vflag)
 						(void)printf("%s\n",
 						    p->fts_accpath);
 					continue;
@@ -316,7 +315,7 @@ rm_file(argv)
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
-		if (!rval) {
+		if (rval == 0) {
 			if (S_ISWHT(sb.st_mode))
 				rval = undelete(f);
 			else if (S_ISDIR(sb.st_mode))
@@ -331,7 +330,7 @@ rm_file(argv)
 			warn("%s", f);
 			eval = 1;
 		}
-		if (vflag)
+		if (vflag && rval == 0)
 			(void)printf("%s\n", f);
 	}
 }
@@ -472,6 +471,7 @@ checkdot(argv)
 void
 usage()
 {
+
 	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrvW] file ...\n");
 	exit(EX_USAGE);
 }
