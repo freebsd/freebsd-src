@@ -26,11 +26,12 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pw.c,v 1.7 1997/10/10 06:23:34 charnier Exp $";
 #endif /* not lint */
 
 #include "pw.h"
 #include <err.h>
+#include <fcntl.h>
 #include <paths.h>
 #include <sys/wait.h>
 
@@ -49,6 +50,7 @@ static struct cargs arglist;
 
 static int      getindex(const char *words[], const char *word);
 static void     cmdhelp(int mode, int which);
+static int      filelock(const char *filename);
 
 
 int
@@ -147,7 +149,20 @@ main(int argc, char *argv[])
 	 * Now, let's do the common initialisation
 	 */
 	cnf = read_userconfig(getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL);
-	ch = funcs[which] (cnf, mode, &arglist);
+
+
+	/*
+	 * Be pessimistic and lock the master passowrd and group
+	 * files right away.  Keep it locked for the duration.
+	 */
+	if (-1 == filelock(_PATH_GROUP) || -1 == filelock(_PATH_MASTERPASSWD))
+	{
+		ch = EX_IOERR;
+	}
+	else
+	{
+		ch = funcs[which] (cnf, mode, &arglist);
+	}	
 
 	/*
 	 * If everything went ok, and we've been asked to update
@@ -175,6 +190,12 @@ main(int argc, char *argv[])
 		}
 	}
 	return ch;
+}
+
+static int
+filelock(const char *filename)
+{
+	return open(filename, O_RDONLY | O_EXLOCK, 0);
 }
 
 static int
