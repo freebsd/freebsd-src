@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.14 1995/12/04 16:47:43 phk Exp $
+ *	$Id: swapgeneric.c,v 1.15 1995/12/06 09:04:42 peter Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,6 @@ extern int (*mountroot)  __P((void));
 extern int nfs_mountroot __P((void));
 #endif
 
-extern struct kern_devconf *dc_list;
 void gets __P((char *));
 
 struct	genericconf {
