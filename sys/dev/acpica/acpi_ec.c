@@ -477,7 +477,7 @@ static void EcGpeHandler(void *Context)
 		}
 	}else{
 		/*Queue GpeQuery Handler*/
-		if(AcpiOsQueueForExecution(OSD_PRIORITY_GPE,
+		if(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
 		    EcGpeQueryHandler,Context) != AE_OK){
 			printf("QueryHandler Queuing Failed\n");
 		}
@@ -667,7 +667,7 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
      * immediately after we re-enabling it.
      */
     if (sc->ec_pendquery){
-	    if(AcpiOsQueueForExecution(OSD_PRIORITY_GPE,
+	    if(AcpiOsQueueForExecution(OSD_PRIORITY_HIGH,
 		EcGpeQueryHandler, sc) != AE_OK)
 		    printf("Pend Query Queuing Failed\n");
 	    sc->ec_pendquery = 0;
