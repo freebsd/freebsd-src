@@ -1,9 +1,10 @@
-# $Id: Makefile,v 1.3 1996/10/15 22:05:12 ache Exp $
+# $Id: Makefile,v 1.4 1996/12/30 22:28:50 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        de_DE.ISO_8859-1 es_ES.ISO_8859-1 lt_LN.ISO_8859-1 \
+LOCALES=        de_DE.ISO_8859-1 es_ES.ISO_8859-1 is_IS.ISO_8859-1 \
+		lt_LN.ISO_8859-1 \
 		ru_SU.CP866 ru_SU.KOI8-R
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -15,7 +16,7 @@ COLLDEF=${.CURDIR}/../colldef
 
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
-	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
+	fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL no_NO \
 	pt_PT sv_SE
 
 DELINKS = de_AT de_CH
