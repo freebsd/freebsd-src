@@ -122,7 +122,7 @@ struct m_ext {
 		    (void *, void *);
 	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
-	u_int	*ref_cnt;		/* pointer to ref count info */
+	volatile u_int *ref_cnt;	/* pointer to ref count info */
 	int	ext_type;		/* type of external storage */
 };
 
