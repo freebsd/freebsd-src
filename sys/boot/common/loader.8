@@ -422,6 +422,15 @@ are also accepted and indicate kilobytes, megabytes and gigabytes
 respectively.
 An invalid suffix will result in the variable being ignored by the
 kernel.
+.It Va hw.pci.enable_io_modes
+Enable PCI resources which are left off by some BIOSes or are not
+enabled correctly by the device driver.
+Tunable value set to ON (1) by default, but this may cause problems
+with some peripherals.
+.It Va hw.pci_allow_unsupported_io_range
+Allow the PCI bridge to pass through an unsupported memory range
+assigned by the BIOS.
+Tunable value set to OFF (0) by default.
 .It Va kern.maxusers
 Set the size of a number of statically allocated system tables; see
 .Xr tuning 7
