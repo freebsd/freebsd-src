@@ -1316,6 +1316,9 @@ device		ncv
 device		nsp
 device		sym
 device		stg
+hint.stg.0.at="isa"
+hint.stg.0.port="0x140"
+hint.stg.0.port="11"
 device		wds
 hint.wds.0.at="isa"
 hint.wds.0.port="0x350"
