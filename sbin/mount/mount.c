@@ -50,6 +50,10 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -62,13 +66,14 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libufs.h>
 
 #include "extern.h"
 #include "mntopts.h"
 #include "pathnames.h"
 
 /* `meta' options */
-#define MOUNT_META_OPTION_FSTAB		"fstab"	
+#define MOUNT_META_OPTION_FSTAB		"fstab"
 #define MOUNT_META_OPTION_CURRENT	"current"
 
 int debug, fstab_style, verbose;
@@ -514,9 +519,15 @@ prmount(sfp)
 	int flags, i;
 	struct opt *o;
 	struct passwd *pw;
+	struct uufsd disk;
 
 	(void)printf("%s on %s (%s", sfp->f_mntfromname, sfp->f_mntonname,
 	    sfp->f_fstypename);
+
+	if (strncmp(sfp->f_fstypename, "ufs", 3) == 0) {
+		ufs_disk_fillout(&disk, sfp->f_mntonname);
+		printf("%s", (disk.d_ufs == 2) ? "2" : "");
+	}
 
 	flags = sfp->f_flags & MNT_VISFLAGMASK;
 	for (o = optnames; flags && o->o_opt; o++)
@@ -664,7 +675,7 @@ update_options(opts, fstab, curflags)
 	for (p = expopt; (o = strsep(&p, ",")) != NULL;) {
 		if ((tmpopt = malloc( strlen(o) + 2 + 1 )) == NULL)
 			errx(1, "malloc failed");
-	
+
 		strcpy(tmpopt, "no");
 		strcat(tmpopt, o);
 		remopt(newopt, tmpopt);
@@ -721,7 +732,7 @@ putfsent(ent)
 {
 	struct fstab *fst;
 	char *opts;
-  
+
 	opts = flags2opts(ent->f_flags);
 	printf("%s\t%s\t%s %s", ent->f_mntfromname, ent->f_mntonname,
 	    ent->f_fstypename, opts);
