@@ -307,6 +307,7 @@ register SSTAT2 {
 	address			0x00d
 	access_mode RO
 	bit	OVERRUN		0x80
+	bit	SHVALID		0x40	/* Shaddow Layer non-zero */
 	bit	EXP_ACTIVE	0x10	/* SCSI Expander Active */
 	mask	SFCNT		0x1f
 }

@@ -182,7 +182,17 @@ typedef enum {
 	 * feature does not work.  A manual flush of
 	 * the DMA FIFO is required.
 	 */
-	AHC_AUTOFLUSH_BUG	= 0x02
+	AHC_AUTOFLUSH_BUG	= 0x02,
+	/*
+	 * On the aic7890/91 Rev 0 chips, cacheline
+	 * streaming does not work.
+	 */
+	AHC_CACHETHEN_BUG	= 0x04,
+	/*
+	 * On the aic7896/97 chips, cacheline
+	 * streaming must be enabled.
+	 */
+	AHC_CACHETHEN_DIS_BUG	= 0x08
 } ahc_bug;
 
 typedef enum {
@@ -598,7 +608,7 @@ struct ahc_softc {
 	struct scb_data		*scb_data;
 
 	/*
-	 * CCBs that have been send to the controller
+	 * CCBs that have been sent to the controller
 	 */
 	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
 
