@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.46 1997/06/22 08:38:11 jkh Exp $
+#	$Id: Makefile,v 1.246.2.47 1997/06/22 10:20:21 jkh Exp $
 #
 # How to roll a release:
 #
@@ -77,6 +77,15 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 
 .if !defined(CRUNCH_TARGETS)
 CRUNCH_TARGETS=	boot fixit
+.endif
+
+EXTRAS=	cdrom.1
+.if !defined(NOPORTS)
+EXTRAS+= ports.1
+.endif
+
+.if !defined(NODOC)
+DOCREL= doc.1
 .endif
 
 REDO?=		sysinstall
@@ -166,6 +175,9 @@ rerelease release:
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(NODOC)
+	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
+.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
 	echo "export PATH=${BOOTSTRAPDIR}:$${PATH}" >> ${CHROOTDIR}/mk
@@ -186,9 +198,6 @@ rerelease release:
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
-.endif
-.if !defined(NODOC)
-	echo "cd /usr/doc && make all distribute DISTDIR=/R/stage/trees" >> ${CHROOTDIR}/mk
 .endif
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
@@ -499,6 +508,9 @@ ports.1:
 		tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 
 
+doc.1:
+	cd /usr/doc && make all distribute DISTDIR=${RD}/trees
+
 # Various "subroutine" and other supporting targets.
 
 doTARBALL:
@@ -535,13 +547,9 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
-.if defined(NOPORTS)
-	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
-.else
-	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1 ports.1
-.endif
+doRELEASE:  release.1 release.2 release.3 release.4 release.5 ${DOCREL} \
+		release.6 release.7 release.8 release.9
+	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
 floppies:
