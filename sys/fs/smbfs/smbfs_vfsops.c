@@ -47,6 +47,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 
 #include <netsmb/smb.h>
@@ -129,6 +130,7 @@ VFS_SET(smbfs_vfsops, smbfs, VFCF_NETWORK);
 
 MODULE_DEPEND(smbfs, netsmb, NSMB_VERSION, NSMB_VERSION, NSMB_VERSION);
 MODULE_DEPEND(smbfs, libiconv, 1, 1, 1);
+MODULE_DEPEND(smbfs, libmchain, 1, 1, 1);
 
 int smbfs_pbuf_freecnt = -1;	/* start out unlimited */
 
