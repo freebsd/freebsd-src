@@ -1061,9 +1061,9 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 * No modifiers -- have specification length so we can return
 		 * now.
 		 */
-		*lengthPtr = tstr - start + 1;
-		*tstr = endc;
 		if (dynamic) {
+		    *lengthPtr = tstr - start + 1;
+		    *tstr = endc;
 		    str = emalloc(*lengthPtr + 1);
 		    strncpy(str, start, *lengthPtr);
 		    str[*lengthPtr] = '\0';
@@ -1071,6 +1071,8 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    Buf_Destroy(buf, TRUE);
 		    return (str);
 		} else {
+		    *lengthPtr = tstr - start + 1;
+		    *tstr = endc;
 		    *freePtr = FALSE;
 		    Buf_Destroy(buf, TRUE);
 		    return (err ? var_Error : varNoError);
@@ -1090,8 +1092,6 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	 */
 	char	  name[2];
 
-	*lengthPtr = 2;
-
 	name[0] = str[1];
 	name[1] = '\0';
 
@@ -1109,6 +1109,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		 */
 		/* XXX: It looks like $% and $! are reversed here */
 		*freePtr = FALSE;
+		*lengthPtr = 2;
 		switch (str[1]) {
 		    case '@':
 			return ("$(.TARGET)");
@@ -1119,22 +1120,23 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    case '!':
 			return ("$(.MEMBER)");
 		    default:
-			break;
+			return (err ? var_Error : varNoError);
 		}
+	    } else {
+		*freePtr = FALSE;
+		*lengthPtr = 2;
+		return (err ? var_Error : varNoError);
 	    }
-	    /*
-	     * Error
-	     */
+	} else {
+	    dynamic = FALSE;
+	    start = str;
 	    *freePtr = FALSE;
-	    return (err ? var_Error : varNoError);
+	    *lengthPtr = 2;
+	    haveModifier = FALSE;
+	    startc = 0;
+	    endc = str[1];
+	    tstr = &str[1];
 	}
-	dynamic = FALSE;
-	start = str;
-	*freePtr = FALSE;
-	haveModifier = FALSE;
-	startc = 0;
-	endc = str[1];
-	tstr = &str[1];
     }
 
     if (v->flags & VAR_IN_USE) {
