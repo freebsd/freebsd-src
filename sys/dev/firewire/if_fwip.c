@@ -62,6 +62,7 @@
 #else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
+#include <dev/firewire/iec13213.h>
 #include <dev/firewire/if_fwipvar.h>
 #endif
 
@@ -447,6 +448,27 @@ static void
 fwip_post_busreset(void *arg)
 {
 	struct fwip_softc *fwip = arg;
+	struct crom_src *src;
+	struct crom_chunk *root;
+
+	src = fwip->fd.fc->crom_src;
+	root = fwip->fd.fc->crom_root;
+
+	/* RFC2734 IPv4 over IEEE1394 */
+	bzero(&fwip->unit4, sizeof(struct crom_chunk));
+	crom_add_chunk(src, root, &fwip->unit4, CROM_UDIR);
+	crom_add_entry(&fwip->unit4, CSRKEY_SPEC, CSRVAL_IETF);
+	crom_add_simple_text(src, &fwip->unit4, &fwip->spec4, "IANA");
+	crom_add_entry(&fwip->unit4, CSRKEY_VER, 1);
+	crom_add_simple_text(src, &fwip->unit4, &fwip->ver4, "IPv4");
+
+	/* RFC3146 IPv6 over IEEE1394 */
+	bzero(&fwip->unit6, sizeof(struct crom_chunk));
+	crom_add_chunk(src, root, &fwip->unit6, CROM_UDIR);
+	crom_add_entry(&fwip->unit6, CSRKEY_SPEC, CSRVAL_IETF);
+	crom_add_simple_text(src, &fwip->unit6, &fwip->spec6, "IANA");
+	crom_add_entry(&fwip->unit6, CSRKEY_VER, 2);
+	crom_add_simple_text(src, &fwip->unit6, &fwip->ver6, "IPv6");
 
 	fwip->last_dest.hi = 0;
 	fwip->last_dest.lo = 0;
