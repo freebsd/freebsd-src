@@ -46,6 +46,7 @@ static const char rcsid[] =
  * getguess:
  *	Get another guess
  */
+void
 getguess()
 {
 	int	i;
@@ -66,7 +67,7 @@ getguess()
 				break;
 		}
 		else if (ch == CTRL('D'))
-			die();
+			die(0);
 		else
 			mvprintw(MESGY, MESGX, "Not a valid guess: '%s'",
 				unctrl(ch));
@@ -90,9 +91,10 @@ getguess()
  * readch;
  *	Read a character from the input
  */
+char
 readch()
 {
-	int	cnt, r;
+	int	cnt;
 	auto char	ch;
 
 	cnt = 0;
@@ -100,7 +102,7 @@ readch()
 		if (read(0, &ch, sizeof ch) <= 0)
 		{
 			if (++cnt > 100)
-				die();
+				die(0);
 		}
 		else if (ch == CTRL('L')) {
 			wrefresh(curscr);

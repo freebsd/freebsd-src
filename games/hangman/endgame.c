@@ -45,6 +45,7 @@ static const char rcsid[] =
  * endgame:
  *	Do what's necessary at the end of the game
  */
+void
 endgame()
 {
 	char	ch;
@@ -65,7 +66,7 @@ endgame()
 		leaveok(stdscr, FALSE);
 		refresh();
 		if ((ch = readch()) == 'n')
-			die();
+			die(0);
 		else if (ch == 'y')
 			break;
 		mvaddstr(MESGY + 2, MESGX, "Please type 'y' or 'n'");
