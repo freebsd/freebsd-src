@@ -268,8 +268,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
 
-	td->td_flags |= TDF_UPCALLING;
-
 	/* Point the pcb to the top of the stack. */
 	pcb2 = td->td_pcb;
 
