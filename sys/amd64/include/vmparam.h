@@ -41,7 +41,7 @@
 
 
 #ifndef _MACHINE_VMPARAM_H_
-#define _MACHINE_VMPARAM_H_ 1
+#define	_MACHINE_VMPARAM_H_ 1
 
 /*
  * Machine dependent constants for AMD64.
@@ -64,7 +64,7 @@
 #define	MAXSSIZ		(64UL*1024*1024)	/* max stack size */
 #endif
 #ifndef SGROWSIZ
-#define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
+#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
 #endif
 
 /*
@@ -78,6 +78,12 @@
  */
 #define	MAXSLP 		20
 
+/*
+ * We provide a machine specific single page allocator through the tuse
+ * of the direct mapped segment.  This uses 2MB pages for reduced
+ * TLB pressure.
+ */
+#define	UMA_MD_SMALL_ALLOC
 
 /*
  * Virtual addresses of things.  Derived from the page directory and
@@ -86,24 +92,30 @@
  * messy at times, but hey, we'll do anything to save a page :-)
  */
 
-#define VM_MAX_KERNEL_ADDRESS	VADDR(0, 0, KPTDI+NKPDE-1, NPTEPG-1)
-#define VM_MIN_KERNEL_ADDRESS	VADDR(0, 0, PTDPTDI, PTDPTDI)
+#define	VM_MAX_KERNEL_ADDRESS	VADDR(KPML4I, NPDPEPG-1, NKPDE-1, NPTEPG-1)
+#define	VM_MIN_KERNEL_ADDRESS	VADDR(KPML4I, KPDPI, 0, 0)
 
-#define	KERNBASE		VADDR(0, 0, KPTDI, 0)
+#define	DMAP_MIN_ADDRESS	VADDR(DMPML4I, 0, 0, 0)
+#define	DMAP_MAX_ADDRESS	VADDR(DMPML4I+1, 0, 0, 0)
 
-#define UPT_MAX_ADDRESS		VADDR(0, 0, PTDPTDI, PTDPTDI)
-#define UPT_MIN_ADDRESS		VADDR(0, 0, PTDPTDI, 0)
+#define	KERNBASE		VADDR(KPML4I, KPDPI, 0, 0)
 
-#define VM_MAXUSER_ADDRESS	UPT_MIN_ADDRESS
+#define	UPT_MAX_ADDRESS		VADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
+#define	UPT_MIN_ADDRESS		VADDR(PML4PML4I, 0, 0, 0)
 
-#define USRSTACK		VM_MAXUSER_ADDRESS
+#define	VM_MAXUSER_ADDRESS	VADDR(NUPML4E, 0, 0, 0)
 
-#define VM_MAX_ADDRESS		UPT_MAX_ADDRESS
-#define VM_MIN_ADDRESS		(0)
+#define	USRSTACK		VM_MAXUSER_ADDRESS
+
+#define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
+#define	VM_MIN_ADDRESS		(0)
+
+#define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
+#define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12 * 1024 * 1024)
+#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
 #endif
 
 /*

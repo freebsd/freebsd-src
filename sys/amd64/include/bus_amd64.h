@@ -401,7 +401,7 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef __GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
@@ -443,7 +443,7 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef	__GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
@@ -485,7 +485,7 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef	__GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
@@ -741,7 +741,7 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef	__GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
@@ -783,7 +783,7 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef	__GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
@@ -825,7 +825,7 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 #endif
 	{
-		int _port_ = bsh + offset;
+		bus_space_handle_t _port_ = bsh + offset;
 #ifdef	__GNUC__
 		__asm __volatile("				\n\
 			cld					\n\
