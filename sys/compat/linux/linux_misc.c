@@ -62,7 +62,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 #include <machine/frame.h>
