@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.321 1997/09/08 11:09:35 jkh Exp $
+#	$Id: Makefile,v 1.322 1997/09/20 15:40:55 joerg Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -327,8 +327,6 @@ release.5:
 		ln -s `basename $$i` $$c ; \
 	done
 
-	# Remove some files we can faster regen after installing.
-	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
