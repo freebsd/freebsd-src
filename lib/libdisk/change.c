@@ -25,9 +25,12 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	disk->bios_cyl = cyl;
 	disk->bios_hd = hd;
 	disk->bios_sect = sect;
+#ifndef PC98
 	Bios_Limit_Chunk(disk->chunks,1024*hd*sect);
+#endif
 }
 
+/* XXX - parameters should change to fit for PC-98, but I'm not sure */
 void
 Sanitize_Bios_Geom(struct disk *disk)
 {
@@ -74,9 +77,18 @@ All_FreeBSD(struct disk *d, int force_all)
 	c=d->chunks;
 	if (force_all) {
 		Sanitize_Bios_Geom(d);
+#ifdef PC98
+		Create_Chunk(d,c->offset,c->size,freebsd,0x494,
+		     CHUNK_FORCE_ALL,"FreeBSD");
+#else
 		Create_Chunk(d,c->offset,c->size,freebsd,0xa5,
 		     CHUNK_FORCE_ALL);
+#endif
 	} else {
+#ifdef PC98
+		Create_Chunk(d,c->offset,c->size,freebsd,0x494, 0,"FreeBSD");
+#else
 		Create_Chunk(d,c->offset,c->size,freebsd,0xa5, 0);
+#endif
 	}
 }
