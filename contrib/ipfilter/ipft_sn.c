@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip_var.h>
@@ -28,12 +29,13 @@
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 #include <net/if.h>
+#include "ip_compat.h"
 #include "ipf.h"
 #include "ipt.h"
 #include "snoop.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
-static	char	rcsid[] = "$Id: ipft_sn.c,v 2.0.2.3 1997/03/10 08:10:29 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_sn.c,v 2.0.2.4 1997/04/30 13:55:10 darrenr Exp $";
 #endif
 
 struct	llc	{

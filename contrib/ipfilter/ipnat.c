@@ -48,13 +48,14 @@
 #include <ctype.h>
 #include "ip_compat.h"
 #include "ip_fil.h"
+#include "ip_proxy.h"
 #include "ip_nat.h"
 #include "kmem.h"
 
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static  char    sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipnat.c,v 2.0.2.6 1997/04/02 12:23:29 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipnat.c,v 2.0.2.9 1997/05/05 14:03:55 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -130,8 +131,8 @@ char *argv[];
 			usage(argv[0]);
 		}
 
-	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAME, O_RDWR)) == -1) &&
-	    ((fd = open(IPL_NAME, O_RDONLY)) == -1)) {
+	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAT, O_RDWR)) == -1) &&
+	    ((fd = open(IPL_NAT, O_RDONLY)) == -1)) {
 		perror("open");
 		exit(-1);
 	}
@@ -182,8 +183,25 @@ void *ptr;
 {
 	int	bits;
 
+	switch (np->in_redir)
+	{
+	case NAT_REDIRECT :
+		printf("redir ");
+		break;
+	case NAT_MAP :
+		printf("map ");
+		break;
+	case NAT_BIMAP :
+		printf("bimap ");
+		break;
+	default :
+		fprintf(stderr, "unknown value for in_redir: %#x\n",
+			np->in_redir);
+		break;
+	}
+
 	if (np->in_redir == NAT_REDIRECT) {
-		printf("rdr %s %s", np->in_ifname, inet_ntoa(np->in_out[0]));
+		printf("%s %s", np->in_ifname, inet_ntoa(np->in_out[0]));
 		bits = countbits(np->in_out[1].s_addr);
 		if (bits != -1)
 			printf("/%d ", bits);
@@ -207,7 +225,7 @@ void *ptr;
 			       np->in_use);
 	} else {
 		np->in_nextip.s_addr = htonl(np->in_nextip.s_addr);
-		printf("map %s %s/", np->in_ifname, inet_ntoa(np->in_in[0]));
+		printf("%s %s/", np->in_ifname, inet_ntoa(np->in_in[0]));
 		bits = countbits(np->in_in[1].s_addr);
 		if (bits != -1)
 			printf("%d ", bits);
@@ -219,7 +237,13 @@ void *ptr;
 			printf("%d ", bits);
 		else
 			printf("%s", inet_ntoa(np->in_out[1]));
-		if (np->in_pmin || np->in_pmax) {
+		if (*np->in_plabel) {
+			printf(" proxy");
+			if (np->in_dport)
+				printf(" %hu", ntohs(np->in_dport));
+			printf(" %.*s/%d", sizeof(np->in_plabel),
+				np->in_plabel, np->in_p);
+		} else if (np->in_pmin || np->in_pmax) {
 			printf(" portmap");
 			if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
 				printf(" tcp/udp");
@@ -245,13 +269,29 @@ void *ptr;
 char *getnattype(ipnat)
 ipnat_t *ipnat;
 {
+	char *which;
 	ipnat_t ipnatbuff;
 
 	if (ipnat && kmemcpy((char *)&ipnatbuff, (long)ipnat,
 			     sizeof(ipnatbuff)))
 		return "???";
 
-	return (ipnatbuff.in_redir == NAT_MAP) ? "MAP" : "RDR";
+	switch (ipnatbuff.in_redir)
+	{
+	case NAT_MAP :
+		which = "MAP";
+		break;
+	case NAT_REDIRECT :
+		which = "RDR";
+		break;
+	case NAT_BIMAP :
+		which = "BIMAP";
+		break;
+	default :
+		which = "unknown";
+		break;
+	}
+	return which;
 }
 
 
@@ -275,7 +315,7 @@ int fd, opts;
 			ns.ns_mapped[0], ns.ns_mapped[1]);
 		printf("added\t%lu\texpired\t%lu\n",
 			ns.ns_added, ns.ns_expire);
-		printf("inuse\t%lu\n", ns.ns_inuse);
+		printf("inuse\t%lu\nrules\t%lu\n", ns.ns_inuse, ns.ns_rules);
 		if (opts & OPT_VERBOSE)
 			printf("table %p list %p\n", ns.ns_table, ns.ns_list);
 	}
@@ -419,6 +459,7 @@ int	*resolved;
 ipnat_t *parse(line)
 char *line;
 {
+	struct protoent *pr;
 	static ipnat_t ipn;
 	char *s, *t;
 	char *shost, *snetm, *dhost, *proto;
@@ -438,9 +479,11 @@ char *line;
 		ipn.in_redir = NAT_MAP;
 	else if (!strcasecmp(s, "rdr"))
 		ipn.in_redir = NAT_REDIRECT;
+	else if (!strcasecmp(s, "bimap"))
+		ipn.in_redir = NAT_BIMAP;
 	else {
 		(void)fprintf(stderr,
-			      "expected \"map\" or \"rdr\", got \"%s\"\n", s);
+			      "expected map/rdr/bimap, got \"%s\"\n", s);
 		return NULL;
 	}
 
@@ -508,7 +551,7 @@ char *line;
 	}
         dhost = s;
 
-        if (ipn.in_redir == NAT_MAP) {
+        if (ipn.in_redir & NAT_MAP) {
 		if (!(s = strtok(NULL, " \t"))) {
 			dnetm = strrchr(dhost, '/');
 			if (!dnetm) {
@@ -517,7 +560,8 @@ char *line;
 				return NULL;
 			}
 		}
-		if (!s || !strcasecmp(s, "portmap")) {
+		if (!s || !strcasecmp(s, "portmap") ||
+		    !strcasecmp(s, "proxy")) {
 			dnetm = strrchr(dhost, '/');
 			if (!dnetm) {
 				fprintf(stderr,
@@ -562,7 +606,7 @@ char *line;
 	if (*snetm == '/')
 		*snetm++ = '\0';
 
-	if (ipn.in_redir == NAT_MAP) {
+	if (ipn.in_redir & NAT_MAP) {
 		ipn.in_inip = hostnum(shost, &resolved);
 		if (resolved == -1)
 			return NULL;
@@ -612,6 +656,55 @@ char *line;
 	}
 	if (!s)
 		return &ipn;
+	if (ipn.in_redir == NAT_BIMAP) {
+		fprintf(stderr, "extra words at the end of bimap line: %s\n",
+			s);
+		return NULL;
+	}
+	if (!strcasecmp(s, "proxy")) {
+		if (!(s = strtok(NULL, " \t"))) {
+			fprintf(stderr, "missing parameter for \"proxy\"\n");
+			return NULL;
+		}
+		dport = NULL;
+
+		if (!strcasecmp(s, "port")) {
+			if (!(s = strtok(NULL, " \t"))) {
+				fprintf(stderr,
+					"missing parameter for \"port\"\n");
+				return NULL;
+			}
+
+			dport = s;
+
+			if (!(s = strtok(NULL, " \t"))) {
+				fprintf(stderr,
+					"missing parameter for \"proxy\"\n");
+				return NULL;
+			}
+		}
+		if ((proto = index(s, '/'))) {
+			*proto++ = '\0';
+			if ((pr = getprotobyname(proto)))
+				ipn.in_p = pr->p_proto;
+			else
+				ipn.in_p = atoi(proto);
+			if (dport)
+				ipn.in_dport = portnum(dport, proto);
+		} else {
+			ipn.in_p = 0;
+			if (dport)
+				ipn.in_dport = portnum(dport, NULL);
+		}
+
+		(void) strncpy(ipn.in_plabel, s, sizeof(ipn.in_plabel));
+		if ((s = strtok(NULL, " \t"))) {
+			fprintf(stderr, "too many parameters for \"proxy\"\n");
+			return NULL;
+		}
+		return &ipn;
+		
+	}
 	if (strcasecmp(s, "portmap")) {
 		fprintf(stderr, "expected \"portmap\" - got \"%s\"\n", s);
 		return NULL;

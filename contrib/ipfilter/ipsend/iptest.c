@@ -108,7 +108,8 @@ char **argv;
 	ip->ip_len = sizeof(*ip);
 	ip->ip_hl = sizeof(*ip) >> 2;
 
-	while ((c = getopt(argc, argv, "1234567IP:TUd:f:g:m:o:p:s:t:")) != -1)
+	while ((c = (char)getopt(argc, argv,
+				 "1234567IP:TUd:f:g:m:o:p:s:t:")) != -1)
 		switch (c)
 		{
 		case '1' :
