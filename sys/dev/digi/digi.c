@@ -555,12 +555,12 @@ digi_init(struct digi_softc *sc)
 
 	if (sc->ports)
 		free(sc->ports, M_TTYS);
-	MALLOC(sc->ports, struct digi_p *,
-	    sizeof(struct digi_p) * sc->numports, M_TTYS, M_WAIT | M_ZERO);
+	sc->ports = malloc(sizeof(struct digi_p) * sc->numports,
+	    M_TTYS, M_WAIT | M_ZERO);
 
 	if (sc->ttys)
 		free(sc->ttys, M_TTYS);
-	MALLOC(sc->ttys, struct tty *, sizeof(struct tty) * sc->numports,
+	sc->ttys = malloc(sizeof(struct tty) * sc->numports,
 	    M_TTYS, M_WAIT | M_ZERO);
 
 	/*
@@ -1849,9 +1849,9 @@ digi_free_state(struct digi_softc *sc)
 	if (sc->numports) {
 		KASSERT(sc->ports, ("digi%d: Lost my ports ?", sc->res.unit));
 		KASSERT(sc->ttys, ("digi%d: Lost my ttys ?", sc->res.unit));
-		FREE(sc->ports, M_TTYS);
+		free(sc->ports, M_TTYS);
 		sc->ports = NULL;
-		FREE(sc->ttys, M_TTYS);
+		free(sc->ttys, M_TTYS);
 		sc->ttys = NULL;
 		sc->numports = 0;
 	}
