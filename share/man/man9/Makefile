@@ -760,7 +760,9 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
-	rtalloc.9 rtalloc_ign.9
+	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 rtfree.9 \
+	rtalloc.9 RTFREE.9
 MLINKS+=runqueue.9 chooseproc.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
