@@ -82,6 +82,7 @@ void	 tdev(KINFO *, VARENT *);
 void	 tname(KINFO *, VARENT *);
 void	 ucomm(KINFO *, VARENT *);
 void	 uname(KINFO *, VARENT *);
+void	 upr(KINFO *, VARENT *);
 void	 vsize(KINFO *, VARENT *);
 void	 wchan(KINFO *, VARENT *);
 __END_DECLS
