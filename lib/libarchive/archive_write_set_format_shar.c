@@ -24,11 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -165,7 +165,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 		if (archive_entry_hardlink(entry) == NULL &&
 		    archive_entry_symlink(entry) == NULL) {
-			archive_set_error(a, -1,
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
 			    "shar format cannot archive this");
 			return (ARCHIVE_WARN);
 		}

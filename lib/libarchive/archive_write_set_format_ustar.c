@@ -24,11 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -183,10 +183,12 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 		 * remaining name are too large, return an error.
 		 */
 		if (!p) {
-			archive_set_error(a, -1, "Pathname too long");
+			archive_set_error(a, ENAMETOOLONG,
+			    "Pathname too long");
 			ret = ARCHIVE_WARN;
 		} else if (p  > pp + sizeof(h->prefix)) {
-			archive_set_error(a, -1, "Pathname too long");
+			archive_set_error(a, ENAMETOOLONG,
+			    "Pathname too long");
 			ret = ARCHIVE_WARN;
 		} else {
 			/* Copy prefix and remainder to appropriate places */
@@ -200,7 +202,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 		p = archive_entry_symlink(entry);
 	if (p != NULL && p[0] != '\0') {
 		if (strlen(p) > sizeof(h->linkname)) {
-			archive_set_error(a, -1, "Link contents too long");
+			archive_set_error(a, ENAMETOOLONG,
+			    "Link contents too long");
 			ret = ARCHIVE_WARN;
 		} else
 			memcpy(h->linkname, p, strlen(p));
@@ -209,7 +212,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	p = archive_entry_uname(entry);
 	if (p != NULL && p[0] != '\0') {
 		if (strlen(p) > sizeof(h->uname)) {
-			archive_set_error(a, -1, "Username too long");
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Username too long");
 			ret = ARCHIVE_WARN;
 		} else
 			memcpy(h->uname, p, strlen(p));
@@ -218,7 +222,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 	p = archive_entry_gname(entry);
 	if (p != NULL && p[0] != '\0') {
 		if (strlen(p) > sizeof(h->gname)) {
-			archive_set_error(a, -1, "Group name too long");
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Group name too long");
 			ret = ARCHIVE_WARN;
 		} else
 			memcpy(h->gname, p, strlen(p));
@@ -291,12 +296,12 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 		case S_IFDIR: h->typeflag[0] = '5' ; break;
 		case S_IFIFO: h->typeflag[0] = '6' ; break;
 		case S_IFSOCK:
-			archive_set_error(a, -1,
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive socket");
 			ret = ARCHIVE_WARN;
 			break;
 		default:
-			archive_set_error(a, -1,
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this");
 			ret = ARCHIVE_WARN;
 		}

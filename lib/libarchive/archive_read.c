@@ -32,10 +32,10 @@
  * needlessly bloating statically-linked clients.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <err.h>
@@ -183,8 +183,8 @@ choose_decompressor(struct archive *a, const void *buffer, size_t bytes_read)
 	 * support this stream.
 	 */
 	if (best_bid < 1) {
-		archive_set_error(a, EFTYPE, "Unrecognized archive format");
-		/* EFTYPE == "Inappropriate file type or format" */
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Unrecognized archive format");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -303,7 +303,8 @@ choose_format(struct archive *a)
 	 * can't support this stream.
 	 */
 	if (best_bid < 1) {
-		archive_set_error(a, EFTYPE, "Unrecognized archive format");
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Unrecognized archive format");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -374,7 +375,7 @@ archive_read_data_skip(struct archive *a)
 			return (ARCHIVE_FATAL);
 		}
 		if (bytes_read == 0) {
-			archive_set_error(a, 0,
+			archive_set_error(a, EIO,
 			    "Premature end of archive entry");
 			return (ARCHIVE_FATAL);
 		}

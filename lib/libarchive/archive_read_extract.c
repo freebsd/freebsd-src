@@ -24,15 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef HAVE_POSIX_ACL
 #include <sys/acl.h>
+#endif
 #include <sys/time.h>
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -75,13 +77,33 @@ static int	archive_read_extract_symbolic_link(struct archive *,
 static int	mkdirpath(struct archive *, const char *);
 static int	mkdirpath_recursive(char *path);
 static int	mksubdir(char *path);
+#ifdef HAVE_POSIX_ACL
+static int	set_acl(struct archive *a, const char *acl_text,
+		    acl_type_t type, const char *pathname);
+#endif
 static int	set_acls(struct archive *, struct archive_entry *);
 static int	set_extended_perm(struct archive *, struct archive_entry *,
 		    int flags);
 static int	set_fflags(struct archive *, struct archive_entry *);
 static int	set_ownership(struct archive *, struct archive_entry *, int);
-static int	set_perm(struct archive *, struct archive_entry *, int mode, int flags);
+static int	set_perm(struct archive *, struct archive_entry *, int mode,
+		    int flags);
 static int	set_time(struct archive *, struct archive_entry *, int);
+static struct archive_extract_dir_entry *
+		sort_dir_list(struct archive_extract_dir_entry *p);
+
+
+struct archive_extract_dir_entry {
+	struct archive_extract_dir_entry	*next;
+	mode_t		 mode;
+	int64_t		 mtime;
+	int64_t		 atime;
+	unsigned long	 mtime_nanos;
+	unsigned long	 atime_nanos;
+	/* Note: ctime cannot be restored, so don't bother */
+	char		*name;
+};
+
 
 /*
  * Extract this entry to disk.
@@ -108,15 +130,21 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 		writable_mode = archive_entry_stat(entry)->st_mode | 0700;
 
 		/*
-		 * If this dir isn't writable, restore it with write
-		 * permissions and add it to the fixup list for later
-		 * handling.
+		 * In order to correctly restore non-writable dirs or
+		 * dir timestamps, we need to maintain a fix-up list.
 		 */
-		if (archive_entry_stat(entry)->st_mode != writable_mode) {
+		if (archive_entry_stat(entry)->st_mode != writable_mode ||
+		    flags & ARCHIVE_EXTRACT_TIME) {
 			le = malloc(sizeof(struct archive_extract_dir_entry));
 			le->next = a->archive_extract_dir_list;
 			a->archive_extract_dir_list = le;
 			le->mode = archive_entry_stat(entry)->st_mode;
+			le->mtime = archive_entry_stat(entry)->st_mtime;
+			le->mtime_nanos =
+			    archive_entry_stat(entry)->st_mtimespec.tv_nsec;
+			le->atime = archive_entry_stat(entry)->st_atime;
+			le->atime_nanos =
+			    archive_entry_stat(entry)->st_atimespec.tv_nsec;
 			le->name =
 			    malloc(strlen(archive_entry_pathname(entry)) + 1);
 			strcpy(le->name, archive_entry_pathname(entry));
@@ -172,39 +200,112 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 
 /*
  * Cleanup function for archive_extract.  Free name/mode list and
- * restore permissions.
+ * restore permissions and dir timestamps.  This must be done last;
+ * otherwise, the dir permission might prevent us from restoring a
+ * file.  Similarly, the act of restoring a file touches the directory
+ * and changes the timestamp on the dir, so we have to touch-up the
+ * timestamps at the end as well.  Note that tar/cpio do not require
+ * that archives be in a particular order; there is no way to know
+ * when the last file has been restored within a directory, so there's
+ * no way to optimize the memory usage here by fixing up the directory
+ * any earlier than the end-of-archive.
  *
- * TODO: Restore times here as well.
+ * XXX TODO: Directory ACLs should be restored here, for the same
+ * reason we set directory perms here. XXX
  *
  * Registering this function (rather than calling it explicitly by
- * name from archive_read_finish) reduces link pollution, since
+ * name from archive_read_finish) reduces static link pollution, since
  * applications that don't use this API won't get this file linked in.
  */
 static
 void archive_extract_cleanup(struct archive *a)
 {
-	struct archive_extract_dir_entry *lp;
+	struct archive_extract_dir_entry *next, *p;
 
-	/*
-	 * TODO: Does dir list need to be sorted so permissions are restored
-	 * depth-first?
-	 */
-	while (a->archive_extract_dir_list) {
-		lp = a->archive_extract_dir_list->next;
-		chmod(a->archive_extract_dir_list->name,
-		    a->archive_extract_dir_list->mode);
-		/*
-		 * TODO: Consider using this hook to restore dir
-		 * timestamps as well.  However, dir timestamps don't
-		 * really matter, and it would be a memory issue to
-		 * record timestamps for every directory
-		 * extracted... Ugh.
-		 */
-		if (a->archive_extract_dir_list->name)
-			free(a->archive_extract_dir_list->name);
-		free(a->archive_extract_dir_list);
-		a->archive_extract_dir_list = lp;
+	/* Sort dir list so directories are fixed up in depth-first order. */
+	p = sort_dir_list(a->archive_extract_dir_list);
+
+	while (p != NULL) {
+		struct timeval times[2];
+
+		times[1].tv_sec = p->mtime;
+		times[1].tv_usec = p->mtime_nanos / 1000;
+		times[0].tv_sec = p->atime;
+		times[0].tv_usec = p->atime_nanos / 1000;
+
+		chmod(p->name, p->mode);
+		utimes(p->name, times);
+
+		next = p->next;
+		free(p->name);
+		free(p);
+		p = next;
 	}
+	a->archive_extract_dir_list = NULL;
+}
+
+/*
+ * Simple O(n log n) merge sort to order the directories prior to fix-up.
+ */
+static struct archive_extract_dir_entry *
+sort_dir_list(struct archive_extract_dir_entry *p)
+{
+	struct archive_extract_dir_entry *a, *b, *t;
+
+	if (p == NULL)
+		return NULL;
+	/* A one-item list is already sorted. */
+	if (p->next == NULL)
+		return (p);
+
+	/* Step 1: split the list. */
+	t = p;
+	a = p->next->next;
+	while (a != NULL) {
+		/* Step a twice, t once. */
+		a = a->next;
+		if (a != NULL)
+			a = a->next;
+		t = t->next;
+	}
+	/* Now, t is at the mid-point, so break the list here. */
+	b = t->next;
+	t->next = NULL;
+	a = p;
+
+	/* Step 2: Recursively sort the two sub-lists. */
+	a = sort_dir_list(a);
+	b = sort_dir_list(b);
+
+	/* Step 3: Merge the returned lists. */
+	/* Pick the first element for the merged list. */
+	if (strcmp(a->name, b->name) > 0) {
+		t = p = a;
+		a = a->next;
+	} else {
+		t = p = b;
+		b = b->next;
+	}
+
+	/* Always put the later element on the list first. */
+	while (a != NULL && b != NULL) {
+		if (strcmp(a->name, b->name) > 0) {
+			t->next = a;
+			a = a->next;
+		} else {
+			t->next = b;
+			b = b->next;
+		}
+		t = t->next;
+	}
+
+	/* Only one list is non-empty, so just splice it on. */
+	if (a != NULL)
+		t->next = a;
+	if (b != NULL)
+		t->next = b;
+
+	return (p);
 }
 
 static int
@@ -620,7 +721,12 @@ set_time(struct archive *a, struct archive_entry *entry, int flags)
 	times[0].tv_sec = st->st_atime;
 	times[0].tv_usec = st->st_atimespec.tv_nsec / 1000;
 
+#ifdef HAVE_LUTIMES
 	if (lutimes(archive_entry_pathname(entry), times) != 0) {
+#else
+	if ((archive_entry_mode(entry) & S_IFMT) != S_IFLNK &&
+	    utimes(archive_entry_pathname(entry), times) != 0) {
+#endif
 		archive_set_error(a, errno, "Can't update time for %s",
 		    archive_entry_pathname(entry));
 		return (ARCHIVE_WARN);
@@ -645,7 +751,12 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 		return (ARCHIVE_OK);
 
 	name = archive_entry_pathname(entry);
+#ifdef HAVE_LCHMOD
 	if (lchmod(name, mode) != 0) {
+#else
+	if ((archive_entry_mode(entry) & S_IFMT) != S_IFLNK &&
+	    chmod(name, mode) != 0) {
+#endif
 		archive_set_error(a, errno, "Can't set permissions");
 		return (ARCHIVE_WARN);
 	}
@@ -688,6 +799,7 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 	if (fflags == NULL)
 		return (ARCHIVE_WARN);
 
+#ifdef HAVE_CHFLAGS
 	fflags_p = fflags;
 	if (strtofflags(&fflags_p, &set, &clear) != 0  &&
 	    stat(name, &st) == 0) {
@@ -699,6 +811,8 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 			ret = ARCHIVE_WARN;
 		}
 	}
+#endif
+
 	free(fflags);
 	return (ret);
 }
@@ -709,46 +823,58 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 static int
 set_acls(struct archive *a, struct archive_entry *entry)
 {
-	const char	*acldesc;
-	acl_t		 acl;
+#ifdef HAVE_POSIX_ACL
+	const char	*acl_text;
 	const char	*name;
 	int		 ret;
 
 	ret = ARCHIVE_OK;
+
 	name = archive_entry_pathname(entry);
-	acldesc = archive_entry_acl(entry);
-	if (acldesc != NULL) {
-		acl = acl_from_text(acldesc);
-		if (acl == NULL) {
-			archive_set_error(a, errno, "Error parsing acl '%s'",
-			    acldesc);
-			ret = ARCHIVE_WARN;
-		} else {
-			if (acl_set_file(name, ACL_TYPE_ACCESS, acl) != 0) {
-				archive_set_error(a, errno,
-				    "Failed to set acl");
-				ret = ARCHIVE_WARN;
-			}
-			acl_free(acl);
-		}
+	acl_text = archive_entry_acl(entry);
+	ret = set_acl(a, acl_text, ACL_TYPE_ACCESS, name);
+	if (ret == ARCHIVE_OK) {
+		acl_text = archive_entry_acl_default(entry);
+		ret = set_acl(a, acl_text, ACL_TYPE_DEFAULT, name);
 	}
 
-	acldesc = archive_entry_acl_default(entry);
-	if (acldesc != NULL) {
-		acl = acl_from_text(acldesc);
-		if (acl == NULL) {
-			archive_set_error(a, errno, "error parsing acl '%s'",
-			    acldesc);
+	return (ret);
+#else
+	/* Default empty function body to satisfy mainline code. */
+	(void)a;
+	(void)entry;
+	return (ARCHIVE_OK);
+#endif
+}
+
+#ifdef HAVE_POSIX_ACL
+static int
+set_acl(struct archive *a, const char *acl_text, acl_type_t type,
+    const char *name)
+{
+	acl_t		 acl;
+	int		 ret;
+
+	ret = ARCHIVE_OK;
+
+	if (acl_text == NULL)
+		return (ret);
+
+	acl = acl_from_text(acl_text);
+	if (acl == NULL) {
+		archive_set_error(a, errno, "Error parsing acl '%s'",
+		    acl_text);
+		ret = ARCHIVE_WARN;
+	} else {
+		if (acl_set_file(name, type, acl) != 0) {
+			archive_set_error(a, errno,
+			    "Failed to set acl '%s' (type %d)",
+			    acl_text, type);
 			ret = ARCHIVE_WARN;
-		} else {
-			if (acl_set_file(name, ACL_TYPE_DEFAULT, acl) != 0) {
-				archive_set_error(a, errno,
-				    "Failed to set acl");
-				ret = ARCHIVE_WARN;
-			}
-			acl_free(acl);
 		}
+		acl_free(acl);
 	}
 
 	return (ret);
 }
+#endif

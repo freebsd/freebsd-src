@@ -24,10 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <errno.h>
@@ -119,7 +119,7 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 	state = a->compression_data;
 	buff = vbuff;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, EDOOFUS,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -167,7 +167,7 @@ archive_compressor_none_finish(struct archive *a)
 	state = a->compression_data;
 	ret = ret2 = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, EDOOFUS,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);

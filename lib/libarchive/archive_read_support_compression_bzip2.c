@@ -24,10 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
+#ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
 #include <err.h>
@@ -181,25 +181,25 @@ init(struct archive *a, const void *buff, size_t n)
 	}
 
 	/* Library setup failed: Clean up. */
-	archive_set_error(a, -1, "Internal error initializing %s library",
-	    a->compression_name);
+	archive_set_error(a, ARCHIVE_ERRNO_MISC,
+	    "Internal error initializing %s library", a->compression_name);
 	free(state->uncompressed_buffer);
 	free(state);
 
 	/* Override the error message if we know what really went wrong. */
 	switch (ret) {
 	case BZ_PARAM_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "invalid setup parameter");
 		break;
 	case BZ_MEM_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "out of memory");
 		break;
 	case BZ_CONFIG_ERROR:
-		archive_set_error(a, -1,
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "mis-compiled library");
 		break;
@@ -221,7 +221,7 @@ read_ahead(struct archive *a, const void **p, size_t min)
 	state = a->compression_data;
 	was_avail = -1;
 	if (!a->client_reader) {
-		archive_set_error(a, EINVAL,
+		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No read callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -284,8 +284,8 @@ finish(struct archive *a)
 	case BZ_OK:
 		break;
 	default:
-		archive_set_error(a, -1, "Failed to clean up %s compressor",
-		    a->compression_name);
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Failed to clean up %s compressor", a->compression_name);
 		ret = ARCHIVE_FATAL;
 	}
 
@@ -323,7 +323,7 @@ drive_decompressor(struct archive *a, struct private_data *state)
 				goto fatal;
 			}
 			if (ret == 0  &&  total_decompressed == 0) {
-				archive_set_error(a, -1,
+				archive_set_error(a, EIO,
 				    "Premature end of %s compressed data",
 				    a->compression_name);
 				return (ARCHIVE_FATAL);
@@ -359,7 +359,7 @@ drive_decompressor(struct archive *a, struct private_data *state)
 
 	/* Return a fatal error. */
 fatal:
-	archive_set_error(a, -1, "%s decompression failed",
+	archive_set_error(a, ARCHIVE_ERRNO_MISC, "%s decompression failed",
 	    a->compression_name);
 	return (ARCHIVE_FATAL);
 }

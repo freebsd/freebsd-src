@@ -24,9 +24,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+
+#include <errno.h>
 #include "archive.h"
 #include "archive_private.h"
 
@@ -57,6 +60,6 @@ archive_write_set_format(struct archive *a, int code)
 			return ((codes[i].setter)(a));
 	}
 
-	archive_set_error(a, -1, "No such format");
+	archive_set_error(a, EINVAL, "No such format");
 	return (ARCHIVE_FATAL);
 }
