@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.15 1998/10/16 04:30:44 peter Exp $
+#       $Id: Makefile,v 1.16 1999/01/17 20:53:48 peter Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp
@@ -10,7 +10,7 @@ CLEANFILES+=	vnode_if.c vnode_if.h
 NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1
 PPP_DEFLATE?=	1	# 0/1
-PPP_FILTER?=	0	# 0/1 - requires bpf to be configured in kernel
+PPP_FILTER?=	1	# 0/1 - requires bpf to be configured in kernel
 PPP_INET?=	1	# 0/1 - requires INET to be configured in kernel
 PPP_IPX?=	0	# 0/1 - requires IPX to be configured in kernel
 
