@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.78 1999/04/16 21:22:05 peter Exp $
+ *	$Id: apm.c,v 1.79 1999/04/18 15:10:58 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -439,8 +439,13 @@ apm_suspend(int state)
 
 	if (sc->initialized) {
 		error = DEVICE_SUSPEND(root_bus);
+		/*
+		 * XXX Shouldn't ignore the error like this, but should
+		 * instead fix the newbus code.  Until that happens,
+		 * I'm doing this to get suspend working again.
+		 */
 		if (error)
-			return;	/* XXX no error reporting */
+			printf("DEVICE_SUSPEND error %d, ignored\n", error);
 		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 		if (apm_suspend_system(state) == 0)
 			apm_processevent();
