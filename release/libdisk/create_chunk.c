@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.21 1995/06/11 19:29:33 rgrimes Exp $
+ * $Id: create_chunk.c,v 1.21.2.1 1995/09/20 10:43:02 jkh Exp $
  *
  */
 
@@ -238,7 +238,7 @@ MakeDev(struct chunk *c1, char *path)
 	p++;
 	if (isdigit(*p)) {
 		unit *= 10;
-		unit = *p - '0';
+		unit += (*p - '0');
 		p++;
 	}
 	if (!*p) {
@@ -255,7 +255,7 @@ MakeDev(struct chunk *c1, char *path)
 	p++;
 	if (isdigit(*p)) {
 		slice *= 10;
-		slice = *p - '0';
+		slice += (*p - '0');
 		p++;
 	}
 	slice = slice+1;
@@ -275,26 +275,42 @@ MakeDev(struct chunk *c1, char *path)
 		return 0;
 	min = unit * 8 + 65536 * slice + part;
 	sprintf(buf,"%s/r%s",path,c1->name);
-	unlink(buf); mknod(buf,S_IFCHR|0640,makedev(cmaj,min));
-	if(*buf2) {
+	unlink(buf);
+	if (mknod(buf,S_IFCHR|0640,makedev(cmaj,min)) == -1) {
+	    perror("mknod");
+	    return 0;
+	}
+	if (*buf2) {
 		sprintf(buf,"%s/r%s",path,buf2);
-		unlink(buf); mknod(buf,S_IFCHR|0640,makedev(cmaj,min));
+		unlink(buf);
+		if (mknod(buf,S_IFCHR|0640,makedev(cmaj,min)) == -1) {
+		    perror("mknod");
+		    return 0;
+		}
 	}
 	sprintf(buf,"%s/%s",path,c1->name);
-	unlink(buf); mknod(buf,S_IFBLK|0640,makedev(bmaj,min));
+	unlink(buf);
+	if (mknod(buf, S_IFBLK|0640, makedev(bmaj,min)) == -1) {
+	    perror("mknod");
+	    return 0;
+	}
 	return 1;
 }
 
-void
+int
 MakeDevChunk(struct chunk *c1,char *path)
 {
-	MakeDev(c1,path);
-	if (c1->next) MakeDevChunk(c1->next,path);
-	if (c1->part) MakeDevChunk(c1->part,path);
+    int i = 1;
+
+    if (!MakeDev(c1, path))
+	return 0;
+    if (c1->next) i = MakeDevChunk(c1->next,path);
+    if (c1->part) i |= MakeDevChunk(c1->part, path);
+    return i;
 }
 
-void
+int
 MakeDevDisk(struct disk *d,char *path)
 {
-	MakeDevChunk(d->chunks,path);
+    return MakeDevChunk(d->chunks,path);
 }

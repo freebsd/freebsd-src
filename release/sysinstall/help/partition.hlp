@@ -1,6 +1,6 @@
 This is the FreeBSD DiskLabel Editor.
 
-If you would like the label editor to do all of the following *for* you,
+If you would like the label editor to do most of the following *for* you,
 simply type `A' for automatic partitioning of the disk.
 
 You should use this editor to create at least the following
@@ -17,8 +17,8 @@ will need to be bigger - at least 100MB.  This is not recommended as
 any media errors that may occur during disk I/O to user files will
 corrupt the filesystem containing vital system files as well.  It is
 for this reason that / is generally kept on its own filesystem, where
-it's basically considered "read only" by the system and hence a good
-deal safer.
+it should be considered essentially "read only" in your administration
+of it.
 
 Swap space is a little tricker, and the rule of "2 * MEM" is simply a
 best-guess approximation and not necessarily accurate for your
@@ -53,23 +53,24 @@ at disk storage works:
 
 
 In FreeBSD's new system, a device name can be broken up into up to 3
-parts:
+parts.  Take a typical name like this:	/dev/sd0s1a
 
-        First, you have the disk name itself.  Assuming for the moment that we
-        had a system with two SCSI driveds on it, we'd have `sd0' and `sd1'
-        as possible "entire disk" names.
+	The first three characters represent the drive name.  If we had
+	a system with two SCSI drives on it, we'd see /dev/sd0 and /dev/sd1
+	as possible values in this position (representing the entire drives).
 
-        Next you have the "Slice" (or "FDISK Partition") number,
-        as seen in the Partition Editor.  Assume again that our sd0 contains
-        two slices: a FreeBSD slice and a DOS slice.  That would give us
-        sd0s1 and sd0s2 as names pointing to their respective slices.
+        Next you have the "slice" (or "FDISK Partition") number,
+        as seen in the Partition Editor.  Assume again that our sd0
+        contains two slices: a FreeBSD slice and a DOS slice.  That
+        would give us /dev/sd0s1 and /dev/sd0s2 as names pointing to their
+        respective slices.
 
         Next, if a slice is a FreeBSD slice, you can have a number of
         (confusingly named) "partitions" inside of it.
 
         These partitions are where various filesystems or swap areas live,
-        and using our hypothetical two-SCSI-disk machine again, we might have
-        something like the following layout on sd0:
+        and using our hypothetical two-SCSI-disk machine again, we might
+        have something like the following layout on sd0:
 
                 Name            Mountpoint
                 ----            ----------
@@ -94,8 +95,9 @@ parts:
 
         Again, let it be noted: FreeBSD automatically maps the
         compatibility slice to the first FreeBSD slice it finds
-        (in this case, sd0s1).  You may have multiple FreeBSD slices on a drive,
-        but only the first one will be mapped to the compatibility slice!
+        (in this case, sd0s1).  You may have multiple FreeBSD slices on a
+        drive, but only the first one will be mapped to the compatibility
+        slice!
 
         The compatibility slice will eventually be phased out, but
         it is still important right now for several reasons:
@@ -111,10 +113,10 @@ parts:
                    referred to by its full slice name.
 
 Once you understand all this, then the label editor becomes fairly
-simple.  You're either carving up the FreeBSD slices displayed at the
+simple.  You're carving up the FreeBSD slices displayed at the
 top of the screen into smaller pieces, which are displayed in the
-middle of the screen, and then assigning FreeBSD file system names to
-them.
+middle of the screen, and then assigning FreeBSD file system names
+(mount points) to them.
 
 You can also use the label editor to mount existing partitions/slices
 into your filesystem hierarchy, as is frequently done for DOS FAT

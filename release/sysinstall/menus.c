@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.15 1995/10/04 12:08:17 jkh Exp $
+ * $Id: menus.c,v 1.42.2.16 1995/10/07 11:55:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -606,20 +606,20 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
 /* MBR type menu */
 DMenu MenuMBRType = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
-    "Chose boot manager type",		/* title */
-    "FreeBSD comes with a boot selector that allows you to easily\n\
-select between FreeBSD and other operating systems on your machine\n\
-at boot time.  If you have more than one drive and wish to boot\n\
-from other than the first, the boot selector will also allow you\n\
-to do so (limitations in the PC BIOS usually prevent this otherwise).\n\
-If you do not want a boot selector, or wish to replace an existing\n\
-one, select \"standard\".  If you would prefer your Master Boot\n\
-Record to remain untouched, then select \"none\".",
+    "overwrite me",		/* will be disk specific label */
+    "FreeBSD comes with a boot selector that allows you to easily\n"
+"select between FreeBSD and any other operating systems on your machine\n"
+"at boot time.  If you have more than one drive and want to boot\n"
+"from the second one, the boot selector will also make it possible\n"
+"to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
+"If you do not want a boot selector, or wish to replace an existing\n"
+"one, select \"standard\".  If you would prefer your Master Boot\n"
+"Record to remain untouched then select \"none\".",
     "Press F1 to read the installation guide",
     "install",
     { { "BootMgr",		"Install the FreeBSD Boot Manager (\"Booteasy\")",
 	DMENU_SET_VALUE,	&BootMgr, 0, 0, dmenuRadioCheck		},
-      { "Standard",		"Use a standard MBR (no boot manager)",
+      { "Standard",		"Install a standard MBR (no boot manager)",
 	DMENU_SET_VALUE,	&BootMgr, 1, 0, dmenuRadioCheck		},
       { "None",			"Leave the Master Boot Record untouched",
 	DMENU_SET_VALUE,	&BootMgr, 2, 0, dmenuRadioCheck		},
