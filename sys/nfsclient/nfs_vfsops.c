@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.18 1995/08/11 11:31:12 davidg Exp $
+ * $Id: nfs_vfsops.c,v 1.19 1995/08/24 10:17:39 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -804,6 +804,8 @@ nfs_root(mp, vpp)
 		return (error);
 	vp = NFSTOV(np);
 	VOP_UNLOCK(vp);
+	if (vp->v_type == VNON)
+	    vp->v_type = VDIR;
 	vp->v_flag = VROOT;
 	*vpp = vp;
 	return (0);
