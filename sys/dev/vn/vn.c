@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.73 1999/01/23 00:28:56 peter Exp $
+ *	$Id: vn.c,v 1.74 1999/02/01 08:36:02 dillon Exp $
  */
 
 /*
@@ -91,6 +91,16 @@
 #include <miscfs/specfs/specdev.h>
 #include <sys/vnioctl.h>
 
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_pageout.h>
+#include <vm/swap_pager.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
+
 static	d_ioctl_t	vnioctl;
 static	d_open_t	vnopen;
 static	d_read_t	vnread;
@@ -99,17 +109,24 @@ static	d_close_t	vnclose;
 static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
 static	d_strategy_t	vnstrategy;
+static	d_parms_t	vnparms;
 
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
 
+/*
+ * cdevsw
+ *	D_DISK		we want to look like a disk
+ *	( D_NOCLUSTERRW	 removed - clustering should be ok )
+ *	D_CANFREE	We support B_FREEBUF
+ */
 
 static struct cdevsw vn_cdevsw = {
 	  vnopen,	vnclose,	vnread,		vnwrite,
 	  vnioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		vnstrategy,	"vn",
-	  NULL,		-1,		vndump,		vnsize,
-	  D_DISK|D_NOCLUSTERRW,	0,	-1 };
+	  vnparms,	-1,		vndump,		vnsize,
+	  D_DISK|D_CANFREE,	0,	-1 };
 
 
 #define	vnunit(dev)	dkunit(dev)
@@ -121,14 +138,16 @@ static struct cdevsw vn_cdevsw = {
 	free((caddr_t)(bp), M_DEVBUF)
 
 struct vn_softc {
-	int		 sc_flags;	/* flags */
-	size_t		 sc_size;	/* size of vn */
+	int		sc_flags;	/* flags 			*/
+	int		sc_size;	/* size of vn, sc_secsize scale	*/
+	int		sc_secsize;	/* sector size			*/
 	struct diskslices *sc_slices;
-	struct vnode	*sc_vp;		/* vnode */
-	struct ucred	*sc_cred;	/* credentials */
-	int		 sc_maxactive;	/* max # of active requests */
-	struct buf	 sc_tab;	/* transfer queue */
-	u_long		 sc_options;	/* options */
+	struct vnode	*sc_vp;		/* vnode if not NULL		*/
+	vm_object_t	sc_object;	/* backing object if not NULL	*/
+	struct ucred	*sc_cred;	/* credentials 			*/
+	int		 sc_maxactive;	/* max # of active requests 	*/
+	struct buf	 sc_tab;	/* transfer queue 		*/
+	u_long		 sc_options;	/* options 			*/
 #ifdef DEVFS
 	void		*r_devfs_token;
 	void		*devfs_token;
@@ -143,10 +162,14 @@ static u_long	vn_options;
 
 #define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 
+#if 0
 static void	vniodone (struct buf *bp);
+#endif
 static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
 static void	vnclear (struct vn_softc *vn);
 static int	vn_modevent (module_t, int, void *);
+static int 	vniocattach_file (struct vn_softc *, struct vn_ioctl *, dev_t dev, int flag, struct proc *p);
+static int 	vniocattach_swap (struct vn_softc *, struct vn_ioctl *, dev_t dev, int flag, struct proc *p);
 
 static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
@@ -191,14 +214,13 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 
 			/* Build label for whole disk. */
 			bzero(&label, sizeof label);
-			label.d_secsize = DEV_BSIZE;
+			label.d_secsize = vn->sc_secsize;
 			label.d_nsectors = 32;
-			label.d_ntracks = 64;
-			label.d_ncylinders = vn->sc_size / (32 * 64);
-			label.d_secpercyl = 32 * 64;
-			label.d_secperunit =
-					label.d_partitions[RAW_PART].p_size =
-					vn->sc_size;
+			label.d_ntracks = 64 / (vn->sc_secsize / DEV_BSIZE);
+			label.d_secpercyl = label.d_nsectors * label.d_ntracks;
+			label.d_ncylinders = vn->sc_size / label.d_secpercyl;
+			label.d_secperunit = vn->sc_size;
+			label.d_partitions[RAW_PART].p_size = vn->sc_size;
 
 			return (dsopen("vn", dev, mode, 0, &vn->sc_slices,
 				       &label, vnstrategy, (ds_setgeom_t *)NULL,
@@ -225,20 +247,23 @@ vnwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 /*
- * this code does I/O calls through the appropriate VOP entry point...
- * unless a swap_pager I/O request is being done.  This strategy (-))
- * allows for coherency with mmap except in the case of paging.  This
- * is necessary, because the VOP calls use lots of memory (and actually
- * are not extremely efficient -- but we want to keep semantics correct),
- * and the pageout daemon gets really unhappy (and so does the rest of the
- * system) when it runs out of memory.
+ *	vnstrategy:
+ *
+ *	Run strategy routine for VN device.  We use VOP_READ/VOP_WRITE calls
+ *	for vnode-backed vn's, and the new vm_pager_strategy() call for
+ *	vm_object-backed vn's.
+ *
+ *	Currently B_ASYNC is only partially handled - for OBJT_SWAP I/O only.
+ *
+ *	NOTE: bp->b_blkno is DEV_BSIZE'd.  We must generate bp->b_pblkno for
+ *	our uio or vn_pager_strategy() call that is vn->sc_secsize'd
  */
+
 static	void
 vnstrategy(struct buf *bp)
 {
 	int unit = vnunit(bp->b_dev);
-	register struct vn_softc *vn = vn_softc[unit];
-	register daddr_t bn;
+	struct vn_softc *vn = vn_softc[unit];
 	int error;
 	int isvplocked = 0;
 	long sz;
@@ -254,34 +279,46 @@ vnstrategy(struct buf *bp)
 		biodone(bp);
 		return;
 	}
+
+	bp->b_resid = bp->b_bcount;
+
 	IFOPT(vn, VN_LABELS) {
-		bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
 		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
+			bp->b_flags |= B_INVAL;
 			biodone(bp);
 			return;
 		}
-		bn = bp->b_pblkno;
-		bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
 	} else {
-		bn = bp->b_blkno;
-		sz = howmany(bp->b_bcount, DEV_BSIZE);
-		bp->b_resid = bp->b_bcount;
-		if (bn < 0 || bn + sz > vn->sc_size) {
-			if (bn != vn->sc_size) {
+		int pbn;
+
+		pbn = bp->b_blkno * (vn->sc_secsize / DEV_BSIZE);
+		sz = howmany(bp->b_bcount, vn->sc_secsize);
+
+		if (pbn < 0 || pbn + sz > vn->sc_size) {
+			if (pbn != vn->sc_size) {
 				bp->b_error = EINVAL;
-				bp->b_flags |= B_ERROR;
+				bp->b_flags |= B_ERROR | B_INVAL;
 			}
 			biodone(bp);
 			return;
 		}
+		bp->b_pblkno = pbn;
 	}
 
-	if( (bp->b_flags & B_PAGING) == 0) {
+	if (vn->sc_vp && (bp->b_flags & B_FREEBUF)) {
+		/*
+		 * Not handled for vnode-backed element yet.
+		 */
+		biodone(bp);
+	} else if (vn->sc_vp) {
+		/*
+		 * VNODE I/O
+		 */
 		aiov.iov_base = bp->b_data;
 		aiov.iov_len = bp->b_bcount;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
-		auio.uio_offset = dbtob(bn);
+		auio.uio_offset = (vm_ooffset_t)bp->b_pblkno * vn->sc_secsize;
 		auio.uio_segflg = UIO_SYSSPACE;
 		if( bp->b_flags & B_READ)
 			auio.uio_rw = UIO_READ;
@@ -303,120 +340,27 @@ vnstrategy(struct buf *bp)
 		}
 		bp->b_resid = auio.uio_resid;
 
-		if( error )
+		if( error ) {
+			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
-		biodone(bp);
-	} else {
-		long bsize, resid;
-		off_t byten;
-		int flags;
-		caddr_t addr;
-		struct buf *nbp;
-
-		nbp = getvnbuf();
-		bzero(nbp, sizeof(struct buf));
-		LIST_INIT(&nbp->b_dep);
-		byten = dbtob(bn);
-		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
-		addr = bp->b_data;
-		flags = bp->b_flags | B_CALL;
-		for (resid = bp->b_resid; resid; ) {
-			struct vnode *vp;
-			daddr_t nbn;
-			int off, s, nra;
-
-			nra = 0;
-			if (!VOP_ISLOCKED(vn->sc_vp)) {
-				isvplocked = 1;
-				vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
-			}
-			error = VOP_BMAP(vn->sc_vp, (daddr_t)(byten / bsize),
-					 &vp, &nbn, &nra, NULL);
-			if (isvplocked) {
-				VOP_UNLOCK(vn->sc_vp, 0, curproc);
-				isvplocked = 0;
-			}
-			if (error == 0 && nbn == -1)
-				error = EIO;
-
-			IFOPT(vn, VN_DONTCLUSTER)
-				nra = 0;
-
-			off = byten % bsize;
-			if (off)
-				sz = bsize - off;
-			else
-				sz = (1 + nra) * bsize;
-			if (resid < sz)
-				sz = resid;
-
-			if (error) {
-				bp->b_resid -= (resid - sz);
-				bp->b_flags |= B_ERROR;
-				biodone(bp);
-				putvnbuf(nbp);
-				return;
-			}
-
-			IFOPT(vn,VN_IO)
-				printf(
-			/* XXX no %qx in kernel.  Synthesize it. */
-			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%lx\n",
-				   (void *)vn->sc_vp, (void *)vp,
-				   (u_long)(byten >> 32), (u_long)byten,
-				   (u_long)nbn, sz);
-
-			nbp->b_flags = flags;
-			nbp->b_bcount = sz;
-			nbp->b_bufsize = sz;
-			nbp->b_error = 0;
-			if (vp->v_type == VBLK || vp->v_type == VCHR)
-				nbp->b_dev = vp->v_rdev;
-			else
-				nbp->b_dev = NODEV;
-			nbp->b_data = addr;
-			nbp->b_blkno = nbn + btodb(off);
-			nbp->b_offset = dbtob(nbn) + off;
-			nbp->b_proc = bp->b_proc;
-			nbp->b_iodone = vniodone;
-			nbp->b_vp = vp;
-			nbp->b_rcred = vn->sc_cred;	/* XXX crdup? */
-			nbp->b_wcred = vn->sc_cred;	/* XXX crdup? */
-			nbp->b_dirtyoff = bp->b_dirtyoff;
-			nbp->b_dirtyend = bp->b_dirtyend;
-			nbp->b_validoff = bp->b_validoff;
-			nbp->b_validend = bp->b_validend;
-
-			if ((nbp->b_flags & B_READ) == 0)
-				nbp->b_vp->v_numoutput++;
-
-			VOP_STRATEGY(vp, nbp);
-
-			s = splbio();
-			while ((nbp->b_flags & B_DONE) == 0) {
-				nbp->b_flags |= B_WANTED;
-				tsleep(nbp, PRIBIO, "vnwait", 0);
-			}
-			splx(s);
-
-			if( nbp->b_flags & B_ERROR) {
-				bp->b_flags |= B_ERROR;
-				bp->b_resid -= (resid - sz);
-				biodone(bp);
-				putvnbuf(nbp);
-				return;
-			}
-
-			byten += sz;
-			addr += sz;
-			resid -= sz;
 		}
-		bp->b_resid = resid;
 		biodone(bp);
-		putvnbuf(nbp);
+	} else if (vn->sc_object) {
+		/*
+		 * OBJT_SWAP I/O
+		 *
+		 * ( handles read, write, freebuf )
+		 */
+		vm_pager_strategy(vn->sc_object, bp);
+	} else {
+		bp->b_flags |= B_ERROR;
+		bp->b_error = EINVAL;
+		biodone(bp);
 	}
 }
 
+
+#if 0
 
 void
 vniodone( struct buf *bp) {
@@ -424,14 +368,14 @@ vniodone( struct buf *bp) {
 	wakeup((caddr_t) bp);
 }
 
+#endif
+
 /* ARGSUSED */
 static	int
 vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct vn_softc *vn = vn_softc[vnunit(dev)];
 	struct vn_ioctl *vio;
-	struct vattr vattr;
-	struct nameidata nd;
 	int error;
 	u_long *f;
 
@@ -476,47 +420,11 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	case VNIOCATTACH:
 		if (vn->sc_flags & VNF_INITED)
 			return(EBUSY);
-		/*
-		 * Always open for read and write.
-		 * This is probably bogus, but it lets vn_open()
-		 * weed out directories, sockets, etc. so we don't
-		 * have to worry about them.
-		 */
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
-		error = vn_open(&nd, FREAD|FWRITE, 0);
-		if (error)
-			return(error);
-		error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p);
-		if (error) {
-			VOP_UNLOCK(nd.ni_vp, 0, p);
-			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
-			return(error);
-		}
-		VOP_UNLOCK(nd.ni_vp, 0, p);
-		vn->sc_vp = nd.ni_vp;
-		vn->sc_size = btodb(vattr.va_size);	/* note truncation */
-		error = vnsetcred(vn, p->p_ucred);
-		if (error) {
-			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
-			return(error);
-		}
-		vio->vn_size = dbtob(vn->sc_size);
-		vn->sc_flags |= VNF_INITED;
-		IFOPT(vn, VN_LABELS) {
-			/*
-			 * Reopen so that `ds' knows which devices are open.
-			 * If this is the first VNIOCSET, then we've
-			 * guaranteed that the device is the cdev and that
-			 * no other slices or labels are open.  Otherwise,
-			 * we rely on VNIOCCLR not being abused.
-			 */
-			error = vnopen(dev, flag, S_IFCHR, p);
-			if (error)
-				vnclear(vn);
-		}
-		IFOPT(vn, VN_FOLLOW)
-			printf("vnioctl: SET vp %p size %x\n",
-			       vn->sc_vp, vn->sc_size);
+
+		if (vio->vn_file == NULL)
+			error = vniocattach_swap(vn, vio, dev, flag, p);
+		else
+			error = vniocattach_file(vn, vio, dev, flag, p);
 		break;
 
 	case VNIOCDETACH:
@@ -556,9 +464,138 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 
 	default:
-		return (ENOTTY);
+		error = ENOTTY;
+		break;
 	}
+	return(error);
+}
+
+/*
+ *	vniocattach_file:
+ *
+ *	Attach a file to a VN partition.  Return the size in the vn_size
+ *	field.
+ */
+
+static int
+vniocattach_file(vn, vio, dev, flag, p)
+	struct vn_softc *vn;
+	struct vn_ioctl *vio;
+	dev_t dev;
+	int flag;
+	struct proc *p;
+{
+	struct vattr vattr;
+	struct nameidata nd;
+	int error;
+
+	/*
+	 * Always open for read and write.
+	 * This is probably bogus, but it lets vn_open()
+	 * weed out directories, sockets, etc. so we don't
+	 * have to worry about them.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, vio->vn_file, p);
+	error = vn_open(&nd, FREAD|FWRITE, 0);
+	if (error)
+		return(error);
+	error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p);
+	if (error) {
+		VOP_UNLOCK(nd.ni_vp, 0, p);
+		(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
+		return(error);
+	}
+	VOP_UNLOCK(nd.ni_vp, 0, p);
+	vn->sc_secsize = DEV_BSIZE;
+	vn->sc_vp = nd.ni_vp;
+	vn->sc_size = vattr.va_size / vn->sc_secsize;	/* note truncation */
+	error = vnsetcred(vn, p->p_ucred);
+	if (error) {
+		(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
+		return(error);
+	}
+	vn->sc_flags |= VNF_INITED;
+	IFOPT(vn, VN_LABELS) {
+		/*
+		 * Reopen so that `ds' knows which devices are open.
+		 * If this is the first VNIOCSET, then we've
+		 * guaranteed that the device is the cdev and that
+		 * no other slices or labels are open.  Otherwise,
+		 * we rely on VNIOCCLR not being abused.
+		 */
+		error = vnopen(dev, flag, S_IFCHR, p);
+		if (error)
+			vnclear(vn);
+	}
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnioctl: SET vp %p size %x blks\n",
+		       vn->sc_vp, vn->sc_size);
 	return(0);
+}
+
+/*
+ *	vniocattach_swap:
+ *
+ *	Attach swap backing store to a VN partition of the size specified
+ *	in vn_size.
+ */
+
+static int
+vniocattach_swap(vn, vio, dev, flag, p)
+	struct vn_softc *vn;
+	struct vn_ioctl *vio;
+	dev_t dev;
+	int flag;
+	struct proc *p;
+{
+	int error;
+
+	/*
+	 * Range check.  Disallow negative sizes or any size less then the
+	 * size of a page.  Then round to a page.
+	 */
+
+	if (vio->vn_size <= 0)
+		return(EDOM);
+
+	/*
+	 * Allocate an OBJT_SWAP object.
+	 *
+	 * sc_secsize is PAGE_SIZE'd
+	 *
+	 * vio->vn_size is in PAGE_SIZE'd chunks.
+	 * sc_size must be in PAGE_SIZE'd chunks.  
+	 * Note the truncation.
+	 */
+
+	vn->sc_secsize = PAGE_SIZE;
+	vn->sc_size = vio->vn_size;
+	vn->sc_object = 
+	 vm_pager_allocate(OBJT_SWAP, NULL, vn->sc_secsize * (vm_ooffset_t)vio->vn_size, VM_PROT_DEFAULT, 0);
+	vn->sc_flags |= VNF_INITED;
+
+	error = vnsetcred(vn, p->p_ucred);
+	if (error == 0) {
+		IFOPT(vn, VN_LABELS) {
+			/*
+			 * Reopen so that `ds' knows which devices are open.
+			 * If this is the first VNIOCSET, then we've
+			 * guaranteed that the device is the cdev and that
+			 * no other slices or labels are open.  Otherwise,
+			 * we rely on VNIOCCLR not being abused.
+			 */
+			error = vnopen(dev, flag, S_IFCHR, p);
+		}
+	}
+	if (error == 0) {
+		IFOPT(vn, VN_FOLLOW) {
+			printf("vnioctl: SET vp %p size %x\n",
+			       vn->sc_vp, vn->sc_size);
+		}
+	}
+	if (error)
+		vnclear(vn);
+	return(error);
 }
 
 /*
@@ -573,45 +610,61 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 	struct uio auio;
 	struct iovec aiov;
 	char *tmpbuf;
-	int error;
+	int error = 0;
 
+	/*
+	 * Set credits in our softc
+	 */
+
+	if (vn->sc_cred)
+		crfree(vn->sc_cred);
 	vn->sc_cred = crdup(cred);
-	tmpbuf = malloc(DEV_BSIZE, M_TEMP, M_WAITOK);
 
-	/* XXX: Horrible kludge to establish credentials for NFS */
-	aiov.iov_base = tmpbuf;
-	aiov.iov_len = min(DEV_BSIZE, dbtob(vn->sc_size));
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = 0;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_SYSSPACE;
-	auio.uio_resid = aiov.iov_len;
-	vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
-	error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
-	VOP_UNLOCK(vn->sc_vp, 0, curproc);
+	/*
+	 * Horrible kludge to establish credentials for NFS  XXX.
+	 */
 
-	free(tmpbuf, M_TEMP);
+	if (vn->sc_vp) {
+		tmpbuf = malloc(vn->sc_secsize, M_TEMP, M_WAITOK);
+
+		aiov.iov_base = tmpbuf;
+		aiov.iov_len = vn->sc_secsize;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = 0;
+		auio.uio_rw = UIO_READ;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_resid = aiov.iov_len;
+		vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
+		VOP_UNLOCK(vn->sc_vp, 0, curproc);
+		free(tmpbuf, M_TEMP);
+	}
 	return (error);
 }
 
 void
 vnclear(struct vn_softc *vn)
 {
-	register struct vnode *vp = vn->sc_vp;
 	struct proc *p = curproc;		/* XXX */
 
 	IFOPT(vn, VN_FOLLOW)
-		printf("vnclear(%p): vp=%p\n", vn, vp);
+		printf("vnclear(%p): vp=%p\n", vn, vn->sc_vp);
 	if (vn->sc_slices != NULL)
 		dsgone(&vn->sc_slices);
 	vn->sc_flags &= ~VNF_INITED;
-	if (vp == (struct vnode *)0)
-		panic("vnclear: null vp");
-	(void) vn_close(vp, FREAD|FWRITE, vn->sc_cred, p);
-	crfree(vn->sc_cred);
-	vn->sc_vp = (struct vnode *)0;
-	vn->sc_cred = (struct ucred *)0;
+	if (vn->sc_vp != NULL) {
+		(void)vn_close(vn->sc_vp, FREAD|FWRITE, vn->sc_cred, p);
+		vn->sc_vp = NULL;
+	}
+	if (vn->sc_cred) {
+		crfree(vn->sc_cred);
+		vn->sc_cred = NULL;
+	}
+	if (vn->sc_object != NULL) {
+		vm_pager_deallocate(vn->sc_object);
+		vn->sc_object = NULL;
+	}
 	vn->sc_size = 0;
 }
 
@@ -619,11 +672,54 @@ static	int
 vnsize(dev_t dev)
 {
 	int unit = vnunit(dev);
+	struct vn_softc *vn;
 
-	if (unit >= NVN || (!vn_softc[unit]) ||
-	    (vn_softc[unit]->sc_flags & VNF_INITED) == 0)
+	if (unit < 0 || unit >= NVN)
 		return(-1);
-	return(vn_softc[unit]->sc_size);
+
+	vn = vn_softc[unit];
+	if ((vn->sc_flags & VNF_INITED) == 0)
+		return(-1);
+
+	return(vn->sc_size);
+}
+
+/*
+ * vnparms() - return requested device block info
+ *
+ *	This is typically called by specfs with DBLK_MIN to get
+ *	the minimum read/write block size.  If the device does not
+ *	exist or has not been configured, 0 is returned.
+ */
+
+static int
+vnparms(dev_t dev, struct specinfo *sinfo, int ctl)
+{
+	int unit = vnunit(dev);
+	int r = -1;
+	struct vn_softc *vn;
+
+	if (unit < 0 || unit >= NVN)
+		return(r);
+	if ((vn = vn_softc[unit]) == NULL || (vn->sc_flags & VNF_INITED) == 0)
+		return(r);
+
+	switch(ctl) {
+	case DPARM_GET:
+		/* 
+		 * Retrieve disk parameters.  The system has already set
+		 * the defaults, we simply override them as necessary.
+		 */
+		r = 0;
+		if (sinfo->si_bsize_phys < vn->sc_secsize)
+			sinfo->si_bsize_phys = vn->sc_secsize;
+		if (sinfo->si_bsize_best < vn->sc_secsize)
+			sinfo->si_bsize_best = vn->sc_secsize;
+		break;
+	default:
+		break;
+	}
+	return(r);
 }
 
 static	int

@@ -43,7 +43,7 @@
 static char sccsid[] = "@(#)vnconfig.c	8.1 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: vnconfig.c,v 1.7 1997/10/27 07:55:31 charnier Exp $";
+	"$Id: vnconfig.c,v 1.8 1999/01/26 04:53:09 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -66,7 +66,9 @@ static const char rcsid[] =
 struct vndisk {
 	char	*dev;
 	char	*file;
+	char	*autolabel;
 	int	flags;
+	int	size;
 	char	*oarg;
 } vndisks[MAXVNDISK];
 
@@ -95,6 +97,8 @@ void getoptions __P((struct vndisk *, char *));
 char *rawdevice __P((char *));
 void readconfig __P((int));
 static void usage __P((void));
+static int getsize(const char *arg);
+static void do_autolabel(const char *dev, const char *label);
 int what_opt __P((char *, u_long *));
 
 int
@@ -103,9 +107,11 @@ main(argc, argv)
 {
 	register int i, rv;
 	int flags = 0;
+	int size = 0;
+	char *autolabel = NULL;
 
 	configfile = _PATH_VNTAB;
-	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) != -1)
+	while ((i = getopt(argc, argv, "acdef:gr:s:S:L:uv")) != -1)
 		switch (i) {
 
 		/* all -- use config file */
@@ -166,6 +172,14 @@ main(argc, argv)
 			verbose++;
 			break;
 
+		case 'S':
+			size = getsize(optarg);
+			break;
+
+		case 'L':
+			autolabel = optarg;
+			break;
+
 		default:
 			usage();
 		}
@@ -184,6 +198,8 @@ main(argc, argv)
 		vndisks[0].dev = argv[optind++];
 		vndisks[0].file = argv[optind++];
 		vndisks[0].flags = flags;
+		vndisks[0].size = size;
+		vndisks[0].autolabel = autolabel;
 		if (optind < argc)
 			getoptions(&vndisks[0], argv[optind]);
 		nvndisks = 1;
@@ -235,6 +251,7 @@ config(vnp)
 		return(1);
 	}
 	vnio.vn_file = file;
+	vnio.vn_size = vnp->size;	/* non-zero only if swap backed */
 
 	/*
 	 * Disable the device
@@ -274,9 +291,20 @@ config(vnp)
 		if (rv) {
 			warn("VNIOCATTACH");
 			flags &= ~VN_ENABLE;
-		} else if (verbose)
-			printf("%s: %d bytes on %s\n",
-			       dev, vnio.vn_size, file);
+		} else {
+			if (verbose) {
+				printf(
+				    "%s: %d bytes on %s\n",
+				    dev, vnio.vn_size, file
+				);
+			}
+			/*
+			 * autolabel
+			 */
+			if (vnp->autolabel) {
+				do_autolabel(vnp->dev, vnp->autolabel);
+			}
+		}
 	}
 	/*
 	 * Set an option
@@ -377,8 +405,14 @@ readconfig(flags)
 		while (!EOL(*cp) && !WHITE(*cp))
 			cp++;
 		*cp++ = '\0';
-		vndisks[ix].file = malloc(cp - sp);
-		strcpy(vndisks[ix].file, sp);
+
+		if (*sp == '%' && strtol(sp + 1, NULL, 0) > 0) {
+			vndisks[ix].size = getsize(sp + 1);
+		} else {
+			vndisks[ix].file = malloc(cp - sp);
+			strcpy(vndisks[ix].file, sp);
+		}
+
 		while (!EOL(*cp) && WHITE(*cp))
 			cp++;
 		vndisks[ix].flags = flags;
@@ -452,3 +486,52 @@ usage()
 "usage: vnconfig [-acdefguv] [-s option] [-r option] [special-device file]\n");
 	exit(1);
 }
+
+static int
+getsize(const char *arg)
+{
+	char *ptr;
+	int pgsize = getpagesize();
+	quad_t size = strtoq(arg, &ptr, 0);
+
+	switch(tolower(*ptr)) {
+	case 't':
+		/*
+		 * GULP!  Terrabytes.  It's actually possible to create 
+		 * a 7.9 TB VN device, though newfs can't handle any single
+		 * filesystem larger then 1 TB.
+		 */
+		size *= 1024;
+		/* fall through */
+	case 'g':
+		size *= 1024;
+		/* fall through */
+	default:
+	case 'm':
+		size *= 1024;
+		/* fall through */
+	case 'k':
+		size *= 1024;
+		/* fall through */
+	case 'c':
+		break;
+	}
+	size = (size + pgsize - 1) / pgsize;
+	return((int)size);
+}
+
+/*
+ * DO_AUTOLABEL
+ *
+ *	Automatically label the device.  This will wipe any preexisting
+ *	label.
+ */
+
+static void
+do_autolabel(const char *dev, const char *label)
+{
+	/* XXX not yet implemented */
+	fprintf(stderr, "autolabel not yet implemented, sorry\n");
+	exit(1);
+}
+
