@@ -3187,8 +3187,8 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 
 	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x80); /* clear Ycomb */
 	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x80);
-	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | ~0x40); /* set chroma comb */
-	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | ~0x40);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | 0x40); /* set chroma comb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | 0x40);
 
 	/* disable gamma correction removal */
 	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_GAMMA);
