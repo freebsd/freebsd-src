@@ -125,7 +125,7 @@ static void
 print_command_summary()
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan       C = Create Slice");
+    mvprintw(16, 0, "A = Use Entire Disk                             C = Create Slice");
     mvprintw(17, 0, "D = Delete Slice       G = Set Drive Geometry   S = Set Bootable");
     mvprintw(18, 0, "T = Change Type        U = Undo All Changes     Q = Finish");
     if (!RunningAsInit)
@@ -292,21 +292,6 @@ diskPartition(Device *dev)
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes", 0);
 	    record_chunks(d);
-	    clear();
-	    break;
-	    
-	case 'B':
-	    if (chunk_info[current_chunk]->type != freebsd)
-		msg = "Can only scan for bad blocks in FreeBSD slice.";
-	    else if (strncmp(d->name, "sd", 2) ||
-		     strncmp(d->name, "da", 2) ||
-		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\n"
-			       "Are you sure you want to do this on a SCSI disk?")) {
-		if (chunk_info[current_chunk]->flags & CHUNK_BAD144)
-		    chunk_info[current_chunk]->flags &= ~CHUNK_BAD144;
-		else
-		    chunk_info[current_chunk]->flags |= CHUNK_BAD144;
-	    }
 	    clear();
 	    break;
 	    
@@ -694,23 +679,6 @@ diskPartitionWrite(dialogMenuItem *self)
 	/* If we've been through here before, we don't need to do the rest */
 	if (cp && !strcmp(cp, "written"))
 	    return DITEM_SUCCESS;
-
-	/* Now scan for bad blocks, if necessary */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->flags & CHUNK_BAD144) {
-		int ret;
-
-		msgNotify("Running bad block scan on slice %s", c1->name);
-		if (!Fake) {
-		    ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		    if (ret)
-			msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		    ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		    if (ret)
-			msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
-		}
-	    }
-	}
     }
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written", 0);
