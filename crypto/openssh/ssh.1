@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.160 2002/06/22 11:51:39 naddy Exp $
+.\" $OpenBSD: ssh.1,v 1.167 2002/09/27 15:46:21 stevesk Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
@@ -49,7 +49,7 @@
 .Op Ar command
 .Pp
 .Nm ssh
-.Op Fl afgknqstvxACNPTX1246
+.Op Fl afgknqstvxACNTX1246
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl e Ar escape_char
@@ -355,9 +355,17 @@ the connection is opened.
 The real authentication cookie is never
 sent to the server machine (and no cookies are sent in the plain).
 .Pp
-If the user is using an authentication agent, the connection to the agent
-is automatically forwarded to the remote side unless disabled on
-the command line or in a configuration file.
+If the
+.Cm ForwardAgent
+variable is set to
+.Dq yes
+(or, see the description of the
+.Fl A
+and
+.Fl a
+options described later) and 
+the user is using an authentication agent, the connection to the agent
+is automatically forwarded to the remote side.
 .Pp
 Forwarding of arbitrary TCP/IP connections over the secure channel can
 be specified either on the command line or in a configuration file.
@@ -396,6 +404,13 @@ Disables forwarding of the authentication agent connection.
 .It Fl A
 Enables forwarding of the authentication agent connection.
 This can also be specified on a per-host basis in a configuration file.
+.Pp
+Agent forwarding should be enabled with caution.  Users with the
+ability to bypass file permissions on the remote host (for the agent's
+Unix-domain socket) can access the local agent through the forwarded
+connection.  An attacker cannot obtain key material from the agent,
+however they can perform operations on the keys that enable them to
+authenticate using the identities loaded into the agent.
 .It Fl b Ar bind_address
 Specify the interface to transmit from on machines with multiple
 interfaces or aliased addresses.
@@ -517,15 +532,6 @@ command-line flag.
 Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
-.It Fl P
-Use a non-privileged port for outgoing connections.
-This can be used if a firewall does
-not permit connections from privileged ports.
-Note that this option turns off
-.Cm RhostsAuthentication
-and
-.Cm RhostsRSAAuthentication
-for older servers.
 .It Fl q
 Quiet mode.
 Causes all warning and diagnostic messages to be suppressed.
@@ -561,6 +567,12 @@ Disables X11 forwarding.
 .It Fl X
 Enables X11 forwarding.
 This can also be specified on a per-host basis in a configuration file.
+.Pp
+X11 forwarding should be enabled with caution.  Users with the ability
+to bypass file permissions on the remote host (for the user's X
+authorization database) can access the local X11 display through the
+forwarded connection.  An attacker may then be able to perform
+activities such as keystroke monitoring.
 .It Fl C
 Requests compression of all data (including stdin, stdout, stderr, and
 data for forwarded X11 and TCP/IP connections).
@@ -570,7 +582,7 @@ and the
 .Dq level
 can be controlled by the
 .Cm CompressionLevel
-option.
+option for protocol version 1.
 Compression is desirable on modem lines and other
 slow connections, but will only slow down things on fast networks.
 The default value can be set on a host-by-host basis in the
@@ -716,11 +728,11 @@ to make this work.)
 .It Ev SSH_AUTH_SOCK
 Identifies the path of a unix-domain socket used to communicate with the
 agent.
-.It Ev SSH_CLIENT
-Identifies the client end of the connection.
+.It Ev SSH_CONNECTION
+Identifies the client and server ends of the connection.
 The variable contains
-three space-separated values: client ip-address, client port number,
-and server port number.
+four space-separated values: client ip-address, client port number,
+server ip-address and server port number.
 .It Ev SSH_ORIGINAL_COMMAND
 The variable contains the original command line if a forced command
 is executed.
@@ -744,7 +756,12 @@ reads
 .Pa $HOME/.ssh/environment ,
 and adds lines of the format
 .Dq VARNAME=value
-to the environment.
+to the environment if the file exists and if users are allowed to
+change their environment.
+See the
+.Cm PermitUserEnvironment
+option in
+.Xr sshd_config 5 .
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/known_hosts

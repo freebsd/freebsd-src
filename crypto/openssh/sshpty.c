@@ -163,7 +163,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 	}
 	return 1;
 #else /* HAVE_DEV_PTS_AND_PTC */
-#ifdef _CRAY
+#ifdef _UNICOS
 	char buf[64];
 	int i;
 	int highpty;
@@ -269,7 +269,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 	void *old;
 #endif /* USE_VHANGUP */
 
-#ifdef _CRAY
+#ifdef _UNICOS
 	if (setsid() < 0)
 		error("setsid: %.100s", strerror(errno));
 
@@ -291,7 +291,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 		error("%.100s: %.100s", ttyname, strerror(errno));
 	close(*ttyfd);
 	*ttyfd = fd;
-#else /* _CRAY */
+#else /* _UNICOS */
 
 	/* First disconnect from the old controlling tty. */
 #ifdef TIOCNOTTY
@@ -346,7 +346,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 		    strerror(errno));
 	else 
 		close(fd);
-#endif /* _CRAY */
+#endif /* _UNICOS */
 }
 
 /* Changes the window size associated with the pty. */

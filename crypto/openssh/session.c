@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.142 2002/06/26 13:49:26 deraadt Exp $");
+RCSID("$OpenBSD: session.c,v 1.150 2002/09/16 19:55:33 stevesk Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -211,13 +211,6 @@ do_authenticated(Authctxt *authctxt)
 		close(startup_pipe);
 		startup_pipe = -1;
 	}
-#ifdef WITH_AIXAUTHENTICATE
-	/* We don't have a pty yet, so just label the line as "ssh" */
-	if (loginsuccess(authctxt->user,
-	    get_canonical_hostname(options.verify_reverse_mapping),
-	    "ssh", &aixloginmsg) < 0)
-		aixloginmsg = NULL;
-#endif /* WITH_AIXAUTHENTICATE */
 
 	/* setup the channel layer */
 	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
@@ -471,6 +464,8 @@ do_exec_no_pty(Session *s, const char *command)
 
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
+		fatal_remove_all_cleanups();
+
 		/* Child.  Reinitialize the log since the pid has changed. */
 		log_init(__progname, options.log_level, options.log_facility, log_stderr);
 
@@ -518,10 +513,17 @@ do_exec_no_pty(Session *s, const char *command)
 			perror("dup2 stderr");
 #endif /* USE_PIPES */
 
+#ifdef _UNICOS
+		cray_init_job(s->pw); /* set up cray jid and tmpdir */
+#endif
+
 		/* Do processing for the child (exec command etc). */
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef _UNICOS
+	signal(WJSIGNAL, cray_job_termination_handler);
+#endif /* _UNICOS */
 #ifdef HAVE_CYGWIN
 	if (is_winnt)
 		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
@@ -586,6 +588,7 @@ do_exec_pty(Session *s, const char *command)
 
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
+		fatal_remove_all_cleanups();
 
 		/* Child.  Reinitialize the log because the pid has changed. */
 		log_init(__progname, options.log_level, options.log_facility, log_stderr);
@@ -608,8 +611,12 @@ do_exec_pty(Session *s, const char *command)
 
 		/* record login, etc. similar to login(1) */
 #ifndef HAVE_OSF_SIA
-		if (!(options.use_login && command == NULL))
+		if (!(options.use_login && command == NULL)) {
+#ifdef _UNICOS
+			cray_init_job(s->pw); /* set up cray jid and tmpdir */
+#endif /* _UNICOS */
 			do_login(s, command);
+		}
 # ifdef LOGIN_NEEDS_UTMPX
 		else
 			do_pre_login(s);
@@ -620,6 +627,9 @@ do_exec_pty(Session *s, const char *command)
 		do_child(s, command);
 		/* NOTREACHED */
 	}
+#ifdef _UNICOS
+	signal(WJSIGNAL, cray_job_termination_handler);
+#endif /* _UNICOS */
 #ifdef HAVE_CYGWIN
 	if (is_winnt)
 		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
@@ -759,7 +769,8 @@ do_login(Session *s, const char *command)
 	if (aixloginmsg && *aixloginmsg)
 		printf("%s\n", aixloginmsg);
 #endif /* WITH_AIXAUTHENTICATE */
-#ifndef USE_PAM
+
+#ifndef NO_SSH_LASTLOG
 	if (options.print_lastlog && s->last_login_time != 0) {
 		time_string = ctime(&s->last_login_time);
 		if (strchr(time_string, '\n'))
@@ -770,7 +781,7 @@ do_login(Session *s, const char *command)
 			printf("Last login: %s from %s\r\n", time_string,
 			    s->hostname);
 	}
-#endif /* !USE_PAM */
+#endif /* NO_SSH_LASTLOG */
 
 	do_motd();
 }
@@ -1025,13 +1036,13 @@ do_setup_env(Session *s, const char *shell)
 	if (!options.use_login) {
 		while (custom_environment) {
 			struct envstring *ce = custom_environment;
-			char *s = ce->s;
+			char *str = ce->s;
 
-			for (i = 0; s[i] != '=' && s[i]; i++)
+			for (i = 0; str[i] != '=' && str[i]; i++)
 				;
-			if (s[i] == '=') {
-				s[i] = 0;
-				child_set_env(&env, &envsize, s, s + i + 1);
+			if (str[i] == '=') {
+				str[i] = 0;
+				child_set_env(&env, &envsize, str, str + i + 1);
 			}
 			custom_environment = ce->next;
 			xfree(ce->s);
@@ -1039,9 +1050,15 @@ do_setup_env(Session *s, const char *shell)
 		}
 	}
 
+	/* SSH_CLIENT deprecated */
 	snprintf(buf, sizeof buf, "%.50s %d %d",
 	    get_remote_ipaddr(), get_remote_port(), get_local_port());
 	child_set_env(&env, &envsize, "SSH_CLIENT", buf);
+
+	snprintf(buf, sizeof buf, "%.50s %d %.50s %d",
+	    get_remote_ipaddr(), get_remote_port(),
+	    get_local_ipaddr(packet_get_connection_in()), get_local_port());
+	child_set_env(&env, &envsize, "SSH_CONNECTION", buf);
 
 	if (s->ttyfd != -1)
 		child_set_env(&env, &envsize, "SSH_TTY", s->tty);
@@ -1052,6 +1069,11 @@ do_setup_env(Session *s, const char *shell)
 	if (original_command)
 		child_set_env(&env, &envsize, "SSH_ORIGINAL_COMMAND",
 		    original_command);
+
+#ifdef _UNICOS
+	if (cray_tmpdir[0] != '\0')
+		child_set_env(&env, &envsize, "TMPDIR", cray_tmpdir);
+#endif /* _UNICOS */
 
 #ifdef _AIX
 	{
@@ -1075,8 +1097,17 @@ do_setup_env(Session *s, const char *shell)
 		    s->authctxt->krb5_ticket_file);
 #endif
 #ifdef USE_PAM
-	/* Pull in any environment variables that may have been set by PAM. */
-	copy_environment(fetch_pam_environment(), &env, &envsize);
+	/*
+	 * Pull in any environment variables that may have
+	 * been set by PAM.
+	 */
+	{
+		char **p;
+
+		p = fetch_pam_environment();
+		copy_environment(p, &env, &envsize);
+		free_pam_environment(p);
+	}
 #endif /* USE_PAM */
 
 	if (auth_sock_name != NULL)
@@ -1084,9 +1115,9 @@ do_setup_env(Session *s, const char *shell)
 		    auth_sock_name);
 
 	/* read $HOME/.ssh/environment. */
-	if (!options.use_login) {
+	if (options.permit_user_env && !options.use_login) {
 		snprintf(buf, sizeof buf, "%.200s/.ssh/environment",
-		    pw->pw_dir);
+		    strcmp(pw->pw_dir, "/") ? pw->pw_dir : "");
 		read_environment_file(&env, &envsize, buf);
 	}
 	if (debug_flag) {
@@ -1181,6 +1212,8 @@ do_nologin(struct passwd *pw)
 #endif
 	if (f) {
 		/* /etc/nologin exists.  Print its contents and exit. */
+		log("User %.100s not allowed because %s exists",
+		    pw->pw_name, _PATH_NOLOGIN);
 		while (fgets(buf, sizeof(buf), f))
 			fputs(buf, stderr);
 		fclose(f);
@@ -1192,8 +1225,6 @@ do_nologin(struct passwd *pw)
 void
 do_setusercontext(struct passwd *pw)
 {
-	char tty='\0';
-
 #ifdef HAVE_CYGWIN
 	if (is_winnt) {
 #else /* HAVE_CYGWIN */
@@ -1203,9 +1234,9 @@ do_setusercontext(struct passwd *pw)
 		setpcred(pw->pw_name);
 #endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
-#ifdef __bsdi__
+# ifdef __bsdi__
 		setpgid(0, 0);
-#endif
+# endif
 		if (setusercontext(lc, pw, pw->pw_uid,
 		    (LOGIN_SETALL & ~(LOGIN_SETENV|LOGIN_SETPATH))) < 0) {
 			perror("unable to set user context");
@@ -1242,8 +1273,7 @@ do_setusercontext(struct passwd *pw)
 		irix_setusercontext(pw);
 #  endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
 # ifdef _AIX
-		/* XXX: Disable tty setting.  Enabled if required later */
-		aix_usrinfo(pw, &tty, -1);
+		aix_usrinfo(pw);
 # endif /* _AIX */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
@@ -1298,6 +1328,10 @@ do_child(Session *s, const char *command)
 	/* login(1) is only called if we execute the login shell */
 	if (options.use_login && command != NULL)
 		options.use_login = 0;
+
+#ifdef _UNICOS
+	cray_setup(pw->pw_uid, pw->pw_name, command);
+#endif /* _UNICOS */
 
 	/*
 	 * Login(1) does this as well, and it needs uid 0 for the "-h"
@@ -1838,6 +1872,27 @@ session_pty_cleanup(void *session)
 	PRIVSEP(session_pty_cleanup2(session));
 }
 
+static char *
+sig2name(int sig)
+{
+#define SSH_SIG(x) if (sig == SIG ## x) return #x
+	SSH_SIG(ABRT);
+	SSH_SIG(ALRM);
+	SSH_SIG(FPE);
+	SSH_SIG(HUP);
+	SSH_SIG(ILL);
+	SSH_SIG(INT);
+	SSH_SIG(KILL);
+	SSH_SIG(PIPE);
+	SSH_SIG(QUIT);
+	SSH_SIG(SEGV);
+	SSH_SIG(TERM);
+	SSH_SIG(USR1);
+	SSH_SIG(USR2);
+#undef	SSH_SIG
+	return "SIG@openssh.com";
+}
+
 static void
 session_exit_message(Session *s, int status)
 {
@@ -1855,7 +1910,7 @@ session_exit_message(Session *s, int status)
 		packet_send();
 	} else if (WIFSIGNALED(status)) {
 		channel_request_start(s->chanid, "exit-signal", 0);
-		packet_put_int(WTERMSIG(status));
+		packet_put_cstring(sig2name(WTERMSIG(status)));
 #ifdef WCOREDUMP
 		packet_put_char(WCOREDUMP(status));
 #else /* WCOREDUMP */

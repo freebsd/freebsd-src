@@ -81,27 +81,27 @@ pam_child_conv(int n,
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
 			buffer_put_cstring(&buffer, msg[i]->msg);
-			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
-			msg_recv(ctxt->pam_sock, &buffer);
+			ssh_msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			ssh_msg_recv(ctxt->pam_sock, &buffer);
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
 			resp[i]->resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_PROMPT_ECHO_ON:
 			buffer_put_cstring(&buffer, msg[i]->msg);
-			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
-			msg_recv(ctxt->pam_sock, &buffer);
+			ssh_msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			ssh_msg_recv(ctxt->pam_sock, &buffer);
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
 			resp[i]->resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_ERROR_MSG:
 			buffer_put_cstring(&buffer, msg[i]->msg);
-			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			ssh_msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
 			break;
 		case PAM_TEXT_INFO:
 			buffer_put_cstring(&buffer, msg[i]->msg);
-			msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
+			ssh_msg_send(ctxt->pam_sock, msg[i]->msg_style, &buffer);
 			break;
 		default:
 			goto fail;
@@ -142,13 +142,13 @@ pam_child(struct pam_ctxt *ctxt)
 	if (pam_err != PAM_SUCCESS)
 		goto auth_fail;
 	buffer_put_cstring(&buffer, "OK");
-	msg_send(ctxt->pam_sock, PAM_SUCCESS, &buffer);
+	ssh_msg_send(ctxt->pam_sock, PAM_SUCCESS, &buffer);
 	buffer_free(&buffer);
 	pam_end(pamh, pam_err);
 	exit(0);
  auth_fail:
 	buffer_put_cstring(&buffer, pam_strerror(pamh, pam_err));
-	msg_send(ctxt->pam_sock, PAM_AUTH_ERR, &buffer);
+	ssh_msg_send(ctxt->pam_sock, PAM_AUTH_ERR, &buffer);
 	buffer_free(&buffer);
 	pam_end(pamh, pam_err);
 	exit(0);
@@ -222,7 +222,7 @@ pam_query(void *ctx, char **name, char **info,
 	**prompts = NULL;
 	plen = 0;
 	*echo_on = xmalloc(sizeof(u_int));
-	while (msg_recv(ctxt->pam_sock, &buffer) == 0) {
+	while (ssh_msg_recv(ctxt->pam_sock, &buffer) == 0) {
 		type = buffer_get_char(&buffer);
 		msg = buffer_get_string(&buffer, NULL);
 		switch (type) {
@@ -296,7 +296,7 @@ pam_respond(void *ctx, u_int num, char **resp)
 	}
 	buffer_init(&buffer);
 	buffer_put_cstring(&buffer, *resp);
-	msg_send(ctxt->pam_sock, PAM_AUTHTOK, &buffer);
+	ssh_msg_send(ctxt->pam_sock, PAM_AUTHTOK, &buffer);
 	buffer_free(&buffer);
 	return (1);
 }
