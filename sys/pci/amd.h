@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/amd.h,v 1.1.4.1 2000/04/14 13:16:54 nyan Exp $
  */
 
 #ifndef AMD_H

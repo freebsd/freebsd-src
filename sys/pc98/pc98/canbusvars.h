@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/canbusvars.h,v 1.3.2.1 2003/02/10 13:11:51 nyan Exp $
  */
 
 #ifndef _PC98_PC98_CANBUSVARS_H_

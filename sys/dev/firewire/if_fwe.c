@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/if_fwe.c,v 1.1.2.10 2003/03/20 02:02:28 simokawa Exp $
  */
 
 #include "opt_inet.h"

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/inet_makeaddr.c,v 1.2.6.1 2001/04/21 14:53:04 ume Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,5 +1,5 @@
 # $NetBSD: usb_hid_usages,v 1.3 1999/07/02 15:46:53 simonb Exp $
-# $FreeBSD$
+# $FreeBSD: src/share/misc/usb_hid_usages,v 1.1.2.1 2000/07/02 13:13:55 n_hibma Exp $
 #
 # USB HID usage table
 # Syntax:

@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)yacc.y	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mklocale/yacc.y,v 1.6.2.1 2002/10/23 17:18:39 ache Exp $");
 
 #include <arpa/inet.h>
 

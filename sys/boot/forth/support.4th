@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/support.4th,v 1.3.2.1 2000/07/07 00:15:53 obrien Exp $
 
 \ Loader.rc support functions:
 \

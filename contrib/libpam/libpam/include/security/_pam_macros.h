@@ -5,7 +5,7 @@
  * All kind of macros used by PAM, but usable in some other
  * programs too.
  * Organized by Cristian Gafton <gafton@redhat.com>
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/include/security/_pam_macros.h,v 1.1.1.1.6.2 2001/06/11 15:28:14 markm Exp $
  */
 
 /* a 'safe' version of strdup */

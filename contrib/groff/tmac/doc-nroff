@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-nroff	8.1 (Berkeley) 06/08/93
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/contrib/groff/tmac/doc-nroff,v 1.1.1.1.8.6 2003/02/14 15:22:11 ru Exp $
 .\"
 .\"     %beginstrip%
 .

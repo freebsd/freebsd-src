@@ -29,7 +29,7 @@
  *
  *	$Id: msghdl.c,v 1.78 2000/09/21 11:29:51 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/msghdl.c,v 1.6.2.3 2001/12/16 15:13:38 hm Exp $
  *
  *      last edit-date: [Thu Sep 21 11:11:48 2000]
  *

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_nbt.c,v 1.4.2.3 2001/08/01 09:52:26 obrien Exp $
  *
  *  TODO:
  *       oClean up. 

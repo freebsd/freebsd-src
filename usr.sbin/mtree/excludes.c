@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mtree/excludes.c,v 1.1.2.4 2001/01/12 19:17:18 phk Exp $";
 
 #include <sys/types.h>
 #include <sys/time.h>		/* XXX for mtree.h */

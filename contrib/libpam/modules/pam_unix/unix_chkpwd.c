@@ -1,6 +1,6 @@
 /*
  * $Id: unix_chkpwd.c,v 1.3 2001/02/11 06:33:53 agmorgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_unix/unix_chkpwd.c,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $
  *
  * This program is designed to run setuid(root) or with sufficient
  * privilege to read all of the unix password databases. It is designed

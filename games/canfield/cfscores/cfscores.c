@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cfscores.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/canfield/cfscores/cfscores.c,v 1.9 1999/12/12 07:25:14 billf Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/infblock.c,v 1.1.1.4.6.2 2003/02/01 13:33:12 sobomax Exp $");
 
 #include "zutil.h"
 #include "infblock.h"

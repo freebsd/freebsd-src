@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/langinfo.h,v 1.4.2.1 2002/03/12 17:12:24 phantom Exp $
  */
 
 #ifndef _LANGINFO_H_

@@ -3,7 +3,7 @@
 #      The FreeBSD French Documentation Project
 #
 #      $Id$
-#      $FreeBSD$
+#      $FreeBSD: src/release/doc/fr_FR.ISO8859-1/installation/i386/Makefile,v 1.1.2.2 2002/11/01 20:52:55 gioria Exp $
 #      Original revision: 1.3.2.2
 
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/tss.h,v 1.11 1999/12/29 04:33:09 peter Exp $
  */
 
 #ifndef _MACHINE_TSS_H_

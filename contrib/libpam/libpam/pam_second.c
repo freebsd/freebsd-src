@@ -3,7 +3,7 @@
  * (based on XSSO draft spec of March 1997)
  *
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_second.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * $Log$
  */

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/ipcp.c,v 1.90.2.12 2002/09/28 10:16:25 brian Exp $
  */
 
 #include <sys/param.h>

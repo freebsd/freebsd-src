@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/opencrypto/crmbuf.c,v 1.1.2.1 2002/11/21 23:34:23 sam Exp $
  */
 
 #include "opt_param.h"

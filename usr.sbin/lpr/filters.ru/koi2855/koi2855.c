@@ -28,7 +28,7 @@
 /*
  * KOI8-R -> CP855 conversion filter (Russian character sets)
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/filters.ru/koi2855/koi2855.c,v 1.1 1999/09/21 20:42:10 ache Exp $
  */
 
 #include <sys/types.h>

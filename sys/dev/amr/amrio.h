@@ -51,7 +51,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amrio.h,v 1.2.2.3 2002/11/11 13:19:10 emoore Exp $
  */
 
 /*

@@ -11,7 +11,7 @@
 # AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rtadvd/Makefile,v 1.1.2.2 2001/04/25 12:10:48 ru Exp $
 
 PROG=	rtadvd
 SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c dump.c

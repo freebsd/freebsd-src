@@ -1,7 +1,7 @@
 /* pam_map.c - PAM mapping interface
  *
  * $Id$
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/pam_map.c,v 1.1.1.1.6.2 2001/06/11 15:28:12 markm Exp $
  *
  * This is based on the X/Open XSSO specification of March 1997.
  * It is not implemented as it is going to change... after 1997/9/25.

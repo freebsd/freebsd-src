@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.i386,v 1.2.2.2 2002/09/01 23:39:17 obrien Exp $
 
 SRCS+=	i386-dis.c
 CFLAGS+= -DARCH_i386

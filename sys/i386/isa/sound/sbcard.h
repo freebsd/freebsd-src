@@ -1,7 +1,7 @@
 /*
  * file: sbcard.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/sbcard.h,v 1.4 1999/12/27 04:37:19 tanimura Exp $
  *
  */
 

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_rbch_ioctl.h,v 1.2 1999/12/13 21:25:28 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_rbch_ioctl.h,v 1.3.2.1 2001/08/01 17:45:01 obrien Exp $
  *
  *      last edit-date: [Mon Dec 13 22:07:12 1999]
  *

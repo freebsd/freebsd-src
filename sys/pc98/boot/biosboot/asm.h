@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/boot/biosboot/asm.h,v 1.4 1999/08/28 00:50:15 peter Exp $
  */
 
 #define S_ARG0	 4(%esp)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/uvisor/Makefile,v 1.1.2.2 2002/08/11 20:05:20 joe Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

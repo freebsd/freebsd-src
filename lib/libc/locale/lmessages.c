@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/lmessages.c,v 1.9.2.2 2002/08/12 11:17:37 ache Exp $");
 
 #include <stddef.h>
 

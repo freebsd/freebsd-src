@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/csu/Makefile,v 1.1.2.8 2002/08/07 16:31:43 ru Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 

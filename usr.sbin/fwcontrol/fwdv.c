@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fwcontrol/fwdv.c,v 1.2.2.3 2003/02/24 07:31:27 simokawa Exp $
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>

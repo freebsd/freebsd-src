@@ -76,7 +76,7 @@
 
 #if !defined(lint)
 /*static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.9.2.24 2002/08/28 12:45:51 darrenr Exp $";*/
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_proxy.c,v 1.11.2.5 2003/03/01 03:55:54 darrenr Exp $";
 #endif
 
 #if defined(_KERNEL) && (SOLARIS || defined(__sgi))

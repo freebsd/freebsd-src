@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ie/if_ie.c,v 1.72.2.2.12.2 2003/03/27 21:02:31 mdodd Exp $
  */
 
 /*

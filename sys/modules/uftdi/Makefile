@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/uftdi/Makefile,v 1.1.2.1 2002/11/21 01:28:18 ticso Exp $
 
 S=	${.CURDIR}/../..
 .PATH: $S/dev/usb

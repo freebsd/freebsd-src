@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_get_np.c,v 1.2.2.2 2003/02/03 10:13:28 phantom Exp $
  */
 #include <errno.h>
 #include <string.h>

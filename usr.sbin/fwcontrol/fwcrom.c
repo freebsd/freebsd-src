@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/fwcontrol/fwcrom.c,v 1.1.2.2 2003/01/05 13:50:04 simokawa Exp $
  */
 
 #include <sys/param.h>

@@ -6,7 +6,7 @@
  * or later
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tcpdump/smbutil.c,v 1.1.1.1.2.4 2003/03/03 05:11:03 fenner Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

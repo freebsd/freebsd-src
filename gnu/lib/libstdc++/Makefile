@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libstdc++/Makefile,v 1.24.2.1 2001/11/21 18:55:27 obrien Exp $
 
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
 

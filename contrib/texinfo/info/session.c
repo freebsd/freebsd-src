@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/info/session.c,v 1.4.2.1 2002/03/30 17:09:19 ru Exp $ */
 /* session.c -- user windowing interface to Info.
    $Id: session.c,v 1.45 2002/03/02 15:05:04 karl Exp $
 

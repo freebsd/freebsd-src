@@ -34,7 +34,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/i386-pinsn.c,v 1.1.6.1 2002/04/25 11:04:51 tg Exp $");
 
 #include <stdio.h>
 #include <ctype.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsmb/Makefile,v 1.1.2.2 2001/12/20 09:21:31 sheldonh Exp $
 
 LIB=		smb
 

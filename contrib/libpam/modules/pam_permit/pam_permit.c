@@ -2,7 +2,7 @@
 
 /*
  * $Id: pam_permit.c,v 1.5 1997/02/15 19:03:15 morgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_permit/pam_permit.c,v 1.3.4.2 2001/06/11 15:28:23 markm Exp $
  *
  * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
  *

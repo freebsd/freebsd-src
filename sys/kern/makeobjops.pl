@@ -36,7 +36,7 @@
 # From @(#)makedevops.sh ?.? 1998/10/05
 # From src/sys/kern/makedevops.pl,v 1.12 1999/11/22 14:40:04 n_hibma Exp
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/makeobjops.pl,v 1.2.2.1 2001/02/02 19:49:13 cg Exp $
 
 #
 # Script to produce kobj front-end sugar.

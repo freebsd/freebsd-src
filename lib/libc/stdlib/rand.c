@@ -32,7 +32,7 @@
  *
  * Posix rand_r function added May 1999 by Wes Peters <wes@softweyr.com>.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdlib/rand.c,v 1.2.2.1 2001/03/05 11:33:57 obrien Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

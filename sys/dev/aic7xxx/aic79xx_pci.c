@@ -40,7 +40,7 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#67 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aic79xx_pci.c,v 1.3.2.4 2003/03/07 23:20:36 gibbs Exp $
  */
 
 #ifdef __linux__

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.19 (Berkeley) 1/14/97
-# $FreeBSD$
+# $FreeBSD: src/etc/sendmail/Makefile,v 1.3.2.17 2002/08/07 16:31:41 ru Exp $
 
 M4=		m4
 CHMOD=		chmod

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/boot/dosboot/Makefile,v 1.6.2.1 2002/08/07 16:31:56 ru Exp $
 #
 
 MPROG=	fbsdboot.exe

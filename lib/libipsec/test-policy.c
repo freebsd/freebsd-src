@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libipsec/test-policy.c,v 1.2.2.2 2001/07/03 11:01:15 ume Exp $	*/
 /*	$KAME: test-policy.c,v 1.14 2000/12/27 11:38:11 sakane Exp $	*/
 
 /*

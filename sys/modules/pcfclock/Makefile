@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/pcfclock/Makefile,v 1.1 2000/02/29 10:57:42 sheldonh Exp $
 
 .PATH:	${.CURDIR}/../../dev/ppbus
 KMOD=	pcfclock

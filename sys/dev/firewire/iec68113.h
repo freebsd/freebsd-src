@@ -30,7 +30,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/iec68113.h,v 1.1.2.3 2003/03/11 11:46:51 simokawa Exp $
  *
  */
 struct ciphdr {

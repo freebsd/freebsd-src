@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rtadvd/if.h,v 1.1.2.2 2001/07/03 11:02:14 ume Exp $
  */
 
 #define RTADV_TYPE2BITMASK(type) (0x1 << type)

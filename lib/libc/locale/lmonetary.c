@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/lmonetary.c,v 1.12.2.2 2002/08/12 11:17:37 ache Exp $");
 
 #include <limits.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/ccd/Makefile,v 1.9 1999/11/28 18:52:42 bde Exp $ 
 
 .PATH:  ${.CURDIR}/../../dev/ccd
 KMOD=   ccd

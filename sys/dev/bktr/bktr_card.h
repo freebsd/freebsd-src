@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bktr/bktr_card.h,v 1.2.4.3 2003/02/08 02:04:57 orion Exp $ */
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)

@@ -15,7 +15,7 @@ choice to the address below.
 
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pcvt/vttest/main.c,v 1.4.6.1 2000/12/11 01:03:35 obrien Exp $ */
 
 #include "header.h"
 

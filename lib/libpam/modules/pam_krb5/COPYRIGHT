@@ -1,6 +1,6 @@
 pam_krb5:
 
-$FreeBSD$
+$FreeBSD: src/lib/libpam/modules/pam_krb5/COPYRIGHT,v 1.1.2.1 2001/06/07 09:37:05 markm Exp $
 
 Copyright (c) Frank Cusack, 1999-2000.
 fcusack@fcusack.com
