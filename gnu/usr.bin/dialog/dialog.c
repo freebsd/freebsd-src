@@ -77,24 +77,18 @@
  *	     - Version 0.4 released.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dialog.h>
 
-#define __DIALOG_MAIN__
-
-
-#include "dialog.h"
-#ifdef HAVE_NCURSES
-#include "colors.h"
-#endif
-
+void Usage(unsigned char *name);
 
 int main(int argc, unsigned char *argv[])
 {
   int offset = 0, clear_screen = 0, end_common_opts = 0, retval;
   unsigned char *title = NULL;
-
-#if defined(LOCALE)
-  (void) setlocale(LC_ALL, "");
-#endif
+  unsigned char result[MAX_LEN];
 
   if (argc < 2) {
     Usage(argv[0]);
@@ -106,7 +100,7 @@ int main(int argc, unsigned char *argv[])
       Usage(argv[0]);
       exit(-1);
     }
-    create_rc(argv[2]);
+    dialog_create_rc(argv[2]);
     return 0;
 #else
     fprintf(stderr, "\nThis option is currently unsupported on your system.\n");
@@ -132,8 +126,8 @@ int main(int argc, unsigned char *argv[])
       }
       else if (argc == 2) {    /* we only want to clear the screen */
         init_dialog();
-        refresh();    /* init_dialog() will clear the screen for us */
-        endwin();
+	dialog_update();    /* init_dialog() will clear the screen for us */
+	end_dialog();
         return 0;
       }
       else {
@@ -161,11 +155,11 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_yesno(title, argv[offset+2], atoi(argv[offset+3]),
                           atoi(argv[offset+4]));
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--msgbox")) {
@@ -177,11 +171,11 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 1);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--infobox")) {
@@ -193,11 +187,11 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 0);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--textbox")) {
@@ -209,11 +203,11 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_textbox(title, argv[offset+2], atoi(argv[offset+3]),
                             atoi(argv[offset+4]));
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--menu")) {
@@ -224,13 +218,15 @@ int main(int argc, unsigned char *argv[])
     init_dialog();
     retval = dialog_menu(title, argv[offset+2], atoi(argv[offset+3]),
                          atoi(argv[offset+4]), atoi(argv[offset+5]),
-                         (argc-offset-6)/2, argv+offset + 6);
+			 (argc-offset-6)/2, argv+offset + 6, result);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (retval == 0)
+	fputs(result, stderr);
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--checklist")) {
@@ -241,13 +237,28 @@ int main(int argc, unsigned char *argv[])
     init_dialog();
     retval = dialog_checklist(title, argv[offset+2], atoi(argv[offset+3]),
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
-                              (argc-offset-6)/3, argv+offset + 6);
+			      (argc-offset-6)/3, argv+offset + 6, result);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (retval == 0) {
+      unsigned char *s, *h; int first;
+
+      h = result;
+      first = 1;
+      while ((s = strchr(h, '\n')) != NULL) {
+	*s++ = '\0';
+	if (!first)
+	  fputc(' ', stderr);
+	else
+	  first = 0;
+	fprintf(stderr, "\"%s\"", h);
+	h = s;
+      }
     }
-    endwin();
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
+    }
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--radiolist")) {
@@ -258,13 +269,15 @@ int main(int argc, unsigned char *argv[])
     init_dialog();
     retval = dialog_radiolist(title, argv[offset+2], atoi(argv[offset+3]),
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
-                              (argc-offset-6)/3, argv+offset + 6);
+			      (argc-offset-6)/3, argv+offset + 6, result);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (retval == 0)
+	fputs(result, stderr);
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
   else if (!strcmp(argv[offset+1], "--inputbox")) {
@@ -274,13 +287,15 @@ int main(int argc, unsigned char *argv[])
     }
     init_dialog();
     retval = dialog_inputbox(title, argv[offset+2], atoi(argv[offset+3]),
-                             atoi(argv[offset+4]));
+			     atoi(argv[offset+4]), result);
 
-    if (clear_screen) {    /* clear screen before exit */
-      attr_clear(stdscr, LINES, COLS, screen_attr);
-      refresh();
+    if (retval == 0)
+	fputs(result, stderr);
+    if (clear_screen) {   /* clear screen before exit */
+      dialog_clear();
+      dialog_update();
     }
-    endwin();
+    end_dialog();
     return retval;
   }
 
@@ -317,229 +332,3 @@ void Usage(unsigned char *name)
 \n  --radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>...\n", VERSION, name, name, name);
 }
 /* End of Usage() */
-
-
-/*
- * Do some initialization for dialog
- */
-void init_dialog(void)
-{
-#ifdef HAVE_NCURSES
-  if (parse_rc() == -1)    /* Read the configuration file */
-    exit(-1);
-#endif
-
-  initscr();     /* Init curses */
-  keypad(stdscr, TRUE);
-  cbreak();
-  noecho();
-
-#ifdef HAVE_NCURSES
-  if (use_colors || use_shadow)    /* Set up colors */
-    color_setup();
-#endif
-
-  /* Set screen to screen attribute */
-  attr_clear(stdscr, LINES, COLS, screen_attr);
-  wnoutrefresh(stdscr);
-}
-/* End of init_dialog() */
-
-
-#ifdef HAVE_NCURSES
-/*
- * Setup for color display
- */
-void color_setup(void)
-{
-  int i;
-
-  if (has_colors()) {    /* Terminal supports color? */
-    start_color();
-
-    /* Initialize color pairs */
-    for (i = 0; i < ATTRIBUTE_COUNT; i++)
-      init_pair(i+1, color_table[i][0], color_table[i][1]);
-
-    /* Setup color attributes */
-    for (i = 0; i < ATTRIBUTE_COUNT; i++)
-      attributes[i] = C_ATTR(color_table[i][2], i+1);
-  }
-}
-/* End of color_setup() */
-#endif
-
-
-/*
- * Set window to attribute 'attr'
- */
-void attr_clear(WINDOW *win, int height, int width, chtype attr)
-{
-  int i, j;
-
-  wattrset(win, attr);    /* Set window to attribute 'attr' */
-  for (i = 0; i < height; i++) {
-    wmove(win, i, 0);
-    for (j = 0; j < width; j++)
-      waddch(win, ' ');
-  }
-}
-/* End of attr_clear() */
-
-
-/*
- * Print a string of text in a window, automatically wrap around to the
- * next line if the string is too long to fit on one line. Note that the
- * string may contain "\n" to represent a newline character or the real
- * newline '\n', but in that case, auto wrap around will be disabled.
- */
-void print_autowrap(WINDOW *win, unsigned char *prompt, int width, int y, int x)
-{
-  int first = 1, cur_x, cur_y;
-  unsigned char tempstr[MAX_LEN+1], *word, *tempptr, *tempptr1;
-
-  strcpy(tempstr, prompt);
-  if ((strstr(tempstr, "\\n") != NULL) ||
-      (strchr(tempstr, '\n') != NULL)) {    /* Prompt contains "\n" or '\n' */
-    word = tempstr;
-    cur_y = y;
-    wmove(win, cur_y, x);
-    while (1) {
-      tempptr = strstr(word, "\\n");
-      tempptr1 = strchr(word, '\n');
-      if (tempptr == NULL && tempptr1 == NULL)
-        break;
-      else if (tempptr == NULL) {    /* No more "\n" */
-        tempptr = tempptr1;
-        tempptr[0] = '\0';
-      }
-      else if (tempptr1 == NULL) {    /* No more '\n' */
-        tempptr[0] = '\0';
-        tempptr++;
-      }
-      else {    /* Prompt contains both "\n" and '\n' */
-        if (strlen(tempptr)-2 < strlen(tempptr1)-1) {
-          tempptr = tempptr1;
-          tempptr[0] = '\0';
-        }
-        else {
-          tempptr[0] = '\0';
-          tempptr++;
-        }
-      }
-
-      waddstr(win, word);
-      word = tempptr + 1;
-      wmove(win, ++cur_y, x);
-    }
-    waddstr(win, word);
-  }
-  else if (strlen(tempstr) <= width-x*2) {    /* If prompt is short */
-    wmove(win, y, (width - strlen(tempstr)) / 2);
-    waddstr(win, tempstr);
-  }
-  else {
-    cur_x = x;
-    cur_y = y;
-    /* Print prompt word by word, wrap around if necessary */
-    while ((word = strtok(first ? tempstr : NULL, " ")) != NULL) {
-      if (first)    /* First iteration */
-        first = 0;
-      if (cur_x+strlen(word) >= width) {    /* wrap around to next line */
-        cur_y++;
-        cur_x = x;
-      }
-      wmove(win, cur_y, cur_x);
-      waddstr(win, word);
-      getyx(win, cur_y, cur_x);
-      cur_x++;
-    }
-  }
-}
-/* End of print_autowrap() */
-
-
-/*
- * Print a button
- */
-void print_button(WINDOW *win, unsigned char *label, int y, int x, int selected)
-{
-  int i, temp;
-
-  wmove(win, y, x);
-  wattrset(win, selected ? button_active_attr : button_inactive_attr);
-  waddstr(win, "<");
-  temp = strspn(label, " ");
-  label += temp;
-  wattrset(win, selected ? button_label_active_attr : button_label_inactive_attr);
-  for (i = 0; i < temp; i++)
-    waddch(win, ' ');
-  wattrset(win, selected ? button_key_active_attr : button_key_inactive_attr);
-  waddch(win, label[0]);
-  wattrset(win, selected ? button_label_active_attr : button_label_inactive_attr);
-  waddstr(win, label+1);
-  wattrset(win, selected ? button_active_attr : button_inactive_attr);
-  waddstr(win, ">");
-  wmove(win, y, x+temp+1);
-}
-/* End of print_button() */
-
-
-/*
- * Draw a rectangular box with line drawing characters
- */
-void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border)
-{
-  int i, j;
-
-  wattrset(win, 0);
-  for (i = 0; i < height; i++) {
-    wmove(win, y + i, x);
-    for (j = 0; j < width; j++)
-      if (!i && !j)
-        waddch(win, border | ACS_ULCORNER);
-      else if (i == height-1 && !j)
-        waddch(win, border | ACS_LLCORNER);
-      else if (!i && j == width-1)
-        waddch(win, box | ACS_URCORNER);
-      else if (i == height-1 && j == width-1)
-        waddch(win, box | ACS_LRCORNER);
-      else if (!i)
-        waddch(win, border | ACS_HLINE);
-      else if (i == height-1)
-        waddch(win, box | ACS_HLINE);
-      else if (!j)
-        waddch(win, border | ACS_VLINE);
-      else if (j == width-1)
-        waddch(win, box | ACS_VLINE);
-      else
-        waddch(win, box | ' ');
-  }
-}
-/* End of draw_box() */
-
-
-#ifdef HAVE_NCURSES
-/*
- * Draw shadows along the right and bottom edge to give a more 3D look
- * to the boxes
- */
-void draw_shadow(WINDOW *win, int y, int x, int height, int width)
-{
-  int i;
-
-  if (has_colors()) {    /* Whether terminal supports color? */
-    wattrset(win, shadow_attr);
-    wmove(win, y + height, x + 2);
-    for (i = 0; i < width; i++)
-      waddch(win, winch(win) & A_CHARTEXT);
-    for (i = y + 1; i < y + height + 1; i++) {
-      wmove(win, i, x + width);
-      waddch(win, winch(win) & A_CHARTEXT);
-      waddch(win, winch(win) & A_CHARTEXT);
-    }
-    wnoutrefresh(win);
-  }
-}
-/* End of draw_shadow() */
-#endif
