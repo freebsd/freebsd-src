@@ -250,7 +250,7 @@ CFLAGS += -I${KERNBUILDDIR}
 CLEANFILES+=	${_src}
 .if !target(${_src})
 ${_src}:
-	ln -s ${KERNBUILDDIR}/${_src} ${.TARGET}
+	-@ln -s ${KERNBUILDDIR}/${_src} ${.TARGET}
 .endif
 .endfor
 .else
