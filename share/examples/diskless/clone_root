@@ -104,6 +104,10 @@ update_conf_and_pw() {
 	(cd / ; tar clf - etc ) | (cd ${DEST}/conf/base && tar xvf - )
 	mkdir -p ${DEST}/conf/etc	# used to mount things
 	(cd /etc ; tar cvf - ${PWFILES} ) | (cd ${DEST}/etc ; tar xf - )
+	(cd ${DEST}/conf/base ; find etc | cpio --create -H newc | \
+		gzip > ${DEST}/conf/base/etc.cpio.gz )
+	(cd ${DEST} ; find dev | cpio --create -H newc | \
+		gzip > ${DEST}/conf/dev.cpio.gz
 }
 
 update() {
