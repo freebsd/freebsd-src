@@ -164,7 +164,7 @@ static struct ng_type ng_mppc_typestruct = {
 };
 NETGRAPH_INIT(mppc, &ng_mppc_typestruct);
 
-/* Fixed bit pattern to weaken keysize down to 40 bits */
+/* Fixed bit pattern to weaken keysize down to 40 or 56 bits */
 static const u_char ng_mppe_weakenkey[3] = { 0xd1, 0x26, 0x9e };
 
 #define ERROUT(x)	do { error = (x); goto done; } while (0)
@@ -295,10 +295,10 @@ ng_mppc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 				bcopy(cfg->startkey, d->key, keylen);
 				ng_mppc_getkey(cfg->startkey, d->key, keylen);
-				if ((cfg->bits & MPPE_128) == 0) {
-					bcopy(&ng_mppe_weakenkey, d->key,
-					    sizeof(ng_mppe_weakenkey));
-				}
+				if ((cfg->bits & MPPE_40) != 0)
+					bcopy(&ng_mppe_weakenkey, d->key, 3);
+				else if ((cfg->bits & MPPE_56) != 0)
+					bcopy(&ng_mppe_weakenkey, d->key, 1);
 				rc4_init(&d->rc4, d->key, keylen);
 			}
 #endif
@@ -779,8 +779,10 @@ ng_mppc_updatekey(u_int32_t bits,
 	ng_mppc_getkey(key0, key, keylen);
 	rc4_init(rc4, key, keylen);
 	rc4_crypt(rc4, key, key, keylen);
-	if ((bits & MPPE_128) == 0)
-		bcopy(&ng_mppe_weakenkey, key, sizeof(ng_mppe_weakenkey));
+	if ((bits & MPPE_40) != 0)
+		bcopy(&ng_mppe_weakenkey, key, 3);
+	else if ((bits & MPPE_56) != 0)
+		bcopy(&ng_mppe_weakenkey, key, 1);
 	rc4_init(rc4, key, keylen);
 }
 
