@@ -289,16 +289,13 @@ cardbus_detach_card(device_t cbdev)
 		struct cardbus_devinfo *dinfo = device_get_ivars(devlist[tmp]);
 		int status = device_get_state(devlist[tmp]);
 
-		if (status == DS_ATTACHED || status == DS_BUSY) {
-			device_detach(dinfo->pci.cfg.dev);
-			cardbus_release_all_resources(cbdev, dinfo);
-			device_delete_child(cbdev, devlist[tmp]);
-			cardbus_freecfg(dinfo);
-		} else {
-			cardbus_release_all_resources(cbdev, dinfo);
-			device_delete_child(cbdev, devlist[tmp]);
-			cardbus_freecfg(dinfo);
-		}
+		if (dinfo->pci.cfg.dev != devlist[tmp])
+			device_printf(cbdev, "devinfo dev mismatch\n");
+		if (status == DS_ATTACHED || status == DS_BUSY)
+			device_detach(devlist[tmp]);
+		cardbus_release_all_resources(cbdev, dinfo);
+		device_delete_child(cbdev, devlist[tmp]);
+		cardbus_freecfg(dinfo);
 	}
 	POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
 	free(devlist, M_TEMP);
