@@ -1,4 +1,4 @@
-/* $Id: cpu.h,v 1.1 1998/01/10 10:13:14 jb Exp $ */
+/* $Id: cpu.h,v 1.2 1998/06/10 10:54:45 dfr Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*
@@ -93,8 +93,8 @@ struct clockframe {
 #define	aston()		(astpending = 1)
 
 #ifdef KERNEL
-u_int64_t astpending;		/* need to trap before returning to user mode */
-u_int64_t want_resched;		/* resched() was called */
+u_int32_t astpending;		/* need to trap before returning to user mode */
+u_int32_t want_resched;		/* resched() was called */
 #endif
 
 

@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.1 1998/06/10 10:53:59 dfr Exp $
+#	$Id: Makefile.alpha,v 1.2 1998/06/14 13:45:03 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -42,7 +42,7 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
-CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs
+CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -mno-fp-regs -Wa,-mev56
 LOAD_ADDRESS?=	0xfffffc0000230000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
@@ -80,8 +80,8 @@ SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
 	${OBJS} ioconf.o param.o config.o \
 	setdef1.o
-SYSTEM_LD= @${LD} -Bstatic -N -Ttext ${LOAD_ADDRESS} -e locorestart -defsym _DYNAMIC=0 \
-	-o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD= @${LD} --export-dynamic -T$S/alpha/conf/kernel.script -e locorestart \
+	-o $@ -X ${SYSTEM_OBJS} vers.o hack.so
 SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
 .endif
 
@@ -130,10 +130,10 @@ setdefs.h: gensetdefs ${OBJS}
 	@./gensetdefs ${OBJS} >setdefs.h
 
 gensetdefs: gensetdefs.o
-	${HCC} gensetdefs.o -o $@
+	${HCC} -static gensetdefs.o -o $@
 
 gensetdefs.o: ${ALPHA}/alpha/gensetdefs.c
-	${HCC} ${CFLAGS} -c ${ALPHA}/alpha/gensetdefs.c
+	${HCC} -c ${ALPHA}/alpha/gensetdefs.c
 
 # everything potentially depends on the Makefile since everything potentially
 # depends on the options.  Some things are more dependent on the Makefile for
@@ -161,7 +161,7 @@ genassym.o: ${ALPHA}/alpha/genassym.c Makefile opt_global.h
 	${HCC} -c ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
 
 genassym: genassym.o
-	${HCC} ${COPTS} ${PARAM} genassym.o -o $@
+	${HCC} -static ${COPTS} ${PARAM} genassym.o -o $@
 
 SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
 SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o
