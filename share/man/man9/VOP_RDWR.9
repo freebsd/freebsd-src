@@ -207,7 +207,7 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
     if (error) {
 	if (ioflag & IO_UNIT) {
-	    VOP_TRUNCATE(vp, osize, ioflag & IO_SYNC, cred, uio->uio_procp);
+	    VOP_TRUNCATE(vp, osize, ioflag & IO_SYNC, cred, uio->uio_td);
 	    uio->uio_offset -= resid - uio->uio_resid;
 	    uio->uio_resid = resid;
 	}
