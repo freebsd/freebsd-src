@@ -141,6 +141,7 @@ integer f_open(olist *a)
 	int n;
 #endif
 	if(f__init != 1) f_init();
+	f__external = 1;
 	if(a->ounit>=MXUNIT || a->ounit<0)
 		err(a->oerr,101,"open");
 	f__curunit = b = &f__units[a->ounit];
@@ -186,7 +187,7 @@ integer f_open(olist *a)
 			opnerr(a->oerr,107,"open");
 		}
 	else
-		sprintf(buf, "fort.%ld", a->ounit);
+		sprintf(buf, "fort.%ld", (long)a->ounit);
 	b->uscrtch = 0;
 	b->uend=0;
 	b->uwrt = 0;
@@ -280,7 +281,7 @@ fk_open(int seq, int fmt, ftnint n)
 	int rtn;
 	int save_init;
 
-	(void) sprintf(nbuf,"fort.%ld",n);
+	(void) sprintf(nbuf,"fort.%ld",(long)n);
 	a.oerr=1;
 	a.ounit=n;
 	a.ofnm=nbuf;
