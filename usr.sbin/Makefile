@@ -5,7 +5,7 @@
 # XXX TEMP. BROKEN:	iostat
 SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 	diskpart edquota inetd kbdcontrol kgmon kvm_mkdb lpr manctl \
-	mtree mrouted named ncrcontrol nslookup pkg_install portmap pstat  \
+	mtree mrouted named nslookup pkg_install portmap pstat  \
 	pwd_mkdb quotaon repquota routed rmt rwhod sa sendmail sliplogin \
 	sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw xntpd \
 	ypbind yppoll ypset zic
@@ -19,12 +19,12 @@ SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 
 .if   make(clean) || make(cleandir)
 SUBDIR+=apm apmconf bad144 config config.new eeprom fdformat fdwrite \
-	iostat kbdcontrol lptcontrol rtprio swapinfo vidcontrol 
+	iostat kbdcontrol lptcontrol ncrcontrol rtprio swapinfo vidcontrol 
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
 SUBDIR+=apm apmconf bad144 config fdformat fdwrite kbdcontrol lptcontrol \
-	rtprio swapinfo vidcontrol
+	ncrcontrol rtprio swapinfo vidcontrol
 # iostat
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat 
