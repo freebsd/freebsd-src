@@ -698,6 +698,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	 */
 	pmap_pinit(&ofw_pmap);
 	ofw_pmap.pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
+	ofw_pmap.pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		panic("pmap_bootstrap: can't find /chosen");
 	OF_getprop(chosen, "mmu", &mmui, 4);
@@ -751,6 +752,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT;
 	}
 	kernel_pmap->pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
+	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL_SEGMENT;
 	kernel_pmap->pm_active = ~0;
 
 	/*
@@ -1384,6 +1386,8 @@ pmap_pinit(pmap_t pmap)
 {
 	int	i, mask;
 	u_int	entropy;
+
+	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("pmap_pinit: virt pmap"));
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
