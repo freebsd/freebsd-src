@@ -76,7 +76,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.33 1994/05/10 09:18:11 ache Exp $
+#	$Id: MAKEDEV,v 1.34 1994/05/19 11:05:09 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -108,7 +108,7 @@ std)
 	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
 	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
 	rm -f fd/*
-	mkdir fd > /dev/null 2>&1
+	mkdir fd > null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
 	 		printf("mknod %d c 22 %d;", i, i)}'`)
@@ -426,7 +426,7 @@ pc?)
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
-# /dev/ttyv0-b
+# ttyv0-b
 # use as MAKEDEV vtyNN to create NN entries
 vty*)
 	chr=12
@@ -527,54 +527,54 @@ mouse*)
 	;;
 
 pcaudio)
-	rm -f /dev/pcaudio /dev/pcaudioctl
-	mknod /dev/pcaudio c 24 0
-	mknod /dev/pcaudioctl c 24 128
-	chown root.wheel /dev/pcaudio /dev/pcaudioctl
-	chmod 666 /dev/pcaudio /dev/pcaudioctl
+	rm -f pcaudio pcaudioctl
+	mknod pcaudio c 24 0
+	mknod pcaudioctl c 24 128
+	chown root.wheel pcaudio pcaudioctl
+	chmod 666 pcaudio pcaudioctl
 	;;
 
 
 snd*)
 	chr=30
-	rm -f /dev/mixer	# Mixer	[ Control ]
-	mknod /dev/mixer 	c $chr 0
-	chmod 666 /dev/mixer
+	rm -f mixer		# Mixer	[ Control ]
+	mknod mixer 		c $chr 0
+	chmod 666 mixer
 
-	rm -f /dev/sequencer	# Sequencer [ FM Synth and MIDI output ]
-	mknod /dev/sequencer	c $chr 1
-	chmod 666 /dev/sequencer
+	rm -f sequencer		# Sequencer [ FM Synth and MIDI output ]
+	mknod sequencer		c $chr 1
+	chmod 666 sequencer
 
-	rm -f /dev/midi		# Midi input [ Not implemented ]
-	mknod /dev/midi		c $chr 2
+	rm -f midi		# Midi input [ Not implemented ]
+	mknod midi		c $chr 2
 
-	rm -f /dev/dsp		# DSP [ Digitized voice ]
-	mknod /dev/dsp		c $chr 3
-	chmod 666 /dev/dsp
+	rm -f dsp		# DSP [ Digitized voice ]
+	mknod dsp		c $chr 3
+	chmod 666 dsp
 
-	rm -f /dev/audio	# SPARC audio [ Not fully implemented ]
-	mknod /dev/audio	c $chr 4
-	chmod 666 /dev/audio
+	rm -f audio		# SPARC audio [ Not fully implemented ]
+	mknod audio		c $chr 4
+	chmod 666 audio
 
-	rm -f /dev/dsp16	# DSP16 [ Same as /dev/dsp, except 16 bits ]
-	mknod /dev/dsp16	c $chr 5
-	chmod 666 /dev/dsp16
+	rm -f dsp16		# DSP16 [ Same as dsp, except 16 bits ]
+	mknod dsp16		c $chr 5
+	chmod 666 dsp16
 
-	rm -f /dev/sndstat	# Status Device [ Debugging interface ]
-	mknod /dev/sndstat	c $chr 6
-	chmod 666 /dev/sndstat
+	rm -f sndstat		# Status Device [ Debugging interface ]
+	mknod sndstat		c $chr 6
+	chmod 666 sndstat
 
-	rm -f /dev/pro_midi	# PRO_MIDI [PAS midi input and output]
-	mknod /dev/pro_midi	c $chr 15
-	chmod 666 /dev/pro_midi
+	rm -f pro_midi		# PRO_MIDI [PAS midi input and output]
+	mknod pro_midi		c $chr 15
+	chmod 666 pro_midi
 
-	rm -f /dev/dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod /dev/dsp1		c $chr 19
-	chmod 666 /dev/dsp1
+	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod dsp1		c $chr 19
+	chmod 666 dsp1
 
-	rm -f /dev/audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
-	mknod /dev/audio1	c $chr 20
-	chmod 666 /dev/audio1
+	rm -f audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
+	mknod audio1	c $chr 20
+	chmod 666 audio1
 	;;
 
 local)
