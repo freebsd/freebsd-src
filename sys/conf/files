@@ -1383,6 +1383,15 @@ netgraph/atm/sscfu/ng_sscfu.c		optional ngatm_sscfu
 contrib/ngatm/netnatm/saal/saal_sscfu.c	optional ngatm_sscfu
 netgraph/atm/sscop/ng_sscop.c		optional ngatm_sscop
 contrib/ngatm/netnatm/saal/saal_sscop.c	optional ngatm_sscop
+netgraph/atm/uni/ng_uni.c			optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_call.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_coord.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_party.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_print.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_reset.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_uni.c		optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_unimsgcpy.c	optional ngatm_uni
+contrib/ngatm/netnatm/sig/sig_verify.c		optional ngatm_uni
 netgraph/ng_UI.c	optional netgraph_UI
 netgraph/ng_async.c	optional netgraph_async
 netgraph/ng_base.c	optional netgraph
