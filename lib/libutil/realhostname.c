@@ -58,7 +58,7 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 	struct hostent *hp;
 
 	result = HOSTNAME_INVALIDADDR;
-	hp = gethostbyaddr((char *)ip, sizeof(*ip), AF_INET);
+	hp = gethostbyaddr((const char *)ip, sizeof(*ip), AF_INET);
 
 	if (hp != NULL) {
 		strlcpy(trimmed, hp->h_name, sizeof(trimmed));
@@ -94,7 +94,7 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 {
 	int result, error;
 	char buf[NI_MAXHOST];
-	struct sockaddr_in sin;
+	struct sockaddr_in lsin;
 
 	result = HOSTNAME_INVALIDADDR;
 
@@ -107,14 +107,14 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 
 		sin6 = (struct sockaddr_in6 *)addr;
 
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_family = AF_INET;
-		sin.sin_port = sin6->sin6_port;
-		memcpy(&sin.sin_addr, &sin6->sin6_addr.s6_addr[12],
+		memset(&lsin, 0, sizeof(lsin));
+		lsin.sin_len = sizeof(struct sockaddr_in);
+		lsin.sin_family = AF_INET;
+		lsin.sin_port = sin6->sin6_port;
+		memcpy(&lsin.sin_addr, &sin6->sin6_addr.s6_addr[12],
 		       sizeof(struct in_addr));
-		addr = (struct sockaddr *)&sin;
-		addrlen = sin.sin_len;
+		addr = (struct sockaddr *)&lsin;
+		addrlen = lsin.sin_len;
 	}
 #endif
 

@@ -54,11 +54,7 @@ static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #include <unistd.h>
 
 int
-openpty(amaster, aslave, name, termp, winp)
-	int *amaster, *aslave;
-	char *name;
-	struct termios *termp;
-	struct winsize *winp;
+openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct winsize *winp)
 {
 	char line[] = "/dev/ptyXX";
 	const char *cp1, *cp2;
@@ -105,11 +101,7 @@ openpty(amaster, aslave, name, termp, winp)
 }
 
 int
-forkpty(amaster, name, termp, winp)
-	int *amaster;
-	char *name;
-	struct termios *termp;
-	struct winsize *winp;
+forkpty(int *amaster, char *name, struct termios *termp, struct winsize *winp)
 {
 	int master, slave, pid;
 
