@@ -19,8 +19,8 @@
 # The Linux cross tools don't understand -fformat-extensions
 CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-ansi -Wp,-+
-CC=		ia64-unknown-linux-gcc -D__FreeBSD__ -U__linux__
+		-fno-builtin
+CC=		ia64-unknown-linux-gcc
 LD=		ia64-unknown-linux-ld
 NM=		ia64-unknown-linux-nm
 SIZE=		ia64-unknown-linux-size
