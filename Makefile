@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.222.2.3 1999/03/24 04:26:19 jkh Exp $
+# $FreeBSD$
 #
 # The user-driven targets are:
 #

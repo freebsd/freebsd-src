@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)startdaemon.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
-	"$Id: startdaemon.c,v 1.6 1997/09/24 06:47:32 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 

@@ -27,7 +27,7 @@
  *	facility.c - decode Q.932 facilities
  *	------------------------------------
  *
- *	$Id: facility.c,v 1.2 1998/12/18 17:09:38 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Fri Dec 18 18:10:32 1998]
  *

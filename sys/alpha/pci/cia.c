@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.14.2.1 1999/05/07 09:01:51 dfr Exp $
+ * $FreeBSD$
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

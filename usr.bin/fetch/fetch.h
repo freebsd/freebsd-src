@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.6 1998/09/20 00:01:26 jkh Exp $
+ * $FreeBSD$
  */
 
 #ifndef fetch_h

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)iso.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- * $Header: /home/ncvs/src/usr.bin/netstat/iso.c,v 1.1.1.1 1994/05/27 12:32:25 rgrimes Exp $
+ * $FreeBSD$
  * $Source: /home/ncvs/src/usr.bin/netstat/iso.c,v $
  */
 /*******************************************************************************

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arch.c,v 1.9 1998/10/15 13:00:34 jkoshy Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

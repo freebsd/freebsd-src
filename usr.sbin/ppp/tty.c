@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tty.c,v 1.12 1999/08/09 23:49:59 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

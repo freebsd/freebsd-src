@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-#	$Id: Makefile,v 1.6 1998/03/07 09:48:09 bde Exp $
+# $FreeBSD$
 
 PROG=	lprm
 CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: scsp_if.h,v 1.2 1998/07/16 15:59:33 johnc Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

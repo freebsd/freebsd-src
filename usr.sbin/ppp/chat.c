@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.52.2.4 1999/06/26 02:56:07 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

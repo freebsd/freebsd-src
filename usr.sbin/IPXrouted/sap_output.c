@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_output.c,v 1.7 1997/02/22 16:01:00 peter Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SUBDIR=	common mrouted mrinfo map-mbone mtrace testrsrr
 

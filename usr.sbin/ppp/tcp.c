@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tcp.c,v 1.5 1999/08/06 20:04:07 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

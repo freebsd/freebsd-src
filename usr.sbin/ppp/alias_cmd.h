@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.h,v 1.8.2.3 1999/05/02 08:59:33 brian Exp $
+ * $FreeBSD$
  */
 
 struct cmdargs;

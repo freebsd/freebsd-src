@@ -27,7 +27,7 @@
  *	q932_fac.h - facility header file
  *	---------------------------------
  *
- *	$Id: q932_fac.h,v 1.4 1998/12/05 18:04:24 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:21:17 1998]
  *

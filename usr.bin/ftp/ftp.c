@@ -1,4 +1,4 @@
-/*	$Id: ftp.c,v 1.15 1998/12/09 20:49:20 eivind Exp $	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-__RCSID("$Id: ftp.c,v 1.15 1998/12/09 20:49:20 eivind Exp $");
+__RCSID("$FreeBSD$");
 __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */

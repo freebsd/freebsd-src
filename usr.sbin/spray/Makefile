@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	spray
 MAN8=	spray.8

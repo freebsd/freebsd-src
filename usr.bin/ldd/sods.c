@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sods.c,v 1.7 1998/05/01 08:40:11 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <assert.h>

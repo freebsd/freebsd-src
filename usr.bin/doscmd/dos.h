@@ -29,7 +29,7 @@
  *
  *	BSDI dos.h,v 2.2 1996/04/08 19:32:28 bostic Exp
  *
- * $Id: dos.h,v 1.7 1996/09/23 09:59:24 miff Exp $
+ * $FreeBSD$
  */
 
 /*

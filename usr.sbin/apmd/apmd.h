@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: apmd.h,v 1.1.1.1 1999/07/10 17:39:35 iwasaki Exp $
+ * $FreeBSD$
  */
 
 #define APMD_CONFIGFILE		"/etc/apmd.conf"

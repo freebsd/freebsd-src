@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id: whereis.pl,v 1.5 1997/12/22 19:11:28 ache Exp $
+# $FreeBSD$
 #
 
 sub usage

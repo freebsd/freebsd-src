@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: parse.c,v 1.19 1998/05/25 03:28:37 steve Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*-

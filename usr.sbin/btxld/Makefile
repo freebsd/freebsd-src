@@ -1,4 +1,4 @@
-#	$Id:$
+# $FreeBSD$
 
 PROG=	btxld
 SRCS=	btxld.c elfh.c

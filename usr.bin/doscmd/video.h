@@ -29,7 +29,7 @@
  *
  *	BSDI video.h,v 2.2 1996/04/08 19:33:12 bostic Exp
  *
- * $Id: video.h,v 1.2 1996/09/22 05:53:12 miff Exp $
+ * $FreeBSD$
  */
 
 /*

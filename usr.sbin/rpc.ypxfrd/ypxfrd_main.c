@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypxfrd_main.c,v 1.6 1997/10/13 11:22:37 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "ypxfrd.h"

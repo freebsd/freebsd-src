@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: sticvar.h,v 1.1 1997/11/08 07:27:51 jonathan Exp $	*/
 
 /*

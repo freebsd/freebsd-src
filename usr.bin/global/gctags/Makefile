@@ -1,5 +1,5 @@
 
-# $Id: Makefile,v 1.4 1997/12/17 15:18:52 cwt Exp $
+# $FreeBSD$
 
 GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
 .PATH:		${GLOBAL_DIR}/gctags

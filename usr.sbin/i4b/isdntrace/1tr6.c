@@ -27,7 +27,7 @@
  *	1tr6.c - print 1TR6 protocol traces
  *	-----------------------------------
  *
- *	$Id: 1tr6.c,v 1.4 1998/12/05 18:04:08 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:18:38 1998]
  *

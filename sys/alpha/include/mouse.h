@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.12 1998/11/22 11:57:59 yokota Exp $
+ * $FreeBSD$
  *	from: i386/include mouse.h,v 1.10
  */
 

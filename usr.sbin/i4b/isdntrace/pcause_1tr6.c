@@ -27,7 +27,7 @@
  *	printing cause values
  *	---------------------
  *
- *	$Id: pcause_1tr6.c,v 1.4 1998/12/23 10:03:55 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Wed Dec 23 10:57:11 1998]
  *

@@ -6,7 +6,7 @@ static char	elsieid[] = "@(#)scheck.c	8.13";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*LINTLIBRARY*/

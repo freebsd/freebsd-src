@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 16:07:20 peter Exp $
+# $FreeBSD$
 
 LIB=		mrouted
 NOPROFILE=	yes

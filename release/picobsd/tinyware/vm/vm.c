@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm.c,v 1.5 1999/08/26 11:11:48 roger Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

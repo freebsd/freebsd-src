@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setdef0.c,v 1.2 1997/05/21 23:21:30 jdp Exp $
+ * $FreeBSD$
  */
 
 #ifdef __ELF__

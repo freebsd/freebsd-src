@@ -27,7 +27,7 @@
  *	q931.c - print Q.931 traces
  *	---------------------------
  *
- *	$Id: q931.c,v 1.4 1998/12/05 18:04:19 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Sat Dec  5 18:20:31 1998]
  *

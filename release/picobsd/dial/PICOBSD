@@ -1,5 +1,5 @@
 #
-# $Id: PICOBSD,v 1.2 1999/08/23 18:49:43 dwhite Exp $
+# $FreeBSD$
 #
 machine		"i386"
 cpu		"I386_CPU"

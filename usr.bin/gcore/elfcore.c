@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: elfcore.c,v 1.1 1998/10/19 19:42:18 jdp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

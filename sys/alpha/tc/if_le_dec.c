@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: if_le_dec.c,v 1.8 1997/07/22 04:32:21 jonathan Exp $	*/
 
 /*-

@@ -10,7 +10,7 @@
  *
  * See LEGAL.NOTICE
  *
- * $Id: names.h,v 1.1.1.3 1997/03/18 17:58:52 mpp Exp $
+ * $FreeBSD$
  */
 
 /* these types are used to index the table 'types': keep em in sync! */

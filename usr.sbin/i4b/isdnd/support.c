@@ -27,7 +27,7 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.43 1998/12/18 09:47:09 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Mon Dec 14 11:17:22 1998]
  *

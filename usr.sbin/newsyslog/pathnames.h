@@ -18,7 +18,7 @@ M.I.T. and the M.I.T. S.I.P.B. make no representations about
 the suitability of this software for any purpose.  It is
 provided "as is" without express or implied warranty.
 
-	$Id: pathnames.h,v 1.1 1999/01/22 19:38:39 wollman Exp $
+ $FreeBSD$
 
 */
 

@@ -27,7 +27,7 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- *	$Id: main.c,v 1.6 1998/12/18 17:09:38 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Fri Dec 18 18:12:52 1998]
  *

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	usbd
 MAN8=	usbd.8

@@ -29,7 +29,7 @@
  *
  *	BSDI cwd.c,v 2.2 1996/04/08 19:32:25 bostic Exp
  *
- * $Id: cwd.c,v 1.2 1998/07/01 19:56:13 imp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

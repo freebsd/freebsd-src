@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.14.2.2 1999/06/05 21:09:24 julian Exp $
+# $FreeBSD$
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the

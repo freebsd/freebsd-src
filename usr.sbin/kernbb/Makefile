@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	kernbb
 MAN8=	kernbb.8

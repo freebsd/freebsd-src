@@ -1,4 +1,4 @@
-/* $Id: mcclock_tlsb.c,v 1.3 1998/07/31 09:20:01 dfr Exp $ */
+/* $FreeBSD$ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*

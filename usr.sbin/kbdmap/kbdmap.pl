@@ -26,7 +26,7 @@
 #
 # kbdmap/vidfont - front end for syscons
 #
-# $Id: kbdmap.pl,v 1.7 1997/05/19 07:30:45 jkh Exp $
+# $FreeBSD$
 
 
 # simple test if syscons works

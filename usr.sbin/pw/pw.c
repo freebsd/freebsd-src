@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw.c,v 1.10 1998/08/04 22:31:26 nate Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "pw.h"

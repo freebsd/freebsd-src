@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	$NetBSD: am7990var.h,v 1.18 1998/01/12 09:23:16 thorpej Exp $	*/
 
 /*-

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 .if exists(${.OBJDIR}/../lib)
 LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a

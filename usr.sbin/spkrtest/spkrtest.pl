@@ -32,7 +32,7 @@
 #
 # NOTE for iso-* (latin1) fonts: use TERM=cons25-iso8859-1
 #
-# $Id: spkrtest.pl,v 1.5 1997/02/22 16:13:37 peter Exp $
+# $FreeBSD$
 
 $title = qq{
 reveille   -- Reveille

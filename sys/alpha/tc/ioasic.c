@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-

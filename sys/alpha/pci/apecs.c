@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.4 1998/12/04 22:54:42 archie Exp $
+ * $FreeBSD$
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
