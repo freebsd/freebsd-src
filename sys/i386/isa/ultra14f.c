@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.55 1997/07/20 14:10:16 bde Exp $
+ *      $Id: ultra14f.c,v 1.56 1997/09/07 04:21:25 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -605,7 +605,7 @@ uhaintr(unit)
 			printf("uha: BAD MSCP RETURNED\n");
 			return;		/* whatever it was, it'll timeout */
 		}
-		untimeout(uha_timeout, (caddr_t)mscp);
+		untimeout(uha_timeout, (caddr_t)mscp, mscp->xs->timeout_ch);
 
 		uha_done(uha, mscp);
 	}
@@ -1261,7 +1261,8 @@ uha_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		uha_send_mbox(uha, mscp);
-		timeout(uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
+		xs->timeout_ch = timeout(uha_timeout, (caddr_t)mscp,
+					 (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1317,7 +1318,8 @@ uha_timeout(arg1)
 		uha_done(uha, mscp);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
-		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
+		mscp->xs->timeout_ch = timeout(uha_timeout, (caddr_t)mscp,
+					       2 * hz);
 		mscp->flags = MSCP_ABORTED;
 	}
 	splx(s);

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.37 1997/04/21 13:38:32 nate Exp $
+ *	$Id: if_zp.c,v 1.38 1997/07/20 14:10:02 bde Exp $
  */
 /*-
  * TODO:
@@ -179,6 +179,8 @@ static struct zp_softc {
 	u_char  last_alive;	/* information for reconfiguration */
 	u_char  last_up;	/* information for reconfiguration */
 	int     slot;		/* PCMCIA slot */
+	struct	callout_handle ch; /* Callout handle for timeouts  */
+	int	buffill_pending;
 #if NAPM > 		0
 	struct apmhook s_hook;	/* reconfiguration support */
 	struct apmhook r_hook;	/* reconfiguration support */
@@ -506,6 +508,9 @@ zpattach(isa_dev)
 	sc->ep_io_addr = isa_dev->id_iobase;
 	printf("zp%d: ", isa_dev->id_unit);
 
+	sc->buffill_pending = 0;
+	callout_handle_init(&sc->ch);
+
 	sc->ep_connectors = 0;
 
 	i = inw(isa_dev->id_iobase + EP_W0_CONFIG_CTRL);
@@ -663,6 +668,10 @@ zpinit(unit)
 	 * somewhere else. */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
+	if (sc->buffill_pending != 0) {
+		untimeout(zpmbuffill, sc, sc->ch);
+		sc->buffill_pending = 0;
+	}
 	zpmbuffill(sc);
 	zpstart(ifp);
 	splx(s);
@@ -900,8 +909,9 @@ zpread(sc)
 				MGET(m, M_DONTWAIT, MT_DATA);
 				if (m == 0)
 					goto out;
-			} else {
-				timeout(zpmbuffill, sc, 0);
+			} else if (sc->buffill_pending == 0) {
+				sc->ch = timeout(zpmbuffill, sc, 0);
+				sc->buffill_pending = 1;
 				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			}
 			if (totlen >= MINCLSIZE)
@@ -1139,6 +1149,7 @@ zpmbuffill(sp)
 			break;
 		i = (i + 1) % MAX_MBS;
 	} while (i != sc->next_mb);
+	sc->buffill_pending = 0;
 	sc->last_mb = i;
 	splx(s);
 }
@@ -1157,6 +1168,9 @@ zpmbufempty(sc)
 		}
 	}
 	sc->last_mb = sc->next_mb = 0;
-	untimeout(zpmbuffill, sc);
+	if (sc->buffill_pending != 0) {
+		untimeout(zpmbuffill, sc, sc->ch);
+		sc->buffill_pending = 0;
+	}
 	splx(s);
 }

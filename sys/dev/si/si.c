@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.59 1997/07/20 14:10:11 bde Exp $
+ *	$Id: si.c,v 1.60 1997/09/14 03:19:18 peter Exp $
  */
 
 #ifndef lint
@@ -910,7 +910,7 @@ siclose(dev, flag, mode, p)
 	/* ok. we are now still on the right track.. nuke the hardware */
 
 	if (pp->sp_state & SS_LSTART) {
-		untimeout(si_lstart, (caddr_t)pp);
+		untimeout(si_lstart, (caddr_t)pp, pp->lstart_ch);
 		pp->sp_state &= ~SS_LSTART;
 	}
 
@@ -2114,12 +2114,12 @@ si_start(tp)
 		}
 
 		if ((pp->sp_state & (SS_LSTART|SS_INLSTART)) == SS_LSTART) {
-			untimeout(si_lstart, (caddr_t)pp);
+			untimeout(si_lstart, (caddr_t)pp, pp->lstart_ch);
 		} else {
 			pp->sp_state |= SS_LSTART;
 		}
 		DPRINT((pp, DBG_START, "arming lstart, time=%d\n", time));
-		timeout(si_lstart, (caddr_t)pp, time);
+		pp->lstart_ch = timeout(si_lstart, (caddr_t)pp, time);
 	}
 
 out:

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.92 1997/06/01 16:03:13 peter Exp $
+ *	$Id: mcd.c,v 1.93 1997/07/20 14:10:06 bde Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -242,7 +242,7 @@ int mcd_attach(struct isa_device *dev)
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
 	mcd_soft_reset(unit);
-	TAILQ_INIT(&cd->head);
+	bufq_init(&cd->head);
 
 #ifdef NOTYET
 	/* wire controller for interrupts and dma */
@@ -440,7 +440,7 @@ MCD_TRACE("strategy: drive not valid\n");
 
 	/* queue it */
 	s = splbio();
-	tqdisksort(&cd->head, bp);
+	bufqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -467,11 +467,11 @@ static void mcd_start(int unit)
 		return;
 	}
 
-	bp = TAILQ_FIRST(&cd->head);
+	bp = bufq_first(&cd->head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		TAILQ_REMOVE(&cd->head, bp, b_act);
+		bufq_remove(&cd->head, bp);
 		splx(s);
 	} else {
 		/* nothing to do */
@@ -975,6 +975,7 @@ mcdintr(unit)
  * MCD_S_WAITREAD: wait for read ready, read data
  */
 static struct mcd_mbx *mbxsave;
+static struct callout_handle tohandle = CALLOUT_HANDLE_INITIALIZER(&tohandle);
 
 static void
 mcd_timeout(void *arg)
@@ -1008,11 +1009,11 @@ retry_status:
 		/* get status */
 		outb(com_port, MCD_CMDGETSTAT);
 		mbx->count = RDELAY_WAITSTAT;
-		timeout(mcd_timeout,
-			(caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
+		tohandle = timeout(mcd_timeout,
+				   (caddr_t)MCD_S_WAITSTAT,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITSTAT:
-		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITSTAT);
+		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITSTAT, tohandle);
 		if (mbx->count-- >= 0) {
 			if (inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL) {
 				timeout(mcd_timeout,
@@ -1052,8 +1053,8 @@ retry_mode:
 			mcd_put(com_port, MCD_CMDSETMODE);
 			mcd_put(com_port, rm);
 
-			timeout(mcd_timeout,
-				(caddr_t)MCD_S_WAITMODE,hz/100); /* XXX */
+			tohandle = timeout(mcd_timeout,
+					   (caddr_t)MCD_S_WAITMODE,hz/100); /* XXX */
 			return;
 		} else {
 			printf("mcd%d: timeout getstatus\n",unit);
@@ -1061,13 +1062,14 @@ retry_mode:
 		}
 
 	case MCD_S_WAITMODE:
-		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITMODE);
+		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITMODE, tohandle);
 		if (mbx->count-- < 0) {
 			printf("mcd%d: timeout set mode\n",unit);
 			goto readerr;
 		}
 		if (inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL) {
-			timeout(mcd_timeout,(caddr_t)MCD_S_WAITMODE,hz/100);
+			tohandle = timeout(mcd_timeout,
+					   (caddr_t)MCD_S_WAITMODE,hz/100);
 			return;
 		}
 		cd->status = inb(port+mcd_status) & 0xFF;
@@ -1115,11 +1117,11 @@ retry_read:
 		}
 
 		mbx->count = RDELAY_WAITREAD;
-		timeout(mcd_timeout,
-			(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
+		tohandle = timeout(mcd_timeout,
+				   (caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 		return;
 	case MCD_S_WAITREAD:
-		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITREAD);
+		untimeout(mcd_timeout,(caddr_t)MCD_S_WAITREAD, tohandle);
 		if (mbx->count-- > 0) {
 			k = inb(port+MCD_FLAGS);
 			if (!(k & MFL_DATA_NOT_AVAIL)) { /* XXX */
@@ -1163,8 +1165,8 @@ retry_read:
 				if (mcd_setflags(unit,cd) < 0)
 					goto changed;
 			}
-			timeout(mcd_timeout,
-				(caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
+			tohandle = timeout(mcd_timeout,
+					   (caddr_t)MCD_S_WAITREAD,hz/100); /* XXX */
 			return;
 		} else {
 			printf("mcd%d: timeout read data\n",unit);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.45 1997/07/24 18:05:22 fsmp Exp $
+ *	$Id: isa_device.h,v 1.46 1997/08/28 03:37:46 msmith Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -101,6 +101,7 @@ extern struct isa_device isa_biotab_fdc[];
 extern struct isa_device isa_biotab_wdc[];
 extern struct isa_device isa_devtab_bio[];
 extern struct isa_device isa_devtab_net[];
+extern struct isa_device isa_devtab_cam[];
 extern struct isa_device isa_devtab_null[];
 extern struct isa_device isa_devtab_tty[];
 
