@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040702:
+	The native preemption has been added to the kernel scheduler.
+	There is some report that ULE scheduler was broken in some
+	machines and we encourage users using ULE schedluer either
+	stick with an known good kernel, or temporary switch to 4BSD
+	scheduler as a workaround.
+
 20040630:
 	The netgraph ABI version number has been incremented to indicate
 	an incompatible change in the ABI. Old netgraph nodes will refuse
@@ -25,6 +32,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	Nodes should just recompile, unless they use metadata, in which
 	case the changes are simple; the file ng_ksocket.c serves as an
 	example of such changes.
+
+	This also broke i4b, although the compile problem has been papered
+	over.
 
 20040630:
 	ACPI has been updated to disable known-bad BIOS revisions.  A message
