@@ -258,7 +258,7 @@ struct pthread *
 thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 {
 	int		handler_installed;
-	struct pthread	*pthread, *pthread_next;
+	struct pthread	*pthread;
 	struct pthread	*suspended_thread, *signaled_thread;
 
 	DBG_MSG("Looking for thread to handle signal %d\n", sig);
@@ -285,14 +285,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 	signaled_thread = NULL;
 
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	for (pthread = TAILQ_FIRST(&_thread_list);
-	    pthread != NULL; pthread = pthread_next) {
-		/*
-		 * Grab the next thread before possibly destroying
-		 * the link entry.
-		 */
-		pthread_next = TAILQ_NEXT(pthread, pqe);
-
+	TAILQ_FOREACH(pthread, &_thread_list, tle) {
 		if ((pthread->state == PS_SIGWAIT) &&
 		    sigismember(pthread->data.sigwait, sig)) {
 			/* Take the scheduling lock. */
