@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.52 2002/02/18 13:05:32 markus Exp $");
+RCSID("$OpenBSD: cipher.c,v 1.59 2002/06/19 18:01:00 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
@@ -43,18 +43,20 @@ RCSID("$FreeBSD$");
 #include "cipher.h"
 
 #include <openssl/md5.h>
-#include "rijndael.h"
 
-static EVP_CIPHER *evp_ssh1_3des(void);
-static EVP_CIPHER *evp_ssh1_bf(void);
-static EVP_CIPHER *evp_rijndael(void);
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#include "rijndael.h"
+static const EVP_CIPHER *evp_rijndael(void);
+#endif
+static const EVP_CIPHER *evp_ssh1_3des(void);
+static const EVP_CIPHER *evp_ssh1_bf(void);
 
 struct Cipher {
 	char	*name;
 	int	number;		/* for ssh1 only */
 	u_int	block_size;
 	u_int	key_len;
-	EVP_CIPHER	*(*evptype)(void);
+	const EVP_CIPHER	*(*evptype)(void);
 } ciphers[] = {
 	{ "none", 		SSH_CIPHER_NONE, 8, 0, EVP_enc_null },
 	{ "des", 		SSH_CIPHER_DES, 8, 8, EVP_des_cbc },
@@ -65,24 +67,39 @@ struct Cipher {
 	{ "blowfish-cbc", 	SSH_CIPHER_SSH2, 8, 16, EVP_bf_cbc },
 	{ "cast128-cbc", 	SSH_CIPHER_SSH2, 8, 16, EVP_cast5_cbc },
 	{ "arcfour", 		SSH_CIPHER_SSH2, 8, 16, EVP_rc4 },
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
 	{ "aes128-cbc", 	SSH_CIPHER_SSH2, 16, 16, evp_rijndael },
 	{ "aes192-cbc", 	SSH_CIPHER_SSH2, 16, 24, evp_rijndael },
 	{ "aes256-cbc", 	SSH_CIPHER_SSH2, 16, 32, evp_rijndael },
+	{ "rijndael-cbc@lysator.liu.se",
+				SSH_CIPHER_SSH2, 16, 32, evp_rijndael },
+#else
+	{ "aes128-cbc",		SSH_CIPHER_SSH2, 16, 16, EVP_aes_128_cbc },
+	{ "aes192-cbc",		SSH_CIPHER_SSH2, 16, 24, EVP_aes_192_cbc },
+	{ "aes256-cbc",		SSH_CIPHER_SSH2, 16, 32, EVP_aes_256_cbc },
+	{ "rijndael-cbc@lysator.liu.se",
+				SSH_CIPHER_SSH2, 16, 32, EVP_aes_256_cbc },
+#endif
 
 	{ NULL,			SSH_CIPHER_ILLEGAL, 0, 0, NULL }
 };
 
 /*--*/
 
-u_int	
+u_int
 cipher_blocksize(Cipher *c)
 {
 	return (c->block_size);
 }
-u_int	
+u_int
 cipher_keylen(Cipher *c)
 {
 	return (c->key_len);
+}
+u_int
+cipher_get_number(Cipher *c)
+{
+	return (c->number);
 }
 
 u_int
@@ -334,7 +351,7 @@ ssh1_3des_cleanup(EVP_CIPHER_CTX *ctx)
 	}
 	return (1);
 }
-static EVP_CIPHER *
+static const EVP_CIPHER *
 evp_ssh1_3des(void)
 {
 	static EVP_CIPHER ssh1_3des;
@@ -384,7 +401,7 @@ bf_ssh1_cipher(EVP_CIPHER_CTX *ctx, u_char *out, const u_char *in, u_int len)
 	swap_bytes(out, out, len);
 	return (ret);
 }
-static EVP_CIPHER *
+static const EVP_CIPHER *
 evp_ssh1_bf(void)
 {
 	static EVP_CIPHER ssh1_bf;
@@ -397,6 +414,7 @@ evp_ssh1_bf(void)
 	return (&ssh1_bf);
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
 /* RIJNDAEL */
 #define RIJNDAEL_BLOCKSIZE 16
 struct ssh_rijndael_ctx
@@ -482,7 +500,7 @@ ssh_rijndael_cleanup(EVP_CIPHER_CTX *ctx)
 	}
 	return (1);
 }
-static EVP_CIPHER *
+static const EVP_CIPHER *
 evp_rijndael(void)
 {
 	static EVP_CIPHER rijndal_cbc;
@@ -498,4 +516,156 @@ evp_rijndael(void)
 	rijndal_cbc.flags = EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH |
 	    EVP_CIPH_ALWAYS_CALL_INIT;
 	return (&rijndal_cbc);
+}
+#endif
+
+/*
+ * Exports an IV from the CipherContext required to export the key
+ * state back from the unprivileged child to the privileged parent
+ * process.
+ */
+
+int
+cipher_get_keyiv_len(CipherContext *cc)
+{
+	Cipher *c = cc->cipher;
+	int ivlen;
+
+	if (c->number == SSH_CIPHER_3DES)
+		ivlen = 24;
+	else
+		ivlen = EVP_CIPHER_CTX_iv_length(&cc->evp);
+	return (ivlen);
+}
+
+void
+cipher_get_keyiv(CipherContext *cc, u_char *iv, u_int len)
+{
+	Cipher *c = cc->cipher;
+	u_char *civ = NULL;
+	int evplen;
+
+	switch (c->number) {
+	case SSH_CIPHER_SSH2:
+	case SSH_CIPHER_DES:
+	case SSH_CIPHER_BLOWFISH:
+		evplen = EVP_CIPHER_CTX_iv_length(&cc->evp);
+		if (evplen == 0)
+			return;
+		if (evplen != len)
+			fatal("%s: wrong iv length %d != %d", __func__,
+			    evplen, len);
+
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+		if (c->evptype == evp_rijndael) {
+			struct ssh_rijndael_ctx *aesc;
+
+			aesc = EVP_CIPHER_CTX_get_app_data(&cc->evp);
+			if (aesc == NULL)
+				fatal("%s: no rijndael context", __func__);
+			civ = aesc->r_iv;
+		} else
+#endif
+		{
+			civ = cc->evp.iv;
+		}
+		break;
+	case SSH_CIPHER_3DES: {
+		struct ssh1_3des_ctx *desc;
+		if (len != 24)
+			fatal("%s: bad 3des iv length: %d", __func__, len);
+		desc = EVP_CIPHER_CTX_get_app_data(&cc->evp);
+		if (desc == NULL)
+			fatal("%s: no 3des context", __func__);
+		debug3("%s: Copying 3DES IV", __func__);
+		memcpy(iv, desc->k1.iv, 8);
+		memcpy(iv + 8, desc->k2.iv, 8);
+		memcpy(iv + 16, desc->k3.iv, 8);
+		return;
+	}
+	default:
+		fatal("%s: bad cipher %d", __func__, c->number);
+	}
+	memcpy(iv, civ, len);
+}
+
+void
+cipher_set_keyiv(CipherContext *cc, u_char *iv)
+{
+	Cipher *c = cc->cipher;
+	u_char *div = NULL;
+	int evplen = 0;
+
+	switch (c->number) {
+	case SSH_CIPHER_SSH2:
+	case SSH_CIPHER_DES:
+	case SSH_CIPHER_BLOWFISH:
+		evplen = EVP_CIPHER_CTX_iv_length(&cc->evp);
+		if (evplen == 0)
+			return;
+
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+		if (c->evptype == evp_rijndael) {
+			struct ssh_rijndael_ctx *aesc;
+
+			aesc = EVP_CIPHER_CTX_get_app_data(&cc->evp);
+			if (aesc == NULL)
+				fatal("%s: no rijndael context", __func__);
+			div = aesc->r_iv;
+		} else
+#endif
+		{
+			div = cc->evp.iv;
+		}
+		break;
+	case SSH_CIPHER_3DES: {
+		struct ssh1_3des_ctx *desc;
+		desc = EVP_CIPHER_CTX_get_app_data(&cc->evp);
+		if (desc == NULL)
+			fatal("%s: no 3des context", __func__);
+		debug3("%s: Installed 3DES IV", __func__);
+		memcpy(desc->k1.iv, iv, 8);
+		memcpy(desc->k2.iv, iv + 8, 8);
+		memcpy(desc->k3.iv, iv + 16, 8);
+		return;
+	}
+	default:
+		fatal("%s: bad cipher %d", __func__, c->number);
+	}
+	memcpy(div, iv, evplen);
+}
+
+#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#define EVP_X_STATE(evp)	&(evp).c
+#define EVP_X_STATE_LEN(evp)	sizeof((evp).c)
+#else
+#define EVP_X_STATE(evp)	(evp).cipher_data
+#define EVP_X_STATE_LEN(evp)	(evp).cipher->ctx_size
+#endif
+
+int
+cipher_get_keycontext(CipherContext *cc, u_char *dat)
+{
+	Cipher *c = cc->cipher;
+	int plen = 0;
+
+	if (c->evptype == EVP_rc4) {
+		plen = EVP_X_STATE_LEN(cc->evp);
+		if (dat == NULL)
+			return (plen);
+		memcpy(dat, EVP_X_STATE(cc->evp), plen);
+	}
+	return (plen);
+}
+
+void
+cipher_set_keycontext(CipherContext *cc, u_char *dat)
+{
+	Cipher *c = cc->cipher;
+	int plen;
+
+	if (c->evptype == EVP_rc4) {
+		plen = EVP_X_STATE_LEN(cc->evp);
+		memcpy(EVP_X_STATE(cc->evp), dat, plen);
+	}
 }
