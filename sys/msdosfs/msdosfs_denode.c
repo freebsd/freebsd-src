@@ -261,7 +261,7 @@ deget(pmp, dirclust, diroffset, depp)
 		return error;
 	}
 	bzero((caddr_t)ldep, sizeof *ldep);
-	lockinit(&ldep->de_lock, PINOD, "denode", 0, 0);
+	lockinit(&ldep->de_lock, PINOD, "denode", VLKTIMEOUT, 0);
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;

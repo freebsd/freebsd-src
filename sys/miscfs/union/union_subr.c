@@ -566,7 +566,7 @@ loop:
 	un = VTOUNION(*vpp);
 	bzero(un, sizeof(*un));
 
-	lockinit(&un->un_lock, PVFS, "unlock", 0, 0);
+	lockinit(&un->un_lock, PVFS, "unlock", VLKTIMEOUT, 0);
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	un->un_vnode = *vpp;

@@ -242,7 +242,7 @@ loop:
 	} else if (vp->v_type == VREG)
 		SMBERROR("new vnode '%s' born without parent ?\n", np->n_name);
 
-	lockinit(&np->n_lock, PINOD, "smbnode", 0, LK_CANRECURSE);
+	lockinit(&np->n_lock, PINOD, "smbnode", VLKTIMEOUT, LK_CANRECURSE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	smbfs_hash_lock(smp, p);

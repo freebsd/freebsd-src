@@ -282,7 +282,7 @@ BUF_LOCK(struct buf *bp, int locktype)
 	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
-	bp->b_lock.lk_timo = 0;
+	/* bp->b_lock.lk_timo = 0;   not necessary */
 	ret = lockmgr(&(bp)->b_lock, locktype, &buftimelock, curproc);
 	splx(s);
 	return ret;
@@ -298,7 +298,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 
 	s = splbio();
 	simple_lock(&buftimelock);
-	locktype |= LK_INTERLOCK;
+	locktype |= LK_INTERLOCK | LK_TIMELOCK;
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;

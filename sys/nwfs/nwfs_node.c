@@ -187,7 +187,7 @@ rescan:
 	*vpp = vp;
 	np->n_fid = fid;
 	np->n_flag |= NNEW;
-	lockinit(&np->n_lock, PINOD, "nwnode", 0, LK_CANRECURSE);
+	lockinit(&np->n_lock, PINOD, "nwnode", VLKTIMEOUT, LK_CANRECURSE);
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
