@@ -2360,12 +2360,12 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
 		vm2->vm_ssize += btoc(entrysize);
 	} else if (entry->start >= (vm_offset_t)vm1->vm_daddr &&
 	    entry->start < (vm_offset_t)vm1->vm_daddr + ctob(vm1->vm_dsize)) {
-		newend = min(entry->end,
+		newend = ulmin(entry->end,
 		    (vm_offset_t)vm1->vm_daddr + ctob(vm1->vm_dsize));
-		vm2->vm_dsize += btoc(newend - entry->start);
+			vm2->vm_dsize += btoc(newend - entry->start);
 	} else if (entry->start >= (vm_offset_t)vm1->vm_taddr &&
 	    entry->start < (vm_offset_t)vm1->vm_taddr + ctob(vm1->vm_tsize)) {
-		newend = min(entry->end,
+		newend = ulmin(entry->end,
 		    (vm_offset_t)vm1->vm_taddr + ctob(vm1->vm_tsize));
 		vm2->vm_tsize += btoc(newend - entry->start);
 	}
