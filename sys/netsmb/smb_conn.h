@@ -164,7 +164,7 @@ struct smb_share_info {
 
 #ifdef _KERNEL
 
-#include <sys/lock.h>
+#include <sys/lockmgr.h>
 #include <netsmb/smb_subr.h>
 
 #define CONNADDREQ(a1,a2)	((a1)->sa_len == (a2)->sa_len && \
