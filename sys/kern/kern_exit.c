@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.20 1995/11/11 05:49:22 bde Exp $
+ * $Id: kern_exit.c,v 1.21 1995/12/07 12:46:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -135,6 +135,10 @@ exit1(p, rv)
 	 * This may block!
 	 */
 	fdfree(p);
+
+#ifdef SYSVSEM
+	semexit(p);
+#endif
 
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
