@@ -627,6 +627,7 @@ release.8:
 #
 
 release.9:
+.if ${TARGET_ARCH} != "ia64" || ${TARGET_ARCH} == ${MACHINE_ARCH}
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
@@ -730,6 +731,7 @@ release.9:
 .endif
 	@rm mfsroot mfsroot.gz
 	@echo "Regular and MFS boot floppies made."
+.endif
 	touch release.9
 
 #
