@@ -100,7 +100,7 @@ static void	ed_hpp_writemem	(struct ed_softc *, unsigned char *,
 				    /* u_short */ int, /* u_short */ int);
 static u_short	ed_hpp_write_mbufs(struct ed_softc *, struct mbuf *, int);
 
-static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, int);
+static u_short	ed_pio_write_mbufs(struct ed_softc *, struct mbuf *, long);
 
 static void	ed_setrcr	(struct ed_softc *);
 
@@ -1149,7 +1149,8 @@ ed_probe_Novell_generic(dev, flags)
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
 
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
-		int     x, i, mstart = 0, msize = 0;
+		int     x, i, msize = 0;
+		long    mstart = 0;
 		char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
 
 		for (i = 0; i < ED_PAGE_SIZE; i++)
@@ -1198,10 +1199,10 @@ ed_probe_Novell_generic(dev, flags)
 		}
 
 		if (msize == 0) {
-			device_printf(dev, "Cannot find any RAM, start : %d, x = %d.\n", mstart, x);
+			device_printf(dev, "Cannot find any RAM, start : %ld, x = %d.\n", mstart, x);
 			return (ENXIO);
 		}
-		device_printf(dev, "RAM start at %d, size : %d.\n", mstart, msize);
+		device_printf(dev, "RAM start at %ld, size : %d.\n", mstart, msize);
 
 		sc->mem_size = msize;
 		sc->mem_start = (caddr_t) mstart;
@@ -2214,7 +2215,7 @@ outloop:
 			}
 		}
 	} else {
-		len = ed_pio_write_mbufs(sc, m, (int)buffer);
+		len = ed_pio_write_mbufs(sc, m, (long)buffer);
 		if (len == 0) {
 			m_freem(m0);
 			goto outloop;
@@ -2290,7 +2291,7 @@ ed_rint(sc)
 		if (sc->mem_shared)
 			packet_hdr = *(struct ed_ring *) packet_ptr;
 		else
-			ed_pio_readmem(sc, (int)packet_ptr, (char *) &packet_hdr,
+			ed_pio_readmem(sc, (long)packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
 		if (len > (ETHER_MAX_LEN - ETHER_CRC_LEN + sizeof(struct ed_ring)) ||
@@ -2761,7 +2762,7 @@ ed_ring_copy(sc, src, dst, amount)
 		if (sc->mem_shared)
 			bcopy(src, dst, tmp_amount);
 		else
-			ed_pio_readmem(sc, (int)src, dst, tmp_amount);
+			ed_pio_readmem(sc, (long)src, dst, tmp_amount);
 
 		amount -= tmp_amount;
 		src = sc->mem_ring;
@@ -2770,7 +2771,7 @@ ed_ring_copy(sc, src, dst, amount)
 	if (sc->mem_shared)
 		bcopy(src, dst, amount);
 	else
-		ed_pio_readmem(sc, (int)src, dst, amount);
+		ed_pio_readmem(sc, (long)src, dst, amount);
 
 	return (src + amount);
 }
@@ -2861,7 +2862,7 @@ ed_get_packet(sc, buf, len)
 void
 ed_pio_readmem(sc, src, dst, amount)
 	struct ed_softc *sc;
-	int src;
+	long src;
 	unsigned char *dst;
 	unsigned short amount;
 {
@@ -2951,7 +2952,7 @@ static u_short
 ed_pio_write_mbufs(sc, m, dst)
 	struct ed_softc *sc;
 	struct mbuf *m;
-	int dst;
+	long dst;
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	unsigned short total_len, dma_len;
