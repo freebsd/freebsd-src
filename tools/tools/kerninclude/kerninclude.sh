@@ -11,134 +11,20 @@
 # This script tries to find #include statements which are not needed in
 # the FreeBSD kernel tree.
 #
-# For each include file on the tasklist (set in $includes right below)
-#    For each object file (see around line 170 for how these are selected)
-#	For each kernel (set in $kernels right below) and all modules
-#	   if the object exists
-#	      figure out the sourcefile
-#	      if the sourcefile doesn't contain "#include $include"
-#	          continue
-#	      if object can be compile without $include existing
-#	          continue /* probably protected by #ifdef something */
-#	      if object can't be compile with empty file for $include 
-#	          continue /* needed something/
-#	      if the compiler warnings/errors were different than normal
-#	          continue /* needed something/
-#	      if the resulting object were different than normal
-#	          continue /* needed something */
-#             /* didn't need this include */
-#	      remove $include from source file
-#
-# Takes about 12h to run on a PII/400
-#
-# NOTE: /usr/include is mucked about with!!
-#
 
 set -e
 
 # Base of the kernel sources you want to work on
-cd /some/sourcetree/sys
+cd /sys
 
 # Set to true to start from scratch, false to resume
-init=true
+init=false
 
 # Which kernels you want to check
 kernels="LINT GENERIC GENERIC98"
 
-# Which includes you want to check
-(
-find */include -name '*.h' -ls | sed 's;.*include;machine;' 
-find * -name '*.h' -print
-) | sed '
-/compile/d
-/modules/d
-/boot/d
-' | sort -u > _includes
-
-# Insert some filtering here if you want to...
-includes=`cat _includes`
-
 NO_MODULES=yes
 export NO_MODULES
-
-check_it ()
-{
-	if [ -f ::$2 ] ; then
-		if grep "#[ 	]*include[ 	].$1." ::$2 > /dev/null; then
-			src=`ls -l ::$2 | awk '{print $11}'`
-		else
-			echo " -"
-			exit 0
-		fi
-	else
-		rm -f $2
-		make -n $2 > _0 2>&1 || true
-		src=`awk '$1 == "cc" {print $NF}' _0`
-		if expr "x$src" : 'x.*\.c$' > /dev/null ; then
-			ln -s $src ::$2
-		else
-			echo " not C source"
-			# don't create $2, we don't care about it.
-			exit 0
-		fi
-		if grep "#[ 	]*include[ 	].$1." $src > /dev/null; then
-			true
-		else
-			echo " -"
-			touch $2
-			exit 0
-		fi
-	fi
-	rm ../../$3
-	rm -f $2
-	if [ -f /usr/include/$1 ] ; then
-		mv /usr/include/$1 /usr/include/${1}_
-		make $2 > _0 2>&1 || true
-		mv /usr/include/${1}_ /usr/include/$1
-	else
-		make $2 > _0 2>&1 || true
-	fi
-	echo > ../../$3
-	if [ -f $2 ] ; then
-		echo " no read"
-		cp ../../${3}_ ../../$3
-		exit 0
-	fi
-
-	make $2 > _1 2>&1 || true
-
-	cp ../../${3}_ ../../$3
-	
-	if [ ! -f $2 ] ; then
-		echo " compile error"
-		touch $2
-		exit 0
-	fi
-	m2=`md5 < $2`
-
-	rm $2
-	make $2 > _0 2>&1 || true
-	if [ ! -f $2 ] ; then
-		echo "$2 reference compile failed"
-		touch $2
-		cat _0
-		exit 0
-	fi
-	m1=`md5 < $2`
-
-	if cmp _0 _1 > /dev/null 2>&1 ; then
-		true
-	else
-		echo " warnings changed"
-		exit 0
-	fi
-
-	if [ $m1 != $m2 ] ; then
-		echo " MD5 changed"
-		#exit 0
-	fi
-}
-
 
 if $init ; then
 	(
@@ -156,42 +42,56 @@ if $init ; then
 	cd compile
 	ls | grep -v CVS | xargs rm -rf
 	)
-
-	echo "Configuring kernels"
-	(
-		cd i386/conf
-		make LINT
-		config -r -p LINT
-		config -r GENERIC
-	)
-	(
-		cd pc98/conf
-		cp -f GENERIC GENERIC98
-		config -r GENERIC98
-	)
-
-	for i in $kernels
-	do
-		(
-		echo "Compiling $i"
-		cd compile/$i
-		rm -f ::*
-		make -k > x.0 2>&1
-		tail -4 x.0
-		if [ ! -f kernel ] ; then
-			echo "Error: No $i kernel built"
-			exit 1
-		fi
-		)
-	done
-
-	(
-	echo "Compiling modules"
-	cd modules
-	rm -f */::*
-	make -k > x.0 2>&1 || true
-	)
 fi
+
+(
+echo "Cleaning temp files"
+find . -name '*.h_' -print | xargs rm -f
+find . -name '::*' -print | xargs rm -f
+find . -name '*.o' -size 0 -print | xargs rm -f
+)
+
+echo "Configuring kernels"
+(
+	cd i386/conf
+	make LINT
+	if $init ; then
+		config -r LINT
+		config -r GENERIC
+	else
+		config LINT
+		config GENERIC
+	fi
+)
+(
+	cd pc98/conf
+	cp -f GENERIC GENERIC98
+	if $init ; then
+		config -r GENERIC98
+	else
+		config GENERIC98
+	fi
+)
+
+for i in $kernels
+do
+	(
+	echo "Compiling $i"
+	cd compile/$i
+	make > x.0 2>&1
+	tail -4 x.0
+	if [ ! -f kernel ] ; then
+		echo "Error: No $i kernel built"
+		exit 1
+	fi
+	)
+done
+
+(
+echo "Compiling modules"
+cd modules
+make > x.0 2>&1 
+)
 
 # Generate the list of object files we want to check
 # you can put a convenient grep right before the sort
@@ -215,72 +115,192 @@ done
 /vers.o/d
 /setdef0.o/d
 /setdef1.o/d
-/::/d
 ' | sort -u > _
 
 objlist=`cat _`
 
-find . -name '*.h_' -print | xargs rm -f
 
-for incl in $includes
+for o in $objlist
 do
-	inclf=`echo $incl | sed 's/machine/i386\/include/'`
-	if [ ! -f ${inclf} ] ; then
+	l=""
+	src=""
+	for k in $kernels
+	do
+		if [ ! -f compile/$k/$o ] ; then
+			continue;
+		fi
+		l="$l compile/$k"
+		if [ "x$src" = "x" ] ; then
+			cd compile/$k
+			mv $o ${o}_
+			make -n $o > _
+			mv ${o}_ $o
+			src=compile/$k/`awk '$1 == "cc" {print $NF}' _`
+			cd ../..
+			if expr "x$src" : 'x.*\.c$' > /dev/null ; then
+				true
+			else
+				echo NO SRC $o
+				src=""
+			fi
+		fi
+	done
+	for m in modules/*
+	do
+		if [ ! -d $m -o ! -f $m/$o ] ; then
+			continue;
+		fi
+		l="$l $m"
+		if [ "x$src" = "x" ] ; then
+			cd $m
+			mv $o ${o}_
+			make -n $o > _
+			mv ${o}_ $o
+			src=`awk '$1 == "cc" {print $NF}' _`
+			cd ../..
+			if expr "x$src" : 'x.*\.c$' > /dev/null ; then
+				if [ "`dirname $src`" = "." ] ; then
+					src="$m/$src"
+				fi
+				true
+			else
+				echo NO SRC $o
+				src=""
+			fi
+		fi
+	done
+	if [ "x$src" = "x" ] ; then
+		echo "NO SOURCE $o"
 		continue
 	fi
-	if [ ! -f ${inclf}_ ] ; then
-		cp $inclf ${inclf}_
-	fi
-	for obj in $objlist
+	echo "OBJ	$o"
+	echo "	SRC	$src"
+
+	grep -n '^[ 	]*#[ 	]*include' $src | sed '
+	s/^\([0-9]*\):[ 	]*#[ 	]*include[ 	]*[<"]/\1 /
+	s/[">].*//
+	/ opt_/d
+	' | sort -rn | while read lin incl
 	do
-		(
-		echo -n "$incl $obj:"
-		src=""
+		S=""
+		echo "		INCL	$lin	$incl"
+		cp $src ${src}_
 
-		cd compile 
-		for i in $kernels
-		do
-			cd $i
+		# Check if we can compile without this #include line.
 
-			if [ ! -f $obj ] ; then
-				cd ..
-				continue
-			fi
-			echo -n " [$i]"
-			check_it $incl $obj $inclf
-			cd ..
-		done
-		cd ..
-		cd modules
-		for d in */$obj
+		sed "${lin}s/.*//" ${src}_ > ${src}
+		for t in $l
 		do
-			if [ ! -f $d ] ; then
-				continue
+			cd $t
+			mv ${o} ${o}_
+			if make ${o} > _log 2>&1 ; then
+				if cmp -s ${o} ${o}_ ; then
+					echo "			$t	same object"
+				else
+					echo "			$t	changed object"
+					S=TAG
+				fi
+			else
+				echo "			$t	used"
+				S=TAG
 			fi
-			b=`dirname $d`
-			echo -n " [$b]"
-			cd $b
-			check_it $incl $obj $inclf
-			cd ..
+			mv ${o}_ ${o}
+			cd ../..
+			if [ "x$S" != "x" ] ; then
+				break
+			fi
 		done
-		cd ..
-		if [ "x$src" = "x" ] ; then
-			echo " -"
-			exit 0
+		if [ "x$S" != "x" ] ; then
+			mv ${src}_ ${src}
+			continue
 		fi
-		echo -n " ($src)"
-		echo "$incl $src" >> _incl
-		(
-		cd compile/LINT
-		if [ -f $src ] ; then
-			grep -v "#[ 	]*include[ 	]*.$incl." $src > ${src}_
-			mv ${src}_ $src
-			echo " BINGO!"
-		else
-			echo " BINGO!, but not in LINT"
+
+		# Check if this is because it is a nested #include
+		for t in $l
+		do
+			cd $t
+			rm -rf foo
+			mkdir -p foo/${incl}
+			rmdir foo/${incl}
+			touch foo/${incl}
+			mv ${o} ${o}_
+			if make INCLMAGIC=-Ifoo ${o} > _log2 2>&1 ; then
+				if cmp -s ${o} ${o}_ ; then
+					echo "			$t	still same object"
+				else
+					echo "			$t	changed object"
+					S=TAG
+				fi
+			else
+				echo "			$t	nested include"
+				S=TAG
+			fi
+			rm -rf foo
+			mv ${o}_ ${o}
+			cd ../..
+			if [ "x$S" != "x" ] ; then
+				break
+			fi
+		done
+		if [ "x$S" != "x" ] ; then
+			mv ${src}_ ${src}
+			continue
 		fi
-		)
-		)
+
+		# Check if this is because it is #ifdef'ed out
+
+		sed "${lin}s/.*/#error \"BARF\"/" ${src}_ > ${src}
+		for t in $l
+		do
+			cd $t
+			mv ${o} ${o}_
+			if make ${o} > /dev/null 2>&1 ; then
+				echo "			$t	line not read"
+				S=TAG
+			fi
+			mv ${o}_ ${o}
+			cd ../..
+			if [ "x$S" != "x" ] ; then
+				break
+			fi
+		done
+
+		mv ${src}_ ${src}
+		if [ "x$S" != "x" ] ; then
+			continue
+		fi
+
+		# Check if the warnings changed.
+
+		for t in $l
+		do
+			cd $t
+			mv ${o} ${o}_
+			if make ${o} > _ref 2>&1 ; then
+				if cmp -s _ref _log ; then
+					echo "			$t	same warnings"
+				else
+					echo "			$t	changed warnings"
+					S=TAG
+				fi
+			else
+				echo "ARGHH!!!"
+				exit 9
+			fi
+					
+			mv ${o}_ ${o}
+			cd ../..
+			if [ "x$S" != "x" ] ; then
+				break
+			fi
+		done
+		if [ "x$S" != "x" ] ; then
+			continue
+		fi
+		cp $src ${src}_
+		sed "${lin}d" ${src}_ > ${src}
+		rm ${src}_
+		touch _again
+		echo "BINGO $src $lin $incl $obj $l"
 	done
 done
-
