@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 116 $
+ *              $Revision: 118 $
  *
  *****************************************************************************/
 
@@ -169,7 +169,7 @@ AcpiInstallFixedEventHandler (
 
     if (NULL != AcpiGbl_FixedEventHandlers[Event].Handler)
     {
-        Status = AE_EXIST;
+        Status = AE_ALREADY_EXISTS;
         goto Cleanup;
     }
 
@@ -327,7 +327,7 @@ AcpiInstallNotifyHandler (
             ((HandlerType == ACPI_DEVICE_NOTIFY) &&
               AcpiGbl_DrvNotify.Handler))
         {
-            Status = AE_EXIST;
+            Status = AE_ALREADY_EXISTS;
             goto UnlockAndExit;
         }
 
@@ -352,7 +352,7 @@ AcpiInstallNotifyHandler (
      * Caller will only receive notifications specific to the target object.
      * Note that only certain object types can receive notifications.
      */
-    else 
+    else
     {
         /*
          * These are the ONLY objects that can receive ACPI notifications
@@ -379,7 +379,7 @@ AcpiInstallNotifyHandler (
                 ((HandlerType == ACPI_DEVICE_NOTIFY) &&
                   ObjDesc->Device.DrvHandler))
             {
-                Status = AE_EXIST;
+                Status = AE_ALREADY_EXISTS;
                 goto UnlockAndExit;
             }
         }
@@ -488,7 +488,7 @@ AcpiRemoveNotifyHandler (
     /*
      * Root Object
      */
-    if (Device == ACPI_ROOT_OBJECT) 
+    if (Device == ACPI_ROOT_OBJECT)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Removing notify handler for ROOT object.\n"));
 
@@ -501,13 +501,13 @@ AcpiRemoveNotifyHandler (
             goto UnlockAndExit;
         }
 
-        if (HandlerType == ACPI_SYSTEM_NOTIFY) 
+        if (HandlerType == ACPI_SYSTEM_NOTIFY)
         {
             AcpiGbl_SysNotify.Node    = NULL;
             AcpiGbl_SysNotify.Handler = NULL;
             AcpiGbl_SysNotify.Context = NULL;
         }
-        else 
+        else
         {
             AcpiGbl_DrvNotify.Node    = NULL;
             AcpiGbl_DrvNotify.Handler = NULL;
@@ -518,7 +518,7 @@ AcpiRemoveNotifyHandler (
     /*
      * All Other Objects
      */
-    else 
+    else
     {
         /*
          * These are the ONLY objects that can receive ACPI notifications
@@ -630,7 +630,7 @@ AcpiInstallGpeHandler (
 
     if (AcpiGbl_GpeInfo[GpeNumber].Handler)
     {
-        Status = AE_EXIST;
+        Status = AE_ALREADY_EXISTS;
         goto Cleanup;
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 71 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -130,7 +130,6 @@
         MODULE_NAME         ("excreate")
 
 
-
 /*****************************************************************************
  *
  * FUNCTION:    AcpiExCreateAlias
@@ -162,8 +161,8 @@ AcpiExCreateAlias (
 
     /* Attach the original source object to the new Alias Node */
 
-    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) WalkState->Operands[0], 
-                                    SourceNode->Object,
+    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) WalkState->Operands[0],
+                                    AcpiNsGetAttachedObject (SourceNode),
                                     SourceNode->Type);
 
     /*
@@ -209,11 +208,11 @@ AcpiExCreateEvent (
         goto Cleanup;
     }
 
-    /* Create the actual OS semaphore */
-
-    /* TBD: [Investigate] should be created with 0 or 1 units? */
-
-    Status = AcpiOsCreateSemaphore (ACPI_NO_UNIT_LIMIT, 1,
+    /* 
+     * Create the actual OS semaphore, with zero initial units -- meaning
+     * that the event is created in an unsignalled state
+     */
+    Status = AcpiOsCreateSemaphore (ACPI_NO_UNIT_LIMIT, 0,
                                     &ObjDesc->Event.Semaphore);
     if (ACPI_FAILURE (Status))
     {
@@ -226,7 +225,7 @@ AcpiExCreateEvent (
                                     ObjDesc, (UINT8) ACPI_TYPE_EVENT);
 
 Cleanup:
-    /* 
+    /*
      * Remove local reference to the object (on error, will cause deletion
      * of both object and semaphore if present.)
      */
@@ -269,8 +268,11 @@ AcpiExCreateMutex (
         goto Cleanup;
     }
 
-    /* Create the actual OS semaphore */
-
+    /* 
+     * Create the actual OS semaphore.
+     * One unit max to make it a mutex, with one initial unit to allow
+     * the mutex to be acquired.
+     */
     Status = AcpiOsCreateSemaphore (1, 1, &ObjDesc->Mutex.Semaphore);
     if (ACPI_FAILURE (Status))
     {
@@ -286,7 +288,7 @@ AcpiExCreateMutex (
 
 
 Cleanup:
-    /* 
+    /*
      * Remove local reference to the object (on error, will cause deletion
      * of both object and semaphore if present.)
      */
@@ -320,6 +322,7 @@ AcpiExCreateRegion (
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *RegionObj2 = NULL;
 
 
     FUNCTION_TRACE ("ExCreateRegion");
@@ -327,13 +330,13 @@ AcpiExCreateRegion (
 
     /* Get the Node from the object stack  */
 
-    Node = (ACPI_NAMESPACE_NODE *) WalkState->Operands[0];
+    Node = WalkState->Op->Node;
 
     /*
      * If the region object is already attached to this node,
      * just return
      */
-    if (Node->Object)
+    if (AcpiNsGetAttachedObject (Node))
     {
         return_ACPI_STATUS (AE_OK);
     }
@@ -342,8 +345,8 @@ AcpiExCreateRegion (
      * Space ID must be one of the predefined IDs, or in the user-defined
      * range
      */
-    if ((RegionSpace >= NUM_REGION_TYPES) &&
-        (RegionSpace < USER_REGION_BEGIN))
+    if ((RegionSpace >= ACPI_NUM_PREDEFINED_REGIONS) &&
+        (RegionSpace < ACPI_USER_REGION_BEGIN))
     {
         REPORT_ERROR (("Invalid AddressSpace type %X\n", RegionSpace));
         return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
@@ -362,22 +365,13 @@ AcpiExCreateRegion (
         goto Cleanup;
     }
 
-    /* Allocate a method object for this region */
-
-    ObjDesc->Region.Extra =  AcpiUtCreateInternalObject (
-                                        INTERNAL_TYPE_EXTRA);
-    if (!ObjDesc->Region.Extra)
-    {
-        Status = AE_NO_MEMORY;
-        goto Cleanup;
-    }
-
     /*
      * Remember location in AML stream of address & length
      * operands since they need to be evaluated at run time.
      */
-    ObjDesc->Region.Extra->Extra.AmlStart  = AmlStart;
-    ObjDesc->Region.Extra->Extra.AmlLength = AmlLength;
+    RegionObj2                  = ObjDesc->Common.NextObject;
+    RegionObj2->Extra.AmlStart  = AmlStart;
+    RegionObj2->Extra.AmlLength = AmlLength;
 
     /* Init the region from the operands */
 
@@ -388,37 +382,14 @@ AcpiExCreateRegion (
 
     /* Install the new region object in the parent Node */
 
-    Status = AcpiNsAttachObject (Node, ObjDesc,
-                                (UINT8) ACPI_TYPE_REGION);
-    if (ACPI_FAILURE (Status))
-    {
-        goto Cleanup;
-    }
+    Status = AcpiNsAttachObject (Node, ObjDesc, (UINT8) ACPI_TYPE_REGION);
 
-    /*
-     * If we have a valid region, initialize it
-     * Namespace is NOT locked at this point.
-     */
-    Status = AcpiEvInitializeRegion (ObjDesc, FALSE);
-    if (ACPI_FAILURE (Status))
-    {
-        /*
-         *  If AE_NOT_EXIST is returned, it is not fatal
-         *  because many regions get created before a handler
-         *  is installed for said region.
-         */
-        if (AE_NOT_EXIST == Status)
-        {
-            Status = AE_OK;
-        }
-    }
 
 Cleanup:
 
     /* Remove local reference to the object */
 
     AcpiUtRemoveReference (ObjDesc);
-
     return_ACPI_STATUS (Status);
 }
 
@@ -506,7 +477,7 @@ AcpiExCreateProcessor (
 
     /* Install the processor object in the parent Node */
 
-    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0], 
+    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0],
                     ObjDesc, (UINT8) ACPI_TYPE_PROCESSOR);
 
 
@@ -560,7 +531,7 @@ AcpiExCreatePowerResource (
 
     /* Install the  power resource object in the parent Node */
 
-    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0], 
+    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0],
                     ObjDesc, (UINT8) ACPI_TYPE_POWER);
 
 
@@ -642,7 +613,7 @@ AcpiExCreateMethod (
 
     /* Attach the new object to the method Node */
 
-    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0], 
+    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) Operand[0],
                     ObjDesc, (UINT8) ACPI_TYPE_METHOD);
 
     /* Remove local reference to the object */

@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 40 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -160,30 +160,28 @@ AcpiExResolveObject (
 
 
     /*
-     * Ensure we have a Source that can be stored in the target
+     * Ensure we have a Target that can be stored to
      */
     switch (TargetType)
     {
-
-    /* This case handles the "interchangeable" types Integer, String, and Buffer. */
-
-    /*
-     * These cases all require only Integers or values that
-     * can be converted to Integers (Strings or Buffers)
-     */
     case ACPI_TYPE_BUFFER_FIELD:
     case INTERNAL_TYPE_REGION_FIELD:
     case INTERNAL_TYPE_BANK_FIELD:
     case INTERNAL_TYPE_INDEX_FIELD:
+        /*
+         * These cases all require only Integers or values that
+         * can be converted to Integers (Strings or Buffers)
+         */
 
-    /*
-     * Stores into a Field/Region or into a Buffer/String
-     * are all essentially the same.
-     */
     case ACPI_TYPE_INTEGER:
     case ACPI_TYPE_STRING:
     case ACPI_TYPE_BUFFER:
 
+        /* 
+         * Stores into a Field/Region or into a Integer/Buffer/String
+         * are all essentially the same.  This case handles the 
+         * "interchangeable" types Integer, String, and Buffer. 
+         */
 
         /* TBD: FIX - check for source==REF, resolve, then check type */
 

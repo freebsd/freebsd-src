@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 54 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -828,32 +828,33 @@ AcpiDsObjStackGetValue (
  *
  * FUNCTION:    AcpiDsGetCurrentWalkState
  *
- * PARAMETERS:  WalkList        - Get current active state for this walk list
+ * PARAMETERS:  Thread          - Get current active state for this Thread
  *
  * RETURN:      Pointer to the current walk state
  *
  * DESCRIPTION: Get the walk state that is at the head of the list (the "current"
- *              walk state.
+ *              walk state.)
  *
  ******************************************************************************/
 
 ACPI_WALK_STATE *
 AcpiDsGetCurrentWalkState (
-    ACPI_WALK_LIST          *WalkList)
+    ACPI_THREAD_STATE       *Thread)
 
 {
     PROC_NAME ("DsGetCurrentWalkState");
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "DsGetCurrentWalkState, =%p\n",
-        WalkList->WalkState));
-
-    if (!WalkList)
+    if (!Thread)
     {
         return (NULL);
     }
 
-    return (WalkList->WalkState);
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "DsGetCurrentWalkState, =%p\n",
+        Thread->WalkStateList));
+
+
+    return (Thread->WalkStateList);
 }
 
 
@@ -873,13 +874,13 @@ AcpiDsGetCurrentWalkState (
 void
 AcpiDsPushWalkState (
     ACPI_WALK_STATE         *WalkState,
-    ACPI_WALK_LIST          *WalkList)
+    ACPI_THREAD_STATE       *Thread)
 {
     FUNCTION_TRACE ("DsPushWalkState");
 
 
-    WalkState->Next     = WalkList->WalkState;
-    WalkList->WalkState = WalkState;
+    WalkState->Next       = Thread->WalkStateList;
+    Thread->WalkStateList = WalkState;
 
     return_VOID;
 }
@@ -901,7 +902,7 @@ AcpiDsPushWalkState (
 
 ACPI_WALK_STATE *
 AcpiDsPopWalkState (
-    ACPI_WALK_LIST          *WalkList)
+    ACPI_THREAD_STATE       *Thread)
 {
     ACPI_WALK_STATE         *WalkState;
 
@@ -909,18 +910,18 @@ AcpiDsPopWalkState (
     FUNCTION_TRACE ("DsPopWalkState");
 
 
-    WalkState = WalkList->WalkState;
+    WalkState = Thread->WalkStateList;
 
     if (WalkState)
     {
         /* Next walk state becomes the current walk state */
 
-        WalkList->WalkState = WalkState->Next;
+        Thread->WalkStateList = WalkState->Next;
 
         /*
          * Don't clear the NEXT field, this serves as an indicator
          * that there is a parent WALK STATE
-         *     WalkState->Next = NULL;
+         *     NO: WalkState->Next = NULL;
          */
     }
 
@@ -933,12 +934,12 @@ AcpiDsPopWalkState (
  * FUNCTION:    AcpiDsCreateWalkState
  *
  * PARAMETERS:  Origin          - Starting point for this walk
- *              WalkList        - Owning walk list
+ *              Thread          - Current thread state
  *
  * RETURN:      Pointer to the new walk state.
  *
- * DESCRIPTION: Allocate and initialize a new walk state.  The current walk state
- *              is set to this new state.
+ * DESCRIPTION: Allocate and initialize a new walk state.  The current walk 
+ *              state is set to this new state.
  *
  ******************************************************************************/
 
@@ -947,7 +948,7 @@ AcpiDsCreateWalkState (
     ACPI_OWNER_ID           OwnerId,
     ACPI_PARSE_OBJECT       *Origin,
     ACPI_OPERAND_OBJECT     *MthDesc,
-    ACPI_WALK_LIST          *WalkList)
+    ACPI_THREAD_STATE       *Thread)
 {
     ACPI_WALK_STATE         *WalkState;
     ACPI_STATUS             Status;
@@ -966,7 +967,7 @@ AcpiDsCreateWalkState (
     WalkState->OwnerId          = OwnerId;
     WalkState->Origin           = Origin;
     WalkState->MethodDesc       = MthDesc;
-    WalkState->WalkList         = WalkList;
+    WalkState->Thread           = Thread;
 
     /* Init the method args/local */
 
@@ -984,9 +985,9 @@ AcpiDsCreateWalkState (
 
     /* Put the new state at the head of the walk list */
 
-    if (WalkList)
+    if (Thread)
     {
-        AcpiDsPushWalkState (WalkState, WalkList);
+        AcpiDsPushWalkState (WalkState, Thread);
     }
 
     return_PTR (WalkState);
@@ -1030,7 +1031,6 @@ AcpiDsInitAmlWalk (
     WalkState->ParserState.PkgEnd   = AmlStart + AmlLength;
 
     /* The NextOp of the NextWalk will be the beginning of the method */
-    /* TBD: [Restructure] -- obsolete? */
 
     WalkState->NextOp               = NULL;
     WalkState->Params               = Params;
@@ -1062,7 +1062,7 @@ AcpiDsInitAmlWalk (
 
         AcpiDsMethodDataInitArgs (Params, MTH_NUM_ARGS, WalkState);
     }
-    
+
     else
     {
         /* Setup the current scope */
@@ -1086,7 +1086,6 @@ AcpiDsInitAmlWalk (
     return_ACPI_STATUS (AE_OK);
 }
 #endif
-
 
 
 /*******************************************************************************

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 75 $
+ *              $Revision: 77 $
  *
  ******************************************************************************/
 
@@ -174,13 +174,12 @@ AcpiNsSearchNode (
         if (ScopeName)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (type %X)\n",
-                ScopeName, Node, (char*)&TargetName, Type));
+                ScopeName, Node, (char *) &TargetName, Type));
 
             ACPI_MEM_FREE (ScopeName);
         }
     }
 #endif
-
 
     /*
      * Search for name in this table, which is to say that we must search
@@ -222,12 +221,11 @@ AcpiNsSearchNode (
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Name %4.4s (actual type %X) found at %p\n",
-                (char*)&TargetName, NextNode->Type, NextNode));
+                (char *) &TargetName, NextNode->Type, NextNode));
 
             *ReturnNode = NextNode;
             return_ACPI_STATUS (AE_OK);
         }
-
 
         /*
          * The last entry in the list points back to the parent,
@@ -245,11 +243,10 @@ AcpiNsSearchNode (
         NextNode = NextNode->Peer;
     }
 
-
     /* Searched entire table, not found */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Name %4.4s (type %X) not found at %p\n",
-        (char*)&TargetName, Type, NextNode));
+        (char *) &TargetName, Type, NextNode));
 
     return_ACPI_STATUS (AE_NOT_FOUND);
 }
@@ -306,22 +303,21 @@ AcpiNsSearchParentTree (
         if (!ParentNode)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
-                (char*)&TargetName));
+                (char *) &TargetName));
         }
 
         if (AcpiNsLocal (Type))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] type %X is local(no search)\n",
-                (char*)&TargetName, Type));
+                (char *) &TargetName, Type));
         }
 
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
 
-
     /* Search the parent tree */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching parent for %4.4s\n", (char*)&TargetName));
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching parent for %4.4s\n", (char *) &TargetName));
 
     /*
      * Search parents until found the target or we have backed up to
@@ -329,12 +325,13 @@ AcpiNsSearchParentTree (
      */
     while (ParentNode)
     {
-        /* Search parent scope */
-        /* TBD: [Investigate] Why ACPI_TYPE_ANY? */
-
+        /* 
+         * Search parent scope.  Use TYPE_ANY because we don't care about the
+         * object type at this point, we only care about the existence of 
+         * the actual name we are searching for.  Typechecking comes later.
+         */
         Status = AcpiNsSearchNode (TargetName, ParentNode,
                                         ACPI_TYPE_ANY, ReturnNode);
-
         if (ACPI_SUCCESS (Status))
         {
             return_ACPI_STATUS (Status);
@@ -346,7 +343,6 @@ AcpiNsSearchParentTree (
          */
         ParentNode = AcpiNsGetParentObject (ParentNode);
     }
-
 
     /* Not found in parent tree */
 
@@ -407,7 +403,6 @@ AcpiNsSearchAndEnter (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-
     /* Name must consist of printable characters */
 
     if (!AcpiUtValidAcpiName (TargetName))
@@ -418,7 +413,6 @@ AcpiNsSearchAndEnter (
         REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
         return_ACPI_STATUS (AE_BAD_CHARACTER);
     }
-
 
     /* Try to find the name in the table specified by the caller */
 
@@ -433,7 +427,7 @@ AcpiNsSearchAndEnter (
         if ((Status == AE_OK) &&
             (Flags & NS_ERROR_IF_FOUND))
         {
-            Status = AE_EXIST;
+            Status = AE_ALREADY_EXISTS;
         }
 
         /*
@@ -443,9 +437,8 @@ AcpiNsSearchAndEnter (
         return_ACPI_STATUS (Status);
     }
 
-
     /*
-     * Not found in the table.  If we are NOT performing the
+     * The name was not found.  If we are NOT performing the
      * first pass (name entry) of loading the namespace, search
      * the parent tree (all the way to the root if necessary.)
      * We don't want to perform the parent search when the
@@ -468,18 +461,16 @@ AcpiNsSearchAndEnter (
         }
     }
 
-
     /*
      * In execute mode, just search, never add names.  Exit now.
      */
     if (InterpreterMode == IMODE_EXECUTE)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s Not found in %p [Not adding]\n",
-            (char*)&TargetName, Node));
+            (char *) &TargetName, Node));
 
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
-
 
     /* Create the new named object */
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 51 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -156,18 +156,6 @@ AcpiEvInitialize (
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
-
-    /* Make sure the BIOS supports ACPI mode */
-
-    if (SYS_MODE_LEGACY == AcpiHwGetModeCapabilities())
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "ACPI Mode is not supported!\n"));
-        return_ACPI_STATUS (AE_ERROR);
-    }
-
-
-    AcpiGbl_OriginalMode = AcpiHwGetMode();
-
     /*
      * Initialize the Fixed and General Purpose AcpiEvents prior.  This is
      * done prior to enabling SCIs to prevent interrupts from occuring
@@ -196,7 +184,6 @@ AcpiEvInitialize (
         return_ACPI_STATUS (Status);
     }
 
-
     /* Install handlers for control method GPE handlers (_Lxx, _Exx) */
 
     Status = AcpiEvInitGpeControlMethods ();
@@ -214,7 +201,6 @@ AcpiEvInitialize (
         ACPI_DEBUG_PRINT ((ACPI_DB_FATAL, "Unable to initialize Global Lock handler\n"));
         return_ACPI_STATUS (Status);
     }
-
 
     return_ACPI_STATUS (Status);
 }
@@ -235,7 +221,8 @@ AcpiEvInitialize (
 ACPI_STATUS
 AcpiEvFixedEventInitialize(void)
 {
-    int                     i = 0;
+    NATIVE_UINT             i;
+
 
     /* Initialize the structure that keeps track of fixed event handlers */
 
@@ -289,8 +276,7 @@ AcpiEvFixedEventDetect (void)
         "Fixed AcpiEvent Block: Enable %08X Status %08X\n",
         EnableRegister, StatusRegister));
 
-
-    /* power management timer roll over */
+    /* Power management timer roll over */
 
     if ((StatusRegister & ACPI_STATUS_PMTIMER) &&
         (EnableRegister & ACPI_ENABLE_PMTIMER))
@@ -298,7 +284,7 @@ AcpiEvFixedEventDetect (void)
         IntStatus |= AcpiEvFixedEventDispatch (ACPI_EVENT_PMTIMER);
     }
 
-    /* global event (BIOS wants the global lock) */
+    /* Global event (BIOS wants the global lock) */
 
     if ((StatusRegister & ACPI_STATUS_GLOBAL) &&
         (EnableRegister & ACPI_ENABLE_GLOBAL))
@@ -306,7 +292,7 @@ AcpiEvFixedEventDetect (void)
         IntStatus |= AcpiEvFixedEventDispatch (ACPI_EVENT_GLOBAL);
     }
 
-    /* power button event */
+    /* Power button event */
 
     if ((StatusRegister & ACPI_STATUS_POWER_BUTTON) &&
         (EnableRegister & ACPI_ENABLE_POWER_BUTTON))
@@ -314,7 +300,7 @@ AcpiEvFixedEventDetect (void)
         IntStatus |= AcpiEvFixedEventDispatch (ACPI_EVENT_POWER_BUTTON);
     }
 
-    /* sleep button event */
+    /* Sleep button event */
 
     if ((StatusRegister & ACPI_STATUS_SLEEP_BUTTON) &&
         (EnableRegister & ACPI_ENABLE_SLEEP_BUTTON))
@@ -654,7 +640,6 @@ AcpiEvSaveMethodInfo (
     AcpiGbl_GpeInfo [GpeNumber].Type            = Type;
     AcpiGbl_GpeInfo [GpeNumber].MethodHandle    = ObjHandle;
 
-
     /*
      * Enable the GPE (SCIs should be disabled at this point)
      */
@@ -810,6 +795,7 @@ AcpiEvAsynchExecuteGpeMethod (
 
 
     FUNCTION_TRACE ("EvAsynchExecuteGpeMethod");
+
 
     /*
      * Take a snapshot of the GPE info for this level

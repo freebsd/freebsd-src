@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
- *              $Revision: 113 $
+ *              $Revision: 120 $
  *
  *****************************************************************************/
 
@@ -161,14 +161,14 @@ AcpiEvInstallDefaultAddressSpaceHandlers (
      * space must be always available -- even though we are nowhere
      * near ready to find the PCI root buses at this point.
      *
-     * NOTE: We ignore AE_EXIST because this means that a handler has
-     * already been installed (via AcpiInstallAddressSpaceHandler)
+     * NOTE: We ignore AE_ALREADY_EXISTS because this means that a handler
+     * has already been installed (via AcpiInstallAddressSpaceHandler)
      */
     Status = AcpiInstallAddressSpaceHandler (AcpiGbl_RootNode,
                                              ACPI_ADR_SPACE_SYSTEM_MEMORY,
                                              ACPI_DEFAULT_HANDLER, NULL, NULL);
     if ((ACPI_FAILURE (Status)) &&
-        (Status != AE_EXIST))
+        (Status != AE_ALREADY_EXISTS))
     {
         return_ACPI_STATUS (Status);
     }
@@ -177,7 +177,7 @@ AcpiEvInstallDefaultAddressSpaceHandlers (
                                              ACPI_ADR_SPACE_SYSTEM_IO,
                                              ACPI_DEFAULT_HANDLER, NULL, NULL);
     if ((ACPI_FAILURE (Status)) &&
-        (Status != AE_EXIST))
+        (Status != AE_ALREADY_EXISTS))
     {
         return_ACPI_STATUS (Status);
     }
@@ -186,7 +186,7 @@ AcpiEvInstallDefaultAddressSpaceHandlers (
                                              ACPI_ADR_SPACE_PCI_CONFIG,
                                              ACPI_DEFAULT_HANDLER, NULL, NULL);
     if ((ACPI_FAILURE (Status)) &&
-        (Status != AE_EXIST))
+        (Status != AE_ALREADY_EXISTS))
     {
         return_ACPI_STATUS (Status);
     }
@@ -195,8 +195,6 @@ AcpiEvInstallDefaultAddressSpaceHandlers (
     return_ACPI_STATUS (AE_OK);
 }
 
-
-/* TBD: [Restructure] Move elsewhere */
 
 /*******************************************************************************
  *
@@ -217,13 +215,20 @@ AcpiEvExecuteRegMethod (
     UINT32                  Function)
 {
     ACPI_OPERAND_OBJECT    *Params[3];
+    ACPI_OPERAND_OBJECT    *RegionObj2;
     ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("EvExecuteRegMethod");
 
 
-    if (RegionObj->Region.Extra->Extra.Method_REG == NULL)
+    RegionObj2 = AcpiNsGetSecondaryObject (RegionObj);
+    if (!RegionObj2)
+    {
+        return_ACPI_STATUS (AE_NOT_EXIST);
+    }
+
+    if (RegionObj2->Extra.Method_REG == NULL)
     {
         return_ACPI_STATUS (AE_OK);
     }
@@ -260,8 +265,8 @@ AcpiEvExecuteRegMethod (
     /*
      *  Execute the method, no return value
      */
-    DEBUG_EXEC(AcpiUtDisplayInitPathname (RegionObj->Region.Extra->Extra.Method_REG, "  [Method]"));
-    Status = AcpiNsEvaluateByHandle (RegionObj->Region.Extra->Extra.Method_REG, Params, NULL);
+    DEBUG_EXEC(AcpiUtDisplayInitPathname (RegionObj2->Extra.Method_REG, "  [Method]"));
+    Status = AcpiNsEvaluateByHandle (RegionObj2->Extra.Method_REG, Params, NULL);
 
     AcpiUtRemoveReference (Params[1]);
 
@@ -280,7 +285,7 @@ Cleanup:
  *              SpaceId             - ID of the address space (0-255)
  *              Function            - Read or Write operation
  *              Address             - Where in the space to read or write
- *              BitWidth            - Field width in bits (8, 16, or 32)
+ *              BitWidth            - Field width in bits (8, 16, 32, or 64)
  *              Value               - Pointer to in or out value
  *
  * RETURN:      Status
@@ -296,17 +301,24 @@ AcpiEvAddressSpaceDispatch (
     UINT32                  Function,
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
-    UINT32                  *Value)
+    ACPI_INTEGER            *Value)
 {
     ACPI_STATUS             Status;
     ACPI_ADR_SPACE_HANDLER  Handler;
     ACPI_ADR_SPACE_SETUP    RegionSetup;
     ACPI_OPERAND_OBJECT     *HandlerDesc;
+    ACPI_OPERAND_OBJECT     *RegionObj2;
     void                    *RegionContext = NULL;
 
 
     FUNCTION_TRACE ("EvAddressSpaceDispatch");
 
+
+    RegionObj2 = AcpiNsGetSecondaryObject (RegionObj);
+    if (!RegionObj2)
+    {
+        return_ACPI_STATUS (AE_NOT_EXIST);
+    }
 
     /*
      * Ensure that there is a handler associated with this region
@@ -317,14 +329,14 @@ AcpiEvAddressSpaceDispatch (
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "no handler for region(%p) [%s]\n",
             RegionObj, AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
 
-        return_ACPI_STATUS(AE_NOT_EXIST);
+        return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
     /*
      * It may be the case that the region has never been initialized
      * Some types of regions require special init code
      */
-    if (!(RegionObj->Region.Flags & AOPOBJ_INITIALIZED))
+    if (!(RegionObj->Region.Flags & AOPOBJ_SETUP_COMPLETE))
     {
         /*
          * This region has not been initialized yet, do it
@@ -361,16 +373,16 @@ AcpiEvAddressSpaceDispatch (
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Region Init: %s [%s]\n",
                 AcpiFormatException (Status),
                 AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
-            return_ACPI_STATUS(Status);
+            return_ACPI_STATUS (Status);
         }
 
-        RegionObj->Region.Flags |= AOPOBJ_INITIALIZED;
+        RegionObj->Region.Flags |= AOPOBJ_SETUP_COMPLETE;
 
         /*
          *  Save the returned context for use in all accesses to
          *  this particular region.
          */
-        RegionObj->Region.Extra->Extra.RegionContext = RegionContext;
+        RegionObj2->Extra.RegionContext = RegionContext;
     }
 
     /*
@@ -398,7 +410,7 @@ AcpiEvAddressSpaceDispatch (
      */
     Status = Handler (Function, Address, BitWidth, Value,
                       HandlerDesc->AddrHandler.Context,
-                      RegionObj->Region.Extra->Extra.RegionContext);
+                      RegionObj2->Extra.RegionContext);
 
     if (ACPI_FAILURE (Status))
     {
@@ -443,13 +455,19 @@ AcpiEvDisassociateRegionFromHandler(
     ACPI_OPERAND_OBJECT     **LastObjPtr;
     ACPI_ADR_SPACE_SETUP    RegionSetup;
     void                    *RegionContext;
+    ACPI_OPERAND_OBJECT     *RegionObj2;
     ACPI_STATUS             Status;
 
 
     FUNCTION_TRACE ("EvDisassociateRegionFromHandler");
 
 
-    RegionContext = RegionObj->Region.Extra->Extra.RegionContext;
+    RegionObj2 = AcpiNsGetSecondaryObject (RegionObj);
+    if (!RegionObj2)
+    {
+        return;
+    }
+    RegionContext = RegionObj2->Extra.RegionContext;
 
     /*
      *  Get the address handler from the region object
@@ -518,7 +536,7 @@ AcpiEvDisassociateRegionFromHandler(
                     AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
             }
 
-            RegionObj->Region.Flags &= ~(AOPOBJ_INITIALIZED);
+            RegionObj->Region.Flags &= ~(AOPOBJ_SETUP_COMPLETE);
 
             /*
              *  Remove handler reference in the region
@@ -587,18 +605,19 @@ AcpiEvAssociateRegionAndHandler (
 
 
     /*
-     *  Link this region to the front of the handler's list
+     * Link this region to the front of the handler's list
      */
     RegionObj->Region.Next = HandlerObj->AddrHandler.RegionList;
     HandlerObj->AddrHandler.RegionList = RegionObj;
 
     /*
-     *  set the region's handler
+     * Set the region's handler
      */
     RegionObj->Region.AddrHandler = HandlerObj;
 
     /*
-     *  Last thing, tell all users that this region is usable
+     * Tell all users that this region is usable by running the _REG
+     * method
      */
     if (AcpiNsIsLocked)
     {
@@ -624,8 +643,8 @@ AcpiEvAssociateRegionAndHandler (
  *              Level               - Nesting level of the handle
  *              Context             - Passed into AcpiNsWalkNamespace
  *
- * DESCRIPTION: This routine checks to see if the object is a Region if it
- *              is then the address handler is installed in it.
+ * DESCRIPTION: This routine installs an address handler into objects that are
+ *              of type Region.
  *
  *              If the Object is a Device, and the device has a handler of
  *              the same type then the search is terminated in that branch.

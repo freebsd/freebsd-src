@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 57 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -168,7 +168,6 @@ AcpiDbGetPointer (
     /* Simple flat pointer */
 
     ObjPtr = (void *) STRTOUL (Target, NULL, 16);
-
 #endif
 
     return (ObjPtr);
@@ -228,6 +227,7 @@ AcpiDbDecodeAndDisplayObject (
 {
     void                    *ObjPtr;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     UINT32                  Display = DB_BYTE_DISPLAY;
     NATIVE_CHAR             Buffer[80];
     ACPI_BUFFER             RetBuf;
@@ -258,7 +258,6 @@ AcpiDbDecodeAndDisplayObject (
             Display = DB_QWORD_DISPLAY;
         }
     }
-
 
     RetBuf.Length = sizeof (Buffer);
     RetBuf.Pointer = Buffer;
@@ -314,7 +313,6 @@ AcpiDbDecodeAndDisplayObject (
                 return;
             }
 
-
             AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display, ACPI_UINT32_MAX);
             AcpiDbDumpParserDescriptor ((ACPI_PARSE_OBJECT *) ObjPtr);
         }
@@ -368,17 +366,18 @@ DumpNte:
     AcpiUtDumpBuffer ((void *) Node, sizeof (ACPI_NAMESPACE_NODE), Display, ACPI_UINT32_MAX);
     AcpiExDumpNode (Node, 1);
 
-    if (Node->Object)
+    ObjDesc = AcpiNsGetAttachedObject (Node);
+    if (ObjDesc)
     {
-        AcpiOsPrintf ("\nAttached Object (%p):\n", Node->Object);
-        if (!AcpiOsReadable (Node->Object, sizeof (ACPI_OPERAND_OBJECT)))
+        AcpiOsPrintf ("\nAttached Object (%p):\n", ObjDesc);
+        if (!AcpiOsReadable (ObjDesc, sizeof (ACPI_OPERAND_OBJECT)))
         {
-            AcpiOsPrintf ("Invalid internal ACPI Object at address %p\n", Node->Object);
+            AcpiOsPrintf ("Invalid internal ACPI Object at address %p\n", ObjDesc);
             return;
         }
 
-        AcpiUtDumpBuffer ((void *) Node->Object, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
-        AcpiExDumpObjectDescriptor (Node->Object, 1);
+        AcpiUtDumpBuffer ((void *) ObjDesc, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+        AcpiExDumpObjectDescriptor (ObjDesc, 1);
     }
 }
 
@@ -475,7 +474,6 @@ AcpiDbDisplayInternalObject (
         return;
     }
 
-
     /* Decode the object type */
 
     else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_PARSER))
@@ -488,6 +486,7 @@ AcpiDbDisplayInternalObject (
         AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
                         &((ACPI_NAMESPACE_NODE *)ObjDesc)->Name,
                         AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
+
         if (((ACPI_NAMESPACE_NODE *) ObjDesc)->Flags & ANOBJ_METHOD_ARG)
         {
             AcpiOsPrintf (" [Method Arg]");
@@ -623,9 +622,9 @@ AcpiDbDisplayMethodInfo (
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->MethodNode;
+    Node    = WalkState->MethodNode;
 
-    NumArgs = ObjDesc->Method.ParamCount;
+    NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
 
     AcpiOsPrintf ("Currently executing control method is [%4.4s]\n", &Node->Name);
@@ -682,7 +681,6 @@ AcpiDbDisplayMethodInfo (
             break;
         }
 
-
         Op = AcpiPsGetDepthNext (StartOp, Op);
     }
 
@@ -724,8 +722,6 @@ AcpiDbDisplayLocals (void)
 
     ObjDesc = WalkState->MethodDesc;
     Node = WalkState->MethodNode;
-
-
     AcpiOsPrintf ("Local Variables for method [%4.4s]:\n", &Node->Name);
 
     for (i = 0; i < MTH_NUM_LOCALS; i++)
@@ -768,12 +764,13 @@ AcpiDbDisplayArguments (void)
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->MethodNode;
+    Node    = WalkState->MethodNode;
 
-    NumArgs = ObjDesc->Method.ParamCount;
+    NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
 
-    AcpiOsPrintf ("Method [%4.4s] has %X arguments, max concurrency = %X\n", &Node->Name, NumArgs, Concurrency);
+    AcpiOsPrintf ("Method [%4.4s] has %X arguments, max concurrency = %X\n",
+            &Node->Name, NumArgs, Concurrency);
 
     for (i = 0; i < NumArgs; i++)
     {
@@ -821,7 +818,8 @@ AcpiDbDisplayResults (void)
         NumResults = WalkState->Results->Results.NumResults;
     }
 
-    AcpiOsPrintf ("Method [%4.4s] has %X stacked result objects\n", &Node->Name, NumResults);
+    AcpiOsPrintf ("Method [%4.4s] has %X stacked result objects\n",
+        &Node->Name, NumResults);
 
     for (i = 0; i < NumResults; i++)
     {
@@ -860,7 +858,6 @@ AcpiDbDisplayCallingTree (void)
     }
 
     Node = WalkState->MethodNode;
-
     AcpiOsPrintf ("Current Control Method Call Tree\n");
 
     for (i = 0; WalkState; i++)
@@ -926,7 +923,6 @@ AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState)
 {
-
 
     if (!AcpiGbl_CmSingleStep)
     {

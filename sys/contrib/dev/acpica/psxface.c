@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 52 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -220,11 +220,11 @@ AcpiPsxExecute (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart, 
+    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart,
                     ObjDesc->Method.AmlLength, NULL, NULL, 1);
     if (ACPI_FAILURE (Status))
     {
-        /* TBD: delete walk state */
+        AcpiDsDeleteWalkState (WalkState);
         return_ACPI_STATUS (Status);
     }
 
@@ -263,11 +263,11 @@ AcpiPsxExecute (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart, 
+    Status = AcpiDsInitAmlWalk (WalkState, Op, MethodNode, ObjDesc->Method.AmlStart,
                     ObjDesc->Method.AmlLength, Params, ReturnObjDesc, 3);
     if (ACPI_FAILURE (Status))
     {
-        /* TBD: delete walk state */
+        AcpiDsDeleteWalkState (WalkState);
         return_ACPI_STATUS (Status);
     }
 
@@ -287,13 +287,14 @@ AcpiPsxExecute (
         }
     }
 
+    /* Now check status from the method execution */
 
     if (ACPI_FAILURE (Status))
     {
-        DUMP_PATHNAME (MethodNode, "PsExecute: method failed -",
+        REPORT_ERROR (("Method execution failed, %s\n", AcpiFormatException (Status)));
+        DUMP_PATHNAME (MethodNode, "Method pathname: ",
             ACPI_LV_ERROR, _COMPONENT);
     }
-
 
     /*
      * If the method has returned an object, signal this to the caller with
@@ -307,7 +308,6 @@ AcpiPsxExecute (
 
         Status = AE_CTRL_RETURN_VALUE;
     }
-
 
     return_ACPI_STATUS (Status);
 }

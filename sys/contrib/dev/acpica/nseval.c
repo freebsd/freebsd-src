@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 102 $
+ *              $Revision: 104 $
  *
  ******************************************************************************/
 
@@ -217,7 +217,7 @@ AcpiNsEvaluateRelative (
      * to evaluate it.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n",
-        Pathname, Node, Node->Object));
+        Pathname, Node, AcpiNsGetAttachedObject (Node)));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
@@ -295,7 +295,7 @@ AcpiNsEvaluateByName (
      * to evaluate it.
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s [%p] Value %p\n",
-        Pathname, Node, Node->Object));
+        Pathname, Node, AcpiNsGetAttachedObject (Node)));
 
     Status = AcpiNsEvaluateByHandle (Node, Params, ReturnObject);
 
@@ -498,7 +498,7 @@ AcpiNsExecuteControlMethod (
     DUMP_PATHNAME (MethodNode, "NsExecuteControlMethod: Executing",
         ACPI_LV_NAMES, _COMPONENT);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "At offset %p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "At offset %p\n",
             ObjDesc->Method.AmlStart + 1));
 
 

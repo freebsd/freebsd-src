@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 45 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -321,7 +321,7 @@ AcpiTbInitTableDescriptor (
          */
         if (ListHead->Pointer)
         {
-            return_ACPI_STATUS (AE_EXIST);
+            return_ACPI_STATUS (AE_ALREADY_EXISTS);
         }
 
         TableDesc->Count = 1;
@@ -657,7 +657,6 @@ AcpiTbUninstallTable (
         NextDesc = TableDesc->Next;
         ACPI_MEM_FREE (TableDesc);
     }
-
 
 
     return_PTR (NextDesc);

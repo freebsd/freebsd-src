@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresnte - AML Interpreter object resolution
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -178,13 +178,12 @@ AcpiExResolveNodeToValue (
      * The stack pointer points to a ACPI_NAMESPACE_NODE (Node).  Get the
      * object that is attached to the Node.
      */
-    Node      = *ObjectPtr;
-    SourceDesc   = AcpiNsGetAttachedObject (Node);
-    EntryType = AcpiNsGetType ((ACPI_HANDLE) Node);
+    Node       = *ObjectPtr;
+    SourceDesc = AcpiNsGetAttachedObject (Node);
+    EntryType  = AcpiNsGetType ((ACPI_HANDLE) Node);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p Type=%X\n",
          Node, SourceDesc, EntryType));
-
 
     /*
      * Several object types require no further processing:
@@ -210,7 +209,6 @@ AcpiExResolveNodeToValue (
      */
     switch (EntryType)
     {
-
     case ACPI_TYPE_PACKAGE:
 
         if (ACPI_TYPE_PACKAGE != SourceDesc->Common.Type)
@@ -285,7 +283,6 @@ AcpiExResolveNodeToValue (
 
         Status = AcpiExReadDataFromField (SourceDesc, &ObjDesc);
         break;
-
 
     /*
      * For these objects, just return the object attached to the Node
@@ -363,7 +360,7 @@ AcpiExResolveNodeToValue (
 
         ObjDesc->Integer.Value = TempVal;
 
-        /* 
+        /*
          * Truncate value if we are executing from a 32-bit ACPI table
          * AND actually executing AML code.  If we are resolving
          * an object in the namespace via an external call to the
