@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_eon.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_eon.c,v 1.2 1994/08/02 07:50:23 davidg Exp $
  */
 
 /***********************************************************
@@ -61,7 +61,7 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.1.1.1 1994/05/24 10:07:13 rgrimes Exp $ 
+ * $Header: /home/ncvs/src/sys/netiso/if_eon.c,v 1.2 1994/08/02 07:50:23 davidg Exp $ 
  * $Source: /home/ncvs/src/sys/netiso/if_eon.c,v $ 
  *
  *	EON rfc 
@@ -108,7 +108,6 @@ SOFTWARE.
 #include <netiso/eonvar.h>
 
 extern struct timeval time;
-extern struct ifnet loif;
 
 #define EOK 0
 
@@ -286,7 +285,7 @@ register struct sockaddr *gate;
 
 	case RTM_ADD:
 	case RTM_RESOLVE:
-		rt->rt_rmx.rmx_mtu = loif.if_mtu; /* unless better below */
+		rt->rt_rmx.rmx_mtu = loif->if_mtu; /* unless better below */
 		R_Malloc(el, struct eon_llinfo *, sizeof(*el));
 		rt->rt_llinfo = (caddr_t)el;
 		if (el == 0)
