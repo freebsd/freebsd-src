@@ -62,66 +62,72 @@ static const char rcsid[] =
 #include <limits.h>
 #include "finger.h"
 
-void
-cleanup(sig)
-	int sig;
-{
-	exit(0);
-}
+extern int lflag;		/* XXX finger.h? */
+extern int Tflag;		/* XXX finger.h? */
+
+static void cleanup(int sig);;
+static int do_protocol(const char *name, const struct addrinfo *ai);
+static void trying(const struct addrinfo *ai);
 
 void
 netfinger(name)
 	char *name;
 {
-	int cnt;
-	int line_len;
-	extern int lflag;
-	extern int Tflag;
-	register FILE *fp;
-	register int c, lastc;
-	struct in_addr defaddr;
-	struct hostent *hp, def;
-	struct servent *sp;
-	struct sockaddr_in sin;
-	int s;
-	char *alist[1], *host;
-	struct iovec iov[3];
-	struct msghdr msg;
+	int error, multi;
+	char *host;
+	struct addrinfo *ai, *ai0;
+	static struct addrinfo hint;
 
-	if (!(host = rindex(name, '@')))
+	host = strrchr(name, '@');
+	if (host == 0)
 		return;
 	*host++ = '\0';
 	signal(SIGALRM, cleanup);
-	(void) alarm(TIME_LIMIT);
-	if (isdigit(*host) && (defaddr.s_addr = inet_addr(host)) != -1) {
-		def.h_name = host;
-		def.h_addr_list = alist;
-		def.h_addr = (char *)&defaddr;
-		def.h_length = sizeof(struct in_addr);
-		def.h_addrtype = AF_INET;
-		def.h_aliases = 0;
-		hp = &def;
-	} else if (!(hp = gethostbyname(host))) {
-		warnx("unknown host: %s", host);
-		return;
-	}
-	if (!(sp = getservbyname("finger", "tcp"))) {
-		warnx("tcp/finger: unknown service");
-		return;
-	}
-	sin.sin_family = hp->h_addrtype;
-	bcopy(hp->h_addr, (char *)&sin.sin_addr, MIN(hp->h_length,sizeof(sin.sin_addr)));
-	sin.sin_port = sp->s_port;
-	if ((s = socket(hp->h_addrtype, SOCK_STREAM, 0)) < 0) {
-		perror("finger: socket");
+	alarm(TIME_LIMIT);
+
+	hint.ai_flags = AI_CANONNAME;
+	hint.ai_family = PF_UNSPEC;
+	hint.ai_socktype = SOCK_STREAM;
+
+	error = getaddrinfo(host, "finger", &hint, &ai0);
+	if (error) {
+		warnx("%s: %s", host, gai_strerror(error));
 		return;
 	}
 
-	/* have network connection; identify the host connected with */
-	(void)printf("[%s]\n", hp->h_name);
+	multi = (ai0->ai_next) != 0;
+	printf("[%s]\n", ai0->ai_canonname);
 
-	msg.msg_name = (void *)&sin;
-	msg.msg_namelen = sizeof sin;
+	for (ai = ai0; ai != 0; ai = ai->ai_next) {
+		if (multi)
+			trying(ai);
+
+		error = do_protocol(name, ai);
+		if (!error)
+			break;
+	}
+	alarm(0);
+	freeaddrinfo(ai0);
+}
+
+static int
+do_protocol(const char *name, const struct addrinfo *ai)
+{
+	int cnt, error, line_len, s;
+	register FILE *fp;
+	register int c, lastc;
+	struct iovec iov[3];
+	struct msghdr msg;
+
+	s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+	if (s < 0) {
+		warn("socket(%d, %d, %d)", ai->ai_family, ai->ai_socktype,
+		     ai->ai_protocol);
+		return -1;
+	}
+
+	msg.msg_name = (void *)ai->ai_addr;
+	msg.msg_namelen = ai->ai_addrlen;
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 0;
 	msg.msg_control = 0;
@@ -139,16 +145,22 @@ netfinger(name)
 	iov[msg.msg_iovlen].iov_base = "\r\n";
 	iov[msg.msg_iovlen++].iov_len = 2;
 
-	/* -T disables T/TCP: compatibility option to finger broken hosts */
-	if (Tflag && connect(s, (struct sockaddr *)&sin, sizeof (sin))) {
-		perror("finger: connect");
-		return;
+	/*
+	 * -T disables data-on-SYN: compatibility option to finger broken
+	 * hosts.  Also, the implicit-open API is broken on IPv6, so do
+	 * the explicit connect there, too.
+	 */
+	if ((Tflag || ai->ai_addr->sa_family == AF_INET6)
+	    && connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
+		warn("connect");
+		close(s);
+		return -1;
 	}
 
 	if (sendmsg(s, &msg, 0) < 0) {
-		perror("finger: sendmsg");
+		warn("sendmsg");
 		close(s);
-		return;
+		return -1;
 	}
 
 	/*
@@ -199,15 +211,37 @@ netfinger(name)
 			if (lastc == '\n' || lastc == '\r')
 				line_len = 0;
 		}
-		if (lastc != '\n')
-			putchar('\n');
-
 		if (ferror(fp)) {
 			/*
 			 * Assume that whatever it was set errno...
 			 */
-			perror("finger: read");
+			warn("reading from network");
 		}
-		(void)fclose(fp);
+		if (lastc != '\n')
+			putchar('\n');
+
+		fclose(fp);
 	}
+	return 0;
 }
+
+static void
+trying(const struct addrinfo *ai)
+{
+	char buf[NI_MAXHOST];
+
+	if (getnameinfo(ai->ai_addr, ai->ai_addrlen, buf, sizeof buf,
+			(char *)0, 0, NI_NUMERICHOST) != 0)
+		return;		/* XXX can't happen */
+
+	printf("Trying %s...\n", buf);
+}
+
+void
+cleanup(int sig)
+{
+#define	ERRSTR	"Timed out.\n"
+	write(STDERR_FILENO, ERRSTR, sizeof ERRSTR);
+	exit(1);
+}
+
