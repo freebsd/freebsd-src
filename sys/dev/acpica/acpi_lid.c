@@ -55,6 +55,8 @@ struct acpi_lid_softc {
 
 static int	acpi_lid_probe(device_t dev);
 static int	acpi_lid_attach(device_t dev);
+static int	acpi_lid_suspend(device_t dev);
+static int	acpi_lid_resume(device_t dev);
 static void	acpi_lid_notify_status_changed(void *arg);
 static void 	acpi_lid_notify_handler(ACPI_HANDLE h,UINT32 notify, void *context);
 
@@ -62,6 +64,8 @@ static device_method_t acpi_lid_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_lid_probe),
     DEVMETHOD(device_attach,	acpi_lid_attach),
+    DEVMETHOD(device_suspend,	acpi_lid_suspend),
+    DEVMETHOD(device_resume,	acpi_lid_resume),
 
     {0, 0}
 };
@@ -102,7 +106,24 @@ acpi_lid_attach(device_t dev)
      * Install notification handler
      */
     AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY, acpi_lid_notify_handler, sc);
+    acpi_device_enable_wake_capability(sc->lid_handle, 1);
     return_VALUE(0);
+}
+
+static int
+acpi_lid_suspend(device_t dev)
+{
+    struct acpi_lid_softc	*sc;
+
+    sc = device_get_softc(dev);
+    acpi_device_enable_wake_event(sc->lid_handle);
+    return (0);
+}
+
+static int
+acpi_lid_resume(device_t dev)
+{
+    return (0);
 }
 
 static void
