@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.50 2002/07/11 21:14:31 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.51 2002/08/15 09:32:50 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -277,18 +277,19 @@ USB_ATTACH(ulpt)
 		}
 	}
 	if (sc->sc_out == -1) {
-		printf("%s: could not find bulk endpoint\n",
+		printf("%s: could not find bulk out endpoint\n",
 		    USBDEVNAME(sc->sc_dev));
 		sc->sc_dying = 1;
 		USB_ATTACH_ERROR_RETURN;
 	}
-	printf("%s: using %s-directional mode\n", USBDEVNAME(sc->sc_dev),
-	       sc->sc_in >= 0 ? "bi" : "uni");
 
 	if (usbd_get_quirks(dev)->uq_flags & UQ_BROKEN_BIDIR) {
 		/* This device doesn't handle reading properly. */
 		sc->sc_in = -1;
 	}
+
+	printf("%s: using %s-directional mode\n", USBDEVNAME(sc->sc_dev),
+	       sc->sc_in >= 0 ? "bi" : "uni");
 
 	DPRINTFN(10, ("ulpt_attach: bulk=%d\n", sc->sc_out));
 
