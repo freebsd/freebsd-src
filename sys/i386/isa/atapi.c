@@ -1030,10 +1030,6 @@ struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
 #include <sys/lkm.h>
 
 extern int atapi_lock (int ctlr);
-/*
- * XXX "ioconf.h" is not included by <sys/conf.h> for lkms, so we need this
- * misplaced declaration.
- */
 extern void wdintr (int);
 
 /*
