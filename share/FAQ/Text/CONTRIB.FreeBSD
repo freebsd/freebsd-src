@@ -120,6 +120,7 @@ Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Keith Bostic <bostic@toe.CS.Berkeley.EDU>
 Keith Moore <?>
 L Jonas Olsson <ljo@po.cwru.edu>
+Lars Fredriksen <fredriks@mcs.com>
 Marc Frajola <marc@escargot.rain.com>
 Mark Murray <mark@grondar.za>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
@@ -249,4 +250,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.7 1995/05/17 02:01:00 rgrimes Exp $
+$Id: CONTRIB.FreeBSD,v 1.8 1995/05/17 09:53:03 adam Exp $
