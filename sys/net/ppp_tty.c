@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.14 1997/03/23 03:37:17 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.15 1997/03/24 11:24:46 bde Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -96,7 +96,6 @@
 #define KERNEL
 
 #ifdef i386	/* fiddle with the spl locking */
-# include <machine/spl.h>
 # include <i386/isa/isa_device.h>
 #endif
 
@@ -184,8 +183,8 @@ pppasyncattach(dummy)
      * active.  The if_ppp.c code can walk down into b_to_q etc, and it is
      * bad if the tty system was in the middle of another b_to_q...
      */
-    tty_imask |= SWI_NET_MASK;	/* spltty() block spl[soft]net() */
-    net_imask |= SWI_TTY_MASK;	/* splimp() block splsofttty() */
+    tty_imask |= softnet_imask;	/* spltty() block spl[soft]net() */
+    net_imask |= softtty_imask;	/* splimp() block splsofttty() */
     net_imask |= tty_imask;	/* splimp() block spltty() */
     update_intr_masks();
 
