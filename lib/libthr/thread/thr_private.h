@@ -156,13 +156,43 @@ struct pthread_mutex_attr {
 	{ PTHREAD_MUTEXATTR_STATIC_INITIALIZER, UMTX_INITIALIZER, NULL,	\
 	0, 0, TAILQ_INITIALIZER }
 
+union pthread_mutex_data {
+        void    *m_ptr;
+        int     m_count;
+};
+
 struct pthread_mutex {
-	struct pthread_mutex_attr	m_attr;		/* Mutex attributes. */
-	struct umtx			m_mtx;		/* Mutex. */
-	struct pthread			*m_owner;	/* Current owner. */
-	int				m_count;	/* Recursion count. */
-	int				m_refcount;	/* Reference count. */
-	TAILQ_ENTRY(pthread_mutex)	m_qe;		/* All locks held. */
+        enum pthread_mutextype          m_type;
+        int                             m_protocol;
+        TAILQ_HEAD(mutex_head, pthread) m_queue;
+        struct pthread                  *m_owner;
+        union pthread_mutex_data        m_data;
+        long                            m_flags;
+        int                             m_refcount;
+
+        /*
+         * Used for priority inheritence and protection.
+         *
+         *   m_prio       - For priority inheritence, the highest active
+         *                  priority (threads locking the mutex inherit
+         *                  this priority).  For priority protection, the
+         *                  ceiling priority of this mutex.
+         *   m_saved_prio - mutex owners inherited priority before
+         *                  taking the mutex, restored when the owner
+         *                  unlocks the mutex.
+         */
+        int                             m_prio;
+        int                             m_saved_prio;
+
+        /*
+         * Link for list of all mutexes a thread currently owns.
+         */
+        TAILQ_ENTRY(pthread_mutex)      m_qe;
+
+        /*
+         * Lock for accesses to this structure.
+         */
+        spinlock_t                      lock;
 };
 
 /*
