@@ -79,7 +79,6 @@ struct pcibus {
 	pcici_t (*pb_ftag  )  (pcici_t tag, u_char func);
 	u_long	(*pb_read  )  (pcici_t tag, u_long reg);
 	void	(*pb_write )  (pcici_t tag, u_long reg, u_long data);
-	unsigned  pb_maxirq;
 	int	(*pb_iattach) (int irq, inthand2_t *func, int arg,
 			       unsigned *maskptr);
 	int	(*pb_idetach) (int irq, inthand2_t *func);
