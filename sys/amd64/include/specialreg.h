@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.12 1997/02/22 09:35:15 peter Exp $
+ *	$Id: specialreg.h,v 1.13 1997/03/22 18:53:11 kato Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -42,9 +42,7 @@
  */
 #define	CR0_PE	0x00000001	/* Protected mode Enable */
 #define	CR0_MP	0x00000002	/* "Math" Present (NPX or NPX emulator) */
-#ifdef notused
 #define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
-#endif
 #define	CR0_TS	0x00000008	/* Task Switched (if MP, trap ESC and WAIT) */
 #ifdef notused
 #define	CR0_ET	0x00000010	/* Extension Type (387 (if set) vs 287) */
