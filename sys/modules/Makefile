@@ -378,6 +378,7 @@ _agp=		agp
 _drm=		drm
 _io=		io
 #_ndis=		ndis
+_sound=		sound
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
