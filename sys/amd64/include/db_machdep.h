@@ -48,6 +48,8 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define	BKPT_SIZE	(1)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
+#define BKPT_SKIP		ddb_regs.tf_eip += 1
+
 #define	FIXUP_PC_AFTER_BREAK	ddb_regs.tf_eip -= 1;
 
 #define	db_clear_single_step(regs)	((regs)->tf_eflags &= ~PSL_T)

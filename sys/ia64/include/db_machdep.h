@@ -41,6 +41,11 @@
 
 #define DB_NO_AOUT
 
+struct ia64_bundle {
+	u_int64_t	slot[3];
+	int		template;
+};
+
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
 typedef struct trapframe db_regs_t;
@@ -50,16 +55,16 @@ db_regs_t		ddb_regs;	/* register state */
 #define	PC_REGS(regs)	((db_addr_t)(regs)->tf_cr_iip \
 			 + (((regs)->tf_cr_ipsr >> 41) & 3))
 
-#define	BKPT_INST	0x00000080	/* breakpoint instruction */
-#define	BKPT_SIZE	(4)		/* size of breakpoint inst */
-#define	BKPT_SET(inst)	(BKPT_INST)
+#define BKPT_WRITE(addr, storage)	db_write_breakpoint(addr, storage)
+#define BKPT_CLEAR(addr, storage)	db_clear_breakpoint(addr, storage)
+#define BKPT_INST_TYPE			u_int64_t
 
-#define	FIXUP_PC_AFTER_BREAK
+#define BKPT_SKIP			db_skip_breakpoint()
 
-#define db_clear_single_step(regs)	0
-#define db_set_single_step(regs)	0
+#define db_clear_single_step(regs)	ddb_regs.tf_cr_ipsr &= ~IA64_PSR_SS
+#define db_set_single_step(regs)	ddb_regs.tf_cr_ipsr |= IA64_PSR_SS
 
-#define	IS_BREAKPOINT_TRAP(type, code)	0
+#define	IS_BREAKPOINT_TRAP(type, code)	(type == IA64_VEC_BREAK)
 #define	IS_WATCHPOINT_TRAP(type, code)	0
 
 #define	inst_trap_return(ins)	0
@@ -85,6 +90,12 @@ int	kdb_trap(int vector, struct trapframe *regs);
 u_int64_t *db_rse_current_frame(void);
 u_int64_t *db_rse_previous_frame(u_int64_t *bsp, int sof);
 u_int64_t *db_rse_register_address(u_int64_t *bsp, int regno);
+
+void	db_read_bundle(db_addr_t addr, struct ia64_bundle *bp);
+void	db_write_bundle(db_addr_t addr, struct ia64_bundle *bp);
+void	db_write_breakpoint(db_addr_t addr, u_int64_t *storage);
+void	db_clear_breakpoint(db_addr_t addr, u_int64_t *storage);
+void	db_skip_breakpoint(void);
 
 /*
  * Pretty arbitrary
