@@ -174,7 +174,6 @@ int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
 int fget_write(struct thread *td, int fd, struct file **fpp);
 int fdrop(struct file *fp, struct thread *td);
-int fdrop_locked(struct file *fp, struct thread *td);
 
 /*
  * The socket operations are used a couple of places.
