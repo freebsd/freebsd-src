@@ -480,6 +480,8 @@ v86mon.2:	cmpb $0xf4,%al			# HLT?
 		jmp intrtn			# Return to user mode
 v86mon.3:	cmpb $0xf,%al			# Prefixed instruction?
 		jne v86mon.4			# No
+		cmpb $0x09,(%esi)		# Is it a WBINVD?
+		je v86wbinvd			# Yes
 		cmpb $0x30,(%esi)		# Is it a WRMSR?
 		je v86wrmsr			# Yes
 		cmpb $0x32,(%esi)		# Is it a RDMSR?
@@ -522,9 +524,18 @@ v86mon.7:	subl %edi,%esi			# From linear
 #
 v86mov: 	movl %cr0,%eax			# CR0 to
 		movl %eax,0x1c(%ebp)		#  saved EAX
-		incl %esi			# Adjust
-		incl %esi			#  IP
+		incl %esi			# Adjust IP
+#
+# Return from emulating a 0x0f prefixed instruction
+#
+v86preret:	incl %esi			# Adjust IP
 		jmp v86mon.7			# Finish up
+#
+# Emulate WBINVD
+#
+v86wbinvd:	wbinvd				# Write back and invalidate
+						#  cache
+		jmp v86preret			# Finish up
 #
 # Emulate WRMSR
 #
@@ -532,8 +543,7 @@ v86wrmsr:	movl 0x18(%ebp),%ecx		# Get user's %ecx (MSR to write)
 		movl 0x14(%ebp),%edx		# Load the value
 		movl 0x1c(%ebp),%eax		#  to write
 		wrmsr				# Write MSR
-		incl %esi			# Adjust IP
-		jmp v86mon.7			# Finish up
+		jmp v86preret			# Finish up
 #
 # Emulate RDMSR
 #
@@ -541,8 +551,7 @@ v86rdmsr:	movl 0x18(%ebp),%ecx		# MSR to read
 		rdmsr				# Read the MSR
 		movl %eax,0x1c(%ebp)		# Return the value of
 		movl %edx,0x14(%ebp)		#  the MSR to the user
-		incl %esi			# Adjust IP
-		jmp v86mon.7
+		jmp v86preret			# Finish up
 #
 # Emulate CLI.
 #
