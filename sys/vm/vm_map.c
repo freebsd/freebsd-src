@@ -79,7 +79,6 @@
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/sysent.h>
-#include <sys/stdint.h>
 #include <sys/shm.h>
 
 #include <vm/vm.h>

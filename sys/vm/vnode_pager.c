@@ -60,7 +60,6 @@
 #include <sys/buf.h>
 #include <sys/vmmeter.h>
 #include <sys/conf.h>
-#include <sys/stdint.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

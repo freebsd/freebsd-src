@@ -40,7 +40,6 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/fbio.h>
-#include <sys/stdint.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

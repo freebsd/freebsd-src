@@ -51,7 +51,6 @@
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
-#include <sys/stdint.h>
 
 #include <machine/limits.h>
 

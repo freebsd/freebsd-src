@@ -46,6 +46,7 @@
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>		/* for people using printf mainly */
 
 extern int securelevel;		/* system security level (see init(8)) */
 extern int suser_enabled;	/* suser() is permitted to return 0 */

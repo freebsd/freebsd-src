@@ -44,7 +44,6 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -75,7 +75,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <sys/stdint.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

@@ -40,7 +40,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/stdint.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
