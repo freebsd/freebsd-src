@@ -1699,6 +1699,7 @@ crfree(cr)
 		 * allocate a uidinfo structure.
 		 */
 		mtx_unlock(mtxp);
+		mtx_lock(&Giant);
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
 		if (cr->cr_ruidinfo != NULL)
@@ -1709,6 +1710,7 @@ crfree(cr)
 		if (jailed(cr))
 			prison_free(cr->cr_prison);
 		FREE((caddr_t)cr, M_CRED);
+		mtx_unlock(&Giant);
 	} else {
 		mtx_unlock(mtxp);
 	}
@@ -1760,6 +1762,19 @@ crdup(cr)
 	crcopy(newcr, cr);
 	return (newcr);
 }
+
+#ifdef DIAGNOSTIC
+void
+cred_free_thread(struct thread *td)
+{
+	struct ucred *cred;
+
+	cred = td->td_ucred;
+	td->td_ucred = NULL;
+	if (cred != NULL)
+		crfree(cred);
+}
+#endif
 
 /*
  * Fill in a struct xucred based on a struct ucred.
