@@ -14,6 +14,7 @@ CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-I${.CURDIR}/../../lib -DINET6
 
 WARNS?=		2
+WFORMAT?=	0
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
