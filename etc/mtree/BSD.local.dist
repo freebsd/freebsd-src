@@ -431,6 +431,8 @@
             ..
             ro_RO.ISO8859-2
             ..
+            ru_RU.CP1251
+            ..
             ru_RU.CP866
             ..
             ru_RU.ISO8859-5

@@ -36,6 +36,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		pt_BR.ISO8859-1 \
 		pt_PT.ISO8859-1 \
 		ro_RO.ISO8859-2 \
+		ru_RU.CP1251 \
 		ru_RU.CP866 \
 		ru_RU.ISO8859-5 \
 		ru_RU.KOI8-R \
