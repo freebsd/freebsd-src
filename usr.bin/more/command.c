@@ -610,6 +610,8 @@ editfile()
 		base = strrchr(editor, '/');
 		if (!base)
 			base = editor;
+		else
+			base++;
 
 		/* emacs also accepts vi-style +nnnn */
 		if (strcmp(base, "vi") == 0 || strcmp(base, "emacs") == 0)
