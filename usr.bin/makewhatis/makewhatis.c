@@ -225,10 +225,6 @@ sbuf_need(struct sbuf *sbuf, int nchars)
 		size *= 2;
 		cntsize = sbuf->end - sbuf->content;
 
-		printf("sbuf %p content %p;"
-		    " allocating %d bytes for %d bytes of content to hold"
-		    " %d bytes\n", sbuf, sbuf->content, size, cntsize, nchars);
-
 		new_content = (char *)malloc(size);
 		memcpy(new_content, sbuf->content, cntsize);
 		free(sbuf->content);
