@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.44 1995/07/13 08:48:47 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.45 1995/09/04 00:21:16 dyson Exp $
  */
 
 /*
@@ -76,6 +76,9 @@ struct pagerops vnodepagerops = {
 	NULL
 };
 
+static int vnode_pager_leaf_getpages();
+
+static int vnode_pager_leaf_putpages();
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.
@@ -186,7 +189,10 @@ vnode_pager_haspage(object, offset, before, after)
 	struct vnode *vp = object->handle;
 	daddr_t bn;
 	int err, run;
-	daddr_t startblock, reqblock;
+	daddr_t reqblock;
+	int poff;
+	int bsize = vp->v_mount->mnt_stat.f_iosize;
+	int pagesperblock;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
@@ -195,43 +201,21 @@ vnode_pager_haspage(object, offset, before, after)
 	if ((vp->v_mount == NULL) || (offset >= object->un_pager.vnp.vnp_size))
 		return FALSE;
 
-	startblock = reqblock = offset / vp->v_mount->mnt_stat.f_iosize;
-	if (startblock > PFCLUSTER_BEHIND)
-		startblock -= PFCLUSTER_BEHIND;
-	else
-		startblock = 0;;
-
-	if (before != NULL) {
-		/*
-		 * Loop looking for a contiguous chunk that includes the
-		 * requested page.
-		 */
-		while (TRUE) {
-			err = VOP_BMAP(vp, startblock, (struct vnode **) 0, &bn, &run, NULL);
-			if (err || bn == -1) {
-				if (startblock < reqblock) {
-					startblock++;
-					continue;
-				}
-				*before = 0;
-				if (after != NULL)
-					*after = 0;
-				return err ? TRUE : FALSE;
-			}
-			if ((startblock + run) < reqblock) {
-				startblock += run + 1;
-				continue;
-			}
-			*before = reqblock - startblock;
-			if (after != NULL)
-				*after = run;
-			return TRUE;
-		}
-	}
-
-	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn, after, NULL);
+	pagesperblock = bsize / PAGE_SIZE;
+	reqblock = offset / bsize;
+	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
+		after, before);
 	if (err)
 		return TRUE;
+	poff = (offset - (reqblock * bsize)) / PAGE_SIZE;
+	if (before) {
+		*before *= pagesperblock;
+		*before += poff;
+	}
+	if (after) {
+		*after *= pagesperblock;
+		*after += (pagesperblock - (poff + 1));
+	}
 	return ((long) bn < 0 ? FALSE : TRUE);
 }
 
@@ -475,8 +459,7 @@ vnode_pager_input_smlfs(object, m)
 			if (error)
 				break;
 
-			vm_page_set_clean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
-			vm_page_set_valid(m, (i * bsize) & (PAGE_SIZE-1), bsize);
+			vm_page_set_validclean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
 		} else {
 			vm_page_set_clean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
 			bzero((caddr_t) kva + i * bsize, bsize);
@@ -553,8 +536,26 @@ vnode_pager_input_old(object, m)
 /*
  * generic vnode pager input routine
  */
+
 int
 vnode_pager_getpages(object, m, count, reqpage)
+	vm_object_t object;
+	vm_page_t *m;
+	int count;
+	int reqpage;
+{
+	int rtval;
+	struct vnode *vp;
+	vp = object->handle;
+	rtval = VOP_GETPAGES(vp, m, count, reqpage);
+	if (rtval == EOPNOTSUPP)
+		return vnode_pager_leaf_getpages(object, m, count, reqpage);
+	else
+		return rtval;
+}
+
+static int
+vnode_pager_leaf_getpages(object, m, count, reqpage)
 	vm_object_t object;
 	vm_page_t *m;
 	int count;
@@ -772,11 +773,29 @@ vnode_pager_getpages(object, m, count, reqpage)
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
+int
+vnode_pager_putpages(object, m, count, sync, rtvals)
+	vm_object_t object;
+	vm_page_t *m;
+	int count;
+	boolean_t sync;
+	int *rtvals;
+{
+	int rtval;
+	struct vnode *vp;
+	vp = object->handle;
+	rtval = VOP_PUTPAGES(vp, m, count, sync, rtvals);
+	if (rtval == EOPNOTSUPP)
+		return vnode_pager_leaf_putpages(object, m, count, sync, rtvals);
+	else
+		return rtval;
+}
+
 /*
  * generic vnode pager output routine
  */
-int
-vnode_pager_putpages(object, m, count, sync, rtvals)
+static int
+vnode_pager_leaf_putpages(object, m, count, sync, rtvals)
 	vm_object_t object;
 	vm_page_t *m;
 	int count;
