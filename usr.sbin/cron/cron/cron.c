@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: cron.c,v 1.6 1997/09/15 06:39:04 charnier Exp $";
+	"$Id: cron.c,v 1.7 1998/07/06 20:28:04 bde Exp $";
 #endif
 
 #define	MAIN_PROGRAM
@@ -227,28 +227,40 @@ cron_sync() {
 
 static void
 cron_sleep() {
-	register int	seconds_to_wait;
+	int	seconds_to_wait = 0;
 
-	do {
+	/*
+	 * Loop until we reach the top of the next minute, sleep when possible.
+	 */
+
+	for (;;) {
 		seconds_to_wait = (int) (TargetTime - time((time_t*)0));
+
+		/*
+		 * If the seconds_to_wait value is insane, jump the cron
+		 */
+
+		if (seconds_to_wait < -600 || seconds_to_wait > 600) {
+			cron_sync();
+			continue;
+		}
+
 		Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
 			getpid(), (long)TargetTime, seconds_to_wait))
 
-		/* if we intend to sleep, this means that it's finally
-		 * time to empty the job queue (execute it).
-		 *
-		 * if we run any jobs, we'll probably screw up our timing,
-		 * so go recompute.
-		 *
-		 * note that we depend here on the left-to-right nature
-		 * of &&, and the short-circuiting.
+		/*
+		 * If we've run out of wait time or there are no jobs left
+		 * to run, break
 		 */
-	} while (seconds_to_wait > 0 && job_runqueue());
 
-	while (seconds_to_wait > 0) {
-		Debug(DSCH, ("[%d] sleeping for %d seconds\n",
-			getpid(), seconds_to_wait))
-		seconds_to_wait = (int) sleep((unsigned int) seconds_to_wait);
+		if (seconds_to_wait <= 0)
+			break;
+		if (job_runqueue() == 0) {
+			Debug(DSCH, ("[%d] sleeping for %d seconds\n",
+				getpid(), seconds_to_wait))
+
+			sleep(seconds_to_wait);
+		}
 	}
 }
 
