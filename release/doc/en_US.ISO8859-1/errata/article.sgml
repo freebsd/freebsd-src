@@ -333,5 +333,12 @@
       &release.prev; server.  This bug has been fixed in
       &release.current;.</para>
 
+    <bridgehead renderas="sect3">nsswitch</bridgehead>
+
+    <para>The release note documenting the addition of
+      <application>nsswitch</application> support gave an incorrect
+      name for the old resolver configuration file.  It should have
+      been listed as <filename>/etc/host.conf</filename>.</para>
+
   </sect1>
 </article>
