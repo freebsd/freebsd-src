@@ -38,15 +38,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)bpf.c	8.1 (Berkeley) 6/4/93
- *	$Id$
+ *	from: @(#)bpf.c	8.1 (Berkeley) 6/4/93
+ *	$Id: bpf.c,v 1.6 1997/02/22 14:21:57 peter Exp $
  *
- * Utah $Hdr: bpf.c 3.1 92/07/06$
+ * From: Utah Hdr: bpf.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)bpf.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)bpf.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ static char sccsid[] = "@(#)bpf.c	8.1 (Berkeley) 6/4/93";
 
 static int BpfFd = -1;
 static unsigned BpfLen = 0;
-static u_char *BpfPkt = NULL;
+static u_int8_t *BpfPkt = NULL;
 
 /*
 **  BpfOpen -- Open and initialize a BPF device.
@@ -147,14 +147,9 @@ BpfOpen()
 #endif
 	ifr.ifr_addr.sa_family = AF_UNSPEC;
 	bcopy(&RmpMcastAddr[0], (char *)&ifr.ifr_addr.sa_data[0], RMP_ADDRLEN);
-	if (ioctl(BpfFd, SIOCADDMULTI, (caddr_t)&ifr) < 0) {
-		syslog(LOG_WARNING,
-		    "bpf: can't add mcast addr (%m), setting promiscuous mode");
-
-		if (ioctl(BpfFd, BIOCPROMISC, (caddr_t)0) < 0) {
-			syslog(LOG_ERR, "bpf: can't set promiscuous mode: %m");
-			Exit(0);
-		}
+	if (ioctl(BpfFd, BIOCPROMISC, (caddr_t)0) < 0) {
+		syslog(LOG_ERR, "bpf: can't set promiscuous mode: %m");
+		Exit(0);
 	}
 
 	/*
@@ -165,7 +160,7 @@ BpfOpen()
 		Exit(0);
 	}
 	if (BpfPkt == NULL)
-		BpfPkt = (u_char *)malloc(BpfLen);
+		BpfPkt = (u_int8_t *)malloc(BpfLen);
 
 	if (BpfPkt == NULL) {
 		syslog(LOG_ERR, "bpf: out of memory (%u bytes for bpfpkt)",
@@ -314,7 +309,7 @@ BpfRead(rconn, doread)
 	int doread;
 {
 	register int datlen, caplen, hdrlen;
-	static u_char *bp = NULL, *ep = NULL;
+	static u_int8_t *bp = NULL, *ep = NULL;
 	int cc;
 
 	/*

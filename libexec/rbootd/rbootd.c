@@ -38,28 +38,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rbootd.c	8.2 (Berkeley) 2/22/94
- *	$Id: rbootd.c,v 1.5 1997/02/22 14:21:58 peter Exp $
+ *	from: @(#)rbootd.c	8.1 (Berkeley) 6/4/93
+ *	$Id: rbootd.c,v 1.6 1997/03/28 15:48:14 imp Exp $
  *
- * Utah $Hdr: rbootd.c 3.1 92/07/06$
+ * From: Utah Hdr: rbootd.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rbootd.c	8.2 (Berkeley) 2/22/94";
+static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
-
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -70,19 +69,7 @@ static char sccsid[] = "@(#)rbootd.c	8.2 (Berkeley) 2/22/94";
 #include <unistd.h>
 #include "defs.h"
 
-
-/* fd mask macros (backward compatibility with 4.2BSD) */
-#ifndef	FD_SET
-#ifdef	notdef
-typedef	struct fd_set {		/* this should already be in 4.2 */
-	int fds_bits[1];
-} fd_set;
-#endif
-#define	FD_ZERO(p)	((p)->fds_bits[0] = 0)
-#define	FD_SET(n, p)	((p)->fds_bits[0] |= (1 << (n)))
-#define	FD_CLR(n, p)	((p)->fds_bits[0] &= ~(1 << (n)))
-#define	FD_ISSET(n, p)	((p)->fds_bits[0] & (1 << (n)))
-#endif
+extern	char *__progname;	/* from crt0.o */
 
 int
 main(argc, argv)
@@ -91,11 +78,6 @@ main(argc, argv)
 {
 	int c, fd, omask, maxfds;
 	fd_set rset;
-
-	/*
-	 *  Find what name we are running under.
-	 */
-	ProgName = (ProgName = rindex(argv[0],'/')) ? ++ProgName : *argv;
 
 	/*
 	 *  Close any open file descriptors.
@@ -130,9 +112,8 @@ main(argc, argv)
 		if (ConfigFile == NULL)
 			ConfigFile = argv[optind];
 		else {
-			fprintf(stderr,
-			        "%s: too many config files (`%s' ignored)\n",
-			        ProgName, argv[optind]);
+			warnx("too many config files (`%s' ignored)\n",
+			    argv[optind]);
 		}
 	}
 
@@ -144,57 +125,16 @@ main(argc, argv)
 
 		(void) signal(SIGUSR1, SIG_IGN);	/* dont muck w/DbgFp */
 		(void) signal(SIGUSR2, SIG_IGN);
+		(void) fclose(stderr);			/* finished with it */
 	} else {
-		(void) fclose(stdin);			/* dont need these */
-		(void) fclose(stdout);
-
-		/*
-		 *  Fork off a child to do the work & exit.
-		 */
-		switch(fork()) {
-			case -1:	/* fork failed */
-				fprintf(stderr, "%s: ", ProgName);
-				perror("fork");
-				Exit(0);
-			case 0:		/* this is the CHILD */
-				break;
-			default:	/* this is the PARENT */
-				_exit(0);
-		}
-
-		/*
-		 *  Try to disassociate from the current tty.
-		 */
-		{
-			char *devtty = "/dev/tty";
-			int i;
-
-			if ((i = open(devtty, O_RDWR)) < 0) {
-				/* probably already disassociated */
-				if (setpgrp(0, 0) < 0) {
-					fprintf(stderr, "%s: ", ProgName);
-					perror("setpgrp");
-				}
-			} else {
-				if (ioctl(i, (u_long)TIOCNOTTY, (char *)0) < 0){
-					fprintf(stderr, "%s: ", ProgName);
-					perror("ioctl");
-				}
-				(void) close(i);
-			}
-		}
+		if (daemon(0, 0))
+			err(1, "can't detach from terminal");
 
 		(void) signal(SIGUSR1, DebugOn);
 		(void) signal(SIGUSR2, DebugOff);
 	}
 
-	(void) fclose(stderr);		/* finished with it */
-
-#ifdef SYSLOG4_2
-	openlog(ProgName, LOG_PID);
-#else
-	openlog(ProgName, LOG_PID, LOG_DAEMON);
-#endif
+	openlog(__progname, LOG_PID, LOG_DAEMON);
 
 	/*
 	 *  If no interface was specified, get one now.
@@ -238,7 +178,7 @@ main(argc, argv)
 		FILE *fp;
 
 		if ((fp = fopen(PidFile, "w")) != NULL) {
-			(void) fprintf(fp, "%d\n", MyPid);
+			(void) fprintf(fp, "%d\n", (int) MyPid);
 			(void) fclose(fp);
 		} else {
 			syslog(LOG_WARNING, "fopen: failed (%s)", PidFile);
@@ -287,13 +227,11 @@ main(argc, argv)
 		r = rset;
 
 		if (RmpConns == NULL) {		/* timeout isnt necessary */
-			nsel = select(maxfds, &r, (fd_set *)0, (fd_set *)0,
-			              (struct timeval *)0);
+			nsel = select(maxfds, &r, NULL, NULL, NULL);
 		} else {
 			timeout.tv_sec = RMP_TIMEOUT;
 			timeout.tv_usec = 0;
-			nsel = select(maxfds, &r, (fd_set *)0, (fd_set *)0,
-			              &timeout);
+			nsel = select(maxfds, &r, NULL, NULL, &timeout);
 		}
 
 		if (nsel < 0) {
