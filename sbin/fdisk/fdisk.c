@@ -472,6 +472,7 @@ print_part(int i)
 static void
 init_boot(void)
 {
+#ifndef __ia64__
 	const char *fname;
 	int fdesc, n;
 	struct stat sb;
@@ -491,6 +492,15 @@ init_boot(void)
 		err(1, "%s", fname);
 	if (n != mboot.bootinst_size)
 		errx(1, "%s: short read", fname);
+#else
+	if (mboot.bootinst != NULL)
+		free(mboot.bootinst);
+	mboot.bootinst_size = secsize;
+	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL)
+		errx(1, "unable to allocate boot block buffer");
+	memset(mboot.bootinst, 0, mboot.bootinst_size);
+	*(uint16_t *)&mboot.bootinst[MBRSIGOFF] = BOOT_MAGIC;
+#endif
 }
 
 
