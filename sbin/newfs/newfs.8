@@ -34,7 +34,7 @@
 .\"
 .Dd December 19, 2000
 .Dt NEWFS 8
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm newfs ,
 .Nm mount_mfs
@@ -84,9 +84,7 @@
 .Ar special node
 .Sh DESCRIPTION
 .Nm Newfs
-replaces the more obtuse
-.Xr mkfs 8
-program.
+is used to initialize and clear filesystems before first use.
 Before running
 .Nm
 or
@@ -344,6 +342,15 @@ See the
 man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
+.Dl newfs -b 16384 -f 4096 -c 100 /dev/ad3s1a
+.Pp
+Creates a new ufs file system on
+.Pa ad3s1a .
+.Nm
+will use a block size of 16384 bytes, a fragement size of 4096 bytes
+and have 100 cylinders per cylinder group rather than the defaults.
+These values are tend to produce better performance than the defaults
+for file systems larger than about 5 gigabytes.
 .Pp
 .Dl mount_mfs -s 131072 -o nosuid,nodev,nosymfollow /dev/da0s1b /tmp
 .Pp
