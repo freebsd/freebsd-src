@@ -311,7 +311,7 @@ main(int argc, char *argv[])
 	/* XXX - should be cleaner */
 	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
 		if ((uids = malloc(sizeof (*uids))) == NULL)
-			err(1, "malloc");
+			errx(1, "malloc failed");
 		nuids = 1;
 		*uids = getuid();
 	}
@@ -343,7 +343,7 @@ main(int argc, char *argv[])
 	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0 || nentries < 0)
 		errx(1, "%s", kvm_geterr(kd));
 	if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	for (i = nentries; --i >= 0; ++kp) {
 		kinfo[i].ki_p = kp;
 		if (needuser)
@@ -424,7 +424,7 @@ getuids(const char *arg, int *nuids)
 			moreuids = realloc(uids, alloc * sizeof (*uids));
 			if (moreuids == NULL) {
 				free(uids);
-				err(1, "realloc");
+				errx(1, "realloc failed");
 			}
 			uids = moreuids;
 		}
@@ -500,8 +500,6 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 	const char *s;
 
 	s = fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen);
-	if (s == NULL)
-		err(1, NULL);
 	return (s);
 }
 
@@ -578,7 +576,7 @@ kludge_oldps_options(char *s)
 
 	len = strlen(s);
 	if ((newopts = ns = malloc(len + 2)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	/*
 	 * options begin with '-'
 	 */

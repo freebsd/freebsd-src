@@ -108,11 +108,11 @@ command(KINFO *k, VARENT *ve)
 	}
 
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
 	if (k->ki_env) {
 		if ((vis_env = malloc(strlen(k->ki_env) * 4 + 1)) == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		strvis(vis_env, k->ki_env, VIS_TAB | VIS_NL | VIS_NOSLASH);
 	} else
 		vis_env = NULL;
