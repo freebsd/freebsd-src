@@ -551,6 +551,10 @@ apic_init(void *dummy __unused)
 	if (!(cpu_feature & CPUID_APIC))
 		return;
 
+	/* Don't probe if APIC mode is disabled. */
+	if (resource_disabled("apic", 0))
+		return;
+
 	/* First, probe all the enumerators to find the best match. */
 	best_enum = NULL;
 	best = 0;
