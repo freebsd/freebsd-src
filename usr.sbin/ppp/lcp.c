@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.12 1997/02/22 16:10:23 peter Exp $
+ * $Id: lcp.c,v 1.13 1997/03/13 21:22:06 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -134,7 +134,7 @@ int new;
     }
     break;
   case PHASE_DEAD:
-    if (mode & MODE_DIRECT)
+    if (mode & (MODE_DIRECT|MODE_BACKGROUND))
       Cleanup(EX_DEAD);
     break;
   }
