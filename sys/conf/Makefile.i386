@@ -91,15 +91,10 @@ NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c
-# setdef0.c and setdef1.c are intentionally
-# omitted from SYSTEM_CFILES.  They include setdefs.h, a header which
-# is generated from all of ${OBJS}.  We don't want to have to compile
-# everything just to do a make depend.
 SYSTEM_CFILES= param.c vnode_if.c hints.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} param.o hints.o config.o \
-	setdef1.o hack.So
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} param.o hints.o config.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -183,17 +178,6 @@ hack.So: Makefile
 	touch hack.c
 	${CC} ${FMT} -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
-
-.ORDER: setdefs.h setdef0.c setdef1.c
-
-setdef0.o: setdef0.c setdefs.h
-	${NORMAL_C}
-
-setdef1.o: setdef1.c setdefs.h
-	${NORMAL_C}
-
-setdef0.c setdef1.c setdefs.h: Makefile ${OBJS}
-	@perl5 $S/kern/gensetdefs.pl ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s

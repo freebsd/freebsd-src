@@ -64,8 +64,6 @@ static int ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS);
 static int ncp_conn_lock_any(struct ncp_conn *conn, struct proc *p, 
     struct ucred *cred);
 
-extern struct linker_set sysctl_net_ncp;
-
 SYSCTL_DECL(_net_ncp);
 SYSCTL_INT (_net_ncp, OID_AUTO, burst_enabled, CTLFLAG_RD, &ncp_burst_enabled, 0, "");
 SYSCTL_INT (_net_ncp, OID_AUTO, conn_cnt, CTLFLAG_RD, &ncp_conn_cnt, 0, "");

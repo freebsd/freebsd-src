@@ -64,8 +64,6 @@
 
 static int nwfs_fastlookup = 1;
 
-extern struct linker_set sysctl_vfs_nwfs;
-
 SYSCTL_DECL(_vfs_nwfs);
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, fastlookup, CTLFLAG_RW, &nwfs_fastlookup, 0, "");
 

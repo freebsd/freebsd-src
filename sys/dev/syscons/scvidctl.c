@@ -40,6 +40,8 @@
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
 
+SET_DECLARE(scrndr_set, const sc_renderer_t);
+
 /* for compatibility with previous versions */
 /* 3.0-RELEASE used the following structure */
 typedef struct old_video_adapter {
@@ -803,8 +805,8 @@ sc_rndr_sw_t
 			}
 		}
 	} else {
-		list = (const sc_renderer_t **)scrndr_set.ls_items;
-		while ((p = *list++) != NULL) {
+		SET_FOREACH(list, scrndr_set) {
+			p = *list;
 			if ((strcmp(p->name, name) == 0)
 				&& (mode == p->mode)) {
 				scp->status &=

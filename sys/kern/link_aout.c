@@ -72,6 +72,8 @@ static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
 						c_linker_sym_t* sym, long* diffp);
 static void		link_aout_unload_file(linker_file_t);
 static void		link_aout_unload_preload(linker_file_t);
+static int		link_aout_lookup_set(linker_file_t, const char*,
+					     void ***, void ***, int*);
 
 static kobj_method_t link_aout_methods[] = {
     KOBJMETHOD(linker_lookup_symbol,	link_aout_lookup_symbol),
@@ -81,6 +83,7 @@ static kobj_method_t link_aout_methods[] = {
     KOBJMETHOD(linker_load_file,	link_aout_load_file),
     KOBJMETHOD(linker_link_preload,	link_aout_link_preload),
     KOBJMETHOD(linker_link_preload_finish, link_aout_link_preload_finish),
+    KOBJMETHOD(linker_lookup_set,	link_aout_lookup_set),
     { 0, 0 }
 };
 
@@ -545,6 +548,42 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 		*diffp = diff;
 	*sym = (linker_sym_t) best;
 
+	return 0;
+}
+
+/*
+ * Look up a linker set on an a.out + gnu LD system.
+ */
+struct generic_linker_set {
+	int	ls_length;
+	void	*ls_items[1];
+};
+static int
+link_aout_lookup_set(linker_file_t lf, const char *name,
+		     void ***startp, void ***stopp, int *countp)
+{
+	c_linker_sym_t sym;
+	linker_symval_t symval;
+	void **start, **stop;
+	int error, count;
+	struct generic_linker_set *setp;
+
+	error = link_aout_lookup_symbol(lf, name, &sym);
+	if (error)
+		return error;
+	link_aout_symbol_values(lf, sym, &symval);
+	if (symval.value == 0)
+		return ESRCH;
+	setp = (struct generic_linker_set *)symval.value;
+	count = setp->ls_length;
+	start = &setp->ls_items[0];
+	stop = &setp->ls_items[count];
+	if (startp)
+		*startp = start;
+	if (stopp)
+		*stopp = stop;
+	if (countp)
+		*countp = count;
 	return 0;
 }
 

@@ -148,7 +148,6 @@ typedef struct video_driver {
 
 /* global variables */
 extern struct video_switch **vidsw;
-extern struct linker_set videodriver_set;
 
 /* functions for the video card driver */
 int		vid_register(video_adapter_t *adp);

@@ -39,11 +39,14 @@
 #include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/fbio.h>
+#include <sys/linker_set.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <dev/fb/fbreg.h>
+
+SET_DECLARE(videodriver_set, const video_driver_t);
 
 /* local arrays */
 
@@ -160,8 +163,8 @@ vid_register(video_adapter_t *adp)
 
 	adp->va_index = index;
 	adp->va_token = NULL;
-	list = (const video_driver_t **)videodriver_set.ls_items;
-	while ((p = *list++) != NULL) {
+	SET_FOREACH(list, videodriver_set) {
+		p = *list;
 		if (strcmp(p->name, adp->va_name) == 0) {
 			adapter[index] = adp;
 			vidsw[index] = p->vidsw;
@@ -192,8 +195,8 @@ video_switch_t
 	const video_driver_t **list;
 	const video_driver_t *p;
 
-	list = (const video_driver_t **)videodriver_set.ls_items;
-	while ((p = *list++) != NULL) {
+	SET_FOREACH(list, videodriver_set) {
+		p = *list;
 		if (strcmp(p->name, name) == 0)
 			return p->vidsw;
 	}
@@ -281,8 +284,8 @@ vid_configure(int flags)
 	const video_driver_t **list;
 	const video_driver_t *p;
 
-	list = (const video_driver_t **)videodriver_set.ls_items;
-	while ((p = *list++) != NULL) {
+	SET_FOREACH(list, videodriver_set) {
+		p = *list;
 		if (p->configure != NULL)
 			(*p->configure)(flags);
 	}

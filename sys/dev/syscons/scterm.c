@@ -36,6 +36,8 @@
 #include <dev/syscons/syscons.h>
 #include <dev/syscons/sctermvar.h>
 
+SET_DECLARE(scterm_set, sc_term_sw_t);
+
 /* exported subroutines */
 
 void
@@ -95,8 +97,8 @@ sc_term_sw_t
 			}
 		}
 	} else {
-		list = (sc_term_sw_t **)scterm_set.ls_items;
-		while ((p = *list++) != NULL) {
+		SET_FOREACH(list, scterm_set) {
+			p = *list;
 			if ((strcmp(name, p->te_name) == 0)
 			    || (strcmp(name, "*") == 0)) {
 				return p;
