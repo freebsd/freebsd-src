@@ -1778,29 +1778,13 @@ fd_probe(device_t dev)
 		fd->type = type;
 	}
 
-/*
- * XXX I think using __i386__ is wrong here since we actually want to probe
- * for the machine type, not the CPU type (so non-PC arch's like the PC98 will
- * fail the probe).  However, for whatever reason, testing for _MACHINE_ARCH
- * == i386 breaks the test on FreeBSD/Alpha.
- */
-#if defined(__i386__) || defined(__amd64__)
+#if (defined(__i386__) && !defined(PC98)) || defined(__amd64__)
 	if (fd->type == FDT_NONE && (unit == 0 || unit == 1)) {
 		/* Look up what the BIOS thinks we have. */
-		if (unit == 0) {
-			if ((fdc->flags & FDC_ISPCMCIA))
-				/*
-				 * Somewhat special.  No need to force the
-				 * user to set device flags, since the Y-E
-				 * Data PCMCIA floppy is always a 1.44 MB
-				 * device.
-				 */
-				fd->type = FDT_144M;
-			else
-				fd->type = (rtcin(RTC_FDISKETTE) & 0xf0) >> 4;
-		} else {
+		if (unit == 0)
+			fd->type = (rtcin(RTC_FDISKETTE) & 0xf0) >> 4;
+		else
 			fd->type = rtcin(RTC_FDISKETTE) & 0x0f;
-		}
 		if (fd->type == FDT_288M_1)
 			fd->type = FDT_288M;
 	}
