@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.68 1998/08/13 19:03:22 bde Exp $
+ *	$Id: cy.c,v 1.69 1998/08/19 04:17:38 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -120,7 +120,6 @@
 #define	comhardclose	cyhardclose
 #define	commctl		cymctl
 #define	comparam	cyparam
-#define	siopoll_registered	cypoll_registered
 #define	comspeed	cyspeed
 #define	comstart	cystart
 #define	comwakeup	cywakeup
@@ -131,9 +130,9 @@
 #define	siodevtotty	cydevtotty
 #define	siodriver	cydriver
 #define	siodtrwakeup	cydtrwakeup
-#define	sioioctl	cyioctl
 #define	siointr		cyintr
 #define	siointr1	cyintr1
+#define	sioioctl	cyioctl
 #define	sioopen		cyopen
 #define	siopoll		cypoll
 #define	sioprobe	cyprobe
@@ -141,9 +140,10 @@
 #define	siosettimeout	cysettimeout
 #define	siostop		cystop
 #define	siowrite	cywrite
+#define	sio_registered	cy_registered
 #define	sio_timeout	cy_timeout
-#define	sio_timeouts_until_log	cy_timeouts_until_log
 #define	sio_timeout_handle cy_timeout_handle
+#define	sio_timeouts_until_log	cy_timeouts_until_log
 #define	sio_tty		cy_tty
 
 #define	CY_MAX_PORTS		(CD1400_NO_OF_CHANNELS * CY_MAX_CD1400s)
@@ -603,6 +603,12 @@ cyattach_common(cy_iobase, cy_align)
 	com_addr(unit) = com;
 	splx(s);
 
+	if (!sio_registered) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &sio_cdevsw, NULL);
+		register_swi(SWI_TTY, siopoll);
+		sio_registered = TRUE;
+	}
 #ifdef DEVFS
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
 		unit, DV_CHR,
@@ -630,12 +636,6 @@ cyattach_common(cy_iobase, cy_align)
 		unit % CY_MAX_PORTS);
 #endif
 		}
-	}
-	if (!sio_registered) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev, &sio_cdevsw, NULL);
-		register_swi(SWI_TTY, siopoll);
-		sio_registered = TRUE;
 	}
 
 	/* ensure an edge for the next interrupt */
