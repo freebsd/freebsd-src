@@ -614,7 +614,7 @@ Static device_method_t uftdi_methods[] = {
 };
 
 Static driver_t uftdi_driver = {
-	"uftdi",
+	"ucom",
 	uftdi_methods,
 	sizeof (struct uftdi_softc)
 };
