@@ -68,9 +68,9 @@ static int _pq_active = 0;
 	if (((thrd)->flags & _PQ_IN_SCHEDQ) != 0)	\
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_PROTECTED(msg)			\
-	PTHREAD_ASSERT((_thread_kern_in_sched != 0) ||	\
-	    ((_get_curthread())->sig_defer_count > 0), \
+#define _PQ_ASSERT_PROTECTED(msg)					       \
+	PTHREAD_ASSERT((_thread_kern_kse_mailbox.km_curthread == NULL) ||      \
+	    ((_get_curthread())->sig_defer_count > 0),			       \
 	    msg);
 
 #else

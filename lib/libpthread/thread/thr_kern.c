@@ -73,27 +73,137 @@ static int	last_tick = 0;
 void
 _thread_kern_sched(void)
 {
+	struct timespec	ts;
+	struct timeval	tv;
 	struct pthread	*curthread = _get_curthread();
+	unsigned int	current_tick;
+
+	/* Get the current time of day. */
+	GET_CURRENT_TOD(tv);
+	TIMEVAL_TO_TIMESPEC(&tv, &ts);
+	current_tick = _sched_ticks;
 
 	/*
-	 * Flag the pthread kernel as executing scheduler code
-	 * to avoid a scheduler signal from interrupting this
-	 * execution and calling the scheduler again.
+	 * Enter a critical section.
 	 */
-	_thread_kern_in_sched = 1;
+	_thread_kern_kse_mailbox.km_curthread = NULL;
+
+	/*
+	 * If this thread is becoming inactive, make note of the
+	 * time.
+	 */
+	if (curthread->state != PS_RUNNING) {
+		/*
+		 * Save the current time as the time that the
+		 * thread became inactive:
+		 */
+		curthread->last_inactive = (long)current_tick;
+		if (curthread->last_inactive <
+		    curthread->last_active) {
+			/* Account for a rollover: */
+			curthread->last_inactive =+
+			    UINT_MAX + 1;
+		}
+	}
+
+	/*
+	 * Place this thread into the appropriate queue(s).
+	 */
+	switch (curthread->state) {
+	case PS_DEAD:
+	case PS_STATE_MAX: /* XXX: silences -Wall */
+	case PS_SUSPENDED:
+		/* Dead or suspended threads are not placed in any queue. */
+		break;
+	case PS_RUNNING:
+		/*
+		 * Save the current time as the time that the
+		 * thread became inactive:
+		 */
+		current_tick = _sched_ticks;
+		curthread->last_inactive = (long)current_tick;
+		if (curthread->last_inactive <
+		    curthread->last_active) {
+			/* Account for a rollover: */
+			curthread->last_inactive =+ UINT_MAX + 1;
+		}
+
+		if ((curthread->slice_usec != -1) &&
+		   (curthread->attr.sched_policy != SCHED_FIFO)) {
+			/*
+			 * Accumulate the number of microseconds for
+			 * which the current thread has run:
+			 */
+			curthread->slice_usec +=
+			    (curthread->last_inactive -
+			    curthread->last_active) *
+			    (long)_clock_res_usec;
+			/* Check for time quantum exceeded: */
+			if (curthread->slice_usec > TIMESLICE_USEC)
+				curthread->slice_usec = -1;
+		}
+
+		if (curthread->slice_usec == -1) {
+			/*
+			 * The thread exceeded its time
+			 * quantum or it yielded the CPU;
+			 * place it at the tail of the
+			 * queue for its priority.
+			 */
+			PTHREAD_PRIOQ_INSERT_TAIL(curthread);
+		} else {
+			/*
+			 * The thread hasn't exceeded its
+			 * interval.  Place it at the head
+			 * of the queue for its priority.
+			 */
+			PTHREAD_PRIOQ_INSERT_HEAD(curthread);
+		}
+		break;
+	case PS_SPINBLOCK:
+		/* Increment spinblock count. */
+		_spinblock_count++;
+		/*FALLTHROUGH*/
+	case PS_DEADLOCK:
+	case PS_JOIN:
+	case PS_MUTEX_WAIT:
+	case PS_WAIT_WAIT:
+		/* No timeouts for these states. */
+		curthread->wakeup_time.tv_sec = -1;
+		curthread->wakeup_time.tv_nsec = -1;
+
+		/* Restart the time slice. */
+		curthread->slice_usec = -1;
+
+		/* Insert into the waiting queue. */
+		PTHREAD_WAITQ_INSERT(curthread);
+		break;
+
+	case PS_COND_WAIT:
+	case PS_SLEEP_WAIT:
+		/* These states can timeout. */
+		/* Restart the time slice. */
+		curthread->slice_usec = -1;
+
+		/* Insert into the waiting queue. */
+		PTHREAD_WAITQ_INSERT(curthread);
+		break;
+	}
 
 	/* Switch into the scheduler's context. */
-	swapcontext(&curthread->ctx, &_thread_kern_sched_ctx);
-	DBG_MSG("Returned from swapcontext, thread %p\n", curthread);
+	DBG_MSG("Calling _thread_enter_uts()\n");
+	_thread_enter_uts(&curthread->mailbox, &_thread_kern_kse_mailbox);
+	DBG_MSG("Returned from _thread_enter_uts, thread %p\n", curthread);
 
 	/*
-	 * This point is reached when swapcontext() is called
+	 * This point is reached when _thread_switch() is called
 	 * to restore the state of a thread.
 	 *
-	 * This is the normal way out of the scheduler.
+	 * This is the normal way out of the scheduler (for synchronous
+	 * switches).
 	 */
-	_thread_kern_in_sched = 0;
 
+	/* XXXKSE: Do this inside _thread_kern_scheduler() */
 	if (curthread->sig_defer_count == 0) {
 		if (((curthread->cancelflags &
 		    PTHREAD_AT_CANCEL_POINT) == 0) &&
@@ -117,125 +227,47 @@ _thread_kern_sched(void)
 }
 
 void
-_thread_kern_scheduler(void)
+_thread_kern_scheduler(struct kse_mailbox *km)
 {
 	struct timespec	ts;
 	struct timeval	tv;
-	struct pthread	*curthread = _get_curthread();
-	pthread_t	pthread, pthread_h;
+	pthread_t	td, pthread, pthread_h;
 	unsigned int	current_tick;
-	int		add_to_prioq;
+	struct kse_thr_mailbox	*tm, *p;
 
-	/*
-	 * Enter a scheduling loop that finds the next thread that is
-	 * ready to run. This loop completes when there are no more threads
-	 * in the global list. It is interrupted each time a thread is
-	 * scheduled, but will continue when we return.
-	 */
-	while (!(TAILQ_EMPTY(&_thread_list))) {
+	DBG_MSG("entering\n");
+	while (!TAILQ_EMPTY(&_thread_list)) {
 
-		/* If the currently running thread is a user thread, save it: */
-		if ((curthread->flags & PTHREAD_FLAGS_PRIVATE) == 0)
-			_last_user_thread = curthread;
-
-		/* Get the current time of day: */
+		/* Get the current time of day. */
 		GET_CURRENT_TOD(tv);
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
 		current_tick = _sched_ticks;
 
-		add_to_prioq = 0;
-		if (curthread != &_thread_kern_thread) {
-			/*
-			 * This thread no longer needs to yield the CPU.
-			 */
-			if (curthread->state != PS_RUNNING) {
-				/*
-				 * Save the current time as the time that the
-				 * thread became inactive:
-				 */
-				curthread->last_inactive = (long)current_tick;
-				if (curthread->last_inactive <
-				    curthread->last_active) {
-					/* Account for a rollover: */
-					curthread->last_inactive =+
-					    UINT_MAX + 1;
-				}
-			}
-
-			/*
-			 * Place the currently running thread into the
-			 * appropriate queue(s).
-			 */
-			switch (curthread->state) {
-			case PS_DEAD:
-			case PS_STATE_MAX: /* to silence -Wall */
-			case PS_SUSPENDED:
-				/*
-				 * Dead and suspended threads are not placed
-				 * in any queue:
-				 */
-				break;
-
-			case PS_RUNNING:
-				/*
-				 * Runnable threads can't be placed in the
-				 * priority queue until after waiting threads
-				 * are polled (to preserve round-robin
-				 * scheduling).
-				 */
-				add_to_prioq = 1;
-				break;
-
-			/*
-			 * States which do not depend on file descriptor I/O
-			 * operations or timeouts:
-			 */
-			case PS_DEADLOCK:
-			case PS_JOIN:
-			case PS_MUTEX_WAIT:
-			case PS_WAIT_WAIT:
-				/* No timeouts for these states: */
-				curthread->wakeup_time.tv_sec = -1;
-				curthread->wakeup_time.tv_nsec = -1;
-
-				/* Restart the time slice: */
-				curthread->slice_usec = -1;
-
-				/* Insert into the waiting queue: */
-				PTHREAD_WAITQ_INSERT(curthread);
-				break;
-
-			/* States which can timeout: */
-			case PS_COND_WAIT:
-			case PS_SLEEP_WAIT:
-				/* Restart the time slice: */
-				curthread->slice_usec = -1;
-
-				/* Insert into the waiting queue: */
-				PTHREAD_WAITQ_INSERT(curthread);
-				break;
-	
-			/* States that require periodic work: */
-			case PS_SPINBLOCK:
-				/* No timeouts for this state: */
-				curthread->wakeup_time.tv_sec = -1;
-				curthread->wakeup_time.tv_nsec = -1;
-
-				/* Increment spinblock count: */
-				_spinblock_count++;
-
-				/* FALLTHROUGH */
-			}
+		/*
+		 * Pick up threads that had blocked in the kernel and
+		 * have now completed their trap (syscall, vm fault, etc).
+		 * These threads were PS_RUNNING (and still are), but they
+		 * need to be added to the run queue so that they can be
+		 * scheduled again.
+		 */
+		DBG_MSG("Picking up km_completed\n");
+		p = km->km_completed;
+		km->km_completed = NULL;	/* XXX: Atomic xchg here. */
+		while ((tm = p) != NULL) {
+			p = tm->tm_next;
+			tm->tm_next = NULL;
+			DBG_MSG("\tmailbox=%p pthread=%p\n", tm, tm->tm_udata);
+			PTHREAD_PRIOQ_INSERT_TAIL((pthread_t)tm->tm_udata);
 		}
 
-		last_tick = current_tick;
+		/* Deliver posted signals. */
+		/* XXX: Not yet. */
+		DBG_MSG("Picking up signals\n");
 
-		/*
-		 * Wake up threads that have timedout.  This has to be
-		 * done after polling in case a thread does a poll or
-		 * select with zero time.
-		 */
+		/* Wake up threads that have timed out.  */
+		DBG_MSG("setactive\n");
 		PTHREAD_WAITQ_SETACTIVE();
+		DBG_MSG("Picking up timeouts (%x)\n", TAILQ_FIRST(&_waitingq));
 		while (((pthread = TAILQ_FIRST(&_waitingq)) != NULL) &&
 		    (pthread->wakeup_time.tv_sec != -1) &&
 		    (((pthread->wakeup_time.tv_sec == 0) &&
@@ -243,6 +275,7 @@ _thread_kern_scheduler(void)
 		    (pthread->wakeup_time.tv_sec < ts.tv_sec) ||
 		    ((pthread->wakeup_time.tv_sec == ts.tv_sec) &&
 		    (pthread->wakeup_time.tv_nsec <= ts.tv_nsec)))) {
+			DBG_MSG("\t...\n");
 			/*
 			 * Remove this thread from the waiting queue
 			 * (and work queue if necessary) and place it
@@ -251,6 +284,7 @@ _thread_kern_scheduler(void)
 			PTHREAD_WAITQ_CLEARACTIVE();
 			if (pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
 				PTHREAD_WORKQ_REMOVE(pthread);
+			DBG_MSG("\twaking thread\n");
 			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			PTHREAD_WAITQ_SETACTIVE();
 			/*
@@ -258,119 +292,39 @@ _thread_kern_scheduler(void)
 			 */
 			pthread->timeout = 1;
 		}
+		DBG_MSG("clearactive\n");
 		PTHREAD_WAITQ_CLEARACTIVE();
-
-		/*
-		 * Check to see if the current thread needs to be added
-		 * to the priority queue:
-		 */
-		if (add_to_prioq != 0) {
-			/*
-			 * Save the current time as the time that the
-			 * thread became inactive:
-			 */
-			current_tick = _sched_ticks;
-			curthread->last_inactive = (long)current_tick;
-			if (curthread->last_inactive <
-			    curthread->last_active) {
-				/* Account for a rollover: */
-				curthread->last_inactive =+ UINT_MAX + 1;
-			}
-
-			if ((curthread->slice_usec != -1) &&
-		 	   (curthread->attr.sched_policy != SCHED_FIFO)) {
-				/*
-				 * Accumulate the number of microseconds for
-				 * which the current thread has run:
-				 */
-				curthread->slice_usec +=
-				    (curthread->last_inactive -
-				    curthread->last_active) *
-				    (long)_clock_res_usec;
-				/* Check for time quantum exceeded: */
-				if (curthread->slice_usec > TIMESLICE_USEC)
-					curthread->slice_usec = -1;
-			}
-
-			if (curthread->slice_usec == -1) {
-				/*
-				 * The thread exceeded its time
-				 * quantum or it yielded the CPU;
-				 * place it at the tail of the
-				 * queue for its priority.
-				 */
-				PTHREAD_PRIOQ_INSERT_TAIL(curthread);
-			} else {
-				/*
-				 * The thread hasn't exceeded its
-				 * interval.  Place it at the head
-				 * of the queue for its priority.
-				 */
-				PTHREAD_PRIOQ_INSERT_HEAD(curthread);
-			}
-		}
 
 		/*
 		 * Get the highest priority thread in the ready queue.
 		 */
+		DBG_MSG("Selecting thread\n");
 		pthread_h = PTHREAD_PRIOQ_FIRST();
 
 		/* Check if there are no threads ready to run: */
-		if (pthread_h == NULL) {
-			/*
-			 * Lock the pthread kernel by changing the pointer to
-			 * the running thread to point to the global kernel
-			 * thread structure:
-			 */
-			_set_curthread(&_thread_kern_thread);
-			curthread = &_thread_kern_thread;
-
-			DBG_MSG("No runnable threads, using kernel thread %p\n",
-			    curthread);
-
-			/*
-			 * There are no threads ready to run, so wait until
-			 * something happens that changes this condition:
-			 */
-			thread_kern_idle();
-
-			/*
-			 * This process' usage will likely be very small
-			 * while waiting in a poll.  Since the scheduling
-			 * clock is based on the profiling timer, it is
-			 * unlikely that the profiling timer will fire
-			 * and update the time of day.  To account for this,
-			 * get the time of day after polling with a timeout.
-			 */
-			gettimeofday((struct timeval *) &_sched_tod, NULL);
-			
-			/* Check once more for a runnable thread: */
-			pthread_h = PTHREAD_PRIOQ_FIRST();
-		}
-
-		if (pthread_h != NULL) {
+		if (pthread_h) {
+			DBG_MSG("Scheduling thread\n");
 			/* Remove the thread from the ready queue: */
 			PTHREAD_PRIOQ_REMOVE(pthread_h);
 
 			/* Make the selected thread the current thread: */
 			_set_curthread(pthread_h);
-			curthread = pthread_h;
 
 			/*
 			 * Save the current time as the time that the thread
 			 * became active:
 			 */
 			current_tick = _sched_ticks;
-			curthread->last_active = (long) current_tick;
+			pthread_h->last_active = (long) current_tick;
 
 			/*
 			 * Check if this thread is running for the first time
 			 * or running again after using its full time slice
 			 * allocation:
 			 */
-			if (curthread->slice_usec == -1) {
+			if (pthread_h->slice_usec == -1) {
 				/* Reset the accumulated time slice period: */
-				curthread->slice_usec = 0;
+				pthread_h->slice_usec = 0;
 			}
 
 			/*
@@ -378,18 +332,47 @@ _thread_kern_scheduler(void)
 			 * installed switch hooks.
 			 */
 			if ((_sched_switch_hook != NULL) &&
-			    (_last_user_thread != curthread)) {
+			    (_last_user_thread != pthread_h)) {
 				thread_run_switch_hook(_last_user_thread,
-				    curthread);
+				    pthread_h);
 			}
 			/*
 			 * Continue the thread at its current frame:
 			 */
-			swapcontext(&_thread_kern_sched_ctx, &curthread->ctx);
-		}
-	}
+			_last_user_thread = td;
+			DBG_MSG("switch in\n");
+			_thread_switch(&pthread_h->mailbox,
+			    &_thread_kern_kse_mailbox.km_curthread);
+			DBG_MSG("switch out\n");
+		} else {
+			/*
+			 * There is nothing for us to do. Either
+			 * yield, or idle until something wakes up.
+			 */
+			DBG_MSG("No runnable threads, idling.\n");
 
-	/* There are no more threads, so exit this process: */
+			/*
+			 * kse_release() only returns if we are the
+			 * only thread in this process. If so, then
+			 * we drop into an idle loop.
+			 */
+			/* XXX: kse_release(); */
+			thread_kern_idle();
+
+			/*
+			 * This thread's usage will likely be very small
+			 * while waiting in a poll.  Since the scheduling
+			 * clock is based on the profiling timer, it is
+			 * unlikely that the profiling timer will fire
+			 * and update the time of day.  To account for this,
+			 * get the time of day after polling with a timeout.
+			 */
+			gettimeofday((struct timeval *) &_sched_tod, NULL);
+		}
+		DBG_MSG("looping\n");
+	}
+	/* There are no threads; exit. */
+	DBG_MSG("No threads, exiting.\n");
 	exit(0);
 }
 
@@ -400,10 +383,10 @@ _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 
 	/*
 	 * Flag the pthread kernel as executing scheduler code
-	 * to avoid a scheduler signal from interrupting this
-	 * execution and calling the scheduler again.
+	 * to avoid an upcall from interrupting this execution
+	 * and calling the scheduler again.
 	 */
-	_thread_kern_in_sched = 1;
+	_thread_kern_kse_mailbox.km_curthread = NULL;
 
 	/* Change the state of the current thread: */
 	curthread->state = state;
@@ -422,10 +405,10 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 
 	/*
 	 * Flag the pthread kernel as executing scheduler code
-	 * to avoid a scheduler signal from interrupting this
-	 * execution and calling the scheduler again.
+	 * to avoid an upcall from interrupting this execution
+	 * and calling the scheduler again.
 	 */
-	_thread_kern_in_sched = 1;
+	_thread_kern_kse_mailbox.km_curthread = NULL;
 
 	/* Change the state of the current thread: */
 	curthread->state = state;
@@ -438,6 +421,13 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 	_thread_kern_sched();
 }
 
+/*
+ * XXX - What we need to do here is schedule ourselves an idle thread,
+ * which does the poll()/nanosleep()/whatever, and then will cause an
+ * upcall when it expires. This thread never gets inserted into the
+ * run_queue (in fact, there's no need for it to be a thread at all).
+ * timeout period has arrived.
+ */
 static void
 thread_kern_idle()
 {
@@ -459,6 +449,8 @@ thread_kern_idle()
 		/*
 		 * Either there are no threads in the waiting queue,
 		 * or there are no threads that can timeout.
+		 *
+		 * XXX: kse_yield() here, maybe?
 		 */
 		PANIC("Would idle forever");
 	}
