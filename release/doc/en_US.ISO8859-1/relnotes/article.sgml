@@ -1753,6 +1753,12 @@
     longer world-executable).  Users of &man.pppd.8; may need to
     change their group settings. &merged;</para>
 
+    <para>&man.ftpd.8; now supports an <option>-o</option> option to
+    disable the <literal>RETR</literal> command.  Coupled with
+    <option>-A</option> and appropriate file permissions, this allows one
+    to create a relatively safe anonymous FTP drop box for others to upload
+    to.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
