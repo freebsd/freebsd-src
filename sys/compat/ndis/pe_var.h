@@ -408,6 +408,20 @@ struct image_patch_table {
 
 typedef struct image_patch_table image_patch_table;
 
+/*
+ * Note: Windows uses the _stdcall calling convention. This means
+ * that the callback functions provided in the function table must
+ * be declared using __attribute__((__stdcall__)), otherwise the
+ * Windows code will likely screw up the %esp register and cause
+ * us to jump to an invalid address when it returns.
+ */
+
+#ifdef __amd64__
+#define __stdcall
+#else
+#define __stdcall __attribute__((__stdcall__))
+#endif
+
 __BEGIN_DECLS
 extern int pe_get_dos_header(vm_offset_t, image_dos_header *);
 extern int pe_is_nt_image(vm_offset_t);

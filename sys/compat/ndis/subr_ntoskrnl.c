@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 
-#define __stdcall __attribute__((__stdcall__))
 #define __regparm __attribute__((regparm(3)))
 
 #define FUNC void(*)(void)
