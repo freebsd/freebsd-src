@@ -1093,7 +1093,7 @@ malloc(size_t size)
 	wrtwarning("recursive call\n");
         malloc_active--;
         THREAD_UNLOCK();
-	errno = EDOFUS;
+	errno = EDOOFUS;
 	return (0);
     }
     if (!malloc_started)
@@ -1123,7 +1123,7 @@ free(void *ptr)
 	wrtwarning("recursive call\n");
 	malloc_active--;
         THREAD_UNLOCK();
-	errno = EDOFUS;
+	errno = EDOOFUS;
 	return;
     }
     if (ptr != ZEROSIZEPTR)
@@ -1146,7 +1146,7 @@ realloc(void *ptr, size_t size)
 	wrtwarning("recursive call\n");
         malloc_active--;
         THREAD_UNLOCK();
-	errno = EDOFUS;
+	errno = EDOOFUS;
 	return (0);
     }
     if (ptr && !malloc_started) {
