@@ -84,6 +84,7 @@ struct intsrc {
 struct intrframe;
 
 extern struct mtx icu_lock;
+extern int elcr_found;
 
 /* XXX: The elcr_* prototypes probably belong somewhere else. */
 int	elcr_probe(void);
