@@ -35,6 +35,7 @@
 
 #include <sys/queue.h>
 #include <sys/event.h>
+#include <sys/priority.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
@@ -43,21 +44,8 @@
 /*
  * This structure is used for the management of descriptors.  It may be
  * shared by multiple processes.
- *
- * A process is initially started out with NDFILE descriptors stored within
- * this structure, selected to be enough for typical applications based on
- * the historical limit of 20 open files (and the usage of descriptors by
- * shells).  If these descriptors are exhausted, a larger descriptor table
- * may be allocated, up to a process' resource limit; the internal arrays
- * are then unused.
  */
-#define NDFILE		20
 #define NDSLOTTYPE	u_long
-#define NDSLOTSIZE	sizeof(NDSLOTTYPE)
-#define	NDENTRIES	(NDSLOTSIZE * __CHAR_BIT)
-#define NDSLOT(x)	((x) / NDENTRIES)
-#define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
-#define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
 
 struct filedesc {
 	struct	file **fd_ofiles;	/* file structures for open files */
@@ -70,27 +58,15 @@ struct filedesc {
 	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
-	u_short	fd_refcnt;		/* reference count */
+	u_short	fd_refcnt;		/* thread reference count */
+	u_short	fd_holdcnt;		/* hold count on structure + mutex */
 
 	struct	mtx fd_mtx;		/* protects members of this struct */
+	int	fd_locked;		/* long lock flag */
+	int	fd_wanted;		/* "" */
 	struct	kqlist fd_kqlist;	/* list of kqueues on this filedesc */
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
-};
-
-/*
- * Basic allocation of descriptors:
- * one of the above, plus arrays for NDFILE descriptors.
- */
-struct filedesc0 {
-	struct	filedesc fd_fd;
-	/*
-	 * These arrays are used when the number of open files is
-	 * <= NDFILE, and are then pointed to by the pointers above.
-	 */
-	struct	file *fd_dfiles[NDFILE];
-	char	fd_dfileflags[NDFILE];
-	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
 };
 
 /*
@@ -117,18 +93,63 @@ struct filedesc_to_leader {
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
 
-/*
- * Storage required per open file descriptor.
- */
-#define OFILESIZE (sizeof(struct file *) + sizeof(char))
-
 #ifdef _KERNEL
 
 /* Lock a file descriptor table. */
-#define	FILEDESC_LOCK(fd)	mtx_lock(&(fd)->fd_mtx)
-#define	FILEDESC_UNLOCK(fd)	mtx_unlock(&(fd)->fd_mtx)
-#define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
-#define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
+#define	FILEDESC_LOCK(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		(fd)->fd_wanted++;							\
+		while ((fd)->fd_locked)							\
+			msleep(&(fd)->fd_locked, &(fd)->fd_mtx, PLOCK, "fdesc", 0);	\
+		(fd)->fd_locked = 2;							\
+		(fd)->fd_wanted--;							\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
+
+#define	FILEDESC_UNLOCK(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		KASSERT((fd)->fd_locked == 2,						\
+		    ("fdesc locking mistake %d should be %d", (fd)->fd_locked, 2));	\
+		(fd)->fd_locked = 0;							\
+		if ((fd)->fd_wanted)							\
+			wakeup(&(fd)->fd_locked);					\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
+
+#define	FILEDESC_LOCK_FAST(fd)								\
+	do {										\
+		mtx_lock(&(fd)->fd_mtx);						\
+		(fd)->fd_wanted++;							\
+		while ((fd)->fd_locked)							\
+			msleep(&(fd)->fd_locked, &(fd)->fd_mtx, PLOCK, "fdesc", 0);	\
+		(fd)->fd_locked = 1;							\
+		(fd)->fd_wanted--;							\
+	} while (0);
+
+#define	FILEDESC_UNLOCK_FAST(fd)							\
+	do {										\
+		KASSERT((fd)->fd_locked == 1,						\
+		    ("fdesc locking mistake %d should be %d", (fd)->fd_locked, 1));	\
+		(fd)->fd_locked = 0;							\
+		if ((fd)->fd_wanted)							\
+			wakeup(&(fd)->fd_locked);					\
+		mtx_unlock(&(fd)->fd_mtx);						\
+	} while (0);
+
+#ifdef INVARIANT_SUPPORT
+#define	FILEDESC_LOCK_ASSERT(fd, arg)							\
+	do {										\
+		if ((arg) == MA_OWNED)							\
+			KASSERT((fd)->fd_locked != 0, ("fdesc locking mistake"));	\
+		else									\
+			KASSERT((fd)->fd_locked == 0, ("fdesc locking mistake"));	\
+	} while (0);
+#else
+#define	FILEDESC_LOCK_ASSERT(fd, arg)
+#endif
+
 #define	FILEDESC_LOCK_DESC	"filedesc structure"
 
 struct thread;
@@ -140,18 +161,18 @@ int	falloc(struct thread *td, struct file **resultfp, int *resultfd);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
 int	fdcheckstd(struct thread *td);
+void	fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td);
 void	fdcloseexec(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
+void	fdunshare(struct proc *p, struct thread *td);
 void	fdfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
-void	fdunused(struct filedesc *fdp, int fd);
-void	fdused(struct filedesc *fdp, int fd);
-void	ffree(struct file *fp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 	    struct filedesc *fdp, struct proc *leader);
 int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
+void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 void	setugidsafety(struct thread *td);
 
 static __inline struct file *
@@ -160,8 +181,6 @@ fget_locked(struct filedesc *fdp, int fd)
 
 	return (fd < 0 || fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
 }
-
-extern struct mtx fdesc_mtx;
 
 #endif /* _KERNEL */
 
