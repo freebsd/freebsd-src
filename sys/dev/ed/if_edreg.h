@@ -1,5 +1,14 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
+ *
+ * $Log:	if_edreg.h,v $
+ * Revision 1.2  93/06/23  03:03:05  davidg
+ * added some additional definitions for the 83C584 bus interface
+ * chip (SMC/WD boards)
+ * 
+ * Revision 1.1  93/06/23  03:01:07  davidg
+ * Initial revision
+ * 
  */
 
 /*
@@ -573,12 +582,22 @@ struct ed_ring	{
 
 #define ED_WD_ICR_16BIT	0x01	/* 16-bit interface */
 #define ED_WD_ICR_OAR	0x02	/* select register. 0=BIO 1=EAR */
-#define ED_WD_ICR_IR2	0x04	/* select second set of IRQs */
+#define ED_WD_ICR_IR2	0x04	/* high order bit of encoded IRQ */
 #define ED_WD_ICR_MSZ	0x08	/* memory size (0=8k 1=32k) */
 #define ED_WD_ICR_RLA	0x10	/* recall LAN address */
 #define ED_WD_ICR_RX7	0x20	/* recall all but i/o and LAN address */
 #define	ED_WD_ICR_RIO	0x40	/* recall i/o address */
 #define ED_WD_ICR_STO	0x80	/* store to non-volatile memory */
+
+/*
+ * IO Address Register (IAR)
+ */
+#define ED_WD_IAR	2
+
+/*
+ * EEROM Address Register
+ */
+#define ED_WD_EAR	3
 
 /*
  * Interrupt Request Register (IRR)
@@ -590,6 +609,22 @@ struct ed_ring	{
 #define ED_WD_IRR_OUT2	0x04	/* WD83C584 pin 2 output */
 #define ED_WD_IRR_OUT3	0x08	/* WD83C584 pin 3 output */
 #define ED_WD_IRR_FLASH	0x10	/* Flash RAM is in the ROM socket */
+
+/*
+ * The three bit of the encoded IRQ are decoded as follows:
+ *
+ *	IR2 IR1 IR0	IRQ
+ *	 0   0   0	 2/9
+ *	 0   0   1	 3
+ *	 0   1   0	 5
+ *	 0   1   1	 7
+ *	 1   0   0	 10
+ *	 1   0   1	 11
+ *	 1   1   0	 15
+ *	 1   1   1	 4
+ */
+#define ED_WD_IRR_IR0	0x20	/* bit 0 of encoded IRQ */
+#define ED_WD_IRR_IR1	0x40	/* bit 1 of encoded IRQ */
 #define ED_WD_IRR_IEN	0x80	/* Interrupt enable */
 
 /*
