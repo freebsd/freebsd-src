@@ -2,6 +2,33 @@
 # tcl magic \
 exec tclsh $0 $*
 ################################################################################
+# Copyright (C) 1997
+#      Michael Smith.  All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the author nor the names of any co-contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY Michael Smith AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL Michael Smith OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+################################################################################
 #
 # LibraryReport; produce a list of shared libraries on the system, and a list of
 # all executables that use them.
@@ -23,7 +50,7 @@ exec tclsh $0 $*
 #
 ################################################################################
 #
-# $Id$
+# $Id: LibraryReport.tcl,v 1.1.1.1 1997/01/02 03:49:35 msmith Exp $
 #
 
 #########################################################################################
@@ -66,8 +93,31 @@ proc findLibs {} {
 	# get the names of anything that looks like a library
 	set libnames [glob -nocomplain "$dir/lib*.so.*"]
 	foreach lib $libnames {
-	    set Libs($lib) "";			# add it to our list
-	    if {$verbose} {puts "+ $lib";}
+	    set type [file type $lib];			# what is it?
+	    switch $type {
+		file {		# looks like a library
+		    # may have already been referenced by a symlink
+		    if {![info exists Libs($lib)]} {
+			set Libs($lib) "";		# add it to our list
+			if {$verbose} {puts "+ $lib";}
+		    }
+		}
+		link {		# symlink; probably to another library
+		    # If the readlink fails, the symlink is stale
+		    if {[catch {set ldest [file readlink $lib]}]} {
+			puts stderr "Symbolic link points to nothing : $lib";
+		    } else {
+			# may have already been referenced by another symlink
+			if {![info exists Libs($lib)]} {
+			    set Libs($lib) "";		# add it to our list
+			    if {$verbose} {puts "+ $lib";}
+			}
+			# list the symlink as a consumer of this library
+			lappend Libs($ldest) "($lib)";
+			if {$verbose} {puts "-> $ldest";}
+		    }
+		}
+	    }
 	}
     }
     set stats(libs) [llength [array names Libs]];
@@ -151,10 +201,15 @@ proc examineExecutable {fname} {
 
     foreach line $llist {
 	if {[scan $line "%s => %s %s" junk1 lib junk2] == 3} {
-	    lappend Libs($lib) $fname;
-	    lappend uses $lib;
+	    if {$lib == "not"} {	# "not found" error
+		set mlname [string range $junk1 2 end];
+		puts stderr "$fname : library '$mlname' not known.";
+	    } else {
+		lappend Libs($lib) $fname;
+		lappend uses $lib;
+	    }
 	} else {
-	    puts stderr "Unparseable ldd putput line :";
+	    puts stderr "Unparseable ldd output line :";
 	    puts stderr $line;
 	}
     }
@@ -211,7 +266,7 @@ proc main {} {
 		set verbose 1;
 	    }
 	    default {
-		puts stderr "Unknown option '$arg'";
+		puts stderr "Unknown option '$arg'.";
 		exit ;
 	    }
 	}
@@ -226,7 +281,7 @@ proc main {} {
     findLibUsers "/";
     emitLibDetails;
 
-    puts [format "Searched %d directories, %d executables (%d dynamic) for %d libraries" \
+    puts [format "Searched %d directories, %d executables (%d dynamic) for %d libraries." \
 	      $stats(dirs) $stats(files) $stats(execs) $stats(libs)];
 }
 
