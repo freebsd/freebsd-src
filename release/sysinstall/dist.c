@@ -128,13 +128,17 @@ static Distribution XF86DistTable[] = {
 { "Xdoc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
 { "Xhtml",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_HTML,		NULL		},
 { "Xlib",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LIB,		NULL		},
+#ifdef __i386__
 { "Xlk98",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT98,	NULL		},
+#endif
 { "Xlkit",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT,		NULL		},
 { "Xman",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_MAN,		NULL		},
 { "Xprog",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PROG,		NULL		},
 { "Xps",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PS,		NULL		},
 { "Xset",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SET,		NULL		},
+#ifdef __i386__
 { "X9set",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_9SET,		NULL		},
+#endif
 { NULL },
 };
 
