@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.37 1995/11/14 23:58:40 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.15.2.5 1995/11/15 07:51:46 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -8,7 +8,7 @@
     <p>This software was originally derived from William
       F. Jolitz's 386BSD release 0.1, though almost none of the
       original 386BSD specific code remains.  This software has
-      been essentially reimplemented from the 4.4 BSD Lite
+      been essentially re-implemented from the 4.4 BSD Lite
       release provided by the Computer Science Research Group
       (CSRG) at the University of California, Berkeley and
       associated academic contributors.
@@ -31,7 +31,7 @@
       their support.
 
       TRW Financial Systems, Inc. provided 130 PCs, three 68 GB
-      fileservers, twelve ethernets, two routers and an ATM
+      fileservers, twelve Ethernets, two routers and an ATM
       switch for debugging the diskless code.  They also keep a
       couple of FreeBSD hackers alive and busy.  Thanks!
 

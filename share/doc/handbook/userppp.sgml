@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.2 1995/08/19 22:16:06 jfieber Exp $ -->
+<!-- $Id: userppp.sgml,v 1.3 1995/08/29 01:42:52 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -14,13 +14,13 @@
   because I am not really much of an authority on PPP. I've got
   it working, and want to pass on details of what I did so that
   other people can get it working. But I'm not 100% clear on some
-  details, so I hope that by writing this and haveing others
+  details, so I hope that by writing this and having others
   flesh out some of the information I'm going to learn something
   as well.
 -->
 
-  <p>User PPP was intruduced to FreeBSD in release 2.0.5 as an
-  addition to the exisiting kernel implementation of PPP.  So,
+  <p>User PPP was introduced to FreeBSD in release 2.0.5 as an
+  addition to the existing kernel implementation of PPP.  So,
   what is different about this new PPP that warrants its
   addition?  To quote from the manual page:
 
@@ -63,7 +63,7 @@
     
     <item>Your ISP's netmask setting
 
-    <item>IP adresses of one or more nameservers
+    <item>IP addresses of one or more nameservers
 
     <item>If your ISP allocates you a static IP address and/or hostname then
       you will need that as well. If not, you will need to know from what
@@ -260,7 +260,7 @@ protocol: ppp
 	      written in the chat(8) language.
 
 <tag/Line 10:/ Sets the default timeout (in seconds) for the connection. So
-	      the connectioned will be closed automatically after 120 seconds
+	      the connection will be closed automatically after 120 seconds
 	      of inactivity.
 
 <tag/Line 11:/ Sets the interface addresses. The string x.x.x.x should be

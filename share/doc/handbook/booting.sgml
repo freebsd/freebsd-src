@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.7 1995/10/07 04:31:15 jfieber Exp $
+     $Id: booting.sgml,v 1.2.4.3 1995/10/22 00:50:24 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -52,7 +52,7 @@
           Dosboot was written by DI. Christian Gusenbauer, and is
           unfortunately at this time one of the few pieces of code that
           isn't compilable under FreeBSD itself because it is written for
-          MicroSoft compilers.
+          Microsoft compilers.
 
           Dosboot will boot the kernel from a MS-DOS file or from a FreeBSD
           filesystem partition on the disk.  It attempts to negotiate with
@@ -62,7 +62,7 @@
 
       <tag>Netboot</tag>
 
-          Netboot will try to find a supported ethernet card, and use
+          Netboot will try to find a supported Ethernet card, and use
           BOOTP, TFTP and NFS to find a kernel file to boot.
 </descrip>
 
@@ -73,13 +73,13 @@
         will initialize itself, trying to determine what hardware is
         present and so on, and then it needs to find a root filesystem.
 
-        Presently we support the following types of rootfilesystems:
+        Presently we support the following types of root filesystems:
 
 <descrip>
       <tag>UFS</tag>
 
           This is the most normal type of root filesystem. It can reside on
-          a floppy or on harddisk.
+          a floppy or on hard disk.
 
       <tag>MSDOS</tag>
 
@@ -108,7 +108,7 @@
       <p>
         To get the user-land going, when the kernel has finished
         initialization, it will create a process with ``<tt/pid == 1/'' and execute
-        a program on the rootfilesystem, this program is normally
+        a program on the root filesystem, this program is normally
         ``<tt>/sbin/init</tt>''.
 
         You can substitute any program for /sbin/init, as long as you keep
@@ -152,7 +152,7 @@
 
           <tag/C -- Start an X-server/
 
-            Now you have an Xterminal, which is better than that dingy
+            Now you have an X-terminal, which is better than that dingy
             X-under-windows-so-slow-you-can-see-what-it-does thing that
             your boss insist is better than forking our money on HW.
 

@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.2.4.2 1995/10/12 03:15:56 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.2.4.3 1995/11/07 18:24:44 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -237,7 +237,7 @@ development for the future releases.
 
 <tag/FREEBSD-ISP/ <em>Issues for Internet Service Providers</em><newline>
 This mailing list is for discussing topics relevant to Internet
-Serivce Providers (ISPs) using FreeBSD.
+Service Providers (ISPs) using FreeBSD.
 
 <tag/FREEBSD-MULTIMEDIA/ <em>Multimedia discussions</em><newline>
 This is a forum about multimedia applications using FreeBSD.

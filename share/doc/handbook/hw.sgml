@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.8 1995/10/07 04:31:26 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.6.2.1 1995/10/12 03:16:02 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -10,7 +10,7 @@
   <p>Issues of hardware compatibility are among the most
     troublesome in the computer industry today and FreeBSD is by
     no means immune to trouble.  In this respect, FreeBSD's
-    advantage of being able to run on inexpensive commidity PC
+    advantage of being able to run on inexpensive commodity PC
     hardware is also its liability when it comes to support for
     the amazing variety of components on the market.  While it
     would be impossible to provide a exhaustive listing of
@@ -136,7 +136,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	      1995.</em>
 
 	    The procedures to make a Boca 16 pord board with
-	    FreeBSD are pretty straighforward, but you will need
+	    FreeBSD are pretty straightforward, but you will need
 	    a couple things to make it work:
 
 	    <enum>
@@ -162,7 +162,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	    If you do not already have a custom kernel
 	    configuration file set up, refer to <ref
 	    id="kernelconfig" name="Kernel Configuration"> for
-	    general procedurs.  The following are the specifics
+	    general procedures.  The following are the specifics
 	    for the Boca 16 board and assume you are using the
 	    kernel name MYKERNEL and editing with vi.
 
@@ -183,7 +183,7 @@ to the config file.
 
 		The following example is for a Boca Board with an
 		interrupt of 3, and a base IO address 100h.  The
-		IO address for Each port is +8 hexidecimal from
+		IO address for Each port is +8 hexadecimal from
 		the previous port, thus the 100h, 108h, 110h...
 		addresses.
 
@@ -268,7 +268,7 @@ sio16: type 16550A (multiport master)
 		  &gt; more</tt> will show you the boot
 		messages.</item>
 
-	      <item>Next, apprepriate entries in <tt>/dev</tt> for the devices
+	      <item>Next, appropriate entries in <tt>/dev</tt> for the devices
 		must be made using the <tt>/dev/MAKEDEV</tt>
 		script.  After becoming root:
 <tscreen>

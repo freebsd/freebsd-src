@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Porting applications<label id="porting"></heading>
@@ -18,7 +18,7 @@
     <sect1>
       <heading>Before Starting the Port</heading>
 
-      <p>Note: Only a fraction of the overridable variables are
+      <p>Note: Only a fraction of the overrideable variables are
 	mentioned in this document. Most (if not all) are documented
 	at the start of the <tt>bsd.port.mk</tt> file which can be
 	found in <tt>/usr/share/mk</tt>. This file uses a non-standard tab
@@ -125,7 +125,7 @@
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $
+ # $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -882,7 +882,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.8 1995/11/14 23:58:43 asami Exp $
+ # $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #

@@ -1,4 +1,4 @@
-<!-- $Id: nutshell.sgml,v 1.6 1995/09/17 10:56:37 davidg Exp $ -->
+<!-- $Id: nutshell.sgml,v 1.1.4.2 1995/10/12 03:16:22 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>FreeBSD in a nutshell<label id="nutshell"></heading>
@@ -20,7 +20,7 @@
 	shared between all users on the system.</item>
       <item>Complete <bf>TCP/IP networking</bf> including SLIP, PPP, NFS
 	and NIS support.  This means that your FreeBSD machine can
-	interoperate easily with other systems as well act as an enterprise
+	inter-operate easily with other systems as well act as an enterprise
 	server, providing vital functions such as NFS (remote file access) and
 	e-mail services or putting your organization on the Internet
 	with WWW, ftp, routing and firewall (security) services.</item>

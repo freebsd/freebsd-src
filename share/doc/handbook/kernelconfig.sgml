@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.1 1995/10/07 04:31:31 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.1.2.1 1995/10/22 00:50:29 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -265,15 +265,15 @@
 	    <tag>options MATH_EMULATE</tag> 
 
 	      <p>This line allows the kernel to simulate a math
-	      coprocessor if your computer does not have one (386
+	      co-processor if your computer does not have one (386
 	      or 486SX).  If you have a Pentium, a 486DX, or a
 	      386 or 486SX with a separate 387 or 487 chip, you
 	      can comment this line out.
 
-	      <quote><em>Note:</em> The normal math coprocessor
+	      <quote><em>Note:</em> The normal math co-processor
 		emulation routines that come with FreeBSD are
 		<em>not</em> very accurate.  If you do not have a
-		math coprocessor, and you need the best accuracy,
+		math co-processor, and you need the best accuracy,
 		I recommend that you change this option to
 		<tt>GPL_MATH_EMULATE</tt> to use the superior GNU
 		math support, which is not included by default
@@ -288,7 +288,7 @@
 	    <tag>options BOUNCE_BUFFERS</tag>
 
 	    <p>ISA devices and EISA devices operating in an ISA
-	      compatibilty mode can only perform DMA (Direct
+	      compatibility mode can only perform DMA (Direct
 	      Memory Access) to memory below 16 megabytes.  This
 	      option enables such devices to work in systems with
 	      more than 16 megabytes of memory.
@@ -512,7 +512,7 @@
 	      drivers are for the so-called <em>proprietary</em>
 	      CD-ROM drives.  These drives have their own
 	      controller card or might plug into a sound card
-	      such as the Soundblaster 16.  They are <em>not</em>
+	      such as the SoundBlaster 16.  They are <em>not</em>
 	      IDE or SCSI.  Most older single-speed and
 	      double-speed CD-ROMs use these interfaces, while
 	      newer quad-speeds are likely to be <ref
@@ -533,7 +533,7 @@
 		<tag>controller matcd0 at isa? port ? bio</tag>
 
 		<p>Matsushita/Panasonic CD-ROM (sold by Creative
-		  Labs for Soundblaster).
+		  Labs for SoundBlaster).
 
 	      </descrip>
 
@@ -944,7 +944,7 @@
 
 	    <p>SoundBlaster digital audio.
 
-	      <quote><em/Note:/ If your Soundblaster is on a
+	      <quote><em/Note:/ If your SoundBlaster is on a
 		different IRQ (such as 5), change <tt>irq 7</tt>
 		to, for example, <tt>irq 5</tt> and remove the
 		<tt>conflicts</tt> keyword.  Also, you must add
