@@ -207,6 +207,14 @@ struct bpf_hdr {
  */
 
 /*
+ * Frame Relay; BSD/OS has a DLT_FR with a value of 11, but that collides
+ * with other values.
+ * DLT_FR and DLT_FRELAY packets start with the Q.922 Frame Relay header
+ * (DLCI, etc.).
+ */
+#define DLT_FRELAY	107
+
+/*
  * OpenBSD DLT_LOOP, for loopback devices; it's like DLT_NULL, except
  * that the AF_ type in the link-layer header is in network byte order.
  *
@@ -222,6 +230,13 @@ struct bpf_hdr {
  * link-layer types corresponding to DLT_ types that might differ
  * between platforms; don't use those values for new DLT_ new types.
  */
+
+/*
+ * Encapsulated packets for IPsec; DLT_ENC is 13 in OpenBSD, but that's
+ * DLT_SLIP_BSDOS in NetBSD, so we don't use 13 for it in OSes other
+ * than OpenBSD.
+ */
+#define DLT_ENC	109
 
 /*
  * This is for Linux cooked sockets.
@@ -250,7 +265,6 @@ struct bpf_hdr {
  * in capture-file headers.
  */
 #define DLT_PFLOG	117
-#define DLT_PFSYNC	121
 
 /*
  * Registered for Cisco-internal use.
@@ -269,6 +283,49 @@ struct bpf_hdr {
  * (see Doug Ambrisko's FreeBSD patches).
  */
 #define DLT_AIRONET_HEADER	120
+
+/*
+ * Reserved for use by OpenBSD's pfsync device.
+ */
+#define DLT_PFSYNC	121
+
+/*
+ * Reserved for RFC 2625 IP-over-Fibre Channel.
+ */
+#define DLT_IP_OVER_FC	122
+
+/*
+ * Reserved for Full Frontal ATM on Solaris.
+ */
+#define DLT_SUNATM	123
+
+/*
+ * BSD header for 802.11 plus a number of bits of link-layer information
+ * including radio information.
+ */
+#ifndef DLT_IEEE802_11_RADIO
+#define DLT_IEEE802_11_RADIO	127
+#endif
+
+/*
+ * Reserved for Linux ARCNET.
+ */
+#define DLT_ARCNET_LINUX	129
+
+/*
+ * Reserved for Apple IP-over-IEEE-1394.
+ */
+#define DLT_APPLE_IP_OVER_IEEE1394	138
+
+/*
+ * Reserved for Linux IrDA.
+ */
+#define DLT_LINUX_IRDA	144
+
+/*
+ * Reserved for AbsoluteValue Systems 802.11 capture.
+ */
+#define DLT_IEEE802_11_RADIO_AVS	163
 
 /*
  * The instruction encodings.
