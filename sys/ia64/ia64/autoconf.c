@@ -57,6 +57,10 @@
 static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
+#ifdef BOOTP
+void bootpc_init(void);
+#endif
+
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 device_t isa_bus_device = 0;
