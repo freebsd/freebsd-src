@@ -34,7 +34,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
-#include <sys/devicestat.h>
 #include <sys/ioccom.h>
 #include <sys/stat.h>
 

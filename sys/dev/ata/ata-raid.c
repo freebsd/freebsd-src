@@ -39,7 +39,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/cons.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>

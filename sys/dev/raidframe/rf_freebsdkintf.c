@@ -161,7 +161,6 @@
 #include <sys/lock.h>
 #include <sys/reboot.h>
 #include <sys/module.h>
-#include <sys/devicestat.h>
 #include <vm/uma.h>
 
 #include "opt_raid.h"
@@ -257,7 +256,6 @@ struct raid_softc {
  	uma_zone_t		sc_cbufpool;	/* component buffer pool */
 	RF_Raid_t		*raidPtr;	/* Raid information struct */
 	struct bio_queue_head	bio_queue;	/* used for the device queue */
-	struct devstat		device_stats;	/* devstat gathering */
 };
 /* sc_flags */
 #define RAIDF_OPEN	0x01	/* unit has been initialized */
@@ -600,8 +598,6 @@ out:
 		rf_printf(0, "Shutting down RAIDframe engine\n");
 		retcode = rf_Shutdown(sc->raidPtr);
 		RF_THREADGROUP_WAIT_STOP(&sc->raidPtr->engine_tg);
-
-		devstat_remove_entry(&sc->device_stats);
 
 		disk_destroy(&sc->sc_disk);
 		raidunlock(sc);
@@ -1290,11 +1286,6 @@ raidinit(raidPtr)
 	disk_create(raidPtr->raidid, &sc->sc_disk, 0, NULL, NULL);
 	raidPtr->sc = sc;
 
-	/* Register with devstat */
-	devstat_add_entry(&sc->device_stats, "raid", raidPtr->raidid, 0,
-			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  DEVSTAT_TYPE_IF_OTHER, DEVSTAT_PRIORITY_ARRAY);
-
 	return (sc);
 }
 
@@ -1434,8 +1425,6 @@ raidstart(raidPtr)
 		 * Everything is async.
 		 */
 		do_async = 1;
-
-		devstat_start_transaction(&sc->device_stats);
 
 		/* XXX we're still at splbio() here... do we *really* 
 		   need to be? */
@@ -3040,8 +3029,6 @@ rf_disk_unbusy(desc)
 
 	sc = desc->raidPtr->sc;
 	bp = (struct bio *)desc->bp;
-
-	devstat_end_transaction_bio(&sc->device_stats, bp);
 }
 
 /*

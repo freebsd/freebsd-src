@@ -64,7 +64,6 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -143,7 +142,6 @@ struct indir {
 struct md_s {
 	int unit;
 	LIST_ENTRY(md_s) list;
-	struct devstat stats;
 	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
 	struct disk disk;
@@ -594,15 +592,12 @@ md_kthread(void *arg)
 
 		switch (sc->type) {
 		case MD_MALLOC:
-			devstat_start_transaction(&sc->stats);
 			error = mdstart_malloc(sc, bp);
 			break;
 		case MD_PRELOAD:
-			devstat_start_transaction(&sc->stats);
 			error = mdstart_preload(sc, bp);
 			break;
 		case MD_VNODE:
-			devstat_start_transaction(&sc->stats);
 			error = mdstart_vnode(sc, bp);
 			break;
 		case MD_SWAP:
@@ -672,11 +667,6 @@ static void
 mdinit(struct md_s *sc)
 {
 
-	devstat_add_entry(&sc->stats, MD_NAME, sc->unit, sc->secsize,
-		DEVSTAT_NO_ORDERED_TAGS,
-		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
-		DEVSTAT_PRIORITY_OTHER);
-	{
 	struct g_geom *gp;
 	struct g_provider *pp;
 
@@ -694,7 +684,6 @@ mdinit(struct md_s *sc)
 	g_error_provider(pp, 0);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	}
 }
 
 /*
@@ -909,15 +898,12 @@ mddestroy(struct md_s *sc, struct thread *td)
 	GIANT_REQUIRED;
 
 	mtx_destroy(&sc->queue_mtx);
-	devstat_remove_entry(&sc->stats);
-	{
 	if (sc->gp) {
 		sc->gp->flags |= G_GEOM_WITHER;
 		sc->gp->softc = NULL;
 	}
 	if (sc->pp)
 		g_orphan_provider(sc->pp, ENXIO);
-	}
 	sc->flags |= MD_SHUTDOWN;
 	wakeup(sc);
 	while (sc->procp != NULL)

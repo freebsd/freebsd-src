@@ -38,7 +38,6 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/bus_memio.h>
@@ -105,7 +104,6 @@ idad_strategy(struct bio *bp)
 	}
 
 	s = splbio();
-	devstat_start_transaction(&drv->stats);
 	ida_submit_buf(drv->controller, bp);
 	splx(s);
 	return;
@@ -156,7 +154,7 @@ idad_intr(struct bio *bp)
 	else
 		bp->bio_resid = 0;
 
-	biofinish(bp, &drv->stats, 0);
+	biodone(bp);
 }
 
 static int
@@ -202,11 +200,6 @@ idad_attach(device_t dev)
 	    drv->secperunit / ((1024 * 1024) / drv->secsize),
 	    drv->secperunit, drv->secsize);
 
-	devstat_add_entry(&drv->stats, "idad", drv->unit, drv->secsize,
-	    DEVSTAT_NO_ORDERED_TAGS,
-	    DEVSTAT_TYPE_STORARRAY| DEVSTAT_TYPE_IF_OTHER,
-	    DEVSTAT_PRIORITY_ARRAY);
-
 	drv->disk.d_strategy = idad_strategy;
 	drv->disk.d_name = "idad";
 	drv->disk.d_dump = idad_dump;
@@ -227,7 +220,6 @@ idad_detach(device_t dev)
 	struct idad_softc *drv;
 
 	drv = (struct idad_softc *)device_get_softc(dev);
-	devstat_remove_entry(&drv->stats);
 	disk_destroy(&drv->disk);
 	return (0);
 }

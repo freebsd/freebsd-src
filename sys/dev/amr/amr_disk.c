@@ -68,7 +68,6 @@
 #include <dev/amr/amr_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/disk.h>
 
 #include <machine/bus.h>
@@ -161,7 +160,6 @@ amrd_strategy(struct bio *bio)
 	goto bad;
     }
 
-    devstat_start_transaction(&sc->amrd_stats);
     amr_submit_bio(sc->amrd_controller, bio);
     return;
 
@@ -180,7 +178,6 @@ void
 amrd_intr(void *data)
 {
     struct bio *bio = (struct bio *)data;
-    struct amrd_softc *sc = (struct amrd_softc *)bio->bio_disk->d_drv1;
 
     debug_called(2);
 
@@ -223,11 +220,6 @@ amrd_attach(device_t dev)
 		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & AMR_DRV_RAID_MASK, 
 		  amr_describe_code(amr_table_drvstate, AMR_DRV_CURSTATE(sc->amrd_drive->al_state)));
 
-    devstat_add_entry(&sc->amrd_stats, "amrd", sc->amrd_unit, AMR_BLKSIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
-		      DEVSTAT_PRIORITY_ARRAY);
-
     sc->amrd_disk.d_drv1 = sc;
     sc->amrd_disk.d_maxsize = (AMR_NSEG - 1) * PAGE_SIZE;
     sc->amrd_disk.d_open = amrd_open;
@@ -251,7 +243,6 @@ amrd_detach(device_t dev)
     if (sc->amrd_disk.d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
-    devstat_remove_entry(&sc->amrd_stats);
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
 	cdevsw_remove(&amrddisk_cdevsw);

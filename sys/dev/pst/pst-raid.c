@@ -36,7 +36,6 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
-#include <sys/devicestat.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -56,7 +55,6 @@ struct pst_softc {
     struct iop_softc		*iop;
     struct i2o_lct_entry	*lct;
     struct i2o_bsa_device	*info;
-    struct devstat		stats;
     struct disk			disk;
     struct bio_queue_head	queue;
     struct mtx			mtx;
@@ -164,11 +162,6 @@ pst_attach(device_t dev)
     psc->disk.d_fwsectors = 63;
     psc->disk.d_fwheads = 255;
 
-    devstat_add_entry(&psc->stats, "pst", lun, psc->info->block_size,
-		      DEVSTAT_NO_ORDERED_TAGS,
-		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-		      DEVSTAT_PRIORITY_DISK);
-
     printf("pst%d: %lluMB <%.40s> [%lld/%d/%d] on %.16s\n", lun,
 	   (unsigned long long)psc->info->capacity / (1024 * 1024),
 	   name, psc->info->capacity/(512*255*63), 255, 63,
@@ -238,9 +231,8 @@ pst_start(struct pst_softc *psc)
 		request->timeout_handle =
 		    timeout((timeout_t*)pst_timeout, request, 10 * hz);
 	    bioq_remove(&psc->queue, bp);
-	    devstat_start_transaction(&psc->stats);
 	    if (pst_rw(request)) {
-		biofinish(request->bp, &psc->stats, EIO);
+		biofinish(request->bp, NULL, EIO);
 		iop_free_mfa(request->psc->iop, request->mfa);
 		psc->outstanding--;
 		free(request, M_PSTRAID);
@@ -258,7 +250,7 @@ pst_done(struct iop_softc *sc, u_int32_t mfa, struct i2o_single_reply *reply)
 
     untimeout((timeout_t *)pst_timeout, request, request->timeout_handle);
     request->bp->bio_resid = request->bp->bio_bcount - reply->donecount;
-    biofinish(request->bp, &psc->stats, reply->status ? EIO : 0);
+    biofinish(request->bp, NULL, reply->status ? EIO : 0);
     free(request, M_PSTRAID);
     mtx_lock(&psc->mtx);
     psc->iop->reg->oqueue = mfa;
@@ -276,7 +268,7 @@ pst_timeout(struct pst_request *request)
     iop_free_mfa(request->psc->iop, request->mfa);
     if ((request->mfa = iop_get_mfa(request->psc->iop)) == 0xffffffff) {
 	printf("pst: timeout no mfa possible\n");
-	biofinish(request->bp, &request->psc->stats, EIO);
+	biofinish(request->bp, NULL, EIO);
 	request->psc->outstanding--;
 	mtx_unlock(&request->psc->mtx);
 	return;
@@ -288,7 +280,7 @@ pst_timeout(struct pst_request *request)
 	    timeout((timeout_t*)pst_timeout, request, 10 * hz);
     if (pst_rw(request)) {
 	iop_free_mfa(request->psc->iop, request->mfa);
-	biofinish(request->bp, &request->psc->stats, EIO);
+	biofinish(request->bp, NULL, EIO);
 	request->psc->outstanding--;
     }
     mtx_unlock(&request->psc->mtx);

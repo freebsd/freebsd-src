@@ -74,7 +74,6 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/devicestat.h>
 #include <sys/stat.h>
 #include <sys/stdint.h>
 

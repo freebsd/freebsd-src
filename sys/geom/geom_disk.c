@@ -48,6 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/stdint.h>
+#include <sys/devicestat.h>
 #include <machine/md_var.h>
 
 #include <sys/lock.h>
@@ -161,12 +162,33 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 static void
 g_disk_done(struct bio *bp)
 {
+	struct bio *bp2;
+	struct disk *dp;
+	devstat_trans_flags flg;
 
 	/* See "notes" for why we need a mutex here */
 	/* XXX: will witness accept a mix of Giant/unGiant drivers here ? */
 	mtx_lock(&g_disk_done_mtx);
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	g_std_done(bp);
+
+	bp2 = bp->bio_parent;
+	dp = bp2->bio_to->geom->softc;
+	if (bp2->bio_error == 0)
+		bp2->bio_error = bp->bio_error;
+	bp2->bio_completed += bp->bio_completed;
+	g_destroy_bio(bp);
+	bp2->bio_inbed++;
+	if (bp2->bio_children == bp2->bio_inbed) {
+		if (bp2->bio_cmd == BIO_DELETE)
+			flg = DEVSTAT_FREE;
+		else if (bp2->bio_cmd == BIO_READ)
+			flg = DEVSTAT_READ;
+		else
+			flg = DEVSTAT_WRITE;
+		devstat_end_transaction(dp->d_devstat, bp2->bio_completed,
+		    DEVSTAT_TAG_SIMPLE, flg);
+		g_io_deliver(bp2, bp2->bio_error);
+	}
 	mtx_unlock(&g_disk_done_mtx);
 }
 
@@ -197,6 +219,7 @@ g_disk_start(struct bio *bp)
 			error = ENOMEM;
 			break;
 		}
+		devstat_start_transaction(dp->d_devstat);
 		do {
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
@@ -317,6 +340,10 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
 	KASSERT(strlen(dp->d_name) < SPECNAMELEN - 4, ("disk name too long"));
+	dp->d_devstat = g_malloc(sizeof *dp->d_devstat, M_WAITOK | M_ZERO);
+	devstat_add_entry(dp->d_devstat, dp->d_name, dp->d_unit,
+	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
+	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	g_call_me(g_disk_create, dp);
 }
 
@@ -329,6 +356,7 @@ disk_destroy(struct disk *dp)
 	gp->flags |= G_GEOM_WITHER;
 	gp->softc = NULL;
 	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);
+	devstat_remove_entry(dp->d_devstat);
 }
 
 static void
