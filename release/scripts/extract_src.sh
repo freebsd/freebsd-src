@@ -1,8 +1,12 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.17 1994/12/04 03:41:18 jkh Exp $
+# $Id: extract_src.sh,v 1.1 1995/01/14 07:41:46 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
-DIST=compat1x_tgz
-echo "Extracting ${DIST}"
-cat ${DIST}.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
+for DIST in base bin etc games gnu include lib libexec release sbin lkm \
+	release share sys usrbin usrsbin; do
+	if [ -f ${DIST}.aa ]; then
+		echo "Extracting ${DIST} sources"
+		cat ${DIST}.?? | gzip -c -d | ( cd $DDIR; cpio -H tar -imdu )
+	fi
+done
