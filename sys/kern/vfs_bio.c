@@ -3494,7 +3494,6 @@ tryagain:
 		}
 		vm_page_lock_queues();
 		p->valid = VM_PAGE_BITS_ALL;
-		vm_page_flag_clear(p, PG_ZERO);
 		vm_page_unlock_queues();
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
