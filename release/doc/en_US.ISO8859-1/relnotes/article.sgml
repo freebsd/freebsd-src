@@ -1387,7 +1387,7 @@
     <para>&man.sysctl.8; has replaced the <option>-A</option> and
     <option>-X</option> options with <option>-ao</option> and
     <option>-ax</option> respectively; the former options are now
-    deprecated.  The <option>-w</option> is deprecated as well; it is
+    deprecated.  The <option>-w</option> option is deprecated as well; it is
     not needed to determine the user's intentions. &merged;</para>
 
     <para>&man.sysinstall.8; now lives in <filename>/usr/sbin</filename>,
@@ -1586,10 +1586,10 @@
     specification when loading a font, and has some better
     error-handling. &merged;</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> to
+    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
     take a snapshot of a &man.syscons.4; video buffer.  These
-    snapshots can be manipulated by some of the
-    <filename>scr2*</filename> utilities in the Ports
+    snapshots can be manipulated by the
+    <port>graphics/scr2png</port> utility in the Ports
     Collection. &merged;</para>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option
@@ -1718,7 +1718,7 @@
     <para>The &man.kldconfig.8; utility has been added to make it easier to
     manipulate the kernel module search path. &merged;</para>
 
-    <para>&man.moused.8; now takes a <option>-a</option> to control
+    <para>&man.moused.8; now takes a <option>-a</option> option to control
     mouse acceleration. &merged;</para>
 
     <para arch="i386">&man.fdisk.8; no longer attempts to search for
