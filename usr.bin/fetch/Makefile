@@ -1,6 +1,8 @@
 PROG = fetch
 SRCS = main.c
 
+CFLAGS+=	-Wall
+
 DPADD=  ${LIBFTPIO}
 LDADD=  -lftpio
 
