@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/taskqueue.h>
 
 #include <machine/md_var.h>
 
@@ -133,6 +134,7 @@ struct da_softc {
 	struct	 disk_params params;
 	struct	 disk disk;
 	union	 ccb saved_ccb;
+	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 };
@@ -388,6 +390,7 @@ static	dumper_t	dadump;
 static	periph_init_t	dainit;
 static	void		daasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
+static	void		dasysctlinit(void *context, int pending);
 static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
@@ -915,6 +918,41 @@ daasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+static void
+dasysctlinit(void *context, int pending)
+{
+	struct cam_periph *periph;
+	struct da_softc *softc;
+	char tmpstr[80], tmpstr2[80];
+
+	periph = (struct cam_periph *)context;
+	softc = (struct da_softc *)periph->softc;
+
+	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
+	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
+
+	mtx_lock(&Giant);
+	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
+		CTLFLAG_RD, 0, tmpstr);
+	if (softc->sysctl_tree == NULL) {
+		printf("dasysctlinit: unable to allocate sysctl tree\n");
+		return;
+	}
+
+	/*
+	 * Now register the sysctl handler, so the user can the value on
+	 * the fly.
+	 */
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
+		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
+		"Minimum CDB size");
+
+	mtx_unlock(&Giant);
+}
+
 static int
 dacmdsizesysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -955,7 +993,7 @@ daregister(struct cam_periph *periph, void *arg)
 	struct ccb_setasync csa;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char tmpstr[80], tmpstr2[80];
+	char tmpstr[80];
 	caddr_t match;
 
 	cgd = (struct ccb_getdev *)arg;
@@ -1008,17 +1046,7 @@ daregister(struct cam_periph *periph, void *arg)
 	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
 		softc->quirks |= DA_Q_NO_6_BYTE;
 
-	snprintf(tmpstr, sizeof(tmpstr), "CAM DA unit %d", periph->unit_number);
-	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
-	sysctl_ctx_init(&softc->sysctl_ctx);
-	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
-		SYSCTL_STATIC_CHILDREN(_kern_cam_da), OID_AUTO, tmpstr2,
-		CTLFLAG_RD, 0, tmpstr);
-	if (softc->sysctl_tree == NULL) {
-		printf("daregister: unable to allocate sysctl tree\n");
-		free(softc, M_DEVBUF);
-		return (CAM_REQ_CMP_ERR);
-	}
+	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
 	 * RBC devices don't have to support READ(6), only READ(10).
@@ -1048,15 +1076,6 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->minimum_cmd_size = 12;
 	else if (softc->minimum_cmd_size > 12)
 		softc->minimum_cmd_size = 16;
-
-	/*
-	 * Now register the sysctl handler, so the user can the value on
-	 * the fly.
-	 */
-	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "minimum_cmd_size", CTLTYPE_INT | CTLFLAG_RW,
-		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
-		"Minimum CDB size");
 
 	/*
 	 * Block our timeout handler while we
@@ -1539,8 +1558,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(csio->data_ptr, M_TEMP);
-		if (announce_buf[0] != '\0')
+		if (announce_buf[0] != '\0') {
 			xpt_announce_periph(periph, announce_buf);
+			/*
+			 * Create our sysctl variables, now that we know
+			 * we have successfully attached.
+			 */
+			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
+		}
 		softc->state = DA_STATE_NORMAL;	
 		/*
 		 * Since our peripheral may be invalidated by an error

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 1998
+.Dd September 2, 2003
 .Dt CD 4
 .Os
 .Sh NAME
@@ -370,6 +370,37 @@ Some work is planned to support
 some of the more common `broken'
 .Tn CD-ROM
 drives; however, this is not yet under way.
+.Pp
+The
+.Nm
+driver attempts to automatically determine whether the drive it is talking
+to supports 6 byte or 10 byte MODE SENSE/MODE SELECT operations.  Many
+.Tn SCSI
+drives only support 6 byte commands, and
+.Tn ATAPI
+drives only support 10 byte commands.
+The
+.Nm
+driver first attempts to determine whether the protocol in use typically
+supports 6 byte commands by issuing a CAM Path Inquiry CCB.
+It will then default to 6 byte or 10 byte commands as appropriate.
+After that, the
+.Nm
+driver defaults to using 6 byte commands (assuming the protocol the drive
+speaks claims to support 6 byte commands), until one fails with a
+.Tn SCSI 
+ILLEGAL REQUEST error.  Then it tries the 10 byte version of the command to
+see if that works instead.  Users can change the default via per-drive
+sysctl variables and loader tunables.  The variable names are the same in
+both instances:
+.Pp
+.Va kern.cam.cd.%d.minimum_cmd_size
+.Pp
+Where 
+.Dq %d
+is the unit number of the drive in question.  Valid minimum command sizes
+are 6 and 10.  Any value above 6 will be rounded to 10, and any value below
+6 will be rounded to 6.
 .Sh CHANGER OPERATION
 This driver has built-in support for LUN-based CD changers.
 A LUN-based CD
@@ -399,7 +430,7 @@ If there is no outstanding I/O for
 another LUN, the driver will allow indefinite access to a given LUN.
 .Pp
 The minimum and maximum time quanta are configurable via kernel options and
-also via sysctl variables.
+also via sysctl and kernel tunable variables.
 The kernel options are:
 .Pp
 .Bl -item -compact
@@ -409,7 +440,7 @@ The kernel options are:
 .Cd "options ""CHANGER_MAX_BUSY_SECONDS=11"""
 .El
 .Pp
-The sysctl variables are:
+The sysctl/kernel tunable variables are:
 .Pp
 .Bl -item -compact
 .It
