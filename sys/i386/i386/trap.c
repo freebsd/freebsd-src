@@ -266,11 +266,6 @@ trap(frame)
 		enable_intr();
 	}
 
-#ifdef	DEVICE_POLLING
-	if (poll_in_trap)
-		ether_poll(poll_in_trap);
-#endif /* DEVICE_POLLING */
-
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
 #endif

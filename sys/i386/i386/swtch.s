@@ -246,11 +246,7 @@ idle_loop:
 	call	_procrunnable
 	testl	%eax,%eax
 	CROSSJUMP(jnz, sw1a, jz)
-#ifdef	DEVICE_POLLING
-	call	_idle_poll
-#else	/* standard code */
 	call	_vm_page_zero_idle
-#endif
 	testl	%eax, %eax
 	jnz	idle_loop
 	call	*_hlt_vector			/* wait for interrupt */
