@@ -3,10 +3,10 @@
 #
 # name	getty				type	status		comments
 #
-ttyv0	"/usr/libexec/getty Pc"		pc3	on  secure
+ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
-ttyv1	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv2	"/usr/libexec/getty Pc"		cons25	off secure
+ttyv1	"/usr/libexec/getty Pc"		cons25	on secure
+ttyv2	"/usr/libexec/getty Pc"		cons25	on secure
 ttyv3	"/usr/libexec/getty Pc"		cons25	off secure
 # Hardwired terminals
 tty00	"/usr/libexec/getty std.9600"	unknown	off secure
