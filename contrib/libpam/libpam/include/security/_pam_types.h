@@ -9,6 +9,8 @@
  * Note, the copyright+license information is at end of file.
  *
  * Created: 1996/3/5 by AGM
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SECURITY__PAM_TYPES_H
@@ -150,14 +152,14 @@ typedef struct pam_handle pam_handle_t;
 
 /* ---------- Common Linux-PAM application/module PI ----------- */
 
-extern int pam_set_item(pam_handle_t *pamh, int item_type, const void *item);
-extern int pam_get_item(const pam_handle_t *pamh, int item_type,
-			const void **item);
-extern const char *pam_strerror(pam_handle_t *pamh, int errnum);
+extern int pam_set_item(pam_handle_t *_pamh, int _item_type, const void *_item);
+extern int pam_get_item(const pam_handle_t *_pamh, int _item_type,
+			const void **_item);
+extern const char *pam_strerror(pam_handle_t *_pamh, int _errnum);
 
-extern int pam_putenv(pam_handle_t *pamh, const char *name_value);
-extern const char *pam_getenv(pam_handle_t *pamh, const char *name);
-extern char **pam_getenvlist(pam_handle_t *pamh);
+extern int pam_putenv(pam_handle_t *_pamh, const char *_name_value);
+extern const char *pam_getenv(pam_handle_t *_pamh, const char *_name);
+extern char **pam_getenvlist(pam_handle_t *_pamh);
 
 /* ---------- Common Linux-PAM application/module PI ----------- */
 
@@ -187,7 +189,7 @@ extern char **pam_getenvlist(pam_handle_t *pamh);
  */
 
 #define HAVE_PAM_FAIL_DELAY
-extern int pam_fail_delay(pam_handle_t *pamh, unsigned int musec_delay);
+extern int pam_fail_delay(pam_handle_t *_pamh, unsigned int _musec_delay);
 
 #include <syslog.h>
 #ifndef LOG_AUTHPRIV

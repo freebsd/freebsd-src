@@ -11,6 +11,8 @@
  *
  * Creator: Marc Ewing.
  * Maintained: CVS
+ *
+ * $FreeBSD$
  */
 
 #ifndef _PAM_PRIVATE_H
@@ -45,7 +47,7 @@
 
 struct handler {
     int must_fail;
-    int (*func)(pam_handle_t *pamh, int flags, int argc, char **argv);
+    int (*func)(pam_handle_t *_pamh, int _flags, int _argc, char **_argv);
     int actions[_PAM_RETURN_VALUES];
     /* set by authenticate, open_session, chauthtok(1st)
        consumed by setcred, close_session, chauthtok(2nd) */
@@ -175,24 +177,24 @@ extern const char * const _pam_token_returns[_PAM_RETURN_VALUES+1];
  * internally defined functions --- these should not be directly
  * called by applications or modules
  */
-int _pam_dispatch(pam_handle_t *pamh, int flags, int choice);
+int _pam_dispatch(pam_handle_t *_pamh, int _flags, int _choice);
 
 /* Free various allocated structures and dlclose() the libs */
-int _pam_free_handlers(pam_handle_t *pamh);
+int _pam_free_handlers(pam_handle_t *_pamh);
 
 /* Parse config file, allocate handler structures, dlopen() */
-int _pam_init_handlers(pam_handle_t *pamh);
+int _pam_init_handlers(pam_handle_t *_pamh);
 
 /* Set all hander stuff to 0/NULL - called once from pam_start() */
-void _pam_start_handlers(pam_handle_t *pamh);
+void _pam_start_handlers(pam_handle_t *_pamh);
 
 /* environment helper functions */
 
 /* create the environment structure */
-int _pam_make_env(pam_handle_t *pamh);
+int _pam_make_env(pam_handle_t *_pamh);
 
 /* delete the environment structure */
-void _pam_drop_env(pam_handle_t *pamh);
+void _pam_drop_env(pam_handle_t *_pamh);
 
 /* these functions deal with failure delays as required by the
    authentication modules and application. Their *interface* is likely
@@ -200,13 +202,13 @@ void _pam_drop_env(pam_handle_t *pamh);
    improve */
 
 /* reset the timer to no-delay */
-void _pam_reset_timer(pam_handle_t *pamh);
+void _pam_reset_timer(pam_handle_t *_pamh);
 
 /* this sets the clock ticking */
-void _pam_start_timer(pam_handle_t *pamh);
+void _pam_start_timer(pam_handle_t *_pamh);
 
 /* this waits for the clock to stop ticking if status != PAM_SUCCESS */
-void _pam_await_timer(pam_handle_t *pamh, int status);
+void _pam_await_timer(pam_handle_t *_pamh, int _status);
 
 typedef void (*voidfunc(void))(void);
 #ifdef PAM_STATIC
@@ -214,11 +216,11 @@ typedef void (*voidfunc(void))(void);
 /* The next two in ../modules/_pam_static/pam_static.c */
 
 /* Return pointer to data structure used to define a static module */
-struct pam_module * _pam_open_static_handler(const char *path);
+struct pam_module * _pam_open_static_handler(const char *_path);
 
 /* Return pointer to function requested from static module */
 
-voidfunc *_pam_get_static_sym(struct pam_module *mod, const char *symname);
+voidfunc *_pam_get_static_sym(struct pam_module *_mod, const char *_symname);
 
 #endif
 
@@ -229,26 +231,26 @@ voidfunc *_pam_get_static_sym(struct pam_module *mod, const char *symname);
 struct pam_data {
      char *name;
      void *data;
-     void (*cleanup)(pam_handle_t *pamh, void *data, int error_status);
+     void (*cleanup)(pam_handle_t *_pamh, void *_data, int _error_status);
      struct pam_data *next;
 };
 
-void _pam_free_data(pam_handle_t *pamh, int status);
+void _pam_free_data(pam_handle_t *_pamh, int _status);
 
-int _pam_strCMP(const char *s, const char *t);
-char *_pam_StrTok(char *from, const char *format, char **next);
+int _pam_strCMP(const char *_s, const char *_t);
+char *_pam_StrTok(char *_from, const char *_format, char **_next);
 
-char *_pam_strdup(const char *s);
+char *_pam_strdup(const char *_s);
 
-int _pam_mkargv(char *s, char ***argv, int *argc);
+int _pam_mkargv(char *_s, char ***_argv, int *_argc);
 
-void _pam_sanitize(pam_handle_t *pamh);
+void _pam_sanitize(pam_handle_t *_pamh);
 
-void _pam_set_default_control(int *control_array, int default_action);
+void _pam_set_default_control(int *_control_array, int _default_action);
 
-void _pam_parse_control(int *control_array, char *tok);
+void _pam_parse_control(int *_control_array, char *_tok);
 
-void _pam_system_log(int priority, const char *format,  ... );
+void _pam_system_log(int _priority, const char *_format,  ... );
 #define _PAM_SYSTEM_LOG_PREFIX "PAM "
 
 /*
