@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.7 1996/06/08 08:18:00 bde Exp $
+ * $Id: random_machdep.c,v 1.8 1996/06/12 05:03:48 gpalmer Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -48,6 +48,7 @@
 #include <machine/clock.h>
 #include <machine/random.h>
 
+#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
