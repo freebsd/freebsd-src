@@ -666,24 +666,19 @@ vfs_cache_lookup(ap)
 
 	vp = *vpp;
 	vpid = vp->v_id;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 	if (dvp == vp) {   /* lookup on "." */
 		VREF(vp);
 		error = 0;
 	} else if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
-		cnp->cn_flags |= PDIRUNLOCK;
 #ifdef LOOKUP_SHARED
 		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
 			error = vget(vp, LK_SHARED, td);
 		else
 #endif
 			error = vget(vp, LK_EXCLUSIVE, td);
-
-		if (!error && lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(dvp, LK_EXCLUSIVE, td)) == 0)
-				cnp->cn_flags &= ~PDIRUNLOCK;
-		}
+		if (error)
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	} else {
 #ifdef LOOKUP_SHARED
 		if ((flags & ISLASTCN) && (flags & LOCKSHARED))
@@ -691,10 +686,6 @@ vfs_cache_lookup(ap)
 		else
 #endif
 			error = vget(vp, LK_EXCLUSIVE, td);
-		if (!lockparent || error || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 	}
 	/*
 	 * Check that the capability number did not change
@@ -704,16 +695,8 @@ vfs_cache_lookup(ap)
 		if (vpid == vp->v_id)
 			return (0);
 		vput(vp);
-		if (lockparent && dvp != vp && (flags & ISLASTCN)) {
-			VOP_UNLOCK(dvp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
-	}
-	if (cnp->cn_flags & PDIRUNLOCK) {
-		error = vn_lock(dvp, LK_EXCLUSIVE, td);
-		if (error)
-			return (error);
-		cnp->cn_flags &= ~PDIRUNLOCK;
+		if (flags & ISDOTDOT)
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 	}
 	error = VOP_CACHEDLOOKUP(dvp, vpp, cnp);
 #ifdef LOOKUP_SHARED
