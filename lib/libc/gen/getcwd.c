@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
 
+extern int __getcwd(char *, size_t);
+
 char *
 getcwd(pt, size)
 	char *pt;
