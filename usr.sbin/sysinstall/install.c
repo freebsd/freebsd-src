@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.62 1995/05/27 23:39:30 phk Exp $
+ * $Id: install.c,v 1.63 1995/05/28 09:31:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,7 +55,6 @@ static void	make_filesystems(void);
 static void	copy_self(void);
 static void	root_extract(void);
 
-static Disk *rootdisk;
 static Chunk *rootdev;
 
 static Boolean
@@ -78,9 +77,7 @@ checkLabels(void)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP &&
-			c2->private && c2->flags & CHUNK_IS_ROOT) {
-			rootdisk = disk;
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private && c2->flags & CHUNK_IS_ROOT) {
 			rootdev = c2;
 			break;
 		    }
@@ -182,12 +179,10 @@ installInitial(void)
 		msgNotify("Running bad block scan on partition %s", c1->name);
 		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
 		if (ret)
-		    msgConfirm("Bad144 init on %s returned status of %d!", 
-			c1->name, ret);
+		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
 		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
 		if (ret)
-		    msgConfirm("Bad144 scan on %s returned status of %d!", 
-			c1->name, ret);
+		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
 	    }
 	}
     }
@@ -198,6 +193,7 @@ installInitial(void)
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
     /* stick a helpful shell over on the 4th VTY */
+    msgDebug("Sticking a potentially helpful shell over on the 4th screen\n");
     if (!fork()) {
 	int i, fd;
 
@@ -277,7 +273,7 @@ make_filesystems(void)
     if (p->newfs) {
 	int i;
 
-	sprintf(dname, "/dev/r%sa", rootdisk->name);
+	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	msgNotify("Making a new root filesystem on %s", dname);
 	i = vsystem("%s %s", p->newfs_cmd, dname);
 	if (i) {
@@ -287,13 +283,13 @@ make_filesystems(void)
     }
     else {
 	msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
-	sprintf(dname, "/dev/r%sa", rootdisk->name);
+	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	msgNotify("Checking integrity of existing %s filesystem", dname);
 	i = vsystem("fsck -y %s", dname);
 	if (i)
 	    msgConfirm("Warning: fsck returned status off %d - this partition may be\nunsafe to use.", i);
     }
-    sprintf(dname, "/dev/%sa", rootdisk->name);
+    sprintf(dname, "/dev/%sa", rootdev->disk->name);
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system!  Giving up.");
 	return;
@@ -313,6 +309,9 @@ make_filesystems(void)
 
     /* Now buzz through the rest of the partitions and mount them too */
     for (i = 0; devs[i]; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
