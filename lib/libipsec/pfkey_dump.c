@@ -497,11 +497,7 @@ str_ipaddr(sa)
 	struct sockaddr *sa;
 {
 	static char buf[NI_MAXHOST];
-#ifdef NI_WITHSCOPEID
-	const int niflag = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
 	const int niflag = NI_NUMERICHOST;
-#endif
 
 	if (sa == NULL)
 		return "";

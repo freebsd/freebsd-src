@@ -293,11 +293,7 @@ set_address(buf, len, sa)
 	size_t len;
 	struct sockaddr *sa;
 {
-#ifdef NI_WITHSCOPEID
-	const int niflags = NI_NUMERICHOST | NI_WITHSCOPEID;
-#else
 	const int niflags = NI_NUMERICHOST;
-#endif
 
 	if (len < 1)
 		return NULL;

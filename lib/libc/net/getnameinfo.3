@@ -178,16 +178,11 @@ These
 flags are defined in
 .In netdb.h .
 .\"
-.Sh EXTENSION
+.Ss Extension for scoped IPv6 address
 The implementation allows experimental numeric IPv6 address notation with
 scope identifier.
-IPv6 link-local address will appear as string like
-.Dq Li fe80::1%ne0 ,
-if
-.Dv NI_WITHSCOPEID
-bit is enabled in
-.Fa flags
-argument.
+IPv6 link-local address will appear as a string like
+.Dq Li fe80::1%ne0 .
 Refer to
 .Xr getaddrinfo 3
 for the notation.
