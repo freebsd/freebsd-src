@@ -35,8 +35,9 @@ beforeinstall:
 	    ${DESTDIR}/var/games/hackdir/record
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
-	    ${.CURDIR}/hh ${.CURDIR}/data ${DESTDIR}/var/games/hackdir
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+		${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
+		${DESTDIR}/var/games/hackdir
 	rm -f ${DESTDIR}/var/games/hackdir/bones*
 
 .include <bsd.prog.mk>

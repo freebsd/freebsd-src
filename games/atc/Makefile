@@ -13,6 +13,6 @@ HIDEGAME=hidegame
 
 beforeinstall:
 	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 400 \
-	    ${GAMES} ${DESTDIR}/usr/share/games/atc)
+	    ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
 
 .include <bsd.prog.mk>

@@ -11,6 +11,6 @@ HIDEGAME=hidegame
 
 beforeinstall:
 	(cd ${.CURDIR}/datfiles; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m 444 ${CATS} ${DESTDIR}/usr/share/games/quiz.db)
+	    -m ${NOBINMODE} ${CATS} ${DESTDIR}${SHAREDIR}/games/quiz.db)
 
 .include <bsd.prog.mk>
