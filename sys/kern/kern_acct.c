@@ -117,7 +117,7 @@ acct(a1, uap)
 {
 	struct proc *p = curproc;	/* XXX */
 	struct nameidata nd;
-	int error;
+	int error, flags;
 
 	/* Make sure that the caller is root. */
 	error = suser(p);
@@ -131,7 +131,8 @@ acct(a1, uap)
 	if (SCARG(uap, path) != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path),
 		       p);
-		error = vn_open(&nd, FWRITE, 0);
+		flags = FWRITE;
+		error = vn_open(&nd, &flags, 0);
 		if (error)
 			return (error);
 		NDFREE(&nd, NDF_ONLY_PNBUF);

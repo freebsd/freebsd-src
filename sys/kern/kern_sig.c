@@ -1598,7 +1598,7 @@ coredump(p)
 	register struct ucred *cred = p->p_ucred;
 	struct nameidata nd;
 	struct vattr vattr;
-	int error, error1;
+	int error, error1, flags;
 	char *name;			/* name of corefile */
 	off_t limit;
 	
@@ -1621,7 +1621,8 @@ coredump(p)
 
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
+	flags = O_CREAT | FWRITE | O_NOFOLLOW;
+	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
 	if (error)
 		return (error);

@@ -307,7 +307,7 @@ ufs_extattrctl(struct mount *mp, int cmd, char *attrname,
 	struct vnode	*vp;
 	char	local_attrname[UFS_EXTATTR_MAXEXTATTRNAME]; /* inc null */
 	char	*filename;
-	int	error, len;
+	int	error, len, flags;
 
 	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0)))
 		return (error);
@@ -329,7 +329,8 @@ ufs_extattrctl(struct mount *mp, int cmd, char *attrname,
 
 		filename = (char *) arg;
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, filename, p);
-		error = vn_open(&nd, FREAD|FWRITE, 0);
+		flags = FREAD | FWRITE;
+		error = vn_open(&nd, &flags, 0);
 		if (error)
 			return (error);
 
