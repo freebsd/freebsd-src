@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.9 1998/03/20 19:48:25 brian Exp $
+ *	$Id: tun.c,v 1.6.4.10 1998/04/03 19:21:55 brian Exp $
  */
 
 #include <sys/param.h>
@@ -71,8 +71,6 @@ tun_configure(struct bundle *bundle, int mtu, int speed)
 
   info.type = 23;
   info.mtu = mtu;
-  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
-    info.mtu = VarPrefMTU;
   info.baudrate = speed;
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             

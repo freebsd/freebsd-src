@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.h,v 1.10.2.3 1998/02/07 20:49:20 brian Exp $
+ * $Id: auth.h,v 1.10.2.4 1998/03/01 01:07:38 brian Exp $
  *
  *	TODO:
  */
@@ -34,6 +34,9 @@ struct authinfo {
   int retry;
   int id;
   struct physical *physical;
+  struct {
+    u_int fsmretry;
+  } cfg;
 };
 
 extern void authinfo_Init(struct authinfo *);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.14 1998/03/20 19:47:10 brian Exp $
+ * $Id: vars.h,v 1.42.2.15 1998/03/24 18:47:32 brian Exp $
  *
  *	TODO:
  */
@@ -56,13 +56,7 @@ struct confdesc {
 extern struct confdesc pppConfs[MAXCONFS + 1];
 
 struct pppvars {
-  u_short var_mru;		/* Initial MRU value */
-  u_short pref_mtu;		/* Preferred MTU value */
-  int var_accmap;		/* Initial ACCMAP value */
-  int lqr_timeout;		/* LQR timeout value */
-  int retry_timeout;		/* Retry timeout value */
   int loopback;			/* Turn around packets addressed to me */
-  int open_mode;		/* Delay before first LCP REQ (-1 = passive) */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
 #define LOCAL_DENY	0x03
@@ -71,35 +65,24 @@ struct pppvars {
   u_char lauth;			/* Local Authorized status */
 
   /* The rest are just default initialized in vars.c */
-#define DIALUP_REQ	0x01
-#define DIALUP_DONE	0x02
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
-  char local_auth_key[50];		/* Local auth passwd */
-  int have_local_auth_key;		/* Local auth passwd specified ? */
-#ifdef HAVE_DES
+  char local_auth_key[50];	/* Local auth passwd */
+  int have_local_auth_key;	/* Local auth passwd specified ? */
   int use_MSChap;		/* Use MSCHAP encryption */
-#endif
   char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 
-#define VarAccmap		pppVars.var_accmap
-#define VarMRU			pppVars.var_mru
-#define VarPrefMTU		pppVars.pref_mtu
-#define	VarOpenMode		pppVars.open_mode
+#define VarLoopback		pppVars.loopback
 #define	VarLocalAuth		pppVars.lauth
-#define	VarLqrTimeout		pppVars.lqr_timeout
-#define	VarRetryTimeout		pppVars.retry_timeout
+
 #define	VarAuthKey		pppVars.auth_key
 #define	VarAuthName		pppVars.auth_name
 #define	VarLocalAuthKey		pppVars.local_auth_key
 #define	VarHaveLocalAuthKey	pppVars.have_local_auth_key
-#ifdef HAVE_DES
 #define	VarMSChap		pppVars.use_MSChap
-#endif
 #define	VarShortHost		pppVars.shostname
-#define VarLoopback		pppVars.loopback
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)

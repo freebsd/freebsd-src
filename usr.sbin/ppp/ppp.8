@@ -1,10 +1,10 @@
-.\" $Id: ppp.8,v 1.97.2.6 1998/03/17 22:29:11 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.7 1998/03/20 19:47:03 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
 .Sh NAME
 .Nm ppp
-.Nd Point to Point Protocol (a.k.a. iijppp) 
+.Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
 .\" SOMEONE FIX ME ! The .Op macro can't handle enough args !
@@ -123,18 +123,24 @@ to check the packet flow over the
 .Em PPP
 link.
 .It Supports PPP over TCP capability.
-.It Supports IETF draft Predictor-1 compression.
+If a device name is specified as
+.Em host Ns No : Ns Em port ,
 .Nm
-supports not only VJ-compression but also Predictor-1 compression.
+will open a TCP connection for transporting data rather than using a
+conventional serial device.
+.It Supports IETF draft Predictor-1 and DEFLATE compression.
+.Nm
+supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
 Normally, a modem has built-in compression (e.g. v42.bis) and the system
 may receive higher data rates from it as a result of such compression.
 While this is generally a good thing in most other situations, this
 higher speed data imposes a penalty on the system by increasing the
 number of serial interrupts the system has to process in talking to the
-modem and also increases latency.  Unlike VJ-compression, Predictor-1
-compression pre-compresses
+modem and also increases latency.  Unlike VJ-compression, Predictor-1 and
+DEFLATE compression pre-compresses
 .Em all
-data flowing through the link, thus reducing overhead to a minimum.
+network traffic flowing through the link, thus reducing overheads to a
+minimum.
 .It Supports Microsoft's IPCP extensions.
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
@@ -847,7 +853,7 @@ ui-gate:
  set escape 0xff
  set device ui-gate:ppp-in
  set dial
- set timeout 30 15 5
+ set timeout 30
  set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.2.0 255.255.255.0 10.0.4.1
@@ -978,34 +984,39 @@ to flush all rules.
 .Pp
 See
 .Pa /etc/ppp/ppp.conf.example .
-.Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
-To check/set idle timer, use the
+.Sh SETTING THE IDLE TIMER
+To check/set the idle timer, use the
 .Dq show timeout
 and
-.Dq set timeout idle [LQR [FSM-resend]]
+.Dq set timeout
 commands:
 .Bd -literal -offset indent
 ppp ON awfulhak> set timeout 600
 .Ed
 .Pp
-The timeout period is measured in seconds, the  default values for which
-are timeout = 180 or 3 min, lqrtimer = 30sec and retrytimer = 3sec.
+The timeout period is measured in seconds, the  default value for which
+is 180 seconds
+.Pq or 3 min .
 To disable the idle timer function, use the command
 .Bd -literal -offset indent
 ppp ON awfulhak> set timeout 0
 .Ed
 .Pp
 In
+.Fl ddial
+and
+.Fl direct
+modes, the idle timeout is ignored.  In
 .Fl auto
-mode, an idle timeout causes the
+mode, when the idle timeout causes the
 .Em PPP
 session to be
-closed, though the
+closed, the
 .Nm
 program itself remains running.  Another trigger packet will cause it to
 attempt to reestablish the link.
 .Sh PREDICTOR-1 and DEFLATE COMPRESSION
-This version supports CCP and Predictor type 1 or deflate compression
+This version supports CCP and either Predictor type 1 or deflate compression
 based on the current IETF-draft specs. As a default behaviour,
 .Nm
 will attempt to use (or be willing to accept) both compression protocols
@@ -1019,11 +1030,12 @@ and
 .Dq deny
 commands if you wish to disable this functionality.
 .Pp
-It is possible to use a different algorithm in each direction by using
-only one of
+It is possible to use a different compression algorithm in each direction
+by using only one of
 .Dq disable deflate
 and
-.Dq deny deflate .
+.Dq deny deflate
+.Pq assuming that the peer supports both algorithms .
 .Sh CONTROLLING IP ADDRESS
 .Nm
 uses IPCP to negotiate IP addresses. Each side of the connection
@@ -1564,10 +1576,32 @@ and
 .Ar accept Ns No ed .
 .It lqr
 Default: Disabled and Accepted.  This option decides if Link Quality
-Requests will be sent.  LQR is a protocol that allows
+Requests will be sent or accepted.  LQR is a protocol that allows
 .Nm
 to determine that the link is down without relying on the modems
-carrier detect.
+carrier detect.  When LQR is enabled,
+.Nm
+sends the
+.Em QUALPROTO
+option (see
+.Dq set lqrperiod
+below) as part of the LCP request.  If the peer agrees, both sides will
+exchange LQR packets at the agreed frequency, allowing detailed link
+quality monitoring by enabling LQM logging.  If the peer doesn't agree,
+ppp will send ECHO LQR requests instead.  These packets pass no
+information of interest, but they
+.Em MUST
+be replied to by the peer.
+.Pp
+Whether using LQR or ECHO LQR,
+.Nm
+will abruptly drop the connection if 5 unacknowledged packets have been
+sent rather than sending a 6th.  A message is logged at the
+.Em PHASE
+level, and any appropriate
+.Dq reconnect
+values are honoured as if the peer were responsible for dropping the
+connection.
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
 Protocol.  Only one of PAP and CHAP (above) may be negotiated.  With
@@ -2273,6 +2307,17 @@ argument may be overridden in the
 file once the client has authenticated themself.  Refer to the
 .Em AUTHENTICATING INCOMING CONNECTIONS
 section for details.
+.It set lcpretry period
+.It set chapretry period
+.It set papretry period
+.It set ccpretry period
+.It set ipcpretry period
+These commands set the number of seconds that
+.Nm
+will wait before resending Finite State Machine (FSM) Request packets.
+The default
+.Ar period
+for all FSMs is 3 seconds (which should suffice in most cases).
 .It set loopback on|off
 When set to
 .Ar on
@@ -2398,6 +2443,16 @@ doesn't time out in the stopped state.
 This value should not be set to less than the openmode delay (see
 .Dq set openmode
 above).
+.It set lqrperiod frequency
+This command sets the
+.Ar frequency
+in seconds at which
+.Em LQR
+or
+.Em ECHO LQR
+packets are sent.  The default is 30 seconds.  You must also use the
+.Dq enable lqr
+command if you wish to send LQR requests to the peer.
 .It set server|socket TcpPort|LocalName|none [password] [mask]
 This command tells
 .Nm
@@ -2443,11 +2498,11 @@ can also be used, but link encryption may be implemented in the future, so
 should not be relied upon.
 .It set speed value
 This sets the speed of the serial device.
-.It set timeout idle [LQR [FSM-resend]]
-This command allows the setting of the idle timer, the LQR timer (if
-enabled) and the finite state machine
-.Pq FSM
-retry timer.
+.It set timeout idleseconds
+This command allows the setting of the idle timer.  Refer to the
+section titled
+.Dq SETTING THE IDLE TIMER
+for further details.
 .It set vj slots nslots
 This command sets the initial number of
 .Ar slots

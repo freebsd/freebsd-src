@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.15 1998/03/20 19:46:58 brian Exp $
+ * $Id: lcp.h,v 1.16.2.16 1998/04/03 19:21:31 brian Exp $
  *
  *	TODO:
  */
@@ -36,8 +36,8 @@ struct lcp {
   u_int32_t want_accmap;	/* Our async char control map */
   u_int32_t want_magic;		/* Our magic number */
   u_int32_t want_lqrperiod;	/* Our LQR frequency */
-  int want_protocomp : 1;	/* Do we do protocol field compression */
-  int want_acfcomp : 1;		/* Do we do addr & cntrl fld compression */
+  unsigned want_protocomp : 1;	/* Do we do protocol field compression */
+  unsigned want_acfcomp : 1;	/* Do we do addr & cntrl fld compression */
   u_short want_auth;		/* We want this type of authentication */
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
@@ -47,6 +47,15 @@ struct lcp {
   u_short auth_ineed;		/* I require that the peer authenticates */
 
   int LcpFailedMagic;		/* Number of `magic is same' errors */
+
+  struct {
+    u_short mru;		/* Preferred MRU value */
+    u_short mtu;		/* Preferred MTU value */
+    u_int32_t accmap;		/* Initial ACCMAP value */
+    int openmode;		/* when to start CFG REQs */
+    u_int lqrperiod;		/* LQR frequency */
+    u_int fsmretry;		/* FSM retry frequency */
+  } cfg;
 };
 
 #define	LCP_MAXCODE	CODE_DISCREQ

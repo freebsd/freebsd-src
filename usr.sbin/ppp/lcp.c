@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.33 1998/03/24 18:47:17 brian Exp $
+ * $Id: lcp.c,v 1.55.2.34 1998/04/03 19:21:29 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -143,9 +143,10 @@ static const char *cftypes[] = {
 int
 lcp_ReportStatus(struct cmdargs const *arg)
 {
-  struct lcp *lcp = &ChooseLink(arg)->lcp;
+  struct link *l = ChooseLink(arg);
+  struct lcp *lcp = &l->lcp;
 
-  prompt_Printf(&prompt, "%s [%s]\n", lcp->fsm.name,
+  prompt_Printf(&prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
                 State2Nam(lcp->fsm.state));
   prompt_Printf(&prompt,
 	        " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
@@ -159,13 +160,17 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 lcp->want_mru, (u_long)lcp->want_accmap,
                 lcp->want_protocomp, lcp->want_acfcomp,
                 (u_long)lcp->want_magic, lcp->my_reject);
-  prompt_Printf(&prompt, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
-                VarMRU, (u_long)VarAccmap);
-  prompt_Printf(&prompt, "Open Mode: %s",
-                (VarOpenMode == OPEN_PASSIVE) ? "passive" : "active");
-  if (VarOpenMode > 0)
-    prompt_Printf(&prompt, " (delay %d)", VarOpenMode);
-  prompt_Printf(&prompt, "\n");
+
+  prompt_Printf(&prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
+  if (l->lcp.cfg.mtu)
+    prompt_Printf(&prompt, "MTU = %d, ", lcp->cfg.mtu);
+  prompt_Printf(&prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
+  prompt_Printf(&prompt, "           LQR period = %us, ", lcp->cfg.lqrperiod);
+  prompt_Printf(&prompt, "Open Mode = %s",
+                lcp->cfg.openmode == OPEN_PASSIVE ? "passive" : "active");
+  if (lcp->cfg.openmode > 0)
+    prompt_Printf(&prompt, " (delay %ds)", lcp->cfg.openmode);
+  prompt_Printf(&prompt, "\n           FSM retry = %us\n", lcp->cfg.fsmretry);
   return 0;
 }
 
@@ -188,7 +193,15 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 
   fsm_Init(&lcp->fsm, "LCP", PROTO_LCP, mincode, LCP_MAXCODE, 10, LogLCP,
            bundle, l, parent, &lcp_Callbacks, timer_names);
-  lcp_Setup(lcp, 1);
+
+  lcp->cfg.mru = DEF_MRU;
+  lcp->cfg.mtu = DEF_MTU;
+  lcp->cfg.accmap = 0;
+  lcp->cfg.openmode = 1;
+  lcp->cfg.lqrperiod = DEF_LQRPERIOD;
+  lcp->cfg.fsmretry = DEF_FSMRETRY;
+
+  lcp_Setup(lcp, lcp->cfg.openmode);
 }
 
 void
@@ -205,12 +218,12 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_acfcomp = 0;
   lcp->his_auth = 0;
 
-  lcp->want_mru = VarMRU;
-  lcp->want_accmap = VarAccmap;
+  lcp->want_mru = lcp->cfg.mru;
+  lcp->want_accmap = lcp->cfg.accmap;
   lcp->want_magic = GenerateMagic();
   lcp->want_auth = Enabled(ConfChap) ? PROTO_CHAP :
                    Enabled(ConfPap) ?  PROTO_PAP : 0;
-  lcp->want_lqrperiod = Enabled(ConfLqr) ?  VarLqrTimeout * 100 : 0;
+  lcp->want_lqrperiod = Enabled(ConfLqr) ? lcp->cfg.lqrperiod * 100 : 0;
   lcp->want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
   lcp->want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
 
@@ -223,7 +236,9 @@ static void
 LcpInitRestartCounter(struct fsm * fp)
 {
   /* Set fsm timer load */
-  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
+  struct lcp *lcp = fsm2lcp(fp);
+
+  fp->FsmTimer.load = lcp->cfg.fsmretry * SECTICKS;
   fp->restart = 5;
 }
 
@@ -381,7 +396,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        mtu = VarPrefMTU;
+        mtu = lcp->cfg.mtu;
         if (mtu == 0)
           mtu = MAX_MTU;
 	if (mru > mtu) {

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.13 1998/03/17 22:29:03 brian Exp $
+ * $Id: ccp.h,v 1.14.2.14 1998/04/03 19:21:09 brian Exp $
  *
  *	TODO:
  */
@@ -41,6 +41,7 @@ struct ccp_config {
       int winsize;
     } in, out;
   } deflate;
+  u_int fsmretry;		/* FSM retry frequency */
 };
 
 struct ccp_opt {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.28 1998/03/25 00:59:33 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.29 1998/04/03 19:21:17 brian Exp $
  */
 
 #include <sys/param.h>
@@ -179,8 +179,8 @@ datalink_LoginDone(struct datalink *dl)
     hdlc_Init(&dl->physical->hdlc);
     async_Init(&dl->physical->async);
 
-    lcp_Setup(&dl->physical->link.lcp,
-              dl->state == DATALINK_READY ? 0 : VarOpenMode);
+    lcp_Setup(&dl->physical->link.lcp, dl->state == DATALINK_READY ?
+              0 : dl->physical->link.lcp.cfg.openmode);
     ccp_Setup(&dl->physical->link.ccp);
 
     LogPrintf(LogPHASE, "%s: Entering LCP state\n", dl->name);

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.12.2.5 1998/03/17 22:29:07 brian Exp $
+ * $Id: command.h,v 1.12.2.6 1998/04/03 19:21:15 brian Exp $
  *
  *	TODO:
  */
@@ -48,11 +48,19 @@ struct cmdtab {
 #define	VAR_WINSIZE	4
 #define	VAR_DEVICE	5
 #define	VAR_ACCMAP	6
-#define	VAR_PHONE	7
-#define	VAR_HANGUP	8
-#ifdef HAVE_DES
-#define	VAR_ENC		9
-#endif
+#define	VAR_MRU		7
+#define	VAR_MTU		8
+#define	VAR_OPENMODE	9
+#define	VAR_PHONE	10
+#define	VAR_HANGUP	11
+#define	VAR_ENC		12
+#define	VAR_IDLETIMEOUT	13
+#define	VAR_LQRPERIOD	14
+#define	VAR_LCPRETRY	15
+#define	VAR_CHAPRETRY	16
+#define	VAR_PAPRETRY	17
+#define	VAR_CCPRETRY	18
+#define	VAR_IPCPRETRY	19
 
 extern struct in_addr ifnetmask;
 extern int aft_cmd;

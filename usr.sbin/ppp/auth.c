@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.15 1998/03/16 22:53:28 brian Exp $
+ * $Id: auth.c,v 1.27.2.16 1998/04/03 19:21:06 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -254,6 +254,7 @@ void
 authinfo_Init(struct authinfo *authinfo)
 {
   memset(authinfo, '\0', sizeof(struct authinfo));
+  authinfo->cfg.fsmretry = DEF_FSMRETRY;
 }
 
 void
@@ -265,7 +266,7 @@ StartAuthChallenge(struct authinfo *authp, struct physical *physical,
   StopTimer(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
   authp->authtimer.name = "auth";
-  authp->authtimer.load = VarRetryTimeout * SECTICKS;
+  authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
   authp->authtimer.state = TIMER_STOPPED;
   authp->authtimer.arg = (void *) authp;
   authp->retry = 3;

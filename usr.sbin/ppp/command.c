@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.43 1998/03/24 18:46:43 brian Exp $
+ * $Id: command.c,v 1.131.2.44 1998/04/03 19:21:13 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -437,12 +437,10 @@ ShowTimeout(struct cmdargs const *arg)
 {
   int remaining;
 
-  prompt_Printf(&prompt, " Idle Timer: %d secs   LQR Timer: %d secs"
-	        "   Retry Timer: %d secs\n", arg->bundle->cfg.idle_timeout,
-                VarLqrTimeout, VarRetryTimeout);
+  prompt_Printf(&prompt, "Idle Timer: %ds\n", arg->bundle->cfg.idle_timeout);
   remaining = bundle_RemainingIdleTime(arg->bundle);
   if (remaining != -1)
-    prompt_Printf(&prompt, " %d secs remaining\n", remaining);
+    prompt_Printf(&prompt, "Remaining:  %ds\n", remaining);
 
   return 0;
 }
@@ -494,27 +492,13 @@ ShowVersion(struct cmdargs const *arg)
   return 0;
 }
 
-static int
-ShowInitialMRU(struct cmdargs const *arg)
-{
-  prompt_Printf(&prompt, " Initial MRU: %d\n", VarMRU);
-  return 0;
-}
-
-static int
-ShowPreferredMTU(struct cmdargs const *arg)
-{
-  if (VarPrefMTU)
-    prompt_Printf(&prompt, " Preferred MTU: %d\n", VarPrefMTU);
-  else
-    prompt_Printf(&prompt, " Preferred MTU: unspecified\n");
-  return 0;
-}
-
 int
 ShowProtocolStats(struct cmdargs const *arg)
 {
-  link_ReportProtocolStatus(ChooseLink(arg));
+  struct link *l = ChooseLink(arg);
+
+  prompt_Printf(&prompt, "%s:\n", l->name);
+  link_ReportProtocolStatus(l);
   return 0;
 }
 
@@ -599,14 +583,10 @@ static struct cmdtab const ShowCommands[] = {
   "Show memory map", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
   "Show modem setups", "show modem"},
-  {"mru", NULL, ShowInitialMRU, LOCAL_AUTH,
-  "Show Initial MRU", "show mru"},
 #ifndef NOMSEXT
   {"msext", NULL, ShowMSExt, LOCAL_AUTH,
   "Show MS PPP extentions", "show msext"},
 #endif
-  {"mtu", NULL, ShowPreferredMTU, LOCAL_AUTH,
-  "Show Preferred MTU", "show mtu"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH | LOCAL_CX,
@@ -1109,71 +1089,6 @@ SetEscape(struct cmdargs const *arg)
   return 0;
 }
 
-static int
-SetInitialMRU(struct cmdargs const *arg)
-{
-  long mru;
-  const char *err;
-
-  if (arg->argc > 0) {
-    mru = atol(*arg->argv);
-    if (mru < MIN_MRU)
-      err = "Given MRU value (%ld) is too small.\n";
-    else if (mru > MAX_MRU)
-      err = "Given MRU value (%ld) is too big.\n";
-    else {
-      VarMRU = mru;
-      return 0;
-    }
-    LogPrintf(LogWARN, err, mru);
-  }
-  return -1;
-}
-
-static int
-SetPreferredMTU(struct cmdargs const *arg)
-{
-  long mtu;
-  const char *err;
-
-  if (arg->argc > 0) {
-    mtu = atol(*arg->argv);
-    if (mtu == 0) {
-      VarPrefMTU = 0;
-      return 0;
-    } else if (mtu < MIN_MTU)
-      err = "Given MTU value (%ld) is too small.\n";
-    else if (mtu > MAX_MTU)
-      err = "Given MTU value (%ld) is too big.\n";
-    else {
-      VarPrefMTU = mtu;
-      return 0;
-    }
-    LogPrintf(LogWARN, err, mtu);
-  }
-  return -1;
-}
-
-static int
-SetTimeout(struct cmdargs const *arg)
-{
-  if (arg->argc > 0) {
-    bundle_SetIdleTimer(arg->bundle, atoi(arg->argv[0]));
-    if (arg->argc > 1) {
-      VarLqrTimeout = atoi(arg->argv[1]);
-      if (VarLqrTimeout < 1)
-	VarLqrTimeout = 30;
-      if (arg->argc > 2) {
-	VarRetryTimeout = atoi(arg->argv[2]);
-	if (VarRetryTimeout < 1 || VarRetryTimeout > 10)
-	  VarRetryTimeout = 3;
-      }
-    }
-    return 0;
-  }
-  return -1;
-}
-
 static struct in_addr
 GetIpAddr(const char *cp)
 {
@@ -1292,10 +1207,12 @@ SetNBNS(struct cmdargs const *arg)
 static int
 SetVariable(struct cmdargs const *arg)
 {
-  u_long map;
+  u_long ulong_val;
   const char *argp;
   int param = (int)arg->cmd->args;
-  struct datalink *cx = arg->cx;
+  struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
+  const char *err = NULL;
+  struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
 
   if (arg->argc > 0)
     argp = *arg->argv;
@@ -1335,8 +1252,6 @@ SetVariable(struct cmdargs const *arg)
     break;
   case VAR_WINSIZE:
     if (arg->argc > 0) {
-      struct link *l = ChooseLink(arg);
-
       l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[0]);
       if (l->ccp.cfg.deflate.out.winsize < 8 ||
           l->ccp.cfg.deflate.out.winsize > 15) {
@@ -1354,14 +1269,57 @@ SetVariable(struct cmdargs const *arg)
         }
       } else
         l->ccp.cfg.deflate.in.winsize = 0;
+    } else {
+      err = "No window size specified\n";
+      LogPrintf(LogWARN, err);
     }
     break;
   case VAR_DEVICE:
     Physical_SetDeviceList(cx->physical, argp);
     break;
   case VAR_ACCMAP:
-    sscanf(argp, "%lx", &map);
-    VarAccmap = map;
+    if (arg->argc > 0) {
+      sscanf(argp, "%lx", &ulong_val);
+      cx->physical->link.lcp.cfg.accmap = ulong_val;
+    } else {
+      err = "No accmap specified\n";
+      LogPrintf(LogWARN, err);
+    }
+    break;
+  case VAR_MRU:
+    ulong_val = atol(argp);
+    if (ulong_val < MIN_MRU)
+      err = "Given MRU value (%lu) is too small.\n";
+    else if (ulong_val > MAX_MRU)
+      err = "Given MRU value (%lu) is too big.\n";
+    else
+      l->lcp.cfg.mru = ulong_val;
+    if (err)
+      LogPrintf(LogWARN, err, ulong_val);
+    break;
+  case VAR_MTU:
+    ulong_val = atol(argp);
+    if (ulong_val == 0)
+      l->lcp.cfg.mtu = 0;
+    else if (ulong_val < MIN_MTU)
+      err = "Given MTU value (%lu) is too small.\n";
+    else if (ulong_val > MAX_MTU)
+      err = "Given MTU value (%lu) is too big.\n";
+    else
+      l->lcp.cfg.mtu = ulong_val;
+    if (err)
+      LogPrintf(LogWARN, err, ulong_val);
+    break;
+  case VAR_OPENMODE:
+    if (strcasecmp(argp, "active") == 0)
+      cx->physical->link.lcp.cfg.openmode = arg->argc > 1 ?
+        atoi(arg->argv[1]) : 1;
+    else if (strcasecmp(argp, "passive") == 0)
+      cx->physical->link.lcp.cfg.openmode = OPEN_PASSIVE;
+    else {
+      err = "%s: Invalid openmode\n";
+      LogPrintf(LogWARN, err, argp);
+    }
     break;
   case VAR_PHONE:
     strncpy(cx->cfg.phone.list, argp, sizeof cx->cfg.phone.list - 1);
@@ -1373,13 +1331,78 @@ SetVariable(struct cmdargs const *arg)
       cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     }
     break;
-#ifdef HAVE_DES
   case VAR_ENC:
-    VarMSChap = !strcasecmp(argp, "mschap");
-    break;
+#ifdef HAVE_DES
+    if (!strcasecmp(argp, "mschap"))
+      VarMSChap = 1;
+    else
 #endif
+      if (!strcasecmp(argp, "md5"))
+        VarMSChap = 0;
+      else {
+        err = "%s: Invalid CHAP encryption method\n";
+        LogPrintf(LogWARN, err, argp);
+      }
+    break;
+  case VAR_IDLETIMEOUT:
+    if (arg->argc > 1)
+      err = "Too many idle timeout values";
+    else if (arg->argc == 1)
+      bundle_SetIdleTimer(arg->bundle, atoi(argp));
+    if (err)
+      LogPrintf(LogWARN, err);
+    break;
+  case VAR_LQRPERIOD:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid lqr period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      l->lcp.cfg.lqrperiod = ulong_val;
+    break;
+  case VAR_LCPRETRY:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid LCP FSM retry period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      cx->physical->link.lcp.cfg.fsmretry = ulong_val;
+    break;
+  case VAR_CHAPRETRY:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid CHAP retry period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      cx->chap.auth.cfg.fsmretry = ulong_val;
+    break;
+  case VAR_PAPRETRY:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid PAP retry period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      cx->pap.cfg.fsmretry = ulong_val;
+    break;
+  case VAR_CCPRETRY:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid CCP FSM retry period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      l->ccp.cfg.fsmretry = ulong_val;
+    break;
+  case VAR_IPCPRETRY:
+    ulong_val = atol(argp);
+    if (ulong_val <= 0) {
+      err = "%s: Invalid IPCP FSM retry period\n";
+      LogPrintf(LogWARN, err, argp);
+    } else
+      arg->bundle->ncp.ipcp.cfg.fsmretry = ulong_val;
+    break;
   }
-  return 0;
+
+  return err ? 1 : 0;
 }
 
 static int 
@@ -1402,31 +1425,15 @@ SetCtsRts(struct cmdargs const *arg)
   return -1;
 }
 
-
-static int 
-SetOpenMode(struct cmdargs const *arg)
-{
-  if (arg->argc > 0) {
-    if (strcasecmp(*arg->argv, "active") == 0)
-      VarOpenMode = arg->argc > 1 ? atoi(arg->argv[1]) : 1;
-    else if (strcasecmp(*arg->argv, "passive") == 0)
-      VarOpenMode = OPEN_PASSIVE;
-    else
-      return -1;
-    return 0;
-  }
-  return -1;
-}
-
 static struct cmdtab const SetCommands[] = {
   {"accmap", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
-  "Set accmap value", "set accmap hex-value", (const void *) VAR_ACCMAP},
+  "Set accmap value", "set accmap hex-value", (const void *)VAR_ACCMAP},
   {"authkey", "key", SetVariable, LOCAL_AUTH,
-  "Set authentication key", "set authkey|key key", (const void *) VAR_AUTHKEY},
+  "Set authentication key", "set authkey|key key", (const void *)VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
-  "Set authentication name", "set authname name", (const void *) VAR_AUTHNAME},
+  "Set authentication name", "set authname name", (const void *)VAR_AUTHNAME},
   {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH | LOCAL_CX,
-  "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
+  "Use hardware flow control", "set ctsrts [on|off]"},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "Set deflate window sizes", "set deflate out-winsize in-winsize",
   (const void *) VAR_WINSIZE},
@@ -1435,10 +1442,8 @@ static struct cmdtab const SetCommands[] = {
   (const void *) VAR_DEVICE},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
-#ifdef HAVE_DES
-  {"encrypt", NULL, SetVariable, LOCAL_AUTH, "Set CHAP encryption algorithm",
+  {"encrypt", NULL, SetVariable, LOCAL_AUTH, "Select CHAP encryption type",
   "set encrypt MSChap|MD5", (const void *) VAR_ENC},
-#endif
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
@@ -1453,22 +1458,34 @@ static struct cmdtab const SetCommands[] = {
   "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set login script", "set login chat-script", (const void *) VAR_LOGIN},
-  {"mru", NULL, SetInitialMRU, LOCAL_AUTH,
-  "Set Initial MRU value", "set mru value"},
-  {"mtu", NULL, SetPreferredMTU, LOCAL_AUTH,
-  "Set Preferred MTU value", "set mtu value"},
+  {"mru", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set MRU value", "set mru value", (const void *)VAR_MRU},
+  {"mtu", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set MTU value", "set mtu value", (const void *)VAR_MTU},
+  {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
+  {"lcpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set FSM retry period", "set lcpretry value", (const void *)VAR_LCPRETRY},
+  {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  {"papretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set PAP retry period", "set papretry value", (const void *)VAR_PAPRETRY},
+  {"ccpretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
+  "Set FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
+  {"ipcpretry", NULL, SetVariable, LOCAL_AUTH,
+  "Set FSM retry period", "set ipcpretry value", (const void *)VAR_IPCPRETRY},
 #ifndef NOMSEXT
   {"nbns", NULL, SetNBNS, LOCAL_AUTH,
   "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
   {"ns", NULL, SetNS, LOCAL_AUTH,
   "Set NameServer", "set ns pri-addr [sec-addr]"},
 #endif
-  {"openmode", NULL, SetOpenMode, LOCAL_AUTH | LOCAL_CX,
-  "Set open mode", "set openmode [active|passive]"},
+  {"openmode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set open mode",
+  "set openmode active|passive [secs]", (const void *)VAR_OPENMODE},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,
   "Set modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "Set telephone number(s)",
-  "set phone phone1[:phone2[...]]", (const void *) VAR_PHONE},
+  "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"reconnect", NULL, SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Set Reconnect timeout", "set reconnect value ntries"},
   {"redial", NULL, SetRedialTimeout, LOCAL_AUTH | LOCAL_CX,
@@ -1479,8 +1496,8 @@ static struct cmdtab const SetCommands[] = {
   "Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   {"speed", NULL, SetModemSpeed, LOCAL_AUTH | LOCAL_CX,
   "Set modem speed", "set speed value"},
-  {"timeout", NULL, SetTimeout, LOCAL_AUTH,
-  "Set Idle timeout", "set timeout idle LQR FSM-resend"},
+  {"timeout", NULL, SetVariable, LOCAL_AUTH, "Set Idle timeout",
+  "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
   {"vj", NULL, SetInitVJ, LOCAL_AUTH,
   "Set vj values", "set vj slots|slotcomp"},
   {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,

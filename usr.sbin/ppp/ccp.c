@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.28 1998/03/24 18:46:37 brian Exp $
+ * $Id: ccp.c,v 1.30.2.29 1998/04/03 19:21:08 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -135,15 +135,22 @@ static const struct ccp_algorithm *algorithm[] = {
 int
 ccp_ReportStatus(struct cmdargs const *arg)
 {
-  struct ccp *ccp = &ChooseLink(arg)->ccp;
+  struct link *l = ChooseLink(arg);
+  struct ccp *ccp = &l->ccp;
 
-  prompt_Printf(&prompt, "%s [%s]\n", ccp->fsm.name,
+  prompt_Printf(&prompt, "%s: %s [%s]\n", l->name, ccp->fsm.name,
                 State2Nam(ccp->fsm.state));
-  prompt_Printf(&prompt, "My protocol = %s, His protocol = %s\n",
+  prompt_Printf(&prompt, " My protocol = %s, His protocol = %s\n",
                 protoname(ccp->my_proto), protoname(ccp->his_proto));
-  prompt_Printf(&prompt, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
+  prompt_Printf(&prompt, " Output: %ld --> %ld,  Input: %ld --> %ld\n",
                 ccp->uncompout, ccp->compout,
                 ccp->compin, ccp->uncompin);
+
+  prompt_Printf(&prompt, "\n Defaults: ");
+  prompt_Printf(&prompt, "deflate windows: ");
+  prompt_Printf(&prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
+  prompt_Printf(&prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
+  prompt_Printf(&prompt, "           FSM retry = %us\n", ccp->cfg.fsmretry);
   return 0;
 }
 
@@ -157,8 +164,11 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
 
   fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, 1, CCP_MAXCODE, 10, LogCCP,
            bundle, l, parent, &ccp_Callbacks, timer_names);
+
   ccp->cfg.deflate.in.winsize = 0;
   ccp->cfg.deflate.out.winsize = 15;
+  ccp->cfg.fsmretry = DEF_FSMRETRY;
+
   ccp_Setup(ccp);
 }
 
@@ -183,7 +193,9 @@ static void
 CcpInitRestartCounter(struct fsm *fp)
 {
   /* Set fsm timer load */
-  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
+  struct ccp *ccp = fsm2ccp(fp);
+
+  fp->FsmTimer.load = ccp->cfg.fsmretry * SECTICKS;
   fp->restart = 5;
 }
 

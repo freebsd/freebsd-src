@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.27 1998/03/24 18:47:10 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.28 1998/04/03 19:21:28 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -233,10 +233,14 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
   iplist_setsrc(&ipcp->cfg.peer_list, "");
   ipcp->cfg.HaveTriggerAddress = 0;
 
+#ifndef NOMSEXT
   ipcp->cfg.ns_entries[0].s_addr = INADDR_ANY;
   ipcp->cfg.ns_entries[1].s_addr = INADDR_ANY;
   ipcp->cfg.nbns_entries[0].s_addr = INADDR_ANY;
   ipcp->cfg.nbns_entries[1].s_addr = INADDR_ANY;
+#endif
+
+  ipcp->cfg.fsmretry = DEF_FSMRETRY;
 
   memset(&ipcp->vj, '\0', sizeof ipcp->vj);
 
@@ -398,7 +402,9 @@ static void
 IpcpInitRestartCounter(struct fsm * fp)
 {
   /* Set fsm timer load */
-  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
+  struct ipcp *ipcp = fsm2ipcp(fp);
+
+  fp->FsmTimer.load = ipcp->cfg.fsmretry * SECTICKS;
   fp->restart = 5;
 }
 
