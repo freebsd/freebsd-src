@@ -72,7 +72,7 @@
 #endif
 
 /* device limits */
-#define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
+#define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
 #define DEV_MAX			100	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define IO_ERROR		-2	/* Status code for I/O error rather than normal EOF */
