@@ -12,7 +12,7 @@
 static char rcsid_kadm_cli_wrap_c[] =
 "from: Id: kadm_cli_wrap.c,v 4.6 89/12/30 20:09:45 qjb Exp";
 static const char rcsid[] =
-	"$Id: kadm_cli_wrap.c,v 1.4 1995/09/07 21:38:47 markm Exp $";
+	"$Id: kadm_cli_wrap.c,v 1.5 1995/10/05 21:29:35 gibbs Exp $";
 #endif	lint
 #endif
 
@@ -434,7 +434,7 @@ kadm_cli_conn()
 	return KADM_NO_HERE;
     }
     if (bind(client_parm.admin_fd,
-		(struct sockaddr *) & client_parm.admin_addr,
+		(struct sockaddr *) & client_parm.my_addr,
 		sizeof(client_parm.my_addr))) {
 	(void) close(client_parm.admin_fd);
 	client_parm.admin_fd = -1;
