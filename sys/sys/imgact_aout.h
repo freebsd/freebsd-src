@@ -131,6 +131,7 @@ struct exec {
 #define	MID_SUN020	2	/* sun 68020-only binary */
 #define MID_I386	134	/* i386 BSD binary */
 #define MID_SPARC	138	/* sparc */
+#define MID_ARM6	143	/* ARM6 */
 #define	MID_HP200	200	/* hp200 (68010) BSD binary */
 #define	MID_HP300	300	/* hp300 (68020+68881) BSD binary */
 #define	MID_HPUX	0x20C	/* hp200/300 HP-UX binary */
