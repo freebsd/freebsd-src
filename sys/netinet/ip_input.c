@@ -182,6 +182,12 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
 	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
 
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
+struct mtx ipqlock;
+
+#define	IPQ_LOCK()	mtx_lock(&ipqlock)
+#define	IPQ_UNLOCK()	mtx_unlock(&ipqlock)
+#define	IPQ_LOCK_INIT()	mtx_init(&ipqlock, "ipqlock", NULL, MTX_DEF);
+#define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED);
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -257,6 +263,7 @@ ip_init()
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip_protox[pr->pr_protocol] = pr - inetsw;
 
+	IPQ_LOCK_INIT();
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    TAILQ_INIT(&ipq[i]);
 
@@ -746,6 +753,7 @@ ours:
 		}
 
 		sum = IPREASS_HASH(ip->ip_src.s_addr, ip->ip_id);
+		IPQ_LOCK();
 		/*
 		 * Look for queue of fragments
 		 * of this datagram.
@@ -799,6 +807,7 @@ found:
 			 * that's a non-zero multiple of 8 bytes.
 		         */
 			if (ip->ip_len == 0 || (ip->ip_len & 0x7) != 0) {
+				IPQ_UNLOCK();
 				ipstat.ips_toosmall++; /* XXX */
 				goto bad;
 			}
@@ -816,6 +825,7 @@ found:
 		m->m_pkthdr.header = ip;
 		m = ip_reass(m,
 		    &ipq[sum], fp, &divert_info, &args.divert_rule);
+		IPQ_UNLOCK();
 		if (m == 0)
 			return;
 		ipstat.ips_reassembled++;
@@ -973,6 +983,8 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	struct mbuf *t;
 	int hlen = ip->ip_hl << 2;
 	int i, next;
+
+	IPQ_LOCK_ASSERT();
 
 	/*
 	 * Presence of header sizes in mbufs
@@ -1203,6 +1215,8 @@ ip_freef(fhp, fp)
 {
 	register struct mbuf *q;
 
+	IPQ_LOCK_ASSERT();
+
 	while (fp->ipq_frags) {
 		q = fp->ipq_frags;
 		fp->ipq_frags = q->m_nextpkt;
@@ -1225,6 +1239,7 @@ ip_slowtimo()
 	int s = splnet();
 	int i;
 
+	IPQ_LOCK();
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		for(fp = TAILQ_FIRST(&ipq[i]); fp;) {
 			struct ipq *fpp;
@@ -1251,6 +1266,7 @@ ip_slowtimo()
 			}
 		}
 	}
+	IPQ_UNLOCK();
 	ipflow_slowtimo();
 	splx(s);
 }
@@ -1263,6 +1279,7 @@ ip_drain()
 {
 	int     i;
 
+	IPQ_LOCK();
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		while(!TAILQ_EMPTY(&ipq[i])) {
 			ipstat.ips_fragdropped +=
@@ -1270,6 +1287,7 @@ ip_drain()
 			ip_freef(&ipq[i], TAILQ_FIRST(&ipq[i]));
 		}
 	}
+	IPQ_UNLOCK();
 	in_rtqdrain();
 }
 
