@@ -40,10 +40,11 @@ static char sccsid[] = "@(#)clock.c	8.1 (Berkeley) 6/4/93";
 #include <sys/resource.h>
 
 /*
- * Convert usec to clock ticks; could do (usec * CLK_TCK) / 1000000,
+ * Convert usec to clock ticks; could do (usec * CLOCKS_PER_SEC) / 1000000,
  * but this would overflow if we switch to nanosec.
  */
-#define	CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+#define	CONVTCK(r)	((r).tv_sec * CLOCKS_PER_SEC \
+			 + (r).tv_usec / (1000000 / CLOCKS_PER_SEC))
 
 clock_t
 clock()
