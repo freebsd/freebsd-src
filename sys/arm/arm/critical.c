@@ -46,5 +46,7 @@ __FBSDID("$FreeBSD$");
 void
 cpu_critical_fork_exit(void)
 {
+
+	curthread->td_md.md_savecrit = __set_cpsr_c(0, 0) &~ I32_bit;
 }
 
