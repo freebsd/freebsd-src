@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.56 1994/11/17 14:42:27 davidg Exp $
+ * $Id: if_ed.c,v 1.57 1994/11/24 14:29:16 davidg Exp $
  */
 
 #include "ed.h"
@@ -138,7 +138,7 @@ struct isa_driver eddriver = {
 };
 
 /*
- * Interrupt conversion table for WD/SMC ASIC
+ * Interrupt conversion table for WD/SMC ASIC/83C584
  * (IRQ* are defined in icu.h)
  */
 static unsigned short ed_intr_mask[] = {
@@ -153,7 +153,7 @@ static unsigned short ed_intr_mask[] = {
 };
 
 /*
- * Interrupt conversion table for 585/790 Combo
+ * Interrupt conversion table for 83C790
  */
 static unsigned short ed_790_intr_mask[] = {
 	0,
@@ -1197,7 +1197,6 @@ ed_stop(unit)
 	 * just in case it's an old one.
 	 */
 	while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
-
 }
 
 /*
@@ -2058,16 +2057,6 @@ ed_ioctl(ifp, command, data)
 }
 
 /*
- * Macro to calculate a new address within shared memory when given an offset
- *	from an address, taking into account ring-wrap.
- */
-#define	ringoffset(sc, start, off, type) \
-	((type)( ((caddr_t)(start)+(off) >= (sc)->mem_end) ? \
-		(((caddr_t)(start)+(off))) - (sc)->mem_end \
-		+ (sc)->mem_ring: \
-		((caddr_t)(start)+(off)) ))
-
-/*
  * Retreive packet from shared memory and send to the next level up via
  *	ether_input(). If there is a BPF listener, give a copy to BPF, too.
  */
@@ -2079,43 +2068,35 @@ ed_get_packet(sc, buf, len, multicast)
 	int     multicast;
 {
 	struct ether_header *eh;
-	struct mbuf *m, *ed_ring_to_mbuf();
+	struct mbuf *m;
 
 	/* Allocate a header mbuf */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
-	m->m_pkthdr.len = len;
-	m->m_len = 0;
+	m->m_pkthdr.len = m->m_len = len;
 
-	/* The following sillines is to make NFS happy */
-#define EROUND	((sizeof(struct ether_header) + 3) & ~3)
-#define EOFF	(EROUND - sizeof(struct ether_header))
+	/* Attach an mbuf cluster */
+	MCLGET(m, M_DONTWAIT);
 
-	/*
-	 * The following assumes there is room for the ether header in the
-	 * header mbuf
-	 */
-	m->m_data += EOFF;
-	eh = mtod(m, struct ether_header *);
-
-	if (sc->mem_shared)
-		bcopy(buf, mtod(m, caddr_t), sizeof(struct ether_header));
-	else
-		ed_pio_readmem(sc, buf, mtod(m, caddr_t),
-			       sizeof(struct ether_header));
-	buf += sizeof(struct ether_header);
-	m->m_len += sizeof(struct ether_header);
-	len -= sizeof(struct ether_header);
-
-	/*
-	 * Pull packet off interface.
-	 */
-	if (ed_ring_to_mbuf(sc, buf, m, len) == NULL) {
+	/* Insist on getting a cluster */
+	if ((m->m_flags & M_EXT) == 0) {
 		m_freem(m);
 		return;
 	}
+
+	/*
+	 * The +2 is to longword align the start of the real packet.
+	 * This is important for NFS.
+	 */
+	m->m_data += 2;
+	eh = mtod(m, struct ether_header *);
+
+	/*
+	 * Get packet, including link layer address, from interface.
+	 */
+	ed_ring_copy(sc, buf, (char *)eh, len);
 
 #if NBPFILTER > 0
 
@@ -2141,9 +2122,10 @@ ed_get_packet(sc, buf, len, multicast)
 #endif
 
 	/*
-	 * Fix up data start offset in mbuf to point past ether header
+	 * Remove link layer address.
 	 */
-	m_adj(m, sizeof(struct ether_header));
+	m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
+	m->m_data += sizeof(struct ether_header);
 
 	ether_input(&sc->arpcom.ac_if, eh, m);
 	return;
@@ -2383,61 +2365,6 @@ ed_ring_copy(sc, src, dst, amount)
 		ed_pio_readmem(sc, src, dst, amount);
 
 	return (src + amount);
-}
-
-/*
- * Copy data from receive buffer to end of mbuf chain
- * allocate additional mbufs as needed. return pointer
- * to last mbuf in chain.
- * sc = ed info (softc)
- * src = pointer in ed ring buffer
- * dst = pointer to last mbuf in mbuf chain to copy to
- * amount = amount of data to copy
- */
-struct mbuf *
-ed_ring_to_mbuf(sc, src, dst, total_len)
-	struct ed_softc *sc;
-	char   *src;
-	struct mbuf *dst;
-	u_short total_len;
-{
-	register struct mbuf *m = dst;
-
-	while (total_len) {
-		register u_short amount = min(total_len, M_TRAILINGSPACE(m));
-
-		if (amount == 0) {	/* no more data in this mbuf, alloc
-					 * another */
-
-			/*
-			 * If there is enough data for an mbuf cluster,
-			 * attempt to allocate one of those, otherwise, a
-			 * regular mbuf will do. Note that a regular mbuf is
-			 * always required, even if we get a cluster - getting
-			 * a cluster does not allocate any mbufs, and one is
-			 * needed to assign the cluster to. The mbuf that has
-			 * a cluster extension can not be used to contain data
-			 * - only the cluster can contain data.
-			 */
-			dst = m;
-			MGET(m, M_DONTWAIT, MT_DATA);
-			if (m == 0)
-				return (0);
-
-			if (total_len >= MINCLSIZE)
-				MCLGET(m, M_DONTWAIT);
-
-			m->m_len = 0;
-			dst->m_next = m;
-			amount = min(total_len, M_TRAILINGSPACE(m));
-		}
-		src = ed_ring_copy(sc, src, mtod(m, caddr_t) + m->m_len, amount);
-
-		m->m_len += amount;
-		total_len -= amount;
-
-	}
-	return (m);
 }
 
 void
