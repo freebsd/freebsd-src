@@ -240,7 +240,7 @@ ithread_destroy(struct ithd *ithread)
 	mtx_lock_spin(&sched_lock);
 	if (TD_AWAITING_INTR(td)) {
 		TD_CLR_IWAIT(td);
-		setrunqueue(td);
+		setrunqueue(td, SRQ_INTR);
 	}
 	mtx_unlock_spin(&sched_lock);
 	mtx_unlock(&ithread->it_lock);
@@ -408,7 +408,7 @@ ithread_schedule(struct ithd *ithread)
 	if (TD_AWAITING_INTR(td)) {
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
 		TD_CLR_IWAIT(td);
-		setrunqueue(td);
+		setrunqueue(td, SRQ_INTR);
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
 		    __func__, p->p_pid, ithread->it_need, td->td_state);

@@ -710,7 +710,7 @@ again:
 	 */
 	if ((flags & RFSTOPPED) == 0) {
 		TD_SET_CAN_RUN(td2);
-		setrunqueue(td2);
+		setrunqueue(td2, SRQ_BORING);
 	}
 	mtx_unlock_spin(&sched_lock);
 

@@ -209,7 +209,7 @@ kse_reassign(struct kse *ke)
 		td->td_kse = ke;
 		ke->ke_thread = td;
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
-		sched_add(td);
+		sched_add(td, SRQ_BORING);
 		return;
 	}
 
@@ -293,7 +293,7 @@ adjustrunqueue( struct thread *td, int newpri)
 		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
 			sched_rem(td);
-			sched_add(td);
+			sched_add(td, SRQ_BORING);
 		}
 		return;
 	}
@@ -311,11 +311,11 @@ adjustrunqueue( struct thread *td, int newpri)
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	kg->kg_runnable--;
 	td->td_priority = newpri;
-	setrunqueue(td);
+	setrunqueue(td, SRQ_BORING);
 }
 
 void
-setrunqueue(struct thread *td)
+setrunqueue(struct thread *td, int flags)
 {
 	struct kse *ke;
 	struct ksegrp *kg;
@@ -336,7 +336,7 @@ setrunqueue(struct thread *td)
 		 * and the KSE is always already attached.
 		 * Totally ignore the ksegrp run queue.
 		 */
-		sched_add(td);
+		sched_add(td, flags);
 		return;
 	}
 
@@ -431,7 +431,7 @@ setrunqueue(struct thread *td)
 			td2->td_kse = ke;
 			ke->ke_thread = td2;
 		}
-		sched_add(ke->ke_thread);
+		sched_add(ke->ke_thread, flags);
 	} else {
 		CTR3(KTR_RUNQ, "setrunqueue: held: td%p kg%p pid%d",
 			td, td->td_ksegrp, td->td_proc->p_pid);

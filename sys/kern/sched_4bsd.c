@@ -664,7 +664,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 		TD_SET_CAN_RUN(td);
 	else if (TD_IS_RUNNING(td)) {
 		/* Put us back on the run queue (kse and all). */
-		setrunqueue(td);
+		setrunqueue(td, SRQ_OURSELF|SRQ_YIELDING);
 	} else if (p->p_flag & P_SA) {
 		/*
 		 * We will not be on the run queue. So we must be
@@ -691,11 +691,11 @@ sched_wakeup(struct thread *td)
 	if (kg->kg_slptime > 1)
 		updatepri(kg);
 	kg->kg_slptime = 0;
-	setrunqueue(td);
+	setrunqueue(td, SRQ_BORING);
 }
 
 void
-sched_add(struct thread *td)
+sched_add(struct thread *td, int flags)
 {
 	struct kse *ke;
 
@@ -717,8 +717,13 @@ sched_add(struct thread *td)
 	 */
 	if (KSE_CAN_MIGRATE(ke) || ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)])
 #endif
-	if (maybe_preempt(td))
-		return;
+	/*
+	 * Don't try preempt if we are already switching. 
+	 * all hell might break loose.
+	 */
+	if ((flags & SRQ_YIELDING) == 0)
+		if (maybe_preempt(td))
+			return;
 
 #ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
