@@ -383,14 +383,16 @@ diff_fileproc (callerdat, finfo)
 		exists = 0;
 		/* special handling for TAG_HEAD */
 		if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
-		    exists = vers->vn_rcs != NULL;
+		    exists = (vers->vn_rcs != NULL &&	/* XXX ? */
+			    !RCS_isdead (vers->srcfile, vers->vn_rcs)); /*XXX*/
 		else
 		{
 		    Vers_TS *xvers;
 
 		    xvers = Version_TS (finfo, NULL, diff_rev1, diff_date1,
 					1, 0);
-		    exists = xvers->vn_rcs != NULL;
+		    exists = (vers->vn_rcs != NULL &&
+			    !RCS_isdead (vers->srcfile, vers->vn_rcs)); /*XXX*/
 		    freevers_ts (&xvers);
 		}
 		if (exists)
