@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.82 1998/04/07 09:07:53 kato Exp $
+ *	$Id: machdep.c,v 1.83 1998/05/19 12:58:05 kato Exp $
  */
 
 #include "apm.h"
@@ -156,7 +156,6 @@ int	bouncepages = 0;
 #endif
 #endif	/* BOUNCE_BUFFERS */
 
-int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int	_udatasel, _ucodesel;
 u_int	atdevbase;
 
@@ -1583,15 +1582,7 @@ init386(first)
 		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
 			   avail_end + off, VM_PROT_ALL, TRUE);
 
-	cp = (char *)msgbufp;
-	msgbufp = (struct msgbuf *) (cp + MSGBUF_SIZE - sizeof(*msgbufp));
-	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
-		bzero(cp, MSGBUF_SIZE);
-		msgbufp->msg_magic = MSG_MAGIC;
-		msgbufp->msg_size = (char *)msgbufp - cp;
-		msgbufp->msg_ptr = cp;
-	}
-	msgbufmapped = 1;
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
