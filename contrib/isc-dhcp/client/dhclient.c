@@ -107,7 +107,7 @@ int main (argc, argv, envp)
 	struct servent *ent;
 	struct interface_info *ip;
 	int seed;
-	int quiet = 0;
+	int quiet = 1;
 
 #ifdef SYSLOG_4_2
 	openlog ("dhclient", LOG_NDELAY);
