@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.22 1995/12/08 11:17:52 julian Exp $
+ * $Id: spec_vnops.c,v 1.23 1995/12/11 04:56:41 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,7 @@
 
 struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
-struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
@@ -107,7 +107,7 @@ struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_getpages_desc, (vop_t *)spec_getpages},	/* getpages */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc spec_vnodeop_opv_desc =
+static struct vnodeopv_desc spec_vnodeop_opv_desc =
 	{ &spec_vnodeop_p, spec_vnodeop_entries };
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
@@ -708,7 +708,7 @@ spec_advlock(ap)
 /*
  * Special device failed operation
  */
-int
+static int
 spec_ebadf()
 {
 

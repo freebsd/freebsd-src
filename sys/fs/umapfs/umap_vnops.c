@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
- * $Id: umap_vnops.c,v 1.10 1995/11/09 08:16:25 bde Exp $
+ * $Id: umap_vnops.c,v 1.11 1995/12/03 14:54:41 bde Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/vnode.h>
@@ -53,22 +54,24 @@
 #include <sys/buf.h>
 #include <miscfs/umapfs/umap.h>
 
-int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+static int umap_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
+SYSCTL_INT(_debug, OID_AUTO, umapfs_bug_bypass, CTLFLAG_RW,
+	&umap_bug_bypass, 0, "");
 
-extern int	umap_bwrite __P((struct vop_bwrite_args *ap));
-extern int	umap_bypass __P((struct vop_generic_args *ap));
-extern int	umap_getattr __P((struct vop_getattr_args *ap));
-extern int	umap_inactive __P((struct vop_inactive_args *ap));
-extern int	umap_print __P((struct vop_print_args *ap));
-extern int	umap_reclaim __P((struct vop_reclaim_args *ap));
-extern int	umap_rename __P((struct vop_rename_args *ap));
-extern int	umap_strategy __P((struct vop_strategy_args *ap));
+static int	umap_bwrite __P((struct vop_bwrite_args *ap));
+static int	umap_bypass __P((struct vop_generic_args *ap));
+static int	umap_getattr __P((struct vop_getattr_args *ap));
+static int	umap_inactive __P((struct vop_inactive_args *ap));
+static int	umap_print __P((struct vop_print_args *ap));
+static int	umap_reclaim __P((struct vop_reclaim_args *ap));
+static int	umap_rename __P((struct vop_rename_args *ap));
+static int	umap_strategy __P((struct vop_strategy_args *ap));
 
 /*
  * This is the 10-Apr-92 bypass routine.
  * See null_vnops.c:null_bypass for more details.
  */
-int
+static int
 umap_bypass(ap)
 	struct vop_generic_args /* {
 		struct vnodeop_desc *a_desc;
@@ -259,7 +262,7 @@ umap_bypass(ap)
 /*
  *  We handle getattr to change the fsid.
  */
-int
+static int
 umap_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -333,7 +336,7 @@ umap_getattr(ap)
 	return (0);
 }
 
-int
+static int
 umap_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -349,7 +352,7 @@ umap_inactive(ap)
 	return (0);
 }
 
-int
+static int
 umap_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -368,7 +371,7 @@ umap_reclaim(ap)
 	return (0);
 }
 
-int
+static int
 umap_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -388,7 +391,7 @@ umap_strategy(ap)
 	return (error);
 }
 
-int
+static int
 umap_bwrite(ap)
 	struct vop_bwrite_args /* {
 		struct buf *a_bp;
@@ -409,7 +412,7 @@ umap_bwrite(ap)
 }
 
 
-int
+static int
 umap_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -420,7 +423,7 @@ umap_print(ap)
 	return (0);
 }
 
-int
+static int
 umap_rename(ap)
 	struct vop_rename_args  /* {
 		struct vnode *a_fdvp;
@@ -480,7 +483,7 @@ umap_rename(ap)
  *
  */
 vop_t **umap_vnodeop_p;
-struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)umap_bypass },
 
 	{ &vop_getattr_desc, (vop_t *)umap_getattr },
@@ -494,7 +497,7 @@ struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 
 	{ NULL, NULL }
 };
-struct vnodeopv_desc umap_vnodeop_opv_desc =
+static struct vnodeopv_desc umap_vnodeop_opv_desc =
 	{ &umap_vnodeop_p, umap_vnodeop_entries };
 
 VNODEOP_SET(umap_vnodeop_opv_desc);
