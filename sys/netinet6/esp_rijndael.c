@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: esp_rijndael.c,v 1.4 2001/03/02 05:53:05 itojun Exp $	*/
+/*	$KAME: esp_rijndael.c,v 1.14 2003/08/28 08:23:20 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -30,9 +30,6 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -50,13 +47,12 @@
 
 #include <net/net_osdep.h>
 
-/* as rijndael uses assymetric scheduled keys, we need to do it twice. */
 size_t
 esp_rijndael_schedlen(algo)
 	const struct esp_algorithm *algo;
 {
 
-	return sizeof(keyInstance) * 2;
+	return sizeof(rijndael_ctx);
 }
 
 int
@@ -64,15 +60,11 @@ esp_rijndael_schedule(algo, sav)
 	const struct esp_algorithm *algo;
 	struct secasvar *sav;
 {
-	keyInstance *k;
+	rijndael_ctx *ctx;
 
-	k = (keyInstance *)sav->sched;
-	if (rijndael_makeKey(&k[0], DIR_DECRYPT, _KEYLEN(sav->key_enc) * 8,
-	    _KEYBUF(sav->key_enc)) < 0)
-		return -1;
-	if (rijndael_makeKey(&k[1], DIR_ENCRYPT, _KEYLEN(sav->key_enc) * 8,
-	    _KEYBUF(sav->key_enc)) < 0)
-		return -1;
+	ctx = (rijndael_ctx *)sav->sched;
+	rijndael_set_key(ctx,
+	    (u_char *)_KEYBUF(sav->key_enc), _KEYLEN(sav->key_enc) * 8);
 	return 0;
 }
 
@@ -83,16 +75,10 @@ esp_rijndael_blockdecrypt(algo, sav, s, d)
 	u_int8_t *s;
 	u_int8_t *d;
 {
-	cipherInstance c;
-	keyInstance *p;
+	rijndael_ctx *ctx;
 
-	/* does not take advantage of CBC mode support */
-	bzero(&c, sizeof(c));
-	if (rijndael_cipherInit(&c, MODE_ECB, NULL) < 0)
-		return -1;
-	p = (keyInstance *)sav->sched;
-	if (rijndael_blockDecrypt(&c, &p[0], s, algo->padbound * 8, d) < 0)
-		return -1;
+	ctx = (rijndael_ctx *)sav->sched;
+	rijndael_decrypt(ctx, s, d);
 	return 0;
 }
 
@@ -103,15 +89,9 @@ esp_rijndael_blockencrypt(algo, sav, s, d)
 	u_int8_t *s;
 	u_int8_t *d;
 {
-	cipherInstance c;
-	keyInstance *p;
+	rijndael_ctx *ctx;
 
-	/* does not take advantage of CBC mode support */
-	bzero(&c, sizeof(c));
-	if (rijndael_cipherInit(&c, MODE_ECB, NULL) < 0)
-		return -1;
-	p = (keyInstance *)sav->sched;
-	if (rijndael_blockEncrypt(&c, &p[1], s, algo->padbound * 8, d) < 0)
-		return -1;
+	ctx = (rijndael_ctx *)sav->sched;
+	rijndael_encrypt(ctx, s, d);
 	return 0;
 }
