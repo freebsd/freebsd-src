@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id: swap.c,v 1.8 1999/01/22 10:53:13 dillon Exp $";
+	"$Id: swap.c,v 1.9 1999/01/22 10:57:50 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -110,6 +110,7 @@ initswap()
 		error(msgbuf);
 		return (0);
 	}
+
 	once = 1;
 	return (1);
 }
@@ -166,6 +167,15 @@ showswap()
 			    "Total"
 			);
 			col += 5;
+		}
+		if (kvmsw[i].ksw_total == 0) {
+			mvwprintw(
+			    wnd,
+			    i + 1,
+			    col + 5,
+			    "(swap not configured)"
+			);
+			continue;
 		}
 
 		mvwprintw(
