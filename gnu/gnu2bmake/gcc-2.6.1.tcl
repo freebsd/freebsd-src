@@ -7,16 +7,17 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $Id$
 #
+# Good for 2.6.1 and 2.6.2
 
 source gnu2bmake.tcl
 
 #######################################################################
 # Parameters to tweak
 ########
-set sdir /freebsd/A/gcc-2.6.1
-set ddir /freebsd/A/cc261
+set sdir /freebsd/gcc-2.6.2
+set ddir /freebsd/cc262
 
 #######################################################################
 # Do the stunt
@@ -94,21 +95,37 @@ set target [makefile_macro target $sdir]
 sh "rm -rf $ddir"
 sh "mkdir $ddir"
 set f [open $ddir/Makefile.inc w]
-puts $f "#\n# \$FreeBSD\$\n#\n"
+puts $f "#\n# \$Id\$\n#\n"
 puts $f "CFLAGS+=\t-I\${.CURDIR} -I\${.CURDIR}/../include"
 puts $f "CFLAGS+=\t-Dbsd4_4"
 puts $f "CFLAGS+=\t-DGCC_INCLUDE_DIR=\\\"FOO\\\""
-puts $f "CFLAGS+=\t-DGPLUSPLUS_INCLUDE_DIR=\\\"FOO\\\""
 puts $f "CFLAGS+=\t-DTOOL_INCLUDE_DIR=\\\"FOO\\\""
+puts $f "CFLAGS+=\t-DGPLUSPLUS_INCLUDE_DIR=\\\"FOO\\\""
 puts $f "CFLAGS+=\t-DDEFAULT_TARGET_VERSION=\\\"$version\\\""
 puts $f "CFLAGS+=\t-DDEFAULT_TARGET_MACHINE=\\\"$target\\\""
 puts $f "CFLAGS+=\t-DMD_EXEC_PREFIX=\\\"/usr/libexec/\\\""
 puts $f "CFLAGS+=\t-DSTANDARD_STARTFILE_PREFIX=\\\"/usr/lib\\\""
+puts $f "CFLAGS+=\t-DGCC_NAME=\\\"cc\\\""
+puts $f ""
+puts $f ".if exists(\${.CURDIR}/../cc_int/obj)"
+puts $f "LIBDESTDIR=\t\${.CURDIR}/../cc_int/obj"
+puts $f ".else"
+puts $f "LIBDESTDIR=\t\${.CURDIR}/../cc_int"
+puts $f ".endif"
+puts $f ""
+
+puts $f "# XXX LDDESTDIR isn't a directory and there is no standard name for the dir"
+puts $f "LDDESTDIR=\t-L\${LIBDESTDIR}"
+puts $f ".if defined(SHARED_LIBCC_INT)"
+puts $f "LIBCC_INT=\t\${LIBDESTDIR}/libcc_int.so.262.0"
+puts $f ".else"
+puts $f "LIBCC_INT=\t\${LIBDESTDIR}/libcc_int.a"
+puts $f ".endif"
 close $f
 
 set f [open $ddir/Makefile w]
-puts $f "#\n# \$FreeBSD\$\n#\n"
-puts $f "PGMDIR=\tcc_int cpp cc1 cc cc1plus c++ libgcc"
+puts $f "#\n# \$Id\$\n#\n"
+puts $f "PGMDIR=\tcc_int cpp cc1 cc cc1plus c++ f77 libgcc"
 puts $f "SUBDIR=\t\$(PGMDIR)"
 puts $f "\n.include <bsd.subdir.mk>"
 close $f
@@ -118,7 +135,7 @@ sh "mkdir $ddir/legal"
 sh "cp $sdir/gen-*.c $sdir/md $ddir/legal"
 set f [open $ddir/README w]
 puts $f {
-$FreeBSD$
+$Id$
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.
@@ -137,11 +154,11 @@ Thankyou.
 # do ~/libgcc
 sh "mkdir $ddir/libgcc"
 set f [open $ddir/libgcc/Makefile w]
-puts $f "#\n# \$FreeBSD\$\n#\n"
+puts $f "#\n# \$Id\$\n#\n"
 puts $f "LIB=\tgcc"
 puts $f "INSTALL_PIC_ARCHIVE=\tyes"
-puts $f "SHLIB_MAJOR=\t26"
-puts $f "SHLIB_MINOR=\t1"
+puts $f "SHLIB_MAJOR=\t261"
+puts $f "SHLIB_MINOR=\t0"
 puts $f ""
 puts $f "LIB1OBJS=\t[add_suffix $l_libgcc1 .o]"
 puts $f "LIB2OBJS=\t[add_suffix $l_libgcc2 .o]"
@@ -195,28 +212,31 @@ copy_l $sdir/config/i386 $ddir/include/i386 [add_suffix $l_include_i386 .h]
 
 # do ~/cc_int
 mk_lib $ddir cc_int [add_suffix $l_common .c] {
-	"NOPROFILE=\t1"
+	"NOPROFILE=\tyes"
+	".if defined(SHARED_LIBCC_INT)"
+	"INTERNALLIB="
+	"SHLIB_MAJOR=262"
+	"SHLIB_MINOR=0"
+	".else"
 	"\ninstall:\n\t@true"
+	".endif"
 }
 copy_c $sdir $ddir/cc_int $l_common
 
 # do ~/cpp
 mk_prog $ddir cpp [add_suffix $l_cpp .c] { 
 	"BINDIR=\t/usr/libexec" 
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int/obj"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int"
-	"LDADD+=\t-lcc_int"
+	".PATH:\t\${.CURDIR}/../cc_int"
+	"SRCS+=\tobstack.c version.c"
 }
 copy_c $sdir $ddir/cpp $l_cpp
-cp $sdir/cpp.1 $ddir/cpp/cpp.1
+cp $sdir/cccp.1 $ddir/cpp/cpp.1
 
 # do ~/c++
 mk_prog $ddir c++ [add_suffix "$l_cplus $l_cplus_cp" .c] {
 	"BINDIR=\t/usr/bin"
+	"LINKS=\t\${BINDIR}/c++ \${BINDIR}/g++"
 	"NOMAN=\t1"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int/obj"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int"
-	"LDADD+=\t-lcc_int"
 }
 copy_c $sdir $ddir/c++ $l_cplus
 copy_c $sdir/cp $ddir/c++ $l_cplus_cp
@@ -224,13 +244,9 @@ copy_c $sdir/cp $ddir/c++ $l_cplus_cp
 # do ~/cc
 mk_prog $ddir cc [add_suffix $l_cc .c] {
 	"BINDIR=\t/usr/bin"
-	"MLINKS+=cc.1 gcc.1"
-	"MLINKS+=cc.1 c++.1"
-	"MLINKS+=cc.1 g++.1"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int/obj"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int"
-	"LDADD+=\t-lcc_int"
-	"\nafterinstall:\n\tcd \$(DESTDIR)\$(BINDIR) ; rm gcc ; ln -s cc gcc"
+	".PATH: \${.CURDIR}/../cc_int"
+	"SRCS+=\tobstack.c version.c"
+	"LINKS=\t\${BINDIR}/cc \${BINDIR}/gcc"
 }
 copy_c $sdir $ddir/cc $l_cc
 cp $sdir/gcc.1 $ddir/cc/cc.1
@@ -239,9 +255,8 @@ cp $sdir/gcc.1 $ddir/cc/cc.1
 mk_prog $ddir cc1 [add_suffix $l_cc1 .c] {
 	"BINDIR=\t/usr/libexec"
 	"NOMAN=\t1"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int/obj"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int"
-	"LDADD+=\t-lcc_int"
+	"DPADD+=\t\${LIBCC_INT} \${LIBGNUMALLOC}"
+	"LDADD+=\t-lcc_int -lgnumalloc"
 }
 copy_c $sdir $ddir/cc1 $l_cc1
 
@@ -249,9 +264,8 @@ copy_c $sdir $ddir/cc1 $l_cc1
 mk_prog $ddir cc1plus [add_suffix "$l_cc1plus_cp $l_cc1plus" .c] {
 	"BINDIR=\t/usr/libexec"
 	"NOMAN=\t1"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int/obj"
-	"LDDESTDIR+=\t-L\${.CURDIR}/../cc_int"
-	"LDADD+=\t-lcc_int"
+	"DPADD+=\t\${LIBCC_INT} \${LIBGNUMALLOC}"
+	"LDADD+=\t-lcc_int -lgnumalloc"
 }
 copy_l $sdir/cp $ddir/cc1plus $l_cc1plus_x
 copy_c $sdir $ddir/cc1plus $l_cc1plus
