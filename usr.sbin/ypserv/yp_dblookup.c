@@ -28,27 +28,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
- *
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <string.h>
-#include <limits.h>
-#include <unistd.h>
-#include <db.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <errno.h>
-#include <paths.h>
-#include <rpcsvc/yp.h>
-#include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
-#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <db.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <paths.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <rpcsvc/yp.h>
+#include "yp_extern.h"
 
 int ypdb_debug = 0;
 enum ypstat yp_errno = YP_TRUE;
@@ -106,15 +105,13 @@ static struct circleq_entry *yp_malloc_qent()
 
 	q = (struct circleq_entry *)malloc(sizeof(struct circleq_entry));
 	if (q == NULL) {
-		yp_error("failed to malloc() circleq entry: %s",
-							strerror(errno));
+		yp_error("failed to malloc() circleq entry");
 		return(NULL);
 	}
 	bzero((char *)q, sizeof(struct circleq_entry));
 	q->dbptr = (struct dbent *)malloc(sizeof(struct dbent));
 	if (q->dbptr == NULL) {
-		yp_error("failed to malloc() circleq entry: %s",
-							strerror(errno));
+		yp_error("failed to malloc() circleq entry");
 		free(q);
 		return(NULL);
 	}
@@ -480,7 +477,7 @@ int yp_get_record(domain,map,key,data,allow)
 #endif
 
 	if (ypdb_debug)
-		yp_error("Looking up key [%.*s]",
+		yp_error("looking up key [%.*s]",
 			  key->size, key->data);
 
 	/*
@@ -510,7 +507,7 @@ int yp_get_record(domain,map,key,data,allow)
 	}
 
 	if (ypdb_debug)
-		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
+		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
@@ -539,7 +536,7 @@ int yp_first_record(dbp,key,data,allow)
 #endif
 
 	if (ypdb_debug)
-		yp_error("Retrieving first key in map.");
+		yp_error("retrieving first key in map");
 
 	if ((rval = (dbp->seq)(dbp,key,data,R_FIRST)) != 0) {
 #ifdef DB_CACHE
@@ -565,7 +562,7 @@ int yp_first_record(dbp,key,data,allow)
 	}
 
 	if (ypdb_debug)
-		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
+		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE
@@ -610,7 +607,7 @@ int yp_next_record(dbp,key,data,all,allow)
 	}
 
 	if (ypdb_debug)
-		yp_error("Retreiving next key, previous was: [%.*s]",
+		yp_error("retrieving next key, previous was: [%.*s]",
 			  key->size, key->data);
 
 	if (!all) {
@@ -649,7 +646,7 @@ int yp_next_record(dbp,key,data,all,allow)
 		}
 
 	if (ypdb_debug)
-		yp_error("Result of lookup: key: [%.*s] data: [%.*s]",
+		yp_error("result of lookup: key: [%.*s] data: [%.*s]",
 			 key->size, key->data, data->size, data->data);
 
 #ifdef DB_CACHE

@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_main.c,v 1.14 1997/02/22 16:15:12 peter Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * ypserv startup function.
@@ -40,34 +43,31 @@
  */
 
 #include "yp.h"
+#include <err.h>
+#include <errno.h>
+#include <memory.h>
 #include <stdio.h>
-#include <stdlib.h> /* getenv, exit */
-#include <rpc/pmap_clnt.h> /* for pmap_unset */
-#include <string.h> /* strcmp */
 #include <signal.h>
+#include <stdlib.h> /* getenv, exit */
+#include <string.h> /* strcmp */
+#include <syslog.h>
+#include <unistd.h>
+#include <rpc/pmap_clnt.h> /* for pmap_unset */
 #include <sys/ttycom.h> /* TIOCNOTTY */
 #ifdef __cplusplus
 #include <sysent.h> /* getdtablesize, open */
 #endif /* __cplusplus */
-#include <memory.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <syslog.h>
 #include <sys/wait.h>
 #include "yp_extern.h"
-#include <unistd.h>
 #include <rpc/rpc.h>
-#include <errno.h>
-#include <err.h>
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-#ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.14 1997/02/22 16:15:12 peter Exp $";
-#endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
@@ -94,7 +94,7 @@ void _msgout(char* msg)
 		if (_rpcpmstart)
 			syslog(LOG_ERR, msg);
 		else
-			(void) fprintf(stderr, "%s\n", msg);
+			warnx("%s", msg);
 	} else
 		syslog(LOG_ERR, msg);
 }
@@ -132,7 +132,7 @@ yp_svc_run()
 			if (errno == EINTR) {
 				continue;
 			}
-			perror("svc_run: - select failed");
+			warn("svc_run: - select failed");
 			return;
 		case 0:
 			yp_prune_dnsq();
@@ -179,7 +179,7 @@ static void reaper(sig)
 
 static void usage()
 {
-	fprintf(stderr, "Usage: %s [-h] [-d] [-n] [-p path]\n", progname);
+	fprintf(stderr, "usage: ypserv [-h] [-d] [-n] [-p path]\n");
 	exit(1);
 }
 
@@ -213,6 +213,7 @@ closedown(int sig)
 	(void) alarm(_RPCSVC_CLOSEDOWN/2);
 }
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -257,13 +258,13 @@ main(argc, argv)
 		sock = 0;
 		_rpcpmstart = 1;
 		proto = 0;
-		openlog(progname, LOG_PID, LOG_DAEMON);
+		openlog("ypserv", LOG_PID, LOG_DAEMON);
 	} else {
 		if (!debug) {
 			if (daemon(0,0)) {
 				err(1,"cannot fork");
 			}
-			openlog(progname, LOG_PID, LOG_DAEMON);
+			openlog("ypserv", LOG_PID, LOG_DAEMON);
 		}
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPROG, YPVERS);
@@ -273,17 +274,17 @@ main(argc, argv)
 	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_DGRAM)) {
 		transp = svcudp_create(sock);
 		if (transp == NULL) {
-			_msgout("cannot create udp service.");
+			_msgout("cannot create udp service");
 			exit(1);
 		}
 		if (!_rpcpmstart)
 			proto = IPPROTO_UDP;
 		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
-			_msgout("unable to register (YPPROG, YPOLDVERS, udp).");
+			_msgout("unable to register (YPPROG, YPOLDVERS, udp)");
 			exit(1);
 		}
 		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
-			_msgout("unable to register (YPPROG, YPVERS, udp).");
+			_msgout("unable to register (YPPROG, YPVERS, udp)");
 			exit(1);
 		}
 	}
@@ -291,17 +292,17 @@ main(argc, argv)
 	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_STREAM)) {
 		transp = svctcp_create(sock, 0, 0);
 		if (transp == NULL) {
-			_msgout("cannot create tcp service.");
+			_msgout("cannot create tcp service");
 			exit(1);
 		}
 		if (!_rpcpmstart)
 			proto = IPPROTO_TCP;
 		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
-			_msgout("unable to register (YPPROG, YPOLDVERS, tcp).");
+			_msgout("unable to register (YPPROG, YPOLDVERS, tcp)");
 			exit(1);
 		}
 		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
-			_msgout("unable to register (YPPROG, YPVERS, tcp).");
+			_msgout("unable to register (YPPROG, YPVERS, tcp)");
 			exit(1);
 		}
 	}
