@@ -9,23 +9,55 @@
   <sect2 id="repairing">
     <title>Repairing an Existing &os; Installation</title>
 
-    <para>&os; features a
-    <quote>Fixit</quote> option in the top menu of the boot floppy.
-    To use it, you will also need either a
-    <filename>fixit.flp</filename> image floppy, generated in the same
-    fashion as the boot floppy, or the <quote>live filesystem</quote>
-    CDROM; typically the second CDROM in a multi-disc &os; 
-    distribution.</para>
+    <para>&os; features a <quote>fixit</quote> option in the top menu
+      of the &man.sysinstall.8; installation program.  It provides a
+      shell with common programs from the &os; base system; this
+      environment is useful for repairing or troubleshooting an
+      existing &os; installation.  To use fixit mode, you will also
+      need either the <filename>fixit.flp</filename> floppy, generated
+      in the same fashion as the boot floppies, or the <quote>live
+      filesystem</quote> CDROM.  In multi-disk &os; distributions, the
+      live filesystem image is typically located on the installation
+      disk.  Note that some UNIX system administration experience is
+      required to use the fixit option.</para>
 
-    <para>To invoke fixit, simply boot the
-    <filename>kern.flp</filename> floppy, choose the
-    <quote>Fixit</quote> item and insert the fixit floppy or CDROM
-    when asked.  You will then be placed into a shell with a wide
-    variety of commands available (in the <filename>/stand</filename>
-    and <filename>/mnt2/stand</filename> directories) for checking,
-    repairing and examining filesystems and their contents.  Some
-    UNIX administration experience <emphasis>is</emphasis> required to
-    use the fixit option.</para>
+    <para>Generally, there are two ways of invoking fixit mode.  Users
+      who can boot from the &os; installation CDROM, should do so and
+      then choose the <quote>fixit</quote> item from the main
+      &man.sysinstall.8; menu.  Then select the
+      <quote>CDROM/DVD</quote> option from the fixit menu.</para>
+
+    <para>Users who cannot boot from CDROM, but can boot from floppy
+      disk, require a few more steps.  In addition to the
+      <filename>boot.flp</filename> and
+      <filename>kern<replaceable>X</replaceable>.flp</filename> disks
+      required for installation, create the
+      <filename>fixit.flp</filename> floppy disk, in the same way as
+      the other floppy disks.  Follow the instructions for booting the
+      installation program from floppy disk until reaching the main
+      &man.sysinstall.8; menu.  At that point, choose the
+      <quote>fixit</quote> item from the main &man.sysinstall.8; menu.
+      Then select the <quote>Floppy</quote> option from the fixit
+      menu, and insert the <filename>fixit.flp</filename> floppy disk
+      when prompted to do so.</para>
+
+    <para>The CDROM and floppy fixit environments are similar, but not
+      identical.  Both offer a shell with a variety of commands
+      available for checking, repairing and examining filesystems and
+      their contents.  The CDROM version of fixit provides all of the
+      commands and programs available in the &os; base system, through
+      the live filesystem.  By contrast, the floppy fixit environment
+      can only offer a subset of commands due to space constraints.</para>
+
+    <para>In the floppy version of fixit, some standalone utilities
+      can be found in <filename>/stand</filename> or
+      <filename>/mnt2/stand</filename>.  In the CDROM version of
+      fixit, these same programs can be found in
+      <filename>/stand</filename> or
+      <filename>/mnt2/rescue</filename> (as well as the rest of
+      the programs from the live filesystem, which can be found under
+      <filename>/mnt</filename>).</para>
+
   </sect2>
 
   <sect2>
