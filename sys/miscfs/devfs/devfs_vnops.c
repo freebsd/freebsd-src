@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.59 1998/08/16 01:21:51 bde Exp $
+ *	$Id: devfs_vnops.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
  */
 
 
@@ -442,6 +442,10 @@ DBPRINT(("getattr\n"));
 		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->ctime));
 		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->mtime));
 		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->atime));
+	}
+	if (file_node->flags & IN_ACCESS) {
+		nanotime(&file_node->atime);
+		file_node->flags &= ~IN_ACCESS;
 	}
 	vap->va_ctime = file_node->ctime;
 	vap->va_mtime = file_node->mtime;
@@ -1409,7 +1413,7 @@ devfs_read( struct vop_read_args *ap)
 		error = (*dnp->by.Cdev.cdevsw->d_read)
 			(dnp->by.Cdev.dev, uio, ap->a_ioflag);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
+		break;
 
 	case VBLK:
 		if (uio->uio_offset < 0)
@@ -1452,12 +1456,14 @@ devfs_read( struct vop_read_args *ap)
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
-		return (error);
+		break;
 
 	default:
 		panic("devfs_read type");
 	}
-	/* NOTREACHED */
+	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
+		dnp->flags |= IN_ACCESS;        
+	return (error);
 }
 
 /*
