@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.45 1995/12/06 09:04:44 peter Exp $
+ *	$Id: autoconf.c,v 1.46 1995/12/07 20:31:02 peter Exp $
  */
 
 /*
@@ -88,6 +88,7 @@
 static void	configure __P((void *));
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
 
+static int	setdumpdev __P((dev_t dev));
 static void	setroot __P((void));
 
 #ifdef MFS_ROOT
@@ -260,7 +261,7 @@ configure(dummy)
 	cold = 0;
 }
 
-int
+static int
 setdumpdev(dev)
 	dev_t dev;
 {

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.45 1995/11/20 12:10:09 phk Exp $
+ *	$Id: vm_machdep.c,v 1.46 1995/12/07 12:45:40 davidg Exp $
  */
 
 #include "npx.h"
@@ -68,36 +68,37 @@
 #include <i386/isa/isa.h>
 
 extern void	pagemove __P((caddr_t from, caddr_t to, int size));
-extern void	setredzone __P((u_short *pte, caddr_t vaddr));
-extern void	vm_fault_quick __P((caddr_t v, int prot));
+static void	setredzone __P((u_short *pte, caddr_t vaddr));
+static void	vm_fault_quick __P((caddr_t v, int prot));
 
 #ifdef BOUNCE_BUFFERS
-extern vm_offset_t
+static vm_offset_t
 		vm_bounce_kva __P((int size, int waitok));
-extern void	vm_bounce_kva_free __P((vm_offset_t addr, vm_offset_t size,
+static void	vm_bounce_kva_free __P((vm_offset_t addr, vm_offset_t size,
 					int now));
-extern vm_offset_t
+static vm_offset_t
 		vm_bounce_page_find __P((int count));
-extern void	vm_bounce_page_free __P((vm_offset_t pa, int count));
+static void	vm_bounce_page_free __P((vm_offset_t pa, int count));
 
-volatile int	kvasfreecnt;
+static static volatile int	kvasfreecnt;
 
 caddr_t		bouncememory;
-int		bouncepages, bpwait;
-vm_offset_t	*bouncepa;
-int		bmwait, bmfreeing;
+int		bouncepages;
+static int	bpwait;
+static vm_offset_t	*bouncepa;
+static int		bmwait, bmfreeing;
 
 #define BITS_IN_UNSIGNED (8*sizeof(unsigned))
-int		bounceallocarraysize;
-unsigned	*bounceallocarray;
-int		bouncefree;
+static int		bounceallocarraysize;
+static unsigned	*bounceallocarray;
+static int		bouncefree;
 
 #define SIXTEENMEG (4096*4096)
 #define MAXBKVA 1024
 int		maxbkva = MAXBKVA*NBPG;
 
 /* special list that can be used at interrupt time for eventual kva free */
-struct kvasfree {
+static struct kvasfree {
 	vm_offset_t addr;
 	vm_offset_t size;
 } kvaf[MAXBKVA];
@@ -106,7 +107,7 @@ struct kvasfree {
  * get bounce buffer pages (count physically contiguous)
  * (only 1 inplemented now)
  */
-vm_offset_t
+static vm_offset_t
 vm_bounce_page_find(count)
 	int count;
 {
@@ -134,7 +135,7 @@ retry:
 	goto retry;
 }
 
-void
+static void
 vm_bounce_kva_free(addr, size, now)
 	vm_offset_t addr;
 	vm_offset_t size;
@@ -164,7 +165,7 @@ vm_bounce_kva_free(addr, size, now)
 /*
  * free count bounce buffer pages
  */
-void
+static void
 vm_bounce_page_free(pa, count)
 	vm_offset_t pa;
 	int count;
@@ -199,7 +200,7 @@ vm_bounce_page_free(pa, count)
 /*
  * allocate count bounce buffer kva pages
  */
-vm_offset_t
+static vm_offset_t
 vm_bounce_kva(size, waitok)
 	int size;
 	int waitok;
@@ -539,7 +540,7 @@ vm_bounce_init()
 /*
  * quick version of vm_fault
  */
-void
+static void
 vm_fault_quick(v, prot)
 	caddr_t v;
 	int prot;
@@ -641,7 +642,7 @@ cpu_coredump(p, vp, cred)
 /*
  * Set a red zone in the kernel stack after the u. area.
  */
-void
+static void
 setredzone(pte, vaddr)
 	u_short *pte;
 	caddr_t vaddr;
@@ -662,7 +663,7 @@ setredzone(pte, vaddr)
  * and size must be a multiple of CLSIZE.
  */
 
-void
+static void
 pagemove(from, to, size)
 	register caddr_t from, to;
 	int size;

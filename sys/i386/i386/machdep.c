@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.155 1995/12/07 12:45:32 davidg Exp $
+ *	$Id: machdep.c,v 1.156 1995/12/09 20:39:47 phk Exp $
  */
 
 #include "npx.h"
@@ -94,30 +94,6 @@
 
 #include <net/netisr.h>
 
-/* XXX correctly declaring all the netisr's is painful. */
-#include <net/if.h>
-#include <net/route.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
-#include <netinet/ip_var.h>
-
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-
-#include <netccitt/dll.h>
-#include <netccitt/x25.h>
-#include <netccitt/pk.h>
-#include <sys/socketvar.h>
-#include <netccitt/pk_var.h>
-
-#include "ether.h"
-
 #include <machine/cpu.h>
 #include <machine/npx.h>
 #include <machine/reg.h>
@@ -135,12 +111,9 @@
 #include <i386/isa/rtc.h>
 #include <machine/random.h>
 
-extern void diediedie __P((void));
 extern void init386 __P((int first));
 extern int ptrace_set_pc __P((struct proc *p, unsigned int addr));
 extern int ptrace_single_step __P((struct proc *p));
-extern int ptrace_getregs __P((struct proc *p, unsigned int *addr));
-extern int ptrace_setregs __P((struct proc *p, unsigned int *addr));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 
 static void cpu_startup __P((void *));
@@ -151,7 +124,7 @@ static void identifycpu(void);
 char machine[] = "i386";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-char cpu_model[128];
+static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
 
 struct kern_devconf kdc_cpu0 = {
@@ -207,10 +180,10 @@ sysctl_hw_usermem SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
 
-int boothowto = 0, bootverbose = 0, Maxmem = 0, badpages = 0;
+int boothowto = 0, bootverbose = 0, Maxmem = 0;
+static int	badpages = 0;
 long dumplo;
 extern int bootdev;
-int biosmem;
 
 vm_offset_t phys_avail[10];
 
@@ -219,12 +192,12 @@ vm_offset_t phys_avail[10];
 
 int cpu_class;
 
-void dumpsys __P((void));
-void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
+static void dumpsys __P((void));
+static void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 
-vm_offset_t buffer_sva, buffer_eva;
+static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
-vm_offset_t pager_sva, pager_eva;
+static vm_offset_t pager_sva, pager_eva;
 extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
@@ -484,7 +457,7 @@ register_netisr(num, handler)
 	return (0);
 }
 
-void
+static void
 setup_netisrs(ls)
 	struct linker_set *ls;
 {
@@ -497,7 +470,7 @@ setup_netisrs(ls)
 	}
 }
 
-struct cpu_nameclass i386_cpus[] = {
+static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
 	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
 	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
@@ -872,17 +845,8 @@ sigreturn(p, uap, retval)
 	return(EJUSTRETURN);
 }
 
-/*
- * a simple function to make the system panic (and dump a vmcore)
- * in a predictable fashion
- */
-void diediedie()
-{
-	panic("because you said to!");
-}
-
-int	waittime = -1;
-struct pcb dumppcb;
+static int	waittime = -1;
+static struct pcb dumppcb;
 
 __dead void
 boot(howto)
@@ -978,17 +942,25 @@ die:
 	/* NOTREACHED */
 }
 
-unsigned long	dumpmag = 0x8fca0101UL;	/* magic number for savecore */
-int		dumpsize = 0;		/* also for savecore */
+/*
+ * Magic number for savecore
+ *
+ * exported (symorder) and used at least by savecore(8)
+ *
+ */
+u_long		dumpmag = 0x8fca0101UL;	
 
-int		dodump = 1;
+static int	dumpsize = 0;		/* also for savecore */
+
+static int	dodump = 1;
+SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0, "");
 
 /*
  * Doadump comes here after turning off memory management and
  * getting on the dump stack, either when called above, or by
  * the auto-restart code.
  */
-void
+static void
 dumpsys()
 {
 
@@ -1090,7 +1062,7 @@ union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 
-struct	i386tss	tss, panic_tss;
+static struct	i386tss	tss, panic_tss;
 
 extern  struct user *proc0paddr;
 
@@ -1197,7 +1169,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	1  			/* limit granularity (byte/page units)*/ },
 };
 
-struct soft_segment_descriptor ldt_segs[] = {
+static struct soft_segment_descriptor ldt_segs[] = {
 	/* Null Descriptor - overwritten by call gate */
 {	0x0,			/* segment base address  */
 	0x0,			/* length - all address space */
@@ -1649,34 +1621,6 @@ ptrace_single_step(p)
 {
 	TF_REGP(p)->tf_eflags |= PSL_T;
 	return (0);
-}
-
-int
-ptrace_getregs(p, addr)
-	struct proc *p;
-	unsigned int *addr;
-{
-	int error;
-	struct reg regs;
-
-	error = fill_regs(p, &regs);
-	if (error)
-		return (error);
-	return (copyout(&regs, addr, sizeof regs));
-}
-
-int
-ptrace_setregs(p, addr)
-	struct proc *p;
-	unsigned int *addr;
-{
-	int error;
-	struct reg regs;
-
-	error = copyin(addr, &regs, sizeof regs);
-	if (error)
-		return (error);
-	return (set_regs(p, &regs));
 }
 
 int ptrace_write_u(p, off, data)

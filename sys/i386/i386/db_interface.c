@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.15 1995/11/18 06:49:35 bde Exp $
+ *	$Id: db_interface.c,v 1.16 1995/12/07 12:45:29 davidg Exp $
  */
 
 /*
@@ -47,9 +47,11 @@
 #include <ddb/ddb.h>
 #include <setjmp.h>
 
-int	db_active = 0;
+static int	db_active = 0;
 
 db_regs_t ddb_regs;
+
+static void kdbprinttrap __P((int type, int code));
 
 #if 0
 /*
@@ -92,7 +94,7 @@ kdb_trap(type, code, regs)
 	 * %eip.
 	 */
 	if (cons_unavail) {
-		if (type = T_TRCTRAP) {
+		if (type == T_TRCTRAP) {
 			regs->tf_eflags &= ~PSL_T;
 			return (1);
 		}
@@ -165,7 +167,7 @@ kdb_trap(type, code, regs)
 /*
  * Print trap reason.
  */
-void
+static void
 kdbprinttrap(type, code)
 	int	type, code;
 {
