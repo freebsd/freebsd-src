@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.3 1995/03/11 15:18:44 amurai Exp $
+ * $Id: ipcp.c,v 1.4 1995/05/30 03:50:38 rgrimes Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -160,8 +160,6 @@ IpcpInit()
     icp->want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
     icp->his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
   }
-  if (icp->want_ipaddr.s_addr == 0)
-    icp->want_ipaddr.s_addr = htonl(0xc0000001);
   if (Enabled(ConfVjcomp))
     icp->want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8);
   else
