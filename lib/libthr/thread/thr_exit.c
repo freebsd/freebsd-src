@@ -94,7 +94,7 @@ _thread_exit_cleanup(void)
 void
 _pthread_exit(void *status)
 {
-	pthread_t pthread;
+	pthread_t pthread, joiner;
 	int exitNow = 0;
 
 	/* Check if this thread is already in the process of exiting: */
@@ -122,9 +122,26 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
+retry:
+	/*
+	 * Proper lock order, to minimize deadlocks, between joining
+	 * and exiting threads is: DEAD_LIST, THREAD_LIST, exiting, joiner.
+	 * In order to do this *and* protect from races, we must resort
+	 * this test-and-retry loop.
+	 */
+	joiner = curthread->joiner;
+
 	/* Lock the dead list first to maintain correct lock order */
 	DEAD_LIST_LOCK;
+	THREAD_LIST_LOCK;
 	_thread_critical_enter(curthread);
+
+	if (joiner != curthread->joiner) {
+		_thread_critical_exit(curthread);
+		THREAD_LIST_UNLOCK;
+		DEAD_LIST_UNLOCK;
+		goto retry;
+	}
 
 	/* Check if there is a thread joining this one: */
 	if (curthread->joiner != NULL) {
@@ -151,7 +168,6 @@ _pthread_exit(void *status)
 	 * Add this thread to the list of dead threads, and
 	 * also remove it from the active threads list.
 	 */
-	THREAD_LIST_LOCK;
 	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 	TAILQ_REMOVE(&_thread_list, curthread, tle);
 	PTHREAD_SET_STATE(curthread, PS_DEAD);
