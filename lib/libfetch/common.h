@@ -32,7 +32,6 @@
 #define _COMMON_H_INCLUDED
 
 /* Structure used for error message lists */
-#define ERRCAT_
 struct fetcherr {  
     const int num, cat;
     const char *string;
@@ -43,6 +42,7 @@ void		 _fetch_syserr(void);
 void		 _fetch_info(char *fmt, ...);
 int		 _fetch_connect(char *host, int port, int af, int verbose);
 int		 _fetch_getln(int fd, char **buf, size_t *size, size_t *len);
+int		 _fetch_putln(int fd, char *str, size_t len);
 int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
 				  char *name, struct url_stat *stat);
 
