@@ -32,7 +32,7 @@
 .\"     @(#)column.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2004
+.Dd July 29, 2004
 .Os
 .Dt COLUMN 1
 .Sh NAME
@@ -77,13 +77,14 @@ Fill columns before filling rows.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh ENVIRONMENT
-.Bl -tag -width COLUMNS
-.It Ev COLUMNS
-The environment variable
-.Ev COLUMNS
-is used to determine the size of
-the screen if no other information is available.
-.El
+The
+.Ev COLUMNS , LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh EXAMPLES
 .Dl (printf \&"PERM LINKS OWNER GROUP SIZE MONTH DAY \&"\ \&;\ \&\e
 .Dl printf \&"HH:MM/YEAR NAME\en\&"\ \&;\ \&\e
@@ -100,4 +101,3 @@ command appeared in
 .Bx 4.3 Reno .
 .Sh BUGS
 Input lines are limited to LINE_MAX (2048) bytes in length.
-Multibyte characters are not handled correctly.
