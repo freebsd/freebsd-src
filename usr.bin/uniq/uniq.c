@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uniq.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: uniq.c,v 1.1.1.1.8.1 1997/08/22 06:41:11 charnier Exp $";
+	"$Id: uniq.c,v 1.1.1.1.8.2 1997/08/29 05:30:06 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -74,9 +74,10 @@ main (argc, argv)
 	FILE *ifp, *ofp;
 	int ch;
 	char *prevline, *thisline, *p;
+	int iflag = 0, comp;
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "-cdf:s:u")) !=  -1)
+	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
 		switch (ch) {
 		case '-':
 			--optind;
@@ -86,6 +87,9 @@ main (argc, argv)
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'i':
+			iflag = 1;
 			break;
 		case 'f':
 			numfields = strtol(optarg, &p, 10);
@@ -151,7 +155,12 @@ done:	argc -= optind;
 		}
 
 		/* If different, print; set previous to new value. */
-		if (strcmp(t1, t2)) {
+		if (iflag)
+			comp = strcasecmp(t1, t2);
+		else
+			comp = strcmp(t1, t2);
+
+		if (comp) {
 			show(ofp, prevline);
 			t1 = prevline;
 			prevline = thisline;
@@ -174,7 +183,8 @@ show(ofp, str)
 	FILE *ofp;
 	char *str;
 {
-	if (cflag)
+
+	if (cflag && *str)
 		(void)fprintf(ofp, "%4d %s", repeats + 1, str);
 	if ((dflag && repeats) || (uflag && !repeats))
 		(void)fprintf(ofp, "%s", str);
@@ -243,6 +253,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: uniq [-c | -du] [-f fields] [-s chars] [input [output]]\n");
+	    "usage: uniq [-c | -du | -i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }
