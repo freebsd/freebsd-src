@@ -3846,7 +3846,8 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
     case OBJFMT_UNKNOWN:
       fatal ("object format unknown");
     }
-#else /* not FREEBSD_NATIVE */
+#endif	/* FREEBSD_NATIVE */
+#ifndef FREEBSD_NATIVE
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "GCC",
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
@@ -3860,7 +3861,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
   add_prefix (&startfile_prefixes, standard_exec_prefix_1, "BINUTILS",
 	      PREFIX_PRIORITY_LAST, 1, warn_std_ptr);
-#endif /* FREEBSD_NATIVE */
+#endif	/* not FREEBSD_NATIVE */
 
   tooldir_prefix = concat (tooldir_base_prefix, spec_machine,
 			   dir_separator_str, NULL);
@@ -5978,12 +5979,12 @@ main (argc, argv)
 
   /* Read specs from a file if there is one.  */
 
-#ifndef FREEBSD_NATIVE
+#ifdef FREEBSD_NATIVE
+  just_machine_suffix = "";
+#else	/* FREEBSD_NATIVE */
   machine_suffix = concat (spec_machine, dir_separator_str,
 			   spec_version, dir_separator_str, NULL);
   just_machine_suffix = concat (spec_machine, dir_separator_str, NULL);
-#else /* FREEBSD_NATIVE */
-  just_machine_suffix = "";
 #endif /* FREEBSD_NATIVE */
 
   specs_file = find_a_file (&startfile_prefixes, "specs", R_OK);
@@ -6050,11 +6051,11 @@ main (argc, argv)
 		  "BINUTILS", PREFIX_PRIORITY_LAST, 0, NULL);
       add_prefix (&startfile_prefixes, standard_startfile_prefix_2,
 		  "BINUTILS", PREFIX_PRIORITY_LAST, 0, NULL);
+#endif	/* not FREEBSD_NATIVE */
 #if 0 /* Can cause surprises, and one can use -B./ instead.  */
       add_prefix (&startfile_prefixes, "./", NULL,
 		  PREFIX_PRIORITY_LAST, 1, NULL);
 #endif
-#endif /* FREEBSD_NATIVE */
     }
   else
     {
