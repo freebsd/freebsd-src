@@ -2392,7 +2392,6 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 */
 	case CAM_SCSI_BUS_RESET:
 	case CAM_BDR_SENT:
-	case CAM_REQUEUE_REQ:
 		if (ccb->ccb_h.retry_count <= 0) {
 			return (EIO);
 			break;
