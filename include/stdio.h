@@ -302,6 +302,12 @@ int	 getchar_unlocked(void);
 int	 putc_unlocked(int, FILE *);
 int	 putchar_unlocked(int);
 #endif
+#if __BSD_VISIBLE
+void	clearerr_unlocked(FILE *);
+int	feof_unlocked(FILE *);
+int	ferror_unlocked(FILE *);
+int	fileno_unlocked(FILE *);
+#endif
 
 #if __POSIX_VISIBLE >= 200112
 int	 fseeko(FILE *, __off_t, int);
