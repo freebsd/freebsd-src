@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.10.2.4 1997/02/03 11:00:42 kato Exp $
+ * $Id: if_fe.c,v 1.10.2.5 1997/02/07 19:10:01 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -227,6 +227,7 @@ static struct fe_softc {
 	u_char proto_dlcr6;	/* DLCR6 prototype.  */
 	u_char proto_dlcr7;	/* DLCR7 prototype.  */
 	u_char proto_bmpr13;	/* BMPR13 prototype.  */
+	u_char proto_bmpr14;	/* BMPR14 prototype.  */
 
 	/* Vendor specific hooks.  */
 	void ( * init )( struct fe_softc * ); /* Just before fe_init().  */
@@ -263,6 +264,8 @@ static void		fe_watchdog	( struct ifnet * );
 #ifdef PC98
 static int	fe_probe_re1000	( DEVICE *, struct fe_softc * );
 static int	fe_probe_re1000p( DEVICE *, struct fe_softc * );
+static int	fe_probe_cnet9ne ( DEVICE *, struct fe_softc * );
+static int	fe_probe_cnet98p2( DEVICE *, struct fe_softc * );
 #else
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
@@ -462,6 +465,11 @@ static u_short const fe_re1000_addr [] =
 	  0x1D0, 0x1D2, 0x1D4, 0x1D6, 0x1D8, 0x1DA, 0x1DC, 0x1DE, 0 };
 static u_short const fe_re1000p_addr [] =
 	{ 0x0D0, 0x0D2, 0x0D4, 0x0D8, 0x1D4, 0x1D6, 0x1D8, 0x1DA, 0 };
+static u_short const fe_cnet9ne_addr [] =
+	{ 0x73D0, 0 };
+static u_short const fe_cnet98p2_addr [] =
+	{ 0x03D0, 0x13D0, 0x23D0, 0x33D0, 0x43D0, 0x53D0, 0x63D0,
+	  0x73D0, 0x83D0, 0x93D0, 0xA3D0, 0xB3D0, 0xC3D0, 0xD3D0, 0 };
 #else
 static u_short const fe_fmv_addr [] =
 	{ 0x220, 0x240, 0x260, 0x280, 0x2A0, 0x2C0, 0x300, 0x340, 0 };
@@ -474,6 +482,9 @@ static struct fe_probe_list const fe_probe_list [] =
 #ifdef PC98
 	{ fe_probe_re1000, fe_re1000_addr },
 	{ fe_probe_re1000p, fe_re1000p_addr },
+	/* XXX: We must probe C-NET(98)P2 after C-NET(9N)E. */
+	{ fe_probe_cnet9ne, fe_cnet9ne_addr },
+	{ fe_probe_cnet98p2, fe_cnet98p2_addr },
 #else
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
@@ -512,6 +523,9 @@ fe_probe ( DEVICE * dev )
 	/* Initialize "minimum" parts of our softc.  */
 	sc = &fe_softc[ dev->id_unit ];
 	sc->sc_unit = dev->id_unit;
+
+	/* TODO: Should be in each probe routines */
+	sc->proto_bmpr14 = 0;
 
 #if NCRD > 0
 	/*
@@ -954,6 +968,405 @@ fe_probe_re1000p ( DEVICE * isa_dev, struct fe_softc * sc )
 	 * That's all.  RE1000Plus/ME1500 occupies 2*16 I/O addresses, by the way.
 	 */
 	return 2;	/* ??? */
+}
+
+/*
+ * Probe and initialization for Contec C-NET(9N)E series.
+ */
+
+/* TODO: Should be in "if_fereg.h" */
+#define	FE_CNET9NE_INTR		0x10		/* Interrupt Mask? */
+#define	FE_CNET9NE_MAC0		0x11		/* Station(MAC) address */
+#define	FE_CNET9NE_MAC1		0x13
+#define	FE_CNET9NE_MAC2		0x15
+#define	FE_CNET9NE_MAC3		0x17
+#define	FE_CNET9NE_MAC4		0x19
+#define	FE_CNET9NE_MAC5		0x1B
+
+/* TODO: Should be in "ic/mb86960.h" */
+#define	FE_D7_ENDEC	0xC0	/* Encoder/Decoder mode(86960 only)	*/
+#define	FE_D7_ENDEC_NORMAL_NICE		0x00	/* Normal NICE		*/
+#define	FE_D7_ENDEC_NICE_MONITOR	0x40	/* NICE + Monitor	*/
+#define	FE_D7_ENDEC_BYPASS		0x80	/* Encoder/Decoder Bypass */
+#define	FE_D7_ENDEC_TEST		0xC0	/* Encoder/Decoder Test	*/
+
+static int
+fe_probe_cnet9ne ( DEVICE * isa_dev, struct fe_softc * sc )
+{
+	int	i;
+	u_char	c;
+
+#if FE_DEBUG >= 3
+	log( LOG_INFO, "fe%d: probe (0x%x) for C-NET(9N)E\n", sc->sc_unit, sc->iobase );
+#endif
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < 16; i++ ) {
+		sc->ioaddr[i] = sc->iobase + i;
+	}
+	for ( ; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[i] = sc->iobase + 0x400 - 16 + i;
+	}
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, NULL );
+#endif
+
+	/* Get our station address from EEPROM. */
+	sc->sc_enaddr[0] = inb( sc->ioaddr[FE_CNET9NE_MAC0] );
+	sc->sc_enaddr[1] = inb( sc->ioaddr[FE_CNET9NE_MAC1] );
+	sc->sc_enaddr[2] = inb( sc->ioaddr[FE_CNET9NE_MAC2] );
+	sc->sc_enaddr[3] = inb( sc->ioaddr[FE_CNET9NE_MAC3] );
+	sc->sc_enaddr[4] = inb( sc->ioaddr[FE_CNET9NE_MAC4] );
+	sc->sc_enaddr[5] = inb( sc->ioaddr[FE_CNET9NE_MAC5] );
+
+#if 1
+	/*
+	 * Check the Ethernet address here.
+	 *
+	 * Contec uses 00 80 4C ?? ?? ??.
+	 */
+	if ( sc->sc_enaddr[0] != (u_char)0x00
+	||   sc->sc_enaddr[1] != (u_char)0x80
+	||   sc->sc_enaddr[2] != (u_char)0x4C ) {
+#else
+	/*
+	 * Make sure we got a valid Ethernet address.
+	 */
+	if ( ( sc->sc_enaddr[0] & 0x03 ) != 0x00	/* Multicast or Local address. */
+	||   ( sc->sc_enaddr[0] | sc->sc_enaddr[1] | sc->sc_enaddr[2] ) == 0x00 ) {
+#endif
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: invalid MAC adrs(%x:%x:%x:%x:%x:%x)\n"
+		, sc->sc_unit
+		, (u_char)sc->sc_enaddr[0], (u_char)sc->sc_enaddr[1]
+		, (u_char)sc->sc_enaddr[2], (u_char)sc->sc_enaddr[3]
+		, (u_char)sc->sc_enaddr[4], (u_char)sc->sc_enaddr[5] );
+#endif
+		return 0;
+	}
+
+	/* See if C-NET(9N)E is on its address. */
+	if ( inb( sc->ioaddr[FE_DLCR6] ) == (u_char)0xff ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: inb(%x) returns 0xff\n"
+		, sc->sc_unit, sc->ioaddr[FE_DLCR6] );
+#endif
+		return 0;
+	}
+
+	sc->typestr = "C-NET9NE";
+
+	/*
+	 * Program the 86960 as follows:
+	 *	SRAM: 64KB, word-wide access.
+	 *	Transmission buffer: 4KB x 2.
+	 *	System bus interface: 16 bits.
+	 *	Encoder/Decoder mode: Normal NICE.
+	 *
+	 * 86960 manual says that SRAM access-time can't be configured.
+	 * (must be 1)
+	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;
+	sc->proto_dlcr5 = FE_D5_RMTRST;	/* reserved bit(must be 1) */
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_64KB | FE_D6_TXBSIZ_2x4KB
+		| FE_D6_BBW_WORD | FE_D6_SBW_WORD | FE_D6_SRAM;
+#ifndef	CNET9NC
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_ENDEC_NORMAL_NICE;
+#else
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_ENDEC_BYPASS;
+#endif
+	sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO;
+	sc->proto_bmpr14 = 0;
+
+	sc->stop = sc->init = NULL;
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "C-NET(9N)E found" );
+#endif
+
+	/* Initialize 86960.  */
+	outb( sc->ioaddr[FE_DLCR6], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY( 200 );
+
+#if 1	/* XXX: Is this really necessary?  FIXME. */
+	c = inb( sc->ioaddr[FE_DLCR1] );
+	if ( c == (u_char)0xff ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: inb(%x) returns 0xff\n"
+		, sc->sc_unit, sc->ioaddr[FE_DLCR1] );
+#endif
+		return 0;
+	}
+	if ( ( c & FE_D1_PKTRDY ) == 0 ) {
+		outb( sc->ioaddr[FE_DLCR1], FE_D1_PKTRDY );
+	}
+#endif
+
+	/* Disable all interrupts.  */
+	outb( sc->ioaddr[FE_DLCR2], 0 );
+	outb( sc->ioaddr[FE_DLCR3], 0 );
+
+#ifndef	CNET9NC
+	/* Enable interrupt?  FIXME. */
+	outb( sc->ioaddr[FE_CNET9NE_INTR], 0x10 );
+#endif
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "end of fe_probe_cnet9ne()" );
+#endif
+
+	/*
+	 * XXX: The I/O address range is fragmented in the CNET(9N)E.
+	 *      "16" is the number of regs at iobase.
+	 */
+	return 16;
+}
+
+/*
+ * Probe and initialization for Contec C-NET(98)P2 series.
+ */
+
+/*
+ * Routines to read all bytes from the config EEPROM through TDK 78Q8377A.
+ * I'm not sure what exactly I'm doing here...  I was told just to follow
+ * the steps, and it worked.  Could someone tell me why the following
+ * code works?  FIXME.
+ */
+
+static void
+fe_strobe_eeprom_tdk ( u_short bmpr12 )
+{
+	outb( bmpr12, 0x10 );
+	outb( bmpr12, 0x12 );
+	outb( bmpr12, 0x12 );
+	outb( bmpr12, 0x16 );
+	outb( bmpr12, 0x12 | 0x01 );
+	outb( bmpr12, 0x16 | 0x01 );
+	outb( bmpr12, 0x12 | 0x01 );
+	outb( bmpr12, 0x16 | 0x01 );
+	outb( bmpr12, 0x12 );
+	outb( bmpr12, 0x16 );
+}
+
+static void
+fe_read_eeprom_tdk ( struct fe_softc * sc, u_char * data )
+{
+	u_short	bmpr12 = sc->ioaddr[FE_DLCR12];
+	u_char	n, val, bit;
+
+	outb( sc->ioaddr[FE_DLCR6], FE_D6_BBW_WORD | FE_D6_SBW_WORD
+		| FE_D6_DLC_DISABLE );
+	outb( sc->ioaddr[FE_DLCR7], FE_D7_BYTSWP_LH | FE_D7_RBS_BMPR
+		| FE_D7_RDYPNS | FE_D7_POWER_UP );
+
+	/* Read bytes from EEPROM; two bytes per an iteration.  */
+	for ( n = 0; n < FE_EEPROM_SIZE / 2; n++ ) {
+
+		/* Start EEPROM access.  */
+		fe_strobe_eeprom_tdk( bmpr12 );
+
+		/* Pass the iteration count to the chip.  */
+		for ( bit = 0x80; bit != 0x00; bit >>= 1 ) {
+			val = ( n & bit ) ? 0x01 : 0x00;
+			outb( bmpr12, 0x12 | val );
+			outb( bmpr12, 0x16 | val );
+		}
+
+		/* Read a byte.  */
+		val = 0;
+		for ( bit = 0x80; bit != 0x00; bit >>= 1 ) {
+			outb( bmpr12, 0x12 );
+			outb( bmpr12, 0x16 );
+			if ( inb( bmpr12 ) & 0x01 ) {
+				val |= bit;
+			}
+		}
+		*data++ = val;
+
+		/* Read one more byte.  */
+		val = 0;
+		for ( bit = 0x80; bit != 0x00; bit >>= 1 ) {
+			outb( bmpr12, 0x12 );
+			outb( bmpr12, 0x16 );
+			if ( inb( bmpr12 ) & 0x01 ) {
+				val |= bit;
+			}
+		}
+		*data++ = val;
+
+		outb( bmpr12, 0x10 );
+	}
+
+	/* Reset the EEPROM interface.  */
+	outb( bmpr12, 0x00 );
+
+#if FE_DEBUG >= 3
+	/* Report what we got.  */
+	data -= FE_EEPROM_SIZE;
+	log( LOG_INFO, "fe%d: EEPROM:"
+		" %02x%02x%02x%02x %02x%02x%02x%02x -"
+		" %02x%02x%02x%02x %02x%02x%02x%02x -"
+		" %02x%02x%02x%02x %02x%02x%02x%02x -"
+		" %02x%02x%02x%02x %02x%02x%02x%02x\n",
+		sc->sc_unit,
+		data[ 0], data[ 1], data[ 2], data[ 3],
+		data[ 4], data[ 5], data[ 6], data[ 7],
+		data[ 8], data[ 9], data[10], data[11],
+		data[12], data[13], data[14], data[15],
+		data[16], data[17], data[18], data[19],
+		data[20], data[21], data[22], data[23],
+		data[24], data[25], data[26], data[27],
+		data[28], data[29], data[30], data[31] );
+#endif
+}
+
+/* TODO: Should be in "if_fereg.h" */
+#define	FE_CNET98P2_EEP_IRQ	(0x04 * 2 + 1)	/* Irq			*/
+#define	FE_CNET98P2_EEP_ADDR	(0x08 * 2)	/* Station(MAC) address	*/
+#define	FE_CNET98P2_EEP_DUPLEX	(0x0c * 2 + 1)	/* Duplex mode		*/
+
+static int
+fe_probe_cnet98p2 ( DEVICE * isa_dev, struct fe_softc * sc )
+{
+	int	i;
+	u_char	duplex;
+	u_char	eeprom[FE_EEPROM_SIZE];
+	static u_short const irqmap [] =
+		/*                        INT0          INT1  INT2	*/
+		{ NO_IRQ, NO_IRQ, NO_IRQ, IRQ3, NO_IRQ, IRQ5, IRQ6, NO_IRQ,
+		  NO_IRQ, IRQ9, IRQ10, NO_IRQ, IRQ12, IRQ13, NO_IRQ, NO_IRQ };
+		/*        INT3  INT4           INT5   INT6		*/
+
+#if FE_DEBUG >= 3
+	log( LOG_INFO, "fe%d: probe (0x%x) for C-NET(98)P2\n", sc->sc_unit, sc->iobase );
+#endif
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < 16; i++ ) {
+		sc->ioaddr[i] = sc->iobase + i;
+	}
+	/* Full unused slots with a safe address. */
+	for ( ; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[i] = sc->iobase;
+	}
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, NULL );
+#endif
+
+	/* See if C-NET(98)P2 is on its address. */
+	if ( inb( sc->ioaddr[FE_DLCR0] ) == (u_char)0xff ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: inb(%x) returns 0xff\n"
+		, sc->sc_unit, sc->ioaddr[FE_DLCR0] );
+#endif
+		return 0;
+	}
+	if ( inb( sc->ioaddr[FE_DLCR6] ) == (u_char)0xff ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: inb(%x) returns 0xff\n"
+		, sc->sc_unit, sc->ioaddr[FE_DLCR6] );
+#endif
+		return 0;
+	}
+
+	/*
+	 * We are now almost sure we have a 78Q8377 at the given
+	 * address.  So, read EEPROM through 78Q8377.  We have to write
+	 * into LSI registers to read from EEPROM.  FIXME.
+	 */
+	fe_read_eeprom_tdk( sc, eeprom );
+
+	/*
+	 * Initialize constants in the per-line structure.
+	 */
+
+	/* Get our station address from EEPROM.  */
+	bcopy( eeprom + FE_CNET98P2_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
+
+#if 1
+	/*
+	 * Check the Ethernet address here.
+	 *
+	 * Contec uses 00 80 4C ?? ?? ??.
+	 */
+	if ( sc->sc_enaddr[0] != (u_char)0x00
+	||   sc->sc_enaddr[1] != (u_char)0x80
+	||   sc->sc_enaddr[2] != (u_char)0x4C ) {
+#else
+	/*
+	 * Make sure we got a valid Ethernet address.
+	 */
+	if ( ( sc->sc_enaddr[0] & 0x03 ) != 0x00	/* Multicast or Local address. */
+	||   ( sc->sc_enaddr[0] | sc->sc_enaddr[1] | sc->sc_enaddr[2] ) == 0x00 ) {
+#endif
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: invalid MAC adrs(%x:%x:%x:%x:%x:%x)\n"
+		, sc->sc_unit
+		, (u_char)sc->sc_enaddr[0], (u_char)sc->sc_enaddr[1]
+		, (u_char)sc->sc_enaddr[2], (u_char)sc->sc_enaddr[3]
+		, (u_char)sc->sc_enaddr[4], (u_char)sc->sc_enaddr[5] );
+#endif
+		return 0;
+	}
+
+	/*
+	 * Get IRQ configuration from EEPROM.
+	 */
+	isa_dev->id_irq = irqmap[ eeprom[FE_CNET98P2_EEP_IRQ] ];
+	if ( isa_dev->id_irq == NO_IRQ ) {
+#if FE_DEBUG >= 3
+		log( LOG_INFO, "fe%d: invalid irq configuration(%d)\n"
+		, sc->sc_unit, eeprom[FE_CNET98P2_EEP_IRQ] );
+#endif
+		return 0;
+	}
+
+	/*
+	 * Get Duplex-mode configuration from EEPROM.
+	 */
+	duplex = eeprom[FE_CNET98P2_EEP_DUPLEX] & FE_D4_DSC;
+	sc->typestr = ( duplex ? "CNET98P2(Full duplex)"
+		: "CNET98P2(Half duplex)" );
+
+	/*
+	 * Program the 78Q8377 as follows:
+	 *      SRAM: 32KB, 100ns, byte-wide access.
+	 *      Transmission buffer: 4KB x 2.
+	 *      System bus interface: 16 bits.
+	 * XXX: Should we add IDENT_NICE or IDENT_EC to DLCR7?  FIXME.
+	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL | duplex;
+	sc->proto_dlcr5 = 0;
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
+		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH;
+	sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO;
+	sc->proto_bmpr14 = FE_B14_FILTER;
+
+	sc->stop = sc->init = NULL;
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "C-NET(98)P2 found" );
+#endif
+
+	/* Initialize 78Q8377.  */
+	outb( sc->ioaddr[FE_DLCR6], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY( 200 );
+
+	/* Disable all interrupts.  */
+	outb( sc->ioaddr[FE_DLCR2], 0 );
+	outb( sc->ioaddr[FE_DLCR3], 0 );
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "end of fe_probe_cnet98p2()" );
+#endif
+
+	/*
+	 * That's all.  C-NET(98)P2 occupies 16 I/O addresses, as always.
+	 */
+	return 16;
 }
 #else
 /*
@@ -2329,7 +2742,7 @@ fe_droppacket ( struct fe_softc * sc, int len )
 		/* Read 4 more bytes, and skip the rest of the packet.  */
 		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
 		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
-	outb( sc->ioaddr[ FE_BMPR14 ], FE_B14_SKIP );
+		outb( sc->ioaddr[ FE_BMPR14 ], sc->proto_bmpr14 | FE_B14_SKIP );
 	} else {
 		/* We should not come here unless receiving RUNTs.  */
 		for ( i = 0; i < len; i += 2 ) {
