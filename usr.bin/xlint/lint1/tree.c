@@ -32,7 +32,8 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 #include <stdlib.h>
