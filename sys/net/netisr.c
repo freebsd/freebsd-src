@@ -53,6 +53,16 @@
 #include <net/if_var.h>
 #include <net/netisr.h>
 
+/*
+ * XXX this is a temporary measure to allow folks to
+ * XXX disable Giant locking in the network code without
+ * XXX recompiling--in case of problems.
+ */
+int	debug_mpsafenet = 0;
+TUNABLE_INT("debug.mpsafenet", &debug_mpsafenet);
+SYSCTL_INT(_debug, OID_AUTO, mpsafenet, CTLFLAG_RD, &debug_mpsafenet, 0,
+    "Enable/disable MPSAFE network support");
+
 volatile unsigned int	netisr;	/* scheduling bits for network */
 
 struct netisr {
