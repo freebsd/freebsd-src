@@ -19,5 +19,5 @@ refer=			/usr/bin/refer
 grap=			# no grap
 pic=			/usr/bin/pic
 zcat=			/usr/bin/zcat
-compress=		gzip -c
+compress=		/usr/bin/gzip -c
 compext=		.gz
