@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
+ *      @(#)bpf.c	8.4 (Berkeley) 1/9/95
  *
  * $FreeBSD$
  */
