@@ -140,7 +140,7 @@ rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
 		rcp->valid = 0;
 		rcp->client = NULL;
 	}
-	if ((nettype == NULL) || (nettype[0] == NULL))
+	if ((nettype == NULL) || (nettype[0] == 0))
 		nettype = "netpath";
 	if (!(rcp->valid && rcp->pid == getpid() &&
 		(rcp->prognum == prognum) &&
