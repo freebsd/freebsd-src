@@ -120,7 +120,6 @@ static int rs6000_sr_alias_set;
 
 static void rs6000_add_gc_roots PARAMS ((void));
 static int num_insns_constant_wide PARAMS ((HOST_WIDE_INT));
-static rtx expand_block_move_mem PARAMS ((enum machine_mode, rtx, rtx));
 static void validate_condition_mode 
   PARAMS ((enum rtx_code, enum machine_mode));
 static rtx rs6000_generate_compare PARAMS ((enum rtx_code));
@@ -4909,21 +4908,6 @@ altivec_init_builtins (void)
 }
 
 
-/* Generate a memory reference for expand_block_move, copying volatile,
-   and other bits from an original memory reference.  */
-
-static rtx
-expand_block_move_mem (mode, addr, orig_mem)
-     enum machine_mode mode;
-     rtx addr;
-     rtx orig_mem;
-{
-  rtx mem = gen_rtx_MEM (mode, addr);
-
-  MEM_COPY_ATTRIBUTES (mem, orig_mem);
-  return mem;
-}
-
 /* Expand a block move operation, and return 1 if successful.  Return 0
    if we should let the compiler generate normal code.
 
@@ -4946,14 +4930,6 @@ expand_block_move (operands)
   int align;
   int bytes;
   int offset;
-  int num_reg;
-  int i;
-  rtx src_reg;
-  rtx dest_reg;
-  rtx src_addr;
-  rtx dest_addr;
-  rtx tmp_reg;
-  rtx stores[MAX_MOVE_REG];
   int move_bytes;
 
   /* If this is not a fixed size move, just call memcpy */
@@ -4975,14 +4951,17 @@ expand_block_move (operands)
   if (bytes > (TARGET_POWERPC64 ? 64 : 32))
     return 0;
 
-  /* Move the address into scratch registers.  */
-  dest_reg = copy_addr_to_reg (XEXP (orig_dest, 0));
-  src_reg  = copy_addr_to_reg (XEXP (orig_src,  0));
-
   if (TARGET_STRING)	/* string instructions are available */
     {
-      for ( ; bytes > 0; bytes -= move_bytes)
+      for (offset = 0; bytes > 0; offset += move_bytes, bytes -= move_bytes)
 	{
+	  union {
+	    rtx (*movstrsi) PARAMS ((rtx, rtx, rtx, rtx));
+	    rtx (*mov) PARAMS ((rtx, rtx));
+	  } gen_func;
+	  enum machine_mode mode = BLKmode;
+	  rtx src, dest;
+
 	  if (bytes > 24		/* move up to 32 bytes at a time */
 	      && ! fixed_regs[5]
 	      && ! fixed_regs[6]
@@ -4994,15 +4973,7 @@ expand_block_move (operands)
 	      && ! fixed_regs[12])
 	    {
 	      move_bytes = (bytes > 32) ? 32 : bytes;
-	      emit_insn (gen_movstrsi_8reg (expand_block_move_mem (BLKmode,
-								   dest_reg,
-								   orig_dest),
-					    expand_block_move_mem (BLKmode,
-								   src_reg,
-								   orig_src),
-					    GEN_INT ((move_bytes == 32)
-						     ? 0 : move_bytes),
-					    align_rtx));
+	      gen_func.movstrsi = gen_movstrsi_8reg;
 	    }
 	  else if (bytes > 16	/* move up to 24 bytes at a time */
 		   && ! fixed_regs[5]
@@ -5013,14 +4984,7 @@ expand_block_move (operands)
 		   && ! fixed_regs[10])
 	    {
 	      move_bytes = (bytes > 24) ? 24 : bytes;
-	      emit_insn (gen_movstrsi_6reg (expand_block_move_mem (BLKmode,
-								   dest_reg,
-								   orig_dest),
-					    expand_block_move_mem (BLKmode,
-								   src_reg,
-								   orig_src),
-					    GEN_INT (move_bytes),
-					    align_rtx));
+	      gen_func.movstrsi = gen_movstrsi_6reg;
 	    }
 	  else if (bytes > 8	/* move up to 16 bytes at a time */
 		   && ! fixed_regs[5]
@@ -5029,14 +4993,7 @@ expand_block_move (operands)
 		   && ! fixed_regs[8])
 	    {
 	      move_bytes = (bytes > 16) ? 16 : bytes;
-	      emit_insn (gen_movstrsi_4reg (expand_block_move_mem (BLKmode,
-								   dest_reg,
-								   orig_dest),
-					    expand_block_move_mem (BLKmode,
-								   src_reg,
-								   orig_src),
-					    GEN_INT (move_bytes),
-					    align_rtx));
+	      gen_func.movstrsi = gen_movstrsi_4reg;
 	    }
 	  else if (bytes >= 8 && TARGET_POWERPC64
 		   /* 64-bit loads and stores require word-aligned
@@ -5044,108 +5001,84 @@ expand_block_move (operands)
 		   && (align >= 8 || (! STRICT_ALIGNMENT && align >= 4)))
 	    {
 	      move_bytes = 8;
-	      tmp_reg = gen_reg_rtx (DImode);
-	      emit_move_insn (tmp_reg,
-			      expand_block_move_mem (DImode,
-						     src_reg, orig_src));
-	      emit_move_insn (expand_block_move_mem (DImode,
-						     dest_reg, orig_dest),
-			      tmp_reg);
+	      mode = DImode;
+	      gen_func.mov = gen_movdi;
 	    }
 	  else if (bytes > 4 && !TARGET_POWERPC64)
 	    {			/* move up to 8 bytes at a time */
 	      move_bytes = (bytes > 8) ? 8 : bytes;
-	      emit_insn (gen_movstrsi_2reg (expand_block_move_mem (BLKmode,
-								   dest_reg,
-								   orig_dest),
-					    expand_block_move_mem (BLKmode,
-								   src_reg,
-								   orig_src),
-					    GEN_INT (move_bytes),
-					    align_rtx));
+	      gen_func.movstrsi = gen_movstrsi_2reg;
 	    }
 	  else if (bytes >= 4 && (align >= 4 || ! STRICT_ALIGNMENT))
 	    {			/* move 4 bytes */
 	      move_bytes = 4;
-	      tmp_reg = gen_reg_rtx (SImode);
-	      emit_move_insn (tmp_reg,
-			      expand_block_move_mem (SImode,
-						     src_reg, orig_src));
-	      emit_move_insn (expand_block_move_mem (SImode,
-						     dest_reg, orig_dest),
-			      tmp_reg);
+	      mode = SImode;
+	      gen_func.mov = gen_movsi;
 	    }
 	  else if (bytes == 2 && (align >= 2 || ! STRICT_ALIGNMENT))
 	    {			/* move 2 bytes */
 	      move_bytes = 2;
-	      tmp_reg = gen_reg_rtx (HImode);
-	      emit_move_insn (tmp_reg,
-			      expand_block_move_mem (HImode,
-						     src_reg, orig_src));
-	      emit_move_insn (expand_block_move_mem (HImode,
-						     dest_reg, orig_dest),
-			      tmp_reg);
+	      mode = HImode;
+	      gen_func.mov = gen_movhi;
 	    }
 	  else if (bytes == 1)	/* move 1 byte */
 	    {
 	      move_bytes = 1;
-	      tmp_reg = gen_reg_rtx (QImode);
-	      emit_move_insn (tmp_reg,
-			      expand_block_move_mem (QImode,
-						     src_reg, orig_src));
-	      emit_move_insn (expand_block_move_mem (QImode,
-						     dest_reg, orig_dest),
-			      tmp_reg);
+	      mode = QImode;
+	      gen_func.mov = gen_movqi;
 	    }
 	  else
 	    {			/* move up to 4 bytes at a time */
 	      move_bytes = (bytes > 4) ? 4 : bytes;
-	      emit_insn (gen_movstrsi_1reg (expand_block_move_mem (BLKmode,
-								   dest_reg,
-								   orig_dest),
-					    expand_block_move_mem (BLKmode,
-								   src_reg,
-								   orig_src),
-					    GEN_INT (move_bytes),
-					    align_rtx));
+	      gen_func.movstrsi = gen_movstrsi_1reg;
 	    }
 
-	  if (bytes > move_bytes)
+	  src = adjust_address (orig_src, mode, offset);
+	  dest = adjust_address (orig_dest, mode, offset);
+
+	  if (mode == BLKmode)
 	    {
-	      if (! TARGET_POWERPC64)
+	      /* Move the address into scratch registers.  The movstrsi
+		 patterns require zero offset.  */
+	      if (!REG_P (XEXP (src, 0)))
 		{
-		  emit_insn (gen_addsi3 (src_reg, src_reg,
-					 GEN_INT (move_bytes)));
-		  emit_insn (gen_addsi3 (dest_reg, dest_reg,
-					 GEN_INT (move_bytes)));
+		  rtx src_reg = copy_addr_to_reg (XEXP (src, 0));
+		  src = replace_equiv_address (src, src_reg);
 		}
-	      else
+	      set_mem_size (src, GEN_INT (move_bytes));
+
+	      if (!REG_P (XEXP (dest, 0)))
 		{
-		  emit_insn (gen_adddi3 (src_reg, src_reg,
-					 GEN_INT (move_bytes)));
-		  emit_insn (gen_adddi3 (dest_reg, dest_reg,
-					 GEN_INT (move_bytes)));
+		  rtx dest_reg = copy_addr_to_reg (XEXP (dest, 0));
+		  dest = replace_equiv_address (dest, dest_reg);
 		}
+	      set_mem_size (dest, GEN_INT (move_bytes));
+
+	      emit_insn ((*gen_func.movstrsi) (dest, src,
+					       GEN_INT (move_bytes & 31),
+					       align_rtx));
+	    }
+	  else
+	    {
+	      rtx tmp_reg = gen_reg_rtx (mode);
+
+	      emit_insn ((*gen_func.mov) (tmp_reg, src));
+	      emit_insn ((*gen_func.mov) (dest, tmp_reg));
 	    }
 	}
     }
 
   else			/* string instructions not available */
     {
-      num_reg = offset = 0;
-      for ( ; bytes > 0; (bytes -= move_bytes), (offset += move_bytes))
+      rtx stores[MAX_MOVE_REG];
+      int num_reg = 0;
+      int i;
+
+      for (offset = 0; bytes > 0; offset += move_bytes, bytes -= move_bytes)
 	{
-	  /* Calculate the correct offset for src/dest */
-	  if (offset == 0)
-	    {
-	      src_addr  = src_reg;
-	      dest_addr = dest_reg;
-	    }
-	  else
-	    {
-	      src_addr = plus_constant (src_reg, offset);
-	      dest_addr = plus_constant (dest_reg, offset);
-	    }
+	  rtx (*gen_mov_func) PARAMS ((rtx, rtx));
+	  enum machine_mode mode;
+	  rtx src, dest, tmp_reg;
 
 	  /* Generate the appropriate load and store, saving the stores
 	     for later.  */
@@ -5155,55 +5088,34 @@ expand_block_move (operands)
 	      && (align >= 8 || (! STRICT_ALIGNMENT && align >= 4)))
 	    {
 	      move_bytes = 8;
-	      tmp_reg = gen_reg_rtx (DImode);
-	      emit_insn (gen_movdi (tmp_reg,
-				    expand_block_move_mem (DImode,
-							   src_addr,
-							   orig_src)));
-	      stores[num_reg++] = gen_movdi (expand_block_move_mem (DImode,
-								    dest_addr,
-								    orig_dest),
-					     tmp_reg);
+	      mode = DImode;
+	      gen_mov_func = gen_movdi;
 	    }
 	  else if (bytes >= 4 && (align >= 4 || ! STRICT_ALIGNMENT))
 	    {
 	      move_bytes = 4;
-	      tmp_reg = gen_reg_rtx (SImode);
-	      emit_insn (gen_movsi (tmp_reg,
-				    expand_block_move_mem (SImode,
-							   src_addr,
-							   orig_src)));
-	      stores[num_reg++] = gen_movsi (expand_block_move_mem (SImode,
-								    dest_addr,
-								    orig_dest),
-					     tmp_reg);
+	      mode = SImode;
+	      gen_mov_func = gen_movsi;
 	    }
 	  else if (bytes >= 2 && (align >= 2 || ! STRICT_ALIGNMENT))
 	    {
 	      move_bytes = 2;
-	      tmp_reg = gen_reg_rtx (HImode);
-	      emit_insn (gen_movhi (tmp_reg,
-				    expand_block_move_mem (HImode,
-							   src_addr,
-							   orig_src)));
-	      stores[num_reg++] = gen_movhi (expand_block_move_mem (HImode,
-								    dest_addr,
-								    orig_dest),
-					     tmp_reg);
+	      mode = HImode;
+	      gen_mov_func = gen_movhi;
 	    }
 	  else
 	    {
 	      move_bytes = 1;
-	      tmp_reg = gen_reg_rtx (QImode);
-	      emit_insn (gen_movqi (tmp_reg,
-				    expand_block_move_mem (QImode,
-							   src_addr,
-							   orig_src)));
-	      stores[num_reg++] = gen_movqi (expand_block_move_mem (QImode,
-								    dest_addr,
-								    orig_dest),
-					     tmp_reg);
+	      mode = QImode;
+	      gen_mov_func = gen_movqi;
 	    }
+
+	  src = adjust_address (orig_src, mode, offset);
+	  dest = adjust_address (orig_dest, mode, offset);
+	  tmp_reg = gen_reg_rtx (mode);
+
+	  emit_insn ((*gen_mov_func) (tmp_reg, src));
+	  stores[num_reg++] = (*gen_mov_func) (dest, tmp_reg);
 
 	  if (num_reg >= MAX_MOVE_REG)
 	    {
@@ -7434,53 +7346,6 @@ first_reg_to_save ()
 		    || (DEFAULT_ABI == ABI_DARWIN && flag_pic)))))
       break;
 
-  if (current_function_profile)
-    {
-      /* AIX must save/restore every register that contains a parameter
-	 before/after the .__mcount call plus an additional register
-	 for the static chain, if needed; use registers from 30 down to 22
-	 to do this.  */
-      if (DEFAULT_ABI == ABI_AIX || DEFAULT_ABI == ABI_DARWIN)
-	{
-	  int last_parm_reg, profile_first_reg;
-
-	  /* Figure out last used parameter register.  The proper thing
-	     to do is to walk incoming args of the function.  A function
-	     might have live parameter registers even if it has no
-	     incoming args.  */
-	  for (last_parm_reg = 10;
-	       last_parm_reg > 2 && ! regs_ever_live [last_parm_reg];
-	       last_parm_reg--)
-	    ;
-
-	  /* Calculate first reg for saving parameter registers
-	     and static chain.
-	     Skip reg 31 which may contain the frame pointer.  */
-	  profile_first_reg = (33 - last_parm_reg
-			       - (current_function_needs_context ? 1 : 0));
-#if TARGET_MACHO
-          /* Need to skip another reg to account for R31 being PICBASE
-             (when flag_pic is set) or R30 being used as the frame
-             pointer (when flag_pic is not set).  */
-          --profile_first_reg;
-#endif
-	  /* Do not save frame pointer if no parameters needs to be saved.  */
-	  if (profile_first_reg == 31)
-	    profile_first_reg = 32;
-
-	  if (first_reg > profile_first_reg)
-	    first_reg = profile_first_reg;
-	}
-
-      /* SVR4 may need one register to preserve the static chain.  */
-      else if (current_function_needs_context)
-	{
-	  /* Skip reg 31 which may contain the frame pointer.  */
-	  if (first_reg > 30)
-	    first_reg = 30;
-	}
-    }
-
 #if TARGET_MACHO
   if (flag_pic && current_function_uses_pic_offset_table &&
       (first_reg > RS6000_PIC_OFFSET_TABLE_REGNUM))
@@ -8124,91 +7989,88 @@ rs6000_emit_load_toc_table (fromprolog)
   rtx dest;
   dest = gen_rtx_REG (Pmode, RS6000_PIC_OFFSET_TABLE_REGNUM);
 
-  if (TARGET_ELF && DEFAULT_ABI != ABI_AIX)
+  if (TARGET_ELF && DEFAULT_ABI == ABI_V4 && flag_pic == 1)
     {
-      if (DEFAULT_ABI == ABI_V4 && flag_pic == 1)
+      rtx temp = (fromprolog
+		  ? gen_rtx_REG (Pmode, LINK_REGISTER_REGNUM)
+		  : gen_reg_rtx (Pmode));
+      rs6000_maybe_dead (emit_insn (gen_load_toc_v4_pic_si (temp)));
+      rs6000_maybe_dead (emit_move_insn (dest, temp));
+    }
+  else if (TARGET_ELF && DEFAULT_ABI != ABI_AIX && flag_pic == 2)
+    {
+      char buf[30];
+      rtx tempLR = (fromprolog
+		    ? gen_rtx_REG (Pmode, LINK_REGISTER_REGNUM)
+		    : gen_reg_rtx (Pmode));
+      rtx temp0 = (fromprolog
+		   ? gen_rtx_REG (Pmode, 0)
+		   : gen_reg_rtx (Pmode));
+      rtx symF;
+
+      /* possibly create the toc section */
+      if (! toc_initialized)
 	{
-	  rtx temp = (fromprolog 
-		      ? gen_rtx_REG (Pmode, LINK_REGISTER_REGNUM)
-		      : gen_reg_rtx (Pmode));
-	  rs6000_maybe_dead (emit_insn (gen_load_toc_v4_pic_si (temp)));
-	  rs6000_maybe_dead (emit_move_insn (dest, temp));
+	  toc_section ();
+	  function_section (current_function_decl);
 	}
-      else if (flag_pic == 2)
-        {
-	  char buf[30];
-	  rtx tempLR = (fromprolog 
-			? gen_rtx_REG (Pmode, LINK_REGISTER_REGNUM)
-			: gen_reg_rtx (Pmode));
-	  rtx temp0 = (fromprolog
-			? gen_rtx_REG (Pmode, 0)
-			: gen_reg_rtx (Pmode));
-	  rtx symF;
 
-	  /* possibly create the toc section */
-	  if (! toc_initialized)
-	    {
-	      toc_section ();
-	      function_section (current_function_decl);
-	    }
-  
-	  if (fromprolog)
-	    {
-	      rtx symL;
-	  
-	      ASM_GENERATE_INTERNAL_LABEL (buf, "LCF", rs6000_pic_labelno);
-	      symF = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
+      if (fromprolog)
+	{
+	  rtx symL;
 
-	      ASM_GENERATE_INTERNAL_LABEL (buf, "LCL", rs6000_pic_labelno);
-	      symL = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
+	  ASM_GENERATE_INTERNAL_LABEL (buf, "LCF", rs6000_pic_labelno);
+	  symF = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
 
-	      rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_1 (tempLR, 
-								   symF)));
-	      rs6000_maybe_dead (emit_move_insn (dest, tempLR));
-	      rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_2 (temp0, dest,
-								   symL,
-								   symF)));
-	    }
-	  else
-	    {
-	      rtx tocsym;
-	      static int reload_toc_labelno = 0;
+	  ASM_GENERATE_INTERNAL_LABEL (buf, "LCL", rs6000_pic_labelno);
+	  symL = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
 
-	      tocsym = gen_rtx_SYMBOL_REF (Pmode, toc_label_name);
-
-	      ASM_GENERATE_INTERNAL_LABEL (buf, "LCG", reload_toc_labelno++);
-	      symF = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
-
-	      rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_1b (tempLR, 
-								    symF, 
-								    tocsym)));
-	      rs6000_maybe_dead (emit_move_insn (dest, tempLR));
-	      rs6000_maybe_dead (emit_move_insn (temp0, 
-						 gen_rtx_MEM (Pmode, dest)));
-	    }
-	  rs6000_maybe_dead (emit_insn (gen_addsi3 (dest, temp0, dest)));
-	}
-      else if (flag_pic == 0 && TARGET_MINIMAL_TOC)
-        {
-	  /* This is for AIX code running in non-PIC ELF.  */
-	  char buf[30];
-	  rtx realsym;
-	  ASM_GENERATE_INTERNAL_LABEL (buf, "LCTOC", 1);
-	  realsym = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
-	  
-	  rs6000_maybe_dead (emit_insn (gen_elf_high (dest, realsym)));
-	  rs6000_maybe_dead (emit_insn (gen_elf_low (dest, dest, realsym)));
+	  rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_1 (tempLR,
+							       symF)));
+	  rs6000_maybe_dead (emit_move_insn (dest, tempLR));
+	  rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_2 (temp0, dest,
+							       symL,
+							       symF)));
 	}
       else
-        abort ();
+	{
+	  rtx tocsym;
+	  static int reload_toc_labelno = 0;
+
+	  tocsym = gen_rtx_SYMBOL_REF (Pmode, toc_label_name);
+
+	  ASM_GENERATE_INTERNAL_LABEL (buf, "LCG", reload_toc_labelno++);
+	  symF = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
+
+	  rs6000_maybe_dead (emit_insn (gen_load_toc_v4_PIC_1b (tempLR,
+								symF,
+								tocsym)));
+	  rs6000_maybe_dead (emit_move_insn (dest, tempLR));
+	  rs6000_maybe_dead (emit_move_insn (temp0,
+					     gen_rtx_MEM (Pmode, dest)));
+	}
+      rs6000_maybe_dead (emit_insn (gen_addsi3 (dest, temp0, dest)));
     }
-  else
+  else if (TARGET_ELF && !TARGET_AIX && flag_pic == 0 && TARGET_MINIMAL_TOC)
+    {
+      /* This is for AIX code running in non-PIC ELF32.  */
+      char buf[30];
+      rtx realsym;
+      ASM_GENERATE_INTERNAL_LABEL (buf, "LCTOC", 1);
+      realsym = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (buf));
+
+      rs6000_maybe_dead (emit_insn (gen_elf_high (dest, realsym)));
+      rs6000_maybe_dead (emit_insn (gen_elf_low (dest, dest, realsym)));
+    }
+  else if (DEFAULT_ABI == ABI_AIX)
     {
       if (TARGET_32BIT)
-        rs6000_maybe_dead (emit_insn (gen_load_toc_aix_si (dest)));
+	rs6000_maybe_dead (emit_insn (gen_load_toc_aix_si (dest)));
       else
-        rs6000_maybe_dead (emit_insn (gen_load_toc_aix_di (dest)));
+	rs6000_maybe_dead (emit_insn (gen_load_toc_aix_di (dest)));
     }
+  else
+    abort ();
 }
 
 int   
@@ -10238,8 +10100,17 @@ output_toc (file, x, labelno, mode)
 	abort ();/* It would be easy to make this work, but it doesn't now.  */
 
       if (POINTER_SIZE > GET_MODE_BITSIZE (mode))
-	lshift_double (low, high, POINTER_SIZE - GET_MODE_BITSIZE (mode),
-		       POINTER_SIZE, &low, &high, 0);
+	{
+#if HOST_BITS_PER_WIDE_INT == 32
+	  lshift_double (low, high, POINTER_SIZE - GET_MODE_BITSIZE (mode),
+			 POINTER_SIZE, &low, &high, 0);
+#else
+	  low |= high << 32;
+	  low <<= POINTER_SIZE - GET_MODE_BITSIZE (mode);
+	  high = (HOST_WIDE_INT) low >> 32;
+	  low &= 0xffffffff;
+#endif
+	}
 
       if (TARGET_64BIT)
 	{
@@ -10457,10 +10328,13 @@ rs6000_gen_section_name (buf, filename, section_desc)
 
 void
 output_profile_hook (labelno)
-     int labelno;
+     int labelno ATTRIBUTE_UNUSED;
 {
   if (DEFAULT_ABI == ABI_AIX)
     {
+#ifdef NO_PROFILE_COUNTERS
+      emit_library_call (init_one_libfunc (RS6000_MCOUNT), 0, VOIDmode, 0);
+#else
       char buf[30];
       const char *label_name;
       rtx fun;
@@ -10471,6 +10345,7 @@ output_profile_hook (labelno)
 
       emit_library_call (init_one_libfunc (RS6000_MCOUNT), 0, VOIDmode, 1,
                          fun, Pmode);
+#endif
     }
   else if (DEFAULT_ABI == ABI_DARWIN)
     {
@@ -10504,6 +10379,7 @@ output_function_profiler (file, labelno)
   int labelno;
 {
   char buf[100];
+  int save_lr = 8;
 
   ASM_GENERATE_INTERNAL_LABEL (buf, "LP", labelno);
   switch (DEFAULT_ABI)
@@ -10512,13 +10388,21 @@ output_function_profiler (file, labelno)
       abort ();
 
     case ABI_V4:
+      save_lr = 4;
+      /* Fall through.  */
+
     case ABI_AIX_NODESC:
+      if (!TARGET_32BIT)
+	{
+	  warning ("no profiling of 64-bit code for this ABI");
+	  return;
+	}
       fprintf (file, "\tmflr %s\n", reg_names[0]);
       if (flag_pic == 1)
 	{
 	  fputs ("\tbl _GLOBAL_OFFSET_TABLE_@local-4\n", file);
-	  asm_fprintf (file, "\t{st|stw} %s,4(%s)\n",
-		       reg_names[0], reg_names[1]);
+	  asm_fprintf (file, "\t{st|stw} %s,%d(%s)\n",
+		       reg_names[0], save_lr, reg_names[1]);
 	  asm_fprintf (file, "\tmflr %s\n", reg_names[12]);
 	  asm_fprintf (file, "\t{l|lwz} %s,", reg_names[0]);
 	  assemble_name (file, buf);
@@ -10526,8 +10410,8 @@ output_function_profiler (file, labelno)
 	}
       else if (flag_pic > 1)
 	{
-	  asm_fprintf (file, "\t{st|stw} %s,4(%s)\n",
-		       reg_names[0], reg_names[1]);
+	  asm_fprintf (file, "\t{st|stw} %s,%d(%s)\n",
+		       reg_names[0], save_lr, reg_names[1]);
 	  /* Now, we need to get the address of the label.  */
 	  fputs ("\tbl 1f\n\t.long ", file);
 	  assemble_name (file, buf);
@@ -10543,27 +10427,32 @@ output_function_profiler (file, labelno)
 	  asm_fprintf (file, "\t{liu|lis} %s,", reg_names[12]);
 	  assemble_name (file, buf);
 	  fputs ("@ha\n", file);
-	  asm_fprintf (file, "\t{st|stw} %s,4(%s)\n",
-		       reg_names[0], reg_names[1]);
+	  asm_fprintf (file, "\t{st|stw} %s,%d(%s)\n",
+		       reg_names[0], save_lr, reg_names[1]);
 	  asm_fprintf (file, "\t{cal|la} %s,", reg_names[0]);
 	  assemble_name (file, buf);
 	  asm_fprintf (file, "@l(%s)\n", reg_names[12]);
 	}
 
-      if (current_function_needs_context)
-	asm_fprintf (file, "\tmr %s,%s\n",
-		     reg_names[30], reg_names[STATIC_CHAIN_REGNUM]);
-      fprintf (file, "\tbl %s\n", RS6000_MCOUNT);
-      if (current_function_needs_context)
-	asm_fprintf (file, "\tmr %s,%s\n",
-		     reg_names[STATIC_CHAIN_REGNUM], reg_names[30]);
+      if (current_function_needs_context && DEFAULT_ABI == ABI_AIX_NODESC)
+	{
+	  asm_fprintf (file, "\t{st|stw} %s,%d(%s)\n",
+		       reg_names[STATIC_CHAIN_REGNUM],
+		       12, reg_names[1]);
+	  fprintf (file, "\tbl %s\n", RS6000_MCOUNT);
+	  asm_fprintf (file, "\t{l|lwz} %s,%d(%s)\n",
+		       reg_names[STATIC_CHAIN_REGNUM],
+		       12, reg_names[1]);
+	}
+      else
+	/* ABI_V4 saves the static chain reg with ASM_OUTPUT_REG_PUSH.  */
+	fprintf (file, "\tbl %s\n", RS6000_MCOUNT);
       break;
 
     case ABI_AIX:
     case ABI_DARWIN:
       /* Don't do anything, done in output_profile_hook ().  */
       break;
-
     }
 }
 
