@@ -146,6 +146,9 @@ struct clock_gettime_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 clock_gettime(p, uap)
@@ -156,7 +159,9 @@ clock_gettime(p, uap)
 
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
+	mtx_lock(&Giant);
 	nanotime(&ats);
+	mtx_unlock(&Giant);
 	return (copyout(&ats, SCARG(uap, tp), sizeof(ats)));
 }
 
@@ -167,6 +172,9 @@ struct clock_settime_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 clock_settime(p, uap)
@@ -177,19 +185,25 @@ clock_settime(p, uap)
 	struct timespec ats;
 	int error;
 
+	mtx_lock(&Giant);
 	if ((error = suser(p)) != 0)
-		return (error);
-	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
-		return (EINVAL);
+		goto done2;
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME) {
+		error = EINVAL;
+		goto done2;
+	}
 	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
-		return (error);
-	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000)
-		return (EINVAL);
+		goto done2;
+	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000) {
+		error = EINVAL;
+		goto done2;
+	}
 	/* XXX Don't convert nsec->usec and back */
 	TIMESPEC_TO_TIMEVAL(&atv, &ats);
-	if ((error = settime(&atv)))
-		return (error);
-	return (0);
+	error = settime(&atv);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -266,6 +280,9 @@ struct nanosleep_args {
 };
 #endif
 
+/* 
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 nanosleep(p, uap)
@@ -273,21 +290,30 @@ nanosleep(p, uap)
 	struct nanosleep_args *uap;
 {
 	struct timespec rmt, rqt;
-	int error, error2;
+	int error;
 
 	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
 	if (error)
 		return (error);
-	if (SCARG(uap, rmtp))
+
+	mtx_lock(&Giant);
+	if (SCARG(uap, rmtp)) {
 		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), 
-		    VM_PROT_WRITE))
-			return (EFAULT);
+		    VM_PROT_WRITE)) {
+			error = EFAULT;
+			goto done2;
+		}
+	}
 	error = nanosleep1(p, &rqt, &rmt);
 	if (error && SCARG(uap, rmtp)) {
+		int error2;
+
 		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
 		if (error2)	/* XXX shouldn't happen, did useracc() above */
-			return (error2);
+			error = error2;
 	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -297,6 +323,9 @@ struct gettimeofday_args {
 	struct	timezone *tzp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 gettimeofday(p, uap)
@@ -306,15 +335,20 @@ gettimeofday(p, uap)
 	struct timeval atv;
 	int error = 0;
 
+	mtx_lock(&Giant);
 	if (uap->tp) {
 		microtime(&atv);
 		if ((error = copyout((caddr_t)&atv, (caddr_t)uap->tp,
-		    sizeof (atv))))
-			return (error);
+		    sizeof (atv)))) {
+			goto done2;
+		}
 	}
-	if (uap->tzp)
+	if (uap->tzp) {
 		error = copyout((caddr_t)&tz, (caddr_t)uap->tzp,
 		    sizeof (tz));
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -324,6 +358,9 @@ struct settimeofday_args {
 	struct	timezone *tzp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 settimeofday(p, uap)
@@ -332,26 +369,34 @@ settimeofday(p, uap)
 {
 	struct timeval atv;
 	struct timezone atz;
-	int error;
+	int error = 0;
+
+	mtx_lock(&Giant);
 
 	if ((error = suser(p)))
-		return (error);
+		goto done2;
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
 		if ((error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
-		    sizeof(atv))))
-			return (error);
-		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
-			return (EINVAL);
+		    sizeof(atv)))) {
+			goto done2;
+		}
+		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000) {
+			error = EINVAL;
+			goto done2;
+		}
 	}
 	if (uap->tzp &&
-	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
-		return (error);
+	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz)))) {
+		goto done2;
+	}
 	if (uap->tv && (error = settime(&atv)))
-		return (error);
+		goto done2;
 	if (uap->tzp)
 		tz = atz;
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int	tickdelta;			/* current clock skew, us. per tick */
@@ -364,6 +409,9 @@ struct adjtime_args {
 	struct timeval *olddelta;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 adjtime(p, uap)
@@ -374,11 +422,14 @@ adjtime(p, uap)
 	register long ndelta, ntickdelta, odelta;
 	int s, error;
 
+	mtx_lock(&Giant);
+
 	if ((error = suser(p)))
-		return (error);
-	if ((error =
-	    copyin((caddr_t)uap->delta, (caddr_t)&atv, sizeof(struct timeval))))
-		return (error);
+		goto done2;
+	error = copyin((caddr_t)uap->delta, (caddr_t)&atv,
+		    sizeof(struct timeval));
+	if (error)
+		goto done2;
 
 	/*
 	 * Compute the total correction and the rate at which to apply it.
@@ -414,7 +465,9 @@ adjtime(p, uap)
 		(void) copyout((caddr_t)&atv, (caddr_t)uap->olddelta,
 		    sizeof(struct timeval));
 	}
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -444,6 +497,9 @@ struct getitimer_args {
 	struct	itimerval *itv;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getitimer(p, uap)
@@ -453,9 +509,13 @@ getitimer(p, uap)
 	struct timeval ctv;
 	struct itimerval aitv;
 	int s;
+	int error;
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
+
+	mtx_lock(&Giant);
+
 	s = splclock(); /* XXX still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		/*
@@ -472,11 +532,14 @@ getitimer(p, uap)
 			else
 				timevalsub(&aitv.it_value, &ctv);
 		}
-	} else
+	} else {
 		aitv = p->p_stats->p_timer[uap->which];
+	}
 	splx(s);
-	return (copyout((caddr_t)&aitv, (caddr_t)uap->itv,
-	    sizeof (struct itimerval)));
+	error = copyout((caddr_t)&aitv, (caddr_t)uap->itv,
+	    sizeof (struct itimerval));
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -485,6 +548,9 @@ struct setitimer_args {
 	struct	itimerval *itv, *oitv;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setitimer(p, uap)
@@ -494,7 +560,7 @@ setitimer(p, uap)
 	struct itimerval aitv;
 	struct timeval ctv;
 	register struct itimerval *itvp;
-	int s, error;
+	int s, error = 0;
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
@@ -502,17 +568,27 @@ setitimer(p, uap)
 	if (itvp && (error = copyin((caddr_t)itvp, (caddr_t)&aitv,
 	    sizeof(struct itimerval))))
 		return (error);
+
+	mtx_lock(&Giant);
+
 	if ((uap->itv = uap->oitv) &&
-	    (error = getitimer(p, (struct getitimer_args *)uap)))
-		return (error);
-	if (itvp == 0)
-		return (0);
-	if (itimerfix(&aitv.it_value))
-		return (EINVAL);
-	if (!timevalisset(&aitv.it_value))
+	    (error = getitimer(p, (struct getitimer_args *)uap))) {
+		goto done2;
+	}
+	if (itvp == 0) {
+		error = 0;
+		goto done2;
+	}
+	if (itimerfix(&aitv.it_value)) {
+		error = EINVAL;
+		goto done2;
+	}
+	if (!timevalisset(&aitv.it_value)) {
 		timevalclear(&aitv.it_interval);
-	else if (itimerfix(&aitv.it_interval))
-		return (EINVAL);
+	} else if (itimerfix(&aitv.it_interval)) {
+		error = EINVAL;
+		goto done2;
+	}
 	s = splclock(); /* XXX: still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		if (timevalisset(&p->p_realtimer.it_value))
@@ -523,10 +599,13 @@ setitimer(p, uap)
 		getmicrouptime(&ctv);
 		timevaladd(&aitv.it_value, &ctv);
 		p->p_realtimer = aitv;
-	} else
+	} else {
 		p->p_stats->p_timer[uap->which] = aitv;
+	}
 	splx(s);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
