@@ -115,6 +115,7 @@ main(int argc, char **argv)
 	(void)rmslashes(dev, dev);
 
 	iov = NULL;
+	iovlen = 0;
 	build_iovec(&iov, &iovlen, "fstype", "ufs", -1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, -1);
 	build_iovec(&iov, &iovlen, "from", dev, -1);
