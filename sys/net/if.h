@@ -136,6 +136,13 @@ struct if_data {
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART)
 
+/* Capabilities that interfaces can advertise. */
+#define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
+#define IFCAP_TXCSUM		0x0002  /* can offload checksum on TX */
+#define IFCAP_NETCONS		0x0004  /* can be a network console */
+
+#define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
+
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
 
@@ -198,6 +205,7 @@ struct	ifreq {
 		int	ifru_phys;
 		int	ifru_media;
 		caddr_t	ifru_data;
+		int	ifru_cap[2];
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
@@ -209,6 +217,8 @@ struct	ifreq {
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
+#define	ifr_reqcap	ifr_ifru.ifru_cap[0]	/* requested capabilities */
+#define	ifr_curcap	ifr_ifru.ifru_cap[1]	/* current capabilities */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \
