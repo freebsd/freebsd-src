@@ -151,11 +151,18 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
-.if !defined(NOPROFILE) && !defined(INTERNALLIB)
-_LIBS=lib${LIB}.a lib${LIB}_p.a
-.else
+.if defined(INTERNALLIB) || defined(NOLIB)
+NOPROFILE= 1
+NOPIC=	1
+NOINSTALLLIB= 1
+NOMAN=	1
+.endif
+
+.if !defined(NOLIB)
+.if defined(NOPROFILE)
 _LIBS=lib${LIB}.a
+.else
+_LIBS=lib${LIB}.a lib${LIB}_p.a
 .endif
 .endif
 
@@ -300,7 +307,7 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 realinstall: beforeinstall
 realinstall: _libinstall
 _libinstall:
-.if !defined(INTERNALLIB)
+.if !defined(INTERNALLIB) && !defined(NOLIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .if !defined(NOPROFILE)
