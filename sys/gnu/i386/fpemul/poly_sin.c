@@ -56,14 +56,17 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: poly_sin.c,v 1.8 1997/02/22 09:29:18 peter Exp $
  *
  */
 
+#ifdef DEBUG
+#include <sys/types.h>
+#include <sys/systm.h>		/* for printf() in EXCEPTION() */
+#endif
 
 #include <gnu/i386/fpemul/exception.h>
 #include <gnu/i386/fpemul/reg_constant.h>
-#include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/control_w.h>
 
 

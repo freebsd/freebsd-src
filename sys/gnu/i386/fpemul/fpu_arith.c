@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id$
+ *     $Id: fpu_arith.c,v 1.7 1997/02/22 09:29:03 peter Exp $
  *
  */
 
@@ -65,12 +65,10 @@
 
 #include <sys/param.h>
 #include <sys/proc.h>
-#include <machine/cpu.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
 #include <gnu/i386/fpemul/fpu_system.h>
-#include <gnu/i386/fpemul/control_w.h>
 
 
 void
