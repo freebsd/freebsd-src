@@ -65,7 +65,6 @@ else
 	_boot="start"
 fi
 
-os=`eval ${CMD_OSTYPE}`
 skip="-s nostart"
 [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && skip="$skip -s nojail"
 files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
