@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)list.c	5.23 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: list.c,v 1.2 1994/09/22 21:50:34 pst Exp $";
+static char rcsid[] = "$Id: list.c,v 1.3 1995/05/30 03:49:15 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -204,6 +204,8 @@ ListHosts(string, putToFile)
 		qtype = T_HINFO;
 	    } else if (strcmp("-m", option) == 0) {
 		qtype = T_MX;
+	    } else if (strcmp("-p", option) == 0) {
+		qtype = T_PX;
 	    } else if (strcmp("-s", option) == 0) {
 		qtype = T_WKS;
 	    } else if (strcmp("-d", option) == 0) {
@@ -357,6 +359,9 @@ ListSubr(qtype, domain, cmd)
 	    case T_MX:
 		    fprintf(filePtr, " %-30s\n", "Metric & Host");
 		    break;
+	    case T_PX:
+		    fprintf(filePtr, " %-30s\n", "Mapping information");
+		    break;
 	    case T_AFSDB:
 		    fprintf(filePtr, " %-30s\n", "Subtype & Host");
 		    break;
@@ -402,6 +407,9 @@ ListSubr(qtype, domain, cmd)
 	    case T_NSAP:
 		    fprintf(filePtr, " %-30s\n", "NSAP address");
 		    break;
+	    case T_NSAP_PTR:
+		    fprintf(filePtr, " %-30s\n", "NSAP pointer");
+		    break;
 	    case T_NS:
 		    fprintf(filePtr, " %-30s\n", "Name Servers");
 		    break;
@@ -446,7 +454,7 @@ ListSubr(qtype, domain, cmd)
 	     * The server sent too much data to fit the existing buffer --
 	     * allocate a new one.
 	     */
-	    if (len > answerLen) {
+	    if (len > (u_int)answerLen) {
 		if (answerLen != 0) {
 		    free(answer);
 		}
@@ -688,6 +696,7 @@ PrintListInfo(file, msg, eom, qtype, domain)
 
 	    case T_NS:
 	    case T_PTR:
+	    case T_NSAP_PTR:
 		putc(' ', file);
 		if (qtype != T_ANY)
 		    fprintf(file,"%s = ", type == T_PTR ? "host" : "server");
@@ -696,16 +705,21 @@ PrintListInfo(file, msg, eom, qtype, domain)
 
 	    case T_HINFO:
 		case T_ISDN:
-		if (n = *cp++) {
-		    (void)sprintf(name,"%.*s", n, cp);
-		    fprintf(file," %-10s", name);
-		    cp += n;
-		} else {
-		    fprintf(file," %-10s", " ");
-		}
-		if (n = *cp++) {
-		    fprintf(file,"  %.*s", n, cp);
-		    cp += n;
+		{
+		    u_char *cp2 = cp + dlen;
+		    if (n = *cp++) {
+			(void)sprintf(name,"%.*s", n, cp);
+			fprintf(file," %-10s", name);
+			cp += n;
+		    } else {
+			fprintf(file," %-10s", " ");
+		    }
+		    if (cp == cp2)
+			break;
+		    if (n = *cp++) {
+			fprintf(file,"  %.*s", n, cp);
+			cp += n;
+		    }
 		}
 		break;
 
@@ -748,6 +762,25 @@ PrintListInfo(file, msg, eom, qtype, domain)
 		fprintf(file, " %s", name2);
 		break;
 
+	    case T_PX:
+		pref = _getshort((u_char*)cp);
+		cp += INT16SZ;
+		fprintf(file," %-3d ",pref);
+		nameLen = dn_expand(msg, eom, cp, name2, sizeof name2);
+		if (nameLen < 0) {
+			fprintf(file, " ***\n");
+			return (ERROR);
+		}
+		fprintf(file, " %s", name2);
+		cp += strlen((char *)cp) + 1;
+		nameLen = dn_expand(msg, eom, cp, name2, sizeof name2);
+		if (nameLen < 0) {
+              	fprintf(file, " ***\n");
+              	return (ERROR);
+              }
+		fprintf(file, " %s", name2);
+		break;
+
 	    case T_TXT:
 		case T_X25:
 		{
@@ -758,7 +791,7 @@ PrintListInfo(file, msg, eom, qtype, domain)
 		    while (cp < cp2) {
 			    if (n = (unsigned char) *cp++) {
 				    for (c = n; c > 0 && cp < cp2; c--)
-					    if (*cp == '\n') {
+					    if ((*cp == '\n') || (*cp == '"')) {
 						(void) putc('\\', file);
 						(void) putc(*cp++, file);
 					    } else
