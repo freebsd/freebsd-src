@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #include <machine/sysarch.h>
 
+extern int sysarch(int op, char *parms);
+
 int
 __sparc_utrap_install(utrap_entry_t type, utrap_handler_t new_precise,
     utrap_handler_t new_deferred, utrap_handler_t *old_precise,

@@ -36,8 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
+#include "fpu_extern.h"
 #include "__sparc_utrap_private.h"
 
 static const char *utrap_msg[] = {
