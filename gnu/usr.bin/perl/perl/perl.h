@@ -1,4 +1,4 @@
-/* $RCSfile: perl.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
+/* $RCSfile: perl.h,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:11 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.h,v $
+ * Revision 1.2  1995/05/30 05:03:11  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -250,6 +253,8 @@ typedef unsigned int MEM_SIZE;
 #define S_ISLNK(P) (((P)&S_IFMT)==S_IFLNK)
 #endif
 #endif
+
+#include <sys/mount.h>
 
 #ifdef I_TIME
 #   include <time.h>
