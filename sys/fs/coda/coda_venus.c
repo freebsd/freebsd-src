@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_venus.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: coda_venus.c,v 1.4 1998/09/13 13:57:59 rvb Exp $
  * 
  */
 
@@ -112,6 +112,7 @@
 	  if (from & FWRITE)  to |= C_O_WRITE; 		\
 	  if (from & O_TRUNC) to |= C_O_TRUNC; 		\
 	  if (from & O_EXCL)  to |= C_O_EXCL; 		\
+	  if (from & O_CREAT) to |= C_O_CREAT;		\
     } while (0)
 
 #define CNV_VV2V_ATTR(top, fromp) \

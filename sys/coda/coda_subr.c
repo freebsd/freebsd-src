@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_subr.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_subr.c,v 1.6 1998/09/25 17:38:31 rvb Exp $
+ *  $Id: coda_subr.c,v 1.7 1998/09/29 20:19:45 rvb Exp $
  * 
   */
 
@@ -46,6 +46,11 @@
 /*
  * HISTORY
  * $Log: coda_subr.c,v $
+ * Revision 1.7  1998/09/29 20:19:45  rvb
+ * Fixes for lkm:
+ * 1. use VFS_LKM vs ACTUALLY_LKM_NOT_KERNEL
+ * 2. don't pass -DCODA to lkm build
+ *
  * Revision 1.6  1998/09/25 17:38:31  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work
@@ -624,22 +629,6 @@ int handleDownCall(opcode, out)
 	  
 	  return(0);
       }
-	
-      case CODA_ZAPVNODE : {
-	  coda_clstat.ncalls++;
-	  coda_clstat.reqs[CODA_ZAPVNODE]++;
-	  
-	  myprintf(("CODA_ZAPVNODE: Called, but uniplemented\n"));
-	  /*
-	   * Not that below we must really translate the returned coda_cred to
-	   * a netbsd cred.  This is a bit muddled at present and the cfsnc_zapnode
-	   * is further unimplemented, so punt!
-	   * I suppose we could use just the uid.
-	   */
-	  /* coda_nc_zapvnode(&out->coda_zapvnode.VFid, &out->coda_zapvnode.cred,
-			 IS_DOWNCALL); */
-	  return(0);
-      }	
 	
       case CODA_PURGEFID : {
 	  struct cnode *cp;
