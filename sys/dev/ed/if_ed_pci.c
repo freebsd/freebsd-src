@@ -122,4 +122,4 @@ static driver_t ed_pci_driver = {
 
 static devclass_t ed_devclass;
 
-DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
+DRIVER_MODULE(if_ed, pci, ed_pci_driver, ed_devclass, 0, 0);

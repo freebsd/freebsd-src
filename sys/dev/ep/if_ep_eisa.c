@@ -263,4 +263,4 @@ static driver_t ep_eisa_driver = {
 
 extern devclass_t ep_devclass;
 
-DRIVER_MODULE(ep, eisa, ep_eisa_driver, ep_devclass, 0, 0);
+DRIVER_MODULE(if_ep, eisa, ep_eisa_driver, ep_devclass, 0, 0);

@@ -252,4 +252,4 @@ static driver_t ep_pccard_driver = {
 
 extern devclass_t ep_devclass;
 
-DRIVER_MODULE(ep, pccard, ep_pccard_driver, ep_devclass, 0, 0);
+DRIVER_MODULE(if_ep, pccard, ep_pccard_driver, ep_devclass, 0, 0);
