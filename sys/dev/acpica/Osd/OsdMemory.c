@@ -79,6 +79,13 @@ AcpiOsUnmapMemory (void *LogicalAddress, UINT32 Length)
     pmap_unmapdev((vm_offset_t)LogicalAddress, Length);
 }
 
+ACPI_STATUS
+AcpiOsGetPhysicalAddress(void *LogicalAddress, ACPI_PHYSICAL_ADDRESS *PhysicalAddress)
+{
+    /* we can't necessarily do this, so cop out */
+    return(AE_BAD_ADDRESS);
+}
+
 /*
  * There is no clean way to do this.  We make the charitable assumption
  * that callers will not pass garbage to us.
@@ -95,92 +102,70 @@ AcpiOsWritable (void *Pointer, UINT32 Length)
     return(TRUE);
 }
 
-static __inline
-UINT32
-AcpiOsMemInX (UINT32 Length, ACPI_PHYSICAL_ADDRESS InAddr)
-{
-    UINT32	Value;
-    void	*LogicalAddress;
-
-    if (AcpiOsMapMemory(InAddr, Length, &LogicalAddress) != AE_OK) {
-	return(0);
-    }
-
-    switch (Length) {
-    case 1:
-	Value = (*(volatile u_int8_t *)LogicalAddress) & 0xff;
-	break;
-    case 2:
-	Value = (*(volatile u_int16_t *)LogicalAddress) & 0xffff;
-	break;
-    case 4:
-	Value = (*(volatile u_int32_t *)LogicalAddress);
-	break;
-    }
-
-    AcpiOsUnmapMemory(LogicalAddress, Length);
-
-    return(Value);
-}
-
-UINT8
-AcpiOsMemIn8 (ACPI_PHYSICAL_ADDRESS InAddr)
-{
-    return((UINT8)AcpiOsMemInX(1, InAddr));
-}
- 
-UINT16
-AcpiOsMemIn16 (ACPI_PHYSICAL_ADDRESS InAddr)
-{
-    return((UINT16)AcpiOsMemInX(2, InAddr));
-}
- 
-UINT32
-AcpiOsMemIn32 (ACPI_PHYSICAL_ADDRESS InAddr)
-{
-    return((UINT32)AcpiOsMemInX(4, InAddr));
-}
- 
-static __inline
-void
-AcpiOsMemOutX (UINT32 Length, ACPI_PHYSICAL_ADDRESS OutAddr, UINT32 Value)
+ACPI_STATUS
+AcpiOsReadMemory (
+    ACPI_PHYSICAL_ADDRESS	Address,
+    void			*Value,
+    UINT32			Width)
 {
     void	*LogicalAddress;
 
-    if (AcpiOsMapMemory(OutAddr, Length, &LogicalAddress) != AE_OK) {
-	return;
+    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK) {
+	return(AE_NOT_EXIST);
     }
 
-    switch (Length) {
-    case 1:
+    switch (Width) {
+    case 8:
+	*(u_int8_t *)Value = (*(volatile u_int8_t *)LogicalAddress);
+	break;
+    case 16:
+	*(u_int16_t *)Value = (*(volatile u_int16_t *)LogicalAddress);
+	break;
+    case 32:
+	*(u_int32_t *)Value = (*(volatile u_int32_t *)LogicalAddress);
+	break;
+    case 64:
+	*(u_int64_t *)Value = (*(volatile u_int64_t *)LogicalAddress);
+	break;
+    default:
+	/* debug trap goes here */
+    }
+
+    AcpiOsUnmapMemory(LogicalAddress, Width / 8);
+
+    return(AE_OK);
+}
+
+ACPI_STATUS
+AcpiOsWriteMemory (
+    ACPI_PHYSICAL_ADDRESS	Address,
+    NATIVE_UINT			Value,
+    UINT32			Width)
+{
+    void	*LogicalAddress;
+
+    if (AcpiOsMapMemory(Address, Width / 8, &LogicalAddress) != AE_OK) {
+	return(AE_NOT_EXIST);
+    }
+
+    switch (Width) {
+    case 8:
 	(*(volatile u_int8_t *)LogicalAddress) = Value & 0xff;
 	break;
-    case 2:
+    case 16:
 	(*(volatile u_int16_t *)LogicalAddress) = Value & 0xffff;
 	break;
-    case 4:
-	(*(volatile u_int32_t *)LogicalAddress) = Value;
+    case 32:
+	(*(volatile u_int32_t *)LogicalAddress) = Value & 0xffffffff;
 	break;
+    case 64:
+	(*(volatile u_int64_t *)LogicalAddress) = Value;
+	break;
+    default:
+	/* debug trap goes here */
     }
 
-    AcpiOsUnmapMemory(LogicalAddress, Length);
-}
+    AcpiOsUnmapMemory(LogicalAddress, Width / 8);
 
-void
-AcpiOsMemOut8 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT8 Value)
-{
-    AcpiOsMemOutX(1, OutAddr, (UINT32)Value);
+    return(AE_OK);
 }
- 
-void
-AcpiOsMemOut16 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT16 Value)
-{
-    AcpiOsMemOutX(2, OutAddr, (UINT32)Value);
-}
-
-void
-AcpiOsMemOut32 (ACPI_PHYSICAL_ADDRESS OutAddr, UINT32 Value)
-{
-    AcpiOsMemOutX(4, OutAddr, (UINT32)Value);
-}
-

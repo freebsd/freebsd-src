@@ -54,3 +54,11 @@ AcpiOsTerminate(void)
 {
     return(NULL);
 }
+
+ACPI_STATUS
+AcpiOsGetRootPointer(
+    UINT32			Flags,
+    ACPI_PHYSICAL_ADDRESS	*RsdpPhysicalAddress)
+{
+    return(AcpiFindRootPointer(Flags, RsdpPhysicalAddress));
+}
