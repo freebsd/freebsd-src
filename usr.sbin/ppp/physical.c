@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.8 1999/04/27 00:23:56 brian Exp $
+ *  $Id: physical.c,v 1.9 1999/05/08 11:07:22 brian Exp $
  *
  */
 
@@ -715,7 +715,7 @@ physical_IsSet(struct descriptor *d, const fd_set *fdset)
 void
 physical_Login(struct physical *p, const char *name)
 {
-  if (p->type == PHYS_DIRECT && !p->Utmp) {
+  if (p->type == PHYS_DIRECT && *p->name.base && !p->Utmp) {
     struct utmp ut;
     const char *connstr;
 
