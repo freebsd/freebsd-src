@@ -1767,6 +1767,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 	if (m != NULL) {
 		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
+			device_printf(sc->dev,
+			    "cluster allocation failed, packet dropped!\n");
 			m_freem(m);
 			if (oldm == NULL)
 				return 1;
@@ -1774,6 +1776,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm)
 			m->m_data = m->m_ext.ext_buf;
 		}
 	} else {
+		device_printf(sc->dev,
+		    "mbuf allocation failed, packet dropped!\n");
 		if (oldm == NULL)
 			return 1;
 		m = oldm;
