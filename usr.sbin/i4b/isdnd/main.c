@@ -168,7 +168,7 @@ main(int argc, char **argv)
 				break;
 
 			case 'L':
-				strcpy(logfile, optarg);
+				strlcpy(logfile, optarg, sizeof(logfile));
 				break;
 
 			case 'P':
