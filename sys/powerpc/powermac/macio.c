@@ -439,9 +439,6 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &sc->sc_mem_rman;
 
 		tagval = PPC_BUS_SPACE_MEM;
-		if (flags & PPC_BUS_SPARSE4)
-			tagval |= 4;
-
 		break;
 
 	case SYS_RES_IRQ:
