@@ -126,8 +126,9 @@ usbd_dump_device(struct usbd_device *dev)
 	if (dev == NULL)
 		return;
 	printf(" bus=%p default_pipe=%p\n", dev->bus, dev->default_pipe);
-	printf(" address=%d config=%d depth=%d lowspeed=%d self_powered=%d power=%d langid=%d\n",
-	       dev->address, dev->config, dev->depth, dev->lowspeed,
+	printf(" address=%d config=%d depth=%d speed=%d self_powered=%d "
+	       "power=%d langid=%d\n",
+	       dev->address, dev->config, dev->depth, dev->speed,
 	       dev->self_powered, dev->power, dev->langid);
 }
 

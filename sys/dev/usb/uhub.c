@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.55 2001/11/16 02:21:54 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.56 2001/11/20 13:48:03 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
