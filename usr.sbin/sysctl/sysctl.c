@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.5 1995/05/12 19:10:56 wollman Exp $";
+	"$Id: sysctl.c,v 1.6 1995/05/30 03:52:31 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -336,7 +336,7 @@ parse(string, flags)
 
 	}
 	if (bufp) {
-		fprintf(stderr, "name %s in %s is unknown\n", *bufp, string);
+		fprintf(stderr, "name %s in %s is unknown\n", bufp, string);
 		return;
 	}
 	if (newsize > 0) {
