@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.9 1994/05/23 05:42:41 cgd Exp $
+ *	$Id: modload.c,v 1.1 1994/08/19 12:07:14 davidg Exp $
  */
 
 #include <stdio.h>
@@ -85,7 +85,7 @@ linkcmd(kernel, entry, outfile, address, object)
 		break;
 	case 1:				/* uninformitive error */
 		/*
-		 * Someone needs to fix the return values from the NetBSD
+		 * Someone needs to fix the return values from the FreeBSD
 		 * ld program -- it's totally uninformative.
 		 *
 		 * No such file		(4 on SunOS)
