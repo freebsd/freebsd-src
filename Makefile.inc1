@@ -203,10 +203,6 @@ IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE} == "pc98"
-USRDIRS+=	usr/libexec/aout
-.endif
-
 INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc openssl \
 		security ss
 
@@ -590,17 +586,12 @@ _elf2exe=	usr.sbin/elf2exe
 _btxld=	usr.sbin/btxld
 .endif
 
-# XXX - MACHINE should actually be TARGET. But we don't set that...
-.if ${TARGET_ARCH} == "i386" && ${MACHINE} == "pc98"
-_aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
-.endif
-
 .if !defined(NOPERL)
 _perl=	gnu/usr.bin/perl/libperl gnu/usr.bin/perl/miniperl
 .endif
 
 cross-tools:
-.for _tool in ${_aout_tools} ${_btxld} ${_elf2exe} ${_perl} usr.bin/genassym \
+.for _tool in ${_btxld} ${_elf2exe} ${_perl} usr.bin/genassym \
     usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
