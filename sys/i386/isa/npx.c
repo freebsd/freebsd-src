@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.10 1994/08/13 03:50:11 wollman Exp $
+ *	$Id: npx.c,v 1.11 1994/09/09 23:12:32 wollman Exp $
  */
 
 #include "npx.h"
@@ -58,8 +58,6 @@
 
 #ifdef	__GNUC__
 
-#define	disable_intr()		__asm("cli")
-#define	enable_intr()		__asm("sti")
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*addr))
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
@@ -69,18 +67,12 @@
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fwait")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*addr))
 #define	fwait()			__asm("fwait")
-#define	read_eflags()		({u_long ef; \
-				  __asm("pushf; popl %0" : "=a" (ef)); \
-				  ef; })
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
-#define	write_eflags(ef)	__asm("pushl %0; popf" : : "a" ((u_long) ef))
 
 #else	/* not __GNUC__ */
 
-void	disable_intr	__P((void));
-void	enable_intr	__P((void));
 void	fldcw		__P((caddr_t addr));
 void	fnclex		__P((void));
 void	fninit		__P((void));
@@ -90,10 +82,8 @@ void	fnstsw		__P((caddr_t addr));
 void	fp_divide_by_0	__P((void));
 void	frstor		__P((caddr_t addr));
 void	fwait		__P((void));
-u_long	read_eflags	__P((void));
 void	start_emulating	__P((void));
 void	stop_emulating	__P((void));
-void	write_eflags	__P((u_long ef));
 
 #endif	/* __GNUC__ */
 
