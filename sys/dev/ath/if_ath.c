@@ -2418,6 +2418,21 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 }
 
 /*
+ * Extend 15-bit time stamp from rx descriptor to
+ * a full 64-bit TSF using the current h/w TSF.
+ */
+static __inline u_int64_t
+ath_extend_tsf(struct ath_hal *ah, u_int32_t rstamp)
+{
+	u_int64_t tsf;
+
+	tsf = ath_hal_gettsf64(ah);
+	if ((tsf & 0x7fff) < rstamp)
+		tsf -= 0x8000;
+	return ((tsf &~ 0x7fff) | rstamp);
+}
+
+/*
  * Intercept management frames to collect beacon rssi data
  * and to do ibss merges.
  */
@@ -2441,10 +2456,7 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
 		if (ic->ic_opmode == IEEE80211_M_IBSS &&
 		    ic->ic_state == IEEE80211_S_RUN) {
-			struct ath_hal *ah = sc->sc_ah;
-			/* XXX extend rstamp */
-			u_int64_t tsf = ath_hal_gettsf64(ah);
-
+			u_int64_t tsf = ath_extend_tsf(sc->sc_ah, rstamp);
 			/*
 			 * Handle ibss merge as needed; check the tsf on the
 			 * frame before attempting the merge.  The 802.11 spec
@@ -2452,11 +2464,16 @@ ath_recv_mgmt(struct ieee80211com *ic, struct mbuf *m,
 			 * the oldest station with the same ssid, where oldest
 			 * is determined by the tsf.  Note that hardware
 			 * reconfiguration happens through callback to
-			 * ath_newstate as the state machine will be go
-			 * from RUN -> RUN when this happens.
+			 * ath_newstate as the state machine will go from
+			 * RUN -> RUN when this happens.
 			 */
-			if (le64toh(ni->ni_tstamp.tsf) >= tsf)
+			if (le64toh(ni->ni_tstamp.tsf) >= tsf) {
+				DPRINTF(sc, ATH_DEBUG_STATE,
+				    "ibss merge, rstamp %u tsf %llu "
+				    "tstamp %llu\n", rstamp, tsf,
+				    ni->ni_tstamp.tsf);
 				(void) ieee80211_ibss_merge(ic, ni);
+			}
 		}
 		break;
 	}
