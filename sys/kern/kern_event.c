@@ -492,8 +492,10 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 				goto done;
 			}
 		}
+		s = splhigh();
 		if (kn->kn_fop->f_event(kn, 0))
 			KNOTE_ACTIVATE(kn);
+		splx(s);
 	} else if (kev->flags & EV_DELETE) {
 		kn->kn_fop->f_detach(kn);
 		knote_drop(kn, p);
@@ -622,12 +624,12 @@ start:
 			splx(s);
 			error = copyout((caddr_t)&kq->kq_kev, (caddr_t)ulistp,
 			    sizeof(struct kevent) * nkev);
-			if (error)
-				break;
 			ulistp += nkev;
 			nkev = 0;
 			kevp = kq->kq_kev;
 			s = splhigh();
+			if (error)
+				break;
 		}
 	}
 	TAILQ_REMOVE(&kq->kq_head, &marker, kn_tqe); 
@@ -868,6 +870,8 @@ knote_enqueue(struct knote *kn)
 	struct kqueue *kq = kn->kn_kq;
 	int s = splhigh();
 
+	KASSERT((kn->kn_status & KN_QUEUED) == 0, ("knote already queued"));
+
 	TAILQ_INSERT_TAIL(&kq->kq_head, kn, kn_tqe); 
 	kn->kn_status |= KN_QUEUED;
 	kq->kq_count++;
@@ -880,6 +884,8 @@ knote_dequeue(struct knote *kn)
 {
 	struct kqueue *kq = kn->kn_kq;
 	int s = splhigh();
+
+	KASSERT(kn->kn_status & KN_QUEUED, ("knote not queued"));
 
 	TAILQ_REMOVE(&kq->kq_head, kn, kn_tqe); 
 	kn->kn_status &= ~KN_QUEUED;
