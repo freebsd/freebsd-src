@@ -134,6 +134,11 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	ia64_free_unwind_state(us);
 }
 
+void
+db_print_backtrace(void)
+{
+}
+
 int
 db_md_set_watchpoint(addr, size)
 	db_expr_t addr;

@@ -291,3 +291,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	db_stack_trace_print(addr, have_addr, count, modif, db_printf);
 }
 
+void
+db_print_backtrace(void)
+{
+}

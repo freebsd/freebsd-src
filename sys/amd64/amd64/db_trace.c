@@ -350,6 +350,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		p = NULL;
 		frame = (struct i386_frame *)addr;
 		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
+		frame = frame->f_frame;
 	}
 
 	first = TRUE;
@@ -470,6 +471,14 @@ DB_DRX_FUNC(dr6)
 DB_DRX_FUNC(dr7)
 
 
+void
+db_print_backtrace(void)
+{
+	register_t ebp;
+
+	__asm __volatile("mov %%ebp,%0\n" : "=r" (ebp));
+	db_stack_trace_cmd(ebp, 1, -1, NULL);
+}
 
 int
 i386_set_watch(watchnum, watchaddr, size, access, d)
