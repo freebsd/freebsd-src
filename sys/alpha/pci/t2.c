@@ -373,8 +373,8 @@ t2_setup_intr(device_t dev, device_t child,
 		return error;
 
 	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
-			vector, intr, arg, ithread_priority(flags), cookiep,
-			&intrcnt[irq->r_start],
+			vector, intr, arg, ithread_priority(flags), flags,
+			cookiep, &intrcnt[irq->r_start],
 			t2_disable_intr, t2_enable_intr);
 	if (error)
 		return error;
