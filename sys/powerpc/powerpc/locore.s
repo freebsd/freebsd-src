@@ -143,8 +143,8 @@ kernel_text:
  * segment!
  */
 	.text
-	.globl	start
-start:
+	.globl	__start
+__start:
 #ifdef	FIRMWORKSBUGS
 	mfmsr	0
 	andi.	0,0,PSL_IR|PSL_DR

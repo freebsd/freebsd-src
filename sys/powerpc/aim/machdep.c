@@ -453,7 +453,7 @@ static struct globaldata	tmpglobal;
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 {
-	int			exc, scratch;
+	unsigned int		exc, scratch;
 	struct mem_region	*allmem, *availmem, *mp;
 	struct globaldata	*globalp;
 
@@ -528,12 +528,13 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
-	mtx_lock(&Giant);
 
 	/*
 	 * Initialise console.
 	 */
 	cninit();
+
+	mtx_lock(&Giant);
 
 #ifdef	__notyet__		/* Needs some rethinking regarding real/virtual OFW */
 	OF_set_callback(callback);
@@ -547,6 +548,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 		default:
 			bcopy(&trapcode, (void *)exc, (size_t)&trapsize);
 			break;
+		case EXC_DECR:
+			bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
+			break;
+#if 0 /* XXX: Not enabling these traps yet. */
 		case EXC_EXI:
 			/*
 			 * This one is (potentially) installed during autoconf
@@ -560,9 +565,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 			break;
 		case EXC_ISI:
 			bcopy(&isitrap, (void *)EXC_ISI, (size_t)&isisize);
-			break;
-		case EXC_DECR:
-			bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
 			break;
 		case EXC_IMISS:
 			bcopy(&tlbimiss, (void *)EXC_IMISS, (size_t)&tlbimsize);
@@ -584,6 +586,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 #endif
 			break;
 #endif /* DDB || IPKDB */
+#endif
 		}
 	}
 
@@ -592,16 +595,16 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 * external interrupt handler install
 	 */
 	install_extint(ext_intr);
+#endif
 
 	__syncicache((void *)EXC_RST, EXC_LAST - EXC_RST + 0x100);
-#endif
 
 	/*
 	 * Now enable translation (and machine checks/recoverable interrupts).
 	 */
-	__asm __volatile ("mfmsr %0; ori %0,%0,%1; mtmsr %0; isync"
-		          : "=r"(scratch) : "K"(PSL_IR|PSL_DR|PSL_ME|PSL_RI));
-
+	__asm ("mfmsr %0" : "=r"(scratch));
+	scratch |= PSL_IR | PSL_DR | PSL_ME | PSL_RI;
+	__asm ("mtmsr %0" :: "r"(scratch));
 
 	ofmsr &= ~PSL_IP;
 
@@ -674,7 +677,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 * XXX: which CPU we are somehow.
 	 */
 	globaldata_init(globalp, 0, sizeof(struct globaldata));
-	__asm("mtsprg 0,%0\n" :: "r" (globalp));
+	__asm ("mtsprg 0, %0" :: "r"(globalp));
 
 	PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 	PCPU_SET(curproc, &proc0);
@@ -882,7 +885,6 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 extern void	*extint, *extsize;
 extern u_long	extint_call;
 
-#if 0
 void
 install_extint(void (*handler)(void))
 {
@@ -895,15 +897,17 @@ install_extint(void (*handler)(void))
 	if (offset > 0x1ffffff)
 		panic("install_extint: too far away");
 #endif
-	__asm __volatile ("mfmsr %0; andi. %1,%0,%2; mtmsr %1"
-		          : "=r"(omsr), "=r"(msr) : "K"((u_short)~PSL_EE));
+
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
+
 	extint_call = (extint_call & 0xfc000003) | offset;
 	bcopy(&extint, (void *)EXC_EXI, (size_t)&extsize);
 	__syncicache((void *)&extint_call, sizeof extint_call);
 	__syncicache((void *)EXC_EXI, (int)&extsize);
-	__asm __volatile ("mtmsr %0" :: "r"(omsr));
+
+	mtmsr(msr);
 }
-#endif
 
 #if !defined(DDB)
 void
