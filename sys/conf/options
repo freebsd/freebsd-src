@@ -1,4 +1,4 @@
-#	$Id: options,v 1.83 1998/06/30 08:13:26 jmg Exp $
+#	$Id: options,v 1.84 1998/06/30 08:32:50 jmg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -116,7 +116,6 @@ CD9660_ROOTDELAY	opt_cd9660.h
 UNION
 
 # Options used only in param.c.
-EXTRAVNODES	opt_defunct.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
 MSGSEG		opt_param.h
@@ -157,19 +156,15 @@ SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
 
 # Resource limits.
-CHILD_MAX		opt_defunct.h
 DFLDSIZ			opt_rlimit.h
 MAXDSIZ			opt_rlimit.h
-OPEN_MAX		opt_defunct.h
 
 # Net stuff.
-ARP_PROXYALL		opt_defunct.h
 BOOTP			opt_bootp.h
 BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
-GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
 IPDIVERT
