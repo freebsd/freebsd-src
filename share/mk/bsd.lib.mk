@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.77 1998/08/08 13:22:06 peter Exp $
+#	$Id: bsd.lib.mk,v 1.78 1998/08/30 20:33:27 jb Exp $
 #
 
 .if !target(__initialized__)
@@ -228,7 +228,7 @@ clean:	_SUBDIR
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a # llib-l${LIB}.ln
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
-	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.*.* lib${LIB}_pic.a
+	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.* lib${LIB}_pic.a
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
