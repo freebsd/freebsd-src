@@ -256,7 +256,7 @@ dev/asr/asr.c		optional asr pci
 dev/ata/ata-all.c	optional ata
 dev/ata/ata-isa.c	optional ata isa
 dev/ata/ata-card.c	optional ata card
-#dev/ata/ata-card.c	optional ata pccard
+dev/ata/ata-card.c	optional ata pccard
 dev/ata/ata-pci.c	optional ata pci
 dev/ata/ata-dma.c	optional ata pci
 dev/ata/ata-disk.c	optional atadisk
