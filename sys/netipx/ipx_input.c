@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.3 1995/10/31 23:36:30 julian Exp $
+ * $Id: ipx_input.c,v 1.4 1995/11/04 09:02:54 julian Exp $
  */
 
 #include <sys/param.h>
@@ -316,7 +316,7 @@ ipx_ctlinput(cmd, arg)
 	switch (type) {
 
 	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(ipx, (int)ipxctlerrmap[cmd], ipx_abort, NULL);
+		ipx_pcbnotify(ipx, (int)ipxctlerrmap[cmd], ipx_abort, (long)0);
 		break;
 
 	case IPX_ERR_NOSOCK:
