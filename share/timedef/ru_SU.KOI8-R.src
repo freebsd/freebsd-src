@@ -1,4 +1,4 @@
-# $Id: ru_SU.KOI8-R,v 1.3 1995/08/08 02:02:32 ache Exp $
+# $Id: ru_SU.KOI8-R.src,v 1.1 1995/11/03 15:08:10 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -9,7 +9,7 @@
 фев
 мар
 апр
-мая
+май
 июн
 июл
 авг
@@ -20,28 +20,28 @@
 #
 # Long months names
 #
-января
-февраля
-марта
-апреля
-мая
-июня
-июля
-августа
-сентября
-октября
-ноября
-декабря
+январь
+февраль
+март
+апрель
+май
+июнь
+июль
+август
+сентябрь
+октябрь
+ноябрь
+декабрь
 #
 # Short weekdays names
 #
-вос
-пон
-вто
-сре
-чет
-пят
-суб
+вс 
+пн 
+вт 
+ср 
+чт 
+пт 
+сб 
 #
 # Long weekdays names
 #
