@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.33 1999/09/11 08:19:27 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.37 1999/10/13 18:52:54 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -43,6 +43,7 @@
 #define _USB_H_
 
 #include <sys/types.h>
+#include <sys/time.h>
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/ioctl.h>
@@ -244,6 +245,7 @@ typedef struct {
 #define  UE_ISO_ASYNC	0x04
 #define  UE_ISO_ADAPT	0x08
 #define  UE_ISO_SYNC	0x0c
+#define UE_GET_ISO_TYPE(a)	((a) & UE_ISO_TYPE)
 	uWord		wMaxPacketSize;
 	uByte		bInterval;
 } usb_endpoint_descriptor_t;
@@ -339,13 +341,13 @@ typedef struct {
 #define  USUBCLASS_AUDIOSTREAM	2
 #define  USUBCLASS_MIDISTREAM	3
 #define UCLASS_CDC		2 /* communication */
-#define  USUBCLASS_DIRECT_LINE_CONTROL_MODEL	1
+#define	 USUBCLASS_DIRECT_LINE_CONTROL_MODEL	1
 #define  USUBCLASS_ABSTRACT_CONTROL_MODEL	2
-#define  USUBCLASS_TELEPHONE_CONTROL_MODEL	3
-#define  USUBCLASS_MULTICHANNEL_CONTROL_MODEL	4
-#define  USUBCLASS_CAPI_CONTROLMODEL		5
-#define  USUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL 6
-#define  USUBCLASS_ATM_NETWORKING_CONTROL_MODEL	7
+#define	 USUBCLASS_TELEPHONE_CONTROL_MODEL	3
+#define	 USUBCLASS_MULTICHANNEL_CONTROL_MODEL	4
+#define	 USUBCLASS_CAPI_CONTROLMODEL		5
+#define	 USUBCLASS_ETHERNET_NETWORKING_CONTROL_MODEL 6
+#define	 USUBCLASS_ATM_NETWORKING_CONTROL_MODEL	7
 #define   UPROTO_CDC_AT		1
 #define UCLASS_HID		3
 #define  USUBCLASS_BOOT	 	1
@@ -379,7 +381,7 @@ typedef struct {
 #define   UPROTO_DATA_V120		0x92    /* V.24 rate adaption */
 #define   UPROTO_DATA_CAPI		0x93    /* CAPI 2.0 commands */
 #define   UPROTO_DATA_HOST_BASED	0xfd    /* Host based driver */
-#define   UPROTO_DATA_PUF		0xfe    /* see Prot. Unit Func. Desc. */
+#define   UPROTO_DATA_PUF		0xfe    /* see Prot. Unit Func. Desc.*/
 #define   UPROTO_DATA_VENDOR		0xff    /* Vendor specific */
 
 
@@ -494,12 +496,23 @@ struct usb_device_info {
 };
 
 struct usb_ctl_report {
-	int report;
+	int	report;
 	u_char	data[1024];	/* filled data size will vary */
 };
 
 struct usb_device_stats {
 	u_long	requests[4];	/* indexed by transfer type UE_* */
+};
+
+typedef struct { u_int32_t cookie; } usb_event_cookie_t;
+/* Events that can be read from /dev/usb */
+struct usb_event {
+	int			ue_type;
+#define USB_EVENT_ATTACH 1
+#define USB_EVENT_DETACH 2
+	struct usb_device_info	ue_device;
+	struct timespec		ue_time;
+	usb_event_cookie_t	ue_cookie;
 };
 
 /* USB controller */

@@ -123,7 +123,7 @@ struct ums_softc {
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
 #define MOUSE_FLAGS (HIO_RELATIVE)
 
-static void ums_intr __P((usbd_request_handle reqh,
+static void ums_intr __P((usbd_xfer_handle xfer,
 			  usbd_private_handle priv, usbd_status status));
 
 static void ums_add_to_queue __P((struct ums_softc *sc,
@@ -166,7 +166,7 @@ USB_MATCH(ums)
 	usb_interface_descriptor_t *id;
 	int size, ret;
 	void *desc;
-	usbd_status r;
+	usbd_status err;
 	
 	if (!uaa->iface)
 		return (UMATCH_NONE);
@@ -174,8 +174,8 @@ USB_MATCH(ums)
 	if (!id || id->bInterfaceClass != UCLASS_HID)
 		return (UMATCH_NONE);
 
-	r = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
-	if (r != USBD_NORMAL_COMPLETION)
+	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
+	if (err)
 		return (UMATCH_NONE);
 
 	if (hid_is_collection(desc, size, 
@@ -196,7 +196,7 @@ USB_ATTACH(ums)
 	usb_endpoint_descriptor_t *ed;
 	int size;
 	void *desc;
-	usbd_status r;
+	usbd_status err;
 	char devinfo[1024];
 	u_int32_t flags;
 	int i;
@@ -232,8 +232,8 @@ USB_ATTACH(ums)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	r = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
-	if (r != USBD_NORMAL_COMPLETION)
+	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
+	if (err)
 		USB_ATTACH_ERROR_RETURN;
 
 	if (!hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
@@ -395,8 +395,8 @@ ums_detach(device_t self)
 }
 
 void
-ums_intr(reqh, addr, status)
-	usbd_request_handle reqh;
+ums_intr(xfer, addr, status)
+	usbd_xfer_handle xfer;
 	usbd_private_handle addr;
 	usbd_status status;
 {
@@ -443,6 +443,12 @@ ums_intr(reqh, addr, status)
 		sc->status.dx += dx;
 		sc->status.dy += dy;
 		sc->status.dz += dz;
+
+		/* Discard data in case of full buffer */
+		if (sc->qcount == sizeof(sc->qbuf)) {
+			DPRINTF(("Buffer full, discarded packet"));
+			return;
+		}
 
 		/*
 		 * The Qtronix keyboard has a built in PS/2 port for a mouse.
@@ -528,7 +534,7 @@ ums_enable(v)
 {
 	struct ums_softc *sc = v;
 
-	usbd_status r;
+	usbd_status err;
 
 	if (sc->sc_enabled)
 		return EBUSY;
@@ -543,12 +549,12 @@ ums_enable(v)
 	callout_handle_init(&sc->timeout_handle);
 
 	/* Set up interrupt pipe. */
-	r = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
+	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr, 
 				USBD_SHORT_XFER_OK, &sc->sc_intrpipe, sc, 
 				sc->sc_ibuf, sc->sc_isize, ums_intr);
-	if (r != USBD_NORMAL_COMPLETION) {
+	if (err) {
 		DPRINTF(("ums_enable: usbd_open_pipe_intr failed, error=%d\n",
-			 r));
+			 err));
 		sc->sc_enabled = 0;
 		return (EIO);
 	}
@@ -576,6 +582,8 @@ ums_disable(priv)
 static int
 ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 {
+	struct ums_softc *sc;
+
 	USB_GET_SC_OPEN(ums, UMSUNIT(dev), sc);
 
 	return ums_enable(sc);
@@ -584,6 +592,8 @@ ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 static int
 ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 {
+	struct ums_softc *sc;
+
 	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
 	if (!sc)
@@ -598,11 +608,13 @@ ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 static int
 ums_read(dev_t dev, struct uio *uio, int flag)
 {
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
+	struct ums_softc *sc;
 	int s;
 	char buf[sizeof(sc->qbuf)];
 	int l = 0;
 	int error;
+
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
 	s = splusb();
 	if (!sc) {
@@ -666,9 +678,11 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 static int
 ums_poll(dev_t dev, int events, struct proc *p)
 {
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
+	struct ums_softc *sc;
 	int revents = 0;
 	int s;
+
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
 	if (!sc)
 		return 0;
@@ -690,10 +704,12 @@ ums_poll(dev_t dev, int events, struct proc *p)
 int
 ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
+	struct ums_softc *sc;
 	int error = 0;
 	int s;
 	mousemode_t mode;
+
+	USB_GET_SC(ums, UMSUNIT(dev), sc);
 
 	if (!sc)
 		return EIO;

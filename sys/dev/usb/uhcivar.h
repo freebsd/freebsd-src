@@ -1,5 +1,5 @@
-/*	$NetBSD: uhcivar.h,v 1.12 1999/08/22 23:41:00 augustss Exp $	*/
-/*	$FreeBSD$ */
+/*	$NetBSD: uhcivar.h,v 1.16 1999/10/13 08:10:56 augustss Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -70,7 +70,7 @@ typedef union {
  */
 typedef struct uhci_intr_info {
 	struct uhci_softc *sc;
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
 	uhci_soft_td_t *stdstart;
 	uhci_soft_td_t *stdend;
 	LIST_ENTRY(uhci_intr_info) list;
@@ -130,12 +130,6 @@ typedef struct uhci_softc {
 	struct usbd_bus sc_bus;		/* base device */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	void *sc_ih;			/* interrupt vectoring */
-
-	bus_dma_tag_t sc_dmatag;	/* DMA tag */
-	/* XXX should keep track of all DMA memory */
-#endif /* defined(__FreeBSD__) */
 
 	uhci_physaddr_t *sc_pframes;
 	usb_dma_t sc_dma;
@@ -154,12 +148,9 @@ typedef struct uhci_softc {
 
 	char sc_isreset;
 
-#if defined(__NetBSD__)
 	char sc_suspend;
-#endif
-	usbd_request_handle sc_has_timo;
+	usbd_xfer_handle sc_has_timo;
 
-	int sc_intrs;
 	LIST_HEAD(, uhci_intr_info) sc_intrhead;
 
 	/* Info for the root hub interrupt channel. */
@@ -171,11 +162,15 @@ typedef struct uhci_softc {
 
 	char sc_vendor[16];
 	int sc_id_vendor;
+
+	void *sc_powerhook;
+	device_ptr_t sc_child;
 } uhci_softc_t;
 
 usbd_status	uhci_init __P((uhci_softc_t *));
 int		uhci_intr __P((void *));
-#if 0
-void		uhci_reset __P((void *));
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+int		uhci_detach __P((uhci_softc_t *, int));
+int		uhci_activate __P((device_ptr_t, enum devact));
 #endif
 
