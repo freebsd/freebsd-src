@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.3 1994/08/02 07:55:32 davidg Exp $
+ * $Id: vm_page.h,v 1.4 1994/08/04 03:06:45 davidg Exp $
  */
 
 /*
@@ -111,6 +111,7 @@ struct vm_page {
 	u_short			flags;		/* see below */
 	short			hold_count;	/* page hold count */
 	u_short			act_count;	/* page usage count */
+	u_short			busy;		/* page busy count */
 
 	vm_offset_t		phys_addr;	/* physical address of page */
 };
