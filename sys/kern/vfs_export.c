@@ -152,26 +152,25 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 struct mtx mountlist_mtx;
 
 /* For any iteration/modification of mnt_vnodelist */
-struct simplelock mntvnode_slock;
+struct mtx mntvnode_mtx;
+
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
  * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
  */
 int	nfs_mount_type = -1;
 
-#ifndef NULL_SIMPLELOCKS
 /* To keep more than one thread at a time from running vfs_getnewfsid */
-static struct simplelock mntid_slock;
+static struct mtx mntid_mtx;
 
 /* For any iteration/modification of vnode_free_list */
-static struct simplelock vnode_free_list_slock;
+static struct mtx vnode_free_list_mtx;
 
 /*
  * For any iteration/modification of dev->si_hlist (linked through
  * v_specnext)
  */
-static struct simplelock spechash_slock;
-#endif
+static struct mtx spechash_mtx;
 
 /* Publicly exported FS */
 struct nfs_public nfs_pub;
@@ -250,11 +249,11 @@ vntblinit(void *dummy __unused)
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
 	mtx_init(&mountlist_mtx, "mountlist", MTX_DEF);
-	simple_lock_init(&mntvnode_slock);
-	simple_lock_init(&mntid_slock);
-	simple_lock_init(&spechash_slock);
+	mtx_init(&mntvnode_mtx, "mntvnode", MTX_DEF);
+	mtx_init(&mntid_mtx, "mntid", MTX_DEF);
+	mtx_init(&spechash_mtx, "spechash", MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
-	simple_lock_init(&vnode_free_list_slock);
+	mtx_init(&vnode_free_list_mtx, "vnode_free_list", MTX_DEF);
 	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
 	/*
 	 * Initialize the filesystem syncer.
@@ -423,7 +422,7 @@ vfs_getnewfsid(mp)
 	fsid_t tfsid;
 	int mtype;
 
-	simple_lock(&mntid_slock);
+	mtx_enter(&mntid_mtx, MTX_DEF);
 	mtype = mp->mnt_vfc->vfc_typenum;
 	tfsid.val[1] = mtype;
 	mtype = (mtype & 0xFF) << 24;
@@ -436,7 +435,7 @@ vfs_getnewfsid(mp)
 	}
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
 	mp->mnt_stat.f_fsid.val[1] = tfsid.val[1];
-	simple_unlock(&mntid_slock);
+	mtx_exit(&mntid_mtx, MTX_DEF);
 }
 
 /*
@@ -539,7 +538,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 
 	s = splbio();
-	simple_lock(&vnode_free_list_slock);
+	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
 		vp = NULL;
@@ -579,7 +578,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_flag |= VDOOMED;
 		vp->v_flag &= ~VFREE;
 		freevnodes--;
-		simple_unlock(&vnode_free_list_slock);
+		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
 		cache_purge(vp);
 		vp->v_lease = NULL;
 		if (vp->v_type != VBAD) {
@@ -610,11 +609,12 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 	} else {
-		simple_unlock(&vnode_free_list_slock);
+		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
 		vp = (struct vnode *) zalloc(vnode_zone);
 		bzero((char *) vp, sizeof *vp);
 		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
 		vp->v_dd = vp;
+		mtx_init(&vp->v_pollinfo.vpi_lock, "vnode pollinfo", MTX_DEF);
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
@@ -646,7 +646,7 @@ insmntque(vp, mp)
 	register struct mount *mp;
 {
 
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 	/*
 	 * Delete from old mount point vnode list, if on one.
 	 */
@@ -656,11 +656,11 @@ insmntque(vp, mp)
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
 	if ((vp->v_mount = mp) == NULL) {
-		simple_unlock(&mntvnode_slock);
+		mtx_exit(&mntvnode_mtx, MTX_DEF);
 		return;
 	}
 	LIST_INSERT_HEAD(&mp->mnt_vnodelist, vp, v_mntvnodes);
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 }
 
 /*
@@ -1402,9 +1402,9 @@ addalias(nvp, dev)
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
 	nvp->v_rdev = dev;
-	simple_lock(&spechash_slock);
+	mtx_enter(&spechash_mtx, MTX_DEF);
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
-	simple_unlock(&spechash_slock);
+	mtx_exit(&spechash_mtx, MTX_DEF);
 }
 
 /*
@@ -1628,7 +1628,7 @@ vflush(mp, skipvp, flags)
 	struct vnode *vp, *nvp;
 	int busy = 0;
 
-	simple_lock(&mntvnode_slock);
+	mtx_enter(&mntvnode_mtx, MTX_DEF);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
 		/*
@@ -1667,9 +1667,9 @@ loop:
 		 * vnode data structures and we are done.
 		 */
 		if (vp->v_usecount == 0) {
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			vgonel(vp, p);
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 			continue;
 		}
 
@@ -1679,7 +1679,7 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			if (vp->v_type != VCHR) {
 				vgonel(vp, p);
 			} else {
@@ -1687,7 +1687,7 @@ loop:
 				vp->v_op = spec_vnodeop_p;
 				insmntque(vp, (struct mount *) 0);
 			}
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 			continue;
 		}
 #ifdef DIAGNOSTIC
@@ -1697,7 +1697,7 @@ loop:
 		mtx_exit(&vp->v_interlock, MTX_DEF);
 		busy++;
 	}
-	simple_unlock(&mntvnode_slock);
+	mtx_exit(&mntvnode_mtx, MTX_DEF);
 	if (busy)
 		return (EBUSY);
 	return (0);
@@ -1842,9 +1842,9 @@ vop_revoke(ap)
 	}
 	dev = vp->v_rdev;
 	for (;;) {
-		simple_lock(&spechash_slock);
+		mtx_enter(&spechash_mtx, MTX_DEF);
 		vq = SLIST_FIRST(&dev->si_hlist);
-		simple_unlock(&spechash_slock);
+		mtx_exit(&spechash_mtx, MTX_DEF);
 		if (!vq)
 			break;
 		vgone(vq);
@@ -1859,14 +1859,14 @@ vop_revoke(ap)
 int
 vrecycle(vp, inter_lkp, p)
 	struct vnode *vp;
-	struct simplelock *inter_lkp;
+	struct mtx *inter_lkp;
 	struct proc *p;
 {
 
 	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_usecount == 0) {
 		if (inter_lkp) {
-			simple_unlock(inter_lkp);
+			mtx_exit(inter_lkp, MTX_DEF);
 		}
 		vgonel(vp, p);
 		return (1);
@@ -1926,10 +1926,10 @@ vgonel(vp, p)
 	 * if it is on one.
 	 */
 	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
-		simple_lock(&spechash_slock);
+		mtx_enter(&spechash_mtx, MTX_DEF);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		freedev(vp->v_rdev);
-		simple_unlock(&spechash_slock);
+		mtx_exit(&spechash_mtx, MTX_DEF);
 		vp->v_rdev = NULL;
 	}
 
@@ -1945,14 +1945,14 @@ vgonel(vp, p)
 	 */
 	if (vp->v_usecount == 0 && !(vp->v_flag & VDOOMED)) {
 		s = splbio();
-		simple_lock(&vnode_free_list_slock);
+		mtx_enter(&vnode_free_list_mtx, MTX_DEF);
 		if (vp->v_flag & VFREE)
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		else
 			freevnodes++;
 		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-		simple_unlock(&vnode_free_list_slock);
+		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
 		splx(s);
 	}
 
@@ -1971,15 +1971,15 @@ vfinddev(dev, type, vpp)
 {
 	struct vnode *vp;
 
-	simple_lock(&spechash_slock);
+	mtx_enter(&spechash_mtx, MTX_DEF);
 	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
 		if (type == vp->v_type) {
 			*vpp = vp;
-			simple_unlock(&spechash_slock);
+			mtx_exit(&spechash_mtx, MTX_DEF);
 			return (1);
 		}
 	}
-	simple_unlock(&spechash_slock);
+	mtx_exit(&spechash_mtx, MTX_DEF);
 	return (0);
 }
 
@@ -1994,10 +1994,10 @@ vcount(vp)
 	int count;
 
 	count = 0;
-	simple_lock(&spechash_slock);
+	mtx_enter(&spechash_mtx, MTX_DEF);
 	SLIST_FOREACH(vq, &vp->v_rdev->si_hlist, v_specnext)
 		count += vq->v_usecount;
-	simple_unlock(&spechash_slock);
+	mtx_exit(&spechash_mtx, MTX_DEF);
 	return (count);
 }
 
@@ -2204,7 +2204,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 again:
-		simple_lock(&mntvnode_slock);
+		mtx_enter(&mntvnode_mtx, MTX_DEF);
 		for (vp = LIST_FIRST(&mp->mnt_vnodelist);
 		     vp != NULL;
 		     vp = nvp) {
@@ -2214,17 +2214,17 @@ again:
 			 * recycled onto the same filesystem.
 			 */
 			if (vp->v_mount != mp) {
-				simple_unlock(&mntvnode_slock);
+				mtx_exit(&mntvnode_mtx, MTX_DEF);
 				goto again;
 			}
 			nvp = LIST_NEXT(vp, v_mntvnodes);
-			simple_unlock(&mntvnode_slock);
+			mtx_exit(&mntvnode_mtx, MTX_DEF);
 			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
 			    (error = SYSCTL_OUT(req, vp, VNODESZ)))
 				return (error);
-			simple_lock(&mntvnode_slock);
+			mtx_enter(&mntvnode_mtx, MTX_DEF);
 		}
-		simple_unlock(&mntvnode_slock);
+		mtx_exit(&mntvnode_mtx, MTX_DEF);
 		mtx_enter(&mountlist_mtx, MTX_DEF);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
@@ -2633,7 +2633,7 @@ vfree(vp)
 	int s;
 
 	s = splbio();
-	simple_lock(&vnode_free_list_slock);
+	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
 	KASSERT((vp->v_flag & VFREE) == 0, ("vnode already free"));
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
@@ -2641,7 +2641,7 @@ vfree(vp)
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	freevnodes++;
-	simple_unlock(&vnode_free_list_slock);
+	mtx_exit(&vnode_free_list_mtx, MTX_DEF);
 	vp->v_flag &= ~VAGE;
 	vp->v_flag |= VFREE;
 	splx(s);
@@ -2657,11 +2657,11 @@ vbusy(vp)
 	int s;
 
 	s = splbio();
-	simple_lock(&vnode_free_list_slock);
+	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
 	KASSERT((vp->v_flag & VFREE) != 0, ("vnode not free"));
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 	freevnodes--;
-	simple_unlock(&vnode_free_list_slock);
+	mtx_exit(&vnode_free_list_mtx, MTX_DEF);
 	vp->v_flag &= ~(VFREE|VAGE);
 	splx(s);
 }
@@ -2680,7 +2680,7 @@ vn_pollrecord(vp, p, events)
 	struct proc *p;
 	short events;
 {
-	simple_lock(&vp->v_pollinfo.vpi_lock);
+	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	if (vp->v_pollinfo.vpi_revents & events) {
 		/*
 		 * This leaves events we are not interested
@@ -2692,12 +2692,12 @@ vn_pollrecord(vp, p, events)
 		events &= vp->v_pollinfo.vpi_revents;
 		vp->v_pollinfo.vpi_revents &= ~events;
 
-		simple_unlock(&vp->v_pollinfo.vpi_lock);
+		mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 		return events;
 	}
 	vp->v_pollinfo.vpi_events |= events;
 	selrecord(p, &vp->v_pollinfo.vpi_selinfo);
-	simple_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	return 0;
 }
 
@@ -2712,7 +2712,7 @@ vn_pollevent(vp, events)
 	struct vnode *vp;
 	short events;
 {
-	simple_lock(&vp->v_pollinfo.vpi_lock);
+	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	if (vp->v_pollinfo.vpi_events & events) {
 		/*
 		 * We clear vpi_events so that we don't
@@ -2729,7 +2729,7 @@ vn_pollevent(vp, events)
 		vp->v_pollinfo.vpi_revents |= events;
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
 	}
-	simple_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 }
 
 /*
@@ -2741,12 +2741,12 @@ void
 vn_pollgone(vp)
 	struct vnode *vp;
 {
-	simple_lock(&vp->v_pollinfo.vpi_lock);
+	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 	if (vp->v_pollinfo.vpi_events) {
 		vp->v_pollinfo.vpi_events = 0;
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
 	}
-	simple_unlock(&vp->v_pollinfo.vpi_lock);
+	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
 }
 
 

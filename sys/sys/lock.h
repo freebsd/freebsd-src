@@ -48,7 +48,7 @@ struct	mtx;
 /*
  * The general lock structure.  Provides for multiple shared locks,
  * upgrading from shared to exclusive, and sleeping until the lock
- * can be gained. The simple locks are defined in <machine/param.h>.
+ * can be gained.
  */
 struct lock {
 	struct	mtx *lk_interlock;	/* lock on remaining fields */
@@ -220,23 +220,5 @@ int	lockmgr __P((struct lock *, u_int flags,
 void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *, struct proc *));
 int	lockcount __P((struct lock *));
-
-#ifdef SIMPLELOCK_DEBUG
-void _simple_unlock __P((struct simplelock *alp, const char *, int));
-#define simple_unlock(alp) _simple_unlock(alp, __FILE__, __LINE__)
-int _simple_lock_try __P((struct simplelock *alp, const char *, int));
-#define simple_lock_try(alp) _simple_lock_try(alp, __FILE__, __LINE__)
-void _simple_lock __P((struct simplelock *alp, const char *, int));
-#define simple_lock(alp) _simple_lock(alp, __FILE__, __LINE__)
-void simple_lock_init __P((struct simplelock *alp));
-#else /* !SIMPLELOCK_DEBUG */
-#if MAXCPU == 1 /* no multiprocessor locking is necessary */
-#define	NULL_SIMPLELOCKS
-#define	simple_lock_init(alp)
-#define	simple_lock(alp)
-#define	simple_lock_try(alp)	(1)	/* always succeeds */
-#define	simple_unlock(alp)
-#endif /* MAXCPU == 1 */
-#endif /* !SIMPLELOCK_DEBUG */
 
 #endif /* !_LOCK_H_ */

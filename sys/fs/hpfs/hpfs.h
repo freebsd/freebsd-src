@@ -335,9 +335,7 @@ struct hpfsmount {
 #define	H_INVAL		0x0010		/* Invalid node */
 struct hpfsnode {
 	struct lock	h_lock;		/* Must be first, for std vops */
-#ifndef NULL_SIMPLELOCKS
-	struct simplelock h_interlock;
-#endif
+	struct mtx h_interlock;
 
 	LIST_ENTRY(hpfsnode)	h_hash;
 
