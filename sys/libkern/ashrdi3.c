@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#include "quad.h"
+#include <libkern/quad.h>
 
 /*
  * Shift a (signed) quad value right (arithmetic shift right).

@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#include "quad.h"
+#include <libkern/quad.h>
 
 /*
  * Add two quads.  This is trivial since a one-bit carry from a single
