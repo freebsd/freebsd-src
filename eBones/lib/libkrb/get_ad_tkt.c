@@ -27,6 +27,8 @@ static char rcsid[] =
 #include <sys/time.h>
 #include <sys/types.h>
 
+extern int krb_debug;
+
 struct timeval tt_local = { 0, 0 };
 
 int swap_bytes;
@@ -65,7 +67,12 @@ unsigned long rep_err_code;
  * extraction macros like pkt_version(), pkt_msg_type(), etc.
  */
 
-int get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
+int
+get_ad_tkt(service,sinstance,realm,lifetime)
+    char    *service;
+    char    *sinstance;
+    char    *realm;
+    int     lifetime;
 {
     static KTEXT_ST pkt_st;
     KTEXT pkt = & pkt_st;	/* Packet to KDC */
@@ -177,9 +184,9 @@ int get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime)
     bcopy((char *) pkt_cipher(rpkt),(char *) (cip->dat),cip->length);
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)cr.session,key_s);
-    pcbc_encrypt((des_cblock *)cip->dat,(des_cblock *)cip->dat,
-	(long)cip->length,key_s,(des_cblock *)cr.session,DECRYPT);
+    key_sched((C_Block *)cr.session,key_s);
+    pcbc_encrypt((C_Block *)cip->dat,(C_Block *)cip->dat,(long)cip->length,
+	key_s,(C_Block *)cr.session,DECRYPT);
 #endif
     /* Get rid of all traces of key */
     bzero((char *) cr.session, sizeof(key));

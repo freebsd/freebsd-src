@@ -2,7 +2,7 @@
 #	$Id: Makefile,v 1.3 1995/07/18 16:37:22 mark Exp $
 
 PROG=	kdb_destroy
-CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include
-NOMAN=	noman
+CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include -Wall
+MAN8=	kdb_destroy.8
 
 .include <bsd.prog.mk>

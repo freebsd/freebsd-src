@@ -16,10 +16,10 @@ static char rcsid[] =
 
 #include <krb.h>
 #include <prot.h>
-#include <des.h>
-#include "conf.h"
 
-#include <stdio.h>
+#ifndef NULL
+#define NULL 0
+#endif
 
 /*
  * This file contains two routines: passwd_to_key() converts
@@ -44,17 +44,18 @@ static char rcsid[] =
  */
 
 /*ARGSUSED */
-static int passwd_to_key(char *user, char *instance, char *realm,
-    char *passwd, des_cblock key)
+static int passwd_to_key(user,instance,realm,passwd,key)
+    char *user, *instance, *realm, *passwd;
+    C_Block *key;
 {
 #ifdef NOENCRYPTION
     if (!passwd)
 	placebo_read_password(key, "Password: ", 0);
 #else
     if (passwd)
-	string_to_key(passwd,(des_cblock *)key);
+	string_to_key(passwd,key);
     else
-	des_read_password((des_cblock *)key,"Password: ",0);
+	des_read_password(key,"Password: ",0);
 #endif
     return (0);
 }
@@ -76,8 +77,11 @@ static int passwd_to_key(char *user, char *instance, char *realm,
  * The result of the call to krb_get_in_tkt() is returned.
  */
 
-int krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
-    char *sinstance, int life, char *password)
+int
+krb_get_pw_in_tkt(user,instance,realm,service,sinstance,life,password)
+    char *user, *instance, *realm, *service, *sinstance;
+    int life;
+    char *password;
 {
     return(krb_get_in_tkt(user,instance,realm,service,sinstance,life,
                           passwd_to_key, NULL, password));
@@ -99,16 +103,36 @@ int krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
  * echoing.
  */
 
-#if 0
-#ifndef	lint
-static char rcsid_read_password_c[] =
-"Bones$Header: /usr/cvs/src/eBones/krb/get_in_tkt.c,v 1.3 1995/07/18 16:38:30 mark Exp $";
-#endif	lint
+#include <des.h>
+#include "conf.h"
+
+#include <stdio.h>
+#ifdef	BSDUNIX
+#include <strings.h>
+#include <sys/ioctl.h>
+#include <signal.h>
+#include <setjmp.h>
+#else
+/* char     *strcpy();
+int      strcmp(); */
 #endif
 
+#ifdef	BSDUNIX
+static jmp_buf env;
+#endif
+
+#ifdef BSDUNIX
+static void sig_restore();
+static push_signals(), pop_signals();
+int placebo_read_pw_string();
+#endif
 
 /*** Routines ****************************************************** */
-int placebo_read_password(des_cblock *k, char *prompt, int verify)
+int
+placebo_read_password(k,prompt,verify)
+    des_cblock *k;
+    char *prompt;
+    int	verify;
 {
     int ok;
     char key_string[BUFSIZ];
@@ -135,7 +159,8 @@ lose:
  * Returns 0 on success, non-zero on failure.
  */
 
-int placebo_read_pw_string(char *s, int max, char *prompt, int verify)
+int
+placebo_read_pw_string(s,max,prompt,verify)
     char *s;
     int	max;
     char *prompt;
@@ -237,21 +262,23 @@ static void (*old_sigfunc[NSIG])();
 static int (*old_sigfunc[NSIG])();
 #endif POSIX
 
-static void push_signals()
+static push_signals()
 {
     register i;
     for (i = 0; i < NSIG; i++)
 	old_sigfunc[i] = signal(i,sig_restore);
 }
 
-static void pop_signals()
+static pop_signals()
 {
     register i;
     for (i = 0; i < NSIG; i++)
 	signal(i,old_sigfunc[i]);
 }
 
-static void sig_restore(int sig, int code, struct sigcontext *scp)
+static void sig_restore(sig,code,scp)
+    int sig,code;
+    struct sigcontext *scp;
 {
     longjmp(env,1);
 }

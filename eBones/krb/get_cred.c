@@ -27,7 +27,12 @@ static char *rcsid =
  * On failure it returns a Kerberos error code.
  */
 
-int krb_get_cred(char *service, char *instance, char *realm, CREDENTIALS *c)
+int
+krb_get_cred(service,instance,realm,c)
+    char *service;              /* Service name */
+    char *instance;             /* Instance */
+    char *realm;                /* Auth domain */
+    CREDENTIALS *c;             /* Credentials struct */
 {
     int tf_status;              /* return value of tf function calls */
 

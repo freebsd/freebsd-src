@@ -49,21 +49,21 @@ kerb_cache_init()
  */
 
 int
-kerb_cache_get_principal(char *serv, char *inst, Principal *principal,
-    unsigned int max)
+kerb_cache_get_principal(serv, inst, principal, max)
+    char   *serv;		/* could have wild card */
+    char   *inst;		/* could have wild card */
+    Principal *principal;
+    unsigned int max;		/* max number of name structs to return */
+
 {
     int     found = 0;
 
     if (!init)
 	kerb_cache_init();
 #ifdef DEBUG
-    if (kerb_debug & 2)
+    if (kerb_debug & 2) {
 	fprintf(stderr, "cache_get_principal for %s %s max = %d\n",
 	    serv, inst, max);
-#endif DEBUG
-
-#ifdef DEBUG
-    if (kerb_debug & 2) {
 	if (found) {
 	    fprintf(stderr, "cache get %s %s found %s %s\n",
 		serv, inst, principal->name, principal->instance);
@@ -82,7 +82,11 @@ kerb_cache_get_principal(char *serv, char *inst, Principal *principal,
  */
 
 int
-kerb_cache_put_principal(Principal *principal, unsigned int max)
+kerb_cache_put_principal(principal, max)
+    Principal *principal;
+    unsigned int max;		/* max number of principal structs to
+				 * insert */
+
 {
     u_long  i;
     int     count = 0;
@@ -115,7 +119,12 @@ kerb_cache_put_principal(Principal *principal, unsigned int max)
  */
 
 int
-kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
+kerb_cache_get_dba(serv, inst, dba, max)
+    char   *serv;		/* could have wild card */
+    char   *inst;		/* could have wild card */
+    Dba    *dba;
+    unsigned int max;		/* max number of name structs to return */
+
 {
     int     found = 0;
 
@@ -123,13 +132,9 @@ kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
 	kerb_cache_init();
 
 #ifdef DEBUG
-    if (kerb_debug & 2)
+    if (kerb_debug & 2) {
 	fprintf(stderr, "cache_get_dba for %s %s max = %d\n",
 	    serv, inst, max);
-#endif
-
-#ifdef DEBUG
-    if (kerb_debug & 2) {
 	if (found) {
 	    fprintf(stderr, "cache get %s %s found %s %s\n",
 		serv, inst, dba->name, dba->instance);
@@ -146,7 +151,10 @@ kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
  */
 
 int
-kerb_cache_put_dba(Dba *dba, unsigned int max)
+kerb_cache_put_dba(dba, max)
+    Dba    *dba;
+    unsigned int max;		/* max number of dba structs to insert */
+
 {
     u_long  i;
     int     count = 0;
@@ -170,3 +178,4 @@ kerb_cache_put_dba(Dba *dba, unsigned int max)
     }
     return count;
 }
+

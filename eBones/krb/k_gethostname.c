@@ -41,7 +41,10 @@ extern get_custom();
  * not work.
  */
 
-int k_gethostname(char *name, int namelen)
+int
+k_gethostname(name, namelen)
+    char *name;
+    int namelen;
 {
 #ifdef BSD42
     return gethostname(name, namelen);

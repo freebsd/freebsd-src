@@ -26,7 +26,8 @@ static char *rcsid =
  * "25-Jan-88 10:17:56"
  */
 
-char *stime(t)
+char *
+stime(t)
     long *t;
 {
     static char st_data[40];

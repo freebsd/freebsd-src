@@ -26,16 +26,18 @@ static const char rcsid[] =
            structure
 */
 
-#include <time.h>
 #include <string.h>
-#include "kadm.h"
-#include "krb_db.h"
+#include <time.h>
+#include <kadm.h>
+#include <krb_db.h>
 
 /*
 prin_vals:
   recieves    : a vals structure
 */
-void prin_vals(Kadm_vals *vals)
+void
+prin_vals(vals)
+Kadm_vals *vals;
 {
    printf("Info in Database for %s.%s:\n", vals->name, vals->instance);
    printf("   Max Life: %d   Exp Date: %s\n",vals->max_life,
@@ -45,9 +47,9 @@ void prin_vals(Kadm_vals *vals)
 }
 
 #ifdef notdef
-int nierror(int s)
+nierror(s)
+int s;
 {
-    extern char *error_message();
     printf("Kerberos admin server loses..... %s\n",error_message(s));
     return(s);
 }
@@ -57,7 +59,11 @@ int nierror(int s)
    it copies the fields in Principal specified by fields into Kadm_vals,
    i.e from old to new */
 
-void kadm_prin_to_vals(u_char fields[], Kadm_vals *new, Principal *old)
+void
+kadm_prin_to_vals(fields, new, old)
+u_char fields[FLDSZ];
+Kadm_vals *new;
+Principal *old;
 {
   bzero((char *)new, sizeof(*new));
   if (IS_FIELD(KADM_NAME,fields)) {
@@ -87,7 +93,11 @@ void kadm_prin_to_vals(u_char fields[], Kadm_vals *new, Principal *old)
   }
 }
 
-void kadm_vals_to_prin(u_char fields[], Principal *new, Kadm_vals *old)
+void
+kadm_vals_to_prin(fields, new, old)
+u_char fields[FLDSZ];
+Principal *new;
+Kadm_vals *old;
 {
 
   bzero((char *)new, sizeof(*new));

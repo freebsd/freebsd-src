@@ -31,16 +31,17 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static char sccsid[] = "@(#)register.c	8.1 (Berkeley) 6/1/93";
 #endif /* not lint */
+#endif
 
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
@@ -49,16 +50,23 @@ static char sccsid[] = "@(#)register.c	8.1 (Berkeley) 6/1/93";
 #include <sys/file.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <netdb.h>
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #include "pathnames.h"
 #include "register_proto.h"
 
-#define	SERVICE  "krbupdate"	/* service to add to KDC's database */
-#define	PROTOCOL "tcp"
+#define	SERVICE		"krbupdate"	/* service to add to KDC's database */
+#define	PROTOCOL	"tcp"
+
+void die(void);
+void type_info(void);
+void setup_key(struct sockaddr_in local);
+void cleanup(void);
+int get_user_info(void);
 
 char	realm[REALM_SZ];
 char	krbhst[MAX_HSTNM];
@@ -67,10 +75,7 @@ static	char	pname[ANAME_SZ];
 static	char	iname[INST_SZ];
 static	char	password[_PASSWORD_LEN];
 
-/* extern char	*sys_errlist; */
-void	die();
-void	setup_key(), type_info(), cleanup();
-
+void
 main(argc, argv)
 	int	argc;
 	char	**argv;
@@ -83,7 +88,7 @@ main(argc, argv)
 	u_char		code;
 	static struct rlimit rl = { 0, 0 };
 
-	signal(SIGPIPE, die);
+	signal(SIGPIPE, (__sighandler_t *)die);
 
 	if (setrlimit(RLIMIT_CORE, &rl) < 0) {
 		perror("rlimit");
@@ -200,7 +205,7 @@ main(argc, argv)
 	}
 
 	cleanup();
-	(void)close(sock);
+	close(sock);
 }
 
 void
@@ -266,7 +271,6 @@ setup_key(local)
 	static  Key_schedule		schedule;
 	int	fd;
 	char	namebuf[MAXPATHLEN];
-	extern int errno;
 
 	(void) sprintf(namebuf, "%s%s",
 		CLIENT_KEYFILE,
@@ -285,8 +289,8 @@ setup_key(local)
 			inet_ntoa(local.sin_addr));
 		exit(1);
 	}
-	key_sched(kdata.kf_key, schedule);
-	des_set_key(kdata.kf_key, schedule);
+	key_sched((des_cblock *)kdata.kf_key, schedule);
+	des_set_key((des_cblock *)kdata.kf_key, schedule);
 	return;
 }
 

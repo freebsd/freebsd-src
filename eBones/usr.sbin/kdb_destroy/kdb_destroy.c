@@ -7,34 +7,38 @@
  *	$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kdb_destroy.c,v 1.5 1995/08/04 06:35:45 mark Exp $";
 #endif	lint
-
-#include <strings.h>
-#include <stdio.h>
-#include "krb.h"
-#include "krb_db.h"
-
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-#define	DB
 #endif
 
+#include <unistd.h>
+#include <strings.h>
+#include <stdio.h>
+#include <krb.h>
+#include <krb_db.h>
 
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#define	_DBM_
+#endif
+
+void
 main()
 {
     char    answer[10];		/* user input */
+#ifdef _DBM_
     char    dbm[256];		/* database path and name */
-    char    dbm1[256];		/* database path and name */
-#ifdef DB
     char   *file;               /* database file names */
 #else
+    char    dbm[256];		/* database path and name */
+    char    dbm1[256];		/* database path and name */
     char   *file1, *file2;	/* database file names */
 #endif
 
     strcpy(dbm, DBM_FILE);
-#ifdef DB
+#ifdef _DBM_
     file = strcat(dbm, ".db");
 #else
     strcpy(dbm1, DBM_FILE);
@@ -48,7 +52,7 @@ main()
     fgets(answer, sizeof(answer), stdin);
 
     if (answer[0] == 'y' || answer[0] == 'Y') {
-#ifdef DB
+#ifdef _DBM_
 	if (unlink(file) == 0)
 #else
 	if (unlink(file1) == 0 && unlink(file2) == 0)

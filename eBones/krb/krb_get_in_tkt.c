@@ -35,8 +35,14 @@ int     swap_bytes;
  * using the key returned by key_proc.
  */
 
-static int decrypt_tkt(char *user, char *instance, char *realm, char *arg,
-    int (*key_proc)(), KTEXT *cipp)
+static int
+decrypt_tkt(user, instance, realm, arg, key_proc, cipp)
+  char *user;
+  char *instance;
+  char *realm;
+  char *arg;
+  int (*key_proc)();
+  KTEXT *cipp;
 {
     KTEXT cip = *cipp;
     C_Block key;		/* Key for decrypting cipher */
@@ -56,9 +62,9 @@ static int decrypt_tkt(char *user, char *instance, char *realm, char *arg,
     }
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)key,key_s);
-    pcbc_encrypt((des_cblock *)cip->dat,(des_cblock *)cip->dat,
-		 (long) cip->length,key_s,(des_cblock *)key,DES_DECRYPT);
+    key_sched(&key,key_s);
+    pcbc_encrypt((C_Block *)cip->dat,(C_Block *)cip->dat,
+		 (long) cip->length,key_s,(C_Block *)key,DES_DECRYPT);
 #endif /* !NOENCRYPTION */
     /* Get rid of all traces of key */
     bzero((char *)key,sizeof(key));
@@ -108,9 +114,18 @@ static int decrypt_tkt(char *user, char *instance, char *realm, char *arg,
  * string		sinstance		service's instance
  */
 
-int krb_get_in_tkt(char *user, char *instance, char *realm, char *service,
-    char *sinstance, int life, int (*key_proc)(), int (*decrypt_proc)(),
-    char *arg)
+int
+krb_get_in_tkt(user, instance, realm, service, sinstance, life,
+	       key_proc, decrypt_proc, arg)
+    char *user;
+    char *instance;
+    char *realm;
+    char *service;
+    char *sinstance;
+    int life;
+    int (*key_proc)();
+    int (*decrypt_proc)();
+    char *arg;
 {
     KTEXT_ST pkt_st;
     KTEXT pkt = &pkt_st;	/* Packet to KDC */

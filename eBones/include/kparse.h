@@ -81,7 +81,11 @@ extern char ErrorMsg[];		/*
 				 * fGetParameterSet
 				 */
 
-extern char *strsave();		/* defined in this module */
-extern char *strutol();		/* defined in this module */
+extern char *strsave(char *p);	/* defined in this module */
+extern char *strutol(char *p);		/* defined in this module */
+
+int fGetParameterSet(FILE *fp, parmtable parm[], int parmcount);
+int fGetKeywordValue(FILE *fp, char *keyword, int klen, char *value, int vlen);
+int fGetToken(FILE *fp, char *dest, int maxlen);
 
 #endif /* KPARSE_DEFS */

@@ -28,7 +28,12 @@ static char *rcsid =
  * if there are less than n requests in the packet.
  */
 
-int get_request(KTEXT pkt, int n, char **s_name, char **instance)
+int
+get_request(pkt, n, s_name, instance)
+    KTEXT pkt;			/* The packet itself */
+    int n;			/* Which request do we want */
+    char **s_name;		/* Service name to be filled in */
+    char **instance;		/* Instance name to be filled in */
 {
     /* Go to the beginning of the request list */
     char *ptr = (char *) pkt_a_realm(pkt) + 6 +

@@ -16,10 +16,12 @@ const char rcsid[] =
 #endif /* lint */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/param.h>
 #include <krb.h>
 #include <conf.h>
 
+int
 main(argc,argv)
     int argc;
     char **argv;

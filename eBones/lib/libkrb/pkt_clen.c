@@ -15,10 +15,12 @@ static char *rcsid =
 #endif /* lint */
 #endif
 
-#include <krb.h>
-#include <prot.h>
 #include <string.h>
 
+#include <krb.h>
+#include <prot.h>
+
+extern int krb_debug;
 extern int swap_bytes;
 
 /*
@@ -29,7 +31,9 @@ extern int swap_bytes;
  * ciphertext length out of the packet.
  */
 
-int pkt_clen(KTEXT pkt)
+int
+pkt_clen(pkt)
+    KTEXT pkt;
 {
     static unsigned short temp,temp2;
     int clen = 0;

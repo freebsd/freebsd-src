@@ -86,7 +86,10 @@ parmtable kparm[] = {
 #define KPARMS kparm,PARMCOUNT(kparm)
 #endif ATHENA_COMPAT
 
-int kuserok(AUTH_DAT *kdata, char *luser)
+int
+kuserok(kdata, luser)
+    AUTH_DAT *kdata;
+    char   *luser;
 {
     struct stat sbuf;
     struct passwd *pwd;

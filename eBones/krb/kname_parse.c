@@ -54,7 +54,9 @@ extern char *krb_err_txt[];
  * KNAME_FMT is returned.
  */
 
-int kname_parse(char *np, char *ip, char *rp, char *fullname)
+int
+kname_parse(np, ip, rp, fullname)
+    char *np, *ip, *rp, *fullname;
 {
     static char buf[FULL_SZ];
     char *rnext, *wnext;	/* next char to read, write */
@@ -137,7 +139,9 @@ int kname_parse(char *np, char *ip, char *rp, char *fullname)
  * Kerberos name; returns 0 if it's not.
  */
 
-int k_isname(char *s)
+int
+k_isname(s)
+    char *s;
 {
     register char c;
     int backslash = 0;
@@ -172,7 +176,9 @@ int k_isname(char *s)
  * Kerberos instance; returns 0 if it's not.
  */
 
-int k_isinst(char *s)
+int
+k_isinst(s)
+    char *s;
 {
     register char c;
     int backslash = 0;
@@ -204,7 +210,9 @@ int k_isinst(char *s)
  * Kerberos realm; returns 0 if it's not.
  */
 
-int k_isrealm(char *s)
+int
+k_isrealm(s)
+    char *s;
 {
     register char c;
     int backslash = 0;

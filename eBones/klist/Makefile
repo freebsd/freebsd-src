@@ -2,10 +2,10 @@
 #	$Id: Makefile,v 1.3 1995/07/18 16:37:57 mark Exp $
 
 PROG=	klist
-CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include
+CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include -Wall
 DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
+LDADD=	-L${KRBOBJDIR} -lkrb -ldes
 BINDIR=	/usr/bin
-NOMAN=	noman
+MAN1=	klist.1
 
 .include <bsd.prog.mk>

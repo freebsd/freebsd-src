@@ -10,10 +10,11 @@
 
 PROG=	registerd
 SRCS=	registerd.c
-CFLAGS+=-DCRYPT -DKERBEROS -I${.CURDIR}/../register
+CFLAGS+=-DCRYPT -DKERBEROS -I${.CURDIR}/../register \
+		-I${.CURDIR}/../include -Wall
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
-DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
-LDADD=	-lkdb -lkrb -ldes
+DPADD=	${LIBKDB} ${LIBKRB}
+LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes
 MAN8=	registerd.8
 BINDIR=	/usr/libexec
 

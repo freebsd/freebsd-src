@@ -2,9 +2,9 @@
 #	$Id: Makefile,v 1.1.1.1 1995/08/03 07:36:18 mark Exp $
 
 PROG=	kprop
-CFLAGS+=-I${.CURDIR}/../include
-DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
+CFLAGS+=-I${.CURDIR}/../include -Wall
+DPADD=	${LIBKRB}
+LDADD=	-L${KRBOBJDIR} -lkrb -ldes
 BINDIR=	/usr/sbin
 NOMAN=	noman
 

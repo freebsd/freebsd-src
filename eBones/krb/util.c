@@ -30,7 +30,9 @@ static char rcsid[] =
  * pname, pinst, prealm, netaddr, flags, cksum, timestamp, session
  */
 
-void ad_print(AUTH_DAT *x)
+void
+ad_print(x)
+AUTH_DAT	*x;
 {
 	struct in_addr	in;
 
@@ -44,7 +46,7 @@ void ad_print(AUTH_DAT *x)
 #ifdef NOENCRYPTION
 	placebo_cblock_print(x->session);
 #else
-	des_cblock_print_file((des_cblock *)x->session,stdout);
+	des_cblock_print_file((C_Block *)x->session,stdout);
 #endif
 	/* skip reply for now */
 }

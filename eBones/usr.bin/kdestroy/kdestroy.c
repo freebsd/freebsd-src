@@ -13,10 +13,12 @@
  *	$Id: kdestroy.c,v 1.3 1995/07/18 16:37:44 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kdestroy.c,v 1.3 1995/07/18 16:37:44 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -27,13 +29,16 @@ static char rcsid[] =
 
 static char *pname;
 
-static usage()
+static void
+usage()
 {
     fprintf(stderr, "Usage: %s [-f] [-q]\n", pname);
     exit(1);
 }
 
+int
 main(argc, argv)
+    int    argc;
     char   *argv[];
 {
     int     fflag=0, qflag=0, k_errno;

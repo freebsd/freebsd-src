@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.5 1995/08/25 22:52:05 markm Exp $
+ *	$Id: send_to_kdc.c,v 1.3 1995/07/18 16:39:42 mark Exp $
  */
 
 #if 0
@@ -17,9 +17,9 @@ static char rcsid_send_to_kdc_c[] =
 #include <krb.h>
 #include <prot.h>
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -34,6 +34,11 @@ static char rcsid_send_to_kdc_c[] =
 
 #define S_AD_SZ sizeof(struct sockaddr_in)
 
+extern int errno;
+extern int krb_debug;
+
+extern char *malloc(), *calloc(), *realloc();
+
 int krb_udp_port = 0;
 
 /* CLIENT_KRB_TIMEOUT indicates the time to wait before
@@ -41,111 +46,12 @@ int krb_udp_port = 0;
  */
 static struct timeval timeout = { CLIENT_KRB_TIMEOUT, 0};
 static char *prog = "send_to_kdc";
+static send_recv();
 
 /*
  * This file contains two routines, send_to_kdc() and send_recv().
  * send_recv() is a static routine used by send_to_kdc().
  */
-
-/*
- * try to send out and receive message.
- * return 1 on success, 0 on failure
- */
-
-static int send_recv(KTEXT pkt, KTEXT rpkt, int f, struct sockaddr_in *_to,
-    struct hostent *addrs)
-{
-    fd_set readfds;
-    register struct hostent *hp;
-    struct sockaddr_in from;
-    int sin_size;
-    int numsent;
-    int addr_count;
-
-    if (krb_debug) {
-        if (_to->sin_family == AF_INET)
-            printf("Sending message to %s...",
-                   inet_ntoa(_to->sin_addr));
-        else
-            printf("Sending message...");
-        (void) fflush(stdout);
-    }
-    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0,
-			  (struct sockaddr *)_to,
-                          S_AD_SZ)) != pkt->length) {
-        if (krb_debug)
-            printf("sent only %d/%d\n",numsent, pkt->length);
-        return 0;
-    }
-    if (krb_debug) {
-        printf("Sent\nWaiting for reply...");
-        (void) fflush(stdout);
-    }
-    FD_ZERO(&readfds);
-    FD_SET(f, &readfds);
-    errno = 0;
-    /* select - either recv is ready, or timeout */
-    /* see if timeout or error or wrong descriptor */
-    if (select(f + 1, &readfds, (fd_set *)0, (fd_set *)0, &timeout) < 1
-        || !FD_ISSET(f, &readfds)) {
-        if (krb_debug) {
-            fprintf(stderr, "select failed: readfds=%lx",
-                    (unsigned long)&readfds);
-            perror("");
-        }
-        return 0;
-    }
-    sin_size = sizeof(from);
-    if (recvfrom(f, (char *)(rpkt->dat), sizeof(rpkt->dat), 0,
-		 (struct sockaddr *)&from, &sin_size)
-        < 0) {
-        if (krb_debug)
-            perror("recvfrom");
-        return 0;
-    }
-    if (krb_debug) {
-        printf("received packet from %s\n", inet_ntoa(from.sin_addr));
-        fflush(stdout);
-    }
-/* At least Sun OS version 3.2 (or worse) and Ultrix version 2.2
-   (or worse) only return one address ... */
-#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
-    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
-	if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
-		  hp->h_length)) {
-	    if (krb_debug) {
-		printf("Received it\n");
-		(void) fflush(stdout);
-	    }
-	    return 1;
-	}
-	if (krb_debug)
-	    fprintf(stderr, "packet not from %s\n",
-		    inet_ntoa(*(struct in_addr *)hp->h_addr));
-	}
-    }
-#else /* !(ULTRIX022 || (SunOS < 40)) */
-    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
-	for (addr_count = 0; hp->h_addr_list[addr_count]; addr_count++) {
-	    if (!bcmp(hp->h_addr_list[addr_count],
-		(char *)&from.sin_addr.s_addr, hp->h_length)) {
-		if (krb_debug) {
-		    printf("Received it\n");
-		    (void) fflush(stdout);
-		}
-		return 1;
-	    }
-	    if (krb_debug)
-		fprintf(stderr, "packet not from %s\n",
-		     inet_ntoa(*(struct in_addr *)hp->h_addr_list[addr_count]));
-	}
-    }
-#endif /* !(ULTRIX022 || (SunOS < 40)) */
-    if (krb_debug)
-        fprintf(stderr, "%s: received packet from wrong host! (%s)\n",
-                "send_to_kdc(send_rcv)", inet_ntoa(from.sin_addr));
-    return 0;
-}
 
 /*
  * send_to_kdc() sends a message to the Kerberos authentication
@@ -174,16 +80,20 @@ static int send_recv(KTEXT pkt, KTEXT rpkt, int f, struct sockaddr_in *_to,
  *		  after several retries
  */
 
-int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
+int
+send_to_kdc(pkt,rpkt,realm)
+    KTEXT pkt;
+    KTEXT rpkt;
+    char *realm;
 {
     int i, f;
     int no_host; /* was a kerberos host found? */
     int retry;
     int n_hosts;
     int retval;
-    int addr_count;
     struct sockaddr_in to;
     struct hostent *host, *hostlist;
+    char *cp;
     char krbhst[MAX_HSTNM];
     char lrealm[REALM_SZ];
 
@@ -242,70 +152,35 @@ int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
             continue;
         no_host = 0;    /* found at least one */
         n_hosts++;
-	/*
-	 * Preserve host network addresses to check against later
-	 */
+        /* preserve host network address to check later
+         * (would be better to preserve *all* addresses,
+         * take care of that later)
+         */
         hostlist = (struct hostent *)
             realloc((char *)hostlist,
                     (unsigned)
                     sizeof(struct hostent)*(n_hosts+1));
-	if (!hostlist) {
-	    fprintf(stderr, "Could not grow hostlist\n");
-	    return /*errno */SKDC_CANT;
-	}
-	bcopy((char *)host, (char *)&hostlist[n_hosts-1],
-	      sizeof(struct hostent));
-	host = &hostlist[n_hosts-1];
+        if (!hostlist)
+            return /*errno */SKDC_CANT;
+        bcopy((char *)host, (char *)&hostlist[n_hosts-1],
+              sizeof(struct hostent));
+        host = &hostlist[n_hosts-1];
+        cp = malloc((unsigned)host->h_length);
+        if (!cp) {
+            retval = /*errno */SKDC_CANT;
+            goto rtn;
+        }
+        bcopy((char *)host->h_addr, cp, host->h_length);
 /* At least Sun OS version 3.2 (or worse) and Ultrix version 2.2
-   (or worse) only return one address ... */
-#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
-	{
-	    char *cp = malloc((unsigned)host->h_length);
-	    if (!cp) {
-		retval = /*errno */SKDC_CANT;
-		goto rtn;
-	    }
-	    bcopy((char *)host->h_addr, cp, host->h_length);
-	    host->h_addr = cp;
-	}
-#else /* !(ULTRIX022 || (SunOS < 40)) */
-	/*
-	 * Make a copy of the entire h_addr_list.
-	 */
-	{
-	    char *addr;
-	    char **old_addr_list;
-	    addr_count = 0;
-	    old_addr_list = host->h_addr_list;
-	    while(old_addr_list[addr_count++])
-		;
-	    host->h_addr_list = (char **)malloc(addr_count+1 * sizeof(char *));
-	    if (host->h_addr_list == NULL) {
-		fprintf(stderr, "Could not allocate host->h_addr_list\n");
-		retval = SKDC_CANT;
-		goto rtn;
-	    }
-	    if (krb_debug) {
-		printf("h_length = %d\n", host->h_length);
-		printf("Number of addresses = %d\n", addr_count);
-	    }
-	    for (addr_count = 0; old_addr_list[addr_count]; addr_count++) {
-		if (krb_debug)
-		    printf ("addr[%d] = %s\n", addr_count,
-		       inet_ntoa(*(struct in_addr *)old_addr_list[addr_count]));
-		addr = (char *)malloc(host->h_length);
-		if (addr == NULL) {
-		    fprintf(stderr, "Could not allocate address\n");
-		    retval = SKDC_CANT;
-		    goto rtn;
-		}
-		bcopy(old_addr_list[addr_count], addr, host->h_length);
-		host->h_addr_list[addr_count] = addr;
-	    }
-	    host->h_addr_list[addr_count] = NULL;
-	}
-#endif /* !(ULTRIX022 || (SunOS < 40)) */
-
+   (or worse) only return one name ... */
+#if !(defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
+        host->h_addr_list = (char **)malloc(sizeof(char *));
+        if (!host->h_addr_list) {
+            retval = /*errno */SKDC_CANT;
+            goto rtn;
+        }
+#endif /* ULTRIX022 || SunOS */
+        host->h_addr = cp;
         bzero((char *)&hostlist[n_hosts],
               sizeof(struct hostent));
         to.sin_family = host->h_addrtype;
@@ -323,36 +198,22 @@ int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
     }
     if (no_host) {
 	if (krb_debug)
-	    fprintf(stderr, "%s: can't find any Kerberos host.\n", prog);
+	    fprintf(stderr, "%s: can't find any Kerberos host.\n",
+		    prog);
         retval = SKDC_CANT;
         goto rtn;
     }
-    /* 
-     * retry each host in sequence.  Some addresses may be unreachable
-     * from where we are, so loop through them as well.
-     */
+    /* retry each host in sequence */
     for (retry = 0; retry < CLIENT_KRB_RETRY; ++retry) {
         for (host = hostlist; host->h_name != (char *)NULL; host++) {
-#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
-	    to.sin_family = host->h_addrtype;
-	    bcopy(host->h_addr_list[addr_count], (char *)&to.sin_addr,
-		  host->h_length);
-	    if (send_recv(pkt, rpkt, f, &to, hostlist)) {
-		retval = KSUCCESS;
-		goto rtn;
-	    }
-#else /* !(ULTRIX022 || (SunOS < 40)) */
-	    for (addr_count = 0; host->h_addr_list[addr_count]; addr_count++) {
-		to.sin_family = host->h_addrtype;
-		bcopy(host->h_addr_list[addr_count], (char *)&to.sin_addr,
-		      host->h_length);
-		if (send_recv(pkt, rpkt, f, &to, hostlist)) {
-		    retval = KSUCCESS;
-		    goto rtn;
-		}
-	    }
-#endif /* !(ULTRIX022 || (SunOS < 40)) */
-	}
+            to.sin_family = host->h_addrtype;
+            bcopy(host->h_addr, (char *)&to.sin_addr,
+                  host->h_length);
+            if (send_recv(pkt, rpkt, f, &to, hostlist)) {
+                retval = KSUCCESS;
+                goto rtn;
+            }
+        }
     }
     retval = SKDC_RETRY;
 rtn:
@@ -374,4 +235,88 @@ rtn:
         free((char *)hostlist);
     }
     return(retval);
+}
+
+/*
+ * try to send out and receive message.
+ * return 1 on success, 0 on failure
+ */
+
+static int
+send_recv(pkt,rpkt,f,_to,addrs)
+    KTEXT pkt;
+    KTEXT rpkt;
+    int f;
+    struct sockaddr_in *_to;
+    struct hostent *addrs;
+{
+    fd_set readfds;
+    register struct hostent *hp;
+    struct sockaddr_in from;
+    int sin_size;
+    int numsent;
+
+    if (krb_debug) {
+        if (_to->sin_family == AF_INET)
+            printf("Sending message to %s...",
+                   inet_ntoa(_to->sin_addr));
+        else
+            printf("Sending message...");
+        (void) fflush(stdout);
+    }
+    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0,
+			  (struct sockaddr *)_to,
+                          S_AD_SZ)) != pkt->length) {
+        if (krb_debug)
+            printf("sent only %d/%d\n",numsent, pkt->length);
+        return 0;
+    }
+    if (krb_debug) {
+        printf("Sent\nWaiting for reply...");
+        (void) fflush(stdout);
+    }
+    FD_ZERO(&readfds);
+    FD_SET(f, &readfds);
+    errno = 0;
+    /* select - either recv is ready, or timeout */
+    /* see if timeout or error or wrong descriptor */
+    if (select(f + 1, &readfds, (fd_set *)0, (fd_set *)0, &timeout) < 1
+        || !FD_ISSET(f, &readfds)) {
+        if (krb_debug) {
+            fprintf(stderr, "select failed: readfds=%x",
+                    readfds);
+            perror("");
+        }
+        return 0;
+    }
+    sin_size = sizeof(from);
+    if (recvfrom(f, (char *)(rpkt->dat), sizeof(rpkt->dat), 0,
+		 (struct sockaddr *)&from, &sin_size)
+        < 0) {
+        if (krb_debug)
+            perror("recvfrom");
+        return 0;
+    }
+    if (krb_debug) {
+        printf("received packet from %s\n", inet_ntoa(from.sin_addr));
+        fflush(stdout);
+    }
+    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
+        if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
+                  hp->h_length)) {
+            if (krb_debug) {
+                printf("Received it\n");
+                (void) fflush(stdout);
+            }
+            return 1;
+        }
+        if (krb_debug)
+            fprintf(stderr,
+                    "packet not from %lx\n",
+                    (unsigned long)hp->h_addr);
+    }
+    if (krb_debug)
+        fprintf(stderr, "%s: received packet from wrong host! (%lx)\n",
+                "send_to_kdc(send_rcv)", from.sin_addr.s_addr);
+    return 0;
 }

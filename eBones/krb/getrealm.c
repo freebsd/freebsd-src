@@ -47,7 +47,9 @@ static char rcsid[] =
 
 static char ret_realm[REALM_SZ+1];
 
-char *krb_realmofhost(char *host)
+char *
+krb_realmofhost(host)
+char *host;
 {
 	char *domain;
 	FILE *trans_file;

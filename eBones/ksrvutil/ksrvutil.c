@@ -7,14 +7,14 @@
  * list and update contents of srvtab files
  */
 
-#ifndef	lint
 #if 0
+#ifndef	lint
 static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
-#endif
 static const char rcsid[] =
 	"$Id: ksrvutil.c,v 1.1 1995/07/18 16:40:11 mark Exp $";
 #endif	lint
+#endif
 
 /*
  * ksrvutil
@@ -29,6 +29,8 @@ static const char rcsid[] =
 #define TRUE 1
 #endif
 
+#include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/param.h>
@@ -54,11 +56,14 @@ int read_long_pw_string();
 #define PRINC_HEADER "  Principal\n"
 #define PRINC_FORMAT "%s"
 
-extern int errno;
-
-extern void krb_set_tkt_string();
-void leave();
-unsigned short get_mode();
+void usage(void);
+void leave(char *str, int x);
+void get_key_from_password(des_cblock key);
+void print_name(char *name, char *inst, char *realm);
+void print_key(des_cblock key);
+unsigned short get_mode(char *filename);
+int get_svc_new_key(des_cblock new_key, char *sname, char *sinst,
+    char *srealm, char *keyfile);
 
 void
 copy_keyfile(progname, keyfile, backup_keyfile)
@@ -73,7 +78,7 @@ copy_keyfile(progname, keyfile, backup_keyfile)
     int rcount;			/* for copying keyfiles */
     int try_again;
 
-    (void) bzero((char *)buf, sizeof(buf));
+    bzero((char *)buf, sizeof(buf));
 
     do {
 	try_again = FALSE;
@@ -125,9 +130,9 @@ safe_read_stdin(prompt, buf, size)
   char *buf;
   int size;
 {
-    (void) printf(prompt);
-    (void) fflush(stdout);
-    (void) bzero(buf, size);
+    printf(prompt);
+    fflush(stdout);
+    bzero(buf, size);
     if (read(0, buf, size - 1) < 0) {
 	    warn("failure reading from stdin");
 	    leave((char *)NULL, 1);
@@ -158,7 +163,7 @@ yn(string)
 {
     char ynbuf[5];
 
-    (void) printf("%s (y,n) [y] ", string);
+    printf("%s (y,n) [y] ", string);
     for (;;) {
 	safe_read_stdin("", ynbuf, sizeof(ynbuf));
 
@@ -167,7 +172,7 @@ yn(string)
 	else if ((ynbuf[0] == 'y') || (ynbuf[0] == 'Y') || (ynbuf[0] == 0))
 	    return(1);
 	else {
-	    (void) printf("Please enter 'y' or 'n': ");
+	    printf("Please enter 'y' or 'n': ");
 	    fflush(stdout);
 	}
     }
@@ -191,7 +196,7 @@ append_srvtab(progname, filename, fd, sname, sinst,
     safe_write(progname, filename, fd, srealm, strlen(srealm) + 1);
     safe_write(progname, filename, fd, (char *)&key_vno, 1);
     safe_write(progname, filename, fd, (char *)key, sizeof(des_cblock));
-    (void) fsync(fd);
+    fsync(fd);
 }
 
 unsigned short
@@ -201,7 +206,7 @@ get_mode(filename)
     struct stat statbuf;
     unsigned short mode;
 
-    (void) bzero((char *)&statbuf, sizeof(statbuf));
+    bzero((char *)&statbuf, sizeof(statbuf));
 
     if (stat(filename, &statbuf) < 0)
 	mode = SRVTAB_MODE;
@@ -211,6 +216,7 @@ get_mode(filename)
     return(mode);
 }
 
+int
 main(argc,argv)
   int argc;
   char *argv[];
@@ -241,27 +247,22 @@ main(argc,argv)
     char databuf[BUFSIZ];
     int first_printed = FALSE;	/* have we printed the first item? */
 
-    int get_svc_new_key();
-    void get_key_from_password();
-    void print_key();
-    void print_name();
+    bzero((char *)sname, sizeof(sname));
+    bzero((char *)sinst, sizeof(sinst));
+    bzero((char *)srealm, sizeof(srealm));
 
-    (void) bzero((char *)sname, sizeof(sname));
-    (void) bzero((char *)sinst, sizeof(sinst));
-    (void) bzero((char *)srealm, sizeof(srealm));
+    bzero((char *)change_tkt, sizeof(change_tkt));
+    bzero((char *)keyfile, sizeof(keyfile));
+    bzero((char *)work_keyfile, sizeof(work_keyfile));
+    bzero((char *)backup_keyfile, sizeof(backup_keyfile));
+    bzero((char *)local_realm, sizeof(local_realm));
 
-    (void) bzero((char *)change_tkt, sizeof(change_tkt));
-    (void) bzero((char *)keyfile, sizeof(keyfile));
-    (void) bzero((char *)work_keyfile, sizeof(work_keyfile));
-    (void) bzero((char *)backup_keyfile, sizeof(backup_keyfile));
-    (void) bzero((char *)local_realm, sizeof(local_realm));
-
-    (void) sprintf(change_tkt, "/tmp/tkt_ksrvutil.%d", getpid());
+    sprintf(change_tkt, "/tmp/tkt_ksrvutil.%d", getpid());
     krb_set_tkt_string(change_tkt);
 
     /* This is used only as a default for adding keys */
     if (krb_get_lrealm(local_realm, 1) != KSUCCESS)
-	(void) strcpy(local_realm, KRB_REALM);
+	strcpy(local_realm, KRB_REALM);
 
     for (i = 1; i < argc; i++) {
 	if (strcmp(argv[i], "-i") == 0)
@@ -296,7 +297,7 @@ main(argc,argv)
 	    if (++i == argc)
 		usage();
 	    else
-		(void) strcpy(keyfile, argv[i]);
+		strcpy(keyfile, argv[i]);
 	}
 	else
 	    usage();
@@ -306,14 +307,14 @@ main(argc,argv)
 	usage();
 
     if (!keyfile[0])
-	(void) strcpy(keyfile, KEYFILE);
+	strcpy(keyfile, KEYFILE);
 
-    (void) strcpy(work_keyfile, keyfile);
-    (void) strcpy(backup_keyfile, keyfile);
+    strcpy(work_keyfile, keyfile);
+    strcpy(backup_keyfile, keyfile);
 
     if (change || add) {
-	(void) strcat(work_keyfile, ".work");
-	(void) strcat(backup_keyfile, ".old");
+	strcat(work_keyfile, ".work");
+	strcat(backup_keyfile, ".old");
 
 	copy_keyfile(argv[0], keyfile, backup_keyfile);
     }
@@ -351,28 +352,28 @@ main(argc,argv)
 	       (read(backup_keyfile_fd,(char *)old_key,sizeof(old_key)) > 0)) {
 	    if (list) {
 		if (!first_printed) {
-		    (void) printf(VNO_HEADER);
-		    (void) printf(PAD);
+		    printf(VNO_HEADER);
+		    printf(PAD);
 		    if (key) {
-			(void) printf(KEY_HEADER);
-			(void) printf(PAD);
+			printf(KEY_HEADER);
+			printf(PAD);
 		    }
-		    (void) printf(PRINC_HEADER);
+		    printf(PRINC_HEADER);
 		    first_printed = 1;
 		}
-		(void) printf(VNO_FORMAT, key_vno);
-		(void) printf(PAD);
+		printf(VNO_FORMAT, key_vno);
+		printf(PAD);
 		if (key) {
 		    print_key(old_key);
-		    (void) printf(PAD);
+		    printf(PAD);
 		}
 		print_name(sname, sinst, srealm);
-		(void) printf("\n");
+		printf("\n");
 	    }
 	    else if (change) {
-		(void) printf("\nPrincipal: ");
+		printf("\nPrincipal: ");
 		print_name(sname, sinst, srealm);
-		(void) printf("; version %d\n", key_vno);
+		printf("; version %d\n", key_vno);
 		if (interactive)
 		    change_this_key = yn("Change this key?");
 		else if (change)
@@ -381,9 +382,9 @@ main(argc,argv)
 		    change_this_key = 0;
 
 		if (change_this_key)
-		    (void) printf("Changing to version %d.\n", key_vno + 1);
+		    printf("Changing to version %d.\n", key_vno + 1);
 		else if (change)
-		    (void) printf("Not changing this key.\n");
+		    printf("Not changing this key.\n");
 
 		if (change_this_key) {
 		    /*
@@ -395,31 +396,31 @@ main(argc,argv)
 					 srealm, keyfile)) == KADM_SUCCESS)
 			key_vno++;
 		    else {
-			(void) bcopy(old_key, new_key, sizeof(new_key));
+			bcopy(old_key, new_key, sizeof(new_key));
 			com_err(argv[0], status, ": key NOT changed");
 			change_this_key = FALSE;
 		    }
 		}
 		else
-		    (void) bcopy(old_key, new_key, sizeof(new_key));
+		    bcopy(old_key, new_key, sizeof(new_key));
 		append_srvtab(argv[0], work_keyfile, work_keyfile_fd,
 			      sname, sinst, srealm, key_vno, new_key);
 		if (key && change_this_key) {
-		    (void) printf("Old key: ");
+		    printf("Old key: ");
 		    print_key(old_key);
-		    (void) printf("; new key: ");
+		    printf("; new key: ");
 		    print_key(new_key);
-		    (void) printf("\n");
+		    printf("\n");
 		}
 		if (change_this_key) {
 		    if ((status = kadm_change_pw(new_key)) == KADM_SUCCESS) {
-			(void) printf("Key changed.\n");
-			(void) dest_tkt();
+			printf("Key changed.\n");
+			dest_tkt();
 		    }
 		    else {
 			com_err(argv[0], status,
 				" attempting to change password.");
-			(void) dest_tkt();
+			dest_tkt();
 			/* XXX This knows the format of a keyfile */
 			if (lseek(work_keyfile_fd, -9, L_INCR) >= 0) {
 			    key_vno--;
@@ -427,8 +428,8 @@ main(argc,argv)
 				       work_keyfile_fd, (char *)&key_vno, 1);
 			    safe_write(argv[0], work_keyfile, work_keyfile_fd,
 				       (char *)old_key, sizeof(des_cblock));
-			    (void) fsync(work_keyfile_fd);
-			    (void) fprintf(stderr,"Key NOT changed.\n");
+			    fsync(work_keyfile_fd);
+			    fprintf(stderr,"Key NOT changed.\n");
 			}
 			else {
 				warn("unable to revert keyfile");
@@ -445,28 +446,28 @@ main(argc,argv)
 	do {
 	    do {
 		safe_read_stdin("Name: ", databuf, sizeof(databuf));
-		(void) strncpy(sname, databuf, sizeof(sname) - 1);
+		strncpy(sname, databuf, sizeof(sname) - 1);
 		safe_read_stdin("Instance: ", databuf, sizeof(databuf));
-		(void) strncpy(sinst, databuf, sizeof(sinst) - 1);
+		strncpy(sinst, databuf, sizeof(sinst) - 1);
 		safe_read_stdin("Realm: ", databuf, sizeof(databuf));
-		(void) strncpy(srealm, databuf, sizeof(srealm) - 1);
+		strncpy(srealm, databuf, sizeof(srealm) - 1);
 		safe_read_stdin("Version number: ", databuf, sizeof(databuf));
 		key_vno = atoi(databuf);
 		if (!srealm[0])
-		    (void) strcpy(srealm, local_realm);
-		(void) printf("New principal: ");
+		    strcpy(srealm, local_realm);
+		printf("New principal: ");
 		print_name(sname, sinst, srealm);
-		(void) printf("; version %d\n", key_vno);
+		printf("; version %d\n", key_vno);
 	    } while (!yn("Is this correct?"));
 	    get_key_from_password(new_key);
 	    if (key) {
-		(void) printf("Key: ");
+		printf("Key: ");
 		print_key(new_key);
-		(void) printf("\n");
+		printf("\n");
 	    }
 	    append_srvtab(argv[0], work_keyfile, work_keyfile_fd,
 			  sname, sinst, srealm, key_vno, new_key);
-	    (void) printf("Key successfully added.\n");
+	    printf("Key successfully added.\n");
 	} while (yn("Would you like to add another key?"));
     }
 
@@ -482,9 +483,9 @@ main(argc,argv)
 	if (rename(work_keyfile, keyfile) < 0) {
 		err(1, "failure renaming %s to %s", work_keyfile, keyfile);
 	}
-	(void) chmod(backup_keyfile, keyfile_mode);
-	(void) chmod(keyfile, keyfile_mode);
-	(void) printf("Old keyfile in %s.\n", backup_keyfile);
+	chmod(backup_keyfile, keyfile_mode);
+	chmod(keyfile, keyfile_mode);
+	printf("Old keyfile in %s.\n", backup_keyfile);
     }
 
     exit(0);
@@ -497,10 +498,10 @@ print_key(key)
     int i;
 
     for (i = 0; i < 4; i++)
-	(void) printf("%02x", key[i]);
-    (void) printf(" ");
+	printf("%02x", key[i]);
+    printf(" ");
     for (i = 4; i < 8; i++)
-	(void) printf("%02x", key[i]);
+	printf("%02x", key[i]);
 }
 
 void
@@ -509,7 +510,7 @@ print_name(name, inst, realm)
   char *inst;
   char *realm;
 {
-    (void) printf("%s%s%s%s%s", name, inst[0] ? "." : "", inst,
+    printf("%s%s%s%s%s", name, inst[0] ? "." : "", inst,
 		  realm[0] ? "@" : "", realm);
 }
 
@@ -528,10 +529,10 @@ get_svc_new_key(new_key, sname, sinst, srealm, keyfile)
 	((status = kadm_init_link("changepw", KRB_MASTER, srealm)) ==
 	 KADM_SUCCESS)) {
 #ifdef NOENCRYPTION
-	(void) bzero((char *) new_key, sizeof(des_cblock));
+	bzero((char *) new_key, sizeof(des_cblock));
 	new_key[0] = (unsigned char) 1;
 #else /* NOENCRYPTION */
-	(void) des_random_key(new_key);
+	des_random_key(new_key);
 #endif /* NOENCRYPTION */
 	return(KADM_SUCCESS);
     }
@@ -549,22 +550,23 @@ get_key_from_password(key)
 	leave("Error reading password.", 1);
 
 #ifdef NOENCRYPTION
-    (void) bzero((char *) key, sizeof(des_cblock));
+    bzero((char *) key, sizeof(des_cblock));
     key[0] = (unsigned char) 1;
 #else /* NOENCRYPTION */
-    (void) des_string_to_key(password, key);
+    des_string_to_key(password, (des_cblock *)key);
 #endif /* NOENCRYPTION */
-    (void) bzero((char *)password, sizeof(password));
+    bzero((char *)password, sizeof(password));
 }
 
+void
 usage()
 {
-    (void) fprintf(stderr, "Usage: ksrvutil [-f keyfile] [-i] [-k] ");
-    (void) fprintf(stderr, "{list | change | add}\n");
-    (void) fprintf(stderr, "   -i causes the program to ask for ");
-    (void) fprintf(stderr, "confirmation before changing keys.\n");
-    (void) fprintf(stderr, "   -k causes the key to printed for list or ");
-    (void) fprintf(stderr, "change.\n");
+    fprintf(stderr, "Usage: ksrvutil [-f keyfile] [-i] [-k] ");
+    fprintf(stderr, "{list | change | add}\n");
+    fprintf(stderr, "   -i causes the program to ask for ");
+    fprintf(stderr, "confirmation before changing keys.\n");
+    fprintf(stderr, "   -k causes the key to printed for list or ");
+    fprintf(stderr, "change.\n");
     exit(1);
 }
 
@@ -574,7 +576,7 @@ char *str;
 int x;
 {
     if (str)
-	(void) fprintf(stderr, "%s\n", str);
-    (void) dest_tkt();
+	fprintf(stderr, "%s\n", str);
+    dest_tkt();
     exit(x);
 }
