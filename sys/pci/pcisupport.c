@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.24 1995/12/14 09:54:11 phk Exp $
+**  $Id: pcisupport.c,v 1.25 1996/01/22 22:43:48 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -78,7 +78,7 @@ struct condmsg {
     unsigned char	mask;
     unsigned char	value;
     char	flags;
-    char       *text;
+    const char       *text;
 };
 
 static char*
@@ -126,9 +126,12 @@ chipset_probe (pcici_t tag, pcidi_t type)
 
 #ifndef PCI_QUIET
 
-#define M_EQ 0  /* mask and return true if equal */
-#define M_NE 1  /* mask and return true if not equal */
-#define M_TR 2  /* don't read config, always true */
+#define	M_XX 0	/* end of list */
+#define M_EQ 1  /* mask and return true if equal */
+#define M_NE 2  /* mask and return true if not equal */
+#define M_TR 3  /* don't read config, always true */
+#define M_EN 4	/* mask and print "enabled" if true, "disabled" if false */
+#define M_NN 5	/* opposite sense of M_EN */
 
 static const struct condmsg conf82425ex[] =
 {
@@ -382,20 +385,16 @@ static const struct condmsg conf82437fx[] =
     { 0x50, 0xe0, 0x80, M_EQ, "2" },
     { 0x50, 0xe0, 0x00, M_EQ, "1" },
     { 0x00, 0x00, 0x00, M_TR, " clocks\n\tPeer Concurrency: " },
-    { 0x50, 0x08, 0x08, M_EQ, "enabled" },
-    { 0x50, 0x08, 0x00, M_EQ, "disabled" },
+    { 0x50, 0x08, 0x08, M_EN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n\tCPU-to-PCI Write Busting: " },
-    { 0x50, 0x04, 0x00, M_EQ, "enabled" },
-    { 0x50, 0x04, 0x04, M_EQ, "disabled" },
+    { 0x50, 0x04, 0x00, M_NN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n\tPCI Streaming: " },
-    { 0x50, 0x02, 0x00, M_EQ, "enabled" },
-    { 0x50, 0x02, 0x02, M_EQ, "disabled" },
+    { 0x50, 0x02, 0x00, M_NN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n\tBus Concurrency: " },
-    { 0x50, 0x01, 0x00, M_EQ, "enabled\n" },
-    { 0x50, 0x01, 0x01, M_EQ, "disabled\n" },
+    { 0x50, 0x01, 0x00, M_NN, 0 },
 
     /* CC -- Cache Control Regsiter */
-    { 0x00, 0x00, 0x00, M_TR, "\tCache:" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCache:" },
     { 0x52, 0xc0, 0x80, M_EQ, " 512K" },
     { 0x52, 0xc0, 0x40, M_EQ, " 256K" },
     { 0x52, 0xc0, 0x00, M_EQ, " NO" },
@@ -404,8 +403,7 @@ static const struct condmsg conf82437fx[] =
     { 0x52, 0x30, 0x20, M_EQ, " asynchronous" },
     { 0x52, 0x30, 0x30, M_EQ, " dual-bank pipelined-burst" },
     { 0x00, 0x00, 0x00, M_TR, " secondary; L1 " },
-    { 0x52, 0x01, 0x01, M_EQ, "disabled" },
-    { 0x52, 0x01, 0x00, M_EQ, "enabled" },
+    { 0x52, 0x01, 0x00, M_NN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n" },
 
     /* DRAMC -- DRAM Control Register */
@@ -434,29 +432,70 @@ static const struct condmsg conf82437fx[] =
     { 0x58, 0x04, 0x04, M_EQ, "2" },
     { 0x00, 0x00, 0x00, M_TR, " clocks\n" },
 
-#ifdef notdef			/* XXX not very useful... */
-#define B(x) (1 << x)
-
-    /* PAMs -- Programmable Attribute Map Registers */
-    { 0x00, 0x00, 0x00, M_TR, "\tNon-cacheable regions:" },
-    { 0x00, 0x00, 0x00, M_TR, " A0000-BFFFF" },
-    { 0x5a, B(2), 0, M_EQ, " C0000" },
-    { 0x5a, B(6), 0, M_EQ, " C4000" },
-    { 0x5b, B(2), 0, M_EQ, " C8000" },
-    { 0x5b, B(6), 0, M_EQ, " CC000" },
-    { 0x5c, B(2), 0, M_EQ, " D0000" },
-    { 0x5c, B(6), 0, M_EQ, " D4000" },
-    { 0x5d, B(2), 0, M_EQ, " D8000" },
-    { 0x5d, B(6), 0, M_EQ, " DC000" },
-    { 0x5e, B(2), 0, M_EQ, " E0000" },
-    { 0x5e, B(6), 0, M_EQ, " E4000" },
-    { 0x5f, B(2), 0, M_EQ, " E8000" },
-    { 0x5f, B(6), 0, M_EQ, " EC000" },
-    { 0x59, B(6), 0, M_EQ, " F0000" },
-    /* don't bother with r-o, w-o, r-w, disabled */
-#endif
-
     /* end marker */
+    { 0 }
+};
+
+static const struct condmsg conf82371fb[] =
+{
+    /* IORT -- ISA I/O Recovery Timer Register */
+    { 0x00, 0x00, 0x00, M_TR, "\tI/O Recovery Timing: 8-bit " },
+    { 0x4c, 0x40, 0x00, M_EQ, "3.5" },
+    { 0x4c, 0x78, 0x48, M_EQ, "1" },
+    { 0x4c, 0x78, 0x50, M_EQ, "2" },
+    { 0x4c, 0x78, 0x58, M_EQ, "3" },
+    { 0x4c, 0x78, 0x60, M_EQ, "4" },
+    { 0x4c, 0x78, 0x68, M_EQ, "5" },
+    { 0x4c, 0x78, 0x70, M_EQ, "6" },
+    { 0x4c, 0x78, 0x78, M_EQ, "7" },
+    { 0x4c, 0x78, 0x40, M_EQ, "8" },
+    { 0x00, 0x00, 0x00, M_TR, " clocks, 16-bit " },
+    { 0x4c, 0x04, 0x00, M_EQ, "3.5" },
+    { 0x4c, 0x07, 0x05, M_EQ, "1" },
+    { 0x4c, 0x07, 0x06, M_EQ, "2" },
+    { 0x4c, 0x07, 0x07, M_EQ, "3" },
+    { 0x4c, 0x07, 0x04, M_EQ, "4" },
+    { 0x00, 0x00, 0x00, M_TR, " clocks\n" },
+
+    /* XBCS -- X-Bus Chip Select Register */
+    { 0x00, 0x00, 0x00, M_TR, "\tExtended BIOS: " },
+    { 0x4e, 0x80, 0x80, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tLower BIOS: " },
+    { 0x4e, 0x40, 0x40, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCoprocessor IRQ13: " },
+    { 0x4e, 0x20, 0x20, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tMouse IRQ12: " },
+    { 0x4e, 0x10, 0x10, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
+
+#define PIRQ(x, n) \
+    { 0x00, 0x00, 0x00, M_TR, "\t" n " Routing: " }, \
+    { x, 0x80, 0x80, M_EQ, "disabled" }, \
+    { x, 0xc0, 0x40, M_EQ, "[shared] " }, \
+    { x, 0x8f, 0x03, M_EQ, "IRQ3" }, \
+    { x, 0x8f, 0x04, M_EQ, "IRQ4" }, \
+    { x, 0x8f, 0x05, M_EQ, "IRQ5" }, \
+    { x, 0x8f, 0x06, M_EQ, "IRQ6" }, \
+    { x, 0x8f, 0x07, M_EQ, "IRQ7" }, \
+    { x, 0x8f, 0x09, M_EQ, "IRQ9" }, \
+    { x, 0x8f, 0x0a, M_EQ, "IRQ10" }, \
+    { x, 0x8f, 0x0b, M_EQ, "IRQ11" }, \
+    { x, 0x8f, 0x0c, M_EQ, "IRQ12" }, \
+    { x, 0x8f, 0x0e, M_EQ, "IRQ14" }, \
+    { x, 0x8f, 0x0f, M_EQ, "IRQ15" }, \
+    { 0x00, 0x00, 0x00, M_TR, "\n" }
+
+    /* Interrupt routing */
+    PIRQ(0x60, "INTA"),
+    PIRQ(0x61, "INTB"),
+    PIRQ(0x62, "INTC"),
+    PIRQ(0x63, "INTD"),
+    PIRQ(0x70, "MBIRQ0"),
+    PIRQ(0x71, "MBIRQ1"),
+
+#undef PIRQ
+
+    /* XXX - do DMA routing, too? */
     { 0 }
 };
 
@@ -472,22 +511,28 @@ static char confread (pcici_t config_id, int port)
 static void
 writeconfig (pcici_t config_id, const struct condmsg *tbl)
 {
-    while (tbl->text) {
-	int cond = 0;
+    while (tbl->flags != M_XX) {
+	const char *text = 0;
+
 	if (tbl->flags == M_TR) {
-	    cond = 1;
+	    text = tbl->text;
 	} else {
 	    unsigned char v = (unsigned char) confread(config_id, tbl->port);
 	    switch (tbl->flags) {
     case M_EQ:
-		if ((v & tbl->mask) == tbl->value) cond = 1;
+		if ((v & tbl->mask) == tbl->value) text = tbl->text;
 		break;
     case M_NE:
-		if ((v & tbl->mask) != tbl->value) cond = 1;
+		if ((v & tbl->mask) != tbl->value) text = tbl->text;
 		break;
+    case M_EN:
+		text = (v & tbl->mask) ? "enabled" : "disabled";
+		break;
+    case M_NN:
+		text = (v & tbl->mask) ? "disabled" : "enabled";
 	    }
 	}
-	if (cond) printf ("%s", tbl->text);
+	if (text) printf ("%s", text);
 	tbl++;
     }
 }
@@ -523,6 +568,9 @@ chipset_attach (pcici_t config_id, int unit)
 		break;
 	case 0x122d8086:
 		writeconfig (config_id, conf82437fx);
+		break;
+	case 0x122e8086:
+		writeconfig (config_id, conf82371fb);
 		break;
 	};
 #endif /* PCI_QUIET */
