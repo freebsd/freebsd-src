@@ -64,9 +64,6 @@ afterinstall:
 distribute:
 	cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
-	    ${DISTDIR}/${DISTRIBUTION}/boot/device.hints
 
 distribution:
 	cd ${.CURDIR}; \
@@ -162,6 +159,9 @@ distribution:
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
+	    ${DESTDIR}/boot/device.hints
 
 distrib-dirs:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
