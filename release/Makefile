@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.287 1997/03/15 19:51:16 joerg Exp $
+#	$Id: Makefile,v 1.288 1997/03/15 20:35:06 joerg Exp $
 #
 # How to roll a release:
 #
@@ -56,7 +56,7 @@ MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
 CD=			/R/cdrom
-CD_DISC1=		${CD}/disc1 
+CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 
 .if !defined(WHICH_CRUNCH)
@@ -104,7 +104,7 @@ rerelease release:
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
 .endif
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -d ${CVSROOT} co -P ports
 .endif
 .endif
@@ -115,7 +115,7 @@ rerelease release:
 .else
 	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
 .endif
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	cd ${CHROOTDIR}/usr/ports && cvs -q update -P -d
 .endif
 .endif
@@ -136,8 +136,8 @@ rerelease release:
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
-.if defined(NO_PORTS)
-	echo "export NO_PORTS=${NO_PORTS}"	>> ${CHROOTDIR}/mk
+.if defined(NOPORTS)
+	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
@@ -201,6 +201,20 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
+	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
+	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
+.if exists(${.CURDIR}/../eBones)
+	cd ${.CURDIR}/../eBones && ( \
+		make bootstrap &&\
+		make obj all help-distribute DISTDIR=${RD}/trees &&\
+		make kprog \
+	)
+.endif
+	chflags -R noschg ${RD}/trees
+	touch release.2
+
+# Make and install the generic kernel(s).
+release.3:
 .for kernel in ${KERNELS}
 	rm -f ${RD}/kernels/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
@@ -474,16 +488,16 @@ cdrom.1:
 			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
 	done
-	rm -f ${CD_DISC2}/filesys/.profile
-	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/filesys/.profile
-	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	rm -f ${CD_DISC2}/.profile
+	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
-.if !defined(NO_PORTS)
+.if !defined(NOPORTS)
 	ln -s ../ports ${CD_DISC2}/usr/ports
 .endif
 #
@@ -492,11 +506,12 @@ cdrom.1:
 # NOTE: Both ftp.1 and cdrom.1 must be run before this target or it will die
 #       a quick and gruesome death.  We also expect the release engineer to
 #       manually populate ports/distfiles on the 2nd CDROM.
+
 ports.1:
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 		mkdir -p ${CD_DISC1}/ports && tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
 		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
-		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) && \
+		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) &&
 		tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 
 
@@ -538,7 +553,7 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
-.if defined(NO_PORTS)
+.if defined(NOPORTS)
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 .else
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1 ports.1
@@ -637,10 +652,6 @@ doMFSKERN:
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/boot.${FSIMAGE} \
 		${BOOTINODE} ${FDLABEL}
-	#echo 'USERCONFIG' > startup_foo
-	#echo 'intro' >> startup_foo
-	#dd if=startup_foo of=fs-image seek=1 bs=512 count=1 conv=notrunc
-	#rm -f startup_foo
 	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
 
 .include <bsd.prog.mk>
