@@ -260,7 +260,7 @@ main(argc, argv, envp)
 
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "AdlDSUt:T:u:va:p:")) != EOF) {
+	while ((ch = getopt(argc, argv, "AdlDSURt:T:u:va:p:")) != EOF) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
