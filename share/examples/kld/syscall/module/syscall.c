@@ -77,7 +77,7 @@ load (struct module *module, int cmd, void *arg)
 		printf ("syscall unloaded from %d\n", offset);
 		break;
 	default :
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return error;
