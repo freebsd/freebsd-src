@@ -28,6 +28,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
