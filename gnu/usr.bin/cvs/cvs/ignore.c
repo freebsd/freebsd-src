@@ -147,7 +147,7 @@ ign_add (ign, hold)
 	 * (saving it if necessary).  We also catch * as a special case in a
 	 * global ignore file as an optimization
 	 */
-	if (isspace (*(ign + 1)) && (*ign == '!' || *ign == '*'))
+	if ((!*(ign+1) || isspace (*(ign+1))) && (*ign == '!' || *ign == '*'))
 	{
 	    if (!hold)
 	    {
