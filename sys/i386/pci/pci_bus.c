@@ -554,7 +554,7 @@ DRIVER_MODULE(hostb, pci, pci_hostb_driver, pci_hostb_devclass, 0, 0);
  * people.
  */
 static struct isa_pnp_id pcibus_pnp_ids[] = {
-	{ 0x030ad041 /* PNP030A */, "PCI Bus" },
+	{ 0x030ad041 /* PNP0A03 */, "PCI Bus" },
 	{ 0 }
 };
 
