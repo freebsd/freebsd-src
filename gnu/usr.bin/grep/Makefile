@@ -31,8 +31,8 @@ check:	all
 	@failed=0; total=0; \
 	for tst in ${TESTS}; do \
 		total=$$(($$total+1)); \
-		if GREP=${.OBJDIR}/${PROG} srcdir=${GREPDIR}/tests \
-		   ${GREPDIR}/tests/$$tst; then \
+		if GREP=${.OBJDIR}/${PROG} srcdir=${.CURDIR}/tests \
+		   ${.CURDIR}/tests/$$tst; then \
 			echo "PASS: $$tst"; \
 		else \
 			failed=$$(($$failed+1)); \
