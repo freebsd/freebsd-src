@@ -90,20 +90,20 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
  * 0xa0  Contec C-NET(98).
  * 0xb0  Contec C-NET(98)E/L.
  */
-#define	ED_TYPE98_BASE		0x10
+#define	ED_TYPE98_BASE		0x80
 
-#define	ED_TYPE98_GENERIC	0x10
-#define	ED_TYPE98_LPC		0x11
-#define	ED_TYPE98_BDN		0x12
-#define	ED_TYPE98_EGY		0x13
-#define	ED_TYPE98_LGY		0x14
-#define	ED_TYPE98_ICM		0x15
-#define	ED_TYPE98_SIC		0x16
-#define	ED_TYPE98_108		0x18
-#define	ED_TYPE98_LA98		0x19
-#define	ED_TYPE98_CNET98	0x1a
-#define	ED_TYPE98_CNET98EL	0x1b
-#define	ED_TYPE98_UE2212	0x1c
+#define	ED_TYPE98_GENERIC	0x80
+#define	ED_TYPE98_LPC		0x81
+#define	ED_TYPE98_BDN		0x82
+#define	ED_TYPE98_EGY		0x83
+#define	ED_TYPE98_LGY		0x84
+#define	ED_TYPE98_ICM		0x85
+#define	ED_TYPE98_SIC		0x86
+#define	ED_TYPE98_108		0x88
+#define	ED_TYPE98_LA98		0x89
+#define	ED_TYPE98_CNET98	0x8a
+#define	ED_TYPE98_CNET98EL	0x8b
+#define	ED_TYPE98_UE2212	0x8c
 
 #define	ED_TYPE98(x)	(((x & 0xffff0000) >> 20) | ED_TYPE98_BASE)
 #define	ED_TYPE98SUB(x)	((x & 0xf0000) >> 16)
