@@ -600,21 +600,16 @@ void
 pmap_bootstrap()
 {
 	int i;
+	u_int32_t batl, batu;
 
 	/*
 	 * Initialize kernel pmap and hardware.
 	 */
 	kernel_pmap = &kernel_pmap_store;
 
-	{
-		int	batu, batl;
-
-		batu = 0x80001ffe;
-		batl = 0x80000012;
-
-		__asm ("mtdbatu 1,%0; mtdbatl 1,%1" :: "r" (batu), "r" (batl));
-	}
-
+	batu = BATU(0x80000000, BAT_BL_256M, BAT_Vs);
+	batl = BATL(0x80000000, BAT_M, BAT_PP_RW);
+	__asm ("mtdbatu 1,%0; mtdbatl 1,%1" :: "r" (batu), "r" (batl));
 
 #if NPMAPS >= KERNEL_SEGMENT / 16
 	usedsr[KERNEL_SEGMENT / 16 / (sizeof usedsr[0] * 8)]
