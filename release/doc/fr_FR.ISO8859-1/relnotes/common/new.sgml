@@ -2342,244 +2342,259 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     built-in pour améliorer son éfficience. &merged;</para>
 
     <para>&man.sh.1; n'implémente plus <command>printf</command> comme une 
-    built-in car elle a été considérée peu intéressante comparée
-    aux autres built-ins (cette fonctionnalité est toujours disponible
-    via l'executable &man.printf.1;).</para>
+    built-in car elle a été considérée peu intéressante 
+    comparée aux autres built-ins (cette fonctionnalité est toujours 
+    disponible via l'executable &man.printf.1;).</para>
 
-    <para>&man.sockstat.1; now has <option>-c</option> and
-    <option>-l</option> flags for listing connected and listening
-    sockets, respectively. &merged;</para>
+    <para>&man.sockstat.1; dispose de l'option <option>-c</option> et
+    <option>-l</option> permettant repectivement de lister les sockets 
+    connectées et à l'écoute. &merged;</para>
 
-    <para>&man.split.1; now has the ability to split a file longer
-    than 2GB. &merged;</para>
+    <para>&man.split.1; peut maintenant couper les fichiers de plus de 
+    2GB. &merged;</para>
 
-    <para>In preparation for meeting SUSv2/POSIX
-    <filename>&lt;sys/select.h&gt;</filename> requirements,
-    <literal>struct selinfo</literal> and related functions have been
-    moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
+    <para>Dans le but d'etre compatible SUSv2/POSIX pour   
+    <filename>&lt;sys/select.h&gt;</filename>,
+    <literal>struct selinfo</literal> et les fonctions associées 
+    ont été déplacées dans 
+    <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
 
-    <para>The &man.strnstr.3; and &man.strcasestr.3; variants of
-    &man.strstr.3; have been implemented. &merged;</para>
+    <para>Les variantes &man.strnstr.3; et &man.strcasestr.3; de
+    &man.strstr.3; ont été implémentées. &merged;</para>
 
-    <para>&man.stty.1; now has support for an
-    <literal>erase2</literal> control character, so that, for example,
-    both the <keycap>Delete</keycap> and <keycap>Backspace</keycap>
-    keys can be used to erase characters. &merged;</para>
+    <para>&man.stty.1; dispose d'un charactère de controle
+    <literal>erase2</literal>, donc, par exemple, les touches
+    <keycap>Delete</keycap> et <keycap>Backspace</keycap> peuvent
+    etre utilisés pour effacer des caractères. &merged;</para>
 
-    <para>&man.style.perl.7;, a style guide for Perl code in the &os;
-    base system, has been added. &merged;</para>
+    <para>&man.style.perl.7;, un guide de style pour les 
+    développeurs de code Perl dans le système de base de &os; a été
+    ajouté. &merged;</para>
 
-    <para>&man.su.1; now uses <application>PAM</application> for
-    authentication.</para>
+    <para>&man.su.1; peut maintenant utiliser l'authentification
+     <application>PAM</application>.</para>
 
-    <para>Boot-time &man.syscons.4; configuration was moved to a
-    machine-independent <filename>/etc/rc.syscons</filename>. &merged;</para>
+    <para>La configuration de démarragede &man.syscons.4; a été
+    déplacer dans le fichier, indépendant de l'architecture, 
+     <filename>/etc/rc.syscons</filename>. &merged;</para>
 
-    <para>&man.sysctl.8; now supports a <option>-N</option> option to
-    print out variable names only. &merged;</para>
+    <para>&man.sysctl.8; dispose de l'option <option>-N</option> 
+    pour afficher juste le nom des variables. &merged;</para>
 
-    <para>&man.sysctl.8; has replaced the <option>-A</option> and
-    <option>-X</option> options with <option>-ao</option> and
-    <option>-ax</option> respectively; the former options are now
-    deprecated.  The <option>-w</option> option is deprecated as well; it is
-    not needed to determine the user's intentions. &merged;</para>
+    <para>Les options <option>-A</option> et <option>-X</option> 
+    de &man.sysctl.8; ont été remplacées respectivement par
+    <option>-ao</option> et <option>-ax</option>; les anciennes options
+    sont maintenant dépréciées. L'option <option>-w</option>
+    est elle aussi dépréciée. &merged;</para>
 
-    <para>&man.sysctl.8; now supports a <option>-e</option> option to
-    separate variable names and values by <literal>=</literal> rather
-    than <literal>:</literal>.  This feature is useful for producing
-    output that can be fed back to &man.sysctl.8;. &merged;</para>
+    <para>&man.sysctl.8; dispose maintenant de l'option <option>-e</option>
+    pour séparer les noms des variables et leur valeur par
+    <literal>=</literal> plutot que <literal>:</literal>. Cette option
+    est très pratique pour renvoyer des valeurs à 
+    &man.sysctl.8;. &merged;</para>
 
-    <para>&man.sysinstall.8; now properly preserves
-    <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
+    <para>&man.sysinstall.8; préserve maintenant proprement
+    <filename>/etc/mail</filename> lors d'une mise à jour via
+    les binaires. &merged;</para>
 
-    <para>&man.sysinstall.8; now uses some more intuitive defaults
-    thanks to some new dialog support functions. &merged;</para>
+    <para>La taille par défaut de la partition principale dans 
+     &man.sysinstall.8; est maintenant de 100MB sur i386 et 120MB 
+     sur Alpha.</para>
 
-    <para>The default root partition in &man.sysinstall.8; is now
-    100MB on the i386 and 120MB on the Alpha.</para>
+    <para>&man.sysinstall.8; se trouve maintenant dans 
+    <filename>/usr/sbin</filename>, ce qui simplifie le processus 
+    d'installation. La page de manuel de &man.sysinstall.8; a été
+    installé de façon consistente.</para>
 
-    <para>&man.sysinstall.8; now lives in <filename>/usr/sbin</filename>,
-    which simplifies the installation process.  The &man.sysinstall.8;
-    manpage is also installed in a more consistent fashion now.</para>
+    <para>&man.sysinstall.8; peut maintenant charger des KLDs au
+    moment de l'installation. &merged;</para>
 
-    <para>&man.sysinstall.8; now has the ability to load KLDs as a
-    part of the installation. &merged;</para>
+    <para>Lors de l'installation, &man.sysinstall.8; charge 
+    automatiquement tous les gestionnaires de périphériques
+    du répertoire <filename>/stand/modules</filename>de la
+    disquette <literal>mfsroot</literal> ou du système de fichier
+    image. Il faut noter que les gestionnaires alors chargés 
+    n'apparaitront pas dans les messages de démarrage du noyau; 
+    l'écran de débogguage de &man.sysinstall.8;
+    fournira lui, plus d'informations. &merged;</para>
 
-    <para>When run from the installation media, &man.sysinstall.8;
-    will automatically load any device drivers found in the
-    <filename>/stand/modules</filename> directory of the
-    <literal>mfsroot</literal> floppy or filesystem image.  Note that
-    any drivers so loaded will not appear in the kernel's boot
-    messages; the &man.sysinstall.8; debugging screen will provide
-    additional information. &merged;</para>
+    <para>&man.sysinstall.8; active maintenant automatiquement les 
+    Soft Updates sur tous les systèmes de fichiers qu'il crée, 
+    excepté pour le système de fichiers racine. &merged;</para>
 
-    <para>&man.sysinstall.8; now enables Soft Updates by default on
-    all filesystems it creates, except for the root
-    filesystem. &merged;</para>
+    <para>&man.sysinstall.8; a reçu des mises à jour sur le mode
+    <quote>auto</quote> de partitionnement qui permet de donner des
+    valeurs plus raisonnables à la taille des partitions qu'il crée;
+    ces partitions automatiquement taillées peuvent ré-utiliser
+    l'espace qui devient disponible lorsque d'autres partitions sont 
+    effacées. &merged;</para>
 
-    <para>&man.sysinstall.8; has received updates for its
-    <quote>auto</quote> partitioning mode which provide more
-    reasonable defaults for the sizes of partitions that are created;
-    auto-sized partitions can now also recover the space that becomes
-    available when other partitions are deleted. &merged;</para>
+    <para>&man.syslogd.8; support l'option <option>-n</option>
+    pour désactiver les résolutions DNS lors de chaque
+    requete. &merged;</para>
 
-    <para>&man.syslogd.8; can take a <option>-n</option> option to
-    disable DNS queries for every request. &merged;</para>
+    <para>&man.syslogd.8; dispose maintenant d'un facilité
+     <literal>LOG_CONSOLE</literal> (désactivée par défaut),
+     qui permet de logguer les messages de 
+     <filename>/dev/console</filename>. &merged;</para>
 
-    <para>&man.syslogd.8; now supports a <literal>LOG_CONSOLE</literal>
-    facility (disabled by
-    default), which can be used to log <filename>/dev/console</filename> 
-    output. &merged;</para>
+    <para>&man.syslogd.8; dispose de la possibilité de s'attacher
+    sur une adresse spécifique (plutot que d'utiliser toutes celles
+    disponibles) grace à l'option <option>-b</option>. &merged;</para>
 
-    <para>&man.syslogd.8; now has the ability to bind to a specific
-    address (as opposed to using every available one) via the
-    <option>-b</option> option. &merged;</para>
+    <para>&man.syslogd.8; dispose de l'option <option>-c</option> pour 
+    désactiver la compression des lignes répétitives. &merged;</para>
 
-    <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
-    disable repeated line compression. &merged;</para>
+    <para>&man.tail.1; peut utiliser les fichiers de plus de 
+    2GB. &merged;</para>
 
-    <para>&man.tail.1; now has the ability to work on files longer
-    than 2GB. &merged;</para>
-
-    <para>&man.tar.1; now supports the <varname>TAR_RSH</varname>
-    variable, principally to enable the use of &man.ssh.1; as a
+    <para>&man.tar.1; peut utiliser la variable <varname>TAR_RSH</varname>
+    principalement pour tuiliser &man.ssh.1; comme 
     transport. &merged;</para>
 
-    <para>&man.telnet.1; now does autologin and encryption by default;
-    a new <option>-y</option> option turns off encryption.</para>
+    <para>&man.telnet.1; supporte l'autologin et le cryptage
+    par défaut; une nouvelle option, <option>-y</option>, 
+    désactive ce cryptage.</para>
 
-    <para>&man.telnet.1; now supports a <option>-u</option> flag to
-    allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
-    sockets. &merged;</para>
+    <para>&man.telnet.1; dispose de l'option de ligne de commande
+    <option>-u</option> pour autoriser les connexions depuis les
+    sockets de domaine UNIX (<literal>AF_UNIX</literal>). &merged;</para>
 
-    <para>&man.tftpd.8; now takes the <option>-c</option> and
-    <option>-C</option> options, which allow the server to
-    &man.chroot.2; based on the IP address of the connecting client.
-    &man.tftp.1; and &man.tftpd.8; can now transfer files larger than
-    65535 blocks. &merged;</para>
+    <para>&man.tftpd.8; dispose des options <option>-c</option> et
+    <option>-C</option> permettant de &man.chroot.2;er le serveur
+    an fonction de l'adresse IP du client se connectant.
+    &man.tftp.1; et &man.tftpd.8; peut maintenant transféer des
+     fichiers plus gros que 65535 blocks. &merged;</para>
 
-    <para>&man.tftpd.8; now supports RFC 2349 (TFTP Timeout Interval
-    and Transfer Size Options); this feature is required by some
-    firmware like EFI boot managers (at least on HP i2000 Itanium
-    servers) in order to boot an image using
-    <application>TFTP</application>.</para>
+    <para>&man.tftpd.8; supporte maintenant le RFC 2349 (TFTP Timeout Interval
+    and Transfer Size Options); cette fonctionnalité est nécessaire pour 
+    certains firmware de gestionnaire de démarrage EFI (les serveurs
+    HP i2000 Itanium le nécessite) pour démarrer sur une image de
+    démarrage en utilisant <application>TFTP</application>.</para>
 
-    <para arch="alpha">&man.timed.8; now works on the alpha.</para>
+    <para arch="alpha">&man.timed.8; fonctionnent maintenant sur alpha.</para>
 
-    <para>A version of Transport Independent RPC
-    (<application>TI-RPC</application>) has been imported.</para>
+    <para>Une version de  Transport Independent RPC
+    (<application>TI-RPC</application>) a été importée.</para>
 
-    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
-    environment variable, if set, to specify the location of temporary
-    files. &merged;</para>
+    <para>&man.tmpnam.3; utilise maintenant la variable d'environnement
+     <envar>TMPDIR</envar>, si elle est positionnée, pour spécifié
+     l'emplacement des fichiers temporaires. &merged;</para>
 
-    <para>&man.tip.1; has been updated from
-    <application>OpenBSD</application>, and has the ability to act as
-    a &man.cu.1; substitute.</para>
+    <para>&man.tip.1; a été mis à jour depuis
+    <application>OpenBSD</application>, et dispose de la possibilité 
+    d'etre utilisé comme &man.cu.1;.</para>
 
-    <para>&man.top.1; will now use the full width of its tty.</para>
+    <para>&man.top.1; utilise maintenant la totalité de la largeur du 
+    tty.</para>
 
-    <para>&man.touch.1; now takes a <option>-h</option> option to
-    operate on a symbolic link, rather than what the link points
-    to.</para>
+    <para>&man.touch.1; dispose maintenant de l'option <option>-h</option> 
+    lui permettant d'utiliser les liens symboliques.</para>
 
-    <para>The &man.truncate.1; utility, which truncates or extends the length
-    of files, has been added. &merged;</para>
+    <para>L'utilitaire &man.truncate.1;, permettant de réduire ou 
+    d'augmenter la taille d'un fichier, a été ajouté. &merged;</para>
 
-    <para>Ukrainian language support has been added to the &os;
-    console. &merged;</para>
+    <para>Le support Ukrainian a été ajouté à la console
+     &os;. &merged;</para>
 
-    <para><application>UUCP</application> has been removed from the
-    base system.  It can be found in
-    the Ports Collection, in <filename role="package">net/freebsd-uucp</filename>.</para>
+    <para><application>UUCP</application> a été retiré du système
+    de base. Il se trouve maintenant dans la collection des Ports, 
+    dans <filename role="package">net/freebsd-uucp</filename>.</para>
 
-    <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
+    <para>&man.units.1; a reçu différentes corrections de bogues 
+    et mise à jour. &merged;</para>
 
-    <para>&man.usbdevs.8; now supports a <option>-d</option> flag to
-    show the device driver associated with each device.</para>
+    <para>&man.usbdevs.8; dispose de l'option de ligne de commande
+     <option>-d</option> pour afficher le gestionnaire de périphérique 
+     associé avec chaque périphérique.</para>
 
-    <para>&man.uudecode.1; now accepts a <option>-o</option> option to
-    set its output file.</para>
+    <para>&man.uudecode.1; dispose de l'option <option>-o</option> permettant
+    de définir le fichier de sortie.</para>
 
-    <para>&man.vidcontrol.1; now accepts a <option>-g</option>
-    parameter to select custom text geometry in the
-    <literal>VESA_800x600</literal> raster text mode. &merged;</para>
+    <para>&man.vidcontrol.1; dispose du paramètre <option>-g</option>
+    permettant de selectionnerune géométrie personnelle de text dans le
+    mode texte <literal>VESA_800x600</literal>. &merged;</para>
 
-    <para>&man.vidcontrol.1; now allows the user to omit the font size
-    specification when loading a font, and has some better
-    error-handling. &merged;</para>
+    <para>&man.vidcontrol.1;  permet maintenant à l'utilisateur
+    d'oublier de spécifier la taille des fontes lors de leur chargement,
+    et il dispose aussi d'une meilleur gestion des erreurs. &merged;</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
-    take a snapshot of a &man.syscons.4; video buffer.  These
-    snapshots can be manipulated by the
-    <filename role="package">graphics/scr2png</filename> utility in the Ports
-    Collection. &merged;</para>
+    <para>&man.vidcontrol.1; dispose de l'option <option>-p</option>
+    permettant d'obtenir une copie du tampon vidéo de &man.syscons.4;.
+    Ces copies peuvent ensuite etre utilisées avec l'utilitaire 
+    <filename role="package">graphics/scr2png</filename> de la collection
+    des Ports. &merged;</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-C</option> option
-    to clear the history buffer for a given tty, as well as a
-    <option>-h</option> option to set the size of the history buffer. &merged;</para>
+    <para>&man.vidcontrol.1; dispose maintenant de l'option
+     <option>-C</option> permettant de nettoyer l'historique du tampon pour
+     un tty, et de l'option <option>-h</option> pour affecter la taille
+     de l'historique du tampon. &merged;</para>
 
     <para>The default stripe size in &man.vinum.8; has been changed
     from 256KB to 279KB, to spread out superblocks more evenly between
     stripes.</para>
 
-    <para>&man.wall.1; now supports a <option>-g</option> flag to
-    write a message to all users of a given group. &merged;</para>
+    <para>&man.wall.1; supporte maintenant de l'option de ligne de commande
+     <option>-g</option>  permttant d'écrire un message a tous les 
+     utilisateurs d'un groupe donné. &merged;</para>
 
-    <para>&man.watch.8; now takes a <option>-f</option> option to
-    specify a &man.snp.4; device to use.</para>
+    <para>&man.watch.8; dispose de l'option <option>-f</option> permettant
+    de spécifier le périphérique &man.snp.4; à utiliser.</para>
 
-    <para>&man.which.1; is now a C program, rather than a Perl
-    script.</para>
+    <para>&man.which.1; est maintenant un programme C plutot qu'un script
+    Perl.</para>
 
-    <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN.  If a query to ARIN references APNIC or RIPE, the
-    appropriate server will also be queried, provided that the
-    <option>-Q</option> option is not specified. &merged;</para>
+    <para>&man.whois.1; interroge maintenant directement l'ARIN pour
+    les demandes d'adresses IP. Si la requète à l'ARIN
+    référence l'APNIC ou le RIPE, le serveur aproprié
+    est appelé, dans le cas ou l'option <option>-Q</option>
+    n'est pas spécifiée. &merged;</para>
 
-    <para>&man.whois.1; supports a <option>-c</option> option to
-    specify a country code to help direct queries towards a particular
-    whois server. &merged;</para>
-
-    <para>&man.xargs.1; now supports a <option>-J</option>
-    <replaceable>replstr</replaceable> option that allows the user to
-    tell &man.xargs.1; to insert the data read from standard input at
-    a specific point in the command line arguments rather than at the
-    end. &merged;</para>
-
-    <para>The compiler chain now uses the FSF-supplied C/C++ runtime
-    initialization code.  This change brings about better
-    compatibility with code generated from the various egcs and gcc
-    ports, as well as the stock public FSF source. &merged;</para>
-
-    <para>The threads library has gained some signal handling changes,
-    bug fixes, and performance enhancements (including zero system
-    call thread switching).  &man.gdb.1; thread support has been
-    updated to match these changes. &merged;</para>
-
-    <para>Significant additions have been made to internationalization
-    support; &os; now has complete locale support for the
-    <literal>LC_MONETARY</literal>, <literal>LC_NUMERIC</literal>, and
-    <literal>LC_MESSAGES</literal> categories.  A number of
-    applications have been updated to take advantage of this
-    support.</para>
-
-    <para>Locale names have been changed to improve compatibility with
-    the names used by X11R6, as well as a number of other UNIX
-    versions.  As an example, the <literal>en_US.ISO_8859-1</literal>
-    locale name has been changed to
-    <literal>en_US.ISO8859-1</literal>.  Entries in
-    <filename>/etc/locale.alias</filename> provide backward
-    compatibility. &merged;</para>
-
-    <para><filename>/usr/src/share/examples/BSD_daemon/</filename> now
-    contains a scalable Beastie graphic. &merged;</para>
-
-    <para>As part of an ongoing process, many manual pages were
-    improved, both in terms of their formatting markup and in their
-    content. &merged;</para>
+    <para>&man.whois.1; dispose de l'option <option>-c</option> 
+    permettant de spécifier le code pays dans le but
+    d'aider les requètes directes vers un serveur whois 
+    particulier. &merged;</para>
 
 
+    <para>&man.xargs.1; dispose de l'option <option>-I</option>
+      <replaceable>replstr</replaceable> permettant de demander à
+      l'utilisateur les données à insérées depuis
+      l'entrée standard à certains points, plutot que de prendre
+      ces données à la fin des arguments</para>
+
+    <para>La chaine de compilation utilise maintenant le code
+    d'initialisation fourni par le compilateur C/C++ de la FSF.
+    Ce changement permet d'obtenir une meilleur compatibilité avec
+    les différentes version de egcs et gcc des ports, comme
+    avec les sources publiques de la FSF. &merged;</para>
+
+    <para>La Libraire des threads a recu un certain nombre de mises
+    à jour dans la gestion des signaux, des corrections de bogues,
+    et des améliorations de la performance. Le support
+    des thread dans &man.gdb.1; a été mis à jour en 
+    conséquence. &merged;</para>
+
+    <para>Différents ajouts ont été effectués dans le support
+    international: &os; dispose maintenant d'un support total des 
+    catégories <literal>LC_MONETARY</literal>, 
+    <literal>LC_NUMERIC</literal>, et <literal>LC_MESSAGES</literal>.
+    Un certain nombre d'applications ont été mises à jour
+    pour supporter ces ajouts.</para>
+
+    <para>Les noms locaux ont été changés pour augementer la 
+    compatibilité avec les noms de X11R6, tout comme avec d'autres
+    version UNIX. Comme exemple le nom local 
+    <literal>en_US.ISO_8859-1</literal> a été changé en 
+    <literal>en_US.ISO8859-1</literal>.  Les valeurs
+    dans <filename>/etc/locale.alias</filename> permettent
+    la compatibilité descendante.&merged;</para>
+
+    <para><filename>/usr/src/share/examples/BSD_daemon/</filename> dispose
+    d'une version graphique de Beastie. &merged;</para>
+
+    <para>Parmi l'ensemble du processus, de nombreuses pages de manuel
+    ont été améliorées, que cela soit dans les termes ou dans
+    le formattage de leur contenu. &merged;</para>
 
 
     <sect3>
