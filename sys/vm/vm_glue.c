@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.55 1996/10/17 02:58:20 dyson Exp $
+ * $Id: vm_glue.c,v 1.55.2.1 1996/12/22 23:21:25 joerg Exp $
  */
 
 #include "opt_rlimit.h"
@@ -308,7 +308,6 @@ scheduler(dummy)
 	struct proc *pp;
 	int ppri;
 
-	spl0();
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;

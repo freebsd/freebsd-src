@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.1 1996/11/28 22:01:06 phk Exp $
+ * $Id: vfs_bio.c,v 1.104.2.2 1996/12/15 09:54:10 davidg Exp $
  */
 
 /*
@@ -1697,7 +1697,6 @@ int vfs_update_interval = 30;
 static void
 vfs_update()
 {
-	(void) spl0();		/* XXX redundant?  wrong place? */
 	while (1) {
 		tsleep(&vfs_update_wakeup, PUSER, "update",
 		    hz * vfs_update_interval);
