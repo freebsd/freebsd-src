@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.15 1996/03/10 23:25:17 peter Exp $
+ *  $Id: linux_misc.c,v 1.16 1996/03/12 06:20:14 peter Exp $
  */
 
 #include <sys/param.h>
@@ -165,8 +165,10 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     struct vnode *vp;
     struct exec *a_out;
     struct vattr attr;
-    unsigned long vmaddr, file_offset;
-    unsigned long buffer, bss_size;
+    vm_offset_t vmaddr;
+    unsigned long file_offset;
+    vm_offset_t buffer;
+    unsigned long bss_size;
     char *ptr;
     int error;
     caddr_t sg;

@@ -885,7 +885,7 @@ met_attach(pcici_t tag, int unit)
 
 	mtr = &meteor[unit];
 	mtr->tag = tag;
-	pci_map_mem(tag, PCI_MAP_REG_START, (u_long *)&mtr->base,
+	pci_map_mem(tag, PCI_MAP_REG_START, (vm_offset_t *)&mtr->base,
 				&mtr->phys_base);
 
 #ifdef METEOR_IRQ		/* from the configuration file */
