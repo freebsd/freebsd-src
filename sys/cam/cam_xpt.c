@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.28 1998/12/06 00:06:48 mjacob Exp $
+ *      $Id: cam_xpt.c,v 1.29 1998/12/10 04:05:49 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2663,6 +2663,8 @@ xpt_action(union ccb *start_ccb)
 		}
 		/* FALLTHROUGH */
 #endif
+	case XPT_ABORT:
+	case XPT_RESET_DEV:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_EN_LUN:
 	case XPT_IMMED_NOTIFY:
@@ -3069,8 +3071,6 @@ xpt_action(union ccb *start_ccb)
 		break;
 	default:
 	case XPT_SDEV_TYPE:
-	case XPT_ABORT:
-	case XPT_RESET_DEV:
 	case XPT_TERM_IO:
 	case XPT_ENG_INQ:
 		/* XXX Implement */
@@ -4090,7 +4090,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 	 * the CCB.  See ahc_action/ahc_freeze_devq for
 	 * an example.
 	 */
-	ccbh = TAILQ_LAST(&path->device->ccbq.active_ccbs, ccb_hdr_list);
+	ccbh = TAILQ_LAST(&path->device->ccbq.active_ccbs, ccb_hdr_tailq);
 	if (ccbh && ccbh->status == CAM_REQ_INPROG)
 		ccbh->status = CAM_REQUEUE_REQ;
 	splx(s);
@@ -4105,7 +4105,7 @@ xpt_freeze_simq(struct cam_sim *sim, u_int count)
 		struct ccb_hdr *ccbh;
 		
 		ccbh = TAILQ_LAST(&sim->devq->active_dev->ccbq.active_ccbs,
-				  ccb_hdr_list);
+				  ccb_hdr_tailq);
 		if (ccbh && ccbh->status == CAM_REQ_INPROG)
 			ccbh->status = CAM_REQUEUE_REQ;
 	}
