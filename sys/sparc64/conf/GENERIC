@@ -96,6 +96,7 @@ device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		esp		# NCR53c9x (FEPS/FAS366)
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
