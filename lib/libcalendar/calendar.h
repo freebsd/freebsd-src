@@ -23,20 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: calendar.h,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
+ *	$Id: calendar.h,v 1.2 1997/12/07 19:04:11 helbig Exp $
  */
-typedef struct date {
+struct date {
 	int y;	/* year */
 	int m;	/* month */
 	int d;	/* day */
-} date;
+};
 
-date    *easterg(int _year, date *_dt);
-date    *easterog(int _year, date *_dt);
-date    *easteroj(int _year, date *_dt);
-date	*gdate(int _nd,  date *_dt);
-date	*jdate(int _nd, date *_dt);
-int	 ndaysg(date *_dt);
-int	 ndaysj(date *_dt);
-int	 week(int _nd, int *_year);
-int	 weekday(int _nd);
+struct date	*easterg(int _year, struct date *_dt);
+struct date	*easterog(int _year, struct date *_dt);
+struct date	*easteroj(int _year, struct date *_dt);
+struct date	*gdate(int _nd, struct date *_dt);
+struct date	*jdate(int _nd, struct date *_dt);
+int		 ndaysg(struct date *_dt);
+int		 ndaysj(struct date *_dt);
+int		 week(int _nd, int *_year);
+int		 weekday(int _nd);
