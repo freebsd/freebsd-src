@@ -374,12 +374,13 @@ trap(int vector, int imm, struct trapframe *framep)
 		 * address against the address accessed by
 		 * [fs]uswintr, in case another fault happens
 		 * when they are running.
-			 */
+		 */
 		if (!user &&
 		    td != NULL &&
 		    td->td_pcb->pcb_onfault == (unsigned long)fswintrberr &&
 		    td->td_pcb->pcb_accessaddr == va) {
 			framep->tf_cr_iip = td->td_pcb->pcb_onfault;
+			framep->tf_cr_ipsr &= ~IA64_PSR_RI;
 			td->td_pcb->pcb_onfault = 0;
 			goto out;
 		}
@@ -487,6 +488,18 @@ trap(int vector, int imm, struct trapframe *framep)
 		if (rv == KERN_SUCCESS)
 			goto out;
 
+		if (!user) {
+			/* Check for copyin/copyout fault */
+			if (td != NULL &&
+			    td->td_pcb->pcb_onfault != 0) {
+				framep->tf_cr_iip =
+					td->td_pcb->pcb_onfault;
+				framep->tf_cr_ipsr &= ~IA64_PSR_RI;
+				td->td_pcb->pcb_onfault = 0;
+				goto out;
+			}
+			goto dopanic;
+		}
 		ucode = va;
 		i = SIGSEGV;
 		break;
