@@ -58,11 +58,9 @@
 
 #include <net/if.h>
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
 #define TELES_S08_MEMSIZE 0x1000

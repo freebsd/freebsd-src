@@ -51,19 +51,15 @@
 
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
-#include <i4b/layer1/isic/i4b_isac.h>
-#include <i4b/layer1/isic/i4b_hscx.h>
 #include <i4b/layer1/isic/i4b_ipac.h>
 
 #define MEM0_MAPOFF	0

@@ -39,7 +39,6 @@
 #include <sys/systm.h>
 
 
-#include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
 
