@@ -1504,7 +1504,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Davicom DM9100 and DM9102 PCI Fast Ethernet NICs (&man.dc.4; driver)
+    <para arch="i386,alpha">Davicom DM9009, DM9100 and DM9102 PCI Fast Ethernet NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Jaton Corporation XpressNet</para>
