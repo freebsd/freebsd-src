@@ -806,6 +806,7 @@ shmfork_myhook(p1, p2)
 	size_t size;
 	int i;
 
+	mtx_lock(&Giant);
 	size = shminfo.shmseg * sizeof(struct shmmap_state);
 	shmmap_s = malloc(size, M_SHM, M_WAITOK);
 	bcopy(p1->p_vmspace->vm_shm, shmmap_s, size);
@@ -813,6 +814,7 @@ shmfork_myhook(p1, p2)
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
 			shmsegs[IPCID_TO_IX(shmmap_s->shmid)].shm_nattch++;
+	mtx_unlock(&Giant);
 }
 
 static void
