@@ -30,7 +30,8 @@ MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 style.9 suser.9 swi.9 \
 	sx.9 time.9 timeout.9 tvtohz.9 \
 	uio.9 \
-	vcount.9 vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
+	vcount.9 vfs_busy.9 vfs_mount.9 vfs_unbusy.9 \
+	vget.9 vinvalbuf.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
 
 MAN+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	device_find_child.9 device_get_children.9 \
