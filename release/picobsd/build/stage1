@@ -221,7 +221,7 @@ cp /boot/loader .
 if [ ! -f /usr/lib/aout/kzhead.o ] ; then
 	(cd ${SRC}/sys/i386/boot/kzipboot && make all install clean)
 fi
-kzip -v loader
+/usr/bin/kzip -v loader
 mv loader.kz /mnt/boot/loader
 rm -f loader loader.o
 # XXX is next line ok ?
