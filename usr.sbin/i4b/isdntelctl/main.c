@@ -27,7 +27,7 @@
  *	isdntelctl - i4b set telephone interface options
  *	------------------------------------------------
  *
- *	$Id: main.c,v 1.3 1999/05/20 10:14:04 hm Exp $
+ *	$Id: main.c,v 1.4 1999/05/23 23:24:19 imp Exp $
  *
  *      last edit-date: [Mon Apr 26 14:07:06 1999]
  *
@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	int telfd;
 	char namebuffer[128];
 	
-	while ((c = getopt(argc, argv, "cgu:AUN?")) != -1)
+	while ((c = getopt(argc, argv, "cgu:AUN")) != -1)
 	{
 		switch(c)
 		{

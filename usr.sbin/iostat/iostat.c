@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iostat.c,v 1.11 1998/09/16 23:14:47 ken Exp $
+ *	$Id: iostat.c,v 1.12 1998/09/20 00:11:14 ken Exp $
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat
@@ -185,7 +185,7 @@ main(int argc, char **argv)
 	matches = NULL;
 	maxshowdevs = 3;
 
-	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:")) != -1) {
 		switch(c) {
 			case 'c':
 				cflag++;
