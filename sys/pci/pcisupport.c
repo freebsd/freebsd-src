@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.106 1999/05/08 21:30:38 peter Exp $
+**  $Id: pcisupport.c,v 1.107 1999/05/08 21:59:41 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1209,14 +1209,11 @@ DRIVER_MODULE(chip, pci, chip_driver, chip_devclass, 0, 0);
 
 static const char* vga_match(device_t dev)
 {
-	/* int data = pci_conf_read(tag, PCI_CLASS_REG); */
 	u_int id = pci_get_devid(dev);
 	const char *vendor, *chip, *type;
 
-	return 0;		/* XXX interferes with syscons */
-
 	vendor = chip = type = 0;
-	switch (id) {
+	switch (id & 0xffff) {
 	case 0x10c8:
 		vendor = "NeoMagic";
 		switch (id >> 16) {
@@ -1435,9 +1432,8 @@ static const char* vga_match(device_t dev)
 		char *buf;
 		int len;
 
-		if (type == 0) {
+		if (type == 0)
 			type = "SVGA controller";
-		}
 
 		len = strlen(vendor) + strlen(chip) + strlen(type) + 4;
 		MALLOC(buf, char *, len, M_TEMP, M_NOWAIT);
@@ -1457,14 +1453,13 @@ static const char* vga_match(device_t dev)
 
 	case PCIC_DISPLAY:
 		if (type == 0) {
-			if (pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
+			if (pci_get_subclass(dev) == PCIS_DISPLAY_VGA)
 				type = "VGA-compatible display device";
 			else {
 				/*
 				 * If it isn't a vga display device,
 				 * don't pretend we found one.
 				 */
-				type = "Display device";
 				return 0;
 			}
 		}
@@ -1533,7 +1528,7 @@ static device_method_t vga_methods[] = {
 };
 
 static driver_t vga_driver = {
-	"vga",
+	"vga-pci",
 	vga_methods,
 	1,
 };
