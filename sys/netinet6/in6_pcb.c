@@ -979,7 +979,6 @@ in6_losing(in6p)
 	struct rt_addrinfo info;
 
 	if ((rt = in6p->in6p_route.ro_rt) != NULL) {
-		in6p->in6p_route.ro_rt = 0;
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_info[RTAX_DST] =
 			(struct sockaddr *)&in6p->in6p_route.ro_dst;
@@ -990,12 +989,12 @@ in6_losing(in6p)
 			(void)rtrequest(RTM_DELETE, rt_key(rt),
 					rt->rt_gateway, rt_mask(rt), rt->rt_flags,
 					(struct rtentry **)0);
-		else
+		in6p->in6p_route.ro_rt = NULL;
+		rtfree(rt);
 		/*
 		 * A new route can be allocated
 		 * the next time output is attempted.
 		 */
-			rtfree(rt);
 	}
 }
 
