@@ -346,6 +346,8 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
+	pp->flags =
+		LIST_FIRST(&gp->consumer)->provider->flags & G_PF_CANDELETE;
 	if (bootverbose)
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,
