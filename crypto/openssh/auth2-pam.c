@@ -1,5 +1,5 @@
 #include "includes.h"
-RCSID("$Id: auth2-pam.c,v 1.13 2002/06/26 13:58:00 djm Exp $");
+RCSID("$Id: auth2-pam.c,v 1.14 2002/06/28 16:48:12 mouring Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef USE_PAM
@@ -117,11 +117,11 @@ do_pam_conversation_kbd_int(int num_msg, const struct pam_message **msg,
 	while(context_pam2.finished == 0) {
 		done = 1;
 		dispatch_run(DISPATCH_BLOCK, &done, appdata_ptr);
-		if(context_pam2.finished == 0)
+		if (context_pam2.finished == 0)
 			debug("extra packet during conversation");
 	}
 
-	if(context_pam2.num_received == context_pam2.num_expected) {
+	if (context_pam2.num_received == context_pam2.num_expected) {
 		*resp = context_pam2.responses;
 		return PAM_SUCCESS;
 	} else
@@ -144,8 +144,8 @@ input_userauth_info_response_pam(int type, u_int32_t seqnr, void *ctxt)
 
 	if (nresp != context_pam2.num_expected)
 		fatal("%s: Received incorrect number of responses "
-		    "(expected %u, received %u)", __func__, nresp,
-		    context_pam2.num_expected);
+		    "(expected %d, received %u)", __func__, 
+		    context_pam2.num_expected, nresp);
 
 	if (nresp > 100)
 		fatal("%s: too many replies", __func__);
@@ -164,5 +164,4 @@ input_userauth_info_response_pam(int type, u_int32_t seqnr, void *ctxt)
 
 	packet_check_eom();
 }
-
 #endif

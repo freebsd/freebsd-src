@@ -1,5 +1,5 @@
-/*	$OpenBSD: sshlogin.h,v 1.3 2001/06/26 17:27:25 markus Exp $	*/
-/* $FreeBSD$ */
+/*	$OpenBSD: sshlogin.h,v 1.4 2002/08/29 15:57:25 stevesk Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

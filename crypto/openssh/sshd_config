@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.56 2002/06/20 23:37:12 markus Exp $
+#	$OpenBSD: sshd_config,v 1.59 2002/09/25 11:17:16 markus Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -82,6 +82,7 @@
 #KeepAlive yes
 #UseLogin no
 #UsePrivilegeSeparation yes
+#PermitUserEnvironment no
 #Compression yes
 
 #MaxStartups 10
