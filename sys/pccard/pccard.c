@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.69 1999/01/27 10:10:03 bde Exp $
+ *	$Id: pccard.c,v 1.70 1999/01/27 23:45:40 dillon Exp $
  */
 
 #include "opt_devfs.h"
@@ -1026,6 +1026,11 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		else
 			pccard_failure_beep();
 		return err;
+	case PIOCSBEEP:
+		if (pccard_beep_select(*(int *)data)) {
+			return EINVAL;
+		}
+		break;
 	}
 	return(0);
 }
