@@ -105,6 +105,11 @@ struct ncp_bursthdr {
 	u_short	bh_misfrags;		/* HL */
 } __attribute__((packed));
 
+struct ncp_conn;
+struct ncp_conn_args;
+struct ncp_rq;
+struct proc;
+struct ucred;
 
 int  ncp_request(struct ncp_conn *conn,struct ncp_rq *rqp);
 int  ncp_ncp_connect(struct ncp_conn *conn);

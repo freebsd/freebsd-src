@@ -70,6 +70,10 @@ struct ntvattr {
 #define va_a_iroot	va_d.iroot
 #define va_a_ialloc	va_d.ialloc
 
+struct componentname;
+struct fnode;
+struct uio;
+
 int ntfs_procfixups __P(( struct ntfsmount *, u_int32_t, caddr_t, size_t ));
 int ntfs_parserun __P(( cn_t *, cn_t *, u_int8_t *, u_long, u_long *));
 int ntfs_runtocn __P(( cn_t *, struct ntfsmount *, u_int8_t *, u_long, cn_t));

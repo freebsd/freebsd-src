@@ -105,6 +105,9 @@ struct ncp_open_info {
 
 extern int ncp_debuglevel;
 
+struct proc;
+struct ucred;
+
 int  ncp_init(void);
 void ncp_done(void);
 int  ncp_chkintr(struct ncp_conn *conn, struct proc *p);
