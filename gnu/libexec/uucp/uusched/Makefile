@@ -1,19 +1,18 @@
 # Makefile for uusched
-# $Id: Makefile,v 1.4 1995/01/24 17:32:09 jkh Exp $
+# $Id: Makefile,v 1.5 1995/01/24 17:49:41 jkh Exp $
 
 BINDIR=		$(bindir)
+CLEANFILES+=	$(ONESHPROG)
+ONESHPROG=	uusched
 
-PROG=	uusched
-SRCS=
-NOMAN=	yes
-NOOBJ=	yes
-STRIP=
+all: $(ONESHPROG)
 
-uusched:	uusched.in
+$(ONESHPROG): $(ONESHPROG).in Makefile
 	sed -e "s|@BINDIR@|$(bindir)|g" -e "s|@SBINDIR@|$(sbindir)|g" \
-		$(.CURDIR)/uusched.in > $(.TARGET)
+		$(.ALLSRC:N*Makefile) > $(.TARGET)
 
-depend:
-	@echo -n
+beforeinstall:
+	install -c -o $(BINOWN) -g $(BINGRP) -m $(BINMODE) \
+		$(ONESHPROG) $(DESTDIR)$(BINDIR)/$(ONESHPROG)
 
 .include <bsd.prog.mk>
