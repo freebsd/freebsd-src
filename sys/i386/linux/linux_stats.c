@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.8 1997/02/22 09:38:25 peter Exp $
+ *  $Id: linux_stats.c,v 1.9 1997/11/06 19:29:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -68,51 +68,56 @@ struct linux_newstat {
     unsigned long __unused5;
 };
 
-
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
-    struct linux_newstat tbuf;
+	struct linux_newstat tbuf;
 
-    tbuf.stat_dev = (buf->st_dev & 0xff) | ((buf->st_dev & 0xff00)<<10);
-    tbuf.stat_ino = buf->st_ino;
-    tbuf.stat_mode = buf->st_mode;
-    tbuf.stat_nlink = buf->st_nlink;
-    tbuf.stat_uid = buf->st_uid;
-    tbuf.stat_gid = buf->st_gid;
-    tbuf.stat_rdev = buf->st_rdev;
-    tbuf.stat_size = buf->st_size;
-    tbuf.stat_atime = buf->st_atime;
-    tbuf.stat_mtime = buf->st_mtime;
-    tbuf.stat_ctime = buf->st_ctime;
-    tbuf.stat_blksize = buf->st_blksize;
-    tbuf.stat_blocks = buf->st_blocks;
-    return copyout(&tbuf, ubuf, sizeof(tbuf));
+	tbuf.stat_dev = minor(buf->st_dev) | (major(buf->st_dev) << 8);
+	tbuf.stat_ino = buf->st_ino;
+	tbuf.stat_mode = buf->st_mode;
+	tbuf.stat_nlink = buf->st_nlink;
+	tbuf.stat_uid = buf->st_uid;
+	tbuf.stat_gid = buf->st_gid;
+	tbuf.stat_rdev = buf->st_rdev;
+	tbuf.stat_size = buf->st_size;
+	tbuf.stat_atime = buf->st_atime;
+	tbuf.stat_mtime = buf->st_mtime;
+	tbuf.stat_ctime = buf->st_ctime;
+	tbuf.stat_blksize = buf->st_blksize;
+	tbuf.stat_blocks = buf->st_blocks;
+
+	return copyout(&tbuf, ubuf, sizeof(tbuf));
 }
 
 int
 linux_newstat(struct proc *p, struct linux_newstat_args *args)
 {
-    struct stat buf;
-    struct nameidata nd;
-    int error;
-    caddr_t sg;
+	struct stat buf;
+	struct nameidata nd;
+	int error;
+	caddr_t sg;
 
-    sg = stackgap_init();
-    CHECKALTEXIST(p, &sg, args->path);
-  
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
 #ifdef DEBUG
-    printf("Linux-emul(%d): newstat(%s, *)\n", p->p_pid, args->path);
+	printf("Linux-emul(%ld): newstat(%s, *)\n", (long)p->p_pid,
+	       args->path);
 #endif
-    NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_USERSPACE, args->path, p);
-    error = namei(&nd);
-    if (!error) {
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	       args->path, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+
 	error = vn_stat(nd.ni_vp, &buf, p);
 	vput(nd.ni_vp);
-    }
-    if (!error) 
-	error = newstat_copyout(&buf, args->buf);
-    return error;
+	if (error)
+		return (error);
+
+	return (newstat_copyout(&buf, args->buf));
 }
 
 /*
@@ -124,8 +129,8 @@ linux_newlstat(p, uap)
 	struct linux_newlstat_args *uap;
 {
 	int error;
-	struct vnode *vp, *dvp;
-	struct stat sb, sb1;
+	struct vnode *vp;
+	struct stat sb;
 	struct nameidata nd;
 	caddr_t sg;
 
@@ -133,47 +138,23 @@ linux_newlstat(p, uap)
 	CHECKALTEXIST(p, &sg, uap->path);
   
 #ifdef DEBUG
-	printf("Linux-emul(%d): newlstat(%s, *)\n", p->p_pid, uap->path);
+	printf("Linux-emul(%ld): newlstat(%s, *)\n", (long)p->p_pid,
+	       uap->path);
 #endif
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
-	    uap->path, p);
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
+	       uap->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
-	/*
-	 * For symbolic links, always return the attributes of its
-	 * containing directory, except for mode, size, and links.
-	 */
+
 	vp = nd.ni_vp;
-	dvp = nd.ni_dvp;
-	if (vp->v_type != VLNK) {
-		if (dvp == vp)
-			vrele(dvp);
-		else
-			vput(dvp);
-		error = vn_stat(vp, &sb, p);
-		vput(vp);
-		if (error)
-			return (error);
-	} else {
-		error = vn_stat(dvp, &sb, p);
-		vput(dvp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		error = vn_stat(vp, &sb1, p);
-		vput(vp);
-		if (error)
-			return (error);
-		sb.st_mode &= ~S_IFDIR;
-		sb.st_mode |= S_IFLNK;
-		sb.st_nlink = sb1.st_nlink;
-		sb.st_size = sb1.st_size;
-		sb.st_blocks = sb1.st_blocks;
-	}
-	error = newstat_copyout(&sb, uap->buf);
-	return (error);
+	error = vn_stat(vp, &sb, p);
+	vput(vp);
+	if (error)
+		return (error);
+
+	return (newstat_copyout(&sb, uap->buf));
 }
 
 int
