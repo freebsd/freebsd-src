@@ -55,7 +55,8 @@ sdp_search(void *xss,
 
 	sdp_session_p			 ss = (sdp_session_p) xss;
 	uint8_t				*req = NULL, *rsp = NULL, *rsp_tmp = NULL;
-	int32_t				 type, len;
+	int32_t				 t, len;
+	uint16_t			 lo, hi;
 
 	if (ss == NULL)
 		return (-1);
@@ -66,11 +67,29 @@ sdp_search(void *xss,
 		return (-1);
 	}
 
-	/* Calculate length of the request */
 	req = ss->req;
-	plen = plen * (sizeof(pp[0]) + 1);
-	alen = alen * (sizeof(ap[0]) + 1);
 
+	/* Calculate ServiceSearchPattern length */
+	plen = plen * (sizeof(pp[0]) + 1);
+
+	/* Calculate AttributeIDList length */
+	for (len = 0, t = 0; t < alen; t ++) {
+		lo = (uint16_t) (ap[t] >> 16);
+		hi = (uint16_t) (ap[t]);
+
+		if (lo > hi) {
+			ss->error = EINVAL;
+			return (-1);
+		}
+
+		if (lo != hi)
+			len += (sizeof(ap[t]) + 1);
+		else
+			len += (sizeof(lo) + 1);
+	}
+	alen = len;
+
+	/* Calculate length of the request */
 	len =	plen + sizeof(uint8_t) + sizeof(uint16_t) +
 			/* ServiceSearchPattern */
 		sizeof(uint16_t) +
@@ -97,9 +116,21 @@ sdp_search(void *xss,
 	/* Put AttributeIDList */
 	SDP_PUT8(SDP_DATA_SEQ16, req);
 	SDP_PUT16(alen, req);
-	for (; alen > 0; ap ++, alen -= (sizeof(ap[0]) + 1)) {
-		SDP_PUT8(SDP_DATA_UINT32, req);
-		SDP_PUT32(*ap, req);
+	for (; alen > 0; ap ++) {
+		lo = (uint16_t) (*ap >> 16);
+		hi = (uint16_t) (*ap);
+
+		if (lo != hi) {
+			/* Put attribute range */
+			SDP_PUT8(SDP_DATA_UINT32, req);
+			SDP_PUT32(*ap, req);
+			alen -= (sizeof(ap[0]) + 1);
+		} else {
+			/* Put attribute */
+			SDP_PUT8(SDP_DATA_UINT16, req);
+			SDP_PUT16(lo, req);
+			alen -= (sizeof(lo) + 1);
+		}
 	}
 
 	/* Submit ServiceSearchAttributeRequest and wait for response */
@@ -241,8 +272,8 @@ sdp_search(void *xss,
 	rsp_tmp = ss->rsp;
 
 	/* Skip the first SEQ */
-	SDP_GET8(type, rsp_tmp);
-	switch (type) {
+	SDP_GET8(t, rsp_tmp);
+	switch (t) {
 	case SDP_DATA_SEQ8:
 		SDP_GET8(len, rsp_tmp);
 		break;
@@ -263,8 +294,8 @@ sdp_search(void *xss,
 
 	for (; rsp_tmp < rsp && vlen > 0; ) {
 		/* Get set of attributes for the next record */
-		SDP_GET8(type, rsp_tmp);
-		switch (type) {
+		SDP_GET8(t, rsp_tmp);
+		switch (t) {
 		case SDP_DATA_SEQ8:
 			SDP_GET8(len, rsp_tmp);
 			break;
@@ -286,8 +317,8 @@ sdp_search(void *xss,
 		/* Now rsp_tmp points to list of (attr,value) pairs */
 		for (; len > 0 && vlen > 0; vp ++, vlen --) {
 			/* Attribute */
-			SDP_GET8(type, rsp_tmp);
-			if (type != SDP_DATA_UINT16) {
+			SDP_GET8(t, rsp_tmp);
+			if (t != SDP_DATA_UINT16) {
 				ss->error = ENOATTR;
 				return (-1);
 			}
