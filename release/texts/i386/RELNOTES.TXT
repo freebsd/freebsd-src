@@ -560,7 +560,8 @@ the number of pathname matches it will return.  ftpd(8) now uses this
 feature (see security advisory FreeBSD-SA-01:33). [MERGED]
 
 Initial sequence numbers in TCP are more thoroughly randomized, using
-an algorithm obtained from OpenBSD. [MERGED]
+an algorithm obtained from OpenBSD (see security advisory
+FreeBSD-SA-01:39). [MERGED]
 
 
 1.3. USERLAND CHANGES
