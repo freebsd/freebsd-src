@@ -7,8 +7,8 @@ CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
 
 WARNS?=	2
 
-DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
-LDADD=	${LIBINSTALL} -lfetch -lmd
+DPADD=	${LIBINSTALL} ${LIBMD}
+LDADD=	${LIBINSTALL} -lmd
 
 .if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
 DPADD+=	${LIBSSL} ${LIBCRYPTO}
