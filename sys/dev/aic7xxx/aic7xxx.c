@@ -2655,12 +2655,22 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 		/* Stop the selection */
 		ahc_outb(ahc, SCSISEQ, 0);
 
+		/* No more pending messages */
 		ahc_clear_msg_state(ahc);
 
+		/*
+		 * Although the driver does not care about the
+		 * 'Selection in Progress' status bit, the busy
+		 * LED does.  SELINGO is only cleared by a sucessful
+		 * selection, so we must manually clear it to ensure
+		 * the LED turns off just incase no future successful
+		 * selections occur (e.g. no devices on the bus).
+		 */
+		ahc_outb(ahc, CLRSINT0, CLRSELINGO);
+
+		/* Clear interrupt state */
 		ahc_outb(ahc, CLRSINT1, CLRSELTIMEO|CLRBUSFREE);
-
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
-
 		restart_sequencer(ahc);
 	} else if (scb == NULL) {
 		printf("%s: ahc_intr - referenced scb not "
