@@ -78,4 +78,4 @@ int usb_ether_tx_list_init	(void *, struct ue_cdata *,
 void usb_ether_rx_list_free	(struct ue_cdata *);
 void usb_ether_tx_list_free	(struct ue_cdata *);
 
-#endif
+#endif /* _USB_ETHERSUBR_H_ */
