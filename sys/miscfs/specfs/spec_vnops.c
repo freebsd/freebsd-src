@@ -227,6 +227,7 @@ spec_open(ap)
 		error = (*dsw->d_open)(dev, ap->a_mode, S_IFBLK, p);
 		break;
 	default:
+		error = 0;
 		break;
 	}
 
@@ -903,8 +904,8 @@ spec_getpages(ap)
 		m = ap->a_m[ap->a_reqpage];
 #ifndef MAX_PERF
 		printf(
-	    "spec_getpages: I/O read failure: (error code=%d) bp %p vp %p\n",
-		    error, bp, bp->b_vp);
+	    "spec_getpages:(%s) I/O read failure: (error=%d) bp %p vp %p\n",
+			devtoname(bp->b_dev), error, bp, bp->b_vp);
 		printf(
 	    "               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
 		    size, bp->b_resid, ap->a_count, m->valid);
