@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.16 1995/11/20 12:19:22 phk Exp $
+ * $Id: vm_pageout.h,v 1.17 1995/11/21 12:55:26 bde Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -91,38 +91,9 @@ extern int vm_pageout_pages_needed;
  *	Signal pageout-daemon and wait for it.
  */
 
-static void pagedaemon_wakeup __P((void));
-static inline void
-pagedaemon_wakeup()
-{
-	if (!vm_pages_needed && curproc != pageproc) {
-		vm_pages_needed++;
-		wakeup(&vm_pages_needed);
-	}
-}
-
+extern void pagedaemon_wakeup __P((void));
 #define VM_WAIT vm_wait()
-
-static void vm_wait __P((void));
-static inline void
-vm_wait()
-{
-	int s;
-
-	s = splhigh();
-	if (curproc == pageproc) {
-		vm_pageout_pages_needed = 1;
-		tsleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
-	} else {
-		if (!vm_pages_needed) {
-			vm_pages_needed++;
-			wakeup(&vm_pages_needed);
-		}
-		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
-	}
-	splx(s);
-}
-
+extern void vm_wait __P((void));
 
 #ifdef KERNEL
 void vm_pageout_page __P((vm_page_t, vm_object_t));
