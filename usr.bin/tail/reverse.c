@@ -110,13 +110,13 @@ reverse(fp, style, off, sbp)
 static void
 r_reg(fp, style, off, sbp)
 	FILE *fp;
-	register enum STYLE style;
+	enum STYLE style;
 	long off;
 	struct stat *sbp;
 {
-	register off_t size;
-	register int llen;
-	register char *p;
+	off_t size;
+	int llen;
+	char *p;
 	char *start;
 
 	if (!(size = sbp->st_size))
@@ -175,9 +175,9 @@ static void
 r_buf(fp)
 	FILE *fp;
 {
-	register BF *mark, *tl, *tr;
-	register int ch, len, llen;
-	register char *p;
+	BF *mark, *tl, *tr;
+	int ch, len, llen;
+	char *p;
 	off_t enomem;
 
 #define	BSZ	(128 * 1024)
