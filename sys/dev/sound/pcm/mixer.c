@@ -25,7 +25,6 @@
  */
 
 #include <dev/sound/pcm/sound.h>
-#include <sys/kernel.h>
 
 #include "mixer_if.h"
 
@@ -190,7 +189,6 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 {
 	struct snddev_info *snddev;
 	struct snd_mixer *m;
-	char devname[20];
 	u_int16_t v;
 	struct cdev *pdev;
 	int i, unit, val;
@@ -206,13 +204,14 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 		goto bad;
 
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
-		snprintf(devname, sizeof(devname), "%s.%s", device_get_nameunit(dev), snd_mixernames[i]);
-		TUNABLE_INT_FETCH(devname, &val);
-
-		if (val >= 0 && val <= 100)
-			v = (u_int16_t) val;
-		else
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), snd_mixernames[i], &val) == 0) {
+			if (val >= 0 && val <= 100) {
+				v = (u_int16_t) val;
+			}
+		} else {
 			v = snd_mixerdefaults[i];
+		}
 
 		mixer_set(m, i, v | (v << 8));
 	}
