@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.78 1996/09/07 21:27:24 bde Exp $
+**  $Id: ncr.c,v 1.79 1996/10/10 04:09:37 pst Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1193,12 +1193,12 @@ struct script {
 */
 
 #ifdef KERNEL
-static	void	ncr_alloc_ccb	(ncb_p np, struct scsi_xfer * xp);
+static	void	ncr_alloc_ccb	(ncb_p np, u_long target, u_long lun);
 static	void	ncr_complete	(ncb_p np, ccb_p cp);
 static	int	ncr_delta	(struct timeval * from, struct timeval * to);
 static	void	ncr_exception	(ncb_p np);
 static	void	ncr_free_ccb	(ncb_p np, ccb_p cp, int flags);
-static	void	ncr_getclock	(ncb_p np, u_char scntl3);
+static	void	ncr_getclock	(ncb_p np);
 static	ccb_p	ncr_get_ccb	(ncb_p np, u_long flags, u_long t,u_long l);
 static  u_int32_t ncr_info	(int unit);
 static	void	ncr_init	(ncb_p np, char * msg, u_long code);
@@ -1250,7 +1250,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.78 1996/09/07 21:27:24 bde Exp $\n";
+	"\n$Id: ncr.c,v 1.79 1996/10/10 04:09:37 pst Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -2643,7 +2643,7 @@ static	struct script script0 = {
 	**	- struct ccb
 	**	to understand what's going on.
 	*/
-	SCR_REG_SFBR (ssid, SCR_AND, 0x87),
+	SCR_REG_SFBR (ssid, SCR_AND, 0x8F),
 		0,
 	SCR_TO_REG (ctest0),
 		0,
@@ -3301,17 +3301,28 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	**	Do chip dependent initialization.
 	*/
 
+	np->maxwide = 0;
+	np->rv_scntl3 = 0x13;	/* default: 40MHz clock */
+
+	/*
+	**	Get the frequency of the chip's clock.
+	**	Find the right value for scntl3.
+	*/
+
 #ifdef __NetBSD__
 	switch (pa->pa_id) {
 #else /* !__NetBSD__ */
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 #endif /* __NetBSD__ */
 	case NCR_825_ID:
-	case NCR_875_ID:
 		np->maxwide = 1;
 		break;
-	default:
-		np->maxwide = 0;
+	case NCR_860_ID:
+		np->rv_scntl3 = 0x35;	/* always assume 80MHz clock for 860 */
+		break;
+	case NCR_875_ID:
+		np->maxwide = 1;
+		ncr_getclock(np);
 		break;
 	}
 
@@ -3344,13 +3355,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	np->myaddr = INB(nc_scid) & 0x07;
 	if (!np->myaddr) np->myaddr = SCSI_NCR_MYADDR;
-
-	/*
-	**	Get the value of the chip's clock.
-	**	Find the right value for scntl3.
-	*/
-
-	ncr_getclock (np, INB(nc_scntl3));
 
 	/*
 	**	Reset chip.
@@ -3601,10 +3605,25 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 		};
 	};
 
+	if ((unsigned)xp->datalen > 128*1024*1024) {
+		PRINT_ADDR(xp);
+		printf ("trying to transfer %8x bytes, mem addr = %8x\n", 
+			xp->datalen, xp->data);
+		{
+			int i;
+			PRINT_ADDR(xp);
+			printf ("command: %2x (", cmd->opcode);
+			for (i = 0; i<11; i++)
+				printf (" %2x", cmd->bytes[i]);
+			printf (")\n");
+		}
+	}
+
 	if (DEBUG_FLAGS & DEBUG_TINY) {
 		PRINT_ADDR(xp);
-		printf ("CMD=%x F=%x L=%x ", cmd->opcode,
-			(unsigned)xp->flags, (unsigned) xp->datalen);
+		printf ("CMD=%x F=%x A=%x L=%x ", 
+			cmd->opcode, (unsigned)xp->flags, 
+			(unsigned) xp->data, (unsigned) xp->datalen);
 	}
 
 	/*--------------------------------------------
@@ -4156,7 +4175,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		/*
 		**	Try to assign a ccb to this nexus
 		*/
-		ncr_alloc_ccb (np, xp);
+		ncr_alloc_ccb (np, xp->sc_link->target, xp->sc_link->lun);
 
 		/*
 		**	On inquire cmd (0x12) save some data.
@@ -4544,7 +4563,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 {
 	struct scsi_xfer *xp;
 	tcb_p tp;
-	u_char target = INB (nc_ctest0)&7;
+	u_char target = INB (nc_ctest0) & 0x0f;
 
 	assert (cp);
 	if (!cp) return;
@@ -4552,7 +4571,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	xp = cp->xfer;
 	assert (xp);
 	if (!xp) return;
-	assert (target == xp->sc_link->target & 7);
+	assert (target == (xp->sc_link->target & 0x0f));
 
 	tp = &np->target[target];
 	tp->period= sxfer&0xf ? ((sxfer>>5)+4) * np->ns_sync : 0xffff;
@@ -4601,7 +4620,7 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 static void ncr_setwide (ncb_p np, ccb_p cp, u_char wide)
 {
 	struct scsi_xfer *xp;
-	u_short target = INB (nc_ctest0)&7;
+	u_short target = INB (nc_ctest0) & 0x0f;
 	tcb_p tp;
 	u_char	scntl3 = np->rv_scntl3 | (wide ? EWS : 0);
 
@@ -4611,7 +4630,7 @@ static void ncr_setwide (ncb_p np, ccb_p cp, u_char wide)
 	xp = cp->xfer;
 	assert (xp);
 	if (!xp) return;
-	assert (target == xp->sc_link->target & 7);
+	assert (target == (xp->sc_link->target & 0x0f));
 
 	tp = &np->target[target];
 	tp->widedone  =  wide+1;
@@ -4826,6 +4845,7 @@ static void ncr_timeout (ncb_p np)
 			OUTB (nc_istat, SIGP);
 		};
 
+#ifdef undef
 		if (np->latetime>4) {
 			/*
 			**	Although we tried to wake it up,
@@ -4843,7 +4863,7 @@ static void ncr_timeout (ncb_p np)
 			ncr_init (np, "ncr dead ?", HS_TIMEOUT);
 			np->heartbeat = thistime;
 		};
-
+#endif
 		/*----------------------------------------------------
 		**
 		**	handle ccb timeouts
@@ -4933,13 +4953,14 @@ void ncr_exception (ncb_p np)
 	**	interrupt on the fly ?
 	*/
 	while ((istat = INB (nc_istat)) & INTF) {
-		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F");
+		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F ");
 		OUTB (nc_istat, INTF);
 		np->profile.num_fly++;
 		ncr_wakeup (np, 0);
 	};
-
-	if (!(istat & (SIP|DIP))) return;
+	if (!(istat & (SIP|DIP))) {
+		return;
+	}
 
 	/*
 	**	Steinbach's Guideline for Systems Programming:
@@ -5517,7 +5538,7 @@ void ncr_int_sir (ncb_p np)
 	u_char num = INB (nc_dsps);
 	ccb_p	cp=0;
 	u_long	dsa;
-	u_char	target = INB (nc_ctest0) & 7;
+	u_char	target = INB (nc_ctest0) & 0x0f;
 	tcb_p	tp     = &np->target[target];
 	int     i;
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
@@ -6177,20 +6198,13 @@ void ncr_free_ccb (ncb_p np, ccb_p cp, int flags)
 **==========================================================
 */
 
-static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
+static	void ncr_alloc_ccb (ncb_p np, u_long target, u_long lun)
 {
 	tcb_p tp;
 	lcb_p lp;
 	ccb_p cp;
 
-	u_long	target;
-	u_long	lun;
-
 	assert (np != NULL);
-	assert (xp != NULL);
-
-	target = xp->sc_link->target;
-	lun    = xp->sc_link->lun;
 
 	if (target>=MAX_TARGET) return;
 	if (lun   >=MAX_LUN   ) return;
@@ -6281,7 +6295,6 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 		return;
 
 	if (DEBUG_FLAGS & DEBUG_ALLOC) {
-		PRINT_ADDR(xp);
 		printf ("new ccb @%x.\n", (unsigned) cp);
 	}
 
@@ -6762,39 +6775,83 @@ static u_long ncr_lookup(char * id)
 #	define NCR_CLOCK 40
 #endif /* NCR_CLOCK */
 
-
-static void ncr_getclock (ncb_p np, u_char scntl3)
-{
-	u_char	tbl[6] = {6,2,3,4,6,8};
-	u_char	f;
-	u_char	ns_clock = (1000/NCR_CLOCK);
-
-	/*
-	**	Compute the best value for scntl3.
-	*/
 /*
-	f = (2 * MIN_SYNC_PD - 1) / ns_clock;
-	if (!f ) f=1;
-	if (f>4) f=4;
-	np -> ns_sync = (ns_clock * tbl[f]) / 2;
-	np -> rv_scntl3 = f<<4;
-
-	f = (2 * MIN_ASYNC_PD - 1) / ns_clock;
-	if (!f ) f=1;
-	if (f>4) f=4;
-	np -> ns_async = (ns_clock * tbl[f]) / 2;
-	np -> rv_scntl3 |= f;
-	if (DEBUG_FLAGS & DEBUG_TIMING)
-		printf ("%s: sclk=%d async=%d sync=%d (ns) scntl3=0x%x\n",
-		ncr_name (np), ns_clock, np->ns_async, np->ns_sync, np->rv_scntl3);
-*/
-
+ *	calculate NCR SCSI clock frequency (in KHz)
+ */
+static unsigned
+ncrgetfreq (ncb_p np, int gen)
+{
+	int ms = 0;
 	/*
-	 *	For now just preserve the BIOS setting ...
+	 * Measure GEN timer delay in order 
+	 * to calculate SCSI clock frequency
+	 *
+	 * This code will never execute too
+	 * many loop iterations (if DELAY is 
+	 * reasonably correct). It could get
+	 * too low a delay (too high a freq.)
+	 * if the CPU is slow executing the 
+	 * loop for some reason (an NMI, for
+	 * example). For this reason we will
+	 * if multiple measurements are to be 
+	 * performed trust the higher delay 
+	 * (lower frequency returned).
 	 */
+	OUTB (nc_stest1, 0);	/* make sure clock doubler is OFF	    */
+	OUTW (nc_sien , 0);	/* mask all scsi interrupts		    */
+	(void) INW (nc_sist);	/* clear pending scsi interrupt		    */
+	OUTB (nc_dien , 0);	/* mask all dma interrupts		    */
+	(void) INW (nc_sist);	/* another one, just to be sure :)	    */
+	OUTB (nc_scntl3, 4);	/* set pre-scaler to divide by 3	    */
+	OUTB (nc_stime1, 0);	/* disable general purpose timer	    */
+	OUTB (nc_stime1, gen);	/* set to nominal delay of (1<<gen) * 125us */
+	while (!(INW(nc_sist) & GEN) && ms++ < 1000)
+		DELAY(1000);	/* count ms				    */
+	OUTB (nc_stime1, 0);	/* disable general purpose timer	    */
+	OUTB (nc_scntl3, 0);
+	/*
+	 * Set prescaler to divide by whatever "0" means.
+	 * "0" ought to choose divide by 2, but appears
+	 * to set divide by 3.5 mode in my 53c810 ...
+	 */
+	OUTB (nc_scntl3, 0);
 
-	if ((scntl3 & 7) == 0) {
-		scntl3 = 3; /* assume 40MHz if no value supplied by BIOS */
+	if (bootverbose)
+	  	printf ("\tDelay (GEN=%d): %lu msec\n", gen, ms);
+	/*
+	 * adjust for prescaler, and convert into KHz 
+	 */
+	return ms ? ((1 << gen) * 4440) / ms : 0;
+}
+
+static void ncr_getclock (ncb_p np)
+{
+	unsigned char scntl3;
+	unsigned char stest1;
+	scntl3 = INB(nc_scntl3);
+	stest1 = INB(nc_stest1);
+	  
+	/* always false, except for 875 with clock doubler selected */
+	if ((stest1 & (DBLEN+DBLSEL)) == DBLEN+DBLSEL) {
+		OUTB(nc_stest1, 0);
+		scntl3 = 3;
+	} else {
+		if ((scntl3 & 7) == 0) {
+			unsigned f1, f2;
+			/* throw away first result */
+			(void) ncrgetfreq (np, 11);
+			f1 = ncrgetfreq (np, 11);
+			f2 = ncrgetfreq (np, 11);
+
+			if (bootverbose)
+			  printf ("\tNCR clock is %luKHz, %luKHz\n", f1, f2);
+			if (f1 > f2) f1 = f2;	/* trust lower result	*/
+			if (f1 > 45000) {
+				scntl3 = 5;	/* >45Mhz: assume 80MHz	*/
+			} else {
+				scntl3 = 3;	/* <45Mhz: assume 40MHz	*/
+			}
+		}
 	}
 
 	np->ns_sync   = 25;
@@ -6809,5 +6866,3 @@ static void ncr_getclock (ncb_p np, u_char scntl3)
 
 /*=========================================================================*/
 #endif /* KERNEL */
-
-
