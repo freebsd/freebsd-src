@@ -32,7 +32,7 @@
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2003
+.Dd July 18, 2003
 .Dt UMOUNT 8
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl fv
-.Ar special \&| node
+.Ar special | node | fsid
 .Nm
 .Fl a | A
 .Op Fl F Ar fstab
@@ -53,17 +53,15 @@ The
 .Nm
 utility calls the
 .Xr unmount 2
-system call to remove a
-.Ar "special device"
-or the remote node (rhost:path) from the file system tree at the point
-.Ar node .
-If either
+system call to remove a file system from the file system tree.
+The file system can be specified by its
 .Ar special
-or
+device or remote node (rhost:path), the path to the mount point
 .Ar node
-are not provided, the appropriate information is taken from the
-.Xr fstab 5
-file.
+or by the file system ID
+.Ar fsid
+as reported by
+.Dq mount -v .
 .Pp
 The options are as follows:
 .Bl -tag -width indent
