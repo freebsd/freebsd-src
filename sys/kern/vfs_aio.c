@@ -55,7 +55,6 @@
 static	long jobrefid;
 
 #define JOBST_NULL		0x0
-#define	JOBST_JOBQPROC		0x1
 #define JOBST_JOBQGLOBAL	0x2
 #define JOBST_JOBRUNNING	0x3
 #define JOBST_JOBFINISHED	0x4
@@ -153,7 +152,6 @@ struct aioproclist {
 	int aioprocflags;			/* AIO proc flags */
 	TAILQ_ENTRY(aioproclist) list;		/* List of processes */
 	struct proc *aioproc;			/* The AIO thread */
-	TAILQ_HEAD (,aiocblist) jobtorun;	/* suggested job to run */
 };
 
 /*
@@ -209,15 +207,15 @@ static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(void);
 static int	aio_aqueue(struct proc *p, struct aiocb *job, int type);
 static void	aio_physwakeup(struct buf *bp);
-static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
+static int	aio_fphysio(struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 static void	process_signal(void *aioj);
 
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
-static vm_zone_t kaio_zone = 0, aiop_zone = 0, aiocb_zone = 0, aiol_zone = 0;
-static vm_zone_t aiolio_zone = 0;
+static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone;
+static vm_zone_t aiolio_zone;
 
 /*
  * Startup initialization
@@ -282,7 +280,6 @@ int
 aio_free_entry(struct aiocblist *aiocbe)
 {
 	struct kaioinfo *ki;
-	struct aioproclist *aiop;
 	struct aio_liojob *lj;
 	struct proc *p;
 	int error;
@@ -342,16 +339,13 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	if (aiocbe->jobstate == JOBST_JOBQBUF) {
-		if ((error = aio_fphysio(p, aiocbe)) != 0)
+		if ((error = aio_fphysio(aiocbe)) != 0)
 			return error;
 		if (aiocbe->jobstate != JOBST_JOBBFINISHED)
 			panic("aio_free_entry: invalid physio finish-up state");
 		s = splbio();
 		TAILQ_REMOVE(&ki->kaio_bufdone, aiocbe, plist);
 		splx(s);
-	} else if (aiocbe->jobstate == JOBST_JOBQPROC) {
-		aiop = aiocbe->jobaioproc;
-		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
 	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
 		TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
@@ -526,12 +520,6 @@ aio_selectjob(struct aioproclist *aiop)
 	struct kaioinfo *ki;
 	struct proc *userp;
 
-	aiocbe = TAILQ_FIRST(&aiop->jobtorun);
-	if (aiocbe) {
-		TAILQ_REMOVE(&aiop->jobtorun, aiocbe, list);
-		return aiocbe;
-	}
-
 	s = splnet();
 	for (aiocbe = TAILQ_FIRST(&aio_jobs); aiocbe; aiocbe =
 	    TAILQ_NEXT(aiocbe, list)) {
@@ -666,7 +654,6 @@ aio_daemon(void *uproc)
 	aiop = zalloc(aiop_zone);
 	aiop->aioproc = mycp;
 	aiop->aioprocflags |= AIOP_FREE;
-	TAILQ_INIT(&aiop->jobtorun);
 
 	s = splnet();
 
@@ -901,8 +888,7 @@ aio_daemon(void *uproc)
 		if (((aiop->aioprocflags & AIOP_SCHED) == 0) && tsleep(mycp,
 		    PRIBIO, "aiordy", aiod_lifetime)) {
 			s = splnet();
-			if ((TAILQ_FIRST(&aio_jobs) == NULL) &&
-			    (TAILQ_FIRST(&aiop->jobtorun) == NULL)) {
+			if (TAILQ_EMPTY(&aio_jobs)) {
 				if ((aiop->aioprocflags & AIOP_FREE) &&
 				    (num_aio_procs > target_aio_procs)) {
 					TAILQ_REMOVE(&aio_freeproc, aiop, list);
@@ -1110,8 +1096,8 @@ doerror:
 /*
  * This waits/tests physio completion.
  */
-int
-aio_fphysio(struct proc *p, struct aiocblist *iocb)
+static int
+aio_fphysio(struct aiocblist *iocb)
 {
 	int s;
 	struct buf *bp;
