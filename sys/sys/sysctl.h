@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.18 1994/10/16 03:53:00 wollman Exp $
+ * $Id: sysctl.h,v 1.19 1994/11/14 13:59:09 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -133,7 +133,9 @@ struct ctlname {
 #define KERN_OSRELDATE		24	/* int: OS release date */
 #define KERN_NTP_PLL		25	/* node: NTP PLL control */
 #define	KERN_BOOTFILE		26	/* string: name of booted kernel */
-#define KERN_MAXID              27      /* number of valid kern ids */
+#define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
+#define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
+#define KERN_MAXID              29      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -163,6 +165,8 @@ struct ctlname {
 	{ "osreldate", CTLTYPE_INT }, \
         { "ntp_pll", CTLTYPE_NODE }, \
 	{ "bootfile", CTLTYPE_STRING }, \
+	{ "maxfilesperproc", CTLTYPE_INT }, \
+	{ "maxprocperuid", CTLTYPE_INT }, \
 }
 
 /*

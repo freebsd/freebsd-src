@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.6 1995/01/12 03:38:12 davidg Exp $
+ * $Id: param.c,v 1.7 1995/02/16 11:29:19 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -82,7 +82,9 @@ int	tickadj = 30000 / (60 * HZ);		/* can adjust 30ms in 60s */
 struct	timezone tz = { TIMEZONE, DST };
 #define	NPROC (20 + 16 * MAXUSERS)
 int	maxproc = NPROC;			/* maximum # of processes */
+int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = NPROC*2;			/* system wide open files limit */
+int	maxfilesperproc = NPROC*2;			/* system wide open files limit */
 int	ncallout = 16 + NPROC;			/* maximum # of timer events */
 int	nmbclusters = NMBCLUSTERS;
 int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */

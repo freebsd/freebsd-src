@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.6 1994/10/02 17:35:11 phk Exp $
+ * $Id: kern_descrip.c,v 1.7 1994/12/12 12:27:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ getdtablesize(p, uap, retval)
 	int *retval;
 {
 
-	*retval = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfiles);
+	*retval = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	return (0);
 }
 
@@ -103,7 +103,7 @@ dup2(p, uap, retval)
 	if (old >= fdp->fd_nfiles ||
 	    fdp->fd_ofiles[old] == NULL ||
 	    new >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
-	    new >= maxfiles)
+	    new >= maxfilesperproc)
 		return (EBADF);
 	if (old == new) {
 		*retval = new;
@@ -191,7 +191,7 @@ fcntl(p, uap, retval)
 	case F_DUPFD:
 		newmin = uap->arg;
 		if (newmin >= p->p_rlimit[RLIMIT_NOFILE].rlim_cur ||
-		    newmin >= maxfiles)
+		    newmin >= maxfilesperproc)
 			return (EINVAL);
 		if ((error = fdalloc(p, newmin, &i)))
 			return (error);
@@ -507,7 +507,7 @@ fdalloc(p, want, result)
 	 * of want or fd_freefile.  If that fails, consider
 	 * expanding the ofile array.
 	 */
-	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfiles);
+	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	for (;;) {
 		last = min(fdp->fd_nfiles, lim);
 		if ((i = want) < fdp->fd_freefile)
@@ -569,7 +569,7 @@ fdavail(p, n)
 	register struct file **fpp;
 	register int i, lim;
 
-	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfiles);
+	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
 	fpp = &fdp->fd_ofiles[fdp->fd_freefile];
