@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.11 1994/10/05 09:48:25 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.12 1994/10/08 22:33:43 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@
 #include <sys/sysctl.h>
 
 static int change_dir	__P((struct nameidata *ndp, struct proc *p));
-static int getvnode __P((struct filedesc *, int, struct file **));
+int getvnode __P((struct filedesc *, int, struct file **));
 
 /*
  * Virtual File System System Calls
