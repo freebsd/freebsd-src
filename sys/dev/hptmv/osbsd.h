@@ -116,7 +116,7 @@ typedef struct _READ_CAPACITY_DATA {
 #define PRD_TABLES_FOR_VBUS	(MV_SATA_CHANNELS_NUM*MV_EDMA_QUEUE_LENGTH)
 
 typedef enum _SataEvent {
-    SATA_EVENT_NO_CHANGE = 0,
+	SATA_EVENT_NO_CHANGE = 0,
 	SATA_EVENT_CHANNEL_CONNECTED,
 	SATA_EVENT_CHANNEL_DISCONNECTED
 } SATA_EVENT;
@@ -221,7 +221,6 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk);
 #define REBUILD_PARITY 2
 #define VERIFY         3
 
-extern char DRIVER_VERSION[];
 /**********************************************************/
 static __inline struct cam_periph *
 hpt_get_periph(int path_id,int target_id)

@@ -28,6 +28,19 @@
 #ifndef __INCmvOsBsdh
 #define __INCmvOsBsdh
 
+/* Taken out of the Makefile magic */
+#define __KERNEL__ 1
+#define KERNEL 1
+#define _KERNEL 1
+#define _FREEBSD_ 1
+
+/*
+ * This binary object core for this driver is only for x86, so this constant
+ * will not change.
+ */
+#define BITS_PER_LONG 32
+#define DRIVER_VERSION "1.1"
+
 #if DBG
 #define MV_DEBUG_LOG
 #endif
