@@ -325,6 +325,13 @@ struct {								\
 	    (var);							\
 	    (var) = LIST_NEXT((var), field))
 
+#define LIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = LIST_FIRST((head)),				\
+	    (var) != NULL ? (tvar) = LIST_NEXT((var), field) : NULL;	\
+	    (var) != NULL;						\
+	    (var) = (tvar),						\
+	    (var) != NULL ? (tvar) = LIST_NEXT((var), field) : NULL)
+
 #define	LIST_INIT(head) do {						\
 	LIST_FIRST((head)) = NULL;					\
 } while (0)
