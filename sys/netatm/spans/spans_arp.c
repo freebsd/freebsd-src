@@ -927,7 +927,8 @@ spansarp_ioctl(code, data, arg1)
 	struct ipvcc		*ivp, *inext;
 	struct in_addr		ip;
 	u_long			dst;
-	int			err = 0, i, buf_len;
+	int			err = 0, i;
+	size_t buf_len;
 	caddr_t			buf_addr;
 
 

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
  */
 static int	atm_physif_ioctl(int, caddr_t, caddr_t);
 static int	atm_if_ioctl(struct ifnet *, u_long, caddr_t);
-static int	atm_ifparse(char *, char *, int, int *);
+static int	atm_ifparse(const char *, char *, size_t, int *);
 
 /*
  * Local variables
@@ -304,7 +304,9 @@ atm_physif_ioctl(code, data, arg)
 	struct air_int_rsp	apr;
 	struct air_netif_rsp	anr;
 	struct air_cfg_rsp	acr;
-	int			count, len, buf_len = aip->air_buf_len;
+	u_int			count;
+	size_t			len;
+	size_t			buf_len = aip->air_buf_len;
 	int			err = 0;
 	char			ifname[2*IFNAMSIZ];
 	struct ifaddr		*ifa;
@@ -1020,14 +1022,12 @@ atm_if_ioctl(ifp, cmd, data)
  *
  */
 static int
-atm_ifparse(name, namep, size, unitp)
-	char		*name;
-	char		*namep;
-	int		size;
-	int		*unitp;
+atm_ifparse(const char *name, char *namep, size_t size, int *unitp)
 {
-	char		*cp, *np;
-	int		len = 0, unit = 0;
+	const char *cp;
+	char *np;
+	size_t len = 0;
+	int unit = 0;
 
 	/*
 	 * Separate supplied string into name and unit parts.
@@ -1135,4 +1135,3 @@ atm_nifname(name)
 	}
 	return (NULL);
 }
-

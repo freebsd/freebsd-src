@@ -382,7 +382,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 			 * Validate interface count - logical interfaces
 			 * are differentiated by the atm address selector.
 			 */
-			if ((asp->asr_nif_cnt <= 0) || (asp->asr_nif_cnt > 256))
+			if (asp->asr_nif_cnt == 0 || asp->asr_nif_cnt > 256)
 				ATM_RETERR(EINVAL);
 
 			/*
