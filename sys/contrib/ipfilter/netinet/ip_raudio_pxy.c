@@ -1,5 +1,5 @@
 /*
- * $Id: ip_raudio_pxy.c,v 1.7.2.2 2000/09/03 00:23:12 darrenr Exp $
+ * $Id: ip_raudio_pxy.c,v 1.7.2.3 2000/10/27 22:54:04 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -265,6 +265,7 @@ nat_t *nat;
 	tcp2->th_off = 5;
 	fi.fin_dp = (char *)tcp2;
 	fi.fin_fr = &raudiofr;
+	fi.fin_dlen = sizeof(*tcp2);
 	tcp2->th_win = htons(8192);
 	slen = ip->ip_len;
 	ip->ip_len = fin->fin_hlen + sizeof(*tcp);
