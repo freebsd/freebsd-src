@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.10 1995/05/30 05:45:58 rgrimes Exp $
+ *	$Id: ftpd.c,v 1.10.4.1 1995/08/26 00:53:52 davidg Exp $
  */
 
 #ifndef lint
@@ -579,6 +579,7 @@ pass(passwd)
 #endif
 		/* The strcmp does not catch null passwords! */
 		if (pw == NULL || *pw->pw_passwd == '\0' ||
+		    (pw->pw_expire && time(NULL) >= pw->pw_expire) ||
 		    strcmp(xpasswd, pw->pw_passwd)) {
 			reply(530, "Login incorrect.");
 			if (logging)
