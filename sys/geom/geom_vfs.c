@@ -66,7 +66,7 @@ g_vfs_done(struct bio *bip)
 	struct buf *bp;
 
 	if (bip->bio_error) {
-		printf("ffs_geom_done():");
+		printf("g_vfs_done():");
 		g_print_bio(bip);
 		printf("error = %d\n", bip->bio_error);
 	}
