@@ -527,7 +527,6 @@ pfsync_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		LIST_INIT(&pfsync_list);
 		if_clone_attach(&pfsync_cloner);
-		printf("pfsync: $Name:  $\n");
 		break;
 
 	case MOD_UNLOAD:
