@@ -74,6 +74,7 @@ printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
 	fprintf(f, "  Versionstring: %s", h->versionstring);
 	fprintf(f, "  Panicstring: %s\n", h->panicstring);
 	fprintf(f, "  MD5: %s\n", md5);
+	fflush(f);
 }
 
 
