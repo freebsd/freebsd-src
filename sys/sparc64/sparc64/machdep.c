@@ -282,6 +282,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
 	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
+	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	proc0.p_uarea = (struct user *)uarea0;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
@@ -418,7 +419,10 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/* NOTREACHED */
 	}
 
-	tf->tf_tpc = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	if (p->p_md.md_sigtramp != NULL)
+		tf->tf_tpc = (u_long)p->p_md.md_sigtramp;
+	else
+		tf->tf_tpc = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	tf->tf_tnpc = tf->tf_tpc + 4;
 	tf->tf_sp = (u_long)fp - SPOFF;
 
@@ -580,6 +584,7 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	u_long sp;
 
 	/* XXX no cpu_exec */
+	td->td_proc->p_md.md_sigtramp = NULL;
 	if ((ut = td->td_proc->p_md.md_utrap) != NULL) {
 		ut->ut_refcnt--;
 		if (ut->ut_refcnt == 0)

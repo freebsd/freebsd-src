@@ -77,6 +77,7 @@ cpu_exit(struct thread *td)
 	struct proc *p;
 
 	p = td->td_proc;
+	p->p_md.md_sigtramp = NULL;
 	if ((ut = p->p_md.md_utrap) != NULL) {
 		ut->ut_refcnt--;
 		if (ut->ut_refcnt == 0)
@@ -108,6 +109,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
+	p2->p_md.md_sigtramp = td1->td_proc->p_md.md_sigtramp;
 	if ((ut = td1->td_proc->p_md.md_utrap) != NULL)
 		ut->ut_refcnt++;
 	p2->p_md.md_utrap = ut;
