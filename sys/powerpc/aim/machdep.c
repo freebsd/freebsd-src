@@ -149,6 +149,8 @@ void		install_extint(void (*)(void));
 
 int             setfault(faultbuf);             /* defined in locore.S */
 
+void		asm_panic(char *);
+
 long		Maxmem = 0;
 
 struct pmap	ofw_pmap;
@@ -238,17 +240,6 @@ extern void	*tlbimiss, *tlbimsize;
 extern void	*tlbdlmiss, *tlbdlmsize;
 extern void	*tlbdsmiss, *tlbdsmsize;
 extern void     *extint, *extsize;
-
-#if 0 /* XXX: interrupt handler.  We'll get to this later */
-extern void	ext_intr(void);
-#endif
-
-#ifdef DDB
-extern		ddblow, ddbsize;
-#endif
-#ifdef IPKDB
-extern		ipkdblow, ipkdbsize;
-#endif
 
 void
 powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
@@ -784,3 +775,8 @@ casuptr(intptr_t *p, intptr_t old, intptr_t new)
 	return (-1);
 }
 
+void
+asm_panic(char *pstr)
+{
+	panic(pstr);
+}
