@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.51 1996/02/02 22:59:47 joerg Exp $
+ *      $Id: scsiconf.c,v 1.52 1996/02/03 13:31:11 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -308,7 +308,7 @@ static struct scsidevs knowndevs[] =
 		"cd", SC_MORE_LUS, CD_Q_NO_TOUCH
 	},
 	{
-		T_READONLY, T_READONLY, T_REMOV, "NRC", "MBR-7" ,"*",
+		T_READONLY, T_READONLY, T_REMOV, "NRC", "MBR-7*" ,"*",
 		"cd", SC_MORE_LUS
 	},
 	{
