@@ -208,18 +208,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
 
 	/*
-	 * Prevent race condition when allocating the object. This
-	 * can happen with NFS vnodes since the nfsnode isn't locked.
-	 */
-	VI_LOCK(vp);
-	while (vp->v_iflag & VI_OLOCK) {
-		vp->v_iflag |= VI_OWANT;
-		msleep(vp, VI_MTX(vp), PVM, "vnpobj", 0);
-	}
-	vp->v_iflag |= VI_OLOCK;
-	VI_UNLOCK(vp);
-
-	/*
 	 * If the object is being terminated, wait for it to
 	 * go away.
 	 */
@@ -250,11 +238,6 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	}
 	VI_LOCK(vp);
 	vp->v_usecount++;
-	vp->v_iflag &= ~VI_OLOCK;
-	if (vp->v_iflag & VI_OWANT) {
-		vp->v_iflag &= ~VI_OWANT;
-		wakeup(vp);
-	}
 	VI_UNLOCK(vp);
 	return (object);
 }

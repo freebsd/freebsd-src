@@ -232,8 +232,6 @@ struct xvnode {
  *	VI flags are protected by interlock and live in v_iflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  */
-#define	VI_OLOCK	0x0008	/* vnode is locked waiting for an object */
-#define	VI_OWANT	0x0010	/* a thread is waiting for VOLOCK */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
 #define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
