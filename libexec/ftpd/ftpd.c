@@ -139,12 +139,12 @@ int	stru;			/* avoid C keyword */
 int	mode;
 int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
-int	readonly=0;		/* Server is in readonly mode.	*/
-int	noepsv=0;		/* EPSV command is disabled.	*/
-int	noretr=0;		/* RETR command is disabled.	*/
-int	noguestretr=0;		/* RETR command is disabled for anon users. */
-int	noguestmkd=0;		/* MKD command is disabled for anon users. */
-int	noguestmod=1;		/* anon users may not modify existing files. */
+int	readonly = 0;		/* Server is in readonly mode.	*/
+int	noepsv = 0;		/* EPSV command is disabled.	*/
+int	noretr = 0;		/* RETR command is disabled.	*/
+int	noguestretr = 0;	/* RETR command is disabled for anon users. */
+int	noguestmkd = 0;		/* MKD command is disabled for anon users. */
+int	noguestmod = 1;		/* anon users may not modify existing files. */
 
 static volatile sig_atomic_t recvurg;
 sig_atomic_t transflag;
@@ -176,17 +176,17 @@ static struct ftphost {
 char	remotehost[MAXHOSTNAMELEN];
 char	*ident = NULL;
 
-static char ttyline[20];
-char	*tty = ttyline;		/* for klogin */
+static char	ttyline[20];
+char		*tty = ttyline;		/* for klogin */
 
 #ifdef USE_PAM
 static int	auth_pam(struct passwd**, const char*);
-pam_handle_t *pamh = NULL;
+pam_handle_t	*pamh = NULL;
 #endif
 
-static struct opie opiedata;
-static char opieprompt[OPIE_CHALLENGE_MAX+1];
-static int pwok;
+static struct opie	opiedata;
+static char		opieprompt[OPIE_CHALLENGE_MAX+1];
+static int		pwok;
 
 char	*pid_file = NULL;
 
@@ -222,7 +222,7 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 
 #ifdef VIRTUAL_HOSTING
 static void	 inithosts(void);
-static void	selecthost(union sockunion *);
+static void	 selecthost(union sockunion *);
 #endif
 static void	 ack(char *);
 static void	 sigurg(int);
