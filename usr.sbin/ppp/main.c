@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.88 1997/11/08 00:28:09 brian Exp $
+ * $Id: main.c,v 1.89 1997/11/09 06:22:43 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -540,9 +540,7 @@ ReadTty()
   char ch;
   static int ttystate;
   FILE *oVarTerm;
-
-#define MAXLINESIZE 200
-  char linebuff[MAXLINESIZE];
+  char linebuff[LINE_LEN];
 
   LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
 	    TermMode, netfd, mode);

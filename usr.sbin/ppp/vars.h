@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.30 1997/09/26 00:23:36 brian Exp $
+ * $Id: vars.h,v 1.31 1997/10/26 01:03:59 brian Exp $
  *
  *	TODO:
  */
@@ -76,8 +76,8 @@ struct pppvars {
   FILE *termfp;			/* The terminal */
 #define DIALUP_REQ	0x01
 #define DIALUP_DONE	0x02
-  char dial_script[200];	/* Dial script */
-  char login_script[200];	/* Login script */
+  char dial_script[SCRIPT_LEN];	/* Dial script */
+  char login_script[SCRIPT_LEN]; /* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
 #ifdef HAVE_DES
@@ -87,8 +87,8 @@ struct pppvars {
   char phone_copy[200];		/* copy for strsep() */
   char *next_phone;		/* Next phone from the list */
   char *alt_phone;		/* Next phone from the list */
-  char shostname[MAXHOSTNAMELEN];	/* Local short Host Name */
-  char hangup_script[200];	/* Hangup script before modem is closed */
+  char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
+  char hangup_script[SCRIPT_LEN]; /* Hangup script before modem is closed */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 

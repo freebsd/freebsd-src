@@ -1,5 +1,5 @@
 /*
- * $Id: loadalias.c,v 1.8 1997/10/26 01:03:01 brian Exp $
+ * $Id: loadalias.c,v 1.9 1997/11/09 06:22:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -18,6 +18,7 @@
 #include "log.h"
 #include "id.h"
 #include "loadalias.h"
+#include "defs.h"
 #include "vars.h"
 
 #define _PATH_ALIAS "/usr/lib/libalias.so." ## __libalias_version
