@@ -111,7 +111,7 @@ bdg_forward_t *bdg_forward_ptr;
 bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
-static u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
+static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
