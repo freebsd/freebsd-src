@@ -1000,11 +1000,18 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
 
+	/* Setup curproc so that mutexes work */
+	PCPU_SET(curproc, &proc0);
+
+	LIST_INIT(&proc0.p_heldmtx);
+	LIST_INIT(&proc0.p_contested);
+
 	/*
 	 * Initialise mutexes.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
+	mtx_enter(&Giant, MTX_DEF);
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
@@ -1230,13 +1237,15 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct proc *p = curproc;
 	osiginfo_t *sip, ksi;
 	struct trapframe *frame;
-	struct sigacts *psp = p->p_sigacts;
+	struct sigacts *psp;
 	int oonstack, fsize, rndfsize;
 
 	frame = p->p_md.md_tf;
 	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
+	PROC_LOCK(p);
+	psp = p->p_sigacts;
 
 	/*
 	 * Allocate and validate space for the signal handler
@@ -1254,6 +1263,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
+	PROC_UNLOCK(p);
 
 	(void)grow_stack(p, (u_long)sip);
 	if (!useracc((caddr_t)sip, fsize, VM_PROT_WRITE)) {
@@ -1261,10 +1271,12 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;	
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -1312,10 +1324,12 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
+	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig))
 		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
 	else
 		frame->tf_regs[FRAME_A1] = code;
+	PROC_UNLOCK(p);
 	frame->tf_regs[FRAME_A2] = (u_int64_t)&sip->si_sc;
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
 	alpha_pal_wrusp((unsigned long)sip);
@@ -1326,11 +1340,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct proc *p = curproc;
 	struct trapframe *frame;
-	struct sigacts *psp = p->p_sigacts;
+	struct sigacts *psp;
 	struct sigframe sf, *sfp;
 	int oonstack, rndfsize;
 
+	PROC_LOCK(p);
+	psp = p->p_sigacts;
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
+		PROC_UNLOCK(p);
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
@@ -1375,6 +1392,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
+	PROC_UNLOCK(p);
 
 	(void)grow_stack(p, (u_long)sfp);
 #ifdef DEBUG
@@ -1392,10 +1410,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
+		PROC_LOCK(p);
 		SIGACTION(p, SIGILL) = SIG_DFL;
 		SIGDELSET(p->p_sigignore, SIGILL);
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
+		PROC_UNLOCK(p);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -1429,6 +1449,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
+	PROC_LOCK(p);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
 
@@ -1439,6 +1460,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
+	PROC_UNLOCK(p);
 
 	frame->tf_regs[FRAME_A2] = (u_int64_t)&(sfp->sf_uc);
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
@@ -1486,6 +1508,7 @@ osigreturn(struct proc *p,
 	if (ksc.sc_regs[R_ZERO] != 0xACEDBADE)		/* magic number */
 		return (EINVAL);
 
+	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	/*
 	 * Restore the user-supplied information
@@ -1503,6 +1526,7 @@ osigreturn(struct proc *p,
 	 */
 	SIGSETOLD(p->p_sigmask, ksc.sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
 	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
@@ -1556,6 +1580,7 @@ sigreturn(struct proc *p,
 	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
+	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (uc.uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -1565,6 +1590,7 @@ sigreturn(struct proc *p,
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */
 	alpha_fpstate_drop(p);
@@ -2186,4 +2212,24 @@ alpha_fpstate_switch(struct proc *p)
 	}
 
 	p->p_md.md_flags |= MDP_FPUSED;
+}
+
+/*
+ * Initialise a struct globaldata.
+ */
+void
+globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
+{
+	bzero(globaldata, sz);
+	globaldata->gd_idlepcbphys = vtophys((vm_offset_t) &globaldata->gd_idlepcb);
+	globaldata->gd_idlepcb.apcb_ksp = (u_int64_t)
+		((caddr_t) globaldata + sz - sizeof(struct trapframe));
+	globaldata->gd_idlepcb.apcb_ptbr = proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr;
+	globaldata->gd_cpuid = cpuid;
+	globaldata->gd_next_asn = 0;
+	globaldata->gd_current_asngen = 1;
+#ifdef SMP
+	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuid);
+	globaldata_register(globaldata);
+#endif
 }
