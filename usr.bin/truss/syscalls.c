@@ -115,10 +115,12 @@ get_syscall(const char *name) {
 char *
 get_string(int procfd, void *offset, int max) {
 	char *buf;
-	int size, len, c;
+	int size, len, c, fd;
 	FILE *p;
 
-	if ((p = fdopen(procfd, "r")) == NULL)
+	if ((fd = dup(procfd)) == -1)
+		err(1, "dup");
+	if ((p = fdopen(fd, "r")) == NULL)
 		err(1, "fdopen");
 	buf = malloc( size = (max ? max : 64 ) );
 	len = 0;
@@ -130,15 +132,18 @@ get_string(int procfd, void *offset, int max) {
 			break;
 		}
 		if (len == size) {
-			char *tmp = buf;
+			char *tmp;
 			tmp = realloc(buf, size+64);
 			if (tmp == NULL) {
 				buf[len] = 0;
+				fclose(p);
 				return buf;
 			}
 			size += 64;
+			buf = tmp;
 		}
 	}
+	fclose(p);
 	return buf;
 }
 
