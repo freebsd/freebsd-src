@@ -2115,12 +2115,26 @@ amd_linkSRB(struct amd_softc *amd)
 {
 	u_int16_t  count, i;
 	struct amd_srb *psrb;
+	int error;
 
 	count = amd->SRBCount;
 
 	for (i = 0; i < count; i++) {
 		psrb = (struct amd_srb *)&amd->SRB_array[i];
 		psrb->TagNumber = i;
+
+		/*
+		 * Create the dmamap.  This is no longer optional!
+		 *
+		 * XXX Since there is no detach method in this driver,
+		 * this does not get freed!
+		 */
+		if ((error = bus_dmamap_create(amd->buffer_dmat, 0,
+					       &psrb->dmamap)) != 0) {
+			device_printf(amd->dev, "Error %d creating buffer "
+				      "dmamap!\n", error);
+			return;
+		}
 		TAILQ_INSERT_TAIL(&amd->free_srbs, psrb, links);
 	}
 }
