@@ -51,39 +51,30 @@
 
 #define DC390_DEBUG
 
-#include <stddef.h>
-
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/proc.h>
 
+/* XXX this doesn't actually compile unless KERNEL is defined. */
 #ifdef KERNEL
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
 
-#include <machine/clock.h>
-#include <machine/cpu.h> /* bootverbose */
-
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
+#include <vm/pmap.h>
 #endif /* KERNEL */
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #include <machine/clock.h>
 
-#include "pci/tek390.h"
+#include <pci/tek390.h>
 
 #define INT32	  int32
 #define U_INT32   u_int32
-#define TIMEOUT   (timeout_func_t)
 
 
 #define OutB(val, port) 		outb(port, val)
@@ -998,7 +989,7 @@ DC390_timeout( void *arg1)
 }
 
 
-#include "pci/scsiiom.c"
+#include <pci/scsiiom.c>
 
 
 /***********************************************************************
