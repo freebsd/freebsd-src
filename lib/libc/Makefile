@@ -10,6 +10,7 @@
 # system call stubs.
 LIB=c
 # If you bump SHLIB_MAJOR, remove kluge from gen/gethostname.c.
+# If you bump SHLIB_MAJOR, see standards/55112
 SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
 WARNS?=	1
