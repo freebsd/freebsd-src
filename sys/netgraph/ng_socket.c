@@ -108,6 +108,7 @@ static ng_constructor_t	ngs_constructor;
 static ng_rcvmsg_t	ngs_rcvmsg;
 static ng_shutdown_t	ngs_shutdown;
 static ng_newhook_t	ngs_newhook;
+static ng_connect_t	ngs_connect;
 static ng_rcvdata_t	ngs_rcvdata;
 static ng_disconnect_t	ngs_disconnect;
 
@@ -135,7 +136,7 @@ static struct ng_type typestruct = {
 	ngs_shutdown,
 	ngs_newhook,
 	NULL,
-	NULL,
+	ngs_connect,
 	ngs_rcvdata,
 	ngs_disconnect,
 	NULL
@@ -380,11 +381,13 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 		/* Find the correct hook from 'hookname' */
 		LIST_FOREACH(hook, &pcbp->sockdata->node->nd_hooks, hk_hooks) {
-			if (strcmp(hookname, NG_HOOK_NAME(hook)) == 0)
+			if (strcmp(hookname, NG_HOOK_NAME(hook)) == 0) {
 				break;
+			}
 		}
-		if (hook == NULL)
+		if (hook == NULL) {
 			error = EHOSTUNREACH;
+		}
 	}
 
 	/* Send data (OK if hook is NULL) */
@@ -531,23 +534,23 @@ ng_attach_common(struct socket *so, int type)
 static void
 ng_detach_common(struct ngpcb *pcbp, int which)
 {
-	struct ngsock *sockdata;
+	struct ngsock *priv;
 
 	if (pcbp->sockdata) {
-		sockdata = pcbp->sockdata;
+		priv = pcbp->sockdata;
 		pcbp->sockdata = NULL;
 		switch (which) {
 		case NG_CONTROL:
-			sockdata->ctlsock = NULL;
+			priv->ctlsock = NULL;
 			break;
 		case NG_DATA:
-			sockdata->datasock = NULL;
+			priv->datasock = NULL;
 			break;
 		default:
 			panic(__FUNCTION__);
 		}
-		if ((--sockdata->refs == 0) && (sockdata->node != NULL))
-			ng_rmnode_self(sockdata->node);
+		if ((--priv->refs == 0) && (priv->node != NULL))
+			ng_rmnode_self(priv->node);
 	}
 	pcbp->ng_socket->so_pcb = NULL;
 	pcbp->ng_socket = NULL;
@@ -626,7 +629,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 {
 	struct sockaddr_ng *sap;
 	node_p farnode;
-	struct ngsock *sockdata;
+	struct ngsock *priv;
 	int error;
 	item_p item;
 
@@ -658,8 +661,8 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 		NG_FREE_ITEM(item); /* drop the reference to the node */
 		return (EINVAL);
 	}
-	sockdata = NG_NODE_PRIVATE(farnode);
-	if (sockdata->datasock != NULL) {
+	priv = NG_NODE_PRIVATE(farnode);
+	if (priv->datasock != NULL) {
 		NG_FREE_ITEM(item);	/* drop the reference to the node */
 		return (EADDRINUSE);
 	}
@@ -668,9 +671,9 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	 * Link the PCB and the private data struct. and note the extra
 	 * reference. Drop the extra reference on the node.
 	 */
-	sockdata->datasock = pcbp;
-	pcbp->sockdata = sockdata;
-	sockdata->refs++; /* XXX possible race if it's being freed */
+	priv->datasock = pcbp;
+	pcbp->sockdata = priv;
+	priv->refs++; /* XXX possible race if it's being freed */
 	NG_FREE_ITEM(item);	/* drop the reference to the node */
 	return (0);
 }
@@ -681,10 +684,10 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 static int
 ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 {
-	struct ngsock *const sockdata = pcbp->sockdata;
+	struct ngsock *const priv = pcbp->sockdata;
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) nam;
 
-	if (sockdata == NULL) {
+	if (priv == NULL) {
 		TRAP_ERROR;
 		return (EINVAL);
 	}
@@ -695,7 +698,7 @@ ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-	return (ng_name_node(sockdata->node, sap->sg_data));
+	return (ng_name_node(priv->node, sap->sg_data));
 }
 
 /*
@@ -753,6 +756,26 @@ ngs_newhook(node_p node, hook_p hook, const char *name)
 	return (0);
 }
 
+/* 
+ * if only one hook, allow read(2) and write(2) to work.
+ */
+static int
+ngs_connect(hook_p hook)
+{
+	node_p node = NG_HOOK_NODE(hook);
+	struct ngsock *priv = NG_NODE_PRIVATE(node);
+
+	if ((priv->datasock)
+	&&  (priv->datasock->ng_socket)) {
+		if (NG_NODE_NUMHOOKS(node) == 1) {
+			priv->datasock->ng_socket->so_state |= SS_ISCONNECTED;
+		} else {
+			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
+		}
+	}
+	return (0);
+}
+
 /*
  * Incoming messages get passed up to the control socket.
  * Unless they are for us specifically (socket_type)
@@ -760,8 +783,8 @@ ngs_newhook(node_p node, hook_p hook, const char *name)
 static int
 ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct ngsock *const sockdata = NG_NODE_PRIVATE(node);
-	struct ngpcb *const pcbp = sockdata->ctlsock;
+	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct ngpcb *const pcbp = priv->ctlsock;
 	struct sockaddr_ng *addr;
 	int addrlen;
 	int error = 0;
@@ -792,10 +815,10 @@ msg->header.token);
 	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
 		switch (msg->header.cmd) {
 		case NGM_SOCK_CMD_NOLINGER:
-			sockdata->flags |= NGS_FLAG_NOLINGER;
+			priv->flags |= NGS_FLAG_NOLINGER;
 			break;
 		case NGM_SOCK_CMD_LINGER:
-			sockdata->flags &= ~NGS_FLAG_NOLINGER;
+			priv->flags &= ~NGS_FLAG_NOLINGER;
 			break;
 		default:
 			error = EINVAL;		/* unknown command */
@@ -830,8 +853,8 @@ msg->header.token);
 static int
 ngs_rcvdata(hook_p hook, item_p item)
 {
-	struct ngsock *const sockdata = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct ngpcb *const pcbp = sockdata->datasock;
+	struct ngsock *const priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct ngpcb *const pcbp = priv->datasock;
 	struct socket *so;
 	struct sockaddr_ng *addr;
 	char *addrbuf[NG_HOOKLEN + 1 + 4];
@@ -874,12 +897,22 @@ ngs_rcvdata(hook_p hook, item_p item)
 static int
 ngs_disconnect(hook_p hook)
 {
-	struct ngsock *const sockdata = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	node_p node = NG_HOOK_NODE(hook);
+	struct ngsock *const priv = NG_NODE_PRIVATE(node);
 
-	if ((sockdata->flags & NGS_FLAG_NOLINGER )
-	&& (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
-		ng_rmnode_self(NG_HOOK_NODE(hook));
+	if ((priv->datasock)
+	&&  (priv->datasock->ng_socket)) {
+		if (NG_NODE_NUMHOOKS(node) == 1) {
+			priv->datasock->ng_socket->so_state |= SS_ISCONNECTED;
+		} else {
+			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
+		}
+	}
+
+	if ((priv->flags & NGS_FLAG_NOLINGER )
+	&& (NG_NODE_NUMHOOKS(node) == 0)
+	&& (NG_NODE_IS_VALID(node))) {
+		ng_rmnode_self(node);
 	}
 	return (0);
 }
@@ -892,25 +925,25 @@ ngs_disconnect(hook_p hook)
 static int
 ngs_shutdown(node_p node)
 {
-	struct ngsock *const sockdata = NG_NODE_PRIVATE(node);
-	struct ngpcb *const dpcbp = sockdata->datasock;
-	struct ngpcb *const pcbp = sockdata->ctlsock;
+	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct ngpcb *const dpcbp = priv->datasock;
+	struct ngpcb *const pcbp = priv->ctlsock;
 
 	if (dpcbp != NULL) {
 		soisdisconnected(dpcbp->ng_socket);
 		dpcbp->sockdata = NULL;
-		sockdata->datasock = NULL;
-		sockdata->refs--;
+		priv->datasock = NULL;
+		priv->refs--;
 	}
 	if (pcbp != NULL) {
 		soisdisconnected(pcbp->ng_socket);
 		pcbp->sockdata = NULL;
-		sockdata->ctlsock = NULL;
-		sockdata->refs--;
+		priv->ctlsock = NULL;
+		priv->refs--;
 	}
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
-	FREE(sockdata, M_NETGRAPH_SOCK);
+	FREE(priv, M_NETGRAPH_SOCK);
 	return (0);
 }
 

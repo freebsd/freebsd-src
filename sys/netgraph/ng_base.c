@@ -63,7 +63,7 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 
-MODULE_VERSION(netgraph, 1);
+MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
 /* List of all active nodes */
 static LIST_HEAD(, ng_node) ng_nodelist;
@@ -1423,6 +1423,7 @@ ng_rmnode_self(node_p node)
 
 	if (node == &ng_deadnode)
 		return (0);
+	node->nd_flags |= NG_INVALID;
 	if (node->nd_flags & NG_CLOSING)
 		return (0);
 
