@@ -9,12 +9,10 @@ TEXTMODE?=	444
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}
-	for lang in ${INTER}; \
-	do \
-		echo "Install calendar files for \"$$lang\""; \
-		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
-	    		${.CURDIR}/calendars/$$lang/calendar.* \
-			${DESTDIR}${SHAREDIR}/$$lang; \
-	done; 
+.for lang in ${INTER}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
+    		${.CURDIR}/calendars/${lang}/calendar.* \
+		${DESTDIR}${SHAREDIR}/${lang}; 
+.endfor
 
 .include <bsd.prog.mk>
