@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.28 1996/07/31 21:38:44 thomas Exp $
+ * $Id: pdq.c,v 1.1.1.1 1997/01/17 23:19:48 joerg Exp $
  *
  */
 
@@ -39,8 +39,13 @@
 
 #define	PDQ_HWSUPPORT	/* for pdq.h */
 
+#if defined(__FreeBSD__)
+#include <dev/pdq/pdqvar.h>
+#include <dev/pdq/pdqreg.h>
+#else
 #include "pdqvar.h"
 #include "pdqreg.h"
+#endif
 
 #define	PDQ_ROUNDUP(n, x)	(((n) + ((x) - 1)) & ~((x) - 1))
 #define	PDQ_CMD_RX_ALIGNMENT	16

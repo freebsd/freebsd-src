@@ -36,6 +36,7 @@ i386/eisa/aha1742.c		optional	ahb	device-driver
 i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
+i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb

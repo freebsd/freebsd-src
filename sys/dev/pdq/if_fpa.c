@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.9 1996/07/31 21:38:44 thomas Exp $
+ * $Id: if_fpa.c,v 1.1.1.1 1997/01/17 23:19:49 joerg Exp $
  *
  */
 
@@ -40,9 +40,7 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__)
-#include <sys/devconf.h>
-#elif defined(__bsdi__) || defined(__NetBSD__)
+#if defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
 #endif
 
@@ -161,6 +159,8 @@ pdq_pci_ifintr(
 #endif /* __FreeBSD && BSD */
 
 #if defined(__FreeBSD__)
+static void pdq_pci_shutdown(int, void *);
+
 /*
  * This is the PCI configuration support.  Since the PDQ is available
  * on both EISA and PCI boards, one must be careful in how defines the
@@ -223,17 +223,16 @@ pdq_pci_attach(
     pdqs_pci[unit] = sc;
     pdq_ifattach(sc, pdq_pci_ifwatchdog);
     pci_map_int(config_id, pdq_pci_ifintr, (void*) sc, &net_imask);
+    at_shutdown(pdq_pci_shutdown, (void *) sc, SHUTDOWN_POST_SYNC);
+
 }
 
-static int
+static void
 pdq_pci_shutdown(
-    struct kern_devconf *kdc,
-    int force)
+    int howto,
+    void *sc)
 {
-    if (kdc->kdc_unit < NFPA)
-	pdq_hwreset(PDQ_PCI_UNIT_TO_SOFTC(kdc->kdc_unit)->sc_pdq);
-    (void) dev_detach(kdc);
-    return 0;
+    pdq_hwreset(((pdq_softc_t *)sc)->sc_pdq);
 }
 
 static u_long pdq_pci_count;
@@ -243,7 +242,7 @@ struct pci_device fpadevice = {
     pdq_pci_probe,
     pdq_pci_attach,
     &pdq_pci_count,
-    pdq_pci_shutdown,
+    NULL
 };
 
 #ifdef DATA_SET
