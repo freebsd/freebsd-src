@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.8 1995/04/02 01:26:26 wpaul Exp $
+ *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
+ *	$Id: if_ether.h,v 1.9 1995/05/30 08:09:20 rgrimes Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -156,10 +156,10 @@ extern struct	ifqueue arpintrq;
 struct	llinfo_arp *arptnew __P((struct in_addr *));
 extern struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
 
-void	arpwhohas __P((struct arpcom *, struct in_addr *));
 void	arpintr __P((void));
 int	arpresolve __P((struct arpcom *, struct rtentry *, struct mbuf *,
 			struct sockaddr *, u_char *, struct rtentry *));
+void	arpwhohas __P((struct arpcom *, struct in_addr *));
 void	arp_ifinit __P((struct arpcom *, struct ifaddr *));
 
 int	ether_addmulti __P((struct ifreq *, struct arpcom *));
