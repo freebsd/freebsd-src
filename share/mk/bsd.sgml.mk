@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.17 1997/05/02 05:07:45 ache Exp $
+#	$Id: bsd.sgml.mk,v 1.18 1997/05/11 00:32:14 wosch Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -13,7 +13,8 @@
 # DISTRIBUTION	Name of distribution. [doc]
 #
 # FORMATS 	Indicates which output formats will be generated
-#               (ascii, html, latex, latin1, nroff). [html latin1 ascii]
+#               (ascii, html, koi8-r, latex, latin1, ps, roff). 
+#		[html latin1 ascii]
 #
 # LPR		Printer command. [lpr]
 #
@@ -80,14 +81,24 @@ SCOMPRESS_EXT?=	${COMPRESS_EXT}
 .endif
 
 _docs=
-.for _xformat in ${FORMATS}
-__xformat=${_xformat}
-.if ${__xformat} == "html"
-_docs+=	${DOC}.${_xformat}
+_strip=
+.for _f in ${FORMATS}
+__f=${_f}
+.if ${__f} == "html"
+_docs+=	${DOC}.${_f}
 .else
-_docs+=	${DOC}.${_xformat}${SCOMPRESS_EXT}
+_docs+=	${DOC}.${_f}${SCOMPRESS_EXT}
+.if ${__f} == "ascii" || ${__f} == "latin1" || ${__f} == "koi8-r"
+_strip+= ${DOC}.${_f}
+CLEANFILES+=${DOC}.${_f}.bak
+.endif
 .endif
 .endfor
+
+strip: ${_strip}
+.if !empty(_strip)
+	perl -i.bak -npe 's/.\010//g' ${_strip}
+.endif
 
 
 .MAIN:	all
