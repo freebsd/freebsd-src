@@ -130,14 +130,21 @@
     clients, when attempting to connect to a &os; &release.prev;
     server, will unexpectedly present an
     <application>S/Key</application> prompt, even if &man.sshd.8; on
-    the server has not been configured for
-    <application>S/Key</application> authentication.  As a workaround,
-    uncomment the
-    <literal>ChallengeResponseAuthentication no</literal> line in
-    <filename>/etc/ssh/sshd_config</filename> (on the server
-    host).  This behavior has been observed with the
-    <application>OpenSSH</application> 3.0.1 and 3.0.2 clients, as
-    well as with PuTTY.</para>
+    the server has not been later explicitly configured for
+    <application>S/Key</application> authentication.  This is due to the
+    default settings of clients having changed, e.g. use of SSH version 2
+    protocol where it was not used before, or a change from the client's
+    old default authentication sequence.  To disable this behavior,
+    you may revert to the old sequence in your
+    <filename>~/.ssh/config</filename> by adding the line
+    <literal>PreferredAuthentications publickey,password,keyboard-interactive</literal>
+    for newer <application>OpenSSH</application> clients.  For
+    <application>PuTTY</application>, the authentication sequence order
+    cannot be changed, but keyboard-interactive authentication can be
+    disabled in the settings.
+    To just disable keyboard-interactive authentication in the server,
+    uncomment the <literal>ChallengeResponseAuthentication no</literal>
+    line in <filename>/etc/ssh/sshd_config</filename>.</para>
 
     <para>The release notes mentioned the new sbni device driver, but
     gave an incorrect reference to the program in the &os; Ports
