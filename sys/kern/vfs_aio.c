@@ -1326,8 +1326,10 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	/*
 	 * Range check file descriptor.
 	 */
+	FILEDESC_LOCK(fdp);
 	fd = aiocbe->uaiocb.aio_fildes;
 	if (fd >= fdp->fd_nfiles) {
+		FILEDESC_UNLOCK(fdp);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
@@ -1337,12 +1339,14 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	fp = aiocbe->fd_file = fdp->fd_ofiles[fd];
 	if ((fp == NULL) || ((opcode == LIO_WRITE) && ((fp->f_flag & FWRITE) ==
 	    0))) {
+		FILEDESC_UNLOCK(fdp);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
 	}
 	fhold(fp);
+	FILEDESC_UNLOCK(fdp);
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
 		error = EINVAL;
