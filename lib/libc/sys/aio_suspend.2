@@ -73,8 +73,9 @@ expired before any I/O requests completed.
 .It Bq Er EINVAL
 .Ar iocbs
 contains more than
-.Dv AIO_LISTIO_MAX asynchronous I/O requests, or at least one 
-of the requests is not valid.
+.Dv AIO_LISTIO_MAX
+asynchronous I/O requests, or at least one of the requests is not
+valid.
 .It Bq Er EINTR
 the suspend was interrupted by a signal.
 .El
