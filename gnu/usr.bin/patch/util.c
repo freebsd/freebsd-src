@@ -227,7 +227,7 @@ long arg1,arg2,arg3;
 
 /* Get a response from the user, somehow or other. */
 
-void
+int
 ask(pat,arg1,arg2,arg3)
 char *pat;
 long arg1,arg2,arg3;
@@ -260,7 +260,9 @@ long arg1,arg2,arg3;
     }
     else {				/* no terminal at all--default it */
 	buf[0] = '\n';
-	r = 1;
+	buf[1] = 0;
+	say1(buf);
+	return 0;			/* signal possible error */
     }
     if (r <= 0)
 	buf[0] = 0;
@@ -268,6 +270,11 @@ long arg1,arg2,arg3;
 	buf[r] = '\0';
     if (!tty2)
 	say1(buf);
+
+    if (r <= 0)
+	return 0;			/* if there was an error, return it */
+    else
+	return 1;
 }
 #endif /* lint */
 
