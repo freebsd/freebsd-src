@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
@@ -1766,6 +1767,8 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Allocating one item from %s(%p)\n", zone->uz_name, zone);
 #endif
+	CTR3(KTR_UMA, "uma_zalloc_arg thread %x zone %s flags %d", curthread,
+	    zone->uz_name, flags);
 
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
@@ -2182,6 +2185,9 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);
 #endif
+	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
+	    zone->uz_name);
+
 	/*
 	 * The race here is acceptable.  If we miss it we'll just have to wait
 	 * a little longer for the limits to be reset.
