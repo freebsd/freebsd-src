@@ -35,7 +35,8 @@ CFLAGS+= -I${TRACEROUTE_DISTDIR}/lbl
 
 version.c: ${TRACEROUTE_DISTDIR}/VERSION
 	@rm -f ${.TARGET}
-	sed -e 's/.*/char version[] = "&";/' ${TRACEROUTE_DISTDIR}/VERSION \
+	head -1 ${TRACEROUTE_DISTDIR}/VERSION | \
+	    sed -e 's/.*/char version[] = "&";/' \
 	    > ${.TARGET}
 
 .include <bsd.prog.mk>
