@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.5 1998/09/28 22:01:19 peter Exp $
+ *	$Id: aout_freebsd.c,v 1.6 1998/09/29 09:11:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -118,12 +118,25 @@ aout_exec(struct loaded_module *mp)
     bi.bi_envp = addr;
     addr = bi_copyenv(addr);
 
+    /*
+     * Note, we could move the following onto a seperate page for reclaiming,
+     * but the environment is so small and so is this.
+     */
+
     /* pad to a 4-byte boundary */
     addr = (addr + 0x3) & ~0x3;
 
     /* leave space for bootinfo */
     argv[5] = (u_int32_t)addr;
     addr += sizeof(struct bootinfo);
+
+    /* pad to a 4-byte boundary */
+    addr = (addr + 0x3) & ~0x3;
+
+    /* save in kernel name */
+    bi.bi_kernelname = addr;
+    i386_copyin(mp->m_name, addr, strlen(mp->m_name) + 1);
+    addr += strlen(mp->m_name) + 1;
 
     /* pad to a page boundary */
     pad = (u_int)addr & PAGE_MASK;
@@ -154,8 +167,7 @@ aout_exec(struct loaded_module *mp)
     printf("Start @ 0x%lx ...\n", entry);
 #endif
 
-    __exec(entry, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+    __exec((void *)entry, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 
-/*     startprog(entry, 6, argv, (vm_offset_t)0x90000); */
     panic("exec returned");
 }
