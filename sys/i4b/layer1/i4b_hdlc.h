@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Wed Jul 19 09:41:13 2000]
+ *	last edit-date: [Thu Oct 26 08:29:06 2000]
  *
  *	NOTE:
  *	- October 19th: made minor changes to HDLC_ENCODE macro
@@ -329,10 +329,12 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 				goto j1##d; 	/* first byte */		\
 			}							\
 		  case 4:			/* CRC (lsb's) */		\
-			crc ^= -1;						\
-		  case 5:			/* CRC (msb's) */		\
+			crc  ^= -1;						\
 			tmp2  = (u_char)crc;					\
 			crc >>= 8;						\
+			goto j2##d;						\
+		  case 5:			/* CRC (msb's) */		\
+			tmp2  = (u_char)crc;					\
 			flag  = 1;						\
 			goto j2##d;		/* CRC stuff */			\
 		}								\
