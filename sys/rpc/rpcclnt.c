@@ -1344,6 +1344,8 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 			rpcm_dissect(tl, u_int32_t *, 2 * RPCX_UNSIGNED);
 			reply->stat.mismatch_info.low = fxdr_unsigned(u_int32_t, *tl++);
 			reply->stat.mismatch_info.high = fxdr_unsigned(u_int32_t, *tl);
+			error = EOPNOTSUPP;
+			goto rpcmout;
 		} else if (reply->stat.status > 5) {
 			error = EBADRPC;
 			goto rpcmout;
