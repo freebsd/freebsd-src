@@ -218,7 +218,7 @@ xe_pccard_probe(device_t dev)
 	struct xe_softc *scp = (struct xe_softc *) device_get_softc(dev);
 	u_int32_t vendor,prodid,prod;
 	u_int16_t prodext;
-	char *cis3_str=NULL;
+	const char *cis3_str=NULL;
 	struct xe_vendor_table *vendor_itm;
 	struct xe_card_type_table *card_itm;
 	int i;
