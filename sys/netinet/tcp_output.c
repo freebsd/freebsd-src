@@ -101,6 +101,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
 int     tcp_do_newreno = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
         0, "Enable NewReno Algorithms");
+
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
@@ -125,7 +126,6 @@ tcp_output(tp)
 	int maxburst = TCP_MAXBURST;
 #endif
 	struct rmxp_tao *taop;
-	struct rmxp_tao tao_noncached;
 #ifdef INET6
 	int isipv6;
 #endif
@@ -234,10 +234,7 @@ again:
 	 */
 	len = (long)ulmin(so->so_snd.sb_cc, win) - off;
 
-	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
-		taop = &tao_noncached;
-		bzero(taop, sizeof(*taop));
-	}
+	taop = tcp_gettaocache(&tp->t_inpcb->inp_inc);
 
 	/*
 	 * Lop off SYN bit if it has already been sent.  However, if this
@@ -248,7 +245,7 @@ again:
 		flags &= ~TH_SYN;
 		off--, len++;
 		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
-		    taop->tao_ccsent == 0)
+		    (taop == NULL || taop->tao_ccsent == 0))
 			return 0;
 	}
 
