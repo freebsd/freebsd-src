@@ -4,15 +4,18 @@
 MAINTAINER=	obrien
 
 LUKEMFTPD=	${.CURDIR}/../../contrib/lukemftpd
-.PATH: ${LUKEMFTPD}/src
+.PATH: ${LUKEMFTPD}/src ${LUKEMFTPD}/libnetbsd
 
 PROG=	lukemftpd
 MAN=	lukemftpd.8 ftpd.conf.5 ftpusers.5
 MLINKS=	ftpusers.5 ftpchroot.5
 SRCS=	cmds.c conf.c ftpd.c ftpcmd.y popen.c
+SRCS+=	strsuftoll.c
 
 WFORMAT= 0
+CFLAGS+= -include nbsd2fbsd.h
 CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
+CFLAGS+= -I${.CURDIR}/../..//lib/libc/stdtime
 YFLAGS=
 
 LDADD=	-lcrypt -lutil
