@@ -145,6 +145,10 @@
 			future version of this driver.
 */
 
+#ifdef COMPILING_LINT
+#warning "The meteor driver is broken and is not compiled with LINT"
+#else
+
 #include "meteor.h"
 
 #include "opt_meteor.h"
@@ -2120,3 +2124,4 @@ meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
 
 	return i386_btop(vtophys(mtr->bigbuf) + offset);
 }
+#endif
