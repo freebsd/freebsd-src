@@ -854,13 +854,15 @@ readrest:
 		vm_page_activate(fs.m);
 	}
 
-	if (curproc && (curproc->p_flag & P_INMEM) && curproc->p_stats) {
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (curproc && (curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
 		if (hardfault) {
 			curproc->p_stats->p_ru.ru_majflt++;
 		} else {
 			curproc->p_stats->p_ru.ru_minflt++;
 		}
 	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	/*
 	 * Unlock everything, and return
