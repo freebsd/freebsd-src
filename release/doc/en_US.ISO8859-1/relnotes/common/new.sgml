@@ -174,23 +174,23 @@
       performance improvement in the forwarding rate under heavy
       load.</para>
 
+      <para>The dgm driver has been updated from &os; -CURRENT.</para>
+
       <para>The &man.fxp.4; driver now supports Intel's loadable
       microcode to implement receive-side interrupt coalescing and
       packet bundling, on NICs that support these features.  This
       support can be activated by the use of the
       <option>link0</option> option to &man.ifconfig.8;.</para>
 
-      <para>The dgm driver has been updated from &os; -CURRENT.</para>
-
-      <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
-      checksum offloading for NICs implementing this feature, such as
-      the 3C905B, 3C905C, and 3C980C.</para>
-
       <para>The &man.gx.4; driver has been added to support NICs based
       on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
       Both fiber and copper variants of the cards are supported.  Both
       boards support VLAN tagging/insertion, and the 82543 additionally
       supports TCP/IP checksum offload.</para>
+
+      <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
+      checksum offloading for NICs implementing this feature, such as
+      the 3C905B, 3C905C, and 3C980C.</para>
     </sect3>
 
     <sect3>
