@@ -1804,7 +1804,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	if (jailed(dest))
 		prison_hold(dest->cr_prison);
 #ifdef MAC
-	mac_create_cred(src, dest);
+	mac_copy_cred(src, dest);
 #endif
 }
 

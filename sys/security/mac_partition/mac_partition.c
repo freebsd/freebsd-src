@@ -101,6 +101,13 @@ mac_partition_destroy_label(struct label *label)
 	SLOT(label) = 0;
 }
 
+static void
+mac_partition_copy_label(struct label *src, struct label *dest)
+{
+
+	SLOT(dest) = SLOT(src);
+}
+
 static int
 mac_partition_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
@@ -128,13 +135,6 @@ mac_partition_internalize_label(struct label *label, char *element_name,
 	(*claimed)++;
 	SLOT(label) = strtol(element_data, NULL, 10);
 	return (0);
-}
-
-static void
-mac_partition_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-
-	SLOT(cred_child->cr_label) = SLOT(cred_parent->cr_label);
 }
 
 static void
@@ -271,9 +271,9 @@ static struct mac_policy_ops mac_partition_ops =
 	.mpo_init = mac_partition_init,
 	.mpo_init_cred_label = mac_partition_init_label,
 	.mpo_destroy_cred_label = mac_partition_destroy_label,
+	.mpo_copy_cred_label = mac_partition_copy_label,
 	.mpo_externalize_cred_label = mac_partition_externalize_label,
 	.mpo_internalize_cred_label = mac_partition_internalize_label,
-	.mpo_create_cred = mac_partition_create_cred,
 	.mpo_create_proc0 = mac_partition_create_proc0,
 	.mpo_create_proc1 = mac_partition_create_proc1,
 	.mpo_relabel_cred = mac_partition_relabel_cred,

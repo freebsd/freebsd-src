@@ -1468,18 +1468,6 @@ mac_lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  * Labeling event operations: processes.
  */
 static void
-mac_lomac_create_cred(struct ucred *cred_parent, struct ucred *cred_child)
-{
-	struct mac_lomac *source, *dest;
-
-	source = SLOT(cred_parent->cr_label);
-	dest = SLOT(cred_child->cr_label);
-
-	mac_lomac_copy_single(source, dest);
-	mac_lomac_copy_range(source, dest);
-}
-
-static void
 mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vnodelabel,
     struct label *interpvnodelabel, struct image_params *imgp,
@@ -2648,6 +2636,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_destroy_socket_label = mac_lomac_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_lomac_destroy_label,
 	.mpo_destroy_vnode_label = mac_lomac_destroy_label,
+	.mpo_copy_cred_label = mac_lomac_copy_label,
 	.mpo_copy_mbuf_label = mac_lomac_copy_label,
 	.mpo_copy_pipe_label = mac_lomac_copy_label,
 	.mpo_copy_socket_label = mac_lomac_copy_label,
@@ -2702,7 +2691,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_relabel_ifnet = mac_lomac_relabel_ifnet,
 	.mpo_update_ipq = mac_lomac_update_ipq,
 	.mpo_inpcb_sosetlabel = mac_lomac_inpcb_sosetlabel,
-	.mpo_create_cred = mac_lomac_create_cred,
 	.mpo_execve_transition = mac_lomac_execve_transition,
 	.mpo_execve_will_transition = mac_lomac_execve_will_transition,
 	.mpo_create_proc0 = mac_lomac_create_proc0,
