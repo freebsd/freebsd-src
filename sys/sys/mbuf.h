@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.14 1996/03/11 02:14:16 hsu Exp $
+ * $Id: mbuf.h,v 1.15 1996/05/08 19:38:27 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -394,6 +394,7 @@ extern struct mbuf *mbutl;		/* virtual address of mclusters */
 extern char	*mclrefcnt;		/* cluster reference counts */
 extern struct mbstat mbstat;
 extern int	nmbclusters;
+extern int	nmbufs;
 extern struct mbuf *mmbfree;
 extern union mcluster *mclfree;
 extern int	max_linkhdr;		/* largest link-level header */
