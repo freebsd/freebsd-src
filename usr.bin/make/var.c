@@ -1929,7 +1929,7 @@ Var_Init(void)
 
     VAR_GLOBAL = Targ_NewGN("Global");
     VAR_CMD = Targ_NewGN("Command");
-    allVars = Lst_Init(FALSE);
+    allVars = Lst_Init();
 
 }
 

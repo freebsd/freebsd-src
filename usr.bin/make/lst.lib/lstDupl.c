@@ -77,7 +77,7 @@ Lst_Duplicate(Lst list, DuplicateProc *copyProc)
 	return (NULL);
     }
 
-    nl = Lst_Init(list->isCirc);
+    nl = Lst_Init();
     if (nl == NULL) {
 	return (NULL);
     }
@@ -92,11 +92,7 @@ Lst_Duplicate(Lst list, DuplicateProc *copyProc)
 	    return (NULL);
 	}
 
-	if (list->isCirc && ln == list->lastPtr) {
-	    ln = NULL;
-	} else {
-	    ln = ln->nextPtr;
-	}
+	ln = ln->nextPtr;
     }
 
     return (nl);

@@ -336,7 +336,7 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 	     */
 	    free(buf);
 	} else if (Dir_HasWildcards(memName)) {
-	    Lst	  members = Lst_Init(FALSE);
+	    Lst	  members = Lst_Init();
 	    char  *member;
 	    size_t sz = MAXPATHLEN;
 	    size_t nsz;
@@ -1193,7 +1193,7 @@ void
 Arch_Init(void)
 {
 
-    archives = Lst_Init(FALSE);
+    archives = Lst_Init();
 }
 
 /*-

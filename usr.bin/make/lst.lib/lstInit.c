@@ -57,16 +57,13 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	The created list.
  *
- * Arguments:
- *	 circ	TRUE if the list should be made circular
- *
  * Side Effects:
  *	A list is created, what else?
  *
  *-----------------------------------------------------------------------
  */
 Lst
-Lst_Init(Boolean circ)
+Lst_Init(void)
 {
     Lst	nList;
 
@@ -75,7 +72,6 @@ Lst_Init(Boolean circ)
     nList->firstPtr = NULL;
     nList->lastPtr = NULL;
     nList->isOpen = FALSE;
-    nList->isCirc = circ;
     nList->atEnd = LstUnknown;
 
     return (nList);

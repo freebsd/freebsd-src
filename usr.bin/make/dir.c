@@ -209,8 +209,8 @@ void
 Dir_Init(void)
 {
 
-	dirSearchPath = Lst_Init(FALSE);
-	openDirectories = Lst_Init(FALSE);
+	dirSearchPath = Lst_Init();
+	openDirectories = Lst_Init();
 	Hash_InitTable(&mtimes, 0);
 }
 
@@ -621,7 +621,7 @@ Dir_Expand(char *word, Lst path, Lst expansions)
 
 						if (*dp == '/')
 							*dp = '\0';
-						path = Lst_Init(FALSE);
+						path = Lst_Init();
 						Dir_AddDir(path, dirpath);
 						DirExpandInt(cp + 1, path,
 						    expansions);

@@ -783,7 +783,7 @@ Make_Run(Lst targs)
     Lst		    examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
 
-    toBeMade = Lst_Init(FALSE);
+    toBeMade = Lst_Init();
 
     examine = Lst_Duplicate(targs, NOCOPY);
     numNodes = 0;
