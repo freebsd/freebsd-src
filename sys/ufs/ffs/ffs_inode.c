@@ -250,6 +250,18 @@ ffs_truncate(vp, length, flags, cred, td)
 		if (error) {
 			return (error);
 		}
+		/*
+		 * When we are doing soft updates and the UFS_BALLOC
+		 * above fills in a direct block hole with a full sized
+		 * block that will be truncated down to a fragment below,
+		 * we must flush out the block dependency with an FSYNC
+		 * so that we do not get a soft updates inconsistency
+		 * when we create the fragment below.
+		 */
+		if (DOINGSOFTDEP(ovp) && lbn < NDADDR &&
+		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
+		    (error = VOP_FSYNC(ovp, cred, MNT_WAIT, td)) != 0)
+			return (error);
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
 		if (ovp->v_type != VDIR)
