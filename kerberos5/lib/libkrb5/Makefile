@@ -8,8 +8,7 @@ CFLAGS+=-I${KRB5DIR}/lib/krb5 \
 	-I${KRB5DIR}/include \
 	-I${KRB5OBJDIR} \
 	-I${ASN1OBJDIR}
-.if defined(MAKE_KERBEROS4) && \
-	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+.if defined(MAKE_KERBEROS4)
 CFLAGS+=-I${KRB4DIR}/include
 .endif
 SRCS=	\
@@ -115,32 +114,32 @@ SRCS=	\
 INCS=	krb5.h ${.CURDIR}/../../include/krb5-types.h \
 	krb5-protos.h heim_err.h krb5_err.h k524_err.h
 
-MAN=                                           \
-       krb5.3                                  \
-       krb5_425_conv_principal.3               \
-       krb5_appdefault.3                       \
-       krb5_auth_context.3                     \
-       krb5_build_principal.3                  \
-       krb5_config.3                           \
-       krb5_context.3                          \
-       krb5_create_checksum.3                  \
-       krb5_crypto_init.3                      \
-       krb5_encrypt.3                          \
-       krb5_free_addresses.3                   \
-       krb5_free_principal.3                   \
-       krb5_get_all_client_addrs.3             \
-       krb5_get_krbhst.3                       \
-       krb5_init_context.3                     \
-       krb5_keytab.3                           \
-       krb5_krbhst_init.3                      \
-       krb5_openlog.3                          \
-       krb5_parse_name.3                       \
-       krb5_principal_get_realm.3              \
-       krb5_sname_to_principal.3               \
-       krb5_timeofday.3                        \
-       krb5_unparse_name.3                     \
-       krb5_verify_user.3                      \
-       krb5_warn.3
+MAN=						\
+	krb5.3					\
+	krb5_425_conv_principal.3		\
+	krb5_appdefault.3			\
+	krb5_auth_context.3			\
+	krb5_build_principal.3			\
+	krb5_config.3				\
+	krb5_context.3				\
+	krb5_create_checksum.3			\
+	krb5_crypto_init.3			\
+	krb5_encrypt.3				\
+	krb5_free_addresses.3			\
+	krb5_free_principal.3			\
+	krb5_get_all_client_addrs.3		\
+	krb5_get_krbhst.3			\
+	krb5_init_context.3			\
+	krb5_keytab.3				\
+	krb5_krbhst_init.3			\
+	krb5_openlog.3				\
+	krb5_parse_name.3			\
+	krb5_principal_get_realm.3		\
+	krb5_sname_to_principal.3		\
+	krb5_timeofday.3			\
+	krb5_unparse_name.3			\
+	krb5_verify_user.3			\
+	krb5_warn.3
 
 MAN+=						\
 	krb5.conf.5
@@ -153,5 +152,3 @@ MAN+=						\
 
 .PATH:		${KRB5DIR}/lib/krb5
 .PATH:		${KRB5DIR}/lib/des
-
-beforedepend all:	asn1_err.h krb5_err.h k524_err.h

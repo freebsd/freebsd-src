@@ -9,7 +9,7 @@ if [ -d ${RD}/trees/bin/usr/share/dict ]; then
 	rm -rf ${RD}/trees/bin/usr/share/dict;
 fi
 
-for i in airport birthtoken flowers inter.phone na.phone zipcodes; do
+for i in birthtoken flowers; do
 	if [ -f ${RD}/trees/bin/usr/share/misc/$i ]; then
 		mv ${RD}/trees/bin/usr/share/misc/$i \
 			${RD}/trees/dict/usr/share/misc;

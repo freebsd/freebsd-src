@@ -107,6 +107,10 @@ SUBDIR+= ${_DIR}
 .endfor
 .endif
 
+.if defined(SUBDIR_OVERRIDE)
+SUBDIR=		${SUBDIR_OVERRIDE}
+.endif
+
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean cleandepend
 .else
@@ -239,7 +243,7 @@ INCDIRS=	arpa dev fs g++/std isc isofs libmilter objc openssl \
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-buildworld:
+_worldtmp:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
@@ -258,11 +262,13 @@ buildworld:
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+_bootstrap-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 1: bootstrap tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${BMAKE} bootstrap-tools
+_cleanobj:
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -270,47 +276,62 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
+_obj:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-obj
+_build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${TMAKE} build-tools
+_cross-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${XMAKE} cross-tools
+_includes:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: populating ${WORLDTMP}/usr/include"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
+_libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building libraries"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
+_depend:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: make dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-depend
+everything:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4: building everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} all
 
-everything:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building everything.."
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${WMAKE} all
+
+WMAKE_TGTS=
+.if !defined(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	_worldtmp _bootstrap-tools
+.endif
+WMAKE_TGTS+=	_cleanobj _obj _build-tools
+.if !defined(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	_cross-tools
+.endif
+WMAKE_TGTS+=	_includes _libraries _depend everything
+
+buildworld: ${WMAKE_TGTS}
+.ORDER: ${WMAKE_TGTS}
 
 #
 # installcheck
@@ -330,18 +351,22 @@ installcheck:
 .endif
 
 #
+# distributeworld
+#
+# Distributes everything compiled by a `buildworld'.
+#
 # installworld
 #
 # Installs everything compiled by a 'buildworld'.
 #
-installworld: installcheck
+distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    ln make makewhatis mtree mv perl rm sed sh sysctl \
+	    ln make makewhatis mtree mv perl pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
-	cd ${.CURDIR}; ${IMAKE} reinstall
+	cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
 	rm -rf ${INSTALLTMP}
 
 #
@@ -361,7 +386,7 @@ reinstall:
 	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if !defined(NOMAN)
+.if !defined(NOMAN) && !defined(NO_MAKEDB_RUN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding man page indices"
@@ -369,14 +394,11 @@ reinstall:
 	cd ${.CURDIR}/share/man; ${MAKE} makedb
 .endif
 
-#
-# distribworld
-#
-# Front-end to distribute to make sure the search path contains
-# the object directory. Needed for miniperl.
-#
-distribworld:
-	cd ${.CURDIR}; PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 distribute
+redistribute:
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Distributing everything.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 
 #
 # buildkernel and installkernel
@@ -470,19 +492,9 @@ buildkernel:
 #
 # Install the kernel defined by INSTALLKERNEL
 #
-installkernel:
+installkernel reinstallkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} install
-reinstallkernel:
-	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
-
-#
-# kernel
-#
-# Short hand for `make buildkernel installkernel'
-#
-kernel: buildkernel installkernel
+	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
 
 #
 # update
@@ -604,10 +616,14 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libvers \
     kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
 .endif
 
+.if defined(RELEASEDIR)
+_sysinstall= release/sysinstall
+.endif
+
 build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_perl} ${_libroken4} ${_libkrb5} lib/libncurses ${_share} \
-    usr.bin/awk usr.bin/file
+    usr.bin/awk usr.bin/file ${_sysinstall}
 	cd ${.CURDIR}/${_tool}; ${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 
@@ -623,8 +639,9 @@ _btxld=	usr.sbin/btxld
 .endif
 
 cross-tools:
-.for _tool in ${_btxld} ${_elf2exe} usr.bin/genassym \
-    usr.bin/gensetdefs gnu/usr.bin/binutils usr.bin/objformat gnu/usr.bin/cc
+.for _tool in ${_btxld} ${_elf2exe} usr.bin/genassym usr.bin/gensetdefs \
+    gnu/usr.bin/binutils usr.bin/objformat usr.sbin/crunch/crunchide \
+    gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \

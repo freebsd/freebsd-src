@@ -55,7 +55,13 @@ static const char rcsid[] =
 #if (defined(NLIST_ELF32) && (ELFSIZE == 32)) || \
     (defined(NLIST_ELF64) && (ELFSIZE == 64))
 
-#include <machine/elf.h>
+#define	__ELF_WORD_SIZE ELFSIZE
+#if (ELFSIZE == 32)
+#include <sys/elf32.h>
+#elif (ELFSIZE == 64)
+#include <sys/elf64.h>
+#endif
+#include <sys/elf_generic.h>
 
 #define CONCAT(x,y)     __CONCAT(x,y)
 #define ELFNAME(x)      CONCAT(elf,CONCAT(ELFSIZE,CONCAT(_,x)))

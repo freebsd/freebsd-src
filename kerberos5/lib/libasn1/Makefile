@@ -85,29 +85,30 @@ ${GEN} krb5_asn1.h:		asn1_compile k5.asn1
 
 build-tools:	make-print-version make-roken asn1_compile
 
-asn1_compile:				\
-       gen.c				\
-       gen_copy.c			\
-       gen_decode.c			\
-       gen_encode.c			\
-       gen_free.c			\
-       gen_glue.c			\
-       gen_length.c			\
-       hash.c				\
-       emalloc.c			\
-       lex.o				\
-       main.c				\
-       parse.o				\
-       symbol.c				\
-       getarg.c				\
-       warnerr.c			\
-       print_version.o			\
-       get_window_size.c		\
-       strupr.c
+asn1_compile:					\
+	gen.c					\
+	gen_copy.c				\
+	gen_decode.c				\
+	gen_encode.c				\
+	gen_free.c				\
+	gen_glue.c				\
+	gen_length.c				\
+	hash.c					\
+	emalloc.c				\
+	lex.o					\
+	main.c					\
+	parse.o					\
+	symbol.c				\
+	getarg.c				\
+	warnerr.c				\
+	print_version.o				\
+	get_window_size.c			\
+	strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
 parse.o:	parse.c roken.h
 
+.ORDER: parse.c parse.h
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
 	cp y.tab.c parse.c

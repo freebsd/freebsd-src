@@ -30,9 +30,7 @@
 # tree. This makefile executes a child make process, forcing it to use
 # the mk files from the source tree which are supposed to DTRT.
 #
-# The user-driven targets (as listed above) are implemented in Makefile.inc0
-# and the private targets are in Makefile.inc1. These are kept separate
-# to help the bootstrap build from aout to elf format.
+# The user-driven targets (as listed above) are implemented in Makefile.inc1.
 #
 # If you want to build your system from source be sure that /usr/obj has
 # at least 400MB of diskspace available.
@@ -65,6 +63,11 @@
 # release of 4.0. You have exactly one major release to move entirely
 # to elf.
 #
+# If TARGET_ARCH=arch (e.g. alpha) is specified you can
+# cross build world for other architectures using the buildworld target,
+# and once the world is built you can cross build a kernel using the
+# buildkernel target.
+#
 # ----------------------------------------------------------------------------
 #
 #           Upgrading an i386 system from a.out to elf format
@@ -94,14 +97,18 @@
 # order, but that's not important.
 #
 TGTS=	all all-man buildkernel buildworld checkdpadd clean \
-	cleandepend cleandir depend distribute everything \
+	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy install installcheck installkernel \
-	reinstallkernel installmost installworld kernel \
-	libraries lint maninstall \
+	reinstallkernel installmost installworld libraries lint maninstall \
 	mk most obj objlink regress rerelease tags update
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
+
+.ORDER: buildworld installworld
+.ORDER: buildworld distributeworld
+.ORDER: buildkernel installkernel
+.ORDER: buildkernel reinstallkernel
 
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
@@ -147,6 +154,13 @@ world: upgrade_checks
 	@echo "--------------------------------------------------------------"
 	@printf ">>> ${OBJFORMAT} make world completed on `LC_ALL=C date`\n                        (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
+
+#
+# kernel
+#
+# Short hand for `make buildkernel installkernel'
+#
+kernel: buildkernel installkernel
 
 #
 # Perform a few tests to determine if the installed tools are adequate

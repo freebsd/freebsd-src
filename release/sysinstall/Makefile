@@ -63,6 +63,8 @@ makedevs.c:	Makefile rtermcap
 		file2c 'const char termcap_xterm[] = {' ',0};' \
 		>> makedevs.c
 
+build-tools:	rtermcap
+
 rtermcap:	rtermcap.c
 	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
 
