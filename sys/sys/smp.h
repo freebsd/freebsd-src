@@ -48,6 +48,8 @@ extern u_int mp_maxid;
  * cpu_mp_announce() will be called so that machine dependent messages about
  * the MP support may be output to the console if desired.
  */
+struct thread;
+
 void	cpu_mp_announce(void);
 int	cpu_mp_probe(void);
 void	cpu_mp_start(void);
