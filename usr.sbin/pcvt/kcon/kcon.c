@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 1992,1993,1994 Hellmuth Michaelis
+ * Copyright (c) 1992, 2000 Hellmuth Michaelis
  *
- * Copyright (c) 1992,1993 Holger Veit.
+ * Copyright (c) 1992, 1993 Holger Veit.
  *
  * All rights reserved.
  *
@@ -33,11 +33,7 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
-
-static char *id =
-	"@(#)kcon.c, 3.20, Last Edit-Date: [Wed Jan 25 16:33:08 1995]";
 
 /*---------------------------------------------------------------------------*
  *
@@ -47,13 +43,9 @@ static char *id =
  *	based on "keymap" which was written by
  *	Holger Veit (veit@du9ds3.uni-duisburg.de)
  *
- *	-hm	a first rewrite
- *	-hm	rewrite for pcvt 2.0 distribution
- *	-hm	adding show current typematic values
- *	-hm	hex/octal/esc output choices
- *	-hm	remapping debugging
- *	-hm	garbage output for remapped keys bugfix
- *	-hm	patch from Lon Willet, adding -R
+ *	Last Edit-Date: [Mon Mar 27 17:03:50 2000]";
+ *
+ * $FreeBSD$
  *
  *---------------------------------------------------------------------------*/
 
