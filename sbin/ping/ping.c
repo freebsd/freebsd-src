@@ -146,15 +146,7 @@ int options;
 int mx_dup_ck = MAX_DUP_CHK;
 char rcvd_tbl[MAX_DUP_CHK / 8];
 
-/*
- * Use a union to coerce alignment to at least sockaddr_in's alignment.
- * This avoids unaligned access faults on alpha.
- */
-union {
-	struct sockaddr 	_w2;	/* who to ping */
-	struct sockaddr_in 	_w2_in;	/* who to ping */
-} ww;
-#define	whereto	ww._w2
+struct sockaddr_in whereto;	/* who to ping */
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKET];
@@ -433,9 +425,10 @@ main(argc, argv)
 			err(1, "bind");
 	}
 
-	bzero((char *)&whereto, sizeof(struct sockaddr));
-	to = (struct sockaddr_in *)&whereto;
+	bzero(&whereto, sizeof(whereto));
+	to = &whereto;
 	to->sin_family = AF_INET;
+	to->sin_len = sizeof *to;
 	if (inet_aton(target, &to->sin_addr) != 0) {
 		hostname = target;
 	} else {
@@ -444,7 +437,6 @@ main(argc, argv)
 			errx(EX_NOHOST, "cannot resolve %s: %s",
 			     target, hstrerror(h_errno));
 
-		to->sin_len = sizeof *to;
 		if (hp->h_length > sizeof(to->sin_addr))
 			errx(1,"gethostbyname2 returned an illegal address");
 		memcpy(&to->sin_addr, hp->h_addr_list[0], sizeof to->sin_addr);
@@ -769,8 +761,8 @@ pinger(void)
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
 
-	i = sendto(s, (char *)outpack, cc, 0, &whereto,
-	    sizeof(struct sockaddr));
+	i = sendto(s, (char *)outpack, cc, 0, (struct sockaddr *)&whereto,
+	    sizeof(whereto));
 
 	if (i < 0 || i != cc)  {
 		if (i < 0) {
@@ -922,8 +914,7 @@ pr_pack(buf, cc, from, tv)
 
 		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
-		     (oip->ip_dst.s_addr ==
-			 ((struct sockaddr_in *)&whereto)->sin_addr.s_addr) &&
+		     (oip->ip_dst.s_addr == whereto.sin_addr.s_addr) &&
 		     (oip->ip_p == IPPROTO_ICMP) &&
 		     (oicmp->icmp_type == ICMP_ECHO) &&
 		     (oicmp->icmp_id == ident))) {
