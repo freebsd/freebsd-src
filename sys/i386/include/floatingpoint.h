@@ -30,7 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
+ *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
+ *	$Id$
  */
 
 /*

@@ -30,15 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)endian.h	7.8 (Berkeley) 4/3/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00093
- * --------------------         -----   ----------------------
- *
- * 27 Feb 93    Charles Hannum		Better byte-swapping macros for
- *					i386/i486.
+ *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
+ *	$Id$
  */
 
 /*

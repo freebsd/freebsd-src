@@ -2,6 +2,8 @@
  * msdos common header file
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS
+ *
+ *	$Id$
  */
 
 #define MSECTOR_SIZE	512		/* MSDOS sector size in bytes */
