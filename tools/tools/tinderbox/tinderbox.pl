@@ -35,7 +35,7 @@ use Fcntl qw(:DEFAULT :flock);
 use POSIX;
 use Getopt::Long;
 
-my $VERSION	= "2.1";
+my $VERSION	= "2.2";
 my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 		  "All rights reserved.";
 
@@ -43,6 +43,7 @@ my $arch;			# Target architecture
 my $branch;			# CVS branch to checkou
 my $date;			# Date of sources to check out
 my $jobs;			# Number of paralell jobs
+my $hostname;			# Name of the host running the tinderbox
 my $logfile;			# Path to log file
 my $machine;			# Target machine
 my $patch;			# Patch to apply before building
@@ -246,6 +247,7 @@ Parameters:
   -b, --branch=BRANCH           CVS branch to check out
   -d, --date=DATE               Date of sources to check out
   -j, --jobs=NUM                Maximum number of paralell jobs
+  -h, --hostname=NAME           Name of the host running the tinderbox
   -l, --logfile=FILE            Path to log file
   -m, --machine=MACHINE         Target machine (e.g. pc98)
   -p, --patch=PATCH             Patch to apply before building
@@ -277,6 +279,8 @@ MAIN:{
     # Set defaults
     $arch = `/usr/bin/uname -p`;
     chomp($arch);
+    $hostname = `/usr/bin/uname -n`;
+    chomp($hostname);
     $machine = `/usr/bin/uname -m`;
     chomp($machine);
     $branch = "CURRENT";
@@ -292,6 +296,7 @@ MAIN:{
 	"d|date=s"		=> \$date,
 	"j|jobs=i"		=> \$jobs,
 	"l|logfile=s"		=> \$logfile,
+	"h|hostname=s"		=> \$hostname,
 	"m|machine=s"		=> \$machine,
 	"p|patch=s"		=> \$patch,
 	"r|repository=s"	=> \$repository,
@@ -371,6 +376,7 @@ MAIN:{
     }
     open(STDERR, ">&STDOUT");
     $| = 1;
+    logstage("tinderbox $VERSION running on $hostname");
     logstage("starting $branch tinderbox run for $arch/$machine");
     $SIG{__DIE__} = \&sigdie;
     $SIG{__WARN__} = \&sigwarn;
@@ -382,6 +388,7 @@ MAIN:{
 	    or error("unable to remove old source directory");
 	remove_dir("$sandbox/obj")
 	    or error("unable to remove old object directory");
+# This will fail due to schg files - must clear flags before removing
 #	remove_dir("$sandbox/root")
 #	    or error("unable to remove old chroot directory");
     }
