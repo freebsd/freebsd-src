@@ -12,7 +12,6 @@ JADEFLAGS+=	-V %generate-article-toc%
 # SGML content
 SRCS+=	article.sgml 
 SRCS+=	proc-sparc64.sgml 
-SRCS+=	dev-sparc64.sgml 
 SRCS+=	../common/hw.ent
 SRCS+=	../common/artheader.sgml
 
