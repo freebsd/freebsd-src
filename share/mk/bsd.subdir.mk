@@ -63,7 +63,7 @@ ${SUBDIR}::
 ${__target}: _SUBDIR
 .endfor
 
-.for __target in includes
+.for __target in files includes
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
