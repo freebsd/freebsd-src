@@ -119,7 +119,6 @@ usage(const char *comm)
 	    "       %s forget prov [prov [...]]\n"
 	    "       %s stop [-fv] name [...]\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm, comm, comm, comm);
-	exit(EXIT_FAILURE);
 }
 
 static void
