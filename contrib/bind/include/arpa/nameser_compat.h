@@ -32,7 +32,7 @@
 
 /*
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 8.13 2001/09/24 02:20:25 marka Exp $
+ *	$Id: nameser_compat.h,v 8.14 2002/05/18 01:39:11 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_COMPAT_
@@ -64,7 +64,7 @@
     defined(apollo) || defined(__convex__) || defined(_CRAY) || \
     defined(__hppa) || defined(__hp9000) || \
     defined(__hp9000s300) || defined(__hp9000s700) || \
-    defined(__hp3000s900) || defined(MPE) || \
+    defined(__hp3000s900) || defined(__hpux) || defined(MPE) || \
     defined (BIT_ZERO_ON_LEFT) || defined(m68k) || \
     (defined(__Lynx__) && \
      (defined(__68k__) || defined(__sparc__) || defined(__powerpc__)))

@@ -50,7 +50,7 @@
 .\" SOFTWARE.
 .\" -
 .\" --Copyright--
-.\" $Id: host.1,v 8.6 2001/08/10 00:14:47 cyarnell Exp $
+.\" $Id: host.1,v 8.7 2002/06/18 02:39:26 marka Exp $
 .Dd December 15, 1994
 .Dt HOST @CMD_EXT_U@
 .Os BSD 4
@@ -84,7 +84,7 @@ by the domain server.
 The arguments can be either host names or host numbers.  The program
 first attempts to interpret them as host numbers.  If this fails,
 it will treat them as host names.  A host number consists of
-first decimal numbers separated by dots, e.g. 128.6.4.194
+IPv4 dotted decimal quad (127.0.0.1) or IPv6 raw address (::1).
 A host name consists of names separated by dots, e.g. topaz.rutgers.edu.  
 Unless the name ends in a dot, the local domain
 is automatically tacked on the end.  Thus, a Rutgers user can say
@@ -192,6 +192,7 @@ to be looked up.  The arguments are defined in the man page for
 .Xr @INDOT@named @SYS_OPS_EXT@ .
 Currently-supported types include: 
 .Dq Cm a , 
+.Dq Cm aaaa , 
 .Dq Cm ns , 
 .Dq Cm md , 
 .Dq Cm mf , 
