@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.23 1997/07/31 05:39:48 fsmp Exp $
+ * $Id: smp.h,v 1.20 1997/08/15 02:14:45 smp Exp smp $
  *
  */
 
@@ -159,8 +159,9 @@ int	read_apic_timer		__P((void));
 void	u_sleep			__P((int));
 
 /* global data in init_smp.c */
-extern int			smp_active;
 extern int			invltlb_ok;
+extern int			smp_active;
+extern volatile int		smp_idle_loops;
 
 /* 'private' global data in locore.s */
 extern volatile u_int		cpuid;
