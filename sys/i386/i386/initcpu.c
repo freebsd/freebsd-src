@@ -597,13 +597,13 @@ initializecpu(void)
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*
-	 * OS should flush L1 cahce by itself because no PC-98 supports
+	 * OS should flush L1 cache by itself because no PC-98 supports
 	 * non-Intel CPUs.  Use wbinvd instruction before DMA transfer
 	 * when need_pre_dma_flush = 1, use invd instruction after DMA
 	 * transfer when need_post_dma_flush = 1.  If your CPU upgrade
-	 * product support hardware cache control, you can add
-	 * UPGRADE_CPU_HW_CACHE option in your kernel configuration file.
-	 * This option elminate unneeded cache flush instruction.
+	 * product supports hardware cache control, you can add the
+	 * CPU_UPGRADE_HW_CACHE option in your kernel configuration file.
+	 * This option eliminates unneeded cache flush instruction(s).
 	 */
 	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		switch (cpu) {
@@ -639,7 +639,7 @@ initializecpu(void)
 		need_pre_dma_flush = 1;
 #endif
 	}
-#endif /* PC98 && !UPGRADE_CPU_HW_CACHE */
+#endif /* PC98 && !CPU_UPGRADE_HW_CACHE */
 }
 
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
