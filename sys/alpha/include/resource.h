@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: resource.h,v 1.1 1998/11/17 10:40:33 dfr Exp $ */
 /*
  * Copyright 1998 Massachusetts Institute of Technology
  *
@@ -36,9 +36,11 @@
  * with support for legacy ISA devices and drivers.
  */
 
-#define	SYS_RES_IRQ	1
-#define	SYS_RES_DRQ	2
-#define	SYS_RES_MEMORY	3
-#define	SYS_RES_IOPORT	4
+#define	SYS_RES_IRQ	1	/* interrupt lines */
+#define	SYS_RES_DRQ	2	/* isa dma lines */
+#define	SYS_RES_MEMORY	3	/* i/o memory */
+#define	SYS_RES_IOPORT	4	/* i/o ports */
+#define	SYS_RES_DENSE	5	/* i/o memory in dense space */
+#define	SYS_RES_BWX	6	/* i/i memory in bwx space */
 
 #endif /* !_MACHINE_RESOURCE_H_ */

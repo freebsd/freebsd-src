@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.111 1999/07/27 04:28:14 mdodd Exp $
+ * $Id: pci.c,v 1.112 1999/07/27 05:08:36 mdodd Exp $
  *
  */
 
@@ -1333,6 +1333,10 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_DRQ:		/* passthru for child isa */
 		break;
 
+#ifdef __alpha__
+	case SYS_RES_DENSE:
+	case SYS_RES_BWX:
+#endif
 	case SYS_RES_MEMORY:
 		if (isdefault) {
 			map = pci_mapno(cfg, *rid);
@@ -1389,6 +1393,10 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	case SYS_RES_DRQ:		/* passthru for child isa */
 		break;
 
+#ifdef __alpha__
+	case SYS_RES_DENSE:
+	case SYS_RES_BWX:
+#endif
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		/*
@@ -1416,6 +1424,10 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 		case SYS_RES_DRQ:	/* passthru for child isa */
 			break;
 
+#ifdef __alpha__
+		case SYS_RES_DENSE:
+		case SYS_RES_BWX:
+#endif
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
 			if (map != -1)
