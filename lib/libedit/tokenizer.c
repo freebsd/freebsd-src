@@ -36,8 +36,6 @@
  *	$NetBSD: tokenizer.c,v 1.6 2000/09/04 22:06:33 lukem Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
