@@ -74,6 +74,7 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
 # Miscellaneous options.
+ALQ		opt_alq.h
 ADAPTIVE_MUTEXES
 COMPAT_43	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -546,6 +547,7 @@ PCFCLOCK_MAX_RETRIES	opt_pcfclock.h
 TDFX_LINUX opt_tdfx.h
 
 KTR			opt_global.h
+KTR_ALQ			opt_ktr.h
 KTR_MASK		opt_ktr.h
 KTR_CPUMASK		opt_ktr.h
 KTR_COMPILE		opt_global.h
