@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.34 1999/07/01 13:21:39 peter Exp $
+ *	$Id: kern_linker.c,v 1.35 1999/08/20 00:18:07 grog Exp $
  */
 
 #include "opt_ddb.h"
@@ -592,7 +592,7 @@ int
 linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
 {
     linker_file_t lf;
-    u_long off = (u_long)value;
+    u_long off = (uintptr_t)value;
     u_long diff, bestdiff;
     c_linker_sym_t best;
     c_linker_sym_t es;
@@ -860,7 +860,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	}
 	if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
 	    lf->ops->symbol_values(lf, sym, &symval) == 0) {
-	    lookup.symvalue = (u_long)symval.value;
+	    lookup.symvalue = (uintptr_t)symval.value;
 	    lookup.symsize = symval.size;
 	    error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
 	} else
@@ -869,7 +869,7 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 	for (lf = TAILQ_FIRST(&linker_files); lf; lf = TAILQ_NEXT(lf, link)) {
 	    if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
 		lf->ops->symbol_values(lf, sym, &symval) == 0) {
-		lookup.symvalue = (u_long)symval.value;
+		lookup.symvalue = (uintptr_t)symval.value;
 		lookup.symsize = symval.size;
 		error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
 		break;
@@ -971,7 +971,7 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
  * character as a separator to be consistent with the bootloader.
  */
 
-static char linker_path[MAXPATHLEN + 1] = "/;/boot/;/modules/";
+static char linker_path[MAXPATHLEN] = "/;/boot/;/modules/";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 	      sizeof(linker_path), "module load search path");
