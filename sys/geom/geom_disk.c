@@ -295,12 +295,14 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 }
 
 static void
-g_disk_create(void *arg, int flag __unused)
+g_disk_create(void *arg, int flag)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct disk *dp;
 
+	if (flag == EV_CANCEL)
+		return;
 	g_topology_assert();
 	dp = arg;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
