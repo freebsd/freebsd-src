@@ -26,12 +26,8 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
-#include "gdc.h"
 #include "opt_syscons.h"
 #include "opt_gdc.h"
-
-#if NSC > 0 && NGDC > 0
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -199,5 +195,3 @@ gdc_grborder(scr_stat *scp, int color)
 }
 
 #endif /* SC_NO_MODE_CHANGE */
-
-#endif /* NSC > 0 && NGDC > 0 */
