@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.56 1997/04/04 07:30:06 davidg Exp $
+ *	$Id: kern_exec.c,v 1.57 1997/04/04 09:06:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -369,17 +369,34 @@ exec_new_vmspace(imgp)
 	int error;
 	struct vmspace *vmspace = imgp->proc->p_vmspace;
 	caddr_t	stack_addr = (caddr_t) (USRSTACK - SGROWSIZ);
+	vm_map_t map = &vmspace->vm_map;
 
 	imgp->vmspace_destroyed = 1;
 
-	/* Blow away entire process VM */
-	if (vmspace->vm_shm)
-		shmexit(imgp->proc);
-	pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
-	vm_map_remove(&vmspace->vm_map, 0, USRSTACK);
+	/*
+	 * Blow away entire process VM, if address space not shared,
+	 * otherwise, create a new VM space so that other threads are
+	 * not disrupted
+	 */
+	if (vmspace->vm_refcnt == 1) {
+		if (vmspace->vm_shm)
+			shmexit(imgp->proc);
+		pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
+		vm_map_remove(map, 0, USRSTACK);
+	} else {
+		struct vmspace *oldvmspace = vmspace;
+
+		--vmspace->vm_refcnt;
+		vmspace = vmspace_alloc(map->min_offset, map->max_offset,
+		    map->entries_pageable);
+		bcopy(&oldvmspace->vm_startcopy, &vmspace->vm_startcopy,
+		    (caddr_t) (vmspace+ 1) - (caddr_t) &vmspace->vm_startcopy);
+		imgp->proc->p_vmspace = vmspace;
+		map = &vmspace->vm_map;
+	}
 
 	/* Allocate a new stack */
-	error = vm_map_find(&vmspace->vm_map, NULL, 0, (vm_offset_t *)&stack_addr,
+	error = vm_map_find(map, NULL, 0, (vm_offset_t *)&stack_addr,
 	    SGROWSIZ, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 		return(error);
