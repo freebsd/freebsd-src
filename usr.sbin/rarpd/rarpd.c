@@ -27,7 +27,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: rarpd.c,v 1.7.2.4 1997/11/05 07:27:19 charnier Exp $";
+    "$Id: rarpd.c,v 1.7.2.5 1998/03/09 13:52:14 jkh Exp $";
 #endif
 
 /*
@@ -779,18 +779,15 @@ update_arptab(ep, ipaddr)
 	register struct rt_msghdr *rt;
 	register int xtype, xindex;
 	static pid_t pid;
-	static int r, seq;
-	static init = 0;
+	int r;
+	static int seq;
 
-	if (!init) {
-		r = socket(PF_ROUTE, SOCK_RAW, 0);
-		if (r < 0) {
-			syslog(LOG_ERR, "raw route socket: %m");
-			exit(1);
-		}
-		pid = getpid();
-		++init;
+	r = socket(PF_ROUTE, SOCK_RAW, 0);
+	if (r < 0) {
+		syslog(LOG_ERR, "raw route socket: %m");
+		exit(1);
 	}
+	pid = getpid();
 
 	ar = &sin_inarp;
 	ar->sin_addr.s_addr = ipaddr;
@@ -810,6 +807,7 @@ update_arptab(ep, ipaddr)
 	errno = 0;
 	if (write(r, rt, rt->rtm_msglen) < 0 && errno != ESRCH) {
 		syslog(LOG_ERR, "rtmsg get write: %m");
+		close(r);
 		return;
 	}
 	do {
@@ -817,6 +815,7 @@ update_arptab(ep, ipaddr)
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
 	if (cc < 0) {
 		syslog(LOG_ERR, "rtmsg get read: %m");
+		close(r);
 		return;
 	}
 	ll2 = (struct sockaddr_dl *)((u_char *)ar2 + ar2->sin_len);
@@ -828,6 +827,7 @@ update_arptab(ep, ipaddr)
 		 */
 		syslog(LOG_ERR, "bogus link family (%d) wrong net for %08X?\n",
 		    ll2->sdl_family, ipaddr);
+		close(r);
 		return;
 	}
 	xtype = ll2->sdl_type;
@@ -854,11 +854,13 @@ update_arptab(ep, ipaddr)
 	errno = 0;
 	if (write(r, rt, rt->rtm_msglen) < 0 && errno != EEXIST) {
 		syslog(LOG_ERR, "rtmsg add write: %m");
+		close(r);
 		return;
 	}
 	do {
 		cc = read(r, rt, sizeof(rtmsg));
 	} while (cc > 0 && (rt->rtm_seq != seq || rt->rtm_pid != pid));
+	close(r);
 	if (cc < 0) {
 		syslog(LOG_ERR, "rtmsg add read: %m");
 		return;
