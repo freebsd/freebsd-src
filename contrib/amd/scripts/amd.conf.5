@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.6 1998/11/30 22:25:24 billf Exp $
+.\" $Id: amd.conf.5,v 1.7 1999/08/14 21:37:28 chris Exp $
 .\"
 .Dd April 7, 1997
 .Dt AMD.CONF 5
@@ -342,7 +342,7 @@ will send its events to the standard error file descriptor.  IF the string
 is given,
 .Nm amd
 will record its events with the system logger
-.Xr syslog 8 .
+.Xr syslogd 8 .
 The default syslog facility used is
 .Ev LOG_DAEMON .
 If you wish to change it, append its name to the log file name, delimited by a
