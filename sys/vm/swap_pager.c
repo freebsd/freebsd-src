@@ -290,6 +290,35 @@ swp_sizecheck()
 }
 
 /*
+ * SWP_PAGER_HASH() -	hash swap meta data
+ *
+ *	This is an inline helper function which hashes the swapblk given
+ *	the object and page index.  It returns a pointer to a pointer
+ *	to the object, or a pointer to a NULL pointer if it could not
+ *	find a swapblk.
+ *
+ *	This routine must be called at splvm().
+ */
+static __inline struct swblock **
+swp_pager_hash(vm_object_t object, vm_pindex_t index)
+{
+	struct swblock **pswap;
+	struct swblock *swap;
+
+	index &= ~(vm_pindex_t)SWAP_META_MASK;
+	pswap = &swhash[(index ^ (int)(intptr_t)object) & swhash_mask];
+	while ((swap = *pswap) != NULL) {
+		if (swap->swb_object == object &&
+		    swap->swb_index == index
+		) {
+			break;
+		}
+		pswap = &swap->swb_hnext;
+	}
+	return (pswap);
+}
+
+/*
  * SWAP_PAGER_INIT() -	initialize the swap pager!
  *
  *	Expected to be started from system init.  NOTE:  This code is run 
@@ -1859,35 +1888,6 @@ restart:
  *	linked into the object.  Instead the object simply contains
  *	appropriate tracking counters.
  */
-
-/*
- * SWP_PAGER_HASH() -	hash swap meta data
- *
- *	This is an inline helper function which hashes the swapblk given
- *	the object and page index.  It returns a pointer to a pointer
- *	to the object, or a pointer to a NULL pointer if it could not
- *	find a swapblk.
- *
- *	This routine must be called at splvm().
- */
-static __inline struct swblock **
-swp_pager_hash(vm_object_t object, vm_pindex_t index)
-{
-	struct swblock **pswap;
-	struct swblock *swap;
-
-	index &= ~(vm_pindex_t)SWAP_META_MASK;
-	pswap = &swhash[(index ^ (int)(intptr_t)object) & swhash_mask];
-	while ((swap = *pswap) != NULL) {
-		if (swap->swb_object == object &&
-		    swap->swb_index == index
-		) {
-			break;
-		}
-		pswap = &swap->swb_hnext;
-	}
-	return (pswap);
-}
 
 /*
  * SWP_PAGER_META_BUILD() -	add swap block to swap meta data for object
