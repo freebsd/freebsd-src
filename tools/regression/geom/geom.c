@@ -49,7 +49,7 @@
 #include <geom/geom_int.h>
 
 void
-conff(char *file)
+conff(const char *file)
 {
 	FILE *f;
 	char *s;
@@ -172,7 +172,7 @@ main(int argc __unused, char **argv __unused)
 }
 
 void
-sdumpf(char *file)
+sdumpf(const char *file)
 {
 	FILE *f;
 	char *s;

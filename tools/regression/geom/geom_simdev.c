@@ -97,7 +97,7 @@ static struct g_class dev_class	= {
 };
 
 static struct g_geom *
-g_dev_findg(char *name)
+g_dev_findg(const char *name)
 {
 	struct g_geom *gp;
 
@@ -116,7 +116,7 @@ g_dev_init(void *junk __unused)
 
 
 struct g_consumer *
-g_dev_opendev(char *name, int r, int w, int e)
+g_dev_opendev(const char *name, int r, int w, int e)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -146,7 +146,7 @@ g_dev_done(struct bio *bp)
 }
 
 int
-g_dev_request(char *name, struct bio *bp)
+g_dev_request(const char *name, struct bio *bp)
 {
 	struct g_geom *gp;
 
