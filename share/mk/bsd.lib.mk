@@ -59,7 +59,7 @@ STRIP?=	-s
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .So used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .So .s .S .c .cc .cpp .cxx .m .C .f .y .l
+.SUFFIXES: .out .o .po .So .S .s .c .cc .cpp .cxx .m .C .f .y .l
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
