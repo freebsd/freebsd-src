@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.10 1994/11/18 10:12:56 jkh Exp $
+ * $Id: stage4.c,v 1.11 1995/01/14 10:31:23 jkh Exp $
  *
  */
 
@@ -77,7 +77,7 @@ retry:
 	      i, j, cpid, zpid, strerror(errno));
     
     /* bininst.sh MUST be the last file on the floppy */
-    if (access("/stand/bininst.sh", R_OK) == -1) {
+    if (access("/stand/scripts/bininst.sh", R_OK) == -1) {
 	AskAbort("CPIO floppy was bad!  Please check media for defects and retry.");
 	goto retry;
     }
