@@ -1,0 +1,67 @@
+.\" $FreeBSD$
+.Dd December 30, 2003
+.Dt VINUMDEBUG 4
+.Os
+.Sh NAME
+.Nm vinumdebug
+.Nd debug macros for Vinum.
+.Sh DESCRIPTION
+This man page describes 
+.Nm gdb
+macros for debugging the
+.Nm vinum
+kernel module.  
+See
+.Xr gdb 4
+for the description of the kernel debugging environment.
+No further action is required to access the
+.Nm vinum
+debug macros.
+They are loaded automatically along with the other macros.
+.Sh COMMANDS
+.Bl -ohang -offset 3m
+.It Cm finfo
+Show recently freed Vinum memory blocks.
+.It Cm meminfo
+Equivalent of 
+.Nm vinum Ar info Fl v
+command.
+.It Cm rq
+Show information about the request pointed to by the variable 
+.Va rq 
+in the current frame.
+.It Cm rqe
+Show information about the request element pointed to by the variable 
+.Va rqe 
+in the current frame.
+.It Cm rqi
+Print out a simplified version of the same information as the
+.Nm vinum Ar info Fl V
+command.
+.It Cm rqinfo
+Show the Vinum request log buffer like the
+.Nm vinum Ar info Fl V
+command.
+.It Cm rqq Ar rq
+Show information about the request 
+.Vt ( struct rq ) 
+pointed at by
+.Va rq .
+.It Cm rqq0
+Print information on some Vinum request structures.
+.It Cm rqq1
+Print information on some Vinum request structures.
+.It Cm rrqe Ar rqe
+Show information about the request element 
+.Vt ( struct rqe ) 
+pointed at by the parameter
+.Va rqe .
+.El
+.Sh AUTHORS
+This man page was written by 
+.An "Greg Lehey" Aq grog@FreeBSD.org
+.Sh SEE ALSO
+.Xr gdb 4 ,
+.Xr vinum 4 ,
+.Xr vinum 8 .
+.\" .Sh HISTORY
