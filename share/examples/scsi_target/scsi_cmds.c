@@ -36,6 +36,7 @@
 #include <err.h>
 #include <aio.h>
 #include <assert.h>
+#include <sys/param.h>
 #include <sys/types.h>
 
 #include <cam/cam.h>
@@ -58,6 +59,9 @@ struct targ_cdb_handlers {
 static targ_start_func		tcmd_inquiry;
 static targ_start_func		tcmd_req_sense;
 static targ_start_func		tcmd_rd_cap;
+#ifdef READ_16
+static targ_start_func		tcmd_rd_cap16;
+#endif
 static targ_start_func		tcmd_rdwr;
 static targ_start_func		tcmd_rdwr_decode;
 static targ_done_func		tcmd_rdwr_done;
@@ -83,13 +87,18 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 	{ SYNCHRONIZE_CACHE,	tcmd_null_ok,		NULL },
 	{ MODE_SENSE_6,		tcmd_illegal_req,	NULL },
 	{ MODE_SELECT_6,	tcmd_illegal_req,	NULL },
+#ifdef READ_16
+	{ READ_16,		tcmd_rdwr,		tcmd_rdwr_done },
+	{ WRITE_16,		tcmd_rdwr,		tcmd_rdwr_done },
+	{ SERVICE_ACTION_IN,	tcmd_rd_cap16,		NULL },
+#endif
 	{ ILLEGAL_CDB,		NULL,			NULL }
 };
 
 static struct scsi_inquiry_data inq_data;
 static struct initiator_state istates[MAX_INITIATORS];
 extern int		debug;
-extern u_int32_t	volume_size;
+extern uint64_t		volume_size;
 extern size_t		sector_size;
 extern size_t		buf_size;
 
@@ -398,17 +407,23 @@ tcmd_rd_cap(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 {
 	struct scsi_read_capacity_data *srp;
 	struct atio_descr *a_descr;
+	uint32_t vsize;
 
 	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
 	srp = (struct scsi_read_capacity_data *)ctio->data_ptr;
 
+	if (volume_size > 0xffffffff)
+		vsize = 0xffffffff;
+	else
+		vsize = (uint32_t)(volume_size - 1);
+
 	if (debug) {
 		cdb_debug(a_descr->cdb, "READ CAP from %u (%u, %u): ",
-			  atio->init_id, volume_size - 1, sector_size);
+			  atio->init_id, vsize, sector_size);
 	}
 
 	bzero(srp, sizeof(*srp));
-	scsi_ulto4b(volume_size - 1, srp->addr);
+	scsi_ulto4b(vsize, srp->addr);
 	scsi_ulto4b(sector_size, srp->length);
 
 	ctio->dxfer_len = sizeof(*srp);
@@ -416,6 +431,39 @@ tcmd_rd_cap(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	ctio->scsi_status = SCSI_STATUS_OK;
 	return (0);
 }
+
+#ifdef READ_16
+static int
+tcmd_rd_cap16(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
+{
+	struct scsi_read_capacity_16 *scsi_cmd;
+	struct scsi_read_capacity_data_long *srp;
+	struct atio_descr *a_descr;
+
+	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
+	scsi_cmd = (struct scsi_read_capacity_16 *)a_descr->cdb;
+	srp = (struct scsi_read_capacity_data_long *)ctio->data_ptr;
+
+	if (scsi_cmd->service_action != SRC16_SERVICE_ACTION) {
+		tcmd_illegal_req(atio, ctio);
+		return (0);
+	}
+
+	if (debug) {
+		cdb_debug(a_descr->cdb, "READ CAP16 from %u (%u, %u): ",
+			  atio->init_id, volume_size - 1, sector_size);
+	}
+
+	bzero(srp, sizeof(*srp));
+	scsi_u64to8b(volume_size - 1, srp->addr);
+	scsi_ulto4b(sector_size, srp->length);
+
+	ctio->dxfer_len = sizeof(*srp);
+	ctio->ccb_h.flags |= CAM_DIR_IN | CAM_SEND_STATUS;
+	ctio->scsi_status = SCSI_STATUS_OK;
+	return (0);
+}
+#endif
 
 static int
 tcmd_rdwr(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
@@ -443,13 +491,21 @@ tcmd_rdwr(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	if ((a_descr->flags & CAM_DIR_IN) != 0) {
 		ret = start_io(atio, ctio, CAM_DIR_IN);
 		if (debug)
-			warnx("Starting DIR_IN @%lld:%u", c_descr->offset,
-			      a_descr->targ_req);
+#if __FreeBSD_version >= 500000
+			warnx("Starting DIR_IN @%jd:%u",
+#else
+			warnx("Starting DIR_IN @%lld:%u",
+#endif
+			    c_descr->offset, a_descr->targ_req);
 	} else {
 		ret = start_io(atio, ctio, CAM_DIR_OUT);
 		if (debug)
-			warnx("Starting DIR_OUT @%lld:%u", c_descr->offset,
-			      a_descr->init_req);
+#if __FreeBSD_version >= 500000
+			warnx("Starting DIR_OUT @%jd:%u",
+#else
+			warnx("Starting DIR_OUT @%lld:%u",
+#endif
+			    c_descr->offset, a_descr->init_req);
 	}
 
 	return (ret);
@@ -458,7 +514,8 @@ tcmd_rdwr(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 static int
 tcmd_rdwr_decode(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 {
-	u_int32_t blkno, count;
+	uint64_t blkno;
+	uint32_t count;
 	struct atio_descr *a_descr;
 	u_int8_t *cdb;
 
@@ -467,14 +524,36 @@ tcmd_rdwr_decode(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	if (debug)
 		cdb_debug(cdb, "R/W from %u: ", atio->init_id);
 
-	if (cdb[0] == READ_6 || cdb[0] == WRITE_6) {
+	switch (cdb[0]) {
+	case READ_6:
+	case WRITE_6:
+	{
 		struct scsi_rw_6 *rw_6 = (struct scsi_rw_6 *)cdb;
 		blkno = scsi_3btoul(rw_6->addr);
 		count = rw_6->length;
-	} else {
+		break;
+	}
+	case READ_10:
+	case WRITE_10:
+	{
 		struct scsi_rw_10 *rw_10 = (struct scsi_rw_10 *)cdb;
 		blkno = scsi_4btoul(rw_10->addr);
 		count = scsi_2btoul(rw_10->length);
+		break;
+	}
+#ifdef READ_16
+	case READ_16:
+	case WRITE_16:
+	{
+		struct scsi_rw_16 *rw_16 = (struct scsi_rw_16 *)cdb;
+		blkno = scsi_8btou64(rw_16->addr);
+		count = scsi_4btoul(rw_16->length);
+		break;
+	}
+#endif
+	default:
+		tcmd_illegal_req(atio, ctio);
+		return (0);
 	}
 	if (blkno + count > volume_size) {
 		warnx("Attempt to access past end of volume");
@@ -488,17 +567,29 @@ tcmd_rdwr_decode(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	a_descr->total_len = count * sector_size;
 	if (a_descr->total_len == 0) {
 		if (debug)
-			warnx("r/w 0 blocks @ blkno %u", blkno);
+#if __FreeBSD_version >= 500000
+			warnx("r/w 0 blocks @ blkno %ju", blkno);
+#else
+			warnx("r/w 0 blocks @ blkno %llu", blkno);
+#endif
 		tcmd_null_ok(atio, ctio);
 		return (0);
 	} else if (cdb[0] == WRITE_6 || cdb[0] == WRITE_10) {
 		a_descr->flags |= CAM_DIR_OUT;
 		if (debug)
-			warnx("write %u blocks @ blkno %u", count, blkno);
+#if __FreeBSD_version >= 500000
+			warnx("write %u blocks @ blkno %ju", count, blkno);
+#else
+			warnx("write %u blocks @ blkno %llu", count, blkno);
+#endif
 	} else {
 		a_descr->flags |= CAM_DIR_IN;
 		if (debug)
-			warnx("read %u blocks @ blkno %u", count, blkno);
+#if __FreeBSD_version >= 500000
+			warnx("read %u blocks @ blkno %ju", count, blkno);
+#else
+			warnx("read %u blocks @ blkno %llu", count, blkno);
+#endif
 	}
 	return (1);
 }
