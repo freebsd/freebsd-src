@@ -7,6 +7,9 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 MLINKS=	canfield.6 cfscores.6
 
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/cfscores
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
