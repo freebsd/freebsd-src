@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.79 1998/07/06 03:20:19 julian Exp $
+ *	$Id: tcp_input.c,v 1.80 1998/08/24 07:47:39 dfr Exp $
  */
 
 #include "opt_ipfw.h"	/* for ipfw_fwd */
@@ -979,17 +979,99 @@ trimthenstep6:
 
 	/*
 	 * States other than LISTEN or SYN_SENT.
-	 * First check timestamp, if present.
+	 * First check the RST flag and sequence number since reset segments
+	 * are exempt from the timestamp and connection count tests.  This
+	 * fixes a bug introduced by the Stevens, vol. 2, p. 960 bugfix
+	 * below which allowed reset segments in half the sequence space
+	 * to fall though and be processed (which gives forged reset
+	 * segments with a random sequence number a 50 percent chance of
+	 * killing a connection).
+	 * Then check timestamp, if present.
 	 * Then check the connection count, if present.
 	 * Then check that at least some bytes of segment are within
 	 * receive window.  If segment begins before rcv_nxt,
 	 * drop leading data (and SYN); if nothing left, just ack.
 	 *
+	 *
+	 * If the RST bit is set, check the sequence number to see
+	 * if this is a valid reset segment.
+	 * RFC 793 page 37:
+	 *   In all states except SYN-SENT, all reset (RST) segments
+	 *   are validated by checking their SEQ-fields.  A reset is
+	 *   valid if its sequence number is in the window.
+	 * Note: this does not take into account delayed ACKs, so
+	 *   we should test against last_ack_sent instead of rcv_nxt.
+	 *   Also, it does not make sense to allow reset segments with
+	 *   sequence numbers greater than last_ack_sent to be processed
+	 *   since these sequence numbers are just the acknowledgement
+	 *   numbers in our outgoing packets being echoed back at us,
+	 *   and these acknowledgement numbers are monotonically
+	 *   increasing.
+	 * If we have multiple segments in flight, the intial reset
+	 * segment sequence numbers will be to the left of last_ack_sent,
+	 * but they will eventually catch up.
+	 * In any case, it never made sense to trim reset segments to
+	 * fit the receive window since RFC 1122 says:
+	 *   4.2.2.12  RST Segment: RFC-793 Section 3.4
+	 *
+	 *    A TCP SHOULD allow a received RST segment to include data.
+	 *
+	 *    DISCUSSION
+	 *         It has been suggested that a RST segment could contain
+	 *         ASCII text that encoded and explained the cause of the
+	 *         RST.  No standard has yet been established for such
+	 *         data.
+	 *
+	 * If the reset segment passes the sequence number test examine
+	 * the state:
+	 *    SYN_RECEIVED STATE:
+	 *	If passive open, return to LISTEN state.
+	 *	If active open, inform user that connection was refused.
+	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT2, CLOSE_WAIT STATES:
+	 *	Inform user that connection was reset, and close tcb.
+	 *    CLOSING, LAST_ACK, TIME_WAIT STATES
+	 *	Close the tcb.
+	 *    TIME_WAIT state:
+	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
+	 *      RFC 1337.
+	 */
+	if (tiflags & TH_RST) {
+		if (tp->last_ack_sent == ti->ti_seq) {
+			switch (tp->t_state) {
+
+			case TCPS_SYN_RECEIVED:
+				so->so_error = ECONNREFUSED;
+				goto close;
+
+			case TCPS_ESTABLISHED:
+			case TCPS_FIN_WAIT_1:
+			case TCPS_FIN_WAIT_2:
+			case TCPS_CLOSE_WAIT:
+				so->so_error = ECONNRESET;
+			close:
+				tp->t_state = TCPS_CLOSED;
+				tcpstat.tcps_drops++;
+				tp = tcp_close(tp);
+				break;
+
+			case TCPS_CLOSING:
+			case TCPS_LAST_ACK:
+				tp = tcp_close(tp);
+				break;
+
+			case TCPS_TIME_WAIT:
+				break;
+			}
+		}
+		goto drop;
+	}
+
+	/*
 	 * RFC 1323 PAWS: If we have a timestamp reply on this segment
 	 * and it's less than ts_recent, drop it.
 	 */
-	if ((to.to_flag & TOF_TS) != 0 && (tiflags & TH_RST) == 0 &&
-	    tp->ts_recent && TSTMP_LT(to.to_tsval, tp->ts_recent)) {
+	if ((to.to_flag & TOF_TS) != 0 && tp->ts_recent &&
+	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
 
 		/* Check to see if ts_recent is over 24 days old.  */
 		if ((int)(tcp_now - tp->ts_recent_age) > TCP_PAWS_IDLE) {
@@ -1020,9 +1102,18 @@ trimthenstep6:
 	 *   RST segments do not have to comply with this.
 	 */
 	if ((tp->t_flags & (TF_REQ_CC|TF_RCVD_CC)) == (TF_REQ_CC|TF_RCVD_CC) &&
-	    ((to.to_flag & TOF_CC) == 0 || tp->cc_recv != to.to_cc) &&
-	    (tiflags & TH_RST) == 0)
+	    ((to.to_flag & TOF_CC) == 0 || tp->cc_recv != to.to_cc))
  		goto dropafterack;
+
+	/*
+	 * In the SYN-RECEIVED state, validate that the packet belongs to
+	 * this connection before trimming the data to fit the receive
+	 * window.  Check the sequence number versus IRS since we know
+	 * the sequence numbers haven't wrapped.  This is a partial fix
+	 * for the "LAND" DoS attack.
+	 */
+	if (tp->t_state == TCPS_SYN_RECEIVED && SEQ_LT(ti->ti_seq, tp->irs))
+		goto dropwithreset;
 
 	todrop = tp->rcv_nxt - ti->ti_seq;
 	if (todrop > 0) {
@@ -1132,40 +1223,6 @@ trimthenstep6:
 	    SEQ_LEQ(ti->ti_seq, tp->last_ack_sent)) {
 		tp->ts_recent_age = tcp_now;
 		tp->ts_recent = to.to_tsval;
-	}
-
-	/*
-	 * If the RST bit is set examine the state:
-	 *    SYN_RECEIVED STATE:
-	 *	If passive open, return to LISTEN state.
-	 *	If active open, inform user that connection was refused.
-	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT2, CLOSE_WAIT STATES:
-	 *	Inform user that connection was reset, and close tcb.
-	 *    CLOSING, LAST_ACK, TIME_WAIT STATES
-	 *	Close the tcb.
-	 */
-	if (tiflags&TH_RST) switch (tp->t_state) {
-
-	case TCPS_SYN_RECEIVED:
-		so->so_error = ECONNREFUSED;
-		goto close;
-
-	case TCPS_ESTABLISHED:
-	case TCPS_FIN_WAIT_1:
-	case TCPS_FIN_WAIT_2:
-	case TCPS_CLOSE_WAIT:
-		so->so_error = ECONNRESET;
-	close:
-		tp->t_state = TCPS_CLOSED;
-		tcpstat.tcps_drops++;
-		tp = tcp_close(tp);
-		goto drop;
-
-	case TCPS_CLOSING:
-	case TCPS_LAST_ACK:
-	case TCPS_TIME_WAIT:
-		tp = tcp_close(tp);
-		goto drop;
 	}
 
 	/*
@@ -1673,9 +1730,22 @@ dropafterack:
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies
 	 * sequence space, where the ACK reflects our state.
+	 *
+	 * We can now skip the test for the RST flag since all
+	 * paths to this code happen after packets containing
+	 * RST have been dropped.
+	 *
+	 * In the SYN-RECEIVED state, don't send an ACK unless the
+	 * segment we received passes the SYN-RECEIVED ACK test.
+	 * If it fails send a RST.  This breaks the loop in the
+	 * "LAND" DoS attack, and also prevents an ACK storm
+	 * between two listening ports that have been sent forged
+	 * SYN segments, each with the source address of the other.
 	 */
-	if (tiflags & TH_RST)
-		goto drop;
+	if (tp->t_state == TCPS_SYN_RECEIVED && (tiflags & TH_ACK) &&
+	    (SEQ_GT(tp->snd_una, ti->ti_ack) ||
+	     SEQ_GT(ti->ti_ack, tp->snd_max)) )
+		goto dropwithreset;
 #ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_DROP, ostate, tp, &tcp_saveti, 0);
