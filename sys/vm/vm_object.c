@@ -120,7 +120,7 @@ static void	vm_object_qcollapse __P((vm_object_t object));
  */
 
 struct object_q vm_object_list;
-static struct mtx vm_object_list_mtx;
+static struct mtx vm_object_list_mtx;	/* lock for object list and count */
 static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
@@ -741,9 +741,7 @@ vm_object_pmap_remove(object, start, end)
 
 	if (object == NULL)
 		return;
-	for (p = TAILQ_FIRST(&object->memq);
-		p != NULL;
-		p = TAILQ_NEXT(p, listq)) {
+	TAILQ_FOREACH(p, &object->memq, listq) {
 		if (p->pindex >= start && p->pindex < end)
 			vm_page_protect(p, VM_PROT_NONE);
 	}
@@ -1648,9 +1646,7 @@ DB_SHOW_COMMAND(vmochk, vm_object_check)
 	 * make sure that internal objs are in a map somewhere
 	 * and none have zero ref counts.
 	 */
-	for (object = TAILQ_FIRST(&vm_object_list);
-			object != NULL;
-			object = TAILQ_NEXT(object, object_list)) {
+	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		if (object->handle == NULL &&
 		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 			if (object->ref_count == 0) {
@@ -1743,9 +1739,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 	vm_object_t object;
 	int nl = 0;
 	int c;
-	for (object = TAILQ_FIRST(&vm_object_list);
-			object != NULL;
-			object = TAILQ_NEXT(object, object_list)) {
+
+	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		vm_pindex_t idx, fidx;
 		vm_pindex_t osize;
 		vm_offset_t pa = -1, padiff;
