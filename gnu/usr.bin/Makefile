@@ -15,8 +15,8 @@ _gperf=gperf
 SUBDIR+=groff
 .endif
 
-.if !defined(NO_CVS)
-SUBDIR+=cvs
-.endif
+#.if !defined(NO_CVS)
+#SUBDIR+=cvs
+#.endif
 
 .include <bsd.subdir.mk>
