@@ -325,7 +325,7 @@ userlist(argc, argv)
 	 */
 	if (mflag)
 		for (p = argv; *p; ++p) {
-			if (**p == '/' && !show_text("", *p, "")) {
+			if (**p != '/' || !show_text("", *p, "")) {
 				if (((pw = getpwnam(*p)) != NULL) && !hide(pw))
 					enter_person(pw);
 			   	else
