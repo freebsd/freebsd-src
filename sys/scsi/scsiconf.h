@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.9 1994/03/23 09:15:55 davidg Exp $
+ *	$Id: scsiconf.h,v 1.10 1994/09/28 20:16:41 se Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -260,6 +260,7 @@ struct scsi_xfer
 #define XS_SWTIMEOUT	0x04	/* The Timeout reported was caught by SW  */
 #define XS_BUSY		0x08	/* The device busy, try again later?	  */
 
+#ifdef KERNEL
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
 struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
 void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
@@ -286,6 +287,12 @@ void	lto3b __P((int val, u_char *bytes));
 int	_3btol __P((u_char *bytes));
 
 extern void sc_print_addr(struct scsi_link *);
+
+#define SCSI_EXTERNALLEN (sizeof(struct scsi_link))
+extern int scsi_externalize(struct scsi_link *, void *, size_t *);
+extern int scsi_internalize(struct scsi_link *, void **, size_t *);
+
+#endif
 
 #ifdef NEW_SCSICONF
 /**********************************************************************
