@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_forward.c,v 1.39 2000/07/03 13:23:28 itojun Exp $	*/
+/*	$KAME: ip6_forward.c,v 1.43 2000/07/16 07:50:49 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -56,11 +56,11 @@
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netinet6/ipsec6.h>
 #include <netkey/key.h>
-#endif /* IPSEC_IPV6FWD */
+#endif /* IPSEC */
 
 #ifdef IPV6FIREWALL
 #include <netinet6/ip6_fw.h>
@@ -94,11 +94,11 @@ ip6_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
 
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -111,7 +111,7 @@ ip6_forward(m, srcrt)
 		m_freem(m);
 		return;
 	}
-#endif /*IPSEC_IPV6FWD*/
+#endif /*IPSEC*/
 
 	if ((m->m_flags & (M_BCAST|M_MCAST)) != 0 ||
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -150,7 +150,7 @@ ip6_forward(m, srcrt)
 	 */
 	mcopy = m_copy(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN));
 
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 	/* get a security policy for this packet */
 	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, 0, &error);
 	if (sp == NULL) {
@@ -275,7 +275,7 @@ ip6_forward(m, srcrt)
 	}
     }
     skip_ipsec:
-#endif /* IPSEC_IPV6FWD */
+#endif /* IPSEC */
 
 	dst = &ip6_forward_rt.ro_dst;
 	if (!srcrt) {
@@ -362,14 +362,14 @@ ip6_forward(m, srcrt)
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
 		if (mcopy) {
 			u_long mtu;
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 			struct secpolicy *sp;
 			int ipsecerror;
 			size_t ipsechdrsiz;
 #endif
 
 			mtu = rt->rt_ifp->if_mtu;
-#ifdef IPSEC_IPV6FWD
+#ifdef IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play
 			 * with if_mtu value (decrement IPsec header size
