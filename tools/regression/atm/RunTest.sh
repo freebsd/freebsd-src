@@ -34,10 +34,10 @@ do
 	esac
 done
 
-(cd proto_uni ; ./RunTest.sh -u $options)
-(cd proto_sscop ; ./RunTest.sh -u $options)
-(cd proto_sscfu ; ./RunTest.sh -u $options)
+(cd proto_sscop ; sh ./RunTest.sh -u $options)
+(cd proto_sscfu ; sh ./RunTest.sh -u $options)
+(cd proto_uni ; sh ./RunTest.sh -u $options)
 
-(cd proto_uni ; ./RunTest.sh $options)
-(cd proto_sscop ; ./RunTest.sh $options)
-(cd proto_sscfu ; ./RunTest.sh $options)
+(cd proto_uni ; sh ./RunTest.sh $options)
+(cd proto_sscop ; sh ./RunTest.sh $options)
+(cd proto_sscfu ; sh ./RunTest.sh $options)
