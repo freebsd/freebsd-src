@@ -221,22 +221,19 @@ cbb_pci_probe(device_t brdev)
 	 */
 	if (cbb_chipset(pci_get_devid(brdev), &name) != CB_UNKNOWN) {
 		device_set_desc(brdev, name);
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	/*
 	 * We do support generic CardBus bridges.  All that we've seen
 	 * to date have progif 0 (the Yenta spec, and successors mandate
-	 * this).  We do not support PCI PCMCIA bridges (with one exception)
-	 * with this driver since they generally are I/O mapped.  Those
-	 * are supported by the pcic driver.  This should help us be more
-	 * future proof.
+	 * this).
 	 */
 	subclass = pci_get_subclass(brdev);
 	progif = pci_get_progif(brdev);
 	if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0) {
 		device_set_desc(brdev, "PCI-CardBus Bridge");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
