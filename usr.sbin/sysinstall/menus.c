@@ -1367,7 +1367,7 @@ DMenu MenuNTP = {
 	"ntpdate_enable=NO,ntpdate_flags=none" },
       { "Other",		"Select a site not on this list",
 	dmenuVarsCheck, configNTP, NULL, NULL },
-      { "Australia",		"ntp.tip.csiro.au (HP 5071A Cesium Beam)",
+      { "Australia",		"ntp.nml.csiro.au (HP 5071A Cesium Beam)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=ntp.tip.csiro.au" },
       { " Canada",		"tick.usask.ca (GOES clock)",
