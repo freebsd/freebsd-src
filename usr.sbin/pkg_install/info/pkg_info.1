@@ -24,13 +24,13 @@
 .Nm pkg_info
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
-.Nm pkg_info
+.Nm
 .Op Fl cdDfiIkLmopqrRsv
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
 .Ar pkg-name [pkg-name ...]
-.Nm pkg_info
+.Nm
 .Fl a
 .Op Ar flags
 .Sh DESCRIPTION
@@ -94,7 +94,8 @@ Show the
 path recorded on package generation.  This path
 intended to give an idea as to where the underlying port, from which
 package was generated, is located in the
-.Em "FreeBSD Ports Collection" .
+.Fx
+.Em "Ports Collection" .
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name

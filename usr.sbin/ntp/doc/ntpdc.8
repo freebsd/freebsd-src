@@ -8,7 +8,7 @@
 .Nm ntpdc
 .Nd special NTP query program
 .Sh SYNOPSIS
-.Nm ntpdc
+.Nm
 .Op Fl ilnps
 .Op Fl c Ar command
 .Op Ar host ...
@@ -27,7 +27,7 @@ In addition, nearly all the configuration options which can
 be specified at start up using
 .Xr ntpd 8 Ns 's
 configuration file may also be specified at run time using
-.Nm Ns .
+.Nm .
 .Pp
 If one or more request options is included on the command line when
 .Nm
@@ -142,7 +142,7 @@ A
 .Ic ?
 by itself will print a list of all the command keywords
 known to this incarnation of
-.Nm Ns .
+.Nm .
 A
 .Ic ?
 followed by a command keyword will print function and
@@ -188,7 +188,7 @@ This must correspond to a key
 number the server has been configured to use for this purpose.
 .It Ic quit
 Exit
-.Nm Ns .
+.Nm .
 .It Ic passwd
 This command prompts you to type in a password (which will not be
 echoed) which will be used to authenticate configuration requests.
@@ -417,7 +417,7 @@ NTP key (the facility can also be
 disabled by the server by not configuring a key).
 The key number and the
 corresponding key must also be made known to
-.Nm Ns .
+.Nm .
 This can be done using the
 .Ic keyid
 and
@@ -543,7 +543,7 @@ configuration file commands of
 Following is a description of the flags.
 Note that only the auth, bclient, monitor, pll, pps and stats flags
 can be set by
-.Nm Ns ;
+.Nm ;
 the pll_kernel and pps_kernel flags are read-only.
 .Bl -tag -width indent
 .It auth

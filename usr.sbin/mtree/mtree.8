@@ -39,7 +39,7 @@
 .Nm mtree
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
-.Nm mtree
+.Nm
 .Op Fl cdeinrUux
 .Op Fl f Ar spec
 .Op Fl K Ar keywords
@@ -188,7 +188,7 @@ The file the symbolic link is expected to reference.
 The last modification time of the file.
 .It Cm type
 The type of the file; may be set to any one of the following:
-.sp
+.Pp
 .Bl -tag -width Cm -compact
 .It Cm block
 block special device
@@ -252,7 +252,7 @@ Specifying a directory will cause subsequent files to be searched
 for in that directory hierarchy.
 Which brings us to the last type of line in a specification: a line
 containing only the string
-.Dq Nm \&..
+.Dq Pa \&..
 causes the current directory
 path to ascend one level.
 .Pp

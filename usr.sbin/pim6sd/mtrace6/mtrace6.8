@@ -62,7 +62,7 @@ along the path, and then the response is returned to the requestor.
 .It Fl d Ar destination
 Specifies the multicast receiver that the query wants to trace.
 It is the host running
-.Nm mtrace6
+.Nm
 by default.
 .It Fl g Ar gateway
 Send the trace query via unicast directly to the multicast router
@@ -91,7 +91,7 @@ the path).
 .It Fl r Ar response_addr
 Specify the host that the trace response sends to.
 By default, the response will send to the host running
-.Nm mtrace6 .
+.Nm .
 .It Fl w Ar waittime
 Set the time to wait for a trace response to 
 .Ar waittime
@@ -111,7 +111,7 @@ specified by the
 option is currently meaningless.
 .Sh HISTORY
 The
-.Nm mtrace6
+.Nm
 command first appeared in WIDE/KAME IPv6 protocol stack kit.
 .Pp
 IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack

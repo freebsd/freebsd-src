@@ -39,7 +39,7 @@
 .Nm lpr
 .Nd off line print
 .Sh SYNOPSIS
-.Nm lpr
+.Nm
 .Op Fl P Ns Ar printer
 .Op Fl \&# Ns Ar num
 .Op Fl C Ar class
@@ -234,7 +234,7 @@ as the page width for
 .El
 .Sh ENVIRONMENT
 If the following environment variable exists, it is used by
-.Nm Ns :
+.Nm :
 .Bl -tag -width PRINTER
 .It Ev PRINTER
 Specifies an alternate default printer.
@@ -307,7 +307,7 @@ For
 it specifies additional options to be interpreted by the spooler's
 input and output filters.
 When submitting jobs via
-.Nm Ns ,
+.Nm ,
 .Fl p
 .Fl L Ar locale
 is used in the former context, and

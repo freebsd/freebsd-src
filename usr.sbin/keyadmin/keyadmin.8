@@ -63,7 +63,7 @@
 .Nm keyadmin
 .Nd manually manipulate the kernel key management database
 .Sh SYNOPSIS
-.Nm keyadmin
+.Nm
 .Op Ar command Op Ar args
 .Sh DESCRIPTION
 The
@@ -75,7 +75,7 @@ key/security association database.  (See
 Almost any operation offered in the
 .Xr key 4
 API is available to privileged users running
-.Nm keyadmin .
+.Nm .
 Until there is an implementation of an automated key management protocol,
 which will manipulate the key database in a manner similar to how
 .Xr routed 8
@@ -97,7 +97,7 @@ to enter a single
 .Ar Command
 can be one of the following:
 .Bl -inset
-.It Nm del Ar type spi source destination
+.It Ic del Ar type spi source destination
 .Pp
 Delete a security association between
 .Ar source
@@ -111,7 +111,7 @@ Example:
 .Bd -literal
 	delete esp 90125 anderson.yes.org rabin.yes.org
 .Ed
-.It Nm get Ar type spi source destination
+.It Ic get Ar type spi source destination
 .Pp
 Retrieve (and print) a security association between
 .Ar source
@@ -125,11 +125,11 @@ Example:
 .Bd -literal
 	get ah 5150 eddie.vanhalen.com alex.vanhalen.com
 .Ed
-.It Nm dump
+.It Ic dump
 .Pp
 Display the entire security association table.  WARNING:  This prints a lot
 of data.
-.It Nm load Ar filename
+.It Ic load Ar filename
 .Pp
 Load security association information from a file formatted as documented in
 .Xr keys 5 .  If 
@@ -137,7 +137,7 @@ Load security association information from a file formatted as documented in
 is specified for the
 .Ar filename ,
 load keys from the standard input.
-.It Nm save Ar filename
+.It Ic save Ar filename
 .Pp
 Save security association information to a file formatted as documented in
 .Xr keys 5 .  If
@@ -146,19 +146,21 @@ is specified for the
 .Ar filename ,
 place the key file out on the standard output.  (This can be used as a sort
 of lightweight
-.Nm dump
+.Ic dump
 command.)
-NOTE:  The save command must create a new file; it will not write into an
+NOTE:  The
+.Ic save
+command must create a new file; it will not write into an
 existing file.  This is to prevent writing into a world-readable file, or a
 named pipe or UNIX socket (see
 .Xr socket 2
 and
 .Xr mkfifo 1 ).
-.It Nm help Op command
+.It Ic help Op command
 .Pp
 Offer brief help without an argument, or slightly more specific help on a
 particular command.
-.It Nm flush
+.It Ic flush
 .Pp
 Erase all entries in the kernel security association table.
 .El
@@ -170,7 +172,7 @@ are only available by using
 .Nm
 in its interactive mode of operation:
 .Bl -inset
-.It Nm add Ar type spi source destination transform key
+.It Ic add Ar type spi source destination transform key
 .Op Ar iv
 .Pp
 Add a security association of a particular
@@ -190,23 +192,23 @@ If a transform requires an initialization vector, the
 argument contains it.  This command is available only in interactive mode
 because
 .Nm
-makes no attempt to destroy its argument vector after use.  A malicous user
+makes no attempt to destroy its argument vector after use.  A malicious user
 of the
 .Xr ps 1
 command could determine security keys if
-.Nm add
+.Ic add
 were allowed to be used straight from the command line.  Example:
 .Bd -literal
 	add esp 2112 temples.syrinx.org priests.syrinx.org des-cbc \\
 		a652a476a652a476 87ac9876deac9876
 .Ed
-.It Nm exit
-.It Nm quit
+.It Ic exit
+.It Ic quit
 .Pp
 Exit interaction with
-.Nm keyadmin .
+.Nm .
 An EOF will also end interaction with
-.Nm keyadmin .
+.Nm .
 .El
 .Sh SEE ALSO
 .Xr ipsec 4 ,
@@ -228,7 +230,7 @@ Craig Metz, and Bao Phan.
 The NRL version of the program was originally called
 .Nm key ,
 but was renamed to
-.Nm keyadmin
+.Nm
 because of the conflict with
 .Xr key 1 .
 .Sh BUGS
@@ -237,4 +239,8 @@ needs a -n flag like
 .Xr route 8
 to avoid name lookups.
 .Pp
-The dump and save commands currently display the first 30 or so entries.
+The
+.Ic dump
+and
+.Ic save
+commands currently display the first 30 or so entries.

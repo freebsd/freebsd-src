@@ -37,45 +37,45 @@
 .Nm wicontrol
 .Nd configure WaveLAN/IEEE devices
 .Sh SYNOPSIS
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Op Fl oa
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl t Ar tx rate
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl n Ar network name
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl s Ar station name
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl c Ar 0|1
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl q Ar SSID
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl p Ar port type
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl a Ar access point density
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl m Ar mac address
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl d Ar max data length
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl e Ar 0|1
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl k Ar key
 .Op Fl v Ar 1|2|3|4
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl T Ar 1|2|3|4
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl r Ar RTS threshold
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl f Ar frequency
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl P Ar 0|1
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl S Ar max_sleep_duration
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl Z
 (zero signal cache)
-.Nm wicontrol
+.Nm
 .Fl i Ar iface Fl C
 (display signal cache)
 .Sh DESCRIPTION
@@ -321,7 +321,7 @@ values for this parameter are 0 (off) and 1 (on).
 .It Fl i Ar iface Fl S Ar max_sleep_interval
 Specify the sleep interval to use when power management is enabled.
 The
-.Are max sleep interval
+.Ar max_sleep_interval
 is specified in milliseconds.
 The default is 100.
 .It Fl i Ar iface Fl Z

@@ -39,7 +39,7 @@
 .Nm timed
 .Nd time server daemon
 .Sh SYNOPSIS
-.Nm timed
+.Nm
 .Op Fl dtM
 .Op Fl i Ar network
 .Op Fl n Ar network
@@ -53,7 +53,7 @@ which is normally invoked at boot time from the
 file.  
 It synchronizes the host's time with the time of other
 machines, which are also running
-.Nm Ns ,
+.Nm ,
 in a local area network.
 These time servers will slow down the clocks of some machines
 and speed up the clocks of others to bring them to the average network time.
@@ -74,7 +74,7 @@ to the list of networks to ignore.
 All other networks
 to which the machine is directly connected
 are used by
-.Nm Ns .
+.Nm .
 This option may be specified multiple times
 to add more than one network to the list.
 .It Fl F Ar host ...
@@ -101,7 +101,7 @@ to the list of allowed networks.
 All other networks
 to which the machine is directly connected
 are ignored by
-.Nm Ns .
+.Nm .
 This option may be specified multiple times
 to add more than one network to the list.
 .It Fl t
@@ -217,7 +217,7 @@ that looked for time masters on more than one network and eventually
 chose to become a slave on the other network.
 .Sh WARNINGS
 If two or more time daemons, whether 
-.Nm Ns ,
+.Nm ,
 .Tn NTP ,
 try to adjust the same clock, temporal chaos will result.
 If both 
