@@ -11,6 +11,7 @@ USE_SOELIM=	yes
 USE_SOELIMPP=	yes
 USE_TBL=	yes
 SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vi.ref
+TRFLAGS+=-U
 
 # Build index.so as a side-effect of building the paper.
 index.so: ${SRCS} ${EXTRA}
