@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.51 1997/06/21 15:47:34 jkh Exp $
+ * $Id: install.c,v 1.134.2.52 1997/07/16 05:23:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -790,6 +790,10 @@ installFixup(dialogMenuItem *self)
 	/* BOGON #3: No /var/db/mountdtab complains */
 	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
+
+	/* BOGON #4: /compat created by default in root fs */
+	Mkdir(/usr/compat");
+	vsystem("ln -s /usr/compat /compat");
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
