@@ -105,15 +105,16 @@ struct sbp_targ_login {
 	struct sbp_targ_lstate *lstate;
 	struct fw_device *fwdev;
 	struct sbp_login_res loginres;
-	u_int32_t flags; 
 	u_int16_t fifo_hi; 
 	u_int16_t last_hi;
 	u_int32_t fifo_lo; 
 	u_int32_t last_lo;
 	STAILQ_HEAD(, orb_info) orbs;
-	u_int16_t id;
 	STAILQ_ENTRY(sbp_targ_login) link;
-	int hold_sec;
+	u_int16_t hold_sec;
+	u_int16_t id;
+	u_int8_t flags; 
+	u_int8_t spd; 
 	struct callout hold_callout;
 };
 
@@ -674,7 +675,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 	if (xfer->resp != 0) {
 		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
-		orbi->status.status = htonl(OBJ_DATA | SBE_TIMEOUT /*XXX*/);
+		orbi->status.status = OBJ_DATA | SBE_TIMEOUT/*XXX*/;
 		orbi->status.dead = 1;
 		sbp_targ_abort(STAILQ_NEXT(orbi, link));
 	}
@@ -819,7 +820,7 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 	if (xfer->resp != 0) {
 		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
-		orbi->status.status = htonl(OBJ_PT | SBE_TIMEOUT /*XXX*/);
+		orbi->status.status = OBJ_PT | SBE_TIMEOUT/*XXX*/;
 		orbi->status.dead = 1;
 		orbi->status.len = 1;
 		sbp_targ_abort(STAILQ_NEXT(orbi, link));
@@ -1102,7 +1103,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 	if (xfer->resp != 0) {
 		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
-		orbi->status.status = htonl(OBJ_ORB | SBE_TIMEOUT /*XXX*/);
+		orbi->status.status = OBJ_ORB | SBE_TIMEOUT/*XXX*/;
 		orbi->status.dead = 1;
 		orbi->status.len = 1;
 		sbp_targ_abort(STAILQ_NEXT(orbi, link));
@@ -1251,7 +1252,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 	if (xfer->resp != 0) {
 		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
-		orbi->status.status = htonl(OBJ_ORB | SBE_TIMEOUT /*XXX*/);
+		orbi->status.status = OBJ_ORB | SBE_TIMEOUT/*XXX*/;
 		orbi->status.dead = 1;
 		orbi->status.len = 1;
 		sbp_targ_abort(STAILQ_NEXT(orbi, link));
