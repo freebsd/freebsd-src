@@ -39,13 +39,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	writev=_writev
 
 ssize_t
 _writev(int fd, const struct iovec * iov, int iovcnt)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	blocking;
 	int	idx = 0;
 	int	type;
@@ -92,7 +94,7 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 		 */
 		while (ret == 0) {
 			/* Perform a non-blocking write syscall: */
-			n = _thread_sys_writev(fd, &p_iov[idx], iovcnt - idx);
+			n = __sys_writev(fd, &p_iov[idx], iovcnt - idx);
 
 			/* Check if one or more bytes were written: */
 			if (n > 0) {
@@ -158,11 +160,11 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
 			    errno == EAGAIN)) || (n >= 0 && idx < iovcnt))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
 				/* Reset the interrupted operation flag: */
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 
 				_thread_kern_sched_state(PS_FDW_WAIT,
 				    __FILE__, __LINE__);
@@ -171,7 +173,7 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 				 * Check if the operation was
 				 * interrupted by a signal
 				 */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					/* Return an error: */
 					ret = -1;
 				}
@@ -200,6 +202,3 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 
 	return (ret);
 }
-
-__strong_reference(_writev, writev);
-#endif

@@ -29,12 +29,13 @@
  * $FreeBSD$
  */
 
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	wait=_wait
+
 pid_t
-wait(int *istat)
+_wait(int *istat)
 {
 	pid_t	ret;
 
@@ -44,4 +45,3 @@ wait(int *istat)
 
 	return ret;
 }
-#endif

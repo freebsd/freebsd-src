@@ -31,14 +31,14 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_self=_pthread_self
+
 pthread_t
-pthread_self(void)
+_pthread_self(void)
 {
 	/* Return the running thread pointer: */
-	return (_thread_run);
+	return (_get_curthread());
 }
-#endif

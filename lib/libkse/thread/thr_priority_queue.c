@@ -34,7 +34,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -71,7 +70,7 @@ static int _pq_active = 0;
 } while (0)
 #define _PQ_ASSERT_PROTECTED(msg)			\
 	PTHREAD_ASSERT((_thread_kern_in_sched != 0) ||	\
-	    (_thread_run->sig_defer_count > 0) ||	\
+	    ((_get_curthread())->sig_defer_count > 0) ||\
 	    (_sig_in_handler != 0), msg);
 
 #else
@@ -336,4 +335,3 @@ _waitq_clearactive(void)
 	_PQ_ASSERT_ACTIVE("_waitq_clearactive: ! pq_active");
 	_PQ_CLEAR_ACTIVE();
 }
-#endif

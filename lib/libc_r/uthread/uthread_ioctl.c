@@ -33,10 +33,11 @@
  */
 #include <stdarg.h>
 #include <sys/ioctl.h>
-#ifdef _THREAD_SAFE
 #include <sys/fcntl.h>	/* O_NONBLOCK*/
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	ioctl=_ioctl
 
 int
 _ioctl(int fd, unsigned long request,...)
@@ -62,7 +63,7 @@ _ioctl(int fd, unsigned long request,...)
 			ret = 0;
 			break;
 		default:
-			ret = _thread_sys_ioctl(fd, request, va_arg(ap, char *));
+			ret = __sys_ioctl(fd, request, va_arg(ap, char *));
 			break;
 		}
 
@@ -76,6 +77,3 @@ _ioctl(int fd, unsigned long request,...)
 	/* Return the completion status: */
 	return (ret);
 }
-
-__strong_reference(_ioctl, ioctl);
-#endif

@@ -36,15 +36,13 @@
 #include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	sigprocmask=_sigprocmask
 
 int
 _sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	return (pthread_sigmask(how, set, oset));
 }
-
-__strong_reference(_sigprocmask, sigprocmask);
-#endif

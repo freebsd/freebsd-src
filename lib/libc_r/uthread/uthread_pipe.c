@@ -33,24 +33,22 @@
  */
 #include <unistd.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	pipe=_pipe
 
 int
 _pipe(int fds[2])
 {
 	int             ret;
-	if ((ret = _thread_sys_pipe(fds)) >= 0) {
+	if ((ret = __sys_pipe(fds)) >= 0) {
 		if (_thread_fd_table_init(fds[0]) != 0 ||
 		    _thread_fd_table_init(fds[1]) != 0) {
-			_thread_sys_close(fds[0]);
-			_thread_sys_close(fds[1]);
+			__sys_close(fds[0]);
+			__sys_close(fds[1]);
 			ret = -1;
 		}
 	}
 	return (ret);
 }
-
-__strong_reference(_pipe, pipe);
-#endif

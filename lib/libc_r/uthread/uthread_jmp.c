@@ -35,7 +35,6 @@
 #include <setjmp.h>
 #include <sys/param.h>
 #include <sys/user.h>
-#ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -43,10 +42,16 @@
 /* Prototypes: */
 static inline int	check_stack(pthread_t thread, void *stackp);
 
+#pragma weak	siglongjmp=_thread_siglongjmp
+#pragma weak	longjmp=_thread_longjmp
+#pragma weak	_longjmp=__thread_longjmp
+
 void
-siglongjmp(sigjmp_buf env, int savemask)
+_thread_siglongjmp(sigjmp_buf env, int savemask)
 {
-	if (check_stack(_thread_run, (void *) GET_STACK_SJB(env)))
+	struct pthread	*curthread = _get_curthread();
+
+	if (check_stack(curthread, (void *) GET_STACK_SJB(env)))
 		PANIC("siglongjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
@@ -58,9 +63,11 @@ siglongjmp(sigjmp_buf env, int savemask)
 }
 
 void
-longjmp(jmp_buf env, int val)
+_thread_longjmp(jmp_buf env, int val)
 {
-	if (check_stack(_thread_run, (void *) GET_STACK_JB(env)))
+	struct pthread	*curthread = _get_curthread();
+
+	if (check_stack(curthread, (void *) GET_STACK_JB(env)))
 		PANIC("longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
@@ -72,9 +79,11 @@ longjmp(jmp_buf env, int val)
 }
 
 void
-_longjmp(jmp_buf env, int val)
+__thread_longjmp(jmp_buf env, int val)
 {
-	if (check_stack(_thread_run, (void *) GET_STACK_JB(env)))
+	struct pthread	*curthread = _get_curthread();
+
+	if (check_stack(curthread, (void *) GET_STACK_JB(env)))
 		PANIC("_longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
@@ -108,4 +117,3 @@ check_stack(pthread_t thread, void *stackp)
 	else
 		return (0);
 }
-#endif

@@ -32,9 +32,10 @@
  * $FreeBSD$
  */
 #include <sys/file.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	flock=_flock
 
 int
 _flock(int fd, int operation)
@@ -42,11 +43,8 @@ _flock(int fd, int operation)
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		ret = _thread_sys_flock(fd, operation);
+		ret = __sys_flock(fd, operation);
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }
-
-__strong_reference(_flock, flock);
-#endif

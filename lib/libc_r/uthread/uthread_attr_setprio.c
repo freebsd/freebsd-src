@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_setprio=_pthread_attr_setprio
+
 int
-pthread_attr_setprio(pthread_attr_t *attr, int priority)
+_pthread_attr_setprio(pthread_attr_t *attr, int priority)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
@@ -49,4 +50,3 @@ pthread_attr_setprio(pthread_attr_t *attr, int priority)
 	}
 	return(ret);
 }
-#endif

@@ -37,12 +37,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 #define FLAGS_IN_SCHEDQ	\
 	(PTHREAD_FLAGS_IN_PRIOQ|PTHREAD_FLAGS_IN_WAITQ|PTHREAD_FLAGS_IN_WORKQ)
+
+#pragma weak	_exit=__exit
+#pragma weak	pthread_exit=_pthread_exit
 
 void __exit(int status)
 {
@@ -58,8 +60,8 @@ void __exit(int status)
 	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
-	_thread_sys_close(_thread_kern_pipe[0]);
-	_thread_sys_close(_thread_kern_pipe[1]);
+	__sys_close(_thread_kern_pipe[0]);
+	__sys_close(_thread_kern_pipe[1]);
 
 	/*
 	 * Enter a loop to set all file descriptors to blocking
@@ -70,17 +72,15 @@ void __exit(int status)
 		if (_thread_fd_table[i] != NULL &&
 			!(_thread_fd_table[i]->flags & O_NONBLOCK)) {
 			/* Get the current flags: */
-			flags = _thread_sys_fcntl(i, F_GETFL, NULL);
+			flags = __sys_fcntl(i, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */
-			_thread_sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
+			__sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
 		}
 	}
 
 	/* Call the _exit syscall: */
-	_thread_sys__exit(status);
+	__sys__exit(status);
 }
-
-__strong_reference(__exit, _exit);
 
 void
 _thread_exit(char *fname, int lineno, char *string)
@@ -97,7 +97,7 @@ _thread_exit(char *fname, int lineno, char *string)
 	strcat(s, ")\n");
 
 	/* Write the string to the standard error file descriptor: */
-	_thread_sys_write(2, s, strlen(s));
+	__sys_write(2, s, strlen(s));
 
 	/* Force this process to exit: */
 	/* XXX - Do we want abort to be conditional on _PTHREADS_INVARIANTS? */
@@ -116,6 +116,8 @@ _thread_exit(char *fname, int lineno, char *string)
 void
 _thread_exit_cleanup(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * POSIX states that cancellation/termination of a thread should
 	 * not release any visible resources (such as mutexes) and that
@@ -124,13 +126,13 @@ _thread_exit_cleanup(void)
 	 * are not visible to the application and need to be released.
 	 */
 	/* Unlock all owned fd locks: */
-	_thread_fd_unlock_owned(_thread_run);
+	_thread_fd_unlock_owned(curthread);
 
 	/* Unlock all owned file locks: */
-	_funlock_owned(_thread_run);
+	_funlock_owned(curthread);
 
 	/* Unlock all private mutexes: */
-	_mutex_unlock_private(_thread_run);
+	_mutex_unlock_private(curthread);
 
 	/*
 	 * This still isn't quite correct because we don't account
@@ -139,39 +141,40 @@ _thread_exit_cleanup(void)
 }
 
 void
-pthread_exit(void *status)
+_pthread_exit(void *status)
 {
+	struct pthread	*curthread = _get_curthread();
 	pthread_t pthread;
 
 	/* Check if this thread is already in the process of exiting: */
-	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
+	if ((curthread->flags & PTHREAD_EXITING) != 0) {
 		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
+		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",curthread);
 		PANIC(msg);
 	}
 
 	/* Flag this thread as exiting: */
-	_thread_run->flags |= PTHREAD_EXITING;
+	curthread->flags |= PTHREAD_EXITING;
 
 	/* Save the return value: */
-	_thread_run->ret = status;
+	curthread->ret = status;
 
-	while (_thread_run->cleanup != NULL) {
+	while (curthread->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
-	if (_thread_run->attr.cleanup_attr != NULL) {
-		_thread_run->attr.cleanup_attr(_thread_run->attr.arg_attr);
+	if (curthread->attr.cleanup_attr != NULL) {
+		curthread->attr.cleanup_attr(curthread->attr.arg_attr);
 	}
 	/* Check if there is thread specific data: */
-	if (_thread_run->specific_data != NULL) {
+	if (curthread->specific_data != NULL) {
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
 
 	/* Free thread-specific poll_data structure, if allocated: */
-	if (_thread_run->poll_data.fds != NULL) {
-		free(_thread_run->poll_data.fds);
-		_thread_run->poll_data.fds = NULL;
+	if (curthread->poll_data.fds != NULL) {
+		free(curthread->poll_data.fds);
+		curthread->poll_data.fds = NULL;
 	}
 
 	/*
@@ -182,7 +185,7 @@ pthread_exit(void *status)
 		PANIC("Cannot lock gc mutex");
 
 	/* Add this thread to the list of dead threads. */
-	TAILQ_INSERT_HEAD(&_dead_list, _thread_run, dle);
+	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 
 	/*
 	 * Signal the garbage collector thread that there is something
@@ -203,9 +206,9 @@ pthread_exit(void *status)
 		PANIC("Cannot lock gc mutex");
 
 	/* Check if there are any threads joined to this one: */
-	while ((pthread = TAILQ_FIRST(&(_thread_run->join_queue))) != NULL) {
+	while ((pthread = TAILQ_FIRST(&(curthread->join_queue))) != NULL) {
 		/* Remove the thread from the queue: */
-		TAILQ_REMOVE(&_thread_run->join_queue, pthread, sqe);
+		TAILQ_REMOVE(&curthread->join_queue, pthread, sqe);
 		pthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 
 		/*
@@ -217,16 +220,16 @@ pthread_exit(void *status)
 		/*
 		 * Set the return value for the woken thread:
 		 */
-		if ((_thread_run->attr.flags & PTHREAD_DETACHED) != 0)
+		if ((curthread->attr.flags & PTHREAD_DETACHED) != 0)
 			pthread->error = ESRCH;
 		else {
-			pthread->ret = _thread_run->ret;
+			pthread->ret = curthread->ret;
 			pthread->error = 0;
 		}
 	}
 
 	/* Remove this thread from the thread list: */
-	TAILQ_REMOVE(&_thread_list, _thread_run, tle);
+	TAILQ_REMOVE(&_thread_list, curthread, tle);
 
 	/* This thread will never be re-scheduled. */
 	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
@@ -234,4 +237,3 @@ pthread_exit(void *status)
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");
 }
-#endif

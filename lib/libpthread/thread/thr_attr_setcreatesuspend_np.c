@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_setcreatesuspend_np=_pthread_attr_setcreatesuspend_np
+
 int
-pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
+_pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
@@ -49,4 +50,3 @@ pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
 	}
 	return(ret);
 }
-#endif

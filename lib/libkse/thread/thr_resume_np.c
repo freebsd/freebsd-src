@@ -32,13 +32,14 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_resume_np=_pthread_resume_np
+
 /* Resume a thread: */
 int
-pthread_resume_np(pthread_t thread)
+_pthread_resume_np(pthread_t thread)
 {
 	int	ret;
 	enum	pthread_susp old_suspended;
@@ -89,4 +90,3 @@ pthread_resume_np(pthread_t thread)
 	}
 	return(ret);
 }
-#endif

@@ -35,22 +35,24 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	connect=_connect
 
 int
 _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct sockaddr tmpname;
 	int             errnolen, ret, tmpnamelen;
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
+		if ((ret = __sys_connect(fd, name, namelen)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) &&
 			((errno == EWOULDBLOCK) || (errno == EINPROGRESS) ||
 			 (errno == EALREADY) || (errno == EAGAIN))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
@@ -58,14 +60,14 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 
 				tmpnamelen = sizeof(tmpname);
 				/* 0 now lets see if it really worked */
-				if (((ret = _thread_sys_getpeername(fd, &tmpname, &tmpnamelen)) < 0) && (errno == ENOTCONN)) {
+				if (((ret = __sys_getpeername(fd, &tmpname, &tmpnamelen)) < 0) && (errno == ENOTCONN)) {
 
 					/*
 					 * Get the error, this function
 					 * should not fail 
 					 */
 					errnolen = sizeof(errno);
-					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
+					__sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
 				}
 			} else {
 				ret = -1;
@@ -75,6 +77,3 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 	}
 	return (ret);
 }
-
-__strong_reference(_connect, connect);
-#endif

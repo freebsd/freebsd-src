@@ -33,9 +33,10 @@
  */
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	dup2=_dup2
 
 int
 _dup2(int fd, int newfd)
@@ -56,12 +57,12 @@ _dup2(int fd, int newfd)
 		if (!(newfd_opened = (_thread_fd_table[newfd] != NULL)) || 
 		    (ret = _FD_LOCK(newfd, FD_RDWR, NULL)) == 0) {
 			/* Perform the 'dup2' syscall: */
-			if ((ret = _thread_sys_dup2(fd, newfd)) < 0) {
+			if ((ret = __sys_dup2(fd, newfd)) < 0) {
 			}
 			/* Initialise the file descriptor table entry: */
 			else if (_thread_fd_table_init(ret) != 0) {
 				/* Quietly close the file: */
-				_thread_sys_close(ret);
+				__sys_close(ret);
 
 				/* Reset the file descriptor: */
 				ret = -1;
@@ -83,6 +84,3 @@ _dup2(int fd, int newfd)
 	/* Return the completion status: */
 	return (ret);
 }
-
-__strong_reference(_dup2, dup2);
-#endif

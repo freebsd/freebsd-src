@@ -51,18 +51,20 @@ extern char *__progname;
 void
 _spinlock(spinlock_t *lck)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Try to grab the lock and loop if another thread grabs
 	 * it before we do.
 	 */
 	while(_atomic_lock(&lck->access_lock)) {
 		/* Block the thread until the lock. */
-		_thread_run->data.spinlock = lck;
+		curthread->data.spinlock = lck;
 		_thread_kern_sched_state(PS_SPINBLOCK, __FILE__, __LINE__);
 	}
 
 	/* The running thread now owns the lock: */
-	lck->lock_owner = (long) _thread_run;
+	lck->lock_owner = (long) curthread;
 }
 
 /*
@@ -78,6 +80,7 @@ _spinlock(spinlock_t *lck)
 void
 _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
 	int cnt = 0;
 
 	/*
@@ -88,19 +91,19 @@ _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 		cnt++;
 		if (cnt > 100) {
 			char str[256];
-			snprintf(str, sizeof(str), "%s - Warning: Thread %p attempted to lock %p from %s (%d) was left locked from %s (%d)\n", __progname, _thread_run, lck, fname, lineno, lck->fname, lck->lineno);
-			_thread_sys_write(2,str,strlen(str));
+			snprintf(str, sizeof(str), "%s - Warning: Thread %p attempted to lock %p from %s (%d) was left locked from %s (%d)\n", __progname, curthread, lck, fname, lineno, lck->fname, lck->lineno);
+			__sys_write(2,str,strlen(str));
 			__sleep(1);
 			cnt = 0;
 		}
 
 		/* Block the thread until the lock. */
-		_thread_run->data.spinlock = lck;
+		curthread->data.spinlock = lck;
 		_thread_kern_sched_state(PS_SPINBLOCK, fname, lineno);
 	}
 
 	/* The running thread now owns the lock: */
-	lck->lock_owner = (long) _thread_run;
+	lck->lock_owner = (long) curthread;
 	lck->fname = fname;
 	lck->lineno = lineno;
 }

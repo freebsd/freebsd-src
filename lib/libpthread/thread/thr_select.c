@@ -40,14 +40,16 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	select=_select
 
 int 
 _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
     struct timeval * timeout)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct timespec ts;
 	int             i, ret = 0, f_wait = 1;
 	int		pfd_index, got_one = 0, fd_count = 0;
@@ -91,9 +93,9 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	 * Allocate memory for poll data if it hasn't already been
 	 * allocated or if previously allocated memory is insufficient.
 	 */
-	if ((_thread_run->poll_data.fds == NULL) ||
-	    (_thread_run->poll_data.nfds < fd_count)) {
-		data.fds = (struct pollfd *) realloc(_thread_run->poll_data.fds,
+	if ((curthread->poll_data.fds == NULL) ||
+	    (curthread->poll_data.nfds < fd_count)) {
+		data.fds = (struct pollfd *) realloc(curthread->poll_data.fds,
 		    sizeof(struct pollfd) * MAX(128, fd_count));
 		if (data.fds == NULL) {
 			errno = ENOMEM;
@@ -105,13 +107,13 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			 * indicates what is allocated, not what is
 			 * currently being polled.
 			 */
-			_thread_run->poll_data.fds = data.fds;
-			_thread_run->poll_data.nfds = MAX(128, fd_count);
+			curthread->poll_data.fds = data.fds;
+			curthread->poll_data.nfds = MAX(128, fd_count);
 		}
 	}
 	if (ret == 0) {
 		/* Setup the wait data. */
-		data.fds = _thread_run->poll_data.fds;
+		data.fds = curthread->poll_data.fds;
 		data.nfds = fd_count;
 
 		/*
@@ -142,12 +144,12 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 				pfd_index--;
 			}
 		}
-		if (((ret = _thread_sys_poll(data.fds, data.nfds, 0)) == 0) &&
+		if (((ret = __sys_poll(data.fds, data.nfds, 0)) == 0) &&
 		   (f_wait != 0)) {
-			_thread_run->data.poll_data = &data;
-			_thread_run->interrupted = 0;
+			curthread->data.poll_data = &data;
+			curthread->interrupted = 0;
 			_thread_kern_sched_state(PS_SELECT_WAIT, __FILE__, __LINE__);
-			if (_thread_run->interrupted) {
+			if (curthread->interrupted) {
 				errno = EINTR;
 				data.nfds = 0;
 				ret = -1;
@@ -203,6 +205,3 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 
 	return (ret);
 }
-
-__strong_reference(_select, select);
-#endif

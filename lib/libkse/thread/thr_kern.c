@@ -48,7 +48,6 @@
 #include <sys/uio.h>
 #include <sys/syscall.h>
 #include <fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -80,6 +79,8 @@ static int	called_from_handler = 0;
 void
 _thread_kern_sched_frame(struct pthread_signal_frame *psf)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Flag the pthread kernel as executing scheduler code
 	 * to avoid a signal from interrupting this execution and
@@ -88,10 +89,10 @@ _thread_kern_sched_frame(struct pthread_signal_frame *psf)
 	_thread_kern_in_sched = 1;
 
 	/* Restore the signal frame: */
-	_thread_sigframe_restore(_thread_run, psf);
+	_thread_sigframe_restore(curthread, psf);
 
 	/* The signal mask was restored; check for any pending signals: */
-	_thread_run->check_pending = 1;
+	curthread->check_pending = 1;
 
 	/* Switch to the thread scheduler: */
 	___longjmp(_thread_kern_sched_jb, 1);
@@ -101,6 +102,8 @@ _thread_kern_sched_frame(struct pthread_signal_frame *psf)
 void
 _thread_kern_sched(ucontext_t *scp)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Flag the pthread kernel as executing scheduler code
 	 * to avoid a scheduler signal from interrupting this
@@ -114,13 +117,13 @@ _thread_kern_sched(ucontext_t *scp)
 		DBG_MSG("Entering scheduler due to signal\n");
 	} else {
 		/* Save the state of the current thread: */
-		if (_setjmp(_thread_run->ctx.jb) == 0) {
+		if (_setjmp(curthread->ctx.jb) == 0) {
 			/* Flag the jump buffer was the last state saved: */
-			_thread_run->ctxtype = CTX_JB_NOSIG;
-			_thread_run->longjmp_val = 1;
+			curthread->ctxtype = CTX_JB_NOSIG;
+			curthread->longjmp_val = 1;
 		} else {
 			DBG_MSG("Returned from ___longjmp, thread %p\n",
-			    _thread_run);
+			    curthread);
 			/*
 			 * This point is reached when a longjmp() is called
 			 * to restore the state of a thread.
@@ -129,10 +132,10 @@ _thread_kern_sched(ucontext_t *scp)
 			 */
 			_thread_kern_in_sched = 0;
 
-			if (_thread_run->sig_defer_count == 0) {
-				if (((_thread_run->cancelflags &
+			if (curthread->sig_defer_count == 0) {
+				if (((curthread->cancelflags &
 				    PTHREAD_AT_CANCEL_POINT) == 0) &&
-				    ((_thread_run->cancelflags &
+				    ((curthread->cancelflags &
 				    PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
 					/*
 					 * Cancellations override signals.
@@ -150,7 +153,7 @@ _thread_kern_sched(ucontext_t *scp)
 			if (_sched_switch_hook != NULL) {
 				/* Run the installed switch hook: */
 				thread_run_switch_hook(_last_user_thread,
-				    _thread_run);
+				    curthread);
 			}
 			return;
 		}
@@ -162,7 +165,9 @@ _thread_kern_sched(ucontext_t *scp)
 void
 _thread_kern_sched_sig(void)
 {
-	_thread_run->check_pending = 1;
+	struct pthread	*curthread = _get_curthread();
+
+	curthread->check_pending = 1;
 	_thread_kern_sched(NULL);
 }
 
@@ -172,13 +177,14 @@ _thread_kern_scheduler(void)
 {
 	struct timespec	ts;
 	struct timeval	tv;
+	struct pthread	*curthread = _get_curthread();
 	pthread_t	pthread, pthread_h;
 	unsigned int	current_tick;
 	int		add_to_prioq;
 
 	/* If the currently running thread is a user thread, save it: */
-	if ((_thread_run->flags & PTHREAD_FLAGS_PRIVATE) == 0)
-		_last_user_thread = _thread_run;
+	if ((curthread->flags & PTHREAD_FLAGS_PRIVATE) == 0)
+		_last_user_thread = curthread;
 
 	if (called_from_handler != 0) {
 		called_from_handler = 0;
@@ -188,7 +194,7 @@ _thread_kern_scheduler(void)
 		 * the current thread.  Restore the process signal
 		 * mask.
 		 */
-		if (_thread_sys_sigprocmask(SIG_SETMASK,
+		if (__sys_sigprocmask(SIG_SETMASK,
 		    &_process_sigmask, NULL) != 0)
 			PANIC("Unable to restore process mask after signal");
 
@@ -196,14 +202,14 @@ _thread_kern_scheduler(void)
 		 * Since the signal handler didn't return normally, we
 		 * have to tell the kernel to reuse the signal stack.
 		 */
-		if (_thread_sys_sigaltstack(&_thread_sigstack, NULL) != 0)
+		if (__sys_sigaltstack(&_thread_sigstack, NULL) != 0)
 			PANIC("Unable to restore alternate signal stack");
 	}
 
 	/* Are there pending signals for this thread? */
-	if (_thread_run->check_pending != 0) {
-		_thread_run->check_pending = 0;
-		_thread_sig_check_pending(_thread_run);
+	if (curthread->check_pending != 0) {
+		curthread->check_pending = 0;
+		_thread_sig_check_pending(curthread);
 	}
 
 	/*
@@ -226,22 +232,22 @@ _thread_kern_scheduler(void)
 		_queue_signals = 1;
 		add_to_prioq = 0;
 
-		if (_thread_run != &_thread_kern_thread) {
+		if (curthread != &_thread_kern_thread) {
 			/*
 			 * This thread no longer needs to yield the CPU.
 			 */
-			_thread_run->yield_on_sig_undefer = 0;
+			curthread->yield_on_sig_undefer = 0;
 	
-			if (_thread_run->state != PS_RUNNING) {
+			if (curthread->state != PS_RUNNING) {
 				/*
 				 * Save the current time as the time that the
 				 * thread became inactive:
 				 */
-				_thread_run->last_inactive = (long)current_tick;
-				if (_thread_run->last_inactive <
-				    _thread_run->last_active) {
+				curthread->last_inactive = (long)current_tick;
+				if (curthread->last_inactive <
+				    curthread->last_active) {
 					/* Account for a rollover: */
-					_thread_run->last_inactive =+
+					curthread->last_inactive =+
 					    UINT_MAX + 1;
 				}
 			}
@@ -250,7 +256,7 @@ _thread_kern_scheduler(void)
 			 * Place the currently running thread into the
 			 * appropriate queue(s).
 			 */
-			switch (_thread_run->state) {
+			switch (curthread->state) {
 			case PS_DEAD:
 			case PS_STATE_MAX: /* to silence -Wall */
 			case PS_SUSPENDED:
@@ -285,31 +291,31 @@ _thread_kern_scheduler(void)
 			case PS_SIGWAIT:
 			case PS_WAIT_WAIT:
 				/* No timeouts for these states: */
-				_thread_run->wakeup_time.tv_sec = -1;
-				_thread_run->wakeup_time.tv_nsec = -1;
+				curthread->wakeup_time.tv_sec = -1;
+				curthread->wakeup_time.tv_nsec = -1;
 
 				/* Restart the time slice: */
-				_thread_run->slice_usec = -1;
+				curthread->slice_usec = -1;
 
 				/* Insert into the waiting queue: */
-				PTHREAD_WAITQ_INSERT(_thread_run);
+				PTHREAD_WAITQ_INSERT(curthread);
 				break;
 
 			/* States which can timeout: */
 			case PS_COND_WAIT:
 			case PS_SLEEP_WAIT:
 				/* Restart the time slice: */
-				_thread_run->slice_usec = -1;
+				curthread->slice_usec = -1;
 
 				/* Insert into the waiting queue: */
-				PTHREAD_WAITQ_INSERT(_thread_run);
+				PTHREAD_WAITQ_INSERT(curthread);
 				break;
 	
 			/* States that require periodic work: */
 			case PS_SPINBLOCK:
 				/* No timeouts for this state: */
-				_thread_run->wakeup_time.tv_sec = -1;
-				_thread_run->wakeup_time.tv_nsec = -1;
+				curthread->wakeup_time.tv_sec = -1;
+				curthread->wakeup_time.tv_nsec = -1;
 
 				/* Increment spinblock count: */
 				_spinblock_count++;
@@ -320,13 +326,13 @@ _thread_kern_scheduler(void)
 			case PS_POLL_WAIT:
 			case PS_SELECT_WAIT:
 				/* Restart the time slice: */
-				_thread_run->slice_usec = -1;
+				curthread->slice_usec = -1;
 	
 				/* Insert into the waiting queue: */
-				PTHREAD_WAITQ_INSERT(_thread_run);
+				PTHREAD_WAITQ_INSERT(curthread);
 	
 				/* Insert into the work queue: */
-				PTHREAD_WORKQ_INSERT(_thread_run);
+				PTHREAD_WORKQ_INSERT(curthread);
 				break;
 			}
 		}
@@ -342,7 +348,7 @@ _thread_kern_scheduler(void)
 		 * has occurred or if we have no more runnable threads.
 		 */
 		else if (((current_tick = _sched_ticks) != last_tick) ||
-		    ((_thread_run->state != PS_RUNNING) &&
+		    ((curthread->state != PS_RUNNING) &&
 		    (PTHREAD_PRIOQ_FIRST() == NULL))) {
 			/* Unprotect the scheduling queues: */
 			_queue_signals = 0;
@@ -407,43 +413,43 @@ _thread_kern_scheduler(void)
 			 * thread became inactive:
 			 */
 			current_tick = _sched_ticks;
-			_thread_run->last_inactive = (long)current_tick;
-			if (_thread_run->last_inactive <
-			    _thread_run->last_active) {
+			curthread->last_inactive = (long)current_tick;
+			if (curthread->last_inactive <
+			    curthread->last_active) {
 				/* Account for a rollover: */
-				_thread_run->last_inactive =+ UINT_MAX + 1;
+				curthread->last_inactive =+ UINT_MAX + 1;
 			}
 
-			if ((_thread_run->slice_usec != -1) &&
-		 	   (_thread_run->attr.sched_policy != SCHED_FIFO)) {
+			if ((curthread->slice_usec != -1) &&
+		 	   (curthread->attr.sched_policy != SCHED_FIFO)) {
 				/*
 				 * Accumulate the number of microseconds for
 				 * which the current thread has run:
 				 */
-				_thread_run->slice_usec +=
-				    (_thread_run->last_inactive -
-				    _thread_run->last_active) *
+				curthread->slice_usec +=
+				    (curthread->last_inactive -
+				    curthread->last_active) *
 				    (long)_clock_res_usec;
 				/* Check for time quantum exceeded: */
-				if (_thread_run->slice_usec > TIMESLICE_USEC)
-					_thread_run->slice_usec = -1;
+				if (curthread->slice_usec > TIMESLICE_USEC)
+					curthread->slice_usec = -1;
 			}
 
-			if (_thread_run->slice_usec == -1) {
+			if (curthread->slice_usec == -1) {
 				/*
 				 * The thread exceeded its time
 				 * quantum or it yielded the CPU;
 				 * place it at the tail of the
 				 * queue for its priority.
 				 */
-				PTHREAD_PRIOQ_INSERT_TAIL(_thread_run);
+				PTHREAD_PRIOQ_INSERT_TAIL(curthread);
 			} else {
 				/*
 				 * The thread hasn't exceeded its
 				 * interval.  Place it at the head
 				 * of the queue for its priority.
 				 */
-				PTHREAD_PRIOQ_INSERT_HEAD(_thread_run);
+				PTHREAD_PRIOQ_INSERT_HEAD(curthread);
 			}
 		}
 
@@ -459,9 +465,11 @@ _thread_kern_scheduler(void)
 			 * the running thread to point to the global kernel
 			 * thread structure:
 			 */
-			_thread_run = &_thread_kern_thread;
+			_set_curthread(&_thread_kern_thread);
+			curthread = &_thread_kern_thread;
+
 			DBG_MSG("No runnable threads, using kernel thread %p\n",
-			    _thread_run);
+			    curthread);
 
 			/* Unprotect the scheduling queues: */
 			_queue_signals = 0;
@@ -532,23 +540,24 @@ _thread_kern_scheduler(void)
 			}
 
 			/* Make the selected thread the current thread: */
-			_thread_run = pthread_h;
+			_set_curthread(pthread_h);
+			curthread = pthread_h;
 
 			/*
 			 * Save the current time as the time that the thread
 			 * became active:
 			 */
 			current_tick = _sched_ticks;
-			_thread_run->last_active = (long) current_tick;
+			curthread->last_active = (long) current_tick;
 
 			/*
 			 * Check if this thread is running for the first time
 			 * or running again after using its full time slice
 			 * allocation:
 			 */
-			if (_thread_run->slice_usec == -1) {
+			if (curthread->slice_usec == -1) {
 				/* Reset the accumulated time slice period: */
-				_thread_run->slice_usec = 0;
+				curthread->slice_usec = 0;
 			}
 
 			/*
@@ -556,29 +565,29 @@ _thread_kern_scheduler(void)
 			 * installed switch hooks.
 			 */
 			if ((_sched_switch_hook != NULL) &&
-			    (_last_user_thread != _thread_run)) {
+			    (_last_user_thread != curthread)) {
 				thread_run_switch_hook(_last_user_thread,
-				    _thread_run);
+				    curthread);
 			}
 			/*
 			 * Continue the thread at its current frame:
 			 */
-			switch(_thread_run->ctxtype) {
+			switch(curthread->ctxtype) {
 			case CTX_JB_NOSIG:
-				___longjmp(_thread_run->ctx.jb,
-				    _thread_run->longjmp_val);
+				___longjmp(curthread->ctx.jb,
+				    curthread->longjmp_val);
 				break;
 			case CTX_JB:
-				__longjmp(_thread_run->ctx.jb,
-				    _thread_run->longjmp_val);
+				__longjmp(curthread->ctx.jb,
+				    curthread->longjmp_val);
 				break;
 			case CTX_SJB:
-				__siglongjmp(_thread_run->ctx.sigjb,
-				    _thread_run->longjmp_val);
+				__siglongjmp(curthread->ctx.sigjb,
+				    curthread->longjmp_val);
 				break;
 			case CTX_UC:
 				/* XXX - Restore FP regsisters? */
-				FP_RESTORE_UC(&_thread_run->ctx.uc);
+				FP_RESTORE_UC(&curthread->ctx.uc);
 
 				/*
 				 * Do a sigreturn to restart the thread that
@@ -587,15 +596,15 @@ _thread_kern_scheduler(void)
 				_thread_kern_in_sched = 0;
 
 #if NOT_YET
-				_setcontext(&_thread_run->ctx.uc);
+				_setcontext(&curthread->ctx.uc);
 #else
 				/*
 				 * Ensure the process signal mask is set
 				 * correctly:
 				 */
-				_thread_run->ctx.uc.uc_sigmask =
+				curthread->ctx.uc.uc_sigmask =
 				    _process_sigmask;
-				_thread_sys_sigreturn(&_thread_run->ctx.uc);
+				__sys_sigreturn(&curthread->ctx.uc);
 #endif
 				break;
 			}
@@ -611,6 +620,8 @@ _thread_kern_scheduler(void)
 void
 _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Flag the pthread kernel as executing scheduler code
 	 * to avoid a scheduler signal from interrupting this
@@ -625,9 +636,9 @@ _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 	_queue_signals = 1;
 
 	/* Change the state of the current thread: */
-	_thread_run->state = state;
-	_thread_run->fname = fname;
-	_thread_run->lineno = lineno;
+	curthread->state = state;
+	curthread->fname = fname;
+	curthread->lineno = lineno;
 
 	/* Schedule the next thread that is ready: */
 	_thread_kern_sched(NULL);
@@ -637,6 +648,8 @@ void
 _thread_kern_sched_state_unlock(enum pthread_state state,
     spinlock_t *lock, char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Flag the pthread kernel as executing scheduler code
 	 * to avoid a scheduler signal from interrupting this
@@ -652,9 +665,9 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 	_queue_signals = 1;
 
 	/* Change the state of the current thread: */
-	_thread_run->state = state;
-	_thread_run->fname = fname;
-	_thread_run->lineno = lineno;
+	curthread->state = state;
+	curthread->fname = fname;
+	curthread->lineno = lineno;
 
 	_SPINUNLOCK(lock);
 
@@ -817,7 +830,7 @@ thread_kern_poll(int wait_reqd)
 	 * Wait for a file descriptor to be ready for read, write, or
 	 * an exception, or a timeout to occur:
 	 */
-	count = _thread_sys_poll(_thread_pfd_table, nfds, timeout_ms);
+	count = __sys_poll(_thread_pfd_table, nfds, timeout_ms);
 
 	if (kern_pipe_added != 0)
 		/*
@@ -991,11 +1004,12 @@ thread_kern_poll(int wait_reqd)
 void
 _thread_kern_set_timeout(const struct timespec * timeout)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct timespec current_time;
 	struct timeval  tv;
 
 	/* Reset the timeout flag for the running thread: */
-	_thread_run->timeout = 0;
+	curthread->timeout = 0;
 
 	/* Check if the thread is to wait forever: */
 	if (timeout == NULL) {
@@ -1003,28 +1017,28 @@ _thread_kern_set_timeout(const struct timespec * timeout)
 		 * Set the wakeup time to something that can be recognised as
 		 * different to an actual time of day:
 		 */
-		_thread_run->wakeup_time.tv_sec = -1;
-		_thread_run->wakeup_time.tv_nsec = -1;
+		curthread->wakeup_time.tv_sec = -1;
+		curthread->wakeup_time.tv_nsec = -1;
 	}
 	/* Check if no waiting is required: */
 	else if (timeout->tv_sec == 0 && timeout->tv_nsec == 0) {
 		/* Set the wake up time to 'immediately': */
-		_thread_run->wakeup_time.tv_sec = 0;
-		_thread_run->wakeup_time.tv_nsec = 0;
+		curthread->wakeup_time.tv_sec = 0;
+		curthread->wakeup_time.tv_nsec = 0;
 	} else {
 		/* Get the current time: */
 		GET_CURRENT_TOD(tv);
 		TIMEVAL_TO_TIMESPEC(&tv, &current_time);
 
 		/* Calculate the time for the current thread to wake up: */
-		_thread_run->wakeup_time.tv_sec = current_time.tv_sec + timeout->tv_sec;
-		_thread_run->wakeup_time.tv_nsec = current_time.tv_nsec + timeout->tv_nsec;
+		curthread->wakeup_time.tv_sec = current_time.tv_sec + timeout->tv_sec;
+		curthread->wakeup_time.tv_nsec = current_time.tv_nsec + timeout->tv_nsec;
 
 		/* Check if the nanosecond field needs to wrap: */
-		if (_thread_run->wakeup_time.tv_nsec >= 1000000000) {
+		if (curthread->wakeup_time.tv_nsec >= 1000000000) {
 			/* Wrap the nanosecond field: */
-			_thread_run->wakeup_time.tv_sec += 1;
-			_thread_run->wakeup_time.tv_nsec -= 1000000000;
+			curthread->wakeup_time.tv_sec += 1;
+			curthread->wakeup_time.tv_nsec -= 1000000000;
 		}
 	}
 }
@@ -1032,24 +1046,28 @@ _thread_kern_set_timeout(const struct timespec * timeout)
 void
 _thread_kern_sig_defer(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Allow signal deferral to be recursive. */
-	_thread_run->sig_defer_count++;
+	curthread->sig_defer_count++;
 }
 
 void
 _thread_kern_sig_undefer(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * Perform checks to yield only if we are about to undefer
 	 * signals.
 	 */
-	if (_thread_run->sig_defer_count > 1) {
+	if (curthread->sig_defer_count > 1) {
 		/* Decrement the signal deferral count. */
-		_thread_run->sig_defer_count--;
+		curthread->sig_defer_count--;
 	}
-	else if (_thread_run->sig_defer_count == 1) {
+	else if (curthread->sig_defer_count == 1) {
 		/* Reenable signals: */
-		_thread_run->sig_defer_count = 0;
+		curthread->sig_defer_count = 0;
 
 		/*
 		 * Check if there are queued signals:
@@ -1061,8 +1079,8 @@ _thread_kern_sig_undefer(void)
 		 * Check for asynchronous cancellation before delivering any
 		 * pending signals:
 		 */
-		if (((_thread_run->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0) &&
-		    ((_thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+		if (((curthread->cancelflags & PTHREAD_AT_CANCEL_POINT) == 0) &&
+		    ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
 			pthread_testcancel();
 
 		/*
@@ -1071,9 +1089,9 @@ _thread_kern_sig_undefer(void)
 		 *
 		 * XXX - Come back and revisit the pending signal problem
 		 */
-		if ((_thread_run->yield_on_sig_undefer != 0) ||
-		    SIGNOTEMPTY(_thread_run->sigpend)) {
-			_thread_run->yield_on_sig_undefer = 0;
+		if ((curthread->yield_on_sig_undefer != 0) ||
+		    SIGNOTEMPTY(curthread->sigpend)) {
+			curthread->yield_on_sig_undefer = 0;
 			_thread_kern_sched(NULL);
 		}
 	}
@@ -1088,7 +1106,7 @@ dequeue_signals(void)
 	/*
 	 * Enter a loop to clear the pthread kernel pipe:
 	 */
-	while (((num = _thread_sys_read(_thread_kern_pipe[0], bufr,
+	while (((num = __sys_read(_thread_kern_pipe[0], bufr,
 	    sizeof(bufr))) > 0) || (num == -1 && errno == EINTR)) {
 	}
 	if ((num < 0) && (errno != EAGAIN)) {
@@ -1120,4 +1138,18 @@ thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in)
 		_sched_switch_hook(tid_out, tid_in);
 	}
 }
-#endif
+
+struct pthread *
+_get_curthread(void)
+{
+	if (_thread_initial == NULL)
+		_thread_init();
+
+	return (_thread_run);
+}
+
+void
+_set_curthread(struct pthread *newthread)
+{
+	_thread_run = newthread;
+}

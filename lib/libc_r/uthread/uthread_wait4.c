@@ -35,27 +35,29 @@
 
 #include <errno.h>
 #include <sys/wait.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	wait4=_wait4
 
 pid_t
 _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
+	struct pthread	*curthread = _get_curthread();
 	pid_t	ret;
 
 	_thread_kern_sig_defer();
 
 	/* Perform a non-blocking wait4 syscall: */
-	while ((ret = _thread_sys_wait4(pid, istat, options | WNOHANG, rusage)) == 0 && (options & WNOHANG) == 0) {
+	while ((ret = __sys_wait4(pid, istat, options | WNOHANG, rusage)) == 0 && (options & WNOHANG) == 0) {
 		/* Reset the interrupted operation flag: */
-		_thread_run->interrupted = 0;
+		curthread->interrupted = 0;
 
 		/* Schedule the next thread while this one waits: */
 		_thread_kern_sched_state(PS_WAIT_WAIT, __FILE__, __LINE__);
 
 		/* Check if this call was interrupted by a signal: */
-		if (_thread_run->interrupted) {
+		if (curthread->interrupted) {
 			errno = EINTR;
 			ret = -1;
 			break;
@@ -66,6 +68,3 @@ _wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 
 	return (ret);
 }
-
-__strong_reference(_wait4, wait4);
-#endif

@@ -35,13 +35,15 @@
 #include <sys/param.h>
 #include <sys/signalvar.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	sigwait=_sigwait
+
 int
-sigwait(const sigset_t *set, int *sig)
+_sigwait(const sigset_t *set, int *sig)
 {
+	struct pthread	*curthread = _get_curthread();
 	int		ret = 0;
 	int		i;
 	sigset_t	tempset, waitset;
@@ -69,7 +71,7 @@ sigwait(const sigset_t *set, int *sig)
 	sigdelset(&waitset, SIGINFO);
 
 	/* Check to see if a pending signal is in the wait mask. */
-	tempset = _thread_run->sigpend;
+	tempset = curthread->sigpend;
 	SIGSETOR(tempset, _process_sigpending);
 	SIGSETAND(tempset, waitset);
 	if (SIGNOTEMPTY(tempset)) {
@@ -80,8 +82,8 @@ sigwait(const sigset_t *set, int *sig)
 		}
 
 		/* Clear the pending signal: */
-		if (sigismember(&_thread_run->sigpend,i))
-			sigdelset(&_thread_run->sigpend,i);
+		if (sigismember(&curthread->sigpend,i))
+			sigdelset(&curthread->sigpend,i);
 		else
 			sigdelset(&_process_sigpending,i);
 
@@ -115,7 +117,7 @@ sigwait(const sigset_t *set, int *sig)
 			_thread_dfl_count[i]++;
 			sigaddset(&tempset, i);
 			if (_thread_dfl_count[i] == 1) {
-				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+				if (__sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
 		}
@@ -129,19 +131,19 @@ sigwait(const sigset_t *set, int *sig)
 		 * mask is independent of the threads signal mask
 		 * and requires separate storage.
 		 */
-		_thread_run->data.sigwait = &waitset;
+		curthread->data.sigwait = &waitset;
 
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
 
 		/* Return the signal number to the caller: */
-		*sig = _thread_run->signo;
+		*sig = curthread->signo;
 
 		/*
 		 * Probably unnecessary, but since it's in a union struct
 		 * we don't know how it could be used in the future.
 		 */
-		_thread_run->data.sigwait = NULL;
+		curthread->data.sigwait = NULL;
 	}
 
 	/*
@@ -157,7 +159,7 @@ sigwait(const sigset_t *set, int *sig)
 			_thread_dfl_count[i]--;
 			if ((_thread_sigact[i - 1].sa_handler == SIG_DFL) &&
 			    (_thread_dfl_count[i] == 0)) {
-				if (_thread_sys_sigaction(i,&act,NULL) != 0)
+				if (__sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
 		}
@@ -170,4 +172,3 @@ sigwait(const sigset_t *set, int *sig)
 	/* Return the completion status: */
 	return (ret);
 }
-#endif

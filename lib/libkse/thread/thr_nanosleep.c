@@ -33,14 +33,16 @@
  */
 #include <stdio.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	nanosleep=__nanosleep
 
 int
 _nanosleep(const struct timespec * time_to_sleep,
     struct timespec * time_remaining)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             ret = 0;
 	struct timespec current_time;
 	struct timespec current_time1;
@@ -63,16 +65,16 @@ _nanosleep(const struct timespec * time_to_sleep,
 		TIMEVAL_TO_TIMESPEC(&tv, &current_time);
 
 		/* Calculate the time for the current thread to wake up: */
-		_thread_run->wakeup_time.tv_sec = current_time.tv_sec + time_to_sleep->tv_sec;
-		_thread_run->wakeup_time.tv_nsec = current_time.tv_nsec + time_to_sleep->tv_nsec;
+		curthread->wakeup_time.tv_sec = current_time.tv_sec + time_to_sleep->tv_sec;
+		curthread->wakeup_time.tv_nsec = current_time.tv_nsec + time_to_sleep->tv_nsec;
 
 		/* Check if the nanosecond field has overflowed: */
-		if (_thread_run->wakeup_time.tv_nsec >= 1000000000) {
+		if (curthread->wakeup_time.tv_nsec >= 1000000000) {
 			/* Wrap the nanosecond field: */
-			_thread_run->wakeup_time.tv_sec += 1;
-			_thread_run->wakeup_time.tv_nsec -= 1000000000;
+			curthread->wakeup_time.tv_sec += 1;
+			curthread->wakeup_time.tv_nsec -= 1000000000;
 		}
-		_thread_run->interrupted = 0;
+		curthread->interrupted = 0;
 
 		/* Reschedule the current thread to sleep: */
 		_thread_kern_sched_state(PS_SLEEP_WAIT, __FILE__, __LINE__);
@@ -118,7 +120,7 @@ _nanosleep(const struct timespec * time_to_sleep,
 		}
 
 		/* Check if the sleep was interrupted: */
-		if (_thread_run->interrupted) {
+		if (curthread->interrupted) {
 			/* Return an EINTR error : */
 			errno = EINTR;
 			ret = -1;
@@ -128,7 +130,7 @@ _nanosleep(const struct timespec * time_to_sleep,
 }
 
 int
-nanosleep(const struct timespec * time_to_sleep, struct timespec *
+__nanosleep(const struct timespec * time_to_sleep, struct timespec *
     time_remaining)
 {
 	int	ret;
@@ -139,4 +141,3 @@ nanosleep(const struct timespec * time_to_sleep, struct timespec *
 
 	return ret;
 }
-#endif

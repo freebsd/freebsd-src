@@ -31,46 +31,47 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	keven=_kevent
+
 int 
-kevent(int kq, const struct kevent *changelist, int nchanges,
+_kevent(int kq, const struct kevent *changelist, int nchanges,
     struct kevent *eventlist, int nevents, const struct timespec *timeout)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct timespec nullts = { 0, 0 };
 	int rc;
 
 	/* Set the wake up time */
 	_thread_kern_set_timeout(timeout);
 
-	rc = _thread_sys_kevent(kq, changelist, nchanges,
+	rc = __sys_kevent(kq, changelist, nchanges,
 	    eventlist, nevents, &nullts);
 	if (rc == 0 && (timeout == NULL ||
 	    timeout->tv_sec != 0 || timeout->tv_nsec != 0)) {
 		/* Save the socket file descriptor: */
-		_thread_run->data.fd.fd = kq;
-		_thread_run->data.fd.fname = __FILE__;
-		_thread_run->data.fd.branch = __LINE__;
+		curthread->data.fd.fd = kq;
+		curthread->data.fd.fname = __FILE__;
+		curthread->data.fd.branch = __LINE__;
 
 		do {
 			/* Reset the interrupted and timeout flags: */
-			_thread_run->interrupted = 0;
-			_thread_run->timeout = 0;
+			curthread->interrupted = 0;
+			curthread->timeout = 0;
 
 			_thread_kern_sched_state(PS_FDR_WAIT,
 			    __FILE__, __LINE__);
 
-			if (_thread_run->interrupted) {
+			if (curthread->interrupted) {
 				errno = EINTR;
 				rc = -1;
 				break;
 			}
-			rc = _thread_sys_kevent(kq, NULL, 0,
+			rc = __sys_kevent(kq, NULL, 0,
 			    eventlist, nevents, &nullts);
-		} while (rc == 0 && _thread_run->timeout == 0);
+		} while (rc == 0 && curthread->timeout == 0);
 	}
 	return (rc);
 }
-#endif

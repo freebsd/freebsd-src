@@ -37,13 +37,15 @@
 #include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	readv=_readv
 
 ssize_t
 _readv(int fd, const struct iovec * iov, int iovcnt)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 	int	type;
 
@@ -61,14 +63,14 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 		}
 
 		/* Perform a non-blocking readv syscall: */
-		while ((ret = _thread_sys_readv(fd, iov, iovcnt)) < 0) {
+		while ((ret = __sys_readv(fd, iov, iovcnt)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
 				/* Reset the interrupted operation flag: */
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 
 				_thread_kern_sched_state(PS_FDR_WAIT,
 				    __FILE__, __LINE__);
@@ -77,7 +79,7 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 				 * Check if the operation was
 				 * interrupted by a signal
 				 */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					errno = EINTR;
 					ret = -1;
 					break;
@@ -90,6 +92,3 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 	}
 	return (ret);
 }
-
-__strong_reference(_readv, readv);
-#endif

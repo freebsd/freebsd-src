@@ -313,6 +313,9 @@ struct pthread_mutex_attr {
 	long			m_flags;
 };
 
+#define PTHREAD_MUTEXATTR_STATIC_INITIALIZER \
+	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, MUTEX_FLAGS_PRIVATE }
+
 /* 
  * Condition variable definitions.
  */
@@ -1207,6 +1210,8 @@ int     _find_dead_thread(pthread_t);
 int     _find_thread(pthread_t);
 void	_flockfile_backout(pthread_t);
 void    _funlock_owned(pthread_t);
+struct pthread *_get_curthread(void);
+void	_set_curthread(struct pthread *);
 void	_join_backout(pthread_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *);
@@ -1224,6 +1229,19 @@ void	_pq_remove(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_head(struct pq_queue *pq, struct pthread *);
 void	_pq_insert_tail(struct pq_queue *pq, struct pthread *);
 struct pthread *_pq_first(struct pq_queue *pq);
+void	*_pthread_getspecific(pthread_key_t);
+int	_pthread_key_create(pthread_key_t *, void (*) (void *));
+int	_pthread_key_delete(pthread_key_t);
+int	_pthread_mutex_destroy(pthread_mutex_t *);
+int	_pthread_mutex_init(pthread_mutex_t *, const pthread_mutexattr_t *);
+int	_pthread_mutex_lock(pthread_mutex_t *);
+int	_pthread_mutex_trylock(pthread_mutex_t *);
+int	_pthread_mutex_unlock(pthread_mutex_t *);
+int	_pthread_mutexattr_init(pthread_mutexattr_t *);
+int	_pthread_mutexattr_destroy(pthread_mutexattr_t *);
+int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
+int	_pthread_once(pthread_once_t *, void (*) (void));
+int	_pthread_setspecific(pthread_key_t, const void *);
 void	_waitq_insert(pthread_t pthread);
 void	_waitq_remove(pthread_t pthread);
 #if defined(_PTHREADS_INVARIANTS)
@@ -1263,190 +1281,113 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 
+/* #include <aio.h> */
+#ifdef _AIO_H_
+int	__sys_aio_suspend(const struct aiocb **, int, const struct timespec);
+#endif
+
 /* #include <signal.h> */
-int     _thread_sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int     _thread_sys_sigpending(sigset_t *);
-int     _thread_sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int     _thread_sys_sigsuspend(const sigset_t *);
-int     _thread_sys_siginterrupt(int, int);
-int     _thread_sys_sigpause(int);
-int     _thread_sys_sigreturn(ucontext_t *);
-int     _thread_sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-int     _thread_sys_sigstack(const struct sigstack *, struct sigstack *);
-int     _thread_sys_sigvec(int, struct sigvec *, struct sigvec *);
-void    _thread_sys_psignal(unsigned int, const char *);
-void    (*_thread_sys_signal(int, void (*)(int)))(int);
+#ifdef _SIGNAL_H_
+int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
+int     __sys_sigpending(sigset_t *);
+int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
+int     __sys_sigsuspend(const sigset_t *);
+int     __sys_sigreturn(ucontext_t *);
+int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
+#endif
 
 /* #include <sys/stat.h> */
 #ifdef  _SYS_STAT_H_
-int     _thread_sys_fchmod(int, mode_t);
-int     _thread_sys_fstat(int, struct stat *);
-int     _thread_sys_fchflags(int, u_long);
+int     __sys_fchmod(int, mode_t);
+int     __sys_fstat(int, struct stat *);
+int     __sys_fchflags(int, u_long);
 #endif
 
 /* #include <sys/mount.h> */
 #ifdef  _SYS_MOUNT_H_
-int     _thread_sys_fstatfs(int, struct statfs *);
+int     __sys_fstatfs(int, struct statfs *);
 #endif
-int     _thread_sys_pipe(int *);
+
+/* #inclde <sys/event.h> */
+#ifdef	_SYS_EVENT_H_
+int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
+	    int, const struct timespec *);
+#endif
 
 /* #include <sys/socket.h> */
 #ifdef  _SYS_SOCKET_H_
-int     _thread_sys_accept(int, struct sockaddr *, int *);
-int     _thread_sys_bind(int, const struct sockaddr *, int);
-int     _thread_sys_connect(int, const struct sockaddr *, int);
-int     _thread_sys_getpeername(int, struct sockaddr *, int *);
-int     _thread_sys_getsockname(int, struct sockaddr *, int *);
-int     _thread_sys_getsockopt(int, int, int, void *, int *);
-int     _thread_sys_listen(int, int);
-int     _thread_sys_setsockopt(int, int, int, const void *, int);
-int     _thread_sys_shutdown(int, int);
-int     _thread_sys_socket(int, int, int);
-int     _thread_sys_socketpair(int, int, int, int *);
-ssize_t _thread_sys_recv(int, void *, size_t, int);
-ssize_t _thread_sys_recvfrom(int, void *, size_t, int, struct sockaddr *, int *);
-ssize_t _thread_sys_recvmsg(int, struct msghdr *, int);
-ssize_t _thread_sys_send(int, const void *, size_t, int);
-ssize_t _thread_sys_sendmsg(int, const struct msghdr *, int);
-ssize_t _thread_sys_sendto(int, const void *,size_t, int, const struct sockaddr *, int);
-#endif
-
-/* #include <stdio.h> */
-#ifdef  _STDIO_H_
-FILE    *_thread_sys_fdopen(int, const char *);
-FILE    *_thread_sys_fopen(const char *, const char *);
-FILE    *_thread_sys_freopen(const char *, const char *, FILE *);
-FILE    *_thread_sys_popen(const char *, const char *);
-FILE    *_thread_sys_tmpfile(void);
-char    *_thread_sys_ctermid(char *);
-char    *_thread_sys_cuserid(char *);
-char    *_thread_sys_fgetln(FILE *, size_t *);
-char    *_thread_sys_fgets(char *, int, FILE *);
-char    *_thread_sys_gets(char *);
-char    *_thread_sys_tempnam(const char *, const char *);
-char    *_thread_sys_tmpnam(char *);
-int     _thread_sys_fclose(FILE *);
-int     _thread_sys_feof(FILE *);
-int     _thread_sys_ferror(FILE *);
-int     _thread_sys_fflush(FILE *);
-int     _thread_sys_fgetc(FILE *);
-int     _thread_sys_fgetpos(FILE *, fpos_t *);
-int     _thread_sys_fileno(FILE *);
-int     _thread_sys_fprintf(FILE *, const char *, ...);
-int     _thread_sys_fpurge(FILE *);
-int     _thread_sys_fputc(int, FILE *);
-int     _thread_sys_fputs(const char *, FILE *);
-int     _thread_sys_fscanf(FILE *, const char *, ...);
-int     _thread_sys_fseek(FILE *, long, int);
-int     _thread_sys_fsetpos(FILE *, const fpos_t *);
-int     _thread_sys_getc(FILE *);
-int     _thread_sys_getchar(void);
-int     _thread_sys_getw(FILE *);
-int     _thread_sys_pclose(FILE *);
-int     _thread_sys_printf(const char *, ...);
-int     _thread_sys_putc(int, FILE *);
-int     _thread_sys_putchar(int);
-int     _thread_sys_puts(const char *);
-int     _thread_sys_putw(int, FILE *);
-int     _thread_sys_remove(const char *);
-int     _thread_sys_rename (const char *, const char *);
-int     _thread_sys_scanf(const char *, ...);
-int     _thread_sys_setlinebuf(FILE *);
-int     _thread_sys_setvbuf(FILE *, char *, int, size_t);
-int     _thread_sys_snprintf(char *, size_t, const char *, ...);
-int     _thread_sys_sprintf(char *, const char *, ...);
-int     _thread_sys_sscanf(const char *, const char *, ...);
-int     _thread_sys_ungetc(int, FILE *);
-int     _thread_sys_vfprintf(FILE *, const char *, _BSD_VA_LIST_);
-int     _thread_sys_vprintf(const char *, _BSD_VA_LIST_);
-int     _thread_sys_vscanf(const char *, _BSD_VA_LIST_);
-int     _thread_sys_vsnprintf(char *, size_t, const char *, _BSD_VA_LIST_);
-int     _thread_sys_vsprintf(char *, const char *, _BSD_VA_LIST_);
-int     _thread_sys_vsscanf(const char *, const char *, _BSD_VA_LIST_);
-long    _thread_sys_ftell(FILE *);
-size_t  _thread_sys_fread(void *, size_t, size_t, FILE *);
-size_t  _thread_sys_fwrite(const void *, size_t, size_t, FILE *);
-void    _thread_sys_clearerr(FILE *);
-void    _thread_sys_perror(const char *);
-void    _thread_sys_rewind(FILE *);
-void    _thread_sys_setbuf(FILE *, char *);
-void    _thread_sys_setbuffer(FILE *, char *, int);
+int     __sys_accept(int, struct sockaddr *, int *);
+int     __sys_bind(int, const struct sockaddr *, int);
+int     __sys_connect(int, const struct sockaddr *, int);
+int     __sys_getpeername(int, struct sockaddr *, int *);
+int     __sys_getsockname(int, struct sockaddr *, int *);
+int     __sys_getsockopt(int, int, int, void *, int *);
+int     __sys_listen(int, int);
+int     __sys_setsockopt(int, int, int, const void *, int);
+int     __sys_shutdown(int, int);
+int     __sys_socket(int, int, int);
+int     __sys_socketpair(int, int, int, int *);
+ssize_t __sys_recvfrom(int, void *, size_t, int, struct sockaddr *, int *);
+ssize_t __sys_recvmsg(int, struct msghdr *, int);
+ssize_t __sys_send(int, const void *, size_t, int);
+int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+ssize_t __sys_sendmsg(int, const struct msghdr *, int);
+ssize_t __sys_sendto(int, const void *,size_t, int, const struct sockaddr *, int);
 #endif
 
 /* #include <unistd.h> */
 #ifdef  _UNISTD_H_
-char    *_thread_sys_ttyname(int);
-int     _thread_sys_close(int);
-int     _thread_sys_dup(int);
-int     _thread_sys_dup2(int, int);
-int     _thread_sys_exect(const char *, char * const *, char * const *);
-int     _thread_sys_execve(const char *, char * const *, char * const *);
-int     _thread_sys_fchdir(int);
-int     _thread_sys_fchown(int, uid_t, gid_t);
-int     _thread_sys_fsync(int);
-int     _thread_sys_ftruncate(int, off_t);
-int     _thread_sys_pause(void);
-int     _thread_sys_pipe(int *);
-int     _thread_sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-long    _thread_sys_fpathconf(int, int);
-off_t   _thread_sys_lseek(int, off_t, int);
-pid_t   _thread_sys_fork(void);
-pid_t   _thread_sys_tcgetpgrp(int);
-ssize_t _thread_sys_read(int, void *, size_t);
-ssize_t _thread_sys_write(int, const void *, size_t);
-void	_thread_sys__exit(int);
+int     __sys_close(int);
+int     __sys_dup(int);
+int     __sys_dup2(int, int);
+int     __sys_execve(const char *, char * const *, char * const *);
+int     __sys_fchown(int, uid_t, gid_t);
+int	__sys_fork(void);
+int     __sys_fsync(int);
+int	__sys_pipe(int *);
+int     __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+long    __sys_fpathconf(int, int);
+ssize_t __sys_read(int, void *, size_t);
+ssize_t __sys_write(int, const void *, size_t);
+void	__sys__exit(int);
 #endif
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
-int     _thread_sys_creat(const char *, mode_t);
-int     _thread_sys_fcntl(int, int, ...);
-int     _thread_sys_flock(int, int);
-int     _thread_sys_open(const char *, int, ...);
+int     __sys_fcntl(int, int, ...);
+int     __sys_flock(int, int);
+int     __sys_open(const char *, int, ...);
 #endif
 
 /* #include <sys/ioctl.h> */
 #ifdef  _SYS_IOCTL_H_
-int     _thread_sys_ioctl(int, unsigned long, ...);
+int     __sys_ioctl(int, unsigned long, ...);
 #endif
 
 /* #include <dirent.h> */
 #ifdef  _DIRENT_H_
-DIR     *___thread_sys_opendir2(const char *, int);
-DIR     *_thread_sys_opendir(const char *);
-int     _thread_sys_alphasort(const void *, const void *);
-int     _thread_sys_scandir(const char *, struct dirent ***,
-	int (*)(struct dirent *), int (*)(const void *, const void *));
-int     _thread_sys_closedir(DIR *);
-int     _thread_sys_getdirentries(int, char *, int, long *);
-long    _thread_sys_telldir(const DIR *);
-struct  dirent *_thread_sys_readdir(DIR *);
-void    _thread_sys_rewinddir(DIR *);
-void    _thread_sys_seekdir(DIR *, long);
+int     __sys_getdirentries(int, char *, int, long *);
 #endif
 
 /* #include <sys/uio.h> */
 #ifdef  _SYS_UIO_H_
-ssize_t _thread_sys_readv(int, const struct iovec *, int);
-ssize_t _thread_sys_writev(int, const struct iovec *, int);
+ssize_t __sys_readv(int, const struct iovec *, int);
+ssize_t __sys_writev(int, const struct iovec *, int);
 #endif
 
 /* #include <sys/wait.h> */
 #ifdef  WNOHANG
-pid_t   _thread_sys_wait(int *);
-pid_t   _thread_sys_waitpid(pid_t, int *, int);
-pid_t   _thread_sys_wait3(int *, int, struct rusage *);
-pid_t   _thread_sys_wait4(pid_t, int *, int, struct rusage *);
+pid_t   __sys_wait4(pid_t, int *, int, struct rusage *);
 #endif
 
 /* #include <poll.h> */
 #ifdef _SYS_POLL_H_
-int 	_thread_sys_poll(struct pollfd *, unsigned, int);
+int 	__sys_poll(struct pollfd *, unsigned, int);
 #endif
 
 /* #include <sys/mman.h> */
 #ifdef _SYS_MMAN_H_
-int	_thread_sys_msync(void *, size_t, int);
+int	__sys_msync(void *, size_t, int);
 #endif
 
 /* #include <setjmp.h> */

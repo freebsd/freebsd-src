@@ -40,7 +40,6 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/mman.h>
-#ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
@@ -64,10 +63,13 @@ int _thread_CTX_JB_value		= CTX_JB;
 int _thread_CTX_SJB_value		= CTX_SJB;
 int _thread_CTX_UC_value		= CTX_UC;
 
+#pragma weak	pthread_create=_pthread_create
+
 int
-pthread_create(pthread_t * thread, const pthread_attr_t * attr,
+_pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct itimerval itimer;
 	int		f_gc = 0;
 	int             ret = 0;
@@ -180,7 +182,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->magic = PTHREAD_MAGIC;
 
 			/* Initialise the thread for signals: */
-			new_thread->sigmask = _thread_run->sigmask;
+			new_thread->sigmask = curthread->sigmask;
 			new_thread->sigmask_seqno = 0;
 
 			/* Initialize the signal frame: */
@@ -214,13 +216,13 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
 				/* Copy the scheduling attributes: */
 				new_thread->base_priority =
-				    _thread_run->base_priority &
+				    curthread->base_priority &
 				    ~PTHREAD_SIGNAL_PRIORITY;
 				new_thread->attr.prio =
-				    _thread_run->base_priority &
+				    curthread->base_priority &
 				    ~PTHREAD_SIGNAL_PRIORITY;
 				new_thread->attr.sched_policy =
-				    _thread_run->attr.sched_policy;
+				    curthread->attr.sched_policy;
 			} else {
 				/*
 				 * Use just the thread priority, leaving the
@@ -315,13 +317,14 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 void
 _thread_start(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* We just left the scheduler via longjmp: */
 	_thread_kern_in_sched = 0;
 
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(_thread_run->start_routine(_thread_run->arg));
+	pthread_exit(curthread->start_routine(curthread->arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
 }
-#endif

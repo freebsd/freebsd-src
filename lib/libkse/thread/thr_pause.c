@@ -30,12 +30,13 @@
  */
 
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pause=_pause
+
 int
-pause(void)
+_pause(void)
 {
 	int	ret;
 
@@ -45,4 +46,3 @@ pause(void)
 	
 	return ret;
 }
-#endif

@@ -32,15 +32,15 @@
  * $FreeBSD$
  */
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_multi_np=_pthread_multi_np
+
 int
-pthread_multi_np()
+_pthread_multi_np()
 {
 	/* Return to multi-threaded scheduling mode: */
 	_thread_single = NULL;
 	return(0);
 }
-#endif
