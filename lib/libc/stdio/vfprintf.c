@@ -114,8 +114,10 @@ enum typeid {
 
 static int	__sprint __P((FILE *, struct __suio *));
 static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
-static char *	__ujtoa __P((uintmax_t, char *, int, int, char *, int, char, const char *));
-static char *	__ultoa __P((u_long, char *, int, int, char *, int, char, const char *));
+static char	*__ujtoa __P((uintmax_t, char *, int, int, char *, int,
+		     char, const char *));
+static char	*__ultoa __P((u_long, char *, int, int, char *, int,
+		     char, const char *));
 static void	__find_arguments __P((const char *, va_list, union arg **));
 static void	__grow_type_table __P((int, enum typeid **, int *));
 
@@ -230,7 +232,8 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 				 * use *grp character (last grouping rule)
 				 * for all next cases
 				 */
-				if (*(grp+1) != '\0') grp++;
+				if (*(grp+1) != '\0')
+					grp++;
 			}
 			sval /= 10;
 		} while (sval != 0);
@@ -301,8 +304,9 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
 				 * use *grp character (last grouping rule)
 				 * for all next cases
 				 */
-				if (*(grp+1) != '\0') grp++;
-                        }
+				if (*(grp+1) != '\0')
+					grp++;
+			}
 			sval /= 10;
 		} while (sval != 0);
 		break;
@@ -372,7 +376,7 @@ static int exponent __P((char *, int, int));
 #define	LLONGINT	0x020		/* long long integer */
 #define	SHORTINT	0x040		/* short integer */
 #define	ZEROPAD		0x080		/* zero (as opposed to blank) pad */
-#define FPT		0x100		/* Floating point number */
+#define	FPT		0x100		/* Floating point number */
 #define	GROUPING	0x200		/* use grouping ("'" flag) */
 					/* C99 additional size modifiers: */
 #define	SIZET		0x400		/* size_t */
@@ -527,7 +531,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		val = GETARG (int); \
         }
 
-        
+
 	thousands_sep = '\0';
 	grouping = NULL;
 #ifdef FLOATING_POINT
@@ -579,7 +583,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 rflag:		ch = *fmt++;
 reswitch:	switch (ch) {
 		case ' ':
-			/*
+			/*-
 			 * ``If the space and + flags both appear, the space
 			 * flag will be ignored.''
 			 *	-- ANSI X3J11
@@ -591,7 +595,7 @@ reswitch:	switch (ch) {
 			flags |= ALT;
 			goto rflag;
 		case '*':
-			/*
+			/*-
 			 * ``A negative field width argument is taken as a
 			 * - flag followed by a positive field width.''
 			 *	-- ANSI X3J11
@@ -627,7 +631,7 @@ reswitch:	switch (ch) {
 			prec = n < 0 ? -1 : n;
 			goto reswitch;
 		case '0':
-			/*
+			/*-
 			 * ``Note that 0 is taken as a flag, not as the
 			 * beginning of a field width.''
 			 *	-- ANSI X3J11
@@ -715,7 +719,7 @@ reswitch:	switch (ch) {
 #endif
 		case 'e':
 		case 'E':
-			/*
+			/*-
 			 * Grouping apply to %i, %d, %u, %f, %F, %g, %G
 			 * conversion specifiers only. For other conversions
 			 * behavior is undefined.
@@ -828,7 +832,7 @@ fp_begin:		if (prec == -1)
 			base = 8;
 			goto nosign;
 		case 'p':
-			/*
+			/*-
 			 * ``The argument shall be a pointer to void.  The
 			 * value of the pointer is converted to a sequence
 			 * of printable characters, in an implementation-
@@ -889,10 +893,9 @@ hex:
 				flags |= HEXPREFIX;
 
 			flags &= ~GROUPING;
-
 			/* unsigned conversions */
 nosign:			sign = '\0';
-			/*
+			/*-
 			 * ``... diouXx conversions ... if a precision is
 			 * specified, the 0 flag will be ignored.''
 			 *	-- ANSI X3J11
@@ -900,7 +903,7 @@ nosign:			sign = '\0';
 number:			if ((dprec = prec) >= 0)
 				flags &= ~ZEROPAD;
 
-			/*
+			/*-
 			 * ``The result of converting a zero value with an
 			 * explicit precision of zero is no characters.''
 			 *	-- ANSI X3J11
