@@ -40,8 +40,6 @@
 #include <sys/random.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
-#include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <crypto/blowfish/blowfish.h>
 

@@ -30,14 +30,12 @@
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/libkern.h>
-#include <sys/mbuf.h>
 #include <sys/random.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/randomdev/hash.h>
-#include <dev/randomdev/yarrow.h>
 
 /* initialise the hash by copying in some supplied data */
 void

@@ -31,9 +31,6 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
-#include <sys/linker.h>
-#include <sys/libkern.h>
-#include <sys/mbuf.h>
 #include <sys/random.h>
 #include <sys/time.h>
 #include <crypto/blowfish/blowfish.h>
