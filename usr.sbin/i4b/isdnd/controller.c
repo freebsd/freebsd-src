@@ -242,7 +242,7 @@ init_active_controller(void)
 		{
 			DBGL(DL_RCCF, (log(LL_DBG, "init_active_controller, tina-dd %d: executing [%s %d]", unit, tinainitprog, unit)));
 			
-			sprintf(cmdbuf, "%s %d", tinainitprog, unit);
+			snprintf(cmdbuf, sizeof(cmdbuf), "%s %d", tinainitprog, unit);
 
 			if((ret = system(cmdbuf)) != 0)
 			{
