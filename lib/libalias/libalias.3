@@ -680,26 +680,6 @@ If
 .Dv NULL
 is returned, then the function call did not complete successfully.
 .Ed
-.Pp
-.Ft int
-.Fn PacketAliasPptp "struct in_addr addr"
-.Bd -ragged -offset indent
-This function causes any PPTP packets to be aliased using
-.Fa addr
-rather than the address set via
-.Fn PacketAliasSetAddress .
-This allows the uses of the PPTP on a single machine on the internal network.
-.Pp
-If the passed address is
-.Dv INADDR_NONE ,
-then PPTP aliasing is disabled.
-.Pp
-.Bf -symbolic
-This function is made obsolete by
-.Fn PacketAliasRedirectProto ,
-and is provided only for backward compatibility.
-.Ef
-.Ed
 .Sh FRAGMENT HANDLING
 The functions in this section are used to deal with incoming fragments.
 .Pp
