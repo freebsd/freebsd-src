@@ -44,8 +44,8 @@ static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
  */
 
 #include <fnmatch.h>
+#include <locale.h>
 #include <string.h>
-#include "collate.h"
 
 #define	EOS	'\0'
 
@@ -163,8 +163,8 @@ rangematch(pattern, test, flags)
 				c2 = *pattern++;
 			if (c2 == EOS)
 				return (NULL);
-			if (   __collcmp(c, test) <= 0
-			    && __collcmp(test, c2) <= 0
+			if (   collate_range_cmp(c, test) <= 0
+			    && collate_range_cmp(test, c2) <= 0
 			   )
 				ok = 1;
 		} else if (c == test)
