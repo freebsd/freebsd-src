@@ -115,7 +115,7 @@ static void fw_bus_explore_callback __P((struct fw_xfer *));
 static void fw_attach_dev __P((struct firewire_comm *));
 static void fw_vmaccess __P((struct fw_xfer *));
 struct fw_xfer *asyreqq __P((struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
-	u_int32_t, u_int32_t, void __P(*)));
+	u_int32_t, u_int32_t, void (*)__P((struct fw_xfer *))));
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
@@ -2332,7 +2332,8 @@ done:
 /* Portable Async. request read quad */
 struct fw_xfer *asyreqq(struct firewire_comm *fc,
 	u_int8_t spd, u_int8_t tl, u_int8_t rt,
-	u_int32_t addr_hi, u_int32_t addr_lo, void *hand __P())
+	u_int32_t addr_hi, u_int32_t addr_lo,
+	void (*hand) __P((struct fw_xfer*)))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
