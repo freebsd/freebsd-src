@@ -650,8 +650,9 @@ kerberos does not encrypt a session unless you use the
 .Fl x
 option.  Ssh encrypts everything by default.
 .Pp
-Ssh works quite well in every respect except that it forwards encryption keys
-by default.  What this means is that if you have a secure workstation holding 
+Ssh works quite well in every respect except when it is set up to
+forward encryption keys.
+What this means is that if you have a secure workstation holding 
 keys that give you access to the rest of the system, and you ssh to an
 unsecure machine, your keys becomes exposed.  The actual keys themselves are
 not exposed, but ssh installs a forwarding port for the duration of your 
