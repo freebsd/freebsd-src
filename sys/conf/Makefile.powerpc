@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	500006
+%VERSREQ=	500007
 
 # Temporary stuff while we're still embryonic
 NO_MODULES?=	yes

@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	500006
+%VERSREQ=	500007
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
