@@ -309,9 +309,8 @@ pcic_pci_ti_init(device_t dev)
 		device_printf(dev, "TI12XX PCI Config Reg: ");
 
 		/*
-		 * Turn on async CSC interrupts.  This appears to
-		 * be the default, but the old, pre pci-aware, code
-		 * did this and it appears PAO does as well.
+		 * Set the "use 0 to route card status change events to pci"
+		 * bit in the misnamed idagnostic register.
 		 */
 		diagctl = pci_read_config(dev, TI12XX_PCI_DIAGNOSTIC, 1);
 		diagctl |= TI12XX_DIAG_CSC_INTR;
@@ -334,10 +333,12 @@ pcic_pci_ti_init(device_t dev)
 	 * Takeshi Shibagaki(shiba@jp.freebsd.org)
 	 */
 	if (sc->func_route >= pci_parallel) {
+#ifdef	PCI_CARDBUS_CARD
 		devcntl &= ~TI113X_DEVCNTL_INTR_MASK;
 		pci_write_config(dev, TI113X_PCI_DEVICE_CONTROL, devcntl, 1);
 		devcntl = pci_read_config(dev, TI113X_PCI_DEVICE_CONTROL, 1);
 		syscntl |= TI113X_SYSCNTL_INTRTIE;
+#endif
 		syscntl &= ~TI113X_SYSCNTL_SMIENB;
 		pci_write_config(dev, TI113X_PCI_SYSTEM_CONTROL, syscntl, 1);
 	}
@@ -438,25 +439,36 @@ pcic_pci_cardtype(u_int32_t stat)
 	return ("none (can't happen)");
 }
 
+/*
+ * Card insertion and removal code.  The insertion events need to be
+ * debounced so that the noisy insertion/removal events don't result
+ * in the hardware being initialized many times, only to be torn down
+ * as well.  This may also cause races with pccardd.  Instead, we wait
+ * for the insertion signal to be stable for 0.5 seconds before we declare
+ * it to be a real insertion event.  Removal is done right away.
+ *
+ * Note: We only handle the card detect change events.  We don't handle
+ * power events and status change events.
+ */
 static void
-pcic_cd_event(void *arg) 
+pcic_cd_insert(void *arg) 
 {
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t stat;
-	
+
+ 	sc->cd_pending = 0;
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	device_printf(sc->dev, "debounced state is 0x%x\n", stat);
-	if ((stat & CB_SS_CD) == 0) {
-		if ((stat & CB_SS_16BIT) == 0)
-			device_printf(sp->sc->dev, "Unsupported card: %s\n",
-			    pcic_pci_cardtype(stat));
-		else
-			pccard_event(sp->slt, card_inserted);
-	} else {
-		pccard_event(sp->slt, card_removed);
-	}
-	sc->cd_pending = 0;
+
+	/* Just return if the interrupt handler missed a remove transition. */
+	if ((stat & CB_SS_CD) != 0)
+		return;
+	sc->cd_present = 1;
+	if ((stat & CB_SS_16BIT) == 0)
+		device_printf(sp->sc->dev, "Card type %s is unsupported\n",
+		    pcic_pci_cardtype(stat));
+	else
+		pccard_event(sp->slt, card_inserted);
 }
 
 static void
@@ -466,20 +478,37 @@ pcic_pci_intr(void *arg)
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t event;
 	u_int32_t stat;
+	int present;
 
 	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
 	if (event != 0) {
-		device_printf(sc->dev, "Event mask 0x%x\n", event);
-		if ((event & CB_SE_CD) != 0 && !sc->cd_pending) {
-			sc->cd_pending = 1;
-			timeout(pcic_cd_event, arg, hz/2);
+		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+		if (bootverbose)
+			device_printf(sc->dev, "Event mask 0x%x stat 0x%x\n",
+			    event, stat);
+
+		present = (stat & CB_SS_CD) == 0;
+		if (present != sc->cd_present) {
+			if (sc->cd_pending) {
+				untimeout(pcic_cd_insert, arg, sc->cd_ch);
+				sc->cd_pending = 0;
+			}
+			/* Delay insert events to debounce noisy signals. */
+			if (present) {
+				sc->cd_ch = timeout(pcic_cd_insert, arg, hz/2);
+				sc->cd_pending = 1;
+			} else {
+				sc->cd_present = 0;
+				sp->intr = NULL;
+				pccard_event(sp->slt, card_removed);
+			}
 		}
-		/* Ack the interrupt, all of them to be safe */
-		bus_space_write_4(sp->bst, sp->bsh, 0, 0xffffffff);
+		/* Ack the interrupt */
+		bus_space_write_4(sp->bst, sp->bsh, 0, event);
 	}
 
 	/*
-	 * TI chips also require us to read the old ExCA register for
+	 * Some TI chips also require us to read the old ExCA register for
 	 * card status change when we route CSC via PCI!  So, we go ahead
 	 * and read it to clear the bits.  Maybe we should check the status
 	 * ala the ISA interrupt handler, but those changes should be caught
@@ -487,12 +516,14 @@ pcic_pci_intr(void *arg)
 	 */
 	sp->getb(sp, PCIC_STAT_CHG);
 
-	/* Now call children interrupts if any */
-	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	if ((stat & CB_SS_CD) == 0) {
-		if (sp->intr != NULL)
-			sp->intr(sp->argp);
-	}
+	/*
+	 * If we have a card in the slot with an interrupt handler, then
+	 * call it.  Note: This means that each card can have at most one
+	 * interrupt handler for it.  Since multifunction cards aren't
+	 * supported, this shouldn't cause a problem in practice.
+	 */
+	if (sc->cd_present && sp->intr != NULL)
+		sp->intr(sp->argp);
 }
 
 /*
