@@ -5989,11 +5989,11 @@ main (argc, argv)
 
   /* We need to check standard_exec_prefix/just_machine_suffix/specs
      for any override of as, ld and libraries.  */
-  specs_file = (char *) alloca (strlen (standard_exec_prefix)
+  specs_file = (char *) alloca (strlen (FBSD_DATA_PREFIX)
 				+ strlen (just_machine_suffix)
 				+ sizeof ("specs"));
 
-  strcpy (specs_file, standard_exec_prefix);
+  strcpy (specs_file, FBSD_DATA_PREFIX);
   strcat (specs_file, just_machine_suffix);
   strcat (specs_file, "specs");
   if (access (specs_file, R_OK) == 0)
