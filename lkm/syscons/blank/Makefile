@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 KMOD=	blank_saver_mod
 SRCS= 	blank_saver.c
