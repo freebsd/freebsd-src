@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2004
+.Dd December 21, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -458,11 +458,6 @@ compilers, debuggers etc.
 .Pq Vt bool
 Set to not build
 programs and libraries related to IPv6 networking.
-.It Va NOALIAS
-.Pq Vt bool
-Build
-.Xr ppp 8
-without support for network address translation (NAT).
 .It Va NO_ATM
 .Pq Vt bool
 Set to not build
@@ -633,27 +628,26 @@ and
 .It Va WITH_BIND_LIBS
 .Pq Vt bool
 Set to install BIND libraries and include files.
-.It Va NONAT
-.It Vt bool
-This is an alias for
-.Va NONAT
-and can break when building
-.Xr ppp 8 .
-.It Va NONETGRAPH
+.It Va PPP_NO_NAT
+.Pq Vt bool
+Build
+.Xr ppp 8
+without support for network address translation (NAT).
+.It Va PPP_NO_NETGRAPH
 .Pq Vt bool
 Set to build
 .Xr ppp 8
-without support for netgraph.
-.It Va NORADIUS
-.Pq Va bool
+without support for Netgraph.
+.It Va PPP_NO_RADIUS
+.Pq Vt bool
 Set to build
 .Xr ppp 8
-without support for radius.
-.It Va PPP_NOSUID
+without support for RADIUS.
+.It Va PPP_NO_SUID
 .Pq Vt bool
 Set to disable the installation of
 .Xr ppp 8
-as an suid root program.
+as a set-user-ID root program.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
