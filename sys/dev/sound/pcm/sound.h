@@ -114,6 +114,7 @@ struct isa_device { int dummy; };
 /* make figuring out what a format is easier. got AFMT_STEREO already */
 #define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
 #define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
+#define AFMT_8BIT (AFMT_U8 | AFMT_S8)
 #define AFMT_SIGNED (AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
 #define AFMT_BIGENDIAN (AFMT_S16_BE | AFMT_U16_BE)
 
