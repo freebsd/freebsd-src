@@ -1,5 +1,76 @@
-<!-- $Id: glossary.sgml,v 1.1.1.1 1996/11/15 05:14:39 asami Exp $ -->
-<!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 0 -->
+<!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
+     Configuring a FreeBSD for Dialup Services by Guy Helmer.
+     $Id: serial.sgml,v 1.1 1996/11/28 18:09:30 jfieber Exp $
+     FreeBSD Japanese Documentation Project
+     Original revision: 1.1
 
-<sect><heading>* Serial Basics<label id="serial"></heading>
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+
+<linuxdoc>
+  <article>
+      <title> シリアル接続の基礎
+
+      <abstract> このセクションは, シリアルポートを使うための基本的
+な事柄についての概要が書かれています. もしあなたがモデムに興味がある
+なら, このセクションは PPP やダイアルアウトのセクションへの導入にな
+ります. 
+      </abstract>
+	
+    <toc>
+-->
+
+<sect><heading>シリアル接続の基礎<label id="serial"></heading>
+
+<p><em>Assembled from FAQ.</em>
+
+<p><em>原作: FAQ</em>
+<date> 24 Nov 1996, (c) 1996
+<p><em>訳: &a.mihoko;9 December 1996.</em>
+
+このセクションは, シリアルポートについての一般的な情報が書かれていま
+す. あなたが求めている情報が, もしここで見つからなかった場合には, ハン
+ドブックの端末とダイアルアップのセクションを見てください. 
+
+	<p>
+	  <tt/ttydX/ (or <tt/cuaaX/) デバイスは, アプリケーション上
+	  でシリアルポートをオープンする時に使用する, 標準的なデバイスです. 
+	  プロセスがデバイスをオープンする際, 端末 I/O 設定の
+	  デフォルトセットが使用されます. 
+	  これらの設定内容は, 次のコマンドで確認することができます. 
+          <verb>
+            stty -a -f /dev/ttyd1
+          </verb>
+
+	  このデバイスの設定を変更した場合, その設定はデバイスが
+	  クローズされるまで有効です. 
+	  デバイスが再びオープンされる時, デフォルトの設定値に戻ります. 
+	  デフォルトの設定を変更するためには, 「初期状態」を設定した
+	  いデバイスをオープンして調節することができます. 
+	  例えば, ttyd5 というデバイスに対して, デフォルトで
+	  <tt/CLOCAL/ モードを ON にして, 8 bits の設定をおこない, 
+	  <tt>XON/XOFF</tt> フロー制御を行うように設定したい場合は, 
+	  次のようにします. 
+          <verb>
+            stty -f /dev/ttyid5 clocal cs8 ixon ixoff
+          </verb>
+
+	  このコマンドを記述に適しているファイルは, <tt>/etc/rc.serial</tt>  
+	  です. アプリケーションが<tt/ttyd5/ をオープンするときに, 
+	  デフォルトでこの設定をおこなうようになります. 
+	  これらの設定は, 好きなように変更することができます. 
+
+	  また, 「固定状態」のデバイスに調節することで, ある一定の設定が
+	  アプリケーションに変更されることを防ぐこともできます.
+	  例えば, <tt/ttyd5/ のスピードを 57600 bps に固定したい場合には, 
+	  次のようにします. 
+          <verb>
+            stty -f /dev/ttyld5 57600
+          </verb>
+
+	  これで、<tt/ttyd5/ をオープンして, シリアルポートの転送スピードを 
+	  変更しようとするアプリケーションは 57600 bps に固定されるでしょう.
+
+          本来, デバイスの初期状態を変更したり設定を固定するのは, 
+	  <tt/root/ だけが行うべきです. 
+	  <tt/MAKEDEV/ スクリプトがデバイスエントリを作成する時は, 
+	  これをおこない</bf/ません/. 
