@@ -16,7 +16,7 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.11 1998/12/11 21:42:57 phk Exp $
+ * $Id: if_sppp.h,v 1.12 1998/12/20 19:06:22 phk Exp $
  */
 
 #ifndef _NET_IF_SPPP_H_
@@ -45,6 +45,7 @@ struct sipcp {
 	u_int	flags;
 #define IPCP_HISADDR_SEEN 1	/* have seen his address already */
 #define IPCP_MYADDR_DYN   2	/* my address is dynamically assigned */
+#define IPCP_MYADDR_SEEN  4	/* have seen his address already */
 };
 
 #define AUTHNAMELEN	32
@@ -116,7 +117,15 @@ struct sppp {
 	 */
 	void	(*pp_tls)(struct sppp *sp);
 	void	(*pp_tlf)(struct sppp *sp);
-
+	/*
+	 * These (optional) functions may be filled by the hardware
+	 * driver if any notification of established connections
+	 * (currently: IPCP up) is desired (pp_con) or any internal
+	 * state change of the interface state machine should be
+	 * signaled for monitoring purposes (pp_chg).
+	 */
+	void	(*pp_con)(struct sppp *sp);
+	void	(*pp_chg)(struct sppp *sp, int new_state);
 	/* These two fields are for use by the lower layer */
 	void    *pp_lowerp;
 	int     pp_loweri;
