@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.69 1995/12/11 04:54:58 dyson Exp $
+ *	$Id: pmap.c,v 1.70 1995/12/14 23:59:04 bde Exp $
  */
 
 /*
@@ -170,9 +170,6 @@ static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
 static void	pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_offset_t pa));
 static int	pmap_is_managed __P((vm_offset_t pa));
-extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
-					 vm_object_t object, vm_offset_t offset,
-					 vm_offset_t size));
 static void	pmap_remove_all __P((vm_offset_t pa));
 static void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
 				       vm_offset_t va));
@@ -375,7 +372,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/*
 	 * The kernel's pmap is statically allocated so we don't have to use
 	 * pmap_create, which is unlikely to work correctly at this part of
-	 * the boot sequence.
+	 * the boot sequence (XXX and which no longer exists).
 	 */
 	kernel_pmap = &kernel_pmap_store;
 
