@@ -208,4 +208,14 @@
 #define	SYS_rfork	251
 #define	SYS_issetugid	253
 #define	SYS_lchown	254
-#define	SYS_MAXSYSCALL	255
+#define	SYS_modnext	300
+#define	SYS_modstat	301
+#define	SYS_modfnext	302
+#define	SYS_modfind	303
+#define	SYS_kldload	304
+#define	SYS_kldunload	305
+#define	SYS_kldfind	306
+#define	SYS_kldnext	307
+#define	SYS_kldstat	308
+#define	SYS_kldfirstmod	309
+#define	SYS_MAXSYSCALL	310

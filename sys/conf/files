@@ -48,6 +48,9 @@ kern/init_main.c	standard
 kern/init_smp.c		optional smp
 kern/init_sysent.c	standard
 kern/init_sysvec.c	standard
+kern/kern_module.c	standard
+kern/kern_linker.c	standard
+kern/link_aout.c	standard
 kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard
