@@ -104,11 +104,11 @@ PacketUnaliasOut(char *_ptr, int _maxpacketsize)
 }
 
 int
-PacketAliasAddServer(struct alias_link *_link,
+PacketAliasAddServer(struct alias_link *_lnk,
     struct in_addr _addr, unsigned short _port)
 {
 
-	return LibAliasAddServer(la, _link, _addr, _port);
+	return LibAliasAddServer(la, _lnk, _addr, _port);
 }
 
 struct alias_link *
@@ -121,17 +121,17 @@ PacketAliasRedirectAddr(struct in_addr _src_addr,
 
 
 int
-PacketAliasRedirectDynamic(struct alias_link *_link)
+PacketAliasRedirectDynamic(struct alias_link *_lnk)
 {
 
-	return LibAliasRedirectDynamic(la, _link);
+	return LibAliasRedirectDynamic(la, _lnk);
 }
 
 void
-PacketAliasRedirectDelete(struct alias_link *_link)
+PacketAliasRedirectDelete(struct alias_link *_lnk)
 {
 
-	LibAliasRedirectDelete(la, _link);
+	LibAliasRedirectDelete(la, _lnk);
 }
 
 struct alias_link *

@@ -204,7 +204,7 @@ int
 AliasHandleUdpNbt(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
-    struct alias_link *link,
+    struct alias_link *lnk,
     struct in_addr *alias_address,
     u_short alias_port
 )
@@ -213,6 +213,9 @@ AliasHandleUdpNbt(
 	NbtDataHeader *ndh;
 	u_char *p = NULL;
 	char *pmax;
+
+	(void)la;
+	(void)lnk;
 
 	/* Calculate data length of UDP packet */
 	uh = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
@@ -287,6 +290,8 @@ AliasHandleQuestion(
     char *pmax,
     NBTArguments * nbtarg)
 {
+
+	(void)nbtarg;
 
 	while (count != 0) {
 		/* Name Filed */
@@ -468,6 +473,8 @@ AliasHandleResourceNULL(
 	NBTNsResourceNULL *n;
 	u_short bcount;
 
+	(void)nbtarg;
+
 	if (q == NULL || (char *)(q + 1) > pmax)
 		return (NULL);
 
@@ -501,6 +508,8 @@ AliasHandleResourceNS(
 	NBTNsResourceNULL *n;
 	u_short bcount;
 
+	(void)nbtarg;
+
 	if (q == NULL || (char *)(q + 1) > pmax)
 		return (NULL);
 
@@ -531,6 +540,8 @@ AliasHandleResourceNBSTAT(
 {
 	NBTNsResourceNBSTAT *n;
 	u_short bcount;
+
+	(void)nbtarg;
 
 	if (q == NULL || (char *)(q + 1) > pmax)
 		return (NULL);
@@ -621,7 +632,7 @@ int
 AliasHandleUdpNbtNS(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
-    struct alias_link *link,
+    struct alias_link *lnk,
     struct in_addr *alias_address,
     u_short * alias_port,
     struct in_addr *original_address,
@@ -632,6 +643,9 @@ AliasHandleUdpNbtNS(
 	u_char *p;
 	char *pmax;
 	NBTArguments nbtarg;
+
+	(void)la;
+	(void)lnk;
 
 	/* Set up Common Parameter */
 	nbtarg.oldaddr = *alias_address;

@@ -68,25 +68,25 @@ struct client_info {
 };
 
 void
-AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *link)
+AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 {
 	struct udphdr *ud;
 
 	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 	if (ntohs(ud->uh_ulen) - sizeof(struct udphdr) >= sizeof(struct cu_header)) {
 		struct cu_header *cu;
-		struct alias_link *cu_link;
+		struct alias_link *cu_lnk;
 
 		cu = (struct cu_header *)(ud + 1);
 		if (cu->addr)
-			cu->addr = (u_int32_t) GetAliasAddress(link).s_addr;
+			cu->addr = (u_int32_t) GetAliasAddress(lnk).s_addr;
 
-		cu_link = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
+		cu_lnk = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
 		    ud->uh_dport, 0, IPPROTO_UDP, 1);
 
 #ifndef NO_FW_PUNCH
-		if (cu_link)
-			PunchFWHole(cu_link);
+		if (cu_lnk)
+			PunchFWHole(cu_lnk);
 #endif
 	}
 }
@@ -102,6 +102,7 @@ AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, struct in_addr origina
 	char *end;
 	int i;
 
+	(void)la;
 	alias_addr.s_addr = pip->ip_dst.s_addr;
 	ud = (struct udphdr *)((char *)pip + (pip->ip_hl << 2));
 	cu = (struct cu_header *)(ud + 1);

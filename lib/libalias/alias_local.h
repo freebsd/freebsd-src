@@ -227,43 +227,43 @@ int
 FindNewPortGroup(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
     u_short _src_port, u_short _dst_port, u_short _port_count,
     u_char _proto, u_char _align);
-void		GetFragmentAddr(struct alias_link *_link, struct in_addr *_src_addr);
-void		SetFragmentAddr(struct alias_link *_link, struct in_addr _src_addr);
-void		GetFragmentPtr(struct alias_link *_link, char **_fptr);
-void		SetFragmentPtr(struct alias_link *_link, char *fptr);
-void		SetStateIn(struct alias_link *_link, int _state);
-void		SetStateOut(struct alias_link *_link, int _state);
-int		GetStateIn (struct alias_link *_link);
-int		GetStateOut(struct alias_link *_link);
+void		GetFragmentAddr(struct alias_link *_lnk, struct in_addr *_src_addr);
+void		SetFragmentAddr(struct alias_link *_lnk, struct in_addr _src_addr);
+void		GetFragmentPtr(struct alias_link *_lnk, char **_fptr);
+void		SetFragmentPtr(struct alias_link *_lnk, char *fptr);
+void		SetStateIn(struct alias_link *_lnk, int _state);
+void		SetStateOut(struct alias_link *_lnk, int _state);
+int		GetStateIn (struct alias_link *_lnk);
+int		GetStateOut(struct alias_link *_lnk);
 struct in_addr
-		GetOriginalAddress(struct alias_link *_link);
+		GetOriginalAddress(struct alias_link *_lnk);
 struct in_addr
-		GetDestAddress(struct alias_link *_link);
+		GetDestAddress(struct alias_link *_lnk);
 struct in_addr
-		GetAliasAddress(struct alias_link *_link);
+		GetAliasAddress(struct alias_link *_lnk);
 struct in_addr
 		GetDefaultAliasAddress(struct libalias *la);
 void		SetDefaultAliasAddress(struct libalias *la, struct in_addr _alias_addr);
-u_short		GetOriginalPort(struct alias_link *_link);
-u_short		GetAliasPort(struct alias_link *_link);
+u_short		GetOriginalPort(struct alias_link *_lnk);
+u_short		GetAliasPort(struct alias_link *_lnk);
 struct in_addr
-		GetProxyAddress(struct alias_link *_link);
-void		SetProxyAddress(struct alias_link *_link, struct in_addr _addr);
-u_short		GetProxyPort(struct alias_link *_link);
-void		SetProxyPort(struct alias_link *_link, u_short _port);
-void		SetAckModified(struct alias_link *_link);
-int		GetAckModified(struct alias_link *_link);
-int		GetDeltaAckIn(struct ip *_pip, struct alias_link *_link);
-int		GetDeltaSeqOut(struct ip *_pip, struct alias_link *_link);
-void		AddSeq    (struct ip *_pip, struct alias_link *_link, int _delta);
-void		SetExpire (struct alias_link *_link, int _expire);
+		GetProxyAddress(struct alias_link *_lnk);
+void		SetProxyAddress(struct alias_link *_lnk, struct in_addr _addr);
+u_short		GetProxyPort(struct alias_link *_lnk);
+void		SetProxyPort(struct alias_link *_lnk, u_short _port);
+void		SetAckModified(struct alias_link *_lnk);
+int		GetAckModified(struct alias_link *_lnk);
+int		GetDeltaAckIn(struct ip *_pip, struct alias_link *_lnk);
+int		GetDeltaSeqOut(struct ip *_pip, struct alias_link *_lnk);
+void		AddSeq    (struct ip *_pip, struct alias_link *_lnk, int _delta);
+void		SetExpire (struct alias_link *_lnk, int _expire);
 void		ClearCheckNewLink(struct libalias *la);
-void		SetProtocolFlags(struct alias_link *_link, int _pflags);
-int		GetProtocolFlags(struct alias_link *_link);
-void		SetDestCallId(struct alias_link *_link, u_int16_t _cid);
+void		SetProtocolFlags(struct alias_link *_lnk, int _pflags);
+int		GetProtocolFlags(struct alias_link *_lnk);
+void		SetDestCallId(struct alias_link *_lnk, u_int16_t _cid);
 
 #ifndef NO_FW_PUNCH
-void		PunchFWHole(struct alias_link *_link);
+void		PunchFWHole(struct alias_link *_lnk);
 
 #endif
 
@@ -275,47 +275,47 @@ void		HouseKeeping(struct libalias *);
 
 /* FTP routines */
 void
-AliasHandleFtpOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
+AliasHandleFtpOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
     int _maxpacketsize);
 
 /* IRC routines */
 void
-AliasHandleIrcOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
+AliasHandleIrcOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
     int _maxsize);
 
 /* RTSP routines */
 void
-AliasHandleRtspOut(struct libalias *la, struct ip *_pip, struct alias_link *_link,
+AliasHandleRtspOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
     int _maxpacketsize);
 
 /* PPTP routines */
-void		AliasHandlePptpOut(struct libalias *la, struct ip *_pip, struct alias_link *_link);
-void		AliasHandlePptpIn(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+void		AliasHandlePptpOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
+void		AliasHandlePptpIn(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
 int		AliasHandlePptpGreOut(struct libalias *la, struct ip *_pip);
 int		AliasHandlePptpGreIn(struct libalias *la, struct ip *_pip);
 
 /* NetBIOS routines */
 int
-AliasHandleUdpNbt(struct libalias *la, struct ip *_pip, struct alias_link *_link,
+AliasHandleUdpNbt(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
     struct in_addr *_alias_address, u_short _alias_port);
 int
-AliasHandleUdpNbtNS(struct libalias *la, struct ip *_pip, struct alias_link *_link,
+AliasHandleUdpNbtNS(struct libalias *la, struct ip *_pip, struct alias_link *_lnk,
     struct in_addr *_alias_address, u_short * _alias_port,
     struct in_addr *_original_address, u_short * _original_port);
 
 /* CUSeeMe routines */
-void		AliasHandleCUSeeMeOut(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+void		AliasHandleCUSeeMeOut(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
 void		AliasHandleCUSeeMeIn(struct libalias *la, struct ip *_pip, struct in_addr _original_addr);
 
 /* Skinny routines */
-void		AliasHandleSkinny(struct libalias *la, struct ip *_pip, struct alias_link *_link);
+void		AliasHandleSkinny(struct libalias *la, struct ip *_pip, struct alias_link *_lnk);
 
 /* Transparent proxy routines */
 int
 ProxyCheck(struct libalias *la, struct ip *_pip, struct in_addr *_proxy_server_addr,
     u_short * _proxy_server_port);
 void
-ProxyModify(struct libalias *la, struct alias_link *_link, struct ip *_pip,
+ProxyModify(struct libalias *la, struct alias_link *_lnk, struct ip *_pip,
     int _maxpacketsize, int _proxy_type);
 
 enum alias_tcp_state {
