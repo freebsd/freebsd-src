@@ -142,6 +142,10 @@ struct nlist nl[] = {
 	{ "_cy_tty" },
 #define NCY (SNPTY+8)
 	{ "_ncy_tty" },
+#define SI  (SNPTY+9)
+	{ "_si_tty" },
+#define NSI (SNPTY+10)
+	{ "_si_Nports" },
 #endif
 	{ "" }
 };
@@ -182,7 +186,7 @@ int	nfs_print __P((struct vnode *));
 void	swapmode __P((void));
 void	ttymode __P((void));
 void	ttyprt __P((struct tty *, int));
-void	ttytype __P((struct tty *, char *, int, int));
+void	ttytype __P((struct tty *, char *, int, int, int));
 void	ufs_header __P((void));
 int	ufs_print __P((struct vnode *));
 void	vnode_header __P((void));
@@ -767,58 +771,61 @@ ttymode()
 	if (nl[SNQD].n_type != 0)
 		qdss();
 	if (nl[SNDZ].n_type != 0)
-		ttytype(tty, "dz", SDZ, SNDZ);
+		ttytype(tty, "dz", SDZ, SNDZ, 0);
 	if (nl[SNDH].n_type != 0)
-		ttytype(tty, "dh", SDH, SNDH);
+		ttytype(tty, "dh", SDH, SNDH, 0);
 	if (nl[SNDMF].n_type != 0)
-		ttytype(tty, "dmf", SDMF, SNDMF);
+		ttytype(tty, "dmf", SDMF, SNDMF, 0);
 	if (nl[SNDHU].n_type != 0)
-		ttytype(tty, "dhu", SDHU, SNDHU);
+		ttytype(tty, "dhu", SDHU, SNDHU, 0);
 	if (nl[SNDMZ].n_type != 0)
-		ttytype(tty, "dmz", SDMZ, SNDMZ);
+		ttytype(tty, "dmz", SDMZ, SNDMZ, 0);
 #endif
 #ifdef tahoe
 	if (nl[SNVX].n_type != 0)
-		ttytype(tty, "vx", SVX, SNVX);
+		ttytype(tty, "vx", SVX, SNVX, 0);
 	if (nl[SNMP].n_type != 0)
-		ttytype(tty, "mp", SMP, SNMP);
+		ttytype(tty, "mp", SMP, SNMP, 0);
 #endif
 #ifdef hp300
 	if (nl[SNITE].n_type != 0)
-		ttytype(tty, "ite", SITE, SNITE);
+		ttytype(tty, "ite", SITE, SNITE, 0);
 	if (nl[SNDCA].n_type != 0)
-		ttytype(tty, "dca", SDCA, SNDCA);
+		ttytype(tty, "dca", SDCA, SNDCA, 0);
 	if (nl[SNDCM].n_type != 0)
-		ttytype(tty, "dcm", SDCM, SNDCM);
+		ttytype(tty, "dcm", SDCM, SNDCM, 0);
 	if (nl[SNDCL].n_type != 0)
-		ttytype(tty, "dcl", SDCL, SNDCL);
+		ttytype(tty, "dcl", SDCL, SNDCL, 0);
 #endif
 #ifdef mips
 	if (nl[SNDC].n_type != 0)
-		ttytype(tty, "dc", SDC, SNDC);
+		ttytype(tty, "dc", SDC, SNDC, 0);
 #endif
 #ifdef __FreeBSD__
 	if (nl[NSCCONS].n_type != 0)
-		ttytype(tty, "vty", SCCONS, NSCCONS);
+		ttytype(tty, "vty", SCCONS, NSCCONS, 0);
 	if (nl[NSIO].n_type != 0)
-		ttytype(tty, "sio", SIO, NSIO);
+		ttytype(tty, "sio", SIO, NSIO, 0);
 	if (nl[NRC].n_type != 0)
-		ttytype(tty, "rc", RC, NRC);
+		ttytype(tty, "rc", RC, NRC, 0);
 	if (nl[NCY].n_type != 0)
-		ttytype(tty, "cy", CY, NCY);
+		ttytype(tty, "cy", CY, NCY, 0);
+	if (nl[NSI].n_type != 0)
+		ttytype(tty, "si", SI, NSI, 1);
 #endif
 	if (nl[SNPTY].n_type != 0)
-		ttytype(tty, "pty", SPTY, SNPTY);
+		ttytype(tty, "pty", SPTY, SNPTY, 0);
 }
 
 void
-ttytype(tty, name, type, number)
+ttytype(tty, name, type, number, indir)
 	register struct tty *tty;
 	char *name;
-	int type, number;
+	int type, number, indir;
 {
 	register struct tty *tp;
 	int ntty;
+	struct tty **ttyaddr;
 
 	if (tty == NULL)
 		return;
@@ -829,7 +836,12 @@ ttytype(tty, name, type, number)
 		if ((tty = realloc(tty, ttyspace * sizeof(*tty))) == 0)
 			err(1, NULL);
 	}
-	KGET1(type, tty, ntty * sizeof(struct tty), "tty structs");
+	if (indir) {
+		KGET(type, ttyaddr);
+		KGET2(ttyaddr, tty, ntty * sizeof(struct tty), "tty structs");
+	} else {
+		KGET1(type, tty, ntty * sizeof(struct tty), "tty structs");
+	}
 	(void)printf(hdr);
 	for (tp = tty; tp < &tty[ntty]; tp++)
 		ttyprt(tp, tp - tty);
