@@ -55,8 +55,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
-static void	uio_yield __P((void));
-
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV, 
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
@@ -381,7 +379,7 @@ phashinit(elements, type, nentries)
 	return (hashtbl);
 }
 
-static void
+void
 uio_yield()
 {
 	struct thread *td;
