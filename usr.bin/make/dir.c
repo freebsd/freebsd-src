@@ -296,7 +296,7 @@ Boolean
 Dir_HasWildcards (name)
     char          *name;	/* name to check */
 {
-    register char *cp;
+    char *cp;
 
     for (cp = name; *cp; cp++) {
 	switch(*cp) {
@@ -667,12 +667,12 @@ Dir_FindFile (name, path)
     char    	  *name;    /* the file to find */
     Lst           path;	    /* the Lst of directories to search */
 {
-    register char *p1;	    /* pointer into p->name */
-    register char *p2;	    /* pointer into name */
+    char          *p1;	    /* pointer into p->name */
+    char          *p2;	    /* pointer into name */
     LstNode       ln;	    /* a list element */
-    register char *file;    /* the current filename to check */
-    register Path *p;	    /* current path member */
-    register char *cp;	    /* index of first slash, if any */
+    char          *file;    /* the current filename to check */
+    Path          *p;	    /* current path member */
+    char          *cp;	    /* index of first slash, if any */
     Boolean	  hasSlash; /* true if 'name' contains a / */
     struct stat	  stb;	    /* Buffer for stat, if necessary */
     Hash_Entry	  *entry;   /* Entry for mtimes table */
@@ -1034,9 +1034,9 @@ Dir_AddDir (path, name)
     char          *name;      /* the name of the directory to add */
 {
     LstNode       ln;	      /* node in case Path structure is found */
-    register Path *p;	      /* pointer to new Path structure */
+    Path          *p;	      /* pointer to new Path structure */
     DIR     	  *d;	      /* for reading directory */
-    register struct dirent *dp; /* entry in directory */
+    struct dirent *dp;	      /* entry in directory */
 
     ln = Lst_Find (openDirectories, (void *)name, DirFindName);
     if (ln != NULL) {
