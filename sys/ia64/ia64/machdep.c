@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_acpi.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
