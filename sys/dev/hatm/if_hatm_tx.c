@@ -321,8 +321,6 @@ hatm_load_txbuf(void *uarg, bus_dma_segment_t *segs, int nseg,
 
 /*
  * Start output on the interface
- *
- * For raw aal we process only the first cell in the mbuf chain! XXX
  */
 void
 hatm_start(struct ifnet *ifp)
@@ -381,21 +379,26 @@ hatm_start(struct ifnet *ifp)
 		arg.pti = 0;
 		if (arg.vcc->param.aal == ATMIO_AAL_RAW) {
 			if (len < 52) {
+				/* too short */
 				m_freem(m);
 				continue;
 			}
-			if (len > 52) {
-				m_adj(m, -((int)(len - 52)));
-				len = 52;
-			}
+
+			/*
+			 * Get the header and ignore except
+			 * payload type and CLP.
+			 */
 			if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
 				continue;
-
-			/* ignore header except payload type and CLP */
 			arg.pti = mtod(m, u_char *)[3] & 0xf;
 			arg.pti = ((arg.pti & 0xe) << 2) | ((arg.pti & 1) << 1);
 			m_adj(m, 4);
 			len -= 4;
+
+			if (len % 48 != 0) {
+				m_adj(m, -((int)(len % 48)));
+				len -= len % 48;
+			}
 		}
 
 #ifdef ENABLE_BPF
