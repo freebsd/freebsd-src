@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.12 1997/02/22 13:56:36 peter Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
@@ -21,7 +21,8 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
+	cd ${.CURDIR} && \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FONTS} \
 		${DESTDIR}${FONTDIR}
 
 .include <bsd.prog.mk>
