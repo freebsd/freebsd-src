@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.4.2.8 1998/09/12 18:55:46 msmith Exp $
+# $Id: pccard.conf.sample,v 1.4.2.9 1998/09/25 22:09:45 brian Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -387,3 +387,7 @@ card "New Media" "SCSI"
 #	config	0x3a "spc0" 11
 #	insert	echo REX-5535 SCSI card inserted
 #	remove	echo REX-5535 SCSI card removed
+
+# Libretto floppy drive.
+card "Y-E DATA" "External FDD"
+	config 0x4 "fdc0" 10
