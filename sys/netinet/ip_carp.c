@@ -1118,7 +1118,7 @@ carp_iamatch(void *v, struct in_ifaddr *ia,
 }
 
 #ifdef INET6
-static struct ifaddr *
+struct ifaddr *
 carp_iamatch6(void *v, struct in6_addr *taddr)
 {
 	struct carp_if *cif = v;
@@ -1142,7 +1142,7 @@ carp_iamatch6(void *v, struct in6_addr *taddr)
 	return (NULL);
 }
 
-static void *
+void *
 carp_macmatch6(void *v, struct mbuf *m, const struct in6_addr *taddr)
 {
 	struct m_tag *mtag;
