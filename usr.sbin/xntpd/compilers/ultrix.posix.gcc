@@ -1,0 +1,1 @@
+COMPILER= gcc -Wall -O2 -finline-functions -fdelayed-branch

@@ -1,0 +1,156 @@
+#
+# Maybe an alternate xntpd configuration for NSS#17
+#
+
+#
+# precision is supported, but you don't really need it.  The code
+# will determine a precision from the kernel's value of _hz which
+# is fine.  Note you shouldn't claim too good a precision on a
+# Unix machine even if the clock carries a lot of bits, since
+# precision also depends on things like I/O delays and scheduling
+# latencies, which Unix machines control poorly.  If you claim better
+# than -6 or -7 it will make the anti-hop aperture tighter than is
+# reasonable for a Unix machine.
+#
+#precision -7
+
+#
+# peers are ncarfuzz.ucar.edu umd1.umd.edu dcn5.udel.edu fuzz.sdsc.edu
+# syntax is  peer addr [ key 1-15 ] [ version 1_or_2 ]
+#
+
+peer 128.116.64.3	# ncarfuzz.ucar.edu
+peer 128.8.10.1		# umd1.umd.edu
+peer 128.4.0.5		# dcn5.udel.edu
+peer 192.12.207.1	# fuzz.sdsc.edu
+
+#
+# Drift file.  Put this in a directory which the daemon can write to.
+# No symbolic links allowed, either, since the daemon updates the file
+# by creating a temporary in the same directory and then rename()'ing
+# it to the file.
+#
+# This is a nice feature.  Once you've got the drift computed it hardly
+# ever takes more than an hour or so to resync after a restart.
+#
+driftfile /etc/ntp.drift
+
+#
+# The server statement causes polling to be done in client mode rather
+# than symmetric active.  It is an alternative to the peer command
+# above.  Which you use depends on what you want to achieve.  Usually
+# it doesn't matter.  Syntax is:
+#
+#server 128.100.49.1 key 4 version 1
+
+#
+# The broadcast statement tells it to start broadcasting time out one
+# of its interfaces.  Syntax is
+#
+#broadcast 128.100.49.255 # [ key n ] [ version n ]
+
+#
+# broadcastclient tells the daemon whether it should attempt to sync
+# to broadcasts or not.  Defaults to `no'.
+#
+#broadcastclient yes # or no
+
+#
+# broadcastdelay configures in a default round-trip delay to use for
+# broadcast time.  It may poll to improve this estimate.
+#
+#broadcastdelay 0.0095		# in seconds
+
+#
+# authenticate configures us into strict authentication mode (or not).
+#
+#authenticate yes	# or no.  Default is no
+
+#
+# authdelay is the time it takes to do an NTP encryption on this host.
+# The current routine is pretty fast.
+#
+#authdelay 0.000340	# in seconds
+
+#
+# trustedkey are used when authenticate is on.  We only trust (and sync to)
+# peers who know these keys.
+#
+#trustedkey 1 3 4 8
+
+#
+# monitor turns on the monitoring facility.  See xntpdc's monlist command.
+# This shows a lot of neat stuff, but I'm not fussy about the implementation.
+# Uses up to 20Kb of memory at run time.  You could try this.
+#
+#monitor yes		# or no.  Default is no
+
+#
+# keys points at the file which holds the authentication keys.
+#
+#keys /etc/ntp.keys
+
+#
+# requestkey indicates which key is to be used for validating
+# runtime reconfiguration requests.  If this isn't defined, or the
+# key isn't in the keys file, you can't do runtime reconfiguration.
+# controlkey indicates which key is to be used for validating
+# mode 6 write variables commands.  If this isn't defined you can't
+# do it.  The only thing the latter is used for is to set leap second
+# warnings on machines with radio clocks.
+#
+#requestkey 65535
+#controlkey 65534
+
+#
+# restrict places restrictions on the punters.  This is implemented as
+# a sorted address-and-mask list, with each entry including a set of
+# flags which define what a host matching the entry *can't* do (the sort
+# also saves CPU time searching the table since it needn't be searched
+# to the end).  The last match in the table defines what the host does.
+# The default entry, which everyone matches, is first, most specific
+# matches are later in the table.  The flags are:
+#
+# ignore	- ignore all traffic from host
+# noserve	- don't give host any time (but let him make queries?)
+# notrust	- give host time, let him make queries, but don't sync to him
+# noquery	- host can have time, but not make queries
+# nomodify	- allow the host to make queries except those which are
+#		  actually run-time configuration commands.
+# notrap	- don't allow matching hosts to set traps.  If noquery is
+#		  set this isn't needed
+# lowpriotrap	- if this guy sets a trap make it easy to delete
+# ntpport	- a different kind of flag.  Makes matches for this entry
+#		  possible only if the source port is 123.
+#
+# To understand this better, take a look at xntpdc's reslist command when the
+# server is running.  This usually prints in the sorted order.
+#
+# This should match the NSS 17 stuff.  Default mask is all ones.
+
+restrict default ignore		# ignore almost everyone
+
+#
+# These guys can be served time and make non-modifying queries
+#
+restrict 129.140.0.0 mask 255.255.0.0 notrust nomodify
+restrict 35.1.1.42 notrust nomodify
+
+#
+# Rest of 35.1.1 gets to look but not touch
+#
+restrict 35.1.1.0 mask 255.255.255.0 noserve nomodify
+
+#
+# modifications can be made from local NSS only
+#
+restrict 129.140.17.0 mask 255.255.255.0 notrust
+restrict 127.0.0.1 notrust
+
+#
+# take time from the following peers, but don't let them peek or modify
+#
+restrict 128.116.64.3 noquery
+restrict 128.8.10.1 noquery
+restrict 128.4.0.5 noquery
+restrict 192.12.207.1 noquery

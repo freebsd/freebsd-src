@@ -1,0 +1,69 @@
+#
+# FAU NTP client configuration file
+#
+# sun4.sun4m,v 3.1 1993/07/06 01:10:43 jbj Exp
+#
+# sun4.sun4m,v
+# Revision 3.1  1993/07/06  01:10:43  jbj
+# XNTP release 3.1
+#
+#
+# Revision 1.1  1992/12/10  12:58:55  kardel
+# Prerelease NTP V3 / DCF
+#
+# Revision 1.2  1992/10/05  12:48:44  kardel
+# sun4m authdelay
+#
+# Revision 1.1  1992/10/05  12:48:07  kardel
+# Initial revision
+#
+# Revision 1.2  1992/01/14  14:01:35  kardel
+# update for joined INF4/INF1 nets
+#
+#
+# Local fall back clock
+#
+precision -7
+#
+# Local clock
+#
+peer 127.127.1.13
+#
+broadcastclient yes
+# broadcastdelay must be figured out
+
+#
+# peers - local synch setup
+#
+#server ntps1-0				version 3
+#server ntps1-1				version 2
+#server ntps2-0				version 3
+#
+# files
+#
+driftfile	/+private/local/NTP/xntp.drift
+resolver	/local/NTP/bin/xntpres
+#
+# authentication stuff
+#
+authdelay	0.000033		# sun4c
+controlkey	1006
+requestkey	1007
+#
+# restrictions
+#
+#	provide cheap services to the world/ prevent modifications from there 
+#
+restrict	default		notrust	lowpriotrap nomodify
+#
+#	hosts on the local networks are allowed unrestricted access
+#
+restrict	131.188.0.0     mask 255.255.0.0 nomodify notrust # allow local hosts
+restrict	131.188.1.0    	mask 255.255.255.0 	# allow local hosts
+restrict	131.188.31.0    mask 255.255.255.0 	# allow local hosts
+restrict	131.188.34.0    mask 255.255.255.0 	# allow local hosts
+restrict	131.188.44.0    mask 255.255.255.0 	# allow local hosts
+restrict	131.188.40.0    mask 255.255.255.0 	# allow local hosts
+#
+restrict	127.0.0.1	mask 255.255.255.255	# local config
+restrict	127.127.0.0	mask 255.255.0.0	# local clocks
