@@ -1103,6 +1103,7 @@ isa_if.h		optional isa					\
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
 isa/joy.c		optional joy
+isa/orm.c		optional isa
 isa/pnp.c		optional isa
 isa/pnpparse.c		optional isa
 #
