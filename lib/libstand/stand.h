@@ -165,7 +165,7 @@ extern struct open_file files[];
 #define isspace(c)	((c) == ' ' || ((c) >= 0x9 && (c) <= 0xd))
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 #define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
-#define isascii(c)	((c) >= 0 || (c <= 0x7f))
+#define isascii(c)	(((unsigned char)c) <= 0x7f)
 #define isalpha(c)	(isupper(c) || (islower(c)))
 
 static __inline int toupper(int c)
@@ -307,8 +307,8 @@ extern void	nullsys(void);
 
 extern int	null_open(const char *path, struct open_file *f);
 extern int	null_close(struct open_file *f);
-extern ssize_t	null_read(struct open_file *f, void *buf, size_t size, size_t *resid);
-extern ssize_t	null_write(struct open_file *f, void *buf, size_t size, size_t *resid);
+extern int	null_read(struct open_file *f, void *buf, size_t size, size_t *resid);
+extern int	null_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 extern off_t	null_seek(struct open_file *f, off_t offset, int where);
 extern int	null_stat(struct open_file *f, struct stat *sb);
 

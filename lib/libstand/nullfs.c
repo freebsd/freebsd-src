@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: nullfs.c,v 1.1 1996/01/13 22:25:39 leo Exp $	*/
 
 /*-
@@ -80,13 +81,13 @@ int	null_close(struct open_file *f)
 	return 0;
 }
 
-ssize_t	null_read (struct open_file *f, void *buf, size_t size, size_t *resid)
+int	null_read (struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	errno = EIO;
 	return -1;
 }
 
-ssize_t	null_write (struct open_file *f, void *buf, size_t size, size_t *resid)
+int	null_write (struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	errno = EIO;
 	return -1;
