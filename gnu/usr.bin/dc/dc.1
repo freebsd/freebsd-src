@@ -1,278 +1,389 @@
-.\"	$Id$
-.TH DC 1 "03 Aug 1993" "GNU Project"
-.SH NAME
-dc, An Arbitrary Precision Calculator
-.SH SYNOPSIS
-.B dc
-.SH DESCRIPTION
+.TH DC 1 "07 Apr 1994" "GNU Project"
+.ds dc \fIdc\fP
+.ds Dc \fIDc\fP
+.SH
+NAME
+dc \- an arbitrary precision calculator
+.SH
+SYNOPSIS
+dc
+.SH
+DESCRIPTION
 .PP
-DC is a reverse-polish desk calculator which supports unlimited
-precision arithmetic.  It also allows you to define and call macros.
-Normally DC reads from the standard input; if any command arguments
-are given to it, they are filenames, and DC reads and executes the
-contents of the files before reading from standard input.  All output
-is to standard output.
-
-A reverse-polish calculator stores numbers on a stack.  Entering a
-number pushes it on the stack.  Arithmetic operations pop arguments off
-the stack and push the results.
-
-To enter a number in DC, type the digits, with an optional decimal
-point.  Exponential notation is not supported.  To enter a negative
-number, begin the number with `_'.  `-' cannot be used for this, as it
-is a binary operator for subtraction instead.  To enter two numbers in
-succession, separate them with spaces or newlines.  These have no
-meaning as commands.
+\*(Dc is a reverse-polish desk calculator which supports
+unlimited precision arithmetic.
+It also allows you to define and call macros.
+Normally \*(dc reads from the standard input;
+if any command arguments are given to it, they are filenames,
+and \*(dc reads and executes the contents of the files before reading
+from standard input.
+All normal output is to standard output;
+all error output is to standard error.
+.PP
+A reverse-polish calculator stores numbers on a stack.
+Entering a number pushes it on the stack.
+Arithmetic operations pop arguments off the stack and push the results.
+.PP
+To enter a number in
+.IR dc ,
+type the digits with an optional decimal point.
+Exponential notation is not supported.
+To enter a negative number,
+begin the number with ``_''.
+``-'' cannot be used for this,
+as it is a binary operator for subtraction instead.
+To enter two numbers in succession,
+separate them with spaces or newlines.
+These have no meaning as commands.
 .PD
-.SH "Printing Commands"
-.PP
+.SH
+Printing Commands
+.TP
 .B p
 Prints the value on the top of the stack,
-without altering the stack.  A newline is printed
-after the value.
-.PP
+without altering the stack.
+A newline is printed after the value.
+.TP
 .B P
-Prints the value on the top of the stack,
-popping it off, and does not print a newline after.
-.PP
+Prints the value on the top of the stack, popping it off,
+and does not print a newline after.
+.TP
 .B f
 Prints the entire contents of the stack
+.ig
 and the contents of all of the registers,
-without altering anything.  This is a good command
-to use if you are lost or want to figure out
-what the effect of some command has been.
+..
+without altering anything.
+This is a good command to use if you are lost or want
+to figure out what the effect of some command has been.
 .PD
-.SH "Arithmetic"
-.PP
+.SH
+Arithmetic
+.TP
 .B +
 Pops two values off the stack, adds them,
-and pushes the result.  The precision of the result
-is determined only by the values of the arguments,
+and pushes the result.
+The precision of the result is determined only
+by the values of the arguments,
 and is enough to be exact.
-.PP
+.TP
 .B -
-Pops two values, subtracts the first one popped
-from the second one popped, and pushes the result.
-.PP
+Pops two values,
+subtracts the first one popped from the second one popped,
+and pushes the result.
+.TP
 .B *
 Pops two values, multiplies them, and pushes the result.
 The number of fraction digits in the result is controlled
-by the current precision flag (see below) and does not
+by the current precision value (see below) and does not
 depend on the values being multiplied.
-.PP
+.TP
 .B /
-Pops two values, divides the second one popped from
-the first one popped, and pushes the result.
-The number of fraction digits is specified by the precision flag.
-.PP
+Pops two values,
+divides the second one popped from the first one popped,
+and pushes the result.
+The number of fraction digits is specified by the precision value.
+.TP
 .B %
-Pops two values, computes the remainder of the division
-that the \fB/\fR command would do, and pushes that.
+Pops two values,
+computes the remainder of the division that the
+.B /
+command would do,
+and pushes that.
 The division is done with as many fraction digits
-as the precision flag specifies, and the remainder
-is also computed with that many fraction digits.
-.PP
+as the precision value specifies,
+and the remainder is also computed with that many fraction digits.
+.TP
 .B ^
-Pops two values and exponentiates, using the first
-value popped as the exponent and the second popped as the base.
+Pops two values and exponentiates,
+using the first value popped as the exponent
+and the second popped as the base.
 The fraction part of the exponent is ignored.
-The precision flag specifies the number of fraction
+The precision value specifies the number of fraction
 digits in the result.
-.PP
+.TP
 .B v
-Pops one value, computes its square root, and pushes that.
-The precision flag specifies the number of fraction digits
-in the result.
+Pops one value,
+computes its square root,
+and pushes that.
+The precision value specifies the number of fraction digits in the result.
 .PP
-Most arithmetic operations are affected by the "precision flag",
+Most arithmetic operations are affected by the ``precision value'',
 which you can set with the
-.BR k
-command.  The default precision
-value is zero, which means that all arithmetic except for
+.B k
+command.
+The default precision value is zero,
+which means that all arithmetic except for
 addition and subtraction produces integer results.
 .PP
 The remainder operation
-.BR %
-requires some explanation: applied to
-arguments `a' and `b' it produces `a - (b * (a / b))',
-where `a / b' is computed in the current precision.
-.PP
-.SH "Stack Control"
-.PP
+.B %
+requires some explanation:
+applied to arguments ``a'' and ``b'' it produces ``a - (b * (a / b))'',
+where ``a / b'' is computed in the current precision.
+.SH
+Stack Control
+.TP
 .B c
 Clears the stack, rendering it empty.
-.PP
+.TP
 .B d
 Duplicates the value on the top of the stack,
-pushing another copy of it.  Thus,
-`4d*p' computes 4 squared and prints it.
-.SH "Registers"
+pushing another copy of it.
+Thus, ``4d*p'' computes 4 squared and prints it.
+.SH
+Registers
 .PP
-DC provides 128 memory registers, each named by a single
-ASCII character.  You can store a number in a register
-and retrieve it later.
-.PP
-.B s\fIr\fR
+\*(Dc provides 256 memory registers,
+each named by a single character.
+You can store a number or a string in a register and retrieve it later.
+.TP
+.BI s r
 Pop the value off the top of the stack and store
-it into register \fIr\fR.
+it into register
+.IR r .
+.TP
+.BI l r
+Copy the value in register
+.I r
+and push it onto the stack.
+This does not alter the contents of
+.IR r .
 .PP
-.B l\fIr\fR
-Copy the value in register \fIr\fR and push it onto the stack.  This
-does not alter the contents of \fIr\fR.
-.PP
-Each register also contains its own stack.  The current
-register value is the top of the register's stack.
-.PP
-.B S\fIr\fR
+Each register also contains its own stack.
+The current register value is the top of the register's stack.
+.TP
+.BI S r
 Pop the value off the top of the (main) stack and
-push it onto the stack of register \fIr\fR.
+push it onto the stack of register
+.IR r .
 The previous value of the register becomes inaccessible.
-.PP
-.B L\fIr\fR
-Pop the value off the top of register \fIr\fR's stack
-and push it onto the main stack.  The previous value
-in register \fIr\fR's stack, if any, is now accessible
-via the 
-.BR Ir
+.TP
+.BI L r
+Pop the value off the top of register
+.IR r 's
+stack and push it onto the main stack.
+The previous value
+in register
+.IR r 's
+stack, if any,
+is now accessible via the
+.BI l r
 command.
+.ig
 .PP
 The
-.BR f
-command prints a list of all registers that have contents
-stored in them, together with their contents.  Only the
-current contents of each register (the top of its stack)
+.B f
+command prints a list of all registers that have contents stored in them,
+together with their contents.
+Only the current contents of each register
+(the top of its stack)
 is printed.
+..
+.SH
+Parameters
 .PP
-.SH "Parameters"
-.PP
-DC has three parameters that control its operation: the precision, the
-input radix, and the output radix.  The precision specifies the number
+\*(Dc has three parameters that control its operation:
+the precision, the input radix, and the output radix.
+The precision specifies the number
 of fraction digits to keep in the result of most arithmetic operations.
 The input radix controls the interpretation of numbers typed in;
-allnumbers typed in use this radix.  The output radix is used
-for printing numbers.
+all numbers typed in use this radix.
+The output radix is used for printing numbers.
 .PP
-The input and output radices are separate parameters; you can make them
-unequal, which can be useful or confusing.  Each radix must be between 2
-and 36 inclusive.  The precision must be zero or greater.  The precision
-is always measured in decimal digits, regardless of the current input or
-output radix.
-.PP
+The input and output radices are separate parameters;
+you can make them unequal,
+which can be useful or confusing.
+The input radix must be between 2 and 36 inclusive.
+The output radix must be at least 2.
+The precision must be zero or greater.
+The precision is always measured in decimal digits,
+regardless of the current input or output radix.
+.TP
 .B i
 Pops the value off the top of the stack
 and uses it to set the input radix.
-.PP
+.TP
 .B o
-.PP
+Pops the value off the top of the stack
+and uses it to set the output radix.
+.TP
 .B k
-Similarly set the output radix and the precision.
-.PP
+Pops the value off the top of the stack
+and uses it to set the precision.
+.TP
 .B I
 Pushes the current input radix on the stack.
-.PP
+.TP
 .B O
-.PP
+Pushes the current output radix on the stack.
+.TP
 .B K
-Similarly push the current output radix and the current precision.
+Pushes the current precision on the stack.
+.SH
+Strings
 .PP
-.SH "Strings"
-.PP
-DC can operate on strings as well as on numbers.  The only things you
-can do with strings are print them and execute them as macros (which
-means that the contents of the string are processed as DC commands).
-Both registers and the stack can hold strings, and DC always knows
-whether any given object is a string or a number.  Some commands such as
-arithmetic operations demand numbers as arguments and print errors if
-given strings.  Other commands can accept either a number or a string;
+\*(Dc can operate on strings as well as on numbers.
+The only things you can do with strings are
+print them and execute them as macros
+(which means that the contents of the string are processed as
+\*(dc commands).
+All registers and the stack can hold strings,
+and \*(dc always knows whether any given object is a string or a number.
+Some commands such as arithmetic operations demand numbers
+as arguments and print errors if given strings.
+Other commands can accept either a number or a string;
 for example, the
-.BR p
+.B p
 command can accept either and prints the object
 according to its type.
-.PP
-.B [characters]
+.TP
+.BI [ characters ]
 Makes a string containing
-.BR characters
-and pushes it
-on the stack.  For example,
-.BR [foo]p
-prints the
-characters \fBfoo\fR (with no newline).
-.PP
+.I characters
+(contained between balanced
+.B [
+and
+.B ]
+characters),
+and pushes it on the stack.
+For example,
+.B [foo]P
+prints the characters
+.B foo
+(with no newline).
+.TP
 .B x
 Pops a value off the stack and executes it as a macro.
-Normally it should be a string; if it is a number,
+Normally it should be a string;
+if it is a number,
 it is simply pushed back onto the stack.
 For example,
-.BR [1p]x
+.B [1p]x
 executes the macro
-.BR 1p
-which pushes \fB1\fR on the stack and prints \fB1\fR
+.B 1p
+which pushes
+.B 1
+on the stack and prints
+.B 1
 on a separate line.
 .PP
 Macros are most often stored in registers;
-\fB[1p]sa\fR stores a macro to print \fB1\fR into register \fBa\fR,
-and \fBlax\fR invokes the macro.
-.PP
-.B >\fIr\fR
+.B [1p]sa
+stores a macro to print
+.B 1
+into register
+.BR a ,
+and
+.B lax
+invokes this macro.
+.TP
+.BI > r
 Pops two values off the stack and compares them
-assuming they are numbers, executing the contents
-of register \fIr\fR as a macro if the original top-of-stack
-is greater.  Thus, \fB1 2>a\fR will invoke register \fBa\fR's contents
-and \fB2 1>a\fR will not.
-.PP
-.B <\fIr\fB
-Similar but invokes the macro if the original top-of-stack
-is less.
-.PP
-.B =\fIr\fR
-Similar but invokes the macro if the two numbers popped
-are equal.  This can also be validly used to compare two
-strings for equality.
-.PP
+assuming they are numbers,
+executing the contents of register
+.I r
+as a macro if the original top-of-stack
+is greater.
+Thus,
+.B 1 2>a
+will invoke register
+.BR a 's
+contents and
+.B 2 1>a
+will not.
+.TP
+.BI < r
+Similar but invokes the macro if the original top-of-stack is less.
+.TP
+.BI = r
+Similar but invokes the macro if the two numbers popped are equal.
+.ig
+This can also be validly used to compare two strings for equality.
+..
+.TP
 .B ?
 Reads a line from the terminal and executes it.
 This command allows a macro to request input from the user.
-.PP
+.TP
 .B q
-During the execution of a macro, this comand
-does not exit DC.  Instead, it exits from that
-macro and also from the macro which invoked it (if any).
-.PP
+exits from a macro and also from the macro which invoked it.
+If called from the top level,
+or from a macro which was called directly from the top level,
+the
+.B q
+command will cause \*(dc to exit.
+.TP
 .B Q
 Pops a value off the stack and uses it as a count
-of levels of macro execution to be exited.  Thus,
-\fB3Q\fR exits three levels.
-.SH "Status Inquiry"
-.PP
+of levels of macro execution to be exited.
+Thus,
+.B 3Q
+exits three levels.
+The
+.B Q
+command will never cause \*(dc to exit.
+.SH
+Status Inquiry
+.TP
 .B Z
-Pops a value off the stack, calculates the number of
-digits it has (or number of characters, if it is a string)
+Pops a value off the stack,
+calculates the number of digits it has
+(or number of characters, if it is a string)
 and pushes that number.
-.PP
+.TP
 .B X
-Pops a value off the stack, calculates the number of
-fraction digits it has, and pushes that number.
-For a string, the value pushed is -1.
-.PP
+Pops a value off the stack,
+calculates the number of fraction digits it has,
+and pushes that number.
+For a string,
+the value pushed is
+.\" -1.
+0.
+.TP
 .B z
-Pushes the current stack depth; the number of
-objects on the stack before the execution of the \fBz\fR command.
+Pushes the current stack depth;
+the number of objects on the stack before the execution of the
+.B z
+command.
+.SH
+Miscellaneous
+.TP
+.B !
+Will run the rest of the line as a system command.
+.TP
+.B #
+Will interpret the rest of the line as a comment.
+.TP
+.BI : r
+Will pop the top two values off of the stack.
+The old second-to-top value will be stored in the array
+.IR r ,
+indexed by the old top-of-stack value.
+.TP
+.BI ; r
+Pops the top-of-stack and uses it as an index into
+the array
+.IR r .
+The selected value is then pushed onto the stack.
+.SH
+NOTES
 .PP
-.B I
-Pushes the current value of the input radix.
-.PP
-.B O
-Pushes the current value of the output radix.
-.PP
-.B K
-Pushes the current value of the precision.
-.SH "Notes"
-.PP
-The \fB:\fR and \fB;\fR commands of the Unix DC program are
-not supported, as the documentation does not say what they do.
-The \fB!\fR command is not supported, but will be supported
-as soon as a library for executing a line as a command exists.
-.SH BUGS
+The array operations
+.B :
+and
+.B ;
+are usually only used by traditional implementations of
+.IR bc .
+(The GNU 
+.I bc
+is self contained and does not need \*(dc to run.)
+The comment operator
+.B #
+is a new command not found in traditional implementations of
+.IR dc .
+.SH
+BUGS
 .PP
 Email bug reports to
 .BR bug-gnu-utils@prep.ai.mit.edu .
