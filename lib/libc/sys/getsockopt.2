@@ -309,6 +309,13 @@ on the socket,
 which will filter incoming connections
 on a listening stream socket before being presented for
 .Xr accept 2 .
+Once more,
+.Xr listen 2
+must be called on the socket before
+trying to install the filter on it,
+or else the
+.Fn setsockopt
+call will fail.
 .Bd -literal
 struct  accept_filter_arg {
         char    af_name[16];
@@ -372,6 +379,10 @@ For
 this error may also be returned if
 .Fa optlen
 is not in a valid part of the process address space.
+.It Bq Er EINVAL
+Installing an
+.Xr accept_filter 9
+on a non-listening socket was attempted.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
