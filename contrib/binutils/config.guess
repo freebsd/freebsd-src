@@ -3,7 +3,7 @@
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
 #   2000, 2001, 2002 Free Software Foundation, Inc.
 
-timestamp='2002-01-30'
+timestamp='2002-02-19'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -340,7 +340,7 @@ EOF
 	echo m68k-sun-sunos${UNAME_RELEASE}
 	exit 0 ;;
     sun*:*:4.2BSD:*)
-	UNAME_RELEASE=`(head -1 /etc/motd | awk '{print substr($5,1,3)}') 2>/dev/null`
+	UNAME_RELEASE=`(sed 1q /etc/motd | awk '{print substr($5,1,3)}') 2>/dev/null`
 	test "x${UNAME_RELEASE}" = "x" && UNAME_RELEASE=3
 	case "`/bin/arch`" in
 	    sun3)
@@ -509,7 +509,7 @@ EOF
 	fi
 	exit 0 ;;
     *:AIX:*:[45])
-	IBM_CPU_ID=`/usr/sbin/lsdev -C -c processor -S available | head -1 | awk '{ print $1 }'`
+	IBM_CPU_ID=`/usr/sbin/lsdev -C -c processor -S available | sed 1q | awk '{ print $1 }'`
 	if /usr/sbin/lsattr -El ${IBM_CPU_ID} | grep ' POWER' >/dev/null 2>&1; then
 		IBM_ARCH=rs6000
 	else
@@ -683,9 +683,6 @@ EOF
     C4*:ConvexOS:*:* | convex:ConvexOS:C4*:*)
 	echo c4-convex-bsd
         exit 0 ;;
-    CRAY*X-MP:*:*:*)
-	echo xmp-cray-unicos
-        exit 0 ;;
     CRAY*Y-MP:*:*:*)
 	echo ymp-cray-unicos${UNAME_RELEASE} | sed -e 's/\.[^.]*$/.X/'
 	exit 0 ;;
@@ -707,9 +704,6 @@ EOF
     CRAY*SV1:*:*:*)
 	echo sv1-cray-unicos${UNAME_RELEASE} | sed -e 's/\.[^.]*$/.X/'
 	exit 0 ;;
-    CRAY-2:*:*:*)
-	echo cray2-cray-unicos
-        exit 0 ;;
     F30[01]:UNIX_System_V:*:* | F700:UNIX_System_V:*:*)
 	FUJITSU_PROC=`uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
         FUJITSU_SYS=`uname -p | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz' | sed -e 's/\///'`
@@ -837,9 +831,8 @@ EOF
 	# The BFD linker knows what the default object file format is, so
 	# first see if it will tell us. cd to the root directory to prevent
 	# problems with other programs or directories called `ld' in the path.
-	# Export LANG=C to prevent ld from outputting information in other
-	# languages.
-	ld_supported_targets=`LANG=C; export LANG; cd /; ld --help 2>&1 \
+	# Set LC_ALL=C to ensure ld outputs messages in English.
+	ld_supported_targets=`cd /; LC_ALL=C ld --help 2>&1 \
 			 | sed -ne '/supported targets:/!d
 				    s/[ 	][ 	]*/ /g
 				    s/.*supported targets: *//

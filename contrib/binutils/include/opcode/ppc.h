@@ -1,5 +1,6 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright 1994, 1995, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1999, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
 This file is part of GDB, GAS, and the GNU binutils.
@@ -99,6 +100,12 @@ extern const int powerpc_num_opcodes;
 
 /* Opcode is only supported by 64-bit PowerPC BookE processor.  */
 #define PPC_OPCODE_BOOKE64 (010000)
+
+/* Opcode is only supported by Power4 architecture.  */
+#define PPC_OPCODE_POWER4 (020000)
+
+/* Opcode isn't supported by Power4 architecture.  */
+#define PPC_OPCODE_NOPOWER4 (040000)
 
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
