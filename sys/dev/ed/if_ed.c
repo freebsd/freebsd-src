@@ -170,9 +170,8 @@ ed_alloc_port(device_t dev, int rid, int size)
 		sc->port_res = res;
 		sc->port_used = size;
 		return (0);
-	} else {
-		return (ENOENT);
 	}
+	return (ENOENT);
 }
 
 /*
@@ -191,9 +190,8 @@ ed_alloc_memory(device_t dev, int rid, int size)
 		sc->mem_res = res;
 		sc->mem_used = size;
 		return (0);
-	} else {
-		return (ENOENT);
 	}
+	return (ENOENT);
 }
 
 /*
@@ -210,9 +208,8 @@ ed_alloc_irq(device_t dev, int rid, int flags)
 		sc->irq_rid = rid;
 		sc->irq_res = res;
 		return (0);
-	} else {
-		return (ENOENT);
 	}
+	return (ENOENT);
 }
 
 /*
