@@ -46,6 +46,7 @@ SED_FILTER="
 sed -E
     -e's; ;! ;g'
     -e's;$;!;'
+    -e's;-lbsdxml!;lib/libexpat;g'
     -e's;-lm!;lib/msun;g'
     -e's;-l(supc\+\+)!;gnu/lib/lib\1;g'
     -e's;-l(asn1|gssapi|krb5|roken)!;kerberos5/lib/lib\1;g'
