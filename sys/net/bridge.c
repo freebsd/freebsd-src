@@ -460,13 +460,14 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 {
     struct ifnet *src = (*m0)->m_pkthdr.rcvif; /* could be NULL in output */
     struct ifnet *ifp ;
-    struct ip *ip;
     int error=0, s ;
     int once = 0;	/* execute the loop only once */
     int canfree = 1 ; /* can free the buf at the end */
     struct mbuf *m ;
-
+#ifdef IPFIREWALL
+    struct ip *ip;
     struct ether_header *eh = mtod(*m0, struct ether_header *); /* XXX */
+#endif
 
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP)\n");
