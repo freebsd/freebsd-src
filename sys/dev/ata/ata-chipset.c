@@ -919,13 +919,21 @@ static void
 ata_intel_reset(struct ata_channel *ch)
 {
     device_t parent = device_get_parent(ch->dev);
+    struct ata_pci_controller *ctlr = device_get_softc(parent);
     int mask, timeout = 100;
 
-    if (pci_read_config(parent, 0x90, 1) & 0x04)
-	mask = 0x0003;
-    else
-	mask = (0x0001 << ch->unit);
-
+    /* ICH6 has 4 SATA ports as master/slave on 2 channels so deal with pairs */
+    if (ctlr->chip->chipid == ATA_I82801FB_S1 ||
+	ctlr->chip->chipid == ATA_I82801FB_R1) {
+	mask = (0x0005 << ch->unit);
+    }
+    else {
+	/* ICH5 in compat mode has SATA ports as master/slave on 1 channel */
+	if (pci_read_config(parent, 0x90, 1) & 0x04)
+	    mask = 0x0003;
+	else
+	    mask = (0x0001 << ch->unit);
+    }
     pci_write_config(parent, 0x92, pci_read_config(parent, 0x92, 2) & ~mask, 2);
     DELAY(10);
     pci_write_config(parent, 0x92, pci_read_config(parent, 0x92, 2) | mask, 2);
