@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.52 1995/05/24 17:49:16 jkh Exp $
+ * $Id: install.c,v 1.53 1995/05/25 01:22:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -414,6 +414,7 @@ cpio_extract(void)
 	    if (!floppyDev)
 		continue;
 	}
+	dialog_clear();
 	msgConfirm("Please Insert CPIO floppy in %s", floppyDev->description);
 	CpioFD = open(floppyDev->devname, O_RDONLY);
 	if (CpioFD >= 0)
@@ -478,6 +479,7 @@ cpio_extract(void)
 	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
 	close(CpioFD);
 	CpioFD = -1;
+	dialog_clear();
 	goto tryagain;
     }
     unlink("/OK");
