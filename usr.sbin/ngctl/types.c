@@ -83,7 +83,7 @@ TypesCmd(int ac, char **av)
 	}
 	for (k = 0; k < tlist->numtypes; k++) {
 		struct typeinfo *const ti = &tlist->typeinfo[k];
-		printf("%15s   %5d\n", ti->typename, ti->numnodes);
+		printf("%15s   %5d\n", ti->type_name, ti->numnodes);
 	}
 
 	/* Done */
