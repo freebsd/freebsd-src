@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: sb_midi.c,v 1.4 1994/10/01 02:17:05 swallace Exp $
  */
 
 #include "sound_config.h"

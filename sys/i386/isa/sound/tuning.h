@@ -1,3 +1,6 @@
+/*
+ * tuning.h,v 1.2 1994/08/02 07:41:00 davidg Exp
+ */
 #ifdef SEQUENCER_C
 
 unsigned short semitone_tuning[24] = 

@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * audio.c,v 1.6 1994/10/01 02:16:29 swallace Exp
  */
 
 #include "sound_config.h"

@@ -25,6 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * patmgr.c,v 1.7 1994/10/01 02:16:58 swallace Exp
  */
 
 #define PATMGR_C
@@ -131,7 +132,7 @@ pmgr_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
       return RET_ERROR (EIO);
     }
 
-  COPY_FROM_USER (mbox[dev], buf, 0, 4);
+  COPY_FROM_USER ((caddr_t)mbox[dev], buf, 0, 4);
 
   if (*(unsigned char *) mbox[dev] == SEQ_FULLSIZE)
     {
