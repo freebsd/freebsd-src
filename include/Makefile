@@ -116,9 +116,16 @@ copies:
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
-.for i in ${LDIRS} ${LNOHEADERDIRS}
+.for i in ${LDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
+.endfor
+.for i in ${LNOHEADERDIRS}
+	rm -rf ${DESTDIR}/usr/include/$i
+	mkdir ${DESTDIR}/usr/include/$i
+.endfor
+.for i in ${LSUBDIRS}
+	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
