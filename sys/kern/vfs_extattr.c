@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.108 1998/10/31 07:42:04 peter Exp $
+ * $Id: vfs_syscalls.c,v 1.109 1998/11/03 08:01:47 peter Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -51,6 +51,7 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/linker.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -224,8 +225,36 @@ mount(p, uap)
 		if (!strcmp(vfsp->vfc_name, fstypename))
 			break;
 	if (vfsp == NULL) {
-		vput(vp);
-		return (ENODEV);
+		linker_file_t lf;
+
+		/* Refuse to load modules if securelevel raised */
+		if (securelevel > 0) {
+			vput(vp);
+			return EPERM; 
+		}
+		/* Only load modules for root (very important!) */
+		if (error = suser(p->p_ucred, &p->p_acflag)) {
+			vput(vp);
+			return error;
+		}
+		error = linker_load_file(fstypename, &lf);
+		if (error || lf == NULL) {
+			vput(vp);
+			if (lf == NULL)
+				error = ENODEV;
+			return error;
+		}
+		lf->userrefs++;
+		/* lookup again, see if the VFS was loaded */
+		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+			if (!strcmp(vfsp->vfc_name, fstypename))
+				break;
+		if (vfsp == NULL) {
+			lf->userrefs--;
+			linker_file_unload(lf);
+			vput(vp);
+			return (ENODEV);
+		}
 	}
 	simple_lock(&vp->v_interlock);
 	if ((vp->v_flag & VMOUNT) != 0 ||
