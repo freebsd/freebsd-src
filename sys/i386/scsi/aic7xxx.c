@@ -2179,20 +2179,8 @@ ahc_init(ahc)
 	 * QCount mask to deal with broken aic7850s that
 	 * sporatically get garbage in the upper bits of
 	 * their QCount registers.
-	 *
-	 * QFullCount to guard against overflowing the
-	 * QINFIFO or QOUTFIFO when we are paging SCBs.
-	 *
-	 * QOUTQCNT is a scratch ram variable that counts
-	 * up as the sequencer fills the QOUTFIFO so it
-	 * can guard against overflowing the FIFO.  Since
-	 * the fifo starts empty, clear it.
 	 */
 	ahc_outb(ahc, QCNTMASK, ahc->qcntmask);
-
-	ahc_outb(ahc, QFULLCNT, ahc->qfullcount);
-
-	ahc_outb(ahc, QOUTQCNT, 0);
 
 	/* We don't have any waiting selections */
 	ahc_outb(ahc, WAITING_SCBH, SCB_LIST_NULL);
