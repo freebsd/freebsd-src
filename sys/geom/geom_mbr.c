@@ -226,7 +226,7 @@ g_mbr_start(struct bio *bp)
 		 * some I/O requests.  Ask the event-handler to schedule
 		 * us in a less restricted environment.
 		 */
-		error = g_call_me(g_mbr_ioctl, bp, gp, NULL);
+		error = g_post_event(g_mbr_ioctl, bp, M_NOWAIT, gp, NULL);
 		if (error)
 			g_io_deliver(bp, error);
 		/*

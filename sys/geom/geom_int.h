@@ -58,7 +58,7 @@ extern int g_debugflags;
 struct g_event {
 	TAILQ_ENTRY(g_event)	events;
 	void			*arg;
-	g_call_me_t		*func;
+	g_event_t		*func;
 	void			*ref[G_N_EVENTREFS];
 };
 

@@ -172,7 +172,7 @@ sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_call_me(g_conftxt, sb, NULL);
+	g_post_event(g_conftxt, sb, M_WAITOK, NULL);
 	do {
 		tsleep(sb, PZERO, "g_conftxt", hz);
 	} while(!sbuf_done(sb));
@@ -189,7 +189,7 @@ sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_call_me(g_confdot, sb, NULL);
+	g_post_event(g_confdot, sb, M_WAITOK, NULL);
 	do {
 		tsleep(sb, PZERO, "g_confdot", hz);
 	} while(!sbuf_done(sb));
@@ -206,7 +206,7 @@ sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	g_call_me(g_confxml, sb, NULL);
+	g_post_event(g_confxml, sb, M_WAITOK, NULL);
 	do {
 		tsleep(sb, PZERO, "g_confxml", hz);
 	} while(!sbuf_done(sb));

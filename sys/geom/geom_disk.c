@@ -333,7 +333,7 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
-	g_call_me(g_disk_create, dp, dp, NULL);
+	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }
 
 /*
@@ -386,12 +386,11 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_clear(sb);
-	error = g_call_me(g_kern_disks, sb, NULL);
-	while (!error && !sbuf_done(sb)) {
+	g_post_event(g_kern_disks, sb, M_WAITOK, NULL);
+	while (!sbuf_done(sb)) {
 		tsleep(sb, PZERO, "kern.disks", hz);
 	}
-	if (!error)
-		error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 	return error;
 }
