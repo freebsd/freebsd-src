@@ -19,7 +19,7 @@ MLINKS=	nawk.1 awk.1
 CLEANFILES= maketab proctab.c ytab.h
 
 ytab.h: awkgram.h
-	ln -fs ${.ALLSRC} ${.TARGET}
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 proctab.c: maketab
 	./maketab > proctab.c
@@ -27,8 +27,8 @@ proctab.c: maketab
 build-tools: maketab
 maketab: ytab.h ${AWKSRC}/maketab.c
 
-CLEANFILES+= nawk.1
+CLEANFILES+=	nawk.1
 nawk.1: awk.1
-	ln -fs ${.ALLSRC} ${.TARGET}
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>
