@@ -48,7 +48,8 @@ _recvmsg(int fd, struct msghdr *msg, int flags)
 
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		while ((ret = __sys_recvmsg(fd, msg, flags)) < 0) {
-			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
+			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
+			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
 				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */

@@ -52,7 +52,7 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Get the read/write mode type: */
-		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+		type = _thread_fd_getflags(fd) & O_ACCMODE;
 
 		/* Check if the file is not open for read: */
 		if (type != O_RDONLY && type != O_RDWR) {
@@ -64,7 +64,7 @@ _readv(int fd, const struct iovec * iov, int iovcnt)
 
 		/* Perform a non-blocking readv syscall: */
 		while ((ret = __sys_readv(fd, iov, iovcnt)) < 0) {
-			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
+			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				curthread->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
