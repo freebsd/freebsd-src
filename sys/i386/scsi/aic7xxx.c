@@ -1746,7 +1746,7 @@ int
 ahc_init(ahc)
 	struct  ahc_softc *ahc;
 {
-	u_int8_t  scsi_conf, sblkctl, i;
+	u_int8_t  scsi_conf, sblkctl, sxfrctl1, i;
 	u_int16_t ultraenable = 0;
 	int       max_targ = 15;
 	/*
@@ -1876,8 +1876,10 @@ ahc_init(ahc)
 		 */
 		ahc_outb(ahc, SCSIID, ahc->our_id_b);
 		scsi_conf = ahc_inb(ahc, SCSICONF + 1);
+		sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
 		ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
-					| ENSTIMER|ACTNEGEN);
+					|(sxfrctl1 & STPWEN)
+					|ENSTIMER|ACTNEGEN);
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		if (ahc->type & AHC_ULTRA)
 			ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|ULTRAEN);
@@ -1903,8 +1905,10 @@ ahc_init(ahc)
 	}
 	ahc_outb(ahc, SCSIID, ahc->our_id);
 	scsi_conf = ahc_inb(ahc, SCSICONF);
+	sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
 	ahc_outb(ahc, SXFRCTL1, (scsi_conf & (ENSPCHK|STIMESEL))
-				| ENSTIMER|ACTNEGEN);
+				|(sxfrctl1 & STPWEN)
+				|ENSTIMER|ACTNEGEN);
 	ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 	if (ahc->type & AHC_ULTRA)
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN|ULTRAEN);
