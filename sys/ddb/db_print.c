@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.4 1994/08/13 03:49:21 wollman Exp $
+ *	$Id: db_print.c,v 1.5 1994/08/18 22:34:25 wollman Exp $
  */
 
 /*
@@ -47,7 +47,6 @@
 void
 db_show_regs(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 {
-	int	(*func)();
 	register struct db_variable *regp;
 	db_expr_t	value, offset;
 	char *		name;
