@@ -20,7 +20,6 @@ as
 or
 .Pa mcd0 . 
 .Pp
-
 If no command is given, then
 .Nm
 enters an interactive mode, reading commands from the standard input.
@@ -145,12 +144,17 @@ Quit the program.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width CDROM
+.Pp
+.Bl -tag -width CD_DRIVE -compact
 .It Ev CDROM
 The cd device to use if one isn't specified with the
 .Fl f
 flag.
-.It Ev CD_DRIVE Ev CDPLAY Ev DISC Ev MUSIC_CD
+.Pp
+.It Ev CDPLAY
+.It Ev CD_DRIVE
+.It Ev DISC
+.It Ev MUSIC_CD
 These variables have been deprecated in favour of
 .Ev CDROM .
 .El
