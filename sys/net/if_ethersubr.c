@@ -126,15 +126,13 @@ u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 static	void	ngether_init(void* ignored);
 static void	ngether_send(struct arpcom *ac,
 			struct ether_header *eh, struct mbuf *m);
-static	int	ngether_constructor(node_p *nodep);
-static	int	ngether_rcvmsg(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp);
-static	int	ngether_rmnode(node_p node);
-static	int	ngether_newhook(node_p node, hook_p hook, const char *name);
-/*static	hook_p	ngether_findhook(node_p node, char *name);*/
-static	int	ngether_connect(hook_p hook);	/* already PARTLY linked */
-static	int	ngether_rcvdata(hook_p hook, struct mbuf *m, meta_p meta);
-static	int	ngether_disconnect(hook_p hook);	/* notify on disconnect */
+static	ng_constructor_t	ngether_constructor;
+static	ng_rcvmsg_t		ngether_rcvmsg;
+static	ng_shutdown_t		ngether_rmnode;
+static	ng_newhook_t		ngether_newhook;
+static	ng_connect_t		ngether_connect;
+static	ng_rcvdata_t		ngether_rcvdata;
+static	ng_disconnect_t		ngether_disconnect;
 
 static struct ng_type typestruct = {
 	NG_VERSION,
