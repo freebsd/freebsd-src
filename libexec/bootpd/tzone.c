@@ -2,6 +2,8 @@
  * tzone.c - get the timezone
  *
  * This is shared by bootpd and bootpef
+ *
+ * $FreeBSD$
  */
 
 #ifdef	SVR4
@@ -10,7 +12,7 @@
 extern long timezone;
 #else /* SVR4 */
 /* BSD or SunOS */
-# include <sys/time.h>
+# include <time.h>
 # include <syslog.h>
 #endif /* SVR4 */
 
@@ -32,13 +34,15 @@ tzone_init()
 	/* XXX - Is this really SunOS specific? -gwr */
 	secondswest = timezone;
 #else /* SVR4 */
-	struct timezone tzp;		/* Time zone offset for clients */
-	struct timeval tp;			/* Time (extra baggage) */
-	if (gettimeofday(&tp, &tzp) < 0) {
+	struct tm *tm;
+	time_t now;
+
+	(void)time(&now);
+	if ((tm = localtime(&now)) == NULL) {
 		secondswest = 0;		/* Assume GMT for lack of anything better */
-		report(LOG_ERR, "gettimeofday: %s", get_errmsg());
+		report(LOG_ERR, "localtime() failed");
 	} else {
-		secondswest = 60L * tzp.tz_minuteswest;	/* Convert to seconds */
+		secondswest = -tm->tm_gmtoff;
 	}
 #endif /* SVR4 */
 }
