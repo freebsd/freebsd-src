@@ -32,6 +32,8 @@
         ..
         pkg
         ..
+        ports
+        ..
     ..
     empty           mode=0555 flags=schg
     ..
