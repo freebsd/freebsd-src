@@ -781,7 +781,6 @@ aio_daemon(void *uproc)
 	 * filedescriptors, except as temporarily inherited from the client.
 	 */
 	fdfree(td);
-	mycp->p_fd = NULL;
 
 	mtx_unlock(&Giant);
 	/* The daemon resides in its own pgrp. */
