@@ -403,7 +403,10 @@ ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		data = mtod(m, u_char *);
 
 	/* Run packet through filter */
-	len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
+	if (totlen == 0)
+		len = 0;	/* don't call bpf_filter() with totlen == 0! */
+	else
+		len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
 	if (needfree)
 		FREE(data, M_NETGRAPH);
 
