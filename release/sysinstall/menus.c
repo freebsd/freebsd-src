@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.57 1996/04/28 22:54:21 jkh Exp $
+ * $Id: menus.c,v 1.58 1996/04/29 18:06:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -131,8 +131,7 @@ checkDistDeveloper(dialogMenuItem *self)
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL &&
-	    (XF86Dists & _DIST_XDEV) == _DIST_XDEV && XF86ServerDists && XF86FontDists);
+    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL);
 }
 
 static int
@@ -150,9 +149,7 @@ checkDistUser(dialogMenuItem *self)
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return (Dists == _DIST_USER &&
-	    XF86Dists == DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_MAN | DIST_XF86_SERVER | DIST_XF86_FONTS &&
-	    (XF86ServerDists & DIST_XF86_SERVER_SVGA) && (XF86FontDists & DIST_XF86_FONTS_MISC));
+    return (Dists == (_DIST_USER | DIST_XF86));
 }
 
 static int
@@ -211,13 +208,13 @@ option by pressing [ENTER].",				/* prompt */
     "usage",						/* help file */
 { { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
   { "2 Doc",	"More detailed documentation on FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-  { "3 Options","Go to options editor",					NULL, optionsEditor },
+  { "3 Options", "Go to the options editor",				NULL, optionsEditor },
   { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
-  { "5 Express","Begin a quick installation (for the impatient)",	NULL, installExpress },
+  { "5 Express", "Begin a quick installation (for the impatient)",	NULL, installExpress },
   { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
   { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
-  { "8 Upgrade","Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
-  { "9 Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
+  { "8 Upgrade", "Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
+  { "9 Configure", "Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
   { "0 Exit",	"Exit this menu (and the installation)",		NULL, dmenuExit },
   { NULL } },
 };
