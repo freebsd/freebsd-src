@@ -1242,8 +1242,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			devstat_start_transaction(&softc->device_stats);
 
-			if ((bp->bio_flags & BIO_ORDERED) != 0
-			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
+			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
 				tag_code = MSG_ORDERED_Q_TAG;
