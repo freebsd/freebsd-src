@@ -441,16 +441,25 @@ physical_ShowStatus(struct cmdargs const *arg)
   struct physical *p = arg->cx->physical;
   struct cd *cd;
   const char *dev;
-  int n;
+  int n, slot;
 
   prompt_Printf(arg->prompt, "Name: %s\n", p->link.name);
   prompt_Printf(arg->prompt, " State:           ");
   if (p->fd < 0)
     prompt_Printf(arg->prompt, "closed\n");
-  else if (p->handler && p->handler->openinfo)
-    prompt_Printf(arg->prompt, "open (%s)\n", (*p->handler->openinfo)(p));
-  else
-    prompt_Printf(arg->prompt, "open\n");
+  else {
+    slot = physical_Slot(p);
+    if (p->handler && p->handler->openinfo) {
+      if (slot == -1)
+        prompt_Printf(arg->prompt, "open (%s)\n", (*p->handler->openinfo)(p));
+      else
+        prompt_Printf(arg->prompt, "open (%s, port %d)\n",
+                      (*p->handler->openinfo)(p), slot);
+    } else if (slot == -1)
+      prompt_Printf(arg->prompt, "open\n");
+    else
+      prompt_Printf(arg->prompt, "open (port %d)\n", slot);
+  }
 
   prompt_Printf(arg->prompt, " Device:          %s",
                 *p->name.full ?  p->name.full :
