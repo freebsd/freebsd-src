@@ -251,9 +251,13 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	if (found == -1) {
 		/* There are no free slots.  Take last+1 slot and expand the array.  */
 		found = channels_alloc;
+		if (channels_alloc > 10000)
+			fatal("channel_new: internal error: channels_alloc %d "
+			    "too big.", channels_alloc);
+		channels = xrealloc(channels,
+		    (channels_alloc + 10) * sizeof(Channel));
 		channels_alloc += 10;
 		debug2("channel: expanding %d", channels_alloc);
-		channels = xrealloc(channels, channels_alloc * sizeof(Channel));
 		for (i = found; i < channels_alloc; i++)
 			channels[i].type = SSH_CHANNEL_FREE;
 	}

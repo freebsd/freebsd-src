@@ -1217,18 +1217,21 @@ addargs(char *fmt, ...)
 {
 	va_list ap;
 	char buf[1024];
+	int nalloc;
 
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
 	if (args.list == NULL) {
-		args.nalloc = 32;
+		nalloc = 32;
 		args.num = 0;
-		args.list = xmalloc(args.nalloc * sizeof(char *));
+		args.list = xmalloc(nalloc * sizeof(char *));
+		args.nalloc = nalloc;
 	} else if (args.num+2 >= args.nalloc) {
-		args.nalloc *= 2;
-		args.list = xrealloc(args.list, args.nalloc * sizeof(char *));
+		nalloc = args.nalloc * 2;
+		args.list = xrealloc(args.list, nalloc * sizeof(char *));
+		args.nalloc = nalloc;
 	}
 	args.list[args.num++] = xstrdup(buf);
 	args.list[args.num] = NULL;
