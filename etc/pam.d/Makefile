@@ -10,6 +10,7 @@ PAMD +=	imap
 PAMD +=	kde
 PAMD +=	login
 PAMD +=	other
+PAMD +=	passwd
 PAMD +=	pop3
 PAMD +=	rsh
 PAMD +=	sshd
