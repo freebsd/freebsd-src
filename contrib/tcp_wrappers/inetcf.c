@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
  /*
   * Routines to parse an inetd.conf or tlid.conf file. This would be a great
   * job for a PERL script.
@@ -17,6 +18,7 @@ static char sccsid[] = "@(#) inetcf.c 1.7 97/02/12 02:13:23";
 
 extern int errno;
 extern void exit();
+extern char *malloc();
 
 #include "tcpd.h"
 #include "inetcf.h"
