@@ -5,6 +5,27 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000810:
+	suidperl (aka sperl) is no longer build by default.  You must
+	specifically define BUILD_SUIDPERL to "true" for it to be build.
+	Furthermore, we recommend that you remove /usr/bin/sperl* and
+	/usr/bin/suidperl files from your system unless you have a
+	specific use for it.
+
+20000729:
+	Networking defaults have been tightened.  Anybody upgrading
+	/etc/defaults/rc.conf needs to add the following lines to
+	/etc/rc.conf if they want to have the same setup
+	afterwards (unless the variables already are set, of course):
+		# Enable network daemons for user convenience.
+		inetd_enable="YES"
+		portmap_enable="YES"
+		sendmail_enable="YES"
+
+20000728:
+	If you have null_load="YES" in your /boot/loader.conf, you
+	will need to change that to nullfs_load="YES".
+
 20000728:
 	The "installkernel" target has changed slightly. Now even if
 	you override KERNEL e.g. 'make installkernel KERNEL=MYKERNEL'
