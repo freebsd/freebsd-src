@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.9 1997/06/14 15:11:04 bde Exp $
+ *    $Id: load_store.c,v 1.10 1997/07/01 00:08:33 bde Exp $
  *
  */
 
@@ -71,7 +71,6 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <machine/md_var.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
