@@ -170,6 +170,22 @@ struct ifatm {
 	void		*ngpriv;	/* netgraph link */
 };
 
+/*
+ * Keep structures in sync with ng_atm.h
+ *
+ * These are used by netgraph/harp to call the driver
+ * NATM uses the atm_pseudoioctl instead.
+ */
+struct atmio_openvcc {
+	void		*rxhand;	/* handle argument */
+	struct atmio_vcc param;		/* parameters */
+};
+
+struct atmio_closevcc {
+	uint16_t	vpi;
+	uint16_t	vci;
+};
+
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
 #define RTALLOC1(A,B)		rtalloc1((A),(B))
 #elif defined(__FreeBSD__)
@@ -212,6 +228,8 @@ struct atm_pseudoioctl {
 #define SIOCATMENA	_IOWR('a', 123, struct atm_pseudoioctl) /* enable */
 #define SIOCATMDIS	_IOWR('a', 124, struct atm_pseudoioctl) /* disable */
 #define SIOCATMGETVCCS	_IOW('a', 125, struct atmio_vcctable)
+#define SIOCATMOPENVCC	_IOR('a', 126, struct atmio_openvcc)
+#define SIOCATMCLOSEVCC _IOR('a', 127, struct atmio_closevcc)
 
 #define SIOCATMGVCCS	_IOWR('i', 230, struct ifreq)
 
