@@ -120,47 +120,22 @@
  */
 
 extern	struct protosw inetsw[];
-static	int in6_mcmatch __P((struct inpcb *, struct in6_addr *, struct ifnet *));
 static	int udp6_detach __P((struct socket *so));
-
-static int
-in6_mcmatch(in6p, ia6, ifp)
-	struct inpcb *in6p;
-	register struct in6_addr *ia6;
-	struct ifnet *ifp;
-{
-	struct ip6_moptions *im6o = in6p->in6p_moptions;
-	struct in6_multi_mship *imm;
-
-	if (im6o == NULL)
-		return 0;
-
-	for (imm = im6o->im6o_memberships.lh_first; imm != NULL;
-	     imm = imm->i6mm_chain.le_next) {
-		if ((ifp == NULL ||
-		     imm->i6mm_maddr->in6m_ifp == ifp) &&
-		    IN6_ARE_ADDR_EQUAL(&imm->i6mm_maddr->in6m_addr,
-				       ia6))
-			return 1;
-	}
-	return 0;
-}
 
 int
 udp6_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp, proto;
 {
-	struct mbuf *m = *mp;
+	struct mbuf *m = *mp, *opts;
 	register struct ip6_hdr *ip6;
 	register struct udphdr *uh;
 	register struct inpcb *in6p;
-	struct  mbuf *opts = NULL;
 	int off = *offp;
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
 
-	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
+	opts = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -170,10 +145,19 @@ udp6_input(mp, offp, proto)
 		return IPPROTO_DONE;
 	}
 
+#ifndef PULLDOWN_TEST
+	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
+	ip6 = mtod(m, struct ip6_hdr *);
+	uh = (struct udphdr *)((caddr_t)ip6 + off);
+#else
+	IP6_EXTHDR_GET(uh, struct udphdr *, m, off, sizeof(*uh));
+	if (!uh)
+		return IPPROTO_DONE;
+#endif
+
 	udpstat.udps_ipackets++;
 
 	plen = ntohs(ip6->ip6_plen) - off + sizeof(*ip6);
-	uh = (struct udphdr *)((caddr_t)ip6 + off);
 	ulen = ntohs((u_short)uh->uh_ulen);
 
 	if (plen != ulen) {
@@ -223,7 +207,7 @@ udp6_input(mp, offp, proto)
 		/*
 		 * Construct sockaddr format source address.
 		 */
-		init_sin6(&fromsa, m); /* general init */
+		init_sin6(&fromsa, m);
 		fromsa.sin6_port = uh->uh_sport;
 		/*
 		 * KAME note: traditionally we dropped udpiphdr from mbuf here.
@@ -242,20 +226,18 @@ udp6_input(mp, offp, proto)
 				continue;
 			if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
 				if (!IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr,
-							&ip6->ip6_dst) &&
-				    !in6_mcmatch(in6p, &ip6->ip6_dst,
-						 m->m_pkthdr.rcvif))
+							&ip6->ip6_dst))
 					continue;
 			}
 			if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
 				if (!IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr,
 							&ip6->ip6_src) ||
-				   in6p->in6p_fport != uh->uh_sport)
+				    in6p->in6p_fport != uh->uh_sport)
 					continue;
 			}
 
 			if (last != NULL) {
-				struct	mbuf *n;
+				struct mbuf *n;
 
 #ifdef IPSEC
 				/*
@@ -288,7 +270,7 @@ udp6_input(mp, offp, proto)
 
 					m_adj(n, off + sizeof(struct udphdr));
 					if (sbappendaddr(&last->in6p_socket->so_rcv,
-							 (struct sockaddr *)&fromsa,
+							(struct sockaddr *)&fromsa,
 							n, opts) == 0) {
 						m_freem(n);
 						if (opts)
@@ -401,15 +383,14 @@ udp6_input(mp, offp, proto)
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
 	 */
-	init_sin6(&fromsa, m); /* general init */
+	init_sin6(&fromsa, m);
 	fromsa.sin6_port = uh->uh_sport;
 	if (in6p->in6p_flags & IN6P_CONTROLOPTS
 	    || in6p->in6p_socket->so_options & SO_TIMESTAMP)
 		ip6_savecontrol(in6p, m, &opts);
 	m_adj(m, off + sizeof(struct udphdr));
 	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
-			(struct sockaddr *)&fromsa,
-			m, opts) == 0) {
+			(struct sockaddr *)&fromsa, m, opts) == 0) {
 		udpstat.udps_fullsock++;
 		goto bad;
 	}
@@ -692,12 +673,14 @@ udp6_disconnect(struct socket *so)
 	if (inp == 0)
 		return EINVAL;
 
+#ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
 		struct pr_usrreqs *pru;
 
 		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
 		return ((*pru->pru_disconnect)(so));
 	}
+#endif
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
 		return ENOTCONN;
@@ -734,6 +717,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 
+#ifdef INET
 	if (!ip6_v6only) {
 		int hasv4addr;
 		struct sockaddr_in6 *sin6 = 0;
@@ -748,6 +732,25 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		if (hasv4addr) {
 			struct pr_usrreqs *pru;
 
+			if ((inp->inp_flags & IN6P_IPV6_V6ONLY)) {
+				/*
+				 * since a user of this socket set the
+				 * IPV6_V6ONLY flag, we discard this
+				 * datagram destined to a v4 addr.
+				 */
+				return EINVAL;
+			}
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
+			    !IN6_IS_ADDR_V4MAPPED(&inp->in6p_laddr)) {
+				/*
+				 * when remote addr is IPv4-mapped
+				 * address, local addr should not be
+				 * an IPv6 address; since you cannot
+				 * determine how to map IPv6 source
+				 * address to IPv4.
+				 */
+				return EINVAL;
+			}
 			if (sin6)
 				in6_sin6_2_sin_in_sock(addr);
 			pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
@@ -757,6 +760,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			return error;
 		}
 	}
+#endif
 
 	return udp6_output(inp, m, addr, control, td);
 
