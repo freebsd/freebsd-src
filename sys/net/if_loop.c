@@ -186,7 +186,7 @@ contiguousfail:
 		return (EAFNOSUPPORT);
 	}
 #endif
-	return(if_simloop(ifp, m, dst, 0));
+	return(if_simloop(ifp, m, dst->sa_family, 0));
 }
 
 /*
@@ -201,29 +201,30 @@ contiguousfail:
  */
 
 int
-if_simloop(ifp, m, dst, hlen)
+if_simloop(ifp, m, af, hlen)
 	struct ifnet *ifp;
 	register struct mbuf *m;
-	struct sockaddr *dst;
+	int af;
 	int hlen;
 {
 	int s, isr;
 	register struct ifqueue *ifq = 0;
 
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("if_simloop: no HDR");
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("if_simloop: no HDR"));
 	m->m_pkthdr.rcvif = ifp;
+
 	/* BPF write needs to be handled specially */
-	if (dst->sa_family == AF_UNSPEC) {
-		dst->sa_family = *(mtod(m, int *));
+	if (af == AF_UNSPEC) {
+		KASSERT(m->m_len >= sizeof(int), ("if_simloop: m_len"));
+		af = *(mtod(m, int *));
 		m->m_len -= sizeof(int);
 		m->m_pkthdr.len -= sizeof(int);
 		m->m_data += sizeof(int);
 	}
 
+	/* Let BPF see incoming packet */
 	if (ifp->if_bpf) {
 		struct mbuf m0, *n = m;
-		u_int af = dst->sa_family;
 
 		/*
 		 * We need to prepend the address family as
@@ -254,7 +255,8 @@ if_simloop(ifp, m, dst, hlen)
 		m_adj(m, hlen);
 	}
 
-	switch (dst->sa_family) {
+	/* Deliver to upper layer protocol */
+	switch (af) {
 #ifdef INET
 	case AF_INET:
 		ifq = &ipintrq;
@@ -287,7 +289,7 @@ if_simloop(ifp, m, dst, hlen)
 		break;
 #endif NETATALK
 	default:
-		printf("if_simloop: can't handle af=%d\n", dst->sa_family);
+		printf("if_simloop: can't handle af=%d\n", af);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}

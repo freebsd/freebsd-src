@@ -337,11 +337,11 @@ fddi_output(ifp, m, dst, rt0)
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
 			(void) if_simloop(ifp,
-				n, dst, sizeof(struct fddi_header));
+				n, dst->sa_family, sizeof(struct fddi_header));
 	     	} else if (bcmp(fh->fddi_dhost,
 		    fh->fddi_shost, sizeof(fh->fddi_shost)) == 0) {
 			(void) if_simloop(ifp,
-				m, dst, sizeof(struct fddi_header));
+				m, dst->sa_family, sizeof(struct fddi_header));
 			return(0);	/* XXX */
 		}
 	}
