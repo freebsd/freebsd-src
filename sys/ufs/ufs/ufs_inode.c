@@ -173,12 +173,12 @@ ufs_reclaim(ap)
 		}
 	}
 #endif
+	vnode_destroy_vobject(vp);
 #ifdef UFS_DIRHASH
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);
 #endif
 	UFS_IFREE(ump, ip);
 	vp->v_data = 0;
-	vnode_destroy_vobject(vp);
 	return (0);
 }

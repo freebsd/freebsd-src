@@ -84,7 +84,7 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vlruvp(struct vnode *vp);
-static int	flushbuflist(struct bufv *bufv, int flags, struct vnode *vp,
+static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
@@ -927,22 +927,14 @@ insmntque(struct vnode *vp, struct mount *mp)
 }
 
 /*
- * Flush out and invalidate all buffers associated with a vnode.
+ * Flush out and invalidate all buffers associated with a bufobj
  * Called with the underlying object locked.
  */
 int
-vinvalbuf(vp, flags, td, slpflag, slptimeo)
-	struct vnode *vp;
-	int flags;
-	struct thread *td;
-	int slpflag, slptimeo;
+bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, int slptimeo)
 {
 	int error;
-	struct bufobj *bo;
 
-	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
-
-	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
 	if (flags & V_SAVE) {
 		error = bufobj_wwait(bo, slpflag, slptimeo);
@@ -970,10 +962,10 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	 */
 	do {
 		error = flushbuflist(&bo->bo_clean,
-		    flags, vp, slpflag, slptimeo);
+		    flags, bo, slpflag, slptimeo);
 		if (error == 0)
 			error = flushbuflist(&bo->bo_dirty,
-			    flags, vp, slpflag, slptimeo);
+			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
 			BO_UNLOCK(bo);
 			return (error);
@@ -990,7 +982,7 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 		BO_UNLOCK(bo);
 		if (bo->bo_object != NULL) {
 			VM_OBJECT_LOCK(bo->bo_object);
-			vm_object_pip_wait(bo->bo_object, "vnvlbx");
+			vm_object_pip_wait(bo->bo_object, "bovlbx");
 			VM_OBJECT_UNLOCK(bo->bo_object);
 		}
 		BO_LOCK(bo);
@@ -1018,21 +1010,31 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 }
 
 /*
+ * Flush out and invalidate all buffers associated with a vnode.
+ * Called with the underlying object locked.
+ */
+int
+vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag, int slptimeo)
+{
+
+	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
+	return (bufobj_invalbuf(&vp->v_bufobj, flags, td, slpflag, slptimeo));
+}
+
+/*
  * Flush out buffers on the specified list.
  *
  */
 static int
-flushbuflist(bufv, flags, vp, slpflag, slptimeo)
+flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 	struct bufv *bufv;
 	int flags;
-	struct vnode *vp;
+	struct bufobj *bo;
 	int slpflag, slptimeo;
 {
 	struct buf *bp, *nbp;
 	int retval, error;
-	struct bufobj *bo;
 
-	bo = &vp->v_bufobj;
 	ASSERT_BO_LOCKED(bo);
 
 	retval = 0;
@@ -1049,31 +1051,23 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 			BO_LOCK(bo);
 			return (error != ENOLCK ? error : EAGAIN);
 		}
+		if (bp->b_bufobj != bo) {	/* XXX: necessary ? */
+			BO_LOCK(bo);
+			return (EAGAIN);
+		}
 		/*
 		 * XXX Since there are no node locks for NFS, I
 		 * believe there is a slight chance that a delayed
 		 * write will occur while sleeping just above, so
-		 * check for it.  Note that vfs_bio_awrite expects
-		 * buffers to reside on a queue, while bwrite and
-		 * brelse do not.
+		 * check for it.
 		 */
 		if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
-			(flags & V_SAVE)) {
-
-			if (bp->b_vp == vp) {
-				if (bp->b_flags & B_CLUSTEROK) {
-					vfs_bio_awrite(bp);
-				} else {
-					bremfree(bp);
-					bp->b_flags |= B_ASYNC;
-					bwrite(bp);
-				}
-			} else {
-				bremfree(bp);
-				(void) bwrite(bp);
-			}
+		    (flags & V_SAVE)) {
+			bremfree(bp);
+			bp->b_flags |= B_ASYNC;
+			bwrite(bp);
 			BO_LOCK(bo);
-			return (EAGAIN);
+			return (EAGAIN);	/* XXX: why not loop ? */
 		}
 		bremfree(bp);
 		bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);

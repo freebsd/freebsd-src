@@ -538,7 +538,9 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_flush(vp, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else {
+		    VOP_LOCK(vp, LK_EXCLUSIVE, curthread);
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+		    VOP_UNLOCK(vp, 0, curthread);
 		}
 	    }
  	    /* 

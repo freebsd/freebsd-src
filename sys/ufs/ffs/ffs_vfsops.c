@@ -794,7 +794,6 @@ ffs_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
-	vinvalbuf(devvp, V_SAVE, td, 0, 0);
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
@@ -956,7 +955,6 @@ ffs_unmount(mp, mntflags, td)
 			return (error);
 		}
 	}
-	vinvalbuf(ump->um_devvp, V_SAVE, td, 0, 0);
 	DROP_GIANT();
 	g_topology_lock();
 	g_vfs_close(ump->um_cp, td);
