@@ -117,6 +117,7 @@ ic(lnhuge, 7.1602103751842355450E2,    9,  1.6602B15B7ECF2)
 ic(lntiny,-7.5137154372698068983E2,    9, -1.77AF8EBEAE354)
 ic(invln2, 1.4426950408889633870E0,    0,  1.71547652B82FE)
 
+#if 0
 double exp(x)
 double x;
 {
@@ -159,6 +160,7 @@ double x;
 	/* exp(INF) is INF, exp(+big#) overflows to INF */
 	    return( finite(x) ?  scalb(1.0,5000)  : x);
 }
+#endif
 
 /* returns exp(r = x + c) for |c| < |x| with no overlap.  */
 

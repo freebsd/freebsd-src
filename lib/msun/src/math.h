@@ -153,6 +153,7 @@ double	logb(double);
 double	nextafter(double, double);
 double	remainder(double, double);
 double	scalb(double, double);
+double	tgamma(double);
 
 #ifndef __cplusplus
 int	matherr(struct exception *);
