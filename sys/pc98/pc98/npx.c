@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.45 1999/05/09 04:38:27 kato Exp $
+ *	$Id: npx.c,v 1.46 1999/05/11 16:29:21 luoqi Exp $
  */
 
 #include "npx.h"
@@ -153,6 +153,7 @@ static	volatile u_int		npx_traps_while_probing;
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
 static	bool_t			npx_irq13;
+static	int			npx_irq;	/* irq number */
 
 #ifndef SMP
 /*
@@ -213,6 +214,8 @@ npx_probe(dev)
 {
 #ifdef SMP
 
+	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
+		npx_irq = 13;
 	return npx_probe1(dev);
 
 #else /* SMP */
@@ -230,11 +233,9 @@ npx_probe(dev)
 	 * install suitable handlers and run with interrupts enabled so we
 	 * won't need to do so much here.
 	 */
-#ifdef PC98
-	npx_intrno = NRSVIDT + NPXIRQ;
-#else
-	npx_intrno = NRSVIDT + 13;
-#endif
+	if (resource_int_value("npx", 0, "irq", &npx_irq) != 0)
+		npx_irq = 8;
+	npx_intrno = NRSVIDT + npx_irq;
 	save_eflags = read_eflags();
 	disable_intr();
 #ifdef PC98
@@ -248,10 +249,10 @@ npx_probe(dev)
 	save_idt_npxtrap = idt[16];
 #ifdef PC98
 	outb(IO_ICU1 + 2, ~IRQ_SLAVE);
-	outb(IO_ICU2 + 2, ~(1 << (NPXIRQ - 8)));
+	outb(IO_ICU2 + 2, ~(1 << (npx_irq - 8)));
 #else
 	outb(IO_ICU1 + 1, ~IRQ_SLAVE);
-	outb(IO_ICU2 + 1, ~(1 << (13 - 8)));
+	outb(IO_ICU2 + 1, ~(1 << (npx_irq - 8)));
 #endif
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -391,13 +392,9 @@ npx_probe1(dev)
 				 */
 				npx_irq13 = 1;
 				/*
-				 * npxattach would be too late to set npx0_imask.
+				 * npxattach would be too late to set npx0_imask
 				 */
-#ifdef PC98
-				npx0_imask |= (1 << NPXIRQ);
-#else
-				npx0_imask |= (1 << 13);
-#endif
+				npx0_imask |= (1 << npx_irq);
 
 				/*
 				 * We allocate these resources permanently,
@@ -416,7 +413,7 @@ npx_probe1(dev)
 						       1, RF_ACTIVE);
 #else
 				r = bus_alloc_resource(dev, SYS_RES_IRQ,
-						       &rid, 13, 13,
+						       &rid, npx_irq, npx_irq,
 						       1, RF_ACTIVE);
 #endif
 				if (r == 0)
