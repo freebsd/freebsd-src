@@ -267,7 +267,8 @@ tcpOpenDialog(Device *devp)
 	char *cp;
 
 	/* Try a RTSOL scan if such behavior is desired */
-	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || !msgYesNo("Do you want to try IPv6 configuration of the interface?")) {
+	if (!variable_cmp(VAR_TRY_RTSOL, "YES") || 
+	    ((variable_cmp(VAR_TRY_RTSOL, "NO")) && (!msgYesNo("Do you want to try IPv6 configuration of the interface?")))) {
 	    int i;
 
 	    i = 0;
@@ -286,7 +287,8 @@ tcpOpenDialog(Device *devp)
 	}
 
 	/* First try a DHCP scan if such behavior is desired */
-	if (!variable_cmp(VAR_TRY_DHCP, "YES") || !msgYesNo("Do you want to try DHCP configuration of the interface?")) {
+	if (!variable_cmp(VAR_TRY_DHCP, "YES") || 
+	    ((variable_cmp(VAR_TRY_DHCP, "NO")) && (!msgYesNo("Do you want to try DHCP configuration of the interface?")))) {
 	    Mkdir("/var/db");
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
