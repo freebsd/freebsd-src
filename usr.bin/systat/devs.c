@@ -138,7 +138,7 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
 	if (devstat_selectdevs(&dev_select, &num_selected, &num_selections,
 	    &select_generation, generation, s1->dinfo->devices, num_devices,
 	    NULL, 0, NULL, 0, DS_SELECT_ADD, maxshowdevs, 0) == -1)
-		errx(1, "%s", devstat_errbuf);
+		errx(1, "%d %s", __LINE__, devstat_errbuf);
 
 	return(1);
 }
