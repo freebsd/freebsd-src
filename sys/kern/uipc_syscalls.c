@@ -117,9 +117,9 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 	if (fdp == NULL)
 		error = EBADF;
 	else {
-		FILEDESC_LOCK(fdp);
-		if ((u_int)fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL)
+		FILEDESC_LOCK_FAST(fdp);
+		fp = fget_locked(fdp, fd);
+		if (fp == NULL)
 			error = EBADF;
 		else if (fp->f_type != DTYPE_SOCKET) {
 			fp = NULL;
@@ -128,7 +128,7 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 			fhold(fp);
 			error = 0;
 		}
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 	}
 	*fpp = fp;
 	return (error);
@@ -167,22 +167,15 @@ socket(td, uap)
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	NET_UNLOCK_GIANT();
-	FILEDESC_LOCK(fdp);
 	if (error) {
-		if (fdp->fd_ofiles[fd] == fp) {
-			fdp->fd_ofiles[fd] = NULL;
-			fdunused(fdp, fd);
-			FILEDESC_UNLOCK(fdp);
-			fdrop(fp, td);
-		} else {
-			FILEDESC_UNLOCK(fdp);
-		}
+		fdclose(fdp, fp, fd, td);
 	} else {
+		FILEDESC_LOCK_FAST(fdp);
 		fp->f_data = so;	/* already has ref count */
 		fp->f_flag = FREAD|FWRITE;
 		fp->f_ops = &socketops;
 		fp->f_type = DTYPE_SOCKET;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -435,17 +428,8 @@ noconnection:
 	 * close the new descriptor, assuming someone hasn't ripped it
 	 * out from under us.
 	 */
-	if (error) {
-		FILEDESC_LOCK(fdp);
-		if (fdp->fd_ofiles[fd] == nfp) {
-			fdp->fd_ofiles[fd] = NULL;
-			fdunused(fdp, fd);
-			FILEDESC_UNLOCK(fdp);
-			fdrop(nfp, td);
-		} else {
-			FILEDESC_UNLOCK(fdp);
-		}
-	}
+	if (error)
+		fdclose(fdp, nfp, fd, td);
 
 	/*
 	 * Release explicitly held references before returning.
@@ -637,26 +621,10 @@ socketpair(td, uap)
 	fdrop(fp2, td);
 	goto done2;
 free4:
-	FILEDESC_LOCK(fdp);
-	if (fdp->fd_ofiles[sv[1]] == fp2) {
-		fdp->fd_ofiles[sv[1]] = NULL;
-		fdunused(fdp, sv[1]);
-		FILEDESC_UNLOCK(fdp);
-		fdrop(fp2, td);
-	} else {
-		FILEDESC_UNLOCK(fdp);
-	}
+	fdclose(fdp, fp2, sv[1], td);
 	fdrop(fp2, td);
 free3:
-	FILEDESC_LOCK(fdp);
-	if (fdp->fd_ofiles[sv[0]] == fp1) {
-		fdp->fd_ofiles[sv[0]] = NULL;
-		fdunused(fdp, sv[0]);
-		FILEDESC_UNLOCK(fdp);
-		fdrop(fp1, td);
-	} else {
-		FILEDESC_UNLOCK(fdp);
-	}
+	fdclose(fdp, fp1, sv[0], td);
 	fdrop(fp1, td);
 free2:
 	(void)soclose(so2);
@@ -1774,12 +1742,11 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	VOP_UNLOCK(vp, 0, td);
 	if (vp->v_type != VREG || VOP_GETVOBJECT(vp, &obj) != 0) {
 		error = EINVAL;
-		VOP_UNLOCK(vp, 0, td);
 		goto done;
 	}
-	VOP_UNLOCK(vp, 0, td);
 	if ((error = fgetsock(td, uap->s, &so, NULL)) != 0)
 		goto done;
 	if (so->so_type != SOCK_STREAM) {
