@@ -48,7 +48,7 @@
 int
 ntfs_uncompblock(
 	u_int8_t * buf,
-	const u_int8_t * cbuf)
+	u_int8_t * cbuf)
 {
 	u_int32_t       ctag;
 	int             len, dshift, lmask;
@@ -100,7 +100,7 @@ int
 ntfs_uncompunit(
 	struct ntfsmount * ntmp,
 	u_int8_t * uup,
-	const u_int8_t * cup)
+	u_int8_t * cup)
 {
 	int             i;
 	int             off = 0;

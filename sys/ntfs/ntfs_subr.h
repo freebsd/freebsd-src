@@ -26,10 +26,14 @@
  *	$Id: ntfs_subr.h,v 1.3 1999/02/02 01:54:54 semen Exp $
  */
 
+#define	VA_LOADED		0x0001
+#define	VA_PRELOADED		0x0002
+
 struct ntvattr {
 	struct ntvattr *va_nextp;
 
 	u_int32_t		va_vflag;
+	struct vnode	       *va_vp;
 	struct ntnode 	       *va_ip;
 
 	u_int32_t		va_flag;
@@ -48,7 +52,7 @@ struct ntvattr {
 		struct {
 			cn_t *		cn;
 			cn_t *		cl;
-			u_int32_t	cnt;
+			u_long		cnt;
 		} vrun;
 		caddr_t		datap;
 		struct attr_name *name;
@@ -67,30 +71,41 @@ struct ntvattr {
 
 #define uastrcmp(a,b,c,d)	ntfs_uastrcmp(ntmp,a,b,c,d)
 
+#ifndef NTFS_DEBUG
+#define ntfs_ntref(i)	(i)->i_usecount++
+#else
+#define ntfs_ntref(i)   {						\
+	printf("ntfs_ntref: ino %d, usecount: %d\n",			\
+		(i)->i_number, (i)->i_usecount++);			\
+}
+#endif
+
 int ntfs_procfixups __P(( struct ntfsmount *, u_int32_t, caddr_t, size_t ));
-int ntfs_parserun __P(( cn_t *, cn_t *, u_int8_t *, size_t, int *));
-int ntfs_runtocn __P(( cn_t *, struct ntfsmount *, u_int8_t *, size_t, cn_t));
-int ntfs_breadntvattr_plain __P(( struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *,size_t *));
-int ntfs_breadattr_plain __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *,size_t *));
-int ntfs_breadattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *));
-int ntfs_filesize __P(( struct ntfsmount *, struct ntnode *, u_int64_t *, u_int64_t *));
+int ntfs_parserun __P(( cn_t *, cn_t *, u_int8_t *, u_long, u_long *));
+int ntfs_runtocn __P(( cn_t *, struct ntfsmount *, u_int8_t *, u_long, cn_t));
+int ntfs_readntvattr_plain __P(( struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *,size_t *));
+int ntfs_readattr_plain __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *,size_t *));
+int ntfs_readattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *));
+int ntfs_filesize __P(( struct ntfsmount *, struct fnode *, u_int64_t *, u_int64_t *));
 int ntfs_times __P(( struct ntfsmount *, struct ntnode *, ntfs_times_t *));
 struct timespec	ntfs_nttimetounix __P(( u_int64_t ));
-int ntfs_ntreaddir __P(( struct ntfsmount *, struct ntnode *, u_int32_t, struct attr_indexentry **));
+int ntfs_ntreaddir __P(( struct ntfsmount *, struct fnode *, u_int32_t, struct attr_indexentry **));
 wchar ntfs_toupper __P(( struct ntfsmount *, wchar ));
 int ntfs_uustricmp __P(( struct ntfsmount *, wchar *, int, wchar *, int ));
 int ntfs_uastricmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
 int ntfs_uastrcmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
-int ntfs_runtovrun __P(( cn_t **, cn_t **, u_int32_t *, u_int8_t *));
+int ntfs_runtovrun __P(( cn_t **, cn_t **, u_long *, u_int8_t *));
 int ntfs_attrtontvattr __P(( struct ntfsmount *, struct ntvattr **, struct attr * ));
 void ntfs_freentvattr __P(( struct ntvattr * ));
 int ntfs_loadntvattrs __P(( struct ntfsmount *, struct vnode *, caddr_t, struct ntvattr **));
 struct ntvattr * ntfs_findntvattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, cn_t ));
-int ntfs_ntlookup __P(( struct ntfsmount *, struct ntnode *, struct componentname *, struct ntnode **));
+int ntfs_ntlookup __P(( struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
 int ntfs_isnamepermitted __P(( struct ntfsmount *, struct attr_indexentry * ));
 int ntfs_ntvattrrele __P(( struct ntvattr * ));
 int ntfs_ntvattrget __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
 int ntfs_ntget __P(( struct ntfsmount *, ino_t, struct ntnode **));
 void ntfs_ntrele __P(( struct ntnode *));
-int ntfs_loadnode __P(( struct ntfsmount *, struct ntnode * ));
-int ntfs_ntlookupattr __P(( struct ntfsmount *, char *, int, int *, char **));
+int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
+int ntfs_ntlookupattr(struct ntfsmount *, char *, int, int *, char **);
+int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *);
+int ntfs_writeattr_plain(struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *);

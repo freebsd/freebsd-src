@@ -53,48 +53,58 @@
 
 #define	IN_LOADED	0x8000	/* ntvattrs loaded */
 #define	IN_PRELOADED	0x4000	/* loaded from directory entry */
-#define	IN_AATTRNAME	0x2000	/* spaec allocated for i_defattrname */
 
 struct ntnode {
-#if __FreeBSD_version >= 300000
-	struct lock     i_lock;	/* Must be first */
-#endif
 	LIST_ENTRY(ntnode) i_hash;
 	struct ntnode  *i_next;
 	struct ntnode **i_prev;
-	struct vnode   *i_vnode;
-	struct vnode   *i_devvp;
 	struct ntfsmount *i_mp;
-	enum vtype      i_type;
-	dev_t           i_dev;
 	ino_t           i_number;
+	dev_t           i_dev;
 	u_int32_t       i_flag;
+	int		i_usecount;
+
+	LIST_HEAD(,fnode) i_fnlist;
+	struct ntvattr *i_vattrp;	/* ntvattrs list */
 
 	long		i_nlink;	/* MFR */
 	ino_t		i_mainrec;	/* MFR */
 	u_int32_t	i_frflag;	/* MFR */
-	ntfs_times_t	i_times;	/* $NAME/dirinfo */
-	ino_t		i_pnumber;	/* $NAME/dirinfo */
-	u_int32_t       i_fflag;	/* $NAME/dirinfo */
-	u_int64_t	i_size;		/* defattr/dirinfo: */
-	u_int64_t	i_allocated;	/* defattr/dirinfo */
-
-	u_int32_t       i_lastdattr;
-	u_int32_t       i_lastdblnum;
-	u_int32_t       i_lastdoff;
-	u_int32_t       i_lastdnum;
-	caddr_t         i_dirblbuf;
-	u_int32_t       i_dirblsz;
 
 	uid_t           i_uid;
 	gid_t           i_gid;
 	mode_t          i_mode;
+};
 
-	u_int32_t       i_defattr;
-	char           *i_defattrname;
-	struct ntvattr *i_vattrp;
+#define	FN_PRELOADED	0x0001
+#define	FN_DEFAULT	0x0002
+#define	FN_AATTRNAME	0x0004	/* space allocated for f_attrname */
+struct fnode {
+	struct lock	f_lock;		/* Must be first */
+	
+	LIST_ENTRY(fnode) f_fnlist;
+	struct vnode   *f_vp;		/* Associatied vnode */
+	struct ntnode  *f_ip;
+	u_long		f_flag;
+	struct vnode   *f_devvp;
+	struct ntfsmount *f_mp;
+	dev_t           f_dev;
+	enum vtype      f_type;
 
-	int             i_lockcount;	/* Process lock count (recursion) */
-	pid_t           i_lockholder;	/* DEBUG: holder of ntnode lock. */
-	pid_t           i_lockwaiter;	/* DEBUG: waiter of ntnode lock. */
+	ntfs_times_t	f_times;	/* $NAME/dirinfo */
+	ino_t		f_pnumber;	/* $NAME/dirinfo */
+	u_int32_t       f_fflag;	/* $NAME/dirinfo */
+	u_int64_t	f_size;		/* defattr/dirinfo: */
+	u_int64_t	f_allocated;	/* defattr/dirinfo */
+
+	u_int32_t	f_attrtype;
+	char	       *f_attrname;
+
+	/* for ntreaddir */
+	u_int32_t       f_lastdattr;
+	u_int32_t       f_lastdblnum;
+	u_int32_t       f_lastdoff;
+	u_int32_t       f_lastdnum;
+	caddr_t         f_dirblbuf;
+	u_int32_t       f_dirblsz;
 };

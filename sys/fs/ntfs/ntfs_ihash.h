@@ -23,9 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_extern.h,v 1.3 1999/01/28 03:56:06 semen Exp $
+ *	$Id: ntfs.h,v 1.9 1999/02/02 01:54:54 semen Exp $
  */
 
-struct sockaddr;
-int ntfs_fget(struct ntfsmount *, struct ntnode *, int, char *, struct fnode **);
-void ntfs_frele(struct fnode *);
+void ntfs_nthashinit __P((void));
+struct ntnode   *ntfs_nthashlookup __P((dev_t, ino_t));
+struct ntnode   *ntfs_nthashget __P((dev_t, ino_t));
+void ntfs_nthashins __P((struct ntnode *));
+void ntfs_nthashrem __P((register struct ntnode *));
