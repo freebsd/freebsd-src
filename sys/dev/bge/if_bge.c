@@ -141,6 +141,8 @@ static struct bge_type bge_devs[] = {
 		"Broadcom BCM5700 Gigabit Ethernet" },
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5701,
 		"Broadcom BCM5701 Gigabit Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM5703X,
+		"Broadcom BCM5703X Gigabit Ethernet" },
 	{ SK_VENDORID, SK_DEVICEID_ALTIMA,
 		"SysKonnect Gigabit Ethernet" },
 	{ ALTIMA_VENDORID, ALTIMA_DEVICE_AC1000,
@@ -481,8 +483,12 @@ bge_miibus_readreg(dev, phy, reg)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5701_B5 && phy != 1)
-		return(0);
+	if (phy != 1)
+		switch(sc->bge_asicrev) {
+		case BGE_ASICREV_BCM5701_B5:
+		case BGE_ASICREV_BCM5703_A2:
+			return(0);
+		}
 
 	CSR_WRITE_4(sc, BGE_MI_COMM, BGE_MICMD_READ|BGE_MICOMM_BUSY|
 	    BGE_MIPHY(phy)|BGE_MIREG(reg));
@@ -1481,6 +1487,7 @@ bge_attach(dev)
 	struct ifnet *ifp;
 	struct bge_softc *sc;
 	u_int32_t hwcfg = 0;
+	u_int32_t mac_addr = 0;
 	int unit, error = 0, rid;
 
 	s = splimp();
@@ -1569,7 +1576,16 @@ bge_attach(dev)
 	/*
 	 * Get station address from the EEPROM.
 	 */
-	if (bge_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
+	mac_addr = bge_readmem_ind(sc, 0x0c14);
+	if ((mac_addr >> 16) == 0x484b) {
+		sc->arpcom.ac_enaddr[0] = (u_char)(mac_addr >> 8);
+		sc->arpcom.ac_enaddr[1] = (u_char)mac_addr;
+		mac_addr = bge_readmem_ind(sc, 0x0c18);
+		sc->arpcom.ac_enaddr[2] = (u_char)(mac_addr >> 24);
+		sc->arpcom.ac_enaddr[3] = (u_char)(mac_addr >> 16);
+		sc->arpcom.ac_enaddr[4] = (u_char)(mac_addr >> 8);
+		sc->arpcom.ac_enaddr[5] = (u_char)mac_addr;
+	} else if (bge_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 	    BGE_EE_MAC_OFFSET + 2, ETHER_ADDR_LEN)) {
 		printf("bge%d: failed to read station address\n", unit);
 		bge_release_resources(sc);
