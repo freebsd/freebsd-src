@@ -191,6 +191,10 @@
                            Submitted general ioctl to set video broadcast
                            formats (PAL, NTSC, etc..) previously we depended
                            on the Bt848 auto video detect feature.
+1.21            10/24/97   Randall Hopper <rhh@ct.picker.com>
+                           Fix temporal decimation, disable it when
+                           doing CAP_SINGLEs, and in dual-field capture, don't
+                           capture fields for different frames
 */
 
 #define DDB(x) x
@@ -281,6 +285,10 @@ static void	bktr_intr __P((void *arg));
 #define BROOKTREE_ALLOC_PAGES	217*4
 #endif
 #define BROOKTREE_ALLOC		(BROOKTREE_ALLOC_PAGES * PAGE_SIZE)
+
+/*  Defines for fields  */
+#define ODD_F  0x01
+#define EVEN_F 0x02
 
 #ifdef __FreeBSD__
 
@@ -406,10 +414,23 @@ struct devsw bktrsw = {
  */
 
 static struct format_params format_params[] = {
-#define FORMAT_PARAMS_NTSC525 0
-  { 525, 22, 480,  910, 135, 754, 640,  780, 30 },
-#define FORMAT_PARAMS_PAL625 1
-  { 625, 32, 576, 1135, 186, 922, 768,  944, 25 }
+/* # define BT848_IFORM_F_AUTO             (0x0) - don't matter. */
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, 0 },
+/* # define BT848_IFORM_F_NTSCM            (0x1) */
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+/* # define BT848_IFORM_F_NTSCJ            (0x2) */
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+/* # define BT848_IFORM_F_PALBDGHI         (0x3) */
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
+/* # define BT848_IFORM_F_PALM             (0x4) */
+  { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0 },
+/*{ 625, 32, 576,  910, 186, 922, 640,  780, 25, 0x68, 0x5d, BT848_IFORM_X_XT0 }, */
+/* # define BT848_IFORM_F_PALN             (0x5) */
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1 },
+/* # define BT848_IFORM_F_SECAM            (0x6) */
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x00, BT848_IFORM_X_XT1 },
+/* # define BT848_IFORM_F_RSVD             (0x7) - ???? */
+  { 625, 32, 576, 1135, 186, 922, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0 },
 };
 
 /*
@@ -520,6 +541,10 @@ static struct {
 #define TDA9850_WADDR		0xb6
 #define TDA9850_RADDR		0xb7
 
+/* address of MSP3400C chip */
+#define MSP3400C_WADDR		0x80
+#define MSP3400C_RADDR		0x81
+
 
 /* EEProm (128 * 8) on an STB card */
 #define X24C01_WADDR		0xae
@@ -562,7 +587,7 @@ static struct {
 
 
 /* the GPIO bits that control the audio MUXes */
-#define GPIO_AUDIOMUX_BITS	0x07
+#define GPIO_AUDIOMUX_BITS	0x0f
 
 
 /* debug utility for holding previous INT_STAT contents */
@@ -585,6 +610,7 @@ static u_long	status_sum = 0;
 #define BIT_EIGHT_HIGH		(1<<8)
 
 #define I2C_BITS		(BT848_INT_RACK | BT848_INT_I2CDONE)
+#define TDEC_BITS               (BT848_INT_FDSR | BT848_INT_FBUS)
 
 
 /*
@@ -838,6 +864,9 @@ bktr_intr( void *arg )
 	bt848_ptr_t		bt848;
 	u_long			bktr_status;
 	u_char			dstatus;
+	u_long                  field;
+	u_long                  w_field;
+	u_long                  req_field;
 
 	bktr = (bktr_ptr_t) arg;
 	bt848 = bktr->base;
@@ -875,21 +904,40 @@ bktr_intr( void *arg )
 		*/		
 	/* if risc was disabled re-start process again */
 	if ( !(bktr_status & BT848_INT_RISC_EN) ||
-	     ((bktr_status & (BT848_INT_FBUS   |
-			      BT848_INT_FTRGT  |
-			      BT848_INT_FDSR   |
+	     ((bktr_status & (BT848_INT_FTRGT  |
 			      BT848_INT_PPERR  |
 			      BT848_INT_RIPERR |
 			      BT848_INT_PABORT |
 			      BT848_INT_OCERR  |
-			      BT848_INT_SCERR)) != 0) ) {
+			      BT848_INT_SCERR)) != 0) ||
+	     ((bt848->tdec == 0) && (bktr_status & TDEC_BITS)) ) {
+
+		u_short	tdec_save = bt848->tdec;
 
 		bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 
 		bt848->int_mask = ALL_INTS_DISABLED;
 
-		bt848->risc_strt_add = vtophys(bktr->dma_prog);
+		/*  Reset temporal decimation ctr  */
+		bt848->tdec = 0;
+		bt848->tdec = tdec_save;
+		
+		/*  Reset to no-fields captured state  */
+		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
+			switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+			case METEOR_ONLY_ODD_FIELDS:
+				bktr->flags |= METEOR_WANT_ODD;
+				break;
+			case METEOR_ONLY_EVEN_FIELDS:
+				bktr->flags |= METEOR_WANT_EVEN;
+				break;
+			default:
+				bktr->flags |= METEOR_WANT_MASK;
+				break;
+			}
+		}
 
+		bt848->risc_strt_add = vtophys(bktr->dma_prog);
 		bt848->gpio_dma_ctl = FIFO_ENABLED;
 		bt848->gpio_dma_ctl = bktr->capcontrol;
 
@@ -920,11 +968,51 @@ bktr_intr( void *arg )
 
 	/*
 	 *  Register the completed field
+	 *    (For dual-field mode, require fields from the same frame)
 	 */
-	if ( bktr_status & BT848_INT_FIELD )
+	field = ( bktr_status & BT848_INT_FIELD ) ? EVEN_F : ODD_F;
+	switch ( bktr->flags & METEOR_WANT_MASK ) {
+		case METEOR_WANT_ODD  : w_field = ODD_F         ;  break;
+		case METEOR_WANT_EVEN : w_field = EVEN_F        ;  break;
+		default               : w_field = (ODD_F|EVEN_F);  break;
+	}
+	switch ( bktr->flags & METEOR_ONLY_FIELDS_MASK ) {
+		case METEOR_ONLY_ODD_FIELDS  : req_field = ODD_F  ;  break;
+		case METEOR_ONLY_EVEN_FIELDS : req_field = EVEN_F ;  break;
+		default                      : req_field = (ODD_F|EVEN_F);  
+			                       break;
+	}
+
+	if (( field == EVEN_F ) && ( w_field == EVEN_F ))
 		bktr->flags &= ~METEOR_WANT_EVEN;
-	else
+	else if (( field == ODD_F ) && ( req_field == ODD_F ) &&
+		 ( w_field == ODD_F ))
 		bktr->flags &= ~METEOR_WANT_ODD;
+	else if (( field == ODD_F ) && ( req_field == (ODD_F|EVEN_F) ) &&
+		 ( w_field == (ODD_F|EVEN_F) ))
+		bktr->flags &= ~METEOR_WANT_ODD;
+	else if (( field == ODD_F ) && ( req_field == (ODD_F|EVEN_F) ) &&
+		 ( w_field == ODD_F )) {
+		bktr->flags &= ~METEOR_WANT_ODD;
+		bktr->flags |=  METEOR_WANT_EVEN;
+	}
+	else {
+		/*  We're out of sync.  Start over.  */
+		if (bktr->flags & (METEOR_CONTIN | METEOR_SYNCAP)) {
+			switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
+			case METEOR_ONLY_ODD_FIELDS:
+				bktr->flags |= METEOR_WANT_ODD;
+				break;
+			case METEOR_ONLY_EVEN_FIELDS:
+				bktr->flags |= METEOR_WANT_EVEN;
+				break;
+			default:
+				bktr->flags |= METEOR_WANT_MASK;
+				break;
+			}
+		}
+		return;
+	}
 
 	/*
 	 * If we have a complete frame.
@@ -1070,7 +1158,7 @@ video_open( bktr_ptr_t bktr )
 		       BT848_IFORM_X_XT0  |
 		       BT848_IFORM_F_NTSCM;
 	bktr->flags = (bktr->flags & ~METEOR_DEV_MASK) | METEOR_DEV0;
-	bktr->format_params = FORMAT_PARAMS_NTSC525;
+	bktr->format_params = BT848_IFORM_F_NTSCM;
 
 	bktr->max_clip_node = 0;
 
@@ -1130,7 +1218,7 @@ tuner_open( bktr_ptr_t bktr )
 	/* enable drivers on the GPIO port that control the MUXes */
 	bktr->base->gpio_out_en = GPIO_AUDIOMUX_BITS;
 
-	/* unmure the audio stream */
+	/* unmute the audio stream */
 	set_audio( bktr, AUDIO_UNMUTE );
 
 	/* enable stereo if appropriate */
@@ -1336,11 +1424,11 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	    for (i = 0; i < BT848_MAX_CLIP_NODE; i++) {
 		if (bktr->clip_list[i].y_min ==  0 &&
-		    bktr->clip_list[i].y_max == 0) {
-		    bktr->max_clip_node = i;
+		    bktr->clip_list[i].y_max == 0)
 		    break;
-		}
 	    }
+	    bktr->max_clip_node = i;
+
 	    /* make sure that the list contains a valid clip secquence */
 	    /* the clip rectangles should be sorted by x then by y as the
                second order sort key */
@@ -1399,7 +1487,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
         case BT848SFMT:		/* set input format */
 		temp = *(unsigned long*)arg & BT848_IFORM_FORMAT;
 		bt848->iform &= ~BT848_IFORM_FORMAT;
-		bt848->iform |= temp;
+		bt848->iform |= (temp | format_params[temp].iform_xtsel);
 		switch( temp ) {
 		case BT848_IFORM_F_AUTO:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
@@ -1408,23 +1496,25 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 		case BT848_IFORM_F_NTSCM:
 		case BT848_IFORM_F_NTSCJ:
-		case BT848_IFORM_F_PALM:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
-			METEOR_NTSC;
-			bt848->adelay = 0x68;
-			bt848->bdelay = 0x5d;
-			bktr->format_params = FORMAT_PARAMS_NTSC525;
+				METEOR_NTSC;
+			bt848->adelay = format_params[temp].adelay;
+			bt848->bdelay = format_params[temp].bdelay;
+			bktr->format_params = temp;
 			break;
 
 		case BT848_IFORM_F_PALBDGHI:
 		case BT848_IFORM_F_PALN:
 		case BT848_IFORM_F_SECAM:
 		case BT848_IFORM_F_RSVD:
+		case BT848_IFORM_F_PALM:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			bt848->adelay = 0x7f;
-			bt848->bdelay = 0x72;
-			bktr->format_params = FORMAT_PARAMS_PAL625;
+			bt848->adelay = format_params[temp].adelay;
+			bt848->bdelay = format_params[temp].bdelay;
+			bktr->format_params = temp;
+			break;
+
 		}
 		break;
 
@@ -1438,7 +1528,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			bt848->iform |= BT848_IFORM_F_NTSCM;
 			bt848->adelay = 0x68;
 			bt848->bdelay = 0x5d;
-			bktr->format_params = FORMAT_PARAMS_NTSC525;
+			bktr->format_params = BT848_IFORM_F_NTSCM;
 			break;
 
 		case METEOR_FMT_PAL:
@@ -1448,7 +1538,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			bt848->iform |= BT848_IFORM_F_PALBDGHI;
 			bt848->adelay = 0x7f;
 			bt848->bdelay = 0x72;
-			bktr->format_params = FORMAT_PARAMS_PAL625;
+			bktr->format_params = BT848_IFORM_F_PALBDGHI;
 			break;
 
 		case METEOR_FMT_AUTOMODE:
@@ -1861,13 +1951,27 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 	/* end of METEORSETGEO */
 
+	case BT848_I2CWR:
+		u_long par = *(u_long *)arg;
+		u_char write = (par >> 24) & 0xff ;
+		int i2c_addr = (par >> 16) & 0xff ;
+		int i2c_port = (par >> 8) & 0xff ;
+		u_long data = (par) & 0xff ;
+ 
+		if (write) { 
+			i2cWrite( bktr, i2c_addr, i2c_port, data);
+		} else {
+			data = i2cRead( bktr, i2c_addr);
+		}
+		*(u_long *)arg = (par & 0xffffff00) | ( data & 0xff );
+		break;
+
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
 	}
 
 	return( 0 );
 }
-
 
 /*
  * tuner ioctls
@@ -2942,6 +3046,9 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 {
 	bt848_ptr_t		bt848;
 	u_char			i_flag;
+	struct format_params   *fp;
+
+	fp = &format_params[bktr->format_params];
 
 	bt848 = bktr->base;
 
@@ -2949,6 +3056,7 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 	bt848->int_stat = bt848->int_stat;
 
 	bktr->flags |= type;
+	bktr->flags &= ~METEOR_WANT_MASK;
 	switch(bktr->flags & METEOR_ONLY_FIELDS_MASK) {
 	case METEOR_ONLY_EVEN_FIELDS:
 		bktr->flags |= METEOR_WANT_EVEN;
@@ -2964,7 +3072,16 @@ start_capture( bktr_ptr_t bktr, unsigned type )
 		break;
 	}
 
-	set_fps(bktr, bktr->fps);
+	/*  TDEC is only valid for continuous captures  */
+	if ( type == METEOR_SINGLE ) {
+		u_short	fps_save = bktr->fps;
+
+		set_fps(bktr, fp->frame_rate);
+		bktr->fps = fps_save;
+	}
+	else
+		set_fps(bktr, bktr->fps);
+
 	if (bktr->dma_prog_loaded == FALSE) {
 		build_dma_prog(bktr, i_flag);
 		bktr->dma_prog_loaded = TRUE;
@@ -3012,9 +3129,9 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 	bt848->tdec = 0;
 
 	if (fps < fp->frame_rate)
-			bt848->tdec = i_flag*(fp->frame_rate - fps) & 0x3f;
-		else
-			bt848->tdec = 0;
+		bt848->tdec = i_flag*(fp->frame_rate - fps) & 0x3f;
+	else
+		bt848->tdec = 0;
 	return;
 
 }
@@ -3353,6 +3470,7 @@ const struct CARDTYPE cards[] = {
 	{ "Unknown",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx unknown */
+	   0,
 	   0,					/* EEProm unknown */
 	   0,					/* EEProm unknown */
 	   { 0, 0, 0, 0, 0 } },
@@ -3361,14 +3479,16 @@ const struct CARDTYPE cards[] = {
 	{ "Miro TV",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx unknown */
+	   0,
 	   0,					/* EEProm unknown */
 	   0,					/* size unknown */
-	   { 0x02, 0x01, 0x00, 0x00, 1 } },	/* XXX ??? */
+	   { 0x02, 0x01, 0x00, 0x0a, 1 } },	/* XXX ??? */
 
 	/* CARD_HAUPPAUGE */
 	{ "Hauppauge WinCast/TV",		/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx is optional */
+	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
 	   { 0x00, 0x02, 0x01, 0x01, 1 } },	/* audio MUX values */
@@ -3377,6 +3497,7 @@ const struct CARDTYPE cards[] = {
 	{ "STB TV/PCI",				/* the 'name' */
 	   NULL,				/* the tuner */
 	   0,					/* dbx is optional */
+	   0,
 	   X24C01_WADDR,			/* EEProm type */
 	   (u_char)(128 / EEPROMBLOCKSIZE),	/* 128 bytes */
 	   { 0x00, 0x01, 0x02, 0x02, 1 } },	/* audio MUX values */
@@ -3384,6 +3505,7 @@ const struct CARDTYPE cards[] = {
 	/* CARD_INTEL */
 	{ "Intel Smart Video III",		/* the 'name' */
 	   NULL,				/* the tuner */
+	   0,
 	   0,
 	   0,
 	   0,
@@ -3410,6 +3532,8 @@ const struct CARDTYPE cards[] = {
 #define PHILIPS_NTSC		4
 #define PHILIPS_PAL		5
 #define PHILIPS_SECAM		6
+#define TEMIC_PALI		7
+#define PHILIPS_PALI		8
 /* XXX FIXME: this list is incomplete */
 
 /* input types */
@@ -3487,7 +3611,23 @@ const struct TUNER tuners[] = {
 	   0x00,				/* PLL write address */
 	   TSA552x_SCONTROL,			/* control byte for PLL */
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
-	   { 0xa0, 0x90, 0x30 } }		/* the band-switch values */
+	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
+
+	/* TEMIC_PAL I */
+	{ "Temic PAL I",			/* the 'name' */
+	   TTYPE_PAL,				/* input type */
+	   TEMIC_PALI_WADDR,			/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0x02, 0x04, 0x01 } },		/* the band-switch values */
+
+	/* PHILIPS_PAL */
+	{ "Philips PAL I",			/* the 'name' */
+	   TTYPE_PAL,				/* input type */
+	   0x00,				/* PLL write address */
+	   TSA552x_SCONTROL,			/* control byte for PLL */
+	   { 0x00, 0x00 },			/* band-switch crosspoints */
+	   { 0xa0, 0x90, 0x30 } },		/* the band-switch values */
 };
 
 
@@ -3527,11 +3667,18 @@ probeCard( bktr_ptr_t bktr, int verbose )
 {
 	int	card;
 	int	status;
+	bt848_ptr_t	bt848;
+
+	bt848 = bktr->base;
 
 #if defined( OVERRIDE_CARD )
 	bktr->card = cards[ (card = OVERRIDE_CARD) ];
 	goto checkTuner;
 #endif
+
+	bt848->gpio_out_en = 0;
+	if (bootverbose)
+	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
 
 	/* look for a tuner */
 	if ( i2cRead( bktr, TSA552x_RADDR ) == ABSENT ) {
@@ -3562,21 +3709,38 @@ checkTuner:
 #endif
 
 	/* differentiate type of tuner */
-	if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
+	switch (card) {
+	case CARD_MIRO:
+	    switch (((bt848->gpio_data >> 10)-1)&7) {
+	    case 0: bktr->card.tuner = &tuners[ TEMIC_PAL ]; break;
+	    case 1: bktr->card.tuner = &tuners[ PHILIPS_PAL ]; break;
+	    case 2: bktr->card.tuner = &tuners[ PHILIPS_NTSC ]; break;
+	    case 3: bktr->card.tuner = &tuners[ PHILIPS_SECAM ]; break;
+	    case 4: bktr->card.tuner = &tuners[ NO_TUNER ]; break;
+	    case 5: bktr->card.tuner = &tuners[ PHILIPS_PALI ]; break;
+	    case 6: bktr->card.tuner = &tuners[ TEMIC_NTSC ]; break;
+	    case 7: bktr->card.tuner = &tuners[ TEMIC_PALI ]; break;
+	    }
+	    break;
+	default:
+	    if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
 		bktr->card.tuner = &tuners[ TEMIC_NTSC ];
 		goto checkDBX;
-	}
+	    }
 
-	if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
+	    if ( i2cRead( bktr, PHILIPS_NTSC_RADDR ) != ABSENT ) {
 		bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
 		goto checkDBX;
 	}
 
-	if ( card == CARD_HAUPPAUGE ) {
+	    if ( card == CARD_HAUPPAUGE ) {
 		if ( i2cRead( bktr, TEMIC_PALI_RADDR ) != ABSENT ) {
-			bktr->card.tuner = &tuners[ TEMIC_PAL ];
-			goto checkDBX;
+		    bktr->card.tuner = &tuners[ TEMIC_PAL ];
+		    goto checkDBX;
 		}
+	    }
+	    /* no tuner found */
+	    bktr->card.tuner = &tuners[ NO_TUNER ];
 	}
 
 	/* no tuner found */
@@ -3590,6 +3754,8 @@ checkDBX:
 	/* probe for BTSC (dbx) chips */
 	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
 		bktr->card.dbx = 1;
+	if ( i2cRead( bktr, MSP3400C_RADDR ) != ABSENT )
+		bktr->card.msp3400c = 1;
 
 	if ( verbose ) {
 		printf( "%s", bktr->card.name );
@@ -3597,6 +3763,8 @@ checkDBX:
 			printf( ", %s tuner", bktr->card.tuner->name );
 		if ( bktr->card.dbx )
 			printf( ", dbx stereo" );
+		if ( bktr->card.msp3400c )
+			printf( ", msp3400c stereo" );
 		printf( ".\n" );
 	}
 }
@@ -4230,4 +4398,5 @@ SYSINIT(bktrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bktr_drvinit,NULL)
 /* c-label-offset: -8 */
 /* c-continued-statement-offset: 8 */
 /* c-tab-always-indent: nil */
+/* tab-width: 8 */
 /* End: */
