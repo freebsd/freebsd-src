@@ -1004,6 +1004,7 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
+    variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else

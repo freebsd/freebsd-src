@@ -67,7 +67,7 @@ mediaInitFTP(Device *dev)
     }
 
     /* If we can't initialize the network, bag it! */
-    if (!netdev->init(netdev))
+    if (netdev && !netdev->init(netdev))
 	return FALSE;
 
 try:
@@ -75,7 +75,8 @@ try:
     if (!cp) {
 	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL) {
 	    msgConfirm("Unable to get proper FTP path.  FTP media not initialized.");
-	    netdev->shutdown(netdev);
+	    if (netdev)
+		netdev->shutdown(netdev);
 	    return FALSE;
 	}
     }
@@ -84,7 +85,8 @@ try:
     dir = variable_get(VAR_FTP_DIR);
     if (!hostname || !dir) {
 	msgConfirm("Missing FTP host or directory specification.  FTP media not initialized,");
-	netdev->shutdown(netdev);
+	if (netdev)
+	    netdev->shutdown(netdev);
 	return FALSE;
     }
     user = variable_get(VAR_FTP_USER);
@@ -147,7 +149,8 @@ punt:
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    netdev->shutdown(netdev);
+    if (netdev)
+	netdev->shutdown(netdev);
     variable_unset(VAR_FTP_PATH);
     return FALSE;
 }
@@ -223,6 +226,6 @@ mediaShutdownFTP(Device *dev)
 	fclose(OpenConn);
 	OpenConn = NULL;
     }
-    /* netdev->shutdown(netdev); */
+    /* if (netdev) netdev->shutdown(netdev); */
     ftpInitted = FALSE;
 }
