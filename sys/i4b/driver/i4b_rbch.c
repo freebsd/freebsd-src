@@ -126,6 +126,13 @@ static struct cdevsw i4brbch_cdevsw = {
 static void i4brbchattach(void *);
 PSEUDO_SET(i4brbchattach, i4b_rbch);
 
+#if __FreeBSD_version >= 501113
+#ifndef TTIPRI
+/* don't want to include tty.h just to get this */
+#define TTIPRI (PSOCK + 1)
+#endif
+#endif
+
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
  *===========================================================================*/
