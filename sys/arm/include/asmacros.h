@@ -141,59 +141,32 @@ name:
 #define	EMPTY
 
 		
-#define GET_CURPCB_ENTER                                                \
-        ldr     r1, .Laflt_curpcb                                       ;\
-	ldr     r1, [r1]
-		
-/*
- * This macro must be invoked following PUSHFRAMEINSVC or PUSHFRAME at
- * the top of interrupt/exception handlers.
- *
- * When invoked, r0 *must* contain the value of SPSR on the current
- * trap/interrupt frame. This is always the case if ENABLE_ALIGNMENT_FAULTS
- * is invoked immediately after PUSHFRAMEINSVC or PUSHFRAME.
- */
-#define ENABLE_ALIGNMENT_FAULTS                                         \
-        and     r0, r0, #(PSR_MODE)     /* Test for USR32 mode */       ;\
-	teq     r0, #(PSR_USR32_MODE)                                   ;\
-	bne     1f                      /* Not USR mode skip AFLT */    ;\
-	GET_CURPCB_ENTER                /* r1 = curpcb */               ;\
-	cmp     r1, #0x00               /* curpcb NULL? */              ;\
-	ldrne   r1, [r1, #PCB_FLAGS]    /* Fetch curpcb->pcb_flags */   ;\
-	tstne   r1, #PCB_NOALIGNFLT                                     ;\
-	beq     1f                      /* AFLTs already enabled */     ;\
-	ldr     r2, .Laflt_cpufuncs                                     ;\
-	mov     lr, pc                                                  ;\
-	ldr     pc, [r2, #CF_CONTROL]   /* Enable alignment faults */   ;\
-1:
-	
-#define	DO_AST_AND_RESTORE_ALIGNMENT_FAULTS				\
+#define	DO_AST								\
 	ldr	r0, [sp]		/* Get the SPSR from stack */	;\
 	mrs	r4, cpsr		/* save CPSR */			;\
+	orr	r1, r4, #(I32_bit)					;\
+	msr	cpsr_c, r1		/* Disable interrupts */	;\
 	and	r0, r0, #(PSR_MODE)	/* Returning to USR mode? */	;\
 	teq	r0, #(PSR_USR32_MODE)					;\
 	bne	2f			/* Nope, get out now */		;\
 	bic	r4, r4, #(I32_bit)					;\
-1:	orr	r0, r4, #(I32_bit)	/* Disable IRQs */		;\
-	msr	cpsr_c, r0						;\
-	ldr	r5, .Laflt_curthread					;\
+1:	ldr	r5, .Lcurthread						;\
 	ldr	r5, [r5]						;\
-	ldr	r5, [r5, #(TD_FLAGS)]					;\
-	and	r5, r5, #(TDF_ASTPENDING)				;\
-	teq	r5, #0x00000000						;\
+	ldr	r1, [r5, #(TD_FLAGS)]					;\
+	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
+	teq	r1, #0x00000000						;\
 	beq	2f			/* Nope. Just bail */		;\
 	msr	cpsr_c, r4		/* Restore interrupts */	;\
 	mov	r0, sp							;\
-	adr	lr, 1b							;\
-	b	_C_LABEL(ast)		/* ast(frame) */		;\
+	bl	_C_LABEL(ast)		/* ast(frame) */		;\
+	orr	r0, r4, #(I32_bit)					;\
+	msr	cpsr_c, r0						;\
+	b	1b							;\
 2:
 
-#define	AST_ALIGNMENT_FAULT_LOCALS					;\
-.Laflt_curpcb:								;\
-	.word	_C_LABEL(__pcpu) + PC_CURPCB				;\
-.Laflt_cpufuncs:                                                        ;\
-	.word   _C_LABEL(cpufuncs)					;\
-.Laflt_curthread:							;\
+
+#define	AST_LOCALS							;\
+.Lcurthread:								;\
 	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
 		
 
