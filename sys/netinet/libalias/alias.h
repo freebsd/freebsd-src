@@ -52,6 +52,11 @@ struct alias_link;
                             u_char);
 
     extern int
+    PacketAliasAddServer(struct alias_link *link,
+                         struct in_addr addr,
+                         u_short port);
+
+    extern int
     PacketAliasPptp(struct in_addr);
 
     extern struct alias_link *

@@ -237,6 +237,13 @@ struct tcp_dat
     int fwhole;             /* Which firewall record is used for this hole? */
 };
 
+struct server              /* LSNAT server pool (circular list) */
+{
+    struct in_addr addr;
+    u_short port;
+    struct server *next;
+};
+
 struct alias_link                /* Main data structure */
 {
     struct in_addr src_addr;     /* Address and port information        */
@@ -247,6 +254,7 @@ struct alias_link                /* Main data structure */
     u_short dst_port;
     u_short alias_port;
     u_short proxy_port;
+    struct server *server;
 
     int link_type;               /* Type of link: TCP, UDP, ICMP, PPTP, frag */
 
@@ -778,6 +786,17 @@ DeleteLink(struct alias_link *link)
     ClearFWHole(link);
 #endif
 
+/* Free memory allocated for LSNAT server pool */
+    if (link->server != NULL) {
+	struct server *head, *curr, *next;
+
+	head = curr = link->server;
+	do {
+	    next = curr->next;
+	    free(curr);
+	} while ((curr = next) != head);
+    }
+
 /* Adjust output table pointers */
     link_last = link->last_out;
     link_next = link->next_out;
@@ -871,6 +890,7 @@ AddLink(struct in_addr  src_addr,
         link->src_port          = src_port;
         link->dst_port          = dst_port;
         link->proxy_port        = 0;
+        link->server            = NULL;
         link->link_type         = link_type;
         link->sockfd            = -1;
         link->flags             = 0;
@@ -1044,6 +1064,7 @@ _FindLinkOut(struct in_addr src_addr,
     while (link != NULL)
     {
         if (link->src_addr.s_addr == src_addr.s_addr
+         && link->server          == NULL
          && link->dst_addr.s_addr == dst_addr.s_addr
          && link->dst_port        == dst_port
          && link->src_port        == src_port
@@ -1207,39 +1228,39 @@ _FindLinkIn(struct in_addr dst_addr,
     if (link_fully_specified != NULL)
     {
         link_fully_specified->timestamp = timeStamp;
-        return link_fully_specified;
+        link = link_fully_specified;
     }
     else if (link_unknown_dst_port != NULL)
-    {
-        return replace_partial_links
-          ? ReLink(link_unknown_dst_port,
-                   link_unknown_dst_port->src_addr, dst_addr, alias_addr,
-                   link_unknown_dst_port->src_port, dst_port, alias_port,
-                   link_type)
-          : link_unknown_dst_port;
-    }
+	link = link_unknown_dst_port;
     else if (link_unknown_dst_addr != NULL)
-    {
-        return replace_partial_links
-          ? ReLink(link_unknown_dst_addr,
-                   link_unknown_dst_addr->src_addr, dst_addr, alias_addr,
-                   link_unknown_dst_addr->src_port, dst_port, alias_port,
-                   link_type)
-          : link_unknown_dst_addr;
-    }
+	link = link_unknown_dst_addr;
     else if (link_unknown_all != NULL)
-    {
-        return replace_partial_links
-          ? ReLink(link_unknown_all,
-                   link_unknown_all->src_addr, dst_addr, alias_addr,
-                   link_unknown_all->src_port, dst_port, alias_port,
-                   link_type)
-          : link_unknown_all;
-    }
+	link = link_unknown_all;
     else
+        return (NULL);
+
+    if (replace_partial_links &&
+	(link->flags & LINK_PARTIALLY_SPECIFIED || link->server != NULL))
     {
-        return(NULL);
+	struct in_addr src_addr;
+	u_short src_port;
+
+	if (link->server != NULL) {		/* LSNAT link */
+	    src_addr = link->server->addr;
+	    src_port = link->server->port;
+	    link->server = link->server->next;
+	} else {
+	    src_addr = link->src_addr;
+	    src_port = link->src_port;
+	}
+
+	link = ReLink(link,
+		      src_addr, dst_addr, alias_addr,
+		      src_port, dst_port, alias_port,
+		      link_type);
     }
+
+    return (link);
 }
 
 static struct alias_link *
@@ -1527,7 +1548,13 @@ FindOriginalAddress(struct in_addr alias_addr)
     }
     else
     {
-        if (link->src_addr.s_addr == INADDR_ANY)
+	if (link->server != NULL) {		/* LSNAT link */
+	    struct in_addr src_addr;
+
+	    src_addr = link->server->addr;
+	    link->server = link->server->next;
+	    return (src_addr);
+        } else if (link->src_addr.s_addr == INADDR_ANY)
             return aliasAddress;
         else
             return link->src_addr;
@@ -2035,6 +2062,7 @@ UninitPacketAliasLog(void)
 -- "outside world" means other than alias*.c routines --
 
     PacketAliasRedirectPort()
+    PacketAliasAddServer()
     PacketAliasRedirectPptp()
     PacketAliasRedirectAddr()
     PacketAliasRedirectDelete()
@@ -2090,6 +2118,36 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
 #endif
 
     return link;
+}
+
+/* Add server to the pool of servers */
+int
+PacketAliasAddServer(struct alias_link *link, struct in_addr addr, u_short port)
+{
+    struct server *server;
+
+    server = malloc(sizeof(struct server));
+
+    if (server != NULL) {
+	struct server *head;
+
+	server->addr = addr;
+	server->port = port;
+
+	head = link->server;
+	if (head == NULL)
+	    server->next = server;
+	else {
+	    struct server *s;
+
+	    for (s = head; s->next != head; s = s->next);
+	    s->next = server;
+	    server->next = head;
+	}
+	link->server = server;
+	return (0);
+    } else
+	return (-1);
 }
 
 /* Translate PPTP packets to a machine on the inside
