@@ -848,7 +848,8 @@ getrusage(td, uap)
 
 void
 ruadd(ru, ru2)
-	register struct rusage *ru, *ru2;
+	struct rusage *ru;
+	struct rusage *ru2;
 {
 	register long *ip, *ip2;
 	register int i;
@@ -857,7 +858,8 @@ ruadd(ru, ru2)
 	timevaladd(&ru->ru_stime, &ru2->ru_stime);
 	if (ru->ru_maxrss < ru2->ru_maxrss)
 		ru->ru_maxrss = ru2->ru_maxrss;
-	ip = &ru->ru_first; ip2 = &ru2->ru_first;
+	ip = &ru->ru_first;
+	ip2 = &ru2->ru_first;
 	for (i = &ru->ru_last - &ru->ru_first; i >= 0; i--)
 		*ip++ += *ip2++;
 }

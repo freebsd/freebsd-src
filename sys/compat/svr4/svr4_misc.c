@@ -1298,7 +1298,7 @@ loop:
 			q->p_xstat = 0;
 			ruadd(&td->td_proc->p_stats->p_cru, q->p_ru);
 			FREE(q->p_ru, M_ZOMBIE);
-			q->p_ru = 0;
+			q->p_ru = NULL;
 
 			/*
 			 * Decrement the count of procs running with this uid.
