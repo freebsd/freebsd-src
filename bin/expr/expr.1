@@ -142,14 +142,14 @@ command in general is historic and inconvenient.
 New applications are advised to use shell arithmetic rather than
 .Nm .
 .Sh EXAMPLES
-.Bl -enum
+.Bl -bullet
 .It
 The following example (in
 .Xr sh 1
 syntax) adds one to the variable
-.Va a .
+.Va a :
 .Dl a=$(expr $a + 1)
-.Li
+.It
 This will fail if the value if
 .Va a
 is a negative number.
@@ -159,7 +159,7 @@ from being interpreted as options to the
 .Nm
 command, one might rearrange the expression:
 .Dl a=$(expr 1 + $a)
-.Li
+.It
 More generally, parenthesize possibly-negative values:
 .Dl a=$(expr \e( $a \e) + 1)
 .It
@@ -175,7 +175,8 @@ The
 .Li //
 characters resolve this ambiguity.
 .Dl expr \*q//$a\*q \&: '.*/\e(.*\e)'
-.It
+.El
+.Pp
 The following examples output the number of characters in variable
 .Va a .
 Again, if
@@ -183,13 +184,15 @@ Again, if
 might begin with a hyphen, it is necessary to prevent it from being
 interpreted as an option to
 .Nm .
+.Bl -bullet
+.It
 If the
 .Nm
 command conforms to
 .St -p1003.1-2001 ,
 this is simple:
 .Dl expr -- \*q$a\*q \&: \*q.*\*q
-.Li
+.It
 For portability to older systems, however, a more complicated command
 is required:
 .Dl expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1
