@@ -100,12 +100,6 @@
 } while (0)
 
 
-/*
- * Define the signals to be used for scheduling.
- */
-#define _ITIMER_SCHED_TIMER	ITIMER_PROF
-#define _SCHED_SIGNAL		SIGPROF
-
 #define	TIMESPEC_ADD(dst, src, val)				\
 	do { 							\
 		(dst)->tv_sec = (src)->tv_sec + (val)->tv_sec;	\
@@ -1073,11 +1067,8 @@ void	_kse_init();
 struct kse_group *_kseg_alloc(struct pthread *);
 void	_kse_lock_wait(struct lock *, struct lockuser *lu);
 void	_kse_lock_wakeup(struct lock *, struct lockuser *lu);
-void	_kse_sig_check_pending(struct kse *);
 void	_kse_single_thread(struct pthread *);
-void	_kse_start(struct kse *);
 int	_kse_setthreaded(int);
-int	_kse_isthreaded(void);
 void	_kseg_free(struct kse_group *);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
@@ -1176,15 +1167,6 @@ int	_thr_mutex_unlock(pthread_mutex_t *);
 int	_thr_rwlock_rdlock (pthread_rwlock_t *);
 int	_thr_rwlock_wrlock (pthread_rwlock_t *);
 int	_thr_rwlock_unlock (pthread_rwlock_t *);
-
-/* XXX - Stuff that goes away when my sources get more up to date. */
-/* #include <sys/kse.h> */
-#ifdef SYS_KSE_H
-int	__sys_kse_create(struct kse_mailbox *, int);
-int	__sys_kse_thr_wakeup(struct kse_mailbox *);
-int	__sys_kse_exit(struct kse_mailbox *);
-int	__sys_kse_release(struct kse_mailbox *);
-#endif
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
