@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)subs.c	8.1 (Berkeley) 5/31/93";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "back.h"
 
 int	buffnum;
