@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.22 1998/04/12 15:05:28 kato Exp $
+#	$Id: files.pc98,v 1.9.2.23 1998/05/27 16:48:34 kato Exp $
 #
 aicasm				optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -37,6 +37,7 @@ i386/apm/apm_setup.s		optional	apm
 #	dependency	"aic7xxx_reg.h $S/i386/eisa/aic7770.c"
 #i386/eisa/aha1742.c		optional	ahb	device-driver
 #i386/eisa/bt74x.c		optional	bt	device-driver
+#i386/eisa/dpt_eisa.c		optional	dpt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
