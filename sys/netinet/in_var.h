@@ -159,6 +159,7 @@ struct in_multi {
 #ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
 #endif
