@@ -29,9 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * so there!
- *
- * $Id: ifconfig.h,v 1.2 1997/05/10 14:47:35 peter Exp $
+ * $Id$
  */
 
 extern struct ifreq ifr;
