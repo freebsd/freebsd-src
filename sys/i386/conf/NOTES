@@ -1927,9 +1927,9 @@ hint.pca.0.port="0x040"
 #
 # Miscellaneous hardware:
 #
-# mcd: Mitsumi CD-ROM
-# scd: Sony CD-ROM
-# matcd: Matsushita/Panasonic CD-ROM
+# mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
+# scd: Sony CD-ROM using proprietary (non-ATAPI) interface
+# matcd: Matsushita/Panasonic CD-ROM using proprietary (non-ATAPI) interface
 # wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
