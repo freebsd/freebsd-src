@@ -57,7 +57,8 @@ extern char STR_SIEN[];
 			       == ALPHA_PSL_IPL_HIGH, STR_IEN)
 #define	ASS_IDIS	MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
 			       != ALPHA_PSL_IPL_HIGH, STR_IDIS)
-#define ASS_SIEN(mpp)	MPASS2((mpp)->saveintr != ALPHA_PSL_IPL_HIGH, STR_SIEN)
+#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr \
+			       != ALPHA_PSL_IPL_HIGH, STR_SIEN)
 
 /*
  * Assembly macros (for internal use only)
