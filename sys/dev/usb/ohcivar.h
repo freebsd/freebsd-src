@@ -165,3 +165,6 @@ int		ohci_activate(device_ptr_t, enum devact);
 #endif
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
+
+void		ohci_shutdown(void *v);
+void		ohci_power(int state, void *priv);
