@@ -549,7 +549,8 @@ g_mirror_get_disk(struct g_mirror_softc *sc)
 }
 
 static int
-g_mirror_clear_metadata(struct g_mirror_disk *disk)
+g_mirror_write_metadata(struct g_mirror_disk *disk,
+    struct g_mirror_metadata *md)
 {
 	struct g_mirror_softc *sc;
 	struct g_consumer *cp;
@@ -583,6 +584,8 @@ g_mirror_clear_metadata(struct g_mirror_disk *disk)
 #endif
 	}
 	if (error == 0) {
+		if (md != NULL)
+			mirror_metadata_encode(md, sector);
 		g_topology_unlock();
 		error = g_write_data(cp, offset, sector, length);
 		g_topology_lock();
@@ -594,16 +597,29 @@ g_mirror_clear_metadata(struct g_mirror_disk *disk)
 		    cp->provider->name, 0, -1, -1, 0);
 	}
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot clear metadata on disk %s.",
-		    g_mirror_get_diskname(disk));
 		disk->d_softc->sc_bump_syncid = G_MIRROR_BUMP_IMMEDIATELY;
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
 		    G_MIRROR_EVENT_DONTWAIT);
-		return (error);
 	}
-	G_MIRROR_DEBUG(2, "Metadata on %s cleared.",
-	    g_mirror_get_diskname(disk));
-	return (0);
+	return (error);
+}
+
+static int
+g_mirror_clear_metadata(struct g_mirror_disk *disk)
+{
+	int error;
+
+	g_topology_assert();
+	error = g_mirror_write_metadata(disk, NULL);
+	if (error == 0) {
+		G_MIRROR_DEBUG(2, "Metadata on %s cleared.",
+		    g_mirror_get_diskname(disk));
+	} else {
+		G_MIRROR_DEBUG(0,
+		    "Cannot clear metadata on disk %s (error=%d).",
+		    g_mirror_get_diskname(disk), error);
+	}
+	return (error);
 }
 
 void
@@ -648,62 +664,20 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 void
 g_mirror_update_metadata(struct g_mirror_disk *disk)
 {
-	struct g_mirror_softc *sc;
 	struct g_mirror_metadata md;
-	struct g_consumer *cp;
-	off_t offset, length;
-	u_char *sector;
-	int close = 0, error = 0;
+	int error;
 
 	g_topology_assert();
-
-	sc = disk->d_softc;
-	cp = disk->d_consumer;
-	KASSERT(cp != NULL, ("NULL consumer (%s).", sc->sc_name));
-	KASSERT(cp->provider != NULL, ("NULL provider (%s).", sc->sc_name));
-	length = cp->provider->sectorsize;
-	offset = cp->provider->mediasize - length;
-	sector = malloc((size_t)length, M_MIRROR, M_WAITOK);
-	/*
-	 * Open consumer if it wasn't opened and remember to close it.
-	 */
-	if ((disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
-		error = g_access(cp, 0, 1, 1);
-		G_MIRROR_DEBUG(2, "Access %s r%dw%de%d = %d",
-		    cp->provider->name, 0, 1, 1, error);
-		if (error == 0)
-			close = 1;
-#ifdef	INVARIANTS
-	} else {
-		KASSERT(cp->acw > 0 && cp->ace > 0, 
-		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
-#endif
-	}
+	g_mirror_fill_metadata(disk->d_softc, disk, &md);
+	error = g_mirror_write_metadata(disk, &md);
 	if (error == 0) {
-		g_mirror_fill_metadata(sc, disk, &md);
-		mirror_metadata_encode(&md, sector);
-		g_topology_unlock();
-		error = g_write_data(cp, offset, sector, length);
-		g_topology_lock();
-	}
-	free(sector, M_MIRROR);
-	if (close) {
-		g_access(cp, 0, -1, -1);
-		G_MIRROR_DEBUG(2, "Access %s r%dw%de%d = %d",
-		    cp->provider->name, 0, -1, -1, 0);
-	}
-	if (error != 0) {
+		G_MIRROR_DEBUG(2, "Metadata on %s updated.",
+		    g_mirror_get_diskname(disk));
+	} else {
 		G_MIRROR_DEBUG(0,
 		    "Cannot update metadata on disk %s (error=%d).",
 		    g_mirror_get_diskname(disk), error);
-		disk->d_softc->sc_bump_syncid = G_MIRROR_BUMP_IMMEDIATELY;
-		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
-		    G_MIRROR_EVENT_DONTWAIT);
-		return;
 	}
-	G_MIRROR_DEBUG(2, "Metadata on %s updated.",
-	    g_mirror_get_diskname(disk));
 }
 
 static void
