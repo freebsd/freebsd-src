@@ -668,6 +668,7 @@ again:
 		}
 		len += dlen;
 	}
+	len = ALIGN(len);
 	if (cp == 0 && w != NULL && !second_time) {
 		register struct walkarg *rw = w;
 
