@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.69 1998/02/10 18:31:22 jkh Exp $
+ * $Id: devices.c,v 1.70 1998/02/10 18:43:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,9 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 
+/* how much to bias minor number for a given /dev/<ct#><un#>s<s#> slice */
+#define SLICE_DELTA	(0x10000)
+
 static Device *Devices[DEV_MAX];
 static int numDevs;
 
@@ -77,9 +80,6 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI FLOPPY (LS-120) device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
-    { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16, 'c'		},
-    { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
-    { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"		},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"		},
@@ -95,6 +95,9 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 / 3c9xx ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"			},
+    { DEVICE_TYPE_NETWORK,	"cuaa%d",	"%s on device %s (COM%d)",	28, 128, 1, 16, 'c'		},
+    { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
+    { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
     { 0 },
 };
 
@@ -140,7 +143,7 @@ deviceTry(struct _devname dev, char *try, int i)
 
     snprintf(unit, sizeof unit, dev.name, i);
     snprintf(try, FILENAME_MAX, "/dev/%s", unit);
-    m = 0666;
+    m = 0640;
     if (dev.dev_type == 'c')
 	m |= S_IFCHR;
     else
@@ -148,7 +151,7 @@ deviceTry(struct _devname dev, char *try, int i)
     d = makedev(dev.major, dev.minor + (i * dev.delta));
     fail = mknod(try, m, d);
     fd = open(try, O_RDONLY);
-    if (fd > 0)
+    if (fd >= 0)
 	return fd;
     else if (!fail)
 	(void)unlink(try);
@@ -292,11 +295,26 @@ skipif:
 		break;
 
 	    case DEVICE_TYPE_DISK:
-		/* We do this just for the side-effect of creating the device entries.  The actual registration
-		   is done through the libdisk API later. */
 		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0)
+		if (fd >= 0) {
+		    dev_t d;
+		    int s, fail;
+		    char slice[80];
+
 		    close(fd);
+		    /* Make associated slice entries */
+		    for (s = 1; s < 33; s++) {
+			snprintf(slice, sizeof slice, "/dev/%ss%d", device_names[i].name, s);
+			d = makedev(device_names[i].major, device_names[i].minor +
+				    (j * device_names[i].delta) + (s * SLICE_DELTA));
+			fail = mknod(slice, 0640 | S_IFBLK, d);
+			fd = open(slice, O_RDONLY);
+			if (fd >= 0)
+			    close(fd);
+			else if (!fail)
+			    (void)unlink(slice);
+		    }
+		}
 		break;
 
 	    case DEVICE_TYPE_FLOPPY:
