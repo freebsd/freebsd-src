@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.15 1996/08/26 10:55:32 peter Exp $
+#	$Id: bsd.man.mk,v 1.2 1997/07/24 18:23:57 pst Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -26,8 +26,8 @@
 # _MANPAGES	List of all man pages to be installed.
 #		(``_MANPAGES=$MAN1 $MAN2 ... $MANn'')
 #
-# MCOMPRESS	Program to compress man pages. Output is to
-#		stdout. [gzip -c]
+# MCOMPRESS_CMD	Program to compress man pages. Output is to
+#		stdout. [${COMPRESS_CMD}]
 #
 # MLINKS	List of manual page links (using a suffix). The
 #		linked-to file must come first, the linked file 
@@ -37,8 +37,15 @@
 # NOMANCOMPRESS	If you do not want unformatted manual pages to be 
 #		compressed when they are installed. [not set]
 #
+# NOMLINKS	If you do not want install manual page links. [not set]
+#
 # MANFILTER	command to pipe the raw man page though before compressing
 #		or installing.  Can be used to do sed substitution.
+#
+# MANBUILDCAT	create preformatted manual pages in addition to normal
+#		pages. [not set]
+#
+# MROFF_CMD	command and flags to create preformatted pages
 #
 # +++ targets +++
 #
@@ -54,10 +61,19 @@
 MANSRC?=	${.CURDIR}
 MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
-MCOMPRESS=	gzip -c
-ZEXTENSION=	.gz
+CATDIR=		${MANDIR:H:S/$/\/cat/}
+CATEXT=		.cat
+MROFF_CMD?=	groff -Tascii -man
 
-SECTIONS=	1 2 3 3f 4 5 6 7 8 9 n
+.if defined(COMPRESS_CMD)
+MCOMPRESS_CMD?=	${COMPRESS_CMD}
+MCOMPRESS_EXT?=	${COMPRESS_EXT}
+.else
+MCOMPRESS_CMD?=	gzip -c
+MCOMPRESS_EXT?=	.gz
+.endif
+
+SECTIONS=	1 2 3 4 5 6 7 8 9 n
 
 .undef _MANPAGES
 .for sect in ${SECTIONS}
@@ -68,6 +84,8 @@ _MANPAGES+= ${MAN${sect}}
 .endif
 .endfor
 
+# XXX MANDEPEND is only used for groff, man/man, man/manpath, at and atrun.
+# It should be named more generally.
 all-man: ${MANDEPEND}
 
 .if defined(NOMANCOMPRESS)
@@ -88,34 +106,69 @@ ZEXT=
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
 CLEANFILES+=	${MAN${sect}:T:S/$/${FILTEXTENSION}/g}
+CLEANFILES+=	${MAN${sect}:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 .for page in ${MAN${sect}}
 .for target in ${page:T:S/$/${FILTEXTENSION}/g}
 all-man: ${target}
 ${target}: ${page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
+.if !empty(MANBUILDCAT)
+.for target in ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
+all-man: ${target}
+${target}: ${page}
+	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} > ${.TARGET}
 .endfor
+.endif
+.endfor
+.endif
+.endfor
+.else
+.for sect in ${SECTIONS}
+.if defined(MAN${sect}) && !empty(MAN${sect})
+CLEANFILES+=	${MAN${sect}:T:S/$/${CATEXT}/g}
+.if !empty(MANBUILDCAT)
+.for page in ${MAN${sect}}
+.for target in ${page:T:S/$/${CATEXT}/g}
+all-man: ${target}
+${target}: ${page}
+	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
+.endfor
+.endfor
+.endif
 .endif
 .endfor
 .endif
 
 .else
 
-ZEXT=		${ZEXTENSION}
+ZEXT=		${MCOMPRESS_EXT}
 
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
-CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
+CLEANFILES+=	${MAN${sect}:T:S/$/${MCOMPRESS_EXT}/g}
+CLEANFILES+=	${MAN${sect}:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
 .for page in ${MAN${sect}}
-.for target in ${page:T:S/$/${ZEXTENSION}/}
+.for target in ${page:T:S/$/${MCOMPRESS_EXT}/}
 all-man: ${target}
 ${target}: ${page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
-	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
+	${MCOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endif
 .endfor
+.if !empty(MANBUILDCAT)
+.for target in ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
+all-man: ${target}
+${target}: ${page}
+.if defined(MANFILTER)
+	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
+.else
+	${MROFF_CMD} ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
+.endif
+.endfor
+.endif
 .endfor
 .endif
 .endfor
@@ -129,19 +182,36 @@ maninstall:: ${MAN${sect}}
 .if defined(NOMANCOMPRESS)
 .if defined(MANFILTER)
 .for page in ${MAN${sect}}
-	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}/${page}
+	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} \
+		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}/${page}
+.if !empty(MANBUILDCAT)
+	${MINSTALL} ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g} \
+		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page}
+.endif
 .endfor
 .else
 	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
+.if !empty(MANBUILDCAT)
+.for page in ${MAN${sect}}
+	${MINSTALL} ${page:T:S/$/${CATEXT}/} \
+		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page:T}
+.endfor
+.endif
 .endif
 .else
-	${MINSTALL} ${.ALLSRC:T:S/$/${ZEXTENSION}/g} \
+	${MINSTALL} ${.ALLSRC:T:S/$/${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
+.if !empty(MANBUILDCAT)
+.for page in ${MAN${sect}}
+	${MINSTALL} ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g} \
+		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page:T:S/$/${MCOMPRESS_EXT}/}
+.endfor
+.endif
 .endif
 .endif
 .endfor
 
-.if defined(MLINKS) && !empty(MLINKS)
+.if !defined(NOMLINKS) && defined(MLINKS) && !empty(MLINKS)
 	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
 	while : ; do \
 		case $$# in \
@@ -153,7 +223,23 @@ maninstall:: ${MAN${sect}}
 		name=$$1; shift; sect=$$1; shift; \
 		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${ZEXTENSION}; \
+		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
 	done
+.if !empty(MANBUILDCAT)
+	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
+	while : ; do \
+		case $$# in \
+			0) break;; \
+			[123]) echo "warn: empty MLINK: $$1 $$2 $$3"; break;; \
+		esac; \
+		name=$$1; shift; sect=$$1; shift; \
+		l=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
+		name=$$1; shift; sect=$$1; shift; \
+		t=${DESTDIR}${CATDIR}$${sect}${MANSUBDIR}/$$name; \
+		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
+		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
+		ln $${l}${ZEXT} $${t}${ZEXT}; \
+	done
+.endif
 .endif
