@@ -72,10 +72,13 @@ do_rand(unsigned long *ctx)
  */
 	long hi, lo, x;
 
+	/* Can't be initialized with 0, so use another value. */
+	if (*ctx == 0)
+		*ctx = 123459876;
 	hi = *ctx / 127773;
 	lo = *ctx % 127773;
 	x = 16807 * lo - 2836 * hi;
-	if (x <= 0)
+	if (x < 0)
 		x += 0x7fffffff;
 	return ((*ctx = x) % ((u_long)RAND_MAX + 1));
 #endif  /* !USE_WEAK_SEEDING */

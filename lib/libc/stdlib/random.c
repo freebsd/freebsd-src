@@ -236,10 +236,13 @@ static inline long good_rand (x)
  */
 	long hi, lo;
 
+	/* Can't be initialized with 0, so use another value. */
+	if (x == 0)
+		x = 123459876;
 	hi = x / 127773;
 	lo = x % 127773;
 	x = 16807 * lo - 2836 * hi;
-	if (x <= 0)
+	if (x < 0)
 		x += 0x7fffffff;
 	return (x);
 #endif  /* !USE_WEAK_SEEDING */
