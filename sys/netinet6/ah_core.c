@@ -787,6 +787,25 @@ again:
 			p = mtod(n, u_char *);
 			i = sizeof(struct ip);
 			while (i < hlen) {
+				if (i + IPOPT_OPTVAL >= hlen) {
+					ipseclog((LOG_ERR, "ah4_calccksum: "
+					    "invalid IP option\n"));
+					error = EINVAL;
+					goto fail;
+				}
+				if (p[i + IPOPT_OPTVAL] == IPOPT_EOL ||
+				    p[i + IPOPT_OPTVAL] == IPOPT_NOP ||
+				    i + IPOPT_OLEN < hlen)
+					;
+				else {
+					ipseclog((LOG_ERR,
+					    "ah4_calccksum: invalid IP option "
+					    "(type=%02x)\n",
+					    p[i + IPOPT_OPTVAL]));
+					error = EINVAL;
+					goto fail;
+				}
+
 				skip = 1;
 				switch (p[i + IPOPT_OPTVAL]) {
 				case IPOPT_EOL:
@@ -800,21 +819,24 @@ again:
 				case 0x94:	/* Router alert */
 				case 0x95:	/* RFC1770 */
 					l = p[i + IPOPT_OLEN];
+					if (l < 2)
+						goto invalopt;
 					skip = 0;
 					break;
 				default:
 					l = p[i + IPOPT_OLEN];
+					if (l < 2)
+						goto invalopt;
 					skip = 1;
 					break;
 				}
-				if (l <= 0 || hlen - i < l) {
+				if (l < 1 || hlen - i < l) {
+			invalopt:
 					ipseclog((LOG_ERR,
 					    "ah4_calccksum: invalid IP option "
 					    "(type=%02x len=%02x)\n",
 					    p[i + IPOPT_OPTVAL],
 					    p[i + IPOPT_OLEN]));
-					m_free(n);
-					n = NULL;
 					error = EINVAL;
 					goto fail;
 				}
