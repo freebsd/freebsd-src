@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.62 1995/01/01 06:38:14 davidg Exp $
+ * $Id: if_ed.c,v 1.63 1995/01/04 21:10:17 davidg Exp $
  */
 
 #include "ed.h"
@@ -101,6 +101,7 @@ struct ed_softc {
 	u_char  rec_page_start;	/* first page of RX ring-buffer */
 	u_char  rec_page_stop;	/* last page of RX ring-buffer */
 	u_char  next_packet;	/* pointer to next unread RX packet */
+	struct	kern_devconf kdc; /* kernel configuration database info */
 }       ed_softc[NED];
 
 int     ed_attach(struct isa_device *);
@@ -171,25 +172,26 @@ static unsigned short ed_790_intr_mask[] = {
 #define	ETHER_ADDR_LEN	6
 #define	ETHER_HDR_SIZE	14
 
-static struct kern_devconf kdc_ed[NED] = { {
+static struct kern_devconf kdc_ed_template = {
 	0, 0, 0,		/* filled in by dev_attach */
 	"ed", 0, { MDDT_ISA, 0, "net" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* network interfaces are always ``open'' */
+	DC_UNCONFIGURED,
 	""			/* description */
-} };
+};
 
 static inline void
 ed_registerdev(struct isa_device *id, const char *descr)
 {
-	if(id->id_unit)
-		kdc_ed[id->id_unit] = kdc_ed[0];
-	kdc_ed[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ed[id->id_unit].kdc_parentdata = id;
-	kdc_ed[id->id_unit].kdc_description = descr;
-	dev_attach(&kdc_ed[id->id_unit]);
+	struct kern_devconf *kdc = &ed_softc[id->id_unit].kdc;
+	char *longdescr;
+	*kdc = kdc_ed_template;
+	kdc->kdc_unit = id->id_unit;
+	kdc->kdc_parentdata = id;
+	kdc->kdc_description = descr;
+	dev_attach(kdc);
 }
 
 /*
@@ -206,6 +208,8 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int     nports;
+
+	ed_registerdev(isa_dev, "Ethernet adapter");
 
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)
@@ -322,23 +326,29 @@ ed_probe_WD80x3(isa_dev)
 	switch (sc->type) {
 	case ED_TYPE_WD8003S:
 		sc->type_str = "WD8003S";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8003S";
 		break;
 	case ED_TYPE_WD8003E:
 		sc->type_str = "WD8003E";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8003E";
 		break;
 	case ED_TYPE_WD8003EB:
 		sc->type_str = "WD8003EB";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8003EB";
 		break;
 	case ED_TYPE_WD8003W:
 		sc->type_str = "WD8003W";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8003W";
 		break;
 	case ED_TYPE_WD8013EBT:
 		sc->type_str = "WD8013EBT";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EBT";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013W:
 		sc->type_str = "WD8013W";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8013W";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
@@ -348,22 +358,29 @@ ed_probe_WD80x3(isa_dev)
 			isa16bit = 1;
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
+			sc->kdc.kdc_description = 
+				"Ethernet adapter: WD 8013EP";
 		} else {
 			sc->type_str = "WD8003EP";
+			sc->kdc.kdc_description = 
+				"Ethernet adapter: WD 8003EP";
 		}
 		break;
 	case ED_TYPE_WD8013WC:
 		sc->type_str = "WD8013WC";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8013WC";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EBP:
 		sc->type_str = "WD8013EBP";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EBP";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_WD8013EPC:
 		sc->type_str = "WD8013EPC";
+		sc->kdc.kdc_description = "Ethernet adapter: WD 8013EPC";
 		memsize = 16384;
 		isa16bit = 1;
 		break;
@@ -371,9 +388,13 @@ ed_probe_WD80x3(isa_dev)
 		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
 		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
 			sc->type_str = "SMC8416C/SMC8416BT";
+			sc->kdc.kdc_description =
+				"Ethernet adapter: SMC 8416C or 8416BT";
 			memsize = 8192;
 		} else {
 			sc->type_str = "SMC8216/SMC8216C";
+			sc->kdc.kdc_description =
+				"Ethernet adapter: SMC 8216 or 8216C";
 			memsize = 16384;
 		}
 		isa16bit = 1;
@@ -383,9 +404,13 @@ ed_probe_WD80x3(isa_dev)
 		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
 		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
 			sc->type_str = "SMC8416T";
+			sc->kdc.kdc_description =
+				"Ethernet adapter: SMC 8416T";
 			memsize = 8192;
 		} else {
 			sc->type_str = "SMC8216T";
+			sc->kdc.kdc_description = 
+				"Ethernet adapter: SMC 8216T";
 			memsize = 16384;
 		}
 		isa16bit = 1;
@@ -394,11 +419,13 @@ ed_probe_WD80x3(isa_dev)
 #ifdef TOSH_ETHER
 	case ED_TYPE_TOSHIBA1:
 		sc->type_str = "Toshiba1";
+		sc->kdc.kdc_description = "Ethernet adapter: Toshiba1";
 		memsize = 32768;
 		isa16bit = 1;
 		break;
 	case ED_TYPE_TOSHIBA4:
 		sc->type_str = "Toshiba4";
+		sc->kdc.kdc_description = "Ethernet adapter: Toshiba4";
 		memsize = 32768;
 		isa16bit = 1;
 		break;
@@ -724,6 +751,7 @@ ed_probe_3Com(isa_dev)
 
 	sc->vendor = ED_VENDOR_3COM;
 	sc->type_str = "3c503";
+	sc->kdc.kdc_description = "Ethernet adapter: 3c503";
 	sc->mem_shared = 1;
 	sc->cr_proto = ED_CR_RD2;
 
@@ -985,9 +1013,11 @@ ed_probe_Novell(isa_dev)
 
 		sc->type = ED_TYPE_NE2000;
 		sc->type_str = "NE2000";
+		sc->kdc.kdc_description = "Ethernet adapter: NE2000";
 	} else {
 		sc->type = ED_TYPE_NE1000;
 		sc->type_str = "NE1000";
+		sc->kdc.kdc_description = "Ethernet adapter: NE1000";
 	}
 
 	/* 8k of memory plus an additional 8k if 16bit */
@@ -1089,8 +1119,10 @@ ed_probe_Novell(isa_dev)
 		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 
 #ifdef GWETHER
-	if (sc->arpcom.ac_enaddr[2] == 0x86)
+	if (sc->arpcom.ac_enaddr[2] == 0x86) {
 		sc->type_str = "Gateway AT";
+		sc->kdc.kdc_description = "Ethernet adapter: Gateway AT";
+	}
 #endif	/* GWETHER */
 
 	/* clear any pending interrupts that might have occurred above */
@@ -1141,7 +1173,8 @@ ed_attach(isa_dev)
 	 * Attach the interface
 	 */
 	if_attach(ifp);
-	ed_registerdev(isa_dev, sc->type_str ? sc->type_str : "Ethernet adapter");
+	/* device attach does transition from UNCONFIGURED to IDLE state */
+	sc->kdc.kdc_state = DC_IDLE;
 
 	/*
 	 * Print additional info when attached
@@ -1934,6 +1967,8 @@ ed_ioctl(ifp, command, data)
 
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
+		/* netifs are BUSY when UP */
+		sc->kdc.kdc_state = DC_BUSY;
 
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
@@ -2002,6 +2037,10 @@ ed_ioctl(ifp, command, data)
 			    ((ifp->if_flags & IFF_RUNNING) == 0))
 				ed_init(ifp->if_unit);
 		}
+		/* UP controls BUSY/IDLE */
+		sc->kdc.kdc_state = ((ifp->if_flags & IFF_UP) 
+				     ? DC_BUSY 
+				     : DC_IDLE);
 
 #if NBPFILTER > 0
 
