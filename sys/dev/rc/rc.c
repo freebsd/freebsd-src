@@ -45,12 +45,14 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
 #include <machine/clock.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/isa_device.h>
 
@@ -61,15 +63,6 @@
 /* Prototypes */
 static int     rcprobe         __P((struct isa_device *));
 static int     rcattach        __P((struct isa_device *));
-
-/*-
- * This space intentionally left blank to stop __LINE__ from screwing up
- * regression tests :-(.
- *
- *
- *
- */
-void    rcpoll          __P((void));
 
 #define rcin(port)      RC_IN  (nec, port)
 #define rcout(port,v)   RC_OUT (nec, port, v)
@@ -183,6 +176,7 @@ static void rc_hardclose        __P((struct rc_chans *));
 static int  rc_modctl           __P((struct rc_chans *, int, int));
 static void rc_start            __P((struct tty *));
 static int  rc_param            __P((struct tty *, struct termios *));
+static swihand_t rcpoll;
 static void rc_reinit           __P((struct rc_softc *));
 #ifdef RCDEBUG
 static void printrcflags();
@@ -231,7 +225,7 @@ rcattach(dvp)
 	register int            chan, nec = dvp->id_iobase;
 	struct rc_softc         *rcb = &rc_softc[dvp->id_unit];
 	struct rc_chans         *rc  = &rc_chans[dvp->id_unit * CD180_NCHAN];
-	static int              rc_wakeup_started = 0;
+	static int              rc_started = 0;
 	struct tty              *tp;
 
 	/* Thorooughly test the device */
@@ -271,9 +265,10 @@ rcattach(dvp)
 #endif
 	}
 	rcb->rcb_probed = RC_ATTACHED;
-	if (!rc_wakeup_started) {
+	if (!rc_started) {
+		register_swi(SWI_TTY, rcpoll);
 		rc_wakeup((void *)NULL);
-		rc_wakeup_started = 1;
+		rc_started = 0;
 	}
 	return 1;
 }

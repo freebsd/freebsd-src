@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.22 1998/07/27 16:51:33 jlemon Exp $
+ *	$Id: ipl.s,v 1.23 1998/08/11 15:08:12 bde Exp $
  */
 
 
@@ -404,33 +404,6 @@ swi_net_done:
 dummynetisr:
 	MCOUNT
 	ret	
-
-	ALIGN_TEXT
-dummycamisr:
-	MCOUNT
-	ret
-
-/*
- * This function will go away soon when register_swi() is used to register
- * the poll functions.
- */
-	ALIGN_TEXT
-swi_tty:
-	MCOUNT
-#include "cy.h"
-#if NCY > 0
-	call	_cypoll
-#endif
-#include "rc.h"
-#if NRC > 0
-	call	_rcpoll
-#endif
-#include "sio.h"
-#if NSIO > 0
-	jmp	_siopoll
-#else
-	ret
-#endif
 
 /*
  * The arg is in a nonstandard place, so swi_dispatcher() can't be called
