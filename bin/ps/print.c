@@ -409,8 +409,31 @@ wchan(KINFO *k, VARENT *ve)
 		else
 			(void)printf("%-*lx", v->width,
 			    (long)k->ki_p->ki_wchan);
+	} else {
+		(void)printf("%-*s", v->width, "-");
+	}
+}
+
+void
+mwchan(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	if (k->ki_p->ki_wchan) {
+		if (k->ki_p->ki_wmesg[0] != 0)
+			(void)printf("%-*.*s", v->width, v->width,
+				      k->ki_p->ki_wmesg);
+		else
+			(void)printf("%-*lx", v->width,
+			    (long)k->ki_p->ki_wchan);
 	} else if (k->ki_p->ki_kiflag & KI_MTXBLOCK) {
-		(void)printf("%-*.*s", v->width, v->width, k->ki_p->ki_mtxname);
+		if (k->ki_p->ki_mtxname[0]) {
+			(void)printf("%-*.*s", v->width, v->width,
+			    k->ki_p->ki_mtxname);
+		} else {
+			(void)printf("%-*s", v->width, "???");
+		}
 	} else {
 		(void)printf("%-*s", v->width, "-");
 	}
