@@ -101,7 +101,7 @@ gv_stripe_active(struct gv_raid5_packet *wp, struct gv_plex *sc)
 
 	TAILQ_FOREACH(wpa, &sc->worklist, list) {
 		if (wpa->lockbase == wp->lockbase) {
-			if (wpa->bio == wp->bio)
+			if (wpa == wp)
 				return (0);
 			return (1);
 		}
