@@ -8,10 +8,8 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
-		-mno-486 \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-DDO_BAD144
 CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
