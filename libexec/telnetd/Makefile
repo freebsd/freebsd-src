@@ -3,7 +3,7 @@
 PROG=	telnetd
 CFLAGS+=-DLINEMODE -DKLUDGELINEMODE -DUSE_TERMIO -DDIAGNOSTICS
 CFLAGS+=-DOLD_ENVIRON -DENV_HACK
-CFLAGS+=--I${.CURDIR}/../../lib
+CFLAGS+=-I${.CURDIR}/../../lib
 #CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
