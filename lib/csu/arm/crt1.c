@@ -116,6 +116,8 @@ __start(int argc, char **argv, char **env,
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
+	else
+		_init_tls();
 
 #ifdef GCRT
 	atexit(_mcleanup);

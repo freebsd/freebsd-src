@@ -2,7 +2,7 @@
 
 SRCS+=	__divdf3.S __divdi3.S __divsf3.S __divsi3.S __moddi3.S __modsi3.S \
 	__udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S _setjmp.S fabs.S \
-	flt_rounds.c fpgetmask.c fpgetround.c fpsetmask.c \
+	_set_tp.c flt_rounds.c fpgetmask.c fpgetround.c fpsetmask.c \
 	fpsetround.c infinity.c \
 	ldexp.c makecontext.c modf.c setjmp.S signalcontext.c sigsetjmp.S
 

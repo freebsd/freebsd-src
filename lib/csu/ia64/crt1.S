@@ -107,6 +107,11 @@ _start:
 (p7)		br.call.sptk	b0=atexit
 		;;
 }
+{		.mfb
+		nop		0
+		nop		0
+		br.call.sptk	b0=_init_tls
+}
 #ifdef GCRT
 {		.mmi
 		mov		gp=GP
