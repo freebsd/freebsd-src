@@ -35,7 +35,6 @@
  */
 
 #include "opt_inet.h"
-#include "opt_mrouting.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -404,11 +403,7 @@ rtioctl(req, data, p)
 {
 #ifdef INET
 	/* Multicast goop, grrr... */
-#ifdef MROUTING
-	return mrt_ioctl(req, data);
-#else
-	return mrt_ioctl(req, data, p);
-#endif
+	return mrt_ioctl ? mrt_ioctl(req, data) : EOPNOTSUPP;
 #else /* INET */
 	return ENXIO;
 #endif /* INET */

@@ -57,7 +57,6 @@
  */
 /* XXX is M_NETADDR correct? */
 
-#include "opt_mrouting.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -78,9 +77,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif /* MROUTING */
 #include <netinet/ipprotosw.h>
 
 #ifdef INET6
@@ -109,6 +105,8 @@ LIST_HEAD(, encaptab) encaptab;
 LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(&encaptab);
 #endif
 
+void     (*ipip_input)(struct mbuf *, int, int); /* hook for mrouting */
+
 void
 encap_init()
 {
@@ -131,26 +129,13 @@ encap_init()
 
 #ifdef INET
 void
-#if __STDC__
-encap4_input(struct mbuf *m, ...)
-#else
-encap4_input(m, va_alist)
-	struct mbuf *m;
-	va_dcl
-#endif
+encap4_input(struct mbuf *m, int off, int proto)
 {
-	int off, proto;
 	struct ip *ip;
 	struct sockaddr_in s, d;
 	const struct ipprotosw *psw;
 	struct encaptab *ep, *match;
-	va_list ap;
 	int prio, matchprio;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
-	va_end(ap);
 
 	ip = mtod(m, struct ip *);
 
@@ -219,16 +204,10 @@ encap4_input(m, va_alist)
 	}
 
 	/* for backward compatibility */
-# ifdef MROUTING
-#  define COMPATFUNC	ipip_input
-# endif /*MROUTING*/
-
-#ifdef COMPATFUNC
-	if (proto == IPPROTO_IPV4) {
-		COMPATFUNC(m, off, proto);
+	if (proto == IPPROTO_IPV4 && ipip_input) {
+		ipip_input(m, off, proto);
 		return;
 	}
-#endif
 
 	/* last resort: inject to raw socket */
 	rip_input(m, off, proto);
