@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.19 1994/10/18 14:59:20 davidg Exp $
+ * $Id: vm_pageout.c,v 1.20 1994/10/22 02:18:03 davidg Exp $
  */
 
 /*
@@ -855,12 +855,12 @@ vm_pageout()
 	 * swap pager structures plus enough for any pv_entry
 	 * structs when paging.
 	 */
-	cnt.v_free_reserved = 4 + cnt.v_page_count / 1024;
+	vm_pageout_free_min = 4 + cnt.v_page_count / 1024;
+	cnt.v_free_reserved = vm_pageout_free_min + 2;
 	if (cnt.v_free_min < 8)
 		cnt.v_free_min = 8;
 	if (cnt.v_free_min > 32)
 		cnt.v_free_min = 32;
-	vm_pageout_free_min = cnt.v_free_reserved;
 	cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;
 	cnt.v_inactive_target = cnt.v_free_count / 12;
 	cnt.v_free_min += cnt.v_free_reserved;
