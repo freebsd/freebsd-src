@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.39 1997/04/27 21:18:58 fsmp Exp $
+ *	$Id: intr_machdep.h,v 1.1 1997/06/26 17:31:00 smp Exp smp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -82,9 +82,16 @@ inthand_t
 inthand_t
 	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
 	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
-#define XINVLTLB_OFFSET	32
+
+#define XINVLTLB_OFFSET	(ICU_OFFSET + 32)
 inthand_t
 	Xinvltlb;
+
+#if defined(TEST_CPUSTOP)
+#define XCPUSTOP_OFFSET	(ICU_OFFSET + 64)
+inthand_t
+	Xcpustop;
+#endif  /* TEST_CPUSTOP */
 
 struct isa_device;
 
