@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.65 1995/05/15 08:39:08 davidg Exp $
+#	$Id: rc,v 1.66 1995/05/15 19:50:59 rgrimes Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -118,6 +118,11 @@ echo clearing /tmp
 (cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
     find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
 
+# enable dumpdev so that savecore can see it
+if [ "X${dumpdev}" != X"NO" ]; then
+	dumpon ${dumpdev}
+fi
+
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
 if [ "X${savecore}" = X"YES" -a -d /var/crash ]; then
@@ -192,6 +197,9 @@ fi
 # Start ypbind if we're an NIS client
 if [ "X${nis_clientflags}" != X"NO" ]; then
 	echo -n ' ypbind'; ypbind ${nis_clientflags}
+	if [ "X${nis_ypsetflags}" != X"NO" ]; then
+		echo -n ' ypset'; ypset ${nis_ypsetflags}
+	fi
 fi
 
 # $rwhod is imported from /etc/sysconfig;
