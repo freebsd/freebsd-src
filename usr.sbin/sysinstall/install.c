@@ -446,7 +446,7 @@ fixit_common(void)
 	/* use the .profile from the fixit medium */
 	setenv("HOME", "/mnt2", 1);
 	chdir("/mnt2");
-	execlp("sh", "-sh", 0);
+	execlp("sh", "-sh", (char *)0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
 	_exit(1);;
     }

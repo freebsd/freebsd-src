@@ -408,7 +408,7 @@ edit_cmd() {
 			err(ERROR_EXIT, "chdir(/tmp)");
 		if (strlen(editor) + strlen(Filename) + 2 >= MAX_TEMPSTR)
 			errx(ERROR_EXIT, "editor or filename too long");
-		execlp(editor, editor, Filename, NULL);
+		execlp(editor, editor, Filename, (char *)NULL);
 		err(ERROR_EXIT, "%s", editor);
 		/*NOTREACHED*/
 	default:

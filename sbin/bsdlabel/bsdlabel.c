@@ -909,7 +909,7 @@ editit()
 		setuid(getuid());
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = DEFEDITOR;
-		execlp(ed, ed, tmpfil, 0);
+		execlp(ed, ed, tmpfil, (char *)0);
 		err(1, "%s", ed);
 	}
 	while ((xpid = wait(&stat)) >= 0)

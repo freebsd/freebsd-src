@@ -21,6 +21,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
  * Buffer management for tar.
  *
  * Written by John Gilmore, ihnp4!hoptoad!gnu, on 25 August 1985.
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -1505,7 +1507,7 @@ tryagain:
 		    p = getenv ("SHELL");
 		    if (p == 0)
 		      p = "/bin/sh";
-		    execlp (p, "-sh", "-i", 0);
+		    execlp (p, "-sh", "-i", (char *)0);
 		    msg_perror ("can't exec a shell %s", p);
 		    _exit (55);
 		  default:

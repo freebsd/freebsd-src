@@ -765,7 +765,7 @@ shell()
 		else
 			cp++;
 		shell_uid();
-		execl(value(SHELL), cp, 0);
+		execl(value(SHELL), cp, (char *)0);
 		printf("\r\ncan't execl!\r\n");
 		exit(1);
 	}
@@ -865,7 +865,7 @@ execute(s)
 	else
 		cp++;
 	shell_uid();
-	execl(value(SHELL), cp, "-c", s, 0);
+	execl(value(SHELL), cp, "-c", s, (char *)0);
 }
 
 static int
@@ -1051,7 +1051,7 @@ expand(name)
 		close(pivec[1]);
 		close(2);
 		shell_uid();
-		execl(Shell, Shell, "-c", cmdbuf, 0);
+		execl(Shell, Shell, "-c", cmdbuf, (char *)0);
 		_exit(1);
 	}
 	if (pid == -1) {

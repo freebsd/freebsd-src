@@ -174,11 +174,11 @@ char *username;
 		if(!username) {
 			warnx("rebuilding the database...");
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-d", mppath,
-			    tempname, NULL);
+			    tempname, (char *)NULL);
 		} else {
 			warnx("updating the database...");
 			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-d", mppath,
-			    "-u", username, tempname, NULL);
+			    "-u", username, tempname, (char *)NULL);
 		}
 		pw_error(_PATH_PWD_MKDB, 1, 1);
 	}
@@ -209,7 +209,7 @@ pw_edit(notsetuid)
 			(void)setuid(getuid());
 		}
 		errno = 0;
-		execlp(editor, p, tempname, NULL);
+		execlp(editor, p, tempname, (char *)NULL);
 		_exit(errno);
 	}
 	for (;;) {

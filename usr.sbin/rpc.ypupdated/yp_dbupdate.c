@@ -57,7 +57,7 @@ static int yp_domake(map, domain)
 
 	switch((pid = fork())) {
 	case 0:
-		execlp(MAP_UPDATE_PATH, MAP_UPDATE, map, domain, NULL);
+		execlp(MAP_UPDATE_PATH, MAP_UPDATE, map, domain, (char *)NULL);
 		yp_error("couldn't exec map update process: %s",
 						strerror(errno));
 		exit(1);

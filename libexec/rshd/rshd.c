@@ -707,7 +707,7 @@ doit(fromp)
 		    syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: cmd='%.80s'",
 			remuser, fromhost, locuser, cmdbuf);
 	}
-	execl(pwd->pw_shell, cp, "-c", cmdbuf, 0);
+	execl(pwd->pw_shell, cp, "-c", cmdbuf, (char *)0);
 	perror(pwd->pw_shell);
 	exit(1);
 }
