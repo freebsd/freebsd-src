@@ -268,7 +268,7 @@ main(argc, argv)
 				/* already authenticated */
 				break;
 			} else if (pwd->pw_passwd[0] == '\0') {
-				if (rootlogin && !rootok) {
+				if (!rootlogin || rootok) {
 					/* pretend password okay */
 					rval = 0;
 					goto ttycheck;
