@@ -114,24 +114,6 @@ SYSCTL_LONG(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, ""
 static u_long freevnodes;
 SYSCTL_LONG(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
-#if 0
-/* Number of vnode allocation. */
-static u_long vnodeallocs;
-SYSCTL_LONG(_debug, OID_AUTO, vnodeallocs, CTLFLAG_RD, &vnodeallocs, 0, "");
-/* Period of vnode recycle from namecache in vnode allocation times. */
-static u_long vnoderecycleperiod = 1000;
-SYSCTL_LONG(_debug, OID_AUTO, vnoderecycleperiod, CTLFLAG_RW, &vnoderecycleperiod, 0, "");
-/* Minimum number of total vnodes required to invoke vnode recycle from namecache. */
-static u_long vnoderecyclemintotalvn = 2000;
-SYSCTL_LONG(_debug, OID_AUTO, vnoderecyclemintotalvn, CTLFLAG_RW, &vnoderecyclemintotalvn, 0, "");
-/* Minimum number of free vnodes required to invoke vnode recycle from namecache. */
-static u_long vnoderecycleminfreevn = 2000;
-SYSCTL_LONG(_debug, OID_AUTO, vnoderecycleminfreevn, CTLFLAG_RW, &vnoderecycleminfreevn, 0, "");
-/* Number of vnodes attempted to recycle at a time. */
-static u_long vnoderecyclenumber = 3000;
-SYSCTL_LONG(_debug, OID_AUTO, vnoderecyclenumber, CTLFLAG_RW, &vnoderecyclenumber, 0, "");
-#endif
-
 /*
  * Various variables used for debugging the new implementation of
  * reassignbuf().
