@@ -823,7 +823,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case IEEE80211_IOC_POWERSAVESLEEP:
 			ireq->i_val = ic->ic_lintval;
 			break;
-		case IEEE80211_IOCT_RTSTHRESHOLD:
+		case IEEE80211_IOC_RTSTHRESHOLD:
 			ireq->i_val = ic->ic_rtsthreshold;
 			break;
 		default:
@@ -958,7 +958,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ic->ic_lintval = ireq->i_val;
 			error = ENETRESET;
 			break;
-		case IEEE80211_IOCT_RTSTHRESHOLD:
+		case IEEE80211_IOC_RTSTHRESHOLD:
 			if (!(IEEE80211_RTS_MIN < ireq->i_val &&
 			      ireq->i_val < IEEE80211_RTS_MAX)) {
 				error = EINVAL;
