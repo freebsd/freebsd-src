@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.82 1994/09/22 19:37:30 wollman Exp $
+#	$Id: LINT,v 1.83 1994/09/23 06:22:46 davidg Exp $
 #
 
 machine		"i386"
@@ -35,6 +35,8 @@ options		KTRACE			#kernel tracing
 
 options		"NCONS=8"		#number of syscons virtual consoles
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
+options		HARDFONTS		#load iso8859 fonts instead of
+					#standard VGA fonts
 
 #options	ALLOW_CONFLICT_IOADDR	#no IO addr conflict checks (PS/2 mice)
 #options	ALLOW_CONFLICT_IRQ	#no IRQ conflict checks (mport serial)
