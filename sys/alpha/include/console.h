@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.30 1997/08/08 22:52:25 sos Exp $
+ *	$Id: console.h,v 1.31 1997/09/04 09:05:17 kato Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -153,6 +153,7 @@ struct mouse_info {
 
 #define K_RAW		0		/* keyboard returns scancodes	*/
 #define K_XLATE		1		/* keyboard returns ascii 	*/
+#define K_CODE		2		/* keyboard returns keycodes 	*/
 
 #define KB_84		1		/* 'old' 84 key AT-keyboard	*/
 #define KB_101		2		/* MF-101 or MF-102 keyboard	*/
