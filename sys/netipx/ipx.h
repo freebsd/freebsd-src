@@ -144,9 +144,6 @@ struct ipx {
 	struct ipx_addr	ipx_sna;	/* Source Network Address */
 };
 
-#ifdef vax
-#define ipx_netof(a) (*(long *) & ((a).x_net)) /* XXX - not needed */
-#endif
 #define ipx_neteqnn(a,b) \
 	(((a).s_net[0] == (b).s_net[0]) && ((a).s_net[1] == (b).s_net[1]))
 #define ipx_neteq(a,b) ipx_neteqnn((a).x_net, (b).x_net)
