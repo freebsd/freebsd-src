@@ -85,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+/* The size of the buffer used for I/O. */
+#define	BUFFERSIZE	(1024*1024)
+
 int compress, clear, force, keep, verbose;	/* flags */
 int nfound, nsaved, nerr;			/* statistics */
 
@@ -225,7 +228,7 @@ DoFile(char *savedir, const char *device)
 	 * this by doing a on-time allocation...
 	 */
 	if (buf == NULL) {
-		buf = malloc(1024 * 1024);
+		buf = malloc(BUFFERSIZE);
 		if (buf == NULL) {
 			syslog(LOG_ERR, "%m");
 			return;
@@ -371,7 +374,7 @@ DoFile(char *savedir, const char *device)
 	    compress ? "compressed " : "", buf);
 
 	while (dumpsize > 0) {
-		wl = sizeof(buf);
+		wl = BUFFERSIZE;
 		if (wl > dumpsize)
 			wl = dumpsize;
 		nr = read(fd, buf, wl);
