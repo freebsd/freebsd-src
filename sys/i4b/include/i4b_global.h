@@ -59,6 +59,34 @@
 
 #endif
 
+#if defined(__FreeBSD__) && __FreeBSD__ >= 5
+/*
+ * Deprecated LKM interface.
+ */
+#include <sys/module.h>
+#define	PSEUDO_SET(sym, name) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
+	{ \
+		void (*initfunc)(void *) = (void (*)(void *))data; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#name " module load\n"); */ \
+			initfunc(NULL); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)sym \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
+#endif
+
 /*---------------*/
 /* time handling */
 /*---------------*/
