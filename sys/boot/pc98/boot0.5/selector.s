@@ -417,6 +417,7 @@ bootable_slice:
 #
 	.global	selector
 selector:
+	movw	$0, curdevice	# trydefault may change the curdevice.
 	movw	$0, mode
 
 selector_loop:
