@@ -136,10 +136,10 @@ sock_ntop(const struct sockaddr *sa, size_t salen)
 	case AF_LINK: {
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *) sa;
 
-		if (sdl->sdl_nlen > 0)
-			snprintf(str, sizeof(str), "%*s",
-				 sdl->sdl_nlen, &sdl->sdl_data[0]);
-		else
+		if (sdl->sdl_nlen > 0) {
+			bcopy(&sdl->sdl_data[0], str, sdl->sdl_nlen);
+			str[sdl->sdl_nlen]='\0';
+		} else
 			snprintf(str, sizeof(str), "link#%d", sdl->sdl_index);
 		return(str);
 	}
