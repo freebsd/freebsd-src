@@ -14,9 +14,9 @@ ${lib}:	${lib}.gz.uu
 .endfor
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
 		${DESTDIR}/usr/libexec
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}/aout
 
 # Get all the fruit, even though we don't set PROG.

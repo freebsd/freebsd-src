@@ -78,7 +78,7 @@ uk_UA.KOI8-U.out:       map.KOI8-U
 
 afterinstall:
 .for locale in ${LOCALES}
-	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} \
+	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} \
 		${locale}.out ${LOCALEDIR}/${locale}/LC_COLLATE
 .endfor
 .for link in ${ASCIILINKS}

@@ -38,7 +38,7 @@ ${lib}:	${.CURDIR}/${lib}.bz2.uu
 .endfor
 
 beforeinstall:
-	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}
 
 # Get all the fruit, even though we don't set PROG.

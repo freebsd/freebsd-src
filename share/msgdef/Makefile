@@ -67,7 +67,7 @@ afterinstall:
 # HACK: remove LC_MESSAGES directories before installing LC_MESSAGES file
 	-rm -rf ${LOCALEDIR}/*/LC_MESSAGES
 .for lang in ${LOCALES}
-	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
+	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_MESSAGES
 .endfor
 .for link in ${LATIN15LINKS}
