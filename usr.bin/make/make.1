@@ -533,6 +533,13 @@ If they are undefined and
 .Nm
 is unable to change into any of the remaining three directories,
 then the current directory is used.
+Note, that
+.Ev MAKEOBJDIRPREFIX
+and
+.Ev MAKEOBJDIR
+must be environment variables and should not be set on
+.Nm Ns 's
+command line.
 .Pp
 The
 .Nm
