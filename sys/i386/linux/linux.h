@@ -47,6 +47,9 @@ extern u_char linux_debug_map[];
 MALLOC_DECLARE(M_LINUX);
 #endif
 
+#define	PTRIN(v)	(void *)(v)
+#define	PTROUT(v)	(l_uintptr_t)(v)
+
 /*
  * Provide a separate set of types for the Linux types.
  */
@@ -60,6 +63,7 @@ typedef uint64_t	l_ulonglong;
 typedef unsigned short	l_ushort;
 
 typedef char		*l_caddr_t;
+typedef l_ulong		l_uintptr_t;
 typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
 typedef l_ushort	l_dev_t;
