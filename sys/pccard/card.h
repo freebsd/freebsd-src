@@ -122,6 +122,16 @@ struct power {
 };
 
 /*
+ *	Beep parameters
+ */
+#define PCCARD_BEEP_PITCH0	1600	/* inserted/removed */
+#define	PCCARD_BEEP_DURATION0	20
+#define PCCARD_BEEP_PITCH1	1200	/* successed */
+#define	PCCARD_BEEP_DURATION1	40
+#define PCCARD_BEEP_PITCH2	3200	/* failed */
+#define	PCCARD_BEEP_DURATION2	40
+
+/*
  *	Other system limits
  */
 #define MAXSLOT 16
