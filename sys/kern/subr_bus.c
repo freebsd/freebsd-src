@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.16 1999/03/29 08:54:20 dfr Exp $
+ *	$Id: subr_bus.c,v 1.17 1999/04/16 21:22:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1435,7 +1435,6 @@ resource_set_int(int i, char *resname, int value)
 	int error;
 	struct config_resource *res;
 
-printf("resource_set_int\n");
 	if (i < 0 || i >= devtab_count)
 		return EINVAL;
 	error = resource_create(devtab[i].name, devtab[i].unit, resname,
@@ -1454,7 +1453,6 @@ resource_set_long(int i, char *resname, long value)
 	int error;
 	struct config_resource *res;
 
-printf("resource_set_long\n");
 	if (i < 0 || i >= devtab_count)
 		return EINVAL;
 	error = resource_create(devtab[i].name, devtab[i].unit, resname,
@@ -1473,7 +1471,6 @@ resource_set_string(int i, char *resname, char *value)
 	int error;
 	struct config_resource *res;
 
-printf("resource_set_string\n");
 	if (i < 0 || i >= devtab_count)
 		return EINVAL;
 	error = resource_create(devtab[i].name, devtab[i].unit, resname,
