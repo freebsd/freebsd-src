@@ -245,6 +245,9 @@ doadump(void)
 static void
 boot(int howto)
 {
+	int first_buf_printf;
+
+	first_buf_printf = 1;
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
@@ -272,7 +275,6 @@ boot(int howto)
 #endif
 
 		waittime = 0;
-		printf("syncing disks, buffers remaining... ");
 
 		sync(&thread0, NULL);
 
@@ -295,6 +297,10 @@ boot(int howto)
 			}
 			if (nbusy == 0)
 				break;
+			if (first_buf_printf) {
+				printf("syncing disks, buffers remaining... ");
+				first_buf_printf = 0;
+			}
 			printf("%d ", nbusy);
 			if (nbusy < pbusy)
 				iter = 0;
@@ -576,20 +582,22 @@ void
 kproc_shutdown(void *arg, int howto)
 {
 	struct proc *p;
+	char procname[MAXCOMLEN + 1];
 	int error;
 
 	if (panicstr)
 		return;
 
 	p = (struct proc *)arg;
-	printf("Waiting (max %d seconds) for system process `%s' to stop...",
-	    kproc_shutdown_wait, p->p_comm);
+	strlcpy(procname, p->p_comm, sizeof(procname));
+	printf("Waiting (max %d seconds) for system process `%s' to stop...\n",
+	    kproc_shutdown_wait, procname);
 	error = kthread_suspend(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
-		printf("timed out\n");
+		printf("Stop of '%s' timed out\n", procname);
 	else
-		printf("stopped\n");
+		printf("Process '%s' stopped\n", procname);
 }
 
 /* Registration of dumpers */
