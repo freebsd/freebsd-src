@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ls.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: ls.h,v 1.5 1997/02/22 14:04:00 peter Exp $
  */
 
 #define NO_PRINT	1
@@ -42,7 +42,7 @@
  * XXX Until we get kernel support for the undelete(2) system call,
  * this define *must* remain in place.
  */
-#define BSD4_4_LITE
+/* #define BSD4_4_LITE */
 
 extern long blocksize;		/* block size units */
 
