@@ -103,7 +103,7 @@ handshake(void)
 	}
 	serv.sin_port = htons(port);
 	sfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sfd < 0)
+	if (sfd == -1)
 		g_gate_xlog("Can't open socket: %s.", strerror(errno));
 	/*
 	 * Some trivial network optimalization.
@@ -113,23 +113,23 @@ handshake(void)
 		int on = 1;
 
 		if (setsockopt(sfd, IPPROTO_TCP, TCP_NODELAY, &on,
-		    sizeof(on)) < 0) {
+		    sizeof(on)) == -1) {
 			g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 		}
 	}
 	bsize = rcvbuf;
-	if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)))
+	if (setsockopt(sfd, SOL_SOCKET, SO_RCVBUF, &bsize, sizeof(bsize)) == -1)
 		g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 	bsize = sndbuf;
-	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)))
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) == -1)
 		g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
-	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) ||
-	    setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1 ||
+	    setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
 		g_gate_xlog("setsockopt() error: %s.", strerror(errno));
 	}
-	if (connect(sfd, (struct sockaddr *)&serv, sizeof(serv)) < 0) {
+	if (connect(sfd, (struct sockaddr *)&serv, sizeof(serv)) == -1) {
 		g_gate_log(LOG_ERR, "Can't connect to server: %s.",
 		    strerror(errno));
 		return (-1);
@@ -294,7 +294,7 @@ serve_loop(int sfd)
 		if (error != EAGAIN)
 			g_gate_xlog("%s.", strerror(error));
 		sfd = handshake();
-		if (sfd < 0) {
+		if (sfd == -1) {
 			sleep(2);
 			continue;
 		}
@@ -332,7 +332,7 @@ g_gatec_create(void)
 	int sfd;
 
 	sfd = handshake();
-	if (sfd < 0)
+	if (sfd == -1)
 		exit(EXIT_FAILURE);
 	ggioc.gctl_version = G_GATE_VERSION;
 	ggioc.gctl_mediasize = mediasize;
