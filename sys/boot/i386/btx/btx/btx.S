@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: btx.s,v 1.1.1.1 1998/09/12 04:29:23 rnordier Exp $
 
 #
 # Memory layout.
@@ -219,7 +219,7 @@ init.9: 	xorl %ecx,%ecx			# Zero
 		pushl %eax			# Set ESP
 		pushl $0x202			# Set flags (IF set)
 		pushl $SEL_UCODE		# Set CS
-		pushl $0x0			# Set EIP
+		pushl btx_hdr+0xc		# Set EIP
 		pushl %ecx			# Set GS
 		pushl %ecx			# Set FS
 		pushl %ecx			# Set DS
