@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.60 1997/08/26 18:10:33 peter Exp $
+ *	$Id: swtch.s,v 1.10 1997/09/07 21:50:13 smp Exp smp $
  */
 
 #include "npx.h"
@@ -300,6 +300,7 @@ idle_loop:
 
 	cmpl	$0,_do_page_zero_idle
 	je	2f
+
 	/* XXX appears to cause panics */
 	/*
 	 * Inside zero_idle we enable interrupts and grab the mplock
@@ -311,12 +312,18 @@ idle_loop:
 2:
 
 	/* enable intrs for a halt */
+#ifdef SMP
+	movl	$0, lapic_tpr			/* 1st candidate for an INT */
+#endif
 	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	cli
 	jmp	idle_loop
 
 3:
+#ifdef SMP
+	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
+#endif
 	call	_get_mplock
 	cmpl	$0,_whichrtqs			/* real-time queue */
 	CROSSJUMP(jne, sw1a, je)
@@ -384,8 +391,8 @@ idle_loop:
 CROSSJUMPTARGET(_idle)
 
 ENTRY(default_halt)
-#ifndef SMP					/* until we have a wakeup IPI */
-	hlt
+#ifndef SMP
+	hlt					/* XXX:	 until a wakeup IPI */
 #endif
 	ret
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.42 1997/08/29 18:16:17 fsmp Exp $
+ *	$Id: exception.s,v 1.22 1997/09/07 19:26:26 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -39,28 +39,23 @@
 #include <machine/psl.h>			/* PSL_I */
 #include <machine/trap.h>			/* trap codes */
 #include <machine/asmacros.h>
-#include <machine/smptests.h>			/* INTR_SIMPLELOCK */
+
+#ifdef SMP
+#include <machine/smptests.h>	/** CPL_AND_CML, REAL_ */
+#else
+#define ECPL_LOCK		/* make these nops */
+#define ECPL_UNLOCK
+#define ICPL_LOCK
+#define ICPL_UNLOCK
+#define FAST_ICPL_UNLOCK
+#define AICPL_LOCK
+#define AICPL_UNLOCK
+#define AVCPL_LOCK
+#define AVCPL_UNLOCK
+#endif /* SMP */
+
 #include <machine/lock.h>
 
-#ifndef SMP
-#undef INTR_SIMPLELOCK				/* simplifies cpp tests */
-#undef REAL_ECPL
-#undef REAL_ICPL
-#undef REAL_AICPL
-#undef REAL_AVCPL
-#endif /* !SMP */
-
-#ifdef REAL_ECPL
-
-#define ECPL_LOCK	SCPL_LOCK
-#define ECPL_UNLOCK	SCPL_UNLOCK
-
-#else /* REAL_ECPL */
-
-#define ECPL_LOCK
-#define ECPL_UNLOCK
-
-#endif /* REAL_ECPL */
 
 #define	KCSEL		0x08			/* kernel code selector */
 #define	KDSEL		0x10			/* kernel data selector */
@@ -161,7 +156,7 @@ IDTVEC(fpu)
 	MPLOCKED incl _cnt+V_TRAP
 	FPU_LOCK
 	ECPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	_cml,%eax
 	pushl	%eax			/* save original cml */
 	orl	$SWI_AST_MASK,%eax
@@ -171,7 +166,7 @@ IDTVEC(fpu)
 	pushl	%eax			/* save original cpl */
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
-#endif /* INTR_SIMPLELOCK */
+#endif /* CPL_AND_CML */
 	ECPL_UNLOCK
 	pushl	$0			/* dummy unit to finish intr frame */
 #else /* SMP */
@@ -211,7 +206,7 @@ calltrap:
 	MPLOCKED incl _cnt+V_TRAP
 	ALIGN_LOCK
 	ECPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	orl	$SWI_AST_MASK,_cml
 #else
 	orl	$SWI_AST_MASK,_cpl
@@ -236,11 +231,11 @@ calltrap:
 
 #ifdef SMP
 	ECPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	pushl	_cml			/* XXX will this work??? */
 #else
 	pushl	_cpl
-#endif /* INTR_SIMPLELOCK */
+#endif
 	ECPL_UNLOCK
 	jmp	2f
 1:
@@ -288,7 +283,7 @@ IDTVEC(syscall)
 	MPLOCKED incl _cnt+V_SYSCALL
 	SYSCALL_LOCK
 	ECPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	$SWI_AST_MASK,_cml
 #else
 	movl	$SWI_AST_MASK,_cpl
@@ -322,7 +317,7 @@ IDTVEC(int0x80_syscall)
 	MPLOCKED incl _cnt+V_SYSCALL
 	ALTSYSCALL_LOCK
 	ECPL_LOCK
-#ifdef INTR_SIMPLELOCK
+#ifdef CPL_AND_CML
 	movl	$SWI_AST_MASK,_cml
 #else
 	movl	$SWI_AST_MASK,_cpl

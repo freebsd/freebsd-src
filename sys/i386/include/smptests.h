@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.28 1997/09/01 07:37:58 smp Exp smp $
+ *	$Id: smptests.h,v 1.33 1997/09/07 19:25:23 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -32,6 +32,75 @@
 /*
  * Various 'tests in progress' and configuration parameters.
  */
+
+
+/*
+ * Control the "giant lock" pushdown by logical steps.
+ */
+#define PUSHDOWN_LEVEL_1
+#define PUSHDOWN_LEVEL_2
+#define PUSHDOWN_LEVEL_3
+#define PUSHDOWN_LEVEL_4_NOT
+
+
+/*
+ * XXX some temp debug control of cpl locks
+ */
+#ifdef PUSHDOWN_LEVEL_2
+#define REAL_ECPL	/* exception.s:		SCPL_LOCK/SCPL_UNLOCK */
+#define REAL_ICPL	/* ipl.s:		CPL_LOCK/CPL_UNLOCK/FAST */
+#define REAL_AICPL	/* apic_ipl.s:		SCPL_LOCK/SCPL_UNLOCK */
+#define REAL_AVCPL	/* apic_vector.s:	CPL_LOCK/CPL_UNLOCK */
+#define REAL_IFCPL	/* ipl_funcs.c:		SCPL_LOCK/SCPL_UNLOCK */
+#endif /* PUSHDOWN_LEVEL_2 */
+
+#define REAL_MCPL_NOT	/* microtime.s:		CPL_LOCK/movl $0,_cpl_lock */
+
+/*
+ * The xCPL_LOCK/xCPL_UNLOCK defines control the spinlocks
+ * that protect cpl/cml/cil and the spl functions.
+ */
+#ifdef REAL_ECPL
+#define ECPL_LOCK		SCPL_LOCK
+#define ECPL_UNLOCK		SCPL_UNLOCK
+#else
+#define ECPL_LOCK
+#define ECPL_UNLOCK
+#endif /* REAL_ECPL */
+
+#ifdef REAL_ICPL
+#define ICPL_LOCK		CPL_LOCK
+#define ICPL_UNLOCK		CPL_UNLOCK
+#define FAST_ICPL_UNLOCK	movl	$0, _cpl_lock
+#else
+#define ICPL_LOCK
+#define ICPL_UNLOCK
+#define FAST_ICPL_UNLOCK
+#endif /* REAL_ICPL */
+
+#ifdef REAL_AICPL
+#define AICPL_LOCK		SCPL_LOCK
+#define AICPL_UNLOCK		SCPL_UNLOCK
+#else
+#define AICPL_LOCK
+#define AICPL_UNLOCK
+#endif /* REAL_AICPL */
+
+#ifdef REAL_AVCPL
+#define AVCPL_LOCK		CPL_LOCK
+#define AVCPL_UNLOCK		CPL_UNLOCK
+#else
+#define AVCPL_LOCK
+#define AVCPL_UNLOCK
+#endif /* REAL_AVCPL */
+
+#ifdef REAL_IFCPL
+#define IFCPL_LOCK()		SCPL_LOCK()
+#define IFCPL_UNLOCK()		SCPL_UNLOCK()
+#else
+#define IFCPL_LOCK()
+#define IFCPL_UNLOCK()
+#endif /* REAL_IFCPL */
 
 
 /*
@@ -48,21 +117,54 @@
  * Put FAST_INTR() ISRs at an APIC priority above the regular INTs.
  * Allow the mp_lock() routines to handle FAST interrupts while spinning.
  */
+#ifdef PUSHDOWN_LEVEL_1
 #define FAST_HI
+#endif
 
 
 /*
+ * These defines enable critical region locking of areas that were
+ * protected via cli/sti in the UP kernel.
  *
+ * MPINTRLOCK protects all the generic areas.
+ * COMLOCK protects the sio/cy drivers.
+ * CLOCKLOCK protects clock hardware and data
+ * known to be incomplete:
+ *	joystick lkm
+ *	?
  */
+#ifdef PUSHDOWN_LEVEL_1
+#define USE_MPINTRLOCK
 #define USE_COMLOCK
 #define USE_CLOCKLOCK
+#endif
 
 
 /*
  * Regular INTerrupts without the giant lock, NOT READY YET!!!
- *
-#define INTR_SIMPLELOCK
  */
+#ifdef PUSHDOWN_LEVEL_4
+#define INTR_SIMPLELOCK
+#endif
+
+
+/*
+ * Separate the INTR() portion of cpl into another variable: cml.
+ */
+#ifdef PUSHDOWN_LEVEL_3
+#define CPL_AND_CML
+#endif
+
+
+/*
+ * Forces spl functions to spin while waiting for safe time to change cpl.
+ *
+#define SPL_DEBUG_POSTCODE	(slows the system down noticably)
+ */
+#ifdef PUSHDOWN_LEVEL_3
+#define INTR_SPL
+#define SPL_DEBUG
+#endif
 
 
 /*
@@ -87,7 +189,9 @@
  * So I need to restore cpl handling someday, but AFTER
  *  I finish making spl/cpl MP-safe.
  */
+#ifdef PUSHDOWN_LEVEL_1
 #define FAST_WITHOUTCPL
+#endif
 
 
 /*
@@ -99,7 +203,9 @@
  * One optimization on this would be a simple lock per DRIVER, but I'm
  * not sure how to organize that yet...
  */
+#ifdef PUSHDOWN_LEVEL_1
 #define FAST_SIMPLELOCK
+#endif
 
 
 /*
@@ -111,9 +217,9 @@
 /*
  * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
  *
+#define VERBOSE_CPUSTOP_ON_DDBBREAK
  */
 #define CPUSTOP_ON_DDBBREAK
-#define VERBOSE_CPUSTOP_ON_DDBBREAK
 
 
 /*
@@ -122,12 +228,6 @@
  * we start to "push down" the lock.
  */
 #define GIANT_LOCK
-
-
-/*
- * Deal with broken smp_idleloop().
- */
-#define IGNORE_IDLEPROCS
 
 
 /*

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.49 1997/08/31 03:17:47 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.38 1997/09/05 20:23:34 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -195,14 +195,18 @@ typedef struct BASETABLE_ENTRY {
  */
 #define MP_BOOTADDRESS_POST	0x10
 #define MP_PROBE_POST		0x11
-#define MP_START_POST		0x12
-#define MP_ANNOUNCE_POST	0x13
-#define MPTABLE_PASS1_POST	0x14
+#define MPTABLE_PASS1_POST	0x12
+
+#define MP_START_POST		0x13
+#define MP_ENABLE_POST		0x14
 #define MPTABLE_PASS2_POST	0x15
-#define MP_ENABLE_POST		0x16
-#define START_ALL_APS_POST	0x17
-#define INSTALL_AP_TRAMP_POST	0x18
-#define START_AP_POST		0x19
+
+#define START_ALL_APS_POST	0x16
+#define INSTALL_AP_TRAMP_POST	0x17
+#define START_AP_POST		0x18
+
+#define MP_ANNOUNCE_POST	0x19
+
 
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
@@ -1445,7 +1449,7 @@ default_mp_table(int type)
 /* critical region around IO APIC, apic_imen */
 struct simplelock	imen_lock;
 
-/* critical region around splxx(), cpl, cil, ipending */
+/* critical region around splxx(), cpl, cml, cil, ipending */
 struct simplelock	cpl_lock;
 
 /* Make FAST_INTR() routines sequential */
