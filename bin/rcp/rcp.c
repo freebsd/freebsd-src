@@ -310,8 +310,10 @@ toremote(targ, argc, argv)
 				suser = argv[i];
 				if (*suser == '\0')
 					suser = pwd->pw_name;
-				else if (!okname(suser))
+				else if (!okname(suser)) {
+					++errs;
 					continue;
+				}
 				(void)snprintf(bp, len,
 				    "%s %s -l %s -n %s %s '%s%s%s:%s'",
 				    _PATH_RSH, host, suser, cmd, src,
@@ -391,8 +393,10 @@ tolocal(argc, argv)
 			suser = argv[i];
 			if (*suser == '\0')
 				suser = pwd->pw_name;
-			else if (!okname(suser))
+			else if (!okname(suser)) {
+				++errs;
 				continue;
+			}
 		}
 		len = strlen(src) + CMDNEEDS + 20;
 		if ((bp = malloc(len)) == NULL)
