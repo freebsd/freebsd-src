@@ -71,7 +71,7 @@ _compat=	compat
 .endif
 
 .if ${MACHINE_ARCH} != "powerpc"
-_libdisk=libdisk
+_libdisk=	libdisk
 .endif
 
 .if defined(RELEASEDIR) || \
