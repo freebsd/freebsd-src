@@ -77,6 +77,9 @@ u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_LONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, "");
 
+int ps_argsopen = 1;
+SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");
+
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
  * double pointer here.
