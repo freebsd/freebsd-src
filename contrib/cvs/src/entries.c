@@ -641,7 +641,7 @@ AddEntryNode (list, entdata)
 static char *root_template;
 
 static int
-get_root_template(char *repository, char *path)
+get_root_template(const char *repository, const char *path)
 {
     if (root_template) {
 	if (strcmp(path, root_template) == 0)
@@ -658,19 +658,16 @@ get_root_template(char *repository, char *path)
  */
 void
 WriteTemplate (dir, update_dir)
-    char *dir;
-    char *update_dir;
+    const char *dir;
+    const char *update_dir;
 {
     char *tmp = NULL;
-    char *root = NULL;
     struct stat st1;
     struct stat st2;
 
     if (Parse_Info(CVSROOTADM_RCSINFO, "cvs", get_root_template, 1) < 0)
 	return;
 
-    if ((root = Name_Root(dir, update_dir)) == NULL)
-	error (1, errno, "unable to locate cvs root");
     if (asprintf(&tmp, "%s/%s", dir, CVSADM_TEMPLATE) < 0)
 	error (1, errno, "out of memory");
 
@@ -705,7 +702,6 @@ WriteTemplate (dir, update_dir)
 	}
     }
     free(tmp);
-    free(root);
 }
 
 /*
