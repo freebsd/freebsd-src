@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: script.c,v 1.5 1997/08/08 12:24:49 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -67,12 +67,13 @@ int	master, slave;
 int	child, subchild;
 int	outcc;
 char	*fname;
+int	qflg;
 
 struct	termios tt;
 
 void	done __P((void)) __dead2;
 void	dooutput __P((void));
-void	doshell __P((void));
+void	doshell __P((char **));
 void	fail __P((void));
 void	finish __P((int));
 void	scriptflush __P((int));
@@ -90,9 +91,12 @@ main(argc, argv)
 	char ibuf[BUFSIZ];
 
 	aflg = 0;
-	while ((ch = getopt(argc, argv, "a")) != -1)
+	while ((ch = getopt(argc, argv, "aq")) != -1)
 		switch(ch) {
 		case 'a':
+			aflg = 1;
+			break;
+		case 'q':
 			aflg = 1;
 			break;
 		case '?':
@@ -102,9 +106,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 0)
+	if (argc > 0) {
 		fname = argv[0];
-	else
+		argv++;
+		argc--;
+	} else
 		fname = "typescript";
 
 	if ((fscript = fopen(fname, aflg ? "a" : "w")) == NULL)
@@ -115,7 +121,8 @@ main(argc, argv)
 	if (openpty(&master, &slave, NULL, &tt, &win) == -1)
 		err(1, "openpty");
 
-	(void)printf("Script started, output file is %s\n", fname);
+	if (!qflg)
+		(void)printf("Script started, output file is %s\n", fname);
 	rtt = tt;
 	cfmakeraw(&rtt);
 	rtt.c_lflag &= ~ECHO;
@@ -136,7 +143,7 @@ main(argc, argv)
 		if (child)
 			dooutput();
 		else
-			doshell();
+			doshell(argv);
 	}
 
 	(void)fclose(fscript);
@@ -148,7 +155,7 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: script [-a] [file]\n");
+	(void)fprintf(stderr, "usage: script [-a] [-q] [file] [command]\n");
 	exit(1);
 }
 
@@ -178,7 +185,8 @@ dooutput()
 
 	(void)close(STDIN_FILENO);
 	tvec = time(NULL);
-	(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
+	if (!qflg)
+		(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
 
 	(void)signal(SIGALRM, scriptflush);
 	value.it_interval.tv_sec = 60 / 2;
@@ -207,7 +215,8 @@ scriptflush(signo)
 }
 
 void
-doshell()
+doshell(av)
+	char **av;
 {
 	char *shell;
 
@@ -218,7 +227,10 @@ doshell()
 	(void)close(master);
 	(void)fclose(fscript);
 	login_tty(slave);
-	execl(shell, "sh", "-i", NULL);
+	if (av[0])
+		execv(av[0], av);
+	else
+		execl(shell, "sh", "-i", NULL);
 	warn(shell);
 	fail();
 }
@@ -238,12 +250,14 @@ done()
 
 	if (subchild) {
 		tvec = time(NULL);
-		(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
+		if (!qflg)
+			(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
 		(void)fclose(fscript);
 		(void)close(master);
 	} else {
 		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
-		(void)printf("Script done, output file is %s\n", fname);
+		if (!qflg)
+			(void)printf("Script done, output file is %s\n", fname);
 	}
 	exit(0);
 }
