@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.60 1994/09/02 04:12:04 davidg Exp $
+ *	$Id: machdep.c,v 1.61 1994/09/04 19:59:14 pst Exp $
  */
 
 #include "npx.h"
@@ -79,6 +79,8 @@
 
 #include <sys/exec.h>
 #include <sys/vnode.h>
+
+#include <net/netisr.h>
 
 extern vm_offset_t avail_start, avail_end;
 
@@ -164,6 +166,7 @@ cpu_startup()
 	register caddr_t v;
 	int maxbufs, base, residual;
 	extern long Usrptsize;
+	extern void (*netisrs[32])(void);
 	vm_offset_t minaddr, maxaddr;
 	vm_size_t size = 0;
 	int firstaddr;
@@ -188,6 +191,25 @@ cpu_startup()
 	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
 	if (badpages)
 		printf("bad memory   = %d (%d pages)\n", ptoa(badpages), badpages);
+
+	/*
+	 * Quickly wire in netisrs.
+	 */
+#define DONET(isr, n) do { extern void isr(void); netisrs[n] = isr; } while(0)
+#ifdef INET
+	DONET(arpintr, NETISR_ARP);
+	DONET(ipintr, NETISR_IP);
+#endif
+#ifdef NS
+	DONET(nsintr, NETISR_NS);
+#endif
+#ifdef ISO
+	DONET(clnlintr, NETISR_ISO);
+#endif
+#ifdef CCITT
+	DONET(ccittintr, NETISR_CCITT);
+#endif
+#undef DONET
 
 	/*
 	 * Allocate space for system data structures.
