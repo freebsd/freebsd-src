@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.9.2.3 1997/09/22 06:23:24 charnier Exp $
+.\"	$Id: inetd.8,v 1.9.2.4 1997/11/04 21:49:01 dima Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -101,7 +101,7 @@ service name
 socket type
 protocol
 {wait|nowait}[/max-child[/max-connections-per-ip-per-minute]]
-user
+user[:group][/login-class]
 server program
 server program arguments
 .Ed
@@ -114,7 +114,7 @@ service, the entry would contain these fields:
 service name/version
 socket type
 rpc/protocol
-user
+user[:group][/login-class]
 server program
 server program arguments
 .Ed
@@ -282,6 +282,14 @@ The
 entry should contain the user name of the user as whom the server
 should run.  This allows for servers to be given less permission
 than root.
+Optional
+.Em group
+part separated by ``:'' allows to specify group name different
+than default group for this user.
+Optional
+.Em login-class
+part separated by ``/'' allows to specify login class different
+than default ``daemon'' login class.
 .Pp
 The
 .Em server-program
@@ -476,6 +484,7 @@ program attempted to renounce the privileged state associated with a
 socket but was unable to.
 .El
 .Sh SEE ALSO
+.Xr login.conf 5 ,
 .Xr passwd 5 ,
 .Xr rpc 5 ,
 .Xr services 5 ,
