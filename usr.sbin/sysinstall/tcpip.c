@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.26 1995/05/28 23:12:09 jkh Exp $
+ * $Id: tcpip.c,v 1.27 1995/05/29 11:01:41 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -196,7 +196,7 @@ tcpOpenDialog(Device *devp)
     /* Setup a nice screen for us to splat stuff onto */
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X, TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH, dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 15, " Network Configuration ");
+    mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20, " Network Configuration ");
     draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 8, TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 17,
 	     dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
