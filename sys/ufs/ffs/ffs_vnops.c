@@ -373,7 +373,7 @@ ffs_read(ap)
 
 	GIANT_REQUIRED;
 
-	seqcount = ap->a_ioflag >> 16;
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
 #ifdef DIAGNOSTIC
@@ -603,7 +603,7 @@ ffs_write(ap)
 	GIANT_REQUIRED;
 
 	extended = 0;
-	seqcount = ap->a_ioflag >> 16;
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
 	object = vp->v_object;
