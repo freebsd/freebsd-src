@@ -32,35 +32,39 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/watchdog.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-
-#include "opt_cpu.h"
+#include <dev/led/led.h>
+#include <machine/pc/bios.h>
 
 static unsigned	cba;
 static unsigned	gpio;
 static unsigned	geode_counter;
 
-#ifdef CPU_SOEKRIS
-
-#include <dev/led/led.h>
-
-static dev_t	errorled;
+static dev_t	led1, led2, led3;
+static int 	led1b, led2b, led3b;
 
 static void
-err_led(void *unused, int onoff)
+led_func(void *ptr, int onoff)
 {
 	uint32_t u;
+	int bit;
+
+	bit = *(int *)ptr;
+	if (bit < 0) {
+		bit = -bit;
+		onoff = !onoff;
+	}
 
 	u = inl(gpio + 4);
 	if (onoff)
-		u |= 1 << 20;
+		u |= 1 << bit;
 	else
-		u &= ~(1 << 20);
+		u &= ~(1 << bit);
 	outl(gpio, u);
 }
-#endif
 
 
 static unsigned
@@ -135,9 +139,26 @@ geode_probe(device_t self)
 		gpio = pci_read_config(self, PCIR_BAR(0), 4);
 		gpio &= ~0x1f;
 		printf("Geode GPIO@ = %x\n", gpio);
-#ifdef CPU_SOEKRIS
-		errorled = led_create(err_led, NULL, "error");
-#endif
+		if (NULL != 
+		    bios_string(0xf0000, 0xf0100, "Soekris Engineering", 0)) {
+			printf("Soekris Engineering NET4801 platform\n");
+			led1b = 20;
+			led1 = led_create(led_func, &led1b, "error");
+		} else if (NULL !=
+		    bios_string(0xf9000, 0xf9000, "PC Engines WRAP.1C ", 0)) {
+			printf("PC Engines WRAP.1C platfrom\n");
+			led1b = -2;
+			led2b = -3;
+			led3b = -18;
+			led1 = led_create(led_func, &led1b, "led1");
+			led2 = led_create(led_func, &led2b, "led2");
+			led3 = led_create(led_func, &led3b, "led3");
+			/*
+			 * Turn on first LED so we don't make people think
+			 * their box just died.
+			 */
+			led_func(&led1b, 1);
+		}
 	}
 	return (ENXIO);
 }
