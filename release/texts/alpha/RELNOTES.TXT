@@ -89,6 +89,9 @@ and enhancements.
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file.
 
+AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
+not want to boot from CD or floppy but a transplanted disk that was
+installed on another Alpha works well.
 
 2. Supported Configurations
 ---------------------------
