@@ -145,7 +145,7 @@ struct gsc_unit {
 #define OPEN     0x02
 #define READING  0x04
 #define EOF      0x08
-#define DEBUG    0x10
+#define FLAG_DEBUG  0x10
 #define PBM_MODE 0x20
   int     geometry;       /* resolution as geomtab index */
   int     blen;           /* length of buffer in lines */

@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.12 1995/12/15 00:29:27 bde Exp $
+ * $Id: asc.c,v 1.13 1995/12/16 21:32:19 bde Exp $
  */
 
 #include "asc.h"
@@ -165,7 +165,7 @@ struct asc_unit {
 #define SLEEPING	0x10
 #define SEL_COLL	0x20
 #define PBM_MODE	0x40
-#define DEBUG    	0x80
+#define FLAG_DEBUG    	0x80
   int     geometry;       /* resolution as geomtab index */
   int     linesize;       /* length of one scan line (from geom.table) */
   int     blen;           /* length of buffer in lines */
@@ -394,7 +394,7 @@ ascprobe (struct isa_device *isdp)
   int stb;
 
   scu->base = isdp->id_iobase; /*** needed by the following macros ***/
-  scu->flags = DEBUG;
+  scu->flags = FLAG_DEBUG;
 
   if ( isdp->id_iobase < 0 ) {
       lprintf("asc%d.probe: no iobase given\n", unit);
@@ -444,7 +444,7 @@ ascprobe (struct isa_device *isdp)
   asc_reset(scu);
 /*  lprintf("asc%d.probe: ok\n", unit); */
 
-  scu->flags &= ~DEBUG;
+  scu->flags &= ~FLAG_DEBUG;
   scu->icnt = 0;
   return PROBE_SUCCESS;
 }
@@ -464,7 +464,7 @@ ascattach(struct isa_device *isdp)
   char name[32];
 #endif
 
-  scu->flags |= DEBUG;
+  scu->flags |= FLAG_DEBUG;
   printf("asc%d: [GI1904/Trust Ami-Scan Grey, type S2]\n", unit);
 
   /* initialize buffer structure */
@@ -474,7 +474,7 @@ ascattach(struct isa_device *isdp)
 
   scu->flags |= ATTACHED;
 /*  lprintf("asc%d.attach: ok\n", unit); */
-  scu->flags &= ~DEBUG;
+  scu->flags &= ~FLAG_DEBUG;
 
 #ifdef FREEBSD_1_X
   scu->selp = (pid_t)0;
@@ -585,7 +585,7 @@ ascopen(dev_t dev, int flags, int fmt, struct proc *p)
   }
   scu->flags = ATTACHED | OPEN;      
 
-  if ( minor(dev) & DBUG_MASK ) scu->flags |= DEBUG;
+  if ( minor(dev) & DBUG_MASK ) scu->flags |= FLAG_DEBUG;
 
   switch(minor(dev) & FRMT_MASK) {
   case FRMT_PBM:
@@ -671,7 +671,7 @@ ascclose(dev_t dev, int flags, int fmt, struct proc *p)
   scu->sbuf.size = INVALID;
   scu->sbuf.rptr  = INVALID;
 
-  scu->flags &= ~(DEBUG | OPEN | READING);
+  scu->flags &= ~(FLAG_DEBUG | OPEN | READING);
   
   return SUCCESS;
 }
@@ -739,7 +739,7 @@ ascread(dev_t dev, struct uio *uio, int ioflag)
       if ( res == 0 ) res = SUCCESS;
   }
   splx(sps); /* lower priority... */
-  if (scu->flags & DEBUG)
+  if (scu->flags & FLAG_DEBUG)
       tsleep((caddr_t)scu, ASCPRI | PCATCH, "ascdly",hz);
   lprintf("asc%d.read(after): "
       "sz 0x%x, rptr 0x%x, wptr 0x%x, cnt 0x%x bcnt 0x%x flags 0x%x icnt %d\n",
