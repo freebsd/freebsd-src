@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.52 1998/05/11 03:55:24 dyson Exp $
+ * $Id: kern_descrip.c,v 1.53 1998/06/10 10:27:43 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -196,7 +196,7 @@ dup(p, uap)
 struct fcntl_args {
 	int	fd;
 	int	cmd;
-	int	arg;
+	long	arg;
 };
 #endif
 /* ARGSUSED */
@@ -291,7 +291,8 @@ fcntl(p, uap)
 			return (EBADF);
 		vp = (struct vnode *)fp->f_data;
 		/* Copy in the lock structure */
-		error = copyin((caddr_t)uap->arg, (caddr_t)&fl, sizeof (fl));
+		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
+		    sizeof(fl));
 		if (error)
 			return (error);
 		if (fl.l_whence == SEEK_CUR)
@@ -323,7 +324,8 @@ fcntl(p, uap)
 			return (EBADF);
 		vp = (struct vnode *)fp->f_data;
 		/* Copy in the lock structure */
-		error = copyin((caddr_t)uap->arg, (caddr_t)&fl, sizeof (fl));
+		error = copyin((caddr_t)(intptr_t)uap->arg, (caddr_t)&fl,
+		    sizeof(fl));
 		if (error)
 			return (error);
 		if (fl.l_type != F_RDLCK && fl.l_type != F_WRLCK &&
@@ -333,7 +335,8 @@ fcntl(p, uap)
 			fl.l_start += fp->f_offset;
 		if ((error = VOP_ADVLOCK(vp,(caddr_t)p,F_GETLK,&fl,F_POSIX)))
 			return (error);
-		return (copyout((caddr_t)&fl, (caddr_t)uap->arg, sizeof (fl)));
+		return (copyout((caddr_t)&fl, (caddr_t)(intptr_t)uap->arg,
+		    sizeof(fl)));
 
 	default:
 		return (EINVAL);
