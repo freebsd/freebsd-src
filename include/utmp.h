@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)utmp.h	8.2 (Berkeley) 1/21/94
- *	$Id$
+ *	$Id: utmp.h,v 1.2 1996/10/27 18:13:35 wosch Exp $
  */
 
 #ifndef	_UTMP_H_
@@ -46,7 +46,7 @@
 #define	_PATH_WTMP	"/var/log/wtmp"
 #define	_PATH_LASTLOG	"/var/log/lastlog"
 
-#define	UT_NAMESIZE	8	/* see MAXLOGNAME in <sys/param.h> */
+#define	UT_NAMESIZE	16	/* see MAXLOGNAME in <sys/param.h> */
 #define	UT_LINESIZE	8
 #define	UT_HOSTSIZE	16
 
