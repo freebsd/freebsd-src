@@ -113,7 +113,6 @@
 #undef		sendfile
 #undef		shutdown
 #undef		sigaltstack
-#undef		signanosleep
 #undef		sigpending
 #undef		sigreturn
 #undef		sigsetmask
