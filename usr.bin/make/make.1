@@ -596,10 +596,40 @@ special characters.
 The colon may be escaped with a backslash
 .Pq Ql \e .
 .Bl -tag -width Cm E\&
+.Sm off
+.It Cm C No \&/ Ar pattern Xo
+.No \&/ Ar replacement
+.No \&/ Op Cm 1g
+.Xc
+.Sm on
+The 
+.Cm C
+modifier is just like the
+.Cm S
+modifier except that the old and new strings, instead of being
+simple strings, are a regular expression (see
+.Xr regex 3 )
+and an
+.Xr ed 1 Ns \-style
+replacement string.  Normally, the first occurrence of the pattern in
+each word of the value is changed.  The
+.Ql 1
+modifier causes the substitution to apply to at most one word; the
+.Ql g
+modifier causes the substitution to apply to as many instances of the
+search pattern as occur in the word or words it is found in.  Note that
+.Ql 1
+and
+.Ql g
+are orthogonal; the former specifies whether multiple words are
+potentially affected, the latter whether multiple substitutions can
+potentially occur within each affected word.
 .It Cm E
 Replaces each word in the variable with its suffix.
 .It Cm H
 Replaces each word in the variable with everything but the last component.
+.It Cm L
+Converts variable to lower-case letters.
 .It Cm M Ns Ar pattern
 Select only those words that match the rest of the modifier.
 The standard shell wildcard characters
@@ -689,6 +719,8 @@ is the substring of
 .Ar old_string
 to be replaced in
 .Ar new_string
+.It Cm U
+Converts variable to upper-case letters.
 .El
 .Sh DIRECTIVES, CONDITIONALS, AND FOR LOOPS
 Directives, conditionals, and for loops reminiscent
