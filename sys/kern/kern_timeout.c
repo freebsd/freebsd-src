@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- *	$Id: kern_timeout.c,v 1.55 1998/05/17 20:08:04 bde Exp $
+ *	$Id: kern_timeout.c,v 1.56 1999/03/06 04:46:19 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -287,7 +287,7 @@ void
 callout_init(c)
 	struct	callout *c;
 {
-	bzero(c, sizeof c);
+	bzero(c, sizeof *c);
 }
 
 #ifdef APM_FIXUP_CALLTODO
