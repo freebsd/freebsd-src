@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -291,6 +291,13 @@ union pthread_wait_data {
  * Thread structure.
  */
 struct pthread {
+	/*
+	 * Magic value to help recognize a valid thread structure
+	 * from an invalid one:
+	 */
+#define	PTHREAD_MAGIC		((u_int32_t) 0xd09ba115)
+	u_int32_t		magic;
+
 	/*
 	 * Pointer to the next thread in the thread linked list.
 	 */
