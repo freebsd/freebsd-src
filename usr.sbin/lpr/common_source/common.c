@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -250,6 +251,138 @@ status_file_name(const struct printer *pp, char *buf, size_t len)
 		snprintf(buf, len, "%s/%s", pp->spool_dir, pp->status_file);
 
 	return buf;
+}
+
+/*
+ * Routine to change operational state of a print queue.  The operational
+ * state is indicated by the access bits on the lock file for the queue.
+ * At present, this is only called from various routines in lpc/cmds.c.
+ *
+ *  XXX - Note that this works by changing access-bits on the
+ *	file, and you can only do that if you are the owner of
+ *	the file, or root.  Thus, this won't really work for
+ *	userids in the "LPR_OPER" group, unless lpc is running
+ *	setuid to root (or maybe setuid to daemon).
+ *	Generally lpc is installed setgid to daemon, but does
+ *	not run setuid.
+ */
+int
+set_qstate(int action, const char *lfname)
+{
+	struct stat stbuf;
+	mode_t chgbits, newbits, oldmask;
+	const char *failmsg, *okmsg;
+	int chres, errsav, fd, res, statres;
+
+	/*
+	 * Find what the current access-bits are.
+	 */
+	memset(&stbuf, 0, sizeof(stbuf));
+	seteuid(euid);
+	statres = stat(lfname, &stbuf);
+	errsav = errno;
+	seteuid(uid);
+	if ((statres < 0) && (errsav != ENOENT)) {
+		printf("\tcannot stat() lock file\n");
+		return (SQS_STATFAIL);
+		/* NOTREACHED */
+	}
+
+	/*
+	 * Determine which bit(s) should change for the requested action.
+	 */
+	chgbits = stbuf.st_mode;
+	newbits = LOCK_FILE_MODE;
+	okmsg = NULL;
+	failmsg = NULL;
+	if (action & SQS_DISABLEQ) {
+		chgbits |= LFM_QUEUE_DIS;
+		newbits |= LFM_QUEUE_DIS;
+		okmsg = "queuing disabled";
+		failmsg = "disable queuing";
+	}
+	if (action & SQS_STOPP) {
+		chgbits |= LFM_PRINT_DIS;
+		newbits |= LFM_PRINT_DIS;
+		okmsg = "printing disabled";
+		failmsg = "disable printing";
+		if (action & SQS_DISABLEQ) {
+			okmsg = "printer and queuing disabled";
+			failmsg = "disable queuing and printing";
+		}
+	}
+	if (action & SQS_ENABLEQ) {
+		chgbits &= ~LFM_QUEUE_DIS;
+		newbits &= ~LFM_QUEUE_DIS;
+		okmsg = "queuing enabled";
+		failmsg = "enable queuing";
+	}
+	if (action & SQS_STARTP) {
+		chgbits &= ~LFM_PRINT_DIS;
+		newbits &= ~LFM_PRINT_DIS;
+		okmsg = "printing enabled";
+		failmsg = "enable printing";
+	}
+	if (okmsg == NULL) {
+		/* This routine was called with an invalid action. */
+		printf("\t<error in set_qstate!>\n");
+		return (SQS_PARMERR);
+		/* NOTREACHED */
+	}
+
+	res = 0;
+	if (statres >= 0) {
+		/* The file already exists, so change the access. */
+		seteuid(euid);
+		chres = chmod(lfname, chgbits);
+		errsav = errno;
+		seteuid(uid);
+		res = SQS_CHGOK;
+		if (res < 0)
+			res = SQS_CHGFAIL;
+	} else if (newbits == LOCK_FILE_MODE) {
+		/*
+		 * The file does not exist, but the state requested is
+		 * the same as the default state when no file exists.
+		 * Thus, there is no need to create the file.
+		 */
+		res = SQS_SKIPCREOK;
+	} else {
+		/*
+		 * The file did not exist, so create it with the
+		 * appropriate access bits for the requested action.
+		 * Push a new umask around that create, to make sure
+		 * all the read/write bits are set as desired.
+		 */
+		oldmask = umask(S_IWOTH);
+		seteuid(euid);
+		fd = open(lfname, O_WRONLY|O_CREAT, newbits);
+		errsav = errno;
+		seteuid(uid);
+		umask(oldmask);
+		res = SQS_CREFAIL;
+		if (fd >= 0) {
+			res = SQS_CREOK;
+			close(fd);
+		}
+	}
+
+	switch (res) {
+	case SQS_CHGOK:
+	case SQS_CREOK:
+	case SQS_SKIPCREOK:
+		printf("\t%s\n", okmsg);
+		break;
+	case SQS_CREFAIL:
+		printf("\tcannot create lock file: %s\n",
+		    strerror(errsav));
+		break;
+	default:
+		printf("\tcannot %s: %s\n", failmsg, strerror(errsav));
+		break;
+	}
+
+	return (res);
 }
 
 /* routine to get a current timestamp, optionally in a standard-fmt string */
