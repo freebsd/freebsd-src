@@ -67,7 +67,7 @@ pass1(void)
 	struct inodesc idesc;
 
 	/*
-	 * Set file system reserved blocks in used block map.
+	 * Set filesystem reserved blocks in used block map.
 	 */
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		cgd = cgdmin(&sblock, c);

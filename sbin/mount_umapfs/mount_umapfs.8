@@ -41,7 +41,7 @@
 .Os
 .Sh NAME
 .Nm mount_umapfs
-.Nd sample file system layer
+.Nd sample filesystem layer
 .Sh SYNOPSIS
 .Nm
 .Op Fl o Ar options
@@ -52,10 +52,10 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to mount a sub-tree of an existing file system
+command is used to mount a sub-tree of an existing filesystem
 that uses a different set of uids and gids than the local system.
-Such a file system could be mounted from a remote site via NFS or
-it could be a file system on removable media brought from some
+Such a filesystem could be mounted from a remote site via NFS or
+it could be a filesystem on removable media brought from some
 foreign location that uses a different password file.
 .Pp
 The
@@ -117,7 +117,7 @@ in the first line of the map files is not correct.
 .Pp
 The layer created by the
 .Nm
-command is meant to serve as a simple example of file system layering.
+command is meant to serve as a simple example of filesystem layering.
 It is not meant for production use.  The implementation is not very
 sophisticated.
 .Sh SEE ALSO

@@ -268,10 +268,10 @@ main(argc, argv)
 		rmslashes(*argv, *argv);
 		if ((fs = getfsfile(*argv)) == NULL &&
 		    (fs = getfsspec(*argv)) == NULL)
-			errx(1, "%s: unknown special file or file system",
+			errx(1, "%s: unknown special file or filesystem",
 			    *argv);
 		if (BADTYPE(fs->fs_type))
-			errx(1, "%s has unknown file system type",
+			errx(1, "%s has unknown filesystem type",
 			    *argv);
 		rval = mountfs(fs->fs_vfstype, fs->fs_spec, fs->fs_file,
 		    init_flags, options, fs->fs_mntops);
@@ -334,7 +334,7 @@ ismounted(fs, mntbuf, mntsize)
 	int i;
 
 	if (fs->fs_file[0] == '/' && fs->fs_file[1] == '\0')
-		/* the root file system can always be remounted */
+		/* the root filesystem can always be remounted */
 		return (0);
 
 	for (i = mntsize - 1; i >= 0; --i)

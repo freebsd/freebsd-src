@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm mount
-.Nd mount file systems
+.Nd mount filesystems
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfpruvw
@@ -58,7 +58,7 @@ calls the
 .Xr mount 2
 system call to prepare and graft a
 .Ar "special device"
-or the remote node (rhost:path) on to the file system tree at the point
+or the remote node (rhost:path) on to the filesystem tree at the point
 .Ar node .
 If either
 .Ar special
@@ -68,7 +68,7 @@ are not provided, the appropriate information is taken from the
 .Xr fstab 5
 file.
 .Pp
-The system maintains a list of currently mounted file systems.
+The system maintains a list of currently mounted filesystems.
 If no arguments are given to
 .Nm ,
 this list is printed.
@@ -111,7 +111,7 @@ The following options are available:
 .It Cm async
 All
 .Tn I/O
-to the file system should be done asynchronously.
+to the filesystem should be done asynchronously.
 This is a
 .Em dangerous
 flag to set,
@@ -157,12 +157,12 @@ Disable read clustering.
 .It Cm noclusterw
 Disable write clustering.
 .It Cm nodev
-Do not interpret character or block special devices on the file system.
-This option is useful for a server that has file systems containing
+Do not interpret character or block special devices on the filesystem.
+This option is useful for a server that has filesystems containing
 special devices for architectures other than its own.
 .It Cm noexec
-Do not allow execution of any binaries on the mounted file system.
-This option is useful for a server that has file systems containing
+Do not allow execution of any binaries on the mounted filesystem.
+This option is useful for a server that has filesystems containing
 binaries for architectures other than its own.
 .It Cm nosuid
 Do not allow set-user-identifier or set-group-identifier bits to take effect.
@@ -172,15 +172,15 @@ wrapper like
 is installed on your system.
 .It Cm nosymfollow
 Do not follow symlinks
-on the mounted file system.
+on the mounted filesystem.
 .It Cm rdonly
 The same as
 .Fl r ;
-mount the file system read-only (even the super-user may not write it).
+mount the filesystem read-only (even the super-user may not write it).
 .It Cm sync
 All
 .Tn I/O
-to the file system should be done synchronously.
+to the filesystem should be done synchronously.
 .It Cm suiddir
 A directory on the mounted filesystem will respond to the SUID bit
 being set, by setting the owner of any new files to be the same
@@ -202,7 +202,7 @@ for more information.
 .It Cm update
 The same as
 .Fl u ;
-indicate that the status of an already mounted file system should be changed.
+indicate that the status of an already mounted filesystem should be changed.
 .It Cm union
 Causes the namespace at the mount point to appear as the union
 of the mounted filesystem root and the existing directory.
@@ -250,8 +250,8 @@ Implies also the
 .Fl v
 option.
 .It Fl r
-The file system is to be mounted read-only.
-Mount the file system read-only (even the super-user may not write it).
+The filesystem is to be mounted read-only.
+Mount the filesystem read-only (even the super-user may not write it).
 The same as the
 .Cm rdonly
 argument to the
@@ -260,7 +260,7 @@ option.
 .It Fl t Ar ufs | external_type
 The argument following the
 .Fl t
-is used to indicate the file system type.
+is used to indicate the filesystem type.
 The type
 .Ar ufs
 is the default.
@@ -322,7 +322,7 @@ Any of the options discussed above (the
 .Fl o
 option)
 may be changed;
-also a file system can be changed from read-only to read-write
+also a filesystem can be changed from read-only to read-write
 or vice versa.
 An attempt to change from read-write to read-only will fail if any
 files on the filesystem are currently open for writing unless the
@@ -339,7 +339,7 @@ option.
 .It Fl v
 Verbose mode.
 .It Fl w
-The file system object is to be read and write.
+The filesystem object is to be read and write.
 .El
 .Sh DIAGNOSTICS
 Various, most of them are self-explanatory.
@@ -361,7 +361,7 @@ have permission to load the module.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-file system table
+filesystem table
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
@@ -388,13 +388,13 @@ file system table
 .Xr mount_unionfs 8 ,
 .Xr umount 8
 .Sh BUGS
-It is possible for a corrupted file system to cause a crash.
+It is possible for a corrupted filesystem to cause a crash.
 .Sh CAVEATS
 After a successful
 .Nm ,
 the permissions on the original mount point determine if
 .Pa ..\&
-is accessible from the mounted file system.
+is accessible from the mounted filesystem.
 The minimum permissions for
 the mount point for traversal across the mount point in both
 directions to be possible for all users is 0111 (execute for all).

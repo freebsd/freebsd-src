@@ -919,8 +919,8 @@ get_exportlist()
 
 	/*
 	 * And delete exports that are in the kernel for all local
-	 * file systems.
-	 * XXX: Should know how to handle all local exportable file systems
+	 * filesystems.
+	 * XXX: Should know how to handle all local exportable filesystems
 	 *      instead of just "ufs".
 	 */
 	num = getmntinfo(&fsp, MNT_NOWAIT);
@@ -1780,7 +1780,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		 * Maybe I should just use the fsb->f_mntonname path instead
 		 * of looping back up the dirp to the mount point??
 		 * Also, needs to know how to export all types of local
-		 * exportable file systems and not just "ufs".
+		 * exportable filesystems and not just "ufs".
 		 */
 		while (mount(fsb->f_fstypename, dirp,
 		    fsb->f_flags | MNT_UPDATE, (caddr_t)&args) < 0) {

@@ -46,7 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 /*
- * tunefs: change layout parameters to an existing file system.
+ * tunefs: change layout parameters to an existing filesystem.
  */
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -219,7 +219,7 @@ again:
 		err(1, "%s", special);
 	}
 	if (fs == NULL && (st.st_mode & S_IFMT) == S_IFDIR)
-		errx(10, "%s: unknown file system", special);
+		errx(10, "%s: unknown filesystem", special);
 	getsb(&sblock, special);
 
 	if (pflag) {
@@ -343,7 +343,7 @@ again:
 		if (mount("ufs", fs->fs_file,
 		    stfs.f_flags | MNT_UPDATE | MNT_RELOAD, &args) < 0)
 			err(9, "%s: reload", special);
-		warnx("file system reloaded");
+		warnx("filesystem reloaded");
 	}
 	exit(0);
 }
