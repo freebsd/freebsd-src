@@ -1,24 +1,23 @@
-#
 # $FreeBSD$
-#
-SRCS+=		aout32.c	\
-		cpu-sparc.c	\
-		elf32-sparc.c	\
-		elf32-target.h	\
-		elf32.c		\
-		elf64-sparc.c	\
-		elf64-target.h	\
-		elf64.c		\
-		elflink.c	\
-		sparcnetbsd.c	\
-		sunos.c
-VECS+=		bfd_elf32_sparc_vec bfd_elf64_sparc_vec sparcnetbsd_vec \
-		sunos_big_vec
+
+SRCS+=	aout32.c	\
+	cpu-sparc.c	\
+	elf32-sparc.c	\
+	elf32-target.h	\
+	elf32.c		\
+	elf64-sparc.c	\
+	elf64-target.h	\
+	elf64.c		\
+	elflink.c	\
+	sparcnetbsd.c	\
+	sunos.c
+VECS+=	bfd_elf32_sparc_vec bfd_elf64_sparc_vec sparcnetbsd_vec sunos_big_vec
+
 .if ${TARGET_ARCH} == "sparc64"
-CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf64_sparc_vec
+CFLAGS+= -DDEFAULT_VECTOR=bfd_elf64_sparc_vec
 .endif
-CFLAGS+=	-DHAVE_bfd_elf32_sparc_vec -DHAVE_bfd_elf64_sparc_vec \
-		-DHAVE_sparcnetbsd_vec -DHAVE_sunos_big_vec
+CFLAGS+= -DHAVE_bfd_elf32_sparc_vec -DHAVE_bfd_elf64_sparc_vec \
+	 -DHAVE_sparcnetbsd_vec -DHAVE_sunos_big_vec
 CLEANFILES+=	elf32-target.h elf64-target.h
 
 elf32-target.h:	elfxx-target.h
