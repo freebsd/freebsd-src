@@ -25,7 +25,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.7 1994/09/16 13:33:17 davidg Exp $
+ *	$Id: io.c,v 1.8 1994/09/18 07:39:55 swallace Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -139,9 +139,20 @@ getchar()
 }
 
 #if BOOTWAIT
-spinwait(i)
-int i;
+/*
+ * This routine uses an inb to an unused port, the time to execute that
+ * inb is approximately 1.25uS.  This value is pretty constant across
+ * all CPU's and all buses, with the exception of some PCI implentations
+ * that do not forward this I/O adress to the ISA bus as they know it
+ * is not a valid ISA bus address, those machines execute this inb in
+ * 60 nS :-(.
+ *
+ * XXX we need to use BIOS timer calls or something more reliable to
+ * produce timeouts in the boot code.
+ */
+delay1ms()
 {
+	int i = 800;
 	while (--i >= 0)
 		(void)inb(0x84);
 }
@@ -154,7 +165,7 @@ char *buf;
 	char *ptr=buf;
 
 #if BOOTWAIT
-	for (i = BOOTWAIT; i>0; spinwait(10000),i--)
+	for (i = BOOTWAIT; i>0; delay1ms(),i--)
 #endif
 		if (ischar())
 			for (;;)
