@@ -8,6 +8,7 @@ MAN=	adding_user.8 \
 	picobsd.8 \
 	rc.8 \
 	rc.sendmail.8 \
+	rc.subr.8 \
 	sticky.8 \
 	yp.8
 
