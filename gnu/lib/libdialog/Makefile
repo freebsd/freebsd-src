@@ -20,7 +20,7 @@ CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 LDADD=	-lncurses
 DPADD=	${LIBNCURSES}
 
-.if !defined(NOHTML)
+.if !defined(NO_HTML)
 FILES=	${EXAMPLES:C;^;${.CURDIR}/TESTS/;}
 FILESDIR= ${SHAREDIR}/examples/libdialog
 .endif
