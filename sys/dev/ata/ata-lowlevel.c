@@ -493,7 +493,7 @@ ata_end_transaction(struct ata_request *request)
 static void
 ata_generic_reset(struct ata_channel *ch)
 {
-    u_int8_t err, lsb, msb, ostat0, ostat1;
+    u_int8_t err = 0, lsb = 0, msb = 0, ostat0, ostat1;
     u_int8_t stat0 = 0, stat1 = 0;
     int mask = 0, timeout;
 
@@ -602,17 +602,21 @@ ata_generic_reset(struct ata_channel *ch)
 	    }
 	}
 	if (mask == 0x01)	/* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 5))
+	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 5) ||
+		(stat0 == err && lsb == err && msb == err && timeout > 5))
 		break;
 	if (mask == 0x02)	/* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 5))
+	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 5) ||
+		(stat1 == err && lsb == err && msb == err && timeout > 5))
 		break;
 	if (mask == 0x03) {	/* wait for both master & slave */
 	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
-	    if (stat0 == 0xff && timeout > 5)
+	    if ((stat0 == 0xff && timeout > 5) ||
+		(stat0 == err && lsb == err && msb == err && timeout > 5))
 		mask &= ~0x01;
-	    if (stat1 == 0xff && timeout > 5)
+	    if ((stat1 == 0xff && timeout > 5) ||
+		(stat1 == err && lsb == err && msb == err && timeout > 5))
 		mask &= ~0x02;
 	}
 	ata_udelay(100000);
