@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	digictl
-MAN=	digictl.8
-
 WARNS?=	2
+MAN=	digictl.8
 
 .include <bsd.prog.mk>
