@@ -563,7 +563,12 @@ show_var(int *oid, int nlen)
 			fputs(val, stdout);
 			if(*fmt == 'U')
 				printf(hflag ? "%'u" : "%u", *(unsigned int *)p);
-			else
+			else if (*fmt == 'K') {
+				if (*(int *)p < 0)
+					printf("%d", *(int *)p);
+				else
+					printf("%d.%dC", (*(int *)p - 2732) / 10, (*(int *)p - 2732) % 10);
+			} else
 				printf(hflag ? "%'d" : "%d", *(int *)p);
 			val = " ";
 			len -= sizeof(int);
@@ -580,7 +585,12 @@ show_var(int *oid, int nlen)
 			fputs(val, stdout);
 			if(*fmt == 'U')
 				printf(hflag ? "%'lu" : "%lu", *(unsigned long *)p);
-			else
+			else if (*fmt == 'K') {
+				if (*(long *)p < 0)
+					printf("%ld", *(long *)p);
+				else
+					printf("%ld.%ldC", (*(long *)p - 2732) / 10, (*(long *)p - 2732) % 10);
+			} else
 				printf(hflag ? "%'ld" : "%ld", *(long *)p);
 			val = " ";
 			len -= sizeof(long);
