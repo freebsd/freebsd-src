@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Søren Schmidt
+ * Copyright (c) 1999,2000 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,9 @@
  *
  * $FreeBSD$
  */
+
+#ifndef _SYS_DVDIO_H_
+#define _SYS_DVDIO_H_
 
 struct dvd_layer {
 	u_int8_t book_type	:4;
@@ -70,10 +73,6 @@ struct dvd_authinfo {
 	u_char keychal[10];
 };
 
-#define DVDIOCREPORTKEY		_IOWR('c', 32, struct dvd_authinfo)
-#define DVDIOCSENDKEY		_IOWR('c', 33, struct dvd_authinfo)
-#define DVDIOCREADSTRUCTURE	_IOWR('c', 34, struct dvd_struct)
-
 #define DVD_STRUCT_PHYSICAL	0x00
 #define DVD_STRUCT_COPYRIGHT	0x01
 #define DVD_STRUCT_DISCKEY	0x02
@@ -101,3 +100,9 @@ struct dvd_authinfo {
 #define DVD_SEND_CHALLENGE	1
 #define DVD_SEND_KEY2		3
 #define DVD_SEND_RPC		6
+
+#define DVDIOCREPORTKEY		_IOWR('c', 200, struct dvd_authinfo)
+#define DVDIOCSENDKEY		_IOWR('c', 201, struct dvd_authinfo)
+#define DVDIOCREADSTRUCTURE	_IOWR('c', 202, struct dvd_struct)
+
+#endif _SYS_DVDIO_H_
