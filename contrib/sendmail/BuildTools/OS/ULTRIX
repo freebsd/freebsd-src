@@ -1,0 +1,10 @@
+#	@(#)ULTRIX	8.7	(Berkeley)	3/12/98
+define(`confCC', `cc -Olimit 950')
+define(`confMAPDEF', `-DNDBM -DNIS')
+define(`confENVDEF', `-DIDENTPROTO=0 ')
+define(`confMBINDIR', `/usr/lib')
+define(`confSBINDIR', `/usr/etc')
+define(`confUBINDIR', `/usr/ucb')
+define(`confEBINDIR', `/usr/lib')
+define(`confHFDIR', `/usr/lib')
+define(`confDEPEND_TYPE', `CC-M')
