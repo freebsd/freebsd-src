@@ -25,11 +25,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $FreeBSD$
+.\" $FreeBSD$
 .\"
-.Dd Aug 11, 1999
+.Dd August 11, 1999
 .Dt TIMERADD 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm timeradd ,
 .Nm timersub ,
@@ -38,30 +38,28 @@
 .Nm timercmp
 .Nd operations on timevals
 .Sh SYNOPSIS
-.Fd #include <sys/time.h>
-.Fn timeradd "&tvp" "&uvp" "&vvp"
-.Fn timersub "&tvp" "&uvp" "&vvp"
-.Fn timerclear "&tvp"
-.Fn timerisset "&tvp"
-.Fn timercmp "&tvp" "&uvp" "cmp"
+.In sys/time.h
+.Ft void
+.Fn timeradd "struct timeval *a" "struct timeval *b" "struct timeval *res"
+.Ft void
+.Fn timersub "struct timeval *a" "struct timeval *b" "struct timeval *res"
+.Ft void
+.Fn timerclear "struct timeval *tvp"
+.Ft int
+.Fn timerisset "struct timeval *tvp"
+.Ft int
+.Fn timercmp "struct timeval *a" "struct timeval *b" CMP
 .Sh DESCRIPTION
-.Pp
 These macros are provided for manipulating
 .Fa timeval
 structures for use with the
-.Fn gettimeofday
+.Xr gettimeofday 2
 and
-.Fn settimeofday
+.Xr settimeofday 2
 calls.
-The structures pointed to by
-.Fa tvp ,
-.Fa uvp ,
-and
-.Fa vvp
-are defined in 
-.Ao Pa sys/time.h Ac
+The structure is defined in
+.Aq Pa sys/time.h
 as:
-.Pp
 .Bd -literal
 struct timeval {
 	long	tv_sec;		/* seconds since Jan. 1, 1970 */
@@ -71,26 +69,26 @@ struct timeval {
 .Pp
 .Fn timeradd
 adds the time information stored in
-.Fa uvp
+.Fa a
 to
-.Fa tvp
+.Fa b
 and stores the resulting
-.Fa timeval
+.Vt timeval
 in
-.Fa vvp .
+.Fa res .
 The results are simplified such that the value of
-.Fa vvp->tv_usec
+.Fa res->tv_usec
 is always less than 1,000,000 (1 second).
 .Pp
 .Fn timersub
 subtracts the time information stored in
-.Fa uvp
+.Fa b
 from
-.Fa tvp
+.Fa a
 and stores the resulting
-.Fa timeval
+.Vt timeval
 in
-.Fa vvp .
+.Fa res .
 .Pp
 .Fn timerclear
 initializes
@@ -104,14 +102,14 @@ is set to any time value other than the Epoch.
 .Pp
 .Fn timercmp
 compares
-.Fa tvp
+.Fa a
 to
-.Fa uvp
+.Fa b
 using the comparison operator given in
-.Fa cmp
+.Fa CMP ,
 and returns the result of that comparison.
 .Sh SEE ALSO
-.Xr gettimeofday 2 
+.Xr gettimeofday 2
 .Sh HISTORY
 The
 .Fn timeradd
