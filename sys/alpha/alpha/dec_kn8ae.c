@@ -36,6 +36,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
+#include <sys/cons.h>
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
@@ -82,7 +83,5 @@ dec_kn8ae_init(int cputype)
 static void
 dec_kn8ae_cons_init(void)
 {
-#ifdef SIMOS
-    zs_cnattach(TLSB_GBUS_BASE, GBUS_DUART0_OFFSET);
-#endif
+	zs_cnattach(TLSB_GBUS_BASE, GBUS_DUART0_OFFSET);
 }
