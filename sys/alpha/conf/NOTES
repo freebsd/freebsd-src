@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.12 1998/10/30 01:37:33 jkh Exp $
+#	$Id: GENERIC,v 1.13 1998/12/29 03:59:49 gpalmer Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -22,6 +22,7 @@ maxusers	10
 # Platforms supported
 options		"DEC_AXPPCI_33"		# UDB, Multia, AXPpci33, Noname
 options		"DEC_EB164"		# EB164, PC164, PC164LX, PC164SX
+options		"DEC_EB64PLUS"		# EB64+, Aspen Alpine, etc
 options		"DEC_2100_A50"		# AlphaStation 200, 250, 255, 400
 options		"DEC_KN20AA"		# AlphaStation 500, 600
 options		"DEC_ST550"		# Personal Workstation 433, 500, 600
