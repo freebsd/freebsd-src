@@ -32,8 +32,7 @@ MLINKS+=	fpgetround.3 fpgetmask.3 \
 		fpgetround.3 fpresetsticky.3 \
 		fpgetround.3 fpsetmask.3 \
 		fpgetround.3 fpsetprec.3 \
-		fpgetround.3 fpsetround.3 \
-		fpgetround.3 fpsetsticky.3
+		fpgetround.3 fpsetround.3
 MLINKS+=	${PTHREAD_MLINKS}
 MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_ENTRY.3 \

@@ -2,7 +2,7 @@
 
 SRCS+=	_setjmp.S _set_tp.c fabs.S infinity.c ldexp.c modf.c setjmp.S
 SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \
-	fpsetround.c fpsetsticky.c
+	fpsetround.c
 
 SRCS+=	sigsetjmp.S
 SRCS+=	__divqu.S __divq.S __divlu.S __divl.S
