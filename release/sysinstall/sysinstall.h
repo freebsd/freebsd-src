@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.13 1995/05/08 10:20:56 jkh Exp $
+ * $Id: sysinstall.h,v 1.14 1995/05/08 21:39:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,7 @@
 #include <unistd.h>
 #include <dialog.h>
 #include "libdisk.h"
+#include "dist.h"
 
 /*** Defines ***/
 
@@ -58,49 +59,7 @@
 #define DMENU_RADIO_TYPE	0x2	/* Radio dialog menu		*/
 #define DMENU_MULTIPLE_TYPE	0x4	/* Multiple choice menu		*/
 #define DMENU_SELECTION_RETURNS	0x8	/* Select item then exit	*/
-
-/* Bitfields for distributions - hope we never have more than 32! :-) */
-#define DIST_BIN		0x1
-#define DIST_GAMES		0x2
-#define DIST_MANPAGES		0x4
-#define DIST_PROFLIBS		0x8
-#define DIST_DICT		0x10
-#define DIST_SRC		0x20
-#define DIST_DES		0x40
-#define DIST_COMPAT1X		0x80
-#define DIST_XFREE86		0x100
-#define DIST_ALL		0xFFF
-
-/* Canned distribution sets */
-#define _DIST_DEVELOPER \
-	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_PROFLIBS | DIST_SRC)
-
-#define _DIST_XDEVELOPER \
-	(_DIST_DEVELOPER | DIST_XFREE86)
-
-#define _DIST_USER \
-	(DIST_BIN | DIST_MANPAGES | DIST_DICT | DIST_COMPAT1X)
-
-#define _DIST_XUSER \
-	(_DIST_USER | DIST_XFREE86)
-
-
-/* Subtypes for SRC distribution */
-#define DIST_SRC_BASE		0x1
-#define DIST_SRC_GNU		0x2
-#define DIST_SRC_ETC		0x4
-#define DIST_SRC_GAMES		0x8
-#define DIST_SRC_INCLUDE	0x10
-#define DIST_SRC_LIB		0x20
-#define DIST_SRC_LIBEXEC	0x40
-#define DIST_SRC_LKM		0x80
-#define DIST_SRC_RELEASE	0x100
-#define DIST_SRC_SBIN		0x200
-#define DIST_SRC_SHARE		0x400
-#define DIST_SRC_SYS		0x800
-#define DIST_SRC_UBIN		0x1000
-#define DIST_SRC_USBIN		0x2000
-#define DIST_SRC_ALL		0xFFFF
+#define DMENU_CALL_FIRST	0x10	/* In multiple, use one handler */
 
 /* variable limits */
 #define VAR_NAME_MAX		128
@@ -108,9 +67,6 @@
 
 /* device limits */
 #define DEV_NAME_MAX		128
-
-/* handy */
-#define ONE_MEG			1048576
 
 
 /*** Types ***/
@@ -123,6 +79,7 @@ typedef enum {
     DMENU_SYSTEM_COMMAND,		/* Run shell commmand		*/
     DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
     DMENU_SET_VARIABLE,			/* Set an environment/system var */
+    DMENU_SET_FLAG,			/* Set flag in an unsigned int	*/
     DMENU_CALL,				/* Call back a C function	*/
     DMENU_CANCEL,			/* Cancel out of this menu	*/
     DMENU_NOP,				/* Do nothing special for item	*/
@@ -133,6 +90,7 @@ typedef struct _dmenuItem {
     char *prompt;			/* Our prompt			*/
     DMenuItemType type;			/* What type of item we are	*/
     void *ptr;				/* Generic data ptr		*/
+    u_long parm;			/* Parameter for above		*/
     Boolean disabled;			/* Are we temporarily disabled?	*/
 } DMenuItem;
 
@@ -200,6 +158,9 @@ extern Boolean		OnVTY;    /* On a syscons VTY?			*/
 extern Variable		*VarHead; /* The head of the variable chain	*/
 extern unsigned int	Dists;    /* Which distributions we want        */
 extern unsigned int	SrcDists; /* Which src distributions we want    */
+extern unsigned int	XF86Dists;/* Which XFree86 dists we want	*/
+extern unsigned int	XF86ServerDists; /* The XFree86 servers we want */
+extern unsigned int	XF86FontDists; /* The XFree86 fonts we want     */
 extern struct disk	*Disks[]; /* The disks we're working on		*/
 
 /*** Prototypes ***/
@@ -209,6 +170,11 @@ extern void	command_clear(void);
 extern void	command_sort(void);
 extern void	command_execute(void);
 extern void	command_add(char *key, char *fmt, ...);
+
+/* decode.c */
+extern DMenuItem *decode(DMenu *menu, char *name);
+extern Boolean	dispatch(DMenuItem *tmp, char *name);
+extern Boolean	decode_and_dispatch_multiple(DMenu *menu, char *names);
 
 /* devices.c */
 extern struct disk	*device_slice_disk(struct disk *d);
@@ -230,6 +196,8 @@ extern int	distSetUser(char *str);
 extern int	distSetXUser(char *str);
 extern int	distSetMinimum(char *str);
 extern int	distSetEverything(char *str);
+extern int	distSetSrc(char *str);
+extern void	distExtractAll(void);
 
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
@@ -257,17 +225,17 @@ extern void	lang_set_Spanish(char *str);
 extern void	lang_set_Swedish(char *str);
 
 /* makedevs.c (auto-generated) */
-extern const char termcap_vt100[];
-extern const char termcap_cons25[];
-extern const char termcap_cons25_m[];
-extern const char termcap_cons25r[];
-extern const char termcap_cons25r_m[];
-extern const char termcap_cons25l1[];
-extern const char termcap_cons25l1_m[];
-extern const u_char font_iso_8x14[];
-extern const u_char font_cp850_8x14[];
-extern const u_char font_koi8_r_8x14[];
-extern const u_char koi8_r2cp866[];
+extern const char	termcap_vt100[];
+extern const char	termcap_cons25[];
+extern const char	termcap_cons25_m[];
+extern const char	termcap_cons25r[];
+extern const char	termcap_cons25r_m[];
+extern const char	termcap_cons25l1[];
+extern const char	termcap_cons25l1_m[];
+extern const u_char	font_iso_8x14[];
+extern const u_char	font_cp850_8x14[];
+extern const u_char	font_koi8_r_8x14[];
+extern const u_char	koi8_r2cp866[];
 
 /* media.c */
 extern int	mediaSetCDROM(char *str);
