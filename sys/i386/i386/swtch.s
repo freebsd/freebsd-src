@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.82 1999/06/01 18:19:45 jlemon Exp $
+ *	$Id: swtch.s,v 1.83 1999/07/03 06:33:24 alc Exp $
  */
 
 #include "npx.h"
@@ -480,6 +480,26 @@ ENTRY(cpu_switch)
 	movl	%edi,PCB_EDI(%edx)
 	movl	%gs,PCB_GS(%edx)
 
+	/* test if debug regisers should be saved */
+	movb    PCB_FLAGS(%edx),%al
+	andb    $PCB_DBREGS,%al
+	jz      1f                              /* no, skip over */
+	movl    %dr7,%eax                       /* yes, do the save */
+	movl    %eax,PCB_DR7(%edx)
+	andl    $0x0000ff00, %eax               /* disable all watchpoints */
+	movl    %eax,%dr7
+	movl    %dr6,%eax
+	movl    %eax,PCB_DR6(%edx)
+	movl    %dr3,%eax
+	movl    %eax,PCB_DR3(%edx)
+	movl    %dr2,%eax
+	movl    %eax,PCB_DR2(%edx)
+	movl    %dr1,%eax
+	movl    %eax,PCB_DR1(%edx)
+	movl    %dr0,%eax
+	movl    %eax,PCB_DR0(%edx)
+1:
+ 
 #ifdef SMP
 	movl	_mp_lock, %eax
 	/* XXX FIXME: we should be saving the local APIC TPR */
@@ -717,6 +737,24 @@ swtch_com:
 	.globl	cpu_switch_load_gs
 cpu_switch_load_gs:
 	movl	PCB_GS(%edx),%gs
+
+	/* test if debug regisers should be restored */
+	movb    PCB_FLAGS(%edx),%al
+	andb    $PCB_DBREGS,%al
+	jz      1f                              /* no, skip over */
+	movl    PCB_DR6(%edx),%eax              /* yes, do the restore */
+	movl    %eax,%dr6
+	movl    PCB_DR3(%edx),%eax
+	movl    %eax,%dr3
+	movl    PCB_DR2(%edx),%eax
+	movl    %eax,%dr2
+	movl    PCB_DR1(%edx),%eax
+	movl    %eax,%dr1
+	movl    PCB_DR0(%edx),%eax
+	movl    %eax,%dr0
+	movl    PCB_DR7(%edx),%eax
+	movl    %eax,%dr7
+1:
 
 	sti
 	ret

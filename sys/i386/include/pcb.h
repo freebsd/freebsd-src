@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.27 1999/04/28 01:04:05 luoqi Exp $
+ *	$Id: pcb.h,v 1.28 1999/06/01 18:20:06 jlemon Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -54,11 +54,20 @@ struct pcb {
 	int	pcb_esp;
 	int	pcb_ebx;
 	int	pcb_eip;
+
+	int     pcb_dr0;
+	int     pcb_dr1;
+	int     pcb_dr2;
+	int     pcb_dr3;
+	int     pcb_dr6;
+	int     pcb_dr7;
+
 	caddr_t	pcb_ldt;		/* per process (user) LDT */
 	int	pcb_ldt_len;		/* number of LDT entries */
 	struct	save87	pcb_savefpu;	/* floating point state for 287/387 */
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
+#define	PCB_DBREGS	0x02	/* process using debug registers */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 #ifdef SMP
 	u_long	pcb_mpnest;
