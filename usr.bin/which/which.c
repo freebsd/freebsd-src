@@ -129,7 +129,7 @@ print_matches(char *path, char *filename)
 	const char *d;
 	int found;
 
-	if (*filename == '/')
+	if (strchr(filename, '/') != NULL)
 		return (is_there(filename) ? 0 : -1);
 	found = 0;
 	while ((d = strsep(&path, ":")) != NULL) {
