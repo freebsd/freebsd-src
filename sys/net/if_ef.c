@@ -521,12 +521,11 @@ ef_load(void)
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s%d\n", ifp->if_name, ifp->if_unit);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
-		    M_IFADDR, M_WAITOK);
+		    M_IFADDR, M_WAITOK | M_ZERO);
 		if (efl == NULL) {
 			error = ENOMEM;
 			break;
 		}
-		bzero(efl, sizeof(*efl));
 
 		efl->el_ifp = ifp;
 #ifdef ETHER_II
