@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.4 1995/05/03 18:09:09 dufault Exp $
+ *      $Id: pt.c,v 1.5 1995/05/30 08:13:23 rgrimes Exp $
  */
 
 /*
@@ -57,7 +57,7 @@ struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
 };
 
-void ptstart(u_int32 unit, u_int32 flags);
+void ptstart(u_int32_t unit, u_int32_t flags);
 void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
 int	pt_sense(struct scsi_xfer *scsi_xfer);
 
@@ -101,8 +101,8 @@ struct scsi_device pt_switch =
  */
 void
 ptstart(unit, flags)
-	u_int32	unit;
-	u_int32 flags;
+	u_int32_t	unit;
+	u_int32_t flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&pt_switch, unit);
 	struct scsi_data *pt = sc_link->sd;
@@ -175,7 +175,7 @@ pt_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
 	unsigned char unit;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *pt;
 
 	unit = minor((bp->b_dev));
@@ -233,7 +233,7 @@ int pt_sense(struct scsi_xfer *xs)
 		return SCSIRET_CONTINUE;	/* let the default handler handle it */
 	}
 
-	resid = ntohl(*((int32 *) sense->ext.extended.info));
+	resid = ntohl(*((int32_t *) sense->ext.extended.info));
 
  	bp = xs->bp;
 

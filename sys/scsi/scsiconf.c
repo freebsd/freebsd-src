@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.3 1995/08/31 06:36:25 davidg Exp $
+ *      $Id: scsiconf.c,v 1.30.4.4 1995/10/10 00:42:02 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -148,7 +148,7 @@ struct extend_array *scbusses;
  * The structure of known drivers for autoconfiguration
  */
 struct scsidevs {
-	u_int32 type;
+	u_int32_t type;
 	boolean removable;
 	char   *manufacturer;
 	char   *model;
@@ -156,7 +156,7 @@ struct scsidevs {
 	char   *devname;
 	char    flags;		/* 1 show my comparisons during boot(debug) */
 #ifdef NEW_SCSICONF
-	u_int16	quirks;
+	u_int16_t	quirks;
 	void   *devmodes;
 #endif
 };
@@ -721,7 +721,7 @@ scsi_probe_busses(int bus, int targ, int lun)
 static int
 scsi_alloc_unit(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	struct scsi_data *sd;
 	struct scsi_device *dsw;
 
@@ -916,7 +916,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 	struct scsibus_data *scsibus_data ;
 	int	maxtarg,mintarg,maxlun,minlun;
 	struct scsi_link *sc_link_proto;
-	u_int8  scsi_addr ;
+	u_int8_t  scsi_addr ;
 	struct scsidevs *bestmatch = NULL;
 	struct scsi_link *sc_link = NULL;
 	boolean maybe_more;
@@ -1058,14 +1058,14 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	struct scsi_link *sc_link;
 	int *type_p;
 {
-	u_int8  target = sc_link->target;
-	u_int8  lu = sc_link->lun;
+	u_int8_t  target = sc_link->target;
+	u_int8_t  lu = sc_link->lun;
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	int    dtype = 0;
 	char   *desc;
 	char   *qtype;
 	struct scsi_inquiry_data *inqbuf;
-	u_int32 len, qualifier, type;
+	u_int32_t len, qualifier, type;
 	boolean remov;
 	char    manu[8 + 1];
 	char    model[16 + 1];
@@ -1270,7 +1270,7 @@ match(pattern, name)
  */
 struct scsidevs *
 scsi_selectdev(qualifier, type, remov, manu, model, rev)
-	u_int32 qualifier, type;
+	u_int32_t qualifier, type;
 	boolean remov;
 	char   *manu, *model, *rev;
 {
@@ -1308,9 +1308,9 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 		break;
 	}
 #else
-	u_int32 numents = (sizeof(knowndevs) / sizeof(struct scsidevs)) - 1;
-	u_int32 count = 0;
-	u_int32 bestmatches = 0;
+	u_int32_t numents = (sizeof(knowndevs) / sizeof(struct scsidevs)) - 1;
+	u_int32_t count = 0;
+	u_int32_t bestmatches = 0;
 	struct scsidevs *bestmatch = (struct scsidevs *) 0;
 	struct scsidevs *thisentry = knowndevs;
 

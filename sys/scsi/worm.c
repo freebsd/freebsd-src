@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.7 1995/05/30 08:13:58 rgrimes Exp $
+ *      $Id: worm.c,v 1.7.4.1 1995/10/10 00:42:03 davidg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -62,11 +62,11 @@
 struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
 
-	u_int32 n_blks;				/* Number of blocks (0 for bogus) */
-	u_int32 blk_size;			/* Size of each blocks */
+	u_int32_t n_blks;				/* Number of blocks (0 for bogus) */
+	u_int32_t blk_size;			/* Size of each blocks */
 };
 
-void wormstart(u_int32 unit, u_int32 flags);
+void wormstart(u_int32_t unit, u_int32_t flags);
 
 errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link);
@@ -160,8 +160,8 @@ wormattach(struct scsi_link *sc_link)
  */
 void
 wormstart(unit, flags)
-	u_int32	unit;
-	u_int32 flags;
+	u_int32_t	unit;
+	u_int32_t flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&worm_switch, unit);
 	struct scsi_data *worm = sc_link->sd;
@@ -180,8 +180,8 @@ wormstart(unit, flags)
 		u_char	ctl;
 	} cmd;
 
-	u_int32 lba;	/* Logical block address */
-	u_int32 tl;		/* Transfer length */
+	u_int32_t lba;	/* Logical block address */
+	u_int32_t tl;		/* Transfer length */
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("wormstart "));
 
@@ -257,7 +257,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
 	unsigned char unit;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *worm;
 
 	unit = minor((bp->b_dev));

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.64 1995/05/08 16:53:33 bde Exp $
+ *      $Id: sd.c,v 1.65 1995/05/30 08:13:51 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -43,7 +43,7 @@
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX */
 
-u_int32 sdstrats, sdqueues;
+u_int32_t sdstrats, sdqueues;
 
 #define SECSIZE 512
 #define	SDOUTSTANDING	4
@@ -61,17 +61,17 @@ errval	sd_get_parms __P((int unit, int flags));
 static	void	sdstrategy1 __P((struct buf *));
 
 int		sd_sense_handler __P((struct scsi_xfer *));
-void    sdstart __P((u_int32, u_int32));
+void    sdstart __P((u_int32_t, u_int32_t));
 
 struct scsi_data {
-	u_int32 flags;
+	u_int32_t flags;
 #define	SDINIT		0x04	/* device has been init'd */
 	struct disk_parms {
 		u_char  heads;	/* Number of heads */
-		u_int16 cyls;	/* Number of cylinders */
+		u_int16_t cyls;	/* Number of cylinders */
 		u_char  sectors;	/*dubious *//* Number of sectors/track */
-		u_int16 secsiz;	/* Number of bytes/sector */
-		u_int32 disksize;	/* total number sectors */
+		u_int16_t secsiz;	/* Number of bytes/sector */
+		u_int32_t disksize;	/* total number sectors */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf buf_queue;
@@ -161,7 +161,7 @@ sd_registerdev(int unit)
 errval
 sdattach(struct scsi_link *sc_link)
 {
-	u_int32 unit;
+	u_int32_t unit;
 	struct disk_parms *dp;
 
 	struct scsi_data *sd = sc_link->sd;
@@ -216,7 +216,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 	struct scsi_link *sc_link;
 {
 	errval  errcode = 0;
-	u_int32 unit;
+	u_int32_t unit;
 	struct disklabel label;
 	struct scsi_data *sd;
 
@@ -358,9 +358,9 @@ void
 sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf *dp;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *sd;
-	u_int32 unit;
+	u_int32_t unit;
 
 	sdstrats++;
 	unit = SDUNIT((bp->b_dev));
@@ -449,14 +449,14 @@ sdstrategy1(struct buf *bp)
  * sdstart() is called at SPLSD  from sdstrategy and scsi_done
  */
 void
-sdstart(u_int32 unit, u_int32 flags)
+sdstart(u_int32_t unit, u_int32_t flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 	register struct scsi_data *sd = sc_link->sd;
 	struct buf *bp = 0;
 	struct buf *dp;
 	struct scsi_rw_big cmd;
-	u_int32 blkno, nblk;
+	u_int32_t blkno, nblk;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("sdstart "));
 	/*
@@ -587,13 +587,13 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 /*
  * Find out from the device what it's capacity is
  */
-u_int32
+u_int32_t
 sd_size(unit, flags)
 	int	unit, flags;
 {
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
-	u_int32 size;
+	u_int32_t size;
 	struct scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
 
 	/*
@@ -679,7 +679,7 @@ sd_get_parms(unit, flags)
 		struct blk_desc blk_desc;
 		union disk_pages pages;
 	} scsi_sense;
-	u_int32 sectors;
+	u_int32_t sectors;
 
 	/*
 	 * First check if we have it all loaded
@@ -767,7 +767,7 @@ sdsize(dev_t dev)
 {
 	struct scsi_data *sd;
 
-	sd = SCSI_DATA(&sd_switch, (u_int32) SDUNIT(dev));
+	sd = SCSI_DATA(&sd_switch, (u_int32_t) SDUNIT(dev));
 	if (sd == NULL)
 		return (-1);
 	return (dssize(dev, &sd->dk_slices, sdopen, sdclose));
@@ -835,10 +835,10 @@ sddump(dev_t dev)
 	struct disklabel *lp;
 	register struct scsi_data *sd;	/* disk unit to do the IO */
 	struct scsi_link *sc_link;
-	int32	num;		/* number of sectors to write */
-	u_int32	unit, part;
-	int32	blkoff, blknum, blkcnt = MAXTRANSFER;
-	int32	nblocks;
+	int32_t	num;		/* number of sectors to write */
+	u_int32_t	unit, part;
+	int32_t	blkoff, blknum, blkcnt = MAXTRANSFER;
+	int32_t	nblocks;
 	char	*addr;
 	struct	scsi_rw_big cmd;
 	static	int sddoingadump = 0;
@@ -874,7 +874,7 @@ sddump(dev_t dev)
 		return (ENXIO);
 
 	/* Convert to disk sectors */
-	num = (u_int32) num * NBPG / sd->params.secsiz;	/* XXX it must be 512 */
+	num = (u_int32_t) num * NBPG / sd->params.secsiz;	/* XXX it must be 512 */
 
 	/* check if controller active */
 	if (sddoingadump)

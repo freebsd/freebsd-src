@@ -14,18 +14,12 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.26.4.3 1996/01/08 02:54:46 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.26.4.4 1996/03/31 18:10:25 joerg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
 typedef	int			boolean;
 typedef	int			errval;
-typedef	long int		int32;
-typedef	short int		int16;
-typedef	char 			int8;
-typedef	unsigned long int	u_int32;
-typedef	unsigned short int	u_int16;
-typedef	unsigned char 		u_int8;
 
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_all.h>
@@ -68,11 +62,11 @@ typedef	unsigned char 		u_int8;
  */
 struct scsi_adapter
 {
-/* 04*/	int32		(*scsi_cmd)();
+/* 04*/	int32_t		(*scsi_cmd)();
 /* 08*/	void		(*scsi_minphys)();
-/* 12*/	int32		(*open_target_lu)();
-/* 16*/	int32		(*close_target_lu)();
-/* 20*/	u_int32		(*adapter_info)(); /* see definitions below */
+/* 12*/	int32_t		(*open_target_lu)();
+/* 16*/	int32_t		(*close_target_lu)();
+/* 20*/	u_int32_t		(*adapter_info)(); /* see definitions below */
 /* 24*/	char		*name; /* name of scsi bus controller */
 /* 32*/	u_long	spare[2];
 };
@@ -124,14 +118,14 @@ struct scsi_device
 {
 /*  4*/	errval (*err_handler)(struct scsi_xfer *xs);	/* return -1 to say
 							 * err processing complete */
-/*  8*/	void	(*start)(u_int32 unit, u_int32 flags);
-/* 12*/	int32	(*async)();
-/* 16*/	int32	(*done)();	/* returns -1 to say done processing complete */
+/*  8*/	void	(*start)(u_int32_t unit, u_int32_t flags);
+/* 12*/	int32_t	(*async)();
+/* 16*/	int32_t	(*done)();	/* returns -1 to say done processing complete */
 /* 20*/	char	*name;		/* name of device type */
-/* 24*/	u_int32 flags;		/* device type dependent flags */
-/* 32*/	int32	spare[2];
+/* 24*/	u_int32_t flags;		/* device type dependent flags */
+/* 32*/	int32_t	spare[2];
 
-/* 36*/ int32	link_flags;	/* Flags OR'd into sc_link at attach time */
+/* 36*/ int32_t	link_flags;	/* Flags OR'd into sc_link at attach time */
 /* 40*/ errval  (*attach)(struct scsi_link *sc_link);
 /* 44*/ char	*desc;		/* Description of device */
 /* 48*/ int (*open)(dev_t dev, int flags, int fmt, struct proc *p);
@@ -231,8 +225,8 @@ extern struct scsi_device_config scsi_dinit[];
  * and note how they are bad, so we can correct for them
  */
 struct st_mode {
-/*  4*/	u_int32 blksiz;
-/*  6*/	u_int16 quirks;		/* same definitions as in XXX */
+/*  4*/	u_int32_t blksiz;
+/*  6*/	u_int16_t quirks;		/* same definitions as in XXX */
 /*  7*/	char    density;
 /*  8*/	char    spare[1];
 };
@@ -275,17 +269,17 @@ typedef struct st_mode st_modes[4];
  */
 struct scsi_link
 {
-	u_int8	target;			/* targ of this dev */
-	u_int8	lun;			/* lun of this dev */
-	u_int8	adapter_targ;		/* what are we on the scsi bus */
-	u_int8	adapter_unit;		/* e.g. the 0 in aha0 */
-	u_int8	adapter_bus;		/* e.g. the 0 in bus0 */
-	u_int8	scsibus;		/* the Nth scsibus	*/
-	u_int8	dev_unit;		/* e.g. the 0 in sd0 */
-	u_int8	opennings;		/* available operations */
-	u_int8	active;			/* operations in progress */
-	u_int16	flags;			/* flags that all devices have */
-	u_int16	quirks;			/* device specific quirks */
+	u_int8_t	target;			/* targ of this dev */
+	u_int8_t	lun;			/* lun of this dev */
+	u_int8_t	adapter_targ;		/* what are we on the scsi bus */
+	u_int8_t	adapter_unit;		/* e.g. the 0 in aha0 */
+	u_int8_t	adapter_bus;		/* e.g. the 0 in bus0 */
+	u_int8_t	scsibus;		/* the Nth scsibus	*/
+	u_int8_t	dev_unit;		/* e.g. the 0 in sd0 */
+	u_int8_t	opennings;		/* available operations */
+	u_int8_t	active;			/* operations in progress */
+	u_int16_t	flags;			/* flags that all devices have */
+	u_int16_t	quirks;			/* device specific quirks */
 	struct	scsi_adapter *adapter;	/* adapter entry points etc. */
 	struct	scsi_device *device;	/* device entry points etc. */
 	struct	scsi_xfer *active_xs;	/* operations under way */
@@ -350,25 +344,25 @@ struct scsibus_data {
 struct scsi_xfer
 {
 /*04*/	struct	scsi_xfer *next;	/* when free */
-/*08*/	u_int32	flags;
+/*08*/	u_int32_t	flags;
 /*12*/	struct	scsi_link *sc_link;	/* all about our device and adapter */
-/*13*/	u_int8	retries;		/* the number of times to retry */
-/*16*/	u_int8	spare[3];
-/*20*/	int32	timeout;		/* in milliseconds */
+/*13*/	u_int8_t	retries;		/* the number of times to retry */
+/*16*/	u_int8_t	spare[3];
+/*20*/	int32_t	timeout;		/* in milliseconds */
 /*24*/	struct	scsi_generic *cmd;	/* The scsi command to execute */
-/*28*/	int32	cmdlen;			/* how long it is */
+/*28*/	int32_t	cmdlen;			/* how long it is */
 /*32*/	u_char	*data;			/* dma address OR a uio address */
-/*36*/	int32	datalen;		/* data len (blank if uio)    */
-/*40*/	int32	resid;			/* how much buffer was not touched */
-/*44*/	int32	error;			/* an error value	*/
+/*36*/	int32_t	datalen;		/* data len (blank if uio)    */
+/*40*/	int32_t	resid;			/* how much buffer was not touched */
+/*44*/	int32_t	error;			/* an error value	*/
 /*48*/	struct	buf *bp;		/* If we need to associate with a buf */
 /*80*/	struct	scsi_sense_data	sense; /* 32 bytes*/
 	/*
 	 * Believe it or not, Some targets fall on the ground with
 	 * anything but a certain sense length.
 	 */
-/*84*/	int32 req_sense_length;		/* Explicit request sense length */
-/*88*/	int32 status;			/* SCSI status */
+/*84*/	int32_t req_sense_length;		/* Explicit request sense length */
+/*88*/	int32_t status;			/* SCSI status */
 /*100*/	struct	scsi_generic cmdstore;	/* stash the command in here */
 };
 
@@ -412,34 +406,35 @@ struct scsi_xfer
 #define XS_TIMEOUT	0x03	/* The device timed out.. turned off?	  */
 #define XS_SWTIMEOUT	0x04	/* The Timeout reported was caught by SW  */
 #define XS_BUSY		0x08	/* The device busy, try again later?	  */
-#define	XS_LENGTH 0x09	/* Illegal length (over/under run)	*/
+#define	XS_LENGTH	0x09	/* Illegal length (over/under run)	  */
+#define	XS_SELTIMEOUT	0x10	/* Device failed to respond to selection  */
 
 #ifdef KERNEL
 void *extend_get(struct extend_array *ea, int index);
 void scsi_attachdevs __P((struct scsibus_data *scbus));
-struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32 flags);
-void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32 flags);
-u_int32 scsi_read_capacity __P(( struct scsi_link *sc_link,
-	u_int32 *blk_size, u_int32 flags));
-errval scsi_test_unit_ready __P(( struct scsi_link *sc_link, u_int32 flags));
+struct scsi_xfer *get_xs( struct scsi_link *sc_link, u_int32_t flags);
+void free_xs(struct scsi_xfer *xs, struct scsi_link *sc_link,u_int32_t flags);
+u_int32_t scsi_read_capacity __P(( struct scsi_link *sc_link,
+	u_int32_t *blk_size, u_int32_t flags));
+errval scsi_test_unit_ready __P(( struct scsi_link *sc_link, u_int32_t flags));
 errval scsi_reset_target __P((struct scsi_link *));
 errval scsi_target_mode __P((struct scsi_link *, int));
-errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
+errval scsi_change_def( struct scsi_link *sc_link, u_int32_t flags);
 errval scsi_inquire( struct scsi_link *sc_link,
-			struct scsi_inquiry_data *inqbuf, u_int32 flags);
-errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
+			struct scsi_inquiry_data *inqbuf, u_int32_t flags);
+errval scsi_prevent( struct scsi_link *sc_link, u_int32_t type,u_int32_t flags);
 struct scsibus_data *scsi_alloc_bus ();
 errval scsi_probe_bus __P((int, int, int));
 errval scsi_probe_busses __P(( int, int, int));
-errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
-errval scsi_stop_unit(struct scsi_link *sc_link, u_int32 eject, u_int32 flags);
+errval scsi_start_unit( struct scsi_link *sc_link, u_int32_t flags);
+errval scsi_stop_unit(struct scsi_link *sc_link, u_int32_t eject, u_int32_t flags);
 void scsi_done(struct scsi_xfer *xs);
 void scsi_user_done(struct scsi_xfer *xs);
 errval scsi_scsi_cmd __P(( struct scsi_link *, struct scsi_generic *,
-			u_int32, u_char *,
-			u_int32, u_int32,
-			u_int32, struct buf *,
-			u_int32));
+			u_int32_t, u_char *,
+			u_int32_t, u_int32_t,
+			u_int32_t, struct buf *,
+			u_int32_t));
 int	scsi_do_ioctl __P((dev_t dev, int cmd, caddr_t addr, int mode,
         struct proc *p, struct scsi_link *sc_link));
 
@@ -455,15 +450,15 @@ void	scsi_sense_print	__P((struct scsi_xfer *));
 int	scsi_sense_qualifiers	__P((struct scsi_xfer *, int *, int *));
 void	show_scsi_xs		__P((struct scsi_xfer *));
 void	show_scsi_cmd		__P((struct scsi_xfer *));
-void	show_mem		__P((unsigned char * , u_int32));
+void	show_mem		__P((unsigned char * , u_int32_t));
 
-void	scsi_uto3b __P((u_int32 , u_char *));
-u_int32	scsi_3btou __P((u_char *));
-int32	scsi_3btoi __P((u_char *));
-void	scsi_uto4b __P((u_int32, u_char *));
-u_int32	scsi_4btou __P((u_char *));
-void	scsi_uto2b __P((u_int32, u_char *));
-u_int32	scsi_2btou __P((u_char *));
+void	scsi_uto3b __P((u_int32_t , u_char *));
+u_int32_t	scsi_3btou __P((u_char *));
+int32_t	scsi_3btoi __P((u_char *));
+void	scsi_uto4b __P((u_int32_t, u_char *));
+u_int32_t	scsi_4btou __P((u_char *));
+void	scsi_uto2b __P((u_int32_t, u_char *));
+u_int32_t	scsi_2btou __P((u_char *));
 
 void sc_print_addr __P((struct scsi_link *));
 void sc_print_start __P((struct scsi_link *));

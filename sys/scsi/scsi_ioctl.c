@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.16 1995/05/30 08:13:42 rgrimes Exp $
+ * $Id: scsi_ioctl.c,v 1.16.4.1 1995/11/10 15:08:05 davidg Exp $
  *
  *
  */
@@ -152,7 +152,7 @@ void scsistrategy(struct buf *bp)
 	errval err;
 	struct	scsi_link *sc_link = bp->b_sc_link;
 	scsireq_t *screq;
-	u_int32	flags = 0;
+	u_int32_t	flags = 0;
 	int s;
 
 
