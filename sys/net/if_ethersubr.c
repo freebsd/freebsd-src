@@ -114,7 +114,6 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
-#define IFP2AC(IFP) ((struct arpcom *)IFP)
 
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
