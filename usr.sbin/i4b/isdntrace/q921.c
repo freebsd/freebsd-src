@@ -30,18 +30,11 @@
  *	q.921.c - print Q.921 traces
  *	----------------------------
  *
- * $FreeBSD$ 
+ *	$Id: q921.c,v 1.4 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 16 15:38:34 1998]
+ * $FreeBSD$
  *
- *	-hm	splitting
- *	-hm	printing to buffer
- *	-hm	slightly reformatted TEI management proc output
- *	-hm	minor fixes
- *	-hm	fixing response/command
- *	-hm	fixing count off by one
- *	-hm	dump only Q.921 part of frame
- *	-hm	cleanup
+ *      last edit-date: [Mon Dec 13 21:56:46 1999]
  *
  *---------------------------------------------------------------------------*/
 

@@ -27,22 +27,13 @@
  *	i4b daemon - logging routines
  *	-----------------------------
  *
- * $FreeBSD$ 
+ *	$Id: log.c,v 1.23 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:11:18 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:47:28 1999]
  *
  *---------------------------------------------------------------------------*/
-
-#include <string.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <time.h>
-#include <errno.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <regex.h>
-
-#include <machine/i4b_ioctl.h>
 
 #include "isdnd.h"
 
@@ -63,11 +54,13 @@ struct logtab {
  * 	table for converting internal log levels into syslog levels
  *---------------------------------------------------------------------------*/
 static struct logtab logtab[] = {
-	{"ERR", LOG_ERR},	/* error conditions */
-	{"WRN", LOG_WARNING},   /* warning conditions, nonfatal */
-	{"DMN", LOG_NOTICE},	/* normal but significant condition, daemon*/
-	{"CHD", LOG_INFO},	/* informational, call handling */
-	{"DBG", LOG_DEBUG}	/* debug messages */
+	{"ERR", LOG_ERR},	/* error conditions			*/
+	{"WRN", LOG_WARNING},   /* warning conditions, nonfatal		*/
+	{"DMN", LOG_NOTICE},	/* significant conditions of the daemon	*/
+	{"CHD", LOG_INFO},	/* informational, call handling		*/
+	{"DBG", LOG_DEBUG},	/* debug messages 			*/
+	{"MER", LOG_ERR},	/* monitor error conditions		*/	
+	{"PKT", LOG_INFO}	/* packet logging 			*/
 };
 
 /*---------------------------------------------------------------------------*
@@ -168,13 +161,28 @@ log(int what, const char *fmt, ...)
 	   ((!debug_noscreen) || (debug_noscreen && (what != LL_DBG))))
 	{
 		wprintw(lower_w, "%s %s %-.*s\n", dp, logtab[what].text,
+
+/*
+ * FreeBSD-current integrated ncurses. Since then it is no longer possible
+ * to write to the last column in the logfilewindow without causing an
+ * automatic newline to occur resulting in a blank line in that window.
+ */
+#ifdef __FreeBSD__
+#include <osreldate.h>
+#endif
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 400009		
+#warning "FreeBSD ncurses is buggy: write to last column = auto newline!"
+		     COLS-((strlen(dp))+(strlen(logtab[what].text))+3), buffer);
+#else
 		     COLS-((strlen(dp))+(strlen(logtab[what].text))+2), buffer);
+#endif
 		wrefresh(lower_w);
 	}
 #endif
 
 #ifdef I4B_EXTERNAL_MONITOR
-	monitor_evnt_log(logtab[what].pri, logtab[what].text, buffer);
+	if(what != LL_MER) /* don't send monitor errs, endless loop !!! */
+		monitor_evnt_log(logtab[what].pri, logtab[what].text, buffer);
 #endif
 
 	if(uselogfile)

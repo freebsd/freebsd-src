@@ -65,7 +65,9 @@
  *	A-law / u-law conversions as specified in G.711
  *	-----------------------------------------------
  *
- *	last edit-date: [Mon Apr 26 14:00:31 1999]
+ *	last edit-date: [Mon Dec 13 21:44:01 1999]
+ *
+ *	$Id: g711conv.c,v 1.5 1999/12/13 21:25:24 hm Exp $
  *
  * $FreeBSD$
  *

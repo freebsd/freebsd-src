@@ -30,9 +30,11 @@
  *	i4b daemon - runtime configuration lexical analyzer
  *	---------------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: rc_scan.l,v 1.27 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Thu May 20 14:04:13 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:48:57 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -96,6 +98,7 @@ beepconnect			{ return BEEPCONNECT; }
 callbackwait			{ return CALLBACKWAIT; }
 calledbackwait			{ return CALLEDBACKWAIT; }
 connectprog			{ return CONNECTPROG; }
+controller			{ return CONTROLLER; }
 dialin-reaction			{ return REACTION; }
 dialout-type			{ return DIALOUTTYPE; }
 dialrandincr			{ return DIALRANDINCR; }
@@ -116,6 +119,8 @@ isdntxdel-incoming		{ return ISDNTXDELIN; }
 isdntxdel-outgoing		{ return ISDNTXDELOUT; }
 local-phone-dialout		{ return LOCAL_PHONE_DIALOUT; }
 local-phone-incoming		{ return LOCAL_PHONE_INCOMING; }
+mailer				{ return MAILER; }
+mailto				{ return MAILTO; }
 monitor-allowed			{ return MONITORSW; }
 monitor-port			{ return MONITORPORT; }
 monitor				{ return MONITOR; }
@@ -130,6 +135,7 @@ name				{ return NAME; }
 no				{ return NO; }
 off				{ return OFF; }
 on				{ return ON; }
+protocol			{ return PROTOCOL; }
 ratesfile			{ return RATESFILE; }
 ratetype			{ return RATETYPE; }
 recoverytime			{ return RECOVERYTIME; }

@@ -27,9 +27,11 @@
  *	layer1.c - isdndecode, decode and print layer 1 information
  *	-----------------------------------------------------------
  *
+ *	$Id: layer1.c,v 1.4 1999/12/13 21:25:25 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:16:40 1999]
+ *      last edit-date: [Mon Dec 13 21:50:34 1999]
  *
  *---------------------------------------------------------------------------*/
 

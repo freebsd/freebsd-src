@@ -27,9 +27,11 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: exec.c,v 1.13 1999/12/13 21:25:24 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:10:35 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:45:59 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -60,8 +62,8 @@ sigchild_handler(int sig)
 	
 	if((pid = waitpid(-1, &retstat, WNOHANG)) <= 0)
 	{
-		log(LL_ERR, "ERROR, waitpid: %s", strerror(errno));
-		do_exit(1);
+		log(LL_ERR, "ERROR, sigchild_handler, waitpid: %s", strerror(errno));
+		error_exit(1, "ERROR, sigchild_handler, waitpid: %s", strerror(errno));
 	}
 	else
 	{
@@ -128,7 +130,7 @@ exec_prog(char *prog, char **arglist)
 	{
 		case -1:		/* error */
 			log(LL_ERR, "ERROR, exec_prog/fork: %s", strerror(errno));
-			do_exit(1);
+			error_exit(1, "ERROR, exec_prog/fork: %s", strerror(errno));
 		case 0:			/* child */
 			break;
 		default:		/* parent */
