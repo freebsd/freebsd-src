@@ -40,7 +40,7 @@
 .Nm indent
 .Nd indent and format C program source
 .Sh SYNOPSIS
-.Nm indent
+.Nm
 .Op Ar input-file Op Ar output-file
 .Op Fl bad | Fl nbad
 .Op Fl bap | Fl nbap
@@ -108,7 +108,7 @@ the backup file is named
 If
 .Ar output-file
 is specified,
-.Nm indent
+.Nm
 checks to make sure it is different from
 .Ar input-file  .
 .Pp
@@ -314,7 +314,7 @@ get rid of blank lines after declarations.  Default:
 .Fl nsob  .
 .It Fl \&st
 Causes
-.Nm indent
+.Nm
 to take its input from stdin, and put its output to stdout.
 .It Fl T Ns Ar typename 
 Adds
@@ -331,13 +331,13 @@ a symptom of a problem in C:
 .Ic typedef
 causes a syntactic change in the
 language and
-.Nm indent
+.Nm
 can't find all
 instances of
 .Ic typedef .
 .It Fl troff
 Causes
-.Nm indent
+.Nm
 to format the program for processing by
 .Xr troff 1 .
 It will produce a fancy
@@ -350,20 +350,20 @@ rather than formatting in place.
 turns on `verbose' mode;
 .Fl \&nv
 turns it off.  When in verbose mode,
-.Nm indent
+.Nm
 reports when it splits one line of input into two or more lines of output,
 and gives some size statistics at completion. The default is
 .Fl \&nv  .
 .El
 .Pp
 You may set up your own `profile' of defaults to
-.Nm indent
+.Nm
 by creating a file called
 .Pa .indent.pro
 in your login directory and/or the current directory and including
 whatever switches you like.  A `.indent.pro' in the current directory takes
 precedence over the one in your login directory.  If
-.Nm indent
+.Nm
 is run and a profile file exists, then it is read to set up the program's
 defaults.  Switches on the command line, though, always override profile
 switches.  The switches should be separated by spaces, tabs or newlines.
@@ -400,13 +400,13 @@ automatically extended in extreme cases.
 .Pp
 .Ss Preprocessor lines
 In general,
-.Nm indent
+.Nm
 leaves preprocessor lines alone.  The only
 reformatting that it will do is to straighten up trailing comments.  It
 leaves embedded comments alone.  Conditional compilation
 .Pq Ic #ifdef...#endif
 is recognized and
-.Nm indent
+.Nm
 attempts to correctly
 compensate for the syntactic peculiarities introduced.
 .Pp
@@ -433,7 +433,7 @@ profile file
 .El
 .Sh HISTORY
 The
-.Nm indent
+.Nm
 command appeared in
 .Bx 4.2 .
 .Sh BUGS
