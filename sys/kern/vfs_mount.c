@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 1999-2004 Poul-Henning Kamp
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -32,8 +33,6 @@
  * SUCH DAMAGE.
  *
  * Copyright (c) 1999 Michael Smith
- * All rights reserved.
- * Copyright (c) 1999 Poul-Henning Kamp
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -417,69 +416,73 @@ nmount(td, uap)
 	return (error);
 }
 
+struct mntarg {
+	struct iovec *v;
+	int len;
+};
+
+struct mntarg *
+mount_arg(struct mntarg *ma, const char *name, const void *val, int len)
+{
+
+	if (ma == NULL)
+		ma = malloc(sizeof *ma, M_MOUNT, M_WAITOK | M_ZERO);
+
+	ma->v = realloc(ma->v, sizeof *ma->v * (ma->len + 2),
+	    M_MOUNT, M_WAITOK);
+	ma->v[ma->len].iov_base = (void *)(uintptr_t)name;
+	ma->v[ma->len].iov_len = strlen(name) + 1;
+	ma->len++;
+
+	ma->v[ma->len].iov_base = (void *)(uintptr_t)val;
+	if (len < 0)
+		ma->v[ma->len].iov_len = strlen(val) + 1;
+	else
+		ma->v[ma->len].iov_len = len;
+	ma->len++;
+	return (ma);
+}
+
 int
-kernel_mount(struct iovec *iovp, u_int iovcnt, int flags)
+kernel_mount(struct mntarg *ma, int flags)
 {
 	struct uio auio;
 	int error;
 
-	/*
-	 * Check that we have an even number of iovec's
-	 * and that we have at least two options.
-	 */
-	if ((iovcnt & 1) || (iovcnt < 4))
-		return (EINVAL);
+	KASSERT(ma != NULL, ("kernel_mount NULL ma"));
+	KASSERT(ma->v != NULL, ("kernel_mount NULL ma->v"));
+	KASSERT(!(ma->len & 1), ("kernel_mount odd ma->len (%d)", ma->len));
 
-	auio.uio_iov = iovp;
-	auio.uio_iovcnt = iovcnt;
+	auio.uio_iov = ma->v;
+	auio.uio_iovcnt = ma->len;
 	auio.uio_segflg = UIO_SYSSPACE;
 
 	error = vfs_donmount(curthread, flags, &auio);
+	free(ma->v, M_MOUNT);
+	free(ma, M_MOUNT);
 	return (error);
 }
 
 int
 kernel_vmount(int flags, ...)
 {
-	struct iovec *iovp;
-	struct uio auio;
+	struct mntarg *ma = NULL;
 	va_list ap;
-	u_int iovcnt, iovlen, len;
 	const char *cp;
-	char *buf, *pos;
-	size_t n;
-	int error, i;
+	const void *vp;
+	int error;
 
-	len = 0;
 	va_start(ap, flags);
-	for (iovcnt = 0; (cp = va_arg(ap, const char *)) != NULL; iovcnt++)
-		len += strlen(cp) + 1;
-	va_end(ap);
-
-	if (iovcnt < 4 || iovcnt & 1)
-		return (EINVAL);
-
-	iovlen = iovcnt * sizeof (struct iovec);
-	MALLOC(iovp, struct iovec *, iovlen, M_MOUNT, M_WAITOK);
-	MALLOC(buf, char *, len, M_MOUNT, M_WAITOK);
-	pos = buf;
-	va_start(ap, flags);
-	for (i = 0; i < iovcnt; i++) {
+	for (;;) {
 		cp = va_arg(ap, const char *);
-		copystr(cp, pos, len - (pos - buf), &n);
-		iovp[i].iov_base = pos;
-		iovp[i].iov_len = n;
-		pos += n;
+		if (cp == NULL)
+			break;
+		vp = va_arg(ap, const void *);
+		ma = mount_arg(ma, cp, vp, -1);
 	}
 	va_end(ap);
 
-	auio.uio_iov = iovp;
-	auio.uio_iovcnt = iovcnt;
-	auio.uio_segflg = UIO_SYSSPACE;
-
-	error = vfs_donmount(curthread, flags, &auio);
-	FREE(iovp, M_MOUNT);
-	FREE(buf, M_MOUNT);
+	error = kernel_mount(ma, flags);
 	return (error);
 }
 
