@@ -9,8 +9,9 @@
 #define CHNLSET_CABLEIRC	2
 #define CHNLSET_CABLEHRC	3
 #define CHNLSET_WEUROPE		4
+#define CHNLSET_JPNBCST		5
 #define CHNLSET_MIN		CHNLSET_NABCST
-#define CHNLSET_MAX		CHNLSET_WEUROPE
+#define CHNLSET_MAX		CHNLSET_JPNBCST
 
 
 /*
@@ -121,8 +122,13 @@ struct eeProm {
 
 #define	BT848_GSTATUS	_IOR('x', 49, unsigned int)	/* reap status */
 
-#define	BT848_WEEPROM	_IOWR('x', 50, struct eeProm)
-#define	BT848_REEPROM	_IOWR('x', 51, struct eeProm)
+#define	BT848_WEEPROM	_IOWR('x', 50, struct eeProm)	/* write to EEProm */
+#define	BT848_REEPROM	_IOWR('x', 51, struct eeProm)	/* read from EEProm */
+
+#define	BT848_SIGNATURE	_IOWR('x', 52, struct eeProm)	/* read card sig */
+
+#define	TVTUNER_SETAFC	_IOW('x', 53, int)		/* turn AFC on/off */
+#define TVTUNER_GETAFC	_IOR('x', 54, int)		/* query AFC on/off */
 
 /*
  * XXX: more bad magic,
