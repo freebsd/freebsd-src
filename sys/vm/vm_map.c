@@ -1857,8 +1857,11 @@ vm_map_clean(
 		}
 	}
 
-	if (invalidate)
-		pmap_remove(vm_map_pmap(map), start, end);
+	if (invalidate) {
+		vm_page_lock_queues();
+		pmap_remove(map->pmap, start, end);
+		vm_page_unlock_queues();
+	}
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
@@ -2071,7 +2074,9 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 		} else {
 			mtx_lock(&Giant);
+			vm_page_lock_queues();
 			pmap_remove(map->pmap, s, e);
+			vm_page_unlock_queues();
 			if (object != NULL &&
 			    object->ref_count != 1 &&
 			    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
@@ -2916,7 +2921,9 @@ vm_uiomove(
 				/*
    				* Remove old window into the file
    				*/
-				pmap_remove (map->pmap, uaddr, tend);
+				vm_page_lock_queues();
+				pmap_remove(map->pmap, uaddr, tend);
+				vm_page_unlock_queues();
 
 				/*
    				* Force copy on write for mmaped regions
@@ -2943,7 +2950,9 @@ vm_uiomove(
 				entry->offset = cp;
 				map->timestamp++;
 			} else {
-				pmap_remove (map->pmap, uaddr, tend);
+				vm_page_lock_queues();
+				pmap_remove(map->pmap, uaddr, tend);
+				vm_page_unlock_queues();
 			}
 
 		} else if ((first_object->ref_count == 1) &&
@@ -2958,7 +2967,9 @@ vm_uiomove(
 				/*
    				* Remove old window into the file
    				*/
-				pmap_remove (map->pmap, uaddr, tend);
+				vm_page_lock_queues();
+				pmap_remove(map->pmap, uaddr, tend);
+				vm_page_unlock_queues();
 
 				/*
 				 * Remove unneeded old pages
@@ -3007,7 +3018,9 @@ vm_uiomove(
 				first_object->backing_object_offset = cp;
 				map->timestamp++;
 			} else {
-				pmap_remove (map->pmap, uaddr, tend);
+				vm_page_lock_queues();
+				pmap_remove(map->pmap, uaddr, tend);
+				vm_page_unlock_queues();
 			}
 /*
  * Otherwise, we have to do a logical mmap.
@@ -3017,7 +3030,9 @@ vm_uiomove(
 			vm_object_set_flag(srcobject, OBJ_OPT);
 			vm_object_reference(srcobject);
 
-			pmap_remove (map->pmap, uaddr, tend);
+			vm_page_lock_queues();
+			pmap_remove(map->pmap, uaddr, tend);
+			vm_page_unlock_queues();
 
 			vm_object_pmap_copy_1 (srcobject, oindex, oindex + osize);
 			vm_map_lock_upgrade(map);
