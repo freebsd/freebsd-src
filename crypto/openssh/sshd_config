@@ -53,3 +53,7 @@ PermitEmptyPasswords no
 
 CheckMail yes
 #UseLogin no
+
+# Uncomment if you want to enable sftp
+#Subsystem	sftp	/usr/libexec/sftp-server
+#MaxStartups 10:30:60

@@ -2,15 +2,19 @@
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * Created: Sat Mar 18 22:15:47 1995 ylo
  * Code to connect to a remote host, and to perform the client side of the
  * login (authentication) dialog.
- * 
- * $FreeBSD$
+ *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.74 2000/05/17 16:57:02 markus Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.78 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
 #include <openssl/dsa.h>
@@ -191,8 +195,8 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	int gaierr;
 	struct linger linger;
 
-	debug("ssh_connect: getuid %d geteuid %d anon %d",
-	      (int) getuid(), (int) geteuid(), anonymous);
+	debug("ssh_connect: getuid %u geteuid %u anon %d",
+	      (u_int) getuid(), (u_int) geteuid(), anonymous);
 
 	/* Get default port if port has not been set. */
 	if (port == 0) {
@@ -312,23 +316,28 @@ ssh_exchange_identification()
 	int connection_out = packet_get_connection_out();
 
 	/* Read other side\'s version identification. */
-	for (i = 0; i < sizeof(buf) - 1; i++) {
-		int len = read(connection_in, &buf[i], 1);
-		if (len < 0)
-			fatal("ssh_exchange_identification: read: %.100s", strerror(errno));
-		if (len != 1)
-			fatal("ssh_exchange_identification: Connection closed by remote host");
-		if (buf[i] == '\r') {
-			buf[i] = '\n';
-			buf[i + 1] = 0;
-			continue;		/**XXX wait for \n */
+	for (;;) {
+		for (i = 0; i < sizeof(buf) - 1; i++) {
+			int len = atomicio(read, connection_in, &buf[i], 1);
+			if (len < 0)
+				fatal("ssh_exchange_identification: read: %.100s", strerror(errno));
+			if (len != 1)
+				fatal("ssh_exchange_identification: Connection closed by remote host");
+			if (buf[i] == '\r') {
+				buf[i] = '\n';
+				buf[i + 1] = 0;
+				continue;		/**XXX wait for \n */
+			}
+			if (buf[i] == '\n') {
+				buf[i + 1] = 0;
+				break;
+			}
 		}
-		if (buf[i] == '\n') {
-			buf[i + 1] = 0;
+		buf[sizeof(buf) - 1] = 0;
+		if (strncmp(buf, "SSH-", 4) == 0)
 			break;
-		}
+		debug("ssh_exchange_identification: %s", buf);
 	}
-	buf[sizeof(buf) - 1] = 0;
 	server_version_string = xstrdup(buf);
 
 	/*
@@ -899,7 +908,7 @@ ssh_login(int host_key_valid, RSA *own_host_key, const char *orighost,
 	/* Get local user name.  Use it as server user if no user name was given. */
 	pw = getpwuid(original_real_uid);
 	if (!pw)
-		fatal("User id %d not found from user database.", original_real_uid);
+		fatal("User id %u not found from user database.", original_real_uid);
 	local_user = xstrdup(pw->pw_name);
 	server_user = options.user ? options.user : local_user;
 

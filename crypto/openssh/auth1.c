@@ -2,11 +2,16 @@
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth1.c,v 1.2 2000/04/29 18:11:52 markus Exp $");
+RCSID("$OpenBSD: auth1.c,v 1.4 2000/09/07 20:27:49 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -148,15 +153,15 @@ do_authloop(struct passwd * pw)
 	unsigned int ulen;
 	int type = 0;
 	void (*authlog) (const char *fmt,...) = verbose;
-#ifdef LOGIN_CAP
+#ifdef HAVE_LOGIN_CAP
 	login_cap_t *lc;
-#endif /* LOGIN_CAP */
-#if defined(LOGIN_CAP) || defined(LOGIN_ACCESS)
+#endif /* HAVE_LOGIN_CAP */
+#if defined(HAVE_LOGIN_CAP) || defined(LOGIN_ACCESS)
 	const char *from_host, *from_ip;
 
 	from_host = get_canonical_hostname();
 	from_ip = get_remote_ipaddr();
-#endif /* LOGIN_CAP || LOGIN_ACCESS */
+#endif /* HAVE_LOGIN_CAP || LOGIN_ACCESS */
 #ifdef HAVE_LIBPAM
 	int pam_retval;
 #endif /* HAVE_LIBPAM */
@@ -452,7 +457,7 @@ do_authloop(struct passwd * pw)
 			}
 		}
 
-#ifdef LOGIN_CAP
+#ifdef HAVE_LOGIN_CAP
 		lc = login_getpwclass(pw);
 		if (lc == NULL)
 		  lc = login_getclassbyname(NULL, pw);
@@ -467,7 +472,7 @@ do_authloop(struct passwd * pw)
 		  packet_disconnect("Logins not available right now.");
 		}
 		login_close(lc);
-#endif  /* LOGIN_CAP */
+#endif  /* HAVE_LOGIN_CAP */
 #ifdef LOGIN_ACCESS
 		if (!login_access(pw->pw_name, from_host)) {
 		  log("Denied connection for %.200s from %.200s [%.200s].",
@@ -548,6 +553,7 @@ do_authentication()
 	pwcopy.pw_passwd = xstrdup(pw->pw_passwd);
 	pwcopy.pw_uid = pw->pw_uid;
 	pwcopy.pw_gid = pw->pw_gid;
+	pwcopy.pw_class = xstrdup(pw->pw_class);
 	pwcopy.pw_dir = xstrdup(pw->pw_dir);
 	pwcopy.pw_shell = xstrdup(pw->pw_shell);
 	pwcopy.pw_class = xstrdup(pw->pw_class);

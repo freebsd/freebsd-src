@@ -1,20 +1,19 @@
 /*
- *
- * ssh.h
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  *
- * Created: Fri Mar 17 17:09:37 1995 ylo
- *
  * Generic header file for ssh.
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$Id: ssh.h,v 1.46 2000/05/17 08:20:15 markus Exp $"); */
+/* RCSID("$OpenBSD: ssh.h,v 1.50 2000/09/07 20:27:54 deraadt Exp $"); */
+/* $FreeBSD$ */
 
 #ifndef SSH_H
 #define SSH_H
@@ -463,6 +462,9 @@ char   *tilde_expand_filename(const char *filename, uid_t my_uid);
 /* remove newline at end of string */
 char	*chop(char *s);
 
+/* return next token in configuration line */
+char	*strdelim(char **s);
+
 /* set filedescriptor to non-blocking */
 void	set_nonblock(int fd);
 
@@ -477,7 +479,7 @@ void    server_loop(pid_t pid, int fdin, int fdout, int fderr);
 void    server_loop2(void);
 
 /* Client side main loop for the interactive session. */
-int     client_loop(int have_pty, int escape_char);
+int     client_loop(int have_pty, int escape_char, int id);
 
 /* Linked list of custom environment strings (see auth-rsa.c). */
 struct envstring {
