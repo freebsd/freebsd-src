@@ -63,7 +63,7 @@ static int	_monetary_using_locale;
 static char	*_monetary_locale_buf;
 
 static char
-cnv(const char *str) 
+cnv(const char *str)
 {
 	int i = strtol(str, NULL, 10);
 
@@ -77,12 +77,13 @@ __monetary_load_locale(const char *name)
 {
 	int ret;
 
-	__mlocale_changed = 1;
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		_monetary_locale_buf, "LC_MONETARY",
 		LCMONETARY_SIZE, LCMONETARY_SIZE,
 		(const char **)&_monetary_locale);
-	if (ret == 0 && _monetary_using_locale) {
+	if (ret != _LDP_ERROR)
+		__mlocale_changed = 1;
+	if (ret == _LDP_LOADED) {
 		_monetary_locale.mon_grouping =
 		     __fix_locale_grouping_str(_monetary_locale.mon_grouping);
 
@@ -102,7 +103,7 @@ __monetary_load_locale(const char *name)
 }
 
 struct lc_monetary_T *
-__get_current_monetary_locale(void) 
+__get_current_monetary_locale(void)
 {
 	return (_monetary_using_locale
 		? &_monetary_locale

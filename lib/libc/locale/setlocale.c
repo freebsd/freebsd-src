@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "lnumeric.h"	/* for __numeric_load_locale() */
 #include "lmessages.h"	/* for __messages_load_locale() */
 #include "setlocale.h"
+#include "ldpart.h"
 #include "../stdtime/timelocal.h" /* for __time_load_locale() */
 
 /*
@@ -92,7 +93,7 @@ static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
 static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale(void);
-static int      wrap_setrunelocale(char *);
+static int	wrap_setrunelocale(const char *);
 static char	*loadlocale(int);
 
 char *
@@ -206,7 +207,10 @@ setlocale(category, locale)
 			for (j = 1; j < i; j++) {
 				(void)strcpy(new_categories[j],
 					     saved_categories[j]);
-				(void)loadlocale(j);
+				if (loadlocale(j) == NULL) {
+					(void)strcpy(new_categories[j], "C");
+					(void)loadlocale(j);
+				}
 			}
 			errno = saverr;
 			return (NULL);
@@ -235,27 +239,24 @@ currentlocale()
 }
 
 static int
-wrap_setrunelocale(locale)
-	char *locale;
+wrap_setrunelocale(const char *locale)
 {
-	int ret = setrunelocale(locale);
+	int ret = setrunelocale((char *)locale);
 
 	if (ret != 0) {
 		errno = ret;
-		return (-1);
+		return (_LDP_ERROR);
 	}
-	return (0);
+	return (_LDP_LOADED);
 }
 
 static char *
 loadlocale(category)
 	int category;
 {
-	char *ret;
 	char *new = new_categories[category];
 	char *old = current_categories[category];
-	int (*func)();
-	int saverr;
+	int (*func)(const char *);
 
 	if ((new[0] == '.' &&
 	     (new[1] == '\0' || (new[1] == '.' && new[2] == '\0'))) ||
@@ -278,8 +279,10 @@ loadlocale(category)
 				return (NULL);
 			}
 			_PathLocale = strdup(p);
-			if (_PathLocale == NULL)
+			if (_PathLocale == NULL) {
+				errno = ENOMEM;
 				return (NULL);
+			}
 		} else
 			_PathLocale = _PATH_LOCALE;
 	}
@@ -311,15 +314,11 @@ loadlocale(category)
 	if (strcmp(new, old) == 0)
 		return (old);
 
-	ret = func(new) != 0 ? NULL : new;
-	if (ret == NULL) {
-		saverr = errno;
-		if (func(old) != 0 && func("C") == 0)
-			(void)strcpy(old, "C");
-		errno = saverr;
-	} else
+	if (func(new) != _LDP_ERROR) {
 		(void)strcpy(old, new);
+		return (old);
+	}
 
-	return (ret);
+	return (NULL);
 }
 

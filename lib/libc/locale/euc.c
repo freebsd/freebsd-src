@@ -63,40 +63,36 @@ _EUC_init(rl)
 	_RuneLocale *rl;
 {
 	_EucInfo *ei;
-	int x;
+	int x, new__mb_cur_max;
 	char *v, *e;
 
 	rl->sgetrune = _EUC_sgetrune;
 	rl->sputrune = _EUC_sputrune;
 
-	if (!rl->variable) {
-		free(rl);
+	if (rl->variable == NULL)
 		return (EFTYPE);
-	}
-	v = (char *) rl->variable;
+
+	v = (char *)rl->variable;
 
 	while (*v == ' ' || *v == '\t')
 		++v;
 
-	if ((ei = malloc(sizeof(_EucInfo))) == NULL) {
-		free(rl);
+	if ((ei = malloc(sizeof(_EucInfo))) == NULL)
 		return (ENOMEM);
-	}
-	__mb_cur_max = 0;
+
+	new__mb_cur_max = 0;
 	for (x = 0; x < 4; ++x) {
-		ei->count[x] = (int) strtol(v, &e, 0);
+		ei->count[x] = (int)strtol(v, &e, 0);
 		if (v == e || !(v = e)) {
-			free(rl);
 			free(ei);
 			return (EFTYPE);
 		}
-		if (__mb_cur_max < ei->count[x])
-			__mb_cur_max = ei->count[x];
+		if (new__mb_cur_max < ei->count[x])
+			new__mb_cur_max = ei->count[x];
 		while (*v == ' ' || *v == '\t')
 			++v;
-		ei->bits[x] = (int) strtol(v, &e, 0);
+		ei->bits[x] = (int)strtol(v, &e, 0);
 		if (v == e || !(v = e)) {
-			free(rl);
 			free(ei);
 			return (EFTYPE);
 		}
@@ -105,18 +101,13 @@ _EUC_init(rl)
 	}
 	ei->mask = (int)strtol(v, &e, 0);
 	if (v == e || !(v = e)) {
-		free(rl);
 		free(ei);
 		return (EFTYPE);
 	}
-	if (sizeof(_EucInfo) <= rl->variable_len) {
-		memcpy(rl->variable, ei, sizeof(_EucInfo));
-		free(ei);
-	} else {
-		rl->variable = ei;
-	}
+	rl->variable = ei;
 	rl->variable_len = sizeof(_EucInfo);
 	_CurrentRuneLocale = rl;
+	__mb_cur_max = new__mb_cur_max;
 	return (0);
 }
 

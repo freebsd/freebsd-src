@@ -52,18 +52,19 @@ static char	*_messages_locale_buf;
 int
 __messages_load_locale(const char *name)
 {
-	/*
-	 * Propose that we can have incomplete locale file (w/o "{yes,no}str").
-	 * Initialize them before loading.  In case of complete locale, they'll
-	 * be initialized to loaded value, otherwise they'll not be touched.
-	 */
-	_messages_locale.yesstr = empty;
-	_messages_locale.nostr = empty;
+	int ret;
 
-	return __part_load_locale(name, &_messages_using_locale,
-		_messages_locale_buf, "LC_MESSAGES",
-		LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
-		(const char **)&_messages_locale);
+	ret = __part_load_locale(name, &_messages_using_locale,
+		  _messages_locale_buf, "LC_MESSAGES",
+		  LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
+		  (const char **)&_messages_locale);
+	if (ret == _LDP_LOADED) {
+		if (_messages_locale.yesstr == NULL)
+			_messages_locale.yesstr = empty;
+		if (_messages_locale.nostr == NULL)
+			_messages_locale.nostr = empty;
+	}
+	return (ret);
 }
 
 struct lc_messages_T *
