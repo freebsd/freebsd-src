@@ -173,6 +173,9 @@ link_elf_init(void* arg)
     caddr_t	modptr, baseptr, sizeptr;
     elf_file_t	ef;
     char	*modname;
+#ifdef DDB
+    char *newfilename;
+#endif
 #endif
 
     linker_add_class(&link_elf_class);
@@ -219,7 +222,9 @@ link_elf_init(void* arg)
 
 #ifdef DDB
 	ef->gdb.l_addr = linker_kernel_file->address;
-	ef->gdb.l_name = modname;
+	newfilename = malloc(strlen(modname) + 1, M_LINKER, M_WAITOK);
+	strcpy(newfilename, modname);
+	ef->gdb.l_name = newfilename;
 	ef->gdb.l_ld = dp;
 	ef->gdb.l_prev = 0;
 	ef->gdb.l_next = 0;
@@ -473,6 +478,9 @@ link_elf_link_preload_finish(linker_file_t lf)
 {
     elf_file_t		ef;
     int error;
+#ifdef DDB
+    char *newfilename;
+#endif
 
     ef = (elf_file_t) lf;
 #if 0	/* this will be more trouble than it's worth for now */
@@ -493,7 +501,9 @@ link_elf_link_preload_finish(linker_file_t lf)
 #ifdef DDB
     GDB_STATE(RT_ADD);
     ef->gdb.l_addr = lf->address;
-    ef->gdb.l_name = lf->filename;
+    newfilename = malloc(strlen(lf->filename) + 1, M_LINKER, M_WAITOK);
+    strcpy(newfilename, lf->filename);
+    ef->gdb.l_name = newfilename;
     ef->gdb.l_ld = ef->dynamic;
     link_elf_add_gdb(&ef->gdb);
     GDB_STATE(RT_CONSISTENT);
@@ -530,7 +540,9 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
     int symstrindex;
     int symcnt;
     int strcnt;
+#ifdef DDB
     char *newfilename;
+#endif
 
     GIANT_REQUIRED;
 
