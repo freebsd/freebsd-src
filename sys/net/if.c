@@ -1744,7 +1744,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 	ifma->ifma_lladdr = llsa;
 	ifma->ifma_ifp = ifp;
 	ifma->ifma_refcount = 1;
-	ifma->ifma_protospec = 0;
+	ifma->ifma_protospec = NULL;
 	rt_newmaddrmsg(RTM_NEWMADDR, ifma);
 
 	/*
@@ -1774,7 +1774,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa, struct ifmultiaddr **retifma
 			ifma->ifma_lladdr = NULL;
 			ifma->ifma_ifp = ifp;
 			ifma->ifma_refcount = 1;
-			ifma->ifma_protospec = 0;
+			ifma->ifma_protospec = NULL;
 			s = splimp();
 			TAILQ_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 			splx(s);
