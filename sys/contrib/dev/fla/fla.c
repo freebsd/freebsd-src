@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fla.c,v 1.3 1999/08/06 15:22:09 phk Exp $ 
+ * $Id: fla.c,v 1.1 1999/08/06 15:59:07 phk Exp $ 
  *
  */
 
@@ -60,7 +60,7 @@ physwrite(dev_t dev, struct uio *uio, int ioflag)
 #define noparms	NULL
 #endif
 
-#include <../../contrib/dev/fla/msysosak.h>
+#include <contrib/dev/fla/msysosak.h>
 
 MALLOC_DEFINE(M_FLA, "fla driver", "fla driver storage");
 
