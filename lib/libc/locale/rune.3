@@ -214,18 +214,18 @@ The
 .Fn setrunelocale
 function returns one of the following values:
 .Bl -tag -width Er
-.It Dv 0
+.It Er 0
 .Fn setrunelocale
 was successful.
-.It Er EFAULT
+.It Bq Er EFAULT
 .Fa locale
 was
 .Dv NULL .
-.It Er ENOENT
+.It Bq Er ENOENT
 The locale could not be found.
-.It Er EFTYPE
+.It Bq Er EFTYPE
 The file found was not a valid file.
-.It Er EINVAL
+.It Bq Er EINVAL
 The encoding indicated by the locale was unknown.
 .El
 .Pp

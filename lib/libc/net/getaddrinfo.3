@@ -411,7 +411,7 @@ Similarly, if it resolves to IPv6,
 socket is used.
 Observe that there is no hardcoded reference to particular address family.
 The code works even if
-.Nm getaddrinfo
+.Fn getaddrinfo
 returns addresses that are not IPv4/v6.
 .Bd -literal -offset indent
 struct addrinfo hints, *res, *res0;

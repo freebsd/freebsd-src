@@ -85,7 +85,7 @@ Trying to disable an active stack will cause
 to return -1 with
 .Va errno
 set to
-.Dv EINVAL .
+.Er EINVAL .
 A disabled stack will cause all signals to be
 taken on the regular user stack.
 If the stack is later re-enabled then all signals that were specified

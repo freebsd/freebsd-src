@@ -47,7 +47,7 @@
 .Fn tcsetpgrp "int fd" "pid_t pgrp_id"
 .Sh DESCRIPTION
 If the process has a controlling terminal, the
-.Nm tcsetpgrp
+.Fn tcsetpgrp
 function sets the foreground process group ID associated with the
 terminal device to
 .Fa pgrp_id .
@@ -60,16 +60,12 @@ The value of
 .Fa pgrp_id
 must be the same as the process group ID of a process in the same
 session as the calling process.
-.Pp
-Upon successful completion,
-.Nm tcsetpgrp
-returns a value of zero.
+.Sh RETURN VALUES
+.Rv -std tcsetpgrp
 .Sh ERRORS
-If an error occurs,
-.Nm tcsetpgrp
-returns -1 and the global variable
-.Va errno
-is set to indicate the error, as follows:
+The
+.Fn tcsetpgrp
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -97,7 +93,7 @@ session as the calling process.
 .Xr tcgetpgrp 3
 .Sh STANDARDS
 The
-.Nm tcsetpgprp
+.Fn tcsetpgrp
 function is expected to be compliant with the
 .St -p1003.1-88
 specification.

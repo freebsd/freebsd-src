@@ -129,9 +129,10 @@ argument is invalid.
 The implementation does not support an association of the variable
 name with the associated file.
 .El
+.Pp
 .Fn Pathconf
 will fail if:
-.Bl -tag -width ENAMETOOLONGAA
+.Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
@@ -147,7 +148,7 @@ Too many symbolic links were encountered in translating the pathname.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Pp
-.Bl -tag -width [EFAULT]
+.Bl -tag -width Er
 .Fn Fpathconf
 will fail if:
 .It Bq Er EBADF

@@ -129,17 +129,18 @@ to return.  And a C program to
 implement that suggestion follows. 
 .sp 0.5
 .Bd -filled -offset indent
-.Bl -column "IEEE Signal" "IEEE Default" XXERANGE ERANGEXXorXXEDOM
+.Bl -column "IEEE Signal" "IEEE Default" XXERANGE ERANGEXXorXXEDOM XXXXXX
 .It IEEE Signal	IEEE Default Ta
 .Fa iarg Ta
 .Va errno Ta
 .Fn infnan
 .It Invalid	\*(Na Ta
-.Dv EDOM	EDOM	0
+.Er EDOM	EDOM	0
 .It Overflow	\(+-\*(If Ta
-.Dv ERANGE	ERANGE	HUGE
+.Er ERANGE	ERANGE Ta
+.Dv HUGE
 .It Div\-by\-0	\(+-Infinity Ta
-.Dv \(+-ERANGE	ERANGE or EDOM	\(+-HUGE
+.Er \(+-ERANGE	ERANGE or EDOM	\(+-HUGE
 .It 	( Ns Dv HUGE No "= 1.7e38 ... nearly  2.0**127)"
 .El
 .Ed
@@ -165,17 +166,17 @@ int	iarg ;
 .Xr math 3 ,
 .Xr signal 3 .
 .Pp
-.Dv ERANGE
+.Er ERANGE
 and
-.Dv EDOM
+.Er EDOM
 are defined in
 .Aq Pa errno.h .
 (See
 .Xr intro 2
 for explanation of
-.Dv EDOM
+.Er EDOM
 and
-.Dv ERANGE . )
+.Er ERANGE . )
 .Sh HISTORY
 The
 .Fn infnan

@@ -133,11 +133,10 @@ is run in multi-user mode.  Execution ends either by explicit request
 directive), upon reaching the end of the argument list or on error.
 .Pp
 For example:
-.nf
-
+.Bd -literal
 /stand/sysinstall _ftpPath=ftp://ziggy/pub/ mediaSetFTP configPackages
-
-.fi
+.Ed
+.Pp
 Would initialize
 .Nm
 for FTP installation media (using the server `ziggy') and then
@@ -335,10 +334,9 @@ to mount our DOS partition and make sure that an
 entry is created for it in the new installation.  Before calling the
 .Ar diskLabelEditor
 function, we simply add an additional line:
-.nf
-	da0s1=/dos_c N
-
-.fi
+.Pp
+.Dl "da0s1=/dos_c N"
+.Pp
 before the call.  This tells the label editor that you want to mount
 the first slice on
 .Pa /dos_c

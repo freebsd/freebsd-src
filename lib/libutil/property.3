@@ -45,14 +45,14 @@
 .Ft void
 .Fn properties_free "properties list"
 .Sh DESCRIPTION
-.nf
+.Bd -literal
 typedef struct _properties {
 	struct _properties *next;
 	char *name;
 	char *value;
 } *properties;
-.fi
-
+.Ed
+.Pp
 The function
 .Fn properties_read
 reads
