@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.27 1995/12/23 16:46:31 davidg Exp $
+ *	$Id: support.s,v 1.28 1995/12/24 08:10:43 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -938,22 +938,3 @@ ___bb_init_func:
         movl 4(%esp),%eax
         movl $1,(%eax)
         ret 
-
-/*
- * Pull in everything in libkern for LKM's
- */
-
-.globl	___umoddi3
-.globl	___moddi3
-.globl	___udivdi3
-.globl	___divdi3
-.globl	_inet_ntoa
-.globl	_random
-.globl	_scanc
-.globl	_skpc
-.globl	_strcat
-.globl	_strncmp
-.globl	_strncpy
-.globl	_strcmp
-.globl	_strcpy
-.globl	___qdivrem
