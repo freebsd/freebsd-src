@@ -688,15 +688,14 @@ elect to not support this message. The text response must be less than
 bytes in length (presently 1024). This can be used to return general
 status information in human readable form.
 .It Dv NGM_BINARY2ASCII
-This generic converts a binary control message to its ASCII form.
+This message converts a binary control message to its ASCII form.
 The entire control message to be converted is contained within the
 arguments field of the
 .Dv Dv NGM_BINARY2ASCII
 message itself.  If successful, the reply will contain the same control
 message in ASCII form.
 A node will typically only know how to translate messages that it
-itself understands, so
-the target node of the
+itself understands, so the target node of the
 .Dv NGM_BINARY2ASCII
 is often the same node that would actually receive that message.
 .It Dv NGM_ASCII2BINARY
