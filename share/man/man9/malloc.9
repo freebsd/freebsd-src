@@ -85,7 +85,7 @@ the kernel version takes two more arguments.  The
 argument further qualifies
 .Fn malloc No Ns 's
 operational characteristics as follows:
-.Bl -tag -offset indent
+.Bl -tag -width indent
 .It Dv M_NOWAIT
 Causes
 .Fn malloc
@@ -95,18 +95,44 @@ if the request cannot be immediately fulfilled due to resource shortage.
 Otherwise,
 .Fn malloc
 may call sleep to wait for resources to be released by other processes.
-If this flag is not set,
+If this flag is set,
 .Fn malloc
-will never return
-.Dv NULL .
-Note that
+will return 
+.Dv NULL
+rather then block.  Note that
 .Dv M_WAITOK
-is conveniently defined to be 0, and hence may be or'ed into the
-.Fa flags
-argument to indicate that it's Ok to wait for resources.
+is defined to be 0, meaning that blocking operation is the default.
+.It Dv M_AWAIT
+Causes
+.Fn malloc
+to call 
+.Fn asleep
+if the request cannot be immediately fulfilled due to a resource shortage.
+M_AWAIT is not useful alone and should always be or'd with M_NOWAIT to allow
+malloc to call
+.Fn asleep
+and return
+.Dv NULL
+immediately.  It is expected that the caller will at some point call
+.Fn await
+and then retry the allocation.  Depending on the routine in question, the
+caller may decide to propogate the temporary failure up the call chain
+and actually have some other higher level routine block on the async wait
+that
+.Fn malloc
+queued.
+.It Dv M_WAITOK
+indicates that it is Ok to wait for resources.  It is unconveniently
+defined as 0 so care should be taken never to compare against this value
+directly or try to AND it as a flag.  The default operation is to block
+until the memory allocation succeeds. 
+.Fn malloc
+can only return
+.Dv NULL
+if 
+.Dv M_NOWAIT 
+is specified.
 .El
-.Pp
-Currently, only one flag is defined.
 .Pp
 The
 .Fa type
@@ -137,11 +163,23 @@ malloc_type_t M_FOOBUF = {
 ...
 MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 
-.Be
+.Ed
 .Sh RETURN VALUES
 .Fn malloc
 returns a kernel virtual address that is suitably aligned for storage of
-any type of object.
+any type of object, or
+.Dv NULL
+if the request could not be satisfied and 
+.Dv M_NOWAIT 
+was set.  If 
+.Dv M_AWAIT
+was set and
+.Fn malloc
+returns
+.Dv NULL ,
+it will call
+.Fn asleep
+as a side effect.
 .Sh SEE ALSO
 .Xr vmstat 8
 .Sh DIAGNOSTICS
