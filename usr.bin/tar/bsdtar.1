@@ -195,6 +195,24 @@ target of the link will be archived, not the link itself.
 (c and r mode only)
 Synonym for
 .Fl L .
+.It Fl -include Ar pattern
+Process only files or directories that match the specified pattern.
+Note that exclusions specified with
+.Fl -exclude
+take precedence over inclusions.
+If no inclusions are explicitly specified, all entries are processed by
+default.
+The
+.Fl -include
+option is especially useful when filtering archives.
+For example, the command
+.Dl Nm Fl c Fl f Pa new.tar Fl -include='*foo*' Cm @ Ns Pa old.tgz
+creates a new archive
+.Pa new.tar
+containing only the entries from
+.Pa old.tgz
+containing the string
+.Sq foo .
 .It Fl j
 (c mode only)
 Compress the resulting archive with
