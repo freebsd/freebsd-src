@@ -41,7 +41,7 @@
 #define	PROTO_ICOMPD	0x00fb	/* Individual link compressed */
 #define	PROTO_COMPD	0x00fd	/* Compressed datagram */
 
-#define PROTO_COMPRESSIBLE(p) (((p) & 0xffe1) == 0x21)
+#define PROTO_COMPRESSIBLE(p) (((p) & 0xff81) == 0x01)
 
 #define	PROTO_IPCP	0x8021
 #ifndef NOINET6
