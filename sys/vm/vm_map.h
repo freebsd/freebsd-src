@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.40 1999/05/16 05:07:33 alc Exp $
+ * $Id: vm_map.h,v 1.41 1999/05/17 00:53:55 alc Exp $
  */
 
 /*
@@ -76,7 +76,6 @@
  *
  *	vm_map_t		the high-level address map data structure.
  *	vm_map_entry_t		an entry in an address map.
- *	vm_map_version_t	a timestamp of a map, for use with vm_map_lookup
  */
 
 /*
@@ -161,24 +160,6 @@ struct vmspace {
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 	caddr_t vm_minsaddr;	/* user VA at max stack growth */
 };
-
-
-#if 0
-/*
- *	Map versions are used to validate a previous lookup attempt.
- *
- *	Since lookup operations may involve both a main map and
- *	a sharing map, it is necessary to have a timestamp from each.
- *	[If the main map timestamp has changed, the share_map and
- *	associated timestamp are no longer valid; the map version
- *	does not include a reference for the embedded share_map.]
- */
-typedef struct {
-	int main_timestamp;
-	int share_timestamp;
-} vm_map_version_t;
-
-#endif
 
 /*
  *	Macros:		vm_map_lock, etc.
@@ -322,9 +303,6 @@ vmspace_resident_count(struct vmspace *vmspace)
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 #ifdef KERNEL
-extern vm_offset_t kentry_data;
-extern vm_size_t kentry_data_size;
-
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
 int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
 struct pmap;
