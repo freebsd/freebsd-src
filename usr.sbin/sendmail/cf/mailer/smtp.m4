@@ -44,7 +44,7 @@ POPDIVERT
 ###   SMTP Mailer specification   ###
 #####################################
 
-VERSIONID(`@(#)smtp.m4	8.32 (Berkeley) 11/20/95')
+VERSIONID(`@(#)smtp.m4	8.33 (Berkeley) 7/9/96')
 
 Msmtp,		P=[IPC], F=CONCAT(mDFMuX, SMTP_MAILER_FLAGS), S=11/31, R=ifdef(`_ALL_MASQUERADE_', `21/31', `21'), E=\r\n, L=990,
 		_OPTINS(`SMTP_MAILER_MAX', `M=', `, ')_OPTINS(`SMTP_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/SMTP,
@@ -114,7 +114,9 @@ R$+ < @ $* > $*		$@ $1 < @ $2 > $3		not UUCP form
 R< $&h ! > $- ! $+	$@ $2 < @ $1 .UUCP. >
 R< $&h ! > $-.$+ ! $+	$@ $3 < @ $1.$2 >
 R< $&h ! > $+		$@ $1 < @ $&h .UUCP. >
-R< $+ ! > $+		$: $1 ! $2 < @ *LOCAL* >')
+R< $+ ! > $+		$: $1 ! $2 < @ $Y >		use UUCP_RELAY
+R$+ < @ $+ : $+ >	$@ $1 < @ $3 >			strip mailer: part
+R$+ < @ >		$: $1 < @ *LOCAL* >		if no UUCP_RELAY')
 
 
 #

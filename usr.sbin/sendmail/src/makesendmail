@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1993 Eric P. Allman
+# Copyright (c) 1993, 1996 Eric P. Allman
 # Copyright (c) 1993 The Regents of the University of California.
 # All rights reserved.
 #
@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#       @(#)makesendmail	8.29 (Berkeley) 8/1/95
+#       @(#)makesendmail	8.41 (Berkeley) 9/23/96
 #
 
 #
@@ -51,12 +51,12 @@ fi
 #
 #  Do heuristic guesses !ONLY! for machines that do not have uname
 #
-if [ -d /LocalApps -a ! -f /bin/uname -a ! -f /usr/bin/uname ]
+if [ -d /NextApps -a ! -f /bin/uname -a ! -f /usr/bin/uname ]
 then
 	# probably a NeXT box
-	arch=NeXT
-	os=Mach
-	rel=`strings /mach | grep 'Mach.*:' | sed -e 's/.* Mach //' -e 's/:.*//'`
+	arch=`hostinfo | sed -n 's/.*Processor type: \([^ ]*\).*/\1/p'`
+	os=NeXT
+	rel=`hostinfo | sed -n 's/.*NeXT Mach \([0-9\.]*\).*/\1/p'`
 elif [ -f /usr/sony/bin/machine -a -f /etc/osversion ]
 then
 	# probably a Sony NEWS 4.x
@@ -85,8 +85,8 @@ fi
 if [ ! "$arch" -a ! "$os" -a ! "$rel" ]
 then
 	arch=`uname -m | sed -e 's/ //g'`
-	os=`uname -s | sed 's/\//-/g'`
-	rel=`uname -r`
+	os=`uname -s | sed -e 's/\//-/g' -e 's/ //g'`
+	rel=`uname -r | sed -e 's/(/-/g' -e 's/)//g'`
 fi
 
 #
@@ -104,6 +104,8 @@ in
   sun4*)	arch=sun4;;
 
   9000/*)	arch=`echo $arch | sed -e 's/9000.//' -e 's/..$/xx/'`;;
+
+  DS/907000)	arch=ds90;;
 esac
 
 # tweak operating system type and release
@@ -112,12 +114,27 @@ in
   DYNIX-ptx)	os=PTX;;
   Paragon*)	os=Paragon;;
   HP-UX)	rel=`echo $rel | sed -e 's/^[^.]*\.0*//'`;;
-  AIX)		rel=`uname -v`;;
+  AIX)		rel=`uname -v`
+		if [ "$rel" = "2" ]
+		then
+			arch=""
+		fi;;
   BSD-386)	os=BSD-OS;;
+  SCO_SV)	os=SCO; rel=`uname -X | sed -n 's/Release = 3.2v//p'`;;
+  UNIX_System_V) if [ "$arch" = "ds90" ]
+		then
+			os="UXPDS"
+			rel=`uname -v | sed -e 's/\(V.*\)L.*/\1/'`
+		fi;;
 esac
 
 # get "base part" of operating system release
+rroot=`echo $rel | sed -e 's/\.[^.]*$//'`
 rbase=`echo $rel | sed -e 's/\..*//'`
+if [ "$rroot" = "$rbase" ]
+then
+	rroot=$rel
+fi
 
 # heuristic tweaks to clean up names -- PLEASE LIMIT THESE!
 if [ "$os" = "unix" ]
@@ -164,11 +181,13 @@ else
 	sfx=".${SENDMAIL_SUFFIX}"
 fi
 
-echo "Configuration: os=$os, rel=$rel, rbase=$rbase, arch=$arch, sfx=$sfx"
+echo "Configuration: os=$os, rel=$rel, rbase=$rbase, rroot=$rroot, arch=$arch, sfx=$sfx"
 
 # now try to find a reasonable object directory
 if [ -r obj.$os.$rel.$arch$sfx ]; then
 	obj=obj.$os.$rel.$arch$sfx
+elif [ -r obj.$os.$rroot.$arch$sfx ]; then
+	obj=obj.$os.$rroot.$arch$sfx
 elif [ -r obj.$os.$rbase.x.$arch$sfx ]; then
 	obj=obj.$os.$rbase.x.$arch$sfx
 elif [ -r obj.$os.$rel$sfx ]; then
@@ -196,6 +215,10 @@ else
 		makefile=Makefile.$os.$rel.$arch$sfx
 	elif [ -r Makefiles/Makefile.$os.$rel.$arch ]; then
 		makefile=Makefile.$os.$rel.$arch
+	elif [ -r Makefiles/Makefile.$os.$rroot.$arch$sfx ]; then
+		makefile=Makefile.$os.$rroot.$arch$sfx
+	elif [ -r Makefiles/Makefile.$os.$rroot.$arch ]; then
+		makefile=Makefile.$os.$rroot.$arch
 	elif [ -r Makefiles/Makefile.$os.$rbase.x.$arch$sfx ]; then
 		makefile=Makefile.$os.$rbase.x.$arch$sfx
 	elif [ -r Makefiles/Makefile.$os.$rbase.x.$arch ]; then
@@ -204,6 +227,10 @@ else
 		makefile=Makefile.$os.$rel$sfx
 	elif [ -r Makefiles/Makefile.$os.$rel ]; then
 		makefile=Makefile.$os.$rel
+	elif [ -r Makefiles/Makefile.$os.$rroot$sfx ]; then
+		makefile=Makefile.$os.$rroot$sfx
+	elif [ -r Makefiles/Makefile.$os.$rroot ]; then
+		makefile=Makefile.$os.$rroot
 	elif [ -r Makefiles/Makefile.$os.$rbase.x$sfx ]; then
 		makefile=Makefile.$os.$rbase.x$sfx
 	elif [ -r Makefiles/Makefile.$os.$rbase.x ]; then
@@ -216,6 +243,10 @@ else
 		makefile=Makefile.$rel.$arch$sfx
 	elif [ -r Makefiles/Makefile.$rel.$arch ]; then
 		makefile=Makefile.$rel.$arch
+	elif [ -r Makefiles/Makefile.$rroot.$arch$sfx ]; then
+		makefile=Makefile.$rroot.$arch$sfx
+	elif [ -r Makefiles/Makefile.$rroot.$arch ]; then
+		makefile=Makefile.$rroot.$arch
 	elif [ -r Makefiles/Makefile.$rbase.x.$arch$sfx ]; then
 		makefile=Makefile.$rbase.x.$arch$sfx
 	elif [ -r Makefiles/Makefile.$rbase.x.$arch ]; then

@@ -26,7 +26,8 @@ divert(-1)
 #	exclusively for local mail.
 #
 
-VERSIONID(`@(#)cyrusproto.mc	8.2 (Carnegie Mellon) @(#)cyrusproto.mc	8.2')
+divert(0)dnl
+VERSIONID(`@(#)cyrusproto.mc	8.3 (Carnegie Mellon) @(#)cyrusproto.mc	8.3')
 define(`confBIND_OPTS',`-DNSRCH -DEFNAMES')
 FEATURE(nouucp)
 FEATURE(nocanonify)

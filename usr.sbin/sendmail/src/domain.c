@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1986, 1995 Eric P. Allman
+ * Copyright (c) 1986, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if NAMED_BIND
-static char sccsid[] = "@(#)domain.c	8.54.1.2 (Berkeley) 9/16/96 (with name server)";
+static char sccsid[] = "@(#)domain.c	8.63 (Berkeley) 9/15/96 (with name server)";
 #else
-static char sccsid[] = "@(#)domain.c	8.54.1.2 (Berkeley) 9/16/96 (without name server)";
+static char sccsid[] = "@(#)domain.c	8.63 (Berkeley) 9/15/96 (without name server)";
 #endif
 #endif /* not lint */
 
@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)domain.c	8.54.1.2 (Berkeley) 9/16/96 (without name s
 
 #include <errno.h>
 #include <resolv.h>
+#include <arpa/inet.h>
 
 typedef union
 {
@@ -53,14 +54,18 @@ typedef union
 	u_char	qb2[PACKETSZ];
 } querybuf;
 
-static char	MXHostBuf[MAXMXHOSTS*PACKETSZ];
+#ifndef MXHOSTBUFSIZE
+# define MXHOSTBUFSIZE	(128 * MAXMXHOSTS)
+#endif
+
+static char	MXHostBuf[MXHOSTBUFSIZE];
 
 #ifndef MAXDNSRCH
-#define MAXDNSRCH	6	/* number of possible domains to search */
+# define MAXDNSRCH	6	/* number of possible domains to search */
 #endif
 
 #ifndef MAX
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
+# define MAX(a, b)	((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef NO_DATA
@@ -114,32 +119,21 @@ getmxrr(host, mxhosts, droplocalhost, rcode)
 	u_short pref, type;
 	u_short localpref = 256;
 	char *fallbackMX = FallBackMX;
-	static bool firsttime = TRUE;
 	bool trycanon = FALSE;
 	int (*resfunc)();
 	extern int res_query(), res_search();
 	u_short prefer[MAXMXHOSTS];
 	int weight[MAXMXHOSTS];
-	extern bool getcanonname();
+	extern int mxrand __P((char *));
 
 	if (tTd(8, 2))
 		printf("getmxrr(%s, droplocalhost=%d)\n", host, droplocalhost);
 
-	if (fallbackMX != NULL)
+	if (fallbackMX != NULL && droplocalhost &&
+	    wordinclass(fallbackMX, 'w'))
 	{
-		if (firsttime &&
-		    res_query(FallBackMX, C_IN, T_A,
-			      (u_char *) &answer, sizeof answer) < 0)
-		{
-			/* this entry is bogus */
-			fallbackMX = FallBackMX = NULL;
-		}
-		else if (droplocalhost && wordinclass(fallbackMX, 'w'))
-		{
-			/* don't use fallback for this pass */
-			fallbackMX = NULL;
-		}
-		firsttime = FALSE;
+		/* don't use fallback for this pass */
+		fallbackMX = NULL;
 	}
 
 	*rcode = EX_OK;
@@ -356,8 +350,11 @@ punt:
 			if (p != NULL)
 			{
 				*p = '\0';
-				if (inet_addr(&MXHostBuf[1]) != -1)
+				if (inet_addr(&MXHostBuf[1]) != INADDR_NONE)
+				{
+					nmx++;
 					*p = ']';
+				}
 				else
 				{
 					trycanon = TRUE;

@@ -34,10 +34,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)aux.m4	8.2 (Berkeley) 11/13/95')
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /usr/lib/aliases)')dnl
+VERSIONID(`@(#)aux.m4	8.4 (Berkeley) 9/25/96')
+define(`ALIAS_FILE', /usr/lib/aliases)dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')dnl
 ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', mn)')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', mn9)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -d -r $f $u')')dnl

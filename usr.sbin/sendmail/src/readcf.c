@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.139 (Berkeley) 11/29/95";
+static char sccsid[] = "@(#)readcf.c	8.174 (Berkeley) 10/9/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -112,10 +112,11 @@ readcf(cfname, safe, e)
 	char exbuf[MAXLINE];
 	char pvpbuf[MAXLINE + MAXATOM];
 	static char *null_list[1] = { NULL };
-	extern char *munchstring __P((char *, char **));
+	extern char *munchstring __P((char *, char **, int));
 	extern void fileclass __P((int, char *, char *, bool, bool));
 	extern void toomany __P((int, int));
 	extern void translate_dollars __P((char *));
+	extern void inithostmaps __P((void));
 
 	FileName = cfname;
 	LineNumber = 0;
@@ -246,10 +247,6 @@ readcf(cfname, safe, e)
 						botch = "$?";
 						break;
 
-					  case CONDELSE:
-						botch = "$|";
-						break;
-
 					  case CONDFI:
 						botch = "$.";
 						break;
@@ -354,16 +351,17 @@ readcf(cfname, safe, e)
 			rwp = RewriteRules[ruleset];
 			if (rwp != NULL)
 			{
+				if (OpMode == MD_TEST || tTd(37, 1))
+					printf("WARNING: Ruleset %s has multiple definitions\n",
+						&bp[1]);
 				while (rwp->r_next != NULL)
 					rwp = rwp->r_next;
-				fprintf(stderr, "WARNING: Ruleset %s redefined\n",
-					&bp[1]);
 			}
 			break;
 
 		  case 'D':		/* macro definition */
 			mid = macid(&bp[1], &ep);
-			p = munchstring(ep, NULL);
+			p = munchstring(ep, NULL, '\0');
 			define(mid, newstr(p), e);
 			break;
 
@@ -441,6 +439,13 @@ readcf(cfname, safe, e)
 			break;
 #endif
 
+#ifdef SUN_EXTENSIONS
+		  case 'L':		/* lookup macro */
+		  case 'G':		/* lookup class */
+			/* reserved for Sun -- NIS+ database lookup */
+			goto badline;
+#endif
+
 		  case 'M':		/* define mailer */
 			makemailer(&bp[1]);
 			break;
@@ -499,6 +504,8 @@ readcf(cfname, safe, e)
 
 			if (*ep++ == '/')
 			{
+				extern bool setvendor __P((char *));
+
 				/* extract vendor code */
 				for (p = ep; isascii(*p) && isalpha(*p); )
 					p++;
@@ -837,13 +844,11 @@ makemailer(line)
 	auto char *endp;
 	extern int NextMailer;
 	extern char **makeargv();
-	extern char *munchstring();
+	extern char *munchstring __P((char *, char **, int));
 
 	/* allocate a mailer and set up defaults */
 	m = (struct mailer *) xalloc(sizeof *m);
 	bzero((char *) m, sizeof *m);
-	m->m_eol = "\n";
-	m->m_uid = m->m_gid = 0;
 
 	/* collect the mailer name */
 	for (p = line; *p != '\0' && *p != ',' && !(isascii(*p) && isspace(*p)); p++)
@@ -875,7 +880,7 @@ makemailer(line)
 			p++;
 
 		/* p now points to the field body */
-		p = munchstring(p, &delimptr);
+		p = munchstring(p, &delimptr, ',');
 
 		/* install the field into the mailer struct */
 		switch (fcode)
@@ -1089,6 +1094,29 @@ makemailer(line)
 			m->m_diagtype = "smtp";
 	}
 
+	if (m->m_eol == NULL)
+	{
+		char **pp;
+
+		/* default for SMTP is \r\n; use \n for local delivery */
+		for (pp = m->m_argv; *pp != NULL; pp++)
+		{
+			char *p;
+
+			for (p = *pp; *p != '\0'; )
+			{
+				if ((*p++ & 0377) == MACROEXPAND && *p == 'u')
+					break;
+			}
+			if (*p != '\0')
+				break;
+		}
+		if (*pp == NULL)
+			m->m_eol = "\r\n";
+		else
+			m->m_eol = "\n";
+	}
+
 	/* enter the mailer into the symbol table */
 	s = stab(m->m_name, ST_MAILER, ST_ENTER);
 	if (s->s_mailer != NULL)
@@ -1110,15 +1138,17 @@ makemailer(line)
 **		p -- the string to munch.
 **		delimptr -- if non-NULL, set to the pointer of the
 **			field delimiter character.
+**		delim -- the delimiter for the field.
 **
 **	Returns:
 **		the munched string.
 */
 
 char *
-munchstring(p, delimptr)
+munchstring(p, delimptr, delim)
 	register char *p;
 	char **delimptr;
+	int delim;
 {
 	register char *q;
 	bool backslash = FALSE;
@@ -1157,7 +1187,7 @@ munchstring(p, delimptr)
 				backslash = TRUE;
 			else if (*p == '"')
 				quotemode = !quotemode;
-			else if (quotemode || *p != ',')
+			else if (quotemode || *p != delim)
 				*q++ = *p;
 			else
 				break;
@@ -1322,17 +1352,17 @@ struct resolverflags
 	long	rf_bits;	/* bits to set/clear */
 } ResolverFlags[] =
 {
-	"debug",	RES_DEBUG,
-	"aaonly",	RES_AAONLY,
-	"usevc",	RES_USEVC,
-	"primary",	RES_PRIMARY,
-	"igntc",	RES_IGNTC,
-	"recurse",	RES_RECURSE,
-	"defnames",	RES_DEFNAMES,
-	"stayopen",	RES_STAYOPEN,
-	"dnsrch",	RES_DNSRCH,
-	"true",		0,		/* to avoid error on old syntax */
-	NULL,		0
+	{ "debug",	RES_DEBUG	},
+	{ "aaonly",	RES_AAONLY	},
+	{ "usevc",	RES_USEVC	},
+	{ "primary",	RES_PRIMARY	},
+	{ "igntc",	RES_IGNTC	},
+	{ "recurse",	RES_RECURSE	},
+	{ "defnames",	RES_DEFNAMES	},
+	{ "stayopen",	RES_STAYOPEN	},
+	{ "dnsrch",	RES_DNSRCH	},
+	{ "true",	0		},	/* avoid error on old syntax */
+	{ NULL,		0		}
 };
 
 #endif
@@ -1344,108 +1374,112 @@ struct optioninfo
 	bool	o_safe;		/* safe for random people to use */
 } OptionTab[] =
 {
-	"SevenBitInput",	'7',		TRUE,
+	{ "SevenBitInput",		'7',		TRUE	},
 #if MIME8TO7
-	"EightBitMode",		'8',		TRUE,
+	{ "EightBitMode",		'8',		TRUE	},
 #endif
-	"AliasFile",		'A',		FALSE,
-	"AliasWait",		'a',		FALSE,
-	"BlankSub",		'B',		FALSE,
-	"MinFreeBlocks",	'b',		TRUE,
-	"CheckpointInterval",	'C',		TRUE,
-	"HoldExpensive",	'c',		FALSE,
-	"AutoRebuildAliases",	'D',		FALSE,
-	"DeliveryMode",		'd',		TRUE,
-	"ErrorHeader",		'E',		FALSE,
-	"ErrorMode",		'e',		TRUE,
-	"TempFileMode",		'F',		FALSE,
-	"SaveFromLine",		'f',		FALSE,
-	"MatchGECOS",		'G',		FALSE,
-	"HelpFile",		'H',		FALSE,
-	"MaxHopCount",		'h',		FALSE,
-	"ResolverOptions",	'I',		FALSE,
-	"IgnoreDots",		'i',		TRUE,
-	"ForwardPath",		'J',		FALSE,
-	"SendMimeErrors",	'j',		TRUE,
-	"ConnectionCacheSize",	'k',		FALSE,
-	"ConnectionCacheTimeout", 'K',		FALSE,
-	"UseErrorsTo",		'l',		FALSE,
-	"LogLevel",		'L',		FALSE,
-	"MeToo",		'm',		TRUE,
-	"CheckAliases",		'n',		FALSE,
-	"OldStyleHeaders",	'o',		TRUE,
-	"DaemonPortOptions",	'O',		FALSE,
-	"PrivacyOptions",	'p',		TRUE,
-	"PostmasterCopy",	'P',		FALSE,
-	"QueueFactor",		'q',		FALSE,
-	"QueueDirectory",	'Q',		FALSE,
-	"DontPruneRoutes",	'R',		FALSE,
-	"Timeout",		'r',		TRUE,
-	"StatusFile",		'S',		FALSE,
-	"SuperSafe",		's',		TRUE,
-	"QueueTimeout",		'T',		FALSE,
-	"TimeZoneSpec",		't',		FALSE,
-	"UserDatabaseSpec",	'U',		FALSE,
-	"DefaultUser",		'u',		FALSE,
-	"FallbackMXhost",	'V',		FALSE,
-	"Verbose",		'v',		TRUE,
-	"TryNullMXList",	'w',		TRUE,
-	"QueueLA",		'x',		FALSE,
-	"RefuseLA",		'X',		FALSE,
-	"RecipientFactor",	'y',		FALSE,
-	"ForkEachJob",		'Y',		FALSE,
-	"ClassFactor",		'z',		FALSE,
-	"RetryFactor",		'Z',		FALSE,
+	{ "AliasFile",			'A',		FALSE	},
+	{ "AliasWait",			'a',		FALSE	},
+	{ "BlankSub",			'B',		FALSE	},
+	{ "MinFreeBlocks",		'b',		TRUE	},
+	{ "CheckpointInterval",		'C',		TRUE	},
+	{ "HoldExpensive",		'c',		FALSE	},
+	{ "AutoRebuildAliases",		'D',		FALSE	},
+	{ "DeliveryMode",		'd',		TRUE	},
+	{ "ErrorHeader",		'E',		FALSE	},
+	{ "ErrorMode",			'e',		TRUE	},
+	{ "TempFileMode",		'F',		FALSE	},
+	{ "SaveFromLine",		'f',		FALSE	},
+	{ "MatchGECOS",			'G',		FALSE	},
+	{ "HelpFile",			'H',		FALSE	},
+	{ "MaxHopCount",		'h',		FALSE	},
+	{ "ResolverOptions",		'I',		FALSE	},
+	{ "IgnoreDots",			'i',		TRUE	},
+	{ "ForwardPath",		'J',		FALSE	},
+	{ "SendMimeErrors",		'j',		TRUE	},
+	{ "ConnectionCacheSize",	'k',		FALSE	},
+	{ "ConnectionCacheTimeout",	'K',		FALSE	},
+	{ "UseErrorsTo",		'l',		FALSE	},
+	{ "LogLevel",			'L',		TRUE	},
+	{ "MeToo",			'm',		TRUE	},
+	{ "CheckAliases",		'n',		FALSE	},
+	{ "OldStyleHeaders",		'o',		TRUE	},
+	{ "DaemonPortOptions",		'O',		FALSE	},
+	{ "PrivacyOptions",		'p',		TRUE	},
+	{ "PostmasterCopy",		'P',		FALSE	},
+	{ "QueueFactor",		'q',		FALSE	},
+	{ "QueueDirectory",		'Q',		FALSE	},
+	{ "DontPruneRoutes",		'R',		FALSE	},
+	{ "Timeout",			'r',		FALSE	},
+	{ "StatusFile",			'S',		FALSE	},
+	{ "SuperSafe",			's',		TRUE	},
+	{ "QueueTimeout",		'T',		FALSE	},
+	{ "TimeZoneSpec",		't',		FALSE	},
+	{ "UserDatabaseSpec",		'U',		FALSE	},
+	{ "DefaultUser",		'u',		FALSE	},
+	{ "FallbackMXhost",		'V',		FALSE	},
+	{ "Verbose",			'v',		TRUE	},
+	{ "TryNullMXList",		'w',		TRUE	},
+	{ "QueueLA",			'x',		FALSE	},
+	{ "RefuseLA",			'X',		FALSE	},
+	{ "RecipientFactor",		'y',		FALSE	},
+	{ "ForkEachJob",		'Y',		FALSE	},
+	{ "ClassFactor",		'z',		FALSE	},
+	{ "RetryFactor",		'Z',		FALSE	},
 #define O_QUEUESORTORD	0x81
-	"QueueSortOrder",	O_QUEUESORTORD,	TRUE,
+	{ "QueueSortOrder",		O_QUEUESORTORD,	TRUE	},
 #define O_HOSTSFILE	0x82
-	"HostsFile",		O_HOSTSFILE,	FALSE,
+	{ "HostsFile",			O_HOSTSFILE,	FALSE	},
 #define O_MQA		0x83
-	"MinQueueAge",		O_MQA,		TRUE,
-#define O_MHSA		0x84
-/*
-	"MaxHostStatAge",	O_MHSA,		TRUE,
-*/
+	{ "MinQueueAge",		O_MQA,		TRUE	},
 #define O_DEFCHARSET	0x85
-	"DefaultCharSet",	O_DEFCHARSET,	TRUE,
+	{ "DefaultCharSet",		O_DEFCHARSET,	TRUE	},
 #define O_SSFILE	0x86
-	"ServiceSwitchFile",	O_SSFILE,	FALSE,
+	{ "ServiceSwitchFile",		O_SSFILE,	FALSE	},
 #define O_DIALDELAY	0x87
-	"DialDelay",		O_DIALDELAY,	TRUE,
+	{ "DialDelay",			O_DIALDELAY,	TRUE	},
 #define O_NORCPTACTION	0x88
-	"NoRecipientAction",	O_NORCPTACTION,	TRUE,
+	{ "NoRecipientAction",		O_NORCPTACTION,	TRUE	},
 #define O_SAFEFILEENV	0x89
-	"SafeFileEnvironment",	O_SAFEFILEENV,	FALSE,
+	{ "SafeFileEnvironment",	O_SAFEFILEENV,	FALSE	},
 #define O_MAXMSGSIZE	0x8a
-	"MaxMessageSize",	O_MAXMSGSIZE,	FALSE,
+	{ "MaxMessageSize",		O_MAXMSGSIZE,	FALSE	},
 #define O_COLONOKINADDR	0x8b
-	"ColonOkInAddr",	O_COLONOKINADDR, TRUE,
+	{ "ColonOkInAddr",		O_COLONOKINADDR, TRUE	},
 #define O_MAXQUEUERUN	0x8c
-	"MaxQueueRunSize",	O_MAXQUEUERUN,	TRUE,
+	{ "MaxQueueRunSize",		O_MAXQUEUERUN,	TRUE	},
 #define O_MAXCHILDREN	0x8d
-/*
-	"MaxDaemonChildren",	O_MAXCHILDREN,	FALSE,
-*/
+	{ "MaxDaemonChildren",		O_MAXCHILDREN,	FALSE	},
 #define O_KEEPCNAMES	0x8e
-	"DontExpandCnames",	O_KEEPCNAMES,	FALSE,
+	{ "DontExpandCnames",		O_KEEPCNAMES,	FALSE	},
 #define O_MUSTQUOTE	0x8f
-/*
-	"MustQuoteChars",	O_MUSTQUOTE,	FALSE,
-*/
+	{ "MustQuoteChars",		O_MUSTQUOTE,	FALSE	},
 #define O_SMTPGREETING	0x90
-	"SmtpGreetingMessage",	O_SMTPGREETING,	FALSE,
+	{ "SmtpGreetingMessage",	O_SMTPGREETING,	FALSE	},
 #define O_UNIXFROM	0x91
-	"UnixFromLine",		O_UNIXFROM,	FALSE,
+	{ "UnixFromLine",		O_UNIXFROM,	FALSE	},
 #define O_OPCHARS	0x92
-	"OperatorChars",	O_OPCHARS,	FALSE,
+	{ "OperatorChars",		O_OPCHARS,	FALSE	},
 #define O_DONTINITGRPS	0x93
-	"DontInitGroups",	O_DONTINITGRPS,	TRUE,
+	{ "DontInitGroups",		O_DONTINITGRPS,	TRUE	},
 #define O_SLFH		0x94
-#ifdef LOTUS_NOTES_HACK
-	"SingleLineFromHeader",	O_SLFH,		TRUE,
-#endif
+	{ "SingleLineFromHeader",	O_SLFH,		TRUE	},
+#define O_ABH		0x95
+	{ "AllowBogusHELO",		O_ABH,		TRUE	},
+#define O_CONNTHROT	0x97
+	{ "ConnectionRateThrottle",	O_CONNTHROT,	FALSE	},
+#define O_UGW		0x99
+	{ "UnsafeGroupWrites",		O_UGW,		FALSE	},
+#define O_DBLBOUNCE	0x9a
+	{ "DoubleBounceAddress",	O_DBLBOUNCE,	FALSE	},
+#define O_HSDIR		0x9b
+	{ "HostStatusDirectory",	O_HSDIR,	FALSE	},
+#define O_SINGTHREAD	0x9c
+	{ "SingleThreadDelivery",	O_SINGTHREAD,	FALSE	},
+#define O_RUNASUSER	0x9d
+	{ "RunAsUser",			O_RUNASUSER,	FALSE	},
 
-	NULL,			'\0',		FALSE,
+	{ NULL,				'\0',		FALSE	}
 };
 
 
@@ -1461,12 +1495,18 @@ setoption(opt, val, safe, sticky, e)
 	register char *p;
 	register struct optioninfo *o;
 	char *subopt;
+	int mid;
+	auto char *ep;
 	char buf[50];
 	extern bool atobool();
 	extern time_t convtime();
 	extern int QueueLA;
 	extern int RefuseLA;
 	extern bool Warn_Q_option;
+	extern void setalias __P((char *));
+	extern int atooct __P((char *));
+	extern void setdefuser __P((void));
+	extern void setdaemonoptions __P((char *));
 
 	errno = 0;
 	if (opt == ' ')
@@ -1843,10 +1883,11 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case 'M':		/* define macro */
-		p = newstr(&val[1]);
+		mid = macid(val, &ep);
+		p = newstr(ep);
 		if (!safe)
 			cleanstrcpy(p, p, MAXNAME);
-		define(val[0], p, CurEnv);
+		define(mid, p, CurEnv);
 		sticky = FALSE;
 		break;
 
@@ -1986,6 +2027,14 @@ setoption(opt, val, safe, sticky, e)
 				DefGid = pw->pw_gid;
 			}
 		}
+
+#ifdef UID_MAX
+		if (DefUid > UID_MAX)
+		{
+			syserr("readcf: option u: uid value (%ld) > UID_MAX (%ld); ignored",
+				DefUid, UID_MAX);
+		}
+#endif
 		setdefuser();
 
 		/* handle the group if it is there */
@@ -1995,7 +2044,8 @@ setoption(opt, val, safe, sticky, e)
 		goto g_opt;
 
 	  case 'V':		/* fallback MX host */
-		FallBackMX = newstr(val);
+		if (val[0] != '\0')
+			FallBackMX = newstr(val);
 		break;
 
 	  case 'v':		/* run in verbose mode */
@@ -2045,6 +2095,11 @@ setoption(opt, val, safe, sticky, e)
 			QueueSortOrder = QS_BYPRIORITY;
 			break;
 
+		  case 't':	/* Submission time */
+		  case 'T':
+			QueueSortOrder = QS_BYTIME;
+			break;
+
 		  default:
 			syserr("Invalid queue sort order \"%s\"", val);
 		}
@@ -2056,10 +2111,6 @@ setoption(opt, val, safe, sticky, e)
 
 	  case O_MQA:		/* minimum queue age between deliveries */
 		MinQueueAge = convtime(val, 'm');
-		break;
-
-	  case O_MHSA:		/* maximum age of cached host status */
-		MaxHostStatAge = convtime(val, 'm');
 		break;
 
 	  case O_DEFCHARSET:	/* default character set for mimefying */
@@ -2115,21 +2166,21 @@ setoption(opt, val, safe, sticky, e)
 
 	  case O_MUSTQUOTE:	/* must quote these characters in phrases */
 		strcpy(buf, "@,;:\\()[]");
-		if (strlen(val) < sizeof buf - 10)
+		if (strlen(val) < (SIZE_T) sizeof buf - 10)
 			strcat(buf, val);
 		MustQuoteChars = newstr(buf);
 		break;
 
 	  case O_SMTPGREETING:	/* SMTP greeting message (old $e macro) */
-		SmtpGreeting = newstr(munchstring(val, NULL));
+		SmtpGreeting = newstr(munchstring(val, NULL, '\0'));
 		break;
 
 	  case O_UNIXFROM:	/* UNIX From_ line (old $l macro) */
-		UnixFromLine = newstr(munchstring(val, NULL));
+		UnixFromLine = newstr(munchstring(val, NULL, '\0'));
 		break;
 
 	  case O_OPCHARS:	/* operator characters (old $o macro) */
-		OperatorChars = newstr(munchstring(val, NULL));
+		OperatorChars = newstr(munchstring(val, NULL, '\0'));
 		break;
 
 	  case O_DONTINITGRPS:	/* don't call initgroups(3) */
@@ -2138,6 +2189,75 @@ setoption(opt, val, safe, sticky, e)
 
 	  case O_SLFH:		/* make sure from fits on one line */
 		SingleLineFromHeader = atobool(val);
+		break;
+
+	  case O_ABH:		/* allow HELO commands with syntax errors */
+		AllowBogusHELO = atobool(val);
+		break;
+
+	  case O_CONNTHROT:	/* connection rate throttle */
+		ConnRateThrottle = atoi(val);
+		break;
+
+	  case O_UGW:		/* group writable files are unsafe */
+		UnsafeGroupWrites = atobool(val);
+		break;
+
+	  case O_DBLBOUNCE:	/* address to which to send double bounces */
+		if (val[0] != '\0')
+			DoubleBounceAddr = newstr(val);
+		else
+			syserr("readcf: option DoubleBounceAddress: value required");
+		break;
+
+	  case O_HSDIR:		/* persistent host status directory */
+		if (val[0] != '\0')
+			HostStatDir = newstr(val);
+		break;
+
+	  case O_SINGTHREAD:	/* single thread deliveries (requires hsdir) */
+		SingleThreadDelivery = atobool(val);
+		break;
+
+	  case O_RUNASUSER:	/* run bulk of code as this user */
+		for (p = val; *p != '\0'; p++)
+		{
+			if (*p == '.' || *p == '/' || *p == ':')
+			{
+				*p++ = '\0';
+				break;
+			}
+		}
+		if (isascii(*val) && isdigit(*val))
+			RunAsUid = atoi(val);
+		else
+		{
+			register struct passwd *pw;
+
+			pw = sm_getpwnam(val);
+			if (pw == NULL)
+				syserr("readcf: option RunAsUser: unknown user %s", val);
+			else
+			{
+				RunAsUid = pw->pw_uid;
+				RunAsGid = pw->pw_gid;
+			}
+		}
+		if (*p == '\0')
+			break;
+		if (isascii(*p) && isdigit(*p))
+			DefGid = atoi(p);
+		else
+		{
+			register struct group *gr;
+
+			gr = getgrnam(p);
+			if (gr == NULL)
+				syserr("readcf: option RunAsUser: unknown group %s",
+					p);
+			else
+				RunAsGid = gr->gr_gid;
+		}
 		break;
 
 	  default:
@@ -2249,7 +2369,7 @@ makemapentry(line)
 
 	if (tTd(37, 5))
 	{
-		printf("map %s, class %s, flags %x, file %s,\n",
+		printf("map %s, class %s, flags %lx, file %s,\n",
 			s->s_map.map_mname, s->s_map.map_class->map_cname,
 			s->s_map.map_mflags,
 			s->s_map.map_file == NULL ? "(null)" : s->s_map.map_file);
@@ -2327,10 +2447,7 @@ strtorwset(p, endp, stabmode)
 			*p = delim;
 
 		if (s == NULL)
-		{
-			syserr("unknown ruleset %s", q);
 			return -1;
-		}
 
 		if (stabmode == ST_ENTER && delim == '=')
 		{
@@ -2368,7 +2485,7 @@ strtorwset(p, endp, stabmode)
 		if (s->s_ruleset > 0 && ruleset >= 0 && ruleset != s->s_ruleset)
 		{
 			syserr("%s: ruleset changed value (old %d, new %d)",
-				q, ruleset, s->s_ruleset);
+				q, s->s_ruleset, ruleset);
 			ruleset = s->s_ruleset;
 		}
 		else if (ruleset > 0)
@@ -2403,6 +2520,8 @@ inittimeouts(val)
 	register char *p;
 	extern time_t convtime();
 
+	if (tTd(37, 2))
+		printf("inittimeouts(%s)\n", val == NULL ? "<NULL>" : val);
 	if (val == NULL)
 	{
 		TimeOuts.to_connect = (time_t) 0 SECONDS;
@@ -2423,6 +2542,24 @@ inittimeouts(val)
 		TimeOuts.to_ident = (time_t) 0 SECONDS;
 #endif
 		TimeOuts.to_fileopen = (time_t) 60 SECONDS;
+		if (tTd(37, 5))
+		{
+			printf("Timeouts:\n");
+			printf("  connect = %ld\n", TimeOuts.to_connect);
+			printf("  initial = %ld\n", TimeOuts.to_initial);
+			printf("  helo = %ld\n", TimeOuts.to_helo);
+			printf("  mail = %ld\n", TimeOuts.to_mail);
+			printf("  rcpt = %ld\n", TimeOuts.to_rcpt);
+			printf("  datainit = %ld\n", TimeOuts.to_datainit);
+			printf("  datablock = %ld\n", TimeOuts.to_datablock);
+			printf("  datafinal = %ld\n", TimeOuts.to_datafinal);
+			printf("  rset = %ld\n", TimeOuts.to_rset);
+			printf("  quit = %ld\n", TimeOuts.to_quit);
+			printf("  nextcommand = %ld\n", TimeOuts.to_nextcommand);
+			printf("  miscshort = %ld\n", TimeOuts.to_miscshort);
+			printf("  ident = %ld\n", TimeOuts.to_ident);
+			printf("  fileopen = %ld\n", TimeOuts.to_fileopen);
+		}
 		return;
 	}
 
@@ -2482,6 +2619,9 @@ settimeout(name, val)
 	time_t to;
 	extern time_t convtime();
 
+	if (tTd(37, 2))
+		printf("settimeout(%s = %s)\n", name, val);
+
 	to = convtime(val, 'm');
 	p = strchr(name, '.');
 	if (p != NULL)
@@ -2515,6 +2655,8 @@ settimeout(name, val)
 		TimeOuts.to_fileopen = to;
 	else if (strcasecmp(name, "connect") == 0)
 		TimeOuts.to_connect = to;
+	else if (strcasecmp(name, "iconnect") == 0)
+		TimeOuts.to_iconnect = to;
 	else if (strcasecmp(name, "queuewarn") == 0)
 	{
 		to = convtime(val, 'h');
@@ -2551,6 +2693,8 @@ settimeout(name, val)
 		else
 			syserr("settimeout: invalid queuereturn subtimeout %s", p);
 	}
+	else if (strcasecmp(name, "hoststatus") == 0)
+		MciInfoTimeout = convtime(val, 'm');
 	else
 		syserr("settimeout: invalid timeout %s", name);
 }
