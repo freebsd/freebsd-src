@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.19 1994/09/27 17:58:30 davidg Exp $
+ * $Id: soundcard.c,v 1.20 1994/10/01 02:17:14 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -54,6 +54,7 @@ static int      soundcards_installed = 0;	/* Number of installed
 static int      soundcard_configured = 0;
 
 static struct fileinfo files[SND_NDEVS];
+struct selinfo selinfo[SND_NDEVS >> 4];
 
 int             sndprobe (struct isa_device *dev);
 int             sndattach (struct isa_device *dev);
@@ -62,7 +63,7 @@ int             sndclose (dev_t dev, int flags);
 int             sndioctl (dev_t dev, int cmd, caddr_t arg, int mode);
 int             sndread (int dev, struct uio *uio);
 int             sndwrite (int dev, struct uio *uio);
-int             sndselect (int dev, int rw);
+int             sndselect (int dev, int rw, struct proc *p);
 static void	sound_mem_init(void);
 
 unsigned
@@ -122,6 +123,9 @@ sndopen (dev_t dev, int flags)
   else if (flags & FWRITE)
     files[dev].mode = OPEN_WRITE;
 
+  selinfo[dev >> 4].si_pid = 0;
+  selinfo[dev >> 4].si_flags = 0;
+
   FIX_RETURN(sound_open_sw (dev, &files[dev]));
 }
 
@@ -144,13 +148,33 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int mode)
 }
 
 int
-sndselect (int dev, int rw)
+sndselect (int dev, int rw, struct proc *p)
 {
+  int  r,s;
+
   dev = minor (dev);
 
   DEB (printk ("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 
-  FIX_RETURN (0);
+  r = 0;
+  DISABLE_INTR(s);
+  switch (rw) {
+  case FREAD:	/* record */
+    if(DMAbuf_input_ready(dev >> 4))
+      r = 1;
+    else
+      selrecord(p, &selinfo[dev >> 4]);
+    break;
+  case FWRITE:	/* play */
+    if(DMAbuf_output_ready(dev >> 4))
+      r = 1;
+    else
+      selrecord(p, &selinfo[dev >> 4]);
+    break;
+  }
+  RESTORE_INTR(s);
+
+  return r;
 }
 
 static unsigned short

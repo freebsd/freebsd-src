@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.h,v 1.9 1994/10/01 02:32:23 swallace Exp $
+ * $Id: soundcard.h,v 1.10 1994/11/14 14:13:13 bde Exp $
  */
 
  /* 
@@ -536,13 +536,14 @@ typedef struct {
 #define SNDCTL_DSP_SYNC			_IO  ('P', 1)
 #define SNDCTL_DSP_SPEED		_IOWR('P', 2, int)
 #define SNDCTL_DSP_STEREO		_IOWR('P', 3, int)
-#define SNDCTL_DSP_GETBLKSIZE		_IOWR('P', 4, int)
+#define SNDCTL_DSP_GETBLKSIZE		_IOR('P', 4, int)
 #define SNDCTL_DSP_SAMPLESIZE		SNDCTL_DSP_SETFMT
 #define SOUND_PCM_WRITE_CHANNELS	_IOWR('P', 6, int)
 #define SOUND_PCM_WRITE_FILTER		_IOWR('P', 7, int)
 #define SNDCTL_DSP_POST			_IO  ('P', 8)
 #define SNDCTL_DSP_SUBDIVIDE		_IOWR('P', 9, int)
 #define SNDCTL_DSP_SETFRAGMENT		_IOWR('P',10, int)
+#define	SNDCTL_DSP_SETBLKSIZE		_IOW('P', 4, int)
 
 /*	Audio data formats (Note! U8=8 and S16_LE=16 for compatibility) */
 #define SNDCTL_DSP_GETFMTS		_IOR ('P',11, int) /* Returns a mask */
@@ -573,6 +574,7 @@ typedef struct {
 #define SOUND_PCM_SETFRAGMENT		SNDCTL_DSP_SETFRAGMENT
 #define SOUND_PCM_GETFMTS		SNDCTL_DSP_GETFMTS
 #define SOUND_PCM_SETFMT		SNDCTL_DSP_SETFMT
+#define SOUND_PCM_SETBLKSIZE		SNDCTL_DSP_SETBLKSIZE
 
 /*********************************************
  * IOCTL /dev/pss (experimental PSS API by marc.hoffman@analog.com.
