@@ -51,6 +51,7 @@
  */
 
 #include <i386/isa/snd/sound.h>
+#include <sys/poll.h>
 
 #if NPCM > 0	/* from "snd.h" */
 
@@ -75,7 +76,7 @@ static d_mmap_t sndmmap;
 static struct cdevsw snd_cdevsw = {
 	sndopen, sndclose, sndread, sndwrite,
 	sndioctl, nxstop, nxreset, nxdevtotty,
-	sndselect, sndmmap, nxstrategy, "snd",
+	sndpoll, sndmmap, nxstrategy, "snd",
 	NULL, -1,
 };
 
@@ -271,7 +272,7 @@ print_isadev_info(struct isa_device *d, char *s)
 {
     if (d == NULL )
 	return ;
-    printf("%s%d at 0x%x irq %d drq %d mem 0x%x flags 0x%x en %d confl %d\n",
+    printf("%s%d at 0x%x irq %d drq %d mem %p flags 0x%x en %d confl %d\n",
 	d->id_driver ? d->id_driver->name : "NONAME",
 	d->id_unit,
 	(u_short)(d->id_iobase), ffs(d->id_irq) - 1 ,
@@ -380,7 +381,8 @@ sndopen(dev_t i_dev, int flags, int mode, struct proc * p)
 
     default:
 	if (d->open == NULL) {
-	    printf("open: missing for unit %d\n", unit );
+	    printf("open: bad unit %d, perhaps you want unit %d ?\n",
+		unit, unit+1 );
 	    return (ENXIO) ;
 	} else
 	    return d->open(i_dev, flags, mode, p);
@@ -724,7 +726,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	break ;
 
     case AIOSYNC:
-	printf("AIOSYNC chan 0x%03x pos %d unimplemented\n",
+	printf("AIOSYNC chan 0x%03lx pos %ld unimplemented\n",
 	    ((snd_sync_parm *)arg)->chan,
 	    ((snd_sync_parm *)arg)->pos);
 	break;
@@ -772,13 +774,13 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	ask_init(d);
 	break ;
     case SNDCTL_DSP_RESET:
-	printf("dsp reset\n");
+	DDB(printf("dsp reset\n"));
 	dsp_wrabort(d);
 	dsp_rdabort(d);
 	break ;
 
     case SNDCTL_DSP_SYNC:
-	printf("dsp sync\n");
+	DDB(printf("dsp sync\n"));
 	splx(s);
 	snd_sync(d, 1, d->bufsize - 4); /* DMA does not start with <4 bytes */
 	break ;
@@ -850,8 +852,10 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	    int bytes, count;
 	    bytes = *(int *)arg & 0xffff ;
 	    count = ( *(int *)arg >> 16) & 0xffff ;
-	    if (bytes < 7 || bytes > 15)
-		return EINVAL ;
+	    if (bytes < 7)
+		bytes  =  7 ;
+	    if (bytes > 15)
+		bytes = 15 ;
 	    d->play_blocksize =
 	    d->rec_blocksize = min ( 1<< bytes, d->dbuf_in.bufsize) ;
 	    count = d->dbuf_in.bufsize / d->play_blocksize ;
@@ -923,76 +927,71 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 }
 
 int
-sndselect(dev_t i_dev, int rw, struct proc * p)
+sndpoll(dev_t i_dev, int events, struct proc *p)
 {
+    int lim ;
+    int revents = 0;
     int dev, unit, c = 1 /* default: success */ ;
     snddev_info *d ;
     u_long flags;
 
     dev = minor(i_dev);
     d = get_snddev_info(dev, &unit);
-    DEB(printf("sndselect dev 0x%04x rw 0x%08x\n",i_dev, rw));
+    DEB(printf("sndpoll dev 0x%04x rw 0x%08x\n",i_dev, events));
     if (d == NULL ) {
 	printf("select: unit %d not configured\n", unit );
-	return (ENXIO) ;
+	return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
+	    | POLLHUP);
     }
-    if (d->select == NULL)
-	return 1 ; /* always success ? */
-    else if (d->select != sndselect )
-	return d->select(i_dev, rw, p);
-    else {
-	/* handle it here with the generic code */
+    if (d->poll == NULL)
+	/* is this correct hear? */
+	return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
+	    | POLLHUP);
+    else if (d->poll != sndpoll )
+	return d->poll(i_dev, events, p);
 
-	int lim ;
+    /* handle it here with the generic code */
 
-	/*
-	 * if the user selected a block size, then we want to use the
-	 * device as a block device, and select will return ready when
-	 * we have a full block.
-	 * In all other cases, select will return when 1 byte is ready.
-	 */
-	lim = 1;
-	switch(rw) {
-	case FWRITE :
-	    if ( d->flags & SND_F_HAS_SIZE )
-		lim = d->play_blocksize ;
-	    /* XXX fix the test here for half duplex devices */
-	    if (1 /* write is compatible with current mode */) {
-		flags = spltty();
-		if (d->flags & SND_F_WR_DMA)
-		    dsp_wr_dmaupdate(d);
-		c = d->dbuf_out.fl ;
-		if (c < lim) /* no space available */
-		    selrecord(p, & (d->wsel));
-		splx(flags);
-	    }
-	    return c < lim ? 0 : 1 ;
-
-	case FREAD :
-	    if ( d->flags & SND_F_HAS_SIZE )
-		lim = d->rec_blocksize ;
-	    /* XXX fix the test here */
-	    if (1 /* read is compatible with current mode */) {
-		flags = spltty();
-		if ( !(d->flags & SND_F_RD_DMA) ) /* dma idle, restart it */
-		    dsp_rdintr(d);
-		else
-		    dsp_rd_dmaupdate(d);
-		c = d->dbuf_in.rl ;
-		if (c < lim) /* no data available */
-		    selrecord(p, & (d->rsel));
-		splx(flags);
-	    }
-	    DEB(printf("sndselect on read: %d >= %d flags 0x%08x\n",
-		c, lim, d->flags));
-	    return c < lim ? 0 : 1 ;
-
-	case 0 :
-	    DDB(printf("select on exceptions, unimplemented\n"));
-	    return 1;
-	}
+    /*
+     * if the user selected a block size, then we want to use the
+     * device as a block device, and select will return ready when
+     * we have a full block.
+     * In all other cases, select will return when 1 byte is ready.
+     */
+    lim = 1;
+    flags = spltty();
+    /* XXX fix the test here for half duplex devices */
+    if (events & (POLLOUT | POLLWRNORM)) {
+	if ( d->flags & SND_F_HAS_SIZE )
+	    lim = d->play_blocksize ;
+	if (d->flags & SND_F_WR_DMA)
+	    dsp_wr_dmaupdate(d);
+        c = d->dbuf_out.fl ;
+        if (c < lim) /* no space available */
+	    selrecord(p, & (d->wsel));
+	else
+	    revents |= events & (POLLOUT | POLLWRNORM);
     }
-    return ENXIO ; /* notreached */
+
+    /* XXX fix the test here */
+    if (events & (POLLIN | POLLRDNORM)) {
+	if ( d->flags & SND_F_HAS_SIZE )
+	    lim = d->rec_blocksize ;
+	if ( !(d->flags & SND_F_RD_DMA) ) /* dma idle, restart it */
+	    dsp_rdintr(d);
+	else
+	    dsp_rd_dmaupdate(d);
+	c = d->dbuf_in.rl ;
+	if (c < lim) /* no data available */
+	    selrecord(p, & (d->rsel));
+	else
+	    revents |= events & (POLLIN | POLLRDNORM);
+	DEB(printf("sndpoll on read: %d >= %d flags 0x%08lx\n", c, lim,
+	    d->flags));
+    }
+    splx(flags);
+
+    return revents;
 }
 
 /*
@@ -1021,7 +1020,7 @@ sndmmap(dev_t dev, int offset, int nprot)
 {
     snddev_info *d = get_snddev_info(dev, NULL);
 
-    DEB(printf("sndmmap d 0x%08x dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
+    DEB(printf("sndmmap d %p dev 0x%04x ofs 0x%08x nprot 0x%08x\n",
 	d, dev, offset, nprot));
     
     if (d == NULL || nprot & PROT_EXEC)
