@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.30 1997/03/11 20:04:43 joerg Exp $
+#	$Id: Makefile,v 1.246.2.31 1997/03/12 02:32:08 jkh Exp $
 #
 # How to roll a release:
 #
@@ -490,7 +490,9 @@ cdrom.1:
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
+.if !defined(NO_PORTS)
 	ln -s ../ports ${CD_DISC2}/usr/ports
+.endif
 #
 # --==## And finally, create the ports distribution & tarball ##==--
 #
@@ -544,7 +546,11 @@ doTARBALL:
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
+.if defined(NO_PORTS)
+	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
+.else
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1 ports.1
+.endif
 	@echo "Release done"
 
 floppies:
