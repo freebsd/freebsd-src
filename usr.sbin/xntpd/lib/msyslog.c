@@ -43,11 +43,11 @@ void msyslog(va_alist)
 	char *fmt;
 #endif
 	va_list ap;
-	char buf[1025], nfmt[256], xerr[50], *err;
+	char buf[1025], nfmt[256], xerr[50];
+	const char *err;
 	register int c, l;
 	register char *n, *f, *prog;
 	extern int sys_nerr;
-	extern char *sys_errlist[];
 	int olderrno;
 
 #ifdef __STDC__
@@ -73,7 +73,7 @@ void msyslog(va_alist)
 			continue;
 		}
 		if ((unsigned)olderrno > sys_nerr)
-			sprintf((err = xerr), "error %d", olderrno);
+			sprintf((char *)(err = xerr), "error %d", olderrno);
 		else
 			err = sys_errlist[olderrno];
 		if (n + (l = strlen(err)) < &nfmt[254]) {
