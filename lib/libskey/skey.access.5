@@ -76,6 +76,15 @@ For the sake of backwards compatibility, the
 .I internet
 keyword may be omitted from net/mask patterns.
 .SH WARNINGS
+When the S/Key control table (\fI/etc/skey.access\fR)
+exists, users without S/Key passwords will be able to login only
+where its rules allow the use of UNIX passwords.  In particular, this
+means that an invocation of \fIlogin(1)\fR in a pseudo-tty (e.g. from
+within \fIxterm(1)\fR or \fIscreen(1)\fR) will be treated as a login
+that is neither from the console nor from the network, mandating the use
+of an S/Key password.  Such an invocation of \fIlogin(1)\fR will 
+necessarily fail for those users who do not have an S/Key password.
+.PP
 Several rule types depend on host name or address information obtained
 through the network.  What follows is a list of conceivable attacks to
 force the system to permit UNIX passwords.
