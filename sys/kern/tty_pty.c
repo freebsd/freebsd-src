@@ -59,7 +59,7 @@ static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 static void ptsstart __P((struct tty *tp));
 static void ptsstop __P((struct tty *tp, int rw));
 static void ptcwakeup __P((struct tty *tp, int flag));
-static dev_t ptyinit __P((int n));
+static dev_t ptyinit __P((dev_t cdev));
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -126,6 +126,7 @@ struct	pt_ioctl {
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
+static char *names = "pqrsPQRS";
 /*
  * This function creates and initializes a pts/ptc pair
  *
@@ -136,13 +137,14 @@ struct	pt_ioctl {
  *      than 256 ptys.
  */
 static dev_t
-ptyinit(n)
-	int n;
+ptyinit(dev_t devc)
 {
-	dev_t devs, devc;
-	char *names = "pqrsPQRS";
+	dev_t devs;
 	struct pt_ioctl *pt;
+	int n;
 
+	devc->si_flags &= ~SI_CHEAPCLONE;
+	n = minor(devc);
 	/* For now we only map the lower 8 bits of the minor */
 	if (n & ~0xff)
 		return (NODEV);
@@ -150,8 +152,7 @@ ptyinit(n)
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
 	pt->devs = devs = make_dev(&pts_cdevsw, n,
 	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
-	pt->devc = devc = make_dev(&ptc_cdevsw, n,
-	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[n / 32], n % 32);
+	pt->devc = devc;
 
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;
@@ -170,8 +171,6 @@ ptsopen(dev, flag, devtype, p)
 	int error;
 	struct pt_ioctl *pti;
 
-	if (!dev->si_drv1)
-		ptyinit(minor(dev));
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	pti = dev->si_drv1;
@@ -334,7 +333,7 @@ ptcopen(dev, flag, devtype, p)
 	struct pt_ioctl *pti;
 
 	if (!dev->si_drv1)
-		ptyinit(minor(dev));
+		ptyinit(dev);
 	if (!dev->si_drv1)
 		return(ENXIO);	
 	tp = dev->si_tty;
@@ -836,7 +835,9 @@ pty_clone(arg, name, namelen, dev)
 		u += name[4] - 'a' + 10;
 	else
 		return;
-	*dev = ptyinit(u);
+	*dev = make_dev(&ptc_cdevsw, u,
+	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
+	(*dev)->si_flags |= SI_CHEAPCLONE;
 	return;
 }
 
