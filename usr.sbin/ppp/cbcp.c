@@ -151,7 +151,7 @@ cbcpstate(int s)
 {
   if (s < sizeof cbcpname / sizeof cbcpname[0])
     return cbcpname[s];
-  return "???";
+  return HexStr(s, NULL, 0);
 }
 
 static void
@@ -214,7 +214,7 @@ cbcp_data_Type(int type)
   };
 
   if (type < 1 || type > sizeof types / sizeof types[0])
-    return "???";
+    return HexStr(type, NULL, 0);
   return types[type-1];
 }
 

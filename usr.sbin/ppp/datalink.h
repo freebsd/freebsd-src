@@ -52,7 +52,7 @@ struct physical;
 struct bundle;
 
 struct datalink {
-  struct descriptor desc;       /* We play either a physical or a chat */
+  struct fdescriptor desc;       /* We play either a physical or a chat */
   int state;			/* Our DATALINK_* state */
   struct physical *physical;	/* Our link */
 

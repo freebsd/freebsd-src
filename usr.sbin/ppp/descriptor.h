@@ -38,13 +38,13 @@
 
 struct bundle;
 
-struct descriptor {
+struct fdescriptor {
   int type;
 
-  int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
-  int (*IsSet)(struct descriptor *, const fd_set *);
-  void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
-  int (*Write)(struct descriptor *, struct bundle *, const fd_set *);
+  int (*UpdateSet)(struct fdescriptor *, fd_set *, fd_set *, fd_set *, int *);
+  int (*IsSet)(struct fdescriptor *, const fd_set *);
+  void (*Read)(struct fdescriptor *, struct bundle *, const fd_set *);
+  int (*Write)(struct fdescriptor *, struct bundle *, const fd_set *);
 };
 
 #define descriptor_UpdateSet(d, r, w, e, n) ((*(d)->UpdateSet)(d, r, w, e, n))

@@ -28,14 +28,21 @@
  */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/un.h>
+#include <net/route.h>
+
+#ifdef LOCALRAD
+#include "radlib.h"
+#else
+#include <radlib.h>
+#endif
 
 #include <errno.h>
-#include <radlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -257,16 +264,16 @@ radius_Timeout(void *v)
  * Time to call rad_continue_send_request() - something to read.
  */
 static void
-radius_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   radius_Continue(descriptor2radius(d), 1);
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
-radius_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
   struct radius *rad = descriptor2radius(d);
 
@@ -282,10 +289,10 @@ radius_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
-radius_IsSet(struct descriptor *d, const fd_set *fdset)
+radius_IsSet(struct fdescriptor *d, const fd_set *fdset)
 {
   struct radius *r = descriptor2radius(d);
 
@@ -293,10 +300,10 @@ radius_IsSet(struct descriptor *d, const fd_set *fdset)
 }
 
 /*
- * Behave as a struct descriptor (descriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
-radius_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+radius_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
   log_Printf(LogALERT, "radius_Write: Internal error: Bad call !\n");

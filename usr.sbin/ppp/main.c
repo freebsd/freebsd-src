@@ -27,6 +27,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
+#include <sys/socket.h>
+#include <net/route.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -41,12 +43,13 @@
 #include <sys/stat.h>
 
 #ifndef NONAT
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
+#ifdef LOCALNAT
 #include "alias.h"
+#else
+#include <alias.h>
 #endif
 #endif
+
 #include "layer.h"
 #include "probe.h"
 #include "mbuf.h"
