@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.33 1996/06/21 13:12:08 jkh Exp $
+ * $Id: media.c,v 1.25.2.34 1996/06/25 05:33:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,7 +105,7 @@ mediaSetCDROM(dialogMenuItem *self)
 	menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
-	status = dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -146,7 +146,7 @@ mediaSetFloppy(dialogMenuItem *self)
 	menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create Floppy menu!  Something is seriously wrong.");
-	status = dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -185,7 +185,7 @@ mediaSetDOS(dialogMenuItem *self)
 	menu = deviceCreateMenu(&MenuMediaDOS, DEVICE_TYPE_DOS, DOSHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create DOS menu!  Something is seriously wrong.");
-	status = dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -226,7 +226,7 @@ mediaSetTape(dialogMenuItem *self)
 	menu = deviceCreateMenu(&MenuMediaTape, DEVICE_TYPE_TAPE, tapeHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create tape drive menu!  Something is seriously wrong.");
-	status = dmenuOpenSimple(menu);
+	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
 	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -261,7 +261,7 @@ mediaSetFTP(dialogMenuItem *self)
     extern int FtpPort;
 
     dialog_clear();
-    if (!dmenuOpenSimple(&MenuMediaFTP))
+    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
     else
 	cp = variable_get(VAR_FTP_PATH);
@@ -563,7 +563,7 @@ mediaGetType(dialogMenuItem *self)
 {
     int i;
 
-    i = dmenuOpenSimple(&MenuMedia) ? DITEM_SUCCESS : DITEM_FAILURE;
+    i = dmenuOpenSimple(&MenuMedia, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
     return i | DITEM_RESTORE | DITEM_RECREATE;
 }
 

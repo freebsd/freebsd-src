@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.41 1996/06/29 03:43:17 jkh Exp $
+ * $Id: config.c,v 1.16.2.54 1996/06/29 03:47:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -411,6 +411,7 @@ skip:
 	}
 	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
+	fprintf(fp, "%s\t\t%s.\n", cp, hp);
 	fclose(fp);
 	if (isDebug())
 	    msgDebug("Wrote entry for %s to /etc/hosts\n", cp);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.18 1996/06/08 07:15:53 jkh Exp $
+ * $Id: main.c,v 1.13.2.19 1996/06/26 09:31:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,7 +112,7 @@ main(int argc, char **argv)
     /* Begin user dialog at outer menu */
     while (1) {
 	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
+	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);
 	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  The system will reboot\n"
 				       "(be sure to remove any floppies from the drives)."))
 	    break;
