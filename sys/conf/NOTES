@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.297 1996/11/29 07:08:48 dyson Exp $
+#	$Id: LINT,v 1.298 1996/12/18 11:43:33 se Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -107,6 +107,12 @@ options		USER_LDT		#allow user-level control of i386 ldt
 options		SYSVSHM
 options		SYSVSEM
 options		SYSVMSG
+
+#
+# This option includes a MD5 routine in the kernel, this is used for
+# various authentication and privacy uses.
+#
+options		"MD5"
 
 
 #####################################################################
