@@ -162,7 +162,6 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # time, since the corresponding lkms cannot work if there are any static
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
-AUTOFS		opt_dontuse.h
 CD9660		opt_dontuse.h
 CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
