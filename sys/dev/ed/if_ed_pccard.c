@@ -159,6 +159,8 @@ static const struct ed_product {
 	 * PCMCIA_VENDOR_INVALID and/or PCMCIA_PRODUCT_INVALID 
 	 * in front of this comment.
 	 */
+	{ PCMCIA_CARD(LANTECH, FASTNETTX, 0),
+	  -1, { 0x00, 0x04, 0x1c}, NE2000DVF_AX88190 },
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
 	  0x0ff0, { 0x08, 0x00, 0x5a } },
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0),
@@ -169,14 +171,20 @@ static const struct ed_product {
 	  -1, { 0, 0, 0 }, 0 },	/* XXX */
 	{ PCMCIA_CARD(LINKSYS, ECARD_1, 0),
 	  -1, { 0x00, 0x80, 0xc8 } },
+	{ PCMCIA_CARD(LINKSYS, PCM100, 0),
+	  -1, { 0x00, 0x04, 0x5a } },
 #ifdef BOGUS
+	/*
+	 * The next three should be detected as linksys, but might fail
+	 * the mac sanity check.
+	 */
 	{ PCMCIA_CARD(PLANEX, FNW3600T, 0), 
 	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
 	{ PCMCIA_CARD(PLANEX, FNW3700T, 0), 
 	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
-#endif
 	{ PCMCIA_CARD(SVEC, PN650TX, 0),
 	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
+#endif
 
 	/*
 	 * This entry should be here so that above two cards doesn't
@@ -289,6 +297,11 @@ static const struct ed_product {
 	  0x00b8, { 0x08, 0x00, 0x42 } },
 	{ PCMCIA_CARD(ALLIEDTELESIS, LA_PCM, 0),
 	  0x0ff0, { 0x00, 0x00, 0xf4 } },
+	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0),
+	  -1, { 0x00, 0x48, 0x54 } },
+	{ PCMCIA_CARD(NETGEAR, FA411, 0),
+	  -1, { 0x00, 0x40, 0xf4 } },
+
 #if 0
     /* the rest of these are stolen from the linux pcnet pcmcia device
        driver.  Since I don't know the manfid or cis info strings for
