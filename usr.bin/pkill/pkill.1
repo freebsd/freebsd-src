@@ -93,11 +93,11 @@ comma-separated list
 .Ar ppid .
 .It Fl M
 Extract values associated with the name list from the specified core
-instead of the default
-.Pa /dev/kmem .
+instead of the currently running system.
 .It Fl N
-Extract the name list from the specified system instead of the default
-.Pa /kernel .
+Extract the name list from the specified system instead of the
+currently running system as determined by
+.Xr getbootfile 3 .
 .It Fl U Ar uid
 Restrict matches to processes with a real user ID in the comma-separated
 list
