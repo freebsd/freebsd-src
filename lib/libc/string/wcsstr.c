@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 
 wchar_t *
 wcsstr(big, little)
-	const wchar_t *big;
-	const wchar_t *little;
+	const wchar_t * __restrict big;
+	const wchar_t * __restrict little;
 {
 	const wchar_t *p;
 	const wchar_t *q;

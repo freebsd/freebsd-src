@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 
 wchar_t *
 wmemcpy(d, s, n)
-	wchar_t *d;
-	const wchar_t *s;
+	wchar_t * __restrict d;
+	const wchar_t * __restrict s;
 	size_t n;
 {
 
