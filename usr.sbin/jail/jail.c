@@ -52,7 +52,7 @@ main(int argc, char **argv)
 	struct passwd *pwd;
 	struct in_addr in;
 	int ch, groups[NGROUPS], i, iflag, ngroups, uflag, Uflag;
-	char *username;
+	char path[PATH_MAX], *username;
 
 	iflag = uflag = Uflag = 0;
 	username = NULL;
@@ -82,11 +82,13 @@ main(int argc, char **argv)
 		usage();
 	if (uflag)
 		GET_USER_INFO;
-	if (chdir(argv[0]) != 0)
-		err(1, "chdir: %s", argv[0]);
+	if (realpath(argv[0], path) == NULL)
+		err(1, "realpath: %s", argv[0]);
+	if (chdir(path) != 0)
+		err(1, "chdir: %s", path);
 	memset(&j, 0, sizeof(j));
 	j.version = 0;
-	j.path = argv[0];
+	j.path = path;
 	j.hostname = argv[1];
 	if (inet_aton(argv[2], &in) == 0)
 		errx(1, "Could not make sense of ip-number: %s", argv[2]);
