@@ -61,9 +61,15 @@ struct clockframe {
 /* Used by signaling code. */
 #define	cpu_getstack(td)	((td)->td_frame->tf_special.sp)
 
-/* XXX */
 #define	TRAPF_PC(tf)		((tf)->tf_special.iip)
-#define	TRAPF_USERMODE(tf)	((TRAPF_PC(tf) >> 61) < 5)
+#define	TRAPF_CPL(tf)		((tf)->tf_special.psr & IA64_PSR_CPL)
+/*
+ * User mode for use by ast() and VM faults. It's takes into account
+ * that the gateway page is kernel space when looking at the VA, but
+ * is to be treated as user space when running with user priveleges.
+ */
+#define	TRAPF_USERMODE(tf)	\
+	((TRAPF_PC(tf) >> 61) < 5 || TRAPF_CPL(tf) == IA64_PSR_CPL_USER)
 
 /*
  * CTL_MACHDEP definitions.
