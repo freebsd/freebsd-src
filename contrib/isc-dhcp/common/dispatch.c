@@ -47,7 +47,7 @@ static struct timeout *free_timeouts;
 extern int polling_interval;
 #endif
 
-void set_time (u_int32_t t)
+void set_time (TIME t)
 {
 	/* Do any outstanding timeouts. */
 	if (cur_time != t) {
@@ -95,7 +95,6 @@ void dispatch ()
 	struct timeval *tvp_new;
 #endif
 	isc_result_t status;
-	TIME cur_time;
 
 	tvp = NULL;
 #ifdef ENABLE_POLLING_MODE
