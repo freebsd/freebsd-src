@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.26 1995/11/01 00:58:42 peter Exp $ */
+/* $Id: if_ppp.c,v 1.27 1995/11/03 08:42:21 peter Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -97,6 +97,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#endif
+
+#if IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
 #endif
 
 #include "bpfilter.h"
@@ -487,13 +492,36 @@ pppsioctl(ifp, cmd, data)
 	break;
 
     case SIOCSIFADDR:
-	if (ifa->ifa_addr->sa_family != AF_INET)
+    case SIOCAIFADDR:
+	switch(ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+	    break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+	    break;
+#endif
+	default:
 	    error = EAFNOSUPPORT;
+	    break;
+	}
 	break;
 
     case SIOCSIFDSTADDR:
-	if (ifa->ifa_addr->sa_family != AF_INET)
+	switch(ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+	    break;
+#endif
+#ifdef IPX
+	case AF_IPX:
+	    break;
+#endif
+	default:
 	    error = EAFNOSUPPORT;
+	    break;
+	}
 	break;
 
     case SIOCSIFMTU:
@@ -516,6 +544,10 @@ pppsioctl(ifp, cmd, data)
 	switch(ifr->ifr_addr.sa_family) {
 #ifdef INET
 	case AF_INET:
+	    break;
+#endif
+#ifdef IPX	/* ??? IPX support multicast? */
+	case AF_IPX:
 	    break;
 #endif
 	default:
@@ -1315,6 +1347,25 @@ ppp_inproc(sc, m)
 	m->m_len -= PPP_HDRLEN;
 	schednetisr(NETISR_IP);
 	inq = &ipintrq;
+	sc->sc_last_recv = time.tv_sec;	/* update time of last pkt rcvd */
+	break;
+#endif
+#ifdef IPX
+    case PPP_IPX:
+	/*
+	 * IPX packet - take off the ppp header and pass it up to IPX.
+	 */
+	if ((sc->sc_if.if_flags & IFF_UP) == 0
+	    /* XXX: || sc->sc_npmode[NP_IPX] != NPMODE_PASS*/) {
+	    /* interface is down - drop the packet. */
+	    m_freem(m);
+	    return;
+	}
+	m->m_pkthdr.len -= PPP_HDRLEN;
+	m->m_data += PPP_HDRLEN;
+	m->m_len -= PPP_HDRLEN;
+	schednetisr(NETISR_IPX);
+	inq = &ipxintrq;
 	sc->sc_last_recv = time.tv_sec;	/* update time of last pkt rcvd */
 	break;
 #endif
