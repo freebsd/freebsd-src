@@ -1,12 +1,12 @@
-#	$Id: Makefile,v 1.6 1994/09/13 21:54:06 wollman Exp $
+#	$Id: Makefile,v 1.7 1994/09/13 22:02:46 wollman Exp $
 
 NOBIN=
 CLEANFILES+=	yearistype
 
 .if defined(LEAPSECONDS)
-LEAPFILE=	leapseconds
+LEAPFILE=	-L leapseconds
 .else
-LEAPFILE=	/dev/null
+LEAPFILE=
 .endif
 
 TZFILES=	africa antarctica asia australasia etcetera europe \
@@ -33,7 +33,7 @@ yearistype:	yearistype.sh
 afterinstall:	yearistype
 	umask 022; cd ${.CURDIR}; \
 	zic -d ${DESTDIR}/usr/share/zoneinfo -p ${POSIXRULES} \
-		-L ${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
+		${LEAPFILE} -y ${YEARISTYPE} ${TZFILES}
 	chown -R bin.bin ${DESTDIR}/usr/share/zoneinfo/*
 
 .include <bsd.prog.mk>
