@@ -304,6 +304,7 @@ ns8250_putc(struct uart_bas *bas, int c)
 	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0 && --limit)
 		DELAY(delay);
 	uart_setreg(bas, REG_DATA, c);
+	uart_barrier(bas);
 	limit = 40;
 	while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
 		DELAY(delay);
