@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/sbuf.h>
 #ifndef _KERNEL
 #include <stdio.h>
@@ -143,6 +144,8 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",
 	    pp->acr, pp->acw, pp->ace);
 	sbuf_printf(sb, "\t  <name>%s</name>\n", pp->name);
+	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
+	    (intmax_t)pp->mediasize);
 	if (pp->geom->dumpconf) {
 		sbuf_printf(sb, "\t  <config>\n");
 		pp->geom->dumpconf(sb, "\t    ", pp->geom, NULL, pp);
