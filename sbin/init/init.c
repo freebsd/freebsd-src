@@ -865,14 +865,14 @@ char **
 construct_argv(command)
 	char *command;
 {
+	char *strk (char *);
 	register int argc = 0;
 	register char **argv = (char **) malloc(((strlen(command) + 1) / 2 + 1)
 						* sizeof (char *));
-	static const char separators[] = " \t";
 
-	if ((argv[argc++] = strtok(command, separators)) == 0)
+	if ((argv[argc++] = strk(command)) == 0)
 		return 0;
-	while (argv[argc++] = strtok((char *) 0, separators))
+	while (argv[argc++] = strk((char *) 0))
 		continue;
 	return argv;
 }
@@ -1377,4 +1377,42 @@ death()
 	warning("some processes would not die; ps axl advised");
 
 	return (state_func_t) single_user;
+}
+char *
+strk (char *p)
+{
+    static char *t;
+    char *q;
+    int c;
+
+    if (p)
+	t = p;
+    if (!t)
+	return 0;
+
+    c = *t;
+    while (c == ' ' || c == '\t' ) 
+	c = *++t;
+    if (!c) {
+	t = 0;
+	return 0;
+    }
+    q = t;
+    if (c == '\'') {
+	c = *++t;
+	q = t;
+	while (c && c != '\'') 
+	    c = *++t;
+	if (!c)  /* unterminated string */
+	    q = t = 0;
+	else
+	    *t++ = 0;
+    } else {
+	while (c && c != ' ' && c != '\t' )
+	    c = *++t;
+	*t++ = 0;
+	if (!c) 
+	    t = 0;
+    }
+    return q;
 }
