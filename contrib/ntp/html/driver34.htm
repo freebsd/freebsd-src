@@ -1,0 +1,54 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<title>Dumb Clock</title>
+</head>
+
+<body>
+<h3>Ultralink Clock</h3>
+
+<hr>
+<h4>Synopsis</h4>
+Address: 127.127.34.<i>u</i><br>
+Reference ID: <TT>ULINK</TT><br>
+Driver ID: <tt>ULINK</tt><br>
+Serial Port: <tt>/dev/ulink<i>u</i></tt>; 9600 bps, 8-bits,
+no parity<br>
+<br>Features: <tt>(none)</tt>
+<h4>Description</h4>
+This driver supports the Ultralink Model 320 RS-232 powered WWVB receiver.  PDF specs available on <a href="http://www.linuxfoundary.com">www.linuxfoundary.com</a>.    While the unit may support them, this driver does nothing with leap seconds, quality codes, etc. (though it probably should).
+
+<P>Most of this code is originally from refclock_wwvb.c with thanks.  Any mistakes are mine.  Any improvements are welcome.
+
+<pre>
+  The timecode format is:
+ 
+   <cr><lf>SQRYYYYDDD+HH:MM:SS.mmLT<cr>
+ 
+  where:
+ 
+  S = 'S' -- sync'd in last hour, '0'-'9' - hours x 10 since last update, else '?'
+  Q = Number of correlating time-frames, from 0 to 5
+  R = 'R' -- reception in progress, 'N' -- Noisy reception, ' ' -- standby mode
+  YYYY = year from 1990 to 2089
+  DDD = current day from 1 to 366
+  + = '+' if current year is a leap year, else ' '
+  HH = UTC hour 0 to 23
+  MM = Minutes of current hour from 0 to 59
+  SS = Seconds of current minute from 0 to 59
+  mm = 10's milliseconds of the current second from 00 to 99
+  L  = Leap second pending at end of month -- 'I' = inset, 'D'=delete
+  T  = DST <-> STD transition indicators
+ 
+  Note that this driver does not do anything with the L or T flags.
+ 
+  The M320 also has a 'U' command which returns UT1 correction information.  It
+  is not used in this driver.
+
+</pre>
+<hr>
+    <address><a href="mailto:dstrout@linuxfoundary.com">root</a></address>
+<!-- hhmts start -->
+Last modified: Tue Sep 14 05:53:08 EDT 1999
+<!-- hhmts end -->
+</body> </html>
