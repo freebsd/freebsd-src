@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.35 1998/12/04 22:54:53 archie Exp $
+ *	$Id: ip_divert.c,v 1.36 1999/02/08 05:48:46 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -321,7 +321,6 @@ div_output(so, m, addr, control)
 			bzero(sin->sin_zero, sizeof(sin->sin_zero));
 			/* *((u_int64_t *)sin->sin_zero) = 0; */ /* XXX ?? */
 			sin->sin_port = 0;
-			*zp = 0;
 			if (!(ifa = ifa_ifwithaddr((struct sockaddr *) sin))) {
 				error = EADDRNOTAVAIL;
 				goto cantsend;
