@@ -61,7 +61,6 @@ addGroup                Add a new group to the system
 configAnonFTP           Configure system for anonymous FTP
 configGated             Configure and install gated
 configNFSServer         Configure host as an NFS server
-configSamba             Configure and install Samba
 configPackages          Browse / install packages
 diskPartitionEditor     Partition a new or existing disk
 diskPartitionWrite      Write out any changed partition information
