@@ -166,6 +166,10 @@ output_prefix()
 	fprintf(code_file, "#define yyname %sname\n", symbol_prefix);
 	++outline;
 	fprintf(code_file, "#define yyrule %srule\n", symbol_prefix);
+	++outline;
+	fprintf(code_file, "#define yysslim %ssslim\n", symbol_prefix);
+	++outline;
+	fprintf(code_file, "#define yystacksize %sstacksize\n", symbol_prefix);
     }
     ++outline;
     fprintf(code_file, "#define YYPREFIX \"%s\"\n", symbol_prefix);
