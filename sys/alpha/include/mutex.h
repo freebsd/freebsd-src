@@ -36,6 +36,9 @@
 
 #ifdef _KERNEL
 
+/* Global locks */
+extern struct mtx	clock_lock;
+
 #define	mtx_intr_enable(mutex)	(mutex)->mtx_savecrit = ALPHA_PSL_IPL_0
 
 #endif	/* _KERNEL */
