@@ -9,16 +9,18 @@ else
 fi
 
 make_resolv_conf() {
-  echo search $new_domain_name >/etc/resolv.conf
-  for nameserver in $new_domain_name_servers; do
-    echo nameserver $nameserver >>/etc/resolv.conf
-  done
+  if [ "x$new_domain_name" != x ] && [ x"$new_domain_name_servers" != x ]; then
+    echo search $new_domain_name >/etc/resolv.conf
+    for nameserver in $new_domain_name_servers; do
+      echo nameserver $nameserver >>/etc/resolv.conf
+    done
+  fi
 }
 
 # Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
 exit_with_hooks() {
   exit_status=$1
-  if [ -x /etc/dhclient-exit-hooks ]; then
+  if [ -f /etc/dhclient-exit-hooks ]; then
     . /etc/dhclient-exit-hooks
   fi
 # probably should do something with exit status of the local script
@@ -26,7 +28,7 @@ exit_with_hooks() {
 }
 
 # Invoke the local dhcp client enter hooks, if they exist.
-if [ -x /etc/dhclient-enter-hooks ]; then
+if [ -f /etc/dhclient-enter-hooks ]; then
   exit_status=0
   . /etc/dhclient-enter-hooks
   # allow the local script to abort processing of this state
@@ -36,7 +38,12 @@ if [ -x /etc/dhclient-enter-hooks ]; then
   fi
 fi
 
+if [ x$new_network_number != x ]; then
+   $LOGGER New Network Number: $new_network_number
+fi
+
 if [ x$new_broadcast_address != x ]; then
+ $LOGGER New Broadcast Address: $new_broadcast_address
   new_broadcast_arg="broadcast $new_broadcast_address"
 fi
 if [ x$old_broadcast_address != x ]; then
@@ -53,8 +60,8 @@ if [ x$alias_subnet_mask != x ]; then
 fi
 
 if [ x$reason = xMEDIUM ]; then
-  ifconfig $interface $medium
-  ifconfig $interface inet -alias 0.0.0.0 $medium >/dev/null 2>&1
+  eval "ifconfig $interface $medium"
+  eval "ifconfig $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
   sleep 1
   exit_with_hooks 0
 fi
@@ -78,7 +85,8 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   current_hostname=`/bin/hostname`
   if [ x$current_hostname = x ] || \
      [ x$current_hostname = x$old_host_name ]; then
-    if [ x$new_host_name != x$old_host_name ]; then
+    if [ x$current_hostname = x ] || \
+       [ x$new_host_name != x$old_host_name ]; then
       $LOGGER "New Hostname: $new_host_name"
       hostname $new_host_name
     fi
@@ -90,7 +98,7 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   fi
   if [ x$old_ip_address != x ] && [ x$old_ip_address != x$new_ip_address ]
    then
-    ifconfig $interface inet -alias $old_ip_address $medium
+    eval "ifconfig $interface inet -alias $old_ip_address $medium"
     route delete $old_ip_address 127.1 >/dev/null 2>&1
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
@@ -106,14 +114,15 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   fi
   if [ x$old_ip_address = x ] || [ x$old_ip_address != x$new_ip_address ] || \
      [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
-    ifconfig $interface inet $new_ip_address $new_netmask_arg \
-					$new_broadcast_arg $medium
+    eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
+					$new_broadcast_arg $medium"
     $LOGGER "New IP Address ($interface): $new_ip_address"
     $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
     $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
     if [ -n "$new_routers" ]; then
       $LOGGER "New Routers: $new_routers"
     fi
+    route add $new_ip_address 127.1 >/dev/null 2>&1
     for router in $new_routers; do
       route add default $router >/dev/null 2>&1
     done
@@ -129,18 +138,20 @@ if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
   if [ x$new_ip_address != x$alias_ip_address ] && [ x$alias_ip_address != x ];
    then
     ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+    route add $alias_ip_address 127.0.0.1
   fi
   make_resolv_conf
   exit_with_hooks 0
 fi
 
-if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ]; then
+if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ] || [ x$reason = xRELEASE ] \
+   || [ x$reason = xSTOP ]; then
   if [ x$alias_ip_address != x ]; then
     ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
     route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
   fi
   if [ x$old_ip_address != x ]; then
-    ifconfig $interface inet -alias $old_ip_address $medium
+    eval "ifconfig $interface inet -alias $old_ip_address $medium"
     route delete $old_ip_address 127.1 >/dev/null 2>&1
     for router in $old_routers; do
       route delete default $router >/dev/null 2>&1
@@ -167,8 +178,8 @@ if [ x$reason = xTIMEOUT ]; then
     ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
     route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
   fi
-  ifconfig $interface inet $new_ip_address $new_netmask_arg \
-					$new_broadcast_arg $medium
+  eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
+					$new_broadcast_arg $medium"
   $LOGGER "New IP Address ($interface): $new_ip_address"
   $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
   $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
@@ -195,7 +206,7 @@ if [ x$reason = xTIMEOUT ]; then
       exit_with_hooks 0
     fi
   fi
-  ifconfig $interface inet -alias $new_ip_address $medium
+  eval "ifconfig $interface inet -alias $new_ip_address $medium"
   for router in $old_routers; do
     route delete default $router >/dev/null 2>&1
   done
