@@ -66,7 +66,7 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <signal.h>
+#include <sys/signal.h>
 #include <termios.h>
 
 #include <netinet/in_systm.h>
@@ -96,19 +96,17 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 
 /* various options */
 int options;
-#define	F_FLOOD		0x0001
-#define	F_INTERVAL	0x0002
-#define	F_NUMERIC	0x0004
-#define	F_PINGFILLED	0x0008
-#define	F_QUIET		0x0010
-#define	F_RROUTE	0x0020
-#define	F_SO_DEBUG	0x0040
-#define	F_SO_DONTROUTE	0x0080
-#define	F_VERBOSE	0x0100
-#define	F_QUIET2	0x0200
-#define	F_NOLOOP	0x0400
-#define	F_MTTL		0x0800
-#define	F_MIF		0x1000
+#define	F_FLOOD		0x001
+#define	F_INTERVAL	0x002
+#define	F_NUMERIC	0x004
+#define	F_PINGFILLED	0x008
+#define	F_QUIET		0x010
+#define	F_RROUTE	0x020
+#define	F_SO_DEBUG	0x040
+#define	F_SO_DONTROUTE	0x080
+#define	F_VERBOSE	0x100
+#define	F_QUIET2	0x200
+#define	F_AUDIBLE	0x400
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -142,10 +140,9 @@ double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
 
 int reset_kerninfo;
-sig_atomic_t siginfo_p;
 
 char *pr_addr();
-void catcher(), finish(), status(), check_status();
+void catcher(), finish(), status();
 
 main(argc, argv)
 	int argc;
@@ -160,14 +157,11 @@ main(argc, argv)
 	struct termios ts;
 	register int i;
 	int ch, fdmask, hold, packlen, preload, sockerrno;
-	struct in_addr ifaddr;
-	unsigned char ttl, loop;
 	u_char *datap, *packet;
 	char *target, hnamebuf[MAXHOSTNAMELEN], *malloc();
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
-	struct sigaction si_sa;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -185,8 +179,11 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "I:LQRT:c:dfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "QRc:adfh:i:l:np:qrs:v")) != EOF)
 		switch(ch) {
+		case 'a':
+			options |= F_AUDIBLE;
+			break;
 		case 'c':
 			npackets = atoi(optarg);
 			if (npackets <= 0) {
@@ -216,14 +213,6 @@ main(argc, argv)
 			}
 			options |= F_INTERVAL;
 			break;
-		case 'I':		/* multicast interface */
-			if (inet_aton(optarg, &ifaddr) == 0) {
-				(void)fprintf(stderr,
-				    "ping: bad multicast interface.\n");
-				exit(1);
-			}
-			options |= F_MIF;
-			break;
 		case 'l':
 			preload = atoi(optarg);
 			if (preload < 0) {
@@ -231,10 +220,6 @@ main(argc, argv)
 				    "ping: bad preload value.\n");
 				exit(1);
 			}
-			break;
-		case 'L':
-			options |= F_NOLOOP;
-			loop = 0;
 			break;
 		case 'n':
 			options |= F_NUMERIC;
@@ -267,16 +252,6 @@ main(argc, argv)
 				    "ping: illegal packet size.\n");
 				exit(1);
 			}
-			break;
-		case 'T':		/* multicast TTL */
-			i = atoi(optarg);
-			if (i < 0 || i > 255) {
-				(void)fprintf(stderr,
-				    "ping: illegal multicast TTL.\n");
-				exit(1);
-			}
-			ttl = i;
-			options |= F_MTTL;
 			break;
 		case 'v':
 			options |= F_VERBOSE;
@@ -364,28 +339,6 @@ main(argc, argv)
 #endif /* IP_OPTIONS */
 	}
 
-	if (options & F_NOLOOP) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
-		    sizeof(loop)) < 0) {
-			perror("ping: IP_MULTICAST_LOOP");
-			exit(1);
-		}
-	}
-	if (options & F_MTTL) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl,
-		    sizeof(ttl)) < 0) {
-			perror("ping: IP_MULTICAST_TTL");
-			exit(1);
-		}
-	}
-	if (options & F_MIF) {
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &ifaddr,
-		    sizeof(ifaddr)) < 0) {
-			perror("ping: IP_MULTICAST_IF");
-			exit(1);
-		}
-	}
-
 	/*
 	 * When pinging the broadcast address, you can get a lot of answers.
 	 * Doing something so evil is useful if you are trying to stress the
@@ -405,18 +358,7 @@ main(argc, argv)
 
 	(void)signal(SIGINT, finish);
 	(void)signal(SIGALRM, catcher);
-
-	/*
-	 * Use sigaction instead of signal() to get unambiguous semantics
-	 * for SIGINFO, in particular with SA_RESTART not set.
-	 */
-	si_sa.sa_handler = status;
-	sigemptyset(&si_sa.sa_mask);
-	si_sa.sa_flags = 0;
-	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
+	(void)signal(SIGINFO, status);
 
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
@@ -435,7 +377,6 @@ main(argc, argv)
 		register int cc;
 		int fromlen;
 
-		check_status();
 		if (options & F_FLOOD) {
 			pinger();
 			timeout.tv_sec = 0;
@@ -619,6 +560,8 @@ pr_pack(buf, cc, from)
 				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
 				(void)printf(" (DUP!)");
+			if (options & F_AUDIBLE)
+				(void)printf("\a");
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[8];
 			dp = &outpack[8 + sizeof(struct timeval)];
@@ -802,25 +745,21 @@ tvsub(out, in)
  */
 
 void
-status(sig)
-	int sig;
+status()
 {
-	siginfo_p = 1;
-}
-
-void
-check_status()
-{
-	if (siginfo_p) {
-		siginfo_p = 0;
-		(void)fprintf(stderr,
-	"\r%ld/%ld packets received (%.0f%%) %.3f min / %.3f avg / %.3f max\n",
-		    nreceived, ntransmitted,
-		    ntransmitted ? nreceived * 100.0 / ntransmitted : 0.0,
-		    nreceived ? tmin : 0.0,
-		    nreceived + nrepeats ? tsum / (nreceived + nrepeats) : tsum,
-		    tmax);
-	}
+	double temp_min = nreceived ? tmin : 0;
+	(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
+		      "%.3f min / %.3f avg / %.3f max\n",
+		      nreceived, ntransmitted,
+		      (ntransmitted ?
+		       100 - (int) (((ntransmitted - nreceived) * 100)
+				    / ntransmitted)
+		       : 0),
+		      temp_min,
+		      ((nreceived + nrepeats) ?
+		       (tsum / (nreceived + nrepeats))
+		       : tsum),
+		      tmax);
 }
 
 /*
@@ -830,6 +769,7 @@ check_status()
 void
 finish()
 {
+	register int i;
 	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
@@ -848,9 +788,12 @@ finish()
 			    (int) (((ntransmitted - nreceived) * 100) /
 			    ntransmitted));
 	(void)putchar('\n');
-	if (nreceived && timing)
+	if (nreceived && timing) {
+		/* Only display average to microseconds */
+		i = 1000.0 * tsum / (nreceived + nrepeats);
 		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
-		    tmin, tsum / (nreceived + nrepeats), tmax);
+		    tmin, ((double)i) / 1000.0, tmax);
+	}
 	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		ts.c_lflag &= ~NOKERNINFO;
 		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
@@ -1134,6 +1077,6 @@ fill(bp, patp)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-LQRdfnqrv] [-c count] [-i wait] [-I interface]\n\t[-l preload] [-p pattern] [-s packetsize] [-T ttl] host\n");
+	    "usage: ping [-aRdfnqrv] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] host\n");
 	exit(1);
 }
