@@ -696,8 +696,8 @@ pcvt_cn_init(struct consdev *cp)
 
 #if PCVT_SCANSET == 2
 	/*
-	 * Turn off scancode translation early so that UserConfig 
-	 * and DDB can read the keyboard.
+	 * Turn off scancode translation early so that
+	 * DDB can read the keyboard.
 	 */
 	if (kbd)
 	{

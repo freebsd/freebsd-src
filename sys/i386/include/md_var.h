@@ -88,7 +88,6 @@ int	is_physical_memory(vm_offset_t addr);
 u_long	kvtop(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 void	swi_vm(void *);
-void	userconfig(void);
 int     user_dbreg_trap(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

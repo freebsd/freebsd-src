@@ -1049,8 +1049,7 @@ probe_adapters(void)
 #endif
 
     /*
-     * Ensure a zero start address.  This is mainly to recover after
-     * switching from pcvt using userconfig().  The registers are w/o
+     * Ensure a zero start address. The registers are w/o
      * for old hardware so it's too hard to relocate the active screen
      * memory.
      * This must be done before vga_save_state() for VGA.

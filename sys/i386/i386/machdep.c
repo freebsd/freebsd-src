@@ -50,7 +50,6 @@
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_kstack_pages.h"
-/* #include "opt_userconfig.h" */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -238,11 +237,6 @@ cpu_startup(dummy)
 	}
 
 	vm_ksubmap_init(&kmi);
-
-#if defined(USERCONFIG)
-	userconfig();
-	cninit();		/* the preferred console may have changed */
-#endif
 
 	printf("avail memory = %u (%uK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);

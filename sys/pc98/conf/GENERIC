@@ -50,8 +50,6 @@ options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	EPSON_BOUNCEDMA		#use bounce buufer for 15-16M
 #options 	EPSON_MEMWIN		#EPSON memory window support
 #options 	LINE30
-#options 	USERCONFIG		#boot -c editor
-#options 	VISUAL_USERCONFIG	#visual boot -c editor
 options 	KTRACE			#ktrace(1) support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
