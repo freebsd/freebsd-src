@@ -94,7 +94,10 @@
 #define J_B3        0x1c0
 #define J_B4        0x1c8
 #define J_B5        0x1d0
-#define J_END       0x1d8
+#define J_SIG0	    0x1d8
+#define J_SIG1	    0x1e0
+#define J_SIGMASK   0x1e8
+#define J_END       0x1f0
 
 #ifndef LOCORE
 /*
