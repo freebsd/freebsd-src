@@ -49,12 +49,12 @@ _pthread_resume_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		_thread_critical_enter(curthread);
+		_thread_critical_enter(thread);
 
 		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 			resume_common(thread);
 
-		_thread_critical_exit(curthread);
+		_thread_critical_exit(thread);
 	}
 	return (ret);
 }
