@@ -96,8 +96,6 @@ linux_emul_convpath(td, path, pathseg, pbuf, cflag)
 {
 	struct nameidata	 nd;
 	struct nameidata	 ndroot;
-	struct vattr		 vat;
-	struct vattr		 vatroot;
 	int			 error;
 	const char		*prefix;
 	char			*ptr, *buf, *cp;
@@ -169,17 +167,7 @@ linux_emul_convpath(td, path, pathseg, pbuf, cflag)
 			goto keeporig;
 		}
 
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
-			goto bad;
-		}
-
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_ucred, td))
-		    != 0) {
-			goto bad;
-		}
-
-		if (vat.va_fsid == vatroot.va_fsid &&
-		    vat.va_fileid == vatroot.va_fileid) {
+		if (nd.ni_vp == ndroot.ni_vp) {
 			error = ENOENT;
 			goto bad;
 		}
