@@ -47,7 +47,9 @@ SUBDIR+=rtld-aout
 SUBDIR+=rtld-elf
 .endif
 
-.if defined(RELEASEDIR) || (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
+.if defined(RELEASEDIR) || \
+    (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || \
+    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
 # make release needs both
 SUBDIR+=telnetd
 .endif
