@@ -178,8 +178,6 @@
  * itself thereby reducing the load on the host CPU.
  */
 
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -194,9 +192,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -1342,9 +1338,7 @@ static int tl_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	splx(s);
@@ -1551,7 +1545,6 @@ static int tl_intvec_rxeof(xsc, type)
 				continue;
 		}
 
-#if NBPF > 0
 		/*
 	 	 * Handle BPF listeners. Let the BPF user see the packet, but
 	 	 * don't pass it up to the ether_input() layer unless it's
@@ -1571,7 +1564,7 @@ static int tl_intvec_rxeof(xsc, type)
 				continue;
 			}
 		}
-#endif
+
 		/* Remove header from mbuf and pass it on. */
 		m->m_pkthdr.len = m->m_len =
 				total_len - sizeof(struct ether_header);
@@ -2011,10 +2004,8 @@ static void tl_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->tl_mbuf);
-#endif
 	}
 
 	/*

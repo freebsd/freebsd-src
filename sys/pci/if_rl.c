@@ -83,8 +83,6 @@
  * to select which interface to use depending on the chip type.
  */
 
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -99,9 +97,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -963,9 +959,7 @@ static int rl_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	splx(s);
@@ -1163,7 +1157,6 @@ static void rl_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		ifp->if_ipackets++;
 
-#if NBPF > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -1180,7 +1173,7 @@ static void rl_rxeof(sc)
 				continue;
 			}
 		}
-#endif
+
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
@@ -1371,14 +1364,13 @@ static void rl_start(ifp)
 
 		rl_encap(sc, m_head);
 
-#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, RL_CUR_TXMBUF(sc));
-#endif
+
 		/*
 		 * Transmit the frame.
 	 	 */
