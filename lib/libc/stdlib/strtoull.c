@@ -88,13 +88,13 @@ strtoull(nptr, endptr, base)
 	}
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
-	any = 0;
+	acc = any = 0;
 	if (base < 2 || base > 36)
 		goto noconv;
 
 	cutoff = ULLONG_MAX / base;
 	cutlim = ULLONG_MAX % base;
-	for (acc = 0; ; c = *s++) {
+	for ( ; ; c = *s++) {
 		if (!isascii(c))
 			break;
 		if (isdigit(c))
