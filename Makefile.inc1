@@ -675,7 +675,7 @@ includes:
 #
 # The following dependencies exist between the libraries:
 #
-# lib*: csu
+# lib*: csu libgcc_pic
 # libatm: libmd
 # libcrypt: libmd
 # libdialog: libncurses
@@ -683,7 +683,7 @@ includes:
 # libg++: libm
 # libkrb: libcrypt
 # libopie: libmd
-# libpam: libcom_err libcrypt libcrypto libgcc_pic libkrb libopie libradius \
+# libpam: libcom_err libcrypt libcrypto libkrb libopie libradius \
 #	  libskey libtacplus libutil libz libssh
 # libradius: libmd
 # libreadline: libncurses
@@ -696,7 +696,7 @@ includes:
 #
 # gnu/lib: lib/libm lib/libncurses
 # kerberosIV/lib kerberos5/lib: lib/libcrypt
-# lib/libpam: secure/lib/libcrypto kerberosIV/lib/libkrb gnu/lib/libgcc \
+# lib/libpam: secure/lib/libcrypto kerberosIV/lib/libkrb \
 #             secure/lib/libssh lib/libz
 # secure/lib: lib/libmd
 #
@@ -735,8 +735,9 @@ _libkeycap=	usr.sbin/pcvt/keycap
 .endif
 
 libraries:
-.for _lib in ${_csu} gnu/lib/csu lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
-    ${_kerberos5_lib} gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses \
+.for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
+    ${_secure_lib} ${_kerberosIV_lib} \
+    ${_kerberos5_lib} lib/libcom_err ${_libm} lib/libncurses \
     lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
     lib/libz lib gnu/lib \
     ${_libperl} usr.bin/lex/lib ${_libkeycap}
