@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.19 1999/01/22 11:09:41 dillon Exp $
+ * $Id: machine.c,v 1.20 1999/02/06 06:33:55 dillon Exp $
  */
 
 
@@ -547,6 +547,7 @@ char *(*get_userid)();
     register double pct;
     struct handle *hp;
     char status[16];
+    int state;
 
     /* find and remember the next proc structure */
     hp = (struct handle *)handle;
@@ -581,7 +582,7 @@ char *(*get_userid)();
     pct = pctdouble(PP(pp, p_pctcpu));
 
     /* generate "STATE" field */
-    switch (PP(pp, p_stat)) {
+    switch (state = PP(pp, p_stat)) {
 	case SRUN:
 	    if (smpmode && PP(pp, p_oncpu) >= 0)
 		sprintf(status, "CPU%d", PP(pp, p_oncpu));
@@ -595,7 +596,12 @@ char *(*get_userid)();
 	    }
 	    /* fall through */
 	default:
-	    sprintf(status, "%.6s", state_abbrev[(unsigned char) PP(pp, p_stat)]);
+
+	    if (state >= 0 &&
+	        state < sizeof(state_abbrev) / sizeof(*state_abbrev))
+		    sprintf(status, "%.6s", state_abbrev[(unsigned char) state]);
+	    else
+		    sprintf(status, "?%5d", state);
 	    break;
     }
 
