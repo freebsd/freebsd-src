@@ -2,8 +2,8 @@
 # $FreeBSD$
 #Line starting with #PicoBSD contains PicoBSD build parameters
 #marker                def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD       2000    init    4096            32768
-options MD_ROOT_SIZE=2000      # same as def_sz
+#PicoBSD       2200    init    4096            32768
+options MD_ROOT_SIZE=2200      # same as def_sz
 
 #
 machine		i386
@@ -47,7 +47,7 @@ options		ATA_STATIC_ID		#Static device numbering
 # atkbdc0 controlls both the keyboard and the PS/2 mouse
 device	atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
-device		psm0	at atkbdc? irq 12
+#device		psm0	at atkbdc? irq 12
 
 device		vga0	at isa? port ?
 
@@ -65,8 +65,8 @@ device		sio3	at isa? disable port IO_COM4 irq 9
 #
 # The following Ethernet NICs are all PCI devices.
 #
-device de0		# DEC/Intel DC21x4x (``Tulip'')
-#device de1		# DEC/Intel DC21x4x (``Tulip'')
+device miibus
+device dc0		# DEC/Intel DC21x4x (``Tulip'')
 device fxp0		# Intel EtherExpress PRO/100B (82557, 82558
 
 # Order is important here due to intrusive probes, do *not* alphabetize
