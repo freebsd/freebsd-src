@@ -1,5 +1,5 @@
-/* $Id: asm_sbus.h,v 1.3 1998/12/28 19:22:25 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: asm_sbus.h,v 1.4 1999/01/30 07:22:29 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * SBus Qlogic Host Adapter Firmware Tables
  * Copyright (c) 1996, 1997, 1998 by Qlogic Corporation
@@ -1138,7 +1138,7 @@ static const u_int16_t ISP_RISC_CODE[] = {
 };
 #define	ISP_CODE_LENGTH 0x231f
 #endif
-#if	0
+#if	1
 /*
  * Version 1.31.00 ISP1000 Initiator RISC firmware
  * the *right* one..
@@ -2304,7 +2304,11 @@ static const u_int16_t ISP_RISC_CODE[] = {
 };
 #define	ISP_CODE_LENGTH 0x2419
 #endif
-#if 1
+/*
+ * This has Initiator/Target mode support, but has also been shown
+ * to be a bit flakey in initiator mode.
+ */
+#if 0
 /************************************************************************
  *									*
  * 	        --- ISP1000 Initiator/Target Firmware ---               *
