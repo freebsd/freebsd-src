@@ -1,5 +1,5 @@
 /*
- * refclock_heath - clock driver for Heath GC-1000 Most Accurate Clock
+ * refclock_heath - clock driver for Heath GC-1000 and and GC-1000 II
  */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -7,26 +7,17 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_HEATH)
 
-#include <stdio.h>
-#include <ctype.h>
-#ifdef TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# ifdef TM_IN_SYS_TIME
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif /* not HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
+
+#include <stdio.h>
+#include <ctype.h>
+
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* not HAVE_SYS_IOCTL_H */
 
 /*
  * This driver supports the Heath GC-1000 Most Accurate Clock, with
@@ -41,15 +32,21 @@
  * occasionally being rudely stepped when the offset exceeds the default
  * clock_max of 128 ms. 
  *
- * The internal DIPswitches should be set to operate at 1200 baud in
- * MANUAL mode and the current year. The external DIPswitches should be
- * set to GMT and 24-hour format, or to the host local time zone (with
- * DST) and 12-hour format. It is very important that the year be
- * set correctly in the DIPswitches. Otherwise, the day of year will be
- * incorrect after 28 April[?] of a normal or leap year.  In 12-hour mode
- * with DST selected the clock will be incorrect by an hour for an
- * indeterminate amount of time between 0000Z and 0200 on the day DST
- * changes.
+ * There are two GC-1000 versions supported by this driver. The original
+ * GC-1000 with RS-232 output first appeared in 1983, but dissapeared
+ * from the market a few years later. The GC-1000 II with RS-232 output
+ * first appeared circa 1990, but apparently is no longer manufactured.
+ * The two models differ considerably, both in interface and commands.
+ * The GC-1000 has a pseudo-bipolar timecode output triggered by a RTS
+ * transition. The timecode includes both the day of year and time of
+ * day. The GC-1000 II has a true bipolar output and a complement of
+ * single character commands. The timecode includes only the time of
+ * day.
+ *
+ * GC-1000
+ *
+ * The internal DIPswitches should be set to operate in MANUAL mode. The
+ * external DIPswitches should be set to GMT and 24-hour format.
  *
  * In MANUAL mode the clock responds to a rising edge of the request to
  * send (RTS) modem control line by sending the timecode. Therefore, it
@@ -81,6 +78,72 @@
  * established and hh:mm:ss.? once synchronization is established and
  * then lost again for about a day.
  *
+ * GC-1000 II
+ *
+ * Commands consist of a single letter and are case sensitive. When
+ * enterred in lower case, a description of the action performed is
+ * displayed. When enterred in upper case the action is performed.
+ * Following is a summary of descriptions as displayed by the clock:
+ *
+ * The clock responds with a command The 'A' command returns an ASCII
+ * local time string:  HH:MM:SS.T xx<CR>, where
+ *
+ *	HH = hours
+ *	MM = minutes
+ *	SS = seconds
+ *	T = tenths-of-seconds
+ *	xx = 'AM', 'PM', or '  '
+ *	<CR> = carriage return
+ *
+ * The 'D' command returns 24 pairs of bytes containing the variable
+ * divisor value at the end of each of the previous 24 hours. This
+ * allows the timebase trimming process to be observed.  UTC hour 00 is
+ * always returned first. The first byte of each pair is the high byte
+ * of (variable divisor * 16); the second byte is the low byte of
+ * (variable divisor * 16). For example, the byte pair 3C 10 would be
+ * returned for a divisor of 03C1 hex (961 decimal).
+ *
+ * The 'I' command returns:  | TH | TL | ER | DH | DL | U1 | I1 | I2 | ,
+ * where
+ *
+ *	TH = minutes since timebase last trimmed (high byte)
+ *	TL = minutes since timebase last trimmed (low byte)
+ *	ER = last accumulated error in 1.25 ms increments
+ *	DH = high byte of (current variable divisor * 16)
+ *	DL = low byte of (current variable divisor * 16)
+ *	U1 = UT1 offset (/.1 s):  | + | 4 | 2 | 1 | 0 | 0 | 0 | 0 |
+ *	I1 = information byte 1:  | W | C | D | I | U | T | Z | 1 | ,
+ *	     where
+ *
+ *		W = set by WWV(H)
+ *		C = CAPTURE LED on
+ *		D = TRIM DN LED on
+ *		I = HI SPEC LED on
+ *		U = TRIM UP LED on
+ *		T = DST switch on
+ *		Z = UTC switch on
+ *		1 = UT1 switch on
+ *
+ *	I2 = information byte 2:  | 8 | 8 | 4 | 2 | 1 | D | d | S | ,
+ *	     where
+ *
+ *		8, 8, 4, 2, 1 = TIME ZONE switch settings
+ *		D = DST bit (#55) in last-received frame
+ *		d = DST bit (#2) in last-received frame
+ *		S = clock is in simulation mode
+ *
+ * The 'P' command returns 24 bytes containing the number of frames
+ * received without error during UTC hours 00 through 23, providing an
+ * indication of hourly propagation.  These bytes are updated each hour
+ * to reflect the previous 24 hour period.  UTC hour 00 is always
+ * returned first.
+ *
+ * The 'T' command returns the UTC time:  | HH | MM | SS | T0 | , where
+ *	HH = tens-of-hours and hours (packed BCD)
+ *	MM = tens-of-minutes and minutes (packed BCD)
+ *	SS = tens-of-seconds and seconds (packed BCD)
+ *	T = tenths-of-seconds (BCD)
+ *
  * Fudge Factors
  *
  * A fudge time1 value of .04 s appears to center the clock offset
@@ -93,12 +156,12 @@
  * Interface definitions
  */
 #define	DEVICE		"/dev/heath%d" /* device name and unit */
-#define	SPEED232	B1200	/* uart speed (1200 baud) */
 #define	PRECISION	(-4)	/* precision assumed (about 100 ms) */
 #define	REFID		"WWV\0"	/* reference ID */
 #define	DESCRIPTION	"Heath GC-1000 Most Accurate Clock" /* WRU */
 
-#define LENHEATH	23	/* min timecode length */
+#define LENHEATH1	23	/* min timecode length */
+#define LENHEATH2	13	/* min timecode length */
 
 /*
  * Tables to compute the ddd of year form icky dd/mm timecode. Viva la
@@ -106,6 +169,12 @@
  */
 static int day1tab[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 static int day2tab[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+/*
+ * Baud rate table. The GC-1000 supports 1200, 2400 and 4800; the
+ * GC-1000 II supports only 9600.
+ */
+static int speed[] = {B1200, B2400, B4800, B9600};
 
 /*
  * Unit control structure
@@ -136,65 +205,6 @@ struct	refclock refclock_heath = {
 	NOFLAGS			/* not used */
 };
 
-#if 0
-/*
- * Gee, Unix so thoughfully omitted code to convert from a struct tm to
- * a long, so I'll just have to ferret out the inverse myself, the hard way.
- * (Newton's method.)
- */
-#define timelocal(x) invert(x, localtime)
-/*
- * comparetm compares two tm structures and returns -1 if the first
- * is less than the second, 0 if they are equal, and +1 if the first
- * is greater than the second.  Only the year, month, day, hour, minute
- * and second are compared.  The yearday (Julian), day of week, and isdst
- * are not compared.
- */
-
-static int
-comparetm(
-	struct tm *a,
-	struct tm *b
-	)
-{
-	if (a->tm_year < b->tm_year ) return -1;
-	if (a->tm_year > b->tm_year ) return 1;
-	if (a->tm_mon < b->tm_mon ) return -1;
-	if (a->tm_mon > b->tm_mon ) return 1;
-	if (a->tm_mday < b->tm_mday ) return -1;
-	if (a->tm_mday > b->tm_mday ) return 1;
-	if (a->tm_hour < b->tm_hour ) return -1;
-	if (a->tm_hour > b->tm_hour ) return 1;
-	if (a->tm_min < b->tm_min ) return -1;
-	if (a->tm_min > b->tm_min ) return 1;
-	if (a->tm_sec < b->tm_sec ) return -1;
-	if (a->tm_sec > b->tm_sec ) return 1;
-	return 0;
-}
-
-static long
-invert (
-       struct tm *x,
-       struct tm *(*func)()
-       )
-{
-	struct tm *y;
-	int result;
-	long trial;
-	long lower=0L;
-	long upper=(long)((unsigned long)(~lower) >> 1);
-
-	do {
-		trial = (upper + lower) / 2L;
-		y = (*func)(&trial);
-		result = comparetm(x, y);
-		if (result < 0) upper = trial;
-		if (result > 0) lower = trial;
-	} while (result != 0);
-	return trial;
-}
-#endif /* 0 */
-
 
 /*
  * heath_start - open the devices and initialize data for processing
@@ -214,7 +224,7 @@ heath_start(
 	 * Open serial port
 	 */
 	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED232, 0)))
+	if (!(fd = refclock_open(device, speed[peer->ttlmax & 0x3], 0)))
 	    return (0);
 
 	/*
@@ -291,7 +301,8 @@ heath_receive(
 	peer = (struct peer *)rbufp->recv_srcclock;
 	pp = peer->procptr;
 	up = (struct heathunit *)pp->unitptr;
-	pp->lencode = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
+	pp->lencode = refclock_gtlin(rbufp, pp->a_lastcode, BMAX,
+	    &trtmp);
 
 	/*
 	 * We get a buffer and timestamp for each <cr>; however, we use
@@ -314,76 +325,37 @@ heath_receive(
 	 * its contents. If the timecode has invalid length or is not in
 	 * proper format, we declare bad format and exit.
 	 */
-	if (pp->lencode < LENHEATH) {
-		refclock_report(peer, CEVNT_BADREPLY);
-		return;
-	}
+	switch (pp->lencode) {
 
 	/*
-	 * Timecode format: "hh:mm:ss.f AM  mm/dd/yy"
+	 * GC-1000 timecode format: "hh:mm:ss.f AM  mm/dd/yy"
+	 * GC-1000 II timecode format: "hh:mm:ss.f   "
 	 */
-	if (sscanf(pp->a_lastcode, "%2d:%2d:%2d.%c%5c%2d/%2d/%2d",
-		   &pp->hour, &pp->minute, &pp->second, &dsec, a, &month, &day,
-		   &pp->year) != 8) {
-		refclock_report(peer, CEVNT_BADREPLY);
-		return;
-	}
-
-	/*
-	 * If AM or PM is received, assume the clock is displaying local
-	 * time. First, convert to 24-hour format.
-	 */
-
-	switch (a[1]) {
-	    case 'P':
-		if (12 > pp->hour)
-		    pp->hour += 12;
-		break;
-
-	    case 'A':
-		if (12 == pp->hour)
-		    pp->hour -= 12;
-		break;
-	}
-
-	/*
-	 * Now make a struct tm out of it, convert to UTC, and
-	 * repopulate pp->
-	 */
-
-	if (' ' != a[1]) {
-		struct tm t, *q;
-		time_t l;
-
-		t.tm_sec = pp->second;
-		t.tm_min = pp->minute;
-		t.tm_hour = pp->hour;
-		t.tm_mday = day; /* not converted to yday yet */
-		t.tm_mon = month-1; /* ditto */
-		t.tm_year = pp->year;
-		if ( t.tm_year < YEAR_PIVOT ) t.tm_year += 100;	/* Y2KFixes */
-
-		t.tm_wday = -1; /* who knows? */
-		t.tm_yday = -1; /* who knows? */
-		t.tm_isdst = -1; /* who knows? */
-
-		l = mktime(&t);
-		if (l == -1) {
-			/* HMS: do we want to do this? */
-			refclock_report(peer, CEVNT_BADTIME);
+	case LENHEATH1:
+		if (sscanf(pp->a_lastcode,
+		    "%2d:%2d:%2d.%c%5c%2d/%2d/%2d", &pp->hour,
+		    &pp->minute, &pp->second, &dsec, a, &month, &day,
+		    &pp->year) != 8) {
+			refclock_report(peer, CEVNT_BADREPLY);
 			return;
 		}
-		q = gmtime(&l);
+		break;
 
-		pp->year = q->tm_year;
-		month = q->tm_mon+1;
-		day = q->tm_mday; /* still not converted */
-		pp->hour = q->tm_hour;
-		/* pp->minute = q->tm_min;  GC-1000 cannot adjust timezone */
-		/* pp->second = q->tm_sec;  by other than hour increments */
+	/*
+	 * GC-1000 II timecode format: "hh:mm:ss.f   "
+	 */
+	case LENHEATH2:
+		if (sscanf(pp->a_lastcode, "%2d:%2d:%2d.%c", &pp->hour,
+		    &pp->minute, &pp->second, &dsec) != 4) {
+			refclock_report(peer, CEVNT_BADREPLY);
+			return;
+		}
+		break;
+
+	default:
+		refclock_report(peer, CEVNT_BADREPLY);
+		return;
 	}
-
-  
 
 	/*
 	 * We determine the day of the year from the DIPswitches. This
@@ -396,11 +368,6 @@ heath_receive(
 	 * timecode accordingly. Icky pooh. This bit of nonsense could
 	 * be avoided if the engineers had been required to write a
 	 * device driver before finalizing the timecode format.
-	 *
-	 * Yes, I know this code incorrectly thinks that 2000 is a leap
-	 * year; but, the latest year that can be set by the DIPswitches
-	 * is 1997 anyay. Life is short.
-	 *	Hey! Year 2000 IS a leap year!			   Y2KFixes
 	 */
 	if (month < 1 || month > 12 || day < 1) {
 		refclock_report(peer, CEVNT_BADTIME);
@@ -460,17 +427,20 @@ heath_poll(
 	pp->polls++;
 
 	/*
-	 * We toggle the RTS modem control lead to kick a timecode loose
-	 * from the radio. This code works only for POSIX and SYSV
-	 * interfaces. With bsd you are on your own. We take a timestamp
-	 * between the up and down edges to lengthen the pulse, which
-	 * should be about 50 usec on a Sun IPC. With hotshot CPUs, the
-	 * pulse might get too short. Later.
+	 * We toggle the RTS modem control lead (GC-1000) and sent a T
+	 * (GC-1000 II) to kick a timecode loose from the radio. This
+	 * code works only for POSIX and SYSV interfaces. With bsd you
+	 * are on your own. We take a timestamp between the up and down
+	 * edges to lengthen the pulse, which should be about 50 usec on
+	 * a Sun IPC. With hotshot CPUs, the pulse might get too short.
+	 * Later.
 	 */
 	if (ioctl(pp->io.fd, TIOCMBIC, (char *)&bits) < 0)
 		refclock_report(peer, CEVNT_FAULT);
 	get_systime(&up->tstamp);
 	ioctl(pp->io.fd, TIOCMBIS, (char *)&bits);
+	if (write(pp->io.fd, "T", 1) != 1)
+		refclock_report(peer, CEVNT_FAULT);
 	if (peer->burst > 0)
 		return;
 	if (pp->coderecv == pp->codeproc) {

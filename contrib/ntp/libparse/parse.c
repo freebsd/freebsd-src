@@ -30,9 +30,6 @@
 static char rcsid[] = "parse.c,v 4.14 1999/11/28 09:13:52 kardel RELEASE_19991128_A";
 #endif
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -43,9 +40,9 @@ static char rcsid[] = "parse.c,v 4.14 1999/11/28 09:13:52 kardel RELEASE_1999112
 #include "parse.h"
 
 #ifndef PARSESTREAM
-#include <stdio.h>
+# include <stdio.h>
 #else
-#include "sys/parsestreams.h"
+# include "sys/parsestreams.h"
 #endif
 
 extern clockformat_t *clockformats[];

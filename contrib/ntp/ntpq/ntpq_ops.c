@@ -1,14 +1,14 @@
 /*
  * ntpdc_ops.c - subroutines which are called to perform operations by ntpdc
  */
+
 #include <stdio.h>
-#include <ctype.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <netdb.h>
 
 #include "ntpq.h"
 #include "ntp_stdlib.h"
+
+#include <ctype.h>
+#include <netdb.h>
 
 extern char *	chosts[];
 extern char currenthost[];
@@ -940,7 +940,7 @@ printassoc(
 			conf = "yes";
 		else
 			conf = "no";
-		if (statval & CTL_PST_REACH) {
+		if (statval & CTL_PST_REACH || 1) {
 			reach = "yes";
 			if (statval & CTL_PST_AUTHENABLE) {
 				if (statval & CTL_PST_AUTHENTIC)
@@ -1544,8 +1544,8 @@ dopeers(
 		}
 		(void) fprintf(fp, "%-*.*s ", maxhostlen, maxhostlen, "host");
 	}
-	(void) fprintf(fp,
-			   "     remote           refid      st t when poll reach   delay   offset  jitter\n");
+	fprintf(fp,
+	   "     remote           refid      st t when poll reach   delay   offset  jitter\n");
 	if (numhosts > 1)
 		for (i = 0; i <= maxhostlen; ++i)
 		(void) fprintf(fp, "=");
@@ -1609,6 +1609,8 @@ doopeers(
 
 	(void) fprintf(fp,
 			   "     remote           local      st t when poll reach   delay   offset    disp\n");
+	(void) fprintf(fp,
+			   "                                      (s)  (s)          (ms)     (ms)     (ms)\n");
 	(void) fprintf(fp,
 			   "==============================================================================\n");
 

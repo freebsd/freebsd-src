@@ -9,19 +9,18 @@
 
 #if defined(REFCLOCK) && defined(CLOCK_USNO)
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/time.h>
-#ifdef HAVE_SYS_IOCTL_H
-# include <sys/ioctl.h>
-#endif /* HAVE_SYS_IOCTL_H */
-
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
 #include "ntp_refclock.h"
 #include "ntp_stdlib.h"
 #include "ntp_control.h"
+
+#include <stdio.h>
+#include <ctype.h>
+#ifdef HAVE_SYS_IOCTL_H
+# include <sys/ioctl.h>
+#endif /* HAVE_SYS_IOCTL_H */
 
 /*
  * This driver supports the Naval Observatory dialup at +1 202 653 0351.
@@ -438,7 +437,7 @@ usno_timeout(
 		peer->nextdate = current_time + ANSWER;
 		return;
 	}
-	switch (peer->ttl) {
+	switch (peer->ttlmax) {
 
 		/*
 		 * In manual mode the calling program is activated

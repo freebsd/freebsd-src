@@ -1,3 +1,2800 @@
+2001-08-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.1.0
+
+2001-07-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c (oncore_start): Set pps_enable=1, just
+	like the atom driver does.
+	From: reg@dwf.com
+
+	* ntpd/refclock_nmea.c (nmea_ppsapi): Set pps_enable=1, just like
+	the atom driver does.
+	From: Scott Allendorf <sca@newton.physics.uiowa.edu>
+
+	* ntpd/ntp_config.c (getconfig): CONF_CLOCK_PANIC was using the
+	wrong config flag.
+	From: <justin_forrester@hp.com>
+
+2001-07-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99m-rc3
+
+2001-07-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntp_update: COPYRIGHT needs a touch.
+	From: Mike Stump <mrs@kithrup.com>
+
+2001-07-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/config.htm: Major cleanup.
+	From: Martin Janzen <janzen@pixelmetrix.com>	
+
+	* configure.in (rt library check): Don't look for -lrt under
+	Linux.  Under glibc-2.1.2 and -2.2.2 (at least), the POSIX-
+	compatibility real-time library does strange things with threads
+	as other processes and we're getting lots of complaints about it.
+	Reported by: Juha Sarlin <juha@c3l.com>
+	
+2001-06-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver35.htm: Update email address.
+
+2001-06-25  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c (oncore_msg_BaEaHa): Fix wrong offset for
+	rsm.bad_almanac
+	From: Reynir Siik <reynir@royal.net>
+
+2001-06-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99m-rc2
+
+2001-06-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_config.c:
+	* include/ntp_config.h: includefile config keyword support
+	From: Dean Gibson <timekeeper@tcp-udp.net>
+
+2001-06-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99m-rc1b
+
+	* ntpd/refclock_true.c (true_debug): Bump some buffer sizes to
+	reduce/eliminate chance of buffer overflow.  Use snprintf()
+	instead of sprintf().  Do a better job of opening the debug file.
+	* ntpd/ntp_control.c (ctl_getitem): Count overflow packets as bad
+	and return a BADFMT.
+	* ntpd/ntp_config.c (save_resolve): call fdopen() with the correct
+	mode.
+	From: Bela Lubkin <belal@sco.com>
+
+2001-06-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/ntp.h (RES_ALLFLAGS): Add RES_DEMOBILIZE.
+	From: Dean Gibson <timekeeper@tcp-udp.net>
+
+	* configure.in: 4.0.99m-rc1a
+
+2001-06-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_refclock.c (refclock_open): Add O_NOCTTY to the open()
+	flags when opening a serial port.
+	Reported by: joseph lang <tcnojl1@earthlink.net>
+
+2001-05-31  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/notes.htm: Typo fix.
+	From: John Stone <johns@ks.uiuc.edu>
+
+	* configure.in: 4.0.99m-rc1
+
+	* html/monopt.htm: Typo fix.
+	* html/confopt.htm: Cruft removal.
+	From: John Stone <johns@ks.uiuc.edu>
+
+2001-05-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* README.cvs: More updates and cleanup.
+
+	* ntpd/ntp_loopfilter.c (loop_config): 
+	Check against STA_NANO instead of (NTP_API > 3) to catch kernels
+	that were rolled while the spec was evolving.
+	From: John.Hay@icomtek.csir.co.za
+
+	* README.cvs: Note that we want to check out NTP into a clean
+	subdir.
+	Reported by jrd@cc.usu.edu (Joe Doupnik)
+
+2001-05-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k40
+
+	* include/ntp_refclock.h: Median Filter (SAMPLE - macro) - change
+	to use most recent MAXSTAGE entries when the filter overflows (ie
+	driver poking say once per second with poll > MAXSTAGE) rather
+	than blocking after MAXSTAGE entries (turf oldest rather than turf
+	most recent).
+	From: John Woolner <vk1et@tpg.com.au>
+
+	* ntpd/refclock_true.c:
+	   a. Don't cream pp->a_lastcode when we get a <cr><lf> pair 
+	   b. Fix up pp->leap handling to work correctly 
+	   c. clear CEVNT_BADTIME etc warnings when we get good clock 
+	CEVNT_NOMINAL. 
+	From: John Woolner <vk1et@tpg.com.au>
+
+	* kernel/sys/pcl720.h:
+	Add support for the XL clock to refclock_true.c 
+	From: Paul A Vixie <vixie@mfnx.net> 
+
+	* ntpd/ntp_loopfilter.c (local_clock): One more attempt at
+	"improving" the panic message.
+
+2001-05-26  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (ac_cv_func_ctty_for_f_setown): BSDI3 needs a ctty
+	for F_SETOWN, too.
+	From: Paul A Vixie <vixie@mfnx.net>
+
+2001-05-24  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/ntpd.htm: Typo.
+	From: John Stone <johns@ks.uiuc.edu>
+
+2001-05-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k39
+
+	* ntpd/ntp_loopfilter.c (local_clock): huffpuff cleanup/improvements.
+	(huffpuff): Cleanup/improvements.
+	(loop_config): huffpuff initialization cleanup/improvements.
+	From: Dave Mills, Terje, Mark, and John?
+
+2001-05-22  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/release.htm:
+	* html/ntpd.htm:
+	* html/miscopt.htm:
+	From: Dave Mills: Updates.
+
+2001-05-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k38
+
+	* ntpd/ntp_proto.c (clock_filter): Huff-n-Puff and Popcorn
+	improvements.
+	* ntpd/ntp_loopfilter.c (local_clock): Debug cleanup
+	From: Dave Mills.
+
+	* include/ntp_syscall.h (ntp_gettime): Updated patch from Ulrich.
+	My original attempt was not backwards compatible.
+
+2001-05-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/ntp_syscall.h (ntp_gettime): Fill in the tai member.
+	From: Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+
+	* configure.in: 4.0.99k37
+
+	* ntpd/ntp_proto.c (clock_filter): Lose "off", xtemp and ytemp,
+	and some obsoleted calculations.  Set the peer->offset and
+	peer->delay from the filter stages.
+
+	* ntpd/ntp_loopfilter.c: Comment/document improvements.
+	(local_clock): correct the offset by one-half the difference
+	between the sample delay and minimum delay.  Lose "mu" from the
+	debug message.
+	From: Dave Mills.
+
+2001-05-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k36
+
+	* ntpd/ntp_loopfilter.c: Huff-n-puff cleanup
+	From: Dave Mills.
+
+2001-05-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k35
+
+	* ntpd/refclock_atom.c (atom_ppsapi): set pps_enable=1 if
+	enb_hardpps.
+	* ntpd/ntp_timer.c: huffpuff support.
+	(init_timer): huffpuff support.
+	(timer): huffpuff support.
+	* ntpd/ntp_proto.c (init_proto): Initialize pps_enable to 0, not 1.
+	* ntpd/ntp_loopfilter.c (CLOCK_HUFFPUFF): Added.
+	Add huff-n-puff filter variables.
+	(local_clock): Lose "pps sync enabled" log noise.
+	(huffpuff): Added.
+	(loop_config): LOOP_MINPOLL and LOOP_ALLAN were missing the
+	trailing break; add LOOP_HUFFPUFF.
+	* ntpd/ntp_config.c: tinker huffpuff added.
+	(getconfig): CONF_CLOCK_HUFFPUFF support.
+	* include/ntpd.h: huffpuff() declaration.
+	* include/ntp_config.h (CONF_CLOCK_HUFFPUFF): Added.
+	* include/ntp.h (HUFFPUFF): Added.
+	(LOOP_HUFFPUFF): Added.
+	From: Dave Mills.
+
+2001-05-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver20.htm: Reality check.
+	* ntpd/refclock_nmea.c: Comment cleanup
+	From: John Woolner <vk1et@tpg.com.au>
+
+	* html/release.htm: Cleanup (at least).
+	* html/refclock.htm: Cleanup (at least).
+	* html/kern.htm: Cleanup (at least).
+	* html/index.htm: Cleanup (at least).
+	* html/extern.htm: Cleanup (at least).
+	* html/driver1.htm: Cleanup (at least).
+	* html/debug.htm: Cleanp (at least).
+	* html/accopt.htm: KoD documentation update.
+	From: Dave Mills.
+
+	* configure.in: 4.0.99k34
+
+	* ntpd/ntp_util.c (record_loop_stats): values are now passed in.
+	* ntpd/ntp_loopfilter.c (local_clock): pass the values to
+	record_loop_stats().
+	* include/ntpd.h: Pass the parameters in to record_loop_stats().
+	With the discipline loop opened (disable ntp) the local clock
+	updates were not being sent to loopstats. That now is.
+	From: Dave Mills.	
+
+2001-05-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k33
+
+	* ntpd/ntp_proto.c (receive): Validate the source port.  Lose
+	NTPv1 support.
+	* ntpd/ntp_loopfilter.c (local_clock): Sanity check sys_poll
+	earlier instead of later.
+	From: Dave Mills.
+
+	* ntpd/refclock_oncore.c (oncore_msg_any): We don't always have
+	GETTIMEOFDAY().
+
+2001-05-09  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_shm.c (shm_poll): Apply JAN_1970 correction after
+	calling TVTOTS(), just like everybody else does.
+	From: David Malone <dwmalone@maths.tcd.ie>
+
+	* ntpd/refclock_ulink.c: fixed 33x quality flag, added more
+	debugging stuff, updated 33x time code explanation.
+	From: s.l.smith (via j.c.lang).
+
+2001-05-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k32
+
+	* ntpd/ntp_loopfilter.c: rstclock now takes a 3rd argument, the
+	last offset.
+	(init_loopfilter): Use it.
+	(local_clock): Use it.  Clean up the code.
+	(loop_config): Use it.
+	(rstclock): Implement it.  Clean up the code.
+	From Dave Mills.
+
+2001-05-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k31
+
+	* ntpdc/ntpdc_ops.c (sysstats): That's 'bad packet format'
+	(instead of '... length'), and 'packets rejected' (instead of
+	'limitation rejects'.
+	* ntpd/ntp_proto.c (receive): PUBKEY fixes.  Move KoD stuff to
+	process_packet().
+	(process_packet):  Move KoD stuff here... 
+	(peer_clear): Unspec the stratum, too.
+	(clock_filter): Don't update peer->epoch here.  Fix the filter
+	test when checking the epoch.
+	(fast_xmit): Send back STRATUM_UNSPEC on a KoD packet.
+	(init_proto): Initialize sys_jitter.
+
+	* ntpd/ntp_loopfilter.c: rstclock() takes 2 parameters now.
+	(init_loopfilter): Use it...
+	(local_clock): Ditto, and change the "mu" calculation.  Improve
+	the jitter test in S_SYNC.  Use peer->epoch (not current_time) to
+	update the last_time.  Update debug info.
+	(rstclock): 2nd arg - the epoch to use.  Use it.
+	(loop_config): update call to rstclock.
+	From: Dave Mills.
+
+2001-05-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ports/winnt/ntpd/ntpd.dsp: Add cmd_args.c
+	From: Wink Saville <wink@saville.com>
+
+2001-04-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpq/ntpq.c (tstflags): 11 now.
+	From: John Cochran <jdc@fiawol.org>
+
+	* ntpd/ntp_proto.c (receive): KoD updates.  Improve the comments.
+	Lose the AM_PROCPKT restrictions test.
+	(peer_xmit): Check/report on no encryption key in packet.
+	(fast_xmit): Use peer_xmit's new packet length check code.
+	From  Dave Mills.
+
+2001-04-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k30
+
+2001-04-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdc/ntpdc_ops.c: Added "kod", lost "demobilize".
+	* ntpd/ntp_config.c: Added "kod" keyword.  Lose "demobilize" keyword.
+	* html/release.htm: Updated.
+	* html/accopt.htm: Updated.
+	From: Dave Mills.
+
+	* ntpq/ntpq.c: Reorder and add some TEST flag bits.
+	* ntpd/ntp_proto.c (transmit): Also bail if access denied.
+	(receive): Lose RES_DEMOBILIZE and (some?) RES_DONTSERVE and
+	RES_LIMITIED stuff.  Update Kiss-Of-Death (KoD) docs.
+	Call fast_xmit with new 3rd parameter (restrict_mask).
+	Before checking for an authentic packet, check the restrict_mask
+	for RES_{DONTSERVE,LIMITED,NOPEER}.
+	Check restrictions in AM_PROCPKT case.
+	(peer_clear): Don't lose the stratum if the peer->flags don't
+	indicate FLAG_REFCLOCK.
+	(fast_xmit): Take restrict mask as a new argument, and handle
+	KoD.  Reorder some code.
+	From: Dave Mills.
+
+2001-04-26  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdc/ntpdc_ops.c: restrict/unrestrict support for version and
+	demobilize.  Implement demobilze.
+	* ntpd/ntp_proto.c (receive): Improve version testing, including
+	RES_DEMOBILIZE support.
+	(fast_xmit): Patches to kiss-of-death packet.
+	* ntpd/ntp_loopfilter.c (local_clock): S_SYNC case now also checks
+	abs(clock_offset) against CLOCK_PGATE*sys_jitter.
+	* ntpd/ntp_config.c: CONF_RES_DEMOBILIZE/demobilize support.
+	* include/ntp_config.h (CONF_RES_DEMOBILIZE): Added.
+	* include/ntp.h (RES_DEMOBILIZE): Added.
+	From Dave Mills.
+
+2001-04-25  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/accopt.htm: Document the "version" parameter
+	From Dave Mills.
+
+	* ntpd/ntp_proto.c (fast_xmit): Implement DENY mode.
+	From Dave Mills.
+
+	* ntpd/ntp_config.c: Add the "allan" tinker variable.
+	From: Juha Sarlin <juha@c3l.tyreso.se>
+
+	* ntpd/refclock_hopfpci.c (hopfpci_start): Lose the "correct_any"
+	stuff - it's both obsolete and wrong.
+
+	* ntpd/ntp_proto.c (receive): Keep track of packet versions.
+	Implement RES_LIMITED.
+	* include/ntp_config.h (CONF_RES_LIMITED): 
+	* include/ntp.h (RES_LIMITED): Leave the bits in the original
+	order.
+	From Dave Mills.
+
+	* util/timetrim.c:
+	* util/Makefile.am:
+	* ntpdc/ntpdc_ops.c:
+	* ntpd/refclock_nmea.c:
+	* libntp/snprintf.c:
+	* configure.in:
+	* configure:
+	* config.h.in:
+	* aclocal.m4:
+	* acconfig.h:
+	Lint cleanup from: Marc Brett <mbrett@rgs0.london.waii.com>
+
+	* ntpd/ntp_config.c: Add "version" support.
+	(getconfig): version support.
+	* include/ntp_config.h (CONF_RES_VERSION): Added.
+	* include/ntp.h (RES_VERSION): Added.
+	From: Dave Mills.
+
+	* include/ntp_machine.h (ifreq): WinNT cleanup
+
+2001-04-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k29
+
+	* html/miscopt.htm: Document the "allan" tinker variable.
+	* ntpd/ntp_proto.c (clock_filter): Update comments.  Lose etemp;
+	we now use allan_xpt for this.
+	* ntpd/ntp_loopfilter.c: Added allan_xpt as a tinker variable.
+	Reorganize variables and improve comments.
+	(local_clock): Improve comments, use (new) allan_xpt instead of
+	CLOCK_ALLAN.  Fix test in S_SYNC state.  Update debug info.
+	(rstclock): No longer force allan_xpt to CVLOCK_ALLAN in S_FREQ,
+	S_SYNC, or default case.
+	(loop_config): Document dangerous tinker variables, and add
+	LOOP_ALLAN to the list.
+	* include/ntp_config.h (CONF_CLOCK_ALLAN): Added.
+	* include/ntp.h (LOOP_ALLAN): Added.
+	Allan intercept fixes from Dave Mills.
+
+	* scripts/mkver.in: Use the C locale so  the dates come out in a
+	consistent format.
+	From: ASANO Naoyuki <n_asano@imjp.co.jp>
+
+	* build: Run "config.status" before the "make" because it probably
+	saves time and trouble.  Probably...
+
+	* flock-build: Try building sequentially.
+
+2001-04-22  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (ac_cv_make_tickadj): Fix it right...
+
+	* util/ntp-genkeys.c: extern config_netinfo, too.
+
+	* util/hist.c:
+	* ntptrace/ntptrace.c:
+	* ntpq/ntpq.c:
+	* ntpdc/ntpdc.c:
+	* ntpdate/ntptimeset.c:
+	* ntpdate/ntpdate.c:
+	* ntpd/refclock_parse.c:
+	* ntpd/refclock_msfees.c:
+	* ntpd/refclock_jupiter.c:
+	* ntpd/ntp_refclock.c:
+	* ntpd/ntp_io.c:
+	* libparse/clk_wharton.c:
+	* libparse/clk_varitext.c:
+	* libparse/clk_trimtaip.c:
+	* libparse/clk_schmid.c:
+	* libparse/clk_rcc8000.c:
+	* libparse/clk_rawdcf.c:
+	* libparse/clk_meinberg.c:
+	* libparse/clk_hopf6021.c:
+	* libparse/clk_dcf7000.c:
+	* libparse/clk_computime.c:
+	Lint.  From: Simon Burge <simonb@wasabisystems.com>
+
+2001-04-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_nmea.c (nmea_receive): Fixes.
+	From: John Woolner <vk1et@tpg.com.au>
+
+	* util/ntp-genkeys.c: Declare check_netinfo, don't define it.
+	From: Jack Bryans <jbryans@csulb.edu>
+
+	* configure.in (RSASRCS): rsaref2 needs digit.h (I thought I fixed
+	this already).
+	
+	* configure.in (CFLAGS): Disable -Wconversion, enable
+	-Wmissing-prototypes, and allow for -Werror.
+	From: Simon Burge <simonb@wasabisystems.com>
+
+	* util/ntp-genkeys.c (main): Reset the standard mask so the
+	symlinks are created with the standard mask.
+
+	* configure.in: 4.0.99k28
+
+	* ntpd/ntpd.c (ntpdmain): Use mode_t for umask value.
+
+	* util/ntp-genkeys.c: Create files with the right umask.
+
+	* util/ntp-genkeys.c: config_file should be declared, not defined.
+	* ntpd/refclock_mx4200.c (mx4200_pps): debug cleanup.
+	* ntpd/refclock_hopfser.c: If we're not using it, provide the _bs.
+	* ntpd/refclock_heath.c (heath_receive): Add missing "break"
+	statements.
+	* ntpd/ntp_proto.c: Lose extra definition of mode_ntpdate.
+	* librsaref/Makefile.am (nodist_librsaref_a_SOURCES): Put RSASRCS
+	on the same line as rsaref.h to improve portability.
+	* libntp/msyslog.c: Lint cleanup.
+	From: Marc.Brett@westerngeco.com
+
+	* util/ntp-genkeys.c:
+	* ntpdate/ntpdate.c:
+	* ntpd/ntp_config.c: Netinfo header reorder.
+	From: Jack Bryans <jbryans@csulb.edu>
+
+	* configure.in: timespec can be found by looking in goofy places
+	under SunOS.
+
+2001-04-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_nmea.c:  PPSAPI cleanup, default to RMC sentences,
+	handle milliseconds, multiple sentences, other good stuff.
+	From: John Woolner <vk1et@tpg.com.au>, Marc.Brett@westerngeco.com,
+	John.Hay@icomtek.csir.co.za
+
+	* ntpd/ntp_proto.c (receive): In the AM_NEWBCL case, return in all
+	cases at the end.
+	* ntpd/ntp_peer.c (newpeer): Check cast_flags against MDF_BCLNT,
+	not against MDF_BCAST.
+	* ntpd/ntp_loopfilter.c (local_clock): Lose debug info.
+	* ntpd/ntp_crypto.c (crypto_recv): Bugfix.
+	From: Dave Mills.
+
+	* configure.in: 4.0.99k27
+
+	* ntpd/ntp_loopfilter.c (local_clock): Check clock_panic > 0.
+	Check clock_max > 0.
+	* html/ntpd.htm: Cleanup.
+	* html/miscopt.htm: Cleanup.
+	* html/confopt.htm: Cleanup minpoll documentation.
+	From: Dave Mills.
+
+2001-04-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/cmd_args.c (getstartup): check_netinfo needs an extern
+	declaration.
+	Reported by: Jack Bryans <jbryans@csulb.edu>
+
+	* configure.in (ac_cv_make_timetrim): Added.
+	* util/Makefile.am (bin_PROGRAMS): MAKE_TIMETRIM
+	Requested by: Jack Bryans <jbryans@csulb.edu>
+
+	* configure.in: 4.0.99k26
+
+	* util/ntp-genkeys.c:
+	* ntpd/refclock_oncore.c:
+	* ntpd/ntp_peer.c:
+	* libntp/msyslog.c:
+	* libntp/audio.c:
+	Lint cleanup.
+	From: Simon Burge <simonb@wasabisystems.com>
+
+	* ntpd/ntp_loopfilter.c (local_clock): debug message improvements
+	from Dave Mills.
+
+	* libntp/emalloc.c (emalloc): Tell people we are exiting if we log
+	an out-of-memory condition.
+
+	* util/ntp-genkeys.c (main): Don't allow '#' in a generated MD5
+	key.  Reported by: Dave Tyson <Dave.Tyson@liverpool.ac.uk>
+
+2001-04-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (clock_update): minpoll cleanup.
+	(clock_select): minpoll cleanup.
+	(clock_filter): Bugfixes from Mark Martinec <Mark.Martinec@ijs.si>
+	* ntpd/ntp_loopfilter.c (rstclock): minpoll cleanup.  Debug cleanup.
+	* ntpd/ntp_config.c (getconfig): Initialize/bounds check minpoll
+	using NTP_MINDPOLL insted of sys_minpoll.
+	From: Dave Mills.
+
+2001-04-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/msyslog.c:
+	* ElectricFence/page.c (stringErrorReport): Follow Rainer's lead
+	and use strerror().
+
+	* ntpd/refclock_shm.c (shm_start): Always use strerror. 
+	* libntp/msyslog.c (msyslog): Use strerror if present. 
+	From: Rainer Orth  <ro@TechFak.Uni-Bielefeld.
+	
+	* ntpd/ntp_config.c (getconfig): Read stratum fudge value into 
+	long variable.
+	From: Rainer Orth <ro@TechFak.Uni-Bielefeld.DE> 
+
+	* libparse/parsesolaris.c (rdchar): Cast ~0 to unsigned long. 
+	* libntp/buftvtots.c (buftvtots): Allow for 8-byte tv_sec, tv_usec 
+	in struct timeval.
+	From: Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+2001-04-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_config.c (getconfig): move "tinker" so it's generally
+	available.
+
+2001-04-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Look for getclock().
+
+	* ntpd/ntp_config.c (getconfig): Squawk if provided minpoll or
+	maxpoll values are out of range.
+
+	* ntpd/ntp_proto.c (poll_update): Some operations can only be done
+	if we're compiling with some REFCLOCKs.
+	From Dave Mills.
+
+	* configure.in (RSASRCS): Added.
+	* librsaref/Makefile.am (nodist_librsaref_a_SOURCES): Use RSASRCS.
+
+	* configure.in: Limit the DECL_HSTRERROR_0 to aix4.3.*.  RSN, we
+	could also limit it to xlc...
+
+	* configure.in: 4.0.99k25
+
+	* html/leap.htm: Added.
+	* html/index.htm: Update.
+	* html/driver7.htm: Update.
+	* html/driver6.htm: Update.
+	* html/driver36.htm: Update.
+	* html/audio.htm: Update.
+	* html/y2k.htm: Removed.
+	From Dave Mills.
+
+2001-04-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* acconfig.h: Lose extra declarations of PACKAGE and VERSION.
+
+	* acconfig.h: 
+	* configure.in:
+	* include/l_stdlib.h: DECL_HSTRERROR_0 needed for xlc under AIX 4.3.2.
+	Reported by: Harald Barth <haba@pdc.kth.se>
+
+	* ntpd/ntp_proto.c (proto_config): cal_enable (PROTO_CAL) is
+	invalid if no refclocks are present.
+	From: Frodo Looijaard <frodol@dds.nl>
+
+	* README.cvs: On some systems, the -C option fails.
+
+	* ntpd/refclock_nmea.c:
+	* ntpd/ntp_refclock.c:
+	* html/driver20.htm:
+	PPSAPI patches for NMEA driver.
+	From: John.Hay@icomtek.csir.co.za
+
+        * README.rsa: Describe RSAEuro support, provide alternate rsa.c 
+	patch. 
+	* configure.in: Check for rsaeuro1, RSAOBJS, RSADIR respectively. 
+	* html/build.htm: Hint at rsaeuro1 directory. 
+	* include/global.h (BYTE): Define. 
+	* librsaref/Makefile.am (nodist_librsaref_a_SOURCES): Removed rsaref2 
+	specific sources. 
+	(librsaref_a_LIBADD): Add appropriate objects. 
+	(librsaref_a_DEPENDENCIES): Work around automake limitation. 
+	(stamp-rsaref): Use RSADIR. 
+	* scripts/README: Document ntp-close. 
+	* scripts/Makefile.am (EXTRA_DIST): Distribute it. 
+	* Makefile.am (DISTCLEANFILES): Remove .warning.
+	* librsaref/Makefile.am (DISTCLEANFILES): Remove copied/touched
+	librsaref sources, stamp-rsaref.
+	* ntpdate/Makefile.am (DISTCLEANFILES): Remove version.c.
+	* ntpq/Makefile.am (DISTCLEANFILES): Likewise.
+	* parseutil/Makefile.am (DISTCLEANFILES): Remove $(EXTRA_PROGRAMS).
+	Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* ntpd/ntp_control.c: Header cleanup
+
+2001-04-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Properly align --help output.
+	Explain ElectricFence.
+	From: Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* ntpd/ntp_loopfilter.c (local_clock): Lose debugging statements.
+	* ntpd/ntp_proto.c (clock_filter): Rewrite.
+	From: Dave Mills
+
+	* ntpd/ntp_control.c (ctl_getitem): msyslog() possible buffer
+	overflow exploit.
+
+	* configure.in: 4.0.99k24
+
+	* html/pic/radio2.jpg:
+	* html/release.htm:
+	* html/refclock.htm:
+	* html/pps.htm:
+	* html/ntpd.htm:
+	* html/miscopt.htm:
+	* html/driver22.htm:
+	* html/confopt.htm:
+	Updated documentation from Dave Mills.
+
+	* util/ntp-genkeys.c: sys_minpoll.
+	* ntpd/refclock_atom.c: Comment additions.
+	* ntpd/ntp_proto.c: mode_ntpdate and peer_ntpdate added.
+	(transmit): We want 3, not 2, consecutive polls.  hpoll logic
+	cleanup.  mode_ntpdate changes.
+	(receive): When setting up a newpeer, use our sys_minpoll, not the
+	peer->ppoll.
+	(clock_update): sys_minpoll changes.  Reorder some case 1 code.
+	Don't exit in case 2.
+	(poll_update): hpoll cleanup.
+	(peer_clear): u_rand.  Use u_rand to randomize the initial poll.
+	* ntpd/ntp_peer.c (newpeer): Bump peer_ntpdate if we're in
+	mode_ntpdate.
+	* ntpd/ntp_loopfilter.c: Initialize sys_poll and sys_minpoll to
+	NTP_MINDPOLL.
+	(local_clock): Clean up some debug/info messages.
+	(rstclock): Use sys_minpoll.
+	(loop_config): KERNEL_PLL sanity checks.  LOOP_MINPOLL support.
+	* ntpd/ntp_crypto.c (crypto_recv): Turn off FLAG_AUTOKEY when we
+	turn off TEST10.
+	* ntpd/ntp_control.c (ctl_getitem): Buffer overflow check.  Clean
+	up some loop logic.
+	* ntpd/ntp_config.c: Added "tinker" and "minpoll".  Use
+	sys_minpoll now, instead of old manifest constant.
+	(save_resolve): Print keyid using decimal, not hex.  From Lars-Owe
+	Ivarsson <larsowe@paradisaea.its.uu.se>
+	* include/ntpd.h: Added peer_ntpdate and sys_minpoll.
+	* include/ntp_config.h (CONF_CLOCK_MINPOLL): Added.
+	* include/ntp.h: keyid cleanup.  LOOP_* cleanup.
+	From Dave Mills.
+
+2001-04-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (clock_filter): Swell stuff.
+	From: Mark Martinec <Mark.Martinec@ijs.si>
+
+	* ports/winnt/ntpd/ntpd.dsp:
+	* ports/winnt/ntpd/hopf_PCI_io.c:
+	* ports/winnt/include/hopf_PCI_io.h:
+	* ports/winnt/include/config.h:
+	* ntpd/refclock_hopfser.c:
+	* ntpd/refclock_hopfpci.c:
+	* ntpd/refclock_conf.c:
+	* ntpd/ntp_control.c:
+	* ntpd/Makefile.am:
+	* libntp/clocktypes.c:
+	* include/ntp.h:
+	* include/hopf6039.h:
+	* include/Makefile.in:
+	* include/Makefile.am:
+	* html/pic/fg6039.jpg:
+	* html/refclock.htm:
+	* html/driver39.htm:
+	* html/driver38.htm:
+	* html/copyright.htm:
+	Updated Oncore dudes.
+
+	* configure.in:
+	HOPF drivers and documentation.
+	From: Bernd Altmeier <altmeier@atlsoft.de> (with some light
+	hacking from Harlan to clean up indentation and lose the // comments)
+
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_conf.c: Make it go.
+	From: Reg Clemens <reg@dwf.com>
+
+	* configure.in (openssl): Publish and default to RSAREF; hide
+	openssl, and only use it if explicitly requested (at least until
+	we work with it).
+
+2001-04-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/y2k.htm:
+	* html/tickadj.htm:
+	* html/release.htm:
+	* html/refclock.htm:
+	* html/quick.htm:
+	* html/pps.htm:
+	* html/ntptrace.htm:
+	* html/ntptime.htm:
+	* html/ntpq.htm:
+	* html/ntpdc.htm:
+	* html/ntpdate.htm:
+	* html/ntpd.htm:
+	* html/miscopt.htm:
+	* html/index.htm:
+	* html/genkeys.htm:
+	* html/exec.htm:
+	* html/driver7.htm:
+	* html/driver22.htm:
+	* html/copyright.htm:
+	* html/confopt.htm:
+	* html/build.htm:
+	* html/authopt.htm:
+	* html/assoc.htm:
+	Updates from Dave Mills.
+
+2001-04-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (OPENSSL): Just use -lcrypto.
+	Reported by Dave Mills.
+
+2001-03-31  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k20
+
+	* ntpd/refclock_heath.c: Add support for GC-1000 II.
+	From Dave Mills.
+
+	* ntpd/ntp_proto.c (transmit): Check peer->unreach.
+	(peer_clear): peer->outdate is a f(BURST_INTERVAL1), not
+	NTP_MINPOLL.
+	* ntpd/ntp_loopfilter.c (local_clock): mode_ntpdate stuff.
+	* ntpd/ntp_crypto.c: OpenSSL/RSAREF support.
+	* ntpd/cmd_args.c: Use -q, not -z, for mode_ntpdate.
+	(getstartup): nofork on mode_ntpdate. Usage update.
+	* include/ntp_crypto.h: OpenSSL/RSAREF support.
+	From: Dave Mills.
+
+	* configure.in (rsaref): Buglet.
+
+2001-03-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (clock_update): mode_ntpdate support.
+	* ntpd/ntp_loopfilter.c	(local_clock): mode_ntpdate support.
+	* ntpd/cmd_args.c: Added -z (mode_ntpdate).
+	* include/ntpd.h: mode_ntpdate added.
+	* include/ntp_crypto.h: RSAREF/OPENSSL cleanup.
+	From: Dave Mills.
+
+2001-03-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* config.h.in:
+	* aclocal.m4:
+	* configure.in: Prepare for OpenSSL support
+
+2001-03-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* README.rsa: Note that RSAEURO will not work.
+	Reported by: pieter.delacourt@banksys.be
+
+2001-03-25  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/ntp_if.h:
+	* include/ntp_machine.h:
+	* include/ntp_unixtime.h:
+	* libntp/humandate.c:
+	* libntp/iosignal.c:
+	* libntp/mktime.c:
+	* libntp/prettydate.c:
+	* libntp/systime.c:
+	* libntp/tvtoa.c:
+	* libntp/uglydate.c:
+	* libntp/utvtoa.c:
+	* libparse/clk_computime.c:
+	* libparse/clk_dcf7000.c:
+	* libparse/clk_hopf6021.c:
+	* libparse/clk_meinberg.c:
+	* libparse/clk_rawdcf.c:
+	* libparse/clk_rcc8000.c:
+	* libparse/clk_schmid.c:
+	* libparse/clk_trimtaip.c:
+	* libparse/clk_trimtsip.c:
+	* libparse/clk_varitext.c:
+	* libparse/parse.c:
+	* libparse/parse_conf.c:
+	* ntpd/check_y2k.c:
+	* ntpd/ntp_config.c:
+	* ntpd/ntp_control.c:
+	* ntpd/ntp_intres.c:
+	* ntpd/ntp_io.c:
+	* ntpd/ntp_loopfilter.c:
+	* ntpd/ntp_monitor.c:
+	* ntpd/ntp_proto.c:
+	* ntpd/ntp_refclock.c:
+	* ntpd/ntp_request.c:
+	* ntpd/ntp_resolver.c:
+	* ntpd/ntp_timer.c:
+	* ntpd/ntp_util.c:
+	* ntpd/ntpd.c:
+	* ntpd/refclock_acts.c:
+	* ntpd/refclock_arbiter.c:
+	* ntpd/refclock_arc.c:
+	* ntpd/refclock_as2201.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/refclock_bancomm.c:
+	* ntpd/refclock_chronolog.c:
+	* ntpd/refclock_chu.c:
+	* ntpd/refclock_datum.c:
+	* ntpd/refclock_dumbclock.c:
+	* ntpd/refclock_fg.c:
+	* ntpd/refclock_gpsvme.c:
+	* ntpd/refclock_heath.c:
+	* ntpd/refclock_hpgps.c:
+	* ntpd/refclock_irig.c:
+	* ntpd/refclock_jupiter.c:
+	* ntpd/refclock_leitch.c:
+	* ntpd/refclock_local.c:
+	* ntpd/refclock_msfees.c:
+	* ntpd/refclock_mx4200.c:
+	* ntpd/refclock_nmea.c:
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_pcf.c:
+	* ntpd/refclock_pst.c:
+	* ntpd/refclock_shm.c:
+	* ntpd/refclock_tpro.c:
+	* ntpd/refclock_trak.c:
+	* ntpd/refclock_true.c:
+	* ntpd/refclock_ulink.c:
+	* ntpd/refclock_usno.c:
+	* ntpd/refclock_wwv.c:
+	* ntpd/refclock_wwvb.c:
+	* ntpdate/ntpdate.c:
+	* ntpdate/ntptime_config.c:
+	* ntpdate/ntptimeset.c:
+	* ntpdc/ntpdc.c:
+	* ntpdc/ntpdc_ops.c:
+	* ntpq/ntpq.c:
+	* ntpq/ntpq_ops.c:
+	* ntptrace/ntptrace.c:
+	* parseutil/testdcf.c:
+	* util/hist.c:
+	* util/ntp-genkeys.c:
+	* util/ntptime.c:
+	* util/precision.c:
+	* util/tickadj.c:
+	time.h and sys/time.h cleanup.
+
+2001-03-24  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: '99k19
+
+	* ntpd/refclock_atom.c (atom_ppsapi): PPS API RFC alignment patches.
+	From: Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+
+	* util/ntptime.c: MNT options
+	From: Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+
+	* ntpd/ntp_refclock.c (refclock_newpeer): Lose "extra" free().
+	From: Ulrich Windl <Ulrich.Windl@rz.uni-regensburg.de>
+
+	* configure.in: 4.0.99k18 and auto* upgrade
+
+2001-03-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdc/ntpdc_ops.c (printpeer): No more "valid".
+	* ntpd/ntp_request.c (peer_info): No more "valid".
+	* ntpd/ntp_refclock.c (refclock_transmit): valid/hpoll cleanup.
+	* ntpd/ntp_proto.c (transmit): valid/hpoll and peer->ttl cleanup.
+	peer->valid/oreach cleanup.
+	(receive): Call newpeer() with the pkt->ppoll, not
+	NTP_MINDPOLL (in several places).
+	In AM_NEWPASS, if we have a NULL peer, return.
+	(poll_update): Added xpoll definition, fixed oldpoll definition.
+	Algorithmic improvements.
+	* ntpd/ntp_peer.c (newpeer): Better minpoll/maxpoll
+	initialization.
+	(resetmanycast): That's a poll_update() on an MDF_ACAST, not a
+	poll_clear().
+	* ntpd/ntp_crypto.c: include <fcntl.h>.
+	(crypto_recv): Leave the crypto_flags alone when wiggling the
+	peer-> stuff.
+	(crypto_cert): Make room for daddy.  Do a real open() on the cert
+	file.  Read the cert.  Initial hack and slash.  Better debug info.
+	* ntpd/ntp_control.c: CP_VALID now does "unreach".
+	(ctl_putpeer): Ditto.
+	* include/ntp_request.h: info_peer gets a placeholder for "valid".
+	* include/ntp_crypto.h (CRYPTO_FLAG_CERT): Comment update.
+	* include/ntp.h: Lose "valid" from struct peer.
+	From: Dave Mills.
+
+2001-03-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): hpoll calc logic cleanup.
+	(receive): New cert stuff.
+	(poll_update): Improvements.
+	(peer_clear): New cert stuff.
+	(peer_xmit): New cert stuff.
+	* ntpd/ntp_crypto.c: New cert stuff, documentation cleanup.  Lose
+	extraneous poll_uopdate()s.
+	* ntpd/ntp_control.c: Deal with new cert stuff.
+	* ntpd/ntp_config.c (getconfig): Handle CONF_CRYPTO_CERT.
+	* include/ntp_crypto.h (CRYPTO_FLAG_CERT): Added.
+	(CRYPTO_CERT): Added.
+	(CRYPTO_CONF_CERT): Added.
+	Add declaration for struct value certif.
+	* include/ntp_control.h (CS_CERTIF): Added.
+	(CP_CERTIF): Added.
+	* include/ntp_config.h (CONF_CRYPTO_CERT): Added.
+	* include/ntp.h (TEST10,TEST11): New meaning.  Add certif to
+	struct peer.
+	(FLAG_PROVEN): Added.
+	(MAX_EXT_LEN): Removed.
+	exten grew from 672/4 to 5000/4 for PUBKEY.
+	From: Dave Mills.
+
+2001-03-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): Documentation cleanup.
+	(receive): Watch for NULL peer->pubkey.ptr (TEST11).
+	(poll_update): peer->nextdate, not ->outdate. More cleanup around
+	the disabled PUBKEY chunk.
+	* ntpd/ntp_crypto.c (make_keylist): ltemp might be smaller than
+	sys_automax - check peer->kpoll, too.  Other ltemp cleanup.
+	(crypto_recv): fstamp is a PUBKEY-only variable.
+	* include/ntp.h (NTP_AUTOMAX): 13, not 12.
+	From: Dave Mills.
+
+2001-03-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): hpoll cleanup.  Call clock_select()
+	after calling poll_update, not before.
+	(receive): Call poll_update after crypto_recv if FLAG_SKEY.
+	(process_packet): Set peer->ppoll Later.
+	(poll_update): peer->hpoll sanity checking.  Set peer->outdate,
+	not ->nextate, when burst > 0.  MDF_ACAST cleanup.
+	(clock_select): Fix hpoll typo in call to poll_update().
+	* ntpd/ntp_crypto.c (crypto_xmit): tstamp's value is a function of
+	PUBKEY.
+	* include/ntp.h (clear_to_zero): #define value is a function of
+	AUTOKEY.
+	From: Dave Mills.
+
+2001-02-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): Documentation/code update.
+	(poll_update): Sanity check peer->hpoll.  Improve debug info.
+	(peer_clear): Improve debug info.  Turn off FLAG_ASSOC in addition
+	to FLAG_AUTOKEY.
+	(clock_select): peer->status is CTL_PST_SEL_DISTSYSPEER, and don't
+	call poll_update().  Make each entry in the peer_list a
+	CTL_PST_SEL_SELCAND sooner, too.  Rework similar logic later on.
+	Change debug level on some info.
+	(peer_xmit): Check peer->flags using FLAG_ASSOC, not
+	CRYPTO_FLAG_AUTO in a couple places.  Don't call poll_update() if
+	sendlen > LEN_PKT_NOMAC.
+	* ntpd/ntp_loopfilter.c (local_clock): Improve debug info.
+	Sanity-check sys_poll sooner.
+	* ntpd/ntp_crypto.c: New artwork.
+	(COOKIE_LEN,AUTOKEY_LEN,VALUE_LEN): New.
+	(make_keylist): More debug info.  Use FLAG_ASSOC, not
+	CRYPTO_FLAG_ASSOC.
+	(crypto_recv): More debug info.  Clean up/improve sanity checks on
+	CRYPTO_ASSOC and CRYPTO_RESP packets, and in other places.
+	(crypto_xmit): Clean up/improve sanity checks on CRYPTO_ASSOC and
+	CRYPTO_RESP packets.  Use FLAG_ASSOC, not CRYPTO_FLAG_ASSOC.  More
+	debug info.
+	* include/ntp.h (NTP_CANLOCK): Lose it.
+	(clear_to_zero): is now "assoc".
+	(FLAG_ASSOC): Added.
+	From: Dave Mills
+
+2001-02-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdate/ntpdate.h (NTP_MAXAGE): Added.
+	* ntpd/ntp_refclock.c (refclock_receive): Cleanup.
+	* ntpd/ntp_proto.c (transmit): Don't reset peer->ppoll in one case.
+	Update peer->hpoll based on CTL_PST_SEL_CORRECT, not FLAG_SYSPEER.
+	Don't update peer->ppoll based on MDF_[BM]CAST.
+	(peer_clear): ppoll is initialized to maxpoll.
+	(clock_select): call poll_update(peer->hpoll) earlier.
+	(peer_xmit): Call poll_update later.
+	* ntpd/ntp_peer.c (peer_config): Rework initial values of [hkp]poll.
+	* ntpd/ntp_loopfilter.c (CLOCK_PHI): Added.  Deal with other
+	(allow_*) stuff.  Treat Windows/NT the same as others regarding
+	panic steps.  Deal with tinker stuff.
+	* ntpd/ntp_config.c: Tinker stuff.
+	* ntpd/cmd_args.c (getCmdOpts): -g now wiggles "allow_panic"
+	(renamed from "correct_any").  -x now wiggles "allow_step"
+	(renamed from "allow_step_backward").
+	* include/ntpd.h: Add tinker variables.  Rename/rework variables
+	associated with "permission to step" and "permission to make a
+	panic correction"
+	* include/ntp_config.h (CONFIG_TINKER): Added.
+	(CONF_CLOCK_MAX): Tinker keyword
+	(CONF_CLOCK_PANIC): Tinker keyword
+	(CONF_CLOCK_PHI): Tinker keyword
+	(CONF_CLOCK_MINSTEP): Tinker keyword
+	* include/ntp.h (NTP_MINCLOCK): Tinker and other cleanup.
+	From: Dave Mills
+
+2001-02-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): Don't peer_clear() and reset
+	minpoll unconditionally; make sure the peer is configured.
+	(poll_update): When updating peer->ppoll, check on BCAST and
+	MCAST, not ACAST
+	(peer_clear): PUBKEY cleanup.  Zero out the peer structure
+	earlier. Initialization cleanup/fixes.
+	(peer_xmit): CRYPTO_FLAG_AUTO is in peer->flags now.
+	(key_expire): Debug output.
+	* ntpd/ntp_peer.c (unpeer): PUBKEY cleanup.
+	(newpeer): peer variable setup cleanup.
+	* ntpd/ntp_crypto.c (make_keylist): Keep CRYPTO_FLAG_AUTO in
+	peer->flags, not crypto_flags.
+	(crypto_xmit): Ditto.
+	(crypto_recv): Fix up RV_TSP logic (several places).
+	* include/ntp.h (clear_to_zero): Moved...
+	From: Dave Mills.
+
+2001-02-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (peer_xmit): Crypto-related fixes
+	From Dave Mills.
+
+	* ntpd/ntp_crypto.c (crypto_recv): Allocate space for the trailing
+	NUL on the keystr.
+
+2001-01-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k17
+
+	* ntpd/refclock_local.c (STRATUM): 3 -> 5
+	* ntpd/ntp_proto.c: sys_maxd -> sys_selerr, sys_epsil ->
+	sys_syserr.  various cleanups and improvements.
+	From: Dave Mills.
+
+2001-01-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k16
+
+	* config.h.in: Regenerated - became empty somehow.
+	Reported by John.Hay@icomtek.csir.co.za
+
+	* ntpd/ntp_proto.c (clock_select): Fix sdisp calculation.
+	From Dave Mills.
+
+	* util/ntp-genkeys.c:
+	* ntpd/refclock_chu.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/ntpd.c:
+	* ntpd/ntp_loopfilter.c:
+	* ntpd/ntp_io.c:
+	* ntpd/cmd_args.c:
+	* libntp/audio.c:
+	* include/l_stdlib.h:
+	* html/copyright.htm:
+	Lint fixes (Thanks bunches!)
+	From: Marc.Brett@westerngeco.com
+
+2001-01-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k15
+
+	* ntpd/ntp_proto.c (clock_select): Track error[] items sooner.
+	Typo grabbing the dtemp value and in the sdisp calculation.
+	From Dave Mills.
+
+2001-01-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k14
+
+	* ntpd/ntp_proto.c: Change description of sys_rootdelay and
+	sys_rootdispersion.
+	(process_packet): Fix p_del test (bad distance).
+	(process_packet): Fix bad synch distance test.
+	(process_packet): Fix call to clock_filter (p_disp)
+	(clock_update): Fix sys_rootdelay calculation.
+	(clock_filter): Initialize jit to f(sys_precision)
+	(clock_filter): Update jit using distance[i] instead of
+	SQUARE().  peer->jitter uses dtemp instead of SQUARE().
+	(clock_filter): Updated CLOCK_SGATE checks.  When printing debug
+	info, show jitter along with popcorn spike.
+	(clock_select): New sdisp calc.
+	(root_distance): New return value calc.
+	(peer_xmit): xpkt.rootdispersion value change.
+	* include/ntp.h (CLOCK_SGATE): Popcorn spike gate (Whoa, Molly!)
+	From Dave Mills.
+
+2001-01-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* config.sub (Repository): Updated.
+	* config.guess (Repository): Updated.
+
+	* ntpd/ntp_loopfilter.c (local_clock): Just use sys_jitter in the
+	calculation for rootdispersion.
+	From Dave Mills.
+
+2001-01-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): Fix documentation. Set
+	peer->outdate and call poll_update in a new place.  Sanity checks
+	in the MODE_BROADCAST case.
+	(clock_select): Track the old peer.  Use the old peer in
+	subsequent checks, where appropriate.  Clean up unpeer() logic.
+	From Dave Mills.
+
+2001-01-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_chu.c: Start using HAVE_AUDIO.
+	* ntpd/ntp_proto.c (clock_select): If about to discard an
+	ephemeral association, do it only if not the system peer.
+	From Dave Mills.
+
+	* html/pic/wingdorothy.gif:
+	* html/pic/bustardfly.gif:
+	* html/pic/boom3a.gif:
+	* html/pic/tonea.gif:
+	* html/pic/stack1a.jpg:
+	* html/pic/pogoa.gif:
+	* html/pic/pogo8.gif:
+	* html/pic/pogo6.gif:
+	* html/pic/pogo5.gif:
+	* html/pic/pogo4.gif:
+	* html/pic/pogo3.gif:
+	* html/pic/pogo1.gif:
+	* html/pic/oz2.gif:
+	* html/pic/flatheads.gif:
+	* html/pic/boom4.gif:
+	* html/pic/boom3.gif:
+	* html/pic/appletree.gif:
+	* html/pic/alice51.gif:
+	* html/pic/alice44.gif:
+	* html/pic/alice35.gif:
+	* html/pic/alice31.gif:
+	* html/pic/alice15b.gif:
+	* html/pic/alice13.gif:
+	* html/pic/alice11.gif:
+	* html/release.htm:
+	* html/rdebug.htm:
+	* html/prefer.htm:
+	* html/porting.htm:
+	* html/ntptrace.htm:
+	* html/ntpq.htm:
+	* html/ntpdate.htm:
+	* html/monopt.htm:
+	* html/kernpps.htm:
+	* html/index.htm:
+	* html/hints.htm:
+	* html/gadget.htm:
+	* html/driver7.htm:
+	* html/copyright.htm:
+	* html/config.htm:
+	* html/build.htm:
+	* html/authopt.htm:
+	* html/assoc.htm:
+	* html/accopt.htm:
+	Cleanup from Dave Mills.
+
+2000-12-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k13
+
+	* ntpd/refclock_wwv.c (wwv_start): Call audio_init with DEVICE_AUDIO.
+	* ntpd/refclock_irig.c (irig_start): Call audio_init with DEVICE_AUDIO.
+	* ntpd/refclock_chu.c: Documentation cleanup.
+	(DEVICE_AUDIO): Added.
+	(fd_audio): Added.
+	(chu_start): Separate audio from serial device.
+	(chu_receive): Rewrite - get data from serial or audio device as
+	appropriate.
+	(chu_audio_receive): Renamed (from chu_receive) to allow both
+	audio and serial capability.
+	(chu_serial_receive): Ditto.
+	(chu_decode): Do the Right Thing based on audio/serial data.
+	* ntpd/ntp_refclock.c (refclock_open): Check for failure using <0
+	instead of ==-1.
+	* libntp/audio.c: Header cleanup, and remove
+	HAVE_STRUCT_AUDIO_INFO_* related fields.
+	(audio_init): Func arg is device to attempt to open.
+	* include/audio.h (audio_init): Now takes a char * argument.
+	From Dave Mills.
+
+	* configure.in (ntp_refclock): HAVE_AUDIO added.  Remove
+	HAVE_STRUCT_AUDIO_INFO_* stuff; Dave rewrote the audio stuff.
+
+2000-12-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k12
+
+2000-12-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/release.htm:
+	* html/patches.htm:
+	* html/measure.htm:
+	* html/confopt.htm:
+	* html/clockopt.htm:
+	* html/biblio.htm:
+	* html/authopt.htm:
+	* html/assoc.htm:
+	Updates from Dave Mills.
+
+	* include/ntp_crypto.h: Make sure crypto_flags is visible.
+	From Dave Mills.
+
+2000-12-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (process_packet): pleap/pstratum.
+	(peer_xmit): Use CRYPTO_FLAG_AUTO.
+	* ntpd/ntp_crypto.c (make_keylist): Use CRYPTO_FLAG_AUTO. Only
+	sign host name and timestamps if the clock is synched.
+	* include/ntp_crypto.h (CRYPTO_FLAG_AUTO): Added.
+	From: Dave Mills
+
+2000-12-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (transmit): Call clock_select in a few new
+	places.  BURST/IBURST cleanup.  Don't turn off FLAG_BURST at the
+	EOburst.
+	(receive): Set peer->unreach = 0 before we call process_packet().
+	(process_packet): ditto, before calling poll_update().  Lose some
+	debugging, MODE_BCLIENT/CLIENT cleanup.
+	(poll_update): Bump nextupdate on FLAG_REFCLOCK, not _REFCLOCK or
+	_IBURST.
+	(peer_clear): Don't set IBURST on MDF_BCLNT.
+	From: Dave Mills.
+
+	* ntpdate/ntpdate.c (alarming): Appease ansi2knr.
+
+2000-12-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_control.c (ctl_putpeer): CP_TTL and CP_TTLMAX
+	MDF_ACAST and MDF_MCAST cleanup.
+
+	* ntpd/refclock_wwv.c (wwv_start): ttlmax/ttl cleanup.
+	* ntpd/refclock_usno.c (usno_timeout): ttlmax/ttl cleanup.
+	* ntpd/refclock_parse.c (CLK_REALTYPE): ttlmax/ttl cleanup.
+	* ntpd/refclock_chu.c (chu_start): ttlmax/ttl cleanup.
+	* ntpd/refclock_acts.c (acts_timeout): ttlmax/ttl cleanup.
+	* ntpd/ntp_refclock.c (refclock_newpeer): Don't do the
+	any_interface -> loopback_interface trick.
+	* ntpd/ntp_proto.c (transmit): Broadcast/manycast cleanup.
+	* ntpd/ntp_peer.c: Cleanup.
+	* ntpd/ntp_io.c: Cleanup.
+	* ntpd/ntp_crypto.c (crypto_recv): AUTOKEY based on BCLNT, not MCAST2.
+	* include/ntpd.h: Declare findbcastinter().
+	* include/ntp.h: struct peer's ttlmax is now max ttl/refclock
+	mode.  ttl is now ttl for manycast mode.
+	(FLAG_MCAST): Reworked several FLAG_ bits.
+	From Dave Mills.
+
+2000-12-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpq/ntpq.c: CP_TTLMAX support.
+	* ntpd/ntp_proto.c (transmit): MDF_ACAST ttl fixes.
+	* ntpd/ntp_peer.c (resetmanycast): Reset ttl if MDF_ACAST.
+	(peer_config): Save max ttl in ttlmax.
+	* ntpd/ntp_control.c: ttlmax support.
+	* include/ntp_control.h (CP_TTLMAX): Added.
+	* include/ntp.h: Added ttlmax to struct peer.
+	Dave Mills.
+
+2000-12-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (receive): That any_interface is now an
+	rbufp->dstadr.
+	Various other doc and code cleanup.
+	* ntpd/ntp_peer.c (findmanycastpeer): Fixes
+	From Dave Mills
+
+2000-12-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_request.c (do_conf): call peer_config with
+	any_interface, not 0.
+	* ntpd/ntp_proto.c (transmit): Manycast cleanup
+	* ntpd/ntp_peer.c (findmanycastpeer): manycast cleanup
+	* ntpd/ntp_io.c (sendpkt): Only check ttl if we have a ttl
+	(findinterface): Cleanup
+	* ntpd/ntp_control.c: cleanup
+	* include/ntpd.h: Added resetmanycast.
+	* include/ntp_control.h (CP_TTL): disp -> ttl
+	* ntpq/ntpq.c: disp -> ttl
+	From Dave Mills
+
+2000-11-26  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k11
+
+	* ntpd/ntp_proto.c (transmit):
+	* ntpd/ntp_peer.c:
+	* ntpd/ntp_io.c:
+	* ntpd/ntp_control.c (ctl_putpeer):
+	* ntpd/ntp_config.c (getconfig):
+	* include/ntpd.h: mcast/ucast interface cleanup.
+	From: Dave Mills
+
+	* include/ntp_request.h: Put data[] as MAXFILENAME+16.  This will
+	fix the conf_peer requests again, but re-break compatibility with
+	old versions of the daemon.  Sigh.
+
+	* util/ntp-genkeys.c (cleanlinks): Don't do it if nosymlinks.
+
+2000-11-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_parse.c (rawdcf_init_1): make Linux happier with
+	some modem control stuff.
+	From: Wolfram Pienkoss <wp@bszh.de> (via Frank Kardel)
+
+	* ntpd/refclock_pcf.c (pcf_poll): isdst fix
+	From: Andreas Voegele <andreas.voegele@gmx.de>
+
+2000-10-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k10
+
+	* ntpd/refclock_wwvb.c (wwvb_start): Cosmetic reorder.
+	* ntpd/refclock_atom.c (RANGEGATE): Cleanup.  Add ASTAGE.
+	Add ppsparams to struct ppsunit.
+	(atom_start): Init peer->burst to ASTAGE.
+	(atom_shutdown): Multi-handle
+	(atom_pps): Multi-handle
+	(atom_pps): RANGEGATE cleanup
+	(atom_poll): Poll count cleanup.  Error check cleanup.  Burst cleanup.
+	* ntpd/ntp_refclock.c (refclock_transmit): Lose the pre-burst
+	check poll_update().
+	(refclock_sample): Fix the jitter calc.
+	(refclock_receive): Pass the jitter to the clock_filter().
+
+	* ntpd/ntp_proto.c (clock_update): If we lose sync, reset the poll
+	to NTP_MINDPOLL.
+	(poll_update): Poll wiggles.  Make sure peer->nextdate is timely.
+	(clock_select): If we lose sync, reset the poll to NTP_MINDPOLL.
+	* ntpd/ntp_loopfilter.c (local_clock): Show the asocid in debug
+	output.  popcorn debug message changes.  Clamp the poll interval
+	if the system peer has changed.  PPS wiggle changes.
+	From Dave Mills.
+
+2000-10-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_pcf.c (pcf_start):
+	* html/driver35.htm:
+	The radio clock transmits 69 bits with a period of 2.5
+	milliseconds per bit. Thus the driver now sets the default
+	calibration offset to 0.1725 (69 * 2.5 = 172.5).
+	Its now possible to disable the check of the radio clock's
+	synchronisation status bit. Several users requested this option.
+	From: Andreas Voegele <andreas.voegele@gmx.de>
+
+	* html/refclock.htm:
+	* html/rdebug.htm:
+	* html/prefer.htm:
+	* html/pps.htm:
+	* html/ntpdc.htm:
+	* html/miscopt.htm:
+	* html/ldisc.htm:
+	* html/kern.htm:
+	* html/index.htm:
+	* html/exec.htm:
+	* html/driver22.htm:
+	* html/clockopt.htm:
+	Updates from Dave Mills
+
+	* ntpd/ntp_intres.c (request): Sanity check the size of the response
+
+2000-10-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpq/ntpq_ops.c (dopeers): Dave didn't like the patch to show
+	the units on the times...
+	* ntpdc/ntpdc_ops.c (doset): SYS_FLAG_PPS cleanup
+	* ntpd/refclock_wwv.c (wwv_newchan): Update the peer refid if
+	we're talking to a stratum 0 source
+	* ntpd/refclock_trak.c: Needs PPS
+	* ntpd/refclock_oncore.c: Disable for now
+	* ntpd/refclock_mx4200.c: Needs PPSAPI, not PPS
+	Header cleanup.  PPS interface cleanup.
+	Process sentences with a switch
+	Cleanup and sanity checks
+	* ntpd/refclock_datum.c: header cleanup, light body cleanup
+	* ntpd/refclock_conf.c: CLOCK_TRAK needs PPS
+	MX4200 needs PPSAPI, not PPS
+	Disable ONCORE for now
+	* ntpd/refclock_bancomm.c: Surgery
+	* ntpd/refclock_atom.c: Cleanup
+	(atom_control): added
+	(atom_ppsapi): added
+	* ntpd/ntp_request.c (setclr_flags): SYS_FLAG_PPS cleanup
+	* ntpd/ntp_refclock.c: stropts.h back in in TTYCLK and
+	HAVE_SYS_CLKDEFS_H
+	Get ntp_syscall if KERNEL_PLL
+	Define cal_enable
+	(refclock_receive): Cleanup
+	(refclock_control): sanity check procptr
+	* ntpd/ntp_proto.c (init_proto): pps_enable
+	(proto_config): Turn on/off PPS discipline
+	* ntpd/ntp_loopfilter.c: pps_enable
+	(local_clock): record_loop_stats() if !ntp_enable
+	(local_clock): Turn off PPS if it's not enabled
+	Other cleanup/fixes
+	* ntpd/ntp_config.c: pps and calibrate keywords.  Initialize
+	pps_assert to 0, not 1 (swap assert/clear?)
+	* include/ntpd.h: We have pll_status if KERNEL_PLL
+	Added pps_enable and cal_enable
+	* include/ntp_request.h (SYS_FLAG_PPS): Renamed from
+	SYS_FLAG_AUTHENTICATE
+	* include/ntp.h (PROTO_PPS): Added
+	(PROTO_CAL): Added
+	From: Dave Mills
+
+2000-09-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/ntp_refclock.h (stropts.h, sys/clkdefs.h): Harmful and
+	useless file include's turned off.
+	* libntp/iosignal.c (netinet/in.h, sys/sockio.h): Duplicate file
+	include's turned off.
+	* ntpd/ntp_refclock.c (ntp_tty.h): File included.
+	(refclock_open, refclock_ioctl): Use `TTY' from ntp_tty.h.
+	* ntpd/refclock_atom.c: Grab a few headers regardless; if we don't
+	CLOCK_ATOM we provide a stub pps_sample() routine so the WHARTON
+	can be compiled/used.
+	* ntpq/ntpq_ops.c (dopeers, doopeers): Print the units for
+	each column header.
+	Tue Sep 12 16:25:51 2000  Philippe De Muyter  <phdm@macqel.be>
+
+	* ntpd/refclock_atom.c (atom_start): Lose "temp", because we now
+	initially either CAPTUREASSERT or CAPTURECLEAR.
+	(atom_pps): pps_info_t is our friend.  Update comments to reflect
+	reality.  DTRT with pps_info.  Do some overflow checks.
+	From: Dave Mills.
+
+2000-09-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Much improved Solaris patch-level check for the
+	FLL bug test.
+	From: Marc.Brett@westgeo.com
+
+2000-09-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/Makefile.am (noinst_HEADERS): Added ntp_tty.h
+	Reported by Dave Mills
+
+2000-09-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntptrace/ntptrace.c:
+	* ntpdate/ntptimeset.c (receive):
+	* ntpdate/ntpdate.c (receive):
+	STRATUM cleanup
+	* ntpd/refclock_atom.c (atom_poll): Autostratum.  Lose the leap.
+	* ntpd/ntp_proto.c: sys_prefer
+	(process_packet): stratum cleanup
+	(clock_select): Autostratum the ATOM
+	* ntpd/ntp_loopfilter.c: pps_update/pps_stratum wiggle.
+	* include/ntpd.h: Lose pps_update, gain sys_prefer
+	* include/ntp.h: STRATUM variable cleanup
+	From Dave Mills
+
+2000-09-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c (oncore_get_timestamp): Print debug
+	messages being aware of HAVE_STRUCT_TIMESPEC.
+
+	* ntpd/refclock_atom.c: Have pps_params tag along in the ppsunit
+	structure, where it really belongs.
+	(atom_pps): Use PPS_CAPTURE{ASSERT,CLEAR}
+	From: Dave Mills.
+
+2000-09-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (ac_cv_var_atom_ok): Cleanup ATOM/PPSAPI stuff...
+
+	* scripts/ntp-close: Find "close" ntp servers.
+	From: Neal McBurnett <neal@bcn.boulder.co.us>
+
+	* ntpd/refclock_conf.c:
+	* ntpd/refclock_oncore.c: Re-enabled oncore driver for HAVE_PPSAPI
+	case only.
+
+2000-09-12  Philippe De Muyter  <phdm@macqel.be>
+
+        * ntpd/refclock_parse.c (we400a_pollinfo): Useless variable removed.
+        [WHARTON slot]: Set NO_POLL, NO_INIT and NO_DATA; fix `fixed format'
+        and `offset' fields.
+
+	* include/ntp_tty.h: New file
+	* libntp/icom.c: Use it.
+
+	* ntp_update (UPDATE_OPTIONS): Use -d, too.  Fix Pass 1 comment.
+
+2000-09-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c: shmem_fname added.  oncore_init_shmem()
+	updated.
+	(oncore_start): Comment cleanup
+	(oncore_read_config): Move call to oncore_shmem_init()
+	(oncore_init_shmem): Prototype change
+	(oncore_init_shmem): Don't exit on errors
+	(oncore_msg_any): timespec/timeval cleanup
+	(oncore_msg_Cj_id): shmem_fname changes
+	(oncore_msg_BaEaHa): saw_At bugfix
+	(oncore_get_timestamp): Added current_mode/current_params.  Commented.
+	Added time_pps_getcap() calls.
+	From: Reg Clemens <reg@dwf.com>
+
+	* ntpd/ntp_io.c (input_handler): Better recvfrom() error message
+	From: Dean Gibson <timekeeper@tcp-udp.net>
+
+	* ntpdc/ntpdc.c (passwd): Get them working again.
+	From: Benjamin Greenwald <beng@lcs.mit.edu>
+
+2000-09-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_atom.c:
+	(atom_start):
+	* ntpd/ntp_refclock.c: Comment cleanup.  PPS/PPSAPI cleanup
+	(refclock_open): PPS/PPSAPI cleanup
+	From: Dave Mills
+
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_mx4200.c:
+	HAVE_TIMESPEC -> HAVE_STRUCT_TIMESPEC
+
+	* configure.in: ATOM requires struct timespec, not PPSAPI.  Clean
+	up dependencies accordingly.
+
+2000-09-09  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (ac_cv_var_atom_ok): Improve ATOM configure message
+	PARSE requires ATOM.
+
+	* ntpd/ntpd.c (set_process_priority): Clean up debug messages.
+
+2000-09-07  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: ac_cv_atom_ok, depends on HAVE_PPSAPI.
+	I notice the PARSE clocks require ATOM.  Could be interesting...
+
+2000-09-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* Makefile.in (distdir): Seems to be a bug in an automake library
+	somewhere...
+
+2000-09-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_loopfilter.c (loop_config): V3 API needs MOD_BITS when
+	initializing ntv.modes.  Initialize ntv.{maxerror,esterror,status}
+	earlier.  Clean up KERNEL_PLL code.
+
+2000-09-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpq/ntpq.c: report offset as "offset", not "phase".  Lose
+	compliance.
+	* ntpd/refclock_local.c (local_poll): variance -> jitter
+	* ntpd/refclock_chu.c (chu_major): Lose variance.
+	* ntpd/ntp_util.c (hourly_stats): sys_error -> sys_jitter
+	(record_loop_stats): ditto
+	* ntpd/ntp_request.c (peer_info): variance -> jitter
+	* ntpd/ntp_refclock.c (refclock_sample): variance -> jitter
+	(refclock_receive): variance -> jitter
+	* ntpd/ntp_proto.c (process_packet): variance -> jitter
+	(clock_filter): variance -> jitter
+	(clock_select): variance -> jitter
+	(root_distance): variance -> jitter
+	* ntpd/ntp_peer.c (newpeer): variance -> jitter
+	* ntpd/ntp_loopfilter.c: Cleanup pll_nano selection bogon.
+	Centralize the kernel API data.
+	(local_clock): Lose sys_error.
+	(loop_config): Code cleanup.
+	* ntpd/ntp_control.c: Call offset "offset" and not "phase". Lose
+	CS_COMPLIANCE.  Deal with variance/jitter rename.
+	* include/ntp_refclock.h: Rename variance to jitter in struct
+	refclockproc.
+	* include/ntp_control.h (CS_COMPLIANCE): Lose it.
+	* include/ntp.h: Rename variance to jitter in struct peer.
+	From: Dave Mills
+
+2000-09-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_atom.c: Use the new ppsunit.  Cleanup and improve
+	documentation.
+	* ntpd/ntp_refclock.c (refclock_sample): Don't accumulate
+	variance.
+	From Dave Mills
+
+2000-08-31  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver22.htm: Update the docs.
+	* ntpd/refclock_atom.c (atom_start): Open the device if it hasn't
+	been opened already.
+	(pps_sample): Make it more visible.
+	From Dave Mills.
+
+	* configure.in: 4.0.99k8
+
+	Revert to the older automake.
+
+	* configure.in: The PPSAPI headers use "inline", so require a STDC
+	compiler.
+
+	* ntpd/refclock_atom.c (atom_shutdown): Typo
+	From Dave Mills
+
+	* configure.in: Convert to autoconf-2.49
+
+	* ntpd/refclock_atom.c: Header cleanup Comment cleanup.  Lose the
+	TTYCLK stuff.  Convert to PPSAPI.
+	* ntpd/ntp_refclock.c (refclock_newpeer): Move refclock_unpeer().
+	From: Dave Mills
+
+2000-08-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure: Fix the autoconf problem...
+
+2000-08-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 99k7
+
+	* util/ntptime.c (main): Report TAI stuff
+	* ntpq/ntpq.c: CS_COMPLIANCE/CS_JITTER cleanup
+	* ntpd/ntp_loopfilter.c (local_clock): sys_error/sys_jitter cleanup.
+	kernel PPL cleanup.
+	* ntpd/ntp_crypto.c: Check NTP_API if we're doing KERNEL_PLL so we
+	can get the TAI stuff.
+	* ntpd/ntp_control.c: CS_COMPLIANCE now reports "error" instead of
+	"jitter".  CS_JITTER now reports jitter.
+	* include/ntpd.h: Added sys_jitter
+	* include/ntp_control.h (CS_JITTER): Added
+	From: Dave Mills
+
+	* ntpd/cmd_args.c (getCmdOpts): Crack -N at pre-scan, as we do the
+	priority wiggle before the final scan.
+	From: Tom Smith <smith@cag.lkg.dec.com>
+	We might do better to move the priority wiggle to after the final
+	scan.  Especially if we want to permit command-line options to
+	have decent control over the priority.  When we rewrite the config
+	file stuff we might go to a multi-scan to solve some of these
+	problems.
+
+2000-08-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: '99k6, and manually fix configure.
+
+	* include/ntp_request.h (NTP_MAXHOSTNAME): 144 -> 32
+
+2000-08-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): Don't call fclose if stream is NULL.
+
+2000-08-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver35.htm:
+	* ntpd/refclock_pcf.c: Updates and improvements
+	From: Andreas Voegele <andreas.voegele@gmx.de>
+
+	* configure.in (ac_cv_struct_ntptimeval): Lose the TAI check - we
+	don't need it since we can check NTP_API.  Re-hack the generated
+	configure script.
+
+	* configure: Manual hack to the ntptimeval.time.tv_nsec stuff
+	because we're running an old autoconf.
+
+2000-08-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntptime.c: Use: HAVE_STRUCT_NTPTIMEVAL_TIME_TV_NSEC, it's
+	the standard name.
+
+	* configure.in: Look for struct ntptimeval.tai in sys/timex.h
+	Cleanup struct tptimeval member tests.
+
+	* util/ntp-genkeys.c: New command-line arguments
+
+2000-08-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): More small steps...
+
+2000-08-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_crypto.c (crypto_rsa): Now that we're using
+	NTP_KEYSDIR, make sure there is a '/ between the dir and the file.
+
+	* util/ntp-genkeys.c (main): More small steps...
+
+2000-08-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): Another small step...
+
+	* configure.in: 99k5
+
+	* include/ntp_request.h: Make data[] member of req_pkt 32 again.
+	Bump the version number...
+
+	* ntpd/ntp_loopfilter.c (local_clock): Change 0. to 0 in a couple
+	of places.
+	From Dave Mills
+
+2000-08-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): Minimal progress...
+
+2000-08-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/check_y2k.c: Make debug definition match ntpd.h's declaration
+
+	* ntpd/Makefile.am (check-local): Use test in favor of [
+
+2000-08-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in (NTP_KEYSDIR): Typo
+
+2000-08-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ElectricFence/Makefile.am (check-local): use test instead of [
+
+	* configure.in: AC_REPLACE_FUNCS(strdup)
+	* libntp/strdup.c (strdup): Added.
+	* libntp/Makefile.am (EXTRA_libntp_a_SOURCES): Added strdup.c
+
+	* util/Makefile.am (ntp_genkeys_DEPENDENCIES): Use $U on .o files
+	(ntp_genkeys_LDADD): ditto.
+
+	* ntpd/ntp_crypto.c: Use NTP_KEYSDIR
+
+	* util/ntp-genkeys.c (snifflink): Ignore ENOENT, too.
+
+	* ntpd/ntp_proto.c (peer_xmit): Crypto cleanup
+	* ntpd/ntp_crypto.c: Cleanup
+	* ntpd/ntp_control.c: Join the club
+	* ntpd/ntp_config.c: Call crypto_config() instead; we got rid of
+	crypto_flags.
+	* include/ntp_crypto.h (CRYPTO_FLAG_ENAB): New crypto flags, rework
+	* include/ntp_control.h (CS_FLAGS): Wiggle in.
+	* include/ntp.h: Added crypto peer status to struct peer
+	From Dave Mills
+
+2000-08-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c: Initialize path_keysdir to NTP_KEYSDIR.
+
+	* configure.in (NTP_KEYSDIR): Added
+	* acinclude.m4: Added AC_DEFINE_DIR macro
+
+	* util/ntp-genkeys.c (main): Sanity checks on the file paths.
+
+2000-08-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (crypto_config): Only #ifdef PUBKEY
+	(PATH_MAX): Try harder...
+
+2000-08-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): Use snifflink()
+	(snifflink): Implement...
+
+	* configure.in: Check for readlink()
+
+2000-07-31  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (main): Use strdup on the tokens returned
+	from ntp_config...
+	(crypto_config): Fix a typo...
+	(crypto_config): Even more...
+	(usage): Flesh it out.
+
+	* include/ntp_config.h:
+	* ntpd/ntp_config.c: Move a whack of #defines to ntp_config.h so
+	ntp-genkeys.c can see them, too.
+
+	* util/ntp-genkeys.c: Add stubs to work with ../ntpd/ntp_config.o,
+	start hooking things up.
+	(main): debugging
+	(crypto_config): better implementation
+
+
+	* ntpd/ntp_config.c (getconfig):
+	* ntpd/ntpd.c: Initialize "debug" here, not in ntp_config.c
+
+	* util/Makefile.am (ntp_genkeys_LDADD): Added ../ntpd/ntp_config.o
+	* util/Makefile.am (ntp_genkeys_DEPENDENCIES): Added.
+
+2000-07-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99k4
+	* util/ntp-genkeys.c: Start hacking for new functionality.
+	* include/Makefile.am (noinst_HEADERS): Added ntp_cmdargs.h and
+	ntp_config.h .
+	* ntpd/ntp_config.c: Grab ntp_cmdargs.h.  Make some new globals
+	(ugh), move ntpd-specific variables and code to cmd_args.c .
+	* ntpd/cmd_args.c: Move command argument processing functions from
+	ntp_config.c to this file.
+	* ntpd/Makefile.am (ntpd_SOURCES): Added cmd_args.c
+	* include/ntpd.h: Move getstartup() to ntp_cmdargs.h
+	* include/ntp_cmdargs.h: New file
+	Begin the hacking fest to make it easier for ntp-genkeys to use
+	ntpd's config processing code.  I really hope this is the lesser
+	of the evils...
+
+2000-07-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp-genkeys.c (usage): Added.
+
+	* ntpd/ntp_crypto.c: Cleanup
+	* ntpd/ntp_proto.c (transmit): Add some parens.
+	(peer_xmit): Add ntohl when grabbing sndauto.seq for broadcast.
+	* ntpd/ntp_peer.c (findpeer): Cleanup
+	* ntpd/ntp_loopfilter.c (local_clock): Typo
+	From Dave Mills
+
+	* include/ntp_config.h: Created
+
+	* util/ntp-genkeys.c: Always build, but realize we may not have
+	RSAREF.  Compile parts appropriately.
+
+	* util/Makefile.am (bin_PROGRAMS): Always make ntp-genkeys
+	(ntp-genkeys_LDADD): Use $LIBRSAREF instead of the "real path"
+	* configure.in: Lose MAKE_NTP_GENKEYS
+
+	* configure.in:
+	* util/ntp-genkeys.c:
+	* util/Makefile.am:
+	Renamed ntp_genkeys to ntp-genkeys.
+
+2000-07-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpdate/ntpdate.c (ntpdatemain): Cleanup error message.
+
+	* ntpdate/ntpdate.c (ntpdatemain): Add missing authtrust() call
+	From: Jason Heiss <jheiss@cruzeiro.ugcs.caltech.edu>
+
+	* ntpd/refclock_ulink.c (ulink_receive):
+	* ntpd/ntp_crypto.c:
+	* libntp/authparity.c:
+	Lint/noise cleanup
+	From: Marc Brett <mbrett@rgs0.london.waii.com>
+
+	* ntpd/ntp_proto.c: Specifically track manycastserver and
+	survivors
+	From: Dave Mills
+
+2000-07-26  Sven Dietrich  <sven_dietrich@trimble.com>
+
+	* ntpd/ntpd.c: remove WINNT priority adjustment to the ports/winnt area
+	where it does not clutter up the main distribution.
+
+2000-07-24  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (receive): dstadr_sin needs  higher visibility
+	From: Dave Mills
+
+	* flock-build: Added baldwin
+
+	* ntpd/ntp_request.c:
+	* ntpd/ntp_proto.c:
+	* ntpd/ntp_peer.c:
+	* ntpd/ntp_io.c:
+	* ntpd/ntp_intres.c:
+	* ntpd/ntp_crypto.c (make_keylist):
+	* ntpd/ntp_control.c:
+	* ntpd/ntp_config.c (CONF_MOD_IBURST, save_resolve):
+	* include/ntpd.h (findpeerbyassoc, newpeer, peer_config, *_interface):
+	* include/ntp_request.h (CONF_FLAG_IBURST):
+	* include/ntp_crypto.h (crypto_xmit, make_keylist):
+	* include/ntp.h (FLAG_IBURST):
+	* html/release.htm:
+	* html/confopt.htm:
+	* html/assoc.htm:
+	Add iburst option, fix broadcast/multicast and some types.
+	From: Dave Mills
+
+2000-07-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/Makefile.am (bin_SCRIPTS): Install ntp-wait
+
+	* configure.in: 4.0.99k
+
+2000-07-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_proto.c (peer_xmit): PUBKEY cleanup
+
+2000-07-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99j5
+
+	* html/ntpd.htm (HREF): Document other missing command-line options
+
+	* html/ntpd.htm (HREF): Document
+	* html/confopt.htm (href): Undocument
+	* ntpd/ntp_config.c (getconfig): -N high for high-priority.
+	Lose the ntp.conf way of setting priority.
+
+	* ntpd/ntp_crypto.c: PUBKEY/AUTOKEY cleanup
+	From Dave Mills
+
+2000-07-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/confopt.htm (href): Document it.
+	* ntpd/ntp_config.c (getconfig): CONFIG_PRIORITY support
+	* ntpd/ntpd.c (set_process_priority): Use it.
+
+	* ntpd/ntp_crypto.c: Crypto key stuff
+	* ntpd/ntp_proto.c: pubkey -> pubkey.ptr
+	* ntpd/ntp_control.c (ctl_putpeer): fstamp -> pubkey.fstamp
+	* ntpd/ntp_peer.c:
+	* include/ntpd.h:
+	* include/ntp_types.h:
+	* include/ntp_request.h:
+	* include/ntp_crypto.h:
+	* include/ntp_control.h:
+	* include/ntp.h: Type cleanup
+	From: Dave Mills
+
+2000-07-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ElectricFence/Makefile.am (check-local): Don't run the tests if
+	we didn't build the programs...
+	(check-local): Same, but watch the return codes...
+
+	* ElectricFence/page.c: #include config.h if it's there.
+	Properly handle the sys_errlist declaration.
+
+	* html/ntpq.htm:
+	* html/index.htm:
+	* html/debug.htm:
+	* html/authopt.htm:
+	Reality check.
+	From Dave Mills
+
+2000-07-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* Makefile.am (SUBDIRS): Added ElectricFence
+	* configure.in (AC_CONFIG_FILES): Added ElectricFence support
+	* ElectricFence: Imporpted.
+
+2000-07-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/ntp_genkeys.c (main): Cleanup
+	* ntpd/refclock_wwv.c (wwv_qrz): sqrt -> SQRT
+	* ntpd/refclock_chu.c (chu_rf): sqrt -> SQRT
+	* ntpd/ntpd.c (set_process_priority): Disable  high-priority for now.
+	PUBKEY cleanup.
+	* ntpd/ntp_timer.c: sys_revoketime cleanup.
+	* ntpd/ntp_proto.c (receive): PUBKEY cleanup.  Comment and code
+	cleanup.
+	(process_packet): Comment and code (PUBKEY) cleanup.
+	(peer_xmit): Comment and code cleanup.
+	(fast_xmit): Comment and code cleanup.
+	* ntpd/ntp_peer.c (expire_all): revoketime cleanup.  PUBKEY cleanup.
+	* ntpd/ntp_crypto.c: Comment reorg.  DH parameters are now
+	file-static instead of local to subroutines.
+	(make_keylist): peer->pcookie.key cleanup/fix
+	(crypto_recv): Subroutine documentation cleanup, other cleanup
+	(crypto_xmit): Cleanup/document.
+	(crypto_setup): Cleanup/document.
+	(crypto_agree): Cleanup/document.
+	(crypto_rsa): now static
+	(crypto_dh): now static.  Comment cleanup.  Code cleanup.
+	(crypto_tai): now static.  Code and comment cleanup.
+	(crypto_config): Deal with CRYPTO_CONF_LEAP.
+	* ntpd/ntp_control.c (CS_DHPARAMS): Rename corresponding token to
+	"params".  Remove CS_TAI from def_sys_var[].
+	(ctl_putsys): CS_HOST, CS_DHPARAMSm CS_REVTIME, and CS_LEAPTIME
+	bugfix.  CS_TAI cleanup.
+	* ntpd/ntp_config.c (CONF_CRYPTO_LEAP): Added
+	(getconfig): Added CONF_CRYPTO_LEAP support.
+	* include/ntp_syslog.h: Lose GIZMO stuff.
+	* include/ntp_crypto.h (CRYPTO_CONF_LEAP): Added
+	* include/ntp.h: struct autokey, cookie,value, and pkt changes for
+	signature field.  Update the inline docs on pkt's exten field.
+	From: Dave Mills
+
+
+2000-07-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_util.c (stats_config): If we read a bogus old_drift,
+	use 0 instead of failing.
+
+2000-07-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* README.cvs: Cleanup.
+
+	* ntpd/refclock_datum.c (datum_pts_poll): index -> unit_index
+	* ntpd/ntp_resolver.c (findhostaddr): const cleanup
+	* libntp/recvbuff.c:
+	* libntp/msyslog.c:
+	* libntp/emalloc.c:
+	* libntp/authreadkeys.c:
+	Fix header order.
+	From: Simon Burge <simonb@netbsd.org>
+
+	* ntpd/ntp_util.c (stats_config): Use HAVE_FINITE and HAVE_ISFINITE
+	* configure.in (ac_cv_struct_ntptimeval_timespec): isfinite()
+	checks for HP-UX11.
+	From: Albert Chin-A-Young <china@thewrittenword.com>
+
+2000-07-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* flock-build (LIST): Lose malarky, update some machine/OS descriptions
+
+	* configure.in: 4.0.99j4
+
+	* ntpq/ntpq.c: Lose PUBKEY stuff - older ntpq's will complain when
+	they see the info in a packet.
+	* ntpd/ntp_proto.c (peer_xmit): TAI changes.
+	* ntpd/ntp_crypto.c: Fix host/network byteorder stuff.  Follow
+	global->struct changes.  TAI changes.  Bugfixes.
+	* ntpd/ntp_control.c: Follow field reorder/rename.
+	* include/ntp_crypto.h: Move crypto stuff from separate globals
+	into structs.
+	* include/ntp_control.h (CS_HOST): Reorder/rename some fields
+	From: Dave Mills
+
+2000-06-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_peer.c (unpeer): Moved keystr cleanup inside ifdef PUBKEY
+
+	* configure.in: 4.0.99j3
+
+	* html/release.htm:
+	* html/ntpq.htm:
+	* html/authopt.htm:
+	Updates from Dave Mills
+
+	* ntpd/ntp_request.c (dns_a): Don't call crypto_public for now...
+	* ntpd/ntp_proto.c (receive): Follow the TEST wiggles
+	(peer_xmit): TAI support
+	* ntpd/ntp_crypto.c: TAI support
+	* ntpd/ntp_control.c: CS_VERSION  and CS_TAI support
+	* include/ntp_crypto.h (CRYPTO_FLAG_TAI): Added.
+	* include/ntp_control.h (CS_VERSION): Added.
+	* include/ntp.h (TEST4,TEST5,TEST8,TEST9): Wiggle.
+	From: Dave Mills
+
+	* ntpd/Makefile.am (ntpd_SOURCES): Lose refclock_ulink331.c
+	because the new refclock_ulink.c handles it.
+
+2000-06-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_config.c (getconfig): Sanity check the right variable
+	From: Dave Mills.
+
+2000-06-25  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99j2
+
+	* ntpd/ntp_proto.c:
+	* ntpd/ntp_peer.c:
+	* ntpd/ntp_crypto.c:
+	* include/ntp_crypto.h:
+	* include/ntp.h:
+	AUTOKEY/PUBKEY/DH/crypto changes
+	From: Dave Mills
+
+2000-06-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver34.htm:
+	* ntpd/refclock_ulink.c:
+	* ntpd/refclock_ulink331.c: (removed)
+	Updated for 320/330 series refclocks
+	From: joseph lang <tcnojl1@earthlink.net>
+
+	* ntpd/refclock_oncore.c: Patches/improvements
+	* html/driver30.htm: New release
+	From: Reg Clemens <reg@orion.dwf.com>
+
+2000-06-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99j1
+
+	* ntpdc/ntpdc.c (getcmds):
+	* configure.in:
+	Readline support.
+	From: Aaron Sherman <ajs@narn.ajs.com>
+
+	* ntpd/refclock_ulink331.c: Added.
+	Sent in by Doug Grosso <dgrosso@mint.net>
+	* ntpd/Makefile.am (ntpd_SOURCES): Added refclock_ulink331.c
+
+	* libntp/snprintf.c: Added stdio.h
+	From: Marc Brett <mbrett@rgs0.london.waii.com>
+
+	* include/ntp.h: struct autokey's siglen is u_int32.  So is the
+	siglen in struct cookie.  So is siglen and value length in struct
+	value. Add fstamp to struct peer.  Resize the exten AUTOKEY field
+	in struct pkt.
+	* include/ntp_crypto.h: crypto_enable -> crypto_flags and a
+	variety of other cleanups.
+	* ntpd/ntp_config.c: crypto_enable -> crypto_flags, and some
+	key/fudge cleanup.
+	* ntpd/ntp_control.c: Much cleanup.
+	* ntpd/ntp_crypto.c: Many changes that Harlan is too tired to
+	properly document.
+	* ntpd/ntp_peer.c: crypto_enable -> crypto_flags
+	(peer_config): Hold off on crypto_public() until some resolver
+	issue is fixed.
+	* ntpd/ntp_proto.c (receive): Disable the reverse DNS lookup for now.
+	(process_packet): Don't record_raw_stats() for now.
+	crypto_enable was renamed to crypto_flags.
+	(peer_xmit): In MODE_ACTIVE or MODE_PASSIVE, only call
+	crypto_xmit() if the peer->cmmd is not CRYPTO_AUTO.  Reset
+	peer->cmmd to 0 when we're thru.
+	Don't reset peer->cmmd to 0 until the end of MODE_CLIENT.
+	* ntpd/ntpd.c: Lose the call to crypto_init().  Instead, call
+	crypto_setup() later on if we have crypto_flags.
+	* util/ntp_genkeys.c: Lose GENLEN; use PRIMELEN/2 .
+	From Dave Mills.
+
+	* ntpd/ntp_crypto.c (crypto_rsa):
+	(crypto_dh):
+	Do some debug logging if readlink() fails with something other
+	than EINVAL (file isn't a symlink).
+
+2000-06-04  James R. Van Zandt  <jrv@vanzandt.mv.com>
+
+	* html/miscopt.htm (trap): punctuation
+
+	* html/ntpd.htm (-g): typo
+
+	* html/miscopt.htm (logconfig): List the "clock" event class.
+	"allprefix" should be two words.
+
+2000-05-31  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_timer.c: Protect <unistd.h>
+
+2000-05-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/Makefile.am: Document what we expect from -lm
+
+2000-05-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99j
+
+2000-05-22  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/ntptime.htm: More fixes
+	From: Kazu TAKAMUNE <takamune@avrl.mei.co.jp>
+
+2000-05-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* build (KEYSUF):
+	* flock-build:
+	* configure.in: Lose the "md5" options from the --with-crypto
+	check; Dave hates it.
+
+	* ntpd/ntp_util.c (stats_config):
+	* ntpd/ntp_loopfilter.c (loop_config):
+	* libntp/systime.c (adj_systime):
+	* include/ntp_proto.h (NTP_MAXFREQ):
+	Renamed MAX_FREQ to NTP_MAXFREQ
+
+	* ntpd/ntpd.c (ntpdmain):
+	* ntpd/ntp_proto.c (receive):
+	(poll_update):
+	* ntpd/ntp_intres.c (addentry):
+	* ntpd/ntp_config.c (getconfig):
+	Lint cleanup
+	From: Marc Brett <mbrett@rgs0.london.waii.com>
+
+	* include/ntp_stdlib.h:
+	* libntp/systime.c (adj_systime):
+	* ntpd/ntp_loopfilter.c (loop_config):
+	* ntpd/ntp_util.c (stats_config):
+	* ports/winnt/ntpd/nt_clockstuff.c (adj_systime):
+	MAXFREQ -> MAX_FREQ
+	* include/ntp_proto.h: Define MAX_FREQ
+
+2000-05-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/ntp_stdlib.h:
+	* libntp/systime.c (adj_systime):
+	* ntpd/ntp_loopfilter.c (loop_config):
+	* ntpd/ntp_util.c (stats_config):
+	* ports/winnt/ntpd/nt_clockstuff.c (adj_systime):
+	sys_maxfreq -> MAXFREQ
+	Per Dave Mills.
+
+2000-05-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* acinclude.m4: Typo...
+
+2000-05-13  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/gpstolfp.c (GPSORIGIN): Try new ULONG_CONST macro
+
+	* ntpdate/ntptimeset.c:
+	* ntpdate/ntpdate.h:
+	* ntpd/refclock_oncore.c (oncore_msg_En):
+	* ntpd/ntp_util.c (stats_config):
+	* ntpd/ntp_request.c:
+	* ntpd/ntp_intres.c (findhostaddr):
+	* ntpd/ntp_config.c (getconfig):
+	* libntp/systime.c (adj_systime):
+	* libntp/lib_strbuf.c:
+	* libntp/authparity.c:
+	* libntp/audio.c:
+	Header/lint cleanup
+	From/reported by: Simon Burge <simonb@netbsd.org>
+
+	* ntpd/ntp_resolver.c (findhostaddr): Compiler noise cleanup
+
+	* ntpd/ntp_intres.c: Compiler noise cleanup
+
+	* html/ntptime.htm: Document reality check
+	From: Kazu TAKAMUNE <takamune@avrl.mei.co.jp>
+
+2000-05-12  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_intres.c (ntp_intres): Quiet some debug messages
+	Reported by: Brian Bergstrand <brianb@mac.com>
+
+2000-05-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/mkver.in (ConfStr): Use -r if we're using RSAREF,
+	otherwise use -a if we're using autokey, otherwise use no extra
+	suffix.
+
+2000-05-11  Sven Dietrich  <sven_dietrich@trimble.com>
+
+	* ports/winnt/include/config.h: New defines to support AUTOKEY
+	* ports/winnt/include/unistd.h: Added another dummy placeholder.h
+	* ports/winnt/ntpd/ntpd.dsp: Added ntp_crypt.c to makefile
+	* ports/winnt/ntpd/ntpd.c: service_main needs a local hostname[]
+	* html/hints/winnt.htm: Add remark about 4.0.99i not compiling.
+	These changes got WINNT running again. No idea if the keys stuff
+	works however.
+
+2000-05-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i9
+
+	* ntpd/ntp_crypto.c: tstamp and autokey cleanup
+	From: Dave Mills
+
+	* ntpd/ntp_proto.c (clock_update): Only call expire_all() if
+	AUTOKEY
+	From many folks, including Reg Clemens <reg@dwf.com>
+
+2000-05-07  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i8
+
+	* flock-build: Use new --with-crypto choices
+	* build (KEYSUF): Deal with new --with-crypto
+	* configure.in: --with-crypto={md5,autokey,rsaref};
+	lose --enable-autokey
+
+2000-05-06  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* build (KEYSUF): Catch --disable-autokey first.
+
+2000-05-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* flock-build: If we don't use autokey, don't use rsaref either.
+
+	* configure.in: 4.0.99i7
+
+	* build (KEYSUF):
+	* flock-build:
+	It's --disable-autokey now
+
+	* configure.in: MD5 is not optional (but AUTOKEY is)
+	* include/ntp_stdlib.h:
+	* libntp/a_md5encrypt.c:
+	* libntp/authkeys.c:
+	(authhavekey):
+	(MD5auth_setkey):
+	(auth_delkeys):
+	(authencrypt):
+	(authdecrypt):
+	* libntp/authreadkeys.c:
+	(authreadkeys):
+	* ntpd/ntp_proto.c (init_proto):
+	* libntp/authusekey.c:
+	MD5 is required.
+
+2000-05-04  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i6
+
+	* ntpd/ntp_proto.c (transmit): Fix up the UNREACH code.
+	(receive): Lose some debug code.
+	(clock_update): expire_all() if LEAP_NOTINSYNC
+	crypto_xmit() a CRYPTO_AUTO if !FLAG_AUTOKEY instead of recauto.tstamp
+	crypto_xmit() a CRYPTO_PRIV (not CRYPTO_AUTO) based on pcookie.tstamp
+	crypto_xmit() a CRYPTO_AUTO (not CRYPTO_PRIV) based on FLAG_MCAST2
+	and !FLAG_AUTOKEY
+	* ntpd/ntp_crypto.c (crypto_recv): Clean up debug output.
+	Don't AUTOKEY if FLAG_MCAST2
+	From: Dave Mills
+
+	* flock-build: Also make obe withouyt md5 (no AUTOKEY)
+	* build (BDIR): Handle -noautokey build directory suffix
+	* configure.in: Prepare for AUTOKEY in mkver.in
+	* scripts/mkver.in (ConfStr): Indicate in the version string if
+	we're not using AUTOKEY.
+
+2000-05-03  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/ntp-wait.in: Fun things with backspaces
+
+	* configure.in: 4.0.99i5
+
+	* ntptrace/ntptrace.c: Protect sys/ioctl.h; grab config.h
+
+	* ntpd/ntp_proto.c (transmit): AUTOKEY and tstamp fixes.
+	(clock_update): Check oleap against LEAP_NOTINSYNC
+	(peer_clear): Free pubkey when we're done
+	Check peer's keynumber against the seq in MODE_BROADCAST.
+	Reorder tstamp changes.
+	* ntpd/ntp_crypto.c (crypto_recv): Check the packet if we get a
+	CRYPTO_RESP and reorder the update of tstamp.
+	(crypto_recv): Don't expire the peer until we're thru with it.
+	* include/ntp.h: AUTOKEY and pkeyid changes
+	From Dave Mills
+
+	* ntpdate/ntpdate.c: Protect sys/ioctl.h
+
+2000-05-01  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i4
+
+	* include/ntp.h:
+	* include/ntp_crypto.h:
+	* include/ntpd.h:
+	* ntpd/ntp_crypto.c:
+	* ntpd/ntp_proto.c:
+	* ntpd/ntpd.c:
+	* util/ntp_genkeys.c:
+	Dave Mills closed some potential vulnerabilities in the key protocol.
+
+2000-04-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i3
+
+	* ntpd/ntp_proto.c: Just check tstamp, forget about sndauto.seq
+	* ntpd/ntp_crypto.c (crypto_recv): Lose inappropriate ntohl()
+	conversion on tstamp.
+	AUTOKEY if tstamp>0, not !=
+	Stash tstamp before we check pcookie.key (several places)
+	* ntpd/ntp_control.c (ctl_putpeer): In CP_INITSEQ, check
+	recauto.key, not keylist.
+	From: Dave Mills
+
+2000-04-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i2
+
+	* ntpq/ntpq.c: PUBKEY stuff
+	* ntpd/ntp_proto.c (clock_select): nreach, and better survivor pick.
+	* ntpd/ntp_peer.c (newpeer): Better nextdate choice.
+	* ntpd/ntp_control.c (ctl_putsys): Buglet in CS_HOSTNAM code.
+	From Dave Mills.
+
+2000-04-24  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* build (IAM): Show hostname if we trip a buildkey check.
+
+2000-04-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* build: deal with optional 1st argument (SIG), which must match
+	the contents of .buildkey
+
+	* flock-build: Generalize, implement SIG and .buildkey, and drive
+	list from LIST, which the user can override.
+
+2000-04-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i1
+	Dave updated some docs, implemented the kpoll variable, and
+	wiggled a host/network byte order thing in the crypto key code.
+
+2000-04-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwvb.c (wwvb_receive): Grab any character (instead
+	of just a space) before the DSTchar.
+	From: Dave Mills
+
+2000-04-11  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99i
+
+	Dave made some documentation updates.
+
+2000-04-08  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* flock-build: Add malarky.  By default, --enable-parse-clocks.
+	Start 2 builds, one with and the other without rsaref.
+
+	* configure.in: 4.0.99h6
+	Dave improved the crypto stuff some more.
+
+2000-04-05  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_acts.c (acts_receive): Do a better job with year
+	conversions and leap-year checks.  The PTB stuff caught this.
+	Reported by: Daniel.Aeby@eam.admin.ch
+
+2000-04-02  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_atom.c (atom_pps): Bugfix
+	From: Philippe Charnier <charnier@xp11.frmug.org>
+
+2000-03-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libparse/clk_wharton.c (cvt_wharton_400a): Do not return
+	CVT_NONE when receiving the early warning bit set.
+	From: Philippe De Muyter  <phdm@macqel.be>
+
+	* configure.in: 4.0.99h5
+	Dave made more changes to the auth key stuff.
+
+2000-03-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99h4
+	Dave made a bunch of changes/fixes to the auth key stuff.
+
+2000-03-22  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_resolver.c: Typos.
+
+2000-03-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99h3
+
+	* ntpd/ntp_intres.c: Use LOG_INFO instead of LOG_DEBUG.
+	* ntpd/ntp_resolver.c: Ditto.
+
+2000-03-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* util/Makefile.am (ntp_genkeys_LDADD): Might need snprintf (-lntp)
+
+	* librsaref/Makefile.am (stamp-rsaref): nodist_HEADERS are not
+	supoprted yet.  Hack around it.
+
+	* ntpd/ntp_resolver.c (findhostaddr): hstrerror isn't always available.
+
+	* configure.in: Look for hstrerror.
+
+	* util/ntp_genkeys.c (main): Use snprintf, not sprintf.
+
+	* ntpd/ntp_crypto.c: Use gethostname, not uname
+	* util/ntp_genkeys.c: Ditto
+	From: Dave Mills
+
+2000-03-19  Harlan Stenn  <harlan@pfcs.com>
+
+	* ntpd/ntp_proto.c (receive): Rename ntp_res_send() to
+	  ntp_res_name() and adjust the number of arguments.
+	* ntpd/ntp_resolver.c (ntp_res_name): Ditto
+	* include/ntpd.h: Ditto
+
+	* ntpd/ntp_resolver.c: Add de_done to the dns_entry structure.
+
+2000-03-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99h2
+
+	* libparse/Makefile.am (info_trimble.c): Use $(srcdir)/foo.sed
+	instead of foo.sed .
+
+	* librsaref/Makefile.am (stamp-rsaref): Copy each file to the build
+	directory, not to the source directory.  This sucks; it wastes
+	space (but it's more portable).
+
+	* configure.in (ac_busted_vpath_in_make): Add FreeBSD.  I bet all
+	systems that use pmake will need this.
+	(ac_busted_vpath_in_make): Remove FreeBSD - I found a workaround.
+
+	* Makefile.am: General cleanup
+
+	* configure.in: 4.0.99h1
+
+	* ntpd/ntp_resolver.c: Lose unneeded header.
+
+2000-03-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/snprintf.c: #include <config.h>
+
+	* libntp/Makefile.am (EXTRA_libntp_a_SOURCES): Use it correctly...
+
+2000-03-16  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* libntp/Makefile.am (EXTRA_DIST): Added snprintf.c
+
+	* configure.in: Look for (and provide if it's missing) snprintf()
+
+	* ntpd/ntp_request.c (dns_a): Call crypto_public with the resolved
+	name and the peer pointer.
+	(dns_a): crypto_public() is only available if PUBKEY is #defined.
+
+	* ntpd/ntp_crypto.c (crypto_public): sprintf is Evil.  Use snprintf.
+	(crypto_setup): Ditto
+	(crypto_read): Ditto
+
+	* ntpd/ntp_resolver.c (ntp_res_send): Lose some debugging noise.
+
+	* ntpd/ntp_config.c (getconfig): Lose testing code.
+
+	* ntpd/ntp_request.c (dns_a): Fix buglet in hostname length check.
+
+2000-03-16  Harlan Stenn  <harlan@pfcs.com>
+
+	* ntpd/ntp_request.c (dns_a): Start cracking the returned information.
+
+2000-03-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_resolver.c (ntp_res): Authenticate the keyid.
+
+	* ntpd/ntp_crypto.c (crypto_line): Fix definition
+	(crypto_read): Ditto.
+
+	* ntpd/ntp_config.c (getconfig): Move req_keyid generation here.
+
+	* librsaref/Makefile.am (BUILT_SOURCES): Cleanup more nodist_ stuff.
+
+2000-03-14  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* build (RSASUF): If we have rsaref2/ and are building
+	--without-rsaref, note it as a build-directory suffix.
+
+	* configure.in: 4.0.99h
+	Crypto merge
+
+	* librsaref/Makefile.am (nodist_librsaref_a_SOURCES): Added nodist_
+
+2000-02-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Lose the changequote calls and fix the quoting.
+	Reported by: Akim Demaille <akim@epita.fr>
+
+	* ntpd/ntp_request.c: Log various error conditions.
+
+2000-02-27  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99g
+
+	* ntpd/ntpd.c: Only log EINTR if debug > 2.
+
+2000-02-25  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/mkver.in (ConfStr): Use `-r' when configured with crypto.
+
+	* ntpd/refclock_wwvb.c (wwvb_receive): Undo the previous chagne.
+
+2000-02-24  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_wwvb.c (wwvb_receive): LENWWVB0 can return 6 or 7
+	fields.
+	From: Michael Sinatra <msinatra@uclink4.berkeley.edu>
+	with a cleanup from Ulrich.
+
+	* scripts/mkver.in (ConfStr): Make RSAREF appear as part of the
+	version.
+
+2000-02-21  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* ports/winnt/include/config.h: Enable MD5 and RANDOM by default
+	* ports/winnt/libntp/SetSystemTime.c: Fix warning and const declaration
+	From: Carl Byington <carl@five-ten-sg.com>
+
+2000-02-21  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* Makefile.am (SUBDIRS): Make librsaref right after includes so we
+	can copy any needed header files over.
+
+	* libntp/Makefile.am (INCLUDES): Also look in librsaref for des.h
+	* ntpd/Makefile.am (INCLUDES): Ditto
+	* util/Makefile.am (INCLUDES): Ditto
+
+	* librsaref/Makefile.am (librsaref_a_SOURCES): Use the des.h from
+	the rsaref2 distribution.
+
+	* include/Makefile.am (noinst_HEADERS): No, we don't want des.h
+
+2000-02-20  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* include/Makefile.am (noinst_HEADERS): Add des.h
+
+2000-02-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/ntp_config.c (do_resolve_internal): Try Real Hard to
+	generate a full random key.
+	From: Carl Byington <carl@five-ten-sg.com>
+
+	* include/ntp.h: Now we know we have either mrand48() or random().
+	* configure.in: If we have mrand48, use it.  Otherwise, use (and
+	provide if necessary) random().
+	* libntp/Makefile.am (EXTRA_DIST): random.c
+	* libntp/random.c: Added.
+
+2000-02-18  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* librsaref/Makefile.am (stamp-rsaref): Typo
+
+	* configure.in (ac_cv_func_ctty_for_f_setown): Yes for OpenBSD
+	(ac_cv_var_ntp_syscalls): Fix quoting of description
+	From: Jonathan Rozes <jrozes@vinton.com>
+
+	* librsaref/Makefile.am: Fix stamp-rsaref dependency order.
+
+	* configure.in: 4.0.99f
+
+2000-02-17  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_mx4200.c: Remove the DOP-weighted position
+	averaging code and revert to a simple mean average.  The weighted
+	average consistently produced a *worse* result.  Go figure.
+	* html/mx4200data.htm: Cleanup, reflect current reality.
+	* html/driver9.htm: Cleanup, reflect current reality.
+	* html/copyright.htm: Cleanup, and credit where credit is due.
+	From: Marc.Brett@westgeo.com
+
+	* ntpd/refclock_oncore.c: Cleanup/fixes
+	* html/driver30.htm: Cleanup
+	* html/Oncore-SHMEM.htm: Cleanup
+	From: Reg Clemens <reg@dwf.com>
+
+2000-02-16  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* winnt/scripts/mkver.bat:    Frederick Czajka [w2k@austin.rr.com]
+	  winnt/ntpq/ntpq.dsp:        modified mkver.bat to eliminate the
+	  winnt/ntpd/ntpd.dsp:	      need to have Perl installed and the
+	  winnt/ntpdc/ntpdc.dsp:      PERL environment variable to be set.
+	  winnt/ntpdate/ntpdate.dsp:
+	  winnt/ntptrace/ntptrace.dsp:    Thanks, Frederick!
+
+	* ntpd/refclock_nmea.c: Correctly interpret the quality indicator.
+
+2000-02-15  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_nmea.c: Correctly interpret the quality indicator.
+	Deal with the time supplied in centiseconds.  GPGCA/GPGGA cleanup.
+	From: Andrew Hood <ajhood@fl.net.au>
+
+	* libparse/Makefile.am (K_CFLAGS): Use instead.  Add NEED_NTP_BOPS.
+
+2000-02-10  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* scripts/ntp-wait.in: Intensify, including some suggestions from
+	Ulrich.
+
+	* configure.in: 4.0.99e
+
+	* scripts/ntp-wait.in: Lose cruft, sleep after each try.
+
+	* scripts/ntp-restart: It's ntpd now.  Also, call ntp-wait.
+
+	* configure.in (AC_CONFIG_*): New scripts that use PATH_PERL
+
+	* scripts/Makefile.am (noinst_SCRIPTS): Added ntp-wait
+	(noinst_SCRIPTS): Added all of the scripts that now use PATH_PERL
+
+	* configure.in: Get the path to perl
+	(AC_CONFIG_*): Added scripts/ntp-wait
+
+	* ntptrace/ntptrace.c (DoTrace): If the server's srcadr is 0.0.0.0
+	then we haven't synced yet.  Note and punt.
+	Reported by: Bdale Garbee <bdale@gag.com>,http://bugs.debian.org/56551
+
+2000-02-09  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ports/winnt/include/config.h: Typo (CLOCK_PALISADE comment)
+	From: Carl Byington <carl@five-ten-sg.com>
+
+	* configure.in: Disable kernel_fll_bug for Generic_105181-17 under
+	Solaris-2.6
+	From: Juergen Georgi <georgi@belwue.de>
+
+2000-02-07  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99d
+
+	* html/Oncore-SHMEM.htm: New document
+	* html/driver30.htm: Cleanup and improvements
+	From: Reg Clemens <reg@dwf.com>
+
+2000-01-30  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/refclock_oncore.c: Patches/improvements
+	From: Reg Clemens <reg@dwf.com>
+
+2000-01-29  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: 4.0.99c
+
+2000-01-28  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Autoconf update...
+
+	* ntpdate/ntpdate.c (ntpdatemain): Typo
+	From: Jack Bryans <jbryans@csulb.edu>
+
+	* Makefile.am (EXTRA_DIST): Add flock-build.  Probably UDel specific...
+
+2000-01-23  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* ntpd/check_y2k.c (main): Reformat for ansi2knr
+
+	* configure.in (AC_OUTPUT): Revert to obsolete form until automake
+	catches up.
+
+2000-01-22  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* configure.in: Use AC_CHECK_TYPES((s_char)) instead of
+	AC_CHECK_TYPE.
+	(ac_cv_var_kernel_fll_bug): Generic_106541-08 is apparently OK, too.
+
+	* scripts/Makefile.am (EXTRA_DIST): Need to explicitly distribute
+	mkver.in and ntpver.in now, apparently.
+	* configure.in: Search for the various audio_info members so the
+	printing in audio_show is less of a circus.  This required an
+	autoconf upgrade.  Major sigh.
+
+	* libntp/audio.c (audio_show): Clean up (more) properly.
+
+2000-01-21  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* Add pointer to html/hints/winnt.htm to INSTALL file
+	* Fix NT makefiles to accomodate at least one weird
+	  version of Visual C that can't handle the LFs without
+	  the DOS CR also.
+
+2000-01-20  Sven Dietrich <sven_dietrich@trimble.com>
+
+	* Update Copyright in Palisade driver to 2000
+	* Fix Palisade MIN & MAX POLL to optimal values
+
+2000-01-19  Harlan Stenn  <stenn@whimsy.udel.edu>
+
+	* html/driver7.htm: Patches from Dave Mills
+	* html/driver36.htm: Patches from Dave Mills
+
+	* html/copyright.htm: Added Kamal Mostafa
+
 2000-01-19  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.99b
@@ -6,7 +2803,7 @@
 
 	* ntpd/refclock_chu.c: NCHAN is used with generic ICOM.
 
-	* ntpd/refclock_wwv.c: Use new auido stuff
+	* ntpd/refclock_wwv.c: Use new audio stuff
 	* ntpd/refclock_irig.c: Use new audio stuff
 	* ntpd/refclock_chu.c: Use new audio stuff
 	* ntpd/ntp_proto.c: Clean up
@@ -46,7 +2843,7 @@
 2000-01-13  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* scripts/ntpsweep: New version
-	From: Hans Lambermont <Hans.Lambermont@nl.origin-it.com> 
+	From: Hans Lambermont <Hans.Lambermont@nl.origin-it.com>
 
 	* ntpd/refclock_fg.c: New version
 	* html/driver37.htm: New version
@@ -63,7 +2860,7 @@
 	* html/driver36.htm: Cleanup
 	* html/monopt.htm: Ditto
 	From: Dave Mills <mills@udel.edu>
-	
+
 	* ntpd/ntp_intres.c (ntp_intres): Put "NTP_INTRES running" at a
 	higher debug level
 
@@ -82,23 +2879,23 @@
 
 2000-01-08  Harlan Stenn  <stenn@whimsy.udel.edu>
 
-	* configure.in: <netinet/ip.h> cannot be detected... 
-	* ntpd/ntp_io.h: ...but every OS has it 
-	* ntpd/refclock_oncore.c: Lint removal 
-	* ntpq/ntpq_ops.c: Lint removal 
-	* ntpq/refclock_chu.c: chu_major() is not an audio routine (?), lint 
-	* libntp/icom.c: AIX doesn't have <sys/termios.h> 
+	* configure.in: <netinet/ip.h> cannot be detected...
+	* ntpd/ntp_io.h: ...but every OS has it
+	* ntpd/refclock_oncore.c: Lint removal
+	* ntpq/ntpq_ops.c: Lint removal
+	* ntpq/refclock_chu.c: chu_major() is not an audio routine (?), lint
+	* libntp/icom.c: AIX doesn't have <sys/termios.h>
 	From: Marc.Brett@westgeo.com
 
 	* ntpd/refclock_chu.c: NetBSD needs sys/ioctl.h
-	(chu_debug): NetBSED-specific debug output.
+	(chu_debug): NetBSD-specific debug output.
 	From: Frederick Bruckman <fb@enteract.com>
 
 2000-01-06  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.98m
 	I skipped `l' - it looks like a `1'.
-	
+
 	* html/driver7.htm: Doc update
 	* html/driver36.htm: Ditto
 	* html/audio.htm: Ditto
@@ -163,13 +2960,13 @@
 	* ntpd/refclock_oncore.c (MAP_FAILED): Some systems do not #define
 	this.
 
-	* ntpd/refclock_wwv.c: 
-	* ntpd/refclock_chu.c: 
-	* libntp/icom.c: 
-	* libntp/Makefile.am: 
-	* include/icom.h: 
-	* html/driver7.htm: 
-	* html/driver36.htm: 
+	* ntpd/refclock_wwv.c:
+	* ntpd/refclock_chu.c:
+	* libntp/icom.c:
+	* libntp/Makefile.am:
+	* include/icom.h:
+	* html/driver7.htm:
+	* html/driver36.htm:
 	Support for ICOM.  The WWV/H driver, by the way, is getting truly
 	awesome.  The CHU autotune function works okay as it is.  I'd like
 	to find somebody else to test the audio drivers just to make sure
@@ -205,7 +3002,7 @@
 	(oncore_read_config): Add the isascii() checks; older versions of
 	Unix don't guarantee correct behavior of is*() without it.
 
-	* ntpd/refclock_oncore.c: Add proof-of-concept support for 
+	* ntpd/refclock_oncore.c: Add proof-of-concept support for
 	  delivering receiver data stream to other processes through
 	  a memory-mapped file.
 	  From: Poul-Henning Kamp <phk@FreeBSD.org>
@@ -241,41 +3038,41 @@
 	* scripts/ntpsweep: Nifty utility
 	From: Hans.Lambermont@nl.origin-it.com
 
-	* ntpd/refclock_fg.c: 
-	* ntpd/refclock_conf.c: 
-	* ntpd/ntp_control.c: 
-	* ntpd/Makefile.am: 
-	* libntp/clocktypes.c: 
-	* include/ntp.h: 
-	* html/refclock.htm: 
-	* html/driver37.htm: 
-	* configure.in: 
-	* acconfig.h: 
+	* ntpd/refclock_fg.c:
+	* ntpd/refclock_conf.c:
+	* ntpd/ntp_control.c:
+	* ntpd/Makefile.am:
+	* libntp/clocktypes.c:
+	* include/ntp.h:
+	* html/refclock.htm:
+	* html/driver37.htm:
+	* configure.in:
+	* acconfig.h:
 	Forum Graphic GPS clock support
 	From: Dmitry Smirnov <das@online.nsk.su>
-	
+
 	* configure.in: Default to compile the IRIG, CHU and WWV/H
 	drivers and compile the CHU driver for audio, not modem.
 	Requested by Dave Mills.
 
-	* html/audio.htm: 
-	* html/driver36.htm: 
-	* html/qth.htm: 
+	* html/audio.htm:
+	* html/driver36.htm:
+	* html/qth.htm:
 	Dave wrote these to go along with the changes I checked in yesterday.
-	
+
 1999-12-28  Harlan Stenn  <stenn@whimsy.udel.edu>
 
-	* ntpd/refclock_wwv.c: 
-	* ntpd/refclock_conf.c: 
-	* ntpd/refclock_chu.c: 
-	* ntpd/ntp_refclock.c: 
-	* ntpd/ntp_loopfilter.c: 
-	* html/refclock.htm: 
-	* html/pps.htm: 
-	* html/index.htm: 
-	* html/driver7.htm: 
-	* html/driver6.htm: 
-	* html/copyright.htm: 
+	* ntpd/refclock_wwv.c:
+	* ntpd/refclock_conf.c:
+	* ntpd/refclock_chu.c:
+	* ntpd/ntp_refclock.c:
+	* ntpd/ntp_loopfilter.c:
+	* html/refclock.htm:
+	* html/pps.htm:
+	* html/index.htm:
+	* html/driver7.htm:
+	* html/driver6.htm:
+	* html/copyright.htm:
 
 	I indulged an old agenda to polish up some programs originally
 	written for a DSP evaluation board. The result is a really hot
@@ -324,7 +3121,7 @@
 
 	* libntp/syssignal.c: Small cleanup to Marc's patch.
 
-	* ntpd/ntp_refclock.c: 
+	* ntpd/ntp_refclock.c:
 	* ntpd/refclock_atom.c: Header cleanup
 	* html/driver30.htm: Cleanup and improvements.
 	From: Reg Clemens <reg@dwf.com>
@@ -345,7 +3142,7 @@
 		AFFECT OTHER SYSTEMS!
 	* scripts/ntp-status: Added.
 	From: Marc.Brett@westgeo.com
-	
+
 	* ntpdate/ntpdate.c: Deal with multiple addresses.
 	From: Jeffrey C Honig <jch@bsdi.com>
 
@@ -391,7 +3188,7 @@
 	* ntpd/refclock_wwv.c: Cleanup and fixes
 	* ntpd/refclock_conf.c: WWV declaration cleanup.
 	From: Dave Mills <mills@udel.edu>
-	
+
 1999-12-07  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* libparse/clk_rawdcf.c (cvt_rawdcf): Buglet.
@@ -401,10 +3198,10 @@
 
 	* ntpd/Makefile.am (ntpd_SOURCES): Added refclock_wwv.c
 
-	* ntpd/refclock_wwvb.c: 
-	* ntpd/refclock_wwv.c: 
-	* ntpd/refclock_conf.c: 
-	* ntpd/refclock_chu.c: 
+	* ntpd/refclock_wwvb.c:
+	* ntpd/refclock_wwv.c:
+	* ntpd/refclock_conf.c:
+	* ntpd/refclock_chu.c:
 	* libntp/clocktypes.c:
 	* include/ntp.h: Dave cleaned some things up
 	Dave cleaned some things up (WWVB -> SPECTRACOM, CHU -> CHU_AUDIO,
@@ -422,7 +3219,7 @@
 	* ntpq/ntpq_ops.c:
 	Make `ntpq -pn' independent of DNS, ad advertised.
 	From: Kamal A Mostafa <kamal@whence.com>
-	
+
 	* ntpd/refclock_mx4200.c (mx4200_start): make missing 3rd
 	parameter a 0.
 
@@ -430,7 +3227,7 @@
 
 	* ntpd/ntp_refclock.c (refclock_open): "flags" processing cleanup
 	(refclock_open): PPS device initialization cleanup
-	* include/ntp_refclock.h (LDISC_CHU): 
+	* include/ntp_refclock.h (LDISC_CHU):
 	(LDISC_PPS): Clean up comments
 	From: Dave Mills <mills@udel.edu>
 
@@ -447,7 +3244,7 @@
 1999-12-03  Sven Dietrich <sven_dietrich@trimble.com>
 
 	* libntp/systime.c: Removed adjtime hack for WINNT
-	* ports/winnt/ntpd/nt_clockstuff.c: Winnt double precision adjtime 
+	* ports/winnt/ntpd/nt_clockstuff.c: Winnt double precision adjtime
 	* ports/winnt/inlcude/clockstuff.h: Remove no longer needed externs
 
 1999-12-02  Harlan Stenn  <stenn@whimsy.udel.edu>
@@ -467,7 +3264,7 @@
 	Update.  Should be rewritten to take advantage of the new -g
 	switch and perhaps a loop to wait until ntpd hits a reasonable
 	"state".
-	
+
 	* html/hints/solaris-dosynctodr.html: New information
 	From: "John W. Sopko Jr." <sopko@cs.unc.edu>
 
@@ -499,48 +3296,48 @@
 	``--input-directory'') defaults to ``/var/log/ntp''.
 	From: Ulrich Windl  <Ulrich.Windl@rz.uni-regensburg.de>
 
-	* html/driver8.htm: 
-	* libparse/clk_computime.c: 
-	* libparse/clk_dcf7000.c: 
-	* libparse/clk_hopf6021.c: 
-	* libparse/clk_meinberg.c: 
-	* libparse/clk_rawdcf.c: 
-	* libparse/clk_rcc8000.c: 
-	* libparse/clk_schmid.c: 
-	* libparse/clk_trimtaip.c: 
-	* libparse/clk_trimtsip.c: 
-	* libparse/data_mbg.c: 
-	* libparse/kclk_computime.c: 
-	* libparse/kclk_dcf7000.c: 
-	* libparse/kclk_hopf6021.c: 
-	* libparse/kclk_meinberg.c: 
-	* libparse/kclk_rawdcf.c: 
-	* libparse/kclk_rcc8000.c: 
-	* libparse/kclk_schmid.c: 
-	* libparse/kclk_trimtaip.c: 
-	* libparse/kclk_trimtsip.c: 
-	* libparse/kparse.c: 
-	* libparse/kparse_conf.c: 
-	* libparse/parse.c: 
-	* libparse/parse_conf.c: 
-	* libparse/parsesolaris.c: 
-	* libparse/parsestreams.c: 
-	* ntpd/refclock_parse.c: 
+	* html/driver8.htm:
+	* libparse/clk_computime.c:
+	* libparse/clk_dcf7000.c:
+	* libparse/clk_hopf6021.c:
+	* libparse/clk_meinberg.c:
+	* libparse/clk_rawdcf.c:
+	* libparse/clk_rcc8000.c:
+	* libparse/clk_schmid.c:
+	* libparse/clk_trimtaip.c:
+	* libparse/clk_trimtsip.c:
+	* libparse/data_mbg.c:
+	* libparse/kclk_computime.c:
+	* libparse/kclk_dcf7000.c:
+	* libparse/kclk_hopf6021.c:
+	* libparse/kclk_meinberg.c:
+	* libparse/kclk_rawdcf.c:
+	* libparse/kclk_rcc8000.c:
+	* libparse/kclk_schmid.c:
+	* libparse/kclk_trimtaip.c:
+	* libparse/kclk_trimtsip.c:
+	* libparse/kparse.c:
+	* libparse/kparse_conf.c:
+	* libparse/parse.c:
+	* libparse/parse_conf.c:
+	* libparse/parsesolaris.c:
+	* libparse/parsestreams.c:
+	* ntpd/refclock_parse.c:
 	Mods and updates
 	From: Frank Kardel <kardel@acm.org>
-	
+
 	* acconfig.h: PCF refclock
-	* configure.in: 
-	* html/driver35.htm: 
-	* html/refclock.htm: 
-	* include/ntp.h: 
-	* libntp/clocktypes.c: 
-	* ntpd/Makefile.am: 
-	* ntpd/ntp_control.c: 
-	* ntpd/refclock_conf.c: 
-	* ntpd/refclock_pcf.c: 
+	* configure.in:
+	* html/driver35.htm:
+	* html/refclock.htm:
+	* include/ntp.h:
+	* libntp/clocktypes.c:
+	* ntpd/Makefile.am:
+	* ntpd/ntp_control.c:
+	* ntpd/refclock_conf.c:
+	* ntpd/refclock_pcf.c:
 	From: Andreas Voegele <andreas.voegele@gmx.de>
-	
+
 	* acconfig.h: DECL_STIME_1
 
 	* configure.in (iCFLAGS): Use -std1 for alpha*-dec-osf* if we are
@@ -557,7 +3354,7 @@
 	* ntptrace/ntptrace.c: Ditto
 	* ntpd/ntp_proto.c: Ditto
 	* ntpd/refclock_palisade.c: Ditto
-	From: Jonathan Stone <jonathan@dsg.stanford.edu> 
+	From: Jonathan Stone <jonathan@dsg.stanford.edu>
 
 1999-11-18  Sven Dietrich  <sven_dietrich@trimble.com>
 	* Win NT port updates
@@ -606,16 +3403,16 @@
 	are both defined.
 
 	From: Jeffrey C Honig <jch@bsdi.com>
-	
+
 	* ntpd/ntp_refclock.c: sys/sio.h and SCO5_CLOCK cleanup
-	From: Kamal A Mostafa <kamal@whence.com>	
+	From: Kamal A Mostafa <kamal@whence.com>
 
 	* ntpd/ntp_loopfilter.c: Let -g do a "correct any" for the first
 	time adjustment.
 	From: Dave Mills <mills@udel.edu>
 
 	* configure.in: sys/sio.h needs to be checked independently.
-	Reported by: Kamal A Mostafa <kamal@whence.com>	
+	Reported by: Kamal A Mostafa <kamal@whence.com>
 
 1999-11-11  Harlan Stenn  <stenn@whimsy.udel.edu>
 
@@ -623,11 +3420,11 @@
 
 	* configure.in: DECL_PLOCK_0 and DECL_STIME_0 are for dec-osf5*, too
 	* ntpd/ntpd.c: 	DEC OSF cleanup (editorial comments by HMS)
-	From: Tom Smith <smith@cag.lkg.dec.com> 
-	
+	From: Tom Smith <smith@cag.lkg.dec.com>
+
 	* ntpd/ntp_refclock.c: MAXUNIT bugfix
 	From: Marc.Brett@westgeo.com
-	
+
 	* ntpd/ntp_refclock.c:
 	* ntpd/ntpd.c:
 	* ntpd/refclock_arc.c:
@@ -641,10 +3438,10 @@
 	* include/ntp_stdlib.h:
 	* libntp/systime.c:
 	* ntpd/ntp_proto.c:
-	Replaced the 'sco5_oldclock' variable with 'systime_10ms_ticks'. 
+	Replaced the 'sco5_oldclock' variable with 'systime_10ms_ticks'.
 	Cleared libntp/systime.c and include/ntp_stdlib.h of references
-	to SCO5_CLOCK and RELIANTUNIX_CLOCK (moved to ntpd/ntp_proto.c). 
-	From: Kamal A Mostafa <kamal@whence.com>	
+	to SCO5_CLOCK and RELIANTUNIX_CLOCK (moved to ntpd/ntp_proto.c).
+	From: Kamal A Mostafa <kamal@whence.com>
 
 	* configure.in: alpha-dec-osf4* -> alpha*-dec-osf4*|alpha*-dec-osf5*
 	From: Tom Smith <smith@cag.lkg.dec.com>
@@ -677,7 +3474,7 @@
 	* ntpd/refclock_atom.c: fdpps is only there for PPS or PPSAPI.
 	AIOCTIMESTAMP is gone now.
 	From: Kamal A Mostafa <kamal@whence.com>
-	
+
 	* configure.in (HAVE_MLOCKALL): Deal with dec-osf5 realities
 	* ntpd/refclock_ulink.c (ulink_poll): Fix cast.
 	* libntp/machines.c (ntp_set_tod): Use a long* for the argument to
@@ -721,7 +3518,7 @@
 	* ntpd/ntp_intres.c: Lose #include "ntp_select.h"
 	* libntp/iosignal.c: Lose #include "ntp_select.h"
 	* include/ntpd.h: #include "ntp_select.h" for declaration of activefds
-	Reported by: Christian Krackowizer <kra1@technodat.co.at> 
+	Reported by: Christian Krackowizer <kra1@technodat.co.at>
 
 1999-11-01  Harlan Stenn  <stenn@whimsy.udel.edu>
 
@@ -731,10 +3528,10 @@
 	* libntp/recvbuff.c: Fix free buffer count
 	From: Jeffrey C Honig <jch@bsdi.com>
 
-	* html/pps.htm: 
-	* html/howto.htm: 
-	* html/confopt.htm: 
-	* html/clockopt.htm: 
+	* html/pps.htm:
+	* html/howto.htm:
+	* html/confopt.htm:
+	* html/clockopt.htm:
 	* html/uthopt.htm:
 	Updates.
 	From: Dave Mills <mills@udel.edu>
@@ -755,7 +3552,7 @@
 	* ntpd/ntp_loopfilter.c: Cleanup and fixes
 	* libntp/gpstolfp.c: Lose the UL qualifiers - old compilers hate them
 	From: Dave Mills <mills@udel.edu>
-	
+
 1999-10-31  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: TIOCSPPS cleanup
@@ -775,7 +3572,7 @@
 	* include/ntp.h: noselect patch
 	From: Kamal A Mostafa <kamal@whence.com>
 
-	* configure.in: 
+	* configure.in:
 	* acconfig.h: TTYCLK_AIOCTIMESTAMP
 	Stuff for Kamal
 
@@ -789,14 +3586,14 @@
 
 	* ntpd/refclock_oncore.c: Rename instance.state to instance.o_state
 
-	* refclock_oncore.c: 
-	* refclock_mx4200.c: 
-	* refclock_chu.c: 
-	* refclock_atom.c: 
-	* ntp_refclock.c: 
-	* ntp_peer.c: 
-	* ntp_loopfilter.c: 
-	* include/ntp_refclock.h: 
+	* refclock_oncore.c:
+	* refclock_mx4200.c:
+	* refclock_chu.c:
+	* refclock_atom.c:
+	* ntp_refclock.c:
+	* ntp_peer.c:
+	* ntp_loopfilter.c:
+	* include/ntp_refclock.h:
 	Various cleanup and fixes
 	From: Dave Mills <mills@udel.edu>
 
@@ -815,85 +3612,85 @@
 	From: John Hay <jhay@mikom.csir.co.za>
 
 
-	* libntp/msyslog.c: 
-	* libntp/gpstolfp.c: 
+	* libntp/msyslog.c:
+	* libntp/gpstolfp.c:
 	Lint cleanup
 	From: Jonathan Stone <jonathan@dsg.stanford.edu>
 
 	* parseutil/dcfd.c:  abs() -> l_abs(), time.h (AIX 4.3.2 patches)
 	From: Dana Kaempen <decay@flash.net>
 
-	* ntpd/refclock_oncore.c: 
-	* ntpd/refclock_atom.c: 
-	* ntpd/ntp_refclock.c: 
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/ntp_refclock.c:
 	PPS cleanup
 	From: John.Hay@mikom.csir.co.za
-	
-	* util/ntptime.c: 
-	* ntpdate/ntptimeset.c: 
-	* ntpdate/ntpdate.c: 
-	* ntpd/refclock_trak.c: 
-	* ntpd/refclock_oncore.c: 
-	* ntpd/refclock_mx4200.c: 
-	* ntpd/refclock_msfees.c: 
-	* ntpd/refclock_atom.c: 
-	* ntpd/ntp_control.c: 
-	* ntpd/ntp_config.c: 
-	* configure.in: 
-	* configure: 
+
+	* util/ntptime.c:
+	* ntpdate/ntptimeset.c:
+	* ntpdate/ntpdate.c:
+	* ntpd/refclock_trak.c:
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_mx4200.c:
+	* ntpd/refclock_msfees.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/ntp_control.c:
+	* ntpd/ntp_config.c:
+	* configure.in:
+	* configure:
 	PPS, Solaris 7, cleanup patches
 	From: Marc.Brett@westgeo.com
 
-	* ports/winnt/ntptrace/ntptrace.dsp: 
-	* ports/winnt/ntpq/ntpq.dsp: 
-	* ports/winnt/ntpdc/ntpdc.dsp: 
-	* ports/winnt/ntpdate/ntpdate.dsp: 
-	* ports/winnt/ntpd/refclock_trimbledc.c: 
-	* ports/winnt/ntpd/ntpd.dsp: 
-	* ports/winnt/ntpd/ntp_iocompletionport.c: 
-	* ports/winnt/ntpd/nt_clockstuff.c: 
-	* ports/winnt/libntp/util_clockstuff.c: 
-	* ports/winnt/libntp/libntp.dsp: 
-	* ports/winnt/libntp/SetSystemTime.c: 
-	* ports/winnt/instsrv/instsrv.c: 
-	* ports/winnt/include/sys/ioctl.h: 
-	* ports/winnt/include/termios.h: 
-	* ports/winnt/include/config.h: 
-	* ports/winnt/include/clockstuff.h: 
-	* ports/winnt/ntp.dsw: 
-	* ntpd/refclock_shm.c: 
-	* ntpd/refclock_palisade.c: 
-	* ntpd/ntpd.c: 
-	* ntpd/ntp_timer.c: 
-	* ntpd/ntp_refclock.c: 
-	* libntp/systime.c: 
-	* libntp/machines.c: 
+	* ports/winnt/ntptrace/ntptrace.dsp:
+	* ports/winnt/ntpq/ntpq.dsp:
+	* ports/winnt/ntpdc/ntpdc.dsp:
+	* ports/winnt/ntpdate/ntpdate.dsp:
+	* ports/winnt/ntpd/refclock_trimbledc.c:
+	* ports/winnt/ntpd/ntpd.dsp:
+	* ports/winnt/ntpd/ntp_iocompletionport.c:
+	* ports/winnt/ntpd/nt_clockstuff.c:
+	* ports/winnt/libntp/util_clockstuff.c:
+	* ports/winnt/libntp/libntp.dsp:
+	* ports/winnt/libntp/SetSystemTime.c:
+	* ports/winnt/instsrv/instsrv.c:
+	* ports/winnt/include/sys/ioctl.h:
+	* ports/winnt/include/termios.h:
+	* ports/winnt/include/config.h:
+	* ports/winnt/include/clockstuff.h:
+	* ports/winnt/ntp.dsw:
+	* ntpd/refclock_shm.c:
+	* ntpd/refclock_palisade.c:
+	* ntpd/ntpd.c:
+	* ntpd/ntp_timer.c:
+	* ntpd/ntp_refclock.c:
+	* libntp/systime.c:
+	* libntp/machines.c:
 	NT patches
 	From: Sven Dietrich <Sven_Dietrich@trimble.com>
 
 1999-10-15  Harlan Stenn  <stenn@whimsy.udel.edu>
 
-	* ntpd/refclock_wwvb.c: 
-	* ntpd/refclock_usno.c: 
-	* ntpd/refclock_ulink.c: 
-	* ntpd/refclock_tpro.c: 
-	* ntpd/refclock_pst.c: 
-	* ntpd/refclock_parse.c: 
-	* ntpd/refclock_palisade.c: 
-	* ntpd/refclock_oncore.c: 
-	* ntpd/refclock_mx4200.c: 
-	* ntpd/refclock_msfees.c: 
-	* ntpd/refclock_jupiter.c: 
-	* ntpd/refclock_irig.c: 
-	* ntpd/refclock_heath.c: 
-	* ntpd/refclock_chu.c: 
-	* ntpd/refclock_atom.c: 
-	* ntpd/refclock_as2201.c: 
-	* ntpd/refclock_arc.c: 
-	* ntpd/refclock_arbiter.c: 
-	* ntpd/refclock_acts.c: 
-	* ntpd/ntp_refclock.c: 
-	* include/ntp_refclock.h: 
+	* ntpd/refclock_wwvb.c:
+	* ntpd/refclock_usno.c:
+	* ntpd/refclock_ulink.c:
+	* ntpd/refclock_tpro.c:
+	* ntpd/refclock_pst.c:
+	* ntpd/refclock_parse.c:
+	* ntpd/refclock_palisade.c:
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_mx4200.c:
+	* ntpd/refclock_msfees.c:
+	* ntpd/refclock_jupiter.c:
+	* ntpd/refclock_irig.c:
+	* ntpd/refclock_heath.c:
+	* ntpd/refclock_chu.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/refclock_as2201.c:
+	* ntpd/refclock_arc.c:
+	* ntpd/refclock_arbiter.c:
+	* ntpd/refclock_acts.c:
+	* ntpd/ntp_refclock.c:
+	* include/ntp_refclock.h:
 	Bunches of fixes.
 	From: Dave Mills <mills@udel.edu>
 
@@ -901,7 +3698,7 @@
 
 	* html/driver16.htm: New version
 	* ntpd/refclock_bancomm.c: New version
-	From: "Cliff, Gary" <gary.cliff@cdott.com> 
+	From: "Cliff, Gary" <gary.cliff@cdott.com>
 	"Ramasivan, Ganesh" <ganesh.ramasivan@cdott.com>
 
 	* ntpd/refclock_ulink.c (ulink_receive): Cleanup
@@ -928,9 +3725,9 @@
 
 1999-10-09  Harlan Stenn  <stenn@whimsy.udel.edu>
 
-	* ntpd/refclock_oncore.c: 
-	* ntpd/refclock_atom.c: 
-	* ntpd/ntp_refclock.c: 
+	* ntpd/refclock_oncore.c:
+	* ntpd/refclock_atom.c:
+	* ntpd/ntp_refclock.c:
 	PPS API code updated to the current spec
 	From: Dave Mills
 
@@ -945,12 +3742,12 @@
 1999-09-19  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* ntpd/refclock_ulink.c: Typos in C++ comment
-	Reported by: Thomas.Tornblom@Sun.SE 
+	Reported by: Thomas.Tornblom@Sun.SE
 
 	* configure.in: 4.0.98a
 
 	* ntpd/ntp_config.c (getconfig): Fix typo.
-	From: "David E. Myers" <dem@skyline.rtp.nc.us> 
+	From: "David E. Myers" <dem@skyline.rtp.nc.us>
 	From: David Godfrey <dave@delta.demon.co.uk>
 	From: Geoffrey Sisson <geoff@nominet.org.uk>
 
@@ -984,7 +3781,7 @@
 
 	* util/tickadj.c
 	Use HAVE_KVM_OPEN conditional around kvm.h include.
-	
+
 	From: Wilfredo Sanchez <wsanchez@apple.com>
 
 1999-09-15  Harlan Stenn  <stenn@whimsy.udel.edu>
@@ -1001,12 +3798,12 @@
 	* ntpd/refclock_conf.c:
 	* ntpd/refclock_ulink.c:
 	Ultralink driver
-	From: Dave Strout <dstrout@linuxfoundary.com> 
+	From: Dave Strout <dstrout@linuxfoundary.com>
 
 1999-09-14  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: ReliantUNIX patches
-	From: Andrej Borsenkow <Andrej.Borsenkow@mow.siemens.ru> 
+	From: Andrej Borsenkow <Andrej.Borsenkow@mow.siemens.ru>
 
 	* ntpd/refclock_atom.c: PPS cleanup
 	* ntpd/ntp_refclock.c (refclock_ioctl): PPS cleanup
@@ -1105,7 +3902,7 @@
 	* ntpd/refclock_parse.c: Permit RTS to power a DCF77.
 	From: Carsten Paeth <calle@calle.in-berlin.de>
 
-	* ntpd/refclock_oncore.c (oncore_start): This makes the Oncore run 
+	* ntpd/refclock_oncore.c (oncore_start): This makes the Oncore run
 	on systems without hardpps().
 	From: Poul-Henning Kamp <phk@freebsd.org>
 
@@ -1139,8 +3936,8 @@
 1999-08-23  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* ntpd/refclock_nmea.c: Patches for:
-        Trimble OEM Ace-II receiver. Low cost PCB with single 
-        voltage input, external active antenna and two serial 
+        Trimble OEM Ace-II receiver. Low cost PCB with single
+        voltage input, external active antenna and two serial
         ports with either NMEA and ITAPs output. Programmable
         to be tuned for 'time' accuracy in fixed station config.
 	From: Nick Hibma <nick.hibma@jrc.it>
@@ -1167,10 +3964,10 @@
 	* ntpd/ntpd.c:
 	* ports/winnt/libntp/nt_clockstuff.c:
 	From: Sven Dietrich <Sven_Dietrich@trimble.com>
-	
+
 	* README.cvs: Updated.
 
-	* configure.in: 
+	* configure.in:
 	* include/ntp_machine.h:
 	* libntp/mexit.c:
 	* ntpd/ntp_config.c:
@@ -1195,7 +3992,7 @@
 	* ntpdate/ntptimeset.c:
 	ntptimeset patches.
 	From: Jeffrey Hutzelman <jhutz@cmu.edu>
-	
+
 	* ntpd/refclock_parse.c (local_input): ts.l_ui -> ts.fp.l_ui
 
 1999-08-11  Harlan Stenn  <stenn@whimsy.udel.edu>
@@ -1213,8 +4010,8 @@
 	* ntpdate/ntpdate.c (sys/resource.h) : Include that file only #if
 	HAVE_RESOURCE_H.
 	From: Philippe De Muyter <phdm@macqel.be>
-	
-	* ntptrace/ntptrace.c (input_handler): Make it a "normal" function 
+
+	* ntptrace/ntptrace.c (input_handler): Make it a "normal" function
 	definition.
 	Reported by: GIANNI_CATANIA@hp-italy-om6.om.hp.com
 
@@ -1227,7 +4024,7 @@
 	* configure.in: 4.0.96
 
 	* parseutil/dcfd.c (main): Replace SA_ONSTACK and SV_ONSTACK with
-	HAVE_SIGACTION and HAVE_SIGVEC, respectively.  HP-UX provides both 
+	HAVE_SIGACTION and HAVE_SIGVEC, respectively.  HP-UX provides both
 	of the former but only one of the latter...
 
 1999-08-08  Harlan Stenn  <stenn@whimsy.udel.edu>
@@ -1281,9 +4078,9 @@
 1999-07-27  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.95
-	
+
 	* ports/winnt: New release
-	From: Sven Dietrich <Sven_Dietrich@trimble.com> 
+	From: Sven Dietrich <Sven_Dietrich@trimble.com>
 
 1999-07-26  Harlan Stenn  <stenn@whimsy.udel.edu>
 
@@ -1337,11 +4134,11 @@
 	* ntpd/ntp_timer.c:
 	* ntpd/ntpd.c: Compile/lint cleanup
 	From: Allen Smith <easmith@beatrice.rutgers.edu>
-	
+
 1999-07-21  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.94a
-	
+
 	* configure.in (ac_cv_make_ntptime): Add tv_nsec check.
 
 	* include/Makefile.am (noinst_HEADERS): Forgot ntp_syscall.h
@@ -1358,7 +4155,7 @@
 
 1999-07-20  Harlan Stenn  <stenn@whimsy.udel.edu>
 
-	* acconfig.h: 
+	* acconfig.h:
 	* util/ntptime.c: FreeBSD nano patches
 	From: Per Hedeland <per@erix.ericsson.se> and
 	Allen Smith <easmith@beatrice.rutgers.edu>
@@ -1508,7 +4305,7 @@ Mon May 31 18:49:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	* ntpd/refclock_parse.c (gps16x_poll): Likewise.
 
 	* ntpd/ntp_filegen.c (filegen_open): Use long format, cast arg to
-	match. 
+	match.
 
 	* ntpd/refclock_parse.c (list_err): Use long format to match arg.
 	(parse_statistics): Likewise.
@@ -1581,7 +4378,7 @@ Tue May 25 18:00:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	From: Rainer Orth <ro@TechFak.Uni-Bielefeld.DE>
 
 	Patch:
-	
+
 	* include/l_stdlib.h: Fixed syscall() declaration.
 	* configure.in: Updated test to match.
 
@@ -1611,7 +4408,7 @@ Tue May 25 18:00:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	* include/ntp_refclock.h: Protect it from multiple inclusion.
 	* include/ntp_fp.h: Likewise.
 	* include/ntp.h: Likewise.
-	
+
 	* include/ntpd.h: Include ntp_refclock.h for MAXDIAL declaration.
 	* libntp/authkeys.c: Include ntpd.h for current_time declaration.
 
@@ -1620,7 +4417,7 @@ Tue May 25 18:00:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 
 	* include/ntp_stdlib.h: Declare variables exported by libntp.
 	* include/ntpd.h: Likewise for ntpd.
-	
+
 	* libntp/authkeys.c (key_hash, authnokey, authfreekeys,
 	cache_flags): Made static.
 	* libntp/systime.c (tvu_maxslew, tsf_maxslew, sys_clock_offset,
@@ -1629,12 +4426,12 @@ Tue May 25 18:00:49 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	* ntpd/ntp_loopfilter.c (clock_offset, clock_panic): Likewise.
 	(pll_nano): Likewise. Removed duplicate definition.
 	* ntpd/ntp_peer.c (peer_free, current_association_ID,
-	assocpeer_calls, init_peer_starttime): Likewise. 
+	assocpeer_calls, init_peer_starttime): Likewise.
 	* ntpd/ntp_proto.c (sys_offset, sys_authdly): Likewise.
 	* ntpd/ntp_request.c (numrequests, numresppkts, errorcounter):
-	Likewise. 
+	Likewise.
 	* ntpd/ntp_restrict.c (res_calls, res_found, res_not_found,
-	res_timereset, res_limited_refcnt): Likewise. 
+	res_timereset, res_limited_refcnt): Likewise.
 	* ntpd/ntpd.c (was_alarmed, worker_thread): Likewise.
 
 	* ntpq/ntpq_ops.c: Moved declaration of external variable from
@@ -1753,7 +4550,7 @@ Sat May 15 18:53:47 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 Fri May 14 23:58:35 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.92h2
-	
+
 	* configure.in (ac_cv_make_ntptime): Not under Linux.  Yes, it
 	works for some people.  We're tired of the complaints from the
 	others.
@@ -1769,11 +4566,11 @@ Wed May 12 23:02:22 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	* libntp/authkeys.c (auth_delkeys): Don't remove autokey keys,
 	leave info on KEY_TRUSTED flag alone.
 	Include ntp.h for NTP_MAXKEY definition.
-	
+
 Thu May 13 02:19:02 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.92h1
-	
+
 	* configure.in: patch for ReliantUNIX
  	From: Andrej Borsenkow <borsenkow.msk@sni.de>
 
@@ -1877,7 +4674,7 @@ Sat Apr 24 01:00:53 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* html/accopt.htm, html/assoc.htm, html/authopt.htm,
 	html/biblio.htm, html/build.htm, html/clockopt.htm,
-	html/confopt.htm, html/copyright.htm, html/debug.htm, 
+	html/confopt.htm, html/copyright.htm, html/debug.htm,
 	html/exec.htm, html/extern.htm, html/hints.htm, html/index.htm,
 	html/kern.htm, html/miscopt.htm, html/monopt.htm, html/notes.htm,
 	html/ntpd.htm, html/ntpdate.htm, html/ntpdc.htm, html/ntpq.htm,
@@ -1907,7 +4704,7 @@ Sat Apr 24 01:00:53 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 	* ntpdc/ntpdc_ops.c: (kerninfo)  Report in seconds regardless of
 	kernel precision.  Report kernel flags as text.
 	From: Poul-Henning Kamp <phk@critter.freebsd.dk>
-	
+
 Sun Apr 18 14:26:51 1999  Harlan Stenn  <stenn@whimsy.udel.edu>
 
 	* configure.in: 4.0.92g

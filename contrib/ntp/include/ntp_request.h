@@ -111,6 +111,10 @@
 /*
  * A request packet.  These are almost a fixed length.
  */
+
+#define MAXFILENAME	128		/* max key file name length */
+					/* NOTE: also in ntp.h */
+
 struct req_pkt {
 	u_char rm_vn_mode;		/* response, more, version, mode */
 	u_char auth_seq;		/* key, sequence number */
@@ -118,9 +122,9 @@ struct req_pkt {
 	u_char request;			/* request number */
 	u_short err_nitems;		/* error code/number of data items */
 	u_short mbz_itemsize;		/* item size */
-	char data[32];			/* data area */
+	char data[MAXFILENAME + 16];	/* data area [32 prev](144 byte max) */
 	l_fp tstamp;			/* time stamp, for authentication */
-	u_int32 keyid;			/* encryption key */
+	keyid_t keyid;			/* encryption key */
 	char mac[MAX_MAC_LEN-sizeof(u_int32)]; /* (optional) 8 byte auth code */
 };
 
@@ -257,7 +261,8 @@ struct resp_pkt {
 #define REQ_GET_KERNEL		38	/* get kernel pll/pps information */
 #define	REQ_GET_CLKBUGINFO	39	/* get clock debugging info */
 #define	REQ_SET_PRECISION	41	/* (not used) */
-#define	REQ_MON_GETLIST_1	42	/* return data collected by monitor v1 */
+#define	REQ_MON_GETLIST_1	42	/* return collected v1 monitor data */
+#define	REQ_HOSTNAME_ASSOCID	43	/* Here is a hostname + assoc_id */
 
 /*
  * Flags in the peer information returns
@@ -286,6 +291,7 @@ struct resp_pkt {
 /*
  * Peer list structure.  Used to return raw lists of peers.  It goes
  * without saying that everything returned is in network byte order.
+ * Well, it *would* have gone without saying, but somebody said it.
  */
 struct info_peer_list {
 	u_int32 address;	/* address of peer */
@@ -330,14 +336,14 @@ struct info_peer {
 	u_char hpoll;		/* peer.hpoll */
 	s_char precision;	/* peer.precision */
 	u_char version;		/* peer.version */
-	u_char valid;		/* peer.valid */
+	u_char unused8;
 	u_char reach;		/* peer.reach */
 	u_char unreach;		/* peer.unreach */
 	u_char flash;		/* old peer.flash */
 	u_char ttl;		/* peer.ttl */
 	u_short flash2;		/* new peer.flash */
-	u_short associd;	/* association ID */
-	u_int32 keyid;		/* peer.keyid */
+	associd_t associd;	/* association ID */
+	keyid_t keyid;		/* peer.keyid */
 	u_int32 pkeyid;		/* unused */
 	u_int32 refid;		/* peer.refid */
 	u_int32 timer;		/* peer.timer */
@@ -524,14 +530,16 @@ struct conf_peer {
 	u_char flags;		/* flags for this request */
 	u_char ttl;		/* time to live (multicast) or refclock mode */
 	u_short unused;		/* unused */
-	u_int32 keyid;		/* key to use for this association */
+	keyid_t keyid;		/* key to use for this association */
+	char keystr[MAXFILENAME]; /* public key file name*/
 };
 
-#define	CONF_FLAG_AUTHENABLE	0x1
-#define CONF_FLAG_PREFER	0x2
-#define CONF_FLAG_BURST		0x4
-#define CONF_FLAG_NOSELECT	0x8
-#define CONF_FLAG_SKEY		0x10
+#define	CONF_FLAG_AUTHENABLE	0x01
+#define CONF_FLAG_PREFER	0x02
+#define CONF_FLAG_BURST		0x04
+#define CONF_FLAG_IBURST	0x08
+#define CONF_FLAG_NOSELECT	0x10
+#define CONF_FLAG_SKEY		0x20
 
 /*
  * Structure for passing peer deletion information.  Currently
@@ -553,7 +561,7 @@ struct conf_sys_flags {
  * System flags we can set/clear
  */
 #define	SYS_FLAG_BCLIENT	0x1
-#define	SYS_FLAG_AUTHENTICATE	0x2
+#define	SYS_FLAG_PPS		0x2
 #define SYS_FLAG_NTP		0x4
 #define SYS_FLAG_KERNEL		0x8
 #define SYS_FLAG_MONITOR	0x10
@@ -787,4 +795,15 @@ struct info_kernel {
 	int32 calcnt;
 	int32 errcnt;
 	int32 stbcnt;
+};
+
+/*
+ * Info returned with IP -> hostname lookup
+ */
+/* 144 might need to become 32, matching data[] member of req_pkt */
+#define NTP_MAXHOSTNAME (32 - sizeof(u_int32) - sizeof(u_short))
+struct info_dns_assoc {
+	u_int32 peeraddr;	/* peer address (HMS: being careful...) */
+	associd_t associd;	/* association ID */
+	char hostname[NTP_MAXHOSTNAME];	/* hostname */
 };

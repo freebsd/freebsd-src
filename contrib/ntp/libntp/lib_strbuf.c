@@ -2,6 +2,7 @@
  * lib_strbuf - library string storage
  */
 
+#include "ntp_stdlib.h"
 #include "lib_strbuf.h"
 
 /*
