@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.23 1995/05/23 02:41:15 jkh Exp $
+ * $Id: msg.c,v 1.24 1995/05/24 09:00:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,8 @@
 
 #include "sysinstall.h"
 #include <stdarg.h>
+#include <sys/ioctl.h>
+#include <machine/console.h>
 
 #define VTY_STATLINE	24
 #define TTY_STATLINE	23
@@ -205,7 +207,7 @@ msgConfirm(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("User confirmation requested (type ALT-F1)\n");
+	ioctl(0, VT_RELDISP, 0);	/* Switch back */
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
@@ -251,7 +253,7 @@ msgYesNo(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("User decision requested (type ALT-F1)\n");
+	ioctl(0, VT_RELDISP, 0);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
@@ -284,7 +286,7 @@ msgGetInput(char *buf, char *fmt, ...)
 	input_buffer[0] = '\0';
     w = dupwin(newscr);
     if (OnVTY) {
-	msgDebug("User input requested (type ALT-F1)\n");
+	ioctl(0, VT_RELDISP, 0);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
