@@ -403,12 +403,12 @@ nohost:
     }
     
     DEBUG(fprintf(stderr,
-		  "scheme:   [\033[1m%s\033[m]\n"
-		  "user:     [\033[1m%s\033[m]\n"
-		  "password: [\033[1m%s\033[m]\n"
-		  "host:     [\033[1m%s\033[m]\n"
-		  "port:     [\033[1m%d\033[m]\n"
-		  "document: [\033[1m%s\033[m]\n",
+		  "scheme:   [%s]\n"
+		  "user:     [%s]\n"
+		  "password: [%s]\n"
+		  "host:     [%s]\n"
+		  "port:     [%d]\n"
+		  "document: [%s]\n",
 		  u->scheme, u->user, u->pwd,
 		  u->host, u->port, u->doc));
     

@@ -146,11 +146,11 @@ _http_new_chunk(struct cookie *c)
     if (fetchDebug) {
 	c->total += c->chunksize;
 	if (c->chunksize == 0)
-	    fprintf(stderr, "\033[1m_http_fillbuf(): "
-		    "end of last chunk\033[m\n");
+	    fprintf(stderr, "_http_fillbuf(): "
+		    "end of last chunk\n");
 	else
-	    fprintf(stderr, "\033[1m_http_fillbuf(): "
-		    "new chunk: %lu (%lu)\033[m\n",
+	    fprintf(stderr, "_http_fillbuf(): "
+		    "new chunk: %lu (%lu)\n",
 		    (unsigned long)c->chunksize, (unsigned long)c->total);
     }
 #endif
@@ -447,8 +447,8 @@ _http_parse_mtime(const char *p, time_t *mtime)
     setlocale(LC_TIME, locale);
     if (r == NULL)
 	return -1;
-    DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
-		  "%02d:%02d:%02d\033[m]\n",
+    DEBUG(fprintf(stderr, "last modified: [%04d-%02d-%02d "
+		  "%02d:%02d:%02d]\n",
 		  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		  tm.tm_hour, tm.tm_min, tm.tm_sec));
     *mtime = timegm(&tm);
@@ -467,7 +467,7 @@ _http_parse_length(const char *p, off_t *length)
 	len = len * 10 + (*p - '0');
     if (*p)
 	return -1;
-    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n",
+    DEBUG(fprintf(stderr, "content length: [%lld]\n",
 		  (long long)len));
     *length = len;
     return 0;
@@ -495,7 +495,7 @@ _http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 	len = len * 10 + *p - '0';
     if (*p || len < last - first + 1)
 	return -1;
-    DEBUG(fprintf(stderr, "content range: [\033[1m%lld-%lld/%lld\033[m]\n",
+    DEBUG(fprintf(stderr, "content range: [%lld-%lld/%lld]\n",
 		  (long long)first, (long long)last, (long long)len));
     *offset = first;
     *length = last - first + 1;
@@ -573,8 +573,8 @@ _http_basic_auth(int fd, const char *hdr, const char *usr, const char *pwd)
     char *upw, *auth;
     int r;
 
-    DEBUG(fprintf(stderr, "usr: [\033[1m%s\033[m]\n", usr));
-    DEBUG(fprintf(stderr, "pwd: [\033[1m%s\033[m]\n", pwd));
+    DEBUG(fprintf(stderr, "usr: [%s]\n", usr));
+    DEBUG(fprintf(stderr, "pwd: [%s]\n", pwd));
     if (asprintf(&upw, "%s:%s", usr, pwd) == -1)
 	return -1;
     auth = _http_base64(upw);
