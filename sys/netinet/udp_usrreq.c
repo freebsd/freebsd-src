@@ -36,6 +36,7 @@
 
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -43,6 +44,7 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -166,6 +168,9 @@ udp_input(m, off)
 	int len;
 	struct ip save_ip;
 	struct sockaddr *append_sa;
+#ifdef MAC
+	int error;
+#endif
 
 	udpstat.udps_ipackets++;
 
@@ -303,18 +308,29 @@ udp_input(m, off)
 
 			if (last != NULL) {
 				struct mbuf *n;
+				int policyfail;
 
+				policyfail = 0;
 #ifdef IPSEC
 				/* check AH/ESP integrity. */
-				if (ipsec4_in_reject_so(m, last->inp_socket))
+				if (ipsec4_in_reject_so(m, last->inp_socket)) {
 					ipsecstat.in_polvio++;
+					policyfail = 1;
 					/* do not inject data to pcb */
-				else
+				}
 #endif /*IPSEC*/
-				if ((n = m_copy(m, 0, M_COPYALL)) != NULL)
-					udp_append(last, ip, n,
+#ifdef MAC
+				if (mac_check_socket_receive(last->inp_socket,
+				    m) != 0)
+					policyfail = 1;
+#endif
+				if (!policyfail) {
+					if ((n = m_copy(m, 0, M_COPYALL))
+					    != NULL)
+						udp_append(last, ip, n,
 						   iphlen +
 						   sizeof(struct udphdr));
+				}
 				INP_UNLOCK(last);
 			}
 			last = inp;
@@ -389,6 +405,11 @@ udp_input(m, off)
 		goto bad;
 	}
 #endif /*IPSEC*/
+#ifdef MAC
+	error = mac_check_socket_receive(inp->inp_socket, m);
+	if (error)
+		goto bad;
+#endif
 
 	/*
 	 * Construct sockaddr format source address.
@@ -717,6 +738,10 @@ udp_output(inp, m, addr, control, td)
 	struct in_addr laddr;
 	struct sockaddr_in *sin;
 	int s = 0, error = 0;
+
+#ifdef MAC
+	mac_create_mbuf_from_socket(inp->inp_socket, m);
+#endif
 
 	if (control)
 		m_freem(control);		/* XXX */
