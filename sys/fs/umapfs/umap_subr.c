@@ -38,6 +38,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -77,7 +79,7 @@ umapfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("umapfs_init\n");		/* printed during system boot */
 #endif
 	umap_node_hashtbl = hashinit(NUMAPNODECACHE, M_CACHE, &umap_node_hash);
@@ -145,8 +147,9 @@ umap_node_find(mp, targetvp)
 	struct umap_node *a;
 	struct vnode *vp;
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umap_node_find(mp = %x, target = %x)\n", mp, targetvp);
+#ifdef DEBUG
+	printf("umap_node_find(mp = %p, target = %p)\n",
+	    (void *)mp, (void *)targetvp);
 #endif
 
 	/*
@@ -167,7 +170,7 @@ loop:
 			 * the lower node.
 			 */
 			if (vget(vp, 0, p)) {
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 				printf ("umap_node_find: vget failed.\n");
 #endif
 				goto loop;
@@ -176,8 +179,9 @@ loop:
 		}
 	}
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umap_node_find(%x, %x): NOT found\n", mp, targetvp);
+#ifdef DEBUG
+	printf("umap_node_find(%p, %p): NOT found\n",
+	    (void *)mp, (void *)targetvp);
 #endif
 
 	return (0);
@@ -258,7 +262,7 @@ umap_node_create(mp, targetvp, newvpp)
 		/*
 		 * Take another reference to the alias vnode
 		 */
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 		vprint("umap_node_create: exists", aliasvp);
 #endif
 		/* VREF(aliasvp); */
@@ -268,7 +272,7 @@ umap_node_create(mp, targetvp, newvpp)
 		/*
 		 * Get new vnode.
 		 */
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("umap_node_create: create new alias vnode\n");
 #endif
 		/*
@@ -285,7 +289,7 @@ umap_node_create(mp, targetvp, newvpp)
 
 	vrele(targetvp);
 
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("umap_node_create: alias", aliasvp);
 	vprint("umap_node_create: target", targetvp);
 #endif
@@ -294,7 +298,7 @@ umap_node_create(mp, targetvp, newvpp)
 	return (0);
 }
 
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DDB
 int umap_checkvp_barrier = 1;
 struct vnode *
 umap_checkvp(vp, fil, lno)
@@ -317,9 +321,9 @@ umap_checkvp(vp, fil, lno)
 	if (a->umap_lowervp == NULL) {
 		/* Should never happen */
 		int i; u_long *p;
-		printf("vp = %x, ZERO ptr\n", vp);
+		printf("vp = %p, ZERO ptr\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %x", p[i]);
+			printf(" %p", (void *)p[i]);
 		printf("\n");
 		/* wait for debugger */
 		while (umap_checkvp_barrier) /*WAIT*/ ;
@@ -327,9 +331,9 @@ umap_checkvp(vp, fil, lno)
 	}
 	if (a->umap_lowervp->v_usecount < 1) {
 		int i; u_long *p;
-		printf("vp = %x, unref'ed lowervp\n", vp);
+		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %x", p[i]);
+			printf(" %p", (void *)p[i]);
 		printf("\n");
 		/* wait for debugger */
 		while (umap_checkvp_barrier) /*WAIT*/ ;
@@ -343,7 +347,7 @@ umap_checkvp(vp, fil, lno)
 #endif
 	return (a->umap_lowervp);
 }
-#endif
+#endif /* DDB */
 
 /* umap_mapids maps all of the ids in a credential, both user and group. */
 
