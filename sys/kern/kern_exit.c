@@ -339,6 +339,7 @@ exit1(p, rv)
 	if (p->p_pptr->p_procsig->ps_flag & PS_NOCLDWAIT) {
 		struct proc *pp = p->p_pptr;
 		proc_reparent(p, initproc);
+		p->p_sigparent = SIGCHLD;
 		/*
 		 * If this was the last child of our parent, notify
 		 * parent, so in case he was wait(2)ing, he will

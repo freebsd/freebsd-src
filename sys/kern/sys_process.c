@@ -433,6 +433,8 @@ kern_ptrace(struct proc *curp, int req, pid_t pid, void *addr, int data)
 
 				pp = pfind(p->p_oppid);
 				proc_reparent(p, pp ? pp : initproc);
+				if (pp == NULL)
+					p->p_sigparent = SIGCHLD;
 			}
 
 			p->p_flag &= ~(P_TRACED | P_WAITED);
