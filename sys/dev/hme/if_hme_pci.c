@@ -310,9 +310,14 @@ hme_pci_attach(device_t dev)
 	 * all-zero "checksum" byte. Sun calls this a "Fresh Choice
 	 * Ethernet" VPD...
 	 */
-	bus_space_read_region_1(romt, romh,
-	    vpdoff + slot * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN),
-	    buf, sizeof(buf));
+	/* Look at the end tag to determine whether this is a VPD with 4 NAs. */
+	if (bus_space_read_1(romt, romh,
+	    vpdoff + 3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN) != 0x79 &&
+	    bus_space_read_1(romt, romh,
+	    vpdoff + 4 * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN)) == 0x79)
+		/* Use the Nth NA for the Nth HME on this SUNW,qfe. */
+		vpdoff += slot * (3 + sizeof(struct pci_vpd) + ETHER_ADDR_LEN);
+	bus_space_read_region_1(romt, romh, vpdoff, buf, sizeof(buf));
 	vpd = (void *)(buf + 3);
 	if (PCI_VPDRES_ISLARGE(buf[0]) == 0 ||
 	    PCI_VPDRES_LARGE_NAME(buf[0]) != PCI_VPDRES_TYPE_VPD ||
@@ -321,11 +326,6 @@ hme_pci_attach(device_t dev)
 	    vpd->vpd_key1 != 0x41 /* A */ ||
 	    vpd->vpd_len != ETHER_ADDR_LEN) {
 		device_printf(dev, "unexpected PCI VPD\n");
-		error = ENXIO;
-		goto fail_rres;
-	}
-	if (buf + 3 + sizeof(struct pci_vpd) == NULL) {
-		device_printf(dev, "could not read network address\n");
 		error = ENXIO;
 		goto fail_rres;
 	}
