@@ -619,8 +619,11 @@ ata_generic_reset(struct ata_channel *ch)
 		(stat1 == err && lsb == err && msb == err && timeout > 5))
 		mask &= ~0x02;
 	}
+	if (mask == 0 && !(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
+	    break;
+
 	ata_udelay(100000);
-    }	
+    }
 
     if (bootverbose)
 	ata_printf(ch, -1,
