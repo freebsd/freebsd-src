@@ -54,18 +54,20 @@
  */
 
 /* iommmu registers */
-struct iommureg {
-	u_int64_t	iommu_cr;	/* IOMMU control register */
-	u_int64_t	iommu_tsb;	/* IOMMU TSB base register */
-	u_int64_t	iommu_flush;	/* IOMMU flush register */
-};
+#define	IMR_CTL		0x0000	/* IOMMU control register */
+#define	IMR_TSB		0x0008	/* IOMMU TSB base register */
+#define	IMR_FLUSH	0x0010	/* IOMMU flush register */
 
 /* streaming buffer registers */
-struct iommu_strbuf {
-	u_int64_t	strbuf_ctl;	/* streaming buffer control reg */
-	u_int64_t	strbuf_pgflush;	/* streaming buffer page flush */
-	u_int64_t	strbuf_flushsync;/* streaming buffer flush sync */
-};
+#define	ISR_CTL		0x0000	/* streaming buffer control reg */
+#define	ISR_PGFLUSH	0x0008	/* streaming buffer page flush */
+#define	ISR_FLUSHSYNC	0x0010	/* streaming buffer flush sync */
+
+/* streaming buffer diagnostics registers. */
+#define	ISD_DATA_DIAG	0x0000	/* streaming buffer data RAM diag 0..127 */
+#define	ISD_ERROR_DIAG	0x0400	/* streaming buffer error status diag 0..127 */
+#define	ISD_PG_TAG_DIAG	0x0800	/* streaming buffer page tag diag 0..15 */
+#define	ISD_LN_TAG_DIAG	0x0900	/* streaming buffer line tag diag 0..15 */
 
 /* streaming buffer control register */
 #define STRBUF_EN		0x0000000000000001UL
@@ -78,6 +80,7 @@ struct iommu_strbuf {
  * control register bits
  */
 /* Nummber of entries in IOTSB */
+#define	IOMMUCR_TSBSZ_SHIFT	16
 #define IOMMUCR_TSB1K		0x0000000000000000UL
 #define IOMMUCR_TSB2K		0x0000000000010000UL
 #define IOMMUCR_TSB4K		0x0000000000020000UL
@@ -116,6 +119,15 @@ struct iommu_strbuf {
 /* Writeable */
 #define IOTTE_W			0x0000000000000002UL
 
+/* log2 of the IOMMU TTE size. */
+#define	IOTTE_SHIFT		3
+
+/*
+ * Number of bytes written by a stream buffer flushsync operation to indicate
+ * completion.
+ */
+#define	STRBUF_FLUSHSYNC_NBYTES	64
+
 /*
  * On sun4u each bus controller has a separate IOMMU.  The IOMMU has 
  * a TSB which must be page aligned and physically contiguous.  Mappings
@@ -143,7 +155,7 @@ struct iommu_strbuf {
  *
  */
 
-#define IOTSB_VEND		(~PAGE_MASK)
+#define IOTSB_VEND		(~IO_PAGE_MASK)
 #define IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10)) 
 
 #define MAKEIOTTE(pa,w,c,s)						\
@@ -151,6 +163,6 @@ struct iommu_strbuf {
 	((c) ? IOTTE_C : 0) | ((s) ? IOTTE_STREAM : 0) |		\
 	(IOTTE_V | IOTTE_8K))
 #define IOTSBSLOT(va,sz)						\
-	((u_int)(((vm_offset_t)(va)) - (is->is_dvmabase)) >> PAGE_SHIFT)
+	((u_int)(((vm_offset_t)(va)) - (is->is_dvmabase)) >> IO_PAGE_SHIFT)
 
 #endif /* !_MACHINE_IOMMUREG_H_ */
