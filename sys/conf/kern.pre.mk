@@ -17,12 +17,17 @@ OBJCOPY?=	objcopy
 SIZE?=		size
 
 .if ${CC} == "icc"
-COPTFLAGS?=-O
+COPTFLAGS?=	-O
 .else
+. if defined(DEBUG)
+_MINUS_O=	-O
+. else
+_MINUS_O=	-O2
+. endif
 . if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
 . else
-COPTFLAGS?=-O -pipe
+COPTFLAGS?=${_MINUS_O} -pipe
 . endif
 . if ${COPTFLAGS:M-O[23s]} != ""
 COPTFLAGS+= -fno-strict-aliasing
