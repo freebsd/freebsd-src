@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.40 1998/06/21 14:53:25 bde Exp $
+ * $Id: if_spppsubr.c,v 1.41 1998/08/15 21:58:09 bde Exp $
  */
 
 #include "opt_inet.h"
@@ -1448,7 +1448,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		/* Unknown packet type -- send Code-Reject packet. */
 	  illegal:
 		if (debug)
-			addlog("%s%d: %c send code-rej for 0x%x\n",
+			addlog("%s%d: %s send code-rej for 0x%x\n",
 			       ifp->if_name, ifp->if_unit, cp->name, h->type);
 		sppp_cp_send(sp, cp->proto, CODE_REJ, ++sp->pp_seq,
 			     m->m_pkthdr.len, h);
@@ -1908,7 +1908,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				(u_long)p[3] << 16 | p[4] << 8 | p[5];
 			if (nmagic != sp->lcp.magic) {
 				if (debug)
-					addlog("0x%x ", nmagic);
+					addlog("0x%lx ", nmagic);
 				continue;
 			}
 			/*
@@ -1961,7 +1961,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			 */
 			sp->lcp.their_mru = p[2] * 256 + p[3];
 			if (debug)
-				addlog("%d ", sp->lcp.their_mru);
+				addlog("%lu ", sp->lcp.their_mru);
 			continue;
 
 		case LCP_OPT_AUTH_PROTO:
@@ -2121,7 +2121,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				} else {
 					sp->lcp.magic = magic;
 					if (debug)
-						addlog("%d ");
+						addlog("magic %lu ", magic);
 				}
 			}
 			break;
@@ -2983,6 +2983,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 				log(LOG_DEBUG,
 				    "%s%d: chap dropping response for old ID "
 				    "(got %d, expected %d)\n",
+				    ifp->if_name, ifp->if_unit,
 				    h->ident, sp->confid[IDX_CHAP]);
 			break;
 		}
@@ -4044,10 +4045,10 @@ sppp_dotted_quad(u_long addr)
 {
 	static char s[16];
 	sprintf(s, "%d.%d.%d.%d",
-		(addr >> 24) & 0xff,
-		(addr >> 16) & 0xff,
-		(addr >> 8) & 0xff,
-		addr & 0xff);
+		(int)(addr >> 24) & 0xff,
+		(int)(addr >> 16) & 0xff,
+		(int)(addr >> 8) & 0xff,
+		(int)(addr & 0xff));
 	return s;
 }
 
