@@ -27,11 +27,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.25 1996/10/06 03:19:26 steve Exp $
+ *	$Id: crt0.c,v 1.25.2.1 1997/05/25 20:23:59 jdp Exp $
  */
 
 #include <sys/param.h>
+
 #include <stdlib.h>
+#include <dlfcn.h>
 
 #ifdef DYNAMIC
 #include <sys/types.h>
@@ -383,7 +385,47 @@ _getenv(name)
 	asm("		movl	$-1,%eax");
 	asm("		ret");
 
+#else /* DYNAMIC */
+
+/*
+ * DL stubs for static linking case (just return error)
+ */
+
+void *
+dlopen(name, mode)
+char	*name;
+int	mode;
+{
+	return NULL;
+}
+
+int
+dlclose(fd)
+void	*fd;
+{
+	return -1;
+}
+
+void *
+dlsym(fd, name)
+void	*fd;
+char	*name;
+{
+	return NULL;
+}
+
+
+char *
+dlerror()
+{
+	return "Service unavailable";
+}
 #endif /* DYNAMIC */
+
+
+/*
+ * Support routines
+ */
 
 #ifdef MCRT0
 asm ("	.text");
