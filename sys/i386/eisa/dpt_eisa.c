@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: dpt_eisa.c,v 1.1 1998/03/11 00:30:12 julian Exp $
+ * $Id: dpt_eisa.c,v 1.2 1998/05/17 20:31:50 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -91,7 +91,7 @@ dpt_eisa_probe(void)
 	dpt_softc_t		*dpt;
         int			count = 0;
 
-	if ( !already_announced ) {
+	if ( bootverbose && !already_announced ) {
 		printf("DPT:  EISA SCSI HBA Driver, version %d.%d.%d\n",
 			DPT_RELEASE, DPT_VERSION, DPT_PATCH);
 		++already_announced;
