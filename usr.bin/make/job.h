@@ -226,6 +226,8 @@ extern Lst  	stoppedJobs;	/* List of jobs that are stopped or didn't
 extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
 #endif
 
+extern int	maxJobs;	/* Number of jobs that may run */
+
 
 void Job_Touch(GNode *, Boolean);
 Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
