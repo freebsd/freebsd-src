@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_buffer.c,v 1.1 1998/09/15 08:22:53 phk Exp $
+ *	@(#) $Id: eni_buffer.c,v 1.2 1998/10/31 20:06:45 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: eni_buffer.c,v 1.1 1998/09/15 08:22:53 phk Exp $");
+__RCSID("@(#) $Id: eni_buffer.c,v 1.2 1998/10/31 20:06:45 phk Exp $");
 #endif
 
 static int	eni_test_memory __P((Eni_unit *));
@@ -64,7 +64,7 @@ static int	eni_test_memory __P((Eni_unit *));
  * the Efficient adapter with different memory sizes, this allows
  * us to fool an adapter with more memory into thinking it has less.
  */
-int	eni_mem_max = MAX_ENI_MEM;	/* Default to all available memory */
+static int	eni_mem_max = MAX_ENI_MEM;	/* Default to all available memory */
 
 /*
  * Size and test adapter RAM

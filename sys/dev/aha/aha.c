@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.19 1999/01/20 06:21:26 imp Exp $
+ *      $Id: aha.c,v 1.20 1999/03/02 20:56:07 imp Exp $
  */
 
 #include "pnp.h"
@@ -185,7 +185,7 @@ u_long aha_unit = 0;
  * manager can do it for us.  This ensures that we don't
  * reprobe a card already found by the EISA or PCI probes.
  */
-struct aha_isa_port aha_isa_ports[] =
+static struct aha_isa_port aha_isa_ports[] =
 {
 	{ 0x130, 0, 4 },
 	{ 0x134, 0, 5 },
@@ -199,7 +199,7 @@ struct aha_isa_port aha_isa_ports[] =
  * I/O ports listed in the order enumerated by the
  * card for certain op codes.
  */
-u_int16_t aha_board_ports[] =
+static u_int16_t aha_board_ports[] =
 {
 	0x330,
 	0x334,
@@ -1841,7 +1841,7 @@ ahapoll(struct cam_sim *sim)
 	aha_intr(cam_sim_softc(sim));
 }
 
-void
+static void
 ahatimeout(void *arg)
 {
 	struct aha_ccb	*accb;

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.9 1998/10/29 17:41:34 gibbs Exp $
+ *      $Id: advlib.c,v 1.10 1998/12/07 21:58:15 archie Exp $
  */
 /*
  * Ported from:
@@ -122,7 +122,7 @@ static struct adv_quirk_entry adv_quirk_table[] =
 /*
  * Allowable periods in ns
  */
-u_int8_t adv_sdtr_period_tbl[] =
+static u_int8_t adv_sdtr_period_tbl[] =
 {
 	25,
 	30,
@@ -134,7 +134,7 @@ u_int8_t adv_sdtr_period_tbl[] =
 	85
 };
 
-u_int8_t adv_sdtr_period_tbl_ultra[] =
+static u_int8_t adv_sdtr_period_tbl_ultra[] =
 {
 	12,
 	19,
