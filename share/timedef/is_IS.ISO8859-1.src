@@ -1,0 +1,78 @@
+# $Id: en_GB.ISO_8859-1.src,v 1.1 1996/11/30 05:35:49 ache Exp $
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+jan
+feb
+mar
+apr
+maí
+jún
+júl
+ágú
+sep
+okt
+nóv
+des
+#
+# Long month names
+#
+janúar
+febrúar
+mars
+apríl
+maí
+júní
+júlí
+ágúst
+september
+október
+nóvember
+desember
+#
+# Short weekday names
+#
+sun
+mán
+þri
+mið
+fim
+fös
+lau
+#
+# Long weekday names
+#
+sunnudagur
+mánudagur
+þriðjudagur
+miðvikudagur
+fimmtudagur
+föstudagur
+laugardagur
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d.%m.%y
+#
+# c_fmt
+#
+%a %b %e %X %Y
+#
+# am
+#
+fh
+#
+# pm
+#
+eh
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
