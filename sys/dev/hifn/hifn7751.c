@@ -2203,7 +2203,7 @@ hifn_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *c;
 	struct hifn_softc *sc = arg;
 	int mac = 0, cry = 0, sesn;
-	struct hifn_session *ses = NULL
+	struct hifn_session *ses = NULL;
 
 	KASSERT(sc != NULL, ("hifn_newsession: null softc"));
 	if (sidp == NULL || cri == NULL || sc == NULL)
