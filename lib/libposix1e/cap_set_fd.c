@@ -32,12 +32,9 @@
 #include <sys/types.h>
 #include <sys/capability.h>
 
-#include <sys/errno.h>
-
 int
 cap_set_fd(int fd, cap_t cap_p)
 {
-	int	error;
 
 	return (__cap_set_fd(fd, cap_p));
 }

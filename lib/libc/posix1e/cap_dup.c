@@ -32,7 +32,7 @@
 #include <sys/types.h>
 #include <sys/capability.h>
 
-#include <stdlib.h>
+#include <string.h>
 
 cap_t
 cap_dup(cap_t cap_p)

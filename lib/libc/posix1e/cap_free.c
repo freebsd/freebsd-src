@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/capability.h>
 
+#include <stdlib.h>
+
 int
 cap_free(void *obj_d)
 {
