@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.124 1999/04/14 16:17:52 des Exp $
+#	$Id: Makefile,v 1.125 1999/04/15 13:42:48 des Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -41,7 +41,6 @@ SUBDIR=	apply \
 	env \
 	error \
 	expand \
-	f2c \
 	false \
 	fetch \
 	file \
