@@ -266,6 +266,8 @@ struct pcic_pci_table
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
 	{ PCIC_ID_RICOH_RL5C478, "Ricoh RL5C478 PCI-CardBus Bridge",
 	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_ricoh_chip },
+	{ PCIC_ID_SMC_34C90, "SMC 34C90 PCI-CardBus Bridge",
+	  PCIC_RF5C296, PCIC_CARDBUS_POWER, &pcic_pci_generic_chip },
 	{ PCIC_ID_TI1031, "TI PCI-1031 PCI-PCMCIA Bridge",
 	  PCIC_I82365SL_DF, PCIC_CARDBUS_POWER, &pcic_pci_ti113x_chip },
 	{ PCIC_ID_TI1130, "TI PCI-1130 PCI-CardBus Bridge",
@@ -1394,7 +1396,8 @@ pcic_pci_get_memory(device_t dev)
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sockbase = pci_read_config(dev, sc->memrid, 4);
 	if (sockbase >= 0x100000 && sockbase < 0xfffffff0) {
-		device_printf(dev, "Could not map register memory\n");
+		device_printf(dev, "Could not map register memory 0x%x\n",
+		  sockbase);
 		return (ENOMEM);
 	}
 	pci_write_config(dev, sc->memrid, 0xffffffff, 4);
