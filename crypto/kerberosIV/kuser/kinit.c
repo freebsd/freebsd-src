@@ -15,11 +15,13 @@
  *   -v[erbose]
  *   -l[ifetime]
  *   -p
+ *
+ * $FreeBSD$
  */
 
 #include "kuser_locl.h"
 
-RCSID("$Id$");
+RCSID("$Id: kinit.c,v 1.17 1997/12/12 04:48:44 assar Exp $");
 
 #define	LIFE	DEFAULT_TKT_LIFE /* lifetime of ticket in 5-minute units */
 #define CHPASSLIFE 2
@@ -60,7 +62,6 @@ main(int argc, char **argv)
     *inst = *realm = '\0';
     iflag = rflag = vflag = lflag = pflag = 0;
     lifetime = LIFE;
-    set_progname(argv[0]);
 
     while (--argc) {
 	if ((*++argv)[0] != '-') {
@@ -97,8 +98,8 @@ main(int argc, char **argv)
 	iflag = rflag = 1;
 	username = NULL;
     }
-    if (k_gethostname(buf, MaxHostNameLen)) 
-	err(1, "k_gethostname failed");
+    if (gethostname(buf, MaxHostNameLen)) 
+	err(1, "gethostname failed");
     printf("%s (%s)\n", ORGANIZATION, buf);
     if (username) {
 	printf("Kerberos Initialization for \"%s", aname);
@@ -108,41 +109,13 @@ main(int argc, char **argv)
 	    printf("@%s", realm);
 	printf("\"\n");
     } else {
-	if (iflag) {
-		printf("Kerberos Initialization\n");
-		printf("Kerberos name: ");
-		get_input(name, sizeof(name), stdin);
-		if (!*name)
-		    return 0;
-		if ((k_errno = kname_parse(aname, inst, realm, name)) 
-			!= KSUCCESS )
-			errx(1, "%s", krb_get_err_text(k_errno));
-	} else {
-	    int uid = getuid();
-	    char *getenv();
-	    struct passwd *pwd;
-
-	    /* default to current user name unless running as root */
-	    if (uid == 0 && (username = getenv("USER")) &&
-	        strcmp(username, "root") != 0) {
-	    	    strncpy(aname, username, sizeof(aname));
-		    strncpy(inst, "root", sizeof(inst));
-	    } else {
-		    pwd = getpwuid(uid);
-
-		    if (pwd == (struct passwd *) NULL) {
-			fprintf(stderr, "Unknown name for your uid\n");
-			printf("Kerberos name: ");
-			get_input(aname, sizeof(aname), stdin);
-		    } else
-			strncpy(aname, pwd->pw_name, sizeof(aname));
-	    }
-	    if (!*aname)
-	        return 0;
-	    if (!k_isname(aname)) {
-	        errx(1, "%s", "bad Kerberos name format");
-	    }
-	}
+	printf("Kerberos Initialization\n");
+	printf("Kerberos name: ");
+	get_input(name, sizeof(name), stdin);
+	if (!*name)
+	    return 0;
+	if ((k_errno = kname_parse(aname, inst, realm, name)) != KSUCCESS )
+	    errx(1, "%s", krb_get_err_text(k_errno));
     }
     /* optional instance */
     if (iflag) {
@@ -179,7 +152,6 @@ main(int argc, char **argv)
 				lifetime, 0);
     if (vflag) {
 	printf("Kerberos realm %s:\n", realm);
-	printf("Ticket file: %s\n", tkt_string());
 	printf("%s\n", krb_get_err_text(k_errno));
     } else if (k_errno)
 	errx(1, "%s", krb_get_err_text(k_errno));
