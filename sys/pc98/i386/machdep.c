@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.55 1997/09/03 12:41:15 kato Exp $
+ *	$Id: machdep.c,v 1.56 1997/09/05 10:14:36 kato Exp $
  */
 
 #include "apm.h"
@@ -249,6 +249,15 @@ cpu_startup(dummy)
 	setup_netisrs(&netisr_set);
 
 	/*
+	 * Calculate callout wheel size
+	 */
+	for (callwheelsize = 1, callwheelbits = 0;
+	     callwheelsize < ncallout;
+	     callwheelsize <<= 1, ++callwheelbits)
+		;
+	callwheelmask = callwheelsize - 1;
+
+	/*
 	 * Allocate space for system data structures.
 	 * The first available kernel virtual address is in "v".
 	 * As pages of kernel virtual memory are allocated, "v" is incremented.
@@ -272,6 +281,7 @@ again:
 #define	valloclim(name, type, num, lim) \
 	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
 	valloc(callout, struct callout, ncallout);
+	valloc(callwheel, struct callout_tailq, callwheelsize);
 #ifdef SYSVSHM
 	valloc(shmsegs, struct shmid_ds, shminfo.shmmni);
 #endif
@@ -369,9 +379,14 @@ again:
 	/*
 	 * Initialize callouts
 	 */
-	callfree = callout;
-	for (i = 1; i < ncallout; i++)
-		callout[i-1].c_next = &callout[i];
+	SLIST_INIT(&callfree);
+	for (i = 0; i < ncallout; i++) {
+		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
+	}
+
+	for (i = 0; i < callwheelsize; i++) {
+		TAILQ_INIT(&callwheel[i]);
+	}
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
@@ -851,12 +866,15 @@ struct region_descriptor r_gdt, r_idt;
 extern struct i386tss common_tss;	/* One tss per cpu */
 #ifdef VM86
 extern struct segment_descriptor common_tssd;
+extern int private_tss;
+extern u_int my_tr;
 #endif /* VM86 */
 #else
 struct i386tss common_tss;
 #ifdef VM86
 struct segment_descriptor common_tssd;
-u_int private_tss = 0;			/* flag indicating private tss */
+u_int private_tss;			/* flag indicating private tss */
+u_int my_tr;				/* which task register setting */
 #endif /* VM86 */
 #endif
 
@@ -1504,6 +1522,10 @@ init386(first)
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
+#ifdef VM86
+	private_tss = 0;
+	my_tr = GPROC0_SEL;
+#endif
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
