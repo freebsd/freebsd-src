@@ -837,19 +837,23 @@ rescan0:
 		} else {
 			vm_page_dirty(m);
 		}
-
-		/*
-		 * Invalid pages can be easily freed
-		 */
+		object = m->object;
+		if (!VM_OBJECT_TRYLOCK(object))
+			continue;
 		if (m->valid == 0) {
-			vm_pageout_page_free(m);
+			/*
+			 * Invalid pages can be easily freed
+			 */
+			vm_page_busy(m);
+			pmap_remove_all(m);
+			vm_page_free(m);
+			cnt.v_dfree++;
 			--page_shortage;
-
-		/*
-		 * Clean pages can be placed onto the cache queue.  This
-		 * effectively frees them.
-		 */
 		} else if (m->dirty == 0) {
+			/*
+			 * Clean pages can be placed onto the cache queue.
+			 * This effectively frees them.
+			 */
 			vm_page_cache(m);
 			--page_shortage;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass == 0) {
@@ -879,9 +883,6 @@ rescan0:
 			struct vnode *vp = NULL;
 			struct mount *mp;
 
-			object = m->object;
-			if (!VM_OBJECT_TRYLOCK(object))
-				continue;
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
 			} else {
@@ -1008,12 +1009,16 @@ rescan0:
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 			splx(s);
 unlock_and_continue:
+			VM_OBJECT_UNLOCK(object);
 			if (vp) {
+				vm_page_unlock_queues();
 				vput(vp);
 				vn_finished_write(mp);
+				vm_page_lock_queues();
 			}
-			VM_OBJECT_UNLOCK(object);
+			continue;
 		}
+		VM_OBJECT_UNLOCK(object);
 	}
 
 	/*
