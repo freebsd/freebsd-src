@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.6 1995/10/22 14:47:00 phk Exp $
+ * $Id: malloc.c,v 1.7 1995/12/11 14:28:12 peter Exp $
  *
  */
 
@@ -595,6 +595,12 @@ malloc_init ()
 
     /* Been here, done that */
     initialized++;
+
+    /*
+     * This is a nice hack from Kaleb Keithly (kaleb@x.org).
+     * We can sbrk(2) further back when we keep this on a low address.
+     */
+    px = (struct pgfree *) malloc (sizeof *px);
 }
 
 /*
@@ -990,7 +996,7 @@ free_pages(void *ptr, int index, struct pginfo *info)
 	    pf = px;
 	    px = 0;
 	} else if (pf->end == ptr ) {
-	    /* Append to the previuos entry */
+	    /* Append to the previous entry */
 	    pf->end += l;
 	    pf->size += l;
 	    if (pf->next && pf->end == pf->next->page ) {
