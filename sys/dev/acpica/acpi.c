@@ -1837,10 +1837,10 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
-    if (slp_state >= ACPI_SS_DEV_SUSPEND)
-	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLP_PREP)
 	AcpiLeaveSleepState(state);
+    if (slp_state >= ACPI_SS_DEV_SUSPEND)
+	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
 
