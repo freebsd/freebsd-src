@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.4.2.2 1999/04/20 08:09:18 brian Exp $
+ *	$Id: radius.c,v 1.5 1999/04/21 08:13:09 brian Exp $
  *
  */
 
