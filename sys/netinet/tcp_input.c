@@ -1873,6 +1873,8 @@ trimthenstep6:
                         	tp->snd_cwnd = tp->snd_ssthresh;
                         tp->t_dupacks = 0;
                 }
+		if (tp->t_dupacks < tcprexmtthresh)
+			tp->t_dupacks = 0;
 		if (SEQ_GT(th->th_ack, tp->snd_max)) {
 			tcpstat.tcps_rcvacktoomuch++;
 			goto dropafterack;
