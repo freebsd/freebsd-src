@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: ethernet.c,v 1.1.2.1 1999/05/27 17:35:47 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: ethernet.c,v 1.1.2.2 1999/11/11 16:10:41 mellon Exp $ Copyright (c) 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -79,8 +79,8 @@ void assemble_ethernet_header (interface, buf, bufix, to)
 	eh.ether_type = htons (ETHERTYPE_IP);
 #endif
 
-	memcpy (&buf [*bufix], &eh, sizeof eh);
-	*bufix += sizeof eh;
+	memcpy (&buf [*bufix], &eh, ETHER_HEADER_SIZE);
+	*bufix += ETHER_HEADER_SIZE;
 }
 #endif /* PACKET_ASSEMBLY */
 
@@ -95,7 +95,7 @@ ssize_t decode_ethernet_header (interface, buf, bufix, from)
 {
   struct ether_header eh;
 
-  memcpy (&eh, buf + bufix, sizeof eh);
+  memcpy (&eh, buf + bufix, ETHER_HEADER_SIZE);
 
 #ifdef USERLAND_FILTER
   if (ntohs (eh.ether_type) != ETHERTYPE_IP)

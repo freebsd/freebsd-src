@@ -54,7 +54,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: raw.c,v 1.11.2.3 1999/04/06 16:00:24 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: raw.c,v 1.11.2.4 1999/07/20 20:03:10 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -79,8 +79,14 @@ void if_register_send (info)
 
 	/* List addresses on which we're listening. */
         if (!quiet_interface_discovery)
-		note ("Sending on %s, port %d",
-		      piaddr (info -> address), htons (local_port));
+		note ("Sending on   Raw Socket/%s/%s%s%s",
+		      info -> name,
+		      print_hw_addr (info -> hw_address.htype,
+				     info -> hw_address.hlen,
+				     info -> hw_address.haddr),
+		      (info -> shared_network ? "/" : ""),
+		      (info -> shared_network ?
+		       info -> shared_network -> name : ""));
 
 	if ((sock = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
 		error ("Can't create dhcp socket: %m");
@@ -137,6 +143,12 @@ ssize_t send_packet (interface, packet, raw, len, from, to, hto)
 }
 
 int can_unicast_without_arp ()
+{
+	return 1;
+}
+
+int can_receive_unicast_unconfigured (ip)
+	struct interface_info *ip;
 {
 	return 1;
 }
