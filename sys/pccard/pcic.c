@@ -948,7 +948,7 @@ pcic_power(struct slot *slotp)
 				reg |= PCIC_VCC_5V_KING;
 				break;
 			}
-			reg |= PCIC_VCC_5V;
+			reg |= PCIC_VCC_3V;
 			if ((sp->controller == PCIC_VG468)||
 				(sp->controller == PCIC_VG469))
 				setb(sp, 0x2f, 0x03) ;
@@ -976,6 +976,14 @@ pcic_power(struct slot *slotp)
 		reg |= PCIC_OUTENA;
 		sp->putb (sp, PCIC_POWER, reg);
 		DELAY (100*1000);
+	}
+	/* Some chips are smarter than us it seems, so if we weren't
+	 * allowed to use 5V, try 3.3 instead
+	 */
+	if (!(sp->getb(sp, PCIC_STATUS) &  0x40) && slotp->pwr.vcc == 50) {
+		slotp->pwr.vcc = 33;
+		slotp->pwr.vpp = 0;
+		return (pcic_power(slotp));
 	}
 	return(0);
 }
