@@ -25,7 +25,7 @@
 ################################################################################
 # Tboot DBoot immediately
 
-	boot [-<arg> ...] [<kernelname>]
+	boot [<kernelname>] [-<arg> ...]
 
 	Boot the system.  If arguments are specified, they are added to the
 	arguments for the kernel.  If <kernelname> is specified, and a kernel
