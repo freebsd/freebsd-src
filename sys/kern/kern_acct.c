@@ -140,8 +140,7 @@ acct(td, uap)
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path,
-		       td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, td);
 		flags = FWRITE | O_APPEND;
 		error = vn_open(&nd, &flags, 0);
 		if (error)
