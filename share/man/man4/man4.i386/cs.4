@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: cs.4,v 1.1 1998/07/20 20:02:32 msmith Exp $
+.\"	$Id: cs.4,v 1.2 1998/10/22 14:12:55 bde Exp $
 .\"
 .Dd July 20, 1998
 .Dt CS 4 i386
@@ -32,8 +32,8 @@
 .Nm cs
 .Nd ethernet device driver
 .Sh SYNOPSIS
-.Cd "device cs0 at isa? port 0x300 net irq ?"
-.Cd "device cs1 at isa? port 0x300 net irq 10 iomem 0xd0000"
+.Cd "device cs0 at isa? port 0x300 irq ?"
+.Cd "device cs1 at isa? port 0x300 irq 10 iomem 0xd0000"
 .Sh DESCRIPTION
 The
 .Nm
