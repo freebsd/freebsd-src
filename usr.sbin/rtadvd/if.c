@@ -128,8 +128,11 @@ if_nametosdl(char *name)
 	}
 
 	if ((ret_sdl = malloc(sdl->sdl_len)) == NULL)
-		return(NULL);
+		goto end;
 	memcpy((caddr_t)ret_sdl, (caddr_t)sdl, sdl->sdl_len);
+
+end:
+	free(buf);
 	return(ret_sdl);
 }
 
