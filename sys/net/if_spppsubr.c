@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.41 1998/08/15 21:58:09 bde Exp $
+ * $Id: if_spppsubr.c,v 1.42 1998/08/17 00:29:34 bde Exp $
  */
 
 #include "opt_inet.h"
@@ -1979,7 +1979,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			if (authproto == PPP_CHAP && p[4] != CHAP_MD5) {
 				if (debug)
 					addlog("[chap not MD5] ");
-				p[4] == CHAP_MD5;
+				p[4] = CHAP_MD5;
 				break;
 			}
 			continue;
