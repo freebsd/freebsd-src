@@ -1,20 +1,22 @@
 #
-# $Id: Makefile,v 1.3 1994/08/12 21:12:37 csgr Exp $
+# $Id: Makefile,v 1.4 1994/08/20 18:13:59 csgr Exp $
 #
 
 LCRYPTBASE= 	libcrypt
 LCRYPTSO=	$(LCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 
-
 LSCRYPTBASE= 	libscrypt
 LSCRYPTSO=	$(LSCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
 
 # called libscrypt - for scramble crypt!
+.PATH:	${.CURDIR}/../libmd
 LIB=	scrypt
-SRCS=	crypt.c
+SRCS=	crypt.c md5c.c
+CFLAGS+=	-I${.CURDIR}/../libmd
 
 # We only install the links if they do not already exist.
 # This may have to be revised
+
 afterinstall:
 .if !defined(NOPIC) 
 	@cd $(DESTDIR)/$(LIBDIR); \
