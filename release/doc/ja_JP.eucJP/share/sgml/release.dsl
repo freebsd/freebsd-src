@@ -17,14 +17,14 @@
 	    (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"
-                (literal "このファイルの他, リリース関連の文書は ")
+                (literal "このファイルの他、リリース関連の文書は ")
 		(create-link (list (list "HREF" (entity-text "release.url")))
                   (literal (entity-text "release.url")))
-                (literal " からダウンロードできます.")))
+                (literal " からダウンロードできます。")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
-                (literal "FreeBSD に関するお問い合わせは, <")
+                (literal "FreeBSD に関するお問い合わせは、<")
 		(create-link
                   (list (list "HREF" "mailto:questions@FreeBSD.org"))
                   (literal "questions@FreeBSD.org"))
@@ -32,30 +32,29 @@
 		(create-link
 		  (list (list "HREF" "http://www.FreeBSD.org/docs.html"))
                   (literal "解説文書"))
-                (literal "をお読みください.")
+                (literal "をお読みください。")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
                 (literal "FreeBSD ")
 		(literal (entity-text "release.branch"))
-		(literal " をお使いの方は, ぜひ ")
+		(literal " をお使いの方は、ぜひ ")
                 (literal "<")
 		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
                   (literal "stable@FreeBSD.org"))
-                (literal "> メーリングリストに参加ください.")))
-
+                (literal "> メーリングリストに参加ください。")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
-	      (literal "この文書の原文に関するお問い合わせは <")
-	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
-                (literal "doc@FreeBSD.org"))
-	      (literal "> まで, ")
-              (make empty-element gi: "br")
-	      (literal "日本語訳に関するお問い合わせは, <")
-	      (create-link (list (list "HREF" "mailto:doc-jp@jp.FreeBSD.org"))
-                 (literal "doc-jp@jp.FreeBSD.org"))
-	      (literal "> まで電子メールでお願いします."))))))
-
+                (make element gi: "small"
+	          (literal "この文書の原文に関するお問い合わせは <")
+                  (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
+                               (literal "doc@FreeBSD.org"))
+                  (literal "> まで、")
+                  (make empty-element gi: "br")
+                  (literal "日本語訳に関するお問い合わせは <")
+                  (create-link (list (list "HREF" "http://www.jp.FreeBSD.org/ml.html#doc-jp"))
+                               (literal "doc-jp@jp.FreeBSD.org"))
+                  (literal "> まで電子メールでお願いします。")))))))
 
 	<!-- Convert " ... " to `` ... '' in the HTML output. -->
 	(element quote
