@@ -254,13 +254,6 @@ fail:
 }
 #endif
 
-void
-handleclock(void* arg)
-{
-	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
-	hardclock(arg);
-}
-
 /*
  * We assume newhz is either stathz or profhz, and that neither will
  * change after being set up above.  Could recalculate intervals here

@@ -21,7 +21,6 @@ extern u_int64_t	itm_reload;
 int	sysbeep(int pitch, int period);
 int	acquire_timer2(int mode);
 int	release_timer2(void);
-void	handleclock(void *arg);
 
 #endif
 
