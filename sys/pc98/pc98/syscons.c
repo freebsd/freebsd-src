@@ -4426,9 +4426,10 @@ set_destructive_cursor(scr_stat *scp)
 	if ((i >= scp->cursor_start && i <= scp->cursor_end) ||
 	    (scp->cursor_start >= scp->font_size && i == scp->font_size - 1))
 	    cursor[i] |= 0xff;
-#if 0
-    while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
-#endif
+
+    /* wait for vertical retrace to avoid jitter on some videocards */
+    while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
+
     set_font_mode();
     bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
@@ -4596,9 +4597,8 @@ draw_mouse_image(scr_stat *scp)
     scp->mouse_oldpos = scp->mouse_pos;
 
     /* wait for vertical retrace to avoid jitter on some videocards */
-#if 0
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
-#endif
+
     set_font_mode();
     bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
