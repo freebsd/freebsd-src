@@ -112,6 +112,9 @@ dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
+dev/ixgb/ixgb_hw.c		optional 	ixgb	
+dev/ixgb/ixgb_ee.c		optional 	ixgb	
+dev/ixgb/if_ixgb.c		optional 	ixgb	
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
