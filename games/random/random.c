@@ -42,11 +42,12 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
+static const char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
 #endif
-static const char rcsid[] =
- "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -56,14 +57,16 @@ static const char rcsid[] =
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
+
 #include "randomize_fd.h"
 
-void usage(void);
+static void usage(void);
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	double denom;
 	int ch, fd, random_exit, randomize_lines, random_type, ret,
@@ -149,7 +152,7 @@ main(int argc, char **argv)
 	 */
 	if (randomize_lines) {
 		if ((fd = open(filename, O_RDONLY, 0)) < 0)
-			err(1, "%s", optarg);
+			err(1, "%s", filename);
 		ret = randomize_fd(fd, random_type, unique_output, denom);
 		if (!random_exit)
 			return(ret);
@@ -157,7 +160,7 @@ main(int argc, char **argv)
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
-		return ((denom * random()) / LONG_MAX);
+		return (int)((denom * random()) / LONG_MAX);
 
 	/*
 	 * Select whether to print the first line.  (Prime the pump.)
@@ -183,10 +186,10 @@ main(int argc, char **argv)
 	exit (0);
 }
 
-void
-usage()
+static void
+usage(void)
 {
 
-	(void)fprintf(stderr, "usage: random [-elruUw] [-f filename] [denominator]\n");
+	fprintf(stderr, "usage: random [-elruUw] [-f filename] [denominator]\n");
 	exit(1);
 }
