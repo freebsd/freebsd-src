@@ -192,6 +192,7 @@ static void	witness_display(void(*)(const char *fmt, ...));
 #endif
 
 MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
+SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
 
 /*
  * If set to 0, witness is disabled.  If set to 1, witness performs full lock
@@ -204,7 +205,8 @@ MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
  */
 static int witness_watch = 1;
 TUNABLE_INT("debug.witness_watch", &witness_watch);
-SYSCTL_PROC(_debug, OID_AUTO, witness_watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
+TUNABLE_INT("debug.witness.watch", &witness_watch);
+SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
     sysctl_debug_witness_watch, "I", "witness is watching lock operations");
 
 #ifdef KDB
@@ -220,7 +222,8 @@ int	witness_kdb = 1;
 int	witness_kdb = 0;
 #endif
 TUNABLE_INT("debug.witness_kdb", &witness_kdb);
-SYSCTL_INT(_debug, OID_AUTO, witness_kdb, CTLFLAG_RW, &witness_kdb, 0, "");
+TUNABLE_INT("debug.witness.kdb", &witness_kdb);
+SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RW, &witness_kdb, 0, "");
 
 /*
  * When KDB is enabled and witness_trace is set to 1, it will cause the system
@@ -230,7 +233,8 @@ SYSCTL_INT(_debug, OID_AUTO, witness_kdb, CTLFLAG_RW, &witness_kdb, 0, "");
  */
 int	witness_trace = 1;
 TUNABLE_INT("debug.witness_trace", &witness_trace);
-SYSCTL_INT(_debug, OID_AUTO, witness_trace, CTLFLAG_RW, &witness_trace, 0, "");
+TUNABLE_INT("debug.witness.trace", &witness_trace);
+SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RW, &witness_trace, 0, "");
 #endif /* KDB */
 
 #ifdef WITNESS_SKIPSPIN
@@ -239,8 +243,9 @@ int	witness_skipspin = 1;
 int	witness_skipspin = 0;
 #endif
 TUNABLE_INT("debug.witness_skipspin", &witness_skipspin);
-SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0,
-    "");
+TUNABLE_INT("debug.witness.skipspin", &witness_skipspin);
+SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN,
+    &witness_skipspin, 0, "");
 
 static struct mtx w_mtx;
 static struct witness_list w_free = STAILQ_HEAD_INITIALIZER(w_free);

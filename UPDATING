@@ -14,6 +14,11 @@ portupgrade.  Important recent entries: 20040724 (default X changes).
 	the standard pcap format. In order to prevent corruption move away
 	any old logfile before using a new pflogd(8).
 
+20040913:
+	debug.witness_* has been renamed to debug.witness.*.  There are
+	compatibility tunables left in for a few days.  Update loader.conf
+	as necessary.
+
 20040907:
 	The kernel and userland debugging options have been turned off
 	by default.
