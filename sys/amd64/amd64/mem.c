@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.16 1995/10/29 11:37:56 bde Exp $
+ *	$Id: mem.c,v 1.17 1995/10/30 22:39:34 markm Exp $
  */
 
 /*
@@ -63,12 +63,16 @@
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
-#ifdef	DEVFS
+#ifdef DEVFS
 #include <sys/devfsext.h>
 #include "sys/kernel.h"
-int mmopen();
 
-void memdev_init(void *data) /* data not used */
+static void memdev_init __P((void *));
+SYSINIT(memdev,SI_SUB_DEVFS, SI_ORDER_ANY, memdev_init, NULL)
+
+static void
+memdev_init(dummy)
+	void *dummy;
 {
   void * x;
 /*            path	name		devsw   minor	type   uid gid perm*/
@@ -82,13 +86,10 @@ void memdev_init(void *data) /* data not used */
    x=dev_add("/misc",	"zero",		mmopen, 12,	DV_CHR, 0,  0, 0666);
    x=dev_add("/misc",	"io",		mmopen, 14,	DV_CHR, 0,  2, 0640);
 }
-SYSINIT(memdev,SI_SUB_DEVFS, SI_ORDER_ANY, memdev_init, NULL)
-#endif /*DEVFS*/
-
-
+#endif /* DEVFS */
 
 extern        char *ptvmmap;            /* poor name! */
-/*ARGSUSED*/
+
 int
 mmclose(dev, flags, fmt, p)
 	dev_t dev;
@@ -108,7 +109,7 @@ mmclose(dev, flags, fmt, p)
 	}
 	return(0);
 }
-/*ARGSUSED*/
+
 int
 mmopen(dev, flags, fmt, p)
 	dev_t dev;
@@ -128,7 +129,7 @@ mmopen(dev, flags, fmt, p)
 	}
 	return(0);
 }
-/*ARGSUSED*/
+
 int
 mmrw(dev, uio, flags)
 	dev_t dev;
