@@ -741,9 +741,6 @@ forkshell(struct job *jp, union node *n, int mode)
 		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
 		rootshell = 0;
-		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
-			if (p->used)
-				freejob(p);
 		closescript();
 		INTON;
 		clear_traps();
@@ -785,6 +782,11 @@ forkshell(struct job *jp, union node *n, int mode)
 			}
 		}
 #endif
+		INTOFF;
+		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
+			if (p->used)
+				freejob(p);
+		INTON;
 		if (wasroot && iflag) {
 			setsignal(SIGINT);
 			setsignal(SIGQUIT);
