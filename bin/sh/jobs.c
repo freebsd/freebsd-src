@@ -129,7 +129,7 @@ setjobctl(int on)
 			if (i > 2 || (ttyfd = dup(i)) < 0)
 				goto out;
 		}
-		if (fcntl(ttyfd, FD_CLOEXEC, 1) < 0) {
+		if (fcntl(ttyfd, F_SETFD, FD_CLOEXEC) < 0) {
 			close(ttyfd);
 			ttyfd = -1;
 			goto out;
