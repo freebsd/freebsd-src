@@ -35,7 +35,7 @@ static int menu_width, tag_x, item_x;
 int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-      scroll = 0, max_choice;
+      l, k, scroll = 0, max_choice;
   WINDOW *dialog, *menu;
 
   max_choice = MIN(menu_height, item_no);
@@ -44,8 +44,12 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   item_x = 0;
   /* Find length of longest item in order to center menu */
   for (i = 0; i < item_no; i++) {
-    tag_x = MAX(tag_x, strlen(items[i*2]) + strlen(items[i*2 + 1]) + 2);
-    item_x = MAX(item_x, strlen(items[i*2]));
+    l = strlen(items[i*2]);
+    for (j = 0; j < item_no; j++) {
+      k = strlen(items[j*2 + 1]);
+      tag_x = MAX(tag_x, l + k + 2);
+    }
+    item_x = MAX(item_x, l);
   }
   if (height < 0)
 	height = strheight(prompt)+menu_height+4+2;
