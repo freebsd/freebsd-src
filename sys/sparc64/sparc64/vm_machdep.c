@@ -45,6 +45,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -71,6 +72,14 @@
 void
 cpu_exit(struct thread *td)
 {
+	struct md_utrap *ut;
+
+	if ((ut = td->td_proc->p_md.md_utrap) != NULL) {
+		ut->ut_refcnt--;
+		if (ut->ut_refcnt == 0)
+			free(ut, M_SUBPROC);
+		td->td_proc->p_md.md_utrap = NULL;
+	}
 }
 
 /*
@@ -82,6 +91,7 @@ void
 cpu_fork(struct thread *td1, struct proc *p2, int flags)
 {
 	struct thread *td2;
+	struct md_utrap *ut;
 	struct trapframe *tf;
 	struct frame *fp;
 	struct pcb *pcb;
@@ -91,6 +101,10 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 
 	if ((flags & RFPROC) == 0)
 		return;
+
+	if ((ut = td1->td_proc->p_md.md_utrap) != NULL)
+		ut->ut_refcnt++;
+	p2->p_md.md_utrap = ut;
 
 	td2 = &p2->p_thread;
 	/* The pcb must be aligned on a 64-byte boundary. */
@@ -107,7 +121,7 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		mtx_unlock_spin(&sched_lock);
 	}
 	/* Make sure the copied windows are spilled. */
-	__asm __volatile("flushw");
+	__asm __volatile("flushw" : :);
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
 	bcopy(td1->td_pcb, pcb, sizeof(*pcb));
 

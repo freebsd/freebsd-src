@@ -27,8 +27,15 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
+
+#include <machine/utrap.h>
+#include <machine/sysarch.h>
+
+static int sparc_utrap_install(struct thread *td, char *args);
 
 #ifndef	_SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -40,5 +47,60 @@ struct sysarch_args {
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
-	return (EINVAL);
+	int error;
+
+	error = 0;
+	switch (uap->op) {
+	case SPARC_UTRAP_INSTALL:
+		error = sparc_utrap_install(td, uap->parms);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+static int
+sparc_utrap_install(struct thread *td, char *args)
+{
+	struct sparc_utrap_install_args uia;
+	struct sparc_utrap_args ua;
+	struct md_utrap *ut;
+	int error;
+	int i;
+
+	ut = td->td_proc->p_md.md_utrap;
+	if ((error = copyin(args, &uia, sizeof(uia))) != 0)
+		return (error);
+	if (uia.num < 0 || uia.num > UT_MAX ||
+	    (uia.handlers == NULL && uia.num > 0))
+		return (EINVAL);
+	for (i = 0; i < uia.num; i++) {
+		if ((error = copyin(&uia.handlers[i], &ua, sizeof(ua))) != 0)
+			return (error);
+		if (ua.type != UTH_NOCHANGE &&
+		    (ua.type < 0 || ua.type >= UT_MAX))
+			return (EINVAL);
+		if (ua.old_deferred != NULL) {
+			if ((error = suword(ua.old_deferred, 0)) != 0)
+				return (error);
+		}
+		if (ua.old_precise != NULL) {
+			error = suword(ua.old_precise,
+			    ut != NULL ? (long)ut->ut_precise[ua.type] : 0);
+			if (error != 0)
+				return (error);
+		}
+		if (ua.type != UTH_NOCHANGE) {
+			if (ut == NULL) {
+				ut = malloc(sizeof *ut, M_SUBPROC,
+				    M_WAITOK | M_ZERO);
+				ut->ut_refcnt = 1;
+				td->td_proc->p_md.md_utrap = ut;
+			}
+			ut->ut_precise[ua.type] = ua.new_precise;
+		}
+	}
+	return (0);
 }
