@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.42 1995/12/06 23:52:35 bde Exp $
+ *      $Id: aha1742.c,v 1.43 1995/12/07 12:45:23 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -22,6 +22,8 @@
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
 #include "ahb.h"
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
@@ -32,7 +34,6 @@
 #include <machine/clock.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <i386/eisa/eisaconf.h>
@@ -244,7 +245,7 @@ struct ecb {
 	physaddr hashkey;	/* physaddr of this struct */
 };
 
-struct ahb_data {
+static struct ahb_data {
 	int	unit;
 	int     flags;
 #define	AHB_INIT	0x01;
@@ -274,6 +275,8 @@ static u_int32		ahb_adapter_info();
 
 static  u_long		ahb_unit = 0;
 static 	int		ahb_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, ahb_debug, CTLFLAG_RW, &ahb_debug, 0, "");
+
 #define AHB_SHOWECBS 0x01
 #define AHB_SHOWINTS 0x02
 #define AHB_SHOWCMDS 0x04
@@ -971,8 +974,7 @@ ahb_init(unit)
 	u_char intdef;
 	struct ahb_data *ahb = ahbdata[unit];
 	int     port = ahb->baseport;
-	int     i;
-	int     stport = port + G2STAT;
+
 	/*
 	 * Assume we have a board at this stage
 	 * setup dma channel from jumpers and save int
