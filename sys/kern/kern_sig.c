@@ -1483,13 +1483,6 @@ psignal(p, sig)
 		 * eventually hit thread_suspend_check().
 		 */
 	}  else if (p->p_state == PRS_NORMAL) {
-		if (prop & SA_CONT) {
-			/*
-			 * Already active, don't need to start again.
-			 */
-			SIGDELSET(p->p_siglist, sig);
-			goto out;
-		}
 		if ((p->p_flag & P_TRACED) || (action != SIG_DFL) ||
 			!(prop & SA_STOP)) {
 			mtx_lock_spin(&sched_lock);
