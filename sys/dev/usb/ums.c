@@ -179,7 +179,7 @@ USB_MATCH(ums)
 	if (!id || id->bInterfaceClass != UICLASS_HID)
 		return (UMATCH_NONE);
 
-	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
+	err = usbd_read_report_desc(uaa->iface, &desc, &size, M_TEMP);
 	if (err)
 		return (UMATCH_NONE);
 
@@ -237,7 +237,7 @@ USB_ATTACH(ums)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	err = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_TEMP);
+	err = usbd_read_report_desc(uaa->iface, &desc, &size, M_TEMP);
 	if (err)
 		USB_ATTACH_ERROR_RETURN;
 
