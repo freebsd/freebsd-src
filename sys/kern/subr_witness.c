@@ -1051,7 +1051,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				printf(" with the following");
 				if (flags & WARN_SLEEPOK)
 					printf(" non-sleepable");
-				printf("locks held:\n");
+				printf(" locks held:\n");
 			}
 			n++;
 			witness_list_lock(lock1);
@@ -1068,7 +1068,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			printf(" with the following");
 			if (flags & WARN_SLEEPOK)
 				printf(" non-sleepable");
-			printf("locks held:\n");
+			printf(" locks held:\n");
 		}
 		n += witness_list_locks(PCPU_PTR(spinlocks));
 	}
