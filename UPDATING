@@ -8,11 +8,14 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
-20030825:
-	Due to some inadvertant bugs that crept in during the PAE import,
-	-STABLE may be a bit unstable at this time.  If you have a well
-	running system, it is recommended that you hold off on updating
-	to 4.8-stable for another few days.
+20030826:
+	A bug in the i386 virtual memory system which could result in
+	frequent panics was accidently included with the PAE changes
+	on August 9th.  This problem has now been corrected, restoring
+	the stability of the -stable branch.
+
+	Anyone with a kernel built between August 9th and August 26th
+	is strongly encouraged to cvsup and rebuild.
 
 20030806:
 	All current USB quirks in da(4) have been deprecated and will be
