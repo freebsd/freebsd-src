@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.47 1999/04/12 13:34:56 des Exp $
+ *	$Id: syscons.h,v 1.48 1999/06/22 14:13:32 yokota Exp $
  */
 
 #ifndef _DEV_SYSCONS_SYSCONS_H_
@@ -496,6 +496,7 @@ void		sc_vtb_append(sc_vtb_t *vtb1, int from, sc_vtb_t *vtb2,
 			      int count);
 void		sc_vtb_seek(sc_vtb_t *vtb, int pos);
 void		sc_vtb_erase(sc_vtb_t *vtb, int at, int count, int c, int attr);
+void		sc_vtb_move(sc_vtb_t *vtb, int from, int to, int count);
 void		sc_vtb_delete(sc_vtb_t *vtb, int at, int count, int c, int attr);
 void		sc_vtb_ins(sc_vtb_t *vtb, int at, int count, int c, int attr);
 
