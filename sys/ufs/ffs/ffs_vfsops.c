@@ -71,9 +71,11 @@ static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 
 static int	ffs_sbupdate(struct ufsmount *, int);
        int	ffs_reload(struct mount *,struct ucred *,struct thread *);
+static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
+static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
@@ -159,7 +161,7 @@ ffs_mount(mp, path, data, ndp, td)
 			return (error);
 		}
 
-		if ((error = ffs_mountfs(rootvp, mp, td, M_FFSNODE)) != 0)
+		if ((error = ffs_mountfs(rootvp, mp, td)) != 0)
 			return (error);
 		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 		return (0);
@@ -350,7 +352,7 @@ ffs_mount(mp, path, data, ndp, td)
 		 * the mount point is discarded by the upper level code.
 		 * Note that vfs_mount() populates f_mntonname for us.
 		 */
-		if ((error = ffs_mountfs(devvp, mp, td, M_FFSNODE)) != 0) {
+		if ((error = ffs_mountfs(devvp, mp, td)) != 0) {
 			vrele(devvp);
 			return (error);
 		}
@@ -538,12 +540,11 @@ static int sblock_try[] = SBLOCKSEARCH;
 /*
  * Common code for mount and mountroot
  */
-int
-ffs_mountfs(devvp, mp, td, malloctype)
+static int
+ffs_mountfs(devvp, mp, td)
 	struct vnode *devvp;
 	struct mount *mp;
 	struct thread *td;
-	struct malloc_type *malloctype;
 {
 	struct ufsmount *ump;
 	struct buf *bp;
@@ -674,7 +675,6 @@ ffs_mountfs(devvp, mp, td, malloctype)
 		fs->fs_pendinginodes = 0;
 	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
-	ump->um_malloctype = malloctype;
 	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
 	    M_WAITOK);
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
@@ -689,6 +689,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	ump->um_update = ffs_update;
 	ump->um_valloc = ffs_valloc;
 	ump->um_vfree = ffs_vfree;
+	ump->um_ifree = ffs_ifree;
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBLOCKSIZE)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -1236,13 +1237,13 @@ ffs_vget(mp, ino, flags, vpp)
 	 * dereferences vp->v_data (as well it should).
 	 */
 	MALLOC(ip, struct inode *, sizeof(struct inode), 
-	    ump->um_malloctype, M_WAITOK);
+	    M_FFSNODE, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode("ufs", mp, ffs_vnodeop_p, &vp);
 	if (error) {
 		*vpp = NULL;
-		FREE(ip, ump->um_malloctype);
+		FREE(ip, M_FFSNODE);
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
@@ -1302,7 +1303,7 @@ ffs_vget(mp, ino, flags, vpp)
 		*vpp = NULL;
 		return (error);
 	}
-	ffs_load_inode(bp, ip, ump->um_malloctype, fs, ino);
+	ffs_load_inode(bp, ip, M_FFSNODE, fs, ino);
 	if (DOINGSOFTDEP(vp))
 		softdep_load_inodeblock(ip);
 	else
@@ -1515,4 +1516,15 @@ ffs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	return (vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace,
 	    attrname, td));
 #endif
+}
+
+static void
+ffs_ifree(struct ufsmount *ump, struct inode *ip)
+{
+
+	if (ump->um_fstype == UFS1)
+		FREE(ip->i_din1, M_FFSNODE);
+	else
+		FREE(ip->i_din2, M_FFSNODE);
+	FREE(ip, M_FFSNODE);
 }
