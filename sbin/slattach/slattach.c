@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.20.2.2 1997/09/14 19:50:36 jkh Exp $";
+static char rcsid[] = "$Id: slattach.c,v 1.20.2.3 1998/07/17 20:13:53 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -79,7 +79,7 @@ void	exit_handler(int ret);	/* run exit_cmd iff specified upon exit. */
 void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
 void	configure_network();	/* configure slip interface */
-void	acquire_line();		/* get tty device as controling terminal */
+void	acquire_line();		/* get tty device as controlling terminal */
 static void usage __P((void));
 
 int	fd = -1;
@@ -98,7 +98,7 @@ int     keepal = 0;             /* keepalive timeout */
 int     outfill = 0;            /* outfill timeout */
 int     sl_unit = -1;           /* unit number */
 int     uucp_lock = 0;          /* do uucp locking */
-int	exiting = 0;		/* allready running exit_handler */
+int	exiting = 0;		/* already running exit_handler */
 
 struct	termios tty;		/* tty configuration/state */
 
@@ -207,7 +207,7 @@ main(int argc, char **argv)
 	/* daemon() closed stderr, so log errors from here on. */
 	openlog("slattach",LOG_CONS|LOG_PID,LOG_DAEMON);
 
-	acquire_line();		/* get tty device as controling terminal */
+	acquire_line();		/* get tty device as controlling terminal */
 	setup_line(0);		/* configure for slip line discipline */
 	slip_discipline();	/* switch to slip line discipline */
 
@@ -311,7 +311,7 @@ void acquire_line()
 		(void)close (fd);
 	fd = STDIN_FILENO;
 
-	/* acquire the serial line as a controling terminal. */
+	/* acquire the serial line as a controlling terminal. */
 	if (ioctl(fd, TIOCSCTTY, 0) < 0) {
 		syslog(LOG_ERR,"ioctl(TIOCSCTTY): %m");
 		exit_handler(1);
@@ -408,7 +408,7 @@ void slip_discipline()
 	close(s);
 }
 
-/* configure the interface, eg. by passing the unit number to a script. */
+/* configure the interface, e.g. by passing the unit number to a script. */
 void configure_network()
 {
 	int new_unit;
@@ -422,6 +422,10 @@ void configure_network()
 	if (config_cmd) {
 		char *s;
 		s = (char*) malloc(strlen(config_cmd) + 32);
+		if (s == NULL) {
+			syslog(LOG_ERR, "malloc failed");
+			exit(1);
+		}
 		sprintf (s, "%s %d %d", config_cmd, unit, new_unit);
 		syslog(LOG_NOTICE, "Configuring %s (sl%d):", dev, unit);
 		syslog(LOG_NOTICE, "  '%s'", s);
@@ -571,6 +575,10 @@ void exit_handler(int ret)
 	if (config_cmd) {
 		char *s;
 		s = (char*) malloc(strlen(config_cmd) + 32);
+		if (s == NULL) {
+			syslog(LOG_ERR, "malloc failed");
+			exit(1);
+		}
 		sprintf (s, "%s %d -1", config_cmd, unit);
 		syslog(LOG_NOTICE, "Deconfiguring %s (sl%d):", dev, unit);
 		syslog(LOG_NOTICE, "  '%s'", s);

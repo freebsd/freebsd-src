@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.11.2.1 1997/03/03 07:01:50 mpp Exp $
+.\"	$Header: /x/ncvs/src/sbin/slattach/slattach.8,v 1.11.2.2 1997/09/14 19:50:34 jkh Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -85,7 +85,7 @@ in the background.
 Turn on cts/rts style flow control on the slip port, by default no flow
 control is done.
 .It Fl l
-disable modem control (CLOCAL) and ignore carrier detect on the slip
+Disable modem control (CLOCAL) and ignore carrier detect on the slip
 port.  By default the
 .Ar redial-command
 is invoked upon carrier drop and
@@ -102,8 +102,8 @@ Specifies a command to be invoked within a shell
 whenever carrier is lost on the modem line.
 Empty
 .Ar redial-command
-i.e.
-.Fl r Qq ""
+(i.e.
+.Fl r Qq "" )
 cause connection reestablishing on leased line
 without any external command invoked.
 .It Fl s Ar baudrate
@@ -111,30 +111,32 @@ Specifies the speed of the connection. If not specified, the
 default of 9600 is used.
 .It Fl u Ar unit-command
 When the line is switched to slip discipline, run
-.Ql Nm "sh -c" Ar unit-command <old> <new>
+.Ql Nm "sh -c" Ar unit-command old new
 where
-.Ar <old>
+.Ar old
 and
-.Ar <new>
+.Ar new
 are the slip unit numbers when the line was
 last opened and the unit number of the current slip connection
 respectively.  The unit number can change after redialing if you are
 using more than one slip line.
 When
-.Nm slattach
-connected first time, it run
-.Ql Nm "sh -c" Ar unit-command Nm \-1 Ar <new> .
+.Nm
+is connected for the first time,
+.Ql Nm "sh -c" Ar unit-command Nm \-1 Ar new
+is run.
 When
-.Nm slattach
-disconnected, it run
-.Ql Nm "sh -c" Ar unit-command <old> Nm \-1 .
+.Nm
+is disconnected,
+.Ql Nm "sh -c" Ar unit-command old Nm \-1
+is run.
 .Nm Slattach
 will abort if the unit number
 changes and
 .Ql Fl u Ar \%unit-command
 was not specified.
 .It Fl z
-forces redial
+Forces redial
 .Ar redial-command
 upon startup irrespective of carrier.
 .It Fl L
@@ -174,7 +176,7 @@ process using
 .Ql kill -INT .
 .Ar Interface-name
 is the name that is shown by
-.Xr netstat 1
+.Xr netstat 1 .
 .Pp
 To setup
 .Nm slattach
@@ -225,8 +227,9 @@ slattach \-c \-s 38400 /dev/cuaa1
 slattach \-r 'kermit -y dial.script >kermit.log 2>&1'
 .Ed
 .Sh DIAGNOSTICS
-Look for error messages in /var/log/messages (
-.Nm slattach
+Look for error messages in
+.Pa /var/log/messages
+.Pf ( Nm slattach
 is a daemon).
 Messages indicating the specified interface does not exit, the
 requested address is unknown, the user is not privileged and tried to
