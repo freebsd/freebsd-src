@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.17 1997/02/22 09:45:34 peter Exp $
+ * $Id: mman.h,v 1.18 1997/04/13 15:38:09 bde Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -71,6 +71,7 @@
 /*
  * msync() flags
  */
+#define	MS_SYNC		0x0000	/* msync synchronously */
 #define MS_ASYNC	0x0001	/* return immediately */
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
