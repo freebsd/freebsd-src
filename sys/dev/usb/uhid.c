@@ -50,6 +50,7 @@
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/ioctl.h>
+#include <sys/file.h>
 #elif defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/filio.h>
@@ -59,7 +60,6 @@
 #endif
 #include <sys/conf.h>
 #include <sys/tty.h>
-#include <sys/file.h>
 #include <sys/select.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -71,7 +71,6 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/hid.h>
-#include <dev/usb/usb_quirks.h>
 
 #ifdef UHID_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
