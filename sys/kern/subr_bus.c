@@ -1559,7 +1559,15 @@ device_probe_child(device_t dev, device_t child)
 			device_set_driver(child, dl->driver);
 			if (!hasclass)
 				device_set_devclass(child, dl->driver->name);
+
+			/* Fetch any flags for the device before probing. */
+			resource_int_value(dl->driver->name, child->unit,
+			    "flags", &child->devflags);
+
 			result = DEVICE_PROBE(child);
+
+			/* Reset flags and devclass before the next probe. */
+			child->devflags = 0;
 			if (!hasclass)
 				device_set_devclass(child, 0);
 
@@ -1605,9 +1613,13 @@ device_probe_child(device_t dev, device_t child)
 	 * If we found a driver, change state and initialise the devclass.
 	 */
 	if (best) {
+		/* Set the winning driver, devclass, and flags. */
 		if (!child->devclass)
 			device_set_devclass(child, best->driver->name);
 		device_set_driver(child, best->driver);
+		resource_int_value(best->driver->name, child->unit,
+		    "flags", &child->devflags);
+
 		if (pri < 0) {
 			/*
 			 * A bit bogus. Call the probe method again to make
