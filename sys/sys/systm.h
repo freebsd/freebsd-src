@@ -134,6 +134,8 @@ void	panic(const char *, ...) __dead2 __printflike(1, 2);
 
 void	cpu_boot(int);
 void	cpu_rootconf(void);
+extern uint32_t crc32_tab[];
+uint32_t crc32(const void *buf, size_t size);
 void	critical_enter(void);
 void	critical_exit(void);
 void	init_param1(void);
