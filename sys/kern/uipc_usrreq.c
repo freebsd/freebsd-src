@@ -1395,6 +1395,8 @@ unp_gc()
 	register struct socket *so;
 	struct file **extra_ref, **fpp;
 	int nunref, i;
+	int nfiles_snap;
+	int nfiles_slack = 20;
 
 	UNP_LOCK_ASSERT();
 
@@ -1537,8 +1539,17 @@ unp_gc()
 	 *
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
-	extra_ref = malloc(nfiles * sizeof(struct file *), M_TEMP, M_WAITOK);
+again:
+	nfiles_snap = nfiles + nfiles_slack;	/* some slack */
+	extra_ref = malloc(nfiles_snap * sizeof(struct file *), M_TEMP,
+	    M_WAITOK);
 	sx_slock(&filelist_lock);
+	if (nfiles_snap < nfiles) {
+		sx_sunlock(&filelist_lock);
+		free(extra_ref, M_TEMP);
+		nfiles_slack += 20;
+		goto again;
+	}
 	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref;
 	    fp != NULL; fp = nextfp) {
 		nextfp = LIST_NEXT(fp, f_list);
