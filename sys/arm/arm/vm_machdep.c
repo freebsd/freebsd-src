@@ -145,8 +145,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	struct trapframe *tf;
 	struct switchframe *sf;
 	struct mdproc *mdp2;
-	vm_offset_t uarea = td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE
-	    - USPACE;
+	vm_offset_t uarea = td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE;
 
 	pcb1 = td1->td_pcb;
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
@@ -305,7 +304,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
 	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + td->td_kstack_pages
-	    * PAGE_SIZE - USPACE + USPACE_UNDEF_STACK_TOP;
+	    * PAGE_SIZE + USPACE_UNDEF_STACK_TOP;
 }
 
 /*
@@ -336,7 +335,7 @@ cpu_thread_setup(struct thread *td)
 	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages * 
 	    PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)
-	    ((u_int)td->td_kstack + td->td_kstack_pages * PAGE_SIZE - USPACE + 
+	    ((u_int)td->td_kstack + td->td_kstack_pages * PAGE_SIZE + 
 	     USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
 #ifdef __XSCALE__
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
