@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.86 1998/11/29 20:31:02 phk Exp $
+ * $Id: kern_clock.c,v 1.86.2.1 1999/03/22 13:09:35 phk Exp $
  */
 
 #include "opt_ntp.h"
@@ -907,9 +907,6 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 		*pcount = count;
 		return;
 	}
-
-	/* Now, make sure we have the right instance */
-	tc = timecounter;
 
 	/* Nothing really happened */
 	if (*pcount == count)
