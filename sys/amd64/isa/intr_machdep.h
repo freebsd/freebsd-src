@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.2 1997/06/27 23:48:05 fsmp Exp $
+ *	$Id: intr_machdep.h,v 1.6 1997/07/13 00:18:33 smp Exp smp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -42,6 +42,74 @@
  */ 
 
 #ifdef KERNEL
+
+/*
+ * XXX FIXME: rethink location for all IPI vectors.
+ */
+
+/*
+    APIC TPR priority vector levels:
+
+	0xff (255) +------------+
+		   |		| 15 (highest)
+	0xf0 (240) +------------+
+		   |		| 14
+	0xe0 (224) +------------+
+		   |		| 13
+	0xd0 (208) +------------+
+		   |		| 12
+	0xc0 (192) +------------+
+		   |		| 11
+	0xb0 (176) +------------+
+		   |		| 10
+	0xa0 (160) +------------+
+		   |		|  9
+	0x90 (144) +------------+
+		   |		|  8
+	0x80 (128) +------------+
+		   |		|  7
+	0x70 (112) +------------+
+		   |		|  6 (IPIs: Xspuriousint)
+	0x60 (96)  +------------+
+		   |		|  5 (IPIs: Xcpustop)
+	0x50 (80)  +------------+
+		   |		|  4 (IPIs: Xinvltlb)
+	0x40 (64)  +------------+
+		   |		|  3 (extended APIC hardware INTs: PCI)
+	0x30 (48)  +------------+
+		   |		|  2 (start of hardware INTs: ISA)
+	0x20 (32)  +------------+
+		   |		|  1 (lowest)
+	0x10 (16)  +------------+
+		   |		|  0
+	0x00 (0)   +------------+
+ */
+
+#define TPR_BLOCK_HWI		0x3f	/* block hardware INTs via APIC TPR */
+#define TPR_BLOCK_XINVLTLB	0x4f	/* block ? via APIC TPR */
+#define TPR_BLOCK_XCPUSTOP	0x5f	/* block ? via APIC TPR */
+
+
+/*
+ * Note: this vector MUST be xxxx1111, 32 + 79 = 111 = 0x6f:
+ * also remember i386/include/segments.h: #define	NIDT	129
+ */
+#define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 79)
+
+/* TLB shootdowns */
+#define XINVLTLB_OFFSET		(ICU_OFFSET + 32)
+
+#if defined(TEST_CPUSTOP)
+/* IPI to signal CPUs to stop and wait for another CPU to restart them */
+#define XCPUSTOP_OFFSET		(ICU_OFFSET + 48)
+#endif  /** TEST_CPUSTOP */
+
+#if defined(TEST_TEST1)
+/* put a 'fake' HWI in top of APIC prio 0x3x, 32 + 31 = 63 = 0x3f */
+#define XTEST1_OFFSET		(ICU_OFFSET + 31)
+#endif  /** TEST_TEST1 */
+
+#ifndef	LOCORE
 
 /*
  * Type of the first (asm) part of an interrupt handler.
@@ -83,30 +151,25 @@ inthand_t
 	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
 	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
 
-#define XINVLTLB_OFFSET	(ICU_OFFSET + 32)
 inthand_t
-	Xinvltlb;
+	Xinvltlb,
+	Xspuriousint;
 
 #if defined(TEST_CPUSTOP)
-#define XCPUSTOP_OFFSET	(ICU_OFFSET + 64)
 inthand_t
-	Xcpustop;
-/*
- * XXX FIXME: rethink location for this (and all IPI vectors)
- * Note: this vector MUST be xxxx1111, 32 + 79 = 111 = 0x6f:
- * also remember i386/include/segments.h: #define	NIDT	129
- */
-#define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 79)
+	Xcpustop;	/* stop & wait for another CPU to restart it */
+#endif  /** TEST_CPUSTOP */
+
+#if defined(TEST_CPUSTOP)
 inthand_t
-	Xspuriousint;
-#endif  /* TEST_CPUSTOP */
+	Xtest1;		/* 'fake' HWI in top of APIC prio 0x3x, 32+31 = 0x3f */
+#endif  /** TEST_TEST1 */
 
 struct isa_device;
 
 void	isa_defaultirq __P((void));
 int	isa_irq_pending __P((struct isa_device *dvp));
-/* this function ONLY exists in an SMP/APIC_IO kernel: */
-int	icu_irq_pending __P((struct isa_device *dvp));
+int	icu_irq_pending __P((struct isa_device *dvp));	/* APIC_IO kernel */
 int	isa_nmi __P((int cd));
 void	update_intrname __P((int intr, int device_id));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
@@ -114,6 +177,8 @@ int	icu_setup __P((int intr, inthand2_t *func, void *arg,
 int	icu_unset __P((int intr, inthand2_t *handler));
 int	update_intr_masks __P((void));
 void	register_imask __P((struct isa_device *dvp, u_int mask));
+
+#endif /* LOCORE */
 
 #endif /* KERNEL */
 
