@@ -17,9 +17,6 @@ Import should be done by:
 
 	4. resolve conflicts
 
-	5. regenerate files in src/usr.sbin/bsnmpd/bsnmpd and
-	   src/lib/libbsnmp/modules/*
-
-	6. commit changed files
+	5. check the makefile in lib/libbsnmp and usr.sbin/bsnmp
 
 harti
