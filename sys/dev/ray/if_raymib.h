@@ -32,6 +32,15 @@
  *
  */
 
+/*
+ * Bit mask definitions for firmware versioning
+ */
+#define RAY_V4	0x1
+#define RAY_V5	0x2
+
+/*
+ * MIB stuctures
+ */
 struct ray_mib_common_head {			/*Offset*/	/*Size*/
     u_int8_t	mib_net_type;			/*00*/ 
     u_int8_t	mib_ap_status;			/*01*/
@@ -221,9 +230,9 @@ struct ray_mib_5 {
 	"Scan mode",			\
 	"APM mode",			\
 	"MAC address",			\
-	"FRAG_THRESH",			\
-	"DWELL_TIME",			\
-	"BEACON_PERIOD",		\
+	"Fragmentation threshold",	\
+	"Dwell tIME",			\
+	"Beacon period",		\
 	"DTIM_INTERVAL",		\
 	"MAX_RETRY",			\
 	"ACK_TIMO",			\
@@ -336,7 +345,7 @@ struct ray_mib_5 {
 	"",					\
 	"Current PRIV_START",			\
 	"Current PRIV_JOIN",			\
-	"N/A",					\
+	"",					\
 	"N/A",					\
 	"Desired DEF_TXRATE",			\
 	"Desired ENCRYPT",			\
@@ -347,72 +356,82 @@ struct ray_mib_5 {
 }
 
 /*
- * Sizes for each MIB element
+ * Applicable versions and work size for each MIB element
  */
-#define RAY_MIB_SIZES {					\
-	1,	/* RAY_MIB_NET_TYPE */			\
-	1,	/* RAY_MIB_AP_STATUS */			\
-	IEEE80211_NWID_LEN,	/* RAY_MIB_SSID */	\
-	1,	/* RAY_MIB_SCAN_MODE */			\
-	1,	/* RAY_MIB_APM_MODE */			\
-	ETHER_ADDR_LEN,/* RAY_MIB_MAC_ADDR */		\
-	2,	/* RAY_MIB_FRAG_THRESH */		\
-	2,	/* RAY_MIB_DWELL_TIME */		\
-	2,	/* RAY_MIB_BEACON_PERIOD */		\
-	1,	/* RAY_MIB_DTIM_INTERVAL */		\
-	1,	/* RAY_MIB_MAX_RETRY */			\
-	1,	/* RAY_MIB_ACK_TIMO */			\
-	1,	/* RAY_MIB_SIFS */			\
-	1,	/* RAY_MIB_DIFS */			\
-	1,	/* RAY_MIB_PIFS */			\
-	2,	/* RAY_MIB_RTS_THRESH */		\
-	2,	/* RAY_MIB_SCAN_DWELL */		\
-	2,	/* RAY_MIB_SCAN_MAX_DWELL */		\
-	1,	/* RAY_MIB_ASSOC_TIMO */		\
-	1,	/* RAY_MIB_ADHOC_SCAN_CYCLE */		\
-	1,	/* RAY_MIB_INFRA_SCAN_CYCLE */		\
-	1,	/* RAY_MIB_INFRA_SUPER_SCAN_CYCLE */	\
-	1,	/* RAY_MIB_PROMISC */			\
-	2,	/* RAY_MIB_UNIQ_WORD */			\
-	1,	/* RAY_MIB_SLOT_TIME */			\
-	1,	/* RAY_MIB_ROAM_LOW_SNR_THRESH */	\
-	1,	/* RAY_MIB_LOW_SNR_COUNT */		\
-	1,	/* RAY_MIB_INFRA_MISSED_BEACON_COUNT */	\
-	1,	/* RAY_MIB_ADHOC_MISSED_BEACON_COUNT */	\
-	1,	/* RAY_MIB_COUNTRY_CODE */		\
-	1,	/* RAY_MIB_HOP_SEQ */			\
-	1,	/* RAY_MIB_HOP_SEQ_LEN */		\
-	2,	/* RAY_MIB_CW_MAX */			\
-	2,	/* RAY_MIB_CW_MIN */			\
-	1,	/* RAY_MIB_NOISE_FILTER_GAIN */		\
-	1,	/* RAY_MIB_NOISE_LIMIT_OFFSET */	\
-	1,	/* RAY_MIB_RSSI_THRESH_OFFSET */	\
-	1,	/* RAY_MIB_BUSY_THRESH_OFFSET */	\
-	1,	/* RAY_MIB_SYNC_THRESH */		\
-	1,	/* RAY_MIB_TEST_MODE */			\
-	1,	/* RAY_MIB_TEST_MIN_CHAN */		\
-	1,	/* RAY_MIB_TEST_MAX_CHAN */		\
-	1,	/* RAY_MIB_ALLOW_PROBE_RESP */		\
-	1,	/* RAY_MIB_PRIVACY_MUST_START */	\
-	1,	/* RAY_MIB_PRIVACY_CAN_JOIN */		\
-	8,	/* RAY_MIB_BASIC_RATE_SET */		\
-	1,	/* RAY_MIB_VERSION */			\
-	ETHER_ADDR_LEN,	/* RAY_MIB_CUR_BSSID */		\
-	1,	/* RAY_MIB_CUR_INITED */		\
-	1,	/* RAY_MIB_CUR_DEF_TXRATE */		\
-	1,	/* RAY_MIB_CUR_ENCRYPT */		\
-	1,	/* RAY_MIB_CUR_NET_TYPE */		\
-	IEEE80211_NWID_LEN, /* RAY_MIB_CUR_SSID */	\
-	1,	/* RAY_MIB_CUR_PRIV_START */		\
-	1,	/* RAY_MIB_CUR_PRIV_JOIN */		\
-	ETHER_ADDR_LEN,	/* RAY_MIB_DES_BSSID */		\
-	1,	/* RAY_MIB_DES_INITED */		\
-	1,	/* RAY_MIB_DES_DEF_TXRATE */		\
-	1,	/* RAY_MIB_DES_ENCRYPT */		\
-	1,	/* RAY_MIB_DES_NET_TYPE */		\
-	IEEE80211_NWID_LEN, /* RAY_MIB_DES_SSID */	\
-	1,	/* RAY_MIB_DES_PRIV_START */		\
-	1 	/* RAY_MIB_DES_PRIV_JOIN */		\
+#define RAY_MIB_INFO_SIZ4 1
+#define RAY_MIB_INFO_SIZ5 2
+#define RAY_MIB_SIZE(info, mib, version) \
+	info[(mib)][(version & RAY_V4)?RAY_MIB_INFO_SIZ4:RAY_MIB_INFO_SIZ5]
+#define RAY_MIB_INFO {							\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_NET_TYPE */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_AP_STATUS */			\
+{RAY_V4|RAY_V5,	IEEE80211_NWID_LEN, 					\
+			IEEE80211_NWID_LEN},/* RAY_MIB_SSID */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_SCAN_MODE */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_APM_MODE */			\
+{RAY_V4|RAY_V5,	ETHER_ADDR_LEN,						\
+			ETHER_ADDR_LEN},/* RAY_MIB_MAC_ADDR */		\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_FRAG_THRESH */		\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_DWELL_TIME */		\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_BEACON_PERIOD */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DTIM_INTERVAL */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_MAX_RETRY */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_ACK_TIMO */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_SIFS */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DIFS */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_PIFS */			\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_RTS_THRESH */		\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_SCAN_DWELL */		\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_SCAN_MAX_DWELL */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_ASSOC_TIMO */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_ADHOC_SCAN_CYCLE */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_INFRA_SCAN_CYCLE */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_INFRA_SUPER_SCAN_CYCLE */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_PROMISC */			\
+{RAY_V4|RAY_V5,	2,	2},	/* RAY_MIB_UNIQ_WORD */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_SLOT_TIME */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_ROAM_LOW_SNR_THRESH */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_LOW_SNR_COUNT */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_INFRA_MISSED_BEACON_COUNT */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_ADHOC_MISSED_BEACON_COUNT */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_COUNTRY_CODE */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_HOP_SEQ */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_HOP_SEQ_LEN */		\
+{RAY_V4|RAY_V5,	1,	2},	/* RAY_MIB_CW_MAX */			\
+{RAY_V4|RAY_V5,	1,	2},	/* RAY_MIB_CW_MIN */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_NOISE_FILTER_GAIN */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_NOISE_LIMIT_OFFSET */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_RSSI_THRESH_OFFSET */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_BUSY_THRESH_OFFSET */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_SYNC_THRESH */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_TEST_MODE */			\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_TEST_MIN_CHAN */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_TEST_MAX_CHAN */		\
+{       RAY_V5,	0,	1},	/* RAY_MIB_ALLOW_PROBE_RESP */		\
+{       RAY_V5,	0,	1},	/* RAY_MIB_PRIVACY_MUST_START */	\
+{       RAY_V5,	0,	1},	/* RAY_MIB_PRIVACY_CAN_JOIN */		\
+{       RAY_V5,	0,	8},	/* RAY_MIB_BASIC_RATE_SET */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_VERSION */			\
+{RAY_V4|RAY_V5,	ETHER_ADDR_LEN,						\
+			ETHER_ADDR_LEN},/* RAY_MIB_CUR_BSSID */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_INITED */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_DEF_TXRATE */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_ENCRYPT */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_NET_TYPE */		\
+{RAY_V4|RAY_V5,	IEEE80211_NWID_LEN,					\
+			IEEE80211_NWID_LEN}, /* RAY_MIB_CUR_SSID */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_PRIV_START */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_CUR_PRIV_JOIN */		\
+{RAY_V4|RAY_V5,	ETHER_ADDR_LEN,						\
+			ETHER_ADDR_LEN},/* RAY_MIB_DES_BSSID */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_INITED */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_DEF_TXRATE */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_ENCRYPT */		\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_NET_TYPE */		\
+{RAY_V4|RAY_V5,	IEEE80211_NWID_LEN, 					\
+			IEEE80211_NWID_LEN}, /* RAY_MIB_DES_SSID */	\
+{RAY_V4|RAY_V5,	1,	1},	/* RAY_MIB_DES_PRIV_START */		\
+{RAY_V4|RAY_V5,	1, 	1} 	/* RAY_MIB_DES_PRIV_JOIN */		\
 }
 
 /*
@@ -998,10 +1017,6 @@ struct ray_stats_req {
 #define	RAY_FAILCAUSE_ELENGTH	2
 /* device can possibly return up to 255 */
 #define	RAY_FAILCAUSE_EDEVSTOP	256
-
-#ifdef KERNEL
-#define	RAY_FAILCAUSE_WAITING	257
-#endif
 
 /* Get a param the data is a ray_param_req structure */
 #define	SIOCSRAYPARAM	SIOCSIFGENERIC
