@@ -2,7 +2,7 @@
 
 LIB=	kvm
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}/../../sys
-SRCS=	kvm.c kvm_${MACHINE}.c kvm_file.c kvm_getloadavg.c kvm_proc.c
+SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_file.c kvm_getloadavg.c kvm_proc.c
 
 MAN3=	kvm.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 kvm_getprocs.3 \
 	kvm_nlist.3 kvm_open.3 kvm_read.3
