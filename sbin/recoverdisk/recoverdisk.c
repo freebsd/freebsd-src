@@ -11,9 +11,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <err.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/queue.h>
 #include <sys/disk.h>
@@ -55,6 +56,7 @@ main(int argc, const char **argv)
 	int error;
 	u_char *buf;
 	u_int sectorsize;
+	time_t t1, t2;
 
 
 	if (argc < 2)
@@ -85,6 +87,7 @@ main(int argc, const char **argv)
 	new_lump(0, t, 0);
 	d = 0;
 
+	t1 = 0;
 	for (;;) {
 		lp = TAILQ_FIRST(&lumps);
 		if (lp == NULL)
@@ -98,14 +101,18 @@ main(int argc, const char **argv)
 				i = MEDIUMSIZE;
 			if (lp->state > 1)
 				i = sectorsize;
-			printf("\r%13jd %7jd %13jd %3d %13jd %13jd %.8f",
-			    (intmax_t)lp->start,
-			    (intmax_t)i, 
-			    (intmax_t)lp->len,
-			    lp->state,
-			    (intmax_t)d,
-			    (intmax_t)(t - d),
-			    (double)d/(double)t);
+			time(&t2);
+			if (t1 != t2 || lp->len < BIGSIZE) {
+				printf("\r%13jd %7jd %13jd %3d %13jd %13jd %.8f",
+				    (intmax_t)lp->start,
+				    (intmax_t)i, 
+				    (intmax_t)lp->len,
+				    lp->state,
+				    (intmax_t)d,
+				    (intmax_t)(t - d),
+				    (double)d/(double)t);
+				t1 = t2;
+			}
 			if (i == 0) {
 				errx(1, "BOGUS i %10jd", (intmax_t)i);
 			}
