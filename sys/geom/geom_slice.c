@@ -72,7 +72,8 @@ g_slice_init(unsigned nslice, unsigned scsize)
 
 	gsp = g_malloc(sizeof *gsp, M_WAITOK | M_ZERO);
 	gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
-	gsp->slices = g_malloc(nslice * sizeof(struct g_slice), M_WAITOK | M_ZERO);
+	gsp->slices = g_malloc(nslice * sizeof(struct g_slice),
+	    M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
 	return (gsp);
 }
@@ -148,6 +149,10 @@ g_slice_start(struct bio *bp)
 			return;
 		}
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_fail(bp, ENOMEM);
+			return;
+		}
 		if (bp2->bio_offset + bp2->bio_length > gsl->length)
 			bp2->bio_length = gsl->length - bp2->bio_offset;
 		bp2->bio_done = g_std_done;

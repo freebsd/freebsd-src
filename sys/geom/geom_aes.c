@@ -195,12 +195,20 @@ g_aes_start(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_fail(bp, ENOMEM);
+			return;
+		}
 		bp2->bio_done = g_aes_read_done;
 		bp2->bio_offset += sc->sectorsize;
 		g_io_request(bp2, cp);
 		break;
 	case BIO_WRITE:
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_fail(bp, ENOMEM);
+			return;
+		}
 		bp2->bio_done = g_aes_write_done;
 		bp2->bio_offset += sc->sectorsize;
 		bp2->bio_data = g_malloc(bp->bio_length, M_WAITOK);
@@ -226,6 +234,10 @@ g_aes_start(struct bio *bp)
 		if (g_handleattr_int(bp, "GEOM::sectorsize", sc->sectorsize))
 			return;
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_fail(bp, ENOMEM);
+			return;
+		}
 		bp2->bio_done = g_std_done;
 		bp2->bio_offset += sc->sectorsize;
 		g_io_request(bp2, cp);
