@@ -2104,8 +2104,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		PROC_LOCK(p);
 		xf.xf_pid = p->p_pid;
 		xf.xf_uid = p->p_ucred->cr_uid;
+		PROC_UNLOCK(p);
 		if ((fdp = p->p_fd) == NULL) {
-			PROC_UNLOCK(p);
 			continue;
 		}
 		FILEDESC_LOCK(fdp);
@@ -2125,7 +2125,6 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 		FILEDESC_UNLOCK(fdp);
-		PROC_UNLOCK(p);
 		if (error)
 			break;
 	}
