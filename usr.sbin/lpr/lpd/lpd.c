@@ -459,7 +459,7 @@ doit(void)
 		do {
 			if (cp >= &cbuf[sizeof(cbuf) - 1])
 				fatal(0, "Command line too long");
-			if ((n = read(1, cp, 1)) != 1) {
+			if ((n = read(STDOUT_FILENO, cp, 1)) != 1) {
 				if (n < 0)
 					fatal(0, "Lost connection");
 				return;
