@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.55 1998/04/16 12:28:31 peter Exp $
+ *      $Id: worm.c,v 1.56 1998/06/07 17:12:54 dfr Exp $
  */
 
 #include "opt_bounce.h"
@@ -69,6 +69,8 @@
 #include <scsi/scsi_cd.h>
 #include <sys/dkstat.h>
 #include <sys/malloc.h>
+
+#include "ioconf.h"
 
 struct worm_quirks
 {
