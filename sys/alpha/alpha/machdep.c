@@ -1038,7 +1038,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALP, gd_allcpu);
 
 	/*
-	 * Initialise the kernel lock.
+	 * Initialise mutexes.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN);
