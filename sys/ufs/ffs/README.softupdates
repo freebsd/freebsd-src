@@ -1,0 +1,17 @@
+Tue May 19 16:20:27 PDT 1998
+
+For legal reasons the two active files for using Soft Updates are in
+/usr/src/contrib/sys/softupdates. To use them, copy them to this directory,
+and add option SOFTUPDATES to your kernel configuration. You should read the
+copyrights on the files and the README in that directory before doing do to
+ensure that you are acting legally. The stub file here will allow the system
+to function without this option turned on.
+
+To turn on soft updates use the -n option of tunefs, on UNMOUNTED filesystems.
+e.g. from single-user mode..
+
+	tunefs -n enable /dev/rsd0s1d
+
+Soft Updates is ALPHA code. Use at your own risk.
+
+Julian, julian@freebsd.org
