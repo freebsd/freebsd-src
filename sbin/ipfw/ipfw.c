@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.58 1998/07/06 03:20:10 julian Exp $
+ * $Id: ipfw.c,v 1.59 1998/08/04 14:41:37 thepish Exp $
  *
  */
 
@@ -104,7 +104,7 @@ mask_bits(struct in_addr m_ad)
 	return h_num;
 }                         
 
-void
+static void
 print_port(prot, port, comma)
 	u_char  prot;
 	u_short port;
@@ -404,7 +404,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		endservent();
 }
 
-void
+static void
 list(ac, av)
 	int	ac;
 	char 	**av;
@@ -534,7 +534,7 @@ lookup_host (host, ipaddr)
 	return(0);
 }
 
-void
+static void
 fill_ip(ipno, mask, acp, avp)
 	struct in_addr *ipno, *mask;
 	int *acp;
@@ -645,7 +645,7 @@ lookup_port(const char *arg, int test, int nodash)
 	return(val);
 }
 
-int
+static int
 fill_port(cnt, ptr, off, arg)
 	u_short *cnt, *ptr, off;
 	char *arg;
@@ -677,7 +677,7 @@ fill_port(cnt, ptr, off, arg)
 	return initial_range;
 }
 
-void
+static void
 fill_tcpflag(set, reset, vp)
 	u_char *set, *reset;
 	char **vp;
@@ -743,11 +743,11 @@ fill_ipopt(u_char *set, u_char *reset, char **vp)
 	}
 }
 
-void
+static void
 fill_icmptypes(types, vp, fw_flg)
 	u_long *types;
 	char **vp;
-	u_short *fw_flg;
+	u_int *fw_flg;
 {
 	char *c = *vp;
 
@@ -772,7 +772,7 @@ fill_icmptypes(types, vp, fw_flg)
 	}
 }
 
-void
+static void
 delete(ac,av)
 	int ac;
 	char **av;
@@ -1192,7 +1192,7 @@ zero (ac, av)
 	}
 }
 
-int
+static int
 ipfw_main(ac,av)
 	int 	ac;
 	char 	**av;
