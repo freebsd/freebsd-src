@@ -52,6 +52,7 @@ struct tap_softc {
 #define	TAP_RWAIT	(1 << 2)
 #define	TAP_ASYNC	(1 << 3)
 #define TAP_READY       (TAP_OPEN|TAP_INITED)
+#define	TAP_VMNET	(1 << 4)
 
 	pid_t		 tap_pid;		/* PID of process to open    */
 	struct sigio	*tap_sigio;		/* information for async I/O */
