@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.39 1998/04/12 12:11:31 phk Exp $
+ * $Id: aic6360.c,v 1.40 1998/04/15 17:45:12 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -130,8 +130,6 @@
 #include <machine/apm_bios.h>
 #endif /* NAPM > 0 */
 #include <i386/isa/isa_device.h>
-
-#include "ioconf.h"
 
 /* Definitions, most of them has turned out to be unneccesary, but here they
  * are anyway.

@@ -48,8 +48,6 @@
 
 #include <scsi/scsiconf.h>
 
-#include "ioconf.h"
-
 #ifdef DEBUG
 #   define PRINT(s)     printf s
 #else

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.121 1998/05/21 07:47:58 dyson Exp $
+ * $Id: vm_object.c,v 1.122 1998/06/07 17:13:12 dfr Exp $
  */
 
 /*
@@ -79,7 +79,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>

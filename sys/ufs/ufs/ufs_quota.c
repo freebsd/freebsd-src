@@ -34,11 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.21 1998/03/30 09:56:27 phk Exp $
+ * $Id: ufs_quota.c,v 1.22 1998/06/04 17:03:16 dfr Exp $
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.14 1998/02/20 13:11:48 bde Exp $
+ * $Id: uipc_proto.c,v 1.15 1998/05/15 20:11:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,6 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
-#include <sys/unpcb.h>
 
 #include <net/raw_cb.h>
 

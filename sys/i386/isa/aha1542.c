@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.76 1998/04/17 22:36:29 des Exp $
+ *      $Id: aha1542.c,v 1.77 1998/05/01 18:30:00 bde Exp $
  */
 
 /*
@@ -38,8 +38,6 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
-
-#include "ioconf.h"
 
 /************************** board definitions *******************************/
 

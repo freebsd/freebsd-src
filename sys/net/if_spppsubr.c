@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.38 1998/04/06 11:40:17 phk Exp $
+ * $Id: if_spppsubr.c,v 1.39 1998/05/17 11:53:14 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -29,7 +29,6 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <machine/random.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/md5.h>
