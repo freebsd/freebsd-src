@@ -161,9 +161,8 @@ ast(framep)
 			p->p_stats->p_prof.pr_ticks = 0;
 		}
 		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
-		td->td_ucred = crhold(p->p_ucred);
-		PROC_UNLOCK(p);
+		if (td->td_ucred != p->p_ucred) 
+			cred_update_thread(td);
 		if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
 			addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
 		if (sflag & PS_ALRMPEND) {
@@ -188,10 +187,12 @@ ast(framep)
 		}
 
 		userret(td, framep, sticks);
+#ifdef	INVARIANTS
 		mtx_lock(&Giant);
 		crfree(td->td_ucred);
 		mtx_unlock(&Giant);
 		td->td_ucred = NULL;
+#endif
 		s = cpu_critical_enter();
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
