@@ -47,7 +47,7 @@
     ..
     msgs            uname=daemon
     ..
-    named           uname=root
+    named
     ..
     preserve
     ..
