@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.14.2.5 1999/05/07 09:01:40 dfr Exp $
+#	$Id: GENERIC,v 1.14.2.6 1999/05/09 11:44:39 dfr Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -103,6 +103,7 @@ device fxp0
 device le0
 device mx0
 device pn0
+device rl0
 device tl0
 device xl0
 
