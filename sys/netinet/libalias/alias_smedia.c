@@ -138,7 +138,7 @@ search_string(char *data, int dlen, const char *search_str)
 
 static int
 alias_rtsp_out(struct libalias *la, struct ip *pip,
-    struct alias_link *link,
+    struct alias_link *lnk,
     char *data,
     const char *port_str)
 {
@@ -151,7 +151,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	const char *transport_str = "transport:";
 	char newdata[2048], *port_data, *port_newdata, stemp[80];
 	int links_created = 0, pkt_updated = 0;
-	struct alias_link *rtsp_link = NULL;
+	struct alias_link *rtsp_lnk = NULL;
 	struct in_addr null_addr;
 
 	/* Calculate data length of TCP packet */
@@ -171,7 +171,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	memcpy(newdata, data, pos);
 	port_newdata = newdata + pos;
 
-	while (port_dlen > strlen(port_str)) {
+	while (port_dlen > (int)strlen(port_str)) {
 		/* Find keyword, appropriate port string */
 		pos = search_string(port_data, port_dlen, port_str);
 		if (pos < 0) {
@@ -242,17 +242,17 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 							 * to port found in
 							 * RTSP packet
 							 */
-							rtsp_link = FindRtspOut(la, GetOriginalAddress(link), null_addr,
+							rtsp_lnk = FindRtspOut(la, GetOriginalAddress(lnk), null_addr,
 							    htons(base_port + j), htons(base_alias + j),
 							    IPPROTO_UDP);
-							if (rtsp_link != NULL) {
+							if (rtsp_lnk != NULL) {
 #ifndef NO_FW_PUNCH
 								/*
 								 * Punch
 								 * hole in
 								 * firewall
 								 */
-								PunchFWHole(rtsp_link);
+								PunchFWHole(rtsp_lnk);
 #endif
 							} else {
 #ifdef DEBUG
@@ -265,7 +265,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 					}
 					ealias = htons(base_alias + (RTSP_PORT_GROUP - 1));
 				}
-				if (salias && rtsp_link) {
+				if (salias && rtsp_lnk) {
 
 					pkt_updated = 1;
 
@@ -308,9 +308,9 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	new_dlen = port_newdata - newdata;
 	memcpy(data, newdata, new_dlen);
 
-	SetAckModified(link);
-	delta = GetDeltaSeqOut(pip, link);
-	AddSeq(pip, link, delta + new_dlen - dlen);
+	SetAckModified(lnk);
+	delta = GetDeltaSeqOut(pip, lnk);
+	AddSeq(pip, lnk, delta + new_dlen - dlen);
 
 	new_len = htons(hlen + new_dlen);
 	DifferentialChecksum(&pip->ip_sum,
@@ -329,7 +329,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 
 static int
 alias_pna_out(struct libalias *la, struct ip *pip,
-    struct alias_link *link,
+    struct alias_link *lnk,
     char *data,
     int dlen)
 {
@@ -352,7 +352,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 		}
 		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 			memcpy(&port, work, 2);
-			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(link),
+			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
 			    port, 0, IPPROTO_UDP, 1);
 			if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
@@ -375,7 +375,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 }
 
 void
-AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link, int maxpacketsize)
+AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, int maxpacketsize)
 {
 	int hlen, tlen, dlen;
 	struct tcphdr *tc;
@@ -384,6 +384,8 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link,
 	const char *okstr = "OK", *client_port_str = "client_port";
 	const char *server_port_str = "server_port";
 	int i, parseOk;
+
+	(void)maxpacketsize;
 
 	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
 	hlen = (pip->ip_hl + tc->th_off) << 2;
@@ -397,15 +399,15 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link,
 	if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
 	    (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
 
-		if (dlen >= strlen(setup)) {
+		if (dlen >= (int)strlen(setup)) {
 			if (memcmp(data, setup, strlen(setup)) == 0) {
-				alias_rtsp_out(la, pip, link, data, client_port_str);
+				alias_rtsp_out(la, pip, lnk, data, client_port_str);
 				return;
 			}
 		}
-		if (dlen >= strlen(pna)) {
+		if (dlen >= (int)strlen(pna)) {
 			if (memcmp(data, pna, strlen(pna)) == 0) {
-				alias_pna_out(la, pip, link, data, dlen);
+				alias_pna_out(la, pip, lnk, data, dlen);
 			}
 		}
 	} else {
@@ -415,10 +417,10 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link,
 		 * Accomodate varying number of blanks between 200 & OK
 		 */
 
-		if (dlen >= strlen(str200)) {
+		if (dlen >= (int)strlen(str200)) {
 
 			for (parseOk = 0, i = 0;
-			    i <= dlen - strlen(str200);
+			    i <= dlen - (int)strlen(str200);
 			    i++) {
 				if (memcmp(&data[i], str200, strlen(str200)) == 0) {
 					parseOk = 1;
@@ -431,10 +433,10 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *link,
 				while (data[i] == ' ')	/* skip blank(s) */
 					i++;
 
-				if ((dlen - i) >= strlen(okstr)) {
+				if ((dlen - i) >= (int)strlen(okstr)) {
 
 					if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
-						alias_rtsp_out(la, pip, link, data, server_port_str);
+						alias_rtsp_out(la, pip, lnk, data, server_port_str);
 
 				}
 			}

@@ -65,6 +65,8 @@ LibAliasInternetChecksum(struct libalias *la, u_short * ptr, int nbytes)
 {
 	int sum, oddbyte;
 
+	(void)la;
+
 	sum = 0;
 	while (nbytes > 1) {
 		sum += *ptr++;

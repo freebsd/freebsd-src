@@ -104,7 +104,7 @@ void
 AliasHandleFtpOut(
     struct libalias *la,
     struct ip *pip,		/* IP packet to examine/patch */
-    struct alias_link *link,	/* The link to go through (aliased port) */
+    struct alias_link *lnk,	/* The link to go through (aliased port) */
     int maxpacketsize		/* The maximum size this packet can grow to
 	(including headers) */ )
 {
@@ -127,7 +127,7 @@ AliasHandleFtpOut(
  * Check that data length is not too long and previous message was
  * properly terminated with CRLF.
  */
-	pflags = GetProtocolFlags(link);
+	pflags = GetProtocolFlags(lnk);
 	if (dlen <= MAX_MESSAGE_SIZE && !(pflags & WAIT_CRLF)) {
 		ftp_message_type = FTP_UNKNOWN_MESSAGE;
 
@@ -152,7 +152,7 @@ AliasHandleFtpOut(
 		}
 
 		if (ftp_message_type != FTP_UNKNOWN_MESSAGE)
-			NewFtpMessage(la, pip, link, maxpacketsize, ftp_message_type);
+			NewFtpMessage(la, pip, lnk, maxpacketsize, ftp_message_type);
 	}
 /* Track the msgs which are CRLF term'd for PORT/PASV FW breach */
 
@@ -164,7 +164,7 @@ AliasHandleFtpOut(
 			pflags &= ~WAIT_CRLF;
 		else
 			pflags |= WAIT_CRLF;
-		SetProtocolFlags(link, pflags);
+		SetProtocolFlags(lnk, pflags);
 	}
 }
 
@@ -551,11 +551,11 @@ ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 
 static void
 NewFtpMessage(struct libalias *la, struct ip *pip,
-    struct alias_link *link,
+    struct alias_link *lnk,
     int maxpacketsize,
     int ftp_message_type)
 {
-	struct alias_link *ftp_link;
+	struct alias_link *ftp_lnk;
 
 /* Security checks. */
 	if (pip->ip_src.s_addr != la->true_addr.s_addr)
@@ -565,16 +565,16 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		return;
 
 /* Establish link to address and port found in FTP control message. */
-	ftp_link = FindUdpTcpOut(la, la->true_addr, GetDestAddress(link),
+	ftp_lnk = FindUdpTcpOut(la, la->true_addr, GetDestAddress(lnk),
 	    htons(la->true_port), 0, IPPROTO_TCP, 1);
 
-	if (ftp_link != NULL) {
+	if (ftp_lnk != NULL) {
 		int slen, hlen, tlen, dlen;
 		struct tcphdr *tc;
 
 #ifndef NO_FW_PUNCH
 		/* Punch hole in firewall */
-		PunchFWHole(ftp_link);
+		PunchFWHole(ftp_lnk);
 #endif
 
 /* Calculate data length of TCP packet */
@@ -593,14 +593,14 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 			struct in_addr alias_address;
 
 /* Decompose alias address into quad format */
-			alias_address = GetAliasAddress(link);
+			alias_address = GetAliasAddress(lnk);
 			ptr = (u_char *) & alias_address.s_addr;
 			a1 = *ptr++;
 			a2 = *ptr++;
 			a3 = *ptr++;
 			a4 = *ptr;
 
-			alias_port = GetAliasPort(ftp_link);
+			alias_port = GetAliasPort(ftp_lnk);
 
 			switch (ftp_message_type) {
 			case FTP_PORT_COMMAND:
@@ -646,9 +646,9 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		{
 			int delta;
 
-			SetAckModified(link);
-			delta = GetDeltaSeqOut(pip, link);
-			AddSeq(pip, link, delta + slen - dlen);
+			SetAckModified(lnk);
+			delta = GetDeltaSeqOut(pip, lnk);
+			AddSeq(pip, lnk, delta + slen - dlen);
 		}
 
 /* Revise IP header */
