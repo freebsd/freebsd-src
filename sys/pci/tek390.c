@@ -1508,9 +1508,9 @@ DC390_DefaultEEprom( USHORT mechnum, USHORT index )
 	*ptr = (TAG_QUEUING_|EN_DISCONNECT_|SYNC_NEGO_|PARITY_CHK_);
 	ptr += 4;
     }
-    ptr[EE_ADAPT_SCSI_ID] = 7;
-    ptr[EE_MODE2] = (LUN_CHECK|ACTIVE_NEGATION);
-    ptr[EE_TAG_CMD_NUM] = 4;
+    eepromBuf[index][EE_ADAPT_SCSI_ID] = 7;
+    eepromBuf[index][EE_MODE2] = (LUN_CHECK|ACTIVE_NEGATION);
+    eepromBuf[index][EE_TAG_CMD_NUM] = 4;
     return 0;
 }
 
