@@ -1,4 +1,4 @@
-# @(#)northamerica	7.60
+# @(#)northamerica	7.61
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -1362,6 +1362,12 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # standard time. "This is so residents of the Federal District are not
 # subject to unexpected time changes," a statement from the court said.
 
+# From Jesper Norgaard Welen (2002-03-12):
+# ... consulting my local grocery store(!) and my coworkers, they all insisted
+# that a new decision had been made to reinstate US style DST in Mexico....
+# http://www.conae.gob.mx/ahorro/horaver2001_m1_2002.html (2002-02-20)
+# confirms this.  Sonora as usual is the only state where DST is not applied.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mexico	1939	only	-	Feb	5	0:00	1:00	D
 Rule	Mexico	1939	only	-	Jun	25	0:00	0	S
@@ -1373,8 +1379,10 @@ Rule	Mexico	1950	only	-	Feb	12	0:00	1:00	D
 Rule	Mexico	1950	only	-	Jul	30	0:00	0	S
 Rule	Mexico	1996	2000	-	Apr	Sun>=1	2:00	1:00	D
 Rule	Mexico	1996	2000	-	Oct	lastSun	2:00	0	S
-Rule	Mexico	2001	max	-	May	Sun>=1	2:00	1:00	D
-Rule	Mexico	2001	max	-	Sep	lastSun	2:00	0	S
+Rule	Mexico	2001	only	-	May	Sun>=1	2:00	1:00	D
+Rule	Mexico	2001	only	-	Sep	lastSun	2:00	0	S
+Rule	Mexico	2002	max	-	Apr	Sun>=1	2:00	1:00	D
+Rule	Mexico	2002	max	-	Oct	lastSun	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Quintana Roo
 Zone America/Cancun	-5:47:04 -	LMT	1922 Jan  1  0:12:56
@@ -1399,7 +1407,8 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Apr  1
 			-6:00	Mexico	C%sT	2001 Sep 30 02:00
-			-6:00	-	CST
+			-6:00	-	CST	2002 Feb 20
+			-6:00	Mexico	C%sT
 # Chihuahua
 Zone America/Chihuahua	-7:04:20 -	LMT	1921 Dec 31 23:55:40
 			-7:00	-	MST	1927 Jun 10 23:00
@@ -1450,7 +1459,8 @@ Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	-	PST	1976
 			-8:00	US	P%sT	1996
 			-8:00	Mexico	P%sT	2001
-			-8:00	US	P%sT
+			-8:00	US	P%sT	2002 Feb 20
+			-8:00	Mexico	P%sT
 # From Paul Eggert (2001-03-05):
 # Formerly there was an America/Ensenada zone, which differed from
 # America/Tijuana only in that it did not observe DST from 1976
