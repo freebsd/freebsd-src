@@ -139,12 +139,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 
 	PAM_LOG("Got user: %s", user);
 
-	lc = login_getclass(NULL);
-	password_prompt = login_getcapstr(lc, "passwd_prompt",
-	    password_prompt, NULL);
-	login_close(lc);
-	lc = NULL;
-
 	if (pwd != NULL) {
 
 		PAM_LOG("Doing real authentication");
@@ -159,8 +153,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 			PAM_RETURN(PAM_SUCCESS);
 		}
 		else {
+			lc = login_getpwclass(pwd);
+			password_prompt = login_getcapstr(lc, "passwd_prompt",
+			    NULL, NULL);
 			retval = pam_get_authtok(pamh, PAM_AUTHTOK,
 			    &pass, password_prompt);
+			login_close(lc);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
 			PAM_LOG("Got password");
@@ -183,8 +181,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		 * User unknown.
 		 * Encrypt a dummy password so as to not give away too much.
 		 */
+		lc = login_getclass(NULL);
+		password_prompt = login_getcapstr(lc, "passwd_prompt",
+		    NULL, NULL);
 		retval = pam_get_authtok(pamh,
 		    PAM_AUTHTOK, &pass, password_prompt);
+		login_close(lc);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
 		PAM_LOG("Got password");
