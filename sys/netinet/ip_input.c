@@ -32,9 +32,6 @@
 
 #include "opt_bootp.h"
 #include "opt_ipfw.h"
-#include "opt_ipdn.h"
-#include "opt_ipdivert.h"
-#include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_mac.h"
@@ -72,8 +69,8 @@
 
 #include <sys/socketvar.h>
 
+/* XXX: Temporary until ipfw_ether and ipfw_bridge are converted. */
 #include <netinet/ip_fw.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
 #ifdef IPSEC
@@ -208,14 +205,13 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     &ipstealth, 0, "");
 #endif
 
-
-/* Firewall hooks */
-ip_fw_chk_t *ip_fw_chk_ptr;
-int fw_enable = 1 ;
+/*
+ * ipfw_ether and ipfw_bridge hooks.
+ * XXX: Temporary until those are converted to pfil_hooks as well.
+ */
+ip_fw_chk_t *ip_fw_chk_ptr = NULL;
+ip_dn_io_t *ip_dn_io_ptr = NULL;
 int fw_one_pass = 1;
-
-/* Dummynet hooks */
-ip_dn_io_t *ip_dn_io_ptr;
 
 /*
  * XXX this is ugly -- the following two global variables are
@@ -240,12 +236,9 @@ static	struct ip_srcrt {
 } ip_srcrt;
 
 static void	save_rte(u_char *, struct in_addr);
-static int	ip_dooptions(struct mbuf *m, int,
-			struct sockaddr_in *next_hop);
-static void	ip_forward(struct mbuf *m, int srcrt,
-			struct sockaddr_in *next_hop);
+static int	ip_dooptions(struct mbuf *m, int);
+static void	ip_forward(struct mbuf *m, int srcrt);
 static void	ip_freef(struct ipqhead *, struct ipq *);
-static struct	mbuf *ip_reass(struct mbuf *);
 
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -301,13 +294,8 @@ ip_input(struct mbuf *m)
 	struct ip *ip = NULL;
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
-	int    i, checkif, hlen = 0;
+	int    checkif, hlen = 0;
 	u_short sum;
-	struct in_addr pkt_dst;
-#ifdef IPDIVERT
-	u_int32_t divert_info;			/* packet divert/tee info */
-#endif
-	struct ip_fw_args args;
 	int dchg = 0;				/* dest changed after fw */
 #ifdef PFIL_HOOKS
 	struct in_addr odst;			/* original dst address */
@@ -319,25 +307,19 @@ ip_input(struct mbuf *m)
 	int s, error;
 #endif /* FAST_IPSEC */
 
-	args.eh = NULL;
-	args.oif = NULL;
-
   	M_ASSERTPKTHDR(m);
   	
-	args.next_hop = m_claim_next(m, PACKET_TAG_IPFORWARD);
-	args.rule = ip_dn_claim_rule(m);
-  
 	if (m->m_flags & M_FASTFWD_OURS) {
-		/* ip_fastforward firewall changed dest to local */
+		/*
+		 * ip_fastforward firewall changed dest to local.
+		 * We expect ip_len and ip_off in host byte order.
+		 */
 		m->m_flags &= ~M_FASTFWD_OURS;	/* for reflected mbufs */
+		/* Set up some basic stuff */
+		ip = mtod(m, struct ip *);
+		hlen = ip->ip_hl << 2;
   		goto ours;
   	}
-
-  	if (args.rule) {	/* dummynet already filtered us */
-  		ip = mtod(m, struct ip *);
-  		hlen = ip->ip_hl << 2;
-		goto iphack ;
-	}
 
 	ipstat.ips_total++;
 
@@ -441,20 +423,6 @@ tooshort:
 		goto pass;
 #endif
 
-	/*
-	 * IpHack's section.
-	 * Right now when no processing on packet has done
-	 * and it is still fresh out of network we do our black
-	 * deals with it.
-	 * - Firewall: deny/allow/divert
-	 * - Xlate: translate packet's addr/port (NAT).
-	 * - Pipe: pass pkt through dummynet.
-	 * - Wrap: fake packet's addr/port <unimpl.>
-	 * - Encapsulate: put it in another IP and send out. <unimp.>
- 	 */
-
-iphack:
-
 #ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for input packets.
@@ -469,50 +437,23 @@ iphack:
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
+
 	ip = mtod(m, struct ip *);
 	dchg = (odst.s_addr != ip->ip_dst.s_addr);
+
+#ifdef IPFIREWALL_FORWARD
+	if (m->m_flags & M_FASTFWD_OURS) {
+		m->m_flags &= ~M_FASTFWD_OURS;
+		goto ours;
+	}
+	dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL);
+#endif /* IPFIREWALL_FORWARD */
+
 #endif /* PFIL_HOOKS */
 
-	if (fw_enable && IPFW_LOADED) {
-		/*
-		 * If we've been forwarded from the output side, then
-		 * skip the firewall a second time
-		 */
-		if (args.next_hop)
-			goto ours;
-
-		args.m = m;
-		i = ip_fw_chk_ptr(&args);
-		m = args.m;
-
-		if ( (i & IP_FW_PORT_DENY_FLAG) || m == NULL) { /* drop */
-			if (m)
-				m_freem(m);
-			return;
-		}
-		ip = mtod(m, struct ip *); /* just in case m changed */
-		if (i == 0 && args.next_hop == NULL)	/* common case */
-			goto pass;
-                if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG) != 0) {
-			/* Send packet to the appropriate pipe */
-			ip_dn_io_ptr(m, i&0xffff, DN_TO_IP_IN, &args);
-			return;
-		}
-#ifdef IPDIVERT
-		if (i != 0 && (i & IP_FW_PORT_DYNT_FLAG) == 0) {
-			/* Divert or tee packet */
-			goto ours;
-		}
-#endif
-		if (i == 0 && args.next_hop != NULL)
-			goto pass;
-		/*
-		 * if we get here, the packet must be dropped
-		 */
-		m_freem(m);
-		return;
-	}
+#if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
 pass:
+#endif
 
 	/*
 	 * Process options and, if not destined for us,
@@ -520,8 +461,7 @@ pass:
 	 * error was detected (causing an icmp message
 	 * to be sent and the original packet to be freed).
 	 */
-	ip_nhops = 0;		/* for source routed packets */
-	if (hlen > sizeof (struct ip) && ip_dooptions(m, 0, args.next_hop))
+	if (hlen > sizeof (struct ip) && ip_dooptions(m, 0))
 		return;
 
         /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
@@ -544,12 +484,6 @@ pass:
 		goto ours;
 
 	/*
-	 * Cache the destination address of the packet; this may be
-	 * changed by use of 'ipfw fwd'.
-	 */
-	pkt_dst = args.next_hop ? args.next_hop->sin_addr : ip->ip_dst;
-
-	/*
 	 * Enable a consistency check between the destination address
 	 * and the arrival interface for a unicast packet (the RFC 1122
 	 * strong ES model) if IP forwarding is disabled and the packet
@@ -566,18 +500,18 @@ pass:
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
 	    m->m_pkthdr.rcvif != NULL &&
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
-	    (args.next_hop == NULL) && (dchg == 0);
+	    (dchg == 0);
 
 	/*
 	 * Check for exact addresses in the hash bucket.
 	 */
-	LIST_FOREACH(ia, INADDR_HASH(pkt_dst.s_addr), ia_hash) {
+	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
 		 * arrived via the correct interface if checking is
 		 * enabled.
 		 */
-		if (IA_SIN(ia)->sin_addr.s_addr == pkt_dst.s_addr && 
+		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == m->m_pkthdr.rcvif))
 			goto ours;
 	}
@@ -596,9 +530,9 @@ pass:
 				continue;
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
-			    pkt_dst.s_addr)
+			    ip->ip_dst.s_addr)
 				goto ours;
-			if (ia->ia_netbroadcast.s_addr == pkt_dst.s_addr)
+			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr)
 				goto ours;
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
@@ -706,7 +640,7 @@ pass:
 			goto bad;
 		}
 #endif /* FAST_IPSEC */
-		ip_forward(m, dchg, args.next_hop);
+		ip_forward(m, dchg);
 	}
 	return;
 
@@ -717,7 +651,7 @@ ours:
 	 * if the packet is destined for us.
 	 */
 	if (ipstealth && hlen > sizeof (struct ip) &&
-	    ip_dooptions(m, 1, args.next_hop))
+	    ip_dooptions(m, 1))
 		return;
 #endif /* IPSTEALTH */
 
@@ -738,20 +672,6 @@ ours:
 		ip = mtod(m, struct ip *);
 		/* Get the header length of the reassembled packet */
 		hlen = ip->ip_hl << 2;
-#ifdef IPDIVERT
-		/* Restore original checksum before diverting packet */
-		if (divert_find_info(m) != 0) {
-			ip->ip_len = htons(ip->ip_len);
-			ip->ip_off = htons(ip->ip_off);
-			ip->ip_sum = 0;
-			if (hlen == sizeof(struct ip))
-				ip->ip_sum = in_cksum_hdr(ip);
-			else
-				ip->ip_sum = in_cksum(m, hlen);
-			ip->ip_off = ntohs(ip->ip_off);
-			ip->ip_len = ntohs(ip->ip_len);
-		}
-#endif
 	}
 
 	/*
@@ -759,46 +679,6 @@ ours:
 	 * IP header.
 	 */
 	ip->ip_len -= hlen;
-
-#ifdef IPDIVERT
-	/*
-	 * Divert or tee packet to the divert protocol if required.
-	 */
-	divert_info = divert_find_info(m);
-	if (divert_info != 0) {
-		struct mbuf *clone;
-
-		/* Clone packet if we're doing a 'tee' */
-		if ((divert_info & IP_FW_PORT_TEE_FLAG) != 0)
-			clone = divert_clone(m);
-		else
-			clone = NULL;
-
-		/* Restore packet header fields to original values */
-		ip->ip_len += hlen;
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
-
-		/* Deliver packet to divert input routine */
-		divert_packet(m, 1);
-		ipstat.ips_delivered++;
-
-		/* If 'tee', continue with original packet */
-		if (clone == NULL)
-			return;
-		m = clone;
-		ip = mtod(m, struct ip *);
-		ip->ip_len += hlen;
-		/*
-		 * Jump backwards to complete processing of the
-		 * packet.  We do not need to clear args.next_hop
-		 * as that will not be used again and the cloned packet
-		 * doesn't contain a divert packet tag so we won't
-		 * re-entry this block.
-		 */
-		goto pass;
-	}
-#endif
 
 #ifdef IPSEC
 	/*
@@ -856,15 +736,7 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 	 * Switch out to protocol's input routine.
 	 */
 	ipstat.ips_delivered++;
-	if (args.next_hop && ip->ip_p == IPPROTO_TCP) {
-		/* attach next hop info for TCP */
-		struct m_tag *mtag = m_tag_get(PACKET_TAG_IPFORWARD,
-		    sizeof(struct sockaddr_in *), M_NOWAIT);
-		if (mtag == NULL)
-			goto bad;
-		*(struct sockaddr_in **)(mtag+1) = args.next_hop;
-		m_tag_prepend(m, mtag);
-	}
+
 	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
 	return;
 bad:
@@ -1092,18 +964,6 @@ found:
 
 inserted:
 
-#ifdef IPDIVERT
-	if (ip->ip_off != 0) {
-		/*
-		 * Strip any divert information; only the info
-		 * on the first fragment is used/kept.
-		 */
-		struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
-		if (mtag)
-			m_tag_delete(m, mtag);
-	}
-#endif
-
 	/*
 	 * Check for complete reassembly and perform frag per packet
 	 * limiting.
@@ -1298,7 +1158,7 @@ ip_drain()
  * 0 if the packet should be processed further.
  */
 static int
-ip_dooptions(struct mbuf *m, int pass, struct sockaddr_in *next_hop)
+ip_dooptions(struct mbuf *m, int pass)
 {
 	struct ip *ip = mtod(m, struct ip *);
 	u_char *cp;
@@ -1557,7 +1417,7 @@ dropit:
 		}
 	}
 	if (forward && ipforwarding) {
-		ip_forward(m, 1, next_hop);
+		ip_forward(m, 1);
 		return (1);
 	}
 	return (0);
@@ -1737,35 +1597,25 @@ u_char inetctlerrmap[PRC_NCMDS] = {
  * The srcrt parameter indicates whether the packet is being forwarded
  * via a source route.
  */
-static void
-ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
+void
+ip_forward(struct mbuf *m, int srcrt)
 {
 	struct ip *ip = mtod(m, struct ip *);
-	struct in_ifaddr *ia;
+	struct in_ifaddr *ia = NULL;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
-	n_long dest;
-	struct in_addr pkt_dst;
-	struct ifnet *destifp;
-#if defined(IPSEC) || defined(FAST_IPSEC)
-	struct ifnet dummyifp;
-#endif
-
-	/*
-	 * Cache the destination address of the packet; this may be
-	 * changed by use of 'ipfw fwd'.
-	 */
-	pkt_dst = next_hop ? next_hop->sin_addr : ip->ip_dst;
+	struct in_addr dest;
+	struct ifnet *destifp, dummyifp;
 
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
 		printf("forward: src %lx dst %lx ttl %x\n",
-		    (u_long)ip->ip_src.s_addr, (u_long)pkt_dst.s_addr,
+		    (u_long)ip->ip_src.s_addr, (u_long)ip->ip_dst.s_addr,
 		    ip->ip_ttl);
 #endif
 
 
-	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(pkt_dst) == 0) {
+	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
@@ -1782,7 +1632,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	}
 #endif
 
-	if ((ia = ip_rtaddr(pkt_dst)) == NULL) {
+	if (!srcrt && (ia = ip_rtaddr(ip->ip_dst)) == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
 	}
@@ -1837,8 +1687,8 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	 * Also, don't send redirect if forwarding using a default route
 	 * or a route modified by a redirect.
 	 */
-	dest = 0;
-	if (ipsendredirects && ia->ia_ifp == m->m_pkthdr.rcvif) {
+	dest.s_addr = 0;
+	if (!srcrt && ipsendredirects && ia->ia_ifp == m->m_pkthdr.rcvif) {
 		struct sockaddr_in *sin;
 		struct route ro;
 		struct rtentry *rt;
@@ -1847,29 +1697,28 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		sin = (struct sockaddr_in *)&ro.ro_dst;
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
-		sin->sin_addr = pkt_dst;
+		sin->sin_addr = ip->ip_dst;
 		rtalloc_ign(&ro, RTF_CLONING);
 
 		rt = ro.ro_rt;
 
 		if (rt && (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
-		    satosin(rt_key(rt))->sin_addr.s_addr != 0 &&
-		    ipsendredirects && !srcrt && !next_hop) {
+		    satosin(rt_key(rt))->sin_addr.s_addr != 0) {
 #define	RTA(rt)	((struct in_ifaddr *)(rt->rt_ifa))
 			u_long src = ntohl(ip->ip_src.s_addr);
 
 			if (RTA(rt) &&
 			    (src & RTA(rt)->ia_subnetmask) == RTA(rt)->ia_subnet) {
 				if (rt->rt_flags & RTF_GATEWAY)
-					dest = satosin(rt->rt_gateway)->sin_addr.s_addr;
+					dest.s_addr = satosin(rt->rt_gateway)->sin_addr.s_addr;
 				else
-					dest = pkt_dst.s_addr;
+					dest.s_addr = ip->ip_dst.s_addr;
 				/* Router requirements says to only send host redirects */
 				type = ICMP_REDIRECT;
 				code = ICMP_REDIRECT_HOST;
 #ifdef DIAGNOSTIC
 				if (ipprintfs)
-					printf("redirect (%d) to %lx\n", code, (u_long)dest);
+					printf("redirect (%d) to %lx\n", code, (u_long)dest.s_addr);
 #endif
 			}
 		}
@@ -1877,16 +1726,6 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 			RTFREE(rt);
 	}
 
-	if (next_hop) {
-		struct m_tag *mtag = m_tag_get(PACKET_TAG_IPFORWARD,
-		    sizeof(struct sockaddr_in *), M_NOWAIT);
-		if (mtag == NULL) {
-			m_freem(m);
-			return;
-		}
-		*(struct sockaddr_in **)(mtag+1) = next_hop;
-		m_tag_prepend(m, mtag);
-	}
 	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
 	if (error)
 		ipstat.ips_cantforward++;
@@ -1985,7 +1824,16 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 				break;
 			} else 
 #endif /*IPSEC || FAST_IPSEC*/
-		destifp = ia->ia_ifp;
+		/*
+		 * When doing source routing 'ia' can be NULL.  Fall back
+		 * to the minimum guaranteed routeable packet size and use
+		 * the same hack as IPSEC to setup a dummyifp for icmp.
+		 */
+		if (ia == NULL) {
+			dummyifp.if_mtu = IP_MSS;
+			destifp = &dummyifp;
+		} else
+			destifp = ia->ia_ifp;
 #if defined(IPSEC) || defined(FAST_IPSEC)
 		}
 #endif /*IPSEC || FAST_IPSEC*/
@@ -2014,7 +1862,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		m_freem(mcopy);
 		return;
 	}
-	icmp_error(mcopy, type, code, dest, destifp);
+	icmp_error(mcopy, type, code, dest.s_addr, destifp);
 }
 
 void

@@ -28,6 +28,7 @@
 #ifndef _IPFW2_H
 #define _IPFW2_H
 #define IPFW2  1
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
@@ -420,8 +421,6 @@ struct ip_fw_args {
 	struct ip_fw	*rule;		/* matching rule		*/
 	struct ether_header *eh;	/* for bridged packets		*/
 
-	struct route	*ro;		/* for dummynet			*/
-	struct sockaddr_in *dst;	/* for dummynet			*/
 	int flags;			/* for dummynet			*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
@@ -436,15 +435,24 @@ struct ip_fw_args {
 struct sockopt;
 struct dn_flow_set;
 
+int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int);
+int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int);
+
+int ipfw_chk(struct ip_fw_args *);
+
+int ipfw_init(void);
+void ipfw_destroy(void);
+
 void flush_pipe_ptrs(struct dn_flow_set *match); /* used by dummynet */
 
-typedef int ip_fw_chk_t (struct ip_fw_args *args);
-typedef int ip_fw_ctl_t (struct sockopt *);
-extern ip_fw_chk_t *ip_fw_chk_ptr;
+typedef int ip_fw_ctl_t(struct sockopt *);
 extern ip_fw_ctl_t *ip_fw_ctl_ptr;
 extern int fw_one_pass;
-extern int fw_enable;
-#define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
-#endif /* _KERNEL */
 
+/* For kernel ipfw_ether and ipfw_bridge. */
+typedef	int ip_fw_chk_t(struct ip_fw_args *args);
+extern	ip_fw_chk_t	*ip_fw_chk_ptr;
+#define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
+
+#endif /* _KERNEL */
 #endif /* _IPFW2_H */

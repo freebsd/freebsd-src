@@ -179,7 +179,6 @@ static struct mtx dummynet_mtx;
 static int config_pipe(struct dn_pipe *p);
 static int ip_dn_ctl(struct sockopt *sopt);
 
-static void rt_unref(struct rtentry *, const char *);
 static void dummynet(void *);
 static void dummynet_flush(void);
 void dummynet_drain(void);
@@ -187,19 +186,6 @@ static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
 
 int if_tx_rdy(struct ifnet *ifp);
-
-static void
-rt_unref(struct rtentry *rt, const char *where)
-{
-    if (rt == NULL)
-	return ;
-    RT_LOCK(rt);
-    if (rt->rt_refcnt <= 0) {
-	printf("dummynet: warning, refcnt now %ld, decreasing (%s)\n",
-	    rt->rt_refcnt, where);
-    }
-    RTFREE_LOCKED(rt);
-}
 
 /*
  * Heap management functions.
@@ -446,6 +432,7 @@ transmit_event(struct dn_pipe *pipe)
 {
     struct mbuf *m ;
     struct dn_pkt_tag *pkt ;
+    struct ip *ip;
 
     DUMMYNET_LOCK_ASSERT();
 
@@ -468,6 +455,9 @@ transmit_event(struct dn_pipe *pipe)
 	    break ;
 
 	case DN_TO_IP_IN :
+	    ip = mtod(m, struct ip *);
+	    ip->ip_len = htons(ip->ip_len);
+	    ip->ip_off = htons(ip->ip_off);
 	    ip_input(m) ;
 	    break ;
 
@@ -1127,8 +1117,6 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
  * ifp		the 'ifp' parameter from the caller.
  *		NULL in ip_input, destination interface in ip_output,
  *		real_dst in bdg_forward
- * ro		route parameter (only used in ip_output, NULL otherwise)
- * dst		destination address, only used by ip_output
  * rule		matching rule, in case of multiple passes
  * flags	flags from the caller, only used in ip_output
  *
@@ -1214,23 +1202,8 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     pkt->dn_dir = dir ;
 
     pkt->ifp = fwa->oif;
-    if (dir == DN_TO_IP_OUT) {
-	/*
-	 * We need to copy *ro because for ICMP pkts (and maybe others)
-	 * the caller passed a pointer into the stack; dst might also be
-	 * a pointer into *ro so it needs to be updated.
-	 */
-	pkt->ro = *(fwa->ro);
-	if (pkt->ro.ro_rt) {
-	    RT_LOCK(pkt->ro.ro_rt);
-	    RT_ADDREF(pkt->ro.ro_rt) ;
-	    RT_UNLOCK(pkt->ro.ro_rt);
-	}
-	if (fwa->dst == (struct sockaddr_in *)&fwa->ro->ro_dst) /* dst points into ro */
-	    fwa->dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
-	pkt->dn_dst = fwa->dst;
+    if (dir == DN_TO_IP_OUT)
 	pkt->flags = fwa->flags;
-    }
     if (q->head == NULL)
 	q->head = m;
     else
@@ -1327,7 +1300,6 @@ dropit:
  * Doing this would probably save us the initial bzero of dn_pkt
  */
 #define	DN_FREE_PKT(_m) do {				\
-	rt_unref(dn_tag_get(_m)->ro.ro_rt, __func__);	\
 	m_freem(_m);					\
 } while (0)
 
@@ -2091,6 +2063,6 @@ static moduledata_t dummynet_mod = {
 	dummynet_modevent,
 	NULL
 };
-DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-MODULE_DEPEND(dummynet, ipfw, 1, 1, 1);
+DECLARE_MODULE(dummynet, dummynet_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
 MODULE_VERSION(dummynet, 1);

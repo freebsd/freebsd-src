@@ -1003,6 +1003,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
 	 */
+	if (!IPFW_LOADED) { /* XXX: Prevent ipfw from being run twice. */
 	if (inet_pfil_hook.ph_busy_count >= 0 &&
 	    m0->m_pkthdr.len >= sizeof(struct ip) &&
 	    ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
@@ -1029,6 +1030,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_len = htons(ip->ip_len);
 	    ip->ip_off = htons(ip->ip_off);
 	}
+	} /* XXX: Prevent ipfw from being run twice. */
 #endif /* PFIL_HOOKS */
 
 	/*
