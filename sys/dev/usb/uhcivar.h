@@ -131,8 +131,11 @@ struct uhci_vframe {
 	u_int bandwidth;		/* max bandwidth used by this frame */
 };
 
+#define UHCI_SCFLG_DONEINIT	0x0001	/* uhci_init() done */
+
 typedef struct uhci_softc {
 	struct usbd_bus sc_bus;		/* base device */
+	int sc_flags;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
@@ -195,8 +198,8 @@ typedef struct uhci_softc {
 
 usbd_status	uhci_init(uhci_softc_t *);
 int		uhci_intr(void *);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
 int		uhci_detach(uhci_softc_t *, int);
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 int		uhci_activate(device_ptr_t, enum devact);
 #endif
 

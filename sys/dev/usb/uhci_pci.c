@@ -329,8 +329,10 @@ uhci_pci_attach(device_t self)
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
 	err = uhci_init(sc);
-	if (!err)
+	if (!err) {
+		sc->sc_flags |= UHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
+	}
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
@@ -345,22 +347,11 @@ uhci_pci_detach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 
-	/*
-	 * XXX This function is not yet complete and should not be added
-	 * method list.
-	 */
-#if 0
-	if uhci_init
-		was successful
-		    we should call something like uhci_deinit
-#endif
+	if (sc->sc_flags & UHCI_SCFLG_DONEINIT) {
+		uhci_detach(sc, 0);
+		sc->sc_flags &= ~UHCI_SCFLG_DONEINIT;
+	}
 
-	/*
-	 * disable interrupts that might have been switched on in
-	 * uhci_init.
-	 */
-	if (sc->iot && sc->ioh)
-		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	if (sc->irq_res && sc->ih) {
 		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
@@ -394,6 +385,7 @@ static device_method_t uhci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uhci_pci_probe),
 	DEVMETHOD(device_attach, uhci_pci_attach),
+	DEVMETHOD(device_detach, uhci_pci_detach),
 	DEVMETHOD(device_suspend, uhci_pci_suspend),
 	DEVMETHOD(device_resume, uhci_pci_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
