@@ -669,11 +669,9 @@ END_DEBUG
 	/* Gabage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
 		target = &sbp->targets[i];
-		for( fwdev  = TAILQ_FIRST(&sbp->fd.fc->devices);
-			fwdev != NULL; fwdev = TAILQ_NEXT(fwdev, link)){
-			if(target->fwdev == NULL) break;
-			if(target->fwdev == fwdev) break;
-		}
+		STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link)
+			if (target->fwdev == NULL || target->fwdev == fwdev)
+				break;
 		if(fwdev == NULL){
 			/* device has removed in lower driver */
 			sbp_cam_detach_target(target);
@@ -685,8 +683,7 @@ END_DEBUG
 		}
 	}
 	/* traverse device list */
-	for( fwdev  = TAILQ_FIRST(&sbp->fd.fc->devices);
-		fwdev != NULL; fwdev = TAILQ_NEXT(fwdev, link)){
+	STAILQ_FOREACH(fwdev, &sbp->fd.fc->devices, link) {
 SBP_DEBUG(0)
 		printf("sbp_post_explore: EUI:%08x%08x ",
 				fwdev->eui.hi, fwdev->eui.lo);
@@ -1781,7 +1778,7 @@ sbp_cam_detach_target(struct sbp_target *target)
 SBP_DEBUG(0)
 		printf("sbp_detach_target %d\n", target->target_id);
 END_DEBUG
-		for (i=0; i < target->num_lun; i++) {
+		for (i = 0; i < target->num_lun; i++) {
 			sdev = &target->luns[i];
 			if (sdev->status == SBP_DEV_RESET ||
 					sdev->status == SBP_DEV_DEAD)

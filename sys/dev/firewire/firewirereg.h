@@ -65,7 +65,7 @@ struct fw_device{
 #define FWDEVINIT	1
 #define FWDEVATTACHED	2
 #define FWDEVINVAL	3
-	TAILQ_ENTRY(fw_device) link;
+	STAILQ_ENTRY(fw_device) link;
 #if 0
 	LIST_HEAD(, fw_xfer) txqueue;
 	LIST_HEAD(, fw_xfer) rxqueue;
@@ -141,7 +141,7 @@ struct firewire_comm{
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
 	STAILQ_HEAD(, tlabel) tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
-	TAILQ_HEAD(, fw_device) devices;
+	STAILQ_HEAD(, fw_device) devices;
 	STAILQ_HEAD(, fw_xfer)	pending;
 	volatile u_int32_t *sid_buf;
 	u_int  sid_cnt;
@@ -152,9 +152,9 @@ struct firewire_comm{
 	struct fw_topology_map *topology_map;
 	struct fw_speed_map *speed_map;
 	struct callout busprobe_callout;
-	struct callout_handle bmrhandle;
-	struct callout_handle timeouthandle;
-	struct callout_handle retry_probe_handle;
+	struct callout bmr_callout;
+	struct callout timeout_callout;
+	struct callout retry_probe_callout;
 	u_int32_t (*cyctimer) __P((struct  firewire_comm *));
 	void (*ibr) __P((struct firewire_comm *));
 	u_int32_t (*set_bmr) __P((struct firewire_comm *, u_int32_t));
