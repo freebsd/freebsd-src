@@ -2,6 +2,8 @@
 #------------------------------------------------------------------------------
 # animation:  file(1) magic for animation/movie formats
 #
+# $FreeBSD$
+#
 # animation formats
 # MPEG, FLI, DL originally from vax@ccwf.cc.utexas.edu (VaX#n8)
 # FLC, SGI, Apple originally from Daniel Quinlan (quinlan@yggdrasil.com)
@@ -56,3 +58,6 @@
 0	string		MOVI		Silicon Graphics movie file
 4	string		moov		Apple QuickTime movie file (moov)
 4	string		mdat		Apple QuickTime movie file (mdat)
+
+# RealNetworks formats
+0	string		.RMF		RealMedia file
