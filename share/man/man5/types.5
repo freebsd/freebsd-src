@@ -52,7 +52,7 @@ used through out the system).
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <machine/ansi.h>
+#include <sys/inttypes.h>		/* includes <machine/ansi.h> */
 #include <machine/types.h>
 
 #ifndef _POSIX_SOURCE
@@ -64,13 +64,20 @@ typedef	unsigned short	ushort;		/* Sys V compatibility */
 typedef	unsigned int	uint;		/* Sys V compatibility */
 #endif
 
+typedef __uint8_t	u_int8_t;
+typedef __uint16_t	u_int16_t;
+typedef __uint32_t	u_int32_t;
+typedef __uint64_t	u_int64_t;
+
 typedef	u_int64_t	u_quad_t;	/* quads */
 typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
+typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
+typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 typedef	int32_t		daddr_t;	/* disk address */
-typedef	u_int32_t	dev_t;		/* device number */
+typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 typedef	u_int32_t	gid_t;		/* group id */
 typedef	u_int32_t	ino_t;		/* inode number */
@@ -80,25 +87,47 @@ typedef	u_int16_t	nlink_t;	/* link count */
 typedef	_BSD_OFF_T_	off_t;		/* file offset */
 typedef	_BSD_PID_T_	pid_t;		/* process id */
 typedef	quad_t		rlim_t;		/* resource limit */
+#ifdef __alpha__		/* XXX should be in <machine/types.h> */
+typedef	int64_t		segsz_t;	/* segment size */
+#else
 typedef	int32_t		segsz_t;	/* segment size */
+#endif
 typedef	int32_t		swblk_t;	/* swap offset */
+typedef	int32_t		ufs_daddr_t;
 typedef	u_int32_t	uid_t;		/* user id */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 typedef	int		boolean_t;
+typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 #endif
 
+#ifdef _KERNEL
+
+struct specinfo;
+
+typedef	u_int32_t	udev_t;		/* device number */
+typedef struct specinfo	*dev_t;
+
+#else /* !_KERNEL */
+
+typedef	u_int32_t	dev_t;		/* device number */
+#define udev_t dev_t
+
 #ifndef _POSIX_SOURCE
+
 /*
  * minor() gives a cookie instead of an index since we don't want to
  * change the meanings of bits 0-15 or waste time and space shifting
  * bits 16-31 for devices that don't use them.
  */
-#define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
-#define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
-#endif
+#define major(x)        ((int)(((u_int)(x) >> 8)&0xff)) /* major number */
+#define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
+#define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
+
+#endif /* _POSIX_SOURCE */
+
+#endif /* !_KERNEL */
 
 #include <machine/endian.h>
 
@@ -130,21 +159,6 @@ typedef	_BSD_TIME_T_	time_t;
 #ifdef	_BSD_TIMER_T_
 typedef	_BSD_TIMER_T_	timer_t;
 #undef	_BSD_TIMER_T_
-#endif
-
-#ifdef	_BSD_UINT8_T_
-typedef	_BSD_UINT8_T_	uint8_t;
-#undef	_BSD_UINT8_T_
-#endif
-
-#ifdef	_BSD_UINT16_T_
-typedef	_BSD_UINT16_T_	uint16_t;
-#undef	_BSD_UINT16_T_
-#endif
-
-#ifdef	_BSD_UINT32_T_
-typedef	_BSD_UINT32_T_	uint32_t;
-#undef	_BSD_UINT32_T_
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -182,7 +196,7 @@ typedef	struct fd_set {
  * <stdio.h> to give broken programs a better chance of working with
  * 64-bit off_t's.
  */
-#ifndef KERNEL
+#ifndef _KERNEL
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
 #define	_FTRUNCATE_DECLARED
@@ -201,7 +215,7 @@ void *	 mmap __P((void *, size_t, int, int, int, off_t));
 int	 truncate __P((const char *, off_t));
 #endif
 __END_DECLS
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_POSIX_SOURCE */
 
