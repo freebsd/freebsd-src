@@ -135,6 +135,8 @@ tunattach(dummy)
 		ifp->if_oerrors = 0;
 		ifp->if_ipackets = 0;
 		ifp->if_opackets = 0;
+		ifp->if_ibytes = 0;
+		ifp->if_obytes = 0;
 		if_attach(ifp);
 #if NBPFILTER > 0
 		bpfattach(ifp, DLT_NULL, sizeof(u_int));
