@@ -354,20 +354,20 @@ installFixitCDROM(dialogMenuItem *self)
      */
     if (!file_readable("/var/run/ld.so.hints")) {
 	Mkdir("/var/run");
-	if (vsystem("/mnt2/sbin/ldconfig -s /mnt2/usr/lib")) {
+	if (vsystem("/mnt2/rescue/ldconfig -s /mnt2/lib /mnt2/usr/lib")) {
 	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
 		       "Dynamic executables from the disc likely won't work.");
 	}
     }
 
     /* Yet more iggly hardcoded pathnames. */
-    Mkdir("/usr/libexec");
-    if (!file_readable("/usr/libexec/ld.so") && file_readable("/mnt2/usr/libexec/ld.so")) {
-	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so"))
+    Mkdir("/libexec");
+    if (!file_readable("/libexec/ld.so") && file_readable("/mnt2/libexec/ld.so")) {
+	if (symlink("/mnt2/libexec/ld.so", "/libexec/ld.so"))
 	    msgDebug("Couldn't link to ld.so - not necessarily a problem for ELF\n");
     }
-    if (!file_readable("/usr/libexec/ld-elf.so.1")) {
-	if (symlink("/mnt2/usr/libexec/ld-elf.so.1", "/usr/libexec/ld-elf.so.1")) {
+    if (!file_readable("/libexec/ld-elf.so.1")) {
+	if (symlink("/mnt2/libexec/ld-elf.so.1", "/libexec/ld-elf.so.1")) {
 	    msgConfirm("Warning: could not create the symlink for ld-elf.so.1\n"
 		       "Dynamic executables from the disc likely won't work.");
 	}
