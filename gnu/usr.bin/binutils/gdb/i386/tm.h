@@ -1,5 +1,5 @@
-/* Macro definitions for x86 running under FreeBSD Unix.
-   Copyright 1996 Free Software Foundation, Inc.
+/* Target macro definitions for i386 running FreeBSD
+   Copyright (C) 1997 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef TM_FBSD_H
 #define TM_FBSD_H 1
@@ -52,7 +52,7 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
 
 #undef SIGTRAMP_START
 #undef SIGTRAMP_END
-#define SIGTRAMP_START	0xefbfdfd8
-#define SIGTRAMP_END	0xefbfdff0
- 
+#define SIGTRAMP_START(pc)	0xcfbfdfd8
+#define SIGTRAMP_END(pc)	0xcfbfdff0
+
 #endif  /* ifndef TM_FBSD_H */
