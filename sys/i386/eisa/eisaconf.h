@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.11 1996/09/08 10:43:42 phk Exp $
+ *	$Id: eisaconf.h,v 1.12 1996/09/10 23:30:38 bde Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -36,7 +36,11 @@
 
 #include <sys/queue.h>
 
+#include "opt_eisa.h"
+
+#ifndef EISA_SLOTS
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
+#endif
 #define EISA_SLOT_SIZE 0x1000
 
 #define EISA_MFCTR_CHAR0(ID) (char)(((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
