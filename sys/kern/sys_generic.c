@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.27 1997/06/16 00:29:31 dyson Exp $
+ * $Id: sys_generic.c,v 1.28 1997/09/02 20:05:52 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -55,11 +55,14 @@
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/poll.h>
+#include <sys/sysent.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
 
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int, int *));
+static int	pollscan __P((struct proc *, struct pollfd *, int, int *));
 
 /*
  * Read system call.
@@ -666,7 +669,8 @@ selscan(p, ibits, obits, nfd, retval)
 	register fd_mask bits;
 	struct file *fp;
 	int n = 0;
-	static int flag[3] = { FREAD, FWRITE, 0 };
+	/* Note; backend also returns POLLHUP/POLLERR if appropriate */
+	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND};
 
 	for (msk = 0; msk < 3; msk++) {
 		if (ibits[msk] == NULL)
@@ -678,7 +682,8 @@ selscan(p, ibits, obits, nfd, retval)
 				fp = fdp->fd_ofiles[fd];
 				if (fp == NULL)
 					return (EBADF);
-				if ((*fp->f_ops->fo_select)(fp, flag[msk], p)) {
+				if ((*fp->f_ops->fo_poll)(fp, flag[msk],
+				    fp->f_cred, p)) {
 					obits[msk][(fd)/NFDBITS] |=
 						(1 << ((fd) % NFDBITS));
 					n++;
@@ -690,15 +695,162 @@ selscan(p, ibits, obits, nfd, retval)
 	return (0);
 }
 
+/*
+ * Poll system call.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct poll_args {
+	struct pollfd *fds;
+	u_int	nfds;
+	int	timeout;
+};
+#endif
+int
+poll(p, uap, retval)
+	register struct proc *p;
+	register struct poll_args *uap;
+	register_t *retval;
+{
+	caddr_t bits;
+	char smallbits[32 * sizeof(struct pollfd)];
+	struct timeval atv;
+	int s, ncoll, error = 0, timo;
+	size_t ni;
+
+	if (SCARG(uap, nfds) > p->p_fd->fd_nfiles) {
+		/* forgiving; slightly wrong */
+		SCARG(uap, nfds) = p->p_fd->fd_nfiles;
+	}
+	ni = SCARG(uap, nfds) * sizeof(struct pollfd);
+	if (ni > sizeof(smallbits))
+		bits = malloc(ni, M_TEMP, M_WAITOK);
+	else
+		bits = smallbits;
+
+	error = copyin(SCARG(uap, fds), bits, ni);
+	if (error)
+		goto done;
+
+	if (SCARG(uap, timeout) != INFTIM) {
+		atv.tv_sec = SCARG(uap, timeout) / 1000;
+		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
+		if (itimerfix(&atv)) {
+			error = EINVAL;
+			goto done;
+		}
+		s = splclock();
+		timevaladd(&atv, &time);
+		timo = hzto(&atv);
+		/*
+		 * Avoid inadvertently sleeping forever.
+		 */
+		if (timo == 0)
+			timo = 1;
+		splx(s);
+	} else
+		timo = 0;
+retry:
+	ncoll = nselcoll;
+	p->p_flag |= P_SELECT;
+	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds), retval);
+	if (error || *retval)
+		goto done;
+	s = splhigh();
+	if (timo && timercmp(&time, &atv, >=)) {
+		splx(s);
+		goto done;
+	}
+	if ((p->p_flag & P_SELECT) == 0 || nselcoll != ncoll) {
+		splx(s);
+		goto retry;
+	}
+	p->p_flag &= ~P_SELECT;
+	error = tsleep((caddr_t)&selwait, PSOCK | PCATCH, "poll", timo);
+	splx(s);
+	if (error == 0)
+		goto retry;
+done:
+	p->p_flag &= ~P_SELECT;
+	/* poll is not restarted after signals... */
+	if (error == ERESTART)
+		error = EINTR;
+	if (error == EWOULDBLOCK)
+		error = 0;
+	if (error == 0) {
+		error = copyout(bits, SCARG(uap, fds), ni);
+		if (error)
+			goto out;
+	}
+out:
+	if (ni > sizeof(smallbits))
+		free(bits, M_TEMP);
+	return (error);
+}
+
+static int
+pollscan(p, fds, nfd, retval)
+	struct proc *p;
+	struct pollfd *fds;
+	int nfd;
+	register_t *retval;
+{
+	register struct filedesc *fdp = p->p_fd;
+	int i;
+	struct file *fp;
+	int n = 0;
+
+	for (i = 0; i < nfd; i++, fds++) {
+		if ((u_int)fds->fd >= fdp->fd_nfiles) {
+			fds->revents = POLLNVAL;
+			n++;
+		} else {
+			fp = fdp->fd_ofiles[fds->fd];
+			if (fp == 0) {
+				fds->revents = POLLNVAL;
+				n++;
+			} else {
+				/* Note: backend also returns POLLHUP and
+				 * POLLERR if appropriate */
+				fds->revents = (*fp->f_ops->fo_poll)(fp,
+				    fds->events, fp->f_cred, p);
+				if (fds->revents != 0)
+					n++;
+			}
+		}
+	}
+	*retval = n;
+	return (0);
+}
+
+/*
+ * OpenBSD poll system call.
+ * XXX this isn't quite a true representation..  OpenBSD uses select ops.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct openbsd_poll_args {
+	struct pollfd *fds;
+	u_int	nfds;
+	int	timeout;
+};
+#endif
+int
+openbsd_poll(p, uap, retval)
+	register struct proc *p;
+	register struct openbsd_poll_args *uap;
+	register_t *retval;
+{
+	return (poll(p, (struct poll_args *)uap, retval));
+}
+
 /*ARGSUSED*/
 int
-seltrue(dev, flag, p)
+seltrue(dev, events, p)
 	dev_t dev;
-	int flag;
+	int events;
 	struct proc *p;
 {
 
-	return (1);
+	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
 /*
