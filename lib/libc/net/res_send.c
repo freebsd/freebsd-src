@@ -99,13 +99,6 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "res_config.h"
 
-#ifdef NOPOLL			/* libc_r doesn't wrap poll yet() */
-static int use_poll = 0;
-#else
-static int use_poll = 1;	/* adapt to poll() syscall availability */
-				/* 0 = not present, 1 = try it, 2 = exists */
-#endif
-
 static int s = -1;		/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
 static int vc = 0;		/* is the socket a virtual circuit? */
@@ -594,13 +587,9 @@ read_len:
 			/*
 			 * Use datagrams.
 			 */
-#ifndef NOPOLL
 			struct pollfd pfd;
 			int msec;
-#endif
-			struct timeval timeout;
-			fd_set dsmask, *dsmaskp;
-			int dsmasklen;
+			struct timeval timeout, itv;
 			struct sockaddr_storage from;
 			int fromlen;
 
@@ -703,111 +692,44 @@ read_len:
 			/*
 			 * Wait for reply
 			 */
-#ifndef NOPOLL
-    othersyscall:
-			if (use_poll) {
-				struct timeval itv;
 
-				msec = (_res.retrans << try) * 1000;
-				if (try > 0)
-					msec /= _res.nscount;
-				if (msec <= 0)
-					msec = 1000;
-				gettimeofday(&timeout, NULL);
-				itv.tv_sec = msec / 1000;
-				itv.tv_usec = (msec % 1000) * 1000;
-				timeradd(&timeout, &itv, &timeout);
-			} else {
-#endif
-				timeout.tv_sec = (_res.retrans << try);
-				if (try > 0)
-					timeout.tv_sec /= _res.nscount;
-				if ((long) timeout.tv_sec <= 0)
-					timeout.tv_sec = 1;
-				timeout.tv_usec = 0;
-#ifndef NOPOLL
-			}
-#endif
+			msec = (_res.retrans << try) * 1000;
+			if (try > 0)
+				msec /= _res.nscount;
+			if (msec <= 0)
+				msec = 1000;
+			gettimeofday(&timeout, NULL);
+			itv.tv_sec = msec / 1000;
+			itv.tv_usec = (msec % 1000) * 1000;
+			timeradd(&timeout, &itv, &timeout);
+
     wait:
 			if (s < 0) {
 				Perror(stderr, "s out-of-bounds", EMFILE);
 				res_close();
 				goto next_ns;
 			}
-#ifndef NOPOLL
-			if (use_poll) {
-				struct sigaction sa, osa;
-				int sigsys_installed = 0;
+			pfd.fd = s;
+			pfd.events = POLLIN;
+			n = poll(&pfd, 1, msec);
+			if (n < 0) {
+				if (errno == EINTR) {
+					struct timeval ctv;
 
-				pfd.fd = s;
-				pfd.events = POLLIN;
-				if (use_poll == 1) {
-					sigemptyset(&sa.sa_mask);
-					sa.sa_flags = 0;
-					sa.sa_handler = SIG_IGN;
-					if (sigaction(SIGSYS, &sa, &osa) >= 0)
-						sigsys_installed = 1;
-				}
-				n = poll(&pfd, 1, msec);
-				if (sigsys_installed == 1) {
-					int oerrno = errno;
-					sigaction(SIGSYS, &osa, NULL);
-					errno = oerrno;
-				}
-				/* XXX why does nosys() return EINVAL? */
-				if (n < 0 && (errno == ENOSYS ||
-				    errno == EINVAL)) {
-					use_poll = 0;
-					goto othersyscall;
-				} else if (use_poll == 1)
-					use_poll = 2;
-				if (n < 0) {
-					if (errno == EINTR) {
-						struct timeval ctv;
-
-						gettimeofday(&ctv, NULL);
-						if (timercmp(&ctv, &timeout, <)) {
-							timersub(&timeout,
-							    &ctv, &ctv);
-							msec = ctv.tv_sec * 1000;
-							msec += ctv.tv_usec / 1000;
-							goto wait;
-						}
-					} else {
-						Perror(stderr, "poll", errno);
-						res_close();
-						goto next_ns;
-					}
-				}
-			} else {
-#endif
-				dsmasklen = howmany(s + 1, NFDBITS) *
-					    sizeof(fd_mask);
-				if (dsmasklen > sizeof(fd_set)) {
-					dsmaskp = (fd_set *)malloc(dsmasklen);
-					if (dsmaskp == NULL) {
-						res_close();
-						goto next_ns;
-					}
-				} else
-					dsmaskp = &dsmask;
-				/* only zero what we need */
-				bzero((char *)dsmaskp, dsmasklen);
-				FD_SET(s, dsmaskp);
-				n = select(s + 1, dsmaskp, (fd_set *)NULL,
-					   (fd_set *)NULL, &timeout);
-				if (dsmaskp != &dsmask)
-					free(dsmaskp);
-				if (n < 0) {
-					if (errno == EINTR)
+					gettimeofday(&ctv, NULL);
+					if (timercmp(&ctv, &timeout, <)) {
+						timersub(&timeout,
+						    &ctv, &ctv);
+						msec = ctv.tv_sec * 1000;
+						msec += ctv.tv_usec / 1000;
 						goto wait;
-					Perror(stderr, "select", errno);
+					}
+				} else {
+					Perror(stderr, "poll", errno);
 					res_close();
 					goto next_ns;
 				}
-#ifndef NOPOLL
 			}
-#endif
 
 			if (n == 0) {
 				/*
