@@ -82,6 +82,9 @@
 #define MAXCPU		1
 #endif /* SMP */
 
+#define	INT_SHIFT	2
+#define	PTR_SHIFT	3
+
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
 
