@@ -2129,8 +2129,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		offidxend = offidxstart + count;
 
 		if (object == kernel_object || object == kmem_object) {
-			if (object == kernel_object)
-				GIANT_REQUIRED;
 			VM_OBJECT_LOCK(object);
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 			VM_OBJECT_UNLOCK(object);
