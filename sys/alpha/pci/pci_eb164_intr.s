@@ -63,3 +63,33 @@ LEAF(eb164_intr_disable,1)
 	call_pal PAL_cserve
 	RET
 	END(eb164_intr_disable)
+
+	.text
+LEAF(eb164_intr_enable_icsr,1)
+	mov	a0, a1
+	ldiq	a0, 0x34
+	call_pal PAL_cserve
+	ldiq	a0, 0x08	/* Allow PALRES */
+	call_pal PAL_cserve
+	.long	0x66100118	/* hw_mfpr a0, icsr */
+	ldah	a1, 0x0020	/* IMSK1 */
+	or	a0, a1, a0
+	xor	a0, a1, a0
+	.long	0x76100118	/* hw_mtpr a0, icsr */
+	ldiq	a0, 0x09	/* Disable PALRES */
+	call_pal PAL_cserve
+	RET
+	END(eb164_intr_enable_icsr)
+
+	.text
+LEAF(eb164_intr_disable_icsr,1)
+	ldiq	a0, 0x08	/* Allow PALRES */
+	call_pal PAL_cserve
+	.long	0x66100118	/* hw_mfpr a0, icsr */
+	ldah	a1, 0x0020	/* IMSK1 */
+	or	a0, a1, a0
+	.long	0x76100118	/* hw_mtpr a0, icsr */
+	ldiq	a0, 0x09	/* Disable PALRES */
+	call_pal PAL_cserve
+	RET
+	END(eb164_intr_disable_icsr)
