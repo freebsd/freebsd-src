@@ -19,6 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 /* AIX requires this to be the first thing in the file. */
 #if defined (_AIX) && !defined (REGEX_MALLOC)
   #pragma alloca
@@ -1114,19 +1116,14 @@ static boolean group_in_compile_stack _RE_ARGS((compile_stack_type
 						regnum_t regnum));
 
 #ifdef __FreeBSD__
-static int collate_range_cmp (a, b)
+static int collate_range_cmp(a, b)
 	int a, b;
 {
-	int r;
 	static char s[2][2];
 
-	if ((unsigned char)a == (unsigned char)b)
-		return 0;
 	s[0][0] = a;
 	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (unsigned char)a - (unsigned char)b;
-	return r;
+	return (strcoll(s[0], s[1]));
 }
 #endif
 
