@@ -274,6 +274,25 @@ read_random(char *buf, u_int count)
 	return retval;
 }
 
+void
+write_random(char *buf, u_int count)
+{
+	u_int i;
+	intrmask_t mask;
+	struct timespec nanotime;
+
+	/* The reseed task must not be jumped on */
+	mask = splsofttq();
+	for (i = 0; i < count/sizeof(u_int64_t); i++) {
+		getnanotime(&nanotime);
+		random_harvest_internal(&nanotime,
+			*(u_int64_t *)&buf[i*sizeof(u_int64_t)],
+			0, 0, RANDOM_WRITE);
+	}
+	reseed(FAST);
+	splx(mask);
+}
+
 static void
 generator_gate(void)
 {
