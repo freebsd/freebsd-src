@@ -140,8 +140,6 @@ static int si_debug = 0;	/* data, not bss, so it's patchable */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_debug, CTLFLAG_RW, &si_debug, 0, "");
 
-static struct tty *si__tty;
-
 static int si_numunits;
 
 devclass_t si_devclass;
@@ -253,7 +251,6 @@ siattach(device_t dev)
 	volatile struct si_reg *regp;
 	volatile caddr_t maddr;
 	struct si_module *modp;
-	struct tty *tp;
 	struct speedtab *spt;
 	int nmodule, nport, x, y;
 	int uart_type;
@@ -500,21 +497,11 @@ try_next:
 	sc->sc_ports = (struct si_port *)malloc(sizeof(struct si_port) * nport,
 		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->sc_ports == 0) {
-mem_fail:
 		printf("si%d: fail to malloc memory for port structs\n",
 			unit);
 		return EINVAL;
 	}
 	sc->sc_nport = nport;
-
-	/*
-	 * allocate tty structures for ports
-	 */
-	tp = (struct tty *)malloc(sizeof(*tp) * nport, M_DEVBUF,
-		M_NOWAIT | M_ZERO);
-	if (tp == 0)
-		goto mem_fail;
-	si__tty = tp;
 
 	/*
 	 * Scan round the ports again, this time initialising.
@@ -558,7 +545,7 @@ mem_fail:
 
 		for (x = 0; x < nport; x++, pp++, ccbp++) {
 			pp->sp_ccb = ccbp;	/* save the address */
-			pp->sp_tty = tp++;
+			pp->sp_tty = ttymalloc(NULL);
 			pp->sp_pend = IDLE_CLOSE;
 			pp->sp_state = 0;	/* internal flag */
 			pp->sp_dtr_wait = 3 * hz;
