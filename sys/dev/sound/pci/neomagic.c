@@ -92,6 +92,7 @@ static u_int32_t badcards[] = {
 	0x0007103c,
 	0x008f1028,
 	0x00dd1014,
+	0x8005110a,
 };
 #define NUM_BADCARDS (sizeof(badcards) / sizeof(u_int32_t))
 
