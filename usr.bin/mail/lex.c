@@ -70,7 +70,6 @@ setfile(name)
 	if ((name = expand(name)) == NOSTR)
 		return -1;
 
-fprintf(stderr,">%s\n",name);
 	if ((ibuf = Fopen(name, "r")) == NULL) {
 		if (!isedit && errno == ENOENT)
 			goto nomail;
