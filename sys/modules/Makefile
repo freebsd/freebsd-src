@@ -158,8 +158,8 @@ SUBDIR+=3dfx \
 	aout \
 	apm \
 	ar \
-	awi \
 	arcnet \
+	awi \
 	bktr \
 	coff \
 	ed \
