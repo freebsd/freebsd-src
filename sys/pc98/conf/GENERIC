@@ -132,8 +132,8 @@ device		npx
 #device		apm
 
 # PCCARD (PCMCIA) support
-#device		card
-#device		pcic
+device		card
+device		pcic
 
 # Serial (COM) ports
 options 	COM_MULTIPORT
@@ -199,7 +199,7 @@ device		an
 # BayStack 660 and others
 device		awi
 # Xircom pccard ethernet
-#device		xe
+device		xe
 
 
 # The VoxWare sound drivers
