@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.9 1994/11/02 23:47:13 se Exp $
+**  $Id: pci.c,v 1.12 1995/02/09 20:20:33 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -65,6 +65,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
 
+#include <machine/pmap.h>
 #ifdef __FreeBSD2__
 #include <sys/devconf.h>
 
