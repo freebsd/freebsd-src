@@ -525,7 +525,7 @@ pinger()
 	icp->icmp_type = ICMP_ECHO;
 	icp->icmp_code = 0;
 	icp->icmp_cksum = 0;
-	icp->icmp_seq = ntransmitted++;
+	icp->icmp_seq = ntransmitted;
 	icp->icmp_id = ident;			/* ID */
 
 	CLR(icp->icmp_seq % mx_dup_ck);
@@ -552,6 +552,8 @@ pinger()
 		}
 		(void)printf("ping: wrote %s %d chars, ret=%d\n",
 		    				hostname, cc, i);
+	} else {
+		ntransmitted++; /* only count ones that made it out */
 	}
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
