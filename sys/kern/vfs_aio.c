@@ -1567,7 +1567,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 	int *ijoblist;
 	struct aiocb **ujoblist;
 	
-	if (uap->nent >= AIO_LISTIO_MAX)
+	if (uap->nent > AIO_LISTIO_MAX)
 		return EINVAL;
 
 	timo = 0;
