@@ -248,21 +248,26 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
 static void 
 acd_describe(struct acd_softc *cdp)
 {
-    int32_t comma;
+    int32_t comma = 0;
     int8_t *mechanism;
     int8_t model_buf[40+1];
     int8_t revision_buf[8+1];
 
     bpack(cdp->atp->atapi_parm->model, model_buf, sizeof(model_buf));
     bpack(cdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
-    printf("acd%d: <%s/%s> CDROM drive at ata%d as %s\n",
+    printf("acd%d: <%s/%s> %s drive at ata%d as %s\n",
 	   cdp->lun, model_buf, revision_buf,
+	   (cdp->cap.write_dvdr) ? "DVD-R" : 
+		(cdp->cap.write_dvdram) ? "DVD-RAM" : 
+		    (cdp->cap.write_cdrw) ? "CD-RW" :
+			(cdp->cap.write_cdr) ? "CD-R" : 
+			    (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
 	   cdp->atp->controller->lun,
 	   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
 
+    printf("acd%d:", cdp->lun);
     if (cdp->cap.cur_read_speed) {
-	printf("acd%d: ", cdp->lun);
-	printf("read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
+	printf(" read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
 	if (cdp->cap.max_read_speed) 
 	    printf(" (%dKB/s)", cdp->cap.max_read_speed * 1000 / 1024);
 	if ((cdp->cap.cur_write_speed) &&
@@ -272,13 +277,17 @@ acd_describe(struct acd_softc *cdp)
 	    if (cdp->cap.max_write_speed)
 		printf(" (%dKB/s)", cdp->cap.max_write_speed * 1000 / 1024);
 	}
+	comma = 1;
     }
-    if (cdp->cap.buf_size)
-	printf(", %dKB buffer", cdp->cap.buf_size);
-    printf(", %s\n", ata_mode2str(cdp->atp->controller->mode[
-				  (cdp->atp->unit == ATA_MASTER) ? 0 : 1]));
+    if (cdp->cap.buf_size) {
+	printf("%s %dKB buffer", comma ? "," : "", cdp->cap.buf_size);
+	comma = 1;
+    }
+    printf("%s %s\n", 
+	   comma ? "," : "", ata_mode2str(cdp->atp->controller->mode[
+	   (cdp->atp->unit == ATA_MASTER) ? 0 : 1]));
 
-    printf("acd%d: supported read types:", cdp->lun);
+    printf("acd%d: Reads:", cdp->lun);
     comma = 0;
     if (cdp->cap.read_cdr) {
 	printf(" CD-R"); comma = 1;
@@ -307,7 +316,7 @@ acd_describe(struct acd_softc *cdp)
 
     if (cdp->cap.write_cdr || cdp->cap.write_cdrw || 
 	cdp->cap.write_dvdr || cdp->cap.write_dvdram) {
-	printf("\nacd%d: supported write types:", cdp->lun);
+	printf("\nacd%d: Writes:", cdp->lun);
 	comma = 0;
 	if (cdp->cap.write_cdr) {
 	    printf(" CD-R" ); comma = 1;
