@@ -75,7 +75,7 @@
 #define WITNESS_COUNT 200
 #define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
 /*
- * XXX: This is somewhat bogus, as we assume here that at most 1024 processes
+ * XXX: This is somewhat bogus, as we assume here that at most 1024 threads
  * will hold LOCK_NCHILDREN * 2 locks.  We handle failure ok, and we should
  * probably be safe for the most part, but it's still a SWAG.
  */
@@ -463,7 +463,6 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *lock1, *lock2;
 	struct lock_class *class;
 	struct witness *w, *w1;
-	struct proc *p;
 	struct thread *td;
 	int i, j;
 #ifdef DDB
@@ -476,7 +475,6 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	w = lock->lo_witness;
 	class = lock->lo_class;
 	td = curthread;
-	p = td->td_proc;
 
 	/*
 	 * We have to hold a spinlock to keep lock_list valid across the check
@@ -785,7 +783,6 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_list_entry **lock_list, *lle;
 	struct lock_instance *instance;
 	struct lock_class *class;
-	struct proc *p;
 	struct thread *td;
 	critical_t s;
 	int i, j;
@@ -794,7 +791,6 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	    panicstr != NULL)
 		return;
 	td = curthread;
-	p = td->td_proc;
 	class = lock->lo_class;
 	if (class->lc_flags & LC_SLEEPLOCK)
 		lock_list = &td->td_sleeplocks;
@@ -878,7 +874,7 @@ out:
 /*
  * Warn if any held locks are not sleepable.  Note that Giant and the lock
  * passed in are both special cases since they are both released during the
- * sleep process and aren't actually held while the process is asleep.
+ * sleep process and aren't actually held while the thread is asleep.
  */
 int
 witness_sleep(int check_only, struct lock_object *lock, const char *file,
@@ -886,7 +882,6 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 {
 	struct lock_list_entry **lock_list, *lle;
 	struct lock_instance *lock1;
-	struct proc *p;
 	struct thread *td;
 	critical_t savecrit;
 	int i, n;
@@ -900,7 +895,6 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	 */
 	savecrit = critical_enter();	
 	td = curthread;
-	p = td->td_proc;
 	lock_list = &td->td_sleeplocks;
 again:
 	for (lle = *lock_list; lle != NULL; lle = lle->ll_next)
@@ -1352,10 +1346,11 @@ witness_list(struct thread *td)
 
 	/*
 	 * We only handle spinlocks if td == curthread.  This is somewhat broken
-	 * if p is currently executing on some other CPU and holds spin locks
+	 * if td is currently executing on some other CPU and holds spin locks
 	 * as we won't display those locks.  If we had a MI way of getting
-	 * the per-cpu data for a given cpu then we could use p->p_oncpu to
-	 * get the list of spinlocks for this process and "fix" this.
+	 * the per-cpu data for a given cpu then we could use
+	 * td->td_kse->ke_oncpu to get the list of spinlocks for this thread
+	 * and "fix" this.
 	 */
 	if (td == curthread) {
 		/*
