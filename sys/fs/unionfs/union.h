@@ -38,11 +38,6 @@
  * $FreeBSD$
  */
 
-struct union_args {
-	char		*target;	/* Target of loopback  */
-	int		mntflags;	/* Options on the mount */
-};
-
 #define UNMNT_ABOVE	0x0001		/* Target appears above mount point */
 #define UNMNT_BELOW	0x0002		/* Target appears below mount point */
 #define UNMNT_REPLACE	0x0003		/* Target replaces mount point */
