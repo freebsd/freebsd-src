@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.14 1998/12/04 22:54:44 archie Exp $
+ *      $Id: aha.c,v 1.15 1998/12/13 00:05:04 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -358,13 +358,18 @@ aha_probe(struct aha_softc* aha)
 	 * errs on the side of conservatism.  Besides, no one will
 	 * notice a 10mS delay here, even the 1542B card users :-)
 	 *
+	 * Some compatible cards return 0 here.
+	 *
 	 * XXX I'm not sure how this will impact other cloned cards 
+	 *
+	 * This really should be replaced with the esetup command, since
+	 * that appears to be more reliable.
 	 */
 	if (aha->boardid <= 0x42) {
 		/* Wait 10ms before reading */
 		DELAY(10000);
 		status = aha_inb(aha, GEOMETRY_REG);
-		if (status != 0xff) {
+		if (status != 0xff && status != 0x00) {
 			PRVERB(("%s: Geometry Register test failed\n",
 				aha_name(aha)));
 			return (ENXIO);
@@ -1357,7 +1362,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		/* An error occured */
 		switch(accb->hccb.ahastat) {
 		case AHASTAT_DATARUN_ERROR:
-			if (accb->hccb.data_len <= 0) {
+			if (aha_a24tou(accb->hccb.data_len) <= 0) {
 				csio->ccb_h.status = CAM_DATA_RUN_ERR;
 				break;
 			}
