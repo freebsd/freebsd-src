@@ -92,7 +92,7 @@ fwmem_xfer_req(
 	else
 		xfer->spd = min(spd, fwdev->speed);
 	xfer->send.len = len;
-	xfer->send.buf = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	xfer->send.buf = malloc(len, M_FW, M_NOWAIT | M_ZERO);
 
 	if (xfer->send.buf == NULL) {
 		fw_xfer_free(xfer);

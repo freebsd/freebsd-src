@@ -1053,9 +1053,9 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 	else
 		xfer->send.len = 24;
 
-	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT);
+	xfer->send.buf = malloc(xfer->send.len, M_FW, M_NOWAIT);
 	if(xfer->send.buf == NULL){
-		fw_xfer_free( xfer);
+		fw_xfer_free(xfer);
 		return NULL;
 	}
 
