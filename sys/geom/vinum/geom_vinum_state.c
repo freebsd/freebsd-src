@@ -37,7 +37,78 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
-/* Update drive state; return 1 if the state changes, otherwise 0. */
+void
+gv_setstate(struct g_geom *gp, struct gctl_req *req)
+{
+	struct gv_softc *sc;
+	struct gv_sd *s;
+	struct gv_drive *d;
+	char *obj, *state;
+	int err, f, *flags, newstate, type;
+
+	f = 0;
+	obj = gctl_get_param(req, "object", NULL);
+	if (obj == NULL) {
+		gctl_error(req, "no object given");
+		return;
+	}
+
+	state = gctl_get_param(req, "state", NULL);
+	if (state == NULL) {
+		gctl_error(req, "no state given");
+		return;
+	}
+
+	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "no flags given");
+		return;
+	}
+
+	if (*flags & GV_FLAG_F)
+		f = GV_SETSTATE_FORCE;
+
+	sc = gp->softc;
+	type = gv_object_type(sc, obj);
+	switch (type) {
+	case GV_TYPE_VOL:
+	case GV_TYPE_PLEX:
+		gctl_error(req, "volume or plex state cannot be set currently");
+		break;
+
+	case GV_TYPE_SD:
+		newstate = gv_sdstatei(state);
+		if (newstate < 0) {
+			gctl_error(req, "invalid subdisk state '%s'", state);
+			break;
+		}
+		s = gv_find_sd(sc, obj);
+		err = gv_set_sd_state(s, newstate, f);
+		if (err)
+			gctl_error(req, "cannot set subdisk state");
+		break;
+
+	case GV_TYPE_DRIVE:
+		newstate = gv_drivestatei(state);
+		if (newstate < 0) {
+			gctl_error(req, "invalid drive state '%s'", state);
+			break;
+		}
+		d = gv_find_drive(sc, obj);
+		err = gv_set_drive_state(d, newstate, f);
+		if (err)
+			gctl_error(req, "cannot set drive state");
+		break;
+
+	default:
+		gctl_error(req, "unknown object '%s'", obj);
+		break;
+	}
+
+	return;
+}
+
+/* Update drive state; return 0 if the state changes, otherwise -1. */
 int
 gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 {
@@ -49,12 +120,12 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 	oldstate = d->state;
 	
 	if (newstate == oldstate)
-		return (1);
+		return (0);
 
 	/* We allow to take down an open drive only with force. */
 	if ((newstate == GV_DRIVE_DOWN) && gv_is_open(d->geom) &&
 	    (!(flags & GV_SETSTATE_FORCE)))
-		return (0);
+		return (-1);
 
 	d->state = newstate;
 
@@ -67,7 +138,7 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 	if (flags & GV_SETSTATE_CONFIG)
 		gv_save_config_all(d->vinumconf);
 
-	return (1);
+	return (0);
 }
 
 int
@@ -130,6 +201,8 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 
 			if (p->org != GV_PLEX_RAID5)
 				break;
+			else if (flags & GV_SETSTATE_FORCE)
+				break;
 			else
 				s->state = GV_SD_STALE;
 
@@ -145,7 +218,7 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 			 * first.
 			 */
 			p = s->plex_sc;
-			if (p == NULL)
+			if (p == NULL || flags & GV_SETSTATE_FORCE)
 				break;
 
 			if ((p->org != GV_PLEX_RAID5) &&
