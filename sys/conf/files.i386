@@ -61,8 +61,8 @@ contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
 dev/ata/ata-all.c		optional	ata 
-dev/ata/ata-dma.c		optional	ata 
 dev/ata/ata-disk.c		optional	atadisk
+dev/ata/ata-dma.c		optional	ata 
 dev/ata/atapi-all.c		optional	atapicd 
 dev/ata/atapi-all.c		optional	atapifd 
 dev/ata/atapi-all.c		optional	atapist
@@ -199,7 +199,6 @@ i386/isa/cx.c			optional	cx
 i386/isa/cy.c			optional	cy
 i386/isa/elink.c		optional	ep
 i386/isa/elink.c		optional	ie
-isa/fd.c			optional	fd
 i386/isa/gpib.c			optional	gp
 i386/isa/gsc.c			optional	gsc
 i386/isa/if_ar.c		optional	ar
@@ -248,8 +247,8 @@ i386/isa/sound/ad1848.c		optional	gus
 i386/isa/sound/ad1848.c		optional	gusxvi
 i386/isa/sound/ad1848.c		optional	mss
 i386/isa/sound/ad1848.c		optional	sscape
-i386/isa/sound/ad1848.c		optional	trix
 i386/isa/sound/ad1848.c		optional	sscape_mss
+i386/isa/sound/ad1848.c		optional	trix
 i386/isa/sound/adlib_card.c	optional	opl
 i386/isa/sound/adlib_card.c	optional	trix
 i386/isa/sound/audio.c		optional	snd	\
@@ -327,23 +326,6 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-svr4/imgact_svr4.c		optional	compat_svr4
-svr4/svr4_fcntl.c		optional	compat_svr4
-svr4/svr4_filio.c		optional	compat_svr4
-svr4/svr4_ioctl.c		optional	compat_svr4
-svr4/svr4_ipc.c			optional	compat_svr4
-svr4/svr4_misc.c		optional	compat_svr4
-svr4/svr4_resource.c		optional	compat_svr4
-svr4/svr4_signal.c		optional	compat_svr4
-svr4/svr4_socket.c		optional	compat_svr4
-svr4/svr4_sockio.c		optional	compat_svr4
-svr4/svr4_stat.c		optional	compat_svr4
-svr4/svr4_stream.c		optional	compat_svr4
-svr4/svr4_syscallnames.c	optional	compat_svr4
-svr4/svr4_sysent.c		optional	compat_svr4
-svr4/svr4_sysvec.c		optional	compat_svr4
-svr4/svr4_termios.c		optional	compat_svr4
-svr4/svr4_ttold.c		optional	compat_svr4
 i386/svr4/svr4_locore.s		optional	compat_svr4		   \
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
@@ -356,9 +338,9 @@ i4b/layer1/i4b_bchan.c		optional	isic
 i4b/layer1/i4b_ctx_s0P.c	optional	isic
 i4b/layer1/i4b_drn_ngo.c	optional	isic
 #i4b/layer1/i4b_dynalink.c	optional	isic
+i4b/layer1/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/i4b_elsa_qs1i.c	optional	isic
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic
-i4b/layer1/i4b_elsa_pcc16.c	optional	isic
 i4b/layer1/i4b_hscx.c		optional	isic
 i4b/layer1/i4b_isac.c		optional	isic
 i4b/layer1/i4b_isic.c		optional	isic
@@ -376,6 +358,7 @@ i4b/layer1/i4b_tel_s08.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
+isa/fd.c			optional	fd
 isa/ppc.c			optional	ppc
 isa/psm.c			optional	psm
 isa/sio.c			optional	sio
@@ -387,3 +370,20 @@ libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
+svr4/imgact_svr4.c		optional	compat_svr4
+svr4/svr4_fcntl.c		optional	compat_svr4
+svr4/svr4_filio.c		optional	compat_svr4
+svr4/svr4_ioctl.c		optional	compat_svr4
+svr4/svr4_ipc.c			optional	compat_svr4
+svr4/svr4_misc.c		optional	compat_svr4
+svr4/svr4_resource.c		optional	compat_svr4
+svr4/svr4_signal.c		optional	compat_svr4
+svr4/svr4_socket.c		optional	compat_svr4
+svr4/svr4_sockio.c		optional	compat_svr4
+svr4/svr4_stat.c		optional	compat_svr4
+svr4/svr4_stream.c		optional	compat_svr4
+svr4/svr4_syscallnames.c	optional	compat_svr4
+svr4/svr4_sysent.c		optional	compat_svr4
+svr4/svr4_sysvec.c		optional	compat_svr4
+svr4/svr4_termios.c		optional	compat_svr4
+svr4/svr4_ttold.c		optional	compat_svr4
