@@ -31,20 +31,19 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/uio.h>
-#include <sys/queue.h>
-#include <sys/malloc.h>
 #include <sys/conf.h>
-#include <sys/poll.h>
 #include <sys/ioccom.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/poll.h>
+#include <sys/queue.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-
-#include "ng_device.h"
+#include <netgraph/ng_device.h>
 
 /* turn this on for verbose messages */
 #define NGD_DEBUG
@@ -477,8 +476,7 @@ ngdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	datap = (struct ngd_param_s *)msg->data;
         datap->p = addr;
 
-	/* NG_SEND_MSG_HOOK(error, here, msg, hook, retaddr) */
-	NG_SEND_MSG_HOOK(error, sc->node, msg, connection->active_hook, NULL);
+	NG_SEND_MSG_HOOK(error, sc->node, msg, connection->active_hook, 0);
 	if(error)
 		printf("%s(): NG_SEND_MSG_HOOK error: %d\n",__func__,error);
 
