@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.66 1995/05/29 00:50:02 jkh Exp $
+ * $Id: install.c,v 1.67 1995/05/29 11:01:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -417,9 +417,8 @@ root_extract(void)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
 		    close(fd);
-		if (mediaDevice->shutdown)
-		    (*mediaDevice->shutdown)(mediaDevice);
-	    } else {
+	    }
+	    else {
 		msgConfirm("Couldn't get root floppy image from %s\n, falling back to floppy.", mediaDevice->name);
 		if (mediaDevice->shutdown)
 		    (*mediaDevice->shutdown)(mediaDevice);
