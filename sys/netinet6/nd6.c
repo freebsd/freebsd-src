@@ -970,6 +970,7 @@ nd6_resolve(ifp, rt, m, dst, desten)
 			return(1);
 			break;
 		default:
+			m_freem(m);
 			return(0);
 		}
 	}
@@ -1026,6 +1027,7 @@ nd6_resolve(ifp, rt, m, dst, desten)
 				ln, 0);
 		}
 	}
+	/* Do not free mbuf chain here as it is queued in llinfo_nd6 */
 	return(0);
 }
 #endif /* OLDIP6OUTPUT */
@@ -1981,19 +1983,26 @@ nd6_storelladdr(ifp, rt, m, dst, desten)
 			*desten = 0;
 			return(1);
 		default:
+			m_freem(m);
 			return(0);
 		}
 	}
 
-	if (rt == NULL ||
-	    rt->rt_gateway->sa_family != AF_LINK) {
-		printf("nd6_storelladdr: something odd happens\n");
+	if (rt == NULL) {
+		/* This could happen if we could not allocate memory */
+		m_freem(m);
+		return(0);
+	}
+	if (rt->rt_gateway->sa_family != AF_LINK) {
+		printf("nd6_storelladdr: something odd happened\n");
+		m_freem(m);
 		return(0);
 	}
 	sdl = SDL(rt->rt_gateway);
 	if (sdl->sdl_alen == 0) {
 		/* this should be impossible, but we bark here for debugging */
 		printf("nd6_storelladdr: sdl_alen == 0\n");
+		m_freem(m);
 		return(0);
 	}
 
