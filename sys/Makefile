@@ -1,12 +1,7 @@
-#	$Id: Makefile,v 1.9 1998/02/20 07:37:08 jb Exp $
+#	$Id: Makefile,v 1.10 1998/08/27 04:26:40 jb Exp $
 
-.if defined(MACHINE_PC98) && ${MACHINE_PC98} == "yes"
-SUBDIR=	pc98/boot
-.elif	exists(${MACHINE}/boot) && ${MACHINE} == "i386"
-.if ${OBJFORMAT} == "aout"
-SUBDIR=	${MACHINE}/boot
-.endif
-.elif	exists(${MACHINE}/boot)
+# This is the old aout only boot loader.
+.if	exists(${MACHINE}/boot) && ${OBJFORMAT} == "aout"
 SUBDIR=	${MACHINE}/boot
 .endif
 
