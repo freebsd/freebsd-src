@@ -154,7 +154,6 @@ proc_dtor(void *mem, int size, void *arg)
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in exiting process"));
 	KASSERT((p->p_numksegrps == 1), ("free proc with > 1 ksegrp"));
-	td = FIRST_THREAD_IN_PROC(p);
 	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
