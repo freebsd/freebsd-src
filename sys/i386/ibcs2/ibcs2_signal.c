@@ -206,6 +206,8 @@ ibcs2_sigaction(td, uap)
 		nbsap = &nbsa;
 	} else
 		nbsap = NULL;
+	if (uap->sig <= 0 || uap->sig > IBCS2_NSIG)
+		return (EINVAL);
 	error = kern_sigaction(td, ibcs2_to_bsd_sig[_SIG_IDX(uap->sig)], &nbsa,
 	    &obsa, 0);
 	if (error == 0 && uap->oact != NULL) {
@@ -222,15 +224,16 @@ ibcs2_sigsys(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct sigaction sa;
-	int signum = ibcs2_to_bsd_sig[_SIG_IDX(IBCS2_SIGNO(uap->sig))];
+	int signum = IBCS2_SIGNO(uap->sig);
 	int error;
 
-	if (signum <= 0 || signum >= IBCS2_NSIG) {
+	if (signum <= 0 || signum > IBCS2_NSIG) {
 		if (IBCS2_SIGCALL(uap->sig) == IBCS2_SIGNAL_MASK ||
 		    IBCS2_SIGCALL(uap->sig) == IBCS2_SIGSET_MASK)
 			td->td_retval[0] = (int)IBCS2_SIG_ERR;
 		return EINVAL;
 	}
+	signum = ibcs2_to_bsd_sig[_SIG_IDX(signum)];
 	
 	switch (IBCS2_SIGCALL(uap->sig)) {
 	case IBCS2_SIGSET_MASK:
@@ -430,6 +433,8 @@ ibcs2_kill(td, uap)
 {
 	struct kill_args ka;
 
+	if (uap->signo <= 0 || uap->signo > IBCS2_NSIG)
+		return (EINVAL);
 	ka.pid = uap->pid;
 	ka.signum = ibcs2_to_bsd_sig[_SIG_IDX(uap->signo)];
 	return kill(td, &ka);
