@@ -24,3 +24,5 @@ install:
 		  ${INSTALL} ${COPY} -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
 		done
 
+# Suck in the ${COPY} definition.
+.include <bsd.own.mk>
