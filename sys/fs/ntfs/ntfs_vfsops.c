@@ -93,9 +93,10 @@ static int	ntfs_vptofh __P((struct vnode *, struct fid *));
 static int	ntfs_init __P((struct vfsconf *));
 #if 0 /* may be implemented at a later date */
 static int	ntfs_fhtovp __P((struct mount *, struct fid *,
-				 struct sockaddr *, struct vnode **,
-				 int *, struct ucred **));
-#endif
+				 struct vnode **));
+static int	ntfs_checkexp __P((struct vnode *, struct mbuf *,
+				   int *, struct ucred **));
+#endif /* 0, default ops in FreeBSD */
 #elif defined(__NetBSD__)
 static void	ntfs_init __P((void));
 static int	ntfs_fhtovp __P((struct mount *, struct fid *,
@@ -952,6 +953,7 @@ static struct vfsops ntfs_vfsops = {
 	vfs_stdsync,
 	ntfs_vget,
 	vfs_stdfhtovp,
+	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	ntfs_init,
 	NULL

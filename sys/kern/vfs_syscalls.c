@@ -46,6 +46,8 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/sysent.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/sysproto.h>
 #include <sys/namei.h>
 #include <sys/filedesc.h>
@@ -56,8 +58,6 @@
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/dirent.h>
 
@@ -3129,4 +3129,293 @@ __getcwd(p, uap)
 	error = copyout(bp, uap->buf, strlen(bp) + 1);
 	free(buf, M_TEMP);
 	return (error);
+}
+
+/*
+ * Get (NFS) file handle
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct getfh_args {
+	char	*fname;
+	fhandle_t *fhp;
+};
+#endif
+int
+getfh(p, uap)
+	struct proc *p;
+	register struct getfh_args *uap;
+{
+	struct nameidata nd;
+	fhandle_t fh;
+	register struct vnode *vp;
+	int error;
+
+	/*
+	 * Must be super user
+	 */
+	error = suser(p);
+	if (error)
+		return (error);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	vp = nd.ni_vp;
+	bzero(&fh, sizeof(fh));
+	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
+	error = VFS_VPTOFH(vp, &fh.fh_fid);
+	vput(vp);
+	if (error)
+		return (error);
+	error = copyout(&fh, uap->fhp, sizeof (fh));
+	return (error);
+}
+
+/*
+ * syscall for the rpc.lockd to use to translate a NFS file handle into
+ * an open descriptor.
+ *
+ * warning: do not remove the suser() call or this becomes one giant
+ * security hole.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct fhopen_args {
+	const struct fhandle *u_fhp;
+	int flags;
+};
+#endif
+int
+fhopen(p, uap)
+	struct proc *p;
+	struct fhopen_args /* {
+		syscallarg(const struct fhandle *) u_fhp;
+		syscallarg(int) flags;
+	} */ *uap;
+{
+	struct mount *mp;
+	struct vnode *vp;
+	struct fhandle fhp;
+	struct vattr vat;
+	struct vattr *vap = &vat;
+	struct flock lf;
+	struct file *fp;
+	register struct filedesc *fdp = p->p_fd;
+	int fmode, mode, error, type;
+	struct file *nfp; 
+	int indx;
+
+	/*
+	 * Must be super user
+	 */
+	error = suser(p);
+	if (error)
+		return (error);
+
+	fmode = FFLAGS(SCARG(uap, flags));
+	/* why not allow a non-read/write open for our lockd? */
+	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
+		return (EINVAL);
+	error = copyin(SCARG(uap,u_fhp), &fhp, sizeof(fhp));
+	if (error)
+		return(error);
+	/* find the mount point */
+	mp = vfs_getvfs(&fhp.fh_fsid);
+	if (mp == NULL)
+		return (ESTALE);
+	/* now give me my vnode, it gets returned to me locked */
+	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
+	if (error)
+		return (error);
+ 	/*
+	 * from now on we have to make sure not
+	 * to forget about the vnode
+	 * any error that causes an abort must vput(vp) 
+	 * just set error = err and 'goto bad;'.
+	 */
+
+	/* 
+	 * from vn_open 
+	 */
+	if (vp->v_type == VLNK) {
+		error = EMLINK;
+		goto bad;
+	}
+	if (vp->v_type == VSOCK) {
+		error = EOPNOTSUPP;
+		goto bad;
+	}
+	mode = 0;
+	if (fmode & (FWRITE | O_TRUNC)) {
+		if (vp->v_type == VDIR) {
+			error = EISDIR;
+			goto bad;
+		}
+		error = vn_writechk(vp);
+		if (error)
+			goto bad;
+		mode |= VWRITE;
+	}
+	if (fmode & FREAD)
+		mode |= VREAD;
+	if (mode) {
+		error = VOP_ACCESS(vp, mode, p->p_ucred, p);
+		if (error)
+			goto bad;
+	}
+	if (fmode & O_TRUNC) {
+		VOP_UNLOCK(vp, 0, p);				/* XXX */
+		VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);	/* XXX */
+		VATTR_NULL(vap);
+		vap->va_size = 0;
+		error = VOP_SETATTR(vp, vap, p->p_ucred, p);
+		if (error)
+			goto bad;
+	}
+	error = VOP_OPEN(vp, fmode, p->p_ucred, p);
+	if (error)
+		goto bad;
+	/*
+	 * Make sure that a VM object is created for VMIO support.
+	 */
+	if (vn_canvmio(vp) == TRUE) {
+		if ((error = vfs_object_create(vp, p, p->p_ucred)) != 0)
+			goto bad;
+	}
+	if (fmode & FWRITE)
+		vp->v_writecount++;
+
+	/*
+	 * end of vn_open code 
+	 */
+
+	if ((error = falloc(p, &nfp, &indx)) != 0)
+		goto bad;
+	fp = nfp;	
+	nfp->f_data = (caddr_t)vp;
+	nfp->f_flag = fmode & FMASK;
+	nfp->f_ops = &vnops;
+	nfp->f_type = DTYPE_VNODE;
+	if (fmode & (O_EXLOCK | O_SHLOCK)) {
+		lf.l_whence = SEEK_SET;
+		lf.l_start = 0;
+		lf.l_len = 0;
+		if (fmode & O_EXLOCK)
+			lf.l_type = F_WRLCK;
+		else
+			lf.l_type = F_RDLCK;
+		type = F_FLOCK;
+		if ((fmode & FNONBLOCK) == 0)
+			type |= F_WAIT;
+		VOP_UNLOCK(vp, 0, p);
+		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0) {
+			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
+			ffree(fp);
+			fdp->fd_ofiles[indx] = NULL;
+			return (error);
+		}
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		fp->f_flag |= FHASLOCK;
+	}
+	if ((vp->v_type == VREG) && (vp->v_object == NULL))
+		vfs_object_create(vp, p, p->p_ucred);
+
+	VOP_UNLOCK(vp, 0, p);
+	p->p_retval[0] = indx;
+	return (0);
+
+bad:
+	vput(vp);
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct fhstat_args {
+	struct fhandle *u_fhp;
+	struct stat *sb;
+};
+#endif
+int
+fhstat(p, uap)
+	struct proc *p;
+	register struct fhstat_args /* {
+		syscallarg(struct fhandle *) u_fhp;
+		syscallarg(struct stat *) sb;
+	} */ *uap;
+{
+	struct stat sb;
+	fhandle_t fh;
+	struct mount *mp;
+	struct vnode *vp;
+	int error;
+
+	/*
+	 * Must be super user
+	 */
+	error = suser(p);
+	if (error)
+		return (error);
+	
+	error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t));
+	if (error)
+		return (error);
+
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+		return (ESTALE);
+	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
+		return (error);
+	error = vn_stat(vp, &sb, p);
+	vput(vp);
+	if (error)
+		return (error);
+	error = copyout(&sb, SCARG(uap, sb), sizeof(sb));
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct fhstatfs_args {
+	struct fhandle *u_fhp;
+	struct statfs *buf;
+};
+#endif
+int
+fhstatfs(p, uap)
+	struct proc *p;
+	struct fhstatfs_args /* {
+		syscallarg(struct fhandle) *u_fhp;
+		syscallarg(struct statfs) *buf;
+	} */ *uap;
+{
+	struct statfs *sp;
+	struct mount *mp;
+	struct vnode *vp;
+	struct statfs sb;
+	fhandle_t fh;
+	int error;
+
+	/*
+	 * Must be super user
+	 */
+	if ((error = suser(p)))
+		return (error);
+
+	if ((error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t))) != 0)
+		return (error);
+
+	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+		return (ESTALE);
+	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp)))
+		return (error);
+	mp = vp->v_mount;
+	sp = &mp->mnt_stat;
+	vput(vp);
+	if ((error = VFS_STATFS(mp, sp, p)) != 0)
+		return (error);
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	if (suser_xxx(p->p_ucred, 0, 0)) {
+		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
+		sp = &sb;
+	}
+	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
 }
