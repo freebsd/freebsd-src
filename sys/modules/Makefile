@@ -109,6 +109,7 @@ SUBDIR+=aac \
 	bktr \
 	coff \
 	el \
+	fe \
 	fpu \
 	gnufpu \
 	ibcs2 \
