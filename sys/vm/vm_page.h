@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.31 1996/07/30 03:08:17 dyson Exp $
+ * $Id: vm_page.h,v 1.32 1996/09/08 20:44:46 dyson Exp $
  */
 
 /*
@@ -134,13 +134,6 @@ struct vm_page {
 #define PQ_L1_SIZE 2	/* Two page L1 cache */
 #endif
 
-#if defined(PQ_MEDIUMCACHE)
-#define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_PRIME3 5	/* Prime number somewhat less than PQ_HASH_SIZE */
-#define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
-#define PQ_L1_SIZE 2	/* Two page L1 cache */
-#endif
 
 /*
  * Use 'options PQ_NOOPT' to disable page coloring
@@ -153,11 +146,19 @@ struct vm_page {
 #define PQ_L1_SIZE 1
 #endif
 
-#if defined(PQ_NORMALCACHE) || !defined(PQ_L2_SIZE)
+#if defined(PQ_NORMALCACHE)
 #define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 11	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
+#define PQ_L1_SIZE 2	/* Two page L1 cache */
+#endif
+
+#if defined(PQ_MEDIUMCACHE) || !defined(PQ_L2_SIZE)
+#define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME3 5	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
 #define PQ_L1_SIZE 2	/* Two page L1 cache */
 #endif
 
