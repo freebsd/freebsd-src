@@ -1057,6 +1057,10 @@ thread_sigframe_add(pthread_t thread, int sig, int has_args)
 		    sizeof(psf->siginfo));
 	}
 
+	/* Setup the signal mask: */
+	SIGSETOR(thread->sigmask, _thread_sigact[sig - 1].sa_mask);
+	sigaddset(&thread->sigmask, sig);
+
 	/* Set up the new frame: */
 	thread->curframe = psf;
 	thread->ctxtype = CTX_JB_NOSIG;
