@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.18 1997/02/22 09:40:19 peter Exp $
+ * $Id: kernfs_vfsops.c,v 1.19 1997/08/02 14:32:02 bde Exp $
  */
 
 /*
@@ -51,6 +51,8 @@
 #include <sys/malloc.h>
 
 #include <miscfs/kernfs/kernfs.h>
+
+static MALLOC_DEFINE(M_KERNFSMNT, "KERNFS mount", "KERNFS mount structure");
 
 dev_t rrootdev = NODEV;
 
@@ -128,11 +130,11 @@ kernfs_mount(mp, path, data, ndp, p)
 		return (EOPNOTSUPP);
 
 	MALLOC(fmp, struct kernfs_mount *, sizeof(struct kernfs_mount),
-				M_UFSMNT, M_WAITOK);	/* XXX */
+				M_KERNFSMNT, M_WAITOK);	/* XXX */
 
 	error = getnewvnode(VT_KERNFS, mp, kernfs_vnodeop_p, &rvp);	/* XXX */
 	if (error) {
-		FREE(fmp, M_UFSMNT);
+		FREE(fmp, M_KERNFSMNT);
 		return (error);
 	}
 
@@ -213,7 +215,7 @@ kernfs_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the kernfs_mount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_KERNFSMNT);	/* XXX */
 	mp->mnt_data = 0;
 	return 0;
 }

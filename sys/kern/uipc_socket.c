@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.31 1997/09/14 02:34:14 peter Exp $
+ *	$Id: uipc_socket.c,v 1.32 1997/10/04 18:21:15 phk Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,10 @@
 #include <sys/sysctl.h>
 
 #include <machine/limits.h>
+
+MALLOC_DEFINE(M_SOCKET, "socket", "socket structure");
+MALLOC_DEFINE(M_SONAME, "soname", "socket name");
+MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 
 static int somaxconn = SOMAXCONN;
 SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn,

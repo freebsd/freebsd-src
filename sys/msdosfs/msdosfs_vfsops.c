@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.20 1997/08/16 19:15:24 wollman Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.21 1997/10/11 18:31:30 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -67,7 +67,8 @@
 #include <msdosfs/msdosfsmount.h>
 #include <msdosfs/fat.h>
 
-MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
+MALLOC_DEFINE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
+static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
 
 static int	mountmsdosfs __P((struct vnode *devvp, struct mount *mp,
 				  struct proc *p));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.28 1997/08/02 14:31:33 bde Exp $
+ * $Id: kern_proc.c,v 1.29 1997/10/11 18:31:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,10 @@
 #include <vm/vm_map.h>
 #include <sys/user.h>
 
-MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
+static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
+MALLOC_DEFINE(M_SESSION, "session", "session header");
+MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
+MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 struct prochd qs[NQS];		/* as good a place as any... */
 struct prochd rtqs[NQS];	/* Space for REALTIME queues too */

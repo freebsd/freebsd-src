@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.267 1997/10/10 09:44:02 peter Exp $
+ *	$Id: machdep.c,v 1.268 1997/10/10 12:42:52 peter Exp $
  */
 
 #include "apm.h"
@@ -134,6 +134,7 @@ extern void initializecpu(void);
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
+static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 #ifdef BOUNCE_BUFFERS
 extern char *bouncememory;

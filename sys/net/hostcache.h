@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hostcache.h,v 1.1 1997/06/18 01:24:22 wollman Exp $
  */
 
 #ifndef _NET_HOSTCACHE_H
@@ -76,6 +76,10 @@ struct hctable {
 };
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_HOSTCACHE);
+#endif
 /*
  * The table-modification functions must be called from user mode, as
  * they may block waiting for memory and/or locks.

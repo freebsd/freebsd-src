@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id$
+ * $Id: vfs_conf.c,v 1.14 1997/02/22 09:39:32 peter Exp $
  */
 
 /*
@@ -61,6 +61,8 @@
 /*
  * GLOBALS
  */
+
+MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount struct");
 
 /*
  *  These define the root filesystem, device, and root filesystem type.

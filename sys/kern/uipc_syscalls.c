@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.29 1997/08/17 19:47:28 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.30 1997/09/02 20:05:58 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -39,11 +39,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>

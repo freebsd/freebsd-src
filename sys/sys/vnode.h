@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.48 1997/09/14 02:25:41 peter Exp $
+ * $Id: vnode.h,v 1.49 1997/09/21 04:24:09 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -202,6 +202,11 @@ struct vattr {
 #define	VNOVAL	(-1)
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_VNODE);
+#endif
+
 /*
  * Convert between vnode types and inode formats (since POSIX.1
  * defines mode word of stat structure in terms of inode formats).

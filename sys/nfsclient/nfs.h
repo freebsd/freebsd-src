@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.30 1997/08/16 19:15:54 wollman Exp $
+ * $Id: nfs.h,v 1.31 1997/09/10 19:52:24 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -299,6 +299,17 @@ struct nfsstats {
  * by them and break.
  */
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_NFSREQ);
+MALLOC_DECLARE(M_NFSMNT);
+MALLOC_DECLARE(M_NFSDIROFF);
+MALLOC_DECLARE(M_NFSRVDESC);
+MALLOC_DECLARE(M_NFSUID);
+MALLOC_DECLARE(M_NQLEASE);
+MALLOC_DECLARE(M_NFSD);
+MALLOC_DECLARE(M_NFSBIGFH);
+#endif
 
 struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
- * $Id: ufs_vfsops.c,v 1.9 1997/08/02 14:33:24 bde Exp $
+ * $Id: ufs_vfsops.c,v 1.10 1997/08/16 19:16:27 wollman Exp $
  */
 
 #include "opt_quota.h"
@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/quota.h>
@@ -51,6 +52,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
 /*
  * Make a filesystem operational.
  * Nothing to do at the moment.

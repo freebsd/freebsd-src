@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.10 1997/02/22 09:40:49 peter Exp $ */
+/*	$Id: msdosfsmount.h,v 1.11 1997/03/03 17:36:11 bde Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -52,6 +52,10 @@
 #define	_MSDOSFS_MSDOSFSMOUNT_H_
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_MSDOSFSMNT);
+#endif
 
 /*
  * Layout of the mount control block for a msdos file system.

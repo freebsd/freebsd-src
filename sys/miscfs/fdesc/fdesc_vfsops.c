@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.11 1997/08/02 14:31:59 bde Exp $
+ * $Id: fdesc_vfsops.c,v 1.12 1997/08/16 19:15:12 wollman Exp $
  */
 
 /*
@@ -52,6 +52,8 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
+
+static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 
 static int	fdesc_fhtovp __P((struct mount *mp, struct fid *fhp,
 				  struct mbuf *nam, struct vnode **vpp,
@@ -98,7 +100,7 @@ fdesc_mount(mp, path, data, ndp, p)
 		return (error);
 
 	MALLOC(fmp, struct fdescmount *, sizeof(struct fdescmount),
-				M_UFSMNT, M_WAITOK);	/* XXX */
+				M_FDESCMNT, M_WAITOK);	/* XXX */
 	rvp->v_type = VDIR;
 	rvp->v_flag |= VROOT;
 	fmp->f_root = rvp;
@@ -158,7 +160,7 @@ fdesc_unmount(mp, mntflags, p)
 	/*
 	 * Finally, throw away the fdescmount structure
 	 */
-	free(mp->mnt_data, M_UFSMNT);	/* XXX */
+	free(mp->mnt_data, M_FDESCMNT);	/* XXX */
 	mp->mnt_data = 0;
 
 	return (0);
