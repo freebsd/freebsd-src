@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/10/13 18:29:18 rnordier Exp $
+#	$Id: Makefile,v 1.5 1998/10/17 14:20:25 rnordier Exp $
 
 PROG=		boot0
 NOMAN=
@@ -7,6 +7,9 @@ BINDIR?=	/boot
 BINMODE=	444
 
 M4?=	m4
+
+B0FLAGS=0x0
+B0TICKS=0xb6
 
 ORG=	0x600
 
@@ -20,8 +23,8 @@ boot0: boot0.o
 .endif
 
 boot0.o: boot0.m4 boot0.s
-	(cd ${.CURDIR}; ${M4} boot0.m4 boot0.s) | \
-	${AS} ${AFLAGS} -o ${.TARGET}
+	(cd ${.CURDIR}; ${M4} -DFLAGS=${B0FLAGS} -DTICKS=${B0TICKS} \
+		boot0.m4 boot0.s) | ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= boot0.out boot0.o
 
