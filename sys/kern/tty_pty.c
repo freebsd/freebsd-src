@@ -143,11 +143,12 @@ ptyinit(dev_t devc)
 	struct pt_ioctl *pt;
 	int n;
 
-	devc->si_flags &= ~SI_CHEAPCLONE;
 	n = minor(devc);
 	/* For now we only map the lower 8 bits of the minor */
 	if (n & ~0xff)
 		return (NODEV);
+
+	devc->si_flags &= ~SI_CHEAPCLONE;
 
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
 	pt->devs = devs = make_dev(&pts_cdevsw, n,
