@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)pmap.c	7.7 (Berkeley)	5/12/91
+ *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  */
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
@@ -158,13 +158,6 @@ __FBSDID("$FreeBSD$");
 #define PMAP_INLINE
 #endif
 
-/*
- * Given a map and a machine independent protection code,
- * convert to a vax protection code.
- */
-#define pte_prot(m, p)	(protection_codes[p])
-static pt_entry_t protection_codes[8];
-
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
@@ -219,7 +212,6 @@ static caddr_t crashdumpmap;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
-static void	amd64_protection_init(void);
 static void	pmap_clear_ptes(vm_page_t m, int bit)
     __always_inline;
 
@@ -475,11 +467,6 @@ pmap_bootstrap(firstaddr)
 	/* XXX do %cr0 as well */
 	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
 	load_cr3(KPML4phys);
-
-	/*
-	 * Initialize protection array.
-	 */
-	amd64_protection_init();
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -2095,8 +2082,13 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	newpte = (pt_entry_t)(pa | pte_prot(pmap, prot) | PG_V);
-
+	newpte = (pt_entry_t)(pa | PG_V);
+	if ((prot & VM_PROT_WRITE) != 0)
+		newpte |= PG_RW;
+#ifdef PG_NX
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		newpte |= PG_NX;
+#endif
 	if (wired)
 		newpte |= PG_W;
 	if (va < VM_MAXUSER_ADDRESS)
@@ -2844,40 +2836,6 @@ pmap_clear_reference(vm_page_t m)
 /*
  * Miscellaneous support routines follow
  */
-
-static void
-amd64_protection_init()
-{
-	register long *kp, prot;
-
-#if 0
-#define PG_NX (1ul << 63)
-#else
-#define PG_NX 0
-#endif
-
-	kp = protection_codes;
-	for (prot = 0; prot < 8; prot++) {
-		switch (prot) {
-		case VM_PROT_NONE | VM_PROT_NONE | VM_PROT_NONE:
-		case VM_PROT_READ | VM_PROT_NONE | VM_PROT_NONE:
-			*kp++ = PG_NX;
-			break;
-		case VM_PROT_READ | VM_PROT_NONE | VM_PROT_EXECUTE:
-		case VM_PROT_NONE | VM_PROT_NONE | VM_PROT_EXECUTE:
-			*kp++ = 0;
-			break;
-		case VM_PROT_NONE | VM_PROT_WRITE | VM_PROT_NONE:
-		case VM_PROT_READ | VM_PROT_WRITE | VM_PROT_NONE:
-			*kp++ = PG_RW | PG_NX;
-			break;
-		case VM_PROT_NONE | VM_PROT_WRITE | VM_PROT_EXECUTE:
-		case VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE:
-			*kp++ = PG_RW;
-			break;
-		}
-	}
-}
 
 /*
  * Map a set of physical memory pages into the kernel virtual
