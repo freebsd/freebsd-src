@@ -1,4 +1,4 @@
-# Copyright 1998 Juniper Networks, Inc.
+# Copyright 2001 Mark R V Murray
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,24 +22,18 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
-SUBDIR+=	pam_cleartext_pass_ok
-SUBDIR+=	pam_deny
-.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_kerberosIV
-.endif
-.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=	pam_krb5
-.endif
-SUBDIR+=	pam_nologin
-SUBDIR+=	pam_opie
-SUBDIR+=	pam_permit
-SUBDIR+=	pam_radius
-SUBDIR+=	pam_rootok
-SUBDIR+=	pam_skey
-SUBDIR+=	pam_tacplus
-SUBDIR+=	pam_unix
-SUBDIR+=	pam_wheel
+PAMDIR=		${.CURDIR}/../../../../contrib/libpam
 
-.include <bsd.subdir.mk>
+.PATH:		${PAMDIR}/modules/pam_nologin
+
+LIB=		pam_nologin
+SHLIB_NAME=	pam_nologin.so
+SRCS=		pam_nologin.c
+CFLAGS+=	-Wall
+CFLAGS+=	-I${PAMDIR}/libpam/include
+INTERNALLIB=	yes
+INTERNALSTATICLIB=yes
+
+.include <bsd.lib.mk>
