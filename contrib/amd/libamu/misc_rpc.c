@@ -123,7 +123,7 @@ drop:
 
 
 int
-make_rpc_packet(char *buf, int buflen, u_long proc, struct rpc_msg *mp, voidp arg, XDRPROC_T_TYPE arg_xdr, AUTH *auth)
+make_rpc_packet(char *buf, int buflen, u_int proc, struct rpc_msg *mp, voidp arg, XDRPROC_T_TYPE arg_xdr, AUTH *auth)
 {
   XDR msg_xdr;
   int len;
