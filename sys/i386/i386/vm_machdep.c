@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.70 1996/10/15 03:16:33 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.71 1996/10/30 22:38:24 asami Exp $
  */
 
 #include "npx.h"
@@ -572,6 +572,9 @@ cpu_fork(p1, p2)
 	struct pcb *pcb2 = &p2->p_addr->u_pcb;
 	int sp, offset;
 	volatile int retval;
+#ifdef USER_LDT
+	struct pcb *pcb = &p2->p_addr->u_pcb;
+#endif
 
 	/*
 	 * Copy pcb and stack from proc p1 to p2.
@@ -594,6 +597,18 @@ cpu_fork(p1, p2)
 
 	*pcb2 = p1->p_addr->u_pcb;
 	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
+
+#ifdef USER_LDT
+        /* Copy the LDT, if necessary. */
+        if (pcb->pcb_ldt != 0) {
+                union descriptor *new_ldt;
+                size_t len = pcb->pcb_ldt_len * sizeof(union descriptor);
+
+                new_ldt = (union descriptor *)kmem_alloc(kernel_map, len);
+                bcopy(pcb->pcb_ldt, new_ldt, len);
+                pcb->pcb_ldt = (caddr_t)new_ldt;
+        }
+#endif
 
 	retval = 0;		/* return 0 in parent */
 	savectx(pcb2);
