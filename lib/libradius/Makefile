@@ -26,6 +26,7 @@
 
 LIB=		radius
 SRCS=		radlib.c
+INCS=		radlib.h
 CFLAGS+=	-Wall
 DPADD+=		${LIBMD}
 LDADD+=		-lmd
@@ -33,9 +34,5 @@ SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 MAN3+=		libradius.3
 MAN5+=		radius.conf.5
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/radlib.h ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
