@@ -56,9 +56,9 @@
 .ec
 .
 .\" Locale support
-.if d doc-lang \{\
-.  ie "\*[doc-lang]"ru.KOI8-R" \
+.if d doc-locale \{\
+.  ie "\*[doc-locale]"ru.KOI8-R" \
 .    mso mdoc/koi8-r
-.  el \{ .if "\*[doc-lang]"fr.ISO8859-1" \
+.  el \{ .if "\*[doc-locale]"fr.ISO8859-1" \
 .    mso mdoc/fr.ISO8859-1
 .\}\}
