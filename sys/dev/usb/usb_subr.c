@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.82 2000/12/13 04:05:14 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.84 2001/01/18 20:28:22 jdolecek Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
