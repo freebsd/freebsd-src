@@ -403,11 +403,12 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 
 	for (ifv = LIST_FIRST(&ifv_list); ifv != NULL;
 	    ifv = LIST_NEXT(ifv, ifv_list)) {
-		if (ifv->ifv_tag == t)
+		if (m->m_pkthdr.rcvif == ifv->ifv_p
+		    && ifv->ifv_tag == t)
 			break;
 	}
 
-	if (ifv !=NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
+	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
 		m_free(m);
 		return -1;	/* So the parent can take note */
 	}
@@ -415,7 +416,7 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	/*
 	 * Having found a valid vlan interface corresponding to
 	 * the given source interface and vlan tag, run the
-	 * the real packet through ethert_input().
+	 * the real packet through ether_input().
 	 */
 	m->m_pkthdr.rcvif = &ifv->ifv_if;
 
@@ -437,7 +438,7 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 			break;
 	}
 
-	if (ifv != NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
+	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		return -1;	/* so ether_input can take note */
 	}
