@@ -1081,6 +1081,11 @@ Availability of this request in the server indicates to the client that
 it may compress files sent to the server, regardless of whether the
 client actually uses this request.
 
+@item wrapper-sendme-rcsOptions \n
+Response expected: yes.
+Request that the server transmit mappings from filenames to keyword
+expansion modes in @code{Wrapper-rcsOption} responses.
+
 @item @var{other-request} @var{text} \n
 Response expected: yes.
 Any unrecognized request expects a response, and does not
@@ -1371,6 +1376,17 @@ the client side; it is not necessarily suitable for passing as an
 argument to a @code{co} request (for example, if the modules file
 contains the @samp{-d} option, it will be the directory specified with
 @samp{-d}, not the name of the module).
+
+@item Wrapper-rcsOption @var{pattern} -k '@var{option}' \n
+Transmit to the client a filename pattern which implies a certain
+keyword expansion mode.  The @var{pattern} is a wildcard pattern (for
+example, @samp{*.exe}.  The @var{option} is @samp{b} for binary, and so
+on.  Note that although the syntax happens to resemble the syntax in
+certain CVS configuration files, it is more constrained; there must be
+exactly one space between @var{pattern} and @samp{-k} and exactly one
+space between @samp{-k} and @samp{'}, and no string is permitted in
+place of @samp{-k} (extensions should be done with new responses, not by
+extending this one, for graceful handling of @code{Valid-responses}).
 
 @item M @var{text} \n
 A one-line message for the user.

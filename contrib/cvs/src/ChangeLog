@@ -1,3 +1,45 @@
+Thu Jan 29 00:01:05 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Version 1.9.24.
+
+	* sanity.sh (multibranch2): File file2 and tests multibranch2-13
+	through multibranch2-15 test a slightly different case than the
+	rest of multibranch2.
+
+	* mkmodules.c (cvswrappers_contents): Rewrite.  The text didn't
+	describe -k and had various other problems.
+
+28 Jan 1998  Karl Fogel and Jim Kingdon
+
+	New feature to let server tell client about wrappers.
+	* client.h (struct response): Add comment about args being
+	'\0' terminated when passed to handle_* functions.
+	* client.c (start_server): send "wrapper-sendme-rcsOptions" to
+	server iff supported.
+	(responses): new response "Wrapper-rcsOption"; allows the server
+	to send certain lines from its cvswrappers file.
+	(handle_wrapper_rcs_option): new func, handles "Wrapper-rcsOption"
+	response from server.
+	* server.c (serve_wrapper_sendme_rcs_options): new func, sends
+	server side CVSROOT/cvswrappers rcs option lines to client.
+	(requests): new request "wrapper-sendme-rcsOptions"; if received,
+	we know we can send "Wrapper-rcsOption..." to the client.
+	* wrapper.c (wrap_unparse_rcs_options): new func; repeated calls
+	step down the wrapper list returning rcs option entries, but
+	repackaged as cvswrappers lines.
+	(wrap_setup): new guard variable `wrap_setup_already_done'; if
+	this function has run already, just return having done nothing.
+	Add comment concerning environment variable.
+	* cvs.h: declare wrap_unparse_rcs_options().
+
+Tue Jan 27 18:27:19 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* rtag.c (rtag_dirproc): Call ignore_directory, and skip the
+	directory if it returns true.
+	* sanity.sh (modules4): New set of tests to test some aspects of
+	excluding directories in the modules file, including the above
+	patch.
+
 Thu Jan 22 10:05:55 1998  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* server.c (serve_kopt): Check for length of arg.  Based on
