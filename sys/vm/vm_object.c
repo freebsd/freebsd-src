@@ -557,7 +557,9 @@ vm_object_terminate(vm_object_t object)
 		/*
 		 * Clean pages and flush buffers.
 		 */
+		VM_OBJECT_LOCK(object);
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_UNLOCK(object);
 
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
@@ -638,7 +640,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	int curgeneration;
 
 	GIANT_REQUIRED;
-
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
 		return;
@@ -721,9 +723,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		 */
 		if (tscan >= tend && (tstart || tend < object->size)) {
 			vm_page_unlock_queues();
-			VM_OBJECT_LOCK(object);
 			vm_object_clear_flag(object, OBJ_CLEANING);
-			VM_OBJECT_UNLOCK(object);
 			return;
 		}
 		pagerflags &= ~VM_PAGER_IGNORE_CLEANCHK;
@@ -749,9 +749,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
 		struct vnode *vp;
 
-		VM_OBJECT_LOCK(object);
 		vm_object_clear_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
-		VM_OBJECT_UNLOCK(object);
 		if (object->type == OBJT_VNODE &&
 		    (vp = (struct vnode *)object->handle) != NULL) {
 			VI_LOCK(vp);
@@ -817,9 +815,7 @@ again:
 	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
 #endif
 
-	VM_OBJECT_LOCK(object);
 	vm_object_clear_flag(object, OBJ_CLEANING);
-	VM_OBJECT_UNLOCK(object);
 	return;
 }
 
@@ -917,7 +913,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	runlen = maxb + maxf + 1;
 
 	splx(s);
-	vm_pageout_flush(ma, runlen, pagerflags);
+	vm_pageout_flush(ma, runlen, pagerflags, TRUE);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
 			pmap_page_protect(ma[i], VM_PROT_READ);

@@ -105,14 +105,16 @@ vm_contig_launder(int queue)
 				vm_page_unlock_queues();
 				vn_lock(object->handle,
 				    LK_EXCLUSIVE | LK_RETRY, curthread);
+				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
+				VM_OBJECT_UNLOCK(object);
 				VOP_UNLOCK(object->handle, 0, curthread);
 				vm_page_lock_queues();
 				return (TRUE);
 			} else if (object->type == OBJT_SWAP ||
 				   object->type == OBJT_DEFAULT) {
 				m_tmp = m;
-				vm_pageout_flush(&m_tmp, 1, 0);
+				vm_pageout_flush(&m_tmp, 1, 0, FALSE);
 				return (TRUE);
 			}
 		} else if (m->busy == 0 && m->hold_count == 0)
