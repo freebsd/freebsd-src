@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.15 1996/03/09 08:18:39 ache Exp $
+ * $Id: modem.c,v 1.16 1996/03/13 12:02:16 ache Exp $
  *
  *  TODO:
  */
@@ -459,8 +459,8 @@ int mode;
       rstio.c_cflag |= VarParity;
       cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
-    rstio.c_iflag |= (IGNBRK | IGNPAR | IXON | IXOFF);
-    rstio.c_iflag &= ~(BRKINT|ICRNL|IXANY|IMAXBEL);
+    rstio.c_iflag |= IGNBRK|IGNPAR;
+    rstio.c_iflag &= ~(BRKINT|ICRNL|IXANY|IMAXBEL|IXON|IXOFF);
     rstio.c_lflag = 0;
 
     rstio.c_oflag &= ~OPOST;
