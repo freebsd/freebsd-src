@@ -85,7 +85,7 @@ BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
 
-BOOT1=	etc/protocols etc/defaults/rc.conf
+BOOT1=	etc/protocols etc/netconfig etc/defaults/rc.conf
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -537,11 +537,10 @@ release.8: write_mfs_in_kernel
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
-	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
-	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
-	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
-	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
-	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
+	grep -E '^(ftp|nameserver|domain|sunrpc|cmd|nfsd)[^-\w]' \
+	    ${.CURDIR}/../etc/services > ${RD}/mfsfd/stand/etc/services
+	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
+	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	@for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
