@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.58 (Berkeley) 9/18/96";
+static char sccsid[] = "@(#)collect.c	8.60 (Berkeley) 11/15/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -488,7 +488,7 @@ readerr:
 	**	Examples are who is the from person & the date.
 	*/
 
-	eatheader(e, !requeueflag);
+	eatheader(e, TRUE);
 
 	if (GrabTo && e->e_sendqueue == NULL)
 		usrerr("No recipient addresses found in header");
@@ -557,6 +557,7 @@ readerr:
 	/* check for message too large */
 	if (MaxMessageSize > 0 && e->e_msgsize > MaxMessageSize)
 	{
+		e->e_flags |= EF_NO_BODY_RETN;
 		e->e_status = "5.2.3";
 		usrerr("552 Message exceeds maximum fixed size (%ld)",
 			MaxMessageSize);

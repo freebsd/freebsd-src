@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.246 (Berkeley) 10/17/96";
+static char sccsid[] = "@(#)deliver.c	8.251 (Berkeley) 11/11/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -78,7 +78,7 @@ sendall(e, mode)
 	ENVELOPE *splitenv = NULL;
 	bool oldverbose = Verbose;
 	bool somedeliveries = FALSE;
-	int pid;
+	pid_t pid;
 	extern void sendenvelope();
 
 	/*
@@ -760,7 +760,7 @@ sendenvelope(e, mode)
 int
 dofork()
 {
-	register int pid = -1;
+	register pid_t pid = -1;
 
 	DOFORK(fork);
 	return (pid);
@@ -813,11 +813,12 @@ deliver(e, firstto)
 	ADDRESS *volatile tochain = NULL; /* users chain in this mailer call */
 	int rcode;			/* response code */
 	char *firstsig;			/* signature of firstto */
-	int pid = -1;
+	pid_t pid = -1;
 	char *volatile curhost;
 	register volatile u_short port = 0;
 	time_t xstart;
 	bool suidwarn;
+	bool anyok;			/* at least one address was OK */
 	int mpvect[2];
 	int rpvect[2];
 	char *pv[MAXPV+1];
@@ -1314,7 +1315,7 @@ tryhost:
 
 			if (mci_lock_host(mci) != EX_OK)
 			{
-				mci->mci_exitstat = EX_TEMPFAIL;
+				mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
 				continue;
 			}
 
@@ -1840,6 +1841,7 @@ tryhost:
 		extern int smtpmailfrom __P((MAILER *, MCI *, ENVELOPE *));
 		extern int smtprcpt __P((ADDRESS *, MAILER *, MCI *, ENVELOPE *));
 		extern int smtpdata __P((MAILER *, MCI *, ENVELOPE *));
+		extern int smtpgetstat __P((MAILER *, MCI *, ENVELOPE *));
 
 		/*
 		**  Send the MAIL FROM: protocol
@@ -1883,10 +1885,6 @@ tryhost:
 				e->e_to = tobuf + 1;
 				rcode = smtpdata(m, mci, e);
 			}
-
-			/* now close the connection */
-			if (!bitset(MCIF_CACHED, mci->mci_flags))
-				smtpquit(m, mci, e);
 		}
 		if (rcode == EX_TEMPFAIL && curhost != NULL && *curhost != '\0')
 		{
@@ -1917,11 +1915,17 @@ tryhost:
 	*/
 
   give_up:
-	if (tobuf[0] != '\0')
-		giveresponse(rcode, m, mci, ctladdr, xstart, e);
-	if (rcode == EX_OK)
-		markstats(e, tochain);
-	mci_store_persistent(mci);
+#ifdef SMTP
+# if FFR_LMTP
+	if (bitnset(M_LMTP, m->m_flags))
+	{
+		tobuf[0] = '\0';
+		anyok = FALSE;
+	}
+	else
+# endif
+#endif
+		anyok = rcode == EX_OK;
 
 	for (to = tochain; to != NULL; to = to->q_tchain)
 	{
@@ -1929,11 +1933,37 @@ tryhost:
 		if (bitset(QBADADDR|QQUEUEUP, to->q_flags))
 			continue;
 
-		/* mark bad addresses */
-		if (rcode != EX_OK)
+#ifdef SMTP
+# if FFR_LMTP
+		/* if running LMTP, get the status for each address */
+		if (bitnset(M_LMTP, m->m_flags))
 		{
-			markfailure(e, to, mci, rcode);
-			continue;
+			rcode = smtpgetstat(m, mci, e);
+			if (rcode == EX_OK)
+			{
+				strcat(tobuf, ",");
+				strcat(tobuf, to->q_paddr);
+				anyok = TRUE;
+			}
+			else
+			{
+				e->e_to = to->q_paddr;
+				markfailure(e, to, mci, rcode);
+				giveresponse(rcode, m, mci, ctladdr, xstart, e);
+				e->e_to = tobuf + 1;
+				continue;
+			}
+		}
+		else
+# endif
+#endif
+		{
+			/* mark bad addresses */
+			if (rcode != EX_OK)
+			{
+				markfailure(e, to, mci, rcode);
+				continue;
+			}
 		}
 
 		/* successful delivery */
@@ -1957,6 +1987,38 @@ tryhost:
 				to->q_paddr);
 		}
 	}
+
+#ifdef SMTP
+# if FFR_LMTP
+	if (bitnset(M_LMTP, m->m_flags))
+	{
+		/*
+		**  Global information applies to the last recipient only;
+		**  clear it out to avoid bogus errors.
+		*/
+
+		rcode = EX_OK;
+		e->e_statmsg = NULL;
+
+		/* reset the mci state for the next transaction */
+		if (mci->mci_state == MCIS_ACTIVE)
+			mci->mci_state = MCIS_OPEN;
+	}
+# endif
+#endif
+
+	if (tobuf[0] != '\0')
+		giveresponse(rcode, m, mci, ctladdr, xstart, e);
+	if (anyok)
+		markstats(e, tochain);
+	mci_store_persistent(mci);
+
+#ifdef SMTP
+	/* now close the connection */
+	if (clever && mci->mci_state != MCIS_CLOSED &&
+	    !bitset(MCIF_CACHED, mci->mci_flags))
+		smtpquit(m, mci, e);
+#endif
 
 	/*
 	**  Restore state and return.
@@ -2142,7 +2204,7 @@ endmailer(mci, e, pv)
 	st = waitfor(mci->mci_pid);
 	if (st == -1)
 	{
-		syserr("endmailer %s: wait", pv[0]);
+		syserr("endmailer %s: wait", mci->mci_mailer->m_name);
 		return (EX_SOFTWARE);
 	}
 
@@ -2951,7 +3013,7 @@ mailfile(filename, ctladdr, sfflags, e)
 	register ENVELOPE *e;
 {
 	register FILE *f;
-	register int pid = -1;
+	register pid_t pid = -1;
 	int mode;
 	bool suidwarn = geteuid() == 0;
 
@@ -3146,9 +3208,9 @@ mailfile(filename, ctladdr, sfflags, e)
 
 		/* reset ISUID & ISGID bits for paranoid systems */
 #if HASFCHMOD
-		(void) fchmod(fileno(f), (int) stb.st_mode);
+		(void) fchmod(fileno(f), (MODE_T) stb.st_mode);
 #else
-		(void) chmod(filename, (int) stb.st_mode);
+		(void) chmod(filename, (MODE_T) stb.st_mode);
 #endif
 		(void) xfclose(f, "mailfile", filename);
 		(void) fflush(stdout);
@@ -3259,10 +3321,10 @@ hostsignature(m, host, e)
 
 				/* update the connection info for this host */
 				mci = mci_get(hp, m);
-				mci->mci_lastuse = curtime();
-				mci->mci_exitstat = rcode;
 				mci->mci_errno = errno;
 				mci->mci_herrno = h_errno;
+				mci->mci_lastuse = curtime();
+				mci_setstat(mci, rcode, NULL, NULL);
 
 				/* use the original host name as signature */
 				nmx = 1;
