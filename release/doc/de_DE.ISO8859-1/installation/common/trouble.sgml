@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.8 2002/11/09 19:45:30 ue Exp $
-  basiert auf: 1.10
+  basiert auf: 1.10.2.1
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
@@ -51,17 +51,18 @@
 	    anderem die ACPI-Dienste, um das System zu konfigurieren.
 	    Leider existieren sowohl im ACPI-Triber als auch in der
 	    ACPI-Implementierung vieler Mainbaords Fehler.  Um ACPI
-	    abzuschalten, m&uuml;ssen Sie die
-	    <quote>hint</quote><quote>hw.acpi.0.disable</quote> in der
+	    abzuschalten, m&uuml;ssen Sie den <quote>hint</quote>
+	    <quote>hint.acpi.0.disable</quote> in der
 	    dritten Phase des Startprogramm aktivieren:</para>
 
-	  <screen>set hw.acpi.0.disabled=1</screen>
+	  <screen>set hint.acpi.0.disabled=1</screen>
 
 	  <para>Diese Variable wird bei jedem Start des System
-	    zur&uuml;ckgesetzt, daher sollten Sie diese Anweisung in
-	    die Datei <filename>/boot/loader.conf</filename>
-	    aufnehmen.  Weitere Informationen &uuml;ber das
-	    Startprogramm finden Sie im FreeBSD Handbuch.  </para>
+	    zur&uuml;ckgesetzt, daher m&uuml;ssen die Anweisung
+	    <literal>hint.acpi.0.disable="1"</literal> in die Datei
+	    <filename>/boot/loader.conf</filename> aufnehmen.  Weitere
+	    Informationen &uuml;ber das Startprogramm finden Sie im
+	    FreeBSD Handbuch.  </para>
 	</answer>
       </qandaentry>
 
