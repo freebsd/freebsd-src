@@ -664,3 +664,17 @@ For safety, programmers should use the
 .Fn snprintf
 interface instead.
 Unfortunately, this interface is not portable.
+.Pp
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack,
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn printf .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl snprintf(buffer, sizeof(buffer), "%s", string);

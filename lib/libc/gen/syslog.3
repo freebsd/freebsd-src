@@ -280,3 +280,17 @@ syslog(LOG_INFO|LOG_LOCAL2, "foobar error: %m");
 These
 functions appeared in
 .Bx 4.2 .
+.Sh BUGS
+Never pass a string with user-supplied data as a format without using
+.Ql %s .
+An attacker can put format specifiers in the string to mangle your stack, 
+leading to a possible security hole.
+This holds true even if the string was built using a function like
+.Fn snprintf ,
+as the resulting string may still contain user-supplied conversion specifiers
+for later interpolation by
+.Fn syslog .
+.Pp
+Always use the proper secure idiom:
+.Pp
+.Dl syslog("%s", string);
