@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22.4.1 1995/11/12 08:59:56 davidg Exp $
+ * $Id: vm_map.c,v 1.22.4.2 1996/04/26 04:12:18 davidg Exp $
  */
 
 /*
@@ -308,7 +308,7 @@ vm_map_entry_create(map)
 	vm_map_t map;
 {
 	vm_map_entry_t entry;
-	int i;
+	int i, s;
 
 #define KENTRY_LOW_WATER 64
 #define MAPENTRY_LOW_WATER 128
@@ -317,6 +317,7 @@ vm_map_entry_create(map)
 	 * This is a *very* nasty (and sort of incomplete) hack!!!!
 	 */
 	if (kentry_count < KENTRY_LOW_WATER) {
+		s = splimp();
 		if (mapvmpgcnt && mapvm) {
 			vm_page_t m;
 
@@ -344,33 +345,28 @@ vm_map_entry_create(map)
 				}
 			}
 		}
+		splx(s);
 	}
 	if (map == kernel_map || map == kmem_map || map == pager_map) {
-
+		s = splimp();
 		entry = kentry_free;
 		if (entry) {
 			kentry_free = entry->next;
 			--kentry_count;
-			return entry;
+		} else {
+			panic("vm_map_entry_create: out of map entries for kernel");
 		}
-		entry = mappool;
-		if (entry) {
-			mappool = entry->next;
-			--mappoolcnt;
-			return entry;
-		}
+		splx(s);
 	} else {
 		entry = mappool;
 		if (entry) {
 			mappool = entry->next;
 			--mappoolcnt;
-			return entry;
+		} else {
+			MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
+			    M_VMMAPENT, M_WAITOK);
 		}
-		MALLOC(entry, vm_map_entry_t, sizeof(struct vm_map_entry),
-		    M_VMMAPENT, M_WAITOK);
 	}
-	if (entry == NULL)
-		panic("vm_map_entry_create: out of map entries");
 
 	return (entry);
 }
