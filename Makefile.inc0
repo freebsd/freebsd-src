@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.14.2.1 1999/05/10 19:55:59 obrien Exp $
+#	$Id: Makefile.inc0,v 1.14.2.2 1999/06/05 21:09:24 julian Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -59,7 +59,7 @@ LEGACY_ENV=	PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1 TOOLROOT=${ELFTMP} \
 		MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout
 XMAKE=		${ELFTMP}/usr/bin/${MAKE}
 
-STARTTIME?= `LC_TIME=C date`
+STARTTIME!= LC_TIME=C date
 #
 # world
 #
