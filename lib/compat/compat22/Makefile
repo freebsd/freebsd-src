@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1999/05/08 17:53:43 obrien Exp $
+# $Id: Makefile,v 1.2 1999/05/21 18:35:57 obrien Exp $
 
 DISTRIBUTION=	compat22
 
@@ -12,9 +12,9 @@ LIBS=	libalias.so.2.4 libc.so.3.1 libc_r.so.3.0 libcalendar.so.2.0 \
 	libtelnet.so.2.0 libtermcap.so.2.1 libutil.so.2.2 libvgl.so.1.0 \
 	libxpg4.so.2.0 libz.so.2.0
 
-CLEANFILES+=	${LIBS}
+CLEANFILES+=	${LIBS} ld.so
 
-all:	${LIBS}
+all:	${LIBS} ld.so
 
 .for lib in ${LIBS} ld.so
 ${lib}:	${lib}.gz.uu
