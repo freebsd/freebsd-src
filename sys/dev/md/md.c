@@ -446,6 +446,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 						error = ENOSPC;
 						break;
 					}
+					bcopy(dst, (void *)sp, sc->secsize);
 					error = s_write(sc->indir, secno, sp);
 				} else {
 					bcopy(dst, (void *)osp, sc->secsize);
