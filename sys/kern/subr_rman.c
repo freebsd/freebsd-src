@@ -247,7 +247,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 
 		if ((rend - rstart + 1) >= count) {
 			DPRINTF(("candidate region: [%#lx, %#lx], size %#lx\n",
-			       rend, rstart, (rend - rstart + 1)));
+			       rstart, rend, (rend - rstart + 1)));
 			if ((s->r_end - s->r_start + 1) == count) {
 				DPRINTF(("candidate region is entire chunk\n"));
 				rv = s;
