@@ -368,7 +368,7 @@ radius_Destroy(struct radius *r)
  */
 void
 radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
-                    const char *key, const char *challenge)
+                    const char *key, int klen, const char *challenge, int clen)
 {
   struct ttyent *ttyp;
   struct timeval tv;
@@ -416,14 +416,14 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
 
   if (challenge != NULL) {
     /* We're talking CHAP */
-    if (rad_put_string(r->cx.rad, RAD_CHAP_PASSWORD, key) != 0 ||
-        rad_put_string(r->cx.rad, RAD_CHAP_CHALLENGE, challenge) != 0) {
+    if (rad_put_attr(r->cx.rad, RAD_CHAP_PASSWORD, key, klen) != 0 ||
+        rad_put_attr(r->cx.rad, RAD_CHAP_CHALLENGE, challenge, clen) != 0) {
       log_Printf(LogERROR, "CHAP: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
       return;
     }
-  } else if (rad_put_string(r->cx.rad, RAD_USER_PASSWORD, key) != 0) {
+  } else if (rad_put_attr(r->cx.rad, RAD_USER_PASSWORD, key, klen) != 0) {
     /* We're talking PAP */
     log_Printf(LogERROR, "PAP: rad_put_string: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
