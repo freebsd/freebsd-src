@@ -224,16 +224,13 @@ aac_pci_attach(device_t dev)
 		device_printf(sc->aac_dev, "can't allocate interrupt\n");
 		goto out;
 	}
-#ifndef INTR_ENTROPY
-#define INTR_ENTROPY 0
-#endif
 	if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
 			   INTR_FAST|INTR_TYPE_BIO, aac_intr,
 			   sc, &sc->aac_intr)) {
 		device_printf(sc->aac_dev, "can't set up FAST interrupt\n");
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_TYPE_BIO, aac_intr,
-				   sc, &sc->aac_intr)) {
+				   INTR_MPSAFE|INTR_ENTROPY, INTR_TYPE_BIO,
+				   aac_intr, sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
 				      "can't set up MPSAFE interrupt\n");
 			goto out;
