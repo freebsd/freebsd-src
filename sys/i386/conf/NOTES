@@ -380,12 +380,7 @@ options 	PCVT_VT220KEYB
 options 	PCVT_GREENSAVER
 
 #
-# The Numeric Processing eXtension driver.  In addition to this, you
-# may configure a math emulator (see above).  If your machine has a
-# hardware FPU and the kernel configuration includes the npx device
-# *and* a math emulator compiled into the kernel, the hardware FPU
-# will be used, unless it is found to be broken or unless "flags" to
-# npx0 includes "0x08", which requests preference for the emulator.
+# The Numeric Processing eXtension driver.  This is non-optional.
 device		npx
 hint.npx.0.flags="0x0"
 hint.npx.0.irq="13"
@@ -395,7 +390,6 @@ hint.npx.0.irq="13"
 #	0x01	don't use the npx registers to optimize bcopy.
 #	0x02	don't use the npx registers to optimize bzero.
 #	0x04	don't use the npx registers to optimize copyin or copyout.
-#	0x08	use emulator even if hardware FPU is available.
 # The npx registers are normally used to optimize copying and zeroing when
 # all of the following conditions are satisfied:
 #	I586_CPU is an option
