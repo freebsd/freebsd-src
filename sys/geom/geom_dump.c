@@ -101,11 +101,12 @@ g_confdot_class(struct sbuf *sb, struct g_class *mp)
 }
 
 void
-g_confdot(void *p, int flag __unused)
+g_confdot(void *p, int flag )
 {
 	struct g_class *mp;
 	struct sbuf *sb;
 
+	KASSERT(flag != EV_CANCEL, ("g_confdot was cancelled"));
 	sb = p;
 	g_topology_assert();
 	sbuf_printf(sb, "digraph geom {\n");
@@ -143,11 +144,12 @@ g_conftxt_class(struct sbuf *sb, struct g_class *mp)
 }
 
 void
-g_conftxt(void *p, int flag __unused)
+g_conftxt(void *p, int flag)
 {
 	struct g_class *mp;
 	struct sbuf *sb;
 
+	KASSERT(flag != EV_CANCEL, ("g_conftxt was cancelled"));
 	sb = p;
 	g_topology_assert();
 	LIST_FOREACH(mp, &g_classes, class)
@@ -263,9 +265,10 @@ g_conf_specific(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g
 }
 
 void
-g_confxml(void *p, int flag __unused)
+g_confxml(void *p, int flag)
 {
 
+	KASSERT(flag != EV_CANCEL, ("g_confxml was cancelled"));
 	g_topology_assert();
 	g_conf_specific(p, NULL, NULL, NULL, NULL);
 	wakeup(p);

@@ -479,7 +479,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
  */
 
 static void
-g_bsd_ioctl(void *arg, int flag __unused)
+g_bsd_ioctl(void *arg, int flag)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -494,11 +494,14 @@ g_bsd_ioctl(void *arg, int flag __unused)
 	int error, i;
 	uint64_t sum;
 
+	bp = arg;
+	if (flag == EV_CANCEL) {
+		g_io_deliver(bp, ENXIO);
+		return;
+	}
 	/* We don't need topology for now. */
 	g_topology_unlock();
 
-	/* Get hold of the interesting bits from the bio. */
-	bp = arg;
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
@@ -608,7 +611,7 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
  * footshooting as best we can.
  */
 static void
-g_bsd_hotwrite(void *arg, int flag __unused)
+g_bsd_hotwrite(void *arg, int flag)
 {
 	struct bio *bp;
 	struct g_geom *gp;
@@ -619,6 +622,7 @@ g_bsd_hotwrite(void *arg, int flag __unused)
 	u_char *p;
 	int error;
 	
+	KASSERT(flag != EV_CANCEL, ("g_bsd_hotwrite cancelled"));
 	bp = arg;
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
