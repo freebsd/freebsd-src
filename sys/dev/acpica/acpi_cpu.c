@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 
 /*
@@ -50,9 +49,7 @@ __FBSDID("$FreeBSD$");
  * _PSS and _PPC.
  */
 
-/*
- * Hooks for the ACPI CA debugging infrastructure
- */
+/* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_PROCESSOR
 ACPI_MODULE_NAME("PROCESSOR")
 
@@ -64,14 +61,15 @@ struct acpi_cpu_softc {
 
     /* CPU throttling control register */
     struct resource	*cpu_p_blk;
-#define CPU_GET_P_CNT(sc)	(bus_space_read_4(rman_get_bustag((sc)->cpu_p_blk), 	\
-						  rman_get_bushandle((sc)->cpu_p_blk),	\
-						  0))
-#define CPU_SET_P_CNT(sc, val)	(bus_space_write_4(rman_get_bustag((sc)->cpu_p_blk), 	\
-						  rman_get_bushandle((sc)->cpu_p_blk),	\
-						  0, (val)))
-#define CPU_P_CNT_THT_EN	(1<<4)
+#define CPU_P_CNT_THT_EN (1<<4)
 };
+
+#define CPU_GET_P_CNT(sc) 					\
+    (bus_space_read_4(rman_get_bustag((sc)->cpu_p_blk), 	\
+		      rman_get_bushandle((sc)->cpu_p_blk), 0))
+#define CPU_SET_P_CNT(sc, val)					\
+    (bus_space_write_4(rman_get_bustag((sc)->cpu_p_blk), 	\
+		       rman_get_bushandle((sc)->cpu_p_blk), 0, (val)))
 
 /* 
  * Speeds are stored in counts, from 1 - CPU_MAX_SPEED, and
@@ -83,7 +81,8 @@ static u_int32_t	cpu_duty_width;
 #define CPU_SPEED_PERCENT(x)	((1000 * (x)) / CPU_MAX_SPEED)
 #define CPU_SPEED_PRINTABLE(x)	(CPU_SPEED_PERCENT(x) / 10),(CPU_SPEED_PERCENT(x) % 10)
 
-static u_int32_t	cpu_smi_cmd;	/* should be a generic way to do this */
+/* XXX Should be a generic way to do this */
+static u_int32_t	cpu_smi_cmd;
 static u_int8_t		cpu_pstate_cnt;
 
 static u_int32_t	cpu_current_state;
@@ -124,12 +123,13 @@ DRIVER_MODULE(acpi_cpu, acpi, acpi_cpu_driver, acpi_cpu_devclass, 0, 0);
 static int
 acpi_cpu_probe(device_t dev)
 {
-    if (!acpi_disabled("cpu") &&
-	(acpi_get_type(dev) == ACPI_TYPE_PROCESSOR)) {
-	device_set_desc(dev, "CPU");	/* XXX get more verbose description? */
-	return(0);
+    if (!acpi_disabled("cpu") && acpi_get_type(dev) == ACPI_TYPE_PROCESSOR) {
+	/* XXX get more verbose description? */
+	device_set_desc(dev, "CPU");
+	return (0);
     }
-    return(ENXIO);
+
+    return (ENXIO);
 }
 
 static int
@@ -153,71 +153,79 @@ acpi_cpu_attach(device_t dev)
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
 
-    /*
-     * Get global parameters from the FADT.
-     */
+    /* Get global parameters from the FADT. */
     if (device_get_unit(sc->cpu_dev) == 0) {
 	cpu_duty_offset = AcpiGbl_FADT->DutyOffset;
 	cpu_duty_width = AcpiGbl_FADT->DutyWidth;
 	cpu_smi_cmd = AcpiGbl_FADT->SmiCmd;
 	cpu_pstate_cnt = AcpiGbl_FADT->PstateCnt;
 
-	/* validate the offset/width */
+	/* Validate the offset/width */
 	if (cpu_duty_width > 0) {
-		duty_end = cpu_duty_offset + cpu_duty_width - 1;
-		/* check that it fits */
-		if (duty_end > 31) {
-			printf("acpi_cpu: CLK_VAL field overflows P_CNT register\n");
-			cpu_duty_width = 0;
-		}
-		/* check for overlap with the THT_EN bit */
-		if ((cpu_duty_offset <= 4) && (duty_end >= 4)) {
-			printf("acpi_cpu: CLK_VAL field overlaps THT_EN bit\n");
-			cpu_duty_width = 0;
-		}
+	    duty_end = cpu_duty_offset + cpu_duty_width - 1;
+
+	    /* Check that it fits */
+	    if (duty_end > 31) {
+		printf("acpi_cpu: CLK_VAL field overflows P_CNT register\n");
+		cpu_duty_width = 0;
+	    }
+
+	    /* Check for overlap with the THT_EN bit */
+	    if (cpu_duty_offset <= 4 && duty_end >= 4) {
+		printf("acpi_cpu: CLK_VAL field overlaps THT_EN bit\n");
+		cpu_duty_width = 0;
+	    }
 	}
 
 	/* 
-	 * Start the throttling process once the probe phase completes, if we think that
-	 * it's going to be useful.  If the duty width value is zero, there are no significant
-	 * bits in the register and thus no throttled states.
+	 * Start the throttling process once the probe phase completes, if we
+	 * think that it's going to be useful.  If the duty width value is
+	 * zero, there are no significant bits in the register and thus no
+	 * throttled states.
 	 */
 	if (cpu_duty_width > 0) {
-	    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cpu_init_throttling, NULL);
-
+	    AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cpu_init_throttling,
+				    NULL);
 	    acpi_sc = acpi_device_get_parent_softc(dev);
 	    sysctl_ctx_init(&acpi_cpu_sysctl_ctx);
 	    acpi_cpu_sysctl_tree = SYSCTL_ADD_NODE(&acpi_cpu_sysctl_ctx,
-						  SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
-						  OID_AUTO, "cpu", CTLFLAG_RD, 0, "");
+				   SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
+				   OID_AUTO, "cpu", CTLFLAG_RD, 0, "");
 
-	    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx, SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
+	    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx,
+			   SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
 			   OID_AUTO, "max_speed", CTLFLAG_RD,
 			   &cpu_max_state, 0, "maximum CPU speed");
-	    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx, SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
+	    SYSCTL_ADD_INT(&acpi_cpu_sysctl_ctx,
+			   SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
 			   OID_AUTO, "current_speed", CTLFLAG_RD,
 			   &cpu_current_state, 0, "current CPU speed");
-	    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx, SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-			    OID_AUTO, "performance_speed", CTLTYPE_INT | CTLFLAG_RW,
-			    &cpu_performance_state, 0, acpi_cpu_speed_sysctl, "I", "");
-	    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx, SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-			    OID_AUTO, "economy_speed", CTLTYPE_INT | CTLFLAG_RW,
-			    &cpu_economy_state, 0, acpi_cpu_speed_sysctl, "I", "");
+	    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
+			    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
+			    OID_AUTO, "performance_speed",
+			    CTLTYPE_INT | CTLFLAG_RW, &cpu_performance_state,
+			    0, acpi_cpu_speed_sysctl, "I", "");
+	    SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
+			    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
+			    OID_AUTO, "economy_speed",
+			    CTLTYPE_INT | CTLFLAG_RW, &cpu_economy_state,
+			    0, acpi_cpu_speed_sysctl, "I", "");
 	}
     }
 
-    /*
-     * Get the processor object.
-     */
+    /* Get the processor object. */
     buf.Pointer = &processor;
     buf.Length = sizeof(processor);
-    if (ACPI_FAILURE(status = AcpiEvaluateObject(sc->cpu_handle, NULL, NULL, &buf))) {
-	device_printf(sc->cpu_dev, "couldn't get Processor object - %s\n", AcpiFormatException(status));
-	return_VALUE(ENXIO);
+    status = AcpiEvaluateObject(sc->cpu_handle, NULL, NULL, &buf);
+    if (ACPI_FAILURE(status)) {
+	device_printf(sc->cpu_dev, "couldn't get Processor object - %s\n",
+		      AcpiFormatException(status));
+	return_VALUE (ENXIO);
     }
     if (processor.Type != ACPI_TYPE_PROCESSOR) {
-	device_printf(sc->cpu_dev, "Processor object has bad type %d\n", processor.Type);
-	return_VALUE(ENXIO);
+	device_printf(sc->cpu_dev, "Processor object has bad type %d\n",
+		      processor.Type);
+	return_VALUE (ENXIO);
     }
     sc->cpu_id = processor.Processor.ProcId;
 
@@ -236,18 +244,21 @@ acpi_cpu_attach(device_t dev)
 	p_blk_length = processor.Processor.PblkLength;
     
 	/* allocate bus space if possible */
-	if ((p_blk > 0) && (p_blk_length == 6)) {
+	if (p_blk > 0 && p_blk_length == 6) {
 	    rid = 0;
-	    bus_set_resource(sc->cpu_dev, SYS_RES_IOPORT, rid, p_blk, p_blk_length);
-	    sc->cpu_p_blk = bus_alloc_resource(sc->cpu_dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
-					       RF_ACTIVE);
+	    bus_set_resource(sc->cpu_dev, SYS_RES_IOPORT, rid, p_blk,
+			     p_blk_length);
+	    sc->cpu_p_blk = bus_alloc_resource(sc->cpu_dev, SYS_RES_IOPORT,
+					       &rid, 0, ~0, 1, RF_ACTIVE);
 
-	    ACPI_DEBUG_PRINT((ACPI_DB_IO, "acpi_cpu%d: throttling with P_BLK at 0x%x/%d%s\n", 
-			      device_get_unit(sc->cpu_dev), p_blk, p_blk_length,
-			      sc->cpu_p_blk ? "" : " (shadowed)"));
+	    ACPI_DEBUG_PRINT((ACPI_DB_IO, "acpi_cpu%d: throttling with P_BLK "
+			     "at 0x%x/%d%s\n", device_get_unit(sc->cpu_dev),
+			     p_blk, p_blk_length,
+			     sc->cpu_p_blk ? "" : " (shadowed)"));
 	}
     }
-    return_VALUE(0);
+
+    return_VALUE (0);
 }
 
 /*
@@ -264,36 +275,42 @@ acpi_cpu_init_throttling(void *arg)
 
     ACPI_LOCK;
 
-    /* get set of CPU devices */
+    /* Get set of CPU devices */
     devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
 
-    /* initialise throttling states */
+    /* Initialise throttling states */
     cpu_max_state = CPU_MAX_SPEED;
     cpu_performance_state = cpu_max_state;
     cpu_economy_state = cpu_performance_state / 2;
-    if (cpu_economy_state == 0)		/* 0 is 'reserved' */
+
+    /* 0 is 'reserved' */
+    if (cpu_economy_state == 0)	
 	cpu_economy_state++;
-    if (TUNABLE_INT_FETCH("hw.acpi.cpu.performance_speed",
-	&cpu_temp_speed) && cpu_temp_speed > 0 &&
-	cpu_temp_speed <= cpu_max_state)
+    if (TUNABLE_INT_FETCH("hw.acpi.cpu.performance_speed", &cpu_temp_speed) &&
+	cpu_temp_speed > 0 && cpu_temp_speed <= cpu_max_state) {
+
 	cpu_performance_state = cpu_temp_speed;
-    if (TUNABLE_INT_FETCH("hw.acpi.cpu.economy_speed",
-	&cpu_temp_speed) && cpu_temp_speed > 0 &&
-	cpu_temp_speed <= cpu_max_state)
-	cpu_economy_state = cpu_temp_speed;
-
-    /* register performance profile change handler */
-    EVENTHANDLER_REGISTER(power_profile_change, acpi_cpu_power_profile, NULL, 0);
-
-    /* if ACPI 2.0+, signal platform that we are taking over throttling */
-    if (cpu_pstate_cnt != 0) {
-	/* XXX should be a generic interface for this */
-	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
     }
+    if (TUNABLE_INT_FETCH("hw.acpi.cpu.economy_speed", &cpu_temp_speed) &&
+	cpu_temp_speed > 0 && cpu_temp_speed <= cpu_max_state) {
+
+	cpu_economy_state = cpu_temp_speed;
+    }
+
+    /* Register performance profile change handler */
+    EVENTHANDLER_REGISTER(power_profile_change, acpi_cpu_power_profile, NULL,
+			  0);
+
+    /*
+     * If ACPI 2.0+, signal platform that we are taking over throttling
+     * XXX should be a generic interface for this
+     */
+    if (cpu_pstate_cnt != 0)
+	AcpiOsWritePort(cpu_smi_cmd, cpu_pstate_cnt, 8);
 
     ACPI_UNLOCK;
 
-    /* set initial speed */
+    /* Set initial speed */
     acpi_cpu_power_profile(NULL);
     
     printf("acpi_cpu: throttling enabled, %d steps (100%% to %d.%d%%), " 
@@ -315,32 +332,31 @@ acpi_cpu_set_speed(u_int32_t speed)
 
     ACPI_ASSERTLOCK;
 
-    /* iterate over processors */
+    /* Iterate over processors */
     for (i = 0; i < cpu_ndevices; i++) {
 	sc = device_get_softc(cpu_devices[i]);
 	if (sc->cpu_p_blk == NULL)
 	    continue;
 
-	/* get the current P_CNT value and disable throttling */
+	/* Get the current P_CNT value and disable throttling */
 	p_cnt = CPU_GET_P_CNT(sc);
 	p_cnt &= ~CPU_P_CNT_THT_EN;
 	CPU_SET_P_CNT(sc, p_cnt);
 
-	/* if we're at maximum speed, that's all */
+	/* If we're at maximum speed, that's all */
 	if (speed < CPU_MAX_SPEED) {
-
-	    /* mask the old CLK_VAL off and or-in the new value */
+	    /* Mask the old CLK_VAL off and or-in the new value */
 	    clk_val = CPU_MAX_SPEED << cpu_duty_offset;
 	    p_cnt &= ~clk_val;
 	    p_cnt |= (speed << cpu_duty_offset);
 	
-	    /* write the new P_CNT value and then enable throttling */
+	    /* Write the new P_CNT value and then enable throttling */
 	    CPU_SET_P_CNT(sc, p_cnt);
 	    p_cnt |= CPU_P_CNT_THT_EN;
 	    CPU_SET_P_CNT(sc, p_cnt);
 	}
 	ACPI_VPRINT(sc->cpu_dev, acpi_device_get_parent_softc(sc->cpu_dev),
-	    "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
+		    "set speed to %d.%d%%\n", CPU_SPEED_PRINTABLE(speed));
     }
     cpu_current_state = speed;
 }
@@ -358,10 +374,8 @@ acpi_cpu_power_profile(void *arg)
     ACPI_LOCK_DECL;
 
     state = power_profile_get_state();
-    if (state != POWER_PROFILE_PERFORMANCE &&
-        state != POWER_PROFILE_ECONOMY) {
+    if (state != POWER_PROFILE_PERFORMANCE && state != POWER_PROFILE_ECONOMY)
 	return;
-    }
 
     ACPI_LOCK;
     
@@ -400,17 +414,15 @@ acpi_cpu_speed_sysctl(SYSCTL_HANDLER_ARGS)
     arg = *argp;
     error = sysctl_handle_int(oidp, &arg, 0, req);
 
-    /* error or no new value */
-    if ((error != 0) || (req->newptr == NULL))
-	return(error);
-    
-    /* range check */
-    if ((arg < 1) || (arg > cpu_max_state))
-	return(EINVAL);
+    /* Error or no new value */
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+    if (arg < 1 || arg > cpu_max_state)
+	return (EINVAL);
 
-    /* set new value and possibly switch */
+    /* Set new value and possibly switch */
     *argp = arg;
     acpi_cpu_power_profile(NULL);
 
-    return(0);
+    return (0);
 }
