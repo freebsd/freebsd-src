@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.34 1997/02/22 09:36:48 peter Exp $
+ *	$Id: kbdtables.h,v 1.35 1997/10/10 10:32:53 jkh Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -952,7 +952,7 @@ static keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /* sc=35 */  '/',   '?',   NOP,   NOP,   '/',   '?',   NOP,   NOP,  0x33, 0x00,
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
-/* sc=38 */ META,  META,  META,  META,  META,  META,  META,  META,  0xFF, 0x00,
+/* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
 /* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
 /* sc=3b */ F( 1), F(13), F(25), F(37), S( 1), S(11), S( 1), S(11), 0xFF, 0x00,
