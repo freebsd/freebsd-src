@@ -64,17 +64,16 @@ typedef	__va_list	va_list;
 
 #else	/* ! __GNUC__ post GCC 2.95 */
 
-#ifdef __GNUC__
-
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 
+#ifdef __GNUC__
 #define va_start(ap, last) \
 	((ap) = (va_list)__builtin_next_arg(last))
-#else
+#else	/* non-GNU compiler */
 #define	va_start(ap, last) \
 	((ap) = (va_list)&(last) + __va_size(last))
-#endif
+#endif	/* __GNUC__ */
 
 #define	va_arg(ap, type) \
 	(*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
