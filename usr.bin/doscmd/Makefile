@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.17 1999/02/17 13:48:07 bde Exp $
+# $Id: Makefile,v 1.18 1999/03/16 20:57:19 imp Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -26,7 +26,7 @@ XLIBDIR:= ${X11BASE}/lib/aout
 XLIBDIR:= ${X11BASE}/lib
 .endif
 
-.if exists(${X11BASE}/include) && exists(${XLIBDIR}/libX11.a)
+.if exists(${X11BASE}/include/X11/X.h) && exists(${XLIBDIR}/libX11.a)
 CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
 LDADD= -L${XLIBDIR} -lX11
 DPADD= ${XLIBDIR}/libX11.a
