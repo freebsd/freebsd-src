@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -392,13 +393,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	const char *vfstype, *spec, *name, *options, *mntopts;
 	int flags;
 {
-	/* List of directories containing mount_xxx subcommands. */
-	static const char *edirs[] = {
-		_PATH_SBIN,
-		_PATH_USRSBIN,
-		NULL
-	};
 	const char *argv[100], **edir;
+	char *path, *cur;
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
@@ -469,25 +465,10 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 			exit(mount_ufs(argc, (char * const *) argv));
 
 		/* Go find an executable. */
-		for (edir = edirs; *edir; edir++) {
-			(void)snprintf(execname,
-			    sizeof(execname), "%s/mount_%s", *edir, vfstype);
-			execv(execname, (char * const *)argv);
-		}
+		(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
+		execvP(execname, _PATH_SYSPATH, (char * const *)argv);
 		if (errno == ENOENT) {
-			int len = 0;
-			char *cp;
-			for (edir = edirs; *edir; edir++)
-				len += strlen(*edir) + 2;	/* ", " */
-			if ((cp = malloc(len)) == NULL)
-				errx(1, "malloc failed");
-			cp[0] = '\0';
-			for (edir = edirs; *edir; edir++) {
-				strcat(cp, *edir);
-				if (edir[1] != NULL)
-					strcat(cp, ", ");
-			}
-			warn("exec mount_%s not found in %s", vfstype, cp);
+			warn("exec mount_%s not found in %s", vfstype, path);
 		}
 		exit(1);
 		/* NOTREACHED */
