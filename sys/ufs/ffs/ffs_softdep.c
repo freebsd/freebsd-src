@@ -4811,13 +4811,8 @@ softdep_fsync(vp)
 		 * not now, but then the user was not asking to have it
 		 * written, so we are not breaking any promises.
 		 */
-		mp_fixme("This operation is not atomic wrt the rest of the code");
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
-			VI_UNLOCK(vp);
+		if (vp->v_iflag & VI_XLOCK)
 			break;
-		} else
-			VI_UNLOCK(vp);
 		/*
 		 * We prevent deadlock by always fetching inodes from the
 		 * root, moving down the directory tree. Thus, when fetching
