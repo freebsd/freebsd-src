@@ -20,35 +20,36 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/reboot.h>
 #include <sys/bus.h>
-#include <sys/selinfo.h>
-#include <sys/poll.h>
+#include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/poll.h>
+#include <sys/power.h>
+#include <sys/reboot.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/power.h>
-#include <machine/apm_bios.h>
-#include <machine/segments.h>
-#include <machine/clock.h>
-#include <machine/stdarg.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
+#include <sys/uio.h>
 
-#include <machine/pc/bios.h>
-#include <machine/vm86.h>
-#ifdef PC98
+#include <machine/apm_bios.h>
 #include <machine/bus.h>
+#include <machine/clock.h>
+#include <machine/pc/bios.h>
+#include <machine/cpufunc.h>
 #include <machine/resource.h>
+#include <machine/segments.h>
+#include <machine/stdarg.h>
+#include <machine/vm86.h>
+
 #include <sys/rman.h>
-#endif
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <pc98/apm/apm.h>
 
@@ -706,7 +707,7 @@ apm_cpu_idle(void)
 	 * APM driver.
 	 */
 	if (!sc->active || sc->always_halt_cpu)
-		__asm("hlt");	/* wait for interrupt */
+		halt();	/* wait for interrupt */
 }
 
 /* inform APM BIOS that CPU is busy */
@@ -1493,7 +1494,7 @@ static driver_t apm_driver = {
 
 static devclass_t apm_devclass;
 
-DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass, apm_modevent, 0);
+DRIVER_MODULE(apm, legacy, apm_driver, apm_devclass, apm_modevent, 0);
 MODULE_VERSION(apm, 1);
 
 static int
