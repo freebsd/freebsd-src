@@ -60,6 +60,7 @@ struct fs_ops *file_system[] = {
     &ext2fs_fsops,
     &dosfs_fsops,
     &cd9660_fsops,
+    &splitfs_fsops,
 #ifdef LOADER_GZIP_SUPPORT
     &zipfs_fsops,
 #endif
