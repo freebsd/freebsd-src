@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.5 1995/11/14 07:34:42 bde Exp $
+ *	$Id: fade_saver.c,v 1.6 1995/11/29 20:10:29 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -68,7 +68,7 @@ fade_saver(int blank)
 		}
 	}
 	else {
-		load_palette();
+		load_palette(palette);
 		count = scrn_blanked = 0;
 	}
 }
