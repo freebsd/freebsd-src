@@ -243,7 +243,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	mtx_assert((m), MA_OWNED);
+	mtx_assert(m, MA_OWNED);
  	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
@@ -266,7 +266,7 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
-	mtx_assert((m), MA_OWNED);
+	mtx_assert(m, MA_OWNED);
  	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
