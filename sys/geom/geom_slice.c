@@ -415,6 +415,21 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int r
 	return (0);
 }
 
+void
+g_slice_spoiled(struct g_consumer *cp)
+{
+	struct g_geom *gp;
+	struct g_slicer *gsp;
+
+	g_topology_assert();
+	gp = cp->geom;
+	g_trace(G_T_TOPOLOGY, "g_slice_spoiled(%p/%s)", cp, gp->name);
+	gsp = gp->softc;
+	gp->softc = NULL;
+	g_slice_free(gsp);
+	g_wither_geom(gp, ENXIO);
+}
+
 struct g_geom *
 g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
 {
@@ -433,18 +448,14 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	gp->orphan = g_slice_orphan;
 	gp->softc = gsp;
 	gp->start = g_slice_start;
-	gp->spoiled = g_std_spoiled;
+	gp->spoiled = g_slice_spoiled;
 	gp->dumpconf = g_slice_dumpconf;
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error == 0)
 		error = g_access_rel(cp, 1, 0, 0);
 	if (error) {
-		if (cp->provider != NULL)
-			g_detach(cp);
-		g_destroy_consumer(cp);
-		g_slice_free(gsp);
-		g_destroy_geom(gp);
+		g_wither_geom(gp, ENXIO);
 		return (NULL);
 	}
 	*vp = gsp->softc;
@@ -455,20 +466,13 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 static void
 g_slice_orphan(struct g_consumer *cp)
 {
-	struct g_geom *gp;
-	struct g_provider *pp;
-	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
 	KASSERT(cp->provider->error != 0,
 	    ("g_slice_orphan with error == 0"));
 
-	gp = cp->geom;
 	/* XXX: Not good enough we leak the softc and its suballocations */
-	gp->flags |= G_GEOM_WITHER;
-	error = cp->provider->error;
-	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, error);
-	return;
+	g_slice_free(cp->geom->softc);
+	g_wither_geom(cp->geom, cp->provider->error);
 }
