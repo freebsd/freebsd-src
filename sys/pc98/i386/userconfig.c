@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.72 1999/04/18 14:42:16 kato Exp $
+ **      $Id: userconfig.c,v 1.73 1999/04/19 11:06:08 kato Exp $
  **/
 
 /**
@@ -2533,7 +2533,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.72 1999/04/18 14:42:16 kato Exp $
+ *      $Id: userconfig.c,v 1.73 1999/04/19 11:06:08 kato Exp $
  */
 
 #include "scbus.h"
@@ -3614,15 +3614,16 @@ save_resource(struct isa_device *idev)
     for (i = 0; i < count; i++) {
 	name = resource_query_name(i);
 	unit = resource_query_unit(i);
-	if (strcmp(name, idev->id_driver->name) || unit != idev->id_unit)
+	if (unit != idev->id_unit || strcmp(name, idev->id_driver->name) != 0)
 	    continue;
-	resource_set_int(i, "port", isa_devtab[i].id_iobase);
-	resource_set_int(i, "irq", (1 << isa_devtab[i].id_irq));
-	resource_set_int(i, "drq", isa_devtab[i].id_drq);
-	resource_set_int(i, "maddr", (int)isa_devtab[i].id_maddr);
-	resource_set_int(i, "msize", isa_devtab[i].id_msize);
-	resource_set_int(i, "flags", isa_devtab[i].id_flags);
-	resource_set_int(i, "disabled", !isa_devtab[i].id_enabled);
+	resource_set_int(i, "port", idev->id_iobase);
+	resource_set_int(i, "irq", 1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
+	resource_set_int(i, "drq", idev->id_drq);
+	resource_set_int(i, "maddr", (int)idev->id_maddr);
+	resource_set_int(i, "msize", idev->id_msize);
+	resource_set_int(i, "flags", idev->id_flags);
+	resource_set_int(i, "disabled", !idev->id_enabled);
+	break;
     }
 }
 
@@ -3645,6 +3646,7 @@ struct isa_device 	*idev;
 	}
 	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 	bcopy(idev,id_pn,sizeof(struct isa_device));
+	save_resource(idev);
 	id_pn->id_next = isa_devlist;
 	isa_devlist = id_pn;
 	return 0;
