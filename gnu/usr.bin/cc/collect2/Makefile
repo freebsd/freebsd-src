@@ -10,7 +10,7 @@ BINDIR=	/usr/libexec
 NOMAN=
 NOSHARED=yes
 
-CFLAGS+= -DDEFAULT_TARGET_VERSION=\"$(version)\"
+CFLAGS+= -DTARGET_MACHINE=\"$(target)\"
 
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
