@@ -1,4 +1,4 @@
-$Id: MIRROR.SITES,v 1.1.2.2 1995/10/22 21:35:34 jkh Exp $
+$Id: MIRROR.SITES,v 1.1.2.3 1995/10/30 18:05:32 jkh Exp $
 
 Obtaining FreeBSD
    
@@ -148,7 +148,7 @@ Obtaining FreeBSD
           + ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD
             Contact: wizards@doc.ic.ac.uk.
 
-          + ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD
+          + ftp://unix.hensa.ac.uk/mirrors/walnut.creek/FreeBSD
             Contact: archive-admin@unix.hensa.ac.uk.
 
           + ftp://ftp.demon.co.uk/pub/BSD/FreeBSD
