@@ -104,7 +104,7 @@ mask_bits(struct in_addr m_ad)
 	u_long mask;
 
 	mask = ntohl(m_ad.s_addr);
-	for (i = 0 ; i < sizeof(u_long)*CHAR_BIT; i++) {
+	for (i = 0; i < sizeof(u_long)*CHAR_BIT; i++) {
 		if (mask & 1L) {
 			h_fnd = 1;
 			h_num++;
