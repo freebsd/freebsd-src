@@ -79,8 +79,9 @@ function will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_join
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The implementation has detected that the value specified by
@@ -99,6 +100,7 @@ specifies the calling thread.
 .Xr wait 2 ,
 .Xr pthread_create 3
 .Sh STANDARDS
+The
 .Fn pthread_join
-conforms to
+function conforms to
 .St -p1003.1-96 .

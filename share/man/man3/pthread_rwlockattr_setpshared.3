@@ -43,8 +43,9 @@ function sets the process shared attribute of
 .Fa attr
 to the value referenced by
 .Fa pshared .
+The
 .Fa pshared
-may be one of two values:
+argument may be one of two values:
 .Bl -tag -width PTHREAD_PROCESS_PRIVATE
 .It Dv PTHREAD_PROCESS_SHARED
 Any thread of any process that has access to the memory where the
@@ -69,8 +70,9 @@ The
 function is expected to conform to
 .St -susv2 .
 .Sh ERRORS
+The
 .Fn pthread_rwlockattr_setpshared
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by

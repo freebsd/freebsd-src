@@ -55,8 +55,9 @@ If successful,
 returns 0.
 Otherwise, an error number is returned.
 .Sh ERRORS
+The
 .Fn pthread_kill
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
 .Fa thread
@@ -70,6 +71,7 @@ is an invalid or unsupported signal number.
 .Xr pthread_self 3 ,
 .Xr raise 3
 .Sh STANDARDS
+The
 .Fn pthread_kill
-conforms to
+function conforms to
 .St -p1003.1-96

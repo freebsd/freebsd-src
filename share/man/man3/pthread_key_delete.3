@@ -80,8 +80,9 @@ function will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_key_delete
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -93,6 +94,7 @@ value is invalid.
 .Xr pthread_key_create 3 ,
 .Xr pthread_setspecific 3
 .Sh STANDARDS
+The
 .Fn pthread_key_delete
-conforms to
+function conforms to
 .St -p1003.1-96 .

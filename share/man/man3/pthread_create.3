@@ -99,8 +99,9 @@ function will return zero.
 Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_create
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The system lacked the necessary resources to create another thread, or
@@ -118,6 +119,7 @@ is invalid.
 .Xr pthread_exit 3 ,
 .Xr pthread_join 3
 .Sh STANDARDS
+The
 .Fn pthread_create
-conforms to
+function conforms to
 .St -p1003.1-96 .
