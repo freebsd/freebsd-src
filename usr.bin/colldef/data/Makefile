@@ -14,7 +14,6 @@ LOCALES=	de_DE.DIS_8859-15 \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
-		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
 		sv_SE.DIS_8859-15 \
 		sv_SE.ISO_8859-1
