@@ -31,6 +31,7 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
+/* $FreeBSD$ */
 
 /*
  *	raw.c
@@ -74,6 +75,10 @@ MODULE_ID("$Id: lib_raw.c,v 1.3 1999/03/06 22:28:24 tom Exp $")
 #define AFTER(s)
 #endif /* TRACE */
 
+#ifdef TERMIOS
+static tcflag_t iexten = 0;
+#endif
+
 int raw(void)
 {
 	T((T_CALLED("raw()")));
@@ -88,7 +93,9 @@ int raw(void)
 
 #ifdef TERMIOS
 		BEFORE("raw");
-		cur_term->Nttyb.c_lflag &= ~(ICANON|ISIG);
+		if (iexten == 0)
+			iexten = cur_term->Nttyb.c_lflag & IEXTEN;
+		cur_term->Nttyb.c_lflag &= ~(ICANON|ISIG|IEXTEN);
 		cur_term->Nttyb.c_iflag &= ~(COOKED_INPUT);
 		cur_term->Nttyb.c_cc[VMIN] = 1;
 		cur_term->Nttyb.c_cc[VTIME] = 0;
@@ -157,7 +164,7 @@ int noraw(void)
 
 #ifdef TERMIOS
 	BEFORE("noraw");
-	cur_term->Nttyb.c_lflag |= ISIG|ICANON;
+	cur_term->Nttyb.c_lflag |= ISIG|ICANON|iexten;
 	cur_term->Nttyb.c_iflag |= COOKED_INPUT;
 	AFTER("noraw");
 #else
