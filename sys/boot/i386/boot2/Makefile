@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: Makefile,v 1.1.1.1 1998/10/12 21:16:26 rnordier Exp $
 
 M4?=	m4
 
@@ -22,7 +22,7 @@ LDFLAGS=-nostdlib -static -N
 all: boot1 boot2
 
 boot1: boot1.out
-	/usr/libexec/elf/objcopy -S -O binary boot1.out ${.TARGET}
+	objcopy -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
@@ -40,7 +40,7 @@ boot2.ldr:
 	dd if=/dev/zero of=${.TARGET} bs=512 count=1 2>/dev/null
 
 boot2.bin: boot2.out
-	/usr/libexec/elf/objcopy -S -O binary boot2.out ${.TARGET}
+	objcopy -S -O binary boot2.out ${.TARGET}
 
 boot2.out: boot2.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} \
