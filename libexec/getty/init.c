@@ -33,7 +33,7 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)init.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: init.c,v 1.3 1996/05/05 19:01:09 joerg Exp $";
+static char rcsid[] = "$Id: init.c,v 1.3.2.1 1996/11/16 21:07:02 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -106,8 +106,10 @@ struct	gettynums gettynums[] = {
 	{ "o0" },			/* output o_flags */
 	{ "o1" },			/* input o_flags */
 	{ "o2" },			/* user mode o_flags */
-	{ 0 }
+ 	{ "de" },   	    	    	/* delay before sending 1st prompt */
+  	{ 0 }
 };
+  
 
 struct	gettyflags gettyflags[] = {
 	{ "ht",	0 },			/* has tabs */
