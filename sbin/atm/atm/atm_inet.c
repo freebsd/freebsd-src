@@ -93,7 +93,7 @@ ip_pvcadd(argc, argv, cmdp, app, intp)
 	/*
 	 * Yet more validation
 	 */
-	if (argc != 2) {
+	if (argc < 2) {
 		strcpy(nhelp, cmdp->help);
 		cp = strstr(nhelp, "<netif>");
 		if (cp)
