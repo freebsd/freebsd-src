@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.119 1995/03/21 01:31:43 jkh Exp $
+# $Id: bsd.port.mk,v 1.120 1995/03/21 01:51:12 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -101,6 +101,7 @@
 # Default targets and their behaviors:
 #
 # fetch			- Retrieves ${DISTFILES} into ${DISTDIR} as necessary.
+# fetch-list	- Show list of files that would be retrieved by fetch
 # extract		- Unpacks ${DISTFILES} into ${WRKDIR}.
 # configure		- Applies patches, if any, and runs either GNU configure, one
 #				  or more local configure scripts or nothing, depending on
@@ -197,6 +198,8 @@ EXTRACT_ARGS?=	-xzf
 PKG_CMD?=		pkg_create
 PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
 PKG_SUFX?=		.tgz
+
+ECHO_MSG?=		echo
 
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
@@ -340,7 +343,7 @@ pre-install:
 install: build ${INSTALL_COOKIE}
 
 ${INSTALL_COOKIE}:
-	@echo "===>  Installing for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Installing for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-install
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
@@ -367,7 +370,7 @@ package: pre-package
 # install, require or deinstall scripts.  Override the arguments with
 # PKG_ARGS if your package is anything but run-of-the-mill.
 	@if [ -d ${PKGDIR} ]; then \
-		echo "===>  Building package for ${DISTNAME}"; \
+		${ECHO_MSG} "===>  Building package for ${DISTNAME}"; \
 		${PKG_CMD} ${PKG_ARGS} ${PKGFILE}; \
 	fi
 .endif
@@ -382,22 +385,22 @@ exec_depends:
 	@for i in ${EXEC_DEPENDS}; do \
 		prog=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
-		echo "===>  ${DISTNAME} depends on executable:  $$prog ($$dir)"; \
+		${ECHO_MSG} "===>  ${DISTNAME} depends on executable:  $$prog ($$dir)"; \
 	done
 .else
 	@for i in ${EXEC_DEPENDS}; do \
 		prog=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
 		if which -s "$$prog"; then \
-			echo "===>  ${DISTNAME} depends on executable: $$prog - found"; \
+			${ECHO_MSG} "===>  ${DISTNAME} depends on executable: $$prog - found"; \
 		else \
-			echo "===>  ${DISTNAME} depends on executable: $$prog - not found"; \
-			echo "===>  Verifying build for $$prog in $$dir"; \
+			${ECHO_MSG} "===>  ${DISTNAME} depends on executable: $$prog - not found"; \
+			${ECHO_MSG} "===>  Verifying build for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
-				echo ">> No directory for $$prog.  Skipping.."; \
+				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
-				echo "===>  Returning to build of ${DISTNAME}"; \
+				${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -413,22 +416,22 @@ lib_depends:
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
-		echo "===>  ${DISTNAME} depends on shared library:  $$lib ($$dir)"; \
+		${ECHO_MSG} "===>  ${DISTNAME} depends on shared library:  $$lib ($$dir)"; \
 	done
 .else
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`echo $$i | sed -e 's/:.*//'`; \
 		dir=`echo $$i | sed -e 's/.*://'`; \
 		if ldconfig -r | grep -q -e "-l$$lib"; then \
-			echo "===>  ${DISTNAME} depends on shared library: $$lib - found"; \
+			${ECHO_MSG} "===>  ${DISTNAME} depends on shared library: $$lib - found"; \
 		else \
-			echo "===>  ${DISTNAME} depends on shared library: $$lib - not found"; \
-			echo "===>  Verifying build for $$lib in $$dir"; \
+			${ECHO_MSG} "===>  ${DISTNAME} depends on shared library: $$lib - not found"; \
+			${ECHO_MSG} "===>  Verifying build for $$lib in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
-				echo ">> No directory for $$lib.  Skipping.."; \
+				${ECHO_MSG} ">> No directory for $$lib.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
-				echo "===>  Returning to build of ${DISTNAME}"; \
+				${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -439,17 +442,17 @@ lib_depends:
 
 misc_depends:
 .if defined(DEPENDS)
-	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
+	@${ECHO_MSG} "===>  ${DISTNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
 	@for i in ${DEPENDS}; do \
-		echo "===>  Verifying build for $$i"; \
+		${ECHO_MSG} "===>  Verifying build for $$i"; \
 		if [ ! -d $$i ]; then \
-			echo ">> No directory for $$i.  Skipping.."; \
+			${ECHO_MSG} ">> No directory for $$i.  Skipping.."; \
 		else \
 			(cd $$i; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
 		fi \
 	done
-	@echo "===>  Returning to build of ${DISTNAME}"
+	@${ECHO_MSG} "===>  Returning to build of ${DISTNAME}"
 .endif
 .else
 	@${DO_NADA}
@@ -466,7 +469,7 @@ pre-build:
 build: configure ${BUILD_COOKIE}
 
 ${BUILD_COOKIE}:
-	@echo "===>  Building for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Building for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-build
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
@@ -495,16 +498,16 @@ ${PATCH_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-patch
 .if defined(PATCH_DEBUG)
 	@if [ -d ${PATCHDIR} ]; then \
-		echo "===>  Applying patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
-			echo "===>   Applying patch $$i" ; \
+			${ECHO_MSG} "===>   Applying patch $$i" ; \
 			${PATCH} ${PATCH_ARGS} < $$i; \
 		done; \
 	fi
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .else
 	@if [ -d ${PATCHDIR} ]; then \
-		echo "===>  Applying patches for ${DISTNAME}" ; \
+		${ECHO_MSG} "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; \
 			do ${PATCH} ${PATCH_ARGS} < $$i; \
 		done;\
@@ -522,7 +525,7 @@ pre-configure:
 configure: depends patch ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
-	@echo "===>  Configuring for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Configuring for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-configure
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
@@ -572,20 +575,35 @@ fetch: pre-fetch
 	@(cd ${DISTDIR}; \
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
-			echo ">> $$file doesn't seem to exist on this system."; \
-			echo ">> Attempting to fetch it from a master site."; \
+			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
+			${ECHO_MSG} ">> Attempting to fetch it from a master site."; \
 			for site in ${MASTER_SITES}; do \
 				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
 					break; \
 				fi \
 			done; \
 			if [ ! -f $$file -a ! -f `basename $$file` ]; then \
-				echo ">> Couldn't fetch it - please try to retreive this";\
-				echo ">> port manually into ${DISTDIR} and try again."; \
+				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+				${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
 				exit 1; \
 			fi; \
 	    fi \
 	 done)
+.endif
+
+.if !target(fetch-list)
+fetch-list:
+	@if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi
+	@(cd ${DISTDIR}; \
+	 for file in ${DISTFILES}; do \
+		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
+			for site in ${MASTER_SITES}; do \
+				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
+					break; \
+			done; \
+			echo "echo $${file} not fetched" ; \
+		fi \
+	done)
 .endif
 
 .if !target(makesum)
@@ -601,24 +619,24 @@ makesum: fetch
 .if !target(checksum)
 checksum: fetch
 	@if [ ! -f ${MD5_FILE} ]; then \
-		echo ">> No MD5 checksum file."; \
+		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
 		(cd ${DISTDIR}; OK=""; \
 		for file in ${DISTFILES}; do \
 			CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 			CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
-				echo ">> No checksum recorded for $$file"; \
+				${ECHO_MSG} ">> No checksum recorded for $$file"; \
 				OK="false"; \
 			elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
-				echo ">> Checksum mismatch for $$file"; \
+				${ECHO_MSG} ">> Checksum mismatch for $$file"; \
 				exit 1; \
 			fi; \
 			done; \
 			if [ "$$OK" = "" ]; then \
-				echo "Checksums OK."; \
+				${ECHO_MSG} "Checksums OK."; \
 			else \
-				echo "Checksums OK for files that have them."; \
+				${ECHO_MSG} "Checksums OK for files that have them."; \
    	     fi) ; \
 	fi
 .endif
@@ -637,7 +655,7 @@ extract: fetch ${EXTRACT_COOKIE}
 
 ${EXTRACT_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} checksum pre-extract
-	@echo "===>  Extracting for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Extracting for ${DISTNAME}"
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
 .if defined(EXTRACT_ONLY)
@@ -665,7 +683,7 @@ pre-clean:
 
 .if !target(clean)
 clean: pre-clean
-	@echo "===>  Cleaning for ${DISTNAME}"
+	@${ECHO_MSG} "===>  Cleaning for ${DISTNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
 		${BUILD_COOKIE} ${PATCH_COOKIE}
 .if !defined(NO_WRKDIR)
