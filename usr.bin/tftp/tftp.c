@@ -96,7 +96,8 @@ xmitfile(fd, name, mode)
 	register struct tftphdr *ap;	   /* data and ack packets */
 	struct tftphdr *r_init(), *dp;
 	register int n;
-	volatile int block, size, convert;
+	volatile unsigned short block;
+	volatile int size, convert;
 	volatile unsigned long amount;
 	struct sockaddr_in from;
 	int fromlen;
@@ -201,7 +202,8 @@ recvfile(fd, name, mode)
 	register struct tftphdr *ap;
 	struct tftphdr *dp, *w_init();
 	register int n;
-	volatile int block, size, firsttrip;
+	volatile unsigned short block;
+	volatile int size, firsttrip;
 	volatile unsigned long amount;
 	struct sockaddr_in from;
 	int fromlen;
