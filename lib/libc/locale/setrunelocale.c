@@ -100,6 +100,10 @@ __setrunelocale(const char *encoding)
 	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
 	    mbstate_t * __restrict);
 	static int (*Cached__mbsinit)(const mbstate_t *);
+	static size_t (*Cached__mbsrtowcs)(wchar_t * __restrict,
+	    const char ** __restrict, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__wcsrtombs)(char * __restrict,
+	    const wchar_t ** __restrict, size_t, mbstate_t * __restrict);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
@@ -108,8 +112,10 @@ __setrunelocale(const char *encoding)
 		_CurrentRuneLocale = &_DefaultRuneLocale;
 		__mb_cur_max = 1;
 		__mbrtowc = _none_mbrtowc;
-		__wcrtomb = _none_wcrtomb;
 		__mbsinit = _none_mbsinit;
+		__mbsrtowcs = _none_mbsrtowcs;
+		__wcrtomb = _none_wcrtomb;
+		__wcsrtombs = _none_wcsrtombs;
 		return (0);
 	}
 
@@ -121,8 +127,10 @@ __setrunelocale(const char *encoding)
 		_CurrentRuneLocale = CachedRuneLocale;
 		__mb_cur_max = Cached__mb_cur_max;
 		__mbrtowc = Cached__mbrtowc;
-		__wcrtomb = Cached__wcrtomb;
 		__mbsinit = Cached__mbsinit;
+		__mbsrtowcs = Cached__mbsrtowcs;
+		__wcrtomb = Cached__wcrtomb;
+		__wcsrtombs = Cached__wcsrtombs;
 		return (0);
 	}
 
@@ -147,8 +155,10 @@ __setrunelocale(const char *encoding)
 	(void)fclose(fp);
 
 	__mbrtowc = NULL;
-	__wcrtomb = NULL;
 	__mbsinit = NULL;
+	__mbsrtowcs = __mbsrtowcs_std;
+	__wcrtomb = NULL;
+	__wcsrtombs = __wcsrtombs_std;
 	rl->sputrune = __emulated_sputrune;
 	rl->sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->encoding, "NONE") == 0)
@@ -182,7 +192,9 @@ __setrunelocale(const char *encoding)
 		Cached__mb_cur_max = __mb_cur_max;
 		Cached__mbrtowc = __mbrtowc;
 		Cached__mbsinit = __mbsinit;
+		Cached__mbsrtowcs = __mbsrtowcs;
 		Cached__wcrtomb = __wcrtomb;
+		Cached__wcsrtombs = __wcsrtombs;
 		(void)strcpy(ctype_encoding, encoding);
 	} else
 		free(rl);

@@ -37,7 +37,11 @@
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
 extern int (*__mbsinit)(const mbstate_t *);
+extern size_t (*__mbsrtowcs)(wchar_t * __restrict, const char ** __restrict,
+    size_t, mbstate_t * __restrict);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+extern size_t (*__wcsrtombs)(char * __restrict, const wchar_t ** __restrict,
+    size_t, mbstate_t * __restrict);
 
 /*
  * Conversion functions for "NONE"/C/POSIX encoding.
@@ -45,8 +49,17 @@ extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 extern size_t _none_mbrtowc(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
 extern int _none_mbsinit(const mbstate_t *);
+extern size_t _none_mbsrtowcs(wchar_t * __restrict, const char ** __restrict,
+    size_t, mbstate_t * __restrict);
 extern size_t _none_wcrtomb(char * __restrict, wchar_t,
     mbstate_t * __restrict);
+extern size_t _none_wcsrtombs(char * __restrict, const wchar_t ** __restrict,
+    size_t, mbstate_t * __restrict);
+
+extern size_t __mbsrtowcs_std(wchar_t * __restrict, const char ** __restrict,
+    size_t, mbstate_t * __restrict);
+extern size_t __wcsrtombs_std(char * __restrict, const wchar_t ** __restrict,
+    size_t, mbstate_t * __restrict);
 
 /*
  * Rune emulation functions.
