@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.8 1993/11/07 17:42:58 wollman Exp $
+ *	$Id: param.h,v 1.9 1993/11/13 02:25:14 davidg Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -157,8 +157,4 @@
 #define i386_btop(x)		((unsigned)(x) >> PGSHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PGSHIFT)
 
-/*
- * phystokv stolen from SCSI device drivers and fixed to use KERNBASE
- */
-#define PHYSTOKV(x)	(x | KERNBASE)
 #endif /* _MACHINE_PARAM_H_ */

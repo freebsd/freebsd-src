@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  *
- *	$Id$
+ *	$Id: chio.h,v 1.3 1993/10/16 17:16:27 rgrimes Exp $
  */
 
 /* This is a "convertet" mtio.h from 386BSD 
@@ -11,8 +11,8 @@
 /*
  * Structures and definitions for changer io control commands
  */
-#ifndef _CHIO_H_
-#define _CHIO_H_
+#ifndef _SYS_CHIO_H_
+#define _SYS_CHIO_H_
 
 #define CH_INVERT		0x10000
 #define CH_ADDR_MASK		0xffff
@@ -88,4 +88,5 @@ struct chop {
 
 /* Changer IO control command */
 #define	CHIOOP	_IOWR('c', 1, struct chop)	/* do a mag tape op */
-#endif
+
+#endif	/*_SYS_CHIO_H*/

@@ -1,46 +1,55 @@
 This release consists of the following files 
-(relative to the base of the kernel tree)
+(relative to the base of the source tree )
 
+share/man/man4/scsi.4 <-useful general info
+share/man/man4/uk.4
+share/man/man4/su.4
+share/man/man4/ch.4
+share/man/man4/cd.4
+share/man/man4/sd.4
+share/man/man4/st.4 <--READ THIS IF YOU USE TAPES!
+sbin/scsi/procargs.c
+sbin/scsi/scsi.c
+sbin/scsi/scsi.1
+sbin/scsi/Makefile
+sbin/st/Makefile
+sbin/st/st.1
+sbin/st/st.c
+sys/sys/chio.h
+sys/sys/cdio.h
+sys/sys/mtio.h
+sys/sys/scsiio.h
+sys/i386/conf/EXAMPLE
+sys/i386/isa/ultra14f.c <-runs 14f and 34f
+sys/i386/isa/ultra_all.c.beta <-beta version, runs 14f,24f and 34f
+sys/i386/isa/bt742a.c
+sys/i386/isa/aha1742.c
+sys/i386/isa/aha1542.c
+sys/scsi/syspatches
+sys/scsi/syspatches/conf.c
+sys/scsi/syspatches/user_scsi.diffs
+sys/scsi/syspatches/MAKEDEV.diff
+sys/scsi/syspatches/isa.c.patch
+sys/scsi/syspatches/README
+sys/scsi/uk.c
+sys/scsi/su.c
+sys/scsi/st.c
+sys/scsi/sd.c
+sys/scsi/ch.c
+sys/scsi/cd.c
+sys/scsi/scsi_ioctl.c
+sys/scsi/scsi_base.c
+sys/scsi/scsiconf.c
+sys/scsi/scsi_tape.h
+sys/scsi/scsi_disk.h
+sys/scsi/scsi_changer.h
+sys/scsi/scsi_cd.h
+sys/scsi/scsi_all.h
+sys/scsi/scsi_debug.h
+sys/scsi/scsiconf.h
+sys/scsi/README <--this file
 
-MAKEDEV
-
-scsi
-scsi/README
-scsi/scsiconf.h
-scsi/scsiconf.c
-scsi/scsi_all.h
-
-scsi/scsi_disk.h
-scsi/sd.c
-
-sys/mtio.h (modified)
-scsi/scsi_tape.h
-scsi/st.c
-
-sys/sgio.h
-scsi/scsi_generic.h
-scsi/sg.c /* port not complete */
-
-sys/chio.h
-scsi/scsi_changer.h
-scsi/ch.c
-
-sys/cdio.h
-scsi/scsi_cd.h
-scsi/cd.c
-
-i386/conf/SCSITEST
-i386/isa/aha1542.c
-
-i386/conf/AHBTEST
-i386/isa/aha1742.c
-
-i386/conf/UHATEST
-i386/isa/ultra14f.c
-
-i386/conf/BTTEST
-i386/isa/bt742a.c
-
+notice sys/scsi/sg.c and sys/sys/sgio.h have been removed
 
 
 ----------------------------------------------------------------
@@ -54,32 +63,20 @@ generic scsi tape
 cd-rom  (plays music under the xcplayer (?) program)
 AEG Character recognition devices *
 Calera Character recognition devices *
-Kodak IL900 scanner *
+Generic scsi-II scanners *
 Exabyte tape changer device.
-GENERIC SCSI DEVICES (user generated scsi commands) (port not complete)
+GENERIC SCSI DEVICES (user generated scsi commands) 
 ----------------------------------------------------------------
 
 
 There are also working bottom end drivers for:
 ----------------------------------------------------------------
 adaptec 1542 (and 1742 in 1542 mode)
-bustec 742a (apparently works for VESA version)
-adaptec 174x 
+bustec 742a (apparently works for VESA version (445S?))(and 747?)
+adaptec 174x  (note NOT 27xx)
 Ultrastore 14f (works for 34f (VESA version))				
+Ultrastore 24f RSN (Beta version included here)
 ----------------------------------------------------------------
-
-
-Work is proceeding on the following bottom end drivers:
-----------------------------------------------------------------
-Future Domain (1680)**			hosler@tfs.com & me
-Future Domain (8  bit)****		rpr@oce.nl
-WD7000**				terry@icarus.weber.edu
-seagate st01/st02****			overby@aspen.cray.com ?
-----------------------------------------------------------------
-* drivers not made public (proprietary.. proof that the concept works though)
-** driver not yet released but working.
-*** just a dream so far.
-**** some amount more than just a dream so far.
 
 
 ################## Using the scsi system ##################
@@ -98,19 +95,18 @@ That would not change their minor numbers.
 THE EXCEPTION  TO THIS IS IN THE GENERIC SCSI DRIVER. in which case
 the following mapping applies:
 
-BB LLL TTT  B= scsi bus number, T = target number, L = LUN.
-(yes I know it's strange but it's SGI compatible)
+BB TTT LLL  B= scsi bus number, T = target number, L = LUN.
 
 It is possible to run two different TYPES of scsi adapters at the 
 same time and have st0 on one and st1 on another. (for example)
 
 There is a scheme supported in which scsi devices can be 'wired in' even
 if they are not present or powered on at probe time. (see scsiconf.c)
+In addition, the scsi(1) command allows the operator ask for a
+reprobe at any time.  Newly found devices will be configured in. Any
+device that does not map to a known device type is attached to the
+'unknown' (uk) driver.
 
---------------getting started------------
-It should be possible to use the /dev entries for as0 as if they were 
-/dev entries for sd0 and the old as bootblocks should
-continue to work if you are using an adaptec 1542b.
 
 --------------making devices------------
 A changed version of /dev/MAKEDEV is supplied that
@@ -120,25 +116,7 @@ e.g.
 cd /dev
 sh MAKEDEV sd0 sd1 sd2 st0 st1 cd0
 
-
-The tape devices are as follows:
-rst0	basic raw device, will rewind on close
-nrst0	will not rewind on close
-erst0	will rewind and EJECTon close
-nerst0  will not rewind and WILL eject (some devices may rewind anyhow)
-
-------------future enhancements--------------
-Some people have indicated that they would like to have the SCSI ID
-encoded into the minor number in some way, and
-this may be supported at some timein the future, using
-minor numbers greater than 128. (or maybe a different major number)
-
-
-I will also be writing (probably) a generic scsi-error
-handling routine that will be table driven, so that the routine can
-be removed from each individual driver. With enough care,
-two similar devices with different error codes (quite common) could run
-the same driver but use different error tables.
+see st(1) and st(4) for info on tape devices.
 
 --------------file layout-------------------
 Originally I had all scsi definitions in one file: scsi.h
@@ -159,38 +137,28 @@ scsi-changer.h    	commands medium changer devices  --- CHAPTER 16
 User accessable structures (e.g. ioctl definitions) have been
 placed in sys/cdio, sys/sgio and sys/chio (based after sys/mtio for
 the ioctls for mag tapes (including st).
+General scsi ioctls are found in sys/scsiio.h.
 
 -----------cd-rom-----------------
 The cd rom driver ha been tested by a number of people and
-grefen@wilbur.zdv.uni-mainz.de has completed the audio play
+grefen@convex.com has completed the audio play
 functions.
 (xcdplayer was available from the 'from_ref' directory on agate)
 
 At this time it is possible audio play is broken on cdroms and I will
 be unable to fix it until I get one to test.
+***IMPORTANT***
+Cdrom audio is only suported at all for cdroms that use SCSI2 audio
+definitions.
 
 -------------media changer---------------
-Once again courtesy of grefen@wilbur.zdv.uni-mainz.de.
+Once again courtesy of grefen@convex.com (in germany)
 I have not tested this but he assures me it's ready for testing.
 If anyone has an exabyte tape changer or similar, 
 contact the author for information regarding the control interface
 and program.
 
 WARNING: This has not been tested for a LONG TIME!
-
------------booting from an AHA-174x---------
-For some reason I have not yet worked out,
-the BIOS-based bootblocks I have posted will not boot
-from the aha1742 in extended mode. (it can't be serious
-because the MACH version works) This is in fact not a 
-problem because the aha1742 driver will force the board into extended
-mode during probe, so it can be left in standard mode during the boot.
-During the next reboot, the bios will place it back in standard mode
-ready for the NEXT boot.
-
-[Update: This has apparently been fixed in the newest NetBSD/FreeBSD
-releases ]
-
 
 
 ---------recent changes-----------
@@ -206,4 +174,23 @@ have particular problems so they can be handled specially.
 
 many bug-fixes and cleanups.
 
-$Id$
+---------even more recent changes:--------
+
+rewrote almost the entire thing..
+
+
+
+------Mon Oct 11 22:20:25 WST 1993------
+
+Code is now all KNF (or close to it).
+
+A new structure has been introduced..
+Called scsi_link, one of these exists for every bus/target/lun
+that has a driver attached to it.
+It has links to the adapter and to the driver, as well as status
+information of global interest. (e.g. if the device is in use).
+The use of this new structure has allowed the compaction of a
+lot of duplicated code into a single copy (now in scsi_base.c)
+and makes more simple the USER level scsi implimentation.
+
+
