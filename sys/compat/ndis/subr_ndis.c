@@ -1590,7 +1590,7 @@ ndis_alloc_packetpool(status, pool, descnum, protrsvdlen)
 	    ((descnum + NDIS_POOL_EXTRA) + 1),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
-	if (pool == NULL) {
+	if (*pool == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
@@ -1813,7 +1813,7 @@ ndis_alloc_bufpool(status, pool, descnum)
 	    ((descnum + NDIS_POOL_EXTRA) + 1),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
-	if (pool == NULL) {
+	if (*pool == NULL) {
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
