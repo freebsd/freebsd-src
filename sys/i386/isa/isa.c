@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.58 1995/12/07 12:46:01 davidg Exp $
+ *	$Id: isa.c,v 1.59 1995/12/19 14:30:48 davidg Exp $
  */
 
 /*
@@ -560,11 +560,7 @@ isa_defaultirq()
 	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
 	outb(IO_ICU1+1, NRSVIDT);	/* starting at this vector index */
 	outb(IO_ICU1+1, 1<<2);		/* slave on line 2 */
-#ifdef AUTO_EOI_1
-	outb(IO_ICU1+1, 2 | 1);		/* auto EOI, 8086 mode */
-#else
-	outb(IO_ICU1+1, 1);		/* 8086 mode */
-#endif
+	outb(IO_ICU1+1, 2 | 1);		/* (master) auto EOI, 8086 mode */
 	outb(IO_ICU1+1, 0xff);		/* leave interrupts masked */
 	outb(IO_ICU1, 0x0a);		/* default to IRR on read */
 	outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
@@ -813,6 +809,8 @@ isa_strayintr(d)
 	 * testing that the in-service bit is _not_ set.  The test
 	 * must be done before sending an EOI so it can't be done if
 	 * we are using AUTO_EOI_1.
+	 *
+	 * XXX AUTO_EOI_1 is now standard.
 	 */
 	if (intrcnt[NR_DEVICES + d] <= 5)
 		log(LOG_ERR, "stray irq %d\n", d);
