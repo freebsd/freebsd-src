@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_extern.h,v 1.7 1996/06/03 03:10:42 wpaul Exp wpaul $
+ *	$Id: ypxfr_extern.h,v 1.3 1996/10/25 16:13:04 wpaul Exp $
  */
 #include <sys/types.h>
 #include <limits.h>
@@ -45,7 +45,7 @@ extern BTREEINFO openinfo_b;
 
 extern char	*yp_dir;
 extern int	debug;
-extern int	yp_errno;
+extern enum ypstat	yp_errno;
 extern void	yp_error __P(( const char *, ... ));
 extern int	_yp_check __P(( char ** ));
 extern char	*ypxfrerr_string __P(( ypxfrstat ));
