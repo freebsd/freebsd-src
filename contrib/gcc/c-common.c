@@ -589,7 +589,7 @@ combine_strings (strings)
 	    {
 	      length += (TREE_STRING_LENGTH (t) - 1);
 	      if (C_ARTIFICIAL_STRING_P (t) && !in_system_header)
-		warning ("concatenation of string literals with __FUNCTION__ is deprecated.  This feature will be removed in future"); 
+		warning ("concatenation of string literals with __FUNCTION__ is deprecated"); 
 	    }
 	}
 
@@ -598,7 +598,7 @@ combine_strings (strings)
       if (wide_flag)
 	length = length * wchar_bytes + wide_length;
 
-      p = alloca (length);
+      p = xmalloc (length);
 
       /* Copy the individual strings into the new combined string.
 	 If the combined string is wide, convert the chars to ints
@@ -645,6 +645,7 @@ combine_strings (strings)
 	*q = 0;
 
       value = build_string (length, p);
+      free (p);
     }
   else
     {
@@ -704,6 +705,7 @@ constant_expression_warning (value)
      tree value;
 {
   if ((TREE_CODE (value) == INTEGER_CST || TREE_CODE (value) == REAL_CST
+       || TREE_CODE (value) == VECTOR_CST
        || TREE_CODE (value) == COMPLEX_CST)
       && TREE_CONSTANT_OVERFLOW (value) && pedantic)
     pedwarn ("overflow in constant expression");
@@ -737,6 +739,12 @@ overflow_warning (value)
       TREE_OVERFLOW (value) = 0;
       if (skip_evaluation == 0)
 	warning ("floating point overflow in expression");
+    }
+  else if (TREE_CODE (value) == VECTOR_CST && TREE_OVERFLOW (value))
+    {
+      TREE_OVERFLOW (value) = 0;
+      if (skip_evaluation == 0)
+	warning ("vector overflow in expression");
     }
 }
 
@@ -1410,6 +1418,8 @@ type_for_mode (mode, unsignedp)
 	  return unsignedp ? unsigned_V4HI_type_node : V4HI_type_node;
 	case V8QImode:
 	  return unsignedp ? unsigned_V8QI_type_node : V8QI_type_node;
+	case V16SFmode:
+	  return V16SF_type_node;
 	case V4SFmode:
 	  return V4SF_type_node;
 	case V2SFmode:
@@ -1973,6 +1983,107 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
   *restype_ptr = boolean_type_node;
 
   return 0;
+}
+
+/* Return a tree for the sum or difference (RESULTCODE says which)
+   of pointer PTROP and integer INTOP.  */
+
+tree
+pointer_int_sum (resultcode, ptrop, intop)
+     enum tree_code resultcode;
+     tree ptrop, intop;
+{
+  tree size_exp;
+
+  tree result;
+  tree folded;
+
+  /* The result is a pointer of the same type that is being added.  */
+
+  tree result_type = TREE_TYPE (ptrop);
+
+  if (TREE_CODE (TREE_TYPE (result_type)) == VOID_TYPE)
+    {
+      if (pedantic || warn_pointer_arith)
+	pedwarn ("pointer of type `void *' used in arithmetic");
+      size_exp = integer_one_node;
+    }
+  else if (TREE_CODE (TREE_TYPE (result_type)) == FUNCTION_TYPE)
+    {
+      if (pedantic || warn_pointer_arith)
+	pedwarn ("pointer to a function used in arithmetic");
+      size_exp = integer_one_node;
+    }
+  else if (TREE_CODE (TREE_TYPE (result_type)) == METHOD_TYPE)
+    {
+      if (pedantic || warn_pointer_arith)
+	pedwarn ("pointer to member function used in arithmetic");
+      size_exp = integer_one_node;
+    }
+  else if (TREE_CODE (TREE_TYPE (result_type)) == OFFSET_TYPE)
+    {
+      if (pedantic || warn_pointer_arith)
+	pedwarn ("pointer to a member used in arithmetic");
+      size_exp = integer_one_node;
+    }
+  else
+    size_exp = size_in_bytes (TREE_TYPE (result_type));
+
+  /* If what we are about to multiply by the size of the elements
+     contains a constant term, apply distributive law
+     and multiply that constant term separately.
+     This helps produce common subexpressions.  */
+
+  if ((TREE_CODE (intop) == PLUS_EXPR || TREE_CODE (intop) == MINUS_EXPR)
+      && ! TREE_CONSTANT (intop)
+      && TREE_CONSTANT (TREE_OPERAND (intop, 1))
+      && TREE_CONSTANT (size_exp)
+      /* If the constant comes from pointer subtraction,
+	 skip this optimization--it would cause an error.  */
+      && TREE_CODE (TREE_TYPE (TREE_OPERAND (intop, 0))) == INTEGER_TYPE
+      /* If the constant is unsigned, and smaller than the pointer size,
+	 then we must skip this optimization.  This is because it could cause
+	 an overflow error if the constant is negative but INTOP is not.  */
+      && (! TREE_UNSIGNED (TREE_TYPE (intop))
+	  || (TYPE_PRECISION (TREE_TYPE (intop))
+	      == TYPE_PRECISION (TREE_TYPE (ptrop)))))
+    {
+      enum tree_code subcode = resultcode;
+      tree int_type = TREE_TYPE (intop);
+      if (TREE_CODE (intop) == MINUS_EXPR)
+	subcode = (subcode == PLUS_EXPR ? MINUS_EXPR : PLUS_EXPR);
+      /* Convert both subexpression types to the type of intop,
+	 because weird cases involving pointer arithmetic
+	 can result in a sum or difference with different type args.  */
+      ptrop = build_binary_op (subcode, ptrop,
+			       convert (int_type, TREE_OPERAND (intop, 1)), 1);
+      intop = convert (int_type, TREE_OPERAND (intop, 0));
+    }
+
+  /* Convert the integer argument to a type the same size as sizetype
+     so the multiply won't overflow spuriously.  */
+
+  if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (sizetype)
+      || TREE_UNSIGNED (TREE_TYPE (intop)) != TREE_UNSIGNED (sizetype))
+    intop = convert (type_for_size (TYPE_PRECISION (sizetype), 
+				    TREE_UNSIGNED (sizetype)), intop);
+
+  /* Replace the integer argument with a suitable product by the object size.
+     Do this multiplication as signed, then convert to the appropriate
+     pointer type (actually unsigned integral).  */
+
+  intop = convert (result_type,
+		   build_binary_op (MULT_EXPR, intop,
+				    convert (TREE_TYPE (intop), size_exp), 1));
+
+  /* Create the sum or difference.  */
+
+  result = build (resultcode, result_type, ptrop, intop);
+
+  folded = fold (result);
+  if (folded == result)
+    TREE_CONSTANT (folded) = TREE_CONSTANT (ptrop) & TREE_CONSTANT (intop);
+  return folded;
 }
 
 /* Prepare expr to be an argument of a TRUTH_NOT_EXPR,
@@ -3098,6 +3209,7 @@ statement_code_p (code)
 {
   switch (code)
     {
+    case CLEANUP_STMT:
     case EXPR_STMT:
     case COMPOUND_STMT:
     case DECL_STMT:
@@ -3457,6 +3569,7 @@ c_expand_expr (exp, target, tmode, modifier)
       {
 	tree rtl_expr;
 	rtx result;
+	bool preserve_result = false;
 
 	/* Since expand_expr_stmt calls free_temp_slots after every
 	   expression statement, we must call push_temp_slots here.
@@ -3464,7 +3577,7 @@ c_expand_expr (exp, target, tmode, modifier)
 	   out-of-scope after the first EXPR_STMT from within the
 	   STMT_EXPR.  */
 	push_temp_slots ();
-	rtl_expr = expand_start_stmt_expr ();
+	rtl_expr = expand_start_stmt_expr (!STMT_EXPR_NO_SCOPE (exp));
 
 	/* If we want the result of this expression, find the last
            EXPR_STMT in the COMPOUND_STMT and mark it as addressable.  */
@@ -3483,12 +3596,30 @@ c_expand_expr (exp, target, tmode, modifier)
 
 	    if (TREE_CODE (last) == SCOPE_STMT
 		&& TREE_CODE (expr) == EXPR_STMT)
-	      TREE_ADDRESSABLE (expr) = 1;
+	      {
+	        TREE_ADDRESSABLE (expr) = 1;
+		preserve_result = true;
+	      }
 	  }
 
 	expand_stmt (STMT_EXPR_STMT (exp));
 	expand_end_stmt_expr (rtl_expr);
+
 	result = expand_expr (rtl_expr, target, tmode, modifier);
+	if (preserve_result && GET_CODE (result) == MEM)
+	  {
+	    if (GET_MODE (result) != BLKmode)
+	      result = copy_to_reg (result);
+	    else
+	      preserve_temp_slots (result);
+	  }
+
+	/* If the statment-expression does not have a scope, then the
+	   new temporaries we created within it must live beyond the
+	   statement-expression.  */
+	if (STMT_EXPR_NO_SCOPE (exp))
+	  preserve_temp_slots (NULL_RTX);
+
 	pop_temp_slots ();
 	return result;
       }
@@ -3559,8 +3690,10 @@ int
 c_unsafe_for_reeval (exp)
      tree exp;
 {
-  /* Statement expressions may not be reevaluated.  */
-  if (TREE_CODE (exp) == STMT_EXPR)
+  /* Statement expressions may not be reevaluated, likewise compound
+     literals.  */
+  if (TREE_CODE (exp) == STMT_EXPR
+      || TREE_CODE (exp) == COMPOUND_LITERAL_EXPR)
     return 2;
 
   /* Walk all other expressions.  */
@@ -3999,15 +4132,14 @@ c_common_post_options ()
 {
   cpp_post_options (parse_in);
 
+  flag_inline_trees = 1;
+
   /* Use tree inlining if possible.  Function instrumentation is only
      done in the RTL level, so we disable tree inlining.  */
   if (! flag_instrument_function_entry_exit)
     {
       if (!flag_no_inline)
-	{
-	  flag_inline_trees = 1;
-	  flag_no_inline = 1;
-	}
+	flag_no_inline = 1;
       if (flag_inline_functions)
 	{
 	  flag_inline_trees = 2;
