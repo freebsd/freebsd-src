@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id$
+ *	$Id: login_cap.h,v 1.6 1997/02/23 09:17:13 peter Exp $
  */
 
 #ifndef _LOGIN_CAP_H_
@@ -134,5 +134,5 @@ int login_hostok __P((login_cap_t *, const char *, const char *, const char *, c
 
 __END_DECLS
 
-#endif _LOGIN_CAP_H_
+#endif /* _LOGIN_CAP_H_ */
 
