@@ -38,6 +38,9 @@
 #include <sys/sysctl.h>
 #include <machine/clock.h>
 
+#define _COMPONENT	ACPI_IBM
+ACPI_MODULE_NAME("IBM")
+
 #define IBM_RTC_MISCKEY 0x65
 #define IBM_RTC_BRIGHTNESS 0x6c
 #define   IBM_RTC_MASK_BRI 0x7
@@ -252,6 +255,8 @@ fail:
 static int
 acpi_ibm_detach(device_t dev)
 {
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+
 	struct acpi_ibm_softc *sc = device_get_softc(dev);
 	acpi_SetInteger(acpi_get_handle(dev), IBM_NAME_ENABLE, 0);
 	acpi_ibm_enable_mask(dev, sc->ibm_initialmask);
