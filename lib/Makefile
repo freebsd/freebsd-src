@@ -62,12 +62,9 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 .endif
 
-# libc_r is obsolete on ia64.
-.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc" && \
-	${MACHINE_ARCH} != "arm"
-.if !defined(NOLIBC_R)
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "ia64" && \
+    ${MACHINE_ARCH} != "powerpc" && !defined(NOLIBC_R)
 _libc_r=	libc_r
-.endif
 .endif
 
 .if ${MACHINE_ARCH} != "arm"
@@ -95,16 +92,13 @@ _libncp=	libncp
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_ARCH} != "powerpc"
-.if !defined(NOLIBPTHREAD)
+.if ${MACHINE_ARCH} != "powerpc" && !defined(NOLIBPTHREAD)
 _libpthread=	libpthread
 .endif
-.endif
 
-.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "arm"
-.if !defined(NOLIBTHR)
+.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "arm" && \
+    !defined(NOLIBTHR)
 _libthr=	libthr
-.endif
 .endif
 
 .if !defined(NO_USB)
