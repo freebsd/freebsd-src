@@ -114,9 +114,7 @@ clkrun_hack(int run)
 	u_int16_t		control;
 	bus_space_tag_t		btag;
 
-	printf("clkrun_hack: ");
 	if ((pci_devclass = devclass_find("pci")) == NULL) {
-		printf("can't find devclass 'pci'\n");
 		return ENXIO;
 	}
 
@@ -127,8 +125,6 @@ clkrun_hack(int run)
 		device_get_children(*busp, &pci_children, &pci_childcount);
 		for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
-				run = !run;
-				printf("found bx chipset, %sabling clkrun\n", run? "en" : "dis");
 				free(pci_devices, M_TEMP);
 				free(pci_children, M_TEMP);
 
@@ -144,7 +140,6 @@ clkrun_hack(int run)
 			}
 		}
 	}
-	printf("can't find bx chipset\n");
 
 	free(pci_devices, M_TEMP);
 	free(pci_children, M_TEMP);
