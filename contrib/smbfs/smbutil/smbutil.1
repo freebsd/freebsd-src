@@ -1,51 +1,57 @@
-.\" $Id: smbutil.1,v 1.4 2001/12/20 15:11:34 bp Exp $
-.Dd Feb 14, 2000
+.\" $Id: smbutil.1,v 1.5 2002/04/16 02:48:16 bp Exp $
+.Dd February 14, 2000
 .Dt SMBUTIL 1
 .Os
 .Sh NAME
 .Nm smbutil
-.Nd Interface to SMB requester
+.Nd "interface to the SMB requester"
 .Sh SYNOPSIS
-.Nm smbutil
+.Nm
 .Op Fl hv
 .Ar command
-.Op Fl options
+.Op Fl Ar options
 .Op Ar args
 .Sh DESCRIPTION
 The
 .Nm
-command used to control SMB requester and issue various commands.
+command is used to control SMB requester and issue various commands.
 .Pp
-There are two types of options - global and local to specified command.
+There are two types of options \(em global and local to the specified
+.Ar command .
 .Pp
-The global options are:
+Global options are as follows:
 .Bl -tag -width indent
 .It Fl h
-Print short help message.
+Print a short help message.
 .It Fl v
 Verbose output.
 .El
 .Pp
 The commands and local options are:
 .Bl -tag -width indent
-.It Em crypt Op password
-Slightly encrypt clear text password to use it in the
+.It Cm crypt Op Ar password
+Encrypt clear text password for use in the
 .Pa ~/.nsmbrc
-file. The encrypted password starts with '$$1' symbols.
-Warning: the encryption function is very weak and intented only to hide
+file.
+The encrypted password starts with the
+.Ql $$1
+symbols.
+Warning: the encryption function is very weak and intended only to hide
 clear text password.
 If
 .Ar password
-is ommited from command line, program will prompt for one.
-.It Em help Ar command
+is omitted from the command line,
+.Nm
+will prompt for one.
+.It Cm help Ar command
 Print usage information about
 .Ar command .
-.It Em lc
+.It Cm lc
 List active connections and their parameters.
 .It Xo
-.Em login
-.Op Fl connection\ options
-.Ar //user@server Ns Op Ar /share
+.Cm login
+.Op Fl Ar connection_options
+.No // Ns Ar user Ns @ Ns Ar server Ns Op / Ns Ar share
 .Xc
 Login/attach to the specified
 .Ar server
@@ -55,17 +61,17 @@ as
 .Ar user .
 This command will create and authenticate connection to an SMB server, and
 will leave it active after exit.
-Thus, one can login only once and then
+Thus, it is possible to login only once and then
 use other SMB commands without authentication procedure and additional
 connections.
 For the description of
-.Op Fl connection\ options
-see
+.Fl Ar connection_options
+refer to the
 .Xr mount_smbfs 8
-command (all uppercase options are connection options).
+manpage (all uppercase options are connection options).
 .It Xo
-.Em logout
-.Ar //user@server Ns Op Ar /share
+.Cm logout
+.No // Ns Ar user Ns @ Ns Ar server Ns Op / Ns Ar share
 .Xc
 Logout/detach from the specified
 .Ar server
@@ -73,53 +79,56 @@ and/or
 .Ar share
 as
 .Ar user .
-This command will destroy connection created by
-.Ar login
-command. A connection may not be closed immediately if it used by other
+This command will destroy a connection created by the
+.Cm login
+command.
+A connection may not be closed immediately if it is used by other
 programs.
 .It Xo
-.Em lookup
+.Cm lookup
 .Op Fl w Ar host
 .Ar name
 .Xc
-Resolve given
+Resolve the given
 .Ar name
-to IP address.
-NetBIOS name server can be directly specified via
-.Op Fl w
+to an IP address.
+The NetBIOS name server can be directly specified via the
+.Fl w
 option.
 .It Xo
-.Em print
-.Op Fl connection\ options
-.Ar //user@server/share
+.Cm print
+.Op Fl Ar connection_options
+.No // Ns Ar user Ns @ Ns Ar server Ns / Ns Ar share
 .Ar file
 .Xc
-Send given
+Send the given
 .Ar file
 to the specified queue on the remote server.
 If
 .Ar file
-is '-', then standard input will be used.
+is
+.Pa - ,
+then standard input will be used.
 .It Xo
-.Em view
-.Op Fl connection\ options
-.Ar //user@server
+.Cm view
+.Op Fl Ar connection_options
+.No // Ns Ar user Ns @ Ns Ar server
 .Xc
-List resources avaliable on the specified
+List resources available on the specified
 .Ar server
 for the user
 .Ar user .
 .El
 .Sh FILES
-.Bl -tag -width /var/log/wtmp -compact
+.Bl -tag -width ".Pa ~/.nsmbrc" -compact
 .It Pa ~/.nsmbrc
-keeps description for each connection.
+Keeps description for each connection.
 See
 .Pa ./examples/dot.nsmbrc
 for details.
 .El
 .Sh AUTHORS
 .An Boris Popov Aq bp@butya.kz ,
-.Aq bp@freebsd.org
+.Aq bp@FreeBSD.org
 .Sh BUGS
 Please report any bugs to the author.
