@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sub.c,v 1.3 1994/09/24 02:55:31 davidg Exp $
  */
 
 #ifndef lint
@@ -124,6 +124,7 @@ search_and_replace(pat, gflag, kth)
 	char *txt;
 	char *eot;
 	long lc;
+	long xa = current_addr;
 	int nsubs = 0;
 	line_t *lp;
 	int len;
@@ -154,8 +155,10 @@ search_and_replace(pat, gflag, kth)
 			} while (txt != eot);
 			SPL0();
 			nsubs++;
+			xa = current_addr;
 		}
 	}
+	current_addr = xa;
 	if  (nsubs == 0 && !(gflag & GLB)) {
 		sprintf(errmsg, "no match");
 		return ERR;
