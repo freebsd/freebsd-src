@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.5 1998/06/27 15:35:00 dfr Exp $ */
+/* $Id: types.h,v 1.6 1998/07/10 02:27:13 bde Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -76,10 +76,10 @@ typedef int32_t			ufs_daddr_t;
 
 #ifdef KERNEL
 /* An unsigned integral type that can hold object pointers. */
-typedef	u_int32_t		ptrint_t;
+typedef	u_int64_t		ptrint_t;
 
 /* An unsigned integral type that can hold function pointers. */
-typedef	u_int32_t		fptrint_t;
+typedef	u_int64_t		fptrint_t;
 
 typedef u_int64_t		uoff_t;		/* unsigned file offset */
 #endif
