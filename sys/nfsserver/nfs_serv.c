@@ -225,6 +225,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	tl = nfsm_build(u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(nfsmode);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -285,6 +286,7 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -412,6 +414,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		mtx_unlock(&Giant);	/* VFS */
 		NFSD_LOCK();
 	}
+	NFSD_LOCK_ASSERT();
 
 	/*
 	 * If the size is being changed write acces is required, otherwise
@@ -439,6 +442,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!error)
 		error = postat_ret;
 out:
+	NFSD_LOCK_ASSERT();
 	if (vp != NULL) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -460,6 +464,7 @@ out:
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (vp)
@@ -653,6 +658,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (dirp)
@@ -771,6 +777,7 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	mb->m_next = mp3;
 	mp3 = NULL;
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (mp3)
 		m_freem(mp3);
 	if (vp) {
@@ -1040,6 +1047,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	*tl = txdr_unsigned(cnt);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -1242,6 +1250,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!error)
 		error = aftat_ret;
 ereply:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_PREOPATTR(v3) + NFSX_POSTOPORFATTR(v3) +
 		2 * NFSX_UNSIGNED + NFSX_WRITEVERF(v3));
 	if (v3) {
@@ -1275,6 +1284,7 @@ ereply:
 	}
 	error = 0;
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (vp)
@@ -1386,6 +1396,7 @@ nfsrv_writegather(struct nfsrv_descript **ndp, struct nfssvc_sock *slp,
 	    }
 	    if (len > NFS_MAXDATA || len < 0  || i < len) {
 nfsmout:
+		NFSD_LOCK_ASSERT();
 		m_freem(mrep);
 		error = EIO;
 		nfsm_writereply(2 * NFSX_UNSIGNED);
@@ -1719,7 +1730,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_srvmtofh(fhp);
 	if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
 		error = ESTALE;
-		goto ereply;
+		goto ereply_locked;
 	}
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
@@ -1943,8 +1954,11 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 	}
 ereply:
+	NFSD_UNLOCK_ASSERT();
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
+ereply_locked:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_SRVFH(v3) + NFSX_FATTR(v3) + NFSX_WCCDATA(v3));
 	if (v3) {
 		if (!error) {
@@ -1961,6 +1975,7 @@ ereply:
 	error = 0;
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (nd.ni_startdir) {
@@ -2116,6 +2131,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * send response, cleanup, return.
 	 */
 out:
+	NFSD_UNLOCK_ASSERT();
 	if (nd.ni_startdir) {
 		vrele(nd.ni_startdir);
 		nd.ni_startdir = NULL;
@@ -2146,9 +2162,10 @@ out:
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 		VOP_UNLOCK(dirp, 0, td);
 	}
-ereply:
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
+ereply:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_SRVFH(1) + NFSX_POSTOPATTR(1) + NFSX_WCCDATA(1));
 	if (v3) {
 		if (!error) {
@@ -2164,6 +2181,7 @@ ereply:
 	NFSD_LOCK();
 	return (0);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (dirp)
@@ -2249,6 +2267,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			goto out;
 		}
 out:
+		NFSD_UNLOCK_ASSERT();
 		if (!error) {
 			error = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -2280,12 +2299,14 @@ out:
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 ereply:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_WCCDATA(v3));
 	if (v3) {
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
 		error = 0;
 	}
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -2397,8 +2418,11 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		vrele(tdirp);
 		tdirp = NULL;
 	}
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);	/* VFS */
+		NFSD_LOCK();
 		goto out1;
+	}
 
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
@@ -2455,6 +2479,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	      fromnd.ni_cnd.cn_namelen))
 		error = -1;
 out:
+	NFSD_UNLOCK_ASSERT();
 	if (!error) {
 		/*
 		 * The VOP_RENAME function releases all vnode references &
@@ -2477,9 +2502,10 @@ out:
 	}
 	/* fall through */
 
-out1:
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
+out1:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(2 * NFSX_WCCDATA(v3));
 	if (v3) {
 		/* Release existing locks to prevent deadlock. */
@@ -2518,6 +2544,7 @@ nfsmout:
 	/*
 	 * Clear out tond related fields
 	 */
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (tdirp)
@@ -2680,6 +2707,7 @@ out2:
 	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 ereply:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_WCCDATA(v3));
 	if (v3) {
 		nfsm_srvpostop_attr(getret, &at);
@@ -2689,6 +2717,7 @@ ereply:
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -2744,6 +2773,8 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		error = ESTALE;
 		goto out;
 	}
@@ -2841,6 +2872,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    }
 	}
 out:
+	NFSD_UNLOCK_ASSERT();
 	/*
 	 * These releases aren't strictly required, does even doing them
 	 * make any sense? XXX can nfsm_reply() block?
@@ -2872,6 +2904,7 @@ out:
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -2930,6 +2963,8 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	if ((mp = vfs_getvfs(&fhp->fh_fsid)) == NULL) {
+		NFSD_UNLOCK();
+		mtx_lock(&Giant);	/* VFS */
 		error = ESTALE;
 		goto out;
 	}
@@ -3004,6 +3039,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = VOP_GETATTR(nd.ni_vp, vap, cred, td);
 	}
 out:
+	NFSD_UNLOCK_ASSERT();
 	if (dirp) {
 		if (dirp == nd.ni_dvp) {
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
@@ -3048,6 +3084,7 @@ out:
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (dirp)
@@ -3152,6 +3189,7 @@ out:
 	 * Issue or abort op.  Since SAVESTART is not set, path name
 	 * component is freed by the VOP after either.
 	 */
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (!error)
@@ -3187,6 +3225,7 @@ out:
 	/* fall through */
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -3356,6 +3395,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 */
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
+	NFSD_UNLOCK_ASSERT();
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
 	io.uio_iov = &iv;
@@ -3556,6 +3596,7 @@ again:
 	FREE((caddr_t)cookies, M_TEMP);
 
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -3664,6 +3705,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VOP_UNLOCK(vp, 0, td);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
+	NFSD_UNLOCK_ASSERT();
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
 	io.uio_iov = &iv;
@@ -3897,6 +3939,7 @@ again:
 			}
 		}
 invalid:
+		NFSD_UNLOCK_ASSERT();
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -3923,6 +3966,7 @@ invalid:
 	FREE((caddr_t)cookies, M_TEMP);
 	FREE((caddr_t)rbuf, M_TEMP);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -4081,6 +4125,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vp = NULL;
 	NFSD_LOCK();
 ereply:
+	NFSD_LOCK_ASSERT();
 	nfsm_reply(NFSX_V3WCCDATA + NFSX_V3WRITEVERF);
 	nfsm_srvwcc_data(for_ret, &bfor, aft_ret, &aft);
 	if (!error) {
@@ -4093,6 +4138,7 @@ ereply:
 		error = 0;
 	}
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (vp)
@@ -4194,6 +4240,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			sfp->sf_bavail = txdr_unsigned(sf->f_bavail);
 	}
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -4280,6 +4327,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		NFSV3FSINFO_SYMLINK | NFSV3FSINFO_HOMOGENEOUS |
 		NFSV3FSINFO_CANSETTIME);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -4361,6 +4409,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	pc->pc_caseinsensitive = nfsrv_nfs_false;
 	pc->pc_casepreserving = nfsrv_nfs_true;
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	if (vp) {
 		NFSD_UNLOCK();
 		mtx_lock(&Giant);	/* VFS */
@@ -4389,6 +4438,7 @@ nfsrv_null(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	nfsm_reply(0);
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	return (error);
 }
 
@@ -4415,6 +4465,7 @@ nfsrv_noop(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_reply(0);
 	error = 0;
 nfsmout:
+	NFSD_LOCK_ASSERT();
 	return (error);
 }
 
@@ -4440,7 +4491,6 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 	int error;
 
 	NFSD_LOCK_ASSERT();
-	NFSD_UNLOCK();
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	if (flags & VWRITE) {
@@ -4455,8 +4505,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 			case VREG:
 			case VDIR:
 			case VLNK:
-				error = EROFS;
-				goto out;
+				return (EROFS);
 			default:
 				break;
 			}
@@ -4465,15 +4514,14 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 		 * If there's shared text associated with
 		 * the inode, we can't allow writing.
 		 */
-		if (vp->v_vflag & VV_TEXT) {
-			NFSD_LOCK();
+		if (vp->v_vflag & VV_TEXT)
 			return (ETXTBSY);
-		}
 	}
+	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	error = VOP_GETATTR(vp, &vattr, cred, td);
 	if (error)
-		goto out2;
+		goto out;
 	error = VOP_ACCESS(vp, flags, cred, td);
 	/*
 	 * Allow certain operations for the owner (reads and writes
@@ -4481,9 +4529,9 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 	 */
 	if (override && error == EACCES && cred->cr_uid == vattr.va_uid)
 		error = 0;
-out2:
-	mtx_unlock(&Giant);	/* VFS */
 out:
+	NFSD_UNLOCK_ASSERT();
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	return error;
 }
