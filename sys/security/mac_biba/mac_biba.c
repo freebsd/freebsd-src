@@ -337,6 +337,7 @@ mac_biba_subject_privileged(struct mac_biba *mac_biba)
 	return (EPERM);
 }
 
+static int
 mac_biba_high_single(struct mac_biba *mac_biba)
 {
 
