@@ -47,6 +47,8 @@ static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "telldir.h"
+
 /*
  * Open a directory.
  */
@@ -90,8 +92,12 @@ __opendir2(name, flags)
 		goto fail;
 	}
 	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
-	    (dirp = malloc(sizeof(DIR))) == NULL)
+	    (dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
 		goto fail;
+
+	dirp->dd_td = (void *)dirp + sizeof(DIR);
+	LIST_INIT(&dirp->dd_td->td_locq);
+	dirp->dd_td->td_loccnt = 0;
 
 	/*
 	 * Use the system page size if that is a multiple of DIRBLKSIZ.
@@ -259,8 +265,6 @@ __opendir2(name, flags)
 	dirp->dd_loc = 0;
 	dirp->dd_fd = fd;
 	dirp->dd_flags = flags;
-	dirp->dd_loccnt = 0;
-	LIST_INIT(&dirp->dd_locq);
 
 	/*
 	 * Set up seek point for rewinddir.
