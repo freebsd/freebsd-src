@@ -75,7 +75,6 @@ main(int argc, char **argv)
 	FILE	*fp;
 	char	*ptrop;
 	int	 align;
-	int	 ch;
 
 	for (i = 1;  i < argc;  i++)
 		if (enter_sets(argv[i]) == -1)
