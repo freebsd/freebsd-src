@@ -73,6 +73,11 @@ identification.
 
 The f77 emulation via f2c has been updated to a current version.
 
+The Internet Software Consortium's DHCP client has been added to the 
+base system.
+
+Groff/troff/eqn has been updated to version 1.11.
+
 
 2. Supported Configurations
 ---------------------------
