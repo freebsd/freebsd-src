@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.34 2001/05/22 04:07:22 grog Exp grog $
+ * $Id: vinum.c,v 1.41 2003/04/28 06:15:36 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -54,23 +54,21 @@ extern struct mc malloced[];
 
 struct cdevsw vinum_cdevsw =
 {
-	.d_open =	vinumopen,
-	.d_close =	vinumclose,
-	.d_read =	physread,
-	.d_write =	physwrite,
-	.d_ioctl =	vinumioctl,
-	.d_strategy =	vinumstrategy,
-	.d_name =	"vinum",
-	.d_maj =	VINUM_CDEV_MAJOR,
-	.d_flags =	D_DISK
+    .d_open = vinumopen,
+    .d_close = vinumclose,
+    .d_read = physread,
+    .d_write = physwrite,
+    .d_ioctl = vinumioctl,
+    .d_strategy = vinumstrategy,
+    .d_name = "vinum",
+    .d_maj = VINUM_CDEV_MAJOR,
+    .d_flags = D_DISK
 };
 
 /* Called by main() during pseudo-device attachment. */
-STATIC void vinumattach(void *);
-
+void vinumattach(void *);
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
-
-STATIC void vinum_clone(void *arg, char *name, int namelen, dev_t *dev);
+STATIC void vinum_clone(void *arg, char *name, int namelen, dev_t * dev);
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
@@ -90,8 +88,7 @@ vinumattach(void *dummy)
     int i, rv;
     char *cp, *cp1, *cp2, **drives, *drivep;
     size_t alloclen;
-
-    /* modload should prevent multiple loads, so this is worth a panic */
+/* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
 
@@ -106,13 +103,13 @@ vinumattach(void *dummy)
     dqend = NULL;
 
     vinum_daemon_dev = make_dev(&vinum_cdevsw,
-	VINUM_DAEMON_DEV,
+	VINUM_DAEMON_MINOR,
 	UID_ROOT,
 	GID_WHEEL,
 	S_IRUSR | S_IWUSR,
 	"vinum/controld");
     vinum_super_dev = make_dev(&vinum_cdevsw,
-	VINUM_SUPERDEV,
+	VINUM_SUPERDEV_MINOR,
 	UID_ROOT,
 	GID_WHEEL,
 	S_IRUSR | S_IWUSR,
@@ -147,12 +144,11 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
-
     dev_clone_tag = EVENTHANDLER_REGISTER(dev_clone, vinum_clone, 0, 1000);
 
     /*
-     * See if the loader has passed us any of the
-     * autostart options.
+     * See if the loader has passed us any of the autostart
+     * options.
      */
     cp = drivep = NULL;
 #ifndef VINUM_AUTOSTART
@@ -160,50 +156,47 @@ vinumattach(void *dummy)
 	freeenv(cp);
 	cp = NULL;
 #endif
-	rv = kernel_sysctlbyname(&thread0, "kern.disks",
-				 NULL, NULL,
-				 NULL, 0,
-				 &alloclen);
+
+	rv = kernel_sysctlbyname(&thread0, "kern.disks", NULL,
+	    NULL, NULL, 0, &alloclen);
 	if (rv)
 	    log(LOG_NOTICE,
-		"sysctlbyname(\"kern.disks\") failed, rv = %d\n",
+		"sysctlbyname (\"kern.disks\") failed, rv = %d\n",
 		rv);
 	else {
-	    drivep = malloc(alloclen, M_TEMP, 0 /* M_WAITOK */);
-	    (void)kernel_sysctlbyname(&thread0, "kern.disks",
-				      drivep, &alloclen,
-				      NULL, 0,
-				      NULL);
+	    drivep = malloc(alloclen, M_TEMP, M_WAITOK);
+	    kernel_sysctlbyname(&thread0, "kern.disks", drivep,
+		&alloclen, NULL, 0, NULL);
 	    goto start;
 	}
 #ifndef VINUM_AUTOSTART
     } else
 #endif
-	if ((cp = getenv("vinum.drives")) != NULL) {
-	  start:
-	    for (cp1 = cp? cp: drivep, i = 0, drives = 0;
-		 *cp1 != '\0';
-		 i++) {
-		cp2 = cp1;
-		while (*cp1 != '\0' && *cp1 != ',' && *cp1 != ' ')
-		    cp1++;
-		if (*cp1 != '\0')
-		    *cp1++ = '\0';
-		drives = realloc(drives,
-				 (unsigned long)((i + 1) * sizeof(char *)),
-				 M_TEMP, 0 /* M_WAITOK */);
-		drives[i] = cp2;
-	    }
-	    if (i == 0)
-		goto bailout;
+    if ((cp = getenv("vinum.drives")) != NULL) {
+      start:
+	for (cp1 = cp ? cp : drivep, i = 0, drives = 0;
+	    *cp1 != '\0';
+	    i++) {
+	    cp2 = cp1;
+	    while (*cp1 != '\0' && *cp1 != ',' && *cp1 != ' ')
+		cp1++;
+	    if (*cp1 != '\0')
+		*cp1++ = '\0';
+
+	    drives = realloc(drives,
+		(unsigned long) ((i + 1) * sizeof(char *)),
+		M_TEMP, M_WAITOK);
+	    drives[i] = cp2;
+	}
+	if (i != 0) {
 	    rv = vinum_scandisk(drives, i);
 	    if (rv)
 		log(LOG_NOTICE, "vinum_scandisk() returned %d\n", rv);
-	  bailout:
-	    freeenv(cp);
-	    free(drives, M_TEMP);
-	    free(drivep, M_TEMP);
 	}
+	freeenv(cp);
+	free(drives, M_TEMP);
+	free(drivep, M_TEMP);
+    }
 }
 
 /*
@@ -291,6 +284,7 @@ free_vinum(int cleardrive)
 	Free(VOL);
     }
     bzero(&vinum_conf, sizeof(vinum_conf));
+    vinum_conf.version = VINUMVERSION;			    /* reinstate version number */
 }
 
 STATIC int
@@ -375,6 +369,23 @@ vinumopen(dev_t dev,
     /* First, decide what we're looking at */
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
+	/*
+	 * The super device and daemon device are the last two
+	 * volume numbers, so check for them first.
+	 */
+	if ((devminor == VINUM_DAEMON_MINOR)		    /* daemon device */
+	||(devminor == VINUM_SUPERDEV_MINOR)) {		    /* or normal super device */
+	    error = suser(td);				    /* are we root? */
+
+	    if (error == 0) {				    /* yes, can do */
+		if (devminor == VINUM_DAEMON_MINOR)	    /* daemon device */
+		    vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
+		else					    /* superdev */
+		    vinum_conf.flags |= VF_OPEN;	    /* we're open */
+	    }
+	    return error;
+	}
+	/* Must be a real volume.  Check. */
 	index = Volno(dev);
 	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */
@@ -397,19 +408,16 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_PLEX_TYPE:
-	if (Volno(dev) >= vinum_conf.volumes_allocated)
-	    return ENXIO;
-	/* FALLTHROUGH */
-
-    case VINUM_RAWPLEX_TYPE:
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
 	plex = &PLEX[index];
 
 	switch (plex->state) {
-	case plex_referenced:
 	case plex_unallocated:
+	    return ENXIO;
+
+	case plex_referenced:
 	    return EINVAL;
 
 	default:
@@ -418,51 +426,31 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_SD_TYPE:
-	if ((Volno(dev) >= vinum_conf.volumes_allocated)    /* no such volume */
-	||(Plexno(dev) >= vinum_conf.plexes_allocated))	    /* or no such plex */
-	    return ENXIO;				    /* no such device */
-
-	/* FALLTHROUGH */
-
-    case VINUM_RAWSD_TYPE:
+    case VINUM_SD2_TYPE:
 	index = Sdno(dev);				    /* get the subdisk number */
-	if ((index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
-	||(SD[index].state < sd_init))			    /* or SD is not real */
+	if (index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
 
 	/*
-	 * Opening a subdisk is always a special operation, so we
-	 * ignore the state as long as it represents a real subdisk
+	 * Opening a subdisk is always a special operation, so
+	 * we ignore the state as long as it represents a real
+	 * subdisk.
 	 */
 	switch (sd->state) {
 	case sd_unallocated:
+	    return ENXIO;
+
 	case sd_uninit:
+	case sd_referenced:
 	    return EINVAL;
 
 	default:
 	    sd->flags |= VF_OPEN;			    /* note we're open */
 	    return 0;
 	}
-
-    case VINUM_SUPERDEV_TYPE:
-	error = suser(td);				    /* are we root? */
-	if (error == 0) {				    /* yes, can do */
-	    if (devminor == VINUM_DAEMON_DEV)		    /* daemon device */
-		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */
-	    else if (devminor == VINUM_SUPERDEV)
-		vinum_conf.flags |= VF_OPEN;		    /* we're open */
-	    else
-		error = ENODEV;				    /* nothing, maybe a debug mismatch */
-	}
-	return error;
-
-	/* Vinum drives are disks.  We already have a disk
-	 * driver, so don't handle them here */
-    case VINUM_DRIVE_TYPE:
-    default:
-	return ENODEV;					    /* don't know what to do with these */
     }
+    return 0;						    /* to keep the compiler happy */
 }
 
 /* ARGSUSED */
@@ -477,10 +465,30 @@ vinumclose(dev_t dev,
     int devminor;
 
     devminor = minor(dev);
-    index = Volno(dev);
     /* First, decide what we're looking at */
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
+	/*
+	 * The super device and daemon device are the last two
+	 * volume numbers, so check for them first.
+	 */
+	if ((devminor == VINUM_DAEMON_MINOR)		    /* daemon device */
+	||(devminor == VINUM_SUPERDEV_MINOR)) {		    /* or normal super device */
+	    /*
+	     * don't worry about whether we're root:
+	     * nobody else would get this far.
+	     */
+	    if (devminor == VINUM_SUPERDEV_MINOR)	    /* normal superdev */
+		vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
+	    else {					    /* the daemon device */
+		vinum_conf.flags &= ~VF_DAEMONOPEN;	    /* no longer open */
+		if (vinum_conf.flags & VF_STOPPING)	    /* we're trying to stop, */
+		    wakeup(&vinumclose);		    /* we can continue now */
+	    }
+	    return 0;
+	}
+	/* Real volume */
+	index = Volno(dev);
 	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */
 	vol = &VOL[index];
@@ -506,65 +514,37 @@ vinumclose(dev_t dev,
 	    return ENXIO;
 	/* FALLTHROUGH */
 
-    case VINUM_RAWPLEX_TYPE:
-	index = Plexno(dev);				    /* get plex index in vinum_conf */
-	if (index >= vinum_conf.plexes_allocated)
-	    return ENXIO;				    /* no such device */
-	PLEX[index].flags &= ~VF_OPEN;			    /* reset our flags */
-	return 0;
-
     case VINUM_SD_TYPE:
 	if ((Volno(dev) >= vinum_conf.volumes_allocated) || /* no such volume */
 	    (Plexno(dev) >= vinum_conf.plexes_allocated))   /* or no such plex */
 	    return ENXIO;				    /* no such device */
 	/* FALLTHROUGH */
 
-    case VINUM_RAWSD_TYPE:
-	index = Sdno(dev);				    /* get the subdisk number */
-	if (index >= vinum_conf.subdisks_allocated)
-	    return ENXIO;				    /* no such device */
-	SD[index].flags &= ~VF_OPEN;			    /* reset our flags */
-	return 0;
-
-    case VINUM_SUPERDEV_TYPE:
-	/*
-	 * don't worry about whether we're root:
-	 * nobody else would get this far.
-	 */
-	if (devminor == VINUM_SUPERDEV)			    /* normal superdev */
-	    vinum_conf.flags &= ~VF_OPEN;		    /* no longer open */
-	else if (devminor == VINUM_DAEMON_DEV) {	    /* the daemon device */
-	    vinum_conf.flags &= ~VF_DAEMONOPEN;		    /* no longer open */
-	    if (vinum_conf.flags & VF_STOPPING)		    /* we're stopping, */
-		wakeup(&vinumclose);			    /* we can continue stopping now */
-	}
-	return 0;
-
-    case VINUM_DRIVE_TYPE:
     default:
 	return ENODEV;					    /* don't know what to do with these */
     }
 }
 
 void
-vinum_clone(void *arg, char *name, int namelen, dev_t *dev)
+vinum_clone(void *arg, char *name, int namelen, dev_t * dev)
 {
-	struct volume *vol;
-	int i;
+    struct volume *vol;
+    int i;
 
-	if (*dev != NODEV)
-		return;
-	if (strncmp(name, "vinum/", sizeof("vinum/") - 1) != 0)
-		return;
+    if (*dev != NODEV)
+	return;
+    if (strncmp(name, "vinum/", sizeof("vinum/") - 1) != 0)
+	return;
 
-	name += sizeof("vinum/") - 1;
-	if ((i = find_volume(name, 0)) == -1)
-		return;
+    name += sizeof("vinum/") - 1;
+    if ((i = find_volume(name, 0)) == -1)
+	return;
 
-	vol = &VOL[i];
-	*dev = vol->dev;
+    vol = &VOL[i];
+    *dev = vol->dev;
 }
 
+
 /* Local Variables: */
-/* fill-column: 50 */
+/* fill-column: 60 */
 /* End: */
