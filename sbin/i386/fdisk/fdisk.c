@@ -24,14 +24,20 @@
  * the rights to redistribute these changes.
  */
 
-#include <sys/types.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/disklabel.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <err.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 int iotest;
@@ -64,15 +70,13 @@ const char *disks[] =
   "/dev/rwd0", "/dev/rsd0", "/dev/rod0", 0
 };
 
-char *name;
-
 struct disklabel disklabel;		/* disk parameters */
 
 int cyls, sectors, heads, cylsecs, disksecs;
 
 struct mboot
 {
-	unsigned char padding[2]; /* force the longs to be long alligned */
+	unsigned char padding[2]; /* force the longs to be long aligned */
 	unsigned char bootinst[DOSPARTOFF];
 	struct	dos_partition parts[4];
 	unsigned short int	signature;
@@ -228,6 +232,7 @@ static int decimal(char *str, int *num, int deflt);
 static char *get_type(int type);
 static int read_config(char *config_file);
 static void reset_boot(void);
+static void usage(void);
 #if 0
 static int hex(char *str, int *num, int deflt);
 static int string(char *str, char **ans);
@@ -238,11 +243,6 @@ int
 main(int argc, char *argv[])
 {
 	int	i;
-
-	name = *argv;
-	{register char *cp = name;
-		while (*cp) if (*cp++ == '/') name = cp;
-	}
 
 	for ( argv++ ; --argc ; argv++ ) { register char *token = *argv;
 		if (*token++ != '-' || !*token)
@@ -274,9 +274,7 @@ main(int argc, char *argv[])
 					else
 					{
 					    if (argc == 1)
-					    {
-						goto usage;
-					    }
+						usage();
 					    --argc;
 					    f_flag = *++argv;
 					}
@@ -297,7 +295,7 @@ main(int argc, char *argv[])
 					v_flag = 1;
 					break;
 				default:
-					goto usage;
+					usage();
 				}
 			}
 		}
@@ -316,11 +314,7 @@ main(int argc, char *argv[])
 		}
 		
 		if (open_disk(u_flag) < 0)
-		{
-			fprintf(stderr, "Cannot open disk %s (%s)\n",
-				disk, sys_errlist[errno]);
-			exit(1);
-		}
+			err(1, "cannot open disk %s", disk);
 	}
 	else
 	{
@@ -333,11 +327,7 @@ main(int argc, char *argv[])
 			if(rv != -2) break;
 		}
 		if(rv < 0)
-		{
-			fprintf(stderr, "Cannot open any disk (%s)\n",
-				sys_errlist[errno]);
-			exit(1);
-		}
+			err(1, "cannot open any disk");
 	}
 
 	printf("******* Working on device %s *******\n",disk);
@@ -408,10 +398,14 @@ main(int argc, char *argv[])
 	}
 
 	exit(0);
+}
 
-usage:
-	printf("fdisk {-a|-i|-u} [-f <config file> [-t] [-v]] [-{1,2,3,4}] [disk]\n");
-	return(1);
+static void
+usage()
+{
+	fprintf(stderr,
+ "usage: fdisk {-a|-i|-u} [-f <config file> [-t] [-v]] [-{1,2,3,4}] [disk]\n");
+        exit(1);
 }
 
 static void
@@ -648,22 +642,19 @@ open_disk(int u_flag)
 struct stat 	st;
 
 	if (stat(disk, &st) == -1) {
-		fprintf(stderr, "%s: Can't get file status of %s\n",
-			name, disk);
+		warnx("can't get file status of %s", disk);
 		return -1;
 	}
 	if ( !(st.st_mode & S_IFCHR) )
-		fprintf(stderr,"%s: Device %s is not character special\n",
-			name, disk);
+		warnx("device %s is not character special", disk);
 	if ((fd = open(disk, a_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
-		fprintf(stderr,"%s: Can't open device %s\n", name, disk);
+		warnx("can't open device %s", disk);
 		return -1;
 	}
 	if (get_params(0) == -1) {
-		fprintf(stderr, "%s: Can't get disk parameters on %s\n",
-			name, disk);
+		warnx("can't get disk parameters on %s", disk);
 		return -1;
 	}
 	return fd;
@@ -702,9 +693,7 @@ get_params()
 {
 
     if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
-	fprintf(stderr,
-		"%s: Can't get disk parameters on %s; supplying dummy ones\n",
-		name, disk);
+	warnx("can't get disk parameters on %s; supplying dummy ones", disk);
 	dos_cyls = cyls = 1;
 	dos_heads = heads = 1;
 	dos_sectors = sectors = 1;
@@ -727,12 +716,11 @@ static int
 read_s0()
 {
 	if (read_disk(0, (char *) mboot.bootinst) == -1) {
-		fprintf(stderr, "%s: Can't read fdisk partition table\n", name);
+		warnx("can't read fdisk partition table");
 		return -1;
 	}
 	if (mboot.signature != BOOT_MAGIC) {
-		fprintf(stderr, "%s: Invalid fdisk partition table found\n",
-			name);
+		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
 	}
@@ -756,11 +744,10 @@ write_s0()
 	flag = 1;
 #ifdef NOT_NOW
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
-		perror("ioctl DIOCWLABEL");
+		warn("ioctl DIOCWLABEL");
 #endif
 	if (write_disk(0, (char *) mboot.bootinst) == -1) {
-		fprintf(stderr, "%s: Can't write fdisk partition table\n",
-			name);
+		warnx("can't write fdisk partition table");
 		return -1;
 	flag = 0;
 #ifdef NOT_NOW
@@ -979,18 +966,17 @@ process_geometry(command)
 	geom_processed = 1;
 	if (part_processed)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: the geometry specification line must occur before\n\
-    all partition specifications.\n",
-		    name, current_line_number);
+	    warnx(
+	"ERROR line %d: the geometry specification line must occur before\n\
+    all partition specifications",
+		    current_line_number);
 	    status = 0;
 	    break;
 	}
 	if (command->n_args != 3)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: incorrect number of geometry args\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: incorrect number of geometry args",
+		    current_line_number);
 	    status = 0;
 	    break;
 	}
@@ -1011,9 +997,9 @@ process_geometry(command)
 		dos_sectors = command->args[i].arg_val;
 		break;
 	    default:
-		fprintf(stderr,
-			"%s: ERROR line %d: unknown geometry arg type: '%c' (0x%02x)\n",
-			name, current_line_number, command->args[i].argtype,
+		warnx(
+		"ERROR line %d: unknown geometry arg type: '%c' (0x%02x)",
+			current_line_number, command->args[i].argtype,
 			command->args[i].argtype);
 		status = 0;
 		break;
@@ -1031,46 +1017,42 @@ process_geometry(command)
 	 */
 	if (dos_cyls < 0)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: number of cylinders not specified\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: number of cylinders not specified",
+		    current_line_number);
 	    status = 0;
 	}
 	if (dos_cyls == 0 || dos_cyls > 1024)
 	{
-	    fprintf(stderr,
-		    "%s: WARNING line %d: number of cylinders (%d) may be out-of-range\n\
+	    warnx(
+	"WARNING line %d: number of cylinders (%d) may be out-of-range\n\
     (must be within 1-1024 for normal BIOS operation, unless the entire disk\n\
-    is dedicated to FreeBSD).\n",
-		    name, current_line_number, dos_cyls);
+    is dedicated to FreeBSD)",
+		    current_line_number, dos_cyls);
 	}
 
 	if (dos_heads < 0)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: number of heads not specified\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: number of heads not specified",
+		    current_line_number);
 	    status = 0;
 	}
 	else if (dos_heads < 1 || dos_heads > 256)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: number of heads must be within (1-256)\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: number of heads must be within (1-256)",
+		    current_line_number);
 	    status = 0;
 	}
 
 	if (dos_sectors < 0)
 	{
-	    fprintf(stderr, "%s: ERROR line %d: number of sectors not specified\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: number of sectors not specified",
+		    current_line_number);
 	    status = 0;
 	}
 	else if (dos_sectors < 1 || dos_sectors > 63)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: number of sectors must be within (1-63)\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: number of sectors must be within (1-63)",
+		    current_line_number);
 	    status = 0;
 	}
 
@@ -1093,16 +1075,15 @@ process_partition(command)
 	part_processed = 1;
 	if (command->n_args != 4)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: incorrect number of partition args\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: incorrect number of partition args",
+		    current_line_number);
 	    break;
 	}
 	partition = command->args[0].arg_val;
 	if (partition < 1 || partition > 4)
 	{
-	    fprintf(stderr, "%s: ERROR line %d: invalid partition number %d\n",
-		    name, current_line_number, partition);
+	    warnx("ERROR line %d: invalid partition number %d",
+		    current_line_number, partition);
 	    break;
 	}
 	partp = ((struct dos_partition *) &mboot.parts) + partition - 1;
@@ -1137,16 +1118,16 @@ process_partition(command)
 		/*
 		 * Can't go past end of partition
 		 */
-		fprintf(stderr,
-			"%s: ERROR line %d: unable to adjust start of partition %d to fall on\n\
-    a cylinder boundary.\n",
-			name, current_line_number, partition);
+		warnx(
+	"ERROR line %d: unable to adjust start of partition %d to fall on\n\
+    a cylinder boundary",
+			current_line_number, partition);
 		break;
 	    }
-	    fprintf(stderr,
-		    "%s: WARNING: adjusting start offset of partition '%d' from %lu\n\
-    to %lu, to round to an head boundary.\n",
-		    name, partition, (u_long)partp->dp_start, adj_size);
+	    warnx(
+	"WARNING: adjusting start offset of partition '%d' from %lu\n\
+    to %lu, to round to an head boundary",
+		    partition, (u_long)partp->dp_start, adj_size);
 	    partp->dp_start = adj_size;
 	}
 
@@ -1159,10 +1140,10 @@ process_partition(command)
 	adj_size = chunks - partp->dp_start;
 	if (adj_size != partp->dp_size)
 	{
-	    fprintf(stderr,
-		    "%s: WARNING: adjusting size of partition '%d' from %lu to %lu,\n\
-    to round to a cylinder boundary.\n",
-		    name, partition, (u_long)partp->dp_size, adj_size);
+	    warnx(
+	"WARNING: adjusting size of partition '%d' from %lu to %lu,\n\
+    to round to a cylinder boundary",
+		    partition, (u_long)partp->dp_size, adj_size);
 	    if (chunks > 0)
 	    {
 		partp->dp_size = adj_size;
@@ -1174,9 +1155,8 @@ process_partition(command)
 	}
 	if (partp->dp_size < 1)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: size for partition '%d' is zero.\n",
-		    name, current_line_number, partition);
+	    warnx("ERROR line %d: size for partition '%d' is zero",
+		    current_line_number, partition);
 	    break;
 	}
 
@@ -1203,17 +1183,16 @@ process_active(command)
 	active_processed = 1;
 	if (command->n_args != 1)
 	{
-	    fprintf(stderr,
-		    "%s: ERROR line %d: incorrect number of active args\n",
-		    name, current_line_number);
+	    warnx("ERROR line %d: incorrect number of active args",
+		    current_line_number);
 	    status = 0;
 	    break;
 	}
 	partition = command->args[0].arg_val;
 	if (partition < 1 || partition > 4)
 	{
-	    fprintf(stderr, "%s: ERROR line %d: invalid partition number %d\n",
-		    name, current_line_number, partition);
+	    warnx("ERROR line %d: invalid partition number %d",
+		    current_line_number, partition);
 	    break;
 	}
 	/*
