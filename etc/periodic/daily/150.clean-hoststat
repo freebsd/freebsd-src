@@ -1,11 +1,11 @@
 #!/bin/sh
 #
-# $Id: 140.clean-rwho,v 1.3 1999/03/21 12:33:54 joerg Exp $
+# $Id: 150.clean-hoststat,v 1.1 1999/03/30 15:30:44 wollman Exp $
 #
 
 if [ -d /var/spool/.hoststat ] ; then
 	echo ""
 	echo "Removing stale files from /var/spool/.hoststat:"
 
-	cd /var/rwho && find * -mtime +3 -delete
+	cd /var/spool/.hoststat && find * -mtime +3 -delete
 fi
