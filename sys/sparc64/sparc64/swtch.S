@@ -24,18 +24,18 @@
  * SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #include <machine/asmacros.h>
 #include <machine/asi.h>
 #include <machine/ktr.h>
 #include <machine/tstate.h>
 
+#include "assym.s"
+
 	.register	%g2, #ignore
 	.register	%g3, #ignore
-
-#include "assym.s"
-#include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
 
 /*
  * void cpu_throw(struct thread *old, struct thread *new)

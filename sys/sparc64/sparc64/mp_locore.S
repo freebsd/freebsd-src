@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/ktr.h>
@@ -31,9 +34,6 @@
 #include <machine/upa.h>
 
 #include "assym.s"
-#include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore
