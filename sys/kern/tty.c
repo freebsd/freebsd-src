@@ -2641,7 +2641,8 @@ ttymalloc(struct tty *tp)
 	if (tp)
 		return(tp);
 	tp = malloc(sizeof *tp, M_TTYS, M_WAITOK | M_ZERO);
-	ttyregister(tp);
+	tp->t_timeout = -1;
+	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
 	return (tp);
 }
 
@@ -2656,13 +2657,6 @@ ttyfree(struct tty *tp)
 	free(tp, M_TTYS);
 }
 #endif /* 0 */
-
-void
-ttyregister(struct tty *tp)
-{
-	tp->t_timeout = -1;
-	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
-}
 
 static int
 sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)

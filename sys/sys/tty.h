@@ -306,7 +306,6 @@ int	 ttylclose(struct tty *tp, int flag);
 struct tty *ttymalloc(struct tty *tp);
 int	 ttymodem(struct tty *tp, int flag);
 int	 ttyopen(dev_t device, struct tty *tp);
-void	 ttyregister(struct tty *tp);
 int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
 int	 unputc(struct clist *q);
