@@ -74,7 +74,7 @@
 		<para>Intel PIIX, PIIX3, PIIX4</para>
 	   </listitem>
 	   <listitem>
-		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100</para>
+		<para>Intel ICH ATA66, ICH2 ATA100, ICH3 ATA100, ICH4 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>nVidia nForce ATA100</para>
@@ -86,10 +86,10 @@
 		<para>Promise ATA133 OEM chip (pdc20269)</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4</para>
+		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Ultra-33, -66, -100</para>
+		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
 		<para>ServerWorks ROSB4 ATA33</para>
@@ -98,16 +98,22 @@
 		<para>ServerWorks CSB5 ATA66/ATA100</para>
 	   </listitem>
 	   <listitem>
+	        <para>Sil 0680 UDMA6</para>
+	   </listitem>
+	   <listitem>
 	        <para>SiS 530, 540, 620</para>
 	   </listitem>
 	   <listitem>
 	        <para>SiS 630, 633, 635, 645, 730, 733, 735, 740, 745, 750</para>
 	   </listitem>
 	   <listitem>
-		<para>SiS 5591</para>
+		<para>SiS 5591 ATA100</para>
 	   </listitem>
 	   <listitem>
 		<para>VIA 82C586 ATA33, 82C596 ATA66, 82C686a ATA66, 82C686b ATA100</para>
+	   </listitem>
+	   <listitem>
+		<para>VIA 8233, 8235 ATA133</para>
 	   </listitem>
       </itemizedlist>
     </para>
