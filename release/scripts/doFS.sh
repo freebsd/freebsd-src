@@ -46,7 +46,9 @@ do
 
 	( set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT} )
 
-	set `df -i /mnt | tail -1`
+	df -ki /mnt
+
+	set `df -ki /mnt | tail -1`
 
 	umount ${MNT}
 
