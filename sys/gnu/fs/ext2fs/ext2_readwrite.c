@@ -70,7 +70,7 @@ READ(ap)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
-	int seqcount = ap->a_ioflag >> 16;
+	int seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	u_short mode;
 
 	vp = ap->a_vp;
@@ -114,7 +114,7 @@ READ(ap)
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0)
 			error = cluster_read(vp,
 			    ip->i_size, lbn, size, NOCRED,
-				uio->uio_resid, (ap->a_ioflag >> 16), &bp);
+			    uio->uio_resid, (ap->a_ioflag >> IO_SEQSHIFT), &bp);
 		else if (seqcount > 1) {
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
@@ -179,7 +179,7 @@ WRITE(ap)
 	int blkoffset, error, flags, ioflag, resid, size, xfersize;
 
 	ioflag = ap->a_ioflag;
-	seqcount = ap->a_ioflag >> 16;
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
 	ip = VTOI(vp);
