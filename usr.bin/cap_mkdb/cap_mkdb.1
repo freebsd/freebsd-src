@@ -38,20 +38,18 @@
 .Sh NAME
 .Nm cap_mkdb
 .Nd create capability database
-.Pp
 .Sh SYNOPSIS
 .Nm cap_mkdb
 .Op Fl v
 .Op Fl f Ar outfile
-.Ar file1
-.Op Ar file2 ...
-.Pp
+.Ar file
+.Op Ar
 .Sh DESCRIPTION
 .Nm Cap_mkdb 
 builds a hashed database out of the
 .Xr getcap 3 
 logical database constructed by the concatenation of the specified
-files .
+files.
 .Pp
 The database is named by the basename of the first file argument and
 the string
@@ -64,8 +62,8 @@ than they can the original text file(s).
 The ``tc'' capabilities of the records are expanded before the
 record is stored into the database.
 .Pp
-The options as follows:
-.Bl -tag -width XXXXXX -indent
+The following options are available:
+.Bl -tag -width indent
 .It Fl f Ar outfile
 Specify a different database basename.
 .It Fl v
@@ -92,10 +90,10 @@ in a key/data pair of the second type.
 The data field of this key/data pair is used to look up a key/data
 pair of the first type which has the real data associated with the
 name.
-.Sh RETURN VALUE
+.Sh DIAGNOSTICS
 The
-.Nm cap_mkdb 
-utility exits 0 on success and >0 if an error occurs.
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr dbopen 3 ,
 .Xr getcap 3 ,
