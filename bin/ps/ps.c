@@ -606,8 +606,12 @@ kludge_oldps_options(s)
 	 * if last letter is a 't' flag with no argument (in the context
 	 * of the oldps options -- option string NOT starting with a '-' --
 	 * then convert to 'T' (meaning *this* terminal, i.e. ttyname(0)).
+	 *
+	 * However, if a flag accepting a string argument is found in the
+	 * option string, the remainder of the string is the argument to
+	 * that flag; do not modify that argument.
 	 */
-	if (*cp == 't' && *s != '-')
+	if (strcspn(s, "MNOoUW") == len && *cp == 't' && *s != '-')
 		*cp = 'T';
 	else {
 		/*
