@@ -53,7 +53,7 @@ static const char rcsid[] =
 
 extern long int crc_total;
 extern int ftsoptions;
-extern int dflag, eflag, rflag, sflag, uflag;
+extern int dflag, eflag, qflag, rflag, sflag, uflag;
 extern char fullpath[MAXPATHLEN];
 extern int lineno;
 
@@ -171,8 +171,16 @@ miss(p, tail)
 		if (p->type != F_DIR && (dflag || p->flags & F_VISIT))
 			continue;
 		(void)strcpy(tail, p->name);
-		if (!(p->flags & F_VISIT))
-			(void)printf("missing: %s", path);
+		if (!(p->flags & F_VISIT)) {
+			/* Don't print missing message if file exists as a
+			   symbolic link and the -q flag is set. */
+			struct stat statbuf;
+ 
+			if (qflag && stat(path, &statbuf) == 0)
+				p->flags |= F_VISIT;
+			else
+				(void)printf("missing: %s", path);
+		}
 		if (p->type != F_DIR && p->type != F_LINK) {
 			putchar('\n');
 			continue;

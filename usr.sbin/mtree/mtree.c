@@ -58,7 +58,7 @@ static const char rcsid[] =
 extern long int crc_total;
 
 int ftsoptions = FTS_LOGICAL;
-int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
+int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag;
 u_int keys;
 char fullpath[MAXPATHLEN];
 
@@ -111,6 +111,9 @@ main(argc, argv)
 			break;
 		case 'p':
 			dir = optarg;
+			break;
+		case 'q':
+			qflag = 1;
 			break;
 		case 'P':
 			ftsoptions ^= FTS_LOGICAL;
@@ -167,7 +170,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-PUcdeinrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"usage: mtree [-PUcdeinqrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
 "\t[-X excludes]\n");
 	exit(1);
 }
