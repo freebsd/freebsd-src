@@ -908,12 +908,8 @@ loop:
 		if (error)
 			allerror = error;
 
-		mtx_lock(&mntvnode_mtx);
-		if (nvp != TAILQ_NEXT(vp, v_nmntvnodes)) {
-			vput(vp);
-			goto loop;
-		}
 		vput(vp);
+		mtx_lock(&mntvnode_mtx);
 	}
 	mtx_unlock(&mntvnode_mtx);
 	return (allerror);

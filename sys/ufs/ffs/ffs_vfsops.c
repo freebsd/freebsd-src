@@ -1112,7 +1112,6 @@ ffs_sync(mp, waitfor, cred, td)
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, count, wait, lockreq, allerror = 0;
-	int restart;
 
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
@@ -1131,7 +1130,6 @@ ffs_sync(mp, waitfor, cred, td)
 	lockreq |= LK_INTERLOCK;
 	mtx_lock(&mntvnode_mtx);
 loop:
-	restart = 0;
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
@@ -1168,12 +1166,9 @@ loop:
 		}
 		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, td);
+		vput(vp);
 		mtx_lock(&mntvnode_mtx);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
-			restart = 1;
-		vrele(vp);
-		if (restart)
 			goto loop;
 	}
 	mtx_unlock(&mntvnode_mtx);
