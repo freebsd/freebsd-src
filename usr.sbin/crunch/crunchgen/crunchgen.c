@@ -644,7 +644,7 @@ void fillin_program(prog_t *p)
 		warnx("%s: %s: warning: could not find any .o files",
 		    infilename, p->name);
 
-	if (!p->objdir || !p->objs)
+	if ((!p->srcdir || !p->objdir) && !p->objs)
 		p->goterror = 1;
 }
 
