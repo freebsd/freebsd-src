@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  *	New elements are created and appended the the first list.
  *-----------------------------------------------------------------------
  */
-ReturnStatus
+void
 Lst_Concat(Lst *list1, Lst *list2, int flags)
 {
     LstNode *ln;	/* original LstNode */
@@ -78,40 +78,27 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
     LstNode *last;	/* the last element in the list. Keeps
 		         * bookkeeping until the end */
 
-    if (!Lst_Valid(list1) || !Lst_Valid(list2)) {
-	return (FAILURE);
-    }
+    if (list2->firstPtr == NULL)
+	return;
 
     if (flags == LST_CONCLINK) {
-	if (list2->firstPtr != NULL) {
-	    /*
-	     * We set the nextPtr of the last element of list two to be NULL
-	     * to make the loop easier and so we don't need an extra case --
-	     * the final element will already point to NULL space and the first
-	     * element will be untouched if it existed before and will also
-	     * point to NULL space if it didn't.
-	     */
-	    list2->lastPtr->nextPtr = NULL;
-	    /*
-	     * So long as the second list isn't empty, we just link the
-	     * first element of the second list to the last element of the
-	     * first list. If the first list isn't empty, we then link the
-	     * last element of the list to the first element of the second list
-	     * The last element of the second list, if it exists, then becomes
-	     * the last element of the first list.
-	     */
-	    list2->firstPtr->prevPtr = list1->lastPtr;
-	    if (list1->lastPtr != NULL) {
- 		list1->lastPtr->nextPtr = list2->firstPtr;
-	    } else {
-		list1->firstPtr = list2->firstPtr;
-	    }
-	    list1->lastPtr = list2->lastPtr;
-	}
-    } else if (list2->firstPtr != NULL) {
 	/*
-	 * We set the nextPtr of the last element of list 2 to be NULL to make
-	 * the loop less difficult. The loop simply goes through the entire
+	 * Link the first element of the second list to the last element of the
+	 * first list. If the first list isn't empty, we then link the
+	 * last element of the list to the first element of the second list
+	 * The last element of the second list, if it exists, then becomes
+	 * the last element of the first list.
+	 */
+	list2->firstPtr->prevPtr = list1->lastPtr;
+	if (list1->lastPtr != NULL)
+ 	    list1->lastPtr->nextPtr = list2->firstPtr;
+	else
+	    list1->firstPtr = list2->firstPtr;
+	list1->lastPtr = list2->lastPtr;
+
+    } else {
+	/*
+	 * The loop simply goes through the entire
 	 * second list creating new LstNodes and filling in the nextPtr, and
 	 * prevPtr to fit into list1 and its datum field from the
 	 * datum field of the corresponding element in list2. The 'last' node
@@ -121,7 +108,6 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
 	 * the first list must have been empty so the newly-created node is
 	 * made the first node of the list.
 	 */
-	list2->lastPtr->nextPtr = NULL;
 	for (last = list1->lastPtr, ln = list2->firstPtr;
 	     ln != NULL;
 	     ln = ln->nextPtr)
@@ -145,6 +131,4 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
 	list1->lastPtr = last;
 	last->nextPtr = NULL;
     }
-
-    return (SUCCESS);
 }

@@ -125,7 +125,7 @@ ReturnStatus	Lst_Remove(Lst *, LstNode *);
 #define	Lst_Replace(NODE, D)	(((NODE) == NULL) ? FAILURE : \
 				    (((NODE)->datum = (D)), SUCCESS))
 /* Concatenate two lists */
-ReturnStatus	Lst_Concat(Lst *, Lst *, int);
+void		Lst_Concat(Lst *, Lst *, int);
 
 /*
  * Node-specific functions
