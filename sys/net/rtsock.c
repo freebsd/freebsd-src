@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.8 1994/12/13 22:31:49 wollman Exp $
+ *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
+ *	$Id: rtsock.c,v 1.9 1995/03/16 18:14:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -133,6 +133,7 @@ route_output(m, so)
 	register struct rt_msghdr *rtm = 0;
 	register struct rtentry *rt = 0;
 	struct rtentry *saved_nrt = 0;
+	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
 	int len, error = 0;
 	struct ifnet *ifp = 0;
@@ -167,7 +168,7 @@ route_output(m, so)
 		senderr(EINVAL);
 	if (genmask) {
 		struct radix_node *t;
-		t = rn_addmask((caddr_t)genmask, 1, 2);
+		t = rn_addmask((caddr_t)genmask, 0, 1);
 		if (t && Bcmp(genmask, t->rn_key, *(u_char *)genmask) == 0)
 			genmask = (struct sockaddr *)(t->rn_key);
 		else
@@ -190,33 +191,28 @@ route_output(m, so)
 
 	case RTM_DELETE:
 		error = rtrequest(RTM_DELETE, dst, gate, netmask,
-				rtm->rtm_flags, (struct rtentry **)0);
+				rtm->rtm_flags, &saved_nrt);
+		if (error == 0) {
+			if ((rt = saved_nrt)->rt_refcnt <= 0)
+				rt->rt_refcnt++;
+			goto report;
+		}
 		break;
 
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rt = rtalloc1(dst, 0, 0UL);
-		if (rt == 0)
+		if ((rnh = rt_tables[dst->sa_family]) == 0) {
+			senderr(EAFNOSUPPORT);
+		} else if (rt = (struct rtentry *)
+				rnh->rnh_lookup(dst, netmask, rnh))
+			rt->rt_refcnt++;
+		else
 			senderr(ESRCH);
-		if (rtm->rtm_type != RTM_GET) {/* XXX: too grotty */
-			struct radix_node *rn;
-
-			if (Bcmp(dst, rt_key(rt), dst->sa_len) != 0)
-				senderr(ESRCH);
-			if (netmask && (rn = rn_search(netmask,
-					    mask_rnhead->rnh_treetop)))
-				netmask = (struct sockaddr *)rn->rn_key;
-			for (rn = rt->rt_nodes; rn; rn = rn->rn_dupedkey)
-				if (netmask == (struct sockaddr *)rn->rn_mask)
-					break;
-			if (rn == 0)
-				senderr(ETOOMANYREFS);
-			rt = (struct rtentry *)rn;
-		}
 		switch(rtm->rtm_type) {
 
 		case RTM_GET:
+		report:
 			dst = rt_key(rt);
 			gate = rt->rt_gateway;
 			netmask = rt_mask(rt);
@@ -232,7 +228,7 @@ route_output(m, so)
 					ifaaddr = 0;
 			    }
 			}
-			len = rt_msg2(RTM_GET, &info, (caddr_t)0,
+			len = rt_msg2(rtm->rtm_type, &info, (caddr_t)0,
 				(struct walkarg *)0);
 			if (len > rtm->rtm_msglen) {
 				struct rt_msghdr *new_rtm;
@@ -242,7 +238,7 @@ route_output(m, so)
 				Bcopy(rtm, new_rtm, rtm->rtm_msglen);
 				Free(rtm); rtm = new_rtm;
 			}
-			(void)rt_msg2(RTM_GET, &info, (caddr_t)rtm,
+			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm,
 				(struct walkarg *)0);
 			rtm->rtm_flags = rt->rt_flags;
 			rtm->rtm_rmx = rt->rt_rmx;
@@ -796,3 +792,4 @@ struct protosw routesw[] = {
 struct domain routedomain =
     { PF_ROUTE, "route", route_init, 0, 0,
       routesw, &routesw[sizeof(routesw)/sizeof(routesw[0])] };
+
