@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.9 1994/08/24 11:51:46 sos Exp $
+ * $Id: systm.h,v 1.10 1994/09/15 20:24:27 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
-#define _SYS_SYSTM_H_
+#define	_SYS_SYSTM_H_
 
 #include <machine/cpufunc.h>
 
@@ -110,13 +110,8 @@ int	eopnotsupp __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
 void	*hashinit __P((int count, int type, u_long *hashmask));
 
-#ifdef __GNUC__
 __dead void	panic __P((const char *, ...)) __dead2;
 __dead void	boot __P((int)) __dead2;
-#else
-void	panic __P((const char *, ...));
-void	boot __P((int));
-#endif
 void	tablefull __P((const char *));
 void	addlog __P((const char *, ...));
 void	log __P((int, const char *, ...));
@@ -137,9 +132,7 @@ int	copyin __P((void *udaddr, void *kaddr, u_int len));
 int	copyout __P((void *kaddr, void *udaddr, u_int len));
 
 int	fubyte __P((void *base));
-#ifdef notdef
 int	fuibyte __P((void *base));
-#endif
 int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
 int	fuword __P((void *base));
@@ -189,4 +182,4 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 
-#endif
+#endif /* !_SYS_SYSTM_H_ */
