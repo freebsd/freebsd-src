@@ -1225,6 +1225,7 @@ DELAY(int n)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
+#ifdef COMPAT_43
 void
 osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
@@ -1329,6 +1330,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
 	alpha_pal_wrusp((unsigned long)sip);
 }
+#endif
 
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
@@ -1341,10 +1343,12 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	PROC_LOCK(p);
 	psp = p->p_sigacts;
+#ifdef COMPAT_43
 	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
+#endif
 
 	frame = p->p_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
@@ -1480,6 +1484,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * make sure that the user has not modified the
  * state to gain improper privileges.
  */
+#ifdef COMPAT_43
 int
 osigreturn(struct proc *p,
 	struct osigreturn_args /* {
@@ -1538,6 +1543,7 @@ osigreturn(struct proc *p,
 	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
 }
+#endif
 
 int
 sigreturn(struct proc *p,
@@ -1549,8 +1555,10 @@ sigreturn(struct proc *p,
 	struct pcb *pcb;
 	unsigned long val;
 
+#ifdef COMPAT_43
 	if (((struct osigcontext*)uap->sigcntxp)->sc_regs[R_ZERO] == 0xACEDBADE)
 		return osigreturn(p, (struct osigreturn_args *)uap);
+#endif
 
 	ucp = uap->sigcntxp;
 	pcb = &p->p_addr->u_pcb;
