@@ -51,6 +51,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
@@ -437,7 +438,7 @@ statclock_process(ke, pc, user)
 		}
 	}
 
-	schedclock(ke->ke_thread);
+	sched_clock(ke->ke_thread);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&
