@@ -106,6 +106,18 @@ executable program (or shell script).  It will be invoked automatically
 at installation/deinstallation time to determine whether or not
 installation/deinstallation should proceed.
 .B "Optional."
+.TP
+.BI "\-t\ " template
+Use
+.I template
+as the input to mktemp(3).  By default, this is the string
+.B /tmp/instmp.XXXXXX,
+but it may be necessary to override it in the situation where
+space in your
+.B /tmp
+directory is limited.  Be sure to leave some number of `X' characters
+for mktemp(3) to fill in with a unique ID.
+.B "Optional."
 .PP
 .SH "TECHNICAL DETAILS"
 The "packing list" format (see \fB-f\fR) is fairly simple, being
@@ -174,8 +186,8 @@ put at the top.  This name is potentially different than the name of
 the file it came in, and is used when keeping track of the package
 for later deinstallation.  Note that
 .B pkg_create
-currently derives this field from the package name and adds it
-automatically.
+will derive this field from the package name and add it automatically
+if none is given.
 
 .SH BUGS
 Sure to be some.

@@ -34,11 +34,13 @@ static char Pen[FILENAME_MAX];
  * pathname of previous working directory.
  */
 char *
-make_playpen(void)
+make_playpen(char *pen)
 {
+    if (!pen)
+	pen = "/tmp/instmp.XXXXXX";
     if (!getcwd(Cwd, FILENAME_MAX))
 	upchuck("getcwd");
-    strcpy(Pen, "/tmp/instmp.XXXXXX");
+    strcpy(Pen, pen);
     if (!mktemp(Pen))
 	barf("Can't mktemp '%s'.", Pen);
     if (mkdir(Pen, 0755) == FAIL)
@@ -61,3 +63,12 @@ leave_playpen(void)
     }
 }
 
+/* Accessor function for telling us where the pen is */
+char *
+where_playpen(void)
+{
+    if (Cwd[0])
+	return Pen;
+    else
+	return NULL;
+}
