@@ -36,6 +36,7 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
@@ -692,11 +693,14 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 /*
  * Syscalls.
  */
-
+/*
+ * MPSAFE
+ */
 int
 kldload(struct proc* p, struct kldload_args* uap)
 {
-    char* pathname, *realpath;
+    char *pathname = NULL;
+    char *realpath = NULL;
     const char *filename;
     linker_file_t lf;
     int error = 0;
@@ -706,10 +710,11 @@ kldload(struct proc* p, struct kldload_args* uap)
     if (securelevel > 0)	/* redundant, but that's OK */
 	return EPERM;
 
-    if ((error = suser(p)) != 0)
-	return error;
+    mtx_lock(&Giant);
 
-    realpath = NULL;
+    if ((error = suser(p)) != 0)
+	goto out;
+
     pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
     if ((error = copyinstr(SCARG(uap, file), pathname, MAXPATHLEN, NULL)) != 0)
 	goto out;
@@ -737,9 +742,13 @@ out:
 	free(pathname, M_TEMP);
     if (realpath)
 	free(realpath, M_LINKER);
-    return error;
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldunload(struct proc* p, struct kldunload_args* uap)
 {
@@ -749,8 +758,10 @@ kldunload(struct proc* p, struct kldunload_args* uap)
     if (securelevel > 0)	/* redundant, but that's OK */
 	return EPERM;
 
+    mtx_lock(&Giant);
+
     if ((error = suser(p)) != 0)
-	return error;
+	goto out;
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
@@ -764,13 +775,17 @@ kldunload(struct proc* p, struct kldunload_args* uap)
 	error = linker_file_unload(lf);
 	if (error)
 	    lf->userrefs++;
-    } else
+    } else {
 	error = ENOENT;
-
+    }
 out:
-    return error;
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldfind(struct proc* p, struct kldfind_args* uap)
 {
@@ -778,6 +793,8 @@ kldfind(struct proc* p, struct kldfind_args* uap)
     const char *filename;
     linker_file_t lf;
     int error = 0;
+
+    mtx_lock(&Giant);
 
     p->p_retval[0] = -1;
 
@@ -796,21 +813,27 @@ kldfind(struct proc* p, struct kldfind_args* uap)
 out:
     if (pathname)
 	free(pathname, M_TEMP);
-    return error;
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldnext(struct proc* p, struct kldnext_args* uap)
 {
     linker_file_t lf;
     int error = 0;
 
+    mtx_lock(&Giant);
+
     if (SCARG(uap, fileid) == 0) {
 	if (TAILQ_FIRST(&linker_files))
 	    p->p_retval[0] = TAILQ_FIRST(&linker_files)->id;
 	else
 	    p->p_retval[0] = 0;
-	return 0;
+	goto out;
     }
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
@@ -819,12 +842,17 @@ kldnext(struct proc* p, struct kldnext_args* uap)
 	    p->p_retval[0] = TAILQ_NEXT(lf, link)->id;
 	else
 	    p->p_retval[0] = 0;
-    } else
+    } else {
 	error = ENOENT;
-
-    return error;
+    }
+out:
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldstat(struct proc* p, struct kldstat_args* uap)
 {
@@ -833,6 +861,8 @@ kldstat(struct proc* p, struct kldstat_args* uap)
     int version;
     struct kld_file_stat* stat;
     int namelen;
+
+    mtx_lock(&Giant);
 
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (!lf) {
@@ -869,27 +899,36 @@ kldstat(struct proc* p, struct kldstat_args* uap)
     p->p_retval[0] = 0;
 
 out:
-    return error;
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
 {
     linker_file_t lf;
     int error = 0;
 
+    mtx_lock(&Giant);
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_FIRST(&lf->modules))
 	    p->p_retval[0] = module_getid(TAILQ_FIRST(&lf->modules));
 	else
 	    p->p_retval[0] = 0;
-    } else
+    } else {
 	error = ENOENT;
-
-    return error;
+    }
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 kldsym(struct proc *p, struct kldsym_args *uap)
 {
@@ -899,6 +938,8 @@ kldsym(struct proc *p, struct kldsym_args *uap)
     linker_file_t lf;
     struct kld_sym_lookup lookup;
     int error = 0;
+
+    mtx_lock(&Giant);
 
     if ((error = copyin(SCARG(uap, data), &lookup, sizeof(lookup))) != 0)
 	goto out;
@@ -940,7 +981,8 @@ kldsym(struct proc *p, struct kldsym_args *uap)
 out:
     if (symstr)
 	free(symstr, M_TEMP);
-    return error;
+    mtx_unlock(&Giant);
+    return (error);
 }
 
 /*
