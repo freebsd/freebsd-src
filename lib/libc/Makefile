@@ -12,6 +12,7 @@ LIB=c
 # If you bump SHLIB_MAJOR, remove kluge from gen/gethostname.c.
 SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
+WARNS?=	1
 CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
 CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
