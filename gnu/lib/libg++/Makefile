@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1995/07/05 15:04:47 dfr Exp $
+# $Id: Makefile,v 1.11 1995/08/06 12:22:53 bde Exp $
 #
 SRCS=	bitand.c bitany.c bitblt.c bitclear.c bitcopy.c bitcount.c \
 	bitinvert.c bitlcomp.c bitset1.c bitxor.c cleanup.c except.c \
@@ -35,11 +35,8 @@ DPADD+=	${LIBCURSES} ${LIBCOMPAT}
 
 beforeinstall:
 	cd ${.CURDIR}/include; \
-	for i in *.h; do \
-		cmp -s $$i ${DESTDIR}/usr/include/g++/$$i || \
-			${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
-			${DESTDIR}/usr/include/g++/$$i; \
-	done
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+		${DESTDIR}/usr/include/g++
 
 .include <bsd.lib.mk>
 .include <bsd.prog.mk>

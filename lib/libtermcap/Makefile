@@ -20,8 +20,7 @@ LINKS+=	${LIBDIR}/libtermcap_p.a ${LIBDIR}/libtermlib_p.a
 .endif
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s termcap.h ${DESTDIR}/usr/include/termcap.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 termcap.h \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 termcap.h \
 	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

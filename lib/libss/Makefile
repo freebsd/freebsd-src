@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1996/05/07 23:19:15 wosch Exp $
+#	$Id: Makefile,v 1.12 1996/06/24 04:23:28 jkh Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -24,21 +24,14 @@ std_rqs.c:		${.CURDIR}/std_rqs.ct
 	-test -h std_rqs.ct && rm -f std_rqs.ct
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s ss.h ${DESTDIR}/usr/include/ss/ss.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ss.h \
-	    ${DESTDIR}/usr/include/ss
-	-cd ${.CURDIR}; cmp -s copyright.h \
-	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h || \
-	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 copyright.h \
-	    ${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
-	-cd ${.OBJDIR}; \
-	    if [ -f ss_err.h ]; then \
-		cmp -s ss_err.h ${DESTDIR}/usr/include/ss/ss_err.h || \
-		${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
-		${DESTDIR}/usr/include/ss; \
-	    else \
-		true; \
-	    fi
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/ss.h \
+		${DESTDIR}/usr/include/ss
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/copyright.h \
+		${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
+.if exists(ss_err.h)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
+		${DESTDIR}/usr/include/ss
+.endif
 
 .include <bsd.lib.mk>
 
