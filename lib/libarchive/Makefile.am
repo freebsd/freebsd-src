@@ -2,9 +2,10 @@
 
 lib_LIBRARIES=	libarchive.a
 
-# Note: archive.h is built from archive.h.in, so don't
-# include archive.h in the distfile.
 include_HEADERS= archive_entry.h
+# Note: archive.h is built from archive.h.in, so don't
+# include archive.h in the distfile, but do install it.
+nodist_include_HEADERS= archive.h
 
 libarchive_a_SOURCES=					\
 	archive_check_magic.c				\
