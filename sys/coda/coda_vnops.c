@@ -1740,7 +1740,7 @@ coda_reclaim(v)
     cache_purge(vp);
     lockdestroy(&(VTOC(vp)->c_lock));
     coda_free(VTOC(vp));
-    VTOC(vp) = NULL;
+    vp->v_data = NULL;
     return (0);
 }
 
