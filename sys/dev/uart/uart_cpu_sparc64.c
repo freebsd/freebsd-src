@@ -200,7 +200,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	}
 	if (input == -1)
 		return (ENXIO);
-	error = OF_decode_addr(input, &space, &addr);
+	error = OF_decode_addr(input, 0, &space, &addr);
 	if (error)
 		return (error);
 
