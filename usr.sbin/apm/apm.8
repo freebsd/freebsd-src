@@ -47,7 +47,8 @@ If multiple display options are given, the values are displayed one
 per line in the order given here.
 .Bl -tag -width indent
 .It Fl a
-Display the current AC-line status as an integer value.  The values
+Display the current AC-line status as an integer value.
+The values
 0 and 1 correspond to the
 .Dq off-line
 state or
@@ -89,28 +90,35 @@ See
 .Xr apm 4
 for details.
 .It Fl l
-Display the remaining battery percentage.  If your laptop does not
+Display the remaining battery percentage.
+If your laptop does not
 support this function, 255 is displayed.
 .It Fl r Ar delta
-Enable the resume wakeup timer, if the laptop supports it.  This
+Enable the resume wakeup timer, if the laptop supports it.
+This
 doesn't actually suspend the laptop, but if the laptop is suspended,
 and it supports resume from suspend, then it will be resumed after
 .Ar delta
 seconds (from when you run this command, not from when you suspend).
 .It Fl s
-Display the status of the APM support as an integer value.  The values
+Display the status of the APM support as an integer value.
+The values
 0 and 1 correspond to the
 .Dq disabled
 state or
 .Dq enabled
 state respectively.
 .It Fl t
-Display the estimated remaining battery lifetime in seconds.  If
+Display the estimated remaining battery lifetime in seconds.
+If
 it is unknown, -1 is displayed.
 .It Fl Z
-Transition the system into standby mode.  This mode uses less power than
-full power mode, but more than suspend mode.  Some laptops support
-resuming from this state on timer or Ring Indicator events.  The
+Transition the system into standby mode.
+This mode uses less power than
+full power mode, but more than suspend mode.
+Some laptops support
+resuming from this state on timer or Ring Indicator events.
+The
 output of
 .Nm
 tells what your laptop claims to support.
@@ -127,7 +135,8 @@ On such systems,
 displays them as unknown.
 .Pp
 Some APM implementations cannot handle events such as pushing the
-power button or closing the cover.  On such implementations, the system
+power button or closing the cover.
+On such implementations, the system
 .Ar must
 be suspended
 .Ar only

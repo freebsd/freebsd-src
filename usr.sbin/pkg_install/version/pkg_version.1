@@ -53,7 +53,8 @@ installed using the
 command.
 .Pp
 Each package's version number is checked against one of two sources to
-see if that package may require updating.  If the package contains
+see if that package may require updating.
+If the package contains
 information about its origin in the
 .Fx
 ports tree, and a version number can be determined from the port's
@@ -155,7 +156,7 @@ The output consists of one of the single characters
 This flag is mostly useful for scripts or for testing.
 .It Fl T
 Test whether
-.Ar pkgname 
+.Ar pkgname
 is matched by
 .Ar pattern
 and set the exit code accordingly.
@@ -164,16 +165,21 @@ can also be used in `filter mode':
 When one of the arguments is `-', standard input is used, and lines
 with matching package names/patterns are echoed to standard output.
 .It Fl v
-Enable verbose output.  Verbose output includes some English-text
+Enable verbose output.
+Verbose output includes some English-text
 interpretations of the version number comparisons, as well as the
-version numbers compared for each package.  Non-verbose output is
+version numbers compared for each package.
+Non-verbose output is
 probably easier for programs or scripts to parse.
 .It Ar index
-Specify the index to be used as a basis of comparison.  This index can
-be specified as a filename (in the local file system) or a URL.  Any
+Specify the index to be used as a basis of comparison.
+This index can
+be specified as a filename (in the local file system) or a URL.
+Any
 URL understandable by
 .Xr fetch 1
-can be used here.  If no
+can be used here.
+If no
 .Ar index
 file is specified on the command line,
 .Pa /usr/ports/INDEX-5

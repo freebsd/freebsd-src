@@ -38,8 +38,10 @@ The maximum number of host adapter interrupts per second is determined by:
 .Pp
 .Ar "controller CPU clock / (8 * int_throttle)"
 .Pp
-The default value at boot time is 25000.  The host adapter cpu clock is
-25MHz.  This gives a maximum interrupt rate of about 125 interrupts per
+The default value at boot time is 25000.
+The host adapter cpu clock is
+25MHz.
+This gives a maximum interrupt rate of about 125 interrupts per
 second.
 .Pp
 Lowering this value will increase the rate in which the host adapter can
@@ -106,4 +108,5 @@ Specialix International do not support this device driver in any way.
 .Sh AUTHORS
 .An Peter Wemm Aq peter@FreeBSD.org
 .Sh BUGS
-Bound to be many... :-)
+Bound to be many...
+:-)

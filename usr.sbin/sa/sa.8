@@ -69,7 +69,8 @@ If file names are supplied, they are read instead of
 .Pa /var/account/acct .
 After each file is read, if the summary
 files are being updated, an updated summary will
-be saved to disk.  Only one report is printed,
+be saved to disk.
+Only one report is printed,
 after the last file is processed.
 .Pp
 The labels used in the output indicate the following, except
@@ -102,7 +103,8 @@ are:
 .Bl -tag -width Ds
 .It Fl a
 List all command names, including those containing unprintable
-characters and those used only once.  By default,
+characters and those used only once.
+By default,
 .Nm
 places all names containing unprintable characters and
 those used only once under the name ``***other''.
@@ -114,7 +116,8 @@ In addition to the number of calls and the user, system and real times
 for each command, print their percentage of the total over all commands.
 .It Fl d
 If printing command statistics, sort by the average number of disk
-I/O operations.  If printing user statistics, print the average number of
+I/O operations.
+If printing user statistics, print the average number of
 disk I/O operations per user.
 .It Fl D
 If printing command statistics, sort and print by the total number
@@ -129,7 +132,8 @@ Do not read in the summary files.
 Instead of the total minutes per category, give seconds per call.
 .It Fl k
 If printing command statistics, sort by the cpu-time average memory
-usage.  If printing user statistics, print the cpu-time average
+usage.
+If printing user statistics, print the cpu-time average
 memory usage.
 .It Fl K
 If printing command statistics, print and sort by the cpu-storage integral.
@@ -160,20 +164,25 @@ command name.
 For each command used
 .Ar cutoff
 times or fewer, print the command name and await a reply
-from the terminal.  If the reply begins with ``y'', add
-the command to the category ``**junk**''.  This flag is
+from the terminal.
+If the reply begins with ``y'', add
+the command to the category ``**junk**''.
+This flag is
 used to strip garbage from the report.
 .El
 .Pp
-By default, per-command statistics will be printed.  The number of
+By default, per-command statistics will be printed.
+The number of
 calls, the total elapsed time in minutes, total cpu and user time
 in minutes, average number of I/O operations, and CPU-time
-averaged core usage will be printed.  If the
+averaged core usage will be printed.
+If the
 .Fl m
 option is specified, per-user statistics will be printed, including
 the user name, the number of commands invoked, total cpu time used
 (in minutes), total number of I/O operations, and CPU storage integral
-for each user.  If the
+for each user.
+If the
 .Fl u
 option is specified, the uid, user and system time (in seconds),
 CPU storage integral, I/O usage, and command name will be printed
@@ -183,7 +192,8 @@ If the
 .Fl u
 flag is specified, all flags other than
 .Fl q
-are ignored.  If the
+are ignored.
+If the
 .Fl m
 flag is specified, only the
 .Fl b ,
@@ -221,7 +231,8 @@ The VM system does not record the CPU storage integral.
 While the behavior of the options in this version of
 .Nm
 was modeled after the original version, there are some intentional
-differences and undoubtedly some unintentional ones as well.  In
+differences and undoubtedly some unintentional ones as well.
+In
 particular, the
 .Fl q
 option has been added, and the

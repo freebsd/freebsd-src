@@ -47,11 +47,14 @@ function
 is a simplified version of the
 .Xr termcap 5
 data base
-used to describe line printers.  The spooling system accesses the
+used to describe line printers.
+The spooling system accesses the
 .Nm
 file every time it is used, allowing dynamic
-addition and deletion of printers.  Each entry in the data base
-is used to describe one printer.  This data base may not be
+addition and deletion of printers.
+Each entry in the data base
+is used to describe one printer.
+This data base may not be
 substituted for, as is possible for
 .Xr termcap 5 ,
 because it may allow accounting to be bypassed.
@@ -60,7 +63,8 @@ The default printer is normally
 .Em lp ,
 though the environment variable
 .Ev PRINTER
-may be used to override this.  Each spooling utility supports an option,
+may be used to override this.
+Each spooling utility supports an option,
 .Fl P Ar printer ,
 to allow explicit naming of a destination printer.
 .Pp
@@ -309,9 +313,12 @@ or
 .Cm of .
 If both are specified,
 .Cm of
-is ignored.  Both filters behave the same except that they are passed
-different arguments as above.  Specifically, the output filter is
-terminated and restarted for each file transmitted.  This is necessary
+is ignored.
+Both filters behave the same except that they are passed
+different arguments as above.
+Specifically, the output filter is
+terminated and restarted for each file transmitted.
+This is necessary
 in order to pass the resulting size to the remote
 .Xr lpd 8 .
 .Pp
@@ -362,13 +369,16 @@ on the given
 .Sh TRANSFER STATISTICS
 When a print job is transfered to a remote machine (which might be
 another unix box, or may be a network printer), it may be useful
-to keep statistics on each transfer.  The
+to keep statistics on each transfer.
+The
 .Cm sr
 and
 .Cm ss
 options indicate filenames that lpd should use to store such
-statistics.  A statistics line is written for each datafile of a
-job as the file is successfully transferred.  The format of the
+statistics.
+A statistics line is written for each datafile of a
+job as the file is successfully transferred.
+The format of the
 line is the same for both the sending and receiving side of a
 transfer.
 .Pp
@@ -381,7 +391,8 @@ print job as it arrived on the server.
 Statistics on datafiles being sent might be used as a minimal
 accounting record, when you want to know who sent which jobs to a
 remote printer, when they were sent, and how large (in bytes) the
-files were.  This will not give include any idea of how many pages
+files were.
+This will not give include any idea of how many pages
 were printed, because there is no standard way to get that information
 back from a remote (network) printer in this case.
 .Sh LOGGING

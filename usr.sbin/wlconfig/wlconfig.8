@@ -14,11 +14,13 @@
 The
 .Nm
 utility can be used to read and set parameters for the NCR/AT&T Wavelan
-radio LAN card.  Various parameters stored in the non-volatile Parameter
+radio LAN card.
+Various parameters stored in the non-volatile Parameter
 Storage Area (PSA) on the card can be modified with this program, replacing
 the DOS-based
 .Nm instconf.exe
-program.  It can also be used to interrogate the optional signal
+program.
+It can also be used to interrogate the optional signal
 strength cache which may have been compiled into the driver.
 .Pp
 The
@@ -58,7 +60,8 @@ Packets with a different NWID are simply ignored by the modem.
 In the hardware, NWIDs are stored long-term in non-volatile memory
 (called the PSA or programmable storage area), and are loaded by
 software into the radio modem when the driver is
-initialized.  This sets the default NWID loaded at startup.
+initialized.
+This sets the default NWID loaded at startup.
 .It currnwid
 This sets the current operating NWID (but does not save it to the
 PSA).
@@ -68,7 +71,8 @@ silence, and quality levels, which are indexed by sender MAC addresses.
 Input packets are stored in the cache, and when received, the values
 stored in the radio modem are interrogated and stored.
 There are also two sysctl values (iponly and multicast only) which
-can be used for filtering out some input packets.  By default, the
+can be used for filtering out some input packets.
+By default, the
 cache mechanism stores only non-unicast IP packets, but this can
 be changed with
 .Xr sysctl 8 .
@@ -86,7 +90,8 @@ which clears out the cache in case you want to store new samples.
 .El
 .Pp
 Note that if the IRQ on the Wavelan card is incorrect, the interface
-will be configured, but will not function.  The
+will be configured, but will not function.
+The
 .Nm
 utility should then be used to reconfigure the card to a sensible
 value.

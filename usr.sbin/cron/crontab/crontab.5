@@ -30,19 +30,23 @@ file contains instructions to the
 .Xr cron 8
 daemon of the general form: ``run this command at this time on this date''.
 Each user has their own crontab, and commands in any given crontab will be
-executed as the user who owns the crontab.  Uucp and News will usually have
+executed as the user who owns the crontab.
+Uucp and News will usually have
 their own crontabs, eliminating the need for explicitly running
 .Xr su 1
 as part of a cron command.
 .Pp
-Blank lines and leading spaces and tabs are ignored.  Lines whose first
+Blank lines and leading spaces and tabs are ignored.
+Lines whose first
 non-space character is a pound-sign (#) are comments, and are ignored.
 Note that comments are not allowed on the same line as cron commands, since
-they will be taken to be part of the command.  Similarly, comments are not
+they will be taken to be part of the command.
+Similarly, comments are not
 allowed on the same line as environment variable settings.
 .Pp
 An active line in a crontab will be either an environment setting or a cron
-command.  An environment setting is of the form,
+command.
+An environment setting is of the form,
 .Bd -literal
     name = value
 .Ed
@@ -102,7 +106,8 @@ and
 will look at
 .Ev MAILTO
 if it has any reason to send mail as a result of running
-commands in ``this'' crontab.  If
+commands in ``this'' crontab.
+If
 .Ev MAILTO
 is defined (and non-empty), mail is
 sent to the user so named.
@@ -112,7 +117,9 @@ by seperating recipient users with a comma.
 If
 .Ev MAILTO
 is defined but empty (MAILTO=""), no
-mail will be sent.  Otherwise mail is sent to the owner of the crontab.  This
+mail will be sent.
+Otherwise mail is sent to the owner of the crontab.
+This
 option is useful if you decide on
 .Pa /bin/mail
 instead of
@@ -124,11 +131,13 @@ doesn't do aliasing, and UUCP
 usually doesn't read its mail.
 .Pp
 The format of a cron command is very much the V7 standard, with a number of
-upward-compatible extensions.  Each line has five time and date fields,
+upward-compatible extensions.
+Each line has five time and date fields,
 followed by a user name
 (with optional ``:<group>'' and ``/<login-class>'' suffixes)
 if this is the system crontab file,
-followed by a command.  Commands are executed by
+followed by a command.
+Commands are executed by
 .Xr cron 8
 when the minute, hour, and month of year fields match the current time,
 .Em and
@@ -149,25 +158,35 @@ day of week   0-7 (0 or 7 is Sun, or use names)
 .Pp
 A field may be an asterisk (*), which always stands for ``first\-last''.
 .Pp
-Ranges of numbers are allowed.  Ranges are two numbers separated
-with a hyphen.  The specified range is inclusive.  For example,
+Ranges of numbers are allowed.
+Ranges are two numbers separated
+with a hyphen.
+The specified range is inclusive.
+For example,
 8-11 for an ``hours'' entry specifies execution at hours 8, 9, 10
 and 11.
 .Pp
-Lists are allowed.  A list is a set of numbers (or ranges)
-separated by commas.  Examples: ``1,2,5,9'', ``0-4,8-12''.
+Lists are allowed.
+A list is a set of numbers (or ranges)
+separated by commas.
+Examples: ``1,2,5,9'', ``0-4,8-12''.
 .Pp
-Step values can be used in conjunction with ranges.  Following
+Step values can be used in conjunction with ranges.
+Following
 a range with ``/<number>'' specifies skips of the number's value
-through the range.  For example, ``0-23/2'' can be used in the hours
+through the range.
+For example, ``0-23/2'' can be used in the hours
 field to specify command execution every other hour (the alternative
-in the V7 standard is ``0,2,4,6,8,10,12,14,16,18,20,22'').  Steps are
+in the V7 standard is ``0,2,4,6,8,10,12,14,16,18,20,22'').
+Steps are
 also permitted after an asterisk, so if you want to say ``every two
 hours'', just use ``*/2''.
 .Pp
 Names can also be used for the ``month'' and ``day of week''
-fields.  Use the first three letters of the particular
-day or month (case doesn't matter).  Ranges or
+fields.
+Use the first three letters of the particular
+day or month (case doesn't matter).
+Ranges or
 lists of names are not allowed.
 .Pp
 The ``sixth'' field (the rest of the line) specifies the command to be
@@ -185,10 +204,12 @@ after the first % will be sent to the command as standard
 input.
 .Pp
 Note: The day of a command's execution can be specified by two
-fields \(em day of month, and day of week.  If both fields are
+fields \(em day of month, and day of week.
+If both fields are
 restricted (ie, aren't *), the command will be run when
 .Em either
-field matches the current time.  For example,
+field matches the current time.
+For example,
 ``30 4 1,15 * 5''
 would cause a command to be run at 4:30 am on the 1st and 15th of each
 month, plus every Friday.
@@ -234,7 +255,8 @@ and
 .Tn ATT
 seem to disagree about this.
 .Pp
-Lists and ranges are allowed to co-exist in the same field.  "1-3,7-9" would
+Lists and ranges are allowed to co-exist in the same field.
+"1-3,7-9" would
 be rejected by
 .Tn ATT
 or
@@ -245,7 +267,8 @@ Ranges can include "steps", so "1-9/2" is the same as "1,3,5,7,9".
 .Pp
 Names of months or days of the week can be specified by name.
 .Pp
-Environment variables can be set in the crontab.  In
+Environment variables can be set in the crontab.
+In
 .Bx
 or
 .Tn ATT ,
@@ -269,11 +292,13 @@ are extensions.
 .Sh BUGS
 If you're in one of the 70-odd countries that observe Daylight
 Savings Time, jobs scheduled during the rollback or advance will be
-affected.  In general, it's not a good idea to schedule jobs during
+affected.
+In general, it's not a good idea to schedule jobs during
 this period.
 .Pp
 For US timezones (except parts of IN, AZ, and HI) the time shift occurs at
-2AM local time.  For others, the output of the
+2AM local time.
+For others, the output of the
 .Xr zdump 8
 program's verbose
 .Fl ( v )

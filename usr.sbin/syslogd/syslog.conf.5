@@ -70,13 +70,13 @@ Note that if you use spaces as separators, your
 .Nm
 might be incompatible with other Unices or Unix-like systems.
 This functionality was added for ease of configuration
-(e.g. it is possible to cut-and-paste into
+(e.g.\& it is possible to cut-and-paste into
 .Nm ) ,
 and to avoid possible mistakes.
 This change however preserves
 backwards compatibility with the old style of
 .Nm
-(i.e. tab characters only).
+(i.e., tab characters only).
 .Pp
 The
 .Em selectors
@@ -352,10 +352,12 @@ Selected messages are written to all logged-in users.
 A vertical bar
 .Pq Dq \&| ,
 followed by a command to pipe the selected
-messages to.  The command is passed to
+messages to.
+The command is passed to
 .Xr sh 1
 for evaluation, so usual shell metacharacters or input/output
-redirection can occur.  (Note however that redirecting
+redirection can occur.
+(Note however that redirecting
 .Xr stdio 3
 buffered output from the invoked command can cause additional delays,
 or even lost output data in case a logging subprocess exited with a
@@ -368,23 +370,28 @@ redirected to
 Upon receipt of a
 .Dv SIGHUP ,
 .Xr syslogd 8
-will close the pipe to the process.  If the process didn't exit
+will close the pipe to the process.
+If the process didn't exit
 voluntarily, it will be sent a
 .Dv SIGTERM
 signal after a grace period of up to 60 seconds.
 .Pp
 The command will only be started once data arrives that should be piped
-to it.  If it exited later, it will be restarted as necessary.  So if it
+to it.
+If it exited later, it will be restarted as necessary.
+So if it
 is desired that the subprocess should get exactly one line of input only
 (which can be very resource-consuming if there are a lot of messages
 flowing quickly), this can be achieved by exiting after just one line of
-input.  If necessary, a script wrapper can be written to this effect.
+input.
+If necessary, a script wrapper can be written to this effect.
 .Pp
 Unless the command is a full pipeline, it's probably useful to
 start the command with
 .Em exec
 so that the invoking shell process does not wait for the command to
-complete.  Warning: the process is started under the UID invoking
+complete.
+Warning: the process is started under the UID invoking
 .Xr syslogd 8 ,
 normally the superuser.
 .El
@@ -477,9 +484,11 @@ or higher, not at the level of
 or higher.
 .Pp
 In networked environments, note that not all operating systems
-implement the same set of facilities.  The facilities
+implement the same set of facilities.
+The facilities
 authpriv, cron, ftp, and ntp that are known to this implementation
-might be absent on the target system.  Even worse, DEC UNIX uses
+might be absent on the target system.
+Even worse, DEC UNIX uses
 facility number 10 (which is authpriv in this implementation) to
 log events for their AdvFS file system.
 .Sh SEE ALSO

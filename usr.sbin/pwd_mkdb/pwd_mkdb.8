@@ -74,8 +74,10 @@ change, add, or remove any files.
 .It Fl N
 Tell
 .Nm
-to exit with an error if it cannot obtain a lock on the file.  By default,
-we block waiting for a lock on the source file.  The lock is held through
+to exit with an error if it cannot obtain a lock on the file.
+By default,
+we block waiting for a lock on the source file.
+The lock is held through
 the rebuilding of the database.
 .It Fl p
 Create a Version 7 style password file and install it into
@@ -84,17 +86,20 @@ Create a Version 7 style password file and install it into
 Store databases into specified destination directory instead of
 .Pa /etc .
 .It Fl u Ar username
-Only update the record for the specified user.  Utilities that
+Only update the record for the specified user.
+Utilities that
 operate on a single user can use this option to avoid the
 overhead of rebuilding the entire database.
 .It Fl s Ar cachesize
 Specify in megabytes the size of the memory cache used by the
-hashing library.  On systems with a large user base, a small cache
+hashing library.
+On systems with a large user base, a small cache
 size can lead to prohibitively long database file rebuild times.
 As a rough guide, the memory usage of
 .Nm
 in megabytes will be a little bit more than twice the figure
-specified here.  The default is 2 megabytes.
+specified here.
+The default is 2 megabytes.
 .El
 .Pp
 The two databases differ in that the secure version contains the user's

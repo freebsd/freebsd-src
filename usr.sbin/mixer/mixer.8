@@ -68,7 +68,8 @@ The
 .Nm
 utility is used to set and display soundcard mixer device levels.
 It may
-also be used to start and stop recording from the soundcard.  The list
+also be used to start and stop recording from the soundcard.
+The list
 of mixer devices that may be modified are:
 .Pp
 .Bd -ragged -offset indent
@@ -93,11 +94,13 @@ To modify the mixer value
 .Ar dev ,
 the optional left and right channel settings of
 .Ar lvol Ns Op : Ns Ar rvol
-may be specified.  The
+may be specified.
+The
 .Ar lvol
 and
 .Ar rvol
-arguments may be from 0 - 100.  Omitting
+arguments may be from 0 - 100.
+Omitting
 .Ar dev
 and including only the channel settings will change the main volume level.
 .Pp
@@ -134,7 +137,8 @@ sets the recording device to
 .Ar rdev
 .El
 .Pp
-The above commands work on an internal mask.  After all the options
+The above commands work on an internal mask.
+After all the options
 have been parsed, it will set then read the mask from the sound card.
 This will let you see EXACTLY what the soundcard is using for the
 recording device(s).

@@ -77,7 +77,8 @@ The options are as follows:
 Follow all symbolic links in the file hierarchy.
 .It Fl P
 Don't follow symbolic links in the file hierarchy, instead consider
-the symbolic link itself in any comparisons. This is the default.
+the symbolic link itself in any comparisons.
+This is the default.
 .It Fl U
 Modify the owner, group, permissions, and modification time of existing
 files to match the specification and create any missing directories or
@@ -101,13 +102,15 @@ This does not affect either the /set statements or the comment before each
 directory.
 It does however affect the comment before the close of each directory.
 .It Fl n
-Do not emit pathname comments when creating a specification.  Normally
+Do not emit pathname comments when creating a specification.
+Normally
 a comment is emitted before each directory and before the close of that
 directory when using the
 .Fl c
 option.
 .It Fl q
-Quiet mode.  Do not complain when a
+Quiet mode.
+Do not complain when a
 .Dq missing
 directory cannot be created because it already exists.
 This occurs when the directory is a symbolic link.
@@ -164,13 +167,14 @@ If the pattern contains a
 .Ql \&/
 character, it will be matched against entire pathnames (relative to
 the starting directory); otherwise,
-it will be matched against basenames only.  No comments are allowed in
+it will be matched against basenames only.
+No comments are allowed in
 the
 .Ar exclude-list
 file.
 .El
 .Pp
-Specifications are mostly composed of ``keywords'', i.e. strings
+Specifications are mostly composed of ``keywords'', i.e., strings
 that specify values relating to files.
 No keywords have default values, and if a keyword has no value set, no
 checks based on it are performed.
@@ -183,9 +187,11 @@ the
 .Xr cksum 1
 utility.
 .It Cm flags
-The file flags as a symbolic name.  See
+The file flags as a symbolic name.
+See
 .Xr chflags 1
-for information on these names.  If no flags are to be set the string
+for information on these names.
+If no flags are to be set the string
 .Dq none
 may be used to override the current default.
 .It Cm ignore
