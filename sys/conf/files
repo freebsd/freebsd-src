@@ -830,6 +830,7 @@ dev/usb/ehci_pci.c		optional ehci pci
 dev/usb/hid.c			optional usb
 dev/usb/if_aue.c		optional aue
 dev/usb/if_axe.c		optional axe
+dev/usb/if_cdce.c		optional cdce
 dev/usb/if_cue.c		optional cue
 dev/usb/if_kue.c		optional kue
 dev/usb/if_rue.c		optional rue
