@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.1 1995/01/20 07:48:25 wpaul Exp $
+ *	$Id: probe_keyboard.c,v 1.2 1995/02/15 04:17:59 rich Exp $
  */
 
 #include <machine/console.h>
@@ -65,6 +65,12 @@ probe_keyboard(void)
 	int i, retries = 5;
 	unsigned char val;
 
+	/* flush any noise in the buffer */
+	while (inb(KB_STAT) & KB_BUF_FULL) {
+		delay1ms();
+		(void) inb(KB_DATA);
+	}
+
 	/* Try to reset keyboard hardware */
 	while (retries--) {
 		outb(KB_DATA, KB_RESET);
@@ -72,11 +78,25 @@ probe_keyboard(void)
 			delay1ms();
 			val = inb(KB_DATA);
 			if (val == KB_ACK || val == KB_ECHO)
-				return(0);	
+				goto gotres;
 			if (val == KB_RESEND)
-				return (1);
+				break;
 		}
 	}
+gotres:
+	if (!retries)
+		return(1);
+	else {
+gotack:
+	delay1ms();
+	while ((inb(KB_STAT) & KB_BUF_FULL) == 0) delay1ms();
+	delay1ms();
+	val = inb(KB_DATA);
+	if (val == KB_ACK)
+		goto gotack;
+	if (val != KB_RESET_DONE) 
+		return(1);
+	}
 
-	return (0);
+	return(0);
 }
