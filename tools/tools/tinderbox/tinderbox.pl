@@ -50,6 +50,8 @@ my $sandbox;			# Location of sandbox
 my $update;			# Update sources before building
 my $verbose;			# Verbose mode
 
+my %userenv;
+
 my %cmds = (
     'world'	=> 0,
     'generic'	=> 0,
@@ -282,7 +284,7 @@ MAIN:{
 	"r|repository=s"	=> \$repository,
 	"s|sandbox=s"		=> \$sandbox,
 	"u|update"		=> \$update,
-	"v|verbose"		=> \$verbose,
+	"v|verbose+"		=> \$verbose,
 	) or usage();
 
     if ($jobs < 0) {
@@ -310,6 +312,10 @@ MAIN:{
 
     # Find out what we're expected to do
     foreach my $cmd (@ARGV) {
+	if ($cmd =~ m/^([0-9A-Z_]+)=(.*)\s*$/) {
+	    $userenv{$1} = $2;
+	    next;
+	}
 	if (!exists($cmds{$cmd})) {
 	    error("unrecognized command: '$cmd'");
 	}
@@ -394,16 +400,24 @@ MAIN:{
 
 	'TARGET'		=> $machine,
 	'TARGET_ARCH'		=> $arch,
-	'TARGET_MACHINE'	=> $machine,
 
 	'CFLAGS'		=> "-O -pipe",
 	'NO_CPU_CFLAGS'		=> "YES",
 	'COPTFLAGS'		=> "-O -pipe",
 	'NO_CPU_COPTFLAGS'	=> "YES",
-
-	'MAKE_KERBEROS5'	=> "YES",
-	'BOOT2_UFS'		=> "UFS1_ONLY",
     );
+    foreach my $key (keys(%userenv)) {
+	if (exists($ENV{$key})) {
+	    warning("will not allow override of $key");
+	} else {
+	    $ENV{$key} = $userenv{$key};
+	}
+    }
+    if ($verbose > 1) {
+	foreach my $key (sort(keys(%ENV))) {
+	    message("$key=$ENV{$key}\n");
+	}
+    }
 
     # Build the world
     if ($cmds{'world'}) {
