@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.11 1998/10/09 07:11:19 msmith Exp $
+ *	$Id: bootinfo.c,v 1.12 1998/10/09 23:24:55 peter Exp $
  */
 
 #include <stand.h>
@@ -166,7 +166,7 @@ bi_copyenv(vm_offset_t addr)
     COPY32(t, a);				\
     COPY32(strlen(s) + 1, a);			\
     i386_copyin(s, a, strlen(s) + 1);		\
-    a += roundup(strlen(s) + 1, sizeof(u_int32_t));\
+    a += roundup(strlen(s) + 1, sizeof(u_long));\
 }
 
 #define MOD_NAME(a, s)	MOD_STR(MODINFO_NAME, a, s)
@@ -176,7 +176,7 @@ bi_copyenv(vm_offset_t addr)
     COPY32(t, a);				\
     COPY32(sizeof(s), a);			\
     i386_copyin(&s, a, sizeof(s));		\
-    a += roundup(sizeof(s), sizeof(u_int32_t));	\
+    a += roundup(sizeof(s), sizeof(u_long));	\
 }
 
 #define MOD_ADDR(a, s)	MOD_VAR(MODINFO_ADDR, a, s)
@@ -186,7 +186,7 @@ bi_copyenv(vm_offset_t addr)
     COPY32(MODINFO_METADATA | mm->md_type, a);	\
     COPY32(mm->md_size, a);			\
     i386_copyin(mm->md_data, a, mm->md_size);	\
-    a += roundup(mm->md_size, sizeof(u_int32_t));\
+    a += roundup(mm->md_size, sizeof(u_long));\
 }
 
 #define MOD_END(a) {				\
