@@ -480,14 +480,12 @@ This means that unsetting
 may not put back all the setting that were previously in effect.
 To set the terminal into a raw state and then accurately restore it, the following
 shell code is recommended:
-.nf
-
+.Bd -literal
 save_state=$(stty -g)
 stty raw
 \&...
 stty "$save_state"
-
-.fi
+.Ed
 .It Cm size
 The size of the terminal is printed as two numbers on a single line,
 first rows, then columns.

@@ -163,22 +163,23 @@ between this version and System V
 is that this version treats any white space
 as a delimiter, so that spaces in pattern strings must be escaped.
 For example,
-.br
->10	string	language impress\ 	(imPRESS data)
-.br
+.Bd -literal -compact
+>10	string	language impress	(imPRESS data)
+.Ed
 in an existing magic file would have to be changed to
-.br
+.Bd -literal -compact
 >10	string	language\e impress	(imPRESS data)
-.br
+.Ed
+.Pp
 In addition, in this version, if a pattern string contains a backslash,
 it must be escaped.  For example
-.br
+.Bd -literal -compact
 0	string		\ebegindata	Andrew Toolkit document
-.br
+.Ed
 in an existing magic file would have to be changed to
-.br
+.Bd -literal -compact
 0	string		\e\ebegindata	Andrew Toolkit document
-.br
+.Ed
 .Pp
 SunOS releases 3.2 and later from Sun Microsystems include a
 .Xr file 1
@@ -186,8 +187,9 @@ command derived from the System V one, but with some extensions.
 My version differs from Sun's only in minor ways.
 It includes the extension of the `&' operator, used as,
 for example,
-.br
+.Bd -literal -compact
 >16	long&0x7fffffff	>0		not stripped
+.Ed
 .Sh MAGIC DIRECTORY
 The magic file entries have been collected from various sources,
 mainly USENET, and contributed by various authors.

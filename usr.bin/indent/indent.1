@@ -143,7 +143,6 @@ turns off this option.  Default:
 Specifying
 .Fl \&bl
 lines-up compound statements like this:
-.ne 4
 .Bd -literal -offset indent
 if (...)
 {
@@ -154,7 +153,6 @@ if (...)
 Specifying
 .Fl \&br
 (the default) makes them look like this:
-.ne 3
 .Bd -literal -offset indent
 if (...) {
   code
@@ -170,7 +168,6 @@ is for these comments to start in the same column as those on code.
 Enables (disables) the placement of comment delimiters on blank lines.  With
 this option enabled, comments look like this:
 .Bd -literal -offset indent
-.ne 3
 	/*
 	 * this is a comment
 	 */
@@ -263,13 +260,11 @@ will be lined up to start at the character position just after the left
 paren.  For example, here is how a piece of continued code looks with
 .Fl nlp
 in effect:
-.ne 2
 .Bd -literal -offset indent
 p1 = first_procedure(second_procedure(p2, p3),
 \ \ third_procedure(p4, p5));
 .Ed
 .Pp
-.ne 5
 With
 .Fl lp
 in effect (the default) the code looks somewhat clearer:
@@ -278,7 +273,6 @@ p1\ =\ first_procedure(second_procedure(p2,\ p3),
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ third_procedure(p4,\ p5));
 .Ed
 .Pp
-.ne 5
 Inserting two more newlines we get:
 .Bd -literal -offset indent
 p1\ =\ first_procedure(second_procedure(p2,
@@ -444,7 +438,6 @@ command appeared in
 has even more switches than
 .Xr ls 1 .
 .Pp
-.ne 5
 A common mistake that often causes grief is typing:
 .Pp
 .Dl indent *.c

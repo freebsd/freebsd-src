@@ -6,7 +6,7 @@
 .Os
 .Sh NAME
 .Nm key
-.Nd stand\-alone program for computing responses to S/Key challenges
+.Nd stand-alone program for computing responses to S/Key challenges
 .Sh SYNOPSIS
 .Nm
 .Op Fl n Ar count
@@ -21,18 +21,15 @@ it prompts for the user's secret password, and produces both word
 and hex format responses.
 .Sh EXAMPLE
 Usage example:
-.sp 0
- 	>key \-n 5 99 th91334
-.sp 0
- 	Enter password: <your secret password is entered here>
-.sp 0
- 	OMEN US HORN OMIT BACK AHOY
-.sp 0
-	.... 4 more passwords.
-.sp 0
- 	>
+.Bd -literal -offset indent -compact
+>key -n 5 99 th91334
+Enter password: <your secret password is entered here>
+OMEN US HORN OMIT BACK AHOY
+\&.... 4 more passwords.
+>
+.Ed
 .Sh OPTIONS
-.Bl -tag -width indent
+.Bl -tag -width Fl
 .It Fl n Ar count
 The number of one time access passwords to print.
 The default is one.

@@ -128,7 +128,7 @@ Used to end a mapping.  All are equivalent.
 Used as a delimiter in mappings.
 .El
 .El
-.sp
+.Pp
 Key words which should only appear once are:
 .Bl -tag -width PHONOGRAM
 .It Dv ENCODING
@@ -165,11 +165,10 @@ A single
 .Dv RUNE
 follows and is used as the invalid rune for this locale.
 .El
-.sp
+.Pp
 The following keywords may appear multiple times and have the following
 format for data:
-.in +.5i
-.Bl -tag -width "<RUNE1 THRU RUNEn : RUNE2>"
+.Bl -tag -width "<RUNE1 THRU RUNEn : RUNE2>" -offset indent
 .It Dv <RUNE1 RUNE2>
 .Dv RUNE1
 is mapped to
@@ -185,7 +184,6 @@ through
 .Dv RUNE2
 + n-1.
 .El
-.in -.5i
 .Bl -tag -width PHONOGRAM
 .It Dv MAPLOWER
 Defines the tolower mappings.
@@ -210,11 +208,10 @@ Only values up to
 .Nm 255
 are allowed.
 .El
-.sp
+.Pp
 The following keywords may appear multiple times and have the following
 format for data:
-.in +.5i
-.Bl -tag -width "RUNE1 THRU RUNEn"
+.Bl -tag -width "RUNE1 THRU RUNEn" -offset indent
 .It Dv RUNE
 This rune has the property defined by the keyword.
 .It Dv "RUNE1 THRU RUNEn"
@@ -224,7 +221,6 @@ and
 .Dv RUNEn
 have the property defined by the keyword.
 .El
-.in -.5i
 .Bl -tag -width PHONOGRAM
 .It Dv ALPHA
 Defines runes which are alphabetic, printable and graphic.

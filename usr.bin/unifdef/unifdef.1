@@ -148,11 +148,14 @@ as of the 4.1 Berkeley Software Distribution.
 .Sh SEE ALSO
 .Xr diff 1
 .Sh DIAGNOSTICS
+.Bl -item -compact
+.It
 Inappropriate else or endif.
-.br
+.It
 Premature
 .Tn EOF
 with line numbers of the unterminated #ifdefs.
+.El
 .Pp
 Exit status is 0 if output is exact copy of input, 1 if not, 2 if trouble.
 .Sh BUGS

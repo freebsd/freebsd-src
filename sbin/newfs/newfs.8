@@ -179,7 +179,6 @@ with read/write-behind achieve higher performance with this feature disabled, so
 this value should be left at the default value of 0 milliseconds.  See
 .Xr tunefs 8
 for more details on how to set this option.
-.ne 1i
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
@@ -291,7 +290,6 @@ bad sector allocation.
 .It Fl r Ar revolutions/minute
 The speed of the disk in revolutions per minute.  This value is no longer of
 interest, since all the parameters which depend on it are usually disabled.
-.ne 1i
 .It Fl t Ar #tracks/cylinder
 The number of tracks/cylinder available for data allocation by the file
 system.
