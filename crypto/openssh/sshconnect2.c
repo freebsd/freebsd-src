@@ -28,7 +28,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.10 2000/05/08 17:42:25 markus Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.11 2000/05/25 20:45:20 markus Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
@@ -68,16 +68,12 @@ unsigned char *session_id2 = NULL;
 int session_id2_len = 0;
 
 void
-ssh_kex2(char *host, struct sockaddr *hostaddr)
+ssh_kex_dh(Kex *kex, char *host, struct sockaddr *hostaddr,
+    Buffer *client_kexinit, Buffer *server_kexinit)
 {
-	Kex *kex;
-	char *cprop[PROPOSAL_MAX];
-	char *sprop[PROPOSAL_MAX];
-	Buffer *client_kexinit;
-	Buffer *server_kexinit;
-	int payload_len, dlen;
+	int i;
+	int plen, dlen;
 	unsigned int klen, kout;
-	char *ptr;
 	char *signature = NULL;
 	unsigned int slen;
 	char *server_host_key_blob = NULL;
@@ -86,72 +82,10 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	DH *dh;
 	BIGNUM *dh_server_pub = 0;
 	BIGNUM *shared_secret = 0;
-	int i;
 	unsigned char *kbuf;
 	unsigned char *hash;
 
-/* KEXINIT */
-
-	debug("Sending KEX init.");
-	if (options.ciphers != NULL) {
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
-	} else if (options.cipher == SSH_CIPHER_3DES) {
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] =
-		    cipher_name(SSH_CIPHER_3DES_CBC);
-	} else if (options.cipher == SSH_CIPHER_BLOWFISH) {
-		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
-		myproposal[PROPOSAL_ENC_ALGS_STOC] =
-		    cipher_name(SSH_CIPHER_BLOWFISH_CBC);
-	}
-	if (options.compression) {
-		myproposal[PROPOSAL_COMP_ALGS_CTOS] = "zlib";
-		myproposal[PROPOSAL_COMP_ALGS_STOC] = "zlib";
-	} else {
-		myproposal[PROPOSAL_COMP_ALGS_CTOS] = "none";
-		myproposal[PROPOSAL_COMP_ALGS_STOC] = "none";
-	}
-	for (i = 0; i < PROPOSAL_MAX; i++)
-		cprop[i] = xstrdup(myproposal[i]);
-
-	client_kexinit = kex_init(cprop);
-	packet_start(SSH2_MSG_KEXINIT);
-	packet_put_raw(buffer_ptr(client_kexinit), buffer_len(client_kexinit));	
-	packet_send();
-	packet_write_wait();
-
-	debug("done");
-
-	packet_read_expect(&payload_len, SSH2_MSG_KEXINIT);
-
-	/* save payload for session_id */
-	server_kexinit = xmalloc(sizeof(*server_kexinit));
-	buffer_init(server_kexinit);
-	ptr = packet_get_raw(&payload_len);
-	buffer_append(server_kexinit, ptr, payload_len);
-
-	/* skip cookie */
-	for (i = 0; i < 16; i++)
-		(void) packet_get_char();
-	/* kex init proposal strings */
-	for (i = 0; i < PROPOSAL_MAX; i++) {
-		sprop[i] = packet_get_string(NULL);
-		debug("got kexinit string: %s", sprop[i]);
-	}
-	i = (int) packet_get_char();
-	debug("first kex follow == %d", i);
-	i = packet_get_int();
-	debug("reserved == %d", i);
-	packet_done();
-
-	debug("done read kexinit");
-	kex = kex_choose_conf(cprop, sprop, 0);
-
-/* KEXDH */
-
 	debug("Sending SSH2_MSG_KEXDH_INIT.");
-
 	/* generate and send 'e', client DH public key */
 	dh = dh_new_group1();
 	packet_start(SSH2_MSG_KEXDH_INIT);
@@ -172,7 +106,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 
 	debug("Wait SSH2_MSG_KEXDH_REPLY.");
 
-	packet_read_expect(&payload_len, SSH2_MSG_KEXDH_REPLY);
+	packet_read_expect(&plen, SSH2_MSG_KEXDH_REPLY);
 
 	debug("Got SSH2_MSG_KEXDH_REPLY.");
 
@@ -233,10 +167,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	    shared_secret
 	);
 	xfree(server_host_key_blob);
-	buffer_free(client_kexinit);
-	buffer_free(server_kexinit);
-	xfree(client_kexinit);
-	xfree(server_kexinit);
+	DH_free(dh);
 #ifdef DEBUG_KEXDH
 	fprintf(stderr, "hash == ");
 	for (i = 0; i< 20; i++)
@@ -250,16 +181,61 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 	kex_derive_keys(kex, hash, shared_secret);
 	packet_set_kex(kex);
 
-	/* have keys, free DH */
-	DH_free(dh);
-
 	/* save session id */
 	session_id2_len = 20;
 	session_id2 = xmalloc(session_id2_len);
 	memcpy(session_id2, hash, session_id2_len);
+}
+
+void
+ssh_kex2(char *host, struct sockaddr *hostaddr)
+{
+	int i, plen;
+	Kex *kex;
+	Buffer *client_kexinit, *server_kexinit;
+	char *sprop[PROPOSAL_MAX];
+
+	if (options.ciphers != NULL) {
+		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
+		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
+	} else if (options.cipher == SSH_CIPHER_3DES) {
+		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
+		myproposal[PROPOSAL_ENC_ALGS_STOC] =
+		    (char *) cipher_name(SSH_CIPHER_3DES_CBC);
+	} else if (options.cipher == SSH_CIPHER_BLOWFISH) {
+		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
+		myproposal[PROPOSAL_ENC_ALGS_STOC] =
+		    (char *) cipher_name(SSH_CIPHER_BLOWFISH_CBC);
+	}
+	if (options.compression) {
+		myproposal[PROPOSAL_COMP_ALGS_CTOS] = "zlib";
+		myproposal[PROPOSAL_COMP_ALGS_STOC] = "zlib";
+	} else {
+		myproposal[PROPOSAL_COMP_ALGS_CTOS] = "none";
+		myproposal[PROPOSAL_COMP_ALGS_STOC] = "none";
+	}
+
+	/* buffers with raw kexinit messages */
+	server_kexinit = xmalloc(sizeof(*server_kexinit));
+	buffer_init(server_kexinit);
+	client_kexinit = kex_init(myproposal);
+
+	/* algorithm negotiation */
+	kex_exchange_kexinit(client_kexinit, server_kexinit, sprop);
+	kex = kex_choose_conf(myproposal, sprop, 0);
+	for (i = 0; i < PROPOSAL_MAX; i++)
+		xfree(sprop[i]);
+
+	/* server authentication and session key agreement */
+	ssh_kex_dh(kex, host, hostaddr, client_kexinit, server_kexinit);
+
+	buffer_free(client_kexinit);
+	buffer_free(server_kexinit);
+	xfree(client_kexinit);
+	xfree(server_kexinit);
 
 	debug("Wait SSH2_MSG_NEWKEYS.");
-	packet_read_expect(&payload_len, SSH2_MSG_NEWKEYS);
+	packet_read_expect(&plen, SSH2_MSG_NEWKEYS);
 	packet_done();
 	debug("GOT SSH2_MSG_NEWKEYS.");
 
@@ -278,6 +254,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 #endif
 	debug("done: KEX2.");
 }
+
 /*
  * Authenticate user
  */
