@@ -114,6 +114,35 @@ g_new_geomf(struct g_class *mp, char *fmt, ...)
 	return (gp);
 }
 
+int
+g_new_magicspaces(struct g_geom *gp, int nspaces)
+{
+	gp->magicspaces = g_malloc(sizeof *gp->magicspaces, M_WAITOK | M_ZERO);
+	gp->magicspaces->magicspace =
+	    g_malloc(sizeof *gp->magicspaces->magicspace * nspaces,
+	    M_WAITOK | M_ZERO);
+	gp->magicspaces->geom_id = (uintptr_t)gp;
+	strncpy(gp->magicspaces->class, gp->class->name,
+	    sizeof gp->magicspaces->class);
+	gp->magicspaces->nmagic = nspaces;
+	return (0);
+}
+
+int
+g_add_magicspace(struct g_geom *gp, u_int index, const char *name, off_t start, u_int len, u_int flags)
+{
+	struct g_magicspace *msp;
+
+	/* KASSERT gp->magicspaces != NULL */
+	/* KASSERT index < gp->magicspaces->nmagic */
+	msp = &gp->magicspaces->magicspace[index];
+	strncpy(msp->name, name, sizeof msp->name);
+	msp->offset = start;
+	msp->len = len;
+	msp->flags = flags;
+	return (0);
+}
+
 void
 g_destroy_geom(struct g_geom *gp)
 {
@@ -129,6 +158,10 @@ g_destroy_geom(struct g_geom *gp)
 	    gp->name, LIST_FIRST(&gp->consumer)));
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
+	if (gp->magicspaces) {
+		g_free(gp->magicspaces->magicspace);
+		g_free(gp->magicspaces);
+	}
 	g_free(gp->name);
 	g_free(gp);
 }
