@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.103 1997/02/25 03:05:31 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.104 1997/02/28 03:58:21 gibbs Exp $
  */
 /*
  * TODO:
@@ -315,6 +315,9 @@ static timeout_t
 
 static u_int8_t	ahc_index_busy_target __P((struct ahc_softc *ahc, int target,
 					   char channel, int unbusy));
+
+static void	ahc_busy_target __P((struct ahc_softc *ahc, int target,
+				     char channel, u_int8_t scbid));
 
 static void	ahc_construct_sdtr __P((struct ahc_softc *ahc, int start_byte,
 					u_int8_t period, u_int8_t offset));
@@ -853,10 +856,17 @@ ahc_handle_seqint(ahc, intstat)
 {
 	struct scb *scb;
 	u_int16_t targ_mask;
-	u_int8_t target = (ahc_inb(ahc, SCSIID) >> 4) & 0x0f;
-	int scratch_offset = target;
-	char channel = ahc_inb(ahc, SBLKCTL) & SELBUSB ? 'B': 'A';
+	u_int8_t target;
+	int scratch_offset;
+	char channel;
 
+	if ((ahc_inb(ahc, FLAGS) & RESELECTED) != 0)
+		target = ahc_inb(ahc, SELID);
+	else
+		target = ahc_inb(ahc, SCSIID);
+	target = (target >> 4) & 0x0f;
+	scratch_offset = target;
+	channel = ahc_inb(ahc, SBLKCTL) & SELBUSB ? 'B': 'A';
 	if (channel == 'B')
 		scratch_offset += 8;
 	targ_mask = (0x01 << scratch_offset); 
@@ -1264,6 +1274,12 @@ ahc_handle_seqint(ahc, intstat)
 				hscb->cmdlen = sizeof(*sc);
 				scb->sg_count = hscb->SG_segment_count;
 				scb->flags |= SCB_SENSE;
+				/*
+				 * Ensure the target is busy since this
+				 * will be an untagged request.
+				 */
+				ahc_busy_target(ahc, target, channel, 
+						hscb->tag);
 				ahc_outb(ahc, RETURN_1, SEND_SENSE);
 
 				/*
@@ -1857,7 +1873,7 @@ ahc_done(ahc, scb)
 			if (ahc->scb_data->maxhscbs >= 16
 			 || (ahc->flags & AHC_PAGESCBS)) {
 				/* Default to 8 tags */
-				xs->sc_link->opennings += 6;
+				xs->sc_link->opennings += 13;
 			} else {
 				/*
 				 * Default to 4 tags on whimpy
@@ -3371,6 +3387,29 @@ ahc_index_busy_target(ahc, target, channel, unbusy)
 		ahc_outb(ahc, scb_offset, SCB_LIST_NULL);
 	ahc_outb(ahc, SCBPTR, active_scb);
 	return busy_scbid;
+}
+
+static void
+ahc_busy_target(ahc, target, channel, scbid)
+	struct	 ahc_softc *ahc;
+	int	 target;
+	char	 channel;
+	u_int8_t scbid;
+{
+	u_int8_t  active_scb;
+	u_int8_t  info_scb;
+	u_int8_t  busy_scbid;
+	u_int32_t scb_offset;
+
+	info_scb = target / 4;
+	if (channel == 'B')
+		info_scb += 2;
+	active_scb = ahc_inb(ahc, SCBPTR);
+	ahc_outb(ahc, SCBPTR, info_scb);
+	scb_offset = SCB_ACTIVE0 + (target & 0x03);
+	ahc_outb(ahc, scb_offset, scbid);
+	ahc_outb(ahc, SCBPTR, active_scb);
+	return;
 }
 
 static void
