@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: move_aout_libs.sh,v 1.2 1998/09/16 17:42:53 phk Exp $
+#	$Id: move_aout_libs.sh,v 1.3 1999/01/26 04:13:03 jkh Exp $
 # 
 # Search for a.out libraries and move them to an aout subdirectory of
 # the elf library directory.
@@ -110,9 +110,8 @@ move_if_aout ( )
 for dir in $libdirs
 do
 	# Make sure the directory exists, or ldconfig will choke later.
-	if test ! -d $dir; then
-		mkdir -p $dir $dir/aout
-	fi
+	mkdir -p $dir $dir/aout
+
 	echo "Searching library directory $dir for a.out libraries..."
 
 	# Get a list of archive libraries.
