@@ -33,9 +33,10 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.23 1997/12/15 20:31:01 eivind Exp $
+ * $Id: if_fddisubr.c,v 1.24 1998/01/08 23:41:24 eivind Exp $
  */
 
+#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
