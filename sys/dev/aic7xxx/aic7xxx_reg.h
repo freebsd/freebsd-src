@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.15 1996/10/28 06:01:08 gibbs Exp $
+ *	$Id$
  */
 
 /*
@@ -320,6 +320,7 @@
 
 #define SINDEX			0x065
 #define DINDEX			0x066
+#define ALLONES			0x069
 #define ALLZEROS		0x06a
 #define NONE			0x06a
 #define SINDIR			0x06c
@@ -412,7 +413,6 @@
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
-#define			ABORT_TAG	0x91	/* Sent an ABORT_TAG message */
 #define			AWAITING_MSG	0xa1	/*
 						 * Kernel requested to specify
                                                  * a message to this target
@@ -420,10 +420,6 @@
                                                  * it that it can fill the
                                                  * message buffer.
                                                  */
-#define			IMMEDDONE	0xb1	/*
-						 * An immediate command has
-						 * completed
-						 */
 #define			MSG_BUFFER_BUSY	0xc1	/*
 						 * Sequencer wants to use the
 						 * message buffer, but it
@@ -439,6 +435,7 @@
 						 * beyond the bounds of its
 						 * command.
 						 */
+
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -478,6 +475,7 @@
 #define		FIFORESET	0x01
 
 #define	DFSTATUS		0x094
+#define		MREQPEND	0x10
 #define		HDONE		0x08
 #define		FIFOEMP		0x01
 
@@ -530,6 +528,7 @@
 #define		MK_MESSAGE      0x80
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
+#define		SPLIT_SG	0x10
 #define		ABORT_SCB	0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
@@ -570,11 +569,7 @@
 #define	SCB_ACTIVE2		0x0be
 #define	SCB_ACTIVE3		0x0bf
 
-#ifdef __linux__
-#define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
-#else
 #define	SG_SIZEOF		0x08		/* sizeof(struct ahc_dma) */
-#endif
 
 /* --------------------- AHA-2840-only definitions -------------------- */
 
@@ -593,6 +588,16 @@
 /* --------------------- AIC-7870-only definitions -------------------- */
 
 #define DSPCISTATUS		0x086
+
+#define BRDCTL			0x01d
+#define		BRDDAT7		0x80
+#define		BRDDAT6		0x40
+#define		BRDDAT5		0x20
+#define		BRDSTB		0x10
+#define		BRDCS		0x08
+#define		BRDRW		0x04
+#define		BRDCTL1		0x02
+#define		BRDCTL0		0x01
 
 /*
  * Serial EEPROM Control (p. 4-92 in 7870 Databook)
@@ -627,7 +632,6 @@
 #define		SEECK		0x04
 #define		SEEDO		0x02
 #define		SEEDI		0x01
-
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
  * BIOS or are specified by the sequencer code.
@@ -681,6 +685,8 @@
 #define MSG5			0x03a
 
 #define LASTPHASE		0x03b
+#define		P_BUSFREE	0x01
+
 #define ARG_1			0x03c
 #define RETURN_1		0x03c
 #define		SEND_MSG	0x80
@@ -708,7 +714,6 @@
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
 #define		PAGESCBS	0x04
-#define		SCB_LISTED	0x08
 #define		DPHASE		0x10
 #define		TAGGED_SCB	0x20
 #define		IDENTIFY_SEEN	0x40
