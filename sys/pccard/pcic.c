@@ -186,12 +186,12 @@ int unregister_pcic_intr(int intr, inthand2_t handler){
 
 #else /* Not APIC_IO */
 
-static int register_pcic_intr(int intr, int device_id, u_int flags,
+int register_pcic_intr(int intr, int device_id, u_int flags,
                               inthand2_t handler, u_int *maskptr, int unit){
 	return register_intr(intr, device_id, flags, handler, maskptr, unit);
 }
 
-static int unregister_pcic_intr(int intr, inthand2_t handler){
+int unregister_pcic_intr(int intr, inthand2_t handler){
 	return unregister_intr(intr, handler);
 }
 
