@@ -53,16 +53,3 @@ Solution:	There are several possible solutions.  The first,
 		your original hardware configuration that didn't work.
 
 ---
-
-Summary:	Boot blocks aren't updated onto hard drive.
-
-Problem:	Updating an existing FreeBSD installation, the old
-		boot blocks are still on the drive, and "386bsd"
-		is the default kernel.
-
-Cause:		The fdisk/disklabel stuff is a little funky in 2.0 ALPHA
-		right now and will be fixed.
-
-Solution:	Go into the Fdisk menu and simply say "(W)rite".  This
-		will write out the new boot blocks.  Yes, this should
-		be done by disklabel!
