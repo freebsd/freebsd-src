@@ -919,6 +919,8 @@
 .    tm doc-display-indent-stack\n[doc-reg-Rd] == \n[doc-display-indent-stack\n[doc-reg-Rd]]
 .    tm doc-display-ad-stack\n[doc-reg-Rd] == \n[doc-display-ad-stack\n[doc-reg-Rd]]
 .    tm doc-display-fi-stack\n[doc-reg-Rd] == \n[doc-display-fi-stack\n[doc-reg-Rd]]
+.    tm doc-display-ft-stack\n[doc-reg-Rd] == \n[doc-display-ft-stack\n[doc-reg-Rd]]
+.    tm doc-display-ps-stack\n[doc-reg-Rd] == \n[doc-display-ps-stack\n[doc-reg-Rd]]
 .    nr doc-reg-Rd +1
 .  \}
 .

@@ -322,7 +322,7 @@ and
 .Ql \&Ar ,
 to specify an optional flag with an argument:
 .
-.Bl -tag -xwidth ".Op Fl s Ar bytes" -offset indent
+.Bl -tag -width ".Op Fl s Ar bytes" -offset indent
 .It Op Fl s Ar bytes
 is produced by
 .Ql ".Op Fl s Ar bytes"
@@ -333,7 +333,7 @@ To prevent a string from being interpreted as a macro name, precede the
 string with the escape sequence
 .Ql \e& :
 .
-.Bl -tag -xwidth ".Op \&Fl s \&Ar bytes" -offset indent
+.Bl -tag -width ".Op \&Fl s \&Ar bytes" -offset indent
 .It Op \&Fl s \&Ar bytes
 is produced by
 .Ql ".Op \e&Fl s \e&Ar bytes"
@@ -403,7 +403,7 @@ The second method is to enclose the string with double quotes.
 .Pp
 For example:
 .
-.Bl -tag -xwidth ".Fn fetch char\ *str" -offset indent
+.Bl -tag -width ".Fn fetch char\ *str" -offset indent
 .It Fn fetch char\ *str
 is created by
 .Ql ".Fn fetch char\e *str"
@@ -759,7 +759,7 @@ In the following examples, the left (which is identical to the right) and
 the middle part of the manual page header strings are shown.
 .
 .Bd -ragged
-.Bl -tag -xwidth ".Li .Dt\ FOO\ 2\ mac68k" -compact -offset indent
+.Bl -tag -width ".Li .Dt\ FOO\ 2\ mac68k" -compact -offset indent
 .It Li ".Dt FOO 7"
 .Ql FOO(7)
 .Ql System Reference Manual
@@ -819,7 +819,7 @@ is the acronym for the operating system and
 the release ID.
 .
 .Bd -ragged -compact
-.Bl -tag -xwidth ".No FreeBSD" -offset indent
+.Bl -tag -width ".No FreeBSD" -offset indent
 .It ATT
 7th, 7, III, 3, V, V.2, V.3, V.4
 .It BSD
@@ -972,7 +972,7 @@ or
 Some command line argument lists are quite long:
 .
 .Bd -ragged
-.Bl -tag -xwidth ".Nm make" -offset indent -compact
+.Bl -tag -width ".Nm make" -offset indent -compact
 .It Nm make
 .Op Fl eiknqrstv
 .Op Fl D Ar variable
@@ -1099,7 +1099,7 @@ The address macro identifies an address construct.
 .Pp
 .Dl Usage: .Ad Ao address Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Ad\ f1\ ,\ f2\ ,\ f3\ :" -compact -offset 15n
+.Bl -tag -width ".Li .Ad\ f1\ ,\ f2\ ,\ f3\ :" -compact -offset 15n
 .It Li ".Ad addr1"
 .Ad addr1
 .It Li ".Ad addr1 ."
@@ -1124,7 +1124,7 @@ documented, or the name of the author of the actual manual page.
 .Pp
 .Dl Usage: .An Ao author name Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .An\ \*[q]Joe\ Author\*[q]\ )\ )\ ," -offset 15n
+.Bl -tag -width ".Li .An\ \*[q]Joe\ Author\*[q]\ )\ )\ ," -offset 15n
 .It Li ".An \*[q]Joe Author\*[q]"
 .An "Joe Author"
 .It Li ".An \*[q]Joe Author\*[q] ,"
@@ -1169,7 +1169,7 @@ string is output.
 .Pp
 .Dl Usage: .Ar Oo Ao argument Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Ar\ file1\ file2" -compact -offset 15n
+.Bl -tag -width ".Li .Ar\ file1\ file2" -compact -offset 15n
 .It Li .Ar
 .Ar
 .It Li ".Ar file1"
@@ -1197,7 +1197,7 @@ declaration for a device interface in a section four manual.
 .Pp
 .Dl Usage: .Cd Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Cd\ Xdevice\ le0\ at\ scode?X" -offset 15n
+.Bl -tag -width ".Li .Cd\ Xdevice\ le0\ at\ scode?X" -offset 15n
 .It Li ".Cd \*[q]device le0 at scode?\*[q]"
 .Cd "device le0 at scode?"
 .El
@@ -1235,7 +1235,7 @@ is specified by the macro
 .Pp
 .Dl Usage: .Dv Ao defined variable Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Dv\ MAXHOSTNAMELEN" -compact -offset 15n
+.Bl -tag -width ".Li .Dv\ MAXHOSTNAMELEN" -compact -offset 15n
 .It Li ".Dv MAXHOSTNAMELEN"
 .Dv MAXHOSTNAMELEN
 .It Li ".Dv TIOCGPGRP )"
@@ -1259,7 +1259,7 @@ general text domain macro, as it would be used in a section two manual page.
 .Pp
 .Dl Usage: .Er Ao errno type Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Bq\ Er\ ENOTDIR" -compact -offset 15n
+.Bl -tag -width ".Li .Bq\ Er\ ENOTDIR" -compact -offset 15n
 .It Li ".Er ENOENT"
 .Er ENOENT
 .It Li ".Er ENOENT ) ;"
@@ -1279,7 +1279,7 @@ macro specifies an environment variable.
 .Pp
 .Dl Usage: .Ev Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Ev\ PRINTER\ )\ )\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Ev\ PRINTER\ )\ )\ ," -compact -offset 15n
 .It Li ".Ev DISPLAY"
 .Ev DISPLAY
 .It Li ".Ev PATH ."
@@ -1306,7 +1306,7 @@ macro is identical, but without the dash.
 .Pp
 .Dl Usage: .Fl Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Fl\ xyz\ )\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Fl\ xyz\ )\ ," -compact -offset 15n
 .It Li .Fl
 .Fl
 .It Li ".Fl cfv"
@@ -1345,7 +1345,7 @@ It is neither callable nor parsed.
 .Pp
 .Dl Usage: .Fd Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Fd\ X#include\ <sys/types.h>X" -compact -offset 15n
+.Bl -tag -width ".Li .Fd\ X#include\ <sys/types.h>X" -compact -offset 15n
 .It Li ".Fd \*[q]#include <sys/types.h>\*[q]"
 .Fd "#include <sys/types.h>"
 .El
@@ -1370,7 +1370,7 @@ It also causes a line break, and is neither callable nor parsed.
 .Pp
 .Dl Usage: .In Ao header file Ac
 .Pp
-.Bl -tag -xwidth ".Li .In\ stdio.h" -compact -offset 15n
+.Bl -tag -width ".Li .In\ stdio.h" -compact -offset 15n
 .It Li ".In stdio.h"
 .In stdio.h
 .El
@@ -1388,7 +1388,7 @@ name to appear on the next line).
 .Pp
 .Dl Usage: .Ft Ao type Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Ft\ struct\ stat" -compact -offset 15n
+.Bl -tag -width ".Li .Ft\ struct\ stat" -compact -offset 15n
 .It Li ".Ft struct stat"
 .Ft struct stat
 .El
@@ -1403,7 +1403,7 @@ conventions.
 .Pp
 .Dl Usage: .Fn Ao function Ac Oo Ao parameter Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Fn\ align\ Xchar\ *ptrX\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Fn\ align\ Xchar\ *ptrX\ ," -compact -offset 15n
 .It Li ".Fn getchar"
 .Fn getchar
 .It Li ".Fn strlen ) ,"
@@ -1497,7 +1497,7 @@ may also be used to refer to structure members.
 .Pp
 .Dl Usage: .Fa Ao function argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Fa\ d_namlen\ )\ )\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Fa\ d_namlen\ )\ )\ ," -compact -offset 15n
 .It Li ".Fa d_namlen ) ) ,"
 .Fa d_namlen ) ) ,
 .It Li ".Fa iov_len"
@@ -1515,7 +1515,7 @@ macro generates text for use in the
 .Sx RETURN VALUES
 section.
 .Pp
-.Dl Usage: .Rv Oo -std Oc Ao function Ac ...
+.Dl Usage: .Rv Oo -std Oc Ao function Ac
 .Pp
 For example,
 .Ql ".Rv -std atexit"
@@ -1524,7 +1524,7 @@ produces:
 .Bd -ragged -offset -indent
 \# a small hack to suppress a warning message
 .ds section-old "\*[section]
-.ds section 2
+.ds section 3
 .Rv -std atexit
 .ds section "\*[section-old]
 .Ed
@@ -1545,7 +1545,7 @@ macro designates an interactive or internal command.
 .Pp
 .Dl Usage: .Ic Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Ic\ setenv\ ,\ unsetenv" -compact -offset 15n
+.Bl -tag -width ".Li .Ic\ setenv\ ,\ unsetenv" -compact -offset 15n
 .It Li ".Ic :wq"
 .Ic :wq
 .It Li ".Ic \*[q]do while {...}\*[q]"
@@ -1571,7 +1571,7 @@ Available arguments to
 and their results are:
 .
 .Pp
-.Bl -tag -xwidth ".Li libossaudio" -compact -offset indent
+.Bl -tag -width ".Li libossaudio" -compact -offset indent
 .It Li libarm32
 .Lb libarm32
 .It Li libc
@@ -1627,7 +1627,7 @@ literal macro may be used for special characters, variable constants, etc.\&
 .Pp
 .Dl Usage: .Li Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Li\ cntrl-D\ )\ ,"  -compact -offset 15n
+.Bl -tag -width ".Li .Li\ cntrl-D\ )\ ,"  -compact -offset 15n
 .It Li ".Li \een"
 .Li \en
 .It Li ".Li M1 M2 M3 ;"
@@ -1677,7 +1677,7 @@ it can not recall the first argument it was invoked with.
 .Pp
 .Dl Usage: .Nm Oo Ao argument Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Nm\ groff_mdoc" -compact -offset 15n
+.Bl -tag -width ".Li .Nm\ groff_mdoc" -compact -offset 15n
 .It Li ".Nm groff_mdoc"
 .Nm groff_mdoc
 .It Li ".Nm \e-mdoc"
@@ -1707,7 +1707,7 @@ parenthesis.
 .Pp
 .Dl Usage: .Op Oo Ao option Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Op\ Fl\ c\ Ar\ objfil\ Op\ Ar\ corfil\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Op\ Fl\ c\ Ar\ objfil\ Op\ Ar\ corfil\ ," -compact -offset 15n
 .It Li .Op
 .Op
 .It Li ".Op Fl k"
@@ -1771,7 +1771,7 @@ string is output, which represents the current user's home directory.
 .Pp
 .Dl Usage: .Pa Oo Ao pathname Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Pa\ /tmp/fooXXXXX\ )\ ." -compact -offset 15n
+.Bl -tag -width ".Li .Pa\ /tmp/fooXXXXX\ )\ ." -compact -offset 15n
 .It Li .Pa
 .Pa
 .It Li ".Pa /usr/share"
@@ -1798,7 +1798,7 @@ are:
 .Pp
 .Tn ANSI/ISO C
 .Pp
-.Bl -tag -xwidth ".Li -iso9945-1-90" -compact -offset indent
+.Bl -tag -width ".Li -iso9945-1-90" -compact -offset indent
 .It Li -ansiC
 .St -ansiC
 .It Li -ansiC-89
@@ -1813,7 +1813,7 @@ are:
 .Tn POSIX
 Part 1: System API
 .Pp
-.Bl -tag -xwidth ".Li -p1003.1g-2000" -compact -offset indent
+.Bl -tag -width ".Li -p1003.1g-2000" -compact -offset indent
 .It Li -iso9945-1-90
 .St -iso9945-1-90
 .It Li -iso9945-1-96
@@ -1840,7 +1840,7 @@ Part 1: System API
 .Tn POSIX
 Part 2: Shell and Utilities
 .Pp
-.Bl -tag -xwidth ".Li -p1003.1g-2000" -compact -offset indent
+.Bl -tag -width ".Li -p1003.1g-2000" -compact -offset indent
 .It Li -iso9945-2-93
 .St -iso9945-2-93
 .It Li -p1003.2
@@ -1853,7 +1853,7 @@ Part 2: Shell and Utilities
 .Pp
 .
 X/Open
-.Bl -tag -xwidth ".Li -p1003.1g-2000" -compact -offset indent
+.Bl -tag -width ".Li -p1003.1g-2000" -compact -offset indent
 .Pp
 .It Li -susv2
 .St -susv2
@@ -1882,7 +1882,7 @@ X/Open
 .
 Miscellaneous
 .Pp
-.Bl -tag -xwidth ".Li -p1003.1g-2000" -compact -offset indent
+.Bl -tag -width ".Li -p1003.1g-2000" -compact -offset indent
 .It Li -ieee754
 .St -ieee754
 .It Li -iso8802-3
@@ -1900,7 +1900,7 @@ section, it causes a line break (useful for old style variable declarations).
 .Pp
 .Dl Usage: .Vt Ao type Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Vt\ extern\ char\ *optarg\ ;" -compact -offset 15n
+.Bl -tag -width ".Li .Vt\ extern\ char\ *optarg\ ;" -compact -offset 15n
 .It Li ".Vt extern char *optarg ;"
 .Vt extern char *optarg ;
 .It Li ".Vt FILE *"
@@ -1913,7 +1913,7 @@ Generic variable reference.
 .Pp
 .Dl Usage: .Va Ao variable Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Va\ Xchar\ sX\ ]\ )\ )\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Va\ Xchar\ sX\ ]\ )\ )\ ," -compact -offset 15n
 .It Li ".Va count"
 .Va count
 .It Li ".Va settimer ,"
@@ -1937,7 +1937,7 @@ put into parentheses.
 .Pp
 .Dl Usage: .Xr Ao man page name Ac Oo Ao section Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Xr\ xinit\ 1x\ ;" -compact -offset 15n
+.Bl -tag -width ".Li .Xr\ xinit\ 1x\ ;" -compact -offset 15n
 .It Li ".Xr mdoc"
 .Xr mdoc
 .It Li ".Xr mdoc ,"
@@ -1959,7 +1959,7 @@ The default width is 10n.
 .Pp
 .Dl Usage: .At Oo Ao version Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .At\ v6\ ." -compact -offset 15n
+.Bl -tag -width ".Li .At\ v6\ ." -compact -offset 15n
 .It Li .At
 .At
 .It Li ".At v6 ."
@@ -1978,7 +1978,7 @@ are possible:
 .Dl "Usage: .Bx" Bro -alpha | -beta | -devel Brc ...
 .Dl "       .Bx" Oo Ao version Ac Oo Ao release Ac Oc Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Bx\ -devel" -compact -offset 15n
+.Bl -tag -width ".Li .Bx\ -devel" -compact -offset 15n
 .It Li .Bx
 .Bx
 .It Li ".Bx 4.3 ."
@@ -2001,7 +2001,7 @@ are possible:
 .Pp
 .Dl Usage: .Nx Oo Ao version Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Nx\ 1.4\ ." -compact -offset 15n
+.Bl -tag -width ".Li .Nx\ 1.4\ ." -compact -offset 15n
 .It Li .Nx
 .Nx
 .It Li ".Nx 1.4 ."
@@ -2020,7 +2020,7 @@ request above in section
 .Pp
 .Dl Usage: .Fx Oo Ao version Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Fx\ 2.2\ ." -compact -offset 15n
+.Bl -tag -width ".Li .Fx\ 2.2\ ." -compact -offset 15n
 .It Li .Fx
 .Fx
 .It Li ".Fx 2.2 ."
@@ -2039,7 +2039,7 @@ request above in section
 .Pp
 .Dl Usage: .Ox Oo Ao version Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Ox\ 1.0" -compact -offset 15n
+.Bl -tag -width ".Li .Ox\ 1.0" -compact -offset 15n
 .It Li ".Ox 1.0"
 .Ox 1.0
 .El
@@ -2049,7 +2049,7 @@ request above in section
 .Pp
 .Dl Usage: .Bsx Oo Ao version Ac Oc ...
 .Pp
-.Bl -tag -xwidth ".Li .Bsx\ 1.0" -compact -offset 15n
+.Bl -tag -width ".Li .Bsx\ 1.0" -compact -offset 15n
 .It Li ".Bsx 1.0"
 .Bsx 1.0
 .El
@@ -2059,7 +2059,7 @@ request above in section
 .Pp
 .Dl Usage: .Ux ...
 .Pp
-.Bl -tag -xwidth ".Li .Ux" -compact -offset 15n
+.Bl -tag -width ".Li .Ux" -compact -offset 15n
 .It Li .Ux
 .Ux
 .El
@@ -2073,7 +2073,7 @@ The usual font for emphasis is italic.
 .Pp
 .Dl Usage: .Em Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Em\ vide\ infra\ )\ )\ ," -compact -offset 15n
+.Bl -tag -width ".Li .Em\ vide\ infra\ )\ )\ ," -compact -offset 15n
 .It Li ".Em does not"
 .Em does not
 .It Li ".Em exceed 1024 ."
@@ -2102,7 +2102,7 @@ has the following syntax:
 .Ao font mode Ac
 must be one of the following three types:
 .Pp
-.Bl -tag -xwidth ".Sy \&Sy | Fl symbolic" -compact -offset indent
+.Bl -tag -width ".Sy \&Sy | Fl symbolic" -compact -offset indent
 .It Sy \&Em | Fl emphasis
 Same as if the 
 .Ql .Em
@@ -2161,7 +2161,7 @@ and
 .Sq o
 have a default width value of 12n.
 .
-.Bl -tag -xwidth ".Li .Ec , .Eo"
+.Bl -tag -width ".Li .Ec , .Eo"
 .It Li .Eo , .Ec
 These macros expect the first argument to be the opening and closing strings
 respectively.
@@ -2191,7 +2191,7 @@ The default width is 16n.
 The prefix macro suppresses the whitespace between its first and second
 argument:
 .
-.Bl -tag -xwidth ".Li .Pf\ (\ Fa\ name2" -offset indent
+.Bl -tag -width ".Li .Pf\ (\ Fa\ name2" -offset indent
 .It Li ".Pf ( Fa name2"
 .Pf ( Fa name2
 .El
@@ -2214,7 +2214,7 @@ mode.
 Examples of quoting:
 .
 .Pp
-.Bl -tag -xwidth ".Li .Bq\ Em\ Greek\ ,\ French\ ." -compact -offset indent
+.Bl -tag -width ".Li .Bq\ Em\ Greek\ ,\ French\ ." -compact -offset indent
 .It Li .Aq
 .Aq
 .It Li ".Aq Pa ctype.h ) ,"
@@ -2272,7 +2272,7 @@ if you really want that English word (and not the macro) as a parameter.
 .Pp
 .Dl Usage: .No Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .No\ test\ Ta\ with\ Ta\ tabs" -compact -offset 15n
+.Bl -tag -width ".Li .No\ test\ Ta\ with\ Ta\ tabs" -compact -offset 15n
 .It Li ".No test Ta with Ta tabs"
 .No test Ta with Ta tabs
 .El
@@ -2292,7 +2292,7 @@ space between the flag and argument:
 .Dl "Usage:" ... Ao argument Ac \&Ns Oo Ao argument Ac Oc ...
 .Dl "      " .Ns Ao argument Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Op\ Fl\ I\ Ns\ Ar\ directory" -compact -offset 15n
+.Bl -tag -width ".Li .Op\ Fl\ I\ Ns\ Ar\ directory" -compact -offset 15n
 .It Li ".Op Fl I Ns Ar directory"
 .Op Fl I Ns Ar directory
 .El
@@ -2317,7 +2317,7 @@ macro designates a reference to a section header within the same document.
 .Pp
 .Dl Usage: .Sx Ao section reference Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Sx\ FILES" -offset 15n
+.Bl -tag -width ".Li .Sx\ FILES" -offset 15n
 .It Li ".Sx FILES"
 .Sx FILES
 .El
@@ -2332,7 +2332,7 @@ symbolic sense or the traditional English usage.
 .Pp
 .Dl Usage: .Sy Ao symbol Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Sy\ Important\ Notice" -compact -offset 15n
+.Bl -tag -width ".Li .Sy\ Important\ Notice" -compact -offset 15n
 .It Li ".Sy Important Notice"
 .Sy Important Notice
 .El
@@ -2346,7 +2346,7 @@ Use this macro for mathematical symbols and similar things.
 .Pp
 .Dl Usage: .Ms Ao math symbol Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Ms\ sigma" -compact -offset 15n
+.Bl -tag -width ".Li .Ms\ sigma" -compact -offset 15n
 .It Li ".Ms sigma"
 .Ms sigma
 .El
@@ -2446,7 +2446,7 @@ Its intended use is to imitate a small caps fonts for uppercase acronyms.
 .Pp
 .Dl Usage: .Tn Ao symbol Ac ...
 .Pp
-.Bl -tag -xwidth ".Li .Tn\ ASCII" -compact -offset 15n
+.Bl -tag -width ".Li .Tn\ ASCII" -compact -offset 15n
 .It Li ".Tn DEC"
 .Tn DEC
 .It Li ".Tn ASCII"
@@ -2571,7 +2571,7 @@ only; it then reactivates the default font for
 .Pp
 The default width is 8n.
 .
-.Bl -tag -xwidth ".Li .Sh\ RETURN\ VALUES"
+.Bl -tag -width ".Li .Sh\ RETURN\ VALUES"
 .It Li ".Sh NAME"
 The
 .Ql ".Sh NAME"
@@ -2686,7 +2686,7 @@ section headers are part of the preferred manual page layout and must be
 used appropriately to maintain consistency.
 They are listed in the order in which they would be used.
 .
-.Bl -tag -xwidth ".Li .Sh\ COMPATIBILITY"
+.Bl -tag -width ".Li .Sh\ COMPATIBILITY"
 .It Li ".Sh ENVIRONMENT"
 The
 .Sx ENVIRONMENT
@@ -2792,7 +2792,7 @@ The default width is 8n.
 .
 .Ss "Paragraphs and Line Spacing"
 .
-.Bl -tag -xwidth ".Li .Pp"
+.Bl -tag -width ".Li .Pp"
 .It Li .Pp
 The 
 .Ql .Pp
@@ -2966,7 +2966,7 @@ option should be added.
 .
 There are seven types of displays.
 .Pp
-.Bl -tag -xwidth ".Li .D1"
+.Bl -tag -width ".Li .D1"
 .It Li .D1
 (This is D-one.)
 Display one line of indented text.
@@ -3004,14 +3004,14 @@ display must be ended with the
 macro.
 It has the following syntax:
 .Pp
-.Bl -tag -xwidth ".Li .Bd" -offset indent
+.Bl -tag -width ".Li .Bd" -offset indent
 .It Li .Bd Xo
 .Bro \-literal | \-filled | \-unfilled | \-ragged | \-centered Brc
 .Oo \-offset Ao string Ac Oc Oo \-file Ao file name Ac Oc Oo \-compact Oc Xc
 .El
 .Pp
 .
-.Bl -tag -xwidth ".Fl file Ao Ar file name Ac " -compact
+.Bl -tag -width ".Fl file Ao Ar file name Ac " -compact
 .It Fl ragged
 Fill, but do not adjust the right margin (only left-justify).
 .It Fl centered
@@ -3046,7 +3046,7 @@ is specified with one of the following strings, the string is interpreted to
 indicate the level of indentation for the forthcoming block of text:
 .
 .Pp
-.Bl -tag -xwidth ".Ar indent-two" -compact
+.Bl -tag -width ".Ar indent-two" -compact
 .It Ar left
 Align block on the current left margin; this is the default mode of
 .Ql .Bd .
@@ -3133,10 +3133,10 @@ Most of this document has been formatted with a tag style list
 It has the following syntax forms:
 .
 .Pp
-.Bl -tag -xwidth ".Li .Bl" -offset indent -compact
+.Bl -tag -width ".Li .Bl" -offset indent -compact
 .It Li .Bl Xo
 .Bro \-hang | \-ohang | \-tag | \-diag | \-inset Brc
-.Oo \-width Ao string Ac Oc Oo \-xwidth Ao command Ac Oc
+.Oo \-width Ao string Ac Oc
 .Oo \-offset Ao string Ac Oc Oo \-compact Oc Xc
 .It Li .Bl Xo
 .No \-column Oo \-offset Ao string Ac Oc
@@ -3150,7 +3150,7 @@ It has the following syntax forms:
 And now a detailed description of the list types.
 .
 .Pp
-.Bl -tag -xwidth ".Fl column" -compact
+.Bl -tag -width ".Fl column" -compact
 .It Fl bullet
 A bullet list.
 .
@@ -3298,8 +3298,6 @@ Item two here.
 A list with tags.
 Use
 .Fl width
-or
-.Fl xwidth
 to specify the tag width.
 .
 .Pp
@@ -3342,11 +3340,9 @@ numerical id of parent of process priority
 .It Fl diag
 Diag lists create section four diagnostic lists and are similar to inset
 lists except callable macros are ignored.
-The flags
+The
 .Fl width
-and
-.Fl xwidth
-are not meaningful in this context.
+flag is not meaningful in this context.
 .Pp
 Example:
 .
@@ -3518,7 +3514,7 @@ was produced by:
 .
 Other keywords:
 .
-.Bl -tag -xwidth ".Fl indent Ao Ar string Ac"
+.Bl -tag -width ".Fl indent Ao Ar string Ac"
 .It Fl width Ao Ar string Ac
 If
 .Ao string Ac
@@ -3559,7 +3555,7 @@ is a callable macro, the default width for that macro will be used;
 otherwise, the default width of
 .Ql .No
 is used.
-.It Fl xwidth Ao Ar string Ac
+.It Fl width Ao Ar string Ac
 Interpret
 .Ao string Ac
 and use the width of the result.
@@ -3568,10 +3564,10 @@ Almost all lists in this document use this option.
 Example:
 .
 .Bd -literal -offset indent
-\&.Bl -tag -xwidth ".Fl test Ao Ar string Ac"
+\&.Bl -tag -width ".Fl test Ao Ar string Ac"
 \&.It Fl test Ao Ar string Ac
 This is a longer sentence to show how the
-\&.Fl xwidth
+\&.Fl width
 flag works in combination with a tag list.
 \&.El
 .Ed
@@ -3579,10 +3575,10 @@ flag works in combination with a tag list.
 .
 gives:
 .
-.Bl -tag -xwidth ".Fl test Ao Ar string Ac"
+.Bl -tag -width ".Fl test Ao Ar string Ac"
 .It Fl test Ao Ar string Ac
 This is a longer sentence to show how the
-.Fl xwidth
+.Fl width
 flag works in combination with a tag list.
 .El
 .Pp
@@ -3660,7 +3656,7 @@ properly please send a mail to
 .Mt bug-groff@gnu.org
 (including an example).
 .
-.Bl -tag -xwidth ".Li .Bt"
+.Bl -tag -width ".Li .Bt"
 .It Li .Bt
 prints
 .
@@ -3945,3 +3941,7 @@ and certainly should be able to.
 .\" .Xr nroff
 .\" the right margin adjustment is normally ragged and the problem is
 .\" not as severe.
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:
