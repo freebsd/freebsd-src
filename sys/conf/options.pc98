@@ -99,6 +99,8 @@ PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
+PUC_FASTINTR		opt_puc.h
+
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
