@@ -40,11 +40,9 @@
 #ifndef _PATH_OBJDIRPREFIX
 #define	_PATH_OBJDIRPREFIX	"/usr/obj"
 #endif /* ! _PATH_OBJDIRPREFIX */
-#ifndef __FreeBSD__
 #ifndef _PATH_DEFSHELLDIR
 #define	_PATH_DEFSHELLDIR	"/bin"
 #endif /* ! _PATH_DEFSHELLDIR */
-#endif /* not __FreeBSD__ */
 #ifndef _PATH_DEFSYSMK
 #define	_PATH_DEFSYSMK		"sys.mk"
 #endif /* ! _PATH_DEFSYSMK */
