@@ -3345,7 +3345,6 @@ sc_show_font(scr_stat *scp, int page)
 }
 #endif /* !SC_NO_FONT_LOADING */
 
-#ifndef SC_NO_CUTPASTE
 void
 sc_paste(scr_stat *scp, u_char *p, int count) 
 {
@@ -3361,7 +3360,6 @@ sc_paste(scr_stat *scp, u_char *p, int count)
 	    (*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
     }
 }
-#endif /* SC_NO_CUTPASTE */
 
 void
 sc_bell(scr_stat *scp, int pitch, int duration)
