@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.43 2002/02/16 21:27:48 millert Exp $	*/
+/*	$OpenBSD: eval.c,v 1.44 2002/04/26 16:15:16 espie Exp $	*/
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*
@@ -41,7 +41,7 @@
 #if 0
 static char sccsid[] = "@(#)eval.c	8.2 (Berkeley) 4/27/95";
 #else
-static char rcsid[] = "$OpenBSD: eval.c,v 1.43 2002/02/16 21:27:48 millert Exp $";
+static char rcsid[] = "$OpenBSD: eval.c,v 1.44 2002/04/26 16:15:16 espie Exp $";
 #endif
 #endif /* not lint */
 
@@ -109,10 +109,7 @@ unsigned long	expansion_id;
  * argc is 3 for macro-or-builtin() and 2 for macro-or-builtin
  */
 void
-eval(argv, argc, td)
-	const char *argv[];
-	int argc;
-	int td;
+eval(const char *argv[], int argc, int td)
 {
 	ssize_t mark = -1;
 
@@ -134,10 +131,7 @@ eval(argv, argc, td)
  * expand_builtin - evaluate built-in macros.
  */
 void
-expand_builtin(argv, argc, td)
-	const char *argv[];
-	int argc;
-	int td;
+expand_builtin(const char *argv[], int argc, int td)
 {
 	int c, n;
 	int ac;
@@ -501,9 +495,7 @@ expand_builtin(argv, argc, td)
  * expand_macro - user-defined macro expansion
  */
 void
-expand_macro(argv, argc)
-	const char *argv[];
-	int argc;
+expand_macro(const char *argv[], int argc)
 {
 	const char *t;
 	const char *p;
@@ -576,9 +568,7 @@ expand_macro(argv, argc)
  * dodefine - install definition in the table
  */
 void
-dodefine(name, defn)
-	const char *name;
-	const char *defn;
+dodefine(const char *name, const char *defn)
 {
 	ndptr p;
 	int n;
@@ -614,8 +604,7 @@ dodefine(name, defn)
  *      the given name.
  */
 static void
-dodefn(name)
-	const char *name;
+dodefn(const char *name)
 {
 	ndptr p;
 	char *real;
@@ -640,9 +629,7 @@ dodefn(name)
  *      lookup.
  */
 static void
-dopushdef(name, defn)
-	const char *name;
-	const char *defn;
+dopushdef(const char *name, const char *defn)
 {
 	ndptr p;
 
@@ -663,8 +650,7 @@ dopushdef(name, defn)
  * dump_one_def - dump the specified definition.
  */
 static void
-dump_one_def(p)
-	ndptr p;
+dump_one_def(ndptr p)
 {
 	char *real;
 
@@ -687,9 +673,7 @@ dump_one_def(p)
  *      hash table is dumped.
  */
 static void
-dodump(argv, argc)
-	const char *argv[];
-	int argc;
+dodump(const char *argv[], int argc)
 {
 	int n;
 	ndptr p;
@@ -709,10 +693,7 @@ dodump(argv, argc)
  * dotrace - mark some macros as traced/untraced depending upon on.
  */
 static void
-dotrace(argv, argc, on)
-	const char *argv[];
-	int argc;
-	int on;
+dotrace(const char *argv[], int argc, int on)
 {
 	int n;
 
@@ -727,9 +708,7 @@ dotrace(argv, argc, on)
  * doifelse - select one of two alternatives - loop.
  */
 static void
-doifelse(argv, argc)
-	const char *argv[];
-	int argc;
+doifelse(const char *argv[], int argc)
 {
 	cycle {
 		if (STREQ(argv[2], argv[3]))
@@ -749,8 +728,7 @@ doifelse(argv, argc)
  * doinclude - include a given file.
  */
 static int
-doincl(ifile)
-	const char *ifile;
+doincl(const char *ifile)
 {
 	if (ilevel + 1 == MAXINP)
 		errx(1, "%s at line %lu: too many include files.",
@@ -769,8 +747,7 @@ doincl(ifile)
  *           macro processing.
  */
 static int
-dopaste(pfile)
-	const char *pfile;
+dopaste(const char *pfile)
 {
 	FILE *pf;
 	int c;
@@ -786,9 +763,7 @@ dopaste(pfile)
 #endif
 
 static void
-gnu_dochq(argv, ac)
-	const char *argv[];
-	int ac;
+gnu_dochq(const char *argv[], int ac)
 {
 	/* In gnu-m4 mode, the only way to restore quotes is to have no
 	 * arguments at all. */
@@ -808,9 +783,7 @@ gnu_dochq(argv, ac)
  * dochq - change quote characters
  */
 static void
-dochq(argv, argc)
-	const char *argv[];
-	int argc;
+dochq(const char *argv[], int argc)
 {
 	if (argc > 2) {
 		if (*argv[2])
@@ -831,9 +804,7 @@ dochq(argv, argc)
 }
 
 static void
-gnu_dochc(argv, ac)
-	const char *argv[];
-	int ac;
+gnu_dochc(const char *argv[], int ac)
 {
 	/* In gnu-m4 mode, no arguments mean no comment
 	 * arguments at all. */
@@ -855,9 +826,7 @@ gnu_dochc(argv, ac)
  * dochc - change comment characters
  */
 static void
-dochc(argv, argc)
-	const char *argv[];
-	int argc;
+dochc(const char *argv[], int argc)
 {
 	if (argc > 2) {
 		if (*argv[2])
@@ -879,8 +848,7 @@ dochc(argv, argc)
  * dodivert - divert the output to a temporary file
  */
 static void
-dodiv(n)
-	int n;
+dodiv(int n)
 {
 	int fd;
 
@@ -911,9 +879,7 @@ dodiv(n)
  *              other outputs, in numerical order.
  */
 static void
-doundiv(argv, argc)
-	const char *argv[];
-	int argc;
+doundiv(const char *argv[], int argc)
 {
 	int ind;
 	int n;
@@ -936,9 +902,7 @@ doundiv(argv, argc)
  * dosub - select substring
  */
 static void
-dosub(argv, argc)
-	const char *argv[];
-	int argc;
+dosub(const char *argv[], int argc)
 {
 	const char *ap, *fc, *k;
 	int nc;
@@ -987,11 +951,7 @@ dosub(argv, argc)
  * destination string.
  */
 static void
-map(dest, src, from, to)
-	char *dest;
-	const char *src;
-	const char *from;
-	const char *to;
+map(char *dest, const char *src, const char *from, const char *to)
 {
 	const char *tmp;
 	unsigned char sch, dch;
@@ -1063,10 +1023,7 @@ map(dest, src, from, to)
  * on the way.
  */
 static const char *
-handledash(buffer, end, src)
-	char *buffer;
-	char *end;
-	const char *src;
+handledash(char *buffer, char *end, const char *src)
 {
 	char *p;
 	
@@ -1091,4 +1048,3 @@ handledash(buffer, end, src)
 	*p = '\0';
 	return buffer;
 }
-			    
