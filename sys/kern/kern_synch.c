@@ -536,9 +536,11 @@ msleep(ident, mtx, priority, wmesg, timo)
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 		sig = cursig(td);
-		if (thread_suspend_check(1)) {
-			sig = EINTR;
-			rval = EINTR;
+		if (sig == 0) {
+			if (thread_suspend_check(1)) {
+				sig = SIGSTOP;
+				rval = ERESTART;
+			}
 		}
 		mtx_lock_spin(&sched_lock);
 		PROC_UNLOCK(p);
@@ -547,8 +549,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 				unsleep(td);
 		} else if (td->td_wchan == NULL)
 			catch = 0;
-	} else
+	} else {
 		sig = 0;
+	}
 	if (td->td_wchan != NULL) {
 		p->p_stats->p_ru.ru_nvcsw++;
 		td->td_state = TDS_SLP;
@@ -562,9 +565,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 		td->td_flags &= ~TDF_TIMEOUT;
 		if (sig == 0)
 			rval = EWOULDBLOCK;
-	} else if (td->td_flags & TDF_TIMOFAIL)
+	} else if (td->td_flags & TDF_TIMOFAIL) {
 		td->td_flags &= ~TDF_TIMOFAIL;
-	else if (timo && callout_stop(&td->td_slpcallout) == 0) {
+	} else if (timo && callout_stop(&td->td_slpcallout) == 0) {
 		/*
 		 * This isn't supposed to be pretty.  If we are here, then
 		 * the endtsleep() callout is currently executing on another
