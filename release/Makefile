@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.21 1997/01/03 06:38:02 jkh Exp $
+#	$Id: Makefile,v 1.246.2.22 1997/02/05 04:36:41 jkh Exp $
 #
 # How to roll a release:
 #
@@ -129,6 +129,7 @@ rerelease release:
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 .if make(release)
 	echo "make world"			>> ${CHROOTDIR}/mk
+	echo "(cd etc; make distribution)"	>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
 	echo "make all install"			>> ${CHROOTDIR}/mk
