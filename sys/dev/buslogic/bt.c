@@ -5,7 +5,7 @@
  * i386/eisa/bt_eisa.c	BT-74x, BT-75x cards
  * pci/bt_pci.c		BT-946, BT-948, BT-956, BT-958 cards
  *
- * Copyright (c) 1998 Justin T. Gibbs.
+ * Copyright (c) 1998, 1999 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.12 1998/12/04 22:54:44 archie Exp $
+ *      $Id: bt.c,v 1.13 1998/12/11 03:50:35 gibbs Exp $
  */
 
  /*
@@ -296,6 +296,67 @@ bt_free(struct bt_softc *bt)
 	free(bt, M_DEVBUF);
 }
 
+int
+bt_port_probe(struct bt_softc *bt, struct bt_probe_info *info)
+{
+	config_data_t config_data;
+	int error;
+
+	/* See if there is really a card present */
+	if (bt_probe(bt) || bt_fetch_adapter_info(bt))
+		return(1);
+
+	/*
+	 * Determine our IRQ, and DMA settings and
+	 * export them to the configuration system.
+	 */
+	error = bt_cmd(bt, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
+		       (u_int8_t*)&config_data, sizeof(config_data),
+		       DEFAULT_CMD_TIMEOUT);
+	if (error != 0) {
+		printf("bt_port_probe: Could not determine IRQ or DMA "
+		       "settings for adapter.\n");
+		return (1);
+	}
+
+	if (bt->model[0] == '5') {
+		/* DMA settings only make sense for ISA cards */
+		switch (config_data.dma_chan) {
+		case DMA_CHAN_5:
+			info->drq = 5;
+			break;
+		case DMA_CHAN_6:
+			info->drq = 6;
+			break;
+		case DMA_CHAN_7:
+			info->drq = 7;
+			break;
+		default:
+			printf("bt_port_probe: Invalid DMA setting "
+			       "detected for adapter.\n");
+			return (1);
+		}
+	} else {
+		/* VL/EISA/PCI DMA */
+		info->drq = -1;
+	}
+	switch (config_data.irq) {
+	case IRQ_9:
+	case IRQ_10:
+	case IRQ_11:
+	case IRQ_12:
+	case IRQ_14:
+	case IRQ_15:
+		info->irq = ffs(config_data.irq) + 8;
+		break;
+	default:
+		printf("bt_port_probe: Invalid IRQ setting %x"
+		       "detected for adapter.\n", config_data.irq);
+		return (1);
+	}
+	return (0);
+}
+
 /*
  * Probe the adapter and verify that the card is a BusLogic.
  */
@@ -478,6 +539,8 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 		}
 		bt->model[i] = '\0';
 	}
+
+	bt->level_trigger_ints = esetup_info.level_trigger_ints ? 1 : 0;
 
 	/* SG element limits */
 	bt->max_sg = esetup_info.max_sg;
@@ -2082,7 +2145,7 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings* cts)
 			cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 	}
 
-	if (bt->firmware_ver[0] >= 3) {
+	if (bt->firmware_ver[0] >= '3') {
 		/*
 		 * For adapters that can do fast or ultra speeds,
 		 * use the more exact Target Sync Information command.
