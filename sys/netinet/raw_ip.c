@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.47 1997/08/02 14:32:54 bde Exp $
+ *	$Id: raw_ip.c,v 1.48 1997/08/16 19:15:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -510,5 +510,5 @@ struct pr_usrreqs rip_usrreqs = {
 	pru_connect2_notsupp, in_control, rip_detach, rip_disconnect,
 	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, rip_send, pru_sense_null, rip_shutdown, 
-	in_setsockaddr, sosend, soreceive, soselect
+	in_setsockaddr, sosend, soreceive, sopoll
 };
