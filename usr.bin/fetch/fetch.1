@@ -174,10 +174,6 @@ Overrides the environment variables
 for FTP transfers or
 .Ev HTTP_TIMEOUT 
 for HTTP transfers if set.
-.It Fl t
-Work around a different set of buggy
-.Tn TCP
-implementations.
 .It Fl v
 Each instance of this flag increases the verbosity level by one.
 Level one (the default) only gives a summary after each file; level
@@ -247,6 +243,7 @@ does not trigger.
 .Pp
 One cannot both use the
 .Fl h ,
-.Fl c and
+.Fl c
+and
 .Fl f
 options and specify URLs on the command line.
