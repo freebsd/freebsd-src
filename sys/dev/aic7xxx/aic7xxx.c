@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.32 1999/08/16 22:49:28 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.33 1999/08/21 06:23:59 msmith Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -3865,9 +3865,11 @@ ahc_init(struct ahc_softc *ahc)
 	size_t	  driver_data_size;
 	u_int32_t physaddr;
 
+#if 0
 	printf("SBLKCTL = 0x%x\n", ahc_inb(ahc, SBLKCTL));
 	printf("SSTAT0 = 0x%x\n", ahc_inb(ahc, SSTAT0));
 	printf("SFUNCT = 0x%x\n", ahc_inb(ahc, SFUNCT));
+#endif
 #ifdef AHC_PRINT_SRAM
 	printf("Scratch Ram:");
 	for (i = 0x20; i < 0x5f; i++) {
