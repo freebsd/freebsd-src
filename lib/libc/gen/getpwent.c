@@ -34,11 +34,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char *rcsid[] =
-  "$FreeBSD$";
+static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include "un-namespace.h"
 #include <sys/param.h>
