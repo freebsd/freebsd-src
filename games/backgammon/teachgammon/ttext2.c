@@ -41,7 +41,8 @@ static const char rcsid[] =
 
 #include "back.h"
 
-char *prompt, *list, *opts;
+extern const char *const list[];
+char *prompt, *opts;
 
 const char	*const doubl[] = {
     "\nDoubling:",
