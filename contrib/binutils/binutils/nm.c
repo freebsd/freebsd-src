@@ -1250,7 +1250,7 @@ static void
 print_object_filename_bsd (filename)
      char *filename;
 {
-  if (filename_per_file && !filename_per_symbol)
+  if (filename_per_file)
     printf ("\n%s:\n", filename);
 }
 
