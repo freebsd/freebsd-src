@@ -425,6 +425,7 @@ case "${RERUN}" in
           echo ''
           echo "   *** Deleting the old ${TEMPROOT}"
           echo ''
+          chflags -R noschg "${TEMPROOT}"
           rm -rf "${TEMPROOT}"
           unset TEST_TEMP_ROOT
           ;;
@@ -847,7 +848,7 @@ case "${AUTO_RUN}" in
 
   case "${DEL_TEMPROOT}" in
   [yY]*)
-    if rm -rf "${TEMPROOT}"; then
+    if chflags -R noschg "${TEMPROOT}" && rm -rf "${TEMPROOT}"; then
       echo " *** ${TEMPROOT} has been deleted"
     else
       echo " *** Unable to delete ${TEMPROOT}"
