@@ -144,33 +144,35 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Mark all objects as inactive.
 	 */
-	for (object = TAILQ_FIRST(&vm_object_list);
-	    object != NULL;
-	    object = TAILQ_NEXT(object,object_list))
+	TAILQ_FOREACH(object, &vm_object_list, object_list)
 		vm_object_clear_flag(object, OBJ_ACTIVE);
 	/*
 	 * Calculate process statistics.
 	 */
 	ALLPROC_LOCK(AP_SHARED);
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
+		mtx_enter(&sched_lock, MTX_SPIN);
 		switch (p->p_stat) {
 		case 0:
+			mtx_exit(&sched_lock, MTX_SPIN);
 			continue;
 
 		case SMTX:
 		case SSLEEP:
 		case SSTOP:
-			if (p->p_flag & P_INMEM) {
+			if (p->p_sflag & PS_INMEM) {
 				if (p->p_priority <= PZERO)
 					totalp->t_dw++;
 				else if (p->p_slptime < maxslp)
 					totalp->t_sl++;
 			} else if (p->p_slptime < maxslp)
 				totalp->t_sw++;
-			if (p->p_slptime >= maxslp)
+			if (p->p_slptime >= maxslp) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
+			}
 			break;
 
 		case SWAIT:
@@ -179,14 +181,17 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 
 		case SRUN:
 		case SIDL:
-			if (p->p_flag & P_INMEM)
+			if (p->p_sflag & PS_INMEM)
 				totalp->t_rq++;
 			else
 				totalp->t_sw++;
-			if (p->p_stat == SIDL)
+			if (p->p_stat == SIDL) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
+			}
 			break;
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 		/*
 		 * Note active objects.
 		 */

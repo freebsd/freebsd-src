@@ -1124,15 +1124,18 @@ rescan0:
 		bigproc = NULL;
 		bigsize = 0;
 		ALLPROC_LOCK(AP_SHARED);
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			/*
 			 * if this is a system process, skip it
 			 */
+			PROC_LOCK(p);
 			if ((p->p_flag & P_SYSTEM) || (p->p_lock > 0) ||
 			    (p->p_pid == 1) ||
 			    ((p->p_pid < 48) && (vm_swap_size != 0))) {
+				PROC_UNLOCK(p);
 				continue;
 			}
+			PROC_UNLOCK(p);
 			/*
 			 * if the process is in a non-running type state,
 			 * don't touch it.
@@ -1159,9 +1162,11 @@ rescan0:
 		ALLPROC_LOCK(AP_RELEASE);
 		if (bigproc != NULL) {
 			killproc(bigproc, "out of swap space");
+			mtx_enter(&sched_lock, MTX_SPIN);
 			bigproc->p_estcpu = 0;
 			bigproc->p_nice = PRIO_MIN;
 			resetpriority(bigproc);
+			mtx_exit(&sched_lock, MTX_SPIN);
 			wakeup(&cnt.v_free_count);
 		}
 	}
@@ -1477,7 +1482,6 @@ vm_daemon()
 				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
 			/*
 			 * get a limit
 			 */
@@ -1490,8 +1494,9 @@ vm_daemon()
 			 * swapped out set the limit to nothing (will force a
 			 * swap-out.)
 			 */
-			if ((p->p_flag & P_INMEM) == 0)
+			if ((p->p_sflag & PS_INMEM) == 0)
 				limit = 0;	/* XXX */
+			mtx_exit(&sched_lock, MTX_SPIN);
 
 			size = vmspace_resident_count(p->p_vmspace);
 			if (limit >= 0 && size >= limit) {
