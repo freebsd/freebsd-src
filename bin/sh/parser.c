@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #endif
 static const char rcsid[] =
-	"$Id: parser.c,v 1.22 1998/05/18 06:44:12 charnier Exp $";
+	"$Id: parser.c,v 1.23 1998/09/06 21:13:09 tegge Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -619,7 +619,6 @@ parsefname() {
 		if (quoteflag == 0)
 			n->type = NXHERE;
 		TRACE(("Here document %d\n", n->type));
-		rmquotes0(wordtext);
 		if (here->striptabs) {
 			while (*wordtext == '\t')
 				wordtext++;
@@ -943,31 +942,36 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						USTPUTC('\\', out);
 					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
-					else
+					else if (eofmark == NULL)
 						USTPUTC(CTLQUOTEMARK, out);
 					USTPUTC(c, out);
 					quotef++;
 				}
 				break;
 			case CSQUOTE:
-				USTPUTC(CTLQUOTEMARK, out);
+				if (eofmark == NULL)
+					USTPUTC(CTLQUOTEMARK, out);
 				syntax = SQSYNTAX;
 				break;
 			case CDQUOTE:
-				USTPUTC(CTLQUOTEMARK, out);
+				if (eofmark == NULL)
+					USTPUTC(CTLQUOTEMARK, out);
 				syntax = DQSYNTAX;
 				dblquote = 1;
 				break;
 			case CENDQUOTE:
-				if (eofmark) {
+				if (eofmark != NULL && arinest == 0 &&
+				    varnest == 0) {
 					USTPUTC(c, out);
 				} else {
-					if (arinest)
+					if (arinest) {
 						syntax = ARISYNTAX;
-					else
+						dblquote = 0;
+					} else if (eofmark == NULL) {
 						syntax = BASESYNTAX;
+						dblquote = 0;
+					}
 					quotef++;
-					dblquote = 0;
 				}
 				break;
 			case CVAR:	/* '$' */
@@ -994,6 +998,10 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 						if (--arinest == 0) {
 							USTPUTC(CTLENDARI, out);
 							syntax = prevsyntax;
+							if (syntax == DQSYNTAX)
+								dblquote = 1;
+							else
+								dblquote = 0;
 						} else
 							USTPUTC(')', out);
 					} else {
@@ -1445,6 +1453,8 @@ noexpand(text)
 
 	p = text;
 	while ((c = *p++) != '\0') {
+		if ( c == CTLQUOTEMARK)
+			continue;
 		if (c == CTLESC)
 			p++;
 		else if (BASESYNTAX[c] == CCTL)
