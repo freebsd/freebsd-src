@@ -39,6 +39,7 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/vmmeter.h>
 #include <sys/buf.h>
@@ -387,11 +388,27 @@ trap(a0, a1, a2, entry, framep)
 			 *	3. pcb_onfault set but kernel space data fault
 			 * The last can occur during an exec() copyin where the
 			 * argument space is lazy-allocated.
+			 *
+			 * For the purposes of the Linux emulator, we allow
+			 * kernel accesses to a small region of the
+			 * user stack which the emulator uses to
+			 * translate syscall arguments.
 			 */
-			if (!user && (a0 >= VM_MIN_KERNEL_ADDRESS ||
-			    p == NULL || p->p_addr->u_pcb.pcb_onfault == 0))
-				map = kernel_map;
-			else {
+			if (!user 
+			    && ((a0 >= VM_MIN_KERNEL_ADDRESS) 
+				|| (p == NULL) 
+				|| (p->p_addr->u_pcb.pcb_onfault == 0))) {
+				if (a0 >= trunc_page(PS_STRINGS
+						     - szsigcode
+						     - SPARE_USRSPACE)
+				    && a0 < round_page(PS_STRINGS
+						       - szsigcode)) {
+					vm = p->p_vmspace;
+					map = &vm->vm_map;
+				} else {
+					map = kernel_map;
+				}
+			} else {
 				vm = p->p_vmspace;
 				map = &vm->vm_map;
 			}
