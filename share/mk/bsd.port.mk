@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.38 1994/09/19 00:41:03 ache Exp $
+# $Id: bsd.port.mk,v 1.39 1994/09/19 01:08:35 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -99,8 +99,8 @@ PKGDIR?=		${.CURDIR}/pkg
 
 
 # Change these if you'd prefer to keep the cookies someplace else.
-EXTRACT_COOKIE?=	${.CURDIR}/.extract_done
-CONFIGURE_COOKIE?=	${.CURDIR}/.configure_done
+EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
+CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
