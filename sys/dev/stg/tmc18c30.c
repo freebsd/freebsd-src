@@ -81,11 +81,6 @@
 #include <cam/scsi/scsi_low.h>
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
-
-#if __FreeBSD_version < 400001
-#include "stg.h"
-struct	stg_softc *stgdata[NSTG];
-#endif
 #endif /* __FreeBSD__ */
 
 /***************************************************

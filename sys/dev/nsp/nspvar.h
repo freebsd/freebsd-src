@@ -58,7 +58,6 @@ struct nsp_softc {
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_memh;
 
-#if __FreeBSD_version >= 400001
 	int port_rid;
 	int irq_rid;
 	int mem_rid;
@@ -67,7 +66,6 @@ struct nsp_softc {
 	struct resource *mem_res;
 
 	void *nsp_intrhand;
-#endif	/* __FreeBSD_version */
 #endif	/* __FreeBSD__ */
 
 	int sc_tmaxcnt;				/* timeout count */

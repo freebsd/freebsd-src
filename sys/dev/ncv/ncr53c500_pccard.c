@@ -52,16 +52,8 @@
 
 #include <machine/bus.h>
 #include <machine/bus_pio.h>
-#include <i386/isa/isa_device.h>
-
 #include <machine/dvcfg.h>
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct ncv_softc *ncv_get_softc(int);
-extern struct ncv_softc *ncvdata[];
-#define DEVPORT_ALLOCSOFTCFUNC	ncv_get_softc
-#define DEVPORT_SOFTCARRAY	ncvdata
-#endif
 #include <sys/device_port.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -70,16 +62,10 @@ extern struct ncv_softc *ncvdata[];
 #include <dev/ncv/ncr53c500reg.h>
 #include <dev/ncv/ncr53c500hw.h>
 #include <dev/ncv/ncr53c500var.h>
-#if defined(__NetBSD__) || (defined(__FreeBSD__) && __FreeBSD_version < 400001)
-#include "ncv.h"
-#endif
 
 #define KME_KXLC004_01 0x100
 #define OFFSET_KME_KXLC004_01 0x10
 
-/* pccard support */
-#include	"card.h"
-#if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
 #if !defined(__FreeBSD__) || __FreeBSD_version < 500014
@@ -92,12 +78,7 @@ static int ncvprobe(DEVPORT_PDEVICE devi);
 static int ncvattach(DEVPORT_PDEVICE devi);
 
 static void	ncv_card_unload __P((DEVPORT_PDEVICE));
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static int	ncv_card_init __P((DEVPORT_PDEVICE));
-static int	ncv_card_intr __P((DEVPORT_PDEVICE));
-#endif
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
  */
@@ -280,62 +261,8 @@ static driver_t ncv_pccard_driver = {
 
 static devclass_t ncv_devclass;
 
+MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
-
-#else
-
-PCCARD_MODULE(ncv, ncv_card_init, ncv_card_unload, ncv_card_intr, 0, cam_imask);
-
-#endif
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct ncv_softc *
-ncv_get_softc(int unit)
-{
-	struct ncv_softc *sc;
-
-	if (unit >= NNCV) {
-		return(NULL);
-	}
-
-	if (ncvdata[unit] == NULL) {
-		sc = malloc(sizeof(struct ncv_softc), M_TEMP,M_NOWAIT);
-		if (sc == NULL) {
-			printf("ncv_get_softc: cannot malloc!\n");
-			return(NULL);
-		}
-		ncvdata[unit] = sc;
-	} else {
-		sc = ncvdata[unit];
-	}
-
-	return(sc);
-}
-
-static int
-ncv_card_init(DEVPORT_PDEVICE devi)
-{
-	int unit = DEVPORT_PDEVUNIT(devi);
-
-	if (NNCV <= unit)
-		return (ENODEV);
-
-	if (ncvprobe(devi) == 0)
-		return (ENXIO);
-
-	if (ncvattach(devi) == 0)
-		return (ENXIO);
-	return (0);
-}
-
-static int
-ncv_card_intr(DEVPORT_PDEVICE devi)
-{
-
-	ncvintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
-}
-#endif
 
 static void
 ncv_card_unload(DEVPORT_PDEVICE devi)
@@ -357,21 +284,9 @@ ncvprobe(DEVPORT_PDEVICE devi)
 	struct ncv_softc *sc = device_get_softc(devi);
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	rv = ncvprobesubr(rman_get_bustag(sc->port_res),
 			  rman_get_bushandle(sc->port_res),
 			  flags, NCV_HOSTID);
-#else
-	bus_addr_t offset = 0;
-	u_int iobase = DEVPORT_PDEVIOBASE(devi);
-
-	if(flags & KME_KXLC004_01)
-		offset = OFFSET_KME_KXLC004_01;
-
-	rv = ncvprobesubr(I386_BUS_SPACE_IO,
-			  iobase + offset,
-			  flags, NCV_HOSTID);
-#endif
 
 	return rv;
 }
@@ -382,32 +297,10 @@ ncvattach(DEVPORT_PDEVICE devi)
 	struct ncv_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	int unit = DEVPORT_PDEVUNIT(devi);
-	bus_addr_t offset = 0;
-	u_int iobase = DEVPORT_PDEVIOBASE(devi);
-#endif
 	intrmask_t s;
 	char dvname[16]; /* SCSI_LOW_DVNAME_LEN */
 
 	strcpy(dvname, "ncv");
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	if (unit >= NNCV)
-	{
-		printf("%s: unit number too high\n", dvname);
-		return (0);
-	}
-
-	if (iobase == 0)
-	{
-		printf("%s: no ioaddr is given\n", dvname);
-		return (0);
-	}
-
-	if(flags & KME_KXLC004_01)
-		offset = OFFSET_KME_KXLC004_01;
-#endif
 
 	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
 	if (sc == NULL) {
@@ -415,17 +308,9 @@ ncvattach(DEVPORT_PDEVICE devi)
 	}
 
 	slp = &sc->sc_sclow;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	slp->sl_dev = devi;
 	sc->sc_iot = rman_get_bustag(sc->port_res);
 	sc->sc_ioh = rman_get_bushandle(sc->port_res);
-#else
-	bzero(sc, sizeof(struct ncv_softc));
-	strcpy(slp->sl_dev.dv_xname, dvname);
-	slp->sl_dev.dv_unit = unit;
-	sc->sc_iot = I386_BUS_SPACE_IO;
-	sc->sc_ioh = iobase + offset;
-#endif
 
 	slp->sl_hostid = NCV_HOSTID;
 	slp->sl_cfgflags = flags;
@@ -436,4 +321,3 @@ ncvattach(DEVPORT_PDEVICE devi)
 
 	return(NCVIOSZ);
 }
-#endif /* NCARD */
