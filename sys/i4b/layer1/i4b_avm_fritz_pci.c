@@ -503,7 +503,7 @@ isic_attach_avma1pp(device_t dev)
 
 	asc->avma1pp_unit = unit;
 
-	rid = PCI_MAP_REG_START+4;
+	rid = PCIR_MAPS+4;
 	asc->avma1pp_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 		0, ~0, 1, RF_ACTIVE);
 
@@ -522,7 +522,7 @@ isic_attach_avma1pp(device_t dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (asc->avma1pp_irq == NULL) {
-		bus_release_resource(dev, SYS_RES_IOPORT, PCI_MAP_REG_START+4, asc->avma1pp_res);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, asc->avma1pp_res);
 		printf("avma1pp%d: couldn't map interrupt\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -532,7 +532,7 @@ isic_attach_avma1pp(device_t dev)
 
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, asc->avma1pp_res);
-		bus_release_resource(dev, SYS_RES_IOPORT, PCI_MAP_REG_START+4, asc->avma1pp_res);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+4, asc->avma1pp_res);
 		printf("avma1pp%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
