@@ -55,6 +55,7 @@ vm_zone_t	 zinit(char *name, int size, int nentries,
                      int flags, int zalloc);
 void		 zbootinit(vm_zone_t z, char *name, int size,
                      void *item, int nitems);
+void		 zdestroy(vm_zone_t z);
 void		*zalloc(vm_zone_t z);
 void		 zfree(vm_zone_t z, void *item);
 
