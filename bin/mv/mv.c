@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mv.c,v 1.13 1997/03/28 15:24:26 imp Exp $
+ *	$Id: mv.c,v 1.14 1997/09/28 10:41:40 wosch Exp $
  */
 
 #ifndef lint
@@ -157,25 +157,28 @@ do_move(from, to)
 			warn("%s", from);
 			return (1);
 		}
-		    
+
+#define YESNO "(y/n [n]) "
 		ask = 0;
 		if (iflg) {
-			(void)fprintf(stderr, "overwrite %s? ", to);
+			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
 			strmode(sb.st_mode, modep);
-			(void)fprintf(stderr, "override %s%s%s/%s for %s? ",
+			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
 			    user_from_uid(sb.st_uid, 0),
-			    group_from_gid(sb.st_gid, 0), to);
+			    group_from_gid(sb.st_gid, 0), to, YESNO);
 			ask = 1;
 		}
 		if (ask) {
 			first = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
-			if (first != 'y' && first != 'Y')
+			if (first != 'y' && first != 'Y') {
+				(void)fprintf(stderr, "not overwritten\n");
 				return (0);
+			}
 		}
 	}
 	if (!rename(from, to))
