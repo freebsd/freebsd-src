@@ -57,9 +57,13 @@
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#include <vm/vm.h>
+#include <vm/vm_page.h>
 
 #include <machine/limits.h>
 
@@ -75,7 +79,7 @@ static int	dofilewrite __P((struct proc *, struct file *, int,
 		    const void *, size_t, off_t, int));
 
 struct file*
-getfp(fdp, fd, flag)
+holdfp(fdp, fd, flag)
 	struct filedesc* fdp;
 	int fd, flag;
 {
@@ -83,8 +87,10 @@ getfp(fdp, fd, flag)
 
 	if (((u_int)fd) >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
-	    (fp->f_flag & flag) == 0)
+	    (fp->f_flag & flag) == 0) {
 		return (NULL);
+	}
+	fhold(fp);
 	return (fp);
 }
 
@@ -104,10 +110,13 @@ read(p, uap)
 	register struct read_args *uap;
 {
 	register struct file *fp;
+	int error;
 
-	if ((fp = getfp(p->p_fd, uap->fd, FREAD)) == NULL)
+	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL)
 		return (EBADF);
-	return (dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0));
+	error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0);
+	fdrop(fp, p);
+	return(error);
 }
 
 /*
@@ -128,13 +137,18 @@ pread(p, uap)
 	register struct pread_args *uap;
 {
 	register struct file *fp;
+	int error;
 
-	if ((fp = getfp(p->p_fd, uap->fd, FREAD)) == NULL)
+	if ((fp = holdfp(p->p_fd, uap->fd, FREAD)) == NULL)
 		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE)
-		return (ESPIPE);
-	return (dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, uap->offset, 
-	    FOF_OFFSET));
+	if (fp->f_type != DTYPE_VNODE) {
+		error = ESPIPE;
+	} else {
+	    error = dofileread(p, fp, uap->fd, uap->buf, uap->nbyte, 
+		uap->offset, FOF_OFFSET);
+	}
+	fdrop(fp, p);
+	return(error);
 }
 
 /*
@@ -180,10 +194,12 @@ dofileread(p, fp, fd, buf, nbyte, offset, flags)
 	}
 #endif
 	cnt = nbyte;
-	if ((error = fo_read(fp, &auio, fp->f_cred, flags, p)))
+
+	if ((error = fo_read(fp, &auio, fp->f_cred, flags, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
+	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
 	if (didktr && error == 0) {
@@ -224,7 +240,7 @@ readv(p, uap)
 	struct uio ktruio;
 #endif
 
-	if ((fp = getfp(fdp, uap->fd, FREAD)) == NULL)
+	if ((fp = holdfp(fdp, uap->fd, FREAD)) == NULL)
 		return (EBADF);
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
@@ -265,10 +281,11 @@ readv(p, uap)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if ((error = fo_read(fp, &auio, fp->f_cred, 0, p)))
+	if ((error = fo_read(fp, &auio, fp->f_cred, 0, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
+	}
 	cnt -= auio.uio_resid;
 #ifdef KTRACE
 	if (ktriov != NULL) {
@@ -283,6 +300,7 @@ readv(p, uap)
 #endif
 	p->p_retval[0] = cnt;
 done:
+	fdrop(fp, p);
 	if (needfree)
 		FREE(needfree, M_IOV);
 	return (error);
@@ -304,10 +322,13 @@ write(p, uap)
 	register struct write_args *uap;
 {
 	register struct file *fp;
+	int error;
 
-	if ((fp = getfp(p->p_fd, uap->fd, FWRITE)) == NULL)
+	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL)
 		return (EBADF);
-	return (dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0));
+	error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte, (off_t)-1, 0);
+	fdrop(fp, p);
+	return(error);
 }
 
 /*
@@ -328,13 +349,18 @@ pwrite(p, uap)
 	register struct pwrite_args *uap;
 {
 	register struct file *fp;
+	int error;
 
-	if ((fp = getfp(p->p_fd, uap->fd, FWRITE)) == NULL)
+	if ((fp = holdfp(p->p_fd, uap->fd, FWRITE)) == NULL)
 		return (EBADF);
-	if (fp->f_type != DTYPE_VNODE)
-		return (ESPIPE);
-	return (dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte, uap->offset,
-	    FOF_OFFSET));
+	if (fp->f_type != DTYPE_VNODE) {
+		error = ESPIPE;
+	} else {
+	    error = dofilewrite(p, fp, uap->fd, uap->buf, uap->nbyte,
+		uap->offset, FOF_OFFSET);
+	}
+	fdrop(fp, p);
+	return(error);
 }
 
 static int
@@ -377,6 +403,7 @@ dofilewrite(p, fp, fd, buf, nbyte, offset, flags)
 	}
 #endif
 	cnt = nbyte;
+	bwillwrite();
 	if ((error = fo_write(fp, &auio, fp->f_cred, flags, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -424,9 +451,8 @@ writev(p, uap)
 	struct uio ktruio;
 #endif
 
-	if ((fp = getfp(fdp, uap->fd, FWRITE)) == NULL)
+	if ((fp = holdfp(fdp, uap->fd, FWRITE)) == NULL)
 		return (EBADF);
-	fhold(fp);
 	/* note: can't use iovlen until iovcnt is validated */
 	iovlen = uap->iovcnt * sizeof (struct iovec);
 	if (uap->iovcnt > UIO_SMALLIOV) {
@@ -549,30 +575,37 @@ ioctl(p, uap)
 	size = IOCPARM_LEN(com);
 	if (size > IOCPARM_MAX)
 		return (ENOTTY);
+
+	fhold(fp);
+
 	memp = NULL;
 	if (size > sizeof (ubuf.stkbuf)) {
 		memp = (caddr_t)malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
-	} else
+	} else {
 		data = ubuf.stkbuf;
+	}
 	if (com&IOC_IN) {
 		if (size) {
 			error = copyin(uap->data, data, (u_int)size);
 			if (error) {
 				if (memp)
 					free(memp, M_IOCTLOPS);
+				fdrop(fp, p);
 				return (error);
 			}
-		} else
+		} else {
 			*(caddr_t *)data = uap->data;
-	} else if ((com&IOC_OUT) && size)
+		}
+	} else if ((com&IOC_OUT) && size) {
 		/*
 		 * Zero the buffer so the user always
 		 * gets back something deterministic.
 		 */
 		bzero(data, size);
-	else if (com&IOC_VOID)
+	} else if (com&IOC_VOID) {
 		*(caddr_t *)data = uap->data;
+	}
 
 	switch (com) {
 
@@ -604,6 +637,7 @@ ioctl(p, uap)
 	}
 	if (memp)
 		free(memp, M_IOCTLOPS);
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -900,7 +934,7 @@ pollscan(p, fds, nfd)
 			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
-			if (fp == 0) {
+			if (fp == NULL) {
 				fds->revents = POLLNVAL;
 				n++;
 			} else {
