@@ -121,8 +121,10 @@ MAIN:{
 		if (-f "$DIR/$log.brief") {
 		    my @stat = stat("$DIR/$log.brief");
 		    my $class = success("$DIR/$log.brief") ? "ok" : "fail";
-		    $class .= "-stale"
-			if ($now - $stat[9] > $STALE);
+		    my $age = int($now - $stat[9] / 7200);
+		    $age = 9
+			if ($age > 9);
+		    $class .= "-$age";
 		    $links .= "<span class=\"$class\">" .
 			strftime("%Y-%m-%d %H:%M&nbsp;UTC", gmtime($stat[9])) .
 			"</span><br />";
