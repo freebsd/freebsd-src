@@ -71,7 +71,10 @@ void
 dbg_open(const char *fn)
 {
 
-	dbg_log=fopen(fn, "a");
+	if (strcmp(fn, "-") == 0)
+		dbg_log=fopen("/dev/stdout", "a");
+	else
+		dbg_log=fopen(fn, "a");
 
 	return;
 }
