@@ -35,7 +35,7 @@ bin		System/User commands.
 
 contrib		Packages contributed by 3rd parties.
 
-crypto		Export controlled stuff (see crypto/README).
+crypto		Cryptography stuff (see crypto/README).
 
 etc		Template files for /etc
 
