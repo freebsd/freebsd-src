@@ -240,10 +240,9 @@ main(int argc, char *argv[])
 	if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_DGRAM", NULL);
 
-	i = O_NONBLOCK;
-	if (fcntl(sv[0], F_SETFL, &i) != 0)
+	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
-	if (fcntl(sv[1], F_SETFL, &i) != 0)
+	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
 
 	test_evfilt_read(kq, sv, "PF_UNIX, SOCK_DGRAM");
@@ -267,10 +266,9 @@ main(int argc, char *argv[])
 	if (socketpair(PF_UNIX, SOCK_DGRAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_DGRAM", NULL);
 
-	i = O_NONBLOCK;
-	if (fcntl(sv[0], F_SETFL, &i) != 0)
+	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
-	if (fcntl(sv[1], F_SETFL, &i) != 0)
+	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_DGRAM", "O_NONBLOCK");
 
 	test_evfilt_write(kq, sv, "PF_UNIX, SOCK_DGRAM");
@@ -288,10 +286,9 @@ main(int argc, char *argv[])
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_STREAM", NULL);
 
-	i = O_NONBLOCK;
-	if (fcntl(sv[0], F_SETFL, &i) != 0)
+	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
-	if (fcntl(sv[1], F_SETFL, &i) != 0)
+	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
 
 	test_evfilt_read(kq, sv, "PF_UNIX, SOCK_STREAM");
@@ -308,10 +305,9 @@ main(int argc, char *argv[])
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, sv) == -1)
 		fail(errno, "socketpair", "PF_UNIX, SOCK_STREAM", NULL);
 
-	i = O_NONBLOCK;
-	if (fcntl(sv[0], F_SETFL, &i) != 0)
+	if (fcntl(sv[0], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
-	if (fcntl(sv[1], F_SETFL, &i) != 0)
+	if (fcntl(sv[1], F_SETFL, O_NONBLOCK) != 0)
 		fail(errno, "fcntl", "PF_UNIX, SOCK_STREAM", "O_NONBLOCK");
 
 	test_evfilt_write(kq, sv, "PF_UNIX, SOCK_STREAM");
