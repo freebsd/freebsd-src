@@ -69,6 +69,7 @@ SUBDIR=	accf_data \
 	syscons \
 	ti \
 	tl \
+	trm \
 	twe \
 	txp \
 	ucom \
