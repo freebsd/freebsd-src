@@ -39,8 +39,9 @@
 
 #include <dev/randomdev/yarrow.h>
 
-/* hold the address of the routine which is actually called if */
-/* the ramdomdev is loaded                                     */
+/* hold the address of the routine which is actually called if
+ * the ramdomdev is loaded
+ */
 static void (*reap)(struct timespec *, u_int64_t, u_int, u_int, u_int) = NULL;
 
 /* Initialise the harvester at load time */
@@ -57,17 +58,18 @@ random_deinit_harvester(void)
 	reap = NULL;
 }
 
-/* Entropy harvesting routine. This is supposed to be fast; do */
-/* not do anything slow in here!                               */
-/* Implemented as in indirect call to allow non-inclusion of   */
-/* the entropy device.                                         */
+/* Entropy harvesting routine. This is supposed to be fast; do
+ * not do anything slow in here!
+ * Implemented as in indirect call to allow non-inclusion of
+ * the entropy device.
+ */
 void
-random_harvest(u_int64_t entropy, u_int bits, u_int frac, u_int source)
+random_harvest(u_int64_t entropy, u_int bits, u_int frac, u_int origin)
 {
-	struct timespec nanotime;
+	struct timespec timebuf;
 
 	if (reap) {
-		getnanotime(&nanotime);
-		(*reap)(&nanotime, entropy, bits, frac, source);
+		nanotime(&timebuf);
+		(*reap)(&timebuf, entropy, bits, frac, origin);
 	}
 }
