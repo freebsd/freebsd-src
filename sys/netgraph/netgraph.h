@@ -1079,8 +1079,7 @@ int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn,
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
-/* We should mark callout mpsafe as soon as we mark netgraph ISR mpsafe */
-#define	ng_callout_init(c)	callout_init(c, 0)
+#define	ng_callout_init(c)	callout_init(c, CALLOUT_MPSAFE)
 
 /*
  * prototypes the user should DEFINITELY not use directly
