@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.40 1998/01/28 12:25:06 kato Exp $
+ *	$Id: clock.c,v 1.41 1998/02/09 15:05:42 kato Exp $
  */
 
 /*
@@ -209,9 +209,9 @@ clkintr(struct clockframe frame)
 	case ACQUIRED:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
+			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(&frame);
 			setdelayed();
-			timer0_prescaler_count -= hardclock_max_count;
 		}
 		break;
 
@@ -233,6 +233,30 @@ clkintr(struct clockframe frame)
 	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
+			timer0_prescaler_count -= hardclock_max_count;
+			/*
+			 * See microtime.s for this magic.
+			 */
+#ifdef PC98
+#ifndef AUTO_CLOCK
+#ifndef PC98_8M
+			time.tv_usec += (6667 * timer0_prescaler_count) >> 14;
+#else /* PC98_8M */
+			time.tv_usec += (16411 * timer0_prescaler_count) >> 15;
+#endif /* PC98_8M */
+#else /* AUTO_CLOCK */
+			if (pc98_machine_type & M_8M) {
+				/* PC98_8M */
+				time.tv_usec += (16411 * timer0_prescaler_count) >> 15;
+			} else {
+				time.tv_usec += (6667 * timer0_prescaler_count) >> 14;
+			}
+#endif /* AUTO_CLOCK */
+#else /* IBM-PC */
+			time.tv_usec += (27465 * timer0_prescaler_count) >> 15;
+#endif
+			if (time.tv_usec >= 1000000)
+				time.tv_usec -= 1000000;
 			hardclock(&frame);
 			setdelayed();
 			timer0_max_count = hardclock_max_count;
@@ -244,39 +268,6 @@ clkintr(struct clockframe frame)
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
 			outb(TIMER_CNTR0, timer0_max_count >> 8);
 			enable_intr();
-			/*
-			 * See microtime.s for this magic.
-			 */
-#ifdef PC98
-#ifndef AUTO_CLOCK
-#ifndef PC98_8M
-			time.tv_usec += (6667 *
-				(timer0_prescaler_count - hardclock_max_count))
-				>> 14;
-#else /* PC98_8M */
-			time.tv_usec += (16411 *
-				(timer0_prescaler_count - hardclock_max_count))
-				>> 15;
-#endif /* PC98_8M */
-#else /* AUTO_CLOCK */
-			if (pc98_machine_type & M_8M) {
-				/* PC98_8M */
-				time.tv_usec += (16411 *
-					(timer0_prescaler_count -
-					 hardclock_max_count)) >> 15;
-			} else {
-				time.tv_usec += (6667 *
-					(timer0_prescaler_count -
-					 hardclock_max_count)) >> 14;
-			}
-#endif /* AUTO_CLOCK */
-#else /* IBM-PC */
-			time.tv_usec += (27465 *
-				(timer0_prescaler_count - hardclock_max_count))
-				>> 15;
-#endif /* PC98 */
-			if (time.tv_usec >= 1000000)
-				time.tv_usec -= 1000000;
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
@@ -639,8 +630,11 @@ rtcin(reg)
 static __inline void
 writertc(u_char reg, u_char val)
 {
+	inb(0x84);
 	outb(IO_RTC, reg);
+	inb(0x84);
 	outb(IO_RTC + 1, val);
+	inb(0x84);		/* XXX work around wrong order in rtcin() */
 }
 
 static __inline int
@@ -767,15 +761,20 @@ static void
 set_timer_freq(u_int freq, int intr_freq)
 {
 	u_long ef;
+	int new_timer0_max_count;
 
 	ef = read_eflags();
 	disable_intr();
 	timer_freq = freq;
-	timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
-	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, timer0_max_count & 0xff);
-	outb(TIMER_CNTR0, timer0_max_count >> 8);
+	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
+	if (new_timer0_max_count != timer0_max_count) {
+		timer0_max_count = new_timer0_max_count;
+		timer0_overflow_threshold = timer0_max_count -
+		    TIMER0_LATCH_COUNT;
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+		outb(TIMER_CNTR0, timer0_max_count & 0xff);
+		outb(TIMER_CNTR0, timer0_max_count >> 8);
+	}
 	CLOCK_UNLOCK();
 	write_eflags(ef);
 }
