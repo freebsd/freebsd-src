@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dol.c,v 3.45 2000/11/19 20:50:43 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dol.c,v 3.47 2001/07/25 15:48:04 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dol.c,v 3.45 2000/11/19 20:50:43 christos Exp $")
+RCSID("$Id: sh.dol.c,v 3.47 2001/07/25 15:48:04 christos Exp $")
 
 /*
  * C shell
@@ -114,7 +114,7 @@ Dfix(t)
 	    if (Ismbyte1(*p) && *(p + 1))
 		p ++;
 	    else
-#endif DSPMBYTE
+#endif /* DSPMBYTE */
 	    if (cmap(*p, _DOL | QUOTES)) {	/* $, \, ', ", ` */
 		Dfix2(t->t_dcom);	/* found one */
 		blkfree(t->t_dcom);
@@ -1043,7 +1043,7 @@ again:
 #ifndef O_EXCL
 # define O_EXCL 0
 #endif
-    if (open(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY) == -1) {
+    if (open(tmp, O_RDWR|O_CREAT|O_EXCL|O_TEMPORARY, 0600) == -1) {
 	int oerrno = errno;
 #ifndef WINNT_NATIVE
 	if (errno == EEXIST) {

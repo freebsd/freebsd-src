@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.97 2001/08/28 23:13:44 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -63,6 +63,7 @@ extern int do_logout;
 extern time_t t_period;
 extern int just_signaled;
 static bool precmd_active = 0;
+static bool jobcmd_active = 0; /* GrP */
 static bool postcmd_active = 0;
 static bool periodic_active = 0;
 static bool cwdcmd_active = 0;	/* PWP: for cwd_cmd */
@@ -1043,6 +1044,44 @@ leave:
 #endif /* BSDSIGS */
 }
 
+
+/* 
+ * GrP Greg Parker May 2001
+ * Added job_cmd(), which is run every time a job is started or 
+ * foregrounded. The command is passed a single argument, the string 
+ * used to start the job originally. With precmd, useful for setting 
+ * xterm titles.
+ * Cloned from cwd_cmd().
+ */
+void
+job_cmd(args)
+    Char *args;
+{
+#ifdef BSDSIGS
+    sigmask_t omask;
+
+    omask = sigblock(sigmask(SIGINT));
+#else /* !BSDSIGS */
+    (void) sighold(SIGINT);
+#endif /* BSDSIGS */
+    if (jobcmd_active) {	/* an error must have been caught */
+	aliasrun(2, STRunalias, STRjobcmd);
+	xprintf(CGETS(22, 14, "Faulty alias 'jobcmd' removed.\n"));
+	goto leave;
+    }
+    jobcmd_active = 1;
+    if (!whyles && adrof1(STRjobcmd, &aliases))
+	aliasrun(2, STRjobcmd, args);
+leave:
+    jobcmd_active = 0;
+#ifdef BSDSIGS
+    (void) sigsetmask(omask);
+#else /* !BSDSIGS */
+    (void) sigrelse(SIGINT);
+#endif /* BSDSIGS */
+}
+
+
 /*
  * Karl Kleinpaste, 21oct1983.
  * Set up a one-word alias command, for use for special things.
@@ -1535,14 +1574,18 @@ gethomedir(us)
 #ifdef YPBUGS
     fix_yp_bugs();
 #endif /* YPBUGS */
-    if (pp != NULL)
-	return Strsave(str2short(pp->pw_dir));
+    if (pp != NULL) {
+	/* Don't return if root */
+	if (pp->pw_dir[0] == '/' && pp->pw_dir[1] == '\0')
+	    return NULL;
+	else
+	    return Strsave(str2short(pp->pw_dir));
+    }
 #ifdef HESIOD
     res = hes_resolve(short2str(us), "filsys");
-    rp = 0;
-    if (res != 0) {
-	extern char *strtok();
-	if ((*res) != 0) {
+    rp = NULL;
+    if (res != NULL) {
+	if ((*res) != NULL) {
 	    /*
 	     * Look at the first token to determine how to interpret
 	     * the rest of it.
@@ -1567,6 +1610,10 @@ gethomedir(us)
 	}
 	for (res1 = res; *res1; res1++)
 	    free(*res1);
+	if (rp != NULL && rp[0] == '/' && rp[1] == '\0') {
+	    xfree((ptr_t)rp);
+	    rp = NULL;
+	}
 	return rp;
     }
 #endif /* HESIOD */

@@ -1,4 +1,4 @@
-$ $Id: set3,v 1.4 1995/04/25 14:08:04 christos Exp $
+$ $Id: set3,v 1.5 2001/04/26 19:07:50 kim Exp $
 $ Editor function descriptions
 $set 3
 1 Ein Zeichen zurück
@@ -115,3 +115,10 @@ $set 3
 112 Vi gehe zum Anfang der Zeile
 113 Mache ein 'which' von dem aktuellen Befehl
 114 Füge den Cut-Puffer an der Cursor-Position ein
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

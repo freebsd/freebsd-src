@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.c,v 3.92 2000/11/11 23:03:35 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.c,v 3.95 2001/04/27 22:36:39 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -43,7 +43,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$Id: sh.c,v 3.92 2000/11/11 23:03:35 christos Exp $")
+RCSID("$Id: sh.c,v 3.95 2001/04/27 22:36:39 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -160,7 +160,11 @@ struct saved_state {
 };
 
 static	int		  srccat	__P((Char *, Char *));
+#ifndef WINNT_NATIVE
 static	int		  srcfile	__P((char *, bool, int, Char **));
+#else
+int		  srcfile	__P((char *, bool, int, Char **));
+#endif /*WINNT_NATIVE*/
 static	sigret_t	  phup		__P((int));
 static	void		  srcunit	__P((int, bool, int, Char **));
 static	void		  mailchk	__P((void));
@@ -674,6 +678,11 @@ main(argc, argv)
      * suffix of file names...
      */
     set(STRaddsuffix, Strsave(STRNULL), VAR_READWRITE);
+
+    /*
+     * Random default kill ring size
+     */
+    set(STRkillring, SAVE("30"), VAR_READWRITE);
 
     /*
      * Re-initialize path if set in environment
@@ -1438,7 +1447,11 @@ srccat(cp, dp)
 /*
  * Source to a file putting the file descriptor in a safe place (> 2).
  */
+#ifndef WINNT_NATIVE
 static int
+#else
+int
+#endif /*WINNT_NATIVE*/
 srcfile(f, onlyown, flag, av)
     char   *f;
     bool    onlyown;

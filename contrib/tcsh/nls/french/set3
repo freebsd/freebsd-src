@@ -1,4 +1,4 @@
-$ $Id: set3,v 1.1 1995/04/25 14:04:35 christos Exp $
+$ $Id: set3,v 1.2 2001/04/26 19:07:49 kim Exp $
 $ Description des fonctions éditeur
 $set 3 
 1 Recule d'un caractère
@@ -115,3 +115,10 @@ $set 3
 112 Vi va au début de la ligne
 113 Exécute quelle commande en cours
 114 Colle le tampon de copie à la position du curseur
+115 Replace just-yanked text with yank from earlier kill
+116 (WIN32 only) Copy cut buffer to system clipboard
+117 (WIN32 only) Paste clipboard buffer at cursor position
+118 (WIN32 only) Convert each '/' in next word to '\\\\'
+119 (WIN32 only) Convert each '/' in previous word to '\\\\'
+120 (WIN32 only) Page visible console window up
+121 (WIN32 only) Page visible console window down

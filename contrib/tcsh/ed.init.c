@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.init.c,v 3.43 2000/11/11 23:03:34 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.init.c,v 3.44 2001/02/19 23:30:44 kim Exp $ */
 /*
  * ed.init.c: Editor initializations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.init.c,v 3.43 2000/11/11 23:03:34 christos Exp $")
+RCSID("$Id: ed.init.c,v 3.44 2001/02/19 23:30:44 kim Exp $")
 
 #include "ed.h"
 #include "ed.term.h"
@@ -208,6 +208,7 @@ ed_Setup(rst)
     ed_InitMaps();
     Hist_num = 0;
     Expand = 0;
+    SetKillRing(getn(varval(STRkillring)));
 
 #ifndef WINNT_NATIVE
     if (tty_getty(SHTTY, &extty) == -1) {
@@ -303,7 +304,27 @@ ed_Init()
 {
     ResetInLine(1);		/* reset the input pointers */
     GettingInput = 0;		/* just in case */
-    LastKill = KillBuf;		/* no kill buffer */
+#ifdef notdef
+    /* XXX This code was here before the kill ring:
+    LastKill = KillBuf;		/ * no kill buffer * /
+       If there was any reason for that other than to make sure LastKill
+       was initialized, the code below should go in here instead - but
+       it doesn't seem reasonable to lose the entire kill ring (which is
+       "self-initializing") just because you set $term or whatever, so
+       presumably this whole '#ifdef notdef' should just be taken out.  */
+
+    {				/* no kill ring - why? */
+	int i;
+	for (i = 0; i < KillRingMax; i++) {
+	    if (KillRing[i].buf != NULL)
+		xfree((ptr_t) KillRing[i].buf);
+	    KillRing[i].buf = NULL;
+	    KillRing[i].len = 0;
+	}
+	YankPos = KillPos = 0;
+	KillRingLen = 0;
+    }
+#endif
 
 #ifdef DEBUG_EDIT
     CheckMaps();		/* do a little error checking on key maps */
@@ -623,9 +644,6 @@ ResetInLine(macro)
     Hist_num = 0;
     DoingArg = 0;
     Argument = 1;
-#ifdef notdef
-    LastKill = KillBuf;		/* no kill buffer */
-#endif 
     LastCmd = F_UNASSIGNED;	/* previous command executed */
     if (macro)
 	MacroLvl = -1;		/* no currently active macros */

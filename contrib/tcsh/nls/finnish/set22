@@ -1,4 +1,4 @@
-$ $Id: set22,v 1.1 2000/01/14 22:57:33 christos Exp $
+$ $Id: set22,v 1.2 2001/04/26 19:06:01 kim Exp $
 $ tc.func.c
 $set 22 
 1 %S: \t on alias komennolle 
@@ -14,5 +14,4 @@ $set 22
 11 J‰sennet‰‰n komentorivi‰\n
 12 on yhdell‰ listoista\n
 13 Komentorivi on nyt:\n
-$ 14 YyKk
-14 Kk
+14 YyKk

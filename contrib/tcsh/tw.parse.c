@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.parse.c,v 3.89 2000/11/11 23:03:40 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.parse.c,v 3.90 2001/03/18 19:06:32 christos Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -39,7 +39,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.parse.c,v 3.89 2000/11/11 23:03:40 christos Exp $")
+RCSID("$Id: tw.parse.c,v 3.90 2001/03/18 19:06:32 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -1318,6 +1318,9 @@ tw_list_items(looking, numitems, list_max)
     int max_items = 0;
     int max_rows = 0;
 
+    if (numitems == 0)
+	return;
+
     if ((ptr = varval(STRlistmax)) != STRNULL) {
 	while (*ptr) {
 	    if (!Isdigit(*ptr)) {
@@ -1594,7 +1597,12 @@ t_search(word, wp, command, max_word_length, looking, list_max, pat, suf)
     case TW_PATH | TW_DIRECTORY:
     case TW_PATH | TW_COMMAND:
 	if ((dir_fd = opendir(short2str(exp_dir))) == NULL) {
-	    xprintf("%S: %s\n", exp_dir, strerror(errno));
+ 	    if (command == RECOGNIZE)
+ 		xprintf("\n");
+ 	    xprintf("%S: %s", exp_dir, strerror(errno));
+ 	    if (command != RECOGNIZE)
+ 		xprintf("\n");
+ 	    NeedsRedraw = 1;
 	    return -1;
 	}
 	if (exp_dir[Strlen(exp_dir) - 1] != '/')
@@ -1779,6 +1787,13 @@ tilde(new, old)
 	    new[0] = '\0';
 	    return NULL;
 	}
+#ifdef apollo
+	/* Special case: if the home directory expands to "/", we do
+	 * not want to create "//" by appending a slash from o.
+	 */
+	if (new[0] == '/' && new[1] == '\0' && *o == '/')
+	    ++o;
+#endif /* apollo */
 	(void) Strcat(new, o);
 	return new;
 

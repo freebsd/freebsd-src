@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.decls.h,v 3.29 2000/07/15 19:58:50 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.decls.h,v 3.30 2001/02/19 23:30:43 kim Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */
@@ -42,6 +42,7 @@
  */
 extern	int	InsertStr		__P((Char *));
 extern	void	DeleteBack		__P((int));
+extern	void	SetKillRing		__P((int));
 
 /*
  * ed.init.c
@@ -240,6 +241,7 @@ extern  CCRETVAL	e_dosify_next		__P((int));
 extern  CCRETVAL	e_dosify_prev		__P((int));
 extern  CCRETVAL	e_page_up			__P((int));
 extern  CCRETVAL	e_page_down			__P((int));
+extern  CCRETVAL	e_yank_pop		__P((int));
 
 /*
  * ed.inputl.c

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.decls.h,v 3.34 1999/02/06 15:01:21 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.decls.h,v 3.35 2001/08/06 23:52:03 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */
@@ -337,6 +337,7 @@ extern	void		  unsetv	__P((Char *));
 extern	void		  setNS		__P((Char *));
 extern	void		  shift		__P((Char **, struct command *));
 extern	void		  plist		__P((struct varent *, int));
+extern	Char		 *unparse	__P((struct command *));
 #if defined(DSPMBYTE)
 extern	void 		  update_dspmbyte_vars	__P((void));
 extern	void		  autoset_dspmbyte	__P((Char *));

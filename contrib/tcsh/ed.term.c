@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.term.c,v 1.26 2001/08/06 23:51:09 christos Exp $ */
 /*
  * ed.term.c: Low level terminal interface
  */
@@ -37,7 +37,7 @@
 #include "sh.h"
 #ifndef WINNT_NATIVE
 
-RCSID("$Id: ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $")
+RCSID("$Id: ed.term.c,v 1.26 2001/08/06 23:51:09 christos Exp $")
 
 #include "ed.h"
 #include "ed.term.h"
@@ -566,14 +566,21 @@ static struct tcshmodes {
 # define OKERROR(e) ((e) == EINTR)
 #endif
 
+#ifdef __NetBSD__
+#define KLUDGE (errno == ENOTTY && count < 10)
+#else
+#define KLUDGE 0
+#endif
+
 /* Retry a system call */
+static int count;
 #define RETRY(x) \
-   for (;;) \
+   for (count = 0;; count++) \
 	if ((x) == -1) { \
-	   if (OKERROR(errno)) \
-	       continue; \
-	   else \
-	       return -1; \
+	    if (OKERROR(errno) || KLUDGE) \
+		continue; \
+	    else \
+		return -1; \
 	} \
 	else \
 	   break \
