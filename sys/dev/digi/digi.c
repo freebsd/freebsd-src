@@ -1308,10 +1308,10 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		break;
 	case TIOCSBRK:
 		/*
-		 * now it sends 250 millisecond break because I don't know
+		 * now it sends 400 millisecond break because I don't know
 		 * how to send an infinite break
 		 */
-		fepcmd_w(port, SENDBREAK, 250, 10);
+		fepcmd_w(port, SENDBREAK, 400, 10);
 		break;
 	case TIOCCBRK:
 		/* now it's empty */
