@@ -27,7 +27,7 @@
  *	i4b_isic_pci.c - PCI bus interface
  *	==================================
  *
- *	$Id: i4b_isic_pci.c,v 1.9 1998/12/05 18:04:48 hm Exp $
+ *	$Id: i4b_isic_pci.c,v 1.1 1998/12/27 21:46:46 phk Exp $
  *
  *      last edit-date: [Sat Dec  5 18:24:36 1998]
  *
@@ -87,7 +87,7 @@
 #define PORT0_MAPOFF	4
 #define PORT1_MAPOFF	12
 
-static char* i4b_pci_probe(pcici_t tag, pcidi_t type);
+static const char* i4b_pci_probe(pcici_t tag, pcidi_t type);
 static void i4b_pci_attach(pcici_t config_id, int unit);
 static int isic_pciattach(int unit, u_long type, u_int iobase1, u_int iobase2);
 
@@ -109,7 +109,7 @@ static void isic_pci_intr_sc(struct isic_softc *sc);
 /*---------------------------------------------------------------------------*
  *	PCI probe routine
  *---------------------------------------------------------------------------*/
-static char *
+static const char *
 i4b_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch(type)

@@ -35,7 +35,7 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.3 1998/12/16 09:32:50 hm Exp $
+ *	$Id: i4b_isic_pcmcia.c,v 1.1 1998/12/27 21:46:46 phk Exp $
  *
  *      last edit-date: [Mon Dec 14 17:30:09 1998]
  *
@@ -84,6 +84,9 @@
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
  
+extern int isicattach(struct isa_device *dev);
+extern void isicintr(int unit);
+
 /*  
  * PC-Card (PCMCIA) specific code.
  */
@@ -112,7 +115,6 @@ static int isic_pccard_init(devi)
 struct pccard_devinfo *devi;
 {   
     	struct isa_device *is = &devi->isahd;
-	struct isic_softc *sc = &isic_sc[is->id_unit];
 
 	if ((1 << is->id_unit) & opened)
 		return(EBUSY);
