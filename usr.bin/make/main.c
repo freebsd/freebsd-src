@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.16 1997/02/22 19:27:14 peter Exp $
  */
 
 #ifndef lint
@@ -167,7 +167,7 @@ MainParseArgs(argc, argv)
 #else
 # define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrst"
 #endif
-rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != EOF) {
+rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);

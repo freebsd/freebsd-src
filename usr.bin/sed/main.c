@@ -112,7 +112,7 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
-	while ((c = getopt(argc, argv, "ae:f:n")) != EOF)
+	while ((c = getopt(argc, argv, "ae:f:n")) != -1)
 		switch (c) {
 		case 'a':
 			aflag = 1;

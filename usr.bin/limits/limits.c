@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- *	$Id$
+ *	$Id: limits.c,v 1.2 1997/02/22 19:55:37 peter Exp $
  */
 
 #include <err.h>
@@ -246,7 +246,7 @@ main(int argc, char *argv[])
   }
 
   optarg = NULL;
-  while ((ch = getopt(argc, argv, ":EeC:U:BSHac:d:f:l:m:n:s:t:u:")) != EOF) {
+  while ((ch = getopt(argc, argv, ":EeC:U:BSHac:d:f:l:m:n:s:t:u:")) != -1) {
     switch(ch) {
       case 'a':
       	doall = 1;

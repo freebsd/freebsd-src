@@ -75,7 +75,7 @@ main(argc, argv)
 
 	obsolete(argv);
 	linecnt = 10;
-	while ((ch = getopt(argc, argv, "n:")) != EOF)
+	while ((ch = getopt(argc, argv, "n:")) != -1)
 		switch(ch) {
 		case 'n':
 			linecnt = strtol(optarg, &ep, 10);

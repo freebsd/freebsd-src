@@ -174,7 +174,7 @@ main(argc, argv)
 	arg = 0;
 	what = KERN_PROC_ALL;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "fnp:u:vNM")) != EOF)
+	while ((ch = getopt(argc, argv, "fnp:u:vNM")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fsflg = 1;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id: su.c,v 1.17 1997/01/14 09:24:09 davidn Exp $";
+	"$Id: su.c,v 1.18 1997/02/24 20:32:24 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ main(argc, argv)
 	asme = asthem = fastlogin = 0;
 	user = "root";
 	while(optind < argc)
-	    if((ch = getopt(argc, argv, ARGSTR)) != EOF)
+	    if((ch = getopt(argc, argv, ARGSTR)) != -1)
 		switch((char)ch) {
 #ifdef KERBEROS
 		case 'K':

@@ -74,7 +74,7 @@ main(argc, argv)
 #define	BSIZE (8 * 1024)
 
 	append = 0;
-	while ((ch = getopt(argc, argv, "ai")) != EOF)
+	while ((ch = getopt(argc, argv, "ai")) != -1)
 		switch((char)ch) {
 		case 'a':
 			append = 1;

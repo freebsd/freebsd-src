@@ -56,7 +56,7 @@ main(argc, argv)
 	extern int optind;
 	int ch, exitval;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

@@ -62,7 +62,7 @@ main(argc, argv)
 	int mode;
 	char *strerror();
 
-	while (getopt(argc, argv, "") != EOF)
+	while (getopt(argc, argv, "") != -1)
 		usage();
 	argv += optind;
 	argc -= optind;

@@ -85,7 +85,7 @@ main(argc, argv)
 		termwidth = win.ws_col;
 
 	tflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "c:s:tx")) != EOF)
+	while ((ch = getopt(argc, argv, "c:s:tx")) != -1)
 		switch(ch) {
 		case 'c':
 			termwidth = atoi(optarg);

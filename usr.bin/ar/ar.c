@@ -97,7 +97,7 @@ main(argc, argv)
 		argv[1] = p;
 	}
 
-	while ((c = getopt(argc, argv, "abcdilmopqrTtuvx")) != EOF) {
+	while ((c = getopt(argc, argv, "abcdilmopqrTtuvx")) != -1) {
 		switch(c) {
 		case 'a':
 			options |= AR_A;
