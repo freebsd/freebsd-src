@@ -100,7 +100,7 @@ _thread_kern_sched_frame(struct pthread_signal_frame *psf)
 
 
 void
-_thread_kern_sched(ucontext_t *scp)
+_thread_kern_sched(ucontext_t *ucp)
 {
 	struct pthread	*curthread = _get_curthread();
 
@@ -112,50 +112,61 @@ _thread_kern_sched(ucontext_t *scp)
 	_thread_kern_in_sched = 1;
 
 	/* Check if this function was called from the signal handler: */
-	if (scp != NULL) {
+	if (ucp != NULL) {
+		/* XXX - Save FP registers? */
+		FP_SAVE_UC(ucp);
 		called_from_handler = 1;
 		DBG_MSG("Entering scheduler due to signal\n");
-	} else {
-		/* Save the state of the current thread: */
-		if (_setjmp(curthread->ctx.jb) == 0) {
-			/* Flag the jump buffer was the last state saved: */
-			curthread->ctxtype = CTX_JB_NOSIG;
-			curthread->longjmp_val = 1;
-		} else {
-			DBG_MSG("Returned from ___longjmp, thread %p\n",
-			    curthread);
-			/*
-			 * This point is reached when a longjmp() is called
-			 * to restore the state of a thread.
-			 *
-			 * This is the normal way out of the scheduler.
-			 */
-			_thread_kern_in_sched = 0;
+	}
 
-			if (curthread->sig_defer_count == 0) {
-				if (((curthread->cancelflags &
-				    PTHREAD_AT_CANCEL_POINT) == 0) &&
-				    ((curthread->cancelflags &
-				    PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
-					/*
-					 * Cancellations override signals.
-					 *
-					 * Stick a cancellation point at the
-					 * start of each async-cancellable
-					 * thread's resumption.
-					 *
-					 * We allow threads woken at cancel
-					 * points to do their own checks.
-					 */
-					pthread_testcancel();
-			}
+	/* Save the state of the current thread: */
+	if (_setjmp(curthread->ctx.jb) != 0) {
+		DBG_MSG("Returned from ___longjmp, thread %p\n",
+		    curthread);
+		/*
+		 * This point is reached when a longjmp() is called
+		 * to restore the state of a thread.
+		 *
+		 * This is the normal way out of the scheduler.
+		 */
+		_thread_kern_in_sched = 0;
 
-			if (_sched_switch_hook != NULL) {
-				/* Run the installed switch hook: */
-				thread_run_switch_hook(_last_user_thread,
-				    curthread);
-			}
+		if (curthread->sig_defer_count == 0) {
+			if (((curthread->cancelflags &
+			    PTHREAD_AT_CANCEL_POINT) == 0) &&
+			    ((curthread->cancelflags &
+			    PTHREAD_CANCEL_ASYNCHRONOUS) != 0))
+				/*
+				 * Cancellations override signals.
+				 *
+				 * Stick a cancellation point at the
+				 * start of each async-cancellable
+				 * thread's resumption.
+				 *
+				 * We allow threads woken at cancel
+				 * points to do their own checks.
+				 */
+				pthread_testcancel();
+		}
+
+		if (_sched_switch_hook != NULL) {
+			/* Run the installed switch hook: */
+			thread_run_switch_hook(_last_user_thread, curthread);
+		}
+		if (ucp == NULL)
 			return;
+		else {
+			/* XXX - Restore FP registers? */
+			FP_RESTORE_UC(ucp);
+
+			/*
+			 * Set the process signal mask in the context; it
+			 * could have changed by the handler.
+			 */
+			ucp->uc_sigmask = _process_sigmask;
+
+			/* Resume the interrupted thread: */
+			__sys_sigreturn(ucp);
 		}
 	}
 	/* Switch to the thread scheduler: */
@@ -190,20 +201,12 @@ _thread_kern_scheduler(void)
 		called_from_handler = 0;
 
 		/*
-		 * The signal handler should have saved the state of
-		 * the current thread.  Restore the process signal
-		 * mask.
+		 * We were called from a signal handler; restore the process
+		 * signal mask.
 		 */
 		if (__sys_sigprocmask(SIG_SETMASK,
 		    &_process_sigmask, NULL) != 0)
 			PANIC("Unable to restore process mask after signal");
-
-		/*
-		 * Since the signal handler didn't return normally, we
-		 * have to tell the kernel to reuse the signal stack.
-		 */
-		if (__sys_sigaltstack(&_thread_sigstack, NULL) != 0)
-			PANIC("Unable to restore alternate signal stack");
 	}
 
 	/*
@@ -581,42 +584,11 @@ _thread_kern_scheduler(void)
 			/*
 			 * Continue the thread at its current frame:
 			 */
-			switch(curthread->ctxtype) {
-			case CTX_JB_NOSIG:
-				___longjmp(curthread->ctx.jb,
-				    curthread->longjmp_val);
-				break;
-			case CTX_JB:
-				__longjmp(curthread->ctx.jb,
-				    curthread->longjmp_val);
-				break;
-			case CTX_SJB:
-				__siglongjmp(curthread->ctx.sigjb,
-				    curthread->longjmp_val);
-				break;
-			case CTX_UC:
-				/* XXX - Restore FP regsisters? */
-				FP_RESTORE_UC(&curthread->ctx.uc);
-
-				/*
-				 * Do a sigreturn to restart the thread that
-				 * was interrupted by a signal:
-				 */
-				_thread_kern_in_sched = 0;
-
 #if NOT_YET
-				_setcontext(&curthread->ctx.uc);
+			_setcontext(&curthread->ctx.uc);
 #else
-				/*
-				 * Ensure the process signal mask is set
-				 * correctly:
-				 */
-				curthread->ctx.uc.uc_sigmask =
-				    _process_sigmask;
-				__sys_sigreturn(&curthread->ctx.uc);
+			___longjmp(curthread->ctx.jb, 1);
 #endif
-				break;
-			}
 			/* This point should not be reached. */
 			PANIC("Thread has returned from sigreturn or longjmp");
 		}
