@@ -605,12 +605,12 @@ characters may be used to name
 an ordinary file, special file, or directory.
 .Pp
 These characters may be arbitrary eight-bit values,
-excluding NUL
-.Po Tn ASCII
-.No 0 Pc
-and the
+excluding
+.Dv NUL
+.Tn ( ASCII
+0) and the
 .Ql \&/
-character (slash, 
+character (slash,
 .Tn ASCII
 47).
 .Pp
@@ -625,7 +625,7 @@ file names because of the special meaning attached to these characters
 by the shell.
 .It Path Name
 A path name is a
-.Tn NUL Ns -terminated
+.Dv NUL Ns -terminated
 character string starting with an
 optional slash
 .Ql \&/ ,
