@@ -1233,8 +1233,15 @@ vr_intr(void *arg)
 
 	VR_LOCK(sc);
 
-	if (sc->suspended)
+	if (sc->suspended) {
+		/*
+		 * Forcibly disable interrupts.
+		 * XXX: Mobile VIA based platforms may need
+		 * interrupt re-enable on resume.
+		 */
+		CSR_WRITE_2(sc, VR_IMR, 0x0000);
 		goto done_locked;
+	}
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
