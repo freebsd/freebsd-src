@@ -226,7 +226,7 @@ fork1(p1, flags, procp)
 	/*
 	 * Although process entries are dynamically created, we still keep
 	 * a global limit on the maximum number we will create.  Don't allow
-	 * a nonprivileged user to use the last process; don't let root
+	 * a nonprivileged user to use the last ten processes; don't let root
 	 * exceed the limit. The variable nprocs is the current number of
 	 * processes, maxproc is the limit.
 	 */
