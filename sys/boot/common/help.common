@@ -2,7 +2,7 @@
 # Thelp DDisplay command help
 
 	help [topic [subtopic]]
-	?
+	help index
 
 	The help command displays help on commands and their usage.
 
@@ -17,6 +17,13 @@
 
 	unset acpi_load
 	set hint.acpi.0.disabled="1"
+
+################################################################################
+# T? DList available commands
+
+	?
+
+	Lists all available commands.
 
 ################################################################################
 # Tautoboot DBoot after a delay
