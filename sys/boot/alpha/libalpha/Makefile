@@ -18,7 +18,7 @@ CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
 #CPPFLAGS+= -DNO_DISKLABEL
 #CPPFLAGS+= -DSAVE_MEMORY
 
-SRCS=	OSFpal.c elf_freebsd.c prom.c prom_disp.S prom_swpal.S start.S \
+SRCS=	OSFpal.c elf_freebsd.c prom.c prom_disp.S prom_swpal.S \
 	pal.S reboot.c delay.c time.c alpha_module.c devicename.c \
 	srmdisk.c srmnet.c getsecs.c alpha_copy.c bootinfo.c
 
