@@ -88,15 +88,6 @@ static int smbfs_unmount(struct mount *, int, struct thread *);
 static int smbfs_init(struct vfsconf *vfsp);
 static int smbfs_uninit(struct vfsconf *vfsp);
 
-#if __FreeBSD_version < 400009
-static int smbfs_vget(struct mount *mp, ino_t ino, int flags,
-			struct vnode **vpp);
-static int smbfs_fhtovp(struct mount *, struct fid *,
-			struct sockaddr *, struct vnode **, int *,
-			struct ucred **);
-static int smbfs_vptofh(struct vnode *, struct fid *);
-#endif
-
 static struct vfsops smbfs_vfsops = {
 	smbfs_mount,
 	smbfs_start,
@@ -105,24 +96,13 @@ static struct vfsops smbfs_vfsops = {
 	smbfs_quotactl,
 	smbfs_statfs,
 	smbfs_sync,
-#if __FreeBSD_version > 400008
 	vfs_stdvget,
 	vfs_stdfhtovp,		/* shouldn't happen */
 	vfs_stdcheckexp,
 	vfs_stdvptofh,		/* shouldn't happen */
-#else
-	smbfs_vget,
-	smbfs_fhtovp,
-	smbfs_vptofh,
-#endif
 	smbfs_init,
 	smbfs_uninit,
-#ifndef FB_RELENG3
-	vfs_stdextattrctl,
-#else
-#define	M_USE_RESERVE	M_KERNEL
-	&sysctl___vfs_smbfs
-#endif
+	vfs_stdextattrctl
 };
 
 
@@ -462,42 +442,3 @@ loop:
 	return (allerror);
 }
 
-#if __FreeBSD_version < 400009
-/*
- * smbfs flat namespace lookup. Unsupported.
- */
-/* ARGSUSED */
-static int smbfs_vget(mp, ino, flags, vpp)
-	struct mount *mp;
-	ino_t ino;
-	int flags;
-	struct vnode **vpp;
-{
-	return (EOPNOTSUPP);
-}
-
-/* ARGSUSED */
-static int smbfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
-	struct mount *mp;
-	struct fid *fhp;
-	struct sockaddr *nam;
-	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-	return (EINVAL);
-}
-
-/*
- * Vnode pointer to File handle, should never happen either
- */
-/* ARGSUSED */
-static int
-smbfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	return (EINVAL);
-}
-
-#endif /* __FreeBSD_version < 400009 */

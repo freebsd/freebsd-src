@@ -49,9 +49,6 @@
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#if __FreeBSD_version < 400000
-#include <vm/vm_prot.h>
-#endif
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -441,11 +438,8 @@ smbfs_getpages(ap)
 	}
 	smb_makescred(&scred, td, cred);
 
-#if __FreeBSD_version >= 400000
 	bp = getpbuf(&smbfs_pbuf_freecnt);
-#else
-	bp = getpbuf();
-#endif
+
 	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
@@ -465,11 +459,7 @@ smbfs_getpages(ap)
 	error = smb_read(smp->sm_share, np->n_fid, &uio, &scred);
 	pmap_qremove(kva, npages);
 
-#if __FreeBSD_version >= 400000
 	relpbuf(bp, &smbfs_pbuf_freecnt);
-#else
-	relpbuf(bp);
-#endif
 
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
@@ -580,11 +570,8 @@ smbfs_putpages(ap)
 		rtvals[i] = VM_PAGER_AGAIN;
 	}
 
-#if __FreeBSD_version >= 400000
 	bp = getpbuf(&smbfs_pbuf_freecnt);
-#else
-	bp = getpbuf();
-#endif
+
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
 	cnt.v_vnodeout++;
@@ -607,11 +594,8 @@ smbfs_putpages(ap)
 	SMBVDEBUG("paged write done: %d\n", error);
 
 	pmap_qremove(kva, npages);
-#if __FreeBSD_version >= 400000
+
 	relpbuf(bp, &smbfs_pbuf_freecnt);
-#else
-	relpbuf(bp);
-#endif
 
 	if (!error) {
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
