@@ -295,7 +295,9 @@ struct sstack {
 	FILE	*s_file;		/* File we were in. */
 	int	s_cond;			/* Saved state of conditionals */
 	int	s_loading;		/* Loading .mailrc, etc. */
-} sstack[NOFILE];
+};
+#define	SSTACK_SIZE	64		/* XXX was NOFILE. */
+static struct sstack sstack[SSTACK_SIZE];
 
 /*
  * Pushdown current input file and switch to a new one.
@@ -315,7 +317,7 @@ source(arglist)
 		perror(cp);
 		return(1);
 	}
-	if (ssp >= NOFILE - 1) {
+	if (ssp >= SSTACK_SIZE - 1) {
 		printf("Too much \"sourcing\" going on.\n");
 		Fclose(fi);
 		return(1);
