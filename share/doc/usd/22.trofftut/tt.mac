@@ -67,7 +67,7 @@
 .de P1
 .if n .ls 1
 .nf
-.		use first argument as indent if present
+.\" use first argument as indent if present
 .if \\n(.$ .DS I \\$1
 .if !\\n(.$ .DS I 5
 .ta .75i 1.5i 2.25i 3i 3.75i
