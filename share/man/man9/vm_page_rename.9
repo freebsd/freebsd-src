@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vm_page_rename
-.Nd "moves a page"
+.Nd "move a page"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
@@ -54,16 +54,16 @@ unless it is wired or unmanaged, in which case the deactivation will
 fail.
 The entire page is marked as dirty after the move.
 .Pp
-The arguments to 
+The arguments to
 .Fn vm_page_rename
 are:
 .Bl -tag -width ".Fa new_object"
-.It m
+.It Fa m
 The page to move.
-.It new_object
+.It Fa new_object
 The object the page should be inserted into.
-.It new_pindex
-The page index into 
+.It Fa new_pindex
+The page index into
 .Fa new_object
 at which the new page should be inserted.
 .El
