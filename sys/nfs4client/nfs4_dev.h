@@ -47,7 +47,7 @@ struct nfs4dev_msg {
 	uint8_t msg_data[NFS4DEV_MSG_MAX_DATALEN];
 };
 
-#define NFS4DEV_VERSION  (0x3 << 16 | sizeof(struct nfs4dev_msg))
+#define NFS4DEV_VERSION  (0x3 << 16 | (int) sizeof(struct nfs4dev_msg))
 
 /* ioctl commands */
 #define NFS4DEVIOCGET _IOR('A', 0x200, struct nfs4dev_msg)
