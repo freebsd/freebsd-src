@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.23 1995/03/01 23:29:59 davidg Exp $
+ *	$Id: vm_page.c,v 1.24 1995/03/16 18:17:26 bde Exp $
  */
 
 /*
@@ -737,7 +737,7 @@ again:
 	tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
 
 	for (i = start; i < (start + size / PAGE_SIZE); i++) {
-		vm_page_t m = &pga[i];;
+		vm_page_t m = &pga[i];
 
 		TAILQ_REMOVE(&vm_page_queue_free, m, pageq);
 		cnt.v_free_count--;
@@ -750,7 +750,7 @@ again:
 		m->busy = 0;
 		vm_page_insert(m, kernel_object, tmp_addr - VM_MIN_KERNEL_ADDRESS);
 		vm_page_wire(m);
-		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(&pga[i]));
+		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
 		tmp_addr += PAGE_SIZE;
 	}
 
