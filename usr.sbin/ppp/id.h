@@ -49,3 +49,6 @@ extern void ID0setproctitle(const char *);
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 extern int ID0kldload(const char *);
 #endif
+#ifndef NONETGRAPH
+extern int ID0NgMkSockNode(const char *, int *, int *);
+#endif
