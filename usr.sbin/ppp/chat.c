@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.27 1997/06/23 23:10:05 brian Exp $
+ * $Id: chat.c,v 1.28 1997/07/01 21:31:21 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -568,6 +568,9 @@ DoChat(char *script)
   char *vector[40];
   char **argv;
   int argc, n, state;
+
+  if (!script || !*script)
+    return MATCH;
 
   /* While we're chatting, we want an INT to fail us */
   if (setjmp(ChatEnv)) {
