@@ -31,8 +31,6 @@
 #include "pckbd.h"
 #include "opt_kbd.h"
 
-#if NPCKBD > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -927,5 +925,3 @@ read_kbd_data_no_wait(KBDC p)
     }
     return -1;		/* no data */
 }
-
-#endif /* NPCKBD > 0 */
