@@ -197,7 +197,9 @@ watch_virt_set(vm_offset_t va, int sz)
 static int
 sparc64_autoload(void)
 {
-	printf("nothing to autoload yet.\n");
+	/* XXX - Temporary hack needed for new ATA to work. */
+	printf("Turning off DMA for ATA.\n");
+	setenv("hw.ata.ata_dma", "0", 1);
 	return 0;
 }
 
