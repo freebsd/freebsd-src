@@ -2049,10 +2049,7 @@ uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
 	/* 
-	 * XXX: Giant is still needed by kmem_free, since we have
-	 * kmem_free -> vm_map_remove -> vm_map_delete ->
-	 *   vm_object_page_remove -> vm_object_pip_add -> GIANT_REQUIRED
-	 * We also get a lock order reversal if we don't have Giant:
+	 * XXX: We get a lock order reversal if we don't have Giant:
 	 * vm_map_remove (locks system map) -> vm_map_delete ->
 	 *    vm_map_entry_unwire -> vm_fault_unwire -> mtx_lock(&Giant)
 	 */
