@@ -5,7 +5,7 @@ FILES=	CATALOG
 MAINTAINER=jfieber@freebsd.org
 
 BINDIR?=/usr/share
-DISTRIBUTION?=  doc
+DISTRIBUTION?=  bin
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FILES} \
