@@ -5,7 +5,7 @@
 ENTRY(_get_curthread)
 	cmpl	$0, _thread_initial
 	je	nothreads
-	movl	%gs:0, %eax
+	movl	%gs:8, %eax
 	ret
 nothreads:
 	xor	%eax, %eax

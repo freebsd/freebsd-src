@@ -38,112 +38,67 @@
 #include <machine/segments.h>
 
 #include "thr_private.h"
-
-#define	MAXTHR	8192
-
-#define	LDT_INDEX(x)	(((long)(x) - (long)ldt_entries) / sizeof(ldt_entries[0]))
-
-void		**ldt_free = NULL;
-void		 *ldt_entries[MAXTHR];
-static int	  ldt_inited = 0;
-static spinlock_t ldt_lock = _SPINLOCK_INITIALIZER;
-
-static void ldt_init(void);
+#include "rtld_tls.h"
 
 /* in _curthread.S */
 extern void _set_gs(int);
 
-/*
- * Initialize the array of ldt_entries and the next free slot.
- * This routine must be called with the global ldt lock held.
- */
-static void
-ldt_init(void)
-{
-	int i;
-
-	ldt_free = &ldt_entries[NLDT];
-
-	for (i = 0; i < MAXTHR - 1; i++)
-		ldt_entries[i] = (void *)&ldt_entries[i + 1];
-
-	ldt_entries[MAXTHR - 1] = NULL;
-
-	ldt_inited = 1;
-}
+struct tcb {
+	struct tcb		*tcb_self;	/* required by rtld */
+	void			*tcb_dtv;	/* required by rtld */
+	struct pthread		*tcb_thread;
+};
 
 void
 _retire_thread(void *entry)
 {
-	_spinlock(&ldt_lock);
-	if (ldt_free == NULL)
-		*(void **)entry = NULL;
-	else
-		*(void **)entry = *ldt_free;
-	ldt_free = entry;
-	_spinunlock(&ldt_lock);
+	_rtld_free_tls(entry, sizeof(struct tcb), 16);
+	/* XXX free ldt descriptor here */
 }
 
 void *
 _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 {
 	union descriptor desc;
-	void **ldt_entry;
+	struct tcb *tcb;
+	void *oldtls;
 	int ldt_index;
 
 	*err = 0;
 
-	/*
-	 * If we are setting up the initial thread, the gs register
-	 * won't be setup for the current thread. In any case, we
-	 * don't need protection from re-entrancy at this point in
-	 * the life of the program.
-	 */
-	if (thr != _thread_initial)
-		_SPINLOCK(&ldt_lock);
-
-	if (ldt_inited == 0)
-		ldt_init();
-
-	if (ldt_free == NULL) {
-		/* Concurrent thread limit reached */
-		*err = curthread->error = EAGAIN;
-		if (thr != _thread_initial)
-			_SPINUNLOCK(&ldt_lock);
-		return (NULL);
+	if (uc == NULL) {
+		__asm __volatile("movl %%gs:0, %0" : "=r" (oldtls));
+	} else {
+		oldtls = NULL;
 	}
 
 	/*
-	 * Pull one off of the free list and update the free list pointer.
+	 * Allocate and initialise a new TLS block with enough extra
+	 * space for our self pointer.
 	 */
-	ldt_entry = ldt_free;
-	ldt_free = (void **)*ldt_entry;
-
-	if (thr != _thread_initial)
-		_SPINUNLOCK(&ldt_lock);
+	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
 
 	/*
-	 * Cache the address of the thread structure here.  This is
-	 * what the gs register will point to.
+	 * Cache the address of the thread structure here, after
+	 * rtld's two words of private space.
 	 */
-	*ldt_entry = (void *)thr;
+	tcb->tcb_thread = thr;
 
 	bzero(&desc, sizeof(desc));
 
 	/*
-	 * Set up the descriptor to point into the ldt table which contains
-	 * only a pointer to the thread.
+	 * Set up the descriptor to point at the TLS block.
 	 */
-	desc.sd.sd_lolimit = sizeof(*ldt_entry);
-	desc.sd.sd_lobase = (unsigned int)ldt_entry & 0xFFFFFF;
-	desc.sd.sd_type = SDT_MEMRO;
+	desc.sd.sd_lolimit = 0xFFFF;
+	desc.sd.sd_lobase = (unsigned int)tcb & 0xFFFFFF;
+	desc.sd.sd_type = SDT_MEMRW;
 	desc.sd.sd_dpl = SEL_UPL;
 	desc.sd.sd_p = 1;
-	desc.sd.sd_hilimit = 0;
+	desc.sd.sd_hilimit = 0xF;
 	desc.sd.sd_xx = 0;
 	desc.sd.sd_def32 = 1;
-	desc.sd.sd_gran = 0;
-	desc.sd.sd_hibase = (unsigned int)ldt_entry >> 24;
+	desc.sd.sd_gran = 1;
+	desc.sd.sd_hibase = (unsigned int)tcb >> 24;
 
 	/* Get a slot from the process' LDT list */
 	ldt_index = i386_set_ldt(LDT_AUTO_ALLOC, &desc, 1);
@@ -158,5 +113,5 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	else
 		_set_gs(LSEL(ldt_index, SEL_UPL));
 
-	return (ldt_entry);
+	return (tcb);
 }
