@@ -55,7 +55,7 @@
 .Nm MakeDev ,
 .Nm MakeDevDisk ,
 .Nm ShowChunkFlags ,
-.Nm chunk_n ,
+.Nm chunk_name ,
 .Nm slice_type_name
 .Nd library interface to slice and partition labels
 .Sh LIBRARY
@@ -64,9 +64,6 @@
 .In sys/types.h
 .In libdisk.h
 .Pp
-.Vt extern const char *chunk_n[] ;
-.Ft const char *
-.Fn slice_type_name "int type" "int subtype"
 .Ft struct disk *
 .Fn Open_Disk "const char *devname"
 .Ft void
@@ -115,6 +112,10 @@
 .Fn MakeDevDisk "struct disk *d" "const char *path"
 .Ft char *
 .Fn ShowChunkFlags "struct chunk *c"
+.Ft const char *
+.Fn chunk_name "chunk_e type"
+.Ft const char *
+.Fn slice_type_name "int type" "int subtype"
 .Sh DESCRIPTION
 .Nm Libdisk
 provides an interface to the low-level disk slice and partition labels.
@@ -303,7 +304,11 @@ makes the device nodes for all chunks on this disk.
 .Fn ShowChunkFlags
 returns a string to show flags.
 .Pp
-Chunk name strings can be accessed directly using the external array
+The
+.Fn chunk_name
+function takes the enumerated chunk type and returns its name.
+.Fn chunk_name
+replaces the old external array
 .Va chunk_n .
 .Pp
 .Fn slice_type_name
