@@ -27,6 +27,10 @@
 #include <errno.h>
 #include <stdio.h>
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -45,8 +49,6 @@ extern int _rl_eof_char;
 #  include <sys/pc.h>
 #  undef HANDLE_SIGNALS
 #endif /* __GO32__ */
-
-static int output_was_flushed;
 
 /* **************************************************************** */
 /*								    */
@@ -145,6 +147,7 @@ control_meta_key (on)
     }
 }
 
+#if 0
 static void
 control_keypad (on)
      int on;
@@ -154,6 +157,7 @@ control_keypad (on)
   else if (!on && term_ke)
     tputs (term_ke, 1, outchar);
 }
+#endif
 
 /* **************************************************************** */
 /*								    */
@@ -377,6 +381,7 @@ get_tty_settings (tty, tiop)
      int tty;
      TIOTYPE *tiop;
 {
+  int ioctl_ret;
 #if !defined (SHELL) && defined (TIOCGWINSZ)
   struct winsize w;
 
@@ -386,12 +391,12 @@ get_tty_settings (tty, tiop)
 
   /* Keep looping if output is being flushed after a ^O (or whatever
      the flush character is). */
-  while (GETATTR (tty, tiop) < 0 || OUTPUT_BEING_FLUSHED (tiop))
+  while ((ioctl_ret = GETATTR (tty, tiop)) < 0 || OUTPUT_BEING_FLUSHED (tiop))
     {
+      if (ioctl_ret < 0 && errno != EINTR)
+	return -1;
       if (OUTPUT_BEING_FLUSHED (tiop))
         continue;
-      if (errno != EINTR)
-	return -1;
       errno = 0;
     }
   return 0;
@@ -467,12 +472,13 @@ prepare_terminal_settings (meta_flag, otio, tiop)
   tiop->c_cc[VMIN] = 1;
   tiop->c_cc[VTIME] = 0;
 
-  if (tiop->c_lflag & FLUSHO)
+#if defined (FLUSHO)
+  if (OUTPUT_BEING_FLUSHED (tiop))
     {
-      output_was_flushed = 1;
       tiop->c_lflag &= ~FLUSHO;
       otio.c_lflag &= ~FLUSHO;
     }
+#endif
 
   /* Turn off characters that we need on Posix systems with job control,
      just to be sure.  This includes ^Y and ^V.  This should not really
@@ -522,11 +528,10 @@ rl_prep_terminal (meta_flag)
       return;
     }
 
-  if (output_was_flushed)
-    output_was_flushed = 0;
-
   control_meta_key (1);
+#if 0
   control_keypad (1);
+#endif
   fflush (rl_outstream);
   terminal_prepped = 1;
 
@@ -547,15 +552,18 @@ rl_deprep_terminal ()
   /* Try to keep this function from being INTerrupted. */
   block_sigint ();
 
+  control_meta_key (0);
+#if 0
+  control_keypad (0);
+#endif
+  fflush (rl_outstream);
+
   if (set_tty_settings (tty, &otio) < 0)
     {
       release_sigint ();
       return;
     }
 
-  control_meta_key (0);
-  control_keypad (0);
-  fflush (rl_outstream);
   terminal_prepped = 0;
 
   release_sigint ();

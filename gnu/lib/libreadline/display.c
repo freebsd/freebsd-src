@@ -21,6 +21,10 @@
    675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -459,7 +463,8 @@ rl_redisplay ()
 		  (_rl_last_c_pos < visible_first_line_len))
 		{
 		  nleft = screenwidth + wrap_offset - _rl_last_c_pos;
-		  clear_to_eol (nleft);
+		  if (nleft)
+		    clear_to_eol (nleft);
 		}
 
 	      /* Since the new first line is now visible, save its length. */
@@ -485,7 +490,7 @@ rl_redisplay ()
 
 	  /* Move the cursor where it should be. */
 	  /* Which line? */
-	  nleft = c_pos - wrap_offset - term_xn + 1;
+	  nleft = c_pos - wrap_offset + term_xn - 1;
 	  cursor_linenum = (nleft > 0) ? nleft / screenwidth : 0;
 
 	  /* CHANGED_SCREEN_LINE is set to 1 if we have moved to a
@@ -1216,4 +1221,53 @@ _rl_update_final ()
   crlf ();
   fflush (rl_outstream);
   rl_display_fixed++;
+}
+
+/* Move to the start of the current line. */
+static void
+cr ()
+{
+  if (term_cr)
+    {
+      tputs (term_cr, 1, _rl_output_character_function);
+      _rl_last_c_pos = 0;
+    }
+}
+
+/* Redisplay the current line after a SIGWINCH is received. */
+void
+_rl_redisplay_after_sigwinch ()
+{
+  char *t, *oldp;
+
+  /* Clear the current line and put the cursor at column 0.  Make sure
+     the right thing happens if we have wrapped to a new screen line. */
+  if (term_cr)
+    {
+      tputs (term_cr, 1, _rl_output_character_function);
+      _rl_last_c_pos = 0;
+      if (term_clreol)
+	tputs (term_clreol, 1, _rl_output_character_function);
+      else
+	{
+	  space_to_eol (screenwidth);
+	  tputs (term_cr, 1, _rl_output_character_function);
+	}
+      if (_rl_last_v_pos > 0)
+	_rl_move_vert (0);
+    }
+  else
+    crlf ();
+
+  /* Redraw only the last line of a multi-line prompt. */
+  t = strrchr (rl_display_prompt, '\n');
+  if (t)
+    {
+      oldp = rl_display_prompt;
+      rl_display_prompt = ++t;
+      rl_forced_update_display ();
+      rl_display_prompt = oldp;
+    }
+  else
+    rl_forced_update_display ();
 }

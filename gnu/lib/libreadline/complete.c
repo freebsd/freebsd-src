@@ -21,6 +21,10 @@
    675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -546,8 +550,12 @@ rl_complete_internal (what_to_do)
 	  /* Sort the items. */
 	  /* It is safe to sort this array, because the lowest common
 	     denominator found in matches[0] will remain in place. */
-	  for (i = 0; matches[i]; i++);
-	  qsort (matches, i, sizeof (char *), compare_strings);
+	  for (i = 0; matches[i]; i++)
+	    ;
+	  /* Try sorting the array without matches[0], since we need it to
+	     stay in place no matter what. */
+	  if (i)
+	    qsort (matches+1, i-1, sizeof (char *), compare_strings);
 
 	  /* Remember the lowest common denominator for it may be unique. */
 	  lowest_common = savestring (matches[0]);
@@ -846,19 +854,18 @@ rl_complete_internal (what_to_do)
 	    count = (len + (limit - 1)) / limit;
 
 	    /* Watch out for special case.  If LEN is less than LIMIT, then
-	       just do the inner printing loop. */
-	    if (len < limit)
-	      count = 1;
+	       just do the inner printing loop.
+	       0 < len <= limit  implies  count = 1. */
 
 	    /* Sort the items if they are not already sorted. */
 	    if (!rl_ignore_completion_duplicates)
-	      qsort (matches, len, sizeof (char *), compare_strings);
+	      qsort (matches + 1, len - 1, sizeof (char *), compare_strings);
 
 	    /* Print the sorted items, up-and-down alphabetically, like
 	       ls might. */
 	    crlf ();
 
-	    for (i = 1; i < count + 1; i++)
+	    for (i = 1; i <= count; i++)
 	      {
 		for (j = 0, l = i; j < limit; j++)
 		  {
@@ -1002,8 +1009,11 @@ username_completion_function (text, state)
 
   while (entry = getpwent ())
     {
-      if ((username[0] == entry->pw_name[0]) &&
-	  (strncmp (username, entry->pw_name, namelen) == 0))
+      /* Null usernames should result in all users as possible completions. */
+      if (namelen == 0)
+        break;
+      else if ((username[0] == entry->pw_name[0]) &&
+	       (strncmp (username, entry->pw_name, namelen) == 0))
 	break;
     }
 

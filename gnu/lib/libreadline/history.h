@@ -105,9 +105,10 @@ extern HIST_ENTRY *next_history ();
    found in.  Otherwise, nothing is changed, and a -1 is returned. */
 extern int history_search ();
 
-extern int history_search_prefix ();
-/* Search the history for @var{string}, starting at history_offset.
+/* Search the history for STRING, starting at history_offset.
    The search is anchored: matching lines must begin with string. */
+extern int history_search_prefix ();
+
 /* Search for STRING in the history list, starting at POS, an
    absolute index into the list.  DIR, if negative, says to search
    backwards from POS, else forwards.

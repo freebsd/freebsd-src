@@ -20,6 +20,10 @@
    Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
 #if defined (HAVE_STDLIB_H)
 #  include <stdlib.h>
 #else
@@ -101,7 +105,7 @@ rl_make_keymap ()
   newmap = rl_make_bare_keymap ();
 
   /* All ASCII printing characters are self-inserting. */
-  for (i = ' '; i < 126; i++)
+  for (i = ' '; i < 127; i++)
     newmap[i].function = rl_insert;
 
   newmap[TAB].function = rl_insert;
