@@ -138,7 +138,7 @@ static struct ng_type typestruct = {
 NETGRAPH_INIT(socket, &typestruct);
 
 /* Buffer space */
-static u_long ngpdg_sendspace = 2 * 1024;	/* really max datagram size */
+static u_long ngpdg_sendspace = 20 * 1024;	/* really max datagram size */
 static u_long ngpdg_recvspace = 20 * 1024;
 
 /* List of all sockets */
