@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.40 1996/11/29 03:33:27 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.41 1996/11/29 20:04:11 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -421,17 +421,6 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  things the hard way, you must first prepare some
 	  floppies for the install.
 
-
-	  The first floppy that you will need in addition to the boot.flp 
-	  image is ``floppies/root.flp'', which is somewhat special in that 
-	  it is not a DOS filesystem floppy at all, but rather a floppy "image" 
-	  (it's actually a gzip'd cpio file).  You can create this floppy in 
-	  the same way that you created the boot floppy <ref id="install"
-	    name="the beginning of this guide">.  Once this floppy is
-	  made, you can go on to make the distribution set floppies
-	  using ordinary DOS or UFS (if you are preparing the floppies on
-	  another FreeBSD machine) formatted diskettes.
-
 	  You will need, at minimum, as many 1.44MB or 1.2MB floppies as
 	  it takes to hold all files in the bin (binary distribution)
 	  directory.  If you are preparing these floppies under DOS, then
@@ -489,14 +478,11 @@ ftp:*:99:99::0:0:FTP:/cdrom:/nonexistent
 	  FreeBSD:
 <tscreen><verb>
 C> MD C:\FREEBSD
-C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN\
-C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES\
+C> XCOPY /S E:\BIN C:\FREEBSD\BIN\
+C> XCOPY /S E:\MANPAGES C:\FREEBSD\MANPAGES\
 </verb></tscreen>
 	  assuming that <tt>C:</tt> is where you have free space
-	  and <tt>E:</tt> is where your CDROM is mounted.  Note
-	  that you need the <tt>FLOPPIES</tt> directory because
-	  the <tt>root.flp</tt> image is needed during an MS-DOS
-	  installation.
+	  and <tt>E:</tt> is where your CDROM is mounted.
 
 	  For as many `DISTS' you wish to install from MS-DOS
 	  (and you have free space for), install each one under
@@ -522,9 +508,6 @@ C> XCOPY /S E:\DISTS C:\FREEBSD\
 cd /freebsd/distdir<newline>
 tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 </tscreen>
-	  Make sure that the `floppies/' directory is one of the
-	  ``dists'' given above, since the installation will look
-	  for `floppies/root.flp' on the tape.
 
 	  When you go to do the installation, you should also
 	  make sure that you leave enough room in some temporary
