@@ -40,7 +40,7 @@
  */
 
 #include "opt_compat.h"
-#include <machine/limits.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -60,6 +60,8 @@
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
 #include <sys/event.h>
+
+#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -308,8 +310,10 @@ fcntl(p, uap)
 			if ((fl.l_start > 0 &&
 			     fp->f_offset > OFF_MAX - fl.l_start) ||
 			    (fl.l_start < 0 &&
-			     fp->f_offset < OFF_MIN - fl.l_start))
+			     fp->f_offset < OFF_MIN - fl.l_start)) {
+				fdrop(fp, p);
 				return (EOVERFLOW);
+			}
 			fl.l_start += fp->f_offset;
 		}
 
@@ -367,8 +371,10 @@ fcntl(p, uap)
 			if ((fl.l_start > 0 &&
 			     fp->f_offset > OFF_MAX - fl.l_start) ||
 			    (fl.l_start < 0 &&
-			     fp->f_offset < OFF_MIN - fl.l_start))
+			     fp->f_offset < OFF_MIN - fl.l_start)) {
+				fdrop(fp, p);
 				return (EOVERFLOW);
+			}
 			fl.l_start += fp->f_offset;
 		}
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK,
