@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.8 -->
 
@@ -9,7 +9,7 @@
 
 <!--
 
-Last updated: $Date: 1997/01/14 06:27:53 $
+Last updated: $Date: 1997/01/15 13:16:49 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.

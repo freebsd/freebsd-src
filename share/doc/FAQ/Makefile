@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 DOC=	FAQ
 SRCS=	FAQ.sgml

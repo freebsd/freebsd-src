@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 VOLUME=	psd/24.xdr
 SRCS=	xdr.nts.ms

@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/12/31 21:54:24 $
+Last updated: $Date: 1997/01/14 06:26:49 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
