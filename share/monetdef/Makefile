@@ -36,6 +36,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		sl_SI.ISO8859-2 \
 		sv_SE.ISO8859-1 \
 		tr_TR.ISO8859-9 \
+		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
 		ko_KR.eucKR \
 		ja_JP.eucJP \
