@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.618 1999/07/25 04:32:44 wpaul Exp $
+#	$Id: LINT,v 1.619 1999/07/25 13:15:58 cracauer Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -956,8 +956,8 @@ options 	SC_NO_HISTORY
 options 	SC_NO_SYSMOUSE
 
 #
-# The Numeric Processing eXtension driver. In addition to this, you
-# may configure a math emulator (see above). If your machine has a
+# The Numeric Processing eXtension driver.  In addition to this, you
+# may configure a math emulator (see above).  If your machine has a
 # hardware FPU and the kernel configuration includes the npx device
 # *and* a math emulator compiled into the kernel, the hardware FPU
 # will be used, unless it is found to be broken or unless "flags" to
@@ -980,9 +980,7 @@ device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 # The flags can be used to control cases where it doesn't work or is slower.
 # Setting them at boot time using userconfig works right (the optimizations
 # are not used until later in the bootstrap when npx0 is attached).
-# Flag 0x08 does not imply any settings of the other flags, you may run
-# with FPU preference set to emulator, but still using the i586 optimized
-# memory routines.
+# Flag 0x08 automatically disables the i586 optimized routines.
 #
 
 #
