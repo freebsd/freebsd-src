@@ -79,6 +79,11 @@ _libio=		libio
 _compat=	compat
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+_libncp=	libncp
+_libsmb=	libsmb
+.endif
+
 .if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
 .if !defined(NOLIBTHR)
 _libthr=	libthr
