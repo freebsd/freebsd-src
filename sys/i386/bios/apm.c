@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.21 1995/12/22 13:08:27 phk Exp $
+ *	$Id: apm.c,v 1.22 1995/12/25 07:38:26 bde Exp $
  */
 
 #include "apm.h"
@@ -70,11 +70,6 @@ int		apm_ss_cnt = 0;
 static int	apm_slowstart_p = 0;
 int		apm_slowstart_stat = 0;
 #endif /* APM_SLOWSTART */
-
-#ifdef MACH_KERNEL
-extern struct fake_descriptor     gdt[GDTSZ];
-extern void fix_desc(struct fake_descriptor *, int);
-#endif /* MACH_KERNEL */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
 
