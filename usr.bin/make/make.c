@@ -375,7 +375,7 @@ Make_Update (GNode *cgn)
     char	*p1;
 
     cname = Var_Value (TARGET, cgn, &p1);
-    efree(p1);
+    free(p1);
 
     /*
      * If the child was actually made, see what its modification time is
@@ -502,7 +502,7 @@ Make_Update (GNode *cgn)
 		Var_Set (PREFIX, cpref, pgn);
 	    }
 	}
-	efree(ptr);
+	free(ptr);
 	Lst_Close (cgn->iParents);
     }
 }
@@ -570,7 +570,7 @@ MakeAddAllSrc (void *cgnp, void *pgnp)
 	     */
 	    Var_Append(OODATE, child, pgn);
 	}
-	efree(p1);
+	free(p1);
     }
     return (0);
 }
@@ -612,7 +612,7 @@ Make_DoAllVar (GNode *gn)
     if (gn->type & OP_JOIN) {
 	char *p1;
 	Var_Set (TARGET, Var_Value (ALLSRC, gn, &p1), gn);
-	efree(p1);
+	free(p1);
     }
 }
 

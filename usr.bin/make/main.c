@@ -759,7 +759,7 @@ main(int argc, char **argv)
 	(void)ReadMakefile(".depend", NULL);
 
 	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
-	efree(p1);
+	free(p1);
 
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
@@ -768,7 +768,7 @@ main(int argc, char **argv)
 #else
 		setenv("MAKE", p, 1);
 #endif
-	efree(p1);
+	free(p1);
 
 	/*
 	 * For compatibility, look at the directories in the VPATH variable
