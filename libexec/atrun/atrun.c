@@ -73,7 +73,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.2 1995/04/12 02:52:15 ache Exp $";
 static debug = 0;
 
 /* Local functions */
@@ -280,6 +280,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     {    
 #ifdef __FreeBSD__
 	execl(_PATH_SENDMAIL, "sendmail", "-F", "Atrun Service",
+			"-odi", "-oem",
 			mailname, (char *) NULL);
 #else
         execl(MAIL_CMD, MAIL_CMD, mailname, (char *) NULL);
