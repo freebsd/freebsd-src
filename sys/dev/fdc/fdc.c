@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 #include <isa/isareg.h>
-#include <isa/fdreg.h>
+#include <dev/fdc/fdcreg.h>
 #include <isa/rtc.h>
 
 enum fdc_type
