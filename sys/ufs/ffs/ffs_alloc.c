@@ -1970,7 +1970,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 				    mp->mnt_stat.f_mntonname,
 				    filetype == IFDIR ? "directory" : "file",
 				    (ino_t)cmd.value,
-				    (ino_t)cmd.value + cmd.size - 1);
+				    (ino_t)(cmd.value + cmd.size - 1));
 		}
 #endif /* DEBUG */
 		tip.i_devvp = ump->um_devvp;
