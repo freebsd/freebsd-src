@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.33 1998/01/08 23:40:48 eivind Exp $
+ * $Id: if_el.c,v 1.34 1998/03/28 13:23:58 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -83,9 +83,9 @@ static void el_watchdog(struct ifnet *);
 
 static void el_stop(int);
 static int el_xmit(struct el_softc *,int);
-static inline void elread(struct el_softc *,caddr_t,int);
+static __inline void elread(struct el_softc *,caddr_t,int);
 static struct mbuf *elget(caddr_t,int,int,struct ifnet *);
-static inline void el_hardreset(int);
+static __inline void el_hardreset(int);
 
 /* isa_driver structure for autoconf */
 struct isa_driver eldriver = {
@@ -222,7 +222,7 @@ static void el_stop(int unit)
 }
 
 /* Do a hardware reset of the 3c501.  Do not call until after el_probe()! */
-static inline void el_hardreset(int unit)
+static __inline void el_hardreset(int unit)
 {
 	register struct el_softc *sc;
 	register int base;
@@ -525,7 +525,7 @@ void elintr(int unit)
 }
 
 /* Pass a packet up to the higher levels. */
-static inline void elread(struct el_softc *sc,caddr_t buf,int len)
+static __inline void elread(struct el_softc *sc,caddr_t buf,int len)
 {
 	register struct ether_header *eh;
 	struct mbuf *m;

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.8 1998/02/04 22:33:21 eivind Exp $
+ *	$Id: ide_pci.c,v 1.9 1998/02/06 12:14:06 eivind Exp $
  */
 
 #include "pci.h"
@@ -198,7 +198,7 @@ static void *prdbuf_next = 0;
  * not supported
  */
 
-static inline int
+static __inline int
 pio_mode(struct wdparams *wp)
 {
 	if ((wp->wdp_atavalid & 2) == 2) {
@@ -209,14 +209,14 @@ pio_mode(struct wdparams *wp)
 }
 
 #if 0
-static inline int
+static __inline int
 dma_mode(struct wdparams *wp)
 {
 	/* XXX not quite sure how to verify validity on this field */
 }
 #endif
 
-static inline int
+static __inline int
 mwdma_mode(struct wdparams *wp)
 {
 	/* 
@@ -231,7 +231,7 @@ mwdma_mode(struct wdparams *wp)
 	return -1;
 }
 
-static inline int
+static __inline int
 udma_mode(struct wdparams *wp)
 {
 	if ((wp->wdp_atavalid & 4) == 4) {

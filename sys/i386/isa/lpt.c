@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.66 1998/02/20 02:44:48 steve Exp $
+ *	$Id: lpt.c,v 1.67 1998/02/20 04:19:39 steve Exp $
  */
 
 /*
@@ -993,7 +993,7 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
     return 0;
 }
 
-static inline int
+static __inline int
 clpoutbyte (u_char byte, int spin, int data_port, int status_port)
 {
 	outb(data_port, ctxmitl[byte]);
@@ -1009,7 +1009,7 @@ clpoutbyte (u_char byte, int spin, int data_port, int status_port)
 	return 0;
 }
 
-static inline int
+static __inline int
 clpinbyte (int spin, int data_port, int status_port)
 {
 	int c, cl;
@@ -1175,7 +1175,7 @@ lpintr (int unit)
 	return;
 }
 
-static inline int
+static __inline int
 lpoutbyte (u_char byte, int spin, int data_port, int status_port)
 {
     outb(data_port, txmith[byte]);

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.37 1998/03/28 11:50:35 dufault Exp $
+ * $Id: kernel.h,v 1.38 1998/04/04 13:26:12 phk Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -83,10 +83,10 @@ extern long timedelta;
  */
 #if defined(__ELF__)
 
-#define MAKE_SET(set, sym)				\
-	__asm__(".section .set." #set ",\"aw\"");       \
-	__asm__(".long " #sym);				\
-	__asm__(".previous")
+#define MAKE_SET(set, sym)			\
+	__asm(".section .set." #set ",\"aw\"");	\
+	__asm(".long " #sym);			\
+	__asm(".previous")
 #define TEXT_SET(set, sym) MAKE_SET(set, sym)
 #define DATA_SET(set, sym) MAKE_SET(set, sym)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym)
@@ -101,7 +101,7 @@ extern long timedelta;
  */
 #define MAKE_SET(set, sym, type) \
 	static void const * const __set_##set##_sym_##sym = &sym; \
-	asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
 #define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.50 1998/02/13 06:49:15 bde Exp $
+ * $Id: if_ze.c,v 1.51 1998/03/28 13:24:24 bde Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -164,12 +164,13 @@ static void ze_reset __P((int unit));
 static void ze_stop __P((int unit));
 static void ze_watchdog __P((struct ifnet *ifp));
 static void ze_init __P((int unit));
-static inline void ze_xmit __P((struct ifnet *ifp));
+static __inline void ze_xmit __P((struct ifnet *ifp));
 static void ze_start __P((struct ifnet *ifp));
-static inline void ze_rint __P((int unit));
+static __inline void ze_rint __P((int unit));
 static int ze_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
 static void ze_get_packet __P((struct ze_softc *sc, char *buf, int len));
-static inline char *ze_ring_copy __P((struct ze_softc *sc, char *src, char *dst, int amount));
+static __inline char *ze_ring_copy __P((struct ze_softc *sc, char *src,
+					char *dst, int amount));
 static struct mbuf *ze_ring_to_mbuf __P((struct ze_softc *sc, char *src, struct mbuf *dst, int total_len));
 
 struct isa_driver zedriver = {
@@ -906,7 +907,7 @@ ze_init(unit)
 /*
  * This routine actually starts the transmission on the interface
  */
-static inline void
+static __inline void
 ze_xmit(ifp)
 	struct ifnet *ifp;
 {
@@ -1058,7 +1059,7 @@ outloop:
 /*
  * Ethernet interface receiver interrupt.
  */
-static inline void /* only called from one place, so may as well integrate */
+static __inline void /* only called from one place, so may as well inline */
 ze_rint(unit)
 	int unit;
 {
@@ -1560,7 +1561,7 @@ bad:	if (head)
  *	the ring buffer into a linear destination buffer. Takes into account
  *	ring-wrap.
  */
-static inline char *
+static __inline char *
 ze_ring_copy(sc,src,dst,amount)
 	struct ze_softc *sc;
 	char	*src;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.10 1998/03/24 08:29:05 kato Exp $
+ *	$Id: vm86.c,v 1.11 1998/03/24 16:47:12 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -70,40 +70,40 @@ void vm86_prepcall(struct vm86frame);
 #define PUSH_MASK	~(PSL_VM | PSL_RF | PSL_I)
 #define POP_MASK	~(PSL_VIP | PSL_VIF | PSL_VM | PSL_RF | PSL_IOPL)
 
-static inline caddr_t
+static __inline caddr_t
 MAKE_ADDR(u_short sel, u_short off)
 {
 	return ((caddr_t)((sel << 4) + off));
 }
 
-static inline void
+static __inline void
 GET_VEC(u_long vec, u_short *sel, u_short *off)
 {
 	*sel = vec >> 16;
 	*off = vec & 0xffff;
 }
 
-static inline u_long
+static __inline u_long
 MAKE_VEC(u_short sel, u_short off)
 {
 	return ((sel << 16) | off);
 }
 
-static inline void
+static __inline void
 PUSH(u_short x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 2;
 	susword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
 }
 
-static inline void
+static __inline void
 PUSHL(u_long x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 4;
 	suword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
 }
 
-static inline u_short
+static __inline u_short
 POP(struct vm86frame *vmf)
 {
 	u_short x = fusword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
@@ -112,7 +112,7 @@ POP(struct vm86frame *vmf)
 	return (x);
 }
 
-static inline u_long
+static __inline u_long
 POPL(struct vm86frame *vmf)
 {
 	u_long x = fuword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));

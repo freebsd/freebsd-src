@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.38 1998/02/27 05:38:23 msmith Exp $
+ * $Id: aic6360.c,v 1.39 1998/04/12 12:11:31 phk Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -670,7 +670,7 @@ static int	aic_poll	__P((struct aic_data *aic, struct acb *));
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
 static	void	aic6360_reset	__P((struct aic_data *aic));
-static	u_short	aicphase	__P((struct aic_data *aic));
+static __inline u_short	aicphase	__P((struct aic_data *aic));
 static	void	aic_msgin	__P((struct aic_data *aic));
 static	void	aic_msgout	__P((struct aic_data *aic));
 static timeout_t aic_timeout;
@@ -1291,7 +1291,7 @@ aic_poll(aic, acb)
  * Note: If an exception occur at some critical time during the phase
  * determination we'll most likely return something wildly erronous....
  */
-static inline u_short
+static __inline u_short
 aicphase(aic)
 	struct aic_data *aic;
 {

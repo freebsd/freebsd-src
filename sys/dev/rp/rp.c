@@ -815,7 +815,7 @@ static	struct	tty	rp_tty[128];
 
 static int rp_num_ports[4];	/* Number of ports on each controller */
 
-#define _INLINE_ inline
+#define _INLINE_ __inline
 #define POLL_INTERVAL 1
 
 #define CALLOUT_MASK		0x80

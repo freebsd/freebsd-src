@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.159 1998/03/19 22:48:12 dyson Exp $
+ * $Id: vfs_bio.c,v 1.160 1998/03/27 06:48:24 dyson Exp $
  */
 
 /*
@@ -422,7 +422,7 @@ bwrite(struct buf * bp)
 	return (0);
 }
 
-inline void
+__inline void
 vfs_bio_need_satisfy(void) {
 	++numfreebuffers;
 	if (!needsbuffer)

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.18 1998/02/09 06:11:36 eivind Exp $
+ * $Id: vm_zone.c,v 1.19 1998/02/23 07:42:35 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -215,7 +215,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 /*
  * Zone critical region locks.
  */
-static inline int
+static __inline int
 zlock(vm_zone_t z)
 {
 	int s;
@@ -225,7 +225,7 @@ zlock(vm_zone_t z)
 	return s;
 }
 
-static inline void
+static __inline void
 zunlock(vm_zone_t z, int s)
 {
 	simple_unlock(&z->zlock);

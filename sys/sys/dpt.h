@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.16 1998/01/23 02:46:26 ShimonR Exp ShimonR $"
+#ident "$Id: dpt.h,v 1.1 1998/01/26 06:11:15 julian Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -1275,7 +1275,7 @@ typedef struct dpt_user_softc {
  * If times are sensless, ~0 is returned.
  */
 
-static inline u_int32_t
+static __inline u_int32_t
 dpt_time_delta(struct timeval start,
 	       struct timeval end)
 {

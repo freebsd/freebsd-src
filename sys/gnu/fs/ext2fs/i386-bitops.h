@@ -72,7 +72,7 @@ static __inline__ int test_bit(int nr, void * addr)
 /*
  * Find-bit routines..
  */
-static inline int find_first_zero_bit(void * addr, unsigned size)
+static __inline__ int find_first_zero_bit(void * addr, unsigned size)
 {
 	int res;
 
@@ -96,7 +96,7 @@ static inline int find_first_zero_bit(void * addr, unsigned size)
 	return res;
 }
 
-static inline int find_next_zero_bit (void * addr, int size, int offset)
+static __inline__ int find_next_zero_bit (void * addr, int size, int offset)
 {
 	unsigned long * p = ((unsigned long *) addr) + (offset >> 5);
 	int set = 0, bit = offset & 31, res;
@@ -128,7 +128,7 @@ static inline int find_next_zero_bit (void * addr, int size, int offset)
  * ffz = Find First Zero in word. Undefined if no zero exists,
  * so code should check against ~0UL first..
  */
-static inline unsigned long ffz(unsigned long word)
+static __inline__ unsigned long ffz(unsigned long word)
 {
 	__asm__("bsfl %1,%0"
 		:"=r" (word)
@@ -142,7 +142,7 @@ static inline unsigned long ffz(unsigned long word)
 /*
  * find the first occurrence of byte 'c', or 1 past the area if none
  */
-static inline char * memscan(void * addr, unsigned char c, int size)
+static __inline__ char * memscan(void * addr, unsigned char c, int size)
 {
         if (!size)
                 return addr;

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.125 1997/09/21 21:43:52 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.126 1997/09/27 19:38:27 gibbs Exp $
  */
 /*
  * TODO:
@@ -177,10 +177,10 @@ static struct scb *
 static void     ahc_free_scb __P((struct ahc_softc *ahc, struct scb *scb));
 static struct scb *
 		ahc_alloc_scb __P((struct ahc_softc *ahc));
-static inline void pause_sequencer __P((struct ahc_softc *ahc));
-static inline void unpause_sequencer __P((struct ahc_softc *ahc,
-					  int unpause_always));
-static inline void restart_sequencer __P((struct ahc_softc *ahc));
+static __inline void pause_sequencer __P((struct ahc_softc *ahc));
+static __inline void unpause_sequencer __P((struct ahc_softc *ahc,
+					    int unpause_always));
+static __inline void restart_sequencer __P((struct ahc_softc *ahc));
 
 #define AHC_BUSRESET_DELAY	1000	/* Reset delay in us */
 
@@ -210,7 +210,7 @@ static struct scsi_device ahc_dev =
 #endif
 };
 
-static inline void
+static __inline void
 pause_sequencer(ahc)
 	struct ahc_softc *ahc;
 {
@@ -224,7 +224,7 @@ pause_sequencer(ahc)
 		;
 }
 
-static inline void
+static __inline void
 unpause_sequencer(ahc, unpause_always)
 	struct ahc_softc *ahc;
 	int unpause_always;
@@ -237,7 +237,7 @@ unpause_sequencer(ahc, unpause_always)
 /*
  * Restart the sequencer program from address zero
  */
-static inline void
+static __inline void
 restart_sequencer(ahc)
 	struct ahc_softc *ahc;
 {

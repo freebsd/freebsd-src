@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.50 1998/01/24 02:54:27 eivind Exp $
+ * $Id: wcd.c,v 1.51 1998/02/09 06:08:43 eivind Exp $
  */
 
 #include "wdc.h"
@@ -728,7 +728,7 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	return (0);
 }
 
-static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
+static __inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
 {
 	lba += 150;             /* offset of first logical frame */
 	lba &= 0xffffff;        /* negative lbas use only 24 bits */
