@@ -206,13 +206,6 @@ This path name is in reference to the real system root,
 the root of the
 .Xr chroot 8
 directory tree.
-.It Va WORLDDIR
-The directory where
-.Dq Li "make buildworld"
-was run; defaults to
-.Pa ${.CURDIR}/..
-which usually points to
-.Pa /usr/src .
 .El
 .Pp
 Optional variables:
@@ -362,6 +355,13 @@ For example, cross-building for PC98 machines requires
 .Va TARGET_ARCH Ns = Ns Li i386
 and
 .Va TARGET Ns = Ns Li pc98 .
+.It Va WORLDDIR
+The directory where
+.Dq Li "make buildworld"
+was run; defaults to
+.Pa ${.CURDIR}/..
+which usually points to
+.Pa /usr/src .
 .It Va WORLD_FLAGS
 The contents of this variable are passed to
 .Xr make 1
