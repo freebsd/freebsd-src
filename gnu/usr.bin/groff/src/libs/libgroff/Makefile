@@ -8,7 +8,7 @@ SRCS=		assert.cpp change_lf.cpp cmap.cpp color.cpp cset.cpp device.cpp errarg.cp
 		maxfilename.cpp mksdir.cpp nametoindex.cpp new.cpp paper.cpp prime.cpp\
 	 	progname.cpp ptable.cpp searchpath.cpp string.cpp strsave.cpp\
 		tmpfile.cpp tmpname.cpp version.cpp
-SRCS+=          iftoa.c itoa.c matherr.c
+SRCS+=		iftoa.c itoa.c matherr.c
 CLEANFILES=	version.cpp
 
 .include <bsd.lib.mk>
