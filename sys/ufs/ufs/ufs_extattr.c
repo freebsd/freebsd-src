@@ -78,9 +78,6 @@ SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
 
 static int	ufs_extattr_valid_attrname(int attrnamespace,
 		    const char *attrname);
-static int	ufs_extattr_credcheck(struct vnode *vp,
-		    int attrnamespace, struct ucred *cred,
-		    struct thread *td, int access);
 static int	ufs_extattr_enable_with_open(struct ufsmount *ump,
 		    struct vnode *vp, int attrnamespace, const char *attrname,
 		    struct thread *td);
@@ -789,39 +786,6 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 }
 
 /*
- * Credential check based on process requesting service, and per-attribute
- * permissions.
- */
-static int
-ufs_extattr_credcheck(struct vnode *vp, int attrnamespace,
-    struct ucred *cred, struct thread *td, int access)
-{
-
-	/*
-	 * Kernel-invoked always succeeds.
-	 */
-	if (cred == NULL)
-		return (0);
-
-	/*
-	 * Do not allow privileged processes in jail to directly
-	 * manipulate system attributes.
-	 *
-	 * XXX What capability should apply here?
-	 * Probably CAP_SYS_SETFFLAG.
-	 */
-	switch (attrnamespace) {
-	case EXTATTR_NAMESPACE_SYSTEM:
-		/* Potentially should be: return (EPERM); */
-		return (suser_cred(cred, 0));
-	case EXTATTR_NAMESPACE_USER:
-		return (VOP_ACCESS(vp, access, cred, td));
-	default:
-		return (EPERM);
-	}
-}
-
-/*
  * Vnode operating to retrieve a named extended attribute.
  */
 int
@@ -880,7 +844,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		return (EINVAL);
 	}
 
-	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IREAD);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, IREAD);
 	if (error)
 		return (error);
 
@@ -1059,7 +1023,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
-	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IWRITE);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, IWRITE);
 	if (error)
 		return (error);
 
@@ -1171,7 +1135,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
-	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IWRITE);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, IWRITE);
 	if (error)
 		return (error);
 
