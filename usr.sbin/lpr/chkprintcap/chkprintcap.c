@@ -30,7 +30,7 @@
 static const char copyright[] =
 	"Copyright (C) 1997, Massachusetts Institute of Technology\r\n";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: chkprintcap.c,v 1.1 1997/12/02 20:45:11 wollman Exp $";
 
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -260,7 +260,7 @@ make_spool_dir(const struct printer *pp)
 
 	if (chmod(sd, SPOOL_DIR_MODE) < 0) {
 		++problems;
-		warn("%s: cannot change mode to %lo", (long)SPOOL_DIR_MODE);
+		warn("%s: cannot change mode to %lo", sd, (long)SPOOL_DIR_MODE);
 		return;
 	}
 	if (stat(sd, &stab) < 0)
