@@ -96,7 +96,7 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 
  */
 #define	NFS_CWNDSCALE	256
 #define	NFS_MAXCWND	(NFS_CWNDSCALE * 32)
-struct callout_handle	nfsrv_timer_handle;
+struct callout	nfsrv_callout;
 
 static void	nfs_realign(struct mbuf **pm, int hsiz);	/* XXX SHARED */
 static int	nfsrv_getstream(struct nfssvc_sock *, int);
@@ -779,5 +779,5 @@ nfsrv_timer(void *arg)
 			nfsrv_wakenfsd(slp);
 	}
 	splx(s);
-	nfsrv_timer_handle = timeout(nfsrv_timer, NULL, nfsrv_ticks);
+	callout_reset(&nfsrv_callout, nfsrv_ticks, nfsrv_timer, NULL);
 }
