@@ -686,7 +686,7 @@ add(ac,av)
 	else show_usage("missing ``from''\n");
 
 	if (ac && !strncmp(*av,"not",strlen(*av))) {
-		rule.fw_flag |= IP_FW_F_INVSRC;
+		rule.fw_flg |= IP_FW_F_INVSRC;
 		av++; ac--;
 	}
 	if (!ac) show_usage("Missing arguments\n");
@@ -704,7 +704,7 @@ add(ac,av)
 	else show_usage("missing ``to''\n");
 
 	if (ac && !strncmp(*av,"not",strlen(*av))) {
-		rule.fw_flag |= IP_FW_F_INVDST;
+		rule.fw_flg |= IP_FW_F_INVDST;
 		av++; ac--;
 	}
 	if (!ac) show_usage("Missing arguments\n");
