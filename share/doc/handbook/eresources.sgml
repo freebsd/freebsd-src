@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.25 1996/07/12 16:18:49 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.26 1996/07/29 07:15:55 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -334,7 +334,7 @@ User Groups.
             </itemize>
 
         <sect1>
-          <heading>X-Window system</heading>
+          <heading>X Window System</heading>
 
           <p><itemize>
               <item><url url="news:comp.windows.x.i386unix" name="comp.windows.x.i386unix"></item>
