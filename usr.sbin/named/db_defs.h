@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $
+ *	$Id: db_defs.h,v 1.2 1995/05/30 03:48:34 rgrimes Exp $
  */
 
 /*
@@ -152,8 +152,9 @@ struct hashbuf {
 #define DB_DELETE	0x04	/* delete data if it exists */
 #define DB_NOTAUTH	0x08	/* must not update authoritative data */
 #define DB_NOHINTS      0x10	/* don't reflect update in fcachetab */
+#define DB_PRIMING	0x20	/* is this update the result of priming? */
 
-#define DB_Z_CACHE      (0)	/* cache-zone-only db_dump()  */
+#define DB_Z_CACHE      (0)	/* cache-zone-only db_dump() */
 #define DB_Z_ALL        (-1)	/* normal db_dump() */
 
 /*
@@ -170,3 +171,10 @@ struct hashbuf {
 #define GOODDB		-8
 #define NEWDB		-9
 #define AUTH		-10
+
+/*
+ * getnum() options
+ */
+#define GETNUM_NONE	0x00	/* placeholder */
+#define GETNUM_SERIAL	0x01	/* treat as serial number */
+#define GETNUM_SCALED	0x02	/* permit "k", "m" suffixes, scale result */

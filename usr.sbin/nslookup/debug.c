@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: debug.c,v 1.2 1994/09/22 21:50:31 pst Exp $";
+static char rcsid[] = "$Id: debug.c,v 1.3 1995/05/30 03:49:13 rgrimes Exp $";
 #endif /* not lint */
 
 /*
@@ -140,8 +140,6 @@ Fprint_query(msg, eom, printHeader,file)
 		    fprintf(file,", want recursion");
 	    if (hp->ra)
 		    fprintf(file,", recursion avail.");
-	    if (hp->pr)
-		    fprintf(file,", primary");
 	    fprintf(file,"\n\tquestions = %d", ntohs(hp->qdcount));
 	    fprintf(file,",  answers = %d", ntohs(hp->ancount));
 	    fprintf(file,",  authority records = %d", ntohs(hp->nscount));
@@ -335,6 +333,15 @@ Print_rr(cp, msg, eom, file)
 		cp += INT16SZ;
 		fprintf(file,", mail exchanger = ");
 		goto doname;
+        case T_PX:
+                fprintf(file,"\tpreference = %u",_getshort((u_char*)cp));
+                cp += INT16SZ;
+                fprintf(file,", RFC 822 = ");
+                cp = Print_cdname(cp, msg, eom, file);
+                fprintf(file,"\nX.400 = ");
+                cp = Print_cdname(cp, msg, eom, file);
+                (void) putc('\n', file);
+                break;
 	case T_RT:
 		fprintf(file,"\tpreference = %u",_getshort((u_char*)cp));
 		cp += INT16SZ;
@@ -356,22 +363,24 @@ doname:
 		break;
 
 	case T_HINFO:
+		cp2 = cp + dlen;
 		if (n = *cp++) {
 			fprintf(file,"\tCPU = %.*s", n, cp);
 			cp += n;
 		}
-		if (n = *cp++) {
+		if ((cp < cp2) && (n = *cp++)) {
 			fprintf(file,"\tOS = %.*s\n", n, cp);
 			cp += n;
-		}
+		} else fprintf(file, "\n*** Warning *** OS-type missing\n");
 		break;
 
 	case T_ISDN:
+		cp2 = cp + dlen;
 		if (n = *cp++) {
 			fprintf(file,"\tISDN = \"%.*s", n, cp);
 			cp += n;
 		}
-		if (n = *cp++) {
+		if ((cp < cp2) && (n = *cp++)) {
 			fprintf(file,"-%.*s\"\n", n, cp);
 			cp += n;
 		} else fprintf(file,"\"\n");
@@ -427,7 +436,7 @@ doname:
 		while (cp < cp2) {
 			if (n = (unsigned char) *cp++) {
 				for (c = n; c > 0 && cp < cp2; c--)
-					if (*cp == '\n') {
+					if ((*cp == '\n') || (*cp == '"')) {
 					    (void) putc('\\', file);
 					    (void) putc(*cp++, file);
 					} else
