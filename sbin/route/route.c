@@ -760,12 +760,12 @@ inet_makenetandmask(net, sin, bits)
 	register char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	if (net == 0)
-		mask = addr = 0;
-	else if (bits) {
+	if (bits) {
 		addr = net;
 		mask = 0xffffffff << (32 - bits);
-	} else if (net < 128) {
+	} else if (net == 0)
+		mask = addr = 0;
+	else if (net < 128) {
 		addr = net << IN_CLASSA_NSHIFT;
 		mask = IN_CLASSA_NET;
 	} else if (net < 65536) {
