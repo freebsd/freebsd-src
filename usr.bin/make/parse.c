@@ -2088,7 +2088,8 @@ ParseSkipLine(skip)
                 Buf_ReplaceLastByte(buf, (Byte)' ');
                 lineno++;
 
-                while ((c = ParseReadc()) == ' ' || c == '\t');
+                while ((c = ParseReadc()) == ' ' || c == '\t')
+		    continue;
 
                 if (c == EOF)
                     break;
@@ -2288,6 +2289,8 @@ test_char:
 		    semiNL = TRUE;
 		}
 		break;
+	    default:
+		break;
 	    }
 	    /*
 	     * Copy in the previous character and save this one in lastc.
@@ -2364,6 +2367,8 @@ test_char:
 			For_Run();
 		    line = ParseReadLine();
 		}
+		break;
+	    default:
 		break;
 	    }
 	}

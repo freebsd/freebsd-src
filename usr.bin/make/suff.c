@@ -412,6 +412,9 @@ SuffInsert (l, s)
 	    break;
 	}
     }
+    if (s2 == NULL) {
+	    DEBUGF(SUFF, ("inserting an empty list?..."));
+    }
 
     Lst_Close (l);
     DEBUGF(SUFF, ("inserting %s(%d)...", s->name, s->sNum));
@@ -2356,6 +2359,8 @@ SuffPrintSuff (sp, dummy)
 		    break;
 		case SUFF_LIBRARY:
 		    printf ("LIBRARY");
+		    break;
+		default:
 		    break;
 	    }
 	    fputc(flags ? '|' : ')', stdout);

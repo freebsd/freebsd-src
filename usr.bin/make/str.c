@@ -241,7 +241,11 @@ brk_string(str, store_argc, expand)
 			case 't':
 				ch = '\t';
 				break;
+			default:
+				break;
 			}
+			break;
+		default:
 			break;
 		}
 		if (!start)

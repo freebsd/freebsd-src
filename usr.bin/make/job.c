@@ -921,6 +921,8 @@ JobFinish(job, status)
 	     */
 	    done = FALSE;
 	    break;
+	default:
+	    break;
 	}
     } else {
 	done = TRUE;
