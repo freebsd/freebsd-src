@@ -248,7 +248,7 @@ delay_output() {
 		/* tputs("$<50>", 1, xputc); */
 	else {
 		(void) fflush(stdout);
-		usleep(500000);
+		usleep(50*1000);
 	}
 #if 0
 	else if(ospeed > 0 || ospeed < SIZE(tmspc10)) if(CM) {
