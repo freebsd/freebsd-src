@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.77 1999/05/27 10:32:49 jkh Exp $
+ * $Id: package.c,v 1.78 1999/07/02 22:36:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,7 +68,7 @@ package_add(char *name)
     if (DITEM_STATUS(i) != DITEM_SUCCESS)
 	return i;
 
-    tmp3 = strpbrk(name, "-_") ? NULL : &tmp2;
+    tmp3 = strpbrk(name, "-") ? NULL : &tmp2;
     tmp = index_search(&Top, name, tmp3);
     if (tmp)
 	return index_extract(mediaDevice, &Top, tmp, FALSE);
