@@ -177,7 +177,7 @@ i4brbchattach(void *dummy)
 		rbch_softc[i].sc_hdlcq.ifq_maxlen = I4BRBCHMAXQLEN;
 
 		if(!mtx_initialized(&rbch_softc[i].sc_hdlcq.ifq_mtx))
-			mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", MTX_DEF);
+			mtx_init(&rbch_softc[i].sc_hdlcq.ifq_mtx, "i4b_rbch", NULL, MTX_DEF);
 
 		rbch_softc[i].it_in.c_ispeed = rbch_softc[i].it_in.c_ospeed = 64000;
 		termioschars(&rbch_softc[i].it_in);

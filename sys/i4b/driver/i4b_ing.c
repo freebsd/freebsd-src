@@ -245,7 +245,7 @@ i4bingattach(void *dummy)
 		
 		sc->sc_fastq.ifq_maxlen = I4BINGMAXQLEN;
 		if(!mtx_initialized(&sc->sc_fastq.ifq_mtx))
-			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ing_fastq", MTX_DEF);
+			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ing_fastq", NULL, MTX_DEF);
 		
 #if I4BINGACCT
 		callout_handle_init(&sc->sc_callout);
@@ -288,9 +288,9 @@ i4bingattach(void *dummy)
 		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
 		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
 		if(!mtx_initialized(&sc->xmitq.ifq_mtx))
-			mtx_init(&sc->xmitq.ifq_mtx, "i4b_ing_xmitq", MTX_DEF);
+			mtx_init(&sc->xmitq.ifq_mtx, "i4b_ing_xmitq", NULL, MTX_DEF);
 		if(!mtx_initialized(&sc->xmitq_hipri.ifq_mtx))
-			mtx_init(&sc->xmitq_hipri.ifq_mtx, "i4b_ing_hipri", MTX_DEF);
+			mtx_init(&sc->xmitq_hipri.ifq_mtx, "i4b_ing_hipri", NULL, MTX_DEF);
 	}
 }
 

@@ -236,7 +236,7 @@ iavc_pci_attach(device_t dev)
     sc->sc_txq.ifq_maxlen = sc->sc_capi.sc_nbch * 4;
 
     if(!mtx_initialized(&sc->sc_txq.ifq_mtx))
-	    mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_pci", MTX_DEF);
+	    mtx_init(&sc->sc_txq.ifq_mtx, "i4b_ivac_pci", NULL, MTX_DEF);
     
     sc->sc_intr = FALSE;
     sc->sc_state = IAVC_DOWN;

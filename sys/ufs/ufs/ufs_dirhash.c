@@ -191,7 +191,7 @@ ufsdirhash_build(struct inode *ip)
 	}
 
 	/* Initialise the hash table and block statistics. */
-	mtx_init(&dh->dh_mtx, "dirhash", MTX_DEF);
+	mtx_init(&dh->dh_mtx, "dirhash", NULL, MTX_DEF);
 	dh->dh_narrays = narrays;
 	dh->dh_hlen = nslots;
 	dh->dh_nblk = nblocks;
@@ -1064,7 +1064,7 @@ ufsdirhash_init()
 {
 	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(daddr_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	mtx_init(&ufsdirhash_mtx, "dirhash list", MTX_DEF);
+	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);
 	TAILQ_INIT(&ufsdirhash_list);
 }
 SYSINIT(ufsdirhash, SI_SUB_PSEUDO, SI_ORDER_ANY, ufsdirhash_init, NULL)

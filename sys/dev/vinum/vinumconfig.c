@@ -1415,7 +1415,7 @@ config_plex(int update)
 	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
 	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
 	bzero((char *) plex->lock, PLEX_LOCKS * sizeof(struct rangelock));
-	mtx_init(&plex->lockmtx, plex->name, MTX_DEF);
+	mtx_init(&plex->lockmtx, plex->name, "plex", MTX_DEF);
     }
     /* Note the last plex we configured */
     current_plex = plexno;

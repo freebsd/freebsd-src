@@ -105,7 +105,7 @@ mp_start(void *dummy)
 	if (mp_probe_status == 0)
 		return;
 
-	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
+	mtx_init(&smp_rv_mtx, "smp rendezvous", NULL, MTX_SPIN);
 	cpu_mp_start();
 	printf("FreeBSD/SMP: Multiprocessor System Detected: %d CPUs\n",
 	    mp_ncpus);

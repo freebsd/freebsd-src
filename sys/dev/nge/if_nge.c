@@ -797,7 +797,8 @@ static int nge_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct nge_softc));
 
-	mtx_init(&sc->nge_mtx, device_get_nameunit(dev), MTX_DEF|MTX_RECURSE);
+	mtx_init(&sc->nge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 
 	/*
 	 * Handle power management nonsense.

@@ -1047,7 +1047,7 @@ uma_startup(void *bootmem)
 	printf("Max cpu = %d, mp_maxid = %d\n", maxcpu, mp_maxid);
 	Debugger("stop");
 #endif
-	mtx_init(&uma_mtx, "UMA lock", MTX_DEF);
+	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF);
 	/* "manually" Create the initial zone */
 	args.name = "UMA Zones";
 	args.size = sizeof(struct uma_zone) +

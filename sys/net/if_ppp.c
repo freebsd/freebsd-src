@@ -208,9 +208,9 @@ pppattach(void)
 	sc->sc_inq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
-        mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", MTX_DEF);
-        mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", MTX_DEF);
-        mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", MTX_DEF);
+        mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", NULL, MTX_DEF);
+        mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", NULL, MTX_DEF);
+        mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
     }

@@ -1122,7 +1122,8 @@ static int tl_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	TL_LOCK(sc);
 
 	/*

@@ -226,7 +226,7 @@ i4biprattach(void *dummy)
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
 
 		if(!mtx_initialized(&sc->sc_fastq.ifq_mtx))
-			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
+			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", NULL, MTX_DEF);
 
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;

@@ -717,7 +717,7 @@ opl_attach(device_t dev)
 	/* Fill the softc. */
 	bcopy(&opl_synthinfo, &scp->synthinfo, sizeof(opl_synthinfo));
 	snprintf(scp->synthinfo.name, 64, "Yamaha OPL%d FM", scp->model);
-	mtx_init(&scp->mtx, "oplmid", MTX_DEF);
+	mtx_init(&scp->mtx, "oplmid", NULL, MTX_DEF);
 	bcopy(pv_map, scp->pv_map, sizeof(pv_map));
 	if (scp->model < MODEL_OPL3) { /* OPL2. */
 		scp->synthinfo.nr_voices = 9;

@@ -334,7 +334,7 @@ init_locks(void)
 {
 
 #ifdef USE_COMLOCK
-	mtx_init(&com_mtx, "com", MTX_SPIN);
+	mtx_init(&com_mtx, "com", NULL, MTX_SPIN);
 #endif /* USE_COMLOCK */
 }
 
@@ -1928,7 +1928,7 @@ start_all_aps(u_int boot_addr)
 
 	POSTCODE(START_ALL_APS_POST);
 
-	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* initialize BSP's local APIC */
 	apic_initialize();

@@ -345,7 +345,7 @@ cpu_mp_start(void)
 {
 	int i;
 
-	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
+	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
 		int dv;

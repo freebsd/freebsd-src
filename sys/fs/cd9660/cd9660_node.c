@@ -73,7 +73,7 @@ cd9660_init(vfsp)
 {
 
 	isohashtbl = hashinit(desiredvnodes, M_ISOFSMNT, &isohash);
-	mtx_init(&cd9660_ihash_mtx, "cd9660_ihash", MTX_DEF);
+	mtx_init(&cd9660_ihash_mtx, "cd9660_ihash", NULL, MTX_DEF);
 	return (0);
 }
 

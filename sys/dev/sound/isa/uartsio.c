@@ -243,7 +243,7 @@ uartsio_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	mtx_init(&scp->mtx, "siomid", MTX_DEF);
+	mtx_init(&scp->mtx, "siomid", NULL, MTX_DEF);
 	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &uartsio_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */

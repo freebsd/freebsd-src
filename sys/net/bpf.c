@@ -343,7 +343,7 @@ bpfopen(dev, flags, fmt, td)
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
 	d->bd_seesent = 1;
-	mtx_init(&d->bd_mtx, devtoname(dev), MTX_DEF);
+	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, 1);
 
 	return (0);
@@ -1263,7 +1263,7 @@ bpfattach(ifp, dlt, hdrlen)
 
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
-	mtx_init(&bp->bif_mtx, "bpf interface lock", MTX_DEF);
+	mtx_init(&bp->bif_mtx, "bpf interface lock", NULL, MTX_DEF);
 
 	mtx_lock(&bpf_mtx);
 	bp->bif_next = bpf_iflist;
@@ -1362,7 +1362,7 @@ bpf_drvinit(unused)
 	void *unused;
 {
 
-	mtx_init(&bpf_mtx, "bpf global lock", MTX_DEF);
+	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
 	cdevsw_add(&bpf_cdevsw);
 }

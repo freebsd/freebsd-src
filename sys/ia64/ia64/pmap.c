@@ -345,7 +345,7 @@ pmap_bootstrap()
 		pmap_steal_memory(pmap_ridmax / 8);
 	bzero(pmap_ridbusy, pmap_ridmax / 8);
 	pmap_ridbusy[0] |= 0xff;
-	mtx_init(&pmap_ridmutex, "RID allocator lock", MTX_DEF);
+	mtx_init(&pmap_ridmutex, "RID allocator lock", NULL, MTX_DEF);
 
 	/*
 	 * Allocate some memory for initial kernel 'page tables'.

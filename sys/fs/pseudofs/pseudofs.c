@@ -313,7 +313,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	struct pfs_node *root;
 	int error;
 
-	mtx_init(&pi->pi_mutex, "pseudofs", MTX_DEF);
+	mtx_init(&pi->pi_mutex, "pseudofs", NULL, MTX_DEF);
 	
 	/* set up the root diretory */
 	MALLOC(root, struct pfs_node *, sizeof *root,

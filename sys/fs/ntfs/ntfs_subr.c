@@ -404,7 +404,7 @@ ntfs_ntlookup(
 
 	/* init lock and lock the newborn ntnode */
 	lockinit(&ip->i_lock, PINOD, "ntnode", 0, LK_EXCLUSIVE);
-	mtx_init(&ip->i_interlock, "ntnode interlock", MTX_DEF);
+	mtx_init(&ip->i_interlock, "ntnode interlock", NULL, MTX_DEF);
 	ntfs_ntget(ip);
 
 	ntfs_nthashins(ip);

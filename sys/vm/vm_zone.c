@@ -79,7 +79,7 @@ static int zone_kmem_kvaspace;	/* Number of non-intsafe pages allocated */
 void
 vm_zone_init(void)
 {
-	mtx_init(&zone_mtx, "zone subsystem", MTX_DEF);
+	mtx_init(&zone_mtx, "zone subsystem", NULL, MTX_DEF);
 	SLIST_INIT(&zlist);
 }
 
@@ -175,7 +175,7 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 
 	/* our zone is good and ready, add it to the list */
 	if ((z->zflags & ZONE_BOOT) == 0) {
-		mtx_init(&(z)->zmtx, "zone", MTX_DEF);
+		mtx_init(&(z)->zmtx, "zone", NULL, MTX_DEF);
 		mtx_lock(&zone_mtx);
 		SLIST_INSERT_HEAD(&zlist, z, zent);
 		mtx_unlock(&zone_mtx);
@@ -232,7 +232,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zpagecount = 0;
 	z->zalloc = 0;
 	z->znalloc = 0;
-	mtx_init(&(z)->zmtx, "zone", MTX_DEF);
+	mtx_init(&(z)->zmtx, "zone", NULL, MTX_DEF);
 
 	bzero(item, nitems * z->zsize);
 	z->zitems = NULL;

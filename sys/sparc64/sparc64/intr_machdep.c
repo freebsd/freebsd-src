@@ -177,7 +177,7 @@ void
 intr_init2()
 {
 
-	mtx_init(&intr_table_lock, "ithread table lock", MTX_SPIN);
+	mtx_init(&intr_table_lock, "ithread table lock", NULL, MTX_SPIN);
 }
 
 /* Schedule a heavyweight interrupt process. */

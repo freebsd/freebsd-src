@@ -89,7 +89,7 @@ lockmgr_init(void *dummy __unused)
 	 * initialized in a call to lockinit().
 	 */
 	if (lock_mtx_valid == 0) {
-		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
+		mtx_init(&lock_mtx, "lockmgr", NULL, MTX_DEF);
 		lock_mtx_valid = 1;
 	}
 }
@@ -496,7 +496,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
 	if (lock_mtx_valid == 0) {
-		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
+		mtx_init(&lock_mtx, "lockmgr", NULL, MTX_DEF);
 		lock_mtx_valid = 1;
 	}
 	/*

@@ -146,7 +146,7 @@ static int
 ifs_init(vfsp)
 	struct vfsconf *vfsp;
 {
-	mtx_init(&ifs_inode_hash_mtx, "ifsvgt", MTX_DEF);
+	mtx_init(&ifs_inode_hash_mtx, "ifsvgt", NULL, MTX_DEF);
 	return (ufs_init(vfsp));
 }
 

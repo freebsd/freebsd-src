@@ -183,7 +183,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	ithd->it_enable = enable;
 	ithd->it_flags = flags;
 	TAILQ_INIT(&ithd->it_handlers);
-	mtx_init(&ithd->it_lock, "ithread", MTX_DEF);
+	mtx_init(&ithd->it_lock, "ithread", NULL, MTX_DEF);
 	mtx_lock(&ithd->it_lock);
 
 	va_start(ap, fmt);

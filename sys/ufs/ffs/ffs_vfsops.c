@@ -1364,7 +1364,7 @@ ffs_init(vfsp)
 {
 
 	softdep_initialize();
-	mtx_init(&ffs_inode_hash_mtx, "ifsvgt", MTX_DEF);
+	mtx_init(&ffs_inode_hash_mtx, "ifsvgt", NULL, MTX_DEF);
 	return (ufs_init(vfsp));
 }
 

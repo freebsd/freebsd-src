@@ -425,7 +425,7 @@ vm86_initialize(void)
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
-	mtx_init(&vm86_lock, "vm86 lock", MTX_DEF);
+	mtx_init(&vm86_lock, "vm86 lock", NULL, MTX_DEF);
 
 	bzero(pcb, sizeof(struct pcb));
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;

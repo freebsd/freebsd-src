@@ -1768,8 +1768,8 @@ init386(first)
 	 *	     under witness.
 	 */
 	mutex_init();
-	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&icu_lock, "icu", MTX_SPIN | MTX_NOWITNESS);
+	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
 
 	/* make ldt memory segments */
 	/*

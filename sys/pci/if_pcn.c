@@ -416,7 +416,8 @@ static int pcn_probe(dev)
 			sc->pcn_btag = rman_get_bustag(sc->pcn_res);
 			sc->pcn_bhandle = rman_get_bushandle(sc->pcn_res);
 			mtx_init(&sc->pcn_mtx,
-			    device_get_nameunit(dev), MTX_DEF);
+			    device_get_nameunit(dev), MTX_NETWORK_LOCK,
+			    MTX_DEF);
 			PCN_LOCK(sc);
 			/*
 			 * Note: we can *NOT* put the chip into
@@ -504,7 +505,8 @@ static int pcn_attach(dev)
 	unit = device_get_unit(dev);
 
 	/* Initialize our mutex. */
-	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	PCN_LOCK(sc);
 
 	/*

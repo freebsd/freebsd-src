@@ -527,7 +527,7 @@ pccbb_attach(device_t brdev)
 	int rid;
 	uint32_t sockbase;
 
-	mtx_init(&sc->mtx, device_get_nameunit(brdev), MTX_DEF);
+	mtx_init(&sc->mtx, device_get_nameunit(brdev), "pccbb", MTX_DEF);
 	sc->chipset = pccbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;

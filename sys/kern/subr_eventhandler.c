@@ -55,7 +55,7 @@ static void
 eventhandler_init(void *dummy __unused)
 {
     TAILQ_INIT(&eventhandler_lists);
-    mtx_init(&eventhandler_mutex, "eventhandler", MTX_DEF | MTX_RECURSE);
+    mtx_init(&eventhandler_mutex, "eventhandler", NULL, MTX_DEF | MTX_RECURSE);
     eventhandler_lists_initted = 1;
 }
 SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,

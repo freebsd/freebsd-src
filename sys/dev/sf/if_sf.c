@@ -671,7 +671,8 @@ static int sf_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sf_softc));
 
-	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF | MTX_RECURSE);
 	SF_LOCK(sc);
 	/*
 	 * Handle power management nonsense.
