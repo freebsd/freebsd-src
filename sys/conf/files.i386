@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.185 1998/01/15 07:30:54 gibbs Exp $
+#	$Id: files.i386,v 1.186 1998/01/16 22:13:00 pst Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -313,3 +313,6 @@ gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb	device-driver
 gnu/i386/isa/sound/awe_wave.c	optional	awe	device-driver
 pci/ide_pci.c			optional	wd	device-driver
+dev/dpt/dpt_control.c		optional        dpt	device-driver
+dev/dpt/dpt_scsi.c		optional        dpt	device-driver
+pci/dpt_pci.c			optional        dpt	device-driver
