@@ -105,7 +105,7 @@ memset(dst0, c0, length)
 	}
 #endif
 	/* Align destination by filling in bytes. */
-	if ((t = (int)dst & wmask) != 0) {
+	if ((t = (long)dst & wmask) != 0) {
 		t = wsize - t;
 		length -= t;
 		do {
