@@ -77,11 +77,9 @@ static comp_t	encode_comp_t __P((u_long, u_long));
 static void	acctwatch __P((void *));
 
 /*
- * Accounting callout handle used for periodic scheduling of
- * acctwatch.
+ * Accounting callout used for periodic scheduling of acctwatch.
  */
-static struct	callout_handle acctwatch_handle
-    = CALLOUT_HANDLE_INITIALIZER(&acctwatch_handle);
+static struct	callout acctwatch_callout;
 
 /*
  * Accounting vnode pointer, and saved vnode pointer.
@@ -148,7 +146,7 @@ acct(a1, uap)
 	 * close the file, and (if no new file was specified, leave).
 	 */
 	if (acctp != NULLVP || savacctp != NULLVP) {
-		untimeout(acctwatch, NULL, acctwatch_handle);
+		callout_stop(&acctwatch_callout);
 		error = vn_close((acctp != NULLVP ? acctp : savacctp), FWRITE,
 		    p->p_ucred, p);
 		acctp = savacctp = NULLVP;
@@ -161,6 +159,7 @@ acct(a1, uap)
 	 * free space watcher.
 	 */
 	acctp = nd.ni_vp;
+	callout_init(&acctwatch_callout, 0);
 	acctwatch(NULL);
 	return (error);
 }
@@ -329,5 +328,5 @@ acctwatch(a)
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
 	}
-	acctwatch_handle = timeout(acctwatch, NULL, acctchkfreq * hz);
+	callout_reset(&acctwatch_callout, acctchkfreq * hz, acctwatch, NULL);
 }

@@ -172,7 +172,7 @@ exit1(p, rv)
 	p->p_flag |= P_WEXIT;
 	SIGEMPTYSET(p->p_siglist);
 	if (timevalisset(&p->p_realtimer.it_value))
-		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+		callout_stop(&p->p_itcallout);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
