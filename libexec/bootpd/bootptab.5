@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Header: $
+.\"	$Header: /home/ncvs/src/libexec/bootpd/bootptab.5,v 1.1.1.2 1996/01/23 01:34:00 pst Exp $
 .\"
 .TH BOOTPTAB 5 "October 31, 1991" "Carnegie Mellon University"
 .UC 6
@@ -185,7 +185,7 @@ below).
 If the hardware address is not specified and the type is specified
 as either "ethernet" or "ieee802", then
 .I bootpd
-will try to determine the hardware address using ether_hton(3).
+will try to determine the hardware address using ether_hostton(3).
 .PP
 The hostname, home directory, and bootfile are ASCII strings which may be
 optionally surrounded by double quotes (").  The client's request and the
