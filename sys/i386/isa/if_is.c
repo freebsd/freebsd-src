@@ -11,8 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- *	$Id$
- */
+*/
 
 /* TODO
 
@@ -79,8 +78,8 @@
  * This structure contains the output queue for the interface, its address, ...
  */
 struct	is_softc {
-	struct	arpcom arpcom;		/* Ethernet common part */
-	int iobase;			/* IO base address of card */
+	struct arpcom arpcom;             /* Ethernet common part */
+	int iobase;                       /* IO base address of card */
 	struct mds 	*rd;
 	struct mds	*td;
 	unsigned char	*rbuf;
@@ -88,7 +87,7 @@ struct	is_softc {
 	int	last_rd;
 	int	last_td;
 	int	no_td;
-        caddr_t bpf;            	/* BPF "magic cookie" */
+	caddr_t bpf;                      /* BPF "magic cookie" */
 
 } is_softc[NIS] ;
 
@@ -165,7 +164,8 @@ is_probe(isa_dev)
 /*
  * Reset of interface.
  */
-int is_reset(int unit)
+int
+is_reset(int unit)
 {
 	int s;
 	if (unit >= NIS)
@@ -181,7 +181,8 @@ int is_reset(int unit)
  * record.  System will initialize the interface when it is ready
  * to accept packets.  We get the ethernet address here.
  */
-int is_attach(isa_dev)
+int
+is_attach(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int unit = isa_dev->id_unit;
@@ -259,15 +260,21 @@ init_mem(unit)
 	struct is_softc *is = &is_softc[unit];
 
 	/* Allocate memory */
-/* Temporary hack, will use kmem_alloc in future */
-#define MAXMEM ((NRBUF+NTBUF)*(BUFSIZE) + (NRBUF+NTBUF)*sizeof(struct mds) + 8)
-static u_char lance_mem[NIS][MAXMEM];
 
+	/*
+	 * XXX hopefully have better way to get dma'able memory later,
+	 * this code assumes that the physical memory address returned
+	 * from malloc will be below 16Mb. The Lance's address registers
+	 * are only 16 bits wide!
+	 */
+
+#define MAXMEM ((NRBUF+NTBUF)*(BUFSIZE) + (NRBUF+NTBUF)*sizeof(struct mds) + 8)
+
+	temp = (u_long) malloc(MAXMEM,M_TEMP,M_NOWAIT);
 
 	/* Align message descriptors on quad word boundary 
 		(this is essential) */
 
-	temp = (u_long) &lance_mem[unit];
 	temp = (temp+8) - (temp%8);
 	is->rd = (struct mds *) temp;
 	is->td = (struct mds *) (temp + (NRBUF*sizeof(struct mds)));
@@ -345,7 +352,7 @@ is_init(unit)
 #endif
 
 
-	/* I wish I knew what this was */
+	/* No byte swapping etc */
 	iswrcsr(unit,3,0);
 
 	/* Give lance the physical address of its memory area */
