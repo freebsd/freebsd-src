@@ -16,11 +16,6 @@
 #
 # COMPRESS_EXT	File name extension of ${COMPRESS_CMD} command. [.gz]
 #
-# STRIP		The flag passed to the install program to cause the binary
-#		to be stripped.  This is to be used when building your
-#		own install script so that the entire system can be made
-#		stripped/not-stripped using a single knob. [-s]
-#
 # BINOWN	Binary owner. [root]
 #
 # BINGRP	Binary group. [wheel]
@@ -163,10 +158,6 @@ NLSMODE?=	${NOBINMODE}
 INCLUDEDIR?=	/usr/include
 
 # Common variables
-.if !defined(DEBUG_FLAGS)
-STRIP?=		-s
-.endif
-
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
