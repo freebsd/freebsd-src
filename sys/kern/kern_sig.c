@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id$
+ * $Id: kern_sig.c,v 1.3 1994/08/02 07:42:13 davidg Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -952,7 +952,7 @@ issignal(p)
 		 */
 		switch ((int)p->p_sigacts->ps_sigact[signum]) {
 
-		case SIG_DFL:
+		case (int)SIG_DFL:
 			/*
 			 * Don't take default actions on system processes.
 			 */
@@ -995,7 +995,7 @@ issignal(p)
 				return (signum);
 			/*NOTREACHED*/
 
-		case SIG_IGN:
+		case (int)SIG_IGN:
 			/*
 			 * Masking above should prevent us ever trying
 			 * to take action on an ignored signal other
