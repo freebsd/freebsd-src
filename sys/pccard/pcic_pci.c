@@ -88,6 +88,8 @@ setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
 always require this, while builtin bridges need it less often");
 
 static void pcic_pci_cardbus_init(device_t);
+static pcic_intr_way_t pcic_pci_gen_func;
+static pcic_intr_way_t pcic_pci_gen_csc;
 static pcic_intr_mapirq_t pcic_pci_gen_mapirq;
 
 static pcic_intr_way_t pcic_pci_oz67xx_func;
@@ -177,6 +179,13 @@ static struct pcic_chip pcic_pci_topic_chip = {
 	pcic_pci_topic_init
 };
 
+static struct pcic_chip pcic_pci_generic_chip = {
+	pcic_pci_gen_func,
+	pcic_pci_gen_csc,
+	pcic_pci_gen_mapirq,
+	pcic_pci_cardbus_init
+};
+
 struct pcic_pci_table
 {
 	u_int32_t	devid;
@@ -194,6 +203,9 @@ struct pcic_pci_table
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
 	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	{ PCI_DEVICE_ID_PCIC_CLPD6834,
+	  "Cirrus Logic PD6834 PCI-CardBus Bridge",
+	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
@@ -204,10 +216,19 @@ struct pcic_pci_table
 	  "O2micro 6832/6833 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6860,
-	  "O2micro 6860/6836 PCI-Cardbus Bridge",
+	  "O2micro 6836/6860 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6872,
 	  "O2micro 6812/6872 PCI-Cardbus Bridge",
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	{ PCI_DEVICE_ID_PCIC_OZ6912,
+	  "O2micro 6912 PCI-Cardbus Bridge",
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	{ PCI_DEVICE_ID_PCIC_OZ6922,
+	  "O2micro 6922 PCI-Cardbus Bridge",
+	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
+	{ PCI_DEVICE_ID_PCIC_OZ6933,
+	  "O2micro 6933 PCI-Cardbus Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz68xx_chip },
 	{ PCI_DEVICE_ID_RICOH_RL5C465,
 	  "Ricoh RL5C465 PCI-CardBus Bridge",
@@ -257,11 +278,20 @@ struct pcic_pci_table
 	{ PCI_DEVICE_ID_PCIC_TI1251B,
 	  "TI PCI-1251B PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	{ PCI_DEVICE_ID_PCIC_TI1260,
+	  "TI PCI-1260 PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	{ PCI_DEVICE_ID_PCIC_TI1260B,
+	  "TI PCI-1260B PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1410,
 	  "TI PCI-1410 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1420,
 	  "TI PCI-1420 PCI-CardBus Bridge",
+	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
+	{ PCI_DEVICE_ID_PCIC_TI1421,
+	  "TI PCI-1421 PCI-CardBus Bridge",
 	  PCIC_I82365SL_DF, PCIC_DF_POWER, &pcic_pci_ti12xx_chip },
 	{ PCI_DEVICE_ID_PCIC_TI1450,
 	  "TI PCI-1450 PCI-CardBus Bridge",
@@ -347,6 +377,11 @@ pcic_pci_gen_func(struct pcic_slot *sp, enum pcic_intr_way way)
 	return (0);
 }
 
+static int
+pcic_pci_gen_csc(struct pcic_slot *sp, enum pcic_intr_way way)
+{
+	return (0);
+}
 
 /*
  * The O2micro OZ67xx chips functions.
@@ -444,7 +479,7 @@ pcic_pci_pd67xx_init(device_t dev)
 }
 
 /*
- * Set up the CL-PD6832 and 6833.
+ * Set up the CL-PD6832, 6833 and 6834.
  */
 static int
 pcic_pci_pd68xx_func(struct pcic_slot *sp, enum pcic_intr_way way)
@@ -471,6 +506,8 @@ pcic_pci_pd68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 	 * 11 in the bridge control register.  Instead, this
 	 * functionality appears to be in the "Configuration
 	 * Miscellaneous 1" register bit 1.
+	 *
+	 * I'm assuming that the CLPD6834 does things like the '33
 	 */
 	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6832) {
 		bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
@@ -480,7 +517,7 @@ pcic_pci_pd68xx_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 			bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
 		pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 	}
-	if (device_id == PCI_DEVICE_ID_PCIC_CLPD6833) {
+	if (device_id != PCI_DEVICE_ID_PCIC_CLPD6832) {
 		cm1 = pci_read_config(dev, CLPD6833_CFG_MISC_1, 4);
 		if (way == pcic_iw_pci)
 			cm1 &= ~CLPD6833_CM1_MGMT_EXCA_ENA;
@@ -1138,7 +1175,10 @@ pcic_pci_attach(device_t dev)
 		sc->cd_present = (stat & CB_SS_CD) == 0;	
 	}
 	sc->dev = dev;
-	sc->chip = itm->chip;
+	if (itm)
+		sc->chip = itm->chip;
+	else
+		sc->chip = &pcic_pci_generic_chip;
 
 	if (sc->csc_route == pcic_iw_pci) {
 		rid = 0;
