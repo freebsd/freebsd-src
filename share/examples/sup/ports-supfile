@@ -23,4 +23,5 @@ ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr pre
 ports-shells release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-sysutils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-utils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-www release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-x11 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
