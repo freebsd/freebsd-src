@@ -380,9 +380,14 @@ struct ovfsconf {
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode*/
 
+typedef uint32_t fsctlop_t;
+
 struct vfsidctl {
 	int		vc_vers;	/* should be VFSIDCTL_VERS1 (below) */
 	fsid_t		vc_fsid;	/* fsid to operate on. */
+	char		vc_fstypename[MFSNAMELEN];
+					/* type of fs 'nfs' or '*' */
+	fsctlop_t	vc_op;		/* operation VFS_CTL_* (below) */
 	void		*vc_ptr;	/* pointer to data structure. */
 	size_t		vc_len;		/* sizeof said structure. */
 	u_int32_t	vc_spare[12];	/* spare (must be zero). */
@@ -394,13 +399,13 @@ struct vfsidctl {
 /*
  * New style VFS sysctls, do not reuse/conflict with the namespace for
  * private sysctls.
+ * All "global" sysctl ops have the 33rd bit set:
+ * 0x...1....
+ * Priavte sysctl ops should have the 33rd bit unset.
  */
-#define VFS_CTL_STATFS	0x00010001	/* statfs */
-#define VFS_CTL_UMOUNT	0x00010002	/* unmount */
-#define VFS_CTL_QUERY	0x00010003	/* anything wrong? (vfsquery) */
-#define VFS_CTL_NEWADDR	0x00010004	/* reconnect to new address */
-#define VFS_CTL_TIMEO	0x00010005	/* set timeout for vfs notification */
-#define VFS_CTL_NOLOCKS	0x00010006	/* disable file locking */
+#define VFS_CTL_QUERY	0x00010001	/* anything wrong? (vfsquery) */
+#define VFS_CTL_TIMEO	0x00010002	/* set timeout for vfs notification */
+#define VFS_CTL_NOLOCKS	0x00010003	/* disable file locking */
 
 struct vfsquery {
 	u_int32_t	vq_flags;
@@ -479,7 +484,8 @@ typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
 		    const char *attrname, struct thread *td);
 typedef	int vfs_nmount_t(struct mount *mp, struct nameidata *ndp,
 		    struct thread *td);
-typedef int vfs_sysctl_t(struct mount *mp, struct sysctl_req *req);
+typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
+		    struct sysctl_req *req);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -519,9 +525,9 @@ struct vfsops {
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
 #define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
-#define VFS_SYSCTL(MP, REQ) \
+#define VFS_SYSCTL(MP, OP, REQ) \
     	((MP) == NULL ? ENOTSUP : \
-	 (*(MP)->mnt_op->vfs_sysctl)(MP, REQ))
+	 (*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ))
 
 #include <sys/module.h>
 

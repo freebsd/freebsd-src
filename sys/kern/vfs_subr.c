@@ -3960,12 +3960,18 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_IN(req, &vc, sizeof(vc));
 	if (error)
 		return (error);
-
+	if (vc.vc_vers != VFS_CTL_VERS1)
+		return (EINVAL);
 	mp = vfs_getvfs(&vc.vc_fsid);
 	if (mp == NULL)
 		return (ENOENT);
+	/* ensure that a specific sysctl goes to the right filesystem. */
+	if (strcmp(vc.vc_fstypename, "*") != 0 &&
+	    strcmp(vc.vc_fstypename, mp->mnt_vfc->vfc_name) != 0) {
+		return (EINVAL);
+	}
 	VCTLTOREQ(&vc, req);
-	return (VFS_SYSCTL(mp, req));
+	return (VFS_SYSCTL(mp, vc.vc_op, req));
 }
 
 SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_RD,
