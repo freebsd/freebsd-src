@@ -105,7 +105,6 @@
 97	*prom		Alpha PROM console
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
-100	*xrpu		Xilinx Reprogrammable Processing Unit
 103	*streams	SVR4 Streams emulation <newton@atdot.dotat.org>
 104	*xpt		CAM Transport Layer Services
 105	*iic		I2C bus generic i/o
