@@ -8,6 +8,10 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20040630:	p2	FreeBSD-SA-04.13.linux
+	Correct an input validation error in the linux binary
+	compatibility code.
+
 20040626:	p1	FreeBSD-EN-04:01.twe
 	Fix a bug in twe(4) that could cause kernel lockups.
 	
