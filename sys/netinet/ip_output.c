@@ -223,17 +223,30 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	pkt_dst = args.next_hop ? args.next_hop->sin_addr : ip->ip_dst;
 
 	/*
-	 * Fill in IP header.
+	 * Fill in IP header.  If we are not allowing fragmentation,
+	 * then the ip_id field is meaningless, so send it as zero
+	 * to reduce information leakage.  Otherwise, if we are not
+	 * randomizing ip_id, then don't bother to convert it to network
+	 * byte order -- it's just a nonce.  Note that a 16-bit counter
+	 * will wrap around in less than 10 seconds at 100 Mbit/s on a
+	 * medium with MTU 1500.  See Steven M. Bellovin, "A Technique
+	 * for Counting NATted Hosts", Proc. IMW'02, available at
+	 * <http://www.research.att.com/~smb/papers/fnat.pdf>.
 	 */
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip->ip_off &= IP_DF;
+		if ((ip->ip_off & IP_DF) == 0) {
+			ip->ip_off = 0;
 #ifdef RANDOM_IP_ID
-		ip->ip_id = ip_randomid();
+			ip->ip_id = ip_randomid();
 #else
-		ip->ip_id = htons(ip_id++);
+			ip->ip_id = ip_id++;
 #endif
+		} else {
+			ip->ip_off = IP_DF;
+			ip->ip_id = 0;
+		}
 		ipstat.ips_localout++;
 	} else {
 		hlen = ip->ip_hl << 2;
