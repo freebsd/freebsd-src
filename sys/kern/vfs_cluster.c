@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.15 1995/04/04 02:10:17 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.16 1995/05/30 08:06:30 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -550,7 +550,8 @@ redo:
 	 * potentially pull it back up if the cluster was terminated
 	 * prematurely--too much hassle.
 	 */
-	if (tbp->b_bcount != tbp->b_bufsize) {
+	if (((tbp->b_flags & B_VMIO) == 0) ||
+		(tbp->b_bcount != tbp->b_bufsize)) {
 		relpbuf(pb);
 		++start_lbn;
 		--len;
