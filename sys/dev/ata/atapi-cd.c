@@ -102,6 +102,8 @@ static int acd_mode_sense(struct acd_softc *, int, caddr_t, int);
 static int acd_mode_select(struct acd_softc *, caddr_t, int);
 static int acd_set_speed(struct acd_softc *, int, int);
 static void acd_get_cap(struct acd_softc *);
+static int acd_read_format_caps(struct acd_softc *, struct cdr_format_capacities *);
+static int acd_format(struct acd_softc *, struct cdr_format_params *);
 
 /* internal vars */
 static u_int32_t acd_lun_map = 0;
@@ -1029,6 +1031,14 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	error = acd_send_cue(cdp, (struct cdr_cuesheet *)addr);
 	break;
 
+    case CDRIOCREADFORMATCAPS:
+    	error = acd_read_format_caps(cdp, (struct cdr_format_capacities *)addr);
+	break;
+
+    case CDRIOCFORMAT:
+    	error = acd_format(cdp, (struct cdr_format_params *)addr);
+	break;
+
     case DVDIOCREPORTKEY:
 	if (!cdp->cap.read_dvdrom)
 	    error = EINVAL;
@@ -1184,7 +1194,7 @@ acd_start(struct ata_device *atadev)
 	    ccb[9] = 0x10;
 	}
     }
-    else 
+    else
 	ccb[0] = ATAPI_WRITE_BIG;
     
     ccb[1] = 0;
@@ -1563,21 +1573,23 @@ acd_read_track_info(struct acd_softc *cdp,
 static int
 acd_get_progress(struct acd_softc *cdp, int *finished)
 {
-    int8_t ccb[16] = { ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0,  
+    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
+		       sizeof(struct atapi_reqsense), 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    struct atapi_reqsense *sense = cdp->device->result;
-    char tmp[8];
+    struct atapi_reqsense sense;
+    int error;
 
-    if (atapi_test_ready(cdp->device) != EBUSY) {
-	if (atapi_queue_cmd(cdp->device, ccb, tmp, sizeof(tmp),
-			    ATPR_F_READ, 30, NULL, NULL) != EBUSY) {
+    error = atapi_queue_cmd(cdp->device, ccb,
+			    (caddr_t)&sense, sizeof(struct atapi_reqsense),
+			    ATPR_F_READ, 30, NULL, NULL);
+
+    if (error) {
+	if (error != EBUSY)
 	    *finished = 100;
-	    return 0;
-	}
+	return error;
     }
-    if (sense->sksv)
-	*finished = 
-	    ((sense->sk_specific2 | (sense->sk_specific1 << 8)) * 100) / 65535;
+    if (sense.sksv)
+	*finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100)/65535;
     else
 	*finished = 0;
     return 0;
@@ -1999,4 +2011,30 @@ acd_get_cap(struct acd_softc *cdp)
     cdp->cap.cur_write_speed = max(ntohs(cdp->cap.cur_write_speed), 177);
     cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
     cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+}
+
+static int
+acd_read_format_caps(struct acd_softc *cdp, struct cdr_format_capacities *caps)
+{
+    int8_t ccb[16] = { ATAPI_READ_FORMAT_CAPACITIES, 0, 0, 0, 0, 0, 0,
+		       (sizeof(struct cdr_format_capacities) >> 8) & 0xff,
+		       sizeof(struct cdr_format_capacities) & 0xff, 
+		       0, 0, 0, 0, 0, 0, 0 };
+    
+    return atapi_queue_cmd(cdp->device, ccb, (caddr_t)caps,
+			   sizeof(struct cdr_format_capacities),
+			   ATPR_F_READ, 30, NULL, NULL);
+}
+
+static int
+acd_format(struct acd_softc *cdp, struct cdr_format_params* params)
+{
+    int error;
+    int8_t ccb[16] = { ATAPI_FORMAT, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 
+		       0, 0, 0, 0, 0, 0 };
+
+    error = atapi_queue_cmd(cdp->device, ccb, (u_int8_t *)params, 
+			    sizeof(struct cdr_format_params), 0, 30, NULL,NULL);
+
+    return error;
 }
