@@ -323,20 +323,23 @@ static int
 sndattach (struct isa_device *dev)
 {
   int             unit;
+  int             minor;
+  int             voxunit;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 
-  unit = driver_to_voxunit(dev->id_driver);
+  unit = dev->id_unit;
+  voxunit = driver_to_voxunit(dev->id_driver);
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
   hw_config.dma_read = dev->id_flags;	/* misuse the flags field for read dma*/
 
-  if(!unit)
+  if(!voxunit)
     return FALSE;
-  if (!sndtable_init_card (unit, &hw_config))
+  if (!sndtable_init_card (voxunit, &hw_config))
     {
       printf (" <Driver not configured>");
       return FALSE;
@@ -382,54 +385,82 @@ sndattach (struct isa_device *dev)
 #endif
 
 #ifdef DEVFS
-/* XXX */ /* find out where to store the tokens.. */
 /* XXX */ /* should only create devices if that card has them */
-#define SND_UID 0
-#define SND_GID 13
-
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_CTL, DV_CHR, 
-				 SND_UID,  SND_GID, 0660, "mixer%d", unit);
+  if ( ! sndstat_devfs_token) 
+    {
+      sndstat_devfs_token = 
+	devfs_add_devswf(&snd_cdevsw, SND_DEV_STATUS, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "sndstat");
+    }
+    
+  minor = (unit << 4)+SND_DEV_CTL;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "mixer%d", unit);
+    }
 
 #ifndef EXCLUDE_SEQUENCER
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SEQ, DV_CHR,
-				 SND_UID,  SND_GID, 0660, "sequencer%d", unit);
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SEQ2, DV_CHR,
-				 SND_UID,  SND_GID, 0660, "music%d", unit);
+  minor = (unit << 4)+SND_DEV_SEQ;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+      	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+      	      	      	 GID_WHEEL, 0600, "sequencer%d", unit);
+    }
+  
+  minor = (unit << 4)+SND_DEV_SEQ2;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "music%d", unit);
+    }
 #endif
 
 #ifndef EXCLUDE_MIDI
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_MIDIN,
-				 DV_CHR, SND_UID,  SND_GID, 0660, "midi%d", 
-				 unit);
+  minor = (unit << 4)+SND_DEV_MIDIN;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+      	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+		      	 GID_WHEEL, 0600, "midi%d", unit);
+    }
 #endif
 
 #ifndef EXCLUDE_AUDIO
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_DSP, DV_CHR,
-				 SND_UID,  SND_GID, 0660, "dsp%d", unit);
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_AUDIO,
-				 DV_CHR, SND_UID,  SND_GID, 0660, "audio%d", 
-				 unit);
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_DSP16,
-				 DV_CHR, SND_UID,  SND_GID, 0660, "dspW%d", 
-				 unit);
+  minor = (unit << 4)+SND_DEV_DSP;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "dsp%d", unit);
+    }
+
+  minor = (unit << 4)+SND_DEV_AUDIO;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "audio%d", unit);
+    }
+
+  minor = (unit << 4)+SND_DEV_DSP16;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "dspW%d", unit);
+    }
 #endif
 
-    snd_devfs_token[unit]=
-		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SNDPROC,
-		 		 DV_CHR, SND_UID,  SND_GID, 0660, "pss%d", 
-				 unit);
-
-    if ( ! sndstat_devfs_token) {
-        sndstat_devfs_token = 
-		devfs_add_devswf(&snd_cdevsw, 6, DV_CHR, SND_UID, SND_GID, 
-				 0660, "sndstat");
+  minor = (unit << 4)+SND_DEV_SNDPROC;
+  if ( ! snd_devfs_token[minor])
+    {
+      snd_devfs_token[minor] =
+	devfs_add_devswf(&snd_cdevsw, minor, DV_CHR, UID_ROOT,
+	      	      	 GID_WHEEL, 0600, "pss%d", unit);
     }
 #endif /* DEVFS */
   return TRUE;
