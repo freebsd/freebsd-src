@@ -1122,14 +1122,13 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 			u_int len;
 
 			len = sizeof(*meta) + sizeof(*mhead) + sa->sa_len;
-			MALLOC(meta, meta_p, len, M_NETGRAPH_META, M_NOWAIT);
+			MALLOC(meta, meta_p, len, M_NETGRAPH_META,
+			    M_NOWAIT | M_ZERO);
 			if (meta == NULL) {
 				FREE(sa, M_SONAME);
 				goto sendit;
 			}
 			mhead = &meta->options[0];
-			bzero(meta, sizeof(*meta));
-			bzero(mhead, sizeof(*mhead));
 			meta->allocated_len = len;
 			meta->used_len = len;
 			mhead->cookie = NGM_KSOCKET_COOKIE;
