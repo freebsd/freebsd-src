@@ -333,7 +333,8 @@ div_output(struct socket *so, struct mbuf *m,
 #endif
 			error = ip_output(m,
 				    inp->inp_options, NULL,
-				    (so->so_options & SO_DONTROUTE) |
+				    ((so->so_options & SO_DONTROUTE) ?
+				    IP_ROUTETOIF : 0) |
 				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
 				    inp->inp_moptions, NULL);
 		}

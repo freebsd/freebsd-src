@@ -1060,8 +1060,8 @@ timer:
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m,
 			    tp->t_inpcb->in6p_outputopts, NULL,
-			    (so->so_options & SO_DONTROUTE), NULL, NULL,
-			    tp->t_inpcb);
+			    ((so->so_options & SO_DONTROUTE) ?
+			    IP_ROUTETOIF : 0), NULL, NULL, tp->t_inpcb);
 	} else
 #endif /* INET6 */
     {
@@ -1080,7 +1080,8 @@ timer:
 		ip->ip_off |= IP_DF;
 
 	error = ip_output(m, tp->t_inpcb->inp_options, NULL,
-	    (so->so_options & SO_DONTROUTE), 0, tp->t_inpcb);
+	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
+	    tp->t_inpcb);
     }
 	if (error) {
 

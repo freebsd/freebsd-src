@@ -879,7 +879,11 @@ udp_output(inp, m, addr, control, td)
 	ui->ui_dport = fport;
 	ui->ui_ulen = htons((u_short)len + sizeof(struct udphdr));
 
-	ipflags = inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST);
+	ipflags = 0;
+	if (inp->inp_socket->so_options & SO_DONTROUTE)
+		ipflags |= IP_ROUTETOIF;
+	if (inp->inp_socket->so_options & SO_BROADCAST)
+		ipflags |= IP_ALLOWBROADCAST;
 	if (inp->inp_flags & INP_ONESBCAST)
 		ipflags |= IP_SENDONES;
 
