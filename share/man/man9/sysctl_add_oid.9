@@ -270,11 +270,11 @@ The name of the oid.
 The newly created oid will contain a copy of the name.
 .It Fa kind
 The kind of oid,
-specified as a bitmask of the type and access values defined in the
+specified as a bit mask of the type and access values defined in the
 .Aq sys/sysctl.h
 header file.
 Oids created dynamically always have the
-.Dv CTLTYPE_DYN
+.Dv CTLFLAG_DYN
 flag set.
 Access flags specify whether this oid is read-only or read-write,
 and whether it may be modified by all users
