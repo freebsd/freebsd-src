@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb-protos.h,v 1.18 1999/06/29 21:18:05 bg Exp $ */
+/* $Id: krb-protos.h,v 1.24 1999/12/02 16:58:42 joda Exp $ */
 
 #ifndef __krb_protos_h__
 #define __krb_protos_h__
@@ -265,12 +260,18 @@ char * KRB_LIB_FUNCTION
 krb_get_default_realm __P((void));
 
 const char * KRB_LIB_FUNCTION
+krb_get_default_tkt_root __P((void));
+
+const char * KRB_LIB_FUNCTION
+krb_get_default_keyfile __P((void));
+
+const char * KRB_LIB_FUNCTION
 krb_get_err_text __P((int code));
 
 struct krb_host* KRB_LIB_FUNCTION
 krb_get_host __P((
 	int nth,
-	char *realm,
+	const char *realm,
 	int admin));
 
 int KRB_LIB_FUNCTION
@@ -734,6 +735,9 @@ int KRB_LIB_FUNCTION
 tf_get_cred __P((CREDENTIALS *c));
 
 int KRB_LIB_FUNCTION
+tf_get_cred_addr __P((char *realm, size_t realm_sz, struct in_addr *addr));
+
+int KRB_LIB_FUNCTION
 tf_get_pinst __P((char *inst));
 
 int KRB_LIB_FUNCTION
@@ -767,7 +771,19 @@ tf_setup __P((
 	const char *pname,
 	const char *pinst));
 
+int KRB_LIB_FUNCTION
+tf_get_addr __P((
+	const char *realm,
+	struct in_addr *addr));
+
+int KRB_LIB_FUNCTION
+tf_store_addr __P((const char *realm, struct in_addr *addr));
+
 char * KRB_LIB_FUNCTION
 tkt_string __P((void));
+
+int KRB_LIB_FUNCTION
+krb_add_our_ip_for_realm __P((const char *user, const char *instance,
+			      const char *realm, const char *password));
 
 #endif /* __krb_protos_h__ */

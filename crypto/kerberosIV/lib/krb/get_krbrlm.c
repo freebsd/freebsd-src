@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_krbrlm.c,v 1.22.2.1 1999/09/02 08:51:04 joda Exp $");
+RCSID("$Id: get_krbrlm.c,v 1.25 1999/12/02 16:58:41 joda Exp $");
 
 /*
  * krb_get_lrealm takes a pointer to a string, and a number, n.  It fills
@@ -130,13 +125,13 @@ krb_get_default_realm(void)
     if (local_realm[0] == 0) {
 	char *t, hostname[MaxHostNameLen];
 
-	strcpy_truncate(local_realm, no_default_realm, 
+	strlcpy(local_realm, no_default_realm, 
 			sizeof(local_realm)); /* Provide default */
 
 	gethostname(hostname, sizeof(hostname));
 	t = krb_realmofhost(hostname);
 	if (t && strcmp(t, no_default_realm) != 0)
-	    strcpy_truncate(local_realm, t, sizeof(local_realm));
+	    strlcpy(local_realm, t, sizeof(local_realm));
     }
     return local_realm;
 }

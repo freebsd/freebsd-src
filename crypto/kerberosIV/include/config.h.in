@@ -71,6 +71,15 @@
 /* Define if the X Window System is missing or not being used.  */
 #undef X_DISPLAY_MISSING
 
+/* Define if you have the XauFileName function.  */
+#undef HAVE_XAUFILENAME
+
+/* Define if you have the XauReadAuth function.  */
+#undef HAVE_XAUREADAUTH
+
+/* Define if you have the XauWriteAuth function.  */
+#undef HAVE_XAUWRITEAUTH
+
 /* Define if you have the _getpty function.  */
 #undef HAVE__GETPTY
 
@@ -95,11 +104,17 @@
 /* Define if you have the cap_set_proc function.  */
 #undef HAVE_CAP_SET_PROC
 
+/* Define if you have the cgetent function.  */
+#undef HAVE_CGETENT
+
 /* Define if you have the chown function.  */
 #undef HAVE_CHOWN
 
 /* Define if you have the chroot function.  */
 #undef HAVE_CHROOT
+
+/* Define if you have the copyhostent function.  */
+#undef HAVE_COPYHOSTENT
 
 /* Define if you have the crypt function.  */
 #undef HAVE_CRYPT
@@ -143,6 +158,9 @@
 /* Define if you have the forkpty function.  */
 #undef HAVE_FORKPTY
 
+/* Define if you have the freehostent function.  */
+#undef HAVE_FREEHOSTENT
+
 /* Define if you have the frevoke function.  */
 #undef HAVE_FREVOKE
 
@@ -169,6 +187,12 @@
 
 /* Define if you have the gethostname function.  */
 #undef HAVE_GETHOSTNAME
+
+/* Define if you have the getipnodebyaddr function.  */
+#undef HAVE_GETIPNODEBYADDR
+
+/* Define if you have the getipnodebyname function.  */
+#undef HAVE_GETIPNODEBYNAME
 
 /* Define if you have the getlogin function.  */
 #undef HAVE_GETLOGIN
@@ -200,9 +224,6 @@
 /* Define if you have the getspnam function.  */
 #undef HAVE_GETSPNAM
 
-/* Define if you have the getspuid function.  */
-#undef HAVE_GETSPUID
-
 /* Define if you have the gettimeofday function.  */
 #undef HAVE_GETTIMEOFDAY
 
@@ -226,6 +247,12 @@
 
 /* Define if you have the inet_aton function.  */
 #undef HAVE_INET_ATON
+
+/* Define if you have the inet_ntop function.  */
+#undef HAVE_INET_NTOP
+
+/* Define if you have the inet_pton function.  */
+#undef HAVE_INET_PTON
 
 /* Define if you have the initgroups function.  */
 #undef HAVE_INITGROUPS
@@ -284,11 +311,20 @@
 /* Define if you have the readv function.  */
 #undef HAVE_READV
 
+/* Define if you have the recvmsg function.  */
+#undef HAVE_RECVMSG
+
 /* Define if you have the res_search function.  */
 #undef HAVE_RES_SEARCH
 
 /* Define if you have the revoke function.  */
 #undef HAVE_REVOKE
+
+/* Define if you have the sa_family_t function.  */
+#undef HAVE_SA_FAMILY_T
+
+/* Define if you have the sendmsg function.  */
+#undef HAVE_SENDMSG
 
 /* Define if you have the setegid function.  */
 #undef HAVE_SETEGID
@@ -362,6 +398,12 @@
 /* Define if you have the strftime function.  */
 #undef HAVE_STRFTIME
 
+/* Define if you have the strlcat function.  */
+#undef HAVE_STRLCAT
+
+/* Define if you have the strlcpy function.  */
+#undef HAVE_STRLCPY
+
 /* Define if you have the strlwr function.  */
 #undef HAVE_STRLWR
 
@@ -374,11 +416,17 @@
 /* Define if you have the strnlen function.  */
 #undef HAVE_STRNLEN
 
+/* Define if you have the strptime function.  */
+#undef HAVE_STRPTIME
+
 /* Define if you have the strsep function.  */
 #undef HAVE_STRSEP
 
 /* Define if you have the strtok_r function.  */
 #undef HAVE_STRTOK_R
+
+/* Define if you have the struct_sockaddr_storage function.  */
+#undef HAVE_STRUCT_SOCKADDR_STORAGE
 
 /* Define if you have the strupr function.  */
 #undef HAVE_STRUPR
@@ -451,15 +499,6 @@
 
 /* Define if you have the writev function.  */
 #undef HAVE_WRITEV
-
-/* Define if you have the XauFileName function.  */
-#undef HAVE_XAUFILENAME
-
-/* Define if you have the XauReadAuth function.  */
-#undef HAVE_XAUREADAUTH
-
-/* Define if you have the XauWriteAuth function.  */
-#undef HAVE_XAUWRITEAUTH
 
 /* Define if you have the yp_get_default_domain function.  */
 #undef HAVE_YP_GET_DEFAULT_DOMAIN
@@ -761,6 +800,12 @@
 /* Define if you have the <wait.h> header file.  */
 #undef HAVE_WAIT_H
 
+/* Define if you have the X11 library (-lX11).  */
+#undef HAVE_LIBX11
+
+/* Define if you have the Xau library (-lXau).  */
+#undef HAVE_LIBXAU
+
 /* Define if you have the c_r library (-lc_r).  */
 #undef HAVE_LIBC_R
 
@@ -808,12 +853,6 @@
 
 /* Define if you have the util library (-lutil).  */
 #undef HAVE_LIBUTIL
-
-/* Define if you have the X11 library (-lX11).  */
-#undef HAVE_LIBX11
-
-/* Define if you have the Xau library (-lXau).  */
-#undef HAVE_LIBXAU
 
 /* Name of package */
 #undef PACKAGE
@@ -1016,6 +1055,18 @@
 /* Define if struct utmpx has field ut_syslen. */
 #undef HAVE_STRUCT_UTMPX_UT_SYSLEN
 
+/* Define if struct tm has field tm_gmtoff. */
+#undef HAVE_STRUCT_TM_TM_GMTOFF
+
+/* Define if struct tm has field tm_zone. */
+#undef HAVE_STRUCT_TM_TM_ZONE
+
+/* define if you have timezone */
+#undef HAVE_TIMEZONE
+
+/* define if your system declares timezone */
+#undef HAVE_TIMEZONE_DECLARATION
+
 /* define if you have struct spwd */
 #undef HAVE_STRUCT_SPWD
 
@@ -1068,6 +1119,8 @@
 #define HAVE_KRB_ENABLE_DEBUG 1
 
 #define HAVE_KRB_DISABLE_DEBUG 1
+
+#define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
 
 #define RCSID(msg) \
 static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }

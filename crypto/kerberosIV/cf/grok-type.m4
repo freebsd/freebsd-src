@@ -1,8 +1,11 @@
-dnl $Id: grok-type.m4,v 1.3 1999/03/21 18:59:56 joda Exp $
+dnl $Id: grok-type.m4,v 1.4 1999/11/29 11:16:48 joda Exp $
 dnl
 AC_DEFUN(AC_GROK_TYPE, [
 AC_CACHE_VAL(ac_cv_type_$1, 
 AC_TRY_COMPILE([
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif

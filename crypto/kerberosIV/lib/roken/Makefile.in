@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.in,v 1.69 1999/06/15 03:14:11 assar Exp $
+# $Id: Makefile.in,v 1.73 1999/11/30 19:22:59 bg Exp $
 #
 
 SHELL = /bin/sh
@@ -39,6 +39,7 @@ SOURCES = \
 	base64.c \
 	chown.c \
 	concat.c \
+	copyhostent.c \
 	daemon.c \
 	emalloc.c \
 	erealloc.c \
@@ -50,18 +51,22 @@ SOURCES = \
 	fchown.c \
 	flock.c \
 	fnmatch.c \
+	freehostent.c \
 	get_window_size.c \
 	getarg.c \
 	getcwd.c \
 	get_default_username.c \
 	getdtablesize.c \
 	gethostname.c \
+	getipnodebyaddr.c \
+	getipnodebyname.c \
 	getopt.c \
 	getusershell.c \
 	glob.c \
 	hstrerror.c \
 	inaddr2str.c \
 	inet_aton.c \
+	inet_ntop.c \
 	initgroups.c \
 	iruserok.c \
 	issuid.c \
@@ -87,12 +92,13 @@ SOURCES = \
 	signal.c \
 	simple_exec.c \
 	snprintf.c \
+	socket.c \
 	strcasecmp.c \
-	strcat_truncate.c \
-	strcpy_truncate.c \
 	strdup.c \
 	strerror.c \
 	strftime.c \
+	strlcat.c \
+	strlcpy.c \
 	strlwr.c \
 	strncasecmp.c \
 	strndup.c \
@@ -138,11 +144,10 @@ OBJECTS = \
 	print_version.o \
 	resolve.o \
 	roken_gethostby.o \
-	strcat_truncate.o \
-	strcpy_truncate.o \
 	signal.o \
 	simple_exec.o \
 	snprintf.o \
+	socket.o \
 	tm2time.o \
 	verify.o \
 	warnerr.o \

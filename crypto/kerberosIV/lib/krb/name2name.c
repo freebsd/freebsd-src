@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: name2name.c,v 1.20 1999/03/13 21:26:02 assar Exp $");
+RCSID("$Id: name2name.c,v 1.22 1999/12/02 16:58:43 joda Exp $");
 
 /* convert host to a more fully qualified domain name, returns 0 if
  * phost is the same as host, 1 otherwise. phost should be
@@ -71,7 +66,7 @@ krb_name_to_name(const char *host, char *phost, size_t phost_size)
 	    && strchr (hp->h_aliases[0], '.') != NULL)
 		tmp = hp->h_aliases[0];
     }
-    strcpy_truncate (phost, tmp, phost_size);
+    strlcpy (phost, tmp, phost_size);
 
     if (strcmp(phost, host) == 0)
 	return 0;

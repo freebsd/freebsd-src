@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: common.c,v 1.15 1999/06/09 22:41:41 assar Exp $");
+RCSID("$Id: common.c,v 1.19 1999/12/02 16:58:40 joda Exp $");
 
 #define AUTH_SUPERUSER "afs"
 
@@ -155,7 +150,7 @@ dns_find_cell(const char *cell, char *dbserver, size_t len)
 	struct resource_record *rr = r->head;
 	while(rr){
 	    if(rr->type == T_AFSDB && rr->u.afsdb->preference == 1){
-		strcpy_truncate(dbserver,
+		strlcpy(dbserver,
 				rr->u.afsdb->domain,
 				len);
 		ok = 0;
@@ -184,10 +179,12 @@ find_cells(char *file, char ***cells, int *index)
     if (f == NULL)
 	return;
     while (fgets(cell, sizeof(cell), f)) {
-	char *nl = strchr(cell, '\n');
-	if (nl)
-	    *nl = '\0';
-	if (cell[0] == '\0')
+	char *t;
+	t = cell + strlen(cell);
+	for (; t >= cell; t--)
+	  if (*t == '\n' || *t == '\t' || *t == ' ')
+	    *t = 0;
+	if (cell[0] == '\0' || cell[0] == '#')
 	    continue;
 	for(i = 0; i < ind; i++)
 	    if(strcmp((*cells)[i], cell) == 0)
@@ -218,8 +215,11 @@ afslog_cells(kafs_data *data, char **cells, int max, uid_t uid,
 {
     int ret = 0;
     int i;
-    for(i = 0; i < max; i++)
-	ret = (*data->afslog_uid)(data, cells[i], uid, homedir);
+    for (i = 0; i < max; i++) {
+        int er = (*data->afslog_uid)(data, cells[i], 0, uid, homedir);
+	if (er)
+	    ret = er;
+    }
     return ret;
 }
 
@@ -305,8 +305,8 @@ _kafs_realm_of_cell(kafs_data *data, const char *cell, char **realm)
 int
 _kafs_get_cred(kafs_data *data,
 	      const char *cell, 
-	      const char *krealm, 
-	      const char *lrealm,
+	      const char *realm_hint,
+	      const char *realm,
 	      CREDENTIALS *c)
 {
     int ret = -1;
@@ -334,37 +334,63 @@ _kafs_get_cred(kafs_data *data,
     /* comments on the ordering of these tests */
 
     /* If the user passes a realm, she probably knows something we don't
-     * know and we should try afs@krealm (otherwise we're talking with a
+     * know and we should try afs@realm_hint (otherwise we're talking with a
      * blondino and she might as well have it.)
      */
   
-    if (krealm) {
-	ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, krealm, c);
+    if (realm_hint) {
+	ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, realm_hint, c);
 	if (ret == 0) return 0;
-	ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", krealm, c);
+	ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", realm_hint, c);
+	if (ret == 0) return 0;
     }
-    if (ret == 0) return 0;
 
     foldup(CELL, cell);
 
+    /*
+     * If cell == realm we don't need no cross-cell authentication.
+     * Try afs@REALM.
+     */
+    if (strcmp(CELL, realm) == 0) {
+        ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", realm, c);
+	if (ret == 0) return 0;
+	/* Try afs.cell@REALM below. */
+    }
+
+    /*
+     * If the AFS servers have a file /usr/afs/etc/krb.conf containing
+     * REALM we still don't have to resort to cross-cell authentication.
+     * Try afs.cell@REALM.
+     */
+    ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, realm, c);
+    if (ret == 0) return 0;
+
+    /*
+     * We failed to get ``first class tickets'' for afs,
+     * fall back to cross-cell authentication.
+     * Try afs@CELL.
+     * Try afs.cell@CELL.
+     */
+    ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", CELL, c);
+    if (ret == 0) return 0;
     ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, CELL, c);
     if (ret == 0) return 0;
 
-    ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", CELL, c);
-    if (ret == 0) return 0;
-    
-    /* this might work in some cases */
-    if (_kafs_realm_of_cell(data, cell, &vl_realm) == 0) {
+    /*
+     * Perhaps the cell doesn't correspond to any realm?
+     * Use realm of first volume location DB server.
+     * Try afs.cell@VL_REALM.
+     * Try afs@VL_REALM???
+     */
+    if (_kafs_realm_of_cell(data, cell, &vl_realm) == 0
+	&& strcmp(vl_realm, realm) != 0
+	&& strcmp(vl_realm, CELL) != 0) {
 	ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, vl_realm, c);
 	if (ret)
 	    ret = (*data->get_cred)(data, AUTH_SUPERUSER, "", vl_realm, c);
 	free(vl_realm);
 	if (ret == 0) return 0;
     }
-    
-    if (lrealm)
-	ret = (*data->get_cred)(data, AUTH_SUPERUSER, cell, lrealm, c);
+
     return ret;
 }
-
-

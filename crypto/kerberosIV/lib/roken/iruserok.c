@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: iruserok.c,v 1.21 1999/03/11 14:04:15 joda Exp $");
+RCSID("$Id: iruserok.c,v 1.22 1999/09/16 20:06:06 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -123,7 +123,7 @@ __ivaliduser(FILE *hostf, unsigned raddr, const char *luser,
 				sizeof(u_long),
 				AF_INET)) == NULL)
 		return (-1);
-	strcpy_truncate(hname, hp->h_name, sizeof(hname));
+	strlcpy(hname, hp->h_name, sizeof(hname));
 
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;

@@ -9,7 +9,7 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: ext_srvtab.c,v 1.17 1998/06/09 19:24:13 joda Exp $");
+RCSID("$Id: ext_srvtab.c,v 1.18 1999/09/16 20:37:20 assar Exp $");
 
 static des_cblock master_key;
 static des_cblock session_key;
@@ -73,7 +73,7 @@ main(int argc, char **argv)
 		if (++i >= argc)
 		    usage();
 		else {
-		    strcpy_truncate(realm, argv[i], REALM_SZ);
+		    strlcpy(realm, argv[i], REALM_SZ);
 		    /* 
 		     * This is to humor the broken way commandline
 		     * argument parsing is done.  Later, this

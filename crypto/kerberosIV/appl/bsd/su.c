@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID ("$Id: su.c,v 1.66 1999/03/11 13:57:58 joda Exp $");
+RCSID ("$Id: su.c,v 1.70 1999/11/13 06:14:11 assar Exp $");
 
 #ifdef SYSV_SHADOW
 #include "sysv_shadow.h"
@@ -46,8 +46,9 @@ static int koktologin (char *name, char *realm, char *toname);
 static int chshell (char *sh);
 
 /* Handle '-' option after all the getopt options */
-#define	ARGSTR	"Kflmi:"
+#define	ARGSTR	"Kflmti:"
 
+int destroy_tickets = 0;
 static int use_kerberos = 1;
 static char *root_inst = "root";
 
@@ -66,7 +67,7 @@ main (int argc, char **argv)
     set_progname (argv[0]);
 
     asme = asthem = fastlogin = 0;
-    while ((ch = getopt (argc, argv, ARGSTR)) != EOF)
+    while ((ch = getopt (argc, argv, ARGSTR)) != -1)
 	switch ((char) ch) {
 	case 'K':
 	    use_kerberos = 0;
@@ -82,13 +83,16 @@ main (int argc, char **argv)
 	    asme = 1;
 	    asthem = 0;
 	    break;
+	case 't':
+	    destroy_tickets = 1;
+	    break;
 	case 'i':
 	    root_inst = optarg;
 	    break;
 	case '?':
 	default:
 	    fprintf (stderr,
-		     "usage: su [-Kflm] [-i root-instance] [-] [login]\n");
+		     "usage: su [-Kflmt] [-i root-instance] [-] [login]\n");
 	    exit (1);
 	}
     /* Don't handle '-' option with getopt */
@@ -127,7 +131,7 @@ main (int argc, char **argv)
 	errx (1, "strdup: out of memory");
     if (asme) {
 	if (pwd->pw_shell && *pwd->pw_shell) {
-	    strcpy_truncate (shellbuf, pwd->pw_shell, sizeof(shellbuf));
+	    strlcpy (shellbuf, pwd->pw_shell, sizeof(shellbuf));
 	    shell = shellbuf;
 	} else {
 	    shell = _PATH_BSHELL;
@@ -282,6 +286,8 @@ main (int argc, char **argv)
 	if (code != KSUCCESS && code != KDC_PR_UNKNOWN)
 	    warnx ("afsklog: %s", krb_get_err_text (code));
     }
+    if (destroy_tickets)
+        dest_tkt ();
     execv (shell, np);
     warn ("execv(%s)", shell);
     if (getuid () == 0) {
@@ -408,7 +414,7 @@ kerberos (char *username, char *user, int uid)
 	dest_tkt ();
 	return (1);
     }
-    strcpy_truncate (savehost, krb_get_phost (hostname), sizeof (savehost));
+    strlcpy (savehost, krb_get_phost (hostname), sizeof (savehost));
 
     kerno = krb_mk_req (&ticket, "rcmd", savehost, lrealm, 33);
 
@@ -452,7 +458,8 @@ kerberos (char *username, char *user, int uid)
 	    return (1);
 	}
     }
-    fprintf (stderr, "Don't forget to kdestroy before exiting the shell.\n");
+    if (!destroy_tickets)
+        fprintf (stderr, "Don't forget to kdestroy before exiting the shell.\n");
     return (0);
 }
 

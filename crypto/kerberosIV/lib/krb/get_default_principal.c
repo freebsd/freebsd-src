@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_default_principal.c,v 1.12 1999/03/13 21:24:51 assar Exp $");
+RCSID("$Id: get_default_principal.c,v 1.14 1999/12/02 16:58:41 joda Exp $");
 
 int
 krb_get_default_principal(char *name, char *instance, char *realm)
@@ -66,8 +61,8 @@ krb_get_default_principal(char *name, char *instance, char *realm)
       return -1;
     }
 
-    strcpy_truncate (name, pw->pw_name, ANAME_SZ);
-    strcpy_truncate (instance, "", INST_SZ);
+    strlcpy (name, pw->pw_name, ANAME_SZ);
+    strlcpy (instance, "", INST_SZ);
     krb_get_lrealm(realm, 1);
 
     if(strcmp(name, "root") == 0) {
@@ -80,8 +75,8 @@ krb_get_default_principal(char *name, char *instance, char *realm)
       if(p == NULL)
 	p = getenv("LOGNAME");
       if(p){
-	  strcpy_truncate (name, p, ANAME_SZ);
-	  strcpy_truncate (instance, "root", INST_SZ);
+	  strlcpy (name, p, ANAME_SZ);
+	  strlcpy (instance, "root", INST_SZ);
       }
     }
     return 1;

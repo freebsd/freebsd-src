@@ -46,6 +46,14 @@ There has been reports of non-working `libdb' on some Linux
 distributions.  If that happens, use the `--without-berkeley-db' when
 configuring.
 
+SunOS 5 (aka Solaris 2) problems
+--------------------------------
+
+When building shared libraries and using some combinations of GNU gcc/ld
+you better set the environment variable RUN_PATH to /usr/athena/lib
+(your target libdir). If you don't, then you will have to set
+LD_LIBRARY_PATH during runtime and the PAM module will not work.
+
 HP-UX problems
 --------------
 
@@ -60,6 +68,39 @@ Cray problems
 
 `rlogind' won't work on Crays until `forkpty()' has been ported, in the
 mean time use `telnetd'.
+
+IRIX problems
+-------------
+
+IRIX has three different ABI:s (Application Binary Interface), there's
+an old 32 bit interface (known as O32, or just 32), a new 32 bit
+interface (N32), and a 64 bit interface (64). O32 and N32 are both 32
+bits, but they have different calling conventions, and alignment
+constraints, and similar. The N32 format is the default format from IRIX
+6.4.
+
+You select ABI at compile time, and you can do this with the
+`--with-mips-abi' configure option. The valid arguments are `o32',
+`n32', and `64', N32 is the default. Libraries for the three different
+ABI:s are normally installed installed in different directories (`lib',
+`lib32', and `lib64'). If you want more than one set of libraries you
+have to reconfigure and recompile for each ABI, but you should probably
+install only N32 binaries.
+
+GCC had had some known problems with the different ABI:s. Old GCC could
+only handle O32, newer GCC can handle N32, and 64, but not O32, but in
+some versions of GCC the structure alignment was broken in N32.
+
+This confusion with different ABI:s can cause some trouble. For
+instance, the `afskauthlib.so' library has to use the same ABI as
+`xdm', and `login'. The easiest way to check what ABI to use is to run
+`file' on `/usr/bin/X11/xdm'.
+
+Another problem that you might encounter if you run AFS is that Transarc
+apparently doesn't support the 64-bit ABI, and because of this you can't
+get tokens with a 64 bit application. If you really need to do this,
+there is a kernel module that provides this functionality at
+<ftp://ftp.pdc.kth.se/home/joda/irix-afs64.tar.gz>.
 
 AIX problems
 ------------

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: parse_name.c,v 1.5 1998/06/09 19:25:24 joda Exp $");
+RCSID("$Id: parse_name.c,v 1.7 1999/12/02 16:58:43 joda Exp $");
 
 int
 krb_parse_name(const char *fullname, krb_principal *principal)
@@ -86,10 +81,10 @@ kname_parse(char *np, char *ip, char *rp, char *fullname)
     krb_principal p;
     int ret;
     if((ret = krb_parse_name(fullname, &p)) == 0){
-	strcpy_truncate (np, p.name, ANAME_SZ);
-	strcpy_truncate (ip, p.instance, INST_SZ);
+	strlcpy (np, p.name, ANAME_SZ);
+	strlcpy (ip, p.instance, INST_SZ);
 	if(p.realm[0])
-	    strcpy_truncate (rp, p.realm, REALM_SZ);
+	    strlcpy (rp, p.realm, REALM_SZ);
     }
     return ret;
 }

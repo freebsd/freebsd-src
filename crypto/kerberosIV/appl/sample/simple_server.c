@@ -11,7 +11,7 @@
 
 #include "sample.h"
 
-RCSID("$Id: simple_server.c,v 1.9 1998/06/09 19:24:39 joda Exp $");
+RCSID("$Id: simple_server.c,v 1.11 1999/11/13 06:29:24 assar Exp $");
 
 static void
 usage (void)
@@ -40,12 +40,12 @@ main(int argc, char **argv)
     des_key_schedule sched;
 
     set_progname (argv[0]);
-    strcpy_truncate (service, SAMPLE_SERVICE, sizeof(service));
-    strcpy_truncate (instance, "*", sizeof(instance));
+    strlcpy (service, SAMPLE_SERVICE, sizeof(service));
+    strlcpy (instance, "*", sizeof(instance));
     *srvtab = '\0';
     port = 0;
 
-    while ((c = getopt (argc, argv, "p:s:t:")) != EOF)
+    while ((c = getopt (argc, argv, "p:s:t:")) != -1)
 	switch (c) {
 	case 'p' : {
 	    struct servent *sp;
@@ -58,10 +58,10 @@ main(int argc, char **argv)
 	    break;
 	}
 	case 's' :
-	    strcpy_truncate (service, optarg, sizeof(service));
+	    strlcpy (service, optarg, sizeof(service));
 	    break;
 	case 't' :
-	    strcpy_truncate (srvtab, optarg, sizeof(srvtab));
+	    strlcpy (srvtab, optarg, sizeof(srvtab));
 	    break;
 	case '?' :
 	default :

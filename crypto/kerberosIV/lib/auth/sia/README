@@ -59,7 +59,7 @@ following.
      the default entry `/usr/tcb/bin/edauth -dd default', and add a
      `d_accept_alternate_vouching' capability, if not already present.
 
-   * For each user that does *not* have a local C2 password, you should
+   * For each user that does _not_ have a local C2 password, you should
      set the password expiration field to zero. You can do this for each
      user, or in the `default' table. To do this use `edauth' to set
      (or change) the `u_exp' capability to `u_exp#0'.
@@ -78,7 +78,7 @@ Also, kerberised ftp will not work with C2 passwords. You can solve this
 by using both Digital's ftpd and our on different ports.
 
 *Remember*, if you do these changes you will get a system that most
-certainly does *not* fulfill the requirements of a C2 system. If C2 is
+certainly does _not_ fulfill the requirements of a C2 system. If C2 is
 what you want, for instance if someone else is forcing you to use it,
 you're out of luck.  If you use enhanced security because you want a
 system that is more secure than it would otherwise be, you probably got

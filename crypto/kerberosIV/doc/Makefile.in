@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.18 1998/04/19 08:37:12 assar Exp $
+# $Id: Makefile.in,v 1.19 1999/09/28 12:35:11 assar Exp $
 
 SHELL = /bin/sh
 
@@ -14,6 +14,16 @@ TEXI2HTML = texi2html
 
 prefix = @prefix@
 infodir = @infodir@
+
+TEXI_SOURCES = ack.texi				\
+	index.texi				\
+	install.texi				\
+	intro.texi				\
+	kth-krb.texi				\
+	otp.texi				\
+	problems.texi				\
+	setup.texi				\
+	whatis.texi
 
 all: info
 
@@ -40,17 +50,17 @@ installdirs:
 
 info: kth-krb.info
 
-kth-krb.info: kth-krb.texi
+kth-krb.info: $(TEXI_SOURCES)
 	$(MAKEINFO) --no-split -I$(srcdir) -o $@ $(srcdir)/kth-krb.texi
 
 dvi: kth-krb.dvi
 
-kth-krb.dvi: kth-krb.texi
+kth-krb.dvi: $(TEXI_SOURCES)
 	$(TEXI2DVI) $(srcdir)/kth-krb.texi
 
 html: kth-krb.html
 
-kth-krb.html: kth-krb.texi
+kth-krb.html: $(TEXI_SOURCES)
 	$(TEXI2HTML) $(srcdir)/kth-krb.texi
 
 clean:

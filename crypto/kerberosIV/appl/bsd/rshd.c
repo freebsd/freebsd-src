@@ -42,7 +42,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rshd.c,v 1.58 1999/06/17 18:49:43 assar Exp $");
+RCSID("$Id: rshd.c,v 1.60 1999/11/13 06:13:53 assar Exp $");
 
 extern char *__rcmd_errstr; /* syslog hook from libc/net/rcmd.c. */
 extern int __check_rhosts_file;
@@ -82,7 +82,7 @@ main(int argc, char *argv[])
     openlog("rshd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 
     opterr = 0;
-    while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+    while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 	switch (ch) {
 	case 'a':
 	    break;
@@ -565,13 +565,13 @@ doit(struct sockaddr_in *fromp)
     setgid((gid_t)pwd->pw_gid);
     initgroups(pwd->pw_name, pwd->pw_gid);
     setuid((uid_t)pwd->pw_uid);
-    strcat_truncate(homedir, pwd->pw_dir, sizeof(homedir));
+    strlcat(homedir, pwd->pw_dir, sizeof(homedir));
 
     /* Need to prepend path with BINDIR (/usr/athena/bin) to find rcp */
     snprintf(path, sizeof(path), "PATH=%s:%s", BINDIR, _PATH_DEFPATH);
 
-    strcat_truncate(shell, pwd->pw_shell, sizeof(shell));
-    strcat_truncate(username, pwd->pw_name, sizeof(username));
+    strlcat(shell, pwd->pw_shell, sizeof(shell));
+    strlcat(username, pwd->pw_name, sizeof(username));
     cp = strrchr(pwd->pw_shell, '/');
     if (cp)
 	cp++;

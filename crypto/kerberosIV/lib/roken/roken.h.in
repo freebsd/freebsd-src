@@ -15,12 +15,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -37,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.113.2.1 1999/07/22 03:20:59 assar Exp $ */
+/* $Id: roken.h.in,v 1.125 1999/12/02 16:58:52 joda Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,6 +68,9 @@
 #endif
 #ifdef HAVE_NETINET6_IN6_H
 #include <netinet6/in6.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
 #endif
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
@@ -211,12 +209,12 @@ char *strtok_r(char *s1, const char *s2, char **lasts);
 char * strupr(char *);
 #endif
 
-#ifndef HAVE_STRCPY_TRUNCATE
-int strcpy_truncate (char *dst, const char *src, size_t dst_sz);
+#ifndef HAVE_STRLCPY
+size_t strlcpy (char *dst, const char *src, size_t dst_sz);
 #endif
 
-#ifndef HAVE_STRCAT_TRUNCATE
-int strcat_truncate (char *dst, const char *src, size_t dst_sz);
+#ifndef HAVE_STRLCAT
+size_t strlcat (char *dst, const char *src, size_t dst_sz);
 #endif
 
 #ifndef HAVE_GETDTABLESIZE
@@ -242,13 +240,23 @@ extern int h_errno;
 int inet_aton(const char *cp, struct in_addr *adr);
 #endif
 
+#ifndef HAVE_INET_NTOP
+const char *
+inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifndef HAVE_INET_PTON
+int
+inet_pton(int af, const char *src, void *dst);
+#endif
+
 #if !defined(HAVE_GETCWD)
 char* getcwd(char *path, size_t size);
 #endif
 
 #ifdef HAVE_PWD_H
 #include <pwd.h>
-struct passwd *k_getpwnam (char *user);
+struct passwd *k_getpwnam (const char *user);
 struct passwd *k_getpwuid (uid_t uid);
 #endif
 
@@ -268,6 +276,11 @@ int lstat(const char *path, struct stat *buf);
 
 #if !defined(HAVE_MKSTEMP) || defined(NEED_MKSTEMP_PROTO)
 int mkstemp(char *);
+#endif
+
+#ifndef HAVE_CGETENT
+int cgetent(char **buf, char **db_array, const char *name);
+int cgetstr(char *buf, const char *cap, char **str);
 #endif
 
 #ifndef HAVE_INITGROUPS
@@ -393,6 +406,63 @@ extern const char *__progname;
 #ifndef HAVE_ENVIRON_DECLARATION
 extern char **environ;
 #endif
+
+#ifndef HAVE_GETIPNODEBYNAME
+struct hostent *
+getipnodebyname (const char *name, int af, int flags, int *error_num);
+#endif
+
+#ifndef HAVE_GETIPNODEBYADDR
+struct hostent *
+getipnodebyaddr (const void *src, size_t len, int af, int *error_num);
+#endif
+
+#ifndef HAVE_FREEHOSTENT
+void
+freehostent (struct hostent *h);
+#endif
+
+#ifndef HAVE_COPYHOSTENT
+struct hostent *
+copyhostent (const struct hostent *h);
+#endif
+
+#ifndef HAVE_STRUCT_SOCKADDR_STORAGE
+
+#ifndef HAVE_SA_FAMILY_T
+typedef unsigned short sa_family_t;
+#endif
+
+#if HAVE_STRUCT_SOCKADDR_SA_LEN
+
+struct sockaddr_storage {
+    unsigned char	__ss_len;
+    sa_family_t		__ss_family;
+    char		pad[
+#ifdef HAVE_IPV6
+			    sizeof(struct sockaddr_in6)
+#else
+			    sizeof(struct sockaddr_in)
+#endif
+			   - sizeof(unsigned char) - sizeof(sa_family_t)];
+};
+
+#else
+
+struct sockaddr_storage {
+    sa_family_t		__ss_family;
+    char		pad[
+#ifdef HAVE_IPV6
+			    sizeof(struct sockaddr_in6)
+#else
+			    sizeof(struct sockaddr_in)
+#endif
+			    - sizeof(sa_family_t)];
+};
+
+#endif
+
+#endif /* HAVE_STRUCT_SOCKADDR_STORAGE */
 
 /*
  * kludges and such

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getarg.c,v 1.25 1998/11/22 09:45:05 assar Exp $");
+RCSID("$Id: getarg.c,v 1.32 1999/12/02 16:58:46 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -54,29 +49,31 @@ print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 
     *string = '\0';
 
-    if (ISFLAG(*arg))
+    if (ISFLAG(*arg) || (!longp && arg->type == arg_counter))
 	return 0;
 
     if(mdoc){
 	if(longp)
-	    strcat_truncate(string, "= Ns", len);
-	strcat_truncate(string, " Ar ", len);
+	    strlcat(string, "= Ns", len);
+	strlcat(string, " Ar ", len);
     }else
 	if (longp)
-	    strcat_truncate (string, "=", len);
+	    strlcat (string, "=", len);
 	else
-	    strcat_truncate (string, " ", len);
+	    strlcat (string, " ", len);
 
     if (arg->arg_help)
 	s = arg->arg_help;
-    else if (arg->type == arg_integer)
-	s = "number";
+    else if (arg->type == arg_integer || arg->type == arg_counter)
+	s = "integer";
     else if (arg->type == arg_string)
 	s = "string";
+    else if (arg->type == arg_double)
+	s = "float";
     else
 	s = "<undefined>";
 
-    strcat_truncate(string, s, len);
+    strlcat(string, s, len);
     return 1 + strlen(s);
 }
 
@@ -102,7 +99,7 @@ mandoc_template(struct getargs *args,
     printf(".Dd %s\n", timestr);
     p = strrchr(progname, '/');
     if(p) p++; else p = progname;
-    strcpy_truncate(cmd, p, sizeof(cmd));
+    strlcpy(cmd, p, sizeof(cmd));
     strupr(cmd);
        
     printf(".Dt %s SECTION\n", cmd);
@@ -222,19 +219,19 @@ arg_printusage (struct getargs *args,
 
 	if (args[i].long_name) {
 	    buf[0] = '\0';
-	    strcat_truncate(buf, "[--", sizeof(buf));
+	    strlcat(buf, "[--", sizeof(buf));
 	    len += 2;
 	    if(args[i].type == arg_negative_flag) {
-		strcat_truncate(buf, "no-", sizeof(buf));
+		strlcat(buf, "no-", sizeof(buf));
 		len += 3;
 	    }
-	    strcat_truncate(buf, args[i].long_name, sizeof(buf));
+	    strlcat(buf, args[i].long_name, sizeof(buf));
 	    len += strlen(args[i].long_name);
 	    len += print_arg(buf + strlen(buf), sizeof(buf) - strlen(buf), 
 			     0, 1, &args[i]);
-	    strcat_truncate(buf, "]", sizeof(buf));
+	    strlcat(buf, "]", sizeof(buf));
 	    if(args[i].type == arg_strings)
-		strcat_truncate(buf, "...", sizeof(buf));
+		strlcat(buf, "...", sizeof(buf));
 	    col = check_column(stderr, col, strlen(buf) + 1, columns);
 	    col += fprintf(stderr, " %s", buf);
 	}
@@ -243,9 +240,9 @@ arg_printusage (struct getargs *args,
 	    len += 2;
 	    len += print_arg(buf + strlen(buf), sizeof(buf) - strlen(buf), 
 			     0, 0, &args[i]);
-	    strcat_truncate(buf, "]", sizeof(buf));
+	    strlcat(buf, "]", sizeof(buf));
 	    if(args[i].type == arg_strings)
-		strcat_truncate(buf, "...", sizeof(buf));
+		strlcat(buf, "...", sizeof(buf));
 	    col = check_column(stderr, col, strlen(buf) + 1, columns);
 	    col += fprintf(stderr, " %s", buf);
 	}
@@ -294,7 +291,7 @@ add_string(getarg_strings *s, char *value)
 
 static int
 arg_match_long(struct getargs *args, size_t num_args,
-	       char *argv)
+	       char *argv, int argc, char **rargv, int *optind)
 {
     int i;
     char *optarg = NULL;
@@ -345,7 +342,10 @@ arg_match_long(struct getargs *args, size_t num_args,
 	    return ARG_ERR_NO_MATCH;
     }
     
-    if(*optarg == '\0' && !ISFLAG(*current))
+    if(*optarg == '\0'
+       && !ISFLAG(*current)
+       && current->type != arg_collect
+       && current->type != arg_counter)
 	return ARG_ERR_NO_MATCH;
     switch(current->type){
     case arg_integer:
@@ -383,16 +383,115 @@ arg_match_long(struct getargs *args, size_t num_args,
 	}
 	return ARG_ERR_BAD_ARG;
     }
+    case arg_counter :
+    {
+	int val;
+
+	if (*optarg == '\0')
+	    val = 1;
+	else {
+	    char *endstr;
+
+	    val = strtol (optarg, &endstr, 0);
+	    if (endstr == optarg)
+		return ARG_ERR_BAD_ARG;
+	}
+	*(int *)current->value += val;
+	return 0;
+    }
+    case arg_double:
+    {
+	double tmp;
+	if(sscanf(optarg + 1, "%lf", &tmp) != 1)
+	    return ARG_ERR_BAD_ARG;
+	*(double*)current->value = tmp;
+	return 0;
+    }
+    case arg_collect:{
+	struct getarg_collect_info *c = current->value;
+	int o = argv - rargv[*optind];
+	return (*c->func)(FALSE, argc, rargv, optind, &o, c->data);
+    }
+
     default:
 	abort ();
     }
+}
+
+static int
+arg_match_short (struct getargs *args, size_t num_args,
+		 char *argv, int argc, char **rargv, int *optind)
+{
+    int j, k;
+
+    for(j = 1; j > 0 && j < strlen(rargv[*optind]); j++) {
+	for(k = 0; k < num_args; k++) {
+	    char *optarg;
+
+	    if(args[k].short_name == 0)
+		continue;
+	    if(argv[j] == args[k].short_name) {
+		if(args[k].type == arg_flag) {
+		    *(int*)args[k].value = 1;
+		    break;
+		}
+		if(args[k].type == arg_negative_flag) {
+		    *(int*)args[k].value = 0;
+		    break;
+		} 
+		if(args[k].type == arg_counter) {
+		    ++*(int *)args[k].value;
+		    break;
+		}
+		if(args[k].type == arg_collect) {
+		    struct getarg_collect_info *c = args[k].value;
+
+		    if((*c->func)(TRUE, argc, rargv, optind, &j, c->data))
+			return ARG_ERR_BAD_ARG;
+		    break;
+		}
+
+		if(argv[j + 1])
+		    optarg = &argv[j + 1];
+		else {
+		    ++*optind;
+		    optarg = rargv[*optind];
+		}
+		if(optarg == NULL)
+		    return ARG_ERR_NO_ARG;
+		if(args[k].type == arg_integer) {
+		    int tmp;
+		    if(sscanf(optarg, "%d", &tmp) != 1)
+			return ARG_ERR_BAD_ARG;
+		    *(int*)args[k].value = tmp;
+		    return 0;
+		} else if(args[k].type == arg_string) {
+		    *(char**)args[k].value = optarg;
+		    return 0;
+		} else if(args[k].type == arg_strings) {
+		    add_string((getarg_strings*)args[k].value, optarg);
+		    return 0;
+		} else if(args[k].type == arg_double) {
+		    double tmp;
+		    if(sscanf(optarg, "%lf", &tmp) != 1)
+			return ARG_ERR_BAD_ARG;
+		    *(double*)args[k].value = tmp;
+		    return 0;
+		}
+		return ARG_ERR_BAD_ARG;
+	    }
+	}
+	if (k == num_args)
+	    return ARG_ERR_NO_MATCH;
+    }
+    return 0;
 }
 
 int
 getarg(struct getargs *args, size_t num_args, 
        int argc, char **argv, int *optind)
 {
-    int i, j, k;
+    int i;
     int ret = 0;
 
     srand (time(NULL));
@@ -405,57 +504,17 @@ getarg(struct getargs *args, size_t num_args,
 		i++;
 		break;
 	    }
-	    ret = arg_match_long (args, num_args, argv[i] + 2);
-	    if(ret)
-		return ret;
-	}else{
-	    for(j = 1; argv[i][j]; j++) {
-		for(k = 0; k < num_args; k++) {
-		    char *optarg;
-		    if(args[k].short_name == 0)
-			continue;
-		    if(argv[i][j] == args[k].short_name){
-			if(args[k].type == arg_flag){
-			    *(int*)args[k].value = 1;
-			    break;
-			}
-			if(args[k].type == arg_negative_flag){
-			    *(int*)args[k].value = 0;
-			    break;
-			}
-			if(argv[i][j + 1])
-			    optarg = &argv[i][j + 1];
-			else{
-			    i++;
-			    optarg = argv[i];
-			}
-			if(optarg == NULL)
-			    return ARG_ERR_NO_ARG;
-			if(args[k].type == arg_integer){
-			    int tmp;
-			    if(sscanf(optarg, "%d", &tmp) != 1)
-				return ARG_ERR_BAD_ARG;
-			    *(int*)args[k].value = tmp;
-			    goto out;
-			}else if(args[k].type == arg_string){
-			    *(char**)args[k].value = optarg;
-			    goto out;
-			}else if(args[k].type == arg_strings){
-			    add_string((getarg_strings*)args[k].value, optarg);
-			    goto out;
-			}
-			return ARG_ERR_BAD_ARG;
-		    }
-			
-		}
-		if (k == num_args)
-		    return ARG_ERR_NO_MATCH;
-	    }
-	out:;
+	    ret = arg_match_long (args, num_args, argv[i] + 2, 
+				  argc, argv, &i);
+	} else {
+	    ret = arg_match_short (args, num_args, argv[i],
+				   argc, argv, &i);
 	}
+	if(ret)
+	    break;
     }
     *optind = i;
-    return 0;
+    return ret;
 }
 
 #if TEST

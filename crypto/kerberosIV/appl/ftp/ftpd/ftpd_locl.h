@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -36,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: ftpd_locl.h,v 1.5.2.1 1999/07/22 03:24:42 assar Exp $ */
+/* $Id: ftpd_locl.h,v 1.9 1999/12/02 16:58:30 joda Exp $ */
 
 #ifndef __ftpd_locl_h__
 #define __ftpd_locl_h__
@@ -62,6 +57,9 @@
 #endif
 #if defined(HAVE_SYS_IOCTL_H) && SunOS != 40
 #include <sys/ioctl.h>
+#endif
+#ifdef HAVE_SYS_IOCCOM_H
+#include <sys/ioccom.h>
 #endif
 #ifdef TIME_WITH_SYS_TIME
 #include <sys/time.h>
@@ -158,6 +156,10 @@
 #include <socks.h>
 extern int LIBPREFIX(fclose)      (FILE *);
 #endif
+
+/* SunOS doesn't have any declaration of fclose */
+
+int fclose(FILE *stream);
 
 int yyparse();
 

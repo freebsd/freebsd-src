@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.19 1999/04/25 13:24:55 assar Exp $
+# $Id: Makefile.am,v 1.20 1999/10/03 16:38:53 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -21,6 +21,7 @@ ftpd_SOURCES =		\
 	ftpd.c		\
 	ftpd_locl.h	\
 	logwtmp.c	\
+	ls.c		\
 	pathnames.h	\
 	popen.c		\
 	security.c	\
