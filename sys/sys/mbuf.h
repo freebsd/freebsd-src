@@ -83,6 +83,7 @@ struct m_tag {
 	u_int16_t		m_tag_id;	/* Tag ID */
 	u_int16_t		m_tag_len;	/* Length of data */
 	u_int32_t		m_tag_cookie;	/* ABI/Module ID */
+	void			(*m_tag_free)(struct m_tag *);
 };
 
 /*
@@ -569,18 +570,81 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 
 /* Packet tag routines. */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);
-void		 m_tag_free(struct m_tag *);
-void		 m_tag_prepend(struct mbuf *, struct m_tag *);
-void		 m_tag_unlink(struct mbuf *, struct m_tag *);
 void		 m_tag_delete(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 struct	m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct	m_tag	*m_tag_copy(struct m_tag *, int);
 int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
-void		 m_tag_init(struct mbuf *);
-struct	m_tag	*m_tag_first(struct mbuf *);
-struct	m_tag	*m_tag_next(struct mbuf *, struct m_tag *);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
+
+/*
+ * Initialize the list of tags associated with an mbuf.
+ */
+static __inline void
+m_tag_init(struct mbuf *m)
+{
+	SLIST_INIT(&m->m_pkthdr.tags);
+}
+
+/*
+ * Setup the contents of a tag.  Note that this does not
+ * fillin the free method; the caller is expected to do that.
+ *
+ * XXX probably should be called m_tag_init; but that was
+ * already taken.
+ */
+static __inline void
+m_tag_setup(struct m_tag *t, u_int32_t cookie, int type, int len)
+{
+	t->m_tag_id = type;
+	t->m_tag_len = len;
+	t->m_tag_cookie = cookie;
+}
+
+/*
+ * Reclaim resources associated with a tag.
+ */
+static __inline void
+m_tag_free(struct m_tag *t)
+{
+	(*t->m_tag_free)(t);
+}
+
+/*
+ * Return the first tag associated with an mbuf.
+ */
+static __inline struct m_tag *
+m_tag_first(struct mbuf *m)
+{
+	return SLIST_FIRST(&m->m_pkthdr.tags);
+}
+
+/*
+ * Return the next tag in the list of tags associated with an mbuf.
+ */
+static __inline struct m_tag *
+m_tag_next(struct mbuf *m, struct m_tag *t)
+{
+	return SLIST_NEXT(t, m_tag_link);
+}
+
+/*
+ * Prepend a tag to the list of tags associated with an mbuf.
+ */
+static __inline void
+m_tag_prepend(struct mbuf *m, struct m_tag *t)
+{
+	SLIST_INSERT_HEAD(&m->m_pkthdr.tags, t, m_tag_link);
+}
+
+/*
+ * Unlink a tag from the list of tags associated with an mbuf.
+ */
+static __inline void
+m_tag_unlink(struct mbuf *m, struct m_tag *t)
+{
+	SLIST_REMOVE(&m->m_pkthdr.tags, t, m_tag, m_tag_link);
+}
 
 /* These are for OpenBSD compatibility. */
 #define	MTAG_ABI_COMPAT		0		/* compatibility ABI */
@@ -594,7 +658,8 @@ m_tag_get(int type, int length, int wait)
 static __inline struct m_tag *
 m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
-	return m_tag_locate(m, MTAG_ABI_COMPAT, type, start);
+	return SLIST_EMPTY(&m->m_pkthdr.tags) ?
+		NULL : m_tag_locate(m, MTAG_ABI_COMPAT, type, start);
 }
 #endif /* _KERNEL */
 
