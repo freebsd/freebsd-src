@@ -140,7 +140,7 @@ void	fatal();
  *    rotational positions that we distinguish.  With NRPOS of 8 the resolution
  *    of our summary information is 2ms for a typical 3600 rpm drive.
  *
- * ...but now we make this 1 (which escentially disables the rotational
+ * ...but now we make this 1 (which essentially disables the rotational
  * position table because modern drives with read-ahead and write-behind do
  * better without the rotational position table.
  */
@@ -535,7 +535,7 @@ havelabel:
 	secpercyl = nsectors * ntracks - cylspares;
 	/*
 	 * Only complain if -t or -u have been specified; the default
-	 * case (4096 sectors per cylinder) is intented to disagree
+	 * case (4096 sectors per cylinder) is intended to disagree
 	 * with the disklabel.
 	 */
 	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
