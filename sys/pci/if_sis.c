@@ -638,6 +638,9 @@ static int sis_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sis_softc));
 
+	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_DEF);
+	SIS_LOCK(sc);
+
 	if (pci_get_device(dev) == SIS_DEVICEID_900)
 		sc->sis_type = SIS_TYPE_900;
 	if (pci_get_device(dev) == SIS_DEVICEID_7016)
@@ -730,9 +733,6 @@ static int sis_attach(dev)
 		printf("sis%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
-
-	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_DEF);
-	SIS_LOCK(sc);
 
 	/* Reset the adapter. */
 	sis_reset(sc);
