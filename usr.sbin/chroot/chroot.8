@@ -32,7 +32,7 @@
 .\"     @(#)chroot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2002
+.Dd July 5, 2003
 .Dt CHROOT 8
 .Os
 .Sh NAME
@@ -40,6 +40,9 @@
 .Nd change root directory
 .Sh SYNOPSIS
 .Nm
+.Op Fl u Ar user
+.Op Fl g Ar group
+.Op Fl G Ar group,group,...
 .Ar newroot
 .Op Ar command
 .Sh DESCRIPTION
@@ -49,7 +52,20 @@ utility changes its current and root directories to the supplied directory
 .Ar newroot
 and then exec's
 .Ar command ,
-if supplied, or an interactive copy of the user's login shell.
+if supplied,
+or an interactive copy of the user's login shell.
+.Pp
+If the
+.Fl u ,
+.Fl g
+or
+.Fl G
+options are given,
+the user,
+group and group list of the process are set to
+these values after the
+.Xr chroot 8
+has taken place.
 .Sh ENVIRONMENT
 The following environment variable is referenced by
 .Nm :
@@ -69,6 +85,10 @@ is used.
 .Sh SEE ALSO
 .Xr chdir 2 ,
 .Xr chroot 2 ,
+.Xr setgid 2 ,
+.Xr setgroups 2 ,
+.Xr setuid 2 ,
+.Xr getgrnam 3 ,
 .Xr environ 7 ,
 .Xr jail 8
 .Sh HISTORY
