@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins
+ * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,7 @@ main(int argc, char *argv[])
 	/* Incomplete character sequence. */
 	buf[0] = '\0';
 	assert(mblen(buf, 0) == -1);
+	assert(mblen(NULL, 0) == 0);
 
 	/*
 	 * Japanese (EUC) locale.
@@ -92,12 +93,14 @@ main(int argc, char *argv[])
 	/* Incomplete character sequence. */
 	buf[0] = '\0';
 	assert(mblen(buf, 0) == -1);
+	assert(mblen(NULL, 0) == 0);
 
 	/* Incomplete character sequence (truncated double-byte). */
 	memset(buf, 0xcc, sizeof(buf));
 	buf[0] = 0xa3;
 	buf[1] = 0x00;
 	assert(mblen(buf, 1) == -1);
+	assert(mblen(NULL, 0) == 0);
 
 	/* Same as above, but complete. */
 	buf[1] = 0xc1;

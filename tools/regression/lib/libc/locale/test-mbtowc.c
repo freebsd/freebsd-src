@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins
+ * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,7 @@ main(int argc, char *argv[])
 	buf[0] = '\0';
 	assert(mbtowc(&wc, buf, 0) == -1);
 	assert(wc == L'z');
+	assert(mbtowc(NULL, NULL, 0) == 0);
 
 	/*
 	 * Japanese (EUC) locale.
@@ -99,6 +100,7 @@ main(int argc, char *argv[])
 	buf[0] = '\0';
 	assert(mbtowc(&wc, buf, 0) == -1);
 	assert(wc == L'z');
+	assert(mbtowc(NULL, NULL, 0) == 0);
 
 	/* Incomplete character sequence (truncated double-byte). */
 	memset(buf, 0xcc, sizeof(buf));
@@ -107,6 +109,7 @@ main(int argc, char *argv[])
 	wc = L'z';
 	assert(mbtowc(&wc, buf, 1) == -1);
 	assert(wc == L'z');
+	assert(mbtowc(NULL, NULL, 0) == 0);
 
 	/* Same as above, but complete. */
 	buf[1] = 0xc1;
