@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.131 1999/08/22 01:46:57 jdp Exp $
+ * $Id: vfs_syscalls.c,v 1.132 1999/08/22 16:50:30 jdp Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -3010,7 +3010,7 @@ revoke(p, uap)
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
 	    (error = suser_xxx(0, p, PRISON_ROOT)))
 		goto out;
-	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
+	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
 out:
 	vrele(vp);
