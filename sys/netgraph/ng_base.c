@@ -264,6 +264,13 @@ static const struct ng_cmdlist ng_generic_cmds[] = {
 	},
 	{
 	  NGM_GENERIC_COOKIE,
+	  NGM_TEXT_CONFIG,
+	  "textconfig",
+	  NULL,
+	  &ng_parse_string_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
 	  NGM_TEXT_STATUS,
 	  "textstatus",
 	  NULL,
@@ -1596,6 +1603,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 		break;
 	    }
 
+	case NGM_TEXT_CONFIG:
 	case NGM_TEXT_STATUS:
 		/*
 		 * This one is tricky as it passes the command down to the

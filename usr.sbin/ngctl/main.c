@@ -59,6 +59,7 @@ static int	QuitCmd(int ac, char **av);
 
 /* List of commands */
 static const struct ngcmd *const cmds[] = {
+	&config_cmd,
 	&connect_cmd,
 	&debug_cmd,
 	&help_cmd,
