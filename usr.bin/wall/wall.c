@@ -72,8 +72,6 @@ static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 static void makemsg(char *);
 static void usage(void);
 
-#define	IGNOREUSER	"sleeper"
-
 struct wallgroup {
 	struct wallgroup *next;
 	char		*name;
@@ -140,8 +138,7 @@ main(int argc, char *argv[])
 	iov.iov_len = mbufsize;
 	/* NOSTRICT */
 	while (fread((char *)&utmp, sizeof(utmp), 1, fp) == 1) {
-		if (!utmp.ut_name[0] ||
-		    !strncmp(utmp.ut_name, IGNOREUSER, sizeof(utmp.ut_name)))
+		if (!utmp.ut_name[0])
 			continue;
 		if (grouplist) {
 			ingroup = 0;
