@@ -1,3 +1,5 @@
+.\"     $KAME: ping6.8,v 1.22 2000/05/31 17:00:07 itojun Exp $
+.\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
 .\"
@@ -25,7 +27,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: ping6.8,v 1.4 1999/10/07 05:29:03 itojun Exp $
 .\"	$FreeBSD$
 .\"
 .Dd May 17, 1998
@@ -37,45 +38,93 @@
 .Tn ICMPv6 ECHO_REQUEST
 packets to network hosts
 .Sh SYNOPSIS
-.Nm
-.Op Fl AdEfnqRrvw
+.Nm ping6
+.\" without ipsec, or new ipsec
+.Op Fl dfHnNqRvw
+.\" old ipsec
+.\" .Op Fl AdEfnNqRvw
+.Bk -words
 .Op Fl a Ar addrtype
+.Ek
+.Bk -words
 .Op Fl b Ar bufsiz
+.Ek
+.Bk -words
 .Op Fl c Ar count
+.Ek
+.Bk -words
 .Op Fl h Ar hoplimit
+.Ek
+.Bk -words
 .Op Fl I Ar interface
+.Ek
+.Bk -words
 .Op Fl i Ar wait
+.Ek
+.Bk -words
 .Op Fl l Ar preload
+.Ek
+.Bk -words
 .Op Fl p Ar pattern
+.Ek
+.Bk -words
+.\" new ipsec
+.Op Fl P Ar policy
+.Ek
+.Bk -words
+.Op Fl S Ar sourceaddr
+.Ek
+.Bk -words
 .Op Fl s Ar packetsize
+.Ek
+.Bk -words
+.Op Ar hops...
+.Ek
+.Bk -words
 .Ar host
+.Ek
 .Sh DESCRIPTION
+.Nm
+uses the
+.Tn ICMPv6
+protocol's mandatory
+.Tn ICMP6_ECHO_REQUEST
+datagram to elicit an
+.Tn ICMP6_ECHO_REPLY
+from a host or gateway.
+.Tn ICMP6_ECHO_REQUEST
+datagrams (``pings'') have an IPv6 header,
+and
+.Tn ICMPv6
+header formatted as documented in RFC2463.
+The options are as follows:
 .Bl -tag -width Ds
-.It Fl A
-Enables transport-mode IPsec authentication header.
-(experimental)
+.\" old ipsec
+.\" .It Fl A
+.\" Enables transport-mode IPsec authentication header
+.\" .Pq experimental .
 .It Fl a Ar addrtype
 Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
 .Ar addrtype
-must be a string constructed of the following charaters.
+must be a string constructed of the following characters.
 .Bl -tag -width Ds -compact
 .It Ic a
-requires all the responder's unicast addresses.
+requests all the responder's unicast addresses.
 If the charater is ommited,
 only those addresses which belong to the interface which has the
-responder's address are required.
+responder's address are requests.
+.It Ic c
+requests responder's IPv4-compatible and IPv4-mapped addresses.
 .It Ic g
-requires responder's global-scope addresses.
+requests responder's global-scope addresses.
 .It Ic s
-requires responder's site-local addresses.
+requests responder's site-local addresses.
 .It Ic l
-requires responder's link-local addresses.
+requests responder's link-local addresses.
 .It Ic A
-requires responder's anycast addresses.
-Without this character, the responder
-will return unicast addresses only.
-With this character, the responder
-will return anycast addresses only.
+requests responder's anycast addresses.
+Without this character, the responder will return unicast addresses only.
+With this character, the responder will return anycast addresses only.
 Note that the specification does not specify how to get responder's
 anycast addresses.
 This is an experimental option.
@@ -92,9 +141,9 @@ packets.
 Set the
 .Dv SO_DEBUG
 option on the socket being used.
-.It Fl E
-Enables transport-mode IPsec encapsulated security payload.
-(experimental)
+.\" .It Fl E
+.\" Enables transport-mode IPsec encapsulated security payload
+.\" .Pq experimental .
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -111,6 +160,11 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
+.It Fl H
+Specifies to try reverse-lookup of IPv6 addresses.
+The
+.Nm
+command does not try reverse-lookup unless the option is specified.
 .It Fl h Ar hoplimit
 Set the IPv6 hoplimit.
 .It Fl I Ar interface
@@ -137,6 +191,19 @@ Only the super-user may use this option.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
+.It Fl N
+Probe node information multicast group
+.Pq Li ff02::2:xxxx:xxxx .
+.Ar host
+must be string hostname of the target
+.Pq must not be a numeric IPv6 address .
+Node information multicast group will be computed based on given
+.Ar host ,
+and will be used as the final destination.
+Since node information multicast group is a link-local multicast group,
+destination link needs to be specified by
+.Fl I
+option.
 .It Fl p Ar pattern
 You may specify up to 16
 .Dq pad
@@ -151,36 +218,36 @@ flag,
 .Nm
 prints out any ICMP error messages caused by its own ECHO_REQUEST
 messages.
+.\" new ipsec
+.It Fl P Ar policy
+.Ar policy
+specifies IPsec policy to be used for the probe.
 .It Fl q
 Quiet output.
 Nothing is displayed except the summary lines at startup time and
 when finished.
 .It Fl R
-Record route.
-Includes the
-.Tn RECORD_ROUTE
-option in the
-.Tn ECHO_REQUEST
-packet and displays
-the route buffer on returned packets.
-Note that the IP header is only large enough for nine such routes;
-the
-.Xr traceroute 8
-command is usually better at determining the route packets take to a
-particular destination.
-Many hosts ignore or discard the
-.Tn RECORD_ROUTE
-option.
-.It Fl r
-Bypass the normal routing tables and send directly to a host on an attached
-network.
-If the host is not on a directly-attached network, an error is returned.
-This option can be used to ping a local host through an interface
-that has no route through it
+Make the kernel believe that the target
+.Ar host
 .Po
-e.g., after the interface was dropped by
-.Xr routed 8
-.Pc .
+or the first
+.Ar hop
+if you specify
+.Ar hops
+.Pc
+is reachable, by injecting upper-layer reachability confirmation hint.
+The option is meaningful only if the target
+.Ar host
+.Pq or the first hop
+is a neighbor.
+.It Fl S Ar sourceaddr
+Specifies the source address of request packets.
+The source address must be one of the unicast addresses of the sending node.
+If the outgoing interface is specified by the
+.Fl I
+option as well,
+.Ar sourceaddr
+needs to be an address assigned to the specified interface.
 .It Fl s Ar packetsize
 Specifies the number of data bytes to be sent.
 The default is 56, which translates into 64
@@ -206,12 +273,18 @@ has no effect if
 is specified.
 .It Fl W
 Same as
-.Fl w .
-This option was remained for backward compatibility.
+.Fl w ,
+but with old packet format based on 03 draft.
+This option is present for backward compatibility.
 .Fl s
 has no effect if
 .Fl w
 is specified.
+.It Ar hops
+IPv6 addresses for intermediate nodes,
+which will be put into type 0 routing header.
+.It Ar host
+IPv6 adddress of the final destination node.
 .El
 .Pp
 When using
@@ -310,15 +383,9 @@ using the
 option of
 .Nm Ns .
 .Sh RETURN VALUES
-The
 .Nm
-command returns an exit status of zero if at least one response was
-heard from the specified
-.Ar host ;
-a status of two if the transmission was successful but no responses
-were received; or another value
-.Pq from Aq Pa sysexits.h
-if an error occurred.
+returns 0 on success (the host is alive),
+and non-zero if the arguments are incorrect or the host is not responding.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr ifconfig 8 ,
@@ -326,6 +393,20 @@ if an error occurred.
 .Xr routed 8 ,
 .Xr traceroute 8 ,
 .Xr traceroute6 8
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet Protocol Version 6 (IPv6) Specification"
+.%N RFC2463
+.%D December 1998
+.Re
+.Rs
+.%A Matt Crawford
+.%T "IPv6 Node Information Queries"
+.%N draft-ietf-ipngwg-icmp-name-lookups-05.txt
+.%D October 22, 1999
+.%O work in progress material
+.Re
 .Sh HISTORY
 The
 .Nm ping
