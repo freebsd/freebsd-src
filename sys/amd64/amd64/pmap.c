@@ -816,25 +816,19 @@ pmap_new_proc(p)
 	/*
 	 * allocate object for the upages
 	 */
-	PROC_LOCK(p);
 	if ((upobj = p->p_upages_obj) == NULL) {
-		PROC_UNLOCK(p);
 		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
-		PROC_LOCK(p);
 		p->p_upages_obj = upobj;
 	}
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	if ((up = p->p_addr) == NULL) {
-		PROC_UNLOCK(p);
 		up = (struct user *) kmem_alloc_nofault(kernel_map,
 				UPAGES * PAGE_SIZE);
 		if (up == NULL)
 			panic("pmap_new_proc: u_map allocation failed");
-		PROC_LOCK(p);
 		p->p_addr = up;
 	}
-	PROC_UNLOCK(p);
 
 	ptek = (unsigned *) vtopte((vm_offset_t) up);
 
