@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.35 1997/09/06 01:19:10 kato Exp $
+ *	$Id: trap.c,v 1.36 1997/09/22 12:20:42 kato Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include "opt_ktrace.h"
 #include "opt_ddb.h"
+#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,10 +75,15 @@
 #include <machine/psl.h>
 #include <machine/../isa/intr_machdep.h>
 #include <machine/smp.h>
+#include <machine/tss.h>
 
 #ifdef POWERFAIL_NMI
 #include <sys/syslog.h>
 #include <machine/clock.h>
+#endif
+
+#ifdef VM86
+#include <machine/vm86.h>
 #endif
 
 #include "isa.h"
