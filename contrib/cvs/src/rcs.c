@@ -2900,8 +2900,10 @@ RCS_getdate (rcs, date, force_tag_match)
 	p = findnode (rcs->versions, "1.1.1.1");
 	if (p)
 	{
+	    char *date_1_1 = vers->date;
+
 	    vers = (RCSVers *) p->data;
-	    if (RCS_datecmp (vers->date, date) != 0)
+	    if (RCS_datecmp (vers->date, date_1_1) != 0)
 		return xstrdup ("1.1");
 	}
     }
