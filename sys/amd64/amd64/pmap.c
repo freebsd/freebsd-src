@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.66 1995/12/03 18:35:28 bde Exp $
+ *	$Id: pmap.c,v 1.67 1995/12/07 12:45:36 davidg Exp $
  */
 
 /*
@@ -108,13 +108,12 @@
 
 #include <i386/isa/isa.h>
 
-extern void	init_pv_entries __P((int));
-extern void	pmap_copy_on_write __P((vm_offset_t pa));
+static void	init_pv_entries __P((int));
 extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
 					 vm_object_t object, vm_offset_t offset,
 					 vm_offset_t size));
-extern void	pmap_remove_all __P((vm_offset_t pa));
-extern void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
+static void	pmap_remove_all __P((vm_offset_t pa));
+static void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
 				       vm_offset_t va));
 
 /*
@@ -139,20 +138,19 @@ extern void	pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
  * convert to a vax protection code.
  */
 #define pte_prot(m, p)	(protection_codes[p])
-int protection_codes[8];
+static int protection_codes[8];
 
-struct pmap kernel_pmap_store;
+static struct pmap kernel_pmap_store;
 pmap_t kernel_pmap;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
-vm_size_t mem_size;		/* memory size in bytes */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
-vm_offset_t vm_first_phys, vm_last_phys;
+static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
+static vm_offset_t vm_first_phys;
 
-int nkpt;
+static int nkpt;
 
 extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
@@ -160,10 +158,12 @@ extern int cpu_class;
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-pt_entry_t *CMAP1, *CMAP2, *ptmmap;
-pv_entry_t pv_table;
-caddr_t CADDR1, CADDR2, ptvmmap;
-pt_entry_t *msgbufmap;
+pt_entry_t *CMAP1;
+static pt_entry_t *CMAP2, *ptmmap;
+static pv_entry_t pv_table;
+caddr_t CADDR1, ptvmmap;
+static caddr_t CADDR2;
+static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp;
 
 static void	free_pv_entry __P((pv_entry_t pv));
@@ -269,7 +269,7 @@ pmap_is_managed(pa)
 /*
  * find the vm_page_t of a pte (only) given va of pte and pmap
  */
-__inline vm_page_t
+static __inline vm_page_t
 pmap_pte_vm_page(pmap, pt)
 	pmap_t pmap;
 	vm_offset_t pt;
@@ -479,38 +479,6 @@ pmap_map(virt, start, end, prot)
 }
 
 /*
- *	Create and return a physical map.
- *
- *	If the size specified for the map
- *	is zero, the map is an actual physical
- *	map, and may be referenced by the
- *	hardware.
- *
- *	If the size specified is non-zero,
- *	the map will be used in software only, and
- *	is bounded by that size.
- *
- */
-
-pmap_t
-pmap_create(size)
-	vm_size_t size;
-{
-	register pmap_t pmap;
-
-	/*
-	 * Software use map does not need a pmap
-	 */
-	if (size)
-		return (NULL);
-
-	pmap = (pmap_t) malloc(sizeof *pmap, M_VMPMAP, M_WAITOK);
-	bzero(pmap, sizeof(*pmap));
-	pmap_pinit(pmap);
-	return (pmap);
-}
-
-/*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
  */
@@ -538,7 +506,7 @@ pmap_pinit(pmap)
  * grow the number of kernel page table entries, if needed
  */
 
-vm_page_t nkpg;
+static vm_page_t nkpg;
 vm_offset_t kernel_vm_end;
 
 void
@@ -637,10 +605,10 @@ pmap_reference(pmap)
 /*
  * Data for the pv entry allocation mechanism
  */
-int pv_freelistcnt;
-pv_entry_t pv_freelist;
-vm_offset_t pvva;
-int npvvapg;
+static int pv_freelistcnt;
+static pv_entry_t pv_freelist;
+static vm_offset_t pvva;
+static int npvvapg;
 
 /*
  * free the pv_entry back to the free list
@@ -789,7 +757,7 @@ get_pt_entry(pmap)
  * to the header.  Otherwise we must search the list for
  * the entry.  In either case we free the now unused entry.
  */
-void
+static void
 pmap_remove_entry(pmap, pv, va)
 	struct pmap *pmap;
 	pv_entry_t pv;
@@ -976,7 +944,7 @@ pmap_remove(pmap, sva, eva)
  *		inefficient because they iteratively called
  *		pmap_remove (slow...)
  */
-void
+static void
 pmap_remove_all(pa)
 	vm_offset_t pa;
 {
@@ -1856,18 +1824,6 @@ void
 pmap_clear_reference(vm_offset_t pa)
 {
 	pmap_changebit((pa), PG_U, FALSE);
-}
-
-/*
- *	Routine:	pmap_copy_on_write
- *	Function:
- *		Remove write privileges from all
- *		physical maps for this physical page.
- */
-void
-pmap_copy_on_write(vm_offset_t pa)
-{
-	pmap_changebit((pa), PG_RW, FALSE);
 }
 
 /*

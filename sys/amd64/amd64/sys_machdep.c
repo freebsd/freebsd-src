@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.11 1995/11/12 07:10:47 bde Exp $
+ *	$Id: sys_machdep.c,v 1.12 1995/12/07 12:45:38 davidg Exp $
  *
  */
 
@@ -56,8 +56,8 @@
 #include <vm/vm_kern.h>		/* for kernel_map */
 
 void set_user_ldt	__P((struct pcb *pcb));
-int i386_get_ldt	__P((struct proc *, char *, int *));
-int i386_set_ldt	__P((struct proc *, char *, int *));
+static int i386_get_ldt	__P((struct proc *, char *, int *));
+static int i386_set_ldt	__P((struct proc *, char *, int *));
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -108,7 +108,7 @@ struct i386_get_ldt_args {
 	int num;
 };
 
-int
+static int
 i386_get_ldt(p, args, retval)
 	struct proc *p;
 	char *args;
@@ -162,7 +162,7 @@ struct i386_set_ldt_args {
 	int num;
 };
 
-int
+static int
 i386_set_ldt(p, args, retval)
 	struct proc *p;
 	char *args;
@@ -256,7 +256,7 @@ i386_set_ldt(p, args, retval)
 
 	/* Fill in range */
 	for (i = 0, n = uap->start; i < uap->num && !error; i++, n++) {
-		union descriptor desc, *dp;
+		union descriptor *dp;
 		dp = &uap->desc[i];
 		lp = &((union descriptor *)(pcb->pcb_ldt))[n];
 #ifdef DEBUG
