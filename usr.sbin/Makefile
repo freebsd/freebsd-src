@@ -128,7 +128,7 @@ SUBDIR=	IPXrouted \
 	ypset \
 	zic
 
-.if !defined(NOLIBC_R)
+.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=pppctl
 .endif
 
