@@ -152,6 +152,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
+#	elan-mmcr	AMD Elan support (e.g. mmap MMCR)
 #	agpgart	AGP interface
 #	cfs*	Coda Distributed Filesystem
 #	nsmb*	SMB/CIFS protocol interface
@@ -1762,6 +1763,11 @@ perfmon)
 ipl)
 	mknod ipl c 79 0
 	mknod ipnat c 79 1
+	;;
+
+elan*)
+	mknod elan-mmcr c 100 0	# XXX local major
+	chmod 600 elan-mmcr
 	mknod ipstate c 79 2
 	mknod ipauth c 79 3
 	;;
