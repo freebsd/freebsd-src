@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.55 1994/11/13 07:17:46 davidg Exp $
+ * $Id: if_ed.c,v 1.56 1994/11/17 14:42:27 davidg Exp $
  */
 
 #include "ed.h"
@@ -2110,8 +2110,7 @@ ed_get_packet(sc, buf, len, multicast)
 	len -= sizeof(struct ether_header);
 
 	/*
-	 * Pull packet off interface. Or if this was a trailer packet, the
-	 * data portion is appended.
+	 * Pull packet off interface.
 	 */
 	if (ed_ring_to_mbuf(sc, buf, m, len) == NULL) {
 		m_freem(m);
@@ -2145,11 +2144,6 @@ ed_get_packet(sc, buf, len, multicast)
 	 * Fix up data start offset in mbuf to point past ether header
 	 */
 	m_adj(m, sizeof(struct ether_header));
-
-	/*
-	 * silly ether_input routine needs 'type' in host byte order
-	 */
-	eh->ether_type = ntohs(eh->ether_type);
 
 	ether_input(&sc->arpcom.ac_if, eh, m);
 	return;

@@ -454,7 +454,6 @@ lnc_rint(int unit)
 				head->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 				head->m_pkthdr.len = pkt_len - sizeof(*eh);
 				eh = (struct ether_header *) head->m_data;
-				eh->ether_type = ntohs(eh->ether_type);
 				head->m_data += sizeof *eh;
 				head->m_len -= sizeof *eh;
 

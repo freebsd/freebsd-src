@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.30 1994/10/26 00:16:19 phk Exp $
+ * $Id: if_is.c,v 1.31 1994/10/29 10:19:32 phk Exp $
  */
 
 /* TODO
@@ -598,69 +598,9 @@ is_start(ifp)
 			len += m->m_len;
 		}
 #if NBPFILTER > 0
-        if (is->bpf) {
-                u_short etype;
-                int off, datasize, resid;
-                struct ether_header *eh;
-                struct trailer_header {
-                        u_short ether_type;
-                        u_short ether_residual;
-                } trailer_header;
-                char ether_packet[ETHER_MAX_LEN];
-                char *ep;
-
-                ep = ether_packet;
-
-                /*
-                 * We handle trailers below:
-                 * Copy ether header first, then residual data,
-                 * then data. Put all this in a temporary buffer
-                 * 'ether_packet' and send off to bpf. Since the
-                 * system has generated this packet, we assume
-                 * that all of the offsets in the packet are
-                 * correct; if they're not, the system will almost
-                 * certainly crash in m_copydata.
-                 * We make no assumptions about how the data is
-                 * arranged in the mbuf chain (i.e. how much
-                 * data is in each mbuf, if mbuf clusters are
-                 * used, etc.), which is why we use m_copydata
-                 * to get the ether header rather than assume
-                 * that this is located in the first mbuf.
-                 */
-                /* copy ether header */
-                m_copydata(m0, 0, sizeof(struct ether_header), ep);
-                eh = (struct ether_header *) ep;
-                ep += sizeof(struct ether_header);
-                etype = ntohs(eh->ether_type);
-                if (etype >= ETHERTYPE_TRAIL &&
-                    etype < ETHERTYPE_TRAIL+ETHERTYPE_NTRAILER) {
-                        datasize = ((etype - ETHERTYPE_TRAIL) << 9);
-                        off = datasize + sizeof(struct ether_header);
-
-                        /* copy trailer_header into a data structure */
-                        m_copydata(m0, off, sizeof(struct trailer_header),
-                                (caddr_t)&trailer_header.ether_type);
-
-                        /* copy residual data */
-			resid = trailer_header.ether_residual -
-				sizeof(struct trailer_header);
-			resid = ntohs(resid);
-                        m_copydata(m0, off+sizeof(struct trailer_header),
-                                resid, ep);
-                        ep += resid;
-
-                        /* copy data */
-                        m_copydata(m0, sizeof(struct ether_header),
-                                datasize, ep);
-                        ep += datasize;
-
-                        /* restore original ether packet type */
-                        eh->ether_type = trailer_header.ether_type;
-
-                        bpf_tap(is->bpf, ether_packet, ep - ether_packet);
-                } else
-                        bpf_mtap(is->bpf, m0);
-        }
+	if (is->bpf) {
+		bpf_mtap(is->bpf, m0);
+	}
 #endif
 
 		
@@ -853,26 +793,9 @@ isread(struct is_softc *is, unsigned char *buf, int len)
 {
         register struct ether_header *eh;
         struct mbuf *m;
-        int off, resid;
 
-        /*
-         * Deal with trailer protocol: if type is trailer type
-         * get true type from first 16-bit word past data.
-         * Remember that type was trailer by setting off.
-         */
         eh = (struct ether_header *)buf;
-        eh->ether_type = ntohs((u_short)eh->ether_type);
         len = len - sizeof(struct ether_header) - 4;
-#define nedataaddr(eh, off, type)       ((type)(((caddr_t)((eh)+1)+(off))))
-        if (eh->ether_type >= ETHERTYPE_TRAIL &&
-            eh->ether_type < ETHERTYPE_TRAIL+ETHERTYPE_NTRAILER) {
-                off = (eh->ether_type - ETHERTYPE_TRAIL) * 512;
-                if (off >= ETHERMTU) return;            /* sanity */
-                eh->ether_type = ntohs(*nedataaddr(eh, off, u_short *));
-                resid = ntohs(*(nedataaddr(eh, off+2, u_short *)));
-                if (off + resid > len) return;          /* sanity */
-                len = off + resid;
-        } else  off = 0;
 
         if (len == 0) return;
 
@@ -882,7 +805,7 @@ isread(struct is_softc *is, unsigned char *buf, int len)
          * information to be at the front, but we still have to drop
          * the type and length which are at the front of any trailer data.
          */
-        m = isget(buf, len, off, &is->arpcom.ac_if);
+        m = isget(buf, len, 0, &is->arpcom.ac_if);
         if (m == 0) return;
 #if NBPFILTER > 0
         /*
