@@ -3021,9 +3021,6 @@ RetryLookup:;
 	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
-	/*
-	 * Return whether this is the only map sharing this data.
-	 */
 	*out_prot = prot;
 	return (KERN_SUCCESS);
 
