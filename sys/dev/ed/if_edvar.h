@@ -58,8 +58,7 @@ struct ed_softc {
 	u_char  wd_laar_proto;
 	u_char	cr_proto;
 	u_char  isa16bit;	/* width of access to card 0=8 or 1=16 */
-	int     is790;		/* set by the probe code if the card is 790
-				 * based */
+	int	chip_type;	/* the type of chip (one of ED_CHIP_TYPE_*) */
 
 /*
  * HP PC LAN PLUS card support.
