@@ -166,6 +166,7 @@ gv_rm_vol(struct gv_softc *sc, struct gctl_req *req, struct gv_volume *v, int fl
 
 	/* Clean up and let our geom fade away. */
 	LIST_REMOVE(v, volume);
+	gv_kill_vol_thread(v);
 	g_free(v);
 	if (gp != NULL) {
 		gp->softc = NULL;
