@@ -947,11 +947,11 @@ bpf_setf(d, fp)
 	struct bpf_insn *fcode, *old;
 	u_int flen, size;
 
-	old = d->bd_filter;
 	if (fp->bf_insns == NULL) {
 		if (fp->bf_len != 0)
 			return (EINVAL);
 		BPFD_LOCK(d);
+		old = d->bd_filter;
 		d->bd_filter = NULL;
 		reset_d(d);
 		BPFD_UNLOCK(d);
@@ -968,6 +968,7 @@ bpf_setf(d, fp)
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
 	    bpf_validate(fcode, (int)flen)) {
 		BPFD_LOCK(d);
+		old = d->bd_filter;
 		d->bd_filter = fcode;
 		reset_d(d);
 		BPFD_UNLOCK(d);
