@@ -313,6 +313,183 @@ serial_t remote_desc = NULL;
 static int stub_supports_P = 1;
 
 
+/*
+ * Support for quasi-interactive control of device through GDB port.
+ * While we're waiting for an event to occur, chat with the running device.
+ */
+#define	REMOTE_CHAT
+#ifdef	REMOTE_CHAT
+
+extern int      quit_flag;
+
+static char     tty_input[256];
+static int      escape_count;
+static int      echo_check;
+static int	remote_chat = 0;
+
+enum read_stat {
+    READ_MORE,
+    FATAL_ERROR,
+    ENTER_DEBUG
+};
+
+static enum read_stat
+readtarget()
+{
+    int             j;
+    int             data;
+
+    /* Loop until the socket doesn't have any more data */
+    while ((data = readchar(0)) >= 0) {
+
+	/* Check for the escape sequence */
+	if (data == '|') {
+	    /* If this is the fourth escape, get out */
+	    if (++escape_count == 4)
+		return (ENTER_DEBUG);
+	    continue;		/* Not the fourth, continue */
+
+	} else {
+	    /*
+	     * Not an escape any more, Ensure any pending ones are flushed
+	     */
+	    for (j = 1; j <= escape_count; j++)
+		putchar('|');
+	    escape_count = 0;
+	}
+
+	if (data == '\r')	/* If this is a return character */
+	    continue;		/* just supress it */
+
+	if (echo_check != -1) {	/* If we are checking for an echo */
+	    /* If this might be an echo */
+	    if (tty_input[echo_check] == data) {
+		echo_check++;	/* Note one more character match */
+		continue;	/* Go and loop */
+	    } else {
+
+		if ((data == '\n') && (tty_input[echo_check] == '\r')) {
+		    /* If this is the end of the line */
+		    echo_check = -1;	/* No more echo supression */
+		    continue;	/* Go and loop */
+		}
+
+		/* Not an echo, print out the data */
+		for (j = 0; j < echo_check; j++)
+		    putchar(tty_input[j]);
+
+		echo_check = -1;/* No more echo checking */
+	    }
+	}
+	putchar(data);		/* Output the character */
+    }
+    return (READ_MORE);		/* Indicate to read some more */
+}
+
+static enum read_stat
+readtty()
+{
+    enum read_stat  status;
+    int             tty_bc;
+
+    /* First, read a buffer full from the terminal */
+    if ((tty_bc = read(fileno(stdin), tty_input, sizeof(tty_input) - 1)) < 0) {
+	perror_with_name("readtty: read failed");
+	return (FATAL_ERROR);
+    }
+
+    /* Turn trailing newlines into returns */
+    if (tty_input[tty_bc - 1] == '\n')
+	tty_input[tty_bc - 1] = '\r';
+
+    if ((tty_input[0] == '~') && (tty_bc == 3))
+	switch (tty_input[1]) {
+	case 'b':				/* ~b\n = send break & gdb */
+	    SERIAL_SEND_BREAK (remote_desc);
+	    /* fall through */
+
+	case 'c':				/* ~c\n = return to gdb */
+	    return (ENTER_DEBUG);
+	}
+    
+    /* Make this a zero terminated string and write it out */
+    tty_input[tty_bc] = '\0';
+
+    if (SERIAL_WRITE(remote_desc, tty_input, tty_bc)) {
+	perror_with_name("readtty: write failed");
+	return (FATAL_ERROR);
+    }
+
+    return (READ_MORE);
+}
+
+static int
+remote_talk()
+{
+    fd_set          input;
+    int             tablesize;
+    enum read_stat  status;
+    int             panic_flag = 0;
+    char            buf[4];
+
+    escape_count = 0;
+    echo_check = -1;
+
+    tablesize = getdtablesize();
+
+    for (;;) {
+
+	/*
+	 * Check for anything from our socket - doesn't block. Note that this
+	 * must be done *before* the select as there may be buffered I/O
+	 * waiting to be processed.
+	 */
+	if ((status = readtarget()) != READ_MORE)
+	    return (status);
+
+	fflush(stdout);		/* Flush output before blocking */
+
+	/* Now block on more socket input or TTY input */
+	FD_ZERO(&input);
+	FD_SET(fileno(stdin), &input);
+	FD_SET(remote_desc->fd, &input);
+
+	status = select(tablesize, &input, 0, 0, 0);
+	if ((status < 0) && (errno != EINTR)) {
+	    perror_with_name("remote_talk: select");
+	    return (FATAL_ERROR);
+	}
+
+	/* Handle Control-C typed */
+	if (quit_flag) {
+	    if ((++panic_flag) == 3) {
+		printf("\nAre you repeating Control-C to terminate "
+		       "the session? (y/n) [n] ");
+		fgets(buf, 3, stdin);
+		if (buf[0] == 'y') {
+		    pop_target();	/* Clean up */
+		    error("Debugging terminated by user interrupt");
+		}
+		panic_flag = 0;
+	    }
+	    quit_flag = 0;
+	    SERIAL_WRITE(remote_desc, "\003", 1);
+	    continue;
+	}
+
+	/* Handle terminal input */
+	if (FD_ISSET(fileno(stdin), &input)) {
+	    panic_flag = 0;
+	    status = readtty();
+	    if (status != READ_MORE)
+		return (status);
+	    echo_check = 0;
+	}
+    }
+}
+
+#endif /* REMOTE_CHAT */
+
 /* These are the threads which we last sent to the remote system.  -1 for all
    or -2 for not sent yet.  */
 int general_thread;
@@ -404,6 +581,11 @@ get_offsets ()
   int nvals;
   CORE_ADDR text_addr, data_addr, bss_addr;
   struct section_offsets *offs;
+
+#ifdef	REMOTE_CHAT
+      if (remote_chat)
+	  (void) remote_talk();
+#endif	/* REMOTE_CHAT */
 
   putpkt ("qOffsets");
 
@@ -728,6 +910,11 @@ remote_wait (pid, status)
   while (1)
     {
       unsigned char *p;
+
+#ifdef	REMOTE_CHAT
+      if (remote_chat)
+	  (void) remote_talk();
+#endif	/* REMOTE_CHAT */
 
       ofunc = (void (*)()) signal (SIGINT, remote_interrupt);
       getpkt ((char *) buf, 1);
@@ -1401,6 +1588,16 @@ putpkt (buf)
 		getpkt (junkbuf, 0);
 		continue;		/* Now, go look for + */
 	      }
+
+#ifdef	REMOTE_CHAT
+	    case '|':
+	      {
+		if (!started_error_output)
+		    continue;
+		/* else fall through */
+	      }
+#endif	/* REMOTE_CHAT */
+
 	    default:
 	      if (remote_debug)
 		{
@@ -1836,4 +2033,12 @@ _initialize_remote ()
 				  var_integer, (char *)&remote_break,
 				  "Set whether to send break if interrupted.\n", &setlist),
 		     &showlist);
+
+#ifdef	REMOTE_CHAT
+  add_show_from_set (add_set_cmd ("remotechat", no_class,
+				  var_zinteger, (char *)&remote_chat,
+				   "Set remote port interacts with target.\n", &setlist),
+		     &showlist);
+#endif	/* REMOTE_CHAT */
 }
+
