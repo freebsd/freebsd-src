@@ -53,7 +53,6 @@ extern void _init(void);
 extern int main(int, char **, char **);
 extern void _start(char **, void (*)(void), struct Struct_Obj_Entry *, 
     struct ps_strings *);
-extern void __sparc_sigtramp_setup(void);
 extern void __sparc_utrap_setup(void);
 
 #ifdef GCRT
