@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.17 1998/08/30 20:35:24 jb Exp $
+#	$Id: bsd.own.mk,v 1.18 1998/08/31 23:34:37 jb Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -31,9 +31,9 @@
 # OBJFORMAT	Default object format that selects which set of tools to run.
 #		[elf on alpha, aout otherwise]
 #
-# BINOWN	Binary owner. [bin]
+# BINOWN	Binary owner. [root]
 #
-# BINGRP	Binary group. [bin]
+# BINGRP	Binary group. [wheel]
 #
 # BINMODE	Binary mode. [555]
 #
@@ -70,9 +70,9 @@
 # SHAREDIR	Base path for architecture-independent ascii
 #		text files. [/usr/share]
 #
-# SHAREOWN	ASCII text file owner. [bin]
+# SHAREOWN	ASCII text file owner. [root]
 #
-# SHAREGRP	ASCII text file group. [bin]
+# SHAREGRP	ASCII text file group. [wheel]
 #
 # SHAREMODE	ASCII text file mode. [${NOBINMODE}]
 #
@@ -138,8 +138,8 @@ OBJFORMAT?=	aout
 .endif
 
 # Binaries
-BINOWN?=	bin
-BINGRP?=	bin
+BINOWN?=	root
+BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
@@ -164,8 +164,8 @@ KMODMODE?=	${BINMODE}
 
 # Share files
 SHAREDIR?=	/usr/share
-SHAREOWN?=	bin
-SHAREGRP?=	bin
+SHAREOWN?=	root
+SHAREGRP?=	wheel
 SHAREMODE?=	${NOBINMODE}
 
 MANDIR?=	${SHAREDIR}/man/man

@@ -1,7 +1,7 @@
-#	$Id: BSD.include.dist,v 1.16 1998/03/04 10:22:51 dufault Exp $
+#	$Id: BSD.include.dist,v 1.17 1998/05/28 06:59:50 peter Exp $
 #
 
-/set type=dir uname=bin gname=bin mode=0755
+/set type=dir uname=root gname=wheel mode=0755
 .
     arpa
     ..
