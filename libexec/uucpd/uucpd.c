@@ -77,9 +77,10 @@ int hisaddrlen = sizeof hisctladdr;
 struct	sockaddr_in myctladdr;
 int mypid;
 
-char Username[64];
+char Username[64], Logname[64];
 char *nenv[] = {
 	Username,
+	Logname,
 	NULL,
 };
 extern char **environ;
@@ -142,7 +143,7 @@ void login_incorrect(char *name, struct sockaddr_in *sinp)
 
 void doit(struct sockaddr_in *sinp)
 {
-	char user[64], passwd[64], ubuf[64];
+	char user[64], passwd[64];
 	char *xpasswd, *crypt();
 	struct passwd *pw;
 	pid_t s;
@@ -172,7 +173,7 @@ void doit(struct sockaddr_in *sinp)
 	}
 	alarm(0);
 	sprintf(Username, "USER=%s", pw->pw_name);
-	sprintf(ubuf, "-u%s", pw->pw_name);
+	sprintf(Logname, "LOGNAME=%s", pw->pw_name);
 	if ((s = fork()) < 0)
 		syslog(LOG_ERR, "fork: %m");
 	else if (s == 0) {
@@ -181,7 +182,7 @@ void doit(struct sockaddr_in *sinp)
 		initgroups(pw->pw_name, pw->pw_gid);
 		chdir(pw->pw_dir);
 		setuid(pw->pw_uid);
-		execl(pw->pw_shell, "uucico", ubuf, NULL);
+		execl(pw->pw_shell, "uucico", NULL);
 		syslog(LOG_ERR, "execl: %m");
 	}
 	_exit(1);
