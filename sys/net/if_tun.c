@@ -108,7 +108,7 @@ tunattach(void)
 		ifp->if_mtu = TUNMTU;
 		ifp->if_ioctl = tunifioctl;
 		ifp->if_output = tunoutput;
-		ifp->if_flags = IFF_POINTOPOINT;
+		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		ifp->if_collisions = 0;
 		ifp->if_ierrors = 0;
@@ -238,6 +238,7 @@ tunifioctl(ifp, cmd, data)
 	int	cmd;
 	caddr_t	data;
 {
+	register struct ifreq *ifr = (struct ifreq *)data;
 	struct tun_softc *tp = &tunctl[ifp->if_unit];
 	int		error = 0, s;
 
@@ -253,6 +254,26 @@ tunifioctl(ifp, cmd, data)
 		TUNDEBUG("%s%d: destination address set\n",
 			 ifp->if_name, ifp->if_unit);
 		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifr == 0) {
+			error = EAFNOSUPPORT;		/* XXX */
+			break;
+		}
+		switch (ifr->ifr_addr.sa_family) {
+
+#ifdef INET
+		case AF_INET:
+			break;
+#endif
+
+		default:
+			error = EAFNOSUPPORT;
+			break;
+		}
+		break;
+
+
 	default:
 		error = EINVAL;
 	}
@@ -284,6 +305,14 @@ tunoutput(ifp, m0, dst, rt)
 	}
 
 #if NBPFILTER > 0
+	/* BPF write needs to be handled specially */
+	if (dst->sa_family == AF_UNSPEC) {
+		dst->sa_family = *(mtod(m0, int *));
+		m0->m_len -= sizeof(int);
+		m0->m_pkthdr.len -= sizeof(int);
+		m0->m_data += sizeof(int);
+	}
+
 	if (tp->tun_bpf) {
 		/*
 		 * We need to prepend the address family as
