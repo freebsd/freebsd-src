@@ -1947,8 +1947,10 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	char *p;
 
 	cnt = 0;
+	mtx_lock(&uma_mtx);
 	LIST_FOREACH(z, &uma_zones, uz_link)
 		cnt++;
+	mtx_unlock(&uma_mtx);
 	MALLOC(tmpbuf, char *, (cnt == 0 ? 1 : cnt) * linesize,
 			M_TEMP, M_WAITOK);
 	len = snprintf(tmpbuf, linesize,
