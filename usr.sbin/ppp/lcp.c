@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.43 1998/04/19 23:08:30 brian Exp $
+ * $Id: lcp.c,v 1.55.2.44 1998/04/23 03:22:55 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -464,6 +464,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         break;
       case MODE_REJ:
 	lcp->his_reject |= (1 << type);
+        lcp->want_mrru = 0;		/* Ah well, no multilink :-( */
 	break;
       }
       break;
@@ -476,7 +477,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
         mtu = lcp->fsm.bundle->cfg.mtu;
-        if (mru < MIN_MRU || mru < mtu) {
+        if (mru < MIN_MRU || (!lcp->want_mrru && mru < mtu)) {
           /* Push him up to MTU or MIN_MRU */
           lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
           *sp = htons((u_short)lcp->his_mru);
@@ -758,7 +759,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
       switch (mode_type) {
       case MODE_REQ:
-        if (IsAccepted(mp->cfg.shortseq)) {
+        if (lcp->want_mrru && IsAccepted(mp->cfg.shortseq)) {
           lcp->his_shortseq = 1;
 	  memcpy(dec->ackend, cp, length);
 	  dec->ackend += length;
