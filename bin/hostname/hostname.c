@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hostname.c,v 1.2 1994/09/24 02:55:40 davidg Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)hostname.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)hostname.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,12 +51,13 @@ static char sccsid[] = "@(#)hostname.c	8.1 (Berkeley) 5/31/93";
 #include <string.h>
 #include <unistd.h>
 
+void usage __P((void));
+
 int
 main(argc,argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	int ch, sflag;
 	char *p, hostname[MAXHOSTNAMELEN];
 
@@ -68,12 +69,13 @@ main(argc,argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-			    "usage: hostname [-s] [hostname]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (argc > 1)
+		usage();
 
 	if (*argv) {
 		if (sethostname(*argv, strlen(*argv)))
@@ -86,4 +88,12 @@ main(argc,argv)
 		(void)printf("%s\n", hostname);
 	}
 	exit(0);
+}
+
+void
+usage()
+{
+
+	(void)fprintf(stderr, "usage: hostname [-s] [hostname]\n");
+	exit(1);
 }
