@@ -103,6 +103,7 @@ struct ng_cookie {
 static const struct ng_cookie cookies[] = {
 	COOKIE(UI),
 	COOKIE(ASYNC),
+	COOKIE(BPF),
 	COOKIE(CISCO),
 	COOKIE(ECHO),
 	COOKIE(ETHER),
