@@ -159,6 +159,8 @@ ofw_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	int	error;
 
 	unit = minor(dev);
+	tp = ofw_tp;
+
 	if (unit != 0) {
 		return (ENXIO);
 	}
