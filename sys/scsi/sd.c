@@ -318,6 +318,18 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 */
 	if(errcode = sd_get_parms(unit, 0))	/* sets SDEV_MEDIA_LOADED */
 		goto bad;
+	switch (sd->params.secsiz) {
+	case 512:
+	case 1024:
+	case 2048:
+		break;
+	default:
+		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
+		    unit, sd->params.secsiz);
+		Debugger("sd");
+		errcode = ENXIO;
+		goto bad;
+	}
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
 
@@ -411,7 +423,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * check it's not too big a transfer for our adapter
 	 */
-	scsi_minphys(bp,&sd_switch);
+        scsi_minphys(bp,&sd_switch);
 
 	/*
 	 * Odd number of bytes or negative offset
@@ -837,29 +849,6 @@ sd_get_parms(unit, flags)
 		disk_parms->cyls = scsi_3btou(&scsi_sense.pages.rigid_geometry.ncyl_2);
 		disk_parms->secsiz = scsi_3btou(scsi_sense.blk_desc.blklen);
 
-		switch (sd->params.secsiz) {
- 		case 528:/*
-			 * This is not the correct fix but will do till
-			 * I get to my scsi docs. Some drives return this value
-			 * for physical size when actually presenting
-			 * a 512 byte logical sector size. The correct
-			 * fix involves figuring out what hte correct
-			 * command sequence is to get teh logical blocksize,
-			 * and figuring out what to do if it doesn't
-			 * work on an old drive. Possibly only do this
-		 	 * if the value here is not a power of 2.
-			 */
- 		       sd->params.secsiz = 512;
-		case 512:
-		case 1024:
-		case 2048:
-			break;
-		default:
-			printf("sd%ld: Can't deal with %d byte blocks\n",
-		    	unit, sd->params.secsiz);
-			Debugger("sd");
-			return (ENXIO);
-		}
 		sectors = sd_size(unit, flags);
 		disk_parms->disksize = sectors;
 		/* Check if none of these values are zero */
