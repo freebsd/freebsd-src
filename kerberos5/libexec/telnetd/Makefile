@@ -16,10 +16,18 @@ CFLAGS+=	-DKRB5
 
 WARNS?=		2
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
+DPADD=
+LDADD=
+
+.if defined(MAKE_KERBEROS4)
+DPADD+=		${LIBKRB} ${LIBCOM_ERR}
+LDADD+=		-lkrb -lcom_err
+.endif
+
+DPADD+=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
 		${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} \
 		${LIBCRYPT} ${LIBPAM}
-LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+LDADD+=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
 		-L${KRB5OBJDIR} -lkrb5 -L${ASN1OBJDIR} -lasn1 \
 		-L${ROKENOBJDIR} -lroken -lcom_err \
 		-lcrypt ${MINUSLPAM}
