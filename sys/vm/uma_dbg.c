@@ -119,7 +119,9 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 
 	mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
 	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+		mtx_lock(&malloc_mtx);
 		slab = hash_sfind(mallochash, mem);
+		mtx_unlock(&malloc_mtx);
 	} else if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
 		ZONE_LOCK(zone);
 		slab = hash_sfind(&zone->uz_hash, mem);
