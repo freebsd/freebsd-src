@@ -6,12 +6,11 @@ and Peter Weinberger (Addison-Wesley, 1988, ISBN 0-201-07981-X).
 
 Original source were taken from Brian Kernighan's home page
 (http://cm.bell-labs.com/who/bwk/) and include bug fixes up thru
-February 10, 2002.
+Novembe 29, 2002.
 
 The following files were removed for this import:
 
 	buildwin.bat
-	makefile
 	makefile.win
 	missing95.c
 	ytab.c
@@ -21,4 +20,4 @@ The following files were removed for this import:
 
 The vendor import was done by:
 
-	cvs import src/contrib/one-true-awk BELL_LABS bwk_20020101
+	cvs import src/contrib/one-true-awk BELL_LABS bwk_20021129
