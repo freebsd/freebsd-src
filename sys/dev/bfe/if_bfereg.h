@@ -416,6 +416,7 @@
 
 #define BCOM_VENDORID           0x14E4
 #define BCOM_DEVICEID_BCM4401   0x4401
+#define BCOM_DEVICEID_BCM4401B0	0x170c
 
 #define PCI_SETBIT(dev, reg, x, s)  \
     pci_write_config(dev, reg, (pci_read_config(dev, reg, s) | (x)), s)
