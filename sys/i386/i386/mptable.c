@@ -549,17 +549,10 @@ conforming_polarity(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
+	case EISA:
 		return (INTR_POLARITY_HIGH);
 	case PCI:
 		return (INTR_POLARITY_LOW);
-#ifndef PC98
-	case EISA:
-		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
-		if (elcr_read_trigger(src_bus_irq) == INTR_TRIGGER_LEVEL)
-			return (INTR_POLARITY_LOW);
-		else
-			return (INTR_POLARITY_HIGH);
-#endif
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
