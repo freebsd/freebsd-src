@@ -10,7 +10,7 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 		sio.o
 
 # A value of 0x80 enables LBA support.
-B1FLAGS=	0
+B1FLAGS=	0x80
 
 BOOT_COMCONSOLE_PORT?= 0x3f8
 BOOT_COMCONSOLE_SPEED?= 9600
