@@ -115,6 +115,8 @@ mbufstrcmp(struct mbuf *m, struct mbuf *npkt, int offset, char *cmp)
 				else if (*cmp != *(mtod(m, char *) + offset))
 					return (0);
 			}
+			if (*cmp == '\0')
+				return (1);
 			offset = 0;
 		}
 	}
@@ -142,6 +144,8 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 				else if (*cmp != *(mtod(m, char *) + offset))
 					return (0);
 			}
+			if (max == 0 || *cmp == '\0')
+				return (1);
 			offset = 0;
 		}
 	}
