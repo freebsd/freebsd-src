@@ -118,6 +118,9 @@ g_mbr_start(struct bio *bp)
 	if (bp->bio_cmd == BIO_GETATTR) {
 		if (g_handleattr_int(bp, "MBR::type", mp->type[index]))
 			return (1);
+		if (g_handleattr_off_t(bp, "MBR::offset",
+		    gsp->slices[index].offset))
+			return (1);
 	}
 	return (0);
 }
@@ -128,9 +131,13 @@ g_mbr_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 	struct g_mbr_softc *mp;
 	struct g_slicer *gsp;
 
-	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	gsp = gp->softc;
 	mp = gsp->softc;
+	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	if (indent == NULL) {
+		sbuf_printf(sb, " ty %d", mp->type[pp->index]);
+		return;
+	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<type>%d</type>\n",
 		    indent, mp->type[pp->index]);
@@ -222,11 +229,17 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			    dp + i);
 		g_free(buf);
 		if (bcmp(dp, historical_bogus_partition_table,
-		    sizeof historical_bogus_partition_table) == 0)
+		    sizeof historical_bogus_partition_table) == 0) {
+			if (bootverbose)
+				printf("Ignoring known bogus MBR #0\n");
 			break;
+		}
 		if (bcmp(dp, historical_bogus_partition_table_fixed,
-		    sizeof historical_bogus_partition_table_fixed) == 0)
+		    sizeof historical_bogus_partition_table_fixed) == 0) {
+			if (bootverbose)
+				printf("Ignoring known bogus MBR #1\n");
 			break;
+		}
 		npart = 0;
 		for (i = 0; i < NDOSPART; i++) {
 			if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)

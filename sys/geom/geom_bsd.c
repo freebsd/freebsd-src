@@ -70,6 +70,7 @@
  */
 struct g_bsd_softc {
 	off_t	labeloffset;
+	off_t	mbroffset;
 	off_t	rawoffset;
 	struct disklabel ondisk;
 	struct disklabel inram;
@@ -227,13 +228,10 @@ ondisk2inram(struct g_bsd_softc *sc)
 			sc->rawoffset = 0;
 	}
 	if (sc->rawoffset > 0) {
-
-		if (dl->d_partitions[RAW_PART].p_size +
-		    sc->rawoffset == dl->d_secperunit) {
-		}
 		for (i = 0; i < dl->d_npartitions; i++) {
 			ppp = &dl->d_partitions[i];
-			ppp->p_offset -= sc->rawoffset;
+			if (ppp->p_offset != 0)
+				ppp->p_offset -= sc->rawoffset;
 		}
 	}
 	dl->d_checksum = 0;
@@ -247,10 +245,15 @@ inram2ondisk(struct g_bsd_softc *sc)
 	int i;
 
 	sc->ondisk = sc->inram;
+	if (sc->mbroffset != 0)
+		sc->rawoffset = sc->mbroffset / sc->inram.d_secsize; 
 	if (sc->rawoffset != 0) {
 		for (i = 0; i < sc->inram.d_npartitions; i++) {
 			ppp = &sc->ondisk.d_partitions[i];
-			ppp->p_offset += sc->rawoffset;
+			if (ppp->p_size > 0) 
+				ppp->p_offset += sc->rawoffset;
+			else
+				ppp->p_offset = 0;
 		}
 	}
 	sc->ondisk.d_checksum = 0;
@@ -595,11 +598,15 @@ g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 
 	gsp = gp->softc;
 	ms = gsp->softc;
-	if (pp == NULL && cp == NULL) {
+	g_slice_dumpconf(sb, indent, gp, cp, pp);
+	if (indent != NULL && pp == NULL && cp == NULL) {
 		sbuf_printf(sb, "%s<labeloffset>%jd</labeloffset>\n",
 		    indent, (intmax_t)ms->labeloffset);
+		sbuf_printf(sb, "%s<rawoffset>%jd</rawoffset>\n",
+		    indent, (intmax_t)ms->rawoffset);
+		sbuf_printf(sb, "%s<mbroffset>%jd</mbroffset>\n",
+		    indent, (intmax_t)ms->mbroffset);
 	}
-	g_slice_dumpconf(sb, indent, gp, cp, pp);
 }
 
 /*
@@ -693,6 +700,9 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		error = g_getattr("MBR::type", cp, &i);
 		if (!error && i != 165 && flags == G_TF_NORMAL)
 			break;
+
+		ms->mbroffset = 0;
+		g_getattr("MBR::offset", cp, &ms->mbroffset);
 
 		/* Get sector size, we need it to read data. */
 		secsize = cp->provider->sectorsize;
