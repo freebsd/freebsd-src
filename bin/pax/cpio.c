@@ -354,16 +354,21 @@ cpio_rd(arcn, buf)
 	arcn->sb.st_nlink = (nlink_t)asc_ul(hd->c_nlink, sizeof(hd->c_nlink),
 	    OCT);
 	arcn->sb.st_rdev = (dev_t)asc_ul(hd->c_rdev, sizeof(hd->c_rdev), OCT);
+#ifdef NET2_STAT
 	arcn->sb.st_mtime = (time_t)asc_ul(hd->c_mtime, sizeof(hd->c_mtime),
 	    OCT);
+#else
+	arcn->sb.st_mtime = (time_t)asc_uqd(hd->c_mtime, sizeof(hd->c_mtime),
+	    OCT);
+#endif
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
-#	ifdef NET2_STAT
+#ifdef NET2_STAT
 	arcn->sb.st_size = (off_t)asc_ul(hd->c_filesize,sizeof(hd->c_filesize),
 	    OCT);
-#	else
+#else
 	arcn->sb.st_size = (off_t)asc_uqd(hd->c_filesize,sizeof(hd->c_filesize),
 	    OCT);
-#	endif
+#endif
 
 	/*
 	 * check name size and if valid, read in the name of this entry (name
@@ -682,15 +687,19 @@ vcpio_rd(arcn, buf)
 	arcn->sb.st_mode = (mode_t)asc_ul(hd->c_mode, sizeof(hd->c_mode), HEX);
 	arcn->sb.st_uid = (uid_t)asc_ul(hd->c_uid, sizeof(hd->c_uid), HEX);
 	arcn->sb.st_gid = (gid_t)asc_ul(hd->c_gid, sizeof(hd->c_gid), HEX);
+#ifdef NET2_STAT
 	arcn->sb.st_mtime = (time_t)asc_ul(hd->c_mtime,sizeof(hd->c_mtime),HEX);
+#else
+	arcn->sb.st_mtime = (time_t)asc_uqd(hd->c_mtime,sizeof(hd->c_mtime),HEX);
+#endif
 	arcn->sb.st_ctime = arcn->sb.st_atime = arcn->sb.st_mtime;
-#	ifdef NET2_STAT
+#ifdef NET2_STAT
 	arcn->sb.st_size = (off_t)asc_ul(hd->c_filesize,
 	    sizeof(hd->c_filesize), HEX);
-#	else
+#else
 	arcn->sb.st_size = (off_t)asc_uqd(hd->c_filesize,
 	    sizeof(hd->c_filesize), HEX);
-#	endif
+#endif
 	arcn->sb.st_nlink = (nlink_t)asc_ul(hd->c_nlink, sizeof(hd->c_nlink),
 	    HEX);
 	devmajor = (dev_t)asc_ul(hd->c_maj, sizeof(hd->c_maj), HEX);
