@@ -1086,7 +1086,7 @@ modlist_lookup2(const char *name, struct mod_depend *verinfo)
 			return (mod);
 		if (ver >= verinfo->md_ver_minimum &&
 		    ver <= verinfo->md_ver_maximum &&
-		    ver > bestmod->version)
+		    (bestmod == NULL || ver > bestmod->version))
 			bestmod = mod;
 	}
 	return (bestmod);
