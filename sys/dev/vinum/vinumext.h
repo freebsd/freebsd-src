@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.27 2001/05/22 04:07:22 grog Exp grog $
+ * $Id: vinumext.h,v 1.31 2003/04/25 08:01:37 grog Exp $
  * $FreeBSD$
  */
 
@@ -84,7 +84,7 @@ int my_plex(int volno, int plexno);
 int my_sd(int plexno, int sdno);
 int get_empty_drive(void);
 int find_drive(const char *name, int create);
-int find_drive_by_dev(const char *devname, int create);
+int find_drive_by_name(const char *devname, int create);
 int get_empty_sd(void);
 int find_subdisk(const char *name, int create);
 void return_drive_space(int driveno, int64_t offset, int length);
@@ -126,7 +126,6 @@ int init_drive(struct drive *, int);
 /* void throw_rude_remark (int, struct _ioctl_reply *, char *, ...); XXX */
 void throw_rude_remark(int, char *,...);
 
-/* XXX die die */
 void format_config(char *config, int len);
 void checkkernel(char *op);
 void free_drive(struct drive *drive);
@@ -141,6 +140,7 @@ d_close_t vinumclose;
 d_strategy_t vinumstrategy;
 d_ioctl_t vinumioctl;
 
+int vinum_super_ioctl(dev_t, u_long, caddr_t);
 int vinumstart(struct buf *bp, int reviveok);
 int launch_requests(struct request *rq, int reviveok);
 void sdio(struct buf *bp);

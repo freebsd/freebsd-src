@@ -1,15 +1,3 @@
-/*
- * To do:
- *
- * Don't store drive configuration on the config DB: read each drive's header
- * to decide where it is.
- *
- * Accept any old crap in the config_<foo> functions, and complain when
- * we try to bring it up.
- *
- * When trying to bring volumes up, check that the complete address range
- * is covered.
- */
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -45,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.38 2003/04/28 02:54:07 grog Exp $
  * $FreeBSD$
  */
 
@@ -85,10 +73,11 @@ struct putchar_arg {
 
 #define MSG_MAX 1024					    /* maximum length of a formatted message */
 /*
- * Format an error message and return to the user in the reply.
- * CARE: This routine is designed to be called only from the
- * configuration routines, so it assumes it's the owner of
- * the configuration lock, and unlocks it on exit
+ * Format an error message and return to the user
+ * in the reply.  CARE: This routine is designed
+ * to be called only from the configuration
+ * routines, so it assumes it's the owner of the
+ * configuration lock, and unlocks it on exit.
  */
 void
 throw_rude_remark(int error, char *msg,...)
@@ -99,8 +88,8 @@ throw_rude_remark(int error, char *msg,...)
     static int finishing;				    /* don't recurse */
     int was_finishing;
 
-    if ((vinum_conf.flags & VF_LOCKED) == 0)    	    /* bug catcher */
-	panic ("throw_rude_remark: called without config lock");
+    if ((vinum_conf.flags & VF_LOCKED) == 0)		    /* bug catcher */
+	panic("throw_rude_remark: called without config lock");
     va_start(ap, msg);
     if ((ioctl_reply != NULL)				    /* we're called from the user */
     &&(!(vinum_conf.flags & VF_READING_CONFIG))) {	    /* and not reading from disk: return msg */
@@ -139,9 +128,9 @@ throw_rude_remark(int error, char *msg,...)
     /*
      * We have a problem here: we want to unlock the
      * configuration, which implies tidying up, but
-     * if we find an error while tidying up, we could
-     * recurse for ever.  Use this kludge to only try
-     * once
+     * if we find an error while tidying up, we
+     * could recurse for ever.  Use this kludge to
+     * only try once.
      */
     was_finishing = finishing;
     finishing = 1;
@@ -472,7 +461,7 @@ get_empty_drive(void)
     bzero(drive, sizeof(struct drive));
     drive->driveno = driveno;				    /* put number in structure */
     drive->flags |= VF_NEWBORN;				    /* newly born drive */
-    strcpy("unknown", drive->devicename);		    /* and make the name ``unknown'' */
+    strcpy(drive->devicename, "unknown");		    /* and make the name ``unknown'' */
     return driveno;					    /* return the index */
 }
 
@@ -519,7 +508,7 @@ find_drive(const char *name, int create)
  * Otherwise the same as find_drive above
  */
 int
-find_drive_by_dev(const char *devname, int create)
+find_drive_by_name(const char *devname, int create)
 {
     int driveno;
     struct drive *drive;
@@ -562,6 +551,11 @@ get_empty_sd(void)
 	 * We've run out of space.  sdno is pointing
 	 * where we want it, but at the moment we
 	 * don't have the space.  Get it.
+	 *
+	 * XXX We should check for overflow here.  We
+	 * shouldn't allocate more than VINUM_MAXSD
+	 * subdisks (currently at least a quarter of a
+	 * million).
 	 */
 	EXPAND(SD, struct sd, vinum_conf.subdisks_allocated, INITIAL_SUBDISKS);
 
@@ -814,7 +808,7 @@ free_plex(int plexno)
 	Free(plex->sdnos);
     if (plex->lock)
 	Free(plex->lock);
-    if (isstriped (plex))
+    if (isstriped(plex))
 	mtx_destroy(&plex->lockmtx);
     destroy_dev(plex->dev);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
@@ -927,7 +921,7 @@ config_drive(int update)
 	switch (get_keyword(token[parameter], &keyword_set)) {
 	case kw_device:
 	    parameter++;
-	    otherdriveno = find_drive_by_dev(token[parameter], 0); /* see if it exists already */
+	    otherdriveno = find_drive_by_name(token[parameter], 0); /* see if it exists already */
 	    if (otherdriveno >= 0) {			    /* yup, */
 		drive->state = drive_unallocated;	    /* deallocate the drive */
 		throw_rude_remark(EEXIST,		    /* and complain */
@@ -1231,10 +1225,18 @@ config_subdisk(int update)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
     if (sd->dev == NULL)
-        sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_RAWSD_TYPE),
+	/*
+	 * sdno can (at least theoretically) overflow
+	 * into the low order bit of the type field.
+	 * This gives rise to a subdisk with type
+	 * VINUM_SD2_TYPE.  This is a feature, not a
+	 * bug.
+	 */
+	sd->dev = make_dev(&vinum_cdevsw,
+	    VINUMMINOR(sdno, VINUM_SD_TYPE),
 	    UID_ROOT,
 	    GID_OPERATOR,
- 	    S_IRUSR | S_IWUSR | S_IRGRP,
+	    S_IRUSR | S_IWUSR | S_IRGRP,
 	    "vinum/sd/%s",
 	    sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
@@ -1425,14 +1427,14 @@ config_plex(int update)
     plex->state = state;				    /* set whatever state we chose */
     vinum_conf.plexes_used++;				    /* one more in use */
     if (plex->dev == NULL)
-        plex->dev = make_dev(&vinum_cdevsw,
-	    VINUMRMINOR(plexno, VINUM_RAWPLEX_TYPE),
+	plex->dev = make_dev(&vinum_cdevsw,
+	    VINUMMINOR(plexno, VINUM_PLEX_TYPE),
 	    UID_ROOT,
 	    GID_OPERATOR,
-            S_IRUSR | S_IWUSR | S_IRGRP,
-            "vinum/plex/%s",
-            plex->name);
-    }
+	    S_IRUSR | S_IWUSR | S_IRGRP,
+	    "vinum/plex/%s",
+	    plex->name);
+}
 
 /*
  * Handle a volume definition.
@@ -1561,13 +1563,13 @@ config_volume(int update)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
     vinum_conf.volumes_used++;				    /* one more in use */
     if (vol->dev == NULL)
-        vol->dev = make_dev(&vinum_cdevsw,
-            VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
-            UID_ROOT,
-            GID_OPERATOR,
-            S_IRUSR | S_IWUSR | S_IRGRP,
-            "vinum/%s",
-            vol->name);
+	vol->dev = make_dev(&vinum_cdevsw,
+	    VINUMMINOR(volno, VINUM_VOLUME_TYPE),
+	    UID_ROOT,
+	    GID_OPERATOR,
+	    S_IRUSR | S_IWUSR | S_IRGRP,
+	    "vinum/%s",
+	    vol->name);
 }
 
 /*
