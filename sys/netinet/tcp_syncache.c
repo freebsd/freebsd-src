@@ -657,7 +657,7 @@ syncache_socket(sc, lso)
 	tp->rcv_wnd = sc->sc_wnd;
 	tp->rcv_adv += tp->rcv_wnd;
 
-	tp->t_flags = sc->sc_tp->t_flags & TF_NOPUSH;
+	tp->t_flags = sc->sc_tp->t_flags & (TF_NOPUSH|TF_NODELAY);
 	if (sc->sc_flags & SCF_NOOPT)
 		tp->t_flags |= TF_NOOPT;
 	if (sc->sc_flags & SCF_WINSCALE) {
