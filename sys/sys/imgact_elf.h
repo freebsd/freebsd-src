@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: imgact_elf.h,v 1.1 1996/03/10 08:42:52 sos Exp $
  */
 
 #ifndef _IMGACT_ELF_H_
@@ -67,6 +67,8 @@ typedef struct {
 #define EI_CLASS	4
 #define EI_DATA		5
 #define EI_VERSION	6
+#define EI_SPARE	8
+#define EI_BRAND	8
 
 
 #define ELFMAG0		'\177'
@@ -200,14 +202,15 @@ typedef struct {
 } Elf32_Auxargs;
 
 typedef struct {
-        struct sysentvec *sysvec;
-	char *path;
+	char *brand;
 	char *emul_path;
-} Elf32_Interp_info;
+	char *interp_path;
+        struct sysentvec *sysvec;
+} Elf32_Brandinfo;
 
-#define MAX_INTERP      8
+#define MAX_BRANDS      8
 
-int elf_insert_interp __P((Elf32_Interp_info *entry));
-int elf_remove_interp __P((Elf32_Interp_info *entry));
+int elf_insert_brand_entry __P((Elf32_Brandinfo *entry));
+int elf_remove_brand_entry __P((Elf32_Brandinfo *entry));
 
 #endif /* _IMGACT_ELF_H_ */
