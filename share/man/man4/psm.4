@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: psm.4,v 1.12 1998/03/12 07:30:36 charnier Exp $
+.\" $Id: psm.4,v 1.13 1998/10/22 14:36:55 bde Exp $
 .\"
 .Dd December 3, 1997
 .Dt PSM 4 i386
@@ -288,6 +288,43 @@ psmintr: out of sync (xxxx != yyyy).
 .Ed
 .Pp
 set this flag to disable synchronization check and see if it helps.
+.It bit 9 NOIDPROBE
+The
+.Nm
+driver will not try to identify the model of the pointing device and
+will not carry out model-specific initialization.
+The device should always act like a standard PS/2 mouse without such
+initialization.
+Extra features, such as wheels and additional buttons, won't be 
+recognized by the
+.Nm
+driver.
+.It bit 10 NORESET
+When this flag is set, the
+.Nm
+driver won't reset the pointing device when initializing the device.
+If the FreeBSD kernel
+is started after another OS has run, the pointing device will inherit
+settings from the previous OS.
+However, because there is no way for the
+.Nm
+driver to know the settings, the device and the driver may not
+work correctly.
+The flag should never be necessary under normal circumstances.
+.It bit 11 FORCETAP
+Some pad devices report as if the fourth button is pressed
+when the user `taps' the surface of the device (see
+.Sx CAVEATS ) .
+This flag will make the
+.Nm
+driver assume that the device behaves this way.
+Without the flag, the driver will assume this behavior
+for ALPS GlidePoint models only.
+.It bit 12 IGNOREPORTERROR
+This flag makes
+.Nm
+driver ignore certain error conditions when probing the PS/2 mouse port.
+It should never be necessary under normal circumstances.
 .El
 .Sh IOCTLS
 There are a few 
