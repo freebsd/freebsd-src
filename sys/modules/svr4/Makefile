@@ -12,9 +12,6 @@ SRCS=	svr4_sysent.c svr4_sysvec.c opt_compat.h opt_svr4.h opt_vmpage.h \
 	svr4_stream.c svr4_socket.c svr4_sockio.c svr4_machdep.c \
 	svr4_resource.c svr4_ipc.c
 OBJS=	svr4_locore.o 
-.if exists(${DESTDIR}/usr/share/man/man8)
-MAN8=	svr4.8
-.endif
 
 EXPORT_SYMS=_svr4_mod
 CLEANFILES= svr4_assym.h svr4_genassym.o
