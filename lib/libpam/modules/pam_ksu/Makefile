@@ -22,21 +22,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
-
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+# $FreeBSD$
 
 LIB=		pam_ksu
 SRCS=		pam_ksu.c
-CFLAGS+=	-Wall
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
 DPADD=		${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBCOM_ERR} ${LIBROKEN}
-LDADD=		-lkrb5 -lasn1 -lcrypto -lcrypt -lcom_err \
-		-L${.OBJDIR}/../../../../kerberos5/lib/libroken -lroken 
+LDADD=		-lkrb5 -lasn1 -lcrypto -lcrypt \
+		-lcom_err -lroken
 MAN=		pam_ksu.8
-#INTERNALLIB=	yes
-#INTERNALSTATICLIB=yes
 
 .include <bsd.lib.mk>
