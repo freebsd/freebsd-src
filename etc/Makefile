@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.74 1994/06/28 05:37:04 jkh Exp $
+#	$Id: Makefile,v 1.75 1994/06/29 11:06:30 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -429,6 +429,7 @@ bin-tarball:
 
 src-clean:
 	(cd ${DESTDIR}/usr/src; make cleandist)
+	find ${DESTDIR}/usr/src -name obj | xargs -n30 rm -rf
 	chown -R bin:bin ${DESTDIR}/usr/src
 	chmod -R og-w ${DESTDIR}/usr/src
 
