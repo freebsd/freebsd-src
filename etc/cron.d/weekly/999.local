@@ -1,0 +1,10 @@
+#!/bin/sh -
+#
+# $Id$
+#
+
+if [ -f /etc/weekly.local ]; then
+    echo ""
+    echo "Running weekly.local:"
+    sh /etc/weekly.local
+fi

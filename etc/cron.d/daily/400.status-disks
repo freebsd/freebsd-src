@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# $Id$
+#
+
+echo ""
+echo "Disk status:"
+
+df -k -t nonfs
+
+# display which filesystems need backing up
+
+echo ""
+dump W
