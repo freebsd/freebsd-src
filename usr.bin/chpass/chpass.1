@@ -63,11 +63,23 @@
 .Sh DESCRIPTION
 The
 .Nm
-program
+command
 allows editing of the user database information associated
 with
 .Ar user
 or, by default, the current user.
+.Pp
+The
+.Xr chfn 1 ,
+.Xr chsh 1 ,
+.Xr ypchpass 1 ,
+.Xr ypchfn 1
+and
+.Xr ypchsh 1
+commands behave identically to
+.Nm .
+.Pq There is only one program.
+.Pp
 The information is formatted and supplied to an editor for changes.
 .Pp
 Only the information that the user is allowed to change is displayed.
@@ -469,16 +481,6 @@ and
 .%A Ken Thompson
 .%T "UNIX Password security"
 .Re
-.Sh NOTES
-The
-.Xr chfn 1 ,
-.Xr chsh 1 ,
-.Xr ypchpass 1 ,
-.Xr ypchfn 1
-and
-.Xr ypchsh 1
-commands are really only links to
-.Nm .
 .Sh BUGS
 User information should (and eventually will) be stored elsewhere.
 .Sh HISTORY
