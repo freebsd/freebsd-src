@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.100 1998/05/25 17:34:37 sos Exp $
+#	$Id: Makefile,v 1.101 1998/05/31 10:48:06 jb Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -36,7 +36,7 @@ SUBDIR+=telnet
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar brandelf dig dnsquery doscmd fstat gcore gprof gprof4 host ipcrm \
-	ipcs kdump ktrace lorder modstat mt netstat nfsstat nm objformat \
+	ipcs kdump ktrace ldd lorder modstat mt netstat nfsstat nm objformat \
 	ranlib sasc size strings strip systat top truss vmstat w
 .endif
 
