@@ -70,9 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
-#if (LINUX_IFNAMSIZ != IFNAMSIZ)
-#error "LINUX_IFNAMSIZ != IFNAMSIZ"
-#endif
+CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_vfat;
