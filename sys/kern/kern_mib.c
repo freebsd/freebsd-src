@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.20 1999/05/03 23:57:21 billf Exp $
+ * $Id: kern_mib.c,v 1.21 1999/07/19 09:13:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -245,3 +245,7 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD,
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, proc, CTLFLAG_RD, 
     0, sizeof(struct proc), "sizeof(struct proc)");
+
+#include <miscfs/specfs/specdev.h>
+SYSCTL_INT(_debug_sizeof, OID_AUTO, specinfo, CTLFLAG_RD,
+    0, sizeof(struct specinfo), "sizeof(struct specinfo)");
