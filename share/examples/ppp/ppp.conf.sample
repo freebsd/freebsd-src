@@ -733,9 +733,6 @@ loginprompt:
 #
 pppoe:
  set device PPPoE:de0:pppoe-in
- set mru 1492
- set mtu 1492
- set speed sync   
  enable lqr
  set cd 5
  set dial
@@ -750,9 +747,6 @@ pppoe:
 #
 pppoe-in:
  allow mode direct				# Only for use on server-side
- set mru 1492					# Max allowed by the PPPoE spec
- set mtu 1492					# Max allowed by the PPPoE spec
- set speed sync					# PPPoE is always synchronous
  enable lqr proxy				# Enable LQR and proxy-arp
  enable chap pap passwdauth			# Force client authentication
  set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199	# Hand out up to 100 IP numbers
