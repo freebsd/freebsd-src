@@ -19,6 +19,7 @@ DATA1:=	${DATA5:S/l/r/g}
 NIL=
 
 all:
+	@if [ ! -x ${.CURDIR}/shell_test ] ; then chmod +x ${.CURDIR}/shell_test ; fi
 	@echo '1..16'
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
 		diff -u ${.CURDIR}/regress.variables.out - || ${MAKE} failure
