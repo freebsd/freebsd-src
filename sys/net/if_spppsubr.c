@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.19 1997/05/19 22:03:09 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.20 1997/05/20 22:54:04 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -635,6 +635,7 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_if.if_type = IFT_PPP;
 	sp->pp_if.if_output = sppp_output;
 	sp->pp_fastq.ifq_maxlen = 32;
+	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
 	sp->pp_alivecnt = 0;
 	sp->pp_seq = 0;
@@ -678,6 +679,7 @@ sppp_flush(struct ifnet *ifp)
 
 	sppp_qflush (&sp->pp_if.if_snd);
 	sppp_qflush (&sp->pp_fastq);
+	sppp_qflush (&sp->pp_cpq);
 }
 
 /*
@@ -690,7 +692,8 @@ sppp_isempty(struct ifnet *ifp)
 	int empty, s;
 
 	s = splimp();
-	empty = !sp->pp_fastq.ifq_head && !sp->pp_if.if_snd.ifq_head;
+	empty = !sp->pp_fastq.ifq_head && !sp->pp_cpq.ifq_head &&
+		!sp->pp_if.if_snd.ifq_head;
 	splx(s);
 	return (empty);
 }
@@ -706,11 +709,30 @@ sppp_dequeue(struct ifnet *ifp)
 	int s;
 
 	s = splimp();
-	IF_DEQUEUE (&sp->pp_fastq, m);
-	if (! m)
-		IF_DEQUEUE (&sp->pp_if.if_snd, m);
-	splx (s);
-	return (m);
+	/*
+	 * Process only the control protocol queue until we are in
+	 * network phase.
+	 *
+	 * XXX Network phase itself is still not a sufficient test, we
+	 * normally should keep a separate queue for each supported
+	 * protocol family, and only serve these queues as the
+	 * respective NCPs were opened.  The simplistic logic used
+	 * here might cause some loss of network traffic while the
+	 * NCPs are being negotiated, in particular if the NCPs take a
+	 * long time to negotiate.
+	 *
+	 * Do always serve all three queues in Cisco mode.
+	 */
+	IF_DEQUEUE(&sp->pp_cpq, m);
+	if (m == NULL &&
+	    (sp->pp_phase == PHASE_NETWORK ||
+	     (sp->pp_flags & PP_CISCO) != 0)) {
+		IF_DEQUEUE(&sp->pp_fastq, m);
+		if (m == NULL)
+			IF_DEQUEUE (&sp->pp_if.if_snd, m);
+	}
+	splx(s);
+	return m;
 }
 
 /*
@@ -752,8 +774,10 @@ sppp_ioctl(struct ifnet *ifp, int cmd, void *data)
 			ifp->if_flags |= IFF_RUNNING;
 			if (!(sp->pp_flags & PP_CISCO))
 				lcp.Open(sp);
-		} else if (going_down)
+		} else if (going_down) {
+			sppp_flush(ifp);
 			ifp->if_flags &= ~IFF_RUNNING;
+		}
 
 		break;
 
@@ -847,7 +871,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 				sp->pp_loopcnt = 0;
 				if (ifp->if_flags & IFF_UP) {
 					if_down (ifp);
-					sppp_qflush (&sp->pp_fastq);
+					sppp_qflush (&sp->pp_cpq);
 				}
 			}
 			++sp->pp_loopcnt;
@@ -918,11 +942,12 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 			ifp->if_name, ifp->if_unit, ntohl (ch->type), ch->par1,
 			ch->par2, ch->rel, ch->time0, ch->time1);
 
-	if (IF_QFULL (&sp->pp_fastq)) {
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&sp->pp_fastq);
 		IF_DROP (&ifp->if_snd);
 		m_freem (m);
 	} else
-		IF_ENQUEUE (&sp->pp_fastq, m);
+		IF_ENQUEUE (&sp->pp_cpq, m);
 	if (! (ifp->if_flags & IFF_OACTIVE))
 		(*ifp->if_start) (ifp);
 	ifp->if_obytes += m->m_pkthdr.len + 3;
@@ -974,12 +999,13 @@ sppp_cp_send(struct sppp *sp, u_short proto, u_char type,
 			sppp_print_bytes ((u_char*) (lh+1), len);
 		addlog(">\n");
 	}
-	if (IF_QFULL (&sp->pp_fastq)) {
+	if (IF_QFULL (&sp->pp_cpq)) {
+		IF_DROP (&sp->pp_fastq);
 		IF_DROP (&ifp->if_snd);
 		m_freem (m);
 		++ifp->if_oerrors;
 	} else
-		IF_ENQUEUE (&sp->pp_fastq, m);
+		IF_ENQUEUE (&sp->pp_cpq, m);
 	if (! (ifp->if_flags & IFF_OACTIVE))
 		(*ifp->if_start) (ifp);
 	ifp->if_obytes += m->m_pkthdr.len + 3;
@@ -1270,7 +1296,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			/* Line loopback mode detected. */
 			printf("%s%d: loopback\n", ifp->if_name, ifp->if_unit);
 			if_down (ifp);
-			sppp_qflush (&sp->pp_fastq);
+			sppp_qflush (&sp->pp_cpq);
 
 			/* Shut down the PPP link. */
 			/* XXX */
@@ -1734,7 +1760,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				sp->pp_loopcnt = 0;
 				if (ifp->if_flags & IFF_UP) {
 					if_down(ifp);
-					sppp_qflush(&sp->pp_fastq);
+					sppp_qflush(&sp->pp_cpq);
 					/* XXX ? */
 					lcp.Down(sp);
 					lcp.Up(sp);
@@ -2519,7 +2545,7 @@ sppp_keepalive(void *dummy)
 			/* No keepalive packets got.  Stop the interface. */
 			printf ("%s%d: down\n", ifp->if_name, ifp->if_unit);
 			if_down (ifp);
-			sppp_qflush (&sp->pp_fastq);
+			sppp_qflush (&sp->pp_cpq);
 			if (! (sp->pp_flags & PP_CISCO)) {
 				/* XXX */
 				/* Shut down the PPP link. */
