@@ -55,6 +55,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     int devminor;					    /* minor devs for disk device */
     int unit;
     char *dname;
+    struct cdevsw *dsw;					    /* pointer to cdevsw entry */
 
     if (bcmp(drive->devicename, "/dev/", 5))		    /* device name doesn't start with /dev */
 	return ENOENT;					    /* give up */
@@ -83,7 +84,10 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	devmajor = 43;
     else if (bcmp(dname, "md", 2) == 0)
 	devmajor = 95;
-    else
+    else if (bcmp(dname, "amrd", 4) == 0) {
+	devmajor = 133;
+	dname += 2;
+    } else
 	return ENODEV;
     dname += 2;						    /* point past */
 
@@ -121,7 +125,11 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	return ENODEV;
 
     drive->dev->si_iosize_max = DFLTPHYS;
-    drive->lasterror = (*devsw(drive->dev)->d_open) (drive->dev, FWRITE, 0, NULL);
+    dsw = devsw(drive->dev);
+    if (dsw == NULL)
+	drive->lasterror = ENOENT;
+    else
+	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE, 0, NULL);
 
     if (drive->lasterror != 0) {			    /* failed */
 	drive->state = drive_down;			    /* just force it down */
@@ -190,31 +198,28 @@ set_drive_parms(struct drive *drive)
 int
 init_drive(struct drive *drive, int verbose)
 {
-    int error;
-
     if (drive->devicename[0] != '/') {
 	drive->lasterror = EINVAL;
 	log(LOG_ERR, "vinum: Can't open drive without drive name\n");
 	return EINVAL;
     }
-    error = open_drive(drive, curproc, verbose);	    /* open the drive */
-    if (error)
-	return error;
+    drive->lasterror = open_drive(drive, curproc, verbose); /* open the drive */
+    if (drive->lasterror)
+	return drive->lasterror;
 
-    error = (*devsw(drive->dev)->d_ioctl) (drive->dev,
+    drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
 	DIOCGPART,
 	(caddr_t) & drive->partinfo,
 	FREAD,
 	curproc);
-    if (error) {
+    if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_WARNING,
-		"vinum open_drive %s: Can't get partition information, error %d\n",
+		"vinum open_drive %s: Can't get partition information, drive->lasterror %d\n",
 		drive->devicename,
-		error);
+		drive->lasterror);
 	close_drive(drive);
-	drive->lasterror = error;
-	return error;
+	return drive->lasterror;
     }
     if (drive->partinfo.part->p_fstype != FS_VINUM) {	    /* not Vinum */
 	drive->lasterror = EFTYPE;
@@ -357,16 +362,16 @@ read_drive_label(struct drive *drive, int verbose)
     vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	    /* allocate buffers */
     CHECKALLOC(vhdr, "Can't allocate memory");
 
+    drive->state = drive_up;				    /* be optimistic */
     error = read_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
     if (vhdr->magic == VINUM_MAGIC) {			    /* ours! */
 	if (drive->label.name[0]			    /* we have a name for this drive */
 	&&(strcmp(drive->label.name, vhdr->label.name))) {  /* but it doesn't match the real name */
 	    drive->lasterror = EINVAL;
 	    result = DL_WRONG_DRIVE;			    /* it's the wrong drive */
-	} else {
-	    drive->state = drive_up;			    /* it's OK by us */
+	    drive->state = drive_unallocated;		    /* put it back, it's not ours */
+	} else
 	    result = DL_OURS;
-	}
 	/*
 	 * We copy the drive anyway so that we have
 	 * the correct name in the drive info.  This
