@@ -28,7 +28,7 @@ LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
 
-.if !defined(NO_CRYPTO)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
