@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.4 1994/10/09 15:25:23 ache Exp $
+ *	$Id: util.c,v 1.5 1996/03/31 16:14:11 ache Exp $
  */
 
 #ifndef lint
@@ -68,6 +68,6 @@ prcopy(src, dest, len)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: ls [-1ACFLRTacdfiklqrstu] [file ...]\n");
+	(void)fprintf(stderr, "usage: ls [-1ACFLRTacdfikloqrstu] [file ...]\n");
 	exit(1);
 }
