@@ -123,6 +123,7 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	pathchk \
 	pr \
 	printenv \
 	printf \
