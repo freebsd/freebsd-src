@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #ifndef DEFS_H
 #define DEFS_H
 
@@ -504,10 +506,6 @@ extern char *symtab_to_filename PARAMS ((struct symtab *));
 /* From findvar.c */
 
 extern int read_relative_register_raw_bytes PARAMS ((int, char *));
-
-/* From readline (but not in any readline .h files).  */
-
-extern char *tilde_expand PARAMS ((char *));
 
 /* Control types for commands */
 
