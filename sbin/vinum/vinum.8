@@ -57,9 +57,10 @@
 .Xc
 Attach a plex to a volume, or a subdisk to a plex.
 .It Xo
-.Ic checkparity Ar plex
+.Ic checkparity
 .Op Fl f
 .Op Fl v
+.Ar plex
 .Xc
 Check the parity blocks of a RAID-4 or RAID-5 plex.
 .It Xo
@@ -193,9 +194,11 @@ Change the name of the specified object.
 .\".It Ic replace Ar drive newdrive
 .\"Move all the subdisks from the specified drive onto the new drive.
 .It Xo
-.Ic rebuildparity Ar plex Op Fl f
+.Ic rebuildparity
+.Op Fl f
 .Op Fl v
 .Op Fl V
+.Ar plex
 .Xc
 Rebuild the parity blocks of a RAID-4 or RAID-5 plex.
 .It Ic resetconfig
@@ -418,9 +421,9 @@ etc.  This calculation ignores parity blocks in RAID-5 plexes.
 .Pp
 .It Xo
 .Ic checkparity
-.Ar plex
 .Op Fl f
 .Op Fl v
+.Ar plex
 .Xc
 Check the parity blocks on the specified RAID-4 or RAID-5 plex.  This operation
 maintains a pointer in the plex, so it can be stopped and later restarted from
@@ -1019,10 +1022,10 @@ re-enable configuration saves.
 .Pp
 .It Xo
 .Ic rebuildparity
-.Ar plex
 .Op Fl f
 .Op Fl v
 .Op Fl V
+.Ar plex
 .Xc
 Rebuild the parity blocks on the specified RAID-4 or RAID-5 plex.  This
 operation maintains a pointer in the plex, so it can be stopped and later
