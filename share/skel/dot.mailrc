@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: dot.mailrc,v 1.2 1996/09/21 21:35:41 wosch Exp $
 #
 # .mailrc - mail resources
 #
@@ -13,4 +13,5 @@ set VISUAL=vi
 set folder=Mail
 retain bcc cc date from subject to
 
-# alias bugs freebsd-bugs@freebsd.org
+# include your private mail aliases
+source ~/.mail_aliases
