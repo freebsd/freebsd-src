@@ -39,77 +39,87 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In machine/atomic.h
+.\" XXX
+.ds LB \f[R]\(lB\f[P]
+.ds RB \f[R]\(rB\f[P]
+.ds La \f[R]\(la\f[P]
+.ds Ra \f[R]\(ra\f[P]
 .Ft void
-.Fn atomic_add_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
+.Fn atomic_add_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
 .Ft void
-.Fn atomic_clear_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
+.Fn atomic_clear_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
 .Ft int
-.Fo atomic_cmpset_{acq_,rel_,}<type>
-.Fa "volatile <type> *dst"
-.Fa "<type> old"
-.Fa "<type> new"
+.Fo atomic_cmpset_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra]
+.Fa "volatile \*[La]type\*[Ra] *dst"
+.Fa "\*[La]type\*[Ra] old"
+.Fa "\*[La]type\*[Ra] new"
 .Fc
-.Ft <type>
-.Fn atomic_load_acq_<type> "volatile <type> *p"
-.Ft <type>
-.Fn atomic_readandclear_<type> "volatile <type> *p"
+.Ft \*[La]type\*[Ra]
+.Fn atomic_load_acq_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p"
+.Ft \*[La]type\*[Ra]
+.Fn atomic_readandclear_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p"
 .Ft void
-.Fn atomic_set_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
+.Fn atomic_set_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
 .Ft void
-.Fn atomic_subtract_{acq_,rel_,}<type> "volatile <type> *p" "<type> v"
+.Fn atomic_subtract_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
 .Ft void
-.Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
+.Fn atomic_store_rel_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.rm LB RB La Ra
 .Sh DESCRIPTION
 Each of the atomic operations is guaranteed to be atomic in the presence of
 interrupts.
 They can be used to implement reference counts or as building blocks for more
 advanced synchronization primitives such as mutexes.
 .Ss Types
-Each atomic operation operates on a specific type.
+Each atomic operation operates on a specific
+.Ar type .
 The type to use is indicated in the function name.
 The available types that can be used are:
-.Bl -tag -offset indent -width short
-.It int
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li int
 unsigned integer
-.It long
+.It Li long
 unsigned long integer
-.It ptr
+.It Li ptr
 unsigned integer the size of a pointer
-.It 32
+.It Li 32
 unsigned 32-bit integer
-.It 64
+.It Li 64
 unsigned 64-bit integer
 .El
 .Pp
 For example, the function to atomically add two integers is called
 .Fn atomic_add_int .
 .Pp
-Certain architectures also provide operations for types smaller than int.
-.Bl -tag -offset indent -width short
-.It char
+Certain architectures also provide operations for types smaller than
+.Dq Li int .
+.Pp
+.Bl -tag -offset indent -width short -compact
+.It Li char
 unsigned character
-.It short
+.It Li short
 unsigned short integer
-.It 8
+.It Li 8
 unsigned 8-bit integer
-.It 16
+.It Li 16
 unsigned 16-bit integer
 .El
 .Pp
 These must not be used in MI code because the instructions to implement them
 efficiently may not be available.
 .Ss Memory Barriers
-Memory barriers are used to guarantee the order the order of data accesses in
+Memory barriers are used to guarantee the order of data accesses in
 two ways.
 First, they specify hints to the compiler to not re-order or optimize the
 operations.
-Secondly, on architectures that do not guarantee ordered data accesses,
+Second, on architectures that do not guarantee ordered data accesses,
 special instructions or special variants of instructions are used to indicate
 to the processor that data accesses need to occur in a certain order.
 As a result, most of the atomic operations have three variants in order to
 include optional memory barriers.
 The first form just performs the operation without any explicit barriers.
-The second form uses a read memory barrier, and the final variant uses a write
+The second form uses a read memory barrier, and the third variant uses a write
 memory barrier.
 .Pp
 The second variant of each operation includes a read memory barrier.
@@ -118,9 +128,9 @@ effects of any later data accesses.
 As a result, the operation is said to have acquire semantics as it acquires a
 pseudo-lock requiring further operations to wait until it has completed.
 To denote this, the suffix
-.Dq _acq
+.Dq Li _acq
 is inserted into the function name immediately prior to the
-.Em _type
+.Dq Li _ Ns Aq Ar type
 suffix.
 For example, to subtract two integers ensuring that any later writes will
 happen after the subtraction is performed, use
@@ -132,9 +142,9 @@ before this operation takes place.
 As a result, the operation is said to have release semantics as it releases
 any pending data accesses to be completed before its operation is performed.
 To denote this, the suffix
-.Dq _rel
+.Dq Li _rel
 is inserted into the function name immediately prior to the
-.Em _type
+.Dq Li _ Ns Aq Ar type
 suffix.
 For example, to add two long integers ensuring that all previous
 writes will happen first, use
@@ -146,7 +156,6 @@ To achieve this, one would use a read barrier when acquiring the lock to
 guarantee that the lock is held before any protected operations are performed.
 Finally, one would use a write barrier when releasing the lock to ensure that
 all of the protected operations are completed before the lock is released.
-.Pp
 .Ss Multiple Processors
 The current set of atomic operations do not necessarily guarantee atomicity
 across multiple processors.
@@ -166,16 +175,16 @@ using a caching policy of either uncached or write back.
 .Ss Semantics
 This section describes the semantics of each operation using a C like notation.
 .Bl -hang
-.It Fn atomic_add "p" "v"
-.Bd -literal
+.It Fn atomic_add p v
+.Bd -literal -compact
 *p += v;
 .Ed
-.It Fn atomic_clear "p" "v"
-.Bd -literal
+.It Fn atomic_clear p v
+.Bd -literal -compact
 *p &= ~v;
 .Ed
-.It Fn atomic_cmpset "dst" "old" "new"
-.Bd -literal
+.It Fn atomic_cmpset dst old new
+.Bd -literal -compact
 if (*dst == old) {
 	*dst = new;
 	return 1;
@@ -186,10 +195,15 @@ if (*dst == old) {
 .Pp
 The
 .Fn atomic_cmpset
-functions are not implemented for the types char, short, 8, and 16.
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li 8 ,
+and
+.Dq Li 16 .
 .Bl -hang
-.It Fn atomic_load "addr"
-.Bd -literal
+.It Fn atomic_load addr
+.Bd -literal -compact
 return (*addr)
 .Ed
 .El
@@ -198,8 +212,8 @@ The
 .Fn atomic_load
 functions always have acquire semantics.
 .Bl -hang
-.It Fn atomic_readandclear "addr"
-.Bd -literal
+.It Fn atomic_readandclear addr
+.Bd -literal -compact
 temp = *addr;
 *addr = 0;
 return (temp);
@@ -208,19 +222,26 @@ return (temp);
 .Pp
 The
 .Fn atomic_readandclear
-functions are not implemented for the types char, short, ptr, 8, and 16 and do
+functions are not implemented for the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li ptr ,
+.Dq Li 8 ,
+and
+.Dq Li 16
+and do
 not have any variants with memory barriers at this time.
 .Bl -hang
-.It Fn atomic_set "p" "v"
-.Bd -literal
+.It Fn atomic_set p v
+.Bd -literal -compact
 *p |= v;
 .Ed
-.It Fn atomic_subtract "p" "v"
-.Bd -literal
+.It Fn atomic_subtract p v
+.Bd -literal -compact
 *p -= v;
 .Ed
-.It Fn atomic_store "p" "v"
-.Bd -literal
+.It Fn atomic_store p v
+.Bd -literal -compact
 *p = v;
 .Ed
 .El
@@ -230,16 +251,20 @@ The
 functions always have release semantics.
 .Pp
 The type
-.Dq 64
+.Dq Li 64
 is currently not implemented for any of the atomic operations on the
 .Tn i386
 architecture.
 .Sh RETURN VALUES
+The
 .Fn atomic_cmpset
+function
 returns the result of the compare operation.
+The
 .Fn atomic_load
 and
 .Fn atomic_readandclear
+functions
 return the value at the specified address.
 .Sh EXAMPLES
 This example uses the
@@ -250,9 +275,9 @@ functions to obtain a sleep mutex and handle recursion.
 Since the
 .Va mtx_lock
 member of a
-.Li struct mtx
+.Vt "struct mtx"
 is a pointer, the
-.Dq ptr
+.Dq Li ptr
 type is used.
 .Bd -literal
 #define _obtain_lock(mp, tid)						\\
@@ -279,7 +304,12 @@ and
 .Fn atomic_subtract
 operations were first introduced in
 .Fx 3.0 .
-This first set only supported the types char, short, int, and long.
+This first set only supported the types
+.Dq Li char ,
+.Dq Li short ,
+.Dq Li int ,
+and
+.Dq Li long .
 The
 .Fn atomic_cmpset ,
 .Fn atomic_load ,
@@ -288,7 +318,14 @@ and
 .Fn atomic_store
 operations were added in
 .Fx 5.0 .
-The types 8, 16, 32, 64, and ptr and all of the acquire and release variants
+The types
+.Dq Li 8 ,
+.Dq Li 16 ,
+.Dq Li 32 ,
+.Dq Li 64 ,
+and
+.Dq Li ptr ,
+and all of the acquire and release variants
 were added in
 .Fx 5.0
 as well.
