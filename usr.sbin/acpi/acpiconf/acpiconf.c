@@ -109,7 +109,10 @@ main(int argc, char *argv[])
 			break;
 
 		case 's':
-			sleep_type = optarg[0] - '0';
+			if (optarg[0] == 'S')
+				sleep_type = optarg[1] - '0';
+			else
+				sleep_type = optarg[0] - '0';
 			if (sleep_type < 0 || sleep_type > 5)
 				errx(EX_USAGE, "invalid sleep type (%d)",
 				    sleep_type);
