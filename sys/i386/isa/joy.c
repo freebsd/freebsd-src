@@ -251,4 +251,50 @@ static void 	joy_drvinit(void *unused)
 
 SYSINIT(joydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,joy_drvinit,NULL)
 
+#ifdef JOY_MODULE
+
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/lkm.h>
+
+MOD_DEV (joy, LM_DT_CHAR, CDEV_MAJOR, &joy_cdevsw);
+
+static struct isa_device dev = {0, &joydriver, IO_GAME, -1, -1, (caddr_t) -1, 0, 0, 0, 0, 0, 0, 0,  0, 1, 0, 0};
+
+int 
+joy_load (struct lkm_table *lkmtp, int cmd)
+{
+    if (joyprobe (&dev)) {
+	joyattach (&dev);
+/*	    joy_drvinit (0);*/
+	uprintf ("Joystick driver loaded\n");
+	return 0;
+    } else {
+	uprintf ("Joystick driver: probe failed\n");
+	return 1;
+    }
+}
+
+int
+joy_unload (struct lkm_table *lkmtp, int cmd)
+{
+    uprintf ("Joystick driver unloaded\n");
+    return 0;
+}
+int
+joy_stat (struct lkm_table *lkmtp, int cmd)
+{
+    return 0;
+}
+int
+joy_mod (struct lkm_table *lkmtp, int cmd, int ver)
+{
+#define _module joy_module
+    DISPATCH(lkmtp, cmd, ver, joy_load, joy_unload, joy_stat);
+}
+
+#endif /* JOY_MODULE */
+
+
 #endif /* NJOY > 0 */
