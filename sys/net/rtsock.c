@@ -828,7 +828,10 @@ rt_newmaddrmsg(cmd, ifma)
 
 	bzero((caddr_t)&info, sizeof(info));
 	ifaaddr = ifma->ifma_addr;
-	ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+	if (ifp && ifp->if_addrhead.tqh_first)
+		ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
+	else
+		ifpaddr = NULL;
 	/*
 	 * If a link-layer address is present, present it as a ``gateway''
 	 * (similarly to how ARP entries, e.g., are presented).
