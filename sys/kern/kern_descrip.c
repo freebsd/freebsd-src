@@ -182,8 +182,6 @@ retry:
 			FILEDESC_UNLOCK(fdp);
 			return (error);
 		}
-		if (new != i)
-			panic("dup2: fdalloc");
 		/*
 		 * fdalloc() may block, retest everything.
 		 */
