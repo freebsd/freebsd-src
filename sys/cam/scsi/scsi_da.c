@@ -410,6 +410,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH DSC","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * HP 315 Digital Camera
+		 * PR: kern/41010
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB Camera*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
