@@ -783,6 +783,7 @@ vn_modevent(module_t mod, int type, void *data)
 				vnclear(vn);
 			free(vn, M_DEVBUF);
 		}
+		cdevsw_remove(&vn_cdevsw);
 		break;
 	default:
 		break;
