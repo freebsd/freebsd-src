@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.355
+    Original revision: 1.22.2.356
 -->
 
 <articleinfo>
@@ -202,8 +202,14 @@
   <sect2 id="contrib">
     <title>寄贈ソフトウェア</title>
 
+    <para><application>groff</application> がバージョン
+      1.18.1 からバージョン 1.19 に更新されました。</para>
+
     <para><application>sendmail</application> がバージョン
       8.12.9 に更新されました。</para>
+
+    <para><application>texinfo</application> がバージョン 4.5
+      からバージョン 4.6 に更新されました。</para>
 
     <para>timezone データベースが
       <filename>tzdata2002d</filename> から
