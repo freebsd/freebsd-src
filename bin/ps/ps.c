@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.17 1997/02/22 14:05:08 peter Exp $
+ *	$Id: ps.c,v 1.18 1997/03/28 15:24:29 imp Exp $
  */
 
 #ifndef lint
@@ -92,6 +92,8 @@ static char	*kludge_oldps_options __P((char *));
 static int	 pscomp __P((const void *, const void *));
 static void	 saveuser __P((KINFO *));
 static void	 scanvars __P((void));
+static void	 dynsizevars __P((KINFO *));
+static void	 sizevars __P((void));
 static void	 usage __P((void));
 
 char dfmt[] = "pid tt state time command";
@@ -324,7 +326,11 @@ main(argc, argv)
 		kinfo[i].ki_p = kp;
 		if (needuser)
 			saveuser(&kinfo[i]);
+		dynsizevars(&kinfo[i]);
 	}
+
+	sizevars();
+
 	/*
 	 * print header
 	 */
@@ -362,6 +368,45 @@ scanvars()
 {
 	struct varent *vent;
 	VAR *v;
+
+	for (vent = vhead; vent; vent = vent->next) {
+		v = vent->var;
+		if (v->flag & DSIZ) {
+			v->dwidth = v->width;
+			v->width = 0;
+		}
+		if (v->flag & USER)
+			needuser = 1;
+		if (v->flag & COMM)
+			needcomm = 1;
+	}
+}
+
+static void
+dynsizevars(ki)
+	KINFO *ki;
+{
+	struct varent *vent;
+	VAR *v;
+	int i;
+
+	for (vent = vhead; vent; vent = vent->next) {
+		v = vent->var;
+		if (!(v->flag & DSIZ))
+			continue;
+		i = (v->sproc)( ki);
+		if (v->width < i)
+			v->width = i;
+		if (v->width > v->dwidth)
+			v->width = v->dwidth;
+	}
+}
+
+static void
+sizevars()
+{
+	struct varent *vent;
+	VAR *v;
 	int i;
 
 	for (vent = vhead; vent; vent = vent->next) {
@@ -370,10 +415,6 @@ scanvars()
 		if (v->width < i)
 			v->width = i;
 		totwidth += v->width + 1;	/* +1 for space */
-		if (v->flag & USER)
-			needuser = 1;
-		if (v->flag & COMM)
-			needcomm = 1;
 	}
 	totwidth--;
 }
