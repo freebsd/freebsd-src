@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 1996
  *	Matthias Drochner.  All rights reserved.
@@ -30,38 +28,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 /*
  * EFI fully-qualified device descriptor
  */
-struct efi_devdesc
-{
-    struct devsw	*d_dev;
-    int			d_type;
-#define DEVT_NONE	0
-#define DEVT_DISK	1
-#define DEVT_NET	2
-    union 
-    {
-	struct 
-	{
-	    int		unit;
-	    int		slice;
-	    int		partition;
-	} efidisk;
-	struct 
-	{
-	    int		unit;		/* XXX net layer lives over these? */
-	} netif;
-    } d_kind;
+struct efi_devdesc {
+	struct	devsw *d_dev;
+	int	d_type;
+#define	DEVT_NONE	0
+#define	DEVT_DISK	1
+#define	DEVT_NET	2
+	union {
+		struct {
+			int	unit;
+			int	slice;
+			int	partition;
+		} efidisk;
+		struct {
+			int	unit;	/* XXX net layer lives over these? */
+		} netif;
+	} d_kind;
 };
 
 extern int	efi_getdev(void **vdev, const char *devspec, const char **path);
 extern char	*efi_fmtdev(void *vdev);
 extern int	efi_setcurrdev(struct env_var *ev, int flags, void *value);
 
-#define MAXDEV	31	/* maximum number of distinct devices */
+#define	MAXDEV	31	/* maximum number of distinct devices */
 
 typedef unsigned long physaddr_t;
 
