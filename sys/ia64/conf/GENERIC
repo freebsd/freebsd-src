@@ -77,7 +77,6 @@ device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios Logic
 
 # RAID controllers interfaced to the SCSI subsystem
-device		asr		# DPT SmartRAID V, VI and Adaptec RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV
 device		iir		# Intel Integrated RAID
