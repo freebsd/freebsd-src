@@ -3,7 +3,6 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <netncp/ncp.h>
 #include <netncp/ncp_subr.h>
 
