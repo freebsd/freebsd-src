@@ -212,44 +212,46 @@ dodgy:
     allow user dodgy
     allow mode direct
 #
-# If we don't want ICMP and DNS packets to keep the connection alive:
+# We don't want certain packets to keep our connection alive
 #
-    set filter alive 0 deny icmp
-    set filter alive 1 deny udp src eq 53
-    set filter alive 2 deny udp dst eq 53
-    set filter alive 3 permit 0 0
+    set filter alive 0 deny udp src eq 520         # routed
+    set filter alive 1 deny udp dst eq 520         # routed
+    set filter alive 2 deny udp src eq 513         # rwhod
+    set filter alive 3 deny udp src eq 525         # timed
+    set filter alive 4 deny 0/0 MYADDR icmp        # Ping to us from outside
+    set filter alive 5 permit 0/0 0/0
 #
-# And we don't want ICMPs to cause a dialup:
+# And in auto mode, we don't want certain packets to cause a dialup
 #
-    set filter dial 0 deny icmp
-    set filter dial 1 permit 0 0
+    set filter dial 0 deny udp src eq 513          # rwhod
+    set filter dial 1 deny udp src eq 525          # timed
+    set filter dial 2 deny udp src eq 137          # NetBIOS name service
+    set filter dial 3 deny udp src eq 138          # NetBIOS datagram service
+    set filter dial 4 deny udp src eq 139          # NetBIOS session service
+    set filter dial 5 deny udp dst eq 137          # NetBIOS name service
+    set filter dial 6 deny udp dst eq 138          # NetBIOS datagram service
+    set filter dial 7 deny udp dst eq 139          # NetBIOS session service
+    set filter dial 8 deny tcp finrst              # Badly closed TCP channels
+    set filter dial 9 permit 0 0
 #
-# or any TCP FIN or RST packets (badly closed TCP channels):
+# Once the line's up, allow these connections
 #
-    set filter dial 2 deny 0 0 tcp finrst
-#
-# Once the line's up, allow connections for ident (113), telnet (23),
-# ftp (20 & 21), DNS (53), my place of work (192.244.191.0/24),
-# ICMP (ping) and traceroute (>33433).
-#
-# Anything else is blocked by default
-#
-    set filter in  0 permit tcp dst eq 113
-    set filter out 0 permit tcp src eq 113
-    set filter in  1 permit tcp src eq 23 estab
-    set filter out 1 permit tcp dst eq 23
-    set filter in  2 permit tcp src eq 21 estab
-    set filter out 2 permit tcp dst eq 21
-    set filter in  3 permit tcp src eq 20 dst gt 1023
-    set filter out 3 permit tcp dst eq 20
-    set filter in  4 permit udp src eq 53
-    set filter out 4 permit udp dst eq 53
-    set filter in  5 permit 192.244.191.0/24 0/0
-    set filter out 5 permit 0/0 192.244.191.0/24
-    set filter in  6 permit icmp
-    set filter out 6 permit icmp
-    set filter in  7 permit udp dst gt 33433
-    set filter out 7 permit udp dst gt 33433
+    set filter in  0 permit tcp dst eq 113            # ident
+    set filter out 0 permit tcp src eq 113            # ident
+    set filter in  1 permit tcp src eq 23 estab       # telnet
+    set filter out 1 permit tcp dst eq 23             # telnet
+    set filter in  2 permit tcp src eq 21 estab       # ftp
+    set filter out 2 permit tcp dst eq 21             # ftp
+    set filter in  3 permit tcp src eq 20 dst gt 1023 # ftp-data
+    set filter out 3 permit tcp dst eq 20             # ftp-data
+    set filter in  4 permit udp src eq 53             # DNS
+    set filter out 4 permit udp dst eq 53             # DNS
+    set filter in  5 permit 192.244.191.0/24 0/0      # Where I work
+    set filter out 5 permit 0/0 192.244.191.0/24      # Where I work
+    set filter in  6 permit icmp                      # pings
+    set filter out 6 permit icmp                      # pings
+    set filter in  7 permit udp dst gt 33433          # traceroute
+    set filter out 7 permit udp dst gt 33433          # traceroute
 
 #
 # ``dodgynet'' is an example intended for an autodial configuration which
