@@ -77,15 +77,7 @@ struct ac97mixtable_entry {
 #define AC97_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
 #define AC97_CREATE(dev, devinfo, cls) ac97_create(dev, devinfo, &cls ## _class)
 
-struct ac97_info {
-	kobj_t methods;
-	device_t dev;
-	void *devinfo;
-	char *name;
-	char rev;
-	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
-	struct ac97mixtable_entry mix[32];
-};
+struct ac97_info;
 
 #include "ac97_if.h"
 

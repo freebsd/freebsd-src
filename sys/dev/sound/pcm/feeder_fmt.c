@@ -177,11 +177,11 @@ static unsigned char ulaw_to_alaw[] = {
 /*****************************************************************************/
 
 static int
-feed_8to16le(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_8to16le(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	int i, j, k;
 
-	k = FEEDER_FEED(f->source, c, b, count / 2, stream);
+	k = FEEDER_FEED(f->source, c, b, count / 2, source);
 	j = k - 1;
 	i = j * 2 + 1;
 	while (i > 0 && j >= 0) {
@@ -207,14 +207,14 @@ FEEDER_DECLARE(feeder_8to16le, 0, NULL);
 /*****************************************************************************/
 
 static int
-feed_16to8_init(pcm_feeder *f)
+feed_16to8_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
 	return (f->data == NULL)? 0 : ENOMEM;
 }
 
 static int
-feed_16to8_free(pcm_feeder *f)
+feed_16to8_free(struct pcm_feeder *f)
 {
 	if (f->data)
 		free(f->data, M_FMTFEEDER);
@@ -223,12 +223,12 @@ feed_16to8_free(pcm_feeder *f)
 }
 
 static int
-feed_16leto8(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_16leto8(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	u_int32_t i = 0, toget = count * 2;
 	int j = 1, k;
 
-	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), stream);
+	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), source);
 	while (j < k) {
 		b[i++] = ((u_int8_t *)f->data)[j];
 		j += 2;
@@ -254,9 +254,9 @@ FEEDER_DECLARE(feeder_16leto8, 1, NULL);
 /*****************************************************************************/
 
 static int
-feed_monotostereo8(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_monotostereo8(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
-	int i, j, k = FEEDER_FEED(f->source, c, b, count / 2, stream);
+	int i, j, k = FEEDER_FEED(f->source, c, b, count / 2, source);
 
 	j = k - 1;
 	i = j * 2 + 1;
@@ -282,9 +282,9 @@ FEEDER_DECLARE(feeder_monotostereo8, 0, NULL);
 /*****************************************************************************/
 
 static int
-feed_monotostereo16(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_monotostereo16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
-	int i, j, k = FEEDER_FEED(f->source, c, b, count / 2, stream);
+	int i, j, k = FEEDER_FEED(f->source, c, b, count / 2, source);
 	u_int8_t x, y;
 
 	j = k - 1;
@@ -316,14 +316,14 @@ FEEDER_DECLARE(feeder_monotostereo16, 0, NULL);
 /*****************************************************************************/
 
 static int
-feed_stereotomono8_init(pcm_feeder *f)
+feed_stereotomono8_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
 	return (f->data == NULL)? 0 : ENOMEM;
 }
 
 static int
-feed_stereotomono8_free(pcm_feeder *f)
+feed_stereotomono8_free(struct pcm_feeder *f)
 {
 	if (f->data)
 		free(f->data, M_FMTFEEDER);
@@ -332,12 +332,12 @@ feed_stereotomono8_free(pcm_feeder *f)
 }
 
 static int
-feed_stereotomono8(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_stereotomono8(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	u_int32_t i = 0, toget = count * 2;
 	int j = 0, k;
 
-	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), stream);
+	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), source);
 	while (j < k) {
 		b[i++] = ((u_int8_t *)f->data)[j];
 		j += 2;
@@ -361,14 +361,14 @@ FEEDER_DECLARE(feeder_stereotomono8, 1, NULL);
 /*****************************************************************************/
 
 static int
-feed_stereotomono16_init(pcm_feeder *f)
+feed_stereotomono16_init(struct pcm_feeder *f)
 {
 	f->data = malloc(FEEDBUFSZ, M_FMTFEEDER, M_WAITOK | M_ZERO);
 	return (f->data == NULL)? 0 : ENOMEM;
 }
 
 static int
-feed_stereotomono16_free(pcm_feeder *f)
+feed_stereotomono16_free(struct pcm_feeder *f)
 {
 	if (f->data)
 		free(f->data, M_FMTFEEDER);
@@ -377,12 +377,12 @@ feed_stereotomono16_free(pcm_feeder *f)
 }
 
 static int
-feed_stereotomono16(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_stereotomono16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	u_int32_t i = 0, toget = count * 2;
 	int j = 0, k;
 
-	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), stream);
+	k = FEEDER_FEED(f->source, c, f->data, min(toget, FEEDBUFSZ), source);
 	while (j < k) {
 		b[i++] = ((u_int8_t *)f->data)[j];
 		b[i++] = ((u_int8_t *)f->data)[j + 1];
@@ -409,10 +409,10 @@ FEEDER_DECLARE(feeder_stereotomono16, 1, NULL);
 /*****************************************************************************/
 
 static int
-feed_endian(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_endian(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	u_int8_t t;
-	int i = 0, j = FEEDER_FEED(f->source, c, b, count, stream);
+	int i = 0, j = FEEDER_FEED(f->source, c, b, count, source);
 
 	while (i < j) {
 		t = b[i];
@@ -443,9 +443,9 @@ FEEDER_DECLARE(feeder_endian, 0, NULL);
 /*****************************************************************************/
 
 static int
-feed_sign(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_sign(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
-	int i = 0, j = FEEDER_FEED(f->source, c, b, count, stream);
+	int i = 0, j = FEEDER_FEED(f->source, c, b, count, source);
 	int ssz = (int)f->data, ofs = ssz - 1;
 
 	while (i < j) {
@@ -484,9 +484,9 @@ FEEDER_DECLARE(feeder_sign16le, -1, (void *)2);
 /*****************************************************************************/
 
 static int
-feed_table(pcm_feeder *f, pcm_channel *c, u_int8_t *b, u_int32_t count, struct uio *stream)
+feed_table(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
-	int i = 0, j = FEEDER_FEED(f->source, c, b, count, stream);
+	int i = 0, j = FEEDER_FEED(f->source, c, b, count, source);
 
 	while (i < j) {
 		b[i] = ((u_int8_t *)f->data)[b[i]];

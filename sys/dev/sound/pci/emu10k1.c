@@ -61,7 +61,7 @@ struct emu_voice {
 	int start, end, vol;
 	u_int32_t buf;
 	struct emu_voice *slave;
-	pcm_channel *channel;
+	struct pcm_channel *channel;
 };
 
 struct sc_info;
@@ -70,16 +70,16 @@ struct sc_info;
 struct sc_pchinfo {
 	int spd, fmt, blksz, run;
 	struct emu_voice *master, *slave;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	struct sc_info *parent;
 };
 
 struct sc_rchinfo {
 	int spd, fmt, run, blksz, num;
 	u_int32_t idxreg, basereg, sizereg, setupreg, irqmask;
-	snd_dbuf *buffer;
-	pcm_channel *channel;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
 	struct sc_info *parent;
 };
 
@@ -96,6 +96,7 @@ struct sc_info {
 	struct resource *reg, *irq;
 	int		regtype, regid, irqid;
 	void		*ih;
+	void		*lock;
 
 	int timer, timerinterval;
 	int pnum, rnum;
@@ -144,7 +145,7 @@ static u_int32_t emu_rfmt_efx[] = {
 	0
 };
 
-static pcmchan_caps emu_reccaps[3] = {
+static struct pcmchan_caps emu_reccaps[3] = {
 	{8000, 48000, emu_rfmt_ac97, 0},
 	{8000, 8000, emu_rfmt_mic, 0},
 	{48000, 48000, emu_rfmt_efx, 0},
@@ -158,7 +159,7 @@ static u_int32_t emu_pfmt[] = {
 	0
 };
 
-static pcmchan_caps emu_playcaps = {4000, 48000, emu_pfmt, 0};
+static struct pcmchan_caps emu_playcaps = {4000, 48000, emu_pfmt, 0};
 
 static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
 
@@ -239,6 +240,7 @@ emu_wrefx(struct sc_info *sc, unsigned int pc, unsigned int data)
 
 /* -------------------------------------------------------------------- */
 /* ac97 codec */
+/* no locking needed */
 
 static int
 emu_rdcd(kobj_t obj, void *devinfo, int regno)
@@ -267,40 +269,6 @@ static kobj_method_t emu_ac97_methods[] = {
 AC97_DECLARE(emu_ac97);
 
 /* -------------------------------------------------------------------- */
-
-#if 0
-/* playback channel interrupts */
-static u_int32_t
-emu_testint(struct sc_info *sc, char channel)
-{
-	int reg = (channel & 0x20)? CLIPH : CLIPL;
-	channel &= 0x1f;
-	reg |= 1 << 24;
-	reg |= channel << 16;
-	return emu_rdptr(sc, 0, reg);
-}
-
-static void
-emu_clrint(struct sc_info *sc, char channel)
-{
-	int reg = (channel & 0x20)? CLIPH : CLIPL;
-	channel &= 0x1f;
-	reg |= 1 << 24;
-	reg |= channel << 16;
-	emu_wrptr(sc, 0, reg, 1);
-}
-
-static void
-emu_enaint(struct sc_info *sc, char channel, int enable)
-{
-	int reg = (channel & 0x20)? CLIEH : CLIEL;
-	channel &= 0x1f;
-	reg |= 1 << 24;
-	reg |= channel << 16;
-	emu_wrptr(sc, 0, reg, enable);
-}
-#endif
-
 /* stuff */
 static int
 emu_settimer(struct sc_info *sc)
@@ -450,15 +418,15 @@ emu_valloc(struct sc_info *sc)
 
 static int
 emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
-	  u_int32_t sz, pcm_channel *c)
+	  u_int32_t sz, struct snd_dbuf *b)
 {
 	void *buf;
 
 	buf = emu_memalloc(sc, sz);
 	if (buf == NULL)
 		return -1;
-	if (c != NULL)
-		sndbuf_setup(&c->buffer, buf, sz);
+	if (b != NULL)
+		sndbuf_setup(b, buf, sz);
 	m->start = emu_memstart(sc, buf) * EMUPAGESIZE;
 	m->end = m->start + sz;
 	m->channel = NULL;
@@ -646,10 +614,11 @@ emu_vdump(struct sc_info *sc, struct emu_voice *v)
 
 /* channel interface */
 static void *
-emupchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
+	void *r;
 
 	KASSERT(dir == PCMDIR_PLAY, ("emupchan_init: bad direction"));
 	ch = &sc->pch[sc->pnum++];
@@ -659,12 +628,13 @@ emupchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->blksz = EMU_BUFFSIZE / 2;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
+	snd_mtxlock(sc->lock);
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
-	if (emu_vinit(sc, ch->master, ch->slave, EMU_BUFFSIZE, ch->channel))
-		return NULL;
-	else
-		return ch;
+	r = (emu_vinit(sc, ch->master, ch->slave, EMU_BUFFSIZE, ch->buffer))? NULL : ch;
+	snd_mtxunlock(sc->lock);
+
+	return r;
 }
 
 static int
@@ -672,8 +642,13 @@ emupchan_free(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
+	int r;
 
-	return emu_memfree(sc, sndbuf_getbuf(ch->buffer));
+	snd_mtxlock(sc->lock);
+	r = emu_memfree(sc, sndbuf_getbuf(ch->buffer));
+	snd_mtxunlock(sc->lock);
+
+	return r;
 }
 
 static int
@@ -702,8 +677,10 @@ emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	int irqrate, blksz;
 
 	ch->blksz = blocksize;
+	snd_mtxlock(sc->lock);
 	emu_settimer(sc);
 	irqrate = 48000 / sc->timerinterval;
+	snd_mtxunlock(sc->lock);
 	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
 	return blocksize;
 }
@@ -717,6 +694,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
+	snd_mtxlock(sc->lock);
 	if (go == PCMTRIG_START) {
 		emu_vsetup(ch);
 		emu_vwrite(sc, ch->master);
@@ -733,6 +711,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	}
 	ch->run = (go == PCMTRIG_START)? 1 : 0;
 	emu_vtrigger(sc, ch->master, ch->run);
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -741,11 +720,16 @@ emupchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
+	int r;
 
-	return emu_vpos(sc, ch->master);
+	snd_mtxlock(sc->lock);
+	r = emu_vpos(sc, ch->master);
+	snd_mtxunlock(sc->lock);
+
+	return r;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 emupchan_getcaps(kobj_t obj, void *data)
 {
 	return &emu_playcaps;
@@ -766,7 +750,7 @@ CHANNEL_DECLARE(emupchan);
 
 /* channel interface */
 static void *
-emurchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -809,8 +793,10 @@ emurchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, EMU_BUFFSIZE) == -1)
 		return NULL;
 	else {
+		snd_mtxlock(sc->lock);
 		emu_wrptr(sc, 0, ch->basereg, vtophys(sndbuf_getbuf(ch->buffer)));
 		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
+		snd_mtxunlock(sc->lock);
 		return ch;
 	}
 }
@@ -847,8 +833,10 @@ emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	int irqrate, blksz;
 
 	ch->blksz = blocksize;
+	snd_mtxlock(sc->lock);
 	emu_settimer(sc);
 	irqrate = 48000 / sc->timerinterval;
+	snd_mtxunlock(sc->lock);
 	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
 	return blocksize;
 }
@@ -861,6 +849,7 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	u_int32_t val;
 
+	snd_mtxlock(sc->lock);
 	switch(go) {
 	case PCMTRIG_START:
 		ch->run = 1;
@@ -893,6 +882,7 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 	default:
 		break;
 	}
+	snd_mtxunlock(sc->lock);
 
 	return 0;
 }
@@ -902,11 +892,16 @@ emurchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
+	int r;
 
-	return emu_rdptr(sc, 0, ch->idxreg) & 0x0000ffff;
+	snd_mtxlock(sc->lock);
+	r = emu_rdptr(sc, 0, ch->idxreg) & 0x0000ffff;
+	snd_mtxunlock(sc->lock);
+
+	return r;
 }
 
-static pcmchan_caps *
+static struct pcmchan_caps *
 emurchan_getcaps(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
@@ -1421,12 +1416,12 @@ emu_pci_attach(device_t dev)
 	int		i, mapped;
 	char 		status[SND_STATUSLEN];
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
 
-	bzero(sc, sizeof(*sc));
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev));
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->rev = pci_get_revid(dev);
@@ -1482,8 +1477,7 @@ emu_pci_attach(device_t dev)
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->irq ||
-	    bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, emu_intr, sc, &sc->ih)) {
+	if (!sc->irq || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -1508,6 +1502,7 @@ bad:
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->parent_dmat) bus_dma_tag_destroy(sc->parent_dmat);
+	if (sc->lock) snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -1530,6 +1525,7 @@ emu_pci_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	bus_dma_tag_destroy(sc->parent_dmat);
+	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
 
 	return 0;
@@ -1548,7 +1544,7 @@ static device_method_t emu_methods[] = {
 static driver_t emu_driver = {
 	"pcm",
 	emu_methods,
-	sizeof(snddev_info),
+	sizeof(struct snddev_info),
 };
 
 static devclass_t pcm_devclass;
