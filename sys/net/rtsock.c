@@ -408,8 +408,7 @@ route_output(m, so)
 					info.rti_info[RTAX_IFA] = 0;
 				}
 			}
-			len = rt_msg2(rtm->rtm_type, &info, (caddr_t)0,
-				(struct walkarg *)0);
+			len = rt_msg2(rtm->rtm_type, &info, NULL, NULL);
 			if (len > rtm->rtm_msglen) {
 				struct rt_msghdr *new_rtm;
 				R_Malloc(new_rtm, struct rt_msghdr *, len);
@@ -420,8 +419,7 @@ route_output(m, so)
 				Bcopy(rtm, new_rtm, rtm->rtm_msglen);
 				Free(rtm); rtm = new_rtm;
 			}
-			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm,
-				(struct walkarg *)0);
+			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
 			rtm->rtm_flags = rt->rt_flags;
 			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
@@ -937,7 +935,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
 			info.rti_info[RTAX_BRD] = rt->rt_ifa->ifa_dstaddr;
 	}
-	size = rt_msg2(RTM_GET, &info, 0, w);
+	size = rt_msg2(RTM_GET, &info, NULL, w);
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
@@ -968,7 +966,7 @@ sysctl_iflist(int af, struct walkarg *w)
 			continue;
 		ifa = ifaddr_byindex(ifp->if_index);
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
-		len = rt_msg2(RTM_IFINFO, &info, (caddr_t)0, w);
+		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
 		info.rti_info[RTAX_IFP] = 0;
 		if (w->w_req && w->w_tmem) {
 			struct if_msghdr *ifm;
@@ -991,7 +989,7 @@ sysctl_iflist(int af, struct walkarg *w)
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
-			len = rt_msg2(RTM_NEWADDR, &info, 0, w);
+			len = rt_msg2(RTM_NEWADDR, &info, NULL, w);
 			if (w->w_req && w->w_tmem) {
 				struct ifa_msghdr *ifam;
 
@@ -1024,37 +1022,22 @@ sysctl_ifmalist(int af, struct walkarg *w)
 
 	bzero((caddr_t)&info, sizeof(info));
 	/* IFNET_RLOCK(); */		/* could sleep XXX */
-	/*
-	 * XXX i think this code is buggy. It does not properly reset
-	 * 'info' at each inner loop, resulting in possibly incorrect
-	 * values in rti_addrs. Also, some ops are repeated for each ifma
-	 * where they could be done just once per ifp.
-	 */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifaddr_byindex(ifp->if_index);
+		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
 			if (jailed(curproc->p_ucred) &&
 			    prison_if(curproc->p_ucred, ifma->ifma_addr))
 				continue;
-			info.rti_addrs = RTA_IFA;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
-			if (ifa) {
-				info.rti_addrs |= RTA_IFP;
-				info.rti_info[RTAX_IFP] = ifa->ifa_addr;
-			} else
-				info.rti_info[RTAX_IFP] = NULL;
-
-			if (ifma->ifma_addr->sa_family != AF_LINK) {
-				info.rti_addrs |= RTA_GATEWAY;
-				info.rti_info[RTAX_GATEWAY] = ifma->ifma_lladdr;
-			} else
-				info.rti_info[RTAX_GATEWAY] = NULL;
-
-			len = rt_msg2(RTM_NEWMADDR, &info, 0, w);
+			info.rti_info[RTAX_GATEWAY] =
+			    (ifma->ifma_addr->sa_family != AF_LINK) ?
+			    ifma->ifma_lladdr : NULL;
+			len = rt_msg2(RTM_NEWMADDR, &info, NULL, w);
 			if (w->w_req && w->w_tmem) {
 				struct ifma_msghdr *ifmam;
 
