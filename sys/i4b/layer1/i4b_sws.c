@@ -47,7 +47,7 @@
  *		EXPERIMENTAL !!!!
  *		=================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_sws.c,v 1.1.2.1 1999/08/29 16:25:21 peter Exp $
  *
  *	last edit-date: [Sun Dec 13 10:49:25 1998]
  *

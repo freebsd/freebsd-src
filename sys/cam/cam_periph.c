@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/cam_periph.c,v 1.9.2.7 1999/08/29 16:21:38 peter Exp $
  */
 
 #include <sys/param.h>

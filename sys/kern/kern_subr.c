@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_subr.c,v 1.24.2.5 1999/08/29 16:26:02 peter Exp $
  */
 
 #include <sys/param.h>

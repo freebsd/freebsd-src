@@ -1,6 +1,6 @@
 # Makefile copyright Andreas Klemm <andreas@FreeBSD.ORG> 1998
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/dc/doc/Makefile,v 1.3.2.1 1999/08/29 14:32:57 peter Exp $
 
 .PATH:	${.CURDIR}/../../../../contrib/bc/doc
 

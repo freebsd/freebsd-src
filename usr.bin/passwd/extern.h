@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)extern.h	8.1 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/passwd/extern.h,v 1.4.2.1 1999/08/29 15:31:53 peter Exp $
  */
 
 int	krb_passwd __P((char *, char *, char *, char *));

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/alpha/boot2/version,v 1.1.1.1.2.1 1999/08/29 16:20:09 peter Exp $
 
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.

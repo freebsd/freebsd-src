@@ -49,7 +49,7 @@
 static const char sccsid[] = "@(#)rmpproto.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/rbootd/rmpproto.c,v 1.5.2.1 1999/08/29 15:03:35 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

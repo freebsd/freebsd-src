@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/25/94
-# $FreeBSD$
+# $FreeBSD: src/sbin/mountd/Makefile,v 1.8.2.1 1999/08/29 15:14:45 peter Exp $
 
 PROG=	mountd
 CFLAGS+=-DNFS -DMFS -DCD9660 -DMSDOSFS

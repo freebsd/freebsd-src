@@ -32,7 +32,7 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_slvar.h,v 1.15.2.1 1999/08/29 16:28:23 peter Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_

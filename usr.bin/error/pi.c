@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pi.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/error/pi.c,v 1.4.2.1 1999/08/29 15:27:32 peter Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/as/Makefile,v 1.4.2.1 1999/08/29 14:31:55 peter Exp $
 #
 
 GASES=		${MACHINE_ARCH} ${CROSS_TOOLS} ${CROSS_TARGETS}

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/profile,v 1.11.2.1 1999/08/29 14:18:53 peter Exp $
 #
 # System-wide .profile file for sh(1).
 # Uncomment this to give you the default 4.2 behavior, where disk 

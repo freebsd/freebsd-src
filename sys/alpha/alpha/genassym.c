@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/genassym.c,v 1.4.2.1 1999/08/29 15:56:28 peter Exp $
  */
 
 #include <sys/param.h>

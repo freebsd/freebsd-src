@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_vnops.c,v 1.53.2.2 1999/08/29 16:25:51 peter Exp $
  */
 
 #include <sys/param.h>

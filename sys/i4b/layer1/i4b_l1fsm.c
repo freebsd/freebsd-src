@@ -27,7 +27,7 @@
  *	i4b_l1fsm.c - isdn4bsd layer 1 I.430 state machine
  *	--------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/i4b_l1fsm.c,v 1.1.2.1 1999/08/29 16:25:20 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:25:12 1998]
  *

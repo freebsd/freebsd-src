@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fs.h	7.12 (Berkeley) 5/8/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/fs.h,v 1.4.4.1 1999/08/29 16:05:04 peter Exp $
  */
 
 #ifndef _UFS_FS_H_

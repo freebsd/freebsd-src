@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/ns_ttl.c,v 1.1.2.1 1999/08/29 14:47:29 peter Exp $";
 #endif
 
 /* Import. */

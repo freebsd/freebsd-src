@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)softdep.h	9.6 (McKusick) 2/25/99
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/softupdates/softdep.h,v 1.6.2.2 1999/08/29 16:22:10 peter Exp $
  */
 
 #include <sys/queue.h>

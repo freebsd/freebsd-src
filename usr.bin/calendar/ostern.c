@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/ostern.c,v 1.7.2.1 1999/08/29 15:25:39 peter Exp $
  */
 
 #include <stdio.h>

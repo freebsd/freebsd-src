@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/i386/sys/i386_set_ioperm.c,v 1.2.2.1 1999/08/29 14:47:02 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$FreeBSD: src/lib/libc/i386/sys/i386_set_ioperm.c,v 1.2.2.1 1999/08/29 14:47:02 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <machine/sysarch.h>

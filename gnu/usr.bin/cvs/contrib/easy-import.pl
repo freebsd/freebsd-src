@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/contrib/easy-import.pl,v 1.14.2.1 1999/08/29 14:32:50 peter Exp $
 
 require "complete.pl";
 require "getopts.pl";

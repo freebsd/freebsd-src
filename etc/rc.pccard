@@ -1,6 +1,6 @@
 #!/bin/sh -
 #	PC-card startup script
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.pccard,v 1.6.2.7 1999/08/29 14:18:57 peter Exp $
 
 if [ "X$pccard_enable" = X"YES" ] ; then
 	builtin=`kldstat -v -i 1 | grep pcic | awk '{print $2}'`

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/syslog.h,v 1.16.2.1 1999/08/29 16:32:47 peter Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_

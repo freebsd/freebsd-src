@@ -27,7 +27,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char pipe_rcsid[] = "$FreeBSD$";
+const char pipe_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libunix/pipe.c,v 1.4.2.1 1999/08/29 14:29:24 peter Exp $";
 #endif
 
 #include "uudefs.h"

@@ -27,7 +27,7 @@
  *	i4b_l4mgmt.c - layer 4 calldescriptor management utilites
  *	-----------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer4/i4b_l4mgmt.c,v 1.1.2.1 1999/08/29 16:25:42 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:35:50 1998]
  *

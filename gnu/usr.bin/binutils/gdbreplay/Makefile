@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gdbreplay/Makefile,v 1.4.2.3 1999/08/29 14:32:03 peter Exp $
 
 .include "../Makefile.inc0"
 

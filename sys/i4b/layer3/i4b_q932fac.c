@@ -27,7 +27,7 @@
  *	i4b_q932fac.c - Q932 facility handling
  *	--------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer3/i4b_q932fac.c,v 1.1.2.1 1999/08/29 16:25:39 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:34:11 1998]
  *

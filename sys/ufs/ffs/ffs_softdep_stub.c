@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep_stub.c	9.1 (McKusick) 7/10/97
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_softdep_stub.c,v 1.2.2.2 1999/08/29 16:33:11 peter Exp $
  */
 
 /* 

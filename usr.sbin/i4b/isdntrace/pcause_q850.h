@@ -27,7 +27,7 @@
  *	pcauseq850.h - Q.850 causes definitions
  *	---------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/pcause_q850.h,v 1.1.2.1 1999/08/29 15:42:19 peter Exp $
  *
  *	last edit-date: [Sat Dec  5 18:20:05 1998]
  *

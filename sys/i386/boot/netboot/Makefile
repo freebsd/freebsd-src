@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/boot/netboot/Makefile,v 1.22.2.1 1999/08/29 16:05:15 peter Exp $
 #
 # Makefile for NETBOOT
 #

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/colldef/parse.y,v 1.11.2.1 1999/08/29 15:26:21 peter Exp $
  */
 
 #include <err.h>

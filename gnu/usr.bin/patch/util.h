@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/util.h,v 1.5.2.1 1999/08/29 14:34:05 peter Exp $
  *
  * $Log: util.h,v $
  * Revision 1.5  1998/01/21 14:37:25  ache

@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/setproctitle.c,v 1.8.2.1 1999/08/29 14:58:01 peter Exp $
  */
 
 #include <sys/types.h>

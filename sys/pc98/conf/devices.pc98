@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/devices.pc98,v 1.7.2.1 1999/08/29 16:31:01 peter Exp $
 #
 wd	0
 wfd	1

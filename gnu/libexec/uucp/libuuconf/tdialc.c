@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tdialc_rcsid[] = "$FreeBSD$";
+const char _uuconf_tdialc_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/tdialc.c,v 1.6.2.1 1999/08/29 14:30:04 peter Exp $";
 #endif
 
 static int idchat P((pointer pglobal, int argc, char **argv, pointer pvar,

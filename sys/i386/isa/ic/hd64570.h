@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/hd64570.h,v 1.5.4.1 1999/08/29 16:07:44 peter Exp $
  */
 #ifndef _HD64570_H_
 #define _HD64570_H_

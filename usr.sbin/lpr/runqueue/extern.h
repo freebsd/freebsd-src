@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      From: @(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/runqueue/extern.h,v 1.3.2.1 1999/08/29 15:43:35 peter Exp $
  */
 
 #include <sys/cdefs.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/isdn/Makefile,v 1.1.2.1 1999/08/29 16:45:29 peter Exp $
 
 FILES=	0.g711a 1.g711a 2.g711a 3.g711a 4.g711a 5.g711a 6.g711a 7.g711a \
 	8.g711a 9.g711a beep.g711a msg.g711a

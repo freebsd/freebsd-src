@@ -27,7 +27,7 @@
  *	i4b daemon - dial handling routines
  *	-----------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/dial.c,v 1.1.2.1 1999/08/29 15:41:39 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:06:36 1998]
  *

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.3 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/rdist/Makefile,v 1.5.2.1 1999/08/29 15:32:05 peter Exp $
 
 PROG=	rdist
 SRCS=	docmd.c expand.c gram.y lookup.c main.c rshrcmd.c server.c

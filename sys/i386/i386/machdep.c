@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/machdep.c,v 1.322.2.8 1999/08/29 16:05:43 peter Exp $
  */
 
 #include "apm.h"

@@ -27,7 +27,7 @@
  *	1tr6.c - print 1TR6 protocol traces
  *	-----------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/1tr6.c,v 1.1.2.1 1999/08/29 15:42:16 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:18:38 1998]
  *

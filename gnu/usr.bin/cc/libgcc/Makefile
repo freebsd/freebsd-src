@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/libgcc/Makefile,v 1.19.2.1 1999/08/29 14:32:47 peter Exp $
 #
 
 LIB=	gcc

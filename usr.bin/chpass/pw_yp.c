@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/chpass/pw_yp.c,v 1.13.2.2 1999/08/29 15:26:14 peter Exp $
  */
 
 #ifdef YP

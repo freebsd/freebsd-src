@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/tools/Makefile,v 1.4.2.1 1999/08/29 14:32:54 peter Exp $
 
 FILES=	INSTALL NEWS README \
 	pcl-cvs-lucid.el pcl-cvs-startup.el \

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/bison/data/Makefile,v 1.6.2.2 1999/08/29 14:32:26 peter Exp $
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)curses.h	8.3 (Berkeley) 7/27/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcurses/curses.h,v 1.15.2.1 1999/08/29 14:56:35 peter Exp $
  */
 
 #ifndef _CURSES_H_

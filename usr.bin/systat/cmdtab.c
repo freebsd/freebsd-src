@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/systat/cmdtab.c,v 1.4.2.1 1999/08/29 15:33:02 peter Exp $";
 #endif /* not lint */
 
 #include "systat.h"

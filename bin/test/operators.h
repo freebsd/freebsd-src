@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)operators.h	8.3 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/bin/test/operators.h,v 1.6.2.1 1999/08/29 14:14:29 peter Exp $
  */
 
 #define	NOT		0

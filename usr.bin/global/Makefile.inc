@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/global/Makefile.inc,v 1.6.2.1 1999/08/29 15:28:25 peter Exp $
 
 .if !defined(GLOBAL_MAKEFILE_INC_BEEN_HERE)
 

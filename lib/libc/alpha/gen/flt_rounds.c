@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/alpha/gen/flt_rounds.c,v 1.1.1.1.2.1 1999/08/29 14:45:39 peter Exp $ */
 /*	From: NetBSD: flt_rounds.c,v 1.2 1997/07/18 00:30:30 thorpej Exp */
 
 /*

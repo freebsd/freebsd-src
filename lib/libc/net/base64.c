@@ -41,7 +41,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/base64.c,v 1.2.2.1 1999/08/29 14:47:16 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

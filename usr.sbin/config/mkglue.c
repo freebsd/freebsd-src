@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkglue.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/config/mkglue.c,v 1.14.2.1 1999/08/29 15:40:26 peter Exp $";
 #endif /* not lint */
 
 /*

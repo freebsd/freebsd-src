@@ -13,4 +13,4 @@
 #  undef LZW
 #endif
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gzip/revision.h,v 1.5.2.1 1999/08/29 14:33:28 peter Exp $ */

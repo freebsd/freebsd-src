@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumparser.c,v 1.5.2.6 1999/08/29 16:24:21 peter Exp $
  */
 
 /*

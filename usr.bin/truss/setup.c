@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/truss/setup.c,v 1.8.2.1 1999/08/29 15:33:58 peter Exp $";
 #endif /* not lint */
 
 /*

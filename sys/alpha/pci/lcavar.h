@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/lcavar.h,v 1.1.2.1 1999/08/29 15:57:22 peter Exp $
  */
 
 extern void lca_init(void);

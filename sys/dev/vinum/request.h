@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/request.h,v 1.6.2.5 1999/09/13 08:03:53 grog Exp $
  */
 
 /* Information needed to set up a transfer */

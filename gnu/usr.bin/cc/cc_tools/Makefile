@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cc/cc_tools/Makefile,v 1.14.2.1 1999/08/29 14:32:40 peter Exp $
 #
 
 #

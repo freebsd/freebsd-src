@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/etc/mtree/BSD.usr.dist,v 1.146.2.10 1999/09/12 00:09:29 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755

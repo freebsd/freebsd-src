@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libtermcap/termcap.h,v 1.13.2.1 1999/08/29 14:57:45 peter Exp $ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_

@@ -30,7 +30,7 @@
 
 /* dpt_ctlinfo.c:  Dunp a DPT HBA Information Block */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_sysinfo/dpt_sysinfo.c,v 1.2.2.1 1999/08/29 15:41:25 peter Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_exec.c,v 1.93.2.3 1999/08/29 16:25:58 peter Exp $
  */
 
 #include <sys/param.h>

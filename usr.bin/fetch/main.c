@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/fetch/main.c,v 1.49.2.4 1999/08/29 15:27:37 peter Exp $ */
 
 #include <sys/types.h>
 

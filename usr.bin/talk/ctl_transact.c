@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/talk/ctl_transact.c,v 1.4.2.1 1999/08/29 15:33:17 peter Exp $";
 #endif /* not lint */
 
 #include <errno.h>

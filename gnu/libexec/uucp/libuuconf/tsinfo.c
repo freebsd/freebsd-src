@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tsinfo_rcsid[] = "$FreeBSD$";
+const char _uuconf_tsinfo_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/tsinfo.c,v 1.5.2.1 1999/08/29 14:30:08 peter Exp $";
 #endif
 
 #include <errno.h>

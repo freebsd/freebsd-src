@@ -144,7 +144,7 @@ static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/at/parsetime.c,v 1.16.2.1 1999/08/29 15:25:26 peter Exp $";
 
 /* Local functions */
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$	*/
+/* $FreeBSD: src/lib/libc/alpha/sys/cerror.S,v 1.4.2.1 1999/08/29 14:45:44 peter Exp $	*/
 /*	From: NetBSD: cerror.S,v 1.4 1996/11/08 00:52:46 cgd Exp 	*/
 
 /*

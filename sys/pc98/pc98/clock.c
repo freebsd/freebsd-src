@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/clock.c,v 1.65.2.4 1999/08/29 16:31:07 peter Exp $
  */
 
 /*

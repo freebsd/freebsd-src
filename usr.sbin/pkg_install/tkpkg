@@ -1,12 +1,12 @@
 #!/usr/local/bin/wish -f
-#$FreeBSD$
+#$FreeBSD: src/usr.sbin/pkg_install/tkpkg,v 1.4.2.1 1999/08/29 15:45:07 peter Exp $
 #
 #$Log: tkpkg,v $
 #Revision 1.4  1997/02/22 16:09:13  peter
-#Revert $FreeBSD$ to $Id$
+#Revert $FreeBSD: src/usr.sbin/pkg_install/tkpkg,v 1.4.2.1 1999/08/29 15:45:07 peter Exp $ to $Id$
 #
 #Revision 1.3  1997/01/14 07:14:23  jkh
-#Make the long-awaited change from $FreeBSD$
+#Make the long-awaited change from $FreeBSD: src/usr.sbin/pkg_install/tkpkg,v 1.4.2.1 1999/08/29 15:45:07 peter Exp $
 #
 #This will make a number of things easier in the future, as well as (finally!)
 #avoiding the Id-smashing problem which has plagued developers for so long.

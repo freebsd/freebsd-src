@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/gen/sysctlbyname.c,v 1.3.2.1 1999/08/29 14:46:22 peter Exp $
  *
  */
 #include <sys/types.h>

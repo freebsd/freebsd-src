@@ -2,7 +2,7 @@
 #------------------------------------------------------------------------------
 # softquad:  file(1) magic for SoftQuad Publishing Software
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/file/Magdir/softquad,v 1.3.2.1 1999/08/29 15:27:48 peter Exp $
 # Author/Editor and RulesBuilder
 #
 # XXX - byte order?

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_target.c,v 1.7.2.5 1999/08/29 16:21:51 peter Exp $
  */
 #include <stddef.h>	/* For offsetof */
 

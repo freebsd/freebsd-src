@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/eqn/Makefile,v 1.11.2.1 1999/08/29 14:33:16 peter Exp $
 
 PROG=		eqn
 SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \

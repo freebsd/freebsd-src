@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/texinfo/libintl/Makefile,v 1.1.2.1 1999/08/29 14:35:27 peter Exp $
 
 LIB=	intl
 INTERNALLIB= true

@@ -37,7 +37,7 @@
  *	But we attach to the supio, so just see "isic".
  *	-----------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer1/isic_supio.c,v 1.1.2.1 1999/08/29 16:25:25 peter Exp $ 
  *
  *      last edit-date: [Mon Nov 16 12:29:19 1998]
  *

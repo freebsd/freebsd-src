@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/adv_isa.c,v 1.8.2.2 1999/09/14 04:07:58 gibbs Exp $
  */
 
 #include <sys/param.h>

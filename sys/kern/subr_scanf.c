@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_scanf.c,v 1.1.2.2 1999/08/29 16:26:07 peter Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 

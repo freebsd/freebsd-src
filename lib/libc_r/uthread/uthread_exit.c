@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_exit.c,v 1.6.2.5 1999/08/31 20:16:01 dt Exp $
  */
 #include <errno.h>
 #include <unistd.h>

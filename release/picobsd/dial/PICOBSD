@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/dial/PICOBSD,v 1.1.2.3 1999/08/29 15:52:27 peter Exp $
 #
 machine		"i386"
 cpu		"I386_CPU"

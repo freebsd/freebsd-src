@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)findfp.c	8.2 (Berkeley) 1/4/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/stdio/findfp.c,v 1.5.2.1 1999/08/29 14:48:07 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

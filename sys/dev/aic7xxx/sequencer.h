@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/sequencer.h,v 1.4.2.1 1999/08/29 16:22:40 peter Exp $
  */
 
 struct ins_format1 {

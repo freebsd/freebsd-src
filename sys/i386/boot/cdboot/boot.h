@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/cdboot/boot.h,v 1.2.2.1 1999/08/29 16:04:55 peter Exp $
  */
 /*
  * Extensions for El Torito CD-ROM booting:

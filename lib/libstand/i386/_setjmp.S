@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/i386/_setjmp.S,v 1.2.2.2 1999/08/29 14:57:42 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libstand/i386/_setjmp.S,v 1.2.2.2 1999/08/29 14:57:42 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*

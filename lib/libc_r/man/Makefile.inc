@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc_r/man/Makefile.inc,v 1.5.2.1 1999/08/29 14:55:24 peter Exp $
 
 # POSIX thread man files
 

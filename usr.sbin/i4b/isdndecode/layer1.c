@@ -27,7 +27,7 @@
  *	layer1.c - isdndecode, decode and print layer 1 information
  *	-----------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/layer1.c,v 1.1.2.1 1999/08/29 15:41:56 peter Exp $
  *
  *      last edit-date: [Fri Dec 18 18:11:55 1998]
  *

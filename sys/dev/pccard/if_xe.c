@@ -23,8 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pccard/if_xe.c,v 1.2.2.5 1999/08/29 16:23:40 peter Exp $
+ * $FreeBSD: src/sys/dev/pccard/if_xe.c,v 1.2.2.5 1999/08/29 16:23:40 peter Exp $
  */
 
 /*

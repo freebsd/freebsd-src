@@ -1,5 +1,5 @@
 #	@(#)TEST.csh	5.2 (Berkeley) 4/30/93
-# $FreeBSD$
+# $FreeBSD: src/bin/test/TEST.csh,v 1.5.2.1 1999/08/29 14:14:27 peter Exp $
 
 #alias t '/usr/src/bin/test/obj/test \!*; echo $status'
 alias t '/bin/test \!*; echo $status'

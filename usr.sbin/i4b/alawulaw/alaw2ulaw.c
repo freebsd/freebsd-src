@@ -30,7 +30,7 @@
  *
  *	last edit-date: [Sat Dec  5 17:57:56 1998]
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/alawulaw/alaw2ulaw.c,v 1.1.2.1 1999/08/29 15:41:33 peter Exp $
  *
  *	-hm	telephony is ready
  *

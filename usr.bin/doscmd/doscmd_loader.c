@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd_loader.c,v 2.3 1996/04/08 19:32:33 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/doscmd_loader.c,v 1.1.2.1 1999/08/29 15:27:00 peter Exp $
  */
 
 #include <stdio.h>

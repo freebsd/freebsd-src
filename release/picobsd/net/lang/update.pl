@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/net/lang/update.pl,v 1.2.2.2 1999/08/29 15:53:17 peter Exp $
 pwd=`pwd`
 echo -n "Uaktualniam katalog /etc na dyskietce...  "
 mount /dev/fd0a /start_floppy

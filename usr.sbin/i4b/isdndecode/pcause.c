@@ -27,7 +27,7 @@
  *	pcause.c - printing cause values
  *	--------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/pcause.c,v 1.1.2.1 1999/08/29 15:41:59 peter Exp $
  *
  *      last edit-date: [Wed Dec 23 10:59:54 1998]
  *

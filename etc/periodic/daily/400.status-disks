@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/400.status-disks,v 1.1.1.1.2.1 1999/08/29 14:19:41 peter Exp $
 #
 
 echo ""

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libgnumalloc/Makefile,v 1.13.2.1 1999/08/29 14:56:59 peter Exp $
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a

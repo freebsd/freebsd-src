@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rpcv2.h	8.2 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/rpcv2.h,v 1.9.2.1 1999/08/29 16:30:37 peter Exp $
  */
 
 

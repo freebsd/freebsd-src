@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/vinum/list.c,v 1.8.2.4 1999/08/29 15:16:05 peter Exp $
  */
 
 #include <ctype.h>

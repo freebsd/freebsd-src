@@ -30,7 +30,7 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rc_parse.y,v 1.1.2.1 1999/08/29 15:41:48 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:12:26 1998]
  *

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sliceio.h,v 1.2.2.1 1999/08/29 16:32:44 peter Exp $
  */
 
 #ifndef	_SYS_SLICEIO_H_

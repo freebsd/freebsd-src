@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/router/Makefile.mfs,v 1.2.2.2 1999/08/29 15:53:18 peter Exp $
 #
 
 DESTDIR?=/mnt

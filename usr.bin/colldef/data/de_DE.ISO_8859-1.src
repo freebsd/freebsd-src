@@ -1,6 +1,6 @@
 # German/ISO 8859-1 (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/colldef/data/de_DE.ISO_8859-1.src,v 1.4.2.4 1999/08/29 15:26:24 peter Exp $
 #
 charmap map.ISO_8859-1
 order \

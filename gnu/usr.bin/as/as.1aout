@@ -1,6 +1,6 @@
 .\" Copyright (c) 1991, 1992 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
-.\" $FreeBSD$
+.\" $FreeBSD: src/gnu/usr.bin/as/as.1aout,v 1.8.2.1 1999/08/29 14:31:03 peter Exp $
 .TH as 1 "21 January 1992" "cygnus support" "GNU Development Tools"
 
 .SH NAME

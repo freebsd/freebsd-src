@@ -47,7 +47,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_ze.c,v 1.56.2.1 1999/08/29 16:07:25 peter Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */

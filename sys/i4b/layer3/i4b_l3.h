@@ -27,7 +27,7 @@
  *	i4b_l3.h - layer 3 header file
  *	------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer3/i4b_l3.h,v 1.1.2.1 1999/08/29 16:25:35 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:31:41 1998]
  *

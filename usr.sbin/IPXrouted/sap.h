@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/IPXrouted/sap.h,v 1.6.2.1 1999/08/29 15:38:49 peter Exp $
  */
 #ifndef _SAP_H_
 #define _SAP_H_

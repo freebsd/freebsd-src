@@ -14,7 +14,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/btx/lib/btxv86.h,v 1.1.2.2 1999/08/29 16:21:26 peter Exp $
  */
 
 #ifndef _BTXV86_H_

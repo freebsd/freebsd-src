@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/alias_cmd.c,v 1.18.2.5 1999/08/29 15:45:40 peter Exp $
  */
 
 #include <sys/param.h>

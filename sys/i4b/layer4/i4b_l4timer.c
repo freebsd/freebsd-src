@@ -27,7 +27,7 @@
  *	i4b_l4timer.c - timer and timeout handling for layer 4
  *	--------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/i4b/layer4/i4b_l4timer.c,v 1.1.2.1 1999/08/29 16:25:42 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:36:07 1998]
  *

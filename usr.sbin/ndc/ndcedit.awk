@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ndc/ndcedit.awk,v 1.8.2.2 1999/08/29 15:44:29 peter Exp $
 NR == 3 {
 	print "#"
 	print "# This file is generated automatically, do not edit it here!"

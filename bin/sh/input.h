@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)input.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/input.h,v 1.6.2.1 1999/08/29 14:13:46 peter Exp $
  */
 
 /* PEOF (the end of file marker) is defined in syntax.h */

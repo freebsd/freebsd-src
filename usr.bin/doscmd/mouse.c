@@ -29,7 +29,7 @@
  *
  *	BSDI int33.c,v 2.2 1996/04/08 19:32:54 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/mouse.c,v 1.1.2.1 1999/08/29 15:27:07 peter Exp $
  */
 
 #include "doscmd.h"

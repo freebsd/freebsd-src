@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/hosts.lpd,v 1.3.2.1 1999/08/29 14:18:46 peter Exp $
 #
 # See lpd(8)
 #machine.domain

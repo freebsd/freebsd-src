@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/arith.h,v 1.4.2.1 1999/08/29 14:13:38 peter Exp $
  */
 
 int arith __P((char *));

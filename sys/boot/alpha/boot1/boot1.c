@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/boot1/boot1.c,v 1.3.2.1 1999/08/29 16:20:07 peter Exp $
  * From	$NetBSD: bootxx.c,v 1.4 1997/09/06 14:08:29 drochner Exp $ 
  */
 

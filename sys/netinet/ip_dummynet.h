@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_dummynet.h,v 1.2.2.3 1999/08/29 16:29:41 peter Exp $
  */
 
 #ifndef _IP_DUMMYNET_H

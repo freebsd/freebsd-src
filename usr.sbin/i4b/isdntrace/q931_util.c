@@ -27,7 +27,7 @@
  *	q931_util.c - utility functions to print Q.931 traces
  *	-----------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q931_util.c,v 1.1.2.1 1999/08/29 15:42:21 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:20:43 1998]
  *

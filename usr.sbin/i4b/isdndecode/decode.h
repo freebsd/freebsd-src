@@ -27,7 +27,7 @@
  *	decode.h - isdndecode header file
  *	---------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/decode.h,v 1.1.2.1 1999/08/29 15:41:53 peter Exp $
  *
  *      last edit-date: [Fri Dec 18 18:10:13 1998]
  *

@@ -30,7 +30,7 @@
 
 /* dpt_led.c:  Show the blinking LED array status of a DPT HBAs */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_led/dpt_led.c,v 1.2.2.1 1999/08/29 15:41:20 peter Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>

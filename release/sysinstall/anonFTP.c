@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/sysinstall/anonFTP.c,v 1.23.2.2 1999/08/29 15:53:53 peter Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.

@@ -39,7 +39,7 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$FreeBSD$";
+%static const char rcsid[] = "$FreeBSD: src/include/rpcsvc/nis_cache.x,v 1.2.2.1 1999/08/29 14:39:14 peter Exp $";
 %#endif /* not lint */
 #endif
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/sync.h,v 1.1.2.2 1999/08/29 15:46:33 peter Exp $
  */
 
 extern struct layer synclayer;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cpio.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/cpio.h,v 1.5.2.1 1999/08/29 14:13:02 peter Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/nslookup/Makefile,v 1.7.2.1 1999/08/29 15:44:33 peter Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 

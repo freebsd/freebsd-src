@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$FreeBSD$
+$FreeBSD: src/sys/i386/boot/netboot/3c509.c,v 1.5.4.1 1999/08/29 16:05:14 peter Exp $
 
 ***************************************************************************/
 

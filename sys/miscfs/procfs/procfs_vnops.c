@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_vnops.c,v 1.63.2.1 1999/08/29 16:26:55 peter Exp $
  */
 
 /*

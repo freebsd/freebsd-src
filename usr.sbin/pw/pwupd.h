@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pw/pwupd.h,v 1.4.2.1 1999/08/29 15:47:31 peter Exp $
  */
 
 #ifndef _PWUPD_H_

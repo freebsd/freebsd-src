@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkstat.h	8.2 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dkstat.h,v 1.10.2.1 1999/08/29 16:32:17 peter Exp $
  */
 
 #ifndef _SYS_DKSTAT_H_

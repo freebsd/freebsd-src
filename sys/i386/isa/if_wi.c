@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_wi.c,v 1.5.2.4 1999/08/29 16:07:24 peter Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/i386/isa/if_wi.c,v 1.5.2.4 1999/08/29 16:07:24 peter Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];

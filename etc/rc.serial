@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.serial,v 1.11.2.1 1999/08/29 14:18:58 peter Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:

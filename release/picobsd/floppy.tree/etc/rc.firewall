@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/rc.firewall,v 1.1.2.2 1999/08/29 15:52:51 peter Exp $
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:

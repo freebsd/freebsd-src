@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfs/nfs_serv.c,v 1.72.2.5 1999/08/29 16:30:28 peter Exp $
  */
 
 /*

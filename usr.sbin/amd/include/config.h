@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/amd/include/config.h,v 1.9.2.2 1999/08/29 15:39:16 peter Exp $ */
 /* portions derived from 
    $NetBSD: config.h,v 1.11 1998/08/08 22:33:37 christos Exp $	*/
 /* config.h.  Generated automatically by configure.  */

@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor protocl definition
  *	-----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/monitor.h,v 1.1.2.1 1999/08/29 15:42:04 peter Exp $
  *
  *      last edit-date: [Mon Aug  3 06:52:06 1998]
  *

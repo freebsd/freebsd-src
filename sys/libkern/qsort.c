@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/qsort.c,v 1.9.2.1 1999/08/29 16:26:33 peter Exp $
  */
 
 #include <sys/libkern.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/net/crunch1/Makefile,v 1.3.2.2 1999/08/29 15:53:07 peter Exp $
 #
 SRC?=/usr/src
 

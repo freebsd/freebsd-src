@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/write_mfs_in_kernel.c,v 1.4.2.1 1999/08/29 15:52:21 peter Exp $
  *
  * This program patches a filesystem into a kernel made with MFS_ROOT
  * option.

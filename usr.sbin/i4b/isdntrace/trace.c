@@ -35,7 +35,7 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/trace.c,v 1.1.2.1 1999/08/29 15:42:22 peter Exp $ 
  *
  *      last edit-date: [Mon Oct 19 14:30:58 1998]
  *

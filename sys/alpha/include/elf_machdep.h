@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/sys/alpha/include/elf_machdep.h,v 1.1.1.1.2.1 1999/08/29 15:56:52 peter Exp $
 /* From: NetBSD: elf_machdep.h,v 1.3 1997/04/06 08:47:24 cgd Exp */
 
 #define	ELF32_MACHDEP_ENDIANNESS	XXX	/* break compilation */

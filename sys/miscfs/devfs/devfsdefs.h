@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/devfs/devfsdefs.h,v 1.18.2.1 1999/08/29 16:26:40 peter Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)

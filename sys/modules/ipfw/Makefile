@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ipfw/Makefile,v 1.9.2.1 1999/08/29 16:27:20 peter Exp $
 
 .PATH:	${.CURDIR}/../../netinet
 KMOD=	ipfw

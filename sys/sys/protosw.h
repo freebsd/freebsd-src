@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/protosw.h,v 1.26.2.1 1999/08/29 16:32:37 peter Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcalendar/easter.c,v 1.3.4.1 1999/08/29 14:56:13 peter Exp $
  */
 
 #include "calendar.h"

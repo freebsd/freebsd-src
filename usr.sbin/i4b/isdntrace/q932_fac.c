@@ -27,7 +27,7 @@
  *	q932_fac.c - decode Q.932 facilities
  *	------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/q932_fac.c,v 1.1.2.1 1999/08/29 15:42:22 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:20:58 1998]
  *

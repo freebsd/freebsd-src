@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/compat/compat22/Makefile,v 1.1.2.3 1999/08/29 14:55:08 peter Exp $
 
 DISTRIBUTION=	compat22
 

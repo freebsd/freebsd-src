@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/mkdep/mkdep.gcc.sh,v 1.17.2.1 1999/08/29 15:31:00 peter Exp $
 
 D=.depend			# default dependency file is .depend
 append=0

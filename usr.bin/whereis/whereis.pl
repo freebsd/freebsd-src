@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/whereis/whereis.pl,v 1.6.2.1 1999/08/29 15:34:45 peter Exp $
 #
 
 sub usage

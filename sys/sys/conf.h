@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/conf.h,v 1.48.2.2 1999/08/29 16:32:12 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_

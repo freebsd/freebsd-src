@@ -1,5 +1,5 @@
 # Makefile for uuchk
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uuchk/Makefile,v 1.7.2.1 1999/08/29 14:30:23 peter Exp $
 
 BINDIR=		$(sbindir)
 

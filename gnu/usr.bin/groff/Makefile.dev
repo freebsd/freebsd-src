@@ -2,7 +2,7 @@
 # Client Makefiles define DEV and DEVFILES and provide rules for
 # individual font files
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/Makefile.dev,v 2.5.2.1 1999/08/29 14:33:10 peter Exp $
 
 .include "../Makefile.cfg"
 

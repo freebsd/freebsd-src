@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/ether_addr.c,v 1.9.2.1 1999/08/29 14:47:17 peter Exp $
  */
 
 

@@ -27,7 +27,7 @@
  *	@(#)lptreg.h      1.1 (Berkeley) 12/19/90
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/nlpt.h,v 1.3.2.1 1999/08/29 16:23:51 peter Exp $
  */
 #ifndef __NLPT_H
 #define __NLPT_H

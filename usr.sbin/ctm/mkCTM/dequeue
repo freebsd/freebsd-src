@@ -1,5 +1,5 @@
 #! /bin/sh
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/mkCTM/dequeue,v 1.3.2.1 1999/08/29 15:41:07 peter Exp $
 
 L=/home/ctm/log.dequeue
 /usr/sbin/ctm_dequeue -n 1 -l $L /home/ctm/queue/ctm-cvs-cur

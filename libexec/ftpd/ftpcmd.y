@@ -45,7 +45,7 @@
 static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/ftpd/ftpcmd.y,v 1.13.2.1 1999/08/29 15:03:11 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

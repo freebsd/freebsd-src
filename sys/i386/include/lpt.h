@@ -11,7 +11,7 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/lpt.h,v 1.6.4.1 1999/08/29 16:06:38 peter Exp $
  */
 
 #ifndef	_MACHINE_LPT_H_

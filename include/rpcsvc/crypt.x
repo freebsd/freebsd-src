@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/rpcsvc/crypt.x,v 1.2.2.1 1999/08/29 14:39:10 peter Exp $
  */
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$FreeBSD$";
+%static const char rcsid[] = "$FreeBSD: src/include/rpcsvc/crypt.x,v 1.2.2.1 1999/08/29 14:39:10 peter Exp $";
 %#endif
 #endif
 

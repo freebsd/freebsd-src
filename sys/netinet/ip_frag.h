@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_frag.h,v 1.1.1.5.2.1 1999/08/29 16:29:43 peter Exp $
  */
 
 #ifndef	__IP_FRAG_H__

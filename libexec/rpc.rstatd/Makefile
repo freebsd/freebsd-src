@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rpc.rstatd/Makefile,v 1.4.2.1 1999/08/29 15:03:47 peter Exp $
 
 PROG =	rpc.rstatd
 SRCS =	rstatd.c rstat_proc.c

@@ -29,7 +29,7 @@
  *
  *	BSDI config.c,v 2.2 1996/04/08 19:32:22 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/config.c,v 1.2.2.1 1999/08/29 15:26:54 peter Exp $
  */
 
 #include <stdio.h>

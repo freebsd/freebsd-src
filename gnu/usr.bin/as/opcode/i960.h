@@ -18,7 +18,7 @@
  * appropriate.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/as/opcode/i960.h,v 1.4.2.1 1999/08/29 14:31:40 peter Exp $ */
 
 #define CTRL	0
 #define COBR	1

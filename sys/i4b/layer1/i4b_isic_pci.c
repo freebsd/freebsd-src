@@ -27,7 +27,7 @@
  *	i4b_isic_pci.c - PCI bus interface
  *	==================================
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_isic_pci.c,v 1.2.2.1 1999/08/29 16:25:17 peter Exp $
  *
  *      last edit-date: [Sat Dec  5 18:24:36 1998]
  *

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)groups.sh	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/id/groups.sh,v 1.5.2.1 1999/08/29 15:28:46 peter Exp $
 
 PATH=/bin:/usr/bin; export PATH
 

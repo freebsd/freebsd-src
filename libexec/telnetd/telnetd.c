@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/telnetd/telnetd.c,v 1.15.2.2 1999/08/29 15:04:20 peter Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"

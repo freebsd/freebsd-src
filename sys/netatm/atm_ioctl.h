@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_ioctl.h,v 1.1.2.2 1999/08/29 16:28:43 peter Exp $
  *
  */
 

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/vnode_if.sh,v 1.16.2.1 1999/08/29 16:26:16 peter Exp $
 #
 
 # Script to produce VFS front-end sugar.

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_sr_p.c,v 1.7.2.1 1999/08/29 16:31:44 peter Exp $
  */
 
 #include "pci.h"

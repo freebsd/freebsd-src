@@ -30,7 +30,7 @@
 
 /* dpt_softc.c:  Dunp a DPT control structure */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/usr.sbin/dpt/dpt_softc/dpt_softc.c,v 1.2.2.1 1999/08/29 15:41:23 peter Exp $"
 
 #include <stdlib.h>
 #include <fcntl.h>

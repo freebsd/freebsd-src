@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/bignum.h,v 1.5.2.1 1999/08/29 14:31:05 peter Exp $
  */
 
 /***********************************************************************\

@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_mem.c,v 1.35.2.1 1999/08/29 16:26:53 peter Exp $
  */
 
 /*

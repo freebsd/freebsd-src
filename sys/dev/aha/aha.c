@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aha/aha.c,v 1.19.2.6 1999/09/14 04:07:49 gibbs Exp $
  */
 
 #include "pnp.h"

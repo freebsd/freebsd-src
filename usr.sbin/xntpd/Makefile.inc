@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/xntpd/Makefile.inc,v 1.17.2.1 1999/08/29 15:49:08 peter Exp $
 
 DEFS_LOCAL=-DREFCLOCK -DPARSE -DUDP_WILDCARD_DELIVERY
 NTPDEFS=   -DSYS_FREEBSD -DSYS_44BSD

@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_threads.c,v 1.10.2.1 1999/08/29 16:26:03 peter Exp $
  */
 
 #include <sys/param.h>

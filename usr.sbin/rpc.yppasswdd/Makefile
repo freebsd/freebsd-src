@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.yppasswdd/Makefile,v 1.10.2.1 1999/08/29 15:47:52 peter Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yp_access.c yp_dblookup.c yp_dbwrite.c \

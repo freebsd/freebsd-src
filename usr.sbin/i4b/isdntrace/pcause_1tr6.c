@@ -27,7 +27,7 @@
  *	printing cause values
  *	---------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/pcause_1tr6.c,v 1.1.2.1 1999/08/29 15:42:17 peter Exp $
  *
  *	last edit-date: [Wed Dec 23 10:57:11 1998]
  *

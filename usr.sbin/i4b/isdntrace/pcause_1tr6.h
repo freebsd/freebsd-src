@@ -27,7 +27,7 @@
  *	pcause1tr6.h - 1TR6 causes definitions
  *	--------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/pcause_1tr6.h,v 1.1.2.1 1999/08/29 15:42:18 peter Exp $
  *
  *	last edit-date: [Sat Dec  5 18:19:39 1998]
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/asm_sbus.h,v 1.3.2.1 1999/08/29 16:23:28 peter Exp $ */
 /* release_12_28_98_A */
 /*
  * SBus Qlogic Host Adapter Firmware Tables

@@ -31,7 +31,7 @@
  *
  * so there!
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/ifconfig/ifconfig.h,v 1.3.4.1 1999/08/29 15:13:40 peter Exp $
  */
 
 extern struct ifreq ifr;

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/endian.h,v 1.2.2.1 1999/08/29 15:56:52 peter Exp $ */
 /* From: NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp */
 
 /*

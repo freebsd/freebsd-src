@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/19.curses/Makefile,v 1.8.2.1 1999/08/29 16:43:57 peter Exp $
 
 VOLUME=	psd/19.curses
 SRCS=	Master

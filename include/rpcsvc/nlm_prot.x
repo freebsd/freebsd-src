@@ -14,7 +14,7 @@
 #else
 %#ifndef lint
 %static const char rcsid[] =
-%	"$FreeBSD$";
+%	"$FreeBSD: src/include/rpcsvc/nlm_prot.x,v 1.7.2.1 1999/08/29 14:39:15 peter Exp $";
 %#endif /* not lint */
 #endif
 

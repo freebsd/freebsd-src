@@ -27,7 +27,7 @@
  *	isdntel - isdn4bsd telephone answering support
  *      ==============================================
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/defs.h,v 1.1.2.1 1999/08/29 15:42:08 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:15:26 1998]
  *

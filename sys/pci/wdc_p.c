@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/wdc_p.c,v 1.4.2.1 1999/08/29 16:32:01 peter Exp $
  */
 
 /*

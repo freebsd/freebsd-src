@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/adw_pci.c,v 1.3.2.2 1999/09/14 04:08:10 gibbs Exp $
  */
 
 #include <pci.h>

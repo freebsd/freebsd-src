@@ -4,7 +4,7 @@
 #
 # httpd-error - check for Web files which does not exists on your host
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/diag/httpd-error/httpd-error,v 1.1.2.1 1999/08/29 15:18:12 peter Exp $
 
 mode=${1}
 

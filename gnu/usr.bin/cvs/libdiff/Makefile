@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/libdiff/Makefile,v 1.1.4.1 1999/08/29 14:32:54 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 

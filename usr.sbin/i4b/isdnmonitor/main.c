@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/main.c,v 1.1.2.1 1999/08/29 15:42:03 peter Exp $
  *
  *      last edit-date: [Tue Oct 27 11:53:12 1998]
  *

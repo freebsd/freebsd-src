@@ -30,7 +30,7 @@
  *	NOTE:	this has to stay in sync with isdntel/alias.c to be able
  *		to share a common aliasfile!
  *		
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/alias.c,v 1.1.2.1 1999/08/29 15:41:35 peter Exp $
  *
  *      last edit-date: [Sat Dec  5 18:05:40 1998]
  *

@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/pc98/fd.c,v 1.50.2.3 1999/08/29 16:31:08 peter Exp $
  *
  */
 

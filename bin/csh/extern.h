@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/csh/extern.h,v 1.5.2.1 1999/08/29 14:11:45 peter Exp $
  */
 
 #include <sys/cdefs.h>

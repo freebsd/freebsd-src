@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/bus_if.m,v 1.5.2.1 1999/08/29 16:25:53 peter Exp $
 #
 
 INTERFACE bus;

@@ -27,7 +27,7 @@
  *	i4b_cause.h - causes and cause handling for i4b
  *	-----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_cause.h,v 1.1.2.1 1999/08/29 16:06:31 peter Exp $
  *
  *      last edit-date: [Sat Dec  5 18:36:30 1998]
  *

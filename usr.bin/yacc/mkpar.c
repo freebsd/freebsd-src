@@ -39,7 +39,7 @@
 static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/yacc/mkpar.c,v 1.7.2.1 1999/08/29 15:35:07 peter Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>

@@ -1,4 +1,4 @@
- $FreeBSD$
+ $FreeBSD: src/usr.sbin/xntpd/README.FreeBSD,v 1.10.2.1 1999/08/29 15:49:08 peter Exp $
 
 This version of NTP was converted to the BSD-style Makefile system by
 Garrett Wollman (wollman@FreeBSD.org); it is based on version

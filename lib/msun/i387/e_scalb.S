@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_scalb.S,v 1.6.2.1 1999/08/29 14:58:31 peter Exp $")
 
 ENTRY(__ieee754_scalb)
 	fldl	12(%esp)

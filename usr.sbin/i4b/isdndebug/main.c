@@ -27,7 +27,7 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/usr.sbin/i4b/isdndebug/main.c,v 1.1.2.1 1999/08/29 15:41:52 peter Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:13:55 1998]
  *

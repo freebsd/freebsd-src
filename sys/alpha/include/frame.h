@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/frame.h,v 1.2.2.1 1999/08/29 15:56:54 peter Exp $ */
 /* From: NetBSD: frame.h,v 1.4 1997/04/06 08:47:27 cgd Exp */
 
 /*

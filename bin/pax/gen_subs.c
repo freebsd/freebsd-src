@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)gen_subs.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/pax/gen_subs.c,v 1.11.2.1 1999/08/29 14:13:05 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

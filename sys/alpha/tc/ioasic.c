@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tc/ioasic.c,v 1.1.2.1 1999/08/29 15:57:30 peter Exp $ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-

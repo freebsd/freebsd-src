@@ -1,7 +1,7 @@
 /*
  * LOCALE_CTYPE for the iso_8859_2 Locale
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mklocale/data/lt_LN.ISO_8859-2.src,v 1.1.4.1 1999/08/29 15:31:05 peter Exp $
  */
 
 ENCODING	"NONE"
