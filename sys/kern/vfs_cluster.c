@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.84 1999/06/26 02:46:08 mckusick Exp $
+ * $Id: vfs_cluster.c,v 1.85 1999/06/29 05:59:43 peter Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -51,6 +51,7 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <sys/sysctl.h>
 
 #if defined(CLUSTERDEBUG)
 #include <sys/sysctl.h>
@@ -65,6 +66,9 @@ static struct cluster_save *
 static struct buf *
 	cluster_rbuild __P((struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			    daddr_t blkno, long size, int run, struct buf *fbp));
+
+static int write_behind = 1;
+SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0, "");
 
 extern vm_page_t	bogus_page;
 
@@ -153,12 +157,14 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					(i == (maxra - 1)))
 					tbp->b_flags |= B_RAM;
 
+#if 0
 				if ((tbp->b_usecount < 1) &&
 					BUF_REFCNT(tbp) == 0 &&
 					(tbp->b_qindex == QUEUE_LRU)) {
 					TAILQ_REMOVE(&bufqueues[QUEUE_LRU], tbp, b_freelist);
 					TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], tbp, b_freelist);
 				}
+#endif
 			}
 			splx(s);
 			if (i >= maxra) {
@@ -495,6 +501,37 @@ cluster_callback(bp)
 }
 
 /*
+ *	cluster_wbuild_wb:
+ *
+ *	Implement modified write build for cluster.
+ *
+ *		write_behind = 0	write behind disabled
+ *		write_behind = 1	write behind normal (default)
+ *		write_behind = 2	write behind backed-off
+ */
+
+static __inline int
+cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
+{
+	int r = 0;
+
+	switch(write_behind) {
+	case 2:
+		if (start_lbn < len)
+			break;
+		start_lbn -= len;
+		/* fall through */
+	case 1:
+		r = cluster_wbuild(vp, size, start_lbn, len);
+		/* fall through */
+	default:
+		/* fall through */
+		break;
+	}
+	return(r);
+}
+
+/*
  * Do clustered write for FFS.
  *
  * Three cases:
@@ -566,7 +603,7 @@ cluster_write(bp, filesize)
 					     bpp < endbp; bpp++)
 						brelse(*bpp);
 					free(buflist, M_SEGMENT);
-					cluster_wbuild(vp, lblocksize,
+					cluster_wbuild_wb(vp, lblocksize,
 					    vp->v_cstart, cursize);
 				} else {
 					/*
@@ -612,7 +649,7 @@ cluster_write(bp, filesize)
 		 * At end of cluster, write it out.
 		 */
 		bdwrite(bp);
-		cluster_wbuild(vp, lblocksize, vp->v_cstart, vp->v_clen + 1);
+		cluster_wbuild_wb(vp, lblocksize, vp->v_cstart, vp->v_clen + 1);
 		vp->v_clen = 0;
 		vp->v_cstart = lbn + 1;
 	} else
