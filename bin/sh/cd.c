@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.6 1996/09/01 10:19:47 peter Exp $
+ *	$Id: cd.c,v 1.7 1996/12/14 06:19:09 steve Exp $
  */
 
 #ifndef lint
@@ -46,6 +46,7 @@ static char const sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
 
 /*
  * The cd and pwd commands.
@@ -120,16 +121,9 @@ cdcmd(argc, argv)
 
 
 /*
- * Actually do the chdir.  If the name refers to symbolic links, we
- * compute the actual directory name before doing the cd.  In an
- * interactive shell, print the directory name if "print" is nonzero
- * or if the name refers to a symbolic link.  We also print the name
- * if "/u/logname" was expanded in it, since this is similar to a
- * symbolic link.  (The check for this breaks if the user gives the
- * cd command some additional, unused arguments.)
+ * Actually do the chdir.  In an interactive shell, print the
+ * directory name if "print" is nonzero.
  */
-
-#if SYMLINKS == 0
 STATIC int
 docd(dest, print)
 	char *dest;
@@ -149,107 +143,14 @@ docd(dest, print)
 	return 0;
 }
 
-#else
-
-
-
-STATIC int
-docd(dest, print)
-	char *dest;
-	int print;
-{
-	register char *p;
-	register char *q;
-	char *symlink;
-	char *component;
-	struct stat statb;
-	int first;
-	int i;
-
-	TRACE(("docd(\"%s\", %d) called\n", dest, print));
-
-top:
-	cdcomppath = dest;
-	STARTSTACKSTR(p);
-	if (*dest == '/') {
-		STPUTC('/', p);
-		cdcomppath++;
-	}
-	first = 1;
-	while ((q = getcomponent()) != NULL) {
-		if (q[0] == '\0' || (q[0] == '.' && q[1] == '\0'))
-			continue;
-		if (! first)
-			STPUTC('/', p);
-		first = 0;
-		component = q;
-		while (*q)
-			STPUTC(*q++, p);
-		if (equal(component, ".."))
-			continue;
-		STACKSTRNUL(p);
-		if (lstat(stackblock(), &statb) < 0)
-			error("lstat %s failed", stackblock());
-		if (!S_ISLNK(statb.st_mode))
-			continue;
-
-		/* Hit a symbolic link.  We have to start all over again. */
-		print = 1;
-		STPUTC('\0', p);
-		symlink = grabstackstr(p);
-		i = (int)statb.st_size + 2;		/* 2 for '/' and '\0' */
-		if (cdcomppath != NULL)
-			i += strlen(cdcomppath);
-		p = stalloc(i);
-		if (readlink(symlink, p, (int)statb.st_size) < 0) {
-			error("readlink %s failed", stackblock());
-		}
-		if (cdcomppath != NULL) {
-			p[(int)statb.st_size] = '/';
-			scopy(cdcomppath, p + (int)statb.st_size + 1);
-		} else {
-			p[(int)statb.st_size] = '\0';
-		}
-		if (p[0] != '/') {	/* relative path name */
-			char *r;
-			q = r = symlink;
-			while (*q) {
-				if (*q++ == '/')
-					r = q;
-			}
-			*r = '\0';
-			dest = stalloc(strlen(symlink) + strlen(p) + 1);
-			scopy(symlink, dest);
-			strcat(dest, p);
-		} else {
-			dest = p;
-		}
-		goto top;
-	}
-	STPUTC('\0', p);
-	p = grabstackstr(p);
-	INTOFF;
-	if (chdir(*p ? p : ".") < 0) {
-		INTON;
-		return -1;
-	}
-	updatepwd(p);
-	INTON;
-	if (print && iflag)
-		out1fmt("%s\n", p);
-	return 0;
-}
-#endif /* SYMLINKS */
-
-
 
 /*
  * Get the next component of the path name pointed to by cdcomppath.
  * This routine overwrites the string pointed to by cdcomppath.
  */
-
 STATIC char *
-getcomponent() {
+getcomponent()
+{
 	register char *p;
 	char *start;
 
@@ -268,19 +169,15 @@ getcomponent() {
 }
 
 
-
 /*
  * Update curdir (the name of the current directory) in response to a
  * cd command.  We also call hashcd to let the routines in exec.c know
  * that the current directory has changed.
  */
-
-void hashcd();
-
 STATIC void
 updatepwd(dir)
 	char *dir;
-	{
+{
 	char *new;
 	char *p;
 
@@ -318,75 +215,31 @@ updatepwd(dir)
 }
 
 
-
 int
 pwdcmd(argc, argv)
 	int argc;
 	char **argv;
 {
-	getpwd();
+	if(!getpwd())
+		error("getcwd() failed: %s", strerror(errno));
 	out1str(curdir);
 	out1c('\n');
 	return 0;
 }
 
 
-
-
-#define MAXPWD 256
-
 /*
- * Run /bin/pwd to find out what the current directory is.  We suppress
- * interrupts throughout most of this, but the user can still break out
- * of it by killing the pwd program.  If we already know the current
+ * Find out what the current directory is. If we already know the current
  * directory, this routine returns immediately.
  */
-void
+char *
 getpwd()
 {
-	char buf[MAXPWD];
-	char *p;
-	int i;
-	int status;
-	struct job *jp;
-	int pip[2];
-	char *pwd_bin = "/bin/pwd";
+	char buf[_POSIX_PATH_MAX];
 
 	if (curdir)
-		return;
-	INTOFF;
-	if (pipe(pip) < 0)
-		error("Pipe call failed");
-	/* make a fall-back guess, otherwise we're simply screwed */
-	if (access(pwd_bin, X_OK) == -1)
-		pwd_bin = "/stand/pwd";
-	jp = makejob((union node *)NULL, 1);
-	if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
-		close(pip[0]);
-		if (pip[1] != 1) {
-			close(1);
-			copyfd(pip[1], 1);
-			close(pip[1]);
-		}
-		(void) execl(pwd_bin, "pwd", (char *)0);
-		error("Cannot exec %s", pwd_bin);
-	}
-	(void) close(pip[1]);
-	pip[1] = -1;
-	p = buf;
-	while ((i = read(pip[0], p, buf + MAXPWD - p)) > 0
-	     || (i == -1 && errno == EINTR)) {
-		if (i > 0)
-			p += i;
-	}
-	(void) close(pip[0]);
-	pip[0] = -1;
-	status = waitforjob(jp);
-	if (status != 0)
-		error((char *)0);
-	if (i < 0 || p == buf || p[-1] != '\n')
-		error("pwd command failed");
-	p[-1] = '\0';
-	curdir = savestr(buf);
-	INTON;
+		return (curdir);
+	if (getcwd(buf, sizeof(buf)) == NULL)
+		return (NULL);
+	return ((curdir = savestr(buf)));
 }

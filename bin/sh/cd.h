@@ -31,4 +31,4 @@
  * SUCH DAMAGE.
  */
 
-void getpwd __P((void));
+char *getpwd __P((void));

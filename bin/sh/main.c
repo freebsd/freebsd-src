@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.9 1996/10/29 03:12:47 steve Exp $
+ *	$Id: main.c,v 1.10 1996/12/14 06:19:19 steve Exp $
  */
 
 #ifndef lint
@@ -171,7 +171,8 @@ main(argc, argv)
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
-	getpwd();
+	if (getpwd() == NULL && iflag)
+		out2str("sh: cannot determine working directory\n");
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
