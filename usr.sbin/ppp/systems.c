@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.27 1997/11/14 15:38:07 brian Exp $
+ * $Id: systems.c,v 1.28 1997/11/22 03:37:51 brian Exp $
  *
  *  TODO:
  */
@@ -279,7 +279,7 @@ ReadSystem(const char *name, const char *file, int doexec)
             return 0;	/* got it */
           break;
         default:
-          LogPrintf(LogCOMMAND, "%s: %s: Invalid command\n", name, cp);
+          LogPrintf(LogWARN, "%s: %s: Invalid command\n", filename, cp);
           break;
         }
       } else if (strcmp(cp, name) == 0) {
