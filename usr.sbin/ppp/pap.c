@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.9 1998/02/16 00:00:54 brian Exp $
+ * $Id: pap.c,v 1.20.2.10 1998/02/19 02:08:53 brian Exp $
  *
  *	TODO:
  */
@@ -45,12 +45,12 @@
 #include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
+#include "auth.h"
 #include "pap.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "hdlc.h"
 #include "lcpproto.h"
-#include "auth.h"
 #include "async.h"
 #include "throughput.h"
 #include "link.h"
@@ -58,11 +58,15 @@
 #include "physical.h"
 #include "bundle.h"
 #include "id.h"
+#include "chat.h"
+#include "ccp.h"
+#include "chap.h"
+#include "datalink.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
-static void
-SendPapChallenge(int papid, struct physical *physical)
+void
+SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -92,10 +96,6 @@ SendPapChallenge(int papid, struct physical *physical)
 
   HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
 }
-
-struct authinfo AuthPapInfo = {
-  SendPapChallenge,
-};
 
 static void
 SendPapCode(int id, int code, const char *message, struct physical *physical)
@@ -154,6 +154,7 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
 void
 PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
+  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int len = plength(bp);
   struct fsmheader *php;
   u_char *cp;
@@ -191,15 +192,15 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
              * Either I didn't need to authenticate, or I've already been
              * told that I got the answer right.
              */
-            bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+            datalink_AuthOk(dl);
 
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
-          link_Close(&physical->link, bundle, 1, 1);
+          datalink_AuthNotOk(dl);
 	}
 	break;
       case PAP_ACK:
-	StopAuthTimer(&AuthPapInfo);
+	StopAuthTimer(&dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
@@ -212,16 +213,16 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
              * If we're not expecting  the peer to authenticate (or he already
              * has), proceed to network phase.
              */
-	    bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+            datalink_AuthOk(dl);
 	}
 	break;
       case PAP_NAK:
-	StopAuthTimer(&AuthPapInfo);
+	StopAuthTimer(&dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
-        link_Close(&physical->link, bundle, 1, 1);
+        datalink_AuthNotOk(dl);
 	break;
       }
     }

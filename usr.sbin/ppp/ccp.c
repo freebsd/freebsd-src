@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.15 1998/02/27 01:22:18 brian Exp $
+ * $Id: ccp.c,v 1.30.2.16 1998/02/27 21:46:20 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -49,6 +49,8 @@
 #include "throughput.h"
 #include "link.h"
 #include "chat.h"
+#include "auth.h"
+#include "chap.h"
 #include "datalink.h"
 
 static void CcpSendConfigReq(struct fsm *);

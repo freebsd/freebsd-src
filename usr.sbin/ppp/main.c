@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.27 1998/02/21 01:45:19 brian Exp $
+ * $Id: main.c,v 1.121.2.28 1998/02/23 00:38:35 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -80,6 +80,7 @@
 #include "server.h"
 #include "prompt.h"
 #include "chat.h"
+#include "chap.h"
 #include "datalink.h"
 
 #ifndef O_NONBLOCK

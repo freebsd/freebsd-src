@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.8 1998/02/13 05:10:05 brian Exp $
+ * $Id: auth.c,v 1.27.2.9 1998/02/21 01:44:57 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -205,36 +205,36 @@ AuthGetSecret(struct bundle *bundle, const char *fname, const char *system,
 static void
 AuthTimeout(void *vauthp)
 {
-  struct pppTimer *tp;
   struct authinfo *authp = (struct authinfo *)vauthp;
 
-  tp = &authp->authtimer;
-  StopTimer(tp);
+  StopTimer(&authp->authtimer);
   if (--authp->retry > 0) {
-    StartTimer(tp);
-    (authp->ChallengeFunc) (++authp->id, authp->physical);
+    StartTimer(&authp->authtimer);
+    (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
   }
 }
 
 void
-StartAuthChallenge(struct authinfo *authp, struct physical *physical)
+authinfo_Init(struct authinfo *authinfo)
 {
-  struct pppTimer *tp;
+  memset(authinfo, '\0', sizeof(struct authinfo));
+}
 
-  assert(authp->physical == NULL);
-
+void
+StartAuthChallenge(struct authinfo *authp, struct physical *physical,
+                   void (*fn)(struct authinfo *, int, struct physical *))
+{
+  authp->ChallengeFunc = fn;
   authp->physical = physical;
-
-  tp = &authp->authtimer;
-  StopTimer(tp);
-  tp->func = AuthTimeout;
-  tp->load = VarRetryTimeout * SECTICKS;
-  tp->state = TIMER_STOPPED;
-  tp->arg = (void *) authp;
-  StartTimer(tp);
+  StopTimer(&authp->authtimer);
+  authp->authtimer.func = AuthTimeout;
+  authp->authtimer.load = VarRetryTimeout * SECTICKS;
+  authp->authtimer.state = TIMER_STOPPED;
+  authp->authtimer.arg = (void *) authp;
   authp->retry = 3;
   authp->id = 1;
-  (authp->ChallengeFunc) (authp->id, physical);
+  (*authp->ChallengeFunc)(authp, authp->id, physical);
+  StartTimer(&authp->authtimer);
 }
 
 void

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.8 1998/02/23 00:38:41 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.9 1998/02/27 01:22:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,7 @@
 #include "physical.h"
 #include "chat.h"
 #include "ccp.h"
+#include "chap.h"
 #include "datalink.h"
 
 static int prompt_nonewline = 1;

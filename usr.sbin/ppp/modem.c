@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.25 1998/02/23 00:38:36 brian Exp $
+ * $Id: modem.c,v 1.77.2.26 1998/02/27 21:46:00 brian Exp $
  *
  *  TODO:
  */
@@ -66,6 +66,8 @@
 #include "prompt.h"
 #include "chat.h"
 #include "ccp.h"
+#include "auth.h"
+#include "chap.h"
 #include "datalink.h"
 
 
@@ -787,6 +789,7 @@ modem_Offline(struct physical *modem)
         tcsetattr(modem->fd, TCSANOW, &tio);
       /* nointr_sleep(1); */
     }
+    LogPrintf(LogPHASE, "%s disconnected!\n", modem->link.name);
   }
 }
 
@@ -798,8 +801,6 @@ modem_Close(struct physical *modem)
 
   if (modem->fd < 0)
     return;
-
-  modem_Offline(modem);
 
   if (!isatty(modem->fd)) {
     modem_PhysicalClose(modem);

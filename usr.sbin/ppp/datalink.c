@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.14 1998/02/26 17:53:15 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.15 1998/02/27 01:22:20 brian Exp $
  */
 
 #include <sys/param.h>
@@ -53,12 +53,16 @@
 #include "bundle.h"
 #include "chat.h"
 #include "ccp.h"
-#include "datalink.h"
+#include "auth.h"
 #include "main.h"
 #include "modem.h"
 #include "iplist.h"
 #include "ipcp.h"
 #include "prompt.h"
+#include "lcpproto.h"
+#include "pap.h"
+#include "chap.h"
+#include "datalink.h"
 
 static const char *datalink_State(struct datalink *);
 
@@ -140,12 +144,12 @@ datalink_LoginDone(struct datalink *dl)
       datalink_HangupDone(dl);
   } else {
     dl->dial_tries = -1;
-    LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
-    dl->state = DATALINK_OPEN;
 
     lcp_Setup(&LcpInfo, dl->state == DATALINK_READY ? 0 : VarOpenMode);
     ccp_Setup(&dl->ccp);
 
+    LogPrintf(LogPHASE, "%s: Entering LCP state\n", dl->name);
+    dl->state = DATALINK_LCP;
     FsmUp(&LcpInfo.fsm);
     FsmOpen(&LcpInfo.fsm);
   }
@@ -238,6 +242,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       break;
 
     case DATALINK_READY:
+    case DATALINK_LCP:
+    case DATALINK_AUTH:
     case DATALINK_OPEN:
       result = descriptor_UpdateSet(&dl->physical->desc, r, w, e, n);
       break;
@@ -261,6 +267,8 @@ datalink_IsSet(struct descriptor *d, fd_set *fdset)
       return descriptor_IsSet(&dl->chat.desc, fdset);
 
     case DATALINK_READY:
+    case DATALINK_LCP:
+    case DATALINK_AUTH:
     case DATALINK_OPEN:
       return descriptor_IsSet(&dl->physical->desc, fdset);
   }
@@ -284,6 +292,8 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       break;
 
     case DATALINK_READY:
+    case DATALINK_LCP:
+    case DATALINK_AUTH:
     case DATALINK_OPEN:
       descriptor_Read(&dl->physical->desc, bundle, fdset);
       break;
@@ -307,6 +317,8 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       break;
 
     case DATALINK_READY:
+    case DATALINK_LCP:
+    case DATALINK_AUTH:
     case DATALINK_OPEN:
       descriptor_Write(&dl->physical->desc, bundle, fdset);
       break;
@@ -314,11 +326,32 @@ datalink_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 static void
+datalink_ComeDown(struct datalink *dl, int stay)
+{
+  if (stay) {
+    dl->dial_tries = -1;
+    dl->reconnect_tries = 0;
+  }
+
+  if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
+    modem_Offline(dl->physical);
+    if (dl->script.run && dl->state != DATALINK_OPENING) {
+      LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
+      dl->state = DATALINK_HANGUP;
+      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
+    } else
+      datalink_HangupDone(dl);
+  }
+}
+
+static void
 datalink_LayerStart(void *v, struct fsm *fp)
 {
   /* The given FSM is about to start up ! */
-  struct datalink *dl = (struct datalink *)v;
-  return (*dl->parent->LayerStart)(dl->parent->object, fp);
+  if (fp == &LcpInfo.fsm) {
+    struct datalink *dl = (struct datalink *)v;
+    (*dl->parent->LayerStart)(dl->parent->object, fp);
+  }
 }
 
 static void
@@ -328,10 +361,37 @@ datalink_LayerUp(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp == &LcpInfo.fsm) {
-    (*dl->parent->LayerUp)(dl->parent->object, fp);
-    FsmUp(&dl->ccp.fsm);
-    FsmOpen(&dl->ccp.fsm);
+    LcpInfo.auth_ineed = LcpInfo.want_auth;
+    LcpInfo.auth_iwait = LcpInfo.his_auth;
+    if (LcpInfo.his_auth || LcpInfo.want_auth) {
+      if (dl->bundle->phase == PHASE_DEAD ||
+          dl->bundle->phase == PHASE_ESTABLISH)
+        bundle_NewPhase(dl->bundle, dl->physical, PHASE_AUTHENTICATE);
+      LogPrintf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
+                Auth2Nam(LcpInfo.his_auth), Auth2Nam(LcpInfo.want_auth));
+      if (LcpInfo.his_auth == PROTO_PAP)
+        StartAuthChallenge(&dl->pap, dl->physical, SendPapChallenge);
+      if (LcpInfo.want_auth == PROTO_CHAP)
+        StartAuthChallenge(&dl->chap.auth, dl->physical, SendChapChallenge);
+    } else
+      datalink_AuthOk(dl);
   }
+}
+
+void
+datalink_AuthOk(struct datalink *dl)
+{
+  FsmUp(&dl->ccp.fsm);
+  FsmOpen(&dl->ccp.fsm);
+  dl->state = DATALINK_OPEN;
+  (*dl->parent->LayerUp)(dl->parent->object, &LcpInfo.fsm);
+}
+
+void
+datalink_AuthNotOk(struct datalink *dl)
+{
+  dl->state = DATALINK_LCP;
+  FsmClose(&LcpInfo.fsm);
 }
 
 static void
@@ -340,10 +400,19 @@ datalink_LayerDown(void *v, struct fsm *fp)
   /* The given FSM has been told to come down */
   struct datalink *dl = (struct datalink *)v;
   if (fp == &LcpInfo.fsm) {
-    FsmDown(fp);
-    FsmClose(fp);
+    switch (dl->state) {
+      case DATALINK_OPEN:
+        FsmDown(&dl->ccp.fsm);
+        FsmClose(&dl->ccp.fsm);
+        (*dl->parent->LayerDown)(dl->parent->object, fp);
+        /* fall through */
+
+      case DATALINK_AUTH:
+        StopTimer(&dl->pap.authtimer);
+        StopTimer(&dl->chap.auth.authtimer);
+    }
+    dl->state = DATALINK_LCP;
   }
-  return (*dl->parent->LayerDown)(dl->parent->object, fp);
 }
 
 static void
@@ -354,10 +423,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
 
   if (fp == &LcpInfo.fsm) {
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
-
-    if (link_IsActive(fp->link)) 
-      link_Close(fp->link, dl->bundle, 0, 0);	/* clean shutdown */
-      /* And wait for the LinkLost() */
+    datalink_ComeDown(dl, 0);
   }
 }
 
@@ -418,6 +484,9 @@ datalink_Create(const char *name, struct bundle *bundle,
   lcp_Init(&LcpInfo, dl->bundle, dl->physical, &dl->fsm);
   ccp_Init(&dl->ccp, dl->bundle, &dl->physical->link, &dl->fsm);
 
+  authinfo_Init(&dl->pap);
+  authinfo_Init(&dl->chap.auth);
+
   LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
   return dl;
@@ -471,55 +540,52 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
   }
 }
 
-static void
-datalink_ComeDown(struct datalink *dl, int stay)
-{
-  if (stay) {
-    dl->dial_tries = -1;
-    dl->reconnect_tries = 0;
-  }
-
-  if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
-    modem_Offline(dl->physical);
-    if (dl->script.run && dl->state != DATALINK_OPENING) {
-      LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
-      dl->state = DATALINK_HANGUP;
-      chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1);
-    } else
-      datalink_HangupDone(dl);
-  }
-}
-
 void
 datalink_Close(struct datalink *dl, int stay)
 {
   /* Please close */
-  if (dl->state == DATALINK_OPEN) {
-    FsmClose(&dl->ccp.fsm);
-    FsmClose(&LcpInfo.fsm);
-    if (stay) {
-      dl->dial_tries = -1;
-      dl->reconnect_tries = 0;
-    }
-  } else
-    datalink_ComeDown(dl, stay);
+  switch (dl->state) {
+    case DATALINK_OPEN:
+      FsmDown(&dl->ccp.fsm);
+      FsmClose(&dl->ccp.fsm);
+      /* fall through */
+
+    case DATALINK_AUTH:
+    case DATALINK_LCP:
+      FsmClose(&LcpInfo.fsm);
+      if (stay) {
+        dl->dial_tries = -1;
+        dl->reconnect_tries = 0;
+      }
+      break;
+
+    default:
+      datalink_ComeDown(dl, stay);
+  }
 }
 
 void
 datalink_Down(struct datalink *dl, int stay)
 {
   /* Carrier is lost */
-  if (dl->state == DATALINK_OPEN) {
-    FsmDown(&dl->ccp.fsm);
-    FsmClose(&dl->ccp.fsm);
-    FsmDown(&LcpInfo.fsm);
-    if (stay)
-      FsmClose(&LcpInfo.fsm);
-    else
-      FsmOpen(&dl->ccp.fsm);
-  }
+  switch (dl->state) {
+    case DATALINK_OPEN:
+      FsmDown(&dl->ccp.fsm);
+      FsmClose(&dl->ccp.fsm);
+      /* fall through */
 
-  datalink_ComeDown(dl, stay);
+    case DATALINK_AUTH:
+    case DATALINK_LCP:
+      FsmDown(&LcpInfo.fsm);
+      if (stay)
+        FsmClose(&LcpInfo.fsm);
+      else
+        FsmOpen(&dl->ccp.fsm);
+      /* fall through */
+
+    default:
+      datalink_ComeDown(dl, stay);
+  }
 }
 
 void
@@ -541,6 +607,8 @@ static char *states[] = {
   "DIAL",
   "LOGIN",
   "READY",
+  "LCP"
+  "AUTH"
   "OPEN"
 };
 

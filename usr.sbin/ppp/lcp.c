@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.21 1998/02/27 01:22:30 brian Exp $
+ * $Id: lcp.c,v 1.55.2.22 1998/02/27 21:46:26 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -383,8 +383,6 @@ static void
 StopAllTimers(void)
 {
   StopIdleTimer();
-  StopTimer(&AuthPapInfo.authtimer);
-  StopTimer(&AuthChapInfo.authtimer);
   StopLqrTimer();
 }
 
@@ -394,7 +392,6 @@ LcpLayerFinish(struct fsm *fp)
   /* We're now down */
   LogPrintf(LogLCP, "LcpLayerFinish\n");
   StopAllTimers();
-  LogPrintf(LogPHASE, "%s disconnected!\n", fp->link->name);
 }
 
 static void

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.16 1998/02/23 00:38:16 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.17 1998/02/27 01:22:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -95,8 +95,8 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
   if (new == bundle->phase)
     return;
 
-  if (new <= PHASE_NETWORK)
-    LogPrintf(LogPHASE, "bundle_NewPhase: %s\n", PhaseNames[new]);
+  if (new <= PHASE_TERMINATE)
+    LogPrintf(LogPHASE, "bundle: %s\n", PhaseNames[new]);
 
   switch (new) {
   case PHASE_DEAD:
@@ -108,20 +108,8 @@ bundle_NewPhase(struct bundle *bundle, struct physical *physical, u_int new)
     break;
 
   case PHASE_AUTHENTICATE:
-    LcpInfo.auth_ineed = LcpInfo.want_auth;
-    LcpInfo.auth_iwait = LcpInfo.his_auth;
-    if (LcpInfo.his_auth || LcpInfo.want_auth) {
-      LogPrintf(LogPHASE, " his = %s, mine = %s\n",
-                Auth2Nam(LcpInfo.his_auth), Auth2Nam(LcpInfo.want_auth));
-       /* XXX-ML AuthPapInfo and AuthChapInfo must be allocated! */
-      if (LcpInfo.his_auth == PROTO_PAP)
-	StartAuthChallenge(&AuthPapInfo, physical);
-      if (LcpInfo.want_auth == PROTO_CHAP)
-	StartAuthChallenge(&AuthChapInfo, physical);
-      bundle->phase = new;
-      prompt_Display(&prompt, bundle);
-    } else
-      bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+    bundle->phase = new;
+    prompt_Display(&prompt, bundle);
     break;
 
   case PHASE_NETWORK:
@@ -195,14 +183,14 @@ bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
-   * If it's a datalink, authenticate.
+   * If it's a datalink, enter network phase
    * If it's an NCP, tell our background mode parent to go away.
    */
 
   struct bundle *bundle = (struct bundle *)v;
 
-  if (fp == &LcpInfo.fsm)
-    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_AUTHENTICATE);
+  if (fp->proto == PROTO_LCP)
+    bundle_NewPhase(bundle, link2physical(fp->link), PHASE_NETWORK);
 
   if (fp == &IpcpInfo.fsm)
     if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
@@ -664,6 +652,24 @@ bundle2ccp(struct bundle *bundle, const char *name)
   struct datalink *dl = bundle2datalink(bundle, name);
   if (dl)
     return &dl->ccp;
+  return NULL;
+}
+
+struct authinfo *
+bundle2pap(struct bundle *bundle, const char *name)
+{
+  struct datalink *dl = bundle2datalink(bundle, name);
+  if (dl)
+    return &dl->pap;
+  return NULL;
+}
+
+struct chap *
+bundle2chap(struct bundle *bundle, const char *name)
+{
+  struct datalink *dl = bundle2datalink(bundle, name);
+  if (dl)
+    return &dl->chap;
   return NULL;
 }
 

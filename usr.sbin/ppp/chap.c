@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.9 1998/02/15 23:59:43 brian Exp $
+ * $Id: chap.c,v 1.28.2.10 1998/02/19 02:08:42 brian Exp $
  *
  *	TODO:
  */
@@ -48,7 +48,6 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "chap.h"
 #include "chap_ms.h"
 #include "lcpproto.h"
 #include "lcp.h"
@@ -56,6 +55,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
+#include "chap.h"
 #include "async.h"
 #include "throughput.h"
 #include "link.h"
@@ -63,6 +63,9 @@
 #include "physical.h"
 #include "bundle.h"
 #include "id.h"
+#include "ccp.h"
+#include "chat.h"
+#include "datalink.h"
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
@@ -89,36 +92,30 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   HdlcOutput(physical2link(physical), PRI_LINK, PROTO_CHAP, bp);
 }
 
-
-static char challenge_data[80];
-static int challenge_len;
-
-static void
-SendChapChallenge(int chapid, struct physical *physical)
+void
+SendChapChallenge(struct authinfo *auth, int chapid, struct physical *physical)
 {
+  struct chap *chap = auth2chap(auth);
   int len, i;
   char *cp;
 
   randinit();
-  cp = challenge_data;
-  *cp++ = challenge_len = random() % 32 + 16;
-  for (i = 0; i < challenge_len; i++)
+  cp = chap->challenge_data;
+  *cp++ = chap->challenge_len = random() % 32 + 16;
+  for (i = 0; i < chap->challenge_len; i++)
     *cp++ = random() & 0xff;
   len = strlen(VarAuthName);
   memcpy(cp, VarAuthName, len);
   cp += len;
-  ChapOutput(physical, CHAP_CHALLENGE, chapid, challenge_data,
-	     cp - challenge_data);
+  ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
+	     cp - chap->challenge_data);
 }
-
-struct authinfo AuthChapInfo = {
-  SendChapChallenge,
-};
 
 static void
 RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
              struct physical *physical)
 {
+  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int valsize, len;
   int arglen, keylen, namelen;
   char *cp, *argp, *ap, *name, *digest;
@@ -227,7 +224,8 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       ap += keylen;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
-      MD5Update(&MD5context, challenge_data + 1, challenge_len);
+      MD5Update(&MD5context, dl->chap.challenge_data + 1,
+                dl->chap.challenge_len);
       MD5Final(cdigest, &MD5context);
       LogDumpBuff(LogDEBUG, "got", cp, 16);
       LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
@@ -257,7 +255,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
            * Either I didn't need to authenticate, or I've already been
            * told that I got the answer right.
            */
-	  bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+          datalink_AuthOk(dl);
 
 	break;
       }
@@ -267,7 +265,7 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
      * Peer is not registerd, or response digest is wrong.
      */
     ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
-    link_Close(&physical->link, bundle, 1, 1);
+    datalink_AuthNotOk(dl);
     break;
   }
 }
@@ -276,6 +274,7 @@ static void
 RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	       struct physical *physical)
 {
+  struct datalink *dl = bundle2datalink(bundle, physical->link.name);
   int len;
 
   len = ntohs(chp->length);
@@ -289,11 +288,13 @@ RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
          * If we're not expecting  the peer to authenticate (or he already
          * has), proceed to network phase.
          */
-	bundle_NewPhase(bundle, physical, PHASE_NETWORK);
+        datalink_AuthOk(dl);
     }
-  } else
+  } else {
     /* CHAP failed - it's not going to get any better */
-    link_Close(&physical->link, bundle, 1, 1);
+    LogPrintf(LogPHASE, "Received CHAP_FAILURE\n");
+    datalink_AuthNotOk(dl);
+  }
 }
 
 void
@@ -314,7 +315,7 @@ ChapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 
       switch (chp->code) {
       case CHAP_RESPONSE:
-	StopAuthTimer(&AuthChapInfo);
+	StopAuthTimer(&bundle2datalink(bundle, physical->link.name)->chap.auth);
 	/* Fall into.. */
       case CHAP_CHALLENGE:
 	RecvChapTalk(bundle, chp, bp, physical);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.8 1998/02/23 00:38:27 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.9 1998/02/27 01:22:21 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -32,7 +32,9 @@
 #define DATALINK_DIAL    (3)
 #define DATALINK_LOGIN   (4)
 #define DATALINK_READY   (5)
-#define DATALINK_OPEN    (6)
+#define DATALINK_LCP     (6)
+#define DATALINK_AUTH    (7)
+#define DATALINK_OPEN    (8)
 
 struct datalink {
   struct descriptor desc;       /* We play either a physical or a chat */
@@ -73,6 +75,9 @@ struct datalink {
 #endif
   struct ccp ccp;		   /* Our compression FSM */
 
+  struct authinfo pap;             /* Authentication using pap */
+  struct chap chap;                /* Authentication using chap */
+
   struct bundle *bundle;	   /* for the moment */
   struct datalink *next;	   /* Next in the list */
 };
@@ -89,3 +94,5 @@ extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);
 extern void datalink_Show(struct datalink *);
+extern void datalink_AuthOk(struct datalink *);
+extern void datalink_AuthNotOk(struct datalink *);
