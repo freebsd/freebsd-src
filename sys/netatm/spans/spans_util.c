@@ -441,7 +441,7 @@ spans_addr_print(p)
 	/*
 	 * Print and return the string
 	 */
-	sprintf(strbuff, "%lx.%lx", ntohl(u1.w), ntohl(u2.w));
+	sprintf(strbuff, "%lx.%lx", (u_long)ntohl(u1.w), (u_long)ntohl(u2.w));
 	return(strbuff);
 }
 
