@@ -64,16 +64,3 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
 	as->length = l;
 	va_end(ap1);
 }
-
-/*
- * Corresponding 'sprintf' interface.
- */
-void
-__archive_string_sprintf(struct archive_string *as, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	__archive_string_vsprintf(as, fmt, ap);
-	va_end(ap);
-}
