@@ -193,6 +193,7 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_esp = (int)td2->td_frame - sizeof(void *);
 	pcb2->pcb_ebx = (int)td2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
+	pcb2->pcb_psl = td2->td_frame->tf_eflags & ~PSL_I; /* ints disabled */
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.

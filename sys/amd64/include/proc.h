@@ -51,6 +51,7 @@ struct proc_ldt {
  * Machine-dependent part of the proc structure for i386.
  */
 struct mdthread {
+	register_t md_savecrit;
 };
 
 struct mdproc {

@@ -39,6 +39,7 @@
  * Machine-dependent part of the proc structure
  */
 struct mdthread {
+	register_t md_savecrit;
 };
 
 struct mdproc {

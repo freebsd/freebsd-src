@@ -47,6 +47,7 @@ struct mdthread {
 	u_int64_t	md_hae;		/* user HAE register value */
 	void            *osf_sigtramp;  /* user-level signal trampoline */
 	u_int		md_kernnest;	/* nesting level in the kernel */
+	register_t	md_savecrit;	/* save PSL for critical section */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */

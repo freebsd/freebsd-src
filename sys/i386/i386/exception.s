@@ -222,6 +222,25 @@ ENTRY(fork_trampoline)
 	pushl	%esp			/* trapframe pointer */
 	pushl	%ebx			/* arg1 */
 	pushl	%esi			/* function */
+	movl    PCPU(CURTHREAD),%ebx	/* setup critnest */
+	movl	$1,TD_CRITNEST(%ebx)
+	/*
+	 * Initialize md_savecrit based on critical_mode.  If critical_mode
+	 * is enabled (new/1) savecrit is basically not used but must
+	 * be initialized to -1 so we know it isn't used in 
+	 * cpu_critical_exit().  If critical_mode is disabled (old/0)
+	 * the eflags to restore must be saved in md_savecrit.
+	 */
+	cmpl	$0,critical_mode
+	jne	1f
+	pushfl
+	popl	TD_MD+MD_SAVECRIT(%ebx)
+	orl	$PSL_I,TD_MD+MD_SAVECRIT(%ebx)
+	jmp	2f
+1:
+	movl	$-1,TD_MD+MD_SAVECRIT(%ebx)
+	sti				/* enable interrupts */
+2:
 	call	fork_exit
 	addl	$12,%esp
 	/* cut from syscall */
