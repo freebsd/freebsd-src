@@ -335,13 +335,22 @@
 	<filename>doc</filename> distribution set, you can use a Web
 	browser to read the Handbook and FAQ locally.</para>
 
-      <para>A listing of books and other documents about &os; can be
-	found in the <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">bibliography</ulink>
-	of the &os; Handbook.  Because of &os;'s strong UNIX heritage,
-	many other articles and books written for UNIX systems are
-	applicable as well, some of which are also listed in the
-	bibliography.</para>
+      <para>A number of on-line books and articles, also maintained by
+        the &os; Project, cover more-specialized, &os;-related topics.
+        This material spans a wide range of topics, from effective use
+        of the mailing lists, to dual-booting &os; with other
+        operating systems, to guidelines for new committers.  Like the
+        Handbook and FAQ, these documents are available from the &os;
+        Documentation Page or in the <filename>doc</filename>
+        distribution set.</para>
+
+      <para>A listing of other books and documents about &os; can be
+        found in the <ulink
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">bibliography</ulink>
+        of the &os; Handbook.  Because of &os;'s strong UNIX heritage,
+        many other articles and books written for UNIX systems are
+        applicable as well, some of which are also listed in the
+        bibliography.</para>
     </sect2>
   </sect1>
 
