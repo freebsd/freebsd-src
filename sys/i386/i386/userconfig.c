@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.22 1995/03/16 18:11:32 bde Exp $
+ *      $Id: userconfig.c,v 1.23 1995/03/17 04:39:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -287,6 +287,10 @@ set_device_irq(CmdParm *parms)
     unsigned irq;
 
     irq = parms[1].parm.iparm;
+    if (irq == 2) {
+	printf("Warning: Remapping IRQ 2 to IRQ 9 - see config(1)\n");
+	irq = 9;
+    }
     parms[0].parm.dparm->id_irq = (irq < 16 ? 1 << irq : 0);
     save_dev(parms[0].parm.dparm);
     return 0;
