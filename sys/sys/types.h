@@ -132,6 +132,11 @@ typedef	__clockid_t	clockid_t;
 typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
 
+#ifndef _DEV_T_DECLARED
+typedef	__dev_t		dev_t;		/* device number or struct cdev */
+#define	_DEV_T_DECLARED
+#endif
+
 #ifndef _FFLAGS_T_DECLARED
 typedef	__fflags_t	fflags_t;	/* file flags */
 #define	_FFLAGS_T_DECLARED
@@ -230,6 +235,7 @@ typedef	__timer_t	timer_t;
 #endif
 
 typedef	__u_register_t	u_register_t;
+typedef	__udev_t	udev_t;		/* device number */
 
 #ifndef _UID_T_DECLARED
 typedef	__uid_t		uid_t;		/* user id */
@@ -265,17 +271,7 @@ typedef	__uintfptr_t	uintfptr_t;
 typedef	__uint64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 
-struct cdev;
-
-typedef	__uint32_t	udev_t;		/* device number */
-typedef struct cdev	*dev_t;
-
 #define offsetof(type, field) __offsetof(type, field)
-
-#else /* !_KERNEL */
-
-typedef	__uint32_t	dev_t;		/* device number */
-#define udev_t dev_t
 
 #endif /* !_KERNEL */
 
