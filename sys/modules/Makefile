@@ -1,8 +1,6 @@
-#	$Id: Makefile,v 1.58 1999/04/19 20:36:06 peter Exp $
+#	$Id: Makefile,v 1.59 1999/05/05 20:58:15 obrien Exp $
 
-# XXX present but broken: atapi ip_mroute_mod joy
-# XXX not yet completed porting: acd
-# XXX deprecated: lkm
+# XXX present but broken: atapi ip_mroute_mod joy pcic
 
 SUBDIR=	ccd cd9660 coda fdesc fxp if_disc if_ppp if_sl if_tun ipfw kernfs \
 	mfs msdos nfs ntfs nullfs portal procfs umapfs union vinum vn
