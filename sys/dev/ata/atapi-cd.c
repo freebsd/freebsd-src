@@ -1030,7 +1030,7 @@ acdstrategy(struct buf *bp)
 	return;
     }
 #endif
-
+    /* if it's a null transfer, return immediatly. */
     if (bp->b_bcount == 0) {
 	bp->b_resid = 0;
 	biodone(bp);
