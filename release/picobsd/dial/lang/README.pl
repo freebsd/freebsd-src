@@ -1,6 +1,6 @@
 1998.07.23, Warszawa
 
-			PicoBSD 0.4 (wersja DIALUP)
+			PicoBSD @VER@ (wersja DIALUP)
 			---------------------------
 
 Co to jest PicoBSD?
@@ -69,4 +69,4 @@ Mi³ej zabawy!
   
 Andrzej Bia³ecki <abial@nask.pl>
 
-$Id: README.pl,v 1.3 1998/08/10 19:07:52 abial Exp $
+$Id: README.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $

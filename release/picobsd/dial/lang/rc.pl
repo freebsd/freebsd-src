@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: rc.pl,v 1.3 1998/08/10 19:07:53 abial Exp $
+# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 ############################################
 ### Special setup for one floppy PICOBSD ###
@@ -92,7 +92,7 @@ fi
 
 echo ''
 echo ''
-echo '+----------- PicoBSD 0.4 (DIALUP) -------------+'
+echo '+----------- PicoBSD @VER@ (DIALUP) ------------+'
 echo '|                                              |'
 echo '| Zaloguj sie jako "root" (brak hasla).        |'
 echo '|                                              |'
