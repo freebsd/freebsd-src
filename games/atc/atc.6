@@ -535,8 +535,7 @@ the lines are horizontal, vertical or
 .RS
 .sp
 .nf
-.TA 1i 1i
-.ta 1i 1i
+.ta \w'airport:\ \ \ 'u
 # This is the default game.
 
 update = 5;
@@ -560,16 +559,19 @@ line:		[ (  1  1 ) (  6  6 ) ]
 		[ ( 11 18 ) ( 10 19 ) ]
 		[ ( 13 17 ) ( 28 17 ) ]
 		[ (  1  7 ) ( 11  7 ) ] ;
+.DT
 .fi
 .RE
 .SH FILES
 .LP
 Files are kept in a special directory. See the OPTIONS for a way to 
 print this path out.
-.TP 16
-/var/games/atc_score	Where the scores are kept.
-.TP 16
-/usr/share/games/atc/Game_List	The list of playable games.
+.TP \w'/usr/share/games/atc/Game_List\ \ \ 'u
+/var/games/atc_score
+Where the scores are kept.
+.TP
+/usr/share/games/atc/Game_List
+The list of playable games.
 .SH AUTHOR
 .LP
 Ed James, UC Berkeley: edjames@ucbvax.berkeley.edu, ucbvax!edjames
