@@ -704,6 +704,7 @@ inthand_remove(struct intrhand *idesc)
 		if ((idesc->ih_flags & INTR_FAST) == 0) {
 			mtx_enter(&sched_lock, MTX_SPIN);
 			if (ithd->it_proc->p_stat == SWAIT) {
+				ithd->it_proc->p_intr_nesting_level = 0;
 				ithd->it_proc->p_stat = SRUN;
 				setrunqueue(ithd->it_proc);
 				/*
