@@ -29,17 +29,18 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/socketvar.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
-#include <sys/socketvar.h>
 #include <sys/stat.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
-#include <sys/pipe.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
@@ -66,6 +67,14 @@ struct linux_newstat {
 	u_long	__unused3;
 	u_long	__unused4;
 	u_long	__unused5;
+};
+
+struct linux_ustat 
+{
+	int	f_tfree;
+	u_long	f_tinode;
+	char	f_fname[6];
+	char	f_fpack[6];
 };
 
 static int
@@ -271,4 +280,48 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 	linux_statfs_buf.fnamelen = MAXNAMLEN;
 	return copyout((caddr_t)&linux_statfs_buf, (caddr_t)args->buf,
 		       sizeof(struct linux_statfs_buf));
+}
+
+int
+linux_ustat(p, uap)
+	struct proc *p;
+	struct linux_ustat_args *uap;
+{
+	struct linux_ustat lu;
+	dev_t dev;
+	struct vnode *vp;
+	struct statfs *stat;
+	int error;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): ustat(%d, *)\n", (long)p->p_pid, uap->dev);
+#endif
+
+	/*
+	 * lu.f_fname and lu.f_fpack are not used. They are always zeroed.
+	 * lu.f_tinode and lu.f_tfree are set from the device's super block.
+	 */
+	bzero(&lu, sizeof(lu));
+
+	/*
+	 * XXX - Don't return an error if we can't find a vnode for the
+	 * device. Our dev_t is 32-bits whereas Linux only has a 16-bits
+	 * dev_t. The dev_t that is used now may as well be a truncated
+	 * dev_t returned from previous syscalls. Just return a bzeroed
+	 * ustat in that case.
+	 */
+	dev = makebdev(uap->dev >> 8, uap->dev & 0xFF);
+	if (vfinddev(dev, VBLK, &vp)) {
+		if (vp->v_mount == NULL)
+			return (EINVAL);
+		stat = &(vp->v_mount->mnt_stat);
+		error = VFS_STATFS(vp->v_mount, stat, p);
+		if (error)
+			return (error);
+
+		lu.f_tfree = stat->f_bfree;
+		lu.f_tinode = stat->f_ffree;
+	}
+
+	return (copyout(&lu, uap->ubuf, sizeof(lu)));
 }
