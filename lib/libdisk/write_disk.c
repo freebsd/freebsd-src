@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 
 #define DOSPTYP_EXTENDED        5
 #define BBSIZE			8192
-#define SBSIZE			8192
+#define SBSIZE			0
 #define DEF_RPM			3600
 #define DEF_INTERLEAVE	1
 

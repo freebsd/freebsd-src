@@ -752,7 +752,7 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
     lp->d_secperunit = size;				    /* data sectors per unit */
 
     lp->d_bbsize = BBSIZE;
-    lp->d_sbsize = SBSIZE;
+    lp->d_sbsize = 0;
 
     lp->d_magic = DISKMAGIC;
     lp->d_magic2 = DISKMAGIC;
