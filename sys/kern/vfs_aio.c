@@ -1120,7 +1120,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	s = splbio();
 	aiocbe->bp = bp;
-	bp->b_spc = (void *)aiocbe;
+	bp->b_caller2 = (void *)aiocbe;
 	TAILQ_INSERT_TAIL(&aio_bufjobs, aiocbe, list);
 	TAILQ_INSERT_TAIL(&ki->kaio_bufqueue, aiocbe, plist);
 	aiocbe->jobstate = JOBST_JOBQBUF;
@@ -2128,7 +2128,7 @@ aio_physwakeup(struct buf *bp)
 
 	wakeup(bp);
 
-	aiocbe = (struct aiocblist *)bp->b_spc;
+	aiocbe = (struct aiocblist *)bp->b_caller2;
 	if (aiocbe) {
 		p = bp->b_caller1;
 
