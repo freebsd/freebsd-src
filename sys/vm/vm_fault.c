@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.6 1994/10/09 00:18:22 davidg Exp $
+ * $Id: vm_fault.c,v 1.7 1994/10/09 01:52:07 phk Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	int			spl;
 	int			hardfault=0;
 
-	cnt.v_faults++;		/* needs lock XXX */
+	cnt.v_vm_faults++;		/* needs lock XXX */
 /*
  *	Recovery actions
  */
