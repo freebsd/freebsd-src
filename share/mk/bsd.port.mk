@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.23 1997/07/01 06:49:35 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.24 1997/07/10 02:30:28 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -356,8 +356,8 @@ RUN_DEPENDS+=	${EXEC_DEPENDS}
 BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
 .endif
 .if defined(USE_PERL5)
-BUILD_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
-RUN_DEPENDS+=		perl5.004:${PORTSDIR}/lang/perl5
+BUILD_DEPENDS+=		perl5.00401:${PORTSDIR}/lang/perl5
+RUN_DEPENDS+=		perl5.00401:${PORTSDIR}/lang/perl5
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
