@@ -56,7 +56,7 @@ Kernel include files (i.e. sys/*.h) come first; normally, you'll need
 OR <sys/param.h>, but not both!  <sys/types.h> includes <sys/cdefs.h>,
 and it's okay to depend on that.
 .Bd -literal -offset 0i
-#include <sys/types.h>		/* Non-local includes in angle brackets. */
+#include <sys/types.h>	/* Non-local includes in angle brackets. */
 .Ed
 .Pp
 If it's a network program, put the network include files next.
