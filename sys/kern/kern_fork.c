@@ -484,7 +484,7 @@ again:
 	LIST_INIT(&p2->p_contested);
 
 	callout_init(&p2->p_itcallout, 0);
-	callout_init(&p2->p_slpcallout, 0);
+	callout_init(&p2->p_slpcallout, 1);
 
 #ifdef KTRACE
 	/*
