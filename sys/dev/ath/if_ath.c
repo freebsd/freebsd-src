@@ -976,7 +976,8 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 * with this alignment (perhaps should assert).
 	 */
 	rs = &ni->ni_rates;
-	pktlen = 8 + 2 + 2+ 2+ni->ni_esslen + 2+rs->rs_nrates + 6;
+	pktlen = sizeof (struct ieee80211_frame)
+	       + 8 + 2 + 2 + 2+ni->ni_esslen + 2+rs->rs_nrates + 6;
 	if (rs->rs_nrates > IEEE80211_RATE_SIZE)
 		pktlen += 2;
 	if (pktlen <= MHLEN)
@@ -1047,6 +1048,9 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	}
 	frm = ieee80211_add_xrates(frm, rs);
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, u_int8_t *);
+	KASSERT(m->m_pkthdr.len <= pktlen,
+		("beacon bigger than expected, len %u calculated %u",
+		m->m_pkthdr.len, pktlen));
 
 	DPRINTF2(("ath_beacon_alloc: m %p len %u\n", m, m->m_len));
 	error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m,
@@ -1066,7 +1070,6 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 
 	ds->ds_link = 0;
 	ds->ds_data = bf->bf_segs[0].ds_addr;
-	/* XXX verify mbuf data area covers this roundup */
 	/*
 	 * Calculate rate code.
 	 * XXX everything at min xmit rate
@@ -1090,6 +1093,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		, 0				/* rts/cts duration */
 	);
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
+	/* XXX verify mbuf data area covers this roundup */
 	ath_hal_filltxdesc(ah, ds
 		, roundup(bf->bf_segs[0].ds_len, 4)	/* buffer length */
 		, AH_TRUE				/* first segment */
