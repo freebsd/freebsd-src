@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.52 1998/09/08 03:02:45 jkh Exp $";
+	"$Id: perform.c,v 1.53 1998/09/11 07:26:54 jkh Exp $";
 #endif
 
 /*
@@ -72,6 +72,11 @@ pkg_do(char *pkg)
     PackingList p;
     struct stat sb;
     int inPlace;
+    /* support for separate pre/post install scripts */
+    int new_m = 0;
+    char pre_script[FILENAME_MAX] = INSTALL_FNAME;
+    char post_script[FILENAME_MAX];
+    char pre_arg[FILENAME_MAX], post_arg[FILENAME_MAX];
 
     code = 0;
     zapLogDir = 0;
@@ -318,17 +323,35 @@ pkg_do(char *pkg)
 	}
     }
 
+    /* Test whether to use the old method of passing tokens to installation
+     * scripts, and set appropriate variables..
+     */
+
+    if (fexists(POST_INSTALL_FNAME)) {
+	new_m = 1;
+	sprintf(post_script, "%s", POST_INSTALL_FNAME);
+	sprintf(pre_arg, "");
+	sprintf(post_arg, "");
+    } else {
+	if (fexists(INSTALL_FNAME)) {
+	    sprintf(post_script, "%s", INSTALL_FNAME);
+	    sprintf(pre_arg, "PRE-INSTALL");
+	    sprintf(post_arg, "POST-INSTALL");
+	}
+    }
+
     /* If we're really installing, and have an installation file, run it */
-    if (!NoInstall && fexists(INSTALL_FNAME)) {
-	vsystem("chmod +x %s", INSTALL_FNAME);	/* make sure */
+    if (!NoInstall && fexists(pre_script)) {
+	vsystem("chmod +x %s", pre_script);	/* make sure */
 	if (Verbose)
-	    printf("Running install with PRE-INSTALL for %s..\n", PkgName);
-	if (!Fake && vsystem("./%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
+	    printf("Running pre-install for %s..\n", PkgName);
+	if (!Fake && vsystem("./%s %s %s", pre_script, PkgName, pre_arg)) {
 	    warnx("install script returned error status");
-	    unlink(INSTALL_FNAME);
+	    unlink(pre_script);
 	    code = 1;
 	    goto success;		/* nothing to uninstall yet */
 	}
+	if (new_m) unlink(pre_script);
     }
 
     /* Now finally extract the entire show if we're not going direct */
@@ -349,16 +372,17 @@ pkg_do(char *pkg)
     }
 
     /* Run the installation script one last time? */
-    if (!NoInstall && fexists(INSTALL_FNAME)) {
+    if (!NoInstall && fexists(post_script)) {
+	vsystem("chmod +x %s", post_script);	/* make sure */
 	if (Verbose)
-	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
-	if (!Fake && vsystem("./%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
+	    printf("Running post-install for %s..\n", PkgName);
+	if (!Fake && vsystem("./%s %s %s", post_script, PkgName, post_arg)) {
 	    warnx("install script returned error status");
-	    unlink(INSTALL_FNAME);
+	    unlink(post_script);
 	    code = 1;
 	    goto fail;
 	}
-	unlink(INSTALL_FNAME);
+	unlink(post_script);
     }
 
     /* Time to record the deed? */
@@ -389,6 +413,8 @@ pkg_do(char *pkg)
 	vsystem("chmod a+rx %s", LogDir);
 	if (fexists(DEINSTALL_FNAME))
 	    move_file(".", DEINSTALL_FNAME, LogDir);
+	if (fexists(POST_DEINSTALL_FNAME))
+	    move_file(".", POST_DEINSTALL_FNAME, LogDir);
 	if (fexists(REQUIRE_FNAME))
 	    move_file(".", REQUIRE_FNAME, LogDir);
 	sprintf(contents, "%s/%s", LogDir, CONTENTS_FNAME);
