@@ -437,7 +437,7 @@ procfs_getattr(ap)
 
 	default:
 		procp = PFIND(pfs->pfs_pid);
-		if (procp == 0 || procp->p_cred == NULL ||
+		if (procp == NULL || procp->p_cred == NULL ||
 		    procp->p_ucred == NULL)
 			return (ENOENT);
 	}
@@ -730,7 +730,7 @@ procfs_lookup(ap)
 			break;
 
 		p = PFIND(pid);
-		if (p == 0)
+		if (p == NULL)
 			break;
 
 		return (procfs_allocvp(dvp->v_mount, vpp, pid, Pproc));
@@ -740,7 +740,7 @@ procfs_lookup(ap)
 			return (procfs_root(dvp->v_mount, vpp));
 
 		p = PFIND(pfs->pfs_pid);
-		if (p == 0)
+		if (p == NULL)
 			break;
 
 		for (pt = proc_targets, i = 0; i < nproc_targets; pt++, i++) {
@@ -912,7 +912,7 @@ procfs_readdir(ap)
 	done:
 
 #ifdef PROCFS_ZOMBIE
-		if (p == 0 && doingzomb == 0) {
+		if (p == NULL && doingzomb == 0) {
 			doingzomb = 1;
 			p = zombproc.lh_first;
 			goto again;
