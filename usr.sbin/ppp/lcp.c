@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.41 1997/10/26 12:42:11 brian Exp $
+ * $Id: lcp.c,v 1.42 1997/10/29 01:19:41 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -367,9 +367,9 @@ LcpDown()
 }
 
 void
-LcpOpen(int mode)
+LcpOpen(int open_mode)
 {
-  LcpFsm.open_mode = mode;
+  LcpFsm.open_mode = open_mode;
   LcpFailedMagic = 0;
   FsmOpen(&LcpFsm);
 }
@@ -387,7 +387,7 @@ LcpClose()
  *	XXX: Should validate option length
  */
 static void
-LcpDecodeConfig(u_char * cp, int plen, int mode)
+LcpDecodeConfig(u_char * cp, int plen, int mode_type)
 {
   char *request;
   int type, length, mru, mtu;
@@ -413,7 +413,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       mru = htons(*sp);
       LogPrintf(LogLCP, " %s %d\n", request, mru);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
         mtu = VarPrefMTU;
         if (mtu == 0)
@@ -446,7 +446,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       accmap = htonl(*lp);
       LogPrintf(LogLCP, " %s %08x\n", request, accmap);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	LcpInfo.his_accmap = accmap;
 	memcpy(ackp, cp, 6);
@@ -465,7 +465,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       proto = ntohs(*sp);
       LogPrintf(LogLCP, " %s proto = %04x\n", request, proto);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	switch (proto) {
 	case PROTO_PAP:
@@ -529,7 +529,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       req = (struct lqrreq *) cp;
       LogPrintf(LogLCP, " %s proto: %x, interval: %dms\n",
 		request, ntohs(req->proto), ntohl(req->period) * 10);
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (ntohs(req->proto) != PROTO_LQR || !Acceptable(ConfLqr))
 	  goto reqreject;
@@ -554,7 +554,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       magic = ntohl(*lp);
       LogPrintf(LogLCP, " %s %08x\n", request, magic);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (LcpInfo.want_magic) {
 	  /* Validate magic number */
@@ -591,7 +591,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
     case TY_PROTOCOMP:
       LogPrintf(LogLCP, " %s\n", request);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfProtocomp)) {
 	  LcpInfo.his_protocomp = 1;
@@ -620,7 +620,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       break;
     case TY_ACFCOMP:
       LogPrintf(LogLCP, " %s\n", request);
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfAcfcomp)) {
 	  LcpInfo.his_acfcomp = 1;
@@ -649,7 +649,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       break;
     case TY_SDP:
       LogPrintf(LogLCP, " %s\n", request);
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
       case MODE_NAK:
       case MODE_REJ:
@@ -658,7 +658,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
       break;
     default:
       LogPrintf(LogLCP, " ???[%02x]\n", type);
-      if (mode == MODE_REQ) {
+      if (mode_type == MODE_REQ) {
     reqreject:
 	memcpy(rejp, cp, length);
 	rejp += length;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.16 1997/09/10 21:33:31 brian Exp $
+ * $Id: ccp.c,v 1.17 1997/10/26 01:02:10 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -209,7 +209,7 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(u_char *cp, int plen, int mode)
+CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
   int type, length;
   char tbuff[100];
@@ -232,7 +232,7 @@ CcpDecodeConfig(u_char *cp, int plen, int mode)
 
     switch (type) {
     case TY_PRED1:
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (Acceptable(ConfPred1)) {
 	  memcpy(ackp, cp, length);

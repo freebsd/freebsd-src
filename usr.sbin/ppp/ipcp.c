@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.32 1997/10/26 12:42:11 brian Exp $
+ * $Id: ipcp.c,v 1.33 1997/10/29 01:19:40 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -357,7 +357,7 @@ AcceptableAddr(struct in_range * prange, struct in_addr ipaddr)
 }
 
 static void
-IpcpDecodeConfig(u_char * cp, int plen, int mode)
+IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 {
   int type, length;
   u_long *lp, compproto;
@@ -384,7 +384,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       ipaddr.s_addr = *lp;
       LogPrintf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (!AcceptableAddr(&DefHisAddress, ipaddr)) {
 	  /*
@@ -422,7 +422,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       compproto = htonl(*lp);
       LogPrintf(LogIPCP, "%s %08x\n", tbuff, compproto);
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	if (!Acceptable(ConfVjcomp)) {
 	  memcpy(rejp, cp, length);
@@ -485,7 +485,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
       snprintf(tbuff2, sizeof(tbuff2), "%s %s,", tbuff, inet_ntoa(ipaddr));
       LogPrintf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	IpcpInfo.his_ipaddr = ipaddr;
 	IpcpInfo.want_ipaddr = dstipaddr;
@@ -519,7 +519,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	rejp += length;
 	break;
       }
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
@@ -568,7 +568,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode)
 	rejp += length;
 	break;
       }
-      switch (mode) {
+      switch (mode_type) {
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;

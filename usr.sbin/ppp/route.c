@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.19 1997/08/31 22:59:47 brian Exp $
+ * $Id: route.c,v 1.20 1997/10/26 01:03:37 brian Exp $
  *
  */
 
@@ -138,10 +138,10 @@ p_sockaddr(struct sockaddr * sa, int width)
 {
   if (VarTerm) {
     register char *cp;
-    register struct sockaddr_in *sin = (struct sockaddr_in *) sa;
+    register struct sockaddr_in *sock_in = (struct sockaddr_in *) sa;
 
-    cp = (sin->sin_addr.s_addr == 0) ? "default" :
-      inet_ntoa(sin->sin_addr);
+    cp = (sock_in->sin_addr.s_addr == 0) ? "default" :
+      inet_ntoa(sock_in->sin_addr);
     fprintf(VarTerm, "%-*.*s ", width, width, cp);
   }
 }
@@ -364,7 +364,7 @@ GetIfIndex(char *name)
 {
   char *buffer;
   struct ifreq *ifrp;
-  int s, len, elen, index;
+  int s, len, elen, newIfIndex;
   struct ifconf ifconfs;
 
   /* struct ifreq reqbuf[256]; -- obsoleted :) */
@@ -400,20 +400,20 @@ GetIfIndex(char *name)
 
   ifrp = ifconfs.ifc_req;
 
-  index = 1;
+  newIfIndex = 1;
   for (len = ifconfs.ifc_len; len > 0; len -= sizeof(struct ifreq)) {
     elen = ifrp->ifr_addr.sa_len - sizeof(struct sockaddr);
     if (ifrp->ifr_addr.sa_family == AF_LINK) {
       LogPrintf(LogDEBUG, "GetIfIndex: %d: %-*.*s, %d, %d\n",
-		index, IFNAMSIZ, IFNAMSIZ, ifrp->ifr_name,
+		newIfIndex, IFNAMSIZ, IFNAMSIZ, ifrp->ifr_name,
 		ifrp->ifr_addr.sa_family, elen);
       if (strcmp(ifrp->ifr_name, name) == 0) {
-	IfIndex = index;
+	IfIndex = newIfIndex;
 	close(s);
 	free(buffer);
-	return (index);
+	return (newIfIndex);
       }
-      index++;
+      newIfIndex++;
     }
     len -= elen;
     ifrp = (struct ifreq *) ((char *) ifrp + elen);
