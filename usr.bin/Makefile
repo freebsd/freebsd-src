@@ -49,6 +49,7 @@ SUBDIR=	apply \
 	fold \
 	from \
 	fstat \
+	fsync \
 	ftp \
 	genassym \
 	gencat \
