@@ -73,8 +73,18 @@ static int mapacct __P((struct vnode *, ufs_daddr_t *, ufs_daddr_t *,
 static int ffs_copyonwrite __P((struct vnode *, struct buf *));
 static int readblock __P((struct buf *, daddr_t));
 
+/*
+ * To ensure the consistency of snapshots across crashes, we must
+ * synchronously write out copied blocks before allowing the
+ * originals to be modified. Because of the rather severe speed
+ * penalty that this imposes, the following flag allows this
+ * crash persistence to be disabled.
+ */
+int dopersistence = 0;
+
 #ifdef DEBUG
 #include <sys/sysctl.h>
+SYSCTL_INT(_debug, OID_AUTO, dopersistence, CTLFLAG_RW, &dopersistence, 0, "");
 int snapdebug = 0;
 SYSCTL_INT(_debug, OID_AUTO, snapdebug, CTLFLAG_RW, &snapdebug, 0, "");
 #endif /* DEBUG */
@@ -955,7 +965,7 @@ ffs_snapblkfree(freeip, bno, size)
 		if (savedcbp != 0) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
-			if (ip->i_effnlink > 0)
+			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
 			VOP_UNLOCK(vp, 0, p);
 			continue;
@@ -966,7 +976,7 @@ ffs_snapblkfree(freeip, bno, size)
 		if ((error = readblock(cbp, lbn)) != 0) {
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
-			if (ip->i_effnlink > 0)
+			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
 			VOP_UNLOCK(vp, 0, p);
 			break;
@@ -982,7 +992,7 @@ ffs_snapblkfree(freeip, bno, size)
 	if (savedcbp) {
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
-		if (VTOI(vp)->i_effnlink > 0) {
+		if (dopersistence && VTOI(vp)->i_effnlink > 0) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
 			VOP_UNLOCK(vp, 0, p);
@@ -1172,7 +1182,7 @@ retry:
 		if (savedcbp != 0) {
 			bcopy(savedcbp->b_data, cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
-			if (ip->i_effnlink > 0)
+			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
 			VOP_UNLOCK(vp, 0, p);
 			continue;
@@ -1183,12 +1193,13 @@ retry:
 		if ((error = readblock(cbp, lbn)) != 0) {
 			bzero(cbp->b_data, fs->fs_bsize);
 			bawrite(cbp);
-			if (ip->i_effnlink > 0)
+			if (dopersistence && ip->i_effnlink > 0)
 				(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
 			VOP_UNLOCK(vp, 0, p);
 			break;
 		}
 		savedcbp = cbp;
+		VOP_UNLOCK(vp, 0, p);
 	}
 	/*
 	 * Note that we need to synchronously write snapshots that
@@ -1198,9 +1209,11 @@ retry:
 	if (savedcbp) {
 		vp = savedcbp->b_vp;
 		bawrite(savedcbp);
-		if (VTOI(vp)->i_effnlink > 0)
+		if (dopersistence && VTOI(vp)->i_effnlink > 0) {
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			(void) VOP_FSYNC(vp, KERNCRED, MNT_WAIT, p);
-		VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, p);
+		}
 	}
 	return (error);
 }
