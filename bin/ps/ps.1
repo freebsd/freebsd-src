@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
-.\"	$Id: ps.1,v 1.9 1996/04/19 22:23:27 smpatel Exp $
+.\"	$Id: ps.1,v 1.10 1996/07/03 22:17:28 mpp Exp $
 .\"
 .Dd April 18, 1994
 .Dt PS 1
@@ -40,7 +40,7 @@
 .Nd process status
 .Sh SYNOPSIS
 .Nm \&ps
-.Op Fl aCehjlmrSTuvwx
+.Op Fl aCcehjlmrSTuvwx
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl O Ar fmt
@@ -79,6 +79,9 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl a
 Display information about other users' processes as well as your own.
+.It Fl c
+Change the ``command'' column output to just contain the executable name,
+rather than the full command line.
 .It Fl C
 Change the way the cpu percentage is calculated by using a ``raw''
 cpu calculation that ignores ``resident'' time (this normally has
