@@ -1,4 +1,4 @@
-/*	$NetBSD: dc21040reg.h,v 1.13 1997/10/17 09:26:58 matt Exp $	*/
+/*	$NetBSD: dc21040reg.h,v 1.14 1998/02/27 13:17:25 mycroft Exp $	*/
 
 /*-
  * Copyright (c) 1994, 1995, 1996 Matt Thomas <matt@3am-software.com>
@@ -517,17 +517,6 @@ typedef struct {
 #define	PHYCTL_ISOLATE		0x0400
 #define	PHYCTL_AUTONEG_RESTART	0x0200
 #define	PHYCTL_FULL_DUPLEX	0x0100
-
-
-#define MII_RD          0x00040000
-#define MII_WR          0x00000000
-#define MII_DIN         0x00080000
-#define MII_DOUT        0x00020000
-#define MII_DOUTON      MII_DOUT
-#define MII_DOUTOFF     MII_DOUT
-#define MII_CLK		0x00010000
-#define MII_CLKON       MII_CLK
-#define MII_CLKOFF      MII_CLK
 
 /*
  * Definitions for the DE425.
