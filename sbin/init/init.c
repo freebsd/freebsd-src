@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.27 1997/08/18 01:40:12 davidn Exp $
+ *		$Id: init.c,v 1.28 1997/10/10 12:14:48 peter Exp $
  */
 
 #ifndef lint
@@ -300,7 +300,7 @@ handle(va_alist)
 {
 	int sig;
 	struct sigaction sa;
-	int mask_everything;
+	sigset_t mask_everything;
 	va_list ap;
 #ifndef __STDC__
 	sig_t handler;
