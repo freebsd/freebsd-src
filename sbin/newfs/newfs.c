@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)newfs.c	8.8 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #ifndef lint
@@ -52,7 +52,9 @@ static char copyright[] =
 #include <sys/mount.h>
 
 #include <ufs/ufs/dir.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/ufsmount.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -195,7 +197,7 @@ main(argc, argv)
 	int fsi, fso, len, n;
 	char *cp, *s1, *s2, *special, *opstring, buf[BUFSIZ];
 
-	if (progname = rindex(*argv, '/'))
+	if (progname = strrchr(*argv, '/'))
 		++progname;
 	else
 		progname = *argv;
@@ -275,7 +277,7 @@ main(argc, argv)
 			break;
 		case 'o':
 			if (mfs)
-				getmntopts(optarg, mopts, &mntflags);
+				getmntopts(optarg, mopts, &mntflags, 0);
 			else {
 				if (strcmp(optarg, "space") == 0)
 					opt = FS_OPTSPACE;
@@ -322,7 +324,7 @@ main(argc, argv)
 		usage();
 
 	special = argv[0];
-	cp = rindex(special, '/');
+	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
 		 * No path prefix; try /dev/r%s then /dev/%s.
@@ -375,8 +377,9 @@ main(argc, argv)
 		if ((st.st_mode & S_IFMT) != S_IFCHR && !mfs)
 			printf("%s: %s: not a character-special device\n",
 			    progname, special);
-		cp = index(argv[0], '\0') - 1;
-		if (cp == 0 || (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
+		cp = strchr(argv[0], '\0') - 1;
+		if (cp == (char *)-1 ||
+		    (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
 #ifdef COMPAT
@@ -447,7 +450,7 @@ main(argc, argv)
 	 * transfer size permitted by the controller or buffering.
 	 */
 	if (maxcontig == 0)
-		maxcontig = MAX(1, MIN(MAXPHYS, MAXBSIZE) / bsize - 1);
+		maxcontig = MAX(1, MIN(MAXPHYS, MAXBSIZE) / bsize);
 	if (density == 0)
 		density = NFPI * fsize;
 	if (minfree < MINFREE && opt != FS_OPTSPACE) {
@@ -498,7 +501,7 @@ main(argc, argv)
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size *= DEV_BSIZE / realsectorsize;
 #endif
-	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
+	if (!Nflag && memcmp(pp, &oldpartition, sizeof(oldpartition)))
 		rewritelabel(special, fso, lp);
 	if (!Nflag)
 		close(fso);
@@ -516,7 +519,7 @@ main(argc, argv)
 			args.export.ex_flags = 0;
 		args.base = membase;
 		args.size = fssize * sectorsize;
-		if (mount(MOUNT_MFS, argv[1], mntflags, &args) < 0)
+		if (mount("mfs", argv[1], mntflags, &args) < 0)
 			fatal("%s: %s", argv[1], strerror(errno));
 	}
 #endif
@@ -588,7 +591,7 @@ rewritelabel(s, fd, lp)
 		cfd = open(specname, O_WRONLY);
 		if (cfd < 0)
 			fatal("%s: %s", specname, strerror(errno));
-		bzero(blk, sizeof(blk));
+		memset(blk, 0, sizeof(blk));
 		*(struct disklabel *)(blk + LABELOFFSET) = *lp;
 		alt = lp->d_ncylinders * lp->d_secpercyl - lp->d_nsectors;
 		for (i = 1; i < 11 && i < lp->d_nsectors; i += 2) {
