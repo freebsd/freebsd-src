@@ -19,15 +19,16 @@
 #include <signal.h>
 #include <string.h>
 #include <termcap.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <locale.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/snoop.h>
-
+#include <sysexits.h>
 
 #define MSG_INIT	"Snoop started."
 #define MSG_OFLOW	"Snoop stopped due to overflow. Reconnecting."
@@ -57,8 +58,7 @@ int             std_in = 0, std_out = 1;
 
 
 int             clear_ok = 0;
-struct sgttyb   sgo;
-struct tchars	tco;
+struct termios  otty;
 char            tbuf[1024], buf[1024];
 
 
@@ -89,38 +89,45 @@ timestamp(buf)
 void
 set_tty()
 {
-	struct sgttyb   sgn;
-	struct tchars	tc;
+	struct termios  ntty;
 
-	ioctl(std_in, TIOCGETP, &sgo);
-	ioctl(std_in, TIOCGETC, &tco);
-	sgn = sgo;
-	tc = tco;
-	sgn.sg_flags |= CBREAK;
-	sgn.sg_flags &= ~ECHO;
-	ospeed = sgo.sg_ospeed;
-	tc.t_intrc = 07;	/* ^G */
-	tc.t_quitc = 07;	/* ^G */
-	ioctl(std_in, TIOCSETP, &sgn);
-	ioctl(std_in, TIOCSETC, &tc);
+	tcgetattr (std_in, &otty);
+	ntty = otty;
+	ntty.c_lflag &= ~ICANON;    /* disable canonical operation  */
+	ntty.c_lflag &= ~ECHO;
+#ifdef FLUSHO
+	ntty.c_lflag &= ~FLUSHO;
+#endif
+#ifdef PENDIN
+	ntty.c_lflag &= ~PENDIN;
+#endif
+#ifdef IEXTEN
+	ntty.c_lflag &= ~IEXTEN;
+#endif
+	ntty.c_cc[VMIN] = 1;        /* minimum of one character */
+	ntty.c_cc[VTIME] = 0;       /* timeout value        */
+
+	ntty.c_cc[VINTR] = 07;   /* ^G */
+	ntty.c_cc[VQUIT] = 07;   /* ^G */
+	tcsetattr (std_in, TCSANOW, &ntty);
 }
 
 void
 unset_tty()
 {
-	ioctl(std_in, TIOCSETP, &sgo);
-	ioctl(std_in, TIOCSETC, &tco);
+	tcsetattr (std_in, TCSANOW, &otty);
 }
 
 
 void
-fatal(buf)
+fatal(err, buf)
+	unsigned int   err;
 	char           *buf;
 {
 	unset_tty();
 	if (buf)
 		fprintf(stderr, "Fatal: %s\n", buf);
-	exit(1);
+	exit(err);
 }
 
 int
@@ -141,7 +148,7 @@ open_snp()
 			continue;
 		return f;
 	}
-	fatal("Cannot open snoop device.");
+	fatal(EX_OSFILE, "Cannot open snoop device.");
 }
 
 
@@ -152,7 +159,7 @@ cleanup()
 		timestamp("Logging Exited.");
 	close(snp_io);
 	unset_tty();
-	exit(0);
+	exit(EX_OK);
 }
 
 
@@ -160,7 +167,7 @@ void
 show_usage()
 {
 	printf("watch -[ciotnW] [tty name]\n");
-	exit(1);
+	exit(EX_USAGE);
 }
 
 void
@@ -188,7 +195,7 @@ ctoh(c)
 	if (c >= 'a' && c <= 'f')
 		return (int) (c - 'a' + 10);
 
-	fatal("Bad tty number.");
+	fatal(EX_DATAERR, "Bad tty number.");
 }
 
 
@@ -205,7 +212,7 @@ void
 attach_snp()
 {
 	if (ioctl(snp_io, SNPSTTY, &snp_tty) != 0)
-		fatal("Cannot attach to tty.");
+		fatal(EX_UNAVAILABLE, "Cannot attach to tty.");
 	if (opt_timestamp)
 		timestamp("Logging Started.");
 }
@@ -218,8 +225,9 @@ set_dev(name)
 	char            buf[DEV_NAME_LEN];
 	struct stat	sb;
 
-	if (strlen(name) > 5 && !strncmp(name, "/dev/", 5))
-		strcpy(buf, name);
+	if (strlen(name) > 5 && !strncmp(name, "/dev/", 5)) {
+		snprintf(buf, sizeof buf, "%s", name);
+	}
 	else {
 		if (strlen(name) == 2)
 			sprintf(buf, "/dev/tty%s", name);
@@ -227,8 +235,11 @@ set_dev(name)
 			sprintf(buf, "/dev/%s", name);
 	}
 
-	if (stat(buf, &sb) < 0)
-		fatal("Bad device name.");
+	if (*name == '\0' || stat(buf, &sb) < 0)
+		fatal(EX_DATAERR, "Bad device name.");
+
+	if ((sb.st_mode & S_IFMT) != S_IFCHR)
+		fatal(EX_DATAERR, "Must be a character device.");
 
 	snp_tty = sb.st_rdev;
 	attach_snp();
@@ -316,14 +327,14 @@ main(ac, av)
 		if (opt_interactive && !opt_no_switch)
 			ask_dev(dev_name, MSG_INIT);
 		else
-			fatal("No device name given.");
+			fatal(EX_DATAERR, "No device name given.");
 	} else
 		strncpy(dev_name, *av, DEV_NAME_LEN);
 
 	set_dev(dev_name);
 
 	if (!(buf = (char *) malloc(b_size)))
-		fatal("Cannot malloc().");
+		fatal(EX_UNAVAILABLE, "Cannot malloc().");
 
 	FD_ZERO(&fd_s);
 
@@ -335,11 +346,11 @@ main(ac, av)
 		if (opt_interactive && FD_ISSET(std_in, &fd_s)) {
 
 			if ((res = ioctl(std_in, FIONREAD, &nread)) != 0)
-				fatal("ioctl() failed.");
+				fatal(EX_OSERR, "ioctl() failed.");
 			if (nread > READB_LEN)
 				nread = READB_LEN;
 			if (read(std_in,chb,nread)!=nread)
-				fatal("read (stdin) failed.");
+				fatal(EX_IOERR, "read (stdin) failed.");
 
 			switch (chb[0]) {
 			case CHR_CLEAR:
@@ -357,7 +368,7 @@ main(ac, av)
 					if (write(snp_io,chb,nread) != nread) {
 						detach_snp();
 						if (opt_no_switch)
-							fatal("Write failed.");
+							fatal(EX_IOERR, "Write failed.");
 						ask_dev(dev_name, MSG_NOWRITE);
 						set_dev(dev_name);
 					}
@@ -369,7 +380,7 @@ main(ac, av)
 			continue;
 
 		if ((res = ioctl(snp_io, FIONREAD, &nread)) != 0)
-			fatal("ioctl() failed.");
+			fatal(EX_OSERR, "ioctl() failed.");
 
 		switch (nread) {
 		case SNP_OFLOW:
@@ -393,19 +404,20 @@ main(ac, av)
 			if (nread < (b_size / 2) && (b_size / 2) > MIN_SIZE) {
 				free(buf);
 				if (!(buf = (char *) malloc(b_size / 2)))
-					fatal("Cannot malloc()");
+					fatal(EX_UNAVAILABLE, "Cannot malloc()");
 				b_size = b_size / 2;
 			}
 			if (nread > b_size) {
 				b_size = (nread % 2) ? (nread + 1) : (nread);
 				free(buf);
 				if (!(buf = (char *) malloc(b_size)))
-					fatal("Cannot malloc()");
+					fatal(EX_UNAVAILABLE, "Cannot malloc()");
 			}
 			if (read(snp_io, buf, nread) < nread)
-				fatal("read failed.");
+				fatal(EX_IOERR, "read failed.");
 			if (write(std_out, buf, nread) < nread)
-				fatal("write failed.");
+				fatal(EX_IOERR, "write failed.");
 		}
 	}			/* While */
 }
+
