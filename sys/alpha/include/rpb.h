@@ -1,7 +1,7 @@
 /* $NetBSD: rpb.h,v 1.20 1998/04/15 00:47:33 mjacob Exp $ */
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
  *

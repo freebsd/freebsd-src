@@ -1,7 +1,7 @@
 /*	$FreeBSD$ */
 /*	$NetBSD: auxioreg.h,v 1.4 2001/10/22 07:31:41 mrg Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2000 Matthew R. Green
  * All rights reserved.
  *

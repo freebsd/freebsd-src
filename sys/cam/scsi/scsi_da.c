@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of SCSI Direct Access Peripheral driver for CAM.
  *
  * Copyright (c) 1997 Justin T. Gibbs.

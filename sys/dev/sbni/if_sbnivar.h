@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997-2001 Granch, Ltd. All rights reserved.
  * Author: Denis I.Timofeev <timofeev@granch.ru>
  *

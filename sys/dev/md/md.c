@@ -1,4 +1,4 @@
-/*
+/*-
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
@@ -10,7 +10,7 @@
  *
  */
 
-/*
+/*-
  * The following functions are based in the vn(4) driver: mdstart_swap(),
  * mdstart_vnode(), mdcreate_swap(), mdcreate_vnode() and mddestroy(),
  * and as such under the following copyright:

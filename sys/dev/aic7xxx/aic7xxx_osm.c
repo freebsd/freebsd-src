@@ -1,4 +1,4 @@
-/*
+/*-
  * Bus independent FreeBSD shim for the aic7xxx based Adaptec SCSI controllers
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.

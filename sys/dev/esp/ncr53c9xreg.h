@@ -1,6 +1,6 @@
 /*	$NetBSD: ncr53c9xreg.h,v 1.11 2003/02/21 17:14:05 tsutsui Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1994 Peter Galbavy.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

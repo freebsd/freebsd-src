@@ -1,4 +1,4 @@
-/*
+/*-
  * Aic7xxx SCSI host adapter firmware asssembler symbol table definitions
  *
  * Copyright (c) 1997 Justin T. Gibbs.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 David Jones <dej@ox.org>
  * All rights reserved.
  *

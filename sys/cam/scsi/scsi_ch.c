@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
@@ -31,7 +31,7 @@
  *	$NetBSD: ch.c,v 1.32 1998/01/12 09:49:12 thorpej Exp $
  *
  */
-/*
+/*-
  * Copyright (c) 1996, 1997 Jason R. Thorpe <thorpej@and.com>
  * All rights reserved.
  *

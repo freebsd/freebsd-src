@@ -1,4 +1,4 @@
-/*
+/*-
  * 
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
@@ -31,7 +31,7 @@
  * 
  */
 
-/* 
+/*-
  * Mach Operating System
  * Copyright (c) 1989 Carnegie-Mellon University
  * Copyright (c) 1988 Carnegie-Mellon University

@@ -1,4 +1,4 @@
-/*
+/*-
  * FreeBSD platform specific, shared driver option settings, data structures,
  * function declarations and includes.
  *

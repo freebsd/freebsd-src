@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, 1998-2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *

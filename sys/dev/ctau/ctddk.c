@@ -1,4 +1,4 @@
-/*
+/*-
  * DDK library for Cronyx-Tau adapters.
  *
  * Copyright (C) 1998-1999 Cronyx Engineering.

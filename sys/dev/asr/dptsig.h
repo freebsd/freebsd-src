@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996-2000 Distributed Processing Technology Corporation
  * Copyright (c) 2000-2001 Adaptec Corporation.
  * All rights reserved.

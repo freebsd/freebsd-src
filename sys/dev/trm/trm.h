@@ -1,9 +1,11 @@
-/*
+/*-
  *	File Name : trm.h	
  *				    
  *	Tekram DC395U/UW/F ,DC315/U 
  *   PCI SCSI Bus Master Host Adapter Device Driver	
  *   (SCSI chip set used Tekram ASIC TRM-S1040)	
+ *
+ * (C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -1,4 +1,4 @@
-/**
+/*-
  * Granch SBNI16 G.SHDSL Modem driver definitions
  * Written by Denis I. Timofeev, 2002-2003.
  *

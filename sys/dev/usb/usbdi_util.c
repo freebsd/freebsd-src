@@ -1,6 +1,6 @@
 /*	$NetBSD: usbdi_util.c,v 1.36 2001/11/13 06:24:57 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

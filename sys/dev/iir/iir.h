@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  *       Copyright (c) 2000-04 ICP vortex GmbH
  *       Copyright (c) 2002-04 Intel Corporation
  *       Copyright (c) 2003-04 Adaptec Inc.

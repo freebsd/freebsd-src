@@ -1,4 +1,4 @@
-/*
+/*-
  * EISA bus device definitions
  *
  * Copyright (c) 1995, 1996 Justin T. Gibbs.

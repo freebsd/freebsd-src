@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 Hidetoshi Shimokawa
  * Copyright (c) 1998-2002 Katsushi Kobayashi and Hidetoshi Shimokawa
  * All rights reserved.
@@ -217,12 +217,12 @@ uint16_t crom_crc(uint32_t *r, int);
 struct csrreg *crom_search_key(struct crom_context *, uint8_t);
 int crom_has_specver(uint32_t *, uint32_t, uint32_t);
 
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(_BOOT)
 char *crom_desc(struct crom_context *, char *, int);
 #endif
 
 /* For CROM build */
-#if defined(_KERNEL) || defined(TEST)
+#if defined(_KERNEL) || defined(_BOOT) || defined(TEST)
 #define CROM_MAX_CHUNK_LEN 20
 struct crom_src {
 	struct csrhdr hdr;

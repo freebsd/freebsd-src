@@ -1579,7 +1579,7 @@ pdq_initialize(
     p = (pdq_uint8_t *) PDQ_OS_MEMALLOC_CONTIG(contig_bytes);
 
     if (p == NULL)
-	printf("%s() - PDQ_OS_MEMALLOC_CONTIG() failed!\n", __FUNCTION__);
+	printf("%s() - PDQ_OS_MEMALLOC_CONTIG() failed!\n", __func__);
 
     if (p != NULL) {
 	pdq_physaddr_t physaddr = PDQ_OS_VA_TO_BUSPA(pdq, p);

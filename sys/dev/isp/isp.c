@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
  *

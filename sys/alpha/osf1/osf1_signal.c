@@ -1,6 +1,6 @@
 /*	$NetBSD: osf1_signal.c,v 1.4 1998/05/20 16:35:01 chs Exp $
  */
-/*
+/*-
  * Copyright (c) 1998-1999 Andrew Gallatin
  * 
  * Taken from NetBSD's sys/compat/osf1/osf1_signal.c, which at the

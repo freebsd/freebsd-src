@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Taku YAMAMOTO <taku@cent.saitama-u.ac.jp>
+ * Copyright (c) 2000-2004 Taku YAMAMOTO <taku@tackymt.homeip.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

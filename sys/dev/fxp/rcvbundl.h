@@ -1,4 +1,4 @@
-/*
+/*-
 Copyright (c) 1999-2001, Intel Corporation 
 
 All rights reserved.

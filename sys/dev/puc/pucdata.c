@@ -1,6 +1,6 @@
 /*	$NetBSD: pucdata.c,v 1.25 2001/12/16 22:23:01 thorpej Exp $	*/
 
-/*
+/*-
  * Copyright (c) 1998, 1999 Christopher G. Demetriou.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

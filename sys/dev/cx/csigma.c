@@ -1,4 +1,4 @@
-/*
+/*-
  * Low-level subroutines for Cronyx-Sigma adapter.
  *
  * Copyright (C) 1994-2000 Cronyx Engineering.

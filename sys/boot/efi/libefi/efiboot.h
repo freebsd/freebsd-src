@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996
  *	Matthias Drochner.  All rights reserved.
  *

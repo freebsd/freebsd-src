@@ -1,4 +1,4 @@
-/*
+/*-
  * 
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1993, 1994, 1995
  *	Rodney W. Grimes, Milwaukie, Oregon  97222.  All rights reserved.
  *

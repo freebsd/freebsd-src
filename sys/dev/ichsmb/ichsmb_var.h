@@ -1,5 +1,4 @@
-
-/*
+/*-
  * ichsmb_var.h
  *
  * Copyright (c) 2000 Whistle Communications, Inc.

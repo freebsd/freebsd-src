@@ -1,4 +1,4 @@
-/*
+/*-
  * Defines for Cronyx-Sigma adapter, based on Cirrus Logic multiprotocol
  * controller RISC processor CL-CD2400/2401.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Cronyx Tau-PCI DDK definitions.
  *
  * Copyright (C) 1999-2003 Cronyx Engineering.

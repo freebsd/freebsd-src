@@ -27,7 +27,7 @@
 
 /*	$NetBSD: auxio.c,v 1.11 2003/07/15 03:36:04 lukem Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2000, 2001 Matthew R. Green
  * All rights reserved.
  *

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * LSI MPT Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *
  * Copyright (c) 2000, 2001 by Greg Ansley, Adam Prewett

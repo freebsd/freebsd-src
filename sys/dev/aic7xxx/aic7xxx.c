@@ -1,4 +1,4 @@
-/*
+/*-
  * Core routines and tables shareable across OS platforms.
  *
  * Copyright (c) 1994-2002 Justin T. Gibbs.

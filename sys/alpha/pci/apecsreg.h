@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $NetBSD: apecsreg.h,v 1.7 1997/06/06 23:54:24 thorpej Exp $ */
 
-/*
+/*-
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.
  *

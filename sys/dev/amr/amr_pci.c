@@ -24,9 +24,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Copyright (c) 2002 Eric Moore
- * Copyright (c) 2002 LSI Logic Corporation
+ * Copyright (c) 2002, 2004 LSI Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

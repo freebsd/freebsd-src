@@ -1,6 +1,6 @@
 /*	$NetBSD: ehci.c,v 1.89 2004/12/03 08:51:31 augustss Exp $ */
 
-/*
+/*-
  * Copyright (c) 2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* 
+/*-
  * Copyright (c) 1991,1990,1989,1994,1995,1996 Carnegie Mellon University
  * All Rights Reserved.
  * 

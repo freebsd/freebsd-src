@@ -1,4 +1,4 @@
-/*
+/*-
  * Interface for the 93C66/56/46/26/06 serial eeprom parts.
  *
  * Copyright (c) 1995, 1996 Daniel M. Eischen

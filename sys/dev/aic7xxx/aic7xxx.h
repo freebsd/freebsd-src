@@ -1,4 +1,4 @@
-/*
+/*-
  * Core definitions and data structures shareable across OS platforms.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.

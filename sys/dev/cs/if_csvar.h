@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 M. Warner Losh <imp@village.org> 
  * All rights reserved.
  *

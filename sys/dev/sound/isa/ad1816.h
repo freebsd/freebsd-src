@@ -1,4 +1,4 @@
-/*
+/*-
  * (C) 1997 Luigi Rizzo (luigi@iet.unipi.it)
  *
  * This file contains information and macro definitions for

@@ -3,7 +3,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

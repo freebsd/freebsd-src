@@ -1,8 +1,8 @@
 /*	$FreeBSD$	*/
 /*	$NecBSD: dp83932subr.h,v 1.5 1999/02/02 00:47:25 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
-  
-/*
+
+/*-
  * Copyright (c) 1997, 1998, 1999
  *	Kouichi Matsuda.  All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * FreeBSD, PCI product support functions
  *
  * Copyright (c) 1995-2001 Justin T. Gibbs

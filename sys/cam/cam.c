@@ -1,4 +1,4 @@
-/*
+/*-
  * Generic utility routines for the Common Access Method layer.
  *
  * Copyright (c) 1997 Justin T. Gibbs.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000, 2001 Richard Hodges and Matriplex, inc.
  * All rights reserved.
  *

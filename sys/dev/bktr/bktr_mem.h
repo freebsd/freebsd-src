@@ -13,7 +13,7 @@
  *            time the bktr driver is loaded.
  */
 
-/*
+/*-
  * 1. Redistributions of source code must retain the
  * Copyright (c) 2000 Roger Hardiman
  * All rights reserved.

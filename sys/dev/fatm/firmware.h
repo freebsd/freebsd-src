@@ -1,4 +1,4 @@
-/*
+/*-
  * (Copyright Notice)
  * 
  * Copyright (c) 1995-2000 FORE Systems, Inc., as an unpublished work.

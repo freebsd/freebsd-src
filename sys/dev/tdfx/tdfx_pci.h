@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000-2001 by Coleman Kane <cokane@FreeBSD.org>
  * All rights reserved.
  *

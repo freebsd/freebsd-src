@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of the Common Access Method Transport (XPT) layer.
  *
  * Copyright (c) 1997, 1998, 1999 Justin T. Gibbs.

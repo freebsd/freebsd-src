@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 George Reid <greid@ukug.uk.freebsd.org>
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * Copyright Luigi Rizzo, 1997,1998

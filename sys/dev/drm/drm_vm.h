@@ -1,4 +1,4 @@
-/* 
+/*-
  * Copyright 2003 Eric Anholt
  * All Rights Reserved.
  *

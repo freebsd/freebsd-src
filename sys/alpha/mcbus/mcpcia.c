@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Matthew Jacob
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /* $NetBSD$	 */
 /* $FreeBSD$	*/
-/*
+/*-
  * Copyright (c) 2000 Masaru OKI
  */
 

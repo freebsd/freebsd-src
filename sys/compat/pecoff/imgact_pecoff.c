@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Masaru OKI
  * Copyright (c) 1994, 1995, 1998 Scott Bartram
  * Copyright (c) 1994 Adam Glass

@@ -1,4 +1,4 @@
-/*
+/*-
  * Generic driver for the Advanced Systems Inc. SCSI controllers
  * Product specific probe and attach routines can be found in:
  * 
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Ported from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *     

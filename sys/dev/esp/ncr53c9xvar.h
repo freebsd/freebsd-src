@@ -37,7 +37,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1994 Peter Galbavy.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

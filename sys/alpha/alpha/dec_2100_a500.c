@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Andrew Gallatin
  * All rights reserved.
  *

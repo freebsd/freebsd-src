@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
  *

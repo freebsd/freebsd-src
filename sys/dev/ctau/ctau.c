@@ -1,4 +1,4 @@
-/*
+/*-
  * Low-level subroutines for Cronyx-Tau adapter.
  *
  * Copyright (C) 1994-2001 Cronyx Engineering.

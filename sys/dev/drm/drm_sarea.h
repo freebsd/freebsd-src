@@ -5,7 +5,7 @@
  * \author Michel D�zer <michel@daenzer.net>
  */
 
-/*
+/*-
  * Copyright 2002 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
  *

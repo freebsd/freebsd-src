@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Seigo Tanimura
  * Copyright (c) 1999 Ville-Pertti Keinonen
  * All rights reserved.

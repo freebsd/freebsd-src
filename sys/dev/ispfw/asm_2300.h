@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
-/*
- * Copyright (C) 2001 Qlogic, Inc.
+/*-
+ * Copyright (C) 2001, 2002, 2003 by Qlogic, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted provided

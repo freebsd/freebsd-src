@@ -1,4 +1,4 @@
-/*
+/*-
  * Device driver for Specialix I/O8+ multiport serial card.
  *
  * Copyright 2003 Frank Mayhar <frank@exit.com>

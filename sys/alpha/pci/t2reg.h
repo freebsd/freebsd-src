@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Doug Rabson & Andrew Gallatin 
  * All rights reserved.
  *

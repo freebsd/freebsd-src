@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* $NetBSD: db_machdep.h,v 1.6 1997/09/06 02:02:25 thorpej Exp $ */
 
-/*
+/*-
  * Copyright (c) 1995 Carnegie-Mellon University.
  * All rights reserved.
  *

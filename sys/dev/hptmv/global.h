@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003-2004 HighPoint Technologies, Inc.
  * All rights reserved.
  *

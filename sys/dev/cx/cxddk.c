@@ -1,4 +1,4 @@
-/*
+/*-
  * Cronyx-Sigma Driver Development Kit.
  *
  * Copyright (C) 1998 Cronyx Engineering.

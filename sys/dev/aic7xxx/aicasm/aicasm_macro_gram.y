@@ -1,5 +1,5 @@
 %{
-/*
+/*-
  * Sub-parser for macro invocation in the Aic7xxx SCSI
  * Host adapter sequencer assembler.
  *

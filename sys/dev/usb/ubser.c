@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Bernd Walter <ticso@freebsd.org>
  *
  * $URL: https://devel.bwct.de/svn/projects/ubser/ubser.c $
@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

@@ -1,6 +1,6 @@
 /* ati_pcigart.h -- ATI PCI GART support -*- linux-c -*-
- * Created: Wed Dec 13 21:52:19 2000 by gareth@valinux.com
- *
+ * Created: Wed Dec 13 21:52:19 2000 by gareth@valinux.com */
+/*-
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * CAM request queue management definitions.
  *
  * Copyright (c) 1997 Justin T. Gibbs.

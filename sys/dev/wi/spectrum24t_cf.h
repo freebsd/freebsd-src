@@ -1,7 +1,7 @@
 /*	$NetBSD$	*/
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 2001 Symbol Technologies Inc. -- http://www.symbol.com
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996, Javier Martín Rueda (jmrueda@diatel.upm.es)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Aic7xxx SCSI host adapter firmware asssembler
  *
  * Copyright (c) 1997, 1998, 2000, 2001 Justin T. Gibbs.

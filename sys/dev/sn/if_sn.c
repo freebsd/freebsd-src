@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 Gardner Buchanan <gbuchanan@shl.com>
  * All rights reserved.
  *

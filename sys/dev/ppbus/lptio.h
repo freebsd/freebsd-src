@@ -1,4 +1,4 @@
-/*
+/*-
  *  Copyright (C) 1994 Geoffrey M. Rehmet
  *
  *  This program is free software; you may redistribute it and/or

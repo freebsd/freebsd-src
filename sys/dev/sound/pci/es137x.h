@@ -1,4 +1,4 @@
-/*
+/*-
  * This supports the ENSONIQ AudioPCI board based on the ES1370.
  *
  * Copyright (c) 1998 Joachim Kuebart <joki@kuebart.stuttgart.netsurf.de>

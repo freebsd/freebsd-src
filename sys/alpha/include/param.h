@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
-/*
+/*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -117,7 +117,6 @@
 #define	KSTACK_PAGES	2		/* pages of kstack (with pcb) */
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define	UAREA_PAGES	1		/* pages of u-area */
 
 
 /*

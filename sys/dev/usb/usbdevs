@@ -1,7 +1,8 @@
 $FreeBSD$
+/* $NetBSD: usbdevs,v 1.392 2004/12/29 08:38:44 imp Exp $ */
 
-/*
- * Copyright (c) 1998, 1999, 2000 The NetBSD Foundation, Inc.
+/*-
+ * Copyright (c) 1998-2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation

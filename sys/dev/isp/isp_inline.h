@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic Host Adapter Inline Functions
  *
  * Copyright (c) 1999, 2000, 2001 by Matthew Jacob

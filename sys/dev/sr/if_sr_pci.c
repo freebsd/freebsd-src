@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 - 2001 John Hay.
  * Copyright (c) 1996 SDL Communications, Inc.
  * All rights reserved.

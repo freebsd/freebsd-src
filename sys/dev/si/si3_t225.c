@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 1998 Specialix International.
  *
  * Download code for SI/XIO/SX host cards.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 1993, David Greenman. This software may be used, modified,
  *   copied, distributed, and sold, in both source and binary form provided
  *   that the above copyright and these terms are retained. Under no

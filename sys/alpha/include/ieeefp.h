@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* From: NetBSD: ieeefp.h,v 1.2 1997/04/06 08:47:28 cgd Exp */
 
-/* 
+/*-
  * Written by J.T. Conklin, Apr 28, 1995
  * Public domain.
  */

@@ -1,4 +1,4 @@
-/*
+/*-
  * Hardware specification of various 8696x based Ethernet cards.
  * Contributed by M. Sekiguchi <seki@sysrap.cs.fujitsu.co.jp>
  *

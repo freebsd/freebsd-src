@@ -1,4 +1,4 @@
-#
+#-
 # Copyright (c) 1992-1998 Nick Hibma <n_hibma@freebsd.org>
 # All rights reserved.
 #

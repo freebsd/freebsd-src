@@ -1,4 +1,4 @@
-/*
+/*-
  * FreeBSD, VLB/ISA product support functions
  *
  * Copyright (c) 2004 Justin T. Gibbs.

@@ -7,7 +7,7 @@
  *	$NetBSD: usb_port.h,v 1.58 2002/10/01 01:25:26 thorpej Exp $
  */
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
  * Changes Copyright 1993 by Gary Clark II

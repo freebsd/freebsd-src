@@ -1,6 +1,6 @@
 /*	$OpenBSD: sab.c,v 1.7 2002/04/08 17:49:42 jason Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2001 Jason L. Wright (jason@thought.net)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 M. Warner Losh, Marcel Moolenaar
  * All rights reserved.
  *

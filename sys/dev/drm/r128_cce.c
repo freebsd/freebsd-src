@@ -1,6 +1,6 @@
 /* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*-
- * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
- *
+ * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com */
+/*-
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

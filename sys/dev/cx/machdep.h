@@ -1,4 +1,4 @@
-/*
+/*-
  * Cronyx DDK: platform dependent definitions.
  *
  * Copyright (C) 1998-1999 Cronyx Engineering

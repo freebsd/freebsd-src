@@ -1,4 +1,4 @@
-/*
+/*-
  * CAM SCSI interface for the the Advanced Systems Inc.
  * Second Generation SCSI controllers.
  *

@@ -63,7 +63,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1994 Peter Galbavy
  * Copyright (c) 1995 Paul Kranenburg
  * All rights reserved.

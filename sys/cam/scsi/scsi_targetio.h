@@ -1,4 +1,4 @@
-/*
+/*-
  * Ioctl definitions for the SCSI Target Driver
  *
  * Copyright (c) 2002 Nate Lawson.

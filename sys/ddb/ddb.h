@@ -39,8 +39,6 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
-#define	DB_LINES_PER_PAGE	db_lines_per_page
-
 typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 	    char *modif);
 

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Machine and OS Independent Target Mode Code for the Qlogic SCSI/FC adapters.
  *
  * Copyright (c) 1999, 2000, 2001 by Matthew Jacob

@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of the Target Mode 'Black Hole device' for CAM.
  *
  * Copyright (c) 1999 Justin T. Gibbs.

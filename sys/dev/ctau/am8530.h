@@ -1,4 +1,4 @@
-/*
+/*-
  * AMD Am83C30 serial communication controller registers.
  *
  * Copyright (C) 1996 Cronyx Engineering.

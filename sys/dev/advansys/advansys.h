@@ -1,4 +1,4 @@
-/*
+/*-
  * Generic driver definitions and exported functions for the Advanced
  * Systems Inc. SCSI controllers
  * 

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994-2000
  *	Paul Richards. All rights reserved.
  *

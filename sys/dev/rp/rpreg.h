@@ -1,4 +1,4 @@
-/* 
+/*-
  * Copyright (c) Comtrol Corporation <support@comtrol.com>
  * All rights reserved.
  *

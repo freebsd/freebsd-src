@@ -1,4 +1,4 @@
-/*
+/*-
  * Hardware structure definitions for the Adaptec 174X CAM SCSI device driver.
  *
  * Copyright (c) 1998 Justin T. Gibbs

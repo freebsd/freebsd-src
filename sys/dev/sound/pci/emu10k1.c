@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 David O'Brien <obrien@FreeBSD.org>
  * Copyright (c) 2003 Orlando Bassotto <orlando.bassotto@ieo-research.it>
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>

@@ -1,4 +1,4 @@
-/*
+/*-
  * Macros for tracing/loging information in the CAM layer
  *
  * Copyright (c) 1997 Justin T. Gibbs.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Downloadable microcode for Advanced Systems Inc. SCSI controllers
  *
  *

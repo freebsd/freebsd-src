@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
  * 

@@ -1,4 +1,4 @@
-/*
+/*-
  *       Copyright (c) 1997 by Simon Shapiro
  *       All Rights Reserved
  *

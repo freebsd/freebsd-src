@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998-1999 Andrew Gallatin
  *
  * Redistribution and use in source and binary forms, with or without

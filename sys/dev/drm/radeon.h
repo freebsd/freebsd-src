@@ -1,6 +1,6 @@
 /* radeon.h -- ATI Radeon DRM template customization -*- linux-c -*-
- * Created: Wed Feb 14 17:07:34 2001 by gareth@valinux.com
- *
+ * Created: Wed Feb 14 17:07:34 2001 by gareth@valinux.com */
+/*-
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
  *

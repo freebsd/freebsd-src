@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Doug Rabson
  * All rights reserved.
  *

@@ -2,7 +2,7 @@
  * Structures and definitions for SCSI commands to Direct Access Devices
  */
 
-/*
+/*-
  * Some lines of this file come from a file of the name "scsi.h"
  * distributed by OSF as part of mach2.5,
  *  so the following disclaimer has been kept.
@@ -30,7 +30,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
+/*-
  * Largely written by Julian Elischer (julian@tfs.com)
  * for TRW Financial Systems.
  *

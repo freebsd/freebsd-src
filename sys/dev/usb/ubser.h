@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 Bernd Walter <ticso@freebsd.org>
  *
  * $URL: https://devel.bwct.de/svn/projects/ubser/ubser.h $

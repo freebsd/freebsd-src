@@ -1,5 +1,6 @@
-/* Copyright (c) 2003 Stuart Walsh */
-/*
+/*-
+ * Copyright (c) 2003 Stuart Walsh
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

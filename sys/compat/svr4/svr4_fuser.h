@@ -41,7 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/*-
  * Portions of this code have been derived from code contributed to the
  * FreeBSD Project by Mark Newton.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Data structures and definitions for SCSI Interface Modules (SIMs).
  *
  * Copyright (c) 1997 Justin T. Gibbs.

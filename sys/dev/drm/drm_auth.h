@@ -1,6 +1,6 @@
 /* drm_auth.h -- IOCTLs for authentication -*- linux-c -*-
- * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com
- *
+ * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com */
+/*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

@@ -1,6 +1,6 @@
 /* drm_bufs.h -- Generic buffer template -*- linux-c -*-
- * Created: Thu Nov 23 03:10:50 2000 by gareth@valinux.com
- *
+ * Created: Thu Nov 23 03:10:50 2000 by gareth@valinux.com */
+/*-
  * Copyright 1999, 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Mark Newton
  * Copyright (c) 1994, 1997 Christos Zoulas.  
  * All rights reserved.

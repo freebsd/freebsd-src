@@ -1,5 +1,5 @@
-/* radeon_state.c -- State support for Radeon -*- linux-c -*-
- *
+/* radeon_state.c -- State support for Radeon -*- linux-c -*- */
+/*-
  * Copyright 2000 VA Linux Systems, Inc., Fremont, California.
  * All Rights Reserved.
  *

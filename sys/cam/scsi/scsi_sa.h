@@ -1,4 +1,4 @@
-/*
+/*-
  * Structure and function declarations for the
  * SCSI Sequential Access Peripheral driver for CAM.
  *

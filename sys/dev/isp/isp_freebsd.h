@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  * Copyright (c) 1997, 1998, 1999, 2000, 2001, 2002 by Matthew Jacob
  *

@@ -1,4 +1,4 @@
-#
+#-
 # Copyright (c) 1998 Nicolas Souchu
 # All rights reserved.
 #

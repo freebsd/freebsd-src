@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Robert Nordier
  * All rights reserved.
  * Copyright (c) 2001 Robert Drehmel
