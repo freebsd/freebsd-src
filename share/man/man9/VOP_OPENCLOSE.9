@@ -39,9 +39,9 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
+.Fn VOP_OPEN "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
 .Ft int
-.Fn VOP_CLOSE "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
+.Fn VOP_CLOSE "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Xr VOP_OPEN 9
@@ -55,8 +55,8 @@ The arguments are:
 the vnode of the file
 .It Ar mode
 the access mode required by the calling process
-.It Ar p
-the process which is accessing the file
+.It Ar td
+the thread which is accessing the file
 .El
 .Pp
 The access mode is a set of flags, including
@@ -82,7 +82,7 @@ Zero is returned on success, otherwise an error code is returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_open(struct vnode *vp, int mode, struct ucred *cred, struct proc *p)
+vop_open(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 {
     /*
      * Most filesystems don't do much here.

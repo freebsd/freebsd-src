@@ -39,9 +39,9 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_INACTIVE "struct vnode *vp" "struct proc *p"
+.Fn VOP_INACTIVE "struct vnode *vp" "struct thread *td"
 .Ft int
-.Fn VOP_RECLAIM "struct vnode *vp" "struct proc *p"
+.Fn VOP_RECLAIM "struct vnode *vp" "struct thread *td"
 .Sh DESCRIPTION
 The arguments are:
 .Bl -tag -width 2n
@@ -67,7 +67,7 @@ unlocked on return.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_inactive(struct vnode *vp)
+vop_inactive(struct vnode *vp, struct thread *td)
 {
     if (link count of vp == 0) {
 	/*
@@ -75,13 +75,13 @@ vop_inactive(struct vnode *vp)
 	 */
 	...;
     }
-    VOP_UNLOCK(vp, 0, p);
+    VOP_UNLOCK(vp, 0, td);
 
     return 0;
 }
 
 int
-vop_reclaim(struct vnode *vp)
+vop_reclaim(struct vnode *vp, struct thread *td)
 {
     /*
      * Clean out the name cache.
