@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.14 1995/03/20 19:20:43 wollman Exp $
+ * $Id: if_sl.c,v 1.15 1995/03/30 20:43:31 ache Exp $
  */
 
 /*
@@ -976,7 +976,7 @@ static void sl_outfill (sc)
 		if (sc->sc_flags & SC_OUTWAIT) {
 			s = splimp ();
 			++sc->sc_if.if_obytes;
-			putc(FRAME_END, tp->t_out);
+			(void) putc(FRAME_END, &tp->t_outq);
 			(*tp->t_oproc)(tp);
 			splx (s);
 		} else
