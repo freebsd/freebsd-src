@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.11 1995/05/11 19:26:09 rgrimes Exp $
+ *	$Id: math_emulate.c,v 1.12 1995/05/30 07:59:35 rgrimes Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ math_emulate(struct trapframe * info)
 	oldeip = info->tf_eip;
 /* 0x001f means user code space */
 	if ((u_short)info->tf_cs != 0x001F) {
-		printf("math_emulate: %04x:%08lx\n\r", (u_short)info->tf_cs,
+		printf("math_emulate: %04x:%08lx\n", (u_short)info->tf_cs,
 			oldeip);
 		panic("?Math emulation needed in kernel?");
 	}
@@ -123,7 +123,7 @@ math_emulate(struct trapframe * info)
 			ftst(PST(0));
 			return(0);
 		case 0x1e5: /* fxam */
-			printf("fxam not implemented\n\r");
+			printf("fxam not implemented\n");
 			math_abort(info,SIGILL);
 		case 0x1e6: case 0x1e7: /* fldenv */
 			math_abort(info,SIGILL);
@@ -291,7 +291,7 @@ for fcom , ??? ATS */
 			real_to_real(&tmp,&ST(code & 7));
 			return(0);
 		case 0xb8: /* ffree */
-			printf("ffree not implemented\n\r");
+			printf("ffree not implemented\n");
 			math_abort(info,SIGILL);
 		case 0xb9: /* fstp ???? where is the pop ? ATS */
 			fxchg(&ST(0),&ST(code & 7));
@@ -348,7 +348,7 @@ for fcom , ??? ATS */
 			fpop();
 			return(0);
 		case 0xf8: /* fild 16-bit mem ???? ATS */
-			printf("ffree not implemented\n\r");
+			printf("ffree not implemented\n");
 			math_abort(info,SIGILL);
 			fpop();
 			return(0);
@@ -523,7 +523,7 @@ for fcom , ??? ATS */
 			real_to_real(&tmp,&ST(0));
 			return(0);
 	}
-	printf("Unknown math-insns: %04x:%08x %04x\n\r",(u_short)info->tf_cs,
+	printf("Unknown math-insns: %04x:%08x %04x\n",(u_short)info->tf_cs,
 		info->tf_eip,code);
 	math_abort(info,SIGFPE);
 }
