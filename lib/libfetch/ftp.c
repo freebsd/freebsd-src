@@ -76,6 +76,7 @@
 #define FTP_ANONYMOUS_USER	"ftp"
 #define FTP_ANONYMOUS_PASSWORD	"ftp"
 
+#define FTP_CONNECTION_ALREADY_OPEN	125
 #define FTP_OPEN_DATA_CONNECTION	150
 #define FTP_OK				200
 #define FTP_FILE_STATUS			213
@@ -452,7 +453,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	if (verbose)
 	    _fetch_info("initiating transfer");
 	e = _ftp_cmd(cd, "%s %s", oper, _ftp_filename(file));
-	if (e != FTP_OPEN_DATA_CONNECTION)
+	if (e != FTP_CONNECTION_ALREADY_OPEN && e != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
     } else {
