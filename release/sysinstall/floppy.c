@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.1 1995/05/31 10:17:34 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.2 1995/06/01 21:37:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -107,6 +107,8 @@ getRootFloppy(void)
 	if (!floppyDev)
 	    continue;
 	fd = open(floppyDev->devname, O_RDONLY);
+	if (isDebug())
+	    msgDebug("getRootFloppy: fd is %d\n", fd);
     }
     return fd;
 }
@@ -115,24 +117,24 @@ Boolean
 mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
-    char mountpoint[FILENAME_MAX];
 
     if (floppyMounted)
 	return TRUE;
-    memset(&dosargs, 0, sizeof dosargs);
 
     if (Mkdir("/mnt", NULL)) {
-	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
     msgConfirm("Please insert media into %s and press return", dev->description);
-    msgDebug("initFloppy:  mount floppy %s on /mnt\n", dev->devname);
+    memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
+    args.uid = args.gid = 0;
     if (mount(MOUNT_MSDOS, "/mnt", 0, (caddr_t)&dosargs) == -1) {
-	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s\n", dev->name,
-		   dev->devname, mountpoint, strerror(errno));
+	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s", dev->name, dev->devname, strerror(errno));
 	return FALSE;
     }
+    if (isDebug())
+	msgDebug("initFloppy: mounted floppy %s successfully on /mnt\n", dev->devname);
     floppyMounted = TRUE;
     return TRUE;
 }
