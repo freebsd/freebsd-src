@@ -589,6 +589,9 @@ putfsent (ent)
     if (ent->f_flags & MNT_ASYNC)
 	printf (",async");
 
+    if (ent->f_flags & MNT_NOATIME)
+	printf (",noatime");
+
     if (fst = getfsspec (ent->f_mntfromname))
 	printf ("\t%u %u\n", fst->fs_freq, fst->fs_passno);
     else if (fst = getfsfile (ent->f_mntonname))
