@@ -1024,6 +1024,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 				return (error);
 			objsize = round_page(vat.va_size);
 			type = OBJT_VNODE;
+			/*
+			 * if it is a regular file without any references
+			 * we do not need to sync it.
+			 */
+			if (vp->v_type == VREG && vat.va_nlink == 0) {
+				flags |= MAP_NOSYNC;
+			}
 		}
 	}
 
