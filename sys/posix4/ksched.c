@@ -38,9 +38,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
-#include <machine/cpu.h>	/* For need_resched */
-#include <machine/ipl.h>	/* For need_resched */
 
 #include <posix4/posix4.h>
 
@@ -174,8 +173,10 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			rtp.type = (policy == SCHED_FIFO)
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
+			mtx_lock_spin(&sched_lock);
 			rtp_to_pri(&rtp, &p->p_pri);
 			need_resched();
+			mtx_unlock_spin(&sched_lock);
 		}
 		else
 			e = EPERM;
@@ -187,6 +188,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 		{
 			rtp.type = RTP_PRIO_NORMAL;
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
+			mtx_lock_spin(&sched_lock);
 			rtp_to_pri(&rtp, &p->p_pri);
 
 			/* XXX Simply revert to whatever we had for last
@@ -196,6 +198,7 @@ int ksched_setscheduler(register_t *ret, struct ksched *ksched,
 			 *     scheduling info alone.
 			 */
 			need_resched();
+			mtx_unlock_spin(&sched_lock);
 		}
 		break;
 	}
@@ -212,7 +215,9 @@ int ksched_getscheduler(register_t *ret, struct ksched *ksched, struct proc *p)
  */
 int ksched_yield(register_t *ret, struct ksched *ksched)
 {
+	mtx_lock_spin(&sched_lock);
 	need_resched();
+	mtx_unlock_spin(&sched_lock);
 	return 0;
 }
 
