@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.130 1995/04/08 21:29:56 phk Exp $
+#	$Id: Makefile,v 1.131 1995/04/09 03:47:55 jkh Exp $
 #
 # How to roll a release:
 #
@@ -103,6 +103,7 @@ release.1:
 	mkdir ${RD}/fixitfd/mnt
 	mkdir ${RD}/fixitfd/etc
 	mkdir ${RD}/floppies
+	mkdir ${RD}/kernels
 	mkdir ${RD}/trees
 	mkdir ${RD}/trees/bin
 	mkdir ${RD}/dists
@@ -133,23 +134,25 @@ release.2:
 release.3:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
-		config GENERIC && \
-		config BOOTFLP
-	cd ${.CURDIR}/../sys/compile/GENERIC && \
-		make depend && \
-		make kernel && \
-		install -c kernel ${RD}/trees/bin/kernel.GENERIC && \
-		cd .. && rm -rf GENERIC
-	ln -f ${RD}/trees/bin/kernel.GENERIC ${RD}/cpiofd/kernel
-	cd ${.CURDIR}/../sys/compile/BOOTFLP && \
-		make depend && \
-		make kernel && \
-		install -s -c kernel ${RD}/bootfd/kernel && \
-		cd .. && rm -rf BOOTFLP
-	ln -f ${RD}/bootfd/kernel ${RD}/fixitfd/kernel
+		sed 's/GENERIC/BOOTCDROM/g' GENERIC > BOOTCDROM
+	for i in GENERIC BOOTFLP BOOTCDROM ; do \
+		cd ${.CURDIR}/../sys/i386/conf && \
+			config $$i && \
+		cd ${.CURDIR}/../sys/compile/$$i && \
+			make depend && \
+			make kernel && \
+			cp kernel ${RD}/kernels/$$i ; \
+	done
+	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
+	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
+	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
+	cp ${RD}/kernels/BOOTFLP ${RD}/bootfd/kernel
+	strip ${RD}/bootfd/kernel
+	cp ${RD}/kernels/BOOTFLP ${RD}/fixitfd/kernel
+	strip ${RD}/fixitfd/kernel
 	touch release.3
 
-# Make and install the two crunched binaries which live on the floppies.
+# Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.4:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
@@ -241,7 +244,6 @@ release.6:
 	touch release.6
 
 # Complete the cpiofd directory
-# XXX a lot of stuff is missing here...
 release.7:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
@@ -262,7 +264,7 @@ release.7:
 	gzip -1 -c < ${RD}/floppies/cpio.flp > ${RD}/floppies/cpio.flp.gz
 	touch release.7
 
-# Make binary dists, notice that secure dist isn't done yet.
+# Make binary dists, notice that secure dist isn't finished yet.
 release.8:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
@@ -283,7 +285,7 @@ release.8:
 	touch release.8
 
 
-# Make source dists
+# Make source dists, and finish of secure too
 release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
@@ -339,10 +341,13 @@ cdrom.1:
 	mkdir ${CD}/filesys
 	cd ${RD} && find floppies dists bootfd -print | cpio -dumpl ${CD}
 	cd ${CD} && mv bootfd bootcd
+	rm -f ${CD}/bootcd/kernel
+	ln -f ${RD}/kernels/BOOTCDROM ${CD}/bootcd/kernel
+	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}/bootcd
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
-			( cd ${RD}/trees/$${i}; \
+			( cd ${RD}/trees/$${i} && \
 			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
 		fi \
 	done
