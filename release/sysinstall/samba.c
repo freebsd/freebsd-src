@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.6 1996/07/10 04:52:27 jkh Exp $
+ * $Id: samba.c,v 1.7 1996/07/26 08:39:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -115,7 +115,7 @@ configSamba(dialogMenuItem *self)
 	    }
 
 	    if (variable_get("SAMBA_export")) {
-		dialog_clear();
+		dialog_clear_norefresh();
 		for (tval = 0; ! tval; tval = msgYesNo("Another?")) {
 		    tptr = msgGetInput(NULL,"What directory to export?");
 		    if (tptr && *tptr && (tptr[0] == '/')) {

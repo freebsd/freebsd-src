@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.116 1996/07/31 06:20:55 jkh Exp $
+ * $Id: install.c,v 1.117 1996/07/31 09:29:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,7 +201,7 @@ installInitial(void)
 	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
-    dialog_clear();
+    dialog_clear_norefresh();
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
@@ -266,7 +266,6 @@ installFixitFloppy(dialogMenuItem *self)
 	    return DITEM_FAILURE;
     }
     dialog_clear();
-    dialog_update();
     end_dialog();
     DialogActive = FALSE;
     if (!directory_exists("/tmp"))
@@ -309,7 +308,6 @@ installFixitFloppy(dialogMenuItem *self)
     DialogActive = TRUE;
     clear();
     dialog_clear();
-    dialog_update();
     unmount("/mnt2", MNT_FORCE);
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
@@ -328,13 +326,13 @@ installExpress(dialogMenuItem *self)
 	return i;
 
     if (!Dists) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
@@ -359,7 +357,7 @@ installNovice(dialogMenuItem *self)
     extern int cdromMounted;
 
     variable_set2(SYSTEM_STATE, "novice");
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
@@ -370,7 +368,7 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
     
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
@@ -381,7 +379,7 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
 	       "canned distribution sets, ranging from minimal installation sets to full\n"
 	       "X11 developer oriented configurations.  You can also select a custom set\n"
@@ -425,7 +423,7 @@ installNovice(dialogMenuItem *self)
 	    tcpDeviceSelect();
 	    /* so we restore our saved value below */
 	    mediaDevice = save;
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	}
     }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.45 1996/07/08 08:54:23 jkh Exp $
+ * $Id: config.c,v 1.46 1996/07/16 17:11:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -448,7 +448,7 @@ configPackages(dialogMenuItem *self)
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
 	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
 	if (fd < 0) {
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
 		       "on the distribution media you've chosen (most likely an FTP site\n"
@@ -489,7 +489,7 @@ configPackages(dialogMenuItem *self)
 	    }
 	}
 	else {
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
@@ -511,10 +511,10 @@ configPorts(dialogMenuItem *self)
     char *cp, *dist = NULL; /* Shut up compiler */
     int status = DITEM_SUCCESS, tries = 0;
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (!variable_get(VAR_PORTS_PATH))
 	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-    dialog_clear();
+    dialog_clear_norefresh();
     while (!directory_exists(dist)) {
 	if (++tries > 2) {
 	    msgConfirm("You appear to be having some problems with your CD drive\n"
