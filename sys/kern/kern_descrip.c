@@ -2040,43 +2040,70 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 static int
 sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 {
-	int error;
+	struct proc *p;
+	struct filedesc *fdp;
 	struct file *fp;
+	struct xfile xf;
+	int error, n;
 
 	sysctl_wire_old_buffer(req, 0);
-	sx_slock(&filelist_lock);
 	if (!req->oldptr) {
-		/*
-		 * overestimate by 10 files
-		 */
-		error = SYSCTL_OUT(req, 0, sizeof(filehead) + 
-				   (nfiles + 10) * sizeof(struct file));
-		sx_sunlock(&filelist_lock);
-		return (error);
-	}
-
-	error = SYSCTL_OUT(req, &filehead, sizeof(filehead));
-	if (error) {
-		sx_sunlock(&filelist_lock);
-		return (error);
-	}
-
-	/*
-	 * followed by an array of file structures
-	 */
-	LIST_FOREACH(fp, &filehead, f_list) {
-		error = SYSCTL_OUT(req, fp, sizeof (struct file));
-		if (error) {
-			sx_sunlock(&filelist_lock);
-			return (error);
+		n = 16; /* slight overestimate */
+		sx_slock(&filelist_lock);
+		LIST_FOREACH(fp, &filehead, f_list) {
+			/*
+			 * We should grab the lock, but this is an
+			 * estimate, so does it really matter?
+			 */
+			/* mtx_lock(fp->f_mtxp); */
+			n += fp->f_count;
+			/* mtx_unlock(f->f_mtxp); */
 		}
+		sx_sunlock(&filelist_lock);
+		return (SYSCTL_OUT(req, 0, n * sizeof xf));
 	}
-	sx_sunlock(&filelist_lock);
-	return (0);
+
+	error = 0;
+	bzero(&xf, sizeof xf);
+	xf.xf_size = sizeof xf;
+	sx_slock(&allproc_lock);
+	LIST_FOREACH(p, &allproc, p_list) {
+		PROC_LOCK(p);
+		xf.xf_pid = p->p_pid;
+		xf.xf_uid = p->p_ucred->cr_uid;
+		if ((fdp = p->p_fd) == NULL) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		FILEDESC_LOCK(fdp);
+		for (n = 0; n < fdp->fd_nfiles; ++n) {
+			if ((fp = fdp->fd_ofiles[n]) == NULL)
+				continue;
+			xf.xf_fd = n;
+			xf.xf_file = fp;
+#define XF_COPY(field) xf.xf_##field = fp->f_##field
+			XF_COPY(type);
+			XF_COPY(count);
+			XF_COPY(msgcount);
+			XF_COPY(offset);
+			XF_COPY(data);
+			XF_COPY(flag);
+#undef XF_COPY
+			error = SYSCTL_OUT(req, &xf, sizeof xf);
+			if (error)
+				break;
+		}
+		FILEDESC_UNLOCK(fdp);
+		PROC_UNLOCK(p);
+		if (error)
+			break;
+	}
+	sx_sunlock(&allproc_lock);
+	return (error);
 }
 
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
-    0, 0, sysctl_kern_file, "S,file", "Entire file table");
+    0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
 SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW, 
     &maxfilesperproc, 0, "Maximum files allowed open per process");
