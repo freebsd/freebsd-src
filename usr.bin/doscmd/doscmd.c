@@ -510,15 +510,8 @@ do_args(int argc, char *argv[])
     FILE	*fp;
     char 	*col;
 
-    while ((c = getopt (argc, argv, "234Oc:TkCIEGMPRLAU:S:HDtzvVxXYfbri:o:p:d:")) != -1) {
+    while ((c = getopt(argc, argv, "234AbCc:Dd:EGHIi:kLMOo:Pp:RrS:TtU:vVxXYz")) != -1) {
 	switch (c) {
-	case 'd':
-	    if ((fp = fopen(optarg, "w")) != 0) {
-		debugf = fp;
-		setbuf (fp, NULL);
-	    } else
-		perror(optarg);
-	    break;
 	case '2':
 	    debug_flags |= D_TRAPS2;
 	    break;
@@ -528,15 +521,46 @@ do_args(int argc, char *argv[])
 	case '4':
 	    debug_flags |= D_DEBUGIN;
 	    break;
-	case 'O':
-	    debugf = stdout;
-	    setbuf (stdout, NULL);
+	case 'A':
+	    debug_flags |= D_TRAPS | D_ITRAPS;
+	    for (c = 0; c < 256; ++c)
+		debug_set(c);
+	    break;
+	case 'b':
+	    booting = 1;
+	    break;
+	case 'C':
+	    debug_flags |= D_DOSCALL;
 	    break;
 	case 'c':
 	    if ((capture_fd = creat(optarg, 0666)) < 0) {
 		perror(optarg);
 		quit(1);
 	    }
+	    break;
+	case 'D':
+	    debug_flags |= D_DISK | D_FILE_OPS;
+	    break;
+	case 'd':
+	    if ((fp = fopen(optarg, "w")) != 0) {
+		debugf = fp;
+		setbuf (fp, NULL);
+	    } else
+		perror(optarg);
+	    break;
+	case 'E':
+	    debug_flags |= D_EXEC;
+	    break;
+	case 'G':
+	    debug_flags |= D_VIDEO;
+	    break;
+	case 'H':
+	    debug_flags |= D_HALF;
+	    break;
+	case 'I':
+	    debug_flags |= D_ITRAPS;
+	    for (c = 0; c < 256; ++c)
+		debug_set(c);
 	    break;
 	case 'i':
 	    i = 1;
@@ -550,6 +574,19 @@ do_args(int argc, char *argv[])
 	    while (i-- > 0)
 		define_input_port_handler(p++, inb_traceport);
 	    break;
+	case 'k':
+            kargs.debug = 1;
+	    break;
+	case 'L':
+	    debug_flags |= D_PRINTER;
+	    break;
+	case 'M':
+	    debug_flags |= D_MEMORY;
+	    break;
+	case 'O':
+	    debugf = stdout;
+	    setbuf (stdout, NULL);
+	    break;
 	case 'o':
 	    i = 1;
 	    if ((col = strchr(optarg, ':')) != 0) {
@@ -561,6 +598,9 @@ do_args(int argc, char *argv[])
 
 	    while (i-- > 0)
 		define_output_port_handler(p++, outb_traceport);
+	    break;
+	case 'P':
+	    debug_flags |= D_PORT;
 	    break;
 	case 'p':
 	    i = 1;
@@ -576,62 +616,33 @@ do_args(int argc, char *argv[])
 		define_output_port_handler(p++, outb_port);
 	    }
 	    break;
-
+	case 'R':
+	    debug_flags |= D_REDIR;
+	    break;
 	case 'r':
 	    raw_kbd = 1;
 	    break;
-	case 'I':
-	    debug_flags |= D_ITRAPS;
-	    for (c = 0; c < 256; ++c)
-		debug_set(c);
-	    break;
-	case 'k':
-            kargs.debug = 1;
+	case 'S':
+	    debug_flags |= D_TRAPS | D_ITRAPS;
+	    debug_set(strtol(optarg, 0, 0));
 	    break;
 	case 'T':
 	    timer_disable = 1;
 	    break;
-	case 'E':
-	    debug_flags |= D_EXEC;
-	    break;
-	case 'G':
-	    debug_flags |= D_VIDEO;
-	    break;
-	case 'C':
-	    debug_flags |= D_DOSCALL;
-	    break;
-	case 'M':
-	    debug_flags |= D_MEMORY;
-	    break;
-	case 'P':
-	    debug_flags |= D_PORT;
-	    break;
-	case 'R':
-	    debug_flags |= D_REDIR;
-	    break;
-	case 'X':
-	    debug_flags |= D_XMS;
-	    break;
-	case 'Y':
-	    debug_flags |= D_EMS;
-	    break;
-	case 'L':
-	    debug_flags |= D_PRINTER;
-	    break;
-	case 'A':
-	    debug_flags |= D_TRAPS|D_ITRAPS;
-	    for (c = 0; c < 256; ++c)
-		debug_set(c);
+	case 't':
+	    tmode = 1;
 	    break;
 	case 'U':
 	    debug_unset(strtol(optarg, 0, 0));
 	    break;
-	case 'S':
-	    debug_flags |= D_TRAPS|D_ITRAPS;
-	    debug_set(strtol(optarg, 0, 0));
+	case 'V':
+	    vflag = 1;
 	    break;
-	case 'H':
-	    debug_flags |= D_HALF;
+	case 'v':
+	    debug_flags |= D_TRAPS | D_ITRAPS | D_HALF | 0xff;
+	    break;
+	case 'X':
+	    debug_flags |= D_XMS;
 	    break;
 	case 'x':
 #ifdef NO_X
@@ -639,23 +650,11 @@ do_args(int argc, char *argv[])
 #endif
 	    xmode = 1;
 	    break;
-	case 't':
-	    tmode = 1;
+	case 'Y':
+	    debug_flags |= D_EMS;
 	    break;
 	case 'z':
 	    zflag = 1;
-	    break;
-	case 'D':
-	    debug_flags |= D_DISK | D_FILE_OPS;
-	    break;
-	case 'v':
-	    debug_flags |= D_TRAPS | D_ITRAPS | D_HALF | 0xff;
-	    break;
-	case 'V':
-	    vflag = 1;
-	    break;
-	case 'b':
-	    booting = 1;
 	    break;
 	default:
 	    usage ();
