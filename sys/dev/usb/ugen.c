@@ -272,9 +272,9 @@ ugen_make_devnodes(struct ugen_softc *sc)
 				"%s.%d",
 				USBDEVNAME(sc->sc_dev), endptno);
 			if (sc->sc_endpoints[endptno][IN].sc != NULL)
-				sc->sc_endpoints[endptno][IN].sc->dev = dev;
+				sc->sc_endpoints[endptno][IN].dev = dev;
 			if (sc->sc_endpoints[endptno][OUT].sc != NULL)
-				sc->sc_endpoints[endptno][OUT].sc->dev = dev;
+				sc->sc_endpoints[endptno][OUT].dev = dev;
 		}
 	}
 }
@@ -298,9 +298,9 @@ ugen_destroy_devnodes(struct ugen_softc *sc)
 			 * of the structs is populated.
 			 */
 			if (sc->sc_endpoints[endptno][IN].sc != NULL)
-				dev = sc->sc_endpoints[endptno][IN].sc->dev;
+				dev = sc->sc_endpoints[endptno][IN].dev;
 			else
-				dev = sc->sc_endpoints[endptno][OUT].sc->dev;
+				dev = sc->sc_endpoints[endptno][OUT].dev;
 			destroy_dev(dev);
 		}
 	}
