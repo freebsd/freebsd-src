@@ -327,15 +327,21 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 		}
 		if (infile != NULL) {
 			fclose(infile);
-			if (*oldfname != '\0' &&
-			    rename(fname, oldfname) != 0) {
-				warn("rename()");
-				unlink(tmpfname);
-				exit(1);
+			if (*oldfname != '\0') {
+				if (rename(fname, oldfname) != 0) {
+					warn("rename()");
+					unlink(tmpfname);
+					exit(1);
+				}
+				*oldfname = '\0';
 			}
-			if (*tmpfname != '\0')
+			if (*tmpfname != '\0') {
+				if (outfile != NULL && outfile != stdout)
+					fclose(outfile);
+				outfile = NULL;
 				rename(tmpfname, fname);
-			*tmpfname = *oldfname = '\0';
+				*tmpfname = '\0';
+			}
 			outfname = NULL;
 		}
 		if (firstfile == 0)
