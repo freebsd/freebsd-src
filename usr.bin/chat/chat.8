@@ -1,12 +1,12 @@
 .\" -*- nroff -*-
 .\" manual page [] for chat 1.8
-.\" $Id: chat.8,v 1.8 1997/02/22 19:54:22 peter Exp $
+.\" $Id: chat.8,v 1.9 1997/08/22 15:24:35 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
 .\" IP indented paragraph
 .\" TP hanging label
-.TH CHAT 8 "5 May 1995" "Chat Version 1.9"
+.TH CHAT 8 "27 Sep 1997" "Chat Version 1.17"
 .SH NAME
 chat \- Automated conversational script with a modem
 .SH SYNOPSIS
@@ -51,9 +51,11 @@ to \fIstderr\fR.
 .TP
 .B -v
 Request that the \fIchat\fR script be executed in a verbose mode. The
-\fIchat\fR program will then log all text received from the modem and
-the output strings which it sends to
-.IR syslogd (8).
+\fIchat\fR program will then log the execution state of the chat
+script as well as all text received from the modem and the output
+strings sent to the modem.  The default is to log through
+.IR syslog (3);
+the logging method may be altered with the -S and -s flags.
 Logging is
 done to the \fIlocal2\fR facility at level \fIinfo\fR for verbose tracing
 and level \fIerr\fR for some errors.
@@ -61,12 +63,36 @@ and level \fIerr\fR for some errors.
 .B -V
 Request that the \fIchat\fR script be executed in a stderr verbose
 mode. The \fIchat\fR program will then log all text received from the
-modem and the output strings which it sends to the stderr device. This
+modem and the output strings sent to the modem to the stderr device. This
 device is usually the local console at the station running the chat or
 pppd program. This option will not work properly if the stderr is
 redirected to the /dev/null location as is the case should pppd be run
 in the 'detached' mode. In that case, use the '-v' option to record
-the session on the SYSLOG device.
+the session via
+.IR syslog (3).
+.TP
+.B -s
+Use stderr.  All log messages from '-v' and all error messages will be
+sent to stderr.
+.TP
+.B -S
+Do not use
+.IR syslog (3).
+By default, error messages are sent to
+.IR syslog (3).
+The use of -S will prevent both log messages from '-v' and
+error messages from being sent to
+.IR syslog (3).
+.TP
+.B -T \fI<phone number>
+Pass in an arbitary string, usually a phone number, that will be
+substituted for the \\T substitution metacharacter in a send string.
+.TP
+.B -U \fI<phone number 2>
+Pass in a second string, usually a phone number, that will be
+substituted for the \\U substitution metacharacter in a send string.
+This is useful when dialing an ISDN terminal adapter that requires two 
+numbers.
 .TP
 .B script
 If the script is not specified in a file with the \fI-f\fR option then
@@ -469,7 +495,7 @@ Additional information about \fIchat\fR scripts may be found with UUCP
 documentation. The \fIchat\fR script was taken from the ideas proposed
 by the scripts used by the \fIuucico\fR program.
 .LP
-uucico(1), uucp(1)
+uucico(1), uucp(1), syslog(3), syslogd(8).
 .SH COPYRIGHT
 The \fIchat\fR program is in public domain. This is not the GNU public
 license. If it breaks then you get to keep both pieces.
