@@ -110,7 +110,6 @@ static void runq_readjust(struct runq *rq, struct kse *ke);
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
  ************************************************************************/
-
 /*
  * Select the KSE that will be run next.  From that find the thread, and x
  * remove it from the KSEGRP's run queue.  If there is thread clustering,
@@ -128,27 +127,12 @@ retry:
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
-		if (td->td_flags & TDF_UNBOUND) {
+		if (TD_IS_UNBOUND(td)) {
 			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 			if (kg->kg_last_assigned == td) {
-				if (TAILQ_PREV(td, threadqueue, td_runq)
-				    != NULL)
-					printf("Yo MAMA!\n");
 				kg->kg_last_assigned = TAILQ_PREV(td,
 				    threadqueue, td_runq);
 			}
-			/*
-			 *  If we have started running an upcall,
-			 * Then TDF_UNBOUND WAS set because the thread was 
-			 * created without a KSE. Now that we have one,
-			 * and it is our time to run, we make sure
-			 * that BOUND semantics apply for the rest of
-			 * the journey to userland, and into the UTS.
-			 */
-#ifdef	NOTYET
-			if (td->td_flags & TDF_UPCALLING) 
-				tdf->td_flags &= ~TDF_UNBOUND;
-#endif
 		}
 		kg->kg_runnable--;
 		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
@@ -160,18 +144,26 @@ retry:
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
 	ke->ke_flags |= KEF_DIDRUN;
+
+	/*
+	 * Only allow non system threads to run in panic
+	 * if they are the one we are tracing.  (I think.. [JRE])
+	 */
 	if (panicstr && ((td->td_proc->p_flag & P_SYSTEM) == 0 &&
 	    (td->td_flags & TDF_INPANIC) == 0))
 		goto retry;
+
 	TD_SET_RUNNING(td);
 	return (td);
 }
 
 /*
  * Given a KSE (now surplus or at least loanable), either assign a new
- * runable thread to it
- * (and put it in the run queue) or put it in the ksegrp's idle KSE list.
- * Or aybe give it back to its owner if it's been loaned.
+ * runable thread to it (and put it in the run queue) or put it in
+ * the ksegrp's idle KSE list.
+ * Or maybe give it back to its owner if it's been loaned.
+ * Assumes that the original thread is either not runnable or
+ * already on the run queue
  */
 void
 kse_reassign(struct kse *ke)
@@ -180,16 +172,79 @@ kse_reassign(struct kse *ke)
 	struct thread *td;
 	struct thread *owner;
 	struct thread *original;
+	int loaned;
 
+	KASSERT((ke->ke_owner), ("reassigning KSE with no owner"));
+	KASSERT((ke->ke_thread && TD_IS_INHIBITED(ke->ke_thread)),
+    	    ("reassigning KSE with no or runnable  thread"));
 	mtx_assert(&sched_lock, MA_OWNED);
 	kg = ke->ke_ksegrp;
-	owner = ke->ke_bound;
+	owner = ke->ke_owner;
+	loaned = TD_LENDER(owner);
 	original = ke->ke_thread;
-	KASSERT(!(owner && ((owner->td_kse != ke) || 
-		    (owner->td_flags & TDF_UNBOUND))), 
-		("kse_reassign: bad thread bound state"));
+
+	if (TD_CAN_UNBIND(original) && (original->td_standin)) {
+		KASSERT((owner == original),
+		    ("Early thread borrowing?"));
+		/*
+		 * The outgoing thread is "threaded" and has never
+		 * scheduled an upcall.
+		 * decide whether this is a short or long term event
+		 * and thus whether or not to schedule an upcall.
+		 * if it is a short term event, just suspend it in
+		 * a way that takes its KSE with it.
+		 * Select the events for which we want to schedule upcalls.
+		 * For now it's just sleep.
+		 * Other threads that still have not fired an upcall
+		 * are held to their KSE using the temorary Binding.
+		 */
+		if (TD_ON_SLEEPQ(original)) {
+			/* 
+			 * An bound thread that can still unbind itself
+			 * has been scheduled out.
+			 * If it is sleeping, then we need to schedule an
+			 * upcall.
+			 * XXXKSE eventually almost any inhibition could do.
+			 */
+			original->td_flags &= ~TDF_CAN_UNBIND;
+			original->td_flags |= TDF_UNBOUND;
+			thread_schedule_upcall(original, ke);
+			owner = ke->ke_owner;
+			loaned = 1;
+		}
+	}
+
+	/* 
+	 * If the current thread was borrowing, then make things consistent
+	 * by giving it back to the owner for the moment. The original thread
+	 * must be unbound and have already used its chance for
+	 * firing off an upcall. Threads that have not yet made an upcall
+	 * can not borrow KSEs.
+	 */
+	if (loaned) {
+		KASSERT((original->td_standin == NULL),
+		    ("kse_reassign: borrower still has standin thread"));
+		TD_CLR_LOAN(owner);
+		ke->ke_thread = owner;
+		original->td_kse = NULL; /* give it amnesia */
+		/*
+		 * Upcalling threads have lower priority than all
+		 * in-kernel threads, However threads that have loaned out
+		 * their KSE and are NOT upcalling have the priority that
+		 * they have. In other words, only look for other work if
+		 * the owner is not runnable, OR is upcalling.
+		 */
+		if (TD_CAN_RUN(owner) &&
+		    ((owner->td_flags & TDF_UPCALLING) == 0)) {
+			setrunnable(owner);
+			CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
+			    ke, owner);
+			return;
+		}
+	} 
 
 	/*
+	 * Either the owner is not runnable, or is an upcall.
 	 * Find the first unassigned thread
 	 * If there is a 'last assigned' then see what's next.
 	 * otherwise look at what is first.
@@ -204,77 +259,67 @@ kse_reassign(struct kse *ke)
 	 * If we found one assign it the kse, otherwise idle the kse.
 	 */
 	if (td) {
-		/*
-		 * If the original is bound to us we can only be lent out so
-		 * make a loan, otherwise we just drop the 
-		 * original thread.
+		/* 
+		 * Assign the new thread to the KSE.
+		 * and make the KSE runnable again,
 		 */
-		if (original) {
-			if (((original->td_flags & TDF_UNBOUND) == 0)) {
-				/*
-				 * Put the owner on the side
-				 */
-				ke->ke_bound = original;
-				TD_SET_LOAN(original);
-			} else {
-				original->td_kse = NULL;
-			}
+		if (TD_IS_BOUND(owner)) {
+			/*
+			 * If there is a reason to keep the previous
+			 * owner, do so.
+			 */
+			TD_SET_LOAN(owner);
+		} else {
+			/* otherwise, cut it free */
+			ke->ke_owner = td;
+			owner->td_kse = NULL;
 		}
 		kg->kg_last_assigned = td;
 		td->td_kse = ke;
 		ke->ke_thread = td;
 		sched_add(ke);
-		/*
-		 * if we have already borrowed this,
-		 * just pass it to the new thread,
-		 * otherwise, enact the loan.
-		 */
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
 		return;
 	}
-	if (owner) { /* already loaned out */
-		/* effectivly unloan it */
-		TD_CLR_LOAN(owner);
-		ke->ke_thread = owner;
-		ke->ke_bound = NULL;
-		if (original)
-			original->td_kse = NULL;
-		original = owner;
 
-		if (TD_CAN_RUN(owner)) {
-			/*
-			 * If the owner thread is now runnable,  run it..
-			 * Let it have its KSE back.
-			 */
-			setrunqueue(owner);
-			CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
-			    ke, owner);
-			return;
-		}
-	}
 	/*
-	 * Presetly NOT loaned out.
-	 * If we are bound, we go on the loanable queue
-	 * otherwise onto the free queue.
+	 * Now handle any waiting upcall.
+	 * Since we didn't make them runnable before.
 	 */
-	if (original) {
-		if (((original->td_flags & TDF_UNBOUND) == 0)) {
-			ke->ke_state = KES_THREAD;
-			ke->ke_flags |= KEF_ONLOANQ;
-			ke->ke_bound = NULL;
-			TAILQ_INSERT_HEAD(&kg->kg_lq, ke, ke_kgrlist);
-			kg->kg_loan_kses++;
-			CTR1(KTR_RUNQ, "kse_reassign: ke%p on loan queue", ke);
-			return;
-		} else {
-			original->td_kse = NULL;
-		}
+	if (TD_CAN_RUN(owner)) {
+		setrunnable(owner);
+		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p (give back)",
+		    ke, owner);
+		return;
 	}
-	ke->ke_state = KES_IDLE;
-	ke->ke_thread = NULL;
-	TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
-	kg->kg_idle_kses++;
-	CTR1(KTR_RUNQ, "kse_reassign: ke%p idled", ke);
+
+	/* 
+	 * It is possible that this is the last thread in the group
+	 * because the KSE is being shut down or the process
+	 * is exiting.
+	 */
+	if (TD_IS_EXITING(owner) || (ke->ke_flags & KEF_EXIT)) {
+		ke->ke_thread = NULL;
+		owner->td_kse = NULL;
+		kse_unlink(ke);
+		return;
+	}
+
+	/*
+	 * At this stage all we know is that the owner
+	 * is the same as the 'active' thread in the KSE
+	 * and that it is 
+	 * Presently NOT loaned out.
+	 * Put it on the loanable queue. Make it fifo
+	 * so that long term sleepers donate their KSE's first.
+	 */
+	KASSERT((TD_IS_BOUND(owner)), ("kse_reassign: UNBOUND lender"));
+	ke->ke_state = KES_THREAD;
+	ke->ke_flags |= KEF_ONLOANQ;
+	TAILQ_INSERT_TAIL(&kg->kg_lq, ke, ke_kgrlist);
+	kg->kg_loan_kses++;
+	CTR1(KTR_RUNQ, "kse_reassign: ke%p on loan queue", ke);
+	return;
 }
 
 #if 0
@@ -302,7 +347,7 @@ remrunqueue(struct thread *td)
 	CTR1(KTR_RUNQ, "remrunqueue: td%p", td);
 	kg->kg_runnable--;
 	TD_SET_CAN_RUN(td);
-	if ((td->td_flags & TDF_UNBOUND) == 0)  {
+	if (TD_IS_BOUND(td))  {
 		/* Bring its kse with it, leave the thread attached */
 		sched_rem(ke);
 		ke->ke_state = KES_THREAD; 
@@ -317,12 +362,12 @@ remrunqueue(struct thread *td)
 		 * KSE to the next available thread. Then, we should
 		 * see if we need to move the KSE in the run queues.
 		 */
+		sched_rem(ke);
+		ke->ke_state = KES_THREAD; 
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value "));
 		if (td2 == td) 
 			kg->kg_last_assigned = td3;
-		td->td_kse = NULL;
-		ke->ke_thread = NULL;
 		kse_reassign(ke);
 	}
 }
@@ -345,7 +390,7 @@ adjustrunqueue( struct thread *td, int newpri)
 	 */
 	ke = td->td_kse;
 	CTR1(KTR_RUNQ, "adjustrunqueue: td%p", td);
-	if ((td->td_flags & TDF_UNBOUND) == 0)  {
+	if (TD_IS_BOUND(td))  {
 		/* We only care about the kse in the run queue. */
 		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
@@ -396,11 +441,16 @@ setrunqueue(struct thread *td)
 		sched_add(td->td_kse);
 		return;
 	}
-	if ((td->td_flags & TDF_UNBOUND) == 0) {
+	/* 
+	 * If the process is threaded but the thread is bound then
+	 * there is still a little extra to do re. KSE loaning.
+	 */
+	if (TD_IS_BOUND(td)) {
 		KASSERT((td->td_kse != NULL),
 		    ("queueing BAD thread to run queue"));
 		ke = td->td_kse;
-		ke->ke_bound = NULL;
+		KASSERT((ke->ke_owner == ke->ke_thread),
+		    ("setrunqueue: Hey KSE loaned out"));
 		if (ke->ke_flags & KEF_ONLOANQ) {
 			ke->ke_flags &= ~KEF_ONLOANQ;
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
@@ -422,15 +472,7 @@ setrunqueue(struct thread *td)
 		 * If we can't get one, our priority is not high enough..
 		 * that's ok..
 		 */
-		if (kg->kg_idle_kses) {
-			/*
-			 * There is a free one so it's ours for the asking..
-			 */
-			ke = TAILQ_FIRST(&kg->kg_iq);
-			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-			ke->ke_state = KES_THREAD;
-			kg->kg_idle_kses--;
-		} else if (kg->kg_loan_kses) {
+		if (kg->kg_loan_kses) {
 			/*
 			 * Failing that see if we can borrow one.
 			 */
@@ -438,8 +480,7 @@ setrunqueue(struct thread *td)
 			TAILQ_REMOVE(&kg->kg_lq, ke, ke_kgrlist);
 			ke->ke_flags &= ~KEF_ONLOANQ;
 			ke->ke_state = KES_THREAD;
-			TD_SET_LOAN(ke->ke_thread);
-			ke->ke_bound = ke->ke_thread;
+			TD_SET_LOAN(ke->ke_owner);
 			ke->ke_thread  = NULL;
 			kg->kg_loan_kses--;
 		} else if (tda && (tda->td_priority > td->td_priority)) {
@@ -456,7 +497,11 @@ setrunqueue(struct thread *td)
 	} else {
 		/* 
 		 * Temporarily disassociate so it looks like the other cases.
+		 * If the owner wasn't lending before, then it is now..
 		 */
+		if (!TD_LENDER(ke->ke_owner)) {
+			TD_SET_LOAN(ke->ke_owner);
+		}
 		ke->ke_thread = NULL;
 		td->td_kse = NULL;
 	}

@@ -116,26 +116,6 @@ cv_destroy(struct cv *cvp)
 static __inline void
 cv_switch(struct thread *td)
 {
-
-	/*
-	 * If we are capable of async syscalls and there isn't already
-	 * another one ready to return, start a new thread
-	 * and queue it as ready to run. Note that there is danger here
-	 * because we need to make sure that we don't sleep allocating
-	 * the thread (recursion here might be bad).
-	 * Hence the TDF_INMSLEEP flag.
-	 */
-	if ((td->td_flags & (TDF_UNBOUND|TDF_INMSLEEP)) == TDF_UNBOUND) {
-		/*
-		 * We don't need to upcall now, just queue it.
-		 * The upcall will happen when other n-kernel work
-		 * in this SKEGRP has completed.
-		 * Don't recurse here!
-		 */
-		td->td_flags |= TDF_INMSLEEP;
-		thread_schedule_upcall(td, td->td_kse);
-		td->td_flags &= ~TDF_INMSLEEP;
-	}
 	TD_SET_SLEEPING(td);
 	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();

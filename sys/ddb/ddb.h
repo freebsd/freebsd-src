@@ -104,6 +104,8 @@ void		db_trap(int type, int code);
 int		db_value_of_name(const char *name, db_expr_t *valuep);
 void		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 				/* machine-dependent */
+void		db_stack_thread(db_expr_t addr, boolean_t have_addr,
+				db_expr_t count, char *modif);
 void		kdb_init(void);
 
 db_cmdfcn_t	db_breakpoint_cmd;
@@ -125,11 +127,11 @@ db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_watchpoint_cmd;
 db_cmdfcn_t	db_write_cmd;
+db_cmdfcn_t	db_show_one_thread;
 
 #if 0
 db_cmdfcn_t	db_help_cmd;
 db_cmdfcn_t	db_show_all_threads;
-db_cmdfcn_t	db_show_one_thread;
 db_cmdfcn_t	ipc_port_print;
 db_cmdfcn_t	vm_page_print;
 #endif

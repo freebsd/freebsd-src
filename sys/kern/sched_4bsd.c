@@ -116,7 +116,7 @@ maybe_resched(struct thread *td)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	if (td->td_priority < curthread->td_priority)
+	if (td->td_priority < curthread->td_priority && curthread->td_kse)
 		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
 }
 

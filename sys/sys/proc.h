@@ -289,11 +289,11 @@ struct thread {
 	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
-	struct kse_thr_mailbox *td_mailbox; /* the userland mailbox address */
+	struct kse_thr_mailbox *td_mailbox; /* The userland mailbox address */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
 	void		(*td_switchin)(void); /* (k) Switchin special func. */
-	struct thread	*td_standin;	/* (?) use this for an upcall */
-	u_int		td_usticks;	/* Statclock hits in kernel, for UTS */
+	struct thread	*td_standin;	/* (?) Use this for an upcall */
+	u_int		td_usticks;	/* (?) Statclock kernel hits, for UTS */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 #define	td_endzero td_base_pri
 
@@ -309,7 +309,7 @@ struct thread {
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
 	enum {
-		TDS_INACTIVE = 0x20,
+		TDS_INACTIVE = 0x0,
 		TDS_INHIBITED,
 		TDS_CAN_RUN,
 		TDS_RUNQ,
@@ -330,6 +330,7 @@ struct thread {
 /* flags kept in td_flags */ 
 #define	TDF_UNBOUND	0x000001 /* May give away the kse, uses the kg runq. */
 #define	TDF_INPANIC	0x000002 /* Caused a panic, let it drive crashdump. */
+#define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
@@ -347,14 +348,24 @@ struct thread {
 #define	TDI_LOCK	0x08	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x10	/* Awaiting interrupt. */
 #define	TDI_LOAN	0x20	/* bound thread's KSE is lent */
+#define	TDI_IDLE	0x40	/* kse_release() made us surplus */
+#define	TDI_EXITING	0x80	/* Thread is in exit processing */
+
+#define	TD_IS_UNBOUND(td)	((td)->td_flags & TDF_UNBOUND)
+#define	TD_IS_BOUND(td)		(!TD_IS_UNBOUND(td))
+#define	TD_CAN_UNBIND(td) \
+    (((td)->td_flags & (TDF_UNBOUND|TDF_CAN_UNBIND)) == TDF_CAN_UNBIND)
+				 
 
 #define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
 #define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
 #define	TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
 #define	TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
 #define	TD_ON_LOCK(td)		((td)->td_inhibitors & TDI_LOCK)
-#define	TD_LENT(td)		((td)->td_inhibitors & TDI_LOAN)
+#define	TD_LENDER(td)		((td)->td_inhibitors & TDI_LOAN)
 #define	TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
+#define	TD_IS_IDLE(td)		((td)->td_inhibitors & TDI_IDLE)
+#define	TD_IS_EXITING(td)	((td)->td_inhibitors & TDI_EXITING)
 #define	TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
 #define	TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
 #define	TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
@@ -377,6 +388,8 @@ struct thread {
 #define	TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
 #define	TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
 #define	TD_SET_LOAN(td)		TD_SET_INHIB((td), TDI_LOAN)
+#define	TD_SET_IDLE(td)		TD_SET_INHIB((td), TDI_IDLE)
+#define	TD_SET_EXITING(td)	TD_SET_INHIB((td), TDI_EXITING)
 
 #define	TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
 #define	TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
@@ -384,6 +397,7 @@ struct thread {
 #define	TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
 #define	TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
 #define	TD_CLR_LOAN(td)		TD_CLR_INHIB((td), TDI_LOAN)
+#define	TD_CLR_IDLE(td)		TD_CLR_INHIB((td), TDI_IDLE)
 
 #define	TD_SET_RUNNING(td)	do {(td)->td_state = TDS_RUNNING; } while (0)
 #define	TD_SET_RUNQ(td)		do {(td)->td_state = TDS_RUNQ; } while (0)
@@ -398,8 +412,7 @@ struct thread {
 /*
  * Traps for young players:
  * The main thread variable that controls whether a thread acts as a threaded
- * or unthreaded thread is the td_bound counter (0 == unbound).
- * UPCALLS run with the UNBOUND flags clear, after they are first scheduled.
+ * or unthreaded thread is the TDF_UNBOUND flag.
  * i.e. they bind themselves to whatever thread thay are first scheduled with.
  * You may see BOUND threads in KSE processes but you should never see
  * UNBOUND threads in non KSE processes.
@@ -422,7 +435,7 @@ struct kse {
 #define	ke_startzero ke_flags
 	int		ke_flags;	/* (j) KEF_* flags. */
 	struct thread	*ke_thread;	/* Active associated thread. */
-	struct thread	*ke_bound;	/* Thread bound to this KSE (*) */
+	struct thread	*ke_owner;	/* Always points to the owner */
 	int		ke_cpticks;	/* (j) Ticks of cpu time. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_int64_t	ke_uu;		/* (j) Previous user time in usec. */
@@ -436,7 +449,7 @@ struct kse {
 	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
-		KES_IDLE = 0x10,
+		KES_UNUSED = 0x0,
 		KES_ONRUNQ,
 		KES_UNQUEUED,		/* in transit */
 		KES_THREAD		/* slaved to thread state */
@@ -480,7 +493,6 @@ struct ksegrp {
 	struct proc	*kg_proc;	/* Process that contains this KSEG. */
 	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* Queue of KSEGs in kg_proc. */
 	TAILQ_HEAD(, kse) kg_kseq;	/* (ke_kglist) All KSEs. */
-	TAILQ_HEAD(, kse) kg_iq;	/* (ke_kgrlist) Idle KSEs. */
 	TAILQ_HEAD(, kse) kg_lq;	/* (ke_kgrlist) Loan KSEs. */
 	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
 	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq) waiting RUNNABLE threads */
@@ -502,7 +514,6 @@ struct ksegrp {
 	char		kg_nice;	/* (j?/k?) Process "nice" value. */
 #define	kg_endcopy kg_numthreads
 	int		kg_numthreads;	/* Num threads in total */
-	int		kg_idle_kses;	/* num KSEs idle */
 	int		kg_kses;	/* Num KSEs in group. */
 	struct kg_sched	*kg_sched;	/* Scheduler specific data */
 };
