@@ -32,7 +32,7 @@ gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi annotate.texi \
 	  fdl.texi gpl.texi gdbmi.texinfo \
 	rluser.texinfo inc-hist.texinfo
 
-gdbint.info: gdbint.texinfo fdl.texi
+gdbint.info: gdbint.texinfo gdb-cfg.texi fdl.texi
 	
 gdb-cfg.texi: all-cfg.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
