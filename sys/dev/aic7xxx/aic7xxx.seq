@@ -37,6 +37,8 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
+ *	$Id$
+ *
  *-M************************************************************************/
 
 #include <dev/aic7xxx/aic7xxx.reg>
@@ -757,8 +759,15 @@ mesgin_identify:
 	or      SAVED_TCL,A;		/* SAVED_TCL should be complete now */
 	mov	SAVED_TCL call index_untagged_scb;
 	mov	ARG_1, SINDIR;
-	/* XXX Directly index in the non paging case */
+.if ( SCB_PAGING )
 	cmp	ARG_1,SCB_LIST_NULL	jne use_findSCB;
+.else
+	cmp	ARG_1,SCB_LIST_NULL	je snoop_tag;
+	/* Directly index the SCB */
+	mov	SCBPTR,ARG_1;
+	test	SCB_CONTROL,DISCONNECTED jz not_found;
+	jmp	setup_SCB;
+.endif
 /*
  * Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
  * If we get one, we use the tag returned to find the proper
@@ -767,6 +776,7 @@ mesgin_identify:
  * If we're not using SCB paging, we can use the tag as the direct
  * index to the SCB.
  */
+snoop_tag:
 	mov	NONE,SCSIDATL;		/* ACK Identify MSG */
 snoop_tag_loop:
 	test	SSTAT1,REQINIT		jz snoop_tag_loop;
@@ -786,8 +796,13 @@ get_tag:
 	jc	not_found;
 
 .if ! ( SCB_PAGING )
-	jmp index_by_tag;
-.endif
+index_by_tag:
+	mov	SCBPTR,ARG_1;
+	mov	A, SAVED_TCL;
+	cmp	SCB_TCL,A		jne not_found;
+	test	SCB_CONTROL,TAG_ENB	jz  not_found;
+	test	SCB_CONTROL,DISCONNECTED jz not_found;
+.else
 /*
  * Ensure that the SCB the tag points to is for an SCB transaction
  * to the reconnecting target.
@@ -795,17 +810,11 @@ get_tag:
 use_findSCB:
 	mov	ALLZEROS	call findSCB;	  /* Have to search */
 	cmp	SINDEX, SCB_LIST_NULL	je not_found;
+.endif
 setup_SCB:
 	and	SCB_CONTROL,~DISCONNECTED;
 	or	SEQ_FLAGS,IDENTIFY_SEEN;	  /* make note of IDENTIFY */
 	jmp	mesgin_done;
-index_by_tag:
-	mov	SCBPTR,ARG_1;
-	mov	A, SAVED_TCL;
-	cmp	SCB_TCL,A		jne not_found;
-	test	SCB_CONTROL,TAG_ENB	jz  not_found;
-	test	SCB_CONTROL,DISCONNECTED jz not_found;
-	jmp	setup_SCB;
 
 not_found:
 	mvi	INTSTAT, NO_MATCH;
@@ -952,6 +961,7 @@ assert:
 
 	mvi	INTSTAT,NO_IDENT 	ret;	/* no - tell the kernel */
 
+.if ( SCB_PAGING )
 /*
  * Locate a disconnected SCB either by SAVED_TCL (ARG_1 is SCB_LIST_NULL)
  * or by the SCBIDn ARG_1.  The search begins at the SCB index passed in
@@ -972,17 +982,14 @@ findSCB_loop:
  * one we want.  If we aren't paging or the SCB we dma down has the
  * abort flag set, return not found.
  */
-.if ( SCB_PAGING )
 	mov	ALLZEROS	call	get_free_or_disc_scb;
 	mvi	DMAPARAMS, HDMAEN|DIRECTION|FIFORESET;
 	mov	ARG_1	call dma_scb;
 	test	SCB_CONTROL, ABORT_SCB jz return;
-.endif
 find_error:
 	mvi	SINDEX, SCB_LIST_NULL ret;
 foundSCB:
 	test	SCB_CONTROL, ABORT_SCB jnz find_error;
-.if ( SCB_PAGING )
 rem_scb_from_disc_list:
 /* Remove this SCB from the disconnection list */
 	cmp	SCB_NEXT,SCB_LIST_NULL je unlink_prev;
