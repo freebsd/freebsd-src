@@ -19,6 +19,9 @@ ROADMAP:
 
 File				Description
 ===============================================================================
+ESDI.FAQ			All about installing FreeBSD on older
+				ESDI/MFM drives.
+
 FreeBSD.FAQ			The overall FreeBSD FAQ - posted regularly to
 				USENET.
 
