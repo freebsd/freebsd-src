@@ -2,6 +2,7 @@
 
 SUBDIR=	firewire \
 	fwe \
+	fwip \
 	sbp \
 	sbp_targ
 
