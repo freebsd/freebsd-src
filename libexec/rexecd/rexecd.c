@@ -80,19 +80,11 @@ char	remote[MAXHOSTNAMELEN];
 
 struct	sockaddr_storage asin;
 
-void doit(struct sockaddr *);
-void getstr(char *, int, char *);
-void error(const char *fmt, ...);
-void pam_fail(void);
+static void doit(struct sockaddr *);
+static void getstr(char *, int, char *);
+static void error(const char *fmt, ...);
 
 int no_uid_0 = 1;
-
-void
-usage(void)
-{
-	syslog(LOG_ERR, "usage: rexecd [-i]");
-	exit(1);
-}
 
 /*
  * remote execute server:
@@ -117,7 +109,8 @@ main(int argc, char *argv[])
 			no_uid_0 = 0;
 			break;
 		default:
-			usage();
+			syslog(LOG_ERR, "usage: rexecd [-i]");
+			exit(1);
 		}
 	argc -= optind;
 	argv += optind;
@@ -133,7 +126,7 @@ main(int argc, char *argv[])
 	return(0);
 }
 
-void
+static void
 doit(struct sockaddr *fromp)
 {
 	char cmdbuf[NCARGS+1], *cp;
@@ -292,7 +285,7 @@ doit(struct sockaddr *fromp)
 	err(1, "%s", pwd->pw_shell);
 }
 
-void
+static void
 error(const char *fmt, ...)
 {
 	char buf[BUFSIZ];
@@ -305,7 +298,7 @@ error(const char *fmt, ...)
 	va_end(ap);
 }
 
-void
+static void
 getstr(char *buf, int cnt, char *err)
 {
 	char c;
