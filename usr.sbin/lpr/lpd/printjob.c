@@ -201,6 +201,7 @@ printjob(struct printer *pp)
 	}
 	if (stat(pp->lock_file, &stb) == 0 && (stb.st_mode & LFM_PRINT_DIS))
 		exit(0);		/* printing disabled */
+	umask(S_IWOTH);
 	lfd = open(pp->lock_file, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK, 
 		   LOCK_FILE_MODE);
 	if (lfd < 0) {
@@ -1874,7 +1875,7 @@ pstatus(const struct printer *pp, const char *msg, ...)
 	va_list ap;
 	va_start(ap, msg);
 
-	umask(0);
+	umask(S_IWOTH);
 	fd = open(pp->status_file, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
 	if (fd < 0) {
 		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
