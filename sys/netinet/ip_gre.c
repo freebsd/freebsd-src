@@ -177,9 +177,12 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 			hlen += 4;
 
 		switch (ntohs(gip->gi_ptype)) { /* ethertypes */
-		case ETHERTYPE_IP: /* shouldn't need a schednetisr(), as */
-		case WCCP_PROTOCOL_TYPE: /* we are in ip_input */
-			isr = NETISR_IP;
+		case WCCP_PROTOCOL_TYPE:
+			if (sc->wccp_ver == WCCP_V2)
+				hlen += 4;
+			/* FALLTHROUGH */
+		case ETHERTYPE_IP:	/* shouldn't need a schednetisr(), */
+			isr = NETISR_IP;/* as we are in ip_input */
 			break;
 #ifdef NETATALK
 		case ETHERTYPE_ATALK:
