@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.47 1997/05/04 09:17:36 phk Exp $
+ * $Id: nfs_vnops.c,v 1.48 1997/05/09 13:18:42 dfr Exp $
  */
 
 
@@ -1990,12 +1990,6 @@ nfs_rmdir(ap)
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	int v3 = NFS_ISV3(dvp);
 
-	if (dvp == vp) {
-		vput(dvp);
-		vrele(dvp);
-		FREE(cnp->cn_pnbuf, M_NAMEI);
-		return (EINVAL);
-	}
 	nfsstats.rpccnt[NFSPROC_RMDIR]++;
 	nfsm_reqhead(dvp, NFSPROC_RMDIR,
 		NFSX_FH(v3) + NFSX_UNSIGNED + nfsm_rndup(cnp->cn_namelen));
