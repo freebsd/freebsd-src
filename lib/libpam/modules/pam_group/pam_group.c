@@ -91,12 +91,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			goto found;
 
  not_found:
-	fprintf(stderr, "couldn't find %s in %s\n", ruser, group);
 	if (openpam_get_option(pamh, "deny"))
 		return (PAM_SUCCESS);
 	return (PAM_AUTH_ERR);
  found:
-	fprintf(stderr, "found %s in %s\n", ruser, group);
 	if (openpam_get_option(pamh, "deny"))
 		return (PAM_AUTH_ERR);
 	return (PAM_SUCCESS);
