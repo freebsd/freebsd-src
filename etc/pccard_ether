@@ -72,6 +72,8 @@ case ${ipv6_enable} in
 	[Yy][Ee][Ss])
 		;;
 	*)
+		sysctl -w net.inet6.ip6.forwarding=0
+		sysctl -w net.inet6.ip6.accept_rtadv=1
 		ifconfig ${interface} up
 		rtsol ${interface}
 		;;
