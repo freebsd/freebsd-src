@@ -24,13 +24,15 @@
  * file to be resurrected.
  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "savecwd.h"
 #include "fileattr.h"
 
 static int add_directory PROTO ((struct file_info *finfo));
-static int build_entry PROTO((char *repository, char *user, char *options,
-		        char *message, List * entries, char *tag));
+static int build_entry PROTO((const char *repository, const char *user,
+                              const char *options, const char *message,
+                              List * entries, const char *tag));
 
 static const char *const add_usage[] =
 {
@@ -150,7 +152,7 @@ add (argc, argv)
 #ifdef CLIENT_SUPPORT
     if (current_parsed_root->isremote)
     {
-	int i;
+	int j;
 
 	if (argc == 0)
 	    /* We snipped out all the arguments in the above sanity
@@ -180,7 +182,7 @@ add (argc, argv)
 	    free (repository);
 	}
 
-	for (i = 0; i < argc; ++i)
+	for (j = 0; j < argc; ++j)
 	{
 	    /* FIXME: Does this erroneously call Create_Admin in error
 	       conditions which are only detected once the server gets its
@@ -195,7 +197,7 @@ add (argc, argv)
 	       "Directory %s added" message), and then Create_Admin,
 	       which should also fix the error handling concerns.  */
 
-	    if (isdir (argv[i]))
+	    if (isdir (argv[j]))
 	    {
 		char *tag;
 		char *date;
@@ -210,8 +212,11 @@ add (argc, argv)
 		if (save_cwd (&cwd))
 		    error_exit ();
 
-		filedir = xstrdup (argv[i]);
-		p = last_component (filedir);
+		filedir = xstrdup (argv[j]);
+                /* Deliberately discard the const below since we know we just
+                 * allocated filedir and can do what we like with it.
+                 */
+		p = (char *)last_component (filedir);
 		if (p == filedir)
 		{
 		    update_dir = "";
@@ -246,7 +251,7 @@ add (argc, argv)
 		rcsdir = xmalloc (strlen (repository) + strlen (p) + 5);
 		sprintf (rcsdir, "%s/%s", repository, p);
 
-		Create_Admin (p, argv[i], rcsdir, tag, date,
+		Create_Admin (p, argv[j], rcsdir, tag, date,
 			      nonbranch, 0, 1);
 
 		if (found_slash)
@@ -263,7 +268,7 @@ add (argc, argv)
 		free (rcsdir);
 
 		if (p == filedir)
-		    Subdir_Register ((List *) NULL, (char *) NULL, argv[i]);
+		    Subdir_Register ((List *) NULL, (char *) NULL, argv[j]);
 		else
 		{
 		    Subdir_Register ((List *) NULL, update_dir, p);
@@ -289,10 +294,7 @@ add (argc, argv)
 	int begin_added_files = added_files;
 #endif
 	struct file_info finfo;
-	char *p;
-#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
-	char *found_name;
-#endif
+	char *filename, *p;
 
 	memset (&finfo, 0, sizeof finfo);
 
@@ -300,8 +302,12 @@ add (argc, argv)
 	    error_exit ();
 
 	finfo.fullname = xstrdup (argv[i]);
-	p = last_component (argv[i]);
-	if (p == argv[i])
+	filename = xstrdup (argv[i]);
+	/* We know we can discard the const below since we just allocated
+	 * filename and can do as we like with it.
+         */
+	p = (char *)last_component (filename);
+	if (p == filename)
 	{
 	    finfo.update_dir = "";
 	    finfo.file = p;
@@ -309,7 +315,7 @@ add (argc, argv)
 	else
 	{
 	    p[-1] = '\0';
-	    finfo.update_dir = argv[i];
+	    finfo.update_dir = filename;
 	    finfo.file = p;
 	    if (CVS_CHDIR (finfo.update_dir) < 0)
 		error (1, errno, "could not chdir to %s", finfo.update_dir);
@@ -325,7 +331,8 @@ add (argc, argv)
 	repository = Name_Repository (NULL, finfo.update_dir);
 
 	/* don't add stuff to Emptydir */
-	if (strncmp (repository, current_parsed_root->directory, cvsroot_len) == 0
+	if (strncmp (repository, current_parsed_root->directory,
+                     cvsroot_len) == 0
 	    && ISDIRSEP (repository[cvsroot_len])
 	    && strncmp (repository + cvsroot_len + 1,
 			CVSROOTADM,
@@ -340,65 +347,12 @@ add (argc, argv)
 	finfo.repository = repository;
 	finfo.entries = entries;
 
-#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
-	if (ign_case)
-	{
-	    /* Need to check whether there is a directory with the
-	       same name but different case.  We'll check for files
-	       with the same name later (when Version_TS calls
-	       RCS_parse which calls fopen_case).  If CVS some day
-	       records directories in the RCS files, then we should be
-	       able to skip the separate check here, which would be
-	       cleaner.  */
-	    DIR *dirp;
-	    struct dirent *dp;
-
-	    dirp = CVS_OPENDIR (finfo.repository);
-	    if (dirp == NULL)
-		error (1, errno, "cannot read directory %s", finfo.repository);
-	    found_name = NULL;
-	    errno = 0;
-	    while ((dp = CVS_READDIR (dirp)) != NULL)
-	    {
-		if (cvs_casecmp (dp->d_name, finfo.file) == 0)
-		{
-		    if (found_name != NULL)
-			error (1, 0, "%s is ambiguous; could mean %s or %s",
-			       finfo.file, dp->d_name, found_name);
-		    found_name = xstrdup (dp->d_name);
-		}
-	    }
-	    if (errno != 0)
-		error (1, errno, "cannot read directory %s", finfo.repository);
-	    CVS_CLOSEDIR (dirp);
-
-	    if (found_name != NULL)
-	    {
-		/* OK, we are about to patch up the name, so patch up
-		   the temporary directory too to match.  The isdir
-		   should "always" be true (since files have ,v), but
-		   I guess we might as well make some attempt to not
-		   get confused by stray files in the repository.  */
-		if (isdir (finfo.file))
-		{
-		    if (CVS_MKDIR (found_name, 0777) < 0
-			&& errno != EEXIST)
-			error (0, errno, "cannot create %s", finfo.file);
-		}
-
-		/* OK, we found a directory with the same name, maybe in
-		   a different case.  Treat it as if the name were the
-		   same.  */
-		finfo.file = found_name;
-	    }
-	}
-#endif
-
 	/* We pass force_tag_match as 1.  If the directory has a
            sticky branch tag, and there is already an RCS file which
            does not have that tag, then the head revision is
            meaningless to us.  */
 	vers = Version_TS (&finfo, options, NULL, NULL, 1, 0);
+
 	if (vers->vn_user == NULL)
 	{
 	    /* No entry available, ts_rcs is invalid */
@@ -507,24 +461,90 @@ same name already exists in the repository.");
 		    }
 		    else
 		    {
+			char *timestamp = NULL;
+			if (vers->ts_user == NULL)
+			{
+			    /* If this file does not exist locally, assume that
+			     * the last version on the branch is being
+			     * resurrected.
+			     *
+			     * Compute previous revision.  We assume that it
+			     * exists and that it is not a revision on the
+			     * trunk of the form X.1 (1.1, 2.1, 3.1, ...).  We
+			     * also assume that it is not dead, which seems
+			     * fair since we know vers->vn_rcs is dead
+			     * and we shouldn't see two dead revisions in a
+			     * row.
+			     */
+			    char *prev = previous_rev (vers->srcfile,
+			                               vers->vn_rcs);
+			    int status;
+			    assert (prev != NULL);
+			    if (!quiet)
+				error (0, 0,
+"Resurrecting file `%s' from revision %s.",
+			               finfo.fullname, prev);
+			    status = RCS_checkout (vers->srcfile, finfo.file,
+						   prev, vers->tag,
+						   vers->options, RUN_TTY,
+			                           NULL, NULL);
+			    xchmod (finfo.file, 1);
+			    if (status != 0)
+			    {
+				error (0, 0, "Failed to resurrect revision %s",
+				       prev);
+				err++;
+			    }
+			    else
+			    {
+				/* I don't actually set vers->ts_user here
+				 * because it would confuse server_update().
+				 */
+				timestamp = time_stamp (finfo.file);
+				if (!really_quiet)
+				    write_letter (&finfo, 'U');
+			    }
+			    free (prev);
+			}
 			if (!quiet)
 			{
 			    if (vers->tag)
-				error (0, 0, "\
-file `%s' will be added on branch `%s' from version %s",
-					finfo.fullname, vers->tag, vers->vn_rcs);
+				error (0, 0,
+"file `%s' will be added on branch `%s' from version %s",
+				       finfo.fullname, vers->tag,
+				       vers->vn_rcs);
 			    else
 				/* I'm not sure that mentioning
 				   vers->vn_rcs makes any sense here; I
 				   can't think of a way to word the
 				   message which is not confusing.  */
-				error (0, 0, "\
-re-adding file %s (in place of dead revision %s)",
-					finfo.fullname, vers->vn_rcs);
+				error (0, 0,
+"Re-adding file `%s' (in place of dead revision %s).",
+				       finfo.fullname, vers->vn_rcs);
 			}
-			Register (entries, finfo.file, "0", vers->ts_user,
-				  vers->options,
-				  vers->tag, NULL, NULL);
+			Register (entries, finfo.file, "0",
+				  timestamp ? timestamp : vers->ts_user,
+				  vers->options, vers->tag, vers->date, NULL);
+			if (timestamp) free (timestamp);
+#ifdef SERVER_SUPPORT
+			if (server_active && vers->ts_user == NULL)
+			{
+			    /* If we resurrected the file from the archive, we
+			     * need to tell the client about it.
+			     */
+			    server_updated (&finfo, vers,
+					    SERVER_UPDATED,
+					    (mode_t) -1, NULL, NULL);
+			    /* This is kinda hacky or, at least, it renders the
+			     * name "begin_added_files" obsolete, but we want
+			     * the added_files to be counted without triggering
+			     * the check that causes server_checked_in() to be
+			     * called below since we have already called
+			     * server_updated() to complete the resurrection.
+			     */
+			    ++begin_added_files;
+			}
+#endif
 			++added_files;
 		    }
 		}
@@ -570,36 +590,56 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 		}
 		else
 		{
-
+		    int status;
 		    /*
 		     * There is an RCS file, so remove the "-" from the
 		     * version number and restore the file
 		     */
-		    char *tmp = xmalloc (strlen (finfo.file) + 50);
-
+		    char *tmp = xmalloc (strlen (vers->vn_user));
 		    (void) strcpy (tmp, vers->vn_user + 1);
 		    (void) strcpy (vers->vn_user, tmp);
-		    (void) sprintf (tmp, "Resurrected %s", finfo.file);
-		    Register (entries, finfo.file, vers->vn_user, tmp,
-			      vers->options,
-			      vers->tag, vers->date, vers->ts_conflict);
-		    free (tmp);
-
-		    /* XXX - bugs here; this really resurrect the head */
-		    /* Note that this depends on the Register above actually
-		       having written Entries, or else it won't really
-		       check the file out.  */
-		    if (update (2, argv + i - 1) == 0)
+		    free(tmp);
+		    status = RCS_checkout (vers->srcfile, finfo.file,
+					   vers->vn_user, vers->tag,
+					   vers->options, RUN_TTY,
+					   NULL, NULL);
+		    xchmod (finfo.file, 1);
+		    if (status != 0)
 		    {
-			error (0, 0, "%s, version %s, resurrected",
-			       finfo.fullname,
+			error (0, 0, "Failed to resurrect revision %s",
 			       vers->vn_user);
+			err++;
+			tmp = NULL;
 		    }
 		    else
 		    {
-			error (0, 0, "could not resurrect %s", finfo.fullname);
-			err++;
+			/* I don't actually set vers->ts_user here because it
+			 * would confuse server_update().
+			 */
+			tmp = time_stamp (finfo.file);
+			write_letter (&finfo, 'U');
+			if (!quiet)
+			     error (0, 0, "%s, version %s, resurrected",
+			            finfo.fullname, vers->vn_user);
 		    }
+		    Register (entries, finfo.file, vers->vn_user,
+                              tmp, vers->options,
+			      vers->tag, vers->date, NULL);
+		    if (tmp) free (tmp);
+#ifdef SERVER_SUPPORT
+		    if (server_active)
+		    {
+			/* If we resurrected the file from the archive, we
+			 * need to tell the client about it.
+			 */
+			server_updated (&finfo, vers,
+					SERVER_UPDATED,
+					(mode_t) -1, NULL, NULL);
+		    }
+		   /* We don't increment added_files here because this isn't
+		    * a change that needs to be committed.
+		    */
+#endif
 		}
 	    }
 	    else
@@ -642,11 +682,11 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 	    error_exit ();
 	free_cwd (&cwd);
 
-	free (finfo.fullname);
-#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
-	if (ign_case && found_name != NULL)
-	    free (found_name);
-#endif
+	/* It's okay to discard the const to free this - we allocated this
+	 * above.  The const is for everybody else.
+	 */
+	free ((char *) finfo.fullname);
+	free ((char *) filename);
     }
     if (added_files && !really_quiet)
 	error (0, 0, "use '%s commit' to add %s permanently",
@@ -672,9 +712,9 @@ static int
 add_directory (finfo)
     struct file_info *finfo;
 {
-    char *repository = finfo->repository;
+    const char *repository = finfo->repository;
     List *entries = finfo->entries;
-    char *dir = finfo->file;
+    const char *dir = finfo->file;
 
     char *rcsdir = NULL;
     struct saved_cwd cwd;
@@ -707,11 +747,11 @@ add_directory (finfo)
 
     /* now, remember where we were, so we can get back */
     if (save_cwd (&cwd))
-	return (1);
-    if ( CVS_CHDIR (dir) < 0)
+	return 1;
+    if (CVS_CHDIR (dir) < 0)
     {
 	error (0, errno, "cannot chdir to %s", finfo->fullname);
-	return (1);
+	return 1;
     }
 #ifdef SERVER_SUPPORT
     if (!server_active && isfile (CVSADM))
@@ -737,7 +777,8 @@ add_directory (finfo)
 		       + 80
 		       + (tag == NULL ? 0 : strlen (tag) + 80)
 		       + (date == NULL ? 0 : strlen (date) + 80));
-    (void) sprintf (message, "Directory %s added to the repository\n", rcsdir);
+    (void) sprintf (message, "Directory %s added to the repository\n",
+		    rcsdir);
     if (tag)
     {
 	(void) strcat (message, "--> Using per-directory sticky tag `");
@@ -799,7 +840,7 @@ add_directory (finfo)
 	li->type = T_TITLE;
 	li->tag = xstrdup (tag);
 	li->rev_old = li->rev_new = NULL;
-	p->data = (char *) li;
+	p->data = li;
 	(void) addnode (ulist, p);
 	Update_Logfile (rcsdir, message, (FILE *) NULL, ulist);
 	dellist (&ulist);
@@ -820,12 +861,13 @@ add_directory (finfo)
 
     Subdir_Register (entries, (char *) NULL, dir);
 
-    cvs_output (message, 0);
+    if (!really_quiet)
+	cvs_output (message, 0);
 
     free (rcsdir);
     free (message);
 
-    return (0);
+    return 0;
 
 out:
     if (restore_cwd (&cwd, NULL))
@@ -836,18 +878,20 @@ out:
     return (0);
 }
 
+
+
 /*
  * Builds an entry for a new file and sets up "CVS/file",[pt] by
  * interrogating the user.  Returns non-zero on error.
  */
 static int
 build_entry (repository, user, options, message, entries, tag)
-    char *repository;
-    char *user;
-    char *options;
-    char *message;
+    const char *repository;
+    const char *user;
+    const char *options;
+    const char *message;
     List *entries;
-    char *tag;
+    const char *tag;
 {
     char *fname;
     char *line;

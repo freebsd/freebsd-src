@@ -175,7 +175,25 @@ item	: time {
 	| rel {
 	    yyHaveRel++;
 	}
+	| cvsstamp {
+	    yyHaveTime++;
+	    yyHaveDate++;
+	    yyHaveZone++;
+	}
 	| number
+	;
+
+cvsstamp: tUNUMBER '.' tUNUMBER '.' tUNUMBER '.' tUNUMBER '.' tUNUMBER '.' tUNUMBER {
+	    yyYear = $1;
+	    if (yyYear < 100) yyYear += 1900;
+	    yyMonth = $3;
+	    yyDay = $5;
+	    yyHour = $7;
+	    yyMinutes = $9;
+	    yySeconds = $11;
+	    yyDSTmode = DSToff;
+	    yyTimezone = 0;
+	}
 	;
 
 time	: tUNUMBER tMERIDIAN {

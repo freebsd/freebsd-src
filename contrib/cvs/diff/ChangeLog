@@ -1,3 +1,39 @@
+2004-03-20  Derek Price  <derek@ximbiot.com>
+
+	* diff.c (diff_run): Update string arg to const.
+	* diffrun.h: Update prototype to match.
+
+2003-07-12  Larry Jones  <lawrence.jones@eds.com>
+
+	* io.c (find_identical_ends): Update to match current diffutils
+	code and improve handling of files with no newline at end.
+	(Patch from Andrew Moise <chops@demiurgestudios.com>.)
+
+2003-06-13  Derek Price  <derek@ximbiot.com>
+
+	* diff3.c (read_diff): Fix memory leak.
+	(Patch from Kenneth Lorber <keni@his.com>.)
+
+2003-05-21  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerate with Automake version 1.7.5.
+
+2003-05-09  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Define S_ISSOCK on SCO OpenServer.
+
+2003-04-10  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.in: Regenerated.
+
+2003-02-25  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2003-02-01  Larry Jones  <lawrence.jones@eds.com>
+
+	* util.c (finish_output): Handle EINTR from waitpid.
+
 2002-09-24  Derek Price  <derek@ximbiot.com>
 
 	* Makefile.in: Regenerated using Automake 1.6.3.
