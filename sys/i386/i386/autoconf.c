@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.3 1996/12/21 18:55:34 phk Exp $
+ *	$Id: autoconf.c,v 1.56.2.4 1997/03/04 00:31:13 nate Exp $
  */
 
 /*
@@ -260,6 +260,14 @@ configure(dummy)
 			setroot();
 	}
 #endif
+
+#ifdef BOOTP_NFSROOT
+	if (!mountroot && !nfs_diskless_valid) {
+		if (bootverbose)
+			printf("Considering BOOTP NFS root f/s.\n");
+		mountroot = nfs_mountroot;
+	}
+#endif /* BOOTP_NFSROOT */
 
 #ifdef NFS
 	if (!mountroot && nfs_diskless_valid) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.3 1997/02/03 23:15:47 joerg Exp $
+ * $Id: ip_input.c,v 1.50.2.4 1997/02/06 11:33:38 brian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -365,6 +365,10 @@ tooshort:
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
+#ifdef BOOTP_COMPAT
+		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
+			goto ours;
+#endif
 		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr)

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.51.2.2 1997/05/04 21:10:54 alex Exp $
+ * $Id: init_main.c,v 1.51.2.3 1997/05/05 13:24:16 kato Exp $
  */
 
 #include "opt_rlimit.h"
@@ -465,10 +465,17 @@ SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
 static void xxx_vfs_mountroot __P((void *dummy));
+#ifdef BOOTP
+extern void bootpc_init __P((void));
+#endif
 static void
 xxx_vfs_mountroot(dummy)
 	void *dummy;
 {
+	/* XXX Add a separate SYSINIT entry */
+#ifdef BOOTP
+	bootpc_init();
+#endif
 	/* Mount the root file system. */
 	if ((*mountroot)(mountrootvfsops))
 		panic("cannot mount root");
