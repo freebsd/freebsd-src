@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.40 1994/11/17 08:28:02 smace Exp $
+#	$Id: rc,v 1.41 1994/11/26 19:25:14 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -72,6 +72,9 @@ mount -a -t nonfs
 # ENABLE_STARTUP_LOCALE=; export ENABLE_STARTUP_LOCALE
 # Uncomment next line to activate russian locale
 # LANG=ru_SU.KOI8-R; export LANG
+# Uncomment next line to activate italian locale
+# LANG=it_IT.ISO8859-1; export LANG
+# For full locales list check /usr/share/locale/*
 
 # If the machine runs wall CMOS clock (compatible with MSDOS),
 # activate following line by creating empty file /etc/wall_cmos_clock
