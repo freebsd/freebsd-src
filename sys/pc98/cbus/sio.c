@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.68 1998/10/22 05:58:45 bde Exp $
+ *	$Id: sio.c,v 1.69 1998/11/23 07:49:03 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1956,7 +1956,6 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
-	u_char	int_ident;
 	u_char	int_ctl;
 	u_char	int_ctl_new;
 

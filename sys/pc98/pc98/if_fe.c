@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.34 1998/10/08 17:16:41 kato Exp $
+ * $Id: if_fe.c,v 1.35 1998/10/22 05:58:45 bde Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -408,7 +408,6 @@ feinit(struct pccard_devinfo *devi)
 static void
 feunload(struct pccard_devinfo *devi)
 {
-	struct fe_softc *sc = &fe_softc[devi->isahd.id_unit];
 	printf("fe%d: unload\n", devi->isahd.id_unit);
 	fe_stop(devi->isahd.id_unit);
 }
@@ -1888,7 +1887,7 @@ fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 static int
 fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
 {
-	int i,type;
+	int i;
 
 	static struct fe_simple_probe_struct probe_table [] = {
 		{ FE_DLCR0, 0x09, 0x00 },
