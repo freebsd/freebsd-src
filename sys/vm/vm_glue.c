@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.8 1994/10/09 01:52:08 phk Exp $
+ * $Id: vm_glue.c,v 1.9 1994/11/13 12:47:07 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -288,8 +288,8 @@ vm_init_limits(p)
         p->p_rlimit[RLIMIT_STACK].rlim_max = MAXSSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_cur = DFLDSIZ;
         p->p_rlimit[RLIMIT_DATA].rlim_max = MAXDSIZ;
-	/* limit the limit to no less than 128K */ 
-	rss_limit = max(cnt.v_free_count / 2, 32);
+	/* limit the limit to no less than 2MB */ 
+	rss_limit = max(cnt.v_free_count / 2, 512);
 	p->p_rlimit[RLIMIT_RSS].rlim_cur = ptoa(rss_limit);
 	p->p_rlimit[RLIMIT_RSS].rlim_max = RLIM_INFINITY;
 }
@@ -522,10 +522,11 @@ swapout_threads()
 			 * If the process has been asleep for awhile and had most
 			 * of its pages taken away already, swap it out.
 			 */
-			if ((p->p_slptime > maxslp) && (p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
+			if (p->p_slptime > maxslp) {
 				swapout(p);
 				didswap++;
-			} else if ((tpri = p->p_slptime + p->p_nice * 8) > outpri) {
+			} else if ((tpri = p->p_slptime + p->p_nice * 8) > outpri &&
+				(p->p_vmspace->vm_pmap.pm_stats.resident_count <= 6)) {
 				outp = p;
 				outpri = tpri ;
 			}
