@@ -57,25 +57,15 @@ struct file_list {
 	 *	root device, etc. for system specifications
 	 */
 	union {
-		struct {		/* when swap specification */
-			dev_t	fuw_swapdev;
-			int	fuw_swapsize;
-			int	fuw_swapflag;
-		} fuw;
 		struct {		/* when system specification */
-			dev_t	fus_rootdev;
-			dev_t	fus_dumpdev;
+			char *	fus_rootdev;
 		} fus;
 		struct {		/* when component dev specification */
 			dev_t	fup_compdev;
 			int	fup_compinfo;
 		} fup;
 	} fun;
-#define	f_swapdev	fun.fuw.fuw_swapdev
-#define	f_swapsize	fun.fuw.fuw_swapsize
-#define	f_swapflag	fun.fuw.fuw_swapflag
 #define	f_rootdev	fun.fus.fus_rootdev
-#define	f_dumpdev	fun.fus.fus_dumpdev
 #define f_compdev	fun.fup.fup_compdev
 #define f_compinfo	fun.fup.fup_compinfo
 };
@@ -183,8 +173,6 @@ char	*get_quoted_word __P((FILE *));
 char	*path __P((char *));
 char	*raisestr __P((char *));
 void	moveifchanged __P((const char *, const char *));
-dev_t	nametodev __P((char *, int, int, char));
-char	*devtoname __P((dev_t));
 void	init_dev __P((struct device *));       
 void	newbus_ioconf __P((void));
 int	yyparse __P((void));
@@ -207,7 +195,6 @@ extern int	profiling;
 extern int	debugging;
 
 extern int	maxusers;
-extern u_int	loadaddress;
 
 extern	int old_config_present;	/* Old config/build directory still there */
 

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.18 1999/04/18 13:36:29 peter Exp $";
+	"$Id: mkswapconf.c,v 1.19 1999/04/24 18:59:19 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -45,23 +45,19 @@ static const char rcsid[] =
 #include <err.h>
 #include <unistd.h>
 
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
-
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "config.h"
 
-#define ns(s) strdup(s)
-
-static	void initdevtable __P((void));
-static 	struct file_list *do_swap __P((struct file_list *));
-
 void
 swapconf()
 {
+	FILE *fp;
+	char  newswapname[80];
+	char  swapname[80];
+	register struct file_list *swap;
 	register struct file_list *fl;
 
 	fl = conf_list;
@@ -70,199 +66,20 @@ swapconf()
 			fl = fl->f_next;
 			continue;
 		}
-		fl = do_swap(fl);
+		break;
 	}
-}
 
-static struct file_list *
-do_swap(fl)
-	register struct file_list *fl;
-{
-	FILE *fp;
-	char  newswapname[80];
-	char  swapname[80];
-	register struct file_list *swap;
-
-	if (eq(fl->f_fn, "generic")) {
-		fl = fl->f_next;
-		return (fl->f_next);
-	}
-	(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
-	(void) snprintf(newswapname, sizeof(newswapname), "swap%s.c.new", fl->f_fn);
+	(void) snprintf(swapname, sizeof(swapname), "swapkernel.c");
+	(void) snprintf(newswapname, sizeof(newswapname), "swapkernel.c.new");
 	fp = fopen(path(newswapname), "w");
 	if (fp == 0)
 		err(1, "%s", path(newswapname));
 	fprintf(fp, "#include <sys/param.h>\n");
 	fprintf(fp, "#include <sys/conf.h>\n");
 	fprintf(fp, "\n");
-	/*
-	 * If there aren't any swap devices
-	 * specified, just return, the error
-	 * has already been noted.
-	 */
-	swap = fl->f_next;
-	if (swap == 0 || swap->f_type != SWAPSPEC) {
-		(void) unlink(path(newswapname));
-		fclose(fp);
-		return (swap);
-	}
-	fprintf(fp, "dev_t\trootdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
-		major(fl->f_rootdev), minor(fl->f_rootdev),
-		devtoname(fl->f_rootdev));
-	if (fl->f_dumpdev != NODEV) {
-		fprintf(fp, "dev_t\tdumpdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
-			major(fl->f_dumpdev), minor(fl->f_dumpdev),
-			devtoname(fl->f_dumpdev));
-	} else {
-		fprintf(fp, "dev_t\tdumpdev = NODEV;\t\t\t/* unconfigured */\n");
-	}
+	fprintf(fp, "char\t*rootdevname = \"%s\";\n", fl->f_rootdev);
 	fclose(fp);
 	moveifchanged(path(newswapname), path(swapname));
-	return (swap);
+	return;
 }
 
-static	int devtablenotread = 1;
-static	struct devdescription {
-	char	*dev_name;
-	int	dev_major;
-	struct	devdescription *dev_next;
-} *devtable;
-
-/*
- * Given a device name specification figure out:
- *	major device number
- *	partition
- *	device name
- *	unit number
- * This is a hack, but the system still thinks in
- * terms of major/minor instead of string names.
- */
-dev_t
-nametodev(name, defunit, defslice, defpartition)
-	char *name;
-	int defunit;
-	int defslice;
-	char defpartition;
-{
-	char *cp, partition;
-	int unit, slice;
-	register struct devdescription *dp;
-
-	cp = name;
-	if (cp == 0)
-		errx(1, "internal error, nametodev");
-	while (*cp && !isdigit(*cp))
-		cp++;
-	unit = *cp ? atoi(cp) : defunit;
-	if (unit < 0 || unit > 31) {
-		warnx(
-		"%s: invalid device specification, unit out of range", name);
-		unit = defunit;			/* carry on more checking */
-	}
-	if (*cp) {
-		*cp++ = '\0';
-		while (*cp && isdigit(*cp))
-			cp++;
-	}
-	slice = defslice;
-	if (*cp == 's') {
-		++cp;
-		if (*cp) {
-			slice = atoi(cp);
-			if (slice < 0 || slice >= MAX_SLICES - 1) {
-				warnx(
-			"%s: invalid device specification, slice out of range",
-					cp);
-				slice = defslice;
-			}
-			if (slice != COMPATIBILITY_SLICE)
-				slice++;
-			*cp++ = '\0';
-			while (*cp && isdigit(*cp))
-				cp++;
-		}
-	}
-	partition = *cp ? *cp : defpartition;
-	if (partition < 'a' || partition > 'h') {
-		warnx("%c: invalid device specification, bad partition", *cp);
-		partition = defpartition;	/* carry on */
-	}
-	if (devtablenotread)
-		initdevtable();
-	for (dp = devtable; dp; dp = dp->dev_next)
-		if (eq(name, dp->dev_name))
-			break;
-	if (dp == 0) {
-		warnx("%s: unknown device", name);
-		return (NODEV);
-	}
-	return (makedev(dp->dev_major,
-			dkmakeminor(unit, slice, partition - 'a')));
-}
-
-char *
-devtoname(dev)
-	dev_t dev;
-{
-	char buf[80];
-	register struct devdescription *dp;
-	int part;
-	char partname[2];
-	int slice;
-	char slicename[32];
-
-	if (devtablenotread)
-		initdevtable();
-	for (dp = devtable; dp; dp = dp->dev_next)
-		if (major(dev) == dp->dev_major)
-			break;
-	if (dp == 0)
-		dp = devtable;
-	part = dkpart(dev);
-	slice = dkslice(dev);
-	slicename[0] = partname[0] = '\0';
-	if (slice != WHOLE_DISK_SLICE || part != RAW_PART) {
-		partname[0] = 'a' + part;
-		partname[1] = '\0';
-		if (slice != COMPATIBILITY_SLICE)
-			snprintf(slicename, sizeof(slicename), "s%d", slice - 1);
-	}
-	(void) snprintf(buf, sizeof(buf), "%s%d%s%s", dp->dev_name,
-		dkunit(dev), slicename, partname);
-	return (ns(buf));
-}
-
-static void
-initdevtable()
-{
-	char linebuf[256];
-	char buf[BUFSIZ];
-	int maj;
-	register struct devdescription **dp = &devtable;
-	FILE *fp;
-
-	(void) snprintf(buf, sizeof(buf), "../conf/devices.%s", machinename);
-	fp = fopen(buf, "r");
-	if (fp == NULL)
-		errx(1, "can't open %s", buf);
-	while(fgets(linebuf,256,fp)) {
-		/*******************************\
-		* Allow a comment		*
-		\*******************************/
-		if(linebuf[0] == '#') continue;
-
-		if (sscanf(linebuf, "%s\t%d\n", buf, &maj) == 2) {
-			*dp = (struct devdescription *)malloc(sizeof (**dp));
-			memset(*dp, 0, sizeof(**dp));
-			(*dp)->dev_name = ns(buf);
-			(*dp)->dev_major = maj;
-			dp = &(*dp)->dev_next;
-		} else {
-			fprintf(stderr,"illegal line in devices file\n");
-			break;
-		}
-	}
-	*dp = 0;
-	fclose(fp);
-	devtablenotread = 0;
-}
