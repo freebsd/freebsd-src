@@ -26,14 +26,6 @@
  *
  *	$FreeBSD$
  */
-/*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
- * ----------------------------------------------------------------------------
- */
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -68,37 +60,12 @@ struct resource	*acpi_timer_reg;
 #define TIMER_READ	bus_space_read_4(rman_get_bustag(acpi_timer_reg),	\
 					 rman_get_bushandle(acpi_timer_reg),	\
 					 0)
-static int	acpi_timer_flags;
-/*
- * ] 20. ACPI Timer Errata
- * ]
- * ]   Problem: The power management timer may return improper result when
- * ]   read. Although the timer value settles properly after incrementing,
- * ]   while incrementing there is a 3nS window every 69.8nS where the
- * ]   timer value is indeterminate (a 4.2% chance that the data will be
- * ]   incorrect when read). As a result, the ACPI free running count up
- * ]   timer specification is violated due to erroneous reads.  Implication:
- * ]   System hangs due to the "inaccuracy" of the timer when used by
- * ]   software for time critical events and delays.
- * ]
- * ] Workaround: Read the register twice and compare.
- * ] Status: This will not be fixed in the PIIX4 or PIIX4E, it is fixed
- * ] in the PIIX4M.
- *
- * The counter is in other words not latched to the PCI bus clock when
- * read.  Notice the workaround isn't:  We need to read until we have
- * three monotonic samples and then use the middle one, otherwise we are
- * not protected against the fact that the bits can be wrong in two
- * directions.  If we only cared about monosity two reads would be enough.
- */
-#define TFLAG_NEED_PIIX_WAR	(1 << 0)
 
 static u_int	acpi_timer_frequency = 14318182/4;
 
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
-static int	acpi_timer_pci_probe(device_t dev);
 static unsigned	acpi_timer_get_timecount(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_test(void);
@@ -122,23 +89,6 @@ static driver_t acpi_timer_driver = {
 
 devclass_t acpi_timer_devclass;
 DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
-
-/*
- * Chipset workaround driver hung off PCI.
- */
-static device_method_t acpi_timer_pci_methods[] = {
-    DEVMETHOD(device_probe,	acpi_timer_pci_probe),
-    {0, 0}
-};
-
-static driver_t acpi_timer_pci_driver = {
-    "acpi_timer_pci",
-    acpi_timer_pci_methods,
-    0,
-};
-
-devclass_t acpi_timer_pci_devclass;
-DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver, acpi_timer_pci_devclass, 0, 0);
 
 /*
  * Timecounter.
@@ -187,6 +137,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     if (getenv("debug.acpi.timer_test") != NULL)
 	acpi_timer_test();
 
+    acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     tc_init(&acpi_timer_timecounter);
 
@@ -211,47 +162,12 @@ acpi_timer_attach(device_t dev)
 }
 
 /*
- * Look at PCI devices as they go past, and if we detect a PIIX4 older than
- * the PIIX4M, set the PIIX_WAR flag.
- *
- * XXX do we know that other timecounters work?  Interesting question.
- */
-static int
-acpi_timer_pci_probe(device_t dev)
-{
-    if ((pci_get_vendor(dev) == 0x8086) &&
-	(pci_get_device(dev) == 0x7113) &&
-	(pci_get_revid(dev) < 0x03)) {
-	acpi_timer_flags |= TFLAG_NEED_PIIX_WAR;
-	device_printf(acpi_timer_dev, "enabling PIIX4 timer workaround\n");
-    }
-
-    return(ENXIO);		/* we never match anything */
-}
-
-/*
  * Fetch current time value from hardware.
- *
- * XXX This is currently written to be "correct", not
- *     "fast".  Optimisation is strongly indicated.
  */
 static unsigned
 acpi_timer_get_timecount(struct timecounter *tc)
 {
-    unsigned u1, u2, u3;
- 
-    if (acpi_timer_flags & TFLAG_NEED_PIIX_WAR) {
-	u2 = TIMER_READ;
-	u3 = TIMER_READ;
-	do {
-	    u1 = u2;
-	    u2 = u3;
-	    u3 = TIMER_READ;
-	} while (u1 > u2 || u2 > u3);
-	return (u2);
-    } else {
-	return(TIMER_READ);
-    }
+    return(TIMER_READ);
 }
 
 /*
@@ -306,5 +222,85 @@ acpi_timer_test(void)
 	u2 = u3;
 	u3 = TIMER_READ;
     }
+}
+
+/*
+ * Chipset workaround driver hung off PCI.
+ *
+ * ] 20. ACPI Timer Errata
+ * ]
+ * ]   Problem: The power management timer may return improper result when
+ * ]   read. Although the timer value settles properly after incrementing,
+ * ]   while incrementing there is a 3nS window every 69.8nS where the
+ * ]   timer value is indeterminate (a 4.2% chance that the data will be
+ * ]   incorrect when read). As a result, the ACPI free running count up
+ * ]   timer specification is violated due to erroneous reads.  Implication:
+ * ]   System hangs due to the "inaccuracy" of the timer when used by
+ * ]   software for time critical events and delays.
+ * ]
+ * ] Workaround: Read the register twice and compare.
+ * ] Status: This will not be fixed in the PIIX4 or PIIX4E, it is fixed
+ * ] in the PIIX4M.
+ *
+ * The counter is in other words not latched to the PCI bus clock when
+ * read.  Notice the workaround isn't:  We need to read until we have
+ * three monotonic samples and then use the middle one, otherwise we are
+ * not protected against the fact that the bits can be wrong in two
+ * directions.  If we only cared about monosity two reads would be enough.
+ */
+
+static int	acpi_timer_pci_probe(device_t dev);
+static unsigned	acpi_timer_get_timecount_piix(struct timecounter *tc);
+
+static device_method_t acpi_timer_pci_methods[] = {
+    DEVMETHOD(device_probe,	acpi_timer_pci_probe),
+    {0, 0}
+};
+
+static driver_t acpi_timer_pci_driver = {
+    "acpi_timer_pci",
+    acpi_timer_pci_methods,
+    0,
+};
+
+devclass_t acpi_timer_pci_devclass;
+DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver, acpi_timer_pci_devclass, 0, 0);
+
+/*
+ * Look at PCI devices as they go past, and if we detect a PIIX4 older than
+ * the PIIX4M, use an alternate get_timecount routine.
+ *
+ * XXX do we know that other timecounters work?  Perhaps we should test them?
+ */
+static int
+acpi_timer_pci_probe(device_t dev)
+{
+    if ((pci_get_vendor(dev) == 0x8086) &&
+	(pci_get_device(dev) == 0x7113) &&
+	(pci_get_revid(dev) < 0x03)) {
+	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_piix;
+	acpi_timer_timecounter.tc_name = "ACPI-PIIX";
+	device_printf(acpi_timer_dev, "enabling PIIX4 timer workaround\n");
+    }
+
+    return(ENXIO);		/* we never match anything */
+}
+
+/*
+ * Read the buggy PIIX4 ACPI timer and compensate for its behaviour.
+ */
+static unsigned
+acpi_timer_get_timecount_piix(struct timecounter *tc)
+{
+    unsigned u1, u2, u3;
+
+    u2 = TIMER_READ;
+    u3 = TIMER_READ;
+    do {
+	u1 = u2;
+	u2 = u3;
+	u3 = TIMER_READ;
+    } while (u1 > u2 || u2 > u3);
+    return (u2);
 }
 
