@@ -356,7 +356,7 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 		(*ifp->if_start)(ifp);
 	return (1);
 }
-#ifdef ALTQ
+#if 1 /* ALTQ */
 #define	IFQ_ENQUEUE(ifq, m, err)					\
 do {									\
 	IF_LOCK(ifq);							\
@@ -379,7 +379,7 @@ do {									\
 #define	IFQ_DEQUEUE_NOLOCK(ifq, m)					\
 do {									\
 	if (TBR_IS_ENABLED(ifq))					\
-		(m) = tbr_dequeue(ifq, ALTDQ_REMOVE);			\
+		(m) = tbr_dequeue_ptr(ifq, ALTDQ_REMOVE);		\
 	else if (ALTQ_IS_ENABLED(ifq))					\
 		ALTQ_DEQUEUE(ifq, m);					\
 	else								\
@@ -396,7 +396,7 @@ do {									\
 #define	IFQ_POLL_NOLOCK(ifq, m)						\
 do {									\
 	if (TBR_IS_ENABLED(ifq))					\
-		(m) = tbr_dequeue(ifq, ALTDQ_POLL);			\
+		(m) = tbr_dequeue_ptr(ifq, ALTDQ_POLL);			\
 	else if (ALTQ_IS_ENABLED(ifq))					\
 		ALTQ_POLL(ifq, m);					\
 	else								\
