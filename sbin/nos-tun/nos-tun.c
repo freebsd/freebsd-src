@@ -132,7 +132,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
   }
 
   /*
-   *  Delete (previous) adresses for interface
+   *  Delete (previous) addresses for interface
    *
    *  !!!!
    *  On FreeBSD this ioctl returns error
@@ -215,7 +215,7 @@ void Finish(int signum)
   }
 
   /*
-   *  Delete adresses for interface
+   *  Delete addresses for interface
    */
   bzero(&ifra.ifra_addr, sizeof(ifra.ifra_addr));
   bzero(&ifra.ifra_broadaddr, sizeof(ifra.ifra_addr));

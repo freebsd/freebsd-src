@@ -3930,7 +3930,7 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
  *  	scntl3:	(see the manual)
  *
  *  current script command:
- *  	dsp:	script adress (relative to start of script).
+ *  	dsp:	script address (relative to start of script).
  *  	dbc:	first word of script command.
  *
  *  First 24 register of the chip:

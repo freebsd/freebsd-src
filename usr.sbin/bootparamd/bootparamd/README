@@ -1,4 +1,4 @@
-
+$FreeBSD$
 
 This directory contains a version of the rpc.bootparamd, which have been 
 written using the Sun's RPC protocol for bootparamd. To use it you must 
@@ -40,7 +40,7 @@ CALLBOOTD
 
 The debugging tool callbootd is used to check the response you get
 to a specific (booting) request. It can be used as
-	callbootd server inet-adress 
+	callbootd server inet-address 
 or
 	callbootd server hostname file 
 where "server" is a machine running the rpc.bootparamd program, "inet-address"
