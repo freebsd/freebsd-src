@@ -11,6 +11,7 @@ SUBDIR=	${_3dfx} \
 	${_acpi} \
 	${_agp} \
 	aha \
+	${_ahb} \
 	${_aic} \
 	aic7xxx \
 	aio \
@@ -278,6 +279,7 @@ _pf=		pf
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _agp=		agp
+_ahb=		ahb
 _aic=		aic
 _amd=		amd
 _aout=		aout
@@ -362,6 +364,7 @@ _snc=		snc
 
 .if ${MACHINE_ARCH} == "alpha"
 _agp=		agp
+_ahb=		ahb
 _ext2fs=	ext2fs
 _linprocfs=	linprocfs
 _linux=		linux
