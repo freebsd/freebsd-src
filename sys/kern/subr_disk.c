@@ -109,15 +109,13 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 
 	bzero(dp, sizeof(*dp));
 
-	dev = makedev(cdevsw->d_maj, 0);	
-	if (!devsw(dev)) {
+	if (proto->d_open != diskopen) {
 		*proto = *cdevsw;
 		proto->d_open = diskopen;
 		proto->d_close = diskclose;
 		proto->d_ioctl = diskioctl;
 		proto->d_strategy = diskstrategy;
 		proto->d_psize = diskpsize;
-		cdevsw_add(proto);
 	}
 
 	if (bootverbose)
