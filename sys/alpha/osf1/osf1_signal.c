@@ -75,7 +75,6 @@
 #include <ddb/ddb.h>
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
-#include <fs/procfs/procfs.h>
 
 #include <alpha/osf1/osf1_signal.h>
 #include <alpha/osf1/osf1_proto.h>
