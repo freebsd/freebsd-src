@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.122 1998/09/14 11:32:17 jkh Exp $
+#	$Id: Makefile.i386,v 1.123 1998/09/15 21:07:07 gibbs Exp $
 #
 # Makefile for FreeBSD
 #
@@ -41,17 +41,19 @@ INCLUDES+= -I/usr/include
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
-# Use the system default for genassym
+# XXX LOCORE means "don't declare C stuff" not "for locore.s".
+ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
+
+# Use the default object format for genassym, etc.
 GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # Select the correct set of tools. Can't set OBJFORMAT here because it
-# doesn't get exported into the environment.
+# doesn't get exported into the environment, and if it were exported
+# then it might break building of genassym, etc.
 .if ${KERNFORMAT} == "elf"
 CFLAGS+=	-elf
-AFLAGS=		-elf
 .else
 CFLAGS+=	-aout
-AFLAGS=		-aout
 .endif
 
 LOAD_ADDRESS?=	F0100000
@@ -66,15 +68,15 @@ PROF+=	-mprofiler-epilogue
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
-# XXX LOCORE means "don't declare C stuff" not "for locore.s".
-NORMAL_S= ${CC} -c ${AFLAGS} -x assembler-with-cpp -DLOCORE ${COPTS} $<
+NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_S= ${CC} -c ${AFLAGS} -x assembler-with-cpp -DLOCORE ${COPTS} $<
+DRIVER_S= ${CC} -c -x ${ASM_CFLAGS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} $<
 
+GEN_CFILES= ${I386}/i386/genassym.c ${I386}/i386/gensetdefs.c
 # ${I386}/i386/setdef0.c and ${I386}/i386/setdef1.c are intentionally
-# omitted from SYSTEM_CFILES.  They depend on setdefs.h, a header which
+# omitted from SYSTEM_CFILES.  They include setdefs.h, a header which
 # is generated from all of ${OBJS}.  We don't want to have to compile
 # everything just to do a make depend.
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
@@ -152,10 +154,10 @@ setdefs.h: gensetdefs ${OBJS}
 	./gensetdefs ${OBJS} >setdefs.h
 
 gensetdefs: gensetdefs.o
-	${CC} ${CFLAGS} gensetdefs.o -o ${.TARGET}
+	${CC} ${GEN_CFLAGS} gensetdefs.o -o ${.TARGET}
 
 gensetdefs.o: ${I386}/i386/gensetdefs.c
-	${CC} -c ${CFLAGS} ${I386}/i386/gensetdefs.c
+	${CC} -c ${GEN_CFLAGS} ${I386}/i386/gensetdefs.c
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
@@ -164,20 +166,20 @@ assym.s: genassym
 	./genassym >assym.s
 
 genassym.o: ${I386}/i386/genassym.c
-	${CC} -c ${GEN_CFLAGS} -UKERNEL ${I386}/i386/genassym.c
+	${CC} -c ${GEN_CFLAGS} ${I386}/i386/genassym.c
 
 genassym: genassym.o
 	${CC} ${GEN_CFLAGS} genassym.o -o ${.TARGET}
 
-${SYSTEM_OBJS}: opt_global.h
+${SYSTEM_OBJS} genassym.o gensetdefs.o vers.o: opt_global.h
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
-	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -f .newdep ${COPTS} -UKERNEL ${I386}/i386/genassym.c
-	MKDEP_CPP="${CC} -E ${AFLAGS} -x assembler-with-cpp" ; export MKDEP_CPP ; \
-	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
+	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES}
+	mkdep -a -f .newdep ${GEN_CFLAGS} ${GEN_CFILES}
+	env MKDEP_CPP="${CC} -E" \
+	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
 	mv -f .newdep .depend
 
