@@ -161,6 +161,7 @@ void	setstatclockrate __P((int hzrate));
 
 char	*getenv __P((char *name));
 int	getenv_int __P((char *name, int *data));
+quad_t	getenv_quad __P((char *name, quad_t *data));
 extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
