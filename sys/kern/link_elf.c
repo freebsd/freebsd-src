@@ -128,19 +128,22 @@ static int		relocate_file(elf_file_t ef);
 static int		link_elf_preload_parse_symbols(elf_file_t ef);
 
 #ifdef DDB
+static void		r_debug_state(struct r_debug *dummy_one,
+				      struct link_map *dummy_two);
 
 /*
  * A list of loaded modules for GDB to use for loading symbols.
  */
 struct r_debug r_debug;
 
-#define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
+#define GDB_STATE(s)	r_debug.r_state = s; r_debug_state(NULL, NULL);
 
 /*
  * Function for the debugger to set a breakpoint on to gain control.
  */
 void
-r_debug_state(void)
+r_debug_state(struct r_debug *dummy_one __unused,
+	      struct link_map *dummy_two __unused)
 {
 }
 
@@ -216,7 +219,7 @@ link_elf_init(void* arg)
 	r_debug.r_brk = r_debug_state;
 	r_debug.r_state = RT_CONSISTENT;
 
-	r_debug_state();		/* say hello to gdb! */
+	r_debug_state(NULL, NULL);	/* say hello to gdb! */
 #endif
 
     }
