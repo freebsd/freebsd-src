@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.89 1999/04/06 08:25:52 jkh Exp $
+ * $Id: devices.c,v 1.90 1999/04/06 17:08:29 wpaul Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,6 +80,7 @@ static struct _devname {
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	1, 0, 8, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
+    { DEVICE_TYPE_NETWORK,	"al",		"ADMtek AL981 PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"ax",		"ASIX AX88140A PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
     { DEVICE_TYPE_NETWORK,	"sr",		"SDL T1/E1 sync serial PCI card"				},
