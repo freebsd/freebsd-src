@@ -82,7 +82,7 @@ get_yes_no() {
 }
 
 restore_rules() {
-	nohup sh ${firewall_script} >/dev/null 2>&1
+	nohup sh ${firewall_script} </dev/null >/dev/null 2>&1
 	rm ${TMPFILE}
 	exit 1
 }
@@ -129,10 +129,10 @@ the ssh/telnet connection being used.
 
 if [ ${rules_edit} = yes ]; then
 	nohup sh ${firewall_script} ${firewall_type}.new \
-	    > ${TMPFILE} 2>&1
+	    < /dev/null > ${TMPFILE} 2>&1
 else
 	nohup sh ${firewall_script}.new \
-	    > ${TMPFILE} 2>&1
+	    < /dev/null > ${TMPFILE} 2>&1
 fi
 sleep 2;
 get_yes_no "Would you like to see the resulting new rules"
