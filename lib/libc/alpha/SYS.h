@@ -46,8 +46,8 @@ LLABEL(name,1):
 
 
 #define	SYSCALL(name)						\
-LEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), name);			\
+LEAF(__CONCAT(_,name),0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __CONCAT(_,name));			\
 	CALLSYS_ERROR(name)
 
 #define	SYSCALL_NOERROR(name)					\
@@ -58,7 +58,7 @@ LEAF(name,0);				/* XXX # of args? */	\
 #define RSYSCALL(name)						\
 	SYSCALL(name);						\
 	RET;							\
-END(name)
+END(__CONCAT(_,name))
 
 #define RSYSCALL_NOERROR(name)					\
 	SYSCALL_NOERROR(name);					\
@@ -67,11 +67,11 @@ END(name)
 
 
 #define	PSEUDO(label,name)					\
-LEAF(label,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), name);			\
+LEAF(__CONCAT(_,label),0);		/* XXX # of args? */	\
+	WEAK_ALIAS(label, __CONCAT(_,label));			\
 	CALLSYS_ERROR(name);					\
 	RET;							\
-END(label);
+END(__CONCAT(_,label));
 
 #define	PSEUDO_NOERROR(label,name)				\
 LEAF(label,0);				/* XXX # of args? */	\
@@ -104,18 +104,20 @@ END(___CONCAT(_thread_sys_,name))
 
 #define	PSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), name);			\
+	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(_thread_sys_,name));	\
+	WEAK_ALIAS(name, __CONCAT(_,name));			\
 	CALLSYS_ERROR(name)
 
 #define	PRSYSCALL(name)						\
 PLEAF(name,0);				/* XXX # of args? */	\
+	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(_thread_sys_,name));	\
+	WEAK_ALIAS(name, __CONCAT(_,name));			\
 	CALLSYS_ERROR(name)					\
 	RET;							\
 PEND(name)
 
 #define	PPSEUDO(label,name)					\
 PLEAF(label,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(__CONCAT(_,name), name);			\
 	CALLSYS_ERROR(name);					\
 	RET;							\
 PEND(label)
