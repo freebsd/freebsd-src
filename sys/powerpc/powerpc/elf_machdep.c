@@ -147,24 +147,34 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	       	break;
 
        	case R_PPC_ADDR16_LO: /* #lo(S) */
-       		if (addend != 0) {
-	       		addr = relocbase + addend;
-		} else {
-	      		addr = lookup(lf, symidx, 1);
-			if (addr == 0)
-				return -1;
-		}
+		addr = lookup(lf, symidx, 1);
+		if (addr == 0)
+			return -1;
+		/*
+		 * addend values are sometimes relative to sections
+		 * (i.e. .rodata) in rela, where in reality they
+		 * are relative to relocbase. Detect this condition.
+		 */
+		if (addr > relocbase && addr <= (relocbase + addend))
+			addr = relocbase + addend;
+		else
+			addr += addend;
 		*hwhere = addr & 0xffff;
 		break;
 
 	case R_PPC_ADDR16_HA: /* #ha(S) */
-       		if (addend != 0) {
-	       		addr = relocbase + addend;
-		} else {
-	       		addr = lookup(lf, symidx, 1);
-		       	if (addr == 0)
-		       		return -1;
-		}
+		addr = lookup(lf, symidx, 1);
+		if (addr == 0)
+			return -1;
+		/*
+		 * addend values are sometimes relative to sections
+		 * (i.e. .rodata) in rela, where in reality they
+		 * are relative to relocbase. Detect this condition.
+		 */
+		if (addr > relocbase && addr <= (relocbase + addend))
+			addr = relocbase + addend;
+		else
+			addr += addend;
 	       	*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
 		    & 0xffff;
 		break;
