@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.55 1996/10/17 02:58:20 dyson Exp $
+ * $Id: vm_glue.c,v 1.56 1996/12/22 23:17:09 joerg Exp $
  */
 
 #include "opt_rlimit.h"
@@ -126,7 +126,9 @@ kernacc(addr, len, rw)
 
 	saddr = trunc_page(addr);
 	eaddr = round_page(addr + len);
+	vm_map_lock_read(kernel_map);
 	rv = vm_map_check_protection(kernel_map, saddr, eaddr, prot);
+	vm_map_unlock_read(kernel_map);
 	return (rv == TRUE);
 }
 
@@ -137,6 +139,8 @@ useracc(addr, len, rw)
 {
 	boolean_t rv;
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
+	vm_map_t map;
+	vm_map_entry_t save_hint;
 
 	/*
 	 * XXX - check separately to disallow access to user area and user
@@ -151,8 +155,18 @@ useracc(addr, len, rw)
 	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		return (FALSE);
 	}
-	rv = vm_map_check_protection(&curproc->p_vmspace->vm_map,
+	map = &curproc->p_vmspace->vm_map;
+	vm_map_lock_read(map);
+	/*
+	 * We save the map hint, and restore it.  Useracc appears to distort
+	 * the map hint unnecessarily.
+	 */
+	save_hint = map->hint;
+	rv = vm_map_check_protection(map,
 	    trunc_page(addr), round_page(addr + len), prot);
+	map->hint = save_hint;
+	vm_map_unlock_read(map);
+	
 	return (rv == TRUE);
 }
 
