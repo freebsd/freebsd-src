@@ -147,9 +147,6 @@ struct mac_policy_ops {
 	void	(*mpo_create_devfs_symlink)(struct ucred *cred,
 		    struct devfs_dirent *dd, struct label *ddlabel,
 		    struct devfs_dirent *de, struct label *delabel);
-	void	(*mpo_create_devfs_vnode)(struct devfs_dirent *de,
-		    struct label *direntlabel, struct vnode *vp,
-		    struct label *vnodelabel);
 	int	(*mpo_create_vnode_extattr)(struct ucred *cred,
 		    struct mount *mp, struct label *fslabel,
 		    struct vnode *dvp, struct label *dlabel,
