@@ -301,6 +301,7 @@ product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 /* Proxim */
 product PROXIM ROAMABOUT_2400FH	0x1058 Digital RoamAbout 2400FH
 product PROXIM RANGELAN2_7401	0x1158 Proxim RangeLAN2 7401
+product PROXIM RANGELANDS_8430	0x8000 Proxim RangeLAN-DS 8430
 
 /* Psion */
 product PSION GOLDCARD		0x0020 Psion Gold Card
@@ -378,6 +379,7 @@ product ZONET ZEN		0x0100	Zonet Zen 10/10
  */
 vendor AMBICOM			-1	AmbiCom Inc
 vendor ACCTON			-1 	ACCTON
+vendor ADDTRON			-1	Addtron
 vendor AMD			-1	AMD
 vendor BILLIONTON		-1	Billionton Systems Inc.
 vendor CNET			-1	CNet
@@ -403,6 +405,7 @@ vendor YEDATA			-1 	Y-E DATA
 vendor ZOOM			-1 	ZOOM
 
 product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
+product ADDTRON AWP100		{ "Addtron", "AWP-100&spWireless&spPCMCIA", "Version&sp01.02", NULL }
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product BILLIONTON LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } Billionton Systems Inc. LNT-10TN NE2000 Compatible Card
