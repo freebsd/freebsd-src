@@ -45,6 +45,9 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
+(10/100/1000) adapters.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -257,8 +260,8 @@ the following:
 
 SysKonnect SK-984x PCI Gigabit Ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
-  SK-9842 1000baseSX multimode fiber, single port
-  SK-9843 1000baseLX single mode fiber, dual port
+  SK-9842 1000baseLX single mode fiber, dual port
+  SK-9843 1000baseSX multimode fiber, single port
   SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
