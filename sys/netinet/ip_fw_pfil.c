@@ -140,7 +140,7 @@ again:
 	case IP_FW_DUMMYNET:
 		if (!DUMMYNET_LOADED)
 			goto drop;
-		ip_dn_io_ptr(*m0, args.cookie, DN_TO_IP_IN, &args);
+		ip_dn_io_ptr(*m0, DN_TO_IP_IN, &args);
 		*m0 = NULL;
 		return 0;		/* packet consumed */
 
@@ -240,7 +240,7 @@ again:
 	case IP_FW_DUMMYNET:
 		if (!DUMMYNET_LOADED)
 			break;
-		ip_dn_io_ptr(*m0, args.cookie, DN_TO_IP_OUT, &args);
+		ip_dn_io_ptr(*m0, DN_TO_IP_OUT, &args);
 		*m0 = NULL;
 		return 0;		/* packet consumed */
 
