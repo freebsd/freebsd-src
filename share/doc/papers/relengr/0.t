@@ -32,9 +32,6 @@
 .\"	@(#)0.t	5.1 (Berkeley) 4/17/91
 .\" $FreeBSD$
 .\"
-.R1
-database ref.bib
-.R2
 .rm CM
 .nr PO 1.25i
 .ds CH "
