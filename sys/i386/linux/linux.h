@@ -641,7 +641,7 @@ struct l_ifreq {
 		struct l_sockaddr	ifru_broadaddr;
 		struct l_sockaddr	ifru_netmask;
 		struct l_sockaddr	ifru_hwaddr;
-		l_short		ifru_flags;
+		l_short		ifru_flags[1];
 		l_int		ifru_metric;
 		l_int		ifru_mtu;
 		struct l_ifmap	ifru_map;
