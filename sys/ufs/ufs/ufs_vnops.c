@@ -98,6 +98,7 @@ static int ufs_mkdir(struct vop_mkdir_args *);
 static int ufs_mknod(struct vop_mknod_args *);
 static int ufs_open(struct vop_open_args *);
 static int ufs_pathconf(struct vop_pathconf_args *);
+static int ufs_lock(struct vop_lock_args *);
 static int ufs_print(struct vop_print_args *);
 static int ufs_readlink(struct vop_readlink_args *);
 static int ufs_remove(struct vop_remove_args *);
@@ -1975,6 +1976,32 @@ ufs_strategy(ap)
 }
 
 /*
+ * Snapshots require all lock requests to be exclusive.
+ */
+static int
+ufs_lock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct thread *a_td;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	int flags = ap->a_flags;
+
+	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) && (flags & LK_SHARED)) {
+		flags &= ~LK_SHARED;
+		flags |= LK_EXCLUSIVE;
+	}
+#ifndef	DEBUG_LOCKS
+	return (lockmgr(vp->v_vnlock, flags, VI_MTX(vp), ap->a_td));
+#else
+	return (debuglockmgr(vp->v_vnlock, flags, VI_MTX(vp),
+	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
+#endif
+}
+
+/*
  * Print out the contents of an inode.
  */
 static int
@@ -2673,6 +2700,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_write_desc,		(vop_t *) vop_panic },
 	{ &vop_access_desc,		(vop_t *) ufs_access },
 	{ &vop_advlock_desc,		(vop_t *) ufs_advlock },
+	{ &vop_lock_desc,		(vop_t *) ufs_lock },
 	{ &vop_bmap_desc,		(vop_t *) ufs_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) ufs_lookup },
 	{ &vop_close_desc,		(vop_t *) ufs_close },
