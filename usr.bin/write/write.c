@@ -34,19 +34,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)write.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/signal.h>
@@ -253,8 +253,9 @@ do_write(tty, mytty, myuid)
 	char *tty, *mytty;
 	uid_t myuid;
 {
-	register char *login, *nows;
-	register struct passwd *pwd;
+	const char *login;
+	char *nows;
+	struct passwd *pwd;
 	time_t now;
 	char path[MAXPATHLEN], host[MAXHOSTNAMELEN], line[512];
 
@@ -291,7 +292,7 @@ do_write(tty, mytty, myuid)
  */
 void
 done(n)
-int n;  /* signal number */
+	int n __unused;
 {
 	(void)printf("EOF\r\n");
 	exit(0);
@@ -303,7 +304,7 @@ int n;  /* signal number */
  */
 void
 wr_fputs(s)
-	register unsigned char *s;
+	unsigned char *s;
 {
 
 #define	PUTC(c)	if (putchar(c) == EOF) err(1, NULL);
