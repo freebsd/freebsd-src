@@ -362,6 +362,7 @@ mpu_attach(device_t dev)
 	/* Allocate the resources, switch to uart mode. */
 	if (mpu_allocres(scp, dev) || mpu_uartmode(scp)) {
 		mpu_releaseres(scp, dev);
+		mtx_destroy(&scp->mtx);
 		return (ENXIO);
 	}
 
@@ -768,7 +769,6 @@ mpu_releaseres(sc_p scp, device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, scp->io_rid, scp->io);
 		scp->io = NULL;
 	}
-	mtx_destroy(&scp->mtx);
 }
 
 static device_method_t mpu_methods[] = {
