@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.7 1993/12/19 00:54:49 wollman Exp $
+ *      $Id: ch.c,v 1.8 1994/01/29 10:30:36 rgrimes Exp $
  */
 
 #include	<sys/types.h>
@@ -21,6 +21,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_changer.h>
 #include <scsi/scsiconf.h>
+#include <sys/devconf.h>
 
 static errval ch_mode_sense(u_int32, u_int32);
 
@@ -75,6 +76,39 @@ struct ch_data {
 
 static u_int32 next_ch_unit = 0;
 
+static int
+ch_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
+
+static int
+ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+	       size_t len)
+{
+	return scsi_externalize(sd_data[kdc->kdc_unit]->sc_link, userp, &len);
+}
+
+static struct kern_devconf kdc_ch_template = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"ch", 0, { "scsi", MDDT_SCSI, 0 },
+	ch_externalize, 0, ch_goaway, SCSI_EXTERNALLEN
+};
+
+static inline void
+ch_registerdev(int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_ch_template;
+	kdc->kdc_unit = unit;
+	dev_attach(kdc);
+}
+
 /*
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
@@ -116,6 +150,7 @@ chattach(sc_link)
 		stat = CH_KNOWN;
 	}
 	ch_data[unit].initialized = 1;
+	ch_registerdev(unit);
 
 	return 1;
 				/* XXX ??? is this the right return val? */

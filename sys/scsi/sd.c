@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.33 1994/10/04 06:45:57 rgrimes Exp $
+ *      $Id: sd.c,v 1.34 1994/10/08 22:26:40 phk Exp $
  */
 
 #define SPLSD splbio
@@ -39,6 +39,8 @@
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 #include <vm/vm.h>
+#include <sys/devconf.h>
+#include <sys/dkstat.h>
 
 u_int32 sdstrats, sdqueues;
 
@@ -111,11 +113,53 @@ struct sd_data {
 	u_int32 sd_start_of_unix;	/* unix vs dos partitions */
 	struct buf buf_queue;
 	u_int32 xfer_block_wait;
+	int dkunit;		/* disk stats unit number */
 }      *sd_data[NSD];
 
 static u_int32 next_sd_unit = 0;
 
 static struct scsi_xfer sx;
+
+static int
+sd_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
+{
+	dev_detach(kdc);
+	FREE(kdc, M_TEMP);
+	return 0;
+}
+
+static int
+sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, 
+	       size_t len)
+{
+	return scsi_externalize(sd_data[kdc->kdc_unit]->sc_link, userp, &len);
+}
+
+static struct kern_devconf kdc_sd_template = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"sd", 0, { "scsi", MDDT_SCSI, 0 },
+	sd_externalize, 0, sd_goaway, SCSI_EXTERNALLEN
+};
+
+static inline void
+sd_registerdev(int unit)
+{
+	struct kern_devconf *kdc;
+
+	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
+	if(!kdc) return;
+	*kdc = kdc_sd_template;
+	kdc->kdc_unit = unit;
+	dev_attach(kdc);
+	if(dk_ndrive < DK_NDRIVE) {
+		sprintf(dk_names[dk_ndrive], "sd%d", unit);
+		dk_wpms[dk_ndrive] = (8*1024*1024/2);
+		sd_data[unit]->dkunit = dk_ndrive++;
+	} else {
+		sd_data[unit]->dkunit = -1;
+	}
+}
+
 
 /*
  * The routine called by the low level scsi routine when it discovers
@@ -184,6 +228,7 @@ sdattach(sc_link)
 	    dp->sectors,
 	    dp->secsiz);
 	sd->flags |= SDINIT;
+	sd_registerdev(unit);
 	return 0;
 }
 
@@ -559,6 +604,11 @@ sdstart(unit)
 			    SCSI_DATA_IN : SCSI_DATA_OUT))
 		    == SUCCESSFULLY_QUEUED) {
 			sdqueues++;
+			if(sd->dkunit >= 0) {
+				dk_xfer[sd->dkunit]++;
+				dk_seek[sd->dkunit]++; /* don't know */
+				dk_wds[sd->dkunit] += bp->b_bcount >> 1;
+			}
 		} else {
 bad:
 			printf("sd%ld: oops not queued", unit);
