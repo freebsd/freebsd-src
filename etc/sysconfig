@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.52.2.3 1997/01/09 02:42:45 alex Exp $
+#	$Id: sysconfig,v 1.52.2.4 1997/04/01 00:59:48 pst Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -202,6 +202,12 @@ nfs_client=NO
 
 # Set to YES if this machine will be an NFS server
 nfs_server=NO
+
+# the following option controls if the nfs server will be only allow
+# requests from reserved ports. NB: running mountd with
+# weak_mountd_authentication=YES will automatically clear this flag.
+# See also mountd(8)
+nfs_reserved_port_only=NO
 
 # Set to appropriate flags if you want to start NIS for a client
 nis_clientflags="NO"
