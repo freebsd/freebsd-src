@@ -43,11 +43,21 @@
 The
 .Nm
 driver provides support for Aironet Communications 4500 and 4800
-wireless network adapters.
-This includes the ISA, PCI and PCMCIA
+wireless network adapters and variants, including the following:
+.Pp
+.Bl -bullet -compact -offset indent
+.It
+Aironet Communications 4500 and 4800 series
+.It
+Cisco Aironet 340 and 350 series
+.It
+Xircom Wireless Ethernet Adapter
+.El
+.Pp
+Support for these devices include the ISA, PCI and PCMCIA
 varieties.
-The 4500 series adapters operate at 1 and 2Mbps while
-the 4800 series can operate at 1, 2, 5.5 and 11Mbps.
+The Aironet 4500 series adapters operate at 1 and 2Mbps while
+the Aironet 4800 series and Cisco adapters can operate at 1, 2, 5.5 and 11Mbps.
 The ISA, PCI
 and PCMCIA devices are all based on the same core PCMCIA modules
 and all have the same programming interface, however unlike the
