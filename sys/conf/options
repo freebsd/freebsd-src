@@ -66,6 +66,7 @@ GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS
 HW_WDOG
 KTRACE
+LIBICONV
 MD_NSECT	opt_md.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h

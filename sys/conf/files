@@ -1208,6 +1208,22 @@ dev/sound/pcm/sound.c	optional pcm
 #
 libkern/arc4random.c	standard
 libkern/bcd.c		standard
+libkern/iconv.c		optional libiconv
+libkern/iconv_xlat.c	optional libiconv
+iconv_converter_if.o	optional libiconv				\
+	dependency	"iconv_converter_if.c iconv_converter_if.h"	\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+iconv_converter_if.c	optional libiconv				\
+	dependency	"$S/kern/makeobjops.pl $S/libkern/iconv_converter_if.m"	\
+	compile-with	"perl5 $S/kern/makeobjops.pl -c $S/libkern/iconv_converter_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"iconv_converter_if.c"
+iconv_converter_if.h	optional libiconv				\
+	dependency	"$S/kern/makeobjops.pl $S/libkern/iconv_converter_if.m"		\
+	compile-with	"perl5 $S/kern/makeobjops.pl -h $S/libkern/iconv_converter_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"iconv_converter_if.h"
 libkern/index.c		standard
 libkern/inet_ntoa.c	standard
 libkern/mcount.c	optional	profiling-routine
