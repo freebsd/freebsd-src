@@ -37,48 +37,24 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
-
-extern char *geteltnm(int);
+#include SESINC
 
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
-	ses_object *objp;
-	int nobj, fd, i;
+	int fd;
 
 	while (*++v) {
-		fd = open(*v, O_RDONLY);
+		fd = open(*v, O_RDWR);
 		if (fd < 0) {
 			perror(*v);
 			continue;
 		}
-		if (ioctl(fd, SESIOC_GETNOBJ, (caddr_t) &nobj) < 0) {
+		if (ioctl(fd, SESIOC_INIT, NULL) < 0) {
 			perror("SESIOC_GETNOBJ");
-			(void) close(fd);
-			continue;
 		}
-		fprintf(stdout, "%s: %d objects\n", *v, nobj);
-		if (nobj == 0) {
-			(void) close(fd);
-			continue;
-		}
-		objp = calloc(nobj, sizeof (ses_object));
-		if (objp == NULL) {
-			perror("calloc");
-			(void) close(fd);
-			continue;
-		}
-		if (ioctl(fd, SESIOC_GETOBJMAP, (caddr_t) objp) < 0) {
-			perror("SESIOC_GETOBJMAP");
-			(void) close(fd);
-			continue;
-		}
-		for (i = 0; i < nobj; i++) {
-			printf(" Object %d: ID 0x%x Type '%s'\n", i,
-			    objp[i].obj_id, geteltnm((int)objp[i].object_type));
-		}
-		free(objp);
 		(void) close(fd);
 	}
 	return (0);

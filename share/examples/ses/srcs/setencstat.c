@@ -37,23 +37,32 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
+#include SESINC
 
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
 	int fd;
+	long val;
+	ses_encstat stat;
 
-	while (*++v) {
-		fd = open(*v, O_RDWR);
-		if (fd < 0) {
-			perror(*v);
-			continue;
-		}
-		if (ioctl(fd, SESIOC_INIT, NULL) < 0) {
-			perror("SESIOC_GETNOBJ");
-		}
-		(void) close(fd);
+	if (a != 3) {
+		fprintf(stderr, "usage: %s device enclosure_status\n", *v);
+		return (1);
 	}
+	fd = open(v[1], O_RDWR);
+	if (fd < 0) {
+		perror(v[1]);
+		return (1);
+	}
+	
+	val =  strtol(v[2], NULL, 0);
+	stat = (ses_encstat) val;
+	if (ioctl(fd, SESIOC_SETENCSTAT, (caddr_t) &stat) < 0) {
+		perror("SESIOC_SETENCSTAT");
+	}
+	(void) close(fd);
 	return (0);
 }

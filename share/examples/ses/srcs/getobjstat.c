@@ -36,10 +36,12 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <cam/scsi/scsi_ses.h>
+#include SESINC
 
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
 	int fd;
 	int i;
