@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_cmdlin_rcsid[] = "$Id: cmdlin.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_cmdlin_rcsid[] = "$Id: cmdlin.c,v 1.2 1994/05/07 18:12:04 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -56,18 +56,21 @@ uuconf_cmd_line (pglobal, zline, qtab, pinfo, pfiunknown, iflags, pblock)
   char **pzargs;
   int iret;
 
-  /* Any # not preceeded by a backslash starts a comment.  */
-  z = zline;
-  while ((z = strchr (z, '#')) != NULL)
+  if ((iflags & UUCONF_CMDTABFLAG_NOCOMMENTS) == 0)
     {
-      if (z == zline || *(z - 1) != '\\')
+      /* Any # not preceeded by a backslash starts a comment.  */
+      z = zline;
+      while ((z = strchr (z, '#')) != NULL)
 	{
-	  *z = '\0';
-	  break;
+	  if (z == zline || *(z - 1) != '\\')
+	    {
+	      *z = '\0';
+	      break;
+	    }
+	  /* Remove the backslash.  */
+	  while ((*(z - 1) = *z) != '\0')
+	    ++z;
 	}
-      /* Remove the backslash.  */
-      while ((*(z - 1) = *z) != '\0')
-	++z;
     }
 
   /* Parse the first CSTACK arguments by hand to avoid malloc.  */

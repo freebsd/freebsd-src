@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuxqt_rcsid[] = "$Id: uuxqt.c,v 1.76 1994/01/30 20:59:40 ian Rel $";
+const char uuxqt_rcsid[] = "$Id: uuxqt.c,v 1.2 1994/05/07 18:14:43 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -742,7 +742,9 @@ uqdo_xqt_file (puuconf, zfile, zbase, qsys, zlocalname, zcmd, pfprocessed)
 
   iuuconf = uuconf_cmd_file (puuconf, e, asQcmds, (pointer) zbase,
 			     (uuconf_cmdtabfn) NULL,
-			     UUCONF_CMDTABFLAG_CASE, (pointer) NULL);
+			     (UUCONF_CMDTABFLAG_CASE
+			      | UUCONF_CMDTABFLAG_NOCOMMENTS),
+			     (pointer) NULL);
   (void) fclose (e);
 
   if (iuuconf != UUCONF_SUCCESS)
