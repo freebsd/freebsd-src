@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
+*/
+static const char rcsid[] =
+	"$Id: su.c,v 1.13 1996/03/11 22:14:52 markm Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -66,6 +70,9 @@ static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #include <netdb.h>
 
 #define	ARGSTR	"-Kflm"
+
+static int kerberos(char *username, char *user, int uid, char *pword);
+static int koktologin(char *name, char *toname);
 
 int use_kerberos = 1;
 #else
@@ -178,23 +185,28 @@ main(argc, argv)
 
 	if (ruid) {
 #ifdef KERBEROS
-	    if (!use_kerberos || kerberos(username, user, pwd->pw_uid))
+		if (use_kerberos && koktologin(username, user)
+		    && !pwd->pw_uid) {
+			warnx("kerberos: not in %s's ACL.", user);
+			use_kerberos = 0;
+		}
 #endif
-	    {
-		/* only allow those in group zero to su to root. */
-		if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)))
-			for (g = gr->gr_mem;; ++g) {
-				if (!*g)
-					errx(1,
+		{
+			/* only allow those in group zero to su to root. */
+			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)))
+				for (g = gr->gr_mem;; ++g) {
+					if (!*g)
+						errx(1,
 			    "you are not in the correct group to su %s.",
-					    user);
-				if (strcmp(username, *g) == 0) {
+						    user);
+					if (strcmp(username, *g) == 0) {
 #ifdef WHEELSU
-					iswheelsu = 1;
+						iswheelsu = 1;
 #endif /* WHEELSU */
-					break;
+						break;
+					}
 				}
-			}
+		}
 		/* if target requires a password, verify it */
 		if (*pwd->pw_passwd) {
 #ifdef	SKEY
@@ -216,11 +228,18 @@ main(argc, argv)
 			p = getpass("Password:");
 			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd))) {
 #endif
-				fprintf(stderr, "Sorry\n");
-				syslog(LOG_AUTH|LOG_WARNING,
-					"BAD SU %s to %s%s", username,
-					user, ontty());
-				exit(1);
+#ifdef KERBEROS
+	    			if (!use_kerberos || (use_kerberos &&
+	    			    kerberos(username, user, pwd->pw_uid, p))
+					)
+#endif
+					{
+					fprintf(stderr, "Sorry\n");
+					syslog(LOG_AUTH|LOG_WARNING,
+						"BAD SU %s to %s%s", username,
+						user, ontty());
+					exit(1);
+				}
 			}
 #ifdef WHEELSU
 			if (iswheelsu) {
@@ -235,7 +254,6 @@ main(argc, argv)
 				user, ontty());
 			exit(1);
 		}
-	    }
 	}
 
 	if (asme) {
@@ -252,7 +270,8 @@ main(argc, argv)
 
 	/* if we're forking a csh, we want to slightly muck the args */
 	if (iscsh == UNSET) {
-		if (p = strrchr(shell, '/'))
+		p = strrchr(shell, '/');
+		if (p)
 			++p;
 		else
 			p = shell;
@@ -323,34 +342,33 @@ ontty()
 	static char buf[MAXPATHLEN + 4];
 
 	buf[0] = 0;
-	if (p = ttyname(STDERR_FILENO))
+	p = ttyname(STDERR_FILENO);
+	if (p)
 		snprintf(buf, sizeof(buf), " on %s", p);
 	return (buf);
 }
 
 #ifdef KERBEROS
-kerberos(username, user, uid)
+int
+kerberos(username, user, uid, pword)
 	char *username, *user;
 	int uid;
+	char *pword;
 {
 	extern char *krb_err_txt[];
 	KTEXT_ST ticket;
 	AUTH_DAT authdata;
-	struct hostent *hp;
-	char *p;
 	int kerno;
 	u_long faddr;
+	struct sockaddr_in local_addr;
 	char lrealm[REALM_SZ], krbtkfile[MAXPATHLEN];
 	char hostname[MAXHOSTNAMELEN], savehost[MAXHOSTNAMELEN];
 	char *krb_get_phost();
 
 	if (krb_get_lrealm(lrealm, 1) != KSUCCESS)
 		return (1);
-	if (koktologin(username, lrealm, user) && !uid) {
-		warnx("kerberos: not in %s's ACL.", user);
-		return (1);
-	}
-	(void)sprintf(krbtkfile, "%s_%s_%d", TKT_ROOT, user, getuid());
+	(void)sprintf(krbtkfile, "%s_%s_%lu", TKT_ROOT, user,
+	    (unsigned long)getuid());
 
 	(void)setenv("KRBTKFILE", krbtkfile, 1);
 	(void)krb_set_tkt_string(krbtkfile);
@@ -375,7 +393,7 @@ kerberos(username, user, uid)
 	 */
 	kerno = krb_get_pw_in_tkt((uid == 0 ? username : user),
 		(uid == 0 ? "root" : ""), lrealm,
-	    	"krbtgt", lrealm, DEFAULT_TKT_LIFE, 0);
+	    	"krbtgt", lrealm, DEFAULT_TKT_LIFE, pword);
 
 	if (kerno != KSUCCESS) {
 		if (kerno == KDC_PR_UNKNOWN) {
@@ -423,13 +441,13 @@ kerberos(username, user, uid)
 		dest_tkt();
 		return (1);
 	} else {
-		if (!(hp = gethostbyname(hostname))) {
-			warnx("can't get addr of %s", hostname);
+		if ((kerno = krb_get_local_addr(&local_addr)) != KSUCCESS) {
+			warnx("Unable to get our local address: %s",
+			      krb_err_txt[kerno]);
 			dest_tkt();
 			return (1);
 		}
-		memmove((char *)&faddr, (char *)hp->h_addr, sizeof(faddr));
-
+		faddr = local_addr.sin_addr.s_addr;
 		if ((kerno = krb_rd_req(&ticket, "rcmd", savehost, faddr,
 		    &authdata, "")) != KSUCCESS) {
 			warnx("kerberos: unable to verify rcmd ticket: %s\n",
@@ -444,12 +462,16 @@ kerberos(username, user, uid)
 	return (0);
 }
 
-koktologin(name, realm, toname)
-	char *name, *realm, *toname;
+int
+koktologin(name, toname)
+	char *name, *toname;
 {
 	AUTH_DAT *kdata;
 	AUTH_DAT kdata_st;
+	char realm[REALM_SZ];
 
+	if (krb_get_lrealm(realm, 1) != KSUCCESS)
+		return (1);
 	kdata = &kdata_st;
 	memset((char *)kdata, 0, sizeof(*kdata));
 	(void)strcpy(kdata->pname, name);
