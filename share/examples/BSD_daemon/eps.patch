@@ -1,8 +1,8 @@
 # $FreeBSD$
 --- beastie.eps.ref	Sun Feb 11 22:46:59 2001
 +++ beastie.eps	Sun Feb 11 23:01:43 2001
-@@ -8,6 +8,22 @@
- %%EndComments
+@@ -19,6 +19,23 @@
+ %
  /$F2psDict 200 dict def
  $F2psDict begin
 +
@@ -12,6 +12,7 @@
 +
 +% If you want to fiddle the colors:
 +% col0  below is black (the lines)
++% col3  below is cyan (the shoelaces)
 +% col7  below is white (eyes, shoes)
 +% col13 below is green (the shooes)
 +% col20 below is red (the daemon)
@@ -24,7 +25,7 @@
  $F2psDict /mtrx matrix put
  /col-1 {0 setgray} bind def
  /col0 {0.000 0.000 0.000 srgb} bind def
-@@ -63,7 +79,7 @@
+@@ -74,7 +91,7 @@
  /sh {show} bind def
  /slc {setlinecap} bind def
  /slj {setlinejoin} bind def
