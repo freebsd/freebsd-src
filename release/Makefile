@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.268 1996/12/30 02:57:33 jkh Exp $
+#	$Id: Makefile,v 1.269 1996/12/30 05:35:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -498,10 +498,17 @@ doTARBALL:
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \
-		  if [ "${SD}" != "/usr/src" ]; then \
+		if [ "${SD}" != "/usr/src" ]; then \
 			mtree -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
-			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
+			  > ${RD}/dists/${TD}/$$tn.mtree ; \
+		else \
+			true; \
+		fi; \
+		(cd ${RD}/dists/${TD}; \
+		   rm -f CHECKSUM.MD5; \
+		   md5 * > CHECKSUM.MD5) \
+	)
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
