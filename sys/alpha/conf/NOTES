@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.25 1999/06/14 22:59:55 jb Exp $
+#	$Id: GENERIC,v 1.26 1999/06/15 13:14:27 des Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -113,12 +113,14 @@ device		sio1	at isa0 port "IO_COM2" irq 3 flags 0x50
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
+device al0
 device ax0
 device de0
 device fxp0
 device le0
 device mx0
 device pn0
+device rl0
 device tl0
 device xl0
 
