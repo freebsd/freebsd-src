@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.3 1996/06/22 10:34:06 jraynard Exp $";
+		"$Id: vfscanf.c,v 1.3.2.1 1997/02/02 18:30:54 joerg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -115,6 +115,7 @@ __svfscanf(fp, fmt0, ap)
 	register int flags;	/* flags as defined above */
 	register char *p0;	/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
+	int nconversions;	/* number of conversions */
 	int nread;		/* number of characters consumed from fp */
 	int base;		/* base argument to strtol/strtoul */
 	u_long (*ccfn)();	/* conversion function (strtol/strtoul) */
@@ -126,6 +127,7 @@ __svfscanf(fp, fmt0, ap)
 		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
 	nassigned = 0;
+	nconversions = 0;
 	nread = 0;
 	base = 0;		/* XXX just to keep gcc happy */
 	ccfn = NULL;		/* XXX just to keep gcc happy */
@@ -136,7 +138,7 @@ __svfscanf(fp, fmt0, ap)
 		if (isspace(c)) {
 			for (;;) {
 				if (fp->_r <= 0 && __srefill(fp))
-					return (nassigned);
+					goto input_failure;
 				if (!isspace(*fp->_p))
 					break;
 				nread++, fp->_r--, fp->_p++;
@@ -261,6 +263,7 @@ literal:
 			break;
 
 		case 'n':
+			nconversions++;
 			if (flags & SUPPRESS)	/* ??? */
 				continue;
 			if (flags & SHORT)
@@ -349,6 +352,7 @@ literal:
 				nread += r;
 				nassigned++;
 			}
+			nconversions++;
 			break;
 
 		case CT_CCL:
@@ -390,6 +394,7 @@ literal:
 				nassigned++;
 			}
 			nread += n;
+			nconversions++;
 			break;
 
 		case CT_STRING:
@@ -420,6 +425,7 @@ literal:
 				nread += p - p0;
 				nassigned++;
 			}
+			nconversions++;
 			continue;
 
 		case CT_INT:
@@ -556,6 +562,7 @@ literal:
 				nassigned++;
 			}
 			nread += p - buf;
+			nconversions++;
 			break;
 
 #ifdef FLOATING_POINT
@@ -647,12 +654,13 @@ literal:
 				nassigned++;
 			}
 			nread += p - buf;
+			nconversions++;
 			break;
 #endif /* FLOATING_POINT */
 		}
 	}
 input_failure:
-	return (nassigned ? nassigned : -1);
+	return (nconversions != 0 ? nassigned : EOF);
 match_failure:
 	return (nassigned);
 }
