@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.20 1996/09/29 10:20:45 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21 1996/10/12 19:49:43 bde Exp $
  */
 
 /*
@@ -544,8 +544,7 @@ tbdinit:
 }
 
 /*
- * Process interface interrupts. Returns 1 if the interrupt
- * was handled, 0 if it wasn't.
+ * Process interface interrupts.
  */
 static void
 fxp_intr(arg)
