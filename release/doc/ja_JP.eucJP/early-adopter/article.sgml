@@ -28,6 +28,8 @@
 
 <!ENTITY release.4x "4.<replaceable>X</replaceable>">
 <!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4last "4.9-RELEASE">
+<!ENTITY release.5branchpoint "5.3-RELEASE">
 
 ]>
 
@@ -35,7 +37,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.16
+    Original revision: 1.17
 -->
 
 <article>
@@ -90,10 +92,10 @@
       古い &os; リリースを &release.current; にアップグレードするのを
       明確に非推奨としています。
       特に、今までどおりの動作を期待する慎重なユーザには、しばらくの間は
-      (4.8-RELEASE のような) &release.4x; リリースで運用することをおすすめします。
+      (&release.4last; のような) &release.4x; リリースで運用することをおすすめします。
       &release.5x; へのアップグレードを考える時期としては、
       おそらく 5-STABLE 開発ブランチが作成された後が適当でしょう。
-      これは 5.2-RELEASE の公開あたりになる見込みです。</para>
+      これは &release.5branchpoint; の公開あたりになる見込みです。</para>
 
     <para>(&os; &release.5x; はいわゆる<quote>卵鶏問題</quote>を抱えています。
       プロジェクトでは皆が可能な限りリリースを
@@ -137,9 +139,9 @@
       このブランチは CVS リポジトリで
       <literal>RELENG_4</literal> というタグが付けられています。</para>
 
-    <para>&os; 5.0 と 5.1 は CURRENT ブランチをベースにしています。
-      CURRENT ブランチからのリリースは 2 年ぶりです
-      (前回の &os; 4.0 は 2000 年 3 月でした)。</para>
+    <para>&os; 5.0 と 5.1, 5.2 は CURRENT ブランチをベースにしています。
+      最初の 5.0 は CURRENT ブランチからの 2 年ぶりのリリースでした
+      (前回の HEAD からのリリース &os; 4.0 は 2000 年 3 月でした)。</para>
 
     <para>&os; 5.0 のリリース後、少し経過した時点で
       &os; CVS リポジトリに <literal>RELENG_5</literal> というタグが打たれ、
@@ -157,8 +159,8 @@
       CVS リポジトリに 5-STABLE ブランチを作成することを予定しています。
       おそらくブランチが作成されるまでに、&release.5x;
       系列からリリース版がいくつか公開されるでしょう。
-      5-STABLE ブランチの登場は、5.2-RELEASE
-      の後あたりになると見込んでいます。</para>
+      5-STABLE ブランチの登場は、&release.5branchpoint;の前後
+      あたりになると見込んでいます。</para>
 
     <para>&os; リリースエンジニアリング工程に関する詳細は、
       <ulink url="http://www.FreeBSD.org/releng/index.html">リリースエンジニアリングのウェブページ</ulink>
@@ -183,8 +185,11 @@
     <itemizedlist>
       <listitem>
         <para>SMPng: <quote>次世代</quote>に向けた SMP マシン対応です (開発中)。
-          現在は、カーネルにおけるマルチプロセッサの同時実行に部分的に対応しています。
-          この作業は現在進行中です。</para>
+          現在進んでいる作業では、さまざまなカーネルサブシステムにおいて
+          細粒度 (fine-grained) SMP ロックを行い、カーネル内で実行される
+          スレッドの数を増やすことを目標としています。詳しくは
+          <ulink url="http://www.FreeBSD.org/smp/">FreeBSD SMP
+          プロジェクト</ulink> のページをご覧下さい。</para>
       </listitem>
 
       <listitem>
@@ -192,21 +197,22 @@
           (Kernel Scheduled Entities; KSE) は、スケジューラアクティベーション
           (Scheduler Activations) の手法と同様の、
           1 個のプロセスが複数のカーネルレベルスレッドを
-          持てるようにするための機構です。この機構を利用して
+          持てるようにするための機構です。この機構で
+	  &man.pthread.3; API を使用して
           マルチスレッドのユーザランドプログラムを実現するために、
-          (実験的な)  <filename>libkse</filename> ライブラリと
-          <filename>libthr</filename> ライブラリが提供されています。</para>
+          <filename>libkse</filename> と <filename>libthr</filename>
+          のスレッドライブラリが提供されています。</para>
       </listitem>
 
       <listitem>
-	<para>新しいアーキテクチャ:  &i386;, pc98, alpha アーキテクチャに加え、
-          新たに &sparc64; と ia64 アーキテクチャに対応しました。</para>
+	<para>新しいアーキテクチャ:  i386, pc98, alpha アーキテクチャに加え、
+          新たに sparc64, ia64, amd64 アーキテクチャに対応しました。</para>
       </listitem>
 
       <listitem>
 	<para>GCC:  コンパイラツールチェインが
 	  GCC 2.95.<replaceable>X</replaceable> ベースのものから、
-          GCC 3.2.2 に更新されました。</para>
+          GCC 3.3.<replaceable>X</replaceable> に更新されました。</para>
       </listitem>
 
       <listitem>
@@ -217,7 +223,7 @@
 
       <listitem>
         <para>GEOM:  ディスク I/O 要求を変換する拡張性の高いフレームワークです。
-          GEOM をベースにしたディスク暗号化機能が実験的に開発されています。</para>
+          GEOM をベースにした GBDE ディスク暗号化機能が実験的に開発されています。</para>
       </listitem>
 
       <listitem>
@@ -239,10 +245,15 @@
         <para>Cardbus:  Cardbus デバイスに対応しました。</para>
       </listitem>
 
+      <listitem>
+        <para>Bluetooth:  Bluetooth デバイスに対応しました。</para>
+      </listitem>
+
+
     </itemizedlist>
 
-    <para>さらに詳しい新機能のリストは、&os; &release.prev; と
-      &os; &release.current; のリリースノートに書かれています。</para>
+    <para>さらに詳しい新機能のリストは、各 &os; &release.5x;
+      リリースのリリースノートに書かれています。</para>
   </sect1>
 
   <sect1 id="drawbacks">
@@ -267,7 +278,12 @@
           サードパーティ製のデバイスドライバは、
           &os; 5.0 に対応させるための作業が必要です。
           また、5-STABLE ブランチが作成される前に若干の
-          ABI, API の変更が加えられる可能性があります。</para>
+          ABI, API の変更が加えられる可能性があります。特に新しい
+	  マシンアーキテクチャでは可能性が高いです。
+	  (めったにないことを望んでいますが) ユーザから見える構造体が
+          変更されるかもしれません。そうした場合にはアプリケーションを
+          コンパイルし直したり ports/packages をインストールし直さなければ
+          なりません。</para>
       </listitem>
 
       <listitem>
@@ -290,32 +306,35 @@
 
       <listitem>
         <para>&os; 4.0 で正しく動作していた多くの ports/packages が、
-          &os; 5.0 では構築できなくなったり、
+          &os; &release.5x; では構築できなくなったり、
           正しく動作しなくなったりしています。
           これは大抵の場合、コンパイラツールチェインの変更と、
-          ヘッダファイルの整頓が原因です。</para>
+          ヘッダファイルの整頓が原因です。ある場合はカーネルやデバイスの
+          サポートの変更が原因です。</para>
       </listitem>
 
       <listitem>
         <para>&os; &release.5x; の多くの新機能が、
           一般向けに広く公開される初めての機会になります。
           カーネルは、(SMPng などの) このような新機能によって、
-          大きく変更されています。</para>
+          大きく変更されています。これらの変更が安定性や性能に
+          どう影響するか評価するのは難しいでしょう。
+</para>
       </listitem>
 
       <listitem>
-        <para>&os; 5.0 の新機能に含まれる問題点を追跡するため、
+        <para>&os; &release.5x; の新機能に含まれる問題点を追跡するため、
           デバッグや診断用のコードがある程度残されています。
-          これにより &os; 5.0 は、4-STABLE より動作が遅くなっているでしょう。</para>
+          これにより &os; &release.5x; は、4-STABLE より動作が遅くなっているでしょう。</para>
       </listitem>
 
       <listitem>
         <para>4-STABLE 開発ブランチへの機能統合は、
           -CURRENT で<quote>安定した</quote>後にのみ、行なわれます。
-          &os; 5.0 は、このような -STABLE ブランチの持つ安定性を持っていません
+          &os; &release.5x; は、このような -STABLE ブランチの持つ安定性を持っていません
           (訳注: &os; 5.0 への新機能追加は、「安定した後に統合」という
           -STABLE ブランチの慣習に則っていないという意味です)。
-          (5-STABLE 開発ブランチは、5.2-RELEASE
+          (5-STABLE 開発ブランチは、&release.5branchpoint;
           の後あたりに作成される予定です)。</para>
       </listitem>
 
@@ -334,20 +353,25 @@
       &release.5x; 系列が十分に安定するまでの間、
       リリースエンジニアリングチームは、
       現在の機能性・安定性を重要視するサイトやユーザに対して
-      4-STABLE ブランチから公開されるリリース版を利用することを推奨しています。</para>
+      4-STABLE ブランチから公開されるリリース版を利用することを推奨しています。
+      当初存在した安定性に関する問題点の多くは解決されたと信じていますし、
+      性能に関する問題点のいくつかは work-in-progress となっています。
+      システム管理における最良のやり方は、
+      製品や <quote>ミッションクリティカルな</quote> システムをアップデート
+      する前にテスト環境でオペレーティングシステムのアップデートを試すのが、
+      システム管理における最良のやり方であることも注意しておきます。</para>
   </sect1>
 
   <sect1 id="plans-stable">
     <title>4-STABLE ブランチに対する今後の予定</title>
 
-    <para>&os; 5.0 が公開されても、4-STABLE ブランチの開発が終了するわけではありません。
+    <para>重要: &release.5x; シリーズがリリースされても &release.4x;
+      リリースのサポートはある期間続けられます。
       実際に、&os; 4.8-RELEASE は 5.0-RELEASE の
-      2 ヵ月後の 2003 年 4 月に公開されました。
-      このブランチからは、最低でももう 1 回のリリース、
-      すなわち 4.9-RELEASE が公開されるでしょう
-      (現在は 2003 年の夏を予定しています)。
-      4.10-RELEASE が公開される可能性についても同様です。
-      4-STABLE ブランチからの将来のリリースは、いくつかの要素が絡んできます。
+      2 ヵ月後の 2003 年 4 月に公開され、続いて 4.9-RELEASE が
+      2003 年 10 月に公開されました。
+      4-STABLE ブランチからの将来のリリースが出るとしたら、
+      いくつかの要素が絡んできます。
       最も重要なのは、5-STABLE ブランチの作成と、その安定性です。
       CURRENT が 5-STABLE ブランチを作成できるほどに安定していなかった場合、
       リリースは 4-STABLE ブランチから作成することになるでしょう。
@@ -360,7 +384,11 @@
       将来の 4-STABLE リリースに対するユーザのニーズを考慮するつもりです。
       ただしそのニーズは、リリースエンジニアリング作業に必要な労力・資源
       (特に開発者の時間、計算機資源、ミラーアーカイブ容量)
-      に見合ったものである必要があるでしょう。</para>
+      に見合ったものである必要があるでしょう。
+      一般に、&os; コミュニティは (ユーザと開発者の双方とも)
+      &release.5x; ブランチ以降の新機能にひかれて先に進む習性があるようです。
+      これは、新機能を &release.4x; に backport (及びメンテナンス)
+      が難しいためです。</para>
 
     <para>&a.security-officer; は &os; ウェブサイトの
       <ulink url="http://www.FreeBSD.org/security/index.html">セキュリティのページ</ulink>
@@ -370,6 +398,22 @@
       通常、各ブランチ毎に最も新しい 2 つのリリースです。
       セキュリティオフィサチームは、
       他のリリース版もこのルールに則ったサポートを行ないます。</para>
+
+     <para>現在のところ、リリースエンジニアリングチームは 4-STABLE
+       開発ブランチの将来についていかなる具体的な計画も持っていません。
+       このブランチからの今後のリリースは (もしあるとして) 
+       軽量 <quote>ポイント</quote> リリースになるというのが
+       ありそうなことです。
+       それらのリリースは恐らく 4.9.<replaceable>X</replaceable> という
+       バージョン番号となり、 &release.4last; と比べて機能面で
+       大きな変更が含まれていないことを示すでしょう。
+       一般的に、これらのリリースはセキュリティ問題の修正やバグの修正、
+       デバイスドライバのアップデート (特に新しいハードウェアが
+       既にあるデバイスドライバによって簡単にサポートできる場合) が
+       重視されるでしょう。主要な新機能は (特に &release.5x; で
+       追加された基盤が必要な場合) 恐らくこれらのリリースには
+       追加されないでしょう。</para>
+
   </sect1>
 
   <sect1 id="upgrade">
@@ -403,13 +447,17 @@
         特に、バイナリアップグレードは
         &os; &release.4x; に存在して
         &os; &release.5x; に存在しないファイルをシステムに数多く残します。
-        これらの古いファイルは何らかの問題を引き起こす可能性があります。</para>
+        これらの古いファイルは何らかの問題を引き起こす可能性があります。
+	例えば、古い C++ ヘッダ、 Ports コレクションへ移動した
+	プログラム、ダイナミックリンクされた root ファイルシステムの
+	実行ファイルをサポートするために移動した共有ライブラリが
+	挙げられます。</para>
 
       <para>&i386; および pc98 プラットフォームの 4-STABLE では、
         インストールメディアからの起動の際、
         ISA デバイスの設定を起動時に変更できる UserConfig
         ユーティリティが利用できるようになっています。
-        &os; 5.0 では、この機能の一部が &man.device.hints.5; 機構に
+        &os; &release.5x; では、この機能の一部が &man.device.hints.5; 機構に
         置き換えられました(同じパラメータを指定できますが、
         対話的なものではなくなっています)。</para>
 
@@ -463,7 +511,13 @@
         で使っていた実行ファイルは &release.5x; でも動作します。
         ただし、これには
         <filename>compat4x</filename> 配布物がインストールされていることが必要です。
-        つまり、古い ports を使うことは<emphasis>おそらく</emphasis>可能です。</para>
+	古い ports を使うことはある場合には可能です。しかし、後方非互換性が
+	いくつも知られています。一例を挙げると、
+        <filename role="package">devel/gnomevfs2</filename>,
+        <filename role="package">mail/postfix</filename>, 
+        <filename role="package">security/cfs</filename> の各 ports は
+	<literal>statfs</literal> 構造体の変更のためコンパイルし直す
+	必要があります。</para>
 
       <para>既存の 4-STABLE ベースのシステムに上書きする形でインストールや
         アップグレードを行なった場合は、
