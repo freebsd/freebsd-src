@@ -98,7 +98,7 @@ static struct str *nodestr[MAXTYPES];	/* type of structure used by the node */
 static int nstr;			/* number of structures */
 static struct str str[MAXTYPES];	/* the structures */
 static struct str *curstr;		/* current structure */
-static FILE *infp = stdin;
+static FILE *infp;
 static char line[1024];
 static int linno;
 static char *linep;
@@ -123,6 +123,7 @@ main(argc, argv)
 {
 	if (argc != 3)
 		error("usage: mknodes file");
+	infp = stdin;
 	if ((infp = fopen(argv[1], "r")) == NULL)
 		error("Can't open %s: %s", argv[1], strerror(errno));
 	while (readline()) {
