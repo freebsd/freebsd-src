@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.77 1998/12/17 17:40:13 bde Exp $
+ *	$Id: cy.c,v 1.78 1998/12/17 18:18:06 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -2068,8 +2068,12 @@ comparam(tp, t)
 		opt |= CD1400_COR4_INLCR;
 #endif
 	if (iflag & IGNBRK)
-		opt |= CD1400_COR4_IGNBRK;
-	if (!(iflag & BRKINT))
+		opt |= CD1400_COR4_IGNBRK | CD1400_COR4_NOBRKINT;
+	/*
+	 * The `-ignbrk -brkint parmrk' case is not handled by the hardware,
+	 * so only tell the hardware about -brkint if -parmrk.
+	 */
+	if (!(iflag & (BRKINT | PARMRK)))
 		opt |= CD1400_COR4_NOBRKINT;
 #if 0
 	/* XXX using this "intelligence" breaks reporting of overruns. */
