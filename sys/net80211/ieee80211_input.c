@@ -548,7 +548,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 	struct ieee80211_node *ni,
 	int subtype, int rssi, u_int32_t rstamp)
 {
-#define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 	struct ifnet *ifp = &ic->ic_if;
 	struct ieee80211_frame *wh;
 	u_int8_t *frm, *efrm;
@@ -564,12 +563,14 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		u_int8_t *tstamp, *bintval, *capinfo, *country;
 		u_int8_t chan, bchan, fhindex, erp;
 		u_int16_t fhdwell;
+		int isprobe;
 
 		if (ic->ic_opmode != IEEE80211_M_IBSS &&
 		    ic->ic_state != IEEE80211_S_SCAN) {
 			/* XXX: may be useful for background scan */
 			return;
 		}
+		isprobe = (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP);
 
 		/*
 		 * beacon/probe response frame format
@@ -653,7 +654,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		    isclr(ic->ic_chan_active, chan)) {
 			IEEE80211_DPRINTF(("%s: ignore %s with invalid channel "
 				"%u\n", __func__,
-				ISPROBE(subtype) ? "probe response" : "beacon",
+				isprobe ? "probe response" : "beacon",
 				chan));
 			ic->ic_stats.is_rx_badchan++;
 			return;
@@ -671,7 +672,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			 */
 			IEEE80211_DPRINTF(("%s: ignore %s on channel %u marked "
 				"for channel %u\n", __func__,
-				ISPROBE(subtype) ? "probe response" : "beacon",
+				isprobe ? "probe response" : "beacon",
 				bchan, chan));
 			ic->ic_stats.is_rx_chanmismatch++;
 			return;
@@ -694,7 +695,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		    (ni == NULL || ic->ic_state == IEEE80211_S_SCAN)) {
 			printf("%s: %s%s on chan %u (bss chan %u) ",
 			    __func__, (ni == NULL ? "new " : ""),
-			    ISPROBE(subtype) ? "probe response" : "beacon",
+			    isprobe ? "probe response" : "beacon",
 			    chan, bchan);
 			ieee80211_print_essid(ssid + 2, ssid[1]);
 			printf(" from %s\n", ether_sprintf(wh->i_addr2));
@@ -715,7 +716,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ni->ni_esslen = ssid[1];
 			memset(ni->ni_essid, 0, sizeof(ni->ni_essid));
 			memcpy(ni->ni_essid, ssid + 2, ssid[1]);
-		} else if (ssid[1] != 0 && ISPROBE(subtype)) {
+		} else if (ssid[1] != 0 && isprobe) {
 			/*
 			 * Update ESSID at probe response to adopt hidden AP by
 			 * Lucent/Cisco, which announces null ESSID in beacon.
@@ -1168,7 +1169,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ic->ic_stats.is_rx_badsubtype++;
 		break;
 	}
-#undef ISPROBE
 }
 #undef IEEE80211_VERIFY_LENGTH
 #undef IEEE80211_VERIFY_ELEMENT
