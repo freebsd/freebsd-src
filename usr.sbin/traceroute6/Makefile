@@ -23,6 +23,4 @@ CFLAGS+=-DINET6 -DIPSEC -DHAVE_POLL
 DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
 
-MAN8=	traceroute6.8
-
 .include <bsd.prog.mk>

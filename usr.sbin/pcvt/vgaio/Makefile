@@ -1,6 +1,5 @@
 # $FreeBSD$
 PROG=	vgaio
-MAN8=	vgaio.${MAN8EXT}
 
 SRCS=	vgaio.y lex.l y.tab.h
 YACC=	yacc

@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	acpiconf
-MAN8=	acpiconf.8
 
 .include <bsd.prog.mk>

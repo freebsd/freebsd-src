@@ -80,6 +80,4 @@ PROG=	mtrace6
 CFLAGS+=-Wall
 CFLAGS+= -I$(.CURDIR)/.. -DHAVE_GETIFADDRS
 
-MAN8=	mtrace6.8
-
 .include <bsd.prog.mk>

@@ -10,7 +10,6 @@
 		${.CURDIR}/../../../contrib/amd/conf/checkmount
 
 PROG=		fixmount
-MAN8=		fixmount.8
 
 SRCS=		fixmount.c 
 

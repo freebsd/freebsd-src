@@ -17,7 +17,6 @@ BINMODE=4554
 BINOWN=	root
 .endif
 BINGRP=	network
-MAN8=	ppp.8
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
