@@ -148,28 +148,6 @@ int        nrc_tty = NRC * CD180_NCHAN;
 #define RC_WAS_SILOVFL  0x0400          /* silo buffer overflow         */
 #define RC_SEND_RDY     0x0800          /* ready to send */
 
-static  struct speedtab rc_speedtab[] = {
-	0,	0,
-	50,     RC_BRD(50),
-	75,     RC_BRD(75),
-	110,    RC_BRD(110),
-	134,    RC_BRD(134),
-	150,    RC_BRD(150),
-	200,    RC_BRD(200),
-	300,    RC_BRD(300),
-	600,    RC_BRD(600),
-	1200,   RC_BRD(1200),
-	1800,   RC_BRD(1800),
-	2400,   RC_BRD(2400),
-	4800,   RC_BRD(4800),
-	9600,   RC_BRD(9600),
-	19200,  RC_BRD(19200),
-	38400,  RC_BRD(38400),
-	57600,  RC_BRD(57600),
-	/* real max value is 76800 with 9.8304 MHz clock */
-	-1,	-1
-};
-
 /* Table for translation of RCSR status bits to internal form */
 static int rc_rcsrt[16] = {
 	0,             TTY_OE,               TTY_FE,
@@ -944,12 +922,14 @@ static int rc_param(tp, ts)
 	register int    nec = rc->rc_rcb->rcb_addr;
 	int      idivs, odivs, s, val, cflag, iflag, lflag, inpflow;
 
-	odivs = ttspeedtab(ts->c_ospeed, rc_speedtab);
+	if (   ts->c_ospeed < 0 || ts->c_ospeed > 76800
+	    || ts->c_ispeed < 0 || ts->c_ispeed > 76800
+	   )
+		return (EINVAL);
 	if (ts->c_ispeed == 0)
 		ts->c_ispeed = ts->c_ospeed;
-	idivs = ttspeedtab(ts->c_ispeed, rc_speedtab);
-	if (idivs < 0 || odivs < 0)
-		return (EINVAL);
+	odivs = RC_BRD(ts->c_ospeed);
+	idivs = RC_BRD(ts->c_ispeed);
 
 	s = spltty();
 
