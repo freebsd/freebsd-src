@@ -79,34 +79,6 @@ appropriate receive handle.   The NATM layer uses this to avoid the
 overhead of a protocol control block lookup.   This allows us to take
 advantage of the fact that ATM has already demultiplexed the data for
 us.
-.Sh Other NATM issues
-We are currently involved with a video server project and are using
-this driver as part of it.  We have a device we build called an MMX.
-You can connect a video camera to an MMX and have it send you a stream
-of AAL0 cells with the video output in it.  Of course this stream
-is pretty rapid (in fact, it is massive!), and the normal AAL0
-handling of the driver is unable to handle it (you end up with a cell
-per small mbuf trying to make it to the application ... it turns out
-the socket layer can't keep up with that sort of data stream).  To
-solve this problem we have implemented a
-.Dq raw
-mode which batches unprocessed AAL0 info from the card into larger
-data chunks blocks.  We can save this data to disk in real-time
-without the socket layer freaking out.    Unfortunately, the data has
-RBD (receive buffer descriptors) and cells headers in it, and this has
-to be filtered out after capture.
-To enable
-.Dq raw
-mode one does the following ioctl:
-.Bd -literal -offset indent
-  int size = 4000; /* bytes */
-  ret = ioctl(s, SIOCRAWATM, (caddr_t)&size);
-.Ed
-.Pp
-This tells the driver to batch AAL0 data into 4000 bytes chunks,
-rather than the usual 48 bytes chunks.     Admittedly this is somewhat
-gross, but our current application requires it.    In the future we
-hope that video sources send data in nice large AAL5 frames.
 .Sh CAVEAT
 The NATM protocol support is subject to change as
 the ATM protocols develop.  Users should not depend
