@@ -139,9 +139,11 @@ typedef struct rstdirdesc RST_DIR;
  * Useful macros
  */
 #define TSTINO(ino, map) \
-	(map[(u_int)((ino) - 1) / NBBY] &  (1 << ((u_int)((ino) - 1) % NBBY)))
+	(map[(u_int)((ino) - 1) / CHAR_BIT] & \
+	    (1 << ((u_int)((ino) - 1) % CHAR_BIT)))
 #define	SETINO(ino, map) \
-	map[(u_int)((ino) - 1) / NBBY] |=  1 << ((u_int)((ino) - 1) % NBBY)
+	map[(u_int)((ino) - 1) / CHAR_BIT] |= \
+	    1 << ((u_int)((ino) - 1) % CHAR_BIT)
 
 #define dprintf		if (dflag) fprintf
 #define vprintf		if (vflag) fprintf

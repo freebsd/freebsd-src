@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -410,8 +411,8 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		acg.cg_iusedoff = acg.cg_old_boff +
 		    sblock.fs_old_cpg * sizeof(u_int16_t);
 	}
-	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
-	acg.cg_nextfreeoff = acg.cg_freeoff + howmany(sblock.fs_fpg, NBBY);
+	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, CHAR_BIT);
+	acg.cg_nextfreeoff = acg.cg_freeoff + howmany(sblock.fs_fpg, CHAR_BIT);
 	if (sblock.fs_contigsumsize > 0) {
 		acg.cg_clustersumoff =
 		    roundup(acg.cg_nextfreeoff, sizeof(u_int32_t));
@@ -419,7 +420,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		acg.cg_clusteroff = acg.cg_clustersumoff +
 		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		acg.cg_nextfreeoff = acg.cg_clusteroff +
-		    howmany(fragstoblks(&sblock, sblock.fs_fpg), NBBY);
+		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	if (acg.cg_nextfreeoff > sblock.fs_cgsize) {
 		/*
@@ -504,7 +505,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 				sump[run]++;
 				run = 0;
 			}
-			if ((i & (NBBY - 1)) != NBBY - 1)
+			if ((i & (CHAR_BIT - 1)) != CHAR_BIT - 1)
 				bit <<= 1;
 			else {
 				map = *mapp++;

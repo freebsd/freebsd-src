@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <limits.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -127,9 +128,9 @@ pass5(void)
 		    fs->fs_old_cpg * fs->fs_old_nrpos * sizeof(u_int16_t);
 		memset(&newcg->cg_space[0], 0, newcg->cg_iusedoff - basesize);
 	}
-	inomapsize = howmany(fs->fs_ipg, NBBY);
+	inomapsize = howmany(fs->fs_ipg, CHAR_BIT);
 	newcg->cg_freeoff = newcg->cg_iusedoff + inomapsize;
-	blkmapsize = howmany(fs->fs_fpg, NBBY);
+	blkmapsize = howmany(fs->fs_fpg, CHAR_BIT);
 	newcg->cg_nextfreeoff = newcg->cg_freeoff + blkmapsize;
 	if (fs->fs_contigsumsize > 0) {
 		newcg->cg_clustersumoff = newcg->cg_nextfreeoff -
@@ -139,7 +140,7 @@ pass5(void)
 		newcg->cg_clusteroff = newcg->cg_clustersumoff +
 		    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
 		newcg->cg_nextfreeoff = newcg->cg_clusteroff +
-		    howmany(fragstoblks(fs, fs->fs_fpg), NBBY);
+		    howmany(fragstoblks(fs, fs->fs_fpg), CHAR_BIT);
 	}
 	newcg->cg_magic = CG_MAGIC;
 	mapsize = newcg->cg_nextfreeoff - newcg->cg_iusedoff;
@@ -273,7 +274,7 @@ pass5(void)
 					sump[run]++;
 					run = 0;
 				}
-				if ((i & (NBBY - 1)) != (NBBY - 1)) {
+				if ((i & (CHAR_BIT - 1)) != (CHAR_BIT - 1)) {
 					bit <<= 1;
 				} else {
 					map = *mapp++;
@@ -370,10 +371,10 @@ check_maps(
 		k = *map2++;
 		if (j == k)
 			continue;
-		for (m = 0, l = 1; m < NBBY; m++, l <<= 1) {
+		for (m = 0, l = 1; m < CHAR_BIT; m++, l <<= 1) {
 			if ((j & l) == (k & l))
 				continue;
-			n = startvalue + i * NBBY + m;
+			n = startvalue + i * CHAR_BIT + m;
 			if ((j & l) != 0) {
 				if (astart == -1) {
 					astart = aend = n;

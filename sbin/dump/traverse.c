@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,7 +204,7 @@ mapdirs(ino_t maxino, long *tapesize)
 
 	isdir = 0;		/* XXX just to get gcc to shut up */
 	for (map = dumpdirmap, ino = 1; ino < maxino; ino++) {
-		if (((ino - 1) % NBBY) == 0)	/* map is offset by 1 */
+		if (((ino - 1) % CHAR_BIT) == 0)	/* map is offset by 1 */
 			isdir = *map++;
 		else
 			isdir >>= 1;

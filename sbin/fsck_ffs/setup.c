@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -243,7 +244,7 @@ setup(char *dev)
 	/*
 	 * allocate and initialize the necessary maps
 	 */
-	bmapsize = roundup(howmany(maxfsblock, NBBY), sizeof(short));
+	bmapsize = roundup(howmany(maxfsblock, CHAR_BIT), sizeof(short));
 	blockmap = calloc((unsigned)bmapsize, sizeof (char));
 	if (blockmap == NULL) {
 		printf("cannot alloc %u bytes for blockmap\n",
