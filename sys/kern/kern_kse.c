@@ -505,7 +505,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	if ((ku->ku_flags & KUF_DOUPCALL) == 0 && (kg->kg_completed == NULL)) {
 		kg->kg_upsleeps++;
 		error = msleep(&kg->kg_completed, &p->p_mtx, PPAUSE|PCATCH,
-			"kse_rel", (uap->timeout ? tvtohz(&tv) : 0));
+			"kserel", (uap->timeout ? tvtohz(&tv) : 0));
 		kg->kg_upsleeps--;
 	}
 	if (ku->ku_flags & KUF_DOUPCALL) {
@@ -607,6 +607,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		ncpus = virtual_cpu;
 	if (!(mbx.km_flags & KMF_BOUND))
 		sa = TDF_SA;
+	else
+		ncpus = 1;
 	PROC_LOCK(p);
 	if (!(p->p_flag & P_SA)) {
 		first = 1;
