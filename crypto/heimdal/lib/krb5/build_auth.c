@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: build_auth.c,v 1.35 2001/05/14 06:14:44 assar Exp $");
+RCSID("$Id: build_auth.c,v 1.38 2002/09/04 16:26:04 joda Exp $");
 
 krb5_error_code
 krb5_build_authenticator (krb5_context context,
@@ -74,13 +74,6 @@ krb5_build_authenticator (krb5_context context,
   if(ret)
       goto fail;
 
-  if(auth->subkey == NULL) {
-      krb5_generate_subkey (context, &cred->session, &auth->subkey);
-      ret = krb5_auth_con_setlocalsubkey(context, auth_context, auth->subkey);
-      if(ret)
-	  goto fail;
-  }
-
   if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE) {
     krb5_generate_seq_number (context,
 			      &cred->session, 
@@ -99,36 +92,10 @@ krb5_build_authenticator (krb5_context context,
     auth_context->authenticator->cusec = auth->cusec;
   }
 
-  buf_size = 1024;
-  buf = malloc (buf_size);
-  if (buf == NULL) {
-      krb5_set_error_string(context, "malloc: out of memory");
-      ret = ENOMEM;
+  ASN1_MALLOC_ENCODE(Authenticator, buf, buf_size, auth, &len, ret);
+
+  if (ret)
       goto fail;
-  }
-
-  do {
-      ret = krb5_encode_Authenticator (context,
-				       buf + buf_size - 1,
-				       buf_size,
-				       auth, &len);
-      if (ret) {
-	  if (ret == ASN1_OVERFLOW) {
-	      u_char *tmp;
-
-	      buf_size *= 2;
-	      tmp = realloc (buf, buf_size);
-	      if (tmp == NULL) {
-		  krb5_set_error_string(context, "malloc: out of memory");
-		  ret = ENOMEM;
-		  goto fail;
-	      }
-	      buf = tmp;
-	  } else {
-	      goto fail;
-	  }
-      }
-  } while(ret == ASN1_OVERFLOW);
 
   ret = krb5_crypto_init(context, &cred->session, enctype, &crypto);
   if (ret)

@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_cred.c,v 1.88 2002/03/10 23:11:29 assar Exp $");
+RCSID("$Id: get_cred.c,v 1.91 2002/09/04 21:12:46 joda Exp $");
 
 /*
  * Take the `body' and encode it into `padata' using the credentials
@@ -54,36 +54,14 @@ make_pa_tgs_req(krb5_context context,
     krb5_data in_data;
     krb5_error_code ret;
 
-    buf_size = 1024;
-    buf = malloc (buf_size);
-    if (buf == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
-	return ENOMEM;
-    }
-
-    do {
-	ret = encode_KDC_REQ_BODY(buf + buf_size - 1, buf_size,
-				  body, &len);
-	if (ret){
-	    if (ret == ASN1_OVERFLOW) {
-		u_char *tmp;
-
-		buf_size *= 2;
-		tmp = realloc (buf, buf_size);
-		if (tmp == NULL) {
-		    krb5_set_error_string(context, "malloc: out of memory");
-		    ret = ENOMEM;
-		    goto out;
-		}
-		buf = tmp;
-	    } else {
-		goto out;
-	    }
-	}
-    } while (ret == ASN1_OVERFLOW);
+    ASN1_MALLOC_ENCODE(KDC_REQ_BODY, buf, buf_size, body, &len, ret);
+    if (ret)
+	goto out;
+    if(buf_size != len)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
 
     in_data.length = len;
-    in_data.data   = buf + buf_size - len;
+    in_data.data   = buf;
     ret = krb5_mk_req_internal(context, &ac, 0, &in_data, creds,
 			       &padata->padata_value,
 			       KRB5_KU_TGS_REQ_AUTH_CKSUM,
@@ -113,18 +91,9 @@ set_auth_data (krb5_context context,
 	krb5_crypto crypto;
 	krb5_error_code ret;
 
-	len = length_AuthorizationData(authdata);
-	buf = malloc(len);
-	if (buf == NULL) {
-	    krb5_set_error_string(context, "malloc: out of memory");
-	    return ENOMEM;
-	}
-	ret = encode_AuthorizationData(buf + len - 1,
-				       len, authdata, &len);
-	if (ret) {
-	    free (buf);
+	ASN1_MALLOC_ENCODE(AuthorizationData, buf, len, authdata, &len, ret);
+	if (ret)
 	    return ret;
-	}
 
 	ALLOC(req_body->enc_authorization_data, 1);
 	if (req_body->enc_authorization_data == NULL) {
@@ -173,16 +142,19 @@ init_tgs_req (krb5_context context,
 	      TGS_REQ *t,
 	      krb5_key_usage usage)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
 
     memset(t, 0, sizeof(*t));
     t->pvno = 5;
     t->msg_type = krb_tgs_req;
     if (in_creds->session.keytype) {
-	ret = krb5_keytype_to_enctypes_default (context,
-						in_creds->session.keytype,
-						&t->req_body.etype.len,
-						&t->req_body.etype.val);
+	ALLOC_SEQ(&t->req_body.etype, 1);
+	if(t->req_body.etype.val == NULL) {
+	    ret = ENOMEM;
+	    krb5_set_error_string(context, "malloc: out of memory");
+	    goto fail;
+	}
+	t->req_body.etype.val[0] = in_creds->session.keytype;
     } else {
 	ret = krb5_init_etype(context, 
 			      &t->req_body.etype.len, 
@@ -431,34 +403,11 @@ get_cred_kdc_usage(krb5_context context,
     if (ret)
 	goto out;
 
-    buf_size = 1024;
-    buf = malloc (buf_size);
-    if (buf == NULL) {
-	krb5_set_error_string(context, "malloc: out of memory");
-	ret = ENOMEM;
+    ASN1_MALLOC_ENCODE(TGS_REQ, buf, buf_size, &req, &enc.length, ret);
+    if (ret) 
 	goto out;
-    }
-
-    do {
-	ret = encode_TGS_REQ  (buf + buf_size - 1, buf_size,
-			       &req, &enc.length);
-	if (ret) {
-	    if (ret == ASN1_OVERFLOW) {
-		u_char *tmp;
-
-		buf_size *= 2;
-		tmp = realloc (buf, buf_size);
-		if (tmp == NULL) {
-		    krb5_set_error_string(context, "malloc: out of memory");
-		    ret = ENOMEM;
-		    goto out;
-		}
-		buf = tmp;
-	    } else {
-		goto out;
-	    }
-	}
-    } while (ret == ASN1_OVERFLOW);
+    if(enc.length != buf_size)
+	krb5_abortx(context, "internal error in ASN.1 encoder");
 
     /* don't free addresses */
     req.req_body.addresses = NULL;

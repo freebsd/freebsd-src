@@ -32,7 +32,7 @@
 
 #include <config.h>
 
-RCSID("$Id: su.c,v 1.24 2002/02/19 13:01:15 joda Exp $");
+RCSID("$Id: su.c,v 1.25 2002/09/10 20:03:47 joda Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,11 +50,7 @@ RCSID("$Id: su.c,v 1.24 2002/02/19 13:01:15 joda Exp $");
 
 #include <pwd.h>
 
-#ifdef HAVE_OPENSSL
-#include <openssl/des.h>
-#else
-#include <des.h>
-#endif
+#include "crypto-headers.h"
 #ifdef KRB5
 #include <krb5.h>
 #endif

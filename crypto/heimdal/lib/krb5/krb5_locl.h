@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5_locl.h,v 1.67 2001/08/22 20:30:30 assar Exp $ */
+/* $Id: krb5_locl.h,v 1.71 2002/09/10 20:10:45 joda Exp $ */
 /* $FreeBSD$ */
 
 #ifndef __KRB5_LOCL_H__
@@ -46,6 +46,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -113,19 +114,7 @@ struct sockaddr_dl;
 #include <parse_time.h>
 #include <base64.h>
 
-#ifdef HAVE_OPENSSL
-#include <openssl/des.h>
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
-#include <openssl/rc4.h>
-#else
-#include <des.h>
-#include <md4.h>
-#include <md5.h>
-#include <sha.h>
-#include <rc4.h>
-#endif
+#include "crypto-headers.h"
 
 #include <krb5_asn1.h>
 #include <der.h>

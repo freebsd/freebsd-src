@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: crypto.c,v 1.60 2002/01/06 23:12:51 assar Exp $");
+RCSID("$Id: crypto.c,v 1.66 2002/09/03 19:58:15 joda Exp $");
 /* RCSID("$FreeBSD$"); */
 
 #undef CRYPTO_DEBUG
@@ -1677,26 +1677,14 @@ DES3_CBC_encrypt(krb5_context context,
 		 size_t len, 
 		 krb5_boolean encrypt,
 		 int usage,
-		 void *ignore_ivec)
+		 void *ivec)
 {
-    des_cblock ivec;
+    des_cblock local_ivec;
     des_key_schedule *s = key->schedule->data;
-    memset(&ivec, 0, sizeof(ivec));
-    des_ede3_cbc_encrypt(data, data, len, s[0], s[1], s[2], &ivec, encrypt);
-    return 0;
-}
-
-static krb5_error_code
-DES3_CBC_encrypt_ivec(krb5_context context,
-		      struct key_data *key, 
-		      void *data, 
-		      size_t len, 
-		      krb5_boolean encrypt,
-		      int usage,
-		      void *ivec)
-{
-    des_key_schedule *s = key->schedule->data;
-
+    if(ivec == NULL) {
+	ivec = &local_ivec;
+	memset(local_ivec, 0, sizeof(local_ivec));
+    }
     des_ede3_cbc_encrypt(data, data, len, s[0], s[1], s[2], ivec, encrypt);
     return 0;
 }
@@ -2071,17 +2059,6 @@ static struct encryption_type enctype_des3_cbc_none = {
     F_PSEUDO,
     DES3_CBC_encrypt,
 };
-static struct encryption_type enctype_des3_cbc_none_ivec = {
-    ETYPE_DES3_CBC_NONE_IVEC,
-    "des3-cbc-none-ivec",
-    8,
-    0,
-    &keytype_des3_derived,
-    &checksum_none,
-    NULL,
-    F_PSEUDO,
-    DES3_CBC_encrypt_ivec,
-};
 
 static struct encryption_type *etypes[] = {
     &enctype_null,
@@ -2095,8 +2072,7 @@ static struct encryption_type *etypes[] = {
     &enctype_des_cbc_none,
     &enctype_des_cfb64_none,
     &enctype_des_pcbc_none,
-    &enctype_des3_cbc_none,
-    &enctype_des3_cbc_none_ivec
+    &enctype_des3_cbc_none
 };
 
 static unsigned num_etypes = sizeof(etypes) / sizeof(etypes[0]);
@@ -3054,6 +3030,15 @@ krb5_crypto_destroy(krb5_context context,
     free(crypto->key_usage);
     free_key_data(context, &crypto->key);
     free (crypto);
+    return 0;
+}
+
+krb5_error_code
+krb5_crypto_getblocksize(krb5_context context,
+			 krb5_crypto crypto,
+			 size_t *blocksize)
+{
+    *blocksize = crypto->et->blocksize;
     return 0;
 }
 

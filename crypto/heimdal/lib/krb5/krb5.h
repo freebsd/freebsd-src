@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.203 2002/08/22 10:06:20 joda Exp $ */
+/* $Id: krb5.h,v 1.205 2002/09/03 17:31:47 joda Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -99,7 +99,6 @@ enum {
     ENCTYPE_DES3_CBC_NONE	= ETYPE_DES3_CBC_NONE,
     ENCTYPE_DES_CFB64_NONE	= ETYPE_DES_CFB64_NONE,
     ENCTYPE_DES_PCBC_NONE	= ETYPE_DES_PCBC_NONE,
-    ENCTYPE_DES3_CBC_NONE_IVEC	= ETYPE_DES3_CBC_NONE_IVEC
 };
 
 typedef PADATA_TYPE krb5_preauthtype;
@@ -208,7 +207,8 @@ typedef enum krb5_address_type {
 
 enum {
   AP_OPTS_USE_SESSION_KEY = 1,
-  AP_OPTS_MUTUAL_REQUIRED = 2
+  AP_OPTS_MUTUAL_REQUIRED = 2,
+  AP_OPTS_USE_SUBKEY = 4		/* library internal */
 };
 
 typedef HostAddress krb5_address;

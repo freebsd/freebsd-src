@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.120 2002/05/31 02:44:37 assar Exp $
+# $Id: Makefile.am,v 1.122 2002/09/09 19:17:01 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I ../../cf
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 16:0:7
+libroken_la_LDFLAGS = -version-info 16:0:0
 
 noinst_PROGRAMS = make-roken snprintf-test
 
@@ -17,6 +17,7 @@ check_PROGRAMS = 				\
 		base64-test			\
 		getaddrinfo-test		\
 		parse_bytes-test		\
+		parse_reply-test		\
 		snprintf-test			\
 		strpftime-test
 
@@ -28,6 +29,9 @@ make_roken_LDADD =
 noinst_LTLIBRARIES = libtest.la
 libtest_la_SOURCES = strftime.c strptime.c snprintf.c
 libtest_la_CFLAGS = -DTEST_SNPRINTF
+
+parse_reply_test_SOURCES = parse_reply-test.c resolve.c
+parse_reply_test_CFLAGS  = -DTEST_RESOLVE
 
 strpftime_test_SOURCES	= strpftime-test.c
 strpftime_test_LDADD = libtest.la $(LDADD)

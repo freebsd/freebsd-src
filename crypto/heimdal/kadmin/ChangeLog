@@ -1,3 +1,21 @@
+2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* server.c: constify match_appl_version()
+
+	* version4.c: change some lingering krb_err_base
+
+2002-09-09  Jacques Vidrine  <nectar@kth.se>
+
+	* server.c (kadmind_dispatch): while decoding arguments for
+	kadm_chpass_with_key, sanity check the number of keys given.
+	Potential problem pointed out by
+	Sebastian Krahmer <krahmer@suse.de>.
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* load.c (parse_generation): return if there is no generation
+	(spotted by Daniel Kouril)
+
 2002-06-07  Jacques Vidrine <n@nectar.com>
 
 	* ank.c: do not attempt to free uninitialized pointer when

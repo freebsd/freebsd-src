@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: kuserok.c,v 1.5 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: kuserok.c,v 1.6 2002/09/16 17:32:11 nectar Exp $");
 
 /*
  * Return TRUE iff `principal' is allowed to login as `luser'.
@@ -88,9 +88,7 @@ krb5_kuserok (krb5_context context,
     while (fgets (buf, sizeof(buf), f) != NULL) {
 	krb5_principal tmp;
 
-	if(buf[strlen(buf) - 1] == '\n')
-	    buf[strlen(buf) - 1] = '\0';
-
+	buf[strcspn(buf, "\n")] = '\0';
 	ret = krb5_parse_name (context, buf, &tmp);
 	if (ret) {
 	    fclose (f);

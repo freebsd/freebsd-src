@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.40 2001/08/22 20:30:24 assar Exp $
+ * $Id: kadmin_locl.h,v 1.41 2002/09/10 20:04:45 joda Exp $
  * $FreeBSD$
  */
 
@@ -87,11 +87,6 @@
 #endif
 #include <err.h>
 #include <roken.h>
-#ifdef HAVE_OPENSSL
-#include <openssl/des.h>
-#else
-#include <des.h>
-#endif
 #include <krb5.h>
 #include <krb5_locl.h>
 #include <hdb.h>

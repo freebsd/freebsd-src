@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: unwrap.c,v 1.20 2002/05/20 15:14:00 nectar Exp $");
+RCSID("$Id: unwrap.c,v 1.21 2002/09/03 17:33:11 joda Exp $");
 
 OM_uint32
 gss_krb5_get_remotekey(const gss_ctx_id_t context_handle,
@@ -296,7 +296,7 @@ unwrap_des3
   p -= 28;
 
   ret = krb5_crypto_init(gssapi_krb5_context, key,
-			 ETYPE_DES3_CBC_NONE_IVEC, &crypto);
+			 ETYPE_DES3_CBC_NONE, &crypto);
   if (ret) {
       gssapi_krb5_set_error_string ();
       *minor_status = ret;

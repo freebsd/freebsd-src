@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: auth_context.c,v 1.58 2002/08/15 08:23:07 joda Exp $");
+RCSID("$Id: auth_context.c,v 1.59 2002/09/02 17:11:02 joda Exp $");
 
 krb5_error_code
 krb5_auth_con_init(krb5_context context,
@@ -290,6 +290,24 @@ krb5_auth_con_setlocalsubkey(krb5_context context,
 	krb5_free_keyblock(context, auth_context->local_subkey);
     return copy_key(context, keyblock, &auth_context->local_subkey);
 }
+
+krb5_error_code
+krb5_auth_con_generatelocalsubkey(krb5_context context,
+				  krb5_auth_context auth_context,
+				  krb5_keyblock *key)
+{
+    krb5_error_code ret;
+    krb5_keyblock *subkey;
+
+    ret = krb5_generate_subkey (context, key, &subkey);
+    if(ret)
+	return ret;
+    if(auth_context->local_subkey)
+	krb5_free_keyblock(context, auth_context->local_subkey);
+    auth_context->local_subkey = subkey;
+    return 0;
+}
+
 
 krb5_error_code
 krb5_auth_con_setremotesubkey(krb5_context context,

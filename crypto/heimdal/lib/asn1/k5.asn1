@@ -1,4 +1,4 @@
--- $Id: k5.asn1,v 1.26 2002/03/18 19:00:43 joda Exp $
+-- $Id: k5.asn1,v 1.27 2002/09/03 17:32:09 joda Exp $
 
 KERBEROS5 DEFINITIONS ::=
 BEGIN
@@ -97,8 +97,7 @@ ENCTYPE ::= INTEGER {
 	ETYPE_DES_CBC_NONE(-0x1000),
 	ETYPE_DES3_CBC_NONE(-0x1001),
 	ETYPE_DES_CFB64_NONE(-0x1002),
-	ETYPE_DES_PCBC_NONE(-0x1003),
-	ETYPE_DES3_CBC_NONE_IVEC(-0x1004)
+	ETYPE_DES_PCBC_NONE(-0x1003)
 }
 
 -- this is sugar to make something ASN1 does not have: unsigned
