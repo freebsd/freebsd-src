@@ -42,6 +42,7 @@
 #include "isa.h"
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #ifndef SMP
 #include <machine/lock.h>
 #endif
@@ -93,8 +94,8 @@
  * case, so these arrays have NHWI + NSWI entries, not ICU_LEN.
  */
 u_long	*intr_countp[NHWI + NSWI];	/* pointers to interrupt counters */
-inthand2_t *intr_handler[NHWI + NSWI];	/* first level interrupt handler */
-ithd	*ithds[NHWI + NSWI];		/* real interrupt handler */
+driver_intr_t *intr_handler[NHWI + NSWI]; /* first level interrupt handler */
+struct ithd	*ithds[NHWI + NSWI];		/* real interrupt handler */
 void	*intr_unit[NHWI + NSWI];
 
 static inthand_t *fastintr[ICU_LEN] = {
@@ -125,7 +126,7 @@ static inthand_t *slowintr[ICU_LEN] = {
 #endif /* APIC_IO */
 };
 
-static inthand2_t isa_strayintr;
+static driver_intr_t isa_strayintr;
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -284,7 +285,7 @@ isa_defaultirq()
 
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
-		icu_unset(i, (inthand2_t *)NULL);
+		icu_unset(i, (driver_intr_t *)NULL);
 
 	/* initialize 8259's */
 #if NMCA > 0
@@ -431,7 +432,7 @@ found:
 }
 
 int
-icu_setup(int intr, inthand2_t *handler, void *arg, int flags)
+icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 {
 #ifdef FAST_HI
 	int		select;		/* the select register is 8 bits */
@@ -502,7 +503,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, int flags)
 int
 icu_unset(intr, handler)
 	int	intr;
-	inthand2_t *handler;
+	driver_intr_t *handler;
 {
 	u_long	ef;
 
@@ -530,13 +531,13 @@ icu_unset(intr, handler)
 	return (0);
 }
 
-intrec *
-inthand_add(const char *name, int irq, inthand2_t handler, void *arg,
+struct intrec *
+inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
 	     int pri, int flags)
 {
-	ithd *ithd = ithds[irq];	/* descriptor for the IRQ */
-	intrec *head;			/* chain of handlers for IRQ */
-	intrec *idesc;			/* descriptor for this handler */
+	struct ithd *ithd = ithds[irq];	/* descriptor for the IRQ */
+	struct intrec *head;		/* chain of handlers for IRQ */
+	struct intrec *idesc;		/* descriptor for this handler */
 	struct proc *p;			/* interrupt thread */
 	int errcode = 0;
 
@@ -669,10 +670,10 @@ inthand_add(const char *name, int irq, inthand2_t handler, void *arg,
  */
 
 int
-inthand_remove(intrec *idesc)
+inthand_remove(struct intrec *idesc)
 {
-	ithd *ithd;			/* descriptor for the IRQ */
-	intrec *ih;			/* chain of handlers */
+	struct ithd *ithd;		/* descriptor for the IRQ */
+	struct intrec *ih;		/* chain of handlers */
 
 	if (idesc == NULL)
 		return (-1);

@@ -53,6 +53,9 @@
 #include <sys/param.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
+#if __FreeBSD__ >= 5
+#include <sys/bus.h>
+#endif
 #else
 #include <sys/ioctl.h>
 #endif
@@ -436,7 +439,7 @@ isic_probe_avm_pnp(struct isa_device *dev, unsigned int iobase2)
 	}
 	sc->sc_irq = dev->id_irq;
 
-        dev->id_intr = (inthand2_t *) avm_pnp_intr;
+        dev->id_intr = (driver_intr_t *) avm_pnp_intr;
 
 	/* check if memory addr specified */
 

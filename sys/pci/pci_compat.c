@@ -38,12 +38,12 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <sys/interrupt.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <sys/interrupt.h>
 
 #include <sys/pciio.h>
 #include <pci/pcireg.h>
@@ -52,13 +52,6 @@
 #ifdef APIC_IO
 #include <machine/smp.h>
 #endif
-
-#ifdef __i386__
-#include <sys/proc.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
-#endif
-
 
 /* ------------------------------------------------------------------------- */
 
