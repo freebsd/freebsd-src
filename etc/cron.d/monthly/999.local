@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id$
+# $Id: 999.monthly.local,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
 #
 if [ -f /etc/monthly.local ]; then
     echo ""
