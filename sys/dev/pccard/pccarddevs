@@ -83,10 +83,12 @@ vendor NOKIA			0x023d	Nokia Communications
 vendor SAMSUNG			0x0250	Samsung
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
+vendor LINKSYS2			0x0274  The Linksys Group
 vendor IODATA2			0x028a	I-O DATA
 vendor BREEZECOM		0x0a02	BreezeCOM
 vendor NEWMEDIA2		0x10cd	NewMedia
 vendor LASAT			0x3401	Lasat Communications A/S
+vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
@@ -101,7 +103,6 @@ vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
 vendor EMTAC			0xc250	EMTAC Technology Corporation
-vendor LINKSYS2			0x0274  The Linksys Group
 vendor ELSA			0xd601  Elsa 
 
 /*
@@ -140,6 +141,9 @@ product	ARCHOS ARC_ATAPI	0x0043 MiniCD
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
 product BAY SURFER_PRO		0x0806 AirSurfer Pro Wireless LAN
 product BAY STACK_660		0x0807 BayStack 660 Wireless LAN
+
+/* Bondwell */
+product	BONDWELL B236		0x0000 Game Card Joystick
 
 /* BreezeCOM */
 product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
