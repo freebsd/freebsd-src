@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "$Id: parse_netgroup.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $";
+static char sccsid[] = "$Id: parse_netgroup.c,v 1.2 1996/05/12 17:17:44 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -52,7 +52,7 @@ static char sccsid[] = "$Id: parse_netgroup.c,v 1.1.1.1 1995/10/26 16:25:29 wpau
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: parse_netgroup.c,v 1.2 1996/05/12 17:17:44 wpaul Exp $";
 #endif
 
 /*
@@ -92,8 +92,6 @@ static struct linelist *read_for_group();
 void __setnetgrent(), __endnetgrent();
 int __getnetgrent();
 extern struct group_entry *gtable[];
-extern char *lookup __P(( struct group_entry *[], char * ));
-#define	LINSIZ	1024	/* Length of netgroup file line */
 
 /*
  * setnetgrent()
@@ -296,12 +294,12 @@ static struct linelist *
 read_for_group(group)
 	char *group;
 {
-	register char *pos, *spos, *linep, *olinep;
+	register char *pos, *spos, *linep = NULL, *olinep = NULL;
 	register int len, olen;
 	int cont;
 	struct linelist *lp;
 	char line[LINSIZ + 1];
-	char *key = NULL, *data = NULL;
+	char *data = NULL;
 
 	data = lookup (gtable, group);
 	sprintf(line, "%s %s", group, data);
