@@ -69,7 +69,7 @@ struct kvmvars {
 	struct gmonparam gpm;
 };
 
-int	bflag, hflag, kflag, rflag, pflag;
+int	Bflag, bflag, hflag, kflag, rflag, pflag;
 int	debug = 0;
 void	setprof __P((struct kvmvars *kvp, int state));
 void	dumpstate __P((struct kvmvars *kvp));
@@ -87,7 +87,7 @@ main(int argc, char **argv)
 	seteuid(getuid());
 	kmemf = NULL;
 	system = NULL;
-	while ((ch = getopt(argc, argv, "M:N:bhpr")) != EOF) {
+	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != EOF) {
 		switch((char)ch) {
 
 		case 'M':
@@ -97,6 +97,10 @@ main(int argc, char **argv)
 
 		case 'N':
 			system = optarg;
+			break;
+
+		case 'B':
+			Bflag = 1;
 			break;
 
 		case 'b':
@@ -117,7 +121,7 @@ main(int argc, char **argv)
 
 		default:
 			(void)fprintf(stderr,
-			    "usage: kgmon [-bhrp] [-M core] [-N system]\n");
+			    "usage: kgmon [-Bbhrp] [-M core] [-N system]\n");
 			exit(1);
 		}
 	}
@@ -140,6 +144,8 @@ main(int argc, char **argv)
 	mode = getprof(&kvmvars);
 	if (hflag)
 		disp = GMON_PROF_OFF;
+	else if (Bflag)
+		disp = GMON_PROF_HIRES;
 	else if (bflag)
 		disp = GMON_PROF_ON;
 	else
@@ -151,7 +157,12 @@ main(int argc, char **argv)
 	if (accessmode == O_RDWR)
 		setprof(&kvmvars, disp);
 	(void)fprintf(stdout, "kgmon: kernel profiling is %s.\n",
-		      disp == GMON_PROF_OFF ? "off" : "running");
+		      disp == GMON_PROF_OFF ? "off" :
+		      disp == GMON_PROF_HIRES ? "running (high resolution)" :
+		      disp == GMON_PROF_ON ? "running" :
+		      disp == GMON_PROF_BUSY ? "busy" :
+		      disp == GMON_PROF_ERROR ? "off (error)" :
+		      "in an unknown state");
 	return (0);
 }
 
@@ -176,8 +187,9 @@ openfiles(system, kmemf, kvp)
 			    "kgmon: profiling not defined in kernel.\n");
 			exit(20);
 		}
-		if (!(bflag || hflag || rflag ||
-		    (pflag && state == GMON_PROF_ON)))
+		if (!(Bflag || bflag || hflag || rflag ||
+		    (pflag &&
+		     (state == GMON_PROF_HIRES || state == GMON_PROF_ON))))
 			return (O_RDONLY);
 		(void)seteuid(0);
 		if (sysctl(mib, 3, NULL, NULL, &state, size) >= 0)
@@ -186,7 +198,8 @@ openfiles(system, kmemf, kvp)
 		kern_readonly(state);
 		return (O_RDONLY);
 	}
-	openmode = (bflag || hflag || pflag || rflag) ? O_RDWR : O_RDONLY;
+	openmode = (Bflag || bflag || hflag || pflag || rflag)
+		   ? O_RDWR : O_RDONLY;
 	kvp->kd = kvm_openfiles(system, kmemf, NULL, openmode, errbuf);
 	if (kvp->kd == NULL) {
 		if (openmode == O_RDWR) {
@@ -221,15 +234,17 @@ kern_readonly(mode)
 {
 
 	(void)fprintf(stderr, "kgmon: kernel read-only: ");
-	if (pflag && mode == GMON_PROF_ON)
+	if (pflag && (mode == GMON_PROF_HIRES || mode == GMON_PROF_ON))
 		(void)fprintf(stderr, "data may be inconsistent\n");
 	if (rflag)
 		(void)fprintf(stderr, "-r supressed\n");
+	if (Bflag)
+		(void)fprintf(stderr, "-B supressed\n");
 	if (bflag)
 		(void)fprintf(stderr, "-b supressed\n");
 	if (hflag)
 		(void)fprintf(stderr, "-h supressed\n");
-	rflag = bflag = hflag = 0;
+	rflag = Bflag = bflag = hflag = 0;
 }
 
 /*
@@ -324,7 +339,9 @@ dumpstate(kvp)
 	h.hpc = kvp->gpm.highpc;
 	h.ncnt = kvp->gpm.kcountsize + sizeof(h);
 	h.version = GMONVERSION;
-	h.profrate = getprofhz(kvp);
+	h.profrate = kvp->gpm.profrate;
+	if (h.profrate == 0)
+		h.profrate = getprofhz(kvp);	/* ancient kernel */
 	fwrite((char *)&h, sizeof(h), 1, fp);
 
 	/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.14 1995/12/14 08:31:44 phk Exp $
+ * $Id: subr_prof.c,v 1.15 1995/12/26 01:21:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -62,6 +62,11 @@ kmstartup(dummy)
 {
 	char *cp;
 	struct gmonparam *p = &_gmonparam;
+#ifdef GUPROF
+	fptrint_t kmstartup_addr;
+	int i;
+#endif
+
 	/*
 	 * Round lowpc and highpc to multiples of the density we're using
 	 * so the rest of the scaling (here and in gprof) stays in ints.
@@ -89,9 +94,74 @@ kmstartup(dummy)
 	bzero(cp, p->kcountsize + p->tossize + p->fromssize);
 	p->tos = (struct tostruct *)cp;
 	cp += p->tossize;
-	p->kcount = (u_short *)cp;
+	p->kcount = (HISTCOUNTER *)cp;
 	cp += p->kcountsize;
 	p->froms = (u_short *)cp;
+
+#ifdef GUPROF
+	/*
+	 * Initialize pointers to overhead counters.
+	 */
+	p->cputime_count = &KCOUNT(p, PC_TO_I(p, cputime));
+	p->mcount_count = &KCOUNT(p, PC_TO_I(p, mcount));
+	p->mexitcount_count = &KCOUNT(p, PC_TO_I(p, mexitcount));
+
+	/*
+	 * Determine overheads.
+	 */
+	disable_intr();
+	p->state = GMON_PROF_HIRES;
+
+	p->cputime_overhead = 0;
+	(void)cputime();
+	for (i = 0; i < CALIB_SCALE; i++)
+		p->cputime_overhead += cputime();
+
+	(void)cputime();
+	for (i = 0; i < CALIB_SCALE; i++)
+#if defined(i386) && __GNUC__ >= 2
+		/*
+		 * Underestimate slightly by always calling __mcount, never
+		 * mcount.
+		 */
+		asm("pushl %0; call __mcount; popl %%ecx"
+		    :
+		    : "i" (kmstartup)
+		    : "ax", "bx", "cx", "dx", "memory");
+#else
+#error
+#endif
+	p->mcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup));
+
+	(void)cputime();
+	for (i = 0; i < CALIB_SCALE; i++)
+#if defined(i386) && __GNUC__ >= 2
+		    asm("call mexitcount; 1:"
+			: : : "ax", "bx", "cx", "dx", "memory");
+	asm("movl $1b,%0" : "=rm" (kmstartup_addr));
+#else
+#error
+#endif
+	p->mexitcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup_addr));
+
+	p->state = GMON_PROF_OFF;
+	enable_intr();
+
+	p->mcount_overhead_sub = p->mcount_overhead - p->cputime_overhead;
+	p->mexitcount_overhead_sub = p->mexitcount_overhead
+				     - p->cputime_overhead;
+	printf("Profiling overheads: %u+%u %u+%u\n",
+		p->cputime_overhead, p->mcount_overhead_sub,
+		p->cputime_overhead, p->mexitcount_overhead_sub);
+	p->cputime_overhead_frac = p->cputime_overhead % CALIB_SCALE;
+	p->cputime_overhead /= CALIB_SCALE;
+	p->mcount_overhead_frac = p->mcount_overhead_sub % CALIB_SCALE;
+	p->mcount_overhead_sub /= CALIB_SCALE;
+	p->mcount_overhead /= CALIB_SCALE;
+	p->mexitcount_overhead_frac = p->mexitcount_overhead_sub % CALIB_SCALE;
+	p->mexitcount_overhead_sub /= CALIB_SCALE;
+	p->mexitcount_overhead /= CALIB_SCALE;
+#endif /* GUPROF */
 }
 
 /*
@@ -104,6 +174,7 @@ sysctl_kern_prof SYSCTL_HANDLER_ARGS
 	u_int namelen = arg2;
 	struct gmonparam *gp = &_gmonparam;
 	int error;
+	int state;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1)
@@ -111,13 +182,27 @@ sysctl_kern_prof SYSCTL_HANDLER_ARGS
 
 	switch (name[0]) {
 	case GPROF_STATE:
-		error = sysctl_handle_int(oidp, &gp->state, 0, req);
+		state = gp->state;
+		error = sysctl_handle_int(oidp, &state, 0, req);
 		if (error)
 			return (error);
-		if (gp->state == GMON_PROF_OFF)
+		if (!req->newptr)
+			return (0);
+		if (state == GMON_PROF_OFF) {
 			stopprofclock(&proc0);
-		else
+			gp->state = state;
+		} else if (state == GMON_PROF_ON) {
+			gp->profrate = profhz;
+			gp->state = state;
 			startprofclock(&proc0);
+#ifdef GUPROF
+		} else if (state == GMON_PROF_HIRES) {
+			gp->profrate = 1193182;	/* XXX */
+			stopprofclock(&proc0);
+			gp->state = state;
+#endif
+		} else if (state != gp->state)
+			return (EINVAL);
 		return (0);
 	case GPROF_COUNT:
 		return (sysctl_handle_opaque(oidp, 
