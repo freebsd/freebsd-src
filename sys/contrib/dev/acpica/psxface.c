@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 40 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -124,7 +124,7 @@
 #include "acnamesp.h"
 
 
-#define _COMPONENT          PARSER
+#define _COMPONENT          ACPI_PARSER
         MODULE_NAME         ("psxface")
 
 
@@ -176,7 +176,7 @@ AcpiPsxExecute (
 
     /* Init for new method, wait on concurrency semaphore */
 
-    Status = AcpiDsBeginMethodExecution (MethodNode, ObjDesc);
+    Status = AcpiDsBeginMethodExecution (MethodNode, ObjDesc, NULL);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -191,7 +191,7 @@ AcpiPsxExecute (
 
         for (i = 0; Params[i]; i++)
         {
-            AcpiCmAddReference (Params[i]);
+            AcpiUtAddReference (Params[i]);
         }
     }
 
@@ -200,8 +200,8 @@ AcpiPsxExecute (
      * named objects that it creates into the namespace
      */
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("PsxExecute: **** Begin Method Execution **** Entry=%p obj=%p\n",
+    DEBUG_PRINTP (ACPI_INFO,
+        ("**** Begin Method Execution **** Entry=%p obj=%p\n",
         MethodNode, ObjDesc));
 
     /* Create and init a Root Node */
@@ -249,7 +249,7 @@ AcpiPsxExecute (
 
         for (i = 0; Params[i]; i++)
         {
-            AcpiCmUpdateObjectReference (Params[i], REF_DECREMENT);
+            AcpiUtUpdateObjectReference (Params[i], REF_DECREMENT);
         }
     }
 
@@ -262,7 +262,7 @@ AcpiPsxExecute (
 
     if (*ReturnObjDesc)
     {
-        DEBUG_PRINT (ACPI_INFO, ("Method returned ObjDesc=%X\n",
+        DEBUG_PRINTP (ACPI_INFO, ("Method returned ObjDesc=%X\n",
             *ReturnObjDesc));
         DUMP_STACK_ENTRY (*ReturnObjDesc);
 

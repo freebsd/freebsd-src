@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 49 $
+ *              $Revision: 55 $
  *
  ******************************************************************************/
 
@@ -125,7 +125,7 @@
 #include "actables.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsobject")
 
 
@@ -150,11 +150,11 @@ ACPI_STATUS
 AcpiNsAttachObject (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_OPERAND_OBJECT     *Object,
-    OBJECT_TYPE_INTERNAL    Type)
+    ACPI_OBJECT_TYPE8       Type)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_OPERAND_OBJECT     *PreviousObjDesc;
-    OBJECT_TYPE_INTERNAL    ObjType = ACPI_TYPE_ANY;
+    ACPI_OBJECT_TYPE8      ObjType = ACPI_TYPE_ANY;
     UINT8                   Flags;
     UINT16                  Opcode;
 
@@ -202,8 +202,7 @@ AcpiNsAttachObject (
 
     if (Node->Object == Object)
     {
-        DEBUG_PRINT (TRACE_EXEC,
-            ("NsAttachObject: Obj %p already installed in NameObj %p\n",
+        DEBUG_PRINTP (TRACE_EXEC, ("Obj %p already installed in NameObj %p\n",
             Object, Node));
 
         return_ACPI_STATUS (AE_OK);
@@ -293,7 +292,7 @@ AcpiNsAttachObject (
 
             MOVE_UNALIGNED16_TO_16 (&Opcode, Object);
 
-            /* Check for a recognized OpCode */
+            /* Check for a recognized Opcode */
 
             switch ((UINT8) Opcode)
             {
@@ -346,7 +345,7 @@ AcpiNsAttachObject (
 
             default:
 
-                DEBUG_PRINT (ACPI_ERROR,
+                DEBUG_PRINTP (ACPI_ERROR,
                     ("AML Opcode/Type [%x] not supported in attach\n",
                     (UINT8) Opcode));
 
@@ -370,21 +369,18 @@ AcpiNsAttachObject (
 
                 if (AcpiTbSystemTablePointer (Object))
                 {
-                    DEBUG_PRINT (ACPI_INFO,
+                    DEBUG_PRINTP (ACPI_INFO,
                         ("AML-stream code %02x\n", *(UINT8 *) Object));
                 }
 
                 else if (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED))
                 {
-                    DUMP_PATHNAME (Object,
-                                    "name ", ACPI_INFO,
-                                    _COMPONENT);
+                    DUMP_PATHNAME (Object, "name ", ACPI_INFO, _COMPONENT);
                 }
 
                 else
                 {
-                    DUMP_PATHNAME (Object, "object ",
-                                    ACPI_INFO, _COMPONENT);
+                    DUMP_PATHNAME (Object, "object ", ACPI_INFO, _COMPONENT);
                     DUMP_STACK_ENTRY (Object);
                 }
             }
@@ -394,8 +390,7 @@ AcpiNsAttachObject (
     }
 
 
-    DEBUG_PRINT (TRACE_EXEC,
-        ("NsAttachObject: Installing obj %p into NameObj %p [%4.4s]\n",
+    DEBUG_PRINTP (TRACE_EXEC, ("Installing obj %p into NameObj %p [%4.4s]\n",
         ObjDesc, Node, &Node->Name));
 
 
@@ -404,7 +399,7 @@ AcpiNsAttachObject (
      * (if it is an internal object)
      */
 
-    AcpiCmAddReference (ObjDesc);
+    AcpiUtAddReference (ObjDesc);
 
     /* Save the existing object (if any) for deletion later */
 
@@ -425,11 +420,11 @@ AcpiNsAttachObject (
     {
         /* One for the attach to the Node */
 
-        AcpiCmRemoveReference (PreviousObjDesc);
+        AcpiUtRemoveReference (PreviousObjDesc);
 
         /* Now delete */
 
-        AcpiCmRemoveReference (PreviousObjDesc);
+        AcpiUtRemoveReference (PreviousObjDesc);
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -471,12 +466,11 @@ AcpiNsDetachObject (
 
     /* Found a valid value */
 
-    DEBUG_PRINT (ACPI_INFO,
-        ("NsDetachObject: Object=%p Value=%p Name %4.4s\n",
+    DEBUG_PRINTP (ACPI_INFO, ("Object=%p Value=%p Name %4.4s\n",
         Node, ObjDesc, &Node->Name));
 
     /*
-     * Not every value is an object allocated via AcpiCmCallocate,
+     * Not every value is an object allocated via AcpiUtCallocate,
      * - must check
      */
 
@@ -484,7 +478,7 @@ AcpiNsDetachObject (
     {
         /* Attempt to delete the object (and all subobjects) */
 
-        AcpiCmRemoveReference (ObjDesc);
+        AcpiUtRemoveReference (ObjDesc);
     }
 
     return_VOID;
@@ -495,7 +489,7 @@ AcpiNsDetachObject (
  *
  * FUNCTION:    AcpiNsGetAttachedObject
  *
- * PARAMETERS:  Handle              - Parent Node to be examined
+ * PARAMETERS:  Node             - Parent Node to be examined
  *
  * RETURN:      Current value of the object field from the Node whose
  *              handle is passed
@@ -504,20 +498,20 @@ AcpiNsDetachObject (
 
 void *
 AcpiNsGetAttachedObject (
-    ACPI_HANDLE             Handle)
+    ACPI_NAMESPACE_NODE     *Node)
 {
-    FUNCTION_TRACE_PTR ("NsGetAttachedObject", Handle);
+    FUNCTION_TRACE_PTR ("NsGetAttachedObject", Node);
 
 
-    if (!Handle)
+    if (!Node)
     {
         /* handle invalid */
 
-        DEBUG_PRINT (ACPI_WARN, ("NsGetAttachedObject: Null handle\n"));
+        DEBUG_PRINTP (ACPI_WARN, ("Null Node ptr\n"));
         return_PTR (NULL);
     }
 
-    return_PTR (((ACPI_NAMESPACE_NODE *) Handle)->Object);
+    return_PTR (Node->Object);
 }
 
 

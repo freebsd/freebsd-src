@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 54 $
+ *              $Revision: 59 $
  *
  ******************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "acnamesp.h"
 
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsnames")
 
 
@@ -182,7 +182,7 @@ AcpiNsGetTablePathname (
 
     /* Allocate a buffer to be returned to caller */
 
-    NameBuffer = AcpiCmCallocate (Size + 1);
+    NameBuffer = AcpiUtCallocate (Size + 1);
     if (!NameBuffer)
     {
         REPORT_ERROR (("NsGetTablePathname: allocation failure\n"));
@@ -209,8 +209,7 @@ AcpiNsGetTablePathname (
 
     if (Size != 0)
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("NsGetTablePathname:  Bad pointer returned; size=%X\n", Size));
+        DEBUG_PRINTP (ACPI_ERROR, ("Bad pointer returned; size=%X\n", Size));
     }
 
     return_PTR (NameBuffer);
@@ -258,7 +257,6 @@ AcpiNsGetPathnameLength (
 }
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsHandleToPathname
@@ -292,7 +290,7 @@ AcpiNsHandleToPathname (
     FUNCTION_TRACE_PTR ("NsHandleToPathname", TargetHandle);
 
 
-    if (!AcpiGbl_RootNode || !TargetHandle)
+    if (!AcpiGbl_RootNode)
     {
         /*
          * If the name space has not been initialized,
@@ -356,9 +354,7 @@ AcpiNsHandleToPathname (
 
     UserBuffer[Size] = '\\';
 
-    DEBUG_PRINT (TRACE_EXEC,
-        ("NsHandleToPathname: Len=%X, %s \n",
-        PathLength, UserBuffer));
+    DEBUG_PRINTP (TRACE_EXEC, ("Len=%X, %s \n", PathLength, UserBuffer));
 
 Exit:
     return_ACPI_STATUS (Status);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 36 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "actables.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbinstal")
 
 
@@ -164,16 +164,16 @@ AcpiTbInstallTable (
 
     /* Lock tables while installing */
 
-    AcpiCmAcquireMutex (ACPI_MTX_TABLES);
+    AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     /* Install the table into the global data structure */
 
     Status = AcpiTbInitTableDescriptor (TableInfo->Type, TableInfo);
 
-    DEBUG_PRINT (ACPI_INFO, ("%s located at %p\n",
+    DEBUG_PRINTP (ACPI_INFO, ("%s located at %p\n",
         AcpiGbl_AcpiTableData[TableInfo->Type].Name, TableInfo->Pointer));
 
-    AcpiCmReleaseMutex (ACPI_MTX_TABLES);
+    AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_ACPI_STATUS (Status);
 }
 
@@ -241,8 +241,7 @@ AcpiTbRecognizeTable (
             TableType       = i;
             Status          = AcpiGbl_AcpiTableData[i].Status;
 
-            DEBUG_PRINT (ACPI_INFO,
-                ("TbRecognizeTable: Found %4.4s\n",
+            DEBUG_PRINTP (ACPI_INFO, ("Found %4.4s\n",
                 AcpiGbl_AcpiTableData[i].Signature));
             break;
         }
@@ -274,7 +273,7 @@ AcpiTbRecognizeTable (
 
     if (Status == AE_SUPPORT)
     {
-        DEBUG_PRINT (ACPI_INFO,
+        DEBUG_PRINTP (ACPI_INFO,
             ("Unsupported table %s (Type %X) was found and discarded\n",
             AcpiGbl_AcpiTableData[TableType].Name, TableType));
     }
@@ -346,7 +345,7 @@ AcpiTbInitTableDescriptor (
 
         if (ListHead->Pointer)
         {
-            TableDesc = AcpiCmCallocate (sizeof (ACPI_TABLE_DESC));
+            TableDesc = AcpiUtCallocate (sizeof (ACPI_TABLE_DESC));
             if (!TableDesc)
             {
                 return_ACPI_STATUS (AE_NO_MEMORY);
@@ -384,7 +383,7 @@ AcpiTbInitTableDescriptor (
     TableDesc->AmlPointer           = (UINT8 *) (TableDesc->Pointer + 1),
     TableDesc->AmlLength            = (UINT32) (TableDesc->Length -
                                         (UINT32) sizeof (ACPI_TABLE_HEADER));
-    TableDesc->TableId              = AcpiCmAllocateOwnerId (OWNER_TYPE_TABLE);
+    TableDesc->TableId              = AcpiUtAllocateOwnerId (OWNER_TYPE_TABLE);
     TableDesc->LoadedIntoNamespace  = FALSE;
 
     /*
@@ -464,7 +463,7 @@ AcpiTbDeleteAcpiTable (
     }
 
 
-    AcpiCmAcquireMutex (ACPI_MTX_TABLES);
+    AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     /* Free the table */
 
@@ -501,7 +500,7 @@ AcpiTbDeleteAcpiTable (
         break;
     }
 
-    AcpiCmReleaseMutex (ACPI_MTX_TABLES);
+    AcpiUtReleaseMutex (ACPI_MTX_TABLES);
 
     return_VOID;
 }
@@ -587,7 +586,7 @@ AcpiTbDeleteSingleTable (
 
         case ACPI_MEM_ALLOCATED:
 
-            AcpiCmFree (TableDesc->BasePointer);
+            AcpiUtFree (TableDesc->BasePointer);
             break;
 
 
@@ -668,7 +667,7 @@ AcpiTbUninstallTable (
         /* Free the table descriptor */
 
         NextDesc = TableDesc->Next;
-        AcpiCmFree (TableDesc);
+        AcpiUtFree (TableDesc);
     }
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 33 $
+ *              $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "acinterp.h"
 
 
-#define _COMPONENT          TABLE_MANAGER
+#define _COMPONENT          ACPI_TABLES
         MODULE_NAME         ("tbutils")
 
 
@@ -277,11 +277,14 @@ AcpiTbValidateTableHeader (
     ACPI_NAME               Signature;
 
 
+    PROC_NAME ("TbValidateTableHeader");
+
+
     /* Verify that this is a valid address */
 
     if (!AcpiOsReadable (TableHeader, sizeof (ACPI_TABLE_HEADER)))
     {
-        DEBUG_PRINT (ACPI_ERROR,
+        DEBUG_PRINTP (ACPI_ERROR,
             ("Cannot read table header at %p\n", TableHeader));
         return (AE_BAD_ADDRESS);
     }
@@ -290,13 +293,13 @@ AcpiTbValidateTableHeader (
     /* Ensure that the signature is 4 ASCII characters */
 
     MOVE_UNALIGNED32_TO_32 (&Signature, &TableHeader->Signature);
-    if (!AcpiCmValidAcpiName (Signature))
+    if (!AcpiUtValidAcpiName (Signature))
     {
-        DEBUG_PRINT (ACPI_ERROR,
+        DEBUG_PRINTP (ACPI_ERROR,
             ("Table signature at %p [%X] has invalid characters\n",
             TableHeader, &Signature));
 
-        REPORT_WARNING (("Invalid table signature found\n"));
+        REPORT_WARNING (("Invalid table signature %4.4s found\n", &Signature));
         DUMP_BUFFER (TableHeader, sizeof (ACPI_TABLE_HEADER));
         return (AE_BAD_SIGNATURE);
     }
@@ -306,7 +309,7 @@ AcpiTbValidateTableHeader (
 
     if (TableHeader->Length < sizeof (ACPI_TABLE_HEADER))
     {
-        DEBUG_PRINT (ACPI_ERROR,
+        DEBUG_PRINTP (ACPI_ERROR,
             ("Invalid length in table header %p name %4.4s\n",
             TableHeader, &Signature));
 

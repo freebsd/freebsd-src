@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
- * Module Name: cmutils - common utility procedures
- *              $Revision: 27 $
+ * Module Name: utmisc - common utility procedures
+ *              $Revision: 42 $
  *
  ******************************************************************************/
 
@@ -115,7 +115,7 @@
  *****************************************************************************/
 
 
-#define __CMUTILS_C__
+#define __UTMISC_C__
 
 #include "acpi.h"
 #include "acevents.h"
@@ -126,13 +126,13 @@
 #include "acdebug.h"
 
 
-#define _COMPONENT          MISCELLANEOUS
-        MODULE_NAME         ("cmutils")
+#define _COMPONENT          ACPI_UTILITIES
+        MODULE_NAME         ("utmisc")
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmValidAcpiName
+ * FUNCTION:    AcpiUtValidAcpiName
  *
  * PARAMETERS:  Character           - The character to be examined
  *
@@ -146,7 +146,7 @@
  ******************************************************************************/
 
 BOOLEAN
-AcpiCmValidAcpiName (
+AcpiUtValidAcpiName (
     UINT32                  Name)
 {
     NATIVE_CHAR             *NamePtr = (NATIVE_CHAR *) &Name;
@@ -170,7 +170,7 @@ AcpiCmValidAcpiName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmValidAcpiCharacter
+ * FUNCTION:    AcpiUtValidAcpiCharacter
  *
  * PARAMETERS:  Character           - The character to be examined
  *
@@ -181,7 +181,7 @@ AcpiCmValidAcpiName (
  ******************************************************************************/
 
 BOOLEAN
-AcpiCmValidAcpiCharacter (
+AcpiUtValidAcpiCharacter (
     NATIVE_CHAR             Character)
 {
 
@@ -190,10 +190,40 @@ AcpiCmValidAcpiCharacter (
                         (Character >= '0' && Character <= '9')));
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtStrupr
+ *
+ * PARAMETERS:  SrcString       - The source string to convert to
+ *
+ * RETURN:      SrcString
+ *
+ * DESCRIPTION: Convert string to uppercase
+ *
+ ******************************************************************************/
+
+NATIVE_CHAR *
+AcpiUtStrupr (
+    NATIVE_CHAR             *SrcString)
+{
+    NATIVE_CHAR             *String;
+
+
+    /* Walk entire string, uppercasing the letters */
+
+    for (String = SrcString; *String; )
+    {
+        *String = (char) TOUPPER (*String);
+        String++;
+    }
+
+
+    return (SrcString);
+}
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmMutexInitialize
+ * FUNCTION:    AcpiUtMutexInitialize
  *
  * PARAMETERS:  None.
  *
@@ -204,14 +234,14 @@ AcpiCmValidAcpiCharacter (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmMutexInitialize (
+AcpiUtMutexInitialize (
     void)
 {
     UINT32                  i;
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("CmMutexInitialize");
+    FUNCTION_TRACE ("UtMutexInitialize");
 
 
     /*
@@ -219,7 +249,7 @@ AcpiCmMutexInitialize (
      */
     for (i = 0; i < NUM_MTX; i++)
     {
-        Status = AcpiCmCreateMutex (i);
+        Status = AcpiUtCreateMutex (i);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -232,7 +262,7 @@ AcpiCmMutexInitialize (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmMutexTerminate
+ * FUNCTION:    AcpiUtMutexTerminate
  *
  * PARAMETERS:  None.
  *
@@ -243,13 +273,13 @@ AcpiCmMutexInitialize (
  ******************************************************************************/
 
 void
-AcpiCmMutexTerminate (
+AcpiUtMutexTerminate (
     void)
 {
     UINT32                  i;
 
 
-    FUNCTION_TRACE ("CmMutexTerminate");
+    FUNCTION_TRACE ("UtMutexTerminate");
 
 
     /*
@@ -257,7 +287,7 @@ AcpiCmMutexTerminate (
      */
     for (i = 0; i < NUM_MTX; i++)
     {
-        AcpiCmDeleteMutex (i);
+        AcpiUtDeleteMutex (i);
     }
 
     return_VOID;
@@ -266,7 +296,7 @@ AcpiCmMutexTerminate (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreateMutex
+ * FUNCTION:    AcpiUtCreateMutex
  *
  * PARAMETERS:  MutexID         - ID of the mutex to be created
  *
@@ -277,13 +307,13 @@ AcpiCmMutexTerminate (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmCreateMutex (
+AcpiUtCreateMutex (
     ACPI_MUTEX_HANDLE       MutexId)
 {
     ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE_U32 ("CmCreateMutex", MutexId);
+    FUNCTION_TRACE_U32 ("UtCreateMutex", MutexId);
 
 
     if (MutexId > MAX_MTX)
@@ -295,8 +325,8 @@ AcpiCmCreateMutex (
     if (!AcpiGbl_AcpiMutexInfo[MutexId].Mutex)
     {
         Status = AcpiOsCreateSemaphore (1, 1,
-                                        &AcpiGbl_AcpiMutexInfo[MutexId].Mutex);
-        AcpiGbl_AcpiMutexInfo[MutexId].Locked = FALSE;
+                        &AcpiGbl_AcpiMutexInfo[MutexId].Mutex);
+        AcpiGbl_AcpiMutexInfo[MutexId].OwnerId = ACPI_MUTEX_NOT_ACQUIRED;
         AcpiGbl_AcpiMutexInfo[MutexId].UseCount = 0;
     }
 
@@ -306,7 +336,7 @@ AcpiCmCreateMutex (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmDeleteMutex
+ * FUNCTION:    AcpiUtDeleteMutex
  *
  * PARAMETERS:  MutexID         - ID of the mutex to be deleted
  *
@@ -317,13 +347,13 @@ AcpiCmCreateMutex (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmDeleteMutex (
+AcpiUtDeleteMutex (
     ACPI_MUTEX_HANDLE       MutexId)
 {
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_U32 ("CmDeleteMutex", MutexId);
+    FUNCTION_TRACE_U32 ("UtDeleteMutex", MutexId);
 
 
     if (MutexId > MAX_MTX)
@@ -335,7 +365,7 @@ AcpiCmDeleteMutex (
     Status = AcpiOsDeleteSemaphore (AcpiGbl_AcpiMutexInfo[MutexId].Mutex);
 
     AcpiGbl_AcpiMutexInfo[MutexId].Mutex = NULL;
-    AcpiGbl_AcpiMutexInfo[MutexId].Locked = FALSE;
+    AcpiGbl_AcpiMutexInfo[MutexId].OwnerId = ACPI_MUTEX_NOT_ACQUIRED;
 
     return_ACPI_STATUS (Status);
 }
@@ -343,7 +373,7 @@ AcpiCmDeleteMutex (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmAcquireMutex
+ * FUNCTION:    AcpiUtAcquireMutex
  *
  * PARAMETERS:  MutexID         - ID of the mutex to be acquired
  *
@@ -354,14 +384,16 @@ AcpiCmDeleteMutex (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmAcquireMutex (
+AcpiUtAcquireMutex (
     ACPI_MUTEX_HANDLE       MutexId)
 {
     ACPI_STATUS             Status;
+    UINT32                  i;
+    UINT32                  ThisThreadId;
 
 
-    DEBUG_PRINT (TRACE_MUTEX,
-                ("Acquiring Mutex [%s]\n", AcpiCmGetMutexName (MutexId)));
+    PROC_NAME ("UtAcquireMutex");
+
 
     if (MutexId > MAX_MTX)
     {
@@ -369,16 +401,58 @@ AcpiCmAcquireMutex (
     }
 
 
+    ThisThreadId = AcpiOsGetThreadId ();
+
+    /*
+     * Deadlock prevention.  Check if this thread owns any mutexes of value
+     * greater than or equal to this one.  If so, the thread has violated
+     * the mutex ordering rule.  This indicates a coding error somewhere in
+     * the ACPI subsystem code.
+     */
+    for (i = MutexId; i < MAX_MTX; i++)
+    {
+        if (AcpiGbl_AcpiMutexInfo[i].OwnerId == ThisThreadId)
+        {
+            if (i == MutexId)
+            {
+                DEBUG_PRINTP (ACPI_ERROR,
+                        ("Mutex [%s] already acquired by this thread [%X]\n",
+                        AcpiUtGetMutexName (MutexId), ThisThreadId));
+
+                return (AE_ALREADY_ACQUIRED);
+            }
+
+            DEBUG_PRINTP (ACPI_ERROR,
+                    ("Invalid acquire order: Thread %X owns [%s], wants [%s]\n",
+                    ThisThreadId, AcpiUtGetMutexName (i),
+                    AcpiUtGetMutexName (MutexId)));
+
+            return (AE_ACQUIRE_DEADLOCK);
+        }
+    }
+
+
+    DEBUG_PRINTP (TRACE_MUTEX,
+                ("Thread %X attempting to acquire Mutex [%s]\n",
+                ThisThreadId, AcpiUtGetMutexName (MutexId)));
+
     Status = AcpiOsWaitSemaphore (AcpiGbl_AcpiMutexInfo[MutexId].Mutex,
                                     1, WAIT_FOREVER);
 
-    DEBUG_PRINT (TRACE_MUTEX, ("Acquired Mutex  [%s] Status %s\n",
-                AcpiCmGetMutexName (MutexId), AcpiCmFormatException (Status)));
-
     if (ACPI_SUCCESS (Status))
     {
-        AcpiGbl_AcpiMutexInfo[MutexId].Locked = TRUE;
+        DEBUG_PRINTP (TRACE_MUTEX, ("Thread %X acquired Mutex [%s]\n",
+                    ThisThreadId, AcpiUtGetMutexName (MutexId)));
+
         AcpiGbl_AcpiMutexInfo[MutexId].UseCount++;
+        AcpiGbl_AcpiMutexInfo[MutexId].OwnerId = ThisThreadId;
+    }
+
+    else
+    {
+        DEBUG_PRINTP (ACPI_ERROR, ("Thread %X could not acquire Mutex [%s] %s\n",
+                    ThisThreadId, AcpiUtGetMutexName (MutexId),
+                    AcpiUtFormatException (Status)));
     }
 
     return (Status);
@@ -387,7 +461,7 @@ AcpiCmAcquireMutex (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmReleaseMutex
+ * FUNCTION:    AcpiUtReleaseMutex
  *
  * PARAMETERS:  MutexID         - ID of the mutex to be released
  *
@@ -398,14 +472,21 @@ AcpiCmAcquireMutex (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmReleaseMutex (
+AcpiUtReleaseMutex (
     ACPI_MUTEX_HANDLE       MutexId)
 {
     ACPI_STATUS             Status;
+    UINT32                  i;
+    UINT32                  ThisThreadId;
 
 
-    DEBUG_PRINT (TRACE_MUTEX,
-        ("Releasing Mutex [%s]\n", AcpiCmGetMutexName (MutexId)));
+    PROC_NAME ("UtReleaseMutex");
+
+
+    ThisThreadId = AcpiOsGetThreadId ();
+    DEBUG_PRINTP (TRACE_MUTEX,
+        ("Thread %X releasing Mutex [%s]\n", ThisThreadId,
+        AcpiUtGetMutexName (MutexId)));
 
     if (MutexId > MAX_MTX)
     {
@@ -413,19 +494,59 @@ AcpiCmReleaseMutex (
     }
 
 
-    AcpiGbl_AcpiMutexInfo[MutexId].Locked = FALSE;  /* Mark before unlocking */
+    /*
+     * Mutex must be acquired in order to release it!
+     */
+    if (AcpiGbl_AcpiMutexInfo[MutexId].OwnerId == ACPI_MUTEX_NOT_ACQUIRED)
+    {
+        DEBUG_PRINTP (ACPI_ERROR,
+                ("Mutex [%s] is not acquired, cannot release\n",
+                AcpiUtGetMutexName (MutexId)));
+
+        return (AE_NOT_ACQUIRED);
+    }
+
+
+    /*
+     * Deadlock prevention.  Check if this thread owns any mutexes of value
+     * greater than this one.  If so, the thread has violated the mutex
+     * ordering rule.  This indicates a coding error somewhere in
+     * the ACPI subsystem code.
+     */
+    for (i = MutexId; i < MAX_MTX; i++)
+    {
+        if (AcpiGbl_AcpiMutexInfo[i].OwnerId == ThisThreadId)
+        {
+            if (i == MutexId)
+            {
+                continue;
+            }
+
+            DEBUG_PRINTP (ACPI_ERROR,
+                    ("Invalid release order: owns [%s], releasing [%s]\n",
+                    AcpiUtGetMutexName (i), AcpiUtGetMutexName (MutexId)));
+
+            return (AE_RELEASE_DEADLOCK);
+        }
+    }
+
+
+    /* Mark unlocked FIRST */
+
+    AcpiGbl_AcpiMutexInfo[MutexId].OwnerId = ACPI_MUTEX_NOT_ACQUIRED;
 
     Status = AcpiOsSignalSemaphore (AcpiGbl_AcpiMutexInfo[MutexId].Mutex, 1);
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR, ("Error Releasing Mutex [%s], %s\n",
-                    AcpiCmGetMutexName (MutexId), AcpiCmFormatException (Status)));
+        DEBUG_PRINTP (ACPI_ERROR, ("Thread %X could not release Mutex [%s] %s\n",
+                    ThisThreadId, AcpiUtGetMutexName (MutexId),
+                    AcpiUtFormatException (Status)));
     }
     else
     {
-        DEBUG_PRINT (TRACE_MUTEX, ("Released Mutex [%s], %s\n",
-                    AcpiCmGetMutexName (MutexId), AcpiCmFormatException (Status)));
+        DEBUG_PRINTP (TRACE_MUTEX, ("Thread %X released Mutex [%s]\n",
+                    ThisThreadId, AcpiUtGetMutexName (MutexId)));
     }
 
     return (Status);
@@ -434,7 +555,7 @@ AcpiCmReleaseMutex (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreateUpdateStateAndPush
+ * FUNCTION:    AcpiUtCreateUpdateStateAndPush
  *
  * PARAMETERS:  *Object         - Object to be added to the new state
  *              Action          - Increment/Decrement
@@ -447,7 +568,7 @@ AcpiCmReleaseMutex (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmCreateUpdateStateAndPush (
+AcpiUtCreateUpdateStateAndPush (
     ACPI_OPERAND_OBJECT     *Object,
     UINT16                  Action,
     ACPI_GENERIC_STATE      **StateList)
@@ -462,21 +583,21 @@ AcpiCmCreateUpdateStateAndPush (
         return (AE_OK);
     }
 
-    State = AcpiCmCreateUpdateState (Object, Action);
+    State = AcpiUtCreateUpdateState (Object, Action);
     if (!State)
     {
         return (AE_NO_MEMORY);
     }
 
 
-    AcpiCmPushGenericState (StateList, State);
+    AcpiUtPushGenericState (StateList, State);
     return (AE_OK);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreatePkgStateAndPush
+ * FUNCTION:    AcpiUtCreatePkgStateAndPush
  *
  * PARAMETERS:  *Object         - Object to be added to the new state
  *              Action          - Increment/Decrement
@@ -489,7 +610,7 @@ AcpiCmCreateUpdateStateAndPush (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmCreatePkgStateAndPush (
+AcpiUtCreatePkgStateAndPush (
     void                    *InternalObject,
     void                    *ExternalObject,
     UINT16                  Index,
@@ -498,23 +619,21 @@ AcpiCmCreatePkgStateAndPush (
     ACPI_GENERIC_STATE       *State;
 
 
-
-    State = AcpiCmCreatePkgState (InternalObject, ExternalObject, Index);
+    State = AcpiUtCreatePkgState (InternalObject, ExternalObject, Index);
     if (!State)
     {
         return (AE_NO_MEMORY);
     }
 
 
-    AcpiCmPushGenericState (StateList, State);
+    AcpiUtPushGenericState (StateList, State);
     return (AE_OK);
 }
 
 
-
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmPushGenericState
+ * FUNCTION:    AcpiUtPushGenericState
  *
  * PARAMETERS:  ListHead            - Head of the state stack
  *              State               - State object to push
@@ -526,11 +645,11 @@ AcpiCmCreatePkgStateAndPush (
  ******************************************************************************/
 
 void
-AcpiCmPushGenericState (
+AcpiUtPushGenericState (
     ACPI_GENERIC_STATE      **ListHead,
     ACPI_GENERIC_STATE      *State)
 {
-    FUNCTION_TRACE ("CmPushGenericState");
+    FUNCTION_TRACE ("UtPushGenericState");
 
     /* Push the state object onto the front of the list (stack) */
 
@@ -543,7 +662,7 @@ AcpiCmPushGenericState (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmPopGenericState
+ * FUNCTION:    AcpiUtPopGenericState
  *
  * PARAMETERS:  ListHead            - Head of the state stack
  *
@@ -554,7 +673,7 @@ AcpiCmPushGenericState (
  ******************************************************************************/
 
 ACPI_GENERIC_STATE *
-AcpiCmPopGenericState (
+AcpiUtPopGenericState (
     ACPI_GENERIC_STATE      **ListHead)
 {
     ACPI_GENERIC_STATE      *State;
@@ -579,7 +698,7 @@ AcpiCmPopGenericState (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreateGenericState
+ * FUNCTION:    AcpiUtCreateGenericState
  *
  * PARAMETERS:  None
  *
@@ -591,12 +710,12 @@ AcpiCmPopGenericState (
  ******************************************************************************/
 
 ACPI_GENERIC_STATE *
-AcpiCmCreateGenericState (void)
+AcpiUtCreateGenericState (void)
 {
     ACPI_GENERIC_STATE      *State;
 
 
-    AcpiCmAcquireMutex (ACPI_MTX_CACHES);
+    AcpiUtAcquireMutex (ACPI_MTX_CACHES);
 
     AcpiGbl_StateCacheRequests++;
 
@@ -613,7 +732,7 @@ AcpiCmCreateGenericState (void)
         AcpiGbl_StateCacheHits++;
         AcpiGbl_GenericStateCacheDepth--;
 
-        AcpiCmReleaseMutex (ACPI_MTX_CACHES);
+        AcpiUtReleaseMutex (ACPI_MTX_CACHES);
 
         DEBUG_PRINT (TRACE_EXEC, ("CreateGenState: State %p from cache\n", State));
     }
@@ -622,9 +741,9 @@ AcpiCmCreateGenericState (void)
     {
         /* The cache is empty, create a new object */
 
-        AcpiCmReleaseMutex (ACPI_MTX_CACHES);
+        AcpiUtReleaseMutex (ACPI_MTX_CACHES);
 
-        State = AcpiCmCallocate (sizeof (ACPI_GENERIC_STATE));
+        State = AcpiUtCallocate (sizeof (ACPI_GENERIC_STATE));
     }
 
     /* Initialize */
@@ -644,7 +763,7 @@ AcpiCmCreateGenericState (void)
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreateUpdateState
+ * FUNCTION:    AcpiUtCreateUpdateState
  *
  * PARAMETERS:  Object              - Initial Object to be installed in the
  *                                    state
@@ -659,19 +778,19 @@ AcpiCmCreateGenericState (void)
  ******************************************************************************/
 
 ACPI_GENERIC_STATE *
-AcpiCmCreateUpdateState (
+AcpiUtCreateUpdateState (
     ACPI_OPERAND_OBJECT     *Object,
     UINT16                  Action)
 {
     ACPI_GENERIC_STATE      *State;
 
 
-    FUNCTION_TRACE_PTR ("CmCreateUpdateState", Object);
+    FUNCTION_TRACE_PTR ("UtCreateUpdateState", Object);
 
 
     /* Create the generic state object */
 
-    State = AcpiCmCreateGenericState ();
+    State = AcpiUtCreateGenericState ();
     if (!State)
     {
         return (NULL);
@@ -688,7 +807,7 @@ AcpiCmCreateUpdateState (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreatePkgState
+ * FUNCTION:    AcpiUtCreatePkgState
  *
  * PARAMETERS:  Object              - Initial Object to be installed in the
  *                                    state
@@ -703,7 +822,7 @@ AcpiCmCreateUpdateState (
  ******************************************************************************/
 
 ACPI_GENERIC_STATE *
-AcpiCmCreatePkgState (
+AcpiUtCreatePkgState (
     void                    *InternalObject,
     void                    *ExternalObject,
     UINT16                  Index)
@@ -711,12 +830,12 @@ AcpiCmCreatePkgState (
     ACPI_GENERIC_STATE      *State;
 
 
-    FUNCTION_TRACE_PTR ("CmCreatePkgState", InternalObject);
+    FUNCTION_TRACE_PTR ("UtCreatePkgState", InternalObject);
 
 
     /* Create the generic state object */
 
-    State = AcpiCmCreateGenericState ();
+    State = AcpiUtCreateGenericState ();
     if (!State)
     {
         return (NULL);
@@ -727,16 +846,15 @@ AcpiCmCreatePkgState (
     State->Pkg.SourceObject = (ACPI_OPERAND_OBJECT *) InternalObject;
     State->Pkg.DestObject   = ExternalObject;
     State->Pkg.Index        = Index;
-    State->Pkg.NumPackages  = 1; 
+    State->Pkg.NumPackages  = 1;
 
     return_PTR (State);
 }
 
 
-
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmCreateControlState
+ * FUNCTION:    AcpiUtCreateControlState
  *
  * PARAMETERS:  None
  *
@@ -748,17 +866,17 @@ AcpiCmCreatePkgState (
  ******************************************************************************/
 
 ACPI_GENERIC_STATE *
-AcpiCmCreateControlState (
+AcpiUtCreateControlState (
     void)
 {
     ACPI_GENERIC_STATE      *State;
 
 
-    FUNCTION_TRACE ("CmCreateControlState");
+    FUNCTION_TRACE ("UtCreateControlState");
 
     /* Create the generic state object */
 
-    State = AcpiCmCreateGenericState ();
+    State = AcpiUtCreateGenericState ();
     if (!State)
     {
         return (NULL);
@@ -775,7 +893,7 @@ AcpiCmCreateControlState (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmDeleteGenericState
+ * FUNCTION:    AcpiUtDeleteGenericState
  *
  * PARAMETERS:  State               - The state object to be deleted
  *
@@ -787,24 +905,24 @@ AcpiCmCreateControlState (
  ******************************************************************************/
 
 void
-AcpiCmDeleteGenericState (
+AcpiUtDeleteGenericState (
     ACPI_GENERIC_STATE      *State)
 {
-    FUNCTION_TRACE ("CmDeleteGenericState");
+    FUNCTION_TRACE ("UtDeleteGenericState");
 
 
     /* If cache is full, just free this state object */
 
     if (AcpiGbl_GenericStateCacheDepth >= MAX_STATE_CACHE_DEPTH)
     {
-        AcpiCmFree (State);
+        AcpiUtFree (State);
     }
 
     /* Otherwise put this object back into the cache */
 
     else
     {
-        AcpiCmAcquireMutex (ACPI_MTX_CACHES);
+        AcpiUtAcquireMutex (ACPI_MTX_CACHES);
 
         /* Clear the state */
 
@@ -818,7 +936,7 @@ AcpiCmDeleteGenericState (
         AcpiGbl_GenericStateCacheDepth++;
 
 
-        AcpiCmReleaseMutex (ACPI_MTX_CACHES);
+        AcpiUtReleaseMutex (ACPI_MTX_CACHES);
     }
     return_VOID;
 }
@@ -826,7 +944,7 @@ AcpiCmDeleteGenericState (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmDeleteGenericStateCache
+ * FUNCTION:    AcpiUtDeleteGenericStateCache
  *
  * PARAMETERS:  None
  *
@@ -838,13 +956,13 @@ AcpiCmDeleteGenericState (
  ******************************************************************************/
 
 void
-AcpiCmDeleteGenericStateCache (
+AcpiUtDeleteGenericStateCache (
     void)
 {
     ACPI_GENERIC_STATE      *Next;
 
 
-    FUNCTION_TRACE ("CmDeleteGenericStateCache");
+    FUNCTION_TRACE ("UtDeleteGenericStateCache");
 
 
     /* Traverse the global cache list */
@@ -854,7 +972,7 @@ AcpiCmDeleteGenericStateCache (
         /* Delete one cached state object */
 
         Next = AcpiGbl_GenericStateCache->Common.Next;
-        AcpiCmFree (AcpiGbl_GenericStateCache);
+        AcpiUtFree (AcpiGbl_GenericStateCache);
         AcpiGbl_GenericStateCache = Next;
         AcpiGbl_GenericStateCacheDepth--;
     }
@@ -865,7 +983,7 @@ AcpiCmDeleteGenericStateCache (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmResolvePackageReferences
+ * FUNCTION:    AcpiUtResolvePackageReferences
  *
  * PARAMETERS:  ObjDesc         - The Package object on which to resolve refs
  *
@@ -876,14 +994,14 @@ AcpiCmDeleteGenericStateCache (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmResolvePackageReferences (
+AcpiUtResolvePackageReferences (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
     UINT32                  Count;
     ACPI_OPERAND_OBJECT     *SubObject;
 
 
-    FUNCTION_TRACE ("AcpiCmResolvePackageReferences");
+    FUNCTION_TRACE ("AcpiUtResolvePackageReferences");
 
 
     if (ObjDesc->Common.Type != ACPI_TYPE_PACKAGE)
@@ -903,17 +1021,19 @@ AcpiCmResolvePackageReferences (
 
         if (SubObject->Common.Type == INTERNAL_TYPE_REFERENCE)
         {
-            if (SubObject->Reference.OpCode == AML_ZERO_OP)
+            if (SubObject->Reference.Opcode == AML_ZERO_OP)
             {
                 SubObject->Common.Type  = ACPI_TYPE_INTEGER;
                 SubObject->Integer.Value = 0;
             }
-            else if (SubObject->Reference.OpCode == AML_ONE_OP)
+
+            else if (SubObject->Reference.Opcode == AML_ONE_OP)
             {
                 SubObject->Common.Type  = ACPI_TYPE_INTEGER;
                 SubObject->Integer.Value = 1;
             }
-            else if (SubObject->Reference.OpCode == AML_ONES_OP)
+
+            else if (SubObject->Reference.Opcode == AML_ONES_OP)
             {
                 SubObject->Common.Type  = ACPI_TYPE_INTEGER;
                 SubObject->Integer.Value = ACPI_INTEGER_MAX;
@@ -926,9 +1046,9 @@ AcpiCmResolvePackageReferences (
 
 #ifdef ACPI_DEBUG
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmDisplayInitPathname
+ * FUNCTION:    AcpiUtDisplayInitPathname
  *
  * PARAMETERS:  ObjHandle           - Handle whose pathname will be displayed
  *              Path                - Additional path string to be appended
@@ -937,10 +1057,10 @@ AcpiCmResolvePackageReferences (
  *
  * DESCRIPTION: Display full pathnbame of an object, DEBUG ONLY
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 void
-AcpiCmDisplayInitPathname (
+AcpiUtDisplayInitPathname (
     ACPI_HANDLE             ObjHandle,
     char                    *Path)
 {
@@ -966,7 +1086,7 @@ AcpiCmDisplayInitPathname (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmWalkPackageTree
+ * FUNCTION:    AcpiUtWalkPackageTree
  *
  * PARAMETERS:  ObjDesc         - The Package object on which to resolve refs
  *
@@ -977,7 +1097,7 @@ AcpiCmDisplayInitPathname (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmWalkPackageTree (
+AcpiUtWalkPackageTree (
     ACPI_OPERAND_OBJECT     *SourceObject,
     void                    *TargetObject,
     ACPI_PKG_CALLBACK       WalkCallback,
@@ -990,10 +1110,10 @@ AcpiCmWalkPackageTree (
     ACPI_OPERAND_OBJECT     *ThisSourceObj;
 
 
-    FUNCTION_TRACE ("AcpiCmWalkPackageTree");
+    FUNCTION_TRACE ("AcpiUtWalkPackageTree");
 
 
-    State = AcpiCmCreatePkgState (SourceObject, TargetObject, 0);
+    State = AcpiUtCreatePkgState (SourceObject, TargetObject, 0);
     if (!State)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -1001,16 +1121,17 @@ AcpiCmWalkPackageTree (
 
     while (State)
     {
-        ThisIndex        = State->Pkg.Index;
-        ThisSourceObj    = (ACPI_OPERAND_OBJECT *) 
-                            State->Pkg.SourceObject->Package.Elements[ThisIndex];
+        ThisIndex     = State->Pkg.Index;
+        ThisSourceObj = (ACPI_OPERAND_OBJECT *)
+                        State->Pkg.SourceObject->Package.Elements[ThisIndex];
 
         /*
-         * Check for 
+         * Check for
          * 1) An uninitialized package element.  It is completely
          *      legal to declare a package and leave it uninitialized
          * 2) Not an internal object - can be a namespace node instead
-         * 3) Any type other than a package.  Packages are handled in else case below.
+         * 3) Any type other than a package.  Packages are handled in else
+         *      case below.
          */
         if ((!ThisSourceObj) ||
             (!VALID_DESCRIPTOR_TYPE (
@@ -1019,7 +1140,8 @@ AcpiCmWalkPackageTree (
                     ThisSourceObj, ACPI_TYPE_PACKAGE)))
         {
 
-            Status = WalkCallback (0, ThisSourceObj, State, Context);
+            Status = WalkCallback (ACPI_COPY_TYPE_SIMPLE, ThisSourceObj,
+                                    State, Context);
             if (ACPI_FAILURE (Status))
             {
                 /* TBD: must delete package created up to this point */
@@ -1037,9 +1159,9 @@ AcpiCmWalkPackageTree (
                  *
                  * Delete this state and pop the previous state (package).
                  */
-                AcpiCmDeleteGenericState (State);
-                State = AcpiCmPopGenericState (&StateList);
-                
+                AcpiUtDeleteGenericState (State);
+                State = AcpiUtPopGenericState (&StateList);
+
 
                 /* Finished when there are no more states */
 
@@ -1065,7 +1187,8 @@ AcpiCmWalkPackageTree (
         {
             /* This is a sub-object of type package */
 
-            Status = WalkCallback (1, ThisSourceObj, State, Context);
+            Status = WalkCallback (ACPI_COPY_TYPE_PACKAGE, ThisSourceObj,
+                                        State, Context);
             if (ACPI_FAILURE (Status))
             {
                 /* TBD: must delete package created up to this point */
@@ -1074,15 +1197,16 @@ AcpiCmWalkPackageTree (
             }
 
 
-            /* 
+            /*
              * The callback above returned a new target package object.
              */
 
             /*
              * Push the current state and create a new one
              */
-            AcpiCmPushGenericState (&StateList, State);
-            State = AcpiCmCreatePkgState (ThisSourceObj, State->Pkg.ThisTargetObj, 0);
+            AcpiUtPushGenericState (&StateList, State);
+            State = AcpiUtCreatePkgState (ThisSourceObj,
+                                            State->Pkg.ThisTargetObj, 0);
             if (!State)
             {
                 /* TBD: must delete package created up to this point */
@@ -1097,7 +1221,6 @@ AcpiCmWalkPackageTree (
     return (AE_AML_INTERNAL);
 
 }
-
 
 
 /*******************************************************************************
