@@ -32,29 +32,38 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <err.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define	NICHOST	"whois.internic.net"
 
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	register FILE *sfi, *sfo;
 	register int ch;
 	struct sockaddr_in sin;
@@ -91,27 +100,21 @@ main(argc, argv)
 	}
 	host = hp->h_name;
 	s = socket(hp->h_addrtype, SOCK_STREAM, 0);
-	if (s < 0) {
-		perror("whois: socket");
-		exit(1);
-	}
+	if (s < 0)
+		err(1, "socket");
 	bzero((caddr_t)&sin, sizeof (sin));
 	sin.sin_family = hp->h_addrtype;
 	bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
 	sp = getservbyname("whois", "tcp");
-	if (sp == NULL) {
-		(void)fprintf(stderr, "whois: whois/tcp: unknown service\n");
-		exit(1);
-	}
+	if (sp == NULL)
+		errx(1, "whois/tcp: unknown service");
 	sin.sin_port = sp->s_port;
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("whois: connect");
-		exit(1);
-	}
+	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+		err(1, "connect");
 	sfi = fdopen(s, "r");
 	sfo = fdopen(s, "w");
 	if (sfi == NULL || sfo == NULL) {
-		perror("whois: fdopen");
+		warn("fdopen");
 		(void)close(s);
 		exit(1);
 	}
@@ -124,6 +127,7 @@ main(argc, argv)
 	exit(0);
 }
 
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: whois [-h hostname] name ...\n");
