@@ -284,7 +284,7 @@ Specifies whether
 .Nm
 should check for new mail for interactive logins.
 The default is
-.Dq no .
+.Dq yes .
 .It Cm ConnectionsPerPeriod
 This keyword allows for rate-limiting of connections, and
 is followed by two numbers in the format
@@ -452,7 +452,7 @@ options must precede this option.
 The server disconnects after this time if the user has not
 successfully logged in.
 If the value is 0, there is no time limit.
-The default is 600 (seconds).
+The default is 60 (seconds).
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
 .Nm sshd .
@@ -480,7 +480,7 @@ The argument must be
 or
 .Dq no .
 The default is
-.Dq yes .
+.Dq no .
 If this options is set to
 .Dq without-password
 only password authentication is disabled for root.

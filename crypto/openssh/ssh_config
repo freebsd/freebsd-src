@@ -21,7 +21,7 @@
 #   RhostsRSAAuthentication yes
 #   RSAAuthentication yes
 #   PasswordAuthentication yes
-#   FallBackToRsh yes
+#   FallBackToRsh no
 #   UseRsh no
 #   BatchMode no
 #   CheckHostIP yes
