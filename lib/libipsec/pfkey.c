@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: pfkey.c,v 1.39 2001/03/05 18:22:17 thorpej Exp $	*/
 
 /*
@@ -29,6 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: test-policy.c,v 1.14 2000/12/27 11:38:11 sakane Exp $	*/
 
 /*
@@ -29,6 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
