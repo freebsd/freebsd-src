@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.10 1999/02/08 14:12:38 des Exp $
+ *	$Id: if_plip.c,v 1.7.2.1 1999/02/08 19:05:55 des Exp $
  */
 
 /*
@@ -99,7 +99,7 @@
 #endif
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/nlpt.h>
+#include <dev/ppbus/lpt.h>
 
 #include "opt_plip.h"
 
