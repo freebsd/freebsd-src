@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,11 +30,11 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.24 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: rc_parse.y,v 1.30 2000/10/09 11:17:07 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:48:48 1999]
+ *      last edit-date: [Mon Oct  2 22:51:23 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -81,6 +81,14 @@ int		controllercount = -1;
 %token		ANSWERPROG
 %token		B1PROTOCOL
 %token		BEEPCONNECT
+%token		BUDGETCALLOUTPERIOD
+%token		BUDGETCALLOUTNCALLS
+%token		BUDGETCALLOUTSFILE
+%token		BUDGETCALLOUTSFILEROTATE
+%token		BUDGETCALLBACKPERIOD
+%token		BUDGETCALLBACKNCALLS
+%token		BUDGETCALLBACKSFILE
+%token		BUDGETCALLBACKSFILEROTATE
 %token		CALLBACKWAIT
 %token		CALLEDBACKWAIT
 %token		CALLIN
@@ -97,7 +105,9 @@ int		controllercount = -1;
 %token		DOWNTRIES
 %token		EARLYHANGUP
 %token		ENTRY
+%token		EXTCALLATTR
 %token		FULLCMD
+%token		HOLIDAYFILE
 %token		IDLETIME_IN
 %token		IDLETIME_OUT
 %token		IDLE_ALG_OUT
@@ -119,6 +129,14 @@ int		controllercount = -1;
 %token		NO
 %token		OFF
 %token		ON
+%token		PPP_AUTH_RECHALLENGE
+%token		PPP_AUTH_PARANOID
+%token		PPP_EXPECT_AUTH
+%token		PPP_EXPECT_NAME
+%token		PPP_EXPECT_PASSWORD
+%token		PPP_SEND_AUTH
+%token		PPP_SEND_NAME
+%token		PPP_SEND_PASSWORD
 %token		PROTOCOL
 %token		RATESFILE
 %token		RATETYPE
@@ -140,6 +158,7 @@ int		controllercount = -1;
 %token		USEDOWN
 %token		USRDEVICENAME
 %token		USRDEVICEUNIT
+%token		VALID
 %token		YES
 
 
@@ -150,7 +169,7 @@ int		controllercount = -1;
 %type	<booln>	boolean 
 
 %type	<num>	sysfilekeyword sysnumkeyword sysstrkeyword sysboolkeyword
-%type	<num>	numkeyword strkeyword boolkeyword monrights monright
+%type	<num>	filekeyword numkeyword strkeyword boolkeyword monrights monright
 %type	<num>	cstrkeyword
 %type	<str>	filename
 
@@ -316,6 +335,7 @@ boolean:	  NO			{ $$ = FALSE; }
 sysfilekeyword:	  RATESFILE		{ $$ = RATESFILE; }
 		| ACCTFILE		{ $$ = ACCTFILE; }
 		| ALIASFNAME		{ $$ = ALIASFNAME; }
+		| HOLIDAYFILE		{ $$ = HOLIDAYFILE; }
 		| TINAINITPROG		{ $$ = TINAINITPROG; }
 		;
 
@@ -323,6 +343,7 @@ sysboolkeyword:	  USEACCTFILE		{ $$ = USEACCTFILE; }
 		| ALIASING		{ $$ = ALIASING; }
 		| ACCTALL		{ $$ = ACCTALL; }
 		| BEEPCONNECT		{ $$ = BEEPCONNECT; }
+		| EXTCALLATTR		{ $$ = EXTCALLATTR; }
 		| ISDNTIME		{ $$ = ISDNTIME; }
 		| MONITORSW		{ $$ = MONITORSW; }
 		;
@@ -354,12 +375,20 @@ entries:	entry
 		| entries entry
 		;
 
-entry:		strentry
+entry:		fileentry
+		| strentry
 		| numentry
 		| boolentry
 		| nullentry
 		| error '\n'
 		;
+
+fileentry:	filekeyword '=' filename '\n'
+			{
+			cfg_setval($1);
+			}
+		;
+
 
 strentry:	strkeyword '=' STRING '\n'
 			{ 
@@ -385,6 +414,10 @@ numentry:	numkeyword '=' NUMBERSTR '\n'
 			}
 		;
 
+filekeyword:	  BUDGETCALLBACKSFILE	{ $$ = BUDGETCALLBACKSFILE; }
+		| BUDGETCALLOUTSFILE	{ $$ = BUDGETCALLOUTSFILE; }
+		;
+
 strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| B1PROTOCOL		{ $$ = B1PROTOCOL; }
 		| CONNECTPROG		{ $$ = CONNECTPROG; }
@@ -395,15 +428,26 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| LOCAL_PHONE_INCOMING	{ $$ = LOCAL_PHONE_INCOMING; }
 		| LOCAL_PHONE_DIALOUT	{ $$ = LOCAL_PHONE_DIALOUT; }
 		| NAME			{ $$ = NAME; }		
+		| PPP_EXPECT_AUTH	{ $$ = PPP_EXPECT_AUTH; }
+		| PPP_EXPECT_NAME	{ $$ = PPP_EXPECT_NAME; }
+		| PPP_EXPECT_PASSWORD	{ $$ = PPP_EXPECT_PASSWORD; }
+		| PPP_SEND_AUTH		{ $$ = PPP_SEND_AUTH; }
+		| PPP_SEND_NAME		{ $$ = PPP_SEND_NAME; }
+		| PPP_SEND_PASSWORD	{ $$ = PPP_SEND_PASSWORD; }
 		| REACTION		{ $$ = REACTION; }
 		| REMOTE_NUMBERS_HANDLING { $$ = REMOTE_NUMBERS_HANDLING; }
 		| REMOTE_PHONE_INCOMING	{ $$ = REMOTE_PHONE_INCOMING; }
 		| REMOTE_PHONE_DIALOUT	{ $$ = REMOTE_PHONE_DIALOUT; }
 		| UNITLENGTHSRC		{ $$ = UNITLENGTHSRC; }		
 		| USRDEVICENAME		{ $$ = USRDEVICENAME; }
+		| VALID			{ $$ = VALID; }
 		;
 
 numkeyword:	  ALERT			{ $$ = ALERT; }
+		| BUDGETCALLBACKPERIOD	{ $$ = BUDGETCALLBACKPERIOD; }
+		| BUDGETCALLBACKNCALLS	{ $$ = BUDGETCALLBACKNCALLS; }
+		| BUDGETCALLOUTPERIOD	{ $$ = BUDGETCALLOUTPERIOD; }
+		| BUDGETCALLOUTNCALLS	{ $$ = BUDGETCALLOUTNCALLS; }
 		| CALLBACKWAIT		{ $$ = CALLBACKWAIT; }
 		| CALLEDBACKWAIT	{ $$ = CALLEDBACKWAIT; }
 		| DIALRETRIES		{ $$ = DIALRETRIES; }
@@ -422,10 +466,13 @@ numkeyword:	  ALERT			{ $$ = ALERT; }
 		| DOWNTRIES		{ $$ = DOWNTRIES; }
 		;
 
-boolkeyword:	  DIALRANDINCR		{ $$ = DIALRANDINCR; }
+boolkeyword:	  BUDGETCALLBACKSFILEROTATE { $$ = BUDGETCALLBACKSFILEROTATE; }
+                | BUDGETCALLOUTSFILEROTATE  { $$ = BUDGETCALLOUTSFILEROTATE; }
+		| DIALRANDINCR		{ $$ = DIALRANDINCR; }
+		| PPP_AUTH_RECHALLENGE	{ $$ = PPP_AUTH_RECHALLENGE; }
+		| PPP_AUTH_PARANOID	{ $$ = PPP_AUTH_PARANOID; }
 		| USEDOWN		{ $$ = USEDOWN; }
 		;
-
 
 /* ================== */
 /* controller section */

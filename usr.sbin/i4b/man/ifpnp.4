@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 2000 Udo Schweigert. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,34 +22,50 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btrc.4,v 1.9 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: ifpnp.4,v 1.2 2000/04/25 13:01:20 hm Exp $
+.\"	$Ust: src/i4b/man/ifpnp.4,v 1.4 2000/04/18 08:26:31 ust Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:14:19 1999]
+.\"	last edit-date: [Tue Apr 25 15:03:27 2000]
 .\"
-.Dd July 30, 1999
-.Dt I4BTRC 4
+.Dd April 18, 2000
+.Dt IFPNP 4
 .Os
 .Sh NAME
-.Nm i4btrc
-.Nd isdn4bsd ISDN interface driver for D and B channel tracing
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btrc\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Nm ifpnp
+.Nd isdn4bsd AVM Fritz!Card PnP driver
+.Sh SYNOPSIS
+.Pp
+.Cd "device ifpnp"
+.Pp
 .Sh DESCRIPTION
 The
 .Nm
-driver is used to add a header to the data got from the D and/or B channel
-and queues it to be read and further processed by the
-.Xr isdntrace 8
-utility.
+driver provides D-channel layer 1 supports as specified in ITU Recommendation
+I.430 and layer 1 support for the B-channel.
+.Pp
+The driver supports passive ISA PnP ISDN cards from AVM, based on the 
+proprietary B-channel controller and ISA PnP interface chip from 
+AVM, Berlin, Germany.
+.Pp
+.Sh CAVEATS
+The driver is still in a somewhat experimental state.
+.Pp
+.Sh BUGS
+Always at least one left.
+.Sh STANDARDS
+CCITT Recommendation I.430
 .Sh SEE ALSO
-.Xr isdnd 8
-.Xr isdntrace 8
+.Xr i4bq921 4
+.Xr i4bq931 4
 .Sh AUTHOR
 The
 .Nm
-device driver and this manpage were written by 
-.An Hellmuth Michaelis Aq hm@kts.org .
+driver was written by
+.An Udo Schweigert Aq ust@cert.siemens.de .
+.Pp
+This manpage was written by 
+.An Hellmuth Michaelis Aq hm@kts.org
+and
+.An Udo Schweigert Aq ust@cert.siemens.de .

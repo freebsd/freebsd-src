@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1996, 1999 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1996, 2000 Hellmuth Michaelis. All rights reserved.
  *
  *   Copyright (c) 1996 Gary Jennejohn.  All rights reserved.
  *
@@ -35,11 +35,11 @@
  *	trace.h - header file for isdn trace
  *	------------------------------------
  *
- *	$Id: trace.h,v 1.9 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: trace.h,v 1.12 2000/02/14 16:25:22 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:58:07 1999]
+ *      last edit-date: [Mon Feb 14 14:43:40 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -57,6 +57,7 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>
@@ -66,7 +67,6 @@
 
 #define I4BTRC_DEVICE		"/dev/i4btrc"	/* trace device file */
 #define TRACE_FILE_NAME		"isdntrace"	/* default output filename */
-#define TRACE_FILE_NAME_BAK	".last"		/* backup filename trailer */
 #define BIN_FILE_NAME		"isdntracebin"	/* default binary filename */
 
 #define BSIZE	4096	/* read buffer size	*/
@@ -77,6 +77,7 @@
 
 int decode_lapd(char *pbuf, int n, unsigned char *buf, int is_te, int raw, int printit);
 void decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw);
+void decode_unknownl3(char *pbuf, int n, int off, unsigned char *buf, int raw);
 void decode_1tr6(char *pbuf, int n, int off, unsigned char *buf, int raw);
 char *print_error(int prot, unsigned char code);
 int q931_facility(char *pbuf, unsigned char *buf);
@@ -85,5 +86,8 @@ int p_q931address(char *pbuf, unsigned char *buf);
 int p_q931bc(char *pbuf, unsigned char *buf);
 int p_q931high_compat(char *pbuf, unsigned char *buf);
 int q932_facility(char *pbuf, unsigned char *buf);
+int p_q931user_user(char *pbuf, unsigned char *buf);
+int p_q931notification(char *pbuf, unsigned char *buf);
+int p_q931redir(char *pbuf, unsigned char *buf);
 
 /* EOF */

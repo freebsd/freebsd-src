@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,187 +22,150 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isic.4,v 1.26 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: isic.4,v 1.28 2000/03/16 15:25:05 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:16:08 1999]
+.\"	last edit-date: [Thu Mar 16 16:21:45 2000]
 .\"
-.Dd July 30, 1999
+.Dd March 16, 2000
 .Dt ISIC 4
 .Os
 .Sh NAME
 .Nm isic
 .Nd isdn4bsd Siemens ISDN Chipset device driver
-.Sh FreeBSD SYNOPSIS
+.Sh FreeBSD SYNOPSIS (FreeBSD >= 4.0)
+.Br
 .Pp
-.Em Note:
-the keywords
-.Em net
-and
-.Em vector isicintr
-are no longer required for FreeBSD-current (FreeBSD 4.x)!
+Asuscom ISDNLink 128K (ISA PnP):
+.Cd options \&"ASUSCOM_IPAC\&"
+.Cd "device isic0"
 .Pp
-For a Teles S0/8 or Niccy 1008 card:
-.Cd options \&"TEL_S0_8\&"
-.Cd "device isic0 at isa? iomem 0xd0000 net irq 5 flags 1 vector isicintr"
-.Pp
-For a Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
-.Cd options \&"TEL_S0_16\&"
-.Cd "device isic0 at isa? port 0xd80 iomem 0xd0000 net irq 5 flags 2 vector isicintr"
-.Pp
-For a Teles S0/16.3 card:
-.Cd options \&"TEL_S0_16_3\&"
-.Cd "device isic0 at isa? port 0xd80 net irq 5 flags 3 vector isicintr"
-.Pp
-For an AVM A1 or AVM Fritz!Card classic:
+AVM A1 or AVM Fritz!Card classic:
 .Cd options \&"AVM_A1\&"
-.Cd "device isic0 at isa? port 0x340 net irq 5 flags 4 vector isicintr"
+.Cd "device isic0 at isa? port 0x340 irq 5 flags 4"
 .Pp
-For an AVM Fritz!Card PCMCIA:
-.Cd options \&"AVM_A1\&"
-.Cd options \&"AVM_A1_PCMCIA\&"
-.Cd "device isic0 at isa? port 0x340 net irq 5 flags 10 vector isicintr"
-.Pp
-For an AVM Fritz!Card PnP:
-.Cd options \&"AVM_PNP\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
-.Pp
-For a Teles S0/16.3 PnP card (PnP):
-.Cd options \&"TEL_S0_16_3_P\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
-.Pp
-For a Creatix ISDN-S0 P&P card (PnP):
-.Cd options \&"CRTX_S0_P\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
-.Pp
-For an USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
-.Cd options \&"USR_STI\&"
-.Cd "device isic0 at isa? port 0x268 net irq 5 flags 7 vector isicintr"
-.Pp
-For an ITK micro ix1 card:
-.Cd options \&"ITKIX1\&"
-.Cd "device isic0 at isa? port 0x398 net irq 10 flags 18 vector isicintr"
-.Pp
-For a Dr. Neuhaus Niccy Go@ (PnP):
+Dr. Neuhaus Niccy Go@ (PnP):
 .Cd options \&"DRN_NGO\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
+.Cd "device isic0"
 .Pp
-For a Sedlbauer Win Speed card (PnP):
-.Cd options \&"SEDLBAUER\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
-.Pp
-For a Dynalink IS64PH (PnP):
-.Cd options \&"DYNALINK\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
-.Pp
-For an ELSA QuickStep 1000pro ISA (PnP):
+ELSA QuickStep 1000pro ISA (PnP):
 .Cd options \&"ELSA_QS1ISA\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
+.Cd "device isic0"
 .Pp
-For an ELSA QuickStep 1000pro PCI:
+ELSA MicroLink ISDN/PCI (ELSA QuickStep 1000pro PCI):
 .Cd options \&"ELSA_QS1PCI\&"
 .Cd "device isic0"
 .Pp
-For a Siemens I-Surf 2.0 PnP:
+ELSA PCC-16:
+.Cd options \&"ELSA_PCC16\&"
+.Cd "device isic0 at isa? port 0x360 irq 10 flags 20"
+.Pp
+Sedlbauer Win Speed card (PnP):
+.Cd options \&"SEDLBAUER\&"
+.Cd "device isic0"
+.Pp
+Siemens I-Surf 2.0 PnP:
 .Cd options \&"SIEMENS_ISURF2\&"
-.Cd "device isic0 at isa? port ? net irq ? vector isicintr"
+.Cd "device isic0"
 .Pp
-.Ar FreeBSD PnP configuration:
+Teles S0/8 or Niccy 1008 card:
+.Cd options \&"TEL_S0_8\&"
+.Cd "device isic0 at isa? iomem 0xd0000 irq 5 flags 1"
 .Pp
-To be able to use PnP cards under FreeBSD, you have to add
+Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
+.Cd options \&"TEL_S0_16\&"
+.Cd "device isic0 at isa? port 0xd80 iomem 0xd0000 irq 5 flags 2"
 .Pp
-.Cd controller pnp0
+Teles S0/16.3 card:
+.Cd options \&"TEL_S0_16_3\&"
+.Cd "device isic0 at isa? port 0xd80 irq 5 flags 3"
 .Pp
-to you kernel config file.
-More, it is recommended to add
+Teles S0/16.3 PnP card (PnP) or
+Creatix ISDN-S0 P&P card (PnP):
+.Cd options \&"TEL_S0_16_3_P\&"
+.Cd "device isic0"
 .Pp
-.Cd options \&"USERCONFIG\&"
-.Pp
-to your kernel config file to be able to adjust your PnP configuration
-in case of trouble.
-.Pp
-See also:
-.Xr pnp 4
-and
-.Xr boot 8
+USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
+.Cd options \&"USR_STI\&"
+.Cd "device isic0 at isa? port 0x268 irq 5 flags 7"
 .Pp
 .Sh NetBSD SYNOPSIS
 On the ISA bus:
 .Pp
-For a Teles S0/8 or Niccy 1008 card:
+Teles S0/8 or Niccy 1008 card:
 .Cd options \&"TEL_S0_8\&"
 .Cd "isic0 at isa? iomem 0xd0000 irq 5"
 .Pp
-For a Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
+Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
 .Cd options \&"TEL_S0_16\&"
 .Cd "isic0 at isa? port 0xd80 iomem 0xd0000 irq 5"
 .Pp
-For a Teles S0/16.3 card:
+Teles S0/16.3 card:
 .Cd options \&"TEL_S0_16_3\&"
 .Cd "isic0 at isa? port 0xd80 irq 5"
 .Pp
-For an AVM A1 or AVM Fritz card:
+AVM A1 or AVM Fritz card:
 .Cd options \&"AVM_A1\&"
 .Cd "isic0 at isa? port 0x340 irq 5"
 .Pp
-For an USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
+USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
 .Cd options \&"USR_STI\&"
 .Cd "isic0 at isa? port 0x268 irq 5"
 .Pp
-For an ITK ix1 micro card:
+ITK ix1 micro card:
 .Cd options \&"ITKIX1\&"
 .Cd "isic0 at isa? port 0x398 irq 10"
 .Pp
 On the ISAPNP bus:
 .Pp
-For a Teles S0/16.3 PnP card
+Teles S0/16.3 PnP card
 .Cd options \&"TEL_S0_16_3_P\&"
 .Cd "isic* at isapnp?"
 .Pp
-For a Creatix ISDN-S0 P&P card
+Creatix ISDN-S0 P&P card
 .Cd options \&"CRTX_S0_P\&"
 .Cd "isic* at isapnp?"
 .Pp
-For a Dr. Neuhaus Niccy GO@
+Dr. Neuhaus Niccy GO@
 .Cd options \&"DRN_NGO\&"
 .Cd "isic* at isapnp?"
 .Pp
-For an ELSA QuickStep 1000pro (ISA version):
+ELSA QuickStep 1000pro (ISA version):
 .Cd options \&"ELSA_QS1ISA\&"
 .Cd "isic* at isapnp?"
 .Pp
-For a Sedlbauer WinSpeed:
+Sedlbauer WinSpeed:
 .Cd options \&"SEDLBAUER\&"
 .Cd "isic* at isapnp?"
 .Pp
-For a Dynalink IS64PH:
+Dynalink IS64PH:
 .Cd options \&"DYNALINK\&"
 .Cd "isic* at isapnp?"
 .Pp
 Cards on the PCI bus:
 .Pp
-For an ELSA QuickStep 1000pro (PCI version)
+ELSA QuickStep 1000pro (PCI version)
 .Cd options \&"ELSA_QS1PCI\&"
 .Cd "isic* at pci?"
 .Pp
 Cards on the PCMCIA or PCCARD bus:
 .Pp
-For an AVM Fritz!Card PCMCIA
+AVM Fritz!Card PCMCIA
 .Cd options \&"AVM_A1_PCMCIA\&"
 .Cd "isic* at pcmcia? function ?"
 .Pp
-For an ELSA MicroLink ISDN/MC
+ELSA MicroLink ISDN/MC
 .Cd options \&"ELSA_ISDNMC\&"
 .Cd "isic* at pcmcia? function ?"
 .Pp
-For an ELSA MicroLink MC/all
+ELSA MicroLink MC/all
 .Cd options \&"ELSA_MCALL\&"
 .Cd "isic* at pcmcia? function ?"
 .Pp
 Cards on the Amiga Zorro bus:
 .Pp
-For a BSC/ITH ISDN Master, ITH ISDN MasterII or VMC ISDN Blaster
+BSC/ITH ISDN Master, ITH ISDN MasterII or VMC ISDN Blaster
 .Cd "aster* at zbus?"
 .Cd "isic* at aster? port ?"
 .Pp
@@ -245,8 +208,7 @@ The required (optional under NetBSD)
 value is 2.
 .Pp
 These boards have a jumper which specifies an i/o base address of either
-0xd80, 0xe80 or 0xf80.
-The remaining necessary configuration values are then
+0xd80, 0xe80 or 0xf80. The remaining necessary configuration values are then
 programmed at run time by accessing this i/o port.
 .Pp
 Valid interrupts are 2, 3, 4, 5, 10, 11, 12 or 15. 
@@ -320,8 +282,7 @@ Valid i/o port values are 0x200, 0x208, 0x210, 0x218, 0x220, 0x228, 0x230,
 Valid interrupt configurations are 5, 7, 10, 11, 12, 14, 15.
 .Pp
 Notice: this card has a strange address decoding scheme resulting in 64
-windows of some bytes length.
-Anyway, support for this card is good because
+windows of some bytes length. Anyway, support for this card is good because
 the manufacturer gave out technical docs for this card!
 .Pp
 .Pp
@@ -335,23 +296,12 @@ The card is auto-configured by the PnP kernel subsystem.
 .Pp
 .It Ar "Sedlbauer Win Speed"
 .Pp
-Valid i/o port values must be in the range 0x100 ... 0x3f0.
-(alignment 0x8,
+Valid i/o port values must be in the range 0x100 ... 0x3f0. (alignment 0x8,
 len 0x8)
 .Pp
 Valid interrupt configurations are 3, 4, 5, 7, 10, 11, 12, 13, 15.
 .Pp
 The card is auto-configured by the PnP kernel subsystem.
-.Em FreeBSD: 
-This card is PnP only, and so it can be configured using USERCONFIG
-('man 4 pnp'). This can be done via
-.Em /kernel.config
-\&. For example:
-.Pp
-.Cd USERCONFIG
-.Cd pnp 1 0 os enable port0 0x270 irq0 10
-.Cd quit
-.Pp
 .Pp
 .It Ar "ELSA QuickStep 1000pro (ISA)"
 .Pp
@@ -389,8 +339,7 @@ Note that currently, you have to jumper the card interupt for
 .Em IPL 2
 instead of IPL 6 (which is used by most AmigaOS software).
 .Pp
-Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus.
-This
+Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
 is no NetBSD problem, but general.
 .El
 .Pp

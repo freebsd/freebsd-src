@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
- *	$Id: controller.c,v 1.19 1999/12/13 21:25:24 hm Exp $
+ *	$Id: controller.c,v 1.23 2000/10/09 12:53:29 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:34 1999]
+ *      last edit-date: [Mon Oct  9 14:37:34 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -69,7 +69,11 @@ name_of_controller(int ctrl_type, int card_type)
 		"ELSA PCC-16",
 		"AVM Fritz!Card PnP",		
 		"Siemens I-Surf 2.0 PnP",		
- 		"Asuscom ISDNlink 128K PnP"
+ 		"Asuscom ISDNlink 128K PnP",
+ 		"ASUSCOM P-IN100-ST-D (Winbond W6692)",
+		"Teles S0/16.3c PnP",
+		"AcerISDN P10 PnP",
+		"TELEINT ISDN SPEED No. 1"
 	};
 
 	static char *daic_card[] = {
