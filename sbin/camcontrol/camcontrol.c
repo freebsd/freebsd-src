@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.1 1998/09/15 06:43:02 gibbs Exp $
+ *	$Id: camcontrol.c,v 1.2 1998/10/02 21:00:38 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -1791,7 +1791,7 @@ usage(void)
 "        camcontrol modepage   [generic args] <-m page> [-P pagectl][-e][-d]\n"
 "        camcontrol cmd        [generic args] <-c cmd [args]> \n"
 "                              [-i len fmt|-o len fmt [args]]\n"
-"        camcontrol debug      [-I][-T][-S] <all|bus[:target[:lun]]|off>\n"
+"        camcontrol debug      [-I][-T][-S][-c] <all|bus[:target[:lun]]|off>\n"
 "Specify one of the following options:\n"
 "devlist     list all CAM devices\n"
 "periphlist  list all CAM peripheral drivers attached to a device\n"

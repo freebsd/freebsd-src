@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.4 1998/09/21 20:44:39 ken Exp $
+.\"	$Id: camcontrol.8,v 1.5 1998/10/02 21:00:38 ken Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -92,6 +92,7 @@ debug
 .Op Fl I
 .Op Fl T
 .Op Fl S
+.Op Fl c
 .Aq all|off|bus Ns Op :target Ns Op :lun
 .Sh DESCRIPTION
 .Nm camcontrol
@@ -370,7 +371,9 @@ not including the (reserved) 4 byte header.  Print out sense information if
 the command fails.  Be very careful with this command, improper use may
 cause data corruption.
 .Pp
-.Dl camcontrol modepage -n da -u 3 -m 1 -e -P 3
+.Bd -literal -offset foobar
+camcontrol modepage -n da -u 3 -m 1 -e -P 3
+.Ed
 .Pp
 Edit mode page 1 (the Read-Write Error Recover page) for da3, and save the
 settings on the drive.  Mode page 1 contains a disk drive's auto read and
