@@ -121,14 +121,14 @@ uid, pid, ppid, cpu, pri, nice, vsz, rss, mwchan, state, tt, time
 and command.
 .It Fl M
 Extract values associated with the name list from the specified core
-instead of the default
-.Pa /dev/kmem .
+instead of the currently running system.
 .It Fl m
 Sort by memory usage, instead of by process
 .Tn ID .
 .It Fl N
-Extract the name list from the specified system instead of the default
-.Pa /boot/kernel/kernel .
+Extract the name list from the specified system instead of the
+currently running system as determined by
+.Xr getbootfile 3 .
 .It Fl O
 Add the information associated with the space or comma separated list
 of keywords specified, after the process
@@ -522,17 +522,11 @@ By default,
 attempts to automatically determine the terminal width.
 .El
 .Sh FILES
-.Bl -tag -width /var/db/kvm_kernel.db -compact
-.It Pa /dev/kmem
-default kernel memory
+.Bl -tag -width ".Pa /boot/kernel/kernel" -compact
 .It Pa /dev/lomac
 interface used to query the
 .Xr lomac 4
 KLD
-.It Pa /var/run/dev.db
-/dev name database
-.It Pa /var/db/kvm_kernel.db
-system namelist database
 .It Pa /boot/kernel/kernel
 default system namelist
 .It Pa /proc
