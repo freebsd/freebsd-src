@@ -274,10 +274,17 @@ rlines(fp, off, sbp)
 	if (!(size = sbp->st_size))
 		return;
 
-	if (size > SIZE_T_MAX) {
+	if (size > SIZE_T_MAX || size < 0) {
 		errno = EFBIG;
 		ierr();
-		return;
+		exit(1);
+	}
+
+	/* XXX: FIXME - mmap() not support files over 2Gb */
+	if (size > INT_MAX) {
+		errno = EFBIG;
+		ierr();
+		exit(1);
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
@@ -296,7 +303,7 @@ rlines(fp, off, sbp)
 	/* Set the file pointer to reflect the length displayed. */
 	size = sbp->st_size - size;
 	WR(p, size);
-	if (fseek(fp, (long)sbp->st_size, SEEK_SET) == -1) {
+	if (fseek(fp, 0L, SEEK_END) == -1) {
 		ierr();
 		return;
 	}
