@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: globals.c,v 1.18 1997/02/22 14:11:43 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,6 +51,7 @@ Variable	*VarHead;	/* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
 int		BootMgr;	/* Which boot manager we're using */
 int		StatusLine;	/* Where to stick our status messages */
+jmp_buf		BailOut;	/* Beam me up, scotty! The natives are pissed! */
 
 /*
  * Yes, I know some of these are already automatically initialized as

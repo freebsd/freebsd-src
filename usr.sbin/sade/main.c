@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.43 1997/02/22 14:11:55 peter Exp $
+ * $Id: main.c,v 1.44 1997/03/19 10:09:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,12 +42,13 @@ static void
 screech(int sig)
 {
     msgDebug("\007Signal %d caught!  That's bad!\n", sig);
+    longjmp(BailOut, sig);
 }
 
 int
 main(int argc, char **argv)
 {
-    int choice, scroll, curr, max;
+    int choice, scroll, curr, max, status;
 
     /* Catch fatal signals and complain about them if running as init */
     if (getpid() == 1) {
@@ -119,7 +120,17 @@ main(int argc, char **argv)
 	    fclose(fp);
 	}
     }
- 
+
+    status = setjmp(BailOut);
+    if (status) {
+	msgConfirm("A signal %d was caught - I'm saving what I can and shutting\n"
+		   "this thing down!  Please report this unfortunate incident\n"
+		   "to jkh@FreeBSD.org.  If you can reproduce the problem, please\n"
+		   "also turn Debug on in the Options menu for the extra information\n"
+		   "it provides in debugging problems like this.  Thanks!", status);
+	systemShutdown(status);
+    }
+
     /* Begin user dialog at outer menu */
     dialog_clear();
     while (1) {
