@@ -98,8 +98,8 @@ On success, zero will be returned, and the uio structure will be updated to
 reflect data read.  Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
-.It Bq Er ENOENT
-The attribute name is not defined for this vnode.
+.It Bq Er ENOATTR
+The requested attribute was not defined for this vnode.
 .It Bq Er EACCES
 The the caller does not have the appropriate privilege.
 .It Bq Er ENXIO
@@ -111,7 +111,8 @@ Sufficient memory is not available to fulfill the request.
 The uio structure refers to an invalid userspace address.
 .It Bq Er EINVAL
 The
-.Fa name
+.Fa name ,
+.Fa namespace,
 or
 .Fa uio
 argument is invalid.
