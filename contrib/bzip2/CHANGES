@@ -134,7 +134,7 @@ Several minor bugfixes and enhancements:
 
 * Advance the version number to 1.0, so as to counteract the
   (false-in-this-case) impression some people have that programs 
-  with version numbers less than 1.0 are in someway, experimental,
+  with version numbers less than 1.0 are in some way, experimental,
   pre-release versions.
 
 * Create an initial Makefile-libbz2_so to build a shared library.
@@ -165,3 +165,89 @@ There are no functionality changes or bug fixes relative to version
 1.0.0.  This is just a documentation update + a fix for minor Win32
 build problems.  For almost everyone, upgrading from 1.0.0 to 1.0.1 is
 utterly pointless.  Don't bother.
+
+
+1.0.2
+~~~~~
+A bug fix release, addressing various minor issues which have appeared
+in the 18 or so months since 1.0.1 was released.  Most of the fixes
+are to do with file-handling or documentation bugs.  To the best of my
+knowledge, there have been no data-loss-causing bugs reported in the
+compression/decompression engine of 1.0.0 or 1.0.1.
+
+Note that this release does not improve the rather crude build system
+for Unix platforms.  The general plan here is to autoconfiscate/
+libtoolise 1.0.2 soon after release, and release the result as 1.1.0
+or perhaps 1.2.0.  That, however, is still just a plan at this point.
+
+Here are the changes in 1.0.2.  Bug-reporters and/or patch-senders in
+parentheses.
+
+* Fix an infinite segfault loop in 1.0.1 when a directory is
+  encountered in -f (force) mode.
+     (Trond Eivind Glomsrod, Nicholas Nethercote, Volker Schmidt)
+
+* Avoid double fclose() of output file on certain I/O error paths.
+     (Solar Designer)
+
+* Don't fail with internal error 1007 when fed a long stream (> 48MB)
+  of byte 251.  Also print useful message suggesting that 1007s may be
+  caused by bad memory.
+     (noticed by Juan Pedro Vallejo, fixed by me)
+
+* Fix uninitialised variable silly bug in demo prog dlltest.c.
+     (Jorj Bauer)
+
+* Remove 512-MB limitation on recovered file size for bzip2recover
+  on selected platforms which support 64-bit ints.  At the moment
+  all GCC supported platforms, and Win32.
+     (me, Alson van der Meulen)
+
+* Hard-code header byte values, to give correct operation on platforms
+  using EBCDIC as their native character set (IBM's OS/390).
+     (Leland Lucius)
+
+* Copy file access times correctly.
+     (Marty Leisner)
+
+* Add distclean and check targets to Makefile.
+     (Michael Carmack)
+
+* Parameterise use of ar and ranlib in Makefile.  Also add $(LDFLAGS).
+     (Rich Ireland, Bo Thorsen)
+
+* Pass -p (create parent dirs as needed) to mkdir during make install.
+     (Jeremy Fusco)
+
+* Dereference symlinks when copying file permissions in -f mode.
+     (Volker Schmidt)
+
+* Majorly simplify implementation of uInt64_qrm10.
+     (Bo Lindbergh)
+
+* Check the input file still exists before deleting the output one,
+  when aborting in cleanUpAndFail().
+     (Joerg Prante, Robert Linden, Matthias Krings)
+
+Also a bunch of patches courtesy of Philippe Troin, the Debian maintainer
+of bzip2:
+
+* Wrapper scripts (with manpages): bzdiff, bzgrep, bzmore.
+
+* Spelling changes and minor enhancements in bzip2.1.
+
+* Avoid race condition between creating the output file and setting its
+  interim permissions safely, by using fopen_output_safely().
+  No changes to bzip2recover since there is no issue with file
+  permissions there.
+
+* do not print senseless report with -v when compressing an empty
+  file.
+
+* bzcat -f works on non-bzip2 files.
+
+* do not try to escape shell meta-characters on unix (the shell takes
+  care of these).
+
+* added --fast and --best aliases for -1 -9 for gzip compatibility.
+

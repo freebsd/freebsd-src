@@ -117,11 +117,11 @@ Known problems as of 1.0pre8:
   All that said: you might be able to get somewhere
   by finding the line in Makefile-libbz2_so which says
 
-  $(CC) -shared -Wl,-soname -Wl,libbz2.so.1.0 -o libbz2.so.1.0.1 $(OBJS)
+  $(CC) -shared -Wl,-soname -Wl,libbz2.so.1.0 -o libbz2.so.1.0.2 $(OBJS)
 
   and replacing with 
 
-  ($CC) -G -shared -o libbz2.so.1.0.1 -h libbz2.so.1.0 $(OBJS)
+  $(CC) -G -shared -o libbz2.so.1.0.2 -h libbz2.so.1.0 $(OBJS)
   
   If gcc objects to the combination -fpic -fPIC, get rid of
   the second one, leaving just "-fpic".

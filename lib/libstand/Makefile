@@ -98,12 +98,24 @@ CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 
 # decompression functionality from libbz2
 .PATH:	${.CURDIR}/../../contrib/bzip2
-CFLAGS+=-I${.CURDIR}/../../contrib/bzip2 -DBZ_NO_STDIO -DBZ_NO_COMPRESS
-SRCS+=	_bzlib.c crctable.c decompress.c huffman.c randtable.c
-CLEANFILES+=   _bzlib.c _bzlib.c.orig
+CFLAGS+=-I${.CURDIR} -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+SRCS+=	_bzlib.c _crctable.c _decompress.c _huffman.c _randtable.c _bzlib.h \
+	_bzlib_private.h
 
-_bzlib.c: bzlib.c bzlib.c.diff
-	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.c}
+# check your belt - ugly bzip2 stuff ahead
+.for file in bzlib.c bzlib.h bzlib_private.h
+CLEANFILES+=   _${file} _${file}.orig
+
+_${file}: ${file} ${file}.diff
+	patch -s -b .orig -o ${.TARGET} < ${.ALLSRC:M*.diff} ${.ALLSRC:M*.[ch]}
+.endfor
+
+.for file in crctable.c decompress.c huffman.c randtable.c
+CLEANFILES+=    _${file}
+
+_${file}: ${file}
+	sed "s|bzlib_private\.h|_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
+.endfor
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
