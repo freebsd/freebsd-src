@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.24 1999/04/27 11:15:12 phk Exp $
+ *	$Id: rp.c,v 1.25 1999/05/06 18:44:04 peter Exp $
  */
 
 /* 
@@ -782,11 +782,7 @@ static struct pci_device rp_pcidevice = {
 	NULL
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (rp_pci, rp_pcidevice);
-#else
-DATA_SET (pcidevice_set, rp_pcidevice);
-#endif /* COMPAT_PCI_DRIVER */
 
 static timeout_t rpdtrwakeup;
 

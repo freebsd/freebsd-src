@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simos.c,v 1.4 1999/04/24 20:14:03 peter Exp $
+ *	$Id: simos.c,v 1.5 1999/05/06 20:16:39 ken Exp $
  */
 
 #include <sys/param.h>
@@ -82,11 +82,7 @@ struct pci_device simos_driver = {
 	&simos_unit,
 	NULL
 };
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (simos, simos_driver);
-#else
-DATA_SET (pcidevice_set, simos_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 static const char *
 simos_probe(pcici_t tag, pcidi_t type)

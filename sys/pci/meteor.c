@@ -208,11 +208,7 @@ static struct	pci_device met_device = {
 	&met_count
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (meteor, met_device);
-#else
-DATA_SET (pcidevice_set, met_device);
-#endif /* COMPAT_PCI_DRIVER */
 
 #if defined(METEOR_FreeBSD_210)	/* XXX */
 d_open_t	meteor_open;

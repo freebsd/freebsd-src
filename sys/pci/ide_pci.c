@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.32 1999/04/16 21:22:50 peter Exp $
+ *	$Id: ide_pci.c,v 1.33 1999/04/24 20:13:58 peter Exp $
  */
 
 #include "pci.h"
@@ -1672,11 +1672,7 @@ static struct pci_device ide_pci_device = {
 	0
 };
 
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(ide_pci, ide_pci_device);
-#else
-DATA_SET(pcidevice_set, ide_pci_device);
-#endif /* COMPAT_PCI_DRIVER */
 
 /*
  * Return a cookie if we may be able to do DMA on the specified

@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.19 1999/04/11 02:47:31 eivind Exp $ */
+/* $Id: isp_pci.c,v 1.20 1999/04/24 20:14:02 peter Exp $ */
 /* release_4_3_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -271,11 +271,7 @@ static struct pci_device isp_pci_driver = {
 	&ispunit,
 	NULL
 };
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER (isp_pci, isp_pci_driver);
-#else
-DATA_SET (pcidevice_set, isp_pci_driver);
-#endif /* COMPAT_PCI_DRIVER */
 
 
 static PROBETYPE

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $
+ *	$Id: if_mx.c,v 1.16 1999/05/06 15:32:45 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.41 1999/05/06 15:07:10 wpaul Exp $";
+	"$Id: if_mx.c,v 1.16 1999/05/06 15:32:45 wpaul Exp $";
 #endif
 
 /*
@@ -2491,8 +2491,4 @@ static struct pci_device mx_device = {
 	&mx_count,
 	NULL
 };
-#ifdef COMPAT_PCI_DRIVER
 COMPAT_PCI_DRIVER(mx, mx_device);
-#else
-DATA_SET(pcidevice_set, mx_device);
-#endif /* COMPAT_PCI_DRIVER */
