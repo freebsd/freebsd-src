@@ -706,10 +706,10 @@ void
 usage()
 {
 	(void)fprintf(stderr,"\
-usage: install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
-       install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 ...\n\
+usage: install [-CcDpsv] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
+       install [-CcDpsv] [-f flags] [-g group] [-m mode] [-o owner] file1 ...\n\
              fileN directory\n\
-       install -d [-g group] [-m mode] [-o owner] directory ...\n");
+       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
