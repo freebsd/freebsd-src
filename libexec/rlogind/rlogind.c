@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: rlogind.c,v 1.19 1997/11/25 07:17:15 charnier Exp $";
+	"$Id: rlogind.c,v 1.20 1998/12/16 07:20:44 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -211,7 +211,6 @@ doit(f, fromp)
 {
 	int master, pid, on = 1;
 	int authenticated = 0;
-	register struct hostent *hp;
 	char hostname[2 * MAXHOSTNAMELEN + 1];
 	char c;
 
@@ -227,31 +226,7 @@ doit(f, fromp)
 
 	alarm(0);
 	fromp->sin_port = ntohs((u_short)fromp->sin_port);
-	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof(struct in_addr),
-	    fromp->sin_family);
-	if (hp) {
-		strncpy(hostname, hp->h_name, sizeof(hostname) - 1);
-		hostname[sizeof(hostname) - 1] = '\0';
-		hp = gethostbyname(hostname);
-		if (hp == NULL) {
-			strncpy(hostname, inet_ntoa(fromp->sin_addr),
-				sizeof(hostname) - 1);
-		} else for (; ; hp->h_addr_list++) {
-			if (hp->h_addr_list[0] == NULL) {
-				/* End of list - ditch it */
-				strncpy(hostname, inet_ntoa(fromp->sin_addr),
-					sizeof(hostname) - 1);
-				break;
-			}
-			if (!bcmp(hp->h_addr_list[0],
-			    (caddr_t)&fromp->sin_addr,
-			    sizeof(fromp->sin_addr)))
-				break;		/* OK! */
-		}
-	} else {
-		strncpy(hostname, inet_ntoa(fromp->sin_addr),
-			sizeof(hostname) - 1);
-	}
+	realhostname(hostname, sizeof hostname - 1, &fromp->sin_addr);
 	hostname[sizeof(hostname) - 1] = '\0';
 
 #ifdef	KERBEROS

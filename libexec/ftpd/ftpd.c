@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.51 1998/06/03 11:33:44 jb Exp $";
+	"$Id: ftpd.c,v 1.52 1998/10/13 20:42:01 des Exp $";
 #endif /* not lint */
 
 /*
@@ -166,7 +166,7 @@ static struct ftphost {
 } *thishost, *firsthost;
 
 #endif
-char	remotehost[MAXHOSTNAMELEN];
+char	remotehost[MAXHOSTNAMELEN + 1];
 char	*ident = NULL;
 
 static char ttyline[20];
@@ -1896,14 +1896,8 @@ static void
 dolog(sin)
 	struct sockaddr_in *sin;
 {
-	struct hostent *hp = gethostbyaddr((char *)&sin->sin_addr,
-		sizeof(struct in_addr), AF_INET);
+	realhostname(remotehost, sizeof remotehost - 1, &sin->sin_addr);
 
-	if (hp)
-		(void) strncpy(remotehost, hp->h_name, sizeof(remotehost));
-	else
-		(void) strncpy(remotehost, inet_ntoa(sin->sin_addr),
-		    sizeof(remotehost));
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING
 	if (thishost != firsthost)

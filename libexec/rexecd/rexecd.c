@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rexecd.c,v 1.15 1997/11/26 07:29:04 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <netdb.h>
+#include <libutil.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -72,7 +73,7 @@ char	path[sizeof(_PATH_DEFPATH) + sizeof("PATH=")] = "PATH=";
 char	*envinit[] =
 	    {homedir, shell, path, username, 0};
 char	**environ;
-char	*remote;
+char	remote[MAXHOSTNAMELEN + 1];
 
 struct	sockaddr_in asin = { AF_INET };
 
@@ -103,10 +104,7 @@ main(argc, argv)
 	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0)
 		err(1, "getpeername");
 
-	hp = gethostbyaddr((char *) &from.sin_addr, sizeof(from.sin_addr),
-			   from.sin_family);
-		remote = inet_ntoa(from.sin_addr);
-	remote = (hp != NULL) ? hp->h_name : inet_ntoa(from.sin_addr);
+	realhostname(remote, sizeof remote - 1, &from.sin_addr);
 
 	doit(0, &from);
 	return(0);
