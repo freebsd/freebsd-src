@@ -1,8 +1,5 @@
 #
-# Copyright (c) 1998 Robert NordierSince nothing was printed, just continue on as if the user
-# hadn't done anything. This gives the effect of the user getting a beep 
-# for all bad keystrokes but no action until either the timeout
-# occurs or the user hits a good key.
+# Copyright (c) 1998 Robert Nordier
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms are freely
