@@ -1,5 +1,5 @@
 /* Generate code from machine description to perform peephole optimizations.
-   Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1989, 1992, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,8 +19,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -30,8 +35,8 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 /* While tree-walking an instruction pattern, we keep a chain
    of these `struct link's to record how to get down to the
@@ -46,11 +51,9 @@ struct link
   int vecelt;
 };
 
-char *xmalloc ();
-static void match_rtx ();
-static void gen_exp ();
-static void fatal ();
-void fancy_abort ();
+char *xmalloc PROTO((unsigned));
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
+void fancy_abort PROTO((void));
 
 static int max_opno;
 
@@ -63,8 +66,10 @@ static int n_operands;
 
 static int insn_code_number = 0;
 
-static void print_path ();
-static void print_code ();
+static void gen_peephole PROTO((rtx));
+static void match_rtx PROTO((rtx, struct link *, int));
+static void print_path PROTO((struct link *));
+static void print_code PROTO((RTX_CODE));
 
 static void
 gen_peephole (peep)
@@ -123,7 +128,7 @@ gen_peephole (peep)
      So use a simple regular form: a PARALLEL containing a vector
      of all the operands.  */
 
-  printf ("  PATTERN (ins1) = gen_rtx (PARALLEL, VOIDmode, gen_rtvec_v (%d, operands));\n", n_operands);
+  printf ("  PATTERN (ins1) = gen_rtx_PARALLEL (VOIDmode, gen_rtvec_v (%d, operands));\n", n_operands);
 
 #if 0
   printf ("  if (want_jump && GET_CODE (ins1) != JUMP_INSN)\n");
@@ -264,6 +269,9 @@ match_rtx (x, path, fail_label)
     case ADDRESS:
       match_rtx (XEXP (x, 0), path, fail_label);
       return;
+      
+    default:
+      break;
     }
 
   printf ("  x = ");
@@ -323,13 +331,9 @@ match_rtx (x, path, fail_label)
 	      printf (";\n");
 	    }
 
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT
-	  printf ("  if (XWINT (x, %d) != %d) goto L%d;\n",
-		  i, XWINT (x, i), fail_label);
-#else
-	  printf ("  if (XWINT (x, %d) != %ld) goto L%d;\n",
-		  i, XWINT (x, i), fail_label);
-#endif
+	  printf ("  if (XWINT (x, %d) != ", i);
+	  printf (HOST_WIDE_INT_PRINT_DEC, XWINT (x, i));
+	  printf (") goto L%d;\n", fail_label);
 	}
       else if (fmt[i] == 's')
 	{
@@ -408,11 +412,22 @@ xrealloc (ptr, size)
 }
 
 static void
-fatal (s, a1, a2)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genpeep: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
@@ -455,17 +470,18 @@ main (argc, argv)
 from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
+  printf ("#include \"system.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"regs.h\"\n");
   printf ("#include \"output.h\"\n");
-  printf ("#include \"real.h\"\n\n");
+  printf ("#include \"real.h\"\n");
+  printf ("#include \"except.h\"\n\n");
 
   printf ("extern rtx peep_operand[];\n\n");
   printf ("#define operands peep_operand\n\n");
 
   printf ("rtx\npeephole (ins1)\n     rtx ins1;\n{\n");
-  printf ("  rtx insn, x, pat;\n");
-  printf ("  int i;\n\n");
+  printf ("  rtx insn ATTRIBUTE_UNUSED, x ATTRIBUTE_UNUSED, pat ATTRIBUTE_UNUSED;\n\n");
 
   /* Early out: no peepholes for insns followed by barriers.  */
   printf ("  if (NEXT_INSN (ins1)\n");

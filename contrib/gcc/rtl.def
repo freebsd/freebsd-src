@@ -1,7 +1,7 @@
 /* This file contains the definitions and documentation for the
    Register Transfer Expressions (rtx's) that make up the
    Register Transfer Language (rtl) used in the Back End of the GNU compiler.
-   Copyright (C) 1987, 1988, 1992, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92, 94, 95, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -54,6 +54,7 @@ Boston, MA 02111-1307, USA.  */
      "b" an rtx code for a bit-field operation (ZERO_EXTRACT, SIGN_EXTRACT)
      "i" an rtx code for a machine insn (INSN, JUMP_INSN, CALL_INSN)
      "m" an rtx code for something that matches in insns (e.g, MATCH_DUP)
+     "g" an rtx code for grouping insns together (e.g, GROUP_PARALLEL)
      "x" everything else
      
    */
@@ -102,7 +103,7 @@ DEF_RTL_EXPR(INSN_LIST, "insn_list", "ue", 'x')
    '=' to indicate the operand is only written to.
    '+' to indicate the operand is both read and written to.
 
-   Each character in the string represents an allocatable class for an operand.
+   Each character in the string represents an allocable class for an operand.
    'g' indicates the operand can be any valid class.
    'i' indicates the operand can be immediate (in the instruction) data.
    'r' indicates the operand can be in a register.
@@ -158,6 +159,16 @@ DEF_RTL_EXPR(MATCH_OP_DUP, "match_op_dup", "iE", 'm')
    Means match only something equal to what is stored in the operand table
    at the index specified by the argument.  For MATCH_PARALLEL.  */
 DEF_RTL_EXPR(MATCH_PAR_DUP, "match_par_dup", "iE", 'm')
+
+/* Appears only in machine descriptions.
+   Should be used only in attribute tests.
+   The predicate in operand 0 is applied to the whole insn being checked.  */
+DEF_RTL_EXPR(MATCH_INSN, "match_insn", "s", 'm')
+
+/* Appears only in machine descriptions.
+   Operand 0 is the operand number, as in match_operand.
+   Operand 1 is the predicate to apply to the insn.  */
+DEF_RTL_EXPR(MATCH_INSN2, "match_insn2", "is", 'm')
 
 /* Appears only in machine descriptions.
    Defines the pattern for one kind of instruction.
@@ -257,7 +268,7 @@ DEF_RTL_EXPR(DEFINE_DELAY, "define_delay", "eE", 'x')
 		unit with no issue constraints.  If only one operation can
 		be executed a time and the unit is busy for the entire time,
 		the 3rd operand should be specified as 1, the 6th operand
-		sould be specified as 0, and the 7th operand should not
+		should be specified as 0, and the 7th operand should not
 		be specified.
 
 		If this operand is specified, it is a list of attribute
@@ -368,8 +379,8 @@ DEF_RTL_EXPR(BARRIER, "barrier", "iuu", 'x')
    3: is a number that is unique in the entire compilation.
    4: is the user-given name of the label, if any.
    5: is used in jump.c for the use-count of the label.
-   and in flow.c to point to the chain of label_ref's to this label.  */
-DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuis0", 'x')
+   6: is used in flow.c to point to the chain of label_ref's to this label.  */
+DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuis00", 'x')
      
 /* Say where in the code a source line starts, for symbol table's sake.
    Contains a filename and a line number.  Line numbers <= 0 are special:
@@ -385,7 +396,7 @@ DEF_RTL_EXPR(NOTE, "note", "iuusn", 'x')
    it contains helps to build the mapping function between the rtx's of
    the function to be inlined and the current function being expanded.  */
 
-DEF_RTL_EXPR(INLINE_HEADER, "inline_header", "iuuuiiiiiieeiiEe", 'x')
+DEF_RTL_EXPR(INLINE_HEADER, "inline_header", "iuuuiiiiiieeiiEeEssE", 'x')
 
 /* ----------------------------------------------------------------------
    Top level constituents of INSN, JUMP_INSN and CALL_INSN.
@@ -437,8 +448,27 @@ DEF_RTL_EXPR(ADDR_VEC, "addr_vec", "E", 'x')
 /* Vector of address differences X0 - BASE, X1 - BASE, ...
    First operand is BASE; the vector contains the X's.
    The machine mode of this rtx says how much space to leave
-   for each difference.  */
-DEF_RTL_EXPR(ADDR_DIFF_VEC, "addr_diff_vec", "eE", 'x')
+   for each difference and is adjusted by branch shortening if
+   CASE_VECTOR_SHORTEN_MODE is defined.
+   The third and fourth operands store the target labels with the
+   minimum and maximum addresses respectively.
+   The fifth operand stores flags for use by branch shortening.
+  Set at the start of shorten_branches:
+   min_align: the minimum alignment for any of the target labels.
+   base_after_vec: true iff BASE is after the ADDR_DIFF_VEC.
+   min_after_vec: true iff minimum addr target label is after the ADDR_DIFF_VEC.
+   max_after_vec: true iff maximum addr target label is after the ADDR_DIFF_VEC.
+   min_after_base: true iff minimum address target label is after BASE.
+   max_after_base: true iff maximum address target label is after BASE.
+  Set by the actual branch shortening process:
+   offset_unsigned: true iff offsets have to be treated as unsigned.
+   scale: scaling that is necessary to make offsets fit into the mode.
+
+   The third, fourth and fifth operands are only valid when
+   CASE_VECTOR_SHORTEN_MODE is defined, and only in an optimizing
+   compilations.  */
+     
+DEF_RTL_EXPR(ADDR_DIFF_VEC, "addr_diff_vec", "eEeei", 'x')
 
 /* ----------------------------------------------------------------------
    At the top level of an instruction (perhaps under PARALLEL).
@@ -476,7 +506,7 @@ DEF_RTL_EXPR(RETURN, "return", "", 'x')
    Operand 1 is the condition.
    Operand 2 is the trap code.
    For an unconditional trap, make the condition (const_int 1).  */
-DEF_RTL_EXPR(TRAP_IF, "trap_if", "ei", 'x')
+DEF_RTL_EXPR(TRAP_IF, "trap_if", "ee", 'x')
 
 /* ----------------------------------------------------------------------
    Primitive values for use in expressions.
@@ -507,10 +537,16 @@ DEF_RTL_EXPR(CONST, "const", "e", 'o')
    by a SET whose first operand is (PC).  */
 DEF_RTL_EXPR(PC, "pc", "", 'o')
 
-/* A register.  The "operand" is the register number, accessed
-   with the REGNO macro.  If this number is less than FIRST_PSEUDO_REGISTER
-   than a hardware register is being referred to.  */
-DEF_RTL_EXPR(REG, "reg", "i", 'o')
+/* A register.  The "operand" is the register number, accessed with
+   the REGNO macro.  If this number is less than FIRST_PSEUDO_REGISTER
+   than a hardware register is being referred to.  The second operand
+   doesn't really exist.  Unfortunately, however, the compiler
+   implicitly assumes that a REG can be transformed in place into a
+   MEM, and therefore that a REG is at least as big as a MEM.  To
+   avoid this memory overhead, which is likely to be substantial,
+   search for uses of PUT_CODE that turn REGs into MEMs, and fix them
+   somehow.  Then, the trailing `0' can be removed here.  */
+DEF_RTL_EXPR(REG, "reg", "i0", 'o')
 
 /* A scratch register.  This represents a register used only within a
    single insn.  It will be turned into a REG during register allocation
@@ -548,9 +584,11 @@ DEF_RTL_EXPR(STRICT_LOW_PART, "strict_low_part", "e", 'x')
    in DECL_RTLs and during RTL generation, but not in the insn chain.  */
 DEF_RTL_EXPR(CONCAT, "concat", "ee", 'o')
 
-/* A memory location; operand is the address.
-   Can be nested inside a VOLATILE.  */
-DEF_RTL_EXPR(MEM, "mem", "e", 'o')
+/* A memory location; operand is the address.  Can be nested inside a
+   VOLATILE.  The second operand is the alias set to which this MEM
+   belongs.  We use `0' instead of `i' for this field so that the
+   field need not be specified in machine descriptions.  */
+DEF_RTL_EXPR(MEM, "mem", "e0", 'o')
 
 /* Reference to an assembler label in the code for this function.
    The operand is a CODE_LABEL found in the insn chain.
@@ -570,6 +608,15 @@ DEF_RTL_EXPR(SYMBOL_REF, "symbol_ref", "s", 'o')
    results; but instructions that look at the condition code
    pretend to be looking at the entire value and comparing it.  */
 DEF_RTL_EXPR(CC0, "cc0", "", 'o')
+
+/* Reference to the address of a register.  Removed by purge_addressof after
+   CSE has elided as many as possible.
+   1st operand: the register we may need the address of.
+   2nd operand: the original pseudo regno we were generated for.
+   3rd operand: the decl for the object in the register, for
+     put_reg_in_stack.  */
+
+DEF_RTL_EXPR(ADDRESSOF, "addressof", "ei0", 'o')
 
 /* =====================================================================
    A QUEUED expression really points to a member of the queue of instructions
@@ -757,9 +804,51 @@ DEF_RTL_EXPR(HIGH, "high", "e", 'o')
    of a constant expression.  */
 DEF_RTL_EXPR(LO_SUM, "lo_sum", "ee", 'o')
 
+/* Header for range information.  Operand 0 is the NOTE_INSN_RANGE_START insn.
+   Operand 1 is the NOTE_INSN_RANGE_END insn.  Operand 2 is a vector of all of
+   the registers that can be substituted within this range.  Operand 3 is the
+   number of calls in the range.  Operand 4 is the number of insns in the
+   range.  Operand 5 is the unique range number for this range.  Operand 6 is
+   the basic block # of the start of the live range.  Operand 7 is the basic
+   block # of the end of the live range.  Operand 8 is the loop depth.  Operand
+   9 is a bitmap of the registers live at the start of the range.  Operand 10
+   is a bitmap of the registers live at the end of the range.  Operand 11 is
+   marker number for the start of the range.  Operand 12 is the marker number
+   for the end of the range.  */
+DEF_RTL_EXPR(RANGE_INFO, "range_info", "uuEiiiiiibbii", 'x')
+
+/* Registers that can be substituted within the range.  Operand 0 is the
+   original pseudo register number.  Operand 1 will be filled in with the
+   pseudo register the value is copied for the duration of the range.  Operand
+   2 is the number of references within the range to the register.  Operand 3
+   is the number of sets or clobbers of the register in the range.  Operand 4
+   is the number of deaths the register has.  Operand 5 is the copy flags that
+   give the status of whether a copy is needed from the original register to
+   the new register at the beginning of the range, or whether a copy from the
+   new register back to the original at the end of the range.  Operand 6 is the
+   live length.  Operand 7 is the number of calls that this register is live
+   across.  Operand 8 is the symbol node of the variable if the register is a
+   user variable.  Operand 9 is the block node that the variable is declared
+   in if the register is a user variable. */
+DEF_RTL_EXPR(RANGE_REG, "range_reg", "iiiiiiiitt", 'x')
+
+/* Information about a local variable's ranges.  Operand 0 is an EXPR_LIST of
+   the different ranges a variable is in where it is copied to a different
+   pseudo register.  Operand 1 is the block that the variable is declared in.
+   Operand 2 is the number of distinct ranges.  */
+DEF_RTL_EXPR(RANGE_VAR, "range_var", "eti", 'x')
+
+/* Information about the registers that are live at the current point.  Operand
+   0 is the live bitmap.  Operand 1 is the original block number.  */
+DEF_RTL_EXPR(RANGE_LIVE, "range_live", "bi", 'x')
+
+/* A unary `__builtin_constant_p' expression.  These are only emitted
+   during RTL generation, and then only if optimize > 0.  They are
+   eliminated by the first CSE pass. */
+DEF_RTL_EXPR(CONSTANT_P_RTX, "constant_p", "e", 'x')
+
 /*
 Local variables:
 mode:c
-version-control: t
 End:
 */

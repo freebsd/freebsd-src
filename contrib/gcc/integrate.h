@@ -1,5 +1,5 @@
 /* Function integration definitions for GNU C-Compiler
-   Copyright (C) 1990 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1995, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -93,6 +93,10 @@ struct inline_remap
   /* Likewise, this is the copied constraints vector.  */
   rtvec copy_asm_constraints_vector;
 
+  /* Indications for regs being pointers and their alignment.  */
+  char *regno_pointer_flag;
+  char *regno_pointer_align;
+
   /* The next few fields are used for subst_constants to record the SETs
      that it saw.  */
   int num_sets;
@@ -117,6 +121,12 @@ extern rtx copy_rtx_and_substitute PROTO((rtx, struct inline_remap *));
 extern void try_constants PROTO((rtx, struct inline_remap *));
 
 extern void mark_stores PROTO((rtx, rtx));
+
+/* Return the label indicated.  */
+extern rtx get_label_from_map PROTO((struct inline_remap *, int));
+
+/* Set the label indicated.  */
+#define set_label_in_map(MAP, I, X) ((MAP)->label_map[I] = (X))
 
 /* Unfortunately, we need a global copy of const_equiv map for communication
    with a function called from note_stores.  Be *very* careful that this
