@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.37 1996/02/26 21:47:10 guido Exp $
+ *	$Id: tcp_input.c,v 1.38 1996/03/11 15:13:29 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -492,7 +492,8 @@ findpcb:
 		if (ti->ti_len == 0) {
 			if (SEQ_GT(ti->ti_ack, tp->snd_una) &&
 			    SEQ_LEQ(ti->ti_ack, tp->snd_max) &&
-			    tp->snd_cwnd >= tp->snd_wnd) {
+			    tp->snd_cwnd >= tp->snd_wnd &&
+			    tp->t_dupacks < tcprexmtthresh) {
 				/*
 				 * this is a pure ack for outstanding data.
 				 */
@@ -1257,7 +1258,7 @@ trimthenstep6:
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (tp->t_dupacks > tcprexmtthresh &&
+		if (tp->t_dupacks >= tcprexmtthresh &&
 		    tp->snd_cwnd > tp->snd_ssthresh)
 			tp->snd_cwnd = tp->snd_ssthresh;
 		tp->t_dupacks = 0;
@@ -1819,6 +1820,7 @@ tcp_xmit_timer(tp, rtt)
 	register struct tcpcb *tp;
 	short rtt;
 {
+#ifdef notdef
 	register short delta;
 
 	tcpstat.tcps_rttupdated++;
@@ -1858,6 +1860,50 @@ tcp_xmit_timer(tp, rtt)
 		tp->t_srtt = rtt << TCP_RTT_SHIFT;
 		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
 	}
+#else  /* Peterson paper */
+	register int delta;
+
+	tcpstat.tcps_rttupdated++;
+	tp->t_rttupdated++;
+	if (tp->t_srtt != 0) {
+		/*
+		 * srtt is stored as fixed point with 5 bits after the
+		 * binary point (i.e., scaled by 8).  The following magic
+		 * is equivalent to the smoothing algorithm in rfc793 with
+		 * an alpha of .875 (srtt = rtt/8 + srtt*7/8 in fixed
+		 * point).  Adjust rtt to origin 0.
+		 */
+		delta = ((rtt - 1) << TCP_DELTA_SHIFT)
+			- (tp->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT));
+
+		if ((tp->t_srtt += delta) <= 0)
+			tp->t_srtt = 1;
+
+		/*
+		 * We accumulate a smoothed rtt variance (actually, a
+		 * smoothed mean difference), then set the retransmit
+		 * timer to smoothed rtt + 4 times the smoothed variance.
+		 * rttvar is stored as fixed point with 4 bits after the
+		 * binary point (scaled by 16).  The following is
+		 * equivalent to rfc793 smoothing with an alpha of .75
+		 * (rttvar = rttvar*3/4 + |delta| / 4).  This replaces
+		 * rfc793's wired-in beta.
+		 */
+		if (delta < 0)
+			delta = -delta;
+		delta -= tp->t_rttvar >> (TCP_RTTVAR_SHIFT - TCP_DELTA_SHIFT);
+		if ((tp->t_rttvar += delta) <= 0)
+			tp->t_rttvar = 1;
+	} else {
+		/*
+		 * No rtt measurement yet - use the unsmoothed rtt.
+		 * Set the variance to half the rtt (so our first
+		 * retransmit happens at 3*rtt).
+		 */
+		tp->t_srtt = rtt << TCP_RTT_SHIFT;
+		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
+	}
+#endif
 	tp->t_rtt = 0;
 	tp->t_rxtshift = 0;
 
@@ -1872,8 +1918,13 @@ tcp_xmit_timer(tp, rtt)
 	 * statistical, we have to test that we don't drop below
 	 * the minimum feasible timer (which is 2 ticks).
 	 */
+#ifdef notdef
 	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
 	    tp->t_rttmin, TCPTV_REXMTMAX);
+#else /* Peterson */
+	TCPT_RANGESET(tp->t_rxtcur, TCP_REXMTVAL(tp),
+		      max(tp->t_rttmin, TCPTV_MIN + rtt - 1), TCPTV_REXMTMAX);
+#endif
 
 	/*
 	 * We received an ack for a packet that wasn't retransmitted;
