@@ -822,6 +822,7 @@ dev/usb/ehci_pci.c	optional ehci pci
 dev/usb/ohci.c		optional ohci
 dev/usb/ohci_pci.c	optional ohci pci
 dev/usb/ubsa.c		optional ubsa ucom
+dev/usb/ubser.c		optional ubser
 dev/usb/ucom.c		optional ucom
 dev/usb/udbp.c		optional udbp
 dev/usb/ufm.c		optional ufm

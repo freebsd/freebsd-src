@@ -2167,6 +2167,8 @@ device		ubsa
 device		uvscom
 # USB Visor and Palm devices
 device		uvisor
+# USB support for BWCT console serial adapters
+device		ubser
 
 # USB Fm Radio
 device		ufm
