@@ -51,7 +51,7 @@ __RCSID("$FreeBSD$");
 LstNode
 Lst_Member (l, d)
     Lst	    	  	l;
-    ClientData	  	d;
+    void *	  	d;
 {
     List    	  	list = (List) l;
     register ListNode	lNode;

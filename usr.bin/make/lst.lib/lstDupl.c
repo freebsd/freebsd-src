@@ -52,7 +52,7 @@ __RCSID("$FreeBSD$");
 /*-
  *-----------------------------------------------------------------------
  * Lst_Duplicate --
- *	Duplicate an entire list. If a function to copy a ClientData is
+ *	Duplicate an entire list. If a function to copy a void * is
  *	given, the individual client elements will be duplicated as well.
  *
  * Results:
@@ -65,8 +65,8 @@ __RCSID("$FreeBSD$");
 Lst
 Lst_Duplicate (l, copyProc)
     Lst     	  l;	    	 /* the list to duplicate */
-    /* A function to duplicate each ClientData */
-    ClientData	  (*copyProc) __P((ClientData));
+    /* A function to duplicate each void * */
+    void *	  (*copyProc) __P((void *));
 {
     register Lst 	nl;
     register ListNode  	ln;

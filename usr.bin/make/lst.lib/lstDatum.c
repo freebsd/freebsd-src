@@ -61,14 +61,14 @@ __RCSID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-ClientData
+void *
 Lst_Datum (ln)
     LstNode	ln;
 {
     if (ln != NULL) {
 	return (((ListNode)ln)->datum);
     } else {
-	return ((ClientData) NULL);
+	return ((void *) NULL);
     }
 }
 

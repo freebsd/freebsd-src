@@ -82,7 +82,7 @@ typedef struct _For {
     Lst  	  lst;			/* List of variables	*/
 } For;
 
-static int ForExec	__P((ClientData, ClientData));
+static int ForExec	__P((void *, void *));
 
 
 
@@ -177,7 +177,7 @@ For_Eval (line)
 #define ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
 	Buf_AddByte(buf, (Byte) '\0'), \
-	Lst_AtFront(forLst, (ClientData) Buf_GetAll(buf, &varlen)), \
+	Lst_AtFront(forLst, (void *) Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
 	for (ptr = sub; *ptr && isspace((unsigned char) *ptr); ptr++)
@@ -197,7 +197,7 @@ For_Eval (line)
 	    ADDWORD();
 	else
 	    Buf_Destroy(buf, TRUE);
-	free((Address) sub);
+	free(sub);
 
 	forBuf = Buf_Init(0);
 	forLevel++;
@@ -250,8 +250,8 @@ For_Eval (line)
  */
 static int
 ForExec(namep, argp)
-    ClientData namep;
-    ClientData argp;
+    void * namep;
+    void * argp;
 {
     char *name = (char *) namep;
     For *arg = (For *) argp;
@@ -294,9 +294,9 @@ For_Run()
     forBuf = NULL;
     forLst = NULL;
 
-    Lst_ForEach(arg.lst, ForExec, (ClientData) &arg);
+    Lst_ForEach(arg.lst, ForExec, (void *) &arg);
 
-    free((Address)arg.var);
-    Lst_Destroy(arg.lst, (void (*) __P((ClientData))) free);
+    free(arg.var);
+    Lst_Destroy(arg.lst, (void (*) __P((void *))) free);
     Buf_Destroy(arg.buf, TRUE);
 }
