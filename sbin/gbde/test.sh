@@ -4,7 +4,7 @@
 set -e
 
 MD=99
-mdconfig -d -u $MD || true
+mdconfig -d -u $MD > /dev/null 2>&1 || true
 
 mdconfig -a -t malloc -s 1m -u $MD
 
@@ -39,7 +39,16 @@ if ./gbde nuke $D -p foo4 -l /tmp/_l4 -n -1 ; then false ; fi
 ./gbde setkey $D -p foo3 -n 4 -P foo4
 ./gbde setkey $D -p foo4 -n 1 -P foo1
 
-mdconfig -d -u $MD || true
+mdconfig -d -u $MD
+
+mdconfig -a -t malloc -s 1m -u $MD
+uudecode -p image.uu | bzcat > $D
+gbde attach $D -p foo
+fsck_ffs ${D}.bde
+gbde detach $D
+mdconfig -d -u $MD
+
+
 echo "***********"
 echo "Test passed"
 echo "***********"
