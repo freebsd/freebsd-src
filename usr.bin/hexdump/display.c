@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -55,7 +55,7 @@ enum _vflag vflag = FIRST;
 static off_t address;			/* address/offset in stream */
 static off_t eaddress;			/* end address */
 
-static inline void print __P((PR *, u_char *));
+static __inline void print(PR *, u_char *);
 
 void
 display()
@@ -69,7 +69,7 @@ display()
 	off_t saveaddress;
 	u_char savech, *savebp;
 
-	while (bp = get())
+	while ((bp = get()))
 	    for (fs = fshead, savebp = bp, saveaddress = address; fs;
 		fs = fs->nextfs, bp = savebp, address = saveaddress)
 		    for (fu = fs->nextfu; fu; fu = fu->nextfu) {
@@ -112,11 +112,12 @@ display()
 	}
 }
 
-static inline void
+static __inline void
 print(pr, bp)
 	PR *pr;
 	u_char *bp;
 {
+	long double ldbl;
 	   double f8;
 	    float f4;
 	  int16_t s2;
@@ -149,12 +150,18 @@ print(pr, bp)
 			bcopy(bp, &f8, sizeof(f8));
 			(void)printf(pr->fmt, f8);
 			break;
+		default:
+			if (pr->bcnt == sizeof(long double)) {
+				bcopy(bp, &ldbl, sizeof(ldbl));
+				(void)printf(pr->fmt, ldbl);
+			}
+			break;
 		}
 		break;
 	case F_INT:
 		switch(pr->bcnt) {
 		case 1:
-			(void)printf(pr->fmt, (quad_t)*bp);
+			(void)printf(pr->fmt, (quad_t)(signed char)*bp);
 			break;
 		case 2:
 			bcopy(bp, &s2, sizeof(s2));
@@ -208,7 +215,7 @@ void
 bpad(pr)
 	PR *pr;
 {
-	static char *spec = " -0+#";
+	static char const *spec = " -0+#";
 	register char *p1, *p2;
 
 	/*
@@ -220,7 +227,7 @@ bpad(pr)
 	pr->cchar[1] = '\0';
 	for (p1 = pr->fmt; *p1 != '%'; ++p1);
 	for (p2 = ++p1; *p1 && index(spec, *p1); ++p1);
-	while (*p2++ = *p1++);
+	while ((*p2++ = *p1++));
 }
 
 static char **_argv;
@@ -228,8 +235,6 @@ static char **_argv;
 u_char *
 get()
 {
-	extern enum _vflag vflag;
-	extern int length;
 	static int ateof = 1;
 	static u_char *curp, *savp;
 	register int n;
@@ -238,8 +243,10 @@ get()
 	u_char *tmpp;
 
 	if (!curp) {
-		curp = emalloc(blocksize);
-		savp = emalloc(blocksize);
+		if ((curp = calloc(1, blocksize)) == NULL)
+			err(1, NULL);
+		if ((savp = calloc(1, blocksize)) == NULL)
+			err(1, NULL);
 	} else {
 		tmpp = curp;
 		curp = savp;
@@ -253,7 +260,9 @@ get()
 		 * and no other files are available, zero-pad the rest of the
 		 * block and set the end flag.
 		 */
-		if (!length || ateof && !next((char **)NULL)) {
+		if (!length || (ateof && !next((char **)NULL))) {
+			if (odmode && address < skip)
+				errx(1, "cannot skip past end of input");
 			if (need == blocksize)
 				return((u_char *)NULL);
 			if (vflag != ALL && 
@@ -298,8 +307,6 @@ get()
 	}
 }
 
-extern off_t skip;			/* bytes to skip */
-
 int
 next(argv)
 	char **argv;
@@ -338,7 +345,7 @@ next(argv)
 
 void
 doskip(fname, statok)
-	char *fname;
+	const char *fname;
 	int statok;
 {
 	register int cnt;
@@ -354,7 +361,7 @@ doskip(fname, statok)
 		}
 	}
 	if (S_ISREG(sb.st_mode)) {
-		if (fseek(stdin, skip, SEEK_SET))
+		if (fseeko(stdin, skip, SEEK_SET))
 			err(1, "%s", fname);
 		address += skip;
 		skip = 0;
@@ -365,22 +372,4 @@ doskip(fname, statok)
 		address += cnt;
 		skip -= cnt;
 	}
-}
-
-void *
-emalloc(size)
-	int size;
-{
-	void *p;
-
-	if ((p = malloc((u_int)size)) == NULL)
-		nomem();
-	bzero(p, size);
-	return(p);
-}
-
-void
-nomem()
-{
-	err(1, NULL);
 }

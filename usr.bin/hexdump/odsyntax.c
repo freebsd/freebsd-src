@@ -35,118 +35,144 @@
 #if 0
 static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "hexdump.h"
 
-int deprecated;
+#define PADDING	"         "
 
-static void odoffset __P((int, char ***));
-static void odprecede __P((void));
+int odmode;
+
+static void odadd(const char *);
+static void odformat(const char *);
+static const char *odformatfp(char, const char *);
+static const char *odformatint(char, const char *);
+static void odoffset(int, char ***);
+static void odusage(void);
 
 void
 oldsyntax(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern enum _vflag vflag;
-	extern FS *fshead;
+	static char empty[] = "", padding[] = PADDING;
 	int ch;
-	char **argv;
+	char **argv, *end;
 
-	deprecated = 1;
+	/* Add initial (default) address format. -A may change it later. */
+#define	TYPE_OFFSET	7
+	add("\"%07.7_Ao\n\"");
+	add("\"%07.7_ao  \"");
+
+	odmode = 1;
 	argv = *argvp;
-	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) != -1)
+	while ((ch = getopt(argc, argv, "A:aBbcDdeFfHhIij:LlN:Oost:vXx")) != -1)
 		switch (ch) {
+		case 'A':
+			switch (*optarg) {
+			case 'd': case 'o': case 'x':
+				fshead->nextfu->fmt[TYPE_OFFSET] = *optarg;
+				fshead->nextfs->nextfu->fmt[TYPE_OFFSET] =
+				    *optarg;
+				break;
+			case 'n':
+				fshead->nextfu->fmt = empty;
+				fshead->nextfs->nextfu->fmt = padding;
+				break;
+			default:
+				errx(1, "%s: invalid address base", optarg);
+			}
+			break;
 		case 'a':
-			odprecede();
-			add("16/1 \"%3_u \" \"\\n\"");
+			odformat("a");
 			break;
 		case 'B':
 		case 'o':
-			odprecede();
-			add("8/2 \" %06o \" \"\\n\"");
+			odformat("o2");
 			break;
 		case 'b':
-			odprecede();
-			add("16/1 \"%03o \" \"\\n\"");
+			odformat("o1");
 			break;
 		case 'c':
-			odprecede();
-			add("16/1 \"%3_c \" \"\\n\"");
+			odformat("c");
 			break;
 		case 'd':
-			odprecede();
-			add("8/2 \"  %05u \" \"\\n\"");
+			odformat("u2");
 			break;
 		case 'D':
-			odprecede();
-			add("4/4 \"     %010u \" \"\\n\"");
+			odformat("u4");
 			break;
 		case 'e':		/* undocumented in od */
 		case 'F':
-			odprecede();
-			add("2/8 \"          %21.14e \" \"\\n\"");
+			odformat("fD");
 			break;
-
 		case 'f':
-			odprecede();
-			add("4/4 \" %14.7e \" \"\\n\"");
+			odformat("fF");
 			break;
 		case 'H':
 		case 'X':
-			odprecede();
-			add("4/4 \"       %08x \" \"\\n\"");
+			odformat("x4");
 			break;
 		case 'h':
 		case 'x':
-			odprecede();
-			add("8/2 \"   %04x \" \"\\n\"");
+			odformat("x2");
 			break;
 		case 'I':
 		case 'L':
 		case 'l':
-			odprecede();
-			add("4/4 \"    %11d \" \"\\n\"");
+			odformat("dL");
 			break;
 		case 'i':
-			odprecede();
-			add("8/2 \" %6d \" \"\\n\"");
+			odformat("dI");
+			break;
+		case 'j':
+			errno = 0;
+			skip = strtoll(optarg, &end, 0);
+			if (*end == 'b')
+				skip *= 512;
+			else if (*end == 'k')
+				skip *= 1024;
+			else if (*end == 'm')
+				skip *= 1048576L;
+			if (errno != 0 || skip < 0 || strlen(end) > 1)
+				errx(1, "%s: invalid skip amount", optarg);
+			break;
+		case 'N':
+			if ((length = atoi(optarg)) <= 0)
+				errx(1, "%s: invalid length", optarg);
 			break;
 		case 'O':
-			odprecede();
-			add("4/4 \"    %011o \" \"\\n\"");
+			odformat("o4");
+			break;
+		case 's':
+			odformat("d2");
+			break;
+		case 't':
+			odformat(optarg);
 			break;
 		case 'v':
 			vflag = ALL;
 			break;
-		case 'P':
-		case 'p':
-		case 's':
-		case 'w':
 		case '?':
 		default:
-			warnx("od(1) has been deprecated for hexdump(1)");
-			if (ch != '?')
-				warnx("hexdump(1) compatibility doesn't support the -%c option%s",
-				    ch, ch == 's' ? "; see strings(1)" : "");
-			usage();
+			odusage();
 		}
 
-	if (!fshead) {
-		add("\"%07.7_Ao\n\"");
-		add("\"%07.7_ao  \" 8/2 \"%06o \" \"\\n\"");
-	}
+	if (fshead->nextfs->nextfs == NULL)
+		odformat("oS");
 
 	argc -= optind;
 	*argvp += optind;
@@ -156,11 +182,21 @@ oldsyntax(argc, argvp)
 }
 
 static void
+odusage(void)
+{
+
+	fprintf(stderr,
+"usage: od [-aBbcDdeFfHhIiLlOosvXx] [-A base] [-j skip] [-N length] [-t type]\n");
+	fprintf(stderr,
+"          [[+]offset[.][Bb]] [file ...]\n");
+	exit(1);
+}
+
+static void
 odoffset(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern off_t skip;
 	unsigned char *p, *num, *end;
 	int base;
 
@@ -214,7 +250,7 @@ odoffset(argc, argvp)
 		base = 10;
 	}
 
-	skip = strtol(num, (char **)&end, base ? base : 8);
+	skip = strtoll(num, (char **)&end, base ? base : 8);
 
 	/* if end isn't the same as p, we got a non-octal digit */
 	if (end != p) {
@@ -241,7 +277,6 @@ odoffset(argc, argvp)
 	 * If the offset uses a non-octal base, the base of the offset
 	 * is changed as well.  This isn't pretty, but it's easy.
 	 */
-#define	TYPE_OFFSET	7
 	if (base == 16) {
 		fshead->nextfu->fmt[TYPE_OFFSET] = 'x';
 		fshead->nextfs->nextfu->fmt[TYPE_OFFSET] = 'x';
@@ -255,14 +290,157 @@ odoffset(argc, argvp)
 }
 
 static void
-odprecede()
+odformat(const char *fmt)
 {
-	static int first = 1;
+	char fchar;
 
-	if (first) {
-		first = 0;
-		add("\"%07.7_Ao\n\"");
-		add("\"%07.7_ao  \"");
-	} else
-		add("\"         \"");
+	while (*fmt != '\0') {
+		switch ((fchar = *fmt++)) {
+		case 'a':
+			odadd("16/1 \"%3_u \" \"\\n\"");
+			break;
+		case 'c':
+			odadd("16/1 \"%3_c \" \"\\n\"");
+			break;
+		case 'o': case 'u': case 'd': case 'x':
+			fmt = odformatint(fchar, fmt);
+			break;
+		case 'f':
+			fmt = odformatfp(fchar, fmt);
+			break;
+		default:
+			errx(1, "%c: unrecognised format character", fchar);
+		}
+	}
+}
+
+static const char *
+odformatfp(char fchar __unused, const char *fmt)
+{
+	size_t isize;
+	int digits;
+	char *end, *hdfmt;
+
+	isize = sizeof(double);
+	switch (*fmt) {
+	case 'F':
+		isize = sizeof(float);
+		fmt++;
+		break;
+	case 'D':
+		isize = sizeof(double);
+		fmt++;
+		break;
+	case 'L':
+		isize = sizeof(long double);
+		fmt++;
+		break;
+	default:
+		if (isdigit((unsigned char)*fmt)) {
+			errno = 0;
+			isize = (size_t)strtoul(fmt, &end, 10);
+			if (errno != 0 || isize == 0)
+				errx(1, "%s: invalid size", fmt);
+			fmt = (const char *)end;
+		}
+	}
+	switch (isize) {
+	case sizeof(float):
+		digits = FLT_DIG;
+		break;
+	case sizeof(double):
+		digits = DBL_DIG;
+		break;
+	default:
+		if (isize == sizeof(long double))
+			digits = LDBL_DIG;
+		else
+			errx(1, "unsupported floating point size %lu",
+			    (u_long)isize);
+	}
+
+	asprintf(&hdfmt, "%lu/%lu \" %%%d.%de \" \"\\n\"",
+	    16UL / (u_long)isize, (u_long)isize, digits + 8, digits);
+	if (hdfmt == NULL)
+		err(1, NULL);
+	odadd(hdfmt);
+	free(hdfmt);
+
+	return (fmt);
+}
+
+static const char *
+odformatint(char fchar, const char *fmt)
+{
+	unsigned long long n;
+	size_t isize;
+	int digits;
+	char *end, *hdfmt;
+
+	isize = sizeof(int);
+	switch (*fmt) {
+	case 'C':
+		isize = sizeof(char);
+		fmt++;
+		break;
+	case 'I':
+		isize = sizeof(int);
+		fmt++;
+		break;
+	case 'L':
+		isize = sizeof(long);
+		fmt++;
+		break;
+	case 'S':
+		isize = sizeof(short);
+		fmt++;
+		break;
+	default:
+		if (isdigit((unsigned char)*fmt)) {
+			errno = 0;
+			isize = (size_t)strtoul(fmt, &end, 10);
+			if (errno != 0 || isize == 0)
+				errx(1, "%s: invalid size", fmt);
+			if (isize != sizeof(char) && isize != sizeof(short) &&
+			    isize != sizeof(int) && isize != sizeof(long))
+				errx(1, "unsupported int size %lu",
+				    (u_long)isize);
+			fmt = (const char *)end;
+		}
+	}
+
+	/*
+	 * Calculate the maximum number of digits we need to
+	 * fit the number. Overestimate for decimal with log
+	 * base 8. We need one extra space for signed numbers
+	 * to store the sign.
+	 */
+	n = (1ULL << (8 * isize)) - 1;
+	digits = 0;
+	while (n != 0) {
+		digits++;
+		n >>= (fchar == 'x') ? 4 : 3;
+	}
+	if (fchar == 'd')
+		digits++;
+	asprintf(&hdfmt, "%lu/%lu \"%*s%%%s%d%c\" \"\\n\"",
+	    16UL / (u_long)isize, (u_long)isize, (int)(4 * isize - digits),
+	    "", (fchar == 'd' || fchar == 'u') ? "" : "0", digits, fchar);
+	if (hdfmt == NULL)
+		err(1, NULL);
+	odadd(hdfmt);
+	free(hdfmt);
+
+	return (fmt);
+}
+
+static void
+odadd(const char *fmt)
+{
+	static int needpad;
+
+	if (needpad)
+		add("\""PADDING"\"");
+	add(fmt);
+	needpad = 1;
 }

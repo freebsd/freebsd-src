@@ -32,8 +32,10 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conv.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)conv.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -46,8 +48,8 @@ conv_c(pr, p)
 	PR *pr;
 	u_char *p;
 {
-	extern int deprecated;
-	char buf[10], *str;
+	char buf[10];
+	char const *str;
 
 	switch(*p) {
 	case '\0':
@@ -55,8 +57,6 @@ conv_c(pr, p)
 		goto strpr;
 	/* case '\a': */
 	case '\007':
-		if (deprecated)		/* od didn't know about \a */
-			break;
 		str = "\\a";
 		goto strpr;
 	case '\b':
@@ -75,8 +75,6 @@ conv_c(pr, p)
 		str = "\\t";
 		goto strpr;
 	case '\v':
-		if (deprecated)
-			break;
 		str = "\\v";
 		goto strpr;
 	default:
@@ -86,7 +84,8 @@ conv_c(pr, p)
 		*pr->cchar = 'c';
 		(void)printf(pr->fmt, *p);
 	} else {
-		(void)sprintf(str = buf, "%03o", (int)*p);
+		(void)sprintf(buf, "%03o", (int)*p);
+		str = buf;
 strpr:		*pr->cchar = 's';
 		(void)printf(pr->fmt, str);
 	}
@@ -97,8 +96,7 @@ conv_u(pr, p)
 	PR *pr;
 	u_char *p;
 {
-	extern int deprecated;
-	static char *list[] = {
+	static char const * list[] = {
 		"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 		 "bs",  "ht",  "lf",  "vt",  "ff",  "cr",  "so",  "si",
 		"dle", "dcl", "dc2", "dc3", "dc4", "nak", "syn", "etb",
@@ -108,14 +106,14 @@ conv_u(pr, p)
 						/* od used nl, not lf */
 	if (*p <= 0x1f) {
 		*pr->cchar = 's';
-		if (deprecated && *p == 0x0a)
+		if (odmode && *p == 0x0a)
 			(void)printf(pr->fmt, "nl");
 		else
 			(void)printf(pr->fmt, list[*p]);
 	} else if (*p == 0x7f) {
 		*pr->cchar = 's';
 		(void)printf(pr->fmt, "del");
-	} else if (deprecated && *p == 0x20) {	/* od replaced space with sp */
+	} else if (odmode && *p == 0x20) {	/* od replaced space with sp */
 		*pr->cchar = 's';
 		(void)printf(pr->fmt, " sp");
 	} else if (isprint(*p)) {

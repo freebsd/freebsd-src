@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)hexsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -56,9 +56,6 @@ newsyntax(argc, argvp)
 	int argc;
 	char ***argvp;
 {
-	extern enum _vflag vflag;
-	extern FS *fshead;
-	extern int length;
 	int ch;
 	char *p, **argv;
 
@@ -104,7 +101,7 @@ newsyntax(argc, argvp)
 			add("\"%07.7_ax \" 8/2 \" %06o \" \"\\n\"");
 			break;
 		case 's':
-			if ((skip = strtol(optarg, &p, 0)) < 0)
+			if ((skip = strtoll(optarg, &p, 0)) < 0)
 				errx(1, "%s: bad skip value", optarg);
 			switch(*p) {
 			case 'b':
