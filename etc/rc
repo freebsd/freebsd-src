@@ -202,11 +202,13 @@ case ${ipv6_enable} in
 esac
 
 # Mount NFS filesystems if present in /etc/fstab
-if mount -d -a -t nfs | grep -q nfs >/dev/null 2>&1; then
+case "`mount -d -a -t nfs`" in
+*mount_nfs*)
 	echo -n "Mounting NFS file systems"
 	mount -a -t nfs
 	echo .
-fi
+	;;
+esac
 
 # Whack the pty perms back into shape.
 #
