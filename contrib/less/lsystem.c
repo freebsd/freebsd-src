@@ -14,8 +14,8 @@
  * Necessarily very OS dependent.
  */
 
-#include <signal.h>
 #include "less.h"
+#include <signal.h>
 #include "position.h"
 
 #if MSDOS_COMPILER
@@ -107,7 +107,12 @@ lsystem(cmd, donemsg)
 	 */
 	inp = dup(0);
 	close(0);
+#if OS2
+	/* The __open() system call translates "/dev/tty" to "con". */
+	if (__open("/dev/tty", OPEN_READ) < 0)
+#else
 	if (open("/dev/tty", OPEN_READ) < 0)
+#endif
 		dup(inp);
 #endif
 

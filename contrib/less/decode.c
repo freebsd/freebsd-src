@@ -140,6 +140,8 @@ static unsigned char cmdtable[] =
 	CONTROL('X'),CONTROL('V'),0,	A_EXAMINE,
 	':','n',0,			A_NEXT_FILE,
 	':','p',0,			A_PREV_FILE,
+	't',0,				A_NEXT_TAG,
+	'T',0,				A_PREV_TAG,
 	':','x',0,			A_INDEX_FILE,
 	':','d',0,			A_REMOVE_FILE,
 	'-',0,				A_OPT_TOGGLE,
@@ -292,6 +294,13 @@ init_cmds()
 	add_fcmd_table((char*)cmdtable, sizeof(cmdtable));
 	add_ecmd_table((char*)edittable, sizeof(edittable));
 #if USERFILE
+	/*
+	 * For backwards compatibility,
+	 * try to add tables in the OLD system lesskey file.
+	 */
+#ifdef BINDIR
+	add_hometable(NULL, BINDIR "/.sysless", 1);
+#endif
 	/*
 	 * Try to add the tables in the system lesskey file.
 	 */
@@ -708,7 +717,7 @@ add_hometable(envname, def_filename, sysvar)
 	char *filename;
 	PARG parg;
 
-	if ((filename = lgetenv(envname)) != NULL)
+	if (envname != NULL && (filename = lgetenv(envname)) != NULL)
 		filename = save(filename);
 	else if (sysvar)
 		filename = save(def_filename);
@@ -764,6 +773,16 @@ editchar(c, flags)
 		action = ecmd_decode(usercmd, &s);
 	} while (action == A_PREFIX);
 	
+	if (flags & EC_NORIGHTLEFT)
+	{
+		switch (action)
+		{
+		case EC_RIGHT:
+		case EC_LEFT:
+			action = A_INVALID;
+			break;
+		}
+	}
 #if CMD_HISTORY
 	if (flags & EC_NOHISTORY) 
 	{

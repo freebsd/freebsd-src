@@ -4,8 +4,8 @@
 #### Start of system configuration section. ####
 
 CC = gcc -Zomf
-CFLAGS = -I. -O
-LDFLAGS = -s -Zcrtdll -Zstack 512
+CFLAGS = -I. -O2 -Wall
+LDFLAGS = -s -Zcrtdll
 LIBS = -ltermcap
 O = obj
 
@@ -25,13 +25,16 @@ OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	output.${O} position.${O} prompt.${O} search.${O} signal.${O} \
 	tags.${O} ttyin.${O} version.${O}  regexp.${O}
 
-all:    less.exe lesskey.exe
+all:    less.exe lesskey.exe scrsize.exe
 
 less.exe: ${OBJ}
 	${CC} ${OBJ} -o $@ ${LDFLAGS} ${LIBS}
 
 lesskey.exe: lesskey.${O} version.${O}
 	${CC} lesskey.${O} version.${O} -o $@ ${LDFLAGS}
+
+scrsize.exe: scrsize.c
+	${CC} ${CFLAGS} -D__ST_MT_ERRNO__ -s -Zmtd -lX11 $<
 
 ${OBJ}: defines.h less.h
 

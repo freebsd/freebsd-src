@@ -19,8 +19,8 @@
   ESC-SPACE         *  Forward  one window, but don't stop at end-of-file.
   d  ^D             *  Forward  one half-window (and set half-window to _N).
   u  ^U             *  Backward one half-window (and set half-window to _N).
-  ESC-(  RightArrow *  Left  8 character positions (or _N positions).
-  ESC-)  LeftArrow  *  Right 8 character positions (or _N positions).
+  ESC-(  RightArrow *  Left  one half screen width (or _N positions).
+  ESC-)  LeftArrow  *  Right one half screen width (or _N positions).
   F                    Forward forever; like "tail -f".
   r  ^R  ^L            Repaint screen.
   R                    Repaint screen, discarding buffered input.
@@ -52,6 +52,8 @@
   g  <  ESC-<       *  Go to first line in file (or line _N).
   G  >  ESC->       *  Go to last line in file (or line _N).
   p  %              *  Go to beginning of file (or _N percent into file).
+  t                 *  Go to the (_N-th) next tag.
+  T                 *  Go to the (_N-th) previous tag.
   {  (  [           *  Find close bracket } ) ].
   }  )  ]           *  Find open bracket { ( [.
   ESC-^F _<_c_1_> _<_c_2_>  *  Find close bracket _<_c_2_>.
@@ -173,10 +175,12 @@
                   Highlight first new line after forward-screen.
   -W  ........  --HILITE-UNREAD
                   Highlight first new line after any forward movement.
-  -x [_N]  ....  --tabs=[_N]
+  -x [_N[,...]]  --tabs=[_N[,...]]
                   Set tab stops.
   -X  ........  --no-init
                   Don't use termcap init/deinit strings.
+                --no-keypad
+                  Don't use termcap keypad init/deinit strings.
   -y [_N]  ....  --max-forw-scroll=[_N]
                   Forward scroll limit.
   -z [_N]  ....  --window=[_N]

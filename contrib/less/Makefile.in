@@ -24,6 +24,8 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 binprefix = 
 
+sysconfdir = @sysconfdir@
+
 mandir = @mandir@
 manext = 1
 manprefix = 
@@ -35,7 +37,7 @@ SHELL = /bin/sh
 # This rule allows us to supply the necessary -D options
 # in addition to whatever the user asks for.
 .c.o:
-	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DSYSDIR=\"${bindir}\" ${CPPFLAGS} ${CFLAGS} $<
+	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
 
 OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	command.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
