@@ -12,7 +12,7 @@ all: send-pr
 send-pr:	send-pr.sh Makefile
 	sed -e 's,@DATADIR@,/etc,g' \
 	    -e 's/@DEFAULT_RELEASE@/$(RELEASE)/g' \
-	    -e 's/^SUBMITTER=/SUBMITTER=$(SUBMITTERS)/' \
+	    -e 's/^SUBMITTER=.*/SUBMITTER=$(SUBMITTERS)/' \
 	    ${.ALLSRC:N*Makefile} > ${.TARGET}
 
 send-pr.el:	send-pr-el.in Makefile
