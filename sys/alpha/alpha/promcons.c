@@ -107,7 +107,7 @@ promopen(dev, flag, mode, td)
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
-		ttyconsmode(tp, 0);
+		ttyconsolemode(tp, 0);
 		ttsetwater(tp);
 
 		setuptimeout = 1;
