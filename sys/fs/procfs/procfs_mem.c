@@ -64,10 +64,11 @@ procfs_doprocmem(PFS_FILL_ARGS)
 	if (uio->uio_resid == 0)
 		return (0);
 
+	PROC_LOCK(p);
 	error = p_candebug(td->td_proc, p);
-	if (error)
-		return (error);
-	error = proc_rwmem(p, uio);
+	PROC_UNLOCK(p);
+	if (error == 0)
+		error = proc_rwmem(p, uio);
 
 	return (error);
 }
