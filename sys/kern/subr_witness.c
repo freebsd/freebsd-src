@@ -1725,6 +1725,7 @@ witness_list_lock(struct lock_instance *instance)
 	    instance->li_line);
 }
 
+#ifdef DDB
 static int
 witness_thread_has_locks(struct thread *td)
 {
@@ -1743,6 +1744,7 @@ witness_proc_has_locks(struct proc *p)
 	}
 	return (0);
 }
+#endif
 
 int
 witness_list_locks(struct lock_list_entry **lock_list)
