@@ -86,9 +86,9 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_isnanf.c s_ldexpf.c s_lib_version.c s_log1p.c \
 	s_log1pf.c s_logb.c s_logbf.c s_matherr.c s_modff.c \
 	s_nextafter.c s_nextafterf.c s_rint.c s_rintf.c s_round.c s_roundf.c \
-	s_scalbn.c s_scalbnf.c \
+	s_scalbln.c s_scalbn.c s_scalbnf.c \
 	s_signgam.c s_significand.c s_significandf.c s_sin.c s_sinf.c s_tan.c \
-	s_tanf.c s_tanh.c s_tanhf.c \
+	s_tanf.c s_tanh.c s_tanhf.c s_trunc.c s_truncf.c \
 	w_acos.c w_acosf.c w_acosh.c w_acoshf.c w_asin.c w_asinf.c w_atan2.c \
 	w_atan2f.c w_atanh.c w_atanhf.c w_cabs.c w_cabsf.c w_cosh.c w_coshf.c \
 	w_drem.c w_dremf.c w_exp.c w_expf.c w_fmod.c w_fmodf.c w_gamma.c \
@@ -129,7 +129,7 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	cos.3 cosh.3 erf.3 exp.3 fabs.3 feclearexcept.3 fegetenv.3 \
         fegetround.3 fenv.3 floor.3 fmod.3 hypot.3 ieee.3 \
 	ieee_test.3 j0.3 lgamma.3 math.3 rint.3 round.3 sin.3 sinh.3 sqrt.3 \
-	tan.3 tanh.3
+	tan.3 tanh.3 trunc.3
 
 MLINKS+=acos.3 acosf.3
 MLINKS+=acosh.3 acoshf.3
@@ -158,7 +158,8 @@ MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 hypotf.3
 MLINKS+=ieee.3 copysign.3 ieee.3 copysignf.3 ieee.3 copysignl.3 \
 	ieee.3 finite.3 ieee.3 finitef.3 \
 	ieee.3 ilogb.3 ieee.3 ilogbf.3 ieee.3 nextafter.3 ieee.3 nextafterf.3 \
-	ieee.3 remainder.3 ieee.3 remainderf.3 ieee.3 scalbn.3 ieee.3 scalbnf.3
+	ieee.3 remainder.3 ieee.3 remainderf.3 \
+	ieee.3 scalbln.3 ieee.3 scalblnf.3 ieee.3 scalbn.3 ieee.3 scalbnf.3
 MLINKS+=ieee_test.3 logb.3 ieee_test.3 logbf.3
 MLINKS+=ieee_test.3 scalb.3 ieee_test.3 scalbf.3
 MLINKS+=ieee_test.3 significand.3 ieee_test.3 significandf.3
@@ -172,5 +173,6 @@ MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
 MLINKS+=tan.3 tanf.3
 MLINKS+=tanh.3 tanhf.3
+MLINKS+=trunc.3 truncf.3
 
 .include <bsd.lib.mk>
