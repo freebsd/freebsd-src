@@ -141,18 +141,11 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		struct fptr *fptr = 0;
 		Elf_Addr target, gp;
 
-		/*
-		 * Not sure why the call to find_symdef() doesn't work 
-		 * properly (it fails if the symbol is local). Perhaps 
-		 * this is a toolchain issue - revisit after we
-		 * upgrade the ia64 toolchain.
-		 */
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 				  false, cache);
-		if (def == NULL) {
-			def = &obj->symtab[ELF_R_SYM(rela->r_info)];
-			defobj = obj;
-		}
+		if (def == NULL)
+			return -1;
+
 		/*
 		 * If this is an undefined weak reference, we need to
 		 * have a zero target,gp fptr, not pointing to relocbase.
