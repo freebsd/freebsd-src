@@ -103,7 +103,8 @@ __FBSDID("$FreeBSD$");
 #include    "dir.h"
 #include    "config.h"
 
-static Lst	  *archives;  /* Lst of archives we've already examined */
+/* Lst of archives we've already examined */
+static Lst archives = Lst_Initializer(archives);
 
 typedef struct Arch {
     char	  *name;      /* Name of archive */
@@ -335,16 +336,16 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 	     */
 	    free(buf);
 	} else if (Dir_HasWildcards(memName)) {
-	    Lst *members = Lst_Init();
+	    Lst members = Lst_Initializer(members);
 	    char  *member;
 	    size_t sz = MAXPATHLEN;
 	    size_t nsz;
 
 	    nameBuf = emalloc(sz);
 
-	    Dir_Expand(memName, dirSearchPath, members);
-	    while (!Lst_IsEmpty(members)) {
-		member = Lst_DeQueue(members);
+	    Dir_Expand(memName, &dirSearchPath, &members);
+	    while (!Lst_IsEmpty(&members)) {
+		member = Lst_DeQueue(&members);
 		nsz = strlen(libName) + strlen(member) + 3;
 		if (nsz > sz) {
 			sz = nsz * 2;
@@ -356,6 +357,7 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 		gn = Targ_FindNode(nameBuf, TARG_CREATE);
 		if (gn == NULL) {
 		    free(nameBuf);
+		    /* XXXHB Lst_Destroy(&members) */
 		    return (FAILURE);
 		} else {
 		    /*
@@ -369,7 +371,6 @@ Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 		    Lst_AtEnd(nodeLst, (void *)gn);
 		}
 	    }
-	    Lst_Destroy(members, NOFREE);
 	    free(nameBuf);
 	} else {
 	    size_t sz = strlen(libName) + strlen(memName) + 3;
@@ -483,7 +484,7 @@ ArchStatMember(char *archive, char *member, Boolean hash)
     if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0))
 	member = cp + 1;
 
-    ln = Lst_Find(archives, archive, ArchFindArchive);
+    ln = Lst_Find(&archives, archive, ArchFindArchive);
     if (ln != NULL) {
 	ar = Lst_Datum(ln);
 
@@ -633,7 +634,7 @@ ArchStatMember(char *archive, char *member, Boolean hash)
 
     fclose(arch);
 
-    Lst_AtEnd(archives, ar);
+    Lst_AtEnd(&archives, ar);
 
     /*
      * Now that the archive has been read and cached, we can look into
@@ -1021,7 +1022,7 @@ Arch_MemMTime(GNode *gn)
     char    	  *nameStart,
 		  *nameEnd;
 
-    for (ln = Lst_First(gn->parents); ln != NULL; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(&gn->parents); ln != NULL; ln = Lst_Succ(ln)) {
 	pgn = Lst_Datum(ln);
 
 	if (pgn->type & OP_ARCHV) {
@@ -1134,7 +1135,7 @@ Arch_LibOODate(GNode *gn)
 {
     Boolean 	  oodate;
 
-    if (OP_NOP(gn->type) && Lst_IsEmpty(gn->children)) {
+    if (OP_NOP(gn->type) && Lst_IsEmpty(&gn->children)) {
 	oodate = FALSE;
     } else if ((gn->mtime > now) || (gn->mtime < gn->cmtime)) {
 	oodate = TRUE;
@@ -1177,16 +1178,11 @@ Arch_LibOODate(GNode *gn)
  * Results:
  *	None.
  *
- * Side Effects:
- *	The 'archives' list is initialized.
- *
  *-----------------------------------------------------------------------
  */
 void
 Arch_Init(void)
 {
-
-    archives = Lst_Init();
 }
 
 /*-
@@ -1206,5 +1202,5 @@ void
 Arch_End(void)
 {
 
-    Lst_Destroy(archives, ArchFree);
+    Lst_Destroy(&archives, ArchFree);
 }

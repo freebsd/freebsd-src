@@ -93,15 +93,23 @@ __FBSDID("$FreeBSD$");
 
 #define	MAKEFLAGS	".MAKEFLAGS"
 
-Lst			*create;	/* Targets to be made */
+/* Targets to be made */
+Lst create = Lst_Initializer(create);
+
 time_t			now;		/* Time at start of make */
 GNode			*DEFAULT;	/* .DEFAULT node */
 Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 
 static Boolean		noBuiltins;	/* -r flag */
-static Lst		*makefiles;	/* ordered list of makefiles to read */
+
+/* ordered list of makefiles to read */
+static Lst makefiles = Lst_Initializer(makefiles);
+
 static Boolean		expandVars;	/* fully expand printed variables */
-static Lst		*variables;	/* list of variables to print */
+
+/* list of variables to print */
+static Lst variables = Lst_Initializer(variables);
+
 int			maxJobs;	/* -j argument */
 static Boolean          forceJobs;      /* -j argument given */
 Boolean			compatMake;	/* -B argument */
@@ -116,7 +124,10 @@ Boolean			beSilent;	/* -s flag */
 Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
-Lst			*envFirstVars;	/* (-E) vars to override from env */
+
+/* (-E) vars to override from env */
+Lst envFirstVars = Lst_Initializer(envFirstVars);
+
 Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
@@ -180,7 +191,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-I", optarg);
 			break;
 		case 'V':
-			(void)Lst_AtEnd(variables, (void *)optarg);
+			Lst_AtEnd(&variables, (void *)optarg);
 			MFLAGS_append("-V", optarg);
 			break;
 		case 'X':
@@ -257,7 +268,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		case 'E':
 			p = emalloc(strlen(optarg) + 1);
 			strcpy(p, optarg);
-			Lst_AtEnd(envFirstVars, p);
+			Lst_AtEnd(&envFirstVars, p);
 			MFLAGS_append("-E", optarg);
 			break;
 		case 'e':
@@ -265,7 +276,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-e", NULL);
 			break;
 		case 'f':
-			Lst_AtEnd(makefiles, optarg);
+			Lst_AtEnd(&makefiles, optarg);
 			break;
 		case 'i':
 			ignoreErrors = TRUE;
@@ -289,7 +300,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-k", NULL);
 			break;
 		case 'm':
-			Dir_AddDir(sysIncPath, optarg);
+			Dir_AddDir(&sysIncPath, optarg);
 			MFLAGS_append("-m", optarg);
 			break;
 		case 'n':
@@ -348,7 +359,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 					optind = 1;     /* - */
 				goto rearg;
 			}
-			Lst_AtEnd(create, estrdup(*argv));
+			Lst_AtEnd(&create, estrdup(*argv));
 		}
 }
 
@@ -450,7 +461,6 @@ check_make_level(void)
 int
 main(int argc, char **argv)
 {
-	Lst *targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sa;
 	char *p, *p1, *path, *pathp;
@@ -460,7 +470,6 @@ main(int argc, char **argv)
     	char *machine = getenv("MACHINE");
 	char *machine_arch = getenv("MACHINE_ARCH");
 	char *machine_cpu = getenv("MACHINE_CPU");
-	Lst *sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
@@ -565,11 +574,7 @@ main(int argc, char **argv)
 			machine_cpu = "unknown";
 	}
 
-	create = Lst_Init();
-	makefiles = Lst_Init();
-	envFirstVars = Lst_Init();
 	expandVars = TRUE;
-	variables = Lst_Init();
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
@@ -679,7 +684,7 @@ main(int argc, char **argv)
 	}
 	Dir_InitDot();		/* Initialize the "." directory */
 	if (objdir != curdir)
-		Dir_AddDir(dirSearchPath, curdir);
+		Dir_AddDir(&dirSearchPath, curdir);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
@@ -708,10 +713,10 @@ main(int argc, char **argv)
 	 * created. If none specified, make the variable empty -- the parser
 	 * will fill the thing in with the default or .MAIN target.
 	 */
-	if (!Lst_IsEmpty(create)) {
+	if (!Lst_IsEmpty(&create)) {
 		LstNode *ln;
 
-		for (ln = Lst_First(create); ln != NULL; ln = Lst_Succ(ln)) {
+		for (ln = Lst_First(&create); ln != NULL; ln = Lst_Succ(ln)) {
 			char *name = Lst_Datum(ln);
 
 			Var_Append(".TARGETS", name, VAR_GLOBAL);
@@ -725,15 +730,15 @@ main(int argc, char **argv)
 	 * add the directories from the DEFSYSPATH (more than one may be given
 	 * as dir1:...:dirn) to the system include path.
 	 */
-	if (Lst_IsEmpty(sysIncPath)) {
+	if (Lst_IsEmpty(&sysIncPath)) {
 		for (start = syspath; *start != '\0'; start = cp) {
 			for (cp = start; *cp != '\0' && *cp != ':'; cp++)
 				continue;
 			if (*cp == '\0') {
-				Dir_AddDir(sysIncPath, start);
+				Dir_AddDir(&sysIncPath, start);
 			} else {
 				*cp++ = '\0';
-				Dir_AddDir(sysIncPath, start);
+				Dir_AddDir(&sysIncPath, start);
 			}
 		}
 	}
@@ -744,21 +749,23 @@ main(int argc, char **argv)
 	 * Makefile and makefile, in that order, if it wasn't.
 	 */
 	if (!noBuiltins) {
+		/* Path of sys.mk */
+		Lst sysMkPath = Lst_Initializer(sysMkPath);
 		LstNode *ln;
 
-		sysMkPath = Lst_Init();
-		Dir_Expand(_PATH_DEFSYSMK, sysIncPath, sysMkPath);
-		if (Lst_IsEmpty(sysMkPath))
+		Dir_Expand(_PATH_DEFSYSMK, &sysIncPath, &sysMkPath);
+		if (Lst_IsEmpty(&sysMkPath))
 			Fatal("make: no system rules (%s).", _PATH_DEFSYSMK);
-		ln = Lst_Find(sysMkPath, NULL, ReadMakefile);
+		ln = Lst_Find(&sysMkPath, NULL, ReadMakefile);
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+		Lst_Destroy(&sysMkPath, free);
 	}
 
-	if (!Lst_IsEmpty(makefiles)) {
+	if (!Lst_IsEmpty(&makefiles)) {
 		LstNode *ln;
 
-		ln = Lst_Find(makefiles, NULL, ReadMakefile);
+		ln = Lst_Find(&makefiles, NULL, ReadMakefile);
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
 	} else if (!ReadMakefile("BSDmakefile", NULL))
@@ -797,7 +804,7 @@ main(int argc, char **argv)
 			savec = *cp;
 			*cp = '\0';
 			/* Add directory to search path */
-			Dir_AddDir(dirSearchPath, path);
+			Dir_AddDir(&dirSearchPath, path);
 			*cp = savec;
 			path = cp + 1;
 		} while (savec == ':');
@@ -815,10 +822,10 @@ main(int argc, char **argv)
 		Targ_PrintGraph(1);
 
 	/* print the values of any variables requested by the user */
-	if (!Lst_IsEmpty(variables)) {
+	if (!Lst_IsEmpty(&variables)) {
 		LstNode *ln;
 
-		for (ln = Lst_First(variables); ln != NULL;
+		for (ln = Lst_First(&variables); ln != NULL;
 		    ln = Lst_Succ(ln)) {
 			char *value;
 			if (expandVars) {
@@ -841,10 +848,12 @@ main(int argc, char **argv)
 		 * to create. If none was given on the command line, we consult the
 		 * parsing module to find the main target(s) to create.
 		 */
-		if (Lst_IsEmpty(create))
-			targs = Parse_MainName();
+		Lst targs = Lst_Initializer(targs);
+
+		if (Lst_IsEmpty(&create))
+			Parse_MainName(&targs);
 		else
-			targs = Targ_FindList(create, TARG_CREATE);
+			Targ_FindList(&targs, &create, TARG_CREATE);
 
 		if (!compatMake) {
 			/*
@@ -859,21 +868,21 @@ main(int argc, char **argv)
 			}
 
 			/* Traverse the graph, checking on all the targets */
-			outOfDate = Make_Run(targs);
+			outOfDate = Make_Run(&targs);
 		} else {
 			/*
 			 * Compat_Init will take care of creating all the targets as
 			 * well as initializing the module.
 			 */
-			Compat_Run(targs);
+			Compat_Run(&targs);
 			outOfDate = 0;
 		}
-		Lst_Destroy(targs, NOFREE);
+		Lst_Destroy(&targs, NOFREE);
 	}
 
-	Lst_Destroy(variables, NOFREE);
-	Lst_Destroy(makefiles, NOFREE);
-	Lst_Destroy(create, free);
+	Lst_Destroy(&variables, NOFREE);
+	Lst_Destroy(&makefiles, NOFREE);
+	Lst_Destroy(&create, free);
 
 	/* print the graph now it's been processed if the user requested it */
 	if (DEBUG(GRAPH2))
@@ -965,9 +974,9 @@ ReadMakefile(const void *p, const void *q __unused)
 		}
 #endif
 		/* look in -I and system include directories. */
-		name = Dir_FindFile(fname, parseIncPath);
+		name = Dir_FindFile(fname, &parseIncPath);
 		if (!name)
-			name = Dir_FindFile(fname, sysIncPath);
+			name = Dir_FindFile(fname, &sysIncPath);
 		if (!name || !(stream = fopen(name, "r")))
 			return (FALSE);
 		MAKEFILE = fname = name;

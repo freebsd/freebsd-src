@@ -88,7 +88,7 @@ void Parse_File(char *, FILE *);
 void Parse_Init(void);
 void Parse_End(void);
 void Parse_FromString(char *, int);
-Lst *Parse_MainName(void);
+void Parse_MainName(Lst *);
 
 /* str.c */
 void str_init(void);
@@ -120,7 +120,7 @@ void Targ_Init(void);
 void Targ_End(void);
 GNode *Targ_NewGN(char *);
 GNode *Targ_FindNode(char *, int);
-Lst *Targ_FindList(Lst *, int);
+void Targ_FindList(Lst *, Lst *, int);
 Boolean Targ_Ignore(GNode *);
 Boolean Targ_Silent(GNode *);
 Boolean Targ_Precious(GNode *);

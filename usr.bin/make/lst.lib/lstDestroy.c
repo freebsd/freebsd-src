@@ -69,18 +69,9 @@ Lst_Destroy(Lst *list, FreeProc *freeProc)
 {
     LstNode *ln;
 
-    if (!Lst_Valid(list)) {
-	/*
-	 * Note the check to catch uninitialized static Lst's.
-	 * Gross, but useful.
-	 */
+    if (list->firstPtr == NULL)
 	return;
-    }
 
-    if (list->firstPtr == NULL) {
-	free(list);
-	return;
-    }
     if (freeProc != NOFREE) {
 	while ((ln = list->firstPtr) != NULL) {
 	    list->firstPtr = ln->nextPtr;
@@ -90,9 +81,8 @@ Lst_Destroy(Lst *list, FreeProc *freeProc)
     } else {
 	while ((ln = list->firstPtr) != NULL) {
 	    list->firstPtr = ln->nextPtr;
-	     free(ln);
+	    free(ln);
 	}
     }
-
-    free(list);
+    list->lastPtr = NULL;
 }
