@@ -817,8 +817,9 @@ each_writable_segment(p, func, closure)
 			continue;
 
 		/*
-		** Dont include mmapped data in the coredump if MAP_NOCORE 
-		** is set in mmap(2).
+		** Dont include memory segment in the coredump if
+		** MAP_NOCORE is set in mmap(2) or MADV_NOCORE in
+		** madvise(2).
 		*/
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			continue;
