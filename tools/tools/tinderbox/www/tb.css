@@ -44,12 +44,12 @@ A:active {
 
 .fail {
     background-color: white;
-    color: #700;
+    color: #f00;
 }
 
 .fail-stale {
     background-color: white;
-    color: #977;
+    color: #f99;
 }
 
 TD, TH {
