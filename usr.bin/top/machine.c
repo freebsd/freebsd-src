@@ -413,6 +413,8 @@ get_system_info(struct system_info *si)
 	}
 }
 
+#define NOPROC	((void *)-1)
+
 const struct kinfo_proc *
 get_old_proc(struct kinfo_proc *pp)
 {
@@ -420,13 +422,22 @@ get_old_proc(struct kinfo_proc *pp)
 
 	if (previous_proc_count == 0)
 		return (NULL);
+	if (pp->ki_udata == NOPROC)
+		return (NULL);
+	if (pp->ki_udata != NULL)
+		return (pp->ki_udata);
 	oldpp = bsearch(&pp, previous_pref, previous_proc_count,
 	    sizeof(*previous_pref), compare_pid);
-	if (oldpp == NULL)
+	if (oldpp == NULL) {
+		pp->ki_udata = NOPROC;
 		return (NULL);
+	}
 	oldp = *oldpp;
-	if (bcmp(&oldp->ki_start, &pp->ki_start, sizeof(pp->ki_start)) != 0)
+	if (bcmp(&oldp->ki_start, &pp->ki_start, sizeof(pp->ki_start)) != 0) {
+		pp->ki_udata = NOPROC;
 		return (NULL);
+	}
+	pp->ki_udata = oldp;
 	return (oldp);
 }
 
