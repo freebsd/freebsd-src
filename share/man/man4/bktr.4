@@ -18,20 +18,31 @@ The
 .Nm bktr
 driver provides support for PCI
 .Em video
-capture on low cost, high performance boards.  The driver is heavily based on
-the Matrox Meteor driver.  The bktr driver should support most video cards
+capture and
+.Em VBI
+capture on low cost, high performance boards.  The driver based on
+the Matrox Meteor driver and uses the same API.  The bktr driver should support most video cards
 based on the
-.Em Brooktree Bt848 Video Capture Chip.
+.Em Brooktree Bt848/849/878/879 Video Capture Chip.
+The driver also supports 
+.Em FM Radio
+if the Tuner supports it.
 .Pp
 Specifically, the following cards are known to work: 
 .br
-.Em Hauppage Wincast TV
+.Em Hauppage Wincast TV and WinTV/PCI
 .br
 .Em STB TV PCI Television Tuner
 .br
 .Em Miro PC TV
 .br
 .Em Intel Smart Video Recorder III
+.br
+.Em AverMedia cards
+.br
+.Em Video Highway XTreme
+.br
+.Em VideoLogic Captivator PCI
 .Pp
 The driver currently supports the following features:
 .br
@@ -56,7 +67,7 @@ Therefore,
 .Xr iicbb 4
 and
 .Xr smbus 4
-controller declarations are mandatory to active bktr support.
+controller declarations are mandatory to activate bktr support.
 .Pp
 The following kernel parameters may be used to further configure the driver:
 .Pp
@@ -65,22 +76,112 @@ specifies the number of contiguous pages to allocate when successfully
 probed.  The default number of pages allocated by the kernel is 216.
 This means that there are (216*4096) bytes available for use.
 .Pp
+.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+.br
+.Em options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
+.br
+One of these options can be used to set the default video format for the driver. This fixed random hangs and lockups with the VideoLogic Captivator PCI card.
+.br
+.Pp
+The following sysctls may be used to further configure the driver:
+.Pp
+.Em sysctl hw.bt848.card=nnnn
+This can be used to override the card make which was detected at boot time.
+'nnnn' is set to an integer from 1 to 13 taken from the following table:
+.br
+MIRO                       1
+.br
+HAUPPAUGE                  2
+.br
+STB                        3
+.br
+INTEL                      4
+.br
+IMS_TURBO                  5
+.br
+AVER_MEDIA                 6
+.br
+OSPREY                     7
+.br
+NEC_PK                     8
+.br
+IO_GV                      9
+.br
+FLYVIDEO                   10
+.br
+ZOLTRIX                    11
+.br
+KISS                       12
+.br
+VIDEO_HIGHWAY_XTREME       13
+.br
+.Pp
+.Em sysctl hw.bt848.tuner=nnnn
+This can be used to override the tuner make which was detected at boot time.
+'nnnn' is set to an integer from 1 to 13 taken from the following table:
+.br
+NO_TUNER                0
+.br
+TEMIC_NTSC              1
+.br
+TEMIC_PAL               2
+.br
+TEMIC_SECAM             3
+.br
+PHILIPS_NTSC            4
+.br
+PHILIPS_PAL             5
+.br
+PHILIPS_SECAM           6
+.br
+TEMIC_PALI              7
+.br
+PHILIPS_PALI            8
+.br
+PHILIPS_FR1236_NTSC     9       /* These have FM Radio support */
+.br
+PHILIPS_FR1216_PAL      10      /* These have FM Radio support */
+.br
+PHILIPS_FR1236_SECAM    11      /* These have FM Radio support */
+.br
+ALPS_TSCH5              12
+.br
+ALPS_TSBH1              13
+.br
+.Pp
 .Sh AUTHORS
 This driver is based on the work of
 .An Jim Lowe Aq james@miller.cs.uwm.edu ,
 .An Mark Tinguely Aq tinguely@plains.nodak.edu ,
-.An Amancio Hasty Aq hasty@star-gate.com
+.An Amancio Hasty Aq hasty@star-gate.com ,
+.An Roger Hardiman Aq roger@freebsd.org
 and a bunch of other people.
 .Sh FILES
 .Bl -tag -width /usr/share/examples/meteor -compact
 .It Pa /usr/share/examples/meteor
 Examples of what you can do with the (similarly designed) Meteor driver.
 .It Pa /usr/ports/graphics/fxtv
-A display program utilizing the bktr driver - requires that
+A TV and Camera display program utilizing the bktr driver - requires that
 .Em The X Window System
 and
 .Em The Ports Collection
 also be installed.
+.It Pa /usr/ports/misc/alevt
+A program to capture and display Teletext (VideoText) pages - requires that
+.Em The X Window System
+and
+.Em The Ports Collection
+also be installed.
+.It Pa /usr/ports/audio/xmradio
+An FM Radio Tuner for cards which have an FM Radio tuner fitted. - requires that
+.Em The X Window System
+and
+.Em The Ports Collection
+also be installed. It also requires
+.Em Motif
+or the
+.Em lesstif
+port.
 .El
 .Sh SEE ALSO
 .Xr meteor 4
