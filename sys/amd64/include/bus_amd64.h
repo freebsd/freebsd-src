@@ -131,9 +131,20 @@ void	bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
  * Get a new handle for a subregion of an already-mapped area of bus space.
  */
 
-int	bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
-			    bus_size_t offset, bus_size_t size,
-			    bus_space_handle_t *nbshp);
+static __inline int bus_space_subregion(bus_space_tag_t t,
+					bus_space_handle_t bsh,
+					bus_size_t offset, bus_size_t size,
+					bus_space_handle_t *nbshp);
+
+static __inline int
+bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+		    bus_size_t offset, bus_size_t site,
+		    bus_space_handle_t *nbshp)
+{
+
+	*nbshp = bsh + offset;
+	return (0);
+}
 
 /*
  * Allocate a region of memory that is accessible to devices in bus space.
