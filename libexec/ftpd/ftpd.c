@@ -2242,7 +2242,7 @@ statfilecmd(char *filename)
 	code = lstat(filename, &st) == 0 && S_ISDIR(st.st_mode) ? 212 : 213;
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
-	lreply(code, "status of %s:", filename);
+	lreply(code, "Status of %s:", filename);
 	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
 		if (c == '\n') {
@@ -2271,7 +2271,7 @@ statfilecmd(char *filename)
 		atstart = (c == '\n');
 	}
 	(void) ftpd_pclose(fin);
-	reply(code, "End of Status");
+	reply(code, "End of status");
 }
 
 void
