@@ -49,8 +49,6 @@ static char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
 #include "chpass.h"
 #include "pathnames.h"
 
-static int dmsize[] =
-	{ -1, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 static char *months[] =
 	{ "January", "February", "March", "April", "May", "June",
 	  "July", "August", "September", "October", "November",
@@ -114,15 +112,15 @@ atot(p, store)
 		year += TM_YEAR_BASE;
 	if (year <= EPOCH_YEAR)
 bad:		return (1);
-	tval = isleap(year) && month > 2;
-	for (--year; year >= EPOCH_YEAR; --year)
-		tval += isleap(year) ?
-		    DAYSPERLYEAR : DAYSPERNYEAR;
-	while (--month)
-		tval += dmsize[month];
-	tval += day;
-	tval = tval * HOURSPERDAY * MINSPERHOUR * SECSPERMIN;
-	tval -= lt->tm_gmtoff;
+	lt->tm_year = year - TM_YEAR_BASE;
+	lt->tm_mon = month - 1;
+	lt->tm_mday = day;
+	lt->tm_hour = 0;
+	lt->tm_min = 0;
+	lt->tm_sec = 0;
+	lt->tm_isdst = -1;
+	if ((tval = mktime(lt)) < 0)
+		return (1);
 	*store = tval;
 	return (0);
 }
