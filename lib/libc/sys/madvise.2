@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)madvise.2	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: madvise.2,v 1.10 1997/02/22 15:04:03 peter Exp $
 .\"
 .Dd Jul 19, 1996
 .Dt MADVISE 2
@@ -83,8 +83,8 @@ into the calling process.
 Allows the VM system to decrease the in-memory priority
 of pages in the specified range.  Additionally future references to
 this address range will incur a page fault.
-.Dv MADV_FREE
-gives the VM system the freedom to free pages,
+.It Dv MADV_FREE
+Gives the VM system the freedom to free pages,
 and tells the system that information in the specified page range
 is no longer important.  This is an efficient way of allowing 
 .Xr malloc 3
