@@ -174,7 +174,7 @@ verify(pw)
 	struct stat sb;
 	FILE *fp;
 	int len;
-	char buf[LINE_MAX];
+	static char buf[LINE_MAX];
 
 	if (!(fp = fopen(tempname, "r")))
 		pw_error(tempname, 1, 1);
