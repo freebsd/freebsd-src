@@ -39,6 +39,8 @@ int
 pthread_once(pthread_once_t * once_control, void (*init_routine) (void))
 {
 	if (once_control->state == PTHREAD_NEEDS_INIT) {
+		if (_thread_initial == NULL)
+			_thread_init();
 		pthread_mutex_lock(&(once_control->mutex));
 		if (once_control->state == PTHREAD_NEEDS_INIT) {
 			init_routine();
