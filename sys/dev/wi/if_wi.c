@@ -657,31 +657,34 @@ wi_get_id(sc, dev)
 	sc->wi_nic_type = le16toh(ver.wi_ver[0]);
 	switch (sc->wi_nic_type) {
 	case WI_NIC_EVB2:
-		printf("RF:PRISM2 MAC:HFA3841");
+		printf("RF:PRISM I MAC:HFA3841");
 		break;
 	case WI_NIC_HWB3763:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
+		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3763 rev.B");
 		break;
 	case WI_NIC_HWB3163:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
+		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163 rev.A");
 		break;
 	case WI_NIC_HWB3163B:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
+		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163 rev.B");
 		break;
 	case WI_NIC_EVB3:
-		printf("RF:PRISM2 MAC:HFA3842");
+		printf("RF:PRISM II MAC:HFA3842");
 		break;
 	case WI_NIC_HWB1153:
-		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
+		printf("RF:PRISM I MAC:HFA3841 CARD:HWB1153");
 		break;
 	case WI_NIC_P2_SST:
-		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
+		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163-SST-flash");
 		break;
 	case WI_NIC_PRISM2_5:
 		printf("RF:PRISM2.5 MAC:ISL3873");
 		break;
 	case WI_NIC_3874A:
 		printf("RF:PRISM2.5 MAC:ISL3874A(PCI)");
+		break;
+	case WI_NIC_37300P:
+		printf("RF:PRISM2.5 MAC:ISL37300P");
 		break;
 	case WI_NIC_LUCENT:
 	case WI_NIC_LUCENT_ALT:
