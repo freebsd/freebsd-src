@@ -593,17 +593,12 @@ findpcb:
 			}
 			switch (log_in_vain) {
 			case 1:
-				if (thflags & TH_SYN)
-					log(LOG_INFO,
-			    		    "Connection attempt to TCP %s:%d "
-			    		    "from %s:%d\n",
-			    		    dbuf, ntohs(th->th_dport), sbuf,
-			    		    ntohs(th->th_sport));
-				break;
+				if ((thflags & TH_SYN) == 0)
+					break;
 			case 2:
 				log(LOG_INFO,
 				    "Connection attempt to TCP %s:%d "
-				    "from %s:%d flags:0x%x\n",
+				    "from %s:%d flags:0x%02x\n",
 				    dbuf, ntohs(th->th_dport), sbuf,
 				    ntohs(th->th_sport), thflags);
 				break;
