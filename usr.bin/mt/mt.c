@@ -219,6 +219,10 @@ main(argc, argv)
 #include <tahoe/vba/cyreg.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <machine/wtio.h>
+#endif
+
 struct tape_desc {
 	short	t_type;		/* type of magtape device */
 	char	*t_name;	/* printing name */
@@ -241,7 +245,7 @@ struct tape_desc {
 #endif
 #if defined (__FreeBSD__)
 	/*
-	 * XXX This is terrific.  The st driver reports the tape drive
+	 * XXX This is weird.  The st driver reports the tape drive
 	 * as 0x7 (MT_ISAR - Sun/Archive compatible); the wt driver
 	 * either reports MT_ISVIPER1 for an Archive tape, or 0x11
 	 * (MT_ISMFOUR) for other tapes.
@@ -249,8 +253,8 @@ struct tape_desc {
 	 * magtape driver.
 	 */
 	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
-	{ MT_ISVIPER1,	"Archive Viper", 0,		0 },
-	{ MT_ISMFOUR,	"Wangtek",	0,		0 },
+	{ MT_ISVIPER1,	"Archive Viper", WTDS_BITS, WTER_BITS },
+	{ MT_ISMFOUR,	"Wangtek",	 WTDS_BITS, WTER_BITS },
 #endif /* defined (__FreeBSD__) */
 	{ 0 }
 };
@@ -279,8 +283,8 @@ status(bp)
 	else {
 #endif /* defined (__FreeBSD__) */
 	(void)printf("%s tape drive, residual=%d\n", mt->t_name, bp->mt_resid);
-	printreg("ds", bp->mt_dsreg, mt->t_dsbits);
-	printreg("\ner", bp->mt_erreg, mt->t_erbits);
+	printreg("ds", (unsigned short)bp->mt_dsreg, mt->t_dsbits);
+	printreg("\ner", (unsigned short)bp->mt_erreg, mt->t_erbits);
 	(void)putchar('\n');
 #if defined (__FreeBSD__)
 	}
