@@ -195,7 +195,6 @@ _vm_pageq_find(int basequeue, int index)
 	vm_page_t m = NULL;
 	struct vpgqueues *pq;
 
-	GIANT_REQUIRED;
 	pq = &vm_page_queues[basequeue];
 
 	/*
@@ -218,8 +217,6 @@ vm_page_t
 vm_pageq_find(int basequeue, int index, boolean_t prefer_zero)
 {
         vm_page_t m;
-
-	GIANT_REQUIRED;
 
 #if PQ_L2_SIZE > 1
         if (prefer_zero) {
