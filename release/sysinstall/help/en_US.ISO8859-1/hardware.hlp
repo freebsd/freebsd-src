@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.10 1995/06/09 08:29:16 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.11 1995/06/09 13:29:19 jkh Exp $
 
 Table of Contents
 -----------------
@@ -84,8 +84,8 @@ settings for all the drivers present in the booted kernel, and
 once you have located an entry of interest you may use the displayed
 device name to change its settings or even disable the driver completely.
 
-For example, to change the address of network adapter 'ed0' to the
-address 0xd4000, you would type
+For example, to change the memory address of network adapter 'ed0' to
+the address 0xd4000, you would type
         
         config> iomem ed0 0xd4000
                 -----------------
@@ -128,7 +128,7 @@ disable any device that resides at the same port or IRQ as a device
 you actually have!
 
 You can also remove drivers that are not needed by building yourself a
-custom kernel that contains only the device deviers which your system
+custom kernel that contains only the device drivers which your system
 really needs (see section 6.0 of the FreeBSD.FAQ).  If your system has
 sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
@@ -145,7 +145,7 @@ placed on your computer during the FreeBSD installation process.
 installation floppy diskettes.)
 
 The table describes the various parameters used by the driver to communicate
-with the hardware in your system.   There are four parameters in the
+with the hardware in your system.  There are four parameters in the
 table, but not all are used by each device.  They are:
 
    Port   the starting I/O port used by the device, shown in hexadecimal.
@@ -228,7 +228,7 @@ zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
 
 If the hardware in your computer is not set to the same settings as
 those shown in this table and the item is not marked 'dyn', you will 
-have to either reconfigure your hardware, or use UserConfig ('-c boot
+have to either reconfigure your hardware, or use UserConfig ('-c' boot
 option) to reconfigure the kernel to match the way your hardware is
 currently set (see section 1.0).   
 
@@ -275,7 +275,7 @@ mss:    Microsoft Sound System
 nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 pas:    ProAudioSpectrum PCM and MIDI
-pca:    PCM audio through your PC speaker
+pca:    PCM audio ("/dev/audio") through your PC speaker
 psm:    PS/2 mouse port
 rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
@@ -323,7 +323,7 @@ A: Your card is probably on a different IRQ from what is specified in the
 
 
 Q: I go to boot from the hard disk for the first time after installing
-   FreeBSD, but the Boot Manger prompt just prints `F?' and the boot menu
+   FreeBSD, but the Boot Manager prompt just prints `F?' at the boot menu
    each time but the boot won't go any further.
 
 A: The hard disk geometry was set incorrectly in the Partition editor when
