@@ -21,9 +21,9 @@ FreeBSD 2.0.5!                                         |        |
 
 
 What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
-for Intel, AMD, Cyrix or NextGen "x86" based PC hardware.  It works
+for Intel, AMD, Cyrix or NexGen "x86" based PC hardware.  It works
 with a very wide variety of PC peripherals and configurations and can
-be used for everything software development to Internet Service
+be used for everything from software development to Internet Service
 Provision; the busiest site on the Internet, ftp.cdrom.com, is a
 FreeBSD machine!
 
