@@ -42,7 +42,9 @@ extern char bootprog_maker[];
 
 phandle_t	chosen;
 
-#define	HEAP_SIZE	0x40000
+static char bootargs[128];
+
+#define	HEAP_SIZE	0x80000
 
 void
 init_heap(void)
@@ -54,7 +56,7 @@ init_heap(void)
 		OF_enter();
 	}
 
-	setheap(base, base + (HEAP_SIZE / sizeof(base)));
+	setheap(base, (void *)((int)base + HEAP_SIZE));
 }
 
 uint32_t
@@ -62,14 +64,21 @@ memsize(void)
 {
 	ihandle_t	meminstance;
 	phandle_t	memory;
-	struct ofw_reg	reg;
+	struct ofw_reg	reg[4];
+	int		i;
+	int		sz, memsz;
 
 	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
 	memory = OF_instance_to_package(meminstance);
 
-	OF_getprop(memory, "reg", &reg, sizeof(reg));
+	sz = OF_getprop(memory, "reg", &reg, sizeof(reg));
 
-	return (reg.size);
+	sz /= sizeof(struct ofw_reg);
+
+	for (i = 0, memsz = 0; i < sz; i++)
+		memsz += reg[i].size;
+	
+	return (memsz);
 }
 
 int
@@ -78,6 +87,8 @@ main(int (*openfirm)(void *))
 	int		i;
 	char		bootpath[64];
 	char		*ch;
+	int		bargc;
+	char		**bargv;
 
 	/*
 	 * Initalise the OpenFirmware routines by giving them the entry point.
@@ -122,8 +133,19 @@ main(int (*openfirm)(void *))
 
 	printf("\n");
 
-	env_setenv("currdev", EV_VOLATILE, bootpath,
-	    ofw_setcurrdev, env_nounset);
+	/*
+	 * Only parse the first bootarg if present. It should
+	 * be simple to handle extra arguments
+	 */
+	OF_getprop(chosen, "bootargs", bootargs, sizeof(bootargs));
+	bargc = 0;
+	parse(&bargc, &bargv, bootargs);
+	if (bargc == 1)
+		env_setenv("currdev", EV_VOLATILE, bargv[0], ofw_setcurrdev, 
+		    env_nounset);
+	else
+		env_setenv("currdev", EV_VOLATILE, bootpath,
+			   ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath, env_noset,
 	    env_nounset);
 	setenv("LINES", "24", 1);		/* optional */
