@@ -58,7 +58,6 @@
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
 
-#include <isa/isavar.h>
 #include <isa/isareg.h>
 #include <sys/rtprio.h>
 
