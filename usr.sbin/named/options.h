@@ -1,7 +1,7 @@
 /* options.h - specify the conditionally-compiled features
  * vix 28mar92 [moved out of the Makefile because they were getting too big]
  *
- * $Id: options.h,v 4.9.1.16 1994/07/22 08:42:30 vixie Exp $
+ * $Id: options.h,v 1.1 1994/09/22 20:45:07 pst Exp $
  */
 
 /*
@@ -73,32 +73,32 @@
  */
 
 #define DEBUG		/* enable -d flag and SIGUSR[12] support (ucb) */
-/*#define ALLOW_T_UNSPEC /* enable the "unspec" RR type for old athena (ucb) */
+/*#define ALLOW_T_UNSPEC*//* enable the "unspec" RR type for old athena (ucb) */
 #define INVQ		/* enable inverse queries (nslookup) (ucb/vix) */
-/*#define DSTORAGE	/* debug malloc overruns using storage.o (ucb/vix) */
-/*#define DMALLOC	/* trace malloc orphans using dmalloc.o (vix) */
+/*#define DSTORAGE*/	/* debug malloc overruns using storage.o (ucb/vix) */
+/*#define DMALLOC*/	/* trace malloc orphans using dmalloc.o (vix) */
 #define XFRNETS  	/* enable "xfrnets" command in named.boot (vix) */
 #define PID_FIX   	/* be careful about overwriting named.pid file (del) */
 #define FWD_LOOP	/* try to break out of forwarding loops (del) */
 #define NO_GLUE  	/* don't accept or send out-of-zone glue (del) */
 #define	BOGUSNS  	/* detect bogus nameservers (mcsun) */
 #define QRYLOG  	/* enable SIGWINCH for query logging (bb) */
-/*#define YPKLUDGE  	/* deal effectively with broken "ypserv -i" (mcsun) */
+/*#define YPKLUDGE*/  	/* deal effectively with broken "ypserv -i" (mcsun) */
 #define TRACEROOT  	/* trace bogus root servers and ignore them (pma,bb) */
-/*#define LOCALDOM	/* permit "domain" directive in named.boot (ucb) */
+/*#define LOCALDOM*/	/* permit "domain" directive in named.boot (ucb) */
 #define FORCED_RELOAD	/* refresh secondary zones on SIGHUP (pma) */
 #define SLAVE_FORWARD	/* use sensible timeouts on slave forwarders (pma) */
 #define WANT_PIDFILE	/* if you want the named.pid file (ucb/arc) */
 #define DOTTED_SERIAL	/* if you want to be able to specify dotted serial#s */
-/*#define SENSIBLE_DOTS	/* if you want dotted serial#s to make numeric sense */
+/*#define SENSIBLE_DOTS*//* if you want dotted serial#s to make numeric sense */
 #define NCACHE		/* negative caching (anant@isi.edu) */
 #define VALIDATE	/* validation procedure (anant@isi.edu) */
-/*#define SHORT_FNAMES	/* file names used in named-xfer need to be short */
+/*#define SHORT_FNAMES*//* file names used in named-xfer need to be short */
 #define RESOLVSORT	/* allow sorting of addresses in gethostbyname (mpa) */
 #define STUBS		/* allow transfers of NS only for a zone (mpa) (EXP) */
-/*#define SUNSECURITY	/* obscure fix for sunos (see below) */
+/*#define SUNSECURITY*/	/* obscure fix for sunos (see below) */
 #define	LOGFAC LOG_DAEMON /* what syslog facility should named use? */
-/*#define SECURE_ZONES	/* if you want to inhibit world access to zone(s) */
+/*#define SECURE_ZONES*//* if you want to inhibit world access to zone(s) */
 #define ROUND_ROBIN	/* rotate databuf list after each access (mtr) */
 #define ADDAUTH 	/* return NS and glue w/ authorative answers (mpa) */
 #define RFC1535		/* use RFC 1535 default for "search" list (vix) */
@@ -107,10 +107,10 @@
 #define LAME_DELEGATION	/* lame delegations (original-del,reworked-bb&del)*/
 #define LAME_LOGGING LOG_WARNING /* log lame delegations, set log level */
 #define GETSER_LOGGING LOG_INFO /* log errors/timeouts getting serial number */
-/*#define RETURNSOA	/* good code that the world isn't ready for yet */
+/*#define RETURNSOA*/	/* good code that the world isn't ready for yet */
 #define CLEANCACHE	/* useful and necessary in the face of NCACHE */
 #define STATS		/* keep nameserver statistics; uses more memory */
-/*#define RENICE  	/* named-xfer should run at normal priority */
+/*#define RENICE*/  	/* named-xfer should run at normal priority */
 
 /*--------------------------------------------*
  * no user-servicable parts beyond this point *
