@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.20 1998/09/17 18:02:26 luigi Exp $
+ * $Id: ip_input.c,v 1.50.2.21 1998/09/21 08:55:22 luigi Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -506,7 +506,7 @@ ours:
 	 */
 	if (ip->ip_off &~ (IP_DF | IP_RF)) {
 		if (m->m_flags & M_EXT) {		/* XXX */
-			if ((m = m_pullup(m, sizeof (struct ip))) == 0) {
+			if ((m = m_pullup(m, hlen)) == 0) {
 				ipstat.ips_toosmall++;
 #ifdef IPDIVERT
 				frag_divert_port = 0;
