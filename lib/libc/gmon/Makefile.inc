@@ -4,7 +4,7 @@
 .PATH: ${.CURDIR}/gmon
 
 SRCS+=	gmon.c mcount.c
-MAN3+=	moncontrol.0
+MAN3+=	gmon/moncontrol.3
 
 # mcount cannot be compiled with profiling
 mcount.po: mcount.o

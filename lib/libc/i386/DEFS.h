@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -33,15 +33,51 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)DEFS.h	8.1 (Berkeley) 6/4/93
+ *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
+ *
+ *	$Id: DEFS.h,v 1.4 1994/05/03 16:29:13 jkh Exp $
  */
 
-#ifdef PROF
-#define	ENTRY(x)	.globl _/**/x; _/**/x:  \
-			.data; 1:; .long 0; .text; lea 1b,%eax ; call mcount
-#define	ASENTRY(x)	.globl x; x: \
-			.data; 1:; .long 0; .text; lea 1b,%eax ; call mcount
+/* XXX should use align 4,0x90 for -m486. */
+#define _START_ENTRY	.align 2,0x90;
+#if 0
+/* Data is not used, except perhaps by non-g prof, which we don't support. */
+#define _MID_ENTRY	.data; .align 2; 8:; .long 0;		\
+			.text; lea 8b,%eax;
 #else
-#define	ENTRY(x)	.globl _/**/x; _/**/x: 
-#define	ASENTRY(x)	.globl x; x: 
+#define _MID_ENTRY
+#endif
+
+#ifdef PROF
+
+#define ALTENTRY(x)	_START_ENTRY	\
+			.globl _/**/x; .type _/**/x,@function; _/**/x:; \
+			_MID_ENTRY	\
+			call mcount; jmp 9f
+
+#define ENTRY(x)	_START_ENTRY \
+			.globl _/**/x; .type _/**/x,@function; _/**/x:; \
+			_MID_ENTRY	\
+			call mcount; 9:
+
+
+#define	ALTASENTRY(x)	_START_ENTRY	\
+			.globl x; .type x,@function; x:;	\
+			_MID_ENTRY	\
+			call mcount; jmp 9f
+
+#define	ASENTRY(x)	_START_ENTRY	\
+			.globl x; .type x,@function; x:;	\
+			_MID_ENTRY	\
+			call mcount; 9:
+
+#else	/* !PROF */
+
+#define	ENTRY(x)	_START_ENTRY .globl _/**/x; .type _/**/x,@function; \
+			_/**/x:
+#define	ALTENTRY(x)	ENTRY(x)
+
+#define	ASENTRY(x)	_START_ENTRY .globl x; .type x,@function; x:
+#define	ALTASENTRY(x)	ASENTRY(x)
+
 #endif
