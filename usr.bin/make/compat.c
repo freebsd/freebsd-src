@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: compat.c,v 1.8 1997/02/22 19:27:07 peter Exp $
  */
 
 #ifndef lint
@@ -82,6 +82,10 @@ static GNode	    *ENDNode;
 static void CompatInterrupt __P((int));
 static int CompatRunCommand __P((ClientData, ClientData));
 static int CompatMake __P((ClientData, ClientData));
+
+static char *sh_builtin[] = { 
+	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 
+	"unalias", "umask", "unset", "wait", ":", 0};
 
 /*-
  *-----------------------------------------------------------------------
@@ -130,6 +134,33 @@ CompatInterrupt (signo)
 
 /*-
  *-----------------------------------------------------------------------
+ * shellneed --
+ *	
+ * Results:
+ *	Returns 1 if a specified line must be executed by the shell,
+ *	0 if it can be run via execve, and -1 if the command is a no-op.
+ *
+ * Side Effects:
+ *	None.
+ *	
+ *-----------------------------------------------------------------------
+ */
+static int
+shellneed (cmd)
+	char *cmd;
+{
+	char **av, *p;
+	int ac;
+
+	av = brk_string(cmd, &ac, TRUE);
+	for(p = *sh_builtin; p != 0; p++)
+		if (strcmp(av[1], p) == 0)
+			return (1);
+	return (0);
+}
+
+/*-
+ *-----------------------------------------------------------------------
  * CompatRunCommand --
  *	Execute the next command for a target. If the command returns an
  *	error, the node's made field is set to ERROR and creation stops.
@@ -161,6 +192,7 @@ CompatRunCommand (cmdp, gnp)
 				 * dynamically allocated */
     Boolean 	  local;    	/* TRUE if command should be executed
 				 * locally */
+    int		  internal;	/* Various values.. */
     char	  *cmd = (char *) cmdp;
     GNode	  *gn = (GNode *) gnp;
 
@@ -248,6 +280,23 @@ CompatRunCommand (cmdp, gnp)
 	 * error.
 	 */
 	static char	*shargv[4] = { "/bin/sh" };
+
+	shargv[1] = (errCheck ? "-ec" : "-c");
+	shargv[2] = cmd;
+	shargv[3] = (char *)NULL;
+	av = shargv;
+	argc = 0;
+    } else if ((internal = shellneed(cmd))) {
+	/*
+	 * This command must be passed by the shell for other reasons..
+	 * or.. possibly not at all.
+	 */
+	static char	*shargv[4] = { "/bin/sh" };
+
+	if (internal == -1) {
+		/* Command does not need to be executed */
+		return (0);
+	}
 
 	shargv[1] = (errCheck ? "-ec" : "-c");
 	shargv[2] = cmd;
