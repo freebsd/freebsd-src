@@ -179,7 +179,7 @@ c_func  setip6vltime;
 c_func2	setip6lifetime;
 #endif
 c_func	setifipdst;
-c_func	setifflags, setifmetric, setifmtu, setiflladdr;
+c_func	setifflags, setifmetric, setifmtu, setiflladdr, setifcap;
 c_func	clone_destroy;
 
 
@@ -274,6 +274,10 @@ struct	cmd {
 	{ "nwkey",	NEXTARG,	set80211nwkey },	/* NetBSD */
 	{ "-nwkey",	0,		set80211wep },		/* NetBSD */
 #endif
+	{ "hwcsum",	IFCAP_HWCSUM,	setifcap },
+	{ "-hwcsum",	-IFCAP_HWCSUM,	setifcap },
+	{ "netcons",	IFCAP_NETCONS,	setifcap },
+	{ "-netcons",	-IFCAP_NETCONS,	setifcap },
 	{ "normal",	-IFF_LINK0,	setifflags },
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
@@ -1034,6 +1038,29 @@ setifflags(vname, value, s, afp)
 }
 
 void
+setifcap(vname, value, s, afp)
+	const char *vname;
+	int value;
+	int s;
+	const struct afswtch *afp;
+{
+
+ 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) < 0) {
+ 		Perror("ioctl (SIOCGIFCAP)");
+ 		exit(1);
+ 	}
+	flags = ifr.ifr_curcap;
+	if (value < 0) {
+		value = -value;
+		flags &= ~value;
+	} else
+		flags |= value;
+	ifr.ifr_reqcap = flags;
+	if (ioctl(s, SIOCSIFCAP, (caddr_t)&ifr) < 0)
+		Perror(vname);
+}
+
+void
 setifmetric(val, dummy, s, afp)
 	const char *val;
 	int dummy __unused;
@@ -1088,6 +1115,9 @@ setiflladdr(val, dummy, s, afp)
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
 "\20MULTICAST"
 
+#define	IFCAPBITS \
+"\002\1hwcsum\2netcons"
+
 /*
  * Print the status of the interface.  If an address family was
  * specified, show it and it only; otherwise, show them all.
@@ -1140,6 +1170,18 @@ status(afp, addrcount, sdl, ifm, ifam)
 	if (mtu)
 		printf(" mtu %d", mtu);
 	putchar('\n');
+
+	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
+		if (ifr.ifr_curcap != 0) {
+			printb("\toptions", ifr.ifr_curcap, IFCAPBITS);
+			putchar('\n');
+		}
+		if (supmedia && ifr.ifr_reqcap != 0) {
+			printf("\tcapability list:\n");
+			printb("\t\t", ifr.ifr_reqcap, IFCAPBITS);
+			putchar('\n');
+		}
+	}
 
 	tunnel_status(s);
 
