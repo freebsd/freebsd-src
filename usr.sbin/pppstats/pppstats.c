@@ -26,7 +26,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: pppstats.c,v 1.4 1994/06/08 00:38:49 paulus Exp $";
+static char rcsid[] = "$Id: pppstats.c,v 1.1.1.1 1994/11/12 06:07:15 lars Exp $";
 #endif
 
 #include <ctype.h>
@@ -79,7 +79,7 @@ extern	off_t lseek();
 
 char	*kmemf;
 
-#if defined(sun) || defined(__FreeBSD__)
+#if defined(sun) || defined(BSD4_4)
 #include <kvm.h>
 kvm_t	*kd;
 #define KDARG	kd,
@@ -196,10 +196,16 @@ main(argc, argv)
 	    perror("kvm_open");
 	    exit(1);
 	}
-#else
-	/* BSD4.3+ */
+#elif defined(BSD4_4)
+	/* BSD4.4+ */
 	if ((kd = kvm_openfiles(system, kmemf, NULL, O_RDONLY, errbuf)) == NULL) {
 	    fprintf(stderr, "kvm_openfiles: %s", errbuf);
+	    exit(1);
+	}
+#else
+	/* BSD4.3+ */
+	if (kvm_openfiles(system, kmemf, (char *)0) == -1) {
+	    fprintf(stderr, "kvm_openfiles: %s", kvm_geterr());
 	    exit(1);
 	}
 #endif
