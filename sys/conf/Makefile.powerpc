@@ -280,11 +280,13 @@ vnode_if.c vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 vnode_if.o:
 	${NORMAL_C}
 
-.if exists($S/../share/mk)
-.include "$S/../share/mk/bsd.kern.mk"
-.else
+# Commented out for now pending a better solution.
+# How do we pick up compiler version specific flags??
+#.if exists($S/../share/mk)
+#.include "$S/../share/mk/bsd.kern.mk"
+#.else
 .include <bsd.kern.mk>
-.endif
+#.endif
 
 %RULES
 
