@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #include <utime.h>
 
 #include "arch.h"
+#include "buf.h"
 #include "compat.h"
 #include "dir.h"
 #include "globals.h"
@@ -485,6 +486,7 @@ JobPrintCommand(void *cmdp, void *jobp)
     LstNode	*cmdNode;	/* Node for replacing the command */
     char	*cmd = cmdp;
     Job		*job = jobp;
+    Buffer	*buf;
 
     noSpecials = (noExecute && !(job->node->type & OP_MAKE));
 
@@ -509,7 +511,12 @@ JobPrintCommand(void *cmdp, void *jobp)
      * the variables in the command.
      */
     cmdNode = Lst_Member(&job->node->commands, cmd);
-    cmdStart = cmd = Var_Subst(NULL, cmd, job->node, FALSE);
+
+    buf = Var_Subst(NULL, cmd, job->node, FALSE);
+    cmd = Buf_GetAll(buf, NULL);
+    Buf_Destroy(buf, FALSE);
+    cmdStart = cmd;
+
     Lst_Replace(cmdNode, cmdStart);
 
     cmdTemplate = "%s\n";
@@ -644,9 +651,14 @@ JobPrintCommand(void *cmdp, void *jobp)
 static int
 JobSaveCommand(void *cmd, void *gn)
 {
+    Buffer	*buf;
+    char	*str;
 
-    cmd = Var_Subst(NULL, cmd, gn, FALSE);
-    Lst_AtEnd(&postCommands->commands, cmd);
+    buf = Var_Subst(NULL, cmd, gn, FALSE);
+    str = Buf_GetAll(buf, NULL);
+    Buf_Destroy(buf, FALSE);
+
+    Lst_AtEnd(&postCommands->commands, str);
     return (0);
 }
 

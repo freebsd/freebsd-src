@@ -811,16 +811,17 @@ main(int argc, char **argv)
 		 * in an array
 		 */
 		static char VPATH[] = "${VPATH}";
-		char *vpath;
-		char *start;
-		char *ptr;
-		char savec;
+		Buffer	*buf;
+		char	*vpath;
+		char	*ptr;
+		char	savec;
 
-		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
-		start = vpath;
+		buf = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
+
+		vpath = Buf_GetAll(buf, NULL);
 		do {
 			/* skip to end of directory */
-			for (ptr = start; *ptr != ':' && *ptr != '\0'; ptr++)
+			for (ptr = vpath; *ptr != ':' && *ptr != '\0'; ptr++)
 				;
 
 			/* Save terminator character so know when to stop */
@@ -828,11 +829,12 @@ main(int argc, char **argv)
 			*ptr = '\0';
 
 			/* Add directory to search path */
-			Dir_AddDir(&dirSearchPath, start);
+			Dir_AddDir(&dirSearchPath, vpath);
 
-			start = ptr + 1;
+			vpath = ptr + 1;
 		} while (savec != '\0');
-		free(vpath);
+
+		Buf_Destroy(buf, TRUE);
 	}
 
 	/*
@@ -894,25 +896,30 @@ main(int argc, char **argv)
 		 * Print the values of any variables requested by
 		 * the user.
 		 */
-		LstNode *ln;
-		const char *name;
-		char *v;
-		char *value;
+		LstNode		*n;
+		const char	*name;
+		char		*v;
+		char		*value;
+		Buffer		*buf;
 
-		for (ln = Lst_First(&variables); ln != NULL;
-		    ln = Lst_Succ(ln)) {
-			name = Lst_Datum(ln);
+		LST_FOREACH(n, &variables) {
+			name = Lst_Datum(n);
 			if (expandVars) {
 				v = emalloc(strlen(name) + 1 + 3);
 				sprintf(v, "${%s}", name);
 
-				value = Var_Subst(NULL, v, VAR_GLOBAL, FALSE);
+				buf = Var_Subst(NULL, v, VAR_GLOBAL, FALSE);
+				value = Buf_GetAll(buf, FALSE);
+				printf("%s\n", value);
+
+				Buf_Destroy(buf, TRUE);
+				free(v);
 			} else {
 				value = Var_Value(name, VAR_GLOBAL, &v);
+				printf("%s\n", value != NULL ? value : "");
+				if (v != NULL)
+					free(v);
 			}
-			printf("%s\n", value != NULL ? value : "");
-			if (v != NULL)
-				free(v);
 		}
 	}
 

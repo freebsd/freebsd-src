@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "buf.h"
 #include "compat.h"
 #include "config.h"
 #include "dir.h"
@@ -242,6 +243,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
     LstNode	*cmdNode;	/* Node where current command is located */
     char	**av;		/* Argument vector for thing to exec */
     char	*cmd_save;	/* saved cmd */
+    Buffer	*buf;
 
     /*
      * Avoid clobbered variable warnings by forcing the compiler
@@ -256,7 +258,10 @@ Compat_RunCommand(char *cmd, GNode *gn)
     doit = FALSE;
 
     cmdNode = Lst_Member(&gn->commands, cmd);
-    cmdStart = Var_Subst(NULL, cmd, gn, FALSE);
+
+    buf = Var_Subst(NULL, cmd, gn, FALSE);
+    cmdStart = Buf_GetAll(buf, NULL);
+    Buf_Destroy(buf, FALSE);
 
     /*
      * brk_string will return an argv with a NULL in av[0], thus causing

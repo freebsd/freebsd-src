@@ -121,6 +121,7 @@ For_Eval(char *line)
 		 * maybe start of a for loop
 		 */
 		Buffer	*buf;
+		Buffer	*buf1;
 		size_t	varlen;
 
 		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
@@ -179,7 +180,10 @@ For_Eval(char *line)
 		 */
 		Lst_Init(&forLst);
 		buf = Buf_Init(0);
-		sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
+
+		buf1 = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
+		sub = Buf_GetAll(buf1, NULL);
+		Buf_Destroy(buf1, FALSE);
 
 		for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
 			;
@@ -268,6 +272,8 @@ For_Run(int lineno)
 	Buffer		*buf;	/* the contents of the for loop */
 	const char	*val;	/* current value of loop variable */
 	LstNode		*ln;
+	Buffer		*buf1;
+	char		*str;
 
 	if (forVar == NULL || forBuf == NULL)
 		return;
@@ -286,10 +292,12 @@ For_Run(int lineno)
 		Var_Set(var, val, VAR_GLOBAL);
 
 		DEBUGF(FOR, ("--- %s = %s\n", var, val));
-		Parse_FromString(Var_Subst(var,
-		    (char *)Buf_GetAll(buf, NULL),
-		    VAR_GLOBAL, FALSE), lineno);
+		buf1 = Var_Subst(var, (char *)Buf_GetAll(buf, NULL),
+		    VAR_GLOBAL, FALSE);
+		str = Buf_GetAll(buf1, NULL);
+		Buf_Destroy(buf1, FALSE);
 
+		Parse_FromString(str, lineno);
 		Var_Delete(var, VAR_GLOBAL);
 	}
 
