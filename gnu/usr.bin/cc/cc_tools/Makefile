@@ -17,8 +17,6 @@ CFLAGS+=	-I.
 
 .PATH: ${GCCDIR} ${GCCDIR}/cp
 
-CFLAGS+=	-I${GCCDIR}/objc
-
 #-----------------------------------------------------------------------
 # insn-* gunk
 
@@ -98,36 +96,6 @@ tree-check.h: gencheck
 	./gencheck > ${.TARGET}
 GENSRCS+=	tree-check.h
 
-#-----------------------------------------------------------------------
-# C parser
-.ORDER: c-parse.c c-parse.h
-c-parse.c c-parse.h: c-parse.in
-	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
-	    -e "/^ifc$$/d" -e "/^end ifc$$/d" \
-	    ${GCCDIR}/c-parse.in > c-parse.y
-	${YACC} -d -o c-parse.c c-parse.y
-	mv c-parse.y c-parse.y.out
-
-GENSRCS+=	c-parse.c c-parse.h
-CLEANFILES+=	c-parse.y c-parse.y.out		# insurance
-
-#-----------------------------------------------------------------------
-# objc parser
-.ORDER: objc-parse.c objc-parse.h
-objc-parse.c objc-parse.h: c-parse.in
-	sed -e "/^ifc$$/,/^end ifc$$/d" \
-	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
-	    ${GCCDIR}/c-parse.in > objc-parse.y
-	${YACC} -d -o objc-parse.c objc-parse.y
-	mv objc-parse.y objc-parse.y.out
-
-GENSRCS+=	objc-parse.c objc-parse.h
-CLEANFILES+=	objc-parse.y objc-parse.y.out	# insurance
-
-#-----------------------------------------------------------------------
-# C++ parser done in its own makefile
-#-----------------------------------------------------------------------
-# CPP parser done in its own makefile
 #-----------------------------------------------------------------------
 # the host/target compiler config.
 
