@@ -63,9 +63,9 @@
 
 /* The default root filesystem size */
 #ifdef __alpha__
-#define ROOT_DEFAULT_SIZE		90
+#define ROOT_DEFAULT_SIZE		110
 #else
-#define ROOT_DEFAULT_SIZE		70
+#define ROOT_DEFAULT_SIZE		100
 #endif
 
 /* The smallest swap partition we want to create by default */
