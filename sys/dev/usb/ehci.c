@@ -5,6 +5,7 @@
  *	$NetBSD: ehci.c,v 1.54 2004/01/17 13:15:05 jdolecek Exp $
  *	    up to
  *	$NetBSD: ehci.c,v 1.64 2004/06/23 06:45:56 mycroft Exp $
+ *	$NetBSD: ehci.c,v 1.66 2004/06/30 03:11:56 mycroft Exp $
  */
 
 /*
@@ -2225,7 +2226,7 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 			next = ehci_alloc_sqtd(sc);
 			if (next == NULL)
 				goto nomem;
-			nextphys = next->physaddr;
+			nextphys = htole32(next->physaddr);
 		} else {
 			next = NULL;
 			nextphys = EHCI_NULL;
@@ -2245,7 +2246,7 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 #endif
 		}
 		cur->nextqtd = next;
-		cur->qtd.qtd_next = cur->qtd.qtd_altnext = htole32(nextphys);
+		cur->qtd.qtd_next = cur->qtd.qtd_altnext = nextphys;
 		cur->qtd.qtd_status =
 		    qtdstatus | htole32(EHCI_QTD_SET_BYTES(curlen));
 		cur->xfer = xfer;
