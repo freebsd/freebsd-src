@@ -38,8 +38,10 @@
  *   modified).  ipngwg rough consensus seems to follow RFC2553.
  * - What is "local" in NI_FQDN?
  * - NI_NAMEREQD and NI_NUMERICHOST conflict with each other.
- * - (KAME extension) NI_WITHSCOPEID when called with global address,
- *   and sin6_scope_id filled
+ * - (KAME extension) always attach textual scopeid (fe80::1%lo0), if
+ *   sin6_scope_id is filled - standardization status?
+ *   XXX breaks backward compat for code that expects no scopeid.
+ *   beware on merge.
  */
 
 #include <sys/types.h>
@@ -306,36 +308,24 @@ ip6_parsenumeric(sa, addr, host, hostlen, flags)
 		return ENI_MEMORY;
 	strcpy(host, numaddr);
 
-#ifdef NI_WITHSCOPEID
-	if (
-#ifdef DONT_OPAQUE_SCOPEID
-	    (IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)addr) ||
-	     IN6_IS_ADDR_MULTICAST((struct in6_addr *)addr)) &&
-#endif
-	    ((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
-#ifndef ALWAYS_WITHSCOPE
-		if (flags & NI_WITHSCOPEID)
-#endif /* !ALWAYS_WITHSCOPE */
-		{
-			char scopebuf[MAXHOSTNAMELEN];
-			int scopelen;
+	if (((const struct sockaddr_in6 *)sa)->sin6_scope_id) {
+		char zonebuf[MAXHOSTNAMELEN];
+		int zonelen;
 
-			/* ip6_sa2str never fails */
-			scopelen = ip6_sa2str((const struct sockaddr_in6 *)sa,
-					      scopebuf, sizeof(scopebuf),
-					      flags);
-			if (scopelen + 1 + numaddrlen + 1 > hostlen)
-				return ENI_MEMORY;
-			/*
-			 * construct <numeric-addr><delim><scopeid>
-			 */
-			memcpy(host + numaddrlen + 1, scopebuf,
-			       scopelen);
-			host[numaddrlen] = SCOPE_DELIMITER;
-			host[numaddrlen + 1 + scopelen] = '\0';
-		}
+		/* ip6_sa2str never fails */
+		zonelen = ip6_sa2str(
+		    (const struct sockaddr_in6 *)(const void *)sa,
+		    zonebuf, sizeof(zonebuf), flags);
+		if (zonelen < 0)
+			return EAI_MEMORY;
+		if (zonelen + 1 + numaddrlen + 1 > hostlen)
+			return ENI_MEMORY;
+		/* construct <numeric-addr><delim><scopeid> */
+		memcpy(host + numaddrlen + 1, zonebuf,
+		       (size_t)zonelen);
+		host[numaddrlen] = SCOPE_DELIMITER;
+		host[numaddrlen + 1 + zonelen] = '\0';
 	}
-#endif /* NI_WITHSCOPEID */
 
 	return 0;
 }
