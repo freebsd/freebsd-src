@@ -66,9 +66,7 @@
 
 #include <machine/ipl.h>
 #include <machine/cpu.h>
-#ifdef SMP
 #include <machine/smp.h>
-#endif
 
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
