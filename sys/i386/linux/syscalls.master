@@ -303,8 +303,8 @@
 				struct l_stat64 *statbuf, l_long flags); }
 197	STD	LINUX	{ int linux_fstat64(l_ulong fd, \
 				struct l_stat64 *statbuf, l_long flags); }
-198	STD	LINUX	{ int linux_lchown(char *filename, l_uid_t user, \
-				l_gid_t group); }
+198	STD	LINUX	{ int linux_lchown(char *path, l_uid_t uid, \
+				l_gid_t gid); }
 199	STD	POSIX	{ int linux_getuid(void); }
 200	STD	POSIX	{ int linux_getgid(void); }
 201	NOPROTO	POSIX	{ int geteuid(void); }
@@ -315,16 +315,15 @@
 				l_gid_t *grouplist); }
 206	STD	LINUX	{ int linux_setgroups(l_int gidsetsize, \
 				l_gid_t *grouplist); }
-207	STD	LINUX	{ int linux_fchown(l_uint fd, l_uid_t user, \
-				l_gid_t group); }
+207	NODEF	LINUX	fchown fchown fchown_args int
 208	NOPROTO	LINUX	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
 209	NOPROTO	LINUX	{ int getresuid(uid_t *ruid, uid_t *euid, \
 				uid_t *suid); }
 210	NOPROTO	LINUX	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 211	NOPROTO	LINUX	{ int getresgid(gid_t *rgid, gid_t *egid, \
 				gid_t *sgid); }
-212	STD	LINUX	{ int linux_chown(char *filename, l_uid_t user, \
-				l_gid_t group); }
+212	STD	LINUX	{ int linux_chown(char *path, l_uid_t uid, \
+				l_gid_t gid); }
 213	NOPROTO	LINUX	{ int setuid(uid_t uid); }
 214	NOPROTO	LINUX	{ int setgid(gid_t gid); }
 215	STD	LINUX	{ int linux_setfsuid(l_uid_t uid); }
