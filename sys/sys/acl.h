@@ -44,7 +44,6 @@
 #define	POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
 #define	POSIX1E_ACL_DEFAULT_EXTATTR_NAME	"posix1e.acl_default"
 #define	ACL_MAX_ENTRIES		32 /* maximum entries in an ACL */
-#define	_POSIX_ACL_PATH_MAX     ACL_MAX_ENTRIES
 
 typedef int	acl_type_t;
 typedef int	acl_tag_t;
