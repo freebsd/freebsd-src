@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/eventhandler.h>
 #include <vm/uma.h>
 #include <geom/geom.h>
 #include <sys/proc.h>
@@ -75,17 +76,22 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
 	G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
 } while (0)
 
+static eventhandler_tag g_mirror_ehtag = NULL;
 
 static int g_mirror_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static g_taste_t g_mirror_taste;
+static void g_mirror_init(struct g_class *mp);
+static void g_mirror_fini(struct g_class *mp);
 
 struct g_class g_mirror_class = {
 	.name = G_MIRROR_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_mirror_config,
 	.taste = g_mirror_taste,
-	.destroy_geom = g_mirror_destroy_geom
+	.destroy_geom = g_mirror_destroy_geom,
+	.init = g_mirror_init,
+	.fini = g_mirror_fini
 };
 
 
@@ -454,6 +460,8 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 		g_mirror_destroy_provider(sc);
 	for (disk = LIST_FIRST(&sc->sc_disks); disk != NULL;
 	    disk = LIST_FIRST(&sc->sc_disks)) {
+		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
+		g_mirror_update_metadata(disk);
 		g_mirror_destroy_disk(disk);
 	}
 	while ((ep = g_mirror_event_get(sc)) != NULL) {
@@ -2770,6 +2778,44 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb, "%s", "DEGRADED");
 		sbuf_printf(sb, "</State>\n");
 	}
+}
+
+static void
+g_mirror_shutdown(void *arg, int howto)
+{
+	struct g_class *mp;
+	struct g_geom *gp, *gp2;
+
+	mp = arg;
+	g_topology_lock();
+	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+		if (gp->softc == NULL)
+			continue;
+		g_mirror_destroy(gp->softc, 1);
+	}
+	g_topology_unlock();
+#if 0
+	tsleep(&gp, PRIBIO, "m:shutdown", hz * 20);
+#endif
+}
+
+static void
+g_mirror_init(struct g_class *mp)
+{
+
+	g_mirror_ehtag = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_mirror_shutdown, mp, SHUTDOWN_PRI_FIRST);
+	if (g_mirror_ehtag == NULL)
+		G_MIRROR_DEBUG(0, "Warning! Cannot register shutdown event.");
+}
+
+static void
+g_mirror_fini(struct g_class *mp)
+{
+
+	if (g_mirror_ehtag == NULL)
+		return;
+	EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_mirror_ehtag);
 }
 
 static int
