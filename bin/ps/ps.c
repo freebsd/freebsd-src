@@ -520,7 +520,7 @@ saveuser(ki)
 	/*
 	 * save arguments if needed
 	 */
-	if (needcomm && UREADOK(ki)) {
+	if (needcomm && (UREADOK(ki) || (KI_PROC(ki)->p_args != NULL))) {
 	    ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
 		MAXCOMLEN);
 	} else if (needcomm) {

@@ -63,6 +63,8 @@
 
 #include <machine/reg.h>
 
+MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
+
 static long *exec_copyout_strings __P((struct image_params *));
 
 static long ps_strings = PS_STRINGS;
@@ -70,6 +72,10 @@ SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, "");
 
 static long usrstack = USRSTACK;
 SYSCTL_LONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, "");
+
+u_long ps_arg_cache_limit = PAGE_SIZE / 16;
+SYSCTL_LONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
+    &ps_arg_cache_limit, "");
 
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
@@ -316,6 +322,21 @@ interpret:
 	setregs(p, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
 	    imgp->ps_strings);
 
+	/* Free any previous argument cache */
+	if (p->p_args && --p->p_args->ar_ref == 0)
+		FREE(p->p_args, M_PARGS);
+	p->p_args = NULL;
+
+	/* Cache arguments if they fit inside our allowance */
+	i = imgp->endargs - imgp->stringbase;
+	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
+		MALLOC(p->p_args, struct pargs *, sizeof(struct pargs) + i, 
+		    M_PARGS, M_WAITOK);
+		p->p_args->ar_ref = 1;
+		p->p_args->ar_length = i;
+		bcopy(imgp->stringbase, p->p_args->ar_args, i);
+	}
+
 exec_fail_dealloc:
 
 	/*
@@ -510,6 +531,8 @@ exec_extract_strings(imgp)
 			} while ((argp = (caddr_t) (intptr_t) fuword(argv++)));
 		}
 	}	
+
+	imgp->endargs = imgp->stringp;
 
 	/*
 	 * extract environment strings
