@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
-.\"	$Id: find.1,v 1.10 1997/05/19 18:16:00 jdp Exp $
+.\"	$Id: find.1,v 1.11 1997/08/29 23:09:41 imp Exp $
 .\"
 .Dd May 9, 1995
 .Dt FIND 1
@@ -131,12 +131,25 @@ than that of the file from which the descent began.
 .El
 .Sh PRIMARIES
 .Bl -tag -width Ds
+.It Ic -amin Ar n 
+True if the difference between the file last access time and the time
+.Nm find
+was started, rounded up to the next full minutes period, is
+.Ar n
+minutes periods.
 .It Ic -atime Ar n 
 True if the difference between the file last access time and the time
 .Nm find
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
+.It Ic -cmin Ar n 
+True if the difference between the time of last change of file status
+information and the time
+.Nm find
+was started, rounded up to the next full minutes period, is
+.Ar n
+minutes periods.
 .It Ic -ctime Ar n 
 True if the difference between the time of last change of file status
 information and the time
@@ -214,6 +227,12 @@ will be displayed instead of the size in bytes.
 If the file is a symbolic link, the pathname of the linked\-to file will be
 displayed preceded by ``\->''.
 The format is identical to that produced by ``ls \-dgils''.
+.It Ic -mmin Ar n 
+True if the difference between the file last modification time and the time
+.Nm find
+was started, rounded up to the next full minutes period, is
+.Ar n
+minutes periods.
 .It Ic -mtime Ar n 
 True if the difference between the file last modification time and the time
 .Nm find
