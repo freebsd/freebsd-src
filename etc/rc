@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.15 1994/01/22 20:44:13 guido Exp $
+#	$Id: rc,v 1.16 1994/02/02 08:02:37 chmr Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -127,6 +127,21 @@ then
 	'password file may be incorrect -- /etc/ptmp exists'
 fi
 
+# Recover elvis editor files.
+echo preserving editor files
+(cd /var/tmp && /usr/libexec/elvispreserve "-the system rebooted" elvis* &&
+	rm -f elvis[0-9a-f][0-9a-f][0-9a-f][0-9a-f]* \
+	elvis_[0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
+
+# Recover vi editor files.
+virecovery=/var/tmp/vi.recover/recover.*
+if [ "$virecovery" != "/var/tmp/vi.recover/recover.*" ]; then
+	echo 'Recovering vi editor sessions'
+	for i in $virecovery; do
+		sendmail -t < $i
+	done
+fi
+
 echo clearing /tmp
 
 # prune quickly with one rm, then use find to clean up /tmp/[lq]*
@@ -164,7 +179,8 @@ fi
 # If $ntpdate != NO, run ntpdate $ntpdate to set the date correctly.
 # If $xntpdflags != NO, start xntpd.
 if [ X"${ntpdate}" != X"NO" ]; then
-	echo -n ' ntpdate';	ntpdate $ntpdate
+	echo ' ntpdate';	ntpdate $ntpdate
+	echo -n 'starting more network daemons:'
 fi
 
 if [ X"${xntpdflags}" != X"NO" ]; then
