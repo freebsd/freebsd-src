@@ -296,7 +296,7 @@ extern rtx find_equiv_reg PROTO((rtx, rtx, enum reg_class, int, short *,
 				 int, enum machine_mode));
 
 /* Return 1 if register REGNO is the subject of a clobber in insn INSN.  */
-extern int regno_clobbered_p PROTO((int, rtx));
+extern int regno_clobbered_p PROTO((int, rtx, enum machine_mode, int));
 
 /* Functions in reload1.c:  */
 
@@ -342,3 +342,5 @@ extern void save_call_clobbered_regs PROTO((void));
 
 /* Replace (subreg (reg)) with the appropriate (reg) for any operands.  */
 extern void cleanup_subreg_operands PROTO ((rtx));
+
+extern int earlyclobber_operand_p PROTO((rtx));
