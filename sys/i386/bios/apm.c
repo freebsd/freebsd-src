@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.20 1995/12/08 11:13:09 julian Exp $
+ *	$Id: apm.c,v 1.21 1995/12/22 13:08:27 phk Exp $
  */
 
 #include "apm.h"
@@ -361,8 +361,9 @@ apm_hook_establish(int apmh, struct apmhook *ah)
 	return apm_add_hook(&hook[apmh], ah);
 }
 
+#ifdef notused
 /* disestablish an apm hook */
-static void
+void
 apm_hook_disestablish(int apmh, struct apmhook *ah)
 {
 	if (apmh < 0 || apmh >= NAPM_HOOK)
@@ -370,6 +371,7 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 
 	apm_del_hook(&hook[apmh], ah);
 }
+#endif /* notused */
 
 
 static struct timeval suspend_time;
@@ -476,8 +478,9 @@ apm_get_info(struct apm_softc *sc, apm_info_t aip)
 }
 
 
+#ifdef APM_SLOWSTART
 /* inform APM BIOS that CPU is idle */
-static void
+void
 apm_cpu_idle(void)
 {
 	struct apm_softc *sc = master_softc;    /* XXX */
@@ -507,9 +510,11 @@ apm_cpu_idle(void)
 		__asm("sti ; hlt");	/* wait for interrupt */
 	}
 }
+#endif /* APM_SLOWSTART */
 
+#if APM_SLOWSTART > 0
 /* inform APM BIOS that CPU is busy */
-static void
+void
 apm_cpu_busy(void)
 {
 	struct apm_softc *sc = master_softc;	/* XXX */
@@ -518,6 +523,7 @@ apm_cpu_busy(void)
 		__asm("movw $0x5306, %ax; lcall _apm_addr");
 	}
 }
+#endif /* APM_SLOWSTART > 0 */
 
 
 /*
