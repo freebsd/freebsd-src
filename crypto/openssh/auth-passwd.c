@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: auth-passwd.c,v 1.14 1999/12/29 12:47:46 markus Exp $");
+RCSID("$Id: auth-passwd.c,v 1.15 2000/04/14 10:30:29 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"

@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #include "includes.h"
 RCSID("$OpenBSD: auth2.c,v 1.8 2000/05/08 17:42:24 markus Exp $");
@@ -97,7 +99,7 @@ do_authentication2()
 	options.skey_authentication = 0;
 #endif
 #ifdef KRB4
-	options.kerberos_authentication = 0;
+	options.krb4_authentication = 0;
 #endif
 
 	dispatch_init(&protocol_error);

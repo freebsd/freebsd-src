@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * packet.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sat Mar 18 02:02:14 1995 ylo
- * 
+ *
  * Interface for the packet protocol functions.
- * 
+ *
  * $FreeBSD$
  */
 
-/* RCSID("$Id: packet.h,v 1.10 2000/03/16 20:56:14 markus Exp $"); */
+/* RCSID("$Id: packet.h,v 1.15 2000/04/14 10:30:32 markus Exp $"); */
 
 #ifndef PACKET_H
 #define PACKET_H
@@ -48,7 +48,7 @@ void    packet_close(void);
  * key is used for both sending and reception.  However, both directions are
  * encrypted independently of each other.  Cipher types are defined in ssh.h.
  */
-void 
+void
 packet_set_encryption_key(const unsigned char *key, unsigned int keylen,
     int cipher_type);
 
@@ -84,9 +84,12 @@ void    packet_put_int(unsigned int value);
 
 /* Appends an arbitrary precision integer to packet data. */
 void    packet_put_bignum(BIGNUM * value);
+void    packet_put_bignum2(BIGNUM * value);
 
 /* Appends a string to packet data. */
 void    packet_put_string(const char *buf, unsigned int len);
+void    packet_put_cstring(const char *str);
+void    packet_put_raw(const char *buf, unsigned int len);
 
 /*
  * Finalizes and sends the packet.  If the encryption key has been set,
@@ -130,6 +133,8 @@ unsigned int packet_get_int(void);
  * must have been initialized before this call.
  */
 void    packet_get_bignum(BIGNUM * value, int *length_ptr);
+void    packet_get_bignum2(BIGNUM * value, int *length_ptr);
+char	*packet_get_raw(int *length_ptr);
 
 /*
  * Returns a string from the packet data.  The string is allocated using
@@ -192,8 +197,24 @@ do { \
   } \
 } while (0)
 
+#define packet_done() \
+do { \
+	int _len = packet_remaining(); \
+	if (_len > 0) { \
+		log("Packet integrity error (%d bytes remaining) at %s:%d", \
+		    _len ,__FILE__, __LINE__); \
+		packet_disconnect("Packet integrity error."); \
+	} \
+} while (0)
+
 /* remote host is connected via a socket/ipv4 */
 int	packet_connection_is_on_socket(void);
 int	packet_connection_is_ipv4(void);
+
+/* enable SSH2 packet format */
+void	packet_set_ssh2_format(void);
+
+/* returns remaining payload bytes */
+int	packet_remaining(void);
 
 #endif				/* PACKET_H */

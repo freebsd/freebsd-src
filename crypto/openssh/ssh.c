@@ -13,7 +13,11 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh.c,v 1.43 2000/03/23 21:52:02 markus Exp $");
+RCSID("$Id: ssh.c,v 1.51 2000/05/08 17:12:15 markus Exp $");
+
+#include <openssl/evp.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -23,6 +27,14 @@ RCSID("$Id: ssh.c,v 1.43 2000/03/23 21:52:02 markus Exp $");
 #include "readconf.h"
 #include "uidswap.h"
 
+#include "ssh2.h"
+#include "compat.h"
+#include "channels.h"
+#include "key.h"
+#include "authfile.h"
+
+extern char *__progname;
+
 /* Flag indicating whether IPv4 or IPv6.  This can be set on the command line.
    Default value is AF_UNSPEC means both IPv4 and IPv6. */
 int IPv4or6 = AF_UNSPEC;
@@ -30,7 +42,12 @@ int IPv4or6 = AF_UNSPEC;
 /* Flag indicating whether debug mode is on.  This can be set on the command line. */
 int debug_flag = 0;
 
+/* Flag indicating whether a tty should be allocated */
 int tty_flag = 0;
+
+/* don't exec a shell */
+int no_shell_flag = 0;
+int no_tty_flag = 0;
 
 /*
  * Flag indicating that nothing should be read from stdin.  This can be set
@@ -81,6 +98,9 @@ RSA *host_private_key = NULL;
 /* Original real UID. */
 uid_t original_real_uid;
 
+/* command to be executed */
+Buffer command;
+
 /* Prints a help message to the user.  This function never returns. */
 
 void
@@ -98,6 +118,7 @@ usage()
 	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
 	fprintf(stderr, "  -i file     Identity for RSA authentication (default: ~/.ssh/identity).\n");
 	fprintf(stderr, "  -t          Tty; allocate a tty even if command is given.\n");
+	fprintf(stderr, "  -T          Do not allocate a tty.\n");
 	fprintf(stderr, "  -v          Verbose; display verbose debugging messages.\n");
 	fprintf(stderr, "  -V          Display version number only.\n");
 	fprintf(stderr, "  -P          Don't allocate a privileged port.\n");
@@ -114,9 +135,11 @@ usage()
 	fprintf(stderr, "              These cause %s to listen for connections on a port, and\n", av0);
 	fprintf(stderr, "              forward them to the other side by connecting to host:port.\n");
 	fprintf(stderr, "  -C          Enable compression.\n");
+	fprintf(stderr, "  -N          Do not execute a shell or command.\n");
 	fprintf(stderr, "  -g          Allow remote hosts to connect to forwarded ports.\n");
 	fprintf(stderr, "  -4          Use IPv4 only.\n");
 	fprintf(stderr, "  -6          Use IPv6 only.\n");
+	fprintf(stderr, "  -2          Force protocol version 2.\n");
 	fprintf(stderr, "  -o 'option' Process the option as if it was read from a configuration file.\n");
 	exit(1);
 }
@@ -162,23 +185,22 @@ rsh_connect(char *host, char *user, Buffer * command)
 	exit(1);
 }
 
+int ssh_session(void);
+int ssh_session2(void);
+
 /*
  * Main program for the ssh client.
  */
 int
 main(int ac, char **av)
 {
-	int i, opt, optind, type, exit_status, ok, authfd;
+	int i, opt, optind, exit_status, ok;
 	u_short fwd_port, fwd_host_port;
 	char *optarg, *cp, buf[256];
-	Buffer command;
-	struct winsize ws;
 	struct stat st;
 	struct passwd *pw, pwcopy;
-	int interactive = 0, dummy;
-	int have_pty = 0;
+	int dummy;
 	uid_t original_effective_uid;
-	int plen;
 
 	/*
 	 * Save the original real uid.  It will be needed later (uid-swapping
@@ -234,8 +256,8 @@ main(int ac, char **av)
 			if (host)
 				break;
 			if ((cp = strchr(av[optind], '@'))) {
-			        if(cp == av[optind])
-				        usage();
+				if(cp == av[optind])
+					usage();
 				options.user = av[optind];
 				*cp = '\0';
 				host = ++cp;
@@ -259,39 +281,34 @@ main(int ac, char **av)
 			optarg = NULL;
 		}
 		switch (opt) {
+		case '2':
+			options.protocol = SSH_PROTO_2;
+			break;
 		case '4':
 			IPv4or6 = AF_INET;
 			break;
-
 		case '6':
 			IPv4or6 = AF_INET6;
 			break;
-
 		case 'n':
 			stdin_null_flag = 1;
 			break;
-
 		case 'f':
 			fork_after_authentication_flag = 1;
 			stdin_null_flag = 1;
 			break;
-
 		case 'x':
 			options.forward_x11 = 0;
 			break;
-
 		case 'X':
 			options.forward_x11 = 1;
 			break;
-
 		case 'g':
 			options.gateway_ports = 1;
 			break;
-
 		case 'P':
 			options.use_privileged_port = 0;
 			break;
-
 		case 'a':
 			options.forward_agent = 0;
 			break;
@@ -314,26 +331,24 @@ main(int ac, char **av)
 			options.identity_files[options.num_identity_files++] =
 				xstrdup(optarg);
 			break;
-
 		case 't':
 			tty_flag = 1;
 			break;
-
 		case 'v':
 		case 'V':
-			fprintf(stderr, "SSH Version %s, protocol version %d.%d.\n",
-			    SSH_VERSION, PROTOCOL_MAJOR, PROTOCOL_MINOR);
-			fprintf(stderr, "Compiled with SSL.\n");
+			fprintf(stderr, "SSH Version %s, protocol versions %d.%d/%d.%d.\n",
+			    SSH_VERSION,
+			    PROTOCOL_MAJOR_1, PROTOCOL_MINOR_1,
+			    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2);
+			fprintf(stderr, "Compiled with SSL (0x%8.8lx).\n", SSLeay());
 			if (opt == 'V')
 				exit(0);
 			debug_flag = 1;
 			options.log_level = SYSLOG_LEVEL_DEBUG;
 			break;
-
 		case 'q':
 			options.log_level = SYSLOG_LEVEL_QUIET;
 			break;
-
 		case 'e':
 			if (optarg[0] == '^' && optarg[2] == 0 &&
 			    (unsigned char) optarg[1] >= 64 && (unsigned char) optarg[1] < 128)
@@ -347,23 +362,26 @@ main(int ac, char **av)
 				exit(1);
 			}
 			break;
-
 		case 'c':
-			options.cipher = cipher_number(optarg);
-			if (options.cipher == -1) {
-				fprintf(stderr, "Unknown cipher type '%s'\n", optarg);
-				exit(1);
+			if (ciphers_valid(optarg)) {
+				/* SSH2 only */
+				options.ciphers = xstrdup(optarg);
+				options.cipher = SSH_CIPHER_ILLEGAL;
+			} else {
+				/* SSH1 only */
+				options.cipher = cipher_number(optarg);
+				if (options.cipher == -1) {
+					fprintf(stderr, "Unknown cipher type '%s'\n", optarg);
+					exit(1);
+				}
 			}
 			break;
-
 		case 'p':
 			options.port = atoi(optarg);
 			break;
-
 		case 'l':
 			options.user = optarg;
 			break;
-
 		case 'R':
 			if (sscanf(optarg, "%hu/%255[^/]/%hu", &fwd_port, buf,
 			    &fwd_host_port) != 3 &&
@@ -375,7 +393,6 @@ main(int ac, char **av)
 			}
 			add_remote_forward(&options, fwd_port, buf, fwd_host_port);
 			break;
-
 		case 'L':
 			if (sscanf(optarg, "%hu/%255[^/]/%hu", &fwd_port, buf,
 			    &fwd_host_port) != 3 &&
@@ -387,18 +404,22 @@ main(int ac, char **av)
 			}
 			add_local_forward(&options, fwd_port, buf, fwd_host_port);
 			break;
-
 		case 'C':
 			options.compression = 1;
 			break;
-
+		case 'N':
+			no_shell_flag = 1;
+			no_tty_flag = 1;
+			break;
+		case 'T':
+			no_tty_flag = 1;
+			break;
 		case 'o':
 			dummy = 1;
 			if (process_config_line(&options, host ? host : "", optarg,
 					 "command-line", 0, &dummy) != 0)
 				exit(1);
 			break;
-
 		default:
 			usage();
 		}
@@ -408,15 +429,8 @@ main(int ac, char **av)
 	if (!host)
 		usage();
 
-	/* check if RSA support exists */
-	if (rsa_alive() == 0) {
-		extern char *__progname;
+        OpenSSL_add_all_algorithms();
 
-		fprintf(stderr,
-			"%s: no RSA support in libssl and libcrypto.  See ssl(8).\n",
-			__progname);
-		exit(1);
-	}
 	/* Initialize the command to execute on remote host. */
 	buffer_init(&command);
 
@@ -452,6 +466,10 @@ main(int ac, char **av)
 			fprintf(stderr, "Pseudo-terminal will not be allocated because stdin is not a terminal.\n");
 		tty_flag = 0;
 	}
+	/* force */
+	if (no_tty_flag)
+		tty_flag = 0;
+
 	/* Get user data. */
 	pw = getpwuid(original_real_uid);
 	if (!pw) {
@@ -484,6 +502,20 @@ main(int ac, char **av)
 
 	/* reinit */
 	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, 0);
+
+	/* check if RSA support exists */
+	if ((options.protocol & SSH_PROTO_1) &&
+	    rsa_alive() == 0) {
+		log("%s: no RSA support in libssl and libcrypto.  See ssl(8).",
+		    __progname);
+		log("Disabling protocol version 1");
+		options.protocol &= ~ (SSH_PROTO_1|SSH_PROTO_1_PREFERRED);
+	}
+	if (! options.protocol & (SSH_PROTO_1|SSH_PROTO_2)) {
+		fprintf(stderr, "%s: No protocol version available.\n",
+		    __progname);
+ 		exit(1);
+	}
 
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
@@ -551,9 +583,12 @@ main(int ac, char **av)
 	 * authentication. This must be done before releasing extra
 	 * privileges, because the file is only readable by root.
 	 */
-	if (ok) {
+	if (ok && (options.protocol & SSH_PROTO_1)) {
+		Key k;
 		host_private_key = RSA_new();
-		if (load_private_key(HOST_KEY_FILE, "", host_private_key, NULL))
+		k.type = KEY_RSA;
+		k.rsa = host_private_key;
+		if (load_private_key(HOST_KEY_FILE, "", &k, NULL))
 			host_private_key_loaded = 1;
 	}
 	/*
@@ -599,15 +634,22 @@ main(int ac, char **av)
 		exit(1);
 	}
 	/* Expand ~ in options.identity_files. */
+	/* XXX mem-leaks */
 	for (i = 0; i < options.num_identity_files; i++)
 		options.identity_files[i] =
 			tilde_expand_filename(options.identity_files[i], original_real_uid);
-
+	for (i = 0; i < options.num_identity_files2; i++)
+		options.identity_files2[i] =
+			tilde_expand_filename(options.identity_files2[i], original_real_uid);
 	/* Expand ~ in known host file names. */
 	options.system_hostfile = tilde_expand_filename(options.system_hostfile,
-						        original_real_uid);
+	    original_real_uid);
 	options.user_hostfile = tilde_expand_filename(options.user_hostfile,
-						      original_real_uid);
+	    original_real_uid);
+	options.system_hostfile2 = tilde_expand_filename(options.system_hostfile2,
+	    original_real_uid);
+	options.user_hostfile2 = tilde_expand_filename(options.user_hostfile2,
+	    original_real_uid);
 
 	/* Log into the remote system.  This never returns if the login fails. */
 	ssh_login(host_private_key_loaded, host_private_key,
@@ -616,6 +658,62 @@ main(int ac, char **av)
 	/* We no longer need the host private key.  Clear it now. */
 	if (host_private_key_loaded)
 		RSA_free(host_private_key);	/* Destroys contents safely */
+
+	exit_status = compat20 ? ssh_session2() : ssh_session();
+	packet_close();
+	return exit_status;
+}
+
+void
+x11_get_proto(char *proto, int proto_len, char *data, int data_len)
+{
+	char line[512];
+	FILE *f;
+	int got_data = 0, i;
+
+#ifdef XAUTH_PATH
+	/* Try to get Xauthority information for the display. */
+	snprintf(line, sizeof line, "%.100s list %.200s 2>/dev/null",
+		 XAUTH_PATH, getenv("DISPLAY"));
+	f = popen(line, "r");
+	if (f && fgets(line, sizeof(line), f) &&
+	    sscanf(line, "%*s %s %s", proto, data) == 2)
+		got_data = 1;
+	if (f)
+		pclose(f);
+#endif /* XAUTH_PATH */
+	/*
+	 * If we didn't get authentication data, just make up some
+	 * data.  The forwarding code will check the validity of the
+	 * response anyway, and substitute this data.  The X11
+	 * server, however, will ignore this fake data and use
+	 * whatever authentication mechanisms it was using otherwise
+	 * for the local connection.
+	 */
+	if (!got_data) {
+		u_int32_t rand = 0;
+
+		strlcpy(proto, "MIT-MAGIC-COOKIE-1", proto_len);
+		for (i = 0; i < 16; i++) {
+			if (i % 4 == 0)
+				rand = arc4random();
+			snprintf(data + 2 * i, data_len - 2 * i, "%02x", rand & 0xff);
+			rand >>= 8;
+		}
+	}
+}
+
+int
+ssh_session(void)
+{
+	int type;
+	int i;
+	int plen;
+	int interactive = 0;
+	int have_tty = 0;
+	struct winsize ws;
+	int authfd;
+	char *cp;
 
 	/* Enable compression if requested. */
 	if (options.compression) {
@@ -670,7 +768,7 @@ main(int ac, char **av)
 		type = packet_read(&plen);
 		if (type == SSH_SMSG_SUCCESS) {
 			interactive = 1;
-			have_pty = 1;
+			have_tty = 1;
 		} else if (type == SSH_SMSG_FAILURE)
 			log("Warning: Remote host failed or refused to allocate a pseudo tty.");
 		else
@@ -678,56 +776,22 @@ main(int ac, char **av)
 	}
 	/* Request X11 forwarding if enabled and DISPLAY is set. */
 	if (options.forward_x11 && getenv("DISPLAY") != NULL) {
-		char line[512], proto[512], data[512];
-		FILE *f;
-		int forwarded = 0, got_data = 0, i;
-
-#ifdef XAUTH_PATH
-		/* Try to get Xauthority information for the display. */
-		snprintf(line, sizeof line, "%.100s list %.200s 2>/dev/null",
-			 XAUTH_PATH, getenv("DISPLAY"));
-		f = popen(line, "r");
-		if (f && fgets(line, sizeof(line), f) &&
-		    sscanf(line, "%*s %s %s", proto, data) == 2)
-			got_data = 1;
-		if (f)
-			pclose(f);
-#endif /* XAUTH_PATH */
-		/*
-		 * If we didn't get authentication data, just make up some
-		 * data.  The forwarding code will check the validity of the
-		 * response anyway, and substitute this data.  The X11
-		 * server, however, will ignore this fake data and use
-		 * whatever authentication mechanisms it was using otherwise
-		 * for the local connection.
-		 */
-		if (!got_data) {
-			u_int32_t rand = 0;
-
-			strlcpy(proto, "MIT-MAGIC-COOKIE-1", sizeof proto);
-			for (i = 0; i < 16; i++) {
-				if (i % 4 == 0)
-					rand = arc4random();
-				snprintf(data + 2 * i, sizeof data - 2 * i, "%02x", rand & 0xff);
-				rand >>= 8;
-			}
-		}
-		/*
-		 * Got local authentication reasonable information. Request
-		 * forwarding with authentication spoofing.
-		 */
+		char proto[512], data[512];
+		/* Get reasonable local authentication information. */
+		x11_get_proto(proto, sizeof proto, data, sizeof data);
+		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication spoofing.");
-		x11_request_forwarding_with_spoofing(proto, data);
+		x11_request_forwarding_with_spoofing(0, proto, data);
 
 		/* Read response from the server. */
 		type = packet_read(&plen);
 		if (type == SSH_SMSG_SUCCESS) {
-			forwarded = 1;
 			interactive = 1;
-		} else if (type == SSH_SMSG_FAILURE)
+		} else if (type == SSH_SMSG_FAILURE) {
 			log("Warning: Remote host denied X11 forwarding.");
-		else
+		} else {
 			packet_disconnect("Protocol error waiting for X11 forwarding");
+		}
 	}
 	/* Tell the packet module whether this is an interactive session. */
 	packet_set_interactive(interactive, options.keepalives);
@@ -757,7 +821,7 @@ main(int ac, char **av)
 		      options.local_forwards[i].host,
 		      options.local_forwards[i].host_port);
 		channel_request_local_forwarding(options.local_forwards[i].port,
-					  	 options.local_forwards[i].host,
+						 options.local_forwards[i].host,
 						 options.local_forwards[i].host_port,
 						 options.gateway_ports);
 	}
@@ -770,11 +834,11 @@ main(int ac, char **av)
 		      options.remote_forwards[i].host_port);
 		channel_request_remote_forwarding(options.remote_forwards[i].port,
 						  options.remote_forwards[i].host,
-				   		  options.remote_forwards[i].host_port);
+						  options.remote_forwards[i].host_port);
 	}
 
 	/* If requested, let ssh continue in the background. */
-	if (fork_after_authentication_flag) 
+	if (fork_after_authentication_flag)
 		if (daemon(1, 1) < 0)
 			fatal("daemon() failed: %.200s", strerror(errno));
 
@@ -799,11 +863,114 @@ main(int ac, char **av)
 	}
 
 	/* Enter the interactive session. */
-	exit_status = client_loop(have_pty, tty_flag ? options.escape_char : -1);
+	return client_loop(have_tty, tty_flag ? options.escape_char : -1);
+}
 
-	/* Close the connection to the remote host. */
-	packet_close();
+void
+init_local_fwd(void)
+{
+	int i;
+	/* Initiate local TCP/IP port forwardings. */
+	for (i = 0; i < options.num_local_forwards; i++) {
+		debug("Connections to local port %d forwarded to remote address %.200s:%d",
+		      options.local_forwards[i].port,
+		      options.local_forwards[i].host,
+		      options.local_forwards[i].host_port);
+		channel_request_local_forwarding(options.local_forwards[i].port,
+						 options.local_forwards[i].host,
+						 options.local_forwards[i].host_port,
+						 options.gateway_ports);
+	}
+}
 
-	/* Exit with the status returned by the program on the remote side. */
-	exit(exit_status);
+extern void client_set_session_ident(int id);
+
+void
+client_init(int id, void *arg)
+{
+	int len;
+	debug("client_init id %d arg %d", id, (int)arg);
+
+	if (no_shell_flag)
+		goto done;
+
+	if (tty_flag) {
+		struct winsize ws;
+		char *cp;
+		cp = getenv("TERM");
+		if (!cp)
+			cp = "";
+		/* Store window size in the packet. */
+		if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) < 0)
+			memset(&ws, 0, sizeof(ws));
+
+		channel_request_start(id, "pty-req", 0);
+		packet_put_cstring(cp);
+		packet_put_int(ws.ws_col);
+		packet_put_int(ws.ws_row);
+		packet_put_int(ws.ws_xpixel);
+		packet_put_int(ws.ws_ypixel);
+		packet_put_cstring("");		/* XXX: encode terminal modes */
+		packet_send();
+		/* XXX wait for reply */
+	}
+	if (options.forward_x11 &&
+	    getenv("DISPLAY") != NULL) {
+		char proto[512], data[512];
+		/* Get reasonable local authentication information. */
+		x11_get_proto(proto, sizeof proto, data, sizeof data);
+		/* Request forwarding with authentication spoofing. */
+		debug("Requesting X11 forwarding with authentication spoofing.");
+		x11_request_forwarding_with_spoofing(id, proto, data);
+		/* XXX wait for reply */
+	}
+
+	len = buffer_len(&command);
+	if (len > 0) {
+		if (len > 900)
+			len = 900;
+		debug("Sending command: %.*s", len, buffer_ptr(&command));
+		channel_request_start(id, "exec", 0);
+		packet_put_string(buffer_ptr(&command), len);
+		packet_send();
+	} else {
+		channel_request(id, "shell", 0);
+	}
+	/* channel_callback(id, SSH2_MSG_OPEN_CONFIGMATION, client_init, 0); */
+done:
+	/* register different callback, etc. XXX */
+	client_set_session_ident(id);
+}
+
+int
+ssh_session2(void)
+{
+	int window, packetmax, id;
+	int in  = dup(STDIN_FILENO);
+	int out = dup(STDOUT_FILENO);
+	int err = dup(STDERR_FILENO);
+
+	if (in < 0 || out < 0 || err < 0)
+		fatal("dump in/out/err failed");
+
+	/* should be pre-session */
+	init_local_fwd();
+	
+	window = 32*1024;
+	if (tty_flag) {
+		packetmax = window/8;
+	} else {
+		window *= 2;
+		packetmax = window/2;
+	}
+
+	id = channel_new(
+	    "session", SSH_CHANNEL_OPENING, in, out, err,
+	    window, packetmax, CHAN_EXTENDED_WRITE, xstrdup("client-session"));
+
+
+	channel_open(id);
+	channel_register_callback(id, SSH2_MSG_CHANNEL_OPEN_CONFIRMATION, client_init, (void *)0);
+
+	return client_loop(tty_flag, tty_flag ? options.escape_char : -1);
 }

@@ -1,29 +1,35 @@
 /*
- * 
+ *
  * authfile.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Mon Mar 27 03:52:05 1995 ylo
- * 
+ *
  * This file contains functions for reading and writing identity files, and
  * for reading the passphrase from the user.
- * 
+ *
  * $FreeBSD$
  */
 
 #include "includes.h"
-RCSID("$Id: authfile.c,v 1.11 1999/12/06 19:11:15 deraadt Exp $");
+RCSID("$Id: authfile.c,v 1.16 2000/04/26 21:28:32 markus Exp $");
 
 #include <openssl/bn.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/evp.h>
+
 #include "xmalloc.h"
 #include "buffer.h"
 #include "bufaux.h"
 #include "cipher.h"
 #include "ssh.h"
+#include "key.h"
 
 /* Version identification string for identity files. */
 #define AUTHFILE_ID_STRING "SSH PRIVATE KEY FILE FORMAT 1.1\n"
@@ -36,8 +42,8 @@ RCSID("$Id: authfile.c,v 1.11 1999/12/06 19:11:15 deraadt Exp $");
  */
 
 int
-save_private_key(const char *filename, const char *passphrase,
-		 RSA *key, const char *comment)
+save_private_key_rsa(const char *filename, const char *passphrase,
+    RSA *key, const char *comment)
 {
 	Buffer buffer, encrypted;
 	char buf[100], *cp;
@@ -102,7 +108,7 @@ save_private_key(const char *filename, const char *passphrase,
 	/* Allocate space for the private part of the key in the buffer. */
 	buffer_append_space(&encrypted, &cp, buffer_len(&buffer));
 
-	cipher_set_key_string(&cipher, cipher_type, passphrase, 1);
+	cipher_set_key_string(&cipher, cipher_type, passphrase);
 	cipher_encrypt(&cipher, (unsigned char *) cp,
 		       (unsigned char *) buffer_ptr(&buffer),
 		       buffer_len(&buffer));
@@ -129,6 +135,63 @@ save_private_key(const char *filename, const char *passphrase,
 	return 1;
 }
 
+/* save DSA key in OpenSSL PEM format */
+
+int
+save_private_key_dsa(const char *filename, const char *passphrase,
+    DSA *dsa, const char *comment)
+{
+	FILE *fp;
+	int fd;
+	int success = 1;
+	int len = strlen(passphrase);
+
+	if (len > 0 && len <= 4) {
+		error("passphrase too short: %d bytes", len);
+		errno = 0;
+		return 0;
+	}
+	fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	if (fd < 0) {
+		debug("open %s failed", filename);
+		return 0;
+	}
+	fp = fdopen(fd, "w");
+	if (fp == NULL ) {
+		debug("fdopen %s failed", filename);
+		close(fd);
+		return 0;
+	}
+	if (len > 0) {
+		if (!PEM_write_DSAPrivateKey(fp, dsa, EVP_des_ede3_cbc(),
+		    (char *)passphrase, strlen(passphrase), NULL, NULL))
+			success = 0;
+	} else {
+		if (!PEM_write_DSAPrivateKey(fp, dsa, NULL,
+		    NULL, 0, NULL, NULL))
+			success = 0;
+	}
+	fclose(fp);
+	return success;
+}
+
+int
+save_private_key(const char *filename, const char *passphrase, Key *key,
+    const char *comment)
+{
+	switch (key->type) {
+	case KEY_RSA:
+		return save_private_key_rsa(filename, passphrase, key->rsa, comment);
+		break;
+	case KEY_DSA:
+		return save_private_key_dsa(filename, passphrase, key->dsa, comment);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 /*
  * Loads the public part of the key file.  Returns 0 if an error was
  * encountered (the file does not exist or is not readable), and non-zero
@@ -136,8 +199,7 @@ save_private_key(const char *filename, const char *passphrase,
  */
 
 int
-load_public_key(const char *filename, RSA * pub,
-		char **comment_return)
+load_public_key_rsa(const char *filename, RSA * pub, char **comment_return)
 {
 	int fd, i;
 	off_t len;
@@ -155,7 +217,7 @@ load_public_key(const char *filename, RSA * pub,
 
 	if (read(fd, cp, (size_t) len) != (size_t) len) {
 		debug("Read from key file %.200s failed: %.100s", filename,
-		      strerror(errno));
+		    strerror(errno));
 		buffer_free(&buffer);
 		close(fd);
 		return 0;
@@ -184,9 +246,13 @@ load_public_key(const char *filename, RSA * pub,
 
 	/* Read the public key from the buffer. */
 	buffer_get_int(&buffer);
-	pub->n = BN_new();
+	/* XXX alloc */
+	if (pub->n == NULL)
+		pub->n = BN_new();
 	buffer_get_bignum(&buffer, pub->n);
-	pub->e = BN_new();
+	/* XXX alloc */
+	if (pub->e == NULL)
+		pub->e = BN_new();
 	buffer_get_bignum(&buffer, pub->e);
 	if (comment_return)
 		*comment_return = buffer_get_string(&buffer, NULL);
@@ -197,6 +263,20 @@ load_public_key(const char *filename, RSA * pub,
 	return 1;
 }
 
+int
+load_public_key(const char *filename, Key * key, char **comment_return)
+{
+	switch (key->type) {
+	case KEY_RSA:
+		return load_public_key_rsa(filename, key->rsa, comment_return);
+		break;
+	case KEY_DSA:
+	default:
+		break;
+	}
+	return 0;
+}
+
 /*
  * Loads the private key from the file.  Returns 0 if an error is encountered
  * (file does not exist or is not readable, or passphrase is bad). This
@@ -205,35 +285,17 @@ load_public_key(const char *filename, RSA * pub,
  */
 
 int
-load_private_key(const char *filename, const char *passphrase,
-		 RSA * prv, char **comment_return)
+load_private_key_rsa(int fd, const char *filename,
+    const char *passphrase, RSA * prv, char **comment_return)
 {
-	int fd, i, check1, check2, cipher_type;
+	int i, check1, check2, cipher_type;
 	off_t len;
 	Buffer buffer, decrypted;
 	char *cp;
 	CipherContext cipher;
 	BN_CTX *ctx;
 	BIGNUM *aux;
-	struct stat st;
 
-	fd = open(filename, O_RDONLY);
-	if (fd < 0)
-		return 0;
-
-	/* check owner and modes */
-	if (fstat(fd, &st) < 0 ||
-	    (st.st_uid != 0 && st.st_uid != getuid()) ||
-	    (st.st_mode & 077) != 0) {
-		close(fd);
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @");
-		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-		error("Bad ownership or mode(0%3.3o) for '%s'.",
-		      st.st_mode & 0777, filename);
-		error("It is recommended that your private key files are NOT accessible by others.");
-		return 0;
-	}
 	len = lseek(fd, (off_t) 0, SEEK_END);
 	lseek(fd, (off_t) 0, SEEK_SET);
 
@@ -281,7 +343,7 @@ load_private_key(const char *filename, const char *passphrase,
 		xfree(buffer_get_string(&buffer, NULL));
 
 	/* Check that it is a supported cipher. */
-	if (((cipher_mask() | SSH_CIPHER_NONE | SSH_AUTHFILE_CIPHER) &
+	if (((cipher_mask1() | SSH_CIPHER_NONE | SSH_AUTHFILE_CIPHER) &
 	     (1 << cipher_type)) == 0) {
 		debug("Unsupported cipher %.100s used in key file %.200s.",
 		      cipher_name(cipher_type), filename);
@@ -293,7 +355,7 @@ load_private_key(const char *filename, const char *passphrase,
 	buffer_append_space(&decrypted, &cp, buffer_len(&buffer));
 
 	/* Rest of the buffer is encrypted.  Decrypt it using the passphrase. */
-	cipher_set_key_string(&cipher, cipher_type, passphrase, 0);
+	cipher_set_key_string(&cipher, cipher_type, passphrase);
 	cipher_decrypt(&cipher, (unsigned char *) cp,
 		       (unsigned char *) buffer_ptr(&buffer),
 		       buffer_len(&buffer));
@@ -310,7 +372,9 @@ load_private_key(const char *filename, const char *passphrase,
 		buffer_free(&decrypted);
 fail:
 		BN_clear_free(prv->n);
+		prv->n = NULL;
 		BN_clear_free(prv->e);
+		prv->e = NULL;
 		if (comment_return)
 			xfree(*comment_return);
 		return 0;
@@ -343,4 +407,88 @@ fail:
 	buffer_free(&decrypted);
 
 	return 1;
+}
+
+int
+load_private_key_dsa(int fd, const char *passphrase, Key *k, char **comment_return)
+{
+	DSA *dsa;
+	BIO *in;
+	FILE *fp;
+
+	in = BIO_new(BIO_s_file());
+	if (in == NULL) {
+		error("BIO_new failed");
+		return 0;
+	}
+	fp = fdopen(fd, "r");
+	if (fp == NULL) {
+		error("fdopen failed");
+		return 0;
+	}
+	BIO_set_fp(in, fp, BIO_NOCLOSE);
+	dsa = PEM_read_bio_DSAPrivateKey(in, NULL, NULL, (char *)passphrase);
+	if (dsa == NULL) {
+		debug("PEM_read_bio_DSAPrivateKey failed");
+	} else {
+		/* replace k->dsa with loaded key */
+		DSA_free(k->dsa);
+		k->dsa = dsa;
+	}
+	BIO_free(in);
+	fclose(fp);
+	if (comment_return)
+		*comment_return = xstrdup("dsa w/o comment");
+	debug("read DSA private key done");
+#ifdef DEBUG_DSS
+	DSA_print_fp(stderr, dsa, 8);
+#endif
+	return dsa != NULL ? 1 : 0;
+}
+
+int
+load_private_key(const char *filename, const char *passphrase, Key *key,
+    char **comment_return)
+{
+	int fd;
+	int ret = 0;
+	struct stat st;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	/* check owner and modes */
+	if (fstat(fd, &st) < 0 ||
+	    (st.st_uid != 0 && st.st_uid != getuid()) ||
+	    (st.st_mode & 077) != 0) {
+		close(fd);
+		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		error("@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @");
+		error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		error("Bad ownership or mode(0%3.3o) for '%s'.",
+		      st.st_mode & 0777, filename);
+		error("It is recommended that your private key files are NOT accessible by others.");
+		return 0;
+	}
+	switch (key->type) {
+	case KEY_RSA:
+		if (key->rsa->e != NULL) {
+			BN_clear_free(key->rsa->e);
+			key->rsa->e = NULL;
+		}
+		if (key->rsa->n != NULL) {
+			BN_clear_free(key->rsa->n);
+			key->rsa->n = NULL;
+		}
+		ret = load_private_key_rsa(fd, filename, passphrase,
+		     key->rsa, comment_return);
+		break;
+	case KEY_DSA:
+		ret = load_private_key_dsa(fd, passphrase, key, comment_return);
+	default:
+		break;
+	}
+	close(fd);
+	return ret;
 }

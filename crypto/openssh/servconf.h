@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * servconf.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Mon Aug 21 15:35:03 1995 ylo
- * 
+ *
  * Definitions for server configuration data and for the functions reading it.
- * 
+ *
  * $FreeBSD$
  */
 
-/* RCSID("$Id: servconf.h,v 1.15 2000/01/04 00:08:00 markus Exp $"); */
+/* RCSID("$Id: servconf.h,v 1.22 2000/05/06 17:45:37 markus Exp $"); */
 
 #ifndef SERVCONF_H
 #define SERVCONF_H
@@ -33,6 +33,8 @@ typedef struct {
 	char   *listen_addr;		/* Address on which the server listens. */
 	struct addrinfo *listen_addrs;	/* Addresses on which the server listens. */
 	char   *host_key_file;	/* File containing host key. */
+	char   *host_dsa_key_file;	/* File containing dsa host key. */
+	char   *pid_file;	/* Where to put our pid */
 	int     server_key_bits;/* Size of the server key. */
 	int     login_grace_time;	/* Disconnect if no auth in this time
 					 * (sec). */
@@ -48,6 +50,9 @@ typedef struct {
 					 * searching at */
 	int     strict_modes;	/* If true, require string home dir modes. */
 	int     keepalives;	/* If true, set SO_KEEPALIVE. */
+	char   *ciphers;	/* Ciphers in order of preference. */
+	int	protocol;	/* Protocol in order of preference. */
+	int     gateway_ports;	/* If true, allow remote connects to forwarded ports. */
 	SyslogFacility log_facility;	/* Facility for system logging. */
 	LogLevel log_level;	/* Level for system logging. */
 	int     rhosts_authentication;	/* If true, permit rhosts
@@ -55,6 +60,7 @@ typedef struct {
 	int     rhosts_rsa_authentication;	/* If true, permit rhosts RSA
 						 * authentication. */
 	int     rsa_authentication;	/* If true, permit RSA authentication. */
+	int     dsa_authentication;	/* If true, permit DSA authentication. */
 #ifdef KRB4
 	int     krb4_authentication;		/* If true, permit Kerberos v4
 						 * authentication. */
