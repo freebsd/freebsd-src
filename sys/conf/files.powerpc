@@ -77,4 +77,4 @@ powerpc/psim/iobus.c 		optional psim
 powerpc/psim/ata_iobus.c	optional ata psim
 powerpc/psim/sio_iobus.c	optional sio psim
 
-
+dev/zs/zs_macio.c		optional	powermac zs
