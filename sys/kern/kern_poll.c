@@ -504,8 +504,7 @@ poll_idle(void)
 			mtx_unlock(&Giant);
 			mtx_assert(&Giant, MA_NOTOWNED);
 			mtx_lock_spin(&sched_lock);
-			td->td_proc->p_stats->p_ru.ru_nvcsw++;
-			mi_switch();
+			mi_switch(SW_VOL);
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			idlepoll_sleeping = 1;
