@@ -1,0 +1,1295 @@
+Changes from 2.15.1 to 2.15.2
+---------------------------
+
+Additions to the FUTURES file.
+
+Document undefined order of output when using both standard output
+  and /dev/stdout or any of the /dev output files that gawk emulates in
+  the absence of OS support.
+
+Clean up the distribution generation in Makefile.in:  the info files are
+  now included, the distributed files are marked read-only and patched
+  distributions are now unpacked in a directory named with the patch level.
+
+
+Changes from 2.15 to 2.15.1
+---------------------------
+
+Close stdout and stderr before all redirections on program exit.  This allows
+  detection of write errors and also fixes the messages test on Solaris 2.x.
+
+Removed YYMAXDEPTH define in awk.y which was limiting the parser stack depth.
+
+Changes to config/bsd44, Makefile.bsd44 and configure to bring it into line
+  with the BSD4.4 release.
+
+Changed Makefile to use prefix, exec_prefix, bindir etc.
+
+make install now installs info files.
+
+make install now sets permissions on installed files.
+
+Make targets added:  uninstall, distclean, mostlyclean and realclean.
+
+Added config.h to cleaner and clobber make targets.
+
+Changes to config/{hpux8x,sysv3,sysv4,ultrix41} to deal with alloca().
+
+Change to getopt.h for portability.
+
+Added more special cases to the getpgrp() call.
+
+Added README.ibmrt-aos and config/ibmrt-aos.
+
+Changes from 2.14 to 2.15
+---------------------------
+
+Command-line source can now be mixed with library functions.
+
+ARGIND variable tracks index in ARGV of FILENAME.
+
+GNU style long options in addition to short options.
+
+Plan 9 style special files interpreted by gawk:
+        /dev/pid
+        /dev/ppid
+        /dev/pgrpid
+        /dev/user
+                $1 = getuid
+                $2 = geteuid
+                $3 = getgid
+                $4 = getegid
+                $5 ... $NF = getgroups if supported
+
+ERRNO variable contains error string if getline or close fails.
+
+Very old options -a and -e have gone away.
+
+Inftest has been removed from the default target in test/Makefile -- the
+  results were too machine specific and resulted in too many false alarms.
+
+A README.amiga has been added.
+
+The "too many arguments supplied for format string" warning message is only
+  in effect under the lint option.
+
+Code improvements in dfa.c.
+
+Fixed all reported bugs:
+
+	Writes are checked for failure (such as full filesystem).
+
+	Stopped (at least some) runaway error messages.
+
+	gsub(/^/, "x") does the right thing for $0 of 0, 1, or more length.
+
+	close() on a command being piped to a getline now works properly.
+
+	The input record will no longer be freed upon an explicit close()
+	of the input file.
+
+	A NUL character in FS now works.
+
+	In a substitute, \\& now means a literal backslash followed by what
+	was matched.
+
+	Integer overflow of substring length in substr() is caught.
+
+	An input record without a newline termination is handled properly.
+
+	In io.c, check is against only EMFILE so that system file table
+	  is not filled.
+
+	Renamed all files with names longer than 14 characters.
+
+	Escaped characters in regular expressions were being lost when 
+	  IGNORECASE was used.
+
+	Long source lines were not being handled properly.
+
+	Sourcefiles that ended in a tab but no newline were bombing.
+
+	Patterns that could match zero characters in split() were not working
+	  properly.
+
+	The parsedebug option was not working.
+
+	The grammar was being a bit too lenient, allowing some very dubious
+	  programs to pass.
+
+	Compilation with DEBUG defined now works.
+
+	A variable read in with getline was not being treated as a potential
+	  number.
+
+	Array subscripts were not always of string type.
+
+
+Changes from 2.13.2 to 2.14
+---------------------------
+
+Updated manual!
+
+Added "next file" to skip efficiently to the next input file.
+
+Fixed potential of overflowing buffer in do_sprintf().
+
+Plugged small memory leak in sub_common().
+
+EOF on a redirect is now "sticky" -- it can only be cleared by close()ing
+  the pipe or file.
+
+Now works if used via a #! /bin/gawk line at the top of an executable file
+  when that line ends with whitespace.
+
+Added some checks to the grammar to catch redefinition of builtin functions.
+  This could eventually be the basis for an extension to allow redefining
+  functions, but in the mean time it's a good error catching facility.
+
+Negative integer exponents now work.
+
+Modified do_system() to make sure it had a non-null string to be passed
+  to system(3). Thus, system("") will flush any pending output but not go
+  through the overhead of forking an un-needed shell.
+
+A fix to floating point comparisons so that NaNs compare right on IEEE systems.
+
+Added code to make sure we're not opening directories for reading and such.
+
+Added code to do better diagnoses of weird or null file names.
+
+Allow continue outside of a loop, unless in strict posix mode.  Lint option
+  will issue warning.
+
+New missing/strftime.c.  There has been one chage that affects gawk.  Posix
+  now defines a %V conversion so the vms conversion has been changed to %v.
+  If this version is used with gawk -Wlint and they use %V in a call to
+  strftime, they'll get a warning.
+
+Error messages now conform to GNU standard (I hope).
+
+Changed comparisons to conform to the  description found in the file POSIX.
+  This is inconsistent with the current POSIX draft, but that is broken.
+  Hopefully the final POSIX standard will conform to this version.
+  (Alas, this will have to wait for 1003.2b, which will be a revision to
+  the 1003.2 standard.  That standard has been frozen with the broken
+  comparison rules.)
+
+The length of a string was a short and now is a size_t.
+
+Updated VMS help.
+
+Added quite a few new tests to the test suite and deleted many due to lack of
+  written releases.  Test output is only removed if it is identical to the
+  "good" output.
+
+Fixed a couple of bugs for reference to $0 when $0 is "" -- particularly in
+  a BEGIN block.
+
+Fixed premature freeing in construct "$0 = $0".
+
+Removed the call to wait_any() in gawk_popen(), since on at least some systems,
+  if gawk's input was from a pipe, the predecssor process in the pipe was a
+  child of gawk and this caused a deadlock.
+
+Regexp can (once again) match a newline, if given explicitly.
+
+nextopen() makes sure file name is null terminated.
+
+Fixed VMS pipe simulation.  Improved VMS I/O performance.
+
+Catch . used in variable names.
+
+Fixed bug in getline without redirect from a file -- it was quitting after the
+  first EOF, rather than trying the next file.
+
+Fixed bug in treatment of backslash at the end of a string -- it was bombing
+  rather than doing something sensible.  It is not clear what this should mean,
+  but for now I issue a warning and take it as a literal backslash.
+
+Moved setting of regexp syntax to before the option parsing in main(), to
+  handle things like -v FS='[.,;]'
+
+Fixed bug when NF is set by user -- fields_arr must be expanded if necessary
+  and "new" fields must be initialized.
+
+Fixed several bugs in [g]sub() for no match found or the match is 0-length.
+
+Fixed bug where in gsub() a pattern anchorred at the beginning would still
+  substitute throughout the string.
+
+make test does not assume the . is in PATH.
+
+Fixed bug when a field beyond the end of the record was requested after
+  $0 was altered (directly or indirectly).
+
+Fixed bug for assignment to field beyond end of record -- the assigned value
+  was not found on subsequent reference to that field.
+
+Fixed bug for FS a regexp and it matches at the end of a record.
+
+Fixed memory leak for an array local to a function.
+
+Fixed hanging of pipe redirection to getline
+
+Fixed coredump on access to $0 inside BEGIN block.
+
+Fixed treatment of RS = "".  It now parses the fields correctly and strips
+  leading whitspace from a record if FS is a space.
+
+Fixed faking of /dev/stdin.
+
+Fixed problem with x += x
+
+Use of scalar as array and vice versa is now detected.
+
+IGNORECASE now obeyed for FS (even if FS is a single alphabetic character).
+
+Switch to GPL version 2.
+
+Renamed awk.tab.c to awktab.c for MSDOS and VMS tar programs.
+
+Renamed this file (CHANGES) to NEWS.
+
+Use fmod() instead of modf() and provide FMOD_MISSING #define to undo
+  this change.
+
+Correct the volatile declarations in eval.c.
+
+Avoid errant closing of the file descriptors for stdin, stdout and stderr.
+
+Be more flexible about where semi-colons can occur in programs.
+
+Check for write errors on all output, not just on close().
+
+Eliminate the need for missing/{strtol.c,vprintf.c}.
+
+Use GNU getopt and eliminate missing/getopt.c.
+
+More "lint" checking.
+
+
+Changes from 2.13.1 to 2.13.2
+-----------------------------
+
+Toward conformity with GNU standards, configure is a link to mkconf, the latter
+  to disappear in the next major release.
+
+Update to config/bsd43.
+
+Added config/apollo, config/msc60, config/cray2-50, config/interactive2.2
+
+sgi33.cc added for compilation using cc ratther than gcc.
+
+Ultrix41 now propagates to config.h properly -- as part of a general
+  mechanism in configure for kludges -- #define anything from a config file
+  just gets tacked onto the end of config.h -- to be used sparingly.
+
+Got rid of an unnecessary and troublesome declaration of vprintf().
+
+Small improvement in locality of error messages.
+
+Try to diagnose use of array as scalar and vice versa -- to be improved in
+  the future.
+
+Fix for last bug fix for Cray division code--sigh.
+
+More changes to test suite to explicitly use sh.  Also get rid of 
+  a few generated files.
+
+Fixed off-by-one bug in string concatenation code.
+
+Fix for use of array that is passed in from a previous function parameter.
+  Addition to test suite for above.
+
+A number of changes associated with changing NF and access to fields
+  beyond the end of the current record.
+
+Change to missing/memcmp.c to avoid seg. fault on zero length input.
+
+Updates to test suite (including some inadvertently left out of the last patch)
+  to invoke sh explicitly (rather than rely on #!/bin/sh) and remove some
+  junk files.  test/chem/good updated to correspond to bug fixes.
+
+Changes from 2.13.0 to 2.13.1
+-----------------------------
+
+More configs and PORTS.
+
+Fixed bug wherein a simple division produced an erroneous FPE, caused by
+  the Cray division workaround -- that code is now #ifdef'd only for
+  Cray *and* fixed.
+
+Fixed bug in modulus implementation -- it was very close to the above
+  code, so I noticed it.
+
+Fixed portability problem with limits.h in missing.c
+
+Fixed portability problem with tzname and daylight -- define TZNAME_MISSING
+  if strftime() is missing and tzname is also.
+
+Better support for Latin-1 character set.
+
+Fixed portability problem in test Makefile.
+
+Updated PROBLEMS file.
+
+=============================== gawk-2.13 released =========================
+Changes from 2.12.42 to 2.12.43
+-------------------------------
+
+Typo in awk.y
+
+Fixed up strftime.3 and added doc. for %V.
+
+Changes from 2.12.41 to 2.12.42
+-------------------------------
+
+Fixed bug in devopen() -- if you had write permission in /dev,
+  it would just create /dev/stdout etc.!!
+
+Final (?) VMS update.
+
+Make NeXT use GFMT_WORKAROUND
+
+Fixed bug in sub_common() for substitute on zero-length match.  Improved the
+  code a bit while I was at it.
+
+Fixed grammar so that $i++ parses as ($i)++
+
+Put support/* back in the distribution (didn't I already do this?!)
+
+Changes from 2.12.40 to 2.12.41
+-------------------------------
+
+VMS workaround for broken %g format.
+
+Changes from 2.12.39 to 2.12.40
+-------------------------------
+
+Minor man page update.
+
+Fixed latent bug in redirect().
+
+Changes from 2.12.38 to 2.12.39
+-------------------------------
+
+Updates to test suite -- remove dependence on changing gawk.1 man page.
+
+Changes from 2.12.37 to 2.12.38
+-------------------------------
+
+Fixed bug in use of *= without whitespace following.
+
+VMS update.
+
+Updates to man page.
+
+Option handling updates in main.c
+
+test/manyfiles redone and added to bigtest.
+
+Fixed latent (on Sun) bug in handling of save_fs.
+
+Changes from 2.12.36 to 2.12.37
+-------------------------------
+
+Update REL in Makefile-dist.  Incorporate test suite into main distribution.
+
+Minor fix in regtest.
+
+Changes from 2.12.35 to 2.12.36
+-------------------------------
+
+Release takes on dual personality -- 2.12.36 and 2.13.0 -- any further
+  patches before public release won't count for 2.13, although they will for
+  2.12 -- be careful to avoid confusion!  patchlevel.h will be the last thing
+  to change.
+
+Cray updates to deal with arithmetic problems.
+
+Minor test suite updates.
+
+Fixed latent bug in parser (freeing memory).
+
+Changes from 2.12.34 to 2.12.35
+-------------------------------
+
+VMS updates.
+
+Flush stdout at top of err() and stderr at bottom.
+
+Fixed bug in eval_condition() -- it wasn't testing for MAYBE_NUM and
+  doing the force_number().
+
+Included the missing manyfiles.awk and a new test to catch the above bug which
+  I am amazed wasn't already caught by the test suite -- it's pretty basic.
+
+Changes from 2.12.33 to 2.12.34
+-------------------------------
+
+Atari updates -- including bug fix.
+
+More VMS updates -- also nuke vms/version.com.
+
+Fixed bug in handling of large numbers of redirections -- it was probably never
+  tested before (blush!).
+
+Minor rearrangement of code in r_force_number().
+
+Made chem and regtest tests a bit more portable (Ultrix again).
+
+Added another test -- manyfiles -- not invoked under any other test -- very Unix
+  specific.
+
+Rough beginning of LIMITATIONS file -- need my AWK book to complete it.
+
+Changes from 2.12.32 to 2.12.33
+-------------------------------
+
+Expunge debug.? from various files.
+
+Remove vestiges of Floor and Ceil kludge.
+
+Special case integer division -- mainly for Cray, but maybe someone else
+  will benefit.
+
+Workaround for iop_close closing an output pipe descriptor on Cray --
+  not conditional since I think it may fix a bug on SGI as well and I don't
+  think it can hurt elsewhere.
+
+Fixed memory leak in assoc_lookup().
+
+Small cleanup in test suite.
+
+Changes from 2.12.31 to 2.12.32
+-------------------------------
+
+Nuked debug.c and debugging flag -- there are better ways.
+
+Nuked version.sh and version.c in subdirectories.
+
+Fixed bug in handling of IGNORECASE.
+
+Fixed bug when FIELDWIDTHS was set via -v option.
+
+Fixed (obscure) bug when $0 is assigned a numerical value.
+
+Fixed so that escape sequences in command-line assignments work (as it already
+  said in the comment).
+
+Added a few cases to test suite.
+
+Moved support/* back into distribution.
+
+VMS updates.
+
+Changes from 2.12.30 to 2.12.31
+-------------------------------
+
+Cosmetic manual page changes.
+
+Updated sunos3 config.
+
+Small changes in test suite including renaming files over 14 chars. in length.
+
+Changes from 2.12.29 to 2.12.30
+-------------------------------
+
+Bug fix for many string concatenations in a row.
+
+Changes from 2.12.28 to 2.12.29
+-------------------------------
+
+Minor cleanup in awk.y
+
+Minor VMS update.
+ 
+Minor atari update.
+
+Changes from 2.12.27 to 2.12.28
+-------------------------------
+
+Got rid of the debugging goop in eval.c -- there are better ways.
+
+Sequent port.
+
+VMS changes left out of the last patch -- sigh!  config/vms.h renamed
+  to config/vms-conf.h.
+
+Fixed missing/tzset.c
+
+Removed use of gcvt() and GCVT_MISSING -- turns out it was no faster than
+  sprintf("%g") and caused all sorts of portability headaches.
+
+Tuned get_field() -- it was unnecessarily parsing the whole record on reference
+  to $0.
+
+Tuned interpret() a bit in the rule_node loop.
+
+In r_force_number(), worked around bug in Uglix strtod() and got rid of 
+  ugly do{}while(0) at Michal's urging.
+
+Replaced do_deref() and deref with unref(node) -- much cleaner and a bit faster.
+
+Got rid of assign_number() -- contrary to comment, it was no faster than
+  just making a new node and freeing the old one.
+
+Replaced make_number() and tmp_number() with macros that call mk_number().
+
+Changed freenode() and newnode() into macros -- the latter is getnode()
+  which calls more_nodes() as necessary.
+
+Changes from 2.12.26 to 2.12.27
+-------------------------------
+
+Completion of Cray 2 port (includes a kludge for floor() and ceil()
+  that may go or be changed -- I think that it may just be working around
+  a bug in chem that is being tweaked on the Cray).
+
+More VMS updates.
+
+Moved kludge over yacc's insertion of malloc and realloc declarations
+  from protos.h to the Makefile.
+
+Added a lisp interpreter in awk to the test suite.  (Invoked under
+  bigtest.)
+
+Cleanup in r_force_number() -- I had never gotten around to a thorough
+  profile of the cache code and it turns out to be not worth it.
+
+Performance boost -- do lazy force_number()'ing for fields etc. i.e.
+  flag them (MAYBE_NUM) and call force_number only as necessary.
+
+Changes from 2.12.25 to 2.12.26
+-------------------------------
+
+Rework of regexp stuff so that dynamic regexps have reasonable
+  performance -- string used for compiled regexp is stored and
+  compared to new string -- if same, no recompilation is necessary.
+  Also, very dynamic regexps cause dfa-based searching to be turned
+  off.
+
+Code in dev_open() is back to returning fileno(std*) rather than
+  dup()ing it.  This will be documented.  Sorry for the run-around
+  on this.
+
+Minor atari updates.
+
+Minor vms update.
+
+Missing file from MSDOS port.
+
+Added warning (under lint) if third arg. of [g]sub is a constant and
+  handle it properly in the code (i.e. return how many matches).
+
+Changes from 2.12.24 to 2.12.25
+-------------------------------
+
+MSDOS port.
+
+Non-consequential changes to regexp variables in preparation for
+  a more serious change to fix a serious performance problem.
+
+Changes from 2.12.23 to 2.12.24
+-------------------------------
+
+Fixed bug in output flushing introduced a few patches back.  This caused
+  serious performance losses.
+
+Changes from 2.12.22 to 2.12.23
+-------------------------------
+
+Accidently left config/cray2-60 out of last patch.
+
+Added some missing dependencies to Makefile.
+
+Cleaned up mkconf a bit; made yacc the default parser (no alloca needed,
+  right?); added rs6000 hook for signed characters.
+
+Made regex.c with NO_ALLOCA undefined work.
+
+Fixed bug in dfa.c for systems where free(NULL) bombs.
+
+Deleted a few cant_happen()'s that *really* can't hapen.
+
+Changes from 2.12.21 to 2.12.22
+-------------------------------
+
+Added to config stuff the ability to choose YACC rather than bison.
+
+Fixed CHAR_UNSIGNED in config.h-dist.
+
+Second arg. of strtod() is char ** rather than const char **. 
+
+stackb is now initially malloc()'ed since it may be realloc()'ed.
+
+VMS updates.
+
+Added SIZE_T_MISSING to config stuff and a default typedef to awk.h.
+  (Maybe it is not needed on any current systems??)
+
+re_compile_pattern()'s size is now size_t unconditionally.
+
+Changes from 2.12.20 to 2.12.21
+-------------------------------
+
+Corrected missing/gcvt.c.
+
+Got rid of use of dup2() and thus DUP_MISSING.
+
+Updated config/sgi33.
+
+Turned on (and fixed) in cmp_nodes() the behaviour that I *hope* will be in
+  POSIX 1003.2 for relational comparisons.
+
+Small updates to test suite.
+
+Changes from 2.12.19 to 2.12.20
+-------------------------------
+
+Sloppy, sloppy, sloppy!!  I didn't even try to compile the last two
+  patches.  This one fixes goofs in regex.c.
+
+Changes from 2.12.18 to 2.12.19
+-------------------------------
+
+Cleanup of last patch.
+
+Changes from 2.12.17 to 2.12.18
+-------------------------------
+
+Makefile renamed to Makefile-dist.
+
+Added alloca() configuration to mkconf.  (A bit kludgey.)  Just
+  add a single line containing ALLOCA_PW, ALLOCA_S or ALLOCA_C
+  to the appropriate config file to have Makefile-dist edited
+  accordingly.
+
+Reorganized output flushing to correspond with new semantics of
+  devopen() on "/dev/std*" etc.
+
+Fixed rest of last goof!!
+
+Save and restore errno in do_pathopen().
+
+Miscellaneous atari updates.
+
+Get rid of the trailing comma in the NODETYPE definition (Cray
+  compiler won't take it).
+
+Try  to make the use of `const' consistent since Cray compiler is
+  fussy about that.  See the changes to `basename' and `myname'.
+
+It turns out that, according to section 3.8.3 (Macro Replacement)
+  of the ANSI Standard:  ``If there are sequences of preprocessing
+  tokens within the list of arguments that would otherwise act as
+  preprocessing directives, the behavior is undefined.''  That means
+  that you cannot count on the behavior of the declaration of
+  re_compile_pattern in awk.h, and indeed the Cray compiler chokes on it.
+
+Replaced alloca with malloc/realloc/free in regex.c.  It was much simpler
+  than expected.  (Inside NO_ALLOCA for now -- by default no alloca.)
+
+Added a configuration file, config/cray60, for Unicos-6.0.
+
+Changes from 2.12.16 to 2.12.17
+-------------------------------
+
+Ooops.  Goofed signal use in last patch.
+
+Changes from 2.12.15 to 2.12.16
+-------------------------------
+
+RENAMED *_dir to just * (e.g. missing_dir).
+
+Numerous VMS changes.
+
+Proper inclusion of atari and vms files.
+
+Added experimental (ifdef'd out) RELAXED_CONTINUATION and DEFAULT_FILETYPE
+ -- please comment on these!
+
+Moved pathopen() to io.c (sigh).
+
+Put local directory ahead in default AWKPATH.
+
+Added facility in mkconf to echo comments on stdout:  lines beginning
+  with "#echo " will have the remainder of the line echoed when mkconf is run.
+  Any lines starting with "#" will otherwise be treated as comments.  The
+  intent is to be able to say:
+  "#echo Make sure you uncomment alloca.c in the Makefile"
+  or the like.
+
+Prototype fix for V.4
+
+Fixed version_string to not print leading @(#).
+
+Fixed FIELDWIDTHS to work with strict (turned out to be easy).
+
+Fixed conf for V.2.
+
+Changed semantics of /dev/fd/n to be like on real /dev/fd.
+
+Several configuration and updates in the makefile.
+
+Updated manpage.
+
+Include tzset.c and system.c from missing_dir that were accidently left out of
+  the last patch.
+
+Fixed bug in cmdline variable assignment -- arg was getting freed(!) in
+  call to variable.
+
+Backed out of parse-time constant folding for now, until I can figure out
+  how to do it right.
+
+Fixed devopen() so that getline <"-" works.
+
+Changes from 2.12.14 to 2.12.15
+-------------------------------
+
+Changed config/* to a condensed form that can be used with mkconf to generate
+  a config.h from config.h-dist -- much easier to maintain.  Please chaeck
+  carefully against what you had before for a particular system and report
+  any problems.  vms.h remains separate since the stuff at the bottom
+  didn't quite fit the mkconf model -- hopefully cleared up later.
+
+Fixed bug in grammar -- didn't allow function definition to be separated from 
+  other rules by a semi-colon.
+
+VMS fix to #includes in missing.c -- should we just be including awk.h?
+
+Updated README for texinfo.tex version.
+
+Updating of copyright in all .[chy] files.
+
+Added but commented out Michal's fix to strftime.
+
+Added tzset() emulation based on Rick Adams' code.  Added TZSET_MISSING to
+	config.h-dist.
+
+Added strftime.3 man page for missing_dir
+
+More posix:	func, **, **= don't work in -W posix
+
+More lint:	^, ^= not in old awk
+
+gawk.1:		removed ref to -DNO_DEV_FD, other minor updating.
+
+Style change:  pushbak becomes pushback() in yylex().
+
+Changes from 2.12.13 to 2.12.14
+-------------------------------
+
+Better (?) organization of awk.h -- attempt to keep all system dependencies
+  near the top and move some of the non-general things out of the config.h
+  files.
+
+Change to handling of SYSTEM_MISSING.
+
+Small change to ultrix config.
+
+Do "/dev/fd/*" etc. checking at runtime.
+
+First pass at VMS port.
+
+Improvements to error handling (when lexeme spans buffers).
+
+Fixed backslash handling -- why didn't I notice this sooner?
+
+Added programs from book to test suite and new target "bigtest" to Makefile.
+
+Changes from 2.12.12 to 2.12.13
+-------------------------------
+
+Recognize OFS and ORS specially so that OFS = 9 works without efficiency hit.
+  Took advantage of opportunity to tune do_print*() for about 10% win on a
+  print with 5 args (i.e. small but significant).
+
+Somewhat pervasive changes to reconcile CONVFMT vs. OFMT.
+
+Better initialization of builtin vars.
+
+Make config/* consistent wrt STRTOL_MISSING.
+
+Small portability improvement to alloca.s
+
+Improvements to lint code in awk.y
+
+Replaced strtol() with a better one by Chris Torek.
+
+Changes from 2.12.11 to 2.12.12
+-------------------------------
+
+Added PORTS file to record successful ports.
+
+Added #define const to nothing if not STDC and added const to strtod() header.
+
+Added * to printf capabilities and partially implemented ' ' and '+' (has an
+  effect for %d only, silently ignored for other formats).  I'm afraid that's
+  as far as I want to go before I look at a complete replacement for
+  do_sprintf().
+
+Added warning for /regexp/ on LHS of MATCHOP.
+
+Changes from 2.12.10 to 2.12.11
+-------------------------------
+
+Small Makefile improvements.
+
+Some remaining nits from the NeXT port.
+
+Got rid of bcopy() define in awk.h -- not needed anymore (??)
+
+Changed private in builtin.c -- it is special on Sequent.
+
+Added subset implementation of strtol() and STRTOL_MISSING.
+
+A little bit of cleanup in debug.c, dfa.c.
+
+Changes from 2.12.9 to 2.12.10
+------------------------------
+
+Redid compatability checking and checking for # of args.
+
+Removed all references to variables[] from outside awk.y, in preparation
+  for a more abstract interface to the symbol table.
+
+Got rid of a remaining use of bcopy() in regex.c.
+
+Changes from 2.12.8 to 2.12.9
+-----------------------------
+
+Portability improvements for atari, next and decstation.
+
+Bug fix in substr() -- wasn't handling 3rd arg. of -1 properly.
+
+Manpage updates.
+
+Moved support from src release to doc release.
+
+Updated FUTURES file.
+
+Added some "lint" warnings.
+
+Changes from 2.12.7 to 2.12.8
+-----------------------------
+
+Changed time() to systime().
+
+Changed warning() in snode() to fatal().
+
+strftime() now defaults second arg. to current time.
+
+Changes from 2.12.6 to 2.12.7
+-----------------------------
+
+Fixed bug in sub_common() involving inadequate allocation of a buffer.
+
+Added some missing files to the Makefile.
+
+Changes from 2.12.5 to 2.12.6
+-----------------------------
+
+Fixed bug wherein non-redirected getline could call iop_close() just
+  prior to a call from do_input().
+
+Fixed bug in handling of /dev/stdout and /dev/stderr.
+
+Changes from 2.12.4 to 2.12.5
+-----------------------------
+
+Updated README and support directory.
+
+Changes from 2.12.3 to 2.12.4
+-----------------------------
+
+Updated CHANGES and TODO (should have been done in previous 2 patches).
+
+Changes from 2.12.2 to 2.12.3
+-----------------------------
+
+Brought regex.c and alloca.s into line with current FSF versions.
+
+Changes from 2.12.1 to 2.12.2
+-----------------------------
+
+Portability improvements; mostly moving system prototypes out of awk.h
+
+Introduction of strftime.
+
+Use of CONVFMT.
+
+Changes from 2.12 to 2.12.1
+-----------------------------
+
+Consolidated treatment of command-line assignments (thus correcting the
+-v treatment).
+
+Rationalized builtin-variable handling into a table-driven process, thus
+simplifying variable() and eliminating spc_var().
+
+Fixed bug in handling of command-line source that ended in a newline.
+
+Simplified install() and lookup().
+
+Did away with double-mallocing of identifiers and now free second and later
+instances of a name, after the first gets installed into the symbol table.
+
+Treat IGNORECASE specially, simplifying a lot of code, and allowing
+checking against strict conformance only on setting it, rather than on each
+pattern match.
+
+Fixed regexp matching when IGNORECASE is non-zero (broken when dfa.c was 
+added).
+
+Fixed bug where $0 was not being marked as valid, even after it was rebuilt.
+This caused mangling of $0.
+
+
+Changes from 2.11.1 to 2.12
+-----------------------------
+
+Makefile:
+
+Portability improvements in Makefile.
+Move configuration stuff into config.h
+
+FSF files:
+
+Synchronized alloca.[cs] and regex.[ch] with FSF.
+
+array.c:
+
+Rationalized hash routines into one with a different algorithm.
+delete() now works if the array is a local variable.
+Changed interface of assoc_next() and avoided dereferencing past the end of the
+  array.
+
+awk.h:
+
+Merged non-prototype and prototype declarations in awk.h.
+Expanded tree_eval #define to short-circuit more calls of r_tree_eval().
+
+awk.y:
+
+Delinted some of the code in the grammar.
+Fixed and improved some of the error message printing.
+Changed to accomodate unlimited length source lines.
+Line continuation now works as advertised.
+Source lines can be arbitrarily long.
+Refined grammar hacks so that /= assignment works.  Regular expressions
+  starting with /= are recognized at the beginning of a line, after && or ||
+  and after ~ or !~.  More contexts can be added if necessary.
+Fixed IGNORECASE (multiple scans for backslash).
+Condensed expression_lists in array references.
+Detect and warn for correct # args in builtin functions -- call most of them
+  with a fixed number (i.e. fill in defaults at parse-time rather than at
+  run-time).
+Load ENVIRON only if it is referenced (detected at parse-time).
+Treat NF, FS, RS, NR, FNR specially at parse time, to improve run time.
+Fold constant expressions at parse time.
+Do make_regexp() on third arg. of split() at parse tiem if it is a constant.
+
+builtin.c:
+
+srand() returns 0 the first time called.
+Replaced alloca() with malloc() in do_sprintf().
+Fixed setting of RSTART and RLENGTH in do_match().
+Got rid of get_{one,two,three} and allowance for variable # of args. at
+  run-time -- this is now done at parse-time.
+Fixed latent bug in [g]sub whereby changes to $0 would never get made.
+Rewrote much of sub_common() for simplicity and performance.
+Added ctime() and time() builtin functions (unless -DSTRICT).  ctime() returns
+  a time string like the C function, given the number of seconds since the epoch
+  and time() returns the current time in seconds.
+do_sprintf() now checks for mismatch between format string and number of
+  arguments supplied.
+
+dfa.c
+
+This is borrowed (almost unmodified) from GNU grep to provide faster searches.
+
+eval.c
+
+Node_var, Node_var_array and Node_param_list handled from macro rather
+  than in r_tree_eval().
+Changed cmp_nodes() to not do a force_number() -- this, combined with a 
+    force_number() on ARGV[] and ENVIRON[] brings it into line with other awks
+Greatly simplified cmp_nodes().
+Separated out Node_NF, Node_FS, Node_RS, Node_NR and Node_FNR in get_lhs().
+All adjacent string concatenations now done at once.
+
+field.c
+
+Added support for FIELDWIDTHS.
+Fixed bug in get_field() whereby changes to a field were not always
+  properly reflected in $0.
+Reordered tests in parse_field() so that reference off the end of the buffer
+  doesn't happen.
+set_FS() now sets *parse_field i.e. routine to call depending on type of FS.
+It also does make_regexp() for FS if needed.  get_field() passes FS_regexp
+  to re_parse_field(), as does do_split().
+Changes to set_field() and set_record() to avoid malloc'ing and free'ing the
+  field nodes repeatedly.  The fields now just point into $0 unless they are
+  assigned to another variable or changed.  force_number() on the field is
+  *only* done when the field is needed.
+
+gawk.1
+
+Fixed troff formatting problem on .TP lines.
+
+io.c
+
+Moved some code out into iop.c.
+Output from pipes and system() calls is properly synchronized.
+Status from pipe close properly returned.
+Bug in getline with no redirect fixed.
+
+iop.c
+
+This file contains a totally revamped get_a_record and associated code.
+
+main.c
+
+Command line programs no longer use a temporary file.
+Therefore, tmpnam() no longer required.
+Deprecated -a and -e options -- they will go away in the next release,
+  but for now they cause a warning.
+Moved -C, -V, -c options to -W ala posix.
+Added -W posix option: throw out \x
+Added -W lint option.
+
+
+node.c
+
+force_number() now allows pure numerics to have leading whitespace.
+Added make_string facility to optimize case of adding an already malloc'd
+  string.
+Cleaned up and simplified do_deref().
+Fixed bug in handling of stref==255 in do_deref().
+
+re.c
+
+contains the interface to regexp code
+
+Changes from 2.11.1 to FSF version of same
+------------------------------------------
+Thu Jan  4 14:19:30 1990  Jim Kingdon  (kingdon at albert)
+
+	* Makefile (YACC): Add -y to bison part.
+
+	* missing.c: Add #include <stdio.h>.
+
+Sun Dec 24 16:16:05 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* * Makefile: Add (commented out) default defines for Sony News.
+
+	* awk.h: Move declaration of vprintf so it will compile when
+	-DVPRINTF_MISSING is defined.
+
+Mon Nov 13 18:54:08 1989  Robert J. Chassell  (bob at apple-gunkies.ai.mit.edu)
+
+        * gawk.texinfo: changed @-commands that are not part of the
+          standard, currently released texinfmt.el to those that are.
+          Otherwise, only people with the as-yet unreleased makeinfo.c can
+          format this file.
+
+Changes from 2.11beta to 2.11.1 (production)
+--------------------------------------------
+
+Went from "beta" to production status!!!
+
+Now flushes stdout before closing pipes or redirected files to
+synchonize output.
+
+MS-DOS changes added in.
+
+Signal handler return type parameterized in Makefile and awk.h and
+some lint removed.  debug.c cleaned up.
+
+Fixed FS splitting to never match null strings, per book.
+
+Correction to the manual's description of FS.
+
+Some compilers break on char *foo = "string" + 4 so fixed version.sh and
+main.c.
+
+Changes from 2.10beta to 2.11beta
+---------------------------------
+
+This release fixes all reported bugs that we could reproduce.  Probably
+some of the changes are not documented here.
+
+The next release will probably not be a beta release!
+
+The most important change is the addition of the -nostalgia option. :-)
+
+The documentation has been improved and brought up-to-date.
+
+There has been a lot of general cleaning up of the code that is not otherwise
+documented here.  There has been a movement toward using standard-conforming
+library routines and providing them (in missing.d) for systems lacking them.
+Improved (hopefully) configuration through Makfile modifications and missing.c.
+In particular, straightened out confusion over vprintf #defines, declarations
+etc.
+
+Deleted RCS log comments from source, to reduce source size by about one third.
+Most of them were horribly out-of-date, anyway.
+
+Renamed source files to reflect (for the most part) their contents.
+
+More and improved error messages.  Cleanup and fixes to yyerror().
+String constants are not altered in input buffer, so error messages come out 
+better.  Fixed usage message.  Make use of ANSI C strerror() function
+(provided).
+
+Plugged many more memory leaks.  The memory consumption is now quite
+reasonable over a wide range of programs.
+
+Uses volatile declaration if STDC > 0 to avoid problems due to longjmp.
+
+New -a and -e options to use awk or egrep style regexps, respectively,
+since POSIX says awk should use egrep regexps.  Default is -a.
+
+Added -v option for setting variables before the first file is encountered.
+Version information now uses -V and copyleft uses -C.
+
+Added a patchlevel.h file and its use for -V and -C.
+
+Append_right() optimized for major improvement to programs with a *lot*
+of statements.
+
+Operator precedence has been corrected to match draft Posix.
+
+Tightened up grammar for builtin functions so that only length
+may be called without arguments or parentheses.
+
+/regex/ is now a normal expression that can appear in any expression
+context.
+
+Allow /= to begin a regexp.  Allow ..[../..].. in a regexp.
+
+Allow empty compound statements ({}).
+
+Made return and next illegal outside a function and in BEGIN/END respectively.
+
+Division by zero is now illegal and causes a fatal error.
+
+Fixed exponentiation so that x ^ 0 and x ^= 0 both return 1.
+
+Fixed do_sqrt, do_log, and do_exp to do argument/return checking and
+print an error message, per the manual.
+
+Fixed main to catch SIGSEGV to get source and data file line numbers.
+
+Fixed yyerror to print the ^ at the beginning of the bad token, not the end.
+
+Fix to substr() builtin:  it was failing if the arguments
+weren't already strings.
+
+Added new node value flag NUMERIC to indicate that a variable is
+purely a number as opposed to type NUM which indicates that
+the node's numeric value is valid.  This is set in make_number(),
+tmp_number and r_force_number() when appropriate and used in
+cmp_nodes().  This fixed a bug in comparison of variables that had
+numeric prefixes.  The new code uses strtod() and eliminates is_a_number().
+A simple strtod() is provided for systems lacking one.  It does no
+overflow checking, so could be improved.
+
+Simplification and efficiency improvement in force_string.
+
+Added performance tweak in r_force_number().
+
+Fixed a bug with nested loops and break/continue in functions.
+
+Fixed inconsistency in handling of empty fields when $0 has to be rebuilt.
+Happens to simplify rebuild_record().
+
+Cleaned up the code associated with opening a pipe for reading.  Gawk
+now has its own popen routine (gawk_popen) that allocates an IOBUF
+and keeps track of the pid of the child process.  gawk_pclose
+marks the appropriate child as defunct in the right struct redirect.
+
+Cleaned up and fixed close_redir().
+
+Fixed an obscure bug to do with redirection.  Intermingled ">" and ">>"
+redirects did not output in a predictable order.
+
+Improved handling of output bufferring:  now all print[f]s redirected to a tty
+or pipe are flushed immediately and non-redirected output to a tty is flushed
+before the next input record is read.
+
+Fixed a bug in get_a_record() where bcopy() could have copied over
+a random pointer.
+
+Fixed a bug when RS="" and records separated by multiple blank lines.
+
+Got rid of SLOWIO code which was out-of-date anyway.
+
+Fix in get_field() for case where $0 is changed and then $(n) are
+changed and then $0 is used.
+
+Fixed infinite loop on failure to open file for reading from getline.
+Now handles redirect file open failures properly.
+
+Filenames such as /dev/stdin now allowed on the command line as well as
+in redirects.
+
+Fixed so that gawk '$1' where $1 is a zero tests false.
+
+Fixed parsing so that `RLENGTH -1' parses the same as `RLENGTH - 1',
+for example.
+
+The return from a user-defined function now defaults to the Null node.
+This fixes a core-dump-causing bug when the return value  of a function
+is used and that function returns no value.
+
+Now catches floating point exceptions to avoid core dumps.
+
+Bug fix for deleting elements of an array -- under some conditions, it was
+deleting more than one element at a time.
+
+Fix in AWKPATH code for running off the end of the string.
+
+Fixed handling of precision in *printf calls.  %0.2d now works properly,
+as does %c.  [s]printf now recognizes %i and %X.
+
+Fixed a bug in printing of very large (>240) strings.
+
+Cleaned up erroneous behaviour for RS == "".
+
+Added IGNORECASE support to index().
+
+Simplified and fixed newnode/freenode.
+
+Fixed reference to $(anything) in a BEGIN block.
+
+Eliminated use of USG rand48().
+
+Bug fix in force_string for machines with 16-bit ints.
+
+Replaced use of mktemp() with tmpnam() and provided a partial implementation of
+the latter for systems that don't have it.
+
+Added a portability check for includes in io.c.
+
+Minor portability fix in alloc.c plus addition of xmalloc().
+
+Portability fix:  on UMAX4.2, st_blksize is zero for a pipe, thus breaking
+iop_alloc() -- fixed.
+
+Workaround for compiler bug on Sun386i in do_sprintf.
+
+More and improved prototypes in awk.h.
+
+Consolidated C escape parsing code into one place.
+
+strict flag is now turned on only when invoked with compatability option.
+It now applies to fewer things.
+
+Changed cast of f._ptr in vprintf.c from (unsigned char *) to (char *).
+Hopefully this is right for the systems that use this code (I don't).
+
+Support for pipes under MSDOS added.
