@@ -335,7 +335,7 @@ static	void	siointr1	__P((struct com_s *com));
 #endif
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
-static	swihand_t siopoll;
+static	void	siopoll		__P((void *arg));
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
@@ -607,7 +607,7 @@ cyattach_common(cy_iobase, cy_align)
 	com_addr(unit) = com;
 	splx(s);
 
-	if (sio_ih == NULL)
+	if (sio_ih == NULL) {
 		cdevsw_add(&sio_cdevsw);
 		sio_ih = sinthand_add("tty:sio", &tty_ithd, siopoll, NULL,
 		    SWI_TTY, 0);
@@ -1754,7 +1754,7 @@ sioioctl(dev, cmd, data, flag, p)
 }
 
 static void
-siopoll()
+siopoll(void *arg)
 {
 	int		unit;
 	int		intrsave;
