@@ -126,6 +126,7 @@ the network time synchronization daemon.
 .tl 'AMD \- The 4.4BSD Automounter''SMM:13'
 .QP
 Automatically mounting file systems on demand.
+(This document is now found in /usr/share/info as am-utils)
 
 .IP
 .tl 'Installation and Operation of UUCP''SMM:14'
