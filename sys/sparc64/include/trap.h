@@ -29,6 +29,8 @@
 #ifndef	_MACHINE_TRAP_H_
 #define	_MACHINE_TRAP_H_
 
+#ifdef _KERNEL
+
 #define	T_RESERVED	0x0
 #define	T_POWER_ON	0x1
 #define	T_WATCHDOG	0x2
@@ -68,6 +70,8 @@
 
 #ifndef LOCORE
 extern const char *trap_msg[];
+#endif
+
 #endif
 
 #define	ST_BREAKPOINT	0x1
