@@ -54,6 +54,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	physio.9 posix4.9 printf.9 pseudofs.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9 \
+	random_harvest.9 rijndael.9 \
 	sbuf.9 scheduler.9 sema.9 sleep.9 sleepqueue.9 spl.9 store.9 \
 	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
