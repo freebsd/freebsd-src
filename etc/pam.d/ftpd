@@ -8,9 +8,9 @@
 auth		required	pam_nologin.so	no_warn
 #auth		sufficient	pam_kerberosIV.so	no_warn
 #auth		sufficient	pam_krb5.so	no_warn
-#auth		required	pam_opie.so	no_warn
-#auth		required	pam_ssh.so	no_warn try_first_pass
-auth		required	pam_unix.so	no_warn try_first_pass
+#auth           sufficient      pam_ssh.so      no_warn try_first_pass
+auth		required	pam_opie.so	no_warn
+# pam_unix functionality handled internally
 
 # account
 #account	required	pam_kerberosIV.so
