@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.187 1998/05/28 13:20:35 peter Exp $
+#	$Id: Makefile,v 1.188 1998/05/29 05:14:08 jkh Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -733,7 +733,6 @@ build-tools:
 		gnu/usr.bin/perl/perl	\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo	\
-		bin/sh
 		usr.bin/basename	\
 		usr.bin/cap_mkdb	\
 		usr.bin/chflags		\
@@ -766,7 +765,8 @@ build-tools:
 		usr.bin/yacc		\
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
-		usr.sbin/zic
+		usr.sbin/zic		\
+		bin/sh
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
