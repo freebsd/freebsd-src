@@ -111,7 +111,7 @@ build_access_request(struct rad_handle *radh, const char *user,
 		hints.ai_family = PF_INET;
 		if (getaddrinfo(nas_ipaddr, NULL, &hints, &res) == 0 &&
 		    res != NULL) {
-			haddr = (struct sockaddr_in *)res->ai_addr;
+			(struct sockaddr *)haddr = res->ai_addr;
 			error = rad_put_addr(radh, RAD_NAS_IP_ADDRESS,
 			    haddr->sin_addr);
 			freeaddrinfo(res);
