@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2002
+.Dd January 21, 2005
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -160,8 +160,10 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl n
-Do not create a .snap directory on the new filesystem.
-The resulting filesystem will not support snapshot generation, so
+Do not create a
+.Pa .snap
+directory on the new file system.
+The resulting file system will not support snapshot generation, so
 .Xr dump 8
 in live mode and background
 .Xr fsck 8
@@ -170,9 +172,13 @@ The traditional
 .Xr fsck 8
 and offline
 .Xr dump 8
-will work on the filesystem.
-This option is intended primarily for memory or vnode filesystems that
-do not require dump or fsck support.
+will work on the file system.
+This option is intended primarily for memory or vnode-backed file systems that
+do not require
+.Xr dump 8
+or
+.Xr fsck 8
+support.
 .It Fl o Ar optimization
 .Cm ( space
 or
