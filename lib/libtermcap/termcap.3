@@ -40,21 +40,29 @@
 .Nm tgetflag ,
 .Nm tgetstr ,
 .Nm tgoto ,
-.Nm tputs
+.Nm tputs ,
+.Nm tparm
 .Nd terminal independent operation routines
 .Sh SYNOPSIS
+.Fd #include <termcap.h>
 .Vt char PC;
 .Vt char *BC;
 .Vt char *UP;
 .Vt short ospeed;
-.Fn tgetent "char *bp" "char *name"
-.Fn tgetnum "char *id"
-.Fn tgetflag "char *id"
+.Ft int
+.Fn tgetent "char *bp" "const char *name"
+.Ft int
+.Fn tgetnum "const char *id"
+.Ft int
+.Fn tgetflag "const char *id"
 .Ft char *
-.Fn tgetstr "char *id" "char **area"
+.Fn tgetstr "const char *id" "char **area"
 .Ft char *
-.Fn tgoto "char *cm" destcol destline
-.Fn tputs "register char *cp" "int affcnt" "int (*outc)()"
+.Fn tgoto "const char *cm" "int destcol" "int destline"
+.Ft int
+.Fn tputs "const char *cp" "int affcnt" "int (*outc)(int)"
+.Ft char *
+.Fn tparm "const char *cp" "..."
 .Sh DESCRIPTION
 These functions extract and use capabilities from a terminal capability data
 base, usually
