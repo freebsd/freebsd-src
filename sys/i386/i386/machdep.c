@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.247 1997/06/07 04:36:09 bde Exp $
+ *	$Id: machdep.c,v 1.248 1997/06/15 02:02:27 wollman Exp $
  */
 
 #include "apm.h"
@@ -692,7 +692,7 @@ cpu_halt(void)
  * Turn the power off.
  */
 void
-cpu_power_off(void)
+cpu_power_down(void)
 {
 #if NAPM > 0
 	apm_power_off();
