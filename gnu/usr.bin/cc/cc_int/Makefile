@@ -13,8 +13,7 @@ SRCS=	c-aux-info.c c-common.c c-convert.c c-iterate.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
 	final.c flow.c fold-const.c function.c getpwd.c global.c graph.c \
-	hash.c insn-attrtab.c insn-emit.c insn-extract.c insn-opinit.c \
-	insn-output.c insn-peep.c insn-recog.c \
+	hash.c \
 	integrate.c jump.c lcm.c local-alloc.c loop.c optabs.c \
 	print-rtl.c print-tree.c real.c recog.c reg-stack.c regclass.c \
 	reload.c reload1.c reorg.c rtl.c rtlanal.c \
@@ -28,6 +27,15 @@ SRCS+=	haifa-sched.c
 .else
 SRCS+=	sched.c
 .endif
+
+# insn-* gunk -- headers are built in cc_tools, as they are used by the
+# "build-tools"
+.for F in attrtab emit extract opinit output peep recog
+SRCS+=	insn-$F.c
+CLEANFILES+= insn-$F.c
+insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F ${MD_FILE}
+	${.OBJDIR}/../cc_tools/gen$F ${MD_FILE} > insn-$F.c
+.endfor
 
 #	shared between the drivers
 SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
