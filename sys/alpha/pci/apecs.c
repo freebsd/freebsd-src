@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.4 1998/12/04 22:54:42 archie Exp $
+ *	$Id: apecs.c,v 1.5 1999/01/18 20:15:07 gallatin Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -60,12 +60,15 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 #include <alpha/pci/pcibus.h>
+#include <alpha/isa/isavar.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 #include <machine/intrcnt.h>
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
@@ -75,7 +78,6 @@
 
 static devclass_t	apecs_devclass;
 static device_t		apecs0;		/* XXX only one for now */
-static device_t		isa0;
 
 struct apecs_softc {
 	vm_offset_t	dmem_base;	/* dense memory */
@@ -442,18 +444,25 @@ apecs_write_hae(u_int64_t hae)
 
 static int apecs_probe(device_t dev);
 static int apecs_attach(device_t dev);
+static struct resource *apecs_alloc_resource(device_t bus, device_t child,
+					     int type, int *rid, u_long start,
+					     u_long end, u_long count,
+					     u_int flags);
+static int apecs_release_resource(device_t bus, device_t child,
+				  int type, int rid, struct resource *r);
 static int apecs_setup_intr(device_t dev, device_t child, struct resource *irq,
 			  driver_intr_t *intr, void *arg, void **cookiep);
 static int apecs_teardown_intr(device_t dev, device_t child,
 			     struct resource *irq, void *cookie);
+
 static device_method_t apecs_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		apecs_probe),
 	DEVMETHOD(device_attach,	apecs_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_alloc_resource,	apecs_alloc_resource),
+	DEVMETHOD(bus_release_resource,	apecs_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	apecs_setup_intr),
@@ -499,28 +508,18 @@ apecs_probe(device_t dev)
 	apecs_hae_mem = REGVAL(EPIC_HAXR1);
 
 	pci_init_resources();
+	isa_init_intr();
 
-	isa0 = device_add_child(dev, "isa", 0, 0);
+	device_add_child(dev, "pcib", 0, 0);
 
 	return 0;
 }
-
-extern void isa_intr(void* frame, u_long vector);
 
 static int
 apecs_attach(device_t dev)
 {
 	struct apecs_softc* sc = APECS_SOFTC(dev);
 	apecs_init();
-
-	/* 
-	 *  the avanti routes interrupts through the isa interrupt
-	 *  controller, so we need to special case it 
-	 */
-	if(hwrpb->rpb_type == ST_DEC_2100_A50)
-		chipset.intrdev = isa0;
-	else
-		chipset.intrdev = apecs0;
 
 	sc->dmem_base = APECS_PCI_DENSE;
 	sc->smem_base = APECS_PCI_SPARSE;
@@ -541,6 +540,27 @@ apecs_attach(device_t dev)
 	return 0;
 }
 
+static struct resource *
+apecs_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		     u_long start, u_long end, u_long count, u_int flags)
+{
+	if (type == SYS_RES_IRQ)
+		return isa_alloc_intr(bus, child, start);
+	else
+		return pci_alloc_resource(bus, child, type, rid,
+					  start, end, count, flags);
+}
+
+static int
+apecs_release_resource(device_t bus, device_t child, int type, int rid,
+		       struct resource *r)
+{
+	if (type == SYS_RES_IRQ)
+		return isa_release_intr(bus, child, r);
+	else
+		return pci_release_resource(bus, child, type, rid, r);
+}
+
 static int
 apecs_setup_intr(device_t dev, device_t child,
 	       struct resource *irq,
@@ -548,6 +568,13 @@ apecs_setup_intr(device_t dev, device_t child,
 {
 	int error;
 	
+	/* 
+	 *  the avanti routes interrupts through the isa interrupt
+	 *  controller, so we need to special case it 
+	 */
+	if(hwrpb->rpb_type == ST_DEC_2100_A50)
+		return isa_setup_intr(dev, child, irq, intr, arg, cookiep);
+
 	error = rman_activate_resource(irq);
 	if (error)
 		return error;
@@ -567,6 +594,13 @@ static int
 apecs_teardown_intr(device_t dev, device_t child,
 		  struct resource *irq, void *cookie)
 {
+	/* 
+	 *  the avanti routes interrupts through the isa interrupt
+	 *  controller, so we need to special case it 
+	 */
+	if(hwrpb->rpb_type == ST_DEC_2100_A50)
+		return isa_teardown_intr(dev, child, irq, cookie);
+
 	alpha_teardown_intr(cookie);
 	return rman_deactivate_resource(irq);
 }

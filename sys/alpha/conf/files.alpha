@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.16 1999/01/23 16:53:26 dfr Exp $
+#	$Id: files.alpha,v 1.17 1999/03/10 10:36:50 yokota Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -112,10 +112,13 @@ mcclock_if.h			standard				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"mcclock_if.h"
 alpha/pci/cia.c			optional	cia
+alpha/pci/cia_pci.c		optional	cia
 alpha/pci/pci_eb164_intr.s	optional	cia
 alpha/pci/apecs.c		optional	apecs
+alpha/pci/apecs_pci.c		optional	apecs
 alpha/pci/pci_eb64plus_intr.s	optional	apecs
 alpha/pci/lca.c			optional	lca
+alpha/pci/lca_pci.c		optional	lca
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
@@ -157,3 +160,10 @@ dev/syscons/syscons.c		optional	sc	device-driver
 dev/syscons/scvidctl.c		optional	sc	device-driver
 isa/syscons_isa.c		optional	sc	device-driver
 isa/psm.c			optional	psm	device-driver
+dev/ata/ata-all.c		optional	ata	device-driver
+dev/ata/ata-dma.c		optional	ata	device-driver
+dev/ata/atapi-all.c		optional	ata	device-driver
+dev/ata/ata-disk.c		optional	atadisk	device-driver
+dev/ata/atapi-cd.c		optional	atapicd	device-driver
+dev/ata/atapi-fd.c		optional	atapifd	device-driver
+dev/ata/atapi-tape.c		optional	atapist	device-driver

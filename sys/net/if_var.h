@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if_var.h,v 1.9 1998/06/12 03:48:09 julian Exp $
+ *	$Id: if_var.h,v 1.10 1998/12/16 18:30:43 phk Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_
@@ -299,6 +299,7 @@ int	if_addmulti __P((struct ifnet *, struct sockaddr *,
 int	if_allmulti __P((struct ifnet *, int));
 void	if_attach __P((struct ifnet *));
 int	if_delmulti __P((struct ifnet *, struct sockaddr *));
+void	if_detach __P((struct ifnet *));
 void	if_down __P((struct ifnet *));
 void	if_route __P((struct ifnet *, int flag, int fam));
 void	if_unroute __P((struct ifnet *, int flag, int fam));

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.56 1999/02/25 11:03:08 bde Exp $
+ *	$Id: exception.s,v 1.57 1999/02/28 10:53:28 bde Exp $
  */
 
 #include "npx.h"
@@ -139,7 +139,7 @@ IDTVEC(fpu)
 #if NNPX > 0
 	/*
 	 * Handle like an interrupt (except for accounting) so that we can
-	 * call npxintr to clear the error.  It would be better to handle
+	 * call npx_intr to clear the error.  It would be better to handle
 	 * npx interrupts as traps.  This used to be difficult for nested
 	 * interrupts, but now it is fairly easy - mask nested ones the
 	 * same as SWI_AST's.
@@ -180,7 +180,7 @@ IDTVEC(fpu)
 	movl	%eax,_cpl
 #endif /* SMP */
 
-	call	_npxintr
+	call	_npx_intr
 
 	incb	_intr_nesting_level
 	MEXITCOUNT

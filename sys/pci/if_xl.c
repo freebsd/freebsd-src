@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.30 1999/04/15 03:18:33 wpaul Exp $
+ *	$Id: if_xl.c,v 1.31 1999/04/16 01:56:06 ghelmer Exp $
  */
 
 /*
@@ -122,6 +122,12 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#ifdef __alpha__
+#undef vtophys
+#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
+			 + 1*1024*1024*1024)
+#endif
+
 /*
  * The following #define causes the code to use PIO to access the
  * chip's registers instead of memory mapped mode. The reason PIO mode
@@ -158,7 +164,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.30 1999/04/15 03:18:33 wpaul Exp $";
+	"$Id: if_xl.c,v 1.31 1999/04/16 01:56:06 ghelmer Exp $";
 #endif
 
 /*
@@ -1513,7 +1519,7 @@ xl_attach(config_id, unit)
 	}
 
 	sc->xl_ldata = (struct xl_list_data *)sc->xl_ldata_ptr;
-	round = (unsigned int)sc->xl_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->xl_ldata_ptr & 0xF;
 	roundptr = sc->xl_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {

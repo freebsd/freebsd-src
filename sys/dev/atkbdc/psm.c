@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.2 1998/11/15 18:25:17 dfr Exp $
+ * $Id: psm.c,v 1.3 1999/01/23 16:53:28 dfr Exp $
  */
 
 /*
@@ -76,6 +76,7 @@
 #include <sys/poll.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -740,8 +741,8 @@ psmprobe(device_t dev)
 {
     int unit = device_get_unit(dev);
     struct psm_softc *sc = device_get_softc(dev);
-    u_long port;
-    u_long flags;
+    uintptr_t port;
+    uintptr_t flags;
     int stat[3];
     int command_byte;
     int mask;
@@ -991,7 +992,7 @@ psmattach(device_t dev)
     struct psm_softc *sc = device_get_softc(dev);
     void *ih;
     struct resource *res;
-    u_long irq;
+    uintptr_t irq;
     int zero = 0;
 
     if (sc == NULL)    /* shouldn't happen */

@@ -23,9 +23,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.93 1999/01/19 23:29:18 se Exp $
+ * $Id: pci.c,v 1.94 1999/04/11 02:47:31 eivind Exp $
  *
  */
+
+#include "opt_bus.h"
 
 #include "pci.h"
 #if NPCI > 0
@@ -49,6 +51,11 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
+
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -338,10 +345,9 @@ pci_readcfg(pcicfgregs *probe)
 				       M_DEVBUF, M_WAITOK);
 		if (devlist_entry == NULL)
 			return (NULL);
+		bzero(devlist_entry, sizeof *devlist_entry);
 
 		cfg = &devlist_entry->cfg;
-
-		bzero(cfg, sizeof *cfg);
 
 		cfg->bus		= probe->bus;
 		cfg->slot		= probe->slot;
@@ -449,113 +455,6 @@ pci_freecfg(struct pci_devinfo *dinfo)
 	return (0);
 }
 #endif
-
-static void
-pci_addcfg(struct pci_devinfo *dinfo)
-{
-	if (bootverbose) {
-		int i;
-		pcicfgregs *cfg = &dinfo->cfg;
-
-		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
-		       cfg->vendor, cfg->device, cfg->revid);
-		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
-		       cfg->baseclass, cfg->subclass, cfg->progif,
-		       cfg->hdrtype, cfg->mfdev);
-		printf("\tsubordinatebus=%x \tsecondarybus=%x\n",
-		       cfg->subordinatebus, cfg->secondarybus);
-#ifdef PCI_DEBUG
-		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
-		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
-		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
-		       cfg->lattimer, cfg->lattimer * 30, 
-		       cfg->mingnt, cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
-#endif /* PCI_DEBUG */
-		if (cfg->intpin > 0)
-			printf("\tintpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
-
-		for (i = 0; i < cfg->nummaps; i++) {
-			pcimap *m = &cfg->map[i];
-			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
-			       i, m->type, m->ln2range, m->base, m->ln2size);
-		}
-	}
-	pci_drvattach(dinfo); /* XXX currently defined in pci_compat.c */
-}
-
-/* scan one PCI bus for devices */
-
-static int
-pci_probebus(int bus)
-{
-	pcicfgregs probe;
-	int bushigh = bus;
-
-#ifdef SIMOS
-#undef PCI_SLOTMAX
-#define PCI_SLOTMAX 0
-#endif
-
-	bzero(&probe, sizeof probe);
-	/* XXX KDM */
-	/* probe.parent = pci_bridgeto(bus); */
-	probe.bus = bus;
-	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
-		int pcifunchigh = 0;
-		for (probe.func = 0; probe.func <= pcifunchigh; probe.func++) {
-			struct pci_devinfo *dinfo = pci_readcfg(&probe);
-			if (dinfo != NULL) {
-				if (dinfo->cfg.mfdev)
-					pcifunchigh = 7;
-				/*
-				 * XXX: Temporarily move pci_addcfg() up before
-				 * the use of cfg->subordinatebus. This is 
-				 * necessary, since pci_addcfg() calls the 
-				 * device's probe(), which may read the bus#
-				 * from some device dependent register of
-				 * some host to PCI bridges. The probe will 
-				 * eventually be moved to pci_readcfg(), and 
-				 * pci_addcfg() will then be moved back down
-				 * below the conditional statement ...
-				 */
-				pci_addcfg(dinfo);
-
-				if (bushigh < dinfo->cfg.subordinatebus)
-					bushigh = dinfo->cfg.subordinatebus;
-				if (bushigh < dinfo->cfg.secondarybus)
-					bushigh = dinfo->cfg.secondarybus;
-
-				/* XXX KDM */
-				/* cfg = NULL; we don't own this anymore ... */
-			}
-		}
-	}
-	return (bushigh);
-}
-
-/* scan a PCI bus tree reached through one PCI attachment point */
-
-int
-pci_probe(pciattach *parent)
-{
-	int bushigh;
-	int bus = 0;
-
-	STAILQ_INIT(&pci_devq);
-
-	bushigh = pci_bushigh();
-	while (bus <= bushigh) {
-		int newbushigh;
-
-		printf("Probing for devices on PCI bus %d:\n", bus);
-		newbushigh = pci_probebus(bus);
-
-		if (bushigh < newbushigh)
-			bushigh = newbushigh;
-		bus++;
-	}
-	return (bushigh);
-}
 
 /*
  * This is the user interface to PCI configuration space.
@@ -750,8 +649,8 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 				       "pci_match_conf) (%d)\npci_ioctl: "
 				       "pat_buf_len should be = %d\n",
 				       cio->pat_buf_len, cio->num_patterns,
-				       sizeof(struct pci_match_conf),
-				       sizeof(struct pci_match_conf) * 
+				       (int)sizeof(struct pci_match_conf),
+				       (int)sizeof(struct pci_match_conf) * 
 				       cio->num_patterns);
 				printf("pci_ioctl: do your headers match your "
 				       "kernel?\n");
@@ -944,5 +843,535 @@ pci_cdevinit(void *dummy)
 }
 
 SYSINIT(pcidev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+PCI_CDEV, pci_cdevinit, NULL);
+
+#include "pci_if.h"
+
+/*
+ * A simple driver to wrap the old pci driver mechanism for back-compat.
+ */
+
+static int
+pci_compat_probe(device_t dev)
+{
+	struct pci_device *dvp;
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+	const char *name;
+	int error;
+	
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg;
+	dvp = device_get_driver(dev)->priv;
+
+	/*
+	 * Do the wrapped probe.
+	 */
+	error = ENXIO;
+	if (dvp && dvp->pd_probe) {
+		name = dvp->pd_probe(cfg, (cfg->device << 16) + cfg->vendor);
+		if (name) {
+			device_set_desc_copy(dev, name);
+			error = 0;
+		}
+	}
+
+	return error;
+}
+
+static int
+pci_compat_attach(device_t dev)
+{
+	struct pci_device *dvp;
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+	int unit;
+
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg;
+	dvp = device_get_driver(dev)->priv;
+
+	unit = device_get_unit(dev);
+	if (unit > *dvp->pd_count)
+		*dvp->pd_count = unit;
+	if (dvp->pd_attach)
+		dvp->pd_attach(cfg, unit);
+
+	/*
+	 * XXX KDM for some devices, dvp->pd_name winds up NULL.
+	 * I haven't investigated enough to figure out why this
+	 * would happen.
+	 */
+	if (dvp->pd_name != NULL)
+		strncpy(dinfo->conf.pd_name, dvp->pd_name,
+			sizeof(dinfo->conf.pd_name));
+	else
+		strncpy(dinfo->conf.pd_name, "????",
+			sizeof(dinfo->conf.pd_name));
+	dinfo->conf.pd_name[sizeof(dinfo->conf.pd_name) - 1] = 0;
+	dinfo->conf.pd_unit = unit;
+
+	return 0;
+}
+
+static device_method_t pci_compat_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pci_compat_probe),
+	DEVMETHOD(device_attach,	pci_compat_attach),
+
+	{ 0, 0 }
+};
+
+static devclass_t	pci_devclass;
+
+/*
+ * Create a new style driver around each old pci driver.
+ */
+static void
+pci_wrap_old_drivers(void)
+{
+	struct pci_device **dvpp, *dvp;
+
+	dvpp = (struct pci_device **)pcidevice_set.ls_items;
+	while ((dvp = *dvpp++) != NULL) {
+		driver_t *driver;
+		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
+		if (!driver)
+			continue;
+		bzero(driver, sizeof(driver_t));
+		driver->name = dvp->pd_name;
+		driver->methods = pci_compat_methods;
+		driver->type = 0; /* XXX fixup in pci_map_int() */
+		driver->softc = sizeof(struct pci_devinfo *);
+		driver->priv = dvp;
+		devclass_add_driver(pci_devclass, driver);
+	}
+}
+
+/*
+ * New style pci driver.  Parent device is either a pci-host-bridge or a
+ * pci-pci-bridge.  Both kinds are represented by instances of pcib.
+ */
+
+static void
+pci_print_verbose(struct pci_devinfo *dinfo)
+{
+	if (bootverbose) {
+		int i;
+		pcicfgregs *cfg = &dinfo->cfg;
+
+		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
+		       cfg->vendor, cfg->device, cfg->revid);
+		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
+		       cfg->baseclass, cfg->subclass, cfg->progif,
+		       cfg->hdrtype, cfg->mfdev);
+		printf("\tsubordinatebus=%x \tsecondarybus=%x\n",
+		       cfg->subordinatebus, cfg->secondarybus);
+#ifdef PCI_DEBUG
+		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
+		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
+		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
+		       cfg->lattimer, cfg->lattimer * 30, 
+		       cfg->mingnt, cfg->mingnt * 250, cfg->maxlat, cfg->maxlat * 250);
+#endif /* PCI_DEBUG */
+		if (cfg->intpin > 0)
+			printf("\tintpin=%c, irq=%d\n", cfg->intpin +'a' -1, cfg->intline);
+
+		for (i = 0; i < cfg->nummaps; i++) {
+			pcimap *m = &cfg->map[i];
+			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
+			       i, m->type, m->ln2range, m->base, m->ln2size);
+		}
+	}
+}
+
+static int
+pci_add_children(device_t dev, int busno)
+{
+	pcicfgregs probe;
+	int bushigh = busno;
+
+#ifdef SIMOS
+#undef PCI_SLOTMAX
+#define PCI_SLOTMAX 0
+#endif
+
+	bzero(&probe, sizeof probe);
+	/* XXX KDM */
+	/* probe.parent = pci_bridgeto(bus); */
+	probe.bus = busno;
+	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
+		int pcifunchigh = 0;
+		for (probe.func = 0; probe.func <= pcifunchigh; probe.func++) {
+			struct pci_devinfo *dinfo = pci_readcfg(&probe);
+			if (dinfo != NULL) {
+				if (dinfo->cfg.mfdev)
+					pcifunchigh = 7;
+
+				pci_print_verbose(dinfo);
+				dinfo->cfg.dev =
+					device_add_child(dev, NULL, -1, dinfo);
+
+				if (bushigh < dinfo->cfg.subordinatebus)
+					bushigh = dinfo->cfg.subordinatebus;
+				if (bushigh < dinfo->cfg.secondarybus)
+					bushigh = dinfo->cfg.secondarybus;
+			}
+		}
+	}
+
+	return bushigh;
+}
+
+static int
+pci_new_probe(device_t dev)
+{
+	STAILQ_INIT(&pci_devq);
+	device_set_desc(dev, "PCI bus");
+
+	pci_add_children(dev, device_get_unit(dev));
+
+	return 0;
+}
+
+static void
+pci_print_child(device_t dev, device_t child)
+{
+	printf(" at device %d.%d", pci_get_slot(child), pci_get_function(child));
+	printf(" on %s%d", device_get_name(dev), device_get_unit(dev));
+}
+
+static int
+pci_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+
+	switch (which) {
+	case PCI_IVAR_SUBVENDOR:
+		*result = cfg->subvendor;
+		break;
+	case PCI_IVAR_SUBDEVICE:
+		*result = cfg->subdevice;
+		break;
+	case PCI_IVAR_VENDOR:
+		*result = cfg->vendor;
+		break;
+	case PCI_IVAR_DEVICE:
+		*result = cfg->device;
+		break;
+	case PCI_IVAR_DEVID:
+		*result = (cfg->device << 16) | cfg->vendor;
+		break;
+	case PCI_IVAR_CLASS:
+		*result = cfg->baseclass;
+		break;
+	case PCI_IVAR_SUBCLASS:
+		*result = cfg->subclass;
+		break;
+	case PCI_IVAR_PROGIF:
+		*result = cfg->progif;
+		break;
+	case PCI_IVAR_REVID:
+		*result = cfg->revid;
+		break;
+	case PCI_IVAR_INTPIN:
+		*result = cfg->intpin;
+		break;
+	case PCI_IVAR_IRQ:
+		*result = cfg->intline;
+		break;
+	case PCI_IVAR_BUS:
+		*result = cfg->bus;
+		break;
+	case PCI_IVAR_SLOT:
+		*result = cfg->slot;
+		break;
+	case PCI_IVAR_FUNCTION:
+		*result = cfg->func;
+		break;
+	case PCI_IVAR_SECONDARYBUS:
+		*result = cfg->secondarybus;
+		break;
+	case PCI_IVAR_SUBORDINATEBUS:
+		*result = cfg->subordinatebus;
+		break;
+	default:
+		return ENOENT;
+	}
+	return 0;
+}
+
+static int
+pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+
+	switch (which) {
+	case PCI_IVAR_SUBVENDOR:
+	case PCI_IVAR_SUBDEVICE:
+	case PCI_IVAR_VENDOR:
+	case PCI_IVAR_DEVICE:
+	case PCI_IVAR_DEVID:
+	case PCI_IVAR_CLASS:
+	case PCI_IVAR_SUBCLASS:
+	case PCI_IVAR_PROGIF:
+	case PCI_IVAR_REVID:
+	case PCI_IVAR_INTPIN:
+	case PCI_IVAR_IRQ:
+	case PCI_IVAR_BUS:
+	case PCI_IVAR_SLOT:
+	case PCI_IVAR_FUNCTION:
+		return EINVAL;	/* disallow for now */
+
+	case PCI_IVAR_SECONDARYBUS:
+		cfg->secondarybus = value;
+		break;
+	case PCI_IVAR_SUBORDINATEBUS:
+		cfg->subordinatebus = value;
+		break;
+	default:
+		return ENOENT;
+	}
+	return 0;
+}
+
+static int
+pci_mapno(pcicfgregs *cfg, int reg)
+{
+	int i, nummaps;
+	pcimap *map;
+
+	nummaps = cfg->nummaps;
+	map = cfg->map;
+
+	for (i = 0; i < nummaps; i++)
+		if (map[i].reg == reg)
+			return (i);
+	return (-1);
+}
+
+static int
+pci_porten(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_PORTEN) != 0);
+}
+
+static int
+pci_isportmap(pcicfgregs *cfg, int map)
+
+{
+	return ((unsigned)map < cfg->nummaps 
+		&& (cfg->map[map].type & PCI_MAPPORT) != 0);
+}
+
+static int
+pci_memen(pcicfgregs *cfg)
+{
+	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
+}
+
+static int
+pci_ismemmap(pcicfgregs *cfg, int map)
+{
+	return ((unsigned)map < cfg->nummaps 
+		&& (cfg->map[map].type & PCI_MAPMEM) != 0);
+}
+
+static struct resource *
+pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+		   u_long start, u_long end, u_long count, u_int flags)
+{
+	int isdefault;
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource *rv, **rvp = 0;
+	int map;
+
+	isdefault = (device_get_parent(child) == dev
+		     && start == 0UL && end == ~0UL && count == 1);
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		if (*rid != 0)
+			return 0;
+		if (isdefault && cfg->intline != 255) {
+			start = cfg->intline;
+			end = cfg->intline;
+			count = 1;
+		}
+		break;
+
+	case SYS_RES_DRQ:		/* passthru for child isa */
+		break;
+
+	case SYS_RES_MEMORY:
+		if (isdefault) {
+			map = pci_mapno(cfg, *rid);
+			if (pci_memen(cfg) && pci_ismemmap(cfg, map)) {
+				start = cfg->map[map].base;
+				count = 1 << cfg->map[map].ln2size;
+				end = start + count;
+				rvp = &cfg->map[map].res;
+			} else
+				return 0;
+		}
+		break;
+
+	case SYS_RES_IOPORT:
+		if (isdefault) {
+			map = pci_mapno(cfg, *rid);
+			if (pci_porten(cfg) && pci_isportmap(cfg, map)) {
+				start = cfg->map[map].base;
+				count = 1 << cfg->map[map].ln2size;
+				end = start + count;
+				rvp = &cfg->map[map].res;
+			} else
+				return 0;
+		}
+		break;
+
+	default:
+		return 0;
+	}
+
+	rv = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+				 type, rid, start, end, count, flags);
+	if (rvp)
+		*rvp = rv;
+
+	return rv;
+}
+
+static int
+pci_release_resource(device_t dev, device_t child, int type, int rid,
+		     struct resource *r)
+{
+	int rv;
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	int map = 0;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		if (rid != 0)
+			return EINVAL;
+		break;
+
+	case SYS_RES_DRQ:		/* passthru for child isa */
+		break;
+
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * Only check the map registers if this is a direct
+		 * descendant.
+		 */
+		if (device_get_parent(child) == dev)
+			map = pci_mapno(cfg, rid);
+		else
+			map = -1;
+		break;
+
+	default:
+		return (ENOENT);
+	}
+
+	rv = BUS_RELEASE_RESOURCE(device_get_parent(dev), child, type, rid, r);
+
+	if (rv == 0) {
+		switch (type) {
+		case SYS_RES_IRQ:
+			cfg->irqres = 0;
+			break;
+
+		case SYS_RES_DRQ:	/* passthru for child isa */
+			break;
+
+		case SYS_RES_MEMORY:
+		case SYS_RES_IOPORT:
+			if (map != -1)
+				cfg->map[map].res = 0;
+			break;
+
+		default:
+			return ENOENT;
+		}
+	}
+
+	return rv;
+}
+
+static u_int32_t
+pci_read_config_method(device_t dev, device_t child, int reg, int width)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	return pci_cfgread(cfg, reg, width);
+}
+
+static void
+pci_write_config_method(device_t dev, device_t child, int reg,
+			u_int32_t val, int width)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	pci_cfgwrite(cfg, reg, val, width);
+}
+
+static int
+pci_modevent(module_t mod, int what, void *arg)
+{
+	switch (what) {
+	case MOD_LOAD:
+		pci_wrap_old_drivers();
+		break;
+
+	case MOD_UNLOAD:
+		break;
+	}
+
+	return 0;
+}
+
+static device_method_t pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pci_new_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	pci_print_child),
+	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
+	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	pci_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	/* PCI interface */
+	DEVMETHOD(pci_read_config,	pci_read_config_method),
+	DEVMETHOD(pci_write_config,	pci_write_config_method),
+
+	{ 0, 0 }
+};
+
+static driver_t pci_driver = {
+	"pci",
+	pci_methods,
+	DRIVER_TYPE_MISC,
+	1,			/* no softc */
+};
+
+DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
 
 #endif /* NPCI > 0 */

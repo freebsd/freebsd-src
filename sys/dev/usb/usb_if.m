@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $Id: usb_if.m,v 1.3 1999/01/07 23:31:37 n_hibma Exp $
+# $Id: usb_if.m,v 1.4 1999/03/22 19:58:59 n_hibma Exp $
 #
 
 # USB interface description
@@ -36,5 +36,12 @@ INTERFACE usb;
 # The device should start probing for new drivers again
 #
 METHOD int reconfigure {
+	device_t dev;
+};
+
+# The device is being disconnected and should clean up before
+# being destroyed.
+#
+METHOD void disconnected {
 	device_t dev;
 };

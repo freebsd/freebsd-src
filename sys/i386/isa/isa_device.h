@@ -31,11 +31,15 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.56 1998/10/22 05:58:39 bde Exp $
+ *	$Id: isa_device.h,v 1.57 1999/01/17 06:33:43 bde Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
+
+#ifdef KERNEL
+#include <i386/isa/isa_dma.h>
+#endif
 
 /*
  * ISA Bus Autoconfiguration
@@ -105,30 +109,9 @@ struct isa_driver {
 
 #ifdef KERNEL
 
-extern struct isa_device isa_biotab_fdc[];
-extern struct isa_device isa_biotab_wdc[];
-extern struct isa_device isa_devtab_bio[];
-extern struct isa_device isa_devtab_net[];
-extern struct isa_device isa_devtab_cam[];
-extern struct isa_device isa_devtab_null[];
-extern struct isa_device isa_devtab_tty[];
-
-struct isa_device *
-	find_display __P((void));
-struct isa_device *
-	find_isadev __P((struct isa_device *table, struct isa_driver *driverp,
-			 int unit));
 int	haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
-void	isa_configure __P((void));
-void	isa_dmacascade __P((int chan));
-void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
-void	isa_dmainit __P((int chan, u_int bouncebufsize));
-void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
-int	isa_dma_acquire __P((int chan));
-void	isa_dma_release __P((int chan));
-int	isa_dmastatus __P((int chan));
-int	isa_dmastop __P((int chan));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
+int	isa_compat_nextid __P((void));
 
 #endif /* KERNEL */
 

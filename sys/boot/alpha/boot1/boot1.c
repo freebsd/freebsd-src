@@ -1,5 +1,5 @@
 /*
- * $Id: boot1.c,v 1.2 1998/09/26 10:51:36 dfr Exp $
+ * $Id: boot1.c,v 1.3 1998/10/18 19:05:07 dfr Exp $
  * From	$NetBSD: bootxx.c,v 1.4 1997/09/06 14:08:29 drochner Exp $ 
  */
 
@@ -47,6 +47,18 @@ putchar(int c)
     if (c == '\n')
 	prom_putchar('\r');
     prom_putchar(c);
+}
+
+int
+getchar()
+{
+    return prom_getchar();
+}
+
+int
+ischar()
+{
+    return prom_poll();
 }
 
 void
@@ -150,9 +162,37 @@ devclose()
 }
 
 void
+getfilename(char *filename)
+{
+    int c;
+    char *p;
+
+    puts("Boot: ");
+
+    while ((c = getchar()) != '\n') {
+	if (c == '\b') {
+	    if (p > filename) {
+		puts("\b \b");
+		p--;
+	    }
+	} else
+	    *p++ = c;
+    }
+    *p = '\0';
+    return;
+}
+
+void
 loadfile(char *name, char *addr)
 {
     int n;
+    char filename[512];
+    char *p;
+
+ restart:
+    puts("Loading ");
+    puts(name);
+    puts("\n");
 
     if (openrd(name)) {
 	puts("Can't open file ");
@@ -161,9 +201,17 @@ loadfile(char *name, char *addr)
 	halt();
     }
 
+    p = addr;
     do {
-	n = readit(addr, 1024);
-	addr += n;
+	n = readit(p, 1024);
+	p += n;
+	if (ischar()) {
+	    puts("Stop!\n");
+	    devclose();
+	    getfilename(filename);
+	    name = filename;
+	    goto restart;
+	}
 	twiddle();
     } while (n > 0);
 

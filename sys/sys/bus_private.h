@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.4 1998/11/14 21:58:41 wollman Exp $
+ *	$Id: bus_private.h,v 1.5 1999/03/29 08:54:19 dfr Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -138,6 +138,7 @@ struct device {
 
 struct device_op_desc {
     unsigned int	offset;	/* offset in driver ops */
+    struct method*	method;	/* internal method implementation */
     const char*		name;	/* unique name (for registration) */
 };
 

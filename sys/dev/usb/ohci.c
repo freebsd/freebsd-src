@@ -59,6 +59,10 @@
 #include <sys/queue.h>
 #include <sys/select.h>
 
+#ifdef __FreeBSD__
+#include <machine/bus_pio.h>
+#include <machine/bus_memio.h>
+#endif
 #include <machine/bus.h>
 #include <machine/endian.h>
 
@@ -162,15 +166,9 @@ void		ohci_dump_td __P((ohci_soft_td_t *));
 void		ohci_dump_ed __P((ohci_soft_ed_t *));
 #endif
 
-#if defined(__NetBSD__)
 #define OWRITE4(sc, r, x) bus_space_write_4((sc)->iot, (sc)->ioh, (r), (x))
 #define OREAD4(sc, r) bus_space_read_4((sc)->iot, (sc)->ioh, (r))
 #define OREAD2(sc, r) bus_space_read_2((sc)->iot, (sc)->ioh, (r))
-#elif defined(__FreeBSD__)
-#define OWRITE4(sc, r, x) *(u_int32_t *) ((sc)->sc_iobase + (r)) = x
-#define OREAD4(sc, r) (*(u_int32_t *) ((sc)->sc_iobase + (r)))
-#define OREAD2(sc, r) (*(u_int16_t *) ((sc)->sc_iobase + (r)))
-#endif
 
 /* Reverse the bits in a value 0 .. 31 */
 static u_int8_t revbits[OHCI_NO_INTRS] = 

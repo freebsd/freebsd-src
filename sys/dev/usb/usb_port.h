@@ -126,7 +126,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
  * because of includes in the wrong order.
  */
 #define bdevice device_t
-#define USBDEVNAME(bdev) usbd_devname(&bdev)
+#define USBDEVNAME(bdev) device_get_nameunit(bdev)
 
 /* XXX Change this when FreeBSD has memset
  */

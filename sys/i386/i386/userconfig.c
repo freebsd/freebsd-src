@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.132 1999/02/21 16:33:51 n_hibma Exp $
+ **      $Id: userconfig.c,v 1.133 1999/04/06 17:08:30 wpaul Exp $
  **/
 
 /**
@@ -115,10 +115,12 @@
 #include <sys/reboot.h>
 #include <sys/linker.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
 #include <machine/limits.h>
+
 
 #include <i386/isa/isa_device.h>
 #include "pnp.h"
@@ -132,10 +134,16 @@
 static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
 
 static struct isa_device *isa_devlist;	/* list read by kget to extract changes */
+static struct isa_device *isa_devtab;	/* fake isa_device table */
+static struct isa_driver *isa_drvtab;	/* fake driver list */
 
 static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
 #define putchar(x)	cnputc(x)
+
+static void load_devtab(void);
+static void free_devtab(void);
+static void save_resource(struct isa_device *);
 
 static int
 sysctl_machdep_uc_devlist SYSCTL_HANDLER_ARGS
@@ -279,8 +287,6 @@ getchar(void)
 #endif
 
 #ifdef VISUAL_USERCONFIG
-static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
-				     isa_devtab_cam, isa_devtab_null, NULL };
 
 typedef struct
 {
@@ -538,12 +544,10 @@ setdev(DEV_LIST *dev, int enabled)
 static void 
 getdevs(void)
 {
-    int 		i,j;
+    int 		i;
     struct isa_device	*ap;
 
-    for (j = 0; devtabs[j]; j++)			/* ISA devices */
-    {
-	ap = devtabs[j];				/* pointer to array of devices */
+	ap = isa_devtab;				/* pointer to array of devices */
 	for (i = 0; ap[i].id_id; i++)			/* for each device in this table */
 	{
 	    scratch.unit = ap[i].id_unit;		/* device parameters */
@@ -563,7 +567,6 @@ getdevs(void)
 	    if (!devinfo(&scratch))			/* get more info on the device */
 		insdev(&scratch,ap[i].id_enabled?active:inactive);
 	}
-    }
 #if NPCI > 0
     for (i = 0; i < pcidevice_set.ls_length; i++)
     {
@@ -847,6 +850,7 @@ savelist(DEV_LIST *list, int active)
 		{
 		    id_pn = id_p->id_next;
 		    bcopy(list->device,id_p,sizeof(struct isa_device));
+		    save_resource(list->device);
 		    id_p->id_next = id_pn;
 		    break;
 		}
@@ -855,6 +859,7 @@ savelist(DEV_LIST *list, int active)
 	    {
 		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 		bcopy(list->device,id_pn,sizeof(struct isa_device));
+		save_resource(list->device);
 		id_pn->id_next = isa_devlist;
 		isa_devlist = id_pn;			/* park at top of list */
 	    }
@@ -2510,7 +2515,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.132 1999/02/21 16:33:51 n_hibma Exp $
+ *      $Id: userconfig.c,v 1.133 1999/04/06 17:08:30 wpaul Exp $
  */
 
 #include "scbus.h"
@@ -2659,6 +2664,7 @@ userconfig(void)
     int rval;
     Cmd *cmd;
 
+    load_devtab();
     init_config_script();
     while (1) {
 
@@ -2693,8 +2699,10 @@ userconfig(void)
 	    continue;
 	}
 	rval = (*cmd->handler)(cmd->parms);
-	if (rval)
+	if (rval) {
+	    free_devtab();
 	    return;
+	}
     }
 }
 
@@ -2792,11 +2800,7 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-    if (lsdevtab(&isa_devtab_bio[0])) return 0;
-    if (lsdevtab(&isa_devtab_tty[0])) return 0;
-    if (lsdevtab(&isa_devtab_net[0])) return 0;
-    if (lsdevtab(&isa_devtab_cam[0])) return 0;
-    if (lsdevtab(&isa_devtab_null[0])) return 0;
+    if (lsdevtab(isa_devtab)) return 0;
 #if NPNP > 0
     if (lspnp()) return 0;
 #endif
@@ -3312,20 +3316,65 @@ lsdevtab(struct isa_device *dt)
     return(0);
 }
 
+static void
+load_devtab(void)
+{
+    int i, val;
+    int count = resource_count();
+    int id = 1;
+    int dt;
+    char *name;
+    int unit;
+
+    isa_devtab = malloc(sizeof(struct isa_device)*(count + 1),M_DEVL,M_WAITOK);
+    isa_drvtab = malloc(sizeof(struct isa_driver)*(count + 1),M_DEVL,M_WAITOK);
+    bzero(isa_devtab, sizeof(struct isa_device) * (count + 1));
+    bzero(isa_drvtab, sizeof(struct isa_driver) * (count + 1));
+    dt = 0;
+    for (i = 0; i < count; i++) {
+	name = resource_query_name(i);
+	unit = resource_query_unit(i);
+	if (unit < 0)
+	    continue;	/* skip wildcards */
+	isa_devtab[dt].id_id = id++;
+	isa_devtab[dt].id_driver = &isa_drvtab[dt];
+	resource_int_value(name, unit, "port", &isa_devtab[dt].id_iobase);
+	val = 0;
+	resource_int_value(name, unit, "irq", &val);
+	isa_devtab[dt].id_irq = (1 << val);
+	resource_int_value(name, unit, "drq", &isa_devtab[dt].id_drq);
+	resource_int_value(name, unit, "maddr",(int *)&isa_devtab[dt].id_maddr);
+	resource_int_value(name, unit, "msize", &isa_devtab[dt].id_msize);
+	isa_devtab[dt].id_unit = unit;
+	resource_int_value(name, unit, "flags", &isa_devtab[dt].id_flags);
+	val = 0;
+	resource_int_value(name, unit, "disabled", &val);
+	isa_devtab[dt].id_enabled = !val;
+	isa_drvtab[dt].name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
+	strcpy(isa_drvtab[dt].name, name);
+	dt++;
+    }
+}
+
+static void
+free_devtab(void)
+{
+    int i;
+    int count = resource_count();
+
+    for (i = 0; i < count; i++)
+	if (isa_drvtab[i].name)
+	    free(isa_drvtab[i].name, M_DEVL);
+    free(isa_drvtab, M_DEVL);
+    free(isa_devtab, M_DEVL);
+}
+    
 static struct isa_device *
 find_device(char *devname, int unit)
 {
     struct isa_device *ret;
 
-    if ((ret = search_devtable(&isa_devtab_bio[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&isa_devtab_tty[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&isa_devtab_net[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&isa_devtab_cam[0], devname, unit)) != NULL)
-        return ret;
-    if ((ret = search_devtable(&isa_devtab_null[0], devname, unit)) != NULL)
+    if ((ret = search_devtable(isa_devtab, devname, unit)) != NULL)
         return ret;
     return NULL;
 }
@@ -3532,6 +3581,29 @@ list_scsi(CmdParm *parms)
 }
 #endif
 
+static void
+save_resource(struct isa_device *idev)
+{
+    int i;
+    char *name;
+    int unit;
+    int count = resource_count();
+
+    for (i = 0; i < count; i++) {
+	name = resource_query_name(i);
+	unit = resource_query_unit(i);
+	if (strcmp(name, idev->id_driver->name) || unit != idev->id_unit)
+	    continue;
+	resource_set_int(i, "port", isa_devtab[i].id_iobase);
+	resource_set_int(i, "irq", (1 << isa_devtab[i].id_irq));
+	resource_set_int(i, "drq", isa_devtab[i].id_drq);
+	resource_set_int(i, "maddr", (int)isa_devtab[i].id_maddr);
+	resource_set_int(i, "msize", isa_devtab[i].id_msize);
+	resource_set_int(i, "flags", isa_devtab[i].id_flags);
+	resource_set_int(i, "disabled", !isa_devtab[i].id_enabled);
+    }
+}
+
 static int
 save_dev(idev)
 struct isa_device 	*idev;
@@ -3544,6 +3616,7 @@ struct isa_device 	*idev;
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
 			bcopy(idev,id_p,sizeof(struct isa_device));
+			save_resource(idev);
 			id_p->id_next = id_pn;
 			return 1;
 		}

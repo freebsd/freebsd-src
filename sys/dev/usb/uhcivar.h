@@ -125,7 +125,8 @@ typedef struct uhci_softc {
 	bus_dma_tag_t sc_dmatag;	/* DMA tag */
 	/* XXX should keep track of all DMA memory */
 #elif defined(__FreeBSD__)
-	int		sc_iobase;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
 #endif /* defined(__FreeBSD__) */
 
 	uhci_physaddr_t *sc_pframes;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.1 1998/08/06 08:49:09 dfr Exp $
+ *	$Id: isavar.h,v 1.2 1998/11/15 18:25:17 dfr Exp $
  */
 
 #define	ISA_NPORT_IVARS	2
@@ -63,7 +63,7 @@ extern int isa_irq_mask(void);
 									\
 static __inline T isa_get_ ## A(device_t dev)				\
 {									\
-	u_long v;							\
+	uintptr_t v;							\
 	BUS_READ_IVAR(device_get_parent(dev), dev, ISA_IVAR_ ## B, &v);	\
 	return (T) v;							\
 }									\
@@ -78,4 +78,7 @@ ISA_ACCESSOR(port, PORT, int)
 ISA_ACCESSOR(portsize, PORTSIZE, int)
 ISA_ACCESSOR(flags, FLAGS, int)
 ISA_ACCESSOR(irq, IRQ, int)
+ISA_ACCESSOR(drq, DRQ, int)
+ISA_ACCESSOR(maddr, MADDR, int)
+ISA_ACCESSOR(msize, MSIZE, int)
 
