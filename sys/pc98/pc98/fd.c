@@ -251,6 +251,7 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 #endif
 
 #define BIO_RDSECTID	BIO_CMD1
+#define BIO_FORMAT	BIO_CMD2
 
 /*
  * List of native drive densities.  Order must match enum fd_drivetype
