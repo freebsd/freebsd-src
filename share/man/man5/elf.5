@@ -391,48 +391,6 @@ with the section name string table.
 If the file has no section name string
 table, this member holds the value
 .Sy SHN_UNDEF .
-.Pp
-.Bl -tag -width "SHN_LORESERVE" -compact
-.It Dv SHN_UNDEF
-This value marks an undefined, missing, irrelevant, or otherwise meaningless
-section reference.
-For example, a symbol
-.Dq defined
-relative to section number
-.Sy SHN_UNDEF
-is an undefined symbol.
-.It Dv SHN_LORESERVE
-This value specifies the lower bound of the range of reserved indexes.
-.It Dv SHN_LOPROC
-This value up to and including
-.Sy SHN_HIPROC
-are reserved for processor-specific semantics.
-.It Dv SHN_HIPROC
-This value down to and including
-.Sy SHN_LOPROC
-are reserved for processor-specific semantics.
-.It Dv SHN_ABS
-This value specifies absolute values for the corresponding reference.
-For
-example, symbols defined relative to section number
-.Sy SHN_ABS
-have absolute values and are not affected by relocation.
-.It Dv SHN_COMMON
-Symbols defined relative to this section are common symbols, such as Fortran
-COMMON or unallocated C external variables.
-.It Dv SHN_HIRESERVE
-This value specifies the upper bound of the range of the range of reserved
-indices between
-.Sy SHN_LORESERVE
-and
-.Sy SHN_HIRESERVE ,
-inclusive; the values do
-not reference the section header table.
-That is, the section header table
-does
-.Em not
-contain entries for the reserved indices.
-.El
 .El
 .Pp
 An executable or shared object file's program header table is an array of
@@ -625,8 +583,13 @@ these special indices:
 .Pp
 .Bl -tag -width "SHN_LORESERVE" -compact
 .It Dv SHN_UNDEF
-This value marks an undefined, missing, irrelevant or otherwise meaningless
+This value marks an undefined, missing, irrelevant, or otherwise meaningless
 section reference.
+For example, a symbol
+.Dq defined
+relative to section number
+.Sy SHN_UNDEF
+is an undefined symbol.
 .It Dv SHN_LORESERVE
 This value specifies the lower bound of the range of reserved indices.
 .It Dv SHN_LOPROC
