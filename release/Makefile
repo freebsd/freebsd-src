@@ -101,6 +101,20 @@ RELEASEPORTSMODULE?=	ports
 #NODOC=  YES
 #NOPORTS=  YES
 
+# When retrieving ports using the pkg_add -r method, set your proxies to these.
+# src/release/${arch}/mkisoimages.sh can use these.
+#HTTP_PROXY?=	www.example.com
+#FTP_PROXY?=	ftp.example.com
+
+# When creating ISO images, point ${CD_EXTRA_BITS} to a directory containing
+# extra packages or other files.  It will be appended to the disk 1 ISO.
+#CD_EXTRA_BITS=	/path/to/pkg
+
+# Extra source tarballs; each argument is a pair of source dir and
+# distribution name.  The dist name should not exceed 7 characters
+# (another "s" for "source" will be prepended).
+#EXTRA_SRC=	games/fortune fortune
+
 # Modify this definition if you want the release notes 
 # and other release documentation in a language other than English.
 RELNOTES_LANG?=	en_US.ISO8859-1
@@ -426,7 +440,6 @@ release rerelease:
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${_MK}
 .for var in \
 	AUTO_KEYBOARD_DETECT \
-	BOOT_CONFIG \
 	BUILDNAME \
 	CD_EXTRA_BITS \
 	DISC1_LABEL \
