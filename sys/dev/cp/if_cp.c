@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #ifdef NETGRAPH_CRONYX
 #   include "opt_netgraph.h"
 #   ifndef NETGRAPH
-#       error #option	NETGRAPH missed from configuration
+#	error #option	NETGRAPH missed from configuration
 #   endif
 #   include <netgraph/ng_message.h>
 #   include <netgraph/netgraph.h>
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
 #   if __FreeBSD_version < 500000
-#       include <bpf.h>
+#	include <bpf.h>
 #   endif
 #   include <net/bpf.h>
 #   define NBPFILTER NBPF
@@ -437,7 +437,7 @@ static int cp_attach (device_t dev)
 	rid = 0;
 	bd->cp_irq = bus_alloc_resource (dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 			RF_SHAREABLE | RF_ACTIVE);
-       	if (! bd->cp_irq) {
+	if (! bd->cp_irq) {
 		printf ("cp%d: cannot map interrupt\n", unit);
 		bus_release_resource (dev, SYS_RES_MEMORY,
 				PCIR_BAR(0), bd->cp_res);
@@ -500,19 +500,19 @@ static int cp_attach (device_t dev)
 		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
 #endif		
 #else /*NETGRAPH*/
-		d->pp.pp_if.if_softc    = d;
+		d->pp.pp_if.if_softc	= d;
 #if __FreeBSD_version > 501000
 		if_initname (&d->pp.pp_if, "cp", b->num * NCHAN + c->num);
 #else
-		d->pp.pp_if.if_unit     = b->num * NCHAN + c->num;
-		d->pp.pp_if.if_name     = "cp";
+		d->pp.pp_if.if_unit	= b->num * NCHAN + c->num;
+		d->pp.pp_if.if_name	= "cp";
 #endif
-		d->pp.pp_if.if_mtu      = PP_MTU;
-		d->pp.pp_if.if_flags    = IFF_POINTOPOINT | IFF_MULTICAST;
-		d->pp.pp_if.if_ioctl    = cp_sioctl;
-		d->pp.pp_if.if_start    = cp_ifstart;
-		d->pp.pp_if.if_watchdog = cp_ifwatchdog;
-		d->pp.pp_if.if_init     = cp_initialize;
+		d->pp.pp_if.if_mtu	= PP_MTU;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->pp.pp_if.if_ioctl	= cp_sioctl;
+		d->pp.pp_if.if_start	= cp_ifstart;
+		d->pp.pp_if.if_watchdog	= cp_ifwatchdog;
+		d->pp.pp_if.if_init	= cp_initialize;
 		sppp_attach (&d->pp.pp_if);
 		if_attach (&d->pp.pp_if);
 		d->pp.pp_tlf		= cp_tlf;
@@ -538,7 +538,7 @@ static int cp_attach (device_t dev)
 static int cp_detach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
-        cp_board_t *b = bd->board;
+	cp_board_t *b = bd->board;
 	cp_chan_t *c;
 	int s = splimp ();
 
@@ -638,14 +638,14 @@ static int cp_detach (device_t dev)
 #ifndef NETGRAPH
 static void cp_ifstart (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	cp_start (d);
 }
 
 static void cp_ifwatchdog (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	cp_watchdog (d);
 }
@@ -688,7 +688,7 @@ static int cp_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		d->chan->debug = 1;
 
 	switch (cmd) {
-	default:           CP_DEBUG2 (d, ("ioctl 0x%lx\n", cmd));   return 0;
+	default:	   CP_DEBUG2 (d, ("ioctl 0x%lx\n", cmd));   return 0;
 	case SIOCADDMULTI: CP_DEBUG2 (d, ("ioctl SIOCADDMULTI\n")); return 0;
 	case SIOCDELMULTI: CP_DEBUG2 (d, ("ioctl SIOCDELMULTI\n")); return 0;
 	case SIOCSIFFLAGS: CP_DEBUG2 (d, ("ioctl SIOCSIFFLAGS\n")); break;
@@ -818,7 +818,7 @@ static void cp_send (drv_t *d)
  */
 static void cp_start (drv_t *d)
 {
-        if (d->running) {
+	if (d->running) {
 		if (! d->chan->dtr)
 			cp_set_dtr (d->chan, 1);
 		if (! d->chan->rts)
@@ -1009,7 +1009,7 @@ static int cp_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc 
 static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
-        drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [minor (dev)];
 	cp_chan_t *c = d->chan;
 	struct serial_statistics *st;
 	struct e1_statistics *opte1;
@@ -1019,135 +1019,135 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	switch (cmd) {
 	case SERIAL_GETREGISTERED:
-	        CP_DEBUG2 (d, ("ioctl: getregistered\n"));
+		CP_DEBUG2 (d, ("ioctl: getregistered\n"));
 		bzero (mask, sizeof(mask));
 		for (s=0; s<NBRD*NCHAN; ++s)
 			if (channel [s])
 				mask [s/8] |= 1 << (s & 7);
-	        bcopy (mask, data, sizeof (mask));
+		bcopy (mask, data, sizeof (mask));
 		return 0;
 
 #ifndef NETGRAPH
 	case SERIAL_GETPROTO:
-	        CP_DEBUG2 (d, ("ioctl: getproto\n"));
-	        strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
+		CP_DEBUG2 (d, ("ioctl: getproto\n"));
+		strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
 			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
-	        return 0;
+		return 0;
 
 	case SERIAL_SETPROTO:
-	        CP_DEBUG2 (d, ("ioctl: setproto\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setproto\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
 			return EBUSY;
-	        if (! strcmp ("cisco", (char*)data)) {
-	                d->pp.pp_flags &= ~(PP_FR);
-	                d->pp.pp_flags |= PP_KEEPALIVE;
-	                d->pp.pp_if.if_flags |= PP_CISCO;
-	        } else if (! strcmp ("fr", (char*)data) && !PP_FR) {
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
-	        } else if (! strcmp ("ppp", (char*)data)) {
-	                d->pp.pp_flags &= ~PP_FR;
-	                d->pp.pp_flags &= ~PP_KEEPALIVE;
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	        } else
+		if (! strcmp ("cisco", (char*)data)) {
+			d->pp.pp_flags &= ~(PP_FR);
+			d->pp.pp_flags |= PP_KEEPALIVE;
+			d->pp.pp_if.if_flags |= PP_CISCO;
+		} else if (! strcmp ("fr", (char*)data) && !PP_FR) {
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+			d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
+		} else if (! strcmp ("ppp", (char*)data)) {
+			d->pp.pp_flags &= ~PP_FR;
+			d->pp.pp_flags &= ~PP_KEEPALIVE;
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+		} else
 			return EINVAL;
-	        return 0;
+		return 0;
 
 	case SERIAL_GETKEEPALIVE:
-	        CP_DEBUG2 (d, ("ioctl: getkeepalive\n"));
-	        if ((d->pp.pp_flags & PP_FR) ||
+		CP_DEBUG2 (d, ("ioctl: getkeepalive\n"));
+		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
-	        *(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
-	        return 0;
+		*(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		return 0;
 
 	case SERIAL_SETKEEPALIVE:
-	        CP_DEBUG2 (d, ("ioctl: setkeepalive\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setkeepalive\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if ((d->pp.pp_flags & PP_FR) ||
+		if (error)
+			return error;
+		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 		s = splimp ();
-	        if (*(int*)data)
-	                d->pp.pp_flags |= PP_KEEPALIVE;
+		if (*(int*)data)
+			d->pp.pp_flags |= PP_KEEPALIVE;
 		else
-	                d->pp.pp_flags &= ~PP_KEEPALIVE;
+			d->pp.pp_flags &= ~PP_KEEPALIVE;
 		splx (s);
-	        return 0;
+		return 0;
 #endif /*NETGRAPH*/
 
 	case SERIAL_GETMODE:
-	        CP_DEBUG2 (d, ("ioctl: getmode\n"));
+		CP_DEBUG2 (d, ("ioctl: getmode\n"));
 		*(int*)data = SERIAL_HDLC;
-	        return 0;
+		return 0;
 
 	case SERIAL_SETMODE:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (*(int*)data != SERIAL_HDLC)
 			return EINVAL;
-                return 0;
+		return 0;
 
 	case SERIAL_GETCFG:
-	        CP_DEBUG2 (d, ("ioctl: getcfg\n"));
+		CP_DEBUG2 (d, ("ioctl: getcfg\n"));
 		if (c->type != T_E1 || c->unfram)
 			return EINVAL;
 		*(char*)data = c->board->mux ? 'c' : 'a';
-	        return 0;
+		return 0;
 
 	case SERIAL_SETCFG:
-	        CP_DEBUG2 (d, ("ioctl: setcfg\n"));
+		CP_DEBUG2 (d, ("ioctl: setcfg\n"));
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (c->type != T_E1)
 			return EINVAL;
-	        s = splimp ();
+		s = splimp ();
 		cp_set_mux (c->board, *((char*)data) == 'c');
-	        splx (s);
-                return 0;
+		splx (s);
+		return 0;
 
 	case SERIAL_GETSTAT:
-	        CP_DEBUG2 (d, ("ioctl: getstat\n"));
-	        st = (struct serial_statistics*) data;
-	        st->rintr  = c->rintr;
-	        st->tintr  = c->tintr;
-	        st->mintr  = 0;
-	        st->ibytes = c->ibytes;
-	        st->ipkts  = c->ipkts;
-	        st->obytes = c->obytes;
-	        st->opkts  = c->opkts;
+		CP_DEBUG2 (d, ("ioctl: getstat\n"));
+		st = (struct serial_statistics*) data;
+		st->rintr  = c->rintr;
+		st->tintr  = c->tintr;
+		st->mintr  = 0;
+		st->ibytes = c->ibytes;
+		st->ipkts  = c->ipkts;
+		st->obytes = c->obytes;
+		st->opkts  = c->opkts;
 		st->ierrs  = c->overrun + c->frame + c->crc;
 		st->oerrs  = c->underrun;
-	        return 0;
+		return 0;
 
 	case SERIAL_GETESTAT:
-	        CP_DEBUG2 (d, ("ioctl: getestat\n"));
+		CP_DEBUG2 (d, ("ioctl: getestat\n"));
 		if (c->type != T_E1 && c->type != T_G703)
 			return EINVAL;
 		opte1 = (struct e1_statistics*) data;
@@ -1197,10 +1197,10 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_GETE3STAT:
-	        CP_DEBUG2 (d, ("ioctl: gete3stat\n"));
+		CP_DEBUG2 (d, ("ioctl: gete3stat\n"));
 		if (c->type != T_E3 && c->type != T_T3 && c->type != T_STS1)
 			return EINVAL;
-	        opte3 = (struct e3_statistics*) data;
+		opte3 = (struct e3_statistics*) data;
 
 		opte3->status = c->e3status;
 		opte3->cursec = (c->e3csec_5 * 2 + 1) / 10;
@@ -1212,18 +1212,18 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		for (s = 0; s < 48; ++s) {
 			opte3->icv[s] = c->e3icv[s];
 		}
-	        return 0;
+		return 0;
 		
 	case SERIAL_CLRSTAT:
-	        CP_DEBUG2 (d, ("ioctl: clrstat\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: clrstat\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		c->rintr    = 0;
 		c->tintr    = 0;
 		c->ibytes   = 0;
@@ -1232,7 +1232,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		c->opkts    = 0;
 		c->overrun  = 0;
 		c->frame    = 0;
-		c->crc      = 0;
+		c->crc	    = 0;
 		c->underrun = 0;
 		bzero (&c->currnt, sizeof (c->currnt));
 		bzero (&c->total, sizeof (c->total));
@@ -1240,139 +1240,139 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		c->e3ccv    = 0;
 		c->e3tcv    = 0;
 		bzero (c->e3icv, sizeof (c->e3icv));
-	        return 0;
+		return 0;
 
 	case SERIAL_GETBAUD:
-	        CP_DEBUG2 (d, ("ioctl: getbaud\n"));
-	        *(long*)data = c->baud;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getbaud\n"));
+		*(long*)data = c->baud;
+		return 0;
 
 	case SERIAL_SETBAUD:
-	        CP_DEBUG2 (d, ("ioctl: setbaud\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setbaud\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        s = splimp ();
-	        cp_set_baud (c, *(long*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		s = splimp ();
+		cp_set_baud (c, *(long*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETLOOP:
-	        CP_DEBUG2 (d, ("ioctl: getloop\n"));
-	        *(int*)data = c->lloop;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getloop\n"));
+		*(int*)data = c->lloop;
+		return 0;
 
 	case SERIAL_SETLOOP:
-	        CP_DEBUG2 (d, ("ioctl: setloop\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setloop\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        s = splimp ();
+		if (error)
+			return error;
+		s = splimp ();
 		cp_set_lloop (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDPLL:
-	        CP_DEBUG2 (d, ("ioctl: getdpll\n"));
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        *(int*)data = c->dpll;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getdpll\n"));
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		*(int*)data = c->dpll;
+		return 0;
 
 	case SERIAL_SETDPLL:
-	        CP_DEBUG2 (d, ("ioctl: setdpll\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setdpll\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        s = splimp ();
-	        cp_set_dpll (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		s = splimp ();
+		cp_set_dpll (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETNRZI:
-	        CP_DEBUG2 (d, ("ioctl: getnrzi\n"));
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        *(int*)data = c->nrzi;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getnrzi\n"));
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		*(int*)data = c->nrzi;
+		return 0;
 
 	case SERIAL_SETNRZI:
-	        CP_DEBUG2 (d, ("ioctl: setnrzi\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setnrzi\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        s = splimp ();
-	        cp_set_nrzi (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		s = splimp ();
+		cp_set_nrzi (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDEBUG:
-	        CP_DEBUG2 (d, ("ioctl: getdebug\n"));
-	        *(int*)data = d->chan->debug;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getdebug\n"));
+		*(int*)data = d->chan->debug;
+		return 0;
 
 	case SERIAL_SETDEBUG:
-	        CP_DEBUG2 (d, ("ioctl: setdebug\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setdebug\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        d->chan->debug = *(int*)data;
+		if (error)
+			return error;
+		d->chan->debug = *(int*)data;
 #ifndef	NETGRAPH
 		if (d->chan->debug)
 			d->pp.pp_if.if_flags |= IFF_DEBUG;
 		else
 			d->pp.pp_if.if_flags &= ~IFF_DEBUG;
 #endif
-	        return 0;
+		return 0;
 
 	case SERIAL_GETHIGAIN:
-	        CP_DEBUG2 (d, ("ioctl: gethigain\n"));
-	        if (c->type != T_E1)
-	                return EINVAL;
-	        *(int*)data = c->higain;
+		CP_DEBUG2 (d, ("ioctl: gethigain\n"));
+		if (c->type != T_E1)
+			return EINVAL;
+		*(int*)data = c->higain;
 		return 0;
 
 	case SERIAL_SETHIGAIN:
-	        CP_DEBUG2 (d, ("ioctl: sethigain\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: sethigain\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_higain (c, *(int*)data);
 		splx (s);
@@ -1380,23 +1380,23 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETPHONY:
 		CP_DEBUG2 (d, ("ioctl: getphony\n"));
-	        if (c->type != T_E1)
-	                return EINVAL;
-	        *(int*)data = c->phony;
+		if (c->type != T_E1)
+			return EINVAL;
+		*(int*)data = c->phony;
 		return 0;
 
 	case SERIAL_SETPHONY:
 		CP_DEBUG2 (d, ("ioctl: setphony\n"));
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_phony (c, *(int*)data);
 		splx (s);
@@ -1404,23 +1404,23 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETUNFRAM:
 		CP_DEBUG2 (d, ("ioctl: getunfram\n"));
-	        if (c->type != T_E1)
-	                return EINVAL;
-	        *(int*)data = c->unfram;
+		if (c->type != T_E1)
+			return EINVAL;
+		*(int*)data = c->unfram;
 		return 0;
 
 	case SERIAL_SETUNFRAM:
 		CP_DEBUG2 (d, ("ioctl: setunfram\n"));
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_unfram (c, *(int*)data);
 		splx (s);
@@ -1428,23 +1428,23 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETSCRAMBLER:
 		CP_DEBUG2 (d, ("ioctl: getscrambler\n"));
-	        if (c->type != T_G703 && !c->unfram)
-	                return EINVAL;
-	        *(int*)data = c->scrambler;
+		if (c->type != T_G703 && !c->unfram)
+			return EINVAL;
+		*(int*)data = c->scrambler;
 		return 0;
 
 	case SERIAL_SETSCRAMBLER:
 		CP_DEBUG2 (d, ("ioctl: setscrambler\n"));
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_G703 && !c->unfram)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_G703 && !c->unfram)
+			return EINVAL;
 		s = splimp ();
 		cp_set_scrambler (c, *(int*)data);
 		splx (s);
@@ -1452,87 +1452,87 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETMONITOR:
 		CP_DEBUG2 (d, ("ioctl: getmonitor\n"));
-	        if (c->type != T_E1 &&
+		if (c->type != T_E1 &&
 		    c->type != T_E3 &&
 		    c->type != T_T3 &&
 		    c->type != T_STS1)
-	                return EINVAL;
-	        *(int*)data = c->monitor;
+			return EINVAL;
+		*(int*)data = c->monitor;
 		return 0;
 
 	case SERIAL_SETMONITOR:
 		CP_DEBUG2 (d, ("ioctl: setmonitor\n"));
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_monitor (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETUSE16:
-	        CP_DEBUG2 (d, ("ioctl: getuse16\n"));
-	        if (c->type != T_E1 || c->unfram)
-	                return EINVAL;
-	        *(int*)data = c->use16;
+		CP_DEBUG2 (d, ("ioctl: getuse16\n"));
+		if (c->type != T_E1 || c->unfram)
+			return EINVAL;
+		*(int*)data = c->use16;
 		return 0;
 
 	case SERIAL_SETUSE16:
-	        CP_DEBUG2 (d, ("ioctl: setuse16\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setuse16\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_use16 (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETCRC4:
-	        CP_DEBUG2 (d, ("ioctl: getcrc4\n"));
-	        if (c->type != T_E1 || c->unfram)
-	                return EINVAL;
-	        *(int*)data = c->crc4;
+		CP_DEBUG2 (d, ("ioctl: getcrc4\n"));
+		if (c->type != T_E1 || c->unfram)
+			return EINVAL;
+		*(int*)data = c->crc4;
 		return 0;
 
 	case SERIAL_SETCRC4:
-	        CP_DEBUG2 (d, ("ioctl: setcrc4\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setcrc4\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_E1)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_E1)
+			return EINVAL;
 		s = splimp ();
 		cp_set_crc4 (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETCLK:
-	        CP_DEBUG2 (d, ("ioctl: getclk\n"));
-	        if (c->type != T_E1 &&
+		CP_DEBUG2 (d, ("ioctl: getclk\n"));
+		if (c->type != T_E1 &&
 		    c->type != T_G703 &&
 		    c->type != T_E3 &&
 		    c->type != T_T3 &&
 		    c->type != T_STS1)
-	                return EINVAL;
+			return EINVAL;
 		switch (c->gsyn) {
 		default:	*(int*)data = E1CLK_INTERNAL;		break;
 		case GSYN_RCV:	*(int*)data = E1CLK_RECEIVE;		break;
@@ -1544,21 +1544,21 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_SETCLK:
-	        CP_DEBUG2 (d, ("ioctl: setclk\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setclk\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (c->type != T_E1 &&
 		    c->type != T_G703 &&
 		    c->type != T_E3 &&
 		    c->type != T_T3 &&
 		    c->type != T_STS1)
-	                return EINVAL;
+			return EINVAL;
 		s = splimp ();
 		switch (*(int*)data) {
 		default:		  cp_set_gsyn (c, GSYN_INT);  break;
@@ -1572,52 +1572,52 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_GETTIMESLOTS:
-	        CP_DEBUG2 (d, ("ioctl: gettimeslots\n"));
-	        if ((c->type != T_E1 || c->unfram) && c->type != T_DATA)
-	                return EINVAL;
-	        *(u_long*)data = c->ts;
+		CP_DEBUG2 (d, ("ioctl: gettimeslots\n"));
+		if ((c->type != T_E1 || c->unfram) && c->type != T_DATA)
+			return EINVAL;
+		*(u_long*)data = c->ts;
 		return 0;
 
 	case SERIAL_SETTIMESLOTS:
-	        CP_DEBUG2 (d, ("ioctl: settimeslots\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: settimeslots\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if ((c->type != T_E1 || c->unfram) && c->type != T_DATA)
-	                return EINVAL;
+			return EINVAL;
 		s = splimp ();
 		cp_set_ts (c, *(u_long*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETINVCLK:
-	        CP_DEBUG2 (d, ("ioctl: getinvclk\n"));
+		CP_DEBUG2 (d, ("ioctl: getinvclk\n"));
 #if 1
 		return EINVAL;
 #else
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        *(int*)data = c->invtxc;
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		*(int*)data = c->invtxc;
 		return 0;
 #endif
 
 	case SERIAL_SETINVCLK:
-	        CP_DEBUG2 (d, ("ioctl: setinvclk\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setinvclk\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_SERIAL)
+			return EINVAL;
 		s = splimp ();
 		cp_set_invtxc (c, *(int*)data);
 		cp_set_invrxc (c, *(int*)data);
@@ -1625,88 +1625,88 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_GETINVTCLK:
-	        CP_DEBUG2 (d, ("ioctl: getinvtclk\n"));
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        *(int*)data = c->invtxc;
+		CP_DEBUG2 (d, ("ioctl: getinvtclk\n"));
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		*(int*)data = c->invtxc;
 		return 0;
 
 	case SERIAL_SETINVTCLK:
-	        CP_DEBUG2 (d, ("ioctl: setinvtclk\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setinvtclk\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_SERIAL)
+			return EINVAL;
 		s = splimp ();
 		cp_set_invtxc (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETINVRCLK:
-	        CP_DEBUG2 (d, ("ioctl: getinvrclk\n"));
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
-	        *(int*)data = c->invrxc;
+		CP_DEBUG2 (d, ("ioctl: getinvrclk\n"));
+		if (c->type != T_SERIAL)
+			return EINVAL;
+		*(int*)data = c->invrxc;
 		return 0;
 
 	case SERIAL_SETINVRCLK:
-	        CP_DEBUG2 (d, ("ioctl: setinvrclk\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setinvrclk\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->type != T_SERIAL)
+			return EINVAL;
 		s = splimp ();
 		cp_set_invrxc (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETLEVEL:
-	        CP_DEBUG2 (d, ("ioctl: getlevel\n"));
-	        if (c->type != T_G703)
-	                return EINVAL;
+		CP_DEBUG2 (d, ("ioctl: getlevel\n"));
+		if (c->type != T_G703)
+			return EINVAL;
 		s = splimp ();
-	        *(int*)data = cp_get_lq (c);
+		*(int*)data = cp_get_lq (c);
 		splx (s);
 		return 0;
 
 #if 0
 	case SERIAL_RESET:
-	        CP_DEBUG2 (d, ("ioctl: reset\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: reset\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		cp_reset (c->board, 0, 0);
 		splx (s);
 		return 0;
 
 	case SERIAL_HARDRESET:
-	        CP_DEBUG2 (d, ("ioctl: hardreset\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: hardreset\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		/* hard_reset (c->board); */
 		splx (s);
@@ -1714,121 +1714,121 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 #endif
 
 	case SERIAL_GETCABLE:
-	        CP_DEBUG2 (d, ("ioctl: getcable\n"));
-	        if (c->type != T_SERIAL)
-	                return EINVAL;
+		CP_DEBUG2 (d, ("ioctl: getcable\n"));
+		if (c->type != T_SERIAL)
+			return EINVAL;
 		s = splimp ();
 		*(int*)data = cp_get_cable (c);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETDIR:
-	        CP_DEBUG2 (d, ("ioctl: getdir\n"));
-	        if (c->type != T_E1 && c->type != T_DATA)
-	                return EINVAL;
+		CP_DEBUG2 (d, ("ioctl: getdir\n"));
+		if (c->type != T_E1 && c->type != T_DATA)
+			return EINVAL;
 		*(int*)data = c->dir;
 		return 0;
 
 	case SERIAL_SETDIR:
-	        CP_DEBUG2 (d, ("ioctl: setdir\n"));
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setdir\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		cp_set_dir (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETRLOOP:
-	        CP_DEBUG2 (d, ("ioctl: getrloop\n"));
-	        if (c->type != T_G703 &&
+		CP_DEBUG2 (d, ("ioctl: getrloop\n"));
+		if (c->type != T_G703 &&
 		    c->type != T_E3 &&
 		    c->type != T_T3 &&
 		    c->type != T_STS1)
-	                return EINVAL;
-	        *(int*)data = cp_get_rloop (c);
-	        return 0;
+			return EINVAL;
+		*(int*)data = cp_get_rloop (c);
+		return 0;
 
 	case SERIAL_SETRLOOP:
-	        CP_DEBUG2 (d, ("ioctl: setloop\n"));
-	        if (c->type != T_E3 && c->type != T_T3 && c->type != T_STS1)
-	                return EINVAL;
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setloop\n"));
+		if (c->type != T_E3 && c->type != T_T3 && c->type != T_STS1)
+			return EINVAL;
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        s = splimp ();
+		if (error)
+			return error;
+		s = splimp ();
 		cp_set_rloop (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		splx (s);
+		return 0;
 
 	case SERIAL_GETCABLEN:
-	        CP_DEBUG2 (d, ("ioctl: getcablen\n"));
-	        if (c->type != T_T3 && c->type != T_STS1)
-	                return EINVAL;
-	        *(int*)data = c->cablen;
-	        return 0;
+		CP_DEBUG2 (d, ("ioctl: getcablen\n"));
+		if (c->type != T_T3 && c->type != T_STS1)
+			return EINVAL;
+		*(int*)data = c->cablen;
+		return 0;
 
 	case SERIAL_SETCABLEN:
-	        CP_DEBUG2 (d, ("ioctl: setloop\n"));
-	        if (c->type != T_T3 && c->type != T_STS1)
-	                return EINVAL;
-	        /* Only for superuser! */
+		CP_DEBUG2 (d, ("ioctl: setloop\n"));
+		if (c->type != T_T3 && c->type != T_STS1)
+			return EINVAL;
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else
-	        error = suser (td);
+		error = suser (td);
 #endif
-	        if (error)
-	                return error;
-	        s = splimp ();
+		if (error)
+			return error;
+		s = splimp ();
 		cp_set_cablen (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		splx (s);
+		return 0;
 
-	case TIOCSDTR:          /* Set DTR */
+	case TIOCSDTR:	/* Set DTR */
 		s = splimp ();
 		cp_set_dtr (c, 1);
 		splx (s);
 		return 0;
 
-	case TIOCCDTR:          /* Clear DTR */
+	case TIOCCDTR:	/* Clear DTR */
 		s = splimp ();
 		cp_set_dtr (c, 0);
 		splx (s);
 		return 0;
 
-	case TIOCMSET:          /* Set DTR/RTS */
+	case TIOCMSET:	/* Set DTR/RTS */
 		s = splimp ();
 		cp_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
 		cp_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
 		splx (s);
 		return 0;
 
-	case TIOCMBIS:          /* Add DTR/RTS */
+	case TIOCMBIS:	/* Add DTR/RTS */
 		s = splimp ();
 		if (*(int*)data & TIOCM_DTR) cp_set_dtr (c, 1);
 		if (*(int*)data & TIOCM_RTS) cp_set_rts (c, 1);
 		splx (s);
 		return 0;
 
-	case TIOCMBIC:          /* Clear DTR/RTS */
+	case TIOCMBIC:	/* Clear DTR/RTS */
 		s = splimp ();
 		if (*(int*)data & TIOCM_DTR) cp_set_dtr (c, 0);
 		if (*(int*)data & TIOCM_RTS) cp_set_rts (c, 0);
 		splx (s);
 		return 0;
 
-	case TIOCMGET:          /* Get modem status */
+	case TIOCMGET:	/* Get modem status */
 		*(int*)data = cp_modem_status (c);
 		return 0;
 	}
@@ -2039,10 +2039,10 @@ static int print_frac (char *s, int leftalign, u_long numerator, u_long divider)
 	case 100000:  n = 99900;  break;
 	case 1000000: n = 999000; break;
 	}
-	if (n < 10000)        length += sprintf (s+length, "%d.%d", n/1000, n/10%100);
+	if (n < 10000)	      length += sprintf (s+length, "%d.%d", n/1000, n/10%100);
 	else if (n < 100000)  length += sprintf (s+length, "%d.%d", n/1000, n/100%10);
 	else if (n < 1000000) length += sprintf (s+length, "%d.", n/1000);
-	else                  length += sprintf (s+length, "%d", n/1000);
+	else		      length += sprintf (s+length, "%d", n/1000);
 
 	return length;
 }
@@ -2410,7 +2410,7 @@ static int ng_cp_disconnect (hook_p hook)
 
 static int cp_modevent (module_t mod, int type, void *unused)
 {
-        struct cdev *dev;
+	struct cdev *dev;
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
