@@ -205,7 +205,6 @@ int	ed_probe_3Com(device_t, int, int);
 int	ed_probe_SIC(device_t, int, int);
 #endif
 int	ed_probe_Novell(device_t, int, int);
-int	ed_probe_Novell_generic(device_t, int);
 void	ed_Novell_read_mac(struct ed_softc *);
 #ifdef ED_HPP
 int	ed_probe_HP_pclanp(device_t, int, int);
