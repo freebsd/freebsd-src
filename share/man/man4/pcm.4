@@ -148,33 +148,6 @@ device probed at boot time.
 Device probe messages can be examined with the
 .Xr dmesg 8
 utility.
-.Pp
-On systems with
-.Xr devfs 5 ,
-supported device nodes will be created automatically.
-For systems without
-.Xr devfs 5 ,
-appropriate device nodes and symbolic links for the
-.Ql pcm0
-device can be created with the following commands:
-.Bd -literal -offset indent
-cd /dev; sh MAKEDEV snd0
-.Ed
-.Pp
-Similarly, the device nodes and symbolic links for the
-.Ql pcm1
-device would be created as follows:
-.Bd -literal -offset indent
-cd /dev; sh MAKEDEV snd1
-.Ed
-.Pp
-Since the
-.Pa /dev/MAKEDEV
-utility creates symbolic links that will be used by
-many utilities by default,
-the device nodes and symbolic links for the
-preferred audio device in systems with multiple audio devices
-should be created last.
 .Sh DIAGNOSTICS AND TROUBLESHOOTING
 .Bl -tag -width 2m
 .It ac97: dac not ready
