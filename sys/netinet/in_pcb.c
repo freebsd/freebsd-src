@@ -688,7 +688,7 @@ in_pcbdetach(inp)
 	in_pcbremlists(inp);
 	if (so) {
 		SOCK_LOCK(so);
-		so->so_pcb = 0;
+		so->so_pcb = NULL;
 		sotryfree(so);
 	}
 	if (inp->inp_options)
