@@ -1111,11 +1111,6 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 
-	if (!ps_argsopen) {
-		PROC_UNLOCK(p);
-		return (EPERM);
-	}
-
 	if (req->newptr && curproc != p) {
 		PROC_UNLOCK(p);
 		return (EPERM);
