@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.6 1994/12/18 19:14:19 bde Exp $
+ *	$Id: disk.c,v 1.7 1995/01/25 21:37:41 bde Exp $
  */
 
 /*
@@ -42,6 +42,7 @@
 #include <sys/dkbad.h>
 #endif DO_BAD144
 #include <sys/disklabel.h>
+#include <sys/diskslice.h>
 
 #define	BIOS_DEV_FLOPPY	0x0
 #define	BIOS_DEV_WIN	0x80
@@ -89,9 +90,10 @@ devopen()
 		Bread(dosdev, 0);
 		dptr = (struct dos_partition *)(((char *)0)+DOSPARTOFF);
 		sector = LABELSECTOR;
+		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_typ == DOSPTYP_386BSD) {
-				slice = 1 + i;
+				slice = BASE_SLICE + i;
 				sector = dptr->dp_start + LABELSECTOR;
 				break;
 			}
