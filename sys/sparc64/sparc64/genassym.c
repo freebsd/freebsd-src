@@ -41,7 +41,6 @@
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/ucontext.h>
-#include <sys/user.h>
 #include <sys/ucontext.h>
 #include <sys/vmmeter.h>
 
@@ -81,7 +80,6 @@ ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(KSTACK_GUARD_PAGES, KSTACK_GUARD_PAGES);
 ASSYM(PCPU_PAGES, PCPU_PAGES);
-ASSYM(UAREA_PAGES, UAREA_PAGES);
 
 ASSYM(PIL_TICK, PIL_TICK);
 
