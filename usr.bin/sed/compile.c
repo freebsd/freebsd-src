@@ -171,14 +171,14 @@ compile_stream(struct s_command **link)
 		}
 
 semicolon:	EATSPACE();
- 		if (p) {
- 			if (*p == '#' || *p == '\0')
- 				continue;
- 			else if (*p == ';') {
- 				p++;
- 				goto semicolon;
- 			}
- 		}
+		if (p) {
+			if (*p == '#' || *p == '\0')
+				continue;
+			else if (*p == ';') {
+				p++;
+				goto semicolon;
+			}
+		}
 		if ((*link = cmd = malloc(sizeof(struct s_command))) == NULL)
 			err(1, "malloc");
 		link = &cmd->next;
@@ -284,7 +284,7 @@ nonsel:		/* Now parse the command */
 			cmd->t = duptoeol(p, "w command");
 			if (aflag)
 				cmd->u.fd = -1;
-			else if ((cmd->u.fd = open(p, 
+			else if ((cmd->u.fd = open(p,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
 				err(1, "%s", p);
@@ -317,7 +317,7 @@ nonsel:		/* Now parse the command */
 			p++;
 			if (*p == '\0' || *p == '\\')
 				errx(1,
-"%lu: %s: substitute pattern can not be delimited by newline or backslash", 
+"%lu: %s: substitute pattern can not be delimited by newline or backslash",
 					linenum, fname);
 			if ((cmd->u.s = malloc(sizeof(struct s_subst))) == NULL)
 				err(1, "malloc");
