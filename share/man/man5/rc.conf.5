@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2004
+.Dd September 20, 2004
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2444,7 +2444,12 @@ man page.
 .Pq Vt str
 Indicates the device (usually a swap partition) to which a crash dump
 should be written in the event of a system crash.
-The value of this variable is passed as the argument to
+If the value of this variable is
+.Dq Li AUTO ,
+the first suitable swap device listed in
+.Pa /etc/fstab
+will be used as dump device.
+Otherwise, the value of this variable is passed as the argument to
 .Xr dumpon 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
