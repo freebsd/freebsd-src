@@ -22,9 +22,9 @@ OSVERSION!=	/usr/sbin/sysctl -n kern.osreldate
 MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/Templates \
+	ports/Tools \
 	ports/archivers/unzip \
 	ports/converters/libiconv \
-	ports/devel/bison \
 	ports/devel/gettext \
 	ports/devel/gettext-old \
 	ports/devel/gmake \
@@ -41,6 +41,7 @@ MINIMALDOCPORTS= \
 	ports/lang/perl5 \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
+	ports/print/ghostscript-gnu-nox11 \
 	ports/textproc/docbook \
 	ports/textproc/docbook-241 \
 	ports/textproc/docbook-300 \
@@ -57,7 +58,6 @@ MINIMALDOCPORTS= \
 	ports/textproc/libxml2 \
 	ports/textproc/libxslt \
 	ports/textproc/linuxdoc \
-	ports/textproc/mkcatalog \
 	ports/textproc/scr2txt \
 	ports/textproc/sdocbook-xml \
 	ports/textproc/sgmlformat \
