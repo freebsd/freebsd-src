@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.37 1995/06/19 13:02:09 amurai Exp $
+ *      $Id: bt742a.c,v 1.38 1995/06/25 17:45:05 joerg Exp $
  */
 
 /*
@@ -371,8 +371,6 @@ struct bt_sync_value {
 #define KVTOPHYS(x)	vtophys(x)
 #define PAGESIZ		4096
 #define INVALIDATE_CACHE {asm volatile( ".byte	0x0F ;.byte 0x08" ); }
-
-u_char  bt_scratch_buf[256];
 
 struct bt_data {
 	short   bt_base;		/* base port for each board */
