@@ -38,9 +38,14 @@ int snd_unit = 0;
 TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
 int snd_autovchans = 0;
-TUNABLE_INT("hw.snd.autovchans", &snd_autovchans);
 int snd_maxvchans = 0;
+#if __FreeBSD > 50000
+TUNABLE_INT("hw.snd.autovchans", &snd_autovchans);
 TUNABLE_INT("hw.snd.maxvchans", &snd_maxvchans);
+#else
+TUNABLE_INT("hw.snd.autovchans", 0, snd_autovchans);
+TUNABLE_INT("hw.snd.maxvchans", 0, snd_maxvchans);
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 
