@@ -84,7 +84,7 @@ struct nlist nl[] = {
 	{ "" },
 };
 
-int havedisk(void);
+int haveadisk(void);
 void updatexfers(int, int *);
 void setup(void);
 int stats_service(void);
@@ -158,7 +158,7 @@ rstatproc_havedisk_3_svc(void *argp, struct svc_req *rqstp)
     if (! stat_is_init)
         stat_init();
     sincelastreq = 0;
-    have = havedisk();
+    have = haveadisk();
 	return(&have);
 }
 
@@ -325,7 +325,7 @@ setup()
  * returns true if have a disk
  */
 int
-havedisk(void)
+haveadisk(void)
 {
 	register int i;
 	struct statinfo stats;
