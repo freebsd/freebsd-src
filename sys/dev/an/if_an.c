@@ -1267,7 +1267,6 @@ an_ioctl(ifp, command, data)
 	int			len;
 	int			i;
 	struct an_softc		*sc;
-	struct an_req		areq;
 	struct ifreq		*ifr;
 	struct proc		*p = curproc;
 	struct ieee80211req	*ireq;
@@ -1285,10 +1284,10 @@ an_ioctl(ifp, command, data)
 	ifr = (struct ifreq *)data;
 	ireq = (struct ieee80211req *)data;
 
-	config = (struct an_ltv_genconfig *)&areq;
-	key = (struct an_ltv_key *)&areq;
-	status = (struct an_ltv_status *)&areq;
-	ssids = (struct an_ltv_ssidlist *)&areq;
+	config = (struct an_ltv_genconfig *)&sc->areq;
+	key = (struct an_ltv_key *)&sc->areq;
+	status = (struct an_ltv_status *)&sc->areq;
+	ssids = (struct an_ltv_ssidlist *)&sc->areq;
 
 	if (sc->an_gone) {
 		error = ENODEV;
@@ -1330,38 +1329,38 @@ an_ioctl(ifp, command, data)
 		error = 0;
 		break;
 	case SIOCGAIRONET:
-		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
+		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
 			break;
 #ifdef ANCACHE
-		if (areq.an_type == AN_RID_ZERO_CACHE) {
+		if (sc->areq.an_type == AN_RID_ZERO_CACHE) {
 			sc->an_sigitems = sc->an_nextitem = 0;
 			break;
-		} else if (areq.an_type == AN_RID_READ_CACHE) {
-			char *pt = (char *)&areq.an_val;
+		} else if (sc->areq.an_type == AN_RID_READ_CACHE) {
+			char *pt = (char *)&sc->areq.an_val;
 			bcopy((char *)&sc->an_sigitems, (char *)pt,
 			    sizeof(int));
 			pt += sizeof(int);
-			areq.an_len = sizeof(int) / 2;
+			sc->areq.an_len = sizeof(int) / 2;
 			bcopy((char *)&sc->an_sigcache, (char *)pt,
 			    sizeof(struct an_sigcache) * sc->an_sigitems);
-			areq.an_len += ((sizeof(struct an_sigcache) *
+			sc->areq.an_len += ((sizeof(struct an_sigcache) *
 			    sc->an_sigitems) / 2) + 1;
 		} else
 #endif
-		if (an_read_record(sc, (struct an_ltv_gen *)&areq)) {
+		if (an_read_record(sc, (struct an_ltv_gen *)&sc->areq)) {
 			error = EINVAL;
 			break;
 		}
-		error = copyout(&areq, ifr->ifr_data, sizeof(areq));
+		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
 		break;
 	case SIOCSAIRONET:
 		if ((error = suser(p)))
 			goto out;
-		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
+		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
 			break;
-		an_setdef(sc, &areq);
+		an_setdef(sc, &sc->areq);
 		break;
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
 		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
@@ -1389,23 +1388,23 @@ an_ioctl(ifp, command, data)
 	        error = 0;
 		break;
 	case SIOCG80211:
-		areq.an_len = sizeof(areq);
+		sc->areq.an_len = sizeof(sc->areq);
 		/* was that a good idea DJA we are doing a short-cut */
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
 			if (ireq->i_val == -1) {
-				areq.an_type = AN_RID_STATUS;
+				sc->areq.an_type = AN_RID_STATUS;
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *)&areq)) {
+				    (struct an_ltv_gen *)&sc->areq)) {
 					error = EINVAL;
 					break;
 				}
 				len = status->an_ssidlen;
 				tmpptr = status->an_ssid;
 			} else if (ireq->i_val >= 0) {
-				areq.an_type = AN_RID_SSIDLIST;
+				sc->areq.an_type = AN_RID_SSIDLIST;
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *)&areq)) {
+				    (struct an_ltv_gen *)&sc->areq)) {
 					error = EINVAL;
 					break;
 				}
@@ -1440,9 +1439,9 @@ an_ioctl(ifp, command, data)
 			ireq->i_val = 3;
 			break;
 		case IEEE80211_IOC_WEP:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1469,10 +1468,10 @@ an_ioctl(ifp, command, data)
 			}
 			len = 0;
 			if (ireq->i_val < 5) {
-				areq.an_type = AN_RID_WEP_TEMP;
+				sc->areq.an_type = AN_RID_WEP_TEMP;
 				for (i = 0; i < 5; i++) {
 					if (an_read_record(sc,
-					    (struct an_ltv_gen *)&areq)) {
+					    (struct an_ltv_gen *)&sc->areq)) {
 						error = EINVAL;
 						break;
 					}
@@ -1481,7 +1480,7 @@ an_ioctl(ifp, command, data)
 					if (key->kindex == ireq->i_val)
 						len = key->klen;
 					/* Required to get next entry */
-					areq.an_type = AN_RID_WEP_PERM;
+					sc->areq.an_type = AN_RID_WEP_PERM;
 				}
 				if (error != 0)
 					break;
@@ -1503,25 +1502,25 @@ an_ioctl(ifp, command, data)
 			 * For some strange reason, you have to read all
 			 * keys before you can read the txkey.
 			 */
-			areq.an_type = AN_RID_WEP_TEMP;
+			sc->areq.an_type = AN_RID_WEP_TEMP;
 			for (i = 0; i < 5; i++) {
 				if (an_read_record(sc,
-				    (struct an_ltv_gen *) &areq)) {
+				    (struct an_ltv_gen *) &sc->areq)) {
 					error = EINVAL;
 					break;
 				}
 				if (key->kindex == 0xffff)
 					break;
 				/* Required to get next entry */
-				areq.an_type = AN_RID_WEP_PERM;
+				sc->areq.an_type = AN_RID_WEP_PERM;
 			}
 			if (error != 0)
 				break;
 
-			areq.an_type = AN_RID_WEP_PERM;
+			sc->areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1531,10 +1530,10 @@ an_ioctl(ifp, command, data)
 			 * 5th key since that is how it is stored on
 			 * the card
 			 */
-			areq.an_len  = sizeof(struct an_ltv_genconfig);
-			areq.an_type = AN_RID_GENCONFIG;
+			sc->areq.an_len  = sizeof(struct an_ltv_genconfig);
+			sc->areq.an_type = AN_RID_GENCONFIG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1542,9 +1541,9 @@ an_ioctl(ifp, command, data)
 				ireq->i_val = 4;
 			break;
 		case IEEE80211_IOC_AUTHMODE:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1561,9 +1560,9 @@ an_ioctl(ifp, command, data)
 				error = EINVAL;
 			break;
 		case IEEE80211_IOC_STATIONNAME:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1575,18 +1574,18 @@ an_ioctl(ifp, command, data)
 			    IEEE80211_NWID_LEN);
 			break;
 		case IEEE80211_IOC_CHANNEL:
-			areq.an_type = AN_RID_STATUS;
+			sc->areq.an_type = AN_RID_STATUS;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
 			ireq->i_val = status->an_cur_channel;
 			break;
 		case IEEE80211_IOC_POWERSAVE:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1602,9 +1601,9 @@ an_ioctl(ifp, command, data)
 				error = EINVAL;
 			break;
 		case IEEE80211_IOC_POWERSAVESLEEP:
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1615,7 +1614,7 @@ an_ioctl(ifp, command, data)
 	case SIOCS80211:
 		if ((error = suser(p)))
 			goto out;
-		areq.an_len = sizeof(areq);
+		sc->areq.an_len = sizeof(sc->areq);
 		/*
 		 * We need a config structure for everything but the WEP
 		 * key management and SSIDs so we get it now so avoid
@@ -1624,18 +1623,18 @@ an_ioctl(ifp, command, data)
 		if (ireq->i_type != IEEE80211_IOC_SSID &&
 		    ireq->i_type != IEEE80211_IOC_WEPKEY &&
 		    ireq->i_type != IEEE80211_IOC_WEPTXKEY) {
-			areq.an_type = AN_RID_GENCONFIG;
+			sc->areq.an_type = AN_RID_GENCONFIG;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
 		}
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			areq.an_type = AN_RID_SSIDLIST;
+			sc->areq.an_type = AN_RID_SSIDLIST;
 			if (an_read_record(sc,
-			    (struct an_ltv_gen *)&areq)) {
+			    (struct an_ltv_gen *)&sc->areq)) {
 				error = EINVAL;
 				break;
 			}
@@ -1696,14 +1695,14 @@ an_ioctl(ifp, command, data)
 			error = copyin(ireq->i_data, tmpstr, 13);
 			if (error != 0)
 				break;
-			bzero(&areq, sizeof(struct an_ltv_key));
-			areq.an_len = sizeof(struct an_ltv_key);
+			bzero(&sc->areq, sizeof(struct an_ltv_key));
+			sc->areq.an_len = sizeof(struct an_ltv_key);
 			key->mac[0] = 1;	/* The others are 0. */
 			key->kindex = ireq->i_val % 4;
 			if (ireq->i_val < 4)
-				areq.an_type = AN_RID_WEP_TEMP;
+				sc->areq.an_type = AN_RID_WEP_TEMP;
 			else
-				areq.an_type = AN_RID_WEP_PERM;
+				sc->areq.an_type = AN_RID_WEP_PERM;
 			key->klen = ireq->i_len;
 			bcopy(tmpstr, key->key, key->klen);
 			break;
@@ -1717,10 +1716,10 @@ an_ioctl(ifp, command, data)
 				error = EINVAL;
 				break;
 			}
-			areq.an_len  = sizeof(struct an_ltv_genconfig);
-			areq.an_type = AN_RID_ACTUALCFG;
+			sc->areq.an_len  = sizeof(struct an_ltv_genconfig);
+			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
-	       		    (struct an_ltv_gen *)&areq)) {
+	       		    (struct an_ltv_gen *)&sc->areq)) {
 	       			error = EINVAL;
 				break;
 			}
@@ -1733,11 +1732,11 @@ an_ioctl(ifp, command, data)
 
 			sc->an_config.an_home_product
 				= config->an_home_product;
-			an_write_record(sc, (struct an_ltv_gen *)&areq);
+			an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
 
-			bzero(&areq, sizeof(struct an_ltv_key));
-			areq.an_len = sizeof(struct an_ltv_key);
-			areq.an_type = AN_RID_WEP_PERM;
+			bzero(&sc->areq, sizeof(struct an_ltv_key));
+			sc->areq.an_len = sizeof(struct an_ltv_key);
+			sc->areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
 			key->mac[0] = ireq->i_val;
 			break;
@@ -1805,7 +1804,7 @@ an_ioctl(ifp, command, data)
 		}
 
 		if (!error)
-			an_setdef(sc, &areq);
+			an_setdef(sc, &sc->areq);
 		break;
 	default:
 		error = EINVAL;
@@ -2388,9 +2387,8 @@ readrids(ifp, l_ioctl)
 	struct ifnet   *ifp;
 	struct aironet_ioctl *l_ioctl;
 {
-	unsigned short	rid;
+	unsigned short  rid;
 	struct an_softc *sc;
-	struct an_req	areq;
 
 	switch (l_ioctl->command) {
 	case AIROGCAP:
@@ -2435,20 +2433,20 @@ readrids(ifp, l_ioctl)
 		return -EINVAL;
 
 	sc = ifp->if_softc;
-	areq.an_len  = AN_MAX_DATALEN;
-	areq.an_type = rid;
+	sc->areq.an_len  = AN_MAX_DATALEN;
+	sc->areq.an_type = rid;
 
-	an_read_record(sc, (struct an_ltv_gen *)&areq);
+	an_read_record(sc, (struct an_ltv_gen *)&sc->areq);
 
-	l_ioctl->len = areq.an_len - 4;	/* just data */
+	l_ioctl->len = sc->areq.an_len - 4;	/* just data */
 
 	/* the data contains the length at first */
-	if (copyout(&(areq.an_len), l_ioctl->data,
-		    sizeof(areq.an_len))) {
+	if (copyout(&(sc->areq.an_len), l_ioctl->data,
+		    sizeof(sc->areq.an_len))) {
 		return -EFAULT;
 	}
 	/* Just copy the data back */
-	if (copyout(&(areq.an_val), l_ioctl->data + 2,
+	if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
 		    l_ioctl->len)) {
 		return -EFAULT;
 	}
@@ -2461,7 +2459,6 @@ writerids(ifp, l_ioctl)
 	struct aironet_ioctl *l_ioctl;
 {
 	struct an_softc *sc;
-	struct an_req	areq;
 	int             rid, command;
 
 	sc = ifp->if_softc;
@@ -2498,19 +2495,19 @@ writerids(ifp, l_ioctl)
 
 		rid = AN_RID_32BITS_DELTACLR;
 		sc = ifp->if_softc;
-		areq.an_len = AN_MAX_DATALEN;
-		areq.an_type = rid;
+		sc->areq.an_len = AN_MAX_DATALEN;
+		sc->areq.an_type = rid;
 
-		an_read_record(sc, (struct an_ltv_gen *)&areq);
-		l_ioctl->len = areq.an_len - 4;	/* just data */
+		an_read_record(sc, (struct an_ltv_gen *)&sc->areq);
+		l_ioctl->len = sc->areq.an_len - 4;	/* just data */
 
 		/* the data contains the length at first */
-		if (copyout(&(areq.an_len), l_ioctl->data,
-			    sizeof(areq.an_len))) {
+		if (copyout(&(sc->areq.an_len), l_ioctl->data,
+			    sizeof(sc->areq.an_len))) {
 			return -EFAULT;
 		}
 		/* Just copy the data */
-		if (copyout(&(areq.an_val), l_ioctl->data + 2,
+		if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
 			    l_ioctl->len)) {
 			return -EFAULT;
 		}
@@ -2533,17 +2530,17 @@ writerids(ifp, l_ioctl)
 	}
 
 	if (rid) {
-		if (l_ioctl->len > sizeof(areq.an_val) + 4)
+		if (l_ioctl->len > sizeof(sc->areq.an_val) + 4)
 			return -EINVAL;
-		areq.an_len = l_ioctl->len + 4;	/* add type & length */
-		areq.an_type = rid;
+		sc->areq.an_len = l_ioctl->len + 4;	/* add type & length */
+		sc->areq.an_type = rid;
 
 		/* Just copy the data back */
-		copyin((l_ioctl->data) + 2, &areq.an_val,
+		copyin((l_ioctl->data) + 2, &sc->areq.an_val,
 		       l_ioctl->len);
 
 		an_cmd(sc, AN_CMD_DISABLE, 0);
-		an_write_record(sc, (struct an_ltv_gen *)&areq);
+		an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
 		an_cmd(sc, AN_CMD_ENABLE, 0);
 		return 0;
 	}
@@ -2818,9 +2815,8 @@ flashcard(ifp, l_ioctl)
 	struct ifnet   *ifp;
 	struct aironet_ioctl *l_ioctl;
 {
-	struct an_softc	*sc;
-	struct an_req	areq;
 	int             z = 0, status;
+	struct an_softc	*sc;
 
 	sc = ifp->if_softc;
 	status = l_ioctl->command;
@@ -2833,16 +2829,16 @@ flashcard(ifp, l_ioctl)
 		return setflashmode(ifp);
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
-		copyin(l_ioctl->data, &areq, l_ioctl->len);
-		z = *(int *)&areq;
+		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		z = *(int *)&sc->areq;
 		if ((status = flashgchar(ifp, z, 8000)) == 1)
 			return 0;
 		else
 			return -1;
 		break;
 	case AIROFLSHPCHR:	/* Send char to card. */
-		copyin(l_ioctl->data, &areq, l_ioctl->len);
-		z = *(int *)&areq;
+		copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		z = *(int *)&sc->areq;
 		if ((status = flashpchar(ifp, z, 8000)) == -1)
 			return -EIO;
 		else
