@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: skeleton.c,v 1.11 1997/02/22 19:58:02 peter Exp $
  */
 
 #ifndef lint
@@ -150,11 +150,11 @@ char *body[] =
     "    else if ((newsize *= 2) > YYMAXDEPTH)",
     "        newsize = YYMAXDEPTH;",
     "    i = yyssp - yyss;",
-    "    if ((newss = realloc(yyss, newsize * sizeof *newss)) == NULL)",
+    "    if ((newss = (short *)realloc(yyss, newsize * sizeof *newss)) == NULL)",
     "        return -1;",
     "    yyss = newss;",
     "    yyssp = newss + i;",
-    "    if ((newvs = realloc(yyvs, newsize * sizeof *newvs)) == NULL)",
+    "    if ((newvs = (YYSTYPE *)realloc(yyvs, newsize * sizeof *newvs)) == NULL)",
     "        return -1;",
     "    yyvs = newvs;",
     "    yyvsp = newvs + i;",
