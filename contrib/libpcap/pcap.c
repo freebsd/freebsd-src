@@ -123,6 +123,24 @@ pcap_datalink(pcap_t *p)
 }
 
 int
+pcap_list_datalinks(pcap_t *p, int **dlt_buffer)
+{
+	if (p->dlt_count <= 0) {
+		*dlt_buffer = NULL;
+		return -1;
+	}
+	*dlt_buffer = (int*)malloc(sizeof(**dlt_buffer) * p->dlt_count);
+	if (*dlt_buffer == NULL) {
+		(void)snprintf(p->errbuf, sizeof(p->errbuf), "malloc: %s",
+		    pcap_strerror(errno));
+		return -1;
+	}
+	(void)memcpy(*dlt_buffer, p->dlt_list,
+	    sizeof(**dlt_buffer) * p->dlt_count);
+	return (p->dlt_count);
+}
+
+int
 pcap_snapshot(pcap_t *p)
 {
 	return (p->snapshot);
@@ -281,6 +299,8 @@ pcap_close(pcap_t *p)
 			free(p->sf.base);
 	} else if (p->buffer != NULL)
 		free(p->buffer);
+	if (p->dlt_list != NULL)
+		free(p->dlt_list);
 	
 	pcap_freecode(&p->fcode);
 	free(p);
