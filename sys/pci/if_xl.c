@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.5.2.1 1998/08/24 18:17:49 wpaul Exp $
+ *	$Id: if_xl.c,v 1.37 1998/08/31 15:13:27 wpaul Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.5.2.1 1998/08/24 18:17:49 wpaul Exp $";
+	"$Id: if_xl.c,v 1.37 1998/08/31 15:13:27 wpaul Exp $";
 #endif
 
 /*
@@ -1615,7 +1615,8 @@ static int xl_list_rx_init(sc)
 	for (i = 0; i < XL_RX_LIST_CNT; i++) {
 		cd->xl_rx_chain[i].xl_ptr =
 			(struct xl_list_onefrag *)&ld->xl_rx_list[i];
-		xl_newbuf(sc, &cd->xl_rx_chain[i]);
+		if (xl_newbuf(sc, &cd->xl_rx_chain[i]) == ENOBUFS)
+			return(ENOBUFS);
 		if (i == (XL_RX_LIST_CNT - 1)) {
 			cd->xl_rx_chain[i].xl_next = &cd->xl_rx_chain[0];
 			ld->xl_rx_list[i].xl_next =
@@ -1643,14 +1644,15 @@ static int xl_newbuf(sc, c)
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
-		printf("xl%d: no memory for rx list",
-				sc->xl_unit);
+		printf("xl%d: no memory for rx list -- packet dropped!\n",
+								sc->xl_unit);
 		return(ENOBUFS);
 	}
 
 	MCLGET(m_new, M_DONTWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
-		printf("xl%d: no memory for rx list", sc->xl_unit);
+		printf("xl%d: no memory for rx list -- packet dropped!\n",
+								sc->xl_unit);
 		m_freem(m_new);
 		return(ENOBUFS);
 	}
@@ -1683,6 +1685,8 @@ again:
 
 	while((rxstat = sc->xl_cdata.xl_rx_head->xl_ptr->xl_status)) {
 		cur_rx = sc->xl_cdata.xl_rx_head;
+		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
+
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -1692,7 +1696,6 @@ again:
 		if (rxstat & XL_RXSTAT_UP_ERROR) {
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
-			sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 			continue;
 		}
 
@@ -1706,15 +1709,25 @@ again:
 							sc->xl_unit);
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
-			sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 			continue;
 		}
 
 		/* No errors; receive the packet. */	
-		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		m = cur_rx->xl_mbuf;
 		total_len = cur_rx->xl_ptr->xl_status & XL_RXSTAT_LENMASK;
-		xl_newbuf(sc, cur_rx);
+
+		/*
+		 * Try to conjure up a new mbuf cluster. If that
+		 * fails, it means we have an out of memory condition and
+		 * should leave the buffer in place and continue. This will
+		 * result in a lost packet, but there's little else we
+		 * can do in this situation.
+		 */
+		if (xl_newbuf(sc, cur_rx) == ENOBUFS) {
+			ifp->if_ierrors++;
+			cur_rx->xl_ptr->xl_status = 0;
+			continue;
+		}
 
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
@@ -2231,8 +2244,10 @@ static void xl_init(xsc)
 	xl_wait(sc);
 
 	/* Init circular RX list. */
-	if (xl_list_rx_init(sc)) {
-		printf("xl%d: failed to set up rx lists\n", sc->xl_unit);
+	if (xl_list_rx_init(sc) == ENOBUFS) {
+		printf("xl%d: initialization failed: no "
+			"memory for rx buffers\n", sc->xl_unit);
+		xl_stop(sc);
 		return;
 	}
 
