@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.5 1998/10/15 19:08:58 ken Exp $
+ *	$Id: scsi_all.h,v 1.6 1998/12/05 22:10:14 mjacob Exp $
  */
 
 /*
@@ -712,6 +712,7 @@ int		scsi_interpret_sense(struct cam_device *device,
 #define SF_NO_PRINT	0x02
 #define SF_QUIET_IR	0x04	/* Be quiet about Illegal Request reponses */
 #define SF_PRINT_ALWAYS	0x08
+#define SF_RETRY_SELTO	0x10	/* Retry selection timeouts */
 
 
 const char *	scsi_op_desc(u_int16_t opcode, 
