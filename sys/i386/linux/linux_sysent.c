@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysent.c,v 1.2 1995/11/06 12:52:25 davidg Exp $
+ *  $Id: linux_sysent.c,v 1.3 1995/11/22 07:43:52 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -43,10 +43,10 @@
 static struct sysent linux_sysent[] = {
     0, (sy_call_t *)linux_setup,		/* 0 */
     1, (sy_call_t *)exit,			/* 1 */
-    0, (sy_call_t *)linux_fork,		/* 2 */
+    0, (sy_call_t *)linux_fork,			/* 2 */
     3, (sy_call_t *)read,			/* 3 */
     3, (sy_call_t *)write,			/* 4 */
-    3, (sy_call_t *)linux_open,		/* 5 */
+    3, (sy_call_t *)linux_open,			/* 5 */
     1, (sy_call_t *)close,			/* 6 */
     3, (sy_call_t *)linux_waitpid,		/* 7 */
     2, (sy_call_t *)linux_creat,		/* 8 */
@@ -54,12 +54,12 @@ static struct sysent linux_sysent[] = {
     1, (sy_call_t *)unlink,	    		/* 10 */
     3, (sy_call_t *)execve,	    		/* 11 */
     1, (sy_call_t *)chdir,			/* 12 */
-    1, (sy_call_t *)linux_time,		/* 13 */
-    3, (sy_call_t *)mknod,			/* 14 */
+    1, (sy_call_t *)linux_time,			/* 13 */
+    3, (sy_call_t *)linux_mknod,		/* 14 */
     2, (sy_call_t *)chmod,			/* 15 */
     3, (sy_call_t *)chown,			/* 16 */
     1, (sy_call_t *)linux_break,		/* 17 */
-    2, (sy_call_t *)linux_stat,		/* 18 */
+    2, (sy_call_t *)linux_stat,			/* 18 */
     3, (sy_call_t *)linux_lseek,		/* 19 */
     0, (sy_call_t *)getpid,	    		/* 20 */
     5, (sy_call_t *)linux_mount,		/* 21 */
@@ -72,32 +72,32 @@ static struct sysent linux_sysent[] = {
     2, (sy_call_t *)linux_fstat,		/* 28 */
     0, (sy_call_t *)linux_pause,		/* 29 */
     2, (sy_call_t *)linux_utime,		/* 30 */
-    0, (sy_call_t *)linux_stty,		/* 31 */
-    0, (sy_call_t *)linux_gtty,		/* 32 */
+    0, (sy_call_t *)linux_stty,			/* 31 */
+    0, (sy_call_t *)linux_gtty,			/* 32 */
     2, (sy_call_t *)access,	    		/* 33 */
-    1, (sy_call_t *)linux_nice,		/* 34 */
+    1, (sy_call_t *)linux_nice,			/* 34 */
     0, (sy_call_t *)linux_ftime,		/* 35 */
     0, (sy_call_t *)sync,			/* 36 */
-    2, (sy_call_t *)linux_kill,		/* 37 */
+    2, (sy_call_t *)linux_kill,			/* 37 */
     2, (sy_call_t *)rename,	    		/* 38 */
     2, (sy_call_t *)mkdir,			/* 39 */
     1, (sy_call_t *)rmdir,			/* 40 */
     1, (sy_call_t *)dup,	    		/* 41 */
-    1, (sy_call_t *)linux_pipe,		/* 42 */
+    1, (sy_call_t *)linux_pipe,			/* 42 */
     1, (sy_call_t *)linux_times,		/* 43 */
-    0, (sy_call_t *)linux_prof,		/* 44 */
-    1, (sy_call_t *)linux_brk,		/* 45 */
+    0, (sy_call_t *)linux_prof,			/* 44 */
+    1, (sy_call_t *)linux_brk,			/* 45 */
     1, (sy_call_t *)setgid,	    		/* 46 */
     0, (sy_call_t *)getgid,	    		/* 47 */
     2, (sy_call_t *)linux_signal,		/* 48 */
     0, (sy_call_t *)geteuid,	    		/* 49 */
     0, (sy_call_t *)getegid,	    		/* 50 */
     0, (sy_call_t *)acct,			/* 51 */
-    0, (sy_call_t *)linux_phys,		/* 52 */
-    0, (sy_call_t *)linux_lock,		/* 53 */
+    0, (sy_call_t *)linux_phys,			/* 52 */
+    0, (sy_call_t *)linux_lock,			/* 53 */
     3, (sy_call_t *)linux_ioctl,		/* 54 */
     3, (sy_call_t *)linux_fcntl,		/* 55 */
-    0, (sy_call_t *)linux_mpx,		/* 56 */
+    0, (sy_call_t *)linux_mpx,			/* 56 */
     2, (sy_call_t *)setpgid,	    		/* 57 */
     0, (sy_call_t *)linux_ulimit,		/* 58 */
     1, (sy_call_t *)linux_olduname,		/* 59 */
@@ -109,32 +109,32 @@ static struct sysent linux_sysent[] = {
     0, (sy_call_t *)getpgrp,	    		/* 65 */
     0, (sy_call_t *)setsid,	    		/* 66 */
     3, (sy_call_t *)linux_sigaction,		/* 67 */
-    0, (sy_call_t *)linux_siggetmask,	/* 68 */
-    1, (sy_call_t *)linux_sigsetmask,	/* 69 */
-    2, (sy_call_t *)setreuid,		/* 70 */
-    2, (sy_call_t *)setregid,		/* 71 */
-    1, (sy_call_t *)linux_sigsuspend,	/* 72 */
-    1, (sy_call_t *)linux_sigpending,	/* 73 */
+    0, (sy_call_t *)linux_siggetmask,		/* 68 */
+    1, (sy_call_t *)linux_sigsetmask,		/* 69 */
+    2, (sy_call_t *)setreuid,			/* 70 */
+    2, (sy_call_t *)setregid,			/* 71 */
+    1, (sy_call_t *)linux_sigsuspend,		/* 72 */
+    1, (sy_call_t *)linux_sigpending,		/* 73 */
     2, (sy_call_t *)osethostname,		/* 74 */
-    2, (sy_call_t *)osetrlimit,		/* 75 */
-    2, (sy_call_t *)ogetrlimit,		/* 76 */
-    2, (sy_call_t *)getrusage,		/* 77 */
+    2, (sy_call_t *)osetrlimit,			/* 75 */
+    2, (sy_call_t *)ogetrlimit,			/* 76 */
+    2, (sy_call_t *)getrusage,			/* 77 */
     2, (sy_call_t *)gettimeofday,		/* 78 */
     2, (sy_call_t *)settimeofday,		/* 79 */
-    2, (sy_call_t *)getgroups,		/* 80 */
-    2, (sy_call_t *)setgroups,		/* 81 */
+    2, (sy_call_t *)getgroups,			/* 80 */
+    2, (sy_call_t *)setgroups,			/* 81 */
     1, (sy_call_t *)linux_select,		/* 82 */
     2, (sy_call_t *)symlink,	    		/* 83 */
     2, (sy_call_t *)ostat,			/* 84 */
-    3, (sy_call_t *)readlink,		/* 85 */
+    3, (sy_call_t *)readlink,			/* 85 */
     1, (sy_call_t *)linux_uselib,		/* 86 */
     1, (sy_call_t *)swapon,	    		/* 87 */
     3, (sy_call_t *)reboot,	    		/* 88 */
     3, (sy_call_t *)linux_readdir,		/* 89 */
-    1, (sy_call_t *)linux_mmap,		/* 90 */
+    1, (sy_call_t *)linux_mmap,			/* 90 */
     2, (sy_call_t *)munmap,	    		/* 91 */
-    2, (sy_call_t *)otruncate,		/* 92 */
-    2, (sy_call_t *)oftruncate,		/* 93 */
+    2, (sy_call_t *)otruncate,			/* 92 */
+    2, (sy_call_t *)oftruncate,			/* 93 */
     2, (sy_call_t *)fchmod,	    		/* 94 */
     3, (sy_call_t *)fchown,	    		/* 95 */
     2, (sy_call_t *)getpriority,		/* 96 */
@@ -143,33 +143,33 @@ static struct sysent linux_sysent[] = {
     2, (sy_call_t *)linux_statfs,		/* 99 */
     2, (sy_call_t *)linux_fstatfs,		/* 100 */
     3, (sy_call_t *)linux_ioperm,		/* 101 */
-    2, (sy_call_t *)linux_socketcall,	/* 102 */
+    2, (sy_call_t *)linux_socketcall,		/* 102 */
     3, (sy_call_t *)linux_syslog,		/* 103 */
-    3, (sy_call_t *)setitimer,		/* 104 */
-    2, (sy_call_t *)getitimer,		/* 105 */
+    3, (sy_call_t *)setitimer,			/* 104 */
+    2, (sy_call_t *)getitimer,			/* 105 */
     2, (sy_call_t *)linux_newstat,		/* 106 */
     2, (sy_call_t *)linux_newlstat,		/* 107 */
     2, (sy_call_t *)linux_newfstat,		/* 108 */
     2, (sy_call_t *)linux_uname,		/* 109 */
-    1, (sy_call_t *)linux_iopl,		/* 110 */
+    1, (sy_call_t *)linux_iopl,			/* 110 */
     0, (sy_call_t *)linux_vhangup,		/* 111 */
-    0, (sy_call_t *)linux_idle,		/* 112 */
-    1, (sy_call_t *)linux_vm86,		/* 113 */
+    0, (sy_call_t *)linux_idle,			/* 112 */
+    1, (sy_call_t *)linux_vm86,			/* 113 */
     4, (sy_call_t *)linux_wait4,		/* 114 */
     1, (sy_call_t *)linux_swapoff,		/* 115 */
     1, (sy_call_t *)linux_sysinfo,		/* 116 */
-    4, (sy_call_t *)linux_ipc,		/* 117 */
+    4, (sy_call_t *)linux_ipc,			/* 117 */
     1, (sy_call_t *)fsync,			/* 118 */
     1, (sy_call_t *)linux_sigreturn,		/* 119 */
     0, (sy_call_t *)linux_clone,		/* 120 */
     2, (sy_call_t *)setdomainname,		/* 121 */
     1, (sy_call_t *)linux_newuname,		/* 122 */
-    3, (sy_call_t *)linux_modify_ldt,	/* 123 */
+    3, (sy_call_t *)linux_modify_ldt,		/* 123 */
     1, (sy_call_t *)linux_adjtimex,		/* 124 */
-    3, (sy_call_t *)mprotect,		/* 125 */
-    3, (sy_call_t *)linux_sigprocmask,	/* 126 */
+    3, (sy_call_t *)mprotect,			/* 125 */
+    3, (sy_call_t *)linux_sigprocmask,		/* 126 */
     2, (sy_call_t *)linux_create_module,	/* 127 */
-    4, (sy_call_t *)linux_init_module,	/* 128 */
+    4, (sy_call_t *)linux_init_module,		/* 128 */
     1, (sy_call_t *)linux_delete_module,	/* 129 */
     1, (sy_call_t *)linux_get_kernel_syms,	/* 130 */
     0, (sy_call_t *)linux_quotactl,		/* 131 */
