@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.12 1997/06/02 00:04:40 brian Exp $
+ * $Id: fsm.c,v 1.13 1997/06/09 03:27:21 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -29,6 +29,9 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "modem.h"
+#include "loadalias.h"
+#include "vars.h"
 
 void FsmSendConfigReq(struct fsm *fp);
 void FsmSendTerminateReq(struct fsm *fp);
@@ -39,6 +42,29 @@ char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
   "Req-Sent", "Ack-Rcvd", "Ack-Sent", "Opened",
 };
+
+/*
+ * This timer times the ST_STOPPED state out after the given value
+ * (specified via "set stopped ...").  Although this isn't
+ * specified in the rfc, the rfc *does* say that "the application
+ * may use higher level timers to avoid deadlock".
+ * The StoppedTimer takes effect when the other side ABENDs rather
+ * than going into ST_ACKSENT (and sending the ACK), causing ppp to
+ * time out and drop into ST_STOPPED.  At this point, nothing will
+ * change this state :-(
+ */
+struct pppTimer StoppedTimer;
+
+static void
+StoppedTimeout(fp)
+struct fsm *fp;
+{
+  LogPrintf(LogLCP, "Stopped timer expired\n");
+  if (modem != -1)
+    DownConnection();
+  else
+    FsmDown(fp);
+}
 
 void
 FsmInit(fp)
@@ -58,9 +84,19 @@ int new;
 {
   LogPrintf(LogLCP, "State change %s --> %s\n",
 	  StateNames[fp->state], StateNames[new]);
+  if (fp->state == ST_STOPPED && StoppedTimer.state == TIMER_RUNNING)
+      StopTimer(&StoppedTimer);
   fp->state = new;
-  if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED))
+  if ((new >= ST_INITIAL && new <= ST_STOPPED) || (new == ST_OPENED)) {
     StopTimer(&fp->FsmTimer);
+    if (new == ST_STOPPED && VarStoppedTimeout) {
+      StoppedTimer.state = TIMER_STOPPED;
+      StoppedTimer.func = StoppedTimeout;
+      StoppedTimer.arg = (void *)fp;
+      StoppedTimer.load = VarStoppedTimeout * SECTICKS;
+      StartTimer(&StoppedTimer);
+    }
+  }
 }
 
 void
