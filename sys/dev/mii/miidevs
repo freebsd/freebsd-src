@@ -94,6 +94,7 @@ model xxALTIMA AC101		0x0021 AC101 10/100 media interface
 /* Advanced Micro Devices PHYs */
 model xxAMD 79C873		0x0000 Am79C873 10/100 media interface
 model AMD 79c973phy		0x0036 Am79c973 internal PHY
+model AMD 79c978		0x0039 Am79c978 HomePNA PHY
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3c905Cphy	0x0017 3c905C 10/100 internal PHY
