@@ -80,10 +80,9 @@ main(void)
 
     /* 
      * Initialise the heap as early as possible.  Once this is done, malloc() is usable.
-     *
-     * XXX better to locate end of memory and use that
      */
-    setheap((void *)end, (void *)(end + (384 * 1024)));
+    bios_getmem();
+    setheap((void *)end, (void *)bios_basemem);
     
     /* 
      * XXX Chicken-and-egg problem; we want to have console output early, but some
@@ -108,9 +107,10 @@ main(void)
     for (i = 0; devsw[i] != NULL; i++)
 	if (devsw[i]->dv_init != NULL)
 	    (devsw[i]->dv_init)();
+    printf("BIOS %dkB/%dkB available memory\n", bios_basemem / 1024, bios_extmem / 1024);
 
     printf("\n");
-    printf("%s, Revision %s  %d/%dkB\n", bootprog_name, bootprog_rev, getbasemem(), getextmem());
+    printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
     extract_currdev();				/* set $currdev and $loaddev */
