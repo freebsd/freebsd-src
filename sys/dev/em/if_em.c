@@ -712,7 +712,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				em_initialize_receive_unit(adapter);
 			}
 #ifdef DEVICE_POLLING
-                        if (!(ifp->if_ipending & IFF_POLLING))
+                        if (!(ifp->if_flags & IFF_POLLING))
 #endif
 				em_enable_intr(adapter);
 			EM_UNLOCK(adapter);
@@ -852,7 +852,7 @@ em_init_locked(struct adapter * adapter)
          * Only enable interrupts if we are not polling, make sure
          * they are off otherwise.
          */
-        if (ifp->if_ipending & IFF_POLLING)
+        if (ifp->if_flags & IFF_POLLING)
                 em_disable_intr(adapter);
         else
 #endif /* DEVICE_POLLING */
@@ -936,7 +936,7 @@ em_intr(void *arg)
         ifp = &adapter->interface_data.ac_if;  
 
 #ifdef DEVICE_POLLING
-        if (ifp->if_ipending & IFF_POLLING) {
+        if (ifp->if_flags & IFF_POLLING) {
 		EM_UNLOCK(adapter);
                 return;
 	}
