@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.25 1998/10/22 22:16:48 ken Exp $
+ *      $Id: cam_xpt.c,v 1.26 1998/11/04 19:56:24 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -368,6 +368,17 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			"EXB-8200*", "*"
 		},
 		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * This old revision of the TDC3600 is also SCSI-1, and
+		 * hangs upon serial number probing.
+		 */
+		{
+			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
+			" TDC 3600", "U07:"
+		},
+		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/* Default tagged queuing parameters for all devices */
