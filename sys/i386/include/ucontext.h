@@ -59,7 +59,10 @@ typedef struct __mcontext {
 	int	mc_ss;
 
 	int	mc_fpregs[28];		/* env87 + fpacc87 + u_long */
-	int	__spare__[17];
+#define	__UC_MC_VALID	0x0001		/* mcontext register state is valid */
+#define	__UC_FP_VALID	0x0002		/* FP registers have been saved */
+	int	mc_flags;
+	int	__spare__[16];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
