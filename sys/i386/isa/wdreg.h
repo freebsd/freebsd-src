@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.6 1994/01/04 20:05:26 nate Exp $
+ *	$Id: wdreg.h,v 1.7 1995/02/26 01:15:29 bde Exp $
  */
 
 /*
@@ -43,6 +43,7 @@
 #define	wd_data		0x0		/* data register (R/W - 16 bits) */
 #define wd_error	0x1		/* error register (R) */
 #define	wd_precomp	wd_error	/* write precompensation (W) */
+#define wd_features	wd_error	/* features register (W) */
 #define	wd_seccnt	0x2		/* sector count (R/W) */
 #define	wd_sector	0x3		/* first sector number (R/W) */
 #define	wd_cyl_lo	0x4		/* cylinder address, low byte (R/W) */
@@ -71,6 +72,7 @@
 #define	WDCS_ERR	0x01		/* Error detect bit. */
 
 #define WDCS_BITS	"\020\010busy\006rdy\006wrtflt\005seekdone\004drq\003ecc_cor\002index\001err"
+#define WDERR_ABORT	0x04
 
 #define WDERR_BITS	"\020\010badblk\007uncorr\006id_crc\005no_id\003abort\002tr000\001no_dam"
 
@@ -87,10 +89,17 @@
 #define	WDCC_FORMAT	0x50		/* disk format code */
 #define	WDCC_DIAGNOSE	0x90		/* controller diagnostic */
 #define	WDCC_IDC	0x91		/* initialize drive command */
+#define WDCC_READ_MULTI	0xC4	/* read multiple */
+#define WDCC_WRITE_MULTI	0xC5	/* write multiple */
+#define WDCC_SET_MULTI 0xC6		/* set multiple count */
+
 
 #define	WDCC_EXTDCMD	0xE0		/* send extended command */
 #define	WDCC_READP	0xEC		/* read parameters from controller */
-#define	WDCC_CACHEC	0xEF		/* cache control */
+#define	WDCC_FEATURES	0xEF		/* features control */
+
+#define	WDFEA_RCACHE	0xAA		/* read cache enable */
+#define WDFEA_WCACHE	0x02		/* write cache enable */
 
 #define	WD_STEP		0		/* winchester- default 35us step */
 
