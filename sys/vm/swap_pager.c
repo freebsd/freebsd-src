@@ -1006,8 +1006,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	daddr_t blk;
 	vm_pindex_t lastpindex;
 
-	GIANT_REQUIRED;
-
 	mreq = m[reqpage];
 
 	if (mreq->object != object) {
@@ -1075,6 +1073,10 @@ swap_pager_getpages(object, m, count, reqpage)
 		return (VM_PAGER_FAIL);
 
 	/*
+	 * Getpbuf() can sleep.
+	 */
+	VM_OBJECT_UNLOCK(object);
+	/*
 	 * Get a swap buffer header to perform the IO
 	 */
 	bp = getpbuf(&nsw_rcount);
@@ -1095,6 +1097,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	bp->b_bufsize = PAGE_SIZE * (j - i);
 	bp->b_pager.pg_reqpage = reqpage - i;
 
+	VM_OBJECT_LOCK(object);
 	vm_page_lock_queues();
 	{
 		int k;
@@ -1105,6 +1108,7 @@ swap_pager_getpages(object, m, count, reqpage)
 		}
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(object);
 	bp->b_npages = j - i;
 
 	pbgetvp(swapdev_vp, bp);
@@ -1157,6 +1161,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	vm_page_unlock_queues();
 	splx(s);
 
+	VM_OBJECT_LOCK(mreq->object);
 	/*
 	 * mreq is left busied after completion, but all the other pages
 	 * are freed.  If we had an unrecoverable read error the page will
