@@ -349,7 +349,7 @@ linprocfs_doprocstat(curp, p, pfs, uio)
 #define PS_ADD(name, fmt, arg) ps += sprintf(ps, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
 	PS_ADD("statr",		"%c",	'0'); /* XXX */
-	PS_ADD("ppid",		"%d",	p->p_pptr->p_pid);
+	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PS_ADD("tty",		"%d",	0); /* XXX */
@@ -432,7 +432,7 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	 * Credentials
 	 */
 	PS_ADD(ps, "Pid:\t%d\n",	  p->p_pid);
-	PS_ADD(ps, "PPid:\t%d\n",	  p->p_pptr->p_pid);
+	PS_ADD(ps, "PPid:\t%d\n",	  p->p_pptr ? p->p_pptr->p_pid : 0);
 	PS_ADD(ps, "Uid:\t%d %d %d %d\n", p->p_cred->p_ruid,
 		                          p->p_ucred->cr_uid,
 		                          p->p_cred->p_svuid,
