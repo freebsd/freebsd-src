@@ -106,6 +106,7 @@ static void 	 nm_wrbuf(struct sc_info *, int, u_int32_t, int);
 static u_int32_t badcards[] = {
 	0x0007103c,
 	0x008f1028,
+	0x00dd1014,
 };
 #define NUM_BADCARDS (sizeof(badcards) / sizeof(u_int32_t))
 
@@ -454,18 +455,11 @@ static void
 nm_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
-	int status, x, active;
+	int status, x;
 
-	active = (sc->pch.channel->buffer.dl || sc->rch.channel->buffer.dl);
 	status = nm_rd(sc, NM_INT_REG, sc->irsz);
-	if (status == 0 && active) {
-		if (sc->badintr++ > 1000) {
-			device_printf(sc->dev, "1000 bad intrs\n");
-			sc->badintr = 0;
-		}
+	if (status == 0)
 		return;
-	}
-	sc->badintr = 0;
 
 	if (status & sc->playint) {
 		status &= ~sc->playint;
@@ -492,8 +486,7 @@ nm_intr(void *p)
 	 	device_printf(sc->dev, "misc int 2\n");
 	}
 	if (status) {
-		status &= ~sc->misc2int;
-		nm_ackint(sc, sc->misc2int);
+		nm_ackint(sc, status);
 	 	device_printf(sc->dev, "unknown int\n");
 	}
 }
