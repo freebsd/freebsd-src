@@ -437,6 +437,10 @@ acpi_asus_led(struct acpi_asus_led *led, int state)
 		case ACPI_ASUS_LED_WLED:
 			method = sc->model->wled_set;
 			break;
+		default:
+			printf("acpi_asus_led: invalid LED type %d\n",
+			    (int)led->type);
+			return;
 	}
 
 	acpi_SetInteger(sc->handle, method, state);
