@@ -17,10 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.70 1999/03/01 13:46:45 brian Exp $
+ * $Id: lcp.c,v 1.69 1999/02/26 21:28:12 brian Exp $
  *
- * TODO:
- *	o Limit data field length by MRU
  */
 
 #include <sys/param.h>
@@ -645,42 +643,14 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
 	lcp->his_accmap = accmap;
-        if ((lcp->want_accmap | accmap) != lcp->want_accmap) {
-          lcp->want_accmap |= accmap;	/* restrict our requested map */
-          lcp->fsm.reqid++;		/* Invalidate the current REQ */
-          /*
-           * If we've already sent a REQ, we want to make sure that
-           * we don't end up sending out a new REQ that doesn't contain
-           * the data that the last one with the same id contained.
-           * This also means that we ignore the peers response to our
-           * last REQ due to an invalid fsm id (even though it's really
-           * correct), probably resulting in a REQ timeout and a resend
-           * with the new accmap and the new id.
-           * If we're already in ST_ACKRCVD at this point, we simply end
-           * up thinking that we negotiated the new accmap - which is ok
-           * as we just end up escaping stuff that the peer probably
-           * can't receive anyway.
-           */
-        }
-        if (lcp->want_accmap == accmap) {
-	  memcpy(dec->ackend, cp, 6);
-	  dec->ackend += 6;
-        } else {
-          /* NAK with what we now want */
-          *dec->nakend++ = *cp;
-          *dec->nakend++ = 6;
-          ua_htonl(&lcp->want_accmap, dec->nakend);
-          dec->nakend += 4;
-        }
+	memcpy(dec->ackend, cp, 6);
+	dec->ackend += 6;
 	break;
       case MODE_NAK:
-	lcp->want_accmap |= accmap;
+	lcp->want_accmap = accmap;
 	break;
       case MODE_REJ:
-        if (lcp->want_accmap)
-          log_Printf(LogWARN, "Peer is rejecting our ACCMAP.... bad news !\n");
-        else
-	  lcp->his_reject |= (1 << type);
+	lcp->his_reject |= (1 << type);
 	break;
       }
       break;
