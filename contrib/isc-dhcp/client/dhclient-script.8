@@ -1,8 +1,6 @@
 .\"	dhclient-script.8
 .\"
-.\" Copyright (c) 1997 The Internet Software Consortium.
-.\" All rights reserved.
-.\"
+.\" Copyright (c) 1996-2001 Internet Software Consortium.
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -31,10 +29,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\" This software has been written for the Internet Software Consortium
-.\" by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
-.\" Enterprises.  To learn more about the Internet Software Consortium,
-.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
-.\" Enterprises, see ``http://www.vix.com''.
+.\" by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+.\" To learn more about the Internet Software Consortium, see
+.\" ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+.\" see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+.\" ``http://www.nominum.com''.
 .\"
 .\" $FreeBSD$
 .\"
@@ -61,10 +60,10 @@ No standard client script exists for some operating systems, even though
 the actual client may work, so a pioneering user may well need to create
 a new script or modify an existing one.  In general, customizations specific
 to a particular computer should be done in the
-.B /etc/dhclient.conf
+.B ETCDIR/dhclient.conf
 file.   If you find that you can't make such a customization without
 customizing
-.B /etc/dhclient.conf
+.B ETCDIR/dhclient.conf
 or using the enter and exit hooks, please submit a bug report.
 .SH HOOKS
 When it starts, the client script first defines a shell function,
@@ -76,30 +75,36 @@ the enter hook script.
 .PP
 On after defining the make_resolv_conf function, the client script checks
 for the presence of an executable
-.B /etc/dhclient-enter-hooks
+.B ETCDIR/dhclient-enter-hooks
 script, and if present, it invokes the script inline, using the Bourne
 shell '.' command.   The entire environment documented under OPERATION
 is available to this script, which may modify the environment if needed
 to change the behaviour of the script.   If an error occurs during the
 execution of the script, it can set the exit_status variable to a nonzero
 value, and
-.B /sbin/dhclient-script
+.B CLIENTBINDIR/dhclient-script
 will exit with that error code immediately after the client script exits.
 .PP
 After all processing has completed,
-.B /sbin/dhclient-script
+.B CLIENTBINDIR/dhclient-script
 checks for the presence of an executable
-.B /etc/dhclient-exit-hooks
-script, which if present is invoked using the '.' command.   The exit status
-is passed in the exit_status shell variable, and will always be zero if the
-script succeeded at the task for which it was invoked.
+.B ETCDIR/dhclient-exit-hooks
+script, which if present is invoked using the '.' command.  The exit
+status of dhclient-script will be passed to dhclient-exit-hooks in the
+exit_status shell variable, and will always be zero if the script
+succeeded at the task for which it was invoked.   The rest of the
+environment as described previously for dhclient-enter-hooks is also
+present.   The
+.B ETCDIR/dhclient-exit-hooks
+script can modify the valid of exit_status to change the exit status
+of dhclient-script.
 .SH OPERATION
 When dhclient needs to invoke the client configuration script, it
-writes a shell script into /tmp which defines a variety of variables.
+defines a set of variables in the environment, and then invokes
+.B CLIENTBINDIR/dhclient-script.
 In all cases, $reason is set to the name of the reason why the script
 has been invoked.   The following reasons are currently defined:
-MEDIUM, PREINIT, ARPCHECK, ARPSEND, BOUND, RENEW, REBIND, REBOOT,
-EXPIRE, FAIL and TIMEOUT.
+MEDIUM, PREINIT, BOUND, RENEW, REBIND, REBOOT, EXPIRE, FAIL and TIMEOUT.
 .PP
 .SH MEDIUM
 The DHCP client is requesting that an interface's media type
@@ -118,18 +123,6 @@ and the media type in $medium.
 If an IP alias has been declared in dhclient.conf, its address will be
 passed in $alias_ip_address, and that ip alias should be deleted from
 the interface, along with any routes to it.
-.SH ARPSEND
-The DHCP client is requesting that an address that has been offered to
-it be checked to see if somebody else is using it, by sending an ARP
-request for that address.   It's not clear how to implement this, so
-no examples exist yet.   The IP address to check is passed in
-$new_ip_address, and the interface name is passed in $interface.
-.SH ARPCHECK
-The DHCP client wants to know if a response to the ARP request send
-using ARPSEND has been received.   If one has, the script should exit
-with a nonzero status, indicating that the offered address has already
-been requested and should be declined.   $new_ip_address and
-$interface are set as with ARPSEND.
 .SH BOUND
 The DHCP client has done an initial binding to a new address.   The
 new ip address is passed in $new_ip_address, and the interface name is
@@ -139,6 +132,13 @@ described in \fBdhcp-options\fR, except that dashes ('-') are replaced
 by underscores ('_') in order to make valid shell variables, and the
 variable names start with new_.   So for example, the new subnet mask
 would be passed in $new_subnet_mask.
+.PP
+Before actually configuring the address, dhclient-script should
+somehow ARP for it and exit with a nonzero status if it receives a
+reply.   In this case, the client will send a DHCPDECLINE message to
+the server and acquire a different address.   This may also be done in
+the RENEW, REBIND, or REBOOT states, but is not required, and indeed
+may not be desirable.
 .PP
 When a binding has been completed, a lot of network parameters are
 likely to need to be set up.   A new /etc/resolv.conf needs to be
@@ -214,14 +214,14 @@ the other.   Assuming the information provided by both servers is
 valid, this shouldn't cause any real problems, but it could be
 confusing.
 .SH SEE ALSO
-dhclient.conf(5), dhclient.leases(5), dhclient(8), dhcpd(8), and dhcrelay(8).
+dhclient.conf(5), dhclient.leases(5), dhclient(8).
 .SH AUTHOR
 .B dhclient-script(8)
 has been written for the Internet Software Consortium
-by Ted Lemon <mellon@fugue.com> in cooperation with Vixie
+by Ted Lemon in cooperation with Vixie
 Enterprises.  To learn more about the Internet Software Consortium,
 see
-.B http://www.vix.com/isc.
+.B http://www.isc.org.
 To learn more about Vixie
 Enterprises, see
 .B http://www.vix.com.
