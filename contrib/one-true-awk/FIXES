@@ -25,6 +25,52 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Jul 29, 2003:
+	fixed (i think) the long-standing botch that included the beginning of
+	line state ^ for RE's in the set of valid characters; this led to a
+	variety of odd problems, including failure to properly match certain
+	regular expressions in non-US locales.  thanks to ruslan for keeping
+	at this one.
+
+Jul 28, 2003:
+	n-th try at getting internationalization right, with thanks to volker
+	kiefel, arnold robbins and ruslan ermilov for advice, though they
+	should not be blamed for the outcome.  according to posix, "."  is the
+	radix character in programs and command line arguments regardless of
+	the locale; otherwise, the locale should prevail for input and output
+	of numbers.  so it's intended to work that way.
+	
+	i have rescinded the attempt to use strcoll in expanding shorthands in
+	regular expressions (cclenter).  its properties are much too
+	surprising; for example [a-c] matches aAbBc in locale en_US but abBcC
+	in locale fr_CA.  i can see how this might arise by implementation
+	but i cannot explain it to a human user.  (this behavior can be seen
+	in gawk as well; we're leaning on the same library.)
+
+	the issue appears to be that strcoll is meant for sorting, where
+	merging upper and lower case may make sense (though note that unix
+	sort does not do this by default either).  it is not appropriate
+	for regular expressions, where the goal is to match specific
+	patterns of characters.  in any case, the notations [:lower:], etc.,
+	are available in awk, and they are more likely to work correctly in
+	most locales.
+
+	a moratorium is hereby declared on internationalization changes.
+	i apologize to friends and colleagues in other parts of the world.
+	i would truly like to get this "right", but i don't know what
+	that is, and i do not want to keep making changes until it's clear.
+
+Jul 4, 2003:
+	fixed bug that permitted non-terminated RE, as in "awk /x".
+
+Jun 1, 2003:
+	subtle change to split: if source is empty, number of elems
+	is always 0 and the array is not set.
+
+Mar 21, 2003:
+	added some parens to isblank, in another attempt to make things
+	internationally portable.
+
 Mar 14, 2003:
 	the internationalization changes, somewhat modified, are now
 	reinstated.  in theory awk will now do character comparisons

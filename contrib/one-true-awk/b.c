@@ -33,7 +33,7 @@ THIS SOFTWARE.
 #include "awk.h"
 #include "ytab.h"
 
-#define	HAT	(NCHARS-2)	/* matches ^ in regular expr */
+#define	HAT	(NCHARS+2)	/* matches ^ in regular expr */
 				/* NCHARS is 2**n */
 #define MAXLIN 22
 
@@ -282,24 +282,9 @@ int quoted(char **pp)	/* pick up next thing after a \\ */
 	return c;
 }
 
-static int collate_range_cmp(int a, int b)
-{
-	int r;
-	static char s[2][2];
-
-	if ((uschar)a == (uschar)b)
-		return 0;
-	s[0][0] = a;
-	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (uschar)a - (uschar)b;
-	return r;
-}
-
 char *cclenter(const char *argp)	/* add a character class */
 {
 	int i, c, c2;
-	int j;
 	uschar *p = (uschar *) argp;
 	uschar *op, *bp;
 	static uschar *buf = 0;
@@ -318,18 +303,15 @@ char *cclenter(const char *argp)	/* add a character class */
 				c2 = *p++;
 				if (c2 == '\\')
 					c2 = quoted((char **) &p);
-				if (collate_range_cmp(c, c2) > 0) {	/* empty; ignore */
+				if (c > c2) {	/* empty; ignore */
 					bp--;
 					i--;
 					continue;
 				}
-				for (j = 0; j < NCHARS; j++) {
-					if ((collate_range_cmp(c, j) > 0) ||
-					    collate_range_cmp(j, c2) > 0)
-						continue;
+				while (c < c2) {
 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, 0))
 						FATAL("out of space for character class [%.10s...] 2", p);
-					*bp++ = j;
+					*bp++ = ++c;
 					i++;
 				}
 				continue;
@@ -718,11 +700,14 @@ Node *unary(Node *np)
  * system i use, it's defined here.  if some other locale has a richer
  * definition of "blank", define HAS_ISBLANK and provide your own
  * version.
+ * the parentheses here are an attempt to find a path through the maze
+ * of macro definition and/or function and/or version provided.  thanks
+ * to nelson beebe for the suggestion; let's see if it works everywhere.
  */
 
 #ifndef HAS_ISBLANK
 
-int isblank(int c)
+int (isblank)(int c)
 {
 	return c==' ' || c=='\t';
 }
@@ -839,8 +824,6 @@ int cgoto(fa *f, int s, int c)
 	int i, j, k;
 	int *p, *q;
 
-	if (c < 0 || c > 255)
-		FATAL("can't happen: neg char %d in cgoto", c);
 	while (f->accept >= maxsetvec) {	/* guessing here! */
 		maxsetvec *= 4;
 		setvec = (int *) realloc(setvec, maxsetvec * sizeof(int));
