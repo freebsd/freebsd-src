@@ -726,6 +726,40 @@ stage2()
 	}
 }
 
+/*
+ * This is the overall plan:  (phk's version)
+ *  
+ * If (pid == 1)
+ *	reopen stdin, stdout, stderr, and do various other magic.
+ *
+ * If (file exists /this_is_boot.flp)
+ *	stage0:
+ *		present /COPYRIGHT
+ *		present /README
+ *      stage1:
+ *		Ask about diskallocation and do the fdisk/disklabel stunt.
+ *	stage2:
+ *		Do newfs, mount and copy over a minimal world.
+ *		make /mnt/etc/fstab.  Install ourself as /mnt/sbin/init
+ * Else
+ *	stage3:
+ *		Read cpio.flp and fiddle around with the bits a bit.
+ *	stage4:
+ *		Read bin-tarballs:
+ *			Using ftp
+ *			Using NFS (?)
+ *			Using floppy
+ *			Using tape
+ *			Using shell-prompt
+ *	stage5:
+ *		Extract bin-tarballs
+ *	stage6:
+ *		Ask various questions and collect answers into system-config
+ *		files.
+ *	stage7:
+ *		execl("/sbin/init");
+ */
+
 void
 main(int argc, char **argv)
 {
