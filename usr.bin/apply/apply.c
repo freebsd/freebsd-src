@@ -55,16 +55,16 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void			usage(void);
-static int		exec_shell(char *, char *, const char *);
+#define EXEC	"exec "
 
-#define	EXEC	"exec "
+static int	exec_shell(const char *, char *, char *);
+static void	usage(void);
 
 int
-main(int argc, char **argv) {
-	int ch, debug, i, magic, n, nargs, rval, offset;
-	size_t clen, l, cmdsize;
-	char *c, *cmd, *p, *q, *shell, *name, *tmpshell, *slashp;
+main(int argc, char *argv[]) {
+	int ch, debug, i, magic, n, nargs, offset, rval;
+	size_t clen, cmdsize, l;
+	char *c, *cmd, *name, *p, *q, *shell, *slashp, *tmpshell;
 
 	debug = 0;
 	magic = '%';		/* Default magic char is `%'. */
@@ -131,8 +131,8 @@ main(int argc, char **argv) {
 	 * Allocate enough space to hold the maximum command.  Save the
 	 * size to pass to snprintf().
 	 */
-	cmdsize = sizeof(EXEC) - 1 + strlen(argv[0]) + 9 *
-		(sizeof(" %1") - 1) + 1;
+	cmdsize = sizeof(EXEC) - 1 + strlen(argv[0])
+	    + 9 * (sizeof(" %1") - 1) + 1;
 	if ((cmd = malloc(cmdsize)) == NULL)
 		err(1, NULL);
 
@@ -207,14 +207,13 @@ main(int argc, char **argv) {
 		if (debug)
 			(void)printf("%s\n", c);
 		else
-			if (exec_shell(shell, name, c))
+			if (exec_shell(c, shell, name))
 				rval = 1;
 	}
 
 	if (argc != 1)
 		errx(1, "expecting additional argument%s after \"%s\"",
 	    (nargs - argc) ? "s" : "", argv[argc - 1]);
-	
 	free(cmd);
 	free(c);
 	free(shell);
@@ -227,7 +226,7 @@ main(int argc, char **argv) {
  * 	arguments.
  */
 static int
-exec_shell(char *use_shell, char *use_name, const char *command)
+exec_shell(const char *command, char *use_shell, char *use_name)
 {
 	pid_t pid;
 	int omask, pstat;
