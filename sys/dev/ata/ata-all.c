@@ -736,13 +736,6 @@ ata_pcisub_probe(device_t dev)
 
     scp->chiptype = pci_get_devid(device_get_parent(dev));
 
-    /* is this an ATA RAID setup ? */
-    if (((pci_get_subclass(device_get_parent(dev)) == PCIS_STORAGE_RAID) &&
-	 (scp->chiptype == 0x4d33105a || scp->chiptype == 0x4d38105a ||
-	  scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a)) ||
-	scp->chiptype == 0x00041103) {
-        scp->flags |= ATA_RAID;
-    }
     return ata_probe(dev);
 }
 
