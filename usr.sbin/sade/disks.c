@@ -450,7 +450,11 @@ diskPartition(Device *dev)
 			else if (subtype == SUBTYPE_EFI)
 			    partitiontype = efi;
 			else
+#ifdef PC98
+			    partitiontype = pc98;
+#else
 			    partitiontype = mbr;
+#endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
 				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN), name);
 			variable_set2(DISK_PARTITIONED, "yes", 0);
@@ -509,7 +513,11 @@ diskPartition(Device *dev)
 		    else if (subtype == SUBTYPE_EFI)
 			partitiontype = efi;
 		    else
+#ifdef PC98
+			partitiontype = pc98;
+#else
 			partitiontype = mbr;
+#endif
 		    chunk_info[current_chunk]->type = partitiontype;
 		    chunk_info[current_chunk]->subtype = subtype;
 		}
