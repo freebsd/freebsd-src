@@ -280,11 +280,11 @@ sendsig(catcher, sig, mask, code)
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		regs->tf_rcx = regs->tf_err;	/* arg 4 in %rcx */
+		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
 	} else {
 		/* Old FreeBSD-style arguments. */
 		regs->tf_rsi = code;		/* arg 2 in %rsi */
-		regs->tf_rcx = regs->tf_err;	/* arg 4 in %rcx */
+		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	PROC_UNLOCK(p);
