@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -71,15 +71,13 @@ int ops2 [ ] =
 };
 
 
-setlog()
-{
-	typesize[TYLOGICAL] = typesize[tylogical];
-	typealign[TYLOGICAL] = typealign[tylogical];
-}
-
-
+ void
+#ifdef KR_headers
 putexpr(p)
-expptr p;
+	expptr p;
+#else
+putexpr(expptr p)
+#endif
 {
 /* Write the expression to the p1 file */
 
@@ -91,8 +89,14 @@ expptr p;
 
 
 
-expptr putassign(lp, rp)
-expptr lp, rp;
+ expptr
+#ifdef KR_headers
+putassign(lp, rp)
+	expptr lp;
+	expptr rp;
+#else
+putassign(expptr lp, expptr rp)
+#endif
 {
 	return putx(fixexpr((Exprp)mkexpr(OPASSIGN, lp, rp)));
 }
@@ -100,8 +104,14 @@ expptr lp, rp;
 
 
 
-void puteq(lp, rp)
-expptr lp, rp;
+ void
+#ifdef KR_headers
+puteq(lp, rp)
+	expptr lp;
+	expptr rp;
+#else
+puteq(expptr lp, expptr rp)
+#endif
 {
 	putexpr(mkexpr(OPASSIGN, lp, rp) );
 }
@@ -111,8 +121,14 @@ expptr lp, rp;
 
 /* put code for  a *= b */
 
-expptr putsteq(a, b)
-Addrp a, b;
+ expptr
+#ifdef KR_headers
+putsteq(a, b)
+	Addrp a;
+	Addrp b;
+#else
+putsteq(Addrp a, Addrp b)
+#endif
 {
 	return putx( fixexpr((Exprp)
 		mkexpr(OPSTAREQ, cpexpr((expptr)a), cpexpr((expptr)b))));
@@ -121,10 +137,15 @@ Addrp a, b;
 
 
 
-Addrp mkfield(res, f, ty)
-register Addrp res;
-char *f;
-int ty;
+ Addrp
+#ifdef KR_headers
+mkfield(res, f, ty)
+	register Addrp res;
+	char *f;
+	int ty;
+#else
+mkfield(register Addrp res, char *f, int ty)
+#endif
 {
     res -> vtype = ty;
     res -> Field = f;
@@ -132,11 +153,15 @@ int ty;
 } /* mkfield */
 
 
-Addrp realpart(p)
-register Addrp p;
+ Addrp
+#ifdef KR_headers
+realpart(p)
+	register Addrp p;
+#else
+realpart(register Addrp p)
+#endif
 {
 	register Addrp q;
-	expptr mkrealcon();
 
 	if (p->tag == TADDR
 	 && p->uname_tag == UNAM_CONST
@@ -155,11 +180,15 @@ register Addrp p;
 
 
 
-expptr imagpart(p)
-register Addrp p;
+ expptr
+#ifdef KR_headers
+imagpart(p)
+	register Addrp p;
+#else
+imagpart(register Addrp p)
+#endif
 {
 	register Addrp q;
-	expptr mkrealcon();
 
 	if( ISCOMPLEX(p->vtype) )
 	{
@@ -184,8 +213,13 @@ register Addrp p;
 
 /* ncat -- computes the number of adjacent concatenation operations */
 
+ int
+#ifdef KR_headers
 ncat(p)
-register expptr p;
+	register expptr p;
+#else
+ncat(register expptr p)
+#endif
 {
 	if(p->tag==TEXPR && p->exprblock.opcode==OPCONCAT)
 		return( ncat(p->exprblock.leftp) + ncat(p->exprblock.rightp) );
@@ -198,8 +232,13 @@ register expptr p;
 /* lencat -- returns the length of the concatenated string.  Each
    substring must have a static (i.e. compile-time) fixed length */
 
-ftnint lencat(p)
-register expptr p;
+ ftnint
+#ifdef KR_headers
+lencat(p)
+	register expptr p;
+#else
+lencat(register expptr p)
+#endif
 {
 	if(p->tag==TEXPR && p->exprblock.opcode==OPCONCAT)
 		return( lencat(p->exprblock.leftp) + lencat(p->exprblock.rightp) );
@@ -223,8 +262,13 @@ register expptr p;
    to by   q   when   (q -> memno == litp -> litnum).
 */
 
-Addrp putconst(p)
-register Constp p;
+ Addrp
+#ifdef KR_headers
+putconst(p)
+	register Constp p;
+#else
+putconst(register Constp p)
+#endif
 {
 	register Addrp q;
 	struct Literal *litp, *lastlit;
@@ -295,10 +339,7 @@ register Constp p;
 	case TYLOGICAL1:
 	case TYLOGICAL2:
 	case TYLOGICAL:
-		type = tylogical;
-		goto lit_int_flavor;
 	case TYLONG:
-		type = tyint;
 	case TYSHORT:
 	case TYINT1:
 #ifdef TYQUAD

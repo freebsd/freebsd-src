@@ -288,9 +288,3 @@ typedef long int ftnint;
 
 #define NO66(s)	if(no66flag) err66(s)
 #define NOEXT(s)	if(noextflag) errext(s)
-
-/* round a up to the nearest multiple of b:
-
-   a = b * floor ( (a + (b - 1)) / b )*/
-
-#define roundup(a,b)    ( b * ( (a+b-1)/b) )

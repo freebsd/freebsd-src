@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -25,21 +25,26 @@ this software.
 #include "output.h"
 #include "names.h"
 
-LOCAL void conspower(), consbinop(), zdiv();
-LOCAL expptr fold(), mkpower(), stfcall();
-#ifndef stfcall_MAX
-#define stfcall_MAX 144
-#endif
-
 typedef struct { double dreal, dimag; } dcomplex;
+
+static void consbinop Argdcl((int, int, Constp, Constp, Constp));
+static void conspower Argdcl((Constp, Constp, long int));
+static void zdiv Argdcl((dcomplex*, dcomplex*, dcomplex*));
+static tagptr mkpower Argdcl((tagptr));
+static tagptr stfcall Argdcl((Namep, struct Listblock*));
 
 extern char dflttype[26];
 extern int htype;
 
 /* little routines to create constant blocks */
 
-Constp mkconst(t)
-register int t;
+ Constp
+#ifdef KR_headers
+mkconst(t)
+	register int t;
+#else
+mkconst(register int t)
+#endif
 {
 	register Constp p;
 
@@ -52,8 +57,13 @@ register int t;
 
 /* mklogcon -- Make Logical Constant */
 
-expptr mklogcon(l)
-register int l;
+ expptr
+#ifdef KR_headers
+mklogcon(l)
+	register int l;
+#else
+mklogcon(register int l)
+#endif
 {
 	register Constp  p;
 
@@ -66,8 +76,13 @@ register int l;
 
 /* mkintcon -- Make Integer Constant */
 
-expptr mkintcon(l)
-ftnint l;
+ expptr
+#ifdef KR_headers
+mkintcon(l)
+	ftnint l;
+#else
+mkintcon(ftnint l)
+#endif
 {
 	register Constp p;
 
@@ -81,8 +96,13 @@ ftnint l;
 
 /* mkaddcon -- Make Address Constant, given integer value */
 
-expptr mkaddcon(l)
-register long l;
+ expptr
+#ifdef KR_headers
+mkaddcon(l)
+	register long l;
+#else
+mkaddcon(register long l)
+#endif
 {
 	register Constp p;
 
@@ -96,9 +116,14 @@ register long l;
 /* mkrealcon -- Make Real Constant.  The type t is assumed
    to be TYREAL or TYDREAL */
 
-expptr mkrealcon(t, d)
- register int t;
- char *d;
+ expptr
+#ifdef KR_headers
+mkrealcon(t, d)
+	register int t;
+	char *d;
+#else
+mkrealcon(register int t, char *d)
+#endif
 {
 	register Constp p;
 
@@ -115,24 +140,46 @@ expptr mkrealcon(t, d)
    quad, octal and hex bases may be input.  Constants may not exceed 32
    bits, or whatever the size of (struct Constblock).ci may be. */
 
-expptr mkbitcon(shift, leng, s)
-int shift;
-int leng;
-char *s;
+ expptr
+#ifdef KR_headers
+mkbitcon(shift, leng, s)
+	int shift;
+	int leng;
+	char *s;
+#else
+mkbitcon(int shift, int leng, char *s)
+#endif
 {
 	register Constp p;
-	register long x;
+	register long x, y, z;
+	int len;
+	char buff[100], *fmt, *s0 = s;
+	static char *kind[3] = { "Binary", "Hex", "Octal" };
 
 	p = mkconst(TYLONG);
-	x = 0;
+	x = y = 0;
 	while(--leng >= 0)
-		if(*s != ' ')
+		if(*s != ' ') {
+			z = x;
 			x = (x << shift) | hextoi(*s++);
-	/* mwm wanted to change the type to short for short constants,
-	 * but this is dangerous -- there is no syntax for long constants
+			y |= (((unsigned long)x) >> shift) - z;
+			}
+	/* Don't change the type to short for short constants, as
+	 * that is dangerous -- there is no syntax for long constants
 	 * with small values.
 	 */
 	p->Const.ci = x;
+	if (y) {
+		if (--shift == 3)
+			shift = 1;
+		if ((len = (int)leng) > 60)
+			sprintf(buff, "%s constant '%.60s' truncated.",
+				kind[shift], s0);
+		else
+			sprintf(buff, "%s constant '%.*s' truncated.",
+				kind[shift], len, s0);
+		err(buff);
+		}
 	return( (expptr) p );
 }
 
@@ -143,9 +190,14 @@ char *s;
 /* mkstrcon -- Make string constant.  Allocates storage and initializes
    the memory for a copy of the input Fortran-string. */
 
-expptr mkstrcon(l,v)
-int l;
-register char *v;
+ expptr
+#ifdef KR_headers
+mkstrcon(l, v)
+	int l;
+	register char *v;
+#else
+mkstrcon(int l, register char *v)
+#endif
 {
 	register Constp p;
 	register char *s;
@@ -165,12 +217,17 @@ register char *v;
 /* mkcxcon -- Make complex contsant.  A complex number is a pair of
    values, each of which may be integer, real or double. */
 
-expptr mkcxcon(realp,imagp)
-register expptr realp, imagp;
+ expptr
+#ifdef KR_headers
+mkcxcon(realp, imagp)
+	register expptr realp;
+	register expptr imagp;
+#else
+mkcxcon(register expptr realp, register expptr imagp)
+#endif
 {
 	int rtype, itype;
 	register Constp p;
-	expptr errnode();
 
 	rtype = realp->headblock.vtype;
 	itype = imagp->headblock.vtype;
@@ -215,7 +272,8 @@ register expptr realp, imagp;
 
 /* errnode -- Allocate a new error block */
 
-expptr errnode()
+ expptr
+errnode(Void)
 {
 	struct Errorblock *p;
 	p = ALLOC(Errorblock);
@@ -232,13 +290,17 @@ expptr errnode()
    Note that casting to a character copies only the first sizeof(char)
    bytes. */
 
-expptr mkconv(t, p)
-register int t;
-register expptr p;
+ expptr
+#ifdef KR_headers
+mkconv(t, p)
+	register int t;
+	register expptr p;
+#else
+mkconv(register int t, register expptr p)
+#endif
 {
 	register expptr q;
 	register int pt, charwarn = 1;
-	expptr opconv();
 
 	if (t >= 100) {
 		t -= 100;
@@ -285,9 +347,14 @@ register expptr p;
 /* opconv -- Convert expression   p   to type   t   using the main
    expression evaluator; returns an OPCONV expression, I think  14-jun-88 mwm */
 
-expptr opconv(p, t)
-expptr p;
-int t;
+ expptr
+#ifdef KR_headers
+opconv(p, t)
+	expptr p;
+	int t;
+#else
+opconv(expptr p, int t)
+#endif
 {
 	register expptr q;
 
@@ -302,8 +369,13 @@ int t;
 
 /* addrof -- Create an ADDR expression operation */
 
-expptr addrof(p)
-expptr p;
+ expptr
+#ifdef KR_headers
+addrof(p)
+	expptr p;
+#else
+addrof(expptr p)
+#endif
 {
 	return( mkexpr(OPADDR, p, ENULL) );
 }
@@ -312,13 +384,17 @@ expptr p;
 
 /* cpexpr - Returns a new copy of input expression   p   */
 
-tagptr cpexpr(p)
-register tagptr p;
+ tagptr
+#ifdef KR_headers
+cpexpr(p)
+	register tagptr p;
+#else
+cpexpr(register tagptr p)
+#endif
 {
 	register tagptr e;
 	int tag;
 	register chainp ep, pp;
-	tagptr cpblock();
 
 /* This table depends on the ordering of the T macros, e.g. TNAME */
 
@@ -399,8 +475,13 @@ register tagptr p;
 
 /* frexpr -- Free expression -- frees up memory used by expression   p   */
 
+ void
+#ifdef KR_headers
 frexpr(p)
-register tagptr p;
+	register tagptr p;
+#else
+frexpr(register tagptr p)
+#endif
 {
 	register chainp q;
 
@@ -459,8 +540,12 @@ register tagptr p;
 }
 
  void
+#ifdef KR_headers
 wronginf(np)
- Namep np;
+	Namep np;
+#else
+wronginf(Namep np)
+#endif
 {
 	int c, k;
 	warn1("fixing wrong type inferred for %.65s", np->fvarname);
@@ -474,8 +559,13 @@ wronginf(np)
 /* fix up types in expression; replace subtrees and convert
    names to address blocks */
 
-expptr fixtype(p)
-register tagptr p;
+ expptr
+#ifdef KR_headers
+fixtype(p)
+	register tagptr p;
+#else
+fixtype(register tagptr p)
+#endif
 {
 
 	if(p == 0)
@@ -504,6 +594,8 @@ register tagptr p;
    only a subexpr of its parameter. */
 
 	case TEXPR:
+		if (((Exprp)p)->typefixed)
+			return (expptr)p;
 		return( fixexpr((Exprp)p) );
 
 	case TLIST:
@@ -533,7 +625,12 @@ register tagptr p;
 
 
  int
-badchleng(p) register expptr p;
+#ifdef KR_headers
+badchleng(p)
+	register expptr p;
+#else
+badchleng(register expptr p)
+#endif
 {
 	if (!p->headblock.vleng) {
 		if (p->headblock.tag == TADDR
@@ -549,8 +646,12 @@ badchleng(p) register expptr p;
 
 
  static expptr
+#ifdef KR_headers
 cplenexpr(p)
- expptr p;
+	expptr p;
+#else
+cplenexpr(expptr p)
+#endif
 {
 	expptr rv;
 
@@ -567,15 +668,21 @@ cplenexpr(p)
    Parameter   p   should have a TEXPR tag at its root, else an error is
    returned */
 
-expptr fixexpr(p)
-register Exprp p;
+ expptr
+#ifdef KR_headers
+fixexpr(p)
+	register Exprp p;
+#else
+fixexpr(register Exprp p)
+#endif
 {
 	expptr lp;
 	register expptr rp;
 	register expptr q;
+	char *hsave;
 	int opcode, ltype, rtype, ptype, mtype;
 
-	if( ISERROR(p) )
+	if( ISERROR(p) || p->typefixed )
 		return( (expptr) p );
 	else if(p->tag != TEXPR)
 		badtag("fixexpr", p->tag);
@@ -591,6 +698,7 @@ register Exprp p;
 	if(opcode==OPASSIGN && lp->tag!=TADDR)
 	{
 		err("left side of assignment must be variable");
+ eret:
 		frexpr((expptr)p);
 		return( errnode() );
 	}
@@ -605,10 +713,7 @@ register Exprp p;
 		rtype = 0;
 
 	if(ltype==TYERROR || rtype==TYERROR)
-	{
-		frexpr((expptr)p);
-		return( errnode() );
-	}
+		goto eret;
 
 /* Now work on the whole expression */
 
@@ -630,13 +735,19 @@ register Exprp p;
 	}
 
 	if( (ptype = cktype(opcode, ltype, rtype)) == TYERROR)
-	{
-		frexpr((expptr)p);
-		return( errnode() );
-	}
+		goto eret;
 
-	if (ltype == TYCHAR && ISCONST(lp))
-		p->leftp =  lp = (expptr)putconst((Constp)lp);
+	if (ltype == TYCHAR && ISCONST(lp)) {
+		if (opcode == OPCONV) {
+			hsave = halign;
+			halign = 0;
+			lp = (expptr)putconst((Constp)lp);
+			halign = hsave;
+			}
+		else
+			lp = (expptr)putconst((Constp)lp);
+		p->leftp = lp;
+		}
 	if (rtype == TYCHAR && ISCONST(rp))
 		p->rightp = rp = (expptr)putconst((Constp)rp);
 
@@ -649,7 +760,8 @@ register Exprp p;
 		break;
 
 	case OPASSIGN:
-		if (rtype == TYREAL || ISLOGICAL(ptype))
+		if (rtype == TYREAL || ISLOGICAL(ptype)
+		 || rtype == TYDREAL && ltype == TYREAL && !ISCONST(rp))
 			break;
 	case OPPLUSEQ:
 	case OPSTAREQ:
@@ -699,7 +811,10 @@ register Exprp p;
 		break;
 
 	case OPPOWER:
-		return( mkpower((expptr)p) );
+		rp = mkpower((expptr)p);
+		if (rp->tag == TEXPR)
+			rp->exprblock.typefixed = 1;
+		return rp;
 
 	case OPLT:
 	case OPLE:
@@ -720,8 +835,7 @@ register Exprp p;
 				}
 			}
 		mtype = cktype(OPMINUS, ltype, rtype);
-		if(mtype==TYDREAL && ( (ltype==TYREAL && ! ISCONST(lp)) ||
-		    (rtype==TYREAL && ! ISCONST(rp)) ))
+		if(mtype==TYDREAL && (ltype==TYREAL || rtype==TYREAL))
 			break;
 		if( ISCOMPLEX(mtype) )
 			break;
@@ -769,21 +883,27 @@ register Exprp p;
 	}
 
 	p->vtype = ptype;
+	p->typefixed = 1;
 	return((expptr) p);
 }
 
 
 /* fix an argument list, taking due care for special first level cases */
 
+ int
+#ifdef KR_headers
 fixargs(doput, p0)
-int doput;	/* doput is true if constants need to be passed by reference */
-struct Listblock *p0;
+	int doput;
+	struct Listblock *p0;
+#else
+fixargs(int doput, struct Listblock *p0)
+#endif
+	/* doput is true if constants need to be passed by reference */
 {
 	register chainp p;
 	register tagptr q, t;
 	register int qtag;
 	int nargs;
-	Addrp mkscalar();
 
 	nargs = 0;
 	if(p0)
@@ -830,8 +950,13 @@ struct Listblock *p0;
 /* mkscalar -- only called by   fixargs   above, and by some routines in
    io.c */
 
-Addrp mkscalar(np)
-register Namep np;
+ Addrp
+#ifdef KR_headers
+mkscalar(np)
+	register Namep np;
+#else
+mkscalar(register Namep np)
+#endif
 {
 	register Addrp ap;
 
@@ -857,10 +982,15 @@ register Namep np;
 
 
  static void
-adjust_arginfo(np)	/* adjust arginfo to omit the length arg for the
+#ifdef KR_headers
+adjust_arginfo(np)
+	register Namep np;
+#else
+adjust_arginfo(register Namep np)
+#endif
+			/* adjust arginfo to omit the length arg for the
 			   arg that we now know to be a character-valued
 			   function */
- register Namep np;
 {
 	struct Entrypoint *ep;
 	register chainp args;
@@ -875,8 +1005,13 @@ adjust_arginfo(np)	/* adjust arginfo to omit the length arg for the
 
 
 
-expptr mkfunct(p0)
- expptr p0;
+ expptr
+#ifdef KR_headers
+mkfunct(p0)
+	expptr p0;
+#else
+mkfunct(expptr p0)
+#endif
 {
 	register struct Primblock *p = (struct Primblock *)p0;
 	struct Entrypoint *ep;
@@ -884,7 +1019,6 @@ expptr mkfunct(p0)
 	Extsym *extp;
 	register Namep np;
 	register expptr q;
-	expptr intrcall();
 	extern chainp new_procs;
 	int k, nargs;
 	int class;
@@ -943,7 +1077,8 @@ expptr mkfunct(p0)
 			fatalstr(
 			 "Cannot invoke common variable %.50s as a function.",
 				np->fvarname);
-		fatali("invalid class code %d for function", class);
+		errstr("%.80s cannot be called.", np->fvarname);
+		goto error;
 		}
 
 /* F77 doesn't allow subscripting of function calls */
@@ -1016,9 +1151,14 @@ error:
 
 
 
-LOCAL expptr stfcall(np, actlist)
-Namep np;
-struct Listblock *actlist;
+ static expptr
+#ifdef KR_headers
+stfcall(np, actlist)
+	Namep np;
+	struct Listblock *actlist;
+#else
+stfcall(Namep np, struct Listblock *actlist)
+#endif
 {
 	register chainp actuals;
 	int nargs;
@@ -1028,10 +1168,13 @@ struct Listblock *actlist;
 	Namep tnp;
 	register struct Rplblock *rp;
 	struct Rplblock *tlist;
-	static int inv_count;
 
-	if (++inv_count > stfcall_MAX)
-		Fatal("Loop invoking recursive statement function?");
+	if (np->arginfo) {
+		errstr("statement function %.66s calls itself.",
+			np->fvarname);
+		return ICON(0);
+		}
+	np->arginfo = (Argtypes *)np;	/* arbitrary nonzero value */
 	if(actlist)
 	{
 		actuals = actlist->listp;
@@ -1054,8 +1197,13 @@ struct Listblock *actlist;
 	/* copy actual arguments into temporaries */
 	while(actuals!=NULL && formals!=NULL)
 	{
+		if (!(tnp = (Namep) formals->datap)) {
+			/* buggy statement function declaration */
+			q = ICON(1);
+			goto done;
+			}
 		rp = ALLOC(Rplblock);
-		rp->rplnp = tnp = (Namep) formals->datap;
+		rp->rplnp = tnp;
 		ap = fixtype((tagptr)actuals->datap);
 		if(tnp->vtype==ap->headblock.vtype && tnp->vtype!=TYCHAR
 		    && (ap->tag==TCONST || ap->tag==TADDR) )
@@ -1123,8 +1271,9 @@ struct Listblock *actlist;
 		free((char *)rpllist);
 		rpllist = rp;
 	}
+ done:
 	frchain( &oactp );
-	--inv_count;
+	np->arginfo = 0;
 	return(q);
 }
 
@@ -1134,8 +1283,13 @@ static int replaced;
 /* mkplace -- Figure out the proper storage class for the input name and
    return an addrp with the appropriate stuff */
 
-Addrp mkplace(np)
-register Namep np;
+ Addrp
+#ifdef KR_headers
+mkplace(np)
+	register Namep np;
+#else
+mkplace(register Namep np)
+#endif
 {
 	register Addrp s;
 	register struct Rplblock *rp;
@@ -1182,9 +1336,13 @@ register Namep np;
 }
 
  static expptr
-subskept(p,a)
-struct Primblock *p;
-Addrp a;
+#ifdef KR_headers
+subskept(p, a)
+	struct Primblock *p;
+	Addrp a;
+#else
+subskept(struct Primblock *p, Addrp a)
+#endif
 {
 	expptr ep;
 	struct Listblock *Lb;
@@ -1212,10 +1370,15 @@ Addrp a;
    for array subscripts, stack offset, and substring offsets.  The f -> C
    translator will need this only to worry about the subscript stuff */
 
-expptr mklhs(p, subkeep)
-register struct Primblock *p; int subkeep;
+ expptr
+#ifdef KR_headers
+mklhs(p, subkeep)
+	register struct Primblock *p;
+	int subkeep;
+#else
+mklhs(register struct Primblock *p, int subkeep)
+#endif
 {
-	expptr suboffset();
 	register Addrp s;
 	Namep np;
 
@@ -1280,8 +1443,13 @@ register struct Primblock *p; int subkeep;
 /* deregister -- remove a register allocation from the list; assumes that
    names are deregistered in stack order (LIFO order - Last In First Out) */
 
+ void
+#ifdef KR_headers
 deregister(np)
-Namep np;
+	Namep np;
+#else
+deregister(Namep np)
+#endif
 {
 	if(nregvar>0 && regnamep[nregvar-1]==np)
 	{
@@ -1295,8 +1463,13 @@ Namep np;
 /* memversion -- moves a DO index REGISTER into a memory location; other
    objects are passed through untouched */
 
-Addrp memversion(np)
-register Namep np;
+ Addrp
+#ifdef KR_headers
+memversion(np)
+	register Namep np;
+#else
+memversion(register Namep np)
+#endif
 {
 	register Addrp s;
 
@@ -1312,8 +1485,13 @@ register Namep np;
 
 /* inregister -- looks for the input name in the global list   regnamep */
 
+ int
+#ifdef KR_headers
 inregister(np)
-register Namep np;
+	register Namep np;
+#else
+inregister(register Namep np)
+#endif
 {
 	register int i;
 
@@ -1328,14 +1506,18 @@ register Namep np;
 /* suboffset -- Compute the offset from the start of the array, given the
    subscripts as arguments */
 
-expptr suboffset(p)
-register struct Primblock *p;
+ expptr
+#ifdef KR_headers
+suboffset(p)
+	register struct Primblock *p;
+#else
+suboffset(register struct Primblock *p)
+#endif
 {
 	int n;
 	expptr si, size;
 	chainp cp;
 	expptr e, e1, offp, prod;
-	expptr subcheck();
 	struct Dimblock *dimp;
 	expptr sub[MAXDIM+1];
 	register Namep np;
@@ -1402,9 +1584,14 @@ register struct Primblock *p;
 
 
 
-expptr subcheck(np, p)
-Namep np;
-register expptr p;
+ expptr
+#ifdef KR_headers
+subcheck(np, p)
+	Namep np;
+	register expptr p;
+#else
+subcheck(Namep np, register expptr p)
+#endif
 {
 	struct Dimblock *dimp;
 	expptr t, checkvar, checkcond, badcall;
@@ -1469,12 +1656,16 @@ badsub:
 
 
 
-Addrp mkaddr(p)
-register Namep p;
+ Addrp
+#ifdef KR_headers
+mkaddr(p)
+	register Namep p;
+#else
+mkaddr(register Namep p)
+#endif
 {
 	Extsym *extp;
 	register Addrp t;
-	Addrp intraddr();
 	int k;
 
 	switch( p->vstg)
@@ -1532,6 +1723,11 @@ register Namep p;
 	case STGINTR:
 
 		return ( intraddr (p));
+
+	case STGSTFUNCT:
+
+		errstr("invalid use of statement function %.64s.", p->fvarname);
+		return putconst((Constp)ICON(0));
 	}
 	badstg("mkaddr", p->vstg);
 	/* NOT REACHED */ return 0;
@@ -1544,8 +1740,14 @@ register Namep p;
    function returns a string (for the return value, which is the first
    parameter), or when a variable-length string is passed to a function. */
 
-Addrp mkarg(type, argno)
-int type, argno;
+ Addrp
+#ifdef KR_headers
+mkarg(type, argno)
+	int type;
+	int argno;
+#else
+mkarg(int type, int argno)
+#endif
 {
 	register Addrp p;
 
@@ -1570,10 +1772,15 @@ int type, argno;
    extra (uninitialized) storage, since it could be a paramblock or
    nameblock */
 
-expptr mkprim(v0, args, substr)
- Namep v0;
- struct Listblock *args;
- chainp substr;
+ expptr
+#ifdef KR_headers
+mkprim(v0, args, substr)
+	Namep v0;
+	struct Listblock *args;
+	chainp substr;
+#else
+mkprim(Namep v0, struct Listblock *args, chainp substr)
+#endif
 {
 	typedef union {
 		struct Paramblock paramblock;
@@ -1628,8 +1835,13 @@ expptr mkprim(v0, args, substr)
    This function is called on identifiers known to be variables or
    recursive references to the same function */
 
+ void
+#ifdef KR_headers
 vardcl(v)
-register Namep v;
+	register Namep v;
+#else
+vardcl(register Namep v)
+#endif
 {
 	struct Dimblock *t;
 	expptr neltp;
@@ -1697,8 +1909,13 @@ register Namep v;
 /* Set the implicit type declaration of parameter   p   based on its first
    letter */
 
+ void
+#ifdef KR_headers
 impldcl(p)
-register Namep p;
+	register Namep p;
+#else
+impldcl(register Namep p)
+#endif
 {
 	register int k;
 	int type;
@@ -1725,9 +1942,13 @@ register Namep p;
 }
 
  void
-inferdcl(np,type)
- Namep np;
- int type;
+#ifdef KR_headers
+inferdcl(np, type)
+	Namep np;
+	int type;
+#else
+inferdcl(Namep np, int type)
+#endif
 {
 	int k = impltype[letter(np->fvarname[0])];
 	if (k != type) {
@@ -1740,25 +1961,65 @@ inferdcl(np,type)
 	np->vinfproc = 1;
 	}
 
+ LOCAL int
+#ifdef KR_headers
+zeroconst(e)
+	expptr e;
+#else
+zeroconst(expptr e)
+#endif
+{
+	register Constp c = (Constp) e;
+	if (c->tag == TCONST)
+		switch(c->vtype) {
+		case TYINT1:
+		case TYSHORT:
+		case TYLONG:
+#ifdef TYQUAD
+		case TYQUAD:
+#endif
+			return c->Const.ci == 0;
+
+		case TYREAL:
+		case TYDREAL:
+			if (c->vstg == 1)
+				return !strcmp(c->Const.cds[0],"0.");
+			return c->Const.cd[0] == 0.;
+
+		case TYCOMPLEX:
+		case TYDCOMPLEX:
+			if (c->vstg == 1)
+				return !strcmp(c->Const.cds[0],"0.")
+				    && !strcmp(c->Const.cds[1],"0.");
+			return c->Const.cd[0] == 0. && c->Const.cd[1] == 0.;
+		}
+	return 0;
+	}
+
 
 #define ICONEQ(z, c)  (ISICON(z) && z->constblock.Const.ci==c)
 #define COMMUTE	{ e = lp;  lp = rp;  rp = e; }
-
-
 
 /* mkexpr -- Make expression, and simplify constant subcomponents (tree
    order is not preserved).  Assumes that   lp   is nonempty, and uses
    fold()   to simplify adjacent constants */
 
-expptr mkexpr(opcode, lp, rp)
-int opcode;
-register expptr lp, rp;
+ expptr
+#ifdef KR_headers
+mkexpr(opcode, lp, rp)
+	int opcode;
+	register expptr lp;
+	register expptr rp;
+#else
+mkexpr(int opcode, register expptr lp, register expptr rp)
+#endif
 {
 	register expptr e, e1;
 	int etype;
 	int ltype, rtype;
 	int ltag, rtag;
 	long L;
+	static long divlineno;
 
 	ltype = lp->headblock.vtype;
 	ltag = lp->tag;
@@ -1781,7 +2042,7 @@ register expptr lp, rp;
 		if( ISCONST(lp) )
 			COMMUTE
 
-			    if( ISICON(rp) )
+		if( ISICON(rp) )
 			{
 				if(rp->constblock.Const.ci == 0)
 					goto retright;
@@ -1791,12 +2052,10 @@ register expptr lp, rp;
 
 	case OPSLASH:
 	case OPMOD:
-		if( ICONEQ(rp, 0) )
-		{
-			err("attempted division by zero");
-			rp = ICON(1);
-			break;
-		}
+		if( zeroconst(rp) && lineno != divlineno ) {
+			warn("attempted division by zero");
+			divlineno = lineno;
+			}
 		if(opcode == OPMOD)
 			break;
 
@@ -1821,7 +2080,7 @@ mulop:
 	(x * CONST1) / CONST2 ==> x * (CONST1 / CONST2)
 */
 
-		if (lp->tag != TEXPR || !lp->exprblock.rightp
+		if (!ISINT(etype) || lp->tag != TEXPR || !lp->exprblock.rightp
 				|| !ISICON(lp->exprblock.rightp))
 			break;
 
@@ -2070,8 +2329,14 @@ error:
 
 /* cktype -- Check and return the type of the expression */
 
+#ifdef KR_headers
 cktype(op, lt, rt)
-register int op, lt, rt;
+	register int op;
+	register int lt;
+	register int rt;
+#else
+cktype(register int op, register int lt, register int rt)
+#endif
 {
 	char *errs;
 
@@ -2218,7 +2483,6 @@ register int op, lt, rt;
 	case OPDOT:
 	case OPARROW:
 	    return (lt);
-	    break;
 	default:
 		badop("cktype", op);
 	}
@@ -2228,12 +2492,20 @@ error1:
 	return(TYERROR);
 }
 
+ static void
+intovfl(Void)
+{ err("overflow simplifying integer constants."); }
+
 /* fold -- simplifies constant expressions; it assumes that e -> leftp and
    e -> rightp are TCONST or NULL */
 
- LOCAL expptr
+ expptr
+#ifdef KR_headers
 fold(e)
- register expptr e;
+	register expptr e;
+#else
+fold(register expptr e)
+#endif
 {
 	Constp p;
 	register expptr lp, rp;
@@ -2241,7 +2513,7 @@ fold(e)
 	int i, bl, ll, lr;
 	char *q, *s;
 	struct Constblock lcon, rcon;
-	long L;
+	ftnint L;
 	double d;
 
 	opcode = e->exprblock.opcode;
@@ -2283,8 +2555,11 @@ fold(e)
 #ifdef TYQUAD
 			    case TYQUAD:
 #endif
-				if ((L = lp->constblock.Const.ci) < 0)
+				if ((L = lp->constblock.Const.ci) < 0) {
 					lp->constblock.Const.ci = -L;
+					if (L != -lp->constblock.Const.ci)
+						intovfl();
+					}
 				goto retlp;
 			    case TYREAL:
 			    case TYDREAL:
@@ -2317,7 +2592,7 @@ fold(e)
 	case OPCOMMA_ARG:
 	case OPQUEST:
 	case OPCOLON:
-		return(e);
+		goto ereturn;
 
 	case OPAND:
 		p->Const.ci = lp->constblock.Const.ci &&
@@ -2357,6 +2632,9 @@ fold(e)
 	case OPLSHIFT:
 		p->Const.ci = lp->constblock.Const.ci <<
 		    rp->constblock.Const.ci;
+		if ((((unsigned long)p->Const.ci) >> rp->constblock.Const.ci)
+				!= lp->constblock.Const.ci)
+			intovfl();
 		break;
 
 	case OPRSHIFT:
@@ -2383,11 +2661,16 @@ fold(e)
 
 
 	case OPPOWER:
-		if( ! ISINT(rtype) )
-			return(e);
+		if( !ISINT(rtype)
+		 || rp->constblock.Const.ci < 0 && zeroconst(lp))
+			goto ereturn;
 		conspower(p, (Constp)lp, rp->constblock.Const.ci);
 		break;
 
+	case OPSLASH:
+		if (zeroconst(rp))
+			goto ereturn;
+		/* no break */
 
 	default:
 		if(ltype == TYCHAR)
@@ -2410,15 +2693,24 @@ fold(e)
 
 	frexpr(e);
 	return( (expptr) p );
+ ereturn:
+	free((char *)p);
+	return e;
 }
 
 
 
 /* assign constant l = r , doing coercion */
 
+ void
+#ifdef KR_headers
 consconv(lt, lc, rc)
- int lt;
- register Constp lc, rc;
+	int lt;
+	register Constp lc;
+	register Constp rc;
+#else
+consconv(int lt, register Constp lc, register Constp rc)
+#endif
 {
 	int rt = rc->vtype;
 	register union Constant *lv = &lc->Const, *rv = &rc->Const;
@@ -2485,10 +2777,16 @@ consconv(lt, lc, rc)
 
 /* Negate constant value -- changes the input node's value */
 
+ void
+#ifdef KR_headers
 consnegop(p)
-register Constp p;
+	register Constp p;
+#else
+consnegop(register Constp p)
+#endif
 {
 	register char *s;
+	ftnint L;
 
 	if (p->vstg) {
 		if (ISCOMPLEX(p->vtype)) {
@@ -2509,7 +2807,9 @@ register Constp p;
 #ifdef TYQUAD
 	case TYQUAD:
 #endif
-		p->Const.ci = - p->Const.ci;
+		p->Const.ci = -(L = p->Const.ci);
+		if (L != -p->Const.ci)
+			intovfl();
 		break;
 
 	case TYCOMPLEX:
@@ -2530,9 +2830,14 @@ register Constp p;
 /* conspower -- Expand out an exponentiation */
 
  LOCAL void
+#ifdef KR_headers
 conspower(p, ap, n)
- Constp p, ap;
- ftnint n;
+	Constp p;
+	Constp ap;
+	ftnint n;
+#else
+conspower(Constp p, Constp ap, ftnint n)
+#endif
 {
 	register union Constant *powp = &p->Const;
 	register int type;
@@ -2623,19 +2928,23 @@ conspower(p, ap, n)
    matching the input   type */
 
  LOCAL void
-zerodiv()
-{ Fatal("division by zero during constant evaluation; cannot recover"); }
-
- LOCAL void
+#ifdef KR_headers
 consbinop(opcode, type, cpp, app, bpp)
- int opcode, type;
- Constp cpp, app, bpp;
+	int opcode;
+	int type;
+	Constp cpp;
+	Constp app;
+	Constp bpp;
+#else
+consbinop(int opcode, int type, Constp cpp, Constp app, Constp bpp)
+#endif
 {
 	register union Constant *ap = &app->Const,
 				*bp = &bpp->Const,
 				*cp = &cpp->Const;
 	int k;
 	double ad[2], bd[2], temp;
+	ftnint a, b;
 
 	cpp->vstg = 0;
 
@@ -2659,6 +2968,8 @@ consbinop(opcode, type, cpp, app, bpp)
 		case TYQUAD:
 #endif
 			cp->ci = ap->ci + bp->ci;
+			if (ap->ci != cp->ci - bp->ci)
+				intovfl();
 			break;
 		case TYCOMPLEX:
 		case TYDCOMPLEX:
@@ -2680,6 +2991,8 @@ consbinop(opcode, type, cpp, app, bpp)
 		case TYQUAD:
 #endif
 			cp->ci = ap->ci - bp->ci;
+			if (ap->ci != bp->ci + cp->ci)
+				intovfl();
 			break;
 		case TYCOMPLEX:
 		case TYDCOMPLEX:
@@ -2700,7 +3013,9 @@ consbinop(opcode, type, cpp, app, bpp)
 #ifdef TYQUAD
 		case TYQUAD:
 #endif
-			cp->ci = ap->ci * bp->ci;
+			cp->ci = (a = ap->ci) * (b = bp->ci);
+			if (a && cp->ci / a != b)
+				intovfl();
 			break;
 		case TYREAL:
 		case TYDREAL:
@@ -2723,20 +3038,14 @@ consbinop(opcode, type, cpp, app, bpp)
 #ifdef TYQUAD
 		case TYQUAD:
 #endif
-			if (!bp->ci)
-				zerodiv();
 			cp->ci = ap->ci / bp->ci;
 			break;
 		case TYREAL:
 		case TYDREAL:
-			if (!bd[0])
-				zerodiv();
 			cp->cd[0] = ad[0] / bd[0];
 			break;
 		case TYCOMPLEX:
 		case TYDCOMPLEX:
-			if (!bd[0] && !bd[1])
-				zerodiv();
 			zdiv((dcomplex*)cp, (dcomplex*)ad, (dcomplex*)bd);
 			break;
 		}
@@ -2854,8 +3163,12 @@ consbinop(opcode, type, cpp, app, bpp)
 
 /* conssgn - returns the sign of a Fortran constant */
 
+#ifdef KR_headers
 conssgn(p)
-register expptr p;
+	register expptr p;
+#else
+conssgn(register expptr p)
+#endif
 {
 	register char *s;
 
@@ -2907,12 +3220,17 @@ register expptr p;
 char *powint[ ] = {
 	"pow_ii",
 #ifdef TYQUAD
-		  "pow_qi",
+		  "pow_qq",
 #endif
 		  "pow_ri", "pow_di", "pow_ci", "pow_zi" };
 
-LOCAL expptr mkpower(p)
-register expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+mkpower(p)
+	register expptr p;
+#else
+mkpower(register expptr p)
+#endif
 {
 	register expptr q, lp, rp;
 	int ltype, rtype, mtype, tyi;
@@ -3012,8 +3330,14 @@ register expptr p;
 
 
  LOCAL void
+#ifdef KR_headers
 zdiv(c, a, b)
- register dcomplex *a, *b, *c;
+	register dcomplex *c;
+	register dcomplex *a;
+	register dcomplex *b;
+#else
+zdiv(register dcomplex *c, register dcomplex *a, register dcomplex *b)
+#endif
 {
 	double ratio, den;
 	double abr, abi;

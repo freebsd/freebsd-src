@@ -34,6 +34,14 @@ typedef struct {
     int table_size;
 } arg_info;
 
-extern int parse_args ();
+#ifdef KR_headers
+#define Argdcl(x) ()
+#else
+#define Argdcl(x) x
+#endif
+int	arg_verify Argdcl((char**, arg_info*, int));
+void	init_store Argdcl((arg_info*, int));
+int	match_table Argdcl((char*, arg_info*, int, int, int*));
+int	parse_args Argdcl((int, char**, arg_info*, int, char**, int));
 
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1991, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -27,13 +27,20 @@ this software.
 #include "names.h"
 
 
-static void p1_addr(), p1_big_addr(), p1_binary(), p1_const(), p1_list(),
-	p1_literal(), p1_name(), p1_unary(), p1putn();
-static void p1putd (/* int, int */);
-static void p1putds (/* int, int, char * */);
-static void p1putdds (/* int, int, int, char * */);
-static void p1putdd (/* int, int, int */);
-static void p1putddd (/* int, int, int, int */);
+static void p1_addr Argdcl((Addrp));
+static void p1_big_addr Argdcl((Addrp));
+static void p1_binary Argdcl((Exprp));
+static void p1_const Argdcl((Constp));
+static void p1_list Argdcl((struct Listblock*));
+static void p1_literal Argdcl((long int));
+static void p1_name Argdcl((Namep));
+static void p1_unary Argdcl((Exprp));
+static void p1putd Argdcl((int, long int));
+static void p1putdd Argdcl((int, int, int));
+static void p1putddd Argdcl((int, int, int, int));
+static void p1putdds Argdcl((int, int, int, char*));
+static void p1putds Argdcl((int, int, char*));
+static void p1putn Argdcl((int, int, char*));
 
 
 /* p1_comment -- save the text of a Fortran comment in the intermediate
@@ -41,8 +48,13 @@ static void p1putddd (/* int, int, int, int */);
    mapping them onto "/+" and "+/".   str   is assumed to hold no newlines and be
    null terminated; it may be modified by this function. */
 
-void p1_comment (str)
-char *str;
+ void
+#ifdef KR_headers
+p1_comment(str)
+	char *str;
+#else
+p1_comment(char *str)
+#endif
 {
     register unsigned char *pointer, *ustr;
 
@@ -70,8 +82,13 @@ char *str;
 /* p1_name -- Writes the address of a hash table entry into the
    intermediate file */
 
-static void p1_name (namep)
-Namep namep;
+ static void
+#ifdef KR_headers
+p1_name(namep)
+	Namep namep;
+#else
+p1_name(Namep namep)
+#endif
 {
 	p1putd (P1_NAME_POINTER, (long) namep);
 	namep->visused = 1;
@@ -79,8 +96,13 @@ Namep namep;
 
 
 
-void p1_expr (expr)
-expptr expr;
+ void
+#ifdef KR_headers
+p1_expr(expr)
+	expptr expr;
+#else
+p1_expr(expptr expr)
+#endif
 {
 /* An opcode of 0 means a null entry */
 
@@ -131,8 +153,13 @@ expptr expr;
 
 
 
-static void p1_const(cp)
- register Constp cp;
+ static void
+#ifdef KR_headers
+p1_const(cp)
+	register Constp cp;
+#else
+p1_const(register Constp cp)
+#endif
 {
 	int type = cp->vtype;
 	expptr vleng = cp->vleng;
@@ -184,23 +211,38 @@ static void p1_const(cp)
 } /* p1_const */
 
 
-void p1_asgoto (addrp)
-Addrp addrp;
+ void
+#ifdef KR_headers
+p1_asgoto(addrp)
+	Addrp addrp;
+#else
+p1_asgoto(Addrp addrp)
+#endif
 {
     p1put (P1_ASGOTO);
     p1_addr (addrp);
 } /* p1_asgoto */
 
 
-void p1_goto (stateno)
-ftnint stateno;
+ void
+#ifdef KR_headers
+p1_goto(stateno)
+	ftnint stateno;
+#else
+p1_goto(ftnint stateno)
+#endif
 {
     p1putd (P1_GOTO, stateno);
 } /* p1_goto */
 
 
-static void p1_addr (addrp)
- register struct Addrblock *addrp;
+ static void
+#ifdef KR_headers
+p1_addr(addrp)
+	register struct Addrblock *addrp;
+#else
+p1_addr(register struct Addrblock *addrp)
+#endif
 {
     int stg;
 
@@ -268,8 +310,13 @@ static void p1_addr (addrp)
 } /* p1_addr */
 
 
-static void p1_list (listp)
-struct Listblock *listp;
+ static void
+#ifdef KR_headers
+p1_list(listp)
+	struct Listblock *listp;
+#else
+p1_list(struct Listblock *listp)
+#endif
 {
     chainp lis;
     int count = 0;
@@ -290,8 +337,13 @@ struct Listblock *listp;
 } /* p1_list */
 
 
-void p1_label (lab)
-long lab;
+ void
+#ifdef KR_headers
+p1_label(lab)
+	long lab;
+#else
+p1_label(long lab)
+#endif
 {
 	if (parstate < INDATA)
 		earlylabs = mkchain((char *)lab, earlylabs);
@@ -301,15 +353,25 @@ long lab;
 
 
 
-static void p1_literal (memno)
-long memno;
+ static void
+#ifdef KR_headers
+p1_literal(memno)
+	long memno;
+#else
+p1_literal(long memno)
+#endif
 {
     p1putd (P1_LITERAL, memno);
 } /* p1_literal */
 
 
-void p1_if (expr)
-expptr expr;
+ void
+#ifdef KR_headers
+p1_if(expr)
+	expptr expr;
+#else
+p1_if(expptr expr)
+#endif
 {
     p1put (P1_IF);
     p1_expr (expr);
@@ -318,8 +380,13 @@ expptr expr;
 
 
 
-void p1_elif (expr)
-expptr expr;
+ void
+#ifdef KR_headers
+p1_elif(expr)
+	expptr expr;
+#else
+p1_elif(expptr expr)
+#endif
 {
     p1put (P1_ELIF);
     p1_expr (expr);
@@ -328,7 +395,8 @@ expptr expr;
 
 
 
-void p1_else ()
+ void
+p1_else(Void)
 {
     p1put (P1_ELSE);
 } /* p1_else */
@@ -336,7 +404,8 @@ void p1_else ()
 
 
 
-void p1_endif ()
+ void
+p1_endif(Void)
 {
     p1put (P1_ENDIF);
 } /* p1_endif */
@@ -344,14 +413,20 @@ void p1_endif ()
 
 
 
-void p1else_end ()
+ void
+p1else_end(Void)
 {
     p1put (P1_ENDELSE);
 } /* p1else_end */
 
 
-static void p1_big_addr (addrp)
-Addrp addrp;
+ static void
+#ifdef KR_headers
+p1_big_addr(addrp)
+	Addrp addrp;
+#else
+p1_big_addr(Addrp addrp)
+#endif
 {
     if (addrp == (Addrp) NULL)
 	return;
@@ -365,8 +440,13 @@ Addrp addrp;
 
 
 
-static void p1_unary (e)
-struct Exprblock *e;
+ static void
+#ifdef KR_headers
+p1_unary(e)
+	struct Exprblock *e;
+#else
+p1_unary(struct Exprblock *e)
+#endif
 {
     if (e == (struct Exprblock *) NULL)
 	return;
@@ -396,8 +476,13 @@ struct Exprblock *e;
 } /* p1_unary */
 
 
-static void p1_binary (e)
-struct Exprblock *e;
+ static void
+#ifdef KR_headers
+p1_binary(e)
+	struct Exprblock *e;
+#else
+p1_binary(struct Exprblock *e)
+#endif
 {
     if (e == (struct Exprblock *) NULL)
 	return;
@@ -409,16 +494,26 @@ struct Exprblock *e;
 } /* p1_binary */
 
 
-void p1_head (class, name)
-int class;
-char *name;
+ void
+#ifdef KR_headers
+p1_head(class, name)
+	int class;
+	char *name;
+#else
+p1_head(int class, char *name)
+#endif
 {
     p1putds (P1_HEAD, class, name ? name : "");
 } /* p1_head */
 
 
-void p1_subr_ret (retexp)
-expptr retexp;
+ void
+#ifdef KR_headers
+p1_subr_ret(retexp)
+	expptr retexp;
+#else
+p1_subr_ret(expptr retexp)
+#endif
 {
 
     p1put (P1_SUBR_RET);
@@ -427,10 +522,15 @@ expptr retexp;
 
 
 
-void p1comp_goto (index, count, labels)
-expptr index;
-int count;
-struct Labelblock *labels[];
+ void
+#ifdef KR_headers
+p1comp_goto(index, count, labels)
+	expptr index;
+	int count;
+	struct Labelblock **labels;
+#else
+p1comp_goto(expptr index, int count, struct Labelblock **labels)
+#endif
 {
     struct Constblock c;
     int i;
@@ -456,8 +556,15 @@ struct Labelblock *labels[];
 
 
 
-void p1_for (init, test, inc)
-expptr init, test, inc;
+ void
+#ifdef KR_headers
+p1_for(init, test, inc)
+	expptr init;
+	expptr test;
+	expptr inc;
+#else
+p1_for(expptr init, expptr test, expptr inc)
+#endif
 {
     p1put (P1_FOR);
     p1_expr (init);
@@ -466,7 +573,8 @@ expptr init, test, inc;
 } /* p1_for */
 
 
-void p1for_end ()
+ void
+p1for_end(Void)
 {
     p1put (P1_ENDFOR);
 } /* p1for_end */
@@ -484,9 +592,14 @@ void p1for_end ()
 /* p1puts -- Put a typed string into the Pass 1 intermediate file.  Assumes that
    str   contains no newlines and is null-terminated. */
 
-void p1puts (type, str)
-int type;
-char *str;
+ void
+#ifdef KR_headers
+p1puts(type, str)
+	int type;
+	char *str;
+#else
+p1puts(int type, char *str)
+#endif
 {
     fprintf (pass1_file, "%d: %s\n", type, str);
 } /* p1puts */
@@ -494,9 +607,14 @@ char *str;
 
 /* p1putd -- Put a typed integer into the Pass 1 intermediate file. */
 
-static void p1putd (type, value)
-int type;
-long value;
+ static void
+#ifdef KR_headers
+p1putd(type, value)
+	int type;
+	long value;
+#else
+p1putd(int type, long value)
+#endif
 {
     fprintf (pass1_file, "%d: %ld\n", type, value);
 } /* p1_putd */
@@ -504,8 +622,15 @@ long value;
 
 /* p1putdd -- Put a typed pair of integers into the intermediate file. */
 
-static void p1putdd (type, v1, v2)
-int type, v1, v2;
+ static void
+#ifdef KR_headers
+p1putdd(type, v1, v2)
+	int type;
+	int v1;
+	int v2;
+#else
+p1putdd(int type, int v1, int v2)
+#endif
 {
     fprintf (pass1_file, "%d: %d %d\n", type, v1, v2);
 } /* p1putdd */
@@ -513,8 +638,16 @@ int type, v1, v2;
 
 /* p1putddd -- Put a typed triple of integers into the intermediate file. */
 
-static void p1putddd (type, v1, v2, v3)
-int type, v1, v2, v3;
+ static void
+#ifdef KR_headers
+p1putddd(type, v1, v2, v3)
+	int type;
+	int v1;
+	int v2;
+	int v3;
+#else
+p1putddd(int type, int v1, int v2, int v3)
+#endif
 {
     fprintf (pass1_file, "%d: %d %d %d\n", type, v1, v2, v3);
 } /* p1putddd */
@@ -524,9 +657,15 @@ int type, v1, v2, v3;
 	long L[2];
 	};
 
-static void p1putn (type, count, str)
-int type, count;
-char *str;
+ static void
+#ifdef KR_headers
+p1putn(type, count, str)
+	int type;
+	int count;
+	char *str;
+#else
+p1putn(int type, int count, char *str)
+#endif
 {
     int i;
 
@@ -542,26 +681,43 @@ char *str;
 
 /* p1put -- Put a type marker into the intermediate file. */
 
-void p1put(type)
-int type;
+ void
+#ifdef KR_headers
+p1put(type)
+	int type;
+#else
+p1put(int type)
+#endif
 {
     fprintf (pass1_file, "%d:\n", type);
 } /* p1put */
 
 
 
-static void p1putds (type, i, str)
-int type;
-int i;
-char *str;
+ static void
+#ifdef KR_headers
+p1putds(type, i, str)
+	int type;
+	int i;
+	char *str;
+#else
+p1putds(int type, int i, char *str)
+#endif
 {
     fprintf (pass1_file, "%d: %d %s\n", type, i, str);
 } /* p1putds */
 
 
-static void p1putdds (token, type, stg, str)
-int token, type, stg;
-char *str;
+ static void
+#ifdef KR_headers
+p1putdds(token, type, stg, str)
+	int token;
+	int type;
+	int stg;
+	char *str;
+#else
+p1putdds(int token, int type, int stg, char *str)
+#endif
 {
     fprintf (pass1_file, "%d: %d %d %s\n", token, type, stg, str);
 } /* p1putdds */

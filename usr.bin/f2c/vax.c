@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -30,9 +30,14 @@ int regnum[] =  {
 
 /* Put out a constant integer */
 
+ void
+#ifdef KR_headers
 prconi(fp, n)
-FILEP fp;
-ftnint n;
+	FILEP fp;
+	ftnint n;
+#else
+prconi(FILEP fp, ftnint n)
+#endif
 {
 	fprintf(fp, "\t%ld\n", n);
 }
@@ -41,19 +46,28 @@ ftnint n;
 
 /* Put out a constant address */
 
+ void
+#ifdef KR_headers
 prcona(fp, a)
-FILEP fp;
-ftnint a;
+	FILEP fp;
+	ftnint a;
+#else
+prcona(FILEP fp, ftnint a)
+#endif
 {
 	fprintf(fp, "\tL%ld\n", a);
 }
 
 
-
+ void
+#ifdef KR_headers
 prconr(fp, x, k)
- FILEP fp;
- int k;
- Constp x;
+	FILEP fp;
+	Constp x;
+	int k;
+#else
+prconr(FILEP fp, Constp x, int k)
+#endif
 {
 	char *x0, *x1;
 	char cdsbuf0[64], cdsbuf1[64];
@@ -75,9 +89,14 @@ prconr(fp, x, k)
 }
 
 
-char *memname(stg, mem)
- int stg;
- long mem;
+ char *
+#ifdef KR_headers
+memname(stg, mem)
+	int stg;
+	long mem;
+#else
+memname(int stg, long mem)
+#endif
 {
 	static char s[20];
 
@@ -107,12 +126,22 @@ char *memname(stg, mem)
 	return(s);
 }
 
+extern void addrlit Argdcl((Addrp));
+
 /* make_int_expr -- takes an arbitrary expression, and replaces all
    occurrences of arguments with indirection */
 
-expptr make_int_expr (e)
-expptr e;
+ expptr
+#ifdef KR_headers
+make_int_expr(e)
+	expptr e;
+#else
+make_int_expr(expptr e)
+#endif
 {
+    chainp listp;
+    Addrp ap;
+
     if (e != ENULL)
 	switch (e -> tag) {
 	    case TADDR:
@@ -124,6 +153,13 @@ expptr e;
 	        e -> exprblock.leftp = make_int_expr (e -> exprblock.leftp);
 	        e -> exprblock.rightp = make_int_expr (e -> exprblock.rightp);
 	        break;
+	    case TLIST:
+		for(listp = e->listblock.listp; listp; listp = listp->nextp)
+			if ((ap = (Addrp)listp->datap)
+			 && ap->tag == TADDR
+			 && ap->uname_tag == UNAM_CONST)
+				addrlit(ap);
+		break;
 	    default:
 	        break;
 	} /* switch */
@@ -137,8 +173,13 @@ expptr e;
    left-hand side of parameter adjustments.  This is necessary to avoid
    error messages from cktype() */
 
-expptr prune_left_conv (e)
-expptr e;
+ expptr
+#ifdef KR_headers
+prune_left_conv(e)
+	expptr e;
+#else
+prune_left_conv(expptr e)
+#endif
 {
     struct Exprblock *leftp;
 
@@ -159,7 +200,7 @@ expptr e;
  static FILE *comment_file;
 
  static void
-write_comment()
+write_comment(Void)
 {
 	if (!wrote_comment) {
 		wrote_comment = 1;
@@ -168,7 +209,7 @@ write_comment()
 	}
 
  static int *
-count_args()
+count_args(Void)
 {
 	register int *ac;
 	register chainp cp;
@@ -185,20 +226,25 @@ count_args()
 	}
 
  static int nu, *refs, *used;
- static void awalk();
+ static void awalk Argdcl((expptr));
 
  static void
+#ifdef KR_headers
 aawalk(P)
- struct Primblock *P;
+	struct Primblock *P;
+#else
+aawalk(struct Primblock *P)
+#endif
 {
 	chainp p;
 	expptr q;
 
-	for(p = P->argsp->listp; p; p = p->nextp) {
-		q = (expptr)p->datap;
-		if (q->tag != TCONST)
-			awalk(q);
-		}
+	if (P->argsp)
+		for(p = P->argsp->listp; p; p = p->nextp) {
+			q = (expptr)p->datap;
+			if (q->tag != TCONST)
+				awalk(q);
+			}
 	if (P->namep->vtype == TYCHAR) {
 		if (q = P->fcharp)
 			awalk(q);
@@ -208,8 +254,12 @@ aawalk(P)
 	}
 
  static void
+#ifdef KR_headers
 afwalk(P)
- struct Primblock *P;
+	struct Primblock *P;
+#else
+afwalk(struct Primblock *P)
+#endif
 {
 	chainp p;
 	expptr q;
@@ -240,8 +290,12 @@ afwalk(P)
 	}
 
  static void
+#ifdef KR_headers
 awalk(e)
- expptr e;
+	expptr e;
+#else
+awalk(expptr e)
+#endif
 {
 	Namep np;
  top:
@@ -249,7 +303,7 @@ awalk(e)
 		return;
 	switch(e->tag) {
 	  default:
-		badtag("awalk", e);
+		badtag("awalk", e->tag);
 	  case TCONST:
 	  case TERROR:
 	  case TLIST:
@@ -279,8 +333,12 @@ awalk(e)
 	}
 
  static chainp
+#ifdef KR_headers
 argsort(p0)
- chainp p0;
+	chainp p0;
+#else
+argsort(chainp p0)
+#endif
 {
 	Namep *args, q, *stack;
 	int i, nargs, nout, nst;
@@ -338,7 +396,7 @@ argsort(p0)
 		for(p = *da; p; p = p->nextp)
 			if (!--refs[(q = (Namep)p->datap)->argno])
 				stack[nst++] = q;
-		frchain(*da);
+		frchain(da);
 		}
 	if (nout < nargs)
 		for(i = 0; i < nargs; i++)
@@ -349,16 +407,21 @@ argsort(p0)
 					q->fvarname);
 				*rvp = p = mkchain((char *)q, CHNULL);
 				rvp = &p->nextp;
-				frchain(d[i]);
+				frchain(d+i);
 				}
  done:
 	free((char *)args);
 	return rv;
 	}
 
+ void
+#ifdef KR_headers
 prolog(outfile, p)
- FILE *outfile;
- register chainp p;
+	FILE *outfile;
+	register chainp p;
+#else
+prolog(FILE *outfile, register chainp p)
+#endif
 {
 	int addif, addif0, i, nd, size;
 	int *ac;
@@ -499,5 +562,5 @@ prolog(outfile, p)
 	if (ac)
 		free((char *)ac);
 	if (p0 != p1)
-		frchain(p1);
+		frchain(&p1);
 } /* prolog */

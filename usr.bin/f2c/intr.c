@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992, 1994-5 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -23,8 +23,6 @@ this software.
 
 #include "defs.h"
 #include "names.h"
-
-void cast_args ();
 
 union
 	{
@@ -406,7 +404,7 @@ char *callbyvalue[ ] =
 	};
 
  void
-r8fix()	/* adjust tables for -r8 */
+r8fix(Void)	/* adjust tables for -r8 */
 {
 	register struct Intrblock *I;
 	register struct Specblock *S;
@@ -476,16 +474,21 @@ r8fix()	/* adjust tables for -r8 */
 		}
 	}
 
-expptr intrcall(np, argsp, nargs)
-Namep np;
-struct Listblock *argsp;
-int nargs;
+
+ expptr
+#ifdef KR_headers
+intrcall(np, argsp, nargs)
+	Namep np;
+	struct Listblock *argsp;
+	int nargs;
+#else
+intrcall(Namep np, struct Listblock *argsp, int nargs)
+#endif
 {
 	int i, rettype;
 	Addrp ap;
 	register struct Specblock *sp;
 	register struct Chain *cp;
-	expptr Inline(), mkcxcon(), mkrealcon();
 	expptr q, ep;
 	int mtype;
 	int op;
@@ -544,6 +547,9 @@ int nargs;
 			expptr qr, qi;
 			qr = (expptr) argsp->listp->datap;
 			qi = (expptr) argsp->listp->nextp->datap;
+			if (qr->headblock.vtype == TYDREAL
+			 || qi->headblock.vtype == TYDREAL)
+				rettype = TYDCOMPLEX;
 			if(ISCONST(qr) && ISCONST(qi))
 				q = mkcxcon(qr,qi);
 			else	q = mkexpr(OPCONV,mkconv(rettype-2,qr),
@@ -720,9 +726,13 @@ bad:
 
 
 
-
+ int
+#ifdef KR_headers
 intrfunct(s)
-char *s;
+	char *s;
+#else
+intrfunct(char *s)
+#endif
 {
 	register struct Intrblock *p;
 
@@ -745,8 +755,13 @@ char *s;
 
 
 
-Addrp intraddr(np)
-Namep np;
+ Addrp
+#ifdef KR_headers
+intraddr(np)
+	Namep np;
+#else
+intraddr(Namep np)
+#endif
 {
 	Addrp q;
 	register struct Specblock *sp;
@@ -788,9 +803,14 @@ bad:
 
 
 
-void cast_args (maxtype, args)
-int maxtype;
-chainp args;
+ void
+#ifdef KR_headers
+cast_args(maxtype, args)
+	int maxtype;
+	chainp args;
+#else
+cast_args(int maxtype, chainp args)
+#endif
 {
     for (; args; args = args -> nextp) {
 	expptr e = (expptr) args->datap;
@@ -808,10 +828,15 @@ chainp args;
 
 
 
-expptr Inline(fno, type, args)
-int fno;
-int type;
-struct Chain *args;
+ expptr
+#ifdef KR_headers
+Inline(fno, type, args)
+	int fno;
+	int type;
+	struct Chain *args;
+#else
+Inline(int fno, int type, struct Chain *args)
+#endif
 {
 	register expptr q, t, t1;
 
@@ -843,7 +868,7 @@ struct Chain *args;
 	case 27:	/* len of character string */
 		q = (expptr) cpexpr(((tagptr)args->datap)->headblock.vleng);
 		frexpr((expptr)args->datap);
-		return(q);
+		return mkconv(tyioint, q);
 
 	case 14:	/* half-integer mod */
 	case 15:	/* mod */

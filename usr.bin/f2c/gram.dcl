@@ -56,6 +56,7 @@ typename:    SINTEGER	{ $$ = TYLONG; }
 	| SDIMENSION	{ $$ = TYUNKNOWN; }
 	| SAUTOMATIC	{ NOEXT("AUTOMATIC statement"); $$ = - STGAUTO; }
 	| SSTATIC	{ NOEXT("STATIC statement"); $$ = - STGBSS; }
+	| SBYTE		{ $$ = TYINT1; }
 	;
 
 lengspec:
@@ -228,6 +229,15 @@ var:	  name dims
 
 datavar:	  lhs
 		{ Namep np;
+		  int tt = $1->tag;
+		  if (tt != TPRIM) {
+			if (tt == TCONST)
+				err("parameter in data statement");
+			else
+				erri("tag %d in data statement",tt);
+			$$ = 0;
+			break;
+			}
 		  np = ( (struct Primblock *) $1) -> namep;
 		  vardcl(np);
 		  if(np->vstg == STGCOMMON)

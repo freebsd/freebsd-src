@@ -49,21 +49,12 @@ static chainp datastack;
 extern long laststfcn, thisstno;
 extern int can_include;	/* for netlib */
 
-ftnint convci();
-Addrp nextdata();
-expptr mklogcon(), mkaddcon(), mkrealcon(), mkstrcon(), mkbitcon();
-expptr mkcxcon();
-struct Listblock *mklist();
-struct Listblock *mklist();
-struct Impldoblock *mkiodo();
-Extsym *comblock();
 #define ESNULL (Extsym *)0
 #define NPNULL (Namep)0
 #define LBNULL (struct Listblock *)0
-extern void freetemps(), make_param();
 
  static void
-pop_datastack() {
+pop_datastack(Void) {
 	chainp d0 = datastack;
 	if (d0->datap)
 		curdtp = (chainp)d0->datap;
@@ -163,8 +154,7 @@ stat:	  thislabel  entry
 		  endproc(); /* lastwasbranch = NO; -- set in endproc() */
 		}
 	| thislabel SUNKNOWN
-		{ extern void unclassifiable();
-		  unclassifiable();
+		{ unclassifiable();
 
 /* flline flushes the current line, ignoring the rest of the text there */
 

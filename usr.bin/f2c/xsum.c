@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -21,10 +21,13 @@ arising out of or in connection with the use or performance of
 this software.
 ****************************************************************/
 
+#define _POSIX_SOURCE
 #include "stdio.h"
 #ifndef KR_headers
 #include "stdlib.h"
+#include "sys/types.h"
 #include "fcntl.h"	/* for declaration of open, O_RDONLY */
+#include "unistd.h"	/* for read, close */
 #endif
 #ifdef MSDOS
 #include "io.h"
@@ -201,6 +204,7 @@ main(int argc, char **argv)
 	static int rc;
 
 	progname = *argv;
+	argc = argc;		/* turn off "not used" warning */
 	s = *++argv;
 	if (s && *s == '-') {
 		switch(s[1]) {

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -59,10 +59,15 @@ this software.
 /* ANSI C */
 #include <stddef.h>
 #endif
+#ifdef KR_headers
+extern double atof();
+#else
+#include "stdlib.h"
+#include "string.h"
+#endif
 #include "parse.h"
 #include <math.h>	     /* For atof */
 #include <ctype.h>
-#include "defs.h"
 
 #define MAX_INPUT_SIZE 1000
 
@@ -83,27 +88,27 @@ this software.
 typedef int boolean;
 
 
-char *lower_string (/* char [], char * */);
-
 static char *this_program = "";
 
-#ifndef atol
-extern long atol();
+static int arg_parse Argdcl((char*, arg_info*));
+static char *lower_string Argdcl((char*, char*));
+static int match Argdcl((char*, char*, arg_info*, boolean));
+static int put_one_arg Argdcl((int, char*, char**, char*, char*));
+
+
+ boolean
+#ifdef KR_headers
+parse_args(argc, argv, table, entries, others, other_count)
+	int argc;
+	char **argv;
+	arg_info *table;
+	int entries;
+	char **others;
+	int other_count;
+#else
+parse_args(int argc, char **argv, arg_info *table, int entries, char **others, int other_count)
 #endif
-static int arg_parse (/* char *, arg_info * */);
-
-
-boolean parse_args (argc, argv, table, entries, others, other_count)
-int argc;
-char *argv[];
-arg_info table[];
-int entries;
-char *others[];
-int other_count;
 {
-    boolean arg_verify (/* argv, table, entries */);
-    void init_store (/* table, entries */);
-
     boolean result;
 
     if (argv)
@@ -189,10 +194,15 @@ int other_count;
 } /* parse_args */
 
 
-boolean arg_verify (argv, table, entries)
-char *argv[];
-arg_info table[];
-int entries;
+ boolean
+#ifdef KR_headers
+arg_verify(argv, table, entries)
+	char **argv;
+	arg_info *table;
+	int entries;
+#else
+arg_verify(char **argv, arg_info *table, int entries)
+#endif
 {
     int i;
     char *this_program = "";
@@ -264,15 +274,18 @@ int entries;
    appears lowest in the table.  The length of the match will be returned
    in   length   ONLY IF a match was found.   */
 
-int match_table (norm_input, table, entries, use_prefix, length)
-register char *norm_input;
-arg_info table[];
-int entries;
-boolean use_prefix;
-int *length;
+ int
+#ifdef KR_headers
+match_table(norm_input, table, entries, use_prefix, length)
+	register char *norm_input;
+	arg_info *table;
+	int entries;
+	boolean use_prefix;
+	int *length;
+#else
+match_table(register char *norm_input, arg_info *table, int entries, boolean use_prefix, int *length)
+#endif
 {
-    extern int match (/* char *, char *, arg_info *, boolean */);
-
     char low_input[MAX_INPUT_SIZE];
     register int i;
     int best_index = -1, best_length = 0;
@@ -282,7 +295,7 @@ int *length;
     (void) lower_string (low_input, norm_input);
 
     for (i = 0; i < entries; i++) {
-	int this_length = match (norm_input, low_input, &table[i], use_prefix);
+	int this_length = match(norm_input, low_input, &table[i], use_prefix);
 
 	if (this_length > best_length) {
 	    best_index = i;
@@ -313,10 +326,16 @@ int *length;
 	"dd"	"d"	"d"	2	<= here's the weird one
 */
 
-int match (norm_input, low_input, entry, use_prefix)
-char *norm_input, *low_input;
-arg_info *entry;
-boolean use_prefix;
+ static int
+#ifdef KR_headers
+match(norm_input, low_input, entry, use_prefix)
+	char *norm_input;
+	char *low_input;
+	arg_info *entry;
+	boolean use_prefix;
+#else
+match(char *norm_input, char *low_input, arg_info *entry, boolean use_prefix)
+#endif
 {
     char *norm_prefix = arg_prefix (*entry);
     char *norm_string = arg_string (*entry);
@@ -370,8 +389,14 @@ boolean use_prefix;
 } /* match */
 
 
-char *lower_string (dest, src)
-char *dest, *src;
+ static char *
+#ifdef KR_headers
+lower_string(dest, src)
+	char *dest;
+	char *src;
+#else
+lower_string(char *dest, char *src)
+#endif
 {
     char *result = dest;
     register int c;
@@ -387,9 +412,14 @@ char *dest, *src;
 
 /* arg_parse -- returns the number of characters parsed for this entry */
 
-static int arg_parse (str, entry)
-char *str;
-arg_info *entry;
+ static int
+#ifdef KR_headers
+arg_parse(str, entry)
+	char *str;
+	arg_info *entry;
+#else
+arg_parse(char *str, arg_info *entry)
+#endif
 {
     int length = 0;
 
@@ -407,7 +437,7 @@ arg_info *entry;
 	    while (*store)
 		store++;
 
-	    length = put_one_arg (arg_result_type (*entry), str, store++,
+	    length = put_one_arg(arg_result_type (*entry), str, store++,
 		    arg_prefix (*entry), arg_string (*entry));
 
 	    *store = (char *) NULL;
@@ -418,11 +448,17 @@ arg_info *entry;
 } /* arg_parse */
 
 
-int put_one_arg (type, str, store, prefix, string)
-int type;
-char *str;
-char **store;
-char *prefix, *string;
+ static int
+#ifdef KR_headers
+put_one_arg(type, str, store, prefix, string)
+	int type;
+	char *str;
+	char **store;
+	char *prefix;
+	char *string;
+#else
+put_one_arg(int type, char *str, char **store, char *prefix, char *string)
+#endif
 {
     int length = 0;
     long L;
@@ -433,10 +469,10 @@ char *prefix, *string;
 	    case P_FILE:
 	    case P_OLD_FILE:
 	    case P_NEW_FILE:
+		*store = str;
 		if (str == NULL)
 		    fprintf (stderr, "%s: Missing argument after '%s%s'\n",
 			    this_program, prefix, string);
-		*store = copys(str);
 		length = str ? strlen (str) : 0;
 		break;
 	    case P_CHAR:
@@ -466,11 +502,11 @@ char *prefix, *string;
 		length = strlen (str);
 		break;
 	    case P_FLOAT:
-		*((float *) store) = (float) atof (str);
+		*((float *) store) = (float) atof(str);
 		length = strlen (str);
 		break;
 	    case P_DOUBLE:
-		*((double *) store) = (double) atof (str);
+		*((double *) store) = (double) atof(str);
 		length = strlen (str);
 		break;
 	    default:
@@ -484,9 +520,14 @@ char *prefix, *string;
 } /* put_one_arg */
 
 
-void init_store (table, entries)
-arg_info *table;
-int entries;
+ void
+#ifdef KR_headers
+init_store(table, entries)
+	arg_info *table;
+	int entries;
+#else
+init_store(arg_info *table, int entries)
+#endif
 {
     int index;
 
@@ -499,4 +540,3 @@ int entries;
 	} /* if arg_count == P_INFINITE_ARGS */
 
 } /* init_store */
-
