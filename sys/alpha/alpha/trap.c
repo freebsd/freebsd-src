@@ -121,9 +121,11 @@ userret(p, pc, oticks, have_giant)
 		 * indicated by our priority.
 		 */
 		s = splstatclock();
+		mtx_enter(&sched_lock, MTX_SPIN);
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
+		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 		while ((sig = CURSIG(p)) != 0) {
 			if (have_giant == 0) {
