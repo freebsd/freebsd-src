@@ -698,7 +698,7 @@ pcib_match(device_t dev)
 
 	/* VIA Technologies -- vendor 0x1106 */
 	case 0x85981106:
-		return ("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
+		return ("VIA 82C598MVP/82C694X (Apollo MVP3/Pro133A) PCI-PCI (AGP) bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
@@ -1221,8 +1221,12 @@ pci_chip_match(device_t dev)
 	/* XXX need info on the MVP3 -- any takers? */
 	case 0x05981106:
 		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
+	case 0x06911106:
+		return ("VIA 82C691/693A/694X (Apollo Pro133A) host bridge");
 	case 0x30401106:
 		return ("VIA 82C586B ACPI interface");
+	case 0x30501106:
+		return ("VIA 82C596B ACPI interface");
 	case 0x30571106:
 		return ("VIA 82C686 ACPI interface");
 	case 0x30581106:
