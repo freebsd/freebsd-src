@@ -4500,53 +4500,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 <sect1>
   <title>Upgrading from previous releases of &os;</title>
 
-  <para>If you're upgrading from a previous release of &os;, you
-    generally will have three options:
-
-    <itemizedlist>
-      <listitem>
-	<para>Using the binary upgrade option of &man.sysinstall.8;.
-	  This option is perhaps the quickest, although it presumes
-	  that your installation of &os; uses no special compilation
-	  options.</para>
-      </listitem>
-      <listitem>
-	<para>Performing a complete reinstall of &os;.  Technically,
-	  this is not an upgrading method, and in any case is usually less
-	  convenient than a binary upgrade, in that it requires you to
-	  manually backup and restore the contents of
-	  <filename>/etc</filename>.  However, it may be useful in
-	  cases where you want (or need) to change the partitioning of
-	  your disks.
-      </listitem>
-      <listitem>
-	<para>From source code in <filename>/usr/src</filename>.  This
-	  route is more flexible, but requires more disk space, time,
-	  and technical expertise.  More information can be found
-	  in the <ulink
-	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
-	  <command>make world</command></quote></ulink> section of the <ulink
-	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
-	  Handbook</ulink>.  Upgrading from very old
-	  versions of &os; may be problematic; in cases like this, it
-	  is usually more effective to perform a binary upgrade or a
-	  complete reinstall.</para>
-      </listitem>
-    </itemizedlist>
-  </para>
-
-  <para>Please read the <filename>INSTALL.TXT</filename> file for more
-    information, preferably <emphasis>before</emphasis> beginning an
-    upgrade.  If you are upgrading from source, please be sure to read
-    <filename>/usr/src/UPDATING</filename> as well.</para>
-
-  <para>Finally, if you want to use one of various means to track the
-    -STABLE or -CURRENT branches of &os;, please be sure to consult
-    the <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html"><quote>-CURRENT
-    vs. -STABLE</quote></ulink> section of the <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
-    Handbook</ulink>.</para>
+  <para>Users with existing &os; systems are
+    <emphasis>highly</emphasis> encouraged to read the <quote>Early
+    Adopter's Guide to &os; 5.0</quote>.  This document generally has
+    the filename <filename>EARLY.TXT</filename> on the distribution
+    media, or any other place that the release notes can be found.  It
+    offers some notes on upgrading, but more importantly, also
+    discusses some of the relative merits of upgrading to &os;
+    5.<replaceable>X</replaceable> versus running &os;
+    4.<replaceable>X</replaceable>.</para>
 
   <important>
     <para>Upgrading &os; should, of course, only be attempted after
