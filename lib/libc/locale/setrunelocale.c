@@ -49,6 +49,7 @@ extern int		_UTF2_init __P((_RuneLocale *));
 extern int		_EUC_init __P((_RuneLocale *));
 extern int              _xpg4_setrunelocale __P((char *));
 #endif
+extern int		_MSKanji_init __P((_RuneLocale *));
 extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
 
 #ifdef XPG4
@@ -124,6 +125,8 @@ _xpg4_setrunelocale(encoding)
 	} else if (!strcmp(rl->encoding, "EUC")) {
 		return(_EUC_init(rl));
 #endif
+	} else if (!strcmp(rl->encoding, "MSKanji")) {
+		return(_MSKanji_init(rl));
 	} else
 		return(EINVAL);
 }

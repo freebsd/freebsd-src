@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.8 1997/05/03 03:50:00 jb Exp $
 
 # locale sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/locale ${.CURDIR}/../libc/locale
@@ -7,7 +7,7 @@
 SRCS+=	ansi.c ctype.c euc.c frune.c isctype.c lconv.c localeconv.c \
 	mbrune.c none.c rune.c setlocale.c table.c utf2.c setrunelocale.c \
 	runetype.c tolower.c toupper.c nomacros.c collate.c setinvalidrune.c \
-	collcmp.c
+	collcmp.c mskanji.c
 
 # Only build man pages with libc.
 .if ${LIB} == "c"
