@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.10 1995/12/03 00:17:57 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.11 1995/12/11 15:09:13 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -10,7 +10,7 @@
   <p>Issues of hardware compatibility are among the most
     troublesome in the computer industry today and FreeBSD is by
     no means immune to trouble.  In this respect, FreeBSD's
-    advantage of being able to run on inexpensive commidity PC
+    advantage of being able to run on inexpensive commodity PC
     hardware is also its liability when it comes to support for
     the amazing variety of components on the market.  While it
     would be impossible to provide a exhaustive listing of
@@ -77,7 +77,7 @@ Slippery when wet.  Beware of dog.
     but would welcome any reports on its performance.
 
   <sect2><heading>Disk drives</heading>
-    <p>In this particular game of russian roulette, I'll make few specific
+    <p>In this particular game of Russian roulette, I'll make few specific
     recommendations except to say "SCSI over IDE whenever you can afford it."
     Even in small desktop configurations, SCSI often makes more sense since it
     allows you to migrate drives from server to desktop as falling drive
@@ -113,7 +113,7 @@ Slippery when wet.  Beware of dog.
     <p>I can recommend the <htmlurl url="http://www.smc.com/" name="SMC">
     Ultra 16 controller for any ISA application and the SMC EtherPower
     or Compex ENET32 cards for any serious PCI based networking.  Both of
-    the PCI cards are based around DEC's DC21041 ethernet controller
+    the PCI cards are based around DEC's DC21041 Ethernet controller
     chip and other cards using it, such as the Zynx ZX342 or DEC DE435,
     will generally work as well.
 
@@ -238,7 +238,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	      1995.</em>
 
 	    The procedures to make a Boca 16 pord board with
-	    FreeBSD are pretty straighforward, but you will need
+	    FreeBSD are pretty straightforward, but you will need
 	    a couple things to make it work:
 
 	    <enum>
@@ -264,7 +264,7 @@ device          sio11   at isa? port 0x138 tty flags 0xb05 irq 9 vector siointr
 	    If you do not already have a custom kernel
 	    configuration file set up, refer to <ref
 	    id="kernelconfig" name="Kernel Configuration"> for
-	    general procedurs.  The following are the specifics
+	    general procedures.  The following are the specifics
 	    for the Boca 16 board and assume you are using the
 	    kernel name MYKERNEL and editing with vi.
 
@@ -285,7 +285,7 @@ to the config file.
 
 		The following example is for a Boca Board with an
 		interrupt of 3, and a base IO address 100h.  The
-		IO address for Each port is +8 hexidecimal from
+		IO address for Each port is +8 hexadecimal from
 		the previous port, thus the 100h, 108h, 110h...
 		addresses.
 
@@ -370,7 +370,7 @@ sio16: type 16550A (multiport master)
 		  &gt; more</tt> will show you the boot
 		messages.</item>
 
-	      <item>Next, apprepriate entries in <tt>/dev</tt> for the devices
+	      <item>Next, appropriate entries in <tt>/dev</tt> for the devices
 		must be made using the <tt>/dev/MAKEDEV</tt>
 		script.  After becoming root:
 <tscreen>

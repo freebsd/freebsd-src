@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.30 1996/01/27 15:57:07 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.31 1996/01/28 16:59:05 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -161,7 +161,7 @@ Any entries with a &lt;XXX&gt; are under construction.
               domain.
             <tag/users-groups/ This is the mailing list for the
               coordinators from each of the local area Users Groups to
-              dicuss matters with each other and a designated individual
+              discuss matters with each other and a designated individual
               from the Core Team.  This mail list should be limited to
               meeting synopsis and coordination of projects that span User
               Groups
@@ -184,7 +184,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           To unsubscribe, it is as easy. Just remember to send your request
           to 
           <url url="mailto:Majordomo@FreeBSD.ORG" name="The mail administrator"> 
-          <bf/not/ to the list itself. The last thing the subscribred
+          <bf/not/ to the list itself. The last thing the subscribed
           users want to see is administrative requests...
 
       <sect1>
@@ -320,7 +320,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           strings attached, though at least on the side of enforced
           access rather than the usual opposite.  Due to the additional
           complexities that can evolve in the commercial use of GPL software,
-          we do, however, endevor to replace such software with submissions
+          we do, however, endeavor to replace such software with submissions
           under the more relaxed BSD copyright whenever possible.
 
     <sect>
@@ -373,7 +373,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           with the ``upgrade'' option of the 2.1.0 installation program.
 
           After the installation, if you build a custom kernel, it will run
-          in 4 MB. Someone has even succeded in booting with 2 MB (the
+          in 4 MB. Someone has even succeeded in booting with 2 MB (the
           system was almost unusable though :-))
 
       <sect1>
@@ -803,7 +803,7 @@ sea32550N|Seagate 32550N:\
           <itemize>
             <item>AST/4 in shared IRQ mode,
             <item>ARNET 8 port in shared IRQ mode,
-            <item>BOCA 4/8/16 port cards inshared IRQ mode,
+            <item>BOCA 4/8/16 port cards in shared IRQ mode,
             <item>Cyclades 8/16 port &lt;Alpha&gt;,
             <item>Cronyx/Sigfgma multiport sync/async,
             <item>RISCom/8 multiport card,
@@ -813,7 +813,7 @@ sea32550N|Seagate 32550N:\
           Some unnamed clone cards have also been known to work, especially
           those that claim to be AST compatible.
 
-          A Dibiboard driver is currently in alpha stage.  If you want to
+          A Digiboard driver is currently in alpha stage.  If you want to
           test it, take the file in 
           <url url="ftp://freefall.FreeBSD.ORG/pub/incoming" 
             name="the incoming directory">
@@ -940,13 +940,13 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
               Fujitsu MB86960A/MB86965A Ethernet cards
           </descrip>
 
-          <bf/NOTE/     PCMCIA ethernet cards from IBM and National
+          <bf/NOTE/     PCMCIA Ethernet cards from IBM and National
           Semiconductor.
 
           <bf/NOTE/	Drivers marked with (*) are known to have problems.
 
           <bf/NOTE/ We also support TCP/IP over parallel lines.  At this point
-          we are incompatiable with other versions, but we hope to correct
+          we are incompatible with other versions, but we hope to correct
           this in the near future.
 
       <sect1>
@@ -972,7 +972,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
           <descrip>
             <tag><tt/b004.c/</tag>
-              Driver for B004 compatiable Transputer boards <newline>
+              Driver for B004 compatible Transputer boards <newline>
             <tag>``ctx'' driver</tag>
               Driver for CORTEX-I Frame grabber <newline>
             <tag>``gp'' driver</tag>
@@ -1073,7 +1073,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         <heading>Are there any Database systems for FreeBSD?</heading>
         <p>
          Yes! Conetic Software Systems has ported their C/base and C/books
-         datebase systems to FreeBSD 2.0.5 and higher.
+         database systems to FreeBSD 2.0.5 and higher.
 
          <descrip>
          <tag/For more information/
@@ -1149,7 +1149,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           Yes.  We support the concept of a ``package'', which is
           essentially a gzipped binary distribution with a little extra
           intelligence embedded in it for doing any custom installation
-          work required.  Packages can also be installed or deinstalled
+          work required.  Packages can also be installed or uninstalled
           again easily without having to know the gory details.  CDROM
           people will have a <tt>packages/</tt> directory on their CD,
           others can get the currently available packages from:
@@ -1393,7 +1393,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
         <p>
           Read this:
           <url url="http://www.freebsd.org/How/handbook/current.html"
-            name="Handook's section of FreeBSD-CURRENT">
+            name="Handbook's section of FreeBSD-CURRENT">
           it will tell you all you need to know.
           
       <sect1>
@@ -1404,13 +1404,13 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           for keeping their development trees in sync.  We use it to keep
           remote sites in sync with our central development sources.
 
-          Unless you have direct internet connectivity, and don't care too
+          Unless you have direct Internet connectivity, and don't care too
           much about the cost/duration of the sessions, you shouldn't use
           sup.  For those ``low/expensive-bandwidth'' applications, we have
           developed <tt/CTM/, see the section <ref id="ctm" name="on CTM">
           for more about that.
 
-          To use it, you need to have direct internet connectivity (not
+          To use it, you need to have direct Internet connectivity (not
           just mail or news).  First, pick up the <tt/sup.tgz/ package
           from:
 
@@ -1433,7 +1433,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
 
       <sect1>
-        <heading>Has anyone done any temperature testing while running FreeBSD? I know linux runs cooler than dos, but have never seen a mention of FreeBSD.  It seems to run really hot</heading>
+        <heading>Has anyone done any temperature testing while running FreeBSD? I know Linux runs cooler than dos, but have never seen a mention of FreeBSD.  It seems to run really hot</heading>
         <p>
           No, but we have done numerous taste tests on blindfolded
           volunteers who have also had 250 micrograms of LSD-25
@@ -1448,7 +1448,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           funny old business we're in!
 
           Seriously, Linux use the ``<tt/HALT/'' instruction when the
-          system is idle thus lowering its energy comsumption and therefore
+          system is idle thus lowering its energy consumption and therefore
           the heat it generates.
 
       <sect1>
@@ -1523,7 +1523,7 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
 
         <p>
           Newer BSD based systems have a ``<tt/-b/'' option to split that
-          allows them to split files on arbitary byte bondaries.
+          allows them to split files on arbitrary byte boundaries.
 
           Here is an example from <tt>/usr/src/Makefile</tt>.
 
@@ -1542,10 +1542,10 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
       <sect1>
 	<heading>I've got this neato kernel extension I just know everyone will will want.  How do I get it included into the distribution?</heading>
         <p>
-          Please take a look at the FAQ for submiting code to FreeBSD at:
+          Please take a look at the FAQ for submitting code to FreeBSD at:
 
           <url url="http://www.FreeBSD.ORG/How/handbook/submitters.html"
-            name="Handbbook's section on how to submit code">.
+            name="Handbook's section on how to submit code">.
 
           And thanks for the thought.
 
@@ -1620,11 +1620,11 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           helpful in configuring the new one.
 
       <sect1>
-        <heading>I don't understand, I have removed <tt/npx0/ from my kernel configuration file as I don't have a mathematic coprocessor but it keeps bombing saying that <tt/&lowbar;hw&lowbar;float/ is missing.</heading>
+        <heading>I don't understand, I have removed <tt/npx0/ from my kernel configuration file as I don't have a mathematic co-processor but it keeps bombing saying that <tt/&lowbar;hw&lowbar;float/ is missing.</heading>
 
         <p>
           The <tt/npx0/ is <bf/MANDATORY/. Even if you don't have a
-          mathematic coprocessor, you <bf/must/ include the <tt/npx0/
+          mathematic co-processor, you <bf/must/ include the <tt/npx0/
           device.
 
       <sect1>
@@ -1675,7 +1675,7 @@ disk        fd1   at fdc0 drive 1
           write to through a special program to manage it called
           ``<tt/ft/'' - see the man page on <tt/ft/ for further details.
           Versions previous to <tt/-current/ also had some trouble dealing
-          wiht bad tape media; if you have trouble where <tt/ft/ seems to
+          with bad tape media; if you have trouble where <tt/ft/ seems to
           go back and forth over the same spot, try grabbing the latest
           version of <tt/ft/ from <tt>/usr/src/sbin/ft</tt> in
           <tt/-current/ and try that.
@@ -1725,7 +1725,7 @@ disk        fd1   at fdc0 drive 1
         <p>
           The panic indicates that the system ran out of virtual memory for
           network buffers (specifically, mbuf clusters). You can increase
-          the amount of VM avaliable for mbuf clusters by adding:
+          the amount of VM available for mbuf clusters by adding:
 
           <code>
             options "NMBCLUSTERS=<n>"
@@ -1786,7 +1786,7 @@ disk        fd1   at fdc0 drive 1
           put additional services like <tt/INN/ or a <tt/http/ server.
 
           The <tt>/etc/rc.serial</tt> is for serial port initialization
-          (e.g. locking the port characterictics, and so on.).
+          (e.g. locking the port characteristics, and so on.).
 
           The <tt>/etc/rc.i386</tt> is for Intel-specifics setting like the
           iBCS2 emulation.
@@ -2010,7 +2010,7 @@ disk        fd1   at fdc0 drive 1
 
         <p>
           Some versions of the Linux NFS code only accept mount requests
-          from a priviledged port; try
+          from a privileged port; try
           <verb>
             mount -o -P linuxbox:/blah /mnt
           </verb>
@@ -2019,14 +2019,14 @@ disk        fd1   at fdc0 drive 1
           
         <p>
           Sun workstations running SunOS 4.X only accept mount requests
-          from a priviledged port; try
+          from a privileged port; try
           <verb>
             mount -o -P sunbox:/blah /mnt
           </verb>
-      <sect1><heading>I'm having problems with my NeXTStep machines and other FreeBSD ones accross PPP</heading>
+      <sect1><heading>I'm having problems with my NeXTStep machines and other FreeBSD ones across PPP</heading>
 
         <p>
-          Try disabling the TCP extentions in <tt>/etc/sysconfig</tt> by
+          Try disabling the TCP extensions in <tt>/etc/sysconfig</tt> by
           changing the following variable to NO:
           <verb>
             tcp_extensions=NO
@@ -2228,7 +2228,7 @@ Zynx            ZX342
 	<heading>How can I enable dialup logins on my modem?</heading>
         <p>
           So you want to become an Internet service provider, eh?  First,
-          you'll need one or more modems that can autoanswer.  Your modem
+          you'll need one or more modems that can auto-answer.  Your modem
           will need to assert carrier-detect when it detects a carrier and
           not assert it all the time.  It will need to hang up the phone
           and reset itself when the data terminal ready (<tt/DTR/) line

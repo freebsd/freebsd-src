@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.1 1995/10/14 21:49:45 jfieber Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.2 1995/11/01 00:42:17 gpalmer Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -9,7 +9,7 @@ Firewalls are an area of increasing interest for people who are
 connected to the Internet, and are even finding applications on
 private networks to provide enhanced security. This section will
 hopefully explain what firewalls are, how to use them, and how to use
-the facilities provided in the FreeBSD kernel to impliment them.
+the facilities provided in the FreeBSD kernel to implement them.
 
 <quote><bf>Note</bf>: People often think that having a firewall between
 your companies internal network and the ``Big Bad Internet'' will
@@ -41,7 +41,7 @@ generally more secure than normal authentication mechanisms.
 <p>FreeBSD comes with a kernel packet filter (known as <tt>IPFW</tt>),
 which is what the rest of this section will concentrate on. Proxy
 servers can be built on FreeBSD from third party software, but there
-is such a vareity of proxy servers available that it would be
+is such a variety of proxy servers available that it would be
 impossible to cover them in this document.
 
 <sect2><heading>Packet filtering routers<label id="firewalls:packet_filters"></heading>
@@ -234,12 +234,12 @@ For the accounting chain, valid <em>actions</em> are:
 <tag/single/Count packets matching the address specifier.
 
 <tag/bidirectional/Count packets matching the address specifier, and
-also packets travelling in the opposite direction (i.e. those going
+also packets traveling in the opposite direction (i.e. those going
 from ``destination'' to ``source'').
 
 </descrip>
 
-<p>Each <em>action</em> will be recognized by the shortest unambigious
+<p>Each <em>action</em> will be recognized by the shortest unambiguous
 prefix.
 
 The <em>protocols</em> which can be specified are:
@@ -341,7 +341,7 @@ form. The valid <em>commands</em> are:
 <descrip>
 
 <tag/list/List the chain rule entries. Unless the <bf>-s</bf> flag is
-given, the format is compatable with the command line syntax.
+given, the format is compatible with the command line syntax.
 
 <tag/flush/Flush the chain rule entries.
 
@@ -436,7 +436,7 @@ possible attacks and also modification of the firewall rules if your
 requirements alter.
 
 <quote><bf>Note:</BF> If you use the logging versions of the
-<bf>accept</bf> command, it can generate <em>large</em> ammounts
+<bf>accept</bf> command, it can generate <em>large</em> amounts
 of log data as one log line will be generated for every packet
 that passes through the firewall, so large ftp/http transfers,
 etc, will really slow the system down. It also increases the
@@ -469,14 +469,14 @@ will allow the script to be fed into /bin/sh and reload the rules into
 the kernel. Perhaps not the most efficient way, but it works.
 
 <p>The next problem is what your firewall should actually <bf>DO</bf>!
-This is largely dependant on what access to your network you want to
+This is largely dependent on what access to your network you want to
 allow from the outside, and how much access to the outside world you
 want to allow from the inside. Some general rules are:
 
 <itemize>
 
  <item>Block all incoming access to ports below 1000 for TCP. This is
-where most of the security sensitive services are, like finger, smtp
+where most of the security sensitive services are, like finger, SMTP
 (mail) and telnet.
 
  <item>Block incoming SYN connections to ports between 1001 and 1024
@@ -488,7 +488,7 @@ outside, then extend the above suggestion to cover ports 1-1024.
 useful services that travel over UDP, and what useful traffic there is
 is normally a security threat (e.g. Suns RPC and NFS protocols). This
 has its disadvantages also, since UDP is a connectionless protocol,
-denying incoming UDP traffic also blocks the replies to outoing UDP
+denying incoming UDP traffic also blocks the replies to outgoing UDP
 traffic. This can cause a problem for people (on the inside)
 using external archie (prospero) servers.  If you want to allow access
 to archie, you'll have to allow packets coming from ports 191 and 1525
@@ -497,7 +497,7 @@ you may consider allowing through, which comes from port 123.
 
  <item>Block traffic to port 6000 from the outside. Port 6000 is the
 port used for access to X11 servers, and can be a security threat
-(especially if people are in the habbit of doing <tt>xhost +</tt> on
+(especially if people are in the habit of doing <tt>xhost +</tt> on
 their workstations). X11 can actually use a range of ports starting at
 6000, the upper limit being how many X displays you can run on the
 machine. The upper limit as defined by RFC 1700 (Assigned Numbers) is
@@ -509,7 +509,7 @@ normally fall outside the 1-1024 range specified above.
 
 </itemize>
 
-<p>Of course, if you want to make sure that no un-authorised traffic
+<p>Of course, if you want to make sure that no un-authorized traffic
 gets through the firewall, change the default policy to ``deny''. This
 will mean that any traffic which is allowed through has to be
 specified explicitly in an ``accept'' or ``allow'' filter rule. Which

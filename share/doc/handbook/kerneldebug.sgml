@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.5 1995/10/22 00:42:10 jfieber Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.6 1996/01/03 11:10:30 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -330,7 +330,7 @@
 <tscreen><verb>
   x ,10
 </verb></tscreen>
-  Similiarly, use
+  Similarly, use
 <tscreen><verb>
   x/ia foofunc,10
 </verb></tscreen>
@@ -401,7 +401,7 @@
   is the final way out of disaster and almost the same as hitting
   the Big Red Button.
 
-  If you nead a short command summary, simply type
+  If you need a short command summary, simply type
 <tscreen><verb>
   help
 </verb></tscreen>

@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.3 1995/08/29 01:42:35 jfieber Exp $
+     $Id: dialup.sgml,v 1.4 1995/12/04 17:58:37 jfieber Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -290,7 +290,7 @@ version 1.1.5 and higher, there are also initialization devices
 (<tt>/dev/ttyld?</tt> and <tt>/dev/cual0?</tt>).  The initialization
 devices are used to initialize communications port parameters each
 time a port is opened, such as <tt>crtscts</tt> for modems which use
-<tt>CTS/RTS</tt> signalling for flow control.  The locking devices are
+<tt>CTS/RTS</tt> signaling for flow control.  The locking devices are
 used to lock flags on ports to prevent users or programs changing
 certain parameters; see the manual pages <tt/termios(4)/, <tt/sio(4)/,
 and <tt/stty(1)/ for information on the terminal settings, locking
@@ -440,7 +440,7 @@ parity; otherwise, the default is 7 bits, even parity.
 
 The example above starts the communications rate at 19.2 Kbps (for a
 V.32bis connection), then cycles through 9600 bps (for V.32), 2400
-bps, 1200 bps, 300 bps, and back to 19.2 Kbps.  Communcations rate
+bps, 1200 bps, 300 bps, and back to 19.2 Kbps.  Communications rate
 cycling is implemented with the <tt/nx=/ (<bf/next table/) capability.
 Each of the lines uses a <tt/tc=/ (<bf/table continuation/) entry to
 pick up the rest of the ``standard'' settings for a particular data
@@ -519,7 +519,7 @@ kill -1 1
 
 to send the signal.  If this is your first time setting up the system,
 though, you may want to wait until your modem(s) are properly
-configured and connected before signalling <tt/init/.
+configured and connected before signaling <tt/init/.
 
 <sect3><heading>Locked-Speed Config</heading>
 <p>
@@ -774,7 +774,7 @@ If you still can't get a <tt/login:/ prompt, check
 <item> The initial capability name specified in <tt>/etc/ttys</tt> for
 the line matches a name of a capability in <tt>/etc/gettytab</tt>
 
-<item> Each <tt/nx=/ entry matches another <tt/gettytab/ capabilty
+<item> Each <tt/nx=/ entry matches another <tt/gettytab/ capability
 name
 
 <item> Each <tt/tc=/ entry matches another <tt/gettytab/ capability
@@ -795,7 +795,7 @@ url="mailto:questions@freebsd.org" name="questions@FreeBSD.ORG"></tt>
 describing your modem and your problem, and the good folks on the list will
 try to help.
 
-<sect1><heading>Acknowledgements</heading>
+<sect1><heading>Acknowledgments</heading>
 <p>
 
 Thanks to these people for comments and advice:

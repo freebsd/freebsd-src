@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: diskless.sgml,v 1.2 1995/06/30 17:37:35 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
@@ -28,7 +28,7 @@
 	      <itemize>
 		<item>HP9000/8xx running HP-UX 9.04 or later (pre
 		  9.04 doesn't work)</item> 
-		<item>Sun/Solaries 2.3. (you may need to get
+		<item>Sun/Solaris 2.3. (you may need to get
 		  bootp)</item>
 	      </itemize>
 	    
@@ -61,8 +61,8 @@ server <X.X.X.X>	- print/set bootp/tftp server address
 netmask <X.X.X.X>	- print/set netmask
 hostname <name>		- print/set hostname
 kernel <name>		- print/set kernel name
-rootfs <ip:/fs>		- print/set rootfilesystem
-swapfs <ip:/fs>		- print/set swapfilesystem
+rootfs <ip:/fs>		- print/set root filesystem
+swapfs <ip:/fs>		- print/set swap filesystem
 swapsize <size>		- set diskless swapsize in Kbytes
 diskboot		- boot from disk
 autoboot		- continue boot process

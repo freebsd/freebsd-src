@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.7 1995/11/20 01:10:28 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.8 1995/12/07 13:22:16 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -534,7 +534,7 @@
 	    emulator is in its early stages and has not been
 	    extensively tested, but it is functional.  Most of
 	    SCO's 3.2.2 binaries work, as does an old
-	    INFORMIX-2.10 for SCO. Further testing is nessesary
+	    INFORMIX-2.10 for SCO. Further testing is necessary
 	    to complete this project. There is also work under
 	    way for ELF and XOUT loaders, and most of the svr4
 	    syscall wrappers are written.
@@ -554,9 +554,9 @@
 	you can!).
 
 	The preferred method to submit bug reports from a machine
-	with internet mail connectivity is to use the send-pr
+	with Internet mail connectivity is to use the send-pr
 	command.  Bug reports will be dutifully filed by our
-	faithful bugfiler program and you can be sure that we'll
+	faithful bug-filer program and you can be sure that we'll
 	do our best to respond to all reported bugs as soon as
 	possible.
 
