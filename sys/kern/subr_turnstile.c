@@ -230,7 +230,7 @@ mtx_enter_hard(struct mtx *m, int type, int saveintr)
 			return;
 		}
 		CTR3(KTR_LOCK, "mtx_enter: 0x%p contested (lock=%p) [0x%p]",
-		    m, m->mtx_lock, RETIP(m));
+		    m, (void *)m->mtx_lock, (void *)RETIP(m));
 		while (!_obtain_lock(m, p)) {
 			uintptr_t v;
 			struct proc *p1;
@@ -460,10 +460,10 @@ mtx_exit_hard(struct mtx *m, int type)
 #endif
 			setrunqueue(p);
 			CTR2(KTR_LOCK, "mtx_exit: 0x%p switching out lock=0x%p",
-			    m, m->mtx_lock);
+			    m, (void *)m->mtx_lock);
 			mi_switch();
 			CTR2(KTR_LOCK, "mtx_exit: 0x%p resuming lock=0x%p",
-			    m, m->mtx_lock);
+			    m, (void *)m->mtx_lock);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 		break;
