@@ -29,6 +29,10 @@
  * $FreeBSD$
  */
 
+#ifdef PC98
+#define MECIA_SUPPORT
+#endif
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
@@ -38,12 +42,12 @@
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
-#ifdef	PC98
+#ifdef	MECIA_SUPPORT
 #include <pccard/pcic98reg.h>
 #ifndef PCIC98_IOBASE
 #define PCIC98_IOBASE   0x80d0
 #endif
-#endif /* PC98 */
+#endif /* MECIA_SUPPORT */
 
 /* Get pnp IDs */
 #include <isa/isavar.h>
@@ -67,7 +71,7 @@ static struct callout_handle pcictimeout_ch
     = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
-#ifdef PC98
+#ifdef	MECIA_SUPPORT
 /* local functions for PC-98 Original PC-Card controller */
 static int		pcic98_power(struct slot *);
 static void		pcic98_mapirq(struct slot *, int);
@@ -76,7 +80,7 @@ static int		pcic98_io(struct slot *, int);
 static timeout_t 	pcic98_reset;
 static void		pcic98_disable(struct slot *);
 static void		pcic98_resume(struct slot *);
-#endif /* PC98 */
+#endif /* MECIA_SUPPORT */
 
 /*
  *	Per-slot data table.
@@ -108,9 +112,9 @@ static struct isa_pnp_id pcic_ids[] = {
 };
 
 static int validunits = 0;
-#ifdef PC98
+#ifdef	MECIA_SUPPORT
 static	u_char		pcic98_last_reg1;
-#endif /* PC98 */
+#endif /* MECIA_SUPPORT */
 
 #define GET_UNIT(d)	*(int *)device_get_softc(d)
 #define SET_UNIT(d,u)	*(int *)device_get_softc(d) = (u)
@@ -502,7 +506,7 @@ pcic_probe(device_t dev)
 		/* XXX need to allocated the port resources */
 		device_set_desc(dev, "MECIA PC98 Original PCMCIA Controller");
 	}
-#endif  /* PC98 */
+#endif  /* MECIA_SUPPORT */
 	return (validslots ? 0 : ENXIO);
 }
 
@@ -598,7 +602,7 @@ pcic_attach(device_t dev)
 		if (sp->slt == NULL)
 			continue;
 
-#ifdef PC98
+#ifdef	MECIA_SUPPORT
 		if (sp->controller == PCIC_PC98) {
 			pcic98_last_reg1 = inb(PCIC98_REG1);
 			if (pcic98_last_reg1 & PCIC98_CARDEXIST) {
@@ -609,7 +613,7 @@ pcic_attach(device_t dev)
 				sp->slt->laststate = sp->slt->state = empty;
 			}
 		} else
-#endif /* PC98 */
+#endif /* MECIA_SUPPORT */
 		{
 			do_mgt_irq(sp, irq);
 
@@ -840,7 +844,7 @@ pcicintr(void *arg)
 	struct pcic_slot *sp = &pcic_slots[unit * PCIC_CARD_SLOTS];
 
 	s = splhigh();
-#ifdef	PC98
+#ifdef	MECIA_SUPPORT
 	if (sp->controller == PCIC_PC98) {
 	    	u_char reg1;
 		/* Check for a card in this slot */
@@ -853,7 +857,7 @@ pcicintr(void *arg)
 				pccard_event(sp->slt, card_removed);
 		}
 	} else
-#endif	/* PC98 */
+#endif	/* MECIA_SUPPORT */
 	{
 		for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
 			if (sp->slt &&
@@ -893,7 +897,7 @@ pcic_resume(struct slot *slt)
 	}
 }
 
-#ifdef PC98
+#ifdef	MECIA_SUPPORT
 /*
  * local functions for PC-98 Original PC-Card controller
  */
@@ -1121,7 +1125,7 @@ pcic98_resume(struct slot *slt)
 {
 	/* XXX PCIC98 How ? */
 }
-#endif	/* PC98 */
+#endif /* MECIA_SUPPORT */
 /* end of local functions for PC-98 Original PC-Card controller */
 
 static int
