@@ -27,9 +27,41 @@ please install from:
 1. What's new since 2.2.5
 -------------------------
 
-Fixed /dev/io security hole.
+Kernel features:
 
-<add additional items here>
+o Added support for SMC EtherPower II 10/100 Fast Ethernet card
+  (aka SMC9432TX based on SMC83c170 EPIC chip).
+
+o PNP (Plug-n-Play) support added (see pnp(4)) and PCCARD support improved.
+
+o Added support for ATAPI floppy drives (LS-120)
+
+
+Userland features:
+
+o Added support for parallel makes in /usr/src (-j<n> works now with
+  world target, particularly useful with SMP machines).
+
+o tcpdump(1) utility enhanced
+
+o Support for ldconfig -R (remove) added.
+
+o Various bugfixes and enhancements to pthread support.
+
+o calendar(1) program brought more up-to-date.
+
+o Various curses(3) bugs fixed.
+
+o Various IEEE754 conformance changes to libm(3).
+
+o Much cleanup and general improvements to the documentation.
+
+o Various improvements to the NIS code.
+
+
+Security issues:
+
+Fixed /dev/io security hole.
 
 
 2. Supported Configurations
