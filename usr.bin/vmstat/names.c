@@ -44,51 +44,24 @@ char *defdrives[] = { 0 };
  */
 #include <i386/isa/isa_device.h>
 
-char *defdrives[] = { "fd0", "fd1", "wd0", "wd1", "sd0", "sd1", 0 };
+char *defdrives[] = { "wd0", "wd1", "sd0", "sd1" };
 
 int
 read_names()
 {
-	register char *p;
-	register u_long isa_bio;
-	static char buf[BUFSIZ];
-	struct isa_device dev;
-	struct isa_driver drv;
-	char name[10];
-	int i = 0;
-	int dummydk = 0;
-	int fdunit = 0;
-	int wdunit = 0;
-	int ahaunit = 0;
+	u_long dk_names;
+	static char thenames[DK_NDRIVE][DK_NAMELEN];
+	int i;
 
-	isa_bio = namelist[X_ISA_BIO].n_value;
-	if (isa_bio == 0) {
-		(void) fprintf(stderr,
-		    "vmstat: disk init info not in namelist\n");
+	dk_names = namelist[X_DK_NAMES].n_value;
+	if (dk_names == 0) {
+		warnx("disk name info not in namelist");
 		return(0);
 	}
 		
-	p = buf;
-	for (;; isa_bio += sizeof dev) {
-		(void)kvm_read(kd, isa_bio, &dev, sizeof dev);
-		if (dev.id_driver == 0)
-			break;
-		if (dev.id_alive == 0)
-			continue;
-		(void)kvm_read(kd, (u_long)dev.id_driver, &drv, sizeof drv);
-		(void)kvm_read(kd, (u_long)drv.name, name, sizeof name);
-
-		/*
-		 * XXX FreeBSD is kinda brain dead about dk_units, or at least
-		 * I can't figure out how to get the real unit mappings
-		 */
-		if (strcmp(name, "fd") == 0) dummydk = fdunit++;
-		if (strcmp(name, "wd") == 0) dummydk = wdunit++;
-		if (strcmp(name, "aha") == 0) dummydk = ahaunit++;
-
-		dr_name[i] = p;
-		p += sprintf(p, "%s%d", name, dummydk) + 1;
-		i++;
+	kvm_read(kd, dk_names, thenames, sizeof thenames);
+	for(i = 0; thenames[i][0]; i++) {
+		dr_name[i] = thenames[i];
 	}
 	return(1);
 }
