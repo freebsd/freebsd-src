@@ -1755,7 +1755,7 @@ KeAcquireSpinLockAtDpcLevel(kspin_lock *lock)
 }
 
 __stdcall void
-KefReleaseSpinLockFromDpcLevel(kspin_lock *lock)
+KeReleaseSpinLockFromDpcLevel(kspin_lock *lock)
 {
 	atomic_store_rel_int((volatile u_int *)lock, 0);
 
