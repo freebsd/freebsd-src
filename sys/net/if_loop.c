@@ -345,7 +345,7 @@ if_simloop(ifp, m, af, hlen)
 	}
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
-	netisr_dispatch(isr, m);
+	netisr_queue(isr, m);
 	return (0);
 }
 
