@@ -207,7 +207,7 @@ sub spawn($@) {
 sub make($) {
     my $target = shift;
 
-    return spawn('/usr/bin/make', "-Pj$jobs", $target);
+    return spawn('/usr/bin/make', "-j$jobs", $target);
 }
 
 sub logstage($) {
@@ -464,7 +464,7 @@ MAIN:{
 	    if $branch ne 'CURRENT';
 	$ENV{'CVSCMDARGS'} = "-D$date"
 	    if defined($date);
-	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} = "-Pj$jobs";
+	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} = "-j$jobs";
 	if ($patch) {
 	    $ENV{'LOCAL_PATCHES'} = $patch;
 	    $ENV{'PATCH_FLAGS'} = "-fs";
