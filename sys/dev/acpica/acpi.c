@@ -268,8 +268,9 @@ acpi_probe(device_t dev)
 {
     ACPI_TABLE_HEADER	th;
     char		buf[20];
-    ACPI_STATUS		status;
     int			error;
+    struct sbuf		sb;
+    ACPI_STATUS		status;
     ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -288,8 +289,15 @@ acpi_probe(device_t dev)
 		      AcpiFormatException(status));
 	error = ENXIO;
     } else {
-	sprintf(buf, "%.6s %.8s", th.OemId, th.OemTableId);
-	device_set_desc_copy(dev, buf);
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_bcat(&sb, th.OemId, 6);
+	sbuf_trim(&sb);
+	sbuf_putc(&sb, ' ');
+	sbuf_bcat(&sb, th.OemTableId, 8);
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	device_set_desc_copy(dev, sbuf_data(&sb));
+	sbuf_delete(&sb);
 	error = 0;
     }
     ACPI_UNLOCK;
