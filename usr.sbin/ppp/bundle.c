@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.16 1998/06/15 19:05:10 brian Exp $
+ *	$Id: bundle.c,v 1.17 1998/06/15 19:06:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -513,12 +513,12 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
 }
 
 void
-bundle_Down(struct bundle *bundle)
+bundle_Down(struct bundle *bundle, int how)
 {
   struct datalink *dl;
 
   for (dl = bundle->links; dl; dl = dl->next)
-    datalink_Down(dl, CLOSE_STAYDOWN);
+    datalink_Down(dl, how);
 }
 
 static int
