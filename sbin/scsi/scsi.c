@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.9 1995/07/11 09:21:33 dufault Exp $
+ *	$Id: scsi.c,v 1.10 1995/07/30 12:58:47 joerg Exp $
  */
 
 #include <stdio.h>
@@ -281,8 +281,8 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 	struct get_hook h;
 	scsireq_t *scsireq = scsireq_new();
 	enum data_phase data_phase;
-	int count;
-	char *data_fmt;
+	int count, amount;
+	char *data_fmt, *bp;
 
 	h.argc = argc;
 	h.argv = argv;
@@ -335,10 +335,25 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 			{
 				if (strcmp(data_fmt, "-") == 0)	/* Read data from stdin */
 				{
-					if (read(0, scsireq->databuf, count) != count)
+					bp = (char *)scsireq->databuf;
+					while (count > 0 && (amount = read(0, bp, count)) > 0)
+					{
+						count -= amount;
+						bp += amount;
+					}
+					if (amount == -1)
 					{
 						perror("read");
 						exit(errno);
+					}
+					else if (amount == 0)
+					{
+						/* early EOF */
+						fprintf(stderr,
+							"Warning: only read %lu bytes out of %lu.\n",
+							scsireq->datalen - (u_long)count,
+							scsireq->datalen);
+						scsireq->datalen -= (u_long)count;
 					}
 				}
 				else
@@ -366,11 +381,22 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 	{
 		if (strcmp(data_fmt, "-") == 0)	/* stdout */
 		{
-			if (write(1, scsireq->databuf, count) != count)
+			bp = (char *)scsireq->databuf;
+			while (count > 0 && (amount = write(1, bp, count)) > 0)
+			{
+				count -= amount;
+				bp += amount;
+			}
+			if (amount < 0)
 			{
 				perror("write");
 				exit(errno);
 			}
+			else if (amount == 0)
+				fprintf(stderr, "Warning: wrote only %d bytes out of %d.\n",
+					scsireq->datalen - count,
+					scsireq->datalen);
+			
 		}
 		else
 		{
