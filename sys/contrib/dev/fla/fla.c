@@ -209,7 +209,7 @@ flastrategy(struct bio *bp)
 
 		devstat_start_transaction(&sc->stats);
 		bp->bio_resid = bp->bio_bcount;
-		unit = dkunit(bp->bio_dev);
+		unit = sc->unit;
 
 		if (bp->bio_cmd == BIO_DELETE)
 			what = DOC2K_ERASE;
