@@ -139,7 +139,7 @@ astattach(struct atapi_softc *atp)
     devstat_add_entry(&stp->stats, "ast", stp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
-		      0x170);
+		      DEVSTAT_PRIORITY_TAPE);
     dev = make_dev(&ast_cdevsw, dkmakeminor(stp->lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0640, "rast%d", stp->lun);
     dev->si_drv1 = stp;
