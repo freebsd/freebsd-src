@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.230 1997/03/22 18:52:10 kato Exp $
+ *	$Id: machdep.c,v 1.231 1997/03/24 11:23:29 bde Exp $
  */
 
 #include "npx.h"
@@ -568,7 +568,7 @@ sigreturn(p, uap, retval)
 	     ((caddr_t)scp - offsetof(struct sigframe, sf_sc));
 
 	if (useracc((caddr_t)fp, sizeof (*fp), B_WRITE) == 0)
-		return(EINVAL);
+		return(EFAULT);
 
 	/*
 	 * Don't allow users to change privileged or reserved flags.
