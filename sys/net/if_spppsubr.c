@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.49 1998/12/26 12:14:31 phk Exp $
+ * $Id: if_spppsubr.c,v 1.50 1998/12/26 12:43:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -619,6 +619,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct ppp_header *h;
 	struct ifqueue *ifq;
 	int s, rv = 0;
+	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
 
@@ -671,7 +672,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	M_PREPEND (m, PPP_HEADER_LEN, M_DONTWAIT);
 	if (! m) {
-		if (ifp->if_flags & IFF_DEBUG)
+		if (debug)
 			log(LOG_DEBUG, SPP_FMT "no memory for transmit header\n",
 				SPP_ARGS(ifp));
 		++ifp->if_oerrors;
@@ -1830,7 +1831,7 @@ sppp_lcp_down(struct sppp *sp)
 	 */
 	if ((ifp->if_flags & (IFF_AUTO | IFF_PASSIVE)) == 0) {
 		log(LOG_INFO,
-		    SPP_FMT "Down event (carrier loss), taking interface down.\n",
+		    SPP_FMT "Down event, taking interface down.\n",
 		    SPP_ARGS(ifp));
 		if_down(ifp);
 	} else {
@@ -2240,7 +2241,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 static void
 sppp_lcp_tlu(struct sppp *sp)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 	int i;
 	u_long mask;
 
@@ -2262,8 +2263,9 @@ sppp_lcp_tlu(struct sppp *sp)
 	else
 		sp->pp_phase = PHASE_NETWORK;
 
-	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-	    sppp_phase_name(sp->pp_phase));
+	if (debug)
+		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+		    sppp_phase_name(sp->pp_phase));
 
 	/*
 	 * Open all authentication protocols.  This is even required
@@ -2296,14 +2298,15 @@ sppp_lcp_tlu(struct sppp *sp)
 static void
 sppp_lcp_tld(struct sppp *sp)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 	int i;
 	u_long mask;
 
 	sp->pp_phase = PHASE_TERMINATE;
 
-	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-	    sppp_phase_name(sp->pp_phase));
+	if (debug)
+		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+		    sppp_phase_name(sp->pp_phase));
 
 	/*
 	 * Take upper layers down.  We send the Down event first and
@@ -2321,12 +2324,13 @@ sppp_lcp_tld(struct sppp *sp)
 static void
 sppp_lcp_tls(struct sppp *sp)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 
 	sp->pp_phase = PHASE_ESTABLISH;
 
-	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-	    sppp_phase_name(sp->pp_phase));
+	if (debug)
+		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+		    sppp_phase_name(sp->pp_phase));
 
 	/* Notify lower layer if desired. */
 	if (sp->pp_tls)
@@ -2338,11 +2342,12 @@ sppp_lcp_tls(struct sppp *sp)
 static void
 sppp_lcp_tlf(struct sppp *sp)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 
 	sp->pp_phase = PHASE_DEAD;
-	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-	    sppp_phase_name(sp->pp_phase));
+	if (debug)
+		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+		    sppp_phase_name(sp->pp_phase));
 
 	/* Notify lower layer if desired. */
 	if (sp->pp_tlf)
@@ -3981,14 +3986,15 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 static void
 sppp_phase_network(struct sppp *sp)
 {
-	struct ifnet *ifp = &sp->pp_if;
+	STDDCL;
 	int i;
 	u_long mask;
 
 	sp->pp_phase = PHASE_NETWORK;
 
-	log(LOG_INFO, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
-	    sppp_phase_name(sp->pp_phase));
+	if (debug)
+		log(LOG_DEBUG, SPP_FMT "phase %s\n", SPP_ARGS(ifp),
+		    sppp_phase_name(sp->pp_phase));
 
 	/* Notify NCPs now. */
 	for (i = 0; i < IDX_COUNT; i++)
