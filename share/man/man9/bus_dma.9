@@ -324,7 +324,7 @@ Boundary constraint, in bytes, of the target DMA memory region.
 The boundary indicates the set of addresses, all multiples of the
 boundary argument, that cannot be crossed by a single
 .Vt bus_dma_segment_t .
-The boundary must be a power of 2 and must be no smaller that the
+The boundary must be a power of 2 and must be no smaller than the
 maximum segment size.
 .Ql 0
 indicates that there are no boundary restrictions.
@@ -333,7 +333,7 @@ indicates that there are no boundary restrictions.
 Bounds of the window of bus address space that
 .Em cannot
 be directly accessed by the device.
-The window contains all address greater than lowaddr and
+The window contains all addresses greater than lowaddr and
 less than or equal to highaddr.
 For example, a device incapable of DMA above 4GB, would specify
 a highaddr of
