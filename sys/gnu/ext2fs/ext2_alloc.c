@@ -112,6 +112,9 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 {
 	register struct ext2_sb_info *fs;
 	daddr_t bno;
+#if QUOTA
+	int error;
+#endif
 	
 	*bnp = 0;
 	fs = ip->i_e2fs;

@@ -713,6 +713,9 @@ ext2_flushfiles(mp, flags, p)
 #endif
 	register struct ufsmount *ump;
 	int error;
+#if QUOTA
+	int i;
+#endif
 
 	if (!doforce)
 		flags &= ~FORCECLOSE;
