@@ -33,8 +33,8 @@ CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
 CFLAGS+=	-DKERBEROS
-DPADD+=		${LIBKRB} ${LIBDES} ${LIBGCC_PIC}
-LDADD+=		-lkrb -ldes -lgcc_pic
+DPADD+=		${LIBKRB} ${LIBDES} ${LIBGCC_PIC} ${LIBCOM_ERR}
+LDADD+=		-lkrb -ldes -lgcc_pic -lcom_err
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
