@@ -50,6 +50,11 @@ The process group of the process identified by
 .Fa pid
 is returned by
 .Fn getpgid .
+If
+.Fa pid
+is zero,
+.Fn getpgid
+returns the process group of the current process.
 .Pp
 Process groups are used for distribution of signals, and
 by terminals to arbitrate requests for their input: processes
