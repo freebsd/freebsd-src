@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002 Jake Burkholder
+ * Copyright (c) 2004 Robert Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SBUFLEN	128
 #define	USAGE \
-	"usage: ktrdump [-c] [-f] [-q] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
+	"usage: ktrdump [-c] [-f] [-q] [-r] [-t] [-e execfile] [-i ktrfile ] [-m corefile] [-o outfile]"
 
 extern char *optarg;
 extern int optind;
@@ -65,6 +66,7 @@ static int eflag;
 static int fflag;
 static int mflag;
 static int qflag;
+static int rflag;
 static int tflag;
 static int iflag;
 
@@ -85,6 +87,7 @@ main(int ac, char **av)
 {
 	u_long parms[KTR_PARMS];
 	struct ktr_entry *buf;
+	uintmax_t tlast, tnow;
 	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
@@ -101,7 +104,7 @@ main(int ac, char **av)
 	 * Parse commandline arguments.
 	 */
 	out = stdout;
-	while ((c = getopt(ac, av, "cfqte:i:m:o:")) != -1)
+	while ((c = getopt(ac, av, "cfqrte:i:m:o:")) != -1)
 		switch (c) {
 		case 'c':
 			cflag = 1;
@@ -132,6 +135,9 @@ main(int ac, char **av)
 			break;
 		case 'q':
 			qflag++;
+			break;
+		case 'r':
+			rflag = 1;
 			break;
 		case 't':
 			tflag = 1;
@@ -208,6 +214,7 @@ main(int ac, char **av)
 	 */
 	if (!iflag)
 		i = (index - 1) & (entries - 1);
+	tlast = -1;
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
 			break;
@@ -241,9 +248,16 @@ main(int ac, char **av)
 		fprintf(out, "%6d ", i);
 		if (cflag)
 			fprintf(out, "%3d ", buf[i].ktr_cpu);
-		if (tflag)
-			fprintf(out, "%16ju ",
-			    (uintmax_t)buf[i].ktr_timestamp);
+		if (tflag) {
+			tnow = (uintmax_t)buf[i].ktr_timestamp;
+			if (rflag) {
+				if (tlast == -1)
+					tlast = tnow;
+				fprintf(out, "%16ju ", tlast - tnow);
+				tlast = tnow;
+			} else
+				fprintf(out, "%16ju ", tnow);
+		}
 		if (fflag) {
 			if (kvm_read(kd, (u_long)buf[i].ktr_file, fbuf,
 			    sizeof(fbuf)) == -1)
