@@ -419,7 +419,7 @@ getfold(name, namelen)
 	else
 		copylen = snprintf(name, namelen, "%s/%s",
 		    homedir ? homedir : ".", folder);
-	return (copylen >= namelen ? (-1) : (0));
+	return (copylen < 0 || copylen >= namelen ? (-1) : (0));
 }
 
 /*

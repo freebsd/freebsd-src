@@ -604,7 +604,7 @@ progressmeter(flag)
 	struct timeval now, td, wait;
 	off_t cursize, abbrevsize;
 	double elapsed;
-	int ratio, barlength, i, len;
+	int ratio, barlength, i, len, n;
 	off_t remaining;
 	char buf[256];
 
@@ -623,16 +623,20 @@ progressmeter(flag)
 	ratio = cursize * 100 / filesize;
 	ratio = MAX(ratio, 0);
 	ratio = MIN(ratio, 100);
-	len += snprintf(buf + len, sizeof(buf) - len, "\r%3d%% ", ratio);
+	n = snprintf(buf + len, sizeof(buf) - len, "\r%3d%% ", ratio);
+	if (n > 0)
+		len += n;
 
 	barlength = ttywidth - 30;
 	if (barlength > 0) {
 		i = barlength * ratio / 100;
-		len += snprintf(buf + len, sizeof(buf) - len,
+		n = snprintf(buf + len, sizeof(buf) - len,
 		    "|%.*s%*s|", i, 
 "*****************************************************************************"
 "*****************************************************************************",
 		    barlength - i, "");
+		if (n > 0)
+			len += n;
 	}
 
 	i = 0;
@@ -641,9 +645,11 @@ progressmeter(flag)
 		i++;
 		abbrevsize >>= 10;
 	}
-	len += snprintf(buf + len, sizeof(buf) - len,
+	n = snprintf(buf + len, sizeof(buf) - len,
 	    " %5qd %c%c ", (long long)abbrevsize, prefixes[i],
 	    prefixes[i] == ' ' ? ' ' : 'B');
+	if (n > 0)
+		len += n;
 
 	timersub(&now, &lastupdate, &wait);
 	if (cursize > lastsize) {
@@ -660,30 +666,34 @@ progressmeter(flag)
 	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
 
 	if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
-		len += snprintf(buf + len, sizeof(buf) - len,
+		n = snprintf(buf + len, sizeof(buf) - len,
 		    "   --:-- ETA");
 	} else if (wait.tv_sec >= STALLTIME) {
-		len += snprintf(buf + len, sizeof(buf) - len,
+		n = snprintf(buf + len, sizeof(buf) - len,
 		    " - stalled -");
 	} else {
 		remaining = 
 		    ((filesize - restart_point) / (bytes / elapsed) - elapsed);
 		if (remaining >= 100 * SECSPERHOUR)
-			len += snprintf(buf + len, sizeof(buf) - len,
+			n = snprintf(buf + len, sizeof(buf) - len,
 			    "   --:-- ETA");
 		else {
 			i = remaining / SECSPERHOUR;
 			if (i)
-				len += snprintf(buf + len, sizeof(buf) - len,
+				n = snprintf(buf + len, sizeof(buf) - len,
 				    "%2d:", i);
 			else
-				len += snprintf(buf + len, sizeof(buf) - len,
+				n = snprintf(buf + len, sizeof(buf) - len,
 				    "   ");
+ 			if (n > 0)
+				len += n;
 			i = remaining % SECSPERHOUR;
 			len += snprintf(buf + len, sizeof(buf) - len,
 			    "%02d:%02d ETA", i / 60, i % 60);
 		}
 	}
+	if (n > 0)
+		len += n;
 	(void)write(STDOUT_FILENO, buf, len);
 
 	if (flag == -1) {
@@ -711,7 +721,7 @@ ptransfer(siginfo)
 	struct timeval now, td;
 	double elapsed;
 	off_t bs;
-	int meg, remaining, hh, len;
+	int meg, n, remaining, hh, len;
 	char buf[100];
 
 	if (!verbose && !siginfo)
@@ -725,10 +735,12 @@ ptransfer(siginfo)
 	if (bs > (1024 * 1024))
 		meg = 1;
 	len = 0;
-	len += snprintf(buf + len, sizeof(buf) - len,
+	n = snprintf(buf + len, sizeof(buf) - len,
 	    "%qd byte%s %s in %.2f seconds (%.2f %sB/s)\n",
 	    (long long)bytes, bytes == 1 ? "" : "s", direction, elapsed,
 	    bs / (1024.0 * (meg ? 1024.0 : 1.0)), meg ? "M" : "K");
+	if (n > 0)
+		len += n;
 	if (siginfo && bytes > 0 && elapsed > 0.0 && filesize >= 0
 	    && bytes + restart_point <= filesize) {
 		remaining = (int)((filesize - restart_point) /
@@ -736,9 +748,11 @@ ptransfer(siginfo)
 		hh = remaining / SECSPERHOUR;
 		remaining %= SECSPERHOUR;
 		len--;	 		/* decrement len to overwrite \n */
-		len += snprintf(buf + len, sizeof(buf) - len,
+		n = snprintf(buf + len, sizeof(buf) - len,
 		    "  ETA: %02d:%02d:%02d\n", hh, remaining / 60,
 		    remaining % 60);
+		if (n > 0)
+			len += n;
 	}
 	(void)write(siginfo ? STDERR_FILENO : STDOUT_FILENO, buf, len);
 }
