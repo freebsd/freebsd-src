@@ -38,12 +38,15 @@
  * Indirect driver for controlling tty.
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/mac.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/ttycom.h>
@@ -94,6 +97,13 @@ cttyopen(dev, flag, mode, td)
 	if (ttyvp == NULL)
 		return (ENXIO);
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef MAC
+	error = mac_check_vnode_open(td->td_ucred, ttyvp, flag);
+	if (error) {
+		VOP_UNLOCK(ttyvp, 0, td);
+		return (error);
+	}
+#endif
 	error = VOP_OPEN(ttyvp, flag, NOCRED, td);
 	VOP_UNLOCK(ttyvp, 0, td);
 	return (error);
@@ -149,7 +159,12 @@ cttywrite(dev, uio, flag)
 	    (error = vn_start_write(ttyvp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
+#ifdef MAC
+	/* XXX: shouldn't the cred below be td->td_ucred not NOCRED? */
+	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_WRITE);
+	if (error == 0)
+#endif
+		error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
 	VOP_UNLOCK(ttyvp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -189,6 +204,7 @@ cttyioctl(dev, cmd, addr, flag, td)
 		PROC_UNLOCK(td->td_proc);
 		return (error);
 	}
+	/* XXXMAC: Should this be td->td_ucred below? */
 	return (VOP_IOCTL(ttyvp, cmd, addr, flag, NOCRED, td));
 }
 
@@ -200,6 +216,9 @@ cttypoll(dev, events, td)
 	struct thread *td;
 {
 	struct vnode *ttyvp;
+#ifdef MAC
+	int error;
+#endif
 
 	PROC_LOCK(td->td_proc);
 	SESS_LOCK(td->td_proc->p_session);
@@ -210,6 +229,13 @@ cttypoll(dev, events, td)
 	if (ttyvp == NULL)
 		/* try operation to get EOF/failure */
 		return (seltrue(dev, events, td));
+#ifdef MAC
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = mac_check_vnode_op(td->td_ucred, ttyvp, MAC_OP_VNODE_POLL);
+	VOP_UNLOCK(ttyvp, 0, td);
+	if (error)
+		return (error);
+#endif
 	return (VOP_POLL(ttyvp, events, td->td_ucred, td));
 }
 
