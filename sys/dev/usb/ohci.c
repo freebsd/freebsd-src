@@ -1050,9 +1050,12 @@ ohci_intr1(ohci_softc_t *sc)
 			ohci_physaddr_t ldone;
 			ohci_soft_td_t *std;
 
-			for (ldone = sc->sc_done; ldone != 0;
-			     ldone = le32toh(std->td.td_nexttd))
- 				std = ohci_hash_find_td(sc, ldone);
+			ldone = sc->sc_done;	/* always non 0 */
+			do {
+				std = ohci_hash_find_td(sc, ldone);
+				ldone = le32toh(std->td.td_nexttd);
+			} while (ldone != 0);
+
 			std->td.td_nexttd = le32toh(done);
 		}
 		sc->sc_hcca->hcca_done_head = 0;
