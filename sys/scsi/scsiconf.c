@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.47 1996/01/28 21:51:57 jkh Exp $
+ *      $Id: scsiconf.c,v 1.48 1996/01/28 22:41:44 julian Exp $
  */
 
 #include <sys/types.h>
@@ -323,6 +323,10 @@ static struct scsidevs knowndevs[] =
 #if NWORM > 0
 	{
 		T_WORM, T_WORM, T_REMOV, "YAMAHA", "CDR100", "*",
+		"worm", SC_ONE_LU
+	},
+	{
+		T_READONLY, T_WORM, T_REMOV, "HP", "C4324/C4325", "*",
 		"worm", SC_ONE_LU
 	},
 	{
