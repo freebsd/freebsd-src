@@ -11,7 +11,10 @@ Here are some things that would be useful additions to groff:
 
   a complete, self-contained manual (trent@cs.pdx.edu is working on this)
 
-If you want to work on one of these, I suggest you contact me first.
+If you want to work on one of these, you should probably post to
+gnu.groff.bug to see if anyone else has gotten there first.
 
-James Clark
-jjc@jclark.com
+As of August 1997 groff lacks a maintainer.  If you are seriously interested
+in these projects, perhaps you should volunteer.
+
+
