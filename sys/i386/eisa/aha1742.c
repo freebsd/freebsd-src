@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.43 1995/12/07 12:45:23 davidg Exp $
+ *      $Id: aha1742.c,v 1.44 1995/12/10 13:33:47 phk Exp $
  */
 
 #include <sys/types.h>
@@ -259,19 +259,37 @@ static struct ahb_data {
 	int     numecbs;
 }      *ahbdata[NAHB];
 
-static void		ahbintr __P((void *arg));
-static int		ahbprobe();
-static int		ahb_attach __P((struct eisa_device *dev));
-static int		ahb_bus_attach __P((struct ahb_data *ahb));
-static int 		ahb_init __P((int unit));
-static int32		ahb_scsi_cmd();
-static timeout_t	ahb_timeout;
-static void		ahb_done();
-static struct ecb	*cheat;
-static void		ahb_free_ecb();
-static void		ahbminphys();
-static struct		ecb *ahb_ecb_phys_kv();
-static u_int32		ahb_adapter_info();
+static u_int32	ahb_adapter_info __P((int unit));
+static struct ahb_data *
+		ahb_alloc __P((int unit, u_long iobase, int irq));
+static int	ahb_attach __P((struct eisa_device *dev));
+static int	ahb_bus_attach __P((struct ahb_data *ahb));
+static void	ahb_done __P((int unit, struct ecb *ecb, int state));
+static void	ahb_free __P((struct ahb_data *ahb));
+static void	ahb_free_ecb __P((int unit, struct ecb *ecb, int flags));
+static struct ecb *
+		ahb_get_ecb __P((int unit, int flags));
+static struct ecb *
+		ahb_ecb_phys_kv __P((struct ahb_data *ahb, physaddr ecb_phys));
+static int	ahb_init __P((int unit));
+static void	ahbintr __P((void *arg));
+static char	*ahbmatch __P((eisa_id_t type));
+static void	ahbminphys __P((struct buf *bp));
+static int	ahb_poll __P((int unit, int wait));
+#ifdef AHBDEBUG
+static void	ahb_print_active_ecb __P((int unit));
+static void	ahb_print_ecb __P((struct ecb *ecb));
+#endif
+static int	ahbprobe __P((void));
+static int	ahb_reset __P((u_long port));
+static int32	ahb_scsi_cmd __P((struct scsi_xfer *xs));
+static void	ahb_send_immed __P((int unit, int target, u_long cmd));
+static void	ahb_send_mbox __P((int unit, int opcode, int target,
+				   struct ecb *ecb));
+static timeout_t
+		ahb_timeout;
+
+static	struct	ecb *cheat;
 
 static  u_long		ahb_unit = 0;
 static 	int		ahb_debug = 0;
