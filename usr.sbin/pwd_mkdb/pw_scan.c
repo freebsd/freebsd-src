@@ -75,7 +75,7 @@ pw_scan(bp, pw)
 {
 	uid_t id;
 	int root;
-	char *p, *sh;
+	char *ep, *p, *sh;
 
 	if (pw_big_ids_warning == -1)
 		pw_big_ids_warning = getenv("PW_SCAN_BIG_IDS") == NULL ? 1 : 0;
@@ -101,9 +101,13 @@ pw_scan(bp, pw)
 			return (0);
 		}
 	}
-	id = strtoul(p, (char **)NULL, 10);
+	id = strtoul(p, &ep, 10);
 	if (errno == ERANGE) {
-		warnx("%s > max uid value (%u)", p, ULONG_MAX);
+		warnx("%s > max uid value (%lu)", p, ULONG_MAX);
+		return (0);
+	}
+	if (*ep != '\0') {
+		warnx("%s uid is incorrect", p);
 		return (0);
 	}
 	if (root && id) {
@@ -118,10 +122,21 @@ pw_scan(bp, pw)
 
 	if (!(p = strsep(&bp, ":")))			/* gid */
 		goto fmt;
-	if(p[0]) pw->pw_fields |= _PWF_GID;
-	id = strtoul(p, (char **)NULL, 10);
+	if(p[0])
+		pw->pw_fields |= _PWF_GID;
+	else {
+		if (pw->pw_name[0] != '+' && pw->pw_name[0] != '-') {
+			warnx("no gid for user %s", pw->pw_name);
+			return (0);
+		}
+	}
+	id = strtoul(p, &ep, 10);
 	if (errno == ERANGE) {
-		warnx("%s > max gid value (%u)", p, ULONG_MAX);
+		warnx("%s > max gid value (%lu)", p, ULONG_MAX);
+		return (0);
+	}
+	if (*ep != '\0') {
+		warnx("%s gid is incorrect", p);
 		return (0);
 	}
 	if (pw_big_ids_warning && id > USHRT_MAX) {
