@@ -2,6 +2,7 @@
 
 LIB=	util
 CFLAGS+=-DLIBC_SCCS -I/sys
-SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c
+SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c setproctitle.c
+MAN3+=	setproctitle.3
 
 .include <bsd.lib.mk>
