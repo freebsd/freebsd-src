@@ -1,4 +1,4 @@
-.\" Copyright (c) 1992,1993,1994 Hellmuth Michaelis
+.\" Copyright (c) 1992, 1995 Hellmuth Michaelis
 .\"
 .\" All rights reserved.
 .\"
@@ -27,17 +27,18 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" @(#)ispcvt.1, 3.00, Last Edit-Date: [Mon Jan 10 21:19:00 1994]
+.\" @(#)ispcvt.1, 3.20, Last Edit-Date: [Tue Apr  4 12:35:54 1995]
 .\"
-.Dd December 30, 1993
+.Dd April 4, 1995
 .Dt ISPCVT 1
 .Sh NAME
 .Nm ispcvt
 .Nd verify if current video driver is pcvt driver
 .Sh SYNOPSIS
 .Nm ispcvt
-.Op Fl v
 .Op Fl c
+.Op Fl d Ar device
+.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm ispcvt
@@ -53,6 +54,8 @@ compiled with.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl d
+Specifies a device for which the check is done.
 .It Fl v
 Specifies being verbose. On success the name and revision is reported, on
 failure which comparison failed.
@@ -71,7 +74,7 @@ option gives a verbose listing of the compile-time options.
 .It Sy 0
 driver is pcvt and major and minor numbers match
 .It Sy 1
-ioctl system call failed
+open or ioctl system call failed
 .It Sy 2
 driver name mismatch
 .It Sy 3

@@ -1,4 +1,4 @@
-# 386BSD and NetBSD
+# NetBSD
 #MAN4=		pcvt.0
 #MLINKS=		pcvt.0 ../pcvt.0
 

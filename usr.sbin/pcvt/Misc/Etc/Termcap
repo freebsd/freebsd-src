@@ -2,7 +2,7 @@
 #
 #	pcvt termcap database entry			(release 3.20)
 #
-#	last edit-date: [Sun Feb 19 12:47:20 1995]
+#	last edit-date: [Sun Apr  2 18:31:04 1995]
 #
 #	-hm	new entries for SR and SF
 #	-hm	removing duplicate entries
@@ -10,7 +10,7 @@
 #---------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------
-#	386bsd vt220 terminal emulator console (pc keyboard & monitor)
+#	NetBSD/FreeBSD vt220 terminal emulator console (pc keyboard & monitor)
 #	termcap entries for pure VT220-Emulation and 25, 28, 35, 40, 43 and
 #	50 lines entries
 #	80 columns
@@ -52,7 +52,7 @@ pcvt50|dec vt220 with 50 lines:\
 	:tc=pcvtXX:
 
 #---------------------------------------------------------------------------
-#	386bsd vt220 terminal emulator console (pc keyboard & monitor)
+#	NetBSD/FreeBSD vt220 terminal emulator console (pc keyboard & monitor)
 #	termcap entries for pure VT220-Emulation and 25, 28, 35, 40, 43 and
 #	50 lines entries
 #	132 columns
@@ -94,7 +94,7 @@ pcvt50w|dec vt220 with 50 lines and 132 cols:\
 	:tc=pcvtXX:
 
 #---------------------------------------------------------------------------
-#	386bsd vt220 terminal emulator console (pc keyboard & monitor)
+#	NetBSD/FreeBSD vt220 terminal emulator console (pc keyboard & monitor)
 #	termcap entries for HP-Emulation and 25, 28, 35, 40, 43 and 50
 #	lines entries. note that the HP-Emulation uses the bottom 3 lines
 #	for status and function key labels, so we get always 3 lines less.
@@ -144,7 +144,7 @@ pcvt47h|dec vt220 with HP-fkey labels and 47 lines:\
 	:tc=pcvtXX:
 
 #---------------------------------------------------------------------------
-#	386bsd vt220 terminal emulator console (pc keyboard & monitor)
+#	NetBSD/FreeBSD vt220 terminal emulator console (pc keyboard & monitor)
 #	termcap entries for HP-Emulation and 25, 28, 35, 40, 43 and 50
 #	lines entries. note that the HP-Emulation uses the bottom 3 lines
 #	for status and function key labels, so we get always 3 lines less.

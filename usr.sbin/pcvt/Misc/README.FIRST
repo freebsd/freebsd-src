@@ -6,10 +6,10 @@
 |                         NetBSD   0.9, 1.0                                    |
 |                         FreeBSD  1.0, 1.1, 1.1.5.1, 2.0                      |
 |                                                                              |
-|                          Release 3.20    March 1995                          |
+|                          Release 3.20    April 1995                          |
 |                                                                              |
 |                         ----------------------------                         |
-|                         ========>> BETA 23 <<=======                         |
+|                         ========>> BETA 24 <<=======                         |
 |                         ----------------------------                         |
 |                                                                              |
 |                       (c) Copyright 1992,1993,1994,1995 by                   |
@@ -176,16 +176,16 @@ Tested Operating Systems
 
         NetBSD 0.9                      pcvt release 3.20-b2 tested
 
-        NetBSD 1.0                      pcvt release 3.20-b23 tested
+        NetBSD 1.0                      pcvt release 3.20-b24 tested
 
         NetBSD-current (post 1.0)       reported to run (end of March '95)
 
 
         FreeBSD 1.1R                    pcvt release 3.20-b7 tested
 
-        FreeBSD 1.1.5.1R                pcvt release 3.20-b23 tested
+        FreeBSD 1.1.5.1R                pcvt release 3.20-b24 tested
 
-        FreeBSD 2.0                     pcvt release 3.20-b23 tested
+        FreeBSD 2.0                     pcvt release 3.20-b24 tested
 
         FreeBSD-current (post 2.0)      reported to run (end of March '95)
 

@@ -30,10 +30,10 @@ void clear_screen();
 #ifdef BSD
 #include <sys/ioctl.h>
 #endif BSD
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
 #include <sys/termios.h>
 #include <sys/ioctl.h>
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 #include <signal.h>
 
 #ifdef CURFIX
@@ -107,9 +107,9 @@ struct termio old_stty, new_stty;
 #ifdef BSD
 struct sgttyb old_stty, new_stty;
 #endif BSD
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
 struct termios old_stty, new_stty;
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 FILE * font_file = (FILE *)0;
 
 
@@ -130,9 +130,9 @@ interrupt()
 #ifdef BSD
         ioctl( 0, TIOCSETP, &old_stty );
 #endif BSD
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
         ioctl( 0, TIOCSETA, &old_stty );
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 	clear_screen();
 	exit( 0 );
 }
@@ -187,9 +187,9 @@ char *argv[];
 #ifdef BSD
         ioctl( 0, TIOCGETP, &old_stty );
 #endif BSD
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
         ioctl( 0, TIOCGETA, &old_stty );
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 	signal( SIGINT, (void *) interrupt );
 	new_stty = old_stty;
 #ifdef SYSV
@@ -197,12 +197,12 @@ char *argv[];
 	new_stty.c_cc[VMIN] = 1;
 	ioctl( 0, TCSETA, &new_stty );
 #endif SYSV
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
 	new_stty.c_lflag &= ~ICANON;
         new_stty.c_lflag &= ~ECHO;
 	new_stty.c_cc[VMIN] = 1;
 	ioctl( 0, TIOCSETA, &new_stty );
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 #ifdef BSD
 	new_stty.sg_flags |= CBREAK;               
         new_stty.sg_flags &= ~ECHO;
@@ -218,9 +218,9 @@ char *argv[];
 #ifdef BSD
 	ioctl( 0, TIOCSETP, &old_stty );
 #endif BSD
-#if defined (__386BSD__) || defined (__NetBSD__) || defined (__FreeBSD__)
+#if defined (__NetBSD__) || defined (__FreeBSD__)
 	ioctl( 0, TIOCSETA, &old_stty );
-#endif /* __386BSD__ || __NetBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __FreeBSD__ */
 	clear_screen();
 
 	/* Overwrite the old file. */
