@@ -202,23 +202,11 @@ main(argc, argv)
 		        fts_options |= FTS_COMFOLLOW;
 			break;
 		case 'G':
-			if (isatty(STDOUT_FILENO))
 #ifdef COLORLS
-				if (tgetent(termcapbuf, getenv("TERM")) == 1) {
-					ansi_fgcol = tgetstr("AF", &bp);
-					ansi_bgcol = tgetstr("AB", &bp);
-
-					/* To switch colours off use 'op' if
-					 * available, otherwise use 'oc', or
-					 * don't do colours at all. */
-					ansi_coloff = tgetstr("op", &bp);
-					if (!ansi_coloff)
-						ansi_coloff = tgetstr("oc", &bp);
-					if (ansi_fgcol && ansi_bgcol && ansi_coloff)
-						f_color = 1;
-				}
+			(void)fprintf(stderr, "The -G flag is depricated, please define CLICOLOR instead.\n");
+			setenv("CLICOLOR", "", 1);
 #else
-				(void)fprintf(stderr, "Color support not compiled in.\n");
+			(void)fprintf(stderr, "Color support not compiled in.\n");
 #endif
 			break;
 		case 'L':
@@ -295,6 +283,23 @@ main(argc, argv)
 	argv += optind;
 
 #ifdef COLORLS
+	/* Enabling of colours is conditional on the environment. */
+	if (getenv("CLICOLOR") &&
+	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
+		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
+			ansi_fgcol = tgetstr("AF", &bp);
+			ansi_bgcol = tgetstr("AB", &bp);
+
+			/* To switch colours off use 'op' if
+			 * available, otherwise use 'oc', or
+			 * don't do colours at all. */
+			ansi_coloff = tgetstr("op", &bp);
+			if (!ansi_coloff)
+				ansi_coloff = tgetstr("oc", &bp);
+			if (ansi_fgcol && ansi_bgcol && ansi_coloff)
+				f_color = 1;
+		}
+
 	if (f_color) {
 		/*
 		 * We can't put tabs and color sequences together:
