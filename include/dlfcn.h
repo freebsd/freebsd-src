@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dlfcn.h,v 1.2 1998/02/11 05:19:10 jdp Exp $
  */
 
 #ifndef _DLFCN_H_
@@ -66,6 +66,7 @@ int dlclose __P((void *));
 const char *dlerror __P((void));
 void *dlopen __P((const char *, int));
 void *dlsym __P((void *, const char *));
+int dlversion __P((void));
 __END_DECLS
 
 #endif /* !_DLFCN_H_ */
