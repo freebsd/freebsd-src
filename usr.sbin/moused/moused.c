@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id: moused.c,v 1.1 1996/06/21 09:24:09 sos Exp $
+ **      $Id: moused.c,v 1.2 1996/06/25 08:54:57 sos Exp $
  **/
 
 /**
@@ -223,7 +223,7 @@ main(int argc, char *argv[])
     }   
     r_init();				/* call init function */
 
-    if ((cfd = open("/dev/console", O_RDWR, 0)) == -1)
+    if ((cfd = open("/dev/consolectl", O_RDWR, 0)) == -1)
 	fprintf(stderr, "error on /dev/console\n");
 
     if (!nodaemon)
