@@ -32,7 +32,6 @@
 #include <netinet/ip_var.h>
 #endif
 #include "ipsend.h"
-#include "ipf.h"
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
