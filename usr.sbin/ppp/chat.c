@@ -550,7 +550,7 @@ chat_Init(struct chat *c, struct physical *p)
   memset(&c->timeout, '\0', sizeof c->timeout);
 }
 
-void
+int
 chat_Setup(struct chat *c, const char *data, const char *phone)
 {
   c->state = CHAT_EXPECT;
@@ -561,7 +561,7 @@ chat_Setup(struct chat *c, const char *data, const char *phone)
   } else {
     strncpy(c->script, data, sizeof c->script - 1);
     c->script[sizeof c->script - 1] = '\0';
-    c->argc =  MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+    c->argc = MakeArgs(c->script, c->argv, VECSIZE(c->argv));
   }
 
   c->arg = -1;
@@ -575,6 +575,8 @@ chat_Setup(struct chat *c, const char *data, const char *phone)
 
   timer_Stop(&c->pause);
   timer_Stop(&c->timeout);
+
+  return c->argc >= 0;
 }
 
 void
@@ -700,7 +702,12 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   int stat, nb, argc, i;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
-  argc = MakeArgs(command, vector, VECSIZE(vector));
+  if ((argc = MakeArgs(command, vector, VECSIZE(vector))) <= 0) {
+    if (argc < 0)
+      log_Printf(LogWARN, "Syntax error in exec command\n");
+    *out = '\0';
+    return;
+  }
   command_Expand(argv, argc, (char const *const *)vector,
                  physical->dl->bundle, 0, getpid());
 

@@ -976,15 +976,18 @@ command_Run(struct bundle *bundle, int argc, char const *const *argv,
   }
 }
 
-void
+int
 command_Decode(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
               const char *label)
 {
   int argc;
   char *argv[MAXARGS];
 
-  argc = command_Interpret(buff, nb, argv);
+  if ((argc = command_Interpret(buff, nb, argv)) < 0)
+    return 0;
+
   command_Run(bundle, argc, (char const *const *)argv, prompt, label, NULL);
+  return 1;
 }
 
 static int
