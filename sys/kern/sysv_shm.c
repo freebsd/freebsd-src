@@ -87,11 +87,6 @@ static sy_call_t *shmcalls[] = {
 static int shm_last_free, shm_nused, shm_committed, shmalloced;
 static struct shmid_ds	*shmsegs;
 
-struct shm_handle {
-	/* vm_offset_t kva; */
-	vm_object_t shm_object;
-};
-
 struct shmmap_state {
 	vm_offset_t va;
 	int shmid;
@@ -206,14 +201,11 @@ static void
 shm_deallocate_segment(shmseg)
 	struct shmid_ds *shmseg;
 {
-	struct shm_handle *shm_handle;
 	size_t size;
 
 	GIANT_REQUIRED;
 
-	shm_handle = shmseg->shm_internal;
-	vm_object_deallocate(shm_handle->shm_object);
-	free(shm_handle, M_SHM);
+	vm_object_deallocate(shmseg->shm_internal);
 	shmseg->shm_internal = NULL;
 	size = round_page(shmseg->shm_segsz);
 	shm_committed -= btoc(size);
@@ -311,7 +303,6 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	int i, flags;
 	struct shmid_ds *shmseg;
 	struct shmmap_state *shmmap_s = NULL;
-	struct shm_handle *shm_handle;
 	vm_offset_t attach_va;
 	vm_prot_t prot;
 	vm_size_t size;
@@ -377,12 +368,11 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		PROC_UNLOCK(p);
 	}
 
-	shm_handle = shmseg->shm_internal;
-	vm_object_reference(shm_handle->shm_object);
-	rv = vm_map_find(&p->p_vmspace->vm_map, shm_handle->shm_object,
+	vm_object_reference(shmseg->shm_internal);
+	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->shm_internal,
 		0, &attach_va, size, (flags & MAP_FIXED)?0:1, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
-		vm_object_deallocate(shm_handle->shm_object);
+		vm_object_deallocate(shmseg->shm_internal);
 		error = ENOMEM;
 		goto done2;
 	}
@@ -674,7 +664,7 @@ shmget_allocate_segment(td, uap, mode)
 	int i, segnum, shmid, size;
 	struct ucred *cred = td->td_ucred;
 	struct shmid_ds *shmseg;
-	struct shm_handle *shm_handle;
+	vm_object_t shm_object;
 
 	GIANT_REQUIRED;
 
@@ -705,8 +695,6 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->shm_perm.mode = SHMSEG_ALLOCATED | SHMSEG_REMOVED;
 	shmseg->shm_perm.key = uap->key;
 	shmseg->shm_perm.seq = (shmseg->shm_perm.seq + 1) & 0x7fff;
-	shm_handle = (struct shm_handle *)
-	    malloc(sizeof(struct shm_handle), M_SHM, M_WAITOK);
 	shmid = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	
 	/*
@@ -714,18 +702,18 @@ shmget_allocate_segment(td, uap, mode)
 	 * to.
 	 */
 	if (shm_use_phys) {
-		shm_handle->shm_object =
+		shm_object =
 		    vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
 	} else {
-		shm_handle->shm_object =
+		shm_object =
 		    vm_pager_allocate(OBJT_SWAP, 0, size, VM_PROT_DEFAULT, 0);
 	}
-	VM_OBJECT_LOCK(shm_handle->shm_object);
-	vm_object_clear_flag(shm_handle->shm_object, OBJ_ONEMAPPING);
-	vm_object_set_flag(shm_handle->shm_object, OBJ_NOSPLIT);
-	VM_OBJECT_UNLOCK(shm_handle->shm_object);
+	VM_OBJECT_LOCK(shm_object);
+	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
+	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
+	VM_OBJECT_UNLOCK(shm_object);
 
-	shmseg->shm_internal = shm_handle;
+	shmseg->shm_internal = shm_object;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = cred->cr_gid;
 	shmseg->shm_perm.mode = (shmseg->shm_perm.mode & SHMSEG_WANTED) |
