@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.29 1995/12/06 23:37:34 bde Exp $
+ * $Id: ip_input.c,v 1.30 1995/12/14 09:53:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -692,11 +692,12 @@ ip_slowtimo()
 void
 ip_drain()
 {
-
 	while (ipq.next != &ipq) {
 		ipstat.ips_fragdropped++;
 		ip_freef(ipq.next);
 	}
+
+	in_rtqdrain();
 }
 
 /*
