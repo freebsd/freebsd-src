@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/time.h>
-#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <stddef.h>
 
 fixpt_t	ccpu;				/* kernel _ccpu variable */
 int	nlistread;			/* if nlist already read. */
@@ -42,12 +44,16 @@ int	fscale;				/* kernel _fscale variable */
 int
 donlist()
 {
+	size_t oldlen;
 
-	if (sysctlbyname("kern.ccpu", &ccpu, sizeof ccpu, 0, 0) < 0)
+	oldlen = sizeof(ccpu);
+	if (sysctlbyname("kern.ccpu", &ccpu, &oldlen, NULL, 0) < 0)
 		return (1);
-	if (sysctlbyname("kern.fscale", &fscale, sizeof fscale, 0, 0) < 0)
+	oldlen = sizeof(fscale);
+	if (sysctlbyname("kern.fscale", &fscale, &oldlen, NULL, 0) < 0)
 		return (1);
-	if (sysctlbyname("hw.availpages", &mempages, sizeof mempages, 0, 0) < 0)
+	oldlen = sizeof(mempages);
+	if (sysctlbyname("hw.availpages", &mempages, &oldlen, NULL, 0) < 0)
 		return (1);
 	nlistread = 1;
 	return (0);
