@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.11 1996/02/06 18:50:42 wollman Exp $
+ *  $Id: if_epreg.h,v 1.12 1996/02/26 01:05:36 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -62,7 +62,7 @@ struct ep_softc {
     short rx_avg_pkt;
     short cur_len;
     u_short ep_connectors;	/* Connectors on this card.	 */
-    u_short ep_connector;	/* Configured connector.	 */
+    u_char ep_connector;	/* Configured connector.	 */
     int stat;			/* some flags */
 #define         F_RX_FIRST   0x1
 #define         F_WAIT_TRAIL 0x2
