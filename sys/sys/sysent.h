@@ -49,6 +49,7 @@ struct sysent {		/* system call table */
 
 struct image_params;
 struct trapframe;
+struct vnode;
 
 struct sysentvec {
 	int		sv_size;	/* number of entries */
