@@ -6,6 +6,8 @@ PROG=	perl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	perlmain.c config.h
+# NOSHARED= no
+DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5
 
@@ -30,17 +32,19 @@ DYNAMIC_EXT=	B/B DB_File/DB_File Data/Dumper/Dumper Fcntl/Fcntl IO/IO \
 
 ${PROG}: lib/auto/DynaLoader/DynaLoader.a
 
+.ORDER: lib/auto/DynaLoader/DynaLoader.a ${DYNAMIC_EXT}
+
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: ${.CURDIR}/../libperl/config.SH
-	@ln -sf ${.OODATE} ${.TARGET}
+config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}
+	cp -p ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH
-	@ln -sf ${.OODATE} ${.TARGET}
+	cp -p ${.OODATE} ${.TARGET}
 
 cflags.sh: cflags.SH
-	@ln -sf ${.OODATE} ${.TARGET}
+	cp -p ${.OODATE} ${.TARGET}
 
 cflags: cflags.sh
 	sh ${.OODATE}
@@ -65,12 +69,12 @@ lib/re.pm: lib ext hints ext/re/re.pm
 	cat ${PERL5SRC}/ext/re/re.pm > ${.OBJDIR}/lib/re.pm
 
 lib/Config.pm: Config.pm
-	@cd lib; ln -s ../${.OODATE}
+	cp -p ${.OODATE} ${.TARGET}
 
 myconfig: ${PERL5SRC}/myconfig
-	@ln -sf ${.OODATE} ${.TARGET}
+	ln -sf ${.OODATE} ${.TARGET}
 
-Config.pm: myconfig lib ext hints Porting lib/re.pm
+Config.pm: myconfig config.sh lib ext hints Porting lib/re.pm
 	miniperl ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig config.sh
 
@@ -91,13 +95,13 @@ lib/auto/DynaLoader/DynaLoader.a: cflags lib/Config.pm ${DEPEND_H}
 	cd ext/DynaLoader; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
 		INSTALLDIRS=perl PERL_SRC=${.OBJDIR}; \
-	make config PERL_SRC=${.OBJDIR}; \
-	make all LINKTYPE=static PERL_SRC=${.OBJDIR}
+	make -B config PERL_SRC=${.OBJDIR}; \
+	make -B all LINKTYPE=static PERL_SRC=${.OBJDIR}
 
 ${.OBJDIR}/miniperlmain.c: miniperlmain.c
 	@ln -sf ${.OODATE} ${.TARGET}
 
-perlmain.c: ${.OBJDIR}/miniperlmain.c config.sh writemain
+perlmain.c: ${.OBJDIR}/miniperlmain.c config.sh writemain config.h
 	sh writemain lib/auto/DynaLoader/DynaLoader.a > ${.TARGET}
 
 writemain.sh: writemain.SH
@@ -116,9 +120,9 @@ ${.OBJDIR}/regexec.c: ${PERL5SRC}/regexec.c
 lib/auto/${I}.so:	${PROG} ${.OBJDIR}/regcomp.c ${.OBJDIR}/regexec.c
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
-		INSTALLDIRS=perl PERL_SRC=${.OBJDIR}; \
-	make config PERL_SRC=${.OBJDIR}; \
-	make all LINKTYPE=dynamic PERL_SRC=${.OBJDIR}
+		INSTALLDIRS=perl PERL_SRC=${.OBJDIR} LIBS="-lperl"; \
+	make -B config PERL_SRC=${.OBJDIR}; \
+	make -B all LINKTYPE=dynamic PERL_SRC=${.OBJDIR}
 
 DYNAMICS+=	lib/auto/${I}.so
 .endfor
