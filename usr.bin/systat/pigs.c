@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
-#ifdef lint
-static const char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
+#if 0
+#ifndef lint
+static char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
+#endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Pigs display from Bill Reeves at Lucasfilm
@@ -121,8 +122,7 @@ showpigs()
 			pname = "<idle>";
 		}
 		else {
-			uname = (char *)
-			    user_from_uid(pt[k].pt_kp->ki_uid, 0);
+			uname = user_from_uid(pt[k].pt_kp->ki_uid, 0);
 			pname = pt[k].pt_kp->ki_comm;
 		}
 		wmove(wnd, y, 0);
