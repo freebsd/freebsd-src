@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21.4.2 1996/02/22 19:20:47 peter Exp $
+ *	$Id: kern_exec.c,v 1.21.4.3 1996/04/08 01:28:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,12 @@
 int *exec_copyout_strings __P((struct image_params *));
 
 static int exec_check_permissions(struct image_params *);
+
+/*
+ * Exported to userland via sysctl..
+ */
+int exec_ps_strings = PS_STRINGS;
+int exec_usrstack = USRSTACK;
 
 /*
  * execsw_set is constructed for us by the linker.  Each of the items
