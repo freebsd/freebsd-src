@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: misc.c,v 1.2 1994/09/24 02:55:01 davidg Exp $
  */
 
 #ifndef lint
@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "dd.h"
 #include "extern.h"
@@ -56,12 +57,23 @@ static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 void
 summary()
 {
-	time_t secs;
+	struct timeval tv;
+	long msec;
 	char buf[100];
 
-	(void)time(&secs);
-	if ((secs -= st.start) == 0)
-		secs = 1;
+	(void)gettimeofday(&tv, 0);
+	tv.tv_sec -= st.start.tv_sec;
+	tv.tv_usec -= st.start.tv_usec;
+	if (tv.tv_usec < 0) {
+		tv.tv_usec += 1000000;
+		tv.tv_sec--;
+	}
+
+	msec = tv.tv_sec * 1000;
+	msec += tv.tv_usec / 1000;
+		
+	if (msec == 0)
+		msec = 1;
 	/* Use snprintf(3) so that we don't reenter stdio(3). */
 	(void)snprintf(buf, sizeof(buf),
 	    "%u+%u records in\n%u+%u records out\n",
@@ -77,9 +89,15 @@ summary()
 		     st.trunc, (st.trunc == 1) ? "block" : "blocks");
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
-	(void)snprintf(buf, sizeof(buf),
-	    "%u bytes transferred in %u secs (%u bytes/sec)\n",
-	    st.bytes, secs, st.bytes / secs);
+	if (msec > 1000000) {
+		(void)snprintf(buf, sizeof(buf),
+		    "%u bytes transferred in %u.%03d secs (%u bytes/sec)\n",
+		    st.bytes, tv.tv_sec, 0, st.bytes / tv.tv_sec);
+	} else {
+		(void)snprintf(buf, sizeof(buf),
+		    "%u bytes transferred in %u.%03d secs (%u bytes/sec)\n",
+		    st.bytes, msec/1000, msec%1000, st.bytes*1000 / msec);
+	}
 	(void)write(STDERR_FILENO, buf, strlen(buf));
 }
 
