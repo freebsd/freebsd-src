@@ -176,16 +176,22 @@ extract files directly from their anonymous ftp locations (e.g.
 .Nm
 ftp://ftp.freebsd.org/pub/FreeBSD/packages/shells/bash-1.14.4.tgz).
 Note:  If you wish to use
-.B passive mode
+.Bf -emphasis
+passive mode
+.Ef
 ftp in such transfers, set
 the variable
-.B FTP_PASSIVE_MODE
+.Bf -emphasis
+FTP_PASSIVE_MODE
+.Ef
 to some value in your environment.  Otherwise, the more standard
 ACTIVE mode may be used.  If
 .Nm
 consistently fails to fetch a package from a site known to work,
 it may be because you have a firewall that demands the usage of
-.B passive mode
+.Bf -emphasis
+passive mode
+.Ef
 ftp.
 .Sh TECHNICAL DETAILS
 .Nm
