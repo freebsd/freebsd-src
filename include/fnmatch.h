@@ -45,7 +45,7 @@
 #define	FNM_PATHNAME	0x02	/* Slash must be matched by slash. */
 #define	FNM_PERIOD	0x04	/* Period must be matched by period. */
 
-#define FNM_NOSYS       -1      /* Reserved */
+#define FNM_NOSYS	-1	/* Reserved */
 
 #if __BSD_VISIBLE
 #define	FNM_LEADING_DIR	0x08	/* Ignore /<tail> after Imatch. */
