@@ -842,6 +842,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
       supported. &merged;</para>
 
+      <para>The &man.ata.4; driver now has support for 48-bit
+      addressing.  Devices larger than 137GB are now
+      supported. &merged;</para>
+
       <para>The CAM error recovery code has been updated.</para>
 
       <para>The &man.cd.4; driver now has support for write operations.
@@ -2326,7 +2330,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     locale name has been changed to
     <literal>en_US.ISO8859-1</literal>.  Entries in
     <filename>/etc/locale.alias</filename> provide backward
-    compatibility.</para>
+    compatibility. &merged;</para>
 
     <para><filename>/usr/src/share/examples/BSD_daemon/</filename> now
     contains a scalable Beastie graphic. &merged;</para>
