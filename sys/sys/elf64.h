@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf64.h,v 1.4 1998/08/16 03:03:38 jdp Exp $
+ *      $Id: elf64.h,v 1.5 1998/09/05 23:07:59 jb Exp $
  */
 
 #ifndef _SYS_ELF64_H_
@@ -131,7 +131,7 @@ typedef struct {
 #define ELF64_R_TYPE(info)	((unsigned char)(info))
 
 /* Macro for constructing r_info from field values. */
-#define ELF64_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
+#define ELF64_R_INFO(sym, type)	(((sym) << 32) + (unsigned char)(type))
 
 /*
  * Symbol table entries.
