@@ -13,7 +13,7 @@
  * I have removed all of the ifdef spaghetti which is not relevant to
  * zic from this file.
  *
- *	$Id: private.h,v 1.2 1999/01/21 17:12:49 wollman Exp $
+ * $FreeBSD$
  */
 
 /*

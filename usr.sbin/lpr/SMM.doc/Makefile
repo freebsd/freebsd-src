@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.2 1997/12/02 20:45:05 wollman Exp $
+# $FreeBSD$
 
 BINDIR=	/usr/share/doc
 VOLUME=	smm/07.lpd

@@ -72,7 +72,7 @@ static char *sccsid = "@(#)from: clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)from: clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: yp_ping.c,v 1.3 1997/10/27 07:45:45 charnier Exp $";
+  "$FreeBSD$";
 #endif
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.6 1999/06/09 16:54:03 brian Exp $
+ * $FreeBSD$
  */
 
 struct mbuf;

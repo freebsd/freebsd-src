@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.226 1999/03/29 10:59:52 obrien Exp $
+# $FreeBSD$
 #
 # The user-driven targets are:
 #

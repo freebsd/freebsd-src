@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.mfs,v 1.1 1999/08/22 21:44:42 dwhite Exp $
+# $FreeBSD$
 #
 
 DESTDIR?=/mnt

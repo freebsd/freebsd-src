@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 MAINTAINER=markm@FreeBSD.org

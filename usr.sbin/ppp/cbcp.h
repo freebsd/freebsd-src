@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.h,v 1.1 1998/08/07 18:44:16 brian Exp $
+ * $FreeBSD$
  */
 
 struct mbuf;

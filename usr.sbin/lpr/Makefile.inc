@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1998/03/07 09:47:52 bde Exp $
+# $FreeBSD$
 
 CWARNFLAGS=	-Wall -Wnested-externs -Wmissing-prototypes -Wno-unused -Wredundant-decls -Wstrict-prototypes
 

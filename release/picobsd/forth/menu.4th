@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $Id: menu.4th,v 1.1.2.1 1999/05/07 10:02:55 abial Exp $
+\ $FreeBSD$
 
 : title
 	f_single

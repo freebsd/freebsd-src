@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 BOOTDIR=	/usr/libdata/stallion
 

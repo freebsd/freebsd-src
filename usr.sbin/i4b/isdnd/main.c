@@ -27,7 +27,7 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.41 1999/07/30 06:51:13 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri Jul 30 08:14:10 1999]
  *

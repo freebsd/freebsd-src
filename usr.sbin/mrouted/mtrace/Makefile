@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1998/03/07 09:49:12 bde Exp $
+# $FreeBSD$
 
 PROG=	mtrace
 

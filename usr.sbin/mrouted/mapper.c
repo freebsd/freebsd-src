@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mapper.c,v 1.13 1998/06/09 05:01:30 imp Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>

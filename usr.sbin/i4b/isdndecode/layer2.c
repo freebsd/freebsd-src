@@ -27,7 +27,7 @@
  *	layer2.c - decode and print layer 2 (Q.921) information
  *	-------------------------------------------------------
  *
- *	$Id: layer2.c,v 1.4 1999/02/14 09:44:57 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Sun Feb 14 10:16:46 1999]
  *

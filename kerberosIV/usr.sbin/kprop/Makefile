@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:14 markm Exp $
+# $FreeBSD$
 
 PROG=		kprop
 MAN8=		${KRB4DIR}/man/kprop.8

@@ -27,7 +27,7 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- *	$Id: pathnames.h,v 1.8 1999/04/29 08:27:10 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Thu Apr 29 09:07:29 1999]
  *

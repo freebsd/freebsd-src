@@ -44,7 +44,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: crypt_server.c,v 1.3 1997/09/23 06:36:26 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*

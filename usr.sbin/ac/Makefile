@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	ac
 MAN8=	ac.8

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: daemon.c,v 1.1.1.1.2.1 1999/02/05 12:21:57 abial Exp $
+ * $FreeBSD$
  */
 
 

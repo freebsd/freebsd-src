@@ -27,7 +27,7 @@
  *	pcauseq850.h - Q.850 causes definitions
  *	---------------------------------------
  *
- *	$Id: pcause_q850.h,v 1.4 1999/02/14 09:44:58 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Sun Feb 14 10:22:48 1999]
  *

@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		vnconfig
 MAN8=		vnconfig.8

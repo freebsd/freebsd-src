@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.h,v 1.5 1998/06/27 12:03:43 brian Exp $
+ * $FreeBSD$
  */
 
 struct tun_data {

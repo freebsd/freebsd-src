@@ -113,7 +113,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mtrace.c,v 1.15 1998/06/29 17:51:39 bde Exp $";
+  "$FreeBSD$";
 #endif
 
 #include <ctype.h>

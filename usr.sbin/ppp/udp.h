@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: udp.h,v 1.1 1999/05/12 09:49:11 brian Exp $
+ * $FreeBSD$
  */
 
 struct physical;
