@@ -1,12 +1,15 @@
-                INSTALLATION INSTRUCTIONS FOR FreeBSD 1.0 EPSILON
+                        FLOPPY INSTALLATION NOTES
+                                FreeBSD
+                              Release 1.0
 
 Welcome to FreeBSD!  This document has been put together in an effort
-to make initial installation of the system as easy as possible.
+to make initial installation from floppy of the system as easy as possible.
 
-1.  To install FreeBSD you will need 4 floppies, as well as the bulk of
-    the distribution on some other medium (floppy, tape, CD, etc).  If
-    you've retrieved this release from the net, you'll first have to make
-    the floppies yourself using the supplied images.
+1.  To install FreeBSD you will need 3 (4 if you choose to add the optional
+    DOS floppy) floppies, as well as the bulk of the distribution on some
+    other medium (floppy, tape, CD, etc).  If you've retrieved this release
+    from the net, you'll first have to make the floppies yourself using
+    the supplied images.
 
     Due to the differences in PC configurations, we've found it necessary
     to provide multiple initial boot images that provide kernels for
@@ -14,9 +17,10 @@ to make initial installation of the system as easy as possible.
 
     If your disk controller is one of:
 
-	IDE/ST506
-	Adaptec 1542{A,B,C}
-	Adaptec 1742A
+	MFM / RLL / IDE / ST506
+	Adaptec 154x series
+	Adaptec 174x series
+	Buslogic 545S
 
     Then please use the disk image:	kcopy-ah-floppy
     to construct your boot floppy.
@@ -24,7 +28,7 @@ to make initial installation of the system as easy as possible.
     If your disk controller is one of:
 
 	Bustek 742a
-	UltraStore {14,34}F
+	UltraStore 14F or 34F
 
     Then please use the disk image:	kcopy-bt-floppy
     to construct your boot floppy.
@@ -48,8 +52,8 @@ to make initial installation of the system as easy as possible.
     You'll have the option of loading the programs that are on
     the dos floppy in the last stage of the boot process.
 
-2.  Boot the first floppy.  When it asks you to insert the file system,
-    insert your second ``filesystem-floppy.''  Follow the instructions
+2.  Boot the first floppy.  When it asks you to insert the file system floppy,
+    insert the second floppy ``filesystem-floppy.''  Follow the instructions
     that floppy gives you.  If partitions  already exist on the hard disk,
     then by default, FreeBSD attempts to install at the end of these.
     Before rebooting, note the type of disk it says to copy the kernel
@@ -65,13 +69,13 @@ to make initial installation of the system as easy as possible.
 
 4.  Making sure that there's no floppy in the drive, press return to boot
     from the hard disk.  After it has booted and is asking what drive the
-    cpio floppy is in, insert the third floppy (cpio-floppy) into a
+    cpio floppy is in, insert the third floppy ``cpio-floppy'' into a
     floppy drive and answer the question about what drive it is in.
     Note that 0 is the same as DOS drive A:, and 1 is the same as DOS
     drive B:
 
 5.  After the cpio-floppy has been copied to the disk, remove it from the
-    drive.  If there are programs on the  dos-floppy that you would like
+    drive.  If there are programs on the dos-floppy that you would like
     installed, then insert this disk in a floppy drive.  Again, specify 
     the drive to read from.
 
@@ -146,4 +150,4 @@ to make initial installation of the system as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.9 1993/09/13 07:53:28 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.10 1993/10/01 19:22:40 rgrimes Exp $
