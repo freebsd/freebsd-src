@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 1999
+.Dd March 4, 2003
 .Dt WICONTROL 8
 .Os
 .Sh NAME
@@ -112,12 +112,12 @@ utility controls the operation of WaveLAN/IEEE wireless networking
 devices via the
 .Xr wi 4
 driver.
-Most of the parameters that can be changed relate to the
-IEEE 802.11 protocol which the WaveLAN implements.
-This includes
-the station name, whether the station is operating in ad-hoc (point
-to point) or BSS (service set) mode, and the network name of a service
-set to join (IBSS) if BSS mode is enabled.
+.Pp
+You should not use this program to configure IEEE 802.11 paramters.
+Use
+.Xr ifconfig 8
+instead to do those tasks.
+.Pp
 The
 .Nm
 utility can also be used to view the current settings of these parameters
@@ -150,6 +150,12 @@ Encryption keys are only displayed if
 .Nm
 is run as root.
 .It Oo Fl i Oc Ar iface Fl t Ar tx_rate
+This flag is obsolete.
+Use
+.Xr ifconfig 8
+.Dq mediaopt
+instead.
+.Pp
 Set the transmit rate of the specified interface.
 The legal values
 for the transmit rate vary depending on whether the interface is a
@@ -170,15 +176,19 @@ legal transmit rate settings and the corresponding transmit speeds:
 .It Cm 7 Ta "Auto Rate Select (Medium)"
 .El
 .Pp
-The standard NICs support only settings
-.Cm 1
-through
-.Cm 3 .
-Turbo NICs support all the above listed speed settings.
 The default driver setting is
 .Cm 3
 (auto rate select).
+The numbers vary from card to card.
 .It Oo Fl i Oc Ar iface Fl n Ar network_name
+This flag is obsolete.
+Use
+.Xr ifconfig 8
+.Dq ssid
+or
+.Dq nwid
+instead.
+.Pp
 Set the name of the service set (IBSS) that this station wishes to
 join.
 The
@@ -200,6 +210,14 @@ in another driver which indicates that the
 .Dq Li ANY
 string works as well.
 .It Oo Fl i Oc Ar iface Fl s Ar station_name
+This flag is obsolete.
+Use
+.Xr ifconfig 8
+.Dq stationname
+or
+.Dq station
+instead.
+.Pp
 Sets the
 station name
 for the specified interface.
@@ -211,6 +229,10 @@ The
 software can
 poll the names of remote hosts.
 .It Oo Fl i Oc Ar iface Fl c Cm 0 | 1
+This flag is obsolete.
+IBSS networks are automatically created on those cards whose firmware
+supports it while in IBSS mode.
+.Pp
 Allow the station to create a service set (IBSS).
 Permitted values are
 .Cm 0
@@ -220,9 +242,13 @@ Permitted values are
 The default is
 .Cm 0 .
 .Pp
-Note: this option is provided for experimental purposes only: enabling
-the creation of an IBSS on a host system doesn't appear to actually work.
+Only newer versions of the Lucent firmware support this.
 .It Oo Fl i Oc Ar iface Fl q Ar SSID
+This flag is obsolete.
+The ssid setting from
+.Xr ifconfig 8
+is the current preferred way of setting this parameter.
+.Pp
 Specify the name of an IBSS (SSID) to create on a given interface.
 The
 .Ar SSID
@@ -231,6 +257,21 @@ can be any text string up to 30 characters long.
 Note: this option is provided for experimental purposes only: enabling
 the creation of an IBSS on a host system doesn't appear to actually work.
 .It Oo Fl i Oc Ar iface Fl p Ar port_type
+This flag is obsolete.
+It should never be used.
+Do not use this flag.
+Its meaning depends on the type of card you are using, as well as the
+firmware you have installed in the card in some cases.
+Beware.
+Danger.
+Do not use.
+Instead, use the
+.Xr ifconfig 8
+.Dq media
+and
+.Dq mediaopt
+commands.
+.Pp
 Set the
 port type
 for a specified interface.
@@ -248,8 +289,12 @@ In BSS mode,
 hosts must associate with a service set controlled by an access point,
 which relays traffic between end stations.
 The default setting is
-.Cm 3
-(ad-hoc mode).
+.Cm 1
+(BSS mode).
+Lucent cards have one set of meanings.
+Prism cards have another.
+Symbol cards have a third.
+Do not use this flag.
 .It Oo Fl i Oc Ar iface Fl a Ar access_point_density
 Specify the
 access point density
@@ -278,6 +323,12 @@ The
 can be any number from 350 to 2304.
 The default is 2304.
 .It Oo Fl i Oc Ar iface Fl e Cm 0 | 1
+This flag is obsolete.
+It has been replaced by the
+.Xr ifconfig 8
+.Dq wepmode
+option.
+.Pp
 Enable or disable WEP encryption.
 Permitted values are
 .Cm 0
@@ -291,6 +342,12 @@ See the
 .Sx BUGS
 section for details.
 .It Oo Fl i Oc Ar iface Fl k Ar key Op Fl v Cm 1 | 2 | 3 | 4
+This flag is obsoelte.
+The
+.Xr ifconfig 8
+.Dq wepkey
+should be used instead.
+.Pp
 Set WEP encryption keys.
 There are four default encryption keys
 that can be programmed.
@@ -326,6 +383,12 @@ See the
 .Sx BUGS
 section for details.
 .It Oo Fl i Oc Ar iface Fl T Cm 1 | 2 | 3 | 4
+This flag is obsoelte.
+The
+.Xr ifconfig 8
+.Dq wepkey
+should be used instead.
+.Pp
 Specify which of the four WEP encryption keys will be used to
 encrypt transmitted packets.
 .Pp
@@ -384,6 +447,12 @@ and it is the only available channel for pre-11Mbps NICs.
 Note that two stations must be set to the same channel in order to
 communicate.
 .It Oo Fl i Oc Ar iface Fl P Cm 0 | 1
+This flag is obsoelte.
+The
+.Xr ifconfig 8
+.Dq powersave
+should be used instead.
+.Pp
 Enable or disable power management on a given interface.
 Enabling
 power management uses an alternating sleep/wake protocol to help
@@ -405,6 +474,12 @@ values for this parameter are
 .Cm 1
 (on).
 .It Oo Fl i Oc Ar iface Fl S Ar max_sleep_interval
+This flag is obsoelte.
+The
+.Xr ifconfig 8
+.Dq powersleep
+should be used instead.
+.Pp
 Specify the sleep interval to use when power management is enabled.
 The
 .Ar max_sleep_interval
@@ -428,9 +503,13 @@ better signal quality).
 .El
 .Sh SEE ALSO
 .Xr ipsec 4 ,
+.Xr awi 4 ,
 .Xr wi 4 ,
 .Xr ifconfig 8
 .Sh BUGS
+There are obsolete flags here that should be removed.
+These flags will be removed without further notice.
+.Pp
 The WEP encryption method has been broken so that third parties
 can recover the keys in use relatively quickly at distances that are
 surprising to most people.
@@ -461,6 +540,8 @@ for details of the attack.
 .Pp
 If you must use WEP, you are strongly encouraged to pick keys whose
 bytes are random and not confined to ASCII characters.
+.Pp
+Signal cache is broken right now.
 .Sh HISTORY
 The
 .Nm
