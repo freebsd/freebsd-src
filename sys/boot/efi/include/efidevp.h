@@ -20,9 +20,9 @@ Revision History
 
 --*/
 
-//
-// Device Path structures - Section C
-//
+/*
+ * Device Path structures - Section C
+ */
 
 typedef struct _EFI_DEVICE_PATH {
         UINT8                           Type;
@@ -33,9 +33,7 @@ typedef struct _EFI_DEVICE_PATH {
 #define EFI_DP_TYPE_MASK                    0x7F
 #define EFI_DP_TYPE_UNPACKED                0x80
 
-//#define END_DEVICE_PATH_TYPE                0xff
 #define END_DEVICE_PATH_TYPE                0x7f
-//#define END_DEVICE_PATH_TYPE_UNPACKED       0x7f
 
 #define END_ENTIRE_DEVICE_PATH_SUBTYPE      0xff
 #define END_INSTANCE_DEVICE_PATH_SUBTYPE    0x01
@@ -49,7 +47,6 @@ typedef struct _EFI_DEVICE_PATH {
 #define DevicePathSubType(a)        ( (a)->SubType )
 #define DevicePathNodeLength(a)     ( ((a)->Length[0]) | ((a)->Length[1] << 8) )
 #define NextDevicePathNode(a)       ( (EFI_DEVICE_PATH *) ( ((UINT8 *) (a)) + DevicePathNodeLength(a)))
-//#define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE_UNPACKED )
 #define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE )
 #define IsDevicePathEndSubType(a)   ( (a)->SubType == END_ENTIRE_DEVICE_PATH_SUBTYPE )
 #define IsDevicePathEnd(a)          ( IsDevicePathEndType(a) && IsDevicePathEndSubType(a) )
@@ -128,13 +125,13 @@ typedef struct _ACPI_HID_DEVICE_PATH {
         UINT32                          UID;
 } ACPI_HID_DEVICE_PATH;
 
-//
-// EISA ID Macro
-// EISA ID Definition 32-bits
-//  bits[15:0] - three character compressed ASCII EISA ID.
-//  bits[31:16] - binary number
-//   Compressed ASCII is 5 bits per character 0b00001 = 'A' 0b11010 = 'Z'
-//
+/*
+ * EISA ID Macro
+ * EISA ID Definition 32-bits
+ *  bits[15:0] - three character compressed ASCII EISA ID.
+ *  bits[31:16] - binary number
+ *   Compressed ASCII is 5 bits per character 0b00001 = 'A' 0b11010 = 'Z'
+ */
 #define PNP_EISA_ID_CONST       0x41d0    
 #define EISA_ID(_Name, _Num)    ((UINT32) ((_Name) | (_Num) << 16))   
 #define EISA_PNP_ID(_PNPId)     (EISA_ID(PNP_EISA_ID_CONST, (_PNPId)))

@@ -2,9 +2,9 @@
 #ifndef _EFI_FPSWA_H
 #define _EFI_FPSWA_H
 
-//
-// EFI FP SWA Driver (Floating Point Software Assist)
-//
+/*
+ * EFI FP SWA Driver (Floating Point Software Assist)
+ */
 
 #define EFI_INTEL_FPSWA \
     { 0xc41b6531, 0x97b9, 0x11d3, 0x9a, 0x29, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d }

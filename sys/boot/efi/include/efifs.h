@@ -21,9 +21,9 @@ Revision History
 --*/
 
 
-//
-// EFI Partition header (normaly starts in LBA 1)
-//
+/*
+ * EFI Partition header (normaly starts in LBA 1)
+ */
 
 #define EFI_PARTITION_SIGNATURE         0x5053595320494249
 #define EFI_PARTITION_REVISION          0x00010001
@@ -43,9 +43,9 @@ typedef struct _EFI_PARTITION_HEADER {
 } EFI_PARTITION_HEADER;
 
 
-//
-// File header
-//
+/*
+ * File header
+ */
 
 #define EFI_FILE_HEADER_SIGNATURE   0x454c494620494249
 #define EFI_FILE_HEADER_REVISION    0x00010000
@@ -65,10 +65,10 @@ typedef struct _EFI_FILE_HEADER {
 } EFI_FILE_HEADER;
 
 
-//
-// Return the file's first LBAL which is in the same
-// logical block as the file header
-//
+/*
+ * Return the file's first LBAL which is in the same
+ * logical block as the file header
+ */
 
 #define EFI_FILE_LBAL(a)    ((EFI_LBAL *) (((CHAR8 *) (a)) + (a)->LBALOffset))
 
@@ -77,10 +77,10 @@ typedef struct _EFI_FILE_HEADER {
 #define EFI_FILE_CLASS_NORMAL       3
 
 
-//
-// Logical Block Address List - the fundemental block
-// description structure
-//
+/*
+ * Logical Block Address List - the fundemental block
+ * description structure
+ */
 
 #define EFI_LBAL_SIGNATURE      0x4c41424c20494249
 #define EFI_LBAL_REVISION       0x00010000
@@ -94,22 +94,22 @@ typedef struct _EFI_LBAL {
     UINT32              ArrayCount;
 } EFI_LBAL;
 
-// Array size 
+/* Array size */
 #define EFI_LBAL_ARRAY_SIZE(lbal,offs,blks)  \
         (((blks) - (offs) - (lbal)->Hdr.HeaderSize) / sizeof(EFI_RL))
 
-//
-// Logical Block run-length
-//
+/*
+ * Logical Block run-length
+ */
 
 typedef struct {
     EFI_LBA     Start;
     UINT64      Length;
 } EFI_RL;
 
-//
-// Return the run-length structure from an LBAL header
-//
+/*
+ * Return the run-length structure from an LBAL header
+ */
 
 #define EFI_LBAL_RL(a)      ((EFI_RL*) (((CHAR8 *) (a)) + (a)->Hdr.HeaderSize))
 

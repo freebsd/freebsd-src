@@ -21,17 +21,17 @@ Revision History
 #pragma pack()
 
 
-//
-// Basic int types of various widths
-//
+/*
+ * Basic int types of various widths
+ */
 
 #if (__STDC_VERSION__ < 199901L )
 
-    // No ANSI C 1999/2000 stdint.h integer width declarations 
+/* No ANSI C 1999/2000 stdint.h integer width declarations */
 
     #if _MSC_EXTENSIONS
 
-        // Use Microsoft C compiler integer width declarations 
+/* Use Microsoft C compiler integer width declarations */
 
         typedef unsigned __int64    uint64_t;
         typedef __int64             int64_t;
@@ -44,7 +44,7 @@ Revision History
     #else             
         #ifdef UNIX_LP64
 
-            // Use LP64 programming model from C_FLAGS for integer width declarations 
+/* Use LP64 programming model from C_FLAGS for integer width declarations */
 
             typedef unsigned long       uint64_t;
             typedef long                int64_t;
@@ -56,7 +56,7 @@ Revision History
             typedef char                int8_t;
         #else
 
-            // Assume P64 programming model from C_FLAGS for integer width declarations 
+/* Assume P64 programming model from C_FLAGS for integer width declarations */
 
             typedef unsigned long long  uint64_t;
             typedef long long           int64_t;
@@ -70,9 +70,9 @@ Revision History
     #endif
 #endif
 
-//
-// Basic EFI types of various widths
-//
+/*
+ * Basic EFI types of various widths
+ */
 
 typedef uint64_t   UINT64;
 typedef int64_t    INT64;
@@ -116,12 +116,12 @@ typedef uint32_t   UINTN;
 #ifdef EFI_NT_EMULATOR
     #define BREAKPOINT()        __asm { int 3 }
 #else
-    #define BREAKPOINT()        while (TRUE);    // Make it hang on Bios[Dbg]32
+    #define BREAKPOINT()        while (TRUE);
 #endif
 
-//
-// Pointers must be aligned to these address to function
-//
+/*
+ * Pointers must be aligned to these address to function
+ */
 
 #define MIN_ALIGNMENT_SIZE  4
 
@@ -132,16 +132,17 @@ typedef uint32_t   UINTN;
             Value = (UINTN)Value + (UINTN)Adjustment
 
 
-//
-// Define macros to build data structure signatures from characters.
-//
+/*
+ * Define macros to build data structure signatures from characters.
+ */
 
 #define EFI_SIGNATURE_16(A,B)             ((A) | (B<<8))
 #define EFI_SIGNATURE_32(A,B,C,D)         (EFI_SIGNATURE_16(A,B)     | (EFI_SIGNATURE_16(C,D)     << 16))
 #define EFI_SIGNATURE_64(A,B,C,D,E,F,G,H) (EFI_SIGNATURE_32(A,B,C,D) | ((UINT64)(EFI_SIGNATURE_32(E,F,G,H)) << 32))
-//
-// To export & import functions in the EFI emulator environment
-//
+
+/*
+ * To export & import functions in the EFI emulator environment
+ */
 
 #if EFI_NT_EMULATOR
     #define EXPORTAPI           __declspec( dllexport )
@@ -150,25 +151,25 @@ typedef uint32_t   UINTN;
 #endif
 
 
-//
-// EFIAPI - prototype calling convention for EFI function pointers
-// BOOTSERVICE - prototype for implementation of a boot service interface
-// RUNTIMESERVICE - prototype for implementation of a runtime service interface
-// RUNTIMEFUNCTION - prototype for implementation of a runtime function that is not a service
-// RUNTIME_CODE - pragma macro for declaring runtime code    
-//
+/*
+ * EFIAPI - prototype calling convention for EFI function pointers
+ * BOOTSERVICE - prototype for implementation of a boot service interface
+ * RUNTIMESERVICE - prototype for implementation of a runtime service interface
+ * RUNTIMEFUNCTION - prototype for implementation of a runtime function that
+ *	is not a service
+ * RUNTIME_CODE - pragma macro for declaring runtime code    
+ */
 
-#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options 
+/* Forces EFI calling conventions reguardless of compiler options */
+#ifndef EFIAPI
     #if _MSC_EXTENSIONS
-        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler 
+        #define EFIAPI __cdecl
     #else
-        #define EFIAPI          // Substitute expresion to force C calling convention 
+        #define EFIAPI
     #endif
 #endif
 
 #define BOOTSERVICE
-//#define RUNTIMESERVICE(proto,a)    alloc_text("rtcode",a); proto a
-//#define RUNTIMEFUNCTION(proto,a)   alloc_text("rtcode",a); proto a
 #define RUNTIMESERVICE
 #define RUNTIMEFUNCTION
 
@@ -183,11 +184,11 @@ typedef uint32_t   UINTN;
 
 #ifdef EFI_NT_EMULATOR
 
-//
-// To help ensure proper coding of integrated drivers, they are
-// compiled as DLLs.  In NT they require a dll init entry pointer.
-// The macro puts a stub entry point into the DLL so it will load.
-//
+/*
+ * To help ensure proper coding of integrated drivers, they are
+ * compiled as DLLs.  In NT they require a dll init entry pointer.
+ * The macro puts a stub entry point into the DLL so it will load.
+ */
 
 #define EFI_DRIVER_ENTRY_POINT(InitFunction)    \
     UINTN                                       \
@@ -216,26 +217,26 @@ typedef uint32_t   UINTN;
     #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)      \
         (_if)->LoadInternal(type, name, NULL)             
 
-#else // EFI_NT_EMULATOR 
+#else /* EFI_NT_EMULATOR */
 
-//
-// When build similiar to FW, then link everything together as
-// one big module.
-//
+/*
+ * When build similiar to FW, then link everything together as
+ * one big module.
+ */
 
     #define EFI_DRIVER_ENTRY_POINT(InitFunction)
 
     #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)    \
             (_if)->LoadInternal(type, name, entry)
 
-#endif // EFI_FW_NT 
+#endif /* EFI_FW_NT */
 
-//
-// Some compilers don't support the forward reference construct:
-//  typedef struct XXXXX
-//
-// The following macro provide a workaround for such cases.
-//
+/*
+ * Some compilers don't support the forward reference construct:
+ *  typedef struct XXXXX
+ *
+ * The following macro provide a workaround for such cases.
+ */
 #ifdef NO_INTERFACE_DECL
 #define INTERFACE_DECL(x)
 #else
@@ -243,6 +244,6 @@ typedef uint32_t   UINTN;
 #endif
 
 #if _MSC_EXTENSIONS
-#pragma warning ( disable : 4731 )  // Suppress warnings about modification of EBP
+#pragma warning ( disable : 4731 )
 #endif
 
