@@ -1,7 +1,12 @@
 
 
-SYSINSTALL=../../../../release/sysinstall/sysinstall
-NOCRYPT?=yes
+.if exists(../../../../release/sysinstall/sysinstall)
+SYSINSTALL=	../../../../release/sysinstall/sysinstall
+.else
+SYSINSTALL=	../../../../release/sysinstall/obj/sysinstall
+.endif
+
+NOCRYPT?=	yes
 
 all: ${SYSINSTALL} crunch
 
