@@ -67,17 +67,23 @@
 #define ETHER_MAX_LEN   1518
 #define ETHER_ADDR_LEN  6
 
+char *card_type[] = {"Unknown",
+                     "BICC Isolan",
+                     "NE2100"};
 
-/*
- * Ethernet software status per interface.
- *
- * Each interface is referenced by a network interface structure,
- * arpcom.ac_if, which the routing code uses to locate the interface.
- * This structure contains the output queue for the interface, its address, ...
- */
+char *ic_type[] = {"Unknown",
+                   "Am7990 LANCE",
+                   "Am79960 PCnet_ISA"};
+                 
+
 struct	is_softc {
 	struct arpcom arpcom;             /* Ethernet common part */
-	int iobase;                       /* IO base address of card */
+	int iobase;
+	int rap;
+	int rdp;
+	int ic_type;                         /* Am 7990 or Am79960 */
+	int card_type;
+	int is_debug;
 	struct init_block  *init_block;   /* Lance initialisation block */
 	struct mds 	*rd;
 	struct mds	*td;
@@ -90,7 +96,6 @@ struct	is_softc {
 
 } is_softc[NIS] ;
 
-int is_debug;
 
 /* Function prototypes */
 static int is_probe(struct isa_device *);
@@ -100,6 +105,10 @@ static int is_ioctl(struct ifnet *, int, caddr_t);
 static void is_init(int);
 static void is_start(struct ifnet *);
 static void istint(int);
+static void recv_print(int, int);
+static void xmit_print(int, int);
+
+
 
 static inline void is_rint(int unit);
 static inline void isread(struct is_softc*, unsigned char*, int);
@@ -118,54 +127,152 @@ iswrcsr(unit,port,val)
 	u_short port;
 	u_short val;
 {
-	int iobase;
-
-	iobase = is_softc[unit].iobase;
-	outw(iobase+RAP,port);
-	outw(iobase+RDP,val);
+	outw(is_softc[unit].rap,port);
+	outw(is_softc[unit].rdp,val);
 }
 
 u_short isrdcsr(unit,port)
 	int unit;
 	u_short port;
 {
-	int iobase;
-	
-	iobase = is_softc[unit].iobase;
-	outw(iobase+RAP,port);
-	return(inw(iobase+RDP));
+	outw(is_softc[unit].rap,port);
+	return(inw(is_softc[unit].rdp));
 } 
 
 int
 is_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
-	int val,i,s;
 	int unit = isa_dev->id_unit ;
-	register struct is_softc *is = &is_softc[unit];
+	int nports;
 
-	is->iobase = isa_dev->id_iobase;
+int i;
+	is_softc[unit].iobase = isa_dev->id_iobase;
 
-	/* Stop the lance chip, put it in known state */	
-	iswrcsr(unit,0,STOP);
-	DELAY(100);
+	/*
+	 * It's impossible to do a non-invasive probe of the 
+	 * LANCE and PCnet_ISA. The LANCE requires setting the
+	 * STOP bit to access the registers and the PCnet_ISA
+	 * address port resets to an unknown state!!
+	 */
 
-	/* is there a lance? */
-	iswrcsr(unit,3, 0xffff);
-	if (isrdcsr(unit,3) != 7) {
-		is->iobase = 0;
-		return (0);
+	/*
+	 * Check for BICC cards first since for the NE2100 and
+	 * PCnet-ISA cards this write will hit the Address PROM. 
+	 */
+
+printf("Dumping io space for is%d starting at %x\n",unit,is_softc[unit].iobase);
+for (i=0; i< 32; i++)
+	printf(" %x ",inb(is_softc[unit].iobase+i));
+printf("\n");
+
+	if (nports = bicc_probe(unit))
+		return (nports);
+	if (nports = ne2100_probe(unit))
+		return (nports);
+
+
+	return (0);
+}
+
+int
+ne2100_probe(unit)
+	int unit;
+{
+struct is_softc *is = &is_softc[unit];
+int i;
+
+	is->rap = is->iobase + NE2100_RAP;
+	is->rdp = is->iobase + NE2100_RDP;
+
+	if (is->ic_type = lance_probe(unit)) {
+		is->card_type = NE2100;
+		/* 
+		 * Extract the physical MAC address from ROM
+		 */
+		for(i=0;i<ETHER_ADDR_LEN;i++)
+			is->arpcom.ac_enaddr[i]=inb(is->iobase+i);
+
+		/* 
+		 * Return number of I/O ports used by card 
+		 */
+		return (24);
 	}
-	iswrcsr(unit,3, 0);
+	return (0);
+}
+			
 
-	/* Extract board address */
-	for(i=0;i<ETHER_ADDR_LEN;i++)
-		is->arpcom.ac_enaddr[i]=inb(is->iobase+(i*2));
+int
+bicc_probe(unit)
+	int unit;
+{
+struct is_softc *is = &is_softc[unit];
+int i;
 
-	return (1);
+	is->rap = is->iobase + BICC_RAP;
+	is->rdp = is->iobase + BICC_RDP;
+
+	if (is->ic_type = lance_probe(unit)) {
+		is->card_type = BICC;
+
+		/*
+		 * Extract the physical ethernet address from ROM
+		 */
+
+		for(i=0;i<ETHER_ADDR_LEN;i++)
+			is->arpcom.ac_enaddr[i]=inb(is->iobase+(i*2));
+
+		/* 
+		 * Return number of I/O ports used by card 
+		 */
+		return (16);
+	}
+	return (0);
 }
 
 
+/* 
+ * Determine which, if any, of the LANCE or 
+ * PCnet-ISA are present on the card.
+ */
+
+int
+lance_probe(unit)
+	int unit;
+{
+int type=0;
+
+	/* 
+	 * Have to reset the LANCE to get any 
+	 * stable information from it.
+	 */
+
+	iswrcsr(unit,0,STOP);
+	DELAY(100);
+
+	if (isrdcsr(unit,0) != STOP)
+		/* 
+		 * This either isn't a LANCE 
+		 * or there's a major problem.
+		 */
+		return(0);
+
+	/* 
+	 * Depending on which controller it is, CSR3 will have 
+	 * different settable bits. Write to them all and see which ones
+	 * get set.
+	 */
+
+	iswrcsr(unit,3, LANCE_MASK);
+
+	if (isrdcsr(unit,3) == LANCE_MASK)
+		type = LANCE;
+
+	if (isrdcsr(unit,3) == PCnet_ISA_MASK)
+		type = PCnet_ISA;
+
+	return (type);
+}
 
 /*
  * Reset of interface.
@@ -274,6 +381,7 @@ is_attach(isa_dev)
 
 	printf ("is%d: address %s\n", unit,
 		ether_sprintf(is->arpcom.ac_enaddr)) ;
+	printf("%s, %s\n",ic_type[is->ic_type],card_type[is->card_type]);
 
 #if NBPFILTER > 0
 	bpfattach(&is->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -538,7 +646,7 @@ is_start(ifp)
 		cdm->bcnt = -len;
 		cdm->mcnt = 0;
 #ifdef ISDEBUG
-		if (is_debug)
+		if (is->is_debug)
 			xmit_print(unit,is->last_td);
 #endif
 		
@@ -549,7 +657,7 @@ is_start(ifp)
 		is->no_td = NTBUF;
 		is->arpcom.ac_if.if_flags |= IFF_OACTIVE;	
 #ifdef ISDEBUG
-		if (is_debug)	
+		if (is->is_debug)	
 			printf("no_td = %x, last_td = %x\n",is->no_td, is->last_td);
 #endif
 }
@@ -625,7 +733,7 @@ istint(unit)
 			i+=NTBUF;
 		cdm = (is->td+i);
 #ifdef ISDEBUG
-	if (is_debug)
+	if (is->is_debug)
 		printf("Trans cdm = %x\n",cdm);
 #endif
 		if (cdm->flags&OWN) {
@@ -688,7 +796,7 @@ static inline void is_rint(int unit)
 		}else
 			{
 #ifdef ISDEBUG
-			if (is_debug)
+			if (is->is_debug)
 				recv_print(unit,is->last_rd);
 #endif
 			isread(is,is->rbuf+(BUFSIZE*rmd),(int)cdm->mcnt);
@@ -699,7 +807,7 @@ static inline void is_rint(int unit)
 		cdm->mcnt = 0;
 		NEXTRDS;
 #ifdef ISDEBUG
-		if (is_debug)
+		if (is->is_debug)
 			printf("is->last_rd = %x, cdm = %x\n",is->last_rd,cdm);
 #endif
 	} /* while */
@@ -746,7 +854,6 @@ isread(struct is_softc *is, unsigned char *buf, int len)
          * information to be at the front, but we still have to drop
          * the type and length which are at the front of any trailer data.
          */
-        is->arpcom.ac_if.if_ipackets++;
         m = isget(buf, len, off, &is->arpcom.ac_if);
         if (m == 0) return;
 #if NBPFILTER > 0
@@ -948,9 +1055,9 @@ is_ioctl(ifp, cmd, data)
 		}
 #ifdef ISDEBUG
 		if (ifp->if_flags & IFF_DEBUG)
-			is_debug = 1;
+			is->is_debug = 1;
 		else
-			is_debug = 0;
+			is->is_debug = 0;
 #endif
 #if NBPFILTER > 0
                 if (ifp->if_flags & IFF_PROMISC) {
@@ -987,6 +1094,7 @@ is_ioctl(ifp, cmd, data)
 }
 
 #ifdef ISDEBUG
+void
 recv_print(unit,no)
 	int unit,no;
 {
@@ -1008,7 +1116,8 @@ recv_print(unit,no)
 	if (printed)
 		printf("\n");
 }
-		
+
+void
 xmit_print(unit,no)
 	int unit,no;
 {
