@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.49 1996/11/16 01:07:34 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.50 1996/11/21 06:18:33 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -82,9 +82,10 @@ A = ACCUM
 reset:
 	clr	DFCNTRL
 	clr	SCSISIGO		/* De-assert BSY */
-/*
- * We jump to start after every bus free.
- */
+
+p_busfree:
+	mvi	LASTPHASE, P_BUSFREE
+
 start:
 	and	FLAGS,0x07		/* clear target specific flags */
 	mvi	SCSISEQ,ENRSELI		/* Always allow reselection */
@@ -146,7 +147,7 @@ dma_queued_scb:
  * locks out on a per target basis instead of target/lun.  Although this
  * is not ideal for devices that have multiple luns active at the same
  * time, it is faster than looping through all SCB's looking for active
- * commands.  We also don't have enough spare SCB space for to store the
+ * commands.  We also don't have enough spare SCB space for us to store the
  * SCBID of the currently busy transaction for each target/lun making it
  * impossible to link up the SCBs.
  */
@@ -317,6 +318,12 @@ set_sxfrctl0:
 						 */
 	mvi	CLRSINT1,CLRBUSFREE
 	mvi	CLRSINT0,0x60			/* CLRSELDI|CLRSELDO */
+	or	SIMODE1, ENBUSFREE		/*
+						 * We aren't expecting a
+						 * bus free, so interrupt
+						 * the kernel driver if it
+						 * happens.
+						 */
 /*
  * Main loop for information transfer phases.  If BSY is false, then
  * we have a bus free condition, expected or not.  Otherwise, wait
@@ -400,6 +407,7 @@ data_phase_loop:
  * had an overrun.
  */
 	or	SXFRCTL1,BITBUCKET
+	and	DMAPARAMS, 0xf7		/* Turn off HDMAEN */
 	mvi	STCNT0,0xff
 	mvi	STCNT1,0xff
 	mvi	STCNT2,0xff
@@ -536,20 +544,20 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	test	SSTAT1,BUSFREE	jnz p_mesgout_done
 	test	SSTAT0,SPIORDY jz p_mesgout_loop
 	test	SSTAT1,PHASEMIS	jnz p_mesgout_done
 /*
  * If the next bus phase after ATN drops is a message out, it means
  * that the target is requesting that the last message(s) be resent.
  */
+p_mesgout_dropatn:
+	cmp	DINDEX,1	jne p_mesgout_testretry	/* last byte? */
+	mvi	CLRSINT1,CLRATNO			/* drop ATN */
+p_mesgout_testretry:
 	test	DINDEX,0xff	jnz p_mesgout_outb
 	or	SCSISIGO,ATNO		/* turn on ATN for the retry */
 	jmp	p_mesgout_start
 p_mesgout_outb:
-	cmp	DINDEX,1	jne p_mesgout_outb2	/* last byte? */
-	mvi	CLRSINT1,CLRATNO			/* drop ATN */
-p_mesgout_outb2:
 	dec	DINDEX
 	mvi	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
@@ -610,6 +618,10 @@ mesgin_complete:
  */
 
 /*
+ * We expect to go to bus free after this message.
+ */
+	and	SIMODE1, 0xf7		/* ~ENBUSFREE */
+/*
  * First check for residuals
  */
 	test	SCB_RESID_SGCNT,0xff	jnz upload_scb
@@ -627,7 +639,7 @@ check_status:
 
 status_ok:
 /* First, mark this target as free. */
-	test	SCB_CONTROL,TAG_ENB jnz test_immediate	/*
+	test	SCB_CONTROL,TAG_ENB jnz complete	/*
 							 * Tagged commands
 							 * don't busy the
 							 * target.
@@ -638,15 +650,6 @@ status_ok:
 	mov	DINDIR, SAVED_LINKPTR
 	mov	SCBPTR, SAVED_SCBPTR
 
-test_immediate:
-	test    SCB_CMDLEN,0xff jnz complete  /* Immediate message complete */
-/*
- * Pause the sequencer until the driver gets around to handling the command
- * complete.  This is so that any action that might require carefull timing
- * with the completion of this command can occur.
- */
-	mvi	INTSTAT,IMMEDDONE
-	jmp	dma_next_scb
 complete:
 	test	FLAGS, PAGESCBS jz complete_post
 	mov	A, QFULLCNT
@@ -661,7 +664,7 @@ complete_post:
 	mvi	INTSTAT,CMDCMPLT
 
 dma_next_scb:
-	cmp	SCB_LINKED_NEXT, SCB_LIST_NULL	je mesgin_done
+	cmp	SCB_LINKED_NEXT, SCB_LIST_NULL	je add_to_free_list
 	test	FLAGS, PAGESCBS jnz dma_next_scb2
 	/* Only DMA on top of ourselves if we are the SCB to download */
 	mov	A, SCB_LINKED_NEXT
@@ -674,7 +677,9 @@ dma_next_scb2:
 add_to_waiting_list:
 	mov	SCB_NEXT,WAITING_SCBH
 	mov	WAITING_SCBH, SCBPTR
-	or	FLAGS, SCB_LISTED
+	jmp	mesgin_done
+add_to_free_list:
+	call	add_scb_to_free_list
 	jmp	mesgin_done
 
 /*
@@ -706,10 +711,10 @@ mesgin_extended_intr:
  * and await the bus going free.
  */
 mesgin_disconnect:
+	and	SIMODE1, 0xf7		/* ~ENBUSFREE */
 	or	SCB_CONTROL,DISCONNECTED
 	test	FLAGS, PAGESCBS jz mesgin_done
 	call	add_scb_to_disc_list
-	or	FLAGS, SCB_LISTED
 	jmp	mesgin_done
 
 /*
@@ -772,8 +777,7 @@ mesgin_identify:
  */
 	mvi	ARG_1,SCB_LIST_NULL	/* Default to no-tag */
 snoop_tag_loop:
-	test	SSTAT1,BUSFREE		jnz use_findSCB
-	test	SSTAT1,REQINIT		jz snoop_tag_loop
+	test	SSTAT0,SPIORDY		jz snoop_tag_loop
 	test	SSTAT1,PHASEMIS		jnz use_findSCB
 	mvi	A			call inb_first
 	cmp	A,MSG_SIMPLE_Q_TAG	jne use_findSCB
@@ -832,28 +836,6 @@ mesgin_reject:
 /*
  * [ ADD MORE MESSAGE HANDLING HERE ]
  */
-
-/*
- * Bus free phase.  It might be useful to interrupt the device
- * driver if we aren't expecting this.
- */
-p_busfree:
-	mvi	LASTPHASE, P_BUSFREE
-
-/*
- * if this is an immediate command, perform a psuedo command complete to
- * notify the driver.
- */
-	test	SCB_CMDLEN,0xff	jz status_ok
-	test	FLAGS, SCB_LISTED	jnz start
-	/*
-	 * This SCB didn't disconnect or have a command complete,
-	 * so put it on the free queue.  It was probably the
-	 * result of an abort of some sort.  This prevents us
-	 * from "leaking" SCBs.
-	 */
-	call	add_scb_to_free_list
-	jmp	start
 
 /*
  * Locking the driver out, build a one-byte message passed in SINDEX
