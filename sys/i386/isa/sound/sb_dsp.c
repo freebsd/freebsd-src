@@ -611,7 +611,6 @@ sb_dsp_reset (int dev)
   DISABLE_INTR (flags);
 
   sb_reset_dsp ();
-  dsp_speed (dsp_current_speed);
   dsp_cleanup ();
 
   RESTORE_INTR (flags);

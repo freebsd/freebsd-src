@@ -331,14 +331,14 @@ DMAbuf_getrdbuffer (int dev, char **buf, int *len)
     {
       if (dev_needs_restart[dev])
 	{
-	  dma_reset (dev);
+	  /* dma_reset (dev); */
 	  dev_needs_restart[dev] = 0;
 	}
 
       if (dma_mode[dev] == DMODE_OUTPUT)	/* Was output -> direction change */
 	{
 	  dma_sync (dev);
-	  dma_reset (dev);
+	  /* dma_reset (dev); */
 	  dma_mode[dev] = DMODE_NONE;
 	}
 
@@ -444,7 +444,7 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 
     case SNDCTL_DSP_SYNC:
       dma_sync (dev);
-      dma_reset (dev);
+      /* dma_reset (dev); */
       return 0;
       break;
 
@@ -496,13 +496,13 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size)
 
   if (dma_mode[dev] == DMODE_INPUT)	/* Was input -> Direction change */
     {
-      dma_reset (dev);
+      /* dma_reset (dev); */
       dma_mode[dev] = DMODE_NONE;
     }
   else if (dev_needs_restart[dev])	/* Restart buffering */
     {
       dma_sync (dev);
-      dma_reset (dev);
+      /* dma_reset (dev); */
     }
 
   dev_needs_restart[dev] = 0;
