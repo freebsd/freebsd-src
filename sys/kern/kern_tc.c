@@ -312,6 +312,13 @@ tc_setclock(struct timespec *ts)
 	tc_windup();
 }
 
+u_int32_t
+tc_getfrequency(void)
+{
+
+	return (timecounter->tc_frequency);
+}
+
 static void
 switch_timecounter(struct timecounter *newtc)
 {
@@ -362,10 +369,9 @@ tc_windup(void)
 	 */
 	if (tco->tc_poll_pps) 
 		tco->tc_poll_pps(tco);
-	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) {
-		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
-		tc_setscales(tc);
-	}
+	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) 
+		ntp_update_second(&tc->tc_adjustment, &tc->tc_offset.sec);
+	tc_setscales(tc);
 
 	bt = tc->tc_offset;
 	bintime_add(&bt, &boottimebin);

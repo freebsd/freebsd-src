@@ -222,7 +222,7 @@ clock_getres(td, uap)
 	error = 0;
 	if (SCARG(uap, tp)) {
 		ts.tv_sec = 0;
-		ts.tv_nsec = 1000000000 / timecounter->tc_frequency;
+		ts.tv_nsec = 1000000000 / tc_getfrequency();
 		error = copyout(&ts, SCARG(uap, tp), sizeof(ts));
 	}
 	return (error);
