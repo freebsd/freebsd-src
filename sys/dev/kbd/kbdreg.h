@@ -173,7 +173,6 @@ typedef struct keyboard_driver {
 
 /* global variables */
 extern keyboard_switch_t **kbdsw;
-extern struct linker_set kbddriver_set;
 
 /* functions for the keyboard driver */
 int			kbd_add_driver(keyboard_driver_t *driver);

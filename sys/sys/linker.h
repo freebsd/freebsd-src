@@ -139,6 +139,14 @@ caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name,
 				  int _deps);
 
 /*
+ * Lookup a linker set in a file.  Return pointers to the first entry,
+ * last + 1, and count of entries.  Use: for (p = start; p < stop; p++) {}
+ * void *start is really: "struct yoursetmember ***start;"
+ */
+int linker_file_lookup_set(linker_file_t _file, const char *_name,
+			   void *_start, void *_stop, int *_count);
+
+/*
  * This routine is responsible for finding dependencies of userland
  * initiated kldload(2)'s of files.
  */

@@ -80,8 +80,6 @@ static vr_draw_border_t		vga_grborder;
 
 static void			vga_nop(scr_stat *scp, ...);
 
-static struct linker_set	vga_set;
-
 static sc_rndr_sw_t txtrndrsw = {
 	vga_txtclear,
 	vga_txtborder,

@@ -366,7 +366,6 @@ extern struct sysentvec elf_linux_sysvec;
 /*
  * Pluggable ioctl handlers
  */
-struct linker_set;
 struct linux_ioctl_args;
 struct proc;
 
@@ -378,9 +377,7 @@ struct linux_ioctl_handler {
 };
 
 int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
-int	linux_ioctl_register_handlers(struct linker_set *s);
 int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
-int	linux_ioctl_unregister_handlers(struct linker_set *s);
 
 /*
  * open/fcntl flags

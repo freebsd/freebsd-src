@@ -54,6 +54,9 @@ int kld_debug = 0;
 static char *linker_search_path(const char *name);
 static const char *linker_basename(const char* path);
 
+/* Metadata from the static kernel */
+SET_DECLARE(modmetadata_set, struct mod_metadata);
+
 MALLOC_DEFINE(M_LINKER, "linker", "kernel linker");
 
 linker_file_t linker_kernel_file;
@@ -105,7 +108,7 @@ linker_add_class(linker_class_t lc)
 static void
 linker_file_sysinit(linker_file_t lf)
 {
-    struct linker_set* sysinits;
+    struct sysinit** start, ** stop;
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
@@ -113,11 +116,7 @@ linker_file_sysinit(linker_file_t lf)
     KLD_DPF(FILE, ("linker_file_sysinit: calling SYSINITs for %s\n",
 		   lf->filename));
 
-    sysinits = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysinit_set", 0);
-
-    KLD_DPF(FILE, ("linker_file_sysinit: SYSINITs %p\n", sysinits));
-    if (!sysinits)
+    if (linker_file_lookup_set(lf, "sysinit_set", &start, &stop, NULL) != 0)
 	return;
     /*
      * Perform a bubble sort of the system initialization objects by
@@ -126,8 +125,8 @@ linker_file_sysinit(linker_file_t lf)
      * Since some things care about execution order, this is the
      * operation which ensures continued function.
      */
-    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
-	for (xipp = sipp + 1; *xipp; xipp++) {
+    for (sipp = start; sipp < stop; sipp++) {
+	for (xipp = sipp + 1; xipp < stop; xipp++) {
 	    if ((*sipp)->subsystem < (*xipp)->subsystem ||
 		 ((*sipp)->subsystem == (*xipp)->subsystem &&
 		  (*sipp)->order <= (*xipp)->order))
@@ -143,7 +142,7 @@ linker_file_sysinit(linker_file_t lf)
      * Traverse the (now) ordered list of system initialization tasks.
      * Perform each task, and continue on to the next task.
      */
-    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+    for (sipp = start; sipp < stop; sipp++) {
 	if ((*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
@@ -155,7 +154,7 @@ linker_file_sysinit(linker_file_t lf)
 static void
 linker_file_sysuninit(linker_file_t lf)
 {
-    struct linker_set* sysuninits;
+    struct sysinit** start, ** stop;
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
@@ -163,11 +162,7 @@ linker_file_sysuninit(linker_file_t lf)
     KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
 		   lf->filename));
 
-    sysuninits = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysuninit_set", 0);
-
-    KLD_DPF(FILE, ("linker_file_sysuninit: SYSUNINITs %p\n", sysuninits));
-    if (!sysuninits)
+    if (linker_file_lookup_set(lf, "sysuninit_set", &start, &stop, NULL) != 0)
 	return;
 
     /*
@@ -177,8 +172,8 @@ linker_file_sysuninit(linker_file_t lf)
      * Since some things care about execution order, this is the
      * operation which ensures continued function.
      */
-    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
-	for (xipp = sipp + 1; *xipp; xipp++) {
+    for (sipp = start; sipp < stop; sipp++) {
+	for (xipp = sipp + 1; xipp < stop; xipp++) {
 	    if ((*sipp)->subsystem > (*xipp)->subsystem ||
 		 ((*sipp)->subsystem == (*xipp)->subsystem &&
 		  (*sipp)->order >= (*xipp)->order))
@@ -193,7 +188,7 @@ linker_file_sysuninit(linker_file_t lf)
      * Traverse the (now) ordered list of system initialization tasks.
      * Perform each task, and continue on to the next task.
      */
-    for (sipp = (struct sysinit **)sysuninits->ls_items; *sipp; sipp++) {
+    for (sipp = start; sipp < stop; sipp++) {
 	if ((*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
@@ -205,64 +200,61 @@ linker_file_sysuninit(linker_file_t lf)
 static void
 linker_file_register_sysctls(linker_file_t lf)
 {
-    struct linker_set* sysctls;
+    struct sysctl_oid **start, **stop, **oidp;
 
     KLD_DPF(FILE, ("linker_file_register_sysctls: registering SYSCTLs for %s\n",
 		   lf->filename));
 
-    sysctls = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysctl_set", 0);
-
-    KLD_DPF(FILE, ("linker_file_register_sysctls: SYSCTLs %p\n", sysctls));
-    if (!sysctls)
+    if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 	return;
 
-    sysctl_register_set(sysctls);
+    for (oidp = start; oidp < stop; oidp++)
+	sysctl_register_oid(*oidp);
 }
 
 static void
 linker_file_unregister_sysctls(linker_file_t lf)
 {
-    struct linker_set* sysctls;
+    struct sysctl_oid **start, **stop, **oidp;
 
     KLD_DPF(FILE, ("linker_file_unregister_sysctls: registering SYSCTLs for %s\n",
 		   lf->filename));
 
-    sysctls = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "sysctl_set", 0);
-
-    KLD_DPF(FILE, ("linker_file_unregister_sysctls: SYSCTLs %p\n", sysctls));
-    if (!sysctls)
+    if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 	return;
 
-    sysctl_unregister_set(sysctls);
+    for (oidp = start; oidp < stop; oidp++)
+	sysctl_unregister_oid(*oidp);
 }
-
-extern struct linker_set modmetadata_set;
 
 static int
 linker_file_register_modules(linker_file_t lf)
 {
     int error;
-    struct linker_set *modules;
-    struct mod_metadata **mdpp;
+    struct mod_metadata **start, **stop;
+    struct mod_metadata **mdp;
     const moduledata_t *moddata;
 
     KLD_DPF(FILE, ("linker_file_register_modules: registering modules in %s\n",
 		   lf->filename));
 
-    modules = (struct linker_set*)
-	linker_file_lookup_symbol(lf, "modmetadata_set", 0);
-
-    if (!modules && lf == linker_kernel_file)
-	modules = &modmetadata_set;
-
-    if (modules == NULL)
-	return 0;
-    for (mdpp = (struct mod_metadata**)modules->ls_items; *mdpp; mdpp++) {
-	if ((*mdpp)->md_type != MDT_MODULE)
+    if (linker_file_lookup_set(lf, "modmetadata_set", &start, &stop, 0) != 0) {
+	/*
+	 * This fallback should be unnecessary, but if we get booted from
+	 * boot2 instead of loader and we are missing our metadata then
+	 * we have to try the best we can.
+	 */
+	if (lf == linker_kernel_file) {
+	    start = SET_BEGIN(modmetadata_set);
+	    stop = SET_LIMIT(modmetadata_set);
+	} else {
+	    return 0;
+	}
+    }
+    for (mdp = start; mdp < stop; mdp++) {
+	if ((*mdp)->md_type != MDT_MODULE)
 	    continue;
-	moddata = (*mdpp)->md_data;
+	moddata = (*mdp)->md_data;
 	KLD_DPF(FILE, ("Registering module %s in %s\n",
              moddata->name, lf->filename));
 	if (module_lookupbyname(moddata->name) != NULL) {
@@ -512,6 +504,19 @@ linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
     file->ndeps++;
 
     return 0;
+}
+
+/*
+ * Locate a linker set and its contents.
+ * This is a helper function to avoid linker_if.h exposure elsewhere.
+ * Note: firstp and lastp are really void ***
+ */
+int
+linker_file_lookup_set(linker_file_t file, const char *name,
+		       void *firstp, void *lastp, int *countp)
+{
+
+    return LINKER_LOOKUP_SET(file, name, firstp, lastp, countp);
 }
 
 caddr_t
@@ -986,17 +991,18 @@ linker_mdt_depend(linker_file_t lf, struct mod_metadata *mp,
 }
 
 static void
-linker_addmodules(linker_file_t lf, struct linker_set *deps, int preload)
+linker_addmodules(linker_file_t lf, struct mod_metadata **start,
+	struct mod_metadata **stop, int preload)
 {
-    struct mod_metadata	*mp;
+    struct mod_metadata	*mp, **mdp;
     char *modname;
-    int i, ver;
+    int ver;
 
-    for (i = 0; i < deps->ls_length; i++) {
+    for (mdp = start; mdp < stop; mdp++) {
 	if (preload)
-	    mp = deps->ls_items[i];
+	    mp = *mdp;
 	else
-	    mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+	    mp = linker_reloc_ptr(lf, *mdp);
 	if (mp->md_type != MDT_VERSION)
 	    continue;
 	if (preload) {
@@ -1022,15 +1028,15 @@ linker_preload(void* arg)
     linker_file_t	lf;
     linker_class_t	lc;
     int			error;
-    struct linker_set	*sysinits;
     linker_file_list_t	loaded_files;
     linker_file_list_t	depended_files;
-    struct linker_set	*deps;
     struct mod_metadata	*mp, *nmp;
+    struct mod_metadata **start, **stop, **mdp, **nmdp;
     struct mod_depend	*verinfo;
-    int			i, j, nver;
+    int			nver;
     int			resolves;
     modlist_t		mod;
+    struct sysinit	**si_start, **si_stop;
 
     TAILQ_INIT(&loaded_files);
     TAILQ_INIT(&depended_files);
@@ -1065,10 +1071,9 @@ linker_preload(void* arg)
     /*
      * First get a list of stuff in the kernel.
      */
-    deps = (struct linker_set*)
-	linker_file_lookup_symbol(linker_kernel_file, MDT_SETNAME, 0);
-    if (deps)
-	linker_addmodules(linker_kernel_file, deps, 1);
+    if (linker_file_lookup_set(linker_kernel_file, MDT_SETNAME, &start, &stop,
+			       NULL) == 0)
+	linker_addmodules(linker_kernel_file, start, stop, 1);
 
     /*
      * this is a once-off kinky bubble sort
@@ -1076,20 +1081,19 @@ linker_preload(void* arg)
      */
 restart:
     TAILQ_FOREACH(lf, &loaded_files, loaded) {
-	deps = (struct linker_set*)
-	    linker_file_lookup_symbol(lf, MDT_SETNAME, 0);
+	error = linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop, NULL);
 	/*
 	 * First, look to see if we would successfully link with this stuff.
 	 */
 	resolves = 1;	/* unless we know otherwise */
-	if (deps) {
-	    for (i = 0; i < deps->ls_length; i++) {
-		mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+	if (!error) {
+	    for (mdp = start; mdp < stop; mdp++) {
+		mp = linker_reloc_ptr(lf, *mdp);
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
 		linker_mdt_depend(lf, mp, &modname, &verinfo);
-		for (j = 0; j < deps->ls_length; j++) {
-		    nmp = linker_reloc_ptr(lf, deps->ls_items[j]);
+		for (nmdp = start; nmdp < stop; nmdp++) {
+		    nmp = linker_reloc_ptr(lf, *nmdp);
 		    if (nmp->md_type != MDT_VERSION)
 			continue;
 		    linker_mdt_version(lf, nmp, &nmodname, NULL);
@@ -1097,7 +1101,7 @@ restart:
 		    if (strcmp(modname, nmodname) == 0)
 			break;
 		}
-		if (j < deps->ls_length)	/* it's a self reference */
+		if (nmdp < stop)		/* it's a self reference */
 		    continue;
 		if (modlist_lookup(modname, 0) == NULL) {
 		    /* ok, the module isn't here yet, we are not finished */
@@ -1110,9 +1114,9 @@ restart:
 	 * modules inside and add it to the end of the link order list.
 	 */
 	if (resolves) {
-	    if (deps) {
-		for (i = 0; i < deps->ls_length; i++) {
-		    mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+	    if (!error) {
+		for (mdp = start; mdp < stop; mdp++) {
+		    mp = linker_reloc_ptr(lf, *mdp);
 		    if (mp->md_type != MDT_VERSION)
 			continue;
 		    linker_mdt_version(lf, mp, &modname, &nver);
@@ -1156,11 +1160,10 @@ restart:
 		panic("cannot add dependency");
 	}
 	lf->userrefs++;		/* so we can (try to) kldunload it */
-	deps = (struct linker_set*)
-	    linker_file_lookup_symbol(lf, MDT_SETNAME, 0);
-	if (deps) {
-	    for (i = 0; i < deps->ls_length; i++) {
-		mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+	error = linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop, NULL);
+	if (!error) {
+	    for (mdp = start; mdp < stop; mdp++) {
+		mp = linker_reloc_ptr(lf, *mdp);
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
 		linker_mdt_depend(lf, mp, &modname, &verinfo);
@@ -1172,7 +1175,10 @@ restart:
 	    }
 	}
 
-	/* Now do relocation etc using the symbol search paths established by the dependencies */
+	/*
+	 * Now do relocation etc using the symbol search paths established by
+	 * the dependencies
+	 */
 	error = LINKER_LINK_PRELOAD_FINISH(lf);
 	if (error) {
 	    printf("KLD file %s - could not finalize loading\n", lf->filename);
@@ -1181,10 +1187,8 @@ restart:
 	}
 
 	linker_file_register_modules(lf);
-	sysinits = (struct linker_set*)
-	    linker_file_lookup_symbol(lf, "sysinit_set", 0);
-	if (sysinits)
-	    sysinit_add((struct sysinit **)sysinits->ls_items);
+	if (linker_file_lookup_set(lf, "sysinit_set", &si_start, &si_stop, NULL) == 0)
+	    sysinit_add(si_start, si_stop);
 	linker_file_register_sysctls(lf);
 	lf->flags |= LINKER_FILE_LINKED;
     }
@@ -1348,11 +1352,11 @@ int
 linker_load_dependancies(linker_file_t lf)
 {
     linker_file_t lfdep;
-    struct linker_set *deps;
+    struct mod_metadata **start, **stop, **mdp, **nmdp;
     struct mod_metadata *mp, *nmp;
     modlist_t mod;
     char *modname, *nmodname;
-    int i, j, ver, error = 0;
+    int ver, error = 0, count;
 
     /*
      * All files are dependant on /kernel.
@@ -1364,12 +1368,10 @@ linker_load_dependancies(linker_file_t lf)
 	    return error;
     }
 
-    deps = (struct linker_set*)
-	linker_file_lookup_symbol(lf, MDT_SETNAME, 0);
-    if (deps == NULL)
+    if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop, &count) != 0)
 	return 0;
-    for (i = 0; i < deps->ls_length; i++) {
-	mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+    for (mdp = start; mdp < stop; mdp++) {
+	mp = linker_reloc_ptr(lf, *mdp);
 	if (mp->md_type != MDT_VERSION)
 	    continue;
 	linker_mdt_version(lf, mp, &modname, &ver);
@@ -1381,21 +1383,21 @@ linker_load_dependancies(linker_file_t lf)
 	}
     }
 
-    for (i = 0; i < deps->ls_length; i++) {
-	mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+    for (mdp = start; mdp < stop; mdp++) {
+	mp = linker_reloc_ptr(lf, *mdp);
 	if (mp->md_type != MDT_DEPEND)
 	    continue;
 	modname = linker_reloc_ptr(lf, mp->md_cval);
 	nmodname = NULL;
-	for (j = 0; j < deps->ls_length; j++) {
-	    nmp = linker_reloc_ptr(lf, deps->ls_items[j]);
+	for (nmdp = start; nmdp < stop; nmdp++) {
+	    nmp = linker_reloc_ptr(lf, *nmdp);
 	    if (nmp->md_type != MDT_VERSION)
 		continue;
 	    nmodname = linker_reloc_ptr(lf, nmp->md_cval);
 	    if (strcmp(modname, nmodname) == 0)
 		break;
 	}
-	if (j < deps->ls_length)	/* early exit, it's a self reference */
+	if (nmdp < stop)	/* early exit, it's a self reference */
 	    continue;
 	mod = modlist_lookup(modname, 0);
 	if (mod) {		/* woohoo, it's loaded already */
@@ -1416,6 +1418,6 @@ linker_load_dependancies(linker_file_t lf)
 
     if (error)
 	return error;
-    linker_addmodules(lf, deps, 0);
+    linker_addmodules(lf, start, stop, 0);
     return error;
 }

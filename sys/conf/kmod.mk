@@ -132,14 +132,7 @@ PROG=	${KMOD}.ko
 .endif
 
 ${PROG}: ${KMOD}.kld
-.if ${OBJFORMAT} == elf
-	perl5 @/kern/gensetdefs.pl ${KMOD}.kld
-	${CC} ${CFLAGS} -c setdef0.c
-	${CC} ${CFLAGS} -c setdef1.c
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${KMOD}.kld setdef1.o
-.else
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
-.endif
 
 ${KMOD}.kld: ${OBJS}
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}

@@ -342,8 +342,6 @@ typedef struct sc_term_sw {
 	sc_term_input_t		*te_input;
 } sc_term_sw_t;
 
-extern struct linker_set scterm_set;
-
 #define SCTERM_MODULE(name, sw)					\
 	DATA_SET(scterm_set, sw);				\
 	static int						\
@@ -398,8 +396,6 @@ typedef struct sc_renderer {
 	LIST_ENTRY(sc_renderer)	link;
 } sc_renderer_t;
 
-extern struct linker_set scrndr_set;
-
 #define RENDERER(name, mode, sw, set)				\
 	static struct sc_renderer scrndr_##name##_##mode## = {	\
 		#name, mode, &sw				\
@@ -408,25 +404,23 @@ extern struct linker_set scrndr_set;
 	DATA_SET(set, scrndr_##name##_##mode##)
 
 #define RENDERER_MODULE(name, set)				\
+	SET_DECLARE(set, sc_renderer_t);			\
 	static int						\
 	scrndr_##name##_event(module_t mod, int type, void *data) \
 	{							\
 		sc_renderer_t **list;				\
-		sc_renderer_t *p;				\
 		int error = 0;					\
 		switch (type) {					\
 		case MOD_LOAD:					\
-			list = (sc_renderer_t **)set.ls_items;	\
-			while ((p = *list++) != NULL) {		\
-				error = sc_render_add(p);	\
+			SET_FOREACH(list, set) {		\
+				error = sc_render_add(*list);	\
 				if (error)			\
 					break;			\
 			}					\
 			break;					\
 		case MOD_UNLOAD:				\
-			list = (sc_renderer_t **)set.ls_items;	\
-			while ((p = *list++) != NULL) {		\
-				error = sc_render_remove(p);	\
+			SET_FOREACH(list, set) {		\
+				error = sc_render_remove(*list);\
 				if (error)			\
 					break;			\
 			}					\
