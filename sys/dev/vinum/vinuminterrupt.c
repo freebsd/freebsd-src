@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.8 1999/12/27 02:20:45 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.9 2000/02/16 01:59:02 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -112,6 +112,8 @@ complete_rqe(struct buf *bp)
 	SD[rqe->sdno].bytes_read += bp->b_bcount;
 	PLEX[rqe->rqg->plexno].reads++;
 	PLEX[rqe->rqg->plexno].bytes_read += bp->b_bcount;
+	if (PLEX[rqe->rqg->plexno].volno >= 0)
+	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_read += bp->b_bcount;
     } else {						    /* write operation */
 	DRIVE[rqe->driveno].writes++;
 	DRIVE[rqe->driveno].bytes_written += bp->b_bcount;
@@ -119,6 +121,8 @@ complete_rqe(struct buf *bp)
 	SD[rqe->sdno].bytes_written += bp->b_bcount;
 	PLEX[rqe->rqg->plexno].writes++;
 	PLEX[rqe->rqg->plexno].bytes_written += bp->b_bcount;
+	if (PLEX[rqe->rqg->plexno].volno >= 0)
+	    VOL[PLEX[rqe->rqg->plexno].volno].bytes_written += bp->b_bcount;
     }
     rqg->active--;					    /* one less request active */
     if (rqg->flags & XFR_RECOVERY_READ) {		    /* recovery read, */
