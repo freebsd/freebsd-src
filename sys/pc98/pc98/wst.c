@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.9 1998/08/14 15:54:57 sos Exp $
+ *	$Id: wst.c,v 1.10 1998/08/24 02:28:16 bde Exp $
  */
 
 #include "wdc.h"
@@ -76,6 +76,7 @@ static unsigned int wst_total = 0;
 #define WST_DATA_WRITTEN	0x0004	/* Data has been written */
 #define WST_FM_WRITTEN		0x0008	/* Filemark has been written */
 #define WST_DEBUG           	0x0010	/* Print debug info */
+#define WST_CTL_WARN           	0x0020	/* Have we warned about CTL wrong? */
 
 /* ATAPI tape commands not in std ATAPI command set */
 #define ATAPI_TAPE_REWIND   		0x01
@@ -389,6 +390,7 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
     t->flags &= ~WST_OPEN;
     if (t->flags & WST_DEBUG)
 	printf("wst%d: %ud total bytes transferred\n", t->lun, wst_total);
+    t->flags &= ~WST_CTL_WARN;
     return(0);
 }
 
@@ -428,8 +430,11 @@ wststrategy(struct buf *bp)
     }
 
     if (bp->b_bcount > t->blksize*t->cap.ctl) {  
-        printf("wst%d: WARNING: CTL exceeded %ld>%d\n", 
-		lun, bp->b_bcount, t->blksize*t->cap.ctl);
+	if (t->flags & WST_CTL_WARN == 0) {
+            printf("wst%d: WARNING: CTL exceeded %ld>%d\n", 
+		    lun, bp->b_bcount, t->blksize*t->cap.ctl);
+	    t->flags |= WST_CTL_WARN;
+	}
     }
 
     x = splbio();
