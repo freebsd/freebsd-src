@@ -315,6 +315,9 @@ DPT_TIMEOUT_FACTOR	opt_dpt.h
 DPT_LOST_IRQ		opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
+# Adaptec ASR and DPT V/VI controller options
+ASR_MEASURE_PERFORMANCE	opt_asr.h
+
 # Misc debug flags.  Most of these should probably be replaced with
 # 'DEBUG', and then let people recompile just the interesting modules
 # with 'make CC="cc -DDEBUG"'.
