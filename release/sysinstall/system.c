@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.63 1996/08/01 10:58:54 jkh Exp $
+ * $Id: system.c,v 1.64 1996/09/26 21:07:08 pst Exp $
  *
  * Jordan Hubbard
  *
@@ -57,7 +57,6 @@ void
 systemInitialize(int argc, char **argv)
 {
     int i;
-
 
     signal(SIGINT, SIG_IGN);
     globalsInit();
@@ -158,7 +157,6 @@ systemDisplayHelp(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
-    WINDOW *old = savescr();
     int ret = 0;
 
     fname = systemHelpFile(file, buf);
@@ -174,7 +172,6 @@ systemDisplayHelp(char *file)
 	use_helpline(NULL);
 	dialog_textbox(file, fname, LINES, COLS);
     }
-    restorescr(old);
     return ret;
 }
 

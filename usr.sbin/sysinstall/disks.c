@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.63 1996/08/03 10:10:44 jkh Exp $
+ * $Id: disks.c,v 1.64 1996/09/22 00:48:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -222,6 +222,7 @@ diskPartition(Device *dev, Disk *d)
 	case KEY_F(1):
 	case '?':
 	    systemDisplayHelp("slice");
+	    clear();
 	    break;
 
 	case 'A': {
@@ -250,6 +251,7 @@ diskPartition(Device *dev, Disk *d)
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	}
+	clear();
 	break;
 
 	case 'B':
@@ -263,6 +265,7 @@ diskPartition(Device *dev, Disk *d)
 		else
 		    chunk_info[current_chunk]->flags |= CHUNK_BAD144;
 	    }
+	    clear();
 	    break;
 
 	case 'C':
@@ -299,6 +302,7 @@ diskPartition(Device *dev, Disk *d)
 				 (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
 		    variable_set2(DISK_PARTITIONED, "yes");
 		    record_chunks(d);
+	    	    clear();
 		    }
 		}
 	    }
@@ -327,6 +331,7 @@ diskPartition(Device *dev, Disk *d)
 		d->bios_hd = strtol(val + 1, &val, 0);
 		d->bios_sect = strtol(val + 1, 0, 0);
 	    }
+	    clear();
 	}
 	break;
 
@@ -336,12 +341,14 @@ diskPartition(Device *dev, Disk *d)
 	break;
 	
     case 'U':
-	    clear();
-	    if (msgYesNo("Are you SURE you want to Undo everything?"))
+	    if (msgYesNo("Are you SURE you want to Undo everything?")) {
+		clear();
 		break;
+	    }
 	    d = Open_Disk(d->name);
 	    if (!d) {
 		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
+	    	clear();
 		break;
 	    }
 	    Free_Disk(dev->private);
@@ -349,6 +356,7 @@ diskPartition(Device *dev, Disk *d)
 	    variable_unset(DISK_PARTITIONED);
 	    variable_unset(DISK_LABELLED);
 	    record_chunks(d);
+	    clear();
 	    break;
 
 	case 'W':
@@ -373,6 +381,7 @@ diskPartition(Device *dev, Disk *d)
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
 	    }
+	    clear();
 	    break;
 
 	case '|':
