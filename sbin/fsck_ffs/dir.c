@@ -52,7 +52,7 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-char	*lfname = "lost+found";
+const char	*lfname = "lost+found";
 int	lfmode = 01777;
 struct	dirtemplate emptydir = {
 	0, DIRBLKSIZ, DT_UNKNOWN, 0, "",
@@ -246,14 +246,14 @@ bad:
 }
 
 void
-direrror(ino_t ino, char *errmesg)
+direrror(ino_t ino, const char *errmesg)
 {
 
 	fileerror(ino, ino, errmesg);
 }
 
 void
-fileerror(ino_t cwd, ino_t ino, char *errmesg)
+fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 {
 	union dinode *dp;
 	char pathbuf[MAXPATHLEN + 1];
@@ -333,8 +333,9 @@ adjust(struct inodesc *idesc, int lcnt)
 				cmd.value = idesc->id_number;
 				cmd.size = -lcnt;
 				if (debug)
-					printf("adjrefcnt ino %ld amt %ld\n",
-					    (long)cmd.value, cmd.size);
+					printf("adjrefcnt ino %ld amt %lld\n",
+					    (long)cmd.value,
+					    (long long)cmd.size);
 				if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
 				    &cmd, sizeof cmd) == -1)
 					rwerror("ADJUST INODE", cmd.value);
@@ -408,7 +409,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			return (0);
 	if (lfdir == 0) {
 		dp = ginode(ROOTINO);
-		idesc.id_name = lfname;
+		idesc.id_name = strdup(lfname);
 		idesc.id_type = DATA;
 		idesc.id_func = findino;
 		idesc.id_number = ROOTINO;
@@ -501,7 +502,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
  * fix an entry in a directory.
  */
 int
-changeino(ino_t dir, char *name, ino_t newnum)
+changeino(ino_t dir, const char *name, ino_t newnum)
 {
 	struct inodesc idesc;
 
@@ -510,7 +511,7 @@ changeino(ino_t dir, char *name, ino_t newnum)
 	idesc.id_func = chgino;
 	idesc.id_number = dir;
 	idesc.id_fix = DONTKNOW;
-	idesc.id_name = name;
+	idesc.id_name = strdup(name);
 	idesc.id_parent = newnum;	/* new value for name */
 	return (ckinode(ginode(dir), &idesc));
 }
@@ -519,7 +520,7 @@ changeino(ino_t dir, char *name, ino_t newnum)
  * make an entry in a directory
  */
 int
-makeentry(ino_t parent, ino_t ino, char *name)
+makeentry(ino_t parent, ino_t ino, const char *name)
 {
 	union dinode *dp;
 	struct inodesc idesc;
@@ -534,7 +535,7 @@ makeentry(ino_t parent, ino_t ino, char *name)
 	idesc.id_number = parent;
 	idesc.id_parent = ino;	/* this is the inode to enter */
 	idesc.id_fix = DONTKNOW;
-	idesc.id_name = name;
+	idesc.id_name = strdup(name);
 	dp = ginode(parent);
 	if (DIP(dp, di_size) % DIRBLKSIZ) {
 		DIP(dp, di_size) = roundup(DIP(dp, di_size), DIRBLKSIZ);

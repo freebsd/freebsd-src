@@ -50,7 +50,7 @@ static const char rcsid[] =
 
 #include "fsck.h"
 
-static void check_maps(u_char *, u_char *, int, int, char *, int *, int, int);
+static void check_maps(u_char *, u_char *, int, int, const char *, int *, int, int);
 
 void
 pass5(void)
@@ -81,7 +81,7 @@ pass5(void)
 			}
 		}
 		if (fs->fs_maxcontig > 1) {
-			char *doit = 0;
+			const char *doit = 0;
 
 			if (fs->fs_contigsumsize < 1) {
 				doit = "CREAT";
@@ -348,7 +348,7 @@ check_maps(
 	u_char *map2,	/* map of determined allocations */
 	int mapsize,	/* size of above two maps */
 	int startvalue,	/* resource value for first element in map */
-	char *name,	/* name of resource found in maps */
+	const char *name,	/* name of resource found in maps */
 	int *opcode,	/* sysctl opcode to free resource */
 	int skip,	/* number of entries to skip before starting to free */
 	int limit)	/* limit on number of entries to free */

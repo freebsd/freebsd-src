@@ -113,7 +113,7 @@ retry:
 }
 
 void
-infohandler(int sig)
+infohandler(int sig __unused)
 {
 	got_siginfo = 1;
 }

@@ -85,7 +85,7 @@ ftypeok(union dinode *dp)
 }
 
 int
-reply(char *question)
+reply(const char *question)
 {
 	int persevere;
 	char c;
@@ -236,9 +236,9 @@ flush(int fd, struct bufarea *bp)
 		return;
 	}
 	if (bp->b_errs != 0)
-		pfatal("WRITING %sZERO'ED BLOCK %d TO DISK\n",
+		pfatal("WRITING %sZERO'ED BLOCK %lld TO DISK\n",
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
-		    bp->b_bno);
+		    (long long)bp->b_bno);
 	bp->b_errs = 0;
 	bwrite(fd, bp->b_un.b_buf, bp->b_bno, (long)bp->b_size);
 	if (bp != &sblk)
@@ -252,7 +252,7 @@ flush(int fd, struct bufarea *bp)
 }
 
 void
-rwerror(char *mesg, ufs2_daddr_t blk)
+rwerror(const char *mesg, ufs2_daddr_t blk)
 {
 
 	if (bkgrdcheck)
@@ -360,11 +360,11 @@ bread(int fd, char *buf, ufs2_daddr_t blk, long size)
 		if (read(fd, cp, (int)secsize) != secsize) {
 			(void)lseek(fd, offset + i + secsize, 0);
 			if (secsize != dev_bsize && dev_bsize != 1)
-				printf(" %ld (%ld),",
-				    (blk * dev_bsize + i) / secsize,
-				    blk + i / dev_bsize);
+				printf(" %lld (%lld),",
+				    (long long)(blk * dev_bsize + i) / secsize,
+				    (long long)blk + i / dev_bsize);
 			else
-				printf(" %ld,", blk + i / dev_bsize);
+				printf(" %lld,", (long long)blk + i / dev_bsize);
 			errs++;
 		}
 	}
@@ -399,7 +399,7 @@ bwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 	for (cp = buf, i = 0; i < size; i += dev_bsize, cp += dev_bsize)
 		if (write(fd, cp, (int)dev_bsize) != dev_bsize) {
 			(void)lseek(fd, offset + i + dev_bsize, 0);
-			printf(" %ld,", blk + i / dev_bsize);
+			printf(" %lld,", (long long)blk + i / dev_bsize);
 		}
 	printf("\n");
 	return;
@@ -495,7 +495,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 	while (ino != ROOTINO) {
 		idesc.id_number = ino;
 		idesc.id_func = findino;
-		idesc.id_name = "..";
+		idesc.id_name = strdup("..");
 		if ((ckinode(ginode(ino), &idesc) & FOUND) == 0)
 			break;
 	namelookup:
@@ -520,7 +520,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 }
 
 void
-catch(int sig)
+catch(int sig __unused)
 {
 
 	ckfini(0);
@@ -533,7 +533,7 @@ catch(int sig)
  * so that reboot sequence may be interrupted.
  */
 void
-catchquit(int sig)
+catchquit(int sig __unused)
 {
 	printf("returning to single-user after filesystem check\n");
 	returntosingle = 1;
@@ -544,7 +544,7 @@ catchquit(int sig)
  * determine whether an inode should be fixed.
  */
 int
-dofix(struct inodesc *idesc, char *msg)
+dofix(struct inodesc *idesc, const char *msg)
 {
 
 	switch (idesc->id_fix) {
@@ -614,7 +614,7 @@ pfatal(const char *fmt, ...)
 		return;
 	}
 	if (cdevname == NULL)
-		cdevname = "fsck";
+		cdevname = strdup("fsck");
 	(void)fprintf(stdout, "%s: ", cdevname);
 	(void)vfprintf(stdout, fmt, ap);
 	(void)fprintf(stdout,

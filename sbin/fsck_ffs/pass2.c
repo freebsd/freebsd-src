@@ -230,7 +230,7 @@ pass2check(struct inodesc *idesc)
 	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
 	union dinode *dp;
-	char *errmsg;
+	const char *errmsg;
 	struct direct proto;
 	char namebuf[MAXPATHLEN + 1];
 	char pathbuf[MAXPATHLEN + 1];
@@ -461,6 +461,6 @@ static int
 blksort(const void *arg1, const void *arg2)
 {
 
-	return ((*(struct inoinfo **)arg1)->i_blks[0] -
-		(*(struct inoinfo **)arg2)->i_blks[0]);
+	return ((*(struct inoinfo * const *)arg1)->i_blks[0] -
+		(*(struct inoinfo * const *)arg2)->i_blks[0]);
 }
