@@ -334,13 +334,13 @@ release.1:
 	for i in ${DISTRIBUTIONS} ; do \
 		mkdir ${RD}/trees/$$i && \
 		mkdir ${RD}/dists/$$i && \
-		mtree -deLU -f ${MTREEFILES}/BSD.root.dist \
+		mtree -deU -f ${MTREEFILES}/BSD.root.dist \
 		    -p ${RD}/trees/$$i > /dev/null && \
-		mtree -deLU -f ${MTREEFILES}/BSD.usr.dist \
+		mtree -deU -f ${MTREEFILES}/BSD.usr.dist \
 		    -p ${RD}/trees/$$i/usr > /dev/null && \
-		mtree -deLU -f ${MTREEFILES}/BSD.include.dist \
+		mtree -deU -f ${MTREEFILES}/BSD.include.dist \
 		    -p ${RD}/trees/$$i/usr/include > /dev/null && \
-		mtree -deLU -f ${MTREEFILES}/BSD.var.dist \
+		mtree -deU -f ${MTREEFILES}/BSD.var.dist \
 		    -p ${RD}/trees/$$i/var > /dev/null ; \
 	done
 	touch release.1
@@ -697,7 +697,7 @@ doTARBALL:
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \
 		if [ "${SD}" != "/usr/src" ]; then \
-			mtree -L -c -i -p ${SD}/${ARG} \
+			mtree -c -i -p ${SD}/${ARG} \
 			  -k gname,md5digest,mode,nlink,uname,size,link,type \
 			  > ${RD}/dists/${TD}/$$tn.mtree ; \
 		else \
