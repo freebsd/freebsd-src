@@ -900,17 +900,17 @@ ofstat(td, uap)
 	struct ostat oub;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
+	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
+	mtx_unlock(&Giant);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
 		error = copyout(&oub, uap->sb, sizeof(oub));
 	}
 	fdrop(fp, td);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -937,15 +937,15 @@ fstat(td, uap)
 	struct stat ub;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
+	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
+	mtx_unlock(&Giant);
 	if (error == 0)
 		error = copyout(&ub, uap->sb, sizeof(ub));
 	fdrop(fp, td);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -972,17 +972,17 @@ nfstat(td, uap)
 	struct nstat nub;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
+	mtx_lock(&Giant);
 	error = fo_stat(fp, &ub, td->td_ucred, td);
+	mtx_unlock(&Giant);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
 		error = copyout(&nub, uap->sb, sizeof(nub));
 	}
 	fdrop(fp, td);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
