@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,10 +105,20 @@ struct ata_params {
 /*075*/	u_int16_t	queue;
 #define	ATA_QUEUE_LEN(x)		((x) & 0x001f)
 
-	u_int16_t	reserved76;
+	u_int16_t	satacapabilities;
+#define ATA_SATA_GEN1			0x0002
+#define ATA_SATA_GEN2			0x0004
+#define ATA_SUPPORT_NCQ			0x0100
+#define ATA_SUPPORT_IFPWRMNGTRCV	0x0200
+
 	u_int16_t	reserved77;
-	u_int16_t	reserved78;
-	u_int16_t	reserved79;
+	u_int16_t	satasupport;
+#define ATA_SUPPORT_NONZERO		0x0002
+#define ATA_SUPPORT_AUTOACTIVATE	0x0004
+#define ATA_SUPPORT_IFPWRMNGT		0x0008
+#define ATA_SUPPORT_INORDERDATA		0x0010
+	u_int16_t	sataenabled;
+
 /*080*/	u_int16_t	version_major;
 /*081*/	u_int16_t	version_minor;
 
