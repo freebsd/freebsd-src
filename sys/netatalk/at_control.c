@@ -136,7 +136,7 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	    }
 
 	    aa->aa_ifa.ifa_addr = (struct sockaddr *)&aa->aa_addr;
-	    aa->aa_ifa.ifa_dstaddr = (struct sockaddr *)&aa->aa_dstaddr;
+	    aa->aa_ifa.ifa_dstaddr = (struct sockaddr *)&aa->aa_addr;
 	    aa->aa_ifa.ifa_netmask = (struct sockaddr *)&aa->aa_netmask;
 
 	    /*
@@ -378,12 +378,24 @@ at_ifinit( ifp, aa, sat )
 	return( error );
     }
 
+#if 1 
+/* this works */
+    aa->aa_netmask.sat_len = 6/*sizeof(struct sockaddr_at)*/;
+    aa->aa_netmask.sat_family = AF_APPLETALK;
+    aa->aa_netmask.sat_addr.s_net = 0xffff;
+    aa->aa_netmask.sat_addr.s_node = 0;
+    aa->aa_ifa.ifa_netmask =(struct sockaddr *) &(aa->aa_netmask); /* XXX */
+
+#else
+/* this doesn't */
   /* Initialize netmask and broadcast address */
 
     bzero(&aa->aa_netmask, sizeof(aa->aa_netmask));
-    aa->aa_ifa.ifa_netmask = (struct sockaddr *) &aa->aa_netmask;
     aa->aa_netmask.sat_len = sizeof(struct sockaddr_at);
     aa->aa_netmask.sat_family = AF_APPLETALK;
+    aa->aa_netmask.sat_addr.s_net = 0xffff;
+    aa->aa_netmask.sat_addr.s_node = 0;
+    aa->aa_ifa.ifa_netmask = (struct sockaddr *) &aa->aa_netmask;
 
     bzero(&aa->aa_broadaddr, sizeof(aa->aa_broadaddr));
     aa->aa_ifa.ifa_broadaddr = (struct sockaddr *) &aa->aa_broadaddr;
@@ -406,9 +418,10 @@ at_ifinit( ifp, aa, sat )
     } else if (ifp->if_flags & IFF_POINTOPOINT) {
 	aa->aa_ifa.ifa_dstaddr = aa->aa_ifa.ifa_addr;
 	aa->aa_netmask.sat_addr.s_net = htons(0xffff);
-	aa->aa_netmask.sat_addr.s_node = htons(0xffff);
+	aa->aa_netmask.sat_addr.s_node = 0xff;
 	flags |= RTF_HOST;
     }
+#endif
     error = rtinit(&aa->aa_ifa, RTM_ADD, flags);
 
 #if 0
