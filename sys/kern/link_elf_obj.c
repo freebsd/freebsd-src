@@ -41,6 +41,9 @@
 #include <sys/linker.h>
 
 #include <machine/elf.h>
+#ifdef GPROF
+#include <machine/profile.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
