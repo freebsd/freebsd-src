@@ -319,13 +319,14 @@ struct xsocket {
 		((sb)->sb_flags |= SB_LOCK), 0)
 
 /* release lock on sockbuf sb */
-#define	sbunlock(sb) { \
+#define	sbunlock(sb) do { \
+	SOCKBUF_LOCK_ASSERT(sb); \
 	(sb)->sb_flags &= ~SB_LOCK; \
 	if ((sb)->sb_flags & SB_WANT) { \
 		(sb)->sb_flags &= ~SB_WANT; \
 		wakeup(&(sb)->sb_flags); \
 	} \
-}
+} while (0)
 
 /*
  * soref()/sorele() ref-count the socket structure.  Note that you must
@@ -355,14 +356,37 @@ struct xsocket {
 		SOCK_UNLOCK(so);					\
 } while(0)
 
-#define	sorwakeup(so) do {						\
+/*
+ * In sorwakeup() and sowwakeup(), acquire the socket buffer lock to
+ * avoid a non-atomic test-and-wakeup.  However, sowakeup is
+ * responsible for releasing the lock if it is called.  We unlock only
+ * if we don't call into sowakeup.  If any code is introduced that
+ * directly invokes the underlying sowakeup() primitives, it must
+ * maintain the same semantics.
+ */
+#define	sorwakeup_locked(so) do {					\
+	SOCKBUF_LOCK_ASSERT(&(so)->so_rcv);				\
 	if (sb_notify(&(so)->so_rcv))					\
-		sowakeup((so), &(so)->so_rcv); 				\
+		sowakeup((so), &(so)->so_rcv);	 			\
+	else								\
+		SOCKBUF_UNLOCK(&(so)->so_rcv);				\
+} while (0)
+
+#define	sorwakeup(so) do {						\
+	SOCKBUF_LOCK(&(so)->so_rcv);					\
+	sorwakeup_locked(so);						\
+} while (0)
+
+#define	sowwakeup_locked(so) do {					\
+	if (sb_notify(&(so)->so_snd))					\
+		sowakeup((so), &(so)->so_snd); 				\
+	else								\
+		SOCKBUF_UNLOCK(&(so)->so_snd);				\
 } while (0)
 
 #define	sowwakeup(so) do {						\
-	if (sb_notify(&(so)->so_snd))					\
-		sowakeup((so), &(so)->so_snd); 				\
+	SOCKBUF_LOCK(&(so)->so_snd);					\
+	sowwakeup_locked(so);						\
 } while (0)
 
 /*
@@ -412,21 +436,33 @@ struct uio;
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
+void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
 void	sbappendstream(struct sockbuf *sb, struct mbuf *m);
+void	sbappendstream_locked(struct sockbuf *sb, struct mbuf *m);
 int	sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,
+	    struct mbuf *m0, struct mbuf *control);
+int	sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
 int	sbappendcontrol(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
+int	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
+	    struct mbuf *control);
 void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
+void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
 void	sbcheck(struct sockbuf *sb);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
 	sbcreatecontrol(caddr_t p, int size, int type, int level);
 void	sbdrop(struct sockbuf *sb, int len);
+void	sbdrop_locked(struct sockbuf *sb, int len);
 void	sbdroprecord(struct sockbuf *sb);
+void	sbdroprecord_locked(struct sockbuf *sb);
 void	sbflush(struct sockbuf *sb);
+void	sbflush_locked(struct sockbuf *sb);
 void	sbinsertoob(struct sockbuf *sb, struct mbuf *m0);
+void	sbinsertoob_locked(struct sockbuf *sb, struct mbuf *m0);
 void	sbrelease(struct sockbuf *sb, struct socket *so);
+void	sbrelease_locked(struct sockbuf *sb, struct socket *so);
 int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
@@ -438,7 +474,9 @@ struct	socket *soalloc(int mflags);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 void	socantrcvmore(struct socket *so);
+void	socantrcvmore_locked(struct socket *so);
 void	socantsendmore(struct socket *so);
+void	socantsendmore_locked(struct socket *so);
 int	soclose(struct socket *so);
 int	soconnect(struct socket *so, struct sockaddr *nam, struct thread *td);
 int	soconnect2(struct socket *so1, struct socket *so2);

@@ -197,9 +197,9 @@ soisdisconnected(so)
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_state |= SBS_CANTSENDMORE;
+	sbdrop_locked(&so->so_snd, so->so_snd.sb_cc);
 	SOCKBUF_UNLOCK(&so->so_snd);
 	wakeup(&so->so_timeo);
-	sbdrop(&so->so_snd, so->so_snd.sb_cc);
 	sowwakeup(so);
 	sorwakeup(so);
 }
@@ -296,14 +296,38 @@ sonewconn(head, connstatus)
  * protocol when it detects that the peer will send no more data.
  * Data queued for reading in the socket may yet be read.
  */
+void
+socantsendmore_locked(so)
+	struct socket *so;
+{
+
+	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+
+	so->so_snd.sb_state |= SBS_CANTSENDMORE;
+	sowwakeup_locked(so);
+	mtx_assert(SOCKBUF_MTX(&so->so_snd), MA_NOTOWNED);
+}
 
 void
 socantsendmore(so)
 	struct socket *so;
 {
 
-	so->so_snd.sb_state |= SBS_CANTSENDMORE;
-	sowwakeup(so);
+	SOCKBUF_LOCK(&so->so_snd);
+	socantsendmore_locked(so);
+	mtx_assert(SOCKBUF_MTX(&so->so_snd), MA_NOTOWNED);
+}
+
+void
+socantrcvmore_locked(so)
+	struct socket *so;
+{
+
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	sorwakeup_locked(so);
+	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
 }
 
 void
@@ -311,8 +335,9 @@ socantrcvmore(so)
 	struct socket *so;
 {
 
-	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
-	sorwakeup(so);
+	SOCKBUF_LOCK(&so->so_rcv);
+	socantrcvmore_locked(so);
+	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
 }
 
 /*
@@ -356,9 +381,16 @@ sb_lock(sb)
 }
 
 /*
- * Wakeup processes waiting on a socket buffer.
- * Do asynchronous notification via SIGIO
- * if the socket has the SS_ASYNC flag set.
+ * Wakeup processes waiting on a socket buffer.  Do asynchronous
+ * notification via SIGIO if the socket has the SS_ASYNC flag set.
+ *
+ * Called with the socket buffer lock held; will release the lock by the end
+ * of the function.  This allows the caller to acquire the socket buffer lock
+ * while testing for the need for various sorts of wakeup and hold it through
+ * to the point where it's no longer required.  We currently hold the lock
+ * through calls out to other subsystems (with the exception of kqueue), and
+ * then release it to avoid lock order issues.  It's not clear that's
+ * correct.
  */
 void
 sowakeup(so, sb)
@@ -366,19 +398,23 @@ sowakeup(so, sb)
 	register struct sockbuf *sb;
 {
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	selwakeuppri(&sb->sb_sel, PSOCK);
 	sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup(&sb->sb_cc);
 	}
+	KNOTE(&sb->sb_sel.si_note, 0);
+	SOCKBUF_UNLOCK(sb);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);
 	if (sb->sb_flags & SB_UPCALL)
 		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
 	if (sb->sb_flags & SB_AIO)
 		aio_swake(so, sb);
-	KNOTE(&sb->sb_sel.si_note, 0);
+	mtx_assert(SOCKBUF_MTX(sb), MA_NOTOWNED);
 }
 
 /*
@@ -500,17 +536,29 @@ sbreserve(sb, cc, so, td)
  * Free mbufs held by a socket, and reserved mbuf space.
  */
 void
-sbrelease(sb, so)
+sbrelease_locked(sb, so)
 	struct sockbuf *sb;
 	struct socket *so;
 {
 
-	sbflush(sb);
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	sbflush_locked(sb);
 	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
 	    RLIM_INFINITY);
 	sb->sb_mbmax = 0;
 }
 
+void
+sbrelease(sb, so)
+	struct sockbuf *sb;
+	struct socket *so;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbrelease_locked(sb, so);
+	SOCKBUF_UNLOCK(sb);
+}
 /*
  * Routines to add and remove
  * data from an mbuf queue.
@@ -542,6 +590,8 @@ sblastrecordchk(struct sockbuf *sb, const char *file, int line)
 {
 	struct mbuf *m = sb->sb_mb;
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	while (m && m->m_nextpkt)
 		m = m->m_nextpkt;
 
@@ -560,6 +610,8 @@ sblastmbufchk(struct sockbuf *sb, const char *file, int line)
 {
 	struct mbuf *m = sb->sb_mb;
 	struct mbuf *n;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	while (m && m->m_nextpkt)
 		m = m->m_nextpkt;
@@ -583,6 +635,7 @@ sblastmbufchk(struct sockbuf *sb, const char *file, int line)
 #endif /* SOCKBUF_DEBUG */
 
 #define SBLINKRECORD(sb, m0) do {					\
+	SOCKBUF_LOCK_ASSERT(sb);					\
 	if ((sb)->sb_lastrecord != NULL)				\
 		(sb)->sb_lastrecord->m_nextpkt = (m0);			\
 	else								\
@@ -597,14 +650,17 @@ sblastmbufchk(struct sockbuf *sb, const char *file, int line)
  * discarded and mbufs are compacted where possible.
  */
 void
-sbappend(sb, m)
+sbappend_locked(sb, m)
 	struct sockbuf *sb;
 	struct mbuf *m;
 {
 	register struct mbuf *n;
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	if (m == 0)
 		return;
+
 	SBLASTRECORDCHK(sb);
 	n = sb->sb_mb;
 	if (n) {
@@ -612,7 +668,7 @@ sbappend(sb, m)
 			n = n->m_nextpkt;
 		do {
 			if (n->m_flags & M_EOR) {
-				sbappendrecord(sb, m); /* XXXXXX!!!! */
+				sbappendrecord_locked(sb, m); /* XXXXXX!!!! */
 				return;
 			}
 		} while (n->m_next && (n = n->m_next));
@@ -625,7 +681,7 @@ sbappend(sb, m)
 		if ((n = sb->sb_lastrecord) != NULL) {
 			do {
 				if (n->m_flags & M_EOR) {
-					sbappendrecord(sb, m); /* XXXXXX!!!! */
+					sbappendrecord_locked(sb, m); /* XXXXXX!!!! */
 					return;
 				}
 			} while (n->m_next && (n = n->m_next));
@@ -642,13 +698,31 @@ sbappend(sb, m)
 }
 
 /*
+ * Append mbuf chain m to the last record in the
+ * socket buffer sb.  The additional space associated
+ * the mbuf chain is recorded in sb.  Empty mbufs are
+ * discarded and mbufs are compacted where possible.
+ */
+void
+sbappend(sb, m)
+	struct sockbuf *sb;
+	struct mbuf *m;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbappend_locked(sb, m);
+	SOCKBUF_UNLOCK(sb);
+}
+
+/*
  * This version of sbappend() should only be used when the caller
  * absolutely knows that there will never be more than one record
  * in the socket buffer, that is, a stream protocol (such as TCP).
  */
 void
-sbappendstream(struct sockbuf *sb, struct mbuf *m)
+sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 {
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	KASSERT(m->m_nextpkt == NULL,("sbappendstream 0"));
 	KASSERT(sb->sb_mb == sb->sb_lastrecord,("sbappendstream 1"));
@@ -661,6 +735,20 @@ sbappendstream(struct sockbuf *sb, struct mbuf *m)
 	SBLASTRECORDCHK(sb);
 }
 
+/*
+ * This version of sbappend() should only be used when the caller
+ * absolutely knows that there will never be more than one record
+ * in the socket buffer, that is, a stream protocol (such as TCP).
+ */
+void
+sbappendstream(struct sockbuf *sb, struct mbuf *m)
+{
+
+	SOCKBUF_LOCK(sb);
+	sbappendstream_locked(sb, m);
+	SOCKBUF_UNLOCK(sb);
+}
+
 #ifdef SOCKBUF_DEBUG
 void
 sbcheck(sb)
@@ -669,6 +757,8 @@ sbcheck(sb)
 	struct mbuf *m;
 	struct mbuf *n = 0;
 	u_long len = 0, mbcnt = 0;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	for (m = sb->sb_mb; m; m = n) {
 	    n = m->m_nextpkt;
@@ -692,11 +782,13 @@ sbcheck(sb)
  * begins a new record.
  */
 void
-sbappendrecord(sb, m0)
+sbappendrecord_locked(sb, m0)
 	register struct sockbuf *sb;
 	register struct mbuf *m0;
 {
 	register struct mbuf *m;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	if (m0 == 0)
 		return;
@@ -725,17 +817,34 @@ sbappendrecord(sb, m0)
 }
 
 /*
+ * As above, except the mbuf chain
+ * begins a new record.
+ */
+void
+sbappendrecord(sb, m0)
+	register struct sockbuf *sb;
+	register struct mbuf *m0;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbappendrecord_locked(sb, m0);
+	SOCKBUF_UNLOCK(sb);
+}
+
+/*
  * As above except that OOB data
  * is inserted at the beginning of the sockbuf,
  * but after any other OOB data.
  */
 void
-sbinsertoob(sb, m0)
+sbinsertoob_locked(sb, m0)
 	register struct sockbuf *sb;
 	register struct mbuf *m0;
 {
 	register struct mbuf *m;
 	register struct mbuf **mp;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	if (m0 == 0)
 		return;
@@ -771,13 +880,29 @@ sbinsertoob(sb, m0)
 }
 
 /*
+ * As above except that OOB data
+ * is inserted at the beginning of the sockbuf,
+ * but after any other OOB data.
+ */
+void
+sbinsertoob(sb, m0)
+	register struct sockbuf *sb;
+	register struct mbuf *m0;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbinsertoob_locked(sb, m0);
+	SOCKBUF_UNLOCK(sb);
+}
+
+/*
  * Append address and data, and optionally, control (ancillary) data
  * to the receive queue of a socket.  If present,
  * m0 must include a packet header with total length.
  * Returns 0 if no space in sockbuf or insufficient mbufs.
  */
 int
-sbappendaddr(sb, asa, m0, control)
+sbappendaddr_locked(sb, asa, m0, control)
 	struct sockbuf *sb;
 	const struct sockaddr *asa;
 	struct mbuf *m0, *control;
@@ -785,11 +910,14 @@ sbappendaddr(sb, asa, m0, control)
 	struct mbuf *m, *n, *nlast;
 	int space = asa->sa_len;
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
-		panic("sbappendaddr");
+		panic("sbappendaddr_locked");
 	if (m0)
 		space += m0->m_pkthdr.len;
 	space += m_length(control, &n);
+
 	if (space > sbspace(sb))
 		return (0);
 #if MSIZE <= 256
@@ -819,17 +947,40 @@ sbappendaddr(sb, asa, m0, control)
 	return (1);
 }
 
+/*
+ * Append address and data, and optionally, control (ancillary) data
+ * to the receive queue of a socket.  If present,
+ * m0 must include a packet header with total length.
+ * Returns 0 if no space in sockbuf or insufficient mbufs.
+ */
 int
-sbappendcontrol(sb, m0, control)
+sbappendaddr(sb, asa, m0, control)
+	struct sockbuf *sb;
+	const struct sockaddr *asa;
+	struct mbuf *m0, *control;
+{
+	int retval;
+
+	SOCKBUF_LOCK(sb);
+	retval = sbappendaddr_locked(sb, asa, m0, control);
+	SOCKBUF_UNLOCK(sb);
+	return (retval);
+}
+
+int
+sbappendcontrol_locked(sb, m0, control)
 	struct sockbuf *sb;
 	struct mbuf *control, *m0;
 {
 	struct mbuf *m, *n, *mlast;
 	int space;
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	if (control == 0)
-		panic("sbappendcontrol");
+		panic("sbappendcontrol_locked");
 	space = m_length(control, &n) + m_length(m0, NULL);
+
 	if (space > sbspace(sb))
 		return (0);
 	n->m_next = m0;			/* concatenate data to control */
@@ -849,6 +1000,19 @@ sbappendcontrol(sb, m0, control)
 	return (1);
 }
 
+int
+sbappendcontrol(sb, m0, control)
+	struct sockbuf *sb;
+	struct mbuf *control, *m0;
+{
+	int retval;
+
+	SOCKBUF_LOCK(sb);
+	retval = sbappendcontrol_locked(sb, m0, control);
+	SOCKBUF_UNLOCK(sb);
+	return (retval);
+}
+
 /*
  * Compress mbuf chain m into the socket
  * buffer sb following mbuf n.  If n
@@ -861,6 +1025,8 @@ sbcompress(sb, m, n)
 {
 	register int eor = 0;
 	register struct mbuf *o;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	while (m) {
 		eor |= m->m_flags & M_EOR;
@@ -914,12 +1080,14 @@ sbcompress(sb, m, n)
  * Check that all resources are reclaimed.
  */
 void
-sbflush(sb)
+sbflush_locked(sb)
 	register struct sockbuf *sb;
 {
 
+	SOCKBUF_LOCK_ASSERT(sb);
+
 	if (sb->sb_flags & SB_LOCK)
-		panic("sbflush: locked");
+		panic("sbflush_locked: locked");
 	while (sb->sb_mbcnt) {
 		/*
 		 * Don't call sbdrop(sb, 0) if the leading mbuf is non-empty:
@@ -927,22 +1095,34 @@ sbflush(sb)
 		 */
 		if (!sb->sb_cc && (sb->sb_mb == NULL || sb->sb_mb->m_len))
 			break;
-		sbdrop(sb, (int)sb->sb_cc);
+		sbdrop_locked(sb, (int)sb->sb_cc);
 	}
 	if (sb->sb_cc || sb->sb_mb || sb->sb_mbcnt)
-		panic("sbflush: cc %u || mb %p || mbcnt %u", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
+		panic("sbflush_locked: cc %u || mb %p || mbcnt %u", sb->sb_cc, (void *)sb->sb_mb, sb->sb_mbcnt);
+}
+
+void
+sbflush(sb)
+	register struct sockbuf *sb;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbflush_locked(sb);
+	SOCKBUF_UNLOCK(sb);
 }
 
 /*
  * Drop data from (the front of) a sockbuf.
  */
 void
-sbdrop(sb, len)
+sbdrop_locked(sb, len)
 	register struct sockbuf *sb;
 	register int len;
 {
 	register struct mbuf *m;
 	struct mbuf *next;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
 	while (len > 0) {
@@ -990,14 +1170,30 @@ sbdrop(sb, len)
 }
 
 /*
+ * Drop data from (the front of) a sockbuf.
+ */
+void
+sbdrop(sb, len)
+	register struct sockbuf *sb;
+	register int len;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbdrop_locked(sb, len);
+	SOCKBUF_UNLOCK(sb);
+}
+
+/*
  * Drop a record off the front of a sockbuf
  * and move the next record to the front.
  */
 void
-sbdroprecord(sb)
+sbdroprecord_locked(sb)
 	register struct sockbuf *sb;
 {
 	register struct mbuf *m;
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	m = sb->sb_mb;
 	if (m) {
@@ -1008,6 +1204,20 @@ sbdroprecord(sb)
 		} while (m);
 	}
 	SB_EMPTY_FIXUP(sb);
+}
+
+/*
+ * Drop a record off the front of a sockbuf
+ * and move the next record to the front.
+ */
+void
+sbdroprecord(sb)
+	register struct sockbuf *sb;
+{
+
+	SOCKBUF_LOCK(sb);
+	sbdroprecord_locked(sb);
+	SOCKBUF_UNLOCK(sb);
 }
 
 /*
