@@ -51,8 +51,9 @@
 
 unsigned char EscMap[33];
 
-void HdlcInput(struct mbuf *bp);
-void HdlcOutput(int pri, u_short proto, struct mbuf *bp);
-void AsyncOutput(int pri, struct mbuf *bp, int proto);
+void HdlcInit __P((void));
+void HdlcInput __P((struct mbuf *bp));
+void HdlcOutput __P((int pri, u_short proto, struct mbuf *bp));
+void AsyncOutput __P((int pri, struct mbuf *bp, int proto));
 
 #endif

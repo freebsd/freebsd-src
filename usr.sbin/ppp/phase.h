@@ -15,13 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: phase.h,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _PHASE_H_
 #define	_PHASE_H_
+#include "cdefs.h"
 
 #define	PHASE_DEAD		0		/* Link is dead */
 #define	PHASE_ESTABLISH		1		/* Establishing link */
@@ -31,6 +32,6 @@
 
 int phase;				/* Curent phase */
 
-extern void NewPhase(int);
+extern void NewPhase __P((int));
 extern char *PhaseNames[];
 #endif

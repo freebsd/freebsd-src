@@ -30,22 +30,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 
+ * $Id:$
+ * 
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *
- *  $Id: pathnames.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
  */
 
+#ifdef __bsdi__
 #include <paths.h>
+#endif
 
 #define	_PATH_ACULOG		"/var/log/aculog"
-#if defined (__FreeBSD__)
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 #define	_PATH_LOCKDIRNAME	"/var/spool/lock/LCK..%s"
 #else
 #define	_PATH_LOCKDIRNAME	"/var/spool/uucp/LCK..%s"
-#endif 
+#endif
 #ifdef notdef
 #define	_PATH_LOCKDIRNAME	"/var/spool/uucp/LCK/LCK..%s"
 #endif
 #define	_PATH_PHONES		"/etc/phones"
 #define	_PATH_REMOTE		"/etc/remote"
+#if defined(__FreeBSD__)
 #define _PATH_PPP		"/etc/ppp"
+#else
+#define _PATH_PPP		"/etc"
+#endif

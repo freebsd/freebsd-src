@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *	TODO:
  *		o Support other compression protocols
  */
@@ -28,20 +28,21 @@
 #include "ccp.h"
 #include "phase.h"
 #include "vars.h"
-
-extern void PutConfValue();
+#include "cdefs.h"
+ 
+extern void PutConfValue __P((void));
 
 struct ccpstate CcpInfo;
 
-static void CcpSendConfigReq(struct fsm *);
-static void CcpSendTerminateReq(struct fsm *fp);
-static void CcpSendTerminateAck(struct fsm *fp);
-static void CcpDecodeConfig(struct mbuf *bp, int mode);
-static void CcpLayerStart(struct fsm *);
-static void CcpLayerFinish(struct fsm *);
-static void CcpLayerUp(struct fsm *);
-static void CcpLayerDown(struct fsm *);
-static void CcpInitRestartCounter(struct fsm *);
+static void CcpSendConfigReq __P((struct fsm *));
+static void CcpSendTerminateReq __P((struct fsm *fp));
+static void CcpSendTerminateAck __P((struct fsm *fp));
+static void CcpDecodeConfig __P((u_char *cp, int flen, int mode));
+static void CcpLayerStart __P((struct fsm *));
+static void CcpLayerFinish __P((struct fsm *));
+static void CcpLayerUp __P((struct fsm *));
+static void CcpLayerDown __P((struct fsm *));
+static void CcpInitRestartCounter __P((struct fsm *));
 
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
@@ -105,7 +106,7 @@ static void
 CcpInitRestartCounter(fp)
 struct fsm *fp;
 {
-  fp->FsmTimer.load = 3 * SECTICKS;
+  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
 
@@ -207,20 +208,17 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(bp, mode)
-struct mbuf *bp;
+CcpDecodeConfig(cp, plen, mode)
+u_char *cp;
+int plen;
 int mode;
 {
-  u_char *cp;
-  int plen, type, length;
+  int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr;
   char tbuff[100];
 
-  plen = plength(bp);
-
-  cp = MBUF_CTOP(bp);
   ackp = AckBuff;
   nakp = NakBuff;
   rejp = RejBuff;

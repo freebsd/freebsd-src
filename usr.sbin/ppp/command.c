@@ -16,11 +16,12 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  */
 #include <ctype.h>
+#include <termios.h>
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
@@ -29,6 +30,7 @@
 #include "command.h"
 #include "hdlc.h"
 #include "vars.h"
+#include "auth.h"
 #include <netdb.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -39,10 +41,12 @@ extern int  MakeArgs();
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
 extern int  AcceptCommand(), DenyCommand();
+extern int  LocalAuthCommand();
 extern int  LoadCommand(), SaveCommand();
 extern int  ChangeParity(char *);
 extern int  SelectSystem();
 extern int  ShowRoute();
+extern struct pppvars pppVars;
 
 struct in_addr ifnetmask;
 
@@ -113,17 +117,17 @@ char **argv;
   }
   if (!IsInteractive())
     return(1);
-  modem = OpenModem(mode);
-  if (modem < 0) {
-    printf("failed to open modem.\n");
-    modem = 0;
-    return(1);
-  }
   if (argc > 0) {
     if (SelectSystem(*argv, CONFFILE) < 0) {
       printf("%s: not found.\n", *argv);
       return(1);
     }
+  }
+  modem = OpenModem(mode);
+  if (modem < 0) {
+    printf("failed to open modem.\n");
+    modem = 0;
+    return(1);
   }
   if (DialModem()) {
     sleep(1);
@@ -138,40 +142,42 @@ static char StrRemote[] = "[remote]";
 char StrNull[] = "";
 
 struct cmdtab Commands[] = {
-  { "accept",  NULL,    AcceptCommand,
-  	"accept option request",	StrOption },
-  { "add",     NULL,	AddCommand,
-	"add route",			"dest mask gateway" },
-  { "close",   NULL,    CloseCommand,
-	"Close connection",		StrNull },
-  { "delete",  NULL,    DeleteCommand,
-  	"delete route",			"dest gateway" },
-  { "deny",    NULL,    DenyCommand,
-  	"Deny option request",		StrOption },
-  { "dial",    "call",  DialCommand,
-  	"Dial and login",		StrRemote },
-  { "disable", NULL,    DisableCommand,
-  	"Disable option",		StrOption },
-  { "display", NULL,    DisplayCommand,
-  	"Display option configs",	StrNull },
-  { "enable",  NULL,    EnableCommand,
-  	"Enable option",		StrOption },
-  { "load",    NULL,    LoadCommand,
-  	"Load settings",		StrRemote },
-  { "save",    NULL,    SaveCommand,
-  	"Save settings", StrNull },
-  { "set",     "setup", SetCommand,
-  	"Set parameters",  "var value" },
-  { "show",    NULL,    ShowCommand,
-  	"Show status and statictics", "var" },
-  { "term",    NULL,    TerminalCommand,
-  	"Enter to terminal mode", StrNull },
-  { "quit",    "bye",   QuitCommand,
-  	"Quit PPP program", StrNull },
-  { "help",    "?",     HelpCommand,
+  { "accept",  NULL,    AcceptCommand,	LOCAL_AUTH,
+  	"accept option request",	StrOption},
+  { "add",     NULL,	AddCommand,	LOCAL_AUTH,
+	"add route",			"dest mask gateway"},
+  { "close",   NULL,    CloseCommand,	LOCAL_AUTH,
+	"Close connection",		StrNull},
+  { "delete",  NULL,    DeleteCommand,	LOCAL_AUTH,
+  	"delete route",			"dest gateway"},
+  { "deny",    NULL,    DenyCommand,	LOCAL_AUTH,
+  	"Deny option request",		StrOption},
+  { "dial",    "call",  DialCommand,	LOCAL_AUTH,
+  	"Dial and login",		StrRemote},
+  { "disable", NULL,    DisableCommand,	LOCAL_AUTH,
+  	"Disable option",		StrOption},
+  { "display", NULL,    DisplayCommand,	LOCAL_AUTH,
+  	"Display option configs",	StrNull},
+  { "enable",  NULL,    EnableCommand,	LOCAL_AUTH,
+  	"Enable option",		StrOption},
+  { "passwd",  NULL,	LocalAuthCommand,LOCAL_NO_AUTH | LOCAL_NO_AUTH,
+  	"Password for manupilation", StrOption},
+  { "load",    NULL,    LoadCommand,	LOCAL_AUTH,
+  	"Load settings",		StrRemote},
+  { "save",    NULL,    SaveCommand,	LOCAL_AUTH,
+  	"Save settings", StrNull},
+  { "set",     "setup", SetCommand,	LOCAL_AUTH,
+  	"Set parameters",  "var value"},
+  { "show",    NULL,    ShowCommand,	LOCAL_AUTH,
+  	"Show status and statictics", "var"},
+  { "term",    NULL,    TerminalCommand,LOCAL_AUTH,
+  	"Enter to terminal mode", StrNull},
+  { "quit",    "bye",   QuitCommand,	LOCAL_AUTH,
+  	"Quit PPP program", StrNull},
+  { "help",    "?",     HelpCommand,	LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", "[command]", (void *)Commands },
-  { NULL,      "down",  DownCommand,
-  	"Generate down event",		StrNull },
+  { NULL,      "down",  DownCommand,	LOCAL_AUTH,
+  	"Generate down event",		StrNull},
   { NULL,      NULL,    NULL },
 };
 
@@ -223,8 +229,8 @@ static int ShowEscape()
 
 static int ShowTimeout()
 {
-  printf(" Idle Timer: %d secs   LQR Timer: %d secs\n",
-    VarIdleTimeout, VarLqrTimeout);
+  printf(" Idle Timer: %d secs   LQR Timer: %d secs   Retry Timer: %d secs\n",
+    VarIdleTimeout, VarLqrTimeout, VarRetryTimeout);
   return(1);
 }
 
@@ -249,47 +255,49 @@ static int ShowLogList()
   return(1);
 }
 
-extern int ShowIfilter(), ShowOfilter(), ShowDfilter();
+extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
 struct cmdtab ShowCommands[] = {
-  { "auth",     NULL,     ShowAuthKey,       "Show auth name/key",
-	StrNull, },
-  { "ccp",      NULL,     ReportCcpStatus,   "Show CCP status",
-	StrNull, },
-  { "compress", NULL,     ReportCompress,    "Show compression statictics",
-	StrNull },
-  { "debug",	NULL,	  ShowDebugLevel,    "Show current debug level",
-	StrNull },
-  { "dfilter",  NULL,     ShowDfilter,       "Show Demand filters",
-	StrOption },
-  { "escape",   NULL,     ShowEscape,        "Show escape characters",
-	StrNull },
-  { "hdlc",	NULL,	  ReportHdlcStatus,  "Show HDLC error summary",
-  	StrNull },
-  { "ifilter",  NULL,     ShowIfilter,       "Show Input filters",
-	StrOption },
-  { "ipcp",     NULL,     ReportIpcpStatus,  "Show IPCP status",
-	StrNull, },
-  { "lcp",      NULL,     ReportLcpStatus,   "Show LCP status",
-	StrNull, },
-  { "log",      NULL,     ShowLogList,       "Show log records",
-	StrNull, },
-  { "mem",      NULL,     ShowMemMap,        "Show memory map",
-	StrNull, },
-  { "modem",    NULL,     ShowModemStatus,   "Show modem setups",
-	StrNull, },
-  { "ofilter",  NULL,     ShowOfilter,       "Show Output filters",
-	StrOption },
-  { "proto",    NULL,     ReportProtStatus,  "Show protocol summary",
-	StrNull, },
-  { "route",    NULL,     ShowRoute,	     "Show routing table",
-	StrNull, },
-  { "timeout",  NULL,	  ShowTimeout,       "Show Idle timeout value",
-	StrNull, },
-  { "version",  NULL,	  ShowVersion,       "Show version string",
-	StrNull, },
-  { "help",     "?",      HelpCommand,       "Display this message",
-	StrNull, (void *)ShowCommands },
+  { "afilter",  NULL,     ShowAfilter,		LOCAL_AUTH,
+	"Show keep Alive filters", StrOption},
+  { "auth",     NULL,     ShowAuthKey,		LOCAL_AUTH,
+	"Show auth name/key", StrNull},
+  { "ccp",      NULL,     ReportCcpStatus,	LOCAL_AUTH,
+	"Show CCP status", StrNull},
+  { "compress", NULL,     ReportCompress,	LOCAL_AUTH,
+	"Show compression statictics", StrNull},
+  { "debug",	NULL,	  ShowDebugLevel,	LOCAL_AUTH,
+	"Show current debug level", StrNull},
+  { "dfilter",  NULL,     ShowDfilter,		LOCAL_AUTH,
+	"Show Demand filters", StrOption},
+  { "escape",   NULL,     ShowEscape,		LOCAL_AUTH,
+	"Show escape characters", StrNull},
+  { "hdlc",	NULL,	  ReportHdlcStatus,	LOCAL_AUTH,
+	"Show HDLC error summary", StrNull},
+  { "ifilter",  NULL,     ShowIfilter,		LOCAL_AUTH,
+	"Show Input filters", StrOption},
+  { "ipcp",     NULL,     ReportIpcpStatus,	LOCAL_AUTH,
+	"Show IPCP status", StrNull},
+  { "lcp",      NULL,     ReportLcpStatus,	LOCAL_AUTH,
+	"Show LCP status", StrNull},
+  { "log",      NULL,     ShowLogList,		LOCAL_AUTH,
+	"Show log records", StrNull},
+  { "mem",      NULL,     ShowMemMap,		LOCAL_AUTH,
+	"Show memory map", StrNull},
+  { "modem",    NULL,     ShowModemStatus,	LOCAL_AUTH,
+	"Show modem setups", StrNull},
+  { "ofilter",  NULL,     ShowOfilter,		LOCAL_AUTH,
+	"Show Output filters", StrOption},
+  { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
+	"Show protocol summary", StrNull},
+  { "route",    NULL,     ShowRoute,		LOCAL_AUTH,
+	"Show routing table", StrNull},
+  { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
+	"Show Idle timeout value", StrNull},
+  { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
+	"Show version string", StrNull},
+  { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
+	"Display this message", StrNull, (void *)ShowCommands},
   { NULL,       NULL,     NULL },
 };
 
@@ -329,8 +337,8 @@ char **argv;
 
   cmd = FindCommand(cmdlist, *argv, &nmatch);
   if (nmatch > 1)
-    printf("Anbiguous.\n");
-  else if (cmd)
+    printf("Ambiguous.\n");
+  else if (cmd && ( cmd->lauth & VarLocalAuth ) )
     val = (cmd->func)(cmd, --argc, ++argv, cmd->args);
   else
     printf("what?\n");
@@ -341,13 +349,22 @@ void
 Prompt(flag)
 int flag;
 {
+  char *pconnect, *pauth;
+
   if (!(mode & MODE_INTER))
     return;
+
   if (flag) printf("\n");
-  if (IpcpFsm.state == ST_OPENED && phase == PHASE_NETWORK)
-    printf("PPP> ");
+
+  if ( VarLocalAuth == LOCAL_AUTH )
+    pauth = " ON ";
   else
-    printf("ppp> ");
+    pauth = " on ";
+  if (IpcpFsm.state == ST_OPENED && phase == PHASE_NETWORK)
+    pconnect = "PPP";
+  else
+    pconnect = "ppp";
+  printf("%s%s%s> ", pconnect, pauth, VarShortHost);
   fflush(stdout);
 }
 
@@ -425,6 +442,7 @@ char **argv;
     if (argc > 0) {
       Cleanup(EX_NORMAL);
     } else {
+      VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       close(1);
       netfd = -1;
@@ -449,25 +467,22 @@ DownCommand()
   return(1);
 }
 
-static int validspeed[] = {
-  1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 0
-};
-
 static int SetModemSpeed(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
 {
   int speed;
-  int *sp;
 
   if (argc > 0) {
+    if (strcmp(*argv, "sync") == 0) {
+      VarSpeed = 0;
+      return(1);
+    }
     speed = atoi(*argv);
-    for (sp = validspeed; *sp; sp++) {
-      if (*sp == speed) {
-	VarSpeed = speed;
-	return(1);
-      }
+    if (IntToSpeed(speed) != B0) {
+      VarSpeed = speed;
+      return(1);
     }
     printf("invalid speed.\n");
   }
@@ -567,8 +582,16 @@ char **argv;
 {
   if (argc-- > 0) {
     VarIdleTimeout = atoi(*argv++);
-    if (argc > 0)
-      VarLqrTimeout = atoi(*argv);
+    if (argc-- > 0) {
+      VarLqrTimeout = atoi(*argv++);
+      if (VarLqrTimeout < 1)
+	VarLqrTimeout = 30;
+      if (argc > 0) {
+	VarRetryTimeout = atoi(*argv);
+	if (VarRetryTimeout < 1 || VarRetryTimeout > 10)
+	  VarRetryTimeout = 3;
+      }
+    }
   }
   return(1);
 }
@@ -620,7 +643,7 @@ char **argv;
     DefHisAddress.width = 0;
   }
 
-  if ((mode & MODE_AUTO) |
+  if ((mode & MODE_AUTO) ||
 	((mode & MODE_DEDICATED) && dstsystem)) {
     OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask);
   }
@@ -693,47 +716,49 @@ char **argv;
 static char StrChatStr[] = "chat-script";
 static char StrValue[] = "value";
 
-extern int SetIfilter(), SetOfilter(), SetDfilter();
+extern int SetIfilter(), SetOfilter(), SetDfilter(), SetAfilter();
 
 struct cmdtab SetCommands[] = {
-  { "accmap",   NULL,	  SetVariable,	  "Set accmap value",
-	"hex-value",	(void *)VAR_ACCMAP },
-  { "authkey",  "key",     SetVariable,	  "Set authentication key",
-	"key",		(void *)VAR_AUTHKEY },
-  { "authname", NULL,     SetVariable,    "Set authentication name",
-	"name",		(void *)VAR_AUTHNAME },
-  { "debug",    NULL,	  SetDebugLevel,  "Set debug level",
-	StrValue },
-  { "device",     "line", SetVariable, "Set modem device name",
-	"device-name",	(void *)VAR_DEVICE },
-  { "dfilter",  NULL,     SetDfilter,  "Set demand filter",
-        "..." },
-  { "dial",     NULL,     SetVariable, 	 "Set dialing script",
-	StrChatStr,	(void *)VAR_DIAL },
-  { "escape",   NULL,	  SetEscape,       "Set escape characters",
-        "hex-digit ..."},
-  { "ifaddr",   NULL,   SetInterfaceAddr,  "Set destination address",
-	"src-addr dst-addr netmask" },
-  { "ifilter",  NULL,     SetIfilter,  "Set input filter",
-        "..." },
-  { "login",    NULL,     SetVariable,	"Set login script",
-	 StrChatStr,	(void *)VAR_LOGIN },
-  { "mru",      "mtu",    SetInitialMRU,  "Set Initial MRU value",
-	StrValue },
-  { "ofilter",  NULL,	  SetOfilter,	  "Set output filter",
-        "..." },
-  { "openmode", NULL,	  SetOpenMode,	  "Set open mode",
-	"[active|passive]" },
-  { "parity",   NULL,     SetModemParity, "Set modem parity",
-	"[odd|even|none]" },
-  { "phone",    NULL,     SetVariable,	  "Set telephone number",
-        "phone-number",	(void *)VAR_PHONE },
-  { "speed",    NULL,     SetModemSpeed,  "Set modem speed",
-	"speed" },
-  { "timeout",  NULL,     SetIdleTimeout, "Set Idle timeout",
-	StrValue },
-  { "help",     "?",      HelpCommand,    "Display this message",
-	StrNull, (void *)SetCommands },
+  { "accmap",   NULL,	  SetVariable,		LOCAL_AUTH,
+	"Set accmap value", "hex-value", (void *)VAR_ACCMAP},
+  { "afilter",  NULL,     SetAfilter, 		LOCAL_AUTH,
+	"Set keep Alive filter", "..."},
+  { "authkey",  "key",     SetVariable,		LOCAL_AUTH,
+	"Set authentication key", "key", (void *)VAR_AUTHKEY},
+  { "authname", NULL,     SetVariable,		LOCAL_AUTH,
+	"Set authentication name", "name", (void *)VAR_AUTHNAME},
+  { "debug",    NULL,	  SetDebugLevel,	LOCAL_AUTH,
+	"Set debug level", StrValue},
+  { "device",     "line", SetVariable, 		LOCAL_AUTH,
+	"Set modem device name", "device-name",	(void *)VAR_DEVICE},
+  { "dfilter",  NULL,     SetDfilter,		 LOCAL_AUTH,
+	"Set demand filter", "..."},
+  { "dial",     NULL,     SetVariable, 		LOCAL_AUTH,
+	"Set dialing script", StrChatStr, (void *)VAR_DIAL},
+  { "escape",   NULL,	  SetEscape, 		LOCAL_AUTH,
+	"Set escape characters", "hex-digit ..."},
+  { "ifaddr",   NULL,   SetInterfaceAddr,	LOCAL_AUTH,
+	"Set destination address", "src-addr dst-addr netmask"},
+  { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,
+	"Set input filter", "..."},
+  { "login",    NULL,     SetVariable,		LOCAL_AUTH,
+	"Set login script", StrChatStr,	(void *)VAR_LOGIN },
+  { "mru",      "mtu",    SetInitialMRU,	LOCAL_AUTH,
+	"Set Initial MRU value", StrValue },
+  { "ofilter",  NULL,	  SetOfilter,		LOCAL_AUTH,
+	"Set output filter", "..." },
+  { "openmode", NULL,	  SetOpenMode,		LOCAL_AUTH,
+	"Set open mode", "[active|passive]"},
+  { "parity",   NULL,     SetModemParity,	LOCAL_AUTH,
+	"Set modem parity", "[odd|even|none]"},
+  { "phone",    NULL,     SetVariable,		LOCAL_AUTH,
+	"Set telephone number", "phone-number",	(void *)VAR_PHONE },
+  { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
+	"Set modem speed", "speed"},
+  { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
+	"Set Idle timeout", StrValue},
+  { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
+	"Display this message", StrNull, (void *)SetCommands},
   { NULL,       NULL,     NULL },
 };
 

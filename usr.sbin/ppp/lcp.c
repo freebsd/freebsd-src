@@ -16,16 +16,14 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
-#if __FreeBSD__ >=2
 #include <sys/time.h>
-#endif
 #include "fsm.h"
 #include "lcp.h"
 #include "ipcp.h"
@@ -35,29 +33,29 @@
 #include "lqr.h"
 #include "phase.h"
 #include "vars.h"
+#include "auth.h"
 
 extern void IpcpUp();
 extern void IpcpOpen();
-extern void SendPapChallenge();
-extern void SendChapChallenge();
+extern void StartPapChallenge();
+extern void StartChapChallenge();
 extern void SetLinkParams(struct lcpstate *);
 extern void Prompt();
 extern void StopIdleTimer();
-extern void HdlcInit();
 extern void OsLinkdown();
 extern void Cleanup();
 
 struct lcpstate LcpInfo;
 
-static void LcpSendConfigReq(struct fsm *);
-static void LcpSendTerminateReq(struct fsm *fp);
-static void LcpSendTerminateAck(struct fsm *fp);
-static void LcpDecodeConfig(struct mbuf *bp, int mode);
-static void LcpInitRestartCounter(struct fsm *);
-static void LcpLayerUp(struct fsm *);
-static void LcpLayerDown(struct fsm *);
-static void LcpLayerStart(struct fsm *);
-static void LcpLayerFinish(struct fsm *);
+static void LcpSendConfigReq __P((struct fsm *));
+static void LcpSendTerminateReq __P((struct fsm *fp));
+static void LcpSendTerminateAck __P((struct fsm *fp));
+static void LcpDecodeConfig __P((u_char *cp, int flen,int mode));
+static void LcpInitRestartCounter __P((struct fsm *));
+static void LcpLayerUp __P((struct fsm *));
+static void LcpLayerDown __P((struct fsm *));
+static void LcpLayerStart __P((struct fsm *));
+static void LcpLayerFinish __P((struct fsm *));
 
 extern int ModemSpeed();
 
@@ -111,9 +109,9 @@ int new;
     LogPrintf(LOG_PHASE, " his = %x, mine = %x\n", lcp->his_auth, lcp->want_auth);
     if (lcp->his_auth || lcp->want_auth) {
       if (lcp->his_auth == PROTO_PAP)
-	SendPapChallenge();
+	StartAuthChallenge(&AuthPapInfo);
       if (lcp->want_auth == PROTO_CHAP)
-	SendChapChallenge();
+	StartAuthChallenge(&AuthChapInfo);
     } else
       NewPhase(PHASE_NETWORK);
     break;
@@ -208,7 +206,7 @@ static void
 LcpInitRestartCounter(fp)
 struct fsm *fp;
 {
-  fp->FsmTimer.load = 5 * SECTICKS;
+  fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
 
@@ -250,18 +248,20 @@ struct fsm *fp;
 
   LogPrintf(LOG_LCP, "%s: SendConfigReq\n", fp->name);
   cp = ReqBuff;
-  if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP)) {
-    *cp++ = TY_ACFCOMP; *cp++ = 2;
-    LogPrintf(LOG_LCP, " %s\n", cftypes[TY_ACFCOMP]);
-  }
-  if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP)) {
-    *cp++ = TY_PROTOCOMP; *cp++ = 2;
-    LogPrintf(LOG_LCP, " %s\n", cftypes[TY_PROTOCOMP]);
+  if (!DEV_IS_SYNC) {
+    if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP)) {
+      *cp++ = TY_ACFCOMP; *cp++ = 2;
+      LogPrintf(LOG_LCP, " %s\n", cftypes[TY_ACFCOMP]);
+    }
+    if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP)) {
+      *cp++ = TY_PROTOCOMP; *cp++ = 2;
+      LogPrintf(LOG_LCP, " %s\n", cftypes[TY_PROTOCOMP]);
+    }
+    if (!REJECTED(lcp, TY_ACCMAP))
+      PutConfValue(&cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
   }
   if (!REJECTED(lcp, TY_MRU))
     PutConfValue(&cp, cftypes, TY_MRU, 4, lcp->want_mru);
-  if (!REJECTED(lcp, TY_ACCMAP))
-    PutConfValue(&cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
   if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
     PutConfValue(&cp, cftypes, TY_MAGICNUM, 6, lcp->want_magic);
   if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
@@ -319,6 +319,15 @@ struct fsm *fp;
 }
 
 static void
+StopAllTimers()
+{
+  StopTimer(&LcpReportTimer);
+  StopIdleTimer();
+  StopTimer(&AuthPapInfo.authtimer);
+  StopTimer(&AuthChapInfo.authtimer);
+}
+
+static void
 LcpLayerFinish(fp)
 struct fsm *fp;
 {
@@ -333,8 +342,7 @@ struct fsm *fp;
   OsCloseLink(1);
 #endif
   NewPhase(PHASE_DEAD);
-  StopTimer(&LcpReportTimer);
-  StopIdleTimer();
+  StopAllTimers();
   OsInterfaceDown(0);
 }
 
@@ -361,6 +369,7 @@ LcpLayerDown(fp)
 struct fsm *fp;
 {
   LogPrintf(LOG_LCP, "%s: LayerDown\n", fp->name);
+  StopAllTimers();
   OsLinkdown();
   NewPhase(PHASE_TERMINATE);
 }
@@ -372,9 +381,10 @@ LcpUp()
 }
 
 void
-LcpDown()
+LcpDown()			/* Sudden death */
 {
   NewPhase(PHASE_DEAD);
+  StopAllTimers();
   FsmDown(&LcpFsm);
 }
 
@@ -396,20 +406,17 @@ LcpClose()
  *	XXX: Should validate option length
  */
 static void
-LcpDecodeConfig(bp, mode)
-struct mbuf *bp;
+LcpDecodeConfig(cp, plen, mode)
+u_char *cp;
+int plen;
 int mode;
 {
-  u_char *cp;
   char *request;
-  int plen, type, length, mru;
+  int type, length, mru;
   u_long *lp, magic, accmap;
   u_short *sp, proto;
   struct lqrreq *req;
 
-  plen = plength(bp);
-
-  cp = MBUF_CTOP(bp);
   ackp = AckBuff;
   nakp = NakBuff;
   rejp = RejBuff;
@@ -471,7 +478,7 @@ int mode;
     case TY_AUTHPROTO:
       sp = (u_short *)(cp + 2);
       proto = ntohs(*sp);
-      LogPrintf(LOG_LCP, " %s proto = %x\n", request, proto);
+      LogPrintf(LOG_LCP, " %s proto = %04x\n", request, proto);
 
       switch (mode) {
       case MODE_REQ:
@@ -486,7 +493,7 @@ int mode;
 	    bcopy(cp, ackp, length); ackp += length;
 	  } else if (Acceptable(ConfChap)) {
 	    *nakp++ = *cp; *nakp++ = 5;
-	    *nakp++ = (unsigned char)PROTO_CHAP >> 8;
+	    *nakp++ = (unsigned char)(PROTO_CHAP >> 8);
 	    *nakp++ = (unsigned char)PROTO_CHAP;
 	    *nakp++ = 5;
 	  } else
@@ -502,7 +509,7 @@ int mode;
 	    bcopy(cp, ackp, length); ackp += length;
 	  } else if (Acceptable(ConfPap)) {
 	    *nakp++ = *cp; *nakp++ = 4;
-	    *nakp++ = (unsigned char)PROTO_PAP >> 8;
+	    *nakp++ = (unsigned char)(PROTO_PAP >> 8);
 	    *nakp++ = (unsigned char)PROTO_PAP;
 	  } else
 	    goto reqreject;
@@ -638,10 +645,13 @@ int mode;
       }
       break;
     default:
+      LogPrintf(LOG_LCP, " ???[%02x]\n", type);
+      if (mode == MODE_REQ) {
 reqreject:
-      bcopy(cp, rejp, length);
-      rejp += length;
-      LcpInfo.my_reject |= (1 << type);
+        bcopy(cp, rejp, length);
+        rejp += length;
+        LcpInfo.my_reject |= (1 << type);
+      }
       break;
     }
     plen -= length;

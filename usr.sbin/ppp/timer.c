@@ -18,14 +18,31 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *  TODO:
  */
 #include "defs.h"
 #include <sys/time.h>
 #include <signal.h>
 #include "timeout.h"
+#ifdef SIGALRM 
+#include <errno.h>
+#endif
+void StopTimerNoBlock( struct pppTimer *);
+void ShowTimers(void);
 
+void
+StopTimer( struct pppTimer *tp )
+{
+#ifdef SIGALRM
+  int	omask;
+  omask = sigblock(sigmask(SIGALRM));
+#endif
+  StopTimerNoBlock(tp);
+#ifdef SIGALRM
+  sigsetmask(omask);
+#endif
+}
 void
 StartTimer(tp)
 struct pppTimer *tp;
@@ -33,19 +50,25 @@ struct pppTimer *tp;
   struct pppTimer *t, *pt;
   u_long ticks = 0;
 
-  if (tp->state == TIMER_RUNNING) {
-    StopTimer(tp);
+#ifdef SIGALRM
+  int	omask;
+  omask = sigblock(sigmask(SIGALRM));
+#endif
+
+  if (tp->state != TIMER_STOPPED) {
+    StopTimerNoBlock(tp);
   }
   if (tp->load == 0) {
 #ifdef DEBUG
     logprintf("timer %x has 0 load!\n", tp);
 #endif
+    sigsetmask(omask);
     return;
   }
   pt = NULL;
   for (t = TimerList; t; t = t->next) {
 #ifdef DEBUG
-    logprintf("%x(%d):  ticks: %d, rest: %d\n", t, t->state, ticks, t->rest);
+    logprintf("StartTimer: %x(%d):  ticks: %d, rest: %d\n", t, t->state, ticks, t->rest);
 #endif
     if (ticks + t->rest >= tp->load)
       break;
@@ -66,24 +89,35 @@ struct pppTimer *tp;
     TimerList = tp;
   if (t)
     t->rest -= tp->rest;
+
+#ifdef SIGALRM
+  sigsetmask(omask);
+#endif
 }
 
 void
-StopTimer(tp)
+StopTimerNoBlock(tp)
 struct pppTimer *tp;
 {
   struct pppTimer *t, *pt;
 
+  /*
+   * A Running Timer should be removing TimerList,
+   * But STOPPED/EXPIRED is already removing TimerList.
+   * So just marked as TIMER_STOPPED.
+   * Do not change tp->enext!! (Might be Called by expired proc)
+   */
+#ifdef DEBUG
+  logprintf("StopTimer: %x, next = %x state=%x\n", tp, tp->next, tp->state);
+#endif
   if (tp->state != TIMER_RUNNING) {
-    tp->next = NULL;
+    tp->next   = NULL;
+    tp->state  = TIMER_STOPPED;
     return;
   }
 
-#ifdef DEBUG
-  logprintf("StopTimer: %x, next = %x\n", tp, tp->next);
-#endif
   pt = NULL;
-  for (t = TimerList; t != tp; t = t->next)
+  for (t = TimerList; t != tp && t !=NULL ; t = t->next)
     pt = t;
   if (t) {
     if (pt)
@@ -92,8 +126,9 @@ struct pppTimer *tp;
       TimerList = t->next;
     if (t->next)
       t->next->rest += tp->rest;
-  } else 
-    fprintf(stderr, "Oops, timer not found!!\n");
+  } else {
+    logprintf("Oops, timer not found!!\n");
+  }
   tp->next = NULL;
   tp->state = TIMER_STOPPED;
 }
@@ -103,6 +138,9 @@ TimerService()
 {
   struct pppTimer *tp, *exp, *wt;
 
+#ifdef DEBUG
+  ShowTimers();
+#endif
   if (tp = TimerList) {
     tp->rest--;
     if (tp->rest == 0) {
@@ -135,7 +173,12 @@ TimerService()
 #endif
 	if (exp->func)
 	  (*exp->func)(exp->arg);
-	exp = exp->enext;
+	/* 
+         * Just Removing each item from expired list
+         * And exp->enext will be intialized at next expire
+         * in this funtion.
+         */
+	exp =  exp->enext;
       }
     }
   }
@@ -146,6 +189,75 @@ ShowTimers()
 {
   struct pppTimer *pt;
 
+  logprintf("---- Begin of Timer Service List---\n");
   for (pt = TimerList; pt; pt = pt->next)
-    fprintf(stderr, "%x: load = %d, rest = %d\r\n", pt, pt->load, pt->rest);
+    logprintf("%x: load = %d, rest = %d, state =%x\n",
+	pt, pt->load, pt->rest, pt->state);
+  logprintf("---- End of Timer Service List ---\n");
 }
+
+#ifdef SIGALRM
+u_int sleep( u_int sec )
+{
+  struct timeval  to,st,et;
+  long sld, nwd, std;
+
+  gettimeofday( &st, NULL );
+  to.tv_sec =  sec;
+  to.tv_usec = 0;
+  std = st.tv_sec * 1000000 + st.tv_usec; 
+  for (;;) {
+    if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
+         errno != EINTR ) {
+       break;
+    } else  {
+       gettimeofday( &et, NULL );
+       sld = to.tv_sec * 1000000 + to.tv_sec;
+       nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+       if ( sld > nwd ) 
+          sld -= nwd;
+       else
+          sld  = 1; /* Avoid both tv_sec/usec is 0 */
+
+       /* Calculate timeout value for select */
+       to.tv_sec  = sld / 1000000;
+       to.tv_usec = sld % 1000000;
+
+       /* Forwarding signal as normal */
+       kill(getpid(), SIGALRM);
+    }
+  }
+}
+
+void usleep( u_int usec)
+{
+  struct timeval  to,st,et;
+  long sld, nwd, std;
+
+  gettimeofday( &st, NULL );
+  to.tv_sec =  0;
+  to.tv_usec = usec;
+  std = st.tv_sec * 1000000 + st.tv_usec; 
+  for (;;) {
+    if ( select ( 0, NULL, NULL, NULL, &to) == 0 ||
+         errno != EINTR ) {
+       break;
+    } else  {
+       gettimeofday( &et, NULL );
+       sld = to.tv_sec * 1000000 + to.tv_sec;
+       nwd = et.tv_sec * 1000000 + et.tv_usec - std;
+       if ( sld > nwd ) 
+          sld -= nwd;
+       else
+          sld  = 1; /* Avoid both tv_sec/usec is 0 */
+
+       /* Calculate timeout value for select */
+       to.tv_sec  = sld / 1000000;
+       to.tv_usec = sld % 1000000;
+
+       /* Forwarding signal as normal */
+       kill(getpid(), SIGALRM);
+    }
+  }
+}
+#endif

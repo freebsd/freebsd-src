@@ -18,6 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
+ * 
  */
 #include <sys/types.h>
 #include <machine/endian.h>
@@ -30,8 +31,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#if __FreeBSD__ >= 2
-#include <osreldate.h>
+#if (BSD >= 199306)
 #include <sys/sysctl.h>
 #else
 #include <sys/kinfo.h>
@@ -170,18 +170,21 @@ ShowRoute()
   int *lp;
   int needed, nb;
   u_long mask;
-#if ( __FreeBSD_version >= 199412 )
-  int 	mib[6];
+#if (BSD >= 199306)
+  int mib[6];
 #endif
 
-#if ( __FreeBSD_version >= 199412 )
+#if (BSD >= 199306)
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
-  mib[2] = 0;             /* protocol */
-  mib[3] = 0;             /* wildcard address family */
+  mib[2] = 0;
+  mib[3] = 0;
   mib[4] = NET_RT_DUMP;
-  mib[5] = 0;             /* no flags */
-  needed = sysctl(mib, 6, NULL, &needed, NULL, 0 );
+  mib[5] = 0;
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    perror("sysctl-estimate");
+    return(1);
+  }
 #else
   needed = getkerninfo(KINFO_RT_DUMP, 0, 0, 0);
 #endif
@@ -190,9 +193,11 @@ ShowRoute()
   sp = malloc(needed);
   if (sp == NULL)
     return(1);
-#if ( __FreeBSD_version >= 199412 )
-  if (sysctl(mib, 6, sp, &needed, NULL, 0 ) < 0)
+#if (BSD >= 199306)
+  if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
+    perror("sysctl-getroute");
     return(1);
+  }
 #else
   if (getkerninfo(KINFO_RT_DUMP, sp, &needed, 0) < 0)
     return(1);
@@ -250,24 +255,28 @@ int all;
   u_long mask;
   int *lp, nb;
   u_char *wp;
-#if ( __FreeBSD_version >= 199412 )
-  int 	mib[6];
+#if (BSD >= 199306)
+  int mib[6];
 #endif
 
 #ifdef DEBUG
   logprintf("DeleteIfRoutes (%d)\n", IfIndex);
 #endif
-#if ( __FreeBSD_version >= 199412 )
+#if (BSD >= 199306)
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
-  mib[2] = 0;             /* protocol */
-  mib[3] = 0;             /* wildcard address family */
+  mib[2] = 0;
+  mib[3] = 0;
   mib[4] = NET_RT_DUMP;
-  mib[5] = 0;             /* no flags */
-  needed = sysctl(mib, 6, NULL, &needed, NULL, 0 );
+  mib[5] = 0;
+  if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+    perror("sysctl-estimate");
+    return;
+  }
 #else
   needed = getkerninfo(KINFO_RT_DUMP, 0, 0, 0);
 #endif
+
   if (needed < 0)
     return;
 
@@ -275,9 +284,10 @@ int all;
   if (sp == NULL)
     return;
 
-#if ( __FreeBSD_version >= 199412 )
-  if (sysctl(mib, 6, sp, &needed, NULL, 0 ) < 0) {
+#if (BSD >= 199306)
+  if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
     free(sp);
+    perror("sysctl-getroute");
     return;
   }
 #else
@@ -374,17 +384,12 @@ char *name;
         IfIndex = index;
         return(index);
       }
-#if defined(__FreeBSD__) || (_BSDI_VERSION >= 199312)
       index++;
-#endif
     }
 
     len -= elen;
     ifrp = (struct ifreq *)((char *)ifrp + elen);
     ifrp++;
-#if defined(_BSDI_VERSION) && (_BSDI_VERSION < 199312)
-    index++;
-#endif
   }
 
   close(s);

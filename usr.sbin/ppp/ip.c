@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
@@ -34,7 +34,7 @@
 #include "vars.h"
 #include "filter.h"
 
-extern void SendPppFlame();
+extern void SendPppFrame();
 extern int PacketCheck();
 extern void LcpClose();
 
@@ -74,8 +74,8 @@ StopIdleTimer()
 static void
 RestartIdleTimer()
 {
-  if (!(mode & MODE_DEDICATED)) {
-    StopTimer(&IdleTimer);
+  if (!(mode & MODE_DEDICATED) && ipKeepAlive ) {
+/*  StopTimer(&IdleTimer); */
     StartTimer(&IdleTimer);
     ipIdleSecs = 0;
   }
@@ -91,8 +91,8 @@ static char *TcpFlags[] = {
   "FIN", "SYN", "RST", "PSH", "ACK", "URG",
 };
 
-static char *Direction[] = { "INP", "OUT", "OUT" };
-static struct filterent *Filters[] = { ifilters, ofilters, dfilters };
+static char *Direction[] = { "INP", "OUT", "OUT", "IN/OUT" };
+static struct filterent *Filters[] = { ifilters, ofilters, dfilters, afilters };
 
 static int
 PortMatch(op, pport, rport)
@@ -155,6 +155,10 @@ logprintf("rule = %d\n", n);
 		cproto = P_TCP; th = (struct tcphdr *)ptop;
 		sport = ntohs(th->th_sport); dport = ntohs(th->th_dport);
 		estab = (th->th_flags & TH_ACK);
+#ifdef DEBUG
+if (estab == 0)
+logprintf("flag = %02x, sport = %d, dport = %d\n", th->th_flags, sport, dport);
+#endif
 		break;
 	      default:
 		return(A_DENY);	/* We'll block unknown type of packet */
@@ -163,8 +167,6 @@ logprintf("rule = %d\n", n);
 #ifdef DEBUG
 logprintf("dir = %d, proto = %d, srcop = %d, dstop = %d, estab = %d\n",
 direction, cproto, fp->opt.srcop, fp->opt.dstop, estab);
-if (estab == 0)
-logprintf("flag = %02x, sport = %d, dport = %d\n", th->th_flags, sport, dport);
 #endif
 	    }
 #ifdef DEBUG
@@ -211,7 +213,7 @@ int code;
   if (pip->ip_p != IPPROTO_ICMP) {
     bp = mballoc(cnt, MB_IPIN);
     bcopy(ptr, MBUF_CTOP(bp), cnt);
-    SendPppFlame(PRI_URGENT, bp);
+    SendPppFrame(PRI_URGENT, bp);
     RestartIdleTimer();
     ipOutOctets += cnt;
   }
@@ -299,6 +301,11 @@ int direction;
     if (direction == 0) IcmpError(pip, pri);
     return(-1);
   } else {
+    if ( FilterCheck(pip, 3) & A_DENY ) {  /* Check Keep Alive filter */
+	ipKeepAlive = FALSE;
+    } else {
+	ipKeepAlive = TRUE;
+    }
     return(pri);
   }
 }
@@ -352,7 +359,7 @@ int cnt;			/* IN: Length of packet */
   if (pri >= 0) {
     bp = mballoc(cnt, MB_IPIN);
     bcopy(ptr, MBUF_CTOP(bp), cnt);
-    SendPppFlame(pri, bp);
+    SendPppFrame(pri, bp);
     RestartIdleTimer();
     ipOutOctets += cnt;
   }
@@ -388,7 +395,7 @@ IpStartOutput()
       bp = Dequeue(queue);
       if (bp) {
 	cnt = plength(bp);
-	SendPppFlame(pri, bp);
+	SendPppFrame(pri, bp);
 	RestartIdleTimer();
 	ipOutOctets += cnt;
        }

@@ -57,6 +57,6 @@ extern struct ipcpstate IpcpInfo;
 extern struct in_range DefMyAddress;
 extern struct in_range DefHisAddress;
 
-extern void IpcpInit(void);
-extern void IpcpDefAddress();
+extern void IpcpInit __P((void));
+extern void IpcpDefAddress __P((void));
 #endif

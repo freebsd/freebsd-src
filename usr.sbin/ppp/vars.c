@@ -18,14 +18,16 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
+ * 
  */
 #include "fsm.h"
 #include "command.h"
 #include "hdlc.h"
 #include "termios.h"
 #include "vars.h"
+#include "auth.h"
 
-char VarVersion[] = "Version 0.93";
+char VarVersion[] = "Version 0.94";
 
 /*
  * Order of conf option is important. See vars.h.
@@ -38,15 +40,13 @@ struct confdesc pppConfs[] = {
   { "acfcomp",   CONF_ENABLE,  CONF_ACCEPT },
   { "protocomp", CONF_ENABLE,  CONF_ACCEPT },
   { "pred1",	 CONF_ENABLE,  CONF_ACCEPT },
-#ifdef notdef
-  { "ipaddress", CONF_ENABLE,  CONF_ACCEPT },
-#endif
+  { "proxy",	 CONF_DISABLE, CONF_DENY },
   { NULL },
 };
 
 struct pppvars pppVars = {
-  DEF_MRU, 0, MODEM_SPEED, CS8, 180, 30,
-  MODEM_DEV, OPEN_PASSIVE,
+  DEF_MRU, 0, MODEM_SPEED, CS8, 180, 30, 3,
+  MODEM_DEV, OPEN_PASSIVE, LOCAL_NO_AUTH, 
 };
 
 int
@@ -149,5 +149,36 @@ char **argv;
     }
     argc--; argv++;
   } while (argc > 0);
+  return(1);
+}
+
+int
+LocalAuthCommand(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  char *p;
+  if (argc < 1) {
+    printf("Please Enter passwd for manupilating.\n");
+    return(1);
+  }
+
+  switch ( LocalAuthValidate( SECRETFILE, VarShortHost, *argv ) ) {
+	case INVALID:
+		pppVars.lauth = LOCAL_NO_AUTH;
+		break;
+	case VALID:
+		pppVars.lauth = LOCAL_AUTH;
+		break;
+	case NOT_FOUND:
+		pppVars.lauth = LOCAL_AUTH;
+		printf("WARING: No Entry for this system\n");
+		break;
+	default:
+		pppVars.lauth = LOCAL_NO_AUTH;
+		printf("Ooops?\n");
+		break;
+  }
   return(1);
 }

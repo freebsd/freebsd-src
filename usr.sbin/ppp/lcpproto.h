@@ -22,6 +22,7 @@
 
 #ifndef _LCPPROTO_H_
 #define _LCPPROTO_H_
+#include "cdefs.h"
 
 /*
  *  Definition of protocol numbers
@@ -41,12 +42,12 @@
 #define	PROTO_LQR	0xc025
 #define	PROTO_CHAP	0xc223
 
-extern void LcpInput(struct mbuf *bp);
-extern void PapInput(struct mbuf *bp);
-extern void LqpInput(struct mbuf *bp);
-extern void ChapInput(struct mbuf *bp);
-extern void IpInput(struct mbuf *bp);
-extern struct mbuf *VjCompInput(struct mbuf *bp, int proto);
-extern void IpcpInput(struct mbuf *bp);
-extern void LqrInput(struct mbuf *bp);
+extern void LcpInput __P((struct mbuf *bp));
+extern void PapInput __P((struct mbuf *bp));
+extern void LqpInput __P((struct mbuf *bp));
+extern void ChapInput __P((struct mbuf *bp));
+extern void IpInput __P((struct mbuf *bp));
+extern struct mbuf *VjCompInput __P((struct mbuf *bp, int proto));
+extern void IpcpInput __P((struct mbuf *bp));
+extern void LqrInput __P((struct mbuf *bp));
 #endif

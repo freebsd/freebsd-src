@@ -16,15 +16,16 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id: systems.c,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
  *
+ * $Id:$
+ * 
  *  TODO:
  */
 #include "fsm.h"
 #include "vars.h"
 #include "ipcp.h"
 #include "pathnames.h"
+#include "vars.h"
 
 extern void DecodeCommand();
 
@@ -93,7 +94,7 @@ char *file;
   }
   if (fp == NULL) {
     SetPppId();
-    sprintf(line, "%s/%s", _PATH_PPP, file);
+    sprintf(line, "%s/%s",_PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
@@ -121,6 +122,7 @@ char *file;
   char *cp, *wp;
   int n;
   int val = -1;
+  u_char  olauth;
   char line[200];
 
   fp = NULL;
@@ -132,7 +134,7 @@ char *file;
   }
   if (fp == NULL) {
     SetPppId();		/* fix from pdp@ark.jr3uom.iijnet.or.jp */
-    sprintf(line, "%s/%s", _PATH_PPP, file);
+    sprintf(line, "%s/%s",_PATH_PPP, file);
     fp = fopen(line, "r");
   }
   if (fp == NULL) {
@@ -164,7 +166,10 @@ char *file;
 	    fprintf(stderr, "%s", cp);
 #endif
 	    SetPppId();
+            olauth = VarLocalAuth;
+	    VarLocalAuth = LOCAL_AUTH;
 	    DecodeCommand(cp, strlen(cp), 0);
+            VarLocalAuth = olauth;
 	    SetUserId();
 	  } else if (*cp == '#') {
 	    continue;

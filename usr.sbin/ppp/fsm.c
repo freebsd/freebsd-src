@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *  TODO:
  *		o Refer loglevel for log output
  *		o Better option log display
@@ -229,6 +229,7 @@ u_char *option;
 int count;
 {
   LogPrintf(LOG_LCP, "%s:  SendConfigAck(%s)\n", fp->name, StateNames[fp->state]);
+  (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
 
@@ -240,6 +241,7 @@ u_char *option;
 int count;
 {
   LogPrintf(LOG_LCP, "%s:  SendConfigRej(%s)\n", fp->name, StateNames[fp->state]);
+  (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
 
@@ -252,6 +254,7 @@ int count;
 {
   LogPrintf(LOG_LCP, "%s:  SendConfigNak(%s)\n",
 	    fp->name, StateNames[fp->state]);
+  (fp->DecodeConfig)(option, count, MODE_NOP);
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
 
@@ -318,15 +321,17 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  int plen;
+  int plen, flen;
   int ackaction = 0;
  
   plen = plength(bp);
-  if (plen < sizeof(struct fsmconfig)) {
-logprintf("** plen = %d\n", plen);
+  flen = ntohs(lhp->length) - sizeof(*lhp);
+  if (plen < flen) {
+    logprintf("** plen (%d) < flen (%d)\n", plen, flen);
     pfree(bp);
     return;
   }
+
 
   /*
    *  Check and process easy case
@@ -349,7 +354,7 @@ logprintf("## state = %d\n", fp->state);
     return;
   }
 
-  (fp->DecodeConfig)(bp, MODE_REQ);
+  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_REQ);
 
   if (nakp == NakBuff && rejp == RejBuff)
     ackaction = 1;
@@ -440,10 +445,11 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  int plen;
+  int plen, flen;
  
   plen = plength(bp);
-  if (plen < sizeof(struct fsmconfig)) {
+  flen = ntohs(lhp->length) - sizeof(*lhp);
+  if (plen < flen) {
     pfree(bp);
     return;
   }
@@ -469,7 +475,7 @@ struct mbuf *bp;
     return;
   }
 
-  (fp->DecodeConfig)(bp, MODE_NAK);
+  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_NAK);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -556,10 +562,11 @@ struct fsm *fp;
 struct fsmheader *lhp;
 struct mbuf *bp;
 {
-  int plen;
+  int plen, flen;
  
   plen = plength(bp);
-  if (plen < sizeof(struct fsmconfig)) {
+  flen = ntohs(lhp->length) - sizeof(*lhp);
+  if (plen < flen) {
     pfree(bp);
     return;
   }
@@ -586,7 +593,7 @@ struct mbuf *bp;
     return;
   }
 
-  (fp->DecodeConfig)(bp, MODE_REJ);
+  (fp->DecodeConfig)(MBUF_CTOP(bp), flen, MODE_REJ);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -791,7 +798,7 @@ struct mbuf *bp;
 
   codep = FsmCodes + lhp->code - 1;
   LogPrintf(LOG_LCP, "%s: Received %s (%d) state = %s (%d)\n",
-    fp->name, codep->name, lhp->code, StateNames[fp->state], fp->state);
+    fp->name, codep->name, lhp->id, StateNames[fp->state], fp->state);
 #ifdef DEBUG
   LogMemory();
 #endif

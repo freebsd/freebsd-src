@@ -1,3 +1,5 @@
+/*	$NetBSD: if_tun.c,v 1.14 1994/06/29 06:36:25 cgd Exp $	*/
+
 /*
  * Copyright (c) 1988, Julian Onions <jpo@cs.nott.ac.uk>
  * Nottingham University 1987.
@@ -10,25 +12,26 @@
  * roots in a similar driver written by Phil Cockcroft (formerly) at
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
- * 
- * $Id: if_tun.c,v 1.9 1993/12/24 03:20:59 deraadt Exp $
  */
 
 #include "tun.h"
 #if NTUN > 0
 
-#include "param.h"
-#include "kernel.h"		/* sigh */
-#include "proc.h"
-#include "systm.h"
-#include "mbuf.h"
-#include "buf.h"
-#include "protosw.h"
-#include "socket.h"
-#include "ioctl.h"
-#include "errno.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/buf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/syslog.h>
+#include <sys/select.h>
 #include <sys/file.h>
+#ifdef __FreeBSD__
+#include <sys/kernel.h>
+#endif
 
 #include <machine/cpu.h>
 
@@ -57,11 +60,6 @@
 
 #include <net/if_tun.h>
 
-
-#ifndef MIN
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#endif
-
 #define TUNDEBUG	if (tundebug) printf
 int	tundebug = 0;
 
@@ -69,15 +67,21 @@ struct tun_softc tunctl[NTUN];
 extern int ifqmaxlen;
 
 int	tunopen __P((dev_t, int, int, struct proc *));
-int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *, struct rtentry *rt));
-int	tunselect __P((dev_t, int, struct proc *));
+int	tunclose __P((dev_t, int));
+int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
+	    struct rtentry *rt));
+int	tunread __P((dev_t, struct uio *));
+int	tunwrite __P((dev_t, struct uio *));
+int	tunioctl __P((dev_t, int, caddr_t, int, struct proc *));
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
-int	tunioctl __P((dev_t, int, caddr_t, int));
+int	tunselect __P((dev_t, int));
+void	tunattach __P((int));
 
 static int tuninit __P((int));
 
 void
-tunattach(void)
+tunattach(unused)
+	int unused;
 {
 	register int i;
 	struct ifnet *ifp;
@@ -106,7 +110,9 @@ tunattach(void)
 	}
 }
 
-TEXT_SET(pseudo_set, tunattach);
+#ifdef __FreeBSD__
+PSEUDO_SET(tunattach);
+#endif
 
 /*
  * tunnel open - must be superuser & the device must be
@@ -122,7 +128,6 @@ tunopen(dev, flag, mode, p)
 	struct tun_softc *tp;
 	register int	unit, error;
 
-
 	if (error = suser(p->p_ucred, &p->p_acflag))
 		return (error);
 
@@ -133,7 +138,6 @@ tunopen(dev, flag, mode, p)
 		return ENXIO;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
-
 	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
 	return (0);
 }
@@ -151,9 +155,7 @@ tunclose(dev, flag)
 	struct tun_softc *tp = &tunctl[unit];
 	struct ifnet	*ifp = &tp->tun_if;
 	struct mbuf	*m;
-	int	rcoll;
 
-	rcoll = tp->tun_flags & TUN_RCOLL;
 	tp->tun_flags &= ~TUN_OPEN;
 
 	/*
@@ -170,24 +172,21 @@ tunclose(dev, flag)
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
 		if_down(ifp);
-#ifdef notdef
 		if (ifp->if_flags & IFF_RUNNING) {
-			rtinit(ifp->if_addrlist, (int)RTM_DELETE,
-			       tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
+		    /* find internet addresses and delete routes */
+		    register struct ifaddr *ifa;
+		    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr->sa_family == AF_INET) {
+			    rtinit(ifa, (int)RTM_DELETE,
+				   tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
+			}
+		    }
 		}
-#endif
 		splx(s);
 	}
 	tp->tun_pgrp = 0;
-#if BSD >= 199103
-	selwakeup(&tp->tun_sel);
-        /* XXX */
-        tp->tun_sel.si_pid = 0;
-#else
-	if (tp->tun_rsel)
-	  selwakeup(tp->tun_rsel->p_pid, rcoll);
-        tp -> tun_rsel = tp -> tun_wsel = (struct proc *)0;
-#endif		
+	selwakeup(&tp->tun_rsel);
+		
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
 	return (0);
 }
@@ -204,17 +203,18 @@ tuninit(unit)
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
 
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
-		struct sockaddr_in *si;
+	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+		    struct sockaddr_in *si;
 
-		si = (struct sockaddr_in *)ifa->ifa_addr;
-		if (si && si->sin_addr.s_addr)
-			tp->tun_flags |= TUN_IASET;
+		    si = (struct sockaddr_in *)ifa->ifa_addr;
+		    if (si && si->sin_addr.s_addr)
+			    tp->tun_flags |= TUN_IASET;
 
-		si = (struct sockaddr_in *)ifa->ifa_dstaddr;
-		if (si && si->sin_addr.s_addr)
-			tp->tun_flags |= TUN_DSTADDR;
-	}
+		    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
+		    if (si && si->sin_addr.s_addr)
+			    tp->tun_flags |= TUN_DSTADDR;
+		}
 
 	return 0;
 }
@@ -235,11 +235,13 @@ tunifioctl(ifp, cmd, data)
 	switch(cmd) {
 	case SIOCSIFADDR:
 		tuninit(ifp->if_unit);
+		TUNDEBUG("%s%d: address set\n",
+			 ifp->if_name, ifp->if_unit);
 		break;
 	case SIOCSIFDSTADDR:
-		tp->tun_flags |= TUN_DSTADDR;
-		TUNDEBUG("%s%d: destination address set\n", ifp->if_name,
-		    ifp->if_unit);
+		tuninit(ifp->if_unit);
+		TUNDEBUG("%s%d: destination address set\n",
+			 ifp->if_name, ifp->if_unit);
 		break;
 	default:
 		error = EINVAL;
@@ -322,17 +324,7 @@ tunoutput(ifp, m0, dst, rt)
 		else if (p = pfind(-tp->tun_pgrp))
 			psignal(p, SIGIO);
 	}
-#if BSD >= 199103
-        selwakeup(&tp->tun_sel);
-        /* XXX */
-        tp->tun_sel.si_pid = 0;
-#else
-	if (tp->tun_rsel) {
-	  selwakeup(tp->tun_rsel->p_pid, tp->tun_flags & TUN_RCOLL);
-	  tp->tun_flags &= ~TUN_RCOLL;
-	  tp->tun_rsel = (struct proc *)0;
-	}
-#endif
+	selwakeup(&tp->tun_rsel);
 	return 0;
 }
 
@@ -340,29 +332,30 @@ tunoutput(ifp, m0, dst, rt)
  * the cdevsw interface is now pretty minimal.
  */
 int
-tunioctl(dev, cmd, data, flag)
+tunioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
 	int		cmd;
 	caddr_t		data;
 	int		flag;
+	struct proc	*p;
 {
 	int		unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
-	struct tuninfo *tunp;
+ 	struct tuninfo *tunp;
 
 	switch (cmd) {
-	case TUNSIFINFO:
-	        tunp = (struct tuninfo *)data;
-		tp->tun_if.if_mtu = tunp->tif_mtu;
-		tp->tun_if.if_type = tunp->tif_type;
-		tp->tun_if.if_baudrate = tunp->tif_baudrate;
-		break;
-	case TUNGIFINFO:
-		tunp = (struct tuninfo *)data;
-		tunp->tif_mtu = tp->tun_if.if_mtu;
-		tunp->tif_type = tp->tun_if.if_type;
-		tunp->tif_baudrate = tp->tun_if.if_baudrate;
-		break;
+ 	case TUNSIFINFO:
+ 	        tunp = (struct tuninfo *)data;
+ 		tp->tun_if.if_mtu = tunp->mtu;
+ 		tp->tun_if.if_type = tunp->type;
+ 		tp->tun_if.if_baudrate = tunp->baudrate;
+ 		break;
+ 	case TUNGIFINFO:
+ 		tunp = (struct tuninfo *)data;
+ 		tunp->mtu = tp->tun_if.if_mtu;
+ 		tunp->type = tp->tun_if.if_type;
+ 		tunp->baudrate = tp->tun_if.if_baudrate;
+ 		break;
 	case TUNSDEBUG:
 		tundebug = *(int *)data;
 		break;
@@ -440,7 +433,7 @@ tunread(dev, uio)
 	splx(s);
 
 	while (m0 && uio->uio_resid > 0 && error == 0) {
-		len = MIN(uio->uio_resid, m0->m_len);
+		len = min(uio->uio_resid, m0->m_len);
 		if (len == 0)
 			break;
 		error = uiomove(mtod(m0, caddr_t), len, uio);
@@ -486,7 +479,7 @@ tunwrite(dev, uio)
 	top = 0;
 	mp = &top;
 	while (error == 0 && uio->uio_resid > 0) {
-		m->m_len = MIN (mlen, uio->uio_resid);
+		m->m_len = min(mlen, uio->uio_resid);
 		error = uiomove(mtod (m, caddr_t), m->m_len, uio);
 		*mp = m;
 		mp = &m->m_next;
@@ -544,31 +537,14 @@ tunwrite(dev, uio)
 }
 
 /*
- * The new select interface passes down the proc pointer; the old select
- * stubs had to grab it out of the user struct.  This glue allows either case.
- */
-#if BSD >= 199103
-#define tun_select tunselect
-#else
-int
-tunselect(dev, rw)
-        register dev_t dev;
-        int rw;
-{
-        return (tun_select(dev, rw, u.u_procp));
-}        
-#endif   
-
-/*
  * tunselect - the select interface, this is only useful on reads
  * really. The write detect always returns true, write never blocks
  * anyway, it either accepts the packet or drops it.
  */
 int
-tun_select(dev, rw, p)
+tunselect(dev, rw)
 	dev_t		dev;
 	int		rw;
-	struct proc	*p;
 {
 	int		unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
@@ -576,19 +552,7 @@ tun_select(dev, rw, p)
 
 	s = splimp();
 	TUNDEBUG("%s%d: tunselect\n", ifp->if_name, ifp->if_unit);
-#if BSD >= 199103
-        if (rw != FREAD) {
-		splx(s);
-                return 1;
-	}
-	if (ifp->if_snd.ifq_len > 0) {
-                splx(s);
-		TUNDEBUG("%s%d: tunselect q=%d\n", ifp->if_name,
-			    ifp->if_unit, ifp->if_snd.ifq_len);
-                return 1;
-        }
-	selrecord(p, &tp->tun_sel);
-#else
+
 	switch (rw) {
 	case FREAD:
 		if (ifp->if_snd.ifq_len > 0) {
@@ -597,16 +561,12 @@ tun_select(dev, rw, p)
 			    ifp->if_unit, ifp->if_snd.ifq_len);
 			return 1;
 		}
-		if (tp->tun_rsel && tp->tun_rsel == p)
-			tp->tun_flags |= TUN_RCOLL;
-		else
-			tp->tun_rsel = p;
+		selrecord(curproc, &tp->tun_rsel);
 		break;
 	case FWRITE:
 		splx(s);
 		return 1;
 	}
-#endif
 	splx(s);
 	TUNDEBUG("%s%d: tunselect waiting\n", ifp->if_name, ifp->if_unit);
 	return 0;
