@@ -1289,16 +1289,18 @@ environment variable if no
 is specified.
 If
 .Ar directory
-is not found as a subdirectory of the current directory
-(and does not begin with
-.Pa / , ./ ,
+does not begin with
+.Pa / , . ,
 or
-.Pa ../ ) ,
+.Pa .. ,
 then the directories listed in the
 .Ev CDPATH
 variable will be
 searched for the specified
 .Ar directory .
+If
+.Ev CDPATH
+is unset, the current directory is searched.
 The format of
 .Ar CDPATH
 is the same as that of
