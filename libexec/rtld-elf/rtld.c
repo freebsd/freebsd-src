@@ -712,6 +712,10 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 	}
     }
+    if (nsegs < 1) {
+	_rtld_error("%s: too few PT_LOAD segments", path);
+	return NULL;
+    }
 
     obj->entry = entry;
     return obj;
