@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.37 1997/02/22 09:36:33 peter Exp $
+ * $Id: if_le.c,v 1.38 1997/07/20 14:10:00 bde Exp $
  */
 
 /*
@@ -79,6 +79,7 @@
 #endif
 
 /* Forward declarations */
+void le_intr __P((int unit));
 typedef struct le_softc le_softc_t;
 typedef struct le_board le_board_t;
 
