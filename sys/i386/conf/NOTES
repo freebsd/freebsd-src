@@ -695,7 +695,8 @@ device		hfa			#FORE PCA-200E ATM PCI
 # Only the "dc" "fxp" and "sis" devices support this mode of operation at
 # the time of this writing.
 
-options		DEVICE_POLLING
+# disabled because it conflicts with SMP making LINT uncompilable.
+#options		DEVICE_POLLING
 
 
 #####################################################################
