@@ -114,7 +114,6 @@ usage(const char *comm)
 	    "       %s remove [-v] <-n number> name\n"
 	    "       %s stop [-fv] name [...]\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm);
-	exit(EXIT_FAILURE);
 }
 
 static void
