@@ -36,8 +36,10 @@ static char sccsid[] = "@(#)opendir.c	8.2 (Berkeley) 2/12/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -51,14 +53,21 @@ opendir(name)
 {
 	register DIR *dirp;
 	register int fd;
+	int saved_errno;
+	struct stat sb;
 
-	if ((fd = open(name, 0)) == -1)
+	if ((fd = open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return NULL;
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
-	    (dirp = (DIR *)malloc(sizeof(DIR))) == NULL) {
-		close (fd);
-		return NULL;
+	dirp = NULL;
+	if (fstat(fd, &sb) != 0)
+		goto fail;
+	if (!S_ISDIR(sb.st_mode)) {
+		errno = ENOTDIR;
+		goto fail;
 	}
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
+	    (dirp = malloc(sizeof(DIR))) == NULL)
+		goto fail;
 	/*
 	 * If CLBYTES is an exact multiple of DIRBLKSIZ, use a CLBYTES
 	 * buffer that it cluster boundary aligned.
@@ -72,10 +81,8 @@ opendir(name)
 		dirp->dd_buf = malloc(DIRBLKSIZ);
 		dirp->dd_len = DIRBLKSIZ;
 	}
-	if (dirp->dd_buf == NULL) {
-		close (fd);
-		return NULL;
-	}
+	if (dirp->dd_buf == NULL)
+		goto fail;
 	dirp->dd_fd = fd;
 	dirp->dd_loc = 0;
 	dirp->dd_seek = 0;
@@ -84,4 +91,11 @@ opendir(name)
 	 */
 	dirp->dd_rewind = telldir(dirp);
 	return dirp;
+
+fail:
+	saved_errno = errno;
+	free(dirp);
+	close(fd);
+	errno = saved_errno;
+	return NULL;
 }
