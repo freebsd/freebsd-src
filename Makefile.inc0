@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.13 1998/12/20 14:30:08 jhay Exp $
+#	$Id: Makefile.inc0,v 1.14 1999/01/14 06:45:53 jhay Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -78,11 +78,11 @@ world:
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} pre-world
 .endif
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && defined(WANT_AOUT)
 	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-build
 .endif
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} -B installworld
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && defined(WANT_AOUT)
 	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-install
 .endif
 .if target(post-world)
@@ -105,7 +105,7 @@ world:
 #
 buildworld	:
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} buildworld
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && defined(WANT_AOUT)
 	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} legacy-build
 .endif
 
@@ -117,6 +117,6 @@ buildworld	:
 #
 installworld	:
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} installworld
-.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && !defined(NOAOUT)
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf" && defined(WANT_AOUT)
 	@cd ${.CURDIR}; ${LEGACY_ENV} ${XMAKE} -DNOMAN -DNOINFO legacy-install
 .endif
