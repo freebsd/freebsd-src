@@ -797,6 +797,7 @@ amu_release_controlling_tty(void)
 #endif /* TIOCNOTTY */
 
 #ifdef HAVE_SETSID
+  /* XXX: one day maybe use vhangup(2) */
   if (setsid() < 0) {
     plog(XLOG_WARNING, "Could not release controlling tty using setsid(): %m");
   } else {

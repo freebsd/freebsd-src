@@ -534,6 +534,11 @@ gopt_map_options(const char *val)
 static int
 gopt_map_type(const char *val)
 {
+  /* check if map type exist */
+  if (!mapc_type_exists(val)) {
+    fprintf(stderr, "conf: no such map type \"%s\"\n", val);
+    return 1;
+  }
   gopt.map_type = strdup((char *)val);
   return 0;
 }
@@ -846,6 +851,11 @@ ropt_map_options(const char *val, cf_map_t *cfm)
 static int
 ropt_map_type(const char *val, cf_map_t *cfm)
 {
+  /* check if map type exist */
+  if (!mapc_type_exists(val)) {
+    fprintf(stderr, "conf: no such map type \"%s\"\n", val);
+    return 1;
+  }
   cfm->cfm_type = strdup((char *)val);
   return 0;
 }

@@ -1,4 +1,4 @@
-# Makefile.in generated automatically by automake 1.3.1 from Makefile.am
+# Makefile.in generated automatically by automake 1.3.2 from Makefile.am
 
 # Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
@@ -106,7 +106,7 @@ EXTRA_DIST = 		\
 	amd2sun.in	\
 	ctl-amd.in	\
 	ctl-hlfsd.in	\
-	fixrmtab	\
+	fixrmtab.in	\
 	fix-amd-map.in	\
 	lostaltmail.in	\
 	wait4amd.in	\
@@ -122,7 +122,7 @@ CLEANFILES = $(sbin_SCRIPTS) $(bin_SCRIPTS)
 mkinstalldirs = $(SHELL) $(top_srcdir)/aux/mkinstalldirs
 CONFIG_HEADER = ../config.h
 CONFIG_CLEAN_FILES =  am-eject amd2ldif amd2sun ctl-amd ctl-hlfsd expn \
-fix-amd-map lostaltmail wait4amd wait4amd2die
+fixrmtab fix-amd-map lostaltmail wait4amd wait4amd2die
 SCRIPTS =  $(bin_SCRIPTS) $(sbin_SCRIPTS)
 
 man1dir = $(mandir)/man1
@@ -133,7 +133,7 @@ NROFF = nroff
 DATA =  $(sysconf_DATA)
 
 DIST_COMMON =  Makefile.am Makefile.in am-eject.in amd2ldif.in \
-amd2sun.in ctl-amd.in ctl-hlfsd.in expn.in fix-amd-map.in \
+amd2sun.in ctl-amd.in ctl-hlfsd.in expn.in fix-amd-map.in fixrmtab.in \
 lostaltmail.in wait4amd.in wait4amd2die.in
 
 
@@ -162,6 +162,8 @@ ctl-amd: $(top_builddir)/config.status ctl-amd.in
 ctl-hlfsd: $(top_builddir)/config.status ctl-hlfsd.in
 	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
 expn: $(top_builddir)/config.status expn.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
+fixrmtab: $(top_builddir)/config.status fixrmtab.in
 	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
 fix-amd-map: $(top_builddir)/config.status fix-amd-map.in
 	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status

@@ -256,7 +256,7 @@ fetch_fhandle(CLIENT * client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versi
 			  (SVC_IN_ARG_TYPE) &fhp->v2,
 			  tv);
     if (clnt_stat != RPC_SUCCESS) {
-      char *msg = clnt_sperrno(clnt_stat);
+      const char *msg = clnt_sperrno(clnt_stat);
       plog(XLOG_ERROR, "mountd rpc failed: %s", msg);
       return EIO;
     }
@@ -392,7 +392,7 @@ amfs_host_fmount(mntfs *mf)
 			(SVC_IN_ARG_TYPE) & exlist,
 			tv2);
   if (clnt_stat != RPC_SUCCESS) {
-    char *msg = clnt_sperrno(clnt_stat);
+    const char *msg = clnt_sperrno(clnt_stat);
     plog(XLOG_ERROR, "host_fmount rpc failed: %s", msg);
     /* clnt_perror(client, "rpc"); */
     error = EIO;
@@ -673,7 +673,7 @@ amfs_host_umounted(am_node *mp)
 			tv);
   if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_SYSTEMERROR) {
     /* RPC_SYSTEMERROR seems to be returned for no good reason ... */
-    char *msg = clnt_sperrno(clnt_stat);
+    const char *msg = clnt_sperrno(clnt_stat);
     plog(XLOG_ERROR, "unmount all from %s rpc failed: %s", host, msg, clnt_stat);
     goto out;
   }

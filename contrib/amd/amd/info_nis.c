@@ -52,6 +52,7 @@
 #include <am_defs.h>
 #include <amd.h>
 
+
 /*
  * NIS+ servers in NIS compat mode don't have yp_order()
  */
@@ -61,6 +62,7 @@ static int has_yp_order = FALSE;
 int nis_reload(mnt_map *m, char *map, void (*fn) (mnt_map *, char *, char *));
 int nis_search(mnt_map *m, char *map, char *key, char **val, time_t *tp);
 int nis_init(mnt_map *m, char *map, time_t *tp);
+int nis_isup(mnt_map *m, char *map);
 int nis_mtime(mnt_map *m, char *map, time_t *tp);
 
 /* typedefs */
@@ -120,27 +122,20 @@ callback(int status, char *key, int kl, char *val, int vl, char *data)
 
   if (status == YP_TRUE) {
 
-    /*
-     * Add to list of maps
-     */
+    /* add to list of maps */
     char *kp = strnsave(key, kl);
     char *vp = strnsave(val, vl);
+
     (*ncdp->ncd_fn) (ncdp->ncd_m, kp, vp);
 
-    /*
-     * We want more ...
-     */
+    /* we want more ... */
     return FALSE;
 
   } else {
 
-    /*
-     * NOMORE means end of map - otherwise log error
-     */
+    /* NOMORE means end of map - otherwise log error */
     if (status != YP_NOMORE) {
-      /*
-       * Check what went wrong
-       */
+      /* check what went wrong */
       int e = ypprot_err(status);
 
 #ifdef DEBUG
@@ -378,16 +373,25 @@ am_yp_all(char *indomain, char *inmap, struct ypall_callback *incallback)
 			      incallback->data);
     if (j != FALSE)		/* terminate loop */
       break;
+
+    /*
+     * We have to manually free all char ** arguments to yp_first/yp_next
+     * outval must be freed *before* calling yp_next again, outkey can be
+     * freed as outkey_old *after* the call (this saves one call to
+     * strnsave).
+     */
+    XFREE(outval);
     outkey_old = outkey;
     outkeylen_old = outkeylen;
     i = yp_next(indomain,
 		inmap,
 		outkey_old,
 		outkeylen_old,
-		 &outkey,
+		&outkey,
 		&outkeylen,
 		&outval,
 		&outvallen);
+    XFREE(outkey_old);
   } while (!i);
 #ifdef DEBUG
   if (i) {
