@@ -22,45 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_print.c,v $
- * Revision 1.1  1992/03/25  21:45:22  pace
- * Initial revision
  *
- * Revision 2.5  91/02/05  17:06:53  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:18:56  mrt]
- * 
- * Revision 2.4  90/10/25  14:43:54  rwd
- * 	Changed db_show_regs to print unsigned.
- * 	[90/10/19            rpd]
- * 	Generalized the watchpoint support.
- * 	[90/10/16            rwd]
- * 
- * Revision 2.3  90/09/09  23:19:52  rpd
- * 	Avoid totally incorrect guesses of symbol names for small values.
- * 	[90/08/30  17:39:08  af]
- * 
- * Revision 2.2  90/08/27  21:51:49  dbg
- * 	Insist that 'show thread' be called with an explicit address.
- * 	[90/08/22            dbg]
- * 
- * 	Fix type for db_maxoff.
- * 	[90/08/20            dbg]
- * 
- * 	Do not dereference the "valuep" field of a variable directly,
- * 	call the new db_read/write_variable functions instead.
- * 	Reflected changes in symbol lookup functions.
- * 	[90/08/20            af]
- * 	Reduce lint.
- * 	[90/08/10  14:33:44  dbg]
- * 
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90

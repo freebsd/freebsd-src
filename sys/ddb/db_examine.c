@@ -22,35 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_examine.c,v $
- * Revision 1.1  1992/03/25  21:45:07  pace
- * Initial revision
  *
- * Revision 2.4  91/02/05  17:06:20  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:17:37  mrt]
- * 
- * Revision 2.3  90/11/07  16:49:23  rpd
- * 	Added db_search_cmd, db_search.
- * 	[90/11/06            rpd]
- * 
- * Revision 2.2  90/08/27  21:50:38  dbg
- * 	Add 'r', 'z' to print and examine formats.
- * 	Change calling sequence of db_disasm.
- * 	db_examine sets db_prev and db_next instead of explicitly
- * 	advancing dot.
- * 	[90/08/20            dbg]
- * 	Reflected changes in db_printsym()'s calling seq.
- * 	[90/08/20            af]
- * 	Reduce lint.
- * 	[90/08/07            dbg]
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
