@@ -48,7 +48,7 @@ isdir(char *fname)
 
     if (lstat(fname, &sb) != FAIL && S_ISDIR(sb.st_mode))
 	return TRUE;
-    else if (lstat(strconcat(fname, "/"), &sb) != FAIL && S_ISDIR(sb.st_mode))
+    else if (lstat(strconcat(fname, "/."), &sb) != FAIL && S_ISDIR(sb.st_mode))
 	return TRUE;
     else
 	return FALSE;
