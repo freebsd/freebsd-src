@@ -563,13 +563,13 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	if (request) {
 	    request->device = atadev;
 	    request->u.ata.command = command;
-	    request->flags = (ATA_R_READ | ATA_R_AT_HEAD);
+	    request->flags = (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_QUIET);
 	    request->data = (caddr_t)atadev->param;
 	    request->timeout = 2;
 	    request->retries = 3;
 	    request->bytecount = sizeof(struct ata_params);
 	    request->transfersize = DEV_BSIZE;
-	    while (request->retries) {
+	    while (request->retries > 0 ) {
 		ata_queue_request(request);
 		if (!(error = request->result))
 		    break;
@@ -577,14 +577,8 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	    }
 	    ata_free_request(request);
 	}
-	if (!isprint(atadev->param->model[0]) ||
-	    !isprint(atadev->param->model[1]))
-	    error = ENXIO;
-	if (error) {
-	    free(atadev->param, M_ATA);
-	    atadev->param = NULL;
-	}
-	else {
+	if (!error && (isprint(atadev->param->model[0]) ||
+		       isprint(atadev->param->model[1]))) {
 	    struct ata_params *atacap = atadev->param;
 #if BYTE_ORDER == BIG_ENDIAN
 	    int16_t *ptr;
@@ -612,6 +606,14 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 			   ata_pmode(atacap), ata_wmode(atacap),
 			   ata_umode(atacap),
 			   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
+	}
+	else {
+	    if (!error)
+		error = ENXIO;
+	    if (atadev->param) {
+		free(atadev->param, M_ATA);
+		atadev->param = NULL;
+	    }
 	}
     }
     return error;
