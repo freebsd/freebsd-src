@@ -100,7 +100,8 @@ ata_generic_transaction(struct ata_request *request)
 	    if (ch->hw.command(request->device, request->u.ata.command,
 			       request->u.ata.lba, request->u.ata.count,
 			       request->u.ata.feature)) {
-		ata_prtdev(request->device, "error issueing PIO command\n");
+		ata_prtdev(request->device, "error issueing %s command\n",
+			   ata_cmd2str(request));
 		request->result = EIO;
 		break;
 	    }
@@ -152,7 +153,8 @@ ata_generic_transaction(struct ata_request *request)
 	if (ch->hw.command(request->device, request->u.ata.command,
 			   request->u.ata.lba, request->u.ata.count,
 			   request->u.ata.feature)) {
-	    ata_prtdev(request->device, "error issuing DMA command\n");
+	    ata_prtdev(request->device, "error issueing %s command\n",
+		       ata_cmd2str(request));
 	    request->result = EIO;
 	    break;
 	}
@@ -522,13 +524,6 @@ ata_generic_interrupt(void *data)
 
 	/* done with HW */
 	break;
-    }
-
-    /* if we timed out the unlocking of the ATA channel is done later */
-    if (!(request->flags & ATA_R_TIMEOUT)) {
-	ch->running = NULL;
-	ATA_UNLOCK_CH(ch);
-	ch->locking(ch, ATA_LF_UNLOCK);
     }
 
     /* schedule completition for this request */

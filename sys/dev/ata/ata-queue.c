@@ -118,7 +118,7 @@ ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature,
 	request->u.ata.feature = feature;
 	request->flags = ATA_R_CONTROL;
 	request->timeout = 5;
-	request->retries = -1;
+	request->retries = 0;
 	ata_queue_request(request);
 	error = request->result;
 	ata_free_request(request);
@@ -194,10 +194,6 @@ ata_start(struct ata_channel *ch)
 	if (ch->hw.transaction(request) == ATA_OP_CONTINUES)
 	    return;
 
-	/* unlock ATA channel HW */
-	ATA_UNLOCK_CH(ch);
-	ch->locking(ch, ATA_LF_UNLOCK);
-
 	/* finish up this (failed) request */
 	ata_finish(request);
     }
@@ -208,10 +204,18 @@ ata_start(struct ata_channel *ch)
 void
 ata_finish(struct ata_request *request)
 {
+    struct ata_channel *ch = request->device->channel;
     ATA_DEBUG_RQ(request, "taskqueue completition");
 
+    /* if we timed out the unlocking of the ATA channel is done later */
+    if (!(request->flags & ATA_R_TIMEOUT)) {
+        ch->running = NULL;
+        ATA_UNLOCK_CH(ch);
+        ch->locking(ch, ATA_LF_UNLOCK);
+    }
+
     /* request is done schedule it for completition */
-    if (request->device->channel->flags & ATA_IMMEDIATE_MODE) {
+    if (ch->flags & ATA_IMMEDIATE_MODE) {
 	ata_completed(request, 0);
     }
     else {
@@ -234,19 +238,15 @@ ata_completed(void *context, int dummy)
     ATA_DEBUG_RQ(request, "completed called");
 
     if (request->flags & ATA_R_TIMEOUT) {
-
-	/* if negative retry count just give up and unlock channel HW */
-	if (request->retries < 0) {
-	    if (!(request->flags & ATA_R_QUIET))
+	/* workaround for devices failing to interrupt */
+	if (request->status == (ATA_S_READY | ATA_S_DSC)) {
 		ata_prtdev(request->device,
-			   "FAILURE - %s no interrupt\n",
+			   "WARNING - %s no interrupt but good status\n",
 			   ata_cmd2str(request));
-	    request->result = EIO;
 	    ATA_UNLOCK_CH(channel);
 	    channel->locking(channel, ATA_LF_UNLOCK);
 	}
 	else {
-
 	    /* reset controller and devices */
 	    ata_reinit(channel);
 
