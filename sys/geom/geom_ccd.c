@@ -542,8 +542,6 @@ ccdinit(struct ccd_s *cs, char **cpaths, struct thread *td)
 				goto fail;
 			}
 			cs->sc_size = (cs->sc_nccdisks/2) * minsize;
-		} else if (cs->sc_flags & CCDF_PARITY) {
-			cs->sc_size = (cs->sc_nccdisks-1) * minsize;
 		} else {
 			if (cs->sc_ileave == 0) {
 				printf("ccd%d: an interleave must be specified when using parity\n", cs->sc_unit);
@@ -1032,15 +1030,6 @@ ccdbuffer(struct ccdbuf **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, cadd
 				ccdisk = ii->ii_index[off % ndisk2];
 				cbn = ii->ii_startoff + off / ndisk2;
 				ci2 = &cs->sc_cinfo[ccdisk + ndisk2];
-			} else if (cs->sc_cflags & CCDF_PARITY) {
-				/* 
-				 * XXX not implemented yet
-				 */
-				int ndisk2 = ii->ii_ndisk - 1;
-				ccdisk = ii->ii_index[off % ndisk2];
-				cbn = ii->ii_startoff + off / ndisk2;
-				if (cbn % ii->ii_ndisk <= ccdisk)
-					ccdisk++;
 			} else {
 				ccdisk = ii->ii_index[off % ii->ii_ndisk];
 				cbn = ii->ii_startoff + off / ii->ii_ndisk;
@@ -1282,18 +1271,12 @@ ccdioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
  
 		/* Fill in some important bits. */
 		cs->sc_ileave = ccio->ccio_ileave;
-		if (cs->sc_ileave == 0 &&
-		    ((ccio->ccio_flags & CCDF_MIRROR) ||
-		     (ccio->ccio_flags & CCDF_PARITY))) {
-			printf("ccd%d: disabling mirror/parity, interleave is 0\n", unit);
-			ccio->ccio_flags &= ~(CCDF_MIRROR | CCDF_PARITY);
+		if (cs->sc_ileave == 0 && (ccio->ccio_flags & CCDF_MIRROR)) {
+			printf("ccd%d: disabling mirror, interleave is 0\n",
+			    unit);
+			ccio->ccio_flags &= ~(CCDF_MIRROR);
 		}
 		if ((ccio->ccio_flags & CCDF_MIRROR) &&
-		    (ccio->ccio_flags & CCDF_PARITY)) {
-			printf("ccd%d: can't specify both mirror and parity, using mirror\n", unit);
-			ccio->ccio_flags &= ~CCDF_PARITY;
-		}
-		if ((ccio->ccio_flags & (CCDF_MIRROR | CCDF_PARITY)) &&
 		    !(ccio->ccio_flags & CCDF_UNIFORM)) {
 			printf("ccd%d: mirror/parity forces uniform flag\n",
 			       unit);
