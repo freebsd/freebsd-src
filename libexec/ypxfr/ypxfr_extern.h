@@ -60,4 +60,3 @@ extern unsigned	long ypxfr_get_order __P(( char *, char *, char *, const int ));
 extern int	ypxfr_match __P(( char *, char *, char *, char *, unsigned long ));
 extern char	*ypxfxerr_string __P(( ypxfrstat ));
 extern int	ypxfrd_get_map __P(( char  *, char *, char *, char *));
-extern int	callrpc __P(( char *, int, int, int, xdrproc_t, char *, xdrproc_t, char *));
