@@ -21,7 +21,7 @@
 # FreeBSD, Twin, Wide, 2 command per target support, tagged queuing and other 
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
-#	$Id: aic7xxx.seq,v 1.7 1995/02/03 17:18:44 gibbs Exp $
+#	$Id: aic7xxx.seq,v 1.8 1995/02/22 01:37:52 gibbs Exp $
 
 VERSION AIC7XXX_SEQ_VERSION 1.8
 
@@ -190,7 +190,6 @@ SCBCOUNT	= 0x52				# the actual number of SCBs
 FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
-SELECTED_SCB	= 0x08
 SENSE		= 0x10
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
@@ -302,10 +301,10 @@ test_a:
 
 start_scb:
 	or	SCBARRAY+0,NEEDDMA
-	and	SINDEX,0x08,SCBARRAY+1
-	and	A,WIDE_BUS,FLAGS	# Wide bus?	
-	or	SINDEX,A
-	mov	SBLKCTL,SINDEX	# select channel, bus width
+	and	SINDEX,0xf7,SBLKCTL  #Clear the channel select bit
+	and	A,0x08,SCBARRAY+1    #Get new channel bit
+	or	SINDEX,A	     
+	mov	SBLKCTL,SINDEX	# select channel
 	mov	SCBARRAY+1	call initialize
 	clr	SG_NOLOAD
 	and	FLAGS,0x3f	# !RESELECTING
