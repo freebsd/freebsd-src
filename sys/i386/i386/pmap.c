@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.57 1995/05/11 19:26:11 rgrimes Exp $
+ *	$Id: pmap.c,v 1.58 1995/05/30 07:59:38 rgrimes Exp $
  */
 
 /*
@@ -369,7 +369,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + IdlePTD);
 
-	simple_lock_init(&kernel_pmap->pm_lock);
 	kernel_pmap->pm_count = 1;
 	nkpt = NKPT;
 
@@ -535,7 +534,6 @@ pmap_pinit(pmap)
 	    ((int) pmap_kextract((vm_offset_t) pmap->pm_pdir)) | PG_V | PG_KW;
 
 	pmap->pm_count = 1;
-	simple_lock_init(&pmap->pm_lock);
 }
 
 /*
@@ -605,9 +603,7 @@ pmap_destroy(pmap)
 	if (pmap == NULL)
 		return;
 
-	simple_lock(&pmap->pm_lock);
 	count = --pmap->pm_count;
-	simple_unlock(&pmap->pm_lock);
 	if (count == 0) {
 		pmap_release(pmap);
 		free((caddr_t) pmap, M_VMPMAP);
@@ -634,9 +630,7 @@ pmap_reference(pmap)
 	pmap_t pmap;
 {
 	if (pmap != NULL) {
-		simple_lock(&pmap->pm_lock);
 		pmap->pm_count++;
-		simple_unlock(&pmap->pm_lock);
 	}
 }
 
@@ -1469,8 +1463,6 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 		(object->resident_page_count > (MAX_INIT_PT / NBPG)))) {
 		return;
 	}
-	if (!vm_object_lock_try(object))
-		return;
 
 	/*
 	 * if we are processing a major portion of the object, then scan the
@@ -1520,7 +1512,6 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			}
 		}
 	}
-	vm_object_unlock(object);
 }
 
 #if 0

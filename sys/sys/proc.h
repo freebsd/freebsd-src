@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.16 1995/02/21 00:37:31 davidg Exp $
+ * $Id: proc.h,v 1.17 1995/03/16 18:16:22 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -136,9 +136,8 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
-	char	p_lock;			/* Process lock count. */
+	char	p_lock;			/* Process lock (prevent swap) count. */
 	char	p_pad2[3];		/* alignment */
-	long	p_spare[2];		/* Pad to 256, avoid shifting eproc. XXX */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -161,8 +160,7 @@ struct	proc {
 
 	struct	rtprio p_rtprio;	/* Realtime priority. */
 /* End area that is copied on creation. */
-#define	p_endcopy	p_thread
-	int	p_thread;	/* Id for this "thread"; Mach glue. XXX */
+#define	p_endcopy	p_addr
 	struct	user *p_addr;	/* Kernel virtual addr of u-area (PROC ONLY). */
 	struct	mdproc p_md;	/* Any machine-dependent fields. */
 
@@ -198,9 +196,7 @@ struct	proc {
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define P_EXEC		0x04000	/* Process called exec. */
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
-
-/* Should probably be changed into a hold count (They have. -DG). */
-#define	P_NOSWAP	0x08000	/* Another flag to prevent swap out. */
+#define	P_NOSWAP	0x08000	/* Flag to prevent swap out. */
 #define	P_PHYSIO	0x10000	/* Doing physical I/O. */
 
 /* Should be moved to machine-dependent areas. */

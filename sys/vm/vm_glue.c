@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.21 1995/07/10 08:48:58 davidg Exp $
+ * $Id: vm_glue.c,v 1.22 1995/07/10 08:53:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -352,7 +352,7 @@ scheduler()
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < (cnt.v_free_reserved + UPAGES + 2)) {
 		VM_WAIT;
-		tsleep((caddr_t) &proc0, PVM, "schedm", 0);
+		tsleep(&proc0, PVM, "schedm", 0);
 	}
 
 	pp = NULL;
@@ -379,7 +379,7 @@ loop:
 	 * Nothing to do, back to sleep
 	 */
 	if ((p = pp) == NULL) {
-		tsleep((caddr_t) &proc0, PVM, "sched", 0);
+		tsleep(&proc0, PVM, "sched", 0);
 		goto loop;
 	}
 	/*
@@ -465,7 +465,7 @@ retry:
 	 * then wakeup the sched process.
 	 */
 	if (didswap)
-		wakeup((caddr_t) &proc0);
+		wakeup(&proc0);
 }
 
 void
@@ -505,56 +505,7 @@ swapout(p)
 	p->p_swtime = 0;
 }
 
-/*
- * The rest of these routines fake thread handling
- */
-
-#ifndef assert_wait
-void
-assert_wait(event, ruptible)
-	int event;
-	boolean_t ruptible;
-{
-#ifdef lint
-	ruptible++;
-#endif
-	curproc->p_thread = event;
-}
-#endif
-
-void
-thread_block(char *msg)
-{
-	if (curproc->p_thread)
-		tsleep((caddr_t) curproc->p_thread, PVM, msg, 0);
-}
-
-
-void
-thread_sleep_(event, lock, wmesg)
-	int event;
-	simple_lock_t lock;
-	char *wmesg;
-{
-
-	curproc->p_thread = event;
-	simple_unlock(lock);
-	if (curproc->p_thread) {
-		tsleep((caddr_t) event, PVM, wmesg, 0);
-	}
-}
-
-#ifndef thread_wakeup
-void
-thread_wakeup(event)
-	int event;
-{
-	wakeup((caddr_t) event);
-}
-#endif
-
 #ifdef DDB
-
 /*
  * DEBUG stuff
  */

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.24 1995/05/30 08:16:09 rgrimes Exp $
+ * $Id: vm_mmap.c,v 1.25 1995/07/09 06:58:01 davidg Exp $
  */
 
 /*
@@ -61,14 +61,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_prot.h>
-
-#ifdef DEBUG
-int mmapdebug;
-
-#define MDB_FOLLOW	0x01
-#define MDB_SYNC	0x02
-#define MDB_MAPIT	0x04
-#endif
 
 void pmap_object_init_pt();
 
@@ -149,12 +141,6 @@ mmap(p, uap, retval)
 
 	prot = uap->prot & VM_PROT_ALL;
 	flags = uap->flags;
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("mmap(%d): addr %x len %x pro %x flg %x fd %d pos %x\n",
-		    p->p_pid, uap->addr, uap->len, prot,
-		    flags, uap->fd, (vm_offset_t) uap->pos);
-#endif
 	/*
 	 * Address (if FIXED) must be page aligned. Size is implicitly rounded
 	 * to a page boundary.
@@ -318,12 +304,6 @@ msync(p, uap, retval)
 	vm_map_t map;
 	int rv;
 
-#ifdef DEBUG
-	if (mmapdebug & (MDB_FOLLOW | MDB_SYNC))
-		printf("msync(%d): addr %x len %x\n",
-		    p->p_pid, uap->addr, uap->len);
-#endif
-
 	map = &p->p_vmspace->vm_map;
 	addr = (vm_offset_t) uap->addr;
 	size = (vm_size_t) uap->len;
@@ -351,12 +331,6 @@ msync(p, uap, retval)
 		addr = entry->start;
 		size = entry->end - entry->start;
 	}
-
-#ifdef DEBUG
-	if (mmapdebug & MDB_SYNC)
-		printf("msync: cleaning/flushing address range [%x-%x)\n",
-		    addr, addr + size);
-#endif
 
 	/*
 	 * Clean the pages and interpret the return value.
@@ -392,12 +366,6 @@ munmap(p, uap, retval)
 	vm_size_t size;
 	vm_map_t map;
 
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("munmap(%d): addr %x len %x\n",
-		    p->p_pid, uap->addr, uap->len);
-#endif
-
 	addr = (vm_offset_t) uap->addr;
 	if ((addr & PAGE_MASK) || uap->len < 0)
 		return (EINVAL);
@@ -432,11 +400,6 @@ munmapfd(p, fd)
 	struct proc *p;
 	int fd;
 {
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("munmapfd(%d): fd %d\n", p->p_pid, fd);
-#endif
-
 	/*
 	 * XXX should unmap any regions mapped to this file
 	 */
@@ -457,12 +420,6 @@ mprotect(p, uap, retval)
 	vm_offset_t addr;
 	vm_size_t size;
 	register vm_prot_t prot;
-
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("mprotect(%d): addr %x len %x prot %d\n",
-		    p->p_pid, uap->addr, uap->len, uap->prot);
-#endif
 
 	addr = (vm_offset_t) uap->addr;
 	if ((addr & PAGE_MASK) || uap->len < 0)
@@ -530,11 +487,6 @@ mlock(p, uap, retval)
 	vm_size_t size;
 	int error;
 
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("mlock(%d): addr %x len %x\n",
-		    p->p_pid, uap->addr, uap->len);
-#endif
 	addr = (vm_offset_t) uap->addr;
 	if ((addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
 		return (EINVAL);
@@ -569,11 +521,6 @@ munlock(p, uap, retval)
 	vm_size_t size;
 	int error;
 
-#ifdef DEBUG
-	if (mmapdebug & MDB_FOLLOW)
-		printf("munlock(%d): addr %x len %x\n",
-		    p->p_pid, uap->addr, uap->len);
-#endif
 	addr = (vm_offset_t) uap->addr;
 	if ((addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
 		return (EINVAL);
@@ -603,11 +550,10 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	caddr_t handle;		/* XXX should be vp */
 	vm_offset_t foff;
 {
-	register vm_pager_t pager;
 	boolean_t fitit;
 	vm_object_t object;
 	struct vnode *vp = NULL;
-	int type;
+	objtype_t type;
 	int rv = KERN_SUCCESS;
 	vm_size_t objsize;
 	struct proc *p = curproc;
@@ -639,12 +585,10 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	}
 
 	/*
-	 * Lookup/allocate pager.  All except an unnamed anonymous lookup gain
-	 * a reference to ensure continued existance of the object. (XXX the
-	 * exception is to appease the pageout daemon)
+	 * Lookup/allocate object.
 	 */
 	if (flags & MAP_ANON) {
-		type = PG_DFLT;
+		type = OBJT_SWAP;
 		/*
 		 * Unnamed anonymous regions always start at 0.
 		 */
@@ -653,7 +597,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	} else {
 		vp = (struct vnode *) handle;
 		if (vp->v_type == VCHR) {
-			type = PG_DEVICE;
+			type = OBJT_DEVICE;
 			handle = (caddr_t) vp->v_rdev;
 		} else {
 			struct vattr vat;
@@ -663,45 +607,23 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			if (error)
 				return (error);
 			objsize = vat.va_size;
-			type = PG_VNODE;
+			type = OBJT_VNODE;
 		}
 	}
-	pager = vm_pager_allocate(type, handle, objsize, prot, foff);
-	if (pager == NULL)
-		return (type == PG_DEVICE ? EINVAL : ENOMEM);
-	/*
-	 * Guarantee that the pager has an object.
-	 */
-	object = vm_object_lookup(pager);
-	if (object == NULL) {
-		if (handle != NULL)
-			panic("vm_mmap: pager didn't allocate an object (and should have)");
-		/*
-		 * Should only happen for unnamed anonymous regions.
-		 */
-		object = vm_object_allocate(size);
-		object->pager = pager;
-	} else {
-		/*
-		 * Lose vm_object_lookup() reference. Retain reference
-		 * gained by vm_pager_allocate().
-		 */
-		vm_object_deallocate(object);
-	}
-	/*
-	 * At this point, our actions above have gained a total of
-	 * one reference to the object, and we have a pager.
-	 */
+	object = vm_pager_allocate(type, handle, objsize, prot, foff);
+	if (object == NULL)
+		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 
 	/*
 	 * Anonymous memory, shared file, or character special file.
 	 */
-	if ((flags & (MAP_ANON|MAP_SHARED)) || (type == PG_DEVICE)) {
+	if ((flags & (MAP_ANON|MAP_SHARED)) || (type == OBJT_DEVICE)) {
 		rv = vm_map_find(map, object, foff, addr, size, fitit);
 		if (rv != KERN_SUCCESS) {
 			/*
-			 * Lose the object reference. This will also destroy
-			 * the pager if there are no other references.
+			 * Lose the object reference. Will destroy the
+			 * object if it's an unnamed anonymous mapping
+			 * or named anonymous without other references.
 			 */
 			vm_object_deallocate(object);
 			goto out;
@@ -711,76 +633,31 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 * mmap a COW regular file
 	 */
 	else {
-		vm_map_t tmap;
-		vm_offset_t off;
 		vm_map_entry_t entry;
+		vm_object_t private_object;
 
-		if (flags & MAP_COPY) {
-			/* locate and allocate the target address space */
-			rv = vm_map_find(map, NULL, 0, addr, size, fitit);
-			if (rv != KERN_SUCCESS) {
-				vm_object_deallocate(object);
-				goto out;
-			}
+		/*
+		 * Create a new object and make the original object
+		 * the backing object. NOTE: the object reference gained
+		 * above is now changed into the reference held by
+		 * private_object. Since we don't map 'object', we want
+		 * only this one reference.
+		 */
+		private_object = vm_object_allocate(OBJT_DEFAULT, object->size);
+		private_object->backing_object = object;
+		TAILQ_INSERT_TAIL(&object->shadow_head,
+			    private_object, shadow_list);
 
-			off = VM_MIN_ADDRESS;
-			tmap = vm_map_create(NULL, off, off + size, TRUE);
-			rv = vm_map_find(tmap, object, foff, &off, size, FALSE);
-			if (rv != KERN_SUCCESS) {
-				/*
-				 * Deallocate and delete the temporary map.
-				 * Note that since the object insertion
-				 * above has failed, the vm_map_deallocate
-				 * doesn't lose the object reference - we
-				 * must do it explicitly.
-				 */
-				vm_object_deallocate(object);
-				vm_map_deallocate(tmap);
-				goto out;
-			}
-			rv = vm_map_copy(map, tmap, *addr, size, off,
-		   	 FALSE, FALSE);
-			/*
-			 * Deallocate temporary map. XXX - depending
-			 * on events, this may leave the object with
-			 * no net gain in reference count! ...this
-			 * needs to be looked at!
-			 */
-			vm_map_deallocate(tmap);
-			if (rv != KERN_SUCCESS)
-				goto out;
-
-		} else {
-			vm_object_t user_object;
-
-			/*
-			 * Create a new object and make the original object
-			 * the backing object. NOTE: the object reference gained
-			 * above is now changed into the reference held by
-			 * user_object. Since we don't map 'object', we want
-			 * only this one reference.
-			 */
-			user_object = vm_object_allocate(object->size);
-			user_object->shadow = object;
-			TAILQ_INSERT_TAIL(&object->reverse_shadow_head,
-				    user_object, reverse_shadow_list);
-
-			rv = vm_map_find(map, user_object, foff, addr, size, fitit);
-			if( rv != KERN_SUCCESS) {
-				vm_object_deallocate(user_object);
-				goto out;
-			}
-
-			/*
-			 * this is a consistancy check, gets the map entry, and should
-			 * never fail
-			 */
-			if (!vm_map_lookup_entry(map, *addr, &entry)) {
-				panic("vm_mmap: missing map entry!!!");
-			}
-
-			entry->copy_on_write = TRUE;
+		rv = vm_map_find(map, private_object, foff, addr, size, fitit);
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(private_object);
+			goto out;
 		}
+
+		if (!vm_map_lookup_entry(map, *addr, &entry)) {
+			panic("vm_mmap: missing map entry!!!");
+		}
+		entry->copy_on_write = TRUE;
 
 		/*
 		 * set pages COW and protect for read access only
@@ -792,7 +669,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	/*
 	 * "Pre-fault" resident pages.
 	 */
-	if ((type == PG_VNODE) && (map->pmap != NULL)) {
+	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
 		pmap_object_init_pt(map->pmap, *addr, object, foff, size);
 	}
 
@@ -820,10 +697,6 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		}
 	}
 out:
-#ifdef DEBUG
-	if (mmapdebug & MDB_MAPIT)
-		printf("vm_mmap: rv %d\n", rv);
-#endif
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);

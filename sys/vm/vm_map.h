@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.4 1995/01/09 16:05:46 davidg Exp $
+ * $Id: vm_map.h,v 1.5 1995/03/16 18:17:17 bde Exp $
  */
 
 /*
@@ -130,9 +130,7 @@ struct vm_map {
 	vm_size_t size;			/* virtual size */
 	boolean_t is_main_map;		/* Am I a main map? */
 	int ref_count;			/* Reference count */
-	simple_lock_data_t ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
-	simple_lock_data_t hint_lock;	/* lock for hint storage */
 	vm_map_entry_t first_free;	/* First free space hint */
 	boolean_t entries_pageable;	/* map entries pageable?? */
 	unsigned int timestamp;		/* Version number */

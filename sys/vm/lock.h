@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: lock.h,v 1.2 1994/08/02 07:55:11 davidg Exp $
+ * $Id: lock.h,v 1.3 1995/01/09 16:05:31 davidg Exp $
  */
 
 /*
@@ -71,82 +71,28 @@
 #ifndef	_LOCK_H_
 #define	_LOCK_H_
 
-#define	NCPUS	1		/* XXX */
-
-/*
- *	A simple spin lock.
- */
-
-struct slock {
-	int lock_data;		/* in general 1 bit is sufficient */
-};
-
-typedef struct slock simple_lock_data_t;
-typedef struct slock *simple_lock_t;
-
 /*
  *	The general lock structure.  Provides for multiple readers,
  *	upgrading from read to write, and sleeping until the lock
  *	can be gained.
  */
-
 struct lock {
-#ifdef	vax
-	/*
-	 * Efficient VAX implementation -- see field description below.
-	 */
-	unsigned int read_count:16, want_upgrade:1, want_write:1, waiting:1, can_sleep:1,:0;
-
-	simple_lock_data_t interlock;
-#else				/* vax */
-#ifdef	ns32000
-	/*
-	 * Efficient ns32000 implementation -- see field description below.
-	 */
-	simple_lock_data_t interlock;
-	unsigned int read_count:16, want_upgrade:1, want_write:1, waiting:1, can_sleep:1,:0;
-
-#else				/* ns32000 */
 	/*
 	 * Only the "interlock" field is used for hardware exclusion; other
 	 * fields are modified with normal instructions after acquiring the
 	 * interlock bit.
 	 */
-	 simple_lock_data_t
-	 interlock;		/* Interlock for remaining fields */
 	boolean_t want_write;	/* Writer is waiting, or locked for write */
 	boolean_t want_upgrade;	/* Read-to-write upgrade waiting */
 	boolean_t waiting;	/* Someone is sleeping on lock */
 	boolean_t can_sleep;	/* Can attempts to lock go to sleep */
 	int read_count;		/* Number of accepted readers */
-#endif				/* ns32000 */
-#endif				/* vax */
-	char *thread;		/* Thread that has lock, if recursive locking
-				 * allowed */
-	/*
-	 * (should be thread_t, but but we then have mutually recursive
-	 * definitions)
-	 */
+	struct proc *proc;	/* If recursive locking, process that has lock */
 	int recursion_depth;	/* Depth of recursion */
 };
 
 typedef struct lock lock_data_t;
 typedef struct lock *lock_t;
-
-#if NCPUS > 1
-__BEGIN_DECLS
-void simple_lock __P((simple_lock_t));
-void simple_lock_init __P((simple_lock_t));
-boolean_t simple_lock_try __P((simple_lock_t));
-void simple_unlock __P((simple_lock_t));
-
-__END_DECLS
-#else				/* No multiprocessor locking is necessary. */
-#define	simple_lock(l)
-#define	simple_lock_init(l)
-#define	simple_lock_try(l)	(1)	/* Always succeeds. */
-#define	simple_unlock(l)
-#endif
 
 /* Sleep locks must work even if no multiprocessing. */
 

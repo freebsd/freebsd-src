@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.5 1995/01/09 16:05:47 davidg Exp $
+ * $Id: vm_meter.c,v 1.6 1995/01/10 07:32:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,16 +44,6 @@
 struct loadavg averunnable;	/* load average, of runnable procs */
 
 int maxslp = MAXSLP;
-
-void
-vmmeter()
-{
-
-	if (time.tv_sec % 5 == 0)
-		loadav(&averunnable);
-	if (proc0.p_slptime > maxslp / 2)
-		wakeup((caddr_t) &proc0);
-}
 
 /*
  * Constants for averages over 1, 5, and 15 minutes
@@ -69,7 +59,7 @@ fixpt_t cexp[3] = {
  * Compute a tenex style load average of a quantity on
  * 1, 5 and 15 minute intervals.
  */
-void
+static void
 loadav(avg)
 	register struct loadavg *avg;
 {
@@ -90,6 +80,16 @@ loadav(avg)
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
 		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
+}
+
+void
+vmmeter()
+{
+
+	if (time.tv_sec % 5 == 0)
+		loadav(&averunnable);
+	if (proc0.p_slptime > maxslp / 2)
+		wakeup(&proc0);
 }
 
 /*
@@ -159,12 +159,10 @@ vmtotal(totalp)
 	/*
 	 * Mark all objects as inactive.
 	 */
-	simple_lock(&vm_object_list_lock);
 	for (object = vm_object_list.tqh_first;
 	    object != NULL;
 	    object = object->object_list.tqe_next)
 		object->flags &= ~OBJ_ACTIVE;
-	simple_unlock(&vm_object_list_lock);
 	/*
 	 * Calculate process statistics.
 	 */
@@ -216,7 +214,6 @@ vmtotal(totalp)
 	/*
 	 * Calculate object memory usage statistics.
 	 */
-	simple_lock(&vm_object_list_lock);
 	for (object = vm_object_list.tqh_first;
 	    object != NULL;
 	    object = object->object_list.tqe_next) {

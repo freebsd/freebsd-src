@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.5 1995/01/09 16:05:42 davidg Exp $
+ * $Id: vm_init.c,v 1.6 1995/03/16 18:17:11 bde Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_pager.h>
 
 /*
  *	vm_init initializes the virtual memory system.

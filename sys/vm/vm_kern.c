@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.12 1995/03/15 07:52:06 davidg Exp $
+ * $Id: vm_kern.c,v 1.13 1995/05/30 08:16:04 rgrimes Exp $
  */
 
 /*
@@ -176,20 +176,16 @@ kmem_alloc(map, size)
 	 * race with page-out.  vm_map_pageable will wire the pages.
 	 */
 
-	vm_object_lock(kernel_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
 		while ((mem = vm_page_alloc(kernel_object, offset + i, VM_ALLOC_NORMAL)) == NULL) {
-			vm_object_unlock(kernel_object);
 			VM_WAIT;
-			vm_object_lock(kernel_object);
 		}
 		vm_page_zero_fill(mem);
 		mem->flags &= ~PG_BUSY;
 		mem->valid = VM_PAGE_BITS_ALL;
 	}
-	vm_object_unlock(kernel_object);
 
 	/*
 	 * And finally, mark the data as non-pageable.
@@ -332,7 +328,6 @@ kmem_malloc(map, size, waitflag)
 	 * If we cannot wait then we must allocate all memory up front,
 	 * pulling it off the active queue to prevent pageout.
 	 */
-	vm_object_lock(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_alloc(kmem_object, offset + i,
 			(waitflag == M_NOWAIT) ? VM_ALLOC_INTERRUPT : VM_ALLOC_SYSTEM);
@@ -348,7 +343,6 @@ kmem_malloc(map, size, waitflag)
 				m = vm_page_lookup(kmem_object, offset + i);
 				vm_page_free(m);
 			}
-			vm_object_unlock(kmem_object);
 			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
 			return (0);
@@ -359,7 +353,6 @@ kmem_malloc(map, size, waitflag)
 		m->flags &= ~PG_BUSY;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	vm_object_unlock(kmem_object);
 
 	/*
 	 * Mark map entry as non-pageable. Assert: vm_map_insert() will never
@@ -379,9 +372,7 @@ kmem_malloc(map, size, waitflag)
 	 * splimp...)
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		vm_object_lock(kmem_object);
 		m = vm_page_lookup(kmem_object, offset + i);
-		vm_object_unlock(kmem_object);
 		pmap_kenter(addr + i, VM_PAGE_TO_PHYS(m));
 	}
 	vm_map_unlock(map);
@@ -419,9 +410,8 @@ kmem_alloc_wait(map, size)
 			vm_map_unlock(map);
 			return (0);
 		}
-		assert_wait((int) map, TRUE);
 		vm_map_unlock(map);
-		thread_block("kmaw");
+		tsleep(map, PVM, "kmaw", 0);
 	}
 	vm_map_insert(map, NULL, (vm_offset_t) 0, addr, addr + size);
 	vm_map_unlock(map);
@@ -431,7 +421,7 @@ kmem_alloc_wait(map, size)
 /*
  *	kmem_free_wakeup
  *
- *	Returns memory to a submap of the kernel, and wakes up any threads
+ *	Returns memory to a submap of the kernel, and wakes up any processes
  *	waiting for memory in that map.
  */
 void
@@ -442,7 +432,7 @@ kmem_free_wakeup(map, addr, size)
 {
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	thread_wakeup((int) map);
+	wakeup(map);
 	vm_map_unlock(map);
 }
 
