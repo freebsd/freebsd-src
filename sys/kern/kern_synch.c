@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.75 1999/03/03 18:15:29 julian Exp $
+ * $Id: kern_synch.c,v 1.76 1999/03/05 16:38:12 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -62,8 +62,6 @@
 #endif
 #include <machine/limits.h>	/* for UCHAR_MAX = typeof(p_priority)_MAX */
 
-static void rqinit __P((void *));
-SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
 static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
@@ -295,7 +293,7 @@ schedcpu(arg)
 			    p->p_stat == SRUN &&
 			    (p->p_flag & P_INMEM) &&
 			    (p->p_priority / PPQ) != (p->p_usrpri / PPQ)) {
-				remrq(p);
+				remrunqueue(p);
 				p->p_priority = p->p_usrpri;
 				setrunqueue(p);
 			} else
@@ -829,24 +827,6 @@ mi_switch()
 	switchticks = ticks;
 
 	splx(x);
-}
-
-/*
- * Initialize the (doubly-linked) run queues
- * to be empty.
- */
-/* ARGSUSED*/
-static void
-rqinit(dummy)
-	void *dummy;
-{
-	register int i;
-
-	for (i = 0; i < NQS; i++) {
-		qs[i].ph_link = qs[i].ph_rlink = (struct proc *)&qs[i];
-		rtqs[i].ph_link = rtqs[i].ph_rlink = (struct proc *)&rtqs[i];
-		idqs[i].ph_link = idqs[i].ph_rlink = (struct proc *)&idqs[i];
-	}
 }
 
 /*
