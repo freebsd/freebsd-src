@@ -100,9 +100,11 @@
 #undef DEBUG
 
 #include "wdc.h"
-#include "wcd.h"
-/* #include "wmt.h" -- add your driver here */
-/* #include "wmd.h" -- add your driver here */
+#ifndef ATAPI_MODULE
+# include "wcd.h"
+/* # include "wmt.h" -- add your driver here */
+/* # include "wmd.h" -- add your driver here */
+#endif
 
 #if NWDC > 0 && defined (ATAPI)
 
@@ -120,6 +122,7 @@
 #include <i386/isa/atapi.h>
 
 #ifndef ATAPI_STATIC
+/* this code is compiled as part of the kernel if options ATAPI */
 /*
  * In the case of loadable ATAPI driver we need to store
  * the probe info for delayed attaching.
@@ -139,6 +142,7 @@ int atapi_attach (int ctlr, int unit, int port, struct kern_devconf *parent)
 	return (1);
 }
 #else /* ATAPI_STATIC */
+/* this code is compiled part of the module */
 
 #ifdef DEBUG
 #   define print(s)     printf s
@@ -909,20 +913,20 @@ struct atapires atapi_request_immediate (struct atapi *ata, int unit,
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
-extern int (*atapi_start_ptr) (int ctrlr);
-extern int (*atapi_intr_ptr) (int ctrlr);
-extern void (*atapi_debug_ptr) (struct atapi *ata, int on);
-extern struct atapires (*atapi_request_wait_ptr) (struct atapi *ata, int unit,
+int (*atapi_start_ptr) (int ctrlr);
+int (*atapi_intr_ptr) (int ctrlr);
+void (*atapi_debug_ptr) (struct atapi *ata, int on);
+struct atapires (*atapi_request_wait_ptr) (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count);
-extern void (*atapi_request_callback_ptr) (struct atapi *ata, int unit,
+void (*atapi_request_callback_ptr) (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
 	char *addr, int count, void (*done)(), void *x, void *y);
-extern struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
+struct atapires (*atapi_request_immediate_ptr) (struct atapi *ata, int unit,
 	u_char cmd, u_char a1, u_char a2, u_char a3, u_char a4,
 	u_char a5, u_char a6, u_char a7, u_char a8, u_char a9,
 	u_char a10, u_char a11, u_char a12, u_char a13, u_char a14, u_char a15,
@@ -1021,7 +1025,7 @@ int atapi_unload (struct lkm_table *lkmtp, int cmd)
 /*
  * Dispatcher function for the module (load/unload/stat).
  */
-int atapi (struct lkm_table *lkmtp, int cmd, int ver)
+int atapi_mod (struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH (lkmtp, cmd, ver, atapi_load, atapi_unload, nosys);
 }
