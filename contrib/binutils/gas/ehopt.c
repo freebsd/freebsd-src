@@ -261,17 +261,52 @@ check_eh_frame (exp, pnbytes)
      expressionS *exp;
      unsigned int *pnbytes;
 {
+  static int saw_size;
+  static symbolS *size_end_sym;
   static int saw_advance_loc4;
   static fragS *loc4_frag;
   static int loc4_fix;
+
+  if (saw_size
+      && S_IS_DEFINED (size_end_sym))
+    {
+      /* We have come to the end of the CIE or FDE.  See below where
+         we set saw_size.  We must check this first because we may now
+         be looking at the next size.  */
+      saw_size = 0;
+      saw_advance_loc4 = 0;
+    }
 
   if (flag_traditional_format)
     {
       /* Don't optimize.  */
     }
   else if (strcmp (segment_name (now_seg), ".eh_frame") != 0)
-    saw_advance_loc4 = 0;
-  else if (*pnbytes == 1
+    {
+      saw_size = 0;
+      saw_advance_loc4 = 0;
+    }
+  else if (! saw_size
+	   && *pnbytes == 4)
+    {
+      /* This might be the size of the CIE or FDE.  We want to know
+         the size so that we don't accidentally optimize across an FDE
+         boundary.  We recognize the size in one of two forms: a
+         symbol which will later be defined as a difference, or a
+         subtraction of two symbols.  Either way, we can tell when we
+         are at the end of the FDE because the symbol becomes defined
+         (in the case of a subtraction, the end symbol, from which the
+         start symbol is being subtracted).  Other ways of describing
+         the size will not be optimized.  */
+      if ((exp->X_op == O_symbol || exp->X_op == O_subtract)
+	  && ! S_IS_DEFINED (exp->X_add_symbol))
+	{
+	  saw_size = 1;
+	  size_end_sym = exp->X_add_symbol;
+	}
+    }
+  else if (saw_size
+	   && *pnbytes == 1
 	   && exp->X_op == O_constant
 	   && exp->X_add_number == DW_CFA_advance_loc4)
     {
