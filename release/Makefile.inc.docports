@@ -2,7 +2,8 @@
 #
 # List of (dependent) ports that are minimally required to be
 # checked out from CVS in order to get ${DOCPORTS} built and
-# installed.
+# installed.  It should follow the dependency list in
+# ports/textproc/docproj/Makefile as much as feasible.
 #
 # Note that these names are /not/ CVS module names but path
 # names, so the required part of the ports infrastructure will
