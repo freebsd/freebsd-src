@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.55 1998/09/23 12:13:47 jkh Exp $
+ * $Id: index.c,v 1.56 1998/10/13 07:31:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -601,7 +601,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 			msgConfirm("Loading of dependant package %s failed", cp);
 		}
 	    }
-	    else {
+	    else if (!package_exists(cp)) {
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Warning: %s is a required package but was not found.", cp);
 		else
