@@ -708,8 +708,6 @@ pipe_clone_write_buffer(wpipe)
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	size = wpipe->pipe_map.cnt;
 	pos = wpipe->pipe_map.pos;
-	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
-	    (caddr_t) wpipe->pipe_buffer.buffer, size);
 
 	wpipe->pipe_buffer.in = size;
 	wpipe->pipe_buffer.out = 0;
@@ -717,6 +715,8 @@ pipe_clone_write_buffer(wpipe)
 	wpipe->pipe_state &= ~PIPE_DIRECTW;
 
 	PIPE_GET_GIANT(wpipe);
+	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
+	    (caddr_t) wpipe->pipe_buffer.buffer, size);
 	pipe_destroy_write_buffer(wpipe);
 	PIPE_DROP_GIANT(wpipe);
 }
