@@ -2782,7 +2782,7 @@ JobInterrupt(runINTERRUPT, signo)
     int	    signo;		/* signal received */
 {
     LstNode 	  ln;		/* element in job table */
-    Job           *job;	    	/* job descriptor in that element */
+    Job           *job = NULL;	/* job descriptor in that element */
     GNode         *interrupt;	/* the node describing the .INTERRUPT target */
 
     aborting = ABORT_INTERRUPT;
