@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.27 1998/06/09 13:10:46 phk Exp $
+ * $Id: random_machdep.c,v 1.28 1998/06/18 15:32:07 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -49,6 +49,7 @@
 #include <machine/random.h>
 
 #include <i386/isa/icu.h>
+#include <i386/isa/intr_machdep.h>
 
 #define MAX_BLKDEV 4
 
@@ -103,9 +104,6 @@ static struct timer_rand_state irq_timer_state[ICU_LEN];
 static struct timer_rand_state blkdev_timer_state[MAX_BLKDEV];
 #endif
 static struct wait_queue *random_wait;
-
-inthand2_t *sec_intr_handler[ICU_LEN];
-void *sec_intr_unit[ICU_LEN];
 
 #ifndef MIN
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
@@ -226,10 +224,14 @@ add_keyboard_randomness(u_char scancode)
 }
 
 void
-add_interrupt_randomness(int irq)
+add_interrupt_randomness(void *vsc)
 {
-	(sec_intr_handler[irq])(sec_intr_unit[irq]);
-	add_timer_randomness(&random_state, &irq_timer_state[irq], irq);
+	int intr;
+	struct random_softc *sc = vsc;
+
+	(sc->sc_handler)(sc->sc_arg);
+	intr = sc->sc_intr;
+	add_timer_randomness(&random_state, &irq_timer_state[intr], intr);
 }
 
 #ifdef notused
