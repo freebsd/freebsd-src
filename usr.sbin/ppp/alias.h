@@ -11,9 +11,11 @@
 
 #ifndef _ALIAS_H_
 #define _ALIAS_H_
-extern void PacketAliasIn __P((char *));
-extern void PacketAliasOut __P((char *));
+
+extern void PacketAliasIn __P((struct ip *));
+extern void PacketAliasOut __P((struct ip *));
 extern void SetAliasAddress __P((struct in_addr));
 extern void InitAlias();
 extern void InitAliasLog();
+
 #endif
