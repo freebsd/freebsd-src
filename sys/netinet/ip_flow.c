@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ip_flow.c,v 1.3 1998/05/19 15:53:47 pb Exp $
  */
 
 #include <sys/param.h>
@@ -227,7 +227,7 @@ ipflow_reap(
 			 * or has had the least uses in the last 1.5 
 			 * intervals.
 			 */
-			if (ipf == NULL
+			if (maybe_ipf == NULL
 			    || ipf->ipf_timer < maybe_ipf->ipf_timer
 			    || (ipf->ipf_timer == maybe_ipf->ipf_timer
 				&& ipf->ipf_last_uses + ipf->ipf_uses <
