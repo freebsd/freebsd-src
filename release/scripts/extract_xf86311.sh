@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.5 1995/02/10 05:02:33 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.6 1995/02/10 05:05:41 jkh Exp $
 
 PATH=/usr/X11R6/bin:/usr/X386/bin:.:$PATH
 
@@ -85,7 +85,7 @@ Server notation: 4 bit = 16 color, 8 bit = 256 color,\n\
 "X311f100" "100dpi fonts" OFF \
 "X311fscl" "Speedo and Type1 fonts" OFF \
 "X311fnon" "Japanese, Chinese and other non-english fonts" OFF \
-"X311fsrv" "the font server and it's man page" OFF \
+"X311fsrv" "the font server and its man page" OFF \
 "X311prog" "config, lib*.a and *.h files needed only for compiling" OFF \
 "X311link" "X server reconfiguration kit" OFF \
 "X311pex"  "PEX fonts and shared libs needed by PEX apps" OFF \
