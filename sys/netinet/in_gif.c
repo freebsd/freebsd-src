@@ -75,8 +75,8 @@ static int gif_validate4(const struct ip *, struct gif_softc *,
 
 extern  struct domain inetdomain;
 struct protosw in_gif_protosw =
-{ SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in_gif_input,	(pr_output_t*)rip_output, 0,		rip_ctloutput,
+{ SOCK_RAW,	&inetdomain,	0/* IPPROTO_IPV[46] */,	PR_ATOMIC|PR_ADDR,
+  in_gif_input,	(pr_output_t*)rip_output, 0,	rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
@@ -316,8 +316,7 @@ gif_validate4(ip, sc, ifp)
 		return 0;
 	}
 	/* reject packets with broadcast on source */
-	TAILQ_FOREACH(ia4, &in_ifaddrhead, ia_link)
-	{
+	TAILQ_FOREACH(ia4, &in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
 		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr)

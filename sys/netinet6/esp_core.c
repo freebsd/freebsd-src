@@ -188,7 +188,6 @@ esp_max_ivlen()
 		if (esp_algorithms[idx].ivlenval > ivlen)
 			ivlen = esp_algorithms[idx].ivlenval;
 	}
-
 	return ivlen;
 }
 
@@ -1131,6 +1130,6 @@ esp_auth(m0, skip, length, sav, sum)
 	}
 	(*algo->result)(&s, sumbuf);
 	bcopy(sumbuf, sum, siz);	/* XXX */
-	
+
 	return 0;
 }
