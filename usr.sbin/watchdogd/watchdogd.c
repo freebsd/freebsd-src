@@ -178,8 +178,8 @@ watchdog_tickle(void)
 static int
 watchdog_onoff(int onoff)
 {
-	int mib[3]
-	int error
+	int mib[3];
+	int error;
 	int len;
 
 	len = 3;
