@@ -864,8 +864,13 @@ DMenu MenuDESDistributions = {
     NULL,
     { { "des",		"Basic DES encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_DES, },
+#if __FreeBSD__ > 3
       { "krb4",		"KerberosIV authentication services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_KERBEROS4 },
+#else
+      { "krb",		"KerberosIV authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_KERBEROS },
+#endif
       { "skerbero",	"Sources for Kerberos",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SKERBEROS },
       { "ssecure",	"Sources for DES",
