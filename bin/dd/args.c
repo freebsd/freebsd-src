@@ -67,8 +67,8 @@ static void	f_obs __P((char *));
 static void	f_of __P((char *));
 static void	f_seek __P((char *));
 static void	f_skip __P((char *));
-static quad_t	get_num __P((char *));
-static off_t	get_offset __P((char *));
+static u_quad_t	get_num __P((const char *));
+static off_t	get_off_t __P((const char *));
 
 static const struct arg {
 	const char *name;
@@ -185,7 +185,7 @@ static void
 f_bs(arg)
 	char *arg;
 {
-	quad_t res;
+	u_quad_t res;
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
@@ -197,7 +197,7 @@ static void
 f_cbs(arg)
 	char *arg;
 {
-	quad_t res;
+	u_quad_t res;
 
 	res = get_num(arg);
 	if (res < 1 || res > SSIZE_MAX)
@@ -209,12 +209,15 @@ static void
 f_count(arg)
 	char *arg;
 {
+	u_quad_t res;
 
-	cpy_cnt = get_num(arg);
-	if (cpy_cnt < 0)
+	res = get_num(arg);
+	if ((quad_t)res < 0)
 		errx(1, "count cannot be negative");
-	if (cpy_cnt == 0)
+	if (res == 0)
 		cpy_cnt = -1;
+	else
+		cpy_cnt = (quad_t)res;
 }
 
 static void
@@ -231,7 +234,7 @@ static void
 f_ibs(arg)
 	char *arg;
 {
-	quad_t res;
+	u_quad_t res;
 
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
@@ -253,7 +256,7 @@ static void
 f_obs(arg)
 	char *arg;
 {
-	quad_t res;
+	u_quad_t res;
 
 	if (!(ddflags & C_BS)) {
 		res = get_num(arg);
@@ -276,7 +279,7 @@ f_seek(arg)
 	char *arg;
 {
 
-	out.offset = get_offset(arg);
+	out.offset = get_off_t(arg);
 }
 
 static void
@@ -284,7 +287,7 @@ f_skip(arg)
 	char *arg;
 {
 
-	in.offset = get_offset(arg);
+	in.offset = get_off_t(arg);
 }
 
 static const struct conv {
@@ -340,22 +343,91 @@ c_conv(a, b)
 }
 
 /*
- * Convert an expression of the following forms to a quad_t.
+ * Convert an expression of the following forms to a u_quad_t.
  * 	1) A positive decimal number.
- *	2) A positive decimal number followed by a b (mult by 512.)
- *	3) A positive decimal number followed by a k (mult by 1 << 10.)
- *	4) A positive decimal number followed by a m (mult by 1 << 20.)
- *	5) A positive decimal number followed by a g (mult by 1 << 30.)
- *	5) A positive decimal number followed by a w (mult by sizeof int.)
+ *	2) A positive decimal number followed by a b (mult by 512).
+ *	3) A positive decimal number followed by a k (mult by 1 << 10).
+ *	4) A positive decimal number followed by a m (mult by 1 << 20).
+ *	5) A positive decimal number followed by a g (mult by 1 << 30).
+ *	5) A positive decimal number followed by a w (mult by sizeof int).
  *	6) Two or more positive decimal numbers (with/without [bkmgw])
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
-static quad_t
+static u_quad_t
 get_num(val)
-	char *val;
+	const char *val;
 {
-	quad_t num, t;
+	u_quad_t num, mult, prevnum;
+	char *expr;
+
+	errno = 0;
+	num = strtouq(val, &expr, 0);
+	if (errno != 0)				/* Overflow or underflow. */
+		err(1, "%s", oper);
+	
+	if (expr == val)			/* No valid digits. */
+		errx(1, "%s: illegal numeric value", oper);
+
+	mult = 0;
+	switch (*expr) {
+	case 'b':
+		mult = 512;
+		break;
+	case 'k':
+		mult = 1 << 10;
+		break;
+	case 'm':
+		mult = 1 << 20;
+		break;
+	case 'g':
+		mult = 1 << 30;
+		break;
+	case 'w':
+		mult = sizeof(int);
+		break;
+	}
+
+	if (mult != 0) {
+		prevnum = num;
+		num *= mult;
+		/* Check for overflow. */
+		if (num / mult != prevnum)
+			goto erange;
+		expr++;
+	}
+
+	switch (*expr) {
+		case '\0':
+			break;
+		case '*':			/* Backward compatible. */
+		case 'x':
+			mult = get_num(expr + 1);
+			prevnum = num;
+			num *= mult;
+			if (num / mult == prevnum)
+				break;
+erange:
+			errx(1, "%s: %s", oper, strerror(ERANGE));
+		default:
+			errx(1, "%s: illegal numeric value", oper);
+	}
+	return (num);
+}
+
+/*
+ * Convert an expression of the following forms to an off_t.  This is the
+ * same as get_num(), but it uses signed numbers.
+ *
+ * The major problem here is that an off_t may not necessarily be a quad_t.
+ * The right thing to do would be to use intmax_t when available and then
+ * cast down to an off_t, if possible.
+ */
+static off_t
+get_off_t(val)
+	const char *val;
+{
+	quad_t num, mult, prevnum;
 	char *expr;
 
 	errno = 0;
@@ -366,42 +438,32 @@ get_num(val)
 	if (expr == val)			/* No valid digits. */
 		errx(1, "%s: illegal numeric value", oper);
 
+	mult = 0;
 	switch (*expr) {
 	case 'b':
-		t = num;
-		num *= 512;
-		if (t > num)
-			goto erange;
-		++expr;
+		mult = 512;
 		break;
 	case 'k':
-		t = num;
-		num *= 1 << 10;
-		if (t > num)
-			goto erange;
-		++expr;
+		mult = 1 << 10;
 		break;
 	case 'm':
-		t = num;
-		num *= 1 << 20;
-		if (t > num)
-			goto erange;
-		++expr;
+		mult = 1 << 20;
 		break;
 	case 'g':
-		t = num;
-		num *= 1 << 30;
-		if (t > num)
-			goto erange;
-		++expr;
+		mult = 1 << 30;
 		break;
 	case 'w':
-		t = num;
-		num *= sizeof(int);
-		if (t > num)
-			goto erange;
-		++expr;
+		mult = sizeof(int);
 		break;
+	}
+
+	if (mult != 0) {
+		prevnum = num;
+		num *= mult;
+		/* Check for overflow. */
+		if ((prevnum > 0) != (num > 0) || num / mult != prevnum)
+			goto erange;
+		expr++;
 	}
 
 	switch (*expr) {
@@ -409,9 +471,10 @@ get_num(val)
 			break;
 		case '*':			/* Backward compatible. */
 		case 'x':
-			t = num;
-			num *= get_num(expr + 1);
-			if (t <= num)
+			mult = (quad_t)get_off_t(expr + 1);
+			prevnum = num;
+			num *= mult;
+			if ((prevnum > 0) != (num > 0) && num / mult == prevnum)
 				break;
 erange:
 			errx(1, "%s: %s", oper, strerror(ERANGE));
@@ -419,16 +482,4 @@ erange:
 			errx(1, "%s: illegal numeric value", oper);
 	}
 	return (num);
-}
-
-static off_t
-get_offset(val)
-	char *val;
-{
-	quad_t num;
-
-	num = get_num(val);
-	if (num > QUAD_MAX)	/* XXX can't happen && quad_t != off_t */
-		errx(1, "%s: illegal offset", oper);	/* Too big. */
-	return ((off_t)num);
 }

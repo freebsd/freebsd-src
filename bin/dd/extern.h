@@ -53,12 +53,11 @@ void summaryx __P((int));
 void terminate __P((int));
 void unblock __P((void));
 void unblock_close __P((void));
-void bitswab __P((void *, size_t));
 
 extern IO in, out;
 extern STAT st;
 extern void (*cfunc) __P((void));
-extern quad_t cpy_cnt;
+extern u_quad_t cpy_cnt;
 extern size_t cbsz;
 extern u_int ddflags;
 extern quad_t files_cnt;
