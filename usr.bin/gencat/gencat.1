@@ -59,7 +59,7 @@ the fields of a message text source line are separated by a single space
 character: any other space characters are considered to be part of the
 field contents.
 .Pp
-.Bl -tag -width
+.Bl -tag -width 3n
 .It Li $set Ar n comment
 This line specifies the set identifier of the following messages until
 the next
@@ -127,7 +127,7 @@ Text strings can contain the following special characters and escape
 sequences.  In addition, if a quote character is defined, it may be
 escaped as well to embed a literal quote character.
 .Pp
-.Bl -tag -width Ds -offset indent
+.Bl -tag -width "\eooo" -offset indent -compact
 .It Li \en
 line feed
 .It Li \et
@@ -169,6 +169,7 @@ utility is compliant with the
 .St -xpg4
 standard.
 .Sh AUTHORS
+.An -nosplit
 This manual page by
 .An Ken Stailey
 updated and revised by
