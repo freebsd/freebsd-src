@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.18 1996/03/03 19:48:45 dyson Exp $
+ * $Id: kern_fork.c,v 1.2 1996/04/02 05:26:56 kashmir Exp $
  */
 
 #include "opt_ktrace.h"
@@ -62,11 +62,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_inherit.h>
 
-static int fork1(struct proc *p, int forktype, int rforkflags, int *retval);
-
-#define	ISFORK	0
-#define	ISVFORK	1
-#define	ISRFORK	2
+static int fork1 __P((struct proc *p, int flags, int *retval));
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -81,7 +77,7 @@ fork(p, uap, retval)
 	struct fork_args *uap;
 	int retval[];
 {
-	return (fork1(p, ISFORK, 0, retval));
+	return (fork1(p, (RFFDG|RFPROC), retval));
 }
 
 /* ARGSUSED */
@@ -91,7 +87,7 @@ vfork(p, uap, retval)
 	struct vfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, ISVFORK, 0, retval));
+	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT), retval));
 }
 
 /* ARGSUSED */
@@ -101,40 +97,29 @@ rfork(p, uap, retval)
 	struct rfork_args *uap;
 	int retval[];
 {
-	return (fork1(p, ISRFORK, uap->flags, retval));
+	return (fork1(p, uap->flags, retval));
 }
 
 
 int	nprocs = 1;		/* process 0 */
 
 static int
-fork1(p1, forktype, rforkflags, retval)
+fork1(p1, flags, retval)
 	register struct proc *p1;
-	int forktype;
-	int rforkflags;
+	int flags;
 	int retval[];
 {
-	register struct proc *p2;
+	register struct proc *p2, *pptr;
 	register uid_t uid;
 	struct proc *newproc;
 	struct proc **hash;
 	int count;
 	static int nextpid, pidchecked = 0;
-	int dupfd = 1, cleanfd = 0;
 
-	if (forktype == ISRFORK) {
-		dupfd = 0;
-		if ((rforkflags & RFPROC) == 0)
-			return (EINVAL);
-		if ((rforkflags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
-			return (EINVAL);
-		if (rforkflags & RFFDG)
-			dupfd = 1;
-		if (rforkflags & RFNOWAIT)
-			return (EINVAL);	/* XXX unimplimented */
-		if (rforkflags & RFCFDG)
-			cleanfd = 1;
-	}
+	if ((flags & RFPROC) == 0)
+		return (EINVAL);
+	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
+		return (EINVAL);
 
 	/*
 	 * Although process entries are dynamically created, we still keep
@@ -253,9 +238,9 @@ again:
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
 
-	if (cleanfd)
+	if (flags & RFCFDG)
 		p2->p_fd = fdinit(p1);
-	else if (dupfd)
+	else if (flags & RFFDG)
 		p2->p_fd = fdcopy(p1);
 	else
 		p2->p_fd = fdshare(p1);
@@ -275,11 +260,23 @@ again:
 
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
-	if (forktype == ISVFORK)
+	if (flags & RFPPWAIT)
 		p2->p_flag |= P_PPWAIT;
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
-	p2->p_pptr = p1;
-	LIST_INSERT_HEAD(&p1->p_children, p2, p_sibling);
+
+	/*
+	 * Attach the new process to its parent.
+	 *
+	 * If RFNOWAIT is set, the newly created process becomes a child
+	 * of init.  This effectively disassociates the child from the
+	 * parent.
+	 */
+	if (flags & RFNOWAIT)
+		pptr = initproc;
+	else
+		pptr = p1;
+	p2->p_pptr = pptr;
+	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_children);
 
 #ifdef KTRACE
@@ -307,12 +304,12 @@ again:
 
 	/*
 	 * share as much address space as possible
+	 * XXX this should probably go in vm_fork()
 	 */
-	if (forktype == ISRFORK && (rforkflags & RFMEM)) {
+	if (flags & RFMEM)
 		(void) vm_map_inherit(&p1->p_vmspace->vm_map,
 		    VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS - MAXSSIZ,
 		    VM_INHERIT_SHARE);
-	}
 
 	/*
 	 * Set return values for child before vm_fork,
@@ -352,9 +349,8 @@ again:
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
 	 */
-	if (forktype == ISVFORK)
-		while (p2->p_flag & P_PPWAIT)
-			tsleep(p1, PWAIT, "ppwait", 0);
+	while (p2->p_flag & P_PPWAIT)
+		tsleep(p1, PWAIT, "ppwait", 0);
 
 	/*
 	 * Return child pid to parent process,
