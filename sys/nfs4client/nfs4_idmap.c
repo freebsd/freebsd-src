@@ -5,7 +5,7 @@
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved
- * 
+ *
  * permission is granted to use, copy, create derivative works and redistribute
  * this software and such derivative works for any purpose, so long as the name
  * of the university of michigan is not used in any advertising or publicity
@@ -13,7 +13,7 @@
  * written prior authorization.  if the above copyright notice or any other
  * identification of the university of michigan is included in any copy of any
  * portion of this software, then the disclaimer below must also be included.
- * 
+ *
  * this software is provided as is, without representation from the university
  * of michigan as to its fitness for any purpose, and without warranty by the
  * university of michigan of any kind, either express or implied, including
@@ -25,8 +25,8 @@
  * advised of the possibility of such damages.
  */
 
-/* TODO: 
- *  o validate ascii 
+/* TODO:
+ *  o validate ascii
  * */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ idmap_upcall_name(uint32_t type, char * name, struct idmap_entry ** found)
 
 	if (type > IDMAP_MAX_TYPE || type == 0) {
 		IDMAP_DEBUG("bad type %d\n", type);
-	 	return EINVAL; /* XXX */ 
+	 	return EINVAL; /* XXX */
 	}
 
 	if (name == NULL || (len = strlen(name)) == 0 || len > IDMAP_MAXNAMELEN) {
@@ -109,12 +109,12 @@ idmap_upcall_name(uint32_t type, char * name, struct idmap_entry ** found)
 	    M_WAITOK | M_ZERO);
 
 	e->id_info.id_type = type;
-	bcopy(name, e->id_info.id_name, len); 
+	bcopy(name, e->id_info.id_name, len);
 	e->id_info.id_namelen = len;
 
 
 	siz = sizeof(struct idmap_msg);
-	error = nfs4dev_call(NFS4DEV_TYPE_IDMAP, (caddr_t)&e->id_info, siz, 
+	error = nfs4dev_call(NFS4DEV_TYPE_IDMAP, (caddr_t)&e->id_info, siz,
 	    (caddr_t)&e->id_info, &siz);
 
 	if (error) {
@@ -129,7 +129,6 @@ idmap_upcall_name(uint32_t type, char * name, struct idmap_entry ** found)
 		return EFAULT;
 	}
 
-		
 	*found = e;
 	return 0;
 }
@@ -142,7 +141,7 @@ idmap_upcall_id(uint32_t type, ident_t id, struct idmap_entry ** found)
 	size_t siz;
 
 	if (type > IDMAP_MAX_TYPE)
-	 	panic("bad type"); /* XXX */ 
+	 	panic("bad type"); /* XXX */
 
 	MALLOC(e, struct idmap_entry *, sizeof(struct idmap_entry), M_IDMAP,
 	    M_WAITOK | M_ZERO);
@@ -152,7 +151,7 @@ idmap_upcall_id(uint32_t type, ident_t id, struct idmap_entry ** found)
 	e->id_info.id_id = id;
 
 	siz = sizeof(struct idmap_msg);
-	error = nfs4dev_call(NFS4DEV_TYPE_IDMAP, (caddr_t)&e->id_info, siz, 
+	error = nfs4dev_call(NFS4DEV_TYPE_IDMAP, (caddr_t)&e->id_info, siz,
 	    (caddr_t)&e->id_info, &siz);
 
 	if (error) {
@@ -171,23 +170,23 @@ idmap_upcall_id(uint32_t type, ident_t id, struct idmap_entry ** found)
 	return 0;
 }
 
-static int 
-idmap_hashf(struct idmap_entry *e, uint32_t * hval_id, uint32_t * hval_name) 
+static int
+idmap_hashf(struct idmap_entry *e, uint32_t * hval_id, uint32_t * hval_name)
 {
 	switch (e->id_info.id_type) {
-                case IDMAP_TYPE_UID:
-                        *hval_id = e->id_info.id_id.uid % IDMAP_HASH_SIZE;
+	case IDMAP_TYPE_UID:
+		*hval_id = e->id_info.id_id.uid % IDMAP_HASH_SIZE;
                 break;
-                case IDMAP_TYPE_GID:
-                        *hval_id = e->id_info.id_id.gid % IDMAP_HASH_SIZE;
+	case IDMAP_TYPE_GID:
+		*hval_id = e->id_info.id_id.gid % IDMAP_HASH_SIZE;
                 break;
-                default:
-                        /* XXX yikes! */
-                        panic("hashf: bad type!");
+	default:
+		/* XXX yikes! */
+		panic("hashf: bad type!");
                 break;
         }
 
-	if (e->id_info.id_namelen == 0) 
+	if (e->id_info.id_namelen == 0)
 		/* XXX */ panic("hashf: bad name");
 
 	*hval_name = fnv_32_str(e->id_info.id_name, FNV1_32_INIT) % IDMAP_HASH_SIZE;
@@ -207,15 +206,15 @@ idmap_add(struct idmap_entry * e)
 	  panic("idmap_add name of len 0");
 
         switch (e->id_info.id_type) {
-                case IDMAP_TYPE_UID:
-                        hash = &idmap_uid_hash;
+	case IDMAP_TYPE_UID:
+		hash = &idmap_uid_hash;
                 break;
-                case IDMAP_TYPE_GID:
-                        hash = &idmap_gid_hash;
+	case IDMAP_TYPE_GID:
+		hash = &idmap_gid_hash;
                 break;
-                default:
-                        /* XXX yikes */
-                        panic("idmap add: bad type!");
+	default:
+		/* XXX yikes */
+		panic("idmap add: bad type!");
                 break;
         }
 
@@ -234,7 +233,7 @@ idmap_add(struct idmap_entry * e)
 	return 0;
 }
 
-static struct idmap_entry * 
+static struct idmap_entry *
 idmap_id_lookup(uint32_t type, ident_t id)
 {
 	struct idmap_hash * hash;
@@ -242,20 +241,20 @@ idmap_id_lookup(uint32_t type, ident_t id)
 	struct idmap_entry * e;
 
 	switch (type) {
-		case IDMAP_TYPE_UID:
-	 		hash = &idmap_uid_hash; 
-			hval = id.uid % IDMAP_HASH_SIZE;
+	case IDMAP_TYPE_UID:
+		hash = &idmap_uid_hash;
+		hval = id.uid % IDMAP_HASH_SIZE;
 		break;
-		case IDMAP_TYPE_GID:
-	 		hash = &idmap_gid_hash; 
-			hval = id.gid % IDMAP_HASH_SIZE;
+	case IDMAP_TYPE_GID:
+		hash = &idmap_gid_hash;
+		hval = id.gid % IDMAP_HASH_SIZE;
 		break;
-		default:
-			/* XXX yikes */
-			panic("lookup: bad type!");	
+	default:
+		/* XXX yikes */
+		panic("lookup: bad type!");
 		break;
 	}
-	
+
 
 	IDMAP_RLOCK(&hash->hash_lock);
 
@@ -271,7 +270,7 @@ idmap_id_lookup(uint32_t type, ident_t id)
 	return NULL;
 }
 
-static struct idmap_entry * 
+static struct idmap_entry *
 idmap_name_lookup(uint32_t type, char * name)
 {
 	struct idmap_hash * hash;
@@ -281,17 +280,17 @@ idmap_name_lookup(uint32_t type, char * name)
 
 	switch (type) {
 	case IDMAP_TYPE_UID:
-	 	hash = &idmap_uid_hash; 
-	break;
+	 	hash = &idmap_uid_hash;
+		break;
 	case IDMAP_TYPE_GID:
-	 	hash = &idmap_gid_hash; 
-	break;
+	 	hash = &idmap_gid_hash;
+		break;
 	default:
 		/* XXX yikes */
-		panic("lookup: bad type!");	
-	break;
+		panic("lookup: bad type!");
+		break;
 	}
-	
+
 	len = strlen(name);
 
 	if (len == 0 || len > IDMAP_MAXNAMELEN) {
@@ -314,7 +313,7 @@ idmap_name_lookup(uint32_t type, char * name)
 	return NULL;
 }
 
-void 
+void
 idmap_init(void)
 {
 	unsigned int i;
@@ -358,7 +357,7 @@ void idmap_uninit(void)
 	}
 }
 
-int 
+int
 idmap_uid_to_name(uid_t uid, char ** name, size_t * len)
 {
   	struct idmap_entry * e;
@@ -390,13 +389,13 @@ idmap_uid_to_name(uid_t uid, char ** name, size_t * len)
 	return 0;
 }
 
-int 
+int
 idmap_gid_to_name(gid_t gid, char ** name, size_t * len)
 {
   	struct idmap_entry * e;
 	int error = 0;
 	ident_t id;
-	
+
 	id.gid = gid;
 
 
@@ -422,7 +421,7 @@ idmap_gid_to_name(gid_t gid, char ** name, size_t * len)
 	return 0;
 }
 
-int 
+int
 idmap_name_to_uid(char * name, size_t len, uid_t * id)
 {
   	struct idmap_entry * e;
@@ -466,7 +465,7 @@ idmap_name_to_uid(char * name, size_t len, uid_t * id)
 	return 0;
 }
 
-int 
+int
 idmap_name_to_gid(char * name, size_t len, gid_t * id)
 {
   	struct idmap_entry * e;
