@@ -20,13 +20,12 @@ sources.  Our <htmlurl url="mailto:announce@freebsd.org"
 name="announcements mailing list"> is also available to those wishing
 to make other FreeBSD users aware of major areas of work.
 
-Whether working independantly or more closely with the project, there
-are number of things about how we handle our development which is useful
-to know.  The first and foremost item of importance in our development
-work is:
+Useful things to know about the FreeBSD project and its development process,
+whether working independantly or in close cooperation:
 
 <descrip>
-<tag>The CVS repository<label id="development:cvs-repository"></tag>
+<itemize>
+<item><bf>The CVS repository</bf><label id="development:cvs-repository">
 
 <p>The central source tree for FreeBSD is maintained by <htmlurl
 url="http://www.cyclic.com/cyclic-pages/CVS-sheet.html" name="CVS">
@@ -39,9 +38,9 @@ as the <ref id="current" name="-current"> and <ref id="stable"
 name="-stable"> trees which are checked out of it, can be easily
 replicated to your own machine as well.  Please refer to the
 <ref id="synching" name="Syncronizing your source tree">
-section for more information on doing this.
+section for more information on doing this.</item>
 
-<tag>The committers list<label id="development:committers"></tag>
+<item>The committers list<label id="development:committers">
 <p>The <ref id="contrib:committers" name="committers"> are the people
 who have <em>write</em> access to the CVS tree, and are thus
 authorized to make modifications to the FreeBSD source (the term
@@ -52,9 +51,9 @@ is to use the <htmlurl url="http://www.freebsd.org/send-pr.html"
 name="send-pr(1)"> command, though if something appears to be jammed
 in the system then you may also reach them by sending mail to <htmlurl
 url="mailto:committers@freebsd.org" name="committers@freebsd.org">.
+</item>
 
-
-<tag>The FreeBSD core team</tag>
+<item>The FreeBSD core team
 
 <p>The <ref id="contrib:core" name="FreeBSD core team"> would be
 equivalent to the board of directors if the FreeBSD Project were a
@@ -75,21 +74,29 @@ financially, so "committment" should also not be misconstrued as
 meaning "guaranteed support."  The ``board of directors'' analogy
 above is not actually very accurate, and it may be more suitable to
 say that these are the people who gave up their lives in favor of
-FreeBSD against their better judgement! <tt>;)</tt>
+FreeBSD against their better judgement! <tt>;)</tt></item>
 
-<tag>Additional contributors</tag>
+
+<item>Outside contributors
 
 <p>Last, but definitely not least, the largest group of developers are
 the users themselves who provide feedback and bug-fixes to us on an
-almost constant basis.  Here are <ref id="contrib:additional"
-name="the names"> of the people who contributed something which made
-its way into our source tree.  Why not join this list too by
-contributing something back to FreeBSD? <tt>:-)</tt>
+almost constant basis.  The primary way of keeping in touch with FreeBSD's
+more non-centralized development is to subscribe to the
+<htmlurl url="hackers@freebsd.org" name="-hackers"> mailing list
+(see <ref id="eresources:mail"> name="mailing list info">) where such
+things are discussed.
 
-<p>Providing code is not the only way to contribute to the project;
-for a more complete list of things we need, please refer to the <ref
+<ref id="contrib:additional" name="The list"> of those who've
+contributed something which made its way into our source tree is
+a long and growing one, so why not join it by contributing something
+back to FreeBSD today? <tt>:-)</tt>
+
+<p>Providing code is not the only way of contributing to the project;
+for a more complete list of things that need doing, please refer to the <ref
 id="submitters" name="how to contribute"> section in this handbook.
 
+</itemize>
 </descrip>
 
 In summary, our development model is organized as a loose set of
