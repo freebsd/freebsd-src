@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.83 1995/10/31 18:41:08 phk Exp $
+ * $Id: if_ed.c,v 1.84 1995/11/04 17:07:20 bde Exp $
  */
 
 #include "ed.h"
@@ -508,25 +508,16 @@ ed_probe_WD80x3(isa_dev)
 		isa16bit = 1;
 		break;
 	case ED_TYPE_SMC8216C: /* 8216 has 16K shared mem -- 8416 has 8K */
-		(unsigned int) *(isa_dev->id_maddr+8192) = (unsigned int)0;
-		if ((unsigned int) *(isa_dev->id_maddr+8192)) {
-			sc->type_str = "SMC8416C/SMC8416BT";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: SMC 8416C or 8416BT";
-			memsize = 8192;
-		} else {
+	case ED_TYPE_SMC8216T:
+		if (sc->type = ED_TYPE_SMC8216C) {
 			sc->type_str = "SMC8216/SMC8216C";
 			sc->kdc.kdc_description =
 				"Ethernet adapter: SMC 8216 or 8216C";
-			memsize = 16384;
+		} else {
+			sc->type_str = "SMC8216T";
+			sc->kdc.kdc_description =
+				"Ethernet adapter: SMC 8216T";
 		}
-		isa16bit = 1;
-		sc->is790 = 1;
-		break;
-	case ED_TYPE_SMC8216T:
-		sc->type_str = "SMC8216T";
-		sc->kdc.kdc_description =
-			"Ethernet adapter: SMC 8216T";
 
 		outb(sc->asic_addr + ED_WD790_HWR,
 		    inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
@@ -541,9 +532,16 @@ ed_probe_WD80x3(isa_dev)
 			memsize = 16384;
 			break;
 		case ED_WD790_RAR_SZ8:
-			sc->type_str = "SMC8416T";
-			sc->kdc.kdc_description =
-				"Ethernet adapter: SMC 8416T";
+			/* 8216 has 16K shared mem -- 8416 has 8K */
+			if (sc->type = ED_TYPE_SMC8216C) {
+				sc->type_str = "SMC8416C/SMC8416BT";
+				sc->kdc.kdc_description =
+					"Ethernet adapter: SMC 8416C or 8416BT";
+			} else {
+				sc->type_str = "SMC8416T";
+				sc->kdc.kdc_description =
+					"Ethernet adapter: SMC 8416T";
+			}
 			memsize = 8192;
 			break;
 		}
