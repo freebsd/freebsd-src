@@ -686,7 +686,8 @@ spanscls_cpcs_data(tok, m)
 		if (bcmp((char *)&chp->ch_proto, (char *)spanscls_bridged, 
 				sizeof(spanscls_bridged))) {
 			log(LOG_ERR, "spanscls_input: bad format\n");
-			spanscls_pdu_print(clp, m, "input error"); 
+			if (spanscls_print)
+				spanscls_pdu_print(clp, m, "input error"); 
 		}
 
 		KB_FREEALL(m);
