@@ -307,14 +307,21 @@ hatm_destroy_smbufs(struct hatm_softc *sc)
 {
 	u_int i, b;
 	struct mbuf_page *pg;
+	struct mbuf_chunk_hdr *h;
 
 	if (sc->mbuf_pages != NULL) {
 		for (i = 0; i < sc->mbuf_npages; i++) {
 			pg = sc->mbuf_pages[i];
 			for (b = 0; b < pg->hdr.nchunks; b++) {
-				if (MBUF_TST_BIT(pg->hdr.card, b))
+				h = (struct mbuf_chunk_hdr *) ((char *)pg +
+				    b * pg->hdr.chunksize + pg->hdr.hdroff);
+				if (h->flags & MBUF_CARD)
 					if_printf(&sc->ifatm.ifnet,
 					    "%s -- mbuf page=%u card buf %u\n",
+					    __func__, i, b);
+				if (h->flags & MBUF_USED)
+					if_printf(&sc->ifatm.ifnet,
+					    "%s -- mbuf page=%u used buf %u\n",
 					    __func__, i, b);
 			}
 			bus_dmamap_unload(sc->mbuf_tag, pg->hdr.map);
@@ -2332,10 +2339,14 @@ hatm_stop(struct hatm_softc *sc)
 	for (p = 0; p < sc->mbuf_npages; p++) {
 		pg = sc->mbuf_pages[p];
 		for (i = 0; i < pg->hdr.nchunks; i++) {
-			if (MBUF_TST_BIT(pg->hdr.card, i)) {
-				MBUF_CLR_BIT(pg->hdr.card, i);
-				ch = (struct mbuf_chunk_hdr *) ((char *)pg +
-				    i * pg->hdr.chunksize + pg->hdr.hdroff);
+			ch = (struct mbuf_chunk_hdr *) ((char *)pg +
+			    i * pg->hdr.chunksize + pg->hdr.hdroff);
+			if (ch->flags & MBUF_CARD) {
+				ch->flags &= ~MBUF_CARD;
+				ch->flags |= MBUF_USED;
+				hatm_ext_free(&sc->mbuf_list[pg->hdr.pool],
+				    (struct mbufx_free *)((u_char *)ch -
+				    pg->hdr.hdroff));
 			}
 		}
 	}
