@@ -85,7 +85,7 @@ static union VIA_ACE_CW acw		__aligned(16);
 static __inline size_t
 VIA_RNG_store(void *buf)
 {
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 	uint32_t retval = 0;
 	uint32_t rate = 0;
 
@@ -107,7 +107,7 @@ VIA_RNG_store(void *buf)
 static __inline void
 VIA_ACE_cbc(void *in, void *out, size_t count, void *key, union VIA_ACE_CW *cw, void *iv)
 {
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 	/* The .byte line is really VIA C3 "xcrypt-cbc" instruction */
 	__asm __volatile(
 		"pushf				\n\t"

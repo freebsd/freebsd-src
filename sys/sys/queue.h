@@ -517,7 +517,7 @@ struct quehead {
 	struct quehead *qh_rlink;
 };
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __CC_SUPPORTS___INLINE
 
 static __inline void
 insque(void *a, void *b)
@@ -541,12 +541,12 @@ remque(void *a)
 	element->qh_rlink = 0;
 }
 
-#else /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !__CC_SUPPORTS___INLINE */
 
 void	insque(void *a, void *b);
 void	remque(void *a);
 
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __CC_SUPPORTS___INLINE */
 
 #endif /* _KERNEL */
 

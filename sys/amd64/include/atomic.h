@@ -28,6 +28,10 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.
@@ -76,7 +80,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE */
 
-#ifdef __GNUC__
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 /*
  * For userland, assume the SMP case and use lock prefixes so that
@@ -102,12 +106,12 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* !__GNUC__ */
+#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 #define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)				\
 extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* __GNUC__ */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
 /*
  * Atomic compare and set, used by the mutex functions
@@ -117,7 +121,7 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * Returns 0 on failure, non-zero on success
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
@@ -158,9 +162,9 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 
 	return (res);
 }
-#endif /* defined(__GNUC__) */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
-#if defined(__GNUC__)
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -189,7 +193,7 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* !defined(__GNUC__) */
+#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
 extern int atomic_cmpset_long(volatile u_long *, u_long, u_long);
@@ -198,7 +202,7 @@ extern int atomic_cmpset_long(volatile u_long *, u_long, u_long);
 extern u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p);		\
 extern void atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* defined(__GNUC__) */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
 #endif /* KLD_MODULE */
 
@@ -371,7 +375,7 @@ ATOMIC_PTR(subtract)
 
 #undef ATOMIC_PTR
 
-#if defined(__GNUC__)
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
@@ -403,12 +407,12 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 
-#else /* !defined(__GNUC__) */
+#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 extern u_long	atomic_readandclear_long(volatile u_long *);
 extern u_int	atomic_readandclear_int(volatile u_int *);
 
-#endif /* defined(__GNUC__) */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */

@@ -39,6 +39,10 @@
 #ifndef _MACHINE__TYPES_H_
 #define	_MACHINE__TYPES_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * Basic types upon which most other types are built.
  */
@@ -97,9 +101,10 @@ typedef	__uint64_t	__vm_size_t;
 /*
  * Unusual type definitions.
  */
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_BUILTIN_VARARGS
 typedef __builtin_va_list	__va_list;	/* internally known to gcc */
-#if !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
+#if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
+    && !defined(__NO_GNUC_VA_LIST)
 #define	__GNUC_VA_LIST
 typedef	__va_list	__gnuc_va_list;		/* compat. with GNU headers */
 #endif
@@ -109,6 +114,6 @@ typedef char *			__va_list;	/* non-functional */
 #else
 #error Must add va_list support for this non-GCC compiler.   
 #endif /* lint */
-#endif /* __GNUC__ */
+#endif /* __GNUCLIKE_BUILTIN_VARARGS */
 
 #endif /* !_MACHINE__TYPES_H_ */

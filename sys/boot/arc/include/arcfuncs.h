@@ -27,7 +27,14 @@
  *
  */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifndef _ARCFUNCS_H
+#define _ARCFUNCS_H
+
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
+#ifdef __CC_SUPPORTS_INLINE
 #define INLINE inline
 #else
 #define INLINE /**/
@@ -197,3 +204,6 @@ VND_FN(3, u_int32_t, Print,
 VND_FN(4, void, ReturnExtendedSystemInformation, 
        (EXTENDED_SYSTEM_INFORMATION *SystemInfo),
        (SystemInfo))
+
+#endif /* _ARGFUNCS_H */
+

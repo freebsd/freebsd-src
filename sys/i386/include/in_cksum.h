@@ -35,6 +35,10 @@
 #ifndef _MACHINE_IN_CKSUM_H_
 #define	_MACHINE_IN_CKSUM_H_	1
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * MP safe (alfred)
  */
@@ -49,7 +53,7 @@
  * in the normal case (where there are no options and the header length is
  * therefore always exactly five 32-bit words.
  */
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__GNUCLIKE_ASM) && !defined(__INTEL_COMPILER)
 static __inline u_int
 in_cksum_hdr(const struct ip *ip)
 {
@@ -119,7 +123,7 @@ in_pseudo(u_int sum, u_int b, u_int c)
 #endif
 
 #ifdef _KERNEL
-#if !defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if !defined(__GNUCLIKE_ASM) || defined(__INTEL_COMPILER)
 u_int in_cksum_hdr(const struct ip *ip);
 u_short in_addword(u_short sum, u_short b);
 u_short in_pseudo(u_int sum, u_int b, u_int c);

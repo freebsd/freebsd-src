@@ -47,7 +47,7 @@
 typedef	__va_list	va_list;
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+#ifdef __GNUCLIKE_BUILTIN_STDARG
 
 #define	va_start(ap, last) \
 	__builtin_stdarg_start((ap), (last))
@@ -63,7 +63,7 @@ typedef	__va_list	va_list;
 #define	va_end(ap) \
 	__builtin_va_end(ap)
 
-#else	/* ! __GNUC__ post GCC 2.95 */
+#else	/* !__GNUCLIKE_BUILTIN_STDARG */
 
 #ifdef __lint__
 #define	__builtin_saveregs()		(0)
@@ -87,6 +87,6 @@ typedef	__va_list	va_list;
 
 #define	va_end(ap)	((void)0)
 
-#endif /* __GNUC__ post GCC 2.95 */
+#endif /* __GNUCLIKE_BUILTIN_STDARG */
 
 #endif /* !_MACHINE_STDARG_H_ */

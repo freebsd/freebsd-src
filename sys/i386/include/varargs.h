@@ -39,7 +39,11 @@
 #ifndef _MACHINE_VARARGS_H_
 #define	_MACHINE_VARARGS_H_
 
-#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
+#ifdef __GNUCLIKE_BUILTIN_VARARGS
 
 #include <sys/_types.h>
 
@@ -56,17 +60,17 @@ typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 #define	va_arg(ap, type)	__builtin_va_arg((ap), type)
 #define	va_end(ap)		__builtin_va_end(ap)
 
-#else	/* ! __GNUC__ post GCC 2.95 */
+#else	/* !__GNUCLIKE_BUILTIN_VARARGS */
 
 typedef char *va_list;
 
 #define	__va_size(type) \
 	(((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
 
-#ifdef __GNUC__
+#if defined(__GNUCLIKE_BUILTIN_VAALIST)
 #define	va_alist	__builtin_va_alist
 #endif
-#if __GNUC__ > 1
+#ifdef __CC_SUPPORTS_VARADIC_XXX
 #define	va_dcl	int va_alist; ...
 #else
 #define	va_dcl	int va_alist; 
@@ -80,6 +84,6 @@ typedef char *va_list;
 
 #define	va_end(ap)
 
-#endif /* __GNUC__ post GCC 2.95 */
+#endif /* __GNUCLIKE_BUILTIN_VARARGS */
 
 #endif /* !_MACHINE_VARARGS_H_ */

@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
  * Enable debugging by defining ICHSMB_DEBUG to a non-zero value.
  */
 #define ICHSMB_DEBUG	0
-#if ICHSMB_DEBUG != 0 && (defined(__GNUC__) || defined(__INTEL_COMPILER))
+#if ICHSMB_DEBUG != 0 && defined(__CC_SUPPORTS___FUNC__)
 #define DBG(fmt, args...)	\
 	do { log(LOG_DEBUG, "%s: " fmt, __func__ , ## args); } while (0)
 #else

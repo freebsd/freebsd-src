@@ -33,6 +33,10 @@
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 #ifdef _KERNEL
 
 /*
@@ -53,7 +57,7 @@
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 #define	MCOUNT_OVERHEAD(label)						\
 	__asm __volatile("pushl %0; call __mcount; popl %%ecx"		\
 			 :						\
@@ -71,7 +75,7 @@
 #define	MEXITCOUNT_OVERHEAD_GETLABEL()
 #else
 #error
-#endif /* !(__GNUC__ || __INTEL_COMPILER) */
+#endif /* !__GNUCLIKE_ASM */
 #else /* !GUPROF */
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
@@ -106,7 +110,7 @@ void user(void);
 
 #define	_MCOUNT_DECL static __inline void _mcount
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 #define	MCOUNT								\
 void									\
 mcount()								\
@@ -129,13 +133,13 @@ mcount()								\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
 }
-#else /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !__GNUCLIKE_ASM */
 void									\
 #define	MCOUNT								\
 mcount()								\
 {									\
 }
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUCLIKE_ASM */
 
 typedef	u_int	uintfptr_t;
 
@@ -156,7 +160,7 @@ void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 void	mcount(void) __asm(".mcount");
 #endif
 __END_DECLS
