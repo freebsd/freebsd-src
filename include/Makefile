@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.46 1996/12/30 04:52:54 jkh Exp $
+#	$Id: Makefile,v 1.47 1996/12/30 07:38:51 jkh Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -12,8 +12,8 @@ CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h f2c.h fnmatch.h fstab.h fts.h glob.h grp.h strhash.h histedit.h \
-	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h ndbm.h \
-	netdb.h nl_types.h nlist.h paths.h pthread.h pthread_np.h pwd.h \
+	kvm.h limits.h link.h locale.h login_cap.h malloc.h memory.h mpool.h \
+	ndbm.h netdb.h nl_types.h nlist.h paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
 	signal.h stab.h stddef.h stdio.h stdlib.h string.h strings.h \
 	struct.h sysexits.h tar.h time.h timers.h ttyent.h unistd.h utime.h \
