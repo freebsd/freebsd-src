@@ -203,7 +203,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, u_char type
                        expkey, klen * 2, ntresponse);
 
     /* Generate MPPE MASTERKEY */
-    GetMasterKey(pwdhashhash, ntresponse, MPPE_MasterKey);
+    GetMasterKey(pwdhashhash, ntresponse, MPPE_MasterKey);    /* XXX Global ! */
 
     /* Generate AUTHRESPONSE to verify on auth success */
     GenerateAuthenticatorResponse(expkey, klen * 2, ntresponse, 
@@ -371,6 +371,7 @@ chap_Respond(struct chap *chap, char *name, char *key, u_char type
                ans, *ans + 1 + strlen(name), name);
 #ifdef HAVE_DES
     chap->NTRespSent = !lm;
+    MPPE_IsServer = 0;		/* XXX Global ! */
 #endif
     free(ans);
   } else
@@ -536,7 +537,7 @@ chap_Success(struct authinfo *authp)
 #ifdef HAVE_DES
   if (authp->physical->link.lcp.want_authtype == 0x81) {
     msg = auth2chap(authp)->authresponse;
-    MPPE_MasterKeyValid = 1;
+    MPPE_MasterKeyValid = 1;		/* XXX Global ! */
   } else
 #endif
     msg = "Welcome!!";
@@ -857,9 +858,11 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                                        p->link.lcp.want_authtype
 #ifdef HAVE_DES
                                        , chap->challenge.peer,
-                                       chap->authresponse, lanman
-#endif
+                                       chap->authresponse, lanman);
+              MPPE_IsServer = 1;		/* XXX Global ! */
+#else
                                       );
+#endif
               if (myans == NULL)
                 key = NULL;
               else {
@@ -896,7 +899,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                 
               } else {
                 /* Successful login */
-                MPPE_MasterKeyValid = 1;
+                MPPE_MasterKeyValid = 1;		/* XXX Global ! */
                 datalink_AuthOk(p->dl);
               }
             } else
