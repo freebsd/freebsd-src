@@ -158,6 +158,7 @@ write_csr(struct lnc_softc *sc, u_short port, u_short val)
 	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, sc->rdp, val);
 }
 
+#undef inb
 #define inb(port) bus_space_read_1(sc->lnc_btag, sc->lnc_bhandle, port)
 #define inw(port) bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, port)
 #define outw(port, val) bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, port, val)
