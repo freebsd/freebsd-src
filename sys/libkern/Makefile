@@ -1,5 +1,5 @@
 #	@(#)Makefile	7.9 (Berkeley) 6/1/93
-# $Id: Makefile,v 1.7 1995/02/27 09:16:02 ugen Exp $
+# $Id: Makefile,v 1.8 1995/03/16 17:32:20 wollman Exp $
 
 .undef NOPROFILE
 
@@ -19,5 +19,7 @@ SRCS=	adddi3.c anddi3.c ashldi3.c ashrdi3.c bcmp.c cmpdi2.c divdi3.c \
 # mcount cannot be compiled with profiling
 mcount.po: mcount.o
 	cp mcount.o mcount.po
+
+install:
 
 .include <bsd.lib.mk>
