@@ -37,7 +37,7 @@
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
  * $FreeBSD$
  */
-
+#include "acpi.h"
 #include "apm.h"
 #include "npx.h"
 #include "opt_atalk.h"
@@ -115,6 +115,10 @@
 #include <machine/vm86.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
+
+#if NACPI > 0
+#include <sys/acpi.h>
+#endif
 
 extern void init386 __P((int first));
 extern void dblfault_handler __P((void));
@@ -1489,6 +1493,9 @@ getmemsize(int first)
 	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
 	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
 
+#if NACPI > 0
+	acpi_init_addr_range();
+#endif
 	physmap_idx = 0;
 	vmf.vmf_ebx = 0;
 	do {
@@ -1505,7 +1512,13 @@ getmemsize(int first)
 				(u_int32_t)smap->base,
 				*(u_int32_t *)((char *)&smap->length + 4),
 				(u_int32_t)smap->length);
-
+#if NACPI > 0
+		/* Save ACPI related memory Info */
+		if (smap->type == 0x03 || smap->type == 0x04) {
+			acpi_register_addr_range(smap->base,
+						 smap->length, smap->type);
+		}
+#endif
 		if (smap->type != 0x01)
 			goto next_run;
 
