@@ -52,18 +52,34 @@ Please see the
 man page for further details.
 .Sh EXAMPLES
 .Ss "Setting up a Jail Directory Tree"
-This shows how to setup a jail directory tree:
+This example shows how to setup a jail directory tree
+containing an entire
+.Fx
+distribution:
 .Bd -literal
 D=/here/is/the/jail
 cd /usr/src
+mkdir -p $D
 make world DESTDIR=$D
 cd etc
-make distribution DESTDIR=$D -DNO_MAKEDEV
+make distribution DESTDIR=$D -DNO_MAKEDEV_RUN
 cd $D/dev
 sh MAKEDEV jail
 cd $D
 ln -sf dev/null kernel
 .Ed
+.Pp
+In many cases this example would put far more stuff in the jail than is needed.
+In the other extreme case a jail might contain only one single file:
+the executable to be run in the jail.
+.Pp
+We recommend experimentation and caution that it is a lot easier to
+start with a
+.Dq fat
+jail and remove things until it stops working,
+than it is to start with a
+.Dq thin
+jail and add things until it works.
 .Ss "Setting Up a Jail"
 Do what was described in
 .Sx "Setting Up a Jail Directory Tree"
