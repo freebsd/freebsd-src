@@ -1448,8 +1448,10 @@ DMenu MenuStartup = {
     NULL,
     { { "X Exit",	"Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
+#ifdef __i386__
       { " APM",		"Auto-power management services (typically laptops)",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "apm_enable=YES" },
+#endif
 #ifdef PCCARD_ARCH
       { " pccard",	"Enable PCCARD (AKA PCMCIA) services (also laptops)",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "pccard_enable=YES" },
