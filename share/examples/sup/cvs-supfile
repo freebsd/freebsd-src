@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.11 1997/03/06 06:18:50 asami Exp $
+# $Id: cvs-supfile,v 1.12 1997/04/27 00:36:47 asami Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # cvs development tree.  SUP (Software Update Protocol) allows you to
@@ -77,6 +77,7 @@ ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/
 #ports-editors release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-emulators release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-games release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-german release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-graphics release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-japanese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-korean release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
