@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.3 1995/01/30 02:13:05 jkh Exp $
+# $Id: netinst.sh,v 1.4 1995/02/02 04:13:22 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -65,13 +65,14 @@ network_basic_setup()
 network_setup_ether()
 {
 	dialog  --title "Ethernet Interface Name" --menu \
-	"Please select the type of ethernet interface you have:\n" -1 -1 8 \
+	"Please select the type of ethernet interface you have:\n" -1 -1 9 \
 	"ed0" "WD80x3, SMC, Novell NE[21]000 or 3C503 generic NIC at 0x280" \
 	"ed1" "Same as above, but at address 0x300 and IRQ 5" \
 	"ep0" "3COM 3C509 at address 0x300 and IRQ 10" \
 	"de0" "DEC PCI ethernet adapter (or compatible)" \
 	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
 	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
+	"ix0" "Intel EtherExpress" \
 	"le0" "DEC Etherworks ethernet adapter" \
 	"ze0" "PCMCIA IBM or National card at 0x300 and IRQ 5" \
 	  2> ${TMP}/menu.tmp.$$
