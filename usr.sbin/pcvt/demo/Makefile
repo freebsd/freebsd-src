@@ -18,37 +18,37 @@ CLEANFILES+= 	${DEMOS}
 
 # this seems to be the lowest common denominator
 
-chardemo.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+chardemo.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-colors.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+colors.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-sgr.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+sgr.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-cowscene.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+cowscene.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-xmas.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+xmas.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-outerlimit.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+outerlimit.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
 
-twzone.vt: ${.CURDIR}/$@.gz.uu
-	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip -f $@.gz
-	rm -f $@.gz
+twzone.vt: ${.CURDIR}/${.TARGET}.gz.uu
+	uudecode ${.CURDIR}/${.TARGET}.gz.uu
+	gunzip -f ${.TARGET}.gz
+	rm -f ${.TARGET}.gz
