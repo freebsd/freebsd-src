@@ -53,6 +53,9 @@
 
 /*
  * mb_alloc: network buffer allocator
+ *
+ * XXX: currently, the "low watermark" sysctl is marked read-only as its
+ * effects are not completely implemented.  To be fixed soon.
  */
 
 /*
@@ -318,11 +321,11 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW, &mbuf_wait, 0,
     "Sleep time of mbuf subsystem wait allocations during exhaustion");
 SYSCTL_UINT(_kern_ipc, OID_AUTO, mbuf_hiwm, CTLFLAG_RW, &mbuf_hiwm, 0,
     "Upper limit of number of mbufs allowed in each cache");
-SYSCTL_UINT(_kern_ipc, OID_AUTO, mbuf_lowm, CTLFLAG_RW, &mbuf_lowm, 0,
+SYSCTL_UINT(_kern_ipc, OID_AUTO, mbuf_lowm, CTLFLAG_RD, &mbuf_lowm, 0,
     "Lower limit of number of mbufs allowed in each cache");
 SYSCTL_UINT(_kern_ipc, OID_AUTO, clust_hiwm, CTLFLAG_RW, &clust_hiwm, 0,
     "Upper limit of number of mbuf clusters allowed in each cache");
-SYSCTL_UINT(_kern_ipc, OID_AUTO, clust_lowm, CTLFLAG_RW, &clust_lowm, 0,
+SYSCTL_UINT(_kern_ipc, OID_AUTO, clust_lowm, CTLFLAG_RD, &clust_lowm, 0,
     "Lower limit of number of mbuf clusters allowed in each cache");
 SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
     "Mbuf general information and statistics");
