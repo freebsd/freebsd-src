@@ -88,7 +88,9 @@ again:
 		}
 		if (((ifreq.ifr_flags & IFF_UP) &&
 		    ifr->ifr_addr.sa_family == AF_INET &&
-			!(ifreq.ifr_flags & IFF_LOOPBACK)) ||
+			!(ifreq.ifr_flags & IFF_LOOPBACK) &&
+			((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr
+			!= 0) ||
 		    (loopback == 1 && (ifreq.ifr_flags & IFF_LOOPBACK)
 			&& (ifr->ifr_addr.sa_family == AF_INET)
 			&& (ifreq.ifr_flags &  IFF_UP))) {
