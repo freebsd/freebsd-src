@@ -108,7 +108,41 @@ usbd_xfer_isread(usbd_xfer_handle xfer)
 }
 
 #ifdef USB_DEBUG
-void usbd_dump_queue(usbd_pipe_handle);
+void
+usbd_dump_iface(struct usbd_interface *iface)
+{
+	printf("usbd_dump_iface: iface=%p\n", iface);
+	if (iface == NULL)
+		return;
+	printf(" device=%p idesc=%p index=%d altindex=%d priv=%p\n",
+	       iface->device, iface->idesc, iface->index, iface->altindex,
+	       iface->priv);
+}
+
+void
+usbd_dump_device(struct usbd_device *dev)
+{
+	printf("usbd_dump_device: dev=%p\n", dev);
+	if (dev == NULL)
+		return;
+	printf(" bus=%p default_pipe=%p\n", dev->bus, dev->default_pipe);
+	printf(" address=%d config=%d depth=%d lowspeed=%d self_powered=%d power=%d langid=%d\n",
+	       dev->address, dev->config, dev->depth, dev->lowspeed,
+	       dev->self_powered, dev->power, dev->langid);
+}
+
+void
+usbd_dump_endpoint(struct usbd_endpoint *endp)
+{
+	printf("usbd_dump_endpoint: endp=%p\n", endp);
+	if (endp == NULL)
+		return;
+	printf(" edesc=%p refcnt=%d\n", endp->edesc, endp->refcnt);
+	if (endp->edesc)
+		printf(" bEndpointAddress=0x%02x\n",
+		       endp->edesc->bEndpointAddress);
+}
+
 void
 usbd_dump_queue(usbd_pipe_handle pipe)
 {
@@ -120,6 +154,21 @@ usbd_dump_queue(usbd_pipe_handle pipe)
 	     xfer = SIMPLEQ_NEXT(xfer, next)) {
 		printf("  xfer=%p\n", xfer);
 	}
+}
+
+void
+usbd_dump_pipe(usbd_pipe_handle pipe)
+{
+	printf("usbd_dump_pipe: pipe=%p\n", pipe);
+	if (pipe == NULL)
+		return;
+	usbd_dump_iface(pipe->iface);
+	usbd_dump_device(pipe->device);
+	usbd_dump_endpoint(pipe->endpoint);
+	printf(" (usbd_dump_pipe:)\n refcnt=%d running=%d aborting=%d\n",
+	       pipe->refcnt, pipe->running, pipe->aborting);
+	printf("intrxfer=%p, repeat=%d, interval=%d\n",
+	       pipe->intrxfer, pipe->repeat, pipe->interval);
 }
 #endif
 
