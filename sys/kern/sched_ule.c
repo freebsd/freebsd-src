@@ -1250,8 +1250,6 @@ sched_pctcpu(struct kse *ke)
 	if (ke->ke_ticks) {
 		int rtick;
 
-		/* Update to account for time potentially spent sleeping */
-		ke->ke_ltick = ticks;
 		/*
 		 * Don't update more frequently than twice a second.  Allowing
 		 * this causes the cpu usage to decay away too quickly due to
