@@ -4267,7 +4267,9 @@ key_timehandler(void)
 static void
 key_srandom()
 {
+#if 0   /* Already called in kern/init_main.c:proc0_post() */
 	srandom(time_second);
+#endif
 }
 
 u_long
