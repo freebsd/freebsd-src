@@ -29,7 +29,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $"
+# \$Id: make_device_driver.sh,v 1.5 1999/03/19 00:33:31 msmith Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -45,7 +45,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $
+ * \$Id: make_device_driver.sh,v 1.5 1999/03/19 00:33:31 msmith Exp $
  */
 
 
@@ -140,7 +140,7 @@ ${1}probe (struct isa_device *dev)
 		return (0);
 	}
 	if (scp) {
-		printf("unit $d already attached\n", unit);
+		printf("unit %d already attached\n", unit);
 		return (0);
 	}
 
@@ -211,11 +211,11 @@ ${1}attach (struct isa_device *dev)
 #define CHECKUNIT(RETVAL)					\
 do { /* the do-while is a safe way to do this grouping */	\
 	if (unit > N${UPPER}) {					\
-		printf(__FUNCTION__ ":bad unit $d\n", unit);	\
+		printf(__FUNCTION__ ":bad unit %d\n", unit);	\
 		return (RETVAL);				\
 	}							\
 	if (scp == NULL) { 					\
-		printf( __FUNCTION__ ": unit $d not attached\n", unit);\
+		printf( __FUNCTION__ ": unit %d not attached\n", unit);\
 		return (RETVAL);				\
 	}							\
 } while (0)						

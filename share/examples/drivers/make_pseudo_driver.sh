@@ -21,7 +21,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_pseudo_driver.sh,v 1.2 1997/12/30 03:23:13 julian Exp $"
+# \$Id: make_pseudo_driver.sh,v 1.4 1999/03/19 00:35:07 msmith Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ cat >../../dev/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_pseudo_driver.sh,v 1.2 1997/12/30 03:23:13 julian Exp $
+ * \$Id: make_pseudo_driver.sh,v 1.4 1999/03/19 00:35:07 msmith Exp $
  */
 
 
@@ -112,11 +112,11 @@ static sc_p sca[N${UPPER}];
 #define CHECKUNIT(RETVAL)					\
 do { /* the do-while is a safe way to do this grouping */	\
 	if (unit > N${UPPER}) {					\
-		printf(__FUNCTION__ ":bad unit $d\n", unit);	\
+		printf(__FUNCTION__ ":bad unit %d\n", unit);	\
 		return (RETVAL);				\
 	}							\
 	if (scp == NULL) { 					\
-		printf( __FUNCTION__ ": unit $d not attached\n", unit);\
+		printf( __FUNCTION__ ": unit %d not attached\n", unit);\
 		return (RETVAL);				\
 	}							\
 } while (0)						
