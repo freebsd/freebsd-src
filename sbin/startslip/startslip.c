@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.12 1995/09/15 22:18:45 ache Exp $
+ * $Id: startslip.c,v 1.13 1995/09/16 05:18:20 ache Exp $
  */
 
 #ifndef lint
@@ -108,10 +108,10 @@ main(argc, argv)
 	extern int optind;
 	char *cp, **ap;
 	int ch, disc;
-	void sighup(), sigterm();
+	void sighup(), sigterm(), sigurg();
 	FILE *wfd = NULL;
 	char *dialerstring = 0, buf[BUFSIZ];
-	int unitnum;
+	int unitnum, keepal = 0, outfill = 0;
 	char unitname[32];
 	char *username, *password;
 	char *upscript = NULL, *downscript = NULL;
@@ -120,7 +120,7 @@ main(argc, argv)
 	pid_t pid;
 	struct termios t;
 
-	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -160,6 +160,12 @@ main(argc, argv)
 		case 'h':
 			flowcontrol = FC_HW;
 			break;
+		case 'K':
+			keepal = atoi(optarg);
+			break;
+		case 'O':
+			outfill = atoi(optarg);
+			break;
 		case '?':
 		default:
 			usage();
@@ -191,6 +197,7 @@ main(argc, argv)
 	if (debug)
 		setbuf(stdout, NULL);
 
+	signal(SIGTERM, sigterm);
 	if ((dvname = strrchr(devicename, '/')) == NULL)
 		dvname = devicename;
 	else
@@ -206,8 +213,11 @@ main(argc, argv)
 		sleep(5);       /* allow down script to be completed */
 	} else
 restart:
+	signal(SIGHUP, SIG_IGN);
+	signal(SIGURG, SIG_IGN);
+	hup = 0;
 	if (logged_in) {
-		sprintf(buf, "LINE=%d %s %s down &",
+		sprintf(buf, "LINE=%d %s %s down",
 		diali ? (dialc - 1) % diali : 0,
 		downscript ? downscript : "/sbin/ifconfig" , unitname);
 		(void) system(buf);
@@ -223,8 +233,6 @@ restart:
 		*/
 			down(3);
 	}
-	signal(SIGHUP, SIG_IGN);
-	hup = 0;
 	if (wfd) {
 		printd("fclose, ");
 		fclose(wfd);
@@ -233,8 +241,7 @@ restart:
 		wfd = NULL;
 		fd = -1;
 		sleep(5);
-	}
-	if (fd >= 0) {
+	} else if (fd >= 0) {
 		printd("close, ");
 		close(fd);
 		uu_unlock(dvname);
@@ -281,7 +288,6 @@ restart:
 	}
 	printd(" %d", fd);
 	signal(SIGHUP, sighup);
-	signal(SIGTERM, sigterm);
 	if (debug) {
 		if (ioctl(fd, TIOCGETD, &disc) < 0)
 			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
@@ -422,11 +428,22 @@ restart:
 	}
 	sprintf(unitname, "sl%d", unitnum);
 
-	sprintf(buf, "LINE=%d %s %s up &",
+	sprintf(buf, "LINE=%d %s %s up",
 		diali ? (dialc - 1) % diali : 0,
 		upscript ? upscript : "/sbin/ifconfig" , unitname);
 	(void) system(buf);
 
+	if (keepal > 0) {
+		signal(SIGURG, sigurg);
+		if (ioctl(fd, SLIOCSKEEPAL, &keepal) < 0) {
+			syslog(LOG_ERR, "ioctl(SLIOCSKEEPAL): %m");
+			down(2);
+		}
+	}
+	if (outfill > 0 && ioctl(fd, SLIOCSOUTFILL, &outfill) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
+		down(2);
+	}
 	printd(", ready\n");
 	if (!first)
 		syslog(LOG_INFO, "reconnected on %s (%d tries).\n", unitname, tries);
@@ -447,6 +464,16 @@ sighup()
 	printd("hup\n");
 	if (hup == 0 && logged_in)
 		syslog(LOG_INFO, "hangup signal\n");
+	hup = 1;
+}
+
+void
+sigurg()
+{
+
+	printd("urg\n");
+	if (hup == 0 && logged_in)
+		syslog(LOG_INFO, "dead line signal\n");
 	hup = 1;
 }
 
@@ -547,6 +574,7 @@ usage()
 	(void)fprintf(stderr, "\
 usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname]\n\
 	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout]\n\
-	[-w retry_pause] [-W maxtries] device user passwd\n");
+	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill]\n\
+	device user passwd\n");
 	exit(1);
 }
