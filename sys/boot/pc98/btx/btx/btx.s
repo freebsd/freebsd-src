@@ -264,11 +264,11 @@ init.9:		pushb $0x0			#  general
 #
 exit:		cli				# Disable interrupts
 		movl $MEM_ESP0,%esp		# Clear stack
-ifdef(`PAGING',`
 #
 # Turn off paging.
 #
 		movl %cr0,%eax			# Get CR0
+ifdef(`PAGING',`
 		andl $~0x80000000,%eax		# Disable
 		movl %eax,%cr0			#  paging
 ')
@@ -900,11 +900,13 @@ intx30: 	cmpl $SYS_EXEC,%eax		# Exec system call?
 		movl $MEM_USR,%eax		# User base address
 		addl 0xc(%esp,1),%eax		# Change to user
 		leal 0x4(%eax),%esp		#  stack
+ifdef(`PAGING',`
 		movl %cr0,%eax			# Turn
 		andl $~0x80000000,%eax		#  off
 		movl %eax,%cr0			#  paging
 		xorl %eax,%eax			# Flush
 		movl %eax,%cr3			#  TLB
+')
 		popl %eax			# Call
 		call *%eax			#  program
 intx30.1:	incb %ss:btx_hdr+0x7		# Flag reboot
