@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder
  * Copyright (c) 2003 Poul-Henning Kamp
+ * Copyright (c) 2004 Joerg Wunsch
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +41,10 @@ __FBSDID("$FreeBSD$");
 
 #define	SL_TEXT		0x0
 #define	SL_TEXT_SIZEOF	0x80
+#define	SL_VTOC_VERS	0x80
+#define	SL_VTOC_NPART	0x8c
+#define	SL_VTOC_MAP	0x8e
+#define	SL_VTOC_SANITY	0xbc
 #define	SL_RPM		0x1a4
 #define	SL_PCYLINDERS	0x1a6
 #define	SL_SPARESPERCYL	0x1a8
@@ -54,7 +59,11 @@ __FBSDID("$FreeBSD$");
 
 #define	SDKP_CYLOFFSET	0
 #define	SDKP_NSECTORS	0x4
-#define	SDKP_SIZEOF	0x8
+#define	SDKP_SIZEOF	0x8	/* size of a partition entry */
+
+#define	SVTOC_TAG	0
+#define	SVTOC_FLAG	0x2
+#define	SVTOC_SIZEOF	0x4	/* size of a VTOC tag/flag entry */
 
 /*
  * Decode the relevant fields of a sun disk label, and return zero if the
@@ -66,6 +75,8 @@ sunlabel_dec(void const *pp, struct sun_disklabel *sl)
 	const uint8_t *p;
 	size_t i;
 	u_int u;
+	uint32_t vtocsane;
+	uint16_t npart;
 
 	p = pp;
 	for (i = 0; i < sizeof(sl->sl_text); i++)
@@ -85,6 +96,23 @@ sunlabel_dec(void const *pp, struct sun_disklabel *sl)
 		    (i * SDKP_SIZEOF) + SDKP_NSECTORS);
 	}
 	sl->sl_magic = be16dec(p + SL_MAGIC);
+	vtocsane = be32dec(p + SL_VTOC_SANITY);
+	npart = be16dec(p + SL_VTOC_NPART);
+	if (vtocsane == SUN_VTOC_SANE && npart == SUN_NPART) {
+		/*
+		 * Seems we've got SVR4-compatible VTOC information
+		 * as well, decode it.
+		 */
+		sl->sl_vtoc_sane = vtocsane;
+		sl->sl_vtoc_vers = be32dec(p + SL_VTOC_VERS);
+		sl->sl_vtoc_nparts = SUN_NPART;
+		for (i = 0; i < SUN_NPART; i++) {
+			sl->sl_vtoc_map[i].svtoc_tag = be16dec(p +
+				SL_VTOC_MAP + (i * SVTOC_SIZEOF) + SVTOC_TAG);
+			sl->sl_vtoc_map[i].svtoc_flag = be16dec(p +
+				SL_VTOC_MAP + (i * SVTOC_SIZEOF) + SVTOC_FLAG);
+		}
+	}
 	for (i = u = 0; i < SUN_SIZE; i += 2)
 		u ^= be16dec(p + i);
 	if (u == 0 && sl->sl_magic == SUN_DKMAGIC)
@@ -121,6 +149,23 @@ sunlabel_enc(void *pp, struct sun_disklabel *sl)
 		    sl->sl_part[i].sdkp_nsectors);
 	}
 	be16enc(p + SL_MAGIC, sl->sl_magic);
+	if (sl->sl_vtoc_sane == SUN_VTOC_SANE
+	    && sl->sl_vtoc_nparts == SUN_NPART) {
+		/*
+		 * Write SVR4-compatible VTOC elements.
+		 */
+		be32enc(p + SL_VTOC_VERS, sl->sl_vtoc_vers);
+		be32enc(p + SL_VTOC_SANITY, SUN_VTOC_SANE);
+		be16enc(p + SL_VTOC_NPART, SUN_NPART);
+		for (i = 0; i < SUN_NPART; i++) {
+			be16enc(p + SL_VTOC_MAP + (i * SVTOC_SIZEOF)
+				+ SVTOC_TAG,
+				sl->sl_vtoc_map[i].svtoc_tag);
+			be16enc(p + SL_VTOC_MAP + (i * SVTOC_SIZEOF)
+				+ SVTOC_FLAG,
+				sl->sl_vtoc_map[i].svtoc_flag);
+		}
+	}
 	for (i = u = 0; i < SUN_SIZE; i += 2)
 		u ^= be16dec(p + i);
 	be16enc(p + SL_CKSUM, u);
