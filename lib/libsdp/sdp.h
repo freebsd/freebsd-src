@@ -187,7 +187,7 @@ __BEGIN_DECLS
  */
 
 #define SDP_ATTR_RANGE(lo, hi) \
-	(u_int32_t)(((u_int16_t)(lo) << 16) | ((u_int16_t)(hi)))
+	(uint32_t)(((uint16_t)(lo) << 16) | ((uint16_t)(hi)))
 
 #define SDP_ATTR_SERVICE_RECORD_HANDLE			0x0000
 #define SDP_ATTR_SERVICE_CLASS_ID_LIST			0x0001
@@ -237,6 +237,7 @@ __BEGIN_DECLS
  * attribute ID for these attributes.
  */
 
+#define SDP_ATTR_PRIMARY_LANGUAGE_BASE_ID		0x0100
 #define SDP_ATTR_SERVICE_NAME_OFFSET			0x0000
 #define SDP_ATTR_SERVICE_DESCRIPTION_OFFSET		0x0001
 #define SDP_ATTR_PROVIDER_NAME_OFFSET			0x0002
@@ -254,12 +255,23 @@ __BEGIN_DECLS
 #define SDP_PDU_SERVICE_SEARCH_ATTRIBUTE_RESPONSE	0x07
 
 struct sdp_pdu {
-	u_int8_t	pid;	/* PDU ID - SDP_PDU_xxx */
-	u_int16_t	tid;	/* transaction ID */
-	u_int16_t	len;	/* parameters length (in bytes) */
+	uint8_t		pid;	/* PDU ID - SDP_PDU_xxx */
+	uint16_t	tid;	/* transaction ID */
+	uint16_t	len;	/* parameters length (in bytes) */
 } __attribute__ ((packed));
 typedef struct sdp_pdu		sdp_pdu_t;
 typedef struct sdp_pdu *	sdp_pdu_p;
+
+/*
+ * Error codes for SDP_PDU_ERROR_RESPONSE
+ */
+
+#define SDP_ERROR_CODE_INVALID_SDP_VERSION		0x0001
+#define SDP_ERROR_CODE_INVALID_SERVICE_RECORD_HANDLE	0x0002
+#define SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX		0x0003
+#define SDP_ERROR_CODE_INVALID_PDU_SIZE			0x0004
+#define SDP_ERROR_CODE_INVALID_CONTINUATION_STATE	0x0005
+#define SDP_ERROR_CODE_INSUFFICIENT_RESOURCES		0x0006
 
 /*
  * SDP int128/uint128 parameter
@@ -269,20 +281,20 @@ struct int128 {
 	int8_t	b[16];
 };
 typedef struct int128	int128_t;
-typedef struct int128	u_int128_t;
+typedef struct int128	uint128_t;
 
 /*
  * SDP attribute
  */
 
 struct sdp_attr {
-	u_int16_t	 flags;
+	uint16_t	 flags;
 #define SDP_ATTR_OK		(0 << 0)
 #define SDP_ATTR_INVALID	(1 << 0)
 #define SDP_ATTR_TRUNCATED	(1 << 1)
-	u_int16_t	 attr;  /* SDP_ATTR_xxx */
-	u_int32_t	 vlen;	/* length of the value[] in bytes */
-	u_int8_t	*value;	/* base pointer */
+	uint16_t	 attr;  /* SDP_ATTR_xxx */
+	uint32_t	 vlen;	/* length of the value[] in bytes */
+	uint8_t		*value;	/* base pointer */
 };
 typedef struct sdp_attr		sdp_attr_t;
 typedef struct sdp_attr *	sdp_attr_p;
@@ -293,46 +305,46 @@ typedef struct sdp_attr *	sdp_attr_p;
 
 /* Inline versions of get/put byte/short/long. Pointer is advanced */
 #define SDP_GET8(b, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	(b) = *t_cp; \
 	(cp) ++; \
 }
 
 #define SDP_GET16(s, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
-	(s) = ((u_int16_t)t_cp[0] << 8) \
-	    | ((u_int16_t)t_cp[1]) \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
+	(s) = ((uint16_t)t_cp[0] << 8) \
+	    | ((uint16_t)t_cp[1]) \
 	    ; \
 	(cp) += 2; \
 }
 
 #define SDP_GET32(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
-	(l) = ((u_int32_t)t_cp[0] << 24) \
-	    | ((u_int32_t)t_cp[1] << 16) \
-	    | ((u_int32_t)t_cp[2] << 8) \
-	    | ((u_int32_t)t_cp[3]) \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
+	(l) = ((uint32_t)t_cp[0] << 24) \
+	    | ((uint32_t)t_cp[1] << 16) \
+	    | ((uint32_t)t_cp[2] << 8) \
+	    | ((uint32_t)t_cp[3]) \
 	    ; \
 	(cp) += 4; \
 }
 
 #define SDP_GET64(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
-	(l) = ((u_int64_t)t_cp[0] << 56) \
-	    | ((u_int64_t)t_cp[1] << 48) \
-	    | ((u_int64_t)t_cp[2] << 40) \
-	    | ((u_int64_t)t_cp[3] << 32) \
-	    | ((u_int64_t)t_cp[4] << 24) \
-	    | ((u_int64_t)t_cp[5] << 16) \
-	    | ((u_int64_t)t_cp[6] << 8) \
-	    | ((u_int64_t)t_cp[7]) \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
+	(l) = ((uint64_t)t_cp[0] << 56) \
+	    | ((uint64_t)t_cp[1] << 48) \
+	    | ((uint64_t)t_cp[2] << 40) \
+	    | ((uint64_t)t_cp[3] << 32) \
+	    | ((uint64_t)t_cp[4] << 24) \
+	    | ((uint64_t)t_cp[5] << 16) \
+	    | ((uint64_t)t_cp[6] << 8) \
+	    | ((uint64_t)t_cp[7]) \
 	    ; \
 	(cp) += 8; \
 }
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SDP_GET128(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	(l)->b[15] = *t_cp++; \
 	(l)->b[14] = *t_cp++; \
 	(l)->b[13] = *t_cp++; \
@@ -352,7 +364,7 @@ typedef struct sdp_attr *	sdp_attr_p;
 }
 #else /* BYTE_ORDER != LITTLE_ENDIAN */
 #define SDP_GET128(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	(l)->b[0]  = *t_cp++; \
 	(l)->b[1]  = *t_cp++; \
 	(l)->b[2]  = *t_cp++; \
@@ -374,23 +386,23 @@ typedef struct sdp_attr *	sdp_attr_p;
 #endif /* BYTE_ORDER */
 
 #define SDP_PUT8(b, cp) { \
-	register u_int8_t t_b = (u_int8_t)(b); \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t t_b = (uint8_t)(b); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp = t_b; \
 	(cp) ++; \
 }
 
 #define SDP_PUT16(s, cp) { \
-	register u_int16_t t_s = (u_int16_t)(s); \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint16_t t_s = (uint16_t)(s); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = t_s >> 8; \
 	*t_cp   = t_s; \
 	(cp) += 2; \
 }
 
 #define SDP_PUT32(l, cp) { \
-	register u_int32_t t_l = (u_int32_t)(l); \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint32_t t_l = (uint32_t)(l); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = t_l >> 24; \
 	*t_cp++ = t_l >> 16; \
 	*t_cp++ = t_l >> 8; \
@@ -399,8 +411,8 @@ typedef struct sdp_attr *	sdp_attr_p;
 }
 
 #define SDP_PUT64(l, cp) { \
-	register u_int64_t t_l = (u_int64_t)(l); \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint64_t t_l = (uint64_t)(l); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = t_l >> 56; \
 	*t_cp++ = t_l >> 48; \
 	*t_cp++ = t_l >> 40; \
@@ -414,7 +426,7 @@ typedef struct sdp_attr *	sdp_attr_p;
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SDP_PUT128(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = (l)->b[15]; \
 	*t_cp++ = (l)->b[14]; \
 	*t_cp++ = (l)->b[13]; \
@@ -435,7 +447,7 @@ typedef struct sdp_attr *	sdp_attr_p;
 }
 #else /* BYTE_ORDER != LITTLE_ENDIAN */
 #define SDP_PUT128(l, cp) { \
-	register u_int8_t *t_cp = (u_int8_t *)(cp); \
+	register uint8_t *t_cp = (uint8_t *)(cp); \
 	*t_cp++ = (l)->b[0];  \
 	*t_cp++ = (l)->b[1];  \
 	*t_cp++ = (l)->b[2];  \
@@ -462,14 +474,83 @@ int32_t            sdp_close      (void *xs);
 int32_t            sdp_error      (void *xs);
 
 int32_t            sdp_search     (void *xs,
-                                   u_int32_t plen, u_int16_t const *pp,
-                                   u_int32_t alen, u_int32_t const *ap,
-                                   u_int32_t vlen, sdp_attr_t *vp);
+                                   uint32_t plen, uint16_t const *pp,
+                                   uint32_t alen, uint32_t const *ap,
+                                   uint32_t vlen, sdp_attr_t *vp);
 
-char const * const sdp_attr2desc  (u_int16_t attr);
-char const * const sdp_uuid2desc  (u_int16_t uuid);
-void               sdp_print      (u_int32_t level, u_int8_t const *start,
-                                   u_int8_t const *end);
+char const * const sdp_attr2desc  (uint16_t attr);
+char const * const sdp_uuid2desc  (uint16_t uuid);
+void               sdp_print      (uint32_t level, uint8_t const *start,
+                                   uint8_t const *end);
+
+/******************************************************************************
+ * sdpd interface and Bluetooth profiles data
+ *****************************************************************************/
+
+#define SDP_LOCAL_PATH	"/var/run/sdp"
+#define SDP_LOCAL_MTU	4096
+
+struct sdp_dun_profile
+{
+	uint8_t	server_channel;
+	uint8_t	audio_feedback_support;
+	uint8_t	reserved[2];
+};
+typedef struct sdp_dun_profile		sdp_dun_profile_t;
+typedef struct sdp_dun_profile *	sdp_dun_profile_p;
+
+struct sdp_ftrn_profile
+{
+	uint8_t	server_channel;
+	uint8_t	reserved[3];
+};
+typedef struct sdp_ftrn_profile		sdp_ftrn_profile_t;
+typedef struct sdp_ftrn_profile *	sdp_ftrn_profile_p;
+
+struct sdp_irmc_profile
+{
+	uint8_t	server_channel;
+	uint8_t	supported_formats_size;
+	uint8_t	supported_formats[30];
+};
+typedef struct sdp_irmc_profile		sdp_irmc_profile_t;
+typedef struct sdp_irmc_profile *	sdp_irmc_profile_p;
+
+struct sdp_irmc_command_profile
+{
+	uint8_t	server_channel;
+	uint8_t	reserved[3];
+};
+typedef struct sdp_irmc_command_profile		sdp_irmc_command_profile_t;
+typedef struct sdp_irmc_command_profile *	sdp_irmc_command_profile_p;
+
+struct sdp_lan_profile
+{
+	uint8_t		server_channel;
+	uint8_t		load_factor;
+	uint8_t		reserved;
+	uint8_t		ip_subnet_radius;
+	uint32_t	ip_subnet;
+};
+typedef struct sdp_lan_profile		sdp_lan_profile_t;
+typedef struct sdp_lan_profile *	sdp_lan_profile_p;
+
+struct sdp_opush_profile
+{
+	uint8_t	server_channel;
+	uint8_t	supported_formats_size;
+	uint8_t	supported_formats[30];
+};
+typedef struct sdp_opush_profile	sdp_opush_profile_t;
+typedef struct sdp_opush_profile *	sdp_opush_profile_p;
+
+struct sdp_sp_profile
+{
+	uint8_t	server_channel;
+	uint8_t	reserved[3];
+};
+typedef struct sdp_sp_profile	sdp_sp_profile_t;
+typedef struct sdp_sp_profile *	sdp_sp_profile_p;
 
 __END_DECLS
 

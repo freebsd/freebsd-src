@@ -44,17 +44,17 @@
 
 int32_t
 sdp_search(void *xss,
-		u_int32_t plen, u_int16_t const *pp,
-		u_int32_t alen, u_int32_t const *ap,
-		u_int32_t vlen, sdp_attr_t *vp)
+		uint32_t plen, uint16_t const *pp,
+		uint32_t alen, uint32_t const *ap,
+		uint32_t vlen, sdp_attr_t *vp)
 {
 	struct sdp_xpdu {
-		sdp_pdu_t	pdu;
-		u_int16_t	len;
+		sdp_pdu_t		 pdu;
+		uint16_t		 len;
 	} __attribute__ ((packed))	 xpdu;
 
 	sdp_session_p			 ss = (sdp_session_p) xss;
-	u_int8_t			*req = NULL, *rsp = NULL, *rsp_tmp = NULL;
+	uint8_t				*req = NULL, *rsp = NULL, *rsp_tmp = NULL;
 	int32_t				 type, len;
 
 	if (ss == NULL)
@@ -71,11 +71,11 @@ sdp_search(void *xss,
 	plen = plen * (sizeof(pp[0]) + 1);
 	alen = alen * (sizeof(ap[0]) + 1);
 
-	len =	plen + sizeof(u_int8_t) + sizeof(u_int16_t) +
+	len =	plen + sizeof(uint8_t) + sizeof(uint16_t) +
 			/* ServiceSearchPattern */
-		sizeof(u_int16_t) +
+		sizeof(uint16_t) +
 			/* MaximumAttributeByteCount */
-		alen + sizeof(u_int8_t) + sizeof(u_int16_t);
+		alen + sizeof(uint8_t) + sizeof(uint16_t);
 			/* AttributeIDList */
 
 	if (ss->req_e - req < len) {
@@ -108,7 +108,7 @@ sdp_search(void *xss,
 
 	do {
 		struct iovec	 iov[2];
-		u_int8_t	*req_cs = req;
+		uint8_t		*req_cs = req;
 
 		/* Add continuation state (if any) */
 		if (ss->req_e - req_cs < ss->cslen + 1) {
@@ -182,7 +182,7 @@ sdp_search(void *xss,
 			 */
 
 			if (ss->rsp_e - rsp <= ss->imtu) {
-				u_int32_t	 size, offset;
+				uint32_t	 size, offset;
 
 				size = ss->rsp_e - ss->rsp + ss->imtu;
 				offset = rsp - ss->rsp;
@@ -295,57 +295,57 @@ sdp_search(void *xss,
 			case SDP_DATA_UINT8:
 			case SDP_DATA_INT8:
 			case SDP_DATA_BOOL:
-				alen = sizeof(u_int8_t);
+				alen = sizeof(uint8_t);
 				break;
 
 			case SDP_DATA_UINT16:
 			case SDP_DATA_INT16:
 			case SDP_DATA_UUID16:
-				alen = sizeof(u_int16_t);
+				alen = sizeof(uint16_t);
 				break;
 
 			case SDP_DATA_UINT32:
 			case SDP_DATA_INT32:
 			case SDP_DATA_UUID32:
-				alen = sizeof(u_int32_t);
+				alen = sizeof(uint32_t);
 				break;
 
 			case SDP_DATA_UINT64:
 			case SDP_DATA_INT64:
-				alen = sizeof(u_int64_t);
+				alen = sizeof(uint64_t);
 				break;
 
 			case SDP_DATA_UINT128:
 			case SDP_DATA_INT128:
 			case SDP_DATA_UUID128:
-				alen = sizeof(u_int128_t);
+				alen = sizeof(uint128_t);
 				break;
 
 			case SDP_DATA_STR8:
 			case SDP_DATA_URL8:
 			case SDP_DATA_SEQ8:
 			case SDP_DATA_ALT8:
-				alen = rsp_tmp[1] + sizeof(u_int8_t);
+				alen = rsp_tmp[1] + sizeof(uint8_t);
 				break;
 
 			case SDP_DATA_STR16:
 			case SDP_DATA_URL16:
 			case SDP_DATA_SEQ16:
 			case SDP_DATA_ALT16:
-				alen =	  ((u_int16_t)rsp_tmp[1] << 8)
-					| ((u_int16_t)rsp_tmp[2]);
-				alen += sizeof(u_int16_t);
+				alen =	  ((uint16_t)rsp_tmp[1] << 8)
+					| ((uint16_t)rsp_tmp[2]);
+				alen += sizeof(uint16_t);
 				break;
 
 			case SDP_DATA_STR32:
 			case SDP_DATA_URL32:
 			case SDP_DATA_SEQ32:
 			case SDP_DATA_ALT32:
-				alen =    ((u_int32_t)rsp_tmp[1] << 24)
-					| ((u_int32_t)rsp_tmp[2] << 16)
-					| ((u_int32_t)rsp_tmp[3] <<  8)
-					| ((u_int32_t)rsp_tmp[4]);
-				alen += sizeof(u_int32_t);
+				alen =    ((uint32_t)rsp_tmp[1] << 24)
+					| ((uint32_t)rsp_tmp[2] << 16)
+					| ((uint32_t)rsp_tmp[3] <<  8)
+					| ((uint32_t)rsp_tmp[4]);
+				alen += sizeof(uint32_t);
 				break;
 
 			default:
@@ -354,7 +354,7 @@ sdp_search(void *xss,
 				/* NOT REACHED */
 			}
 
-			alen += sizeof(u_int8_t);
+			alen += sizeof(uint8_t);
 
 			if (vp->value != NULL) {
 				if (alen <= vp->vlen) {
@@ -368,7 +368,7 @@ sdp_search(void *xss,
 				vp->flags = SDP_ATTR_INVALID;
 
 			len -=	(
-				sizeof(u_int8_t) + sizeof(u_int16_t) +
+				sizeof(uint8_t) + sizeof(uint16_t) +
 				alen
 				);
 

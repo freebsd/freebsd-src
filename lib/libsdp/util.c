@@ -38,7 +38,7 @@
  */
 
 struct sdp_attr_desc {
-	u_int32_t	 attr;
+	uint32_t	 attr;
 	char const	*desc;
 };
 typedef struct sdp_attr_desc	sdp_attr_desc_t;
@@ -244,7 +244,7 @@ static sdp_attr_desc_t	sdp_attrs_desc[] = {
 };
 
 char const * const
-sdp_attr2desc(u_int16_t attr)
+sdp_attr2desc(uint16_t attr)
 {
 	register sdp_attr_desc_p	a = sdp_attrs_desc;
 
@@ -256,7 +256,7 @@ sdp_attr2desc(u_int16_t attr)
 }
 
 char const * const
-sdp_uuid2desc(u_int16_t uuid)
+sdp_uuid2desc(uint16_t uuid)
 {
 	register sdp_attr_desc_p	a = sdp_uuids_desc;
 
@@ -268,7 +268,7 @@ sdp_uuid2desc(u_int16_t uuid)
 }
 
 void
-sdp_print(u_int32_t level, u_int8_t const *start, u_int8_t const *end)
+sdp_print(uint32_t level, uint8_t const *start, uint8_t const *end)
 {
 	union {
 		int8_t		int8;
@@ -280,9 +280,9 @@ sdp_print(u_int32_t level, u_int8_t const *start, u_int8_t const *end)
 		uint16_t	uint16;
 		uint32_t	uint32;
 		uint64_t	uint64;
-	}				value;
-	u_int8_t			type;
-	u_int32_t			i;
+	}			value;
+	uint8_t			type;
+	uint32_t		i;
 
 	if (start == NULL || end == NULL)
 		return;
@@ -320,12 +320,12 @@ sdp_print(u_int32_t level, u_int8_t const *start, u_int8_t const *end)
 		case SDP_DATA_UUID128:
 			SDP_GET128(&value.int128, start);
 			printf("int128/uuid128 %#8.8x-%4.4x-%4.4x-%4.4x-%4.4x%8.8x\n",
-				*(u_int32_t *)&value.int128.b[0],
-				*(u_int16_t *)&value.int128.b[4],
-				*(u_int16_t *)&value.int128.b[6],
-				*(u_int16_t *)&value.int128.b[8],
-				*(u_int16_t *)&value.int128.b[10],
-				*(u_int32_t *)&value.int128.b[12]);
+				*(uint32_t *)&value.int128.b[0],
+				*(uint16_t *)&value.int128.b[4],
+				*(uint16_t *)&value.int128.b[6],
+				*(uint16_t *)&value.int128.b[8],
+				*(uint16_t *)&value.int128.b[10],
+				*(uint32_t *)&value.int128.b[12]);
 			break;
 
 		case SDP_DATA_INT8:
