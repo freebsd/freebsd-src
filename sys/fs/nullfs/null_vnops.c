@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.20 1997/06/26 17:12:59 alex Exp $
+ *	$Id: null_vnops.c,v 1.21 1997/08/02 14:32:05 bde Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.20 1997/06/26 17:12:59 alex Exp $
+ * $Id: null_vnops.c,v 1.21 1997/08/02 14:32:05 bde Exp $
  */
 
 /*
@@ -326,7 +326,8 @@ null_bypass(ap)
 			goto out;
 		vppp = VOPARG_OFFSETTO(struct vnode***,
 				 descp->vdesc_vpp_offset,ap);
-		error = null_node_create(old_vps[0]->v_mount, **vppp, *vppp);
+		if (*vppp)
+			error = null_node_create(old_vps[0]->v_mount, **vppp, *vppp);
 	}
 
  out:
