@@ -258,6 +258,8 @@ FreeBSD-specific updates, which aren't reflected in the original,
 third-party software distributions.  pkg_version(1) can now compare
 these new-style version numbers.  [MERGED]
 
+cvs(1) has been updated to 1.11.
+
 
 2. Supported Configurations
 ---------------------------
