@@ -32,21 +32,26 @@
 .\"	@(#)rain.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.TH RAIN 6 "May 31, 1993"
-.UC 4
-.SH NAME
-rain \- animated raindrops display
-.SH SYNOPSIS
-rain
-[ \-d delay ]
-.SH DESCRIPTION
-.ad b
-.IR Rain 's
-display is modeled after the VAX/VMS program of the same name.
+.Dd May 31, 1993
+.Dt RAIN 6
+.Os
+.Sh NAME
+.Nm rain
+.Nd animated raindrops display
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar delay
+.Sh DESCRIPTION
+The output of
+.Nm
+is modeled after the
+.Tn VAX/VMS
+program of the same name.
 To obtain the proper effect, either the terminal must be set for 9600
 baud or the
 .Fl d
 option must be used to specify a delay, in milliseconds, between each
-update.  A reasonable delay is 120; the default is 0.
-.SH AUTHOR
-Eric P. Scott
+update.
+A reasonable delay is 120; the default is 0.
+.Sh AUTHORS
+.An Eric P. Scott
