@@ -597,7 +597,10 @@ struct usb_device_info {
 	u_int8_t	subclass;
 	u_int8_t	protocol;
 	u_int8_t	config;
-	u_int8_t	lowspeed;
+	u_int8_t	speed;
+#define USB_SPEED_LOW  1
+#define USB_SPEED_FULL 2
+#define USB_SPEED_HIGH 3
 	int		power;	/* power consumption in mA, 0 if selfpowered */
 	int		nports;
 	char		devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
