@@ -57,8 +57,10 @@ static const char rcsid[] =
 
 int	fflag;				/* Unlink existing files. */
 int	sflag;				/* Symbolic, not hard, link. */
+int	vflag;				/* Verbose output. */
 					/* System link call. */
 int (*linkf) __P((const char *, const char *));
+char	linkch;
 
 int	linkit __P((char *, char *, int));
 void	usage __P((void));
@@ -73,13 +75,16 @@ main(argc, argv)
 	int ch, exitval;
 	char *sourcedir;
 
-	while ((ch = getopt(argc, argv, "fs")) != -1)
+	while ((ch = getopt(argc, argv, "fsv")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
 			break;
 		case 's':
 			sflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		case '?':
 		default:
@@ -90,6 +95,7 @@ main(argc, argv)
 	argc -= optind;
 
 	linkf = sflag ? symlink : link;
+	linkch = sflag ? '-' : '=';
 
 	switch(argc) {
 	case 0:
@@ -153,6 +159,8 @@ linkit(target, source, isdir)
 		warn("%s", source);
 		return (1);
 	}
+	if (vflag)
+		(void)printf("%s %c> %s\n", source, linkch, target);
 	return (0);
 }
 
@@ -160,7 +168,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: ln [-fs] file1 file2",
-	    "       ln [-fs] file ... directory");
+	    "usage: ln [-fsv] file1 file2",
+	    "       ln [-fsv] file ... directory");
 	exit(1);
 }
