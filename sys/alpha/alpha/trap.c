@@ -104,11 +104,9 @@ userret(p, frame, oticks)
 	int sig;
 
 	/* take pending signals */
-	while ((sig = CURSIG(p)) != 0) {
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
-	}
+
 	mtx_lock_spin(&sched_lock);
 	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (resched_wanted()) {
@@ -126,11 +124,8 @@ userret(p, frame, oticks)
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		PICKUP_GIANT();
-		while ((sig = CURSIG(p)) != 0) {
-			if (!mtx_owned(&Giant))
-				mtx_lock(&Giant);
+		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
-		}
 		mtx_lock_spin(&sched_lock);
 	} 
 
@@ -729,6 +724,7 @@ syscall(code, framep)
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
 #endif
+	mtx_unlock(&Giant);
 
 	/*
 	 * This works because errno is findable through the
@@ -736,7 +732,6 @@ syscall(code, framep)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
-	mtx_unlock(&Giant);
 
 #ifdef WITNESS
 	if (witness_list(p)) {
@@ -781,24 +776,24 @@ ast(framep)
 		p->p_sflag &= ~PS_OWEUPC;
 		mtx_unlock_spin(&sched_lock);
 		mtx_lock(&Giant);
-		mtx_lock_spin(&sched_lock);
+		mtx_lock_spin(&sched_lock); /* XXX */
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
 			    p->p_stats->p_prof.pr_ticks);
 	}
 	if (p->p_sflag & PS_ALRMPEND) {
 		p->p_sflag &= ~PS_ALRMPEND;
 		mtx_unlock_spin(&sched_lock);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
+		PROC_UNLOCK(p);
 		mtx_lock_spin(&sched_lock);
 	}
 	if (p->p_sflag & PS_PROFPEND) {
 		p->p_sflag &= ~PS_PROFPEND;
 		mtx_unlock_spin(&sched_lock);
-		if (!mtx_owned(&Giant))
-			mtx_lock(&Giant);
+		PROC_LOCK(p);
 		psignal(p, SIGPROF);
+		PROC_UNLOCK(p);
 	} else
 		mtx_unlock_spin(&sched_lock);
 
