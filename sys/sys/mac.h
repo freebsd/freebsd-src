@@ -230,6 +230,10 @@ void	mac_thread_userret(struct thread *td);
 int	mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet);
 int	mac_check_cred_visible(struct ucred *u1, struct ucred *u2);
 int	mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *m);
+int	mac_check_kenv_dump(struct ucred *cred);
+int	mac_check_kenv_get(struct ucred *cred, char *name);
+int	mac_check_kenv_set(struct ucred *cred, char *name, char *value);
+int	mac_check_kenv_unset(struct ucred *cred, char *name);
 int	mac_check_mount_stat(struct ucred *cred, struct mount *mp);
 int	mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 	    unsigned long cmd, void *data);
