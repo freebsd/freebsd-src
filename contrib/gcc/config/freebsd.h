@@ -32,7 +32,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* This defines which switch letters take arguments.  On FreeBSD, most of
    the normal cases (defined in gcc.c) apply, and we also have -h* and
-   -z* options (for the linker) (comming from svr4).
+   -z* options (for the linker) (coming from SVR4).
    We also have -R (alias --rpath), no -z, --soname (-h), --assert etc.  */
 
 #define FBSD_SWITCH_TAKES_ARG(CHAR) \
@@ -59,12 +59,12 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 #define FBSD_CPP_PREDEFINES " -Dunix -D__FreeBSD__=5 -D__FreeBSD_cc_version=500002 -Asystem(unix) -Asystem(FreeBSD) "
 
-#define FBSD_CPP_SPEC "\
-  %(cpp_cpu) \
-  %{!maout: -D__ELF__} \
-  %{munderscores: -D__UNDERSCORES__} \
-  %{maout: %{!mno-underscores: -D__UNDERSCORES__}} \
-  %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} \
+#define FBSD_CPP_SPEC "							\
+  %(cpp_cpu)								\
+  %{!maout: -D__ELF__}							\
+  %{munderscores: -D__UNDERSCORES__}					\
+  %{maout: %{!mno-underscores: -D__UNDERSCORES__}}			\
+  %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
   %{posix:-D_POSIX_SOURCE}"
 
 #undef  CPP_SPEC
@@ -75,10 +75,10 @@ Boston, MA 02111-1307, USA.  */
    libc_r if supporting threads.
    (like the default, except no -lg, and no -p).  */
 #undef  LIB_SPEC
-#define LIB_SPEC "\
-  %{!shared: \
-    %{!pg: %{pthread:-lc_r} -lc} \
-    %{pg:  %{pthread:-lc_r_p} -lc_p} \
+#define LIB_SPEC "							\
+  %{!shared:								\
+    %{!pg: %{pthread:-lc_r} -lc}					\
+    %{pg:  %{pthread:-lc_r_p} -lc_p}					\
   }"
 
 
@@ -100,7 +100,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  SCCS_DIRECTIVE
 #define SCCS_DIRECTIVE
 
-/* Tell libgcc2.c that FreeBSD targets support atexit(3).  */
 #undef  HAVE_ATEXIT
 #define HAVE_ATEXIT
 
@@ -108,7 +107,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Don't default to pcc-struct-return, because gcc is the only compiler, and
    we want to retain compatibility with older gcc versions
-   (even though the svr4 ABI for the i386 says that records and unions are
+   (even though the SVR4 ABI for the i386 says that records and unions are
    returned in memory).  */
 #undef  DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
@@ -154,17 +153,17 @@ Boston, MA 02111-1307, USA.  */
 
 /* Attach a special .ident directive to the end of the file to identify
    the version of GCC which compiled this code.  The format of the
-   .ident string is patterned after the ones produced by native svr4
+   .ident string is patterned after the ones produced by native SVR4
    C compilers.  */
 
 #undef  IDENT_ASM_OP
-#define IDENT_ASM_OP	".ident"
+#define IDENT_ASM_OP	"\t.ident\t"
 
 /* Output #ident as a .ident.  */
 
 #undef  ASM_OUTPUT_IDENT
 #define ASM_OUTPUT_IDENT(FILE, NAME) \
-  fprintf ((FILE), "\t%s\t\"%s\"\n", IDENT_ASM_OP, (NAME));
+  fprintf ((FILE), "%s\"%s\"\n", IDENT_ASM_OP, (NAME));
 
 /* Identify the front-end which produced this file.  To keep symbol
    space down, and not confuse kdb, only do this if the language is
@@ -181,25 +180,25 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_FILE_END(FILE)						\
   do {				 					\
     if (!flag_no_ident)							\
-      fprintf ((FILE), "\t%s\t\"[ASM_FILE_END]GCC: (%s) %s\"\n",	\
+      fprintf ((FILE), "%s\"[ASM_FILE_END]GCC: (%s) %s\"\n",		\
 		IDENT_ASM_OP, lang_identify(), version_string);		\
   } while (0)
 
 /* This is the pseudo-op used to generate a contiguous sequence of byte
    values from a double-quoted string WITHOUT HAVING A TERMINATING NUL
-   AUTOMATICALLY APPENDED.  This is the same for most svr4 assemblers.  */
+   AUTOMATICALLY APPENDED.  This is the same for most SVR4 assemblers.  */
 
 #undef  ASCII_DATA_ASM_OP
-#define ASCII_DATA_ASM_OP	".ascii"
+#define ASCII_DATA_ASM_OP	"\t.ascii\t"
 
 #undef  ASM_BYTE_OP
-#define ASM_BYTE_OP		".byte"
+#define ASM_BYTE_OP		"\t.byte\t"
 
 /* This is how to allocate empty space in some section.  The .zero
    pseudo-op is used for this on most ELF assemblers.  */
 
 #undef  SKIP_ASM_OP
-#define SKIP_ASM_OP		".zero"
+#define SKIP_ASM_OP		"\t.zero\t"
 
 /* How to output some space.  The rules are different depending on the
    object format.  */
@@ -208,11 +207,11 @@ Boston, MA 02111-1307, USA.  */
   do {									\
     if (TARGET_ELF)							\
       {									\
-        fprintf ((FILE), "\t%s\t%u\n", SKIP_ASM_OP, (SIZE));		\
+        fprintf ((FILE), "%s%u\n", SKIP_ASM_OP, (SIZE));		\
       }									\
     else								\
       {									\
-        fprintf ((FILE), "\t.space %u\n", (SIZE));			\
+        fprintf ((FILE), "\t.space\t%u\n", (SIZE));			\
       }									\
   } while (0)
 
@@ -226,7 +225,7 @@ Boston, MA 02111-1307, USA.  */
    byte value should be output as a \ followed by the value
    in the table.  Note that we can use standard UN*X escape
    sequences for many control characters, but we don't use
-   \a to represent BEL because some svr4 assemblers (e.g. on
+   \a to represent BEL because some SVR4 assemblers (e.g. on
    the i386) don't know about that.  Also, we don't use \v
    since some versions of gas, such as 2.2 did not accept it.  */
 
@@ -240,10 +239,10 @@ Boston, MA 02111-1307, USA.  */
 \1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\
 \1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
 
-/* Some svr4 assemblers have a limit on the number of characters which
+/* Some SVR4 assemblers have a limit on the number of characters which
    can appear in the operand of a .string directive.  If your assembler
    has such a limitation, you should define STRING_LIMIT to reflect that
-   limit.  Note that at least some svr4 assemblers have a limit on the
+   limit.  Note that at least some SVR4 assemblers have a limit on the
    actual number of bytes in the double-quoted string, and that they
    count each character in an escape sequence as one byte.  Thus, an
    escape sequence like \377 would count as four bytes.
@@ -256,18 +255,18 @@ Boston, MA 02111-1307, USA.  */
 #define STRING_LIMIT	((unsigned) 256)
 
 #undef  STRING_ASM_OP
-#define STRING_ASM_OP	".string"
+#define STRING_ASM_OP	"\t.string\t"
 
 /* Output the label which precedes a jumptable.  Note that for all svr4/ELF
    systems where we actually generate jumptables (which is to say every
-   svr4 target except i386, where we use casesi instead) we put the jump-
+   SVR4 target except i386, where we use casesi instead) we put the jump-
    tables into the .rodata section and since other stuff could have been
    put into the .rodata section prior to any given jumptable, we have to
    make sure that the location counter for the .rodata section gets pro-
    perly re-aligned prior to the actual beginning of the jump table.  */
 
 #undef  ALIGN_ASM_OP
-#define ALIGN_ASM_OP	".align"
+#define ALIGN_ASM_OP	"\t.align\t"
 
 /* This says how to output assembler code to declare an
    uninitialized external linkage data object.  Under SVR4/ELF,
@@ -275,14 +274,14 @@ Boston, MA 02111-1307, USA.  */
    to depend on their types.  We do exactly that here.  */
 
 #undef  COMMON_ASM_OP
-#define COMMON_ASM_OP	".comm"
+#define COMMON_ASM_OP	"\t.comm\t"
 
 #undef  ASM_OUTPUT_ALIGNED_COMMON
 #define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
   do {									\
     if (TARGET_ELF)							\
-      {							\
-	fprintf ((FILE), "\t%s\t", COMMON_ASM_OP);			\
+      {									\
+	fprintf ((FILE), "%s", COMMON_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), ",%u,%u\n", (SIZE), (ALIGN) / BITS_PER_UNIT);	\
       }									\
@@ -293,7 +292,7 @@ Boston, MA 02111-1307, USA.  */
 	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
 	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
 		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
-	fputs (".comm ", (FILE));					\
+	fprintf ((FILE), "%s ", COMMON_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), ",%u\n", (rounded));				\
       }									\
@@ -305,7 +304,7 @@ Boston, MA 02111-1307, USA.  */
    to depend on their types.  We do exactly that here.  */
 
 #undef  LOCAL_ASM_OP
-#define LOCAL_ASM_OP	".local"
+#define LOCAL_ASM_OP	"\t.local\t"
 
 /* This says how to output assembler code to declare an
    uninitialized internal linkage data object.  Under SVR4,
@@ -317,7 +316,7 @@ Boston, MA 02111-1307, USA.  */
   do {									\
     if (TARGET_ELF)							\
       {									\
-	fprintf ((FILE), "\t%s\t", LOCAL_ASM_OP);			\
+	fprintf ((FILE), "%s", LOCAL_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), "\n");						\
 	ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));	\
@@ -329,7 +328,7 @@ Boston, MA 02111-1307, USA.  */
 	rounded += (BIGGEST_ALIGNMENT / BITS_PER_UNIT) - 1;		\
 	rounded = (rounded / (BIGGEST_ALIGNMENT / BITS_PER_UNIT)	\
 		   * (BIGGEST_ALIGNMENT / BITS_PER_UNIT));		\
-	fputs (".lcomm ", (FILE));					\
+	fputs ("\t.lcomm\t", (FILE));					\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), ",%u\n", (rounded));				\
       }									\
@@ -368,7 +367,7 @@ Boston, MA 02111-1307, USA.  */
 #define USE_CONST_SECTION	TARGET_ELF
 
 #undef  CONST_SECTION_ASM_OP
-#define CONST_SECTION_ASM_OP	".section\t.rodata"
+#define CONST_SECTION_ASM_OP	"\t.section\t.rodata"
 
 /* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
 
@@ -386,20 +385,20 @@ Boston, MA 02111-1307, USA.  */
    via the SHF_WRITE attribute.)  */
 
 #undef  CTORS_SECTION_ASM_OP
-#define CTORS_SECTION_ASM_OP	".section\t.ctors,\"aw\""
+#define CTORS_SECTION_ASM_OP	"\t.section\t.ctors,\"aw\""
 #undef  DTORS_SECTION_ASM_OP
-#define DTORS_SECTION_ASM_OP	".section\t.dtors,\"aw\""
+#define DTORS_SECTION_ASM_OP	"\t.section\t.dtors,\"aw\""
 
-/* On svr4, we *do* have support for the .init and .fini sections, and we
+/* On SVR4, we *do* have support for the .init and .fini sections, and we
    can put stuff in there to be executed before and after `main'.  We let
    crtstuff.c and other files know this by defining the following symbols.
    The definitions say how to change sections to the .init and .fini
-   sections.  This is the same for all known svr4 assemblers.  */
+   sections.  This is the same for all known SVR4 assemblers.  */
 
 #undef  INIT_SECTION_ASM_OP
-#define INIT_SECTION_ASM_OP	".section\t.init"
+#define INIT_SECTION_ASM_OP	"\t.section\t.init"
 #undef  FINI_SECTION_ASM_OP
-#define FINI_SECTION_ASM_OP	".section\t.fini"
+#define FINI_SECTION_ASM_OP	"\t.section\t.fini"
 
 /* A default list of other sections which we might be "in" at any given
    time.  For targets that use additional sections (e.g. .tdesc) you
@@ -470,7 +469,7 @@ extern void text_section ();
     if (TARGET_ELF)							\
       {									\
 	ctors_section ();						\
-	fprintf ((FILE), "\t%s\t ", INT_ASM_OP);			\
+	fprintf ((FILE), "%s ", INT_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), "\n");						\
       }									\
@@ -491,7 +490,7 @@ extern void text_section ();
     if (TARGET_ELF)							\
       {									\
 	dtors_section ();						\
-	fprintf ((FILE), "\t%s\t ", INT_ASM_OP);			\
+	fprintf ((FILE), "%s ", INT_ASM_OP);				\
 	assemble_name ((FILE), (NAME));					\
 	fprintf ((FILE), "\n");						\
       }									\
@@ -518,9 +517,9 @@ extern void text_section ();
    system to another.  */
 
 #undef  TYPE_ASM_OP
-#define TYPE_ASM_OP	".type"
+#define TYPE_ASM_OP	"\t.type\t"
 #undef  SIZE_ASM_OP
-#define SIZE_ASM_OP	".size"
+#define SIZE_ASM_OP	"\t.size\t"
 
 /* This is how we tell the assembler that a symbol is weak.  */
 
@@ -556,7 +555,7 @@ extern void text_section ();
 #undef  ASM_DECLARE_OBJECT_NAME
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
   do {									\
-    fprintf (FILE, "\t%s\t ", TYPE_ASM_OP);				\
+    fprintf (FILE, "%s ", TYPE_ASM_OP);					\
     assemble_name (FILE, NAME);						\
     putc (',', FILE);							\
     fprintf (FILE, TYPE_OPERAND_FMT, "object");				\
@@ -565,7 +564,7 @@ extern void text_section ();
     if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
       {									\
 	size_directive_output = 1;					\
-	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+	fprintf (FILE, "%s ", SIZE_ASM_OP);				\
 	assemble_name (FILE, NAME);					\
 	putc (',', FILE);						\
 	fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,				\
@@ -591,7 +590,7 @@ extern void text_section ();
 	&& !size_directive_output)					\
       {									\
 	size_directive_output = 1;					\
-	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
+	fprintf (FILE, "%s ", SIZE_ASM_OP);				\
 	assemble_name (FILE, name);					\
 	putc (',', FILE);						\
 	fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,				\
