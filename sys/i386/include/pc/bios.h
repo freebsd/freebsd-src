@@ -171,7 +171,7 @@ struct bios_args {
  */
 #define PNP_COUNT_DEVNODES	"sppD",		0x00
 #define PNP_GET_DEVNODE		"sppsD",	0x01
-#define PNP_SET_DEVNODE		"sppsD",	0x02
+#define PNP_SET_DEVNODE		"sspsD",	0x02
 #define PNP_GET_EVENT		"spD",		0x03
 #define PNP_SEND_MSG		"ssD",		0x04
 #define PNP_GET_DOCK_INFO	"spD",		0x05
