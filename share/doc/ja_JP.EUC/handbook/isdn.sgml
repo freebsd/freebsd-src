@@ -1,6 +1,6 @@
-<!-- $Id: isdn.sgml,v 1.2 1996/12/10 15:12:59 max Exp $ -->
+<!-- $Id: isdn.sgml,v 1.3 1996/12/16 23:00:19 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.8 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>ISDN<label id="isdn"></heading>
 
