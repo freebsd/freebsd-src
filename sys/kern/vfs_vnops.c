@@ -106,7 +106,7 @@ vn_open_cred(ndp, flagp, cmode, cred)
 	struct vattr vat;
 	struct vattr *vap = &vat;
 	int mode, fmode, error;
-#ifndef LOOKUP_EXCLUSIVE
+#ifdef LOOKUP_SHARED
 	int exclusive;	/* The current intended lock state */
 
 	exclusive = 0;
@@ -149,7 +149,7 @@ restart:
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
-#ifndef LOOKUP_EXCLUSIVE
+#ifdef LOOKUP_SHARED
 			exclusive = 1;
 #endif
 		} else {
@@ -167,7 +167,7 @@ restart:
 		}
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
-#ifndef LOOKUP_EXCLUSIVE
+#ifdef LOOKUP_SHARED
 		ndp->ni_cnd.cn_flags =
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
 		    LOCKSHARED | LOCKLEAF;
@@ -213,7 +213,7 @@ restart:
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vn_canvmio(vp) == TRUE) {
-#ifndef LOOKUP_EXCLUSIVE
+#ifdef LOOKUP_SHARED
 		int flock;
 
 		if (!exclusive && VOP_GETVOBJECT(vp, NULL) != 0)
@@ -236,7 +236,7 @@ restart:
 			*flagp = fmode;
 			return (error);
 		}
-#ifndef LOOKUP_EXCLUSIVE
+#ifdef LOOKUP_SHARED
 		flock = VOP_ISLOCKED(vp, td);
 		if (!exclusive && flock == LK_EXCLUSIVE)
 			VOP_LOCK(vp, LK_DOWNGRADE, td);
