@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <errno.h>
 #include <pwd.h>
@@ -184,7 +185,9 @@ static struct {
 	  { "limit%s sbsize %s",       ";\n",  1    }
       }
     },
-    { NULL }
+    { NULL, NULL, NULL, NULL, NULL, NULL,
+      { }
+    }
 };
 
 static struct {
@@ -283,7 +286,7 @@ main(int argc, char *argv[])
 	default:
 	case ':': /* Without arg */
 	    if ((p = strchr(rcs_string, optopt)) != NULL) {
-		int rcswhich = p - rcs_string;
+		int rcswhich1 = p - rcs_string;
 		if (optarg && *optarg == '-') { /* 'arg' is actually a switch */
 		    --optind;		/* back one arg, and make arg NULL */
 		    optarg = NULL;
@@ -291,8 +294,8 @@ main(int argc, char *argv[])
 		todo = optarg == NULL ? RCSSEL : RCSSET;
 		if (type == ANY)
 		    type = BOTH;
-		which_limits[rcswhich] = optarg ? type : DISPLAYONLY;
-		set_limits[rcswhich] = resource_num(rcswhich, optopt, optarg);
+		which_limits[rcswhich1] = optarg ? type : DISPLAYONLY;
+		set_limits[rcswhich1] = resource_num(rcswhich1, optopt, optarg);
 		num_limits++;
 		break;
 	    }
@@ -468,7 +471,7 @@ print_limit(rlim_t limit, unsigned divisor, const char * inf, const char * pfx, 
     if (limit == RLIM_INFINITY)
 	strcpy(numbr, inf);
     else
-	sprintf(numbr, "%qd", (quad_t)((limit + divisor/2) / divisor));
+	sprintf(numbr, "%jd", (intmax_t)((limit + divisor/2) / divisor));
     printf(pfx, which, numbr);
     printf(sfx, which);
 
@@ -580,7 +583,7 @@ getshellbyname(const char * shell)
     const char * q;
     const char * p = strrchr(shell, '/');
 
-    p = p ? ++p : shell;
+    p = p ? p+1 : shell;
     for (i = 0; (q = shellparm[i].name) != NULL; i++) {
 	while (*q) {
 	    int j = strcspn(q, "|");
