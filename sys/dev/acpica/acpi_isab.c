@@ -93,7 +93,8 @@ acpi_isab_probe(device_t dev)
 {
 
 	if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
-	    !acpi_disabled("isa	") &&
+	    !acpi_disabled("isa") &&
+	    devclass_get_device(isab_devclass, 0) == NULL &&
 	    (acpi_MatchHid(dev, "PNP0A05") || acpi_MatchHid(dev, "PNP0A06"))) {
 		device_set_desc(dev, "ACPI Generic ISA bridge");
 		return(0);
