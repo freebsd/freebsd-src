@@ -271,9 +271,10 @@ static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 static int addr4sort(struct addrinfo *);
 #endif
 static int _dns_getaddrinfo(void *, void *, va_list);
-static void _sethtent(void);
-static void _endhtent(void);
-static struct addrinfo *_gethtent(const char *, const struct addrinfo *);
+static void _sethtent(FILE **);
+static void _endhtent(FILE **);
+static struct addrinfo *_gethtent(FILE **, const char *,
+	const struct addrinfo *);
 static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
 static struct addrinfo *_yphostent(char *, const struct addrinfo *);
@@ -1668,7 +1669,6 @@ free:
 static const char AskedForGot[] =
 	"gethostby*.getanswer: asked for \"%s\", got \"%s\"";
 #endif
-static FILE *hostf = NULL;
 
 static struct addrinfo *
 getanswer(answer, anslen, qname, qtype, pai)
@@ -2046,27 +2046,25 @@ _dns_getaddrinfo(rv, cb_data, ap)
 }
 
 static void
-_sethtent()
+_sethtent(FILE **hostf)
 {
-	if (!hostf)
-		hostf = fopen(_PATH_HOSTS, "r" );
+	if (!*hostf)
+		*hostf = fopen(_PATH_HOSTS, "r");
 	else
-		rewind(hostf);
+		rewind(*hostf);
 }
 
 static void
-_endhtent()
+_endhtent(FILE **hostf)
 {
-	if (hostf) {
-		(void) fclose(hostf);
-		hostf = NULL;
+	if (*hostf) {
+		(void) fclose(*hostf);
+		*hostf = NULL;
 	}
 }
 
 static struct addrinfo *
-_gethtent(name, pai)
-	const char *name;
-	const struct addrinfo *pai;
+_gethtent(FILE **hostf, const char *name, const struct addrinfo *pai)
 {
 	char *p;
 	char *cp, *tname, *cname;
@@ -2075,10 +2073,10 @@ _gethtent(name, pai)
 	const char *addr;
 	char hostbuf[8*1024];
 
-	if (!hostf && !(hostf = fopen(_PATH_HOSTS, "r" )))
+	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "r")))
 		return (NULL);
 again:
-	if (!(p = fgets(hostbuf, sizeof hostbuf, hostf)))
+	if (!(p = fgets(hostbuf, sizeof hostbuf, *hostf)))
 		return (NULL);
 	if (*p == '#')
 		goto again;
@@ -2151,6 +2149,7 @@ _files_getaddrinfo(rv, cb_data, ap)
 	const struct addrinfo *pai;
 	struct addrinfo sentinel, *cur;
 	struct addrinfo *p;
+	FILE *hostf = NULL;
 
 	name = va_arg(ap, char *);
 	pai = va_arg(ap, struct addrinfo *);
@@ -2158,15 +2157,13 @@ _files_getaddrinfo(rv, cb_data, ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
-	THREAD_LOCK();
-	_sethtent();
-	while ((p = _gethtent(name, pai)) != NULL) {
+	_sethtent(&hostf);
+	while ((p = _gethtent(&hostf, name, pai)) != NULL) {
 		cur->ai_next = p;
 		while (cur && cur->ai_next)
 			cur = cur->ai_next;
 	}
-	_endhtent();
-	THREAD_UNLOCK();
+	_endhtent(&hostf);
 
 	*((struct addrinfo **)rv) = sentinel.ai_next;
 	if (sentinel.ai_next == NULL)
