@@ -73,7 +73,7 @@ main(int argc, char **argv)
 {
     int ch, error;
     char **start;
-    char *cp, *packagesite, *remotepkg = NULL, *ptr;
+    char *cp, *packagesite = NULL, *remotepkg = NULL, *ptr;
     static char temppackageroot[MAXPATHLEN];
 
     start = argv;
@@ -109,7 +109,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    if (s_strlcpy(FirstPen, optarg, sizeof(FirstPen)))
+	    if (strlcpy(FirstPen, optarg, sizeof(FirstPen)) >= sizeof(FirstPen))
 		errx(1, "-t Argument too long.");
 	    break;
 
@@ -143,43 +143,54 @@ main(int argc, char **argv)
     	    if (Remote) {
 		if ((packagesite = getpackagesite()) == NULL)
 		    errx(1, "package name too long");
-		if (s_strlcpy(temppackageroot, packagesite,
-		    sizeof(temppackageroot)))
+		if (strlcpy(temppackageroot, packagesite,
+		    sizeof(temppackageroot)) >= sizeof(temppackageroot))
 		    errx(1, "package name too long");
-		if (s_strlcat(temppackageroot, *argv,
-		    sizeof(temppackageroot)))
+		if (strlcat(temppackageroot, *argv, sizeof(temppackageroot))
+		    >= sizeof(temppackageroot))
 		    errx(1, "package name too long");
 		remotepkg = temppackageroot;
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
-			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
-		    if (s_strlcat(remotepkg, ".tgz", sizeof(temppackageroot)))
+			(ptr[2] == 'b' || ptr[2] == 'g') && ptr[3] == 'z' &&
+			!ptr[4]))
+		    /* XXX: need to handle .tgz also */
+		    if (strlcat(remotepkg, ".tbz", sizeof(temppackageroot))
+			>= sizeof(temppackageroot))
 			errx(1, "package name too long");
     	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		(const char *)pkgs[ch] = "-";
 	    else if (isURL(*argv)) {  	/* preserve URLs */
-		if (s_strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])))
+		if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch]))
+		    >= sizeof(pkgnames[ch]))
 		    errx(1, "package name too long");
 		pkgs[ch] = pkgnames[ch];
 	    }
 	    else if ((Remote) && isURL(remotepkg)) {
-	    	if (s_strlcpy(pkgnames[ch], remotepkg, sizeof(pkgnames[ch])))
+	    	if (strlcpy(pkgnames[ch], remotepkg, sizeof(pkgnames[ch]))
+		    >= sizeof(pkgnames[ch]))
 		    errx(1, "package name too long");
 		pkgs[ch] = pkgnames[ch];
 	    } else {			/* expand all pathnames to fullnames */
 		if (fexists(*argv)) /* refers to a file directly */
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
 		else {		/* look for the file in the expected places */
-		    if (!(cp = fileFindByPath(NULL, *argv)))
+		    if (!(cp = fileFindByPath(NULL, *argv))) {
 			/* let pkg_do() fail later, so that error is reported */
-			pkgs[ch] = strcpy(pkgnames[ch], *argv);
-		    else {
-			if (s_strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch])))
+			if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch]))
+			    >= sizeof(pkgnames[ch]))
+			    errx(1, "package name too long");
+			pkgs[ch] = pkgnames[ch];
+		    } else {
+			if (strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch]))
+			    >= sizeof(pkgnames[ch]))
 			    errx(1, "package name too long");
 			pkgs[ch] = pkgnames[ch];
 		    }
 		}
 	    }
+	    if (packagesite != NULL)
+		packagesite[0] = '\0';
 	}
     }
     /* If no packages, yelp */
@@ -216,37 +227,41 @@ getpackagesite(void)
     struct utsname u;
 
     if (getenv("PACKAGESITE")) {
-	if (s_strlcpy(sitepath, getenv("PACKAGESITE"), 
-	    sizeof(sitepath)))
+	if (strlcpy(sitepath, getenv("PACKAGESITE"), sizeof(sitepath))
+	    >= sizeof(sitepath))
 	    return NULL;
 	return sitepath;
     }
 
     if (getenv("PACKAGEROOT")) {
-	if (s_strlcpy(sitepath, getenv("PACKAGEROOT"), sizeof(sitepath)))
+	if (strlcpy(sitepath, getenv("PACKAGEROOT"), sizeof(sitepath))
+	    >= sizeof(sitepath))
 	    return NULL;
     } else {
-	if (s_strlcat(sitepath, "ftp://ftp.freebsd.org", sizeof(sitepath)))
+	if (strlcat(sitepath, "ftp://ftp.freebsd.org", sizeof(sitepath))
+	    >= sizeof(sitepath))
 	    return NULL;
     }
 
-    if (s_strlcat(sitepath, "/pub/FreeBSD/ports/", sizeof(sitepath)))
+    if (strlcat(sitepath, "/pub/FreeBSD/ports/", sizeof(sitepath))
+	>= sizeof(sitepath))
 	return NULL;
 
     uname(&u);
-    if (s_strlcat(sitepath, u.machine, sizeof(sitepath)))
+    if (strlcat(sitepath, u.machine, sizeof(sitepath)) >= sizeof(sitepath))
 	return NULL;
 
     reldate = getosreldate();
     for(i = 0; releases[i].directory != NULL; i++) {
 	if (reldate >= releases[i].lowver && reldate <= releases[i].hiver) {
-	    if (s_strlcat(sitepath, releases[i].directory, sizeof(sitepath)))
+	    if (strlcat(sitepath, releases[i].directory, sizeof(sitepath))
+		>= sizeof(sitepath))
 		return NULL;
 	    break;
 	}
     }
 
-    if (s_strlcat(sitepath, "/Latest/", sizeof(sitepath)))
+    if (strlcat(sitepath, "/Latest/", sizeof(sitepath)) >= sizeof(sitepath))
 	return NULL;
 
     return sitepath;
