@@ -30,8 +30,9 @@
 #define	ISP_PLATFORM_VERSION_MAJOR	5
 #define	ISP_PLATFORM_VERSION_MINOR	4
 
-#define	ISP_PVS		\
-	((ISP_PLATFORM_VERSION_MAJOR * 10)  + ISP_PLATFORM_VERSION_MINOR)
+#if	((ISP_PLATFORM_VERSION_MAJOR * 10)  + ISP_PLATFORM_VERSION_MINOR) >= 54
+#define	ISP_SMPLOCK	1
+#endif
 
 
 #include <sys/param.h>
@@ -100,7 +101,7 @@ struct isposinfo {
 	u_int8_t		simqfrozen;
 	u_int8_t		drain;
 	u_int8_t		intsok;
-#if	ISP_PVS >= 54
+#ifdef	ISP_SMPLOCK
 	struct mtx		lock;
 #else
 	volatile u_int32_t	islocked;
@@ -277,7 +278,7 @@ extern void isp_uninit(struct ispsoftc *);
  * Locking macros...
  */
 
-#if	ISP_PVS >= 54
+#ifdef	ISP_SMPLOCK
 #define	ISP_LOCK(x)		mtx_enter(&(x)->isp_osinfo.lock, MTX_DEF)
 #define	ISP_UNLOCK(x)		mtx_exit(&(x)->isp_osinfo.lock, MTX_DEF)
 #else
@@ -309,7 +310,7 @@ extern void isp_uninit(struct ispsoftc *);
 /*
  * Platform specific inline functions
  */
-#if	ISP_PVS < 54
+#ifndef	ISP_SMPLOCK
 static INLINE void isp_lock(struct ispsoftc *);
 static INLINE void
 isp_lock(struct ispsoftc *isp)
@@ -338,7 +339,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 {
 	if (isp->isp_osinfo.intsok) {
 		isp->isp_osinfo.mboxwaiting = 1;
-#if	ISP_PVS >= 54
+#ifdef	ISP_SMPLOCK
 		(void) msleep(&isp->isp_osinfo.mboxwaiting,
 		    &isp->isp_osinfo.lock, PRIBIO, "isp_mboxwaiting", 5 * hz);
 #else
