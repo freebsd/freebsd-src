@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.87 1996/11/09 18:12:17 jkh Exp $
+ * $Id: sysinstall.h,v 1.88 1996/12/09 06:02:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -621,7 +621,6 @@ extern void	mediaShutdownTape(Device *dev);
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
 extern int	tcpMenuSelect(dialogMenuItem *self);
-extern int	tcpInstallDevice(char *str);
 extern Boolean	tcpDeviceSelect(void);
 
 /* termcap.c */
