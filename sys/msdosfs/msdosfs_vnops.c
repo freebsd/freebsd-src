@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.12 1995/01/09 16:05:00 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.13 1995/03/19 14:28:57 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -899,7 +899,9 @@ msdosfs_link(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	return VOP_ABORTOP(ap->a_vp, ap->a_cnp);
+	VOP_ABORTOP(ap->a_vp, ap->a_cnp);
+	vput(ap->a_vp);
+	return EOPNOTSUPP;
 }
 
 /*
