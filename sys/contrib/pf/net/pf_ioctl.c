@@ -66,6 +66,7 @@
 #ifdef __FreeBSD__
 #include <sys/module.h>
 #include <sys/conf.h>
+#include <sys/proc.h>
 #else
 #include <sys/timeout.h>
 #include <sys/pool.h>
@@ -979,7 +980,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	int			 error = 0;
 
 	/* XXX keep in sync with switch() below */
+#ifdef __FreeBSD__
+	if (securelevel_gt(td->td_ucred, 1))
+#else
 	if (securelevel > 1)
+#endif
 		switch (cmd) {
 		case DIOCGETRULES:
 		case DIOCGETRULE:
