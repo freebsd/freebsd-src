@@ -37,4 +37,4 @@
 
 void lomac_start(void);
 void lomac_stop(void);
-char *get_lattr(FTSENT *);
+char *get_lattr(const FTSENT *);
