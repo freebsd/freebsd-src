@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc.c 1.44 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc.c	2.4 88/08/11 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc.c,v 1.3 1995/10/22 14:51:34 phk Exp $";
+static char *rcsid = "$Id: svc.c,v 1.4 1996/06/10 00:49:18 jraynard Exp $";
 #endif
 
 /*
@@ -417,7 +417,7 @@ svc_getreqset(readfds)
 	setsize = _rpc_dtablesize();
 	maskp = (u_long *)readfds->fds_bits;
 	for (sock = 0; sock < setsize; sock += NFDBITS) {
-	    for (mask = *maskp++; bit = ffs(mask); mask ^= (1 << (bit - 1))) {
+	    for (mask = *maskp++; (bit = ffs(mask)); mask ^= (1 << (bit - 1))) {
 		/* sock has input waiting */
 		xprt = xports[sock + bit - 1];
 #else
