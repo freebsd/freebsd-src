@@ -668,7 +668,7 @@ ich_pci_probe(device_t dev)
 
 	case 0x005910de:
 		device_set_desc(dev, "nVidia nForce4");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 
 	case 0x74451022:
 		device_set_desc(dev, "AMD-768");
