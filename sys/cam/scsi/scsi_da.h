@@ -188,7 +188,7 @@ struct format_ipat_descriptor
 struct scsi_read_format_capacities
 {
 	uint8_t	opcode;		/* READ_FORMAT_CAPACITIES */
-	uint8_t	byte2;		/* top 3 bits contain LUN */
+	uint8_t	byte2;
 #define	SRFC_LUN_MASK	0xE0
 	uint8_t	reserved0[5];
 	uint8_t	alloc_length[2];
@@ -198,11 +198,11 @@ struct scsi_read_format_capacities
 struct scsi_verify
 {
 	uint8_t	opcode;		/* VERIFY */
-	uint8_t	lun;		/* All other bits should be zero */
+	uint8_t	byte2;
+#define	SVFY_LUN_MASK	0xE0
 #define	SVFY_RELADR	0x01
 #define	SVFY_BYTECHK	0x02
 #define	SVFY_DPO	0x10
-#define	SVFY_LUN_MASK	0xE0	/* Top 3 MSBs are LUN */
 	uint8_t	addr[4];	/* LBA to begin verification at */
 	uint8_t	reserved0[1];
 	uint8_t	len[2];		/* number of blocks to verify */
@@ -212,7 +212,7 @@ struct scsi_verify
 struct scsi_write_and_verify
 {
 	uint8_t	opcode;		/* WRITE_AND_VERIFY */
-	uint8_t	byte2;		/* top 3 bits are the LUN */
+	uint8_t	byte2;
 #define	SWVY_LUN_MASK	0xE0
 #define	SWVY_RELADR	0x01
 #define	SWVY_BYTECHK	0x02
