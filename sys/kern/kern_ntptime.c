@@ -149,7 +149,6 @@ static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
 static l_fp time_adj;			/* tick adjust (ns/s) */
-static l_fp time_phase;			/* time phase (ns) */
 
 #ifdef PPS_SYNC
 /*
@@ -168,7 +167,6 @@ static l_fp time_phase;			/* time phase (ns) */
 
 static struct timespec pps_tf[3];	/* phase median filter */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
-static long pps_lastfreq;		/* last scaled freq offset (ns/s) */
 static long pps_fcount;			/* frequency accumulator */
 static long pps_jitter;			/* nominal jitter (ns) */
 static long pps_stabil;			/* nominal stability (scaled ns/s) */
@@ -212,6 +210,7 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
 	ntv.tai = time_tai;
+	ntv.time_state = time_state;
 
 	/*
 	 * Status word error decode. If any of these conditions occur,
@@ -253,6 +252,7 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 #ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD, &time_monitor, 0, "");
 
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
@@ -504,7 +504,7 @@ ntp_update_second(struct timecounter *tcp)
 #ifdef PPS_SYNC
 	/* XXX even if PPS signal dies we should finish adjustment ? */
 	if (time_status & STA_PPSTIME && time_status &
-	    STA_PPSSIGNAL) 
+	    STA_PPSSIGNAL)
 		L_RSHIFT(ftemp, pps_shift);
 	else
 		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
@@ -740,7 +740,7 @@ hardpps(tsp, nsec)
 		if (pps_tf[1].tv_nsec < pps_tf[2].tv_nsec) {
 			v_nsec = pps_tf[1].tv_nsec;	/* 2 1 0 */
 			u_nsec = pps_tf[2].tv_nsec - pps_tf[0].tv_nsec;
-		} else  if (pps_tf[2].tv_nsec < pps_tf[0].tv_nsec) {
+		} else if (pps_tf[2].tv_nsec < pps_tf[0].tv_nsec) {
 			v_nsec = pps_tf[0].tv_nsec;	/* 1 0 2 */
 			u_nsec = pps_tf[1].tv_nsec - pps_tf[2].tv_nsec;
 		} else {
@@ -750,7 +750,7 @@ hardpps(tsp, nsec)
 	}
 
 	/*
-	 * Nominal jitter is due to PPS signal noise and  interrupt
+	 * Nominal jitter is due to PPS signal noise and interrupt
 	 * latency. If it exceeds the popcorn threshold, the sample is
 	 * discarded. otherwise, if so enabled, the time offset is
 	 * updated. We can tolerate a modest loss of data here without
