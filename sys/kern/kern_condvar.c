@@ -198,8 +198,8 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 	td = curthread;
 #ifdef KTRACE
-	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 1, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
@@ -227,8 +227,8 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 0, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
@@ -254,8 +254,8 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	p = td->td_proc;
 	rval = 0;
 #ifdef KTRACE
-	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 1, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
@@ -282,7 +282,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	sig = cv_switch_catch(td);
 
 	mtx_unlock_spin(&sched_lock);
-	PICKUP_GIANT();
 
 	PROC_LOCK(p);
 	if (sig == 0)
@@ -296,11 +295,10 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	PROC_UNLOCK(p);
 
 #ifdef KTRACE
-	mtx_lock(&Giant);
-	if (KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 0, 0);
-	mtx_unlock(&Giant);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
 #endif
+	PICKUP_GIANT();
 	mtx_lock(mp);
 	WITNESS_RESTORE(&mp->mtx_object, mp);
 
@@ -322,7 +320,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	td = curthread;
 	rval = 0;
 #ifdef KTRACE
-	ktrcsw(td->td_proc->p_tracep, 1, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
@@ -366,8 +365,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
-	if (KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 0, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
 	mtx_lock(mp);
@@ -395,8 +394,8 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	p = td->td_proc;
 	rval = 0;
 #ifdef KTRACE
-	if (td->td_proc && KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 1, 0);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
 #endif
 	CV_ASSERT(cvp, mp, td);
 	WITNESS_SLEEP(0, &mp->mtx_object);
@@ -439,7 +438,6 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	}
 
 	mtx_unlock_spin(&sched_lock);
-	PICKUP_GIANT();
 
 	PROC_LOCK(p);
 	if (sig == 0)
@@ -453,11 +451,10 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	PROC_UNLOCK(p);
 
 #ifdef KTRACE
-	mtx_lock(&Giant);
-	if (KTRPOINT(td->td_proc, KTR_CSW))
-		ktrcsw(td->td_proc->p_tracep, 0, 0);
-	mtx_unlock(&Giant);
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
 #endif
+	PICKUP_GIANT();
 	mtx_lock(mp);
 	WITNESS_RESTORE(&mp->mtx_object, mp);
 
