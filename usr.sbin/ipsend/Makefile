@@ -15,8 +15,8 @@ CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \
 	-I${.CURDIR}/../../contrib/ipfilter/iplang \
 	-I${.CURDIR}/../../contrib/ipfilter
 
-LDADD+=	-lfl
-DPADD+=	${LIBFL}
+DPADD=	${LIBL}
+LDADD=	-ll
 
 CLEANFILES+=	y.tab.h
 
