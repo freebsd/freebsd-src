@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.c,v 1.22 2003/07/26 14:58:00 sam Exp $
+ * $Id: ah_osdep.c,v 1.28 2003/11/01 01:43:21 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -51,10 +51,6 @@
 
 #include <contrib/dev/ath/ah.h>
 
-#define	AH_TIMEOUT	1000
-
-extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
-		u_int32_t mask, u_int32_t val);
 extern	void ath_hal_printf(struct ath_hal *, const char*, ...)
 		__printflike(2,3);
 extern	void ath_hal_vprintf(struct ath_hal *, const char*, __va_list)
@@ -81,8 +77,6 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 	    0, "Atheros HAL debugging printfs");
 #endif /* AH_DEBUG */
 
-#include "version.h"
-static char ath_hal_version[] = ATH_HAL_VERSION;
 SYSCTL_STRING(_hw_ath_hal, OID_AUTO, version, CTLFLAG_RD, ath_hal_version, 0,
 	"Atheros HAL version");
 
@@ -98,25 +92,6 @@ int	ath_hal_additional_swba_backoff = 0;	/* in TU's */
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, swba_backoff, CTLFLAG_RW,
 	   &ath_hal_additional_swba_backoff, 0,
 	   "Atheros HAL additional SWBA backoff time");
-
-/*
- * Poll the register looking for a specific value.
- */
-HAL_BOOL
-ath_hal_wait(struct ath_hal *ah, u_int reg, u_int32_t mask, u_int32_t val)
-{
-	int i;
-
-	for (i = 0; i < AH_TIMEOUT; i++) {
-		if ((OS_REG_READ(ah, reg) & mask) == val)
-			return AH_TRUE;
-		DELAY(10);
-	}
-	ath_hal_printf(ah, "ath_hal_wait: timeout on reg 0x%x: "
-		"0x%08x & 0x%08x != 0x%08x\n", reg, OS_REG_READ(ah, reg),
-		 mask, val);
-	return AH_FALSE;
-}
 
 void*
 ath_hal_malloc(size_t size)
@@ -269,7 +244,7 @@ ath_hal_alq_get(struct ath_hal *ah)
 }
 
 void
-OS_REG_WRITE(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
+ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
@@ -281,15 +256,24 @@ OS_REG_WRITE(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 			alq_post(ath_hal_alq, ale);
 		}
 	}
-	bus_space_write_4(ah->ah_st, ah->ah_sh, reg, val);
+#if _BYTE_ORDER == _BIG_ENDIAN
+	if (reg >= 0x4000 && reg < 0x5000)
+		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, htole32(val));
+	else
+#endif
+		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, val);
 }
 
 u_int32_t
-OS_REG_READ(struct ath_hal *ah, u_int32_t reg)
+ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
 	u_int32_t val;
 
 	val = bus_space_read_4(ah->ah_st, ah->ah_sh, reg);
+#if _BYTE_ORDER == _BIG_ENDIAN
+	if (reg >= 0x4000 && reg < 0x5000)
+		val = le32toh(val);
+#endif
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
@@ -317,7 +301,42 @@ OS_MARK(struct ath_hal *ah, u_int id, u_int32_t v)
 		}
 	}
 }
-#endif /* AH_DEBUG_ALQ */
+#elif defined(AH_DEBUG) || defined(AH_REGOPS_FUNC)
+/*
+ * Memory-mapped device register read/write.  These are here
+ * as routines when debugging support is enabled and/or when
+ * explicitly configured to use function calls.  The latter is
+ * for architectures that might need to do something before
+ * referencing memory (e.g. remap an i/o window).
+ *
+ * NB: see the comments in ah_osdep.h about byte-swapping register
+ *     reads and writes to understand what's going on below.
+ */
+
+void
+ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
+{
+#if _BYTE_ORDER == _BIG_ENDIAN
+	if (reg >= 0x4000 && reg < 0x5000)
+		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, htole32(val));
+	else
+#endif
+		bus_space_write_4(ah->ah_st, ah->ah_sh, reg, val);
+}
+
+u_int32_t
+ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
+{
+	u_int32_t val;
+
+	val = bus_space_read_4(ah->ah_st, ah->ah_sh, reg);
+#if _BYTE_ORDER == _BIG_ENDIAN
+	if (reg >= 0x4000 && reg < 0x5000)
+		val = le32toh(val);
+#endif
+	return val;
+}
+#endif /* AH_DEBUG || AH_REGOPS_FUNC */
 
 #ifdef AH_ASSERT
 void
@@ -329,8 +348,17 @@ ath_hal_assert_failed(const char* filename, int lineno, const char *msg)
 }
 #endif /* AH_ASSERT */
 
+/*
+ * Delay n microseconds.
+ */
+void
+ath_hal_delay(int n)
+{
+	DELAY(n);
+}
+
 u_int32_t
-OS_GETUPTIME(struct ath_hal *ah)
+ath_hal_getuptime(struct ath_hal *ah)
 {
 	struct bintime bt;
 	getbinuptime(&bt);
@@ -364,4 +392,3 @@ static moduledata_t ath_hal_mod = {
 };
 DECLARE_MODULE(ath_hal, ath_hal_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 MODULE_VERSION(ath_hal, 1);
-MODULE_DEPEND(ath_hal, wlan, 1,1,1);
