@@ -159,8 +159,7 @@ forw(n, pos, only_last)
 			if (top_scroll) {
 				clear();
 				home();
-			} else if (!first_time)
-				putstr("...skipping...\n");
+			}
 		}
 	}
 
