@@ -536,7 +536,7 @@ vnode_pager_input_old(object, m)
 	vm_offset_t kva;
 	struct vnode *vp;
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	error = 0;
 
 	/*
@@ -548,6 +548,8 @@ vnode_pager_input_old(object, m)
 		size = PAGE_SIZE;
 		if (IDX_TO_OFF(m->pindex) + size > object->un_pager.vnp.vnp_size)
 			size = object->un_pager.vnp.vnp_size - IDX_TO_OFF(m->pindex);
+		vp = object->handle;
+		VM_OBJECT_UNLOCK(object);
 
 		/*
 		 * Allocate a kernel virtual address and initialize so that
@@ -555,7 +557,6 @@ vnode_pager_input_old(object, m)
 		 */
 		kva = vm_pager_map_page(m);
 
-		vp = object->handle;
 		aiov.iov_base = (caddr_t) kva;
 		aiov.iov_len = size;
 		auio.uio_iov = &aiov;
@@ -586,7 +587,6 @@ vnode_pager_input_old(object, m)
 	vm_page_unlock_queues();
 	if (!error)
 		m->valid = VM_PAGE_BITS_ALL;
-	VM_OBJECT_UNLOCK(object);
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
@@ -671,10 +671,11 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			if (i != reqpage)
 				vm_page_free(m[i]);
 		vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(object);
 		cnt.v_vnodein++;
 		cnt.v_vnodepgsin++;
-		return vnode_pager_input_old(object, m[reqpage]);
+		error = vnode_pager_input_old(object, m[reqpage]);
+		VM_OBJECT_UNLOCK(object);
+		return (error);
 
 		/*
 		 * if the blocksize is smaller than a page size, then use
