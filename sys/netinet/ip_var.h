@@ -50,6 +50,7 @@ struct ipovly {
 	struct	in_addr ih_dst;		/* destination internet address */
 };
 
+#ifdef _KERNEL
 /*
  * Ip reassembly queue structure.  Each fragment
  * being reassembled is attached to one of these structures.
@@ -68,6 +69,7 @@ struct ipq {
 	u_int16_t ipq_div_cookie;	/* ipfw divert cookie */
 #endif
 };
+#endif /* _KERNEL */
 
 /*
  * Structure stored in mbuf in inpcb.ip_options
