@@ -24,6 +24,9 @@
 /* Define if you support file names longer than 14 characters.  */
 #define HAVE_LONG_FILE_NAMES 1
 
+/* Define if you have a working `mmap' system call.  */
+/* #undef HAVE_MMAP */
+
 /* Define if your struct stat has st_blksize.  */
 #define HAVE_ST_BLKSIZE 1
 
@@ -44,6 +47,9 @@
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef mode_t */
+
+/* Define if your C compiler doesn't accept -c and -o together.  */
+/* #undef NO_MINUS_C_MINUS_O */
 
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef pid_t */
@@ -277,6 +283,9 @@
 /* Define if you have the <ndir.h> header file.  */
 /* #undef HAVE_NDIR_H */
 
+/* Define if you have the <stdlib.h> header file.  */
+#define HAVE_STDLIB_H 1
+
 /* Define if you have the <string.h> header file.  */
 #define HAVE_STRING_H 1
 
@@ -301,11 +310,17 @@
 /* Define if you have the <sys/select.h> header file.  */
 #define HAVE_SYS_SELECT_H 1
 
+/* Define if you have the <sys/stat.h> header file.  */
+#define HAVE_SYS_STAT_H 1
+
 /* Define if you have the <sys/time.h> header file.  */
 #define HAVE_SYS_TIME_H 1
 
 /* Define if you have the <sys/timeb.h> header file.  */
 #define HAVE_SYS_TIMEB_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
 
 /* Define if you have the <syslog.h> header file.  */
 #define HAVE_SYSLOG_H 1
@@ -320,7 +335,7 @@
 #define PACKAGE "cvs"
 
 /* Version number of package */
-#define VERSION "1.11.1p1"
+#define VERSION "1.11.2"
 
 /* Path to the pr utility */
 #define PR_PROGRAM "/usr/bin/pr"
