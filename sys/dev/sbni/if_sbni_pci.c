@@ -68,7 +68,7 @@ static driver_t sbni_pci_driver = {
 
 static devclass_t sbni_pci_devclass;
 
-DRIVER_MODULE(sbni, pci, sbni_pci_driver, sbni_pci_devclass, 0, 0);
+DRIVER_MODULE(if_sbni, pci, sbni_pci_driver, sbni_pci_devclass, 0, 0);
 
 
 static int
