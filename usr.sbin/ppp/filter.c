@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.6.2.7 1997/10/24 23:16:48 brian Exp $
+ * $Id: filter.c,v 1.6.2.8 1998/01/26 20:04:35 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -47,7 +47,7 @@ struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
 
 static struct filterent filterdata;
 
-static u_long netmasks[33] = {
+static u_int32_t netmasks[33] = {
   0x00000000,
   0x80000000, 0xC0000000, 0xE0000000, 0xF0000000,
   0xF8000000, 0xFC000000, 0xFE000000, 0xFF000000,

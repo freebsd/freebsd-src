@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.6.2.4 1997/10/12 21:45:26 brian Exp $
+ * $Id: slcompress.c,v 1.6.2.5 1998/01/26 20:05:20 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -74,7 +74,7 @@ sl_compress_init(struct slcompress * comp, int max_state)
 
 
 /* ENCODE encodes a number that is known to be non-zero.  ENCODEZ
- * checks for zero (since zero has to be encoded in the long, 3 byte
+ * checks for zero (since zero has to be encoded in the 32-bit, 3 byte
  * form).
  */
 #define ENCODE(n) { \
@@ -103,7 +103,7 @@ sl_compress_init(struct slcompress * comp, int max_state)
 		(f) = htonl(ntohl(f) + ((cp[1] << 8) | cp[2])); \
 		cp += 3; \
 	} else { \
-		(f) = htonl(ntohl(f) + (u_long)*cp++); \
+		(f) = htonl(ntohl(f) + (u_int32_t)*cp++); \
 	} \
 }
 
@@ -112,7 +112,7 @@ sl_compress_init(struct slcompress * comp, int max_state)
 		(f) = htons(ntohs(f) + ((cp[1] << 8) | cp[2])); \
 		cp += 3; \
 	} else { \
-		(f) = htons(ntohs(f) + (u_long)*cp++); \
+		(f) = htons(ntohs(f) + (u_int32_t)*cp++); \
 	} \
 }
 
@@ -121,7 +121,7 @@ sl_compress_init(struct slcompress * comp, int max_state)
 		(f) = htons((cp[1] << 8) | cp[2]); \
 		cp += 3; \
 	} else { \
-		(f) = htons((u_long)*cp++); \
+		(f) = htons((u_int32_t)*cp++); \
 	} \
 }
 
