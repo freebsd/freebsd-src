@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.65 1999/06/24 20:08:56 jlemon Exp $
+ *	$Id: identcpu.c,v 1.68 1999/07/06 05:25:41 green Exp $
  */
 
 #include "opt_cpu.h"
@@ -471,6 +471,18 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 		}
+	} else if (strcmp(cpu_vendor, "CentaurHauls") == 0) {
+		strcpy(cpu_model, "IDT ");
+		switch (cpu_id & 0ff0) {
+		case 0x540:
+			strcat(cpu_model, "WinChip C6");
+			break;
+		case 0x580:
+			strcat(cpu_model, "WinChip 2");
+			break;
+		default:
+			strcat(cpu_model, "Unknown");
+		}
 	} else if (strcmp(cpu_vendor, "IBM") == 0)
 		strcpy(cpu_model, "Blue Lightning CPU");
 #endif
@@ -524,6 +536,7 @@ printcpuinfo(void)
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 	    strcmp(cpu_vendor, "RiseRiseRise") == 0 ||
+	    strcmp(cpu_vendor, "CentaurHauls") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
 		 ((cpu_id & 0xf00) > 0x500))) {
 		printf("  Stepping = %u", cpu_id & 0xf);
