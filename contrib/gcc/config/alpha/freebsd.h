@@ -113,9 +113,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define HANDLE_SYSV_PRAGMA
 
-#undef SET_ASM_OP
-#define SET_ASM_OP	".set"
-
 #undef OBJECT_FORMAT_COFF
 #undef EXTENDED_COFF
 #define OBJECT_FORMAT_ELF
