@@ -2,7 +2,6 @@
 
 # machine-independent net sources
 .PATH: ${.CURDIR}/${MACHINE}/net ${.CURDIR}/net
-.PATH: ${.CURDIR}/../../contrib/bind/res
 
 SRCS+=	addr2ascii.c ascii2addr.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
