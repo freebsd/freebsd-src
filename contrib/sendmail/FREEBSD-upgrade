@@ -82,6 +82,7 @@ infrastructure in FreeBSD:
 	usr.sbin/makemap/Makefile
 	usr.sbin/praliases/Makefile
 	usr.sbin/sendmail/Makefile
+	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
 17-February-2002
