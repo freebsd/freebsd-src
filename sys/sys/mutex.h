@@ -41,6 +41,7 @@
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
+#include <sys/proc.h> /* Needed for curproc. */
 #ifndef curproc
 struct proc;
 extern struct proc *curproc;
