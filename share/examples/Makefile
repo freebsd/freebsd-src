@@ -1,10 +1,10 @@
-#	$Id: Makefile,v 1.13.4.3 1996/01/06 07:34:36 nate Exp $
+#	$Id: Makefile,v 1.13.4.4 1996/01/31 22:17:34 joerg Exp $
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS=etc FreeBSD_version ibcs2 lkm sliplogin startslip sunrpc sup
+DIRS!=	for i in *; do if test -d $$i -a $$i != CVS; then echo $$i; fi; done
 
-DDIR=${DESTDIR}/usr/share/examples
+DDIR=	${DESTDIR}/usr/share/examples
 
 NOOBJ=	noobj
 
@@ -17,19 +17,17 @@ all clean cleandir depend lint tags:
 
 beforeinstall: ${SHARED}
 
-copies:
-	@${ECHO} installing ${DDIR}
-	@-for a in ${DIRS}; do \
-		rm -rf ${DDIR}/$$a; \
-	done
-	find ${DIRS} \( -name CVS -prune \) -o -type f -print -exec \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 {} ${DDIR}/{} \;
+.for dir in ${DIRS}
+FILES!=	find ${dir} \( -name CVS -prune \) -o -type f -print
+.for file in ${FILES}
+copies::
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
+.endfor
+.endfor
 
-symlinks:
-	@${ECHO} installing symlinks in ${DDIR}
-	@-for a in ${DIRS}; do \
-		rm -rf ${DDIR}/$$a; \
-		ln -s ${.CURDIR}/$$a ${DDIR}; \
-	done
+.for dir in ${DIRS}
+symlinks::
+	rm -rf ${DDIR}/${dir}; ln -s ${.CURDIR}/${dir} ${DDIR}
+.endfor
 
 .include <bsd.prog.mk>
