@@ -2082,7 +2082,7 @@ oldway:
 		    write(netfd, buf, cnt) == cnt)
 			byte_count += cnt;
 		transflag = 0;
-		(void)free(buf);
+		free(buf);
 		if (cnt != 0) {
 			if (cnt < 0)
 				goto file_err;
