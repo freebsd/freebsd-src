@@ -650,6 +650,8 @@ next:
 		j = snprintf(tmpbuf, sizeof(tmpbuf), " %ld%s",
 		    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "" );
+		if (j == -1)
+			j = 0;
 		if (i + j >= width) {
 			printf("\n");
 			i = 0;
