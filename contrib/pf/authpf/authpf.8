@@ -1,4 +1,4 @@
-.\" $OpenBSD: authpf.8,v 1.30 2003/08/17 23:24:47 henning Exp $
+.\" $OpenBSD: authpf.8,v 1.31 2003/12/10 04:10:37 beck Exp $
 .\"
 .\" Copyright (c) 2002 Bob Beck (beck@openbsd.org>.  All rights reserved.
 .\"
@@ -84,9 +84,9 @@ shared by all
 processes.
 By default, the
 .Pa anchor
-name "authpf" is used, and the ruleset names equal the PIDs of the
+name "authpf" is used, and the ruleset names equal the username and PID of the
 .Nm
-processes.
+processes as "username(pid)".
 The following rules need to be added to the main ruleset
 .Pa /etc/pf.conf
 in order to cause evaluation of any
@@ -263,7 +263,8 @@ by creating an appropriate
 .Pa /etc/authpf/authpf.conf
 file.
 .Sh EXAMPLES
-\fBControl Files\fP - To illustrate the user-specific access control
+.Sy Control Files
+\- To illustrate the user-specific access control
 mechanisms, let us consider a typical user named bob.
 Normally, as long as bob can authenticate himself, the
 .Nm
@@ -298,7 +299,8 @@ file.
 Though bob is listed in the allow file, he is prevented from using
 this gateway due to the existence of a ban file.
 .Pp
-\fBDistributed Authentication\fP - It is often desirable to interface with a
+.Sy Distributed Authentication
+\- It is often desirable to interface with a
 distributed password system rather than forcing the sysadmins to keep a large
 number of local password files in sync.
 The
@@ -332,7 +334,8 @@ Using a default password file, all users will get
 as their shell except for root who will get
 .Pa /bin/csh .
 .Pp
-\fBSSH Configuration\fP - As stated earlier,
+.Sy SSH Configuration
+\- As stated earlier,
 .Xr sshd 8
 must be properly configured to detect and defeat network attacks.
 To that end, the following options should be added to
@@ -346,7 +349,8 @@ ClientAliveCountMax 3
 This ensures that unresponsive or spoofed sessions are terminated within a
 minute, since a hijacker should not be able to spoof ssh keepalive messages.
 .Pp
-\fBBanners\fP - Once authenticated, the user is shown the contents of
+.Sy Banners
+\- Once authenticated, the user is shown the contents of
 .Pa /etc/authpf/authpf.message .
 This message may be a screen-full of the appropriate use policy, the contents
 of
@@ -366,7 +370,8 @@ problem so we can fix it, please phone 1-900-314-1597 or send
 an email to remove@bulkmailerz.net.
 .Ed
 .Pp
-\fBPacket Filter Rules\fP - In areas where this gateway is used to protect a
+.Sy Packet Filter Rules
+\- In areas where this gateway is used to protect a
 wireless network (a hub with several hundred ports), the default rule set as
 well as the per-user rules should probably allow very few things beyond
 encrypted protocols like
@@ -378,15 +383,14 @@ On a securely switched network, with plug-in jacks for visitors who are
 given authentication accounts, you might want to allow out everything.
 In this context, a secure switch is one that tries to prevent address table
 overflow attacks.
-The examples below assume a switched wired net.
 .Pp
 Example
 .Pa /etc/pf.conf :
 .Bd -literal
 # by default we allow internal clients to talk to us using
 # ssh and use us as a dns server.
-internal_if=\&"fxp1\&"
-gateway_addr=\&"10.0.1.1\&"
+internal_if="fxp1"
+gateway_addr="10.0.1.1"
 nat-anchor authpf
 rdr-anchor authpf
 binat-anchor authpf
@@ -398,26 +402,28 @@ pass in quick on $internal_if proto udp from any to $gateway_addr \e
 anchor authpf
 .Ed
 .Pp
-Example
-.Pa /etc/authpf/authpf.rules :
+.Sy For a switched, wired net
+\- This example
+.Pa /etc/authpf/authpf.rules
+makes no real restrictions; it turns the IP address on and off, logging
+TCP connections.
 .Bd -literal
-# no real restrictions here, basically turn the network jack off or on.
-
-external_if = \&"xl0\&"
-internal_if = \&"fxp0\&"
+external_if = "xl0"
+internal_if = "fxp0"
 
 pass in log quick on $internal_if proto tcp from $user_ip to any \e
       keep state
 pass in quick on $internal_if from $user_ip to any
 .Ed
 .Pp
-Another example
+.Sy For a wireless or shared net
+\- This example
 .Pa /etc/authpf/authpf.rules
-for an insecure network (such as a public wireless network) where
+could be used for an insecure network (such as a public wireless network) where
 we might need to be a bit more restrictive.
 .Bd -literal
-internal_if=\&"fxp1\&"
-ipsec_gw=\&"10.2.3.4\&"
+internal_if="fxp1"
+ipsec_gw="10.2.3.4"
 
 # rdr ftp for proxying by ftp-proxy(8)
 rdr on $internal_if proto tcp from $user_ip to any port 21 \e
@@ -432,6 +438,32 @@ pass in quick on $internal_if proto tcp from $user_ip to any \e
 pass in quick proto udp from $user_ip to $ipsec_gw port = isakmp \e
       keep state
 pass in quick proto esp from $user_ip to $ipsec_gw
+.Ed
+.Pp
+.Sy Dealing with NAT
+\- The following
+.Pa /etc/authpf/authpf.rules
+shows how to deal with NAT, using tags:
+.Bd -literal
+ext_if = "fxp1"
+ext_addr = 129.128.11.10
+int_if = "fxp0"
+# nat and tag connections...
+nat on $ext_if from $user_ip to any tag $user_ip -> $ext_addr
+pass in quick on $int_if from $user_ip to any
+pass out log quick on $ext_if tagged $user_ip keep state
+.Ed
+.Pp
+With the above rules added by
+.Nm ,
+outbound connections corresponding to each users NAT'ed connections
+will be logged as in the example below, where the user may be identified
+from the ruleset name.
+.Bd -literal
+# tcpdump -n -e -ttt -i pflog0
+Oct 31 19:42:30.296553 rule 0.bbeck(20267).1/0(match): pass out on fxp1: \e
+129.128.11.10.60539 > 198.137.240.92.22: S 2131494121:2131494121(0) win \e
+16384 <mss 1460,nop,nop,sackOK> (DF)
 .Ed
 .Sh FILES
 .Bl -tag -width "/etc/authpf/authpf.conf" -compact
