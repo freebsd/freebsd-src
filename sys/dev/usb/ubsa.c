@@ -224,6 +224,8 @@ Static const struct ubsa_product {
 	{ USB_VENDOR_GOHUBS, USB_PRODUCT_GOHUBS_GOCOM232 },
 	/* Peracom */
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1 },
+	/* Vodafone */
+	{ USB_VENDOR_VODAFONE, USB_PRODUCT_VODAFONE_MC3G },
 	{ 0, 0 }
 };
 
