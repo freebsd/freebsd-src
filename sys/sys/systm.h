@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.19 1995/04/04 02:02:28 davidg Exp $
+ * $Id: systm.h,v 1.20 1995/05/02 05:35:07 davidg Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -81,6 +81,7 @@ extern char copyright[];	/* system copyright */
 
 extern int nblkdev;		/* number of entries in bdevsw */
 extern int nchrdev;		/* number of entries in cdevsw */
+extern struct swdevt *swdevt;	/* swap-device information */
 extern int nswdev;		/* number of swap devices */
 extern int nswap;		/* size of swap space */
 

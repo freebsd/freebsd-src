@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.12 1995/04/23 09:36:59 bde Exp $
+ * $Id: conf.h,v 1.13 1995/05/12 19:17:24 wollman Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -138,7 +138,6 @@ struct swdevt {
 #define sw_freed	sw_flags	/* XXX compat */
 
 #ifdef KERNEL
-extern struct swdevt swdevt[];
 extern int setdumpdev __P((dev_t));
 
 dev_t	chrtoblk __P((dev_t dev));

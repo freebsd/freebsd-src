@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.11 1995/03/16 18:15:40 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.12 1995/03/16 20:23:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -273,32 +273,15 @@ nfs_mountroot()
 		(void) nfs_mountdiskless(buf, "/swap", 0,
 		    &nd->swap_saddr, &nd->swap_args, &vp);
 
-		for (i=0;swdevt[i].sw_dev != NODEV;i++) ;
-
 		/*
 		 * Since the swap file is not the root dir of a file system,
 		 * hack it to a regular file.
 		 */
 		vp->v_type = VREG;
 		vp->v_flag = 0;
-		swapdev_vp = vp;
 		VREF(vp);
-		swdevt[i].sw_vp = vp;
-		swdevt[i].sw_nblks = nd->swap_nblks*2;
-
-		if (!swdevt[i].sw_nblks) {
-			swdevt[i].sw_nblks = 2048;
-			printf("defaulting to %d kbyte.\n",
-				swdevt[i].sw_nblks/2);
-		} else
-			printf("using %d kbyte.\n",swdevt[i].sw_nblks/2);
-	} else {
-	  /*
-	   * No NFS swap space was specified, try using local disk
-	   */
-	  if (bdevvp(swapdev, &swapdev_vp))
-	    panic("nfs_mountroot: can't setup bdevvp for swap");
-	}
+		swaponvp(p, vp, NODEV, nd->swap_nblks * 2);
+	} 
 
 	/*
 	 * Create the rootfs mount point.

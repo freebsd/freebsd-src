@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.3 1995/01/29 06:23:34 bde Exp $
+ * $Id: gmon.h,v 1.4 1995/03/16 18:16:17 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -124,8 +124,8 @@ struct rawarc {
 /*
  * general rounding functions.
  */
-#define ROUNDDOWN(x,y)	(((x)/(y))*(y))
-#define ROUNDUP(x,y)	((((x)+(y)-1)/(y))*(y))
+#define ROUNDDOWN(x,y)	rounddown(x,y)
+#define ROUNDUP(x,y)	roundup(x,y)
 
 /*
  * The profiling data structures are housed in this structure.
