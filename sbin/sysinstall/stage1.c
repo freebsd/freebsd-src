@@ -249,7 +249,6 @@ stage1()
 		ready = 1;
 
 		inst_disk = select_disk();
-		display_disklabel(inst_disk);
 
 		if (read_mbr(avail_fds[inst_disk], mbr) == -1) {
 			sprintf(scratch, "The following error occured will trying\nto read the master boot record:\n\n%s\nIn order to install FreeBSD a new master boot record\nwill have to be written which will mean all current\ndata on the hard disk will be lost.", errmsg);
@@ -318,7 +317,6 @@ stage1()
 		}
 	}
 
-	display_disklabel(inst_disk);
 	/* Write master boot record and bootblocks */
 	if (write_mbr(avail_fds[inst_disk], mbr) == -1)
 		Fatal(errmsg);
