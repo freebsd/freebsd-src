@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1996/01/08 09:17:39 peter Exp $
+# $Id: Makefile,v 1.4 1996/05/07 23:19:47 wosch Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -19,7 +19,7 @@ SRCS=		ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
 OBJS+=		scan.o
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
-MAN1=		lex.1 lexdoc.1
+MAN1=		lex.1
 MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1
@@ -40,17 +40,12 @@ parse.c parse.h: parse.y
 	mv -f y.tab.c parse.c
 	mv -f y.tab.h parse.h
 
-.if exists(/usr/bin/lex)
-scan.o:	parse.c
-.else
-# We must bootstrap
-scan.o: scan.c parse.h
-
-scan.c:
+bootstrap: initscan.c
 	@echo "Bootstrapping flex"
 	@rm -f scan.c
-	@cp -pf ${.CURDIR}/initscan.c scan.c
-.endif
+	@cp -f ${.CURDIR}/initscan.c scan.c
+
+scan.o:	parse.c
 
 test: check
 check: $(PROG)
