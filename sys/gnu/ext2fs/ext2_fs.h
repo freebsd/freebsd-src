@@ -101,9 +101,6 @@
 /*
  * The second extended file system magic number
  */
-#ifndef notyet
-#define EXT2_PRE_02B_MAGIC	0xEF51
-#endif
 #define EXT2_SUPER_MAGIC	0xEF53
 
 /*
