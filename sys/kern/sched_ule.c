@@ -1302,7 +1302,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
 		SLOT_USE(newtd->td_ksegrp);
-       		TD_SET_RUNNING(newtd);
+		TD_SET_RUNNING(newtd);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	} else
 		newtd = choosethread();
