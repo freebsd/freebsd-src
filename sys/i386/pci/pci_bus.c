@@ -276,6 +276,12 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
+		/* Compaq/HP -- vendor 0x0e11 */
+	case 0x60100e11:
+		s = "Compaq/HP Model 6010 HotPlug PCI Bridge";
+		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0xc8, 1);
+		break;
+
 		/* Integrated Micro Solutions -- vendor 0x10e0 */
 	case 0x884910e0:
 		s = "Integrated Micro Solutions VL Bridge";
