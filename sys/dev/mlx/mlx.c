@@ -1983,8 +1983,10 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
      * initial contents
      */
     if (mu->mu_datasize > 0) {
-	if (mu->mu_datasize > MAXPHYS)
-	    return (EINVAL);
+	if (mu->mu_datasize > MAXPHYS) {
+	    error = EINVAL;
+	    goto out;
+	}
 	if (((kbuf = malloc(mu->mu_datasize, M_DEVBUF, M_WAITOK)) == NULL) ||
 	    (error = copyin(mu->mu_buf, kbuf, mu->mu_datasize)))
 	    goto out;
