@@ -11,6 +11,8 @@
 
 #ifdef _KERNEL
 
+#define	CLOCK_VECTOR	254
+
 extern	int	disable_rtc_set;
 extern	int	wall_cmos_clock;
 extern	int	adjkerntz;

@@ -193,7 +193,7 @@ cpu_initclocks()
 
 	itm_reload = (itc_frequency + hz/2) / hz;
 	ia64_set_itm(ia64_get_itc() + itm_reload);
-	ia64_set_itv(255);	/* highest priority class */
+	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
 
 	stathz = 128;
 }
