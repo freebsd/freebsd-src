@@ -639,7 +639,7 @@ isp_pci_attach(device_t dev)
 			device_printf(dev, "mangled portwwn hint '%s'\n", sptr);
 			isp->isp_osinfo.default_port_wwn = 0;
 		} else {
-			isp->isp_confopts |= ISP_CFG_OWNWWN;
+			isp->isp_confopts |= ISP_CFG_OWNWWPN;
 		}
 	}
 	if (isp->isp_osinfo.default_port_wwn == 0) {
@@ -656,7 +656,7 @@ isp_pci_attach(device_t dev)
 			device_printf(dev, "mangled nodewwn hint '%s'\n", sptr);
 			isp->isp_osinfo.default_node_wwn = 0;
 		} else {
-			isp->isp_confopts |= ISP_CFG_OWNWWN;
+			isp->isp_confopts |= ISP_CFG_OWNWWNN;
 		}
 	}
 	if (isp->isp_osinfo.default_node_wwn == 0) {
