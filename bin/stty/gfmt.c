@@ -133,8 +133,10 @@ gread(i, s)
 		}
 		if (CHK("drainwait")) {
 			(void)sscanf(ep, "%ld", &tmp);
-			i->timeout = tmp;
-			i->tset = 1;
+			if (i->timeout != tmp) {
+				i->timeout = tmp;
+				i->tset = 1;
+			}
 			continue;
 		}
 		for (cp = cchars1; cp->name != NULL; ++cp)
