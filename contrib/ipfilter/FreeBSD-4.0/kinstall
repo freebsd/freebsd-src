@@ -28,11 +28,13 @@ echo ""
 echo "Linking /usr/include/osreldate.h to /sys/sys/osreldate.h"
 ln -s /usr/include/osreldate.h /sys/sys/osreldate.h
 
-patchfile=FreeBSd-4.0/ipv6-patch-$krev
+set patchfile=FreeBSd-4.0/ipv6-patch-$krev
 if ( -f $patchfile ) then
 	echo ""
 	echo "Patching ip6_input.c and ip6_output.c"
 	cat $patchfile | (cd /sys/netinet6; patch)
+else
+	echo "IPv6 patching not required for your OS version"
 endif
 
 set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`

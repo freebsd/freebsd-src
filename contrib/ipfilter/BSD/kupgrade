@@ -8,6 +8,15 @@ set -e
 argv0=`basename $0`
 dir=`pwd`
 karch=`uname -m`
+os=`uname -s`
+if [ $os = FreeBSD ] ; then
+	rev=`uname -r`
+	rev=`expr $rev : '\([0-9]*\)\..*'`
+	if [ $rev = 2 ] ; then
+		echo "Copying /usr/include/osreldate.h to /sys/sys"
+		cp /usr/include/osreldate.h /sys/sys
+	fi
+fi
 archdir="/sys/arch/$karch"
 ipfdir=/sys/netinet
 if [ -d /sys/contrib/ipfilter ] ; then
