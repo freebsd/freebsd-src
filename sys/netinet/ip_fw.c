@@ -725,6 +725,8 @@ static void
 install_state(struct ip_fw_chain *chain, struct ip **pip, struct ip *ip)
 {
     struct ipfw_dyn_rule *q ;
+    static int last_log ;
+
     u_long type = ((struct ip_fw_ext *)chain->rule)->dyn_type ;
 
     DEB(printf("-- install state type %d 0x%08lx %u -> 0x%08lx %u\n",
@@ -734,12 +736,18 @@ install_state(struct ip_fw_chain *chain, struct ip **pip, struct ip *ip)
 
     q = lookup_dyn_rule(&last_pkt) ;
     if (q != NULL) {
+	if (last_log == time_second)
+	    return ;
+	last_log = time_second ;
 	printf(" entry already present, done\n");
 	return ;
     }
     if (dyn_count >= dyn_max) /* try remove old ones... */
 	remove_dyn_rule(NULL, 0 /* expire */);
     if (dyn_count >= dyn_max) {
+	if (last_log == time_second)
+	    return ;
+	last_log = time_second ;
 	printf(" Too many dynamic rules, sorry\n");
 	return ;
     }
