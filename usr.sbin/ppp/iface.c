@@ -622,11 +622,18 @@ iface_Show(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "%s (idx %d) <", iface->name, iface->index);
   for (f = 0; f < sizeof if_flags / sizeof if_flags[0]; f++)
-    if ((if_flags[f].flag & flags) || (!if_flags[f].flag && flags)) {
+    if ((if_flags[f].flag & flags)) {
       prompt_Printf(arg->prompt, "%s%s", flags == iface->flags ? "" : ",",
                     if_flags[f].value);
       flags &= ~if_flags[f].flag;
     }
+
+#if 0
+  if (flags)
+    prompt_Printf(arg->prompt, "%s0x%x", flags == iface->flags ? "" : ",",
+                  flags);
+#endif
+
   prompt_Printf(arg->prompt, "> mtu %d has %d address%s:\n", iface->mtu,
                 iface->addrs, iface->addrs == 1 ? "" : "es");
 

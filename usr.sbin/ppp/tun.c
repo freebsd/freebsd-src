@@ -111,7 +111,7 @@ tun_configure(struct bundle *bundle)
   
   info.baudrate = bundle->bandwidth;
 #ifdef __OpenBSD__
-  info.flags = IFF_UP|IFF_POINTOPOINT;                             
+  info.flags = IFF_UP|IFF_POINTOPOINT|IFF_MULTICAST;
 #endif
   if (ID0ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
     log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
