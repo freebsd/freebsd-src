@@ -108,6 +108,7 @@ static struct mtx unp_mtx;
 #define	UNP_LOCK()		mtx_lock(&unp_mtx)
 #define	UNP_UNLOCK()		mtx_unlock(&unp_mtx)
 #define	UNP_LOCK_ASSERT()	mtx_assert(&unp_mtx, MA_OWNED)
+#define	UNP_UNLOCK_ASSERT()	mtx_assert(&unp_mtx, MA_NOTOWNED)
 
 static int     unp_attach(struct socket *);
 static void    unp_detach(struct unpcb *);
@@ -137,7 +138,8 @@ uipc_abort(struct socket *so)
 		return (EINVAL);
 	}
 	unp_drop(unp, ECONNABORTED);
-	unp_detach(unp);	/* NB: unlocks */
+	unp_detach(unp);
+	UNP_UNLOCK_ASSERT();
 	SOCK_LOCK(so);
 	sotryfree(so);
 	return (0);
@@ -248,7 +250,8 @@ uipc_detach(struct socket *so)
 		UNP_UNLOCK();
 		return (EINVAL);
 	}
-	unp_detach(unp);	/* NB: unlocks unp */
+	unp_detach(unp);
+	UNP_UNLOCK_ASSERT();
 	return (0);
 }
 
@@ -1041,6 +1044,7 @@ unp_abort(unp)
 {
 
 	unp_detach(unp);
+	UNP_UNLOCK_ASSERT();
 }
 #endif
 
@@ -1232,6 +1236,8 @@ unp_externalize(control, controlp)
 	int f;
 	u_int newlen;
 
+	UNP_UNLOCK_ASSERT();
+
 	error = 0;
 	if (controlp != NULL) /* controlp == NULL => free control messages */
 		*controlp = NULL;
@@ -1357,6 +1363,8 @@ unp_internalize(controlp, td)
 	socklen_t clen = control->m_len, datalen;
 	int error, oldfds;
 	u_int newlen;
+
+	UNP_UNLOCK_ASSERT();
 
 	error = 0;
 	*controlp = NULL;
