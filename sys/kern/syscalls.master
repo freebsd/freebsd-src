@@ -644,6 +644,6 @@
 		    *auditinfo_addr, u_int length); }
 453	MNOSTD	{ int auditctl(int cmd, char *path); }
 454	MSTD	{ int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr,\
-		    struct timespec *abstime); }
+		    void *uaddr2); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

@@ -58,8 +58,7 @@ struct umtx {
 int _umtx_lock(struct umtx *mtx);
 /* deprecated becaues it can only use thread id */
 int _umtx_unlock(struct umtx *mtx);
-int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr,
-	struct timespec *abstime);
+int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr, void *uaddr2);
 
 /*
  * Standard api.  Try uncontested acquire/release and asks the
