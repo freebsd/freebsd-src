@@ -378,6 +378,10 @@ struct vfsops {
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
 
+#include <net/radix.h>
+
+#define	AF_MAX		35	/* XXX */
+
 /*
  * Network address lookup element
  */
