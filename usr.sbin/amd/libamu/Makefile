@@ -3,12 +3,11 @@
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998
 #
-# $Id$
+# $Id: Makefile,v 1.1 1998/08/27 08:09:41 obrien Exp $
 
 .PATH:		${.CURDIR}/../../../contrib/amd/libamu \
 		${.CURDIR}/../../../contrib/amd/conf/transp \
 		${.CURDIR}/../../../contrib/amd/conf/mtab \
-		${.CURDIR}/../../../contrib/amd/conf/mount \
 		${.CURDIR}/../../../contrib/amd/conf/umount
 
 LIB=		amu
@@ -17,7 +16,7 @@ SRCS=		hasmntopt.c misc_rpc.c mount_fs.c mtab.c nfs_prot_xdr.c \
 		util.c wire.c xutil.c
 
 #		These would be links created by the GNU-style configure
-SRCS+=		transp_sockets.c mtab_bsd.c mount_freebsd3.c umount_bsd44.c
+SRCS+=		transp_sockets.c mtab_bsd.c umount_bsd44.c
 
 CFLAGS+=	-I${.CURDIR}/../../../contrib/amd/libamu
 
