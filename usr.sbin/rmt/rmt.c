@@ -104,7 +104,12 @@ top:
 		getstring(device);
 		getstring(mode);
 		DEBUG2("rmtd: O %s %s\n", device, mode);
-		tape = open(device, atoi(mode));
+		/*
+		 * XXX the rmt protocol does not provide a means to
+		 * specify the permission bits; allow rw for everyone,
+		 * as modified by the users umask
+		 */
+		tape = open(device, atoi(mode), 0666);
 		if (tape < 0)
 			goto ioerror;
 		goto respond;
