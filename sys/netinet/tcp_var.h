@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.44 1998/05/15 20:11:35 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.45 1998/06/27 07:30:45 jhay Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -362,7 +362,7 @@ struct tcpcb *
 int	 tcp_output __P((struct tcpcb *));
 void	 tcp_quench __P((struct inpcb *, int));
 void	 tcp_respond __P((struct tcpcb *,
-	    struct tcpiphdr *, struct mbuf *, u_long, u_long, int));
+	    struct tcpiphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
 struct rtentry *
 	 tcp_rtlookup __P((struct inpcb *));
 void	 tcp_setpersist __P((struct tcpcb *));
