@@ -820,11 +820,13 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 	int	restart;
 	int	suppress_handler = 0;
 	int	fromproc = 0;
+	__sighandler_t *sigfunc;
 
 	DBG_MSG(">>> _thr_sig_add %p (%d)\n", pthread, sig);
 
 	curkse = _get_curkse();
 	restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
+	sigfunc = _thread_sigact[sig - 1].sa_handler;
 	fromproc = (curthread == _thr_sig_daemon);
 
 	if (pthread->state == PS_DEAD || pthread->state == PS_DEADLOCK ||
@@ -855,6 +857,11 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			SIGADDSET(pthread->sigpend, sig);
 		}
 		if (!SIGISMEMBER(pthread->sigmask, sig)) {
+			/* A quick path to exit process */
+			if (sigfunc == SIG_DFL && sigprop(sig) & SA_KILL) {
+				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+				/* Never reach */
+			}
 			pthread->check_pending = 1;
 			if (!(pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
 			    (pthread->blocked != 0) && 
@@ -870,6 +877,13 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 				return (NULL);
 			info = &siginfo;
 		}
+
+		if (pthread->state != PS_SIGWAIT && sigfunc == SIG_DFL &&
+		    (sigprop(sig) & SA_KILL)) {
+			kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+			/* Never reach */
+		}
+
 		/*
 		 * Process according to thread state:
 		 */
@@ -941,6 +955,13 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 				/* Increment the pending signal count. */
 				SIGADDSET(pthread->sigpend, sig);
 				if (!SIGISMEMBER(pthread->sigmask, sig)) {
+					if (sigfunc == SIG_DFL &&
+					    sigprop(sig) & SA_KILL) {
+						kse_thr_interrupt(NULL,
+							 KSE_INTR_SIGEXIT,
+							 sig);
+						/* Never reach */
+					}
 					pthread->check_pending = 1;
 					pthread->interrupted = 1;
 					kmbx = _thr_setrunnable_unlocked(pthread);
