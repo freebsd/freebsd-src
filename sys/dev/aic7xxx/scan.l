@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scan.l,v 1.1 1997/03/16 07:08:17 gibbs Exp $
  */
 
 #include <limits.h>
@@ -37,6 +37,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include <sys/queue.h>
+#include <sys/types.h>
 
 #include "aic7xxx_asm.h"
 #include "symbol.h"
