@@ -63,6 +63,5 @@ if [ ! -d ${TMP}/mt/\# ] ; then
 fi
 rmdir ${TMP}/mr/\#
 
-echo Passed test 1>&2
 rm -rf ${TMP}
 exit 0
