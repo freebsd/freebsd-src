@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id$
+ *	$Id: fd.c,v 1.16 1997/02/22 09:43:34 peter Exp $
  *
  */
 
@@ -869,18 +869,12 @@ fdattach(struct isa_device *dev)
 #endif /* EPSON_NRDISK */
 			fd->type = FD_1200;
 			fd->pc98_trans = 0;
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.1200",fdu);
-#endif	/* DEVFS */
 			break;
 		case FDT_144M:
 			printf("1.44M FDD\n");
 			fd->type = FD_1200;
 			fd->pc98_trans = 0;
 			outb(0x4be, (fdu << 5) | 0x10);
-#ifdef	DEVFS
-			sprintf(name,"rfd%d.1440",fdu);
-#endif	/* DEVFS */
 			break;
 #else
 		case RTCFDT_12M:
@@ -923,6 +917,21 @@ fdattach(struct isa_device *dev)
 			 * XXX this and the lookup in Fdopen() should be
 			 * data driven.
 			 */
+#ifdef PC98
+			switch (fdt) {
+			case FDT_12M:
+				if (i != FD_1200 && i != FD_1232
+				    && i != FD_720 && i != FD_640)
+					continue;
+				break;
+			case FDT_144M:
+				if (i != FD_1200 && i != FD_1232
+				    && i != FD_720 && i != FD_640
+				    && i != FD_1440)
+					continue;
+				break;
+			}
+#else
 			switch (fd->type) {
 			case FD_360:
 				if (i != FD_360)
@@ -945,7 +954,14 @@ fdattach(struct isa_device *dev)
 					continue;
 				break;
 			}
+#endif
 			typemynor = mynor | i;
+#ifdef PC98
+			if (i == FD_1232)
+				typesize = fd_types[i - 1].size;
+			else
+				typesize = fd_types[i - 1].size / 2;
+#else
 			typesize = fd_types[i - 1].size / 2;
 			/*
 			 * XXX all these conversions give bloated code and
@@ -955,6 +971,7 @@ fdattach(struct isa_device *dev)
 				typesize = 1480;
 			if (typesize == 1722)
 				typesize = 1720;
+#endif
 			fd->bdevs[i] =
 				devfs_add_devswf(&fd_bdevsw, typemynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
