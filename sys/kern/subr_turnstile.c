@@ -562,6 +562,9 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_assert(struct mtx *m, int what, const char *file, int line)
 {
+
+	if (panicstr != NULL)
+		return;
 	switch (what) {
 	case MA_OWNED:
 	case MA_OWNED | MA_RECURSED:
