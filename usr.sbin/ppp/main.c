@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.23 1998/02/16 19:09:55 brian Exp $
+ * $Id: main.c,v 1.121.2.24 1998/02/17 01:05:43 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -495,23 +495,6 @@ main(int argc, char **argv)
   AbortProgram(EX_NORMAL);
 
   return EX_NORMAL;
-}
-
-/*
- *  Turn into packet mode, where we speak PPP.
- */
-void
-PacketMode(struct bundle *bundle, int delay)
-{
-  /* XXX which one ? */
-  LcpInit(bundle, bundle2physical(bundle, NULL));
-  CcpInit(bundle, bundle2link(bundle, NULL));
-
-  FsmUp(&LcpInfo.fsm);
-  LcpOpen(delay);
-
-  prompt_TtyCommandMode(&prompt);
-  prompt_Printf(&prompt, "Packet mode.\n");
 }
 
 static void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.18 1998/02/17 01:05:18 brian Exp $
+ * $Id: modem.c,v 1.77.2.19 1998/02/17 19:27:57 brian Exp $
  *
  *  TODO:
  */
@@ -265,12 +265,19 @@ modem_Timeout(void *data)
 	 * In dedicated mode, start packet mode immediate after we detected
 	 * carrier.
 	 */
+#if 0
+/*
+ * Dedicated links should never have datalink::script.run set, and should
+ * always have datalink::script.packetmode set - therefore we're going to
+ * go into packet mode immediately.
+ */
 #ifdef notyet
 	if (to->modem->is_dedicated)
 	  PacketMode(to->bundle, VarOpenMode);
 #else
 	if (mode & MODE_DEDICATED)
 	  PacketMode(to->bundle, VarOpenMode);
+#endif
 #endif
       } else {
         LogPrintf(LogDEBUG, "modem_Timeout: online -> offline\n");
@@ -998,7 +1005,7 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
           Physical_Write(p, rbuff, cp - rbuff);
           Physical_Write(p, "\r\n", 2);
         }
-        PacketMode(bundle, 0);
+        datalink_Up(bundle2datalink(bundle, p->link.name), 0, 1);
       } else
         prompt_Printf(&prompt, "%.*s", n, rbuff);
     }

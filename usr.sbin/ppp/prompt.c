@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.5 1998/02/17 19:28:00 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.6 1998/02/17 19:28:12 brian Exp $
  */
 
 #include <sys/param.h>
@@ -118,18 +118,6 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   static int ttystate;
   char linebuff[LINE_LEN];
 
-  if (p->TermMode != NULL) {
-    if (p->TermMode->state == DATALINK_CLOSED) {
-      prompt_Printf(p, "Exiting terminal mode.\n");
-      prompt_TtyCommandMode(&prompt);
-      prompt_nonewline = 0;
-      prompt_Display(&prompt, bundle);
-    }
-
-    if (p->TermMode->state != DATALINK_OPEN)
-      return;
-  }
-
   LogPrintf(LogDEBUG, "descriptor2prompt; %p -> %p\n", d, p);
   LogPrintf(LogDEBUG, "termode = %p, p->fd_in = %d, mode = %d\n",
 	    p->TermMode, p->fd_in, mode);
@@ -150,6 +138,29 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       prompt_Drop(&prompt, 0);
     }
     return;
+  }
+
+  switch (p->TermMode->state) {
+    case DATALINK_CLOSED:
+      prompt_Printf(p, "Link lost, terminal mode.\n");
+      prompt_TtyCommandMode(&prompt);
+      prompt_nonewline = 0;
+      prompt_Display(&prompt, bundle);
+      return;
+
+    case DATALINK_READY:
+      break;
+
+    case DATALINK_OPEN:
+      prompt_Printf(p, "\nPacket mode detected.\n");
+      prompt_TtyCommandMode(&prompt);
+      prompt_nonewline = 0;
+      /* We'll get a prompt because of our status change */
+      /* Fall through */
+
+    default:
+      /* Wait 'till we're in a state we care about */
+      return;
   }
 
   /*
@@ -173,13 +184,10 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 	prompt_ShowHelp(p);
 	break;
       case 'p':
-
-	/*
-	 * XXX: Should check carrier.
-	 */
-	if (LcpInfo.fsm.state <= ST_CLOSED)
-	  PacketMode(bundle, 0);
-	break;
+        datalink_Up(p->TermMode, 0, 1);
+        prompt_Printf(p, "\nPacket mode.\n");
+	prompt_TtyCommandMode(&prompt);
+        break;
       case '.':
 	prompt_TtyCommandMode(&prompt);
         prompt_nonewline = 0;

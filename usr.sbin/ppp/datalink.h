@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.4 1998/02/16 19:11:01 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.5 1998/02/17 01:05:38 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -31,7 +31,8 @@
 #define DATALINK_HANGUP  (2)
 #define DATALINK_DIAL    (3)
 #define DATALINK_LOGIN   (4)
-#define DATALINK_OPEN    (5)
+#define DATALINK_READY   (5)
+#define DATALINK_OPEN    (6)
 
 struct datalink {
   struct descriptor desc;       /* We play either a physical or a chat */
@@ -79,3 +80,4 @@ extern void datalink_Up(struct datalink *, int, int);
 extern void datalink_Close(struct datalink *, int);
 extern void datalink_Down(struct datalink *, int);
 extern void datalink_StayDown(struct datalink *);
+extern void datalink_Show(struct datalink *);

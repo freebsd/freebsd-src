@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.22 1998/02/17 19:27:51 brian Exp $
+ * $Id: command.c,v 1.131.2.23 1998/02/17 19:28:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -346,7 +346,7 @@ static struct cmdtab const Commands[] = {
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
   "Run a background command", "[!]bg command"},
-  {"close", NULL, CloseCommand, LOCAL_AUTH,
+  {"close", NULL, CloseCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
   "delete route", "delete dest", NULL},
@@ -386,7 +386,7 @@ static struct cmdtab const Commands[] = {
   "Quit PPP program", "quit|bye [all]"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "help|? [command]", Commands},
-  {NULL, "down", DownCommand, LOCAL_AUTH,
+  {NULL, "down", DownCommand, LOCAL_AUTH | LOCAL_CX,
   "Generate down event", "down"},
   {NULL, NULL, NULL},
 };
@@ -829,14 +829,14 @@ QuitCommand(struct cmdargs const *arg)
 static int
 CloseCommand(struct cmdargs const *arg)
 {
-  bundle_Close(LcpInfo.fsm.bundle, NULL, 1);
+  bundle_Close(LcpInfo.fsm.bundle, arg->cx ? arg->cx->name : NULL, 1);
   return 0;
 }
 
 static int
 DownCommand(struct cmdargs const *arg)
 {
-  link_Close(&arg->bundle->links->physical->link, arg->bundle, 0, 1);
+  link_Close(&arg->cx->physical->link, arg->bundle, 0, 1);
   return 0;
 }
 
@@ -852,7 +852,7 @@ SetModemSpeed(struct cmdargs const *arg)
       return -1;
     }
     if (strcasecmp(*arg->argv, "sync") == 0) {
-      Physical_SetSync(arg->bundle->links->physical);
+      Physical_SetSync(arg->cx->physical);
       return 0;
     }
     end = NULL;
@@ -861,7 +861,7 @@ SetModemSpeed(struct cmdargs const *arg)
       LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"", *arg->argv);
       return -1;
     }
-    if (Physical_SetSpeed(arg->bundle->links->physical, speed))
+    if (Physical_SetSpeed(arg->cx->physical, speed))
       return 0;
     LogPrintf(LogWARN, "%s: Invalid speed\n", *arg->argv);
   } else
@@ -1041,7 +1041,7 @@ SetServer(struct cmdargs const *arg)
 static int
 SetModemParity(struct cmdargs const *arg)
 {
-  return arg->argc > 0 ? modem_SetParity(arg->bundle->links->physical, *arg->argv) : -1;
+  return arg->argc > 0 ? modem_SetParity(arg->cx->physical, *arg->argv) : -1;
 }
 
 static int

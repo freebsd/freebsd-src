@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.11 1998/02/17 01:05:33 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.12 1998/02/17 19:27:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -699,11 +699,14 @@ bundle_FillQueues(struct bundle *bundle)
 int
 bundle_ShowLinks(struct cmdargs const *arg)
 {
-  struct datalink *dl;
+  if (arg->cx)
+    datalink_Show(arg->cx);
+  else {
+    struct datalink *dl;
 
-  prompt_Printf(&prompt, "The following links are defined:\n");
-  for (dl = arg->bundle->links; dl; dl = dl->next)
-    prompt_Printf(&prompt, "\t%s\n", dl->name);
+    for (dl = arg->bundle->links; dl; dl = dl->next)
+      datalink_Show(dl);
+  }
 
   return 0;
 }

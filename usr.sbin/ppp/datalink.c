@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.6 1998/02/17 01:05:38 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.7 1998/02/17 19:27:55 brian Exp $
  */
 
 #include <sys/param.h>
 #include <netinet/in.h>
 
 #include <alias.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
@@ -57,6 +58,9 @@
 #include "modem.h"
 #include "iplist.h"
 #include "ipcp.h"
+#include "prompt.h"
+
+static const char *datalink_State(struct datalink *);
 
 static void
 datalink_OpenTimeout(void *v)
@@ -131,11 +135,23 @@ datalink_LoginDone(struct datalink *dl)
     } else
       datalink_HangupDone(dl);
   } else {
-    LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
-    dl->state = DATALINK_OPEN;
     dl->dial_tries = -1;
-    if (dl->script.packetmode)
-      PacketMode(dl->bundle, VarOpenMode);
+    if (dl->script.packetmode) {
+      int openmode;
+
+      openmode = dl->state == DATALINK_READY ? 0 : VarOpenMode;
+
+      LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
+      dl->state = DATALINK_OPEN;
+
+      LcpInit(dl->bundle, dl->physical);
+      CcpInit(dl->bundle, &dl->physical->link);
+      FsmUp(&LcpInfo.fsm);
+      LcpOpen(openmode);
+    } else {
+      LogPrintf(LogPHASE, "%s: Entering READY state\n", dl->name);
+      dl->state = DATALINK_READY;
+    }
   }
 }
 
@@ -223,6 +239,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           break;
       }
       break;
+
+    case DATALINK_READY:
     case DATALINK_OPEN:
       result = descriptor_UpdateSet(&dl->physical->desc, r, w, e, n);
       break;
@@ -237,11 +255,15 @@ datalink_IsSet(struct descriptor *d, fd_set *fdset)
 
   switch (dl->state) {
     case DATALINK_CLOSED:
+    case DATALINK_OPENING:
       break;
+
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
       return descriptor_IsSet(&dl->chat.desc, fdset);
+
+    case DATALINK_READY:
     case DATALINK_OPEN:
       return descriptor_IsSet(&dl->physical->desc, fdset);
   }
@@ -255,12 +277,16 @@ datalink_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 
   switch (dl->state) {
     case DATALINK_CLOSED:
+    case DATALINK_OPENING:
       break;
+
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
       descriptor_Read(&dl->chat.desc, bundle, fdset);
       break;
+
+    case DATALINK_READY:
     case DATALINK_OPEN:
       descriptor_Read(&dl->physical->desc, bundle, fdset);
       break;
@@ -274,12 +300,16 @@ datalink_Write(struct descriptor *d, const fd_set *fdset)
 
   switch (dl->state) {
     case DATALINK_CLOSED:
+    case DATALINK_OPENING:
       break;
+
     case DATALINK_HANGUP:
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
       descriptor_Write(&dl->chat.desc, fdset);
       break;
+
+    case DATALINK_READY:
     case DATALINK_OPEN:
       descriptor_Write(&dl->physical->desc, fdset);
       break;
@@ -307,6 +337,8 @@ datalink_Create(const char *name, struct bundle *bundle)
   *dl->script.dial = '\0';
   *dl->script.login = '\0';
   *dl->script.hangup = '\0';
+  dl->script.run = 1;
+  dl->script.packetmode = 1;
 
   dl->bundle = bundle;
   dl->next = NULL;
@@ -334,7 +366,7 @@ datalink_Create(const char *name, struct bundle *bundle)
   LcpInit(dl->bundle, dl->physical);
   CcpInit(dl->bundle, &dl->physical->link);
 
-  LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
+  LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
   return dl;
 }
@@ -345,7 +377,8 @@ datalink_Destroy(struct datalink *dl)
   struct datalink *result;
 
   if (dl->state != DATALINK_CLOSED)
-    LogPrintf(LogERROR, "Oops, destroying a datalink in state %d\n", dl->state);
+    LogPrintf(LogERROR, "Oops, destroying a datalink in state %s\n",
+              datalink_State(dl));
 
   result = dl->next;
   chat_Destroy(&dl->chat);
@@ -359,41 +392,36 @@ datalink_Destroy(struct datalink *dl)
 void
 datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 {
-  if (dl->state == DATALINK_CLOSED) {
-    LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
-    dl->state = DATALINK_OPENING;
-    dl->reconnect_tries = dl->max_reconnect;
-    dl->dial_tries = dl->max_dial;
-    dl->script.run = runscripts;
-    dl->script.packetmode = packetmode;
+  switch (dl->state) {
+    case DATALINK_CLOSED:
+      LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
+      dl->state = DATALINK_OPENING;
+      dl->reconnect_tries = dl->max_reconnect;
+      dl->dial_tries = dl->max_dial;
+      dl->script.run = runscripts;
+      dl->script.packetmode = packetmode;
+      break;
+
+    case DATALINK_OPENING:
+      if (!dl->script.run && runscripts)
+        dl->script.run = 1;
+      /* fall through */
+
+    case DATALINK_DIAL:
+    case DATALINK_LOGIN:
+    case DATALINK_READY:
+      if (!dl->script.packetmode && packetmode) {
+        dl->script.packetmode = 1;
+        if (dl->state == DATALINK_READY)
+          datalink_LoginDone(dl);
+      }
+      break;
   }
 }
 
-void
-datalink_Close(struct datalink *dl, int stay)
+static void
+datalink_ComeDown(struct datalink *dl, int stay)
 {
-  /* Please close */
-  FsmClose(&CcpInfo.fsm);
-  FsmClose(&LcpInfo.fsm);
-  if (stay) {
-    dl->dial_tries = -1;
-    dl->reconnect_tries = 0;
-  }
-}
-
-void
-datalink_Down(struct datalink *dl, int stay)
-{
-  /* Carrier is lost */
-  LogPrintf(LogPHASE, "datalink_Down: %sstay down\n", stay ? "" : "don't ");
-  FsmDown(&CcpInfo.fsm);
-  FsmClose(&CcpInfo.fsm);
-  FsmDown(&LcpInfo.fsm);
-  if (stay)
-    FsmClose(&LcpInfo.fsm);
-  else
-    FsmOpen(&CcpInfo.fsm);
-
   if (stay) {
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
@@ -411,7 +439,63 @@ datalink_Down(struct datalink *dl, int stay)
 }
 
 void
+datalink_Close(struct datalink *dl, int stay)
+{
+  /* Please close */
+  if (dl->state == DATALINK_OPEN) {
+    FsmClose(&CcpInfo.fsm);
+    FsmClose(&LcpInfo.fsm);
+    if (stay) {
+      dl->dial_tries = -1;
+      dl->reconnect_tries = 0;
+    }
+  } else
+    datalink_ComeDown(dl, stay);
+}
+
+void
+datalink_Down(struct datalink *dl, int stay)
+{
+  /* Carrier is lost */
+  if (dl->state == DATALINK_OPEN) {
+    FsmDown(&CcpInfo.fsm);
+    FsmClose(&CcpInfo.fsm);
+    FsmDown(&LcpInfo.fsm);
+    if (stay)
+      FsmClose(&LcpInfo.fsm);
+    else
+      FsmOpen(&CcpInfo.fsm);
+  }
+
+  datalink_ComeDown(dl, stay);
+}
+
+void
 datalink_StayDown(struct datalink *dl)
 {
   dl->reconnect_tries = 0;
+}
+
+void
+datalink_Show(struct datalink *dl)
+{
+  prompt_Printf(&prompt, "Link %s: State %s\n", dl->name, datalink_State(dl));
+}
+
+static char *states[] = {
+  "CLOSED",
+  "OPENING",
+  "HANGUP",
+  "DIAL",
+  "LOGIN",
+  "READY",
+  "OPEN"
+};
+
+static const char *
+datalink_State(struct datalink *dl)
+{
+  if (dl->state < 0 || dl->state >= sizeof states / sizeof states[0])
+    return "unknown";
+  return states[dl->state];
 }
