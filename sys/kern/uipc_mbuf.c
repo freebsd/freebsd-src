@@ -41,8 +41,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
