@@ -34,7 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.9 1999/03/23 04:57:24 grog Exp grog $
+.\" $Id: vinum.8,v 1.10 1999/07/02 07:46:13 grog Exp grog $
 .\"
 .Dd 28 March 1999
 .Dt vinum 8
@@ -283,10 +283,9 @@ manager.  See
 .Xr vinum 4
 for more information about the volume manager.
 .Xr vinum 8
-is designed either for interactive use, when started without a command, or to
-execute a single command if the command is supplied as arguments to
-.Nm vinum .
-In interactive mode,
+is designed either for interactive use, when started without command line
+arguments, or to execute a single command if the command is supplied on the
+command line.  In interactive mode,
 .Nm
 maintains a command line history.
 .Ss OPTIONS
@@ -614,16 +613,16 @@ Maximum allocs:       56, malloc table at 0xf0f72dbc
 
 Time             Event       Buf        Dev     Offset          Bytes   SD      SDoff   Doffset Goffset
 
-14:40:00.637758 1VS Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639280 2LR Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639294 3RQ Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.639455 3RQ Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.639529 3RQ Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.652978 4DN Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.667040 4DN Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.668556 4DN Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.669777 6RP Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.685547 4DN Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
+14:40:00.637758 1VS Write 0xf2361f40    91.3  0x10            16384
+14:40:00.639280 2LR Write 0xf2361f40    91.3  0x10            16384
+14:40:00.639294 3RQ Read  0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.639455 3RQ Read  0xf2361f40    4.23   0xd2109         8192    17      0       0       0
+14:40:00.639529 3RQ Read  0xf2361f40    4.15   0x6e109         8192    16      0       0       0
+14:40:00.652978 4DN Read  0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.667040 4DN Read  0xf2361f40    4.15   0x6e109         8192    16      0       0       0
+14:40:00.668556 4DN Read  0xf2361f40    4.23   0xd2109         8192    17      0       0       0
+14:40:00.669777 6RP Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.685547 4DN Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
 .Ed
 .Pp
 The
@@ -1284,7 +1283,7 @@ option, these commands produce no output.
 Use a volume with a single concatenated plex for the largest possible storage
 without resilience to drive failures:
 .Bd -literal
-# vinum ->  concat -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+vinum ->  concat -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
 volume vinum0
   plex name vinum0.p0 org concat
 drive vinumdrive0 device /dev/da1h
@@ -1415,29 +1414,34 @@ dependent on the context.
 The configuration file can contain the following entries:
 .Pp
 .Bl -hang -width 4n
-.It Nm drive Ar name option
+.It Nm drive Ar name devicename
+.Op options
 .Pp
-Define a drive.  The option must be:
+Define a drive.  The options are:
 .Pp
 .Bl -hang -width 18n
 .It Nm device Ar devicename
 Specify the device on which the drive resides.  
 .Ar devicename
-must be the name of a disk compatibility partition, for example
+must be the name of a disk partition, for example
 .Pa /dev/da1e
 or
-.Pa /dev/wd3h ,
-and it should be of type
+.Pa /dev/wd3s2h ,
+and it must be of type
 .Nm vinum .
 Do not use the
 .Nm c
-partition, which is reserved for the complete disk, and should be of type
-.Nm unused .
-It is currently possible to create drives on other disk devices, for example
-.Pa /dev/da0s1
-or 
-.Pa /dev/da0s1e ,
-but it will not be possible to start these drives after a reboot.
+partition, which is reserved for the complete disk.
+.It Nm hotspare
+Define the drive to be a
+.Do
+hot spare
+.Dc
+drive, which is maintained to automatically replace a failed drive.
+.Nm
+does not allow this drive to be used for any other purpose.  In particular, it
+is not possible to create subdisks on it.  This functionality has not been
+completely implemented.
 .El
 .It Nm volume
 .Ar name
@@ -1654,15 +1658,7 @@ volume vol5
 .Nm
 drives are currently BSD disk partitions.  They must be of type
 .Ar vinum
-in order to avoid overwriting file systems.  For compatibility reasons,
-.Nm
-currently accepts partitions of type
-.Ar unused ,
-but the next release will not allow this kind of partition.
-.Nm
-prints a warning message when reading a configuration from a partition of type
-.Ar unused .
-Use
+in order to avoid overwriting data used for other purposes.  Use
 .Nm disklabel
 .Ar -e
 to edit a partition type definition.  The following display shows a typical
@@ -1727,12 +1723,12 @@ system.
 The first choice you need to make is where to put the data.  You need dedicated
 disk partitions for
 .Nm vinum .
-They should be compatibility partitions, not devices or partition
-.Nm c
-of a slice.  For example, good names are
+They should be partitions, not devices, and they should not be partition
+.Nm c .
+For example, good names are
 .Pa /dev/da0e
 or
-.Pa /dev/wd3a .
+.Pa /dev/wd3s4a .
 Bad names are 
 .Pa /dev/da0
 and
@@ -1740,15 +1736,8 @@ and
 both of which represent a device, not a partition,
 .Pa /dev/wd1c ,
 which represents a complete disk and should be of type
-.Nm unused ,
-and
-.Pa /dev/da3s0e ,
-which is not a compatibility partition.
-.Nm
-currently allows you to create drives with these names, but the
-.Nm start
-command will not find them.  See the example under DRIVE LAYOUT CONSIDERATIONS
-above.
+.Nm unused .
+See the example under DRIVE LAYOUT CONSIDERATIONS above.
 .Ss Designing volumes
 The way you set up
 .Nm
@@ -2263,11 +2252,8 @@ will not create a device on UFS partitions.  Instead, it will return an error
 message 
 .if t ``wrong partition type''.  
 .if n "wrong partition type".  
-The partition type should be
-.Ar vinum ,
-though currently partitions of type
-.Ar unused
-are also accepted.
+The partition type must be
+.Ar vinum .
 .It
 When you create a volume with multiple plexes,
 .Nm
@@ -2432,3 +2418,8 @@ Greg Lehey
 The
 .Nm
 command first appeared in FreeBSD 3.0.
+The RAID-5 component of
+.Nm
+was developed by Cybernet Inc. 
+.Pa www.cybernet.com
+for its NetMAX product.
