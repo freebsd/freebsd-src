@@ -132,16 +132,16 @@ In both client and server modes, this required option specifies which
 .Xr ppp 8
 label will be used.
 .It Fl S
-In the server mode register the Serial Port (SP) service in addition to the
+In the server mode, register the Serial Port (SP) service in addition to the
 LAN Access Using PPP (LAN) service.
-It appears that some cell phones are using so called
-.Dq callback mechanism .
-In this scenario the user is trying to connect his cell phone to the Internet,
-and, user's host computer is acting as the gateway server.
+It appears that some cell phones are using the so-called
+.Dq "callback mechanism" .
+In this scenario, the user is trying to connect his cell phone to the Internet,
+and user's host computer is acting as the gateway server.
 It seems that it is not possible to tell the phone to just connect and start
 using the LAN service.
-Instead the user's host computer must
-.Dq jump start
+Instead, the user's host computer must
+.Dq "jump start"
 the phone by connecting to the phone's SP service.
 What happens next is the phone kills the existing connection and opens another
 connection back to the user's host computer.
