@@ -1,0 +1,104 @@
+.Dd June 21, 1993
+.Dt GETOPT 1
+.Os
+.Sh NAME
+.Nm getopt
+.Nd parse command options
+.Sh SYNOPSIS
+.Nm set \-\- \`getopt optstring $*\`
+.Sh DESCRIPTION
+.Nm Getopt
+is used to break up options in command lines for easy parsing by
+shell procedures, and to check for legal options.
+.Op Optstring
+is a string of recognized option letters (see
+.Xr getopt 3
+);
+if a letter is followed by a colon, the option
+is expected to have an argument which may or may not be
+separated from it by white space.
+The special option
+.B \-\-
+is used to delimit the end of the options.
+.Nm Getopt
+will place
+.B \-\-
+in the arguments at the end of the options,
+or recognize it if used explicitly.
+The shell arguments
+(\fB$1 $2\fR ...) are reset so that each option is
+preceded by a
+.B \-
+and in its own shell argument;
+each option argument is also in its own shell argument.
+.Sh EXAMPLE
+The following code fragment shows how one might process the arguments
+for a command that can take the options
+.Op a
+and
+.Op b ,
+and the option
+.Op o ,
+which requires an argument.
+.Pp
+.Bd -literal -offset indent
+set \-\- \`getopt abo: $*\`
+if test $? != 0
+then
+	echo 'Usage: ...'
+	exit 2
+fi
+for i
+do
+	case "$i"
+	in
+		\-a|\-b)
+			flag=$i; shift;;
+		\-o)
+			oarg=$2; shift; shift;;
+		\-\-)
+			shift; break;;
+	esac
+done
+.Ed
+.Pp
+This code will accept any of the following as equivalent:
+.Pp
+.Bd -literal -offset indent
+cmd \-aoarg file file
+cmd \-a \-o arg file file
+cmd \-oarg -a file file
+cmd \-a \-oarg \-\- file file
+.Ed
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr getopt 3
+.Sh DIAGNOSTICS
+.Nm Getopt
+prints an error message on the standard error output when it
+encounters an option letter not included in
+.Op optstring .
+.Sh HISTORY
+Written by Henry Spencer, working from a Bell Labs manual page.
+Behavior believed identical to the Bell version.
+.Sh BUGS
+Whatever
+.Xr getopt 3
+has.
+.Pp
+Arguments containing white space or imbedded shell metacharacters
+generally will not survive intact;  this looks easy to fix but isn't.
+.Pp
+The error message for an invalid option is identified as coming
+from
+.Nm getopt
+rather than from the shell procedure containing the invocation
+of
+.Nm getopt ;
+this again is hard to fix.
+.Pp
+The precise best way to use the
+.Nm set
+command to set the arguments without disrupting the value(s) of
+shell options varies from one shell version to another.
+varies from one shell version to another.
