@@ -2620,7 +2620,7 @@ static void xl_start_90xB(ifp)
 			prev->xl_ptr->xl_next = cur_tx->xl_phys;
 		prev = cur_tx;
 
-#if NBPF > 0
+#if NBPFILTER > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
