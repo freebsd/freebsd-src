@@ -41,6 +41,7 @@ static char sccsid[] = "@(#) options.c 1.17 96/02/11 17:01:31";
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdio.h>
+#define SYSLOG_NAMES
 #include <syslog.h>
 #include <pwd.h>
 #include <grp.h>
@@ -435,110 +436,17 @@ struct request_info *request;
 	tcpd_jump("memory allocation failure");
 }
 
- /*
-  * The severity option goes last because it comes with a huge amount of ugly
-  * #ifdefs and tables.
-  */
-
-struct syslog_names {
-    char   *name;
-    int     value;
-};
-
-static struct syslog_names log_fac[] = {
-#ifdef LOG_KERN
-    "kern", LOG_KERN,
-#endif
-#ifdef LOG_USER
-    "user", LOG_USER,
-#endif
-#ifdef LOG_MAIL
-    "mail", LOG_MAIL,
-#endif
-#ifdef LOG_DAEMON
-    "daemon", LOG_DAEMON,
-#endif
-#ifdef LOG_AUTH
-    "auth", LOG_AUTH,
-#endif
-#ifdef LOG_LPR
-    "lpr", LOG_LPR,
-#endif
-#ifdef LOG_NEWS
-    "news", LOG_NEWS,
-#endif
-#ifdef LOG_UUCP
-    "uucp", LOG_UUCP,
-#endif
-#ifdef LOG_CRON
-    "cron", LOG_CRON,
-#endif
-#ifdef LOG_LOCAL0
-    "local0", LOG_LOCAL0,
-#endif
-#ifdef LOG_LOCAL1
-    "local1", LOG_LOCAL1,
-#endif
-#ifdef LOG_LOCAL2
-    "local2", LOG_LOCAL2,
-#endif
-#ifdef LOG_LOCAL3
-    "local3", LOG_LOCAL3,
-#endif
-#ifdef LOG_LOCAL4
-    "local4", LOG_LOCAL4,
-#endif
-#ifdef LOG_LOCAL5
-    "local5", LOG_LOCAL5,
-#endif
-#ifdef LOG_LOCAL6
-    "local6", LOG_LOCAL6,
-#endif
-#ifdef LOG_LOCAL7
-    "local7", LOG_LOCAL7,
-#endif
-    0,
-};
-
-static struct syslog_names log_sev[] = {
-#ifdef LOG_EMERG
-    "emerg", LOG_EMERG,
-#endif
-#ifdef LOG_ALERT
-    "alert", LOG_ALERT,
-#endif
-#ifdef LOG_CRIT
-    "crit", LOG_CRIT,
-#endif
-#ifdef LOG_ERR
-    "err", LOG_ERR,
-#endif
-#ifdef LOG_WARNING
-    "warning", LOG_WARNING,
-#endif
-#ifdef LOG_NOTICE
-    "notice", LOG_NOTICE,
-#endif
-#ifdef LOG_INFO
-    "info", LOG_INFO,
-#endif
-#ifdef LOG_DEBUG
-    "debug", LOG_DEBUG,
-#endif
-    0,
-};
-
 /* severity_map - lookup facility or severity value */
 
 static int severity_map(table, name)
-struct syslog_names *table;
+CODE   *table;
 char   *name;
 {
-    struct syslog_names *t;
+    CODE *t;
 
-    for (t = table; t->name; t++)
-	if (STR_EQ(t->name, name))
-	    return (t->value);
+    for (t = table; t->c_name; t++)
+	if (STR_EQ(t->c_name, name))
+	    return (t->c_val);
     tcpd_jump("bad syslog facility or severity: \"%s\"", name);
     /* NOTREACHED */
 }
@@ -554,8 +462,8 @@ struct request_info *request;
     char   *level = split_at(value, '.');
 
     allow_severity = deny_severity = level ?
-	severity_map(log_fac, value) | severity_map(log_sev, level) :
-	severity_map(log_sev, value);
+	severity_map(facilitynames, value) | severity_map(prioritynames, level)
+	: severity_map(prioritynames, value);
 }
 
 /* get_field - return pointer to next field in string */
