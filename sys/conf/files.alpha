@@ -26,6 +26,7 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 alpha/alpha/autoconf.c		standard
 alpha/alpha/cpuconf.c		standard
 alpha/alpha/atomic.s		standard
+alpha/alpha/api_up1000.c	optional	api_up1000
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
 alpha/alpha/dec_eb164.c		optional	dec_eb164
 alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
@@ -33,11 +34,13 @@ alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
 alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
+alpha/alpha/dec_2100_a500.c	optional	dec_2100_a500
 alpha/alpha/dec_st550.c		optional	dec_st550
 alpha/alpha/dec_st6600.c	optional	dec_st6600
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
 alpha/alpha/dec_3000_300.c	optional	dec_3000_300
 alpha/alpha/dec_3000_500.c	optional	dec_3000_500
+alpha/alpha/dec_kn300.c		optional	dec_kn300
 alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
@@ -73,6 +76,10 @@ alpha/alpha/interrupt.c		standard
 alpha/alpha/userconfig.c	optional	userconfig
 alpha/alpha/vm_machdep.c	standard
 alpha/alpha/clock.c		standard
+alpha/mcbus/mcbus.c		optional	dec_kn300
+alpha/mcbus/mcmem.c		optional	dec_kn300
+alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/pci/mcpcia_pci.c		optional	dec_kn300
 clock_if.o			standard				\
 	dependency	"clock_if.c"					\
 	compile-with	"${NORMAL_C}"					\
@@ -149,6 +156,8 @@ alpha/pci/cia_pci.c		optional	dec_eb164
 alpha/pci/cia_pci.c		optional	dec_kn20aa
 alpha/pci/cia_pci.c		optional	dec_st550
 alpha/pci/cia_pci.c		optional	dec_1000a
+alpha/pci/irongate.c		optional	api_up1000
+alpha/pci/irongate_pci.c	optional	api_up1000
 alpha/pci/lca.c			optional	dec_axppci_33
 alpha/pci/lca_pci.c		optional	dec_axppci_33
 alpha/pci/pci_eb164_intr.s	optional	dec_eb164
@@ -157,6 +166,8 @@ alpha/pci/pci_eb164_intr.s	optional	dec_st550
 alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
 alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
+alpha/pci/t2.c			optional	dec_2100_a500
+alpha/pci/t2_pci.c		optional	dec_2100_a500
 alpha/pci/tsunami.c		optional	dec_st6600
 alpha/pci/tsunami_pci.c		optional	dec_st6600
 dev/advansys/adv_isa.c		optional	adv isa
