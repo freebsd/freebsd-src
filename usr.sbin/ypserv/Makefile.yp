@@ -105,7 +105,7 @@ PROTOCOLS = $(YPSRCDIR)/protocols
 RPC 	  = $(YPSRCDIR)/rpc
 SERVICES  = $(YPSRCDIR)/services
 GROUP     = $(YPSRCDIR)/group
-ALIASES   = $(YPSRCDIR)/aliases
+ALIASES   = $(YPSRCDIR)/mail/aliases
 NETGROUP  = $(YPDIR)/netgroup
 PASSWD    = $(YPDIR)/passwd
 .if !defined(MASTER_PASSWD)
