@@ -39,31 +39,26 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In machine/atomic.h
-.\" XXX
-.ds LB \f[R]\(lB\f[P]
-.ds RB \f[R]\(rB\f[P]
-.ds La \f[R]\(la\f[P]
-.ds Ra \f[R]\(ra\f[P]
 .Ft void
-.Fn atomic_add_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.Fn atomic_add_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
 .Ft void
-.Fn atomic_clear_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.Fn atomic_clear_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
 .Ft int
-.Fo atomic_cmpset_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra]
-.Fa "volatile \*[La]type\*[Ra] *dst"
-.Fa "\*[La]type\*[Ra] old"
-.Fa "\*[La]type\*[Ra] new"
+.Fo atomic_cmpset_[acq_|rel_]<type>
+.Fa "volatile <type> *dst"
+.Fa "<type> old"
+.Fa "<type> new"
 .Fc
-.Ft \*[La]type\*[Ra]
-.Fn atomic_load_acq_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p"
-.Ft \*[La]type\*[Ra]
-.Fn atomic_readandclear_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p"
+.Ft <type>
+.Fn atomic_load_acq_<type> "volatile <type> *p"
+.Ft <type>
+.Fn atomic_readandclear_<type> "volatile <type> *p"
 .Ft void
-.Fn atomic_set_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.Fn atomic_set_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
 .Ft void
-.Fn atomic_subtract_\*[LB]acq_\*[Ba]rel_\*[RB]\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.Fn atomic_subtract_[acq_|rel_]<type> "volatile <type> *p" "<type> v"
 .Ft void
-.Fn atomic_store_rel_\*[La]type\*[Ra] "volatile \*[La]type\*[Ra] *p" "\*[La]type\*[Ra] v"
+.Fn atomic_store_rel_<type> "volatile <type> *p" "<type> v"
 .rm LB RB La Ra
 .Sh DESCRIPTION
 Each of the atomic operations is guaranteed to be atomic in the presence of
