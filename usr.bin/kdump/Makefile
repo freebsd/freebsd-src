@@ -8,6 +8,6 @@ SRCS=	kdump.c ioctl.c subr.c
 CLEANFILES+=ioctl.c
 
 ioctl.c: mkioctls
-	DESTDIR=${DESTDIR} /bin/sh ${.CURDIR}/mkioctls > ioctl.c
+	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ioctl.c
 
 .include <bsd.prog.mk>
