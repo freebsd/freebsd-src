@@ -1216,7 +1216,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         supports writing to media in DVD+RW drives.</para>
 
       <para>The &man.ata.4; driver now supports accessing ATA devices
-        as SCSI devices via the CAM layer.  This feature requires
+        as SCSI devices via the CAM layer and drivers (&man.cd.4;,
+        &man.da.4;, &man.st.4;, and &man.pass.4;).  This feature requires
         <literal>device atapicam</literal> in the kernel
         configuration.</para>
 
@@ -3638,8 +3639,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	reboot.  Boot-time configuration of these features is
 	supported by &man.rc.conf.5;. &merged;</para>
 
-      <para role="historic">The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC8. &merged;</para>
+      <para>The <application>ISC DHCP</application> client has been
+	updated to 3.0.1RC9.</para>
 
       <para role="historic"><application>Kerberos IV</application> has been updated to
 	1.0.5. &merged;</para>
