@@ -3,7 +3,7 @@
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
-	bpf.h ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
+	ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
 NOMAN=
 CLEANFILES+=	vnode_if.c vnode_if.h
 
@@ -23,10 +23,7 @@ SRCS+=	bsd_comp.c
 SRCS+=	ppp_deflate.c zlib.c
 .endif
 
-CLEANFILES+=	bpf.h opt_inet.h opt_ipx.h opt_ppp.h ppp.h
-
-bpf.h:
-	echo "#define NBPF ${PPP_FILTER}" > bpf.h
+CLEANFILES+=	opt_inet.h opt_ipx.h opt_ppp.h ppp.h
 
 ppp.h:
 	echo "#define NPPP ${NPPP}" > ppp.h
