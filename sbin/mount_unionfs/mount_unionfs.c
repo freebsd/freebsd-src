@@ -52,8 +52,6 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 
-#include <fs/unionfs/union.h>
-
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,26 +75,32 @@ main(argc, argv)
 	char *argv[];
 {
 	struct iovec iov[8];
-	int ch, mntflags, unionflags;
+	int ch, mntflags;
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	struct vfsconf vfc;
-	int error;
+	int error, iovcnt;
 
+	iovcnt = 6;
 	mntflags = 0;
-	unionflags = UNMNT_ABOVE;
 	while ((ch = getopt(argc, argv, "bo:r")) != -1)
 		switch (ch) {
 		case 'b':
-			unionflags &= ~UNMNT_OPMASK;
-			unionflags |= UNMNT_BELOW;
+			iov[6].iov_base = "below";
+			iov[6].iov_len = strlen(iov[6].iov_base) + 1;
+			iov[7].iov_base = NULL;
+			iov[7].iov_len = 0;
+			iovcnt = 8;
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case 'r':
-			unionflags &= ~UNMNT_OPMASK;
-			unionflags |= UNMNT_REPLACE;
+			iov[6].iov_base = "replace";
+			iov[6].iov_len = strlen(iov[6].iov_base) + 1;
+			iov[7].iov_base = NULL;
+			iov[7].iov_len = 0;
+			iovcnt = 8;
 			break;
 		case '?':
 		default:
@@ -128,22 +132,18 @@ main(argc, argv)
 		errx(EX_OSERR, "union filesystem is not available");
 
 	iov[0].iov_base = "fstype";
-	iov[0].iov_len = sizeof("fstype");
+	iov[0].iov_len = strlen(iov[0].iov_base) + 1;
 	iov[1].iov_base = vfc.vfc_name;
 	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
 	iov[2].iov_base = "fspath";
-	iov[2].iov_len = sizeof("fspath");
+	iov[2].iov_len = strlen(iov[2].iov_base) + 1;
 	iov[3].iov_base = source;
 	iov[3].iov_len = strlen(source) + 1;
 	iov[4].iov_base = "target";
-	iov[4].iov_len = sizeof("target");
+	iov[4].iov_len = strlen(iov[4].iov_base) + 1;
 	iov[5].iov_base = target;
 	iov[5].iov_len = strlen(target) + 1;
-	iov[6].iov_base = "unionflags";
-	iov[6].iov_len = sizeof("unionflags");
-	iov[7].iov_base = (char *)&unionflags;
-	iov[7].iov_len = sizeof(unionflags);
-	if (nmount(iov, 8, mntflags))
+	if (nmount(iov, iovcnt, mntflags))
 		err(EX_OSERR, "%s", target);
 	exit(0);
 }
