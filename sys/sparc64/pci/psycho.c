@@ -1078,7 +1078,7 @@ psycho_setup_intr(device_t dev, device_t child,
 	sc = (struct psycho_softc *)device_get_softc(dev);
 	pc = (struct psycho_clr *)malloc(sizeof(*pc), M_DEVBUF, M_NOWAIT);
 	if (pc == NULL)
-		return (NULL);
+		return (0);
 
 	/*
 	 * Hunt through all the interrupt mapping regs to look for our
@@ -1094,7 +1094,7 @@ psycho_setup_intr(device_t dev, device_t child,
 	if (!psycho_find_intrmap(sc, ino, &intrmapptr, &intrclrptr, NULL)) {
 		device_printf(dev, "Cannot find interrupt vector %lx\n", vec);
 		free(pc, M_DEVBUF);
-		return (NULL);
+		return (0);
 	}
 
 #ifdef PSYCHO_DEBUG
@@ -1225,7 +1225,7 @@ psycho_activate_resource(device_t bus, device_t child, int type, int rid,
 		 * on the virtual address being set and useable.
 		 */
 		error = sparc64_bus_mem_map(rman_get_bustag(r),
-		    rman_get_bushandle(r), rman_get_size(r), 0, NULL, &p);
+		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
 		if (error != 0)
 			return (error);
 		rman_set_virtual(r, p);
