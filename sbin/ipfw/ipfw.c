@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 1996 Alex Nash
- * Copyright (c) 1996 Poul-Henning Kamp
+ * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
  * Copyright (c) 1994 Ugen J.S.Antsilevich
+ *
  * Idea and grammar partially left from:
  * Copyright (c) 1993 Daniel Boulet
  *
@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.30 1996/08/05 02:38:51 alex Exp $
+ * $Id: ipfw.c,v 1.31 1996/08/13 00:41:05 pst Exp $
  *
  */
 
@@ -66,43 +66,27 @@ mask_bits(m_ad)
 }                         
 
 void
-print_port(port, comma, flg)
-	u_short port,flg;
+print_port(prot, port, comma)
+	u_char  prot;
+	u_short port;
 	const char *comma;
 {
+	struct servent *se;
+	struct protoent *pe;
+	const char *protocol;
 	int printed = 0;
 
 	if (do_resolv) {
-		struct servent *se;
-		struct protoent *pe;
-		const char *protocol;
+		pe = getprotobynumber(prot);
+		if (pe)
+			protocol = pe->p_name;
+		else
+			protocol = NULL;
 
-		switch (flg & IP_FW_F_KIND) {
-			case IP_FW_F_TCP:
-				protocol = "tcp";
-				break;
-			case IP_FW_F_UDP:
-				protocol = "udp";
-				break;
-			default:
-				protocol = NULL;
-				break;
-		}
-
-		if (protocol) {
-			se = getservbyport(htons(port), protocol);
-
-			if (se) {
-				printf("%s%s", comma, se->s_name);
-				printed = 1;
-			}
-		} else {
-			pe = getprotobynumber(port);
-
-			if (pe) {
-				printf("%s%s", comma, pe->p_name);
-				printed = 1;
-			}
+		se = getservbyport(htons(port), protocol);
+		if (se) {
+			printf("%s%s", comma, se->s_name);
+			printed = 1;
 		}
 	} 
 	if (!printed)
@@ -116,7 +100,8 @@ show_ipfw(chain)
 	char *comma;
 	u_long adrt;
 	struct hostent *he;
-	int i,mb;
+	struct protoent *pe;
+	int i, mb;
 
 	if (do_resolv)
 		setservent(1/*stayopen*/);
@@ -164,24 +149,13 @@ show_ipfw(chain)
 	if (chain->fw_flg & IP_FW_F_PRN)
 		printf(" log");
 
-	switch (chain->fw_flg & IP_FW_F_KIND) {
-		case IP_FW_F_ICMP:
-			printf(" icmp ");
-			break;
-		case IP_FW_F_TCP:
-			printf(" tcp ");
-			break;
-		case IP_FW_F_UDP:
-			printf(" udp ");
-			break;
-		case IP_FW_F_ALL:
-			printf(" ip ");
-			break;
-		default:
-			break;
-	}
+	pe = getprotobynumber(chain->fw_prot);
+	if (pe)
+		printf(" %s", pe->p_name);
+	else
+		printf("%u", chain->fw_prot);
 
-	printf("from ");
+	printf(" from ");
 
 	adrt=ntohl(chain->fw_smsk.s_addr);
 	if (adrt==ULONG_MAX && do_resolv) {
@@ -210,10 +184,10 @@ show_ipfw(chain)
 			printf(inet_ntoa(chain->fw_src));
 	}
 
-	if ((chain->fw_flg & IP_FW_F_KIND) != IP_FW_F_ALL) {
+	if (chain->fw_prot != IPPROTO_IP) {
 		comma = " ";
 		for (i=0;i<chain->fw_nsp; i++ ) {
-			print_port(chain->fw_pts[i], comma, chain->fw_flg);
+			print_port(chain->fw_prot, chain->fw_pts[i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 				comma = "-";
 			else
@@ -252,24 +226,13 @@ show_ipfw(chain)
 
 	comma = " ";
 	for (i=0;i<chain->fw_ndp;i++) {
-		print_port(chain->fw_pts[chain->fw_nsp+i], comma, chain->fw_flg);
+		print_port(chain->fw_prot, chain->fw_pts[chain->fw_nsp+i],
+			   comma);
 		if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
 			comma = "-";
 		else
 		    comma = ",";
 	    }
-
-	if ((chain->fw_flg & IP_FW_F_KIND) == IP_FW_F_ALL && chain->fw_nsp) {
-		printf(" proto");
-		comma = " ";
-		for (i=0;i<chain->fw_nsp; i++) {
-			print_port(chain->fw_pts[i], comma, chain->fw_flg);
-			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
-				comma = "-";
-			else
-				comma = ",";
-		}
-	}
 
 	if ((chain->fw_flg & IP_FW_F_IN) && (chain->fw_flg & IP_FW_F_OUT))
 		; 
@@ -387,7 +350,7 @@ show_usage(str)
 "\t\tzero [number]\n"
 "\trule:\taction proto src dst extras...\n"
 "\t\taction: {allow|deny|reject|count|divert port} [log]\n"
-"\t\tproto: {ip|tcp|udp|icmp}}\n"
+"\t\tproto: {ip|tcp|udp|icmp|<number>}}\n"
 "\t\tsrc: from {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "\t\tdst: to {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "\textras:\n"
@@ -470,22 +433,17 @@ fill_ip(ipno, mask, acp, avp)
 }
 
 void
-add_port(cnt, ptr, off, port, proto)
+add_port(cnt, ptr, off, port)
 	u_short *cnt, *ptr, off, port;
-	int proto;
 {
-	if (proto && port > 255)
-		errx(1, "proto must be in the range 0-255");
 	if (off + *cnt >= IP_FW_MAX_PORTS)
-		errx(1, "too many %s (max is %d)", 
-			 proto ? "protocols" : "ports", 
-			 IP_FW_MAX_PORTS);
+		errx(1, "too many ports (max is %d)", IP_FW_MAX_PORTS);
 	ptr[off+*cnt] = port;
 	(*cnt)++;
 }
 
 int
-fill_port(cnt, ptr, off, arg, proto)
+fill_port(cnt, ptr, off, arg)
 	u_short *cnt, *ptr, off;
 	char *arg;
 {
@@ -494,17 +452,15 @@ fill_port(cnt, ptr, off, arg, proto)
 
 	s = strchr(arg,'-');
 	if (s) {
-		if (proto)
-			errx(1,"proto ranges are not allowed");
 		*s++ = '\0';
 		if (strchr(arg, ','))
 			errx(1, "port range must be first in list");
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000, proto);
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0x0000);
 		arg = s;
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff, proto);
+		add_port(cnt, ptr, off, *arg ? atoi(arg) : 0xffff);
 		arg = s;
 		initial_range = 1;
 	}
@@ -512,7 +468,7 @@ fill_port(cnt, ptr, off, arg, proto)
 		s = strchr(arg,',');
 		if (s)
 			*s++ = '\0';
-		add_port(cnt, ptr, off, atoi(arg), proto);
+		add_port(cnt, ptr, off, atoi(arg));
 		arg = s;
 	}
 	return initial_range;
@@ -644,6 +600,8 @@ add(ac,av)
 {
 	struct ip_fw rule;
 	int i;
+	u_char proto;
+	struct protoent *pe;
 	
 	memset(&rule, 0, sizeof rule);
 
@@ -683,19 +641,18 @@ add(ac,av)
 	}
 
 	/* protocol */
-	if (ac && !strncmp(*av,"ip",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ALL; av++; ac--;
-	} else if (ac && !strncmp(*av,"all",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ALL; av++; ac--;
-	} else if (ac && !strncmp(*av,"tcp",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_TCP; av++; ac--;
-	} else if (ac && !strncmp(*av,"udp",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_UDP; av++; ac--;
-	} else if (ac && !strncmp(*av,"icmp",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_ICMP; av++; ac--;
-	} else {
+	if (ac) {
+		if ((proto = atoi(*av)) > 0) {
+			rule.fw_prot = proto; av++; ac--;
+		} else if (!strncmp(*av,"all",strlen(*av))) {
+			rule.fw_prot = IPPROTO_IP; av++; ac--;
+		} else if ((pe = getprotobyname(*av)) != NULL) {
+			rule.fw_prot = pe->p_proto; av++; ac--;
+		} else {
+			show_usage("invalid protocol\n");
+		}
+	} else
 		show_usage("missing protocol\n");
-	}
 
 	/* from */
 	if (ac && !strncmp(*av,"from",strlen(*av))) { av++; ac--; }
@@ -723,9 +680,9 @@ add(ac,av)
 		av++; ac--;
 	}
 
-	if ((rule.fw_flg & IP_FW_F_KIND) != IP_FW_F_TCP &&
-		(rule.fw_flg & IP_FW_F_KIND) != IP_FW_F_UDP &&
-		(rule.fw_nsp || rule.fw_ndp)) {
+	if ((rule.fw_prot != IPPROTO_TCP) &&
+	    (rule.fw_prot != IPPROTO_UDP) &&
+	    (rule.fw_nsp || rule.fw_ndp)) {
 		show_usage("only TCP and UDP protocols are valid with port specifications");
 	}
 
@@ -768,7 +725,7 @@ add(ac,av)
 			fill_ipopt(&rule.fw_ipopt, &rule.fw_ipnopt, av);
 			av++; ac--; continue;
 		}
-		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_TCP) {
+		if (rule.fw_prot == IPPROTO_TCP) {
 			if (!strncmp(*av,"established",strlen(*av))) { 
 				rule.fw_tcpf  |= IP_FW_TCPF_ESTAB;
 				av++; ac--; continue;
@@ -784,17 +741,10 @@ add(ac,av)
 				av++; ac--; continue;
 			}
 		}
-		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP) {
+		if (rule.fw_prot == IPPROTO_ICMP) {
 			if (ac > 1 && !strncmp(*av,"icmptypes",strlen(*av))) {
 				av++; ac--;
 				fill_icmptypes(rule.fw_icmptypes, av, &rule.fw_flg);
-				av++; ac--; continue;
-			}
-		}
-		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_ALL) {
-			if (ac > 1 && !strncmp(*av,"proto",strlen(*av))) {
-				av++; ac--;
-				fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av, 1);
 				av++; ac--; continue;
 			}
 		}
