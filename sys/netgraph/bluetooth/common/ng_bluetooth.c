@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 #include <netgraph/bluetooth/include/ng_bluetooth.h>

@@ -68,6 +68,7 @@
 #include <sys/mbuf.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
