@@ -33,80 +33,44 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
-# Put initial settings here.
-SUBDIR=
-
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
-.if exists(${.CURDIR}/share/info)
-SUBDIR+= share/info
-.endif
-
-.if exists(${.CURDIR}/include)
-SUBDIR+= include
-.endif
-
+#
 # We must do lib and libexec before bin, because if installworld
 # installs a new /bin/sh, the 'make' command will *immediately*
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
-.if exists(${.CURDIR}/lib)
-SUBDIR+= lib
+#
+# We must do etc last for install/distribute to work.
+#
+SUBDIR=	share/info include lib libexec bin
+.if !defined(NOGAMES)
+SUBDIR+=games
 .endif
-.if exists(${.CURDIR}/libexec)
-SUBDIR+= libexec
+SUBDIR+=gnu
+.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+SUBDIR+=kerberos5
 .endif
-
-.if exists(${.CURDIR}/bin)
-SUBDIR+= bin
+.if !defined(NO_RESCUE)
+SUBDIR+=rescue
 .endif
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-SUBDIR+= games
+SUBDIR+=sbin
+.if !defined(NOCRYPT)
+SUBDIR+=secure
 .endif
-.if exists(${.CURDIR}/gnu)
-SUBDIR+= gnu
+.if !defined(NOSHARE)
+SUBDIR+=share
 .endif
-.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
-SUBDIR+= kerberos5
-.endif
-.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
-SUBDIR+= rescue
-.endif
-.if exists(${.CURDIR}/sbin)
-SUBDIR+= sbin
-.endif
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
-SUBDIR+= secure
-.endif
-.if exists(${.CURDIR}/share) && !defined(NOSHARE)
-SUBDIR+= share
-.endif
-.if exists(${.CURDIR}/sys)
-SUBDIR+= sys
-.endif
-.if exists(${.CURDIR}/usr.bin)
-SUBDIR+= usr.bin
-.endif
-.if exists(${.CURDIR}/usr.sbin)
-SUBDIR+= usr.sbin
-.endif
-
-# etc must be last for install/distribute to work
-.if exists(${.CURDIR}/etc)
-SUBDIR+= etc
-.endif
+SUBDIR+=sys usr.bin usr.sbin etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
-.if defined(LOCAL_DIRS)
 .for _DIR in ${LOCAL_DIRS}
-.if exists(${.CURDIR}/${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
+.if exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+= ${_DIR}
 .endif
 .endfor
-.endif
 
 .if defined(SUBDIR_OVERRIDE)
 SUBDIR=		${SUBDIR_OVERRIDE}
@@ -610,7 +574,7 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
+.if !defined(NOGAMES)
 _strfile=	games/fortune/strfile
 .endif
 
@@ -688,7 +652,7 @@ bootstrap-tools:
 _aicasm= sys/modules/aic7xxx/aicasm
 .endif
 
-.if exists(${.CURDIR}/share) && !defined(NOSHARE)
+.if !defined(NOSHARE)
 _share=	share/syscons/scrnmaps
 .endif
 
@@ -696,12 +660,11 @@ _share=	share/syscons/scrnmaps
 _fortran= gnu/usr.bin/cc/f771
 .endif
 
-.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
+.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _kerberos5_tools= kerberos5/tools
 .endif
 
-.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
+.if !defined(NO_RESCUE)
 _rescue= rescue/rescue
 .endif
 
@@ -812,8 +775,7 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
-.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
-    !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_KERBEROS)
+.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
