@@ -1,8 +1,9 @@
+# $FreeBSD$
 #
 # NOTES -- Lines that can be cut/pasted into kernel and hints configs.
 #
 # Lines that begin with 'device', 'options', 'machine', 'ident', 'maxusers',
-# 'makeoptions', 'hints' etc go into the kernel configuration that you
+# 'makeoptions', 'hints', etc. go into the kernel configuration that you
 # run config(8) with.
 #
 # Lines that begin with 'hint.' are NOT for config(8), they go into your
@@ -14,7 +15,25 @@
 # This file contains machine independent kernel configuration notes.  For
 # machine dependent notes, look in /sys/<arch>/conf/NOTES.
 #
-# $FreeBSD$
+
+#
+# NOTES conventions and style guide:
+#
+# Large block comments should begin and end with a line containing only a
+# comment character.
+#
+# To describe a particular object, a block comment (if it exists) should
+# come first.  Next should come device, options, and hints lines in that
+# order.  All device and option lines must be described by a comment that
+# doesn't just expand the device or option name.  Use only a concise
+# comment on the same line if possible.  Very detailed descriptions of
+# devices and subsystems belong in manpages.
+#
+# A space followed by a tab separates 'option' from an option name.  Two
+# spaces followed by a tab separate 'device' from a device name.  Comments
+# after an option or device should use one space after the comment character.
+# To comment out a negative option that disables code and thus should not be
+# enabled for LINT builds, precede 'option' with "#!".
 #
 
 #
