@@ -1,6 +1,8 @@
 /*-
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
+ * Copyright (c) 1995 Christopher G. Demetriou
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +12,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Christopher G. Demetriou
+ *    for the NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -31,33 +39,73 @@
 
 #include <stdlib.h>
 
-typedef void (*fptr)(void);
+#ifdef	HAVE_RTLD
+#include <sys/exec.h>
+#include <sys/syscall.h>
+#include <rtld.h>
 
-extern void _fini(void);
-extern void _init(void);
-extern int main(int, char **, char **);
+const Obj_Entry *__mainprog_obj;
 
-extern int _DYNAMIC;
+extern int		__syscall (int, ...);
+#define	_exit(v)	__syscall(SYS_exit, (v))
+#define	write(fd, s, n)	__syscall(SYS_write, (fd), (s), (n))
+
+#define _FATAL(str)				\
+	do {					\
+		write(2, str, sizeof(str));	\
+		_exit(1);			\
+	} while (0)
+
 #pragma weak _DYNAMIC
+extern int _DYNAMIC;
+#else
+/*
+ * When doing a bootstrap build, the header files for runtime
+ * loader support are not available, so this source file is
+ * compiled to a static object.
+ */
+#define	Obj_Entry	void
+struct	ps_strings;
+#endif
+
+extern void _init(void);
+extern void _fini(void);
+extern int main(int, char **, char **);
 
 char **environ;
 char *__progname = "";
 
+/* The entry function. */
 void
-_start(char *arguments, ...)
+_start(char **ap,
+	void (*cleanup)(void),			/* from shared loader */
+	const Obj_Entry *obj,			/* from shared loader */
+	struct ps_strings *ps_strings)
 {
-    int argc;
-    char **argv;
-    char **env;
+	int argc;
+	char **argv;
+	char **env;
 
-    argv = &arguments;
-    argc = * (int *) (argv - 1);
-    env = argv + argc + 1;
-    environ = env;
-    if(argc > 0)
-	__progname = argv[0];
+	argc = * (long *) ap;
+	argv = ap + 1;
+	env  = ap + 2 + argc;
+	environ = env;
+	if(argc > 0)
+		__progname = argv[0];
 
-    atexit(_fini);
-    _init();
-    exit( main(argc, argv, env) );
+#ifdef	HAVE_RTLD
+	if (&_DYNAMIC != NULL) {
+		if ((obj == NULL) || (obj->magic != RTLD_MAGIC))
+			_FATAL("Corrupt Obj_Entry pointer in GOT");
+		if (obj->version != RTLD_VERSION)
+			_FATAL("Dynamic linker version mismatch");
+
+		__mainprog_obj = obj;
+		atexit(cleanup);
+	}
+#endif
+
+	atexit(_fini);
+	_init();
+	exit( main(argc, argv, env) );
 }
