@@ -433,6 +433,8 @@ struct scsi_start_stop_unit
 #define START_STOP		0x1b
 #define RESERVE      		0x16
 #define RELEASE      		0x17
+#define	RECEIVE_DIAGNOSTIC	0x1c
+#define	SEND_DIAGNOSTIC		0x1d
 #define PREVENT_ALLOW		0x1e
 #define	READ_CAPACITY		0x25
 #define	READ_10			0x28
