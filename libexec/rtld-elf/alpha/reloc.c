@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: reloc.c,v 1.3.2.2 1999/05/02 09:36:01 brian Exp $
+ *      $Id: reloc.c,v 1.3.2.3 1999/06/29 05:16:18 jdp Exp $
  */
 
 /*
@@ -66,6 +66,9 @@ reloc_non_plt_obj(Obj_Entry *obj_rtld, const Obj_Entry *obj,
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
 
 	switch (ELF_R_TYPE(rela->r_info)) {
+
+		case R_ALPHA_NONE:
+			break;
 
 		case R_ALPHA_REFQUAD: {
 			const Elf_Sym *def;
