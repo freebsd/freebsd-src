@@ -163,7 +163,7 @@ int if_tx_rdy(struct ifnet *ifp);
  * ip_fw_chain is used when deleting a pipe, because ipfw rules can
  * hold references to the pipe.
  */
-extern LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
+extern LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain_head;
 
 static void
 rt_unref(struct rtentry *rt)
@@ -1282,7 +1282,7 @@ dummynet_flush()
     s = splimp() ;
 
     /* remove all references to pipes ...*/
-    for (chain= ip_fw_chain.lh_first ; chain; chain = chain->chain.le_next)
+    LIST_FOREACH(chain, &ip_fw_chain_head, next)
 	chain->rule->pipe_ptr = NULL ;
     /* prevent future matches... */
     p = all_pipes ;
@@ -1661,7 +1661,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this pipe from the ip_fw rules. */
-	for (chain = ip_fw_chain.lh_first ; chain; chain = chain->chain.le_next)
+	LIST_FOREACH(chain, &ip_fw_chain_head, next)
 	    if (chain->rule->pipe_ptr == &(b->fs))
 		chain->rule->pipe_ptr = NULL ;
 
@@ -1695,7 +1695,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this flow_set from the ip_fw rules. */
-	for (chain = ip_fw_chain.lh_first; chain; chain = chain->chain.le_next)
+	LIST_FOREACH(chain, &ip_fw_chain_head, next)
 	    if (chain->rule->pipe_ptr == b)
 		chain->rule->pipe_ptr = NULL ;
 
