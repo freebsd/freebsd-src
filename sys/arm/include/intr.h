@@ -39,44 +39,13 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
-/* Define the various Interrupt Priority Levels */
-
-/* Hardware Interrupt Priority Levels are not mutually exclusive. */
-
-#ifdef CPU_SA1110
-#define IPL_SOFTCLOCK	0
-#define IPL_SOFTNET	1
-#define IPL_BIO		2	/* block I/O */
-#define IPL_NET		3	/* network */
-#define IPL_SOFTSERIAL	4
-#define IPL_TTY		5	/* terminal */
-#define IPL_VM		6	/* memory allocation */
-#define IPL_AUDIO	7	/* audio */
-#define IPL_CLOCK	8	/* clock */
-#define IPL_HIGH	9	/*  */
-#define IPL_SERIAL	10	/* serial */
-#define IPL_NONE	11
-
-#define NIPL		12
-
-#endif
-
-#define	IST_UNUSABLE	-1	/* interrupt cannot be used */
-#define	IST_NONE	0	/* none (dummy) */
-#define	IST_PULSE	1	/* pulsed */
-#define	IST_EDGE	2	/* edge-triggered */
-#define	IST_LEVEL	3	/* level-triggered */
-
-/* Software interrupt priority levels */
-
-#define SOFTIRQ_CLOCK	0
-#define SOFTIRQ_NET	1
-#define SOFTIRQ_SERIAL	2
-
-#define SOFTIRQ_BIT(x)	(1 << x)
+#define NIRQ		32
 
 #include <machine/psl.h>
 
+int arm_get_irqnb(void *);
+void arm_mask_irqs(int);
+void arm_unmask_irqs(int);
 void set_splmasks(void);
 void arm_setup_irqhandler(const char *, void (*)(void*), void *, int, int,
     void **);

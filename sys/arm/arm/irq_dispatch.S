@@ -73,17 +73,7 @@
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
-#if 0
-#ifdef ARM_INTR_IMPL
-#include ARM_INTR_IMPL
-#else
-#error ARM_INTR_IMPL not defined
-#endif
 
-#ifndef ARM_IRQ_HANDLER
-#error ARM_IRQ_HANDLER not defined
-#endif
-#endif
 /*
  * irq_entry:
  *	Main entry point for the IRQ vector.  This is a generic version
@@ -91,54 +81,26 @@ __FBSDID("$FreeBSD$");
  */
 	.text
 	.align	0
+
 .Lcurrent_intr_depth:
 	.word	_C_LABEL(current_intr_depth)
-
-AST_ALIGNMENT_FAULT_LOCALS
+AST_LOCALS
 
 ASENTRY_NP(irq_entry)
 	sub	lr, lr, #0x00000004	/* Adjust the lr */
-
-
 	PUSHFRAMEINSVC			/* Push an interrupt frame */
-	ENABLE_ALIGNMENT_FAULTS
-	ldr	r1, .Laflt_curpcb
-
-	/*
-	 * Increment the interrupt nesting depth and call the interrupt
-	 * dispatch routine.  We've pushed a frame, so we can safely use
-	 * callee-saved regs here.  We use the following registers, which
-	 * we expect to presist:
-	 *
-	 *	r5	address of `current_intr_depth' variable
-	 *	r6	old value of `current_intr_depth'
-	 */
-	ldr	r5, .Lcurrent_intr_depth
 	mov	r0, sp			/* arg for dispatcher */
-	ldr	r6, [r5]
-	add	r1, r6, #1
-	str	r1, [r5]
 
-	#if 0
-	bl	ARM_IRQ_HANDLER
-	#endif
+	mov	r1, #0
+	bl	_C_LABEL(arm_handler_execute)
 
-	/*
-	 * Restore the old interrupt depth value (which should be the
-	 * same as decrementing it at this point).
-	 */
-	str	r6, [r5]
-
-	DO_AST_AND_RESTORE_ALIGNMENT_FAULTS
+	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 	movs	pc, lr			/* Exit */
 
 	.bss
 	.align	0
 
-	.global _C_LABEL(current_intr_depth)
-_C_LABEL(current_intr_depth):
-	.word	0
 
 	/*
 	 * XXX Provide intrnames/intrcnt for legacy code, but
@@ -153,3 +115,8 @@ _C_LABEL(eintrnames):
 	.global _C_LABEL(intrcnt), _C_LABEL(sintrcnt), _C_LABEL(eintrcnt)
 _C_LABEL(intrcnt):
 _C_LABEL(eintrcnt):
+
+	.global _C_LABEL(current_intr_depth)
+_C_LABEL(current_intr_depth):
+	.word	0
+
