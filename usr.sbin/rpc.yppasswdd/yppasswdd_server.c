@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.17 1996/06/23 22:20:43 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.5 1996/06/23 22:44:06 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.17 1996/06/23 22:20:43 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.5 1996/06/23 22:44:06 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -567,7 +567,7 @@ cleaning up and bailing out");
 	if (strcmp(passfile, _PATH_MASTERPASSWD)) {
 		rename(tempname, passfile);
 	} else {
-		if (pw_mkdb() < 0) {
+		if (pw_mkdb(argp->newpw.pw_name) < 0) {
 			yp_error("pwd_mkdb failed");
 			return(&result);
 		}
@@ -718,7 +718,7 @@ cleaning up and bailing out");
 	if (strcmp(passfile, _PATH_MASTERPASSWD)) {
 		rename(tempname, passfile);
 	} else {
-		if (pw_mkdb() < 0) {
+		if (pw_mkdb(argp->newpw.pw_name) < 0) {
 			yp_error("pwd_mkdb failed");
 			return(result);
 		}

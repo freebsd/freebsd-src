@@ -138,7 +138,8 @@ pw_tmp()
 }
 
 int
-pw_mkdb()
+pw_mkdb(username)
+char *username;
 {
 	int pstat;
 	pid_t pid;
@@ -146,7 +147,12 @@ pw_mkdb()
 	warnx("rebuilding the database...");
 	(void)fflush(stderr);
 	if (!(pid = vfork())) {
-		execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
+		if(!username) {
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", tempname, NULL);
+		} else {
+			execl(_PATH_PWD_MKDB, "pwd_mkdb", "-p", "-u", 
+					username, tempname, NULL);
+		}
 		pw_error(_PATH_PWD_MKDB, 1, 1);
 	}
 	pid = waitpid(pid, &pstat, 0);
