@@ -154,10 +154,10 @@ int	boot_cpu_id = -1;	/* designated BSP */
 extern	int nkpt;
 
 /*
- * CPU topology map datastructures for HTT. (XXX)
+ * CPU topology map datastructures for HTT.
  */
-struct cpu_group mp_groups[MAXCPU];
-struct cpu_top mp_top;
+static struct cpu_group mp_groups[MAXCPU];
+static struct cpu_top mp_top;
 struct cpu_top *smp_topology;
 
 /* AP uses this during bootstrap.  Do not staticize.  */
@@ -212,6 +212,46 @@ static void	release_aps(void *dummy);
 static int	hlt_cpus_mask;
 static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
+
+void
+mp_topology(void)
+{
+	struct cpu_group *group;
+	int logical_cpus;
+	int apic_id;
+	int groups;
+	int cpu;
+
+	/* Build the smp_topology map. */
+	/* Nothing to do if there is no HTT support. */
+	if ((cpu_feature & CPUID_HTT) == 0)
+		return;
+	logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
+	if (logical_cpus <= 1)
+		return;
+	group = &mp_groups[0];
+	groups = 1;
+	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
+		if (!cpu_info[apic_id].cpu_present)
+			continue;
+		/*
+		 * If the current group has members and we're not a logical
+		 * cpu, create a new group.
+		 */
+		if (group->cg_count != 0 && (apic_id % logical_cpus) == 0) {
+			group++;
+			groups++;
+		}
+		group->cg_count++;
+		group->cg_mask |= 1 << cpu;
+		cpu++;
+	}
+
+	mp_top.ct_count = groups;
+	mp_top.ct_group = mp_groups;
+	smp_topology = &mp_top;
+}
+
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
