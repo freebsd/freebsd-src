@@ -83,6 +83,13 @@ alpha/isa/mcclock_isa.c		optional	isa
 alpha/mcbus/mcbus.c		optional	dec_kn300
 alpha/mcbus/mcmem.c		optional	dec_kn300
 alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/osf1/imgact_osf1.c	optional	compat_osf1
+alpha/osf1/osf1_ioctl.c		optional	compat_osf1
+alpha/osf1/osf1_misc.c		optional	compat_osf1
+alpha/osf1/osf1_mount.c		optional	compat_osf1
+alpha/osf1/osf1_signal.c	optional	compat_osf1
+alpha/osf1/osf1_sysent.c	optional	compat_osf1
+alpha/osf1/osf1_sysvec.c	optional	compat_osf1
 alpha/pci/alphapci_if.m		optional	pci
 alpha/pci/apecs.c		optional	dec_2100_a50
 alpha/pci/apecs.c		optional	dec_eb64plus
