@@ -32,12 +32,18 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
+#include "archive.h"
 #include "archive_entry.h"
+#include "archive_private.h"
+
+#undef max
+#define	max(a, b)	((a)>(b)?(a):(b))
 
 /*
  * Handle wide character (i.e., Unicode) and non-wide character
@@ -52,20 +58,44 @@ struct aes {
 	wchar_t *aes_wcs_alloc;
 };
 
-void		aes_clean(struct aes *);
-void		aes_copy(struct aes *dest, struct aes *src);
-const char *	aes_get_mbs(struct aes *);
-const wchar_t *	aes_get_wcs(struct aes *);
-void		aes_set_mbs(struct aes *, const char *mbs);
-void		aes_set_wcs(struct aes *, const wchar_t *wcs);
-void		aes_copy_wcs(struct aes *, const wchar_t *wcs);
+struct ae_acl {
+	struct ae_acl *next;
+	int	type;			/* E.g., access or default */
+	int	tag;			/* E.g., user/group/other/mask */
+	int	permset;		/* r/w/x bits */
+	int	id;			/* uid/gid for user/group */
+	struct aes name;		/* uname/gname */
+};
+
+static void	aes_clean(struct aes *);
+static void	aes_copy(struct aes *dest, struct aes *src);
+static const char *	aes_get_mbs(struct aes *);
+static const wchar_t *	aes_get_wcs(struct aes *);
+static void	aes_set_mbs(struct aes *, const char *mbs);
+static void	aes_copy_mbs(struct aes *, const char *mbs);
+/* static void	aes_set_wcs(struct aes *, const wchar_t *wcs); */
+static void	aes_copy_wcs(struct aes *, const wchar_t *wcs);
+
+static void	append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
+		    const wchar_t *wname, int perm, int id);
+static void	append_id_w(wchar_t **wp, int id);
+
+static int	acl_special(struct archive_entry *entry,
+		    int type, int permset, int tag);
+static struct ae_acl *acl_new_entry(struct archive_entry *entry,
+		    int type, int permset, int tag, int id);
+static void	next_field_w(const wchar_t **wp, const wchar_t **start,
+		    const wchar_t **end, wchar_t *sep);
+static int	prefix_w(const wchar_t *start, const wchar_t *end,
+		    const wchar_t *test);
+
 
 /*
  * Description of an archive entry.
  *
  * Basically, this is a "struct stat" with a few text fields added in.
  *
- * TODO: Add "comment", "charset", "acl", and possibly other entries
+ * TODO: Add "comment", "charset", and possibly other entries
  * that are supported by "pax interchange" format.  However, GNU, ustar,
  * cpio, and other variants don't support these features, so they're not an
  * excruciatingly high priority right now.
@@ -95,14 +125,17 @@ struct archive_entry {
 	/*
 	 * Use aes here so that we get transparent mbs<->wcs conversions.
 	 */
-	struct aes ae_acl;		/* ACL text */
-	struct aes ae_acl_default;	/* default ACL */
 	struct aes ae_fflags;		/* Text fflags per fflagstostr(3) */
 	struct aes ae_gname;		/* Name of owning group */
 	struct aes ae_hardlink;	/* Name of target for hardlink */
 	struct aes ae_pathname;	/* Name of entry */
 	struct aes ae_symlink;		/* symlink contents */
 	struct aes ae_uname;		/* Name of owner */
+
+	struct ae_acl	*acl_head;
+	struct ae_acl	*acl_p;
+	int		 acl_state;	/* See acl_next for details. */
+	wchar_t		*acl_text_w;
 };
 
 void
@@ -189,6 +222,24 @@ aes_set_mbs(struct aes *aes, const char *mbs)
 }
 
 void
+aes_copy_mbs(struct aes *aes, const char *mbs)
+{
+	if (aes->aes_mbs_alloc) {
+		free(aes->aes_mbs_alloc);
+		aes->aes_mbs_alloc = NULL;
+	}
+	if (aes->aes_wcs_alloc) {
+		free(aes->aes_wcs_alloc);
+		aes->aes_wcs_alloc = NULL;
+	}
+	aes->aes_mbs_alloc = malloc((strlen(mbs) + 1) * sizeof(char));
+	strcpy(aes->aes_mbs_alloc, mbs);
+	aes->aes_mbs = aes->aes_mbs_alloc;
+	aes->aes_wcs = NULL;
+}
+
+#if 0
+void
 aes_set_wcs(struct aes *aes, const wchar_t *wcs)
 {
 	if (aes->aes_mbs_alloc) {
@@ -202,6 +253,7 @@ aes_set_wcs(struct aes *aes, const wchar_t *wcs)
 	aes->aes_mbs = NULL;
 	aes->aes_wcs = wcs;
 }
+#endif
 
 void
 aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
@@ -223,14 +275,13 @@ aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
 struct archive_entry *
 archive_entry_clear(struct archive_entry *entry)
 {
-	aes_clean(&entry->ae_acl);
-	aes_clean(&entry->ae_acl_default);
 	aes_clean(&entry->ae_fflags);
 	aes_clean(&entry->ae_gname);
 	aes_clean(&entry->ae_hardlink);
 	aes_clean(&entry->ae_pathname);
 	aes_clean(&entry->ae_symlink);
 	aes_clean(&entry->ae_uname);
+	archive_entry_acl_clear(entry);
 	memset(entry, 0, sizeof(*entry));
 	entry->ae_tartype = -1;
 	return entry;
@@ -243,11 +294,12 @@ archive_entry_clone(struct archive_entry *entry)
 
 	/* Allocate new structure and copy over all of the fields. */
 	entry2 = malloc(sizeof(*entry2));
+	if(entry2 == NULL)
+		return (NULL);
+	memset(entry2, 0, sizeof(*entry2));
 	entry2->ae_stat = entry->ae_stat;
 	entry2->ae_tartype = entry->ae_tartype;
 
-	aes_copy(&entry2->ae_acl ,&entry->ae_acl);
-	aes_copy(&entry2->ae_acl_default ,&entry->ae_acl_default);
 	aes_copy(&entry2->ae_fflags ,&entry->ae_fflags);
 	aes_copy(&entry2->ae_gname ,&entry->ae_gname);
 	aes_copy(&entry2->ae_hardlink ,&entry->ae_hardlink);
@@ -281,19 +333,6 @@ archive_entry_new(void)
 /*
  * Functions for reading fields from an archive_entry.
  */
-
-const char *
-archive_entry_acl(struct archive_entry *entry)
-{
-	return (aes_get_mbs(&entry->ae_acl));
-}
-
-
-const char *
-archive_entry_acl_default(struct archive_entry *entry)
-{
-	return (aes_get_mbs(&entry->ae_acl_default));
-}
 
 dev_t
 archive_entry_devmajor(struct archive_entry *entry)
@@ -330,6 +369,20 @@ mode_t
 archive_entry_mode(struct archive_entry *entry)
 {
 	return (entry->ae_stat.st_mode);
+}
+
+
+time_t
+archive_entry_mtime(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_mtime);
+}
+
+
+long
+archive_entry_mtime_nsec(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_mtimespec.tv_nsec);
 }
 
 const char *
@@ -386,30 +439,6 @@ void
 archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 {
 	entry->ae_stat = *st;
-}
-
-void
-archive_entry_set_acl(struct archive_entry *entry, const char *acl)
-{
-	aes_set_mbs(&entry->ae_acl, acl);
-}
-
-void
-archive_entry_copy_acl_w(struct archive_entry *entry, const wchar_t *acl)
-{
-	aes_copy_wcs(&entry->ae_acl, acl);
-}
-
-void
-archive_entry_set_acl_default(struct archive_entry *entry, const char *acl)
-{
-	aes_set_mbs(&entry->ae_acl_default, acl);
-}
-
-void
-archive_entry_copy_acl_default_w(struct archive_entry *entry, const wchar_t *acl)
-{
-	aes_copy_wcs(&entry->ae_acl_default, acl);
 }
 
 void
@@ -531,6 +560,622 @@ archive_entry_copy_uname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_uname, name);
 }
+
+/*
+ * ACL management.  The following would, of course, be a lot simpler
+ * if: 1) the last draft of POSIX.1e were a really thorough and
+ * complete standard that addressed the needs of ACL archiving and 2)
+ * everyone followed it faithfully.  Alas, neither is true, so the
+ * following is a lot more complex than might seem necessary to the
+ * uninitiated.
+ */
+
+void
+archive_entry_acl_clear(struct archive_entry *entry)
+{
+	struct ae_acl	*ap;
+
+	while (entry->acl_head != NULL) {
+		ap = entry->acl_head->next;
+		aes_clean(&entry->acl_head->name);
+		free(entry->acl_head);
+		entry->acl_head = ap;
+	}
+	if (entry->acl_text_w != NULL) {
+		free(entry->acl_text_w);
+		entry->acl_text_w = NULL;
+	}
+	entry->acl_p = NULL;
+	entry->acl_state = 0; /* Not counting. */
+}
+
+/*
+ * Add a single ACL entry to the internal list of ACL data.
+ */
+void
+archive_entry_acl_add_entry(struct archive_entry *entry,
+    int type, int permset, int tag, int id, const char *name)
+{
+	struct ae_acl *ap;
+
+	if (acl_special(entry, type, permset, tag) == 0)
+		return;
+	ap = acl_new_entry(entry, type, permset, tag, id);
+	if (ap == NULL) {
+		/* XXX Error XXX */
+		return;
+	}
+	if (name != NULL  &&  *name != '\0')
+		aes_copy_mbs(&ap->name, name);
+	else
+		aes_clean(&ap->name);
+}
+
+/*
+ * As above, but with a wide-character name.
+ */
+void
+archive_entry_acl_add_entry_w(struct archive_entry *entry,
+    int type, int permset, int tag, int id, const wchar_t *name)
+{
+	struct ae_acl *ap;
+
+	if (acl_special(entry, type, permset, tag) == 0)
+		return;
+	ap = acl_new_entry(entry, type, permset, tag, id);
+	if (ap == NULL) {
+		/* XXX Error XXX */
+		return;
+	}
+	if (name != NULL  &&  *name != L'\0')
+		aes_copy_wcs(&ap->name, name);
+	else
+		aes_clean(&ap->name);
+}
+
+/*
+ * If this ACL entry is part of the standard POSIX permissions set,
+ * store the permissions in the stat structure and return zero.
+ */
+static int
+acl_special(struct archive_entry *entry, int type, int permset, int tag)
+{
+	if (type == ARCHIVE_ENTRY_ACL_TYPE_ACCESS) {
+		switch (tag) {
+		case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			entry->ae_stat.st_mode &= 0077;
+			entry->ae_stat.st_mode |= (permset & 7) << 6;
+			return (0);
+		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+			entry->ae_stat.st_mode &= 0707;
+			entry->ae_stat.st_mode |= (permset & 7) << 3;
+			return (0);
+		case ARCHIVE_ENTRY_ACL_OTHER:
+			entry->ae_stat.st_mode &= 0770;
+			entry->ae_stat.st_mode |= permset & 7;
+			return (0);
+		}
+	}
+	return (1);
+}
+
+/*
+ * Allocate and populate a new ACL entry with everything but the
+ * name.
+ */
+static struct ae_acl *
+acl_new_entry(struct archive_entry *entry,
+    int type, int permset, int tag, int id)
+{
+	struct ae_acl *ap;
+
+	if (type != ARCHIVE_ENTRY_ACL_TYPE_ACCESS &&
+	    type != ARCHIVE_ENTRY_ACL_TYPE_DEFAULT)
+		return (NULL);
+	if (entry->acl_text_w != NULL) {
+		free(entry->acl_text_w);
+		entry->acl_text_w = NULL;
+	}
+
+	/* XXX TODO: More sanity-checks on the arguments XXX */
+
+	/* If there's a matching entry already in the list, overwrite it. */
+	for (ap = entry->acl_head; ap != NULL; ap = ap->next) {
+		if (ap->type == type && ap->tag == tag && ap->id == id) {
+			ap->permset = permset;
+			return (ap);
+		}
+	}
+
+	/* Add a new entry to the list. */
+	ap = malloc(sizeof(*ap));
+	memset(ap, 0, sizeof(*ap));
+	ap->next = entry->acl_head;
+	entry->acl_head = ap;
+	ap->type = type;
+	ap->tag = tag;
+	ap->id = id;
+	ap->permset = permset;
+	return (ap);
+}
+
+/*
+ * Return a count of entries matching "want_type".
+ */
+int
+archive_entry_acl_count(struct archive_entry *entry, int want_type)
+{
+	int count;
+	struct ae_acl *ap;
+
+	count = 0;
+	ap = entry->acl_head;
+	while (ap != NULL) {
+		if ((ap->type & want_type) != 0)
+			count++;
+		ap = ap->next;
+	}
+
+	if (count > 0 && ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0))
+		count += 3;
+	return (count);
+}
+
+/*
+ * Prepare for reading entries from the ACL data.  Returns a count
+ * of entries matching "want_type", or zero if there are no
+ * non-extended ACL entries of that type.
+ */
+int
+archive_entry_acl_reset(struct archive_entry *entry, int want_type)
+{
+	int count, cutoff;
+
+	count = archive_entry_acl_count(entry, want_type);
+
+	/*
+	 * If the only entries are the three standard ones,
+	 * then don't return any ACL data.  (In this case,
+	 * client can just use chmod(2) to set permissions.)
+	 */
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)
+		cutoff = 3;
+	else
+		cutoff = 0;
+
+	if (count > cutoff)
+		entry->acl_state = ARCHIVE_ENTRY_ACL_USER_OBJ;
+	else
+		entry->acl_state = 0;
+	entry->acl_p = NULL;
+	return (count);
+}
+
+/*
+ * Return the next ACL entry in the list.  Fake entries for the
+ * standard permissions and include them in the returned list.
+ */
+
+int
+archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
+    int *permset, int *tag, int *id, const char **name)
+{
+	*name = NULL;
+	*id = -1;
+
+	/*
+	 * The acl_state is either zero (no entries available), -1
+	 * (reading from list), or an entry type (retrieve that type
+	 * from ae_stat.st_mode).
+	 */
+
+	if (entry->acl_state == 0)
+		return (ARCHIVE_WARN);
+
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0  &&
+	    entry->acl_state > 0) {
+		*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+		*tag = entry->acl_state;
+		switch (entry->acl_state) {
+		case ARCHIVE_ENTRY_ACL_USER_OBJ:
+			*permset = (entry->ae_stat.st_mode >> 6) & 7;
+			entry->acl_state = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+			break;
+		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+			*permset = (entry->ae_stat.st_mode >> 3) & 7;
+			entry->acl_state = ARCHIVE_ENTRY_ACL_OTHER;
+			break;
+		case ARCHIVE_ENTRY_ACL_OTHER:
+			*permset = entry->ae_stat.st_mode & 7;
+			entry->acl_state = -1;
+			entry->acl_p = entry->acl_head;
+			break;
+		}
+		return (ARCHIVE_OK);
+	}
+
+	while (entry->acl_p != NULL && (entry->acl_p->type & want_type) == 0)
+		entry->acl_p = entry->acl_p->next;
+	if (entry->acl_p == NULL) {
+		entry->acl_state = 0;
+		return (ARCHIVE_WARN);
+	}
+	*type = entry->acl_p->type;
+	*permset = entry->acl_p->permset;
+	*tag = entry->acl_p->tag;
+	*id = entry->acl_p->id;
+	*name = aes_get_mbs(&entry->acl_p->name);
+	entry->acl_p = entry->acl_p->next;
+	return (ARCHIVE_OK);
+}
+
+/*
+ * Generate a text version of the ACL.  The format here varies
+ * from POSIX.1e in a couple of useful ways:
+ *
+ *  * An additional colon-delimited field holds the numeric uid
+ *    or gid.  For proper archiving, it is essential to have both
+ *    the uname/gname and the uid/gid.
+ *
+ *  * You can request a single text holding both access and default
+ *    entries.  In this case, each default entry is prefixed with
+ *    "default:".
+ */
+const wchar_t *
+__archive_entry_acl_text_w(struct archive_entry *entry, int type)
+{
+	int count;
+	int length;
+	const wchar_t *wname;
+	struct ae_acl *ap;
+	wchar_t *wp;
+
+	if (entry->acl_text_w != NULL) {
+		free (entry->acl_text_w);
+		entry->acl_text_w = NULL;
+	}
+
+	count = 0;
+	length = 0;
+	ap = entry->acl_head;
+	while (ap != NULL) {
+		if ((ap->type & type) != 0) {
+			count++;
+			if (type & (ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
+				ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
+				length += 8; /* "default:" */
+			length += 5; /* tag name */
+			length += 1; /* colon */
+			wname = aes_get_wcs(&ap->name);
+			if (wname != NULL)
+				length += wcslen(wname);
+			length ++; /* colon */
+			length += 3; /* rwx */
+			length += 1; /* colon */
+			length += max(sizeof(uid_t),sizeof(gid_t)) * 3 + 1;
+			length ++; /* newline */
+		}
+		ap = ap->next;
+	}
+
+	if (count > 0 && ((type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
+		length += 10; /* "user::rwx\n" */
+		length += 11; /* "group::rwx\n" */
+		length += 11; /* "other::rwx\n" */
+	}
+
+	if (count == 0)
+		return (NULL);
+
+	/* Now, allocate the string and actually populate it. */
+	wp = entry->acl_text_w = malloc(length * sizeof(wchar_t));
+	count = 0;
+	if ((type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
+		    entry->ae_stat.st_mode & 0700, -1);
+		*wp++ = ',';
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_GROUP_OBJ, NULL,
+		    entry->ae_stat.st_mode & 0070, -1);
+		*wp++ = ',';
+		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_OTHER, NULL,
+		    entry->ae_stat.st_mode & 0007, -1);
+		count += 3;
+
+		ap = entry->acl_head;
+		while (ap != NULL) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+				wname = aes_get_wcs(&ap->name);
+				*wp++ = ',';
+				append_entry_w(&wp, NULL, ap->tag, wname,
+				    ap->permset, ap->id);
+				count++;
+			}
+			ap = ap->next;
+		}
+	}
+
+	if ((type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+		ap = entry->acl_head;
+		while (ap != NULL) {
+			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+				wname = aes_get_wcs(&ap->name);
+				if (count > 0)
+					*wp++ = ',';
+				append_entry_w(&wp, L"default:", ap->tag,
+				    wname, ap->permset, ap->id);
+			}
+			ap = ap->next;
+		}
+	}
+
+	return (entry->acl_text_w);
+}
+
+static void
+append_id_w(wchar_t **wp, int id)
+{
+	if (id > 9)
+		append_id_w(wp, id / 10);
+	*(*wp)++ = L"0123456789"[id % 10];
+}
+
+static void
+append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
+    const wchar_t *wname, int perm, int id)
+{
+	if (prefix != NULL) {
+		wcscpy(*wp, prefix);
+		*wp += wcslen(*wp);
+	}
+	switch (tag) {
+	case ARCHIVE_ENTRY_ACL_USER_OBJ:
+		wname = NULL;
+		id = -1;
+		/* FALL THROUGH */
+	case ARCHIVE_ENTRY_ACL_USER:
+		wcscpy(*wp, L"user");
+		break;
+	case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
+		wname = NULL;
+		id = -1;
+		/* FALL THROUGH */
+	case ARCHIVE_ENTRY_ACL_GROUP:
+		wcscpy(*wp, L"group");
+		break;
+	case ARCHIVE_ENTRY_ACL_MASK:
+		wcscpy(*wp, L"mask");
+		wname = NULL;
+		id = -1;
+		break;
+	case ARCHIVE_ENTRY_ACL_OTHER:
+		wcscpy(*wp, L"other");
+		wname = NULL;
+		id = -1;
+		break;
+	}
+	*wp += wcslen(*wp);
+	*(*wp)++ = L':';
+	if (wname != NULL)
+		wcscpy(*wp, wname);
+	*wp += wcslen(*wp);
+	*(*wp)++ = L':';
+	*(*wp)++ = (perm & 0444) ? L'r' : L'-';
+	*(*wp)++ = (perm & 0222) ? L'w' : L'-';
+	*(*wp)++ = (perm & 0111) ? L'x' : L'-';
+	if (id != -1) {
+		*(*wp)++ = L':';
+		append_id_w(wp, id);
+	}
+	**wp = L'\0';
+}
+
+/*
+ * Parse a textual ACL.  This automatically recognizes and supports
+ * extensions described above.  The 'type' argument is used to
+ * indicate the type that should be used for any entries not
+ * explicitly marked as "default:".
+ */
+int
+__archive_entry_acl_parse_w(struct archive_entry *entry,
+    const wchar_t *text, int default_type)
+{
+	int type, tag, permset, id;
+	const wchar_t *start, *end;
+	const wchar_t *name_start, *name_end;
+	wchar_t sep;
+	wchar_t *namebuff;
+	int namebuff_length;
+
+	name_start = name_end = NULL;
+	namebuff = NULL;
+	namebuff_length = 0;
+
+	archive_entry_acl_clear(entry);
+
+	while (text != NULL  &&  *text != L'\0') {
+		next_field_w(&text, &start, &end, &sep);
+		if (sep != L':')
+			goto fail;
+
+		if (prefix_w(start, end, L"default")) {
+			type = ARCHIVE_ENTRY_ACL_TYPE_DEFAULT;
+			next_field_w(&text, &start, &end, &sep);
+			if (sep != L':')
+				goto fail;
+		} else
+			type = default_type;
+
+		if (prefix_w(start, end, L"user")) {
+			next_field_w(&text, &start, &end, &sep);
+			if (sep != L':')
+				goto fail;
+			if (end > start) {
+				tag = ARCHIVE_ENTRY_ACL_USER;
+				name_start = start;
+				name_end = end;
+			} else
+				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
+		} else if (prefix_w(start, end, L"group")) {
+			next_field_w(&text, &start, &end, &sep);
+			if (sep != L':')
+				goto fail;
+			if (end > start) {
+				tag = ARCHIVE_ENTRY_ACL_GROUP;
+				name_start = start;
+				name_end = end;
+			} else
+				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
+		} else if (prefix_w(start, end, L"other")) {
+			next_field_w(&text, &start, &end, &sep);
+			if (sep != L':')
+				goto fail;
+			if (end > start)
+				goto fail;
+			tag = ARCHIVE_ENTRY_ACL_OTHER;
+		} else if (prefix_w(start, end, L"mask")) {
+			next_field_w(&text, &start, &end, &sep);
+			if (sep != L':')
+				goto fail;
+			if (end > start)
+				goto fail;
+			tag = ARCHIVE_ENTRY_ACL_MASK;
+		} else
+			goto fail;
+
+		next_field_w(&text, &start, &end, &sep);
+		permset = 0;
+		while (start < end) {
+			switch (*start++) {
+			case 'r': case 'R':
+				permset |= ARCHIVE_ENTRY_ACL_READ;
+				break;
+			case 'w': case 'W':
+				permset |= ARCHIVE_ENTRY_ACL_WRITE;
+				break;
+			case 'x': case 'X':
+				permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+				break;
+			case '-':
+				break;
+			default:
+				goto fail;
+			}
+		}
+
+		/*
+		 * Support star-compatible numeric UID/GID extension.
+		 * This extension adds a ":" followed by the numeric
+		 * ID so that "group:groupname:rwx", for example,
+		 * becomes "group:groupname:rwx:999", where 999 is the
+		 * numeric GID.  This extension makes it possible, for
+		 * example, to correctly restore ACLs on a system that
+		 * might have a damaged passwd file or be disconnected
+		 * from a central NIS server.  This extension is compatible
+		 * with POSIX.1e draft 17.
+		 */
+		if (sep == L':' && (tag == ARCHIVE_ENTRY_ACL_USER ||
+		    tag == ARCHIVE_ENTRY_ACL_GROUP)) {
+			next_field_w(&text, &start, &end, &sep);
+
+			id = 0;
+			while (start < end  && *start >= '0' && *start <= '9') {
+				if (id > (INT_MAX / 10))
+					id = INT_MAX;
+				else {
+					id *= 10;
+					id += *start - '0';
+					start++;
+				}
+			}
+		} else
+			id = -1; /* No id specified. */
+
+		/* Skip any additional entries. */
+		while (sep == L':') {
+			next_field_w(&text, &start, &end, &sep);
+		}
+
+		/* Add entry to the internal list. */
+		if (name_end == name_start) {
+			archive_entry_acl_add_entry_w(entry, type, permset,
+			    tag, id, NULL);
+		} else {
+			if (namebuff_length <= name_end - name_start) {
+				if (namebuff != NULL)
+					free(namebuff);
+				namebuff_length = name_end - name_start + 256;
+				namebuff =
+				    malloc(namebuff_length * sizeof(wchar_t));
+			}
+			wmemcpy(namebuff, start, end-start);
+			archive_entry_acl_add_entry_w(entry, type,
+			    permset, tag, id, namebuff);
+		}
+	}
+	return (ARCHIVE_OK);
+
+fail:
+	fprintf(stderr, "ACL error\n");
+	if (namebuff != NULL)
+		free(namebuff);
+	return (ARCHIVE_WARN);
+}
+
+/*
+ * Match "[:whitespace:]*(.*)[:whitespace:]*[:,\n]".  *wp is updated
+ * to point to just after the separator.  *start points to the first
+ * character of the matched text and *end just after the last
+ * character of the matched identifier.  In particular *end - *start
+ * is the length of the field body, not including leading or trailing
+ * whitespace.
+ */
+static void
+next_field_w(const wchar_t **wp, const wchar_t **start,
+    const wchar_t **end, wchar_t *sep)
+{
+	/* Skip leading whitespace to find start of field. */
+	while (**wp == L' ' || **wp == L'\t' || **wp == L'\n') {
+		(*wp)++;
+	}
+	*start = *wp;
+
+	/* Scan for the separator. */
+	while (**wp != L'\0' && **wp != L',' && **wp != L':' &&
+	    **wp != L'\n') {
+		(*wp)++;
+	}
+	*sep = **wp;
+
+	/* Trim trailing whitespace to locate end of field. */
+	*end = *wp - 1;
+	while (**end == L' ' || **end == L'\t' || **end == L'\n') {
+		(*end)--;
+	}
+	(*end)++;
+
+	/* Adjust scanner location. */
+	if (**wp != L'\0')
+		(*wp)++;
+}
+
+static int
+prefix_w(const wchar_t *start, const wchar_t *end, const wchar_t *test)
+{
+	if (start == end)
+		return (0);
+
+	if (*start++ != *test++)
+		return (0);
+
+	while (start < end  &&  *start++ == *test++)
+		;
+
+	if (start < end)
+		return (0);
+
+	return (1);
+}
+
 
 #if TEST
 int

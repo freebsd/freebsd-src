@@ -248,7 +248,7 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 			p += 6;
 		}
 	}
-
+	*p = '\0';
 	add_pax_attr(as, key, utf8_value);
 	free(utf8_value);
 }
@@ -488,6 +488,16 @@ archive_write_pax_header(struct archive *a,
 	if ((st_main->st_mtime < 0) || (st_main->st_mtime >= 0x7fffffff))
 		need_extension = 1;
 
+	/* If there are non-trivial ACL entries, we need an extension. */
+	if (archive_entry_acl_count(entry_original,
+		ARCHIVE_ENTRY_ACL_TYPE_ACCESS) > 0)
+		need_extension = 1;
+
+	/* If there are non-trivial ACL entries, we need an extension. */
+	if (archive_entry_acl_count(entry_original,
+		ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) > 0)
+		need_extension = 1;
+
 	/*
 	 * The following items are handled differently in "pax
 	 * restricted" format.  In particular, in "pax restricted"
@@ -520,13 +530,15 @@ archive_write_pax_header(struct archive *a,
 			add_pax_attr(&(pax->pax_header), "SCHILY.fflags", p);
 
 		/* I use star-compatible ACL attributes. */
-		p = archive_entry_acl(entry_main);
-		if (p != NULL && *p != '\0')
-			add_pax_attr(&(pax->pax_header), "SCHILY.acl.access", p);
-		p = archive_entry_acl_default(entry_main);
-		if (p != NULL && *p != '\0')
-			add_pax_attr(&(pax->pax_header), "SCHILY.acl.default",
-			    p);
+		wp = __archive_entry_acl_text_w(entry_original,
+		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+		if (wp != NULL && *wp != L'\0')
+			add_pax_attr_w(&(pax->pax_header), "SCHILY.acl.access", wp);
+		wp = __archive_entry_acl_text_w(entry_original,
+		    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+		if (wp != NULL && *wp != L'\0')
+			add_pax_attr_w(&(pax->pax_header), "SCHILY.acl.default",
+			    wp);
 
 		/* Include star-compatible metadata info. */
 		add_pax_attr_int(&(pax->pax_header), "SCHILY.dev",

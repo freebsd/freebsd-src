@@ -74,12 +74,14 @@ static int	archive_read_extract_regular_open(struct archive *,
 		    const char *name, int mode, int flags);
 static int	archive_read_extract_symbolic_link(struct archive *,
 		    struct archive_entry *, int);
+static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
+static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
 static int	mkdirpath(struct archive *, const char *);
 static int	mkdirpath_recursive(char *path);
 static int	mksubdir(char *path);
 #ifdef HAVE_POSIX_ACL
-static int	set_acl(struct archive *a, const char *acl_text,
-		    acl_type_t type, const char *pathname);
+static int	set_acl(struct archive *, struct archive_entry *,
+		    acl_type_t, int archive_entry_acl_type);
 #endif
 static int	set_acls(struct archive *, struct archive_entry *);
 static int	set_extended_perm(struct archive *, struct archive_entry *,
@@ -673,6 +675,9 @@ mksubdir(char *path)
 static int
 set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 {
+	uid_t uid;
+	gid_t gid;
+
 	/* If UID/GID are already correct, return 0. */
 	/* TODO: Fix this; need to stat() to find on-disk GID <sigh> */
 	if (a->user_uid == archive_entry_stat(entry)->st_uid)
@@ -682,21 +687,23 @@ set_ownership(struct archive *a, struct archive_entry *entry, int flags)
 	if ((flags & ARCHIVE_EXTRACT_OWNER) == 0)
 		return (ARCHIVE_WARN);
 
+	uid = lookup_uid(a, archive_entry_uname(entry),
+	    archive_entry_stat(entry)->st_uid);
+	gid = lookup_gid(a, archive_entry_gname(entry),
+	    archive_entry_stat(entry)->st_gid);
+
 	/*
 	 * Root can change owner/group; owner can change group;
 	 * otherwise, bail out now.
 	 */
-	if ((a->user_uid != 0)
-	    && (a->user_uid != archive_entry_stat(entry)->st_uid))
+	if (a->user_uid != 0  &&  a->user_uid != uid) {
+		/* XXXX archive_set_error( XXXX ) ; XXX */
 		return (ARCHIVE_WARN);
+	}
 
-	if (lchown(archive_entry_pathname(entry),
-		archive_entry_stat(entry)->st_uid,
-		archive_entry_stat(entry)->st_gid)) {
+	if (lchown(archive_entry_pathname(entry), uid, gid)) {
 		archive_set_error(a, errno,
-		    "Can't set user=%d/group=%d for %s",
-		    archive_entry_stat(entry)->st_uid,
-		    archive_entry_stat(entry)->st_gid,
+		    "Can't set user=%d/group=%d for %s", uid, gid,
 		    archive_entry_pathname(entry));
 		return (ARCHIVE_WARN);
 	}
@@ -817,64 +824,130 @@ set_fflags(struct archive *a, struct archive_entry *entry)
 	return (ret);
 }
 
+#ifndef HAVE_POSIX_ACL
+/* Default empty function body to satisfy mainline code. */
+static int
+set_acls(struct archive *a, struct archive_entry *entry)
+{
+	(void)a;
+	(void)entry;
+	return (ARCHIVE_OK);
+}
+
+#else
+
 /*
  * XXX TODO: What about ACL types other than ACCESS and DEFAULT?
  */
 static int
 set_acls(struct archive *a, struct archive_entry *entry)
 {
-#ifdef HAVE_POSIX_ACL
-	const char	*acl_text;
-	const char	*name;
 	int		 ret;
 
-	ret = ARCHIVE_OK;
-
-	name = archive_entry_pathname(entry);
-	acl_text = archive_entry_acl(entry);
-	ret = set_acl(a, acl_text, ACL_TYPE_ACCESS, name);
-	if (ret == ARCHIVE_OK) {
-		acl_text = archive_entry_acl_default(entry);
-		ret = set_acl(a, acl_text, ACL_TYPE_DEFAULT, name);
-	}
-
+	ret = set_acl(a, entry, ACL_TYPE_ACCESS,
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	ret = set_acl(a, entry, ACL_TYPE_DEFAULT,
+	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
 	return (ret);
-#else
-	/* Default empty function body to satisfy mainline code. */
-	(void)a;
-	(void)entry;
-	return (ARCHIVE_OK);
-#endif
 }
 
-#ifdef HAVE_POSIX_ACL
+
 static int
-set_acl(struct archive *a, const char *acl_text, acl_type_t type,
-    const char *name)
+set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
+    int ae_requested_type)
 {
 	acl_t		 acl;
+	acl_entry_t	 acl_entry;
+	acl_permset_t	 acl_permset;
 	int		 ret;
+	int		 ae_type, ae_permset, ae_tag, ae_id;
+	uid_t		 ae_uid;
+	gid_t		 ae_gid;
+	const char	*ae_name;
+	int		 entries;
+	const char	*name;
 
 	ret = ARCHIVE_OK;
+	entries = archive_entry_acl_reset(entry, ae_requested_type);
+	if (entries == 0)
+		return (ARCHIVE_OK);
+	acl = acl_init(entries);
+	while (archive_entry_acl_next(entry, ae_requested_type, &ae_type,
+		   &ae_permset, &ae_tag, &ae_id, &ae_name) == ARCHIVE_OK) {
+		acl_create_entry(&acl, &acl_entry);
 
-	if (acl_text == NULL)
-		return (ret);
+		if (ae_tag == ARCHIVE_ENTRY_ACL_USER) {
+			acl_set_tag_type(acl_entry, ACL_USER);
+			ae_uid = lookup_uid(a, ae_name, ae_id);
+			acl_set_qualifier(acl_entry, &ae_uid);
+		} else if (ae_tag == ARCHIVE_ENTRY_ACL_GROUP) {
+			acl_set_tag_type(acl_entry, ACL_GROUP);
+			ae_gid = lookup_gid(a, ae_name, ae_id);
+			acl_set_qualifier(acl_entry, &ae_gid);
+		} else if (ae_tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+			acl_set_tag_type(acl_entry, ACL_USER_OBJ);
+		else if (ae_tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+			acl_set_tag_type(acl_entry, ACL_GROUP_OBJ);
+		else if (ae_tag == ARCHIVE_ENTRY_ACL_MASK)
+			acl_set_tag_type(acl_entry, ACL_MASK);
+		else if (ae_tag == ARCHIVE_ENTRY_ACL_OTHER)
+			acl_set_tag_type(acl_entry, ACL_OTHER);
 
-	acl = acl_from_text(acl_text);
-	if (acl == NULL) {
-		archive_set_error(a, errno, "Error parsing acl '%s'",
-		    acl_text);
-		ret = ARCHIVE_WARN;
-	} else {
-		if (acl_set_file(name, type, acl) != 0) {
-			archive_set_error(a, errno,
-			    "Failed to set acl '%s' (type %d)",
-			    acl_text, type);
-			ret = ARCHIVE_WARN;
-		}
-		acl_free(acl);
+		acl_get_permset(acl_entry, &acl_permset);
+		acl_clear_perms(acl_permset);
+		if (ae_permset & ARCHIVE_ENTRY_ACL_EXECUTE)
+			acl_add_perm(acl_permset, ACL_EXECUTE);
+		if (ae_permset & ARCHIVE_ENTRY_ACL_WRITE)
+			acl_add_perm(acl_permset, ACL_WRITE);
+		if (ae_permset & ARCHIVE_ENTRY_ACL_READ)
+			acl_add_perm(acl_permset, ACL_READ);
 	}
 
+	name = archive_entry_pathname(entry);
+	if (acl_set_file(name, acl_type, acl) != 0) {
+		archive_set_error(a, errno, "Failed to set acl");
+		ret = ARCHIVE_WARN;
+	}
+	acl_free(acl);
 	return (ret);
 }
 #endif
+
+/*
+ * XXX The following gid/uid lookups can be a performance bottleneck.
+ * Some form of caching would probably be very effective, though
+ * I have concerns about staleness.
+ */
+static gid_t
+lookup_gid(struct archive *a, const char *gname, gid_t gid)
+{
+	struct group	*grent;
+
+	(void)a; /* UNUSED */
+
+	/* Look up gid from gname. */
+	if (gname != NULL  &&  *gname != '\0') {
+		grent = getgrnam(gname);
+		if (grent != NULL)
+			gid = grent->gr_gid;
+	}
+	return (gid);
+}
+
+static uid_t
+lookup_uid(struct archive *a, const char *uname, uid_t uid)
+{
+	struct passwd	*pwent;
+
+	(void)a; /* UNUSED */
+
+	/* Look up uid from uname. */
+	if (uname != NULL  &&  *uname != '\0') {
+		pwent = getpwnam(uname);
+		if (pwent != NULL)
+			uid = pwent->pw_uid;
+	}
+	return (uid);
+}
