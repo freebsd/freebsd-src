@@ -160,7 +160,7 @@ g_gatel_create(void)
 	struct g_gate_ctl_create ggioc;
 	int fd;
 
-	fd = open(path, g_gate_openflags(flags));
+	fd = open(path, g_gate_openflags(flags) | O_DIRECT | O_FSYNC);
 	if (fd == -1)
 		err(EXIT_FAILURE, "Cannot open %s", path);
 	ggioc.gctl_version = G_GATE_VERSION;
