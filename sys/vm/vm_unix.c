@@ -46,11 +46,10 @@
  */
 #include <sys/param.h>
 #include <sys/lock.h>
-#include <sys/sysproto.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/sysproto.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
