@@ -1228,7 +1228,7 @@ syncache_respond(sc, m)
  *
  *	|. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|
  *	| peer iss                                                      |
- *	| MD5(laddr,faddr,lport,fport,secret)             |. . . . . . .|
+ *	| MD5(laddr,faddr,secret,lport,fport)             |. . . . . . .|
  *	|                     0                       |(A)|             |
  * (A): peer mss index
  */
