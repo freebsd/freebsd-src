@@ -64,6 +64,12 @@ struct	resource {
 #define	RF_WANTED	0x0010	/* somebody is waiting for this resource */
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 
+#define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
+#define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)
+				/* resource address alignemnt size bit mask */
+#define	RF_ALIGNMENT_LOG2(x)	((x) << RF_ALIGNMENT_SHIFT)
+#define	RF_ALIGNMENT(x)		(((x) & RF_ALIGNMENT_MASK) >> RF_ALIGNMENT_SHIFT)
+
 enum	rman_type { RMAN_UNINIT = 0, RMAN_GAUGE, RMAN_ARRAY };
 
 struct	rman {
@@ -89,6 +95,7 @@ int	rman_release_resource(struct resource *r);
 struct	resource *rman_reserve_resource(struct rman *rm, u_long start,
 					u_long end, u_long count,
 					u_int flags, struct device *dev);
+uint32_t rman_make_alignment_flags(uint32_t size);
 
 #define rman_get_start(r)	((r)->r_start)
 #define rman_get_end(r)		((r)->r_end)
