@@ -48,6 +48,11 @@ SRCS=	annotate.c arch-utils.c auxv.c ax-gdb.c ax-general.c \
 	valarith.c valops.c valprint.c values.c varobj.c \
 	wrapper.c ${LIBSRCS}
 
+.for stupid_gnu in \
+xregcomp xre_exec xregexec xre_search xre_compile_fastmap xregerror xre_comp xre_set_syntax
+CFLAGS+= -D${stupid_gnu}=${stupid_gnu:S/^x//}
+.endfor
+
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
 _fork_child= fork-child.c
 _infptrace= infptrace.c
