@@ -151,14 +151,14 @@ bool	clean = NO;
 bool	lastcmd = NO;
 jmp_buf	tstpbuf;
 
-void	ask(const char *);
-void	gfrsub(FILE *);
-int	linecnt(FILE *);
-int	next(char *);
-char	*nxtfld(unsigned char *);
-void	onsusp(int);
-void	onintr(int);
-void	prmesg(int);
+static void	ask(const char *);
+static void	gfrsub(FILE *);
+static int	linecnt(FILE *);
+static int	next(char *);
+static char	*nxtfld(char *);
+static void	onsusp(int);
+static void	onintr(int);
+static void	prmesg(int);
 static void usage(void);
 
 int
@@ -628,7 +628,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 prmesg(int length)
 {
 	FILE *outf;
@@ -675,7 +675,7 @@ prmesg(int length)
 	tcdrain(fileno(stdout));
 }
 
-void
+static void
 onintr(int unused __unused)
 {
 	signal(SIGINT, onintr);
@@ -700,7 +700,7 @@ onintr(int unused __unused)
 /*
  * We have just gotten a susp.  Suspend and prepare to resume.
  */
-void
+static void
 onsusp(int unused __unused)
 {
 	signal(SIGTSTP, SIG_DFL);
@@ -711,7 +711,7 @@ onsusp(int unused __unused)
 		longjmp(tstpbuf, 0);
 }
 
-int
+static int
 linecnt(FILE *f)
 {
 	off_t oldpos = ftello(f);
@@ -725,7 +725,7 @@ linecnt(FILE *f)
 	return (l);
 }
 
-int
+static int
 next(char *buf)
 {
 	int i;
@@ -734,7 +734,7 @@ next(char *buf)
 	return(--i);
 }
 
-void
+static void
 ask(const char *prompt)
 {
 	char	inch;
@@ -820,7 +820,7 @@ ask(const char *prompt)
 	}
 }
 
-void
+static void
 gfrsub(FILE *infile)
 {
 	off_t frompos;
@@ -900,8 +900,8 @@ gfrsub(FILE *infile)
 		strncpy(subj, "(No Subject)\n", sizeof subj);
 }
 
-char *
-nxtfld(unsigned char *s)
+static char *
+nxtfld(char *s)
 {
 	if (*s) while (*s && !isspace(*s)) s++;     /* skip over this field */
 	if (*s) while (*s && isspace(*s)) s++;    /* find start of next field */
