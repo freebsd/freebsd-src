@@ -76,7 +76,7 @@ and analysis by qualified cryptographers and therefore should be considered
 a slightly suspect experimental facility.
 .Pp
 We cannot at this point guarantee that the on-disk format will not change
-in response to reviews or bug-fixes, so potential users are adviced to
+in response to reviews or bug-fixes, so potential users are advised to
 be prepared that
 .Xr dump 8 Ns / Ns
 .Xr restore 8
@@ -116,8 +116,8 @@ specifies the lock selector file for the key modified with the
 .Pp
 The
 .Fl n Ar key
-argument can be used to specify which of the four keys
-to which the operation applies.
+argument can be used to specify to which of the four keys
+the operation applies.
 A value of 1 to 4 selects the specified key, a value of 0 (the default)
 means
 .Dq "this key"
@@ -137,7 +137,7 @@ of the parameters can be interactively edited.
 The
 .Fl p Ar pass-phrase
 argument
-specifies the pass-phrase used to opening the device.
+specifies the pass-phrase used for opening the device.
 If not specified, the controlling terminal will be used to prompt the user
 for the pass-phrase.
 Be aware that using this option may expose the pass-phrase to other
@@ -161,7 +161,7 @@ users who happen to run
 or similar while the command is running.
 .Sh EXAMPLES
 To initialize a device, using default parameters:
-.Dl # gbde init /dev/ad0s1f -l /etc/ad0s1f.lock
+.Dl # gbde init /dev/ad0s1f -L /etc/ad0s1f.lock
 .Pp
 To attach an encrypted device:
 .Dl # gbde attach ad0s1f -l /etc/ad0s1f.lock
@@ -191,5 +191,5 @@ DARPA CHATS research program.
 .Sh AUTHORS
 .An "Poul-Henning Kamp" Aq phk@FreeBSD.org
 .Sh BUGS
-The cryptographic algorithms and the overall design has not been
+The cryptographic algorithms and the overall design have not been
 attacked mercilessly for over 10 years by a gang or cryptoanalysts.
