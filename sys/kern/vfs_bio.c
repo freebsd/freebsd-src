@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.155 1998/03/08 09:57:04 julian Exp $
+ * $Id: vfs_bio.c,v 1.156 1998/03/16 01:55:22 dyson Exp $
  */
 
 /*
@@ -1545,13 +1545,6 @@ loop1:
 		allocbuf(bp, size);
 
 		splx(s);
-#ifdef	PC98
-		/*
-		 * 1024byte/sector support
-		 */
-#define B_XXX2 0x8000000
-		if (vp->v_flag & 0x10000) bp->b_flags |= B_XXX2;
-#endif
 		return (bp);
 	}
 }
