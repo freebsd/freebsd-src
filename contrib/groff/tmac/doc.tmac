@@ -2179,10 +2179,21 @@
 .      doc-parse-args \$@
 .    \}
 .    el \{\
-.      ie \n[doc-space-mode] \
+.      ie \n[doc-space-mode] \{\
+.        ds doc-saved-space "\*[doc-space]
+.        ds doc-space
 .        nr doc-space-mode 0
-.      el \
+.      \}
+.      el \{\
+.        ds doc-space "\*[doc-saved-space]
 .        nr doc-space-mode 1
+.
+.        \" finish line only if it is interrupted and `doc-have-space'
+.        \" isn't set
+.        if \n[doc-reg-Sm] \
+.          if \n[.int] \
+.            nop \)
+.      \}
 .  \}\}
 .
 .  if !\n[doc-arg-limit] \
@@ -2207,10 +2218,15 @@
 .    el \{\
 .      \" no argument for Sm
 .      nr doc-arg-ptr -1
-.      ie \n[doc-space-mode] \
+.      ie \n[doc-space-mode] \{\
+.        ds doc-saved-space "\*[doc-space]
+.        ds doc-space
 .        nr doc-space-mode 0
-.      el \
+.      \}
+.      el \{\
+.        ds doc-space "\*[doc-saved-space]
 .        nr doc-space-mode 1
+.      \}
 .  \}\}
 .
 .  ie \n[doc-space-mode] \{\
@@ -2237,18 +2253,13 @@
 .  \}
 .
 .  \" do we have parameters to print?
-.  ie (\n[doc-arg-limit] <= \n[doc-arg-ptr]) \{\
-.    \" ignore `.Sm on' and `.Sm off' without additional parameters
-.    ie (\n[doc-arg-ptr] > 1) \
-.      doc-print-and-reset
-.    el \
-.      doc-reset-args
-.  \}
-.  el \{\
+.  ie (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
 .    \" skip `Sm' argument
 .    nr doc-arg-ptr +1
 .    doc-print-recursive
 .  \}
+.  el \
+.    doc-reset-args
 ..
 .
 .
@@ -5146,6 +5157,10 @@
 .  ie \n[.$] \
 .    tm Usage: .Re (does not take arguments) (#\n[.c])
 .  el \{\
+.    if !\n[doc-is-reference] \{\
+.      tm mdoc warning: Extraneous .Re (#\n[.c])
+.      return
+.    \}
 .    doc-print-reference
 .    doc-reset-reference
 .    nr doc-is-reference 0
@@ -5224,7 +5239,7 @@
 .\" NS   doc-reference-count
 .
 .de doc-finish-reference
-.  nr doc-reference-count -1
+.  nr doc-reference-count -\$1
 .  ie \n[doc-reference-count] \
 .    nop \),
 .  el \
@@ -5254,81 +5269,81 @@
 .    chop doc-reference-title-name-for-book
 .    ie ((\n[doc-journal-count] == 1) : (\n[doc-book-count] == 1)) \{\
 .      nop \)\*[q]\)\*[doc-reference-title-name-for-book]\)\*[q]\c
-.      doc-finish-reference
+.      doc-finish-reference \n[doc-reference-title-count]
 .    \}
 .    el \{\
 .      nop \*[doc-reference-title-name]\c
-.      doc-finish-reference
+.      doc-finish-reference \n[doc-reference-title-count]
 .  \}\}
 .
 .  if \n[doc-book-count] \{\
 .    unformat doc-book-name
 .    chop doc-book-name
 .    nop \*[doc-book-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-book-count]
 .  \}
 .
 .  if \n[doc-publisher-count] \{\
 .    unformat doc-publisher-name
 .    chop doc-publisher-name
 .    nop \*[doc-publisher-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-publisher-count]
 .  \}
 .
 .  if \n[doc-journal-count] \{\
 .    unformat doc-journal-name
 .    chop doc-journal-name
 .    nop \*[doc-journal-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-journal-count]
 .  \}
 .
 .  if \n[doc-report-count] \{\
 .    unformat doc-report-name
 .    chop doc-report-name
 .    nop \*[doc-report-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-report-count]
 .  \}
 .
 .  if \n[doc-issue-count] \{\
 .    unformat doc-issue-name
 .    chop doc-issue-name
 .    nop \*[doc-issue-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-issue-count]
 .  \}
 .
 .  if \n[doc-volume-count] \{\
 .    unformat doc-volume-name
 .    chop doc-volume-name
 .    nop \*[doc-volume-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-volume-count]
 .  \}
 .
 .  if \n[doc-page-number-count] \{\
 .    unformat doc-page-number-string
 .    chop doc-page-number-string
 .    nop \*[doc-page-number-string]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-page-number-count]
 .  \}
 .
 .  if \n[doc-corporate-count] \{\
 .    unformat doc-corporate-name
 .    chop doc-corporate-name
 .    nop \*[doc-corporate-name]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-corporate-count]
 .  \}
 .
 .  if \n[doc-date-count] \{\
 .    unformat doc-date
 .    chop doc-date
 .    nop \*[doc-date]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-date-count]
 .  \}
 .
 .  if \n[doc-optional-count] \{\
 .    unformat doc-optional-string
 .    chop doc-optional-string
 .    nop \*[doc-optional-string]\c
-.    doc-finish-reference
+.    doc-finish-reference \n[doc-optional-count]
 .  \}
 .
 .  if \n[doc-reference-count] \
