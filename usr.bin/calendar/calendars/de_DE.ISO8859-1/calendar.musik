@@ -1,11 +1,11 @@
 /*
  * Musik
  *
- * $Id: musik,v 1.1 1996/01/28 19:12:45 wosch Exp $
+ * $Id: calendar.musik,v 1.1 1996/01/29 00:34:17 wosch Exp $
  */
 
-#ifndef _de_DE_ISO8859_1_musik_
-#define _de_DE_ISO8859_1_musik_
+#ifndef _de_DE_ISO_8859_1_musik_
+#define _de_DE_ISO_8859_1_musik_
 
 /* Klassik */
 02/23   Händel geboren, 1685
@@ -20,4 +20,4 @@
 /* Pop */
 09/18   Jimi Hendrix gestorben
 
-#endif /* !_de_DE_ISO8859_1_musik_ */
+#endif /* !_de_DE_ISO_8859_1_musik_ */
