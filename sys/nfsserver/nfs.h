@@ -158,18 +158,21 @@ struct nameidata;
 extern struct callout_handle nfsrv_timer_handle;
 extern struct nfsrvstats nfsrvstats;
 
-extern int	nfs_ticks;
+extern int	nfsrv_ticks;
 extern int	nfsrvw_procrastinate;
 extern int	nfsrvw_procrastinate_v3;
 
 /* Various values converted to XDR form. */
-extern u_int32_t nfs_false, nfs_true, nfs_xdrneg1, nfs_prog;
-extern u_int32_t rpc_reply, rpc_msgdenied, rpc_mismatch, rpc_vers;
-extern u_int32_t rpc_auth_unix, rpc_msgaccepted, rpc_call, rpc_autherr;
+extern u_int32_t nfsrv_nfs_false, nfsrv_nfs_true, nfsrv_nfs_xdrneg1,
+	nfsrv_nfs_prog;
+extern u_int32_t nfsrv_rpc_reply, nfsrv_rpc_msgdenied, nfsrv_rpc_mismatch,
+	nfsrv_rpc_vers;
+extern u_int32_t nfsrv_rpc_auth_unix, nfsrv_rpc_msgaccepted, nfsrv_rpc_call,
+	nfsrv_rpc_autherr;
 
 /* Procedure table data */
 extern int	nfsrvv2_procid[NFS_NPROCS];
-extern int	nfsv3_procid[NFS_NPROCS];
+extern int	nfsrv_nfsv3_procid[NFS_NPROCS];
 extern int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 		    struct nfssvc_sock *slp, struct thread *td,
 		    struct mbuf **mreqp);
