@@ -515,7 +515,7 @@
       <para>The &man.dc.4; driver now supports NICs based on the Xircom
       3201 and Conexant LANfinity RS7112 chips.</para>
 
-      <para>The &man.dc.4; driver now has support for VLANs.</para>
+      <para>The &man.dc.4; driver now has support for VLANs. &merged;</para>
 
       <para>The &man.de.4; driver now performs round-robin arbitration
       between the transmit and receive units of the 21143, instead of
@@ -1671,6 +1671,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     allow limiting the prototype quota distribution (specified with
     <option>-p</option>) to a single filesystem. &merged;</para>
 
+    <para>The functionality of <filename>/etc/security</filename> has
+    been been moved into a set of scripts under the &man.periodic.8;
+    framework, to make local customization easier and more
+    maintainable.  These scripts now reside in
+    <filename>/etc/periodic/security/</filename>. &merged;</para>
+
     <para>&man.fbtab.5; now accepts glob matching patterns for target
     devices, not just individual devices and directories.</para>
 
@@ -2584,11 +2590,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>pam_securetty</filename>,
       <filename>pam_wheel</filename>.</para>
 
-      <para><application>lukemftp</application> has replaced the &os;
+      <para><application>lukemftp</application> (the FTP client from NetBSD) has replaced the &os;
       &man.ftp.1; program.  Among its new features are more automation
       methods, better standards compliance, transfer rate throttling,
       and a customizable command-line prompt.  Some environment
       variables and command-line arguments have changed.</para>
+
+      <para>The FTP daemon from NetBSD, otherwise known as
+      <application>lukemftpd</application>, has been imported and is
+      available as &man.lukemftpd.8;.</para>
 
       <para><application>ncurses</application> has been updated to
       5.2-20010512.</para>
