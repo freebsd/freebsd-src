@@ -178,17 +178,18 @@ int
 CURSIG(struct proc *p)
 {
 	sigset_t tmpset;
-	int r;
+	int r = 0;
 
+	PROC_LOCK(p);
 	if (SIGISEMPTY(p->p_siglist))
-		return (0);
+		goto out;
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	if (SIGISEMPTY(tmpset) && (p->p_flag & P_TRACED) == 0)
-		return (0);
-	mtx_lock(&Giant);
+		goto out;
 	r = issignal(p);
-	mtx_unlock(&Giant);
+out:
+	PROC_UNLOCK(p);
 	return (r);
 }
 
@@ -224,11 +225,13 @@ do_sigaction(p, sig, act, oact, old)
 	struct sigaction *act, *oact;
 	int old;
 {
-	register struct sigacts *ps = p->p_sigacts;
+	register struct sigacts *ps;
 
 	if (sig <= 0 || sig > _SIG_MAXSIG)
 		return (EINVAL);
 
+	PROC_LOCK(p);
+	ps = p->p_sigacts;
 	if (oact) {
 		oact->sa_handler = ps->ps_sigact[_SIG_IDX(sig)];
 		oact->sa_mask = ps->ps_catchmask[_SIG_IDX(sig)];
@@ -250,13 +253,14 @@ do_sigaction(p, sig, act, oact, old)
 	}
 	if (act) {
 		if ((sig == SIGKILL || sig == SIGSTOP) &&
-		    act->sa_handler != SIG_DFL)
+		    act->sa_handler != SIG_DFL) {
+			PROC_UNLOCK(p);
 			return (EINVAL);
+		}
 
 		/*
 		 * Change setting atomically.
 		 */
-		(void) splhigh();
 
 		ps->ps_catchmask[_SIG_IDX(sig)] = act->sa_mask;
 		SIG_CANTMASK(ps->ps_catchmask[_SIG_IDX(sig)]);
@@ -336,9 +340,8 @@ do_sigaction(p, sig, act, oact, old)
 			SIGDELSET(ps->ps_osigset, sig);
 		else
 			SIGADDSET(ps->ps_osigset, sig);
-
-		(void) spl0();
 	}
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -425,9 +428,11 @@ siginit(p)
 {
 	register int i;
 
+	PROC_LOCK(p);
 	for (i = 1; i <= NSIG; i++)
 		if (sigprop(i) & SA_IGNORE && i != SIGCONT)
 			SIGADDSET(p->p_sigignore, i);
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -437,7 +442,7 @@ void
 execsigs(p)
 	register struct proc *p;
 {
-	register struct sigacts *ps = p->p_sigacts;
+	register struct sigacts *ps;
 	register int sig;
 
 	/*
@@ -445,6 +450,8 @@ execsigs(p)
 	 * through p_sigmask (unless they were caught,
 	 * and are now ignored by default).
 	 */
+	PROC_LOCK(p);
+	ps = p->p_sigacts;
 	while (SIGNOTEMPTY(p->p_sigcatch)) {
 		sig = sig_ffs(&p->p_sigcatch);
 		SIGDELSET(p->p_sigcatch, sig);
@@ -466,14 +473,13 @@ execsigs(p)
 	 * Reset no zombies if child dies flag as Solaris does.
 	 */
 	p->p_procsig->ps_flag &= ~PS_NOCLDWAIT;
+	PROC_UNLOCK(p);
 }
 
 /*
- * do_sigprocmask() - MP SAFE ONLY IF p == curproc
+ * do_sigprocmask()
  *
- *	Manipulate signal mask.  This routine is MP SAFE *ONLY* if
- *	p == curproc.  Also remember that in order to remain MP SAFE
- *	no spl*() calls may be made.
+ *	Manipulate signal mask.
  */
 static int
 do_sigprocmask(p, how, set, oset, old)
@@ -484,6 +490,7 @@ do_sigprocmask(p, how, set, oset, old)
 {
 	int error;
 
+	PROC_LOCK(p);
 	if (oset != NULL)
 		*oset = p->p_sigmask;
 
@@ -509,6 +516,7 @@ do_sigprocmask(p, how, set, oset, old)
 			break;
 		}
 	}
+	PROC_UNLOCK(p);
 	return (error);
 }
 
@@ -582,8 +590,12 @@ sigpending(p, uap)
 	struct proc *p;
 	struct sigpending_args *uap;
 {
+	sigset_t siglist;
 
-	return (copyout(&p->p_siglist, uap->set, sizeof(sigset_t)));
+	PROC_LOCK(p);
+	siglist = p->p_siglist;
+	PROC_UNLOCK(p);
+	return (copyout(&siglist, uap->set, sizeof(sigset_t)));
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
@@ -599,7 +611,9 @@ osigpending(p, uap)
 	struct osigpending_args *uap;
 {
 
+	PROC_LOCK(p);
 	SIG2OSIG(p->p_siglist, p->p_retval[0]);
+	PROC_UNLOCK(p);
 	return (0);
 }
 #endif /* COMPAT_43 */
@@ -671,10 +685,10 @@ osigblock(p, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
-	(void) splhigh();
+	PROC_LOCK(p);
 	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
 	SIGSETOR(p->p_sigmask, set);
-	(void) spl0();
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -692,10 +706,10 @@ osigsetmask(p, uap)
 
 	OSIG2SIG(uap->mask, set);
 	SIG_CANTMASK(set);
-	(void) splhigh();
+	PROC_LOCK(p);
 	SIG2OSIG(p->p_sigmask, p->p_retval[0]);
 	SIGSETLO(p->p_sigmask, set);
-	(void) spl0();
+	PROC_UNLOCK(p);
 	return (0);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
@@ -717,7 +731,7 @@ sigsuspend(p, uap)
 	struct sigsuspend_args *uap;
 {
 	sigset_t mask;
-	register struct sigacts *ps = p->p_sigacts;
+	register struct sigacts *ps;
 	int error;
 
 	error = copyin(uap->sigmask, &mask, sizeof(mask));
@@ -731,13 +745,16 @@ sigsuspend(p, uap)
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
+	PROC_LOCK(p);
+	ps = p->p_sigacts;
 	p->p_oldsigmask = p->p_sigmask;
 	p->p_flag |= P_OLDMASK;
 
 	SIG_CANTMASK(mask);
 	p->p_sigmask = mask;
-	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "pause", 0) == 0)
+	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
+	PROC_UNLOCK(p);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
@@ -755,15 +772,18 @@ osigsuspend(p, uap)
 	struct osigsuspend_args *uap;
 {
 	sigset_t mask;
-	register struct sigacts *ps = p->p_sigacts;
+	register struct sigacts *ps;
 
+	PROC_LOCK(p);
+	ps = p->p_sigacts;
 	p->p_oldsigmask = p->p_sigmask;
 	p->p_flag |= P_OLDMASK;
 	OSIG2SIG(uap->mask, mask);
 	SIG_CANTMASK(mask);
 	SIGSETLO(p->p_sigmask, mask);
-	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "opause", 0) == 0)
+	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
+	PROC_UNLOCK(p);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
@@ -786,8 +806,10 @@ osigstack(p, uap)
 	int error;
 
 	if (uap->oss != NULL) {
+		PROC_LOCK(p);
 		ss.ss_sp = p->p_sigstk.ss_sp;
 		ss.ss_onstack = sigonstack(cpu_getstack(p));
+		PROC_UNLOCK(p);
 		error = copyout(&ss, uap->oss, sizeof(struct sigstack));
 		if (error)
 			return (error);
@@ -796,10 +818,12 @@ osigstack(p, uap)
 	if (uap->nss != NULL) {
 		if ((error = copyin(uap->nss, &ss, sizeof(ss))) != 0)
 			return (error);
+		PROC_LOCK(p);
 		p->p_sigstk.ss_sp = ss.ss_sp;
 		p->p_sigstk.ss_size = 0;
 		p->p_sigstk.ss_flags |= ss.ss_onstack & SS_ONSTACK;
 		p->p_flag |= P_ALTSTACK;
+		PROC_UNLOCK(p);
 	}
 	return (0);
 }
@@ -823,9 +847,11 @@ sigaltstack(p, uap)
 	oonstack = sigonstack(cpu_getstack(p));
 
 	if (uap->oss != NULL) {
+		PROC_LOCK(p);
 		ss = p->p_sigstk;
 		ss.ss_flags = (p->p_flag & P_ALTSTACK)
 		    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+		PROC_UNLOCK(p);
 		if ((error = copyout(&ss, uap->oss, sizeof(stack_t))) != 0)
 			return (error);
 	}
@@ -840,10 +866,15 @@ sigaltstack(p, uap)
 		if (!(ss.ss_flags & SS_DISABLE)) {
 			if (ss.ss_size < p->p_sysent->sv_minsigstksz)
 				return (ENOMEM);
+			PROC_LOCK(p);
 			p->p_sigstk = ss;
 			p->p_flag |= P_ALTSTACK;
-		} else
+			PROC_UNLOCK(p);
+		} else {
+			PROC_LOCK(p);
 			p->p_flag &= ~P_ALTSTACK;
+			PROC_UNLOCK(p);
+		}
 	}
 	return (0);
 }
@@ -867,12 +898,24 @@ killpg1(cp, sig, pgid, all)
 		 */
 		ALLPROC_LOCK(AP_SHARED);
 		LIST_FOREACH(p, &allproc, p_list) {
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-			    p == cp || !CANSIGNAL(cp, p, sig))
+			PROC_LOCK(p);
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM || p == cp) {
+				PROC_UNLOCK(p);
+				continue;
+			}
+			PROC_UNLOCK(p);
+			/*
+			 * XXX: this locking needs work.. specifically the
+			 * session checks..
+			 */
+			if (!CANSIGNAL(cp, p, sig))
 				continue;
 			nfound++;
-			if (sig)
+			if (sig) {
+				PROC_LOCK(p);
 				psignal(p, sig);
+				PROC_UNLOCK(p);
+			}
 		}
 		ALLPROC_LOCK(AP_RELEASE);
 	} else {
@@ -887,13 +930,27 @@ killpg1(cp, sig, pgid, all)
 				return (ESRCH);
 		}
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
-			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-			    p->p_stat == SZOMB ||
-			    !CANSIGNAL(cp, p, sig))
+			PROC_LOCK(p);	      
+			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM) {
+				PROC_UNLOCK(p);
+				continue;
+			}
+			PROC_UNLOCK(p);
+			mtx_lock_spin(&sched_lock);
+			if (p->p_stat == SZOMB) {
+				mtx_unlock_spin(&sched_lock);
+				continue;
+			}
+			mtx_unlock_spin(&sched_lock);
+			/* XXX: locking b0rked */
+			if (!CANSIGNAL(cp, p, sig))
 				continue;
 			nfound++;
-			if (sig)
+			if (sig) {
+				PROC_LOCK(p);
 				psignal(p, sig);
+				PROC_UNLOCK(p);
+			}
 		}
 	}
 	return (nfound ? 0 : ESRCH);
@@ -919,10 +976,14 @@ kill(cp, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL)
 			return (ESRCH);
+		/* XXX: locking b0rked */
 		if (!CANSIGNAL(cp, p, uap->signum))
 			return (EPERM);
-		if (uap->signum)
+		if (uap->signum) {
+			PROC_LOCK(p);
 			psignal(p, uap->signum);
+			PROC_UNLOCK(p);
+		}
 		return (0);
 	}
 	switch (uap->pid) {
@@ -980,10 +1041,14 @@ pgsignal(pgrp, sig, checkctty)
 {
 	register struct proc *p;
 
-	if (pgrp)
-		LIST_FOREACH(p, &pgrp->pg_members, p_pglist)
+	if (pgrp) {
+		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
+			PROC_LOCK(p);
 			if (checkctty == 0 || p->p_flag & P_CONTROLT)
 				psignal(p, sig);
+			PROC_UNLOCK(p);
+		}
+	}
 }
 
 /*
@@ -999,6 +1064,7 @@ trapsignal(p, sig, code)
 {
 	register struct sigacts *ps = p->p_sigacts;
 
+	PROC_LOCK(p);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(p->p_sigcatch, sig) &&
 	    !SIGISMEMBER(p->p_sigmask, sig)) {
 		p->p_stats->p_ru.ru_nsignals++;
@@ -1007,8 +1073,10 @@ trapsignal(p, sig, code)
 			ktrpsig(p->p_tracep, sig, ps->ps_sigact[_SIG_IDX(sig)],
 				&p->p_sigmask, code);
 #endif
+		PROC_UNLOCK(p);	/* XXX ??? */
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], sig,
 						&p->p_sigmask, code);
+		PROC_LOCK(p);
 		SIGSETOR(p->p_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
 			SIGADDSET(p->p_sigmask, sig);
@@ -1027,6 +1095,7 @@ trapsignal(p, sig, code)
 		p->p_sig = sig;		/* XXX to verify code */
 		psignal(p, sig);
 	}
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -1055,7 +1124,7 @@ psignal(p, sig)
 		panic("psignal signal number");
 	}
 
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
 
 	prop = sigprop(sig);
@@ -1075,10 +1144,8 @@ psignal(p, sig)
 		 * and if it is set to SIG_IGN,
 		 * action will be SIG_DFL here.)
 		 */
-		if (SIGISMEMBER(p->p_sigignore, sig) || (p->p_flag & P_WEXIT)) {
-			PROC_UNLOCK(p);
+		if (SIGISMEMBER(p->p_sigignore, sig) || (p->p_flag & P_WEXIT))
 			return;
-		}
 		if (SIGISMEMBER(p->p_sigmask, sig))
 			action = SIG_HOLD;
 		else if (SIGISMEMBER(p->p_sigcatch, sig))
@@ -1104,10 +1171,8 @@ psignal(p, sig)
 		 * and don't clear any pending SIGCONT.
 		 */
 		if (prop & SA_TTYSTOP && p->p_pgrp->pg_jobc == 0 &&
-		    action == SIG_DFL) {
-			PROC_UNLOCK(p);
+		    action == SIG_DFL)
 		        return;
-		}
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
@@ -1119,7 +1184,6 @@ psignal(p, sig)
 	mtx_lock_spin(&sched_lock);
 	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
 		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
 		return;
 	}
 	switch (p->p_stat) {
@@ -1169,13 +1233,12 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
-			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_SHARED);
-			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
+			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0) {
+				PROC_LOCK(p->p_pptr);
 				psignal(p->p_pptr, SIGCHLD);
+				PROC_UNLOCK(p->p_pptr);
+			}
 			stop(p);
-			PROCTREE_LOCK(PT_RELEASE);
-			PROC_LOCK(p);
 			goto out;
 		} else
 			goto runfast;
@@ -1277,7 +1340,6 @@ run:
 out:
 	/* If we jump here, sched_lock should not be owned. */
 	mtx_assert(&sched_lock, MA_NOTOWNED);
-	PROC_UNLOCK(p);
 }
 
 /*
@@ -1299,6 +1361,7 @@ issignal(p)
 	sigset_t mask;
 	register int sig, prop;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	for (;;) {
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
@@ -1306,12 +1369,12 @@ issignal(p)
 		SIGSETNAND(mask, p->p_sigmask);
 		if (p->p_flag & P_PPWAIT)
 			SIG_STOPSIGMASK(mask);
-		if (!SIGNOTEMPTY(mask))	 	/* no signal to send */
+		if (!SIGNOTEMPTY(mask))		/* no signal to send */
 			return (0);
 		sig = sig_ffs(&mask);
 		prop = sigprop(sig);
 
-		STOPEVENT(p, S_SIG, sig);
+		_STOPEVENT(p, S_SIG, sig);
 
 		/*
 		 * We should see pending but ignored signals
@@ -1327,20 +1390,20 @@ issignal(p)
 			 * stopped until released by the parent.
 			 */
 			p->p_xstat = sig;
-			PROCTREE_LOCK(PT_SHARED);
+			PROC_LOCK(p->p_pptr);
 			psignal(p->p_pptr, SIGCHLD);
+			PROC_UNLOCK(p->p_pptr);
 			do {
 				stop(p);
-				PROCTREE_LOCK(PT_RELEASE);
 				mtx_lock_spin(&sched_lock);
+				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
-				PROCTREE_LOCK(PT_SHARED);
+				PROC_LOCK(p);
 			} while (!trace_req(p)
 				 && p->p_flag & P_TRACED);
-			PROCTREE_LOCK(PT_RELEASE);
 
 			/*
 			 * If the traced bit got turned off, go back up
@@ -1404,16 +1467,19 @@ issignal(p)
 				    prop & SA_TTYSTOP))
 					break;	/* == ignore */
 				p->p_xstat = sig;
-				PROCTREE_LOCK(PT_SHARED);
 				stop(p);
-				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
+				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0) {
+					PROC_LOCK(p->p_pptr);
 					psignal(p->p_pptr, SIGCHLD);
-				PROCTREE_LOCK(PT_RELEASE);
+					PROC_UNLOCK(p->p_pptr);
+				}
 				mtx_lock_spin(&sched_lock);
+				PROC_UNLOCK_NOSWITCH(p);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
 				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
+				PROC_LOCK(p);
 				break;
 			} else if (prop & SA_IGNORE) {
 				/*
@@ -1459,7 +1525,7 @@ stop(p)
 	register struct proc *p;
 {
 
-	PROCTREE_ASSERT(PT_SHARED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;
@@ -1476,13 +1542,15 @@ postsig(sig)
 	register int sig;
 {
 	register struct proc *p = curproc;
-	struct sigacts *ps = p->p_sigacts;
+	struct sigacts *ps;
 	sig_t action;
 	sigset_t returnmask;
 	int code;
 
 	KASSERT(sig != 0, ("postsig"));
 
+	PROC_LOCK(p);
+	ps = p->p_sigacts;
 	SIGDELSET(p->p_siglist, sig);
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
@@ -1490,7 +1558,7 @@ postsig(sig)
 		ktrpsig(p->p_tracep, sig, action, p->p_flag & P_OLDMASK ?
 		    &p->p_oldsigmask : &p->p_sigmask, 0);
 #endif
-	STOPEVENT(p, S_SIG, sig);
+	_STOPEVENT(p, S_SIG, sig);
 
 	if (action == SIG_DFL) {
 		/*
@@ -1514,7 +1582,6 @@ postsig(sig)
 		 * mask from before the sigsuspend is what we want
 		 * restored after the signal processing is completed.
 		 */
-		(void) splhigh();
 		if (p->p_flag & P_OLDMASK) {
 			returnmask = p->p_oldsigmask;
 			p->p_flag &= ~P_OLDMASK;
@@ -1535,7 +1602,6 @@ postsig(sig)
 				SIGADDSET(p->p_sigignore, sig);
 			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 		}
-		(void) spl0();
 		p->p_stats->p_ru.ru_nsignals++;
 		if (p->p_sig != sig) {
 			code = 0;
@@ -1544,6 +1610,7 @@ postsig(sig)
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
+		PROC_UNLOCK(p);
 		(*p->p_sysent->sv_sendsig)(action, sig, &returnmask, code);
 	}
 }
@@ -1560,7 +1627,9 @@ killproc(p, why)
 		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
 		p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	PROC_LOCK(p);
 	psignal(p, SIGKILL);
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -1577,6 +1646,7 @@ sigexit(p, sig)
 	int sig;
 {
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_acflag |= AXSIG;
 	if (sigprop(sig) & SA_CORE) {
 		p->p_sig = sig;
@@ -1586,6 +1656,7 @@ sigexit(p, sig)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
+		PROC_UNLOCK(p);
 		if (coredump(p) == 0)
 			sig |= WCOREFLAG;
 		if (kern_logsigexit)
@@ -1595,7 +1666,10 @@ sigexit(p, sig)
 			    p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
-	}
+	} else
+		PROC_UNLOCK(p);
+	if (!mtx_owned(&Giant))
+		mtx_lock(&Giant);
 	exit1(p, W_EXITCODE(0, sig));
 	/* NOTREACHED */
 }
@@ -1702,11 +1776,14 @@ coredump(p)
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
-	
-	STOPEVENT(p, S_CORE, 0);
 
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0)
+	PROC_LOCK(p);
+	_STOPEVENT(p, S_CORE, 0);
+
+	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0) {
+		PROC_UNLOCK(p);
 		return (EFAULT);
+	}
 	
 	/*
 	 * Note that the bulk of limit checking is done after
@@ -1717,8 +1794,11 @@ coredump(p)
 	 * if it is larger than the limit.
 	 */
 	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
-	if (limit == 0)
+	if (limit == 0) {
+		PROC_UNLOCK(p);
 		return 0;
+	}
+	PROC_UNLOCK(p);
 
 restart:
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
@@ -1749,7 +1829,9 @@ restart:
 	vattr.va_size = 0;
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, p);
+	PROC_LOCK(p);
 	p->p_acflag |= ACORE;
+	PROC_UNLOCK(p);
 
 	error = p->p_sysent->sv_coredump ?
 	  p->p_sysent->sv_coredump(p, vp, limit) :
@@ -1780,7 +1862,9 @@ nosys(p, args)
 	struct nosys_args *args;
 {
 
+	PROC_LOCK(p);
 	psignal(p, SIGSYS);
+	PROC_UNLOCK(p);
 	return (EINVAL);
 }
 
@@ -1797,16 +1881,21 @@ pgsigio(sigio, sig, checkctty)
 		return;
 		
 	if (sigio->sio_pgid > 0) {
+		PROC_LOCK(sigio->sio_proc);
 		if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred,
 		             sigio->sio_proc))
 			psignal(sigio->sio_proc, sig);
+		PROC_UNLOCK(sigio->sio_proc);
 	} else if (sigio->sio_pgid < 0) {
 		struct proc *p;
 
-		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist)
+		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
+			PROC_LOCK(p);
 			if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred, p) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
+			PROC_UNLOCK(p);
+		}
 	}
 }
 
@@ -1818,8 +1907,9 @@ filt_sigattach(struct knote *kn)
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 
-	/* XXX lock the proc here while adding to the list? */
+	PROC_LOCK(p);
 	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
+	PROC_UNLOCK(p);
 
 	return (0);
 }
@@ -1829,7 +1919,9 @@ filt_sigdetach(struct knote *kn)
 {
 	struct proc *p = kn->kn_ptr.p_proc;
 
+	PROC_LOCK(p);
 	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
+	PROC_UNLOCK(p);
 }
 
 /*
