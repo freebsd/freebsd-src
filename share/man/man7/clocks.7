@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: clocks.7,v 1.6 1997/03/21 20:14:09 mpp Exp $
+.\" $Id: clocks.7,v 1.3.2.1 1997/03/25 02:41:46 mpp Exp $
 .\" "
 .Dd April 1, 1996
 .Os
@@ -51,7 +51,7 @@ happens to be 128.  It isn't directly available to applications.
 .It
 The clock reported by
 .Xr clock 3 .
-This is a virtual clock with a frequency that happens to be 128.  It's
+This is a virtual clock with a frequency that happens to be 128.  Its
 actual frequency is given by the macro 
 .Dv CLOCKS_PER_SEC .  
 Note that
@@ -68,7 +68,7 @@ and throwing away information and resolution.
 .It
 The clock reported by
 .Xr times 3 .
-This is a virtual clock with a frequency that happens to be 128.  It's
+This is a virtual clock with a frequency that happens to be 128.  Its
 actual frequency is given by the macro
 .Dv CLK_TCK
 (deprecated; don't use) and by 
