@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.1 1998/06/10 10:55:59 dfr Exp $
+ *	$Id: zs_tlsb.c,v 1.2 1998/06/14 13:45:28 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -70,7 +70,7 @@ static	d_ioctl_t	zsioctl;
 static	d_stop_t	zsstop;
 static	d_devtotty_t	zsdevtotty;
 
-#define CDEV_MAJOR 97
+#define CDEV_MAJOR 98
 static struct cdevsw zs_cdevsw = {
 	zsopen,	zsclose,	zsread,	zswrite,
 	zsioctl,	zsstop,	noreset,	zsdevtotty,
@@ -85,8 +85,8 @@ static int	zsparam __P((struct tty *, struct termios *));
  * Helpers for console support.
  */
 
-static int	zs_cngetc __P((dev_t));
-static void	zs_cnputc __P((dev_t, int));
+int		zs_cngetc __P((dev_t));
+void		zs_cnputc __P((dev_t, int));
 static void	zs_cnpollc __P((dev_t, int));
 
 struct consdev zs_cons = {
@@ -135,53 +135,75 @@ zs_attach(device_t dev)
 	return 0;
 }
 
-static int
-zs_get_status(caddr_t base)
+static caddr_t
+zs_statusreg(caddr_t base, int chan)
 {
-    return (*(u_int32_t*) (base + ZSC_STATUS)) & 0xff;
+    if (chan == 0)
+	return base + ZSC_CHANNELA + ZSC_STATUS;
+    if (chan == 1)
+	return base + ZSC_CHANNELB + ZSC_STATUS;
+    panic("zs_statusreg: bogus channel");
+}
+
+static caddr_t
+zs_datareg(caddr_t base, int chan)
+{
+    if (chan == 0)
+	return base + ZSC_CHANNELA + ZSC_DATA;
+    if (chan == 1)
+	return base + ZSC_CHANNELB + ZSC_DATA;
+    panic("zs_statusreg: bogus channel");
+}
+
+static int
+zs_get_status(caddr_t base, int chan)
+{
+    return *(u_int32_t*) zs_statusreg(base, chan) & 0xff;
 }
 
 static void
-zs_put_status(caddr_t base, int v)
+zs_put_status(caddr_t base, int chan, int v)
 {
-    *(u_int32_t*) (base + ZSC_STATUS) = v;
+    *(u_int32_t*) zs_statusreg(base, chan) = v;
     alpha_mb();
 }
 
 static int
-zs_get_rr3(caddr_t base)
+zs_get_rr3(caddr_t base, int chan)
 {
-    zs_put_status(base, 3);
-    return zs_get_status(base);
+    if (chan != 0)
+	panic("zs_get_rr3: bad channel");
+    zs_put_status(base, chan, 3);
+    return zs_get_status(base, chan);
 }
 
 static int
-zs_get_data(caddr_t base)
+zs_get_data(caddr_t base, int chan)
 {
-    return (*(u_int32_t*) (base + ZSC_DATA)) & 0xff;
+    return *(u_int32_t*) zs_datareg(base, chan) & 0xff;
 }
 
 static void
-zs_put_data(caddr_t base, int v)
+zs_put_data(caddr_t base, int chan, int v)
 {
-    *(u_int32_t*) (base + ZSC_DATA) = v;
+    *(u_int32_t*) zs_datareg(base, chan) = v;
     alpha_mb();
 }
 
 static int
-zs_getc(caddr_t base)
+zs_getc(caddr_t base, int chan)
 {
-    while (!(zs_get_status(base) & 1))
+    while (!(zs_get_status(base, chan) & 1))
 	DELAY(5);
-    return zs_get_data(base);
+    return zs_get_data(base, chan);
 }
 
 static void
-zs_putc(caddr_t base, int c)
+zs_putc(caddr_t base, int chan, int c)
 {
-    while (!(zs_get_status(base) & 4))
+    while (!(zs_get_status(base, chan) & 4))
 	DELAY(5);
-    zs_put_data(base, c);
+    zs_put_data(base, chan, c);
 }
 
 extern struct consdev* cn_tab;
@@ -196,20 +218,20 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
     return 0;
 }
 
-static int
+int
 zs_cngetc(dev_t dev)
 {
     int s = spltty();
-    int c = zs_getc(zs_console_addr);
+    int c = zs_getc(zs_console_addr, minor(dev));
     splx(s);
     return c;
 }
 
-static void
+void
 zs_cnputc(dev_t dev, int c)
 {
     int s = spltty();
-    zs_putc(zs_console_addr, c);
+    zs_putc(zs_console_addr, minor(dev), c);
     splx(s);
 }
 
@@ -321,7 +343,7 @@ zsstart(struct tty *tp)
 
 	tp->t_state |= TS_BUSY;
 	while (tp->t_outq.c_cc != 0)
-		zs_putc(sc->base, getc(&tp->t_outq));
+		zs_putc(sc->base, minor(tp->t_dev), getc(&tp->t_outq));
 	tp->t_state &= ~TS_BUSY;
 
 	ttwwakeup(tp);
@@ -419,9 +441,10 @@ zsc_tlsb_probe(device_t dev)
 						 + gbus_get_offset(dev));
 
 	/*
-	 * Add channel A for now.
+	 * Add channel A and channel B
 	 */
-	device_add_child(dev, "zs", -1, (void*) 0);
+	device_add_child(dev, "zs", 0, (void*) 0);
+	device_add_child(dev, "zs", 1, (void*) 0);
 
 	return 0;
 }
@@ -435,6 +458,7 @@ zsc_tlsb_attach(device_t dev)
 	
 	/* XXX */
 	sc->sc_a = ZS_SOFTC(0);
+	sc->sc_b = ZS_SOFTC(1);
 
 	BUS_MAP_INTR(device_get_parent(dev), dev, zsc_tlsb_intr, sc);
 
@@ -455,14 +479,28 @@ zsc_tlsb_intr(void* arg)
 	struct zsc_softc* sc = arg;
 	caddr_t base = sc->base;
 
-	/* XXX only allow for zs0 at zsc0 */
-	int rr3 = zs_get_rr3(base);
+	int rr3 = zs_get_rr3(base, 0);
 	if (rr3 & 0x20) {
 		struct tty* tp = &sc->sc_a->tty;
 		int c;
 
-		while (zs_get_status(base) & 1) {
-			c = zs_get_data(base);
+		while (zs_get_status(base, 0) & 1) {
+			c = zs_get_data(base, 0);
+#ifdef DDB
+			if (c == CTRL('\\'))
+				Debugger("manual escape to debugger");
+#endif
+			if (tp->t_state & TS_ISOPEN)
+				(*linesw[tp->t_line].l_rint)(c, tp);
+			DELAY(5);
+		}
+	}
+	if (rr3 & 0x04) {
+		struct tty* tp = &sc->sc_b->tty;
+		int c;
+
+		while (zs_get_status(base, 1) & 1) {
+			c = zs_get_data(base, 1);
 #ifdef DDB
 			if (c == CTRL('\\'))
 				Debugger("manual escape to debugger");
