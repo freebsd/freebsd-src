@@ -17,9 +17,9 @@ FILESGROUPS+=	DEFS
 DEFSDIR=	${SHAREDIR}/bsnmp/defs
 .endif
 
-.if defined(MIBS)
-FILESGROUPS+=	MIBS
-MIBSDIR=	${SHAREDIR}/bsnmp/mibs
+.if defined(BMIBS)
+FILESGROUPS+=	BMIBS
+BMIBSDIR=	${SHAREDIR}/bsnmp/mibs
 .endif
 
 .include "../Makefile.inc"
