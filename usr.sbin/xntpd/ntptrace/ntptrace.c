@@ -7,6 +7,8 @@
  *	Inspired by a script written by Glenn Trewitt
  *
  *	Large portions stolen from ntpdate.c
+ *
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <signal.h>
@@ -103,7 +105,7 @@ static	void	printrefid	P((FILE *, struct server *));
  * Main program.  Initialize us and loop waiting for I/O and/or
  * timer expiries.
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
