@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.222.2.2 1999/02/17 21:04:44 msmith Exp $
+#	$Id: Makefile,v 1.222.2.3 1999/03/24 04:26:19 jkh Exp $
 #
 # The user-driven targets are:
 #
@@ -52,7 +52,7 @@
 # or 3.0. If OBJFORMAT is set as an environment variable or in /etc/make.conf,
 # this overrides /etc/objformat.
 #
-# Unless -DNOAOUT is specified, a `make world' with OBJFORMAT=elf will
+# If -DWANT_AOUT is specified, a `make world' with OBJFORMAT=elf will
 # update the legacy support for aout. This includes all libraries, ld.so
 # and boot objects. This part of build should be regarded as
 # deprecated and you should _not_ expect to be able to do this past the
