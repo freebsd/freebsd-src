@@ -54,7 +54,11 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ *
+ * $FreeBSD$
  */
+
+#ifndef NO_SSL2
 
 #include <stdio.h>
 #include <errno.h>
@@ -638,3 +642,5 @@ static int ssl_mt_error(int n)
 		}
 	return(ret);
 	}
+
+#endif
