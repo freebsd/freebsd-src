@@ -689,11 +689,6 @@ cleaning up and bailing out");
 	return (&result);
 }
 
-struct cmessage {
-	struct cmsghdr		cmsg;
-	struct cmsgcred		cmcred;
-};
-
 /*
  * Note that this function performs a little less sanity checking
  * than the last one. Since only the superuser is allowed to use it,
