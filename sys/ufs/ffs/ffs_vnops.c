@@ -127,10 +127,10 @@ struct vop_vector ffs_vnodeops = {
 	.vop_write =		ffs_write,
 	.vop_closeextattr =	ffs_closeextattr,
 	.vop_deleteextattr =	ffs_deleteextattr,
-	.vop_getextattr =		ffs_getextattr,
+	.vop_getextattr =	ffs_getextattr,
 	.vop_listextattr =	ffs_listextattr,
 	.vop_openextattr =	ffs_openextattr,
-	.vop_setextattr =		ffs_setextattr,
+	.vop_setextattr =	ffs_setextattr,
 };
 
 struct vop_vector ffs_fifoops = {
@@ -140,10 +140,10 @@ struct vop_vector ffs_fifoops = {
 	.vop_strategy =		ffsext_strategy,
 	.vop_closeextattr =	ffs_closeextattr,
 	.vop_deleteextattr =	ffs_deleteextattr,
-	.vop_getextattr =		ffs_getextattr,
+	.vop_getextattr =	ffs_getextattr,
 	.vop_listextattr =	ffs_listextattr,
 	.vop_openextattr =	ffs_openextattr,
-	.vop_setextattr =		ffs_setextattr,
+	.vop_setextattr =	ffs_setextattr,
 };
 
 /*
