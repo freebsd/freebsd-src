@@ -70,6 +70,27 @@ struct l_shm_info {
 	l_ulong swap_successes;
 };
 
+static void
+bsd_to_linux_shminfo( struct shminfo *bpp, struct l_shminfo *lpp)
+{
+	lpp->shmmax = bpp->shmmax;
+	lpp->shmmin = bpp->shmmin;
+	lpp->shmmni = bpp->shmmni;
+	lpp->shmseg = bpp->shmseg;
+	lpp->shmall = bpp->shmall;
+}
+
+static void
+bsd_to_linux_shm_info( struct shm_info *bpp, struct l_shm_info *lpp)
+{
+	lpp->used_ids = bpp->used_ids ;
+	lpp->shm_tot = bpp->shm_tot ;
+	lpp->shm_rss = bpp->shm_rss ;
+	lpp->shm_swp = bpp->shm_swp ;
+	lpp->swap_attempts = bpp->swap_attempts ;
+	lpp->swap_successes = bpp->swap_successes ;
+}
+
 struct l_ipc_perm {
 	l_key_t		key;
 	l_uid16_t	uid;
@@ -425,6 +446,8 @@ int
 linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 {
     struct l_shmid_ds linux_shmid;
+	struct l_shminfo linux_shminfo;
+	struct l_shm_info linux_shm_info;
     struct shmctl_args /* {
 	int shmid;
 	int cmd;
@@ -434,12 +457,41 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     caddr_t sg = stackgap_init();
 
     switch (args->cmd) {
+
+	case LINUX_IPC_INFO:
+	bsd_args.shmid = args->shmid;
+	bsd_args.cmd = IPC_INFO;
+	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shminfo));
+	if ((error = shmctl(td, &bsd_args)))
+		return error;
+	bsd_to_linux_shminfo( (struct shminfo *)bsd_args.buf, &linux_shminfo );
+	return copyout(&linux_shminfo, (caddr_t)args->buf, sizeof(shminfo));
+
+	case LINUX_SHM_INFO:
+	bsd_args.shmid = args->shmid;
+	bsd_args.cmd = SHM_INFO;
+	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shm_info));
+	if ((error = shmctl(td, &bsd_args)))
+	    return error;
+	bsd_to_linux_shm_info( (struct shm_info *)bsd_args.buf, &linux_shm_info );
+	return copyout(&linux_shm_info, (caddr_t)args->buf, sizeof(struct shm_info));
+
     case LINUX_IPC_STAT:
 	bsd_args.shmid = args->shmid;
 	bsd_args.cmd = IPC_STAT;
 	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
 	if ((error = shmctl(td, &bsd_args)))
 	    return error;
+	bsd_to_linux_shmid_ds(bsd_args.buf, &linux_shmid);
+	return copyout(&linux_shmid, (caddr_t)args->buf, sizeof(linux_shmid));
+
+	case LINUX_SHM_STAT:
+	bsd_args.shmid = args->shmid;
+	bsd_args.cmd = SHM_STAT;
+	bsd_args.buf = (struct shmid_ds*)stackgap_alloc(&sg, sizeof(struct shmid_ds));
+	if ((error = shmctl(td, &bsd_args))) {
+	    return error;
+	}
 	bsd_to_linux_shmid_ds(bsd_args.buf, &linux_shmid);
 	return copyout(&linux_shmid, (caddr_t)args->buf, sizeof(linux_shmid));
 
@@ -467,9 +519,6 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	}
 	return shmctl(td, &bsd_args);
 
-    case LINUX_IPC_INFO:
-    case LINUX_SHM_STAT:
-    case LINUX_SHM_INFO:
     case LINUX_SHM_LOCK:
     case LINUX_SHM_UNLOCK:
     default:
