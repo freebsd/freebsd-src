@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  * from: @(#)nfsswapvmunix.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfsswapkernel.c,v 1.3 1997/02/22 09:28:14 peter Exp $
  */
 
 /*
@@ -59,10 +59,6 @@ dev_t	rootdev = NODEV;
 dev_t	argdev  = NODEV;
 dev_t	dumpdev = NODEV;
 
-struct	swdevt swdevt[] = {
-	{ NODEV,	0,	5000 },	/* happy:/u/swap.dopey  */
-	{ 0, 0, 0 }
-};
 struct nfs_diskless nfs_diskless = {
 	{ { 'q', 'e', '0', '\0' },
 	  { 0x10, 0x2, { 0x0, 0x0, 0x83, 0x68, 0x30, 0x2, } },
