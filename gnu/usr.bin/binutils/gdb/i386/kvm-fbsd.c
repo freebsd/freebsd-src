@@ -596,7 +596,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
   cpuid = 0;
 
   physrd (cfd, ksym_lookup ("IdlePTD") - KERNOFF, (char*)&sbr, sizeof sbr);
-  printf ("IdlePTD at phsyical address 0x%08lx\n", (unsigned long)sbr);
+  printf ("IdlePTD at physical address 0x%08lx\n", (unsigned long)sbr);
   curpcb = kvtophys(cfd, ksym_lookup ("gd_curpcb") + prv_start);
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
