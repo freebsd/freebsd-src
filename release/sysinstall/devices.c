@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.83 1998/09/26 17:05:08 jkh Exp $
+ * $Id: devices.c,v 1.84 1998/09/30 01:46:27 danny Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"		},
+    { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},
     { DEVICE_TYPE_NETWORK,	"tl",		"Texas Instruments ThunderLAN PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 ethernet card"				},

@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.16 1998/09/25 17:34:48 peter Exp $
+#	$Id: SMP-GENERIC,v 1.17 1998/10/16 04:44:05 peter Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -161,6 +161,7 @@ device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # revision 1.20 of this file.
 device de0
 device fxp0
+device rl0
 device tl0
 device tx0
 device vx0
