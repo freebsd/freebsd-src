@@ -707,6 +707,27 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 }
 
 /*
+ * Returns true if the device is actually present and should
+ * be attached to.  This requires the present, enabled, UI-visible 
+ * and diagnostics-passed bits to be set.
+ */
+BOOLEAN
+acpi_DeviceIsPresent(device_t dev)
+{
+    ACPI_HANDLE		h;
+    ACPI_DEVICE_INFO	devinfo;
+    ACPI_STATUS		error;
+    
+    if ((h = acpi_get_handle(dev)) == NULL)
+	return(FALSE);
+    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
+	return(FALSE);
+    if ((devinfo.Valid & ACPI_VALID_HID) && (devinfo.CurrentStatus & 0xf))
+	return(TRUE);
+    return(FALSE);
+}
+
+/*
  * Match a HID string against a device
  */
 BOOLEAN
@@ -725,6 +746,46 @@ acpi_MatchHid(device_t dev, char *hid)
     if ((devinfo.Valid & ACPI_VALID_HID) && !strcmp(hid, devinfo.HardwareId))
 	return(TRUE);
     return(FALSE);
+}
+
+/*
+ * Return the handle of a named object within our scope, ie. that of (parent)
+ * or one if its parents.
+ */
+ACPI_STATUS
+acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
+{
+    ACPI_HANDLE		r;
+    ACPI_STATUS		status;
+
+    /* walk back up the tree to the root */
+    for (;;) {
+	status = AcpiGetHandle(parent, path, &r);
+	if (status == AE_OK) {
+	    *result = r;
+	    return(AE_OK);
+	}
+	if (status != AE_NOT_FOUND)
+	    return(AE_OK);
+	if (AcpiGetParent(parent, &r) != AE_OK)
+	    return(AE_NOT_FOUND);
+	parent = r;
+    }
+}
+
+/*
+ * Allocate a buffer with a preset data size.
+ */
+ACPI_BUFFER *
+acpi_AllocBuffer(int size)
+{
+    ACPI_BUFFER	*buf;
+
+    if ((buf = malloc(size + sizeof(*buf), M_ACPIDEV, M_NOWAIT)) == NULL)
+	return(NULL);
+    buf->Length = size;
+    buf->Pointer = (void *)(buf + 1);
+    return(buf);
 }
 
 /*
@@ -747,19 +808,74 @@ acpi_GetIntoBuffer(ACPI_HANDLE handle, ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUF
 }
 
 /*
- * Allocate a buffer with a preset data size.
+ * Perform the tedious double-evaluate procedure for evaluating something into
+ * an ACPI_BUFFER that has not been initialised.  Note that this evaluates
+ * twice, so avoid applying this to things that may have side-effects.
+ *
+ * This is like AcpiEvaluateObject with automatic buffer allocation.
  */
-ACPI_BUFFER *
-acpi_AllocBuffer(int size)
+ACPI_STATUS
+acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname, ACPI_OBJECT_LIST *params,
+			ACPI_BUFFER *buf)
 {
-    ACPI_BUFFER	*buf;
+    ACPI_STATUS	status;
+    
+    buf->Length = 0;
+    buf->Pointer = NULL;
 
-    if ((buf = malloc(size + sizeof(*buf), M_ACPIDEV, M_NOWAIT)) == NULL)
-	return(NULL);
-    buf->Length = size;
-    buf->Pointer = (void *)(buf + 1);
-    return(buf);
+    if ((status = AcpiEvaluateObject(object, pathname, params, buf)) != AE_BUFFER_OVERFLOW)
+	return(status);
+    if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
+	return(AE_NO_MEMORY);
+    return(AcpiEvaluateObject(object, pathname, params, buf));
 }
+
+/*
+ * Evaluate a path that should return an integer.
+ */
+ACPI_STATUS
+acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
+{
+    ACPI_STATUS	error;
+    ACPI_BUFFER	buf;
+    ACPI_OBJECT	param;
+
+    if (handle == NULL)
+	handle = ACPI_ROOT_OBJECT;
+    buf.Pointer = &param;
+    buf.Length = sizeof(param);
+    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
+	if (param.Type == ACPI_TYPE_INTEGER) {
+	    *number = param.Integer.Value;
+	} else {
+	    error = AE_TYPE;
+	}
+    }
+    return(error);
+}
+
+/*
+ * Iterate over the elements of an a package object, calling the supplied
+ * function for each element.
+ *
+ * XXX possible enhancement might be to abort traversal on error.
+ */
+ACPI_STATUS
+acpi_ForeachPackageObject(ACPI_OBJECT *pkg, void (* func)(ACPI_OBJECT *comp, void *arg), void *arg)
+{
+    ACPI_OBJECT	*comp;
+    int		i;
+    
+    if ((pkg == NULL) || (pkg->Type != ACPI_TYPE_PACKAGE))
+	return(AE_BAD_PARAMETER);
+
+    /* iterate over components */
+    for (i = 0, comp = pkg->Package.Elements; i < pkg->Package.Count; i++, comp++)
+	func(comp, arg);
+
+    return(AE_OK);
+}
+
 
 static ACPI_STATUS __inline
 acpi_wakeup(UINT8 state)
@@ -950,51 +1066,6 @@ acpi_Disable(struct acpi_softc *sc)
     if (status == AE_OK)
 	sc->acpi_enabled = 0;
     return_ACPI_STATUS(status);
-}
-
-/*
- * Returns true if the device is actually present and should
- * be attached to.  This requires the present, enabled, UI-visible 
- * and diagnostics-passed bits to be set.
- */
-BOOLEAN
-acpi_DeviceIsPresent(device_t dev)
-{
-    ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
-    ACPI_STATUS		error;
-    
-    if ((h = acpi_get_handle(dev)) == NULL)
-	return(FALSE);
-    if ((error = AcpiGetObjectInfo(h, &devinfo)) != AE_OK)
-	return(FALSE);
-    if ((devinfo.Valid & ACPI_VALID_HID) && (devinfo.CurrentStatus & 0xf))
-	return(TRUE);
-    return(FALSE);
-}
-
-/*
- * Evaluate a path that should return an integer.
- */
-ACPI_STATUS
-acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
-{
-    ACPI_STATUS	error;
-    ACPI_BUFFER	buf;
-    ACPI_OBJECT	param;
-
-    if (handle == NULL)
-	handle = ACPI_ROOT_OBJECT;
-    buf.Pointer = &param;
-    buf.Length = sizeof(param);
-    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
-	if (param.Type == ACPI_TYPE_INTEGER) {
-	    *number = param.Integer.Value;
-	} else {
-	    error = AE_TYPE;
-	}
-    }
-    return(error);
 }
 
 /*
@@ -1347,63 +1418,67 @@ struct debugtag
 };
 
 static struct debugtag	dbg_layer[] = {
-    {"GLOBAL",			0x00000001},
-    {"COMMON",			0x00000002},
-    {"PARSER",			0x00000004},
-    {"DISPATCHER",		0x00000008},
-    {"INTERPRETER",		0x00000010},
-    {"NAMESPACE",		0x00000020},
-    {"RESOURCE_MANAGER",	0x00000040},
-    {"TABLE_MANAGER",		0x00000080},
-    {"EVENT_HANDLING",		0x00000100},
-    {"HARDWARE",		0x00000200},
-    {"MISCELLANEOUS",		0x00000400},
-    {"OS_DEPENDENT",		0x00000800},
-    {"BUS_MANAGER",		0x00001000},
-    {"PROCESSOR_CONTROL",	0x00002000},
-    {"SYSTEM_CONTROL",		0x00004000},
-    {"THERMAL_CONTROL",		0x00008000},
-    {"POWER_CONTROL",		0x00010000},
-    {"EMBEDDED_CONTROLLER",	0x00020000},
-    {"BATTERY",			0x00040000},
-    {"DEBUGGER",		0x00100000},
-    {"ALL_COMPONENTS",		0x001FFFFF},
+    {"ACPI_UTILITIES",		ACPI_UTILITIES},
+    {"ACPI_HARDWARE",		ACPI_HARDWARE},
+    {"ACPI_EVENTS",		ACPI_EVENTS},
+    {"ACPI_TABLES",		ACPI_TABLES},
+    {"ACPI_NAMESPACE",		ACPI_NAMESPACE},
+    {"ACPI_PARSER",		ACPI_PARSER},
+    {"ACPI_DISPATCHER",		ACPI_DISPATCHER},
+    {"ACPI_EXECUTER",		ACPI_EXECUTER},
+    {"ACPI_RESOURCES",		ACPI_RESOURCES},
+    {"ACPI_DEVICES",		ACPI_DEVICES},
+    {"ACPI_POWER",		ACPI_POWER},
+    {"ACPI_BUS_MANAGER",	ACPI_BUS_MANAGER},
+    {"ACPI_POWER_CONTROL",	ACPI_POWER_CONTROL},
+    {"ACPI_EMBEDDED_CONTROLLER", ACPI_EMBEDDED_CONTROLLER},
+    {"ACPI_PROCESSOR_CONTROL",	ACPI_PROCESSOR_CONTROL},
+    {"ACPI_AC_ADAPTER",		ACPI_AC_ADAPTER},
+    {"ACPI_BATTERY",		ACPI_BATTERY},
+    {"ACPI_BUTTON",		ACPI_BUTTON},
+    {"ACPI_SYSTEM",		ACPI_SYSTEM},
+    {"ACPI_THERMAL_ZONE",	ACPI_THERMAL_ZONE},
+    {"ACPI_DEBUGGER",		ACPI_DEBUGGER},
+    {"ACPI_OS_SERVICES",	ACPI_OS_SERVICES},
+    {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
     {NULL, 0}
 };
 
 static struct debugtag dbg_level[] = {
-    {"ACPI_OK",                     0x00000001},    
-    {"ACPI_INFO",                   0x00000002},    
-    {"ACPI_WARN",                   0x00000004},    
-    {"ACPI_ERROR",                  0x00000008},    
-    {"ACPI_FATAL",                  0x00000010},    
-    {"ACPI_DEBUG_OBJECT",           0x00000020},    
-    {"ACPI_ALL",                    0x0000003F},    
-    {"TRACE_PARSE",                 0x00000100},    
-    {"TRACE_DISPATCH",              0x00000200},    
-    {"TRACE_LOAD",                  0x00000400},    
-    {"TRACE_EXEC",                  0x00000800},    
-    {"TRACE_NAMES",                 0x00001000},    
-    {"TRACE_OPREGION",              0x00002000},    
-    {"TRACE_BFIELD",                0x00004000},    
-    {"TRACE_TRASH",                 0x00008000},    
-    {"TRACE_TABLES",                0x00010000},    
-    {"TRACE_FUNCTIONS",             0x00020000},    
-    {"TRACE_VALUES",                0x00040000},    
-    {"TRACE_OBJECTS",               0x00080000},    
-    {"TRACE_ALLOCATIONS",           0x00100000},    
-    {"TRACE_RESOURCES",             0x00200000},    
-    {"TRACE_IO",                    0x00400000},    
-    {"TRACE_INTERRUPTS",            0x00800000},    
-    {"TRACE_USER_REQUESTS",         0x01000000},    
-    {"TRACE_PACKAGE",               0x02000000},    
-    {"TRACE_MUTEX",                 0x04000000},    
-    {"TRACE_ALL",                   0x0FFFFF00},    
-    {"VERBOSE_AML_DISASSEMBLE",     0x10000000},    
-    {"VERBOSE_INFO",                0x20000000},    
-    {"VERBOSE_TABLES",              0x40000000},    
-    {"VERBOSE_EVENTS",              0x80000000},    
-    {"VERBOSE_ALL",                 0xF0000000},    
+    {"ACPI_OK",			ACPI_OK},
+    {"ACPI_INFO",		ACPI_INFO},
+    {"ACPI_WARN",		ACPI_WARN},
+    {"ACPI_ERROR",		ACPI_ERROR},
+    {"ACPI_FATAL",		ACPI_FATAL},
+    {"ACPI_DEBUG_OBJECT",	ACPI_DEBUG_OBJECT},
+    {"ACPI_ALL",		ACPI_ALL},
+    {"TRACE_THREADS",		TRACE_THREADS},
+    {"TRACE_PARSE",		TRACE_PARSE},
+    {"TRACE_DISPATCH",		TRACE_DISPATCH},
+    {"TRACE_LOAD",		TRACE_LOAD},
+    {"TRACE_EXEC",		TRACE_EXEC},
+    {"TRACE_NAMES",		TRACE_NAMES},
+    {"TRACE_OPREGION",		TRACE_OPREGION},
+    {"TRACE_BFIELD",		TRACE_BFIELD},
+    {"TRACE_TRASH",		TRACE_TRASH},
+    {"TRACE_TABLES",		TRACE_TABLES},
+    {"TRACE_FUNCTIONS",		TRACE_FUNCTIONS},
+    {"TRACE_VALUES",		TRACE_VALUES},
+    {"TRACE_OBJECTS",		TRACE_OBJECTS},
+    {"TRACE_ALLOCATIONS",	TRACE_ALLOCATIONS},
+    {"TRACE_RESOURCES",		TRACE_RESOURCES},
+    {"TRACE_IO",		TRACE_IO},
+    {"TRACE_INTERRUPTS",	TRACE_INTERRUPTS},
+    {"TRACE_USER_REQUESTS",	TRACE_USER_REQUESTS},
+    {"TRACE_PACKAGE",		TRACE_PACKAGE},
+    {"TRACE_MUTEX",		TRACE_MUTEX},
+    {"TRACE_INIT",		TRACE_INIT},
+    {"TRACE_ALL",		TRACE_ALL},
+    {"VERBOSE_AML_DISASSEMBLE",	VERBOSE_AML_DISASSEMBLE},
+    {"VERBOSE_INFO",		VERBOSE_INFO},
+    {"VERBOSE_TABLES",		VERBOSE_TABLES},
+    {"VERBOSE_EVENTS",		VERBOSE_EVENTS},
+    {"VERBOSE_ALL",		VERBOSE_ALL},
     {NULL, 0}
 };    
 

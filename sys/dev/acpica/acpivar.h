@@ -164,16 +164,23 @@ extern void		acpi_EnterDebugger(void);
 #define STEP(x)
 #endif
 
+extern BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 extern BOOLEAN		acpi_MatchHid(device_t dev, char *hid);
+extern ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result);
+extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
 extern ACPI_STATUS	acpi_GetIntoBuffer(ACPI_HANDLE handle, 
 					   ACPI_STATUS (*func)(ACPI_HANDLE, ACPI_BUFFER *), 
 					   ACPI_BUFFER *buf);
-extern ACPI_BUFFER	*acpi_AllocBuffer(int size);
+extern ACPI_STATUS	acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname,
+						ACPI_OBJECT_LIST *params, ACPI_BUFFER *buf);
+extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);
+extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
+						  void (* func)(ACPI_OBJECT *comp, void *arg),
+						  void *arg);
+
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
-extern BOOLEAN		acpi_DeviceIsPresent(device_t dev);
-extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);
 
 struct acpi_parse_resource_set {
     void	(* set_init)(device_t dev, void **context);
@@ -213,6 +220,11 @@ typedef void (*acpi_event_handler_t) __P((void *, int));
 
 EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
+
+/*
+ * Device power control.
+ */
+extern ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
 
 /* 
  * Misc. 
