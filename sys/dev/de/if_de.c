@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.89 1998/10/14 08:31:26 peter Exp $ */
+/*	$Id: if_de.c,v 1.90 1998/11/06 02:13:13 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2757,6 +2757,7 @@ static const struct {
     { tulip_identify_znyx_nic,		{ 0x00, 0xC0, 0x95 } },
     { tulip_identify_cogent_nic,	{ 0x00, 0x00, 0x92 } },
     { tulip_identify_asante_nic,	{ 0x00, 0x00, 0x94 } },
+    { tulip_identify_cogent_nic,	{ 0x00, 0x00, 0xD1 } },
     { tulip_identify_accton_nic,	{ 0x00, 0x00, 0xE8 } },
     { NULL }
 };
