@@ -151,7 +151,7 @@ device		ppi		# Parallel port interface device
 # If you've got a "dumb" serial or parallel PCI card that is
 # supported by the puc(4) glue driver, uncomment the following
 # line to enable it (connects to the sio and/or ppc drivers):
-#device         puc
+#device		puc
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
