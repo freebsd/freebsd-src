@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/clock.h>	/* DELAY() */
 #include <sys/rman.h>
-#include <sys/pbioio.h>		/* pbio IOCTL definitions */
+#include <dev/pbio/pbioio.h>		/* pbio IOCTL definitions */
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
