@@ -58,16 +58,16 @@ hint.pcic.0.irq="6"
 hint.pcic.0.port="0x3e0"
 
 # Microsoft Sound System
-#hint.snd_mss.0.at="isa"
-#hint.snd_mss.0.port="0xf40"
-#hint.snd_mss.0.irq="12"
-#hint.snd_mss.0.drq="1"
-#hint.snd_mss.0.flags="0x10000"
+#hint.pcm.0.at="isa"
+#hint.pcm.0.port="0xf40"
+#hint.pcm.0.irq="12"
+#hint.pcm.0.drq="1"
+#hint.pcm.0.flags="0x10000"
 # Sound Blaster 16
-#hint.snd_sbc.0.at="isa"
-#hint.snd_sbc.0.port="0x20d2"
-#hint.snd_sbc.0.irq="10"
-#hint.snd_sbc.0.drq="3"
+#hint.sbc.0.at="isa"
+#hint.sbc.0.port="0x20d2"
+#hint.sbc.0.irq="10"
+#hint.sbc.0.drq="3"
 
 # COM1
 hint.sio.0.at="isa"
