@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: clock.c,v 1.76 1997/02/22 09:35:59 peter Exp $
  */
 
 /*
@@ -514,7 +514,7 @@ calibrate_clocks(void)
 	u_int count, prev_count, tot_count;
 	int sec, start_sec, timeout;
 
-	printf("Calibrating clock(s) relative to mc146818A clock ... ");
+	printf("Calibrating clock(s) relative to mc146818A clock.\n");
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto fail;
 	timeout = 100000000;
@@ -587,15 +587,15 @@ calibrate_clocks(void)
 	 */
 	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
 		set_i586_ctr_freq((u_int)rdtsc(), tot_count);
-		printf("i586 clock: %u Hz, ", i586_ctr_freq);
+		printf("  i586 clock: %u Hz,\n", i586_ctr_freq);
 	}
 #endif
 
-	printf("i8254 clock: %u Hz\n", tot_count);
+	printf("  i8254 clock: %u Hz\n", tot_count);
 	return (tot_count);
 
 fail:
-	printf("failed, using default i8254 clock of %u Hz\n", timer_freq);
+	printf("  Failed, using default i8254 clock of %u Hz\n", timer_freq);
 	return (timer_freq);
 }
 
