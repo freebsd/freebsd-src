@@ -600,13 +600,13 @@ pass the original address and port information into the new destination
 server.
 If
 .Cm encode_ip_hdr
-is specified, the original address and port is passed as an extra IP
-option.
+is specified, the original destination address and port are passed
+as an extra IP option.
 If
 .Cm encode_tcp_stream
-is specified, the original address and port is passed as the first
-piece of data in the TCP stream in the format
-.Dq DEST Ar IP port .
+is specified, the original destination address and port are passed
+as the first piece of data in the TCP stream in the format
+.Dq Li DEST Ar IP port .
 .It Cm port Ar portnum
 Only packets with the destination port
 .Ar portnum
