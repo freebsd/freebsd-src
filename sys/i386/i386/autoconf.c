@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.134 1999/08/22 21:44:32 peter Exp $
+ *	$Id: autoconf.c,v 1.135 1999/08/22 23:44:33 green Exp $
  */
 
 /*
@@ -70,11 +70,12 @@
 #include <machine/md_var.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
+#else
+#include <i386/isa/icu.h>
 #endif /* APIC_IO */
 
 #include "pnp.h"
 #if NPNP > 0
-#include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
 #endif
