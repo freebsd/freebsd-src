@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.63 2000/11/22 05:32:55 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-dlpi.c,v 1.74 2001/12/10 07:14:15 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -89,12 +89,17 @@ static const char rcsid[] =
 #endif
 
 #ifndef PCAP_DEV_PREFIX
+#ifdef _AIX
+#define PCAP_DEV_PREFIX "/dev/dlpi"
+#else
 #define PCAP_DEV_PREFIX "/dev"
+#endif
 #endif
 
 #define	MAXDLBUF	8192
 
 /* Forwards */
+static char *split_dname(char *, int *, char *);
 static int dlattachreq(int, bpf_u_int32, char *);
 static int dlbindack(int, char *, char *);
 static int dlbindreq(int, bpf_u_int32, char *);
@@ -102,6 +107,8 @@ static int dlinfoack(int, char *, char *);
 static int dlinforeq(int, char *);
 static int dlokack(int, const char *, char *, char *);
 static int recv_ack(int, int, const char *, char *, char *);
+static char *dlstrerror(bpf_u_int32);
+static char *dlprim(bpf_u_int32);
 static int dlpromisconreq(int, bpf_u_int32, char *);
 #if defined(HAVE_SOLARIS) && defined(HAVE_SYS_BUFMOD_H)
 static char *get_release(bpf_u_int32 *, bpf_u_int32 *, bpf_u_int32 *);
@@ -121,6 +128,23 @@ int
 pcap_stats(pcap_t *p, struct pcap_stat *ps)
 {
 
+	/*
+	 * "ps_recv" counts packets handed to the filter, not packets
+	 * that passed the filter.  As filtering is done in userland,
+	 * this does not include packets dropped because we ran out
+	 * of buffer space.
+	 *
+	 * "ps_drop" counts packets dropped inside the DLPI service
+	 * provider device device because of flow control requirements
+	 * or resource exhaustion; it doesn't count packets dropped by
+	 * the interface driver, or packets dropped upstream.  As
+	 * filtering is done in userland, it counts packets regardless
+	 * of whether they would've passed the filter.
+	 *
+	 * These statistics don't include packets not yet read from
+	 * the kernel by libpcap, but they may include packets not
+	 * yet read from libpcap by the application.
+	 */
 	*ps = p->md.stat;
 	return (0);
 }
@@ -226,9 +250,8 @@ pcap_t *
 pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 {
 	register char *cp;
-	char *eos;
 	register pcap_t *p;
-	register int ppa;
+	int ppa;
 	register dl_info_ack_t *infop;
 #ifdef HAVE_SYS_BUFMOD_H
 	bpf_u_int32 ss, flag;
@@ -249,6 +272,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		return (NULL);
 	}
 	memset(p, 0, sizeof(*p));
+	p->fd = -1;	/* indicate that it hasn't been opened yet */
 
 #ifdef HAVE_DEV_DLPI
 	/*
@@ -262,20 +286,12 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	strlcpy(dname, cp, sizeof(dname));
 
 	/*
-	 * Split the name into a device type and a unit number.
+	 * Split the device name into a device type name and a unit number;
+	 * chop off the unit number, so "dname" is just a device type name.
 	 */
-	cp = strpbrk(dname, "0123456789");
-	if (cp == NULL) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		    "%s missing unit number", device);
+	cp = split_dname(dname, &ppa, ebuf);
+	if (cp == NULL)
 		goto bad;
-	}
-	ppa = strtol(cp, &eos, 10);
-	if (*eos != '\0') {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		    "%s bad unit number", device);
-		goto bad;
-	}
 	*cp = '\0';
 
 	/*
@@ -305,30 +321,33 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		goto bad;
 #else
 	/*
-	** Determine device and ppa
-	*/
-	cp = strpbrk(device, "0123456789");
-	if (cp == NULL) {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s missing unit number",
-		    device);
+	 * Get the unit number, and a pointer to the end of the device
+	 * type name.
+	 */
+	cp = split_dname(device, &ppa, ebuf);
+	if (cp == NULL)
 		goto bad;
-	}
-	ppa = strtol(cp, &eos, 10);
-	if (*eos != '\0') {
-		snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s bad unit number", device);
-		goto bad;
-	}
 
+	/*
+	 * If the device name begins with "/", assume it begins with
+	 * the pathname of the directory containing the device to open;
+	 * otherwise, concatenate the device directory name and the
+	 * device name.
+	 */
 	if (*device == '/')
 		strlcpy(dname, device, sizeof(dname));
 	else
 		snprintf(dname, sizeof(dname), "%s/%s", PCAP_DEV_PREFIX,
 		    device);
 
+	/*
+	 * Make a copy of the device pathname, and then remove the unit
+	 * number from the device pathname.
+	 */
+	strlcpy(dname2, dname, sizeof(dname));
+	*(dname + strlen(dname) - strlen(cp)) = '\0';
+
 	/* Try device without unit number */
-	strlcpy(dname2, dname, sizeof(dname2));
-	cp = strchr(dname, *cp);
-	*cp = '\0';
 	if ((p->fd = open(dname, O_RDWR)) < 0) {
 		if (errno != ENOENT) {
 			snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s: %s", dname,
@@ -366,10 +385,24 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	*/
 #if !defined(HAVE_HPUX9) && !defined(HAVE_HPUX10_20) && !defined(sinix)
 #ifdef _AIX
-        /* According to IBM's AIX Support Line, the dl_sap value
-        ** should not be less than 0x600 (1536) for standard ethernet 
-         */
-	if (dlbindreq(p->fd, 1537, ebuf) < 0 ||
+	/* According to IBM's AIX Support Line, the dl_sap value
+	** should not be less than 0x600 (1536) for standard Ethernet.
+	** However, we seem to get DL_BADADDR - "DLSAP addr in improper
+	** format or invalid" - errors if we use 1537 on the "tr0"
+	** device, which, given that its name starts with "tr" and that
+	** it's IBM, probably means a Token Ring device.  (Perhaps we
+	** need to use 1537 on "/dev/dlpi/en" because that device is for
+	** D/I/X Ethernet, the "SAP" is actually an Ethernet type, and
+	** it rejects invalid Ethernet types.)
+	**
+	** So if 1537 fails, we try 2, as Hyung Sik Yoon of IBM Korea
+	** says that works on Token Ring (he says that 0 does *not*
+	** work; perhaps that's considered an invalid LLC SAP value - I
+	** assume the SAP value in a DLPI bind is an LLC SAP for network
+	** types that use 802.2 LLC).
+	*/
+	if ((dlbindreq(p->fd, 1537, ebuf) < 0 &&
+	     dlbindreq(p->fd, 2, ebuf) < 0) ||
 #else
 	if (dlbindreq(p->fd, 0, ebuf) < 0 ||
 #endif
@@ -446,6 +479,11 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	case DL_FDDI:
 		p->linktype = DLT_FDDI;
 		p->offset = 3;
+		break;
+
+	case DL_TPR:
+		p->linktype = DLT_IEEE802;
+		p->offset = 2;
 		break;
 
 	default:
@@ -547,8 +585,48 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	return (p);
 bad:
+	if (p->fd >= 0)
+		close(p->fd);
 	free(p);
 	return (NULL);
+}
+
+/*
+ * Split a device name into a device type name and a unit number;
+ * return the a pointer to the beginning of the unit number, which
+ * is the end of the device type name, and set "*unitp" to the unit
+ * number.
+ *
+ * Returns NULL on error, and fills "ebuf" with an error message.
+ */
+static char *
+split_dname(char *device, int *unitp, char *ebuf)
+{
+	char *cp;
+	char *eos;
+	int unit;
+
+	/*
+	 * Look for a number at the end of the device name string.
+	 */
+	cp = device + strlen(device) - 1;
+	if (*cp < '0' || *cp > '9') {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s missing unit number",
+		    device);
+		return (NULL);
+	}
+
+	/* Digits at end of string are unit number */
+	while (cp-1 >= device && *(cp-1) >= '0' && *(cp-1) <= '9')
+		cp--;
+
+	unit = strtol(cp, &eos, 10);
+	if (*eos != '\0') {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "%s bad unit number", device);
+		return (NULL);
+	}
+	*unitp = unit;
+	return (cp);
 }
 
 int
@@ -607,52 +685,243 @@ recv_ack(int fd, int size, const char *what, char *bufp, char *ebuf)
 #ifdef DL_HP_PPA_ACK
 	case DL_HP_PPA_ACK:
 #endif
-
 		/* These are OK */
 		break;
 
 	case DL_ERROR_ACK:
 		switch (dlp->error_ack.dl_errno) {
 
-		case DL_BADPPA:
-			snprintf(ebuf, PCAP_ERRBUF_SIZE,
-			    "recv_ack: %s bad ppa (device unit)", what);
-			break;
-
-
 		case DL_SYSERR:
-			snprintf(ebuf, PCAP_ERRBUF_SIZE, "recv_ack: %s: %s",
+			snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			    "recv_ack: %s: UNIX error - %s",
 			    what, pcap_strerror(dlp->error_ack.dl_unix_errno));
 			break;
 
-		case DL_UNSUPPORTED:
-			snprintf(ebuf, PCAP_ERRBUF_SIZE,
-			    "recv_ack: %s: Service not supplied by provider",
-			    what);
-			break;
-
 		default:
-			snprintf(ebuf, PCAP_ERRBUF_SIZE,
-			    "recv_ack: %s error 0x%x",
-			    what, (bpf_u_int32)dlp->error_ack.dl_errno);
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "recv_ack: %s: %s",
+			    what, dlstrerror(dlp->error_ack.dl_errno));
 			break;
 		}
 		return (-1);
 
 	default:
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		    "recv_ack: %s unexpected primitive ack 0x%x ",
-		    what, (bpf_u_int32)dlp->dl_primitive);
+		    "recv_ack: %s: Unexpected primitive ack %s",
+		    what, dlprim(dlp->dl_primitive));
 		return (-1);
 	}
 
 	if (ctl.len < size) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE,
-		    "recv_ack: %s ack too small (%d < %d)",
+		    "recv_ack: %s: Ack too small (%d < %d)",
 		    what, ctl.len, size);
 		return (-1);
 	}
 	return (ctl.len);
+}
+
+static char *
+dlstrerror(bpf_u_int32 dl_errno)
+{
+	static char errstring[6+2+8+1];
+
+	switch (dl_errno) {
+
+	case DL_ACCESS:
+		return ("Improper permissions for request");
+
+	case DL_BADADDR:
+		return ("DLSAP addr in improper format or invalid");
+
+	case DL_BADCORR:
+		return ("Seq number not from outstand DL_CONN_IND");
+
+	case DL_BADDATA:
+		return ("User data exceeded provider limit");
+
+	case DL_BADPPA:
+#ifdef HAVE_DEV_DLPI
+		/*
+		 * With a single "/dev/dlpi" device used for all
+		 * DLPI providers, PPAs have nothing to do with
+		 * unit numbers.
+		 */
+		return ("Specified PPA was invalid");
+#else
+		/*
+		 * We have separate devices for separate devices;
+		 * the PPA is just the unit number.
+		 */
+		return ("Specified PPA (device unit) was invalid");
+#endif
+
+	case DL_BADPRIM:
+		return ("Primitive received not known by provider");
+
+	case DL_BADQOSPARAM:
+		return ("QOS parameters contained invalid values");
+
+	case DL_BADQOSTYPE:
+		return ("QOS structure type is unknown/unsupported");
+
+	case DL_BADSAP:
+		return ("Bad LSAP selector");
+
+	case DL_BADTOKEN:
+		return ("Token used not an active stream");
+
+	case DL_BOUND:
+		return ("Attempted second bind with dl_max_conind");
+
+	case DL_INITFAILED:
+		return ("Physical link initialization failed");
+
+	case DL_NOADDR:
+		return ("Provider couldn't allocate alternate address");
+
+	case DL_NOTINIT:
+		return ("Physical link not initialized");
+
+	case DL_OUTSTATE:
+		return ("Primitive issued in improper state");
+
+	case DL_SYSERR:
+		return ("UNIX system error occurred");
+
+	case DL_UNSUPPORTED:
+		return ("Requested service not supplied by provider");
+
+	case DL_UNDELIVERABLE:
+		return ("Previous data unit could not be delivered");
+
+	case DL_NOTSUPPORTED:
+		return ("Primitive is known but not supported");
+
+	case DL_TOOMANY:
+		return ("Limit exceeded");
+
+	case DL_NOTENAB:
+		return ("Promiscuous mode not enabled");
+
+	case DL_BUSY:
+		return ("Other streams for PPA in post-attached");
+
+	case DL_NOAUTO:
+		return ("Automatic handling XID&TEST not supported");
+
+	case DL_NOXIDAUTO:
+		return ("Automatic handling of XID not supported");
+
+	case DL_NOTESTAUTO:
+		return ("Automatic handling of TEST not supported");
+
+	case DL_XIDAUTO:
+		return ("Automatic handling of XID response");
+
+	case DL_TESTAUTO:
+		return ("Automatic handling of TEST response");
+
+	case DL_PENDING:
+		return ("Pending outstanding connect indications");
+
+	default:
+		sprintf(errstring, "Error %02x", dl_errno);
+		return (errstring);
+	}
+}
+
+static char *
+dlprim(bpf_u_int32 prim)
+{
+	static char primbuf[80];
+
+	switch (prim) {
+
+	case DL_INFO_REQ:
+		return ("DL_INFO_REQ");
+
+	case DL_INFO_ACK:
+		return ("DL_INFO_ACK");
+
+	case DL_ATTACH_REQ:
+		return ("DL_ATTACH_REQ");
+
+	case DL_DETACH_REQ:
+		return ("DL_DETACH_REQ");
+
+	case DL_BIND_REQ:
+		return ("DL_BIND_REQ");
+
+	case DL_BIND_ACK:
+		return ("DL_BIND_ACK");
+
+	case DL_UNBIND_REQ:
+		return ("DL_UNBIND_REQ");
+
+	case DL_OK_ACK:
+		return ("DL_OK_ACK");
+
+	case DL_ERROR_ACK:
+		return ("DL_ERROR_ACK");
+
+	case DL_SUBS_BIND_REQ:
+		return ("DL_SUBS_BIND_REQ");
+
+	case DL_SUBS_BIND_ACK:
+		return ("DL_SUBS_BIND_ACK");
+
+	case DL_UNITDATA_REQ:
+		return ("DL_UNITDATA_REQ");
+
+	case DL_UNITDATA_IND:
+		return ("DL_UNITDATA_IND");
+
+	case DL_UDERROR_IND:
+		return ("DL_UDERROR_IND");
+
+	case DL_UDQOS_REQ:
+		return ("DL_UDQOS_REQ");
+
+	case DL_CONNECT_REQ:
+		return ("DL_CONNECT_REQ");
+
+	case DL_CONNECT_IND:
+		return ("DL_CONNECT_IND");
+
+	case DL_CONNECT_RES:
+		return ("DL_CONNECT_RES");
+
+	case DL_CONNECT_CON:
+		return ("DL_CONNECT_CON");
+
+	case DL_TOKEN_REQ:
+		return ("DL_TOKEN_REQ");
+
+	case DL_TOKEN_ACK:
+		return ("DL_TOKEN_ACK");
+
+	case DL_DISCONNECT_REQ:
+		return ("DL_DISCONNECT_REQ");
+
+	case DL_DISCONNECT_IND:
+		return ("DL_DISCONNECT_IND");
+
+	case DL_RESET_REQ:
+		return ("DL_RESET_REQ");
+
+	case DL_RESET_IND:
+		return ("DL_RESET_IND");
+
+	case DL_RESET_RES:
+		return ("DL_RESET_RES");
+
+	case DL_RESET_CON:
+		return ("DL_RESET_CON");
+
+	default:
+		(void) sprintf(primbuf, "unknown primitive 0x%x", prim);
+		return (primbuf);
+	}
 }
 
 static int
@@ -765,7 +1034,7 @@ get_release(bpf_u_int32 *majorp, bpf_u_int32 *minorp, bpf_u_int32 *microp)
 	if (sysinfo(SI_RELEASE, buf, sizeof(buf)) < 0)
 		return ("?");
 	cp = buf;
-	if (!isdigit(*cp))
+	if (!isdigit((unsigned char)*cp))
 		return (buf);
 	*majorp = strtol(cp, &cp, 10);
 	if (*cp++ != '.')
@@ -829,18 +1098,85 @@ get_dlpi_ppa(register int fd, register const char *device, register int unit,
 	register u_long majdev;
 	struct stat statbuf;
 	dl_hp_ppa_req_t	req;
-	bpf_u_int32 buf[MAXDLBUF];
+	char buf[MAXDLBUF];
+	char *ppa_data_buf;
+	dl_hp_ppa_ack_t	*dlp;
+	struct strbuf ctl;
+	int flags;
+	int ppa;
 
 	memset((char *)&req, 0, sizeof(req));
 	req.dl_primitive = DL_HP_PPA_REQ;
 
 	memset((char *)buf, 0, sizeof(buf));
-	if (send_request(fd, (char *)&req, sizeof(req), "hpppa", ebuf) < 0 ||
-	    recv_ack(fd, DL_HP_PPA_ACK_SIZE, "hpppa", (char *)buf, ebuf) < 0)
+	if (send_request(fd, (char *)&req, sizeof(req), "hpppa", ebuf) < 0)
 		return (-1);
 
+	ctl.maxlen = DL_HP_PPA_ACK_SIZE;
+	ctl.len = 0;
+	ctl.buf = (char *)buf;
+
+	flags = 0;
+	/*
+	 * DLPI may return a big chunk of data for a DL_HP_PPA_REQ. The normal
+	 * recv_ack will fail because it set the maxlen to MAXDLBUF (8192)
+	 * which is NOT big enough for a DL_HP_PPA_REQ.
+	 *
+	 * This causes libpcap applications to fail on a system with HP-APA
+	 * installed.
+	 *
+	 * To figure out how big the returned data is, we first call getmsg
+	 * to get the small head and peek at the head to get the actual data
+	 * length, and  then issue another getmsg to get the actual PPA data.
+	 */
+	/* get the head first */
+	if (getmsg(fd, &ctl, (struct strbuf *)NULL, &flags) < 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa getmsg: %s", pcap_strerror(errno));
+		return (-1);
+	}
+
+	dlp = (dl_hp_ppa_ack_t *)ctl.buf;
+	if (dlp->dl_primitive != DL_HP_PPA_ACK) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa unexpected primitive ack 0x%x",
+		    (bpf_u_int32)dlp->dl_primitive);
+		return (-1);
+	}
+	    
+	if (ctl.len < DL_HP_PPA_ACK_SIZE) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa ack too small (%d < %d)",
+		     ctl.len, DL_HP_PPA_ACK_SIZE);
+		return (-1);
+	}
+	    
+	/* allocate buffer */
+	if ((ppa_data_buf = (char *)malloc(dlp->dl_length)) == NULL) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa malloc: %s", pcap_strerror(errno));
+		return (-1);
+	}
+	ctl.maxlen = dlp->dl_length;
+	ctl.len = 0;
+	ctl.buf = (char *)ppa_data_buf;
+	/* get the data */
+	if (getmsg(fd, &ctl, (struct strbuf *)NULL, &flags) < 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa getmsg: %s", pcap_strerror(errno));
+		free(ppa_data_buf);
+		return (-1);
+	}
+	if (ctl.len < dlp->dl_length) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "get_dlpi_ppa: hpppa ack too small (%d < %d)",
+		    ctl.len, dlp->dl_length);
+		free(ppa_data_buf);
+		return (-1);
+	}
+
 	ap = (dl_hp_ppa_ack_t *)buf;
-	ipstart = (dl_hp_ppa_info_t *)((u_char *)ap + ap->dl_offset);
+	ipstart = (dl_hp_ppa_info_t *)ppa_data_buf;
 	ip = ipstart;
 
 #ifdef HAVE_HP_PPA_INFO_T_DL_MODULE_ID_1
@@ -858,8 +1194,8 @@ get_dlpi_ppa(register int fd, register const char *device, register int unit,
 	 * instance number.
 	 */
 	for (i = 0; i < ap->dl_count; i++) {
-		if ((strcmp(ip->dl_module_id_1, device) == 0 ||
-		     strcmp(ip->dl_module_id_2, device) == 0) &&
+		if ((strcmp((const char *)ip->dl_module_id_1, device) == 0 ||
+		     strcmp((const char *)ip->dl_module_id_2, device) == 0) &&
 		    ip->dl_instance_num == unit)
 			break;
 
@@ -915,9 +1251,12 @@ get_dlpi_ppa(register int fd, register const char *device, register int unit,
         if (ip->dl_hdw_state == HDW_DEAD) {
                 snprintf(ebuf, PCAP_ERRBUF_SIZE,
 		    "%s%d: hardware state: DOWN\n", device, unit);
+		free(ppa_data_buf);
 		return (-1);
         }
-        return ((int)ip->dl_ppa);
+        ppa = ip->dl_ppa;
+        free(ppa_data_buf);
+        return (ppa);
 }
 #endif
 
