@@ -329,7 +329,6 @@ struct	proc {
 #define	P_MAGIC		0xbeefface
 
 #define	P_CAN_SEE	1
-#define	P_CAN_KILL	2
 #define	P_CAN_SCHED	3
 #define	P_CAN_DEBUG	4
 
@@ -530,6 +529,7 @@ int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
 int	p_can __P((struct proc *p1, struct proc *p2, int operation,
 	    int *privused));
+int	p_cansignal __P((struct proc *p1, struct proc *p2, int signum));
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
