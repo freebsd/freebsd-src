@@ -883,6 +883,7 @@ sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 {
 	int error, tries;
 	u_int generation;
+	struct sysctl_req req2;
 
 	/*
 	 * Attempt to get a coherent snapshot, by using the thread
@@ -892,13 +893,17 @@ sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 	 * If we encounter an error, stop immediately.
 	 */
 	tries = 0;
-	do {
-		generation = curthread->td_generation;
-		error = SYSCTL_OUT(req, arg1, arg2);
-		if (error)
-			return (error);
-		tries++;
-	} while (generation != curthread->td_generation && tries < 3);
+	req2 = *req;
+retry:
+	generation = curthread->td_generation;
+	error = SYSCTL_OUT(req, arg1, arg2);
+	if (error)
+		return (error);
+	tries++;
+	if (generation != curthread->td_generation && tries < 3) {
+		*req = req2;
+		goto retry;
+	}
 
 	error = SYSCTL_IN(req, arg1, arg2);
 
@@ -973,10 +978,9 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	SYSCTL_LOCK();
 
 	error = sysctl_root(0, name, namelen, &req);
-#if 0
+
 	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
-#endif
 
 	SYSCTL_UNLOCK();
 
@@ -1070,13 +1074,11 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 void
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 {
-#if 0
 	if (req->lock == REQ_LOCKED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		vslock(req->oldptr, req->oldlen);
 		req->lock = REQ_WIRED;
 	}
-#endif
 }
 
 int
@@ -1285,10 +1287,8 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	} while (error == EAGAIN);
 
 	req = req2;
-#if 0
 	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
-#endif
 
 	SYSCTL_UNLOCK();
 
