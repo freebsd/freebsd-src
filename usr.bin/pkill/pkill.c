@@ -331,7 +331,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &ppidlist, li_chain)
-			if (kp->ki_ppid == (uid_t)li->li_number)
+			if (kp->ki_ppid == (pid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&ppidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -339,7 +339,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &pgrplist, li_chain)
-			if (kp->ki_pgid == (uid_t)li->li_number)
+			if (kp->ki_pgid == (pid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&pgrplist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -350,7 +350,7 @@ main(int argc, char **argv)
 			if (li->li_number == -1 &&
 			    (kp->ki_flag & P_CONTROLT) == 0)
 				break;
-			if (kp->ki_tdev == (uid_t)li->li_number)
+			if (kp->ki_tdev == (udev_t)li->li_number)
 				break;
 		}
 		if (SLIST_FIRST(&tdevlist) != NULL && li == NULL) {
@@ -359,7 +359,7 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &sidlist, li_chain)
-			if (kp->ki_sid == (uid_t)li->li_number)
+			if (kp->ki_sid == (pid_t)li->li_number)
 				break;
 		if (SLIST_FIRST(&sidlist) != NULL && li == NULL) {
 			selected[i] = 0;
