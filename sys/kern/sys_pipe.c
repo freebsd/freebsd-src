@@ -49,6 +49,8 @@
  * amount of kernel virtual memory.
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -57,6 +59,7 @@
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
@@ -266,6 +269,16 @@ pipe(td, uap)
 	td->td_retval[1] = fd;
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
+#ifdef MAC
+	/*
+	 * struct pipe represents a pipe endpoint.  The MAC label is shared
+	 * between the connected endpoints.  As a result mac_init_pipe() and
+	 * mac_create_pipe() should only be called on one of the endpoints
+	 * after they have been connected.
+	 */
+	mac_init_pipe(rpipe);
+	mac_create_pipe(td->td_ucred, rpipe);
+#endif
 	mtx_init(pmtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
 	rpipe->pipe_mtxp = wpipe->pipe_mtxp = pmtx;
 	fdrop(rf, td);
@@ -454,6 +467,12 @@ pipe_read(fp, uio, cred, flags, td)
 	if (error)
 		goto unlocked_error;
 
+#ifdef MAC
+	error = mac_check_pipe_op(td->td_ucred, rpipe, MAC_OP_PIPE_READ);
+	if (error)
+		goto locked_error;
+#endif
+
 	while (uio->uio_resid) {
 		/*
 		 * normal pipe buffer receive
@@ -559,6 +578,9 @@ pipe_read(fp, uio, cred, flags, td)
 				goto unlocked_error;
 		}
 	}
+#ifdef MAC
+locked_error:
+#endif
 	pipeunlock(rpipe);
 
 	/* XXX: should probably do this before getting any locks. */
@@ -861,6 +883,13 @@ pipe_write(fp, uio, cred, flags, td)
 		PIPE_UNLOCK(rpipe);
 		return (EPIPE);
 	}
+#ifdef MAC
+	error = mac_check_pipe_op(td->td_ucred, wpipe, MAC_OP_PIPE_WRITE);
+	if (error) {
+		PIPE_UNLOCK(rpipe);
+		return (error);
+	}
+#endif
 	++wpipe->pipe_busy;
 
 	/*
@@ -1132,6 +1161,14 @@ pipe_ioctl(fp, cmd, data, td)
 	struct thread *td;
 {
 	struct pipe *mpipe = (struct pipe *)fp->f_data;
+#ifdef MAC
+	int error;
+
+	/* XXXMAC: Pipe should be locked for this check. */
+	error = mac_check_pipe_ioctl(td->td_ucred, mpipe, cmd, data);
+	if (error)
+		return (error);
+#endif
 
 	switch (cmd) {
 
@@ -1187,9 +1224,17 @@ pipe_poll(fp, events, cred, td)
 	struct pipe *rpipe = (struct pipe *)fp->f_data;
 	struct pipe *wpipe;
 	int revents = 0;
+#ifdef MAC
+	int error;
+#endif
 
 	wpipe = rpipe->pipe_peer;
 	PIPE_LOCK(rpipe);
+#ifdef MAC
+	error = mac_check_pipe_op(td->td_ucred, rpipe, MAC_OP_PIPE_POLL);
+	if (error)
+		goto locked_error;
+#endif
 	if (events & (POLLIN | POLLRDNORM))
 		if ((rpipe->pipe_state & PIPE_DIRECTW) ||
 		    (rpipe->pipe_buffer.cnt > 0) ||
@@ -1218,6 +1263,9 @@ pipe_poll(fp, events, cred, td)
 			wpipe->pipe_state |= PIPE_SEL;
 		}
 	}
+#ifdef MAC
+locked_error:
+#endif
 	PIPE_UNLOCK(rpipe);
 
 	return (revents);
@@ -1234,7 +1282,14 @@ pipe_stat(fp, ub, td)
 	struct thread *td;
 {
 	struct pipe *pipe = (struct pipe *)fp->f_data;
+#ifdef MAC
+	int error;
 
+	/* XXXMAC: Pipe should be locked for this check. */
+	error = mac_check_pipe_op(td->td_ucred, pipe, MAC_OP_PIPE_STAT);
+	if (error)
+		return (error);
+#endif
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
@@ -1329,6 +1384,11 @@ pipeclose(cpipe)
 		cpipe->pipe_state |= PIPE_WANT | PIPE_EOF;
 		msleep(cpipe, PIPE_MTX(cpipe), PRIBIO, "pipecl", 0);
 	}
+
+#ifdef MAC
+	if (cpipe->pipe_label != NULL && cpipe->pipe_peer == NULL)
+		mac_destroy_pipe(cpipe);
+#endif
 
 	/*
 	 * Disconnect from peer
