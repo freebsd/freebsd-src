@@ -512,7 +512,7 @@ inet6_opt_set_val(void *databuf, int offset, void *val, socklen_t vallen)
 
 int
 inet6_opt_next(void *extbuf, socklen_t extlen, int offset, u_int8_t *typep,
-	       size_t *lenp, void **databufp)
+	       socklen_t *lenp, void **databufp)
 {
 	u_int8_t *optp, *lim;
 	int optlen;
