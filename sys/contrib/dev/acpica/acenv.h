@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acenv.h - Generation environment specific items
- *       $Revision: 106 $
+ *       $Revision: 107 $
  *
  *****************************************************************************/
 
@@ -225,12 +225,8 @@
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
 
-
-/* Name of host operating system (returned by the _OS_ namespace object) */
-
-#define ACPI_OS_NAME         "Intel ACPI/CA Core Subsystem"
-
-/* This macro is used to tag functions as "printf-like" because
+/* 
+ * This macro is used to tag functions as "printf-like" because
  * some compilers can catch printf format string problems. MSVC
  * doesn't, so this is proprocessed away.
  */
