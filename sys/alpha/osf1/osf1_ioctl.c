@@ -209,8 +209,7 @@ osf1_ioctl_i(p, uap, cmd, dir, len)
 			if (ifp->if_type == IFT_ETHER 
 			    && strcmp(ifp->if_name, "ti")) {	/* looks good */
 				/* walk the address list */
-				for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-				    ifa = TAILQ_NEXT(ifa, ifa_link)) {
+				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 					if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr)	/* we have an address structure */
 					    && (sdl->sdl_family == AF_LINK)		/* it's a link address */
 					    && (sdl->sdl_type == IFT_ETHER)) {		/* for an ethernet link */
