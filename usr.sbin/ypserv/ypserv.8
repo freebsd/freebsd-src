@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.2 1996/01/30 13:52:50 mpp Exp $
+.\"	$Id: ypserv.8,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -68,7 +68,7 @@ using the
 command. The clients must also run
 .Xr ypbind 8
 in order to attach to a particular server, since it is possible to
-have several servers within a single NIS domain.
+have serveral servers within a single NIS domain.
 .Pp
 The databases distributed by
 .Nm ypserv
@@ -114,7 +114,7 @@ To make up for this, the FreeBSD version of
 handles the
 .Pa master.passwd.byname
 and
-.Pa master.passwd.byuid
+.Pa master.basswd.byuid
 maps in a special way. When the server receives a request to access
 either of these two maps, it will check the TCP port from which the
 request originated and return an error if the port number is greater
@@ -125,7 +125,7 @@ Any requests made by non-privileged users are therefore rejected.
 .Pp
 Furthermore, the
 .Xr getpwent 3
-routines in FreeBSD's standard C library will only attempt to retrieve
+routines in FreeBSD's standard C libarary will only attempt to retrieve
 data from the
 .Pa master.passwd.byname
 and
@@ -167,15 +167,58 @@ This will cause the standard
 and
 .Pa passwd.byuid
 maps to be generated with valid encrypted password fields, which is
-necessary in order for non-FreeBSD clients to perform user
+neccesary in order for non-FreeBSD clients to perform user
 authentication through NIS.
 .El
 .Pp
 .Ss Security
+In general, any remote user can issue an RPC to
 .Nm ypserv
-has support for Wietse Venema's
+and retrieve the contents of your NIS maps, provided the remote user
+knows your domain name. To prevent such unauthorized transactions,
+.Nm ypserv
+supports a feature called
+.Pa securenets
+which can be used to restrict access to a given set of hosts.
+At startup,
+.Nm ypserv
+will attempt to load the securenets information from a file
+called
+.Nm /var/yp/securenets .
+(Note that this path varies depending on the path specified with
+the
+.Fl p
+option, which is explained below.) This file contains entries
+that consist of a network specification and a network mask separated
+by white space.
+Lines starting with ``#'' are considered to be comments. A
+sample securenets file might look like this:
+.Bd -unfilled -offset indent
+# allow connections from local host -- mandatory
+127.0.0.1     255.255.255.255
+# allow connections from any host
+# on the 129.168.128.0 network
+192.168.128.0 255.255.255.0
+# allow connections from any host
+# between 10.0.0.0 to 10.0.15.255
+10.0.0.0      255.255.240.0
+.Ed
+.Pp
+If
+.Nm ypserv
+receives a request from an address that matches one of these rules,
+it will process the request normally. If the address fails to match
+a rule, the request will be ignored and a warning message will be
+logged. If the
+.Pa /var/yp/securenets
+file does not exist,
+.Nm ypserv
+will allow connections from any host.
+.Pp
+.Nm Ypserv
+also has support for Wietse Venema's
 .Pa tcpwrapper
-package built in, though it is not compiled in by default since
+package, though it is not compiled in by default since
 the
 .Pa tcpwrapper
 package is not distributed with FreeBSD. However, if you have
@@ -184,14 +227,17 @@ and
 .Nm tcpd.h ,
 you can easily recompile
 .Nm ypserv
-with them, thereby enabling its 'securenets' features: you can
-configure
-.Nm ypserv
-to only handle requests from machines listed
-in the
-.Pa tcpwrapper
-configuration files, which would help limit vulnerability to the
-first limitation listed above.
+with them. This allows the administrator to use the tcpwrapper
+configuration files (
+.Pa /etc/hosts.allow
+and
+.Pa /etc/hosts.deny )
+for access control instead of
+.Pa /var/yp/securenets .
+.Pp
+Note: while both of these access control mechanisms provide some
+security, they, like the privileged port test, are both vulnerable
+to ``IP spoofing'' attacks.
 .Pp
 .Ss NIS servers that are also NIS clients
 Care must be taken when running
@@ -236,7 +282,7 @@ will construct a fake database record and return it to the client,
 thereby making it seem as though the client's yp_match request
 succeeded.
 .Pp
-This feature is provided for compatibility with SunOS 4.1.x,
+This feature is provided for compatiblity with SunOS 4.1.x,
 which has brain-damaged resolver functions in its standard C
 library that depend on NIS for hostname and address resolution.
 FreeBSD's resolver can be configured to do DNS
@@ -250,7 +296,7 @@ using the
 .Xr syslog 3
 facility. In debug mode, the server does not background
 itself and prints extra status messages to stderr for each
-request that it receives. Also, while running in debug mode,
+request that it revceives. Also, while running in debug mode,
 .Nm ypserv
 will not spawn any additional subprocesses as it normally does
 when handling yp_all requests or doing DNS lookups. (These actions
@@ -289,15 +335,17 @@ within the filesystem.
 The NIS maps.
 .It Pa /etc/host.conf
 Resolver configuration file.
+.It Pa /var/yp/securenets
+Host access control file
 .El
 .Sh SEE ALSO
-.Xr ypcat 1 ,
-.Xr db 3 ,
-.Xr yp 4 ,
 .Xr ypbind 8 ,
 .Xr yppasswdd 8 ,
 .Xr yppush 8 ,
-.Xr ypxfr 8
+.Xr ypxfr 8 ,
+.Xr ypcat 1 ,
+.Xr yp 8 ,
+.Xr db 3
 .Sh AUTHOR
 Bill Paul <wpaul@ctr.columbia.edu>
 .Sh HISTORY
