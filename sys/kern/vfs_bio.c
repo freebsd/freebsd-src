@@ -3517,7 +3517,8 @@ vfs_bio_clrbuf(struct buf *bp)
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;
-			VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
+			if (bp->b_pages[0] != bogus_page)
+				VM_OBJECT_LOCK_ASSERT(bp->b_pages[0]->object, MA_OWNED);
 			if ((bp->b_pages[0]->valid & mask) == mask)
 				goto unlock;
 			if (((bp->b_pages[0]->flags & PG_ZERO) == 0) &&
@@ -3535,7 +3536,8 @@ vfs_bio_clrbuf(struct buf *bp)
 			    (u_long)(vm_offset_t)ea,
 			    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
 			mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
-			VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
+			if (bp->b_pages[i] != bogus_page)
+				VM_OBJECT_LOCK_ASSERT(bp->b_pages[i]->object, MA_OWNED);
 			if ((bp->b_pages[i]->valid & mask) == mask)
 				continue;
 			if ((bp->b_pages[i]->valid & mask) == 0) {
