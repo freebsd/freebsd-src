@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.7 1993/08/31 15:17:23 rgrimes Exp $
+#	$Id: GENERICAH,v 1.8 1993/09/06 12:26:08 rgrimes Exp $
 #
 
 machine		"i386"
@@ -78,7 +78,7 @@ pseudo-device	loop
 pseudo-device	ether
 pseudo-device	log
 pseudo-device	sl	2
-pseudo-device	pty	4
+pseudo-device	pty	12
 pseudo-device	speaker
 
 pseudo-device	swappager

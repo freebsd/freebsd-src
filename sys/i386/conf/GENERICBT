@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.5 1993/09/06 12:26:09 rgrimes Exp $
+#	$Id: GENERICBT,v 1.6 1993/09/13 03:15:24 rgrimes Exp $
 #
 
 machine		"i386"
@@ -78,7 +78,7 @@ pseudo-device	loop
 pseudo-device	ether
 pseudo-device	log
 pseudo-device	sl	2
-pseudo-device	pty	4
+pseudo-device	pty	12
 pseudo-device	speaker
 
 pseudo-device	swappager
