@@ -19,8 +19,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_REVOKE.9 VOP_SETACL.9 VOP_SETEXTATTR.9 VOP_STRATEGY.9 \
-	accept_filter.9 accf_data.9 accf_http.9 acl.9 at_exit.9 \
-	at_fork.9 atomic.9 \
+	accept_filter.9 accf_data.9 accf_http.9 acl.9 atomic.9 \
 	bios.9 boot.9 buf.9 bus_alloc_resource.9 bus_generic_attach.9 \
 	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
@@ -107,8 +106,6 @@ MLINKS+=atomic.9 atomic_readandclear.9
 MLINKS+=atomic.9 atomic_set.9
 MLINKS+=atomic.9 atomic_subtract.9
 MLINKS+=atomic.9 atomic_store.9
-MLINKS+=at_exit.9 rm_at_exit.9
-MLINKS+=at_fork.9 rm_at_fork.9
 MLINKS+=byteorder.9 bswap16.9
 MLINKS+=byteorder.9 bswap32.9
 MLINKS+=byteorder.9 bswap64.9
