@@ -195,6 +195,7 @@ archive_compressor_none_finish(struct archive *a)
 		}
 		ret = (a->client_writer)(a, a->client_data, state->buffer,
 		    block_length);
+		a->raw_position += ret;
 	}
 
 	/* Close the output */
