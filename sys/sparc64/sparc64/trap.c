@@ -58,6 +58,10 @@
 #include <sys/sysent.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
