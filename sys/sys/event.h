@@ -39,7 +39,8 @@
 
 #define EVFILT_SYSCOUNT		7
 
-#define EV_SET(kevp, a, b, c, d, e, f) do {	\
+#define EV_SET(kevp_, a, b, c, d, e, f) do {	\
+	struct kevent *kevp = (kevp_);		\
 	(kevp)->ident = (a);			\
 	(kevp)->filter = (b);			\
 	(kevp)->flags = (c);			\
