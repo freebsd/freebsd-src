@@ -5278,6 +5278,8 @@ If the received compression type is
 will request VJ compression during IPCP negotiations despite any
 .Dq disable vj
 configuration command.
+.It RAD_FILTER_ID
+This attribute is stored but not yet used.
 .It RAD_FRAMED_ROUTE
 The received string is expected to be in the format
 .Ar dest Ns Op / Ns Ar bits
@@ -5324,6 +5326,9 @@ or
 .Dv HISADDR
 keywords.
 .Pp
+.It RAD_SESSION_TIMEOUT
+If supplied, the client connection is closed after the given number of
+seconds.
 .El
 Values received from the RADIUS server may be viewed using
 .Dq show bundle .
