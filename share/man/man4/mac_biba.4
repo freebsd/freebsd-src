@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .Dd NOVEMBER 18, 2002
 .Os
-.Dt MAC_BIBA 9
+.Dt MAC_BIBA 4
 .Sh NAME
 .Nm mac_biba
 .Nd Biba data integrity policy
@@ -149,7 +149,7 @@ In traditional trusted operating systems, the Biba integrity model is used
 to protect the Trusted Code Base (TCB).
 .Pp
 The Biba integrity model is similar to
-.Xr LOMAC 9 ,
+.Xr lomac 4 ,
 with the exception that LOMAC permits access by a higher integrity subject
 to a lower integrity object, but downgrades the integrity level of the subject
 to prevent integrity rules from being violated.
@@ -157,16 +157,16 @@ Biba is a fixed label policy in that all subject and object label changes are
 explicit, whereas LOMAC is a floating label policy.
 .Pp
 The Biba integrity model is also similar to
-.Xr mac_mls 9 ,
+.Xr mac_mls 4 ,
 with the exception that the dominance operator and access rules are reversed,
 preventing the downward flow of information rather than the upward flow of
 information.
 Multi-Level Security (MLS) protects the confentiality, rather than the
 integrity, of subjects and objects.
 .Sh SEE ALSO
-.Xr LOMAC 9 ,
-.Xr mac 9 ,
-.Xr mac_mls 9
+.Xr LOMAC 4 ,
+.Xr mac_mls 4 ,
+.Xr mac 9
 .Sh HISTORY
 The
 .Nm
