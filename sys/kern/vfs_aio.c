@@ -376,9 +376,9 @@ aio_unload(void)
 	rm_at_exit(aio_proc_rundown);
 	rm_at_exec(aio_proc_rundown);
 	kqueue_del_filteropts(EVFILT_AIO);
-	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, 0);
-	p31b_setcfg(CTL_P1003_1B_AIO_MAX, 0);
-	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, 0);
+	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
+	p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
+	p31b_setcfg(CTL_P1003_1B_AIO_PRIO_DELTA_MAX, -1);
 	return (0);
 }
 
