@@ -100,6 +100,11 @@ struct mbuf;
 #endif
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
+	/*
+	 * XXX struct rtentry must begin with a struct radix_node (or two!)
+	 * because the code does some casts of a 'struct radix_node *'
+	 * to a 'struct rtentry *'
+	 */
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
