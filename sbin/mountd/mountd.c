@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.23 1997/08/29 19:22:28 guido Exp $";
+	"$Id: mountd.c,v 1.24 1997/09/12 16:25:24 jlemon Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -224,6 +224,7 @@ struct ucred def_anon = {
 int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
+int log = 1;
 int opt_flags;
 /* Bits for above */
 #define	OP_MAPROOT	0x01
@@ -272,7 +273,7 @@ main(argc, argv)
 		errx(1, "NFS support is not available in the running kernel");
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "2dnr")) != -1)
+	while ((c = getopt(argc, argv, "2dnrl")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -286,8 +287,11 @@ main(argc, argv)
 		case 'd':
 			debug = debug ? 0 : 1;
 			break;
+		case 'l':
+			log = 1;
+			break;
 		default:
-			fprintf(stderr, "Usage: mountd [-d] [-r] [-n] [export_file]\n");
+			fprintf(stderr, "Usage: mountd [-d] [-r] [-n] [-l] [export_file]\n");
 			exit(1);
 		};
 	argc -= optind;
@@ -371,6 +375,7 @@ mntsrv(rqstp, transp)
 	struct stat stb;
 	struct statfs fsb;
 	struct hostent *hp;
+	struct in_addr saddrin;
 	u_long saddr;
 	u_short sport;
 	char rpcpath[RPCMNT_PATHLEN + 1], dirpath[MAXPATHLEN];
@@ -380,6 +385,7 @@ mntsrv(rqstp, transp)
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
 	saddr = transp->xp_raddr.sin_addr.s_addr;
+	saddrin = transp->xp_raddr.sin_addr;
 	sport = ntohs(transp->xp_raddr.sin_port);
 	hp = (struct hostent *)NULL;
 	switch (rqstp->rq_proc) {
@@ -389,10 +395,15 @@ mntsrv(rqstp, transp)
 		return;
 	case RPCMNT_MOUNT:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
+			syslog(LOG_NOTICE,
+			    "mount request from %s from unprivileged port",
+			    inet_ntoa(saddrin));
 			svcerr_weakauth(transp);
 			return;
 		}
 		if (!svc_getargs(transp, xdr_dir, rpcpath)) {
+			syslog(LOG_NOTICE, "undecodable mount request from %s",
+			    inet_ntoa(saddrin));
 			svcerr_decode(transp);
 			return;
 		}
@@ -408,6 +419,9 @@ mntsrv(rqstp, transp)
 		     (dir_only || !S_ISREG(stb.st_mode))) ||
 		    statfs(dirpath, &fsb) < 0) {
 			chdir("/");	/* Just in case realpath doesn't */
+			syslog(LOG_NOTICE,
+			    "mount request from %s for non existant path %s",
+			    inet_ntoa(saddrin), dirpath);
 			if (debug)
 				fprintf(stderr, "stat failed on %s\n", dirpath);
 			bad = ENOENT;	/* We will send error reply later */
@@ -453,12 +467,20 @@ mntsrv(rqstp, transp)
 			if (hp)
 				add_mlist(hp->h_name, dirpath);
 			else
-				add_mlist(inet_ntoa(transp->xp_raddr.sin_addr),
+				add_mlist(inet_ntoa(saddrin),
 					dirpath);
 			if (debug)
 				fprintf(stderr,"Mount successfull.\n");
-		} else
+			if (log)
+				syslog(LOG_NOTICE,
+				    "mount request succeeded from %s for %s",
+				    inet_ntoa(saddrin), dirpath);
+		} else {
 			bad = EACCES;
+			syslog(LOG_NOTICE,
+			    "mount request denied from %s for %s",
+			    inet_ntoa(saddrin), dirpath);
+		}
 
 		if (bad && !svc_sendreply(transp, xdr_long, (caddr_t)&bad))
 			syslog(LOG_ERR, "Can't send reply");
@@ -467,13 +489,22 @@ mntsrv(rqstp, transp)
 	case RPCMNT_DUMP:
 		if (!svc_sendreply(transp, xdr_mlist, (caddr_t)NULL))
 			syslog(LOG_ERR, "Can't send reply");
+		else if (log)
+			syslog(LOG_NOTICE,
+			    "dump request succeeded from %s",
+			    inet_ntoa(saddrin), dirpath);
 		return;
 	case RPCMNT_UMOUNT:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
+			syslog(LOG_NOTICE,
+			    "umount request from %s from unprivileged port",
+			    inet_ntoa(saddrin));
 			svcerr_weakauth(transp);
 			return;
 		}
 		if (!svc_getargs(transp, xdr_dir, dirpath)) {
+			syslog(LOG_NOTICE, "undecodable umount request from %s",
+			    inet_ntoa(saddrin));
 			svcerr_decode(transp);
 			return;
 		}
@@ -482,10 +513,17 @@ mntsrv(rqstp, transp)
 		hp = gethostbyaddr((caddr_t)&saddr, sizeof(saddr), AF_INET);
 		if (hp)
 			del_mlist(hp->h_name, dirpath);
-		del_mlist(inet_ntoa(transp->xp_raddr.sin_addr), dirpath);
+		del_mlist(inet_ntoa(saddrin), dirpath);
+		if (log)
+			syslog(LOG_NOTICE,
+			    "umount request succeeded from %s for %s",
+			    inet_ntoa(saddrin), dirpath);
 		return;
 	case RPCMNT_UMNTALL:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
+			syslog(LOG_NOTICE,
+			    "umountall request from %s from unprivileged port",
+			    inet_ntoa(saddrin));
 			svcerr_weakauth(transp);
 			return;
 		}
@@ -494,11 +532,19 @@ mntsrv(rqstp, transp)
 		hp = gethostbyaddr((caddr_t)&saddr, sizeof(saddr), AF_INET);
 		if (hp)
 			del_mlist(hp->h_name, (char *)NULL);
-		del_mlist(inet_ntoa(transp->xp_raddr.sin_addr), (char *)NULL);
+		del_mlist(inet_ntoa(saddrin), (char *)NULL);
+		if (log)
+			syslog(LOG_NOTICE,
+			    "umountall request succeeded from %s",
+			    inet_ntoa(saddrin));
 		return;
 	case RPCMNT_EXPORT:
 		if (!svc_sendreply(transp, xdr_explist, (caddr_t)NULL))
 			syslog(LOG_ERR, "Can't send reply");
+		if (log)
+			syslog(LOG_NOTICE,
+			    "export request succeeded from %s",
+			    inet_ntoa(saddrin));
 		return;
 	default:
 		svcerr_noproc(transp);
