@@ -53,14 +53,14 @@
 >6	leshort		>0		%hd x
 >8	leshort		>0		%hd,
 #>10	byte		&0x80		color mapped,
->10	byte&0x07	=0x00		2 colors
->10	byte&0x07	=0x01		4 colors
->10	byte&0x07	=0x02		8 colors
->10	byte&0x07	=0x03		16 colors
->10	byte&0x07	=0x04		32 colors
->10	byte&0x07	=0x05		64 colors
->10	byte&0x07	=0x06		128 colors
->10	byte&0x07	=0x07		256 colors
+#>10	byte&0x07	=0x00		2 colors
+#>10	byte&0x07	=0x01		4 colors
+#>10	byte&0x07	=0x02		8 colors
+#>10	byte&0x07	=0x03		16 colors
+#>10	byte&0x07	=0x04		32 colors
+#>10	byte&0x07	=0x05		64 colors
+#>10	byte&0x07	=0x06		128 colors
+#>10	byte&0x07	=0x07		256 colors
 
 # ITC (CMU WM) raster files.  It is essentially a byte-reversed Sun raster,
 # 1 plane, no encoding.
@@ -116,6 +116,13 @@
 >29	byte		1		\b, fine resolution (204x196 DPI)
 
 # JPEG images
+# SunOS 5.5.1 had
+#
+#	0	string		\377\330\377\340	JPEG file
+#	0	string		\377\330\377\356	JPG file
+#
+# both of which turn into "JPEG image data" here.
+#
 0	beshort		0xffd8		JPEG image data
 >6	string		JFIF		\b, JFIF standard
 # HSI is Handmade Software's proprietary JPEG encoding scheme
@@ -222,3 +229,8 @@
 # other images
 0	string	This\ is\ a\ BitMap\ file	Lisp Machine bit-array-file
 0	string		!!		Bennet Yee's "face" format
+
+# From SunOS 5.5.1 "/etc/magic" - appeared right before Sun raster image
+# stuff.
+#
+0	beshort		0x1010		PEX Binary Archive
