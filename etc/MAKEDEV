@@ -95,7 +95,6 @@
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
-#	ssc	The ``super scsi'' device
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
 #	pass*	CAM Passthrough device
@@ -398,8 +397,8 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 			slice=$(($slice+1))
 			slicename=`dkitos $slice`
 			minor=`dkminor 0 $unit $slice $dkrawpart`
-			mknod  $name$unit$slicename c $chr $minor
-			mknod r$name$unit$slicename c $chr $minor
+			mknod  $name$unit$slicename c $chr $minor root:operator
+			mknod r$name$unit$slicename c $chr $minor root:operator
 			case $part in
 			[a-h])
 				case $oldslice in
@@ -440,8 +439,8 @@ fd*)
 	name=fd; chr=9
 	case $unit in
 	0|1|2|3)
-		mknod ${name}${unit}   c $chr `expr $unit '*' 64`
-		mknod r${name}${unit}  c $chr `expr $unit '*' 64`
+		mknod ${name}${unit}   c $chr `expr $unit '*' 64` root:operator
+		mknod r${name}${unit}  c $chr `expr $unit '*' 64` root:operator
 		# Fake BSD partitions
 		for i in a b c d e f g h
 		do
@@ -450,20 +449,26 @@ fd*)
 		done
 		# User-readable and programmer-readable name sets
 
-		mknod ${name}${unit}.1720  c $chr `expr $unit '*' 64 + 1`
-		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1`
+		mknod ${name}${unit}.1720  c $chr `expr $unit '*' 64 + 1` \
+		    root:operator
+		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1` \
+		    root:operator
 		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
 		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
 
-		mknod ${name}${unit}.1480  c $chr `expr $unit '*' 64 + 2`
-		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2`
+		mknod ${name}${unit}.1480  c $chr `expr $unit '*' 64 + 2` \
+		    root:operator
+		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2` \
+		    root:operator
 		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
 		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
 		# ln -f r${name}${unit}.1480 r${name}${unit}96hs18
 
-		mknod ${name}${unit}.1440  c $chr `expr $unit '*' 64 + 3`
-		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3`
+		mknod ${name}${unit}.1440  c $chr `expr $unit '*' 64 + 3` \
+		    root:operator
+		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3` \
+		    root:operator
 		# ln -f ${name}${unit}.1440 ${name}${unit}135
 		# ln -f r${name}${unit}.1440 r${name}${unit}135
 		# ln -f ${name}${unit}.1440 ${name}${unit}135ds18
@@ -471,8 +476,10 @@ fd*)
 		# ln -f ${name}${unit}.1440 ${name}${unit}96ds18
 		# ln -f r${name}${unit}.1440 r${name}${unit}96ds18
 
-		mknod ${name}${unit}.1200  c $chr `expr $unit '*' 64 + 4`
-		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4`
+		mknod ${name}${unit}.1200  c $chr `expr $unit '*' 64 + 4` \
+		    root:operator
+		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4` \
+		    root:operator
 		# ln -f ${name}${unit}.1200 ${name}${unit}96
 		# ln -f r${name}${unit}.1200 r${name}${unit}96
 		# ln -f ${name}${unit}.1200 ${name}${unit}96ds15
@@ -480,36 +487,46 @@ fd*)
 		# ln -f ${name}${unit}.1200 ${name}${unit}135ds15
 		# ln -f r${name}${unit}.1200 r${name}${unit}135ds15
 
-		mknod ${name}${unit}.820  c $chr `expr $unit '*' 64 + 5`
-		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5`
+		mknod ${name}${unit}.820  c $chr `expr $unit '*' 64 + 5` \
+		    root:operator
+		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5` \
+		    root:operator
 		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
 		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
 		# ln -f r${name}${unit}.820 r${name}${unit}135hs10
 
-		mknod ${name}${unit}.800  c $chr `expr $unit '*' 64 + 6`
-		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6`
+		mknod ${name}${unit}.800  c $chr `expr $unit '*' 64 + 6` \
+		    root:operator
+		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6` \
+		    root:operator
 		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
 		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
 		# ln -f r${name}${unit}.800 r${name}${unit}135ds10
 
-		mknod ${name}${unit}.720  c $chr `expr $unit '*' 64 + 7`
-		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7`
+		mknod ${name}${unit}.720  c $chr `expr $unit '*' 64 + 7` \
+		    root:operator
+		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7` \
+		    root:operator
 		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
 		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
 		# ln -f r${name}${unit}.720 r${name}${unit}135ds9
 
-		mknod ${name}${unit}.360  c $chr `expr $unit '*' 64 + 8`
-		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8`
+		mknod ${name}${unit}.360  c $chr `expr $unit '*' 64 + 8` \
+		    root:operator
+		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8` \
+		    root:operator
 		# ln -f ${name}${unit}.360 ${name}${unit}48
 		# ln -f r${name}${unit}.360 r${name}${unit}48
 		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
 		# ln -f r${name}${unit}.360 r${name}${unit}48ds9
 
-		mknod ${name}${unit}.640  c $chr `expr $unit '*' 64 + 9`
-		mknod r${name}${unit}.640 c $chr `expr $unit '*' 64 + 9`
+		mknod ${name}${unit}.640  c $chr `expr $unit '*' 64 + 9` \
+		    root:operator
+		mknod r${name}${unit}.640 c $chr `expr $unit '*' 64 + 9` \
+		    root:operator
 		# ln -f ${name}${unit}.640 ${name}${unit}96ds8
 		# ln -f r${name}${unit}.640 r${name}${unit}96ds8
 		# ln -f ${name}${unit}.640 ${name}${unit}135ds8
@@ -593,10 +610,6 @@ ccd*)
 	umask 77
 	;;
 
-ssc*)
-	mknod ssc c 49 0
-	;;
-
 # SCSI processor type driver
 pt[0-9]*)
 	chr=61
@@ -652,7 +665,7 @@ xpt*)
 	;;
 
 # CAM passthrough device
-pass*|uk*)
+pass*)
 	# This major number is temporary
 	chr=31
 	name=pass
@@ -1465,13 +1478,9 @@ perfmon)
 
 ipl)
 	mknod ipl c 79 0
-	chmod 600 ipl
 	mknod ipnat c 79 1
-	chmod 600 ipnat
 	mknod ipstate c 79 2
-	chmod 600 ipstate
 	mknod ipauth c 79 3
-	chmod 600 ipauth
 	;;
 
 kbd*)
@@ -1482,43 +1491,36 @@ kbd*)
 
 i4b)
 	mknod i4b c 60 0
-	chmod 600 i4b
 	;;
 
 i4bctl)
 	mknod i4bctl c 55 0
-	chmod 600 i4bctl
 	;;
 
 i4brbch*)
 	unit=`expr $i : 'i4brbch\(.*\)'`
 	mknod i4brbch$unit c 57 $unit
-	chmod 600 i4brbch$unit
 	;;
 
 i4bteld*)
 	offset=64
 	unit=`expr $i : 'i4bteld\(.*\)'`
 	mknod i4bteld$unit c 56 `expr $offset + $unit `
-	chmod 600 i4bteld$unit
 	;;
 
 i4btel*)
 	unit=`expr $i : 'i4btel\(.*\)'`
 	mknod i4btel$unit c 56 $unit
-	chmod 600 i4btel$unit
 	;;
 
 i4btrc*)
 	unit=`expr $i : 'i4btrc\(.*\)'`
 	mknod i4btrc$unit c 59 $unit
-	chmod 600 i4btrc$unit
 	;;
 
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 $unit
-	chmod 600 mlx$unit
 	;;
 
 local)
