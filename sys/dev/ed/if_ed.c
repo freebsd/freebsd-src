@@ -200,7 +200,7 @@ ed_probe_WD80x3(dev)
 	int     i;
 	int	flags = device_get_flags(dev);
 	u_int   memsize, maddr;
-	u_char  iptr, isa16bit, sum;
+	u_char  iptr, isa16bit, sum, totalsum;
 	u_long	conf_maddr, conf_msize, irq, junk;
 
 	error = ed_alloc_port(dev, 0, ED_WD_IO_PORTS);
@@ -209,12 +209,16 @@ ed_probe_WD80x3(dev)
 
 	sc->asic_addr = rman_get_start(sc->port_res);
 	sc->nic_addr = sc->asic_addr + ED_WD_NIC_OFFSET;
-	sc->is790 = 0;
+	sc->chip_type = ED_CHIP_TYPE_DP8390;
 
-#ifdef TOSH_ETHER
-	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_POW);
-	DELAY(10000);
-#endif
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER) {
+		totalsum = ED_WD_ROM_CHECKSUM_TOTAL_TOSH_ETHER;
+		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_POW);
+		DELAY(10000);
+	}
+	else
+		totalsum = ED_WD_ROM_CHECKSUM_TOTAL;
+	
 
 	/*
 	 * Attempt to do a checksum over the station address PROM. If it
@@ -225,7 +229,7 @@ ed_probe_WD80x3(dev)
 	for (sum = 0, i = 0; i < 8; ++i)
 		sum += inb(sc->asic_addr + ED_WD_PROM + i);
 
-	if (sum != ED_WD_ROM_CHECKSUM_TOTAL) {
+	if (sum != totalsum) {
 
 		/*
 		 * Checksum is invalid. This often happens with cheap WD8003E
@@ -237,11 +241,11 @@ ed_probe_WD80x3(dev)
 			return (ENXIO);
 	}
 	/* reset card to force it into a known state. */
-#ifdef TOSH_ETHER
-	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | ED_WD_MSR_POW);
-#else
-	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
-#endif
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER)
+		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | ED_WD_MSR_POW);
+	else
+		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
+
 	DELAY(100);
 	outb(sc->asic_addr + ED_WD_MSR, inb(sc->asic_addr + ED_WD_MSR) & ~ED_WD_MSR_RST);
 	/* wait in the case this card is reading its EEROM */
@@ -337,9 +341,8 @@ ed_probe_WD80x3(dev)
 		    inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		isa16bit = 1;
-		sc->is790 = 1;
+		sc->chip_type = ED_CHIP_TYPE_WD790;
 		break;
-#ifdef TOSH_ETHER
 	case ED_TYPE_TOSHIBA1:
 		sc->type_str = "Toshiba1";
 		memsize = 32768;
@@ -350,7 +353,6 @@ ed_probe_WD80x3(dev)
 		memsize = 32768;
 		isa16bit = 1;
 		break;
-#endif
 	default:
 		sc->type_str = "";
 		break;
@@ -361,9 +363,7 @@ ed_probe_WD80x3(dev)
 	 * in the ICR.
 	 */
 	if (isa16bit && (sc->type != ED_TYPE_WD8013EBT)
-#ifdef TOSH_ETHER
 	  && (sc->type != ED_TYPE_TOSHIBA1) && (sc->type != ED_TYPE_TOSHIBA4)
-#endif
 	    && ((inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
 		isa16bit = 0;
 		memsize = 8192;
@@ -407,7 +407,7 @@ ed_probe_WD80x3(dev)
 	 * If possible, get the assigned interrupt number from the card and
 	 * use it.
 	 */
-	if ((sc->type & ED_WD_SOFTCONFIG) && (!sc->is790)) {
+	if ((sc->type & ED_WD_SOFTCONFIG) && (sc->chip_type != ED_CHIP_TYPE_WD790)) {
 
 		/*
 		 * Assemble together the encoded interrupt number.
@@ -432,7 +432,7 @@ ed_probe_WD80x3(dev)
 		outb(sc->asic_addr + ED_WD_IRR,
 		     inb(sc->asic_addr + ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
-	if (sc->is790) {
+	if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 		outb(sc->asic_addr + ED_WD790_HWR,
 		  inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
 		iptr = (((inb(sc->asic_addr + ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
@@ -500,7 +500,7 @@ ed_probe_WD80x3(dev)
 	 * Set upper address bits and 8/16 bit access to shared memory.
 	 */
 	if (isa16bit) {
-		if (sc->is790) {
+		if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 			sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
 		} else {
 			sc->wd_laar_proto = ED_WD_LAAR_L16EN |
@@ -513,10 +513,8 @@ ed_probe_WD80x3(dev)
 		    ED_WD_LAAR_M16EN);
 	} else {
 		if (((sc->type & ED_WD_SOFTCONFIG) ||
-#ifdef TOSH_ETHER
 		    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
-#endif
-		    (sc->type == ED_TYPE_WD8013EBT)) && (!sc->is790)) {
+		    (sc->type == ED_TYPE_WD8013EBT)) && (sc->chip_type != ED_CHIP_TYPE_WD790)) {
 			sc->wd_laar_proto = (kvtop(sc->mem_start) >> 19) &
 			    ED_WD_LAAR_ADDRHI;
 			outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
@@ -526,16 +524,20 @@ ed_probe_WD80x3(dev)
 	/*
 	 * Set address and enable interface shared memory.
 	 */
-	if (!sc->is790) {
-#ifdef TOSH_ETHER
-		outb(sc->asic_addr + ED_WD_MSR + 1, ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
-		outb(sc->asic_addr + ED_WD_MSR + 2, ((kvtop(sc->mem_start) >> 16) & 0x0f));
-		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | ED_WD_MSR_POW);
-
-#else
-		outb(sc->asic_addr + ED_WD_MSR, ((kvtop(sc->mem_start) >> 13) &
-		    ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
-#endif
+	if (sc->chip_type != ED_CHIP_TYPE_WD790) {
+		if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_TOSH_ETHER) {
+			outb(sc->asic_addr + ED_WD_MSR + 1,
+			     ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
+			outb(sc->asic_addr + ED_WD_MSR + 2,
+			     ((kvtop(sc->mem_start) >> 16) & 0x0f));
+			outb(sc->asic_addr + ED_WD_MSR,
+			     ED_WD_MSR_MENB | ED_WD_MSR_POW);
+		}
+		else {
+			outb(sc->asic_addr + ED_WD_MSR,
+			     ((kvtop(sc->mem_start) >> 13) & 
+			      ED_WD_MSR_ADDR) | ED_WD_MSR_MENB);
+		}
 		sc->cr_proto = ED_CR_RD2;
 	} else {
 		outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
@@ -569,7 +571,7 @@ ed_probe_WD80x3(dev)
 			 * Disable 16 bit access to shared memory
 			 */
 			if (isa16bit) {
-				if (sc->is790) {
+				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 					outb(sc->asic_addr + ED_WD_MSR, 0x00);
 				}
 				outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
@@ -588,7 +590,7 @@ ed_probe_WD80x3(dev)
 	 * shared memory can be used in this 128k region, too.
 	 */
 	if (isa16bit) {
-		if (sc->is790) {
+		if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 			outb(sc->asic_addr + ED_WD_MSR, 0x00);
 		}
 		outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto &
@@ -947,10 +949,10 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	/* XXX - do Novell-specific probe here */
 
 	/* Reset the board */
-#ifdef GWETHER
-	outb(sc->asic_addr + ED_NOVELL_RESET, 0);
-	DELAY(200);
-#endif	/* GWETHER */
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
+		outb(sc->asic_addr + ED_NOVELL_RESET, 0);
+		DELAY(200);
+	}
 	tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
 
 	/*
@@ -1053,7 +1055,7 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	sc->mem_end = sc->mem_start + memsize;
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
 
-#ifdef GWETHER
+	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER)
 	{
 		int     x, i, mstart = 0, msize = 0;
 		char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
@@ -1114,7 +1116,6 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 		sc->mem_end = (char *) (msize + mstart);
 		sc->tx_page_start = mstart / ED_PAGE_SIZE;
 	}
-#endif	/* GWETHER */
 
 	/*
 	 * Use one xmit buffer if < 16k, two buffers otherwise (if not told
@@ -1134,11 +1135,10 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	for (n = 0; n < ETHER_ADDR_LEN; n++)
 		sc->arpcom.ac_enaddr[n] = romdata[n * (sc->isa16bit + 1)];
 
-#ifdef GWETHER
-	if (sc->arpcom.ac_enaddr[2] == 0x86) {
+	if ((ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) &&
+	    (sc->arpcom.ac_enaddr[2] == 0x86)) {
 		sc->type_str = "Gateway AT";
 	}
-#endif	/* GWETHER */
 
 	/* clear any pending interrupts that might have occurred above */
 	outb(sc->nic_addr + ED_P0_ISR, 0xff);
@@ -1198,7 +1198,7 @@ ed_probe_HP_pclanp(dev)
 	/* Fill in basic information */
 	sc->asic_addr = rman_get_start(sc->port_res) + ED_HPP_ASIC_OFFSET;
 	sc->nic_addr = rman_get_start(sc->port_res) + ED_HPP_NIC_OFFSET;
-	sc->is790 = 0;
+	sc->chip_type = ED_CHIP_TYPE_DP8390;
 	sc->isa16bit = 0;	/* the 8390 core needs to be in byte mode */
 
 	/* 
@@ -1506,9 +1506,8 @@ ed_alloc_port(dev, rid, size)
 		sc->port_res = res;
 		sc->port_used = size;
 		return (0);
-	} else {
+	} else
 		return (ENOENT);
-	}
 }
 
 /*
@@ -1618,7 +1617,7 @@ ed_attach(sc, unit, flags)
 		/*
 		 * XXX - should do a better job.
 		 */
-		if (sc->is790)
+		if (sc->chip_type == ED_CHIP_TYPE_WD790)
 			sc->mibdata.dot3StatsEtherChipSet =
 				DOT3CHIPSET(dot3VendorWesternDigital,
 					    dot3ChipSetWesternDigital83C790);
@@ -1716,7 +1715,8 @@ ed_stop(sc)
 	 * 'n' (about 5ms). It shouldn't even take 5us on modern DS8390's, but
 	 * just in case it's an old one.
 	 */
-	while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
+	if (sc->chip_type != ED_CHIP_TYPE_AX88190)
+		while (((inb(sc->nic_addr + ED_P0_ISR) & ED_ISR_RST) == 0) && --n);
 }
 
 /*
@@ -1815,7 +1815,7 @@ ed_init(xsc)
 	outb(sc->nic_addr + ED_P0_TPSR, sc->tx_page_start);
 	outb(sc->nic_addr + ED_P0_PSTART, sc->rec_page_start);
 	/* Set lower bits of byte addressable framing to 0 */
-	if (sc->is790)
+	if (sc->chip_type == ED_CHIP_TYPE_WD790)
 		outb(sc->nic_addr + 0x09, 0);
 
 	/*
@@ -2033,11 +2033,12 @@ outloop:
 				 * WD/SMC boards.
 				 */
 			case ED_VENDOR_WD_SMC:{
-					outb(sc->asic_addr + ED_WD_LAAR,
-					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-					if (sc->is790) {
-						outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
-					}
+				outb(sc->asic_addr + ED_WD_LAAR,
+				     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+					outb(sc->asic_addr + ED_WD_MSR, 
+					     ED_WD_MSR_MENB);
+				}
 					break;
 				}
 			}
@@ -2058,12 +2059,12 @@ outloop:
 				     ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
 				break;
 			case ED_VENDOR_WD_SMC:{
-					if (sc->is790) {
-						outb(sc->asic_addr + ED_WD_MSR, 0x00);
-					}
-					outb(sc->asic_addr + ED_WD_LAAR,
-					    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
-					break;
+				if (sc->chip_type == ED_CHIP_TYPE_WD790) {
+					outb(sc->asic_addr + ED_WD_MSR, 0x00);
+				}
+				outb(sc->asic_addr + ED_WD_LAAR,
+				    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+				break;
 				}
 			}
 		}
@@ -2265,6 +2266,14 @@ edintr(arg)
 		 */
 		outb(sc->nic_addr + ED_P0_ISR, isr);
 
+		/* XXX workaround for AX88190 */
+		if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
+			while(inb(sc->nic_addr + ED_P0_ISR) & isr) {
+				outb(sc->nic_addr + ED_P0_ISR,0);
+				outb(sc->nic_addr + ED_P0_ISR,isr);
+			}
+		}
+
 		/*
 		 * Handle transmitter interrupts. Handle these first because
 		 * the receiver will reset the board under some conditions.
@@ -2432,7 +2441,7 @@ edintr(arg)
 
 					outb(sc->asic_addr + ED_WD_LAAR,
 					     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-					if (sc->is790) {
+					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 						outb(sc->asic_addr + ED_WD_MSR,
 						     ED_WD_MSR_MENB);
 					}
@@ -2443,7 +2452,7 @@ edintr(arg)
 				if (sc->isa16bit &&
 				    (sc->vendor == ED_VENDOR_WD_SMC)) {
 
-					if (sc->is790) {
+					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
 						outb(sc->asic_addr + ED_WD_MSR, 0x00);
 					}
 					outb(sc->asic_addr + ED_WD_LAAR,
@@ -3174,6 +3183,14 @@ ed_setrcr(sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	int     i;
+	u_char reg1;
+
+	/* Bit 6 in AX88190 RCR register must be set. */
+	if (sc->chip_type == ED_CHIP_TYPE_AX88190)
+		reg1 = ED_RCR_INTT;
+	else
+		reg1 = 0x00;
+
 
 	/* set page 1 registers */
 	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
@@ -3194,7 +3211,7 @@ ed_setrcr(sc)
 		outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
 		outb(sc->nic_addr + ED_P0_RCR, ED_RCR_PRO | ED_RCR_AM |
-		     ED_RCR_AB | ED_RCR_AR | ED_RCR_SEP);
+		     ED_RCR_AB | ED_RCR_AR | ED_RCR_SEP | reg1);
 	} else {
 		/* set up multicast addresses and filter modes */
 		if (ifp->if_flags & IFF_MULTICAST) {
@@ -3215,7 +3232,7 @@ ed_setrcr(sc)
 			/* Set page 0 registers */
 			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AM | ED_RCR_AB);
+			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AM | ED_RCR_AB | reg1);
 		} else {
 
 			/*
@@ -3228,7 +3245,7 @@ ed_setrcr(sc)
 			/* Set page 0 registers */
 			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
-			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB);
+			outb(sc->nic_addr + ED_P0_RCR, ED_RCR_AB | reg1);
 		}
 	}
 
