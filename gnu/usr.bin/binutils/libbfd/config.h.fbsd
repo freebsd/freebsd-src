@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /* config.h.  Generated automatically by configure.  */
-/* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
+/* config.in.  Generated automatically from configure.in by autoheader.  */
 
 /* Define if using alloca.c.  */
 /* #undef C_ALLOCA */
@@ -27,9 +27,6 @@
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
-
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
 
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
@@ -66,6 +63,18 @@
 
 /* Define if you have the fdopen function.  */
 #define HAVE_FDOPEN 1
+
+/* Define if you have the fseeko function.  */
+#define HAVE_FSEEKO 1
+
+/* Define if you have the fseeko64 function.  */
+/* #undef HAVE_FSEEKO64 */
+
+/* Define if you have the ftello function.  */
+#define HAVE_FTELLO 1
+
+/* Define if you have the ftello64 function.  */
+/* #undef HAVE_FTELLO64 */
 
 /* Define if you have the getcwd function.  */
 #define HAVE_GETCWD 1
@@ -108,6 +117,9 @@
 
 /* Define if you have the strchr function.  */
 #define HAVE_STRCHR 1
+
+/* Define if you have the strtoull function.  */
+#define HAVE_STRTOULL 1
 
 /* Define if you have the sysconf function.  */
 #define HAVE_SYSCONF 1
@@ -179,7 +191,7 @@
 #define PACKAGE "bfd"
 
 /* Version number of package */
-/* #define VERSION "2.13.2" */
+/* #define VERSION "2.15" */
 
 /* Define if you have the stpcpy function */
 #define HAVE_STPCPY 1
@@ -192,6 +204,12 @@
 
 /* Define as 1 if you have gettext and don't want to use GNU gettext. */
 /* #undef HAVE_GETTEXT */
+
+/* The number of bytes in type long long */
+/* #define SIZEOF_LONG_LONG 8 */
+
+/* The number of bytes in type long */
+/* #define SIZEOF_LONG 8 */
 
 /* Use b modifier when opening binary files? */
 /* #undef USE_BINARY_FOPEN */
@@ -264,6 +282,9 @@
 
 /* Name of host specific header file to include in trad-core.c. */
 #define TRAD_HEADER !!TRAD_HEADER!!
+
+/* The number of bytes in type off_t */
+/* #define SIZEOF_OFF_T 8 */
 
 /* Use mmap if it's available? */
 /* #undef USE_MMAP */
