@@ -798,6 +798,9 @@ struct pthread {
 	struct pthread_specific_elem	*specific;
 	int				specific_data_count;
 
+	/* Alternative stack for sigaltstack() */
+	stack_t				sigstk;
+
 	/*
 	 * Current locks bitmap for rtld.
 	 */
@@ -1154,6 +1157,7 @@ void	_thr_hash_add(struct pthread *);
 void	_thr_hash_remove(struct pthread *);
 struct pthread *_thr_hash_find(struct pthread *);
 void	_thr_finish_cancellation(void *arg);
+int	_thr_sigonstack(void *sp);
 
 /*
  * Aliases for _pthread functions. Should be called instead of
