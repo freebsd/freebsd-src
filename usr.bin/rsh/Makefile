@@ -5,7 +5,7 @@ PROG=	rsh
 SRCS=	rsh.c
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
-.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
+.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../rlogin -I${.CURDIR} -I- \
