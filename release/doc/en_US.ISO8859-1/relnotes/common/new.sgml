@@ -2668,7 +2668,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.ifconfig.8; now supports a <literal>monitor</literal>
       interface flag, which blocks transmission of packets on that
-      interface.  This feature is useful for mintoring network traffic
+      interface.  This feature is useful for monitoring network traffic
       without interacting with the network in question.</para>
 
     <para role="historic">The syntax of &man.inetd.8;'s support for &man.faithd.8; is
