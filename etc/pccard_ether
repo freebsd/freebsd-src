@@ -5,9 +5,9 @@
 # example: pccardether ep0 -link0
 #
 
-# Suck in the /etc/sysconfig variables
-if [ -f /etc/sysconfig ]; then
-	. /etc/sysconfig
+# Suck in the /etc/rc.conf variables
+if [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
 fi
 
 if [ "x$pccard_ifconfig" != "xNO" ] ; then
