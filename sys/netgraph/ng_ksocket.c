@@ -161,8 +161,8 @@ static const struct ng_parse_type ng_ksocket_generic_sockdata_type = {
 /* Type for a generic struct sockaddr */
 static const struct ng_parse_struct_info ng_parse_generic_sockaddr_type_info = {
 	{
-	  { "len",	&ng_parse_int8_type			},
-	  { "family",	&ng_parse_int8_type			},
+	  { "len",	&ng_parse_uint8_type			},
+	  { "family",	&ng_parse_uint8_type			},
 	  { "data",	&ng_ksocket_generic_sockdata_type	},
 	  { NULL }
 	}
