@@ -273,7 +273,7 @@ clean:
 # Clean out ${_R} and make the directory structure.
 release.1:
 	mkdir -p ${_R}
-	rm -rf ${_R}/* 2> /dev/null
+	-rm -rf ${_R}/* 2> /dev/null
 	-chflags -R noschg ${_R}/.
 	rm -rf ${_R}/*
 	mkdir ${RD}
