@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsnode.h>
 #include <nfsclient/nfsmount.h>
 
-static vm_zone_t nfsnode_zone;
+static uma_zone_t nfsnode_zone;
 static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 static u_long nfsnodehash;
 static int nfs_node_hash_lock;
@@ -154,7 +154,8 @@ void
 nfs_nhinit(void)
 {
 
-	nfsnode_zone = zinit("NFSNODE", sizeof(struct nfsnode), 0, 0, 1);
+	nfsnode_zone = uma_zcreate("NFSNODE", sizeof(struct nfsnode), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	nfsnodehashtbl = hashinit(desiredvnodes, M_NFSHASH, &nfsnodehash);
 }
 
@@ -220,7 +221,7 @@ loop:
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if zalloc should block.
 	 */
-	np = zalloc(nfsnode_zone);
+	np = uma_zalloc(nfsnode_zone, M_WAITOK);
 
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
@@ -228,7 +229,7 @@ loop:
 			wakeup(&nfs_node_hash_lock);
 		nfs_node_hash_lock = 0;
 		*npp = 0;
-		zfree(nfsnode_zone, np);
+		uma_zfree(nfsnode_zone, np);
 		return (error);
 	}
 	vp = nvp;
@@ -246,7 +247,7 @@ loop:
 		if (nfs_node_hash_lock < 0)
 			wakeup(&nfs_node_hash_lock);
 		nfs_node_hash_lock = 0;
-		zfree(nfsnode_zone, np);
+		uma_zfree(nfsnode_zone, np);
 		goto retry;
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
@@ -352,7 +353,7 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	lockdestroy(&np->n_rslock);
 
 	cache_purge(vp);
-	zfree(nfsnode_zone, vp->v_data);
+	uma_zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = (void *)0;
 	return (0);
 }
