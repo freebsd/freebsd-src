@@ -54,7 +54,6 @@ extern	char	kstack[];
 extern	int	need_pre_dma_flush;
 extern	int	need_post_dma_flush;
 #endif
-extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
 extern	void	(*ovbcopy_vector) __P((const void *from, void *to, size_t len));
 extern	char	sigcode[];

@@ -37,7 +37,6 @@ extern	char	sigcode[];
 extern	char	esigcode[];
 extern	int	szsigcode;
 extern	int	Maxmem;
-extern	void	(*netisrs[32]) __P((void));
 
 struct fpreg;
 struct proc;
