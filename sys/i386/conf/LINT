@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.13 1996/04/22 19:48:22 nate Exp $
+#	$Id: LINT,v 1.184.4.14 1996/05/03 06:02:44 asami Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -714,6 +714,7 @@ controller      matcd0  at isa? port 0x230 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
+device		qcam0	at isa? port "IO_LPT3" tty
 device		apm0	at isa?
 options		APM_BROKEN_STATCLOCK
 device		gp0	at isa? port 0x2c0 tty
