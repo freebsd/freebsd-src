@@ -213,7 +213,7 @@ STATIC void
 argstr(char *p, int flag)
 {
 	char c;
-	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
+	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
 	int firsteq = 1;
 
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
