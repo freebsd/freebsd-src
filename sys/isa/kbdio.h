@@ -26,12 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.h,v 1.8 1998/08/06 09:15:53 dfr Exp $
+ * $Id: kbdio.h,v 1.9 1999/01/06 05:49:30 yokota Exp $
  * from: i386/isa kbdio.h,v 1.7
  */
 
-#ifndef _I386_ISA_KBDIO_H_
-#define	_I386_ISA_KBDIO_H_
+#ifndef _ISA_KBDIO_H_
+#define	_ISA_KBDIO_H_
 
 /* constants */
 
@@ -204,4 +204,4 @@ int set_controller_command_byte __P((KBDC kbdc, int command, int flag));
 
 #endif /* KERNEL */
 
-#endif /* !_I386_ISA_KBDIO_H_ */
+#endif /* !_ISA_KBDIO_H_ */
