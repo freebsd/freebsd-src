@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.5 1998/12/14 06:32:55 dillon Exp $
+ *	$Id: if_mx.c,v 1.6 1998/12/24 19:10:05 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.5 1998/12/14 06:32:55 dillon Exp $";
+	"$Id: if_mx.c,v 1.6 1998/12/24 19:10:05 wpaul Exp $";
 #endif
 
 /*
@@ -1671,8 +1671,7 @@ static void mx_rxeof(sc)
 		 */
 		if (mx_newbuf(sc, cur_rx) == ENOBUFS) {
 			ifp->if_ierrors++;
-			cur_rx->mx_ptr->mx_status =
-				MX_RXSTAT_FIRSTFRAG|MX_RXSTAT_LASTFRAG;
+			cur_rx->mx_ptr->mx_status = MX_RXSTAT;
 			cur_rx->mx_ptr->mx_ctl =
 					MX_RXCTL_RLINK | (MCLBYTES - 1);
 			continue;
