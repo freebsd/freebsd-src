@@ -105,9 +105,10 @@ main(argc, argv)
 	register int ch;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	ino_t maxino;
+	char *tmsg;
+	time_t t;
 
-	spcl.c_date = 0;
-	(void)time((time_t *)&spcl.c_date);
+	spcl.c_date = time_to_time32(time(NULL));
 
 	tsize = 0;	/* Default later, based on 'c' option for cart tapes */
 	if ((tape = getenv("TAPE")) == NULL)
@@ -313,10 +314,20 @@ main(argc, argv)
 	if (!Tflag)
 	        getdumptime();		/* /etc/dumpdates snarfed */
 
-	msg("Date of this level %c dump: %s", level,
-		spcl.c_date == 0 ? "the epoch\n" : ctime(&spcl.c_date));
- 	msg("Date of last level %c dump: %s", lastlevel,
-		spcl.c_ddate == 0 ? "the epoch\n" : ctime(&spcl.c_ddate));
+	if (spcl.c_date == 0) {
+		tmsg = "the epoch\n";
+	} else {
+		time_t t = time32_to_time(spcl.c_date);
+		tmsg = ctime(&t);
+	}
+	msg("Date of this level %c dump: %s", level, tmsg);
+	if (spcl.c_ddate == 0) {
+		tmsg = "the epoch\n";
+	} else {
+		time_t t = time32_to_time(spcl.c_ddate);
+		tmsg = ctime(&t);
+	}
+ 	msg("Date of last level %c dump: %s", lastlevel, tmsg);
 	msg("Dumping %s ", disk);
 	if (dt != NULL)
 		msgtail("(%s) ", dt->fs_file);

@@ -36,6 +36,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)dumprestore.h	8.2 (Berkeley) 1/21/94
+ *
+ * $FreeBSD$
  */
 
 #ifndef _PROTOCOLS_DUMPRESTORE_H_
@@ -68,8 +70,8 @@ union u_spcl {
 	char dummy[TP_BSIZE];
 	struct	s_spcl {
 		int32_t	c_type;		    /* record type (see below) */
-		time_t	c_date;		    /* date of this dump */
-		time_t	c_ddate;	    /* date of previous dump */
+		int32_t	c_date;		    /* date of this dump */
+		int32_t	c_ddate;	    /* date of previous dump */
 		int32_t	c_volume;	    /* dump volume number */
 		daddr_t	c_tapea;	    /* logical block of this record */
 		ino_t	c_inumber;	    /* number of inode */

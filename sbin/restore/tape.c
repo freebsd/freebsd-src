@@ -232,8 +232,8 @@ setup()
 	}
 	if (vflag || command == 't')
 		printdumpinfo();
-	dumptime = spcl.c_ddate;
-	dumpdate = spcl.c_date;
+	dumptime = time32_to_time(spcl.c_ddate);
+	dumpdate = time32_to_time(spcl.c_date);
 	if (stat(".", &stbuf) < 0) {
 		fprintf(stderr, "cannot stat .: %s\n", strerror(errno));
 		done(1);
@@ -404,9 +404,10 @@ gethdr:
 		volno = 0;
 		goto again;
 	}
-	if (tmpbuf.c_date != dumpdate || tmpbuf.c_ddate != dumptime) {
-		fprintf(stderr, "Wrong dump date\n\tgot: %s",
-			ctime(&tmpbuf.c_date));
+	if (time32_to_time(tmpbuf.c_date) != dumpdate ||
+	    time32_to_time(tmpbuf.c_ddate) != dumptime) {
+		time_t t = time32_to_time(tmpbuf.c_date);
+		fprintf(stderr, "Wrong dump date\n\tgot: %s", ctime(&t));
 		fprintf(stderr, "\twanted: %s", ctime(&dumpdate));
 		volno = 0;
 		goto again;
@@ -508,9 +509,12 @@ setdumpnum()
 void
 printdumpinfo()
 {
-	fprintf(stdout, "Dump   date: %s", ctime(&spcl.c_date));
+	time_t t;
+	t = time32_to_time(spcl.c_date);
+	fprintf(stdout, "Dump   date: %s", ctime(&t));
+	t = time32_to_time(spcl.c_ddate);
 	fprintf(stdout, "Dumped from: %s",
-	    (spcl.c_ddate == 0) ? "the epoch\n" : ctime(&spcl.c_ddate));
+	    (spcl.c_ddate == 0) ? "the epoch\n" : ctime(&t));
 	if (spcl.c_host[0] == '\0')
 		return;
 	fprintf(stderr, "Level %ld dump of %s on %s:%s\n",
@@ -1227,7 +1231,7 @@ findinode(header)
 		if (header->c_magic != NFS_MAGIC) {
 			skipcnt++;
 			while (gethead(header) == FAIL ||
-			    header->c_date != dumpdate)
+			    time32_to_time(header->c_date) != dumpdate)
 				skipcnt++;
 		}
 		switch (header->c_type) {
@@ -1240,7 +1244,7 @@ findinode(header)
 				if (header->c_addr[i])
 					readtape(buf);
 			while (gethead(header) == FAIL ||
-			    header->c_date != dumpdate)
+			    time32_to_time(header->c_date) != dumpdate)
 				skipcnt++;
 			break;
 
