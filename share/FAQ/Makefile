@@ -2,10 +2,7 @@
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS=etc FreeBSD_version ibcs2 lkm sunrpc syscons
-
-DDIR=${DESTDIR}/usr/share/examples
-
+DDIR=	${DESTDIR}/usr/share/FAQ
 NOOBJ=	noobj
 
 # Define SHARED to indicate whether you want symbolic links to the system
@@ -19,16 +16,13 @@ beforeinstall: ${SHARED}
 
 copies:
 	@${ECHO} installing ${DDIR}
-	@-for a in ${DIRS}; do \
-		rm -rf ${DDIR}/$$a; \
-	done
-	find ${DIRS} -print | grep -v /CVS | cpio -dumpv ${DDIR}
+	rm -rf ${DDIR}
+	mkdir ${DDIR}
+	find . -print | grep -v /CVS | cpio -dumpv ${DDIR}
 
 symlinks:
-	@${ECHO} installing symlinks in ${DDIR}
-	@-for a in ${DIRS}; do \
-		rm -rf ${DDIR}/$$a; \
-		ln -s ${.CURDIR}/$$a ${DDIR}; \
-	done
+	@${ECHO} installing symlink to ${DDIR}
+	rm -rf ${DDIR}; \
+	ln -s ${.CURDIR} ${DDIR}; \
 
 .include <bsd.prog.mk>
