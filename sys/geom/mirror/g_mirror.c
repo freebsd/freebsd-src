@@ -2366,6 +2366,14 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 			    G_MIRROR_EVENT_DONTWAIT);
 		}
 	}
+	/*
+	 * Be sure to return 0 for negativate access requests.
+	 * In case of some HW problems, it is possible that we don't have
+	 * any active disk here, so loop above will be no-op and error will
+	 * be ENXIO.
+	 */
+	if (error != 0 && acr <= 0 && acw <= 0 && ace <= 0)
+		error = 0;
 	return (error);
 }
 
