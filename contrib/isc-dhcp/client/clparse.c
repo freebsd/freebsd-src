@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: clparse.c,v 1.62.2.2 2002/02/09 03:13:17 mellon Exp $ Copyright (c) 1996-2001 The Internet Software Consortium.  All rights reserved.\n"
+"$Id: clparse.c,v 1.62.2.3 2002/11/17 02:25:43 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n"
 "$FreeBSD$\n";
 #endif /* not lint */
 

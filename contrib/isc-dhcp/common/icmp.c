@@ -4,7 +4,7 @@
    responses. */
 
 /*
- * Copyright (c) 1996-2001 Internet Software Consortium.
+ * Copyright (c) 1996-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: icmp.c,v 1.30.2.3 2001/10/18 20:11:24 mellon Exp $ Copyright (c) 1996-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: icmp.c,v 1.30.2.5 2002/11/17 02:26:58 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -164,6 +164,7 @@ int icmp_echorequest (addr)
 	if (!icmp_state)
 		log_fatal ("ICMP protocol used before initialization.");
 
+	memset (&to, 0, sizeof(to));
 #ifdef HAVE_SA_LEN
 	to.sin_len = sizeof to;
 #endif
