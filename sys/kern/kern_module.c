@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.16 1999/01/29 08:36:44 dillon Exp $
+ *	$Id: kern_module.c,v 1.17 1999/05/08 13:01:57 peter Exp $
  */
 
 #include <sys/param.h>
@@ -136,6 +136,7 @@ module_register(const moduledata_t *data, linker_file_t container)
 	container = linker_current_file;
     if (container)
 	TAILQ_INSERT_TAIL(&container->modules, newmod, flink);
+    newmod->file = container;
 
     return 0;
 }
