@@ -98,4 +98,84 @@ typedef enum {
 #define FP_RND_OFF	10	/* round control offset */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
+#ifdef __GNUC__
+
+#define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
+#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
+#define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
+#define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
+
+/*
+ * return the contents of a FP register
+ */
+static __inline__ int
+__fpgetreg(int _reg)
+{
+	unsigned short _mem;
+
+	/*-
+	 * This is more efficient than it looks.  The switch gets optimized
+	 * away if _reg is constant.
+	 *
+	 * The default case only supports _reg == 0.  We could handle more
+	 * registers (e.g., tags) using fnstenv, but the interface doesn't
+	 * support more.
+	 */
+	switch(_reg) {
+	default:
+		__fnstcw(&_mem);
+		break;
+	case FP_STKY_REG:
+		__fnstsw(&_mem);
+		break;
+	}
+	return _mem;
+}
+
+/*
+ * set a FP mode; return previous mode
+ */
+static __inline__ int
+__fpsetreg(int _m, int _reg, int _fld, int _off)
+{
+	unsigned _env[7];
+	unsigned _p;
+
+	/*
+	 * _reg == 0 could be handled better using fnstcw/fldcw.
+	 */
+	__fnstenv(_env);
+	_p =  (_env[_reg] & _fld) >> _off;
+	_env[_reg] = (_env[_reg] & ~_fld) | (_m << _off & _fld);
+	__fldenv(_env);
+	return _p;
+}
+
+#endif /* __GNUC__ */
+
+/*
+ * SysV/386 FP control interface
+ */
+#define	fpgetround()	((fp_rnd_t)					\
+	((__fpgetreg(FP_RND_REG) & FP_RND_FLD) >> FP_RND_OFF))
+#define	fpsetround(m)	((fp_rnd_t)					\
+	__fpsetreg((m), FP_RND_REG, FP_RND_FLD, FP_RND_OFF))
+#define	fpgetprec()	((fp_prec_t)					\
+	((__fpgetreg(FP_PRC_REG) & FP_PRC_FLD) >> FP_PRC_OFF))
+#define	fpsetprec(m)	((fp_prec_t)					\
+	__fpsetreg((m), FP_PRC_REG, FP_PRC_FLD, FP_PRC_OFF))
+#define	fpgetmask()	((fp_except_t)					\
+	((~__fpgetreg(FP_MSKS_REG) & FP_MSKS_FLD) >> FP_MSKS_OFF))
+#define	fpsetmask(m)	((fp_except_t)					\
+	(~__fpsetreg(~(m), FP_MSKS_REG, FP_MSKS_FLD, FP_MSKS_OFF)) &	\
+	    (FP_MSKS_FLD >> FP_MSKS_OFF))
+#define	fpgetsticky()	((fp_except_t)					\
+	((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF))
+#define	fpresetsticky(m) ((fp_except_t)					\
+	__fpsetreg(0, FP_STKY_REG, (m), FP_STKY_OFF))
+#define	fpsetsticky(m)	fpresetsticky(m)
+
+/* Suppress prototypes in the MI header. */
+#define	_IEEEFP_INLINED_	1
+
 #endif /* !_MACHINE_IEEEFP_H_ */
