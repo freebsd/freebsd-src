@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_ldap.c,v 1.5 1999/08/22 05:12:50 ezk Exp $
+ * $Id: info_ldap.c,v 1.6 1999/09/30 21:01:31 ezk Exp $
  *
  */
 
@@ -238,6 +238,7 @@ amu_ldap_rebind(ALD *a)
   HE *h;
   CR *c = a->credentials;
   time_t now = clocktime();
+  int try;
 
   if (a->ldap != NULL) {
     if ((a->timestamp - now) > AMD_LDAP_TTL) {
@@ -250,7 +251,7 @@ amu_ldap_rebind(ALD *a)
       return (0);
   }
 
-  while (TRUE) {
+  for (try=0; try<10; try++) {	/* XXX: try up to 10 times (makes sense?) */
     for (h = a->hostent; h != NULL; h = h->next) {
       if ((ld = ldap_open(h->host, h->port)) == NULL) {
 	plog(XLOG_WARNING, "Unable to ldap_open to %s:%d\n", h->host, h->port);

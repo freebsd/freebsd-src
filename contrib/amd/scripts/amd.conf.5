@@ -38,7 +38,7 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.3 1999/03/30 17:23:08 ezk Exp $
+.\" $Id: amd.conf.5,v 1.4 1999/09/30 21:01:43 ezk Exp $
 .\"
 .TH AMD.CONF 8 "7 August 1997"
 .SH NAME
@@ -196,10 +196,11 @@ Same as the
 .B \-D
 option to amd.  Specify any debugging options for amd.  Works only if
 am-utils was configured for debugging using the --enable-debug option.  The
-"mem" option alone can be turned on via --enable-debug=mem.  Otherwise
-debugging options are ignored.  Options are comma delimited, and can be
-preceded by the string "no" to negate their meaning.  You can get the list
-of supported debugging options by running amd \-v.  Possible values are:
+"mem" option, as well as all other options, can be turned on via
+--enable-debug=mem.  Otherwise debugging options are ignored.  Options are
+comma delimited, and can be preceded by the string "no" to negate their
+meaning.  You can get the list of supported debugging options by running amd
+\-H.  Possible values are:
 
 .nf
 \fBall\fR       all options
@@ -212,7 +213,7 @@ of supported debugging options by running amd \-v.  Possible values are:
 \fBmtab\fR      use local "./mtab" file
 \fBstr\fR       debug string munging
 \fBtest\fR      full debug but no daemon
-\fBtrace\fR     protocol trace
+\fBtrace\fR     trace RPC protocol and NFS mount arguments
 .fi
 
 .TP
@@ -221,6 +222,14 @@ Same as the
 .B \-w
 option to amd.  Specify in seconds, the time between attempts to dismount
 file systems that have exceeded their cached times.
+
+.TP
+.BR full_os " (string, default to compiled in value)"
+The full name of the operating system, along with its version.  Allows you
+to override the compiled-in full name and version of the operating system.
+Useful when the compiled-in name is not desired.  For example, the full
+operating system name on linux comes up as ``linux'', but you can override
+it to ``linux-2.2.5.''
 
 .TP
 .BR fully_qualified_hosts " (string, default=no)"
@@ -302,8 +311,8 @@ Same as the
 option to amd.  Specify any logging options for amd.  Options are comma
 delimited, and can be preceded by the string "no" to negate their meaning.
 The "debug" logging option is only available if am-utils was configured with
---enable-debug.  You can get the list of supported debugging options by
-running amd \-v.  Possible values are:
+--enable-debug.  You can get the list of supported debugging and logging
+options by running amd \-H.  Possible values are:
 
 .nf
 \fBall\fR       all messages
@@ -319,24 +328,34 @@ running amd \-v.  Possible values are:
 .fi
 
 .TP
-.BR nfs_retransmit_counter " (numeric, default=110)"
+.BR nfs_retransmit_counter " (numeric, default=11)"
 Same as the
-.I counter
+.I retransmit
 part of the 
-.BI \-t " interval.counter"
-option to amd.  Specifies the retransmit counter's value in
-.I tenths
-of seconds.
+.BI \-t " timeout.retransmit"
+option to amd.
+Specifies the number of NFS retransmissions that the kernel will use to
+communicate with amd.
 
 .TP
 .BR nfs_retry_interval " (numeric, default=8)"
 Same as the
-.I interval
+.I timeout
 part of the 
-.BI \-t " interval.counter"
-option to amd.  Specifies the interval in
+.BI \-t " timeout.retransmit"
+option to amd.  Specifies the NFS timeout interval, in
 .I tenths
-of seconds, between NFS/RPC/UDP retries.
+of seconds, between NFS/RPC retries (for UDP only).
+This is the value that the kernel will use to
+communicate with amd.
+
+Amd relies on the kernel RPC retransmit mechanism to trigger mount retries.
+The values of the
+.B nfs_retransmit_counter
+and the
+.B nfs_retry_interval
+parameters change the overall retry interval.  Too long an interval gives
+poor interactive response; too short an interval causes excessive retries.
 
 .TP
 .BR nis_domain " (string, default to local NIS domain name)"
@@ -368,7 +387,7 @@ latter in mind.
 .BR osver " (string, default to compiled in value)"
 Same as the
 .B \-o
-option to amd.  Override the compiled-in version number of the operating
+option to amd.  Overrides the compiled-in version number of the operating
 system.  Useful when the built in version is not desired for backward
 compatibility reasons.  For example, if the build in version is ``2.5.1'',
 you can override it to ``5.5.1'', and use older maps that were written with
@@ -464,6 +483,13 @@ Note that amd does not know about file systems mounted before it starts up,
 unless the restart_mounts option or
 .B \-r
 flag are used.
+
+.TP
+.BR vendor " (string, default to compiled in value)"
+The name of the vendor of the operating system.  Overrides the compiled-in
+vendor name.  Useful when the compiled-in name is not desired.  For example,
+most Intel based systems set the vendor name to ``unknown'', but you can set
+it to ``redhat.''
 
 .\" **************************************************************************
 .SS Parameters applicable to regular map sections

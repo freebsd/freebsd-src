@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_program.c,v 1.4 1999/06/24 06:15:55 ezk Exp $
+ * $Id: amfs_program.c,v 1.5 1999/09/30 21:01:30 ezk Exp $
  *
  */
 
@@ -89,7 +89,7 @@ amfs_program_match(am_opts *fo)
   char *prog;
 
   if (!fo->opt_mount || !fo->opt_unmount) {
-    plog(XLOG_USER, "program: no mount/unmount specified");
+    plog(XLOG_ERROR, "program: both mount and unmount must be specified");
     return 0;
   }
   prog = strchr(fo->opt_mount, ' ');

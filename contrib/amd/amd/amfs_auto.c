@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_auto.c,v 1.4 1999/08/09 06:09:43 ezk Exp $
+ * $Id: amfs_auto.c,v 1.5 1999/09/30 21:01:29 ezk Exp $
  *
  */
 
@@ -449,59 +449,59 @@ try_mount(voidp mvp)
  * Pick a file system to try mounting and
  * do that in the background if necessary
  *
- For each location:
- if it is new -defaults then
- extract and process
- continue;
- fi
- if it is a cut then
- if a location has been tried then
- break;
- fi
- continue;
- fi
- parse mount location
- discard previous mount location if required
- find matching mounted filesystem
- if not applicable then
- this_error = No such file or directory
- continue
- fi
- if the filesystem failed to be mounted then
- this_error = error from filesystem
- elif the filesystem is mounting or unmounting then
- this_error = -1
- elif the fileserver is down then
- this_error = -1
- elif the filesystem is already mounted
- this_error = 0
- break
- fi
- if no error on this mount then
- this_error = initialize mount point
- fi
- if no error on this mount and mount is delayed then
- this_error = -1
- fi
- if this_error < 0 then
- retry = true
- fi
- if no error on this mount then
- make mount point if required
- fi
- if no error on this mount then
- if mount in background then
- run mount in background
- return -1
- else
- this_error = mount in foreground
- fi
- fi
- if an error occurred on this mount then
- update stats
- save error in mount point
- fi
- endfor
+For each location:
+	if it is new -defaults then
+		extract and process
+		continue;
+	fi
+	if it is a cut then
+		if a location has been tried then
+			break;
+		fi
+		continue;
+	fi
+	parse mount location
+	discard previous mount location if required
+	find matching mounted filesystem
+	if not applicable then
+		this_error = No such file or directory
+		continue
+	fi
+	if the filesystem failed to be mounted then
+		this_error = error from filesystem
+	elif the filesystem is mounting or unmounting then
+		this_error = -1
+	elif the fileserver is down then
+		this_error = -1
+	elif the filesystem is already mounted
+		this_error = 0
+		break
+	fi
+	if no error on this mount then
+		this_error = initialize mount point
+	fi
+	if no error on this mount and mount is delayed then
+		this_error = -1
+	fi
+	if this_error < 0 then
+		retry = true
+	fi
+	if no error on this mount then
+		make mount point if required
+	fi
+	if no error on this mount then
+		if mount in background then
+			run mount in background
+			return -1
+		else
+			this_error = mount in foreground
+		fi
+	fi
+	if an error occurred on this mount then
+		update stats
+		save error in mount point
+	fi
+endfor
  */
 static int
 amfs_auto_bgmount(struct continuation * cp, int mpe)
@@ -706,6 +706,10 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
       if (!mf_retry)
 	mf_retry = dup_mntfs(mf);
       cp->retry = TRUE;
+#ifdef DEBUG
+      dlog("will retry ...\n");
+#endif /* DEBUG */
+      break;
     }
 
     if (!this_error) {
@@ -765,8 +769,9 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
      * Rewind the location vector and
      * reset the default options.
      */
-    cp->ivec = cp->xivec;
-    cp->def_opts = strealloc(cp->def_opts, cp->auto_opts);
+#ifdef DEBUG
+    dlog("(skipping rewind)\n");
+#endif /* DEBUG */
     /*
      * Arrange that amfs_auto_bgmount is called
      * after anything else happens.
