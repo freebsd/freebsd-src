@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.19 1994/09/25 02:55:21 wollman Exp $
+#	$Id: BSD.root.dist,v 1.20 1995/05/17 09:31:10 rgrimes Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -15,6 +15,8 @@
         gnats
         ..
         kerberosIV
+        ..
+        mail
         ..
         mtree
         ..
