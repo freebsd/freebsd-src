@@ -462,7 +462,6 @@ boolean wr;
 		) {
 		/* revoke */
 		setgid(getgid());
-		setuid(getuid());
 	}
 #endif
 
