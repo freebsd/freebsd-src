@@ -92,3 +92,4 @@ waitcmd		wait
 aliascmd	alias
 ulimitcmd	ulimit
 testcmd		test [
+bindcmd		bind
