@@ -448,7 +448,6 @@ void	diskerr __P((struct bio *bp, char *what, int pri, int blkdone,
 void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
-void	bufqdisksort __P((struct buf_queue_head *ap, struct buf *bp));
 void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
