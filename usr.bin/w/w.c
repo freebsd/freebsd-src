@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.21 1997/08/25 06:42:19 charnier Exp $";
+	"$Id: w.c,v 1.22 1997/09/12 02:22:21 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -484,7 +484,7 @@ usage(wcmd)
 {
 	if (wcmd)
 		(void)fprintf(stderr,
-		    "usage: w [-hin] [-M core] [-N system] [user]\n");
+		    "usage: w [-dhin] [-M core] [-N system] [user]\n");
 	else
 		(void)fprintf(stderr,
 			"usage: uptime\n");
