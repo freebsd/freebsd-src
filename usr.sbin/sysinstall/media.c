@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.53 1996/09/26 22:07:32 pst Exp $
+ * $Id: media.c,v 1.54 1996/10/01 12:13:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,7 +259,7 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
-    int what;
+    int what = DITEM_RESTORE;
 
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
@@ -270,13 +270,25 @@ mediaSetFTP(dialogMenuItem *self)
 	    cp = variable_get(VAR_FTP_PATH);
 	what = DITEM_RECREATE;
     }
-    else
-	what = DITEM_RESTORE;
-    if (!cp) {
-	dialog_clear_norefresh();
-	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
-	return DITEM_FAILURE | what;
+    else {
+	static int first_time = 1;
+
+	if (first_time)
+	    first_time = 0;
+	else {
+	    dialog_clear_norefresh();
+	    if (msgYesNo("Do you want to use your old FTP path value of\n%s?", cp)) {
+		dialog_clear_norefresh();
+		if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
+		    return DITEM_FAILURE | DITEM_RECREATE;
+		else
+		    cp = variable_get(VAR_FTP_PATH);
+		what = DITEM_RECREATE;
+	    }
+	}
     }
+    if (!cp)
+	return DITEM_FAILURE | what;
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
 	dialog_clear_norefresh();
