@@ -62,6 +62,9 @@ RCSID("$FreeBSD$");
 #define _PATH_CHPASS "/usr/bin/passwd"
 #endif /* __FreeBSD__ */
 
+#if defined(HAVE_LOGIN_CAP) || defined(USE_PAM)
+#include <libgen.h>
+#endif
 #ifdef HAVE_LOGIN_CAP
 #include <login_cap.h>
 #endif
@@ -195,7 +198,6 @@ do_authenticated1(Authctxt *authctxt)
 	int success, type, screen_flag;
 	int compression_level = 0, enable_compression_after_reply = 0;
 	u_int proto_len, data_len, dlen;
-	struct stat st;
 
 	s = session_new();
 	s->authctxt = authctxt;
@@ -509,7 +511,7 @@ do_exec_pty(Session *s, const char *command)
 	ttyfd = s->ttyfd;
 
 #ifdef USE_PAM
-	do_pam_session(s->pw->pw_name, s->tty);
+	do_pam_session(s->pw->pw_name, basename(s->tty));
 	do_pam_setcred();
 #endif /* USE_PAM */
 
@@ -602,14 +604,21 @@ void
 do_login(Session *s, const char *command)
 {
 	FILE *f;
-	char *time_string, *newcommand;
+	char *time_string;
+#ifndef USE_PAM
+	char *newcommand = NULL;
+#endif
 	char buf[256];
 	char hostname[MAXHOSTNAMELEN];
+#ifndef USE_PAM
 	socklen_t fromlen;
 	struct sockaddr_storage from;
+#endif
 	time_t last_login_time;
 	struct passwd * pw = s->pw;
+#ifndef USE_PAM
 	pid_t pid = getpid();
+#endif
 #ifdef HAVE_LOGIN_CAP
 	const char *fname;
 #endif /* HAVE_LOGIN_CAP */
@@ -619,6 +628,10 @@ do_login(Session *s, const char *command)
 	time_t warntime = DEFAULT_WARN;
 #endif /* __FreeBSD__ */
 
+#ifndef USE_PAM
+	/*
+	 * Let PAM handle utmp / wtmp.
+	 */
 	/*
 	 * Get IP address of client. If the connection is not a socket, let
 	 * the address be 0.0.0.0.
@@ -632,6 +645,7 @@ do_login(Session *s, const char *command)
 			fatal_cleanup();
 		}
 	}
+#endif
 
 	/* Get the time and hostname when the user last logged in. */
 	if (options.print_lastlog) {
@@ -640,10 +654,12 @@ do_login(Session *s, const char *command)
 		    hostname, sizeof(hostname));
 	}
 
+#ifndef USE_PAM
 	/* Record that there was a login on that tty from the remote host. */
 	record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
 	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
 	    (struct sockaddr *)&from);
+#endif
 
 #ifdef USE_PAM
 	/*
@@ -666,6 +682,7 @@ do_login(Session *s, const char *command)
 	warntime = login_getcaptime(lc, "warnpassword",
 				    DEFAULT_WARN, DEFAULT_WARN);
 #endif /* HAVE_LOGIN_CAP */
+#ifndef USE_PAM
 	/*
 	 * If the password change time is set and has passed, give the
 	 * user a password expiry notice and chance to change it.
@@ -685,6 +702,7 @@ do_login(Session *s, const char *command)
 			    "Warning: your password expires on %s",
 			     ctime(&pw->pw_change));
 	}
+#endif
 #ifdef HAVE_LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnexpire",
 				    DEFAULT_WARN, DEFAULT_WARN);
@@ -708,7 +726,7 @@ do_login(Session *s, const char *command)
 #endif /* !USE_PAM */
 #endif /* __FreeBSD__ */
 #ifdef HAVE_LOGIN_CAP
-	if (!auth_ttyok(lc, s->tty)) {
+	if (!auth_ttyok(lc, basename(s->tty))) {
 		(void)printf("Permission denied.\n");
 		log(
 	       "LOGIN %.200s REFUSED (TTY) FROM %.200s ON TTY %.200s",
