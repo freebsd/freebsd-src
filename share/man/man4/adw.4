@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2000
+.Dd July 14, 2004
 .Dt ADW 4
 .Os
 .Sh NAME
@@ -43,13 +43,6 @@ bus connected to the Advanced Systems Products, Inc.
 and
 .Tn ASC38C0800 Ultra2 ,
 SCSI Host Adapter chips.
-AdvanSys products incorporating these chips include the
-.Tn ABP[3]940UW ,
-.Tn ABP950UW ,
-.Tn ABP970UW ,
-.Tn ABP3940U2W ,
-and
-.Tn ABP3950U2W .
 Both chips support, synchronous transfers
 (20MHz and 40MHz max respectively),
 16bit transfers, tagged queueing,
@@ -66,6 +59,23 @@ The global setting for the maximum number of tagged transactions allowed
 per target is not honored as the CAM SCSI system will automatically determine
 the maximum number of tags a device can receive as well as guarantee fair
 resource allocation among devices.
+.Sh HARDWARE
+The
+.Nm
+driver supports SCSI controllers including:
+.Pp
+.Bl -bullet -compact
+.It
+AdvanSys ABP940UW/ABP3940UW
+.It
+AdvanSys ABP950UW
+.It
+AdvanSys ABP970UW
+.It
+AdvanSys ABP3940U2W
+.It
+AdvanSys ABP3950U2W
+.El
 .Sh SEE ALSO
 .Xr adv 4 ,
 .Xr cd 4 ,
