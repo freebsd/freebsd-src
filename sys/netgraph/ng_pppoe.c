@@ -472,7 +472,7 @@ ng_pppoe_constructor(node_p *nodep)
 
 AAA
 	/* Initialize private descriptor */
-	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH, M_WAITOK);
+	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH, M_NOWAIT);
 	if (privdata == NULL)
 		return (ENOMEM);
 	bzero(privdata, sizeof(*privdata));
@@ -516,7 +516,7 @@ AAA
 		 * The infrastructure has already checked that it's unique,
 		 * so just allocate it and hook it in.
 		 */
-		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH, M_WAITOK);
+		MALLOC(sp, sessp, sizeof(*sp), M_NETGRAPH, M_NOWAIT);
 		if (sp == NULL) {
 				return (ENOMEM);
 		}
@@ -591,7 +591,7 @@ AAA
 			/*
 			 * set up prototype header
 			 */
-			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH, M_WAITOK);
+			MALLOC(neg, negp, sizeof(*neg), M_NETGRAPH, M_NOWAIT);
 
 			if (neg == NULL) {
 				printf("pppoe: Session out of memory\n");

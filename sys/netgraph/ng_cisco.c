@@ -196,7 +196,7 @@ cisco_constructor(node_p *nodep)
 	sc_p sc;
 	int error = 0;
 
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
 	if (sc == NULL)
 		return (ENOMEM);
 	bzero(sc, sizeof(struct cisco_priv));
