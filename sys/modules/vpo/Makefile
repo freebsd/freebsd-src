@@ -7,4 +7,4 @@ SRCS=	bus_if.h device_if.h ppbus_if.h \
 	immio.c vpo.c vpoio.c
 NOMAN=
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

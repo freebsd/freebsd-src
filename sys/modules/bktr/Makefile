@@ -26,4 +26,4 @@ bktr.h:
 smbus.h:
 	echo "#define NSMBUS 0" > smbus.h
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

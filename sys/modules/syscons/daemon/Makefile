@@ -10,4 +10,4 @@ CFLAGS+= -I${.CURDIR}/..
 CFLAGS+= -DPC98
 .endif
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

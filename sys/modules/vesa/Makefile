@@ -5,4 +5,4 @@ KMOD	=	vesa
 SRCS	=	vesa.c scvesactl.c opt_vga.h
 NOMAN	=
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>
