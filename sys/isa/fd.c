@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id$
+ *	$Id: fd.c,v 1.5 1993/09/15 23:27:45 rgrimes Exp $
  *
  */
 
@@ -51,6 +51,7 @@
 #include "disklabel.h"
 #include "buf.h"
 #include "uio.h"
+#include "syslog.h"
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/fdreg.h"
@@ -871,13 +872,13 @@ retrier(fdcu)
 		break;
 	default:
 		{
-			printf("fd%d: hard error (ST0 %b ",
-				 fdc->fdu, fdc->status[0], NE7_ST0BITS);
+			diskerr(bp, "fd", "hard error", LOG_PRINTF,
+				fdc->fd->skip, (struct disklabel *)NULL);
+			printf(" (ST0 %b ", fdc->status[0], NE7_ST0BITS);
 			printf(" ST1 %b ", fdc->status[1], NE7_ST1BITS);
 			printf(" ST2 %b ", fdc->status[2], NE7_ST2BITS);
-			printf(" ST3 %b ", fdc->status[3], NE7_ST3BITS);
 			printf("cyl %d hd %d sec %d)\n",
-				 fdc->status[4], fdc->status[5], fdc->status[6]);
+			       fdc->status[3], fdc->status[4], fdc->status[5]);
 		}
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
@@ -885,11 +886,11 @@ retrier(fdcu)
 		dp->b_actf = bp->av_forw;
 		fdc->fd->skip = 0;
 		biodone(bp);
-		fdc->state = DEVIDLE;
+		fdc->state = FINDWORK;
 		fdc->fd = (fd_p) 0;
 		fdc->fdu = -1;
 		/* XXX abort current command, if any.  */
-		return(0);
+		return(1);
 	}
 	fdc->retry++;
 	return(1);
@@ -926,7 +927,7 @@ int flag;
         bzero(buffer, sizeof (buffer));
         dl = (struct disklabel *)buffer;
         dl->d_secsize = FDBLK;
-        fdt = &fd_types[FDUNIT(minor(dev))];
+        fdt = fd_data[FDUNIT(minor(dev))].ft;
         dl->d_secpercyl = fdt->size / fdt->tracks;
         dl->d_type = DTYPE_FLOPPY;
 
