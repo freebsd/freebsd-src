@@ -15,12 +15,14 @@ SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 # machine-dependent net sources
 .include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
 
-MAN3+=	net/byteorder.3 net/gethostbyname.3 net/getnetent.3 net/getprotoent.3 \
-	net/getservent.3 net/inet.3 net/linkaddr.3 net/ns.3 net/rcmd.3 \
-	net/resolver.3
+MAN3+=	net/byteorder.3 net/ethers.3 net/gethostbyname.3 net/getnetent.3 \
+	net/getprotoent.3 net/getservent.3 net/inet.3 net/linkaddr.3 \
+	net/ns.3 net/rcmd.3 net/resolver.3
 
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
 	byteorder.3 ntohs.3
+MLINKS+=ethers.3 ether_line.3 ethers.3 ether_aton.3 ethers.3 ether_ntoa.3 \
+	ethers.3 ether_ntohost.3 ethers.3 ether_hostton.3
 MLINKS+=gethostbyname.3 endhostent.3 gethostbyname.3 gethostbyaddr.3 \
 	gethostbyname.3 sethostent.3 gethostbyname.3 gethostent.3 \
 	gethostbyname.3 herror.3
