@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.109 1995/02/01 21:47:57 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.110 1995/02/04 05:49:26 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -170,7 +170,7 @@ DO_NADA?=		echo -n
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
 XMKMF?=			xmkmf
-MD5?=			md5
+MD5?=			/sbin/md5
 MD5_FILE?=		${FILESDIR}/md5
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
