@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.10 1993/12/21 02:58:15 ache Exp $
+#	$Id: rc,v 1.11 1993/12/21 21:28:12 wollman Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -81,8 +81,15 @@ rm -f /var/spool/uucp/LCK.*
 rm -f /var/spool/uucp/STST/*
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
+# Make shared lib searching a little faster.  Leave /usr/lib first if you
+# add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
-	ldconfig /usr/X386/lib
+	_LDC=/usr/lib
+	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
+	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+	if [ -d /usr/gnu/lib ]; then _LDC="${_LDC} /usr/gnu/lib" ; fi
+	echo 'setting ldconfig path:' ${_LDC}
+	ldconfig ${_LDC}
 fi
 
 echo -n 'starting system logger'
