@@ -58,6 +58,8 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
+#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -66,7 +68,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <string.h>
 #include <unistd.h>
-#include <libutil.h>
 
 #include "pathnames.h"
 #include "extern.h"
@@ -106,10 +107,11 @@ char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 #ifdef KERBEROS
 int	 kerberos __P((char **, char *, char *, char *));
-void	 oldw __P((const char *, ...));
+void	 oldw __P((const char *, ...)) __printflike(1, 2);
 #endif
 int	 response __P((void));
 void	 rsource __P((char *, struct stat *));
+void	 run_err __P((const char *, ...)) __printflike(1, 2);
 void	 sink __P((int, char *[]));
 void	 source __P((int, char *[]));
 void	 tolocal __P((int, char *[]));
@@ -517,7 +519,7 @@ rsource(name, statp)
 {
 	DIR *dirp;
 	struct dirent *dp;
-	char *last, *vect[1], path[MAXPATHLEN];
+	char *last, *vect[1], path[PATH_MAX];
 
 	if (!(dirp = opendir(name))) {
 		run_err("%s: %s", name, strerror(errno));
@@ -550,7 +552,7 @@ rsource(name, statp)
 			continue;
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
 			continue;
-		if (strlen(name) + 1 + strlen(dp->d_name) >= MAXPATHLEN - 1) {
+		if (strlen(name) + 1 + strlen(dp->d_name) >= sizeof(path)) {
 			run_err("%s/%s: name too long", name, dp->d_name);
 			continue;
 		}

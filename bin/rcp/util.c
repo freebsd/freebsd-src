@@ -98,7 +98,7 @@ okname(cp0)
 		c = *cp;
 		if (c & 0200)
 			goto bad;
-		if (!isalpha(c) && !isdigit(c) && c != '_' && c != '-' &&  c != '.')
+		if (!isalpha(c) && !isdigit(c) && c != '_' && c != '-' && c != '.')
 			goto bad;
 	} while (*++cp);
 	return (1);
@@ -123,7 +123,7 @@ susystem(s, userid)
 
 	case 0:
 		(void)setuid(userid);
-		execl(_PATH_BSHELL, "sh", "-c", s, NULL);
+		execl(_PATH_BSHELL, "sh", "-c", s, (char *)NULL);
 		_exit(127);
 	}
 	istat = signal(SIGINT, SIG_IGN);
