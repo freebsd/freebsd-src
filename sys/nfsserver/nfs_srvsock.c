@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.13 1995/12/17 21:12:25 phk Exp $
+ * $Id: nfs_socket.c,v 1.14 1996/01/13 23:27:52 phk Exp $
  */
 
 /*
@@ -192,14 +192,16 @@ nfs_connect(nmp, rep)
 	struct sockaddr_in *sin;
 	struct mbuf *m;
 	u_short tport;
+	struct proc *p = &proc0; /* only used for socreate */
 
 	nmp->nm_so = (struct socket *)0;
 	saddr = mtod(nmp->nm_nam, struct sockaddr *);
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
-		nmp->nm_soproto);
+		nmp->nm_soproto, p);
 	if (error)
 		goto bad;
 	so = nmp->nm_so;
+	so->so_state &= ~SS_PRIV; /* don't need it */
 	nmp->nm_soflags = so->so_proto->pr_flags;
 
 	/*

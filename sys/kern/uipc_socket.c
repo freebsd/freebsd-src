@@ -61,13 +61,13 @@ SYSCTL_INT(_kern, KERN_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn, 0, "");
  */
 /*ARGSUSED*/
 int
-socreate(dom, aso, type, proto)
+socreate(dom, aso, type, proto, p)
 	int dom;
 	struct socket **aso;
 	register int type;
 	int proto;
+	struct proc *p;
 {
-	struct proc *p = curproc;		/* XXX */
 	register struct protosw *prp;
 	register struct socket *so;
 	register int error;

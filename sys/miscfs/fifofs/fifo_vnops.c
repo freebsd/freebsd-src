@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.14 1995/12/11 10:26:34 phk Exp $
+ * $Id: fifo_vnops.c,v 1.15 1995/12/14 09:53:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -157,14 +157,14 @@ fifo_open(ap)
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		MALLOC(fip, struct fifoinfo *, sizeof(*fip), M_VNODE, M_WAITOK);
 		vp->v_fifoinfo = fip;
-		error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0);
+		error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0, ap->a_p);
 		if (error) {
 			free(fip, M_VNODE);
 			vp->v_fifoinfo = NULL;
 			return (error);
 		}
 		fip->fi_readsock = rso;
-		error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0);
+		error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0, ap->a_p);
 		if (error) {
 			(void)soclose(rso);
 			free(fip, M_VNODE);

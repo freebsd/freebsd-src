@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.12 1996/01/03 21:42:21 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.13 1996/01/28 23:41:40 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -97,7 +97,7 @@ socket(p, uap, retval)
 	fp->f_flag = FREAD|FWRITE;
 	fp->f_type = DTYPE_SOCKET;
 	fp->f_ops = &socketops;
-	error = socreate(uap->domain, &so, uap->type, uap->protocol);
+	error = socreate(uap->domain, &so, uap->type, uap->protocol, p);
 	if (error) {
 		fdp->fd_ofiles[fd] = 0;
 		ffree(fp);
@@ -332,10 +332,10 @@ socketpair(p, uap, retval)
 	struct socket *so1, *so2;
 	int fd, error, sv[2];
 
-	error = socreate(uap->domain, &so1, uap->type, uap->protocol);
+	error = socreate(uap->domain, &so1, uap->type, uap->protocol, p);
 	if (error)
 		return (error);
-	error = socreate(uap->domain, &so2, uap->type, uap->protocol);
+	error = socreate(uap->domain, &so2, uap->type, uap->protocol, p);
 	if (error)
 		goto free1;
 	error = falloc(p, &fp1, &fd);
@@ -1033,10 +1033,10 @@ pipe(p, uap, retval)
 	struct socket *rso, *wso;
 	int fd, error;
 
-	error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0);
+	error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0, p);
 	if (error)
 		return (error);
-	error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0);
+	error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0, p);
 	if (error)
 		goto free1;
 	error = falloc(p, &rf, &fd);

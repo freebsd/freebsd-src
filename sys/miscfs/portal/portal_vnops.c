@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.9 1995/12/03 14:54:29 bde Exp $
+ * $Id: portal_vnops.c,v 1.10 1995/12/11 09:24:45 phk Exp $
  */
 
 /*
@@ -242,7 +242,7 @@ portal_open(ap)
 	/*
 	 * Create a new socket.
 	 */
-	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0);
+	error = socreate(AF_UNIX, &so, SOCK_STREAM, 0, ap->a_p);
 	if (error)
 		goto bad;
 

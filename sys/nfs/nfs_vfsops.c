@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.25 1995/12/22 15:57:38 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.26 1995/12/28 21:56:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -343,7 +343,7 @@ nfs_mountroot()
 	 * Do enough of ifconfig(8) so that the critical net interface can
 	 * talk to the server.
 	 */
-	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0);
+	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0, p);
 	if (error)
 		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
