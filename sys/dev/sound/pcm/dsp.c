@@ -672,9 +672,9 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 
     	case SOUND_PCM_WRITE_CHANNELS:
 /*	case SNDCTL_DSP_CHANNELS: ( == SOUND_PCM_WRITE_CHANNELS) */
-		if (*arg_i == 1 || *arg_i == 2) {
+		if (*arg_i != 0) {
 			tmp = 0;
-			*arg_i = (*arg_i == 2)? AFMT_STEREO : 0;
+			*arg_i = (*arg_i != 1)? AFMT_STEREO : 0;
 	  		if (wrch) {
 				CHN_LOCK(wrch);
 				ret = chn_setformat(wrch, (wrch->format & ~AFMT_STEREO) | *arg_i);
@@ -689,8 +689,9 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 				CHN_UNLOCK(rdch);
 			}
 			*arg_i = tmp;
-		} else
-			*arg_i = 0;
+		} else {
+			*arg_i = ((wrch? wrch->format : rdch->format) & AFMT_STEREO)? 2 : 1;
+		}
 		break;
 
     	case SOUND_PCM_READ_CHANNELS:
