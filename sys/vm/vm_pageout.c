@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.122 1998/06/02 05:39:13 dyson Exp $
+ * $Id: vm_pageout.c,v 1.123 1998/07/10 17:58:35 alex Exp $
  */
 
 /*
@@ -367,7 +367,7 @@ vm_pageout_flush(mc, count, flags)
 	}
 
 	object = mc[0]->object;
-	object->paging_in_progress += count;
+	vm_object_pip_add(object, count);
 
 	vm_pager_put_pages(object, mc, count,
 	    (flags | ((object == kernel_object) ? OBJPC_SYNC : 0)),
