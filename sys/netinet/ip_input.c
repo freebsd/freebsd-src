@@ -44,6 +44,7 @@
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -249,7 +250,9 @@ ip_init()
 
 	maxnipq = nmbclusters/4;
 
+#ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
+#endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", MTX_DEF);
 

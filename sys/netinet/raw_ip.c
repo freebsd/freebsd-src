@@ -36,6 +36,7 @@
 
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -220,7 +221,11 @@ rip_output(m, so, dst)
 			return EINVAL;
 		}
 		if (ip->ip_id == 0)
+#ifdef RANDOM_IP_ID
+			ip->ip_id = ip_randomid();
+#else
 			ip->ip_id = htons(ip_id++);
+#endif
 		/* XXX prevent ip_output from overwriting header fields */
 		flags |= IP_RAWOUTPUT;
 		ipstat.ips_rawout++;
