@@ -106,11 +106,11 @@
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   104   slock  saver  slock  saver  susp   nop    susp   nop     O
-  105	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  106	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
-  107	fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  105   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
   109   nop    nop    nop    nop    nop    nop    nop    nop     O
   110   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -234,9 +234,9 @@
   228   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   229   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   230   fkey60 paste  fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  231	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  231   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
   232   slock  saver  slock  saver  susp   nop    susp   nop     O
-  233	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  234	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
-  235	fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  233   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  234   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  235   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   236   nop    nop    nop    nop    nop    nop    nop    nop     O
