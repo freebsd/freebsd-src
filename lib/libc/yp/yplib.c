@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.10 1995/05/30 05:42:15 rgrimes Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.12 1995/09/02 04:16:21 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -423,10 +423,6 @@ int *outvallen;
 	    indomain == NULL || !strlen(indomain))
 		return YPERR_BADARGS;
 
-again:
-	if( _yp_dobind(indomain, &ysd) != 0)
-		return YPERR_DOMAIN;
-
 #ifdef YPMATCHCACHE
 	if( !strcmp(_yp_domain, indomain) && ypmatch_find(inmap, inkey,
 	    inkeylen, &yprv.valdat.dptr, &yprv.valdat.dsize)) {
@@ -437,6 +433,10 @@ again:
 		return 0;
 	}
 #endif
+
+again:
+	if( _yp_dobind(indomain, &ysd) != 0)
+		return YPERR_DOMAIN;
 
 	tv.tv_sec = _yplib_timeout;
 	tv.tv_usec = 0;
