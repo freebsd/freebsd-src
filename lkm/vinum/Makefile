@@ -1,4 +1,4 @@
-#       $Id: Makefile.vinum,v 1.1 1999/01/22 04:43:27 grog Exp $ 
+#       $Id: Makefile,v 1.3.2.1 1999/01/25 04:18:11 grog Exp $ 
 
 .PATH:  ${.CURDIR}/../../sys/dev/vinum
 KMOD=   vinum_mod
@@ -11,6 +11,12 @@ SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
 PSEUDO_LKM=
 NOMAN=
 
+# option VINUMDEBUG enables a number of functions.  If you enable
+# it, you must also enable VINUMDEBUG in sbin/vinum.  It influences
+# the size of a number of data structures, and ioctls will fail
+# if there is a mismatch.
+# CFLAGS += -I${.CURDIR} -I. -DVINUMDEBUG 
+CFLAGS += -I${.CURDIR} -I.
 CLEANFILES+=    vnode_if.h vnode_if.c opt_vinum.h
 
 all:
@@ -26,4 +32,3 @@ maketabs: maketabs.c
 
 .include <bsd.kmod.mk>
 
-CFLAGS += -I${.CURDIR}/../../sys/dev/vinum -I${SOURCE} -I. -g -DVINUMDEBUG -Wall -Wno-unused -Wno-parentheses
