@@ -302,7 +302,7 @@ execute(buf)
 		if ((!(*q)) && ((*p == ' ') || (*p == '\t') || (!(*p)))) {
 			if (!cmd->func) 
 				return(1);
-			while (*p == ' ')
+			while (*p == ' ' || *p == '\t')
 				p++;
 			(cmd->func)(p);
 			return(0);
