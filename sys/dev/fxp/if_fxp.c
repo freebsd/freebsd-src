@@ -498,11 +498,11 @@ fxp_attach(device_t dev)
 		goto fail;
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "int_delay", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
-	    &sc->tunable_int_delay, 0, &sysctl_hw_fxp_int_delay, "I",
+	    &sc->tunable_int_delay, 0, sysctl_hw_fxp_int_delay, "I",
 	    "FXP driver receive interrupt microcode bundling delay");
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "bundle_max", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
-	    &sc->tunable_bundle_max, 0, &sysctl_hw_fxp_bundle_max, "I",
+	    &sc->tunable_bundle_max, 0, sysctl_hw_fxp_bundle_max, "I",
 	    "FXP driver receive interrupt microcode bundle size limit");
 
 	/*
