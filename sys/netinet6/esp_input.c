@@ -898,7 +898,7 @@ esp6_ctlinput(cmd, sa, d)
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	int off;
-	struct sockaddr_in6 sa6_src, sa6_dst;
+	struct sockaddr_in6 *sa6_src, *sa6_dst;
 
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
@@ -963,10 +963,12 @@ esp6_ctlinput(cmd, sa, d)
 			 * Check to see if we have a valid SA corresponding to
 			 * the address in the ICMP message payload.
 			 */
+			sa6_src = ip6cp->ip6c_src;
+			sa6_dst = (struct sockaddr_in6 *)sa;
 			sav = key_allocsa(AF_INET6,
-					  (caddr_t)&sa6_src.sin6_addr,
-					  (caddr_t)&sa6_dst, IPPROTO_ESP,
-					  espp->esp_spi);
+					  (caddr_t)&sa6_src->sin6_addr,
+					  (caddr_t)&sa6_dst->sin6_addr,
+					  IPPROTO_ESP, espp->esp_spi);
 			if (sav) {
 				if (sav->state == SADB_SASTATE_MATURE ||
 				    sav->state == SADB_SASTATE_DYING)
