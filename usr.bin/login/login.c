@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.39 1998/10/09 06:36:22 markm Exp $";
+	"$Id: login.c,v 1.40 1998/11/11 01:53:12 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -78,22 +78,7 @@ static const char rcsid[] =
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
-#else /* Undef AUTH as well */
-#undef LOGIN_CAP_AUTH
 #endif
-
-/*
- * If LOGIN_CAP_AUTH is activated:
- * kerberose & skey logins are runtime selected via login
- * login_getstyle() and authentication types for login classes
- * The actual login itself is handled via /usr/libexec/login_<style>
- * Valid styles are determined by the auth-type=style,style entries
- * in the login class.
- */
-#ifdef LOGIN_CAP_AUTH
-#undef KERBEROS
-#undef SKEY
-#endif /* LOGIN_CAP_AUTH */
 
 #ifdef	SKEY
 #include <skey.h>
@@ -167,12 +152,6 @@ main(argc, argv)
 	char *shell = NULL;
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
-#ifdef LOGIN_CAP_AUTH
-	char *style, *authtype;
-	char *auth_method = NULL;
-	char *instance = NULL;
-	int authok;
-#endif /* LOGIN_CAP_AUTH */
 #endif /* LOGIN_CAP */
 #ifdef SKEY
 	int permit_passwd = 0;
@@ -266,9 +245,6 @@ main(argc, argv)
 	else
 		tty = ttyn;
 
-#ifdef LOGIN_CAP_AUTH
-	authtype = hostname ? "rlogin" : "login";
-#endif
 #ifdef LOGIN_CAP
 	/*
 	 * Get "login-retries" & "login-backoff" from default class
@@ -290,25 +266,6 @@ main(argc, argv)
 		}
 		rootlogin = 0;
 		rootok = rootterm(tty); /* Default (auth may change) */
-#ifdef LOGIN_CAP_AUTH
-		authok = 0;
-		if (auth_method = strchr(username, ':')) {
-			*auth_method = '\0';
-			auth_method++;
-			if (*auth_method == '\0')
-				auth_method = NULL;
-		}
-		/*
-		 * We need to do this regardless of whether
-		 * kerberos is available.
-		 */
-		if ((instance = strchr(username, '.')) != NULL) {
-			if (strncmp(instance, ".root", 5) == 0)
-				rootlogin = 1;
-			*instance++ = '\0';
-		} else
-			instance = "";
-#else /* !LOGIN_CAP_AUTH */
 #ifdef KERBEROS
 		if ((instance = strchr(username, '.')) != NULL) {
 			if (strncmp(instance, ".root", 5) == 0)
@@ -317,7 +274,6 @@ main(argc, argv)
 		} else
 			instance = "";
 #endif /* KERBEROS */
-#endif /* LOGIN_CAP_AUTH */
 
 		if (strlen(username) > UT_NAMESIZE)
 			username[UT_NAMESIZE] = '\0';
@@ -380,77 +336,6 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
-#ifdef LOGIN_CAP_AUTH
-		/*
-		 * This hands off authorization to an authorization program,
-		 * depending on the styles available for the "auth-login",
-		 * auth-rlogin (or default) authorization styles.
-		 * We do this regardless of whether an account exists so that
-		 * the remote user cannot tell a "real" from an invented
-		 * account name. If we don't have an account we just fall
-		 * back to the first method for the "default" class.
-		 */
-		if (!(style = login_getstyle(lc, auth_method, authtype))) {
-
-			/*
-			 * No available authorization method
-			 */
-			rval = 1;
-			(void)printf("No auth method available for %s.\n",
-				     authtype);
-		} else {
-
-			/*
-			 * Put back the kerberos instance, if any was given.
-			 * Don't worry about the non-kerberos case here, since
-			 * if kerberos is not available or not selected and an
-			 * instance is given at the login prompt, su or rlogin -l,
-			 * then anything else should fail as well.
-			 */
-			if (*instance)
-				*(instance - 1) = '.';
-
-			rval = authenticate(username,
-					    lc ? lc->lc_class : "default",
-					    style, authtype);
-			/* Junk it again */
-			if (*instance)
-				*(instance - 1) = '\0';
-		}
-
-		if (!rval) {
-			char * approvep;
-		    
-			/*
-			 * If authentication succeeds, run any approval
-			 * program, if applicable for this class.
-			 */
-			approvep = login_getcapstr(lc, "approve", NULL, NULL);
-			rval = 1; /* Assume bad login again */
-
-			if (approvep==NULL ||
-			    auth_script(approvep, approvep, username,
-					lc->lc_class, 0) == 0) {
-				int     r;
-
-				r = auth_scan(AUTH_OKAY);
-				/*
-				 * See what the authorize program says
-				 */
-				if (r != 0) {
-					rval = 0;
-
-					if (!rootok && (r & AUTH_ROOTOKAY))
-						rootok = 1; /* root approved */
-					else
-						rootlogin = 0;
-
-					if (!authok && (r & AUTH_SECURE))
-						authok = 1; /* secure */
-				}
-			}
-		}
-#else /* !LOGIN_CAP_AUTH */
 #ifdef SKEY
 		permit_passwd = skeyaccess(username, tty,
 					   hostname ? full_hostname : NULL,
@@ -494,21 +379,16 @@ main(argc, argv)
 
 		/* clear entered password */
 		memset(p, 0, strlen(p));
-#endif /* LOGIN_CAP_AUTH */
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
-#ifdef LOGIN_CAP_AUTH
-		if (rval)
-			auth_rmfiles();
-#endif
 	ttycheck:
 		/*
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
 		 */
 		if (pwd && !rval) {
-#if defined(KERBEROS) || defined(LOGIN_CAP_AUTH)
+#if defined(KERBEROS)
 			if (authok == 0 && rootlogin && !rootok)
 #else
 			if (rootlogin && !rootok)
@@ -755,9 +635,6 @@ main(argc, argv)
 #ifdef KERBEROS
 	if (krbtkfile_env)
 		(void)setenv("KRBTKFILE", krbtkfile_env, 1);
-#endif
-#if LOGIN_CAP_AUTH
-	auth_env();
 #endif
 
 #ifdef LOGIN_CAP
