@@ -45,6 +45,8 @@
 #define	MAC_BIBA_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
 #define	MAC_BIBA_EXTATTR_NAME		"mac_biba"
 
+#define	MAC_BIBA_LABEL_NAME		"biba"
+
 #define	MAC_BIBA_FLAG_SINGLE	0x00000001	/* mb_single initialized */
 #define	MAC_BIBA_FLAG_RANGE	0x00000002	/* mb_range* initialized */
 #define	MAC_BIBA_FLAGS_BOTH	(MAC_BIBA_FLAG_SINGLE | MAC_BIBA_FLAG_RANGE)
