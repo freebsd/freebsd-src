@@ -136,8 +136,7 @@ adv_pci_attach(device_t dev)
 	struct		adv_softc *adv;
 	u_int32_t	id;
 	u_int32_t	command;
-	int		error;
-	int		rid = 0;
+	int		error, rid;
 	void		*ih;
 	struct resource	*iores, *irqres;
 
@@ -166,18 +165,23 @@ adv_pci_attach(device_t dev)
 		pci_write_config(dev, PCIR_LATTIMER, /*value*/0, /*bytes*/1);
 	}
 
+	rid = PCI_BASEADR0;
 	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 				   RF_ACTIVE);
 	if (iores == NULL)
 		return ENXIO;
 
 	if (adv_find_signature(rman_get_bustag(iores),
-			       rman_get_bushandle(iores)) == 0)
+			       rman_get_bushandle(iores)) == 0) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;
+	}
 
 	adv = adv_alloc(dev, rman_get_bustag(iores), rman_get_bushandle(iores));
-	if (adv == NULL)
+	if (adv == NULL) {
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;
+	}
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -196,6 +200,7 @@ adv_pci_attach(device_t dev)
 		printf("%s: Could not allocate DMA tag - error %d\n",
 		       adv_name(adv), error);
 		adv_free(adv);
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;
 	}
 
@@ -212,6 +217,7 @@ adv_pci_attach(device_t dev)
 				       &overrun_dmat) != 0) {
 			bus_dma_tag_destroy(adv->parent_dmat);
 			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 			return ENXIO;
        		}
 		if (bus_dmamem_alloc(overrun_dmat,
@@ -221,6 +227,7 @@ adv_pci_attach(device_t dev)
 			bus_dma_tag_destroy(overrun_dmat);
 			bus_dma_tag_destroy(adv->parent_dmat);
 			adv_free(adv);
+			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 			return ENXIO;
 		}
 		/* And permanently map it in */  
@@ -258,6 +265,7 @@ adv_pci_attach(device_t dev)
 
 	if (adv_init(adv) != 0) {
 		adv_free(adv);
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;
 	}
 
@@ -281,11 +289,13 @@ adv_pci_attach(device_t dev)
 		adv->fix_asyn_xfer = ~0;
 	}
 
+	rid = 0;
 	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 				    RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
 	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, adv_intr, adv, &ih)) {
 		adv_free(adv);
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 		return ENXIO;
 	}
 
