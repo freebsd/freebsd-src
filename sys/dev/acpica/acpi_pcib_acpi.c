@@ -70,6 +70,10 @@ static void		acpi_pcib_write_config(device_t dev, int bus, int slot, int func, i
 					       u_int32_t data, int bytes);
 static int		acpi_pcib_acpi_route_interrupt(device_t pcib,
     device_t dev, int pin);
+static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
+  			    device_t child, int type, int *rid,
+			    u_long start, u_long end, u_long count,
+			    u_int flags);
 
 static device_method_t acpi_pcib_acpi_methods[] = {
     /* Device interface */
@@ -83,7 +87,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
-    DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+    DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource, 	bus_generic_deactivate_resource),
@@ -288,4 +292,21 @@ acpi_pcib_acpi_route_interrupt(device_t pcib, device_t dev, int pin)
     /* find the bridge softc */
     sc = device_get_softc(pcib);
     return (acpi_pcib_route_interrupt(pcib, dev, pin, &sc->ap_prt));
+}
+
+struct resource *
+acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
+  u_long start, u_long end, u_long count, u_int flags)
+{
+	/*
+	 * If no memory preference is given, use upper 256MB slot most
+	 * bioses use for their memory window.  Typically other bridges
+	 * before us get in the way to assert their preferences on memory.
+	 * Hardcoding like this sucks, so a more MD/MI way needs to be
+	 * found to do it.
+	 */
+	if (type == SYS_RES_MEMORY && start == 0UL && end == ~0UL)
+		start = 0xf0000000;
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
 }
