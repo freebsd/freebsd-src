@@ -1406,8 +1406,49 @@ ENTRY(do_syscall, 0)
 	mov	out1=r16		// arguments
 	add	out2=(8*8),r16		// trapframe pointer
 	br.call.sptk.many rp=syscall	// do the work
+} { .mmi
+3:	rsm	psr.i			// we know that psr.i == 1
+	add	r14=PC_CURTHREAD,r13	// &curthread
+	nop.i	0
+	;;
+} { .mmi
+	ld8	r14=[r14]		// curthread
+	;;
+	add	r14=TD_KSE,r14		// &curthread->td_kse
+	nop.i	0
+	;;
+} { .mmi
+	ld8	r14=[r14]		// curkse
+	;;
+	add	r14=KE_FLAGS,r14	// &curkse->ke_flags
+	nop.i	0
+	;;
+} { .mmi
+	ld4	r14=[r14]		// curkse->ke_flags
+	;;
+	nop.m	0
+	tbit.nz	p6,p7=r14,10		// KEF_ASTPENDING
+	;;
+} { .mib
+	nop.m	0
+(p7)	tbit.nz.or.andcm p6,p7=r14,11	// KEF_NEEDRESCHED
+(p7)	br.cond.dptk 2f
+	;;
+} { .mmi
+	ssm	psr.i			// restore interrupts
+	;;
+	srlz.d
+	mov	out0=loc0		// trapframe argument to ast()
+} { .mib
+	nop.m	0
+	nop.i	0
+	br.call.sptk.many rp=ast
+} { .mib
+	nop.m	0
+	nop.i	0
+	br	3b
 } { .mii
-	ld8	r14=[loc0]		// check tf_flags
+2:	ld8	r14=[loc0]		// check tf_flags
 	dep	r15=0,loc0,61,3		// physical address of trapframe
 	;;
 	tbit.z p6,p0=r14,0		// check FRAME_SYSCALL bit
