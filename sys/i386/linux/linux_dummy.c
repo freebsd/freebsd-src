@@ -70,3 +70,25 @@ DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(madvise);
+DUMMY(fadvise64);
+
+#define DUMMY_XATTR(s)						\
+int								\
+linux_ ## s ## xattr(						\
+    struct thread *td, struct linux_ ## s ## xattr_args *arg)	\
+{								\
+								\
+	return (ENOATTR);					\
+}
+DUMMY_XATTR(set);
+DUMMY_XATTR(lset);
+DUMMY_XATTR(fset);
+DUMMY_XATTR(get);
+DUMMY_XATTR(lget);
+DUMMY_XATTR(fget);
+DUMMY_XATTR(list);
+DUMMY_XATTR(llist);
+DUMMY_XATTR(flist);
+DUMMY_XATTR(remove);
+DUMMY_XATTR(lremove);
+DUMMY_XATTR(fremove);

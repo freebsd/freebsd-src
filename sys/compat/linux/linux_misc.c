@@ -97,6 +97,7 @@ static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 struct l_sysinfo {
 	l_long		uptime;		/* Seconds since boot */
 	l_ulong		loads[3];	/* 1, 5, and 15 minute load averages */
+#define LINUX_SYSINFO_LOADS_SCALE 65536
 	l_ulong		totalram;	/* Total usable main memory size */
 	l_ulong		freeram;	/* Available memory size */
 	l_ulong		sharedram;	/* Amount of shared memory */
@@ -104,7 +105,10 @@ struct l_sysinfo {
 	l_ulong		totalswap;	/* Total swap space size */
 	l_ulong		freeswap;	/* swap space still available */
 	l_ushort	procs;		/* Number of current processes */
-	char		_f[22];		/* Pads structure to 64 bytes */
+	l_ulong		totalbig;
+	l_ulong		freebig;
+	l_uint		mem_unit;
+	char		_f[6];		/* Pads structure to 64 bytes */
 };
 #ifndef __alpha__
 int
@@ -134,7 +138,8 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 
 	/* Use the information from the mib to get our load averages */
 	for (i = 0; i < 3; i++)
-		sysinfo.loads[i] = averunnable.ldavg[i];
+		sysinfo.loads[i] = averunnable.ldavg[i] *
+		    LINUX_SYSINFO_LOADS_SCALE / averunnable.fscale;
 
 	sysinfo.totalram = physmem * PAGE_SIZE;
 	sysinfo.freeram = sysinfo.totalram - cnt.v_wire_count * PAGE_SIZE;
@@ -152,7 +157,12 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.totalswap= i * PAGE_SIZE;
 	sysinfo.freeswap = (i - j) * PAGE_SIZE;
 
-	sysinfo.procs = 20; /* Hack */
+	sysinfo.procs = nprocs;
+
+	/* The following are only present in newer Linux kernels. */
+	sysinfo.totalbig = 0;
+	sysinfo.freebig = 0;
+	sysinfo.mem_unit = 1;
 
 	return copyout(&sysinfo, args->info, sizeof(sysinfo));
 }
