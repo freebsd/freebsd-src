@@ -416,9 +416,8 @@ udf_read(struct vop_read_args *a)
 		offset = uio->uio_offset;
 		size = uio->uio_resid;
 		error = udf_readatoffset(node, &size, offset, &bp, &data);
-		if (error)
-			return (error);
-		error = uiomove(data, size, uio);
+		if (error == 0)
+			error = uiomove(data, size, uio);
 		if (bp != NULL)
 			brelse(bp);
 		if (error)
@@ -579,6 +578,8 @@ udf_getfid(struct udf_dirstream *ds)
 		    &ds->bp, &ds->data);
 		if (error) {
 			ds->error = error;
+			if (ds->bp != NULL)
+				brelse(ds->bp);
 			return (NULL);
 		}
 	}
@@ -1051,8 +1052,9 @@ udf_reclaim(struct vop_reclaim_args *a)
  * offset passed in.  Only read in at most 'size' bytes, and then set 'size'
  * to the number of bytes pointed to.  If 'size' is zero, try to read in a
  * whole extent.
- * XXX 'size' is limited to the logical block size for now due to problems
- * with udf_read()
+ *
+ * Note that *bp may be assigned error or not.
+ *
  */
 static int
 udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, uint8_t **data)
@@ -1066,6 +1068,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 
 	udfmp = node->udfmp;
 
+	*bp = NULL;
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
 	if (error == UDF_INVALID_BMAP) {
 		/*
@@ -1075,7 +1078,6 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 		fentry = node->fentry;
 		*data = &fentry->data[fentry->l_ea];
 		*size = fentry->l_ad;
-		*bp = NULL;
 		return (0);
 	} else if (error != 0) {
 		return (error);
@@ -1088,6 +1090,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 
 	if ((error = udf_readlblks(udfmp, sector, *size, bp))) {
 		printf("warning: udf_readlblks returned error %d\n", error);
+		/* note: *bp may be non-NULL */
 		return (error);
 	}
 
