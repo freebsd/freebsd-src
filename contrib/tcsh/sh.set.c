@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.set.c,v 3.36 2000/01/14 22:57:28 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.set.c,v 3.37 2000/07/15 19:58:51 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.set.c,v 3.36 2000/01/14 22:57:28 christos Exp $")
+RCSID("$Id: sh.set.c,v 3.37 2000/07/15 19:58:51 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -178,6 +178,12 @@ update_vars(vp)
 	update_dspmbyte_vars();
     }
 #endif
+#ifdef NLS_CATALOGS
+    else if (eq(vp, STRcatalog)) {
+	(void) catclose(catd);
+	nlsinit();
+    }
+#endif /* NLS_CATALOGS */
 }
 
 
@@ -745,6 +751,10 @@ unset(v, c)
 #if defined(KANJI) && defined(SHORT_STRINGS) && defined(DSPMBYTE)
     update_dspmbyte_vars();
 #endif
+#ifdef NLS_CATALOGS
+    (void) catclose(catd);
+    nlsinit();
+#endif /* NLS_CATALOGS */
 }
 
 void

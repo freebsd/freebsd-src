@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.term.c,v 1.24 1999/08/12 14:19:23 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.term.c: Low level terminal interface
  */
@@ -35,9 +35,9 @@
  * SUCH DAMAGE.
  */
 #include "sh.h"
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 
-RCSID("$Id: ed.term.c,v 1.24 1999/08/12 14:19:23 christos Exp $")
+RCSID("$Id: ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "ed.term.h"
@@ -1140,11 +1140,11 @@ tty_printchar(s)
     xputchar('\n');
 }
 #endif /* DEBUG_TTY */
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 int
 tty_cooked_mode(td)
     void *td;
 {
     return do_nt_check_cooked_mode();
 }
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */

@@ -1,5 +1,5 @@
 #
-# $Id: complete.tcsh,v 1.33 2000/06/10 18:54:34 kim Exp $
+# $Id: complete.tcsh,v 1.36 2000/11/19 20:50:42 christos Exp $
 # example file using the new completion code
 #
 
@@ -123,7 +123,7 @@ if ($?complete) then
 		 	c/-l/f:*.a/ \
 		 	n/*/f:*.{c,C,cc,o,a,s,i}/
     complete g++ 	n/*/f:*.{C,cc,o,s,i}/
-    complete CC 	n/*/f:*.{C,cc,o,s,i}/
+    complete CC 	n/*/f:*.{C,cc,cpp,o,s,i}/
     complete rm 	c/--/"(directory force interactive verbose \
 			recursive help version)"/ c/-/"(d f i v r R -)"/ \
 			n/*/f:^*.{c,cc,C,h,in}/	# Protect precious files
@@ -155,7 +155,6 @@ if ($?complete) then
     complete -co*	p/0/"(compress)"/	# make compress completion
 						# not ambiguous
     complete zcat	n/*/f:*.Z/
-    complete nm		n/*/f:^*.{h,C,c,cc}/
 
     complete finger	c/*@/\$hosts/ n/*/u/@ 
     complete ping	p/1/\$hosts/
@@ -416,9 +415,216 @@ if ($?complete) then
 	'C%[^-]*%`eval Compl_module`%'
     endif
 
-    # these from Tom Warzeka <waz@quahog.npt.nuwc.navy.mil>
+    # from George Cox
+    complete acroread	'p/*/f:*.pdf/'
+    complete apachectl  'c/*/(start stop restart fullstatus status graceful \
+			configtest help)/'
+    complete appletviewer	'p/*/f:*.class/'
+    complete bison	'c/--/(debug defines file-prefix= fixed-output-files \
+			help name-prefix= no-lines no-parser output= \
+			token-table verbose version yacc)/' \
+			'c/-/(b d h k l n o p t v y V)/' 'n/-b/f/' 'n/-o/f/' \
+			'n/-p/f/'
+    complete bunzip2	'p/*/f:*.bz2/' 
+    complete bzip2	'n/-9/f:^*.bz2/' 'n/-d/f:*.bz2/'
+    complete c++	'p/*/f:*.{c++,cxx,c,cc,C,cpp}/'
+    complete co		'p@1@`\ls -1a RCS | sed -e "s/\(.*\),v/\1/"`@'
+    complete crontab	'n/-u/u/'
+    complete camcontrol	'p/1/(cmd debug defects devlist eject inquiry \
+			modepage negotiate periphlist rescan reset start \
+			stop tags tur)/'
+    complete ctlinnd	'p/1/(addhist allow begin cancel changegroup \
+			checkfile drop feedinfo flush flushlogs go hangup \
+			logmode mode name newgroup param pause readers refile \
+			reject reload renumber reserve rmgroup send shutdown \
+			kill throttle trace xabort xexec)/'
+    complete cvs	'c/--/(help help-commands help-synonyms)/' \
+			'p/1/(add admin annotate checkout commit diff \
+			edit editors export history import init log login \
+			logout rdiff release remove rtag status tag unedit \
+			update watch watchers)/' 'n/-a/(edit unedit commit \
+			all none)/' 'n/watch/(on off add remove)/'
+    complete cxx	'p/*/f:*.{c++,cxx,c,cc,C,cpp}/'
+    complete detex	'p/*/f:*.tex/'
+    complete edquota    'n/*/u/'
+    complete exec	'p/1/c/'
+    complete ghostview	'p/*/f:*.ps/'
+    complete gv		'p/*/f:*.ps/'
+    complete ifconfig	'p@1@`ifconfig -l`@' 'n/*/(range phase link netmask \
+			mtu vlandev vlan metric mediaopt down delete \
+			broadcast arp debug)/'
+    complete imake	'c/-I/d/'
+    complete ipfw 	'p/1/(flush add delete list show zero)/' \
+			'n/add/(allow permit accept pass deny drop reject \
+			reset count skipto num divert port tee port)/'
+    complete javac	'p/*/f:*.java/'
+    complete ldif2ldbm	'n/-i/f:*.ldif/'
+    complete libtool	'c/--mode=/(compile execute finish install link \
+			uninstall)/' 'c/--/(config debug dry-run features \
+			finish help quiet silent version mode=)/'
+    complete libtoolize	'c/--/(automake copy debug dry-run force help ltdl \
+			ltdl-tar version)/'
+    complete links	'c/-/(assume-codepage async-dns download-dir \
+			format-cache-size ftp-proxy help http-proxy \
+			max-connections max-connections-to-host \
+			memory-cache-size receive-timeout retries \
+			unrestartable-receive-timeout version)/'
+    complete natd	c/-/'(alias_address config deny_incoming dynamic \
+			inport interface log log_denied log_facility \
+			outport outport port pptpalias proxy_only \
+			proxy_rule redirect_address redirect_port \
+			reverse same_ports unregistered_only use_sockets \
+			verbose)'/ 'n@-interface@`ifconfig -l`@'
+    complete netstat	'n@-I@`ifconfig -l`@'
+    complete objdump	'c/--/(adjust-vma= all-headers architecture= \
+			archive-headers debugging demangle disassemble \
+			disassemble-all disassemble-zeroes dynamic-reloc \
+			dynamic-syms endian= file-headers full-contents \
+			headers help info line-numbers no-show-raw-insn \
+			prefix-addresses private-headers reloc section-headers \
+			section=source stabs start-address= stop-address= \
+			syms target= version wide)/' \
+			'c/-/(a h i f C d D p r R t T x s S l w)/'
+    complete xmodmap	'c/-/(display help grammar verbose quiet n e pm pk \
+			pke pp)/'
+    complete lynx	'c/-/(accept_all_cookies anonymous assume_charset= \
+			assume_local_charset= assume_unrec_charset= auth= base \
+			book buried_news cache= case cfg= child cookie_file= \
+			cookies core crawl debug_partial display= dump editor= \
+			emacskeys enable_scrollback error_file= force_html \
+			force_secure forms_options from ftp get_data head help \
+			hiddenlinks= historical homepage= image_links index= \
+			ismap link= localhost mime_header minimal \
+			newschunksize= newsmaxchunk= nobrowse nocc nocolor \
+			nofilereferer nolist nolog nopause noprint noredir \
+			noreferer nostatus number_links partial partial_thres \
+			pauth= popup post_data preparsed print pseudo_inlines \
+			raw realm reload restrictions= resubmit_posts rlogin \
+			selective show_cursor soft_dquotes source stack_dump \
+			startfile_ok tagsoup telnet term= tlog trace traversal \
+			underscore useragent= validate verbose version vikeys \
+			width=)/' 'c/(http|ftp)/$URLS/'
+    complete gmake	'c/{--directory=,--include-dir=}/d/' \
+			'c/{--assume-new,--assume-old,--makefile,--new-file,--what-if,--file}/f/' \
+			'c/--/(assume-new= assume-old= debug directory= \
+			dry-run environment-overrides file= help \
+			ignore-errors include-dir= jobs[=N] just-print \
+			keep-going load-average[=N] makefile= max-load[=N] \
+			new-file= no-builtin-rules no-keep-going \
+			no-print-directory old-file= print-data-base \
+			print-directory question quiet recon silent stop \
+			touch version warn-undefined-variables what-if=)/' \
+			'n@*@`cat -s GNUMakefile Makefile makefile |& sed -n -e "/No such file/d" -e "s/^\([A-Za-z0-9-]*\):.*/\1/p"`@' \
+			'n/=/f/' 'n/-f/f/'
+    complete mixer	p/1/'(vol bass treble synth pcm speaker mic cd mix \
+			pcm2 rec igain ogain line1 line2 line3)'/ \
+			p@2@'`mixer $:-1 | awk \{\ print\ \$7\ \}`'@
+
+    complete mpg123	'c/--/(2to1 4to1 8bit aggressive au audiodevice \
+    			auth buffer cdr check doublespeed equalizer frames \
+			gain halfspeed headphones left lineout list mix mono \
+			proxy quiet random rate reopen resync right scale \
+			shuffle single0 single1 skip speaker stdout stereo \
+			test verbose wav)/'
+    complete mysqladmin	'n/*/(create drop extended-status flush-hosts \
+			flush-logs flush-status flush-tables flush-privileges \
+			kill password ping processlist reload refresh \
+			shutdown status variables version)/'
+    complete mutt	c@-f=@F:${HOME}/Mail/@ \
+			n/-a/f/ \
+			n/-F/f/ n/-H/f/ \
+			n/-s/x:'<subject line>'/ \
+			n/-e/x:'<command>'/ \
+			n@-b@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@ \
+			n@-c@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@ \
+			n@*@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@
+    complete ndc	'n/*/(status dumpdb reload stats trace notrace \
+			querylog start stop restart )/'
+    complete nm		'c/--/(debug-syms defined-only demangle dynamic \
+			extern-only format= help line-numbers no-demangle \
+			no-sort numeric-sort portability print-armap \
+			print-file-name reverse-sort size-sort undefined-only \
+			version)/' 'p/*/f:^*.{h,C,c,cc}/'
+    complete nmap	'n@-e@`ifconfig -l`@' 'p/*/$hostnames/'
+    complete perldoc 	'n@*@`\ls -1 /usr/libdata/perl/5.*/pod | sed s%\\.pod.\*\$%%`@'
+    complete postfix    'n/*/(start stop reload abort flush check)/'
+    complete postmap	'n/1/(hash: regexp:)' 'c/hash:/f/' 'c/regexp:/f/'
+    complete rcsdiff	'p@1@`\ls -1a RCS | sed -e "s/\(.*\),v/\1/"`@'
+    complete X		'c/-/(I a ac allowMouseOpenFail allowNonLocalModInDev \
+			allowNonLocalXvidtune ar1 ar2 audit auth bestRefresh \
+			bgamma bpp broadcast bs c cc class co core deferglyphs \
+			disableModInDev disableVidMode displayID dpi dpms f fc \
+			flipPixels fn fp gamma ggamma help indirect kb keeptty \
+			ld lf logo ls nolisten string noloadxkb nolock nopn \
+			once p pn port probeonly query quiet r rgamma s \
+			showconfig sp su t terminate to tst v verbose version \
+			weight wm x xkbdb xkbmap)/'
+    complete users      'c/--/(help version)/' 'p/1/x:"<accounting_file>"/'
+    complete vidcontrol	'p/1/(132x25 132x30 132x43 132x50 132x60 40x25 80x25 \
+			80x30 80x43 80x50 80x60 EGA_80x25 EGA_80x43 \
+			VESA_132x25 VESA_132x30 VESA_132x43 VESA_132x50 \
+			VESA_132x60 VESA_800x600 VGA_320x200 VGA_40x25 \
+			VGA_80x25 VGA_80x30 VGA_80x50 VGA_80x60)/'
+    complete vim	'n/*/f:^*.[oa]/'
+    complete where	'n/*/c/'
+    complete which	'n/*/c/'
+    complete wmsetbg	'c/-/(display D S a b c d e m p s t u w)/' \
+			'c/--/(back-color center colors dither help match \
+			maxscale parse scale smooth tile update-domain \
+			update-wmaker version workspace)/'
+    complete xdb	'p/1/c/'
+    complete xdvi	'c/-/(allowshell debug display expert gamma hushchars \
+			hushchecksums hushspecials install interpreter keep \
+			margins nogrey noinstall nomakepk noscan paper safer \
+			shrinkbuttonn thorough topmargin underlink version)/' \
+			'n/-paper/(a4 a4r a5 a5r)/' 'p/*/f:*.dvi/'
+    complete xlock	'c/-/(allowaccess allowroot debug description \
+			echokeys enablesaver grabmouse grabserver hide inroot \
+			install inwindow mono mousemotion nolock remote \
+			resetsaver sound timeelapsed use3d usefirst verbose \
+			wireframe background batchcount bg bitmap both3d \
+			count cycles delay delta3d display dpmsoff \
+			dpmsstandby dpmssuspend endCmd erasedelay erasemode \
+			erasetime fg font foreground geometry help \
+			icongeometry info invalid left3d lockdelay logoutCmd \
+			mailCmd mailIcon message messagefile messagefont \
+			messagesfile mode name ncolors nice nomailIcon none3d \
+			parent password planfont program resources right3d \
+			saturation size startCmd timeout username validate \
+			version visual)/' 'n/-mode/(ant atlantis ball bat \
+			blot bouboule bounce braid bubble bubble3d bug cage \
+			cartoon clock coral crystal daisy dclock decay deco \
+			demon dilemma discrete drift eyes fadeplot flag flame \
+			flow forest galaxy gears goop grav helix hop hyper \
+			ico ifs image invert julia kaleid kumppa lament laser \
+			life life1d life3d lightning lisa lissie loop lyapunov \
+			mandelbrot marquee matrix maze moebius morph3d \
+			mountain munch nose pacman penrose petal pipes puzzle \
+			pyro qix roll rotor rubik shape sierpinski slip sphere \
+			spiral spline sproingies stairs star starfish strange \
+			superquadrics swarm swirl tetris thornbird triangle \
+			tube turtle vines voters wator wire world worm xjack \
+			blank bomb random)/' 
+    complete xfig	'c/-/(display)/' 'p/*/f:*.fig/'
+    complete wget 	c/--/"(accept= append-output= background cache= \
+			continue convert-links cut-dirs= debug \
+			delete-after directory-prefix= domains= \
+			dont-remove-listing dot-style= exclude-directories= \
+			exclude-domains= execute= follow-ftp \
+			force-directories force-html glob= header= help \
+			http-passwd= http-user= ignore-length \
+			include-directories= input-file= level= mirror \
+			no-clobber no-directories no-host-directories \
+			no-host-lookup no-parent non-verbose \
+			output-document= output-file= passive-ftp \
+			proxy-passwd= proxy-user= proxy= quiet quota= \
+			recursive reject= relative retr-symlinks save-headers \
+			server-response span-hosts spider timeout= \
+			timestamping tries= user-agent= verbose version wait=)"/
+
+    # these from Tom Warzeka <tom@waz.cc>
     # you may need to set the following variables for your host
-    set _elispdir = /usr/local/share/emacs/20.2/lisp # GNU Emacs lisp directory
+    set _elispdir = /usr/local/share/emacs/20.7/lisp # GNU Emacs lisp directory
     set _maildir = /var/spool/mail  # Post Office: /var/spool/mail or /usr/mail
     set _ypdir  = /var/yp	# directory where NIS (YP) maps are kept
     set _domain = "`domainname`"
@@ -466,6 +672,9 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			n/-k/x:'<kernel>'/ N/-k/x:'<core_file>'/ n/*/x:'<PID>'/
     complete compress	c/-/"(c f v b)"/ n/-b/x:'<max_bits>'/ n/*/f:^*.Z/
     complete uncompress	c/-/"(c f v)"/                        n/*/f:*.Z/
+
+    complete uuencode	p/1/f/ p/2/x:'<decode_pathname>'/ n/*/n/
+    complete uudecode	c/-/"(f)"/ n/-f/f:*.{uu,UU}/ p/1/f:*.{uu,UU}/ n/*/n/
 
     complete xhost	c/[+-]/\$hosts/ n/*/\$hosts/
 
@@ -556,7 +765,7 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
     complete chown	c/--/"(changes dereference no-dereference silent \
     			quiet reference recursive verbose help version)"/ \
 			c/-/"(c f h R v -)"/ C@[./\$~]@f@ c/*[.:]/g/ \
-			n/-/u/. p/1/u/. n/*/f/
+			n/-/u/: p/1/u/: n/*/f/
     complete chgrp	c/--/"(changes no-dereference silent quiet reference \
     			recursive verbose help version)"/ \
 			c/-/"(c f h R v -)"/ n/-/g/ p/1/g/ n/*/f/
@@ -633,8 +842,9 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			block-compress help version)"/ \
 			c/-/"(b B C f F g G h i k K l L m M N o O p P R s S \
 			T v V w W X z Z 0 1 2 3 4 5 6 7 -)"/ \
+			C@[/dev]@f@ \
 			n/-c*f/x:'<new_tar_file, device_file, or "-">'/ \
-			n/{-[Adrtux]*f,--file}/f:*.tar/ \
+			n/{-[Adrtux]*f,--file}/f:*.{tar,taz,tgz}/ \
 			N/{-x*f,--file}/'`tar -tf $:-1`'/ \
 			n/--use-compress-program/c/ \
 			n/{-b,--block-size}/x:'<block_size>'/ \
@@ -646,21 +856,21 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			n/-[0-7]/"(l m h)"/
 
     # SVR4 filesystems
-    #complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
-    #			n/-o/x:'<FSType_options>'/ \
-    #			n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    #			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
-    #complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
-    #			n/*/'`mount | cut -d " " -f 1`'/
-    #complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
-    #complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    #			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
+    complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
+    			n/-o/x:'<FSType_options>'/ \
+    			n@-F@'`\ls -1 /usr/lib/fs`'@ \
+    			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
+    complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
+    			n/*/'`mount | cut -d " " -f 1`'/
+    complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
+    complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
+    			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
     # BSD 4.3 filesystems
-    complete  mount	c/-/"(a r t v)"/ n/-t/"(4.2 nfs)"/ \
-			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	" | cut -f 2`'@
-    complete umount	c/-/"(a h t v)"/ n/-t/"(4.2 nfs)"/ \
-			n/-h/'`df | cut -s -d ":" -f 1 | sort -u`'/ \
-			n/*/'`mount | cut -d " " -f 3`'/
+    #complete  mount	c/-/"(a r t v)"/ n/-t/"(4.2 nfs)"/ \
+    #			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	" | cut -f 2`'@
+    #complete umount	c/-/"(a h t v)"/ n/-t/"(4.2 nfs)"/ \
+    #			n/-h/'`df | cut -s -d ":" -f 1 | sort -u`'/ \
+    #			n/*/'`mount | cut -d " " -f 3`'/
     # BSD 4.2 filesystems
     #complete  mount	c/-/"(a r t v)"/ n/-t/"(ufs nfs)"/ \
     #			n@*@'`cut -d ":" -f 2 /etc/fstab`'@
@@ -696,6 +906,7 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 	complete lprm   'c/-P/$printers/'
 	complete lpquota        'p/1/(-Qprlogger)/' 'c/-P/$printers/'
 	complete dvips  'c/-P/$printers/' 'n/-o/f:*.{ps,PS}/' 'n/*/f:*.dvi/'
+	complete dvilj	'p/*/f:*.dvi/'
     endif
 
     unset noglob

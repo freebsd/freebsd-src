@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.file.c,v 3.15 1997/10/02 16:36:29 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.file.c,v 3.16 2000/06/11 02:14:14 kim Exp $ */
 /*
  * sh.file.c: File completion for csh. This file is not used in tcsh.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.file.c,v 3.15 1997/10/02 16:36:29 christos Exp $")
+RCSID("$Id: sh.file.c,v 3.16 2000/06/11 02:14:14 kim Exp $")
 
 #ifdef FILEC
 
@@ -456,14 +456,14 @@ static void
 beep()
 {
     if (adrof(STRnobeep) == 0)
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	(void) write(SHOUT, "\007", 1);
-#else /*_OSD_POSIX*/
+#else
     {
 	unsigned char beep_ch = CTL_ESC('\007');
 	(void) write(SHOUT, &beep_ch, 1);
     }
-#endif /*_OSD_POSIX*/
+#endif
 }
 
 /*

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.sig.c,v 3.24 1998/04/08 17:57:36 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.sig.c,v 3.25 2000/07/04 19:46:24 christos Exp $ */
 /*
  * tc.sig.c: Signal routine emulations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.sig.c,v 3.24 1998/04/08 17:57:36 christos Exp $")
+RCSID("$Id: tc.sig.c,v 3.25 2000/07/04 19:46:24 christos Exp $")
 
 #include "tc.wait.h"
 
@@ -161,7 +161,7 @@ ourwait(w)
     pid_t pid;
 
 #  ifdef JOBDEBUG
-    xprintf(CGETS(25, 1, "our wait %d\n", stk_ptr));
+    xprintf(CGETS(25, 1, "our wait %d\n"), stk_ptr);
     flush();
 #  endif /* JOBDEBUG */
 

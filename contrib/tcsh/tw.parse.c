@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.parse.c,v 3.87 2000/01/14 22:57:30 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.parse.c,v 3.89 2000/11/11 23:03:40 christos Exp $ */
 /*
  * tw.parse.c: Everyone has taken a shot in this futile effort to
  *	       lexically analyze a csh line... Well we cannot good
@@ -39,15 +39,15 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.parse.c,v 3.87 2000/01/14 22:57:30 christos Exp $")
+RCSID("$Id: tw.parse.c,v 3.89 2000/11/11 23:03:40 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
 #include "tc.h"
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 #include "nt.const.h"
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #define EVEN(x) (((x) & 1) != 1)
 
 #define DOT_NONE	0	/* Don't display dot files		*/
@@ -109,7 +109,9 @@ extern int lbuffed;		/* from sh.print.c */
 static	void	 extract_dir_and_name	__P((Char *, Char *, Char *));
 static	int	 insert_meta		__P((Char *, Char *, Char *, bool));
 static	Char	*tilde			__P((Char *, Char *));
+#ifndef __MVS__
 static  int      expand_dir		__P((Char *, Char *, DIR  **, COMMAND));
+#endif
 static	bool	 nostat			__P((Char *));
 static	Char	 filetype		__P((Char *, Char *));
 static	int	 t_glob			__P((Char ***, int));
@@ -120,10 +122,12 @@ static	int	 is_suffix		__P((Char *, Char *));
 static	int	 recognize		__P((Char *, Char *, int, int, int));
 static	int	 ignored		__P((Char *));
 static	int	 isadirectory		__P((Char *, Char *));
+#ifndef __MVS__
 static  int      tw_collect_items	__P((COMMAND, int, Char *, Char *, 
 					     Char *, Char *, int));
 static  int      tw_collect		__P((COMMAND, int, Char *, Char *, 
 					     Char **, Char *, int, DIR *));
+#endif
 static	Char 	 tw_suffix		__P((int, Char *, Char *, Char *, 
 					     Char *));
 static	void 	 tw_fixword		__P((int, Char *, Char *, Char *, int));
@@ -820,21 +824,21 @@ recognize(exp_name, item, name_length, numitems, enhanced)
     Char MCH1, MCH2;
     register Char *x, *ent;
     register int len = 0;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     struct varent *vp;
     int igncase;
     igncase = (vp = adrof(STRcomplete)) != NULL &&
 	Strcmp(*(vp->vec), STRigncase) == 0;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     if (numitems == 1) {	/* 1st match */
 	copyn(exp_name, item, MAXNAMLEN);
 	return (0);
     }
     if (!enhanced
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	&& !igncase
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     ) {
 	for (x = exp_name, ent = item; *x && (*x & TRIM) == (*ent & TRIM); x++, ent++)
 	    len++;
@@ -988,10 +992,10 @@ tw_collect_items(command, looking, exp_dir, exp_name, target, pat, flags)
 	case RECOGNIZE_ALL:
 	case RECOGNIZE_SCROLL:
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
  	    igncase = (vp = adrof(STRcomplete)) != NULL && 
 		Strcmp(*(vp->vec), STRigncase) == 0;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    enhanced = (vp = adrof(STRcomplete)) != NULL && !Strcmp(*(vp->vec),STRenhance);
 	    if (enhanced || igncase) {
 	        if (!is_prefixmatch(target, item, igncase)) 
@@ -1714,10 +1718,10 @@ extract_dir_and_name(path, dir, name)
     register Char *p;
 
     p = Strrchr(path, '/');
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     if (p == NULL)
 	p = Strrchr(path, ':');
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     if (p == NULL) {
 	copyn(name, path, MAXNAMLEN);
 	dir[0] = '\0';

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.refresh.c,v 3.26 2000/06/10 20:14:57 kim Exp $ */
+/* $Header: /src/pub/tcsh/ed.refresh.c,v 3.28 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.refresh.c: Lower level screen refreshing functions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.refresh.c,v 3.26 2000/06/10 20:14:57 kim Exp $")
+RCSID("$Id: ed.refresh.c,v 3.28 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_UPDATE */
@@ -151,7 +151,7 @@ Draw(c)				/* draw c, expand tabs, ctl chars */
 	}
     }
     else if (Iscntrl(ch)) {
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	Vdraw('^');
 	if (ch == CTL_ESC('\177')) {
 	    Vdraw('?');
@@ -159,7 +159,7 @@ Draw(c)				/* draw c, expand tabs, ctl chars */
 	else {
 	    /* uncontrolify it; works only for iso8859-1 like sets */
 	    Vdraw((c | 0100));
-#else /*_OSD_POSIX*/
+#else
 	if (ch == CTL_ESC('\177')) {
 	    Vdraw('^');
 	    Vdraw('?');
@@ -178,7 +178,7 @@ Draw(c)				/* draw c, expand tabs, ctl chars */
 		Vdraw(((c >> 3) & 7) + '0');
 		Vdraw((c & 7) + '0');
 	    }
-#endif /*_OSD_POSIX*/
+#endif
 	}
     }
 #ifdef KANJI
@@ -352,9 +352,9 @@ Refresh()
     for (cur_line = 0; cur_line <= new_vcv; cur_line++) {
 	/* NOTE THAT update_line MAY CHANGE Display[cur_line] */
 	update_line(Display[cur_line], Vdisplay[cur_line], cur_line);
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	flush();
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 	/*
 	 * Copy the new line to be the current one, and pad out with spaces
@@ -383,9 +383,9 @@ Refresh()
     dprintf("\r\nCursorH = %d, CursorV = %d, cur_h = %d, cur_v = %d\r\n",
 	    CursorH, CursorV, cur_h, cur_v);
 #endif /* DEBUG_REFRESH */
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     flush();
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     MoveToLine(cur_v);		/* go to where the cursor is */
     MoveToChar(cur_h);
     SetAttributes(0);		/* Clear all attributes */
@@ -919,14 +919,14 @@ update_line(old, new, cur_line)
 #ifdef DEBUG_REFRESH
 	    dprintf("cleareol %d\n", (oe - old) - (ne - new));
 #endif  /* DEBUG_UPDATE */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	    ClearEOL((oe - old) - (ne - new));
 #else
 	    /*
 	     * The calculation above does not work too well on NT
 	     */
 	    ClearEOL(TermH - CursorH);
-#endif /*WINNT*/
+#endif /*WINNT_NATIVE*/
 	    /*
 	     * Done
 	     */
@@ -982,14 +982,14 @@ update_line(old, new, cur_line)
 #ifdef DEBUG_REFRESH
 	    dprintf("cleareol %d\n", olen - (ne - new));
 #endif /* DEBUG_UPDATE */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	    ClearEOL(olen - (ne - new));
 #else
 	    /*
 	     * The calculation above does not work too well on NT
 	     */
 	    ClearEOL(TermH - CursorH);
-#endif /*WINNT*/
+#endif /*WINNT_NATIVE*/
 	}
     }
 
@@ -1243,11 +1243,11 @@ RefPlusOne()
     }				/* else (only do at end of line, no TAB) */
 
     if (Iscntrl(c)) {		/* if control char, do caret */
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	mc = (c == '\177') ? '?' : (c | 0100);
 	PutPlusOne('^');
 	PutPlusOne(mc);
-#else /*_OSD_POSIX*/
+#else
 	if (_toascii[c] == '\177' || Isupper(_toebcdic[_toascii[c]|0100])
 		|| strchr("@[\\]^_", _toebcdic[_toascii[c]|0100]) != NULL)
 	{
@@ -1262,7 +1262,7 @@ RefPlusOne()
 	    PutPlusOne(((c >> 3) & 7) + '0');
 	    PutPlusOne((c & 7) + '0');
 	}
-#endif /*_OSD_POSIX*/
+#endif
     }
     else if (Isprint(c)) {	/* normal char */
 	PutPlusOne(c);

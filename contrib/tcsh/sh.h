@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.h,v 3.88 2000/06/10 22:06:27 kim Exp $ */
+/* $Header: /src/pub/tcsh/sh.h,v 3.93 2000/11/19 20:50:43 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -42,10 +42,10 @@
 #ifndef EXTERN
 # define EXTERN extern
 #else /* !EXTERN */
-# ifdef WINNT
+# ifdef WINNT_NATIVE
 #  define IZERO = 0
 #  define IZERO_STRUCT = {0}
-# endif /* WINNT */
+# endif /* WINNT_NATIVE */
 #endif /* EXTERN */
 
 #ifndef IZERO
@@ -55,11 +55,11 @@
 # define IZERO_STRUCT
 # endif /* IZERO_STRUCT */
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # define INIT_ZERO
 # define INIT_ZERO_STRUCT
 # define force_read read
-#endif /*!WINNT */
+#endif /*!WINNT_NATIVE */
 /*
  * Sanity
  */
@@ -107,12 +107,12 @@ typedef int sigret_t;
 /*
  * Return true if the path is absolute
  */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # define ABSOLUTEP(p)	(*(p) == '/')
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 # define ABSOLUTEP(p)	((p)[0] == '/' || \
 			 (Isalpha((p)[0]) && (p)[1] == ':' && (p)[2] == '/'))
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 /*
  * Fundamental definitions which may vary from system to system.
@@ -182,11 +182,11 @@ typedef int sigret_t;
  * Path separator in environment variables
  */
 #ifndef PATHSEP
-# if defined(__EMX__) || defined(WINNT)
+# if defined(__EMX__) || defined(WINNT_NATIVE)
 #  define PATHSEP ';'
 # else /* unix */
 #  define PATHSEP ':'
-# endif /* __EMX__ || WINNT */
+# endif /* __EMX__ || WINNT_NATIVE */
 #endif /* !PATHSEP */
 
 #ifdef __HP_CXD_SPP
@@ -207,23 +207,23 @@ typedef int sigret_t;
 #ifdef _SEQUENT_
 # include <sys/procstats.h>
 #endif /* _SEQUENT_ */
-#if (defined(POSIX) || SYSVREL > 0) && !WINNT
+#if (defined(POSIX) || SYSVREL > 0) && !defined(WINNT_NATIVE)
 # include <sys/times.h>
-#endif /* (POSIX || SYSVREL > 0) && !WINNT */
+#endif /* (POSIX || SYSVREL > 0) && !WINNT_NATIVE */
 
 #ifdef NLS
 # include <locale.h>
 #endif /* NLS */
 
 
-#if !defined(_MINIX) && !defined(_VMS_POSIX) && !defined(WINNT)
+#if !defined(_MINIX) && !defined(_VMS_POSIX) && !defined(WINNT_NATIVE) && !defined(__MVS__)
 # include <sys/param.h>
-#endif /* !_MINIX && !_VMS_POSIX && !WINNT */
+#endif /* !_MINIX && !_VMS_POSIX && !WINNT_NATIVE && !__MVS__ */
 #include <sys/stat.h>
 
 #if defined(BSDTIMES) || defined(BSDLIMIT)
 # include <sys/time.h>
-# if SYSVREL>3 && !defined(SCO) && !defined(sgi) && !defined(SNI) && !defined(sun) && !(defined(__alpha) && defined(__osf__)) && !defined(_SX)
+# if SYSVREL>3 && !defined(SCO) && !defined(sgi) && !defined(SNI) && !defined(sun) && !(defined(__alpha) && defined(__osf__)) && !defined(_SX) && !defined(__MVS__)
 #  include "/usr/ucbinclude/sys/resource.h"
 # else
 #  ifdef convex
@@ -236,7 +236,7 @@ typedef int sigret_t;
 # endif /* SYSVREL>3 */
 #endif /* BSDTIMES */
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifndef POSIX
 #  ifdef TERMIO
 #   include <termio.h>
@@ -256,13 +256,13 @@ typedef int sigret_t;
 #   define CSWTCH _POSIX_VDISABLE	/* So job control works */
 #  endif /* SYSVREL > 3 */
 # endif /* POSIX */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 #ifdef sonyrisc
 # include <sys/ttold.h>
 #endif /* sonyrisc */
 
-#if defined(POSIX) && !defined(WINNT)
+#if defined(POSIX) && !defined(WINNT_NATIVE)
 /*
  * We should be using setpgid and setpgid
  * by now, but in some systems we use the
@@ -295,7 +295,7 @@ typedef int sigret_t;
 #  undef realloc
 # endif /* linux || sgi */
 # include <limits.h>
-#endif /* POSIX && !WINNT */
+#endif /* POSIX && !WINNT_NATIVE */
 
 #if SYSVREL > 0 || defined(_IBMR2) || defined(_MINIX)
 # if !defined(pyr) && !defined(stellar)
@@ -310,7 +310,7 @@ typedef int sigret_t;
  * versions of DECOSF1 will get TIOCGWINSZ. This might break older versions...
  */
 #if !((defined(SUNOS4) || defined(_MINIX) /* || defined(DECOSF1) */) && defined(TERMIO))
-# if !defined(COHERENT) && !defined(_VMS_POSIX) && !defined(WINNT)
+# if !defined(COHERENT) && !defined(_VMS_POSIX) && !defined(WINNT_NATIVE)
 #  include <sys/ioctl.h>
 # endif
 #endif 
@@ -320,13 +320,13 @@ typedef int sigret_t;
 #define CSWTCH _POSIX_VDISABLE
 #endif
 
-#if (!defined(FIOCLEX) && defined(SUNOS4)) || ((SYSVREL == 4) && !defined(_SEQUENT_) && !defined(SCO) && !defined(_SX))
+#if (!defined(FIOCLEX) && defined(SUNOS4)) || ((SYSVREL == 4) && !defined(_SEQUENT_) && !defined(SCO) && !defined(_SX)) && !defined(__MVS__)
 # include <sys/filio.h>
 #endif /* (!FIOCLEX && SUNOS4) || (SYSVREL == 4 && !_SEQUENT_ && !SCO && !_SX ) */
 
-#if !defined(_MINIX) && !defined(COHERENT) && !defined(supermax) && !defined(WINNT) && !defined(IRIS4D)
+#if !defined(_MINIX) && !defined(COHERENT) && !defined(supermax) && !defined(WINNT_NATIVE) && !defined(IRIS4D)
 # include <sys/file.h>
-#endif	/* !_MINIX && !COHERENT && !supermax && !WINNT && !defined(IRIS4D) */
+#endif	/* !_MINIX && !COHERENT && !supermax && !WINNT_NATIVE && !defined(IRIS4D) */
 
 #if !defined(O_RDONLY) || !defined(O_NDELAY)
 # include <fcntl.h>
@@ -359,10 +359,10 @@ typedef int sigret_t;
 #if defined(hpux) || defined(sgi) || defined(OREO) || defined(COHERENT)
 # include <stdio.h>	/* So the fgetpwent() prototypes work */
 #endif /* hpux || sgi || OREO || COHERENT */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 #include <pwd.h>
 #include <grp.h>
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #ifdef PW_SHADOW
 # include <shadow.h>
 #endif /* PW_SHADOW */
@@ -393,6 +393,9 @@ typedef int sigret_t;
 # include <netinet/in.h>
 # include <arpa/inet.h>
 # include <sys/socket.h>
+# if defined(_SS_SIZE) || defined(_SS_MAXSIZE)
+#  define INET6
+# endif
 # include <sys/uio.h>	/* For struct iovec */
 #endif /* REMOTEHOST */
 
@@ -440,9 +443,18 @@ typedef void pret_t;
 
 typedef int bool;
 
+/*
+ * ASCII vs. EBCDIC
+ */
+#if 'Z' - 'A' == 25
+# ifndef IS_ASCII
+#  define IS_ASCII
+# endif
+#endif
+
 #include "sh.types.h"
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifndef POSIX
 extern pid_t getpgrp __P((int));
 # else /* POSIX */
@@ -453,7 +465,7 @@ extern pid_t getpgrp __P((void));
 #  endif	/* BSD || SUNOS4 || IRISD || DGUX */
 # endif /* POSIX */
 extern pid_t setpgrp __P((pid_t, pid_t));
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 
 typedef sigret_t (*signalfun_t) __P((int));
 
@@ -591,7 +603,10 @@ extern Char   *ffile;		/* Name of shell file for $0 */
 extern bool    dolzero;		/* if $?0 should return true... */
 
 extern char *seterr;		/* Error message from scanner/parser */
+#ifndef BSD4_4
 extern int errno;		/* Error from C library routines */
+#endif
+extern int exitset;
 EXTERN Char   *shtemp IZERO;	/* Temp name for << shell files in /tmp */
 
 #ifdef BSDTIMES
@@ -768,10 +783,10 @@ EXTERN struct Bin {
  */
 struct Ain {
     int type;
-#define I_SEEK -1		/* Invalid seek */
-#define A_SEEK	0		/* Alias seek */
-#define F_SEEK	1		/* File seek */
-#define E_SEEK	2		/* Eval seek */
+#define TCSH_I_SEEK 	 0		/* Invalid seek */
+#define TCSH_A_SEEK	 1		/* Alias seek */
+#define TCSH_F_SEEK	 2		/* File seek */
+#define TCSH_E_SEEK	 3		/* Eval seek */
     union {
 	off_t _f_seek;
 	Char* _c_seek;
@@ -936,10 +951,10 @@ extern struct biltins {
     int     minargs, maxargs;
 } bfunc[];
 extern int nbfunc;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 extern struct biltins  nt_bfunc[];
 extern int nt_nbfunc;
-#endif /* WINNT*/
+#endif /* WINNT_NATIVE*/
 
 extern struct srch {
     char   *s_name;
@@ -1177,7 +1192,7 @@ extern int errno, sys_nerr;
 # endif /* !linux */
 #endif
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifdef NLS_CATALOGS
 #  ifdef linux
 #   include <locale.h>
@@ -1214,10 +1229,10 @@ EXTERN nl_catd catd;
 #  define CGETS(b, c, d)	d
 #  define CSAVS(b, c, d)	d
 # endif 
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 # define CGETS(b, c, d)	nt_cgets( b, c, d)
 # define CSAVS(b, c, d)	strsave(CGETS(b, c, d))
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 /*
  * Since on some machines characters are unsigned, and the signed

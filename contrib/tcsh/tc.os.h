@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.os.h,v 3.82 1999/02/06 15:19:03 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.os.h,v 3.86 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.os.h: Shell os dependent defines
  */
@@ -37,9 +37,9 @@
 #ifndef _h_tc_os
 #define _h_tc_os
 
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 #define NEEDstrerror		/* Too hard to find which systems have it */
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 
 #ifdef notdef 
@@ -50,6 +50,10 @@
  */
 # define BACKPIPE
 #endif /* notdef */
+
+#ifdef __CYGWIN__
+#  undef NEEDstrerror
+#endif
 
 #ifdef   _VMS_POSIX
 # ifndef  NOFILE 
@@ -82,9 +86,9 @@
 # define NOFILE 256
 #endif /* NOFILE */
 
-#if defined(linux) || defined(__NetBSD__) || defined(__FreeBSD__) || SYSVREL >= 4 
+#if defined(linux) || defined(__NetBSD__) || defined(__FreeBSD__) || SYSVREL >= 4  || defined(_MINIX_VMD)
 # undef NEEDstrerror
-#endif /* linux || __NetBSD__ || __FreeBSD__ || SYSVREL >= 4 */
+#endif /* linux || __NetBSD__ || __FreeBSD__ || SYSVREL >= 4 || _MINIX_VMD */
 
 #if !defined(pyr) && !defined(sinix)
 /* Pyramid's cpp complains about the next line */
@@ -233,7 +237,7 @@ struct ucred {
  *
  * From: scott@craycos.com (Scott Bolte)
  */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifdef F_SETFD
 #  define close_on_exec(fd, v) fcntl((fd), F_SETFD, v)
 # else /* !F_SETFD */
@@ -243,9 +247,9 @@ struct ucred {
 #   define close_on_exec(fd, v)	/* Nothing */
 #  endif /* FIOCLEX */
 # endif /* F_SETFD */
-#else /* WINNT */
+#else /* WINNT_NATIVE */
 # define close_on_exec(fd, v) nt_close_on_exec((fd),(v))
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 
 /*
  * Stat
@@ -502,7 +506,7 @@ struct ucred {
 #endif /* POSIX */
 
 
-#if !defined(SOLARIS2) && !defined(sinix) && !defined(BSD4_4) && !defined(WINNT)
+#if !defined(SOLARIS2) && !defined(sinix) && !defined(BSD4_4) && !defined(WINNT_NATIVE)
 # if (SYSVREL > 0 && !defined(OREO) && !defined(sgi) && !defined(linux) && !defined(sinix) && !defined(_AIX) &&!defined(_UWIN)) || defined(NeXT)
 #  define NEEDgetcwd
 # endif /* (SYSVREL > 0 && !OREO && !sgi && !linux && !sinix && !_AIX && !_UWIN) || NeXT */
@@ -527,7 +531,8 @@ typedef struct timeval timeval_t;
 # define free tcsh_free
 #endif /* NeXT */
 
-#if !defined(BSD4_4) && !defined(__linux__) && !defined(__hpux) && !defined(sgi)
+#if !defined(BSD4_4) && !defined(__linux__) && !defined(__hpux) && \
+    !defined(sgi) && !defined(_AIX) && !defined(__CYGWIN__)
 #ifndef NEEDgethostname
 extern int gethostname __P((char *, int));
 #endif /* NEEDgethostname */
@@ -553,7 +558,7 @@ extern caddr_t sbrk __P((int));
 extern int qsort();
 #  endif /* SYSVREL == 0 && !__lucid */
 # else /* !SUNOS4 */
-#  ifndef WINNT
+#  ifndef WINNT_NATIVE
 #   ifndef hpux
 #    if __GNUC__ != 2
 extern int abort();
@@ -565,7 +570,7 @@ extern int qsort();
 extern void abort();
 extern void qsort();
 #   endif /* hpux */
-#  endif /* !WINNT */
+#  endif /* !WINNT_NATIVE */
 # endif	/* SUNOS4 */
 #ifndef _CX_UX
 extern void perror();
@@ -722,12 +727,12 @@ extern void bcopy	__P((const void *, void *, size_t));
 # ifdef REMOTEHOST
 /* Irix6 defines getpeername(int, void *, int *) which conflicts with
    the definition below. */
-#  if !defined(__sgi) && !defined(_OSD_POSIX)
+#  if !defined(__sgi) && !defined(_OSD_POSIX) && !defined(__MVS__)
 #   ifndef _SOCKLEN_T	/* Avoid Solaris 2.7 bogosity. */
 struct sockaddr;
 extern int getpeername __P((int, struct sockaddr *, int *));
 #   endif /* _SOCKLEN_T */
-#  endif /* !__sgi && !_OSD_POSIX */
+#  endif /* !__sgi && !_OSD_POSIX && !__MVS__ */
 # endif /* REMOTEHOST */
 # ifndef BSDTIMES
 extern int getrlimit __P((int, struct rlimit *));

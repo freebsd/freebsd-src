@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.proc.c,v 3.70 1998/10/25 15:10:22 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -36,16 +36,16 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.proc.c,v 3.70 1998/10/25 15:10:22 christos Exp $")
+RCSID("$Id: sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
 #include "tc.wait.h"
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 #undef POSIX
 #define POSIX
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #ifdef aiws
 # undef HZ
 # define HZ 16
@@ -211,7 +211,7 @@ loop:
     xprintf("Waiting...\n");
     flush();
 #endif /* JOBDEBUG */
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 # ifdef BSDJOBS
 #  ifdef BSDTIMES
 #   ifdef convex
@@ -288,13 +288,13 @@ loop:
     (void) sigset(SIGCHLD, pchild);
 #  endif /* !BSDSIGS */
 # endif /* !BSDJOBS */
-#else /* WINNT */
+#else /* WINNT_NATIVE */
     {
 	extern int insource;
 	pid = waitpid(-1, &w,
 	    (setintr && (intty || insource) ? WNOHANG | WUNTRACED : WNOHANG));
     }
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 #ifdef JOBDEBUG
     xprintf("parent %d pid %d, retval %x termsig %x retcode %x\n",
@@ -320,13 +320,13 @@ loop:
     for (pp = proclist.p_next; pp != NULL; pp = pp->p_next)
 	if (pid == pp->p_procid)
 	    goto found;
-#if !defined(BSDJOBS) && !defined(WINNT)
+#if !defined(BSDJOBS) && !defined(WINNT_NATIVE)
     /* this should never have happened */
     stderror(ERR_SYNC, pid);
     xexit(0);
-#else /* BSDJOBS || WINNT */
+#else /* BSDJOBS || WINNT_NATIVE */
     goto loop;
-#endif /* !BSDJOBS && !WINNT */
+#endif /* !BSDJOBS && !WINNT_NATIVE */
 found:
     pp->p_flags &= ~(PRUNNING | PSTOPPED | PREPORTED);
     if (WIFSTOPPED(w)) {
@@ -1656,11 +1656,11 @@ pkill(v, signum)
 	else if (!(Isdigit(*cp) || *cp == '-'))
 	    stderror(ERR_NAME | ERR_JOBARGS);
 	else {
-#ifndef WINNT
+#ifndef WINNT_NATIVE
 	    pid = atoi(short2str(cp));
 #else
 		pid = strtoul(short2str(cp),NULL,0);
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    if (kill(pid, signum) < 0) {
 		xprintf("%d: %s\n", pid, strerror(errno));
 		err1++;
