@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.14 1995/01/12 11:42:58 sos Exp $
+ *	$Id: console.h,v 1.15 1995/01/20 08:35:18 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -160,7 +160,7 @@ struct keymap {
 };
 
 #define MAXFK		16
-#define NUM_FKEYS	60
+#define NUM_FKEYS       65
 
 struct fkeytab {
 	u_char	str[MAXFK];
