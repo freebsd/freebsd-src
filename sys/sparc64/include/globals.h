@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,19 +30,20 @@
 #define	_MACHINE_GLOBALS_H_
 
 #ifdef _KERNEL
-
 #include <machine/globaldata.h>
 
-register struct globaldata *globaldata __asm("%g7");
+register struct globaldata *globalp __asm__("%g7");
 
-#define	PCPU_GET(name)		(globaldata->gd_ ## name)
-#define	PCPU_PTR(name)		(&globaldata->gd_ ## name)
-#define	PCPU_SET(name, value)	(globaldata->gd_ ## name = (value))
+#define	GLOBALP	globalp
 
-#define	curproc		PCPU_GET(curproc)
+#define	PCPU_GET(member)	(GLOBALP->gd_ ## member)
+#define	PCPU_PTR(member)	(&GLOBALP->gd_ ## member)
+#define	PCPU_SET(member,value)	(GLOBALP->gd_ ## member = (value))
+
 #define	CURPROC		PCPU_GET(curproc)
-#define	CURTHD		PCPU_GET(curproc)
+#define	CURTHD		PCPU_GET(curproc)	/* temporary */
+#define	curproc		PCPU_GET(curproc)
 
-#endif /* _KERNEL */
+#endif	/* _KERNEL */
 
-#endif /* !_MACHINE_GLOBALS_H_ */
+#endif	/* !_MACHINE_GLOBALS_H_ */

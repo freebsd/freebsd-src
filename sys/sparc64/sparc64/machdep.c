@@ -246,7 +246,7 @@ again:
 	bufinit();
 	vm_pager_bufferinit();
 
-	globaldata_register(globaldata);
+	globaldata_register(globalp);
 
 	tick_start(clock, tick_hardclock);
 }
@@ -322,13 +322,13 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	/*
 	 * Initialize the per-cpu pointer so we can set curproc.
 	 */
-	globaldata = &__globaldata;
+	globalp = &__globaldata;
 
 	/*
 	 * Setup pointers to interrupt data tables.
 	 */
-	globaldata->gd_iq = &intr_queues[0];	/* XXX cpuno */
-	globaldata->gd_ivt = intr_vectors;
+	globalp->gd_iq = &intr_queues[0];	/* XXX cpuno */
+	globalp->gd_ivt = intr_vectors;
 
 	/*
 	 * Put the globaldata pointer in the alternate and interrupt %g7 also.
