@@ -89,6 +89,7 @@
 
 #include <sys/user.h>
 #include <machine/cpu.h>
+#include <machine/cpuconf.h>
 #include <machine/fpu.h>
 
 #include <sys/sysctl.h>
@@ -261,6 +262,7 @@ osf1_open(p, uap)
 	return open(p, &a);
 }
 
+extern int totalphysmem;
 
 int
 osf1_getsysinfo(p, uap)
@@ -268,6 +270,12 @@ osf1_getsysinfo(p, uap)
 	struct osf1_getsysinfo_args *uap;
 {
 	int error, retval;
+	int ncpus = 1; 	       /* XXX until SMP */
+	int ophysmem;
+	int unit;
+	long percpu;
+	long proctype;
+	struct osf1_cpu_info cpuinfo;
 
 	error = retval = 0;
 
@@ -277,16 +285,46 @@ osf1_getsysinfo(p, uap)
 		    sizeof(maxprocperuid));
 		retval = 1;
 		break;
+	case OSF_GET_PHYSMEM:
+		ophysmem = totalphysmem * (PAGE_SIZE >> 10);	
+		error = copyout(&ophysmem, uap->buffer,
+		    sizeof(ophysmem));
+		retval = 1;
+		break;
+	case OSF_GET_MAX_CPU:
+	case OSF_GET_CPUS_IN_BOX:
+		error = copyout(&ncpus, uap->buffer,
+		    sizeof(ncpus));
+		retval = 1;
+		break;
 	case OSF_GET_IEEE_FP_CONTROL:
 		error = copyout(&p->p_addr->u_pcb.pcb_fp_control,uap->buffer,
 		    sizeof(p->p_addr->u_pcb.pcb_fp_control));
 		retval = 1;
 		break;
-	case OSF_GET_PROC_TYPE:	{
-		int unit;
-		long percpu;
-		long proctype;
+	case OSF_GET_CPU_INFO:
 
+		if (uap->nbytes < sizeof(cpuinfo))
+			error = EINVAL;
+		else {
+			bzero(&cpuinfo, sizeof(cpuinfo));
+			unit = alpha_pal_whami();
+			cpuinfo.current_cpu = unit;
+			cpuinfo.cpus_in_box = ncpus;
+			cpuinfo.cpu_type = 
+			    LOCATE_PCS(hwrpb, unit)->pcs_proc_type;
+			cpuinfo.ncpus = ncpus;
+			cpuinfo.cpus_present = ncpus;
+			cpuinfo.cpus_running = ncpus;
+			cpuinfo.cpu_binding = 1;
+			cpuinfo.cpu_ex_binding = 0;
+			cpuinfo.mhz = hwrpb->rpb_cc_freq / 1000000;
+			error = copyout(&cpuinfo, uap->buffer,
+			    sizeof(cpuinfo));
+			retval = 1;
+		}
+		break;
+	case OSF_GET_PROC_TYPE:
 		if(uap->nbytes < sizeof(proctype))
 			error = EINVAL;
 		else {
@@ -296,7 +334,6 @@ osf1_getsysinfo(p, uap)
 			    sizeof(percpu));
 			retval = 1;
 		}
-	}
 	break;
 	case OSF_GET_HWRPB: {  /* note -- osf/1 doesn't have rpb_tbhint[8] */
 		unsigned long rpb_size;
@@ -312,6 +349,11 @@ osf1_getsysinfo(p, uap)
 			retval = 1;
 		}
 	}
+		break;
+	case OSF_GET_PLATFORM_NAME:
+		error = copyout(platform.model, uap->buffer, 
+		    strlen(platform.model));
+		retval = 1;
 		break;
 	default:
 		printf("osf1_getsysinfo called with unknown op=%ld\n", uap->op);
