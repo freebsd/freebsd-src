@@ -611,7 +611,9 @@ trap(a0, a1, a2, entry, framep)
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
+	mtx_lock(&Giant);
 	trapsignal(p, i, ucode);
+	mtx_unlock(&Giant);
 out:
 	if (user) {
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
