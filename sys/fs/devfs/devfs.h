@@ -39,6 +39,8 @@
 #ifndef _FS_DEVFS_DEVFS_H_
 #define	_FS_DEVFS_DEVFS_H_
 
+#include "opt_devfs.h"
+
 #define	DEVFS_MAGIC	0xdb0a087a
 
 /*
