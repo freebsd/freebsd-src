@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.47 1994/12/23 23:03:32 davidg Exp $
+ *      $Id: sd.c,v 1.48 1994/12/24 09:19:00 bde Exp $
  */
 
 #define SPLSD splbio
@@ -52,21 +52,22 @@ u_int32 sdstrats, sdqueues;
 #define	SD_RETRIES	4
 #define	MAXTRANSFER	8		/* 1 page at a time */
 
-#define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
-#define	UNITSHIFT	3
-#define PARTITION(z)	(minor(z) & 0x07)
-#define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
-#define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAWPART )
+#define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<SDUNITSHIFT)+part)))
+#define PARTITION(z)	(minor(z) & 0x07)
+
+#define WHOLE_DISK(unit) ( (unit << SDUNITSHIFT) + RAWPART )
 
 errval	sdgetdisklabel __P((unsigned char unit));
 errval	sd_get_parms __P((int unit, int flags));
 void	sdstrategy __P((struct buf *));
 void    sdstart __P((u_int32));
 
+int sd_sense_handler __P((struct scsi_xfer *));
+
 struct scsi_device sd_switch =
 {
-    NULL,			/* Use default error handler */
+    sd_sense_handler,
     sdstart,			/* have a queue, served by this */
     NULL,			/* have no async handler */
     NULL,			/* Use default 'done' routine */
@@ -162,6 +163,8 @@ sd_registerdev(int unit)
 }
 
 
+errval sdopen();
+
 /*
  * The routine called by the low level scsi routine when it discovers
  * a device suitable for this driver.
@@ -230,6 +233,7 @@ sdattach(sc_link)
 	sd->sc_link = sc_link;
 	sc_link->device = &sd_switch;
 	sc_link->dev_unit = unit;
+	sc_link->dev = SDSETUNIT(scsi_dev_lookup(sdopen), unit);
 
 	if (sd->sc_link->adapter->adapter_info) {
 		sd->ad_info = ((*(sd->sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
@@ -279,7 +283,7 @@ sdopen(dev)
 	struct sd_data *sd;
 	struct scsi_link *sc_link;
 
-	unit = UNIT(dev);
+	unit = SDUNIT(dev);
 	part = PARTITION(dev);
 	/*
 	 * Check the unit is legal
@@ -385,6 +389,7 @@ sdopen(dev)
 	sd->partflags[part] |= SDOPEN;
 	sd->openparts |= (1 << part);
 	SC_DEBUG(sc_link, SDEV_DB3, ("open %d %d\n", sdstrats, sdqueues));
+
 	return 0;
 
 bad:
@@ -406,7 +411,7 @@ sdclose(dev)
 	unsigned char unit, part;
 	struct sd_data *sd;
 
-	unit = UNIT(dev);
+	unit = SDUNIT(dev);
 	part = PARTITION(dev);
 	sd = sd_driver.sd_data[unit];
 	sd->partflags[part] &= ~SDOPEN;
@@ -428,7 +433,7 @@ void
 sdminphys(bp)
 	struct buf *bp;
 {
-	(*(sd_driver.sd_data[UNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
+	(*(sd_driver.sd_data[SDUNIT(bp->b_dev)]->sc_link->adapter->scsi_minphys)) (bp);
 }
 
 /*
@@ -446,7 +451,7 @@ sdstrategy(bp)
 	u_int32 unit;
 
 	sdstrats++;
-	unit = UNIT((bp->b_dev));
+	unit = SDUNIT((bp->b_dev));
 	sd = sd_driver.sd_data[unit];
 	SC_DEBUG(sd->sc_link, SDEV_DB2, ("sdstrategy "));
 	SC_DEBUG(sd->sc_link, SDEV_DB1,
@@ -676,7 +681,7 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	/*
 	 * Find the device that the user is talking about
 	 */
-	unit = UNIT(dev);
+	unit = SDUNIT(dev);
 	part = PARTITION(dev);
 	sd = sd_driver.sd_data[unit];
 	SC_DEBUG(sd->sc_link, SDEV_DB1, ("sdioctl (0x%x)", cmd));
@@ -772,8 +777,8 @@ sdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		break;
 
 	default:
-		if (part == RAWPART)
-			error = scsi_do_ioctl(sd->sc_link, cmd, addr, flag);
+		if (part == RAWPART || SCSI_SUPER(dev) )
+			error = scsi_do_ioctl(dev, sd->sc_link, cmd, addr, flag);
 		else
 			error = ENOTTY;
 		break;
@@ -791,7 +796,7 @@ sdgetdisklabel(unsigned char unit)
 	struct sd_data *sd = sd_driver.sd_data[unit];
 	dev_t dev;
 
-	dev = makedev(0, (unit << UNITSHIFT) + RAWPART);
+	dev = makedev(0, (unit << SDUNITSHIFT) + RAWPART);
 	/*
 	 * If the inflo is already loaded, use it
 	 */
@@ -825,7 +830,7 @@ sdgetdisklabel(unsigned char unit)
 					/* we need to pretend this disklabel */
 					/* is real before we can read */
 					/* real disklabel */
-	errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAWPART),
+	errstring = readdisklabel(makedev(0, (unit << SDUNITSHIFT) + RAWPART),
 	    sdstrategy,
 	    &sd->disklabel
 #ifdef NetBSD
@@ -1024,7 +1029,7 @@ sd_get_parms(unit, flags)
 int
 sdsize(dev_t dev)
 {
-	u_int32 unit = UNIT(dev), part = PARTITION(dev), val;
+	u_int32 unit = SDUNIT(dev), part = PARTITION(dev), val;
 	struct sd_data *sd;
 
 	if (unit >= sd_driver.size)
@@ -1044,6 +1049,56 @@ sdsize(dev_t dev)
 		return -1;
 
 	return (int)sd->disklabel.d_partitions[part].p_size;
+}
+
+/*
+ * sense handler: Called to determine what to do when the
+ * device returns a CHECK CONDITION.
+ *
+ * This will issue a retry when the device returns a
+ * non-media hardware failure.  The CDC-WREN IV does this
+ * when you access it during thermal calibrarion, so the drive
+ * is pretty useless without this.  
+ *
+ * In general, you probably almost always would like to issue a retry
+ * for your disk I/O.  It can't hurt too much (the caller only retries
+ * so many times) and it may save your butt.
+ */
+
+int sd_sense_handler(struct scsi_xfer *xs)
+{
+	struct scsi_sense_data *sense;
+	struct scsi_inquiry_data *inqbuf;
+
+	sense = &(xs->sense);
+
+	/* I don't know what the heck to do with a deferred error,
+	 * so I'll just kick it back to the caller.
+	 */
+	if ((sense->error_code & SSD_ERRCODE) == 0x71)
+		return SCSIRET_CONTINUE;
+
+	inqbuf = &(xs->sc_link->inqbuf);
+
+	/* It is dangerous to retry on removable drives without
+	 * looking carefully at the additional sense code
+	 * and sense code qualifier and ensuring the disk hasn't changed:
+	 */
+	if (inqbuf->dev_qual2 & SID_REMOVABLE)
+		return SCSIRET_CONTINUE;
+
+	/* I have to retry HARDWARE ERROR for ASC 44 and ASCQ 0
+	 * so that the CDC-WREN IV will work during TCAL.  In general,
+	 * I think we should just retry disk errors.  Does anyone
+	 * have a good reason not to?
+	 */
+	scsi_sense_print(xs);
+	if (xs->retries)
+		printf(", retries:%d\n", xs->retries);
+	else
+		printf(", FAILURE\n");
+
+	return SCSIRET_DO_RETRY;
 }
 
 /*
@@ -1076,7 +1131,7 @@ sddump(dev_t dev)
 
 	/* size of memory to dump */
 	num = Maxmem;
-	unit = UNIT(dev);	/* eventually support floppies? */
+	unit = SDUNIT(dev);	/* eventually support floppies? */
 	part = PARTITION(dev);	/* file system */
 	/* check for acceptable drive number */
 	if (unit >= sd_driver.size)
