@@ -630,6 +630,7 @@ db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
 {
 	struct thread *td;
 	db_expr_t radix;
+	pid_t pid;
 	int t;
 
 	/*
@@ -662,5 +663,10 @@ db_stack_trace(db_expr_t tid, boolean_t hastid, db_expr_t count, char *modif)
 		}
 	} else
 		td = kdb_thread;
+	if (td->td_proc != NULL)
+		pid = td->td_proc->p_pid;
+	else
+		pid = -1;
+	db_printf("Tracing pid %d tid %ld td %p\n", pid, (long)td->td_tid, td);
 	db_trace_thread(td, count);
 }
