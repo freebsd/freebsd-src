@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	des@freebsd.org
 LIB=		fetch
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
