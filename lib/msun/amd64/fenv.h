@@ -84,7 +84,7 @@ extern const fenv_t	__fe_dfl_env;
 #define	__fnstsw(__sw)		__asm("fnstsw %0" : "=am" (*(__sw)))
 #define	__fwait()		__asm __volatile("fwait")
 #define	__ldmxcsr(__csr)	__asm __volatile("ldmxcsr %0" : : "m" (__csr))
-#define	__stmxcsr(__csr)	__asm("stmxcsr %0" : "=m" (*(__csr)))
+#define	__stmxcsr(__csr)	__asm __volatile("stmxcsr %0" : "=m" (*(__csr)))
 
 static __inline int
 feclearexcept(int __excepts)
