@@ -1,0 +1,90 @@
+
+Doku: Anwahl von T-Offline mittels i4b und FreeBSD (german)
+===========================================================
+
+	http://www.de.freebsd.org/de/i4b-t-error.html
+
+
+ISDN Information:
+=================
+
+	http://www.alumni.caltech.edu/~dank/isdn/
+
+
+ITU Standards:
+==============
+
+	http://www-library.itsi.disa.mil/org/ituccitt.html
+	ftp://ftp.leo.org/pub/comp/doc/standards/itu
+
+
+SunShine Project - Implementation of the ISDN recommendations Q.921 & Q.931
+===========================================================================
+
+	http://www.tcm.hut.fi/~bos/ISDN/sunshine/SunShine.html
+
+
+CAPI 2.0 documentation
+======================
+
+	http://www.capi.org
+
+
+Siemens ISDN chips Databooks (ISAC/HSCX)
+========================================
+
+	general:
+	--------
+	http://w2.siemens.de/semiconductor/products/ICs/33/33.htm
+	http://www.smi.siemens.com/applications/comm/isdnte/index.html
+
+	ISAC:
+	-----
+	http://w2.siemens.de/semiconductor/products/ICs/33/isac_ste/iste_11m.pdf
+	http://www.smi.siemens.com/pdf/comm/peb2085_6um.pdf
+	http://www.smi.siemens.com/pdf/comm/psb2186um.pdf
+
+	HSCX:
+	-----
+	http://w2.siemens.de/semiconductor/products/ICs/33/hscx/sab82525.pdf
+	http://www.smi.siemens.com/pdf/comm/SAB82526_5.pdf
+	http://www.smi.siemens.com/pdf/comm/psb21525um.pdf
+
+
+CD's:
+=====
+	The Infomagic Standards CDROM:
+	http://www.infomagic.com/catalog5.htm#standards
+
+Books:
+======
+
+	"ISDN: concepts, facilities and services",
+		Gary C. Kessler, McGraw-Hill 1993,
+		ISBN 0-07-034247-4
+	
+	"Integrated services digital networks: architectures, protocols, standards",
+		Herman J. Helgert, Addison-Wesley 1991,
+		ISBN 0-201-52501-1
+	
+	"ISDN and Broadband ISDN with Frame Relay and ATM",
+		William Stallings, Prentice Hall 1995,
+		ISBN 0-02-415513-6
+
+	"Technik der Netze",
+		Gerd Siegmund, R. v. Decker's Verlag 1996,
+		ISBN 3-7685-2495-7
+	
+	"Euro-ISDN fuer Anwender und Techniker"
+		Reinhard Heermeyer und Maria Spath, Festo DIDACTIC 1996,
+		ISBN 3-8127-4334-5
+
+	"ISDN implementors guide: standards, protocols & services",
+		Charles K. Summers, McGraw-Hill 1995,
+		ISBN 0-07-069416-8
+	
+	"PPP Design and Debugging",
+		James Carlson, Addison-Wesley 1998,
+		ISBN 0-0201-18539-3
+
+-- EOF -----------------------------------------------------------------------
