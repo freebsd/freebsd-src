@@ -932,6 +932,7 @@ union_getattr(ap)
 {
 	int error;
 	struct union_node *un = VTOUNION(ap->a_vp);
+	struct union_mount *um = MOUNTTOUNIONMOUNT(ap->a_vp->v_mount);
 	struct vnode *vp;
 	struct vattr *vap;
 	struct vattr va;
@@ -972,7 +973,8 @@ union_getattr(ap)
 		union_newsize(ap->a_vp, VNOVAL, vap->va_size);
 	}
 
-	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
+	if (vap->va_fsid == um->um_upperdev)
+		vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 
 	if ((vap != ap->a_vap) && (vap->va_type == VDIR))
 		ap->a_vap->va_nlink += vap->va_nlink;
