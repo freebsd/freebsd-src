@@ -67,7 +67,6 @@ static const char rcsid[] =
 
 static int fd = -1;
 static int cpid = -1;
-extern int Procfd;
 
 #include "syscalls.h"
 
