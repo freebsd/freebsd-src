@@ -7,7 +7,7 @@ SRCS+=	geom_xml2tree.c
 SRCS+=	geom_ctl.c
 INCS=	libgeom.h
 
-CFLAGS += -I${.CURDIR} -g
+CFLAGS += -I${.CURDIR}
 
 WARNS?=	3
 
