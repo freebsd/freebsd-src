@@ -125,7 +125,7 @@ char **argv;
 
 	bzero(&sin, sizeof sin);
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(0x7f000001);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 	while( (c=getopt(argc, argv, "h:d:")) != -1)
 		switch(c) {
