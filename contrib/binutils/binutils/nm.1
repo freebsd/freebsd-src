@@ -1,0 +1,230 @@
+.\" Copyright (c) 1991 Free Software Foundation
+.\" See section COPYING for conditions for redistribution
+.TH nm 1 "5 November 1991" "cygnus support" "GNU Development Tools"
+.de BP
+.sp
+.ti \-.2i
+\(**
+..
+
+.SH NAME
+nm \- list symbols from object files.
+
+.SH SYNOPSIS
+.hy 0
+.na
+.TP
+.B nm
+.RB "[\|" \-a | \-\-debug\-syms "\|]" 
+.RB "[\|" \-g | \-\-extern\-only "\|]"
+.RB "[\|" \-B "\|]"  
+.RB "[\|" \-C | \-\-demangle "\|]" 
+.RB "[\|" \-D | \-\-dynamic "\|]" 
+.RB "[\|" \-s | \-\-print\-armap "\|]" 
+.RB "[\|" \-o | \-\-print\-file\-name "\|]"  
+.RB "[\|" \-n | \-\-numeric\-sort "\|]" 
+.RB "[\|" \-p | \-\-no\-sort "\|]"
+.RB "[\|" \-r | \-\-reverse\-sort "\|]" 
+.RB "[\|" \-\-size\-sort "\|]" 
+.RB "[\|" \-u | \-\-undefined\-only "\|]"  
+.RB "[\|" \-l | \-\-line\-numbers "\|]"
+.RB "[\|" \-\-help "\|]"  
+.RB "[\|" \-\-version "\|]"  
+.RB "[\|" "\-t \fIradix" | \-\-radix=\fIradix "\|]"
+.RB "[\|" \-P | --portability "\|]"
+.RB "[\|" "\-f \fIformat" | \-\-format=\fIformat "\|]"
+.RB "[\|" "\-\-target=\fIbfdname" "\|]"
+.RB "[\|" \c
+.I objfile\c
+\&.\|.\|.\|]
+.ad b
+.hy 1
+.SH DESCRIPTION
+GNU \c
+.B nm\c
+\& lists the symbols from object files \c
+.I objfile\c
+\&.  If no object files are given as arguments, \c
+.B nm\c
+\& assumes `\|\c
+.B a.out\c
+\|'.
+
+.SH OPTIONS
+The long and short forms of options, shown here as alternatives, are
+equivalent.
+
+.TP
+.B \-A
+.TP
+.B \-o
+.TP
+.B \-\-print\-file\-name 
+Precede each symbol by the name of the input file where it was found,
+rather than identifying the input file once only before all of its
+symbols. 
+
+.TP
+.B \-a
+.TP
+.B \-\-debug\-syms 
+Display debugger-only symbols; normally these are not listed.
+
+.TP
+.B \-B
+The same as
+.B \-\-format=bsd
+(for compatibility with the MIPS \fBnm\fP).
+
+.TP
+.B \-C
+.TP
+.B \-\-demangle
+Decode (\fIdemangle\fP) low-level symbol names into user-level names.
+Besides removing any initial underscore prepended by the system, this
+makes C++ function names readable.
+
+.TP
+.B \-D
+.TP
+.B \-\-dynamic
+Display the dynamic symbols rather than the normal symbols.  This is
+only meaningful for dynamic objects, such as certain types of shared
+libraries.
+
+.TP
+.B "\-f \fIformat"
+Use the output format \fIformat\fP, which can be ``bsd'',
+``sysv'', or ``posix''.  The default is ``bsd''.
+Only the first character of \fIformat\fP is significant; it can be
+either upper or lower case.
+
+.TP
+.B \-g
+.TP
+.B \-\-extern\-only 
+Display only external symbols.
+
+.TP
+.B \-n
+.TP
+.B \-v
+.TP
+.B \-\-numeric\-sort 
+Sort symbols numerically by their addresses, not alphabetically by their
+names. 
+
+.TP
+.B \-p
+.TP
+.B \-\-no\-sort 
+Don't bother to sort the symbols in any order; just print them in the
+order encountered.
+
+.TP
+.B \-P
+.TP
+.B \-\-portability
+Use the POSIX.2 standard output format instead of the default format.
+Equivalent to ``\-f posix''.
+
+.TP
+.B \-s
+.TP
+.B \-\-print\-armap
+When listing symbols from archive members, include the index: a mapping
+(stored in the archive by \c
+.B ar\c
+\& or \c
+.B ranlib\c
+\&) of what modules
+contain definitions for what names.
+
+.TP
+.B \-r
+.TP
+.B \-\-reverse\-sort 
+Reverse the sense of the sort (whether numeric or alphabetic); let the
+last come first.
+
+.TP
+.B \-\-size\-sort 
+Sort symbols by size.  The size is computed as the difference between
+the value of the symbol and the value of the symbol with the next higher
+value.  The size of the symbol is printed, rather than the value.
+
+.TP
+.B "\-t \fIradix"
+.TP
+.B "\-\-radix=\fIradix"
+Use \fIradix\fP as the radix for printing the symbol values.  It must be
+``d'' for decimal, ``o'' for octal, or ``x'' for hexadecimal.
+
+.TP
+.BI "\-\-target=" "bfdname"
+Specify an object code format other than your system's default format.
+See 
+.BR objdump ( 1 ),
+for information on listing available formats.
+
+.TP
+.B \-u
+.TP
+.B \-\-undefined\-only 
+Display only undefined symbols (those external to each object file).
+
+.TP
+.B \-l
+.TP
+.B \-\-line\-numbers
+For each symbol, use debugging information to try to find a filename and
+line number.  For a defined symbol, look for the line number of the
+address of the symbol.  For an undefined symbol, look for the line
+number of a relocation entry which refers to the symbol.  If line number
+information can be found, print it after the other symbol information.
+
+.TP
+.B \-V
+.TP
+.B \-\-version
+Show the version number of
+.B nm
+and exit.
+
+.TP
+.B \-\-help
+Show a summary of the options to
+.B nm
+and exit.
+
+.SH "SEE ALSO"
+.RB "`\|" binutils "\|'"
+entry in 
+.B
+info\c
+\&; 
+.I
+The GNU Binary Utilities\c
+\&, Roland H. Pesch (October 1991);
+.BR ar "(" 1 "),"
+.BR objdump ( 1 ),
+.BR ranlib "(" 1 ")."
+
+
+.SH COPYING
+Copyright (c) 1991 Free Software Foundation, Inc.
+.PP
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+.PP
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+.PP
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
