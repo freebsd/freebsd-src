@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: uc_eisa.c,v 1.1 1996/10/03 06:01:37 jkh Exp $
+ * $Id: uc_eisa.c,v 1.2 1996/10/12 20:23:08 erich Exp $
  */
 
 #include <sys/types.h>
@@ -142,7 +142,7 @@ eisa_fill_in(struct kernel *kp, struct uc_eisa *epc, struct eisa_device_node *ed
 				     sizeof(struct eisa_driver));
 
   n=(char *)kv_to_u(kp, (u_int)edrv->name, 20);
-  asprintf(&epc->device, "%s%d", n, edn->dev.unit);
+  asprintf(&epc->device, "%s%lu", n, edn->dev.unit);
   free(n);
 
   n=(char *)kv_to_u(kp, (u_int)edn->dev.full_name, 40); /*XXX*/
