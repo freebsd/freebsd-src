@@ -70,8 +70,22 @@ struct mtx dom_mtx;		/* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 /*
+ * Dummy protocol specific user requests function pointer array.
+ * All functions return EOPNOTSUPP.
+ */
+struct pr_usrreqs nousrreqs = {
+        pru_abort_notsupp, pru_accept_notsupp, pru_attach_notsupp,
+        pru_bind_notsupp, pru_connect_notsupp, pru_connect2_notsupp,
+        pru_control_notsupp, pru_detach_notsupp, pru_disconnect_notsupp,
+        pru_listen_notsupp, pru_peeraddr_notsupp, pru_rcvd_notsupp,
+        pru_rcvoob_notsupp, pru_send_notsupp, pru_sense_null,
+        pru_shutdown_notsupp, pru_sockaddr_notsupp, pru_sosend_notsupp,
+        pru_soreceive_notsupp, pru_sopoll_notsupp, pru_sosetlabel_null
+};
+
+/*
  * Add a new protocol domain to the list of supported domains
- * Note: you cant unload it again because  a socket may be using it.
+ * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
 static void
@@ -98,7 +112,7 @@ net_init_domain(struct domain *dp)
 
 /*
  * Add a new protocol domain to the list of supported domains
- * Note: you cant unload it again because  a socket may be using it.
+ * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
 void
@@ -188,6 +202,126 @@ found:
 			maybe = pr;
 	}
 	return (maybe);
+}
+
+/*
+ * The caller must make sure that the new protocol is fully set up and ready to
+ * accept requests before it is registered.
+ */
+int
+pf_proto_register(family, npr)
+	int family;
+	struct protosw *npr;
+{
+	struct domain *dp;
+	struct protosw *pr, *fpr;
+
+	/* Sanity checks. */
+	if (family == 0)
+		return (EPFNOSUPPORT);
+	if (npr->pr_type == 0)
+		return (EPROTOTYPE);
+	if (npr->pr_protocol == 0)
+		return (EPROTONOSUPPORT);
+	if (npr->pr_usrreqs == NULL)
+		return (ENXIO);
+
+	/* Try to find the specified domain based on the family. */
+	for (dp = domains; dp; dp = dp->dom_next)
+		if (dp->dom_family == family)
+			goto found;
+	return (EPFNOSUPPORT);
+
+found:
+	/* Initialize backpointer to struct domain. */
+	npr->pr_domain = dp;
+	fpr = NULL;
+
+	/* The new protocol must not yet exist. */
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
+		if ((pr->pr_type == npr->pr_type) &&
+		    (pr->pr_protocol == npr->pr_protocol))
+			return (EEXIST);	/* XXX: Check only protocol? */
+		/* While here, remember the first free spacer. */
+		if ((fpr == NULL) && (pr->pr_protocol == PROTO_SPACER))
+			fpr = pr;
+	}
+
+	/* If no free spacer is found we can't add the new protocol. */
+	if (fpr == NULL)
+		return (ENOMEM);
+
+	/* Copy the new struct protosw over the spacer. */
+	bcopy(npr, fpr, sizeof(*fpr));
+
+	/* Initialize and activate the protocol. */
+	if (fpr->pr_init)
+		(fpr->pr_init)();
+
+	return (0);
+}
+
+/*
+ * The caller must make sure the protocol and its functions correctly shut down
+ * all sockets and release all locks and memory references.
+ */
+int
+pf_proto_unregister(family, protocol, type)
+	int family;
+	int protocol;
+	int type;
+{
+	struct domain *dp;
+	struct protosw *pr, *dpr;
+
+	/* Sanity checks. */
+	if (family == 0)
+		return (EPFNOSUPPORT);
+	if (protocol == 0)
+		return (EPROTONOSUPPORT);
+	if (type == 0)
+		return (EPROTOTYPE);
+
+	/* Try to find the specified domain based on the family type. */
+	for (dp = domains; dp; dp = dp->dom_next)
+		if (dp->dom_family == family)
+			goto found;
+	return (EPFNOSUPPORT);
+
+found:
+	dpr = NULL;
+
+	/* The protocol must exist and only once. */
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
+		if ((pr->pr_type == type) && (pr->pr_protocol == protocol)) {
+			if (dpr != NULL)
+				return (EMLINK);   /* Should not happen! */
+			else
+				dpr = pr;
+		}
+	}
+
+	/* Protocol does not exist. */
+	if (dpr == NULL)
+		return (EPROTONOSUPPORT);
+
+	/* De-orbit the protocol and make the slot available again. */
+	dpr->pr_type = 0;
+	dpr->pr_domain = dp;
+	dpr->pr_protocol = PROTO_SPACER;
+	dpr->pr_flags = 0;
+	dpr->pr_input = NULL;
+	dpr->pr_output = NULL;
+	dpr->pr_ctlinput = NULL;
+	dpr->pr_ctloutput = NULL;
+	dpr->pr_ousrreq = NULL;
+	dpr->pr_init = NULL;
+	dpr->pr_fasttimo = NULL;
+	dpr->pr_slowtimo = NULL;
+	dpr->pr_drain = NULL;
+	dpr->pr_usrreqs = &nousrreqs;
+
+	return (0);
 }
 
 void

@@ -105,6 +105,12 @@ struct protosw {
 #define	PR_FASTHZ	5		/* 5 fast timeouts per second */
 
 /*
+ * This number should be defined again within each protocol family to avoid
+ * confusion.
+ */
+#define	PROTO_SPACER	32767		/* spacer for loadable protocols */
+
+/*
  * Values for pr_flags.
  * PR_ADDR requires PR_ATOMIC;
  * PR_ADDR and PR_CONNREQUIRED are mutually exclusive.
@@ -231,16 +237,41 @@ struct pr_usrreqs {
 	void	(*pru_sosetlabel)(struct socket *so);
 };
 
+/*
+ * The dummy protocol specific user requests function pointer array is
+ * initialized to the functions below.  All functions return EOPNOTSUPP.
+ */
+extern	struct pr_usrreqs nousrreqs;
+
+int	pru_abort_notsupp(struct socket *so);
 int	pru_accept_notsupp(struct socket *so, struct sockaddr **nam);
+int	pru_attach_notsupp(struct socket *so, int proto, struct thread *td);
+int	pru_bind_notsupp(struct socket *so, struct sockaddr *nam,
+	    struct thread *td);
 int	pru_connect_notsupp(struct socket *so, struct sockaddr *nam,
 	    struct thread *td);
 int	pru_connect2_notsupp(struct socket *so1, struct socket *so2);
 int	pru_control_notsupp(struct socket *so, u_long cmd, caddr_t data,
 	    struct ifnet *ifp, struct thread *td);
+int	pru_detach_notsupp(struct socket *so);
+int	pru_disconnect_notsupp(struct socket *so);
 int	pru_listen_notsupp(struct socket *so, struct thread *td);
+int	pru_peeraddr_notsupp(struct socket *so, struct sockaddr **nam);
 int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
+int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
+	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
 int	pru_sense_null(struct socket *so, struct stat *sb);
+int	pru_shutdown_notsupp(struct socket *so);
+int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);
+int	pru_sosend_notsupp(struct socket *so, struct sockaddr *addr,
+	    struct uio *uio, struct mbuf *top, struct mbuf *control, int flags,
+	    struct thread *td);
+int	pru_soreceive_notsupp(struct socket *so, struct sockaddr **paddr,
+	    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
+	    int *flagsp);
+int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
+	    struct thread *td);
 void	pru_sosetlabel_null(struct socket *so);
 
 #endif /* _KERNEL */
@@ -319,6 +350,8 @@ void	pfctlinput(int, struct sockaddr *);
 void	pfctlinput2(int, struct sockaddr *, void *);
 struct protosw *pffindproto(int family, int protocol, int type);
 struct protosw *pffindtype(int family, int type);
+int	pf_proto_register(int family, struct protosw *npr);
+int	pf_proto_unregister(int family, int protocol, int type);
 #endif
 
 #endif
