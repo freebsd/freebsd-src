@@ -24,6 +24,8 @@ done
 
 if [ -f /etc/rc.conf ]; then
     . /etc/rc.conf
+    set_main_interface
+    set_all_interfaces
 fi
 rm -f /var/run/*
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
