@@ -1,8 +1,8 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/19/94
 # $FreeBSD$
 
-FILES=	fortunes fortunes2 startrek zippy
-BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
+FILES=	fortunes fortunes2 murphy startrek zippy
+BLDS=	fortunes.dat fortunes2.dat murphy.dat startrek.dat zippy.dat \
 	fortunes-o fortunes-o.dat
 
 # Pass all new entries by ${MAINTAINER} to preserve some semblance of
@@ -14,8 +14,8 @@ MAINTAINER=	jkh
 # THREE LINES AND UNCOMMENT THE FOURTH LINE.
 
 # THE THREE LINES:
-FILES+=	fortunes2-o limerick
-BLDS+=	fortunes2-o.dat limerick.dat
+FILES+=	fortunes2-o limerick murphy-o
+BLDS+=	fortunes2-o.dat limerick.dat murphy-o.dat
 TYPE=	real
 
 # THE FOURTH LINE:
@@ -31,7 +31,7 @@ beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
 	    ${DESTDIR}${SHAREDIR}/games/fortune
 
-.for f in fortunes fortunes2 fortunes2-o limerick startrek zippy
+.for f in fortunes fortunes2 fortunes2-o limerick murphy murphy-o startrek zippy
 $f.dat: $f
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
 	    strfile -Crs ${.ALLSRC} ${.TARGET}
