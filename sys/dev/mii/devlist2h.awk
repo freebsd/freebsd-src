@@ -100,7 +100,7 @@ NR == 1 {
 	VERSION = $0
 	gsub("\\$", "", VERSION)
 
-	printf("/*\t\$Id\$\t*/\n\n") > hfile
+	printf("/*\t\$FreeBSD\$\t*/\n\n") > hfile
 	printf("/*\n") > hfile
 	printf(" * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.\n") \
 	    > hfile
