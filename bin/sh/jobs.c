@@ -926,7 +926,7 @@ dowait(int block, struct job *job)
 		pid = waitproc(block, &status);
 		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
-	    (WIFSTOPPED(status) && !iflag));
+		 (pid > 0 && WIFSTOPPED(status) && !iflag));
 	in_dowait--;
 	if (breakwaitcmd != 0) {
 		breakwaitcmd = 0;
