@@ -12,28 +12,21 @@ SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.S
 SRCS+=	efifpswa.c
 .endif
 
-CFLAGS+=	-ffreestanding -fpic
+CFLAGS+=	-fpic
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
-CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${.CURDIR}/../../common
 
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float
 .endif
 
-.ifdef(BOOT_DISK_DEBUG)
+.if defined(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-machine:
-	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
-
-CLEANFILES+=	machine
-
 .include <bsd.lib.mk>
-
-beforedepend ${OBJS}: machine
