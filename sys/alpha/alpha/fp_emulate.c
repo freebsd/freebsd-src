@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fp_emulate.c,v 1.3 1999/04/08 20:32:51 gallatin Exp $
+ *	$Id: fp_emulate.c,v 1.4 1999/06/08 16:42:13 dt Exp $
  */
 
 #include <sys/param.h>
@@ -263,7 +263,6 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 		alpha_pal_wrfen(1);
 		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
 		alpha_pal_wrfen(0);
-		PRELE(fpcurproc);
 		fpcurproc = NULL;
 	}
 

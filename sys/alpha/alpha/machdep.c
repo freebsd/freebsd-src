@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.43 1999/05/14 11:15:13 dfr Exp $
+ *	$Id: machdep.c,v 1.44 1999/06/08 16:42:14 dt Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1353,7 +1353,6 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 		alpha_pal_wrfen(1);
 		savefpstate(&p->p_addr->u_pcb.pcb_fp);
 		alpha_pal_wrfen(0);
-		PRELE(fpcurproc);
 		fpcurproc = NULL;
 	}
 	ksc.sc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
@@ -1466,10 +1465,8 @@ sigreturn(struct proc *p,
 	alpha_pal_wrusp(ksc.sc_regs[R_SP]);
 
 	/* XXX ksc.sc_ownedfp ? */
-	if (p == fpcurproc) {
-		PRELE(fpcurproc);
+	if (p == fpcurproc)
 		fpcurproc = NULL;
-	}
 	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
 	    sizeof(struct fpreg));
 	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
@@ -1529,10 +1526,8 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
 
 	p->p_md.md_flags &= ~MDP_FPUSED;
-	if (fpcurproc == p) {
-		PRELE(fpcurproc);
+	if (fpcurproc == p)
 		fpcurproc = NULL;
-	}
 }
 
 int
@@ -1873,10 +1868,8 @@ set_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-	if (p == fpcurproc) {
-		PRELE(fpcurproc);
+	if (p == fpcurproc)
 		fpcurproc = NULL;
-	}
 
 	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
 	return (0);
