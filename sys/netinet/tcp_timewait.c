@@ -1628,6 +1628,9 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	 * that is not using all available bandwidth, but for now our
 	 * slop will ramp us up if this case occurs and the bandwidth later
 	 * increases.
+	 *
+	 * Note: if ticks rollover 'bw' may wind up negative.  We must
+	 * effectively reset t_bw_rtttime for this case.
 	 */
 	save_ticks = ticks;
 	if ((u_int)(save_ticks - tp->t_bw_rtttime) < 1)
@@ -1637,7 +1640,7 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	    (save_ticks - tp->t_bw_rtttime);
 	tp->t_bw_rtttime = save_ticks;
 	tp->t_bw_rtseq = ack_seq;
-	if (tp->t_bw_rtttime == 0)
+	if (tp->t_bw_rtttime == 0 || (int)bw < 0)
 		return;
 	bw = ((int64_t)tp->snd_bandwidth * 15 + bw) >> 4;
 
@@ -1666,6 +1669,7 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	 */
 #define USERTT	((tp->t_srtt + tp->t_rttbest) / 2)
 	bwnd = (int64_t)bw * USERTT / (hz << TCP_RTT_SHIFT) + 2 * tp->t_maxseg;
+#undef USERTT
 
 	if (tcp_inflight_debug > 0) {
 		static int ltime;
