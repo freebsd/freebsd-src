@@ -44,11 +44,11 @@
 .Nd make links
 .Sh SYNOPSIS
 .Nm
-.Op Fl fisv
+.Op Fl fhinsv
 .Ar source_file
 .Op target_file
 .Nm
-.Op Fl fisv
+.Op Fl fhinsv
 .Ar source_file ...
 .Op target_dir
 .Nm link
@@ -79,6 +79,14 @@ then unlink it so that the link may occur.
 option overrides any previous
 .Fl i
 options.)
+.It Fl h
+If the
+.Ar target_file
+or
+.Ar target_dir
+is a symbolic link, do not follow it.  This is most useful with the
+.Fl f
+option, to replace a symlink which may point to a directory.
 .It Fl i
 Cause
 .Nm
@@ -94,6 +102,12 @@ Otherwise, do not attempt the link.
 option overrides any previous
 .Fl f
 options.)
+.It Fl n
+Same as
+.Fl h ,
+for compatibility with other
+.Nm
+implementations.
 .It Fl s
 Create a symbolic link.
 .It Fl v
@@ -164,16 +178,27 @@ operation using the two passed arguments.
 .Xr symlink 7
 .Sh COMPATIBILITY
 The 
-.Fl i
+.Fl h ,
+.Fl i ,
+.Fl n
 and
 .Fl v
 options are non-standard and their use in scripts is not recommended.
+They are provided solely for compatibility with other
+.Nm
+implementations.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.2-92 .
+.Pp
+The simplified
+.Nm link
+command conforms to
+.St -susv2 .
 .Sh HISTORY
 An
 .Nm
 command appeared in
 .At v1 .
-The simplified
-.Nm link
-command conforms to
-.St -susv2 .
