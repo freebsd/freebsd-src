@@ -53,6 +53,11 @@ struct nlist    nlk[] = {
 	"",
 };
 
+struct nlist	nlaux[] = {
+	{"_num_eisa_slots"},
+	{""},
+};
+
 int             quiet = FALSE;
 
 void
@@ -90,7 +95,7 @@ main(ac, av)
 	int             ac;
 	char          **av;
 {
-	int             f, res, s;
+	int             f, res, s, i;
 	int             modified,dev_found;
 	int             sym;
 	u_long          pos, entry, pos1, pos_t;
@@ -295,6 +300,41 @@ main(ac, av)
 
 			}
 		} while (buf.id_id != 0 && buf1.id_id != 0);
+	}
+
+	if (kvm_nlist(kd, nlaux) != 0) {
+		/* num_eisa_conf need not exist, only handle it if found */
+		if (verbose)
+			printf("num_eisa_slots not found, ignoring.\n");
+	} else {
+		if (nlaux[0].n_type == 0)
+			fatal("kvm_nlist", "bad symbol type");
+		pos1 = nlaux[0].n_value;
+		if (kvm_read(kd, pos1, &s, sizeof(int)) < 0)
+			fatal("kvmread", NULL);
+
+		if (nlist(kernel, nlaux) != 0)
+			fatal("nlist", NULL);
+		if (nlaux[0].n_type == 0)
+			fatal("nlist", "bad symbol type");
+		pos = nlaux[0].n_value + getpagesize() - entry;
+		if (lseek(f, pos, SEEK_SET) != pos)
+			fatal("seek", NULL);
+		if ((res = read(f, (char *) &i, sizeof(int)))
+		    <= 0)
+			fatal("read", NULL);
+
+		if (i != s) {
+			if (verbose)
+				printf("\nChanging num_eisa_slots from %d to %d.\n",
+				       i, s);
+			if (!testonly) {
+				res = lseek(f, -(off_t) sizeof(int),
+					    SEEK_CUR);
+				if (write(f, &s, sizeof(int)) <= 0)
+					fatal("write", NULL);
+			}
+		}
 	}
 
 	if (chflags(kernel, flags) < 0)
