@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_segments.h,v 1.3 1995/02/17 02:22:46 phk Exp $
+ *	$Id: apm_segments.h,v 1.4 1995/05/30 08:00:25 rgrimes Exp $
  */
 
 #ifndef _MACHINE_APM_SEGMENTS_H
@@ -21,15 +21,18 @@
 #define SIZEOF_GDT		8
 #define BOOTSTRAP_GDT_NUM	32
 
-#define APM_INIT_CS_INDEX	(BOOTSTRAP_GDT_NUM - 3)
-#define APM_INIT_DS_INDEX	(BOOTSTRAP_GDT_NUM - 2)
-#define APM_INIT_CS16_INDEX	(BOOTSTRAP_GDT_NUM - 1)
+#define APM_INIT_CS_INDEX	(BOOTSTRAP_GDT_NUM - 4)
+#define APM_INIT_DS_INDEX	(BOOTSTRAP_GDT_NUM - 3)
+#define APM_INIT_CS16_INDEX	(BOOTSTRAP_GDT_NUM - 2)
+#define APM_INIT_DS16_INDEX	(BOOTSTRAP_GDT_NUM - 1)
 #define APM_INIT_CS_SEL		(APM_INIT_CS_INDEX << 3)
 #define APM_INIT_DS_SEL		(APM_INIT_DS_INDEX << 3)
 #define APM_INIT_CS16_SEL	(APM_INIT_CS16_INDEX << 3)
+#define APM_INIT_DS16_SEL	(APM_INIT_DS16_INDEX << 3)
 
 #define CS32_ATTRIB		0x409e
-#define CS16_ATTRIB		0x009e
 #define DS32_ATTRIB		0x4092
+#define CS16_ATTRIB		0x009e
+#define DS16_ATTRIB		0x0092
 
 #endif

@@ -13,19 +13,17 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.22 1995/12/25 07:38:26 bde Exp $
+ *	$Id: apm.c,v 1.23 1995/12/27 16:16:02 bde Exp $
  */
 
 #include "apm.h"
 
 #include <sys/param.h>
-#include <conf.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
