@@ -69,6 +69,9 @@ extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
 #define TARGET_ARCH		bfd_arch_i386
 
 #ifdef OBJ_AOUT
+#ifdef TE_FreeBSD
+#define TARGET_FORMAT		"a.out-i386-freebsd"
+#endif
 #ifdef TE_NetBSD
 #define TARGET_FORMAT		"a.out-i386-netbsd"
 #endif
