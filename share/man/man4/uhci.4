@@ -39,15 +39,19 @@
 The
 .Nm
 driver provides support for UHCI-type PCI based USB controllers.
-This
-includes
-.Bl -tag -width xxxxx
-.It Intel 82371AB/EB (PIIX4)
-.It Intel 82371SB (PIIX3)
-.It VIA 83C572
-.El
+.Sh HARDWARE
+The
+.Nm
+driver supports all UHCI v1.1 compliant controllers including:
 .Pp
-or any other UHCI v1.1 compliant controller.
+.Bl -bullet -compact
+.It
+Intel 82371AB/EB (PIIX4)
+.It
+Intel 82371SB (PIIX3)
+.It
+VIA 83C572
+.El
 .Sh SEE ALSO
 .Xr ohci 4
 .Sh HISTORY
