@@ -239,23 +239,6 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
 }
 
 int
-index_get(char *fname, PkgNodePtr papa)
-{
-    int i;
-    FILE *fp;
-
-    fp = fopen(fname, "r");
-    if (!fp) {
-	fprintf(stderr, "Unable to open index file `%s' for reading.\n", fname);
-	i = -1;
-    }
-    else
-	i = index_read(fp, papa);
-    fclose(fp);
-    return i;
-}
-
-int
 index_read(FILE *fp, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[511];
@@ -428,6 +411,14 @@ pkg_fire(dialogMenuItem *self)
 		np->next = plist->kids;
 		plist->kids = np;
 		msgInfo("Added %s to selection list", kp->name);
+	    }
+	    else {
+		WINDOW *save = savescr();
+
+		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name))
+		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name))
+			msgConfirm("Warning:  pkg_delete of %s failed.\n  Check debug output for details.", kp->name);
+		restorescr(save);
 	    }
 	}
 	else {
