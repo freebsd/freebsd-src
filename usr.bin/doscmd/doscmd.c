@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.5 1998/07/01 19:56:14 imp Exp $
+ * $Id: doscmd.c,v 1.6 1998/07/02 05:23:54 imp Exp $
  */
 
 #include <sys/types.h>
@@ -129,7 +129,7 @@ main(int argc, char **argv)
     debug_set(0);		/* debug any D_TRAPS without intnum */
 
     /* perform option argument processing */
-    optind = do_args(argc, argv);
+    do_args(argc, argv);
     argc -= optind;
     argv += optind;
 
@@ -270,7 +270,6 @@ main(int argc, char **argv)
     vm86.sub_op = VM86_INIT;
     vm86.sub_args = (char *)&kargs;
     i = sysarch(I386_VM86, &vm86);
-    printf("Init: %d\n", i);
 
     sigreturn(&sc);
     debug(D_ALWAYS,"sigreturn failed : %s\n", strerror(errno));
