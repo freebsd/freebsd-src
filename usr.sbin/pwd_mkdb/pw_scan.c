@@ -78,7 +78,12 @@ pw_scan(bp, pw)
 
 	if (!(p = strsep(&bp, ":")))			/* uid */
 		goto fmt;
-	if(p[0]) pw->pw_fields |= _PWF_UID;
+	if (p[0])
+		pw->pw_fields |= _PWF_UID;
+	else {
+		warnx("no uid for user %s", pw->pw_name);
+		return (0);
+	}
 	id = atol(p);
 	if (root && id) {
 		warnx("root uid should be 0");
