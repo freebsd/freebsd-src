@@ -479,11 +479,11 @@ init_ppro(void)
 	u_int64_t	apicbase;
 
 	/*
-	 * Local APIC should be diabled in UP kernel.
+	 * Local APIC should be disabled in UP kernel.
 	 */
-	apicbase = rdmsr(0x1b);
-	apicbase &= ~0x800LL;
-	wrmsr(0x1b, apicbase);
+	apicbase = rdmsr(MSR_APICBASE);
+	apicbase &= ~APICBASE_ENABLED;
+	wrmsr(MSR_APICBASE, apicbase);
 #endif
 }
 
@@ -504,7 +504,7 @@ init_mendocino(void)
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
 
-	bbl_cr_ctl3 = rdmsr(0x11e);
+	bbl_cr_ctl3 = rdmsr(MSR_BBL_CR_CTL3);
 
 	/* If the L2 cache is configured, do nothing. */
 	if (!(bbl_cr_ctl3 & 1)) {
@@ -519,7 +519,7 @@ init_mendocino(void)
 #else
 		bbl_cr_ctl3 |= 5 << 1;
 #endif
-		wrmsr(0x11e, bbl_cr_ctl3);
+		wrmsr(MSR_BBL_CR_CTL3, bbl_cr_ctl3);
 	}
 
 	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));
