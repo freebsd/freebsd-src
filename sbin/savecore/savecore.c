@@ -418,7 +418,7 @@ DoFile(char *savedir, const char *device)
 		}
 		if (verbose) {
 			dmpcnt += wl;
-			printf("%llu\r", dmpcnt);
+			printf("%llu\r", (unsigned long long)dmpcnt);
 			fflush(stdout);
 		}
 		dumpsize -= wl;
