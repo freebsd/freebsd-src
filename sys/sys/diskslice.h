@@ -30,10 +30,6 @@
 #define	_SYS_DISKSLICE_H_
 
 #ifndef sys_boot_code_has_been_fixed
-#define	BASE_SLICE		2
-#define	COMPATIBILITY_SLICE	0
-#define	MAX_SLICES		32
-#define	WHOLE_DISK_SLICE	1
 #endif
 
 #endif /* !_SYS_DISKSLICE_H_ */
