@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tape.c	8.4 (Berkeley) 5/1/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,7 +69,6 @@ int	write(), read();
 #endif
 
 #include "dump.h"
-#include "pathnames.h"
 
 int	writesize;		/* size of malloc()ed buffer for tape */
 long	lastspclrec = -1;	/* tape block number of last written header */

@@ -32,20 +32,17 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)unctime.c	8.2 (Berkeley) 6/14/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <sys/types.h>
-
-#include <stdio.h>
 #include <time.h>
 #ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
-#endif
-
-#ifndef __P
-#include <sys/cdefs.h>
 #endif
 
 /*
