@@ -624,10 +624,12 @@ bfreekva(struct buf *bp)
 	if (bp->b_kvasize) {
 		atomic_add_int(&buffreekvacnt, 1);
 		atomic_subtract_int(&bufspace, bp->b_kvasize);
+		vm_map_lock(buffer_map);
 		vm_map_delete(buffer_map,
 		    (vm_offset_t) bp->b_kvabase,
 		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize
 		);
+		vm_map_unlock(buffer_map);
 		bp->b_kvasize = 0;
 		bufspacewakeup();
 	}
@@ -1928,6 +1930,7 @@ restart:
 
 			bfreekva(bp);
 
+			vm_map_lock(buffer_map);
 			if (vm_map_findspace(buffer_map,
 				vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
@@ -1935,6 +1938,7 @@ restart:
 				 * must defragment the map.
 				 */
 				atomic_add_int(&bufdefragcnt, 1);
+				vm_map_unlock(buffer_map);
 				defrag = 1;
 				bp->b_flags |= B_INVAL;
 				brelse(bp);
@@ -1950,6 +1954,7 @@ restart:
 				atomic_add_int(&bufspace, bp->b_kvasize);
 				atomic_add_int(&bufreusecnt, 1);
 			}
+			vm_map_unlock(buffer_map);
 		}
 		bp->b_saveaddr = bp->b_kvabase;
 		bp->b_data = bp->b_saveaddr;
