@@ -80,6 +80,10 @@ usbd_status usbd_bulk_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
 			       u_int16_t flags, u_int32_t timeout, void *buf,
 			       u_int32_t *size, char *lbl);
 
+usbd_status usbd_intr_transfer(usbd_xfer_handle xfer, usbd_pipe_handle pipe,
+			       u_int16_t flags, u_int32_t timeout, void *buf,
+			       u_int32_t *size, char *lbl);
+
 void usb_detach_wait(device_ptr_t);
 void usb_detach_wakeup(device_ptr_t);
 
