@@ -173,11 +173,7 @@ struct region_descriptor {
  * Size of IDT table
  */
 
-#if defined(SMP) || defined(APIC_IO)
-#define	NIDT	256		/* we use them all */
-#else
-#define	NIDT	129		/* 32 reserved, 16 h/w, 0 s/w, linux's 0x80 */
-#endif /* SMP || APIC_IO */
+#define	NIDT	256		/* 32 reserved, 0x80 syscall, most are h/w */
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
 
 /*
@@ -202,6 +198,7 @@ struct region_descriptor {
 #define	IDT_AC		17	/* #AC: Alignment Check */
 #define	IDT_MC		18	/* #MC: Machine Check */
 #define	IDT_XF		19	/* #XF: SIMD Floating-Point Exception */
+#define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
 #define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 
 /*
