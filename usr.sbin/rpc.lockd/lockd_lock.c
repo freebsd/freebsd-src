@@ -2086,7 +2086,7 @@ unmonitor_lock_host(const char *hostname)
 
 	bzero(&smon_id,sizeof(smon_id));
 
-	smon_id.mon_name = (char *)hostname;
+	smon_id.mon_name = hostname;
 	smon_id.my_id.my_name = "localhost";
 	smon_id.my_id.my_prog = NLM_PROG;
 	smon_id.my_id.my_vers = NLM_SM;
