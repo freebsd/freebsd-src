@@ -1,4 +1,4 @@
-/*	$Id: units.c,v 1.6 1996/04/06 06:01:03 thorpej Exp $	*/
+/*	$Id: units.c,v 1.1.1.1 1996/06/08 03:43:43 alex Exp $	*/
 
 /*
  * units.c   Copyright (c) 1993 by Adrian Mariano (adrian@cam.cornell.edu)
@@ -683,8 +683,8 @@ main(int argc, char **argv)
 				if (!quiet)
 					printf("You have: ");
 				if (!fgets(havestr, 80, stdin)) {
-					if (!quiet);
-					putchar('\n');
+					if (!quiet)
+						putchar('\n');
 					exit(0);
 				}
 			} while (addunit(&have, havestr, 0) ||
@@ -703,4 +703,6 @@ main(int argc, char **argv)
 			showanswer(&have, &want);
 		}
 	}
+
+	return(0);
 }
