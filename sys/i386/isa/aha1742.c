@@ -12,14 +12,9 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * commenced: Sun Sep 27 18:14:01 PDT 1992
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>
@@ -329,6 +324,7 @@ int	ahb_debug = 0;
 
 struct	scsi_switch	ahb_switch = 
 {
+	"ahb",
 	ahb_scsi_cmd,
 	ahbminphys,
 	0,
@@ -516,7 +512,6 @@ struct isa_dev *dev;
 #ifdef  __386BSD__				/* 386BSD */
         dev->id_irq = (1 << ahb_data[unit].vect);
         dev->id_drq = -1; /* use EISA dma */
-	printf("\n  **");
 #endif  __386BSD__
 
 	ahb_unit++;
@@ -531,11 +526,6 @@ struct	isa_dev	*dev;
 {
 	int	unit = dev->dev_unit;
 
-
-#ifdef  __386BSD__
-	printf(" probing for scsi devices**\n");
-#endif  __386BSD__
-
 	/***********************************************\
 	* ask the adapter what subunits are present	*
 	\***********************************************/
@@ -543,9 +533,6 @@ struct	isa_dev	*dev;
 #if defined(OSF)
 	ahb_attached[unit]=1;
 #endif /* defined(OSF) */
-#ifdef  __386BSD__
-	printf("ahb%d",unit);
-#endif  __386BSD__
 	return;
 }
 
@@ -621,9 +608,13 @@ ahbintr(unit)
 				ahb_data[unit].immed_ecb = 0;
 				break;
 			case	AHB_ASN:	/* for target mode */
+				printf("ahb%d: Unexpected ASN interrupt(%x)\n",
+					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_HW_ERR:
+				printf("ahb%d: Hardware error interrupt(%x)\n",
+					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_ECB_RECOVERED:
@@ -876,8 +867,8 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
-	printf("ahb%d reading board settings, ",unit);
-#define	PRNT(x)
+	printf("ahb%d: reading board settings, ",unit);
+#define	PRNT(x) printf(x)
 #else	__386BSD__
 	printf("ahb%d:",unit);
 #define	PRNT(x) printf(x)
@@ -914,6 +905,9 @@ int	unit;
 		printf("illegal int setting\n");
 		return(EIO);
 	}
+#ifdef	__386BSD__
+	printf("\n");
+#endif	__386BSD__
 	outb(port + INTDEF ,(intdef | INTEN)); /* make sure we can interrupt */
 	/* who are we on the scsi bus */
 	ahb_data[unit].our_id = (inb(port + SCSIDEF) & HSCSIID);
@@ -988,12 +982,12 @@ struct scsi_xfer *xs;
 	if(xs->bp) flags |= (SCSI_NOSLEEP); /* just to be sure */
 	if(flags & ITSDONE)
 	{
-		printf("Already done?");
+		printf("ahb%d: Already done?",unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if(!(flags & INUSE))
 	{
-		printf("Not in use?");
+		printf("ahb%d: Not in use?",unit);
 		xs->flags |= INUSE;
 	}
 	if (!(ecb = ahb_get_ecb(unit,flags)))

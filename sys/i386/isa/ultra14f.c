@@ -15,15 +15,10 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
+ *
+ *	$Id$
  */
  
 #include <sys/types.h>
@@ -302,6 +297,7 @@ int     uha_debug = 0;
 
 struct  scsi_switch     uha_switch = 
 {
+	"uha",
 	uha_scsi_cmd,
 	uhaminphys,
 	0,
@@ -396,7 +392,7 @@ retry:
 	}
 if ((int)cheat != PHYSTOKV(inl(port + UHA_ICM0)))
 {
-	printf("discarding %x ",inl(port + UHA_ICM0));
+	printf("uha%d: discarding %x\n",unit,inl(port + UHA_ICM0));
 	outb(port + UHA_SINT, UHA_ICM_ACK);
 	spinwait(50);
 	goto retry;
@@ -419,7 +415,7 @@ struct isa_dev *dev;
 	uha_data[unit].baseport = dev->dev_addr;
 	if(unit >= NUHA)
 	{
-		printf("uha: unit number (%d) too high\n",unit);
+		printf("uha%d: unit number too high\n",unit);
 		return(0);
 	}
 	
@@ -448,10 +444,6 @@ struct  isa_dev *dev;
 	int     unit = dev->dev_unit;
 
 
-#ifdef  __386BSD__
-	printf(" probing for scsi devices**\n");
-#endif  __386BSD__
-
 	/***********************************************\
 	* ask the adapter what subunits are present     *
 	\***********************************************/
@@ -460,10 +452,6 @@ struct  isa_dev *dev;
 #if defined(OSF)
 	uha_attached[unit]=1;
 #endif /* defined(OSF) */
-
-#ifdef  __386BSD__
-	printf("uha%d",unit);
-#endif  __386BSD__
 	return;
 }
 
@@ -725,10 +713,10 @@ int	unit;
 	model = inb(port + UHA_ID0);
 	submodel = inb(port + UHA_ID1);
 		 if ((model != 0x56) & (submodel != 0x40))
-		      { printf("ultrastor 14f not responding\n");
+		      { printf("uha%d: not responding\n",unit);
 			return(ENXIO); }
 
-	printf("uha%d reading board settings, ",unit);
+	printf("uha%d: reading board settings, ",unit);
 
 	config_reg1 = inb(port + UHA_CONF1);
 	config_reg2 = inb(port + UHA_CONF2);
@@ -866,12 +854,12 @@ struct scsi_xfer *xs;
 	if(xs->bp) flags |= (SCSI_NOSLEEP); /* just to be sure */
 	if(flags & ITSDONE)
 	{
-		printf("Already done?");
+		printf("uha%d: Already done?",unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if(!(flags & INUSE))
 	{
-		printf("Not in use?");
+		printf("uha%d: Not in use?",unit);
 		xs->flags |= INUSE;
 	}
 	if (!(mscp = uha_get_mscp(unit,flags)))
@@ -1058,7 +1046,7 @@ cheat = mscp;
 #endif	/*UHADEBUG*/
 		if (datalen)
 		{ /* there's still data, must have run out of segs! */
-			printf("uha_scsi_cmd%d: more than %d DMA segs\n",
+			printf("uha%d: uha_scsi_cmd, more than %d DMA segs\n",
 				unit,UHA_NSEG);
 			xs->error = XS_DRIVER_STUFFUP;
 			uha_free_mscp(unit,mscp,flags);
@@ -1113,10 +1101,11 @@ cheat = mscp;
 	{
 		if(uha_poll(unit,xs->timeout))
 		{
-			if (!(xs->flags & SCSI_SILENT)) printf("cmd fail\n");
+			if (!(xs->flags & SCSI_SILENT))
+				printf("uha%d: cmd fail\n",unit);
 			if(!(uha_abort(unit,mscp)))
 			{
-				printf("abort failed in wait\n");
+				printf("uha%d: abort failed in wait\n",unit);
 				uha_free_mscp(unit,mscp,flags);
 			}
 			xs->error = XS_DRIVER_STUFFUP;
