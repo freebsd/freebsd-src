@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)limits.h	7.2 (Berkeley) 6/28/90
- *	$Id: limits.h,v 1.2 1993/10/16 14:39:19 rgrimes Exp $
+ *	$Id: limits.h,v 1.3 1993/11/07 17:42:57 wollman Exp $
  */
 
 #ifndef _MACHINE_LIMITS_H_
@@ -59,4 +59,11 @@
 #define	ULONG_MAX	0xffffffff	/* max value for an unsigned long */
 #define	LONG_MAX	0x7fffffff	/* max value for a long */
 #define	LONG_MIN	(-0x7fffffff-1)	/* min value for a long */
+
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#define	UQUAD_MAX	0xffffffffffffffffLL		/* max unsigned quad */
+#define	QUAD_MAX	0x7fffffffffffffffLL		/* max signed quad */
+#define	QUAD_MIN	(-0x7fffffffffffffffLL-1)	/* min signed quad */
+#endif
+
 #endif /* _MACHINE_LIMITS_H_ */
