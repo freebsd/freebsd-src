@@ -1786,19 +1786,19 @@ acpi_deregister_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg
 }
 
 static int
-acpiopen(dev_t dev, int flag, int fmt, struct thread *td)
+acpiopen(dev_t dev, int flag, int fmt, d_thread_t *td)
 {
     return(0);
 }
 
 static int
-acpiclose(dev_t dev, int flag, int fmt, struct thread *td)
+acpiclose(dev_t dev, int flag, int fmt, d_thread_t *td)
 {
     return(0);
 }
 
 static int
-acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 {
     struct acpi_softc		*sc;
     struct acpi_ioctl_hook	*hp;
