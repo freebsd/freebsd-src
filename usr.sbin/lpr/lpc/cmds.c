@@ -78,14 +78,11 @@ static const char rcsid[] =
 #define KQT_NODAEMON	0
 #define KQT_KILLOK	1
 
-static void	 abortpr(struct printer *_pp, int _dis);
 static char	*args2line(int argc, char **argv);
 static int	 doarg(char *_job);
 static int	 doselect(struct dirent *_d);
 static int	 kill_qtask(const char *lf);
-static void	 putmsg(struct printer *_pp, int _argc, char **_argv);
 static int	 sortq(const void *_a, const void *_b);
-static void	 startpr(struct printer *_pp, int _chgenable);
 static int	 touch(struct jobqueue *_jq);
 static void	 unlinkf(char *_name);
 static void	 upstat(struct printer *_pp, const char *_msg, int _notify);
@@ -274,86 +271,6 @@ args2line(int argc, char **argv)
 	cp1[-1] = '\n';
 	*cp1 = '\0';
 	return strdup(buf);
-}
-
-/*
- * kill an existing daemon and disable printing.
- */
-void
-doabort(struct printer *pp)
-{
-	abortpr(pp, 1);
-}
-
-static void
-abortpr(struct printer *pp, int dis)
-{
-	register FILE *fp;
-	struct stat stbuf;
-	int pid, fd;
-	char lf[MAXPATHLEN];
-
-	lock_file_name(pp, lf, sizeof lf);
-	printf("%s:\n", pp->printer);
-
-	/*
-	 * Turn on the owner execute bit of the lock file to disable printing.
-	 */
-	if (dis) {
-		seteuid(euid);
-		if (stat(lf, &stbuf) >= 0) {
-			if (chmod(lf, stbuf.st_mode | LFM_PRINT_DIS) < 0)
-				printf("\tcannot disable printing: %s\n",
-				       strerror(errno));
-			else {
-				/* ..call newer upstat() in obsolete code.. */
-				upstat(pp, "printing disabled\n", 0);
-				/* ..the new upstat() did a setuid(uid).. */
-				seteuid(euid);
-				printf("\tprinting disabled\n");
-			}
-		} else if (errno == ENOENT) {
-			if ((fd = open(lf, O_WRONLY|O_CREAT, 
-				       LOCK_FILE_MODE | LFM_PRINT_DIS)) < 0)
-				printf("\tcannot create lock file: %s\n",
-				       strerror(errno));
-			else {
-				(void) close(fd);
-				/* ..call newer upstat() in obsolete code.. */
-				upstat(pp, "printing disabled\n", 0);
-				/* ..the new upstat() did a setuid(uid).. */
-				seteuid(euid);
-				printf("\tprinting disabled\n");
-				printf("\tno daemon to abort\n");
-			}
-			goto out;
-		} else {
-			printf("\tcannot stat lock file\n");
-			goto out;
-		}
-	}
-	/*
-	 * Kill the current daemon to stop printing now.
-	 */
-	if ((fp = fopen(lf, "r")) == NULL) {
-		printf("\tcannot open lock file\n");
-		goto out;
-	}
-	if (!getline(fp) || flock(fileno(fp), LOCK_SH|LOCK_NB) == 0) {
-		(void) fclose(fp);	/* unlocks as well */
-		printf("\tno daemon to abort\n");
-		goto out;
-	}
-	(void) fclose(fp);
-	if (kill(pid = atoi(line), SIGTERM) < 0) {
-		if (errno == ESRCH)
-			printf("\tno daemon to abort\n");
-		else
-			printf("\tWarning: daemon (pid %d) not killed\n", pid);
-	} else
-		printf("\tdaemon (pid %d) killed\n", pid);
-out:
-	seteuid(uid);
 }
 
 /*
@@ -947,31 +864,6 @@ unlinkf(char *name)
 }
 
 /*
- * Enable queuing to the printer (allow lpr's).
- */
-void
-enable(struct printer *pp)
-{
-	struct stat stbuf;
-	char lf[MAXPATHLEN];
-
-	lock_file_name(pp, lf, sizeof lf);
-	printf("%s:\n", pp->printer);
-
-	/*
-	 * Turn off the group execute bit of the lock file to enable queuing.
-	 */
-	seteuid(euid);
-	if (stat(lf, &stbuf) >= 0) {
-		if (chmod(lf, stbuf.st_mode & ~LFM_QUEUE_DIS) < 0)
-			printf("\tcannot enable queuing\n");
-		else
-			printf("\tqueuing enabled\n");
-	}
-	seteuid(uid);
-}
-
-/*
  * Enable queuing to the printer (allow lpr to add new jobs to the queue).
  */
 void
@@ -990,42 +882,6 @@ enable_q(struct printer *pp)
  * Disable queuing.
  */
 void
-disable(struct printer *pp)
-{
-	register int fd;
-	struct stat stbuf;
-	char lf[MAXPATHLEN];
-	
-	lock_file_name(pp, lf, sizeof lf);
-	printf("%s:\n", pp->printer);
-	/*
-	 * Turn on the group execute bit of the lock file to disable queuing.
-	 */
-	seteuid(euid);
-	if (stat(lf, &stbuf) >= 0) {
-		if (chmod(lf, stbuf.st_mode | LFM_QUEUE_DIS) < 0)
-			printf("\tcannot disable queuing: %s\n", 
-			       strerror(errno));
-		else
-			printf("\tqueuing disabled\n");
-	} else if (errno == ENOENT) {
-		if ((fd = open(lf, O_WRONLY|O_CREAT, 
-			       LOCK_FILE_MODE | LFM_QUEUE_DIS)) < 0)
-			printf("\tcannot create lock file: %s\n", 
-			       strerror(errno));
-		else {
-			(void) close(fd);
-			printf("\tqueuing disabled\n");
-		}
-	} else
-		printf("\tcannot stat lock file\n");
-	seteuid(uid);
-}
-
-/*
- * Disable queuing.
- */
-void
 disable_q(struct printer *pp)
 {
 	int setres;
@@ -1035,125 +891,6 @@ disable_q(struct printer *pp)
 	printf("%s:\n", pp->printer);
 
 	setres = set_qstate(SQS_DISABLEQ, lf);
-}
-
-/*
- * Disable queuing and printing and put a message into the status file
- * (reason for being down).
- */
-void
-down(int argc, char *argv[])
-{
-        int cmdstatus, more;
-	struct printer myprinter, *pp = &myprinter;
-
-	if (argc == 1) {
-		printf("usage: down {all | printer} [message ...]\n");
-		return;
-	}
-	if (!strcmp(argv[1], "all")) {
-		more = firstprinter(pp, &cmdstatus);
-		if (cmdstatus)
-			goto looperr;
-		while (more) {
-			putmsg(pp, argc - 2, argv + 2);
-			do {
-				more = nextprinter(pp, &cmdstatus);
-looperr:
-				switch (cmdstatus) {
-				case PCAPERR_TCOPEN:
-					printf("warning: %s: unresolved "
-					       "tc= reference(s) ",
-					       pp->printer);
-				case PCAPERR_SUCCESS:
-					break;
-				default:
-					fatal(pp, "%s", pcaperr(cmdstatus));
-				}
-			} while (more && cmdstatus);
-		}
-		return;
-	}
-	init_printer(pp);
-	cmdstatus = getprintcap(argv[1], pp);
-	switch (cmdstatus) {
-	default:
-		fatal(pp, "%s", pcaperr(cmdstatus));
-	case PCAPERR_NOTFOUND:
-		printf("unknown printer %s\n", argv[1]);
-		return;
-	case PCAPERR_TCOPEN:
-		printf("warning: %s: unresolved tc= reference(s)", argv[1]);
-		break;
-	case PCAPERR_SUCCESS:
-		break;
-	}
-	putmsg(pp, argc - 2, argv + 2);
-}
-
-static void
-putmsg(struct printer *pp, int argc, char **argv)
-{
-	register int fd;
-	register char *cp1, *cp2;
-	char buf[1024];
-	char file[MAXPATHLEN];
-	struct stat stbuf;
-
-	printf("%s:\n", pp->printer);
-	/*
-	 * Turn on the group execute bit of the lock file to disable queuing;
-	 * turn on the owner execute bit of the lock file to disable printing.
-	 */
-	lock_file_name(pp, file, sizeof file);
-	seteuid(euid);
-	if (stat(file, &stbuf) >= 0) {
-		if (chmod(file, stbuf.st_mode|LFM_PRINT_DIS|LFM_QUEUE_DIS) < 0)
-			printf("\tcannot disable queuing: %s\n", 
-			       strerror(errno));
-		else
-			printf("\tprinter and queuing disabled\n");
-	} else if (errno == ENOENT) {
-		if ((fd = open(file, O_WRONLY|O_CREAT, 
-			       LOCK_FILE_MODE|LFM_PRINT_DIS|LFM_QUEUE_DIS)) < 0)
-			printf("\tcannot create lock file: %s\n", 
-			       strerror(errno));
-		else {
-			(void) close(fd);
-			printf("\tprinter and queuing disabled\n");
-		}
-		seteuid(uid);
-		return;
-	} else
-		printf("\tcannot stat lock file\n");
-	/*
-	 * Write the message into the status file.
-	 */
-	status_file_name(pp, file, sizeof file);
-	fd = open(file, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
-	if (fd < 0) {
-		printf("\tcannot create status file: %s\n", strerror(errno));
-		seteuid(uid);
-		return;
-	}
-	seteuid(uid);
-	(void) ftruncate(fd, 0);
-	if (argc <= 0) {
-		(void) write(fd, "\n", 1);
-		(void) close(fd);
-		return;
-	}
-	cp1 = buf;
-	while (--argc >= 0) {
-		cp2 = *argv++;
-		while ((size_t)(cp1 - buf) < sizeof(buf) && (*cp1++ = *cp2++))
-			;
-		cp1[-1] = ' ';
-	}
-	cp1[-1] = '\n';
-	*cp1 = '\0';
-	(void) write(fd, buf, strlen(buf));
-	(void) close(fd);
 }
 
 /*
@@ -1223,16 +960,6 @@ quit(int argc __unused, char *argv[] __unused)
  * Kill and restart the daemon.
  */
 void
-restart(struct printer *pp)
-{
-	abortpr(pp, 0);
-	startpr(pp, 0);
-}
-
-/*
- * Kill and restart the daemon.
- */
-void
 restart_q(struct printer *pp)
 {
 	int killres, setres, startok;
@@ -1283,44 +1010,6 @@ setstatus_q(struct printer *pp)
 	printf("%s:\n", pp->printer);
 
 	upstat(pp, generic_msg, 1);
-}
-
-/*
- * Enable printing on the specified printer and startup the daemon.
- */
-void
-startcmd(struct printer *pp)
-{
-	startpr(pp, 1);
-}
-
-static void
-startpr(struct printer *pp, int chgenable)
-{
-	struct stat stbuf;
-	char lf[MAXPATHLEN];
-
-	lock_file_name(pp, lf, sizeof lf);
-	printf("%s:\n", pp->printer);
-
-	/*
-	 * For chgenable==1 ('start'), turn off the LFM_PRINT_DIS bit of the
-	 * lock file to re-enable printing.  For chgenable==2 ('up'), also
-	 * turn off the LFM_QUEUE_DIS bit to re-enable queueing.
-	 */
-	seteuid(euid);
-	if (chgenable && stat(lf, &stbuf) >= 0) {
-		mode_t bits = (chgenable == 2 ? 0 : LFM_QUEUE_DIS);
-		if (chmod(lf, stbuf.st_mode & (LOCK_FILE_MODE | bits)) < 0)
-			printf("\tcannot enable printing\n");
-		else
-			printf("\tprinting enabled\n");
-	}
-	if (!startdaemon(pp))
-		printf("\tcouldn't start daemon\n");
-	else
-		printf("\tdaemon started\n");
-	seteuid(uid);
 }
 
 /*
@@ -1407,47 +1096,6 @@ status(struct printer *pp)
 		}
 		(void) close(fd);	/* unlocks as well */
 	}
-}
-
-/*
- * Stop the specified daemon after completing the current job and disable
- * printing.
- */
-void
-stop(struct printer *pp)
-{
-	register int fd;
-	struct stat stbuf;
-	char lf[MAXPATHLEN];
-
-	lock_file_name(pp, lf, sizeof lf);
-	printf("%s:\n", pp->printer);
-
-	/*
-	 * Turn on the owner execute bit of the lock file to disable printing.
-	 */
-	seteuid(euid);
-	if (stat(lf, &stbuf) >= 0) {
-		if (chmod(lf, stbuf.st_mode | LFM_PRINT_DIS) < 0)
-			printf("\tcannot disable printing: %s\n",
-			       strerror(errno));
-		else {
-			upstat(pp, "printing disabled\n", 0);
-			printf("\tprinting disabled\n");
-		}
-	} else if (errno == ENOENT) {
-		if ((fd = open(lf, O_WRONLY|O_CREAT, 
-			       LOCK_FILE_MODE | LFM_PRINT_DIS)) < 0)
-			printf("\tcannot create lock file: %s\n",
-			       strerror(errno));
-		else {
-			(void) close(fd);
-			upstat(pp, "printing disabled\n", 0);
-			printf("\tprinting disabled\n");
-		}
-	} else
-		printf("\tcannot stat lock file\n");
-	seteuid(uid);
 }
 
 /*
@@ -1632,15 +1280,6 @@ doarg(char *job)
 		}
 	}
 	return(cnt);
-}
-
-/*
- * Enable everything and start printer (undo `down').
- */
-void
-up(struct printer *pp)
-{
-	startpr(pp, 2);
 }
 
 /*
