@@ -2507,7 +2507,7 @@ ed_ioctl(ifp, command, data)
 	struct ed_softc *sc = ifp->if_softc;
 	int     s, error = 0;
 
-	if (sc->gone) {
+	if (sc == NULL || sc->gone) {
 		ifp->if_flags &= ~IFF_RUNNING;
 		return ENXIO;
 	}
