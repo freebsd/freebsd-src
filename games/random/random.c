@@ -62,7 +62,6 @@ main(argc, argv)
 	char *argv[];
 {
 	extern int optind;
-	time_t now;
 	double denom;
 	int ch, random_exit, selected, unbuffer_output;
 	char *ep;
@@ -94,16 +93,18 @@ main(argc, argv)
 		denom = strtod(*argv, &ep);
 		if (errno == ERANGE)
 			err(1, "%s", *argv);
-		if (denom == 0 || *ep != '\0')
+		if (denom <= 0 || *ep != '\0')
 			errx(1, "denominator is not valid.");
+		if (random_exit && denom > 255)
+			errx(1, "denominator must be <= 255 for random exit.");
 		break;
 	default:
 		usage();
 		/* NOTREACHED */
 	}
 
-	(void)time(&now);
-	srandom((unsigned long)(now ^ getpid()));
+	if (srandomdev() < 0)
+		srandom(time(NULL) ^ getpid());
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
