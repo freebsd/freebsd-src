@@ -42,6 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chown.c	8.8 (Berkeley) 4/4/94";
 #endif /* not lint */
 #endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -63,7 +64,7 @@ __FBSDID("$FreeBSD$");
 void	a_gid(const char *);
 void	a_uid(const char *);
 void	chownerr(const char *);
-u_long	id(const char *, const char *);
+uid_t	id(const char *, const char *);
 void	usage(void);
 
 uid_t uid;
@@ -248,10 +249,10 @@ a_uid(const char *s)
 	uid = ((pw = getpwnam(s)) != NULL) ? pw->pw_uid : id(s, "user");
 }
 
-u_long
+uid_t
 id(const char *name, const char *type)
 {
-	u_long val;
+	uid_t val;
 	char *ep;
 
 	/*
