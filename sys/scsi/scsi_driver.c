@@ -81,8 +81,15 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	SC_DEBUG(sc_link, SDEV_DB2,
 	("%s%dattach: ", device->name, sc_link->dev_unit));
 
-	sc_print_start(sc_link);
-	printf("%s ", device->desc);
+	/* Print _sane_ probe info! */
+	printf("%s%d at scbus%d target %d lun %d\n",
+		sc_link->device->name, sc_link->dev_unit,
+		sc_link->scsibus, sc_link->target, sc_link->lun);
+#ifndef SCSIDEBUG
+	scsi_print_info(sc_link);
+#endif
+
+	printf("%s%d: %s ", device->name, sc_link->dev_unit, device->desc);
 
 	dev = scsi_dev_lookup(device->open);
 
@@ -92,7 +99,6 @@ int scsi_device_attach(struct scsi_link *sc_link)
 
 	errcode = (device->attach) ? (*(device->attach))(sc_link) : 0;
 
-	sc_print_finish();
 	printf("\n");
 
 	if (errcode == 0)
