@@ -41,8 +41,8 @@ struct ep_softc {
 	struct resource *iobase;
 	struct resource *irq;
 
-	bus_space_handle_t bst;
-	bus_space_tag_t bsh;
+	bus_space_handle_t bsh;
+	bus_space_tag_t bst;
 	void *ep_intrhand;
 
 	u_short ep_connectors;	/* Connectors on this card. */
