@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.21 1999/10/19 22:22:59 cyarnell Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.23 2000/02/04 07:51:04 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -204,6 +204,8 @@ main(argc, argv)
 		}
 	}
 
+	INIT_LIST(listuprec);
+
 	if (keyfile) {
 #ifdef PARSE_KEYFILE
 		if ((fp=fopen(keyfile, "r"))==NULL) {
@@ -397,7 +399,7 @@ main(argc, argv)
 		    exit (1);
 		}
 		r_dname = dnbuf;
-		r_ttl = 0;
+		r_ttl = (r_opcode == ADD) ? -1 : 0;
 		r_type = -1;
 		r_class = C_IN; /* default to IN */
 		r_size = 0;
@@ -500,7 +502,7 @@ main(argc, argv)
 			r_size = endp - cp + 1;
 			break;
 		    case ADD:
-			if (r_ttl == 0) {
+			if (r_ttl == -1) {
 			    fprintf (stderr,
 		"ttl must be specified for record to be added: %s\n", buf);
 			    exit (1);

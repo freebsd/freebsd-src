@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 8.8 1999/10/15 19:49:11 vixie Exp $";
+static const char rcsid[] = "$Id: res_findzonecut.c,v 8.9 1999/12/21 09:33:34 cyarnell Exp $";
 #endif /* not lint */
 
 /*
@@ -399,10 +399,15 @@ get_glue(res_state statp, ns_class class, rrset_ns *nsrrsp) {
 		if (EMPTY(nsrr->addrs)) {
 			n = do_query(statp, nsrr->name, class, ns_t_a,
 				     resp, &msg);
-			if (n != 0) {
+			if (n < 0) {
 				DPRINTF(("get_glue: do_query('%s', %s') failed",
-					 nsrr->name, p_class(class), n));
+					 nsrr->name, p_class(class)));
 				return (-1);
+			}
+			if (n > 0) {
+				DPRINTF((
+			"get_glue: do_query('%s', %s') CNAME or DNAME found",
+					 nsrr->name, p_class(class)));
 			}
 			if (save_a(statp, &msg, ns_s_an, nsrr->name, class,
 				   &nsrr->addrs) < 0) {

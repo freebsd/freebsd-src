@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_defs.h,v 8.36 1999/08/26 18:42:32 vixie Exp $
+ *	$Id: db_defs.h,v 8.38 2000/04/21 06:54:01 vixie Exp $
  */
 
 /*
@@ -57,7 +57,7 @@
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -307,3 +307,7 @@ struct db_rrset {
 		if (((x)->d_rcnt)-- == 0) \
 			ns_panic(ns_log_db, 1, "d_rcnt-- == 0"); \
 	} while (0)
+
+#define ISVALIDGLUE(xdp) ((xdp)->d_type == T_NS || (xdp)->d_type == T_A \
+                         || (xdp)->d_type == T_AAAA || (xdp)->d_type == ns_t_a6)
+
