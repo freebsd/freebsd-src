@@ -108,6 +108,17 @@ ata_generic_transaction(struct ata_request *request)
 		break;
 	    }
 
+	    /* device reset doesn't interrupt */
+	    if (request->u.ata.command == ATA_ATAPI_RESET) {
+		DELAY(10);
+		request->status = ATA_IDX_INB(ch, ATA_STATUS);
+		if (request->status & ATA_S_ERROR) {
+		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
+		    //request->result = EIO;
+		}
+		break;
+	    }
+
 	    /* if write command output the data */
 	    if (write) {
 		if (ata_wait(request->device,
