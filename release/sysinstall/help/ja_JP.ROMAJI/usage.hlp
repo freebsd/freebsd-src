@@ -31,7 +31,7 @@ Cancel wo sentaku suruto, genzai no sousa wo cancel shi, izen no menu ni
 modorimasu.
 
 
-tokubetu na kinou:
+TOKUBETU NA KINOU:
 ==================
 
 menu no koumoku wo sentaku surunoni, saisho no moji wo nyuuryoku
@@ -48,6 +48,6 @@ system no install ga shuuryou shi, "multi-user" de dousa shiteiru
 tokiha, douji ni ikutsukano session wo atsukaeru "kasou console" wo
 shiyou surukotoga dekimasu. console wo kirikaeruniha, ALT-F<n> wo
 shiyou shitekudasai.  'F<n>' ha mitai gamen ni taiousuru function key
-desu.  hyoujun deha 4tsuno kasou console ga shiyou dekimasuga, file
+desu.  hyoujun deha 3tsuno kasou console ga shiyou dekimasuga, file
 /etc/ttys wo henshuu surukotode saidai 12ko made fuyasukotoga
 dekimasu.
