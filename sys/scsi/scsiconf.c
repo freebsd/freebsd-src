@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.84 1997/04/02 09:05:41 jmg Exp $
+ *      $Id: scsiconf.c,v 1.85 1997/05/03 22:23:13 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -238,6 +238,9 @@ static st_modes mode_unktape =
 	    {0, ST_Q_FORCE_VAR_MODE, HALFINCH_6250}	/* minor 12,13,14,15 */
 	};
 
+static int worm_mode_philips = WORM_Q_PHILIPS;
+static int worm_mode_plasmon = WORM_Q_PLASMON;
+
 /***********************************************************************
  * A list of known devices and their "quirks".  Matching is based
  * first on device type, then on the manufacturer, model, and revision
@@ -392,21 +395,21 @@ static struct scsidevs knowndevs[] =
 #if NWORM > 0
 	{
 		T_READONLY, T_WORM, T_REMOV, "HP", "C4324/C4325", "*",
-		"worm", SC_ONE_LU
+		"worm", SC_ONE_LU, 0, &worm_mode_philips
 	},
 	{
 		T_READONLY, T_WORM, T_REMOV, "HP", "CD-Writer 6020", "*",
-		"worm", SC_ONE_LU
+		"worm", SC_ONE_LU, 0, &worm_mode_philips
 	},
 	{
 		/* That's the Philips drive, in case anybody wonders... */
 		T_READONLY, T_WORM, T_REMOV, "IMS", "CDD2000*", "*",
-		"worm", SC_ONE_LU
+		"worm", SC_ONE_LU, 0, &worm_mode_philips
 	},
 	{
 		/* Here's another Philips drive... */
 		T_READONLY, T_WORM, T_REMOV, "PHILIPS", "CDD2*", "*",
-		"worm", SC_ONE_LU
+		"worm", SC_ONE_LU, 0, &worm_mode_philips
 	},
 	/*
 	 * The Plasmon's are dual-faced: they appear as T_WORM if the
@@ -418,7 +421,7 @@ static struct scsidevs knowndevs[] =
 	 */
 	{
 		T_READONLY, T_WORM, T_REMOV, "PLASMON", "RF41*", "*",
-		"worm", SC_ONE_LU
+		"worm", SC_ONE_LU, 0, &worm_mode_plasmon
 	},
 #endif /* NWORM */
 
