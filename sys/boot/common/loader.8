@@ -310,6 +310,10 @@ While some of these may require a value,
 others define behavior just by being set.
 These are described below.
 .Bl -tag -width bootfile
+.It Va acpi_load
+Unset this to disable automatic loading of the ACPI module.
+See also hint.acpi.0.disable in
+.Xr device.hints 5 .
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
