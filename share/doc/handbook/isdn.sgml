@@ -1,0 +1,18 @@
+<!-- $Id: diskless.sgml,v 1.4 1996/05/16 23:17:53 mpp Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>ISDN<label id="isdn"></heading>
+
+<p><em>Contributed by &a.hm;.</em>
+
+There is the bisdn ISDN package available from ftp.muc.ditec.de supporting
+FreeBSD 2.1R, FreeBSD-current and NetBSD.
+
+Currently all (passive) Teles cards and their clones are supported for the
+EuroISDN (DSS1) and 1TR6 protocols.
+
+The latest source can be found on the above mentioned ftp server under
+directory isdn as file bisdn-095.tar.gz.
+
+A majordomo maintained mailing list is available, to subscribe, send the
+usual majordomo requests to isdn-request@muc.ditec.de.
