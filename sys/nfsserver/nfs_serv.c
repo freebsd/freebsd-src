@@ -389,8 +389,8 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 preat.va_ctime.tv_nsec != guard.tv_nsec))
 			error = NFSERR_NOT_SYNC;
 		if (error) {
-			mtx_unlock(&Giant);	/* VFS */
 			vput(vp);
+			mtx_unlock(&Giant);	/* VFS */
 			vp = NULL;
 			NFSD_LOCK();
 			nfsm_reply(NFSX_WCCDATA(v3));
