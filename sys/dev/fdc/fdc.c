@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.68 1995/11/04 13:23:34 bde Exp $
+ *	$Id: fd.c,v 1.69 1995/11/04 17:07:17 bde Exp $
  *
  */
 
@@ -271,9 +271,6 @@ int ftattach(struct isa_device *, struct isa_device *, int);
 /* autoconfig functions */
 static int fdprobe(struct isa_device *);
 static int fdattach(struct isa_device *);
-
-/* exported functions */
-int fdsize (dev_t);
 
 /* needed for ft driver, thus exported */
 int in_fdc(fdcu_t);
@@ -774,12 +771,6 @@ fdattach(struct isa_device *dev)
 	return (1);
 }
 
-int
-fdsize(dev_t dev)
-{
-	return(0);
-}
-
 /****************************************************************************/
 /*                            motor control stuff                           */
 /*		remember to not deselect the drive we're working on         */
@@ -825,7 +816,6 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 	}
 }
 
-/* ARGSUSED */
 static void
 fd_turnoff(void *arg1)
 {
@@ -840,7 +830,6 @@ fd_turnoff(void *arg1)
 	splx(s);
 }
 
-/* ARGSUSED */
 static void
 fd_motor_on(void *arg1)
 {
@@ -1129,6 +1118,7 @@ fdstrategy(struct buf *bp)
 		goto bad;
 	}
  	bp->b_cylin = blknum / (fd->ft->sectrac * fd->ft->heads);
+ 	bp->b_pblkno = bp->b_blkno;
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
@@ -1163,7 +1153,6 @@ fdstart(fdcu_t fdcu)
 	splx(s);
 }
 
-/* ARGSUSED */
 static void
 fd_timeout(void *arg1)
 {
@@ -1215,7 +1204,6 @@ fd_timeout(void *arg1)
 }
 
 /* just ensure it has the right spl */
-/* ARGSUSED */
 static void
 fd_pseudointr(void *arg1)
 {
