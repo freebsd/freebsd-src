@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.21 1998/05/31 17:31:07 kato Exp $
+ **      $Id: userconfig.c,v 1.10.2.22 1998/07/21 12:12:50 kato Exp $
  **/
 
 /**
@@ -251,7 +251,7 @@ static DEV_INFO device_info[] = {
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
 {"amd",		"Tekram DC-390(T) / AMD 53c974 based PCI SCSI",	FLG_FIXED, CLS_STORAGE},
 
-{"cs",          "IBM EtherJet, CS89x0-based Ethernet adapeters",0,	CLS_NETWORK},
+{"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 #ifdef PC98
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
 #else
@@ -267,7 +267,7 @@ static DEV_INFO device_info[] = {
 {"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
-{"tx",          "SMC 9432TX Ethernet adapters",			0,	CLS_NETWORK},
+{"tx",          "SMC 9432TX Ethernet adapter",			0,	CLS_NETWORK},
 {"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
@@ -2384,7 +2384,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.21 1998/05/31 17:31:07 kato Exp $
+ *      $Id: userconfig.c,v 1.10.2.22 1998/07/21 12:12:50 kato Exp $
  */
 
 #include "scbus.h"
