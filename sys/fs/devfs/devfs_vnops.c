@@ -329,7 +329,7 @@ devfs_close(ap)
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
 		VI_LOCK(vp);
-		if (count_dev(dev) == 2 && (vp->v_iflag & VI_XLOCK) == 0) {
+		if (count_dev(dev) == 2 && (vp->v_iflag & VI_DOOMED) == 0) {
 			td->td_proc->p_session->s_ttyvp = NULL;
 			oldvp = vp;
 		}
@@ -352,7 +352,7 @@ devfs_close(ap)
 	if (dsw == NULL)
 		return (ENXIO);
 	VI_LOCK(vp);
-	if (vp->v_iflag & VI_XLOCK) {
+	if (vp->v_iflag & VI_DOOMED) {
 		/* Forced close. */
 	} else if (dsw->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
@@ -1142,13 +1142,6 @@ devfs_revoke(ap)
 	struct devfs_dirent *de;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
-
-	/*
-	 * If a vgone (or vclean) is already in progress,
-	 * wait until it is done and return.
-	 */
-	if (vx_wait(vp))
-		return (0);
 
 	dev = vp->v_rdev;
 	for (;;) {
