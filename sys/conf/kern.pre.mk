@@ -58,11 +58,11 @@ PROF+=	-mprofiler-epilogue
 .endif
 .endif
 
-#.if defined(NO_WERROR)
-#WERROR=
-#.else
-#WERROR?=	-Werror
-#.endif
+.if defined(NO_WERROR)
+WERROR=
+.else
+WERROR?=	-Werror
+.endif
 
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
