@@ -572,14 +572,12 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		if (tp->tun_if.if_flags & IFF_UP)
 			return(EBUSY);
 
-		switch (*(int *)data) {
+		switch (*(int *)data & ~IFF_MULTICAST) {
 		case IFF_POINTOPOINT:
-			tp->tun_if.if_flags |= IFF_POINTOPOINT;
-			tp->tun_if.if_flags &= ~IFF_BROADCAST;
-			break;
 		case IFF_BROADCAST:
-			tp->tun_if.if_flags &= ~IFF_POINTOPOINT;
-			tp->tun_if.if_flags |= IFF_BROADCAST;
+			tp->tun_if.if_flags &=
+			    ~(IFF_BROADCAST|IFF_POINTOPOINT|IFF_MULTICAST);
+			tp->tun_if.if_flags |= *(int *)data;
 			break;
 		default:
 			return(EINVAL);
