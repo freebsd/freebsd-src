@@ -96,7 +96,11 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		srandom((unsigned long) s);
+		if (s == -1.0) {
+			if (srandomdev() < 0)
+				srandom(time(NULL) ^ getpid());
+		} else
+			srandom((unsigned long) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
 			*y = (double) random() / LONG_MAX;
 			putdata(*y * *x + begin, reps - *i);
@@ -250,7 +254,7 @@ getargs(ac, av)
 			mask = 015;
 			break;
 		case 012:
-			s = (randomize ? time(NULL) ^ getpid() : STEP_DEF);
+			s = (randomize ? -1.0 : STEP_DEF);
 			mask = 013;
 			break;
 		case 013:
@@ -258,11 +262,12 @@ getargs(ac, av)
 				begin = BEGIN_DEF;
 			else if (reps == 0)
 				error("Must specify begin if reps == 0", "");
-			begin = ender - reps * s + s;
+			else
+				begin = ender - reps * s + s;
 			mask = 0;
 			break;
 		case 014:
-			s = (randomize ? time(NULL) ^ getpid() : STEP_DEF);
+			s = (randomize ? -1.0 : STEP_DEF);
 			mask = 015;
 			break;
 		case 015:
@@ -274,7 +279,7 @@ getargs(ac, av)
 			break;
 		case 016:
 			if (randomize)
-				s = time(NULL) ^ getpid();
+				s = -1.0;
 			else if (reps == 0)
 				error("Infinite sequences cannot be bounded",
 				    "");
