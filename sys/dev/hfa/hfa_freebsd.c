@@ -176,6 +176,7 @@ hfa_attach (device_t dev)
 	fup->fu_openvcc = fore_openvcc;
 	fup->fu_closevcc = fore_closevcc;
 	fup->fu_output = fore_output;
+	fup->fu_softc = (void *)sc;
 
 	callout_handle_init(&fup->fu_thandle);
 
