@@ -294,8 +294,32 @@ process_copy_out ()
 	  file_hdr.c_uid = file_stat.st_uid;
 	  file_hdr.c_gid = file_stat.st_gid;
 	  file_hdr.c_nlink = file_stat.st_nlink;
-	  file_hdr.c_rdev_maj = major (file_stat.st_rdev);
-	  file_hdr.c_rdev_min = minor (file_stat.st_rdev);
+
+	  /* The rdev is meaningless except for block and character
+	     special files (POSIX standard) and perhaps fifos and
+	     sockets.  Clear it for other types of files so that
+	     check_rdev() doesn't reject files just because stat()
+	     put garbage in st_rdev and so that the output doesn't
+	     depend on the garbage.  */
+	  switch (file_hdr.c_mode & CP_IFMT)
+	    {
+	      case CP_IFBLK:
+	      case CP_IFCHR:
+#ifdef CP_IFIFO
+	      case CP_IFIFO:
+#endif
+#ifdef CP_IFSOCK
+	      case CP_IFSOCK:
+#endif
+	        file_hdr.c_rdev_maj = major (file_stat.st_rdev);
+	        file_hdr.c_rdev_min = minor (file_stat.st_rdev);
+	        break;
+	      default:
+	        file_hdr.c_rdev_maj = 0;
+	        file_hdr.c_rdev_min = 0;
+	        break;
+	    }
+
 	  file_hdr.c_mtime = file_stat.st_mtime;
 	  file_hdr.c_filesize = file_stat.st_size;
 	  file_hdr.c_chksum = 0;
