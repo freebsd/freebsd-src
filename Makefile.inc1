@@ -650,6 +650,7 @@ includes:
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/gnu/lib/csu;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libatm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdevstat;		${MAKE} beforeinstall
@@ -745,7 +746,7 @@ _libkeycap=	usr.sbin/pcvt/keycap
 .endif
 
 libraries:
-.for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
+.for _lib in ${_csu} gnu/lib/csu lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses \
     lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
     lib/libz lib gnu/lib \
