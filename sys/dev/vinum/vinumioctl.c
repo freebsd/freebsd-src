@@ -1,6 +1,6 @@
 /*
  * XXX replace all the checks on object validity with
- * calls to valid<object> 
+ * calls to valid<object>
  */
 /*-
  * Copyright (c) 1997, 1998
@@ -24,7 +24,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -129,38 +129,38 @@ vinumioctl(dev_t dev,
 	     */
 	case VINUM_DRIVECONFIG:
 	    index = *(int *) data;			    /* get the index */
-	    if (index >= (unsigned) vinum_conf.drives_used) /* can't do it */
-		return EFAULT;				    /* bang */
+	    if (index >= (unsigned) vinum_conf.drives_allocated) /* can't do it */
+		return ENXIO;				    /* bang */
 	    bcopy(&DRIVE[index], data, sizeof(struct drive)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_SDCONFIG:
 	    index = *(int *) data;			    /* get the index */
-	    if (index >= (unsigned) vinum_conf.subdisks_used) /* can't do it */
-		return EFAULT;				    /* bang */
+	    if (index >= (unsigned) vinum_conf.subdisks_allocated) /* can't do it */
+		return ENXIO;				    /* bang */
 	    bcopy(&SD[index], data, sizeof(struct sd));	    /* copy the config item out */
 	    return 0;
 
 	case VINUM_PLEXCONFIG:
 	    index = *(int *) data;			    /* get the index */
-	    if (index >= (unsigned) vinum_conf.plexes_used) /* can't do it */
-		return EFAULT;				    /* bang */
+	    if (index >= (unsigned) vinum_conf.plexes_allocated) /* can't do it */
+		return ENXIO;				    /* bang */
 	    bcopy(&PLEX[index], data, sizeof(struct plex)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_VOLCONFIG:
 	    index = *(int *) data;			    /* get the index */
-	    if (index >= (unsigned) vinum_conf.volumes_used) /* can't do it */
-		return EFAULT;				    /* bang */
+	    if (index >= (unsigned) vinum_conf.volumes_allocated) /* can't do it */
+		return ENXIO;				    /* bang */
 	    bcopy(&VOL[index], data, sizeof(struct volume)); /* copy the config item out */
 	    return 0;
 
 	case VINUM_PLEXSDCONFIG:
 	    index = *(int *) data;			    /* get the plex index */
 	    sdno = ((int *) data)[1];			    /* and the sd index */
-	    if ((index >= (unsigned) vinum_conf.plexes_used) /* plex doesn't exist */
+	    if ((index >= (unsigned) vinum_conf.plexes_allocated) /* plex doesn't exist */
 	    ||(sdno >= PLEX[index].subdisks))		    /* or it doesn't have this many subdisks */
-		return EFAULT;				    /* bang */
+		return ENXIO;				    /* bang */
 	    bcopy(&SD[PLEX[index].sdnos[sdno]],		    /* copy the config item out */
 		data,
 		sizeof(struct sd));
@@ -203,7 +203,7 @@ vinumioctl(dev_t dev,
 	    if (vinum_inactive(0)) {			    /* if the volumes are not active */
 		/*
 		 * Note the open count.  We may be called from v, so we'll be open.
-		 * Keep the count so we don't underflow 
+		 * Keep the count so we don't underflow
 		 */
 		free_vinum(1);				    /* clean up everything */
 		log(LOG_NOTICE, "vinum: CONFIGURATION OBLITERATED\n");
@@ -241,7 +241,7 @@ vinumioctl(dev_t dev,
 	case VINUM_GETFREELIST:				    /* get a drive free list element */
 	    index = *(int *) data;			    /* get the drive index */
 	    fe = ((int *) data)[1];			    /* and the free list element */
-	    if ((index >= (unsigned) vinum_conf.drives_used) /* plex doesn't exist */
+	    if ((index >= (unsigned) vinum_conf.drives_allocated) /* plex doesn't exist */
 	    ||(DRIVE[index].state == drive_unallocated))
 		return ENODEV;
 	    if (fe >= DRIVE[index].freelist_entries)	    /* no such entry */
@@ -321,7 +321,7 @@ vinumioctl(dev_t dev,
     case VINUM_VOLUME_TYPE:
 	objno = Volno(dev);
 
-	if ((unsigned) objno >= (unsigned) vinum_conf.volumes_used) /* not a valid volume */
+	if ((unsigned) objno >= (unsigned) vinum_conf.volumes_allocated) /* not a valid volume */
 	    return ENXIO;
 	vol = &VOL[objno];
 	if (vol->state != volume_up)			    /* not up, */
@@ -335,7 +335,7 @@ vinumioctl(dev_t dev,
 	    /*
 	     * Care!  DIOCGPART returns *pointers* to
 	     * the caller, so we need to store this crap as well.
-	     * And yes, we need it. 
+	     * And yes, we need it.
 	     */
 	case DIOCGPART:					    /* get partition information */
 	    get_volume_label(vol, &vol->label);
@@ -378,8 +378,8 @@ vinumioctl(dev_t dev,
 struct drive *
 validdrive(int driveno, struct _ioctl_reply *reply)
 {
-    if ((driveno < vinum_conf.drives_used)
-	&& (DRIVE[driveno].state != drive_unallocated))
+    if ((driveno < vinum_conf.drives_allocated)
+	&& (DRIVE[driveno].state > drive_referenced))
 	return &DRIVE[driveno];
     strcpy(reply->msg, "No such drive");
     reply->error = ENOENT;
@@ -389,8 +389,8 @@ validdrive(int driveno, struct _ioctl_reply *reply)
 struct sd *
 validsd(int sdno, struct _ioctl_reply *reply)
 {
-    if ((sdno < vinum_conf.subdisks_used)
-	&& (SD[sdno].state != sd_unallocated))
+    if ((sdno < vinum_conf.subdisks_allocated)
+	&& (SD[sdno].state > sd_referenced))
 	return &SD[sdno];
     strcpy(reply->msg, "No such subdisk");
     reply->error = ENOENT;
@@ -400,8 +400,8 @@ validsd(int sdno, struct _ioctl_reply *reply)
 struct plex *
 validplex(int plexno, struct _ioctl_reply *reply)
 {
-    if ((plexno < vinum_conf.plexes_used)
-	&& (PLEX[plexno].state != plex_unallocated))
+    if ((plexno < vinum_conf.plexes_allocated)
+	&& (PLEX[plexno].state > plex_referenced))
 	return &PLEX[plexno];
     strcpy(reply->msg, "No such plex");
     reply->error = ENOENT;
@@ -411,8 +411,8 @@ validplex(int plexno, struct _ioctl_reply *reply)
 struct volume *
 validvol(int volno, struct _ioctl_reply *reply)
 {
-    if ((volno < vinum_conf.volumes_used)
-	&& (VOL[volno].state != volume_unallocated))
+    if ((volno < vinum_conf.volumes_allocated)
+	&& (VOL[volno].state > volume_uninit))
 	return &VOL[volno];
     strcpy(reply->msg, "No such volume");
     reply->error = ENOENT;
@@ -427,9 +427,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 
     switch (msg->type) {
     case drive_object:
-	if (msg->index < vinum_conf.drives_used) {
+	if (msg->index < vinum_conf.drives_allocated) {
 	    struct drive *drive = &DRIVE[msg->index];
-	    if (drive->state != drive_unallocated) {
+	    if (drive->state > drive_referenced) {
 		drive->reads = 0;			    /* number of reads on this drive */
 		drive->writes = 0;			    /* number of writes on this drive */
 		drive->bytes_read = 0;			    /* number of bytes read */
@@ -441,9 +441,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 	    return;
 	}
     case sd_object:
-	if (msg->index < vinum_conf.subdisks_used) {
+	if (msg->index < vinum_conf.subdisks_allocated) {
 	    struct sd *sd = &SD[msg->index];
-	    if (sd->state != sd_unallocated) {
+	    if (sd->state > sd_referenced) {
 		sd->reads = 0;				    /* number of reads on this subdisk */
 		sd->writes = 0;				    /* number of writes on this subdisk */
 		sd->bytes_read = 0;			    /* number of bytes read */
@@ -457,9 +457,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 	break;
 
     case plex_object:
-	if (msg->index < vinum_conf.plexes_used) {
+	if (msg->index < vinum_conf.plexes_allocated) {
 	    struct plex *plex = &PLEX[msg->index];
-	    if (plex->state != plex_unallocated) {
+	    if (plex->state > plex_referenced) {
 		plex->reads = 0;
 		plex->writes = 0;			    /* number of writes on this plex */
 		plex->bytes_read = 0;			    /* number of bytes read */
@@ -475,9 +475,9 @@ resetstats(struct vinum_ioctl_msg *msg)
 	break;
 
     case volume_object:
-	if (msg->index < vinum_conf.volumes_used) {
+	if (msg->index < vinum_conf.volumes_allocated) {
 	    struct volume *vol = &VOL[msg->index];
-	    if (vol->state != volume_unallocated) {
+	    if (vol->state > volume_uninit) {
 		vol->bytes_read = 0;			    /* number of bytes read */
 		vol->bytes_written = 0;			    /* number of bytes written */
 		vol->reads = 0;				    /* number of reads on this volume */
@@ -652,7 +652,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 	    &&(vol->plexes == 1))) {			    /* and this is the last plex */
 		/*
 		   * XXX As elsewhere, check whether we will lose
-		   * mapping by removing this plex 
+		   * mapping by removing this plex
 		 */
 		reply->error = EBUSY;			    /* we need this plex */
 		reply->msg[0] = '\0';
