@@ -258,6 +258,25 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize < 512)
 			break;
+		if (cp->provider->mediasize/sectorsize < 17*8*65535) {
+			fwsectors = 17;
+			fwheads = 8;
+		}
+		else if (cp->provider->mediasize/sectorsize < 63*16*65535) {
+			if (fwsectors > 63)
+				fwsectors = 63;
+			if (fwheads > 16)
+				fwheads = 16;
+		}
+		else if (cp->provider->mediasize/sectorsize < 255*16*65535) {
+			fwsectors = 255;
+			if (fwheads > 16)
+				fwheads = 16;
+		}
+		else {
+			fwsectors = 255;
+			fwheads = 255;
+		}
 		buf = g_read_data(cp, 0, 8192, &error);
 		if (buf == NULL || error != 0)
 			break;
