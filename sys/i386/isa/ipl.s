@@ -80,10 +80,10 @@ _softtty_imask:	.long	0
 _doreti:
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
 doreti_next:
-	decb	_intr_nesting_level
+	decb	PCPU(INTR_NESTING_LEVEL)
 
 	/* Check for ASTs that can be handled now. */
-	testl	$AST_PENDING,_astpending
+	testl	$AST_PENDING,PCPU(ASTPENDING)
 	je	doreti_exit		/* no AST, exit */
 	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
 	jne	doreti_ast		/* yes, do it now. */
@@ -147,11 +147,11 @@ doreti_popl_fs_fault:
 
 	ALIGN_TEXT
 doreti_ast:
-	andl	$~AST_PENDING,_astpending
+	andl	$~AST_PENDING,PCPU(ASTPENDING)
 	sti
 	movl	$T_ASTFLT,TF_TRAPNO(%esp)
 	call	_ast
-	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
+	movb	$1,PCPU(INTR_NESTING_LEVEL) /* for doreti_next to decrement */
 	jmp	doreti_next
 
 #ifdef APIC_IO
