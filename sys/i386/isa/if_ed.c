@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.34 1994/03/01 12:23:33 davidg Exp $
+ * $Id: if_ed.c,v 1.35 1994/03/02 05:50:01 davidg Exp $
  */
 
 #include "ed.h"
@@ -414,14 +414,15 @@ ed_probe_WD80x3(isa_dev)
 		 * Assemble together the encoded interrupt number.
 		 */
 		iptr = (inb(isa_dev->id_iobase + ED_WD_ICR) & ED_WD_ICR_IR2) |
-		        ((inb(isa_dev->id_iobase + ED_WD_IRR) &
-		        (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
+			    ((inb(isa_dev->id_iobase + ED_WD_IRR) &
+			    (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
 		/*
 		 * Translate it using translation table, and check for correctness.
 		 */
 		if (ed_intr_mask[iptr] != isa_dev->id_irq) {
 			printf("ed%d: kernel configured irq %d doesn't match board configured irq %d\n",
-				isa_dev->id_unit, ffs(isa_dev->id_irq) - 1, ffs(ed_intr_mask[iptr]) - 1);
+			    isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
+			    ffs(ed_intr_mask[iptr]) - 1);
 			return(0);
 		}
 		/*
@@ -431,17 +432,25 @@ ed_probe_WD80x3(isa_dev)
 			inb(isa_dev->id_iobase + ED_WD_IRR) | ED_WD_IRR_IEN);
 	}
 	if (sc->is790) {
-		outb(isa_dev->id_iobase + 0x04, inb(isa_dev->id_iobase + 0x04) | 0x80);
-		iptr = ((inb(isa_dev->id_iobase + 0x0d) & 0x0c ) >> 2) | 
-			((inb(isa_dev->id_iobase + 0x0d) & 0x40) >> 4);
-		outb(isa_dev->id_iobase + 0x04, inb(isa_dev->id_iobase + 0x04) & ~0x80);
+		outb(isa_dev->id_iobase + ED_WD790_HWR,
+		    inb(isa_dev->id_iobase + ED_WD790_HWR) | ED_WD790_HWR_SWH);
+		iptr = (((inb(isa_dev->id_iobase + ED_WD790_GCR) & ED_WD790_GCR_IR2) >> 4) |
+			    (inb(isa_dev->id_iobase + ED_WD790_GCR) &
+			    (ED_WD790_GCR_IR1|ED_WD790_GCR_IR0)) >> 2);
+		outb(isa_dev->id_iobase + ED_WD790_HWR,
+		    inb(isa_dev->id_iobase + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
 		if (ed_790_intr_mask[iptr] != isa_dev->id_irq) {
 			printf("ed%d: kernel configured irq %d doesn't match board configured irq %d %d\n",
-				isa_dev->id_unit, ffs(isa_dev->id_irq) - 1, ffs(ed_790_intr_mask[iptr]) -1, iptr);
+			    isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
+			    ffs(ed_790_intr_mask[iptr]) - 1, iptr);
 			return 0;
 		}
-		outb(isa_dev->id_iobase + 0x06, inb(isa_dev->id_iobase + 0x06) | 0x01);
+		/*
+		 * Enable interrupts.
+		 */
+		outb(isa_dev->id_iobase + ED_WD790_ICR,
+		    inb(isa_dev->id_iobase + ED_WD790_ICR) | ED_WD790_ICR_EIL);
 	}
 
 	sc->isa16bit = isa16bit;
@@ -1444,9 +1453,13 @@ outloop:
 			 *	may cause a call-back to ed_start)
 			 * XXX - the call-back to 'start' is a bug, IMHO.
 			 */
-			case ED_VENDOR_WD_SMC:
+			case ED_VENDOR_WD_SMC: {
 				outb(sc->asic_addr + ED_WD_LAAR,
 				    (sc->wd_laar_proto | ED_WD_LAAR_M16EN));
+				if (sc->is790)
+				    outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
+				break;
+			    }
 			}
 		}
 
@@ -1465,9 +1478,12 @@ outloop:
 				outb(sc->asic_addr + ED_3COM_GACFR,
 				    ED_3COM_GACFR_RSEL | ED_3COM_GACFR_MBS0);
 				break;
-			case ED_VENDOR_WD_SMC:
+			case ED_VENDOR_WD_SMC: {
 				outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
+				if (sc->is790)
+				    outb(sc->asic_addr + ED_WD_MSR, 0x00);
 				break;
+			    }
 			}
 		}
 	} else {
@@ -1823,6 +1839,9 @@ edintr(unit)
 					outb(sc->asic_addr + ED_WD_LAAR,
 					     (sc->wd_laar_proto |=
 					     ED_WD_LAAR_M16EN));
+					if (sc->is790)
+					    outb(sc->asic_addr + ED_WD_MSR,
+						ED_WD_MSR_MENB);
 				}
 
 				ed_rint (unit);
@@ -1834,6 +1853,8 @@ edintr(unit)
 					outb(sc->asic_addr + ED_WD_LAAR,
 					     (sc->wd_laar_proto &=
 					     ~ED_WD_LAAR_M16EN));
+					if (sc->is790)
+					    outb(sc->asic_addr + ED_WD_MSR, 0x00);
 				}
 			}
 		}
