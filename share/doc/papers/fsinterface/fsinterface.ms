@@ -32,7 +32,7 @@
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
 .\" $FreeBSD$
 .\"
-.if \nv .rm CM
+.nr UX 0
 .de UX
 .ie \\n(UX \s-1UNIX\s0\\$1
 .el \{\
