@@ -584,6 +584,27 @@ get_vif_cnt(struct sioc_vif_req *req)
     return 0;
 }
 
+static void
+ip_mrouter_reset(void)
+{
+    bzero((caddr_t)mfctable, sizeof(mfctable));
+    MFC_LOCK_INIT();
+    VIF_LOCK_INIT();
+    bzero((caddr_t)nexpire, sizeof(nexpire));
+
+    pim_assert = 0;
+    mrt_api_config = 0;
+
+    callout_init(&expire_upcalls_ch, CALLOUT_MPSAFE);
+
+    bw_upcalls_n = 0;
+    bzero((caddr_t)bw_meter_timers, sizeof(bw_meter_timers));
+    callout_init(&bw_upcalls_ch, CALLOUT_MPSAFE);
+    callout_init(&bw_meter_ch, CALLOUT_MPSAFE);
+
+    callout_init(&tbf_reprocess_ch, CALLOUT_MPSAFE);
+}
+
 /*
  * Enable multicast routing
  */
@@ -603,29 +624,15 @@ ip_mrouter_init(struct socket *so, int version)
     if (ip_mrouter != NULL)
 	return EADDRINUSE;
 
-    ip_mrouter = so;
+    ip_mrouter_reset();
 
-    bzero((caddr_t)mfctable, sizeof(mfctable));
-    MFC_LOCK_INIT();
-    VIF_LOCK_INIT();
-    bzero((caddr_t)nexpire, sizeof(nexpire));
-
-    pim_assert = 0;
-
-    callout_init(&expire_upcalls_ch, CALLOUT_MPSAFE);
     callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT, expire_upcalls, NULL);
 
-    bw_upcalls_n = 0;
-    bzero((caddr_t)bw_meter_timers, sizeof(bw_meter_timers));
-    callout_init(&bw_upcalls_ch, CALLOUT_MPSAFE);
     callout_reset(&bw_upcalls_ch, BW_UPCALLS_PERIOD,
 	expire_bw_upcalls_send, NULL);
-    callout_init(&bw_meter_ch, CALLOUT_MPSAFE);
     callout_reset(&bw_meter_ch, BW_METER_PERIOD, expire_bw_meter_process, NULL);
 
-    callout_init(&tbf_reprocess_ch, CALLOUT_MPSAFE);
-
-    mrt_api_config = 0;
+    ip_mrouter = so;
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_init\n");
@@ -679,7 +686,6 @@ X_ip_mrouter_done(void)
     bzero((caddr_t)viftable, sizeof(viftable));
     numvifs = 0;
     pim_assert = 0;
-    VIF_UNLOCK();
     VIF_LOCK_DESTROY();
 
     /*
@@ -709,7 +715,6 @@ X_ip_mrouter_done(void)
     bzero((caddr_t)mfctable, sizeof(mfctable));
     bw_upcalls_n = 0;
     bzero(bw_meter_timers, sizeof(bw_meter_timers));
-    MFC_UNLOCK();
     MFC_LOCK_DESTROY();
 
     /*
@@ -3353,7 +3358,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
     switch (type) {
     case MOD_LOAD:
 	s = splnet();
-	/* XXX Protect against multiple loading */
+	ip_mrouter_reset();
+	/* XXX synchronize setup */
 	ip_mcast_src = X_ip_mcast_src;
 	ip_mforward = X_ip_mforward;
 	ip_mrouter_done = X_ip_mrouter_done;
@@ -3364,14 +3370,21 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	legal_vif_num = X_legal_vif_num;
 	mrt_ioctl = X_mrt_ioctl;
 	rsvp_input_p = X_rsvp_input;
-	splx(s);
 	break;
 
     case MOD_UNLOAD:
+	/*
+	 * Typically module unload happens after the user-level
+	 * process has shutdown the kernel services (the check
+	 * below insures someone can't just yank the module out
+	 * from under a running process).  But if the module is
+	 * just loaded and then unloaded w/o starting up a user
+	 * process we still need to cleanup.
+	 */
 	if (ip_mrouter)
 	    return EINVAL;
 
-	s = splnet();
+	X_ip_mrouter_done();
 	ip_mcast_src = NULL;
 	ip_mforward = NULL;
 	ip_mrouter_done = NULL;
@@ -3382,7 +3395,6 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	legal_vif_num = NULL;
 	mrt_ioctl = NULL;
 	rsvp_input_p = NULL;
-	splx(s);
 	break;
     }
     return 0;
