@@ -280,9 +280,10 @@ kernel_vmount(int flags, ...)
 static int
 vfs_nmount(td, fsflags, fsoptions)
 	struct thread *td;
-	int fsflags;		/* Flags common to all filesystems */
-	struct uio *fsoptions;	/* Options local to the filesystem */
+	int fsflags;		/* Flags common to all filesystems. */
+	struct uio *fsoptions;	/* Options local to the filesystem. */
 {
+	linker_file_t lf;
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
@@ -290,7 +291,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	struct vfsoptlist *optlist;
 	struct vfsopt *opt;
 	char *buf, *fstype, *fspath;
-	int error, flag = 0, flag2 = 0, i, len, optcnt;
+	int error, flag = 0, kern_flag = 0, i, len, optcnt;
 	int offset, iovcnt, fstypelen, fspathlen;
 	struct vattr va;
 	struct nameidata nd;
@@ -320,7 +321,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	cur = fsoptions->uio_iov;
 	while (i < optcnt) {
 		opt[i].name = buf + offset;
-		/* Ensure the name of an option is a string */
+		/* Ensure the name of an option is a string. */
 		if (opt[i].name[cur->iov_len - 1] != '\0') {
 			error = EINVAL;
 			goto bad;
@@ -351,13 +352,13 @@ vfs_nmount(td, fsflags, fsoptions)
 	 */
 	fstypelen = 0;
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
-	if ((error != 0) || (fstype[fstypelen - 1] != '\0')) {
+	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		goto bad;
 	}
 	fspathlen = 0;
 	error = vfs_getopt(optlist, "fspath", (void **)&fspath, &fspathlen);
-	if ((error != 0) || (fspath[fspathlen - 1] != '\0')) {
+	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		goto bad;
 	}
@@ -367,14 +368,13 @@ vfs_nmount(td, fsflags, fsoptions)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if ((fstypelen >= MFSNAMELEN - 1) ||
-	    (fspathlen >= MNAMELEN - 1)) {
+	if (fstypelen >= MFSNAMELEN - 1 || fspathlen >= MNAMELEN - 1) {
 		error = ENAMETOOLONG;
 		goto bad;
 	}
 
 	if (usermount == 0) {
-	       	error = suser_td(td);
+		error = suser_td(td);
 		if (error)
 			goto bad;
 	}
@@ -387,9 +387,9 @@ vfs_nmount(td, fsflags, fsoptions)
 			goto bad;
 	}
 	/*
-	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
+	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users.
 	 */
-	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) 
+	if (suser_xxx(td->td_ucred, NULL, 0) != 0) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -407,7 +407,7 @@ vfs_nmount(td, fsflags, fsoptions)
 		}
 		mp = vp->v_mount;
 		flag = mp->mnt_flag;
-		flag2 = mp->mnt_kern_flag;
+		kern_flag = mp->mnt_kern_flag;
 		/*
 		 * We only allow the filesystem to be reloaded if it
 		 * is currently mounted read-only.
@@ -422,7 +422,7 @@ vfs_nmount(td, fsflags, fsoptions)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) {
+		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
 			error = suser_td(td);
 			if (error) {
 				vput(vp);
@@ -435,8 +435,7 @@ vfs_nmount(td, fsflags, fsoptions)
 			goto bad;
 		}
 		mtx_lock(&vp->v_interlock);
-		if ((vp->v_flag & VMOUNT) != 0 ||
-		    vp->v_mountedhere != NULL) {
+		if ((vp->v_flag & VMOUNT) != 0 || vp->v_mountedhere != NULL) {
 			mtx_unlock(&vp->v_interlock);
 			vfs_unbusy(mp, td);
 			vput(vp);
@@ -455,20 +454,19 @@ vfs_nmount(td, fsflags, fsoptions)
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
-	error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td);
+	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
 	if (error) {
 		vput(vp);
 		goto bad;
 	}
-	if (va.va_uid != td->td_proc->p_ucred->cr_uid) {
+	if (va.va_uid != td->td_ucred->cr_uid) {
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
 			goto bad;
 		}
 	}
-	if ((error = vinvalbuf(vp, V_SAVE, td->td_proc->p_ucred, td, 0, 0))
-	    != 0) {
+	if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0)) != 0) {
 		vput(vp);
 		goto bad;
 	}
@@ -481,16 +479,14 @@ vfs_nmount(td, fsflags, fsoptions)
 		if (!strcmp(vfsp->vfc_name, fstype))
 			break;
 	if (vfsp == NULL) {
-		linker_file_t lf;
-
-		/* Only load modules for root (very important!) */
+		/* Only load modules for root (very important!). */
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
 			goto bad;
 		}
 		error = securelevel_gt(td->td_ucred, 0);
-		if (error != 0) {
+		if (error) {
 			vput(vp);
 			goto bad;
 		}
@@ -502,7 +498,7 @@ vfs_nmount(td, fsflags, fsoptions)
 			goto bad;
 		}
 		lf->userrefs++;
-		/* lookup again, see if the VFS was loaded */
+		/* Look up again to see if the VFS was loaded. */
 		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
 			if (!strcmp(vfsp->vfc_name, fstype))
 				break;
@@ -514,7 +510,6 @@ vfs_nmount(td, fsflags, fsoptions)
 			goto bad;
 		}
 	}
-
 	mtx_lock(&vp->v_interlock);
 	if ((vp->v_flag & VMOUNT) != 0 ||
 	    vp->v_mountedhere != NULL) {
@@ -533,18 +528,16 @@ vfs_nmount(td, fsflags, fsoptions)
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
-	vfs_busy(mp, LK_NOWAIT, 0, td);
+	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
-	mp->mnt_stat.f_fstypename[MFSNAMELEN - 1] = '\0';
 	mp->mnt_vnodecovered = vp;
-	mp->mnt_stat.f_owner = td->td_proc->p_ucred->cr_uid;
+	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
-	mp->mnt_stat.f_mntonname[MNAMELEN - 1] = '\0';
 	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, td);
 
@@ -569,14 +562,8 @@ update:
 		mp->mnt_flag |= MNT_RDONLY;
 	else if (mp->mnt_flag & MNT_RDONLY)
 		mp->mnt_kern_flag |= MNTK_WANTRDWR;
-	mp->mnt_flag &=~ (MNT_NOSUID | MNT_NOEXEC | MNT_NODEV |
-	    MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_NOATIME |
-	    MNT_NOSYMFOLLOW | MNT_IGNORE |
-	    MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
-	mp->mnt_flag |= fsflags & (MNT_NOSUID | MNT_NOEXEC |
-	    MNT_NODEV | MNT_SYNCHRONOUS | MNT_UNION | MNT_ASYNC | MNT_FORCE |
-	    MNT_NOSYMFOLLOW | MNT_IGNORE |
-	    MNT_NOATIME | MNT_NOCLUSTERR | MNT_NOCLUSTERW | MNT_SUIDDIR);
+	mp->mnt_flag &=~ MNT_UPDATEMASK;
+	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
@@ -591,7 +578,7 @@ update:
 		mp->mnt_kern_flag &=~ MNTK_WANTRDWR;
 		if (error) {
 			mp->mnt_flag = flag;
-			mp->mnt_kern_flag = flag2;
+			mp->mnt_kern_flag = kern_flag;
 			vfs_freeopts(mp->mnt_optnew);
 		} else {
 			vfs_freeopts(mp->mnt_opt);
@@ -656,7 +643,7 @@ bad:
 }
 
 /*
- * Old Mount API
+ * Old Mount API.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct mount_args {
@@ -681,8 +668,8 @@ mount(td, uap)
 	char *fspath;
 	int error;
 
-	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK | M_ZERO);
-	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK | M_ZERO);
+	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
+	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 
 	/*
 	 * vfs_mount() actually takes a kernel string for `type' and
@@ -718,21 +705,20 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	int fsflags;
 	void *fsdata;
 {
+	linker_file_t lf;
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
-	int error, flag = 0, flag2 = 0;
+	int error, flag = 0, kern_flag = 0;
 	struct vattr va;
 	struct nameidata nd;
-	linker_file_t lf;
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if ((strlen(fstype) >= MFSNAMELEN - 1) ||
-	    (strlen(fspath) >= MNAMELEN - 1))
+	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
 	if (usermount == 0) {
@@ -749,9 +735,9 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return (error);
 	}
 	/*
-	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
+	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users.
 	 */
-	if (suser_xxx(td->td_ucred, 0, 0)) 
+	if (suser_xxx(td->td_ucred, NULL, 0) != 0) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -768,7 +754,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		}
 		mp = vp->v_mount;
 		flag = mp->mnt_flag;
-		flag2 = mp->mnt_kern_flag;
+		kern_flag = mp->mnt_kern_flag;
 		/*
 		 * We only allow the filesystem to be reloaded if it
 		 * is currently mounted read-only.
@@ -794,8 +780,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return (EBUSY);
 		}
 		mtx_lock(&vp->v_interlock);
-		if ((vp->v_flag & VMOUNT) != 0 ||
-		    vp->v_mountedhere != NULL) {
+		if ((vp->v_flag & VMOUNT) != 0 || vp->v_mountedhere != NULL) {
 			mtx_unlock(&vp->v_interlock);
 			vfs_unbusy(mp, td);
 			vput(vp);
@@ -824,8 +809,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return (error);
 		}
 	}
-	if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0))
-	    != 0) {
+	if ((error = vinvalbuf(vp, V_SAVE, td->td_ucred, td, 0, 0)) != 0) {
 		vput(vp);
 		return (error);
 	}
@@ -837,7 +821,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		if (!strcmp(vfsp->vfc_name, fstype))
 			break;
 	if (vfsp == NULL) {
-		/* Only load modules for root (very important!) */
+		/* Only load modules for root (very important!). */
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
@@ -856,7 +840,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			return (error);
 		}
 		lf->userrefs++;
-		/* lookup again, see if the VFS was loaded */
+		/* Look up again to see if the VFS was loaded. */
 		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
 			if (!strcmp(vfsp->vfc_name, fstype))
 				break;
@@ -891,11 +875,9 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
-	mp->mnt_stat.f_fstypename[MFSNAMELEN - 1] = '\0';
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
-	mp->mnt_stat.f_mntonname[MNAMELEN - 1] = '\0';
 	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, td);
 update:
@@ -933,7 +915,7 @@ update:
 		mp->mnt_kern_flag &=~ MNTK_WANTRDWR;
 		if (error) {
 			mp->mnt_flag = flag;
-			mp->mnt_kern_flag = flag2;
+			mp->mnt_kern_flag = kern_flag;
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
