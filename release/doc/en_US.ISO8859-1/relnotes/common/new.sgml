@@ -109,11 +109,11 @@
     <title>Security Advisories</title>
 
     <para>A bug in &man.mksnap.ffs.8; has been fixed; it caused the creation of a
-      filesystem snapshot to reset the flags on the filesystem to
+      file system snapshot to reset the flags on the file system to
       their default values.  The possible consequences depended on local
       usage, but could include disabling extended access control lists
       or enabling the use of setuid executables stored on an untrusted
-      filesystem.  This bug also affected the &man.dump.8;
+      file system.  This bug also affected the &man.dump.8;
       <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
       that &man.mksnap.ffs.8; is normally only available to the
       superuser and members of the <groupname>operator</groupname>
@@ -318,7 +318,7 @@
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
 
     <para>&man.kqueue.2; now supports a new filter
-      <literal>EVFILT_FS</literal> to be used to signal generic filesystem
+      <literal>EVFILT_FS</literal> to be used to signal generic file system
       events to the user space.  Currently, mount, unmount, and up/down
       status of NFS are signaled.</para>
 
@@ -550,8 +550,8 @@
       for applications that &man.mmap.2; many hundreds or thousands
       of regions.</para>
 
-    <para>The loader tunable <varname>debug.witness_*</varname>
-      has been renamed to <varname>debug.witness.*</varname>.</para>
+    <para>The loader tunables <varname>debug.witness_*</varname>
+      have been renamed to <varname>debug.witness.*</varname>.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -687,7 +687,7 @@
 	has been subsumed into the &man.en.4; driver.</para>
 
       <para>The &man.ixgb.4; driver, which supports
-        Intel PRO/10GBE 10 gigabit Ethernet cards, has been
+        Intel PRO/10GBE 10 Gigabit Ethernet cards, has been
         added. &merged;</para>
 
       <para arch="i386">The <devicename>lmc</devicename>
@@ -758,7 +758,7 @@
 
       <para>&man.vge.4; driver, which supports
 	the VIA Networking Technologies
-	VT6122 gigabit Ethernet chip and integrated 10/100/1000 copper PHY,
+	VT6122 Gigabit Ethernet chip and integrated 10/100/1000 copper PHY,
 	has been added.</para>
 
       <para>The &man.vr.4; driver now supports &man.polling.4;.  &merged;</para>
@@ -967,7 +967,7 @@
 
       <para>The EXT2FS file system code now includes partial support
 	for large (&gt; 4GB) files.  This support is partial in that
-	it will refuse to create large files on filesystems that have
+	it will refuse to create large files on file systems that have
 	not been upgraded to <literal>EXT2_DYN_REV</literal> or that
 	do not have the
 	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal> flag set
@@ -1049,13 +1049,13 @@
 	option to &man.mount.smbfs.8;.</para>
 
       <para>The <literal>MSDOSFS_LARGE</literal> kernel option
-	has been added to support for FAT32 filesystems bigger
+	has been added to support for FAT32 file systems bigger
 	than 128GB.  This option is disabled by default.  It
 	uses at least 32 bytes of kernel memory for
 	each file on disk; furthermore it is only safe to use in certain
 	controlled situations, such as read-only mount
 	with less than 1 million files and so on.
-	Exporting these large filesystems
+	Exporting these large file systems
 	over NFS is not supported.</para>
     </sect3>
 
@@ -1305,7 +1305,7 @@
     <para><application>libdisk</application> now uses
       <varname>d_addr_t</varname> for disk addresses.
       This allows &man.sysinstall.8; to properly handle disks
-      and filesystems more than 1 TB.</para>
+      and file systems more than 1 TB.</para>
 
     <para arch="i386,pc98,amd64,ia64">The library formerly known as
       <application>libkse</application> has been renamed
@@ -1379,7 +1379,7 @@
       in sub-makes except on the sub-make's command line.</para>
 
     <para arch="i386">The &man.mkuzip.8;, which is a non-GPL
-      utility to compress filesystem images for use with
+      utility to compress file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
       has been added.</para>
 
@@ -1430,7 +1430,7 @@
 
     <para>&man.newfs.8; and &man.mdmfs.8; now support a
       <option>-l</option> flag to enable them to set the MAC
-      multilabel flag on new filesystems without requiring the use of
+      multilabel flag on new file systems without requiring the use of
       &man.tunefs.8;.</para>
 
     <para>&man.nologin.8; now reports login attempts via
