@@ -8,7 +8,7 @@
 # as possible.  Try to structure option-using code so that a single
 # option only switch code on, or only switch code off, to make it
 # possible to have a full compile-test.  If necessary, you can check
-* for COMPILING_LINT to get maximum code coverage.
+# for COMPILING_LINT to get maximum code coverage.
 #
 # All new options shall also be listed in either "conf/options" or
 # "<machine>/conf/options.<machine>".  Options that affect a single
