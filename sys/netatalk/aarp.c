@@ -58,14 +58,17 @@ static struct aarptab	aarptab[AARPTAB_SIZE];
 extern u_char			etherbroadcastaddr[6];
 # endif /* __FreeBSD__ */
 
-static u_char atmulticastaddr[ 6 ] = {
+static const u_char atmulticastaddr[ 6 ] = {
     0x09, 0x00, 0x07, 0xff, 0xff, 0xff,
 };
 
+/*
+ * Not used?
+ */
 u_char	at_org_code[ 3 ] = {
     0x08, 0x00, 0x07,
 };
-u_char	aarp_org_code[ 3 ] = {
+const u_char	aarp_org_code[ 3 ] = {
     0x00, 0x00, 0x00,
 };
 
@@ -163,8 +166,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
     eh = (struct ether_header *)sa.sa_data;
 
     if ( aa->aa_flags & AFA_PHASE2 ) {
-	bcopy((caddr_t)atmulticastaddr, (caddr_t)eh->ether_dhost,
-		sizeof( eh->ether_dhost ));
+	bcopy(atmulticastaddr, eh->ether_dhost, sizeof( eh->ether_dhost ));
 	eh->ether_type = htons(sizeof(struct llc) + sizeof(struct ether_aarp));
 	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
 	if ( m == NULL ) {
@@ -173,7 +175,7 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
 	llc = mtod( m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
-	bcopy( aarp_org_code, llc->llc_org_code, sizeof( aarp_org_code ));
+	bcopy(aarp_org_code, llc->llc_org_code, sizeof(aarp_org_code));
 	llc->llc_ether_type = htons( ETHERTYPE_AARP );
 
 	bcopy( &AA_SAT( aa )->sat_addr.s_net, ea->aarp_spnet,
@@ -221,8 +223,7 @@ aarpresolve( ac, m, destsat, desten )
 	    return( 0 );
 	}
 	if ( aa->aa_flags & AFA_PHASE2 ) {
-	    bcopy( (caddr_t)atmulticastaddr, (caddr_t)desten,
-		    sizeof( atmulticastaddr ));
+	    bcopy(atmulticastaddr, (caddr_t)desten, sizeof(atmulticastaddr));
 	} else {
 	    bcopy( ac->ac_if.if_broadcastaddr, (caddr_t)desten,
 		    sizeof( ac->ac_if.if_addrlen ));
@@ -581,8 +582,7 @@ aarpprobe( void *arg )
     eh = (struct ether_header *)sa.sa_data;
 
     if ( aa->aa_flags & AFA_PHASE2 ) {
-	bcopy((caddr_t)atmulticastaddr, (caddr_t)eh->ether_dhost,
-		sizeof( eh->ether_dhost ));
+	bcopy(atmulticastaddr, eh->ether_dhost, sizeof( eh->ether_dhost ));
 	eh->ether_type = htons( sizeof( struct llc ) +
 		sizeof( struct ether_aarp ));
 	M_PREPEND( m, sizeof( struct llc ), M_TRYWAIT );
