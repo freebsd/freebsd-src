@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.47 1994/12/23 05:11:16 jkh Exp $
+# $Id: instdist.sh,v 1.48 1995/01/07 11:09:50 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -112,6 +112,7 @@ Please use arrow keys to scroll through all items." \
   "Japan-5" "ftpsv1.u-aizu.ac.jp" \
   "Japan-6" "tutserver.tutcc.tut.ac.jp" \
   "Japan-7" "ftp.ee.uec.ac.jp" \
+  "Korea" "ftp.cau.ac.kr" \
   "Netherlands" "ftp.nl.net" \
   "Russia" "ftp.kiae.su" \
   "Taiwan" "netbsd.csie.nctu.edu.tw" \
@@ -143,6 +144,7 @@ Please use arrow keys to scroll through all items." \
    Japan-5) FTP_PATH="ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" ;;
    Japan-6) FTP_PATH="ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-${DISTNAME}" ;;
    Japan-7) FTP_PATH="ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-${DISTNAME}" ;;
+   Korea) FTP_PATH="ftp://ftp.cau.ac.kr/pub/FreeBSD/${DISTNAME}" ;;
    Netherlands) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
    Russia) FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" ;;
    Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
