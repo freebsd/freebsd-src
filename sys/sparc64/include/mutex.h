@@ -33,7 +33,7 @@ static __inline void
 mtx_intr_enable(struct mtx *mtx)
 {
 
-	mtx->mtx_savecrit |= PSTATE_IE;
+	mtx->mtx_savecrit = 0;
 }
 
 #endif /* !_MACHINE_MUTEX_H_ */
