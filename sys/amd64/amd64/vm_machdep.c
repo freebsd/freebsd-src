@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.27 1994/08/31 06:17:33 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.28 1994/09/02 04:12:07 davidg Exp $
  */
 
 #include "npx.h"
@@ -100,7 +100,8 @@ vm_bounce_page_find(count)
 retry:
 	for (i = 0; i < bounceallocarraysize; i++) {
 		if (bounceallocarray[i] != 0xffffffff) {
-			if (bit = ffs(~bounceallocarray[i])) {
+			bit = ffs(~bounceallocarray[i]);
+			if (bit) {
 				bounceallocarray[i] |= 1 << (bit - 1) ;
 				bouncefree -= count;
 				splx(s);
@@ -184,7 +185,6 @@ vm_bounce_kva(size, waitok)
 	int waitok;
 {
 	int i;
-	int startfree;
 	vm_offset_t kva = 0;
 	vm_offset_t off;
 	int s = splbio();
@@ -281,9 +281,7 @@ vm_bounce_alloc(bp)
 	vm_offset_t va, kva;
 	vm_offset_t pa;
 	int dobounceflag = 0;
-	int bounceindex;
 	int i;
-	int s;
 
 	if (bouncepages == 0)
 		return;
@@ -294,7 +292,8 @@ vm_bounce_alloc(bp)
 	}
 
 	if (bp->b_bufsize < bp->b_bcount) {
-		printf("vm_bounce_alloc: b_bufsize(0x%x) < b_bcount(0x%x) !!!!\n",
+		printf(
+		    "vm_bounce_alloc: b_bufsize(0x%lx) < b_bcount(0x%lx) !!\n",
 			bp->b_bufsize, bp->b_bcount);
 		panic("vm_bounce_alloc");
 	}
@@ -394,8 +393,6 @@ vm_bounce_free(bp)
 {
 	int i;
 	vm_offset_t origkva, bouncekva, bouncekvaend;
-	int countvmpg;
-	int s;
 
 /*
  * if this isn't a bounced buffer, then just return
@@ -482,7 +479,6 @@ vm_bounce_free(bp)
 void
 vm_bounce_init()
 {
-	vm_offset_t minaddr, maxaddr;
 	int i;
 
 	kvasfreecnt = 0;
@@ -547,7 +543,7 @@ cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
 	register struct user *up = p2->p_addr;
-	int foo, offset, addr, i;
+	int offset;
 	extern char kstack[];
 	extern int mvesp();
 
@@ -575,7 +571,7 @@ cpu_fork(p1, p2)
 	 * Arrange for a non-local goto when the new process
 	 * is started, to resume here, returning nonzero from setjmp.
 	 */
-	if (savectx(up, 1)) {
+	if (savectx(&up->u_pcb, 1)) {
 		/*
 		 * Return 1 in child.
 		 */
@@ -605,7 +601,6 @@ cpu_exit(p)
 void
 cpu_wait(p) struct proc *p; {
 /*	extern vm_map_t upages_map; */
-	extern char kstack[];
 
 	/* drop per-process resources */
  	pmap_remove(vm_map_pmap(kernel_map), (vm_offset_t) p->p_addr,
@@ -768,7 +763,7 @@ vunmapbuf(bp)
 	register struct buf *bp;
 {
 	register caddr_t addr;
-	vm_offset_t kva,va,v,lastv,pa;
+	vm_offset_t v,lastv,pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
