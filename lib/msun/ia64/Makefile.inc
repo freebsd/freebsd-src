@@ -1,3 +1,4 @@
 # $FreeBSD$
 
-ARCH_SRCS = s_fma.S s_fmaf.S
+ARCH_SRCS = s_fma.S s_fmaf.S s_fmal.S
+LDBL_PREC = 64
