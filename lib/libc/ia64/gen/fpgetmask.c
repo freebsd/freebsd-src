@@ -36,5 +36,5 @@ fpgetmask(void)
 	u_int64_t fpsr;
 
 	__asm __volatile("mov %0=ar.fpsr" : "=r" (fpsr));
-	return (~fpsr & 0x3f);
+	return (~fpsr & 0x3d);
 }
