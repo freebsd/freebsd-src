@@ -714,7 +714,8 @@ found:
 				goto bad;
 			}
 			m->m_flags |= M_FRAG;
-		}
+		} else
+			m->m_flags &= ~M_FRAG;
 		ip->ip_off <<= 3;
 
 		/*
