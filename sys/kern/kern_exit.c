@@ -291,10 +291,8 @@ exit1(p, rv)
 		wakeup((caddr_t) initproc);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
-		LIST_REMOVE(q, p_sibling);
-		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
-		q->p_pptr = initproc;
 		PROC_LOCK(q);
+		proc_reparent(q, initproc);
 		q->p_sigparent = SIGCHLD;
 		/*
 		 * Traced processes are killed
@@ -302,10 +300,9 @@ exit1(p, rv)
 		 */
 		if (q->p_flag & P_TRACED) {
 			q->p_flag &= ~P_TRACED;
-			PROC_UNLOCK(q);
 			psignal(q, SIGKILL);
-		} else
-			PROC_UNLOCK(q);
+		}
+		PROC_UNLOCK(q);		
 	}
 
 	/*
@@ -335,7 +332,6 @@ exit1(p, rv)
 	 */
 	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_EXIT);
-	PROC_UNLOCK(p);
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
@@ -354,13 +350,15 @@ exit1(p, rv)
 			wakeup((caddr_t)pp);
 	}
 
-	if (p->p_sigparent && p->p_pptr != initproc) {
+	PROC_LOCK(p->p_pptr);
+	if (p->p_sigparent && p->p_pptr != initproc)
 	        psignal(p->p_pptr, p->p_sigparent);
-	} else {
+	else
 	        psignal(p->p_pptr, SIGCHLD);
-	}
-
+	PROC_UNLOCK(p->p_pptr);
+	PROC_UNLOCK(p);
 	PROCTREE_LOCK(PT_RELEASE);
+	
 	/*
 	 * Clear curproc after we've done all operations
 	 * that could block, and before tearing down the rest
@@ -461,15 +459,15 @@ loop:
 		nfound++;
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SZOMB) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			PROCTREE_LOCK(PT_RELEASE);
-
 			/* charge childs scheduling cpu usage to parent */
 			if (curproc->p_pid != 1) {
 				curproc->p_estcpu =
 				    ESTCPULIM(curproc->p_estcpu + p->p_estcpu);
 			}
+
+			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
@@ -490,19 +488,25 @@ loop:
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
+			PROCTREE_LOCK(PT_EXCLUSIVE);
 			if (p->p_oppid) {
-				PROCTREE_LOCK(PT_EXCLUSIVE);
 				if ((t = pfind(p->p_oppid)) != NULL) {
+					PROC_LOCK(p);
 					p->p_oppid = 0;
 					proc_reparent(p, t);
+					PROC_UNLOCK(p);
+					PROC_LOCK(t);
 					psignal(t, SIGCHLD);
-					wakeup((caddr_t)t);
+					PROC_UNLOCK(t);
 					PROCTREE_LOCK(PT_RELEASE);
+					wakeup((caddr_t)t);
 					return (0);
 				}
-				PROCTREE_LOCK(PT_RELEASE);
 			}
+			PROCTREE_LOCK(PT_RELEASE);
+			PROC_LOCK(p);
 			p->p_xstat = 0;
+			PROC_UNLOCK(p);
 			ruadd(&q->p_stats->p_cru, p->p_ru);
 			FREE(p->p_ru, M_ZOMBIE);
 			p->p_ru = NULL;
@@ -617,6 +621,7 @@ proc_reparent(child, parent)
 {
 
 	PROCTREE_ASSERT(PT_EXCLUSIVE);
+	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
