@@ -9,6 +9,7 @@ LIBS=	\
 	libc_r.so.4 \
 	libcrypto.so.1 \
 	libedit.so.3 \
+	libfetch.so.2 \
 	libperl.so.3 \
 	libssl.so.1
 
