@@ -88,9 +88,15 @@ static int igmp_timers_are_running;
 static u_long igmp_all_hosts_group;
 static u_long igmp_all_rtrs_group;
 static struct mbuf *router_alert;
-static struct router_info *Head;
+static SLIST_HEAD(, router_info) router_info_head;
 
 static void igmp_sendpkt(struct in_multi *, int, unsigned long);
+
+#ifdef IGMP_DEBUG
+#define	IGMP_PRINTF(x)	printf(x)
+#else
+#define	IGMP_PRINTF(x)
+#endif
 
 void
 igmp_init()
@@ -117,36 +123,31 @@ igmp_init()
 	ra->ipopt_list[3] = 0x00;
 	router_alert->m_len = sizeof(ra->ipopt_dst) + ra->ipopt_list[1];
 
-	Head = (struct router_info *) 0;
+	SLIST_INIT(&router_info_head);
 }
 
 static struct router_info *
 find_rti(ifp)
 	struct ifnet *ifp;
 {
-        register struct router_info *rti = Head;
+	struct router_info *rti;
 
-#ifdef IGMP_DEBUG
-	printf("[igmp.c, _find_rti] --> entering \n");
-#endif
-        while (rti) {
-                if (rti->rti_ifp == ifp) {
-#ifdef IGMP_DEBUG
-			printf("[igmp.c, _find_rti] --> found old entry \n");
-#endif
+	rti = SLIST_FIRST(&router_info_head);
+	IGMP_PRINTF("[igmp.c, _find_rti] --> entering \n");
+	SLIST_FOREACH(rti, &router_info_head, rti_list) {
+		if (rti->rti_ifp == ifp) {
+			IGMP_PRINTF(
+			    "[igmp.c, _find_rti] --> found old entry \n");
                         return rti;
                 }
-                rti = rti->rti_next;
         }
 	MALLOC(rti, struct router_info *, sizeof *rti, M_IGMP, M_NOWAIT);
         rti->rti_ifp = ifp;
         rti->rti_type = IGMP_V2_ROUTER;
         rti->rti_time = 0;
-        rti->rti_next = Head;
-        Head = rti;
-#ifdef IGMP_DEBUG
-	printf("[igmp.c, _find_rti] --> created an entry \n");
-#endif
+	SLIST_INSERT_HEAD(&router_info_head, rti, rti_list);
+
+	IGMP_PRINTF("[igmp.c, _find_rti] --> created an entry \n");
         return rti;
 }
 
@@ -412,23 +413,18 @@ void
 igmp_slowtimo()
 {
 	int s = splnet();
-	register struct router_info *rti =  Head;
+	struct router_info *rti;
 
-#ifdef IGMP_DEBUG
-	printf("[igmp.c,_slowtimo] -- > entering \n");
-#endif
-	while (rti) {
+	IGMP_PRINTF("[igmp.c,_slowtimo] -- > entering \n");
+	SLIST_FOREACH(rti, &router_info_head, rti_list) {
 	    if (rti->rti_type == IGMP_V1_ROUTER) {
 		rti->rti_time++;
 		if (rti->rti_time >= IGMP_AGE_THRESHOLD) {
 			rti->rti_type = IGMP_V2_ROUTER;
 		}
 	    }
-	    rti = rti->rti_next;
 	}
-#ifdef IGMP_DEBUG	
-	printf("[igmp.c,_slowtimo] -- > exiting \n");
-#endif
+	IGMP_PRINTF("[igmp.c,_slowtimo] -- > exiting \n");
 	splx(s);
 }
 
