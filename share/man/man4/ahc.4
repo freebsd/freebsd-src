@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2000
+.Dd July 4, 2004
 .Dt AHC 4
 .Os
 .Sh NAME
@@ -52,61 +52,8 @@ For one or more SCSI busses:
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI
-bus(es) connected to Adaptec
-.Tn AIC7770 ,
-.Tn AIC7850 ,
-.Tn AIC7860 ,
-.Tn AIC7870 ,
-.Tn AIC7880 ,
-.Tn AIC7890 ,
-.Tn AIC7891 ,
-.Tn AIC7892 ,
-.Tn AIC7895 ,
-.Tn AIC7896 ,
-.Tn AIC7897
-and
-.Tn AIC7899
+bus(es) connected to the Adaptec AIC77xx and AIC78xx
 host adapter chips.
-These chips are found on many motherboards as well as the following
-Adaptec SCSI controller cards:
-.Tn 274X(W) ,
-.Tn 274X(T) ,
-.Tn 284X ,
-.Tn 2910 ,
-.Tn 2915 ,
-.Tn 2920 ,
-.Tn 2930C ,
-.Tn 2930U2 ,
-.Tn 2940 ,
-.Tn 2940J ,
-.Tn 2940N ,
-.Tn 2940U ,
-.Tn 2940AU ,
-.Tn 2940UW ,
-.Tn 2940UW Dual ,
-.Tn 2940UW Pro ,
-.Tn 2940U2W ,
-.Tn 2940U2B ,
-.Tn 2950U2W ,
-.Tn 2950U2B ,
-.Tn 19160B ,
-.Tn 29160B ,
-.Tn 29160N ,
-.Tn 3940 ,
-.Tn 3940U ,
-.Tn 3940AU ,
-.Tn 3940UW ,
-.Tn 3940AUW ,
-.Tn 3940U2W ,
-.Tn 3950U2 ,
-.Tn 3960 ,
-.Tn 39160 ,
-.Tn 3985 ,
-and
-.Tn 4944UW .
-.Pp
-On the pc98 platform, support is also provided for the NEC PC-9821Xt13
-and RvII26, PC-9821X-B02L/B09, and SV-98/2-B03.
 .Pp
 Driver features include support for twin and wide busses,
 fast, ultra or ultra2 synchronous transfers depending on controller type,
@@ -229,6 +176,179 @@ Multiple Target IDs - Allows the controller to respond to selection as a
 target on multiple SCSI IDs.
 .El
 .Ed
+.Sh HARDWARE
+The
+.Nm
+driver supports the following
+.Tn SCSI
+host adapter chips and
+.Tn SCSI
+controller cards:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec
+.Tn AIC7770
+host adapter chip
+.It
+Adaptec
+.Tn AIC7850
+host adapter chip
+.It
+Adaptec
+.Tn AIC7860
+host adapter chip
+.It
+Adaptec
+.Tn AIC7870
+host adapter chip
+.It
+Adaptec
+.Tn AIC7880
+host adapter chip
+.It
+Adaptec
+.Tn AIC7890
+host adapter chip
+.It
+Adaptec
+.Tn AIC7891
+host adapter chip
+.It
+Adaptec
+.Tn AIC7892
+host adapter chip
+.It
+Adaptec
+.Tn AIC7895
+host adapter chip
+.It
+Adaptec
+.Tn AIC7896
+host adapter chip
+.It
+Adaptec
+.Tn AIC7897
+host adapter chip
+.It
+Adaptec
+.Tn AIC7899
+host adapter chip
+.It
+Adaptec
+.Tn 274X(W)
+.It
+Adaptec
+.Tn 274X(T)
+.It
+Adaptec
+.Tn 284X
+.It
+Adaptec
+.Tn 2910
+.It
+Adaptec
+.Tn 2915
+.It
+Adaptec
+.Tn 2920
+.It
+Adaptec
+.Tn 2930C
+.It
+Adaptec
+.Tn 2930U2
+.It
+Adaptec
+.Tn 2940
+.It
+Adaptec
+.Tn 2940J
+.It
+Adaptec
+.Tn 2940N
+.It
+Adaptec
+.Tn 2940U
+.It
+Adaptec
+.Tn 2940AU
+.It
+Adaptec
+.Tn 2940UW
+.It
+Adaptec
+.Tn 2940UW Dual
+.It
+Adaptec
+.Tn 2940UW Pro
+.It
+Adaptec
+.Tn 2940U2W
+.It
+Adaptec
+.Tn 2940U2B
+.It
+Adaptec
+.Tn 2950U2W
+.It
+Adaptec
+.Tn 2950U2B
+.It
+Adaptec
+.Tn 19160B
+.It
+Adaptec
+.Tn 29160B
+.It
+Adaptec
+.Tn 29160N
+.It
+Adaptec
+.Tn 3940
+.It
+Adaptec
+.Tn 3940U
+.It
+Adaptec
+.Tn 3940AU
+.It
+Adaptec
+.Tn 3940UW
+.It
+Adaptec
+.Tn 3940AUW
+.It
+Adaptec
+.Tn 3940U2W
+.It
+Adaptec
+.Tn 3950U2
+.It
+Adaptec
+.Tn 3960
+.It
+Adaptec
+.Tn 39160
+.It
+Adaptec
+.Tn 3985
+.It
+Adaptec
+.Tn 4944UW
+.It
+NEC PC-9821Xt13 (PC-98)
+.It
+NEC RvII26 (PC-98)
+.It
+NEC PC-9821X-B02L/B09 (PC-98)
+.It
+NEC SV-98/2-B03 (PC-98)
+.It
+Many motherboards with on-board
+.Tn SCSI
+support
+.El
 .Sh SCSI CONTROL BLOCKS (SCBs)
 Every transaction sent to a device on the SCSI bus is assigned a
 .Sq SCSI Control Block

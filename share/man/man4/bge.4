@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2001
+.Dd July 4, 2004
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -44,33 +44,7 @@
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x
-family of gigabit ethernet controller chips, including the
-following:
-.Pp
-.Bl -bullet -compact
-.It
-3Com 3c996-T (10/100/1000baseTX)
-.It
-Dell PowerEdge 1750 integrated BCM5704C NIC (10/100/1000baseTX)
-.It
-Dell PowerEdge 2550 integrated BCM5700 NIC (10/100/1000baseTX)
-.It
-Dell PowerEdge 2650 integrated BCM5703 NIC (10/100/1000baseTX)
-.It
-IBM x235 server integrated BCM5703x NIC (10/100/1000baseTX)
-.It
-HP ProLiant NC7760 embedded Gigabit NIC (10/100/1000baseTX)
-.It
-HP ProLiant NC7770 PCI-X Gigabit NIC (10/100/1000baseTX)
-.It
-HP ProLiant NC7781 embedded PCI-X Gigabit NIC (10/100/1000baseTX)
-.It
-Netgear GA302T (10/100/1000baseTX)
-.It
-SysKonnect SK-9D21 (10/100/1000baseTX)
-.It
-SysKonnect SK-9D41 (1000baseSX)
-.El
+family of gigabit ethernet controller chips.
 .Pp
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
 copper cable, except for the SysKonnect SK-9D41 which supports only
@@ -179,6 +153,37 @@ will set a port as a master instead.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for various NICs based on the Broadcom BCM570x
+family of gigabit ethernet controller chips, including the
+following:
+.Pp
+.Bl -bullet -compact
+.It
+3Com 3c996-T (10/100/1000baseTX)
+.It
+Dell PowerEdge 1750 integrated BCM5704C NIC (10/100/1000baseTX)
+.It
+Dell PowerEdge 2550 integrated BCM5700 NIC (10/100/1000baseTX)
+.It
+Dell PowerEdge 2650 integrated BCM5703 NIC (10/100/1000baseTX)
+.It
+IBM x235 server integrated BCM5703x NIC (10/100/1000baseTX)
+.It
+HP ProLiant NC7760 embedded Gigabit NIC (10/100/1000baseTX)
+.It
+HP ProLiant NC7770 PCI-X Gigabit NIC (10/100/1000baseTX)
+.It
+HP ProLiant NC7781 embedded PCI-X Gigabit NIC (10/100/1000baseTX)
+.It
+Netgear GA302T (10/100/1000baseTX)
+.It
+SysKonnect SK-9D21 (10/100/1000baseTX)
+.It
+SysKonnect SK-9D41 (1000baseSX)
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "bge%d: couldn't map memory"
