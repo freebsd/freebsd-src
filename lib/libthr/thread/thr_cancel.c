@@ -80,13 +80,13 @@ retry:
 			 * Disconnect the thread from the joinee:
 			 */
 			if ((joined = pthread->join_status.thread) != NULL) {
-				THR_TRYLOCK(&joined->lock, ret);
+				UMTX_TRYLOCK(&joined->lock, ret);
 				if (ret == EBUSY) {
 					_thread_critical_exit(pthread);
 					goto retry;
 				}
 				pthread->join_status.thread->joiner = NULL;
-				THR_UNLOCK(&joined->lock);
+				UMTX_UNLOCK(&joined->lock);
 				joined = pthread->join_status.thread = NULL;
 			}
 			pthread->cancelflags |= PTHREAD_CANCELLING;
