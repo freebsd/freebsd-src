@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,44 +26,68 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_sysi86.c,v 1.1 1994/10/14 08:53:11 sos Exp $
+ *	ibcs2_sysi86.c,v 1.1 1994/10/14 08:53:11 sos Exp
  */
 
-#include <i386/ibcs2/ibcs2.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/sysctl.h>
 
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_proto.h>
 
-struct ibcs2_sysi86_args {
-	int cmd;
-	int *arg;
-};
+#define IBCS2_FP_NO     0       /* no fp support */
+#define IBCS2_FP_SW     1       /* software emulator */
+#define IBCS2_FP_287    2       /* 80287 FPU */
+#define IBCS2_FP_387    3       /* 80387 FPU */
+
+#define SI86_FPHW	40
+#define STIME		54
+#define SETNAME		56
+#define SI86_MEM	65
+
 
 int
 ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
 {
-	switch (args->cmd) {
-	case 0x28: {	/* SI86_FPHW */
+	switch (SCARG(args, cmd)) {
+	case SI86_FPHW: {	/* Floating Point information */
 		int val, error;
-		extern int hw_float;
 
 		if (hw_float) val = IBCS2_FP_387;	/* FPU hardware */
 		else val = IBCS2_FP_SW;			/* FPU emulator */
-
-		if (error = copyout(&val, args->arg, sizeof(val)))
+			
+		if (error = copyout(&val, SCARG(args, arg), sizeof(val)))
 			return error;
 		return 0;
 		}
 
-	case 0x33:	/* SI86_MEM */
+        case STIME:       /* set the system time given pointer to long */
+	  /* gettimeofday; time.tv_sec = *args->arg; settimeofday */
+	        return EINVAL;
+
+	case SETNAME:  {  /* set hostname given string w/ len <= 7 chars */
+	        int name;
+	        int error;
+
+		if ((error = suser(p->p_ucred, &p->p_acflag)))
+		  return (error);
+		name = KERN_HOSTNAME;
+		return (kern_sysctl(&name, 1, 0, 0, SCARG(args, arg), 7, p));
+        }
+
+	case SI86_MEM:	/* size of physical memory */
 		*retval = ctob(physmem);
 		return 0;
 
 	default:
 		printf("IBCS2: 'sysi86' function %d(0x%x) "
-			"not implemented yet\n", args->cmd, args->cmd);
+			"not implemented yet\n", SCARG(args, cmd), args->cmd);
 		return EINVAL;
 	}
 }

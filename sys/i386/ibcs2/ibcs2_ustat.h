@@ -33,7 +33,7 @@
 #ifndef _IBCS2_USTAT_H
 #define _IBCS2_USTAT_H 1
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 struct ibcs2_ustat {
 	long		f_tfree;

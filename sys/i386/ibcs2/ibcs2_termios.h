@@ -33,7 +33,7 @@
 #ifndef	_IBCS2_TERMIOS_H
 #define	_IBCS2_TERMIOS_H	1
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 #define IBCS2_NCC	8
 #define IBCS2_NCCS	13

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.6 1995/08/28 09:18:36 julian Exp $
+ *	$Id: imgact_coff.c,v 1.7 1995/09/13 02:12:51 sef Exp $
  */
 
 #include <sys/param.h>
@@ -42,8 +42,17 @@
 #include <sys/sysent.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include "coff.h"
-#include "ibcs2.h"
+
+#include <i386/ibcs2/coff.h>
+#include <i386/ibcs2/ibcs2_util.h>
+
+extern struct sysentvec ibcs2_svr3_sysvec;
+
+extern int coff_load_file __P((struct proc *p, char *name));
+extern int exec_coff_imgact __P((struct image_params *iparams));
+
+static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
+
 
 static int
 load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
@@ -80,11 +89,9 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 		map_len = round_page(offset + filsz) - trunc_page(map_offset);
 	}
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
-	"VM_PROT_ALL, MAP_FILE | MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
-	__FILE__, __LINE__, map_addr, map_len, prot, map_offset);
-}
+	DPRINTF(("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
+		"VM_PROT_ALL, MAP_FILE | MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
+		__FILE__, __LINE__, map_addr, map_len, prot, map_offset));
 
 	if (error = vm_mmap(&vmspace->vm_map,
 			     &map_addr,
@@ -113,10 +120,7 @@ printf("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
 	map_addr = trunc_page(vmaddr + filsz);
 	map_len = round_page(memsz) - trunc_page(filsz);
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, 0x%x, FALSE)\n",
-	__FILE__, __LINE__, map_addr, map_len);
-}
+	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx,0x%x, FALSE)\n", __FILE__, __LINE__, map_addr, map_len));
 
 	if (map_len != 0) {
 		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr,
@@ -292,7 +296,6 @@ exec_coff_imgact(iparams)
 	unsigned long vmaddr;
 	int nscns;
 	int error, len;
-	extern struct sysentvec ibcs2_svr3_sysvec;
 	unsigned long text_offset = 0, text_address = 0, text_size = 0;
 	unsigned long data_offset = 0, data_address = 0, data_size = 0;
 	unsigned long bss_size = 0;
@@ -306,11 +309,8 @@ exec_coff_imgact(iparams)
 	if (fhdr->f_magic != I386_COFF ||
 	    !(fhdr->f_flags & F_EXEC)) {
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): return -1\n", __FILE__, __LINE__);
-}
-
-	  	return -1;
+		 DPRINTF(("%s(%d): return -1\n", __FILE__, __LINE__));
+		 return -1;
 	}
 
 	nscns = fhdr->f_nscns;
@@ -320,10 +320,8 @@ printf("%s(%d): return -1\n", __FILE__, __LINE__);
 	   	 * read in all of the section structures.
 	   	 */
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): return -1\n", __FILE__, __LINE__);
-}
-	  	return -1;
+		DPRINTF(("%s(%d): return -1\n", __FILE__, __LINE__));
+		return -1;
 	}
 
 	ahdr = (struct aouthdr*)((char*)(iparams->image_header) +
@@ -335,22 +333,17 @@ printf("%s(%d): return -1\n", __FILE__, __LINE__);
 				sizeof(struct aouthdr));
 
 	if (error = exec_extract_strings(iparams)) {
-
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d):  return %d\n", __FILE__, __LINE__, error);
-}
-	  	return error;
+		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
+		return error;
 	}
 
 	exec_new_vmspace(iparams);
 
 	for (i = 0; i < nscns; i++) {
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("i = %d, scns[i].s_name = %s, scns[i].s_vaddr = %08lx, "
-       "scns[i].s_scnptr = %d\n", i, scns[i].s_name,
-       scns[i].s_vaddr, scns[i].s_scnptr);
-}
+	  DPRINTF(("i = %d, scns[i].s_name = %s, scns[i].s_vaddr = %08lx, "
+		   "scns[i].s_scnptr = %d\n", i, scns[i].s_name,
+		   scns[i].s_vaddr, scns[i].s_scnptr));
 	  if (scns[i].s_flags & STYP_NOLOAD) {
 	    	/*
 	     	 * A section that is not loaded, for whatever
@@ -389,15 +382,20 @@ printf("i = %d, scns[i].s_name = %s, scns[i].s_vaddr = %08lx, "
 	    	}
 	    	for (j = off; j < scns[i].s_size + off; j++) {
 	      		char *libname;
+			char libbuf[40];
+
 	      		libname = buf + j + 4 * *(long*)(buf + j + 4);
 	      		j += 4* *(long*)(buf + j);
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d):  shared library %s\n", __FILE__, __LINE__, libname);
-}
-	      		error = coff_load_file(iparams->proc, libname);
+			DPRINTF(("%s(%d):  shared library %s\n",
+				 __FILE__, __LINE__, libname));
+			strcpy(libbuf, "/emul/ibcs2");
+			strcpy(&libbuf[11], libname);
+	      		error = coff_load_file(iparams->proc, libbuf);
 	      		if (error)
-			break;
+	      			error = coff_load_file(iparams->proc, libname);
+	      		if (error)
+				break;
 	    	}
 		if (vm_map_remove(kernel_map,
 				  (vm_offset_t) buf,
@@ -411,20 +409,15 @@ printf("%s(%d):  shared library %s\n", __FILE__, __LINE__, libname);
 	 * Map in .text now
 	 */
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d):  load_coff_section(vmspace, "
-	"iparams->vnodep, %08lx, %08lx, 0x%x, 0x%x, 0x%x)\n",
-	__FILE__, __LINE__, text_offset, text_address,
-	text_size, text_size, VM_PROT_READ | VM_PROT_EXECUTE);
-}
+	DPRINTF(("%s(%d):  load_coff_section(vmspace, "
+		"iparams->vnodep, %08lx, %08lx, 0x%x, 0x%x, 0x%x)\n",
+		__FILE__, __LINE__, text_offset, text_address,
+		text_size, text_size, VM_PROT_READ | VM_PROT_EXECUTE));
 	if (error = load_coff_section(vmspace, iparams->vnodep,
 				      text_offset, (caddr_t)text_address,
 				      text_size, text_size,
 				      VM_PROT_READ | VM_PROT_EXECUTE)) {
-
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-}
+		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		return error;
        	}
 	/*
@@ -432,20 +425,16 @@ printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
 	 */
 
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): load_coff_section(vmspace, "
-	"iparams->vnodep, 0x%08lx, 0x%08lx, 0x%x, 0x%x, 0x%x)\n",
-	__FILE__, __LINE__, data_offset, data_address,
-	data_size + bss_size, data_size, VM_PROT_ALL);
-}
+	DPRINTF(("%s(%d): load_coff_section(vmspace, "
+		"iparams->vnodep, 0x%08lx, 0x%08lx, 0x%x, 0x%x, 0x%x)\n",
+		__FILE__, __LINE__, data_offset, data_address,
+		data_size + bss_size, data_size, VM_PROT_ALL));
 	if (error = load_coff_section(vmspace, iparams->vnodep,
 				      data_offset, (caddr_t)data_address,
 				      data_size + bss_size, data_size,
 				      VM_PROT_ALL)) {
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-}
+		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		return error;
 	}
 
@@ -460,20 +449,18 @@ printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
 	hole = (caddr_t)trunc_page(vmspace->vm_daddr) + ctob(vmspace->vm_dsize);
 
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE)\n",
-	__FILE__, __LINE__, hole);
-printf("imgact: error = %d\n", error);
-}
+	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE)\n",
+		__FILE__, __LINE__, hole));
+        DPRINTF(("imgact: error = %d\n", error));
+
 	error = vm_map_find(&vmspace->vm_map, NULL, 0,
 			    (vm_offset_t *) &hole, PAGE_SIZE, FALSE);
 
-if (ibcs2_trace & IBCS2_TRACE_COFF) {
-printf("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n",
-	ctob(vmspace->vm_dsize), vmspace->vm_daddr,
-	ctob(vmspace->vm_dsize) + vmspace->vm_daddr );
-printf("%s(%d):  returning successfully!\n", __FILE__, __LINE__);
-}
+	DPRINTF(("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n",
+		ctob(vmspace->vm_dsize), vmspace->vm_daddr,
+		ctob(vmspace->vm_dsize) + vmspace->vm_daddr ));
+	DPRINTF(("%s(%d):  returning successfully!\n", __FILE__, __LINE__));
+
 	/* Indicate that this file should not be modified */
 	iparams->vnodep->v_flag |= VTEXT;
 	return 0;

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1995 Scott Bartram
+ * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,35 +38,41 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
-#include <sys/syscallargs.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
 
 #include <vm/vm.h>
 
-#include <compat/ibcs2/ibcs2_types.h>
-#include <compat/ibcs2/ibcs2_fcntl.h>
-#include <compat/ibcs2/ibcs2_signal.h>
-#include <compat/ibcs2/ibcs2_stat.h>
-#include <compat/ibcs2/ibcs2_statfs.h>
-#include <compat/ibcs2/ibcs2_syscallargs.h>
-#include <compat/ibcs2/ibcs2_ustat.h>
-#include <compat/ibcs2/ibcs2_util.h>
-#include <compat/ibcs2/ibcs2_utsname.h>
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_fcntl.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_stat.h>
+#include <i386/ibcs2/ibcs2_statfs.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+#include <i386/ibcs2/ibcs2_ustat.h>
+#include <i386/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_utsname.h>
 
+static void bsd_stat2ibcs_stat __P((struct stat *, struct ibcs2_stat *));
+static int  cvt_statfs         __P((struct statfs *, caddr_t, int));
 
 static void
 bsd_stat2ibcs_stat(st, st4)
-	struct ostat *st;
+	struct stat *st;
 	struct ibcs2_stat *st4;
 {
 	bzero(st4, sizeof(*st4));
-	st4->st_dev = (ibcs2_dev_t)st->st_dev;
-	st4->st_ino = (ibcs2_ino_t)st->st_ino;
+	st4->st_dev  = (ibcs2_dev_t)st->st_dev;
+	st4->st_ino  = (ibcs2_ino_t)st->st_ino;
 	st4->st_mode = (ibcs2_mode_t)st->st_mode;
-	st4->st_nlink = (ibcs2_nlink_t)st->st_nlink;
-	st4->st_uid = (ibcs2_uid_t)st->st_uid;
-	st4->st_gid = (ibcs2_gid_t)st->st_gid;
+	st4->st_nlink= (ibcs2_nlink_t)st->st_nlink;
+	st4->st_uid  = (ibcs2_uid_t)st->st_uid;
+	st4->st_gid  = (ibcs2_gid_t)st->st_gid;
 	st4->st_rdev = (ibcs2_dev_t)st->st_rdev;
-	st4->st_size = (ibcs2_off_t)st->st_size;
+	if (st->st_size < (quad_t)1 << 32)
+		st4->st_size = (ibcs2_off_t)st->st_size;
+	else
+		st4->st_size = -2;
 	st4->st_atim = (ibcs2_time_t)st->st_atime;
 	st4->st_mtim = (ibcs2_time_t)st->st_mtime;
 	st4->st_ctim = (ibcs2_time_t)st->st_ctime;
@@ -144,17 +151,19 @@ ibcs2_stat(p, uap, retval)
 	struct ibcs2_stat_args *uap;
 	int *retval;
 {
-	struct ostat st;
+	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct compat_43_stat_args cup;
+	struct stat_args cup;
 	int error;
 	caddr_t sg = stackgap_init();
 
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
-	if (error = compat_43_stat(p, &cup, retval))
+
+	if (error = stat(p, &cup, retval))
 		return error;
+
 	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
@@ -168,17 +177,19 @@ ibcs2_lstat(p, uap, retval)
 	struct ibcs2_lstat_args *uap;
 	int *retval;
 {
-	struct ostat st;
+	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct compat_43_lstat_args cup;
+	struct lstat_args cup;
 	int error;
 	caddr_t sg = stackgap_init();
 
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
-	if (error = compat_43_lstat(p, &cup, retval))
+
+	if (error = lstat(p, &cup, retval))
 		return error;
+
 	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
@@ -192,16 +203,18 @@ ibcs2_fstat(p, uap, retval)
 	struct ibcs2_fstat_args *uap;
 	int *retval;
 {
-	struct ostat st;
+	struct stat st;
 	struct ibcs2_stat ibcs2_st;
-	struct compat_43_fstat_args cup;
+	struct fstat_args cup;
 	int error;
 	caddr_t sg = stackgap_init();
 
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(st));
-	if (error = compat_43_fstat(p, &cup, retval))
+
+	if (error = fstat(p, &cup, retval))
 		return error;
+
 	if (error = copyin(SCARG(&cup, sb), &st, sizeof(st)))
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
@@ -219,7 +232,6 @@ ibcs2_utssys(p, uap, retval)
 	case 0:			/* uname(2) */
 	{
 		struct ibcs2_utsname sut;
-		extern char ostype[], machine[], osrelease[];
 
 		bzero(&sut, ibcs2_utsname_len);
 		bcopy(ostype, sut.sysname, sizeof(sut.sysname) - 1);

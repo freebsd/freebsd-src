@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 Scott Bartram
+ * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -7,13 +7,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Scott Bartram.
- * 4. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -26,16 +20,32 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
-#ifndef	_IBCS2_UTIME_H
-#define	_IBCS2_UTIME_H
 
-#include <i386/ibcs2/ibcs2_types.h>
+#ifndef _IBCS2_POLL_H
+#define _IBCS2_POLL_H 1
 
-struct ibcs2_utimbuf {
-        ibcs2_time_t actime;
-	ibcs2_time_t modtime;
+/* iBCS2 poll commands */  
+#define IBCS2_POLLIN            0x0001
+#define IBCS2_POLLPRI           0x0002
+#define IBCS2_POLLOUT           0x0004
+#define IBCS2_POLLERR           0x0008
+#define IBCS2_POLLHUP           0x0010
+#define IBCS2_POLLNVAL          0x0020
+#define IBCS2_POLLRDNORM        0x0040
+#define IBCS2_POLLWRNORM        0x0004
+#define IBCS2_POLLRDBAND        0x0080
+#define IBCS2_POLLWRBAND        0x0100
+#define IBCS2_READPOLL  (IBCS2_POLLIN|IBCS2_POLLRDNORM|IBCS2_POLLRDBAND)
+#define IBCS2_WRITEPOLL (IBCS2_POLLOUT|IBCS2_POLLWRNORM|IBCS2_POLLWRBAND)
+
+struct ibcs2_poll {
+	int fd;
+	short events;
+	short revents;
 };
 
-#endif /* _IBCS2_UTIME_H */
+#endif /* _IBCS2_POLL_H */
