@@ -152,6 +152,7 @@ static int protection_codes[8];
 struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
+static struct mtx allpmaps_lock;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -313,7 +314,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
+	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
+	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 	nkpt = NKPT;
 
 	/*
@@ -1240,7 +1244,9 @@ pmap_pinit0(pmap)
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 }
 
 /*
@@ -1281,7 +1287,9 @@ pmap_pinit(pmap)
 	if ((ptdpg->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdir, PAGE_SIZE);
 
+	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 	/* Wire in kernel global address entries. */
 	/* XXX copies current process, does not fill in MPPTDI */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
@@ -1499,7 +1507,9 @@ pmap_release(pmap_t pmap)
 #endif
 	
 	ptdpg = NULL;
+	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
+	mtx_unlock_spin(&allpmaps_lock);
 retry:
 	curgeneration = object->generation;
 	for (p = TAILQ_FIRST(&object->memq); p != NULL; p = n) {
@@ -1582,9 +1592,11 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
+		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(pmap, &allpmaps, pm_list) {
 			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
+		mtx_unlock_spin(&allpmaps_lock);
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 	}
 	splx(s);
