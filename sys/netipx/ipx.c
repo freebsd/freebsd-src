@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.3 1995/11/04 09:02:34 julian Exp $
+ * $Id: ipx.c,v 1.4 1996/03/11 15:13:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -142,20 +142,14 @@ ipx_control(so, cmd, data, ifp)
 			} else
 				ipx_ifaddr = oia;
 			ia = oia;
-			if ((ifa = ifp->if_addrlist)) {
-				for ( ; ifa->ifa_next; ifa = ifa->ifa_next)
-					;
-				ifa->ifa_next = (struct ifaddr *) ia;
-			} else
-				ifp->if_addrlist = (struct ifaddr *) ia;
+			ifa = (struct ifaddr *)ia;
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 			ia->ia_ifp = ifp;
-			ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
+			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
 
-			ia->ia_ifa.ifa_netmask =
-				(struct sockaddr *)&ipx_netmask;
+			ifa->ifa_netmask = (struct sockaddr *)&ipx_netmask;
 
-			ia->ia_ifa.ifa_dstaddr =
-				(struct sockaddr *)&ia->ia_dstaddr;
+			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			if (ifp->if_flags & IFF_BROADCAST) {
 				ia->ia_broadaddr.sipx_family = AF_IPX;
 				ia->ia_broadaddr.sipx_len = sizeof(ia->ia_addr);
@@ -188,17 +182,8 @@ ipx_control(so, cmd, data, ifp)
 
 	case SIOCDIFADDR:
 		ipx_ifscrub(ifp, ia);
-		if ((ifa = ifp->if_addrlist) == (struct ifaddr *)ia)
-			ifp->if_addrlist = ifa->ifa_next;
-		else {
-			while (ifa->ifa_next &&
-			       (ifa->ifa_next != (struct ifaddr *)ia))
-				    ifa = ifa->ifa_next;
-			if (ifa->ifa_next)
-			    ifa->ifa_next = ((struct ifaddr *)ia)->ifa_next;
-			else
-				printf("Couldn't unlink ipxifaddr from ifp\n");
-		}
+		ifa = (struct ifaddr *)ia;
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		oia = ia;
 		if (oia == (ia = ipx_ifaddr)) {
 			ipx_ifaddr = ia->ia_next;

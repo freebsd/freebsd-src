@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.36 1996/08/07 04:09:05 julian Exp $
+ * $Id: if.c,v 1.37 1996/12/11 20:38:14 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -117,6 +117,14 @@ if_attach(ifp)
 
 	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
 	ifp->if_index = ++if_index;
+	/*
+	 * XXX -
+	 * The old code would work if the interface passed a pre-existing
+	 * chain of ifaddrs to this code.  We don't trust our callers to
+	 * properly initialize the tailq, however, so we no longer allow
+	 * this unlikely case.
+	 */
+	TAILQ_INIT(&ifp->if_addrhead);
 	microtime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
@@ -153,16 +161,14 @@ if_attach(ifp)
 		sdl->sdl_type = ifp->if_type;
 		ifnet_addrs[if_index - 1] = ifa;
 		ifa->ifa_ifp = ifp;
-		ifa->ifa_next = ifp->if_addrlist;
 		ifa->ifa_rtrequest = link_rtrequest;
-		ifp->if_addrlist = ifa;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
-
 		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
 		ifa->ifa_netmask = (struct sockaddr *)sdl;
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
+		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
 }
 /*
@@ -179,7 +185,8 @@ ifa_ifwithaddr(addr)
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-	    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+	    for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+		 ifa = ifa->ifa_link.tqe_next) {
 		if (ifa->ifa_addr->sa_family != addr->sa_family)
 			continue;
 		if (equal(addr, ifa->ifa_addr))
@@ -203,7 +210,8 @@ ifa_ifwithdstaddr(addr)
 
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 	    if (ifp->if_flags & IFF_POINTOPOINT)
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+		     ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr))
@@ -232,7 +240,8 @@ ifa_ifwithnet(addr)
 		return (ifnet_addrs[sdl->sdl_index - 1]);
 	}
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		for (ifa = ifp->if_addrhead.tqh_first; ifa;
+		     ifa = ifa->ifa_link.tqe_next) {
 			register char *cp, *cp2, *cp3;
 
 			if (ifa->ifa_addr->sa_family != af)
@@ -278,7 +287,8 @@ ifaof_ifpforaddr(addr, ifp)
 
 	if (af >= AF_MAX)
 		return (0);
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
 		if (ifa_maybe == 0)
@@ -350,7 +360,8 @@ if_down(ifp)
 
 	ifp->if_flags &= ~IFF_UP;
 	microtime(&ifp->if_lastchange);
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
 		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	if_qflush(&ifp->if_snd);
 	rt_ifmsg(ifp);
@@ -699,7 +710,7 @@ ifconf(cmd, data)
 			strcpy(ifr.ifr_name, workbuf);
 		}
 
-		if ((ifa = ifp->if_addrlist) == 0) {
+		if ((ifa = ifp->if_addrhead.tqh_first) == 0) {
 			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
 			    sizeof (ifr));
@@ -707,7 +718,8 @@ ifconf(cmd, data)
 				break;
 			space -= sizeof (ifr), ifrp++;
 		} else
-		    for ( ; space > sizeof (ifr) && ifa; ifa = ifa->ifa_next) {
+		    for ( ; space > sizeof (ifr) && ifa; 
+			 ifa = ifa->ifa_link.tqe_next) {
 			register struct sockaddr *sa = ifa->ifa_addr;
 #ifdef COMPAT_43
 			if (cmd == OSIOCGIFCONF) {
