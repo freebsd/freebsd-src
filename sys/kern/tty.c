@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.57 1995/07/22 16:45:07 bde Exp $
+ * $Id: tty.c,v 1.58 1995/07/29 13:35:33 bde Exp $
  */
 
 /*-
@@ -833,6 +833,7 @@ ttioctl(tp, cmd, data, flag)
 #endif
 					ttwakeup(tp);
 				}
+				ttwwakeup(tp);
 				tp->t_cflag = t->c_cflag;
 				tp->t_ispeed = t->c_ispeed;
 				tp->t_ospeed = t->c_ospeed;
@@ -961,7 +962,7 @@ ttioctl(tp, cmd, data, flag)
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;
-		wakeup(TSA_OLOWAT(tp));
+		ttwwakeup(tp);
 		break;
 	case TIOCGDRAINWAIT:
 		*(int *)data = tp->t_timeout / hz;
@@ -1055,30 +1056,13 @@ ttywait(tp)
 	while ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 	    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))
 	    && tp->t_oproc) {
-		/*
-		 * XXX the call to t_oproc() can cause livelock.
-		 *
-		 * If two processes wait for output to drain from the same
-		 * tty, and the amount of output to drain is <= tp->t_lowat,
-		 * then the processes will take turns uselessly waking each
-		 * other up until the output drains, all running at spltty()
-		 * so that even interrupts on other terminals are blocked.
-		 *
-		 * Skipping the call when TS_BUSY is set avoids the problem
-		 * for current drivers but isn't "right".  There is no
-		 * problem for ptys - we only get woken up when the output
-		 * queue is actually reduced.  Hardware ttys should be
-		 * handled similarly.  There would still be excessive
-		 * wakeups for output below low water when we only care
-		 * about output complete.
-		 */
-		if (!ISSET(tp->t_state, TS_BUSY))
-			(*tp->t_oproc)(tp);
+		(*tp->t_oproc)(tp);
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
-			SET(tp->t_state, TS_ASLEEP);
-			error = ttysleep(tp, TSA_OLOWAT(tp), TTOPRI | PCATCH,
-					 "ttywai", tp->t_timeout);
+			SET(tp->t_state, TS_SO_OCOMPLETE);
+			error = ttysleep(tp, TSA_OCOMPLETE(tp),
+					 TTOPRI | PCATCH, "ttywai",
+					 tp->t_timeout);
 			if (error == EWOULDBLOCK)
 				error = EIO;
 			if (error)
@@ -1133,8 +1117,7 @@ ttyflush(tp, rw)
 	}
 	if (rw & FWRITE) {
 		FLUSHQ(&tp->t_outq);
-		wakeup(TSA_OLOWAT(tp));
-		selwakeup(&tp->t_wsel);
+		ttwwakeup(tp);
 	}
 	if ((rw & FREAD) &&
 	    ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
@@ -1294,6 +1277,7 @@ ttymodem(tp, flag)
 		 */
 		SET(tp->t_state, TS_CARR_ON);
 		ttwakeup(tp);
+		ttwwakeup(tp);
 	}
 	return (1);
 }
@@ -1640,14 +1624,14 @@ ttycheckoutq(tp, wait)
 	if (tp->t_outq.c_cc > hiwat + 200)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
+			if (tp->t_outq.c_cc <= hiwat)
+				break;
 			if (wait == 0 || curproc->p_siglist != oldsig) {
 				splx(s);
 				return (0);
 			}
-			timeout((void (*)__P((void *)))wakeup,
-			    (void *)&tp->t_outq, hz);
-			SET(tp->t_state, TS_ASLEEP);
-			(void) tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", 0);
+			SET(tp->t_state, TS_SO_OLOWAT);
+			tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", hz);
 		}
 	splx(s);
 	return (1);
@@ -1838,7 +1822,7 @@ ovhiwat:
 		uio->uio_resid += cc;
 		return (uio->uio_resid == cnt ? EWOULDBLOCK : 0);
 	}
-	SET(tp->t_state, TS_ASLEEP);
+	SET(tp->t_state, TS_SO_OLOWAT);
 	error = ttysleep(tp, TSA_OLOWAT(tp), TTOPRI | PCATCH, "ttywri",
 			 tp->t_timeout);
 	splx(s);
@@ -2038,12 +2022,17 @@ ttwwakeup(tp)
 	register struct tty *tp;
 {
 
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state & TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup(TSA_OLOWAT(tp));
-		}
+	if (tp->t_wsel.si_pid != 0 && tp->t_outq.c_cc <= tp->t_lowat)
 		selwakeup(&tp->t_wsel);
+	if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==
+	    TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
+		CLR(tp->t_state, TS_SO_OCOMPLETE);
+		wakeup(TSA_OCOMPLETE(tp));
+	}
+	if (ISSET(tp->t_state, TS_SO_OLOWAT) &&
+	    tp->t_outq.c_cc <= tp->t_lowat) {
+		CLR(tp->t_state, TS_SO_OLOWAT);
+		wakeup(TSA_OLOWAT(tp));
 	}
 }
 
