@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.249 1998/02/11 14:58:15 yokota Exp $
+ *  $Id: syscons.c,v 1.250 1998/02/11 15:00:24 yokota Exp $
  */
 
 #include "sc.h"
@@ -84,6 +84,12 @@
 #if (SC_HISTORY_SIZE * MAXCONS) > SC_MAX_HISTORY_SIZE
 #undef SC_MAX_HISTORY_SIZE
 #define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS)
+#endif
+
+#define SC_MOUSE_CHAR		(0x03)
+
+#if !defined(SC_MOUSE_CHAR)
+#define SC_MOUSE_CHAR		(0xd0)
 #endif
 
 #define COLD 0
@@ -1556,15 +1562,22 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    scp->font_size = mp[2];
 	    break;
 	}
+
+	scp->status &= ~MOUSE_VISIBLE;
 	scp->mode = cmd & 0xff;
+	scp->xpixel = scp->xsize * 8;
+	scp->ypixel = scp->ysize * scp->font_size;
 	free(scp->scr_buf, M_DEVBUF);
 	scp->scr_buf = (u_short *)
 	    malloc(scp->xsize*scp->ysize*sizeof(u_short), M_DEVBUF, M_WAITOK);
-    	scp->cursor_pos = scp->cursor_oldpos =
-	    scp->scr_buf + scp->xpos + scp->ypos * scp->xsize;
+	/* move the text cursor to the home position */
+	move_crsr(scp, 0, 0);
+	/* move the mouse cursor at the center of the screen */
+	scp->mouse_xpos = scp->xpixel / 2;
+	scp->mouse_ypos = scp->ypixel / 2;
     	scp->mouse_pos = scp->mouse_oldpos = 
-	    scp->scr_buf + ((scp->mouse_ypos/scp->font_size)*scp->xsize +
-	    scp->mouse_xpos/8);
+	    scp->scr_buf + (scp->mouse_ypos / scp->font_size) * scp->xsize 
+	    + scp->mouse_xpos / 8;
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
@@ -1606,10 +1619,14 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (mp == NULL)
 	    return ENODEV;
 
+	scp->status &= ~MOUSE_VISIBLE;
 	scp->mode = cmd & 0xFF;
 	scp->xpixel = mp[0] * 8;
 	scp->ypixel = (mp[1] + rows_offset) * mp[2];
 	scp->font_size = FONT_NONE;
+	/* move the mouse cursor at the center of the screen */
+	scp->mouse_xpos = scp->xpixel / 2;
+	scp->mouse_ypos = scp->ypixel / 2;
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
@@ -1771,6 +1788,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    /* FALL THROUGH */
 
 	case KD_TEXT1:  	/* switch to TEXT (known) mode */
+	    scp->status &= ~MOUSE_VISIBLE;
 	    /* no restore fonts & palette */
 	    if (crtc_vga)
 		set_mode(scp);
@@ -1779,6 +1797,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return 0;
 
 	case KD_GRAPHICS:	/* switch to GRAPHICS (unknown) mode */
+	    scp->status &= ~MOUSE_VISIBLE;
 	    scp->status |= UNKNOWN_MODE;
 	    return 0;
 	default:
@@ -2267,7 +2286,7 @@ scrn_update(scr_stat *scp, int show_cursor)
     }
 
     /* update "pseudo" mouse pointer image */
-    if ((scp->status & MOUSE_VISIBLE) && (crtc_type == KD_VGA))  {
+    if (scp->status & MOUSE_VISIBLE) {
         /* did mouse move since last time ? */
         if (scp->status & MOUSE_MOVED) {
             /* do we need to remove old mouse pointer image ? */
@@ -3201,7 +3220,8 @@ scinit(void)
     sc_bcopy(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
-    console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
+    console[0]->scr_buf = console[0]->mouse_pos = console[0]->mouse_oldpos
+	= sc_buffer;
     console[0]->cursor_pos = console[0]->cursor_oldpos = sc_buffer + hw_cursor;
     console[0]->cursor_saveunder = *console[0]->cursor_pos;
     console[0]->xpos = hw_cursor % COL;
@@ -3334,6 +3354,8 @@ init_scp(scr_stat *scp)
     scp->font_size = 16;
     scp->xsize = COL;
     scp->ysize = ROW;
+    scp->xpixel = scp->xsize * 8;
+    scp->ypixel = scp->ysize * scp->font_size;
     scp->xpos = scp->ypos = 0;
     scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
@@ -4470,13 +4492,13 @@ set_destructive_cursor(scr_stat *scp)
     }
 
     if (scp->status & MOUSE_VISIBLE) {
-	if ((scp->cursor_saveunder & 0xff) == 0xd0)
+	if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR)
     	    bcopy(&scp->mouse_cursor[0], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd1)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 1)
     	    bcopy(&scp->mouse_cursor[32], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd2)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 2)
     	    bcopy(&scp->mouse_cursor[64], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == 0xd3)
+	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 3)
     	    bcopy(&scp->mouse_cursor[96], cursor, scp->font_size);
 	else
 	    bcopy(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
@@ -4794,13 +4816,16 @@ draw_mouse_image(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
     set_font_mode(buf);
-    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
+    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + SC_MOUSE_CHAR * 32, 
+	     128);
     set_normal_mode(buf);
-    *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
-    *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
+    *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | SC_MOUSE_CHAR;
+    *(crt_pos+scp->xsize) = 
+	(*(scp->mouse_pos + scp->xsize) & 0xff00) | (SC_MOUSE_CHAR + 2);
     if (scp->mouse_xpos < (scp->xsize-1)*8) {
-    	*(crt_pos+1) = (*(scp->mouse_pos+1)&0xff00)|0xd1;
-    	*(crt_pos+scp->xsize+1) = (*(scp->mouse_pos+scp->xsize+1)&0xff00)|0xd3;
+    	*(crt_pos + 1) = (*(scp->mouse_pos + 1) & 0xff00) | (SC_MOUSE_CHAR + 1);
+    	*(crt_pos+scp->xsize + 1) = 
+	    (*(scp->mouse_pos + scp->xsize + 1) & 0xff00) | (SC_MOUSE_CHAR + 3);
     }
     mark_for_update(scp, scp->mouse_pos - scp->scr_buf);
     mark_for_update(scp, scp->mouse_pos + scp->xsize + 1 - scp->scr_buf);
