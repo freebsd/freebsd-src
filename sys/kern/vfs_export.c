@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.178 1999/01/02 11:34:55 bde Exp $
+ * $Id: vfs_subr.c,v 1.179 1999/01/05 18:12:29 eivind Exp $
  */
 
 /*
@@ -510,7 +510,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_data = 0;
 	splx(s);
 
-	vfs_object_create(vp, p, p->p_ucred, TRUE);
+	vfs_object_create(vp, p, p->p_ucred);
 	return (0);
 }
 
@@ -2499,27 +2499,20 @@ loop:
  * afford the additional metadata buffering capability of the
  * VMIO code by making the device node be VMIO mode also.
  *
- * If !waslocked, must be called with interlock.
+ * vp must be locked when vfs_object_create is called.
  */
 int
-vfs_object_create(vp, p, cred, waslocked)
+vfs_object_create(vp, p, cred)
 	struct vnode *vp;
 	struct proc *p;
 	struct ucred *cred;
-	int waslocked;
 {
 	struct vattr vat;
 	vm_object_t object;
 	int error = 0;
 
-	if ((vp->v_type != VREG) && (vp->v_type != VBLK)) {
-		if (!waslocked)
-			simple_unlock(&vp->v_interlock);
+	if ((vp->v_type != VREG) && (vp->v_type != VBLK))
 		return 0;
-	}
-
-	if (!waslocked) 
-		vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, p);
 
 retry:
 	if ((object = vp->v_object) == NULL) {
@@ -2547,16 +2540,10 @@ retry:
 		}
 	}
 
-	if (vp->v_object) {
+	if (vp->v_object)
 		vp->v_flag |= VOBJBUF;
-	}
 
 retn:
-	if (!waslocked) {
-		simple_lock(&vp->v_interlock);
-		VOP_UNLOCK(vp, LK_INTERLOCK, p);
-	}
-
 	return error;
 }
 

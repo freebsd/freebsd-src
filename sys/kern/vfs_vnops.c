@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.59 1998/06/27 06:43:09 phk Exp $
+ * $Id: vfs_vnops.c,v 1.60 1998/11/02 02:36:16 peter Exp $
  */
 
 #include <sys/param.h>
@@ -172,7 +172,7 @@ vn_open(ndp, fmode, cmode)
 	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vp->v_type == VREG) {
-		if ((error = vfs_object_create(vp, p, cred, 1)) != 0)
+		if ((error = vfs_object_create(vp, p, cred)) != 0)
 			goto bad;
 	}
 

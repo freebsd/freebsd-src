@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.68 1998/12/07 21:58:44 archie Exp $
+ * $Id: nfs_subs.c,v 1.69 1998/12/14 18:54:03 dt Exp $
  */
 
 /*
@@ -2177,7 +2177,7 @@ nfsrv_object_create(vp)
 	if (vp == NULL || vp->v_type != VREG)
 		return (1);
 	return (vfs_object_create(vp, curproc,
-				  curproc ? curproc->p_ucred : NULL, 1));
+				  curproc ? curproc->p_ucred : NULL));
 }
 
 /*

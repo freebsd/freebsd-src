@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.27 1998/04/08 18:31:57 wosch Exp $
+ * $Id: vfs_lookup.c,v 1.28 1998/06/07 17:11:45 dfr Exp $
  */
 
 #include "opt_ktrace.h"
@@ -168,9 +168,11 @@ namei(ndp)
 
 			if (ndp->ni_vp && ndp->ni_vp->v_type == VREG &&
 				(cnp->cn_nameiop != DELETE) &&
-				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
+				((cnp->cn_flags & (NOOBJ|LOCKLEAF)) ==
+				 LOCKLEAF))
 				vfs_object_create(ndp->ni_vp,
-					ndp->ni_cnd.cn_proc, ndp->ni_cnd.cn_cred, 1);
+					ndp->ni_cnd.cn_proc,
+					ndp->ni_cnd.cn_cred);
 
 			return (0);
 		}
@@ -698,7 +700,7 @@ relookup(dvp, vpp, cnp)
 
 	if (dp->v_type == VREG &&
 		((cnp->cn_flags & (NOOBJ|LOCKLEAF)) == LOCKLEAF))
-		vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred, 1);
+		vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);
