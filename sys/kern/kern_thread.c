@@ -79,6 +79,10 @@ static int max_groups_per_proc = 5;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_groups_per_proc, CTLFLAG_RW,
 	&max_groups_per_proc, 0, "Limit on thread groups per proc");
 
+static int max_threads_hits;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
+	&max_threads_hits, 0, "");
+
 static int virtual_cpu;
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
@@ -1197,7 +1201,8 @@ thread_exit(void)
 		p->p_numthreads--;
 		TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
 		kg->kg_numthreads--;
-
+		if (p->p_maxthrwaits)
+			wakeup(&p->p_numthreads);
 		/*
 		 * The test below is NOT true if we are the
 		 * sole exiting thread. P_STOPPED_SNGL is unset
@@ -1519,22 +1524,11 @@ thread_user_enter(struct proc *p, struct thread *td)
 			td->td_flags &= ~TDF_CAN_UNBIND;
 			mtx_unlock_spin(&sched_lock);
 		} else {
-			if (p->p_numthreads > max_threads_per_proc) {
-				/* 
-			 	 * Since kernel thread limit reached,
-				 * don't schedule upcall anymore.
-				 * XXXKSE These code in fact needn't.
-				 */
-				mtx_lock_spin(&sched_lock);
-				td->td_flags &= ~TDF_CAN_UNBIND;
-				mtx_unlock_spin(&sched_lock);
-			} else {
-				if (td->td_standin == NULL)
-					thread_alloc_spare(td, NULL);
-				mtx_lock_spin(&sched_lock);
-				td->td_flags |= TDF_CAN_UNBIND;
-				mtx_unlock_spin(&sched_lock);
-			}
+			if (td->td_standin == NULL)
+				thread_alloc_spare(td, NULL);
+			mtx_lock_spin(&sched_lock);
+			td->td_flags |= TDF_CAN_UNBIND;
+			mtx_unlock_spin(&sched_lock);
 		}
 	}
 }
@@ -1554,9 +1548,9 @@ thread_user_enter(struct proc *p, struct thread *td)
 int
 thread_userret(struct thread *td, struct trapframe *frame)
 {
-	int error;
+	int error = 0, upcalls;
 	struct kse_upcall *ku;
-	struct ksegrp *kg;
+	struct ksegrp *kg, *kg2;
 	struct proc *p;
 	struct timespec ts;
 
@@ -1671,7 +1665,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		error = thread_link_mboxes(kg, ku);
 		if (error) 
-			goto bad;
+			goto out;
 
 		/*
 		 * Set state and clear the  thread mailbox pointer.
@@ -1682,22 +1676,53 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		error = suword((caddr_t)&ku->ku_mailbox->km_curthread, 0);
 		if (error) 
-			goto bad;
+			goto out;
 
 		/* Export current system time */
 		nanotime(&ts);
-		if (copyout(&ts,
-		    (caddr_t)&ku->ku_mailbox->km_timeofday, sizeof(ts))) {
-			goto bad;
-		}
+		error = copyout(&ts, (caddr_t)&ku->ku_mailbox->km_timeofday,
+			sizeof(ts));
 	}
-	/*
-	 * Optimisation:
-	 * Ensure that we have a spare thread available,
-	 * for when we re-enter the kernel.
-	 */
-	if (td->td_standin == NULL)
-		thread_alloc_spare(td, NULL);
+
+out:
+	if (p->p_numthreads > max_threads_per_proc) {
+		max_threads_hits++;
+		PROC_LOCK(p);
+		while (p->p_numthreads > max_threads_per_proc) {
+			if (P_SHOULDSTOP(p))
+				break;
+			upcalls = 0;
+			mtx_lock_spin(&sched_lock);
+			FOREACH_KSEGRP_IN_PROC(p, kg2)
+				upcalls += kg2->kg_numupcalls;
+			mtx_unlock_spin(&sched_lock);
+			if (upcalls >= max_threads_per_proc)
+				break;
+			p->p_maxthrwaits++;
+			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH, "maxthreads",
+			       NULL);
+			p->p_maxthrwaits--;
+		}
+		PROC_UNLOCK(p);
+	}
+
+	if (error) {
+		/*
+		 * Things are going to be so screwed we should just kill the process.
+		 * how do we do that?
+		 */
+		PROC_LOCK(td->td_proc);
+		psignal(td->td_proc, SIGSEGV);
+		PROC_UNLOCK(td->td_proc);
+	} else {
+		/*
+		 * Optimisation:
+		 * Ensure that we have a spare thread available,
+		 * for when we re-enter the kernel.
+		 */
+		if (td->td_standin == NULL)
+			thread_alloc_spare(td, NULL);
+	}
 
 	/*
 	 * Clear thread mailbox first, then clear system tick count.
@@ -1705,18 +1730,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * mailbox pointer to see if it is an userland thread or
 	 * an UTS kernel thread.
 	 */
-	td->td_mailbox = NULL;
-	td->td_usticks = 0;
-	return (0);
-
-bad:
-	/*
-	 * Things are going to be so screwed we should just kill the process.
-	 * how do we do that?
-	 */
-	PROC_LOCK(td->td_proc);
-	psignal(td->td_proc, SIGSEGV);
-	PROC_UNLOCK(td->td_proc);
 	td->td_mailbox = NULL;
 	td->td_usticks = 0;
 	return (error);	/* go sync */
@@ -1767,6 +1780,7 @@ thread_single(int force_exit)
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
+			td->td_flags |= TDF_ASTPENDING;
 			if (TD_IS_INHIBITED(td2)) {
 				if (force_exit == SINGLE_EXIT) {
 					if (TD_IS_SUSPENDED(td2)) {
