@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.23 1997/01/11 10:51:36 jmacd Exp $
+# $Id: bsd.info.mk,v 1.24 1997/01/12 07:05:07 peter Exp $
 
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
@@ -44,7 +44,7 @@ INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}:
 	${INSTALLINFO} --defsection=${INFOSECTION} \
 		       --defentry=${INFOENTRY_${x}} \
-		       ${x}.info ${DESTDIR}/${BINDIR}/${INFODIRFILE}
+		       ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
