@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.148 1998/03/30 09:51:08 phk Exp $
+ * $Id: vfs_subr.c,v 1.149 1998/04/15 18:37:49 tegge Exp $
  */
 
 /*
@@ -2744,6 +2744,7 @@ sync_fsync(ap)
 	}
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
+	vfs_msync(mp, MNT_NOWAIT);
 	VFS_SYNC(mp, MNT_LAZY, ap->a_cred, p);
 	if (asyncflag)
 		mp->mnt_flag |= MNT_ASYNC;
