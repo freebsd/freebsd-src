@@ -56,6 +56,7 @@
 static Boolean cdromMounted;
 static Boolean previouslyMounted; /* Was the disc already mounted? */
 static char mountpoint[MAXPATHLEN] = "/dist";
+int CDROMInitQuiet;
 
 static properties
 read_props(char *name)
@@ -91,14 +92,19 @@ mediaInitCDROM(Device *dev)
 	if (errno == EINVAL) {
 	    msgConfirm("The disc in your drive looks more like an Audio disc than a FreeBSD release.");
 	    return FALSE;
-	} else if (errno == EBUSY) {
+	}
+	if (errno == EBUSY) {
 	    /* Perhaps the CDROM drive is already mounted as /cdrom */
 	    if (file_readable("/cdrom/cdrom.inf")) {
 		previouslyMounted = TRUE;
 		strlcpy(mountpoint, "/cdrom", 7);
+		errno = 0;
 	    }
-	} else {
-	    msgConfirm("Error mounting %s on %s: %s (%u)", dev->devname, mountpoint, strerror(errno), errno);
+	}
+	if (errno) {
+	    if (!CDROMInitQuiet)
+		msgConfirm("Error mounting %s on %s: %s (%u)", dev->devname,
+		    mountpoint, strerror(errno), errno);
 	    return FALSE;
 	}
     }
