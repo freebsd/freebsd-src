@@ -276,7 +276,7 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 /* Set the thread name for debug: */
 void
-pthread_set_name_np(pthread_t thread, char *name)
+pthread_set_name_np(pthread_t thread, const char *name)
 {
 	/* Check if the caller has specified a valid thread: */
 	if (thread != NULL && thread->magic == PTHREAD_MAGIC) {

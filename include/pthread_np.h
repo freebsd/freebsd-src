@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 #ifndef _PTHREAD_NP_H_
 #define _PTHREAD_NP_H_
@@ -49,7 +50,7 @@ int pthread_single_np __P((void));
 int pthread_suspend_np __P((pthread_t));
 int pthread_mutexattr_getkind_np __P((pthread_mutexattr_t));
 int pthread_mutexattr_setkind_np __P((pthread_mutexattr_t *, int));
-void pthread_set_name_np __P((pthread_t, char *));
+void pthread_set_name_np __P((pthread_t, const char *));
 int pthread_switch_add_np __P((pthread_switch_routine_t));
 int pthread_switch_delete_np __P((pthread_switch_routine_t));
 __END_DECLS
