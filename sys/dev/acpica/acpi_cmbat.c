@@ -193,7 +193,7 @@ acpi_cmbat_get_bst(void *context)
 
 	res = (ACPI_OBJECT *)bst_buffer.Pointer;
 
-	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 4)) {
+	if ((res == NULL) || (res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 4)) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery status corrupted\n");
 		goto end;
@@ -244,7 +244,7 @@ acpi_cmbat_get_bif(void *context)
 
 	res = (ACPI_OBJECT *)bif_buffer.Pointer;
 
-	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
+	if ((res == NULL) || (res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "battery info corrupted\n");
 		goto end;
