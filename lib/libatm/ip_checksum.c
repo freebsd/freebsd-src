@@ -22,11 +22,9 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
-
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
@@ -37,7 +35,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -50,8 +47,6 @@
 #include <netatm/atm_ioctl.h>
 
 #include "libatm.h"
-
-__FBSDID("$FreeBSD$");
 
 /*
  * Compute an IP checksum
