@@ -30,18 +30,18 @@
 #define	_FMTMSG_H_
 
 /* Source of condition is... */
-#define	MM_HARD		0x0001	/* hardware. */
-#define	MM_SOFT		0x0002	/* software. */
-#define	MM_FIRM		0x0004	/* fireware. */
+#define	MM_HARD		0x0001	/* ...hardware. */
+#define	MM_SOFT		0x0002	/* ...software. */
+#define	MM_FIRM		0x0004	/* ...fireware. */
 
 /* Condition detected by... */
-#define	MM_APPL		0x0010	/* application. */
-#define	MM_UTIL		0x0020	/* utility. */
-#define	MM_OPSYS	0x0040	/* operating system. */
+#define	MM_APPL		0x0010	/* ...application. */
+#define	MM_UTIL		0x0020	/* ...utility. */
+#define	MM_OPSYS	0x0040	/* ...operating system. */
 
 /* Display on... */
-#define	MM_PRINT	0x0100	/* standard error. */
-#define	MM_CONSOLE	0x0200	/* system console. */
+#define	MM_PRINT	0x0100	/* ...standard error. */
+#define	MM_CONSOLE	0x0200	/* ...system console. */
 
 #define	MM_RECOVER	0x1000	/* Recoverable error. */
 #define	MM_NRECOV	0x2000	/* Non-recoverable error. */
@@ -67,6 +67,7 @@
 #define	MM_NOCON	2	/* Failed to output to console. */
 #define	MM_NOTOK	3	/* Failed to output anything. */
 
-int fmtmsg(long, const char *, int, const char *, const char *, const char *);
+int	fmtmsg(long, const char *, int, const char *, const char *,
+	    const char *);
 
-#endif /* _FMTMSG_H_ */
+#endif /* !_FMTMSG_H_ */
