@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.84 1995/09/07 08:20:18 swallace Exp $
+ *	$Id: wd.c,v 1.85 1995/09/30 00:11:19 jkh Exp $
  */
 
 /* TODO:
@@ -646,10 +646,12 @@ wdstart(int ctrlr)
 	int	lunit;
 	int	count;
 
+#ifdef ATAPI
 	if (wdtab[ctrlr].b_active == 2)
 		wdtab[ctrlr].b_active = 0;
 	if (wdtab[ctrlr].b_active)
 		return;
+#endif
 loop:
 	/* is there a drive for the controller to do a transfer with? */
 	bp = wdtab[ctrlr].b_actf;
@@ -1901,20 +1903,19 @@ wdflushirq(struct disk *du, int old_ipl)
 static int
 wdreset(struct disk *du)
 {
-	int     wdc, err;
+	int     wdc, err = 0;
 
 	wdc = du->dk_port;
 	(void)wdwait(du, 0, TIMEOUT);
 	outb(wdc + wd_ctlr, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
 	outb(wdc + wd_ctlr, WDCTL_IDS);
-	err = 0;
+#ifdef ATAPI
 	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 		err = 1;                /* no IDE drive found */
 	du->dk_error = inb(wdc + wd_error);
 	if (du->dk_error != 0x01)
 		err = 1;                /* the drive is incompatible */
-#ifdef ATAPI
 	if (err) {
 		/* no IDE drive, test for ATAPI signature */
 		int lo = inb(wdc + wd_cyl_lo);
@@ -1922,6 +1923,10 @@ wdreset(struct disk *du)
 		if (lo == 0x14 && hi == 0xeb)
 			err = 0;        /* ATAPI drive detected */
 	}
+#else
+	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0
+	    || (du->dk_error = inb(wdc + wd_error)) != 0x01)
+		return (1);
 #endif
 	outb(wdc + wd_ctlr, WDCTL_4BIT);
 	return (err);
