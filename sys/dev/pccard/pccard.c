@@ -339,16 +339,17 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 		return (NULL);
 	if (pccard_get_product_str(dev, &prodstr))
 		return (NULL);
-	for (ent = tab; ent->pp_name != NULL; ent =
+	for (ent = tab; ent->pp_name != NULL && ent->pp_vendor != 0; ent =
 	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
 		matches = 1;
 		if (ent->pp_vendor == PCCARD_VENDOR_ANY &&
 		    ent->pp_product == PCCARD_PRODUCT_ANY &&
 		    ent->pp_cis[0] == NULL &&
 		    ent->pp_cis[1] == NULL) {
-			device_printf(dev,
-			    "Total wildcard entry ignored for %s\n",
-			    ent->pp_name);
+			if (ent->pp_name)
+				device_printf(dev,
+				    "Total wildcard entry ignored for %s\n",
+				    ent->pp_name);
 			continue;
 		}
 		if (matches && ent->pp_vendor != PCCARD_VENDOR_ANY &&
