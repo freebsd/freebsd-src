@@ -357,7 +357,7 @@ sndselect (int dev, int rw)
   FIX_RETURN (0);
 }
 
-static short
+static unsigned short
 ipri_to_irq (unsigned short ipri)
 {
   /*
