@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.18 1995/11/09 20:22:59 phk Exp $
+ * $Id: in_rmx.c,v 1.19 1995/11/14 20:34:06 phk Exp $
  */
 
 /*
@@ -68,6 +68,9 @@
 #ifndef MTUDISC
 #include <netinet/tcpip.h>
 #endif /* not MTUDISC */
+
+extern int	in_inithead __P((void **head, int off));
+extern void	in_rtqdrain __P((void));
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 

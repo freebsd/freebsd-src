@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.21 1995/11/14 20:34:05 phk Exp $
+ *	$Id: in_proto.c,v 1.22 1995/11/20 12:28:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,11 +71,13 @@
  */
 
 #ifdef IPXIP
-void	ipxip_input(), ipxip_ctlinput();
+#include <netipx/ipx.h>
+#include <netipx/ipx_ip.h>
 #endif
 
 #ifdef NSIP
-void	idpip_input(), nsip_ctlinput();
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #ifdef TPIP

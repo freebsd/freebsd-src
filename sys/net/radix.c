@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.8 1995/04/28 23:01:34 pst Exp $
+ *	$Id: radix.c,v 1.9 1995/05/30 08:08:20 rgrimes Exp $
  */
 
 /*
@@ -51,6 +51,12 @@
 #include <net/radix.h>
 #endif
 
+extern struct radix_node *
+		rn_lookup __P((void *v_arg, void *m_arg,
+			       struct radix_node_head *head));
+extern int	rn_walktree_from __P((struct radix_node_head *h, void *a,
+				      void *m, walktree_f_t *f, void *w));
+
 int	max_keylen;
 struct radix_mask *rn_mkfreelist;
 struct radix_node_head *mask_rnhead;
@@ -61,6 +67,14 @@ static char *rn_zeros, *rn_ones;
 #define rn_masktop (mask_rnhead->rnh_treetop)
 #undef Bcmp
 #define Bcmp(a, b, l) (l == 0 ? 0 : bcmp((caddr_t)(a), (caddr_t)(b), (u_long)l))
+
+static int	rn_lexobetter __P((void *m_arg, void *n_arg));
+static struct radix_mask *
+		rn_new_radix_mask __P((struct radix_node *tt,
+				       struct radix_mask *next));
+static int	rn_satsifies_leaf __P((char *trial, struct radix_node *leaf,
+				       int skip));
+
 /*
  * The data structure for the keys is a radix tree with one way
  * branching removed.  The index rn_b at an internal node n represents a bit
@@ -819,7 +833,7 @@ int
 rn_walktree_from(h, a, m, f, w)
 	struct radix_node_head *h;
 	void *a, *m;
-	register int (*f)();
+	walktree_f_t *f;
 	void *w;
 {
 	int error;
@@ -908,7 +922,7 @@ rn_walktree_from(h, a, m, f, w)
 int
 rn_walktree(h, f, w)
 	struct radix_node_head *h;
-	register int (*f)();
+	walktree_f_t *f;
 	void *w;
 {
 	int error;

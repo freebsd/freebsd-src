@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.15 1995/11/29 10:48:44 julian Exp $
+ * $Id: bpf.c,v 1.16 1995/11/29 14:40:45 julian Exp $
  */
 
 #include "bpfilter.h"
@@ -52,6 +52,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <machine/cpu.h>	/* for bootverbose */
 #include <sys/mbuf.h>
 #include <sys/buf.h>
@@ -130,6 +131,8 @@ bpfilterattach(n)
 #endif
 
 static int	bpf_allocbufs __P((struct bpf_d *));
+static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
+static void	bpf_detachd __P((struct bpf_d *d));
 static void	bpf_freed __P((struct bpf_d *));
 static void	bpf_ifname __P((struct ifnet *, struct ifreq *));
 static void	bpf_mcopy __P((const void *, void *, u_int));
