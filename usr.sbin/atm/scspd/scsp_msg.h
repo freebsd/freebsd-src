@@ -357,10 +357,9 @@ typedef	struct scsp_csa	Scsp_csa;
  */
 #define	SCSP_FREE_CSA(c)					\
 {								\
-	if ((c)->atmarp_data) {					\
-		UM_FREE((c)->atmarp_data);			\
-	}							\
-	UM_FREE((c));						\
+	if ((c)->atmarp_data)					\
+		free((c)->atmarp_data);				\
+	free((c));						\
 }
 
 

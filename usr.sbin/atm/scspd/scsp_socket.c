@@ -231,7 +231,7 @@ scsp_dcs_connect(dcsp)
 	/*
 	 * Set up connection parameters for SCSP connection
 	 */
-	UM_ZERO(&DCS_addr, sizeof(DCS_addr));
+	bzero(&DCS_addr, sizeof(DCS_addr));
 #if (defined(BSD) && (BSD >= 199103))
 	DCS_addr.satm_len = sizeof(DCS_addr);
 #endif
@@ -244,7 +244,7 @@ scsp_dcs_connect(dcsp)
 			dcsp->sd_addr.address_format;
 	DCS_addr.satm_addr.t_atm_sap_addr.address_length =
 			dcsp->sd_addr.address_length;
-	UM_COPY(dcsp->sd_addr.address,
+	bcopy(dcsp->sd_addr.address,
 			DCS_addr.satm_addr.t_atm_sap_addr.address,
 			dcsp->sd_addr.address_length);
 
@@ -423,7 +423,7 @@ scsp_dcs_listen(ssp)
 	/*
 	 * Set up our address
 	 */
-	UM_ZERO(&ls_addr, sizeof(ls_addr));
+	bzero(&ls_addr, sizeof(ls_addr));
 #if (defined(BSD) && (BSD >= 199103))
 	ls_addr.satm_len = sizeof(ls_addr);
 #endif
@@ -435,7 +435,7 @@ scsp_dcs_listen(ssp)
 			ssp->ss_addr.address_format;
 	ls_addr.satm_addr.t_atm_sap_addr.address_length =
 			ssp->ss_addr.address_length;
-	UM_COPY(ssp->ss_addr.address,
+	bcopy(ssp->ss_addr.address,
 			ls_addr.satm_addr.t_atm_sap_addr.address,
 			ssp->ss_addr.address_length);
 
@@ -616,7 +616,7 @@ scsp_dcs_accept(ssp)
 	} else {
 		dcs_atmaddr.address_format = dcs_addr->address_format;
 		dcs_atmaddr.address_length = dcs_addr->address_length;
-		UM_COPY(dcs_addr->address, dcs_atmaddr.address,
+		bcopy(dcs_addr->address, dcs_atmaddr.address,
 				dcs_addr->address_length);
 	}
 
@@ -724,10 +724,9 @@ scsp_dcs_read(dcsp)
 	 * Get a buffer to hold the entire message
 	 */
 	len = ssp->ss_mtu;
-	buff = (char *)UM_ALLOC(len);
-	if (!buff) {
+	buff = calloc(1, len);
+	if (buff == NULL)
 		scsp_mem_err("scsp_dcs_read: ssp->ss_mtu");
-	}
 
 	/*
 	 * Read the message
@@ -775,7 +774,7 @@ scsp_dcs_read(dcsp)
 			scsp_trace("\n");
 		}
 	}
-	UM_FREE(buff);
+	free(buff);
 
 	return(0);
 
@@ -804,7 +803,7 @@ dcs_read_fail:
 	}
 
 	if (buff)
-		UM_FREE(buff);
+		free(buff);
 	return(rc);
 }
 
@@ -938,10 +937,9 @@ scsp_server_accept(ls)
 	/*
 	 * Put the new socket on the 'pending' queue
 	 */
-	psp = (Scsp_pending *) UM_ALLOC(sizeof(Scsp_pending));
-	if (!psp) {
+	psp = calloc(1, sizeof(Scsp_pending));
+	if (!psp)
 		scsp_mem_err("scsp_server_accept: sizeof(Scsp_pending)");
-	}
 	psp->sp_sock = sd;
 	LINK2TAIL(psp, Scsp_pending, scsp_pending_head, sp_next);
 
@@ -983,10 +981,9 @@ scsp_if_sock_read(sd)
 	/*
 	 * Get a buffer and read the rest of the message into it
 	 */
-	buff = (char *)UM_ALLOC(msg_hdr.sh_len);
-	if (!buff) {
+	buff = malloc(msg_hdr.sh_len);
+	if (buff == NULL)
 		scsp_mem_err("scsp_if_sock_read: msg_hdr.sh_len");
-	}
 	msg = (Scsp_if_msg *)buff;
 	msg->si_hdr = msg_hdr;
 	len = read(sd, &buff[sizeof(Scsp_if_msg_hdr)],
@@ -1011,7 +1008,7 @@ scsp_if_sock_read(sd)
 
 socket_read_fail:
 	if (buff)
-		UM_FREE(buff);
+		free(buff);
 	return((Scsp_if_msg *)0);
 }
 
@@ -1165,7 +1162,7 @@ scsp_server_read(ssp)
 		return(EINVAL);
 	}
 
-	UM_FREE(msg);
+	free(msg);
 	return(0);
 }
 
@@ -1191,17 +1188,13 @@ scsp_send_cache_ind(ssp)
 	/*
 	 * Get storage for a server interface message
 	 */
-	msg = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!msg) {
+	msg = calloc(1, sizeof(Scsp_if_msg));
+	if (msg == NULL)
 		scsp_mem_err("scsp_send_cache_ind: sizeof(Scsp_if_msg)");
-	}
-	UM_ZERO(msg, sizeof(Scsp_if_msg));
-
 	/*
 	 * Fill out the message
 	 */
 	msg->si_type = SCSP_CACHE_IND;
-	msg->si_rc = 0;
 	msg->si_proto = ssp->ss_pid;
 	msg->si_len = sizeof(Scsp_if_msg_hdr);
 	msg->si_tok = (u_long)ssp;
@@ -1210,7 +1203,7 @@ scsp_send_cache_ind(ssp)
 	 * Send the message
 	 */
 	rc = scsp_if_sock_write(ssp->ss_sock, msg);
-	UM_FREE(msg);
+	free(msg);
 	return(rc);
 }
 
@@ -1282,7 +1275,7 @@ scsp_pending_read(psp)
 	ssp->ss_sock = psp->sp_sock;
 	ssp->ss_state = SCSP_SS_CFG;
 	UNLINK(psp, Scsp_pending, scsp_pending_head, sp_next);
-	UM_FREE(psp);
+	free(psp);
 
 	/*
 	 * Listen for connections from the server's DCSs
@@ -1312,7 +1305,7 @@ scsp_pending_read(psp)
 		goto config_error;
 	}
 
-	UM_FREE(msg);
+	free(msg);
 	return(0);
 
 config_reject:
@@ -1334,7 +1327,7 @@ config_error:
 		ssp->ss_sock = -1;
 	}
 	ssp->ss_state = SCSP_SS_NULL;
-	UM_FREE(msg);
+	free(msg);
 
 	return(rc);
 
@@ -1344,8 +1337,8 @@ pending_read_fail:
 	 */
 	(void)close(psp->sp_sock);
 	UNLINK(psp, Scsp_pending, scsp_pending_head, sp_next);
-	UM_FREE(psp);
+	free(psp);
 	if (msg)
-		UM_FREE(msg);
+		free(msg);
 	return(rc);
 }

@@ -896,7 +896,7 @@ scsp_ca_act_10(dcsp, p)
 			HARP_CANCEL(&rxp->sr_t);
 			UNLINK(rxp, Scsp_csu_rexmt,
 					dcsp->sd_csu_rexmt, sr_next);
-			UM_FREE(rxp);
+			free(rxp);
 		}
 
 		break;
@@ -964,12 +964,10 @@ scsp_ca_act_11(dcsp, p)
 			 * Add the entry if we don't have it already
 			 */
 			if (!csep) {
-				csep = (Scsp_cse *)UM_ALLOC(
-						sizeof(Scsp_cse));
-				if (!csep)
+				csep = calloc(1, sizeof(Scsp_cse));
+				if (csep == NULL)
 					scsp_mem_err("scsp_ca_act_11: sizeof(Scsp_cse)");
-				UM_ZERO(csep, sizeof(Scsp_cse));
-
+				
 				csep->sc_key = csap->key;
 				SCSP_ADD(dcsp->sd_server, csep);
 			}
@@ -987,7 +985,7 @@ scsp_ca_act_11(dcsp, p)
 			 */
 			if (csep) {
 				SCSP_DELETE(dcsp->sd_server, csep);
-				UM_FREE(csep);
+				free(csep);
 			}
 
 			SCSP_FREE_CSA(csap);
@@ -1060,7 +1058,7 @@ scsp_ca_act_13(dcsp, p)
 	 */
 	csap = rxp->sr_csa;
 	UNLINK(rxp, Scsp_csu_rexmt, dcsp->sd_csu_rexmt, sr_next);
-	UM_FREE(rxp);
+	free(rxp);
 
 	/*
 	 * Increment the transmission count for the CSAs in the request
@@ -1125,11 +1123,9 @@ scsp_ca_act_14(dcsp, p)
 		/*
 		 * Get memory for a new entry
 		 */
-		csep = (Scsp_cse *)UM_ALLOC(sizeof(Scsp_cse));
-		if (!csep) {
+		csep = calloc(1, sizeof(Scsp_cse));
+		if (csep == NULL)
 			scsp_mem_err("scsp_ca_act_14: sizeof(Scsp_cse)");
-		}
-		UM_ZERO(csep, sizeof(Scsp_cse));
 
 		/*
 		 * Fill out the new cache entry
@@ -1168,12 +1164,12 @@ scsp_ca_act_14(dcsp, p)
 			 * The null flag is set--delete the entry
 			 */
 			SCSP_DELETE(dcsp->sd_server, csep);
-			UM_FREE(csep);
+			free(csep);
 			if (csep1) {
 				UNLINK(csep1, Scsp_cse,
 						dcsp->sd_ca_csas,
 						sc_next);
-				UM_FREE(csep1);
+				free(csep1);
 			}
 		} else {
 			/*
@@ -1418,12 +1414,9 @@ scsp_ca_act_19(dcsp, p)
 	/*
 	 * Create a CSAS from the client's update
 	 */      
-	csap = (Scsp_csa *)UM_ALLOC(sizeof(Scsp_csa));
-	if (!csap) {
+	csap = calloc(1, sizeof(Scsp_csa));
+	if (csap == NULL)
 		scsp_mem_err("scsp_ca_act_19: sizeof(Scsp_csa)");
-	}
-	UM_ZERO(csap, sizeof(Scsp_csa));
-
 	csap->hops = 1;
 	switch (dcsp->sd_server->ss_pid) {
 	case SCSP_PROTO_ATMARP:

@@ -134,7 +134,7 @@ scsp_free_ca(cap)
 	/*
 	 * Free the CA message structure
 	 */
-	UM_FREE(cap);
+	free(cap);
 }
 
 
@@ -172,7 +172,7 @@ scsp_free_csu(csup)
 	/*
 	 * Free the CSU message structure
 	 */
-	UM_FREE(csup);
+	free(csup);
 }
 
 
@@ -199,7 +199,7 @@ scsp_free_hello(hp)
 	/*
 	 * Free the Hello message structure
 	 */
-	UM_FREE(hp);
+	free(hp);
 }
 
 
@@ -247,13 +247,13 @@ scsp_free_msg(msg)
 	 */
 	for (exp = msg->sc_ext; exp; exp = nexp) {
 		nexp = exp->next;
-		UM_FREE(exp);
+		free(exp);
 	}
 
 	/*
 	 * Free the message structure
 	 */
-	UM_FREE(msg);
+	free(msg);
 }
 
 
@@ -293,7 +293,7 @@ scsp_parse_id(buff, id_len, idp)
 	/*
 	 * Get the ID
 	 */
-	UM_COPY(buff, idp->id, id_len);
+	bcopy(buff, idp->id, id_len);
 
 	/*
 	 * Return the ID length
@@ -408,11 +408,9 @@ scsp_parse_ext(buff, pdu_len, expp)
 	 */
 	sep = (struct scsp_next *)buff;
 	len = sizeof(Scsp_ext) + ntohs(sep->se_len);
-	exp = (Scsp_ext *)UM_ALLOC(len);
-	if (!exp) {
+	exp = calloc(1, len);
+	if (exp == NULL)
 		goto ext_invalid;
-	}
-	UM_ZERO(exp, len);
 
 	/*
 	 * Get the type
@@ -428,7 +426,7 @@ scsp_parse_ext(buff, pdu_len, expp)
 	 * Get the value
 	 */
 	if (exp->len > 0) {
-		UM_COPY((caddr_t)sep + sizeof(struct scsp_next),
+		bcopy((caddr_t)sep + sizeof(struct scsp_next),
 				(caddr_t)exp + sizeof(Scsp_ext),
 				exp->len);
 	}
@@ -442,7 +440,7 @@ scsp_parse_ext(buff, pdu_len, expp)
 
 ext_invalid:
 	if (exp) {
-		UM_FREE(exp);
+		free(exp);
 	}
 	return(0);
 }
@@ -488,11 +486,9 @@ scsp_parse_csa(buff, pdu_len, csapp)
 	len = sizeof(Scsp_csa) + ntohs(scp->scs_len) -
 			sizeof(struct scsp_ncsa) - scp->scs_ck_len -
 			scp->scs_oid_len;
-	csap = (Scsp_csa *)UM_ALLOC(len);
-	if (!csap) {
+	csap = calloc(1, len);
+	if (csap == NULL)
 		goto csa_invalid;
-	}
-	UM_ZERO(csap, len);
 
 	/*
 	 * Get the hop count
@@ -518,7 +514,7 @@ scsp_parse_csa(buff, pdu_len, csapp)
 	}
 	csap->key.key_len = scp->scs_ck_len;
 	idp = (char *) ((caddr_t)scp + sizeof(struct scsp_ncsa));
-	UM_COPY(idp, csap->key.key, scp->scs_ck_len);
+	bcopy(idp, csap->key.key, scp->scs_ck_len);
 
 	/*
 	 * Get the originator ID
@@ -583,11 +579,9 @@ scsp_parse_ca(buff, pdu_len, capp)
 	 * Get memory for the returned structure
 	 */
 	scap = (struct scsp_nca *)buff;
-	cap = (Scsp_ca *)UM_ALLOC(sizeof(Scsp_ca));
-	if (!cap) {
+	cap = calloc(1, sizeof(Scsp_ca));
+	if (cap == NULL)
 		goto ca_invalid;
-	}
-	UM_ZERO(cap, sizeof(Scsp_ca));
 
 	/*
 	 * Get the sequence number
@@ -672,11 +666,9 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 	/*
 	 * Get memory for the returned structure
 	 */
-	acsp = (Scsp_atmarp_csa *)UM_ALLOC(sizeof(Scsp_atmarp_csa));
-	if (!acsp) {
+	acsp = calloc(1, sizeof(Scsp_atmarp_csa));
+	if (acsp == NULL)
 		goto acs_invalid;
-	}
-	UM_ZERO(acsp, sizeof(Scsp_atmarp_csa));
 
 	/*
 	 * Get state code
@@ -702,7 +694,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 		acsp->sa_sha.address_length = len;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)acsp->sa_sha.address,
+		bcopy(&buff[proc_len], (char *)acsp->sa_sha.address,
 				len);
 		proc_len += len;
 	}
@@ -720,7 +712,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 		acsp->sa_ssa.address_length = len;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)acsp->sa_ssa.address,
+		bcopy(&buff[proc_len], (char *)acsp->sa_ssa.address,
 				len);
 		proc_len += len;
 	}
@@ -733,7 +725,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 			goto acs_invalid;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)&acsp->sa_spa, len);
+		bcopy(&buff[proc_len], (char *)&acsp->sa_spa, len);
 		proc_len += len;
 	} else {
 		acsp->sa_spa.s_addr = 0;
@@ -757,7 +749,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 		acsp->sa_tha.address_length = len;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)acsp->sa_tha.address,
+		bcopy(&buff[proc_len], (char *)acsp->sa_tha.address,
 				len);
 		proc_len += len;
 	}
@@ -775,7 +767,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 		acsp->sa_tsa.address_length = len;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)acsp->sa_tsa.address,
+		bcopy(&buff[proc_len], (char *)acsp->sa_tsa.address,
 				len);
 		proc_len += len;
 	}
@@ -788,7 +780,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 			goto acs_invalid;
 		if (pdu_len < proc_len + len)
 			goto acs_invalid;
-		UM_COPY(&buff[proc_len], (char *)&acsp->sa_tpa, len);
+		bcopy(&buff[proc_len], (char *)&acsp->sa_tpa, len);
 		proc_len += len;
 	} else {
 		acsp->sa_tpa.s_addr = 0;
@@ -805,7 +797,7 @@ scsp_parse_atmarp(buff, pdu_len, acspp)
 
 acs_invalid:
 	if (acsp)
-		UM_FREE(acsp);
+		free(acsp);
 	return(0);
 }
 
@@ -838,11 +830,9 @@ scsp_parse_csu(buff, pdu_len, csupp)
 	/*
 	 * Get memory for the returned structure
 	 */
-	csup = (Scsp_csu_msg *)UM_ALLOC(sizeof(Scsp_csu_msg));
-	if (!csup) {
+	csup = calloc(1, sizeof(Scsp_csu_msg));
+	if (csup == NULL)
 		goto csu_invalid;
-	}
-	UM_ZERO(csup, sizeof(Scsp_csu_msg));
 
 	/*
 	 * Process the mandatory common part of the message
@@ -906,11 +896,9 @@ scsp_parse_hello(buff, pdu_len, hpp)
 	/*
 	 * Get memory for the returned structure
 	 */
-	hp = (Scsp_hello *)UM_ALLOC(sizeof(Scsp_hello));
-	if (!hp) {
+	hp = calloc(1, sizeof(Scsp_hello));
+	if (hp == NULL)
 		goto hello_invalid;
-	}
-	UM_ZERO(hp, sizeof(Scsp_hello));
 
 	/*
 	 * Get the hello interval
@@ -946,16 +934,14 @@ scsp_parse_hello(buff, pdu_len, hpp)
 	for (i = 0, ridpp = &hp->hello_mcp.rid.next;
 			i < hp->hello_mcp.rec_cnt;
 			i++, ridpp = &idp->next) {
-		idp = (Scsp_id *)UM_ALLOC(sizeof(Scsp_id));
-		if (!idp) {
+		idp = calloc(1, sizeof(Scsp_id));
+		if (idp == NULL)
 			goto hello_invalid;
-		}
-		UM_ZERO(idp, sizeof(Scsp_id));
 		len = scsp_parse_id(buff,
 				hp->hello_mcp.rid.id_len,
 				idp);
 		if (len == 0) {
-			UM_FREE(idp);
+			free(idp);
 			goto hello_invalid;
 		}
 		buff += len;
@@ -1012,11 +998,9 @@ scsp_parse_msg(buff, pdu_len)
 	/*
 	 * Allocate storage for the message
 	 */
-	msg = (Scsp_msg *)UM_ALLOC(sizeof(Scsp_msg));
-	if (!msg) {
+	msg = calloc(1, sizeof(Scsp_msg));
+	if (msg == NULL)
 		goto ignore;
-	}
-	UM_ZERO(msg, sizeof(Scsp_msg));
 
 	/*
 	 * Decode the fixed header

@@ -153,7 +153,7 @@ scsp_open_trace()
 	/*
 	 * Build a file name
 	 */
-	UM_ZERO(fname, sizeof(fname));
+	bzero(fname, sizeof(fname));
 	sprintf(fname, "/tmp/scspd.%d.trace", getpid());
 
 	/*
@@ -230,9 +230,8 @@ scsp_trace_msg(dcsp, msg, dir)
 	/*
 	 * Copy the remote IP address into a struct in_addr
 	 */
-	UM_COPY(dcsp->sd_dcsid.id, &addr.s_addr,
-			sizeof(struct in_addr));
-	
+	bcopy(dcsp->sd_dcsid.id, &addr.s_addr, sizeof(struct in_addr));
+
 	/*
 	 * Write the message to the trace file, if it's open
 	 */
