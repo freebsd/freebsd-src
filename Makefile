@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.175 1998/05/08 21:29:35 jb Exp $
+#	$Id: Makefile,v 1.176 1998/05/10 16:51:07 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -176,16 +176,16 @@ world:
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} pre-world
+	cd ${.CURDIR}; ${MAKE} pre-world
 .endif
-	cd ${.CURDIR} && ${MAKE} buildworld
-	cd ${.CURDIR} && ${MAKE} -B installworld
+	cd ${.CURDIR}; ${MAKE} buildworld
+	cd ${.CURDIR}; ${MAKE} -B installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} post-world
+	cd ${.CURDIR}; ${MAKE} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -250,10 +250,10 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	mkdir -p ${WORLDTMP}/usr/bin ${MAKETMP}
 	( \
-	cd ${.CURDIR}/usr.bin/make && \
-		MAKEOBJDIRPREFIX= && unset MAKEOBJDIRPREFIX && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
+	cd ${.CURDIR}/usr.bin/make; \
+		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
 	)
 .endif
@@ -261,74 +261,74 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} hierarchy
+	cd ${.CURDIR}; ${BMAKE} hierarchy
 .if !defined(NOCLEAN)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Cleaning up the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} ${CLEANDIR:S/^/par-/}
+	cd ${.CURDIR}; ${BMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 .if !defined(NOOBJDIR)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} par-${OBJDIR}
+	cd ${.CURDIR}; ${BMAKE} par-${OBJDIR}
 .endif
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap tools"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} bootstrap
+	cd ${.CURDIR}; ${BMAKE} bootstrap
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding tools necessary to build the include files"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} include-tools
+	cd ${.CURDIR}; ${BMAKE} include-tools
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR}/usr/include"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && SHARED=symlinks ${BMAKE} includes
+	cd ${.CURDIR}; SHARED=symlinks ${BMAKE} includes
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding bootstrap libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} bootstrap-libraries
+	cd ${.CURDIR}; ${BMAKE} bootstrap-libraries
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding tools needed to build libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} lib-tools
+	cd ${.CURDIR}; ${BMAKE} lib-tools
 .endif
 .if !defined(NOTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding all other tools needed to build the world"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} build-tools
+	cd ${.CURDIR}; ${BMAKE} build-tools
 .endif
 .if !defined(_NODEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} par-depend
+	cd ${.CURDIR}; ${XMAKE} par-depend
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} -DNOINFO -DNOMAN libraries
+	cd ${.CURDIR}; ${XMAKE} -DNOINFO -DNOMAN libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} all
+	cd ${.CURDIR}; ${XMAKE} all
 
 #
 # installworld
@@ -336,7 +336,7 @@ buildworld:
 # Installs everything compiled by a 'buildworld'.
 #
 installworld:
-	cd ${.CURDIR} && ${IXMAKE} reinstall
+	cd ${.CURDIR}; ${IXMAKE} reinstall
 
 #
 # reinstall
@@ -349,22 +349,22 @@ reinstall:
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} hierarchy
+	cd ${.CURDIR}; ${MAKE} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} install
+	cd ${.CURDIR}; ${MAKE} install
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ldconfig -R
+	cd ${.CURDIR}; ldconfig -R
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding man page indexes"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/share/man && ${MAKE} makedb
+	cd ${.CURDIR}/share/man; ${MAKE} makedb
 
 #
 # update
@@ -389,7 +389,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && cvs -q update -P -d
+	cd ${.CURDIR}; cvs -q update -P -d
 .endif
 
 #
@@ -401,19 +401,19 @@ most:
 	@echo "--------------------------------------------------------------"
 	@echo " Building programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} all
-	cd ${.CURDIR}/sbin	&&	${MAKE} all
-	cd ${.CURDIR}/libexec	&&	${MAKE} all
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} all
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} all
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} all
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} all
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} all
+	cd ${.CURDIR}/bin;		${MAKE} all
+	cd ${.CURDIR}/sbin;		${MAKE} all
+	cd ${.CURDIR}/libexec;		${MAKE} all
+	cd ${.CURDIR}/usr.bin;		${MAKE} all
+	cd ${.CURDIR}/usr.sbin;		${MAKE} all
+	cd ${.CURDIR}/gnu/libexec;	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} all
 #.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV	&&	${MAKE} most
+#	cd ${.CURDIR}/kerberosIV;	${MAKE} most
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} most
+#	cd ${.CURDIR}/secure;		${MAKE} most
 #.endif
 
 #
@@ -426,19 +426,19 @@ installmost:
 	@echo "--------------------------------------------------------------"
 	@echo " Installing programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} install
-	cd ${.CURDIR}/sbin	&&	${MAKE} install
-	cd ${.CURDIR}/libexec	&&	${MAKE} install
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} install
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} install
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} install
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} install
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} install
+	cd ${.CURDIR}/bin;		${MAKE} install
+	cd ${.CURDIR}/sbin;		${MAKE} install
+	cd ${.CURDIR}/libexec;		${MAKE} install
+	cd ${.CURDIR}/usr.bin;		${MAKE} install
+	cd ${.CURDIR}/usr.sbin;		${MAKE} install
+	cd ${.CURDIR}/gnu/libexec;	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.bin;	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.sbin;	${MAKE} install
 #.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV &&	${MAKE} installmost
+#	cd ${.CURDIR}/kerberosIV;	${MAKE} installmost
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} installmost
+#	cd ${.CURDIR}/secure;		${MAKE} installmost
 #.endif
 
 #
@@ -456,7 +456,7 @@ installmost:
 # heirarchy - ensure that all the needed directories are present
 #
 hierarchy:
-	cd ${.CURDIR}/etc &&		${MAKE} distrib-dirs
+	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
 
 #
 # bootstrap - [re]build tools needed to run the actual build, this includes
@@ -467,21 +467,21 @@ bootstrap:
 .if defined(DESTDIR)
 	rm -f ${DESTDIR}/usr/src/sys
 	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
-	cd ${.CURDIR}/include && find -dx . | cpio -dump ${DESTDIR}/usr/include
-	cd ${.CURDIR}/include && ${MAKE} symlinks
+	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
+	cd ${.CURDIR}/include; ${MAKE} symlinks
 .endif
-	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
+	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
+	cd ${.CURDIR}/usr.bin/xinstall; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && \
-		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} -DNOLIB all && \
+	cd ${.CURDIR}/usr.bin/lex; ${MAKE} bootstrap; \
+		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} -DNOLIB all; \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 .if !defined(NOOBJDIR)
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/lex; ${MAKE} ${OBJDIR}
 .endif
 
 #
@@ -494,9 +494,9 @@ bootstrap:
 #
 include-tools:
 .for d in usr.bin/compile_et usr.bin/rpcgen
-	cd ${.CURDIR}/$d && ${MAKE} cleandepend && \
-		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
+	cd ${.CURDIR}/$d; ${MAKE} cleandepend; \
+		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
 
@@ -509,62 +509,62 @@ includes:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
-	cd ${.CURDIR}/include &&		${MAKE} -B all install
-	cd ${.CURDIR}/gnu/include &&		${MAKE} install
-	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libstdc++ &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libgmp &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/include;			${MAKE} -B all install
+	cd ${.CURDIR}/gnu/include;		${MAKE} install
+	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libreadline;	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libg++;		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 .if exists(secure) && !defined(NOCRYPT)
-	cd ${.CURDIR}/secure/lib/libdes &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/secure/lib/libdes;	${MAKE} beforeinstall
 .endif
 .if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib/libacl &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkadm &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkafs &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkdb &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libkrb &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberosIV/lib/libtelnet && ${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libacl;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkadm;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkafs;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkdb;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkrb;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libtelnet; ${MAKE} beforeinstall
 .else
-	cd ${.CURDIR}/lib/libtelnet &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
 .endif
 .if exists(${.CURDIR}/lib/csu/${MACHINE})
-	cd ${.CURDIR}/lib/csu/${MACHINE} &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/csu/${MACHINE};	${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcalendar &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libdisk &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libmytinfo &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libncurses &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libc;			${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libcurses;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libmytinfo;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
-	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/libopie &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
 .if !defined(NOTCL) && exists (${.CURDIR}/contrib/tcl) && \
 	exists(${.CURDIR}/usr.bin/tclsh) && exists (${.CURDIR}/lib/libtcl)
-	cd ${.CURDIR}/lib/libtcl &&		${MAKE} installhdrs
+	cd ${.CURDIR}/lib/libtcl;		${MAKE} installhdrs
 .endif
-	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libss &&		${MAKE} -B hdrs beforeinstall
-	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libz &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/usr.bin/f2c &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/usr.bin/lex &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libtermcap;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
+	cd ${.CURDIR}/lib/libscsi;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/f2c;		${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
 # lib-tools - build tools to compile and install the libraries.
@@ -585,9 +585,9 @@ lib-tools:
 		usr.bin/nm		\
 		usr.bin/ranlib		\
 		usr.bin/uudecode
-	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} -B install && \
+	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
+		${MAKE} ${MK_FLAGS} -B install; \
 		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
 .endfor
 
@@ -644,9 +644,9 @@ bootstrap-libraries:
     gnu/lib/libregex lib/libc lib/libcurses lib/libedit ${_libm} \
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib
 .if exists(${.CURDIR}/${_lib})
-	cd ${.CURDIR}/${_lib} && \
-		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
+	cd ${.CURDIR}/${_lib}; \
+		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 .endfor
@@ -663,15 +663,15 @@ libraries:
     lib/libncurses lib/libtermcap \
     gnu/lib gnu/usr.bin/cc/libgcc lib usr.bin/lex/lib usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
-	cd ${.CURDIR}/${_lib} && ${MAKE} all && ${MAKE} -B install
+	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
 .endfor
 .if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib && ${MAKE} all && ${MAKE} -B install
+	cd ${.CURDIR}/secure/lib; ${MAKE} all; ${MAKE} -B install
 .endif
 .if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
     defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib && ${MAKE} all && ${MAKE} -B install
+	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} all; ${MAKE} -B install
 .endif
 
 #
@@ -742,8 +742,8 @@ build-tools:
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
 		usr.sbin/zic
-	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
-		${MAKE} ${MK_FLAGS} all && \
+	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
 
