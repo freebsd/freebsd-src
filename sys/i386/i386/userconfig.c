@@ -351,6 +351,7 @@ static DEV_INFO device_info[] = {
 
 {"cm",		"SMC COM90Cx6-based Arcnet adapters",	0,		CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
+{"ctau",        "Cronyx/Tau multiport synchronous adapter",	0,	CLS_NETWORK},
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
