@@ -444,6 +444,7 @@ swi_add(struct ithd **ithdp, const char *name, driver_intr_t handler,
 	}
 	return (ithread_add_handler(ithd, name, handler, arg,
 		    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep));
+		    /* XXKSE.. think of a better way to get separate queues */
 }
 
 

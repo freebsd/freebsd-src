@@ -90,7 +90,6 @@ static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
 struct	thread thread0;
-struct	kse kse0;
 struct	ksegrp ksegrp0;
 static struct filedesc0 filedesc0;
 struct	vmspace vmspace0;
@@ -320,18 +319,11 @@ proc0_init(void *dummy __unused)
 	register unsigned i;
 	struct thread *td;
 	struct ksegrp *kg;
-	struct kse *ke;
 
 	GIANT_REQUIRED;
 	p = &proc0;
 	td = &thread0;
-	ke = &kse0;
 	kg = &ksegrp0;
-
-	ke->ke_sched = kse0_sched;
-	kg->kg_sched = ksegrp0_sched;
-	p->p_sched = proc0_sched;
-	td->td_sched = thread0_sched;
 
 	/*
 	 * Initialize magic number.
@@ -339,11 +331,16 @@ proc0_init(void *dummy __unused)
 	p->p_magic = P_MAGIC;
 
 	/*
-	 * Initialize thread, process and pgrp structures.
+	 * Initialize thread, process and ksegrp structures.
 	 */
-	procinit();
-	threadinit();
+	procinit();	/* set up proc zone */
+	threadinit();	/* set up thead, upcall and KSEGRP zones */
 
+	/*
+	 * Initialise scheduler resources.
+	 * Add scheduler specific parts to proc, ksegrp, thread as needed.
+	 */
+	schedinit();	/* scheduler gets its house in order */
 	/*
 	 * Initialize sleep queue hash table
 	 */
@@ -371,13 +368,6 @@ proc0_init(void *dummy __unused)
 	session0.s_leader = p;
 
 	p->p_sysent = &null_sysvec;
-
-	/*
-	 * proc_linkup was already done in init_i386() or alphainit() etc.
-	 * because the earlier code needed to follow td->td_proc. Otherwise
-	 * I would have done it here.. maybe this means this should be
-	 * done earlier too.
-	 */
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
 	p->p_state = PRS_NORMAL;
@@ -388,10 +378,7 @@ proc0_init(void *dummy __unused)
 	kg->kg_user_pri = PUSER;
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
-	td->td_kse = ke; /* XXXKSE */
 	td->td_oncpu = 0;
-	ke->ke_state = KES_THREAD;
-	ke->ke_thread = td;
 	p->p_peers = 0;
 	p->p_leader = p;
 

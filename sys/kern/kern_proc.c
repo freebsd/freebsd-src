@@ -100,8 +100,6 @@ int uarea_pages = UAREA_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
 SYSCTL_INT(_kern, OID_AUTO, uarea_pages, CTLFLAG_RD, &uarea_pages, 0, "");
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 
 /*
@@ -145,19 +143,20 @@ proc_dtor(void *mem, int size, void *arg)
 {
 	struct proc *p;
 	struct thread *td;
+#ifdef INVARIANTS
 	struct ksegrp *kg;
-	struct kse *ke;
+#endif
 
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
+        td = FIRST_THREAD_IN_PROC(p);
+#ifdef INVARIANTS
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in exiting process"));
-        td = FIRST_THREAD_IN_PROC(p);
 	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
-        ke = FIRST_KSE_IN_KSEGRP(kg);
-	KASSERT((ke != NULL), ("proc_dtor: bad ke pointer"));
+#endif
 
 	/* Dispose of an alternate kstack, if it exists.
 	 * XXX What if there are more than one thread in the proc?
@@ -166,14 +165,6 @@ proc_dtor(void *mem, int size, void *arg)
 	 */
 	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
 		vm_thread_dispose_altkstack(td);
-
-	/*
-	 * We want to make sure we know the initial linkages.
-	 * so for now tear them down and remake them.
-	 * This is probably un-needed as we can probably rely
-	 * on the state coming in here from wait4().
-	 */
-	proc_linkup(p, kg, ke, td);
 }
 
 /*
@@ -185,17 +176,16 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 	struct thread *td;
 	struct ksegrp *kg;
-	struct kse *ke;
 
 	p = (struct proc *)mem;
 	p->p_sched = (struct p_sched *)&p[1];
 	vm_proc_new(p);
 	td = thread_alloc();
-	ke = kse_alloc();
 	kg = ksegrp_alloc();
-	proc_linkup(p, kg, ke, td);
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	proc_linkup(p, kg, td);
+	sched_newproc(p, kg, td);
 	return (0);
 }
 
@@ -208,7 +198,6 @@ proc_fini(void *mem, int size)
 	struct proc *p;
 	struct thread *td;
 	struct ksegrp *kg;
-	struct kse *ke;
 
 	p = (struct proc *)mem;
 	KASSERT((p->p_numthreads == 1),
@@ -217,12 +206,10 @@ proc_fini(void *mem, int size)
 	KASSERT((td != NULL), ("proc_fini: bad thread pointer"));
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_fini: bad kg pointer"));
-        ke = FIRST_KSE_IN_KSEGRP(kg);
-	KASSERT((ke != NULL), ("proc_fini: bad ke pointer"));
 	vm_proc_dispose(p);
+	sched_destroyproc(p);
 	thread_free(td);
 	ksegrp_free(kg);
-	kse_free(ke);
 	mtx_destroy(&p->p_mtx);
 }
 
@@ -635,7 +622,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 {
 	struct proc *p;
 	struct thread *td0;
-	struct kse *ke;
 	struct ksegrp *kg;
 	struct tty *tp;
 	struct session *sp;
@@ -756,7 +742,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		}
 
 		kg = td->td_ksegrp;
-		ke = td->td_kse;
 
 		/* things in the KSE GROUP */
 		kp->ki_estcpu = kg->kg_estcpu;
@@ -777,11 +762,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_kstack = (void *)td->td_kstack;
 		kp->ki_pctcpu = sched_pctcpu(td);
 
-		/* Things in the kse */
-		if (ke)
-			kp->ki_rqindex = ke->ke_rqindex;
-		else
-			kp->ki_rqindex = 0;
+		/* We can't get this anymore but ps etc never used it anyway. */
+		kp->ki_rqindex = 0;
 
 	} else {
 		kp->ki_stat = SZOMB;
