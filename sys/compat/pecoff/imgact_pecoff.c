@@ -483,7 +483,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 			text_size = trunc_page(sh[i].s_size + sh[i].s_vaddr - text_addr);
 
 		}
-		if ((sh[i].s_flags & COFF_STYP_DATA) != 0) {
+		if ((sh[i].s_flags & (COFF_STYP_DATA|COFF_STYP_BSS)) != 0) {
 			if (pecoff_load_section(imgp->proc,
 					   vmspace, imgp->vp, sh[i].s_scnptr
 						,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size,
