@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: interrupt.c,v 1.2 1998/06/10 20:13:32 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -45,6 +45,7 @@
 #include <machine/reg.h>
 #include <machine/frame.h>
 #include <machine/cpuconf.h>
+#include <machine/bwx.h>
 
 #if 0
 #ifdef EVCNT_COUNTERS
@@ -214,11 +215,19 @@ badaddr_read(addr, size, rptr)
 	alpha_mb();
 	switch (size) {
 	case sizeof (u_int8_t):
-		rcpt = *(volatile u_int8_t *)addr;
+		if (alpha_implver() == ALPHA_IMPLVER_EV5
+		    && alpha_amask(ALPHA_AMASK_BWX) == 0)
+			rcpt = ldbu((vm_offset_t)addr);
+		else
+			rcpt = *(volatile u_int8_t *)addr;
 		break;
 
 	case sizeof (u_int16_t):
-		rcpt = *(volatile u_int16_t *)addr;
+		if (alpha_implver() == ALPHA_IMPLVER_EV5
+		    && alpha_amask(ALPHA_AMASK_BWX) == 0)
+			rcpt = ldwu((vm_offset_t)addr);
+		else
+			rcpt = *(volatile u_int16_t *)addr;
 		break;
 
 	case sizeof (u_int32_t):
