@@ -72,6 +72,15 @@
 #endif
 #include <machine/ioctl_meteor.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /* DEVFS */
+#define CDEV_MAJOR 67
+#endif /* JREMOD */
+
+
 extern int meteor_intr __P((void *arg));
 
 	/* enough memory for 640x48 RGB16, or YUV (16 storage bits/pixel) or
@@ -1252,5 +1261,38 @@ meteor_mmap(dev_t dev, int offset, int nprot)
 
 	return i386_btop((vtophys(mtr->bigbuf) + offset));
 }
+
+
+#ifdef JREMOD
+struct cdevsw meteor_cdevsw = 
+        { meteor_open,  meteor_close,   meteor_read,    meteor_write,   /*67*/
+          meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
+          seltrue, meteor_mmap, NULL };
+
+static meteor_devsw_installed = 0;
+
+static void 	meteor_drvinit(void *unused)
+{
+	dev_t dev;
+
+	if( ! meteor_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&dev,&meteor_cdevsw,NULL);
+		meteor_devsw_installed = 1;
+#ifdef DEVFS
+		{
+			int x;
+/* default for a simple device with no probe routine (usually delete this) */
+			x=devfs_add_devsw(
+/*	path	name	devsw		minor	type   uid gid perm*/
+	"/",	"meteor",	major(dev),	0,	DV_CHR,	0,  0, 0600);
+		}
+#endif
+    	}
+}
+
+SYSINIT(meteordev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,meteor_drvinit,NULL)
+
+#endif /* JREMOD */
 
 #endif /* NMETEOR > 0 */
