@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040423:
+	Due to a new option in ipfw (versrcreach) the ipfw(8) command
+	needs to be recompiled.  Normal accept/reject rules without
+	options are not affected but those with options may break until
+	ipfw(8) is recompiled.
+
 20040420:
 	Due to changes in the callout ABI, kernels compiled after this 
 	date may be incompatible with kernel modules compiled prior to
