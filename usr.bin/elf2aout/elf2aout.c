@@ -27,42 +27,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/elf64.h>
-#if __FreeBSD_version >= 500034
-#include <sys/endian.h>
-#else
-#include <machine/endian.h>
-#if BYTE_ORDER == LITTLE_ENDIAN
-
-#define	bswap16(x) \
-	((x >> 8) | (x << 8))
-
-#define	bswap32(x) \
-	((x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24))
-
-#define	bswap64(x) \
-	((x >> 56) | ((x >> 40) & 0xff00) | ((x >> 24) & 0xff0000) | \
-	((x >> 8) & 0xff000000) | ((x << 8) & ((u_int64_t)0xff << 32)) | \
-	((x << 24) & ((u_int64_t)0xff << 40)) | \
-	((x << 40) & ((u_int64_t)0xff << 48)) | ((x << 56)))
-
-#define	be16toh(x)      bswap16((x))
-#define	be32toh(x)      bswap32((x))
-#define	be64toh(x)      bswap64((x))
-#define	htobe32(x)      bswap32((x))
-#else
-#define	be16toh(x)	(x)
-#define	be32toh(x)	(x)
-#define	be64toh(x)	(x)
-#define	htobe32(x)	(x)
-#endif
-#endif
 #include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "endian.h"
+#define	xe16toh(x)	((data == ELFDATA2MSB) ? be16toh(x) : le16toh(x))
+#define	xe32toh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
+#define	xe64toh(x)	((data == ELFDATA2MSB) ? be64toh(x) : le64toh(x))
+#define	htoxe32(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
 
 struct exec {
 	u_int32_t	a_magic;
@@ -96,6 +75,7 @@ main(int ac, char **av)
 	Elf64_Off offset;
 	Elf64_Off phoff;
 	Elf64_Half type;
+	unsigned char data;
 	struct stat sb;
 	struct exec a;
 	Elf64_Phdr *p;
@@ -106,6 +86,7 @@ main(int ac, char **av)
 	int c;
 	int i;
 
+	fd = STDIN_FILENO;
 	while ((c = getopt(ac, av, "o:")) != -1)
 		switch (c) {
 		case 'o':
@@ -131,37 +112,38 @@ main(int ac, char **av)
 		errx(1, "not an elf file");
 	if (e->e_ident[EI_CLASS] != ELFCLASS64)
 		errx(1, "wrong class");
-	if (e->e_ident[EI_DATA] != ELFDATA2MSB)
+	data = e->e_ident[EI_DATA];
+	if (data != ELFDATA2MSB && data != ELFDATA2LSB)
 		errx(1, "wrong data format");
 	if (e->e_ident[EI_VERSION] != EV_CURRENT)
 		errx(1, "wrong elf version");
-	machine = be16toh(e->e_machine);
-	if (machine != EM_SPARCV9)
+	machine = xe16toh(e->e_machine);
+	if (machine != EM_SPARCV9 && machine != EM_ALPHA)
 		errx(1, "wrong machine type");
-	phentsize = be16toh(e->e_phentsize);
+	phentsize = xe16toh(e->e_phentsize);
 	if (phentsize != sizeof(*p))
 		errx(1, "phdr size mismatch");
 
-	entry = be64toh(e->e_entry);
-	phoff = be64toh(e->e_phoff);
-	phnum = be16toh(e->e_phnum);
+	entry = xe64toh(e->e_entry);
+	phoff = xe64toh(e->e_phoff);
+	phnum = xe16toh(e->e_phnum);
 	p = (Elf64_Phdr *)((char *)e + phoff);
 	bzero(&a, sizeof(a));
 	for (i = 0; i < phnum; i++) {
-		type = be32toh(p[i].p_type);
+		type = xe32toh(p[i].p_type);
 		switch (type) {
 		case PT_LOAD:
 			if (a.a_magic != 0)
 				errx(1, "too many loadable segments");
-			filesz = be64toh(p[i].p_filesz);
-			memsz = be64toh(p[i].p_memsz);
-			offset = be64toh(p[i].p_offset);
-			a.a_magic = htobe32(A_MAGIC);
-			a.a_text = htobe32(filesz);
-			a.a_bss = htobe32(memsz - filesz);
-			a.a_entry = htobe32(entry);
+			filesz = xe64toh(p[i].p_filesz);
+			memsz = xe64toh(p[i].p_memsz);
+			offset = xe64toh(p[i].p_offset);
+			a.a_magic = htoxe32(A_MAGIC);
+			a.a_text = htoxe32(filesz);
+			a.a_bss = htoxe32(memsz - filesz);
+			a.a_entry = htoxe32(entry);
 			if (write(fd, &a, sizeof(a)) != sizeof(a) ||
-			    write(fd, (char *)e + offset, filesz) != filesz)
+			    write(fd, (char *)e + offset, filesz) != (ssize_t)filesz)
 				err(1, NULL);
 			break;
 		default:
@@ -176,5 +158,5 @@ static void
 usage(void)
 {
 
-	errx(1, "usage: elftoaout -o outfile infile");
+	errx(1, "usage: elf2aout [-o outfile] infile");
 }
