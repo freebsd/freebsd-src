@@ -23,15 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kldstat.c,v 1.1 1997/05/07 18:19:54 dfr Exp $
  */
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+
+extern char *optarg;
+extern int optind;
 
 static char* progname;
 
@@ -41,7 +46,7 @@ static void printmod(int modid)
 
     stat.version = sizeof(struct module_stat);
     if (modstat(modid, &stat) < 0)
-	warn(1, "Can't state module");
+	warn("Can't stat module id %d", modid);
     else
 	printf("\t\t%2d %s\n", stat.id, stat.name);
 }
@@ -53,9 +58,9 @@ static void printfile(int fileid, int verbose)
 
     stat.version = sizeof(struct kld_file_stat);
     if (kldstat(fileid, &stat) < 0)
-	warn(1, "Can't stat file");
+	warn("Can't stat file id %d", fileid);
     else
-	printf("%2d %4d %-8x %-8x %s\n",
+	printf("%2d %4d %p %-8x %s\n",
 	       stat.id, stat.refs, stat.address, stat.size, stat.name);
 
     if (verbose) {

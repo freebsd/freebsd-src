@@ -23,11 +23,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: Makefile,v 1.1 1997/05/07 18:19:21 dfr Exp $
 #
 
 PROG=	kldload
 SRCS=	kldload.c
 MAN8=	kldload.8
+
+CFLAGS=	-I${.CURDIR}/../../sys
 
 .include <bsd.prog.mk>
