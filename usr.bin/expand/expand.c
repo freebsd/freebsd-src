@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /*
  * expand - expand tabs to equivalent spaces
@@ -64,9 +66,12 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
+	const char *curfile;
+	wint_t wc;
 	int c, column;
 	int n;
 	int rval;
+	int width;
 
 	setlocale(LC_CTYPE, "");
 
@@ -100,22 +105,24 @@ main(int argc, char *argv[])
 				argc--, argv++;
 				continue;
 			}
+			curfile = argv[0];
 			argc--, argv++;
-		}
+		} else
+			curfile = "stdin";
 		column = 0;
-		while ((c = getchar()) != EOF) {
-			switch (c) {
+		while ((wc = getwchar()) != WEOF) {
+			switch (wc) {
 			case '\t':
 				if (nstops == 0) {
 					do {
-						putchar(' ');
+						putwchar(' ');
 						column++;
 					} while (column & 07);
 					continue;
 				}
 				if (nstops == 1) {
 					do {
-						putchar(' ');
+						putwchar(' ');
 						column++;
 					} while (((column - 1) % tabstops[0]) != (tabstops[0] - 1));
 					continue;
@@ -124,12 +131,12 @@ main(int argc, char *argv[])
 					if (tabstops[n] > column)
 						break;
 				if (n == nstops) {
-					putchar(' ');
+					putwchar(' ');
 					column++;
 					continue;
 				}
 				while (column < tabstops[n]) {
-					putchar(' ');
+					putwchar(' ');
 					column++;
 				}
 				continue;
@@ -137,20 +144,24 @@ main(int argc, char *argv[])
 			case '\b':
 				if (column)
 					column--;
-				putchar('\b');
+				putwchar('\b');
 				continue;
 
 			default:
-				putchar(c);
-				if (isprint(c))
-					column++;
+				putwchar(wc);
+				if ((width = wcwidth(wc)) > 0)
+					column += width;
 				continue;
 
 			case '\n':
-				putchar(c);
+				putwchar(wc);
 				column = 0;
 				continue;
 			}
+		}
+		if (ferror(stdin)) {
+			warn("%s", curfile);
+			rval = 1;
 		}
 	} while (argc > 0);
 	exit(rval);
