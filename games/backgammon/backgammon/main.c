@@ -44,6 +44,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include "back.h"
 
 #define MVPAUSE	5				/* time to sleep when stuck */
@@ -103,16 +104,9 @@ char	**argv;
 	register int	i;		/* non-descript index */
 	register int	l;		/* non-descript index */
 	register char	c;		/* non-descript character storage */
-	long	t;			/* time for random num generator */
-	uid_t uid;
-
-	/*Drop the privilege.*/
-	uid = getuid();
-	setreuid (uid,uid);
 
 	/* revoke privs */
 	setegid(getgid());
-	setgid(getgid());
 
 	/* initialization */
 	bflag = 2;					/* default no board */
@@ -147,8 +141,7 @@ char	**argv;
 							 * for text */
 	if (tflag)
 		begscr = 0;
-	t = time(0);
-	srandom(t);					/* 'random' seed */
+	srandomdev();
 
 	getarg (argc, argv);
 	args[acnt] = NULL;
@@ -186,7 +179,7 @@ char	**argv;
 
 				tflag = 0;		/* error! */
 				writel (noteach);
-				exit();
+				exit(1);
 			} else  {			/* if not rules, then
 							 * instructions */
 				writel (need);
