@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.20 1998/02/18 04:15:04 eivind Exp $";
+	"$Id: main.c,v 1.21 1998/02/19 00:45:33 eivind Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -96,6 +96,8 @@ main(argc, argv)
 			break;
 		case 'n':
 			/* no_config_clobber is now true by default, no-op */
+			fprintf(stderr,
+				"*** Using obsolete config option '-n' ***\n");
 			break;
 		case 'r':
 			no_config_clobber = FALSE;
