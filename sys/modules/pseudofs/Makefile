@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../fs/pseudofs
+.PATH: ${.CURDIR}/../../fs/pseudofs
 
 KMOD=	pseudofs
 SRCS=	vnode_if.h \
