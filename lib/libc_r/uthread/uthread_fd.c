@@ -20,7 +20,7 @@
  * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.10 1999/03/23 05:07:55 jb Exp $
+ * $Id: uthread_fd.c,v 1.11 1999/06/20 08:28:18 jb Exp $
  *
  */
 #include <errno.h>
@@ -94,13 +94,13 @@ _thread_fd_table_init(int fd)
 		TAILQ_INIT(&entry->w_queue);
 
 		/* Get the flags for the file: */
-		if (fd >= 3 && (entry->flags =
-		    _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
+		if (((fd >= 3) || (_pthread_stdio_flags[fd] == -1)) &&
+		    (entry->flags = _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
 			ret = -1;
-		    }
+		}
 		else {
 			/* Check if a stdio descriptor: */
-			if (fd < 3)
+			if ((fd < 3) && (_pthread_stdio_flags[fd] != -1))
 				/*
 				 * Use the stdio flags read by
 				 * _pthread_init() to avoid
