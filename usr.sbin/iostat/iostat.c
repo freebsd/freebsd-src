@@ -339,7 +339,7 @@ phdr(signo)
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
 			(void)printf(" sps tps msps ");
-	(void)printf(" us ni sy id\n");
+	(void)printf(" us ni sy in id\n");
 }
 
 void
