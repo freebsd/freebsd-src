@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.43 1996/09/10 08:26:06 bde Exp $
+ * $Id: soundcard.c,v 1.44 1996/11/02 10:38:04 asami Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -84,6 +84,7 @@ struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
 struct isa_driver sbdriver	= {sndprobe, sndattach, "sb"};
 struct isa_driver sbxvidriver	= {sndprobe, sndattach, "sbxvi"};
 struct isa_driver sbmididriver	= {sndprobe, sndattach, "sbmidi"};
+struct isa_driver awedriver	= {sndprobe, sndattach, "awe"};
 struct isa_driver pasdriver	= {sndprobe, sndattach, "pas"};
 struct isa_driver mpudriver	= {sndprobe, sndattach, "mpu"};
 struct isa_driver gusdriver	= {sndprobe, sndattach, "gus"};
@@ -271,6 +272,8 @@ driver_to_voxunit(struct isa_driver *driver)
     return(SNDCARD_SB16);
   else if(driver == &sbmididriver)
     return(SNDCARD_SB16MIDI);
+  else if(driver == &awedriver)
+    return(SNDCARD_AWE32);
   else if(driver == &uartdriver)
     return(SNDCARD_UART6850);
   else if(driver == &gusdriver)
