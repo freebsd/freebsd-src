@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.6 1996/05/11 20:48:42 phk Exp $
+ * $Id: route.c,v 1.7 1996/08/13 09:19:45 peter Exp $
  *
  */
 #include <sys/types.h>
@@ -351,14 +351,20 @@ int all;
   free(sp);
 }
 
+ /*
+  * 960603 - Modified to use dynamic buffer allocator as in ifconfig
+  */
+
 int
 GetIfIndex(name)
 char *name;
 {
+  char *buffer;
   struct ifreq *ifrp;
   int s, len, elen, index;
   struct ifconf ifconfs;
-  struct ifreq reqbuf[32];
+  /* struct ifreq reqbuf[256]; -- obsoleted :) */
+  int oldbufsize, bufsize = sizeof(struct ifreq);
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -366,12 +372,27 @@ char *name;
     return(-1);
   }
 
-  ifconfs.ifc_len = sizeof(reqbuf);
-  ifconfs.ifc_buf = (caddr_t)reqbuf;
-  if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
-    perror("IFCONF");
-    return(-1);
-  }
+  buffer = malloc(bufsize);   /* allocate first buffer */
+  ifconfs.ifc_len = bufsize;  /* Initial setting */
+  /*
+   * Iterate through here until we don't get many more data 
+   */
+
+  do {
+      oldbufsize = ifconfs.ifc_len;
+      bufsize += 1+sizeof(struct ifreq);
+      buffer = realloc((void *)buffer, bufsize);      /* Make it bigger */
+#ifdef DEBUG
+      logprintf ("Growing buffer to %d\n", bufsize);
+#endif
+      ifconfs.ifc_len = bufsize;
+      ifconfs.ifc_buf = buffer;
+      if (ioctl(s, SIOCGIFCONF, &ifconfs) < 0) {
+          perror("IFCONF");
+          free(buffer);
+          return(-1);
+      }
+  } while (ifconfs.ifc_len > oldbufsize);
 
   ifrp = ifconfs.ifc_req;
 
@@ -385,6 +406,7 @@ char *name;
 #endif
       if (strcmp(ifrp->ifr_name, name) == 0) {
         IfIndex = index;
+      free(buffer);
         return(index);
       }
       index++;
@@ -396,5 +418,6 @@ char *name;
   }
 
   close(s);
+  free(buffer);
   return(-1);
 }
