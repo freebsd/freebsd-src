@@ -30,6 +30,9 @@ send-pr.el:	send-pr-el.in Makefile
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		send-pr ${DESTDIR}${BINDIR}/send-pr
+
+# called from /usr/src/etc/Makefile 
+etc-gnats-freefall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 0644 \
 		${.CURDIR}/categories  ${DESTDIR}/etc/gnats/freefall
 

@@ -1,6 +1,6 @@
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$Id: Makefile,v 1.3 1995/05/30 06:29:57 rgrimes Exp $
+# @(#)$Id: Makefile,v 1.4 1995/07/25 00:36:03 bde Exp $
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -50,7 +50,8 @@ all:	file magic
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
-afterinstall:
+# called from /usr/src/etc/Makefile 
+etc-magic:
 	${INSTALL} -c -o $(MAGICOWN) -g $(MAGICGRP) -m $(MAGICMODE) magic \
 	$(DESTDIR)$(MAGIC)
 
