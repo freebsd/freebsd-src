@@ -77,6 +77,9 @@ struct	gettystrs gettystrs[] = {
 	{ "ln", &tmode.c_cc[VLNEXT] },	/* literal next */
 	{ "Lo" },			/* locale for strftime() */
 	{ "pp" },			/* ppp login program */
+	{ "if" },			/* sysv-like 'issue' filename */
+	{ "ic" },			/* modem init-chat */
+	{ "ac" },			/* modem answer-chat */
 	{ 0 }
 };
 
@@ -107,6 +110,9 @@ struct	gettynums gettynums[] = {
 	{ "o1" },			/* input o_flags */
 	{ "o2" },			/* user mode o_flags */
  	{ "de" },   	    	    	/* delay before sending 1st prompt */
+	{ "rt" },			/* reset timeout */
+	{ "ct" },			/* chat script timeout */
+	{ "dc" },			/* debug chat script value */
   	{ 0 }
 };
   
@@ -135,5 +141,6 @@ struct	gettyflags gettyflags[] = {
 	{ "dx", 0 },			/* set decctlq */
 	{ "np", 0 },			/* no parity at all (8bit chars) */
 	{ "mb", 0 },			/* do MDMBUF flow control */
+	{ "hw", 0 },			/* do CTSRTS flow control */
 	{ 0 }
 };
