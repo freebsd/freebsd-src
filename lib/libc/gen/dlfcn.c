@@ -102,7 +102,7 @@ dlopen(const char *name, int mode)
 
 #pragma weak dlsym
 void *
-dlsym(void *handle, const char *name)
+dlsym(void * __restrict handle, const char * __restrict name)
 {
 	_rtld_error(sorry);
 	return NULL;
@@ -168,7 +168,7 @@ dlopen(const char *name, int mode)
 }
 
 void *
-dlsym(void *handle, const char *name)
+dlsym(void * __restrict handle, const char * __restrict name)
 {
 	if (__ldso_entry == NULL)
 		return NULL;

@@ -17,7 +17,7 @@
  * runs on, but is not guaranteed by the C standard.
  */
 dlfunc_t
-dlfunc(void *handle, const char *symbol)
+dlfunc(void * __restrict handle, const char * __restrict symbol)
 {
 	union {
 		void *d;
