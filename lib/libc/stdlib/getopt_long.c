@@ -97,6 +97,13 @@ char    *optarg;		/* argument associated with option */
 
 #define	EMSG		""
 
+#ifdef GNU_COMPATIBLE
+#define NO_PREFIX	(-1)
+#define D_PREFIX	0
+#define DD_PREFIX	1
+#define W_PREFIX	2
+#endif
+
 static int getopt_internal(int, char * const *, const char *,
 			   const struct option *, int *, int);
 static int parse_long_options(char * const *, const char *,
@@ -112,15 +119,15 @@ static int nonopt_end = -1;   /* first option after non options (for permute) */
 
 /* Error messages */
 static const char recargchar[] = "option requires an argument -- %c";
-/* From P1003.2 */
-static const char illoptchar[] = "illegal option -- %c";
+static const char illoptchar[] = "illegal option -- %c"; /* From P1003.2 */
 #ifdef GNU_COMPATIBLE
+static int dash_prefix = NO_PREFIX;
 static const char gnuoptchar[] = "invalid option -- %c";
 
-static const char recargstring[] = "option `--%s' requires an argument";
-static const char ambig[] = "option `--%.*s' is ambiguous";
-static const char noarg[] = "option `--%.*s' doesn't allow an argument";
-static const char illoptstring[] = "unrecognized option `--%s'";
+static const char recargstring[] = "option `%s%s' requires an argument";
+static const char ambig[] = "option `%s%.*s' is ambiguous";
+static const char noarg[] = "option `%s%.*s' doesn't allow an argument";
+static const char illoptstring[] = "unrecognized option `%s%s'";
 #else
 static const char recargstring[] = "option requires an argument -- %s";
 static const char ambig[] = "ambiguous option -- %.*s";
@@ -193,10 +200,29 @@ parse_long_options(char * const *nargv, const char *options,
 	const struct option *long_options, int *idx, int short_too)
 {
 	char *current_argv, *has_equal;
+#ifdef GNU_COMPATIBLE
+	char *current_dash;
+#endif
 	size_t current_argv_len;
 	int i, match;
 
 	current_argv = place;
+#ifdef GNU_COMPATIBLE
+	switch (dash_prefix) {
+		case D_PREFIX:
+			current_dash = "-";
+			break;
+		case DD_PREFIX:
+			current_dash = "--";
+			break;
+		case W_PREFIX:
+			current_dash = "-W ";
+			break;
+		default:
+			current_dash = "";
+			break;
+	}
+#endif
 	match = -1;
 
 	optind++;
@@ -231,7 +257,11 @@ parse_long_options(char * const *nargv, const char *options,
 		else {
 			/* ambiguous abbreviation */
 			if (PRINT_ERROR)
-				warnx(ambig, (int)current_argv_len,
+				warnx(ambig,
+#ifdef GNU_COMPATIBLE
+				     current_dash,
+#endif
+				     (int)current_argv_len,
 				     current_argv);
 			optopt = 0;
 			return (BADCH);
@@ -241,7 +271,11 @@ parse_long_options(char * const *nargv, const char *options,
 		if (long_options[match].has_arg == no_argument
 		    && has_equal) {
 			if (PRINT_ERROR)
-				warnx(noarg, (int)current_argv_len,
+				warnx(noarg,
+#ifdef GNU_COMPATIBLE
+				     current_dash,
+#endif
+				     (int)current_argv_len,
 				     current_argv);
 			/*
 			 * XXX: GNU sets optopt to val regardless of flag
@@ -272,6 +306,9 @@ parse_long_options(char * const *nargv, const char *options,
 			 */
 			if (PRINT_ERROR)
 				warnx(recargstring,
+#ifdef GNU_COMPATIBLE
+				    current_dash,
+#endif
 				    current_argv);
 			/*
 			 * XXX: GNU sets optopt to val regardless of flag
@@ -289,7 +326,11 @@ parse_long_options(char * const *nargv, const char *options,
 			return (-1);
 		}
 		if (PRINT_ERROR)
-			warnx(illoptstring, current_argv);
+			warnx(illoptstring,
+#ifdef GNU_COMPATIBLE
+			      current_dash,
+#endif
+			      current_argv);
 		optopt = 0;
 		return (BADCH);
 	}
@@ -431,9 +472,15 @@ start:
 	if (long_options != NULL && place != nargv[optind] &&
 	    (*place == '-' || (flags & FLAG_LONGONLY))) {
 		short_too = 0;
-		if (*place == '-')
+#ifdef GNU_COMPATIBLE
+		dash_prefix = D_PREFIX;
+#endif
+		if (*place == '-') {
 			place++;		/* --foo long option */
-		else if (*place != ':' && strchr(options, *place) != NULL)
+#ifdef GNU_COMPATIBLE
+			dash_prefix = DD_PREFIX;
+#endif
+		} else if (*place != ':' && strchr(options, *place) != NULL)
 			short_too = 1;		/* could be short option too */
 
 		optchar = parse_long_options(nargv, options, long_options,
@@ -479,6 +526,9 @@ start:
 			return (BADARG);
 		} else				/* white space */
 			place = nargv[optind];
+#ifdef GNU_COMPATIBLE
+		dash_prefix = W_PREFIX;
+#endif
 		optchar = parse_long_options(nargv, options, long_options,
 		    idx, 0);
 		place = EMSG;
