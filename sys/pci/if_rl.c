@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.2 1998/11/18 21:03:57 wpaul Exp $
+ *	$Id: if_rl.c,v 1.16 1998/12/07 00:16:44 wpaul Exp $
  */
 
 /*
@@ -53,7 +53,7 @@
  *
  * For transmission, the chip offers a series of four TX descriptor
  * registers. Each transmit frame must be in a contiguous buffer, aligned
- * on a doubleword (32-bit) boundary. This means we almost always have to
+ * on a longword (32-bit) boundary. This means we almost always have to
  * do mbuf copies in order to transmit a frame, except in the unlikely
  * case where a) the packet fits into a single mbuf, and b) the packet
  * is 32-bit aligned within the mbuf's data area. The presence of only
@@ -81,15 +81,6 @@
  * chip. The 8129 has a serial MDIO interface for accessing the MII where
  * the 8139 lets you directly access the on-board PHY registers. We need
  * to select which interface to use depending on the chip type.
- *
- * Note: beware of trying to use the Linux RealTek driver as a reference
- * for information about the RealTek chip. It contains several bogosities.
- * It contains definitions for several undocumented registers which it
- * claims are 'required for proper operation' yet it does not use these
- * registers anywhere in the code. It also refers to some undocumented
- * 'Twister tuning codes' which it doesn't use anywhere. It also contains
- * bit definitions for several registers which are totally ignored: magic
- * numbers are used instead, making the code hard to read.
  */
 
 #include "bpfilter.h"
@@ -115,6 +106,9 @@
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
+#include <machine/bus_pio.h>
+#include <machine/bus_memio.h>
+#include <machine/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -133,7 +127,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_rl.c,v 1.2 1998/11/18 21:03:57 wpaul Exp $";
+	"$Id: if_rl.c,v 1.16 1998/12/07 00:16:44 wpaul Exp $";
 #endif
 
 /*
@@ -1083,7 +1077,12 @@ rl_attach(config_id, unit)
 		goto fail;
 	}
 
-	sc->iobase = pci_conf_read(config_id, RL_PCI_LOIO) & 0xFFFFFFFC;
+	if (!pci_map_port(config_id, RL_PCI_LOIO,
+				(u_int16_t *)&(sc->rl_bhandle))) {
+		printf ("rl%d: couldn't map ports\n", unit);
+		goto fail;
+	}
+	sc->rl_btag = I386_BUS_SPACE_IO;
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("rl%d: failed to enable memory mapping!\n", unit);
@@ -1094,7 +1093,8 @@ rl_attach(config_id, unit)
 		printf ("rl%d: couldn't map memory\n", unit);
 		goto fail;
 	}
-	sc->csr = (volatile caddr_t)vbase;
+	sc->rl_btag = I386_BUS_SPACE_MEM;
+	sc->rl_bhandle = vbase;
 #endif
 
 	/* Allocate interrupt */
@@ -1125,7 +1125,7 @@ rl_attach(config_id, unit)
 	 */
 	rl_read_eeprom(sc, (caddr_t)&rl_did, RL_EE_PCI_DID, 1, 0);
 
-	if (rl_did == RT_DEVICEID_8139)
+	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
