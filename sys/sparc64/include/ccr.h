@@ -27,14 +27,20 @@
 #ifndef	_MACHINE_CCR_H_
 #define	_MACHINE_CCR_H_
 
-#define	ICC_C	(1UL << 0)
-#define	ICC_V	(1UL << 1)
-#define	ICC_Z	(1UL << 2)
-#define	ICC_N	(1UL << 3)
+#define	ICC_SHIFT	0
+#define	ICC_BITS	4
+#define	ICC_MASK	((1UL << ICC_BITS) - 1)
+#define	ICC_C		(1UL << 0)
+#define	ICC_V		(1UL << 1)
+#define	ICC_Z		(1UL << 2)
+#define	ICC_N		(1UL << 3)
 
-#define	XCC_C	(1UL << 4)
-#define	XCC_V	(1UL << 5)
-#define	XCC_Z	(1UL << 6)
-#define	XCC_N	(1UL << 7)
+#define	XCC_SHIFT	4
+#define	XCC_BITS	4
+#define	XCC_MASK	(((1UL << XCC_BITS) - 1) << XCC_SHIFT)
+#define	XCC_C		(1UL << 4)
+#define	XCC_V		(1UL << 5)
+#define	XCC_Z		(1UL << 6)
+#define	XCC_N		(1UL << 7)
 
 #endif /* !_MACHINE_CCR_H_ */
