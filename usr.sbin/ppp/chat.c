@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.11.2.12 1997/08/14 01:49:02 brian Exp $
+ * $Id: chat.c,v 1.11.2.13 1997/08/21 01:24:03 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -164,11 +164,14 @@ ExpandString(char *str, char *result, int reslen, int sendmode)
 	result += strlen(result);
 	break;
       case 'T':
-	if (VarNextPhone == NULL) {
-	  strcpy(VarPhoneCopy, VarPhoneList);
-	  VarNextPhone = VarPhoneCopy;
+	if (VarAltPhone == NULL) {
+	  if (VarNextPhone == NULL) {
+	    strcpy(VarPhoneCopy, VarPhoneList);
+	    VarNextPhone = VarPhoneCopy;
+	  }
+	  VarAltPhone = strsep(&VarNextPhone, ":");
 	}
-	phone = strsep(&VarNextPhone, ":");
+	phone = strsep(&VarAltPhone, "|");
 	strncpy(result, phone, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);

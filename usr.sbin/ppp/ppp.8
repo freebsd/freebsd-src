@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.19.2.21 1997/08/21 01:21:21 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.22 1997/08/21 17:15:23 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -506,7 +506,7 @@ is the number of times to try to connect for each outgoing packet
 that is received. The previous value is unchanged if this parameter
 is omitted.  If a value of zero is specified for
 .Sq dial_attempts ,
-.Nm ppp
+.Nm
 will keep trying until a connection is made.
 .Bd -literal -offset indent
 set redial 10.3 4
@@ -758,7 +758,7 @@ ui-gate:
  set device ui-gate:ppp-in
  set dial
  set timeout 30 5 4 
- set log Phase Chat Connect Carrier hdlc LCP tun
+ set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
  add 10.0.2.0 255.255.255.0 10.0.4.2
@@ -1032,15 +1032,30 @@ The following steps should be taken when connecting to your ISP:
 Describe your provider's phone number(s) in the dial script using the
 .Dq set phone
 command.  This command allows you to set multiple phone numbers for
-dialing and redialing separated by a colon (:).  For example:
+dialing and redialing separated by either a pipe (|) or a colon (:)
 .Bd -literal -offset indent
-set phone "1234567:2345678"
+set phone "111[|222]...[:333[|444]...]...
+.Ed
+Numbers after the first in a pipe-separated list are only used if the
+previous number was used in a failed dial or login script.  Numbers
+separated by a colon are used sequentially, irrespective of what happened
+as a result of using the previous number.  For example:
+.Bd -literal -offset indent
+set phone "1234567|2345678:3456789|4567890"
 .Ed
 .Pp
-Here, the first number is attempted.  If the connection fails, the second
-number is attempted after the next number redial period.  If the second number
-also fails, the first is tried again after the redial period has expired.
-The selected phone number is substituted for the \\T string in the
+Here, the 1234567 number is attempted.  If the dial or login script fails,
+the 2345678 number is used next time, but *only* if the dial or login script
+fails.  On the dial after this, the 3456789 number is used.  The 4567890
+number is only used if the dial or login script using the 3456789 fails.  If
+the login script of the 2345678 number fails, the next number is still the
+3456789 number.  As many pipes and colons can be used as are necessary
+(although a given site would usually prefer to use either the pipe or the
+colon, but not both).  The next number redial timeout is used between all
+numbers.  When the end of the list is reached, the normal redial period is
+used before starting at the beginning again.
+
+The selected phone number is substituted for the \\\\T string in the
 .Dq set dial
 command (see below).
 
@@ -1200,9 +1215,9 @@ add 0 0 HISADDR
 .Ed
 
 HISADDR is a macro meaning the "other side"s IP number, and is
-available once an IP number has been agreed (using LCP).
+available once an IP number has been agreed (using IPCP).
 Now, once a connection is established,
-.Nm ppp
+.Nm
 will delete all non-direct interface routes, and add a default route
 pointing at the peers IP number.  You should use the same label as the
 one used in
@@ -1246,12 +1261,14 @@ is able to generate the following log info via
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
 .It Li Carrier	Log Chat lines with 'CARRIER'
+.It Li CCP	Generate a CPP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
 .It Li Connect	Generate complete Chat log
 .It Li Debug	Log (very verbose) debug information
 .It Li HDLC	Dump HDLC packet in hex
-.It Li LCP	Generate LCP/IPCP packet trace
+.It Li IPCP	Generate an IPCP packet trace
+.It Li LCP	Generate an LCP packet trace
 .It Li Link	Log address assignments and link up/down events
 .It Li LQM	Generate LQR report
 .It Li Phase	Phase transition log output
@@ -1446,6 +1463,19 @@ is the next hop gateway to get to the given
 .Dq dest
 machine/network.
 
+.It [!]bg command
+The given command is executed in the background.
+Any of the pseudo arguments
+.Dv HISADDR ,
+.Dv INTERFACE
+and
+.Dv MYADDR
+will be replaced with the appropriate values.  If you wish to pause
+.Nm
+while the command executes, use the
+.Dv shell
+command instead.
+
 .It close
 Close the current connection (but don't quit).
 
@@ -1615,6 +1645,19 @@ in the initial IPCP negotiation.  However, only an address in the
 .Dq myaddr
 range will be accepted.
 
+.It set loopback on|off
+When set to
+.Dq on
+(the default),
+.Nm
+will automatically loop back packets being sent
+out with a destination address equal to that of the ppp interface.
+If set to
+.Dq off ,
+.Nm
+will send the packet, probably resulting in an ICMP redirect from
+the other end.
+
 .It set log [+|-]value...
 This command allows the adjustment of the current log level.  Please
 refer to the Logging Facility section for further details.
@@ -1639,20 +1682,23 @@ receive the increased packet size.
 .It set openmode active|passive
 By default, openmode is always active.  That is,
 .Nm
-will always initiate LCP negotiation.  If you want to wait for the
-peer to initiate LCP negotiation, you may use the value
+will always initiate LCP/IPCP/CCP negotiation.  If you want to wait for the
+peer to initiate negotiations, you may use the value
 .Dq passive .
 
 .It set parity odd|even|none|mark
 This allows the line parity to be set.  The default value is none.
 
-.It set phone telno[:telno]...
+.It set phone telno[|telno]...[:telno[|telno]...]...
 This allows the specification of the phone number to be used in
 place of the \\\\T string in the dial and login chat scripts.
-Multiple phone numbers may be given separated by a colon (:).
+Multiple phone numbers may be given separated by a pipe (|) or
+a colon (:).  Numbers after the pipe are only dialed if the dial or login
+script for the previous number failed.  Numbers separated by a colon are
+tried sequentially, irrespective of the reason the line was dropped.
 If multiple numbers are given,
 .Nm
-will dial them in rotation until a connection is made, retrying
+will dial them according to these rules until a connection is made, retrying
 the maximum number of times specified by
 .Dq set redial
 below.  In
@@ -1686,6 +1732,22 @@ is taken before dialing each number.  A pause of
 is taken before starting at the first number again.  A value of
 .Dq random
 may be used here too.
+
+.It set stopped [LCPseconds [IPCPseconds [CCPseconds]]]
+If this option is set,
+.Nm
+will time out after the given FSM (Finite State Machine) has been in
+the stopped state for the given number of
+.Dq seconds .
+This option may be useful if you see ppp failing to respond in the
+stopped state.  Use
+.Dq set log +lcp +ipcp +ccp
+to make
+.Nm
+log all state transitions.
+.Pp
+The default value is zero, where ppp doesn't time out in the stopped
+state.
 
 .It set server|socket TcpPort|LocalName|none [mask]
 Normally, when not in interactive mode,
@@ -1729,19 +1791,22 @@ This command gives a summary of available set commands.
 .El
 
 .It shell|! [command]
-Execute a shell according to the value of the
-.Dv SHELL
-environment variable.  If
+If
 .Dq command
-is specified, it is executed without a parent shell.  Note, it's possible
-to use the
+is not specified a shell is invoked according to the
+.Dv SHELL
+environment variable.  Otherwise, the given command is executed.
+Any of the pseudo arguments
 .Dv HISADDR ,
 .Dv INTERFACE
 and
 .Dv MYADDR
-symbols here.  Also note that if you use the ! character, you must have
-a space between it and
-.Dq command .
+will be replaced with the appropriate values.  Use of the ! character
+requires a following space as with any other commands.  You should note
+that this command is executed in the foreground - ppp will not continue
+running until this process has exited.  Use the
+.Dv bg
+command if you wish processing to happen in the background.
 
 .It show var
 This command allows the user to examine the following:
@@ -1771,6 +1836,9 @@ Show the current IPCP statistics.
 .It show lcp
 Show the current LCP statistics.
 
+.It show loopback
+Show the current loopback status.
+
 .It show log
 Show the current log values.
 
@@ -1794,6 +1862,9 @@ Show the current reconnect values.
 
 .It show redial
 Show the current redial values.
+
+.It show stopped
+Show the current stopped timeouts.
 
 .It show route
 Show the current routing tables.
@@ -1848,7 +1919,7 @@ for machine [aliasIP] to
 on
 .Dq targetIP .
 If proto is specified, only connections of the given protocol
-are matched.  This option is useful if you wish to things like
+are matched.  This option is useful if you wish to run things like
 internet phone on the machines behind your gateway.
 
 .It alias addr [addr_local addr_alias]
@@ -1891,7 +1962,7 @@ This command gives a summary of available alias commands.
 
 .It quit|bye [all]
 Exit
-.Nm ppp.
+.Nm ppp .
 If
 .Nm
 is in interactive mode or if the
