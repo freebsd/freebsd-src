@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.7 1994/05/25 08:55:08 rgrimes Exp $
+ *	$Id: swtch.s,v 1.8 1994/08/03 02:45:30 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -142,7 +142,7 @@ _idle:
 	MCOUNT
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
-	movl	$tmpstk-4,%esp
+	movl	$tmpstk,%esp
 	sti
 
 	/*
