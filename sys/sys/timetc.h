@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.35 1998/12/15 17:38:32 des Exp $
+ * $Id: time.h,v 1.36 1999/03/08 12:36:14 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -277,7 +277,6 @@ void	microtime __P((struct timeval *tv));
 void	nanouptime __P((struct timespec *ts));
 void	nanotime __P((struct timespec *ts));
 void	set_timecounter __P((struct timespec *ts));
-void	timecounter_timespec __P((unsigned count, struct timespec *ts));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 int	tvtohz __P((struct timeval *));

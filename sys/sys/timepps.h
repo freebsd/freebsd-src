@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: timepps.h,v 1.3 1998/06/13 09:30:24 phk Exp $
+ * $Id: timepps.h,v 1.4 1998/06/22 21:09:10 phk Exp $
  *
  * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
  * specification for Pulse Per Second timing interfaces.  
@@ -92,8 +92,85 @@ struct pps_wait_args {
 #define PPS_IOC_WAIT		_IOWR('1', 6, struct pps_wait_args)
 
 #ifdef KERNEL
-int std_pps_ioctl __P((u_long cmd, caddr_t data, pps_params_t *pp, 
-	pps_info_t *pi, int ppscap));
+struct pps_state {
+	pps_params_t	ppsparam;
+	pps_info_t	ppsinfo;
+	int		ppscap;
+	struct timecounter *ppstc;
+	unsigned	ppscount[3];
+};
 
-#endif /* KERNEL */
+void pps_event __P((struct pps_state *pps, struct timecounter *tc, unsigned count, int event));
+void pps_init __P((struct pps_state *pps));
+int pps_ioctl __P((u_long cmd, caddr_t data, struct pps_state *pps));
+void hardpps __P((struct timespec *tsp, long nsec));
+
+#else /* !KERNEL */
+
+int time_pps_create(int filedes, pps_handle_t *handle);
+int time_pps_destroy(pps_handle_t handle);
+int time_pps_setparams(pps_handle_t handle, const pps_params_t *ppsparams);
+int time_pps_getparams(pps_handle_t handle, pps_params_t *ppsparams);
+int time_pps_getcap(pps_handle_t handle, int *mode);
+int time_pps_fetch(pps_handle_t handle, pps_info_t *ppsinfobuf);
+int time_pps_wait(pps_handle_t handle, const struct timespec *timeout, 
+	pps_info_t *ppsinfobuf);
+
+static __inline int
+time_pps_create(int filedes, pps_handle_t *handle)
+{
+	int error;
+
+	*handle = -1;
+	error = ioctl(filedes, PPS_IOC_CREATE, 0);
+	if (error < 0) 
+		return (-1);
+	*handle = filedes;
+	return (0);
+}
+
+static __inline int
+time_pps_destroy(pps_handle_t handle)
+{
+	return (ioctl(handle, PPS_IOC_DESTROY, 0));
+}
+
+static __inline int
+time_pps_setparams(pps_handle_t handle, const pps_params_t *ppsparams)
+{
+	return (ioctl(handle, PPS_IOC_SETPARAMS, ppsparams));
+}
+
+static __inline int
+time_pps_getparams(pps_handle_t handle, pps_params_t *ppsparams)
+{
+	return (ioctl(handle, PPS_IOC_GETPARAMS, ppsparams));
+}
+
+static __inline int 
+time_pps_getcap(pps_handle_t handle, int *mode)
+{
+	return (ioctl(handle, PPS_IOC_GETCAP, mode));
+}
+
+static __inline int
+time_pps_fetch(pps_handle_t handle, pps_info_t *ppsinfobuf)
+{
+	return (ioctl(handle, PPS_IOC_FETCH, ppsinfobuf));
+}
+
+static __inline int
+time_pps_wait(pps_handle_t handle, const struct timespec *timeout,
+        pps_info_t *ppsinfobuf)
+{
+	int error;
+	struct pps_wait_args arg;
+
+	arg.timeout = *timeout;
+	error = ioctl(handle, PPS_IOC_WAIT, &arg);
+	*ppsinfobuf = arg.pps_info_buf;
+	return (error);
+}
+
+#endif /* !KERNEL */
 #endif /* _SYS_TIMEPPS_H_ */
