@@ -31,7 +31,7 @@
  *	to keep publicly executable images for the package in question.  It
  *	is most often a local directory such as /usr/local/bin.
  */
-#define BIN "/usr/local/bin"             /**/
+#define BIN "/usr/bin"             /**/
 
 /* BYTEORDER
  *	This symbol contains an encoding of the order of bytes in a long.
@@ -694,7 +694,7 @@
  *	to keep publicly executable scripts for the package in question.  It
  *	is often a directory that is mounted across diverse architectures.
  */
-#define SCRIPTDIR "/usr/local/bin"             /**/
+#define SCRIPTDIR "/usr/bin"             /**/
 
 /* SIG_NAME
  *	This symbol contains an list of signal names in order.
@@ -764,6 +764,6 @@
  *	execution path, but it should be accessible by the world.  The program
  *	should be prepared to do ~ expansion.
  */
-#define PRIVLIB "/usr/local/lib/perl"		/**/
+#define PRIVLIB "/usr/share/perl"		/**/
 
 #endif
