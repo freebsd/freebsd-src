@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.19 1996/01/30 23:00:46 mpp Exp $
+ * $Id: kernel.h,v 1.20 1996/06/23 17:40:47 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -260,10 +260,11 @@ void	kproc_start __P((void *udata));
 #endif /* PSEUDO_LKM */
 
 struct linker_set {
-	int ls_length;
-	caddr_t ls_items[1];	/* really ls_length of them, trailing NULL */
+	int		ls_length;
+	const void	*ls_items[1];		/* really ls_length of them,
+						 * trailing NULL */
 };
 
-extern const struct linker_set execsw_set;
+extern struct linker_set execsw_set;
 
 #endif /* !_SYS_KERNEL_H_*/

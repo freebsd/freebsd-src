@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.30 1996/05/01 02:42:54 bde Exp $
+ * $Id: kern_lkm.c,v 1.31 1996/05/24 01:39:50 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -636,8 +636,8 @@ _lkm_vfs(lkmtp, cmd)
 
 		/* like in vfs_op_init */
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
-			struct vnodeopv_desc *opv =
-			  (struct vnodeopv_desc *)args->lkm_vnodeops->ls_items[i];
+			const struct vnodeopv_desc *opv =
+				args->lkm_vnodeops->ls_items[i];
 			*(opv->opv_desc_vector_p) = NULL;
 		}
 		vfs_opv_init((struct vnodeopv_desc **)args->lkm_vnodeops->ls_items);
