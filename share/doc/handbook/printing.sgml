@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.3 1995/12/04 17:58:47 jfieber Exp $
+     $Id: printing.sgml,v 1.4 1996/01/31 14:26:14 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -207,7 +207,7 @@
 	    Your users may be appreciative of such information.
 	    Furthermore, the best way to do effective accounting with
 	    a PostScript printer requires two-way communication: you
-	    ask the printer for its page count (how many pages it's
+	    ask the printer for its page count (how many pages it has
 	    printed in its lifetime), then send the user's job, then
 	    ask again for its page count. Subtract the two values and
 	    you know how much paper to charge the user.
@@ -2557,7 +2557,7 @@ exit 0
 
 	      Rather than install conversion filters at all, you might
 	      want to try having the text filter (since it's the
-	      default filter) detect the type of file it's asked to
+	      default filter) detect the type of file it has been asked to
 	      print and then automatically run the right conversion
 	      filter.  Tools such as <tt/file/ can be of help here.
 	      Of course, it'll be hard to determine the differences
@@ -2668,7 +2668,7 @@ exit 0
       <sect1><heading>Header Pages<label
 	    id="printing:advanced:header-pages"></heading>
 
-	<p> If you've got <em/lots/ of users, all of them using
+	<p> If you have <em/lots/ of users, all of them using
 	  various printers, then you probably want to consider
 	  <em/header pages/ as a necessary evil.
 
@@ -2687,7 +2687,7 @@ exit 0
 
 	  The LPD system can provide header pages automatically for
 	  your printouts <em/if/ your printer can directly print plain
-	  text.  If you've got a PostScript printer, you'll need an
+	  text.  If you have a PostScript printer, you'll need an
 	  external program to generate the header page; see <ref
 	  id="printing:advanced:header-pages:ps" name="Header Pages on
 	  PostScript Printers">.
@@ -2803,7 +2803,7 @@ r         oooo     ssss     eeee
 					Date: Sun Sep 17 11:04:58 1995
 </verb></tscreen>
 	    LPD appends a form feed after this text so the job starts
-	    on a new page (unless you've got <tt/sf/ (suppress form
+	    on a new page (unless you have <tt/sf/ (suppress form
 	    feeds) in the destination printer's entry in
 	    <tt>/etc/printcap</tt>).
 
@@ -3047,7 +3047,7 @@ done
 	    the appropriate header page PostScript code to the
 	    printer.
 
-	    If you've got a PostScript printer on a serial line, you
+	    If you have a PostScript printer on a serial line, you
 	    can make use of <tt/lprps/, which comes with an output
 	    filter, <tt/psof/, which does the above.  Note that
 	    <tt/psof/ doesn't charge for header pages.

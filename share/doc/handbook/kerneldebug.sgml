@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.6 1996/01/03 11:10:30 gclarkii Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.7 1996/01/31 14:26:11 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -73,7 +73,7 @@
   Here's a script log of a <tt>kgdb</tt> session illustrating the
   procedure.  Long
   lines have been folded to improve readability, and the lines are
-  numbered for reference.  Despite of this, it's a real-world error
+  numbered for reference.  Despite this, it's a real-world error
   trace taken during the development of the pcvt console driver.
 <tscreen><verb>
    1:Script started on Fri Dec 30 23:15:22 1994
