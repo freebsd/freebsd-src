@@ -56,6 +56,8 @@ works, and it can be configured before being brought "up".
 
 TCP now has RFC 1323 extensions enabled by default in rc.conf(5).
 
+The ata(4) driver again has write-caching enabled by default.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -97,6 +99,8 @@ newfs(8) now takes a -U option to enable softupdates on a new
 filesystem.
 
 libcrypt now has support for Blowfish password hashing.
+
+Ukranian language support has been added to the FreeBSD console.
 
 
 2. Supported Configurations
