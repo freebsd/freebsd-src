@@ -1092,14 +1092,17 @@ gdc_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 
     start = celsize - (base + height);
     end = celsize - base - 1;
+
+#if 0
     /*
      * muPD7220 GDC has anomaly that if end == celsize - 1 then start
      * must be 0, otherwise the cursor won't be correctly shown 
      * in the first row in the screen.  We shall set end to celsize - 2;
      * if end == celsize -1 && start > 0. XXX
      */
-    if ((end == celsize - 1) && (start > 0))
+    if ((end == celsize - 1) && (start > 0) && (start < end))
 	--end;
+#endif
 
     s = spltty();
     master_gdc_cmd(0x4b);			/* _GDC_CSRFORM */
@@ -1107,7 +1110,7 @@ gdc_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 	| ((celsize - 1) & 0x1f));		/* cel size */
     master_gdc_word_prm(((end & 0x1f) << 11)	/* end line */
 	| (12 << 6)				/* blink rate */
-	| (blink ? 0x20 : 0)			/* blink on/off */
+	| (blink ? 0 : 0x20)			/* blink on/off */
 	| (start & 0x1f));			/* start line */
     splx(s);
 

@@ -180,7 +180,7 @@ sc_get_cons_priority(int *unit, int *flags)
 void
 sc_get_bios_values(bios_values_t *values)
 {
-	values->cursor_start = 0;
+	values->cursor_start = 15;
 	values->cursor_end = 16;
 	values->shift_state = 0;
 	if (pc98_machine_type & M_8M)
