@@ -144,6 +144,7 @@ BOOTSTRAPENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR=${WORLDTMP} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MACHINE_ARCH=${BUILD_ARCH} \
+		TOOLS_PREFIX=${WORLDTMP} \
 		PATH=${TMPPATH}
 
 # Common environment for world related stages
@@ -473,13 +474,9 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
 .if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
-.if exists(${.CURDIR}/secure/lib/libcrypto)
 	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
-.endif
 	cd ${.CURDIR}/secure/lib/libdes;	${MAKE} beforeinstall
-.if exists(${.CURDIR}/secure/lib/libssl)
 	cd ${.CURDIR}/secure/lib/libssl;	${MAKE} beforeinstall
-.endif
 .endif
 .if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT) && \
     defined(MAKE_KERBEROS4)

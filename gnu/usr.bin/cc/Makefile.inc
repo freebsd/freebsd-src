@@ -6,17 +6,19 @@
 .if !defined(GCCDIR)
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc
 
-.if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
 GCC_ARCH=	mips
 .else
-GCC_ARCH=	${MACHINE_ARCH}
+GCC_ARCH=	${TARGET_ARCH}
 .endif
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
 OUT_FILE=	${GCC_ARCH}.c
 OUT_OBJ=	${GCC_ARCH}
-target=		${MACHINE_ARCH}-unknown-freebsd
+target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
 .if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc"
@@ -28,6 +30,7 @@ version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
+CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 .if defined(LONG_TYPE_SIZE)
 CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
 .endif
@@ -36,11 +39,7 @@ CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
 CFLAGS+=	-DHAIFA
 .endif
 
-# If hw.machine_arch doesn't match ${MACHINE_ARCH}, then we're cross 
-# compiling.  gcc needs to know about this, so we set the -DCROSS_COMPILE
-# define.
-__M!=	/sbin/sysctl -b hw.machine_arch
-.if ${__M} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
