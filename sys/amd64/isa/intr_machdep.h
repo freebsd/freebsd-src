@@ -220,13 +220,10 @@ int	icu_unset __P((int intr, driver_intr_t *handler));
  * WARNING: These are internal functions and not to be used by device drivers!
  * They are subject to change without notice. 
  */
-struct intrhand *inthand_add(const char *name, int irq, driver_intr_t handler,
-			   void *arg, int pri, int flags);
-int inthand_remove(struct intrhand *idesc);
-void sched_ithd(void *);
-void ithd_loop(void *);
-void start_softintr(void *);
-void intr_soft(void *);
+int	inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
+	    enum intr_type flags, void **cookiep);
+int	inthand_remove(void *cookie);
+void	sched_ithd(void *dummy);
 
 #endif /* LOCORE */
 

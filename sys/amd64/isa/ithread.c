@@ -51,6 +51,8 @@
 #include <sys/unistd.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
+#include <sys/random.h>
+#include <sys/time.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 
@@ -63,6 +65,11 @@
 #include <sys/vmmeter.h>
 #include <sys/ktr.h>
 #include <machine/cpu.h>
+
+struct int_entropy {
+	struct proc *p;
+	int irq;
+};
 
 static u_int straycount[NHWI];
 
@@ -87,6 +94,19 @@ sched_ithd(void *cookie)
 	 */
 	atomic_add_long(intr_countp[irq], 1); /* one more for this IRQ */
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
+
+	/*
+	 * If this interrupt is marked as being a source of entropy, use
+	 * the current timestamp to feed entropy to the PRNG.
+	 */
+	if (ir != NULL && (ir->it_flags & IT_ENTROPY)) {
+		struct int_entropy entropy;
+
+		entropy.irq = irq;
+		entropy.p = curproc;
+		random_harvest(&entropy, sizeof(entropy), 2, 0,
+			       RANDOM_INTERRUPT);
+	}
 		
 	/*
 	 * If we don't have an interrupt resource or an interrupt thread for
@@ -121,102 +141,13 @@ sched_ithd(void *cookie)
 /*		membar_lock(); */
 		ir->it_proc->p_stat = SRUN;
 		setrunqueue(ir->it_proc);
-		if (!cold) {
-			if (curproc != PCPU_GET(idleproc))
-				setrunqueue(curproc);
-			mi_switch();
-		}
+		need_resched();
 	}
 	else {
 		CTR3(KTR_INTR, "sched_ithd %d: it_need %d, state %d",
 			ir->it_proc->p_pid,
 		        ir->it_need,
 		        ir->it_proc->p_stat );
-		need_resched();
 	}
 	mtx_unlock_spin(&sched_lock);
-}
-
-/*
- * This is the main code for all interrupt threads.  It gets put on
- * whichkqs by setrunqueue above.
- */
-void
-ithd_loop(void *dummy)
-{
-	struct ithd *me;		/* our thread context */
-	struct intrhand *ih;		/* and our interrupt handler chain */
-
-	me = curproc->p_ithd;		/* point to myself */
-
-	/*
-	 * As long as we have interrupts outstanding, go through the
-	 * list of handlers, giving each one a go at it.
-	 */
-	for (;;) {
-		/*
-		 * If we don't have any handlers, then we are an orphaned
-		 * thread and just need to die.
-		 */
-		if (me->it_ih == NULL) {
-			CTR2(KTR_INTR, "ithd_loop pid %d(%s) exiting",
-			     me->it_proc->p_pid, me->it_proc->p_comm);
-			curproc->p_ithd = NULL;
-			free(me, M_DEVBUF);
-			mtx_lock(&Giant);
-			kthread_exit(0);
-		}
-
-		CTR3(KTR_INTR, "ithd_loop pid %d(%s) need=%d",
-		     me->it_proc->p_pid, me->it_proc->p_comm, me->it_need);
-		while (me->it_need) {
-			/*
-			 * Service interrupts.  If another interrupt
-			 * arrives while we are running, they will set
-			 * it_need to denote that we should make
-			 * another pass.
-			 */
-			me->it_need = 0;
-#if 0
-			membar_unlock(); /* push out "it_need=0" */
-#endif
-			for (ih = me->it_ih; ih != NULL; ih = ih->ih_next) {
-				CTR5(KTR_INTR,
-				    "ithd_loop pid %d ih=%p: %p(%p) flg=%x",
-				    me->it_proc->p_pid, (void *)ih,
-				    (void *)ih->ih_handler, ih->ih_argument,
-				    ih->ih_flags);
-
-				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_lock(&Giant);
-				ih->ih_handler(ih->ih_argument);
-				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_unlock(&Giant);
-			}
-		}
-
-		/*
-		 * Processed all our interrupts.  Now get the sched
-		 * lock.  This may take a while and it_need may get
-		 * set again, so we have to check it again.
-		 */
-		mtx_assert(&Giant, MA_NOTOWNED);
-		mtx_lock_spin(&sched_lock);
-		if (!me->it_need) {
-
-			INTREN (1 << me->irq); /* reset the mask bit */
-			me->it_proc->p_stat = SWAIT; /* we're idle */
-#ifdef APIC_IO
-			CTR2(KTR_INTR, "ithd_loop pid %d: done, apic_imen=%x",
-				me->it_proc->p_pid, apic_imen);
-#else
-			CTR2(KTR_INTR, "ithd_loop pid %d: done, imen=%x",
-				me->it_proc->p_pid, imen);
-#endif
-			mi_switch();
-			CTR1(KTR_INTR, "ithd_loop pid %d: resumed",
-				me->it_proc->p_pid);
-		}
-		mtx_unlock_spin(&sched_lock);
-	}
 }
