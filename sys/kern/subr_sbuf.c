@@ -55,6 +55,7 @@ MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
  * Predicates
  */
 #define SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
+#define SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
 #define SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
 #define SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
 #define SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
@@ -99,27 +100,36 @@ _assert_sbuf_state(char *fun, struct sbuf *s, int state)
  * If buf is non-NULL, it points to a static or already-allocated string
  * big enough to hold at least length characters.
  */
-int
+struct sbuf *
 sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 {
 	KASSERT(length >= 0,
 	    ("attempt to create an sbuf of negative length (%d)", length));
 	KASSERT(flags == 0,
 	    (__FUNCTION__ " called with non-zero flags"));
-	KASSERT(s != NULL,
-	    (__FUNCTION__ " called with a NULL sbuf pointer"));
 
-	bzero(s, sizeof *s);
+	if (s == NULL) {
+		s = (struct sbuf *)SBMALLOC(sizeof *s);
+		if (s == NULL)
+			return (NULL);
+		bzero(s, sizeof *s);
+		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
+	} else {
+		bzero(s, sizeof *s);
+	}
 	s->s_size = length;
 	if (buf) {
 		s->s_buf = buf;
-		return (0);
+		return (s);
 	}
 	s->s_buf = (char *)SBMALLOC(s->s_size);
-	if (s->s_buf == NULL)
-		return (-1);
+	if (s->s_buf == NULL) {
+		if (SBUF_ISDYNSTRUCT(s))
+			SBFREE(s);
+		return (NULL);
+	}
 	SBUF_SETFLAG(s, SBUF_DYNAMIC);
-	return (0);
+	return (s);
 }
 
 /*
@@ -315,4 +325,6 @@ sbuf_delete(struct sbuf *s)
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
 	bzero(s, sizeof *s);
+	if (SBUF_ISDYNSTRUCT(s))
+		SBFREE(s);
 }

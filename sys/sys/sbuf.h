@@ -43,6 +43,7 @@ struct sbuf {
 #define SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
 #define SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
 #define SBUF_OVERFLOWED	0x00040000	/* sbuf overflowed */
+#define SBUF_DYNSTRUCT	0x00080000	/* sbuf must be freed */
 	int		 s_flags;	/* flags */
 };
 
@@ -50,18 +51,18 @@ __BEGIN_DECLS
 /*
  * API functions
  */
-int	 sbuf_new(struct sbuf *s, char *buf, int length, int flags);
-void	 sbuf_clear(struct sbuf *s);
-int	 sbuf_setpos(struct sbuf *s, int pos);
-int	 sbuf_cat(struct sbuf *s, const char *str);
-int	 sbuf_cpy(struct sbuf *s, const char *str);
-int	 sbuf_printf(struct sbuf *s, char *fmt, ...);
-int	 sbuf_putc(struct sbuf *s, int c);
-int	 sbuf_overflowed(struct sbuf *s);
-void	 sbuf_finish(struct sbuf *s);
-char    *sbuf_data(struct sbuf *s);
-int	 sbuf_len(struct sbuf *s);
-void	 sbuf_delete(struct sbuf *s);
+struct sbuf	*sbuf_new(struct sbuf *s, char *buf, int length, int flags);
+void		 sbuf_clear(struct sbuf *s);
+int		 sbuf_setpos(struct sbuf *s, int pos);
+int		 sbuf_cat(struct sbuf *s, const char *str);
+int		 sbuf_cpy(struct sbuf *s, const char *str);
+int		 sbuf_printf(struct sbuf *s, char *fmt, ...);
+int		 sbuf_putc(struct sbuf *s, int c);
+int		 sbuf_overflowed(struct sbuf *s);
+void		 sbuf_finish(struct sbuf *s);
+char		*sbuf_data(struct sbuf *s);
+int		 sbuf_len(struct sbuf *s);
+void		 sbuf_delete(struct sbuf *s);
 __END_DECLS
 
 #endif

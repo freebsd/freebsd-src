@@ -45,7 +45,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/sbuf.h>
-.Ft int
+.Ft struct sbuf *s
 .Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
 .Ft void
 .Fn sbuf_clear "struct sbuf *s"
@@ -85,6 +85,13 @@ The
 function initializes the
 .Fa sbuf
 pointed to by its first argument.
+If that pointer is
+.Dv NULL ,
+.Fn sbuf_new
+allocates a
+.Fa struct sbuf
+using
+.Xr malloc 9 .
 The
 .Fa buf
 argument is a pointer to a buffer in which to store the actual string;
@@ -213,7 +220,10 @@ or it is reinitialized to a sufficiently short string using
 .Fn sbuf_cpy .
 .Sh RETURN VALUES
 .Fn sbuf_new
-returns \-1 if it failed to allocate a storage buffer, and zero
+returns
+.Dv NULL
+if it failed to allocate a storage buffer, and a pointer to the new
+.Fa sbuf
 otherwise.
 .Pp
 .Fn sbuf_setpos
