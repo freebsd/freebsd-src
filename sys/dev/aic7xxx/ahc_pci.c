@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_pci.c#8 $
  *
  * $FreeBSD$
  */
@@ -50,15 +50,15 @@ static device_method_t ahc_pci_device_methods[] = {
 };
 
 static driver_t ahc_pci_driver = {
-	"ahc",
+	"ahc_pci",
 	ahc_pci_device_methods,
 	sizeof(struct ahc_softc)
 };
 
-static devclass_t ahc_devclass;
+static devclass_t ahc_pci_devclass;
 
-DRIVER_MODULE(ahc, pci, ahc_pci_driver, ahc_devclass, 0, 0);
-DRIVER_MODULE(ahc, cardbus, ahc_pci_driver, ahc_devclass, 0, 0);
+DRIVER_MODULE(ahc_pci, pci, ahc_pci_driver, ahc_pci_devclass, 0, 0);
+DRIVER_MODULE(ahc_pci, cardbus, ahc_pci_driver, ahc_pci_devclass, 0, 0);
 MODULE_DEPEND(ahc_pci, ahc, 1, 1, 1);
 MODULE_VERSION(ahc_pci, 1);
 
@@ -219,8 +219,11 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	ahc->platform_data->irq =
 	    bus_alloc_resource(ahc->dev_softc, SYS_RES_IRQ, &zero,
 			       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (ahc->platform_data->irq == NULL)
+	if (ahc->platform_data->irq == NULL) {
+		device_printf(ahc->dev_softc,
+			      "bus_alloc_resource() failed to allocate IRQ\n");
 		return (ENOMEM);
+	}
 	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
 	return (ahc_map_int(ahc));
 }
