@@ -187,11 +187,11 @@ isp_reset(isp)
 			break;
 		case ISP1080_HVD_MODE:
 			sdp->isp_diffmode = 1;
-			PRINTF("%s: Differential Mode\n", isp->isp_name);
+			CFGPRINTF("%s: Differential Mode\n", isp->isp_name);
 			break;
 		case ISP1080_SE_MODE:
 			sdp->isp_ultramode = 1;
-			PRINTF("%s: Single-Ended Mode\n", isp->isp_name);
+			CFGPRINTF("%s: Single-Ended Mode\n", isp->isp_name);
 			break;
 		default:
 			/*
@@ -251,7 +251,7 @@ isp_reset(isp)
 		 * and/or differential mode.
 		 */
 		if (ISP_READ(isp, SXP_PINS_DIFF) & SXP_PINS_DIFF_MODE) {
-			PRINTF("%s: Differential Mode\n", isp->isp_name);
+			CFGPRINTF("%s: Differential Mode\n", isp->isp_name);
 			sdp->isp_diffmode = 1;
 		} else {
 			sdp->isp_diffmode = 0;
@@ -263,7 +263,7 @@ isp_reset(isp)
 			i &= RISC_PSR_PCI_ULTRA;
 		}
 		if (i != 0) {
-			PRINTF("%s: Ultra Mode Capable\n", isp->isp_name);
+			CFGPRINTF("%s: Ultra Mode Capable\n", isp->isp_name);
 			sdp->isp_ultramode = 1;
 			/*
 			 * If we're in Ultra Mode, we have to be 60Mhz clock-
@@ -2082,7 +2082,7 @@ isp_control(isp, ctl, arg)
 			isp_dumpregs(isp, "isp_control SCSI bus reset failed");
 			break;
 		}
-		PRINTF("%s: driver initiated bus reset of bus %d\n",
+		CFGPRINTF("%s: driver initiated bus reset of bus %d\n",
 		    isp->isp_name, bus);
 		return (0);
 
