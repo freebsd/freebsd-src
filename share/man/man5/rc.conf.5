@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.33 1999/07/07 02:01:57 hosokawa Exp $
+.\"     $Id: rc.conf.5,v 1.34 1999/07/09 01:47:00 jkh Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -94,14 +94,18 @@ for the default value.
 .Ar "ed0 ed1 ep0 ..." )
 which should be dynamically ifconfig'd on insertion or boot.
 .It Ar pccard_conf
-(str) Path to the configuration file for the pccardd(8) daemon (e.g. 
+(str) Path to the configuration file for the
+.Xr pccardd 8
+daemon (e.g. 
 .Ar /etc/pccard.conf.sample ) .
 .It Ar pccardd_flags
 (str) If 
 .Ar pccard_enable 
 is set to 
 .Ar YES , 
-these are the flags to pass to the pccardd(8) daemon.
+these are the flags to pass to the 
+.Xr pccardd 8
+daemon.
 .It Ar local_startup
 (str) List of directories to search for startup script files.
 .It Ar local_periodic
