@@ -50,8 +50,9 @@
 .Ft void
 .Fn NDFREE "struct nameidata *ndp" "u_int operflags"
 .Sh DESCRIPTION
+The
 .Fn namei
-is used to get from a pathname to a vnode for the object.
+function is used to get from a pathname to a vnode for the object.
 This is a necessity to start doing VFS operations.  The vnode
 returned will have its reference count increased; when you're through
 with it, you have to release it using either
@@ -66,7 +67,7 @@ It takes the following arguments:
 .Pp
 .Bl -tag -width nameidatap
 .It Ar nameidatap
-pointer to the struct nameidata to initialize
+Pointer to the struct nameidata to initialize.
 .It Ar operation
 The operation to have
 .Fn namei
@@ -89,15 +90,16 @@ Segment indicator.  This tells if the name of the object is in
 userspace (UIO_USERSPACE) or in the kernel address space (UIO_SYSSPACE).
 .It Ar path
 Pointer to pathname buffer (the file or directory name that will be
-looked up)
+looked up).
 .It Ar td
 Which thread context to use for the
 .Fn namei
 locks.
 .El
 .Sh NAMEI OPERATION FLAGS
+The
 .Fn namei
-takes the following set of 'operation flags' that influence
+function takes the following set of 'operation flags' that influence
 how it operates:
 .Bl -tag -width WANTPARENT
 .It Dv LOCKLEAF
@@ -144,7 +146,7 @@ for whatever the link points at, instead for the link itself).
 Do not call
 .Fn vfs_object_create
 for the returned vnode even if it is
-just a VREG and we're able to (ie, it is locked).
+just a VREG and we're able to (i.e., it is locked).
 .It Dv NOFOLLOW
 Do not follow symbolic links (pseudo).
 This flag is not looked for by the actual code, which looks for
