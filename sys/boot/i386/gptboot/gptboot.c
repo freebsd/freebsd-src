@@ -139,9 +139,6 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-#define memcpy __builtin_memcpy
-#else
 static void memcpy(char *, const char *, int);
 static void
 memcpy(char *dst, const char *src, int len)
@@ -149,7 +146,6 @@ memcpy(char *dst, const char *src, int len)
     while (len--)
         *dst++ = *src++;
 }
-#endif
 
 static inline int
 strcmp(const char *s1, const char *s2)
