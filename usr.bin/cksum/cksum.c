@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)cksum.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: cksum.c,v 1.6 1997/09/26 08:02:17 phk Exp $";
+	"$Id: cksum.c,v 1.7 1997/11/09 05:35:26 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -81,6 +81,7 @@ main(argc, argv)
 	if (!strcmp(p, "sum")) {
 		cfncn = csum1;
 		pfncn = psum1;
+		++argv;
 	} else {
 		cfncn = crc;
 		pfncn = pcrc;
