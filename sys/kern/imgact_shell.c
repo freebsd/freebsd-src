@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.11 1996/04/08 01:21:58 davidg Exp $
+ *	$Id: imgact_shell.c,v 1.12 1996/08/31 16:52:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -126,8 +126,7 @@ exec_shell_imgact(imgp)
 		}
 	}
 
-	/* set argv[0] to point to original file name */
-	suword(imgp->uap->argv, (int)imgp->uap->fname);
+	imgp->argv0 = imgp->uap->fname;
 
 	return(0);
 }
