@@ -32,6 +32,7 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -343,8 +344,10 @@ gif_output(ifp, m, dst, rt)
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
-	if (error)
-		senderr(error);
+	if (error) {
+		m_freem(m);
+		goto end;
+	}
 #endif
 
 	/*
