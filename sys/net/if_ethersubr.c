@@ -529,29 +529,43 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 }
 
 /*
- * Process a received Ethernet packet;
- * the packet is in the mbuf chain m without
- * the ether header, which is provided separately.
+ * Process a received Ethernet packet. We have two different interfaces:
+ * one (conventional) assumes the packet in the mbuf, with the ethernet
+ * header provided separately in *eh. The second one (new) has everything
+ * in the mbuf, and we can tell it because eh == NULL.
+ * The caller MUST MAKE SURE that there are at least
+ * sizeof(struct ether_header) bytes in the first mbuf.
+ *
+ * This allows us to concentrate in one place a bunch of code which
+ * is replicated in all device drivers. Also, many functions called
+ * from ether_input() try to put the eh back into the mbuf, so we
+ * can later propagate the 'contiguous packet' interface to them,
+ * and handle the old interface just here.
  *
  * NOTA BENE: for many drivers "eh" is a pointer into the first mbuf or
  * cluster, right before m_data. So be very careful when working on m,
  * as you could destroy *eh !!
- * A (probably) more convenient and efficient interface to ether_input
- * is to have the whole packet (with the ethernet header) into the mbuf:
- * modules which do not need the ethernet header can easily drop it, while
- * others (most noticeably bridge and ng_ether) do not need to do additional
- * work to put the ethernet header back into the mbuf.
  *
  * First we perform any link layer operations, then continue
  * to the upper layers with ether_demux().
  */
 void
-ether_input(ifp, eh, m)
-	struct ifnet *ifp;
-	struct ether_header *eh;
-	struct mbuf *m;
+ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 {
 	struct ether_header save_eh;
+
+	if (eh == NULL) {
+		if (m->m_len < sizeof(struct ether_header)) {
+			/* XXX error in the caller. */
+			m_freem(m);
+			return;
+		}
+		m->m_pkthdr.rcvif = ifp;
+		eh = mtod(m, struct ether_header *);
+		m->m_data += sizeof(struct ether_header);
+		m->m_len -= sizeof(struct ether_header);
+		m->m_pkthdr.len = m->m_len;
+	}
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
