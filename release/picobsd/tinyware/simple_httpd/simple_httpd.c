@@ -71,6 +71,19 @@ static char httpd_server_ident[] = "Server: FreeBSD/PicoBSD simple_httpd 1.1\r";
 
 static char http_200[] = "HTTP/1.0 200 OK\r";
 
+const char *default_mime_type = "application/octet-stream";
+
+const char *mime_type[][2] = {
+    { "txt",      "text/plain"            },
+    { "htm",      "text/html"             },
+    { "html",     "text/html"             },
+    { "gif",      "image/gif"             },
+    { "jpg",      "image/jpeg"            },
+    { "mp3",      "audio/mpeg"            }
+};
+
+const int mime_type_max = sizeof(mime_type) / sizeof(mime_type[0]) - 1;
+
 /* Two parts, HTTP Header and then HTML */
 static const char *http_404[2] = 
     {"HTTP/1.0 404 Not found\r\n", 
@@ -205,7 +218,7 @@ http_request(void)
 	int             fd, lg, i; 
 	int             cmd = 0;
 	char           *p, *par;
-	const char     *filename, *c;
+	const char     *filename, *c, *ext, *type;
 	struct stat     file_status;
 	char            req[1024];
 	char            buff[8192];
@@ -321,21 +334,17 @@ http_request(void)
 	sprintf(buff, "Content-length: %lld\r\n", file_status.st_size);
 	write(con_sock, buff, strlen(buff));
 
-	if (strstr(filename,".txt")) {
-	  strcpy(buff,"Content-type: text/plain\r\n");
-	} else if (strstr(filename,".html") || strstr(filename,".htm")) {
-	    strcpy(buff,"Content-type: text/html\r\n");
-	} else if (strstr(filename,".gif")) {
-	  strcpy(buff,"Content-type: image/gif\r\n");
-	} else if (strstr(filename,".jpg")) {
-	  strcpy(buff,"Content-type: image/jpeg\r\n");
-	} else {
-	  /* Take a guess at content if we don't have something already */
-	  strcpy(buff,"Content-type: ");
-	  strcat(buff,strstr(filename,".")+1);
-	  strcat(buff,"\r\n");
+	strcpy(buff, "Content-type: ");
+	type = default_mime_type;
+	if ((ext = strrchr(filename, '.')) != NULL) {
+	  for (i = mime_type_max; i >= 0; i--)
+	    if (strcmp(ext + 1, mime_type[i][0]) == 0) {
+	      type = mime_type[i][1];
+	      break;
+	    }
 	}
-	write(con_sock, buff, strlen(buff));
+	strcat(buff, type);
+	http_output(buff);
 	
 	strftime(buff, 50, "Last-Modified: %a, %d %h %Y %H:%M:%S %Z\r\n\r\n", gmtime(&file_status.st_mtime));
 	write(con_sock, buff, strlen(buff));
