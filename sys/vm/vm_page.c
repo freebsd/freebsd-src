@@ -693,30 +693,35 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 /*
  *	vm_page_select_cache:
  *
- *	Find a page on the cache queue with color optimization.  As pages
- *	might be found, but not applicable, they are deactivated.  This
- *	keeps us from using potentially busy cached pages.
+ *	Move a page of the given color from the cache queue to the free
+ *	queue.  As pages might be found, but are not applicable, they are
+ *	deactivated.
  *
  *	This routine may not block.
  */
 vm_page_t
 vm_page_select_cache(int color)
 {
+	vm_object_t object;
 	vm_page_t m;
+	boolean_t was_trylocked;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while ((m = vm_pageq_find(PQ_CACHE, color, FALSE)) != NULL) {
-		if ((m->flags & PG_BUSY) == 0 && m->busy == 0 &&
-		    m->hold_count == 0 && (VM_OBJECT_TRYLOCK(m->object) ||
-		    VM_OBJECT_LOCKED(m->object))) {
-			KASSERT(m->dirty == 0,
-			    ("Found dirty cache page %p", m));
-			KASSERT(!pmap_page_is_mapped(m),
-			    ("Found mapped cache page %p", m));
-			KASSERT((m->flags & PG_UNMANAGED) == 0,
-			    ("Found unmanaged cache page %p", m));
-			KASSERT(m->wire_count == 0,
-			    ("Found wired cache page %p", m));
+		KASSERT(m->dirty == 0, ("Found dirty cache page %p", m));
+		KASSERT(!pmap_page_is_mapped(m),
+		    ("Found mapped cache page %p", m));
+		KASSERT((m->flags & PG_UNMANAGED) == 0,
+		    ("Found unmanaged cache page %p", m));
+		KASSERT(m->wire_count == 0, ("Found wired cache page %p", m));
+		if (m->hold_count == 0 && (object = m->object,
+		    (was_trylocked = VM_OBJECT_TRYLOCK(object)) ||
+		    VM_OBJECT_LOCKED(object))) {
+			KASSERT((m->flags & PG_BUSY) == 0 && m->busy == 0,
+			    ("Found busy cache page %p", m));
+			vm_page_free(m);
+			if (was_trylocked)
+				VM_OBJECT_UNLOCK(object);
 			break;
 		}
 		vm_page_deactivate(m);
@@ -745,11 +750,13 @@ vm_page_select_cache(int color)
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
-	vm_object_t m_object;
 	vm_page_t m = NULL;
 	int color, flags, page_req;
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
+	KASSERT(curthread->td_intr_nesting_level == 0 ||
+	    page_req == VM_ALLOC_INTERRUPT,
+	    ("vm_page_alloc(NORMAL|SYSTEM) in interrupt context"));
 
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
@@ -796,12 +803,7 @@ loop:
 			pagedaemon_wakeup();
 			return (NULL);
 		}
-		m_object = m->object;
-		VM_OBJECT_LOCK_ASSERT(m_object, MA_OWNED);
-		vm_page_free(m);
 		vm_page_unlock_queues();
-		if (m_object != object)
-			VM_OBJECT_UNLOCK(m_object);
 		goto loop;
 	} else {
 		/*
