@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.3 1995/10/22 01:32:42 jkh Exp $
+ * $Id: doc.c,v 1.5 1995/10/22 17:39:05 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -67,6 +67,8 @@ docBrowser(char *junk)
 int
 docShowDocument(char *str)
 {
+    char tmp[512], target[512];
+    char *where = NULL;
     char *browser = variable_get(VAR_BROWSER_BINARY);
 
     if (!file_executable(browser)) {
@@ -76,17 +78,16 @@ docShowDocument(char *str)
 	return RET_FAIL;
     }
     if (!strcmp(str, "Home"))
-	vsystem("%s http://www.freebsd.org", browser);
-    else if (!strcmp(str, "Other")) {
-    }
+	where = "http://www.freebsd.org";
+    else if (!strcmp(str, "Other"))
+	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
     else {
-	char target[512];
-
 	sprintf(target, "/usr/share/doc/%s/%s.html", str, str);
-	if (file_readable(target))
-	    vsystem("%s file:%s", browser, target);
-	else
-	    vsystem("%s http://www.freebsd.org/%s");
+	if (!file_readable(target))
+	    sprintf(target, "http://www.freebsd.org/%s", str);
+	where = target;
     }
+    sprintf(tmp, "%s %s", browser, where);
+    systemExecute(tmp);
     return RET_SUCCESS;
 }
