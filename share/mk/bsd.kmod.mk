@@ -261,6 +261,7 @@ KERN=	${.CURDIR}/../../kern
 KERN=	${.CURDIR}/../../sys/kern
 .endif
 
+.ORDER: vnode_if.c vnode_if.h
 vnode_if.c vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
