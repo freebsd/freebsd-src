@@ -37,6 +37,7 @@
 /*
  * Definitions for IEEE 802.11 drivers.
  */
+#include <sys/malloc.h>
 
 #include <net80211/ieee80211.h>
 #include <net80211/ieee80211_crypto.h>
