@@ -224,11 +224,13 @@ fifo_open(ap)
 		if (fip->fi_writers == 1) {
 			SOCK_LOCK(fip->fi_readsock);
 			fip->fi_readsock->so_state &= ~SS_CANTRCVMORE;
+			SOCK_UNLOCK(fip->fi_readsock);
 			if (fip->fi_readers > 0) {
 				wakeup((caddr_t)&fip->fi_readers);
+				SOCK_LOCK(fip->fi_writesock);
 				sorwakeup(fip->fi_writesock);
+				SOCK_UNLOCK(fip->fi_writesock);
 			}
-			SOCK_UNLOCK(fip->fi_readsock);
 		}
 	}
 	if ((ap->a_mode & FREAD) && (ap->a_mode & O_NONBLOCK) == 0) {
