@@ -106,10 +106,18 @@ __stdcall static void ndis_free(void *, uint32_t, uint32_t);
 __stdcall static ndis_status ndis_setattr_ex(ndis_handle, ndis_handle,
 	uint32_t, uint32_t, ndis_interface_type);
 __stdcall static void ndis_open_cfg(ndis_status *, ndis_handle *, ndis_handle);
+__stdcall static void ndis_open_cfgbyidx(ndis_status *, ndis_handle,
+	uint32_t, ndis_unicode_string *, ndis_handle *);
+__stdcall static void ndis_open_cfgbyname(ndis_status *, ndis_handle,
+	ndis_unicode_string *, ndis_handle *);
 static ndis_status ndis_encode_parm(ndis_miniport_block *,
 	struct sysctl_oid *, ndis_parm_type, ndis_config_parm **);
+static ndis_status ndis_decode_parm(ndis_miniport_block *,
+	ndis_config_parm *, char *);
 __stdcall static void ndis_read_cfg(ndis_status *, ndis_config_parm **,
 	ndis_handle, ndis_unicode_string *, ndis_parm_type);
+__stdcall static void ndis_write_cfg(ndis_status *, ndis_handle,
+	ndis_unicode_string *, ndis_config_parm *);
 __stdcall static void ndis_close_cfg(ndis_handle);
 __stdcall static void ndis_create_lock(ndis_spin_lock *);
 __stdcall static void ndis_destroy_lock(ndis_spin_lock *);
@@ -184,6 +192,8 @@ __stdcall static void ndis_reset_event(ndis_event *);
 __stdcall static uint8_t ndis_wait_event(ndis_event *, uint32_t);
 __stdcall static ndis_status ndis_unicode2ansi(ndis_ansi_string *,
 	ndis_unicode_string *);
+__stdcall static ndis_status ndis_ansi2unicode(ndis_unicode_string *,
+	ndis_ansi_string *);
 __stdcall static ndis_status ndis_assign_pcirsrc(ndis_handle,
 	uint32_t, ndis_resource_list **);
 __stdcall static ndis_status ndis_register_intr(ndis_miniport_interrupt *,
@@ -211,8 +221,12 @@ __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
 __stdcall static void ndis_time(uint64_t *);
 __stdcall static void ndis_init_string(ndis_unicode_string **, char *);
+__stdcall static void ndis_init_ansi_string(ndis_ansi_string *, char *);
 __stdcall static void ndis_free_string(ndis_unicode_string *);
 __stdcall static ndis_status ndis_remove_miniport(ndis_handle *);
+__stdcall static void ndis_termwrap(ndis_handle, void *);
+__stdcall static void ndis_get_devprop(ndis_handle, void *, void *,
+	void *, cm_resource_list *, cm_resource_list *);
 __stdcall static void dummy(void);
 
 
@@ -312,6 +326,14 @@ ndis_initwrap(wrapper, drv_obj, path, unused)
 	return;
 }
 
+__stdcall static void
+ndis_termwrap(handle, syspec)
+	ndis_handle		handle;
+	void			*syspec;
+{
+	return;
+}
+
 __stdcall static ndis_status
 ndis_register_miniport(handle, characteristics, len)
 	ndis_handle		handle;
@@ -401,6 +423,30 @@ ndis_open_cfg(status, cfg, wrapctx)
 {
 	*cfg = wrapctx;
 	*status = NDIS_STATUS_SUCCESS;
+	return;
+}
+
+__stdcall static void
+ndis_open_cfgbyname(status, cfg, subkey, subhandle)
+	ndis_status		*status;
+	ndis_handle		cfg;
+	ndis_unicode_string	*subkey;
+	ndis_handle		*subhandle;
+{
+	*subhandle = cfg;
+	*status = NDIS_STATUS_SUCCESS;
+	return;
+}
+
+__stdcall static void
+ndis_open_cfgbyidx(status, cfg, idx, subkey, subhandle)
+	ndis_status		*status;
+	ndis_handle		cfg;
+	uint32_t		idx;
+	ndis_unicode_string	*subkey;
+	ndis_handle		*subhandle;
+{
+	*status = NDIS_STATUS_FAILURE;
 	return;
 }
 
@@ -505,6 +551,82 @@ ndis_read_cfg(status, parm, cfg, key, type)
 
 	free(keystr, M_DEVBUF);
 	*status = NDIS_STATUS_FAILURE;
+	return;
+}
+
+static ndis_status
+ndis_decode_parm(block, parm, val)
+	ndis_miniport_block	*block;
+	ndis_config_parm	*parm;
+	char			*val;
+{
+	uint16_t		*unicode;
+	ndis_unicode_string	*ustr;
+
+	unicode = (uint16_t *)&block->nmb_dummybuf;
+
+	switch(parm->ncp_type) {
+	case ndis_parm_string:
+		ustr = &parm->ncp_parmdata.ncp_stringdata;
+		ndis_unicode_to_ascii(ustr->nus_buf, ustr->nus_len, &val);
+		break;
+	case ndis_parm_int:
+		sprintf(val, "%ul", parm->ncp_parmdata.ncp_intdata);
+		break;
+	case ndis_parm_hexint:
+		sprintf(val, "%xu", parm->ncp_parmdata.ncp_intdata);
+		break;
+	default:
+		return(NDIS_STATUS_FAILURE);
+		break;
+	}
+	return(NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static void
+ndis_write_cfg(status, cfg, key, parm)
+	ndis_status		*status;
+	ndis_handle		cfg;
+	ndis_unicode_string	*key;
+	ndis_config_parm	*parm;
+{
+	char			*keystr = NULL;
+	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
+        struct sysctl_oid	*oidp;
+	struct sysctl_ctx_entry	*e;
+	char			val[256];
+
+	block = (ndis_miniport_block *)cfg;
+	sc = (struct ndis_softc *)block->nmb_ifp;
+
+	ndis_unicode_to_ascii(key->nus_buf, key->nus_len, &keystr);
+
+	/* Decode the parameter into a string. */
+	*status = ndis_decode_parm(block, parm, val);
+	if (*status != NDIS_STATUS_SUCCESS) {
+		free(keystr, M_DEVBUF);
+		return;
+	}
+
+	/* See if the key already exists. */
+
+	TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
+		oidp = e->entry;
+		if (strcmp(oidp->oid_name, keystr) == 0) {
+			/* Found it, set the value. */
+			strcpy((char *)oidp->oid_arg1, val);
+			free(keystr, M_DEVBUF);
+			return;
+		}
+	}
+
+	/* Not found, add a new key with the specified value. */
+	ndis_add_sysctl(sc, keystr, "(dynamically set key)",
+		    val, CTLFLAG_RW);
+
+	free(keystr, M_DEVBUF);
+	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
 
@@ -1589,12 +1711,37 @@ ndis_wait_event(event, msecs)
 
 __stdcall static ndis_status
 ndis_unicode2ansi(dstr, sstr)
-	ndis_ansi_string		*dstr;
-	ndis_unicode_string		*sstr;
+	ndis_ansi_string	*dstr;
+	ndis_unicode_string	*sstr;
 {
-	ndis_unicode_to_ascii(sstr->nus_buf, sstr->nus_len, &dstr->nas_buf);
-	dstr->nas_len = strlen(dstr->nas_buf);
-	printf ("unicode 2 ansi...\n");
+	if (dstr == NULL || sstr == NULL)
+		return(NDIS_STATUS_FAILURE);
+	if (ndis_unicode_to_ascii(sstr->nus_buf,
+	    sstr->nus_len, &dstr->nas_buf))
+		return(NDIS_STATUS_FAILURE);
+	dstr->nas_len = dstr->nas_maxlen = strlen(dstr->nas_buf);
+	return (NDIS_STATUS_SUCCESS);
+}
+
+__stdcall static ndis_status
+ndis_ansi2unicode(dstr, sstr)
+	ndis_unicode_string	*dstr;
+	ndis_ansi_string	*sstr;
+{
+	char			*str;
+	if (dstr == NULL || sstr == NULL)
+		return(NDIS_STATUS_FAILURE);
+	str = malloc(sstr->nas_len + 1, M_DEVBUF, M_NOWAIT);
+	if (str == NULL)
+		return(NDIS_STATUS_FAILURE);
+	strncpy(str, sstr->nas_buf, sstr->nas_len);
+	*(str + sstr->nas_len) = '\0';
+	if (ndis_ascii_to_unicode(str, &dstr->nus_buf)) {
+		free(str, M_DEVBUF);
+		return(NDIS_STATUS_FAILURE);
+	}
+	dstr->nus_len = dstr->nus_maxlen = sstr->nas_len * 2;
+	free(str, M_DEVBUF);
 	return (NDIS_STATUS_SUCCESS);
 }
 
@@ -1901,6 +2048,39 @@ ndis_remove_miniport(adapter)
 }
 
 __stdcall static void
+ndis_init_ansi_string(dst, src)
+	ndis_ansi_string	*dst;
+	char			*src;
+{
+	ndis_ansi_string	*a;
+
+	a = dst;
+	if (a == NULL)
+		return;
+	if (src == NULL) {
+		a->nas_len = a->nas_maxlen = 0;
+		a->nas_buf = NULL;
+	} else {
+		a->nas_buf = src;
+		a->nas_len = a->nas_maxlen = strlen(src);
+	}
+
+	return;
+}
+
+__stdcall static void ndis_get_devprop(adapter, phydevobj,
+	funcdevobj, nextdevobj, resources, transresources)
+	ndis_handle		adapter;
+	void			*phydevobj;
+	void			*funcdevobj;
+	void			*nextdevobj;
+	cm_resource_list	*resources;
+	cm_resource_list	*transresources;
+{
+	return;
+}
+
+__stdcall static void
 dummy()
 {
 	printf ("NDIS dummy called...\n");
@@ -1908,6 +2088,13 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisMGetDeviceProperty",	(FUNC)ndis_get_devprop },
+	{ "NdisInitAnsiString",		(FUNC)ndis_init_ansi_string },
+	{ "NdisWriteConfiguration",	(FUNC)ndis_write_cfg },
+	{ "NdisAnsiStringToUnicodeString", (FUNC)ndis_ansi2unicode },
+	{ "NdisTerminateWrapper",	(FUNC)ndis_termwrap },
+	{ "NdisOpenConfigurationKeyByName", (FUNC)ndis_open_cfgbyname },
+	{ "NdisOpenConfigurationKeyByIndex", (FUNC)ndis_open_cfgbyidx },
 	{ "NdisMRemoveMiniport",	(FUNC)ndis_remove_miniport },
 	{ "NdisInitializeString",	(FUNC)ndis_init_string },	
 	{ "NdisFreeString",		(FUNC)ndis_free_string },	
