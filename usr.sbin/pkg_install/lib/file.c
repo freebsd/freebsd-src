@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.24 1996/10/14 19:41:44 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.11 1996/10/15 18:38:44 jkh Exp $";
 #endif
 
 /*
@@ -180,7 +180,7 @@ fileGetURL(char *base, char *spec)
     struct passwd *pw;
     FILE *ftp;
     pid_t tpid;
-    int i;
+    int i, status;
     char *hint;
 
     rp = NULL;
@@ -246,7 +246,7 @@ fileGetURL(char *base, char *spec)
     }
     if (Verbose)
 	printf("Trying to fetch %s.\n", fname);
-    ftp = ftpGetURL(fname, uname, pword);
+    ftp = ftpGetURL(fname, uname, pword, &status);
     if (ftp) {
 	pen[0] = '\0';
 	if ((rp = make_playpen(pen, 0)) != NULL) {
