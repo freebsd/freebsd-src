@@ -1,0 +1,203 @@
+# Makefile for GNU CVS documentation.
+# Do not use this makefile directly, but only from `../Makefile'.
+# Copyright (C) 1986, 1988-1990 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# $CVSid: @(#)Makefile.in 1.8 94/10/22 $
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+infodir = $(prefix)/info
+
+INSTALL	= @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+
+DISTFILES = \
+	.cvsignore ChangeLog ChangeLog.fsf Makefile.in \
+	cvs-paper.ms cvs-paper.ps \
+	cvs.texinfo \
+	cvsclient.texi
+
+OBJDIR_DISTFILES = cvs.ps cvs.info cvs.aux \
+	cvsclient.ps cvsclient.info cvsclient.aux CVSvn.texi
+
+# these are part of the texinfo distribution
+MAKEINFO=makeinfo
+TEXI2DVI = texi2dvi
+
+# where to find texinfo;
+TEXIDIR=${gdbdir}/../texinfo
+
+SET_TEXINPUTS = TEXINPUTS=.:$(srcdir):$$TEXINPUTS
+
+# Don Knuth's TeX formatter
+TEX = tex
+
+# auxiliary program for sorting Texinfo indices
+TEXINDEX = texindex
+
+DVIPS = dvips
+DVIPSFLAGS = 
+
+ROFF = groff
+
+# CYGNUS LOCAL: all does not depend upon info
+all:
+.PHONY: all
+
+# CYGNUS LOCAL: install does not depend on install-info
+install: all
+.PHONY: install
+
+doc: cvs.ps cvs-paper.ps cvsclient.ps
+
+info: cvs.info cvsclient.info
+
+cvs.info: cvs.texinfo CVSvn.texi
+	if [ ! -f ./CVSvn.texi ]; then \
+		ln -s $(srcdir)/CVSvn.texi . || \
+		ln $(srcdir)/CVSvn.texi . || \
+		cp $(srcdir)/CVSvn.texi . ; else true; fi
+	$(MAKEINFO) $(srcdir)/cvs.texinfo -o cvs.info
+
+cvsclient.info: cvsclient.texi CVSvn.texi
+	if [ ! -f ./CVSvn.texi ]; then \
+		ln -s $(srcdir)/CVSvn.texi . || \
+		ln $(srcdir)/CVSvn.texi . || \
+		cp $(srcdir)/CVSvn.texi . ; else true; fi
+	$(MAKEINFO) $(srcdir)/cvsclient.texi -o cvsclient.info
+
+# Version of the protocol suitable for emailing
+cvsclient.txt: cvsclient.texi CVSvn.texi
+	if [ ! -f ./CVSvn.texi ]; then \
+		ln -s $(srcdir)/CVSvn.texi . || \
+		ln $(srcdir)/CVSvn.texi . || \
+		cp $(srcdir)/CVSvn.texi . ; else true; fi
+	$(MAKEINFO) $(srcdir)/cvsclient.texi --no-headers -o cvsclient.txt
+
+# If the user gets a distribution (which contains *.info), unpacks
+# it, and builds it in a seperate build dir, then *.info* are in srcdir.
+# If the user builds *.info (e.g. after editing *.texi), then *.info* are
+# in the build dir.
+install-info: info
+	test -f cvs.info || cd $(srcdir); \
+	for i in *.info* ; do \
+	  $(INSTALL_DATA) $$i $(infodir)/$$i ; \
+	done
+
+installdirs: 
+	$(SHELL) $(top_srcdir)/mkinstalldirs $(infodir)
+.PHONY: installdirs
+
+dvi: cvs.dvi cvsclient.dvi
+
+CVSvn.texi: $(top_srcdir)/src/version.c
+	echo "@set CVSVN `sed < $(top_srcdir)/src/version.c \
+		    -e '/version_string/!d' \
+		    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
+		    -e q`" >CVSvn.new
+	mv CVSvn.new CVSvn.texi
+
+cvs.dvi cvs.aux: cvs.texinfo CVSvn.texi
+	if [ ! -f ./CVSvn.texi ]; then \
+		ln -s $(srcdir)/CVSvn.texi . || \
+		ln $(srcdir)/CVSvn.texi . || \
+		cp $(srcdir)/CVSvn.texi . ; else true; fi
+	$(TEXI2DVI) $(srcdir)/cvs.texinfo
+
+cvsclient.dvi cvsclient.aux: cvsclient.texi CVSvn.texi
+	if [ ! -f ./CVSvn.texi ]; then \
+		ln -s $(srcdir)/CVSvn.texi . || \
+		ln $(srcdir)/CVSvn.texi . || \
+		cp $(srcdir)/CVSvn.texi . ; else true; fi
+	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
+	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
+	$(TEXINDEX) cvsclient.??
+	$(SET_TEXINPUTS) $(TEX) cvsclient.texi
+	rm -f cvsclient.?? cvsclient.log cvsclient.toc cvsclient.??s
+
+cvs.ps: cvs.dvi
+	$(DVIPS) $(DVIPSFLAGS) cvs.dvi -o cvs.ps
+
+cvs-paper.ps: cvs-paper.ms
+	$(ROFF) -t -p -ms -Tps $(srcdir)/cvs-paper.ms > $@-t
+	mv $@-t $@
+
+cvsclient.ps: cvsclient.dvi
+	$(DVIPS) $(DVIPSFLAGS) cvsclient.dvi -o cvsclient.ps
+
+tags:
+.PHONY: tags
+
+TAGS:
+.PHONY: TAGS
+
+ls:
+	@echo $(DISTFILES)
+.PHONY: ls
+
+clean:
+	rm -f *.o core
+	rm -f cvs.cp cvs.fn cvs.ky cvs.pg cvs.tp cvs.vr
+	rm -f cvs.cps cvs.fns cvs.kys cvs.pgs cvs.tps cvs.vrs
+	rm -f cvs.aux cvs.dvi cvs.log cvs.toc
+	rm -f cvsclient.cp cvsclient.fn cvsclient.ky cvsclient.pg
+	rm -f cvsclient.tp cvsclient.vr cvsclient.cps cvsclient.fns
+	rm -f cvsclient.kys cvsclient.pgs cvsclient.tps cvsclient.vrs
+	rm -f cvsclient.aux cvsclient.dvi cvsclient.log cvsclient.toc
+
+.PHONY: clean
+
+distclean: clean
+	rm -f Makefile
+.PHONY: distclean
+
+realclean: distclean
+	rm -f cvs.info* cvs.ps cvs-paper.ps cvsclient.info* cvsclient.ps
+.PHONY: realclean
+
+dist-dir: $(DISTFILES) $(OBJDIR_DISTFILES)
+	mkdir ${DISTDIR}
+	for i in ${DISTFILES}; do \
+	  ln $(srcdir)/$${i} ${DISTDIR}; \
+	done
+	ln ${OBJDIR_DISTFILES} ${DISTDIR}
+	if [ -f cvs.info-1 ]; \
+	  then ln -f cvs.info-* ${DISTDIR}; \
+	  else : Pacify Ultrix sh; \
+	fi
+	if [ -f cvsclient.info-1 ]; \
+	  then ln -f cvsclient.info-* ${DISTDIR}; \
+	  else : Pacify Ultrix sh; \
+	fi
+.PHONY: dist-dir
+
+subdir = doc
+Makefile: ../config.status Makefile.in
+	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
+
+#../config.status: ../configure
+#	cd .. ; $(SHELL) config.status --recheck
+
+#../configure: ../configure.in
+#	cd $(top_srcdir) ; autoconf
