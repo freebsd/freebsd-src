@@ -372,10 +372,9 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct th
 	}
 	case DIOCSDINFO:
 	case DIOCWDINFO: {
-		label = g_malloc(LABELSIZE, M_WAITOK);
-
 		if (!(fflag & FWRITE))
 			return (EPERM);
+		label = g_malloc(LABELSIZE, M_WAITOK);
 		/* The disklabel to set is the ioctl argument. */
 		bsd_disklabel_le_enc(label, data);
 
