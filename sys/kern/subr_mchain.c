@@ -376,7 +376,8 @@ md_get_uint16le(struct mdchain *mdp, u_int16_t *x)
 	u_int16_t v;
 	int error = md_get_uint16(mdp, &v);
 
-	*x = letohs(v);
+	if (x != NULL)
+		*x = letohs(v);
 	return error;
 }
 
@@ -385,7 +386,8 @@ md_get_uint16be(struct mdchain *mdp, u_int16_t *x) {
 	u_int16_t v;
 	int error = md_get_uint16(mdp, &v);
 
-	*x = betohs(v);
+	if (x != NULL)
+		*x = betohs(v);
 	return error;
 }
 
@@ -402,7 +404,8 @@ md_get_uint32be(struct mdchain *mdp, u_int32_t *x)
 	int error;
 
 	error = md_get_uint32(mdp, &v);
-	*x = betohl(v);
+	if (x != NULL)
+		*x = betohl(v);
 	return error;
 }
 
@@ -413,7 +416,8 @@ md_get_uint32le(struct mdchain *mdp, u_int32_t *x)
 	int error;
 
 	error = md_get_uint32(mdp, &v);
-	*x = letohl(v);
+	if (x != NULL)
+		*x = letohl(v);
 	return error;
 }
 
@@ -430,7 +434,8 @@ md_get_int64be(struct mdchain *mdp, int64_t *x)
 	int error;
 
 	error = md_get_int64(mdp, &v);
-	*x = betohq(v);
+	if (x != NULL)
+		*x = betohq(v);
 	return error;
 }
 
@@ -441,7 +446,8 @@ md_get_int64le(struct mdchain *mdp, int64_t *x)
 	int error;
 
 	error = md_get_int64(mdp, &v);
-	*x = letohq(v);
+	if (x != NULL)
+		*x = letohq(v);
 	return error;
 }
 
