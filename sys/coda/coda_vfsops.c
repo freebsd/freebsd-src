@@ -1,4 +1,4 @@
-/*
+/*-
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
  * 
@@ -27,7 +27,7 @@
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
  */
-/* 
+/*-
  * Mach Operating System
  * Copyright (c) 1989 Carnegie-Mellon University
  * All rights reserved.  The CMU software License Agreement specifies
