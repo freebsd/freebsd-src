@@ -368,10 +368,10 @@ isp_target_put_atio(struct ispsoftc *isp, void *arg)
 		at2_entry_t *aep = arg;
 		atun._atio2.at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		atun._atio2.at_header.rqs_entry_count = 1;
-		if (isp->isp_maxluns > 16) {
+		if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
 			atun._atio2.at_scclun = (u_int16_t) aep->at_scclun;
 		} else {
-			atun._atio2.at_lun = (u_int8_t) aep->at_scclun;
+			atun._atio2.at_lun = (u_int8_t) aep->at_lun;
 		}
 		atun._atio2.at_status = CT_OK;
 	} else {
@@ -567,13 +567,20 @@ isp_got_msg(struct ispsoftc *isp, int bus, in_entry_t *inp)
 static void
 isp_got_msg_fc(struct ispsoftc *isp, int bus, in_fcentry_t *inp)
 {
+	int lun;
 	static const char f1[] = "%s from iid %d lun %d seq 0x%x";
 	static const char f2[] = 
 	    "unknown %s 0x%x lun %d iid %d task flags 0x%x seq 0x%x\n";
 
+	if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
+		lun = inp->in_scclun;
+	} else {
+		lun = inp->in_lun;
+	}
+
 	if (inp->in_status != IN_MSG_RECEIVED) {
 		isp_prt(isp, ISP_LOGINFO, f2, "immediate notify status",
-		    inp->in_status, inp->in_lun, inp->in_iid,
+		    inp->in_status, lun, inp->in_iid,
 		    inp->in_task_flags,  inp->in_seqid);
 	} else {
 		tmd_msg_t msg;
@@ -581,37 +588,33 @@ isp_got_msg_fc(struct ispsoftc *isp, int bus, in_fcentry_t *inp)
 		MEMZERO(&msg, sizeof (msg));
 		msg.nt_bus = bus;
 		msg.nt_iid = inp->in_iid;
-		if (isp->isp_maxluns > 16) {
-			msg.nt_lun = inp->in_scclun;
-		} else {
-			msg.nt_lun = inp->in_lun;
-		}
 		msg.nt_tagval = inp->in_seqid;
+		msg.nt_lun = lun;
 
 		if (inp->in_task_flags & TASK_FLAGS_ABORT_TASK) {
 			isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK",
-			    inp->in_iid, inp->in_lun, inp->in_seqid);
+			    inp->in_iid, msg.nt_lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_ABORT_TAG;
 		} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_TASK_SET) {
 			isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET",
-			    inp->in_iid, inp->in_lun, inp->in_seqid);
+			    inp->in_iid, msg.nt_lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_CLEAR_QUEUE;
 		} else if (inp->in_task_flags & TASK_FLAGS_TARGET_RESET) {
 			isp_prt(isp, ISP_LOGINFO, f1, "TARGET RESET",
-			    inp->in_iid, inp->in_lun, inp->in_seqid);
+			    inp->in_iid, msg.nt_lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_BUS_DEV_RESET;
 		} else if (inp->in_task_flags & TASK_FLAGS_CLEAR_ACA) {
 			isp_prt(isp, ISP_LOGINFO, f1, "CLEAR ACA",
-			    inp->in_iid, inp->in_lun, inp->in_seqid);
+			    inp->in_iid, msg.nt_lun, inp->in_seqid);
 			/* ???? */
 			msg.nt_msg[0] = MSG_REL_RECOVERY;
 		} else if (inp->in_task_flags & TASK_FLAGS_TERMINATE_TASK) {
 			isp_prt(isp, ISP_LOGINFO, f1, "TERMINATE TASK",
-			    inp->in_iid, inp->in_lun, inp->in_seqid);
+			    inp->in_iid, msg.nt_lun, inp->in_seqid);
 			msg.nt_msg[0] = MSG_TERM_IO_PROC;
 		} else {
 			isp_prt(isp, ISP_LOGWARN, f2, "task flag",
-			    inp->in_status, inp->in_lun, inp->in_iid,
+			    inp->in_status, msg.nt_lun, inp->in_iid,
 			    inp->in_task_flags,  inp->in_seqid);
 		}
 		if (msg.nt_msg[0]) {
@@ -641,7 +644,7 @@ isp_notify_ack(struct ispsoftc *isp, void *arg)
 			in_fcentry_t *inp = arg;
 			MEMCPY(storage, arg, sizeof (isphdr_t));
 			na->na_iid = inp->in_iid;
-			if (isp->isp_maxluns > 16) {
+			if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
 				na->na_lun = inp->in_scclun;
 			} else {
 				na->na_lun = inp->in_lun;
@@ -765,7 +768,7 @@ isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 {
 	int lun;
 
-	if (isp->isp_maxluns > 16) {
+	if (FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) {
 		lun = aep->at_scclun;
 	} else {
 		lun = aep->at_lun;
