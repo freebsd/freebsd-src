@@ -1,9 +1,18 @@
-#	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.1 1994/08/08 01:03:57 wollman Exp $
+# @(#) $Header: Makefile,v 1.12 93/07/19 20:07:30 leres Exp $ (LBL)
 
 PROG=	rarpd
-MAN8=	rarpd.8
-SRCS=	rarpd.c ether_addr.c
-CFLAGS+= -DTFTP_DIR=\"/tftpboot\"
+CFLAGS+=-g
+.if !defined(sunos3) && !defined(sunos4)
+SRCS=	rarpd.c etherent.c
+BINDIR=/usr/local/sbin
+CFLAGS+=-Wall
+.endif
+.ifdef sunos3
+CFLAGS+=-W -DSUNOS3
+.endif
+.ifdef sunos4
+CFLAGS+=-W -DSUNOS4
+.endif
+MAN8=	rarpd.0
 
 .include <bsd.prog.mk>
