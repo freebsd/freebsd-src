@@ -47,11 +47,14 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft char *
+.Fn stpcpy "char *dst" "const char *src"
+.Ft char *
 .Fn strcpy "char * restrict dst" "const char * restrict src"
 .Ft char *
 .Fn strncpy "char * restrict dst" "const char * restrict src" "size_t len"
 .Sh DESCRIPTION
 The
+.Fn stpcpy ,
 .Fn strcpy
 function
 copies the string
@@ -88,6 +91,12 @@ and
 .Fn strncpy
 functions
 return
+.Fa dst .
+The
+.Fn stpcpy
+function returns a pointer to the terminating 
+.Ql \e0
+character of
 .Fa dst .
 .Sh EXAMPLES
 The following sets
@@ -178,3 +187,14 @@ and
 functions
 conform to
 .St -isoC .
+The
+.Fn stpcpy
+function is an MS-DOS and GNUism.
+.Fn stpcpy
+conforms to no standard.
+.Sh HISTORY
+The
+.Fn stpcpy
+function first appeared in
+.Fx 4.4 ,
+comming from 1998-ventage Linux.
