@@ -2,8 +2,8 @@
 Stallion Multiport Serial Driver Readme
 ---------------------------------------
 
-Version: 0.0.1 alpha
-Date:    21DEC95
+Version: 0.0.2 alpha
+Date:    08JAN96
 Author:  Greg Ungerer (gerg@stallion.oz.au)
 
 
@@ -11,8 +11,8 @@ Author:  Greg Ungerer (gerg@stallion.oz.au)
 1. INTRODUCTION
 
 This is a FreeBSD driver for some of the Stallion Technologies range of
-multiport serial boards. This is the very first release of this driver, so
-it should be considered to be of very alpha quality.
+multiport serial boards. This driver is still very new, so it should be
+considered to be of very alpha quality.
 
 This driver has not been developed by Stallion Technologies. I developed it
 in my spare time in the hope that it would be useful. As such there is no
@@ -63,8 +63,9 @@ out for those some time soon...
 
 2. INSTALLATION
 
-This driver was developed on a FreeBSD 2.0.5 system. I have not tryed it
-on a 2.1 system yet, so I don't know if it will go in painlessly or not...
+This driver, as is, will work on a FreeBSD 2.1 system. It will run on
+a 2.0.5 system, or -current version systems by changing a define in the
+driver source.
 
 You will need to build a new kernel to use this driver. So the first thing
 you need is to have the full kernel source. Most people will have this
@@ -81,13 +82,16 @@ Instructions to install:
         cp stallion.c /usr/src/sys/i386/isa
         cp scd1400.h /usr/src/sys/i386/ic
 
+   Note: if you are not using FreeBSD 2.1.0 then you may need to edit the
+   stallion.c file and change the VFREEBSD define to match your version.
+
 2. Add a character device switch table entry for the driver into the cdevsw
    table structure. This involves adding some code into the kernel conf.c
    file:
 
         cd /usr/src/sys/i386/i386
         vi conf.c
-            - add the following lines (in 2.0.5 I put them at line 1019):
+            - add the following lines (in 2.1 I put them at line 729):
 
 /* Stallion Multiport Serial Driver */
 #include "stl.h"
@@ -117,13 +121,13 @@ d_ttycv_t	stldevtotty;
 
 
             - and then inside the actual cdevsw structure definition, at the
-              last entry add (this is now line 1259 in the 2.0.5 conf.c):
+              last entry add (this is now line 1384 in the 2.1 conf.c):
 
-	{ stlopen,	stlclose,	stlread,	stlwrite,	/*67*/
+	{ stlopen,	stlclose,	stlread,	stlwrite,	/*72*/
 	  stlioctl,	stlstop,	stlreset,	stldevtotty,/*stallion*/
 	  ttselect,	stlmmap,	stlstrategy },
 
-            - the line above used major number 67, but this may be different
+            - the line above used major number 72, but this may be different
               on your system. Take note of what major number you are using.
               
             - save the file and exit vi.
@@ -193,7 +197,7 @@ more than 1 board then just supply the number of boards you are using as a
 command line parameter to mkdevnods and it will create nodes for that number
 of boards. By default it will create device nodes for 1 board only.
 
-Note that if the driver is not installed at character major number 67 then
+Note that if the driver is not installed at character major number 72 then
 you will need to edit the mkdevnods script and modify the STL_SERIALMAJOR
 variable to the major number you are using.
 
@@ -223,14 +227,14 @@ under FreeBSD:
 
 4. NOTES
 
-Be aware that this is the first release of this driver, so there is sure to
-be some bugs in it. Please email me any feedback on bugs, problems, or even
-good experiences with this driver!
+Be aware that this driver is still very new, so there is sure to be some bugs
+in it. Please email me any feedback on bugs, problems, or even good
+experiences with this driver!
 
 There is no real smart line discipline bypass code yet (like in the sio
 driver). I will add this for the next driver release.
 
-I will probably also add LKM support for the next driver release.
+I will probably also add LKM support some time soon.
 
 
 
