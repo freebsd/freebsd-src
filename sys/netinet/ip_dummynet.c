@@ -1867,17 +1867,14 @@ dn_copy_set(struct dn_flow_set *set, char *bp)
     return (char *)qp ;
 }
 
-static int
-dummynet_get(struct sockopt *sopt)
+static size_t
+dn_calc_size(void)
 {
-    char *buf, *bp ; /* bp is the "copy-pointer" */
-    size_t size ;
     struct dn_flow_set *set ;
     struct dn_pipe *p ;
-    int error=0 ;
+    size_t size ;
 
-    /* XXX lock held too long */
-    DUMMYNET_LOCK();
+    DUMMYNET_LOCK_ASSERT();
     /*
      * compute size of data structures: list of pipes and flow_sets.
      */
@@ -1887,8 +1884,35 @@ dummynet_get(struct sockopt *sopt)
     for (set = all_flow_sets ; set ; set = set->next )
 	size += sizeof ( *set ) +
 	    set->rq_elements * sizeof(struct dn_flow_queue);
-    buf = malloc(size, M_TEMP, M_NOWAIT);
-    if (buf == 0) {
+    return size ;
+}
+
+static int
+dummynet_get(struct sockopt *sopt)
+{
+    char *buf, *bp ; /* bp is the "copy-pointer" */
+    size_t size ;
+    struct dn_flow_set *set ;
+    struct dn_pipe *p ;
+    int error=0, i ;
+
+    /* XXX lock held too long */
+    DUMMYNET_LOCK();
+    /*
+     * XXX: Ugly, but we need to allocate memory with M_WAITOK flag and we
+     *      cannot use this flag while holding a mutex.
+     */
+    for (i = 0; i < 10; i++) {
+	size = dn_calc_size();
+	DUMMYNET_UNLOCK();
+	buf = malloc(size, M_TEMP, M_WAITOK);
+	DUMMYNET_LOCK();
+	if (size == dn_calc_size())
+		break;
+	free(buf, M_TEMP);
+	buf = NULL;
+    }
+    if (buf == NULL) {
 	DUMMYNET_UNLOCK();
 	return ENOBUFS ;
     }
