@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Doug Rabson
+ * Copyright (c) 1997-2000 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #ifdef _KERNEL
 
 #include <machine/elf.h>
+#include <sys/kobj.h>
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINKER);
@@ -55,29 +56,6 @@ typedef struct linker_symval {
     size_t		size;
 } linker_symval_t;
 
-struct linker_file_ops {
-    /*
-     * Lookup a symbol in the file's symbol table.  If the symbol is
-     * not found then return ENOENT, otherwise zero.  If the symbol
-     * found is a common symbol, return with *address set to zero and
-     * *size set to the size of the common space required.  Otherwise
-     * set *address the value of the symbol.
-     */
-    int			(*lookup_symbol)(linker_file_t, const char* name,
-					 c_linker_sym_t* sym);
-
-    int			(*symbol_values)(linker_file_t, c_linker_sym_t,
-					 linker_symval_t*);
-
-    int			(*search_symbol)(linker_file_t, caddr_t value,
-					 c_linker_sym_t* sym, long* diffp);
-
-    /*
-     * Unload a file, releasing dependancies and freeing storage.
-     */
-    void		(*unload)(linker_file_t);
-};
-
 struct common_symbol {
     STAILQ_ENTRY(common_symbol) link;
     char*		name;
@@ -85,6 +63,7 @@ struct common_symbol {
 };
 
 struct linker_file {
+    KOBJ_FIELDS;
     int			refs;		/* reference count */
     int			userrefs;	/* kldload(2) count */
     int			flags;
@@ -98,9 +77,6 @@ struct linker_file {
     linker_file_t*	deps;		/* list of dependancies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
     TAILQ_HEAD(, module) modules;	/* modules in this file */
-    void*		priv;		/* implementation data */
-
-    struct linker_file_ops* ops;
 };
 
 /*
@@ -109,24 +85,9 @@ struct linker_file {
 typedef struct linker_class *linker_class_t;
 typedef TAILQ_HEAD(, linker_class) linker_class_list_t;
 
-struct linker_class_ops {
-    /* 
-     * Load a file, returning the new linker_file_t in *result.  If
-     * the class does not recognise the file type, zero should be
-     * returned, without modifying *result.  If the file is
-     * recognised, the file should be loaded, *result set to the new
-     * file and zero returned.  If some other error is detected an
-     * appropriate errno should be returned.
-     */
-    int		(*load_file)(const char* filename, linker_file_t* result);
-};
-
 struct linker_class {
+    KOBJ_CLASS_FIELDS;
     TAILQ_ENTRY(linker_class) link;	/* list of all file classes */
-    const char*		desc;		/* description (e.g. "a.out") */
-    void*		priv;		/* implementation data */
-
-    struct linker_class_ops *ops;
 };
 
 /*
@@ -143,8 +104,7 @@ extern linker_file_t	linker_kernel_file;
 /*
  * Add a new file class to the linker.
  */
-int linker_add_class(const char* desc, void* priv,
-		     struct linker_class_ops* ops);
+int linker_add_class(linker_class_t cls);
 
 /*
  * Load a file, trying each file class until one succeeds.
@@ -164,8 +124,7 @@ linker_file_t linker_find_file_by_id(int fileid);
 /*
  * Called from a class handler when a file is laoded.
  */
-linker_file_t linker_make_file(const char* filename, void* priv,
-			       struct linker_file_ops* ops);
+linker_file_t linker_make_file(const char* filename, linker_class_t cls);
 
 /*
  * Unload a file, freeing up memory.
@@ -233,6 +192,10 @@ extern caddr_t		preload_search_next_name(caddr_t base);
 extern caddr_t		preload_search_info(caddr_t mod, int inf);
 extern void		preload_delete_name(const char *name);
 extern void		preload_bootstrap_relocate(vm_offset_t offset);
+
+#ifdef DDB
+extern void		r_debug_state(void);
+#endif
 
 #ifdef KLD_DEBUG
 
