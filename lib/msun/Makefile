@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.18 1997/02/22 15:08:42 peter Exp $
+#  $Id: Makefile,v 1.19 1997/04/15 14:05:28 bde Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -41,12 +41,27 @@
 #					    default standard
 #
 
+.if ${MACHINE_ARCH} == "alpha"
+.PATH:	${.CURDIR)/alpha
+ARCH=	alpha
+ARCH_SRCS = s_copysign.S s_copysignf.S
+# XXX Comment from NetBSD/Alpha:
+# XXX LINT SIGFPEs in e_exp.c's strtod().  FP underflow/denorm software
+# handling is broken (doesn't exist!) on the Alpha port.
+.elif ${MACHINE_ARCH} == "i386"
 ARCH=	i387
 ARCH_PREFIX= ${ARCH}_
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_logb.S \
 	    s_rint.S s_scalbn.S s_significand.S s_sin.S s_tan.S
+.elif ${MACHINE_ARCH} == "m68k"
+.PATH:  ${.CURDIR}/mc68881
+ARCH_SRCS = e_acos.S e_asin.S e_atanh.S e_cosh.S e_exp.S e_fmod.S e_log.S \
+            e_log10.S e_remainder.S e_scalb.S e_sinh.S e_sqrt.S s_atan.S \
+            s_ceil.S s_copysign.S s_cos.S s_expm1.S s_finite.S s_floor.S \
+            s_log1p.S s_logb.S s_rint.S s_scalbn.S s_sin.S s_tan.S s_tanh.S
+.endif
 
 # Broken
 # ARCH_SRCS+=	s_log1p.S
