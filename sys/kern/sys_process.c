@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.6 1994/08/18 22:35:05 wollman Exp $
+ *	$Id: sys_process.c,v 1.7 1994/09/25 19:33:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -326,13 +326,9 @@ ptrace(curp, uap, retval)
 		*retval = *(int*)((u_int)p->p_addr + (u_int)uap->addr);
 		return 0;
 	case PT_WRITE_U:
-		if ((u_int)uap->addr > (UPAGES * NBPG - sizeof(int))) {
-			return EFAULT;
-		}
 		p->p_addr->u_kproc.kp_proc = *p;
 		fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
-		*(int*)((u_int)p->p_addr + (u_int)uap->addr) = uap->data;
-		return 0;
+		return ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
 	case PT_KILL:
 		p->p_xstat = SIGKILL;
 		setrunnable(p);

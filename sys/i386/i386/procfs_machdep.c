@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_i386.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
+ *	$Id: procfs_machdep.c,v 1.2 1994/05/25 08:54:48 rgrimes Exp $
  */
 
 /*
@@ -52,6 +52,8 @@
  *	Update the current register set from the passed in regs
  *	structure.  Take care to avoid clobbering special CPU
  *	registers or privileged bits in the PSL.
+ *	Depending on the architecture this may have fix-up work to do,
+ *	especially if the IAR or PCW are modified.
  *	The process is stopped at the time write_regs is called.
  *
  * procfs_read_fpregs, procfs_write_fpregs
@@ -76,51 +78,42 @@
 #include <machine/frame.h>
 #include <miscfs/procfs/procfs.h>
 
+extern char kstack[];		/* XXX */
+
 int
 procfs_read_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	struct trapframe *f;
-
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
-
-	f = (struct trapframe *) p->p_md.md_regs;
-	bcopy((void *) f, (void *) regs, sizeof(*regs));
-
-	return (0);
+	return (fill_regs(p, regs));
 }
 
-/*
- * Update the process's current register
- * set.  Depending on the architecture this
- * may have fix-up work to do, especially
- * if the IAR or PCW are modified.
- */
 int
 procfs_write_regs(p, regs)
 	struct proc *p;
 	struct reg *regs;
 {
-	struct trapframe *f;
-
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
-
-	f = (struct trapframe *) p->p_md.md_regs;
-	bcopy((void *) regs, (void *) f, sizeof(*regs));
-
-	return (0);
+	return (set_regs(p, regs));
 }
+
+/*
+ * Ptrace doesn't support fpregs at all, and there are no security holes
+ * or translations for fpregs, so we can just copy them.
+ */
 
 int
 procfs_read_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-
-	return (EOPNOTSUPP);
+	if ((p->p_flag & P_INMEM) == 0)
+		return (EIO);
+	bcopy(&p->p_addr->u_pcb.pcb_savefpu, fpregs, sizeof *fpregs);
+	return (0);
 }
 
 int
@@ -128,25 +121,19 @@ procfs_write_fpregs(p, fpregs)
 	struct proc *p;
 	struct fpreg *fpregs;
 {
-
-	return (EOPNOTSUPP);
+	if ((p->p_flag & P_INMEM) == 0)
+		return (EIO);
+	bcopy(fpregs, &p->p_addr->u_pcb.pcb_savefpu, sizeof *fpregs);
+	return (0);
 }
-
 
 int
 procfs_sstep(p)
 	struct proc *p;
 {
-	int error;
-	struct reg r;
-
-	error = procfs_read_regs(p, &r);
-	if (error == 0) {
-		r.r_eflags |= PSL_T;
-		error = procfs_write_regs(p, &r);
-	}
-
-	return (error);
+	if ((p->p_flag & P_INMEM) == 0)
+		return (EIO);
+	return (ptrace_single_step(p));
 }
 
 void
