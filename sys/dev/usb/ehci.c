@@ -990,8 +990,8 @@ void
 ehci_power(int why, void *v)
 {
 	ehci_softc_t *sc = v;
-	//u_int32_t ctl;
-	int s;
+	u_int32_t cmd, hcr;
+	int s, i;
 
 #ifdef EHCI_DEBUG
 	DPRINTF(("ehci_power: sc=%p, why=%d\n", sc, why));
@@ -1005,46 +1005,100 @@ ehci_power(int why, void *v)
 	case PWR_STANDBY:
 #endif
 		sc->sc_bus.use_polling++;
-#if 0
-OOO
-		ctl = OREAD4(sc, EHCI_CONTROL) & ~EHCI_HCFS_MASK;
-		if (sc->sc_control == 0) {
-			/*
-			 * Preserve register values, in case that APM BIOS
-			 * does not recover them.
-			 */
-			sc->sc_control = ctl;
-			sc->sc_intre = OREAD4(sc, EHCI_INTERRUPT_ENABLE);
+
+		for (i = 1; i <= sc->sc_noport; i++) {
+			cmd = EOREAD4(sc, EHCI_PORTSC(i));
+			if ((cmd & EHCI_PS_PO) == 0 &&
+			    (cmd & EHCI_PS_PE) == EHCI_PS_PE)
+				EOWRITE4(sc, EHCI_PORTSC(i),
+				    cmd | EHCI_PS_SUSP);
 		}
-		ctl |= EHCI_HCFS_SUSPEND;
-		OWRITE4(sc, EHCI_CONTROL, ctl);
-#endif
-		usb_delay_ms(&sc->sc_bus, USB_RESUME_WAIT);
+
+		sc->sc_cmd = EOREAD4(sc, EHCI_USBCMD);
+
+		cmd = sc->sc_cmd & ~(EHCI_CMD_ASE | EHCI_CMD_PSE);
+		EOWRITE4(sc, EHCI_USBCMD, cmd);
+
+		for (i = 0; i < 100; i++) {
+			hcr = EOREAD4(sc, EHCI_USBSTS) &
+			    (EHCI_STS_ASS | EHCI_STS_PSS);
+			if (hcr == 0)
+				break;
+
+			usb_delay_ms(&sc->sc_bus, 1);
+		}
+		if (hcr != 0) {
+			printf("%s: reset timeout\n",
+			    USBDEVNAME(sc->sc_bus.bdev));
+		}
+
+		cmd &= ~EHCI_CMD_RS;
+		EOWRITE4(sc, EHCI_USBCMD, cmd);
+
+		for (i = 0; i < 100; i++) {
+			hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
+			if (hcr == EHCI_STS_HCH)
+				break;
+
+			usb_delay_ms(&sc->sc_bus, 1);
+		}
+		if (hcr != EHCI_STS_HCH) {
+			printf("%s: config timeout\n",
+			    USBDEVNAME(sc->sc_bus.bdev));
+		}
+
 		sc->sc_bus.use_polling--;
 		break;
+
 	case PWR_RESUME:
 		sc->sc_bus.use_polling++;
-#if 0
-OOO
-		/* Some broken BIOSes do not recover these values */
-		OWRITE4(sc, EHCI_HCCA, DMAADDR(&sc->sc_hccadma, 0));
-		OWRITE4(sc, EHCI_CONTROL_HEAD_ED, sc->sc_ctrl_head->physaddr);
-		OWRITE4(sc, EHCI_BULK_HEAD_ED, sc->sc_bulk_head->physaddr);
-		if (sc->sc_intre)
-			OWRITE4(sc, EHCI_INTERRUPT_ENABLE,
-				sc->sc_intre & (EHCI_ALL_INTRS | EHCI_MIE));
-		if (sc->sc_control)
-			ctl = sc->sc_control;
-		else
-			ctl = OREAD4(sc, EHCI_CONTROL);
-		ctl |= EHCI_HCFS_RESUME;
-		OWRITE4(sc, EHCI_CONTROL, ctl);
-		usb_delay_ms(&sc->sc_bus, USB_RESUME_DELAY);
-		ctl = (ctl & ~EHCI_HCFS_MASK) | EHCI_HCFS_OPERATIONAL;
-		OWRITE4(sc, EHCI_CONTROL, ctl);
-		usb_delay_ms(&sc->sc_bus, USB_RESUME_RECOVERY);
-		sc->sc_control = sc->sc_intre = 0;
-#endif
+
+		/* restore things in case the bios sucks */
+		EOWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
+		EOWRITE4(sc, EHCI_PERIODICLISTBASE, DMAADDR(&sc->sc_fldma, 0));
+		EOWRITE4(sc, EHCI_ASYNCLISTADDR,
+		    sc->sc_async_head->physaddr | EHCI_LINK_QH);
+		EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
+
+		hcr = 0;
+		for (i = 1; i <= sc->sc_noport; i++) {
+			cmd = EOREAD4(sc, EHCI_PORTSC(i));
+			if ((cmd & EHCI_PS_PO) == 0 &&
+			    (cmd & EHCI_PS_SUSP) == EHCI_PS_SUSP) {
+				EOWRITE4(sc, EHCI_PORTSC(i),
+				    cmd | EHCI_PS_FPR);
+				hcr = 1;
+			}
+		}
+
+		if (hcr) {
+			usb_delay_ms(&sc->sc_bus, USB_RESUME_WAIT);
+
+			for (i = 1; i <= sc->sc_noport; i++) {
+				cmd = EOREAD4(sc, EHCI_PORTSC(i));
+				if ((cmd & EHCI_PS_PO) == 0 &&
+				    (cmd & EHCI_PS_SUSP) == EHCI_PS_SUSP)
+					EOWRITE4(sc, EHCI_PORTSC(i),
+					    cmd & ~EHCI_PS_FPR);
+			}
+		}
+
+		EOWRITE4(sc, EHCI_USBCMD, sc->sc_cmd);
+
+		for (i = 0; i < 100; i++) {
+			hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
+			if (hcr != EHCI_STS_HCH)
+				break;
+
+			usb_delay_ms(&sc->sc_bus, 1);
+		}
+		if (hcr == EHCI_STS_HCH) {
+			printf("%s: config timeout\n",
+			    USBDEVNAME(sc->sc_bus.bdev));
+		}
+
+		usb_delay_ms(&sc->sc_bus, USB_RESUME_WAIT);
+
 		sc->sc_bus.use_polling--;
 		break;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
