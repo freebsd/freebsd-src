@@ -724,18 +724,19 @@ const int			lastditch;
 		name += stdlen;
 		if (stdlen >= sizeof sp->chars)
 			stdlen = (sizeof sp->chars) - 1;
+		stdoffset = 0;
 	} else {
 		name = getzname(name);
 		stdlen = name - stdname;
 		if (stdlen < 3)
 			return -1;
-	}
-	if (*name == '\0')
-		return -1;	/* was "stdoffset = 0;" */
-	else {
-		name = getoffset(name, &stdoffset);
-		if (name == NULL)
-			return -1;
+		if (*name == '\0')
+			return -1;	/* was "stdoffset = 0;" */
+		else {
+			name = getoffset(name, &stdoffset);
+			if (name == NULL)
+				return -1;
+		}
 	}
 	load_result = tzload(TZDEFRULES, sp);
 	if (load_result != 0)
