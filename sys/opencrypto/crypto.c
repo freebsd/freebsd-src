@@ -115,6 +115,7 @@ static	void cryptoret(void);		/* kernel thread for callbacks*/
 static	struct proc *cryptoproc;
 static	void crypto_destroy(void);
 static	int crypto_invoke(struct cryptop *crp, int hint);
+static	int crypto_kinvoke(struct cryptkop *krp, int hint);
 
 static struct cryptostats cryptostats;
 SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
@@ -604,7 +605,9 @@ crypto_unblock(u_int32_t driverid, int what)
 int
 crypto_dispatch(struct cryptop *crp)
 {
-	int s, wasempty;
+	u_int32_t hid = SESID2HID(crp->crp_sid);
+	struct cryptocap *cap;
+	int s, result;
 
 	cryptostats.cs_ops++;
 
@@ -613,18 +616,30 @@ crypto_dispatch(struct cryptop *crp)
 		nanouptime(&crp->crp_tstamp);
 #endif
 	s = splcrypto();
-	wasempty = TAILQ_EMPTY(&crp_q);
-	TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-	/*
-	 * NB: We could here check if the session id is valid and if
-	 *     the driver is blocked; but since cryptointr will do this
-	 *     too, just let it.
-	 */
-	if (wasempty)
-		setsoftcrypto();
+	cap = crypto_checkdriver(hid);
+	if (cap && !cap->cc_qblocked) {
+		result = crypto_invoke(crp, 0);
+		if (result == ERESTART) {
+			/*
+			 * The driver ran out of resources, mark the
+			 * driver ``blocked'' for cryptop's and put
+			 * the op on the queue.
+			 */
+			crypto_drivers[hid].cc_qblocked = 1;
+			TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
+			cryptostats.cs_blocks++;
+		}
+	} else {
+		/*
+		 * The driver is blocked, just queue the op until
+		 * it unblocks and the swi thread gets kicked.
+		 */
+		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
+		result = 0;
+	}
 	splx(s);
 
-	return 0;
+	return result;
 }
 
 /*
@@ -634,23 +649,36 @@ crypto_dispatch(struct cryptop *crp)
 int
 crypto_kdispatch(struct cryptkop *krp)
 {
-	int s, wasempty;
+	struct cryptocap *cap;
+	int s, result;
 
 	cryptostats.cs_kops++;
 
 	s = splcrypto();
-	wasempty = TAILQ_EMPTY(&crp_kq);
-	TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
-	/*
-	 * NB: We could here check if the session id is valid and if
-	 *     the driver is blocked; but since cryptointr will do this
-	 *     too, just let it.
-	 */
-	if (wasempty)
-		setsoftcrypto();
+	cap = crypto_checkdriver(krp->krp_hid);
+	if (cap && !cap->cc_kqblocked) {
+		result = crypto_kinvoke(krp, 0);
+		if (result == ERESTART) {
+			/*
+			 * The driver ran out of resources, mark the
+			 * driver ``blocked'' for cryptop's and put
+			 * the op on the queue.
+			 */
+			crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
+			TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
+			cryptostats.cs_kblocks++;
+		}
+	} else {
+		/*
+		 * The driver is blocked, just queue the op until
+		 * it unblocks and the swi thread gets kicked.
+		 */
+		TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
+		result = 0;
+	}
 	splx(s);
 
-	return 0;
+	return result;
 }
 
 /*
