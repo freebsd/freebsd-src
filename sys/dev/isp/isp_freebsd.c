@@ -1149,13 +1149,10 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 			((fcparam *)isp->isp_param)->isp_loopid;
 		atiop->ccb_h.target_lun = lun;
 	}
-	if (aep->at_status & QLTM_SVALID) {
-		size_t amt = imin(QLTM_SENSELEN, sizeof (atiop->sense_data));
-		atiop->sense_len = amt;
-		MEMCPY(&atiop->sense_data, aep->at_sense, amt);
-	} else {
-		atiop->sense_len = 0;
-	}
+	/*
+	 * We don't get 'suggested' sense data as we do with SCSI cards.
+	 */
+	atiop->sense_len = 0;
 
 	atiop->init_id = aep->at_iid;
 	atiop->cdb_len = ATIO2_CDBLEN;

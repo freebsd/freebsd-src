@@ -262,9 +262,8 @@ typedef struct {
 	u_int8_t	at_cdb[ATIO2_CDBLEN];	/* received CDB */
 	u_int32_t	at_datalen;		/* allocated data len */
 	u_int16_t	at_scclun;	/* SCC Lun or reserved */
-	u_int16_t	at_reserved2;
-	u_int16_t	at_scsi_status;
-	u_int8_t	at_sense[QLTM_SENSELEN];
+	u_int16_t	at_reserved2[10];
+	u_int16_t	at_oxid;
 } at2_entry_t;
 
 #define	ATIO2_WWPN_OFFSET	0x2A
