@@ -1,9 +1,9 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.71 1995/11/03 22:53:05 peter Exp $
+#	$Id: Makefile,v 1.72 1995/11/05 19:24:19 joerg Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot \
-	cron crunch ctm dev_mkdb diskpart edquota fsdb inetd kernbb \
+	cron crunch ctm dev_mkdb diskpart edquota inetd kernbb \
 	kgmon kvm_mkdb lpr lsdev manctl mkdosfs mrouted mtree named \
 	nslookup pcvt pkg_install pkg_manage portmap ppp pppd \
 	pppstats pstat pwd_mkdb quot quotaon rarpd repquota rmt \
