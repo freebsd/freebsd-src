@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.16 1997/02/22 09:39:27 peter Exp $
+ * $Id: uipc_domain.c,v 1.17 1997/04/27 20:00:42 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -157,7 +157,9 @@ kludge_splx(udata)
 
 
 struct protosw *
-pffindtype(int family, int type)
+pffindtype(family, type)
+	int family;
+	int type;
 {
 	register struct domain *dp;
 	register struct protosw *pr;
@@ -174,7 +176,10 @@ found:
 }
 
 struct protosw *
-pffindproto(int family, int protocol, int type)
+pffindproto(family, protocol, type)
+	int family;
+	int protocol;
+	int type;
 {
 	register struct domain *dp;
 	register struct protosw *pr;

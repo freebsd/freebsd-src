@@ -519,8 +519,10 @@ static	void	*snp_devfs_token[NSNP];
 #endif
 static snp_devsw_installed = 0;
 
+static void snp_drvinit __P((void *unused));
 static void
-snp_drvinit(void *unused)
+snp_drvinit(unused)
+	void *unused;
 {
 	dev_t dev;
 #ifdef DEVFS

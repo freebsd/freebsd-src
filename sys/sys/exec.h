@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.15 1997/02/22 09:45:11 peter Exp $
+ * $Id: exec.h,v 1.16 1997/09/07 05:27:08 bde Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -67,7 +67,7 @@ struct ps_strings {
 struct image_params;
 
 struct execsw {
-	int (*ex_imgact)(struct image_params *);
+	int (*ex_imgact) __P((struct image_params *));
 	const char *ex_name;
 };
 
