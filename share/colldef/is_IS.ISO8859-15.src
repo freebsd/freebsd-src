@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 #
-charmap map.DIS_8859-15
+charmap map.ISO_8859-15
 order \
 # controls
 	<NU>;...;<US>;<PA>;...;<AC>;\
