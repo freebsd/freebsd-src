@@ -78,7 +78,18 @@
 .Ft "int"
 .Fn dialog_textbox "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 .Ft "int"
-.Fn dialog_menu "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int menu_height" "int item_no" "void *itptr" "unsigned char *result, int *ch, int *sc"
+.Fo dialog_menu
+.Fa "unsigned char *title"
+.Fa "unsigned char *prompt"
+.Fa "int height"
+.Fa "int width"
+.Fa "int menu_height"
+.Fa "int item_no"
+.Fa "void *itptr"
+.Fa "unsigned char *result"
+.Fa "int *ch"
+.Fa "int *sc"
+.Fc
 .Ft "int"
 .Fn dialog_checklist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int m_height" "int item_no" "void *itptr" "unsigned char *result"
 .Ft "int"
@@ -341,7 +352,7 @@ integer representing the number of
 structures pointed to by
 .Va itptr
 (which should be of type
-.Va dialogMenuItem "*" ),
+.Vt dialogMenuItem "*" ) ,
 one structure per item.  In the new interface, the
 .Va result
 variable is used as a simple boolean (not a pointer) and should be NULL if
