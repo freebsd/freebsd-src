@@ -167,7 +167,7 @@ malloc(size, type, flags)
 #endif
 	register struct malloc_type *ksp = type;
 
-/* #ifdef INVARIANTS */
+#ifdef INVARIANTS
 	/*
 	 * To make sure that WAITOK or NOWAIT is set, but not more than
 	 * one, and check against the API botches that are common.
@@ -183,7 +183,7 @@ malloc(size, type, flags)
 			once++;
 		}
 	}
-/* #endif */
+#endif
 #if 0
 	if (size == 0)
 		Debugger("zero size malloc");

@@ -614,7 +614,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 	struct mb_bucket *bucket;
 	void *m;
 
-/* #ifdef INVARIANTS */
+#ifdef INVARIANTS
 	int flags;
 	
 	flags = how & (M_WAITOK | M_NOWAIT | M_DONTWAIT | M_TRYWAIT);
@@ -627,7 +627,7 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 			how = M_TRYWAIT;
 		}
 	}
-/* #endif */
+#endif
 
 	m = NULL;
 	if ((persist & MBP_PERSISTENT) != 0) {
