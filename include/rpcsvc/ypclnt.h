@@ -81,8 +81,8 @@ int	yp_next(char *indomain, char *inmap, char *inkey, int inkeylen,
 int	yp_master(char *indomain, char *inmap, char **outname);
 int	yp_order(char *indomain, char *inmap, int *outorder);
 int	yp_all(char *indomain, char *inmap, struct ypall_callback *incallback);
-char *	yperr_string(int incode);
-char *	ypbinderr_string(int incode);
+const char *yperr_string(int incode);
+const char *ypbinderr_string(int incode);
 int	ypprot_err(unsigned int incode);
 __END_DECLS
 

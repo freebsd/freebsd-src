@@ -84,8 +84,8 @@ create tcp handle"));
 	ypresp_allfn = callback;
 	ypresp_data = NULL;
 
-	(void)clnt_call(clnt, YPPROC_ALL, xdr_ypreq_nokey, &req,
-		xdr_ypresp_all_seq, &status, timeout);
+	(void)clnt_call(clnt, YPPROC_ALL, (xdrproc_t)xdr_ypreq_nokey, &req,
+	    (xdrproc_t)xdr_ypresp_all_seq, &status, timeout);
 
 	clnt_destroy(clnt);
 

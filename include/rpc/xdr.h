@@ -138,7 +138,7 @@ typedef	bool_t (*xdrproc_t)(XDR *, void *, u_int);
 /*
  * XXX can't actually prototype it, because some take three args!!!
  */
-typedef	bool_t (*xdrproc_t)(/* XDR *, void *, u_int */);
+typedef	bool_t (*xdrproc_t)(XDR *, ...);
 #endif
 
 /*
@@ -314,7 +314,7 @@ extern bool_t	xdr_quadruple(XDR *, long double *);
 extern bool_t	xdr_reference(XDR *, char **, u_int, xdrproc_t);
 extern bool_t	xdr_pointer(XDR *, char **, u_int, xdrproc_t);
 extern bool_t	xdr_wrapstring(XDR *, char **);
-extern void	xdr_free(xdrproc_t, char *);
+extern void	xdr_free(xdrproc_t, void *);
 extern bool_t	xdr_hyper(XDR *, quad_t *);
 extern bool_t	xdr_u_hyper(XDR *, u_quad_t *);
 extern bool_t	xdr_longlong_t(XDR *, quad_t *);
@@ -347,9 +347,9 @@ extern void   xdrstdio_create(XDR *, FILE *, enum xdr_op);
 #endif
 
 /* XDR pseudo records for tcp */
-extern void   xdrrec_create(XDR *, u_int, u_int, char *,
-			    int (*)(char *, char *, int),
-			    int (*)(char *, char *, int));
+extern void   xdrrec_create(XDR *, u_int, u_int, void *,
+			    int (*)(void *, void *, int),
+			    int (*)(void *, void *, int));
 
 /* make end of xdr record */
 extern bool_t xdrrec_endofrecord(XDR *, int);

@@ -110,7 +110,7 @@ typedef struct rec_strm {
 	/*
 	 * out-goung bits
 	 */
-	int (*writeit)(char *, char *, int);
+	int (*writeit)(void *, void *, int);
 	char *out_base;	/* output buffer (points to frag header) */
 	char *out_finger;	/* next output position */
 	char *out_boundry;	/* data cannot up to this address */
@@ -119,7 +119,7 @@ typedef struct rec_strm {
 	/*
 	 * in-coming bits
 	 */
-	int (*readit)(char *, char *, int);
+	int (*readit)(void *, void *, int);
 	u_long in_size;	/* fixed size of the input buffer */
 	char *in_base;
 	char *in_finger;	/* location of next byte to be had */
@@ -152,11 +152,11 @@ xdrrec_create(xdrs, sendsize, recvsize, tcp_handle, readit, writeit)
 	XDR *xdrs;
 	u_int sendsize;
 	u_int recvsize;
-	char *tcp_handle;
+	void *tcp_handle;
 	/* like read, but pass it a tcp_handle, not sock */
-	int (*readit)(char *, char *, int);
+	int (*readit)(void *, void *, int);
 	/* like write, but pass it a tcp_handle, not sock */
-	int (*writeit)(char *, char *, int);
+	int (*writeit)(void *, void *, int);
 {
 	RECSTREAM *rstrm = mem_alloc(sizeof(RECSTREAM));
 

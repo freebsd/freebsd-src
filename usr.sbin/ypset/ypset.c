@@ -100,7 +100,8 @@ bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 	client->cl_auth = authunix_create_default();
 
 	r = clnt_call(client, YPBINDPROC_SETDOM,
-		xdr_ypbind_setdom, &ypsd, xdr_void, NULL, tv);
+		(xdrproc_t)xdr_ypbind_setdom, &ypsd,
+		(xdrproc_t)xdr_void, NULL, tv);
 	if (r) {
 		warnx("sorry, cannot ypset for domain %s on host", dom);
 		clnt_destroy(client);
