@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: ipcp.c,v 1.13 1997/02/22 16:10:20 peter Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -118,7 +118,7 @@ IpcpStartReport()
   StartTimer(&IpcpReportTimer);
 }
 
-void
+int
 ReportIpcpStatus()
 {
   struct ipcpstate *icp = &IpcpInfo;
@@ -137,6 +137,7 @@ ReportIpcpStatus()
      inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
   printf(" Negotiation: %s/%d\n",
      inet_ntoa(DefTriggerAddress.ipaddr), DefTriggerAddress.width);
+  return 0;
 }
 
 void
@@ -267,12 +268,15 @@ struct fsm *fp;
 #ifdef VERBOSE
   fprintf(stderr, "%s: LayerUp(%d).\r\n", fp->name, fp->state);
 #endif
-  Prompt(1);
+  Prompt();
   LogPrintf(LOG_LCP_BIT, "%s: LayerUp.\n", fp->name);
   snprintf(tbuff, sizeof(tbuff), "myaddr = %s ", 
     inet_ntoa(IpcpInfo.want_ipaddr));
   LogPrintf(LOG_LCP_BIT|LOG_LINK_BIT, " %s hisaddr = %s\n", tbuff, inet_ntoa(IpcpInfo.his_ipaddr));
-  OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask);
+  if (OsSetIpaddress(IpcpInfo.want_ipaddr, IpcpInfo.his_ipaddr, ifnetmask) < 0) {
+     printf("unable to set ip address\n");
+     return;
+  }
   OsLinkup();
   IpcpStartReport();
   StartIdleTimer();

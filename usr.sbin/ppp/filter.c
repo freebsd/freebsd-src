@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: filter.c,v 1.8 1997/02/22 16:10:12 peter Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -67,7 +67,7 @@ int *pwidth;
     return(0);
   }
 
-  pmask->s_addr = -1;		/* Assume 255.255.255.255 as default */
+  pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
   cp = index(*argv, '/');
   if (cp) *cp++ = '\0';
   addr = inet_addr(*argv);
