@@ -128,6 +128,7 @@
 typedef struct sc_vtb {
 	int		vtb_flags;
 #define VTB_VALID	(1 << 0)
+#define VTB_ALLOCED	(1 << 1)
 	int		vtb_type;
 #define VTB_INVALID	0
 #define VTB_MEMORY	1
