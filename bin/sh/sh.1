@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.8 1996/09/03 14:15:59 peter Exp $
+.\"	$Id: sh.1,v 1.9 1996/10/29 03:12:51 steve Exp $
 .\"
 .na
 .TH SH 1
@@ -200,11 +200,11 @@ no effect when set after the shell has already started
 running (i.e. with set(1)).
 .TP
 -V    vi
-Enable the builtin vi(1) command line editor (disables
+Enable the built-in vi(1) command line editor (disables
 -E if it has been set).
 .TP
 -E    emacs
-Enable the builtin emacs(1) command line editor (disables
+Enable the built-in emacs(1) command line editor (disables
 -V if it has been set).
 .TP
 -b    notify
@@ -250,7 +250,8 @@ a <newline> is treated as a line continuation.
 .sp
 .LP
 Enclosing characters in single quotes preserves the literal
-meaning of all the characters.
+meaning of all the characters (except single quotes, making
+it impossible to put single-quotes in a single-quoted string).
 .sp 2
 .B Double Quotes
 .sp
@@ -355,33 +356,33 @@ previously.  Following is a list of the possible redirections.
 The [n] is an optional number, as in '3' (not '[3]'), that
 refers to a file descriptor.
 .TP
-[n]> file	
+[n]> file
 Redirect standard output (or n) to file.
 .TP
-[n]>| file	
+[n]>| file
 Same, but override the -C option.
 .TP
-[n]>> file	
+[n]>> file
 Append standard output (or n) to file.
 .TP
-[n]< file	
+[n]< file
 Redirect standard input (or n) from file.
 .TP
-[n1]<&n2	
+[n1]<&n2
 Duplicate standard input (or n1) from
 file descriptor n2.
 .TP
-[n]<&-		
+[n]<&-
 Close standard input (or n).
 .TP
-[n1]>&n2	
+[n1]>&n2
 Duplicate standard output (or n) from
 n2.
 .TP
-[n]>&-		
+[n]>&-
 Close standard output (or n).
 .TP
-[n]<> file	
+[n]<> file
 Open file for reading and writing on
 standard input (or n).
 .LP
@@ -406,11 +407,13 @@ in the here-doc-text are stripped.
 .B Search and Execution
 .sp
 .LP
-There are three types of commands: shell functions, builtin commands, and normal programs -- and the
+There are three types of commands: shell functions,
+builtin commands, and normal programs -- and the
 command is searched for (by name) in that order.  They
 each are executed in a different way.
 .LP
-When a shell function is executed, all of the shell positional parameters (except $0, which remains unchanged) are
+When a shell function is executed, all of the shell positional
+parameters (except $0, which remains unchanged) are
 set to the arguments of the shell function.
 The variables which are explicitly placed in the environment of
 the command (by placing assignments to them before the
@@ -418,37 +421,49 @@ function name) are made local to the function and are set
 to the values given. Then the command given in the function
 definition is executed.   The positional parameters are
 restored to their original values when the command completes.
+This all occurs within the current shell.
 .LP
-Shell builtins are executed internally to the shell, without spawning a new process.
+Shell builtins are executed internally to the shell, without
+spawning a new process.
 .LP
 Otherwise, if the command name doesn't match a function
 or builtin, the command is searched for as a normal
 program in the filesystem (as described in the next section).
 When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the
-program. If the program is a shell procedure, the shell
-will interpret the program in a subshell.  The shell will
+program. If the program is not a normal executable file
+(i.e., if it does not begin with the "magic number"
+whose ASCII representation is "#!", so execve(2) returns
+ENOEXEC then) the shell
+will interpret the program in a subshell.  The child shell will
 reinitialize itself in this case, so that the effect will
-be as if a new shell had been invoked to handle the shell
-procedure, except that the location of commands located in
+be as if a new shell had been invoked to handle the ad-hoc shell
+script, except that the location of hashed commands located in
 the parent shell will be remembered by the child.
+.LP
+Note that previous versions of this document
+and the source code itself misleadingly and sporadically
+refer to a shell script without a magic number
+as a "shell procedure".
 .sp 2
 .B Path Search
 .sp
 .LP
 When locating a command, the shell first looks to see if
 it has a shell function by that name.  Then it looks for a
-builtin command by that name.
-Finally, it searches each
-entry in PATH in turn for the command.
-.LP
+builtin command by that name.  If a builtin command is not found,
+one of two things happen:
+.sp
+1) Command names containing a slash are simply executed without
+performing any searches.
+.sp
+2) The shell searches each entry in PATH in turn for the command.
 The value of the PATH variable should be a series of
 entries separated by colons.  Each entry consists of a
 directory name.
 The current directory
-may be indicated by an empty directory name.
-.LP
-Command names containing a slash are simply executed without performing any of the above searches.
+may be indicated implicitly by an empty directory name,
+or explicitly by a single period.
 .sp 2
 .B Command Exit Status
 .sp
@@ -459,7 +474,7 @@ with zero for normal or success, and non-zero for failure,
 error, or a false indication.  The man page for each command
 should indicate the various exit codes and what they mean.
 Additionally, the builtin commands return exit codes, as does
-an executed function.
+an executed shell function.
 .sp 2
 .B Complex Commands
 .sp
@@ -484,13 +499,14 @@ command.  More generally, a command is one of the following:
 Unless otherwise stated, the exit status of a command is
 that of the last simple command executed by the command.
 .sp 2
-.B Pipeline
+.B Pipelines
 .sp
 .LP
 A pipeline is a sequence of one or more commands separated
 by the control operator |.  The standard output of all but
 the last command is connected to the standard input
-of the next command.
+of the next command.  The standard output of the last
+command is inherited from the shell, as usual.
 .LP
 The format for a pipeline is:
 .nf
@@ -530,6 +546,12 @@ to the standard input of command2.
 A ; or <newline> terminator causes the preceding
 AND-OR-list (described next) to be executed sequentially; a & causes
 asynchronous execution of the preceding AND-OR-list.
+.LP
+Note that unlike some other shells, each process in the
+pipeline is a child of the invoking shell (unless it
+is a shell builtin, in which case it executes in the
+current shell -- but any effect it has on the
+environment is wiped).
 .sp 2
 .B Background Commands -- &
 .sp
@@ -560,6 +582,9 @@ If command is followed by an ampersand, the shell starts the
 command and immediately proceed onto the next command;
 otherwise it waits for the command to terminate before
 proceeding to the next one.
+.sp 2
+.B Short-Circuit List Operators
+.sp
 .LP
 ``&&'' and ``||'' are AND-OR list operators.  ``&&'' executes
 the first command, and then executes the second command
@@ -567,6 +592,9 @@ iff the exit status of the first command is zero.  ``||''
 is similar, but executes the second command iff the exit
 status of the first command is nonzero.  ``&&'' and ``||''
 both have the same priority.
+.sp 2
+.B Flow-Control Constructs -- if, while, for, case
+.sp
 .LP
 The syntax of the if command is
 .nf
@@ -587,7 +615,9 @@ The syntax of the while command is
     done
 
 .fi
-The two lists are executed repeatedly while the exit status of the first list is zero.  The until command is similar, but has the word until in place of while
+The two lists are executed repeatedly while the exit status of the
+first list is zero.  The until command is similar, but has the word
+until in place of while, which causes it to
 repeat until the exit status of the first list is zero.
 .LP
 The syntax of the for command is
@@ -610,7 +640,8 @@ The syntax of the break and continue command is
 
 .fi
 Break terminates the num innermost for or while loops.
-Continue continues with the next iteration of the innermost loop.  These are implemented as builtin commands.
+Continue continues with the next iteration of the innermost loop.
+These are implemented as builtin commands.
 .LP
 The syntax of the case command is
 .nf
@@ -624,7 +655,9 @@ The syntax of the case command is
 .LP
 The pattern can actually be one or more patterns (see Shell
 Patterns described later), separated by ``|'' characters.
-
+.sp 2
+.B Grouping Commands Together
+.sp
 .LP
 Commands may be grouped by writing either
 .nf
@@ -639,6 +672,17 @@ or
 
 .fi
 The first of these executes the commands in a subshell.
+Builtin commands grouped into a (list) will not affect
+the current shell.
+The second form does not fork another shell so is
+slightly more efficient.
+Grouping commands together this way allows you to
+redirect their output as though they were one program:
+.nf
+
+    { echo -n "hello"; echo " world" } > greeting
+
+.fi
 .sp 2
 .B Functions
 .sp
@@ -799,7 +843,7 @@ The $ character is used to introduce parameter expansion, command
 substitution, or arithmetic evaluation.
 .sp 2
 .B Tilde Expansion (substituting a user's home directory)
-.sp	
+.sp
 .LP
 A word beginning with an unquoted tilde character (~) is
 subjected to tilde expansion.  All the characters up to
@@ -889,13 +933,13 @@ String Length.  The length in characters of
 the value of parameter.
 .LP
 The following four varieties of parameter expansion provide for substring
-processing.  In each case, pattern matching notation (see Shell Patterns), rather
+processing.  In each case, pattern matching notation (see Shell Patterns),
+rather
 than regular expression notation, is used to evaluate the patterns.
 If parameter is * or @, the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
-(UNIMPLEMENTED IN 4.4alpha)
 .TP
 ${parameter%word}
 Remove Smallest Suffix Pattern.  The word
@@ -903,7 +947,6 @@ is expanded to produce a pattern.  The
 parameter expansion then results in
 parameter, with the smallest portion of the
 suffix matched by the pattern deleted.
-
 .TP
 ${parameter%%word}
 Remove Largest Suffix Pattern.  The word
@@ -991,12 +1034,14 @@ substitution into fields.
 .B Pathname Expansion (File Name Generation)
 .sp
 .LP
-Unless the -f flag is set, file name generation is performed after word splitting is complete.  Each word is
+Unless the -f flag is set, file name generation is performed
+after word splitting is complete.  Each word is
 viewed as a series of patterns, separated by slashes.  The
 process of expansion replaces the word with the names of
 all existing files whose names can be formed by replacing
 each pattern with a string that matches the specified pattern.
-There are two restrictions on this: first, a pattern cannot match a string containing a slash, and second,
+There are two restrictions on this: first, a pattern cannot match
+a string containing a slash, and second,
 a pattern cannot match a string starting with a period
 unless the first character of the pattern is a period.
 The next section describes the patterns used for both
@@ -1037,8 +1082,8 @@ minus sign, make it the first or last character listed
 .LP
 This section lists the builtin commands which
 are builtin because they need to perform some  operation
-that can't be performed by a separate process. In addition
-to these, there are several other commands that may
+that can't be performed by a separate process. In addition to
+these, there are several other commands that may
 be builtin for efficiency (e.g. printf(1), echo(1), test(1),
 etc).
 .TP
@@ -1060,8 +1105,8 @@ Continue the specified jobs (or the current job if no
 jobs are given) in the background.
 .TP
 command command arg...
-Execute the specified builtin command.  (This is useful
-when you have a shell function with the same name
+Execute the specified builtin command.  (This is useful when you
+have a shell function with the same name
 as a builtin command.)
 .TP
 cd [ directory ]
@@ -1071,7 +1116,8 @@ of the cd command or the shell variable CDPATH is set
 and the directory name does not begin with a slash,
 then the directories listed in CDPATH will be
 searched for the specified directory.  The format of
-CDPATH is the same as that of PATH. In an interactive shell, the cd command will print out the name of
+CDPATH is the same as that of PATH. In an interactive shell,
+the cd command will print out the name of
 the directory that it actually switched to if this is
 different from the name that the user gave.  These
 may be different either because the CDPATH mechanism
@@ -1085,7 +1131,8 @@ exec [ command arg...  ]
 Unless command is omitted, the shell process is
 replaced with the specified program (which must be a
 real program, not a shell builtin or function).   Any
-redirections on the exec command are marked as permanent, so that they are not undone when the exec command finishes.
+redirections on the exec command are marked as permanent,
+so that they are not undone when the exec command finishes.
 .TP
 exit [ exitstatus ]
 Terminate the shell process.  If exitstatus is given
@@ -1183,6 +1230,14 @@ foreground.
 .TP
 getopts optstring var
 The POSIX getopts command.
+The getopts command deprecates the older getopt command.
+The first argument should be a series of letters, each possibly
+followed by a colon which indicates that the option takes an argument.
+The specified variable is set to the parsed option.  The index of
+the next argument is placed into the shell variable OPTIND.
+If an option takes an argument, it is placed into the shell variable
+OPTARG.  If an invalid option is encountered, var is set to '?'.
+It returns a false value (1) when it encounters the end of the options.
 .TP
 hash -rv command...
 The shell maintains a hash table which remembers the
@@ -1192,8 +1247,8 @@ table.  Entries which have not been looked at since
 the last cd command are marked with an asterisk; it
 is possible for these entries to be invalid.
 .sp
-With arguments, the hash command removes the specified
-commands from the hash table (unless they are
+With arguments, the hash command removes the specified commands
+from the hash table (unless they are
 functions) and then locates them.   With the -v
 option, hash prints the locations of the commands as
 it finds them.  The -r option causes the hash command
@@ -1261,7 +1316,8 @@ called ``Argument List Processing''.
 The third use of the set command is to set the values
 of the shell's positional parameters to the specified
 args.   To change the positional parameters without
-changing any options, use ``--'' as the first argument to set.  If no args are present, the set command
+changing any options, use ``--'' as the first argument
+to set.  If no args are present, the set command
 will clear all the positional parameters (equivalent
 to executing ``shift $#''.
 .TP
@@ -1341,8 +1397,8 @@ The maximal amount of CPU time to be used by each process, in seconds.
 .RE
 .TP
 umask [ mask ]
-Set the value of umask (see umask(2)) to the specified octal value.
-If the argument is omitted, the
+Set the value of umask (see umask(2)) to the specified
+octal value. If the argument is omitted, the
 umask value is printed.
 .TP
 unalias [-a] [name]

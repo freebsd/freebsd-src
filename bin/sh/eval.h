@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)eval.h	8.2 (Berkeley) 5/4/95
- *	$Id: eval.h,v 1.2 1994/09/24 02:57:31 davidg Exp $
+ *	$Id: eval.h,v 1.3 1996/09/01 10:19:59 peter Exp $
  */
 
 extern char *commandname;	/* currently executing command */
@@ -64,3 +64,10 @@ int execcmd __P((int, char **));
 /* in_function returns nonzero if we are currently evaluating a function */
 #define in_function()	funcnest
 extern int funcnest;
+extern int evalskip;
+
+/* reasons for skipping commands (see comment on breakcmd routine) */
+#define SKIPBREAK	1
+#define SKIPCONT	2
+#define SKIPFUNC	3
+#define SKIPFILE	4

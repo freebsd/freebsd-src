@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: parser.c,v 1.16 1996/09/10 02:42:33 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+static char const sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -120,7 +120,7 @@ STATIC int readtoken1 __P((int, char const *, char *, int));
 STATIC int noexpand __P((char *));
 STATIC void synexpect __P((int));
 STATIC void synerror __P((char *));
-STATIC void setprompt __P((int)); 
+STATIC void setprompt __P((int));
 
 
 /*
@@ -129,7 +129,7 @@ STATIC void setprompt __P((int));
  */
 
 union node *
-parsecmd(interact) 
+parsecmd(interact)
 	int interact;
 {
 	int t;
@@ -151,7 +151,7 @@ parsecmd(interact)
 
 
 STATIC union node *
-list(nlflag) 
+list(nlflag)
 	int nlflag;
 {
 	union node *n1, *n2, *n3;
@@ -249,16 +249,10 @@ andor() {
 
 STATIC union node *
 pipeline() {
-	union node *n1, *pipenode, *notnode;
+	union node *n1, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate = 0;
 
 	TRACE(("pipeline: entered\n"));
-	while (readtoken() == TNOT) {
-		TRACE(("pipeline: TNOT recognized\n"));
-		negate = !negate;
-	}
-	tokpushback++;
 	n1 = command();
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
@@ -277,12 +271,6 @@ pipeline() {
 		n1 = pipenode;
 	}
 	tokpushback++;
-	if (negate) {
-		notnode = (union node *)stalloc(sizeof (struct nnot));
-		notnode->type = NNOT;
-		notnode->nnot.com = n1;
-		n1 = notnode;
-	}
 	return n1;
 }
 
@@ -294,17 +282,24 @@ command() {
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t;
+	int t, negate = 0;
 
 	checkkwd = 2;
 	redir = NULL;
 	n1 = NULL;
 	rpp = &redir;
+
 	/* Check for redirection which may precede command */
 	while (readtoken() == TREDIR) {
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
+	}
+	tokpushback++;
+
+	while (readtoken() == TNOT) {
+		TRACE(("command: TNOT recognized\n"));
+		negate = !negate;
 	}
 	tokpushback++;
 
@@ -473,14 +468,15 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		 */
 		if (!redir)
 			synexpect(-1);
-	case TAND:	/* XXX merge query! */
-	case TOR:	/* XXX merge query! */
+	case TAND:
+	case TOR:
 	case TNL:
 	case TEOF:
 	case TWORD:
 	case TRP:
 		tokpushback++;
-		return simplecmd(rpp, redir);
+		n1 = simplecmd(rpp, redir);
+		goto checkneg;
 	default:
 		synexpect(-1);
 	}
@@ -502,7 +498,16 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		}
 		n1->nredir.redirect = redir;
 	}
-	return n1;
+
+checkneg:
+	if (negate) {
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n1;
+		return n2;
+	}
+	else
+		return n1;
 }
 
 
@@ -512,7 +517,8 @@ simplecmd(rpp, redir)
 	{
 	union node *args, **app;
 	union node **orig_rpp = rpp;
-	union node *n = NULL;
+	union node *n = NULL, *n2;
+	int negate = 0;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -527,6 +533,12 @@ simplecmd(rpp, redir)
 	 * the function name and the open parenthesis.
 	 */
 	orig_rpp = rpp;
+
+	while (readtoken() == TNOT) {
+		TRACE(("command: TNOT recognized\n"));
+		negate = !negate;
+	}
+	tokpushback++;
 
 	for (;;) {
 		if (readtoken() == TWORD) {
@@ -551,7 +563,7 @@ simplecmd(rpp, redir)
 #endif
 			n->type = NDEFUN;
 			n->narg.next = command();
-			return n;
+			goto checkneg;
 		} else {
 			tokpushback++;
 			break;
@@ -564,7 +576,16 @@ simplecmd(rpp, redir)
 	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
 	n->ncmd.redirect = redir;
-	return n;
+
+checkneg:
+	if (negate) {
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n;
+		return n2;
+	}
+	else
+		return n;
 }
 
 STATIC union node *
@@ -593,7 +614,7 @@ void fixredir(n, text, err)
 	else if (text[0] == '-' && text[1] == '\0')
 		n->ndup.dupfd = -1;
 	else {
-		
+
 		if (err)
 			synerror("Bad fd number");
 		else
@@ -704,12 +725,12 @@ readtoken() {
 		/*
 		 * check for keywords and aliases
 		 */
-		if (t == TWORD && !quoteflag) 
+		if (t == TWORD && !quoteflag)
 		{
 			register char * const *pp;
 
 			for (pp = (char **)parsekwd; *pp; pp++) {
-				if (**pp == *wordtext && equal(*pp, wordtext)) 
+				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
 					lasttoken = t = pp - parsekwd + KWDOFFSET;
 					TRACE(("keyword %s recognized\n", tokname[t]));
@@ -724,7 +745,7 @@ readtoken() {
 			}
 		}
 out:
-		checkkwd = 0;
+		checkkwd = (t == TNOT) ? savecheckkwd : 0;
 	}
 #ifdef DEBUG
 	if (!alreadyseen)
@@ -1207,7 +1228,7 @@ badsub:				synerror("Bad substitution");
 				subtype = p - types + VSNORMAL;
 				break;
 			case '%':
-			case '#': 
+			case '#':
 				{
 					int cc = c;
 					subtype = c == '#' ? VSTRIMLEFT :
@@ -1248,6 +1269,11 @@ parsebackq: {
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler;
 	int savelen;
+	int saveprompt;
+#if __GNUC__
+	/* Avoid longjmp clobbering */
+	(void) &saveprompt;
+#endif
 
 	savepbq = parsebackquote;
 	if (setjmp(jmploc.loc)) {
@@ -1276,20 +1302,53 @@ parsebackq: {
                 int savelen;
                 char *str;
 
+
                 STARTSTACKSTR(out);
-                while ((c = pgetc ()) != '`') {
-                       if (c == PEOF) {
-                                startlinno = plinno;
-                                synerror("EOF in backquote substitution");
-                       }
-                       if (c == '\\') {
-                                c = pgetc ();
+		for (;;) {
+			if (needprompt) {
+				setprompt(2);
+				needprompt = 0;
+			}
+			switch (c = pgetc()) {
+			case '`':
+				goto done;
+
+			case '\\':
+                                if ((c = pgetc()) == '\n') {
+					plinno++;
+					if (doprompt)
+						setprompt(2);
+					else
+						setprompt(0);
+					/*
+					 * If eating a newline, avoid putting
+					 * the newline into the new character
+					 * stream (via the STPUTC after the
+					 * switch).
+					 */
+					continue;
+				}
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         STPUTC('\\', out);
-                       }
-                       STPUTC(c, out);
+				break;
+
+			case '\n':
+				plinno++;
+				needprompt = doprompt;
+				break;
+
+			case PEOF:
+			        startlinno = plinno;
+				synerror("EOF in backquote substitution");
+ 				break;
+
+			default:
+				break;
+			}
+			STPUTC(c, out);
                 }
+done:
                 STPUTC('\0', out);
                 savelen = out - stackblock();
                 if (savelen > 0) {
@@ -1304,13 +1363,30 @@ parsebackq: {
 	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 	(*nlpp)->next = NULL;
 	parsebackquote = oldstyle;
+
+	if (oldstyle) {
+		saveprompt = doprompt;
+		doprompt = 0;
+	}
+
 	n = list(0);
-        if (!oldstyle && (readtoken() != TRP))
-                synexpect(TRP);
+
+	if (oldstyle)
+		doprompt = saveprompt;
+	else {
+		if (readtoken() != TRP)
+			synexpect(TRP);
+	}
+
 	(*nlpp)->n = n;
-        /* Start reading from old file again.  */
-        if (oldstyle)
+        if (oldstyle) {
+		/*
+		 * Start reading from old file again, ignoring any pushed back
+		 * tokens left from the backquote parsing
+		 */
                 popfile();
+		tokpushback = 0;
+	}
 	while (stackblocksize() <= savelen)
 		growstackblock();
 	STARTSTACKSTR(out);
@@ -1416,7 +1492,7 @@ goodname(name)
  */
 
 STATIC void
-synexpect(token) 
+synexpect(token)
 	int token;
 {
 	char msg[64];
