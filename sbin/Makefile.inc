@@ -4,6 +4,6 @@
 BINDIR?=	/sbin
 WARNS?=	2
 
-.if defined(NO_DYNAMICROOT)
+.if defined(NO_DYNAMICROOT) || ${MACHINE_ARCH} == "ia64"
 NOSHARED?=	YES
 .endif
