@@ -2,7 +2,7 @@
 This driver was updated to VoxWare v3.0 pre-release and ad1848 support was
 enabled (since it works for me :)
 
-To configure the sound driver, some resemblene of one or more of these in your
+To configure the sound driver, one or more of these entries should go in your
 config file:
 
 device snd5 at isa? port 0x330 irq 6 vector mpuintr		# MPU-401
@@ -14,7 +14,9 @@ device snd7 at isa? port 0x300					# YM3812 ???
 device snd1 at isa? port 0x388					# ADLIB
 device snd10 at isa? port 0x530 irq 10 drq 1 vector adintr	# MSS
 
-The add some of these (no need for EXCLUDE_BLAH anymore):
+Then add some of these (no need for EXCLUDE_BLAH anymore):
+
+[ Need to know if multiple entries required! - jkh ]
 
 options AUDIO_PAS
 options AUDIO_SB
