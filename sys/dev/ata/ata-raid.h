@@ -76,7 +76,8 @@ struct ar_softc {
     int			offset;		/* offset from start of disk */
     u_int64_t		lock_start;	/* start of locked area for rebuild */
     u_int64_t		lock_end;	/* end of locked area for rebuild */
-    struct		disk disk;	/* disklabel/slice stuff */
+    struct disk		disk;		/* disklabel/slice stuff */
+    struct proc		*pid;		/* rebuilder process id */
     dev_t		dev;		/* device place holder */
 };
 
@@ -224,4 +225,3 @@ int ata_raiddisk_attach(struct ad_softc *);
 int ata_raiddisk_detach(struct ad_softc *);
 void ata_raid_attach(void);
 int ata_raid_rebuild(int);
-

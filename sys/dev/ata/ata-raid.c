@@ -33,6 +33,7 @@
 #include <sys/systm.h> 
 #include <sys/ata.h> 
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -40,6 +41,8 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cons.h>
+#include <sys/unistd.h>
+#include <sys/kthread.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
@@ -69,7 +72,7 @@ static struct cdevsw ardisk_cdevsw;
 /* prototypes */
 static void ar_done(struct bio *);
 static void ar_config_changed(struct ar_softc *, int);
-static int ar_rebuild(struct ar_softc *);
+static void ar_rebuild(void *);
 static int ar_highpoint_read_conf(struct ad_softc *, struct ar_softc **);
 static int ar_highpoint_write_conf(struct ar_softc *);
 static int ar_promise_read_conf(struct ad_softc *, struct ar_softc **);
@@ -238,7 +241,10 @@ ata_raid_rebuild(int array)
 
     if (!ar_table || !(rdp = ar_table[array]))
 	return ENXIO;
-    return ar_rebuild(rdp);
+    if (rdp->flags & AR_F_REBUILDING)
+	return EBUSY;
+    return kthread_create(ar_rebuild, rdp, &rdp->pid, RFNOWAIT,
+			  "rebuilding ar%d", array);
 }
 
 static int
@@ -351,13 +357,11 @@ arstrategy(struct bio *bp)
 
 	case AR_F_RAID1:
 	case AR_F_RAID0 | AR_F_RAID1:
-	    if (rdp->flags & AR_F_REBUILDING) {
-		int start = rdp->lock_start / rdp->width;
-		int end = rdp->lock_end / rdp->width;
-
-		if ((bp->bio_pblkno >= end && bp->bio_pblkno < end) ||
-		     ((bp->bio_pblkno + chunk) >= start &&
-		      (bp->bio_pblkno + chunk) < end)) {
+	    if (rdp->flags & AR_F_REBUILDING && bp->bio_cmd == BIO_WRITE) {
+		if ((bp->bio_pblkno >= rdp->lock_start &&
+		     bp->bio_pblkno < rdp->lock_end) ||
+		    ((bp->bio_pblkno + chunk) > rdp->lock_start &&
+		     (bp->bio_pblkno + chunk) <= rdp->lock_end)) {
 		    tsleep(rdp, PRIBIO, "arwait", 0);
 		}
 	    }
@@ -391,8 +395,14 @@ arstrategy(struct bio *bp)
 			buf1->drive = buf1->drive + rdp->width;
 	    }
 	    if (bp->bio_cmd == BIO_WRITE) {
-		if (rdp->disks[buf1->drive + rdp->width].flags & AR_DF_ONLINE) {
-		    if (rdp->disks[buf1->drive].flags & AR_DF_ONLINE) {
+		if ((rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE) ||
+		    ((rdp->flags & AR_F_REBUILDING) &&
+		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_SPARE) &&
+		     buf1->bp.bio_pblkno < rdp->lock_start)) {
+		    if ((rdp->disks[buf1->drive].flags & AR_DF_ONLINE) ||
+			((rdp->flags & AR_F_REBUILDING) &&
+			 (rdp->disks[buf1->drive].flags & AR_DF_SPARE) &&
+			 buf1->bp.bio_pblkno < rdp->lock_start)) {
 			buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
 			bcopy(buf1, buf2, sizeof(struct ar_buf));
 			buf1->mirror = buf2;
@@ -550,14 +560,15 @@ ar_config_changed(struct ar_softc *rdp, int writeback)
     }
 }
 
-static int
-ar_rebuild(struct ar_softc *rdp)
+static void
+ar_rebuild(void *arg)
 {
+    struct ar_softc *rdp = arg;
     int disk, s, count = 0, error = 0;
     caddr_t buffer;
 
     if ((rdp->flags & (AR_F_READY|AR_F_DEGRADED)) != (AR_F_READY|AR_F_DEGRADED))
-	return EEXIST;
+	kthread_exit(EEXIST);
 
     for (disk = 0; disk < rdp->total_disks; disk++) {
 	if (((rdp->disks[disk].flags&(AR_DF_PRESENT|AR_DF_ONLINE|AR_DF_SPARE))==
@@ -574,7 +585,7 @@ ar_rebuild(struct ar_softc *rdp)
 	}
     }
     if (!count)
-	return ENODEV;
+	kthread_exit(ENODEV);
 
     /* setup start conditions */
     s = splbio();
@@ -618,13 +629,15 @@ ar_rebuild(struct ar_softc *rdp)
 	if (error) {
 	    wakeup(rdp);
 	    free(buffer, M_AR);
-	    return error;
+	    kthread_exit(error);
 	}
 	s = splbio();
 	rdp->lock_start = rdp->lock_end;
 	rdp->lock_end = rdp->lock_start + size;
 	splx(s);
 	wakeup(rdp);
+	sprintf(rdp->pid->p_comm, "rebuilding ar%d %lld%%",
+		rdp->lun, 100*rdp->lock_start/(rdp->total_sectors/rdp->width));
     }
     free(buffer, M_AR);
     for (disk = 0; disk < rdp->total_disks; disk++) {
@@ -640,7 +653,7 @@ ar_rebuild(struct ar_softc *rdp)
     rdp->flags &= ~AR_F_REBUILDING;
     splx(s);
     ar_config_changed(rdp, 1);
-    return 0;
+    kthread_exit(0);
 }
 
 static int
@@ -1143,7 +1156,7 @@ static int
 ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 {
     struct bio *bp;
-    int error = 0;
+    int retry = 0, error = 0;
 
     if (!(bp = (struct bio *)malloc(sizeof(struct bio), M_AR, M_NOWAIT|M_ZERO)))
 	return 1;
@@ -1159,9 +1172,12 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 	bp->bio_done = (void *)wakeup;
     else
 	bp->bio_done = ar_rw_done;
+
     AR_STRATEGY(bp);
+
     if (flags & AR_WAIT) {
-	error = tsleep(bp, PRIBIO, "arrw", 0);
+	while ((retry++ < (15*hz/10)) && (error = !(bp->bio_flags & BIO_DONE)))
+	    error = tsleep(bp, PRIBIO, "arrw", 10);
 	if (!error && bp->bio_flags & BIO_ERROR)
 	    error = bp->bio_error;
 	free(bp, M_AR);
