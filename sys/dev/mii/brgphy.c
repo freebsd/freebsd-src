@@ -121,6 +121,12 @@ brgphy_probe(dev)
 		return(0);
 	}
 
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5704) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5704);
+		return(0);
+	}
+
 	return(ENXIO);
 }
 
