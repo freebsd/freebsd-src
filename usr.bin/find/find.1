@@ -74,9 +74,7 @@ The
 .Xr re_format 7
 manual page fully describes both formats.
 .It Fl H
-The
-.Fl H
-option causes the file information and file type (see
+Cause the file information and file type (see
 .Xr stat 2 )
 returned for each symbolic link specified on the command line to be
 those of the file referenced by the link, not the link itself.
@@ -85,25 +83,19 @@ be for the link itself.
 File information of all symbolic links not on
 the command line is that of the link itself.
 .It Fl L
-The
-.Fl L
-option causes the file information and file type (see
+Cause the file information and file type (see
 .Xr stat 2 )
 returned for each symbolic link to be those of the file referenced by the
 link, not the link itself.
 If the referenced file does not exist, the file information and type will
 be for the link itself.
 .It Fl P
-The
-.Fl P
-option causes the file information and file type (see
+Cause the file information and file type (see
 .Xr stat 2 )
 returned for each symbolic link to be those of the link itself.
 This is the default.
 .It Fl X
-The
-.Fl X
-option is a modification to permit
+Permit
 .Nm
 to be safely used in conjunction with
 .Xr xargs 1 .
@@ -125,9 +117,7 @@ primary in conjunction with
 .Dq Nm xargs Fl 0
 as an effective alternative.
 .It Fl d
-The
-.Fl d
-option causes
+Cause
 .Nm
 to perform a depth\-first traversal, i.e., directories
 are visited in post\-order and all entries in a directory will be acted
@@ -139,17 +129,13 @@ Note, the default is
 .Em not
 a breadth\-first traversal.
 .It Fl f
-The
-.Fl f
-option specifies a file hierarchy for
+Specify a file hierarchy for
 .Nm
 to traverse.
 File hierarchies may also be specified as the operands immediately
 following the options.
 .It Fl s
-The
-.Fl s
-option causes
+Cause
 .Nm
 to traverse the file hierarchies in lexicographical order,
 i.e., alphabetical order within each directory.
@@ -159,9 +145,7 @@ and
 .Ql "find | sort"
 may give different results.
 .It Fl x
-The
-.Fl x
-option prevents
+Prevent
 .Nm
 from descending into directories that have a device number different
 than that of the file from which the descent began.
