@@ -105,7 +105,20 @@ _pthread_exit(void *status)
 	THR_SCHED_LOCK(curthread, curthread);
 	curthread->flags |= THR_FLAGS_EXITING;
 	THR_SCHED_UNLOCK(curthread, curthread);
-
+	
+	/*
+	 * To avoid signal-lost problem, if signals had already been
+	 * delivered to us, handle it. we have already set EXITING flag
+	 * so no new signals should be delivered to us.
+	 * XXX this is not enough if signal was delivered just before
+	 * thread called sigprocmask and masked it! in this case, we
+	 * might have to re-post the signal by kill() if the signal
+	 * is targeting process (not for a specified thread).
+	 * Kernel has same signal-lost problem, a signal may be delivered
+	 * to a thread which is on the way to call sigprocmask or thr_exit()!
+	 */
+	if (curthread->check_pending)
+		_thr_sig_check_pending(curthread);
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {
