@@ -91,6 +91,11 @@ static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
+static int	ptys_equal = 0;
+SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RW,
+    &ptys_equal, 0, "Label pty devices as mls/equal on create");
+TUNABLE_INT("security.mac.mls.ptys_equal", &ptys_equal);
+
 static int	mac_mls_revocation_enabled = 0;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
     &mac_mls_revocation_enabled, 0, "Revoke access to objects on relabel");
@@ -453,6 +458,10 @@ mac_mls_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 	else if (strcmp(dev->si_name, "kmem") == 0 ||
 	    strcmp(dev->si_name, "mem") == 0)
 		mls_type = MAC_MLS_TYPE_HIGH;
+	else if (ptys_equal &&
+	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+		mls_type = MAC_MLS_TYPE_EQUAL;
 	else
 		mls_type = MAC_MLS_TYPE_LOW;
 	mac_mls_set_single(mac_mls, mls_type, 0);
