@@ -30,8 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	$Id$
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.85 1999/04/03 15:51:14 kato Exp $
+ *	from: i386/isa sio.c,v 1.234
  */
 
 #include "opt_comconsole.h"
@@ -468,7 +469,7 @@ static device_method_t sio_methods[] = {
 static driver_t sio_driver = {
 	driver_name,
 	sio_methods,
-	DRIVER_TYPE_TTY,
+	DRIVER_TYPE_TTY|DRIVER_TYPE_FAST,
 	sizeof(struct com_s),
 };
 
@@ -491,10 +492,14 @@ static	struct cdevsw	sio_cdevsw = {
 
 int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
+#ifdef __alpha__
 static	volatile speed_t	gdbdefaultrate = CONSPEED;
+#endif
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
+#ifdef __alpha__
 static	Port_t	siogdbiobase;
+#endif
 static	bool_t	sio_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
@@ -1355,7 +1360,7 @@ sioprobe(dev)
 	 * Leave MCR_IENABLE alone.  For ports without a master port, it gates
 	 * the OUT2 output of the UART to
 	 * the ICU input.  Closing the gate would give a floating ICU input
-	 * (unless there is another device driving at) and spurious interrupts.
+	 * (unless there is another device driving it) and spurious interrupts.
 	 * (On the system that this was first tested on, the input floats high
 	 * and gives a (masked) interrupt as soon as the gate is closed.)
 	 */
@@ -1512,7 +1517,9 @@ sioattach(dev)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
+#if 0
 	int		s;
+#endif
 	int		unit;
 	void		*ih;
 	struct resource *res;
@@ -1816,6 +1823,12 @@ determined_type: ;
 	if ( COM_IIR_TXRDYBUG(flags) )
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
+
+#if 0
+	s = spltty();
+	com_addr(unit) = com;
+	splx(s);
+#endif
 
 	if (!sio_registered) {
 		register_swi(SWI_TTY, siopoll);
@@ -2129,9 +2142,12 @@ sioclose(dev, flag, mode, p)
 	if (com->gone) {
 		printf("sio%d: gone\n", com->unit);
 		s = spltty();
+#if 0
+		com_addr(com->unit) = NULL;
+#endif
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
-		bzero(tp,sizeof *tp);
+		bzero(tp, sizeof *tp);
 		free(com, M_DEVBUF);
 		splx(s);
 	}
@@ -4277,6 +4293,7 @@ siocnputc(dev, c)
 	splx(s);
 }
 
+#ifdef __alpha__
 int
 siogdbgetc()
 {
@@ -4310,6 +4327,7 @@ siogdbputc(c)
 	siocnclose(&sp, siogdbiobase);
 	splx(s);
 }
+#endif
 
 
 /*
