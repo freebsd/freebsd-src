@@ -2055,10 +2055,20 @@ int
 bus_setup_intr(device_t dev, struct resource *r, int flags,
     driver_intr_t handler, void *arg, void **cookiep)
 {
-	if (dev->parent == 0)
-		return (EINVAL);
-	return (BUS_SETUP_INTR(dev->parent, dev, r, flags,
-	    handler, arg, cookiep));
+	int error;
+
+	if (dev->parent != 0) {
+		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
+		    handler, arg, cookiep);
+		if (error == 0) {
+			if (flags & INTR_MPSAFE)
+				device_printf(dev, "[MPSAFE]\n");
+			if (flags & INTR_FAST)
+				device_printf(dev, "[FAST]\n");
+		}
+	} else
+		error = EINVAL;
+	return (error);
 }
 
 int
