@@ -960,9 +960,8 @@ npxgetregs(td, addr)
 			bzero(addr, sizeof(*addr));
 		return (_MC_FPOWNED_NONE);
 	}
-
 	s = intr_disable();
-	if (curthread == PCPU_GET(fpcurthread)) {
+	if (td == PCPU_GET(fpcurthread)) {
 		fpusave(addr);
 #ifdef CPU_ENABLE_SSE
 		if (!cpu_fxsr)
