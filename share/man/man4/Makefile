@@ -184,6 +184,7 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	nge.4 \
 	nmdm.4 \
+	nsp.4 \
 	null.4 \
 	ohci.4 \
 	oldcard.4 \
