@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.97 1998/07/27 15:37:00 bde Exp $
+ * $Id: ufs_vnops.c,v 1.98 1998/08/12 20:46:47 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -964,7 +964,6 @@ abortit:
 			return (ENOENT);
 		}
 		error = VOP_REMOVE(fdvp, fvp, fcnp);
-		/* XXX - temporarily simulate previous rele behavior */
 		if (fdvp == fvp)
 			vrele(fdvp);
 		else
