@@ -30,7 +30,7 @@
 #ifndef _MACIO_MACIOVAR_H_
 #define _MACIO_MACIOVAR_H_
 
-/* 
+/*
  * Accessors for macio devices
  */
 
@@ -59,16 +59,6 @@ MACIO_ACCESSOR(regs,            REGS,                   struct macio_reg *)
  *     PCI device, but there isn't an access method for this
  */
 #define MACIO_REG_SIZE  0x7ffff
-
-/*
- * Macio softc
- */
-struct macio_softc {
-	phandle_t    sc_node;
-	vm_offset_t  sc_base;
-	vm_offset_t  sc_size;
-	struct rman  sc_mem_rman;
-};
 
 /*
  * Format of a macio reg property entry.
