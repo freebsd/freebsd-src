@@ -71,7 +71,8 @@ vis(dst, c, flag, nextc)
 		}
 	}
 
-	if ((flag & VIS_GLOB) && (c == '*' || c == '?' || c == '['))
+	if ((flag & VIS_GLOB) &&
+	    (c == '*' || c == '?' || c == '[' || c == '#'))
 		;
 	else if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
