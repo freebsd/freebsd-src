@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.3 1995/10/31 23:36:46 julian Exp $
+ * $Id: spx_usrreq.c,v 1.4 1995/11/04 09:03:43 julian Exp $
  */
 
 #include <sys/param.h>
@@ -622,7 +622,7 @@ spx_ctlinput(cmd, arg)
 	switch (type) {
 
 	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(na, (int)ipxctlerrmap[cmd], spx_abort, NULL);
+		ipx_pcbnotify(na, (int)ipxctlerrmap[cmd], spx_abort, (long)0);
 		break;
 
 	case IPX_ERR_TOO_BIG:
@@ -639,7 +639,7 @@ spx_ctlinput(cmd, arg)
 		break;
 
 	case IPX_ERR_FULLUP:
-		ipx_pcbnotify(na, 0, spx_quench, NULL);
+		ipx_pcbnotify(na, 0, spx_quench, (long)0);
 		break;
 	}
 }
