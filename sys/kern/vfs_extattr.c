@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.25 1995/05/21 21:38:52 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.26 1995/06/28 07:06:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1784,8 +1784,8 @@ fsync(p, uap, retval)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VOP_LOCK(vp);
-	if (vp->v_vmdata) {
-		_vm_object_page_clean((vm_object_t) vp->v_vmdata, 0, 0 ,0);
+	if (vp->v_object) {
+		_vm_object_page_clean(vp->v_object, 0, 0 ,0);
 	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 	VOP_UNLOCK(vp);

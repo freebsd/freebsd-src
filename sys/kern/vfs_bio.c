@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.45 1995/05/21 21:38:49 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46 1995/05/30 08:06:27 rgrimes Exp $
  */
 
 /*
@@ -725,10 +725,10 @@ inmem(struct vnode * vp, daddr_t blkno)
 		return 1;
 	if (vp->v_mount == 0)
 		return 0;
-	if ((vp->v_vmdata == 0) || (vp->v_flag & VVMIO) == 0)
+	if ((vp->v_object == 0) || (vp->v_flag & VVMIO) == 0)
 		return 0;
 
-	obj = (vm_object_t) vp->v_vmdata;
+	obj = vp->v_object;
 	tinc = PAGE_SIZE;
 	if (tinc > vp->v_mount->mnt_stat.f_iosize)
 		tinc = vp->v_mount->mnt_stat.f_iosize;
@@ -848,7 +848,7 @@ loop:
 		vm_object_t obj;
 		int doingvmio;
 
-		if ((obj = (vm_object_t) vp->v_vmdata) && (vp->v_flag & VVMIO)) {
+		if ((obj = vp->v_object) && (vp->v_flag & VVMIO)) {
 			doingvmio = 1;
 		} else {
 			doingvmio = 0;
@@ -1003,7 +1003,7 @@ allocbuf(struct buf * bp, int size)
 			bsize = vp->v_mount->mnt_stat.f_iosize;
 
 			if (bp->b_npages < desiredpages) {
-				obj = (vm_object_t) vp->v_vmdata;
+				obj = vp->v_object;
 				tinc = PAGE_SIZE;
 				if (tinc > bsize)
 					tinc = bsize;
@@ -1181,7 +1181,7 @@ biodone(register struct buf * bp)
 		struct vnode *vp = bp->b_vp;
 
 		foff = vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
-		obj = (vm_object_t) vp->v_vmdata;
+		obj = vp->v_object;
 		if (!obj) {
 			return;
 		}
@@ -1311,7 +1311,7 @@ vfs_unbusy_pages(struct buf * bp)
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
-		vm_object_t obj = (vm_object_t) vp->v_vmdata;
+		vm_object_t obj = vp->v_object;
 		vm_offset_t foff;
 
 		foff = vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
@@ -1354,7 +1354,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 	int i;
 
 	if (bp->b_flags & B_VMIO) {
-		vm_object_t obj = (vm_object_t) bp->b_vp->v_vmdata;
+		vm_object_t obj = bp->b_vp->v_object;
 		vm_offset_t foff = bp->b_vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
 		int iocount = bp->b_bufsize;
 
