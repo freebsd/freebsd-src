@@ -179,12 +179,17 @@ distrib-dirs:
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
-.if !defined(NO_SENDMAIL)
-	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
-.endif
-.if defined(WITH_BIND_LIBS) && !defined(NO_BIND)
+.if !defined(NO_BIND)
+.if defined(WITH_BIND_LIBS)
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
 	    -p ${DESTDIR}/usr/include
+.endif
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
+	    -p ${DESTDIR}/var/named
+	ln -s ${DESTDIR}/var/named/etc/namedb ${DESTDIR}/etc/namedb
+.endif
+.if !defined(NO_SENDMAIL)
+	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .

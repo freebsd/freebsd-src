@@ -32,10 +32,6 @@
         ..
         mtree
         ..
-        namedb
-            s               uname=bind gname=bind mode=0750
-            ..
-        ..
         ntp             mode=0700
         ..
         pam.d
