@@ -29,7 +29,7 @@
  * <cltien@cmedia.com.tw> clarified points regarding the DMA related
  * registers and the 8738 mixer devices.  His Linux was driver a also
  * useful reference point.
- *  
+ *
  * TODO: MIDI / suspend / resume
  *
  * SPDIF contributed by Gerhard Gonter <gonter@whisky.wu-wien.ac.at>.
@@ -94,7 +94,7 @@ struct cmi_chinfo {
 struct cmi_info {
 	device_t dev;
 	u_int32_t type, rev;
-    
+
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_dma_tag_t parent_dmat;
@@ -154,7 +154,7 @@ cmi_wr(struct cmi_info *cmi, int regno, u_int32_t data, int size)
 }
 
 static void
-cmi_partial_wr4(struct cmi_info *cmi, 
+cmi_partial_wr4(struct cmi_info *cmi,
 		int reg, int shift, u_int32_t mask, u_int32_t val)
 {
 	u_int32_t r;
@@ -169,7 +169,7 @@ static void
 cmi_clr4(struct cmi_info *cmi, int reg, u_int32_t mask)
 {
 	u_int32_t r;
-    
+
 	r = cmi_rd(cmi, reg, 4);
 	r &= ~mask;
 	cmi_wr(cmi, reg, r, 4);
@@ -188,18 +188,18 @@ cmi_set4(struct cmi_info *cmi, int reg, u_int32_t mask)
 /* ------------------------------------------------------------------------- */
 /* Rate Mapping */
 
-static int cmi_rates[] = {5512, 8000, 11025, 16000, 
+static int cmi_rates[] = {5512, 8000, 11025, 16000,
 			  22050, 32000, 44100, 48000};
 #define NUM_CMI_RATES (sizeof(cmi_rates)/sizeof(cmi_rates[0]))
 
 /* cmpci_rate_to_regvalue returns sampling freq selector for FCR1
  * register - reg order is 5k,11k,22k,44k,8k,16k,32k,48k */
 
-static u_int32_t 
+static u_int32_t
 cmpci_rate_to_regvalue(int rate)
 {
 	int i, r;
-    
+
 	for(i = 0; i < NUM_CMI_RATES - 1; i++) {
 		if (rate < ((cmi_rates[i] + cmi_rates[i + 1]) / 2)) {
 			break;
@@ -212,8 +212,8 @@ cmpci_rate_to_regvalue(int rate)
 	return r;
 }
 
-static int 
-cmpci_regvalue_to_rate(u_int32_t r) 
+static int
+cmpci_regvalue_to_rate(u_int32_t r)
 {
 	int i;
 
@@ -254,7 +254,7 @@ cmi_dac_stop(struct cmi_info *cmi)
 }
 
 static void
-cmi_dac_reset(struct cmi_info *cmi, struct cmi_chinfo *ch) 
+cmi_dac_reset(struct cmi_info *cmi, struct cmi_chinfo *ch)
 {
 	cmi_dac_stop(cmi);
 	cmi_set4(cmi, CMPCI_REG_FUNC_0, CMPCI_REG_CH0_RESET);
@@ -294,7 +294,7 @@ cmi_adc_stop(struct cmi_info *cmi)
 }
 
 static void
-cmi_adc_reset(struct cmi_info *cmi, struct cmi_chinfo *ch) 
+cmi_adc_reset(struct cmi_info *cmi, struct cmi_chinfo *ch)
 {
 	cmi_adc_stop(cmi);
 	cmi_set4(cmi, CMPCI_REG_FUNC_0, CMPCI_REG_CH1_RESET);
@@ -312,17 +312,17 @@ cmi_spdif_speed(struct cmi_info *cmi, int speed) {
 	if (speed >= 44100) {
 		fcr1 = CMPCI_REG_SPDIF0_ENABLE;
 		lcr  = CMPCI_REG_XSPDIF_ENABLE;
-		mcr  = (speed == 48000) ? 
+		mcr  = (speed == 48000) ?
 			CMPCI_REG_W_SPDIF_48L | CMPCI_REG_SPDIF_48K : 0;
 	} else {
 		fcr1 = mcr = lcr = 0;
 	}
 
-	cmi_partial_wr4(cmi, CMPCI_REG_FUNC_1, 0, 
+	cmi_partial_wr4(cmi, CMPCI_REG_FUNC_1, 0,
 			CMPCI_REG_SPDIF0_ENABLE, fcr1);
-	cmi_partial_wr4(cmi, CMPCI_REG_MISC, 0, 
+	cmi_partial_wr4(cmi, CMPCI_REG_MISC, 0,
 			CMPCI_REG_W_SPDIF_48L | CMPCI_REG_SPDIF_48K, mcr);
-	cmi_partial_wr4(cmi, CMPCI_REG_LEGACY_CTRL, 0, 
+	cmi_partial_wr4(cmi, CMPCI_REG_LEGACY_CTRL, 0,
 			CMPCI_REG_XSPDIF_ENABLE, lcr);
 }
 
@@ -330,7 +330,7 @@ cmi_spdif_speed(struct cmi_info *cmi, int speed) {
 /* Channel Interface implementation */
 
 static void *
-cmichan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir) 
+cmichan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct cmi_info  *cmi = devinfo;
 	struct cmi_chinfo *ch = (dir == PCMDIR_PLAY) ? &cmi->pch : &cmi->rch;
@@ -342,7 +342,7 @@ cmichan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->spd     = DSP_DEFAULT_SPEED;
 	ch->dma_configured = 0;
 	ch->buffer  = b;
-	if (sndbuf_alloc(ch->buffer, cmi->parent_dmat, CMI_BUFFER_SIZE) != 0) { 
+	if (sndbuf_alloc(ch->buffer, cmi->parent_dmat, CMI_BUFFER_SIZE) != 0) {
 		DEB(printf("cmichan_init failed\n"));
 		return NULL;
 	}
@@ -357,8 +357,8 @@ cmichan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	return ch;
 }
 
-static int 
-cmichan_setformat(kobj_t obj, void *data, u_int32_t format) 
+static int
+cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct cmi_chinfo *ch = data;
 	u_int32_t f;
@@ -391,15 +391,15 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 				CMPCI_REG_CH1_FORMAT_MASK,
 				f);
 	}
-	ch->fmt = format;    
+	ch->fmt = format;
 	ch->dma_configured = 0;
 
 	return 0;
 }
 
-static int 
+static int
 cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
-{   
+{
 	struct cmi_chinfo *ch = data;
 	u_int32_t r, rsp;
 
@@ -429,7 +429,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	}
 	ch->spd = cmpci_regvalue_to_rate(r);
 
-	DEB(printf("cmichan_setspeed (%s) %d -> %d (%d)\n", 
+	DEB(printf("cmichan_setspeed (%s) %d -> %d (%d)\n",
 		   (ch->dir == PCMDIR_PLAY) ? "play" : "rec",
 		   speed, ch->spd, cmpci_regvalue_to_rate(rsp)));
 
@@ -466,7 +466,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 			cmi_dac_reset(cmi, ch);
 			break;
 		}
-	} else {      
+	} else {
 		switch(go) {
 		case PCMTRIG_START:
 			cmi_adc_start(cmi, ch);
@@ -491,15 +491,15 @@ cmichan_getptr(kobj_t obj, void *data)
 	} else {
 		physptr = cmi_rd(cmi, CMPCI_REG_DMA1_BASE, 4);
 	}
-    
+
 	sz = sndbuf_getsize(ch->buffer);
 	bufptr  = (physptr - ch->phys_buf + sz - ch->bps) % sz;
 
 	return bufptr;
 }
 
-static void 
-cmi_intr(void *data) 
+static void
+cmi_intr(void *data)
 {
 	struct cmi_info *cmi = data;
 	u_int32_t intrstat;
@@ -518,7 +518,7 @@ cmi_intr(void *data)
 		cmi_clr4(cmi, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
 	}
 
-	DEB(printf("cmi_intr - play %d rec %d\n", 
+	DEB(printf("cmi_intr - play %d rec %d\n",
 		   intrstat & CMPCI_REG_CH0_INTR,
 		   (intrstat & CMPCI_REG_CH1_INTR)>>1));
 
@@ -530,7 +530,7 @@ cmi_intr(void *data)
 	if (intrstat & CMPCI_REG_CH1_INTR) {
 		chn_intr(cmi->rch.channel);
 	}
-	
+
 	/* Enable interrupts */
 	if (intrstat & CMPCI_REG_CH0_INTR) {
 		cmi_set4(cmi, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
@@ -564,14 +564,14 @@ CHANNEL_DECLARE(cmichan);
 /* ------------------------------------------------------------------------- */
 /* Mixer - sb16 with kinks */
 
-static void 
+static void
 cmimix_wr(struct cmi_info *cmi, u_int8_t port, u_int8_t val)
 {
 	cmi_wr(cmi, CMPCI_REG_SBADDR, port, 1);
 	cmi_wr(cmi, CMPCI_REG_SBDATA, val, 1);
 }
 
-static u_int8_t 
+static u_int8_t
 cmimix_rd(struct cmi_info *cmi, u_int8_t port)
 {
 	cmi_wr(cmi, CMPCI_REG_SBADDR, port, 1);
@@ -586,13 +586,13 @@ struct sb16props {
 	u_int8_t  oselect;  /* output select mask */
 	u_int8_t  iselect;  /* right input select mask */
 } static const cmt[SOUND_MIXER_NRDEVICES] = {
-	[SOUND_MIXER_SYNTH]   = {CMPCI_SB16_MIXER_FM_R,      1, 1, 5, 
+	[SOUND_MIXER_SYNTH]   = {CMPCI_SB16_MIXER_FM_R,      1, 1, 5,
 				 CMPCI_SB16_SW_FM,   CMPCI_SB16_MIXER_FM_SRC_R},
 	[SOUND_MIXER_CD]      = {CMPCI_SB16_MIXER_CDDA_R,    1, 1, 5,
 				 CMPCI_SB16_SW_CD,   CMPCI_SB16_MIXER_CD_SRC_R},
 	[SOUND_MIXER_LINE]    = {CMPCI_SB16_MIXER_LINE_R,    1, 1, 5,
 				 CMPCI_SB16_SW_LINE, CMPCI_SB16_MIXER_LINE_SRC_R},
-	[SOUND_MIXER_MIC]     = {CMPCI_SB16_MIXER_MIC,       0, 1, 5, 
+	[SOUND_MIXER_MIC]     = {CMPCI_SB16_MIXER_MIC,       0, 1, 5,
 				 CMPCI_SB16_SW_MIC,  CMPCI_SB16_MIXER_MIC_SRC},
 	[SOUND_MIXER_SPEAKER] = {CMPCI_SB16_MIXER_SPEAKER,  0, 0, 2, 0, 0},
 	[SOUND_MIXER_PCM]     = {CMPCI_SB16_MIXER_VOICE_R,  1, 0, 5, 0, 0},
@@ -601,10 +601,10 @@ struct sb16props {
 	   future date.  They are not documented in C-Media documentation,
 	   though appear in other drivers for future h/w (ALSA, Linux, NetBSD).
 	*/
-	[SOUND_MIXER_IGAIN]   = {CMPCI_SB16_MIXER_INGAIN_R,  1, 0, 2, 0, 0}, 
-	[SOUND_MIXER_OGAIN]   = {CMPCI_SB16_MIXER_OUTGAIN_R, 1, 0, 2, 0, 0}, 
-	[SOUND_MIXER_BASS]    = {CMPCI_SB16_MIXER_BASS_R,    1, 0, 4, 0, 0}, 
-	[SOUND_MIXER_TREBLE]  = {CMPCI_SB16_MIXER_TREBLE_R,  1, 0, 4, 0, 0}, 
+	[SOUND_MIXER_IGAIN]   = {CMPCI_SB16_MIXER_INGAIN_R,  1, 0, 2, 0, 0},
+	[SOUND_MIXER_OGAIN]   = {CMPCI_SB16_MIXER_OUTGAIN_R, 1, 0, 2, 0, 0},
+	[SOUND_MIXER_BASS]    = {CMPCI_SB16_MIXER_BASS_R,    1, 0, 4, 0, 0},
+	[SOUND_MIXER_TREBLE]  = {CMPCI_SB16_MIXER_TREBLE_R,  1, 0, 4, 0, 0},
 	/* The mic pre-amp is implemented with non-SB16 compatible registers. */
 	[SOUND_MIXER_MONITOR]  = {CMPCI_NON_SB16_CONTROL,     0, 1, 4, 0},
 };
@@ -631,7 +631,7 @@ cmimix_init(snd_mixer *m)
 	cmimix_wr(cmi, CMPCI_SB16_MIXER_RESET, 0);
 	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_L, 0);
 	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_R, 0);
-	cmimix_wr(cmi, CMPCI_SB16_MIXER_OUTMIX, 
+	cmimix_wr(cmi, CMPCI_SB16_MIXER_OUTMIX,
 		  CMPCI_SB16_SW_CD | CMPCI_SB16_SW_MIC | CMPCI_SB16_SW_LINE);
 	return 0;
 }
@@ -651,7 +651,7 @@ cmimix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		v = cmi_rd(cmi, CMPCI_REG_AUX_MIC, 1) & 0xf0;
 		l = left * max / 100;
 		/* 3 bit gain with LSB MICGAIN off(1),on(1) -> 4 bit value*/
-		v |= ((l << 1) | (~l >> 3)) & 0x0f; 
+		v |= ((l << 1) | (~l >> 3)) & 0x0f;
 		cmi_wr(cmi, CMPCI_REG_AUX_MIC, v, 1);
 		return 0;
 	}
@@ -700,13 +700,13 @@ cmimix_setrecsrc(snd_mixer *m, u_int32_t src)
 			}
 		}
 	}
-	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_R, sl|ml); 
+	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_R, sl|ml);
 	DEBMIX(printf("cmimix_setrecsrc: reg 0x%02x val 0x%02x\n",
-		      CMPCI_SB16_MIXER_ADCMIX_R, sl|ml));  
+		      CMPCI_SB16_MIXER_ADCMIX_R, sl|ml));
 	ml = CMPCI_SB16_MIXER_SRC_R_TO_L(ml);
-	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_L, sl|ml); 
-	DEBMIX(printf("cmimix_setrecsrc: reg 0x%02x val 0x%02x\n", 
-		      CMPCI_SB16_MIXER_ADCMIX_L, sl|ml));  
+	cmimix_wr(cmi, CMPCI_SB16_MIXER_ADCMIX_L, sl|ml);
+	DEBMIX(printf("cmimix_setrecsrc: reg 0x%02x val 0x%02x\n",
+		      CMPCI_SB16_MIXER_ADCMIX_L, sl|ml));
 
 	return src;
 }
@@ -759,7 +759,7 @@ cmi_probe(device_t dev)
 	}
 }
 
-static int 
+static int
 cmi_attach(device_t dev)
 {
 	snddev_info *d;
@@ -773,7 +773,7 @@ cmi_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-  
+
 	bzero(cmi, sizeof(*cmi));
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -799,13 +799,13 @@ cmi_attach(device_t dev)
 		device_printf(dev, "cmi_attach: Unable to map interrupt\n");
 		goto bad;
 	}
-    
+
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/CMI_BUFFER_SIZE, /*nsegments*/1, 
-			       /*maxsegz*/0x3ffff, /*flags*/0, 
+			       /*maxsize*/CMI_BUFFER_SIZE, /*nsegments*/1,
+			       /*maxsegz*/0x3ffff, /*flags*/0,
 			       &cmi->parent_dmat) != 0) {
 		device_printf(dev, "cmi_attach: Unable to create dma tag\n");
 		goto bad;
@@ -813,16 +813,17 @@ cmi_attach(device_t dev)
 
 	cmi_power(cmi, 0);
 	/* Disable interrupts and channels */
-	cmi_clr4(cmi, CMPCI_REG_INTR_CTRL, 
-		 CMPCI_REG_CH0_INTR_ENABLE | 
+	cmi_clr4(cmi, CMPCI_REG_INTR_CTRL,
+		 CMPCI_REG_CH0_INTR_ENABLE |
 		 CMPCI_REG_CH1_INTR_ENABLE |
 		 CMPCI_REG_TDMA_INTR_ENABLE);
 	cmi_clr4(cmi, CMPCI_REG_FUNC_0,
 		 CMPCI_REG_CH0_ENABLE | CMPCI_REG_CH1_ENABLE);
-    
-	mixer_init(dev, &cmi_mixer_class, cmi);
 
-	if (pcm_register(dev, cmi, 1, 1)) 
+	if (mixer_init(dev, &cmi_mixer_class, cmi))
+		goto bad;
+
+	if (pcm_register(dev, cmi, 1, 1))
 		goto bad;
 
 	pcm_addchan(dev, PCMDIR_PLAY, &cmichan_class, cmi);
@@ -834,12 +835,12 @@ cmi_attach(device_t dev)
 
 	DEB(printf("cmi_attach: succeeded\n"));
 	return 0;
-	
+
  bad:
 	if (cmi->parent_dmat) bus_dma_tag_destroy(cmi->parent_dmat);
 	if (cmi->ih) bus_teardown_intr(dev, cmi->irq, cmi->ih);
 	if (cmi->irq) bus_release_resource(dev, SYS_RES_IRQ, cmi->irqid, cmi->irq);
-	if (cmi->reg) bus_release_resource(dev, SYS_RES_IOPORT, 
+	if (cmi->reg) bus_release_resource(dev, SYS_RES_IOPORT,
 					   cmi->regid, cmi->reg);
 	if (cmi) free(cmi, M_DEVBUF);
 
