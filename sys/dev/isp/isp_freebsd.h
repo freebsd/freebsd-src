@@ -228,9 +228,9 @@ struct isposinfo {
 #define	DEFAULT_IID(x)		7
 #define	DEFAULT_LOOPID(x)	109
 #define	DEFAULT_NODEWWN(isp)	(isp)->isp_osinfo.default_wwn
-#define	DEFAULT_PORTWWN(isp)	\
-	isp_port_from_node_wwn((isp), (isp)->isp_osinfo.default_wwn)
-#define	PORT_FROM_NODE_WWN	isp_port_from_node_wwn
+#define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_wwn
+#define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_nodewwn
+#define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_portwwn
 
 #define	ISP_UNSWIZZLE_AND_COPY_PDBP(isp, dest, src)	\
 	if((void *)src != (void *)dest) bcopy(src, dest, sizeof (isp_pdb_t))
@@ -398,18 +398,6 @@ strncat(char *d, const char *s, size_t c)
                 }
         }
         return (t);
-}
-
-static INLINE u_int64_t isp_port_from_node_wwn(struct ispsoftc *, u_int64_t);
-static INLINE u_int64_t
-isp_port_from_node_wwn(struct ispsoftc *isp, u_int64_t node_wwn)
-{
-	u_int64_t rv = node_wwn;
-	if ((node_wwn >> 60) == 2) {
-		rv = node_wwn | 
-		    (((u_int64_t)(isp->isp_unit+1)) << 48);
-	}
-	return (rv);
 }
 
 /*
