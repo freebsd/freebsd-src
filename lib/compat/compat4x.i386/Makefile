@@ -8,8 +8,7 @@ LIBS=	\
 	libc.so.4 \
 	libc_r.so.4 \
 	libcrypto.so.1 \
-	libssl.so.1 \
-	libwrap.so.3
+	libssl.so.1
 
 CLEANFILES+=	${LIBS}
 
