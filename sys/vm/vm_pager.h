@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.13 1997/02/22 09:48:37 peter Exp $
+ * $Id: vm_pager.h,v 1.14 1997/10/12 20:26:32 phk Exp $
  */
 
 /*
@@ -45,6 +45,8 @@
 
 #ifndef	_VM_PAGER_
 #define	_VM_PAGER_
+
+#include <sys/queue.h>
 
 TAILQ_HEAD(pagerlst, vm_object);
 
