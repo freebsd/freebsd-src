@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.52 1999/01/21 09:38:20 dillon Exp $
+ * $Id: vm_kern.c,v 1.53 1999/03/12 08:05:49 alc Exp $
  */
 
 /*
@@ -337,7 +337,9 @@ retry:
 		 */
 		if (m == NULL) {
 			if ((flags & M_NOWAIT) == 0) {
+				vm_map_unlock(map);
 				VM_WAIT;
+				vm_map_lock(map);
 				goto retry;
 			}
 			vm_map_delete(map, addr, addr + size);
@@ -359,9 +361,9 @@ retry:
 	 */
 	if (!vm_map_lookup_entry(map, addr, &entry) ||
 	    entry->start != addr || entry->end != addr + size ||
-	    entry->wired_count)
+	    entry->wired_count != 0)
 		panic("kmem_malloc: entry not found or misaligned");
-	entry->wired_count++;
+	entry->wired_count = 1;
 
 	vm_map_simplify_entry(map, entry);
 
