@@ -2419,13 +2419,13 @@ ttyinfo(tp)
 			PGRP_UNLOCK(tp->t_pgrp);
 			ttyprintf(tp, "empty foreground process group\n");
 		} else {
-			PGRP_UNLOCK(tp->t_pgrp);
 			mtx_lock_spin(&sched_lock);
 
 			/* Pick interesting process. */
 			for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
 				if (proc_compare(pick, p))
 					pick = p;
+			PGRP_UNLOCK(tp->t_pgrp);
 
 			td = FIRST_THREAD_IN_PROC(pick);
 			stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
