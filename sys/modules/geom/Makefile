@@ -4,6 +4,7 @@ SUBDIR=	geom_apple \
 	geom_bde \
 	geom_bsd \
 	geom_ccd \
+	geom_concat \
 	geom_fox \
 	geom_gpt \
 	geom_mbr \
