@@ -38,11 +38,13 @@
  */
 
 #include <progs.priv.h>
+#include <sys/stat.h>
 
 #include <dump_entry.h>
 #include <term_entry.h>
+#include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.69 2000/04/08 23:53:49 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.82 2000/10/01 02:11:39 tom Exp $")
 
 const char *_nc_progname = "tic";
 
@@ -54,7 +56,7 @@ static const char *to_remove;
 static void (*save_check_termtype) (TERMTYPE *);
 static void check_termtype(TERMTYPE * tt);
 
-static const char usage_string[] = "[-h] [-v[n]] [-e names] [-CILNRTcfrswx1] source-file\n";
+static const char usage_string[] = "[-V] [-v[n]] [-e names] [-CILNRTcfrswx1] source-file\n";
 
 static void
 cleanup(void)
@@ -91,6 +93,7 @@ usage(void)
 	"  -N         disable smart defaults for source translation",
 	"  -R         restrict translation to given terminfo/termcap version",
 	"  -T         remove size-restrictions on compiled description",
+	"  -V         print version",
 #if NCURSES_XNAMES
 	"  -a         retain commented-out capabilities (sets -x also)",
 #endif
@@ -114,7 +117,7 @@ usage(void)
     size_t j;
 
     fprintf(stderr, "Usage: %s %s\n", _nc_progname, usage_string);
-    for (j = 0; j < sizeof(tbl) / sizeof(tbl[0]); j++) {
+    for (j = 0; j < SIZEOF(tbl); j++) {
 	fputs(tbl[j], stderr);
 	putc('\n', stderr);
     }
@@ -148,7 +151,7 @@ write_it(ENTRY * ep)
 		if (ch == '\\') {
 		    *d++ = *t++;
 		} else if ((ch == '%')
-		    && (*t == L_BRACE)) {
+			   && (*t == L_BRACE)) {
 		    char *v = 0;
 		    long value = strtol(t + 1, &v, 0);
 		    if (v != 0
@@ -179,7 +182,7 @@ static bool
 immedhook(ENTRY * ep GCC_UNUSED)
 /* write out entries with no use capabilities immediately to save storage */
 {
-#ifndef HAVE_BIG_CORE
+#if !HAVE_BIG_CORE
     /*
      * This is strictly a core-economy kluge.  The really clean way to handle
      * compilation is to slurp the whole file into core and then do all the
@@ -301,6 +304,24 @@ stripped(char *src)
     return 0;
 }
 
+static FILE *
+open_input(const char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    struct stat sb;
+
+    if (fp == 0) {
+	fprintf(stderr, "%s: Can't open %s\n", _nc_progname, filename);
+	exit(EXIT_FAILURE);
+    }
+    if (fstat(fileno(fp), &sb) < 0
+	|| (sb.st_mode & S_IFMT) != S_IFREG) {
+	fprintf(stderr, "%s: %s is not a file\n", _nc_progname, filename);
+	exit(EXIT_FAILURE);
+    }
+    return fp;
+}
+
 /* Parse the "-e" option-value into a list of names */
 static const char **
 make_namelist(char *src)
@@ -314,9 +335,7 @@ make_namelist(char *src)
     if (src == 0) {
 	/* EMPTY */ ;
     } else if (strchr(src, '/') != 0) {		/* a filename */
-	FILE *fp = fopen(src, "r");
-	if (fp == 0)
-	    failed(src);
+	FILE *fp = open_input(src);
 
 	for (pass = 1; pass <= 2; pass++) {
 	    nn = 0;
@@ -425,16 +444,13 @@ main(int argc, char *argv[])
 
     log_fp = stderr;
 
-    if ((_nc_progname = strrchr(argv[0], '/')) == NULL)
-	_nc_progname = argv[0];
-    else
-	_nc_progname++;
+    _nc_progname = _nc_basename(argv[0]);
 
-    if ((infodump = (strcmp(_nc_progname, "captoinfo") == 0)) != FALSE) {
+    if ((infodump = (strcmp(_nc_progname, PROG_CAPTOINFO) == 0)) != FALSE) {
 	outform = F_TERMINFO;
 	sortmode = S_TERMINFO;
     }
-    if ((capdump = (strcmp(_nc_progname, "infotocap") == 0)) != FALSE) {
+    if ((capdump = (strcmp(_nc_progname, PROG_INFOTOCAP) == 0)) != FALSE) {
 	outform = F_TERMCAP;
 	sortmode = S_TERMCAP;
     }
@@ -448,7 +464,7 @@ main(int argc, char *argv[])
      * be optional.
      */
     while ((this_opt = getopt(argc, argv,
-		"0123456789CILNR:TVace:fGgo:rsvwx")) != EOF) {
+			      "0123456789CILNR:TVace:fGgo:rsvwx")) != EOF) {
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
 	    case 'v':
@@ -491,7 +507,7 @@ main(int argc, char *argv[])
 	    limited = FALSE;
 	    break;
 	case 'V':
-	    puts(NCURSES_VERSION);
+	    puts(curses_version());
 	    return EXIT_SUCCESS;
 	case 'c':
 	    check_only = TRUE;
@@ -544,7 +560,7 @@ main(int argc, char *argv[])
 	save_check_termtype = _nc_check_termtype;
 	_nc_check_termtype = check_termtype;
     }
-#ifndef HAVE_BIG_CORE
+#if !HAVE_BIG_CORE
     /*
      * Aaargh! immedhook seriously hoses us!
      *
@@ -557,7 +573,7 @@ main(int argc, char *argv[])
      */
     if (namelst && (!infodump && !capdump)) {
 	(void) fprintf(stderr,
-	    "Sorry, -e can't be used without -I or -C\n");
+		       "Sorry, -e can't be used without -I or -C\n");
 	cleanup();
 	return EXIT_FAILURE;
     }
@@ -567,10 +583,10 @@ main(int argc, char *argv[])
 	source_file = argv[optind++];
 	if (optind < argc) {
 	    fprintf(stderr,
-		"%s: Too many file names.  Usage:\n\t%s %s",
-		_nc_progname,
-		_nc_progname,
-		usage_string);
+		    "%s: Too many file names.  Usage:\n\t%s %s",
+		    _nc_progname,
+		    _nc_progname,
+		    usage_string);
 	    return EXIT_FAILURE;
 	}
     } else {
@@ -582,11 +598,13 @@ main(int argc, char *argv[])
 		if (access(termcap, F_OK) == 0) {
 		    /* file exists */
 		    source_file = termcap;
-		} else if ((tmp_fp = open_tempfile(my_tmpname)) != 0) {
+		} else if ((tmp_fp = open_tempfile(strcpy(my_tmpname,
+							  "/tmp/XXXXXX")))
+			   != 0) {
 		    source_file = my_tmpname;
 		    fprintf(tmp_fp, "%s\n", termcap);
 		    fclose(tmp_fp);
-		    tmp_fp = fopen(source_file, "r");
+		    tmp_fp = open_input(source_file);
 		    to_remove = source_file;
 		} else {
 		    failed("tmpnam");
@@ -595,41 +613,38 @@ main(int argc, char *argv[])
 	} else {
 	    /* tic */
 	    fprintf(stderr,
-		"%s: File name needed.  Usage:\n\t%s %s",
-		_nc_progname,
-		_nc_progname,
-		usage_string);
+		    "%s: File name needed.  Usage:\n\t%s %s",
+		    _nc_progname,
+		    _nc_progname,
+		    usage_string);
 	    cleanup();
 	    return EXIT_FAILURE;
 	}
     }
 
-    if (tmp_fp == 0
-	&& (tmp_fp = fopen(source_file, "r")) == 0) {
-	fprintf(stderr, "%s: Can't open %s\n", _nc_progname, source_file);
-	return EXIT_FAILURE;
-    }
+    if (tmp_fp == 0)
+	tmp_fp = open_input(source_file);
 
     if (infodump)
 	dump_init(tversion,
-	    smart_defaults
-	    ? outform
-	    : F_LITERAL,
-	    sortmode, width, debug_level, formatted);
+		  smart_defaults
+		  ? outform
+		  : F_LITERAL,
+		  sortmode, width, debug_level, formatted);
     else if (capdump)
 	dump_init(tversion,
-	    outform,
-	    sortmode, width, debug_level, FALSE);
+		  outform,
+		  sortmode, width, debug_level, FALSE);
 
     /* parse entries out of the source file */
     _nc_set_source(source_file);
-#ifndef HAVE_BIG_CORE
+#if !HAVE_BIG_CORE
     if (!(check_only || infodump || capdump))
 	_nc_set_writedir(outdir);
 #endif /* HAVE_BIG_CORE */
     _nc_read_entry_source(tmp_fp, (char *) NULL,
-	!smart_defaults, FALSE,
-	(check_only || infodump || capdump) ? NULLHOOK : immedhook);
+			  !smart_defaults, FALSE,
+			  (check_only || infodump || capdump) ? NULLHOOK : immedhook);
 
     /* do use resolution */
     if (check_only || (!infodump && !capdump) || forceresolve) {
@@ -647,9 +662,9 @@ main(int argc, char *argv[])
 
 		if (len > (infodump ? MAX_TERMINFO_LENGTH : MAX_TERMCAP_LENGTH))
 		    (void) fprintf(stderr,
-			"warning: resolved %s entry is %d bytes long\n",
-			_nc_first_name(qp->tterm.term_names),
-			len);
+				   "warning: resolved %s entry is %d bytes long\n",
+				   _nc_first_name(qp->tterm.term_names),
+				   len);
 	    }
 	}
     }
@@ -722,8 +737,8 @@ main(int argc, char *argv[])
 	int total = _nc_tic_written();
 	if (total != 0)
 	    fprintf(log_fp, "%d entries written to %s\n",
-		total,
-		_nc_tic_dir((char *) 0));
+		    total,
+		    _nc_tic_dir((char *) 0));
 	else
 	    fprintf(log_fp, "No entries written\n");
     }
@@ -741,6 +756,145 @@ TERMINAL *cur_term;		/* tweak to avoid linking lib_cur_term.c */
 
 #undef CUR
 #define CUR tp->
+
+/*
+ * Returns the expected number of parameters for the given capability.
+ */
+static int
+expected_params(char *name)
+{
+    /* *INDENT-OFF* */
+    static const struct {
+	const char *name;
+	int count;
+    } table[] = {
+	{ "birep",		2 },
+	{ "chr",		1 },
+	{ "colornm",		1 },
+	{ "cpi",		1 },
+	{ "csr",		2 },
+	{ "cub",		1 },
+	{ "cud",		1 },
+	{ "cuf",		1 },
+	{ "cup",		2 },
+	{ "cvr",		1 },
+	{ "cuu",		1 },
+	{ "cwin",		5 },
+	{ "dch",		1 },
+	{ "dclk",		2 },
+	{ "dial",		1 },
+	{ "dispc",		1 },
+	{ "dl",			1 },
+	{ "ech",		1 },
+	{ "getm",		1 },
+	{ "hpa",		1 },
+	{ "ich",		1 },
+	{ "il",			1 },
+	{ "indn",		1 },
+	{ "initc",		4 },
+	{ "initp",		7 },
+	{ "lpi",		1 },
+	{ "mc5p",		1 },
+	{ "mrcup",		2 },
+	{ "mvpa",		1 },
+	{ "pfkey",		2 },
+	{ "pfloc",		2 },
+	{ "pfx",		2 },
+	{ "pfxl",		3 },
+	{ "pln",		2 },
+	{ "qdial",		1 },
+	{ "rep",		2 },
+	{ "rin",		1 },
+	{ "sclk",		3 },
+	{ "scp",		1 },
+	{ "scs",		1 },
+	{ "setab",		1 },
+	{ "setaf",		1 },
+	{ "setb",		1 },
+	{ "setcolor",		1 },
+	{ "setf",		1 },
+	{ "sgr",		9 },
+	{ "sgr1",		6 },
+	{ "slength",		1 },
+	{ "slines",		1 },
+	{ "smgbp",		2 },
+	{ "smglp",		2 },
+	{ "smglr",		2 },
+	{ "smgrp",		1 },
+	{ "smgtb",		2 },
+	{ "smgtp",		2 },
+	{ "tsl",		1 },
+	{ "u6",			-1 },
+	{ "vpa",		1 },
+	{ "wind",		4 },
+	{ "wingo",		1 },
+    };
+    /* *INDENT-ON* */
+
+    unsigned n;
+    int result = 0;		/* function-keys, etc., use none */
+
+    for (n = 0; n < SIZEOF(table); n++) {
+	if (!strcmp(name, table[n].name)) {
+	    result = table[n].count;
+	    break;
+	}
+    }
+
+    return result;
+}
+
+/*
+ * Make a quick sanity check for the parameters which are used in the given
+ * strings.  If there are no "%p" tokens, then there should be no other "%"
+ * markers.
+ */
+static void
+check_params(TERMTYPE * tp, char *name, char *value)
+{
+    int expected = expected_params(name);
+    int actual = 0;
+    int n;
+    bool params[10];
+    char *s = value;
+
+    for (n = 0; n < 10; n++)
+	params[n] = FALSE;
+
+    while (*s != 0) {
+	if (*s == '%') {
+	    if (*++s == '\0') {
+		_nc_warning("expected character after %% in %s", name);
+		break;
+	    } else if (*s == 'p') {
+		if (*++s == '\0' || !isdigit((int) *s)) {
+		    _nc_warning("expected digit after %%p in %s", name);
+		    return;
+		} else {
+		    n = (*s - '0');
+		    if (n > actual)
+			actual = n;
+		    params[n] = TRUE;
+		}
+	    }
+	}
+	s++;
+    }
+
+    if (params[0]) {
+	_nc_warning("%s refers to parameter 0 (%%p0), which is not allowed", name);
+    }
+    if (value == set_attributes || expected < 0) {
+	;
+    } else if (expected != actual) {
+	_nc_warning("%s uses %d parameters, expected %d", name,
+		    actual, expected);
+	for (n = 1; n < actual; n++) {
+	    if (!params[n])
+		_nc_warning("%s omits parameter %d", name, n);
+	}
+    }
+}
 
 /*
  * An sgr string may contain several settings other than the one we're
@@ -767,20 +921,20 @@ static void
 check_sgr(TERMTYPE * tp, char *zero, int num, char *cap, const char *name)
 {
     char *test = tparm(set_attributes,
-	num == 1,
-	num == 2,
-	num == 3,
-	num == 4,
-	num == 5,
-	num == 6,
-	num == 7,
-	num == 8,
-	num == 9);
+		       num == 1,
+		       num == 2,
+		       num == 3,
+		       num == 4,
+		       num == 5,
+		       num == 6,
+		       num == 7,
+		       num == 8,
+		       num == 9);
     if (test != 0) {
 	if (PRESENT(cap)) {
 	    if (!similar_sgr(test, cap)) {
 		_nc_warning("%s differs from sgr(%d): %s", name, num,
-		    _nc_visbuf(test));
+			    _nc_visbuf(test));
 	    }
 	} else if (strcmp(test, zero)) {
 	    _nc_warning("sgr(%d) present, but not %s", num, name);
@@ -827,17 +981,23 @@ check_termtype(TERMTYPE * tp)
 			conflict = TRUE;
 		    }
 		    fprintf(stderr, "... %s is the same as %s",
-			keyname(_nc_tinfo_fkeys[j].code),
-			keyname(_nc_tinfo_fkeys[k].code));
+			    keyname(_nc_tinfo_fkeys[j].code),
+			    keyname(_nc_tinfo_fkeys[k].code));
 		    first = FALSE;
 		} else {
 		    fprintf(stderr, ", %s",
-			keyname(_nc_tinfo_fkeys[k].code));
+			    keyname(_nc_tinfo_fkeys[k].code));
 		}
 	    }
 	}
 	if (!first)
 	    fprintf(stderr, "\n");
+    }
+
+    for (j = 0; j < NUM_STRINGS(tp); j++) {
+	char *a = tp->Strings[j];
+	if (VALID_STRING(a))
+	    check_params(tp, ExtStrname(tp, j, strnames), a);
     }
 
     /*

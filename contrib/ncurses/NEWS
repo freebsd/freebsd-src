@@ -1,10 +1,328 @@
--- $Id: NEWS,v 1.568 2000/07/02 01:16:51 tom Exp $
+-- $Id: NEWS,v 1.599 2000/10/10 01:02:11 tom Exp $
 
 This is a log of changes that ncurses has gone through since Zeyd started
 working with Pavel Curtis' original work, pcurses, in 1992.
 
 Changes through 1.9.9e are recorded by Zeyd M. Ben-Halim.
 Changes since 1.9.9e are recorded by Thomas Dickey.
+
+20001009
+	+ correct order of options/parameters in run_tic.in invocation of tic,
+	  which did not work with standard getopt() (reported by Ethan
+	  Butterfield <primus@veris.org>).
+	+ correct logic for 'reverse' variable in lib_vidattr.c, which was
+	  setting it true without checking if newmode had A_REVERSE set, e.g.,
+	  using $TERM=ansi on OS/2 EMX (see 20000917).
+	> patch by Todd Miller:
+	+ add a few missing use_terminfo_vars() and fixes up _nc_tgetent().
+	  Previously, _nc_cgetset() would still get called on cp so the
+	  simplest thing is to set cp to NULL if !use_terminfo_vars().
+	+ added checks for an empty $HOME environment variable.
+	> patches by Ilya Zakharevich for OS/2 EMX:
+	+ modify convert_configure.pl to support INSTALL.  Change compiler
+	  options in that script to use multithreading, needed for the mouse.
+	+ modify OS/2 mouse support, retrying as a 2-button mouse if code fails
+	  to set up a 3-button mouse.
+	+ improve code for OS/2 mouse support, using _nc_timed_wait() to
+	  replace select() call.
+
+20001007
+	+ change type of ospeed variable back to short to match its use in
+	  legacy applications (reported by Andrey A Chernov).
+	+ add case to configure script for --enable-rpath on IRIX (patch by
+	  Albert Chin-A-Young).
+	+ minor fix to position_check() function, to ensure it gets the whole
+	  cursor report before decoding.
+	+ add configure option --disable-assumed-color, to allow pre-5.1
+	  convention of default colors used for color-pair 0 to be configured
+	  (see assume_default_colors()).
+	+ rename configure option --enable-hashmap --disable-hashmap, and
+	  reorder the configure options, splitting the experimental and
+	  development 
+	+ add configure option --disable-root-environ, which tells ncurses to
+	  disregard $TERMINFO and similar environment variables if the current
+	  user is root, or running setuid/setgid (based on discussion with
+	  several people).
+	+ modified misc/run_tic.in to use tic -o, to eliminate dependency on
+	  $TERMINFO variable for installs.
+	+ add table entry for plab_norm to tput, so it passes in strings
+	  for that capability.
+	+ modify parse_format() in lib_tparm.c to ignore precision if it is
+	  longer than 10000 (report by Jouko Pynnonen).
+	+ rewrote limit checks in lib_mvcur.c using new functions
+	  _nc_safe_strcat(), etc.  Made other related changes to check lengths
+	  used for strcat/strcpy (report by Jouko Pynnonen <jouko@solutions.fi>).
+
+20000930
+	+ modify several descriptions, including those for setaf, setab, in
+	  include/Caps to indicate that the entries are parameterized.  This
+	  information is used to tell which strings are translated when
+	  converting to termcap.  Fixes a problem where the generated termcap
+	  would contain a spurious "%p1" for the terminfo "%p1%d".
+	+ modify ld -rpath options (e.g., Linux, and Solaris) to use an
+	  absolute pathname for the build tree's lib directory (prompted by
+	  discussion with Albert Chin-A-Young).
+	+ modify "make install.man" and "make uninstall.man" to include tack's
+	  man-page.
+	+ various fixes for install scripts used to support configure --srcdir
+	  and --with-install-prefix (reported by Matthew Clarke
+	  <Matthew_Clarke@mindlink.bc.ca>).
+	+ make configure script checks on variables $GCC and $GXX consistently
+	  compare against 'yes' rather than test if they are nonnull, since
+	  either may be set to the corresponding name of the C or C++ compiler
+	  (report/patch by Albert Chin-A-Young).
+
+20000923
+	+ modify rs2 capability in xterm-r6 and similar where cursor
+	  save/restore bracketed the sequence for resetting video attributes. 
+	  The cursor restore would undo that (from a NetBSD bug report by John
+	  Hawkinson <jhawk@MIT.EDU>).
+	+ using parameter check added to tic, corrected 27 typos in
+	  terminfo.src -TD
+	+ modify tic to verify that its inputs are really files, in case
+	  someone tries to read a directory (or /dev/zero).
+	+ add a check for empty buffers returned by fgets() in comp_scan.c
+	  next_char() function, in case tic is run on a non-text file (fixes
+	  a core dump reported by Aaron Campbell <aaron@cs.dal.ca>).
+	+ add to railroad.c some code exercising tgoto(), providing an
+	  alternate form of display if the terminal supports cursor addressing.
+	+ split-out tgoto() again, this time into new file lib_tgoto.c, and
+	  implement a conventional BSD-style tgoto() which is used if the
+	  capability string does not contain terminfo-style padding or
+	  parameters (requested by Andrey A Chernov).
+	+ add check to tic which reports capabilities that do not reference
+	  the expected number of parameters.
+	+ add error checking to infocmp's -v and -m options to ensure that
+	  the option value is indeed a number.
+
+20000917
+	+ add S0, E0 extensions to screen's terminfo entry, which is another
+	  way to solve the misconfiguration issue -TD
+	+ completed special case for tgoto from 20000916
+
+20000916
+	+ update xterm terminfo entries to match XFree86 xterm patch #146 -TD
+	+ add Matrix Orbital terminfo entries (from Eric Z Ayers
+	  <eric@ale.org>).
+	+ add special case to lib_tparm.c to allow 'screen' program to use a
+	  termcap-style parameter "%." to tgoto() for switching character sets.
+	+ use LN_S substitution in run_tic.in, to work on OS/2 EMX which has
+	  no symbolic links.
+	+ updated notes in README.emx regarding autoconf patches.
+	+ replace a lookup table in lib_vidattr.c used to decode no_color_video
+	  with a logic expression (suggested by Philippe Blain).
+	+ add a/A toggle to ncurses.c 'b' test, which clears/sets alternate
+	  character set attribute from the displayed text.
+	+ correct inequality in parameter analysis of rewritten lib_tparm.c
+	  which had the effect of ignoring p9 in set_attributes (sgr), breaking
+	  alternate character set (reported by Piotr Majka <charvel@link.pl>).
+	+ correct ifdef'ing for GCC_PRINTF, GCC_SCANF which would not compile
+	  with Sun WorkShop compilers since these tokens were empty (cf: 
+	  20000902, reported by Albert Chin-A-Young).
+
+20000909
+	+ correct an uninitialized parameter to open_tempfile() in tic.c which
+	  made "tic -I" give an ambiguous error message about tmpnam.
+	+ add special case in lib_vidattr.c to reset underline and standout for
+	  devices that have no sgr0 defined (patch by Don Lewis
+	  <Don.Lewis@tsc.tdk.com>).  Note that this will not work for bold
+	  mode, since there is no exit-bold-mode capability.
+	+ improved patch for Make_Enum_Type (patch by Juergen Pfeifer).
+	+ modify tparm to disallow arithmetic on strings, analyze the varargs
+	  list to read strings as strings and numbers as numbers.
+	+ modify tparm's internal function spop() to treat a null pointer as
+	  an empty string.
+	+ modify tput program so it can be renamed or invoked via a link as
+	  'reset' or 'init', producing the same effect as 'tput reset' or 'tput
+	  init'.
+	+ add private entrypoint _nc_basename(), use to consolidate related
+	  code in progs, as well as accommodating OS/2 EMX pathnames.
+	+ remove NCURSES_CONST line from edit_cfg.sh to compensate for its
+	  removal (except via AC_SUBST) from configure.in, making --enable-const
+	  work again (reported by Juergen Pfeifer).
+	+ regen'd configure to pick up "hpux*" change from 20000902.
+
+20000902
+	+ modify tset.c to check for transformed "reset" program name, if any.
+	+ add a check for null pointer in Make_Enum_Type() (reported by Steven
+	  W Orr <steveo@world.std.com>).
+	+ change functions _nc_parse_entry() and postprocess_termcap() to avoid
+	  using strtok(), because it is non-reentrant (reported by Andrey A
+	  Chernov <ache@nagual.pp.ru>).
+	+ remove "hpux10.*" case from CF_SHARED_OPTS configure script macro.
+	  This differed from the "hpux*" case by using reversed symbolic
+	  links, which made the 5.1 version not match the configuration of
+	  5.0 shared libraries (reported by Albert Chin-A-Young).
+	+ correct a dependency in Ada95/src/Makefile.in which prevented
+	  building with configure --srcdir (patch by H Nanosecond
+	  <aldomel@ix.netcom.com>).
+	+ modify ifdef's in curses.h.in to avoid warning if GCC_PRINTF or
+	  GCC_SCANF was not previously defined (reported by Pavel Roskin
+	  <proski@gnu.org>).
+	+ add MKncurses_def.sh to generate fallback definitions for
+	  ncurses_cfg.h, to quiet gcc -Wundef warnings, modified ifdef's in
+	  code to consistently use "#if" rather than "#ifdef".
+
+20000826
+	+ add QNX qansi entries to terminfo -TD
+	+ add os2 entry to misc/emx.src (<jmcoopr@webmail.bmi.net>).
+	+ add configure option --with-database to allow specifying a different
+	  terminfo source-file to install.  On OS/2 EMX, this defaults to
+	  misc/emx.src
+	+ change misc/run_tic.sh to derive it from misc/run_tic.in, to simplify
+	  setting .exe extension on OS/2 EMX.
+	+ add .exe extension in Ada95/gen/Makefile.in,
+	  Ada95/samples/Makefile.in, for OS/2 EMX (reported by
+	  <jmcoopr@webmail.bmi.net>).
+	+ add configure check for filesystems (such as OS/2 EMX) which do not
+	  distinguish between upper/lowercase filenames, use this to fix tags
+	  rules in makefiles.
+	+ initialize fds[] array to 0's in _nc_timed_wait(); apparently poll()
+	  only sets the revents members of that array when there is activity
+	  corresponding to the related file (report by Glenn Cooper
+	  <gcooper@qantas.com.au>, using Purify on Solaris 5.6).
+	+ change configure script to use AC_CANONICAL_SYSTEM rather than
+	  AC_CANONICAL_HOST, which means that configure --target will set
+	  a default program-prefix.
+	+ add note on cross-compiling to INSTALL (which does not rely on the
+	  AC_CANONICAL_* macros).
+
+20000819
+	+ add cases for EMX OS/2 to config.guess, config.sub
+	+ new version of config.guess, config.sub from lynx 2.8.4dev.7
+	+ add definitions via transform.h to allow tic and tput to check for
+	  the transformed aliases rather than the original infotocap, etc.
+	+ simplify transform-expressions in progs/Makefile.in, make the
+	  uninstall rule work for transformed program names.
+	+ change symbol used by --install-prefix configure option from
+	  INSTALL_PREFIX to DESTDIR (the latter has become common usage
+	  although the name is misleading).
+	+ modify programs to use curses_version() string to report the version
+	  of ncurses with which they are compiled rather than the
+	  NCURSES_VERSION string.  The function returns the patch level in
+	  addition to the major and minor version numbers.
+
+20000812
+	+ modify CF_MAN_PAGES configure macro to make transformed program names
+	  a parameter to that macro rather than embedding them in the macro.
+	+ newer config.guess, config.sub (reference version used in lynx
+	  2.8.4dev.7).
+	+ add configure option --with-default-terminfo-dir=DIR to allow
+	  specifying the default terminfo database directory (request by Albert
+	  Chin-A-Young).
+	+ minor updates for terminfo.src from FreeBSD termcap change-history.
+	+ correct notes in README and INSTALL regarding documentation files
+	  that were moved from misc directory to doc (report by Rich Kulawiec
+	  <rsk@gsp.org>).
+	+ change most remaining unquoted parameters of 'test' in configure
+	  script to use quotes, for instance fixing a problem in the
+	  --disable-database option (reported by Christian Mondrup
+	  <scancm@biobase.dk>).
+	+ minor adjustments to work around some of the incompatibilities/bugs
+	  in autoconf 2.29a alpha.
+	+ add -I/usr/local/include when --with-ncurses option is used in
+	  test/configure script.
+	+ correct logic in adjust_cancels(), which did not check both
+	  alternatives when reclassifying an extended name between boolean,
+	  number and string, causing an infinite loop in tic.
+
+20000730
+	+ correct a missing backslash in curses.priv.h
+
+20000729
+	+ change handling of non_dest_scroll_region in tty_update.c to clear
+	  text after it is shifted in rather than before shifting out.  Also
+	  correct row computation (reported by Ruediger Kuhlmann
+	  <uck4@rz.uni-karlsruhe.de>).
+	+ add/use new trace function to display chtype values from winch() and
+	  getbkgd().
+	+ add trace mask TRACE_ATTRS, alter several existing _tracef calls that
+	  trace attribute changes under TRACE_CALLS to use this.
+	+ modify MKlib_gen.sh so that functions returning chtype will call
+	  returnChar().
+	+ add returnChar() trace, for functions returning chtype.
+	+ change indent.pro to line up parenthesis.
+
+20000722
+	+ fix a heap problem with the c++ binding (report by
+	  <alexander_liberson@ninewest.com>, patch by Juergen Pfeifer).
+	+ minor adjustment to ClrToEOL() to handle an out-of-bounds parameter.
+	+ modify the check for big-core to force a couple of memory accesses,
+	  which may work as needed for older/less-capable machines (if not,
+	  there's still the explicit configure option).
+	> fixes based on diff's for Amiga and BeOS found at
+	  http://www.mathematik.uni-karlsruhe.de/~kuhlmann/cross/ncurses/
+	+ alter definition of NCURSES_CONST to make it non-empty.
+	+ add amiga-vnc terminfo entry.
+	+ redefine 'TEXT' in menu.h for AMIGA, since it is reported to have
+	  an (unspecified) symbol conflict.
+	+ replaced case-statement in _nc_tracebits() for CSIZE with a table to
+	  simplify working around implementations that define random
+	  combinations of the related macros to zero.
+	+ modify configure test for tcgetattr() to allow for old
+	  implementations, e.g., on BeOS, which only defined it as a macro.
+	> patches by Bruno Haible:
+	+ when checking LC_ALL/LC_CTYPE/LANG environment variables for UTF-8
+	  locale, ignore those which are set to an empty value, as per SUSV2.
+	+ encode 0xFFFD in UTF-8 with 3 bytes, not 2.
+	+ modify _nc_utf8_outch() to avoid sign-extension when checking for
+	  out-of-range value.
+
+20000715
+	+ correct manlinks.sed script to avoid using ERE "\+", which is not
+	  understood by older versions of sed (patch by Albert Chin-A-Young).
+	+ implement configure script options that transform installed program
+	  names, e.g., --program-prefix, including the manpage names and cross
+	  references (patch by Albert Chin-A-Young <china@thewrittenword.com>).
+	+ correct several mismatches between manpage filename and ".TH"
+	  directives, renaming dft_fgbg.3x to default_colors.3x and
+	  menu_attribs.3x to menu_attributes.3x (report by Todd C Miller).
+	+ correct missing includes for <string.h> in several places, including
+	  the C++ binding.  This is not noted by gcc unless we use the
+	  -fno-builtin option (reported by Igor Schein <igor@txc.com>).
+	+ modified progs/tset.c and tack/sysdep.c to build with sgttyb
+	  interface if neither termio or termios is available.  Tested this
+	  with FreeBSD 2.1.5 (which does have termios - but the sgttyb does
+	  work).
+
+20000708 5.1 release for upload to ftp.gnu.org
+	+ document configure options in INSTALL.
+	+ add man-page for ncurses trace functions.
+	+ correct return value shown in curs_touch.3x for is_linetouched() and
+	  is_wintouched(), in curs_initscr.3x for isendwin(), and in
+	  curs_termattr.3x for has_ic() and has_il().
+	+ add prototypes for touchline() and touchwin(), adding them to the
+	  list of generated functions.
+	+ modify fifo_push() to put ERR into the fifo just like other values to
+	  return from wgetch().  It was returning without doing that, making
+	  end-of-file condition incorrectly return a 0 (reported by Todd C
+	  Miller).
+	+ uncomment CC_SHARED_OPTS for progs and tack (see 971115), since they
+	  are needed for SCO OpenServer.
+	+ move _nc_disable_period from free_ttype.c to comp_scan.c to appease
+	  dynamic loaders on SCO and IRIX64.
+	+ add "-a" option to test/ncurses.c to invoke assume_default_colors()
+	  for testing.
+	+ correct assignment in assume_default_colors() which tells ncurses
+	  whether to use default colors, or the assumed ones (reported by Gary
+	  Funck <gary@Intrepid.Com>).
+	+ review/correct logic in mk-1st.awk for making symbolic links for
+	  shared libraries, in particular for FreeBSD, etc.
+	+ regenerate misc/*.def files for OS/2 EMX dll's.
+	+ correct quoting of values for CC_SHARED_OPTS in aclocal.m4 for
+	  cases openbsd2*, openbsd*, freebsd* and netbsd* (patch by Peter
+	  Wemm) (err in 20000610).
+	+ minor updates to release notes, as well as adding/updating URLs for
+	  examples cited in announce.html
+	> several fixes from Philippe Blain <philippe.blain2@freesbee.fr>:
+	+ correct placement of ifdef for NCURSES_XNAMES in function
+	  _nc_free_termtype(), fixes a memory leak.
+	+ add a call to _nc_synchook() to the end of function whline() like
+	  that in wvline() (difference was in 1.9.4).
+	+ make ClearScreen() a little faster by moving two instances of
+	  UpdateAttr() out of for-loops.
+	+ simplify ClrBottom() by eliminating the tstLine data, using for-loops
+	  (cf: 960428).
 
 20000701 pre-release
 	+ change minor version to 1, i.e., ncurses 5.1

@@ -41,7 +41,7 @@
 #include <term_entry.h>
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.54 2000/03/19 02:56:14 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.57 2000/10/01 01:26:25 tom Exp $")
 
 #define L_CURL "{"
 #define R_CURL "}"
@@ -73,7 +73,7 @@ static const char *tversion;	/* terminfo version selected */
 static int itrace;		/* trace flag for debugging */
 static int mwidth = 60;
 static int numbers = 0;		/* format "%'char'" to/from "%{number}" */
-static int outform = F_TERMINFO;/* output format */
+static int outform = F_TERMINFO;	/* output format */
 static int sortmode;		/* sort_mode */
 
 /* main comparison mode */
@@ -90,8 +90,8 @@ static bool ignorepads;		/* ignore pad prefixes when diffing */
 static void
 ExitProgram(int code) GCC_NORETURN;
 /* prototype is to get gcc to accept the noreturn attribute */
-static void
-ExitProgram(int code)
+     static void
+       ExitProgram(int code)
 {
     while (termcount-- > 0)
 	_nc_free_termtype(&entries[termcount].tterm);
@@ -350,10 +350,10 @@ compare_predicate(int type, int idx, const char *name)
 	case C_DIFFERENCE:
 	    if (!(b1 == ABSENT_BOOLEAN && b2 == ABSENT_BOOLEAN) && b1 != b2)
 		(void) printf("\t%s: %s%s%s.\n",
-		    name,
-		    dump_boolean(b1),
-		    bool_sep,
-		    dump_boolean(b2));
+			      name,
+			      dump_boolean(b1),
+			      bool_sep,
+			      dump_boolean(b2));
 	    break;
 
 	case C_COMMON:
@@ -732,8 +732,8 @@ file_comparison(int argc, char *argv[])
 	/* maybe do use resolution */
 	if (!_nc_resolve_uses(!limited)) {
 	    (void) fprintf(stderr,
-		"There are unresolved use entries in %s:\n",
-		argv[n]);
+			   "There are unresolved use entries in %s:\n",
+			   argv[n]);
 	    for_entry_list(qp) {
 		if (qp->nuses) {
 		    (void) fputs(qp->tterm.term_names, stderr);
@@ -773,30 +773,30 @@ file_comparison(int argc, char *argv[])
     for (qp = heads[0]; qp; qp = qp->next) {
 	if (qp->ncrosslinks > 1) {
 	    (void) fprintf(stderr,
-		"%s in file 1 (%s) has %d matches in file 2 (%s):\n",
-		_nc_first_name(qp->tterm.term_names),
-		argv[0],
-		qp->ncrosslinks,
-		argv[1]);
+			   "%s in file 1 (%s) has %d matches in file 2 (%s):\n",
+			   _nc_first_name(qp->tterm.term_names),
+			   argv[0],
+			   qp->ncrosslinks,
+			   argv[1]);
 	    for (i = 0; i < qp->ncrosslinks; i++)
 		(void) fprintf(stderr,
-		    "\t%s\n",
-		    _nc_first_name((qp->crosslinks[i])->tterm.term_names));
+			       "\t%s\n",
+			       _nc_first_name((qp->crosslinks[i])->tterm.term_names));
 	}
     }
 
     for (rp = heads[1]; rp; rp = rp->next) {
 	if (rp->ncrosslinks > 1) {
 	    (void) fprintf(stderr,
-		"%s in file 2 (%s) has %d matches in file 1 (%s):\n",
-		_nc_first_name(rp->tterm.term_names),
-		argv[1],
-		rp->ncrosslinks,
-		argv[0]);
+			   "%s in file 2 (%s) has %d matches in file 1 (%s):\n",
+			   _nc_first_name(rp->tterm.term_names),
+			   argv[1],
+			   rp->ncrosslinks,
+			   argv[0]);
 	    for (i = 0; i < rp->ncrosslinks; i++)
 		(void) fprintf(stderr,
-		    "\t%s\n",
-		    _nc_first_name((rp->crosslinks[i])->tterm.term_names));
+			       "\t%s\n",
+			       _nc_first_name((rp->crosslinks[i])->tterm.term_names));
 	}
     }
 
@@ -804,13 +804,13 @@ file_comparison(int argc, char *argv[])
     for (qp = heads[0]; qp; qp = qp->next)
 	if (qp->ncrosslinks == 0)
 	    (void) printf("\t%s\n",
-		_nc_first_name(qp->tterm.term_names));
+			  _nc_first_name(qp->tterm.term_names));
 
     (void) printf("In file 2 (%s) only:\n", argv[1]);
     for (rp = heads[1]; rp; rp = rp->next)
 	if (rp->ncrosslinks == 0)
 	    (void) printf("\t%s\n",
-		_nc_first_name(rp->tterm.term_names));
+			  _nc_first_name(rp->tterm.term_names));
 
     (void) printf("The following entries are equivalent:\n");
     for (qp = heads[0]; qp; qp = qp->next) {
@@ -858,7 +858,7 @@ file_comparison(int argc, char *argv[])
 		case C_DIFFERENCE:
 		    if (itrace)
 			(void) fprintf(stderr,
-			    "infocmp: dumping differences\n");
+				       "infocmp: dumping differences\n");
 		    (void) printf("comparing %s to %s.\n", name1, name2);
 		    compare_entry(compare_predicate, &entries->tterm, quiet);
 		    break;
@@ -866,7 +866,7 @@ file_comparison(int argc, char *argv[])
 		case C_COMMON:
 		    if (itrace)
 			(void) fprintf(stderr,
-			    "infocmp: dumping common capabilities\n");
+				       "infocmp: dumping common capabilities\n");
 		    (void) printf("comparing %s to %s.\n", name1, name2);
 		    compare_entry(compare_predicate, &entries->tterm, quiet);
 		    break;
@@ -874,7 +874,7 @@ file_comparison(int argc, char *argv[])
 		case C_NAND:
 		    if (itrace)
 			(void) fprintf(stderr,
-			    "infocmp: dumping differences\n");
+				       "infocmp: dumping differences\n");
 		    (void) printf("comparing %s to %s.\n", name1, name2);
 		    compare_entry(compare_predicate, &entries->tterm, quiet);
 		    break;
@@ -924,7 +924,7 @@ usage(void)
 	,"  -w number  (width)"
     };
     const size_t first = 3;
-    const size_t last = sizeof(tbl) / sizeof(tbl[0]);
+    const size_t last = SIZEOF(tbl);
     const size_t left = (last - first + 1) / 2 + first;
     size_t n;
 
@@ -985,7 +985,7 @@ dump_initializers(TERMTYPE * term)
 	    break;
 	}
 	(void) printf("\t/* %3d: %-8s */\t%s,\n",
-	    n, ExtBoolname(term, n, boolnames), str);
+		      n, ExtBoolname(term, n, boolnames), str);
     }
     (void) printf("%s;\n", R_CURL);
 
@@ -1005,8 +1005,8 @@ dump_initializers(TERMTYPE * term)
 	    str = buf;
 	    break;
 	}
-	(void) printf("\t/* %3d: %-8s */\t%s,\n", n, ExtNumname(term, n,
-		numnames), str);
+	(void) printf("\t/* %3d: %-8s */\t%s,\n", n,
+		      ExtNumname(term, n, numnames), str);
     }
     (void) printf("%s;\n", R_CURL);
 
@@ -1027,8 +1027,8 @@ dump_initializers(TERMTYPE * term)
 	    tp = buf;
 	    *tp++ = '"';
 	    for (sp = term->Strings[n];
-		*sp != 0 && (tp - buf) < MAX_STRING - 6;
-		sp++) {
+		 *sp != 0 && (tp - buf) < MAX_STRING - 6;
+		 sp++) {
 		if (isascii(*sp) && isprint(*sp) && *sp != '\\' && *sp != '"')
 		    *tp++ = *sp;
 		else {
@@ -1046,11 +1046,11 @@ dump_initializers(TERMTYPE * term)
 	    (void) printf("%s;\n", R_CURL);
 
 	    (void) printf("static char * %s[] = %s\n",
-		name_initializer("string_ext"), L_CURL);
+			  name_initializer("string_ext"), L_CURL);
 	}
 #endif
-	(void) printf("\t/* %3d: %-8s */\t%s,\n", n, ExtStrname(term, n,
-		strnames), str);
+	(void) printf("\t/* %3d: %-8s */\t%s,\n", n,
+		      ExtStrname(term, n, strnames), str);
     }
     (void) printf("%s;\n", R_CURL);
 }
@@ -1071,24 +1071,37 @@ dump_termtype(TERMTYPE * term)
     (void) printf("#if NCURSES_XNAMES\n");
     (void) printf("\t\t(char *)0,\t/* pointer to extended string table */\n");
     (void) printf("\t\t%s,\t/* ...corresponding names */\n",
-	(NUM_STRINGS(term) != STRCOUNT)
-	? name_initializer("string_ext")
-	: "(char **)0");
+		  (NUM_STRINGS(term) != STRCOUNT)
+		  ? name_initializer("string_ext")
+		  : "(char **)0");
 
     (void) printf("\t\t%d,\t\t/* count total Booleans */\n", NUM_BOOLEANS(term));
     (void) printf("\t\t%d,\t\t/* count total Numbers */\n", NUM_NUMBERS(term));
     (void) printf("\t\t%d,\t\t/* count total Strings */\n", NUM_STRINGS(term));
 
     (void) printf("\t\t%d,\t\t/* count extensions to Booleans */\n",
-	NUM_BOOLEANS(term) - BOOLCOUNT);
+		  NUM_BOOLEANS(term) - BOOLCOUNT);
     (void) printf("\t\t%d,\t\t/* count extensions to Numbers */\n",
-	NUM_NUMBERS(term) - NUMCOUNT);
+		  NUM_NUMBERS(term) - NUMCOUNT);
     (void) printf("\t\t%d,\t\t/* count extensions to Strings */\n",
-	NUM_STRINGS(term) - STRCOUNT);
+		  NUM_STRINGS(term) - STRCOUNT);
 
     (void) printf("#endif /* NCURSES_XNAMES */\n");
 #endif /* NCURSES_XNAMES */
     (void) printf("\t%s\n", R_CURL);
+}
+
+static int
+optarg_to_number(void)
+{
+    char *temp = 0;
+    long value = strtol(optarg, &temp, 0);
+
+    if (temp == 0 || temp == optarg || *temp != 0) {
+	fprintf(stderr, "Expected a number, not \"%s\"\n", optarg);
+	exit(EXIT_FAILURE);
+    }
+    return (int) value;
 }
 
 /***************************************************************************
@@ -1112,7 +1125,7 @@ main(int argc, char *argv[])
 
     if ((terminal = getenv("TERM")) == 0) {
 	(void) fprintf(stderr,
-	    "infocmp: environment variable TERM not set\n");
+		       "infocmp: environment variable TERM not set\n");
 	return EXIT_FAILURE;
     }
 
@@ -1222,7 +1235,7 @@ main(int argc, char *argv[])
 		sortmode = S_TERMCAP;
 	    else {
 		(void) fprintf(stderr,
-		    "infocmp: unknown sort mode\n");
+			       "infocmp: unknown sort mode\n");
 		return EXIT_FAILURE;
 	    }
 	    break;
@@ -1232,17 +1245,16 @@ main(int argc, char *argv[])
 	    break;
 
 	case 'v':
-	    itrace = atoi(optarg);
+	    itrace = optarg_to_number();
 	    set_trace_level(itrace);
 	    break;
 
 	case 'V':
-	    (void) fputs(NCURSES_VERSION, stdout);
-	    putchar('\n');
+	    puts(curses_version());
 	    ExitProgram(EXIT_SUCCESS);
 
 	case 'w':
-	    mwidth = atoi(optarg);
+	    mwidth = optarg_to_number();
 	    break;
 
 	case 'A':
@@ -1289,7 +1301,7 @@ main(int argc, char *argv[])
 	for (; optind < argc; optind++) {
 	    if (termcount >= MAXTERMS) {
 		(void) fprintf(stderr,
-		    "infocmp: too many terminal type arguments\n");
+			       "infocmp: too many terminal type arguments\n");
 		return EXIT_FAILURE;
 	    } else {
 		const char *directory = termcount ? restdir : firstdir;
@@ -1299,31 +1311,31 @@ main(int argc, char *argv[])
 
 		if (directory) {
 		    (void) sprintf(tfile[termcount], "%s/%c/%s",
-			directory,
-			*argv[optind], argv[optind]);
+				   directory,
+				   *argv[optind], argv[optind]);
 		    if (itrace)
 			(void) fprintf(stderr,
-			    "infocmp: reading entry %s from file %s\n",
-			    argv[optind], tfile[termcount]);
+				       "infocmp: reading entry %s from file %s\n",
+				       argv[optind], tfile[termcount]);
 
 		    status = _nc_read_file_entry(tfile[termcount],
-			&entries[termcount].tterm);
+						 &entries[termcount].tterm);
 		} else {
 		    if (itrace)
 			(void) fprintf(stderr,
-			    "infocmp: reading entry %s from system directories %s\n",
-			    argv[optind], tname[termcount]);
+				       "infocmp: reading entry %s from system directories %s\n",
+				       argv[optind], tname[termcount]);
 
 		    status = _nc_read_entry(tname[termcount],
-			tfile[termcount],
-			&entries[termcount].tterm);
+					    tfile[termcount],
+					    &entries[termcount].tterm);
 		    directory = TERMINFO;	/* for error message */
 		}
 
 		if (status <= 0) {
 		    (void) fprintf(stderr,
-			"infocmp: couldn't open terminfo file %s.\n",
-			tfile[termcount]);
+				   "infocmp: couldn't open terminfo file %s.\n",
+				   tfile[termcount]);
 		    return EXIT_FAILURE;
 		}
 		repair_acsc(&entries[termcount].tterm);
@@ -1368,10 +1380,10 @@ main(int argc, char *argv[])
 	case C_DEFAULT:
 	    if (itrace)
 		(void) fprintf(stderr,
-		    "infocmp: about to dump %s\n",
-		    tname[0]);
+			       "infocmp: about to dump %s\n",
+			       tname[0]);
 	    (void) printf("#\tReconstructed via infocmp from file: %s\n",
-		tfile[0]);
+			  tfile[0]);
 	    len = dump_entry(&entries[0].tterm, limited, numbers, NULL);
 	    putchar('\n');
 	    if (itrace)
@@ -1388,7 +1400,7 @@ main(int argc, char *argv[])
 	case C_COMMON:
 	    if (itrace)
 		(void) fprintf(stderr,
-		    "infocmp: dumping common capabilities\n");
+			       "infocmp: dumping common capabilities\n");
 	    (void) printf("comparing %s to %s.\n", tname[0], tname[1]);
 	    compare_entry(compare_predicate, &entries->tterm, quiet);
 	    break;
@@ -1396,7 +1408,7 @@ main(int argc, char *argv[])
 	case C_NAND:
 	    if (itrace)
 		(void) fprintf(stderr,
-		    "infocmp: dumping differences\n");
+			       "infocmp: dumping differences\n");
 	    (void) printf("comparing %s to %s.\n", tname[0], tname[1]);
 	    compare_entry(compare_predicate, &entries->tterm, quiet);
 	    break;
@@ -1407,7 +1419,7 @@ main(int argc, char *argv[])
 	    len = dump_entry(&entries[0].tterm, limited, numbers, use_predicate);
 	    for (i = 1; i < termcount; i++)
 		len += dump_uses(tname[i], !(outform == F_TERMCAP || outform
-			== F_TCONVERR));
+					     == F_TCONVERR));
 	    putchar('\n');
 	    if (itrace)
 		(void) fprintf(stderr, "infocmp: length %d\n", len);
@@ -1419,7 +1431,7 @@ main(int argc, char *argv[])
 	(void) fprintf(stderr, "Use `tic -[CI] <file>' for this.\n");
     else if (argc - optind != 2)
 	(void) fprintf(stderr,
-	    "File comparison needs exactly two file arguments.\n");
+		       "File comparison needs exactly two file arguments.\n");
     else
 	file_comparison(argc - optind, argv + optind);
 

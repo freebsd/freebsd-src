@@ -22,8 +22,8 @@
    manual pages are provided for the library and tools.
 
    The ncurses distribution is available via anonymous FTP at the GNU
-   distribution site [1]ftp://ftp.gnu.org/pub/gnu/ncurses. It is also
-   available at [2]ftp://dickey.his.com/ncurses.
+   distribution site [1]ftp://ftp.gnu.org/pub/gnu/ncurses.
+   It is also available at [2]ftp://dickey.his.com/ncurses.
 
                                  Release Notes
 
@@ -52,8 +52,12 @@
        control over the use of default colors. This is the principal
        visible difference between ncurses 5.1 and preceding versions. The
        new extension allows an application to specify what colors pair 0
-       uses. It defaults to white on black, unless you have invoked
-       use_default_colors().
+       uses.
+       NOTE: Pair 0 defaults to white on black unless you have invoked
+       use_default_colors() or set it via assume_default_colors(). An
+       application that calls start_colors() without setting the
+       background color will consistently have a black background no
+       matter what color your terminal's background actually is.
      * made several fixes to the terminfo-to-termcap conversion, and have
        been using the generated termcaps without further hand-tuning.
        This builds on the extension use_extended_names() by adding
@@ -81,8 +85,8 @@
        affects stty lnext on systems such as FreeBSD
      * reordered tests during mouse initialization to allow for gpm to
        run in xterm, or for xterm to be used under OS/2 EMX. Also dropped
-       test for $DISPLAY in favor of kmous=\E[M or $TERM containing
-       "xterm".
+       test for $DISPLAY in favor of the terminfo capability kmous=\E[M
+       or if $TERM environment variable contains "xterm".
      * added configure option --with-manpage-symlinks, which provides for
        fully indexing manpage entries by making symbolic links for the
        aliases.
@@ -237,7 +241,8 @@
 
    cdk
           Curses Development Kit
-          [3]Curses Development Kit [4]http://dickey.his.com/cdk.
+          [3]http://www.vexus.ca/CDK.html
+          [4]http://dickey.his.com/cdk.
 
    ded
           directory-editor
@@ -254,47 +259,53 @@
 
    Midnight Commander 4.1
           file manager
+          [8]www.gnome.org/mc/.
 
    mutt
           mail utility
-          [8]http://www.mutt.org.
+          [9]http://www.mutt.org.
 
    ncftp
           file-transfer utility
+          [10]http://www.ncftp.com.
 
    nvi
           New vi versions 1.50 are able to use ncurses versions 1.9.7 and
           later.
+          [11]http://www.bostic.com/vi/.
 
    tin
           newsreader, supporting color, MIME
-          [9]http://www.tin.org.
+          [12]http://www.tin.org.
 
    taper
           tape archive utility
+          [13]http://members.iinet.net.au/~yusuf/taper/.
 
    vh-1.6
           Volks-Hypertext browser for the Jargon File
+          [14]http://www.bg.debian.org/Packages/unstable/text/vh.html.
 
    as well as some that use ncurses for the terminfo support alone:
 
    minicom
           terminal emulator
+          [15]http://www.pp.clinet.fi/~walker/minicom.html.
 
    vile
           vi-like-emacs
-          [10]http://dickey.his.com/vile.
+          [16]http://dickey.his.com/vile.
 
    The ncurses distribution includes a selection of test programs
    (including a few games).
 
 Who's Who and What's What
 
-   The original developers of ncurses are [11]Zeyd Ben-Halim and [12]Eric
-   S. Raymond. Ongoing work is being done by [13]Thomas Dickey and
-   [14]Jürgen Pfeifer. [15]Thomas Dickey acts as the maintainer for the
+   The original developers of ncurses are [17]Zeyd Ben-Halim and [18]Eric
+   S. Raymond. Ongoing work is being done by [19]Thomas Dickey and
+   [20]Jürgen Pfeifer. [21]Thomas Dickey acts as the maintainer for the
    Free Software Foundation, which holds the copyright on ncurses.
-   Contact the current maintainers at [16]bug-ncurses@gnu.org.
+   Contact the current maintainers at [22]bug-ncurses@gnu.org.
 
    To join the ncurses mailing list, please write email to
    bug-ncurses-request@gnu.org containing the line:
@@ -304,7 +315,7 @@ Who's Who and What's What
    and testing of this package.
 
    Beta versions of ncurses and patches to the current release are made
-   available at [17]ftp://dickey.his.com/ncurses.
+   available at [23]ftp://dickey.his.com/ncurses.
 
 Future Plans
 
@@ -319,10 +330,10 @@ Other Related Resources
 
    The distribution includes and uses a version of the terminfo-format
    terminal description file maintained by Eric Raymond.
-   [18]http://earthspace.net/~esr/terminfo.
+   [24]http://earthspace.net/~esr/terminfo.
 
    You can find lots of information on terminal-related topics not
-   covered in the terminfo file at [19]Richard Shuford's archive.
+   covered in the terminfo file at [25]Richard Shuford's archive.
 
 References
 
@@ -333,15 +344,21 @@ References
    5. http://dickey.his.com/ded/ded.html
    6. http://dickey.his.com/dialog/dialog.html
    7. http://lynx.isc.org/release/
-   8. http://www.mutt.org/
-   9. http://www.tin.org/
-  10. http://dickey.his.com/vile/vile.html
-  11. mailto:zmbenhal@netcom.com
-  12. http://www.ccil.org/~esr/home.html
-  13. mailto:dickey@herndon4.his.com
-  14. mailto:juergen.pfeifer@gmx.net
-  15. mailto:dickey@herndon4.his.com
-  16. mailto:bug-ncurses@gnu.org
-  17. ftp://dickey.his.com/ncurses
-  18. http://earthspace.net/~esr/terminfo
-  19. http://www.cs.utk.edu/~shuford/terminal_index.html
+   8. file://localhost/usr/build/ncurses/ncurses-5.1-20000704/doc/html/www.gnome.org/mc/
+   9. http://www.mutt.org/
+  10. http://www.ncftp.com/
+  11. http://www.bostic.com/vi/
+  12. http://www.tin.org/
+  13. http://members.iinet.net.au/~yusuf/taper/
+  14. http://www.bg.debian.org/Packages/unstable/text/vh.html
+  15. http://www.pp.clinet.fi/~walker/minicom.html
+  16. http://dickey.his.com/vile/vile.html
+  17. mailto:zmbenhal@netcom.com
+  18. http://www.ccil.org/~esr/home.html
+  19. mailto:dickey@herndon4.his.com
+  20. mailto:juergen.pfeifer@gmx.net
+  21. mailto:dickey@herndon4.his.com
+  22. mailto:bug-ncurses@gnu.org
+  23. ftp://dickey.his.com/ncurses
+  24. http://earthspace.net/~esr/terminfo
+  25. http://www.cs.utk.edu/~shuford/terminal_index.html

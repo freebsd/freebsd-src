@@ -1,4 +1,4 @@
-# $Id: modules,v 1.72 2000/02/13 01:03:28 tom Exp $
+# $Id: modules,v 1.74 2000/10/03 08:51:18 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
 #                                                                            #
@@ -167,6 +167,7 @@ lib_raw 	lib		$(tinfo)	../include/term.h
 lib_setup	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h
 lib_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h $(INCDIR)/capdefaults.c
 lib_termname	lib		$(tinfo)	$(INCDIR)/tic.h
+lib_tgoto	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 lib_ti		lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 lib_tparm	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 lib_tputs	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
@@ -181,6 +182,7 @@ parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic
 read_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 read_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 setbuf		lib		$(tinfo)
+strings		lib		$(tinfo)
 trace_buf	lib		$(trace)
 trace_tries	lib		$(trace)
 unctrl		lib		.

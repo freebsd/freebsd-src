@@ -198,6 +198,7 @@ libncurses-routines	= \
 			tinfo/lib_setup \
 			tinfo/lib_termcap \
 			tinfo/lib_termname \
+			tinfo/lib_tgoto \
 			tinfo/lib_ti \
 			tinfo/lib_tparm \
 			tinfo/lib_tputs \
@@ -207,6 +208,7 @@ libncurses-routines	= \
 			tinfo/read_entry \
 			tinfo/read_termcap \
 			tinfo/setbuf \
+			tinfo/strings \
 			tinfo/write_entry \
 			trace/lib_trace \
 			trace/lib_traceatr \

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,27 +31,29 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
-
 /*
  *	lib_traceatr.c - Tracing/Debugging routines (attributes)
  */
 
 #include <curses.priv.h>
-#include <term.h>	/* acs_chars */
+#include <term.h>		/* acs_chars */
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.28 1998/03/21 18:39:36 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.30 2000/07/29 18:06:09 tom Exp $")
 
 #define COLOR_OF(c) (c < 0 || c > 7 ? "default" : colors[c].name)
 
 #ifdef TRACE
-char *_traceattr2(int bufnum, attr_t newmode)
+char *
+_traceattr2(int bufnum, attr_t newmode)
 {
-char	*buf = _nc_trace_buf(bufnum, BUFSIZ);
-char	*tmp = buf;
-static const	struct {unsigned int val; const char *name;}
-names[] =
+    char *buf = _nc_trace_buf(bufnum, BUFSIZ);
+    char *tmp = buf;
+    static const struct {
+	unsigned int val;
+	const char *name;
+    } names[] =
     {
+	/* *INDENT-OFF* */
 	{ A_STANDOUT,		"A_STANDOUT" },
 	{ A_UNDERLINE,		"A_UNDERLINE" },
 	{ A_REVERSE,		"A_REVERSE" },
@@ -64,9 +66,12 @@ names[] =
 	{ A_CHARTEXT,		"A_CHARTEXT" },
 	{ A_NORMAL,		"A_NORMAL" },
 	{ A_COLOR,		"A_COLOR" },
+	/* *INDENT-ON* */
+
     },
-colors[] =
+	colors[] =
     {
+	/* *INDENT-OFF* */
 	{ COLOR_BLACK,		"COLOR_BLACK" },
 	{ COLOR_RED,		"COLOR_RED" },
 	{ COLOR_GREEN,		"COLOR_GREEN" },
@@ -75,122 +80,125 @@ colors[] =
 	{ COLOR_MAGENTA,	"COLOR_MAGENTA" },
 	{ COLOR_CYAN,		"COLOR_CYAN" },
 	{ COLOR_WHITE,		"COLOR_WHITE" },
+	/* *INDENT-ON* */
+
     };
-size_t n;
-unsigned save_nc_tracing = _nc_tracing;
-	_nc_tracing = 0;
+    size_t n;
+    unsigned save_nc_tracing = _nc_tracing;
+    _nc_tracing = 0;
 
-	strcpy(tmp++, "{");
+    strcpy(tmp++, "{");
 
-	for (n = 0; n < SIZEOF(names); n++) {
-		if ((newmode & names[n].val) != 0) {
-			if (buf[1] != '\0')
-				strcat(tmp, "|");
-			strcat(tmp, names[n].name);
-			tmp += strlen(tmp);
+    for (n = 0; n < SIZEOF(names); n++) {
+	if ((newmode & names[n].val) != 0) {
+	    if (buf[1] != '\0')
+		strcat(tmp, "|");
+	    strcat(tmp, names[n].name);
+	    tmp += strlen(tmp);
 
-			if (names[n].val == A_COLOR)
-			{
-				short pairnum = PAIR_NUMBER(newmode);
-				short fg, bg;
-	
-				if (pair_content(pairnum, &fg, &bg) == OK)
-					(void) sprintf(tmp,
-						"{%d = {%s, %s}}",
-						pairnum,
-						COLOR_OF(fg),
-						COLOR_OF(bg)
-						);
-				else
-					(void) sprintf(tmp, "{%d}", pairnum);
-			}
-		}
+	    if (names[n].val == A_COLOR) {
+		short pairnum = PAIR_NUMBER(newmode);
+		short fg, bg;
+
+		if (pair_content(pairnum, &fg, &bg) == OK)
+		    (void) sprintf(tmp,
+				   "{%d = {%s, %s}}",
+				   pairnum,
+				   COLOR_OF(fg),
+				   COLOR_OF(bg)
+			);
+		else
+		    (void) sprintf(tmp, "{%d}", pairnum);
+	    }
 	}
-	if (AttrOf(newmode) == A_NORMAL) {
-		if (buf[1] != '\0')
-			strcat(tmp, "|");
-		strcat(tmp, "A_NORMAL");
-	}
+    }
+    if (AttrOf(newmode) == A_NORMAL) {
+	if (buf[1] != '\0')
+	    strcat(tmp, "|");
+	strcat(tmp, "A_NORMAL");
+    }
 
-	_nc_tracing = save_nc_tracing;
-	return (strcat(buf,"}"));
+    _nc_tracing = save_nc_tracing;
+    return (strcat(buf, "}"));
 }
 
-char *_traceattr(attr_t newmode)
+char *
+_traceattr(attr_t newmode)
 {
-	return _traceattr2(0, newmode);
+    return _traceattr2(0, newmode);
 }
 
 /* Trace 'int' return-values */
-attr_t _nc_retrace_attr_t(attr_t code)
+attr_t
+_nc_retrace_attr_t(attr_t code)
 {
-	T((T_RETURN("%s"), _traceattr(code)));
-	return code;
+    T((T_RETURN("%s"), _traceattr(code)));
+    return code;
 }
 
-char *_tracechtype2(int bufnum, chtype ch)
+char *
+_tracechtype2(int bufnum, chtype ch)
 {
-char	*buf = _nc_trace_buf(bufnum, BUFSIZ);
-char	*found = 0;
+    char *buf = _nc_trace_buf(bufnum, BUFSIZ);
+    char *found = 0;
 
     strcpy(buf, "{");
-    if (ch & A_ALTCHARSET)
-    {
-	char	*cp;
-	static const	struct {unsigned int val; const char *name;}
-	names[] =
+    if (ch & A_ALTCHARSET) {
+	char *cp;
+	static const struct {
+	    unsigned int val;
+	    const char *name;
+	} names[] =
 	{
-	    {'l', "ACS_ULCORNER"},	/* upper left corner */
-	    {'m', "ACS_LLCORNER"},	/* lower left corner */
-	    {'k', "ACS_URCORNER"},	/* upper right corner */
-	    {'j', "ACS_LRCORNER"},	/* lower right corner */
-	    {'t', "ACS_LTEE"},		/* tee pointing right */
-	    {'u', "ACS_RTEE"},		/* tee pointing left */
-	    {'v', "ACS_BTEE"},		/* tee pointing up */
-	    {'w', "ACS_TTEE"},		/* tee pointing down */
-	    {'q', "ACS_HLINE"},		/* horizontal line */
-	    {'x', "ACS_VLINE"},		/* vertical line */
-	    {'n', "ACS_PLUS"},		/* large plus or crossover */
-	    {'o', "ACS_S1"},		/* scan line 1 */
-	    {'s', "ACS_S9"},		/* scan line 9 */
-	    {'`', "ACS_DIAMOND"},	/* diamond */
-	    {'a', "ACS_CKBOARD"},	/* checker board (stipple) */
-	    {'f', "ACS_DEGREE"},	/* degree symbol */
-	    {'g', "ACS_PLMINUS"},	/* plus/minus */
-	    {'~', "ACS_BULLET"},	/* bullet */
-	    {',', "ACS_LARROW"},	/* arrow pointing left */
-	    {'+', "ACS_RARROW"},	/* arrow pointing right */
-	    {'.', "ACS_DARROW"},	/* arrow pointing down */
-	    {'-', "ACS_UARROW"},	/* arrow pointing up */
-	    {'h', "ACS_BOARD"},		/* board of squares */
-	    {'i', "ACS_LANTERN"},	/* lantern symbol */
-	    {'0', "ACS_BLOCK"},		/* solid square block */
-	    {'p', "ACS_S3"},		/* scan line 3 */
-	    {'r', "ACS_S7"},		/* scan line 7 */
-	    {'y', "ACS_LEQUAL"},	/* less/equal */
-	    {'z', "ACS_GEQUAL"},	/* greater/equal */
-	    {'{', "ACS_PI"},		/* Pi */
-	    {'|', "ACS_NEQUAL"},	/* not equal */
-	    {'}', "ACS_STERLING"},	/* UK pound sign */
-	    {'\0',(char *)0}
+	    /* *INDENT-OFF* */
+	    { 'l', "ACS_ULCORNER" },	/* upper left corner */
+	    { 'm', "ACS_LLCORNER" },	/* lower left corner */
+	    { 'k', "ACS_URCORNER" },	/* upper right corner */
+	    { 'j', "ACS_LRCORNER" },	/* lower right corner */
+	    { 't', "ACS_LTEE" },	/* tee pointing right */
+	    { 'u', "ACS_RTEE" },	/* tee pointing left */
+	    { 'v', "ACS_BTEE" },	/* tee pointing up */
+	    { 'w', "ACS_TTEE" },	/* tee pointing down */
+	    { 'q', "ACS_HLINE" },	/* horizontal line */
+	    { 'x', "ACS_VLINE" },	/* vertical line */
+	    { 'n', "ACS_PLUS" },	/* large plus or crossover */
+	    { 'o', "ACS_S1" },		/* scan line 1 */
+	    { 's', "ACS_S9" },		/* scan line 9 */
+	    { '`', "ACS_DIAMOND" },	/* diamond */
+	    { 'a', "ACS_CKBOARD" },	/* checker board (stipple) */
+	    { 'f', "ACS_DEGREE" },	/* degree symbol */
+	    { 'g', "ACS_PLMINUS" },	/* plus/minus */
+	    { '~', "ACS_BULLET" },	/* bullet */
+	    { ',', "ACS_LARROW" },	/* arrow pointing left */
+	    { '+', "ACS_RARROW" },	/* arrow pointing right */
+	    { '.', "ACS_DARROW" },	/* arrow pointing down */
+	    { '-', "ACS_UARROW" },	/* arrow pointing up */
+	    { 'h', "ACS_BOARD" },	/* board of squares */
+	    { 'i', "ACS_LANTERN" },	/* lantern symbol */
+	    { '0', "ACS_BLOCK" },	/* solid square block */
+	    { 'p', "ACS_S3" },		/* scan line 3 */
+	    { 'r', "ACS_S7" },		/* scan line 7 */
+	    { 'y', "ACS_LEQUAL" },	/* less/equal */
+	    { 'z', "ACS_GEQUAL" },	/* greater/equal */
+	    { '{', "ACS_PI" },		/* Pi */
+	    { '|', "ACS_NEQUAL" },	/* not equal */
+	    { '}', "ACS_STERLING" },	/* UK pound sign */
+	    { '\0', (char *) 0 }
+		/* *INDENT-OFF* */
 	},
-	*sp;
+	    *sp;
 
-	for (cp = acs_chars; cp[0] && cp[1]; cp += 2)
-	{
-	    if (TextOf(cp[1]) == TextOf(ch))
-	    {
+	for (cp = acs_chars; cp[0] && cp[1]; cp += 2) {
+	    if (TextOf(cp[1]) == TextOf(ch)) {
 		found = cp;
 		/* don't exit from loop - there may be redefinitions */
 	    }
 	}
 
-	if (found != 0)
-	{
+	if (found != 0) {
 	    ch = TextOf(*found);
 	    for (sp = names; sp->val; sp++)
-		if (sp->val == ch)
-		{
+		if (sp->val == ch) {
 		    (void) strcat(buf, sp->name);
 		    ch &= ~A_ALTCHARSET;
 		    break;
@@ -202,17 +210,31 @@ char	*found = 0;
 	(void) strcat(buf, _tracechar(TextOf(ch)));
 
     if (AttrOf(ch) != A_NORMAL)
-	(void) sprintf(buf + strlen(buf), " | %s", _traceattr2(bufnum+20,AttrOf(ch)));
+	(void) sprintf(buf + strlen(buf), " | %s",
+		_traceattr2(bufnum + 20, AttrOf(ch)));
 
     strcat(buf, "}");
-    return(buf);
+    return (buf);
 }
 
-char *_tracechtype(chtype ch)
+char *
+_tracechtype(chtype ch)
 {
-	return _tracechtype2(0, ch);
+    return _tracechtype2(0, ch);
 }
+
+/* Trace 'chtype' return-values */
+attr_t
+_nc_retrace_chtype(attr_t code)
+{
+    T((T_RETURN("%s"), _tracechtype(code)));
+    return code;
+}
+
 #else
-extern	void _nc_lib_traceatr(void);
-	void _nc_lib_traceatr(void) { }
+extern void _nc_lib_traceatr(void);
+void
+_nc_lib_traceatr(void)
+{
+}
 #endif /* TRACE */
