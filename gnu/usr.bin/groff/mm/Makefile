@@ -8,10 +8,10 @@ TMACDIR?=	${SHAREDIR}/tmac
 FILES=		0.MT 5.MT 4.MT ms.cov se_ms.cov
 LOCALE=		locale se_locale
 
-MAN7=		groff_mm.7 groff_mmse.7 mmroff.7
+MAN=		groff_mm.7 groff_mmse.7 mmroff.7
 MLINKS=		groff_mm.7 mm.7 groff_mmse.7 mmse.7
 
-CLEANFILES+=	${MAN7}
+CLEANFILES+=	${MAN}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

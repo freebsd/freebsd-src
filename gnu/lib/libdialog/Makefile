@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 LIB=    dialog
-MAN3=	dialog.3
+MAN=	dialog.3
 
 SHLIB_MAJOR= 4
 SHLIB_MINOR= 0

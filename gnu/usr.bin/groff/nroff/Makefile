@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-MAN1=		nroff.1 psroff.1
+MAN=		nroff.1 psroff.1
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	${MAN}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -9,16 +9,16 @@ TMACDIR?=	${SHAREDIR}/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 LOCALEDIR?=     ${MDOCDIR}/locale
 
-MAN5=		groff_tmac.5
+MAN=		groff_tmac.5
 MLINKS+=	groff_tmac.5 tmac.5
-MAN7=		groff_ms.7 groff_man.7 groff_me.7 groff_msafer.7 groff_markup.7
+MAN+=		groff_ms.7 groff_man.7 groff_me.7 groff_msafer.7 groff_markup.7
 MLINKS+=	groff_ms.7 ms.7
 MLINKS+=	groff_me.7 me.7
 MLINKS+=	groff_msafer.7 msafer.7
 MLINKS+=	groff_markup.7 markup.7
 LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 
-CLEANFILES=	${MAN5} ${MAN7} ${MDOCFILES} ${STRIPFILES} ${SPECIALFILES}
+CLEANFILES=	${MAN} ${MDOCFILES} ${STRIPFILES} ${SPECIALFILES}
 CLEANFILES+=	tmac.an-old
 
 FILES=          tmac.mandoc tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold \

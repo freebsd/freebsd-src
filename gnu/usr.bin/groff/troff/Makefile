@@ -7,7 +7,7 @@ CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	majorminor.cc ${MAN1}
+CLEANFILES+=	majorminor.cc troff.1
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${DIST_DIR}/hyphen.us \

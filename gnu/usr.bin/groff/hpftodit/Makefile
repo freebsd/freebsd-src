@@ -5,7 +5,7 @@ SRCS=		hpftodit.cc
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	hpftodit.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

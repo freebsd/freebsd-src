@@ -4,7 +4,7 @@ PROG=		pfbtops
 LDADD+=		${LIBGROFF}
 DPADD+=		${LIBGROFF}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	pfbtops.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

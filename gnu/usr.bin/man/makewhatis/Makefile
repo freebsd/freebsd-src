@@ -1,8 +1,7 @@
 # $FreeBSD$
 MAINTAINER= wosch
 
-MAN1=	makewhatis.1
-MAN8=	makewhatis.local.8
+MAN=	makewhatis.1 makewhatis.local.8
 MLINKS=	makewhatis.local.8 catman.local.8
 
 libexecdir=/usr/libexec

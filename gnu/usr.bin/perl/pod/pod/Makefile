@@ -22,7 +22,7 @@ ${I}.1: ${I}.pod
 	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${.OODATE} \
 		> ${.TARGET}
 
-MAN1+=	${I}.1
+MAN+=	${I}.1
 
 CLEANFILES+= ${.OBJDIR}/${I}.pod ${I}.1
 .endfor
