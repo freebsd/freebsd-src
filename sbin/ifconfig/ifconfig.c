@@ -129,6 +129,7 @@ struct	afswtch;
 
 int supmedia = 0;
 int listcloners = 0;
+int printname = 0;		/* Print the name of the created interface. */
 
 #ifdef INET6
 char	addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
@@ -172,6 +173,7 @@ c_func	setip6eui64;
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu, setifcap;
 c_func	clone_destroy;
+c_func	setifname;
 
 
 void clone_create(void);
@@ -286,6 +288,7 @@ struct	cmd {
 	{ "compress",	IFF_LINK0,	setifflags },
 	{ "noicmp",	IFF_LINK1,	setifflags },
 	{ "mtu",	NEXTARG,	setifmtu },
+	{ "name",	NEXTARG,	setifname },
 	{ 0,		0,		setifaddr },
 	{ 0,		0,		setifdstaddr },
 };
@@ -525,7 +528,7 @@ main(int argc, char *argv[])
 			clone_create();
 			argc--, argv++;
 			if (argc == 0)
-				exit(0);
+				goto end;
 		}
 		ifindex = if_nametoindex(name);
 		if (ifindex == 0)
@@ -631,6 +634,9 @@ main(int argc, char *argv[])
 
 	if (namesonly && need_nl > 0)
 		putchar('\n');
+end:
+	if (printname)
+		printf("%s\n", name);
 
 	exit (0);
 }
@@ -1037,6 +1043,30 @@ setifmtu(const char *val, int dummy __unused, int s,
 	ifr.ifr_mtu = atoi(val);
 	if (ioctl(s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
 		warn("ioctl (set mtu)");
+}
+
+void
+setifname(const char *val, int dummy __unused, int s, 
+    const struct afswtch *afp)
+{
+	char	*newname;
+
+	newname = strdup(val);
+
+	ifr.ifr_data = newname;
+	if (ioctl(s, SIOCSIFNAME, (caddr_t)&ifr) < 0) {
+		warn("ioctl (set name)");
+		free(newname);
+		return;
+	}
+	strlcpy(name, newname, sizeof(name));
+	free(newname);
+
+	/*
+	 * Even if we just created the interface, we don't need to print
+	 * its name because we just nailed it down separately.
+	 */
+	printname = 0;
 }
 
 #define	IFFBITS \
@@ -1885,8 +1915,13 @@ clone_create(void)
 	if (ioctl(s, SIOCIFCREATE, &ifr) < 0)
 		err(1, "SIOCIFCREATE");
 
+	/*
+	 * If we get a different name back then we put in, we probably
+	 * want to print it out, but we might change our mind later so
+	 * we just signal our intrest and leave the printout for later.
+	 */
 	if (strcmp(name, ifr.ifr_name) != 0) {
-		printf("%s\n", ifr.ifr_name);
+		printname = 1;
 		strlcpy(name, ifr.ifr_name, sizeof(name));
 	}
 
@@ -1900,4 +1935,9 @@ clone_destroy(const char *val, int d, int s, const struct afswtch *rafp)
 	(void) strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
 		err(1, "SIOCIFDESTROY");
+	/*
+	 * If we create and destroy an interface in the same command,
+	 * there isn't any reason to print it's name.
+	 */
+	printname = 0;
 }

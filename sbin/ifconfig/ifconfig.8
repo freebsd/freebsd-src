@@ -322,6 +322,9 @@ this directive is used to select between 802.11a
 and 802.11g
 .Pq Dq 11g
 operating modes.
+.It Cm name Ar name
+Set the interface name to
+.Ar name .
 .It Cm rxcsum , txcsum
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
@@ -353,7 +356,10 @@ Create the specified network pseudo-device.
 If the interface is given without a unit number, try to create a new
 device with an arbitrary unit number.
 If creation of an arbitrary device is successful, the new device name is
-printed to standard output.
+printed to standard output unless the interface is renamed or destroyed
+in the same
+.Nm
+invocation.
 .It Cm destroy
 Destroy the specified network pseudo-device.
 .It Cm plumb
