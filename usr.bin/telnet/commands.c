@@ -274,12 +274,12 @@ struct sendlist {
 
 
 static int
-	send_esc P((void)),
-	send_help P((void)),
-	send_docmd P((char *)),
-	send_dontcmd P((char *)),
-	send_willcmd P((char *)),
-	send_wontcmd P((char *));
+	send_esc(void),
+	send_help(void),
+	send_docmd(char *),
+	send_dontcmd(char *),
+	send_willcmd(char *),
+	send_wontcmd(char *);
 
 static struct sendlist Sendlist[] = {
     { "ao",	"Send Telnet Abort output",	1, 0, NULL, 2, AO },
@@ -1457,18 +1457,18 @@ struct envlist {
 };
 
 extern struct env_lst *
-	env_define P((const unsigned char *, unsigned char *));
+	env_define(const unsigned char *, unsigned char *);
 extern void
-	env_undefine P((unsigned char *)),
-	env_export P((const unsigned char *)),
-	env_unexport P((const unsigned char *)),
-	env_send P((unsigned char *)),
+	env_undefine(unsigned char *),
+	env_export(const unsigned char *),
+	env_unexport(const unsigned char *),
+	env_send(unsigned char *),
 #if defined(OLD_ENVIRON) && defined(ENV_HACK)
-	env_varval P((unsigned char *)),
+	env_varval(unsigned char *),
 #endif
-	env_list P((void));
+	env_list(void);
 static void
-	env_help P((void));
+	env_help(void);
 
 struct envlist EnvList[] = {
     { "define",	"Define an environment variable",
