@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.17 1997/04/06 19:46:58 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.18 1997/05/21 18:52:54 nate Exp $
 
 Contents last changed:  March 27th, 1997
 
@@ -494,15 +494,8 @@ A: Your machine doesn't like the new i586_copyout and i586_copyin code
 
 Q: I have this CMD640 IDE controller that is said to be broken.
 
-A: Yes, it is.  There's a workaround available now, but it's not yet
-   enabled by default in FreeBSD 2.2.  In order to install your system
-   using this controller, you need to make sure that you are only
-   using drives on one of its channels.  Don't forget about your ATAPI
-   CD-ROM drive!  It must be the second drive on the primary channel
-   if you are going to install from it onto an IDE disk.
-
-   Once your system is installed, rebuild your kernel with the option
-   CMD640.  Refer to the FAQ and handbook for more detailed information.
+A: Yes, it is.  There's a workaround available now and it is enabled
+   automatically if this chip is used on your system.
+   For the details refer to the manual page of the disk driver (man 4 wd).
 
 [ Please add more hardware tips to this Q&A section! ]
-
