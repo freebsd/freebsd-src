@@ -323,3 +323,11 @@ with a better one (hint: all the information needed is available to the driver).
 .Pp
 The driver does not fully enable power-save operation of the chip;
 consequently power use is suboptimal.
+.Pp
+The driver honors the regulatory domain programmed into the EEPROM of a 
+device and does not support overriding this setting.
+This is done to insure compliance with local regulatory agencies when
+operating as an access point.
+Unfortunately this also means that devices purchased for use in one locale
+may not be usable in another.
+Changes are planned to remove this restriction when operating in station mode.
