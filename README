@@ -1,5 +1,5 @@
 This is the top level of the FreeBSD source directory.  This file
-was last revised on: $Id$
+was last revised on: $Id: README,v 1.7 1997/01/01 14:06:29 jkh Exp $
 
 For copyright information, please see the file COPYRIGHT in this
 directory (additional copyright information also exists for some
@@ -13,10 +13,10 @@ everything in the FreeBSD system from the source tree except the
 kernel.  Please see the top of the Makefile for more information on
 the standard build targets and compile-time flags.
 
-Building a kernel with config(1) is a somewhat more involved process,
+Building a kernel with config(8) is a somewhat more involved process,
 documentation for which can be found at:
    http://www.freebsd.org/handbook/kernelconfig.html
-And in the config(1) man page.
+And in the config(8) man page.
 
 The sample kernel configuration files reside in the sys/i386/conf
 sub-directory (assuming that you've installed the kernel sources), the
