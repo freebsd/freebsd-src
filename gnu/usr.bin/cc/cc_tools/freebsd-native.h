@@ -35,6 +35,7 @@
 #undef	STANDARD_BINDIR_PREFIX		/* We don't need one for now. */
 #define	STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
 #undef	MD_EXEC_PREFIX			/* We don't want one. */
+#define	FBSD_DATA_PREFIX		PREFIX"/libdata/gcc/"
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
