@@ -322,11 +322,9 @@ static struct mtx allpmaps_lock;
  * Data for the pv entry allocation mechanism
  */
 static vm_zone_t pvzone;
-static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
-static struct pv_entry *pvinit;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static pv_entry_t get_pv_entry __P((void));
@@ -349,6 +347,7 @@ static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
+static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #ifdef SMP
 static void pmap_invalidate_page_action __P((void *arg));
 static void pmap_invalidate_all_action __P((void *arg));
@@ -575,6 +574,13 @@ pmap_uses_prom_console()
 	return 0;
 }
 
+static void *
+pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	*flags = UMA_SLAB_PRIV;
+	return (void *)kmem_alloc(kernel_map, bytes);
+}
+
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -609,11 +615,16 @@ pmap_init(phys_start, phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
+#if 0
 	pvzone = &pvzone_store;
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
 	    vm_page_array_size);
+#endif
+	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	uma_zone_set_allocf(pvzone, pmap_allocf);
+	uma_prealloc(pvzone, initial_pvs);
 	/*
 	 * object for kernel page table pages
 	 */
@@ -638,7 +649,10 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+#if 0
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
+#endif
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
 

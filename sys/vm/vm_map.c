@@ -88,7 +88,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
 /*
@@ -131,27 +130,110 @@
  *	maps and requires map entries.
  */
 
-static struct vm_zone kmapentzone_store, mapentzone_store, mapzone_store;
-static vm_zone_t mapentzone, kmapentzone, mapzone, vmspace_zone;
-static struct vm_object kmapentobj, mapentobj, mapobj;
+static uma_zone_t mapentzone;
+static uma_zone_t kmapentzone;
+static uma_zone_t mapzone;
+static uma_zone_t vmspace_zone;
+static struct vm_object kmapentobj;
+static void vmspace_zinit(void *mem, int size);
+static void vmspace_zfini(void *mem, int size);
+static void vm_map_zinit(void *mem, int size);
+static void vm_map_zfini(void *mem, int size);
+static void _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max);
 
-static struct vm_map_entry map_entry_init[MAX_MAPENT];
-static struct vm_map_entry kmap_entry_init[MAX_KMAPENT];
-static struct vm_map map_init[MAX_KMAP];
+#ifdef INVARIANTS
+static void vm_map_zdtor(void *mem, int size, void *arg);
+static void vmspace_zdtor(void *mem, int size, void *arg);
+#endif
 
 void
 vm_map_startup(void)
 {
-	mapzone = &mapzone_store;
-	zbootinit(mapzone, "MAP", sizeof (struct vm_map),
-		map_init, MAX_KMAP);
-	kmapentzone = &kmapentzone_store;
-	zbootinit(kmapentzone, "KMAP ENTRY", sizeof (struct vm_map_entry),
-		kmap_entry_init, MAX_KMAPENT);
-	mapentzone = &mapentzone_store;
-	zbootinit(mapentzone, "MAP ENTRY", sizeof (struct vm_map_entry),
-		map_entry_init, MAX_MAPENT);
+	mapzone = uma_zcreate("MAP", sizeof(struct vm_map), NULL,
+#ifdef INVARIANTS
+	    vm_map_zdtor,
+#else
+	    NULL,
+#endif
+	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_prealloc(mapzone, MAX_KMAP);
+	kmapentzone = zinit("KMAP ENTRY", sizeof(struct vm_map_entry), 0, 0, 0);	uma_prealloc(kmapentzone, MAX_KMAPENT);
+	mapentzone = zinit("MAP ENTRY", sizeof(struct vm_map_entry), 0, 0, 0);
+	uma_prealloc(mapentzone, MAX_MAPENT);
 }
+
+static void
+vmspace_zfini(void *mem, int size)
+{
+	struct vmspace *vm;
+
+	vm = (struct vmspace *)mem;
+
+	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
+}
+
+static void
+vmspace_zinit(void *mem, int size)
+{
+	struct vmspace *vm;
+
+	vm = (struct vmspace *)mem;
+
+	vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map));
+}
+
+static void
+vm_map_zfini(void *mem, int size)
+{
+	vm_map_t map;
+
+	GIANT_REQUIRED;
+	map = (vm_map_t)mem;
+
+	lockdestroy(&map->lock);
+}
+
+static void
+vm_map_zinit(void *mem, int size)
+{
+	vm_map_t map;
+
+	GIANT_REQUIRED;
+
+	map = (vm_map_t)mem;
+	map->nentries = 0;
+	map->size = 0;
+	map->infork = 0;
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
+}
+
+#ifdef INVARIANTS
+static void
+vmspace_zdtor(void *mem, int size, void *arg)
+{
+	struct vmspace *vm;
+
+	vm = (struct vmspace *)mem;
+
+	vm_map_zdtor(&vm->vm_map, sizeof(vm->vm_map), arg);
+}
+static void
+vm_map_zdtor(void *mem, int size, void *arg)
+{
+	vm_map_t map;
+
+	map = (vm_map_t)mem;
+	KASSERT(map->nentries == 0,
+	    ("map %p nentries == %d on free.", 
+	    map, map->nentries));
+	KASSERT(map->size == 0,
+	    ("map %p size == %lu on free.",
+	    map, map->size));
+	KASSERT(map->infork == 0,
+	    ("map %p infork == %d on free.",
+	    map, map->infork));
+}
+#endif	/* INVARIANTS */
 
 /*
  * Allocate a vmspace structure, including a vm_map and pmap,
@@ -165,9 +247,9 @@ vmspace_alloc(min, max)
 	struct vmspace *vm;
 
 	GIANT_REQUIRED;
-	vm = zalloc(vmspace_zone);
+	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
-	vm_map_init(&vm->vm_map, min, max);
+	_vm_map_init(&vm->vm_map, min, max);
 	pmap_pinit(vmspace_pmap(vm));
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
@@ -179,13 +261,14 @@ vmspace_alloc(min, max)
 void
 vm_init2(void) 
 {
-	zinitna(kmapentzone, &kmapentobj,
-		NULL, 0, cnt.v_page_count / 4, ZONE_INTERRUPT, 1);
-	zinitna(mapentzone, &mapentobj,
-		NULL, 0, 0, 0, 1);
-	zinitna(mapzone, &mapobj,
-		NULL, 0, 0, 0, 1);
-	vmspace_zone = zinit("VMSPACE", sizeof (struct vmspace), 0, 0, 3);
+	uma_zone_set_obj(kmapentzone, &kmapentobj, cnt.v_page_count / 4);
+	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
+#ifdef INVARIANTS
+	    vmspace_zdtor,
+#else
+	    NULL,
+#endif
+	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	pmap_init2();
 	vm_object_init2();
 }
@@ -203,9 +286,9 @@ vmspace_dofree(struct vmspace *vm)
 	(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 	    vm->vm_map.max_offset);
 	vm_map_unlock(&vm->vm_map);
+
 	pmap_release(vmspace_pmap(vm));
-	vm_map_destroy(&vm->vm_map);
-	zfree(vmspace_zone, vm);
+	uma_zfree(vmspace_zone, vm);
 }
 
 void
@@ -390,9 +473,9 @@ vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
 
 	GIANT_REQUIRED;
 
-	result = zalloc(mapzone);
+	result = uma_zalloc(mapzone, M_WAITOK);
 	CTR1(KTR_VM, "vm_map_create: %p", result);
-	vm_map_init(result, min, max);
+	_vm_map_init(result, min, max);
 	result->pmap = pmap;
 	return (result);
 }
@@ -402,30 +485,25 @@ vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
  * such as that in the vmspace structure.
  * The pmap is set elsewhere.
  */
-void
-vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
+static void
+_vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
 	GIANT_REQUIRED;
 
 	map->header.next = map->header.prev = &map->header;
-	map->nentries = 0;
-	map->size = 0;
 	map->system_map = 0;
-	map->infork = 0;
 	map->min_offset = min;
 	map->max_offset = max;
 	map->first_free = &map->header;
 	map->hint = &map->header;
 	map->timestamp = 0;
-	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 void
-vm_map_destroy(map)
-	struct vm_map *map;
+vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 {
-	GIANT_REQUIRED;
-	lockdestroy(&map->lock);
+	_vm_map_init(map, min, max);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, LK_NOPAUSE);
 }
 
 /*
@@ -436,7 +514,8 @@ vm_map_destroy(map)
 static void
 vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry)
 {
-	zfree((map->system_map || !mapentzone) ? kmapentzone : mapentzone, entry);
+	uma_zfree((map->system_map || !mapentzone)
+	    ? kmapentzone : mapentzone, entry);
 }
 
 /*
@@ -450,8 +529,8 @@ vm_map_entry_create(vm_map_t map)
 {
 	vm_map_entry_t new_entry;
 
-	new_entry = zalloc((map->system_map || !mapentzone) ? 
-		kmapentzone : mapentzone);
+	new_entry = uma_zalloc((map->system_map || !mapentzone) ? 
+		kmapentzone : mapentzone, M_WAITOK);
 	if (new_entry == NULL)
 	    panic("vm_map_entry_create: kernel resources exhausted");
 	return (new_entry);

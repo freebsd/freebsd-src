@@ -1339,5 +1339,5 @@ vm/vm_pageout.c		standard
 vm/vm_pager.c		standard
 vm/vm_swap.c		standard
 vm/vm_unix.c		standard
-vm/vm_zone.c		standard
+vm/uma_core.c		standard
 vm/vnode_pager.c	standard

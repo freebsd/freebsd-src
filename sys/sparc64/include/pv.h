@@ -48,6 +48,7 @@ extern int pv_entry_max;
 extern int pv_entry_high_water;
 extern struct pv_entry *pvinit;
 
+void *pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 pv_entry_t pv_alloc(void);
 void pv_free(pv_entry_t pv);
 
