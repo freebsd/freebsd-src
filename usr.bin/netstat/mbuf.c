@@ -176,9 +176,13 @@ mbpr()
 	printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
 		nmbclusters);
-	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES;
+	printf("%lu/%lu m_ext reference counters (in use/allocated)\n",
+		mbstat.m_refcnt - mbstat.m_refree, mbstat.m_refcnt);
+	totmem = mbstat.m_mbufs * MSIZE + mbstat.m_clusters * MCLBYTES +
+	    mbstat.m_refcnt * sizeof(union mext_refcnt);
 	totfree = mbstat.m_clfree * MCLBYTES + 
-		MSIZE * (mbstat.m_mbufs - totmbufs);
+	    MSIZE * (mbstat.m_mbufs - totmbufs) + mbstat.m_refree *
+	    sizeof(union mext_refcnt);
 	printf("%u Kbytes allocated to network (%d%% in use)\n",
 		totmem / 1024, (unsigned) (totmem - totfree) * 100 / totmem);
 	printf("%lu requests for memory denied\n", mbstat.m_drops);

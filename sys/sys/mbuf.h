@@ -55,14 +55,9 @@
  * Macros for type conversion
  * mtod(m, t) -	convert mbuf pointer to data pointer of correct type
  * dtom(x) -	convert data pointer within mbuf to mbuf pointer (XXX)
- * mtocl(x) -	convert pointer within cluster to cluster index #
- * cltom(x) -	convert cluster # to ptr to beginning of cluster
  */
 #define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
-#define	mtocl(x)	(((uintptr_t)(x) - (uintptr_t)mbutl) >> MCLSHIFT)
-#define	cltom(x)	((caddr_t)((uintptr_t)mbutl + \
-			    ((uintptr_t)(x) << MCLSHIFT)))
 
 /* header at beginning of each mbuf: */
 struct m_hdr {
@@ -90,10 +85,10 @@ struct pkthdr {
 struct m_ext {
 	caddr_t	ext_buf;		/* start of buffer */
 	void	(*ext_free)		/* free routine if not the usual */
-		__P((caddr_t, u_int));
+		__P((caddr_t, void *));
+	void	*ext_args;		/* optional argument pointer */
 	u_int	ext_size;		/* size of buffer, for ext_free */
-	void	(*ext_ref)		/* add a reference to the ext object */
-		__P((caddr_t, u_int));
+	union	mext_refcnt *ref_cnt;	/* pointer to ref count info */
 };
 
 struct mbuf {
@@ -188,8 +183,10 @@ struct mbuf {
 struct mbstat {
 	u_long	m_mbufs;	/* mbufs obtained from page pool */
 	u_long	m_clusters;	/* clusters obtained from page pool */
-	u_long	m_spare;	/* spare field */
 	u_long	m_clfree;	/* free clusters */
+	u_long	m_refcnt;	/* refcnt structs obtained from page pool */
+	u_long	m_refree;	/* free refcnt structs */
+	u_long	m_spare;	/* spare field */
 	u_long	m_drops;	/* times failed to find space */
 	u_long	m_wait;		/* times waited for space */
 	u_long	m_drain;	/* times drained protocols for space */
@@ -225,6 +222,14 @@ union mcluster {
  */
 #define	MGETHDR_C      1
 #define	MGET_C         2
+
+/*
+ * The m_ext object reference counter structure.
+ */
+union mext_refcnt {
+	union	mext_refcnt *next_ref;
+	u_long	refcnt;
+};
 
 /*
  * Wake up the next instance (if any) of m_mballoc_wait() which is
@@ -265,6 +270,50 @@ union mcluster {
 } while (0)
 
 /*
+ * mbuf external reference count management macros:
+ *
+ * MEXT_IS_REF(m): true if (m) is not the only mbuf referencing
+ *     the external buffer ext_buf
+ * MEXT_REM_REF(m): remove reference to m_ext object
+ * MEXT_ADD_REF(m): add reference to m_ext object already
+ *     referred to by (m)
+ * MEXT_INIT_REF(m): allocate and initialize an external
+ *     object reference counter for (m)
+ */
+#define MEXT_IS_REF(m) ((m)->m_ext.ref_cnt->refcnt > 1)
+
+#define MEXT_REM_REF(m) atomic_subtract_long(&((m)->m_ext.ref_cnt->refcnt), 1)
+
+#define MEXT_ADD_REF(m) atomic_add_long(&((m)->m_ext.ref_cnt->refcnt), 1)
+
+#define _MEXT_ALLOC_CNT(m_cnt) MBUFLOCK(				\
+	union mext_refcnt *__mcnt;					\
+									\
+	__mcnt = mext_refcnt_free;					\
+	if ((__mcnt == NULL) && (m_alloc_ref(1) == 0))			\
+		panic("mbuf subsystem: out of ref counts!");		\
+	mext_refcnt_free = __mcnt->next_ref;				\
+	__mcnt->next_ref = NULL;					\
+	(m_cnt) = __mcnt;						\
+	mbstat.m_refree--;						\
+)
+
+#define _MEXT_DEALLOC_CNT(m_cnt) do {					\
+	union mext_refcnt *__mcnt = (m_cnt);				\
+									\
+	__mcnt->next_ref = mext_refcnt_free;				\
+	mext_refcnt_free = __mcnt;					\
+	mbstat.m_refree++;						\
+} while (0)
+
+#define MEXT_INIT_REF(m) do {						\
+	struct mbuf *__mmm = (m);					\
+									\
+	_MEXT_ALLOC_CNT(__mmm->m_ext.ref_cnt);				\
+	atomic_set_long(&(__mmm->m_ext.ref_cnt->refcnt), 1);		\
+} while (0)
+
+/*
  * mbuf allocation/deallocation macros:
  *
  *	MGET(struct mbuf *m, int how, int type)
@@ -286,22 +335,20 @@ union mcluster {
 	if (_mm != NULL) {						\
 		mmbfree = _mm->m_next;					\
 		mbtypes[MT_FREE]--;					\
-		_mm->m_type = _mtype;					\
 		mbtypes[_mtype]++;					\
+		splx(_ms);						\
+		_mm->m_type = _mtype;					\
 		_mm->m_next = NULL;					\
 		_mm->m_nextpkt = NULL;					\
 		_mm->m_data = _mm->m_dat;				\
 		_mm->m_flags = 0;					\
-		(m) = _mm;						\
-		splx(_ms);						\
 	} else {							\
 		splx(_ms);						\
 		_mm = m_retry(_mhow, _mtype);				\
 		if (_mm == NULL && _mhow == M_WAIT)			\
-			(m) = m_mballoc_wait(MGET_C, _mtype);		\
-		else							\
-			(m) = _mm;					\
+			_mm = m_mballoc_wait(MGET_C, _mtype);		\
 	}								\
+	(m) = _mm;							\
 } while (0)
 
 #define	MGETHDR(m, how, type) do {					\
@@ -316,36 +363,34 @@ union mcluster {
 	if (_mm != NULL) {						\
 		mmbfree = _mm->m_next;					\
 		mbtypes[MT_FREE]--;					\
-		_mm->m_type = _mtype;					\
 		mbtypes[_mtype]++;					\
+		splx(_ms);						\
+		_mm->m_type = _mtype;					\
 		_mm->m_next = NULL;					\
 		_mm->m_nextpkt = NULL;					\
 		_mm->m_data = _mm->m_pktdat;				\
 		_mm->m_flags = M_PKTHDR;				\
 		_mm->m_pkthdr.rcvif = NULL;				\
 		_mm->m_pkthdr.csum_flags = 0;				\
-		_mm->m_pkthdr.aux = (struct mbuf *)NULL;		\
-		(m) = _mm;						\
-		splx(_ms);						\
+		_mm->m_pkthdr.aux = NULL;				\
 	} else {							\
 		splx(_ms);						\
 		_mm = m_retryhdr(_mhow, _mtype);			\
 		if (_mm == NULL && _mhow == M_WAIT)			\
-			(m) = m_mballoc_wait(MGETHDR_C, _mtype);	\
-		else							\
-			(m) = _mm;					\
+			_mm = m_mballoc_wait(MGETHDR_C, _mtype);	\
 	}								\
+	(m) = _mm;							\
 } while (0)
 
 /*
- * Mbuf cluster macros.
- * MCLALLOC(caddr_t p, int how) allocates an mbuf cluster.
- * MCLGET adds such clusters to a normal mbuf;
- * the flag M_EXT is set upon success.
- * MCLFREE releases a reference to a cluster allocated by MCLALLOC,
- * freeing the cluster if the reference count has reached 0.
+ * mbuf external storage macros:
+ *
+ *   MCLGET allocates and refers an mcluster to an mbuf
+ *   MEXTADD sets up pre-allocated external storage and refers to mbuf
+ *   MEXTFREE removes reference to external object and frees it if
+ *       necessary
  */
-#define	MCLALLOC(p, how) do {						\
+#define	_MCLALLOC(p, how) do {						\
 	caddr_t _mp;							\
 	int _mhow = (how);						\
 	int _ms = splimp();						\
@@ -354,61 +399,70 @@ union mcluster {
 		(void)m_clalloc(1, _mhow);				\
 	_mp = (caddr_t)mclfree;						\
 	if (_mp != NULL) {						\
-		mclrefcnt[mtocl(_mp)]++;				\
 		mbstat.m_clfree--;					\
 		mclfree = ((union mcluster *)_mp)->mcl_next;		\
-		(p) = _mp;						\
 		splx(_ms);						\
 	} else {							\
 		splx(_ms);						\
 		if (_mhow == M_WAIT)					\
-			(p) = m_clalloc_wait();				\
-		else							\
-			(p) = NULL;					\
+			_mp = m_clalloc_wait();				\
 	}								\
-} while (0)	
+	(p) = _mp;							\
+} while (0)
 
 #define	MCLGET(m, how) do {						\
 	struct mbuf *_mm = (m);						\
 									\
-	MCLALLOC(_mm->m_ext.ext_buf, (how));				\
+	_MCLALLOC(_mm->m_ext.ext_buf, (how));				\
 	if (_mm->m_ext.ext_buf != NULL) {				\
 		_mm->m_data = _mm->m_ext.ext_buf;			\
 		_mm->m_flags |= M_EXT;					\
 		_mm->m_ext.ext_free = NULL;				\
-		_mm->m_ext.ext_ref = NULL;				\
+		_mm->m_ext.ext_args = NULL;				\
 		_mm->m_ext.ext_size = MCLBYTES;				\
+		MEXT_INIT_REF(_mm);					\
 	}								\
 } while (0)
 
-#define	MCLFREE1(p) do {						\
+#define MEXTADD(m, buf, size, free, args) do {				\
+	struct mbuf *_mm = (m);						\
+									\
+	_mm->m_flags |= M_EXT;						\
+	_mm->m_ext.ext_buf = (caddr_t)(buf);				\
+	_mm->m_data = _mm->m_ext.ext_buf;				\
+	_mm->m_ext.ext_size = (size);					\
+	_mm->m_ext.ext_free = (free);					\
+	_mm->m_ext.ext_args = (args);					\
+	MEXT_INIT_REF(_mm);						\
+} while (0)
+
+#define	_MCLFREE(p) MBUFLOCK(						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
-	KASSERT(mclrefcnt[mtocl(_mp)] > 0, ("freeing free cluster"));	\
-	if (--mclrefcnt[mtocl(_mp)] == 0) {				\
-		_mp->mcl_next = mclfree;				\
-		mclfree = _mp;						\
-		mbstat.m_clfree++;					\
-		MCLWAKEUP();						\
-	}								\
-} while (0)
-
-#define	MCLFREE(p) MBUFLOCK(						\
-	MCLFREE1(p);							\
+	_mp->mcl_next = mclfree;					\
+	mclfree = _mp;							\
+	mbstat.m_clfree++;						\
+	MCLWAKEUP();							\
 )
 
-#define	MEXTFREE1(m) do {						\
-		struct mbuf *_mm = (m);					\
+#define	_MEXTFREE(m) do {						\
+	struct mbuf *_mmm = (m);					\
 									\
-		if (_mm->m_ext.ext_free != NULL)			\
-			(*_mm->m_ext.ext_free)(_mm->m_ext.ext_buf,	\
-		    	    _mm->m_ext.ext_size);			\
-		else							\
-			MCLFREE1(_mm->m_ext.ext_buf);			\
+	if (MEXT_IS_REF(_mmm))						\
+		MEXT_REM_REF(_mmm);					\
+	else if (_mmm->m_ext.ext_free != NULL) {			\
+		(*(_mmm->m_ext.ext_free))(_mmm->m_ext.ext_buf,		\
+		    _mmm->m_ext.ext_args);				\
+		_MEXT_DEALLOC_CNT(_mmm->m_ext.ref_cnt);			\
+	} else {							\
+		_MCLFREE(_mmm->m_ext.ext_buf);				\
+		_MEXT_DEALLOC_CNT(_mmm->m_ext.ref_cnt);			\
+	}								\
+	_mmm->m_flags &= ~M_EXT;					\
 } while (0)
 
-#define	MEXTFREE(m) MBUFLOCK(						\
-	MEXTFREE1(m);							\
+#define MEXTFREE(m) MBUFLOCK(						\
+	_MEXTFREE(m);							\
 )
 
 /*
@@ -420,12 +474,12 @@ union mcluster {
 	struct mbuf *_mm = (m);						\
 									\
 	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
-	mbtypes[_mm->m_type]--;						\
 	if (_mm->m_flags & M_EXT)					\
-		MEXTFREE1(m);						\
-	(n) = _mm->m_next;						\
+		_MEXTFREE(_mm);						\
+	mbtypes[_mm->m_type]--;						\
 	_mm->m_type = MT_FREE;						\
 	mbtypes[MT_FREE]++;						\
+	(n) = _mm->m_next;						\
 	_mm->m_next = mmbfree;						\
 	mmbfree = _mm;							\
 	MMBWAKEUP();							\
@@ -540,14 +594,15 @@ extern	struct mbstat	 mbstat;
 extern	u_long		 mbtypes[MT_NTYPES]; /* per-type mbuf allocations */
 extern	int		 mbuf_wait;	/* mbuf sleep time */
 extern	struct mbuf	*mbutl;		/* virtual address of mclusters */
-extern	char		*mclrefcnt;	/* cluster reference counts */
 extern	union mcluster	*mclfree;
 extern	struct mbuf	*mmbfree;
+extern	union mext_refcnt *mext_refcnt_free;
 extern	int		 nmbclusters;
 extern	int		 nmbufs;
 extern	int		 nsfbufs;
 
 void	m_adj __P((struct mbuf *, int));
+int	m_alloc_ref __P((u_int));
 void	m_cat __P((struct mbuf *,struct mbuf *));
 int	m_clalloc __P((int, int));
 caddr_t	m_clalloc_wait __P((void));

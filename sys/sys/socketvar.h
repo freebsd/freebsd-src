@@ -272,7 +272,6 @@ struct sockopt {
 
 struct sf_buf {
 	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	int		refcnt;		/* reference count */
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */
 };

@@ -3225,7 +3225,7 @@ ipsec_copypkt(m)
 			 */
 			if (
 				n->m_ext.ext_free ||
-				mclrefcnt[mtocl(n->m_ext.ext_buf)] > 1
+				MEXT_IS_REF(n)
 			    )
 			{
 				int remain, copied;

@@ -56,11 +56,11 @@ static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
 struct mbuf *mbutl;
-char	*mclrefcnt;
 struct mbstat mbstat;
 u_long	mbtypes[MT_NTYPES];
 struct mbuf *mmbfree;
 union mcluster *mclfree;
+union mext_refcnt *mext_refcnt_free;
 int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
@@ -95,10 +95,9 @@ TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);
 
 static void	m_reclaim __P((void));
 
-/* "number of clusters of pages" */
-#define NCL_INIT	1
-
+#define NCL_INIT	2
 #define NMB_INIT	16
+#define REF_INIT	(NMBCLUSTERS * 2) 
 
 /* ARGSUSED*/
 static void
@@ -107,7 +106,10 @@ mbinit(dummy)
 {
 	int s;
 
-	mmbfree = NULL; mclfree = NULL;
+	mmbfree = NULL;
+	mclfree = NULL;
+	mext_refcnt_free = NULL;
+
 	mbstat.m_msize = MSIZE;
 	mbstat.m_mclbytes = MCLBYTES;
 	mbstat.m_minclsize = MINCLSIZE;
@@ -115,6 +117,8 @@ mbinit(dummy)
 	mbstat.m_mhlen = MHLEN;
 
 	s = splimp();
+	if (m_alloc_ref(REF_INIT) == 0)
+		goto bad;
 	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
 		goto bad;
 #if MCLBYTES <= PAGE_SIZE
@@ -128,7 +132,49 @@ mbinit(dummy)
 	splx(s);
 	return;
 bad:
-	panic("mbinit");
+	panic("mbinit: failed to initialize mbuf subsystem!");
+}
+
+/*
+ * Allocate at least nmb reference count structs and place them
+ * on the ref cnt free list.
+ * Must be called at splimp.
+ */
+int
+m_alloc_ref(nmb)
+	u_int nmb;
+{
+	caddr_t p;
+	u_int nbytes;
+	int i;
+
+	/*
+	 * XXX:
+	 * We don't cap the amount of memory that can be used
+	 * by the reference counters, like we do for mbufs and
+	 * mbuf clusters. The reason is that we don't really expect
+	 * to have to be allocating too many of these guys with m_alloc_ref(),
+	 * and if we are, we're probably not out of the woods anyway,
+	 * so leave this way for now.
+	 */
+
+	if (mb_map_full)
+		return (0);
+
+	nbytes = round_page(nmb * sizeof(union mext_refcnt));
+	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT)) == NULL)
+		return (0);
+	nmb = nbytes / sizeof(union mext_refcnt);
+
+	for (i = 0; i < nmb; i++) {
+		((union mext_refcnt *)p)->next_ref = mext_refcnt_free;
+		mext_refcnt_free = (union mext_refcnt *)p;
+		p += sizeof(union mext_refcnt);
+		mbstat.m_refree++;
+	}
+	mbstat.m_refcnt += nmb;
+
+	return (1);
 }
 
 /*
@@ -363,7 +409,7 @@ m_clalloc_wait(void)
 	 * MGET, but avoid getting into another instance of m_clalloc_wait()
 	 */
 	p = NULL;
-	MCLALLOC(p, M_DONTWAIT);
+	_MCLALLOC(p, M_DONTWAIT);
 
 	s = splimp();
 	if (p != NULL) {	/* We waited and got something... */
@@ -624,13 +670,9 @@ m_copym(m, off0, len, wait)
 		n->m_len = min(len, m->m_len - off);
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data + off;
-			if(!m->m_ext.ext_ref)
-				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-			else
-				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-							m->m_ext.ext_size);
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
+			MEXT_ADD_REF(m);
 		} else
 			bcopy(mtod(m, caddr_t)+off, mtod(n, caddr_t),
 			    (unsigned)n->m_len);
@@ -671,13 +713,9 @@ m_copypacket(m, how)
 	n->m_len = m->m_len;
 	if (m->m_flags & M_EXT) {
 		n->m_data = m->m_data;
-		if(!m->m_ext.ext_ref)
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-		else
-			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-						m->m_ext.ext_size);
 		n->m_ext = m->m_ext;
 		n->m_flags |= M_EXT;
+		MEXT_ADD_REF(m);
 	} else {
 		bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
 	}
@@ -694,13 +732,9 @@ m_copypacket(m, how)
 		n->m_len = m->m_len;
 		if (m->m_flags & M_EXT) {
 			n->m_data = m->m_data;
-			if(!m->m_ext.ext_ref)
-				mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-			else
-				(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-							m->m_ext.ext_size);
 			n->m_ext = m->m_ext;
 			n->m_flags |= M_EXT;
+			MEXT_ADD_REF(m);
 		} else {
 			bcopy(mtod(m, char *), mtod(n, char *), n->m_len);
 		}
@@ -1042,11 +1076,7 @@ extpacket:
 	if (m->m_flags & M_EXT) {
 		n->m_flags |= M_EXT;
 		n->m_ext = m->m_ext;
-		if(!m->m_ext.ext_ref)
-			mclrefcnt[mtocl(m->m_ext.ext_buf)]++;
-		else
-			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
-						m->m_ext.ext_size);
+		MEXT_ADD_REF(m);
 		m->m_ext.ext_size = 0; /* For Accounting XXXXXX danger */
 		n->m_data = m->m_data + len;
 	} else {

@@ -370,18 +370,16 @@ again:
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
 	/*
-	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
-	 * we use the more space efficient malloc in place of kmem_alloc.
+	 * Finally, allocate mbuf pool.
 	 */
 	{
 		vm_offset_t mb_map_size;
 
-		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
+		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES +
+		    (nmbclusters + nmbufs / 4) * sizeof(union mext_refcnt);
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
-		mclrefcnt = malloc(mb_map_size / MCLBYTES, M_MBUF, M_NOWAIT);
-		bzero(mclrefcnt, mb_map_size / MCLBYTES);
-		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
-			mb_map_size);
+		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl,
+		    &maxaddr, mb_map_size);
 		mb_map->system_map = 1;
 	}
 
