@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.7 1995/09/04 00:20:26 dyson Exp $
+ * $Id: dead_vnops.c,v 1.8 1995/11/09 08:14:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,8 +48,8 @@ static int	chkvnlock __P((struct vnode *));
 /*
  * Prototypes for dead operations on vnodes.
  */
-int	dead_badop(),
-	dead_ebadf();
+int	dead_badop __P((void));
+int	dead_ebadf __P((void));
 int	dead_lookup __P((struct vop_lookup_args *));
 #define dead_create ((int (*) __P((struct  vop_create_args *)))dead_badop)
 #define dead_mknod ((int (*) __P((struct  vop_mknod_args *)))dead_badop)
@@ -344,16 +344,6 @@ dead_badop()
 
 	panic("dead_badop called");
 	/* NOTREACHED */
-}
-
-/*
- * Empty vnode null operation
- */
-int
-dead_nullop()
-{
-
-	return (0);
 }
 
 /*
