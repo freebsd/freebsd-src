@@ -2,19 +2,19 @@
 
 LIB=compat
 CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS -I${.CURDIR}/../libc/locale
-AINC=	-I${.CURDIR}/../libc/${MACHINE}
+AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH}
 NOPIC=
 
-.PATH:	${.CURDIR}/4.1/${MACHINE} ${.CURDIR}/4.1 \
-	${.CURDIR}/4.3/${MACHINE} ${.CURDIR}/4.3 \
-	${.CURDIR}/4.4/${MACHINE} ${.CURDIR}/4.4 \
+.PATH:	${.CURDIR}/4.1/${MACHINE_ARCH} ${.CURDIR}/4.1 \
+	${.CURDIR}/4.3/${MACHINE_ARCH} ${.CURDIR}/4.3 \
+	${.CURDIR}/4.4/${MACHINE_ARCH} ${.CURDIR}/4.4 \
 	${.CURDIR}/regexp
 
 # compat 4.1 sources
 # XXX MISSING:	tell.c vlimit.c vtimes.c
 SRCS+=	ascftime.c cftime.c ftime.c getpw.c gtty.c stty.c
 
-.if (${MACHINE} == "vax")
+.if (${MACHINE_ARCH} == "vax")
 SRCS+=	reset.s
 .endif
 
@@ -28,17 +28,17 @@ MLINKS+=cftime.3 ascftime.3
 # XXX MISSING:	ecvt.c gcvt.c sibuf.c sobuf.c strout.c
 SRCS+=	cfree.c lsearch.c regex.c rexec.c
 
-.if	(${MACHINE} == "hp300" || ${MACHINE} == "luna68k")
+.if	(${MACHINE_ARCH} == "hp300" || ${MACHINE_ARCH} == "luna68k")
 SRCS+=	insque.s remque.s
-.elif	(${MACHINE} == "i386")
+.elif	(${MACHINE_ARCH} == "i386")
 SRCS+=	insque.c remque.c
-.elif	(${MACHINE} == "mips")
+.elif	(${MACHINE_ARCH} == "mips")
 SRCS+=	insque.c remque.c
-.elif	(${MACHINE} == "sparc")
+.elif	(${MACHINE_ARCH} == "sparc")
 SRCS+=	insque.c remque.c
-.elif	(${MACHINE} == "tahoe")
+.elif	(${MACHINE_ARCH} == "tahoe")
 SRCS+=	nargs.s insque.s remque.s
-.elif	(${MACHINE} == "vax")
+.elif	(${MACHINE_ARCH} == "vax")
 SRCS+=	nargs.s insque.s remque.s
 .endif
 
