@@ -346,7 +346,7 @@ vlan_start(struct ifnet *ifp)
 			M_PREPEND(m, ifv->ifv_encaplen, M_DONTWAIT);
 			if (m == NULL) {
 				if_printf(ifp, "unable to prepend VLAN header");
-				ifp->if_ierrors++;
+				ifp->if_oerrors++;
 				continue;
 			}
 			/* M_PREPEND takes care of m_len, m_pkthdr.len for us */
@@ -356,7 +356,7 @@ vlan_start(struct ifnet *ifp)
 				if (m == NULL) {
 					if_printf(ifp,
 					    "cannot pullup VLAN header");
-					ifp->if_ierrors++;
+					ifp->if_oerrors++;
 					continue;
 				}
 			}
@@ -405,7 +405,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 * Packet is tagged, m contains a normal
 		 * Ethernet frame; the tag is stored out-of-band.
 		 */
-		tag = EVL_VLANOFTAG(*(u_int*)(mtag+1));
+		tag = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
 		m_tag_delete(m, mtag);
 	} else {
 		switch (ifp->if_type) {
