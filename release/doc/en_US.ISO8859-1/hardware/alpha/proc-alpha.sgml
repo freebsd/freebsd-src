@@ -1969,7 +1969,8 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 
       <para>Starting with SRM firmware version 5.9 you can boot from 
       Adaptec 2940-series adapters in addition to the usual set of Qlogic 
-      and Symbios/NCR adapters.</para>
+      and Symbios/NCR adapters. KZPEA aka Adaptec 39160 gives you dual
+      channel LVD U160 SCSI which is bootable from SRM.</para>
 
       <para>The base model comes with a FUJITSU 9.5GB ATA disk as its boot 
       device. &os; works just fine using EIDE disks on Webbrick. DS10 has 
@@ -2224,7 +2225,9 @@ cpu	EV5</programlisting>
       <para>Starting with SRM firmware version 5.9 you can boot from
       Adaptec 2940-series adapters in addition to the usual set of
       Qlogic and Symbios/NCR adapters.  This unfortunately does not
-      include the embedded Adaptec SCSI chips.</para>
+      include the embedded Adaptec SCSI chips. You can use a KZPEA
+      aka Adaptec 39160 for dual channel LVD U160 SCSI, which is 
+      bootable from SRM.</para>
 
       <para>If you are using banks of DIMMs of different sizes the
       biggest DIMMs should be installed in the DIMM slots marked
@@ -3095,7 +3098,8 @@ cpu	EV5</programlisting>
       <para>SRM console code comes standard with the ES40.</para>
       
       <para>ES40 comes with an ATA CDROM drive, but uses SCSI
-      harddisks.</para>
+      harddisks. The usual Symbios & Qlogic adapters are bootable,
+      as is the KZPEA aka Adaptec 39160 dual channel LVD U160 adapter.</para>
 
       <para>Memory is divided in 4 memory arrays which each contain 
       a set of 4 SDRAM DIMMs. Each DIMM is 72 bit wide and of the 100MHz
@@ -3161,9 +3165,13 @@ cpu     EV5</programlisting>
     restrictions for IDE disks. See the machine specific information.</para>
 
     <para>There is full SCSI support via the CAM layer for Adaptec
-    2940x (AIC7xxx chip-based), Qlogic family and Symbios. Be aware of
-    the machine-specific boot-ability issues for the various adapter
-    types.</para>
+    2940x (AIC7xxx chip-based), Qlogic family and Symbios. Those of 
+    you interested in U160 SCSI might want to take a look at an Adaptec
+    39160 dual channel LVD U160 adapter. Compaq calls this a KZPEA adapter.
+    Recent Alpha models have SRM versions that can boot from them. In general
+    be aware of the machine-specific boot-ability issues for the 
+    various adapter models. Where known they are listed in the
+    individual machine descriptions.</para>
 
     <para>The Qlogic QL2x00 FibreChannel host adapters are fully
     supported.</para>
