@@ -240,6 +240,11 @@
     as tuneables) at compile-time using &man.config.8;'s
     <literal>ENV</literal> directive.</para>
 
+    <para>The loader and kernel linker now look for files named
+    <filename>linker.hints</filename> in each directory with KLDs for a
+    module name and version to KLD filename mapping.  The new
+    &man.kldxref.8; utility is used to generate these files.</para>
+
     <para>On many modern hosts, PCCARD devices can be configured to
     route their interrupts via either the ISA or PCI interrupt paths.
     The &man.pcic.4; driver has been updated to support both interrupt
