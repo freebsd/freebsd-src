@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static const char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
-#endif /* LIBC_SCCS and not lint */
-
 #ifndef lint
-static const char rcsid[] = "$Id: parse_group.c,v 1.3 1997/02/22 14:21:54 peter Exp $";
+#if 0
+static const char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * This is a slightly modified chunk of getgrent(3). All the YP support
@@ -45,10 +45,10 @@ static const char rcsid[] = "$Id: parse_group.c,v 1.3 1997/02/22 14:21:54 peter 
  */
 
 #include <sys/types.h>
+#include <grp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <grp.h>
 
 FILE *_gr_fp;
 static struct group _gr_group;
