@@ -109,6 +109,6 @@ R<$*> $*		$: $1
 # R$* $=R			$@ OK
 # R$@			$@ OK
 # R$*			$#error $: "550 Relaying Denied"
-# mail must come from or go to this machine or machines we allow to relay--BEGIN
+# mail must come from or go to this machine or machines we allow to relay--END
 R$*			$@ OK
 
