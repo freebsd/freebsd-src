@@ -102,11 +102,10 @@ devfs_mount(struct mount *mp, struct thread *td)
 		FREE(fmp, M_DEVFS);
 		return (error);
 	}
+
 	VOP_UNLOCK(rvp, 0, td);
 
-	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy("devfs", mp->mnt_stat.f_mntfromname, sizeof("devfs"));
-	(void)devfs_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, "devfs");
 
 	return (0);
 }
