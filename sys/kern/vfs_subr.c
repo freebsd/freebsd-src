@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.79 1997/03/04 18:31:56 bde Exp $
+ * $Id: vfs_subr.c,v 1.80 1997/03/05 04:54:54 davidg Exp $
  */
 
 /*
@@ -76,9 +76,8 @@
 extern void	printlockedvnodes __P((void));
 #endif
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
-extern void	vgonel __P((struct vnode *vp, struct proc *p));
+static void	vgonel __P((struct vnode *vp, struct proc *p));
 unsigned long	numvnodes;
-extern void	vfs_unmountroot __P((struct mount *rootfs));
 extern void	vputrele __P((struct vnode *vp, int put));
 
 enum vtype iftovt_tab[16] = {
@@ -1133,7 +1132,7 @@ holdrele(vp)
  */
 #ifdef DIAGNOSTIC
 static int busyprt = 0;		/* print out busy vnodes */
-SYSCTL_INT(_debug, 1, busyprt, CTLFLAG_RW, &busyprt, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
@@ -1415,7 +1414,7 @@ vgone(vp)
 /*
  * vgone, with the vp interlock held.
  */
-void
+static void
 vgonel(vp, p)
 	struct vnode *vp;
 	struct proc *p;
