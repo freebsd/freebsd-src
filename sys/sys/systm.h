@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.70 1998/02/24 02:01:11 bde Exp $
+ * $Id: systm.h,v 1.71 1998/06/07 17:13:04 dfr Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -67,6 +67,8 @@ extern dev_t dumpdev;		/* dump device */
 extern long dumplo;		/* offset into dumpdev */
 
 extern dev_t rootdev;		/* root device */
+extern dev_t rootdevs[2];	/* possible root devices */
+extern char *rootdevnames[2];	/* names of possible root devices */
 extern struct vnode *rootvp;	/* vnode equivalent to above */
 
 extern struct vnode *swapdev_vp;/* vnode for swap device */
