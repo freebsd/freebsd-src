@@ -56,6 +56,7 @@ struct devsw *devsw[] = {
 
 struct fs_ops *file_system[] = {
     &ufs_fsops,
+    &ext2fs_fsops,
     &dosfs_fsops,
     &zipfs_fsops,
 #ifdef LOADER_NFS_SUPPORT 
