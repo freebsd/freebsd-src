@@ -225,8 +225,8 @@ fore_pci_attach(config_id, unit)
 	fup->fu_unit = unit;
 	fup->fu_mtu = FORE_IFF_MTU;
 	fup->fu_pcitag = config_id;
-	fup->fu_vcc_pool = &fore_vcc_pool;
-	fup->fu_nif_pool = &fore_nif_pool;
+	fup->fu_vcc_zone = fore_vcc_zone;
+	fup->fu_nif_zone = &fore_nif_zone;
 	fup->fu_ioctl = fore_atm_ioctl;
 	fup->fu_instvcc = fore_instvcc;
 	fup->fu_openvcc = fore_openvcc;

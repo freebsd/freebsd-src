@@ -415,8 +415,8 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	eup->eu_openvcc = eni_openvcc;
 	eup->eu_closevcc = eni_closevcc;
 	eup->eu_output = eni_output;
-	eup->eu_vcc_pool = &eni_vcc_pool;
-	eup->eu_nif_pool = &eni_nif_pool;
+	eup->eu_vcc_zone = eni_vcc_zone;
+	eup->eu_nif_zone = eni_nif_zone;
 
  	/*
 	 * Enable Memory Mapping / Bus Mastering 

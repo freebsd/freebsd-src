@@ -158,13 +158,25 @@ hea_attach (device_t dev)
 	eup = &sc->eup;
 	error = 0;
 
+	eni_vcc_zone = uma_zcreate("eni vcc", sizeof(Eni_vcc), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (eni_vcc_zone == NULL)
+		panic("hea_attach: uma_zcreate vcc");
+	uma_zone_set_max(eni_vcc_zone, 100);
+	
+	eni_nif_zone = uma_zcreate("eni nif", sizeof(struct atm_nif), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (eni_nif_zone == NULL)
+		panic("hea_attach: uma_zcreate nif");
+	uma_zone_set_max(eni_nif_zone, 52);
+
 	/*
 	 * Start initializing it
 	 */
 	eup->eu_unit = device_get_unit(dev);
 	eup->eu_mtu = ENI_IFF_MTU;
-	eup->eu_vcc_pool = &eni_vcc_pool;
-	eup->eu_nif_pool = &eni_nif_pool;
+	eup->eu_vcc_zone = eni_vcc_zone;
+	eup->eu_nif_zone = eni_nif_zone;
 	eup->eu_ioctl = eni_atm_ioctl;
 	eup->eu_instvcc = eni_instvcc;
 	eup->eu_openvcc = eni_openvcc;
@@ -328,6 +340,9 @@ hea_detach (device_t dev)
 	hea_reset(dev);
 
 	hea_free(dev);
+
+	uma_zdestroy(eni_vcc_zone);
+	uma_zdestroy(eni_nif_zone);
 
 	return (error);
 }
