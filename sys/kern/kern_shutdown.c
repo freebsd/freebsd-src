@@ -150,9 +150,13 @@ reboot(p, uap)
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
+static int shutdown_howto = 0;
+
 void
-shutdown_nice()
+shutdown_nice(int howto)
 {
+	shutdown_howto = howto;
+	
 	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
 		psignal(initproc, SIGINT);
@@ -201,6 +205,9 @@ static void
 boot(howto)
 	int howto;
 {
+
+	/* collect extra flags that shutdown_nice might have set */
+	howto |= shutdown_howto;
 
 #ifdef SMP
 	if (smp_active) {
