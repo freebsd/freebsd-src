@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.58 1996/11/30 22:41:46 dyson Exp $
+ * $Id: vm_fault.c,v 1.59 1996/12/14 17:54:13 dyson Exp $
  */
 
 /*
@@ -205,7 +205,7 @@ RetryFault:;
 	/*
 	 * If we are user-wiring a r/w segment, and it is COW, then
 	 * we need to do the COW operation.  Note that we don't COW
-	 * currently RO sections now, because there it is NOT desireable
+	 * currently RO sections now, because it is NOT desirable
 	 * to COW .text.  We simply keep .text from ever being COW'ed
 	 * and take the heat that one cannot debug wired .text sections.
 	 */
