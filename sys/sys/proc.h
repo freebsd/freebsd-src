@@ -250,6 +250,7 @@ struct thread {
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
+	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	lwpid_t		td_tid;		/* (b) Thread ID. */
 
 /* Cleared during fork1() or thread_schedule_upcall(). */
@@ -281,7 +282,6 @@ struct thread {
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
-	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_kflags;	/* (c) Flags for KSE threading. */
