@@ -36,6 +36,7 @@
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <sys/bus.h>
@@ -53,8 +54,21 @@
 
 #define PCCARDDEBUG
 
-#ifdef PCCARDDEBUG
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, pccard, CTLFLAG_RD, 0, "PCCARD parameters");
+
 int	pccard_debug = 0;
+TUNABLE_INT("hw.pccard.debug", &pccard_debug);
+SYSCTL_INT(_hw_pccard, OID_AUTO, debug, CTLFLAG_RW,
+    &pccard_debug, 0,
+  "pccard debug");
+
+int	pccard_cis_debug = 0;
+TUNABLE_INT("hw.pccard.cis_debug", &pccard_cis_debug);
+SYSCTL_INT(_hw_pccard, OID_AUTO, cis_debug, CTLFLAG_RW,
+    &pccard_cis_debug, 0, "pccard CIS debug");
+
+#ifdef PCCARDDEBUG
 #define	DPRINTF(arg) if (pccard_debug) printf arg
 #define	DEVPRINTF(arg) if (pccard_debug) device_printf arg
 #define PRVERBOSE(arg) printf arg
