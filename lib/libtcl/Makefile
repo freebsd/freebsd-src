@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.21 1997/08/12 18:33:06 peter Exp $
+# $Id: Makefile,v 1.22 1997/08/16 07:13:47 peter Exp $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -45,9 +45,7 @@ SRCS=	panic.c regexp.c tclAsync.c tclBasic.c tclBinary.c tclCkalloc.c \
 HEADERS=generic/patchlevel.h generic/tclInt.h generic/tclPort.h \
 	generic/tclRegexp.h unix/tclUnixPort.h
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${TCLDIST}/generic/tcl.h ${DESTDIR}/usr/include/tcl
+beforeinstall: installhdrs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${TCLDIST}/library/tclIndex ${DESTDIR}${TCL_LIBRARY} 
 	( cd ${TCLDIST}/library && \
@@ -59,6 +57,10 @@ beforeinstall:
 		${TCLDIST}/unix/tclAppInit.c ${DESTDIR}${TCL_LIBRARY}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${TCLDIST}/doc/man.macros ${DESTDIR}/usr/share/tmac/tcl.macros
+
+installhdrs:
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${TCLDIST}/generic/tcl.h ${DESTDIR}/usr/include/tcl
 .for m in ${HEADERS}
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${TCLDIST}/$m \
 		${DESTDIR}/usr/include/tcl/$m
