@@ -177,7 +177,6 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 	((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF))
 #define	fpresetsticky(m) ((fp_except_t)					\
 	__fpsetreg(0, FP_STKY_REG, (m), FP_STKY_OFF))
-#define	fpsetsticky(m)	fpresetsticky(m)
 
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
