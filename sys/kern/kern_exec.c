@@ -628,14 +628,14 @@ exec_fail_dealloc:
 	if (imgp->firstpage)
 		exec_unmap_first_page(imgp);
 
-	if (imgp->stringbase != NULL)
-		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-		    ARG_MAX + PAGE_SIZE);
-
 	if (imgp->vp) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 		vput(imgp->vp);
 	}
+
+	if (imgp->stringbase != NULL)
+		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
+		    ARG_MAX + PAGE_SIZE);
 
 	if (imgp->object)
 		vm_object_deallocate(imgp->object);
