@@ -34,6 +34,8 @@
 
 /* XXX goaway (requires change to config.c) */
 
+#include "doscmd.h"
+
 static struct {
 	int	cylinders;
 	int	heads;

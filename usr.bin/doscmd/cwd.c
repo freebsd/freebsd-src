@@ -46,6 +46,12 @@
 #include "doscmd.h"
 #include "cwd.h"
 
+/* Local functions */
+static inline int	isvalid(unsigned);
+static inline int	isdot(unsigned);
+static inline int	isslash(unsigned);
+static void		to_dos_fcb(u_char *, u_char *);
+
 #define	D_REDIR         0x0080000	/* XXX - ack */
 #define	D_TRAPS3	0x0200000
 
@@ -399,19 +405,19 @@ u_char cattr[256] = {
     1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-inline int
+static inline int
 isvalid(unsigned c)
 {
     return (cattr[c & 0xff] == 1);
 }
 
-inline int
+static inline int
 isdot(unsigned c)
 {
     return (cattr[c & 0xff] == 3);
 }
 
-inline int
+static inline int
 isslash(unsigned c)
 {
     return (cattr[c & 0xff] == 4);
@@ -752,7 +758,7 @@ u_char *searchend;
 /*
  * Convert a dos filename into normal form (8.3 format, space padded)
  */
-void
+static void
 to_dos_fcb(u_char *p, u_char *expr)
 {
     int i;

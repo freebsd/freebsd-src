@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "doscmd.h"
 int
 ParseBuffer(obuf, av, mac)
 char *obuf;
