@@ -146,7 +146,7 @@ int iconv_converter_donestub(struct iconv_converter_class *dp);
 int iconv_converter_handler(module_t mod, int type, void *data);
 
 #ifdef ICONV_DEBUG
-#define ICDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define ICDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define ICDEBUG(format, args...)
 #endif
