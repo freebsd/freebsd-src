@@ -6,6 +6,14 @@ done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
 20000812:
+	suidperl is now always built and installed on the system, but
+	with permissions of 511.  If you have applications that use
+	this program, you are now required to add ENABLE_SUIDPERL=true
+	to /etc/make.conf.  If you forget to do this,
+		chmod 4511 /usr/bin/suidperl
+	will fix this until the next build.
+
+20000812:
 	sendmail has been updated from 8.9.3 to 8.11.0.  Some of the more
 	visible changes that may immediately affect your configuration
 	include:
