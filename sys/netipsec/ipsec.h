@@ -71,6 +71,7 @@ struct secpolicyindex {
 /* Security Policy Data Base */
 struct secpolicy {
 	LIST_ENTRY(secpolicy) chain;
+	struct mtx lock;
 
 	u_int refcnt;			/* reference count */
 	struct secpolicyindex spidx;	/* selector */
@@ -108,6 +109,7 @@ struct ipsecrequest {
 
 	struct secasvar *sav;	/* place holder of SA for use */
 	struct secpolicy *sp;	/* back pointer to SP */
+	struct mtx lock;	/* to interlock updates */
 };
 
 /* security policy in PCB */
@@ -321,6 +323,9 @@ extern int crypto_support;
 #define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
 #define	DPRINTF(x)	do { if (ipsec_debug) printf x; } while (0)
+
+extern	struct ipsecrequest *ipsec_newisr(void);
+extern	void ipsec_delisr(struct ipsecrequest *);
 
 struct tdb_ident;
 extern struct secpolicy *ipsec_getpolicy __P((struct tdb_ident*, u_int));
