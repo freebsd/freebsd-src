@@ -731,17 +731,48 @@ sis_miibus_readreg(dev, phy, reg)
 		return CSR_READ_4(sc, NS_BMCR + (reg * 4));
 	}
 
+	/*
+	 * Chipsets < SIS_635 seem not to be able to read/write
+	 * through mdio. Use the enhanced PHY access register
+	 * again for them.
+	 */
 	if (sc->sis_type == SIS_TYPE_900 &&
-	    sc->sis_rev < SIS_REV_635 && phy != 0)
-		return(0);
+	    sc->sis_rev < SIS_REV_635) {
+		int i, val = 0;
 
-	bzero((char *)&frame, sizeof(frame));
+		if (phy != 0)
+			return(0);
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	sis_mii_readreg(sc, &frame);
+		CSR_WRITE_4(sc, SIS_PHYCTL,
+		    (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
+		SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
 
-	return(frame.mii_data);
+		for (i = 0; i < SIS_TIMEOUT; i++) {
+			if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
+				break;
+		}
+
+		if (i == SIS_TIMEOUT) {
+			printf("sis%d: PHY failed to come ready\n",
+			    sc->sis_unit);
+			return(0);
+		}
+
+		val = (CSR_READ_4(sc, SIS_PHYCTL) >> 16) & 0xFFFF;
+
+		if (val == 0xFFFF)
+			return(0);
+
+		return(val);
+	} else {
+		bzero((char *)&frame, sizeof(frame));
+
+		frame.mii_phyaddr = phy;
+		frame.mii_regaddr = reg;
+		sis_mii_readreg(sc, &frame);
+
+		return(frame.mii_data);
+	}
 }
 
 static int
@@ -761,17 +792,38 @@ sis_miibus_writereg(dev, phy, reg, data)
 		return(0);
 	}
 
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
-		return(0);
+	/*
+	 * Chipsets < SIS_635 seem not to be able to read/write
+	 * through mdio. Use the enhanced PHY access register
+	 * again for them.
+	 */
+	if (sc->sis_type == SIS_TYPE_900 &&
+	    sc->sis_rev < SIS_REV_635) {
+		int i;
 
-	bzero((char *)&frame, sizeof(frame));
+		if (phy != 0)
+			return(0);
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
+		CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
+		    (reg << 6) | SIS_PHYOP_WRITE);
+		SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
 
-	sis_mii_writereg(sc, &frame);
+		for (i = 0; i < SIS_TIMEOUT; i++) {
+			if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
+				break;
+		}
 
+		if (i == SIS_TIMEOUT)
+			printf("sis%d: PHY failed to come ready\n",
+			    sc->sis_unit);
+	} else {
+		bzero((char *)&frame, sizeof(frame));
+
+		frame.mii_phyaddr = phy;
+		frame.mii_regaddr = reg;
+		frame.mii_data = data;
+		sis_mii_writereg(sc, &frame);
+	}
 	return(0);
 }
 
@@ -818,11 +870,11 @@ sis_crc(sc, addr)
 	 */
 	if (sc->sis_type == SIS_TYPE_83815)
 		return (crc >> 23);
-
-	if (sc->sis_rev >= SIS_REV_635)
+	else if (sc->sis_rev >= SIS_REV_635 ||
+	    sc->sis_rev == SIS_REV_900B)
 		return (crc >> 24);
-
-	return (crc >> 25);
+	else
+		return (crc >> 25);
 }
 
 static void
@@ -886,7 +938,11 @@ sis_setmulti_sis(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* hash table size */
-	n = sc->sis_rev >= SIS_REV_635 ? 16 : 8;
+	if (sc->sis_rev >= SIS_REV_635 ||
+	    sc->sis_rev == SIS_REV_900B)
+		n = 16;
+	else
+		n = 8;
 
 	ctl = CSR_READ_4(sc, SIS_RXFILT_CTL) & SIS_RXFILTCTL_ENABLE;
 
@@ -1094,6 +1150,13 @@ sis_attach(dev)
 
 	/* Reset the adapter. */
 	sis_reset(sc);
+
+	if (sc->sis_type == SIS_TYPE_900 &&
+            (sc->sis_rev == SIS_REV_635 ||
+            sc->sis_rev == SIS_REV_900B)) {
+		SIO_SET(SIS_CFG_RND_CNT);
+		SIO_SET(SIS_CFG_PERR_DETECT);
+	}
 
 	/*
 	 * Get station address from the EEPROM.
