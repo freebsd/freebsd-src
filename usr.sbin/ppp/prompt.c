@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.7 1998/06/16 19:40:40 brian Exp $
+ *	$Id: prompt.c,v 1.8 1998/06/24 19:33:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,7 @@
 #include "chap.h"
 #include "datalink.h"
 #include "server.h"
+#include "main.h"
 
 static void
 prompt_Display(struct prompt *p)
@@ -184,6 +185,8 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         command_Decode(bundle, linebuff, n, p, p->src.from);
     } else if (n <= 0) {
       log_Printf(LogPHASE, "%s: Client connection closed.\n", p->src.from);
+      if (!p->owner)
+        Cleanup(EX_NORMAL);
       prompt_Destroy(p, 0);
     }
     return;
@@ -407,7 +410,6 @@ prompt_TtyInit(struct prompt *p)
   newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
   newtio.c_iflag = 0;
   newtio.c_oflag &= ~OPOST;
-  newtio.c_cc[VEOF] = _POSIX_VDISABLE;
   if (!p)
     newtio.c_cc[VINTR] = _POSIX_VDISABLE;
   newtio.c_cc[VMIN] = 1;
