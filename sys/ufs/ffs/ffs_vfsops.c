@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.74 1998/03/07 14:59:44 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.75 1998/03/07 21:36:36 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -203,7 +203,11 @@ ffs_mount( mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			err = ffs_flushfiles(mp, flags, p);
+			if (mp->mnt_flag & MNT_SOFTDEP) {
+				err = softdep_flushfiles(mp, flags, p);
+			} else {
+				err = ffs_flushfiles(mp, flags, p);
+			}
 		}
 		if (!err && (mp->mnt_flag & MNT_RELOAD))
 			err = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
@@ -410,7 +414,10 @@ ffs_reload(mp, cred, p)
 	 * Step 1: invalidate all cached meta-data.
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
-	if (vinvalbuf(devvp, 0, cred, p, 0, 0))
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = vinvalbuf(devvp, 0, cred, p, 0, 0);
+	VOP_UNLOCK(devvp, 0, p);
+	if (error)
 		panic("ffs_reload: dirty1");
 
 	dev = devvp->v_rdev;
@@ -516,6 +523,7 @@ loop:
 		}
 		ip->i_din = *((struct dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number));
+		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
 		vput(vp);
 		simple_lock(&mntvnode_slock);
@@ -537,10 +545,12 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	register struct ufsmount *ump;
 	struct buf *bp;
 	register struct fs *fs;
+	struct cg *cgp;
 	dev_t dev;
 	struct partinfo dpart;
+	struct csum cstotal;
 	caddr_t base, space;
-	int error, i, blks, size, ronly;
+	int error, i, cyl, blks, size, ronly;
 	int32_t *lp;
 	struct ucred *cred;
 	u_int64_t maxfilesize;					/* XXX */
@@ -562,7 +572,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
-	if (error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0))
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0);
+	VOP_UNLOCK(devvp, 0, p);
+	if (error)
 		return (error);
 
 	/*
@@ -674,7 +687,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_seqinc = fs->fs_frag;
 	for (i = 0; i < MAXQUOTAS; i++)
 		ump->um_quotas[i] = NULLVP;
-	devvp->v_specflags |= SI_MOUNTEDON;
+	devvp->v_specmountpoint = mp;
 	ffs_oldfscompat(fs);
 
 	/*
@@ -700,11 +713,17 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (fs->fs_maxfilesize > maxfilesize)			/* XXX */
 		fs->fs_maxfilesize = maxfilesize;		/* XXX */
 	if (ronly == 0) {
+		if ((fs->fs_flags & FS_DOSOFTDEP) &&
+		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
+			free(base, M_UFSMNT);
+			goto out;
+		}
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
 	return (0);
 out:
+	devvp->v_specmountpoint = NULL;
 	if (bp)
 		brelse(bp);
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, cred, p);
@@ -765,9 +784,13 @@ ffs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
-	error = ffs_flushfiles(mp, flags, p);
-	if (error)
-		return (error);
+	if (mp->mnt_flag & MNT_SOFTDEP) {
+		if ((error = softdep_flushfiles(mp, flags, p)) != 0)
+			return (error);
+	} else {
+		if ((error = ffs_flushfiles(mp, flags, p)) != 0)
+			return (error);
+	}
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	if (fs->fs_ronly == 0) {
@@ -778,7 +801,7 @@ ffs_unmount(mp, mntflags, p)
 			return (error);
 		}
 	}
-	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
+	ump->um_devvp->v_specmountpoint = NULL;
 
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, p, 0, 0);
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
@@ -824,7 +847,17 @@ ffs_flushfiles(mp, flags, p)
 		 */
 	}
 #endif
-	error = vflush(mp, NULLVP, flags);
+        /*
+	 * Flush all the files.
+	 */
+	if ((error = vflush(mp, NULL, flags)) != 0)
+		return (error);
+	/*
+	 * Flush filesystem metadata.
+	 */
+	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
+	error = VOP_FSYNC(ump->um_devvp, p->p_ucred, MNT_WAIT, p);
+	VOP_UNLOCK(ump->um_devvp, 0, p);
 	return (error);
 }
 
@@ -903,9 +936,9 @@ loop:
 		simple_lock(&vp->v_interlock);
 		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
-		if (((ip->i_flag &
+		if ((vp->v_type == VNON) || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-		    vp->v_dirtyblkhd.lh_first == NULL) {
+		    ((vp->v_dirtyblkhd.lh_first == NULL) || (waitfor == MNT_LAZY))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -937,21 +970,22 @@ loop:
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
-	error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p);
-	if (error)
-		allerror = error;
+	if (waitfor != MNT_LAZY) {
+		if (ump->um_mountp->mnt_flag & MNT_SOFTDEP)
+			waitfor = MNT_NOWAIT;
+		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
+			allerror = error;
+		VOP_UNLOCK(ump->um_devvp, 0, p);
+	}
 #ifdef QUOTA
 	qsync(mp);
 #endif
 	/*
 	 * Write back modified superblock.
 	 */
-	if (fs->fs_fmod != 0) {
-		fs->fs_fmod = 0;
-		fs->fs_time = time.tv_sec;
-		if (error = ffs_sbupdate(ump, waitfor))
-			allerror = error;
-	}
+	if (fs->fs_fmod != 0 && (error = ffs_sbupdate(ump, waitfor)) != 0)
+		allerror = error;
 	return (allerror);
 }
 
@@ -1060,6 +1094,10 @@ restart:
 		return (error);
 	}
 	ip->i_din = *((struct dinode *)bp->b_data + ino_to_fsbo(fs, ino));
+	if (DOINGSOFTDEP(vp))
+		softdep_load_inodeblock(ip);
+	else
+		ip->i_effnlink = ip->i_nlink;
 	bqrelse(bp);
 
 	/*
@@ -1157,6 +1195,7 @@ ffs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
+	softdep_initialize();
 	return (ufs_init(vfsp));
 }
 
@@ -1200,6 +1239,8 @@ ffs_sbupdate(mp, waitfor)
 	if (allerror)
 		return (allerror);
 	bp = getblk(mp->um_devvp, SBLOCK, (int)fs->fs_sbsize, 0, 0);
+	fs->fs_fmod = 0;
+	fs->fs_time = time.tv_sec;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	/* Restore compatibility to old file systems.		   XXX */
 	dfs = (struct fs *)bp->b_data;				/* XXX */

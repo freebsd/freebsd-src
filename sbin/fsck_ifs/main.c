@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.12 1997/12/20 22:24:32 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -210,6 +210,11 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	}
 
 	/*
+	 * Cleared if any questions answered no. Used to decide if
+	 * the superblock should be marked clean.
+	 */
+	resolved = 1;
+	/*
 	 * 1: scan inodes tallying blocks used
 	 */
 	if (preen == 0) {
@@ -224,7 +229,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 * 1b: locate first references to duplicates, if any
 	 */
 	if (duplist) {
-		if (preen)
+		if (preen || usedsoftdep)
 			pfatal("INTERNAL ERROR: dups with -p");
 		printf("** Phase 1b - Rescan For More DUPS\n");
 		pass1b();
@@ -306,19 +311,20 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			bwrite(fswritefd, (char *)&sblock,
 			    fsbtodb(&sblock, cgsblock(&sblock, cylno)), SBSIZE);
 	}
-	if (!hotroot) {
-		ckfini(1);
-	} else {
+	if (rerun)
+		resolved = 0;
+	flags = 0;
+	if (hotroot) {
 		struct statfs stfs_buf;
 		/*
 		 * Check to see if root is mounted read-write.
 		 */
 		if (statfs("/", &stfs_buf) == 0)
 			flags = stfs_buf.f_flags;
-		else
-			flags = 0;
-		ckfini(flags & MNT_RDONLY);
+		if ((flags & MNT_RDONLY) == 0)
+			resolved = 0;
 	}
+	ckfini(resolved);
 	free(blockmap);
 	free(statemap);
 	free((char *)lncntp);

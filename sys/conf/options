@@ -1,4 +1,4 @@
-#	$Id: options,v 1.63 1998/02/27 10:02:37 itojun Exp $
+#	$Id: options,v 1.64 1998/03/04 10:24:08 dufault Exp $
 
 # Format:
 # Option name	filename
@@ -58,6 +58,12 @@ UMAPFS		opt_dontuse.h
 CD9660
 FFS
 NFS
+
+# If you are following the conditions in the copyright, 
+# you can enable soft-updates which will speed up a lot of thigs 
+# and make the system safer from crashes at the same time.
+# otherwise a STUB module will be compiled in.
+SOFTUPDATES	opt_ffs.h
 
 # The above static dependencies are planned removed, with a
 # <filesystem>_ROOT option to control if it usable as root.  This list

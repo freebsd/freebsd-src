@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id: specdev.h,v 1.12 1997/09/14 02:58:03 peter Exp $
+ * $Id: specdev.h,v 1.13 1997/10/15 13:23:21 phk Exp $
  */
 
 /*
@@ -42,7 +42,7 @@
 struct specinfo {
 	struct	vnode **si_hashchain;
 	struct	vnode *si_specnext;
-	long	si_flags;
+	struct	mount *si_mountpoint;
 	dev_t	si_rdev;
 };
 /*
@@ -51,12 +51,7 @@ struct specinfo {
 #define v_rdev v_specinfo->si_rdev
 #define v_hashchain v_specinfo->si_hashchain
 #define v_specnext v_specinfo->si_specnext
-#define v_specflags v_specinfo->si_flags
-
-/*
- * Flags for specinfo
- */
-#define	SI_MOUNTEDON	0x0001	/* block special device is mounted on */
+#define v_specmountpoint v_specinfo->si_mountpoint
 
 /*
  * Special device management

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.33 1997/12/21 21:40:02 joerg Exp $
+ * $Id: cd9660_vfsops.c,v 1.34 1998/03/01 22:46:00 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -392,7 +392,7 @@ iso_mountfs(devvp, mp, p, argp)
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
 
-	devvp->v_specflags |= SI_MOUNTEDON;
+	devvp->v_specmountpoint = mp;
 
 	/* Check the Rock Ridge Extention support */
 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
@@ -438,7 +438,7 @@ iso_mountfs(devvp, mp, p, argp)
 
 	return 0;
 out:
-	devvp->v_specflags &= ~SI_MOUNTEDON;
+	devvp->v_specmountpoint = NULL;
 	if (bp)
 		brelse(bp);
 	if (needclose)
@@ -489,7 +489,7 @@ cd9660_unmount(mp, mntflags, p)
 	isomp = VFSTOISOFS(mp);
 
 
-	isomp->im_devvp->v_specflags &= ~SI_MOUNTEDON;
+	isomp->im_devvp->v_specmountpoint = NULL;
 	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, p);
 	vrele(isomp->im_devvp);
 	free((caddr_t)isomp, M_ISOFSMNT);
@@ -561,7 +561,8 @@ cd9660_statfs(mp, sbp, p)
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}
 	/* Use the first spare for flags: */
-	sbp->f_spare[0] = isomp->im_flags;
+	/* Don't do this!!! XXX */
+	/* sbp->f_spare[0] = isomp->im_flags; */
 	return 0;
 }
 

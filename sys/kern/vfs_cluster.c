@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.55 1998/02/06 12:13:30 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.56 1998/03/07 21:35:28 dyson Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -399,6 +399,9 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 		}
+		/* check for latent dependencies to be handled */
+		if ((LIST_FIRST(&tbp->b_dep)) != NULL && bioops.io_start)
+			(*bioops.io_start)(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
 		for (j = 0; j < tbp->b_npages; j += 1) {
@@ -684,7 +687,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 						(tbp->b_flags & (B_VMIO|B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
-
 		for (i = 0; i < len; ++i, ++start_lbn) {
 			if (i != 0) {
 				s = splbio();
@@ -714,7 +716,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 				tbp->b_flags &= ~B_DONE;
 				splx(s);
 			}
-
+			/* check for latent dependencies to be handled */
+			if ((LIST_FIRST(&tbp->b_dep)) != NULL &&
+			    bioops.io_start)
+				(*bioops.io_start)(tbp);
 			if (tbp->b_flags & B_VMIO) {
 				vm_page_t m;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.13 (Berkeley) 3/21/95
- * $Id: fs.h,v 1.11 1997/03/23 20:08:22 guido Exp $
+ * $Id: fs.h,v 1.12 1997/03/24 03:19:37 bde Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_
@@ -222,7 +222,7 @@ struct fs {
 	int8_t   fs_fmod;		/* super block modified flag */
 	int8_t   fs_clean;		/* file system is clean flag */
 	int8_t 	 fs_ronly;		/* mounted read-only flag */
-	int8_t   fs_flags;		/* currently unused flag */
+	int8_t   fs_flags;		/* see FS_ flags below */
 	u_char	 fs_fsmnt[MAXMNTLEN];	/* name mounted on */
 /* these fields retain the current block allocation info */
 	int32_t	 fs_cgrotor;		/* last cg searched */
@@ -254,11 +254,18 @@ struct fs {
 #define	FS_OKAY		0x7c269d38	/* superblock checksum */
 #define FS_42INODEFMT	-1		/* 4.2BSD inode format */
 #define FS_44INODEFMT	2		/* 4.4BSD inode format */
+
 /*
  * Preference for optimization.
  */
 #define FS_OPTTIME	0	/* minimize allocation time */
 #define FS_OPTSPACE	1	/* minimize disk fragmentation */
+
+/*
+ * Filesystem flags.
+ */
+#define FS_UNCLEAN    0x01    /* filesystem not clean at mount */
+#define FS_DOSOFTDEP  0x02    /* filesystem using soft dependencies */
 
 /*
  * Rotational layout table format types
@@ -485,6 +492,11 @@ struct ocg {
 	(((lbn) >= NDADDR || (dip)->di_size >= smalllblktosize(fs, (lbn) + 1)) \
 	    ? (fs)->fs_bsize \
 	    : (fragroundup(fs, blkoff(fs, (dip)->di_size))))
+#define sblksize(fs, size, lbn) \
+	(((lbn) >= NDADDR || (size) >= ((lbn) + 1) << (fs)->fs_bshift) \
+	  ? (fs)->fs_bsize \
+	  : (fragroundup(fs, blkoff(fs, (size)))))
+
 
 /*
  * Number of disk sectors per block/fragment; assumes DEV_BSIZE byte

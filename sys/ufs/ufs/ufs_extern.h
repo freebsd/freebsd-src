@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.21 1997/10/16 11:59:09 phk Exp $
+ * $Id: ufs_extern.h,v 1.22 1997/10/27 12:50:57 bde Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -68,12 +68,12 @@ int	 ufs_checkpath __P((struct inode *, struct inode *, struct ucred *));
 void	 ufs_dirbad __P((struct inode *, doff_t, char *));
 int	 ufs_dirbadentry __P((struct vnode *, struct direct *, int));
 int	 ufs_dirempty __P((struct inode *, ino_t, struct ucred *));
-int	 ufs_direnter __P((struct inode *, struct vnode *,struct componentname *));
-int	 ufs_direnter2 __P((struct vnode *, struct direct *, struct ucred *,
-		struct proc *));
-int	 ufs_dirremove __P((struct vnode *, struct componentname*));
-int	 ufs_dirrewrite
-	    __P((struct inode *, struct inode *, struct componentname *));
+void	 ufs_makedirentry __P((struct inode *, struct componentname *,
+	    struct direct *));
+int	 ufs_direnter __P((struct vnode *, struct vnode *, struct direct *,
+	    struct componentname *, struct buf *));
+int	 ufs_dirremove __P((struct vnode *, struct inode *, int, int));
+int	 ufs_dirrewrite __P((struct inode *, struct inode *, ino_t, int, int));
 int	 ufs_getlbns __P((struct vnode *, ufs_daddr_t, struct indir *, int *));
 struct vnode *
 	 ufs_ihashget __P((dev_t, ino_t));
@@ -89,5 +89,18 @@ int	 ufs_reclaim __P((struct vop_reclaim_args *));
 int	 ufs_root __P((struct mount *, struct vnode **));
 int	 ufs_start __P((struct mount *, int, struct proc *));
 int	 ufs_vinit __P((struct mount *, vop_t **, vop_t **, struct vnode **));
+
+/*
+ * Soft update function prototypes.
+ */
+void	softdep_setup_directory_add __P((struct buf *, struct inode *, off_t,
+	    long, struct buf *));
+void	softdep_change_directoryentry_offset __P((struct inode *, caddr_t,
+	    caddr_t, caddr_t, int));
+void	softdep_setup_remove __P((struct buf *,struct inode *, struct inode *,
+	    int));
+void	softdep_setup_directory_change __P((struct buf *, struct inode *,
+	    struct inode *, long, int));
+void	softdep_increase_linkcnt __P((struct inode *));
 
 #endif /* !_UFS_UFS_EXTERN_H_ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.51 1998/03/06 09:46:43 msmith Exp $
+ * $Id: nfs_bio.c,v 1.52 1998/03/07 21:36:01 dyson Exp $
  */
 
 
@@ -1206,10 +1206,14 @@ nfs_doio(bp, cr, p)
 		 */
     		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
+			int s;
+
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
 			++numdirtybuffers;
 			bp->b_flags |= B_DELWRI;
+			s = splbio();
 			reassignbuf(bp, vp);
+			splx(s);
 			if ((bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 	    	} else {
