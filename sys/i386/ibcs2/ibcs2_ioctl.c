@@ -1,19 +1,18 @@
-/*-
- * Copyright (c) 1994 Søren Schmidt
- * Copyright (c) 1994 Sean Eric Fagan
+/*	$NetBSD: ibcs2_ioctl.c,v 1.6 1995/03/14 15:12:28 scottb Exp $	*/
+
+/*
+ * Copyright (c) 1994, 1995 Scott Bartram
  * All rights reserved.
+ *
+ * based on compat/sunos/sun_ioctl.c
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,923 +24,603 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: ibcs2_ioctl.c,v 1.3 1994/10/23 19:19:42 sos Exp $
  */
 
-#include <i386/ibcs2/ibcs2.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/namei.h>
+#include <sys/dir.h>
 #include <sys/proc.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/filedesc.h>
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
-#include <sys/tty.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/mman.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
 #include <sys/termios.h>
+#include <sys/time.h>
+#include <sys/times.h>
+#include <sys/tty.h>
+#include <sys/vnode.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <sys/utsname.h>
+#include <sys/unistd.h>
 #include <machine/console.h>
 
-struct ibcs2_termio {
-	unsigned short	c_iflag;
-	unsigned short	c_oflag;
-	unsigned short	c_cflag;
-	unsigned short	c_lflag;
-	char		c_line;
-	unsigned char	c_cc[IBCS2_NCC];
-};
+#include <net/if.h>
+#include <sys/sysproto.h>
 
-struct ibcs2_termios {
-	unsigned short	c_iflag;
-	unsigned short	c_oflag;
-	unsigned short	c_cflag;
-	unsigned short	c_lflag;
-	char		c_line;
-	unsigned char	c_cc[IBCS2_NCCS];
-	char		c_ispeed;
-	char		c_ospeed;
-};
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_socksys.h>
+#include <i386/ibcs2/ibcs2_stropts.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+#include <i386/ibcs2/ibcs2_termios.h>
+#include <i386/ibcs2/ibcs2_util.h>
+#include <i386/ibcs2/ibcs2_ioctl.h>
 
-struct ibcs2_winsize {
-	char bytex, bytey;
-	short bitx, bity;
-};
+static void stios2btios __P((struct ibcs2_termios *, struct termios *));
+static void btios2stios __P((struct termios *, struct ibcs2_termios *));
+static void stios2stio  __P((struct ibcs2_termios *, struct ibcs2_termio *));
+static void stio2stios  __P((struct ibcs2_termio *, struct ibcs2_termios *));
+
+
+int
+ibcs2_gtty(struct proc *p, struct ibcs2_gtty_args *args, int *retval)
+{
+	struct ioctl_args ioctl_arg;
+
+	ioctl_arg.fd = args->fd;
+	ioctl_arg.com = TIOCGETC;
+	ioctl_arg.data = (caddr_t)args->buf;
+
+	return ioctl(p, &ioctl_arg, retval);
+}
+
+int
+ibcs2_stty(struct proc *p, struct ibcs2_stty_args *args, int *retval)
+{
+	struct ioctl_args ioctl_arg;
+
+	ioctl_arg.fd = args->fd;
+	ioctl_arg.com = TIOCSETC;
+	ioctl_arg.data = (caddr_t)args->buf;
+
+	return ioctl(p, &ioctl_arg, retval);
+}
+
+
+/*
+ * iBCS2 ioctl calls.
+ */
 
 static struct speedtab sptab[] = {
-	{ 0, 0 }, { 50, 1 }, { 75, 2 }, { 110, 3 },
-	{ 134, 4 }, { 135, 4 }, { 150, 5 }, { 200, 6 },
-	{ 300, 7 }, { 600, 8 }, { 1200, 9 }, { 1800, 10 },
-	{ 2400, 11 }, { 4800, 12 }, { 9600, 13 },
-	{ 19200, 14 }, { 38400, 15 },
-	{ 57600, 15 }, { 115200, 15 }, {-1, -1 }
+	{ 0, 0 },
+	{ 50, 1 },
+	{ 75, 2 },
+	{ 110, 3 },
+	{ 134, 4 },
+	{ 135, 4 },
+	{ 150, 5 },
+	{ 200, 6 },
+	{ 300, 7 },
+	{ 600, 8 },
+	{ 1200, 9 },
+	{ 1800, 10 },
+	{ 2400, 11 },
+	{ 4800, 12 },
+	{ 9600, 13 },
+	{ 19200, 14 },
+	{ 38400, 15 },
+	{ -1, -1 }
 };
 
-static int
-ibcs2_to_bsd_speed(int code, struct speedtab *table)
-{
-	for ( ; table->sp_code != -1; table++)
-		if (table->sp_code == code)
-			return (table->sp_speed);
-	return -1;
-}
-
-static int
-bsd_to_ibcs2_speed(int speed, struct speedtab *table)
-{
-	for ( ; table->sp_speed != -1; table++)
-		if (table->sp_speed == speed)
-			return (table->sp_code);
-	return -1;
-}
-
-static void
-bsd_termios_to_ibcs2_termio(struct termios *bsd_termios,
-			    struct ibcs2_termio *ibcs2_termio)
-{
-	int speed;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: BSD termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-			bsd_termios->c_iflag, bsd_termios->c_oflag,
-			bsd_termios->c_cflag, bsd_termios->c_lflag,
-			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bsd_termios->c_cc[i]);
-		printf("\n");
-	}
-
-	ibcs2_termio->c_iflag = bsd_termios->c_iflag &
-		(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK
-		 |ISTRIP|INLCR|IGNCR|ICRNL|IXANY);
-	if (bsd_termios->c_iflag & IXON)
-		ibcs2_termio->c_iflag |= IBCS2_IXON;
-	if (bsd_termios->c_iflag & IXOFF)
-		ibcs2_termio->c_iflag |= IBCS2_IXOFF;
-
-	ibcs2_termio->c_oflag = 0;
-	if (bsd_termios->c_oflag & OPOST)
-		ibcs2_termio->c_oflag |= IBCS2_OPOST;
-	if (bsd_termios->c_oflag & ONLCR)
-		ibcs2_termio->c_oflag |= IBCS2_ONLCR;
-	if (bsd_termios->c_oflag & OXTABS)
-		ibcs2_termio->c_oflag |= (IBCS2_TAB1|IBCS2_TAB2);
-
-	speed = bsd_to_ibcs2_speed(bsd_termios->c_ospeed, sptab);
-
-	ibcs2_termio->c_cflag = speed >= 0 ? speed : 0;
-	ibcs2_termio->c_cflag |= (bsd_termios->c_cflag & CSIZE) >> 4; /* XXX */
-	if (bsd_termios->c_cflag & CSTOPB)
-		ibcs2_termio->c_cflag |= IBCS2_CSTOPB;
-	if (bsd_termios->c_cflag & PARENB)
-		ibcs2_termio->c_cflag |= IBCS2_PARENB;
-	if (bsd_termios->c_cflag & PARODD)
-		ibcs2_termio->c_cflag |= IBCS2_PARODD;
-	if (bsd_termios->c_cflag & HUPCL)
-		ibcs2_termio->c_cflag |= IBCS2_HUPCL;
-	if (bsd_termios->c_cflag & CLOCAL)
-		ibcs2_termio->c_cflag |= IBCS2_CLOCAL;
-
-	ibcs2_termio->c_lflag = 0;
-	if (bsd_termios->c_lflag & ISIG)
-		ibcs2_termio->c_lflag |= IBCS2_ISIG;
-	if (bsd_termios->c_lflag & ICANON)
-		ibcs2_termio->c_lflag |= IBCS2_ICANON;
-	if (bsd_termios->c_lflag & ECHO)
-		ibcs2_termio->c_lflag |= IBCS2_ECHO;
-	if (bsd_termios->c_lflag & ECHOE)
-		ibcs2_termio->c_lflag |= IBCS2_ECHOE;
-	if (bsd_termios->c_lflag & ECHOK)
-		ibcs2_termio->c_lflag |= IBCS2_ECHOK;
-	if (bsd_termios->c_lflag & ECHONL)
-		ibcs2_termio->c_lflag |= IBCS2_ECHONL;
-	if (bsd_termios->c_lflag & NOFLSH)
-		ibcs2_termio->c_lflag |= IBCS2_NOFLSH;
-	if (bsd_termios->c_lflag & ECHOCTL)
-		ibcs2_termio->c_lflag |= 0x0200; /* XXX */
-	if (bsd_termios->c_lflag & ECHOPRT)
-		ibcs2_termio->c_lflag |= 0x0400; /* XXX */
-	if (bsd_termios->c_lflag & ECHOKE)
-		ibcs2_termio->c_lflag |= 0x0800; /* XXX */
-	if (bsd_termios->c_lflag & IEXTEN)
-		ibcs2_termio->c_lflag |= 0x8000; /* XXX */
-
-	ibcs2_termio->c_cc[IBCS2_VINTR] = bsd_termios->c_cc[VINTR];
-	ibcs2_termio->c_cc[IBCS2_VQUIT] = bsd_termios->c_cc[VQUIT];
-	ibcs2_termio->c_cc[IBCS2_VERASE] = bsd_termios->c_cc[VERASE];
-	ibcs2_termio->c_cc[IBCS2_VKILL] = bsd_termios->c_cc[VKILL];
-	if (bsd_termios->c_lflag & ICANON) {
-		ibcs2_termio->c_cc[IBCS2_VEOF] = bsd_termios->c_cc[VEOF];
-		ibcs2_termio->c_cc[IBCS2_VEOL] = bsd_termios->c_cc[VEOL];
-	} else {
-		ibcs2_termio->c_cc[IBCS2_VMIN] = bsd_termios->c_cc[VMIN];
-		ibcs2_termio->c_cc[IBCS2_VTIME] = bsd_termios->c_cc[VTIME];
-	}
-	ibcs2_termio->c_cc[IBCS2_VEOL2] = bsd_termios->c_cc[VEOL2];
-	ibcs2_termio->c_cc[IBCS2_VSWTCH] = 0xff;
-	ibcs2_termio->c_line = 0;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: IBCS2 termio structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x speed=%d line=%d\n",
-			ibcs2_termio->c_iflag, ibcs2_termio->c_oflag,
-			ibcs2_termio->c_cflag, ibcs2_termio->c_lflag,
-			ibcs2_to_bsd_speed(
-				ibcs2_termio->c_cflag & IBCS2_CBAUD, sptab),
-			ibcs2_termio->c_line);
-		printf("c_cc ");
-		for (i=0; i<IBCS2_NCC; i++)
-			printf("%02x ", ibcs2_termio->c_cc[i]);
-		printf("\n");
-	}
-}
-
-static void
-ibcs2_termio_to_bsd_termios(struct ibcs2_termio *ibcs2_termio,
-			    struct termios *bsd_termios)
-{
-	int i, speed;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: IBCS2 termio structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x speed=%d line=%d\n",
-			ibcs2_termio->c_iflag, ibcs2_termio->c_oflag,
-			ibcs2_termio->c_cflag, ibcs2_termio->c_lflag,
-			ibcs2_to_bsd_speed(
-				ibcs2_termio->c_cflag & IBCS2_CBAUD, sptab),
-			ibcs2_termio->c_line);
-		printf("c_cc ");
-		for (i=0; i<IBCS2_NCC; i++)
-			printf("%02x ", ibcs2_termio->c_cc[i]);
-		printf("\n");
-	}
-
-	bsd_termios->c_iflag = ibcs2_termio->c_iflag &
-		(IBCS2_IGNBRK|IBCS2_BRKINT|IBCS2_IGNPAR|IBCS2_PARMRK|IBCS2_INPCK
-	 	|IBCS2_ISTRIP|IBCS2_INLCR|IBCS2_IGNCR|IBCS2_ICRNL|IBCS2_IXANY);
-	if (ibcs2_termio->c_iflag & IBCS2_IXON)
-		bsd_termios->c_iflag |= IXON;
-	if (ibcs2_termio->c_iflag & IBCS2_IXOFF)
-		bsd_termios->c_iflag |= IXOFF;
-
-	bsd_termios->c_oflag = 0;
-	if (ibcs2_termio->c_oflag & IBCS2_OPOST)
-		bsd_termios->c_oflag |= OPOST;
-	if (ibcs2_termio->c_oflag & IBCS2_ONLCR)
-		bsd_termios->c_oflag |= ONLCR;
-	if (ibcs2_termio->c_oflag & (IBCS2_TAB1|IBCS2_TAB2))
-		bsd_termios->c_oflag |= OXTABS;
-
-	speed = ibcs2_to_bsd_speed(ibcs2_termio->c_cflag & IBCS2_CBAUD, sptab);
-	bsd_termios->c_ospeed = bsd_termios->c_ispeed = speed >= 0 ? speed : 0;
-
-	bsd_termios->c_cflag = (ibcs2_termio->c_cflag & IBCS2_CSIZE) << 4;
-	if (ibcs2_termio->c_cflag & IBCS2_CSTOPB)
-		bsd_termios->c_cflag |= CSTOPB;
-	if (ibcs2_termio->c_cflag & IBCS2_PARENB)
-		bsd_termios->c_cflag |= PARENB;
-	if (ibcs2_termio->c_cflag & IBCS2_PARODD)
-		bsd_termios->c_cflag |= PARODD;
-	if (ibcs2_termio->c_cflag & IBCS2_HUPCL)
-		bsd_termios->c_cflag |= HUPCL;
-	if (ibcs2_termio->c_cflag & IBCS2_CLOCAL)
-		bsd_termios->c_cflag |= CLOCAL;
-
-	bsd_termios->c_lflag = 0;
-	if (ibcs2_termio->c_lflag & IBCS2_ISIG)
-		bsd_termios->c_lflag |= ISIG;
-	if (ibcs2_termio->c_lflag & IBCS2_ICANON)
-		bsd_termios->c_lflag |= ICANON;
-	if (ibcs2_termio->c_lflag & IBCS2_ECHO)
-		bsd_termios->c_lflag |= ECHO;
-	if (ibcs2_termio->c_lflag & IBCS2_ECHOE)
-		bsd_termios->c_lflag |= ECHOE;
-	if (ibcs2_termio->c_lflag & IBCS2_ECHOK)
-		bsd_termios->c_lflag |= ECHOK;
-	if (ibcs2_termio->c_lflag & IBCS2_ECHONL)
-		bsd_termios->c_lflag |= ECHONL;
-	if (ibcs2_termio->c_lflag & IBCS2_NOFLSH)
-		bsd_termios->c_lflag |= NOFLSH;
-	if (ibcs2_termio->c_lflag & 0x0200)	/* XXX */
-		bsd_termios->c_lflag |= ECHOCTL;
-	if (ibcs2_termio->c_lflag & 0x0400)	/* XXX */
-		bsd_termios->c_lflag |= ECHOPRT;
-	if (ibcs2_termio->c_lflag & 0x0800)	/* XXX */
-		bsd_termios->c_lflag |= ECHOKE;
-	if (ibcs2_termio->c_lflag & 0x8000)	/* XXX */
-		bsd_termios->c_lflag |= IEXTEN;
-
-	for (i=0; i<NCCS; bsd_termios->c_cc[i++] = 0) ;
-	bsd_termios->c_cc[VINTR] = ibcs2_termio->c_cc[IBCS2_VINTR];
-	bsd_termios->c_cc[VQUIT] = ibcs2_termio->c_cc[IBCS2_VQUIT];
-	bsd_termios->c_cc[VERASE] = ibcs2_termio->c_cc[IBCS2_VERASE];
-	bsd_termios->c_cc[VKILL] = ibcs2_termio->c_cc[IBCS2_VKILL];
-	if (ibcs2_termio->c_lflag & IBCS2_ICANON) {
-		bsd_termios->c_cc[VEOF] = ibcs2_termio->c_cc[IBCS2_VEOF];
-		bsd_termios->c_cc[VEOL] = ibcs2_termio->c_cc[IBCS2_VEOL];
-	} else {
-		bsd_termios->c_cc[VMIN] = ibcs2_termio->c_cc[IBCS2_VMIN];
-		bsd_termios->c_cc[VTIME] = ibcs2_termio->c_cc[IBCS2_VTIME];
-	}
-	bsd_termios->c_cc[VEOL2] = ibcs2_termio->c_cc[IBCS2_VEOL2];
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: BSD termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-			bsd_termios->c_iflag, bsd_termios->c_oflag,
-			bsd_termios->c_cflag, bsd_termios->c_lflag,
-			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bsd_termios->c_cc[i]);
-		printf("\n");
-	}
-}
-
-static void
-bsd_to_ibcs2_termios(struct termios *bsd_termios,
-			    struct ibcs2_termios *ibcs2_termios)
-{
-	int speed;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: BSD termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-			bsd_termios->c_iflag, bsd_termios->c_oflag,
-			bsd_termios->c_cflag, bsd_termios->c_lflag,
-			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bsd_termios->c_cc[i]);
-		printf("\n");
-	}
-
-	ibcs2_termios->c_iflag = bsd_termios->c_iflag &
-		(IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK
-		 |ISTRIP|INLCR|IGNCR|ICRNL|IXANY);
-	if (bsd_termios->c_iflag & IXON)
-		ibcs2_termios->c_iflag |= IBCS2_IXON;
-	if (bsd_termios->c_iflag & IXOFF)
-		ibcs2_termios->c_iflag |= IBCS2_IXOFF;
-
-	ibcs2_termios->c_oflag = 0;
-	if (bsd_termios->c_oflag & OPOST)
-		ibcs2_termios->c_oflag |= IBCS2_OPOST;
-	if (bsd_termios->c_oflag & ONLCR)
-		ibcs2_termios->c_oflag |= IBCS2_ONLCR;
-	if (bsd_termios->c_oflag & OXTABS)
-		ibcs2_termios->c_oflag |= (IBCS2_TAB1|IBCS2_TAB2);
-
-	ibcs2_termios->c_cflag = (bsd_termios->c_cflag & CSIZE) >> 4; /* XXX */
-	if (bsd_termios->c_cflag & CSTOPB)
-		ibcs2_termios->c_cflag |= IBCS2_CSTOPB;
-	if (bsd_termios->c_cflag & PARENB)
-		ibcs2_termios->c_cflag |= IBCS2_PARENB;
-	if (bsd_termios->c_cflag & PARODD)
-		ibcs2_termios->c_cflag |= IBCS2_PARODD;
-	if (bsd_termios->c_cflag & HUPCL)
-		ibcs2_termios->c_cflag |= IBCS2_HUPCL;
-	if (bsd_termios->c_cflag & CLOCAL)
-		ibcs2_termios->c_cflag |= IBCS2_CLOCAL;
-	if (bsd_termios->c_cflag & CRTSCTS)
-		ibcs2_termios->c_cflag |= 0x8000;	/* XXX */
-
-	ibcs2_termios->c_lflag = 0;
-	if (bsd_termios->c_lflag & ISIG)
-		ibcs2_termios->c_lflag |= IBCS2_ISIG;
-	if (bsd_termios->c_lflag & ICANON)
-		ibcs2_termios->c_lflag |= IBCS2_ICANON;
-	if (bsd_termios->c_lflag & ECHO)
-		ibcs2_termios->c_lflag |= IBCS2_ECHO;
-	if (bsd_termios->c_lflag & ECHOE)
-		ibcs2_termios->c_lflag |= IBCS2_ECHOE;
-	if (bsd_termios->c_lflag & ECHOK)
-		ibcs2_termios->c_lflag |= IBCS2_ECHOK;
-	if (bsd_termios->c_lflag & ECHONL)
-		ibcs2_termios->c_lflag |= IBCS2_ECHONL;
-	if (bsd_termios->c_lflag & NOFLSH)
-		ibcs2_termios->c_lflag |= IBCS2_NOFLSH;
-	if (bsd_termios->c_lflag & ECHOCTL)
-		ibcs2_termios->c_lflag |= 0x0200; /* XXX */
-	if (bsd_termios->c_lflag & ECHOPRT)
-		ibcs2_termios->c_lflag |= 0x0400; /* XXX */
-	if (bsd_termios->c_lflag & ECHOKE)
-		ibcs2_termios->c_lflag |= 0x0800; /* XXX */
-	if (bsd_termios->c_lflag & IEXTEN)
-		ibcs2_termios->c_lflag |= 0x8000; /* XXX */
-
-	ibcs2_termios->c_cc[IBCS2_VINTR] = bsd_termios->c_cc[VINTR];
-	ibcs2_termios->c_cc[IBCS2_VQUIT] = bsd_termios->c_cc[VQUIT];
-	ibcs2_termios->c_cc[IBCS2_VERASE] = bsd_termios->c_cc[VERASE];
-	ibcs2_termios->c_cc[IBCS2_VKILL] = bsd_termios->c_cc[VKILL];
-	if (bsd_termios->c_lflag & ICANON) {
-		ibcs2_termios->c_cc[IBCS2_VEOF] = bsd_termios->c_cc[VEOF];
-		ibcs2_termios->c_cc[IBCS2_VEOL] = bsd_termios->c_cc[VEOL];
-	} else {
-		ibcs2_termios->c_cc[IBCS2_VMIN] = bsd_termios->c_cc[VMIN];
-		ibcs2_termios->c_cc[IBCS2_VTIME] = bsd_termios->c_cc[VTIME];
-	}
-	ibcs2_termios->c_cc[IBCS2_VEOL2] = bsd_termios->c_cc[VEOL2];
-	ibcs2_termios->c_cc[IBCS2_VSWTCH] = 0xff;
-	ibcs2_termios->c_cc[IBCS2_VSUSP] = bsd_termios->c_cc[VSUSP];
-	ibcs2_termios->c_cc[IBCS2_VSTART] = bsd_termios->c_cc[VSTART];
-	ibcs2_termios->c_cc[IBCS2_VSTOP] = bsd_termios->c_cc[VSTOP];
-
-	ibcs2_termios->c_ispeed =
-		bsd_to_ibcs2_speed(bsd_termios->c_ispeed, sptab);
-	ibcs2_termios->c_ospeed =
-		bsd_to_ibcs2_speed(bsd_termios->c_ospeed, sptab);
-	ibcs2_termios->c_line = 0;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: IBCS2 termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d "
-			"line=%d\n",
-			ibcs2_termios->c_iflag, ibcs2_termios->c_oflag,
-			ibcs2_termios->c_cflag, ibcs2_termios->c_lflag,
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab),
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ospeed, sptab),
-			ibcs2_termios->c_line);
-		printf("c_cc ");
-		for (i=0; i<IBCS2_NCCS; i++)
-			printf("%02x ", ibcs2_termios->c_cc[i]);
-		printf("\n");
-	}
-}
-
-static void
-ibcs2_to_bsd_termios(struct ibcs2_termios *ibcs2_termios,
-			    struct termios *bsd_termios)
-{
-	int i, speed;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: IBCS2 termios structure (input):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d "
-			"line=%d\n",
-			ibcs2_termios->c_iflag, ibcs2_termios->c_oflag,
-			ibcs2_termios->c_cflag, ibcs2_termios->c_lflag,
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab),
-			ibcs2_to_bsd_speed(ibcs2_termios->c_ospeed, sptab),
-			ibcs2_termios->c_line);
-		printf("c_cc ");
-		for (i=0; i<IBCS2_NCCS; i++)
-			printf("%02x ", ibcs2_termios->c_cc[i]);
-		printf("\n");
-	}
-
-	bsd_termios->c_iflag = ibcs2_termios->c_iflag &
-		(IBCS2_IGNBRK|IBCS2_BRKINT|IBCS2_IGNPAR|IBCS2_PARMRK|IBCS2_INPCK
-	 	|IBCS2_ISTRIP|IBCS2_INLCR|IBCS2_IGNCR|IBCS2_ICRNL|IBCS2_IXANY);
-	if (ibcs2_termios->c_iflag & IBCS2_IXON)
-		bsd_termios->c_iflag |= IXON;
-	if (ibcs2_termios->c_iflag & IBCS2_IXOFF)
-		bsd_termios->c_iflag |= IXOFF;
-
-	bsd_termios->c_oflag = 0;
-	if (ibcs2_termios->c_oflag & IBCS2_OPOST)
-		bsd_termios->c_oflag |= OPOST;
-	if (ibcs2_termios->c_oflag & IBCS2_ONLCR)
-		bsd_termios->c_oflag |= ONLCR;
-	if (ibcs2_termios->c_oflag & (IBCS2_TAB1|IBCS2_TAB2))
-		bsd_termios->c_oflag |= OXTABS;
-
-	bsd_termios->c_cflag = (ibcs2_termios->c_cflag & IBCS2_CSIZE) << 4;
-	if (ibcs2_termios->c_cflag & IBCS2_CSTOPB)
-		bsd_termios->c_cflag |= CSTOPB;
-	if (ibcs2_termios->c_cflag & IBCS2_PARENB)
-		bsd_termios->c_cflag |= PARENB;
-	if (ibcs2_termios->c_cflag & IBCS2_PARODD)
-		bsd_termios->c_cflag |= PARODD;
-	if (ibcs2_termios->c_cflag & IBCS2_HUPCL)
-		bsd_termios->c_cflag |= HUPCL;
-	if (ibcs2_termios->c_cflag & IBCS2_CLOCAL)
-		bsd_termios->c_cflag |= CLOCAL;
-	if (ibcs2_termios->c_cflag & 0x8000)
-		bsd_termios->c_cflag |= CRTSCTS;	/* XXX */
-
-	bsd_termios->c_lflag = 0;
-	if (ibcs2_termios->c_lflag & IBCS2_ISIG)
-		bsd_termios->c_lflag |= ISIG;
-	if (ibcs2_termios->c_lflag & IBCS2_ICANON)
-		bsd_termios->c_lflag |= ICANON;
-	if (ibcs2_termios->c_lflag & IBCS2_ECHO)
-		bsd_termios->c_lflag |= ECHO;
-	if (ibcs2_termios->c_lflag & IBCS2_ECHOE)
-		bsd_termios->c_lflag |= ECHOE;
-	if (ibcs2_termios->c_lflag & IBCS2_ECHOK)
-		bsd_termios->c_lflag |= ECHOK;
-	if (ibcs2_termios->c_lflag & IBCS2_ECHONL)
-		bsd_termios->c_lflag |= ECHONL;
-	if (ibcs2_termios->c_lflag & IBCS2_NOFLSH)
-		bsd_termios->c_lflag |= NOFLSH;
-	if (ibcs2_termios->c_lflag & 0x0200)	/* XXX */
-		bsd_termios->c_lflag |= ECHOCTL;
-	if (ibcs2_termios->c_lflag & 0x0400)	/* XXX */
-		bsd_termios->c_lflag |= ECHOPRT;
-	if (ibcs2_termios->c_lflag & 0x0800)	/* XXX */
-		bsd_termios->c_lflag |= ECHOKE;
-	if (ibcs2_termios->c_lflag & 0x8000)	/* XXX */
-		bsd_termios->c_lflag |= IEXTEN;
-
-	for (i=0; i<NCCS; bsd_termios->c_cc[i++] = 0) ;
-	bsd_termios->c_cc[VINTR] = ibcs2_termios->c_cc[IBCS2_VINTR];
-	bsd_termios->c_cc[VQUIT] = ibcs2_termios->c_cc[IBCS2_VQUIT];
-	bsd_termios->c_cc[VERASE] = ibcs2_termios->c_cc[IBCS2_VERASE];
-	bsd_termios->c_cc[VKILL] = ibcs2_termios->c_cc[IBCS2_VKILL];
-	if (ibcs2_termios->c_lflag & IBCS2_ICANON) {
-		bsd_termios->c_cc[VEOF] = ibcs2_termios->c_cc[IBCS2_VEOF];
-		bsd_termios->c_cc[VEOL] = ibcs2_termios->c_cc[IBCS2_VEOL];
-	} else {
-		bsd_termios->c_cc[VMIN] = ibcs2_termios->c_cc[IBCS2_VMIN];
-		bsd_termios->c_cc[VTIME] = ibcs2_termios->c_cc[IBCS2_VTIME];
-	}
-	bsd_termios->c_cc[VEOL2] = ibcs2_termios->c_cc[IBCS2_VEOL2];
-	bsd_termios->c_cc[VSUSP] = ibcs2_termios->c_cc[IBCS2_VSUSP];
-	bsd_termios->c_cc[VSTART] = ibcs2_termios->c_cc[IBCS2_VSTART];
-	bsd_termios->c_cc[VSTOP] = ibcs2_termios->c_cc[IBCS2_VSTOP];
-
-	bsd_termios->c_ispeed =
-		ibcs2_to_bsd_speed(ibcs2_termios->c_ispeed, sptab);
-	bsd_termios->c_ospeed =
-		ibcs2_to_bsd_speed(ibcs2_termios->c_ospeed, sptab);
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTLCNV) {
-		int i;
-		printf("IBCS2: BSD termios structure (output):\n");
-		printf("i=%08x o=%08x c=%08x l=%08x ispeed=%d ospeed=%d\n",
-			bsd_termios->c_iflag, bsd_termios->c_oflag,
-			bsd_termios->c_cflag, bsd_termios->c_lflag,
-			bsd_termios->c_ispeed, bsd_termios->c_ospeed);
-		printf("c_cc ");
-		for (i=0; i<NCCS; i++)
-			printf("%02x ", bsd_termios->c_cc[i]);
-		printf("\n");
-	}
-}
-
-
-struct ibcs2_ioctl_args {
-	int	fd;
-	int	cmd;
-	int	arg;
+static u_long s2btab[] = { 
+	0,
+	50,
+	75,
+	110,
+	134,
+	150,
+	200,
+	300,
+	600,
+	1200,
+	1800,
+	2400,
+	4800,
+	9600,
+	19200,
+	38400,
 };
+
+static void
+stios2btios(st, bt)
+	struct ibcs2_termios *st;
+	struct termios *bt;
+{
+	register u_long l, r;
+
+	l = st->c_iflag;	r = 0;
+	if (l & IBCS2_IGNBRK)	r |= IGNBRK;
+	if (l & IBCS2_BRKINT)	r |= BRKINT;
+	if (l & IBCS2_IGNPAR)	r |= IGNPAR;
+	if (l & IBCS2_PARMRK)	r |= PARMRK;
+	if (l & IBCS2_INPCK)	r |= INPCK;
+	if (l & IBCS2_ISTRIP)	r |= ISTRIP;
+	if (l & IBCS2_INLCR)	r |= INLCR;
+	if (l & IBCS2_IGNCR)	r |= IGNCR;
+	if (l & IBCS2_ICRNL)	r |= ICRNL;
+	if (l & IBCS2_IXON)	r |= IXON;
+	if (l & IBCS2_IXANY)	r |= IXANY;
+	if (l & IBCS2_IXOFF)	r |= IXOFF;
+	if (l & IBCS2_IMAXBEL)	r |= IMAXBEL;
+	bt->c_iflag = r;
+
+	l = st->c_oflag;	r = 0;
+	if (l & IBCS2_OPOST)	r |= OPOST;
+	if (l & IBCS2_ONLCR)	r |= ONLCR;
+	if (l & IBCS2_TAB3)	r |= OXTABS;
+	bt->c_oflag = r;
+
+	l = st->c_cflag;	r = 0;
+	switch (l & IBCS2_CSIZE) {
+	case IBCS2_CS5:		r |= CS5; break;
+	case IBCS2_CS6:		r |= CS6; break;
+	case IBCS2_CS7:		r |= CS7; break;
+	case IBCS2_CS8:		r |= CS8; break;
+	}
+	if (l & IBCS2_CSTOPB)	r |= CSTOPB;
+	if (l & IBCS2_CREAD)	r |= CREAD;
+	if (l & IBCS2_PARENB)	r |= PARENB;
+	if (l & IBCS2_PARODD)	r |= PARODD;
+	if (l & IBCS2_HUPCL)	r |= HUPCL;
+	if (l & IBCS2_CLOCAL)	r |= CLOCAL;
+	bt->c_cflag = r;
+
+	l = st->c_lflag;	r = 0;
+	if (l & IBCS2_ISIG)	r |= ISIG;
+	if (l & IBCS2_ICANON)	r |= ICANON;
+	if (l & IBCS2_ECHO)	r |= ECHO;
+	if (l & IBCS2_ECHOE)	r |= ECHOE;
+	if (l & IBCS2_ECHOK)	r |= ECHOK;
+	if (l & IBCS2_ECHONL)	r |= ECHONL;
+	if (l & IBCS2_NOFLSH)	r |= NOFLSH;
+	if (l & IBCS2_TOSTOP)	r |= TOSTOP;
+	bt->c_lflag = r;
+
+	bt->c_ispeed = bt->c_ospeed = s2btab[l & 0x0000000f];
+
+	bt->c_cc[VINTR]	=
+	    st->c_cc[IBCS2_VINTR]  ? st->c_cc[IBCS2_VINTR]  : _POSIX_VDISABLE;
+	bt->c_cc[VQUIT] =
+	    st->c_cc[IBCS2_VQUIT]  ? st->c_cc[IBCS2_VQUIT]  : _POSIX_VDISABLE;
+	bt->c_cc[VERASE] =
+	    st->c_cc[IBCS2_VERASE] ? st->c_cc[IBCS2_VERASE] : _POSIX_VDISABLE;
+	bt->c_cc[VKILL] =
+	    st->c_cc[IBCS2_VKILL]  ? st->c_cc[IBCS2_VKILL]  : _POSIX_VDISABLE;
+	bt->c_cc[VEOF] =
+	    st->c_cc[IBCS2_VEOF]   ? st->c_cc[IBCS2_VEOF]   : _POSIX_VDISABLE;
+	bt->c_cc[VEOL] =
+	    st->c_cc[IBCS2_VEOL]   ? st->c_cc[IBCS2_VEOL]   : _POSIX_VDISABLE;
+	bt->c_cc[VEOL2] =
+	    st->c_cc[IBCS2_VEOL2]  ? st->c_cc[IBCS2_VEOL2]  : _POSIX_VDISABLE;
+#if 0
+	bt->c_cc[VSWTCH] =
+	    st->c_cc[IBCS2_VSWTCH] ? st->c_cc[IBCS2_VSWTCH] : _POSIX_VDISABLE;
+#endif
+	bt->c_cc[VSTART] =
+	    st->c_cc[IBCS2_VSTART] ? st->c_cc[IBCS2_VSTART] : _POSIX_VDISABLE;
+	bt->c_cc[VSTOP] =
+	    st->c_cc[IBCS2_VSTOP]  ? st->c_cc[IBCS2_VSTOP]  : _POSIX_VDISABLE;
+	bt->c_cc[VSUSP] =
+	    st->c_cc[IBCS2_VSUSP]  ? st->c_cc[IBCS2_VSUSP]  : _POSIX_VDISABLE;
+	bt->c_cc[VDSUSP]   = _POSIX_VDISABLE;
+	bt->c_cc[VREPRINT] = _POSIX_VDISABLE;
+	bt->c_cc[VDISCARD] = _POSIX_VDISABLE;
+	bt->c_cc[VWERASE]  = _POSIX_VDISABLE;
+	bt->c_cc[VLNEXT]   = _POSIX_VDISABLE;
+	bt->c_cc[VSTATUS]  = _POSIX_VDISABLE;
+}
+
+static void
+btios2stios(bt, st)
+	struct termios *bt;
+	struct ibcs2_termios *st;
+{
+	register u_long l, r;
+
+	l = bt->c_iflag;	r = 0;
+	if (l & IGNBRK)		r |= IBCS2_IGNBRK;
+	if (l & BRKINT)		r |= IBCS2_BRKINT;
+	if (l & IGNPAR)		r |= IBCS2_IGNPAR;
+	if (l & PARMRK)		r |= IBCS2_PARMRK;
+	if (l & INPCK)		r |= IBCS2_INPCK;
+	if (l & ISTRIP)		r |= IBCS2_ISTRIP;
+	if (l & INLCR)		r |= IBCS2_INLCR;
+	if (l & IGNCR)		r |= IBCS2_IGNCR;
+	if (l & ICRNL)		r |= IBCS2_ICRNL;
+	if (l & IXON)		r |= IBCS2_IXON;
+	if (l & IXANY)		r |= IBCS2_IXANY;
+	if (l & IXOFF)		r |= IBCS2_IXOFF;
+	if (l & IMAXBEL)	r |= IBCS2_IMAXBEL;
+	st->c_iflag = r;
+
+	l = bt->c_oflag;	r = 0;
+	if (l & OPOST)		r |= IBCS2_OPOST;
+	if (l & ONLCR)		r |= IBCS2_ONLCR;
+	if (l & OXTABS)		r |= IBCS2_TAB3;
+	st->c_oflag = r;
+
+	l = bt->c_cflag;	r = 0;
+	switch (l & CSIZE) {
+	case CS5:		r |= IBCS2_CS5; break;
+	case CS6:		r |= IBCS2_CS6; break;
+	case CS7:		r |= IBCS2_CS7; break;
+	case CS8:		r |= IBCS2_CS8; break;
+	}
+	if (l & CSTOPB)		r |= IBCS2_CSTOPB;
+	if (l & CREAD)		r |= IBCS2_CREAD;
+	if (l & PARENB)		r |= IBCS2_PARENB;
+	if (l & PARODD)		r |= IBCS2_PARODD;
+	if (l & HUPCL)		r |= IBCS2_HUPCL;
+	if (l & CLOCAL)		r |= IBCS2_CLOCAL;
+	st->c_cflag = r;
+
+	l = bt->c_lflag;	r = 0;
+	if (l & ISIG)		r |= IBCS2_ISIG;
+	if (l & ICANON)		r |= IBCS2_ICANON;
+	if (l & ECHO)		r |= IBCS2_ECHO;
+	if (l & ECHOE)		r |= IBCS2_ECHOE;
+	if (l & ECHOK)		r |= IBCS2_ECHOK;
+	if (l & ECHONL)		r |= IBCS2_ECHONL;
+	if (l & NOFLSH)		r |= IBCS2_NOFLSH;
+	if (l & TOSTOP)		r |= IBCS2_TOSTOP;
+	st->c_lflag = r;
+
+	l = ttspeedtab(bt->c_ospeed, sptab);
+	if ((int)l >= 0)
+		st->c_cflag |= l;
+
+	st->c_cc[IBCS2_VINTR] =
+	    bt->c_cc[VINTR]  != _POSIX_VDISABLE ? bt->c_cc[VINTR]  : 0;
+	st->c_cc[IBCS2_VQUIT] =
+	    bt->c_cc[VQUIT]  != _POSIX_VDISABLE ? bt->c_cc[VQUIT]  : 0;
+	st->c_cc[IBCS2_VERASE] =
+	    bt->c_cc[VERASE] != _POSIX_VDISABLE ? bt->c_cc[VERASE] : 0;
+	st->c_cc[IBCS2_VKILL] =
+	    bt->c_cc[VKILL]  != _POSIX_VDISABLE ? bt->c_cc[VKILL]  : 0;
+	st->c_cc[IBCS2_VEOF] =
+	    bt->c_cc[VEOF]   != _POSIX_VDISABLE ? bt->c_cc[VEOF]   : 0;
+	st->c_cc[IBCS2_VEOL] =
+	    bt->c_cc[VEOL]   != _POSIX_VDISABLE ? bt->c_cc[VEOL]   : 0;
+	st->c_cc[IBCS2_VEOL2] =
+	    bt->c_cc[VEOL2]  != _POSIX_VDISABLE ? bt->c_cc[VEOL2]  : 0;
+	st->c_cc[IBCS2_VSWTCH] =
+	    0;
+	st->c_cc[IBCS2_VSUSP] =
+	    bt->c_cc[VSUSP]  != _POSIX_VDISABLE ? bt->c_cc[VSUSP]  : 0;
+	st->c_cc[IBCS2_VSTART] =
+	    bt->c_cc[VSTART] != _POSIX_VDISABLE ? bt->c_cc[VSTART] : 0;
+	st->c_cc[IBCS2_VSTOP] =
+	    bt->c_cc[VSTOP]  != _POSIX_VDISABLE ? bt->c_cc[VSTOP]  : 0;
+
+	st->c_line = 0;
+}
+
+static void
+stios2stio(ts, t)
+	struct ibcs2_termios *ts;
+	struct ibcs2_termio *t;
+{
+	t->c_iflag = ts->c_iflag;
+	t->c_oflag = ts->c_oflag;
+	t->c_cflag = ts->c_cflag;
+	t->c_lflag = ts->c_lflag;
+	t->c_line  = ts->c_line;
+	bcopy(ts->c_cc, t->c_cc, IBCS2_NCC);
+}
+
+static void
+stio2stios(t, ts)
+	struct ibcs2_termio *t;
+	struct ibcs2_termios *ts;
+{
+	ts->c_iflag = t->c_iflag;
+	ts->c_oflag = t->c_oflag;
+	ts->c_cflag = t->c_cflag;
+	ts->c_lflag = t->c_lflag;
+	ts->c_line  = t->c_line;
+	bcopy(t->c_cc, ts->c_cc, IBCS2_NCC);
+}
 
 int
-ibcs2_ioctl(struct proc *p, struct ibcs2_ioctl_args *args, int *retval)
+ibcs2_ioctl(p, uap, retval)
+	struct proc *p;
+	struct ibcs2_ioctl_args *uap;
+	int *retval;
 {
-	struct termios bsd_termios;
-	struct winsize bsd_winsize;
-	struct ibcs2_termio ibcs2_termio;
-	struct ibcs2_termios ibcs2_termios;
-	struct ibcs2_winsize ibcs2_winsize;
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
-	int (*func)();
-	int type = (args->cmd&0xffff00)>>8;
-	int num = args->cmd&0xff;
+	int (*ctl) __P((struct file *, int, caddr_t, struct proc *));
 	int error;
 
-	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
-		printf("IBCS2: 'ioctl' fd=%d, typ=%d(%c), num=%d\n",
-			args->fd, type, type, num);
-
-	if ((unsigned)args->fd >= fdp->fd_nfiles
-	    || (fp = fdp->fd_ofiles[args->fd]) == 0)
-		return EBADF;
-
-	if (!fp || (fp->f_flag & (FREAD | FWRITE)) == 0) {
+	if (SCARG(uap, fd) < 0 || SCARG(uap, fd) >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL) {
+		DPRINTF(("ibcs2_ioctl(%d): bad fd %d ", p->p_pid,
+			 SCARG(uap, fd)));
 		return EBADF;
 	}
 
-	func = fp->f_ops->fo_ioctl;
+	if ((fp->f_flag & (FREAD|FWRITE)) == 0) {
+		DPRINTF(("ibcs2_ioctl(%d): bad fp flag ", p->p_pid));
+		return EBADF;
+	}
 
-	switch (type) {
-	case 'f':
-		switch (num) {
-		case 1:
-			args->cmd = FIOCLEX;
-			return ioctl(p, args, retval);
-		case 2:
-			args->cmd = FIONCLEX;
-			return ioctl(p, args, retval);
-		case 3:
-			args->cmd = FIONREAD;
-			return ioctl(p, args, retval);
-		}
-		break;
-#if 0
-	case 'j':
-		switch (num) {
-		case 5: /* jerq winsize ?? */
-			ibcs2_winsize.bytex = 80;
-			/* p->p_session->s_ttyp->t_winsize.ws_col; XXX */
-			ibcs2_winsize.bytey = 25;
-			/* p->p_session->s_ttyp->t_winsize.ws_row; XXX */
-			ibcs2_winsize.bitx =
-				p->p_session->s_ttyp->t_winsize.ws_xpixel;
-			ibcs2_winsize.bity =
-				p->p_session->s_ttyp->t_winsize.ws_ypixel;
-			return copyout((caddr_t)&ibcs2_winsize,
-					(caddr_t)args->arg,
-					sizeof(ibcs2_winsize));
-		}
+	ctl = fp->f_ops->fo_ioctl;
+
+	switch (SCARG(uap, cmd)) {
+	case IBCS2_TCGETA:
+	case IBCS2_XCGETA:
+	case IBCS2_OXCGETA:
+	    {
+		struct termios bts;
+		struct ibcs2_termios sts;
+		struct ibcs2_termio st;
+	
+		if ((error = (*ctl)(fp, TIOCGETA, (caddr_t)&bts, p)) != 0)
+			return error;
+	
+		btios2stios (&bts, &sts);
+		if (SCARG(uap, cmd) == IBCS2_TCGETA) {
+			stios2stio (&sts, &st);
+			error = copyout((caddr_t)&st, SCARG(uap, data),
+					sizeof (st));
+#ifdef DEBUG_IBCS2
+			if (error)
+				DPRINTF(("ibcs2_ioctl(%d): copyout failed ",
+					 p->p_pid));
 #endif
-	case 't':
-		switch (num) {
-		case 0:
-			args->cmd = TIOCGETD;
-			return ioctl(p, args, retval);
-		case 1:
-			args->cmd = TIOCSETD;
-			return ioctl(p, args, retval);
-		case 2:
-			args->cmd = TIOCHPCL;
-			return ioctl(p, args, retval);
-		case 8:
-			args->cmd = TIOCGETP;
-			return ioctl(p, args, retval);
-		case 9:
-			args->cmd = TIOCSETP;
-			return ioctl(p, args, retval);
-		case 10:
-			args->cmd = TIOCSETN;
-			return ioctl(p, args, retval);
-		case 13:
-			args->cmd = TIOCEXCL;
-			return ioctl(p, args, retval);
-		case 14:
-			args->cmd = TIOCNXCL;
-			return ioctl(p, args, retval);
-		case 16:
-			args->cmd = TIOCFLUSH;
-			return ioctl(p, args, retval);
-		case 17:
-			args->cmd = TIOCSETC;
-			return ioctl(p, args, retval);
-		case 18:
-			args->cmd = TIOCGETC;
-			return ioctl(p, args, retval);
-		}
-		break;
-
-	case 'T':
-		switch (num) {
-		case 1:		/* TCGETA */
-			if ((error = (*func)(fp, TIOCGETA,
-					     (caddr_t)&bsd_termios, p)) != 0)
-				return error;
-			bsd_termios_to_ibcs2_termio(&bsd_termios,&ibcs2_termio);
-			return copyout((caddr_t)&ibcs2_termio,
-				       (caddr_t)args->arg,
-				       sizeof(ibcs2_termio));
-
-		case 2:		/* TCSETA */
-			ibcs2_termio_to_bsd_termios(
-				(struct ibcs2_termio *)args->arg, &bsd_termios);
-			return (*func)(fp, TIOCSETA, (caddr_t)&bsd_termios, p);
-
-		case 3:		/* TCSETAW */
-			ibcs2_termio_to_bsd_termios(
-				(struct ibcs2_termio *)args->arg, &bsd_termios);
-			return (*func)(fp, TIOCSETAW, (caddr_t)&bsd_termios, p);
-
-		case 4:		/* TCSETAF */
-			ibcs2_termio_to_bsd_termios(
-				(struct ibcs2_termio *)args->arg, &bsd_termios);
-			return (*func)(fp, TIOCSETAF, (caddr_t)&bsd_termios, p);
-
-		case 5:		/* TCSBRK */
-			args->cmd = TIOCDRAIN;
-			if (error = ioctl(p, args, retval))
-				return error;
-			args->cmd = TIOCSBRK;
-			ioctl(p, args, retval);
-			args->cmd = TIOCCBRK;
-			error = ioctl(p, args, retval);
 			return error;
+		} else
+			return copyout((caddr_t)&sts, SCARG(uap, data),
+					sizeof (sts));
+		/*NOTREACHED*/
+	    }
 
-		case 6:		/* TCONC */
-			if (args->arg == 0) args->cmd = TIOCSTOP;
-			else args->cmd = TIOCSTART;
-			return ioctl(p, args, retval);
+	case IBCS2_TCSETA:
+	case IBCS2_TCSETAW:
+	case IBCS2_TCSETAF:
+	    {
+		struct termios bts;
+		struct ibcs2_termios sts;
+		struct ibcs2_termio st;
 
-		case 7:		/* TCFLSH */
-			args->cmd = TIOCFLUSH;
-			if ((int)args->arg == 0) (int)args->arg = FREAD;
-			if ((int)args->arg == 1) (int)args->arg = FWRITE;
-			if ((int)args->arg == 2) (int)args->arg = FREAD|FWRITE;
-			return ioctl(p, args, retval);
-
-		case 103:	/* TIOCSWINSZ */
-			bsd_winsize.ws_row =
-				((struct ibcs2_winsize *)(args->arg))->bytex;
-			bsd_winsize.ws_col =
-				((struct ibcs2_winsize *)(args->arg))->bytey;
-			bsd_winsize.ws_xpixel =
-				((struct ibcs2_winsize *)(args->arg))->bitx;
-			bsd_winsize.ws_ypixel =
-				((struct ibcs2_winsize *)(args->arg))->bity;
-			return (*func)(fp, TIOCSWINSZ,
-				       (caddr_t)&bsd_winsize, p);
-
-		case 104:	/* TIOCGWINSZ */
-			if ((error = (*func)(fp, TIOCGWINSZ,
-					     (caddr_t)&bsd_winsize, p)) != 0)
-				return error;
-			ibcs2_winsize.bytex = bsd_winsize.ws_col;
-			ibcs2_winsize.bytey = bsd_winsize.ws_row;
-			ibcs2_winsize.bitx = bsd_winsize.ws_xpixel;
-			ibcs2_winsize.bity = bsd_winsize.ws_ypixel;
-			return copyout((caddr_t)&ibcs2_winsize,
-					(caddr_t)args->arg,
-					sizeof(ibcs2_winsize));
-
-		case  20:	/* TCSETPGRP */
-		case 118:	/* TIOCSPGRP */
-			args->cmd = TIOCSPGRP;
-			return ioctl(p, args, retval);
-
-		case  21:	/* TCGETPGRP */
-		case 119:	/* TIOCGPGRP */
-			args->cmd = TIOCGPGRP;
-			return ioctl(p, args, retval);
-		}
-		break;
-
-	case ('x'):
-		switch (num) {
-		case 1:
-			if ((error = (*func)(fp, TIOCGETA,
-					     (caddr_t)&bsd_termios, p)) != 0)
-				return error;
-			bsd_to_ibcs2_termios(&bsd_termios, &ibcs2_termios);
-			return copyout((caddr_t)&ibcs2_termios,
-					(caddr_t)args->arg,
-					sizeof(ibcs2_termios));
-		case 2:
-			ibcs2_to_bsd_termios((struct ibcs2_termios *)args->arg,
-					     &bsd_termios);
-			return (*func)(fp, TIOCSETA, (caddr_t)&bsd_termios, p);
-		case 3:
-			ibcs2_to_bsd_termios((struct ibcs2_termios *)args->arg,
-					     &bsd_termios);
-			return (*func)(fp, TIOCSETAW, (caddr_t)&bsd_termios, p);
-		case 4:
-			ibcs2_to_bsd_termios((struct ibcs2_termios *)args->arg,
-					     &bsd_termios);
-			return (*func)(fp, TIOCSETAF, (caddr_t)&bsd_termios, p);
-
-		}
-		break;
-
-	/* below is console ioctl's, we have syscons so no problem here */
-	case 'a':
-		switch (num) {
-		case 0:
-			args->cmd = GIO_ATTR;
-			error = ioctl(p, args, retval);
-			*retval = (int)args->arg;
+		if ((error = copyin(SCARG(uap, data), (caddr_t)&st,
+				    sizeof(st))) != 0) {
+			DPRINTF(("ibcs2_ioctl(%d): TCSET copyin failed ",
+				 p->p_pid));
 			return error;
 		}
-		break;
 
-	case 'c':
-		switch (num) {
-		case 0:
-			args->cmd = GIO_COLOR;
-			ioctl(p, args, retval);
-			*retval = (int)args->arg;
+		/* get full BSD termios so we don't lose information */
+		if ((error = (*ctl)(fp, TIOCGETA, (caddr_t)&bts, p)) != 0) {
+			DPRINTF(("ibcs2_ioctl(%d): TCSET ctl failed fd %d ",
+				 p->p_pid, SCARG(uap, fd)));
 			return error;
-		case 1:
-			args->cmd = CONS_CURRENT;
-			ioctl(p, args, retval);
-			*retval = (int)args->arg;
+		}
+
+		/*
+		 * convert to iBCS2 termios, copy in information from
+		 * termio, and convert back, then set new values.
+		 */
+		btios2stios(&bts, &sts);
+		stio2stios(&st, &sts);
+		stios2btios(&sts, &bts);
+
+		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_TCSETA + TIOCSETA,
+			      (caddr_t)&bts, p);
+	    }
+
+	case IBCS2_XCSETA:
+	case IBCS2_XCSETAW:
+	case IBCS2_XCSETAF:
+	    {
+		struct termios bts;
+		struct ibcs2_termios sts;
+
+		if ((error = copyin(SCARG(uap, data), (caddr_t)&sts,
+				    sizeof (sts))) != 0) {
 			return error;
-		case 2:
-			args->cmd = CONS_GET;
-			ioctl(p, args, retval);
-			*retval = (int)args->arg;
+		}
+		stios2btios (&sts, &bts);
+		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_XCSETA + TIOCSETA,
+			      (caddr_t)&bts, p);
+	    }
+
+	case IBCS2_OXCSETA:
+	case IBCS2_OXCSETAW:
+	case IBCS2_OXCSETAF:
+	    {
+		struct termios bts;
+		struct ibcs2_termios sts;
+
+		if ((error = copyin(SCARG(uap, data), (caddr_t)&sts,
+				    sizeof (sts))) != 0) {
 			return error;
-		case 4:
-			args->cmd = CONS_BLANKTIME;
-			return ioctl(p, args, retval);
-		case 64:
-			args->cmd = PIO_FONT8x8;
-			return ioctl(p, args, retval);
-		case 65:
-			args->cmd = GIO_FONT8x8;
-			return ioctl(p, args, retval);
-		case 66:
-			args->cmd = PIO_FONT8x14;
-			return ioctl(p, args, retval);
-		case 67:
-			args->cmd = GIO_FONT8x14;
-			return ioctl(p, args, retval);
-		case 68:
-			args->cmd = PIO_FONT8x16;
-			return ioctl(p, args, retval);
-		case 69:
-			args->cmd = GIO_FONT8x16;
-			return ioctl(p, args, retval);
-		case 73:
-			args->cmd = CONS_GETINFO;
-			return ioctl(p, args, retval);
 		}
-		break;
+		stios2btios (&sts, &bts);
+		return (*ctl)(fp, SCARG(uap, cmd) - IBCS2_OXCSETA + TIOCSETA,
+			      (caddr_t)&bts, p);
+	    }
 
-	case 'k':
-		switch (num) {
-		case 0:
-			args->cmd = GETFKEY;
-			return ioctl(p, args, retval);
-		case 1:
-			args->cmd = SETFKEY;
-			return ioctl(p, args, retval);
-		case 2:
-			args->cmd = GIO_SCRNMAP;
-			return ioctl(p, args, retval);
-		case 3:
-			args->cmd = PIO_SCRNMAP;
-			return ioctl(p, args, retval);
-		case 6:
-			args->cmd = GIO_KEYMAP;
-			return ioctl(p, args, retval);
-		case 7:
-			args->cmd = PIO_KEYMAP;
-			return ioctl(p, args, retval);
-		}
-		break;
+	case IBCS2_TCSBRK:
+		DPRINTF(("ibcs2_ioctl(%d): TCSBRK ", p->p_pid));
+		return ENOSYS;
 
-	case 'K':
-		switch (num) {
-		case 6:
-			args->cmd = KDGKBMODE;
-			return ioctl(p, args, retval);
-		case 7:
-			args->cmd = KDSKBMODE;
-			return ioctl(p, args, retval);
-		case 8:
-			args->cmd = KDMKTONE;
-			return ioctl(p, args, retval);
-		case 9:
-			args->cmd = KDGETMODE;
-			return ioctl(p, args, retval);
-		case 10:
-			args->cmd = KDSETMODE;
-			return ioctl(p, args, retval);
-		case 13:
-			args->cmd = KDSBORDER;
-			return ioctl(p, args, retval);
-		case 19:
-			args->cmd = KDGKBSTATE;
-			return ioctl(p, args, retval);
-		case 20:
-			args->cmd = KDSETRAD;
-			return ioctl(p, args, retval);
-		case 60:
-			args->cmd = KDENABIO;
-			return ioctl(p, args, retval);
-		case 61:
-			args->cmd = KDDISABIO;
-			return ioctl(p, args, retval);
-		case 63:
-			args->cmd = KIOCSOUND;
-			return ioctl(p, args, retval);
-		case 64:
-			args->cmd = KDGKBTYPE;
-			return ioctl(p, args, retval);
-		case 65:
-			args->cmd = KDGETLED;
-			return ioctl(p, args, retval);
-		case 66:
-			args->cmd = KDSETLED;
-			return ioctl(p, args, retval);
-		}
-		break;
+	case IBCS2_TCXONC:
+		DPRINTF(("ibcs2_ioctl(%d): TCXONC ", p->p_pid));
+		return ENOSYS;
 
-	case 'S':
-		args->cmd = _IO('S', num);
-		return ioctl(p, args, retval);
+	case IBCS2_TCFLSH:
+		DPRINTF(("ibcs2_ioctl(%d): TCFLSH ", p->p_pid));
+		return ENOSYS;
 
-	case 'v':
-		switch (num) {
-		case 1:
-			args->cmd = VT_OPENQRY;
-			return ioctl(p, args, retval);
-		case 2:
-			args->cmd = VT_SETMODE;
-			return ioctl(p, args, retval);
-		case 3:
-			args->cmd = VT_GETMODE;
-			return ioctl(p, args, retval);
-		case 4:
-			args->cmd = VT_RELDISP;
-			return ioctl(p, args, retval);
-		case 5:
-			args->cmd = VT_ACTIVATE;
-			return ioctl(p, args, retval);
-		case 6:
-			args->cmd = VT_WAITACTIVE;
-			return ioctl(p, args, retval);
-		}
-		break;
+	case IBCS2_TIOCGWINSZ:
+		SCARG(uap, cmd) = TIOCGWINSZ;
+		return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_TIOCSWINSZ:
+		SCARG(uap, cmd) = TIOCSWINSZ;
+		return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_TIOCGPGRP:
+		return copyout((caddr_t)&p->p_pgrp->pg_id, SCARG(uap, data),
+				sizeof(p->p_pgrp->pg_id));
+
+	case IBCS2_TIOCSPGRP:	/* XXX - is uap->data a pointer to pgid? */
+	    {
+		struct setpgid_args sa;
+
+		SCARG(&sa, pid) = 0;
+		SCARG(&sa, pgid) = (int)SCARG(uap, data);
+		if (error = setpgid(p, &sa, retval))
+			return error;
+		return 0;
+	    }
+
+	case IBCS2_TCGETSC:	/* SCO console - get scancode flags */
+		return EINTR;  /* ENOSYS; */
+
+	case IBCS2_TCSETSC:	/* SCO console - set scancode flags */
+		return 0;   /* ENOSYS; */
+
+	case IBCS2_JWINSIZE:	/* Unix to Jerq I/O control */
+	    {
+	        struct ibcs2_jwinsize {
+		  char bytex, bytey; 
+		  short bitx, bity;
+	        } ibcs2_jwinsize;
+
+                ibcs2_jwinsize.bytex = 80;
+	          /* p->p_session->s_ttyp->t_winsize.ws_col; XXX */
+	        ibcs2_jwinsize.bytey = 25;
+                  /* p->p_session->s_ttyp->t_winsize.ws_row; XXX */
+	        ibcs2_jwinsize.bitx = 
+		  p->p_session->s_ttyp->t_winsize.ws_xpixel;
+	        ibcs2_jwinsize.bity =
+		  p->p_session->s_ttyp->t_winsize.ws_ypixel;
+	        return copyout((caddr_t)&ibcs2_jwinsize, SCARG(uap, data),
+			       sizeof(ibcs2_jwinsize));
+	     }
+
+	/* keyboard and display ioctl's -- type 'K' */
+	case IBCS2_KDGKBMODE:        /* get keyboard translation mode */
+	        SCARG(uap, cmd) = KDGKBMODE;
+/* printf("ioctl KDGKBMODE = %x\n", SCARG(uap, cmd));*/
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDSKBMODE:        /* set keyboard translation mode */
+	        SCARG(uap, cmd) = KDSKBMODE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDMKTONE:        /* sound tone */
+	        SCARG(uap, cmd) = KDMKTONE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDGETMODE:        /* get text/graphics mode */  
+	        SCARG(uap, cmd) = KDGETMODE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDSETMODE:       /* set text/graphics mode */
+	        SCARG(uap, cmd) = KDSETMODE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDSBORDER:       /* set ega color border */
+	        SCARG(uap, cmd) = KDSBORDER;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDGKBSTATE:
+	        SCARG(uap, cmd) = KDGKBSTATE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDSETRAD:
+	        SCARG(uap, cmd) = KDSETRAD;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDENABIO:       /* enable direct I/O to ports */
+	        SCARG(uap, cmd) = KDENABIO;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDDISABIO:       /* disable direct I/O to ports */
+	        SCARG(uap, cmd) = KDDISABIO;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KIOCSOUND:       /* start sound generation */
+	        SCARG(uap, cmd) = KIOCSOUND;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDGKBTYPE:       /* get keyboard type */
+	        SCARG(uap, cmd) = KDGKBTYPE;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDGETLED:       /* get keyboard LED status */
+	        SCARG(uap, cmd) = KDGETLED;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_KDSETLED:       /* set keyboard LED status */
+	        SCARG(uap, cmd) = KDSETLED;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	    /* Xenix keyboard and display ioctl's from sys/kd.h -- type 'k' */
+	case IBCS2_GETFKEY:      /* Get function key */
+	        SCARG(uap, cmd) = GETFKEY;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_SETFKEY:      /* Set function key */
+	        SCARG(uap, cmd) = SETFKEY;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_GIO_SCRNMAP:      /* Get screen output map table */
+	        SCARG(uap, cmd) = GIO_SCRNMAP;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_PIO_SCRNMAP:      /* Set screen output map table */
+	        SCARG(uap, cmd) = PIO_SCRNMAP;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_GIO_KEYMAP:      /* Get keyboard map table */
+	        SCARG(uap, cmd) = GIO_KEYMAP;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	case IBCS2_PIO_KEYMAP:      /* Set keyboard map table */
+	        SCARG(uap, cmd) = PIO_KEYMAP;
+	        return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	    /* socksys */
+	case IBCS2_SIOCSOCKSYS:
+		return ibcs2_socksys(p, (struct ibcs2_socksys_args *)uap,
+				     retval);
+
+	case IBCS2_I_NREAD:     /* STREAMS */
+	        SCARG(uap, cmd) = FIONREAD;
+		return ioctl(p, (struct ioctl_args *)uap, retval);
+
+	default:
+		DPRINTF(("ibcs2_ioctl(%d): unknown cmd 0x%lx ",
+			 p->p_pid, SCARG(uap, cmd)));
+		return ENOSYS;
 	}
-
-	switch (type & 0xff) {
-	case 'I':	/* socksys 'I' type calls */
-		return ioctl(p, args, retval);
-	case 'R':	/* socksys 'R' type calls */
-		return ioctl(p, args, retval);
-	case 'S':	/* socksys 'S' type calls */
-		return ioctl(p, args, retval);
-	}
-	uprintf("IBCS2: 'ioctl' fd=%d, typ=%d(%c), num=%d not implemented\n",
-			args->fd, type, type, num);
-	return EINVAL;
-}
-
-struct ibcs2_sgtty_args {
-	int fd;
-	struct sgttyb *buf;
-};
-
-struct ioctl_args {
-	int	fd;
-	int	cmd;
-	caddr_t	arg;
-};
-
-int
-ibcs2_gtty(struct proc *p, struct ibcs2_sgtty_args *args, int *retval)
-{
-	struct ioctl_args ioctl_arg;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
-		printf("IBCS2: 'gtty' fd=%d\n", args->fd);
-	ioctl_arg.fd = args->fd;
-	ioctl_arg.cmd = TIOCGETC;
-	ioctl_arg.arg = (caddr_t)args->buf;
-
-	return ioctl(p, &ioctl_arg, retval);
-}
-
-int
-ibcs2_stty(struct proc *p, struct ibcs2_sgtty_args *args, int *retval)
-{
-	struct ioctl_args ioctl_arg;
-
-	if (ibcs2_trace & IBCS2_TRACE_IOCTL)
-		printf("IBCS2: 'stty' fd=%d\n", args->fd);
-	ioctl_arg.fd = args->fd;
-	ioctl_arg.cmd = TIOCSETC;
-	ioctl_arg.arg = (caddr_t)args->buf;
-	return ioctl(p, &ioctl_arg, retval);
+	return ENOSYS;
 }

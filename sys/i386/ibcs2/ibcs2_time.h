@@ -33,7 +33,7 @@
 #ifndef	_IBCS2_TIME_H
 #define	_IBCS2_TIME_H
 
-#include <compat/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_types.h>
 
 struct ibcs2_tm {
 	int	tm_sec;
