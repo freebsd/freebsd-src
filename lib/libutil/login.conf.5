@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login.conf.5,v 1.1 1997/01/05 03:24:45 davidn Exp $
+.\" $Id: login.conf.5,v 1.2 1997/01/07 14:29:50 davidn Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -50,7 +50,7 @@ A user with a uid of 0 without a valid login class will use the record
 In FreeBSD, users may individually create a file called
 .Pa .login_conf
 in their home directory using the same format, consisting of a single
-entry with a recordid of "me".
+entry with a record id of "me".
 If present, this file is used by
 .Xr login 1
 to set user-defined environment settings which override those specified
@@ -243,7 +243,7 @@ Items in these lists may contain wildcards in the form used by shell programs
 for wildcard matching (See
 .Xr fnmatch 3
 for details on the implementation).
-The check on hosts is made against both the remote system's internet address
+The check on hosts is made against both the remote system's Internet address
 and hostname (if available).
 If both lists are empty or not specified, then logins from any remote host
 are allowed.
@@ -259,9 +259,9 @@ and
 entries consist of a comma-separated list of time periods during which the users
 in a class are allowed to be logged in.
 These are expressed as one or more day codes followed by a start and end times
-expressed in 24 hour fromat, separated by a hyphen or dash.
-For example, MoThSa0200-1300 translates to monday, thursday and saturday between
-the hours of 2 am and 1 pm.
+expressed in 24 hour format, separated by a hyphen or dash.
+For example, MoThSa0200-1300 translates to Monday, Thursday and Saturday between
+the hours of 2 am and 1 p.m..
 If both of these time lists are empty, users in the class are allowed access at
 any time.
 If
