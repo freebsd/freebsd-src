@@ -300,7 +300,7 @@ mbuf_Contiguous(struct mbuf *bp)
       bp = nbp;
     }
 #ifndef __i386__	/* Do any other archs not care about alignment ? */
-    else if ((bp->offset & 0x03) != 0) {
+    else if ((bp->offset & (sizeof(long) - 1)) != 0) {
       bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
       bp->offset = 0;
     }
