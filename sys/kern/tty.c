@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.10 1994/10/08 22:33:39 phk Exp $
+ * $Id: tty.c,v 1.11 1994/10/15 17:59:02 ache Exp $
  */
 
 #include <sys/param.h>
@@ -1930,11 +1930,11 @@ ttyinfo(tp)
 
 		/* Print user time. */
 		ttyprintf(tp, "%d.%02du ",
-		    utime.tv_sec, (utime.tv_usec + 5000) / 10000);
+		    utime.tv_sec, utime.tv_usec / 10000);
 
 		/* Print system time. */
 		ttyprintf(tp, "%d.%02ds ",
-		    stime.tv_sec, (stime.tv_usec + 5000) / 10000);
+		    stime.tv_sec, stime.tv_usec / 10000);
 
 #define	pgtok(a)	(((a) * NBPG) / 1024)
 		/* Print percentage cpu, resident set size. */
