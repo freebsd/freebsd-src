@@ -14,6 +14,7 @@ name="cleartmp"
 rcvar=`set_rcvar clear_tmp`
 start_cmd="cleartmp_start"
 stop_cmd=":"
+x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix /tmp/.XIM-unix"
 
 cleartmp_start()
 {
@@ -31,9 +32,9 @@ cleartmp_start()
 load_rc_config $name
 run_rc_command "$1"
 
-# Remove X lock files, since they will prevent you from
-# restarting X
-#
+# Remove X lock files, since they will prevent you from restarting X.
 rm -f /tmp/.X[0-9]-lock
-rm -fr /tmp/.X11-unix
-mkdir -m 1777 /tmp/.X11-unix
+
+# Create socket directories with correct permissions to avoid security problem.
+rm -fr ${x11_socket_dirs}
+mkdir -m 1777 ${x11_socket_dirs}
