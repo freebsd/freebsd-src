@@ -380,7 +380,7 @@ sscop_abort(sop, msg)
 	/*
 	 * Log and count error
 	 */
-	log(LOG_ERR, msg);
+	log(LOG_ERR, "%s", msg);
 	sscop_stat.sos_aborts++;
 
 	/*

@@ -271,7 +271,7 @@ sscf_uni_abort(uvp, msg)
 	/*
 	 * Log error message
 	 */
-	log(LOG_ERR, msg);
+	log(LOG_ERR, "%s", msg);
 
 	/*
 	 * Set termination states
