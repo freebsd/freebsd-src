@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -42,9 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -1156,7 +1154,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 			if (ke->ke_runq) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 			} else if ((td->td_flags & TDF_IDLETD) == 0)
-				backtrace();
+				kdb_backtrace();
 			/*
 			 * We will not be on the run queue. So we must be
 			 * sleeping or similar.
