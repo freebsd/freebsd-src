@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.172 1998/10/26 19:07:42 brian Exp $
+ * $Id: command.c,v 1.173 1998/10/27 22:53:19 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/26 19:07:42 $";
+const char VersionDate[] = "$Date: 1998/10/27 22:53:19 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -152,6 +152,7 @@ static int RunListCommand(struct cmdargs const *);
 static int IfaceAddCommand(struct cmdargs const *);
 static int IfaceDeleteCommand(struct cmdargs const *);
 static int IfaceClearCommand(struct cmdargs const *);
+static int SetProcTitle(struct cmdargs const *);
 #ifndef NOALIAS
 static int AliasEnable(struct cmdargs const *);
 static int AliasOption(struct cmdargs const *);
@@ -1776,6 +1777,8 @@ static struct cmdtab const SetCommands[] = {
   "modem parity", "set parity [odd|even|none]"},
   {"phone", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "telephone number(s)",
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
+  {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
+  "Process title", "set proctitle [value]"},
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Reconnect timeout", "set reconnect value ntries"},
   {"recvpipe", NULL, SetVariable, LOCAL_AUTH,
@@ -2414,6 +2417,47 @@ IfaceClearCommand(struct cmdargs const *arg)
   how = arg->bundle->ncp.ipcp.fsm.state == ST_OPENED ?
         IFACE_CLEAR_ALIASES : IFACE_CLEAR_ALL;
   iface_Clear(arg->bundle->iface, how);
+
+  return 0;
+}
+
+static int
+SetProcTitle(struct cmdargs const *arg)
+{
+  static char title[LINE_LEN];
+  char *argv[MAXARGS], *ptr;
+  int len, remaining, f, argc = arg->argc - arg->argn;
+
+  if (arg->argc == arg->argn) {
+    arg->bundle->argv[0] = arg->bundle->argv0;
+    arg->bundle->argv[1] = arg->bundle->argv1;
+    return 0;
+  }
+
+  if (argc >= sizeof argv / sizeof argv[0]) {
+    argc = sizeof argv / sizeof argv[0] - 1;
+    log_Printf(LogWARN, "Truncating proc title to %d args\n", argc);
+  }
+  expand(argv, argc, arg->argv + arg->argn, arg->bundle);
+
+  ptr = title;
+  remaining = sizeof title - 1;
+  for (f = 0; f < argc && remaining; f++) {
+    if (f) {
+      *ptr++ = ' ';
+      remaining--;
+    }
+    len = strlen(argv[f]);
+    if (len > remaining)
+      len = remaining;
+    memcpy(ptr, argv[f], len);
+    remaining -= len;
+    ptr += len;
+  }
+  *ptr = '\0';
+
+  arg->bundle->argv[0] = title;
+  arg->bundle->argv[1] = NULL;
 
   return 0;
 }

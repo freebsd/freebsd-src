@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.130 1998/10/27 22:53:18 brian Exp $
+.\" $Id: ppp.8,v 1.131 1998/10/27 22:53:19 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2389,6 +2389,10 @@ CHAP.  Normally, this variable is assigned only in -direct mode.  This value
 is available irrespective of whether utmp logging is enabled.
 .El
 .Pp
+These substitutions are also done by the
+.Dq set proctitle
+command.
+.Pp
 If you wish to pause
 .Nm
 while the command executes, use the
@@ -3319,6 +3323,17 @@ the maximum number of times specified by
 below.  In
 .Fl background
 mode, each number is attempted at most once.
+.It set [proc]title Op Ar value
+The current process title as displayed by
+.Xr ps 1
+is changed according to
+.Ar value .
+If
+.Ar value
+is not specified, the original process title is restored.  All the
+word replacements done by the shell commands (see the
+.Dq bg
+command above) are done here too.
 .It set reconnect Ar timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.37 1998/10/24 01:08:45 brian Exp $
+ *	$Id: bundle.c,v 1.38 1998/10/26 19:07:38 brian Exp $
  */
 
 #include <sys/param.h>
@@ -762,6 +762,8 @@ bundle_Create(const char *prefix, int type, const char **argv)
 
   log_SetTun(bundle.unit);
   bundle.argv = argv;
+  bundle.argv0 = argv[0];
+  bundle.argv1 = argv[1];
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -1200,6 +1202,7 @@ bundle_ShowStatus(struct cmdargs const *arg)
   int remaining;
 
   prompt_Printf(arg->prompt, "Phase %s\n", bundle_PhaseName(arg->bundle));
+  prompt_Printf(arg->prompt, " Title:         %s\n", arg->bundle->argv[0]);
   prompt_Printf(arg->prompt, " Device:        %s\n", arg->bundle->dev.Name);
   prompt_Printf(arg->prompt, " Interface:     %s @ %lubps\n",
                 arg->bundle->iface->name, arg->bundle->ifSpeed);
