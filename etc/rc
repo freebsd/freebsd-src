@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.69 1995/09/14 02:44:47 jkh Exp $
+#	$Id: rc,v 1.70 1995/09/18 07:38:18 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -226,16 +226,6 @@ if [ "X${amdflags}" != X"NO" ]; then
 	echo -n ' amd';			amd ${amdflags}
 fi
 
-# These should go elsewhere but netstart is too early and I don't
-# want to touch rc.local, so...
-if [ "X${pcnfsd}" = X"YES" -a -x /usr/local/libexec/rpc.pcnfsd ]; then
-	echo -n ' rpc.pcnfsd'; /usr/local/libexec/rpc.pcnfsd &
-fi
-
-if [ "X${apache_httpd}" = X"YES" -a -x /usr/local/www/server/httpd ]; then
-	echo -n ' apache httpd'; /usr/local/www/server/httpd &
-fi
-
 # Kerberos runs ONLY on the Kerberos server machine
 if [ "X${kerberos_server}" = X"YES" ]; then
 	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
@@ -302,8 +292,8 @@ if [ -f /etc/rc.$arch ]; then
 	. /etc/rc.$arch
 fi
 
-if [ -d /etc/rc.local.d ]; then
-	for script in /etc/rc.local.d/*.sh; do
+if [ "X${local_startup}" != X"NO" -a -d $local_startup ]; then
+	for script in $local_startup/*.sh; do
 		[ -x $script ] && $script start
 	done
 fi
