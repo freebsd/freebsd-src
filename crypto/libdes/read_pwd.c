@@ -54,22 +54,9 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ * 
+ * $FreeBSD$
  */
-
-#if !defined(MSDOS) && !defined(VMS) && !defined(WIN32)
-#include <openssl/opensslconf.h>
-#include OPENSSL_UNISTD
-/* If unistd.h defines _POSIX_VERSION, we conclude that we
- * are on a POSIX system and have sigaction and termios. */
-#if defined(_POSIX_VERSION)
-
-# define SIGACTION
-# if !defined(TERMIOS) && !defined(TERMIO) && !defined(SGTTY)
-# define TERMIOS
-# endif
-
-#endif
-#endif
 
 /* #define SIGACTION */ /* Define this if you have sigaction() */
 
@@ -81,7 +68,6 @@
 
 /* 06-Apr-92 Luke Brennan    Support for VMS */
 #include "des_locl.h"
-#include "cryptlib.h"
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>

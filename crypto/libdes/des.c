@@ -54,6 +54,8 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -377,8 +379,8 @@ void doencryption(void)
 
 	if (buf == NULL)
 		{
-		if (    (( buf=Malloc(BUFSIZE+8)) == NULL) ||
-			((obuf=Malloc(BUFSIZE+8)) == NULL))
+		if (    (( buf=malloc(BUFSIZE+8)) == NULL) ||
+			((obuf=malloc(BUFSIZE+8)) == NULL))
 			{
 			fputs("Not enough memory\n",stderr);
 			Exit=10;
@@ -484,7 +486,7 @@ void doencryption(void)
 			if (feof(DES_IN))
 				{
 				for (i=7-rem; i>0; i--)
-					RAND_bytes(buf + l++, 1);
+					des_rand_data(buf + l++, 1);
 				buf[l++]=rem;
 				ex=1;
 				len+=rem;
