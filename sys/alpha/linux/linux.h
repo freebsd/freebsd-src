@@ -290,9 +290,9 @@ struct l_sigframe {
  * Pluggable ioctl handlers
  */
 struct linux_ioctl_args;
-struct proc;
+struct thread;
 
-typedef int linux_ioctl_function_t(struct proc *, struct linux_ioctl_args *);
+typedef int linux_ioctl_function_t(struct thread *, struct linux_ioctl_args *);
 
 struct linux_ioctl_handler {
 	linux_ioctl_function_t *func;
