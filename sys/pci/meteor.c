@@ -963,7 +963,8 @@ meteor_init ( meteor_reg_t *mtr )
 			SAA7196_REG(mtr, SAA7196_STDC) & ~0x02);
 		SAA7196_READ(mtr);
 		printf("meteor%d: <Philips SAA 7196> rev 0x%x\n",
-			METEOR_NUM(mtr), (mtr->base->i2c_read&0xff000000L)>>28);
+			METEOR_NUM(mtr),
+			(unsigned)((mtr->base->i2c_read & 0xff000000L) >> 28));
 	} else {
 		i2c_print_err = 1;
 		printf("meteor%d: <Philips SAA 7196 NOT FOUND>\n",
@@ -1042,7 +1043,7 @@ met_attach(pcici_t tag, int unit)
 		pci_conf_write(tag, PCI_LATENCY_TIMER,  latency<<8);
 	}
 	if(bootverbose) {
-		printf(" %d.\n", latency);
+		printf(" %lu.\n", latency);
 	}
 
 	meteor_init(mtr);	/* set up saa7116, saa7196, and rgb module */

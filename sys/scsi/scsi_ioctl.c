@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- * $Id: scsi_ioctl.c,v 1.30 1998/03/28 10:33:21 bde Exp $
+ * $Id: scsi_ioctl.c,v 1.31 1998/06/07 17:12:49 dfr Exp $
  *
  *
  */
@@ -260,7 +260,7 @@ struct proc *p, struct scsi_link *sc_link)
 	if (cmd != SCIOCIDENTIFY && cmd != SCIOCGETDEVINFO&& !(flags & FWRITE))
 		return EACCES;
 
-	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
+	SC_DEBUG(sc_link,SDEV_DB2, ("scsi_do_ioctl(0x%lx)\n", cmd));
 	switch(cmd)
 	{
 		case SCIOCCOMMAND:

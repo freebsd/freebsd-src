@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.57 1998/06/17 14:13:15 bde Exp $
+ *      $Id: worm.c,v 1.58 1998/07/04 22:30:25 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -276,7 +276,7 @@ wormattach(struct scsi_link *sc_link)
 	struct scsi_data *worm = sc_link->sd;
 
 	if (sc_link->devmodes == 0)
-		printf(", warning: unknown drive type", unit);
+		printf(", warning: unknown drive type");
 
 	bufq_init(&worm->buf_queue);
 
@@ -444,7 +444,7 @@ wormstart(unit, flags)
 			if ((bp->b_flags & B_READ) == B_WRITE)
 				worm->worm_flags |= WORMFL_WRITTEN;
 		} else {
-			printf("worm%ld: oops not queued\n", unit);
+			printf("worm%lu: oops not queued\n", (u_long)unit);
 			if (bp) {
 				bp->b_flags |= B_ERROR;
 				bp->b_error = EIO;
@@ -661,7 +661,7 @@ worm_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 */
 	unit = wormunit(dev);
 	worm = sc_link->sd;
-	SC_DEBUG(sc_link, SDEV_DB2, ("wormioctl 0x%x ", cmd));
+	SC_DEBUG(sc_link, SDEV_DB2, ("wormioctl 0x%lx ", cmd));
 
 	switch (cmd) {
 	case WORMIOCPREPDISK:

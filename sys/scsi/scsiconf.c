@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.106 1998/07/11 07:45:58 bde Exp $
+ *      $Id: scsiconf.c,v 1.107 1998/07/28 09:03:37 phk Exp $
  */
 
 #include "opt_scsi.h"
@@ -1446,14 +1446,14 @@ scsi_probedev(sc_link, maybe_more, type_p)
 	sc_print_start(sc_link);
 
 	printf("<%s %s %s> ", manu, model, version );
-	printf("type %ld %sSCSI %d"
-	    ,type
+	printf("type %lu %sSCSI %d"
+	    ,(u_long)type
 	    ,remov ? "removable " : "fixed "
 	    ,inqbuf->version & SID_ANSII
 	    );
 	if (qtype[0]) {
 		sc_print_addr(sc_link);
-		printf(" qualifier %ld: %s" ,qualifier ,qtype);
+		printf(" qualifier %lu: %s", (u_long)qualifier, qtype);
 	}
 
 	printf("\n");

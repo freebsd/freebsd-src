@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.91 1998/07/11 07:46:01 bde Exp $
+ * $Id: st.c,v 1.92 1998/07/31 09:00:39 phk Exp $
  */
 
 /*
@@ -272,22 +272,22 @@ stattach(struct scsi_link *sc_link)
 			devfs_add_devswf(&st_cdevsw, 
 					 (unit << 4 ) + (ii * 4), DV_CHR, 
 					 UID_ROOT, GID_OPERATOR, 0660, 
-					 "rst%ld.%d", unit, ii);
+					 "rst%lu.%d", (u_long)unit, ii);
 		st->devfs_token.nrst_[ii] = 
 			devfs_add_devswf(&st_cdevsw, 
 					 (unit << 4 ) + ((ii * 4) + 1), DV_CHR, 
 					 UID_ROOT, GID_OPERATOR, 0660, 
-					 "nrst%ld.%d", unit, ii);
+					 "nrst%lu.%d", (u_long)unit, ii);
 		st->devfs_token.erst_[ii] = 
 			devfs_add_devswf(&st_cdevsw, 
 					 (unit << 4 ) + ((ii * 4) + 2), DV_CHR,
 					 UID_ROOT, GID_OPERATOR, 0660, 
-					 "erst%ld.%d", unit, ii);
+					 "erst%lu.%d", (u_long)unit, ii);
 		st->devfs_token.ctl_[ii] = 
 			devfs_add_devswf(&st_cdevsw, 
 					 (unit << 4 ) + ((ii * 4) + 3), DV_CHR,	
 					 UID_ROOT, GID_OPERATOR, 0600, 
-					 "st%ldctl.%d", unit, ii);
+					 "st%luctl.%d", (u_long)unit, ii);
 	}
 
 	st->devfs_token.ctl = 
@@ -296,11 +296,11 @@ stattach(struct scsi_link *sc_link)
 				 "rst%d.ctl", unit);
 	/** add links **/
 	st->devfs_token.rst = 
-		devfs_link(st->devfs_token.rst_[0], "rst%ld", unit);
+		devfs_link(st->devfs_token.rst_[0], "rst%lu", (u_long)unit);
 	st->devfs_token.nrst = 
-		devfs_link(st->devfs_token.nrst_[0], "nrst%ld", unit);
+		devfs_link(st->devfs_token.nrst_[0], "nrst%lu", (u_long)unit);
 	st->devfs_token.erst = 
-		devfs_link(st->devfs_token.erst_[0], "erst%ld", unit);
+		devfs_link(st->devfs_token.erst_[0], "erst%lu", (u_long)unit);
 #endif
 	return 0;
 }
