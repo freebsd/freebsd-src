@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.130 1999/04/21 07:26:27 peter Exp $
+ *	$Id: clock.c,v 1.131 1999/04/21 07:41:40 peter Exp $
  */
 
 /*
@@ -1115,6 +1115,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
 		i8254_timecounter.tc_frequency = freq;
+		update_timecounter(&i8254_timecounter);
 	}
 	return (error);
 }
@@ -1135,6 +1136,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
+		update_timecounter(&tsc_timecounter);
 	}
 	return (error);
 }
