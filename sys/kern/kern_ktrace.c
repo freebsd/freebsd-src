@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.25 1998/12/10 01:47:41 rvb Exp $
+ * $Id: kern_ktrace.c,v 1.26 1999/04/28 11:36:55 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -48,6 +48,8 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+
+#include <stddef.h>
 
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
@@ -78,20 +80,23 @@ ktrgetheader(type)
 void
 ktrsyscall(vp, code, narg, args)
 	struct vnode *vp;
-	int code, narg, args[];
+	int code, narg;
+	register_t args[];
 {
 	struct	ktr_header *kth;
 	struct	ktr_syscall *ktp;
-	register int len = sizeof(struct ktr_syscall) + (narg * sizeof(int));
+	register int len = offsetof(struct ktr_syscall, ktr_args) +
+	    (narg * sizeof(register_t));
 	struct proc *p = curproc;	/* XXX */
-	int 	*argp, i;
+	register_t *argp;
+	int i;
 
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_SYSCALL);
 	MALLOC(ktp, struct ktr_syscall *, len, M_KTRACE, M_WAITOK);
 	ktp->ktr_code = code;
 	ktp->ktr_narg = narg;
-	argp = (int *)((char *)ktp + sizeof(struct ktr_syscall));
+	argp = &ktp->ktr_args[0];
 	for (i = 0; i < narg; i++)
 		*argp++ = args[i];
 	kth->ktr_buf = (caddr_t)ktp;
@@ -105,7 +110,8 @@ ktrsyscall(vp, code, narg, args)
 void
 ktrsysret(vp, code, error, retval)
 	struct vnode *vp;
-	int code, error, retval;
+	int code, error;
+	register_t retval;
 {
 	struct ktr_header *kth;
 	struct ktr_sysret ktp;
