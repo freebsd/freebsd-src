@@ -392,6 +392,7 @@ dev/ex/if_ex_isa.c	optional ex isa
 dev/ex/if_ex_pccard.c	optional ex card
 #dev/ex/if_ex_pccard.c	optional ex pccard
 dev/exca/exca.c		optional cbb
+dev/fatm/if_fatm.c	optional fatm pci
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
 dev/fe/if_fe_pccard.c	optional fe pccard
