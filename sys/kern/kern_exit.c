@@ -698,9 +698,11 @@ loop:
 			mtx_unlock(&Giant);
 			return (0);
 		}
+		mtx_lock_spin(&sched_lock);
 		if (P_SHOULDSTOP(p) && (p->p_suspcount == p->p_numthreads) &&
 		    ((p->p_flag & P_WAITED) == 0) &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
+			mtx_unlock_spin(&sched_lock);
 			p->p_flag |= P_WAITED;
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
@@ -723,6 +725,7 @@ loop:
 			mtx_unlock(&Giant);
 			return (error);
 		}
+		mtx_unlock_spin(&sched_lock);
 		if (uap->options & WCONTINUED && (p->p_flag & P_CONTINUED)) {
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
