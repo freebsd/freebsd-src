@@ -1113,7 +1113,7 @@
       </itemizedlist>
     </para>
 
-    <para>Sundance Technologies ST201 PCI Fast Ethernet NICs
+    <para arch="i386,alpha">Sundance Technologies ST201 PCI Fast Ethernet NICs
     (&man.ste.4; driver)
       <itemizedlist>
         <listitem>
@@ -1574,7 +1574,7 @@
     </para>
 
     <para arch="i386">Gigabit Ethernet NICs based on the Broadcom BCM570x
-    (&man.bge.4 driver)
+    (&man.bge.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>3Com 3c996-T</para>
@@ -1590,12 +1590,17 @@
     </para>
 
     <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
-    controller chips (&man.gx.4; driver)
+    controller chips (&man.wx.4; and &man.gx.4; drivers)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
 	</listitem>
       </itemizedlist>
+
+      <note>
+        <para>The &man.wx.4; driver is deprecated.</para>
+      </note>
+
     </para>
   </sect2>
 
@@ -1731,7 +1736,8 @@
 	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
         </listitem>
         <listitem>
-	  <para>Cisco Systems Aironet 340, 341, and 342</para>
+	  <para>Cisco Systems Aironet 340 and 350 series
+	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
         </listitem>
       </itemizedlist>
     </para>
@@ -1778,7 +1784,7 @@
 
   </sect2>
 
-  <sect2 arch="i386">
+  <sect2>
     <title>ISDN Interfaces</title>
     <para arch="i386">AcerISDN P10 ISA PnP (experimental)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
@@ -2380,7 +2386,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Serial ports</para>
+    <para arch="i386,alpha">Serial ports (&man.sio.4; driver)</para>
 
     <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
 
