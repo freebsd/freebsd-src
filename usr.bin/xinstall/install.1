@@ -101,6 +101,8 @@ is given.
 Copy the file.
 If the target file already exists and the files are the same,
 then don't change the modification time of the target.
+If the target's file flags and mode need not to be changed,
+the target's inode change time is also unchanged.
 .It Fl c
 Copy the file.
 This is actually the default.
@@ -130,12 +132,12 @@ for a description of possible mode values.
 Specify an owner.
 A numeric UID is allowed.
 .It Fl p
-Preserve the modification time.
+Preserve the access and modification times.
 Copy the file, as if the
 .Fl C
 (compare and copy) option is specified,
 except if the target file doesn't already exist or is different,
-then preserve the modification time of the file.
+then preserve the access and modification times of the source file.
 .It Fl S
 Safe copy.
 Normally,
