@@ -2,7 +2,7 @@
 
 PROG=	smrsh
 MAN8=	smrsh.8
-CFLAGS+=-I${.CURDIR}/../src -DNDBM -DNEWDB
+CFLAGS+=-I${.CURDIR}/../src -DNEWDB
 
 BINDIR=	/usr/libexec
 .include <bsd.prog.mk>
