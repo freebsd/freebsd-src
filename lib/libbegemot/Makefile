@@ -15,6 +15,7 @@ SRCS=	rpoll.c
 INCS=	rpoll.h
 MAN=	rpoll.3
 
+CLEANFILES= rpoll.3
 rpoll.3: rpoll.man
 	cat ${.ALLSRC} > ${.TARGET}
 
