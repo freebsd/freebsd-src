@@ -224,11 +224,11 @@ USB_ATTACH(umass)
 			       USBDEVNAME(sc->sc_dev));
 			USB_ATTACH_ERROR_RETURN;
 		}
-		if (UE_GET_IN(ed->bEndpointAddress) &&
-		    ((ed->bmAttributes & UE_XFERTYPE) == UE_BULK)) {
+		if (UE_GET_DIR(ed->bEndpointAddress) == UE_IN
+		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
 			sc->sc_bulkin = ed->bEndpointAddress;
-		} else if (!UE_GET_IN(ed->bEndpointAddress) &&
-		           ((ed->bmAttributes & UE_XFERTYPE) == UE_BULK)) {
+		} else if (UE_GET_DIR(ed->bEndpointAddress) == UE_OUT
+		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK) {
 			sc->sc_bulkout = ed->bEndpointAddress;
 		}
 	}
@@ -266,9 +266,8 @@ static int
 umass_detach(device_t self)
 {
 	umass_softc_t *sc = device_get_softc(self);
-	const char *devinfo = device_get_desc(sc->sc_dev);
 
-	DPRINTF(UDMASS_USB, ("%s: disconnected\n", USBDEVNAME(sc->sc_dev)));
+	DPRINTF(UDMASS_USB, ("%s: detached\n", USBDEVNAME(sc->sc_dev)));
 
 	/* detach from the SCSI host controller (completely) */
 	umass_cam_detach(sc);
@@ -279,10 +278,7 @@ umass_detach(device_t self)
 	if (sc->sc_bulkin_pipe)
 		usbd_close_pipe(sc->sc_bulkin_pipe);
 
-	if (devinfo) {
-		device_set_desc(sc->sc_dev, NULL);
-		free((void *)devinfo, M_USB);
-	}
+	device_set_desc(sc->sc_dev, NULL);
 
 	return(0);
 }
@@ -312,11 +308,10 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 	 * transfer and then wait for it to complete
 	 */
 
-	/* XXX we should not fetch a new request buffer for every transfer */
 	reqh = usbd_alloc_request();
 	if (!reqh) {
-		DPRINTF(UDMASS_USB, ("cannot allocate memory\n"));
-		return(USBD_NOMEM);
+		DPRINTF(UDMASS_USB, ("Not enough memory\n"));
+		return USBD_NOMEM;
 	}
 
 	(void) usbd_setup_request(reqh, pipe, 0, buf, buflen,
@@ -330,11 +325,11 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 	}
 
 	usbd_get_request_status(reqh, &priv, &buffer, &size, &err);
-	usbd_free_request(reqh);
 
 	if (xfer_size)
 		*xfer_size = size;
 
+	usbd_free_request(reqh);
 	return(USBD_NORMAL_COMPLETION);
 }
 
