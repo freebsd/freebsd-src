@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.186 1995/05/28 07:04:36 phk Exp $
+#	$Id: Makefile,v 1.187 1995/05/29 00:49:52 jkh Exp $
 #
 # How to roll a release:
 #
@@ -44,8 +44,8 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
-BOOTMFSSIZE=		700
-MFSINODE=		40000
+BOOTMFSSIZE=		1075
+MFSINODE=		70000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}                      
@@ -321,12 +321,13 @@ release.8: write_mfs_in_kernel
 	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/mfsfd/stand ZIP=true
+		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
+	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
