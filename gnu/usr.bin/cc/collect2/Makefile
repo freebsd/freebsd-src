@@ -10,6 +10,8 @@ BINDIR=	/usr/libexec
 NOMAN=
 NOSHARED=yes
 
+CFLAGS+= -DDEFAULT_TARGET_VERSION=\"$(version)\"
+
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
 
@@ -23,7 +25,8 @@ underscore.c: Makefile
 	else \
 	  echo "int prepends_underscore = 0;" >>underscore.c; \
 	fi
-	# wrong to do this here, but easiest way out to duplicate gcc.c.
+	@# wrong to do this here, but easiest way out to duplicate gcc.c.
+	echo "#include <stdio.h>" >>underscore.c
 	echo "char *xstrerror(int e) { return strerror(e); }" >>underscore.c
 	rm -f tmp-dum.c tmp-dum.s
 
