@@ -86,7 +86,6 @@ void	pmap_clear_write(vm_page_t m);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
 
-extern	vm_paddr_t avail_end;
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
 extern	vm_paddr_t phys_avail[];
