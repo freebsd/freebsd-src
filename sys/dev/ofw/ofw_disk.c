@@ -60,7 +60,6 @@ static int	ofwd_probe(device_t);
 static int	ofwd_attach(device_t);
 
 static device_method_t	ofwd_methods[] = {
-	DEVMETHOD(device_identify,	ofwd_identify),
 	DEVMETHOD(device_probe, 	ofwd_probe),
 	DEVMETHOD(device_attach,	ofwd_attach),
 	{ 0, 0 }
@@ -145,7 +144,8 @@ ofwd_probe(device_t dev)
 
 	type = nexus_get_device_type(dev);
 
-	if (type == NULL || strcmp(type, "disk") != 0)
+	if (type == NULL || 
+	    (strcmp(type, "disk") != 0 && strcmp(type, "block") != 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "OpenFirmware disk");
@@ -182,9 +182,4 @@ ofwd_attach(device_t dev)
 	disk_create(device_get_unit(dev), &sc->ofwd_disk, 0, NULL, NULL);
 
 	return (0);
-}
-
-static void
-ofwd_identify(driver_t *driver, device_t parent)
-{
 }
