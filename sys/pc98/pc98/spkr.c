@@ -4,12 +4,12 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.2 1996/07/23 07:46:39 asami Exp $
+ *    $Id: spkr.c,v 1.3 1996/08/30 10:43:09 asami Exp $
  */
 
 /*
  * modified for PC98
- *    $Id: spkr.c,v 1.2 1996/07/23 07:46:39 asami Exp $
+ *    $Id: spkr.c,v 1.3 1996/08/30 10:43:09 asami Exp $
  */
 
 #include "speaker.h"
@@ -26,7 +26,6 @@
 #include <sys/conf.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
 #include <pc98/pc98/timerreg.h>
 #else
 #include <i386/isa/isa.h>
