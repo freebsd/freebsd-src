@@ -33,10 +33,10 @@
 
 #ifndef lint
 #if 0
-static char const sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: utils.c,v 1.17 1998/05/06 06:50:25 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
