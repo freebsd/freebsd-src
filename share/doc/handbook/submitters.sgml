@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.24 1996/03/30 19:46:37 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.25 1996/05/09 23:04:50 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -400,7 +400,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.24 1996/03/30 19:46:37 jkh Exp $
+	$Id: submitters.sgml,v 1.25 1996/05/09 23:04:50 mpp Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -487,8 +487,19 @@ administrators"> for more information.
 like to publically thank them here!
 
 <itemize>
-	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
+	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
+	name="Annelise Anderson">
 
+	has generously donated funding to the further development of FreeBSD
+	</item>
+
+        <item><htmlurl url="http://www.iijnet.or.jp/laser5/" name="Laser5">
+        in Japan has graciously donated a portion of their profits from the
+        sale of their <em>FreeBSD for PC98'ers</em> CD, a port of FreeBSD to
+        the NEC PC98.
+        </item>
+
+	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
 	has donated almost more than we can say (see the
 	<ref id="history" name="history"> document for more details).
 	In particular, we'd like to thank them for the hardware used for
@@ -497,11 +508,5 @@ like to publically thank them here!
 	We are also indebted to them for funding various contributors over
 	the years and providing us with unrestricted use of their T1
 	connection to the Internet.
-	</item>
-
-	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
-	name="Annelise Anderson">
-
-	has generously donated funding to the further development of FreeBSD
 	</item>
 </itemize>
