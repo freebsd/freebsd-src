@@ -2423,14 +2423,11 @@ ntoskrnl_run_dpc(arg)
 {
 	__stdcall kdpc_func	dpcfunc;
 	kdpc			*dpc;
-	uint8_t			irql;
 
 	dpc = arg;
 	dpcfunc = dpc->k_deferedfunc;
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	MSCALL4(dpcfunc, dpc, dpc->k_deferredctx,
 	    dpc->k_sysarg1, dpc->k_sysarg2);
-	KeLowerIrql(irql);
 
 	return;
 }
