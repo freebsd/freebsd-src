@@ -71,18 +71,18 @@ Turn on socket debugging (using
 on the
 .Tn TCP
 sockets used for communication with the remote host.
-.It Fl k
+.It Fl k Ar realm
 Cause
 .Nm
 to obtain tickets for the remote host in
 .Ar realm
 instead of the remote host's realm as determined by
 .Xr krb_realmofhost 3 .
-.It Fl l
+.It Fl l Ar username
+Allow the remote
+.Ar username
+to be specified.
 By default, the remote username is the same as the local username.
-The
-.Fl l
-option allows the remote name to be specified.
 Kerberos authentication is used, and authorization is determined
 as in
 .Xr rlogin 1 .
@@ -97,9 +97,13 @@ Turn on
 .Tn DES
 encryption for all data exchange.
 This may introduce a significant delay in response time.
-.It Fl t
-Allow a timeout to be specified (in seconds).  If no
-data is sent or received in this time, rsh will exit.
+.It Fl t Ar timeout
+Allow a
+.Ar timeout
+to be specified (in seconds).  If no
+data is sent or received in this time,
+.Nm
+will exit.
 .El
 .Pp
 If no
@@ -172,7 +176,7 @@ You cannot run an interactive command
 or
 .Xr vi 1 )
 using
-.Nm rsh ;
+.Nm Ns ;
 use
 .Xr rlogin 1
 instead.
