@@ -240,7 +240,6 @@ i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		count		mca
 i386/isa/mcd.c			count		mcd
 i386/isa/pcf.c			optional	pcf
-i386/isa/pcibus.c		optional	pci
 i386/isa/pcvt/pcvt_drv.c	optional	vt
 i386/isa/pcvt/pcvt_ext.c	optional	vt
 i386/isa/pcvt/pcvt_kbd.c	optional	vt
@@ -262,6 +261,8 @@ i386/linux/linux_locore.s	optional	compat_linux		\
 i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
+i386/pci/pci_cfgreg.c		optional	pci
+i386/pci/pci_bus.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
