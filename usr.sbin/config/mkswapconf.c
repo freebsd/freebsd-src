@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkswapconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkswapconf.c,v 1.13 1997/09/15 06:37:10 charnier Exp $";
+	"$Id: mkswapconf.c,v 1.14 1997/09/17 06:20:45 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -48,6 +48,9 @@ static const char rcsid[] =
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#ifdef linux
+#include <sys/sysmacros.h>
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
