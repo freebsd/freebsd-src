@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)hash.3	8.5 (Berkeley) 2/21/94
+.\"	@(#)hash.3	8.6 (Berkeley) 8/18/94
 .\"
-.TH HASH 3 "February 21, 1994"
+.TH HASH 3 "August 18, 1994"
 .UC 7
 .SH NAME
 hash \- hash database access method
@@ -137,6 +137,13 @@ and
 .IR ndbm (3)
 are provided, however these interfaces are not compatible with
 previous file formats.
+.SH ERRORS
+The
+.I hash
+access method routines may fail and set
+.I errno
+for any of the errors specified for the library routine
+.IR dbopen (3).
 .SH "SEE ALSO"
 .IR btree (3),
 .IR dbopen (3),
