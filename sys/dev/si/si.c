@@ -1369,10 +1369,7 @@ siparam(struct tty *tp, struct termios *t)
 	ccbp->hi_mask = val;
 
 	/* ========== set hi_prtcl ========== */
-	val = 0;
-				/* Monitor DCD etc. if a modem */
-	if (!(cflag & CLOCAL))
-		val |= SP_DCEN;
+	val = SP_DCEN;		/* Monitor DCD always, or TIOCMGET misses it */
 	if (iflag & IXANY)
 		val |= SP_TANY;
 	if (iflag & IXON)
