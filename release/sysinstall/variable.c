@@ -174,14 +174,25 @@ variable_get_value(char *var, char *prompt, int dirty)
 }
 
 /* Check if value passed in data (in the form "variable=value") is
-   equal to value of variable stored in env */
+ * valid, and it's status compared to the value of variable stored in
+ * env
+ *
+ * Possible return values :
+ * -3: Invalid line, the data string is NOT set as an env variable
+ * -2: Invalid line, the data string is set as an env variable
+ * -1: Invalid line
+ *  0: Valid line, is NOT equal to env version
+ *  1: Valid line, is equal to env version
+ *  2: Valid line, value empty - e.g. foo=""
+ *  3: Valid line, does not exist in env
+*/
 int
-variable_check(char *data)
+variable_check2(char *data)
 {
     char *cp, *cp2, *cp3, tmp[256];
 
-    if (!data)
-	return FALSE;
+    if (data == NULL)
+	return -1;
     SAFE_STRCPY(tmp, data);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
@@ -193,18 +204,37 @@ variable_check(char *data)
 	else if ((cp3 = index(cp, ',')) != NULL)
 	    *cp3 = '\0';
         cp2 = variable_get(tmp);
-        if (cp2) {
-	    if (!*cp)
-		return TRUE;
+        if (cp2 != NULL) {
+	    if (*cp == NULL)
+		return 2;
 	    else
-        	return !strcmp(cp, cp2);
+		return strcmp(cp, cp2) == 0 ? 1 : 0;
 	}
         else
-            return FALSE;
+	    return 3;
     }
     else
-        return variable_get(tmp) ? TRUE : FALSE;
+	return variable_get(tmp) != NULL ? -2 : -3;
 } 
+
+/* Check if the value passed in data (in the form "variable=value") is
+   equal to the value of variable stored in env */
+int
+variable_check(char *data)
+{
+    int ret;
+    ret = variable_check2(data);
+
+    switch(ret) {
+    case -2:
+    case 1:
+    case 2:
+	return TRUE;
+	/* NOT REACHED */
+    default:
+	return FALSE;
+    }
+}
 
 int
 dump_variables(dialogMenuItem *unused)
