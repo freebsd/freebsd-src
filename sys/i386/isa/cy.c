@@ -487,6 +487,9 @@ cy_units(cy_iobase, cy_align)
 		cd_outb(iobase, CD1400_CCR, cy_align,
 			CD1400_CCR_CMDRESET | CD1400_CCR_FULLRESET);
 
+		/* XXX bogus initialization to avoid a gcc bug/warning. */
+		firmware_version = 0;
+
 		/* wait for the CD1400 to initialize itself */
 		for (i = 0; i < 200; i++) {
 			DELAY(50);
