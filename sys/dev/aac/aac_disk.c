@@ -305,7 +305,6 @@ void
 aac_biodone(struct bio *bp)
 {
 	struct aac_disk	*sc;
-	int blkno;
 
 	debug_called(4);
 
@@ -313,10 +312,15 @@ aac_biodone(struct bio *bp)
 
 	devstat_end_transaction_bio(&sc->ad_stats, bp);
 	if (bp->bio_flags & BIO_ERROR) {
+#if __FreeBSD_version > 500039
+		disk_err(bp, "hard error", -1, 1);
+#elif __FreeBSD_version > 500005
+		int blkno;
 		blkno = (sc->ad_label.d_nsectors) ? 0 : -1;
-#if __FreeBSD_version > 500005
 		diskerr(bp, (char *)bp->bio_driver1, blkno, &sc->ad_label);
 #else
+		int blkno;
+		blkno = (sc->ad_label.d_nsectors) ? 0 : -1;
 		diskerr(bp, (char *)bp->bio_driver1, 0, blkno, &sc->ad_label);
 #endif
 	}

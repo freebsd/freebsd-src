@@ -223,7 +223,6 @@ struct amrd_softc
     struct amr_logdrive	*amrd_drive;
     struct disk		amrd_disk;
     struct devstat	amrd_stats;
-    struct disklabel	amrd_label;
     int			amrd_unit;
     int			amrd_flags;
 #define AMRD_OPEN	(1<<0)		/* drive is open (can't detach) */
