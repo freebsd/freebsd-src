@@ -245,15 +245,16 @@ These flags correspond to the termios
 .Va c_lflag ,
 and
 .Va c_oflag
-fields, respectively. Each these sets must be completely specified to be
-effective.
+fields, respectively.
+Each these sets must be completely specified to be effective.
 The
 .Va \&f0 ,
 .Va \&f1 ,
 and
 .Va \&f2
 are excepted for backwards compatibility with a previous incarnation of
-the TTY sub-system. In these flags the bottom 16 bits of the (32 bits)
+the TTY sub-system.
+In these flags the bottom 16 bits of the (32 bits)
 value contain the sgttyb
 .Va sg_flags
 field, while the top 16 bits represent the local mode word.
@@ -264,7 +265,8 @@ receive a null character
 (presumed to indicate a line break)
 it will restart using the table indicated by the
 .Va \&nx
-entry. If there is none, it will re-use its original table.
+entry.
+If there is none, it will re-use its original table.
 .Pp
 Delays are specified in milliseconds, the nearest possible
 delay available in the tty driver will be used.
