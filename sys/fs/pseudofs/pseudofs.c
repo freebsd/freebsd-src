@@ -69,14 +69,14 @@ _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 	    ("%s(): parent is not a directory", __func__));
 
 	/* XXX should check for duplicate names etc. */
-	
+
 	mtx_lock(&parent->pn_info->pi_mutex);
 	node->pn_info = parent->pn_info;
 	node->pn_parent = parent;
 	node->pn_next = parent->pn_nodes;
 	parent->pn_nodes = node;
 	mtx_unlock(&parent->pn_info->pi_mutex);
-	
+
 	return (0);
 }
 
@@ -87,22 +87,22 @@ static int
 _pfs_fixup_dir(struct pfs_node *parent)
 {
 	struct pfs_node *dir;
-	
+
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
 	    M_PFSNODES, M_WAITOK|M_ZERO);
 	dir->pn_name[0] = '.';
 	dir->pn_type = pfstype_this;
-	
+
 	if (_pfs_add_node(parent, dir) != 0) {
 		FREE(dir, M_PFSNODES);
 		return (-1);
 	}
-	
+
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
 	    M_PFSNODES, M_WAITOK|M_ZERO);
 	dir->pn_name[0] = dir->pn_name[1] = '.';
 	dir->pn_type = pfstype_parent;
-	
+
 	if (_pfs_add_node(parent, dir) != 0) {
 		FREE(dir, M_PFSNODES);
 		return (-1);
@@ -140,7 +140,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
 		pfs_destroy(dir);
 		return (NULL);
 	}
-	
+
 	return (dir);
 }
 
@@ -149,7 +149,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
  */
 struct pfs_node	*
 pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
-                pfs_attr_t attr, pfs_vis_t vis, int flags)
+		pfs_attr_t attr, pfs_vis_t vis, int flags)
 {
 	struct pfs_node *node;
 
@@ -169,7 +169,7 @@ pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
 		FREE(node, M_PFSNODES);
 		return (NULL);
 	}
-	
+
 	return (node);
 }
 
@@ -178,7 +178,7 @@ pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
  */
 struct pfs_node	*
 pfs_create_link(struct pfs_node *parent, char *name, pfs_fill_t fill,
-                pfs_attr_t attr, pfs_vis_t vis, int flags)
+		pfs_attr_t attr, pfs_vis_t vis, int flags)
 {
 	struct pfs_node *node;
 
@@ -196,7 +196,7 @@ int
 pfs_destroy(struct pfs_node *node)
 {
 	struct pfs_node *parent, *rover;
-	
+
 	KASSERT(node != NULL,
 	    ("%s(): node is NULL", __func__));
 	KASSERT(node->pn_info != NULL,
@@ -244,10 +244,10 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct nameidata *ndp,
 	  struct thread *td)
 {
 	struct statfs *sbp;
-  
+
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
-	
+
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t)pi;
 	vfs_getnewfsid(mp);
@@ -277,7 +277,7 @@ pfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	pi = (struct pfs_info *)mp->mnt_data;
 
 	/* XXX do stuff with pi... */
-	
+
 	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0);
 	return (error);
 }
@@ -314,7 +314,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 	int error;
 
 	mtx_init(&pi->pi_mutex, "pseudofs", NULL, MTX_DEF);
-	
+
 	/* set up the root diretory */
 	MALLOC(root, struct pfs_node *, sizeof *root,
 	    M_PFSNODES, M_WAITOK|M_ZERO);
@@ -335,7 +335,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 		mtx_destroy(&pi->pi_mutex);
 		return (error);
 	}
-	
+
 	pfs_fileno_init(pi);
 	if (bootverbose)
 		printf("%s registered\n", pi->pi_name);
@@ -349,7 +349,7 @@ int
 pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc)
 {
 	int error;
-	
+
 	pfs_fileno_uninit(pi);
 	pfs_destroy(pi->pi_root);
 	pi->pi_root = NULL;

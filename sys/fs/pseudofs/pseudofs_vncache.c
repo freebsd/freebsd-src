@@ -108,7 +108,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	int error;
 
 	/*
-	 * See if the vnode is in the cache.  
+	 * See if the vnode is in the cache.
 	 * XXX linear search is not very efficient.
 	 */
 	mtx_lock(&pfs_vncache_mutex);
@@ -183,7 +183,7 @@ pfs_vncache_free(struct vnode *vp)
 	struct pfs_vdata *pvd;
 
 	cache_purge(vp);
-	
+
 	mtx_lock(&pfs_vncache_mutex);
 	pvd = (struct pfs_vdata *)vp->v_data;
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
@@ -235,7 +235,7 @@ int
 pfs_disable(struct pfs_node *pn)
 {
 	struct pfs_vdata *pvd, *prev;
-	
+
 	if (pn->pn_flags & PFS_DISABLED)
 		return (0);
 	mtx_lock(&pfs_vncache_mutex);
