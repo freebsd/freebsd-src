@@ -433,9 +433,8 @@ dev/random/harvest.c	standard
 dev/random/randomdev.c	optional random
 dev/random/yarrow.c	optional random
 dev/random/hash.c	optional random
-crypto/blowfish/bf_cbc.c	optional random
-crypto/blowfish/bf_enc.c	optional random
-crypto/blowfish/bf_skey.c	optional random
+crypto/rijndael/rijndael-alg-fst.c	optional random
+crypto/rijndael/rijndael-api-fst.c	optional random
 dev/ray/if_ray.c	optional ray card
 dev/ray/if_ray.c	optional ray pccard
 dev/rp/rp.c		optional rp
