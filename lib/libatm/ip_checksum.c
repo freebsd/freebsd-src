@@ -27,6 +27,8 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
@@ -49,11 +51,6 @@
 #include <netatm/atm_ioctl.h>
 
 #include "libatm.h"
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Compute an IP checksum

@@ -22,10 +22,10 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
@@ -51,11 +51,6 @@
 #include <string.h>
 
 #include "libatm.h"
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 extern char	*prog;
 
