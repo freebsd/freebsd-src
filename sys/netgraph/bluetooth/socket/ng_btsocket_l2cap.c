@@ -250,7 +250,7 @@ ng_btsocket_l2cap_node_shutdown(node_p node)
 
 	error = ng_name_node(ng_btsocket_l2cap_node,
 				NG_BTSOCKET_L2CAP_NODE_TYPE);
-	if (error != NULL) {
+	if (error != 0) {
 		NG_BTSOCKET_L2CAP_ALERT(
 "%s: Could not name Netgraph node, error=%d\n", __func__, error);
 
@@ -1194,7 +1194,7 @@ ng_btsocket_l2cap_send_l2ca_con_req(ng_btsocket_l2cap_pcb_p pcb)
 	bcopy(&pcb->dst, &ip->bdaddr, sizeof(ip->bdaddr));
 	ip->psm = pcb->psm;
 
-	NG_SEND_MSG_HOOK(error,ng_btsocket_l2cap_node,msg,pcb->rt->hook,NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg,pcb->rt->hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_send_l2ca_con_req */
@@ -1229,7 +1229,7 @@ ng_btsocket_l2cap_send_l2ca_con_rsp_req(u_int32_t token,
 	ip->result = result;
 	ip->status = 0;
 
-	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg, rt->hook, NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg, rt->hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_send_l2ca_con_rsp_req */
@@ -1265,7 +1265,7 @@ ng_btsocket_l2cap_send_l2ca_cfg_req(ng_btsocket_l2cap_pcb_p pcb)
 	ip->flush_timo = pcb->flush_timo;
 	ip->link_timo = pcb->link_timo;
 
-	NG_SEND_MSG_HOOK(error,ng_btsocket_l2cap_node,msg,pcb->rt->hook,NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg,pcb->rt->hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_send_l2ca_cfg_req */
@@ -1299,7 +1299,7 @@ ng_btsocket_l2cap_send_l2ca_cfg_rsp(ng_btsocket_l2cap_pcb_p pcb)
 	ip->omtu = pcb->omtu;
 	bcopy(&pcb->iflow, &ip->iflow, sizeof(ip->iflow));
 
-	NG_SEND_MSG_HOOK(error,ng_btsocket_l2cap_node,msg,pcb->rt->hook,NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg, pcb->rt->hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_send_l2ca_cfg_rsp */
@@ -1332,7 +1332,7 @@ ng_btsocket_l2cap_send_l2ca_discon_req(u_int32_t token,
 	ip = (ng_l2cap_l2ca_discon_ip *)(msg->data);
 	ip->lcid = pcb->cid;
 
-	NG_SEND_MSG_HOOK(error,ng_btsocket_l2cap_node,msg,pcb->rt->hook,NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_node, msg,pcb->rt->hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_send_l2ca_discon_req */

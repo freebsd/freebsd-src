@@ -206,7 +206,7 @@ text_status(node_p node, struct priv *priv, char *arg, u_int len)
 		sbuf_printf(&sbuf, "lower hook: <not connected>\n");
 
 	sbuf_printf(&sbuf, "sscf state: %s\n",
-	    priv->enabled == NULL ? "<disabled>" :
+	    priv->enabled == 0 ? "<disabled>" :
 	    sscfu_statename(sscfu_getstate(priv->sscf)));
 
 	sbuf_finish(&sbuf);
