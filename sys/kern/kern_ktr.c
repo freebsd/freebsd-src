@@ -131,6 +131,11 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	vsnprintf(entry->ktr_desc, KTRDESCSIZE, format, ap);
 	va_end(ap);
 	if (ktr_verbose) {
+#ifdef SMP
+		printf("cpu%d ", entry->ktr_cpu);
+#endif
+		if (ktr_verbose > 1)
+			printf("%s.%d\t", entry->ktr_filename, entry->ktr_line);
 		va_start(ap, format);
 		vprintf(format, ap);
 		printf("\n");
