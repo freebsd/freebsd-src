@@ -210,6 +210,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	dev->si_udev = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
 	g_topology_lock();
 	gp = g_new_geomf(&g_disk_class, "%s%d", cdevsw->d_name, unit);
+	strcpy(dev->si_name, gp->name);
 	gp->start = g_disk_start;
 	gp->access = g_disk_access;
 	gp->softc = dp;
