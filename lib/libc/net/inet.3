@@ -62,7 +62,12 @@
 .Ft char *
 .Fn inet_ntoa "struct in_addr in"
 .Ft const char *
-.Fn inet_ntop "int af" "const void *restrict src" "char *restrict dst" "socklen_t size"
+.Fo inet_ntop
+.Fa "int af"
+.Fa "const void *restrict src"
+.Fa "char *restrict dst"
+.Fa "socklen_t size"
+.Fc
 .Ft int
 .Fn inet_pton "int af" "const char *restrict src" "void *restrict dst"
 .Ft struct in_addr
