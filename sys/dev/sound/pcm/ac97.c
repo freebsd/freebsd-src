@@ -90,6 +90,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x414b4d01, 1, "Asahi Kasei AK4542" },
 	{ 0x414b4d02, 1, "Asahi Kasei AK4543" },
 	{ 0x414c4710, 0, "Avance Logic ALC200/200P" },
+	{ 0x414c4720, 0, "Realtek Semiconductor ALC650" },
 	{ 0x43525900, 0, "Cirrus Logic CS4297" },
 	{ 0x43525903, 0, "Cirrus Logic CS4297" },
 	{ 0x43525913, 0, "Cirrus Logic CS4297A" },
