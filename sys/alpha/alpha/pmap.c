@@ -1686,7 +1686,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 
 	origpte = *pte;
-	pa = VM_PAGE_TO_PHYS(m) & ~PAGE_MASK;
+	pa = VM_PAGE_TO_PHYS(m);
 	managed = 0;
 	opa = pmap_pte_pa(pte);
 
