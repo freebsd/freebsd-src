@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: register.c,v 1.1 1997/03/09 22:25:48 jkh Exp $
  *
  * Copyright (c) 1997
  *	Jordan Hubbard.  All rights reserved.
@@ -39,7 +39,7 @@
 
 #define REGISTER_HELPFILE	"register"
 #define REGISTRATION_FNAME	"/tmp/new-registration"
-#define REGISTRATION_ADDRESS	"jkh@freebsd.org"
+#define REGISTRATION_ADDRESS	"register@freebsd.org"
 #define MAJORDOMO_ADDRESS	"majordomo@freebsd.org"
 
 #define FIRSTNAME_FIELD_LEN	25
