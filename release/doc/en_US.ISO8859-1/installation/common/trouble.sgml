@@ -35,17 +35,19 @@
       <qandaentry>
         <question>
           <para>My system hangs while probing hardware during boot, or it
-            behaves strangely during install.</para>
+            behaves strangely during install, or the floppy drive isn't
+            probed.</para>
         </question>
         <answer>
           <para>&os; 5.0 and above makes extensive use of the system ACPI
             service on the i386 platform to aid in system configuration if it's
             detected during boot.  Unfortunately, some bugs still exist in both
             the ACPI driver and within system motherboards and BIOS.  The use
-            of ACPI can be disabled by unsetting the <quote>acpi_load</quote>
-            variable in the third stage boot loader:</para>
+            of ACPI can be disabled by setting the
+            <quote>hw.acpi.0.disable</quote> hint in the third stage boot
+            loader:</para>
 
-          <screen>unset acpi_loader</screen>
+          <screen>set.hw.acpi.0.disabled=1</screen>
 
           <para>This is reset each time the system is booted, so it might be
             necessary to set it permanently in the file
@@ -62,7 +64,7 @@
           <para>Some device drivers, like matcd, were removed over time due to
             lack of maintainership or other reasons.  Others still exist but
             are disabled because of their intrusive hardware probe routines.
-            The following device drivers fall into this category and can
+            The following ISA device drivers fall into this category and can
             re-enabled from the third stage boot loader: aha, ahv, aic, bt, ed,
             cs, sn, ie, fe, le, and lnc.  To do this, stop the loader during
             it's 10 second countdown and enter the following at the
@@ -70,8 +72,8 @@
 
           <screen>unset hint.foo.0.disabled</screen>
 
-          <para>where <quote>foo</quote> is the name of the driver to re-enable.
-            This can be set permanently by editing the file
+          <para>where <replaceable>foo</replaceable> is the name of the driver
+            to re-enable.  This can be set permanently by editing the file
             <filename>/boot/device.hints</filename> and removing the appropriate
             <quote>disabled</quote> entry.</para>
         </answer>
