@@ -128,8 +128,15 @@ END \
 {
   if (commenting) end_comments();
   printf "    \"quit \";\n";
-  printf "\n\nvoid ficlCompileSoftCore(FICL_VM *pVM)\n";
+  printf "\n\nvoid ficlCompileSoftCore(FICL_SYSTEM *pSys)\n";
   printf "{\n";
-  printf "    assert(ficlExec(pVM, softWords) != VM_ERREXIT);\n";
+  printf "    FICL_VM *pVM = pSys->vmList;\n";
+  printf "    int ret = sizeof (softWords);\n";
+  printf "	  assert(pVM);\n";
+  printf "\n"
+  printf "    ret = ficlExec(pVM, softWords);\n";
+  printf "    if (ret == VM_ERREXIT)\n";
+  printf "        assert(FALSE);\n";
+  printf "    return;\n";
   printf "}\n";
 }

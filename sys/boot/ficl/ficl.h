@@ -3,28 +3,43 @@
 ** Forth Inspired Command Language
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** 
+** $Id: ficl.h,v 1.11 2001-04-26 21:41:48-07 jsadler Exp jsadler $
 *******************************************************************/
 /*
-** N O T I C E -- DISCLAIMER OF WARRANTY
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** L I C E N S E  and  D I S C L A I M E R
 ** 
-** Ficl is freeware. Use it in any way that you like, with
-** the understanding that the code is supported on a "best effort"
-** basis only.
-** 
-** Any third party may reproduce, distribute, or modify the ficl
-** software code or any derivative  works thereof without any 
-** compensation or license, provided that the author information
-** and this disclaimer text are retained in the source code files.
-** The ficl software code is provided on an "as is"  basis without
-** warranty of any kind, including, without limitation, the implied
-** warranties of merchantability and fitness for a particular purpose
-** and their equivalents under the laws of any jurisdiction.  
-** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
+**
 ** I am interested in hearing from anyone who uses ficl. If you have
 ** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release (yay!), please
-** send me email at the address above. 
+** if you would like to contribute to the ficl release, please send
+** contact me by email at the address above.
+**
+** $Id: ficl.h,v 1.11 2001-04-26 21:41:48-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -215,11 +230,13 @@ extern "C" {
 struct ficl_word;
 struct vm;
 struct ficl_dict;
+struct ficl_system;
+typedef struct ficl_system FICL_SYSTEM;
 
 /* 
 ** the Good Stuff starts here...
 */
-#define FICL_VER    "2.03"
+#define FICL_VER    "2.05"
 #if !defined (FICL_PROMPT)
 #define FICL_PROMPT "ok> "
 #endif
@@ -229,7 +246,7 @@ struct ficl_dict;
 ** complement of false... that unifies logical and bitwise operations
 ** nicely.
 */
-#define FICL_TRUE  (~(0L))
+#define FICL_TRUE  ((unsigned long)~(0L))
 #define FICL_FALSE (0)
 #define FICL_BOOL(x) ((x) ? FICL_TRUE : FICL_FALSE)
 
@@ -241,9 +258,13 @@ struct ficl_dict;
 */
 typedef union _cell
 {
-	FICL_INT i;
+    FICL_INT i;
     FICL_UNS u;
-	void *p;
+#if (FICL_WANT_FLOAT)
+    FICL_FLOAT f;
+#endif
+    void *p;
+    void (*fn)(void);
 } CELL;
 
 /*
@@ -301,7 +322,7 @@ typedef struct
             {si.cp = pfs->text; si.count = pfs->count;}
 
 /*
-** Ficl uses a this little structure to hold the address of 
+** Ficl uses this little structure to hold the address of 
 ** the block of text it's working on and an index to the next
 ** unconsumed character in the string. Traditionally, this is
 ** done by a Text Input Buffer, so I've called this struct TIB.
@@ -336,7 +357,7 @@ typedef struct _ficlStack
     FICL_UNS nCells;    /* size of the stack */
     CELL *pFrame;       /* link reg for stack frame */
     CELL *sp;           /* stack pointer */
-    CELL base[1];       /* Bottom of the stack */
+    CELL base[1];       /* Top of stack */
 } FICL_STACK;
 
 /*
@@ -351,7 +372,7 @@ CELL        stackGetTop(FICL_STACK *pStack);
 void        stackLink  (FICL_STACK *pStack, int nCells);
 void        stackPick  (FICL_STACK *pStack, int n);
 CELL        stackPop   (FICL_STACK *pStack);
-void       *stackPopPtr   (FICL_STACK *pStack);
+void       *stackPopPtr(FICL_STACK *pStack);
 FICL_UNS    stackPopUNS(FICL_STACK *pStack);
 FICL_INT    stackPopINT(FICL_STACK *pStack);
 void        stackPush  (FICL_STACK *pStack, CELL c);
@@ -363,6 +384,38 @@ void        stackRoll  (FICL_STACK *pStack, int n);
 void        stackSetTop(FICL_STACK *pStack, CELL c);
 void        stackStore (FICL_STACK *pStack, int n, CELL c);
 void        stackUnlink(FICL_STACK *pStack);
+
+#if (FICL_WANT_FLOAT)
+float       stackPopFloat (FICL_STACK *pStack);
+void        stackPushFloat(FICL_STACK *pStack, float f);
+#endif
+
+/*
+** Shortcuts (Guy Carver)
+*/
+#define PUSHPTR(p)  stackPushPtr(pVM->pStack,p)
+#define PUSHUNS(u)  stackPushUNS(pVM->pStack,u)
+#define PUSHINT(i)  stackPushINT(pVM->pStack,i)
+#define PUSHFLOAT(f)    stackPushFloat(pVM->fStack,f)
+#define PUSH(c)     stackPush(pVM->pStack,c)
+#define POPPTR()    stackPopPtr(pVM->pStack)
+#define POPUNS()    stackPopUNS(pVM->pStack)
+#define POPINT()    stackPopINT(pVM->pStack)
+#define POPFLOAT()  stackPopFloat(pVM->fStack)
+#define POP()       stackPop(pVM->pStack)
+#define GETTOP()    stackGetTop(pVM->pStack)
+#define SETTOP(c)   stackSetTop(pVM->pStack,LVALUEtoCELL(c))
+#define GETTOPF()   stackGetTop(pVM->fStack)
+#define SETTOPF(c)  stackSetTop(pVM->fStack,LVALUEtoCELL(c))
+#define STORE(n,c)  stackStore(pVM->pStack,n,LVALUEtoCELL(c))
+#define DEPTH()     stackDepth(pVM->pStack)
+#define DROP(n)     stackDrop(pVM->pStack,n)
+#define DROPF(n)    stackDrop(pVM->fStack,n)
+#define FETCH(n)    stackFetch(pVM->pStack,n)
+#define PICK(n)     stackPick(pVM->pStack,n)
+#define PICKF(n)    stackPick(pVM->fStack,n)
+#define ROLL(n)     stackRoll(pVM->pStack,n)
+#define ROLLF(n)    stackRoll(pVM->fStack,n)
 
 /* 
 ** The virtual machine (VM) contains the state for one interpreter.
@@ -409,7 +462,7 @@ typedef void (*OUTFUNC)(struct vm *pVM, char *text, int fNewline);
 ** ANS Forth requires that a word's name contain {1..31} characters.
 */
 #if !defined nFICLNAME
-#define nFICLNAME		31
+#define nFICLNAME       31
 #endif
 
 /*
@@ -417,6 +470,7 @@ typedef void (*OUTFUNC)(struct vm *pVM, char *text, int fNewline);
 */
 typedef struct vm
 {
+    FICL_SYSTEM    *pSys;       /* Which system this VM belongs to  */
     struct vm      *link;       /* Ficl keeps a VM list for simple teardown */
     jmp_buf        *pState;     /* crude exception mechanism...     */
     OUTFUNC         textOut;    /* Output callback - see sysdep.c   */
@@ -429,6 +483,9 @@ typedef struct vm
     FICL_UNS        base;       /* number conversion base           */
     FICL_STACK     *pStack;     /* param stack                      */
     FICL_STACK     *rStack;     /* return stack                     */
+#if FICL_WANT_FLOAT
+    FICL_STACK     *fStack;     /* float stack (optional)           */
+#endif
     CELL            sourceID;   /* -1 if string, 0 if normal input  */
     TIB             tib;        /* address of incoming text string  */
 #if FICL_WANT_USER
@@ -489,7 +546,6 @@ int wordIsCompileOnly(FICL_WORD *pFW);
 #define FW_IMMEDIATE    1   /* execute me even if compiling */
 #define FW_COMPILE      2   /* error if executed when not compiling */
 #define FW_SMUDGE       4   /* definition in progress - hide me */
-#define FW_CLASS        8   /* Word defines a class */
 
 #define FW_COMPIMMED    (FW_IMMEDIATE | FW_COMPILE)
 #define FW_DEFAULT      0
@@ -503,6 +559,7 @@ int wordIsCompileOnly(FICL_WORD *pFW);
 #define VM_RESTART   -258   /* word needs more text to succeed - re-run it */
 #define VM_USEREXIT  -259   /* user wants to quit */
 #define VM_ERREXIT   -260   /* interp found an error */
+#define VM_BREAK     -261   /* debugger breakpoint */
 #define VM_ABORT       -1   /* like errexit -- abort */
 #define VM_ABORTQ      -2   /* like errexit -- abort" */
 #define VM_QUIT       -56   /* like errexit, but leave pStack & base alone */
@@ -561,6 +618,9 @@ void        vmInnerLoop(FICL_VM *pVM);
 ** a word's stack effect comment.
 */
 void        vmCheckStack(FICL_VM *pVM, int popCells, int pushCells);
+#if FICL_WANT_FLOAT
+void        vmCheckFStack(FICL_VM *pVM, int popCells, int pushCells);
+#endif
 
 /*
 ** TIB access routines...
@@ -577,6 +637,7 @@ void        vmPopTib(FICL_VM *pVM, TIB *pTib);
 #define     vmGetInBuf(pVM) ((pVM)->tib.cp + (pVM)->tib.index)
 #define     vmGetInBufLen(pVM) ((pVM)->tib.end - (pVM)->tib.cp)
 #define     vmGetInBufEnd(pVM) ((pVM)->tib.end)
+#define     vmGetTibIndex(pVM)    (pVM)->tib.index
 #define     vmSetTibIndex(pVM, i) (pVM)->tib.index = i
 #define     vmUpdateTib(pVM, str) (pVM)->tib.index = (str) - (pVM)->tib.cp
 
@@ -600,7 +661,7 @@ char        digit_to_char(int value);
 char       *strrev( char *string );
 char       *skipSpace(char *cp, char *end);
 char       *caseFold(char *cp);
-int         strincmp(char *cp1, char *cp2, FICL_COUNT count);
+int         strincmp(char *cp1, char *cp2, FICL_UNS count);
 
 #if defined(_WIN32) && !FICL_MAIN
 #pragma warning(default: 4273)
@@ -614,13 +675,14 @@ int         strincmp(char *cp1, char *cp2, FICL_COUNT count);
 ** just a pointer to a FICL_HASH in this implementation.
 */
 #if !defined HASHSIZE /* Default size of hash table. For most uniform */
-#define HASHSIZE 127  /*   performance, use a prime number!   */
+#define HASHSIZE 241  /*   performance, use a prime number!   */
 #endif
 
 typedef struct ficl_hash 
 {
-    struct ficl_hash *link;  /* eventual inheritance support */
-    unsigned   size;
+    struct ficl_hash *link;  /* link to parent class wordlist for OO */
+    char      *name;         /* optional pointer to \0 terminated wordlist name */
+    unsigned   size;         /* number of buckets in the hash */
     FICL_WORD *table[1];
 } FICL_HASH;
 
@@ -696,6 +758,7 @@ int         dictCellsUsed (FICL_DICT *pDict);
 void        dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int nCells);
 FICL_DICT  *dictCreate(unsigned nCELLS);
 FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash);
+FICL_HASH  *dictCreateWordlist(FICL_DICT *dp, int nBuckets);
 void        dictDelete(FICL_DICT *pDict);
 void        dictEmpty(FICL_DICT *pDict, unsigned nHash);
 int         dictIncludes(FICL_DICT *pDict, void *p);
@@ -709,6 +772,67 @@ void        dictSetImmediate(FICL_DICT *pDict);
 void        dictUnsmudge(FICL_DICT *pDict);
 CELL       *dictWhere(FICL_DICT *pDict);
 
+
+/* 
+** P A R S E   S T E P
+** (New for 2.05)
+** See words.c: interpWord
+** By default, ficl goes through two attempts to parse each token from its input
+** stream: it first attempts to match it with a word in the dictionary, and
+** if that fails, it attempts to convert it into a number. This mechanism is now
+** extensible by additional steps. This allows extensions like floating point and 
+** double number support to be factored cleanly.
+**
+** Each parse step is a function that receives the next input token as a STRINGINFO.
+** If the parse step matches the token, it must apply semantics to the token appropriate
+** to the present value of VM.state (compiling or interpreting), and return FICL_TRUE.
+** Otherwise it returns FICL_FALSE. See words.c: isNumber for an example
+**
+** Note: for the sake of efficiency, it's a good idea both to limit the number
+** of parse steps and to code each parse step so that it rejects tokens that
+** do not match as quickly as possible.
+*/
+
+typedef int (*FICL_PARSE_STEP)(FICL_VM *pVM, STRINGINFO si);
+
+/*
+** Appends a parse step function to the end of the parse list (see 
+** FICL_PARSE_STEP notes in ficl.h for details). Returns 0 if successful,
+** nonzero if there's no more room in the list. Each parse step is a word in 
+** the dictionary. Precompiled parse steps can use (PARSE-STEP) as their 
+** CFA - see parenParseStep in words.c.
+*/
+int  ficlAddParseStep(FICL_SYSTEM *pSys, FICL_WORD *pFW); /* ficl.c */
+void ficlAddPrecompiledParseStep(FICL_SYSTEM *pSys, char *name, FICL_PARSE_STEP pStep);
+void ficlListParseSteps(FICL_VM *pVM);
+
+/*
+** F I C L _ S Y S T E M
+** The top level data structure of the system - ficl_system ties a list of
+** virtual machines with their corresponding dictionaries. Ficl 3.0 will
+** support multiple Ficl systems, allowing multiple concurrent sessions 
+** to separate dictionaries with some constraints. 
+** The present model allows multiple sessions to one dictionary provided
+** you implement ficlLockDictionary() as specified in sysdep.h
+**
+** RESTRICTIONS: due to the use of static variables in words.c for compiling
+** comtrol structures faster, if you use multiple ficl systems these variables
+** will point into the most recently initialized dictionary - this is probably
+** not a problem provided the precompiled dictionaries are identical for 
+** all systems.
+*/
+struct ficl_system 
+{
+    FICL_SYSTEM *link;
+    FICL_WORD *parseList[FICL_MAX_PARSE_STEPS];
+    FICL_VM *vmList;
+    FICL_DICT *dp;
+    FICL_DICT *envp;
+#ifdef FICL_WANT_LOCALS
+    FICL_DICT *localp;
+#endif
+    FICL_WORD *pInterp[3];
+};
 
 /*
 ** External interface to FICL...
@@ -835,27 +959,60 @@ int        ficlBuild(char *name, FICL_CODE code, char flags);
 ** Builds the ANS CORE wordset into the dictionary - called by
 ** ficlInitSystem - no need to waste dict space by doing it again.
 */
-void       ficlCompileCore(FICL_DICT *dp);
-void       ficlCompileSoftCore(FICL_VM *pVM);
+void       ficlCompileCore(FICL_SYSTEM *pSys);
+void       ficlCompilePrefix(FICL_SYSTEM *pSys);
+void       ficlCompileSearch(FICL_SYSTEM *pSys);
+void       ficlCompileSoftCore(FICL_SYSTEM *pSys);
+void       ficlCompileTools(FICL_SYSTEM *pSys);
+#if FICL_WANT_FLOAT
+void       ficlCompileFloat(FICL_SYSTEM *pSys);
+#endif
+#if FICL_PLATFORM_EXTEND
+void       ficlCompilePlatform(FICL_SYSTEM *pSys);
+#endif
 
 /*
 ** from words.c...
 */
 void       constantParen(FICL_VM *pVM);
 void       twoConstParen(FICL_VM *pVM);
+int        ficlParseNumber(FICL_VM *pVM, STRINGINFO si);
+void       ficlTick(FICL_VM *pVM);
+void       parseStepParen(FICL_VM *pVM);
+
+/*
+** From tools.c
+*/
+int        isAFiclWord(FICL_WORD *pFW);
+
+/* 
+** The following supports SEE and the debugger.
+*/
+typedef enum  
+{
+    BRANCH,
+    COLON, 
+    CONSTANT, 
+    CREATE,
+    DO,
+    DOES, 
+    IF,
+    LITERAL,
+    LOOP,
+    PLOOP,
+    PRIMITIVE,
+    QDO,
+    STRINGLIT,
+    USER, 
+    VARIABLE, 
+} WORDKIND;
+WORDKIND   ficlWordClassify(FICL_WORD *pFW);
 
 /*
 ** Dictionary on-demand resizing
 */
 extern unsigned int dictThreshold;
 extern unsigned int dictIncrease;
-
-/*
-** So we can more easily debug...
-*/
-#ifdef FICL_TRACE
-extern int ficl_trace;
-#endif
 
 /*
 ** Various FreeBSD goodies

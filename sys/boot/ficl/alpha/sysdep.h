@@ -9,27 +9,43 @@
 ** FICL_ROBUST is enabled. This may require some consideration
 ** in firmware systems since assert often
 ** assumes stderr/stdout.  
-** 
+** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
 *******************************************************************/
 /*
-** N O T I C E -- DISCLAIMER OF WARRANTY
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** L I C E N S E  and  D I S C L A I M E R
 ** 
-** Ficl is freeware. Use it in any way that you like, with
-** the understanding that the code is not supported.
-** 
-** Any third party may reproduce, distribute, or modify the ficl
-** software code or any derivative  works thereof without any 
-** compensation or license, provided that the author information
-** and this disclaimer text are retained in the source code files.
-** The ficl software code is provided on an "as is"  basis without
-** warranty of any kind, including, without limitation, the implied
-** warranties of merchantability and fitness for a particular purpose
-** and their equivalents under the laws of any jurisdiction.  
-** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
+**
 ** I am interested in hearing from anyone who uses ficl. If you have
 ** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release (yay!), please
-** send me email at the address above. 
+** if you would like to contribute to the ficl release, please send
+** contact me by email at the address above.
+**
+** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -41,13 +57,11 @@
 
 #include <stddef.h> /* size_t, NULL */
 #include <setjmp.h>
-
 #include <assert.h>
 
 #if !defined IGNORE		/* Macro to silence unused param warnings */
 #define IGNORE(x) &x
 #endif
-
 
 /*
 ** TRUE and FALSE for C boolean operations, and
@@ -89,6 +103,7 @@
 ** FICL_UNS and FICL_INT must have the same size as a void* on
 ** the target system. A CELL is a union of void*, FICL_UNS, and
 ** FICL_INT. 
+** (11/2000: same for FICL_FLOAT)
 */
 #if !defined FICL_INT
 #define FICL_INT long
@@ -96,6 +111,10 @@
 
 #if !defined FICL_UNS
 #define FICL_UNS unsigned long
+#endif
+
+#if !defined FICL_FLOAT
+#define FICL_FLOAT float
 #endif
 
 /*
@@ -135,9 +154,108 @@ typedef struct
 
 
 /*
-** Build controls
+** B U I L D   C O N T R O L S
+*/
+
+#if !defined (FICL_MINIMAL)
+#define FICL_MINIMAL 0
+#endif
+#if (FICL_MINIMAL)
+#define FICL_WANT_SOFTWORDS  0
+#define FICL_WANT_FLOAT      0
+#define FICL_WANT_USER       0
+#define FICL_WANT_LOCALS     0
+#define FICL_WANT_DEBUGGER   0
+#define FICL_WANT_OOP        0
+#define FICL_PLATFORM_EXTEND 0
+#define FICL_MULTITHREAD     0
+#define FICL_ROBUST          0
+#define FICL_EXTENDED_PREFIX 0
+#endif
+
+/*
+** FICL_PLATFORM_EXTEND
+** Includes words defined in ficlCompilePlatform
+*/
+#if !defined (FICL_PLATFORM_EXTEND)
+#define FICL_PLATFORM_EXTEND 1
+#endif
+
+/*
+** FICL_WANT_FLOAT
+** Includes a floating point stack for the VM, and words to do float operations.
+** Contributed by Guy Carver
+*/
+#if !defined (FICL_WANT_FLOAT)
+#define FICL_WANT_FLOAT 0
+#endif
+
+/*
+** FICL_WANT_DEBUGGER
+** Inludes a simple source level debugger
+*/
+#if !defined (FICL_WANT_DEBUGGER)
+#define FICL_WANT_DEBUGGER 1
+#endif
+
+/*
+** User variables: per-instance variables bound to the VM.
+** Kinda like thread-local storage. Could be implemented in a 
+** VM private dictionary, but I've chosen the lower overhead
+** approach of an array of CELLs instead.
+*/
+#if !defined FICL_WANT_USER
+#define FICL_WANT_USER 1
+#endif
+
+#if !defined FICL_USER_CELLS
+#define FICL_USER_CELLS 16
+#endif
+
+/* 
+** FICL_WANT_LOCALS controls the creation of the LOCALS wordset and
+** a private dictionary for local variable compilation.
+*/
+#if !defined FICL_WANT_LOCALS
+#define FICL_WANT_LOCALS 1
+#endif
+
+/* Max number of local variables per definition */
+#if !defined FICL_MAX_LOCALS
+#define FICL_MAX_LOCALS 16
+#endif
+
+/*
+** FICL_WANT_OOP
+** Inludes object oriented programming support (in softwords)
+** OOP support requires locals and user variables!
+*/
+#if !(FICL_WANT_LOCALS) || !(FICL_WANT_USER)
+#if !defined (FICL_WANT_OOP)
+#define FICL_WANT_OOP 0
+#endif
+#endif
+
+#if !defined (FICL_WANT_OOP)
+#define FICL_WANT_OOP 1
+#endif
+
+/*
+** FICL_WANT_SOFTWORDS
+** Controls inclusion of all softwords in softcore.c
+*/
+#if !defined (FICL_WANT_SOFTWORDS)
+#define FICL_WANT_SOFTWORDS 1
+#endif
+
+/*
 ** FICL_MULTITHREAD enables dictionary mutual exclusion
 ** wia the ficlLockDictionary system dependent function.
+** Note: this implementation is experimental and poorly
+** tested. Further, it's unnecessary unless you really
+** intend to have multiple SESSIONS (poor choice of name
+** on my part) - that is, threads that modify the dictionary
+** at the same time.
 */
 #if !defined FICL_MULTITHREAD
 #define FICL_MULTITHREAD 0
@@ -151,7 +269,6 @@ typedef struct
 #if !defined (PORTABLE_LONGMULDIV)
 #define PORTABLE_LONGMULDIV 0
 #endif
-
 
 /*
 ** INLINE_INNER_LOOP causes the inner interpreter to be inline code
@@ -214,30 +331,21 @@ typedef struct
 #endif
 
 /*
-** User variables: per-instance variables bound to the VM.
-** Kinda like thread-local storage. Could be implemented in a 
-** VM private dictionary, but I've chosen the lower overhead
-** approach of an array of CELLs instead.
+** FICL_MAX_PARSE_STEPS controls the size of an array in the FICL_SYSTEM structure
+** that stores pointers to parser extension functions. I would never expect to have
+** more than 8 of these, so that's the default limit. Too many of these functions
+** will probably exact a nasty performance penalty.
 */
-#if !defined FICL_WANT_USER
-#define FICL_WANT_USER 1
+#if !defined FICL_MAX_PARSE_STEPS
+#define FICL_MAX_PARSE_STEPS 8
 #endif
 
-#if !defined FICL_USER_CELLS
-#define FICL_USER_CELLS 16
-#endif
-
-/* 
-** FICL_WANT_LOCALS controls the creation of the LOCALS wordset and
-** a private dictionary for local variable compilation.
+/*
+** FICL_EXTENDED_PREFIX enables a bunch of extra prefixes in prefix.c and prefix.fr (if
+** included as part of softcore.c)
 */
-#if !defined FICL_WANT_LOCALS
-#define FICL_WANT_LOCALS 1
-#endif
-
-/* Max number of local variables per definition */
-#if !defined FICL_MAX_LOCALS
-#define FICL_MAX_LOCALS 16
+#if !defined FICL_EXTENDED_PREFIX
+#define FICL_EXTENDED_PREFIX 0
 #endif
 
 /*
