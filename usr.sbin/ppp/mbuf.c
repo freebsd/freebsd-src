@@ -292,7 +292,7 @@ int
 mbuf_Show(struct cmdargs const *arg)
 {
   int i;
-  static const char *mbuftype[] = { 
+  static const char * const mbuftype[] = { 
     "ip in", "ip out", "nat in", "nat out", "mp in", "mp out",
     "vj in", "vj out", "icompd in", "icompd out", "compd in", "compd out",
     "lqr in", "lqr out", "echo in", "echo out", "proto in", "proto out",

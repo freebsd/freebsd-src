@@ -42,7 +42,7 @@ static void StopTimerNoBlock(struct pppTimer *);
 static const char *
 tState2Nam(u_int state)
 {
-  static const char *StateNames[] = { "stopped", "running", "expired" };
+  static const char * const StateNames[] = { "stopped", "running", "expired" };
 
   if (state >= sizeof StateNames / sizeof StateNames[0])
     return "unknown";

@@ -1219,7 +1219,7 @@ datalink_SetRedial(struct cmdargs const *arg)
   return -1;
 }
 
-static const char *states[] = {
+static const char * const states[] = {
   "closed",
   "opening",
   "hangup",

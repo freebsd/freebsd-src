@@ -101,10 +101,10 @@ static struct fsm_callbacks lcp_Callbacks = {
   fsm_NullRecvResetAck
 };
 
-static const char *lcp_TimerNames[] =
+static const char * const lcp_TimerNames[] =
   {"LCP restart", "LCP openmode", "LCP stopped"};
 
-static const char *cftypes[] = {
+static const char * const cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "MRU",	/* 1: Maximum-Receive-Unit */

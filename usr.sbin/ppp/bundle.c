@@ -103,7 +103,7 @@
 
 static int bundle_RemainingIdleTime(struct bundle *);
 
-static const char *PhaseNames[] = {
+static const char * const PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
 };
 

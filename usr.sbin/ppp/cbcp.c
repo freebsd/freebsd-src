@@ -142,7 +142,7 @@ cbcp_StartTimer(struct cbcp *cbcp, int timeout)
 #define CBCP_RESPSENT	(3)	/* Waiting for an ACK */
 #define CBCP_ACKSENT	(4)	/* Waiting for an LCP Term REQ */
 
-static const char *cbcpname[] = {
+static const char * const cbcpname[] = {
   "closed", "stopped", "req-sent", "resp-sent", "ack-sent"
 };
 
@@ -209,7 +209,7 @@ cbcp_Output(struct cbcp *cbcp, u_char code, struct cbcp_data *data)
 static const char *
 cbcp_data_Type(int type)
 {
-  static const char *types[] = {
+  static const char * const types[] = {
     "No callback", "User-spec", "Server-spec", "list"
   };
 
