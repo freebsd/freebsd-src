@@ -998,7 +998,7 @@ re_allocmem(dev, sc)
 	nseg = 32;
 	error = bus_dma_tag_create(sc->rl_parent_tag, ETHER_ALIGN, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, MCLBYTES * nseg, nseg, RL_JLEN, BUS_DMA_ALLOCNOW,
+	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, BUS_DMA_ALLOCNOW,
 	    NULL, NULL, &sc->rl_ldata.rl_mtag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
