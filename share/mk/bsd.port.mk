@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.46 1994/10/04 15:44:03 jkh Exp $
+# $Id: bsd.port.mk,v 1.47 1994/10/04 15:48:21 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -128,7 +128,7 @@ EXTRACT_SUFX?=	.tar.gz
 EXTRACT_ARGS?=	-C ${WRKDIR} -xzf
 
 PKG_CMD?=		pkg_create
-PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
+PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
 PKG_SUFX?=		.tgz
 
 # I guess we're in the master distribution business! :)  As we gain mirror
