@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.64 1999/07/06 19:23:18 des Exp $
+ *	$Id: if_ed.c,v 1.65 1999/08/10 09:13:48 kato Exp $
  */
 
 /*
@@ -2026,8 +2026,8 @@ ed_probe_CNET98(isa_dev)
 	 */
 	tmp_s = kvtop(sc->mem_start) >> 12;
 	if ( tmp_s < 0x80 ) {
-		printf("ed%d: Please change window address(0x%x)\n",
-			   isa_dev->id_unit,sc->mem_start);
+		printf("ed%d: Please change window address(0x%lx)\n",
+			   isa_dev->id_unit, (u_long)sc->mem_start);
 	  return (0);
 	}
 
