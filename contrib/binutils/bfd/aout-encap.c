@@ -1,5 +1,5 @@
 /* BFD back-end for a.out files encapsulated with COFF headers.
-   Copyright (C) 1990, 1991 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1994, 1995, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 

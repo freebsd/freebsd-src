@@ -1,6 +1,6 @@
 %{
 
-/* Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 1999
+/* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -45,6 +45,7 @@ This was written by steve chamberlain
 #include "ldfile.h"
 #include "ldlex.h"
 #include "ldmain.h"
+#include "libiberty.h"
 
 /* The type of top-level parser input.
    yylex and yyparse (indirectly) both check this.  */
@@ -147,7 +148,7 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 
 <DEFSYMEXP>"-"                  { RTOKEN('-');}
 <DEFSYMEXP>"+"                  { RTOKEN('+');}
-<DEFSYMEXP>{FILENAMECHAR1}{SYMBOLCHARN}*   { yylval.name = buystring(yytext); return NAME; }
+<DEFSYMEXP>{FILENAMECHAR1}{SYMBOLCHARN}*   { yylval.name = xstrdup(yytext); return NAME; }
 <DEFSYMEXP>"="                  { RTOKEN('='); }
 
 <MRI,EXPRESSION>"$"([0-9A-Fa-f])+ {
@@ -333,17 +334,17 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 
 <MRI>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
 /* Filename without commas, needed to parse mri stuff */
-				 yylval.name = buystring(yytext); 
+				 yylval.name = xstrdup(yytext); 
 				  return NAME;
 				}
 
 
 <BOTH,EXPRESSION>{FILENAMECHAR1}{FILENAMECHAR}*	{
-				 yylval.name = buystring(yytext); 
+				 yylval.name = xstrdup(yytext); 
 				  return NAME;
 				}
 <BOTH,EXPRESSION>"-l"{FILENAMECHAR}+ {
-				  yylval.name = buystring (yytext + 2);
+				  yylval.name = xstrdup (yytext + 2);
 				  return LNAME;
 				}
 <SCRIPT>{WILDCHAR}* {
@@ -358,7 +359,7 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 		  }
 		else
 		  {
-		    yylval.name = buystring(yytext);
+		    yylval.name = xstrdup(yytext);
 		    return NAME;
 		  }
 	}
@@ -366,7 +367,7 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 <EXPRESSION,BOTH,SCRIPT,VERS_NODE>"\""[^\"]*"\"" {
 					/* No matter the state, quotes
 					   give what's inside */
-					yylval.name = buystring(yytext+1);
+					yylval.name = xstrdup(yytext+1);
 					yylval.name[yyleng-2] = 0;
 					return NAME;
 				}
@@ -381,10 +382,10 @@ V_IDENTIFIER [*?.$_a-zA-Z]([*?.$_a-zA-Z0-9]|::)*
 
 <VERS_NODE>extern		{ RTOKEN(EXTERN); }
 
-<VERS_NODE>{V_IDENTIFIER}	{ yylval.name = buystring (yytext);
+<VERS_NODE>{V_IDENTIFIER}	{ yylval.name = xstrdup (yytext);
 				  return VERS_IDENTIFIER; }
 
-<VERS_SCRIPT>{V_TAG}		{ yylval.name = buystring (yytext);
+<VERS_SCRIPT>{V_TAG}		{ yylval.name = xstrdup (yytext);
 				  return VERS_TAG; }
 
 <VERS_START>"{"			{ BEGIN(VERS_SCRIPT); return *yytext; }

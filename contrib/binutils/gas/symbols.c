@@ -1,5 +1,6 @@
 /* symbols.c -symbol table-
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -1530,7 +1531,7 @@ decode_local_label_name (s)
   int label_number;
   int instance_number;
   char *type;
-  const char *message_format = _("\"%d\" (instance number %d of a %s label)");
+  const char *message_format;
   int index = 0;
 
 #ifdef LOCAL_LABEL_PREFIX
@@ -1554,6 +1555,7 @@ decode_local_label_name (s)
   for (instance_number = 0, p++; isdigit ((unsigned char) *p); ++p)
     instance_number = (10 * instance_number) + *p - '0';
 
+  message_format = _("\"%d\" (instance number %d of a %s label)");
   symbol_decode = obstack_alloc (&notes, strlen (message_format) + 30);
   sprintf (symbol_decode, message_format, label_number, instance_number, type);
 
@@ -1812,6 +1814,17 @@ S_SET_EXTERNAL (s)
   if ((s->bsym->flags & BSF_WEAK) != 0)
     {
       /* Let .weak override .global.  */
+      return;
+    }
+  if (s->bsym->flags & BSF_SECTION_SYM)
+    {
+      char * file;
+      unsigned int line;
+      
+      /* Do not reassign section symbols.  */
+      as_where (& file, & line);
+      as_warn_where (file, line,
+		     _("Section symbols are already global"));
       return;
     }
   s->bsym->flags |= BSF_GLOBAL;

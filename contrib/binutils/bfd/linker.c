@@ -1,5 +1,5 @@
 /* linker.c -- BFD linker routines
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 1999
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support
 
@@ -1801,6 +1801,15 @@ _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section, value,
 						copy, false);
 	    if (inh == (struct bfd_link_hash_entry *) NULL)
 	      return false;
+	    if (inh->type == bfd_link_hash_indirect
+		&& inh->u.i.link == h)
+	      {
+		(*_bfd_error_handler)
+		  (_("%s: indirect symbol `%s' to `%s' is a loop"),  
+		   bfd_get_filename (abfd), name, string);
+		bfd_set_error (bfd_error_invalid_operation);
+		return false;
+	      }
 	    if (inh->type == bfd_link_hash_new)
 	      {
 		inh->type = bfd_link_hash_undefined;

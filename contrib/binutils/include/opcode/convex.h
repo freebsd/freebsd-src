@@ -1,5 +1,5 @@
 /* Information for instruction disassembly on the Convex.
-   Copyright 1989, 1993 Free Software Foundation.  
+   Copyright 1989, 1993 Free Software Foundation, Inc.
 
 This file is part of GDB.
 

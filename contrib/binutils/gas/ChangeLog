@@ -1,3 +1,573 @@
+2001-06-18  Philip Blundell  <philb@gnu.org>
+
+	* config/tc-arm.c (do_msr): Remove restriction on usage of
+	immediate operands.
+
+2001-06-13  Philip Blundell  <philb@gnu.org>
+
+	* config/tc-arm.c (thumb_shift): Improve wording of error message.
+	(do_t_arit): Likewise.
+
+2001-06-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-sh.c (md_pseudo_table): Only intercept the .file and
+	.loc pseudos if the dfwarf2 functions are available.
+	(md_assemble): Only call dwarf2_emit_insn if it is available.
+
+2001-06-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	Merge from mainline:
+	2001-05-11  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/tc-arm.c (arm_handle_align): When truncating an aligned
+	block, ensure that the low order bits of the alignment are
+	preserved.
+	2001-05-06  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/tc-arm.h (MAX_MEM_FOR_RS_ALIGN_CODE): Define.
+	* config/tc-arm.c (arm_handle_align): Do not insert more than
+	MAX_MEM_FOR_RS_ALIGN_CODE bytes.
+	(arm_frag_align_code): Use MAX_MEM_FOR_RS_ALIGN_CODE.
+	2001-04-26  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/tc-arm.c (arm_handle_align): New Function:  Generate
+	no-op filled alignment frags.
+	(arm_frag_align_code): New Function: Create a code alignment frag.
+	(arm_init_frag): New Function: Initialse the target dependent
+	parts of a frag.
+	* config/tc-arm.h (TC_FRAG_TYPE): Define.
+	(TC_FRAG_INIT): Define.
+	(HANDLE_ALIGN): Define.
+	(md_do_align): Define.
+	2001-03-12  Nick Clifton  <nickc@redhat.com>
+	* config/tc-arm.c (md_begin): Always set machine type based on
+	cpu_variant.
+	2001-03-06  Nick Clifton  <nickc@redhat.com>
+	* config/tc-arm.c (md_apply_fix3): Clear bit zero of offset in
+	BLX(1) instruction.
+
+2001-06-12  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* doc/as.texinfo (Infix Ops): Document that comparison and
+	combiner operators can be used as infix operators.
+
+2001-06-12  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-arm.c: Fix test for overlow of literal pool.
+
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-06-08  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-mips.c (mips16_mark_labels): Reduce number of calls to
+	S_GET_VALUE by using a temp.
+	(append_insn): Likewise, and for S_SET_VALUE too.
+	(mips_emit_delays): Likewise.
+	(my_getExpression): Likewise.
+	(md_apply_fix): Likewise.  Use "valueT" rather than "long" for "value".
+	(mips16_extended_frag): Cater for first relaxation pass having
+	bogus addresses.  Use relax_marker to reliably determine whether a
+	symbol frag has been reached on the current pass.
+
+	2001-06-07  H.J. Lu  <hjl@gnu.org>
+	* configure.in: Use MIPS_STABS_ELF for Linux/mips.
+	* configure: Regenerate.
+
+	2001-06-07  H.J. Lu  <hjl@gnu.org>
+	* config/tc-mips.c (mips_pseudo_table): Add "extern" if
+	MIPS_STABS_ELF is defined.
+
+	2001-06-06  Christian Groessler <cpg@aladdin.de>
+	* config/tc-z8k.c: Removed many warnings by removing unused
+	variables and tagging unused parameters as such.
+	(md_begin): Fixed a typo (","instead of ";").
+	(struct ctrl_table): Add parentheses to initialize array
+	correctly.
+	(struct flag_table): Likewise.
+	(struct intr_table): Likewise.
+	(struct table): Likewise.
+	(check_operand): "#if 0"'ed since it doesn't seem to be used.
+
+	2001-06-06  Peter Jakubek <pjak@snafu.de>
+	* gas/config/tc-m68k.c (md_show_usage): Add all supported ColdFire
+	options to list (e.g. m5206e, m5307, m5407).
+
+	2001-06-06  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.c (md_assemble): Handle Pentium4 branch hints.
+	<JumpByte, JumpDword insn output>: Remove dead code.
+
+	2001-06-05  Nick Clifton  <nickc@cambridge.redhat.com>
+	* symbols.c (S_SET_EXTERNAL): Do not override a section symbol's
+	status.
+
+	2001-05-27  Alan Modra  <amodra@one.net.au>
+	* config/tc-m68k.c (md_assemble): Ensure variable part of frag is
+	allocated in the same chunk as the fixed part.
+
+	2001-05-25  Alan Modra  <amodra@one.net.au>
+	* configure.in: Replace linuxoldld with linux*oldld.
+	* configure: Regenerate.
+
+	2000-05-24  Tom Rix <trix@redhat.com>
+	* config/obj-coff.c (add_lineno): xcoff allows negative line
+	numbers
+	* config/tc-ppc.c (ppc_stabx): fix generated symbol
+
+	2001-05-23  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* config/tc-mips.c (ISA_HAS_64BIT_REGS): Add ISA_MIPS64 as 64 bit
+	architecture, remove erraneous ISA_MIPS32.
+	(md_show_usage): Add MIPS r12k support.
+	(mips_cpu_info_table): Add MIPS r12k support.
+
+	2001-05-22  Alan Modra  <amodra@one.net.au>
+	* config/tc-m68k.c (relaxable_symbol): Only treat external symbols
+	as relaxable if embedded system, make weak syms non-relaxable.
+	Move definition..
+	(tc_m68k_fix_adjustable): ..so it can be used here.
+	(md_apply_fix_2): Sign extend without conditional.
+
+	2001-05-16  Jeff Johnston  <jjohnstn@redhat.com>
+	* cgen.c (gas_cgen_tc_gen_reloc): Changed error message when
+	howto entry is not found.
+
+	2001-05-10  Alan Modra  <amodra@one.net.au>
+	* config/obj-vms.c (obj_crawl_symbol_chain): Don't take address of
+	symbol_next.
+	* config/tc-fr30.c (md_estimate_size_before_relax): Return size of
+	current variable part of frag.
+	* config/tc-m32r.c (md_estimate_size_before_relax): Likewise.
+	* config/tc-m68hc11.c (RELAX_STATE): Define.
+	(RELAX_LENGTH): Define.
+	(md_estimate_size_before_relax): Handle non-relaxable cases
+	separately from relaxable cases for clarity, and return correct
+	size for multi-pass relaxation.
+	* config/tc-tahoe.c (RELAX_LENGTH): Correct.
+	(md_estimate_size_before_relax): As for tc-m68hc11.c.
+	(md_convert_frag): Remove "length_code".
+	* config/tc-vax.c (RELAX_STATE): Define.
+	(RELAX_LENGTH): Define.
+	(md_relax_table): Add missing entry.
+	(md_estimate_size_before_relax): As for tc-m68hc11.c.
+	(md_convert_frag): Remove "length_code".
+	* config/tc-ns32k.c (md_estimate_size_before_relax): Simplify and
+	don't bother setting fr_var.  Return correct size for multi-pass
+	relaxation.
+	* config/tc-h8500.c (md_convert_frag): Don't bother clearing fr_var.
+	(md_estimate_size_before_relax): No need to set fr_var.
+	* config/tc-mcore.c (md_convert_frag): Don't bother clearing fr_var.
+	(md_estimate_size_before_relax): No need to set fr_var.
+
+	2001-05-08  Andreas Schwab  <schwab@suse.de>
+	* config/tc-m68k.c: Instead of replacing -1 by 64 in assignment to
+	fx_pcrel_adjust explicitly sign extend when reading it.
+
+	2001-05-03  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* Makefile.am (TARG_ENV_HFILES): Add te-hppa64.h and te-hppalinux64.h.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* configure.in: Remove duplicate mips-*-ecoff* entry.
+	* configure: Regenerate.
+	* config/obj-ecoff.c (obj_pseudo_table): Fix terminating entry.
+	(n_names): Cast away type mismatch.
+	(ecoff_sec_sym_ok_for_reloc): Add unused attribute.
+	(obj_ecoff_frob_symbol): Likewise.
+	* ecoff.c: (add_file): Add unused attribute.
+	(ecoff_directive_begin): Likewise.
+	(ecoff_directive_bend): Likewise.
+	(ecoff_directive_def): Likewise.
+	(ecoff_directive_dim): Likewise.
+	(ecoff_directive_scl): Likewise.
+	(ecoff_directive_size): Likewise.
+	(ecoff_directive_type): Likewise.
+	(ecoff_directive_tag): Likewise.
+	(ecoff_directive_val): Likewise.
+	(ecoff_directive_endef): Likewise.
+	(ecoff_directive_end): Likewise.
+	(ecoff_directive_ent): Likewise.
+	(ecoff_directive_extern): Likewise.
+	(ecoff_directive_file): Likewise.
+	(ecoff_directive_fmask): Likewise.
+	(ecoff_directive_frame): Likewise.
+	(ecoff_directive_mask): Likewise.
+	(ecoff_directive_loc): Likewise.
+	(mark_stabs): Likewise.
+	(ecoff_stab):  Likewise.
+	(ecoff_frob_symbol): Cast away type mismatch.
+	(ecoff_padding_adjust): Likewise.
+	(ecoff_build_symbols): Likewise.
+	(ecoff_build_procs): Likewise.
+	(ecoff_build_aux): Likewise.
+	(ecoff_build_strings): Likewise.
+	(ecoff_build_fdr): Likewise.
+	(ecoff_build_debug): Likewise.
+	* itbl-ops.c (itbl_assemble): Variable initialization.
+
+	2001-04-29  Keith M Wesolowski <wesolows@foobazco.org>
+	* config/tc-mips.c (md_parse_option): Also accept
+	elf64-tradbigmips and elf64-tradlittlemips for OPTION_64.
+
+	2001-04-27  Sean McNeil <sean@mcneil.com>
+	* configure.in: Add arm-vxworks.
+	* configure: Regenerate.
+
+	2001-04-25  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/obj-coff.c (do_linenos_for): Check to see if the filename
+	symbol has been initialised before extracting its symbol index.
+
+	2001-04-24  Christian Groessler  <cpg@aladdin.de>
+	* config/tc-z8k.c (build_bytes): 12 and 16 bit displacements now
+	generate R_CALLR and R_REL16 relocations
+
+	2000-04-20  Jason Eckhardt  <jle@redhat.com>
+	* config/tc-d10v.h (tc_frob_label): Update the symbol's frag
+	since frag_now can change after d10v_cleanup is called.
+
+	2001-04-12  Jason Merrill  <jason_merrill@redhat.com>
+	* dwarf2dbg.c (process_entries): Don't optimize redundant line notes.
+
+	2001-04-07  Steven J. Hill  <sjhill@cotw.com>
+	* config/tc-mips.c: Support ELF64 for traditional MIPS targets.
+	* Makefile.am: (TARG_ENV_HFILES): Add tc-mips.h.
+	* Makefile.in: Regenerated.
+	* configure.in: Use traditional MIPS targets for Linux/MIPS.
+	* configure: Regenerated.
+
+	2001-04-05  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in: Add h8500-*-coff and h8500-*-rtems targets.
+	* configure: Regenerate.
+	* config/tc-h8500.c (md_estimate_size_before_relax): Add missing
+	cases, and always return size based on current fr_subtype.
+	(md_begin): Move initialization of md_relax_table..
+	(md_relax_table): ..to static initializer.  Set rlx_length for
+	UNDEF_WORD_DISP cases.
+	* config/tc-w65.c (md_estimate_size_before_relax): Likewise.
+	(md_begin): Likewise.
+	(md_relax_table): Likewise.
+	* config/tc-mcore.c (md_estimate_size_before_relax): Likewise.
+	(md_relax_table): Set rlx_length for UNDEF_WORD_DISP cases.
+	Set rlx_backward and rlx_forward to zero for unused states.
+	* config/tc-sh.c (md_estimate_size_before_relax): Likewise.
+	(md_relax_table): Set rlx_length for UNDEF_WORD_DISP cases.
+	(UNCOND12, UNCOND32): Remove duplicate defines.
+
+	2001-03-30  Alan Modra  <alan@linuxcare.com.au>
+	* dwarf2dbg.c (dwarf2_directive_file): Fix warnings.
+
+	2001-03-30  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-sh.c (md_estimate_size_before_relax): Add extra
+	do-nothing cases to switch to avoid abort on a second relaxation
+	pass, and tidy code a little.
+	* config/tc-h8500.c (md_estimate_size_before_relax): Likewise.
+	* config/tc-w65.c (md_estimate_size_before_relax): Likewise.
+	* config/tc-mcore.c (COND12, UNCD12): Rename to DISP12 throughout.
+	(COND32, UNCD32): Rename to DISP32 throughout.
+	(UNDEF_WORD_DISP): Renumber to 3.
+	(md_estimate_size_before_relax): Add extra do-nothing cases.
+	* config/tc-mn10200.c (md_estimate_size_before_relax): Rewrite.
+	* config/tc-ns32k.c (md_estimate_size_before_relax): Add cases to
+	handle word and dword branches.
+
+	2001-03-17  Alan Modra  <alan@linuxcare.com.au>
+	* read.c (do_org): Handle complex expressions.
+	* cgen.c (gas_cgen_finish_insn): Likewise.
+
+	2001-03-15  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-sh.c (parse_reg): Match capital MACH and MACL.
+
+	2001-03-06  Igor Shevlyakov  <igor@windriver.com>
+	* config/tc-m68k.c : Add 5407 to archs[] table.
+	(HAVE_LONG_BRANCH): Add mcf5407.
+	(select_control_regs): Recognize 5407.
+
+	2001-03-02  Richard Sandiford  <rsandifo@redhat.com>
+	* config/atof-ieee.c (TC_LARGEST_EXPONENT_IS_NORMAL): New macro.
+	(gen_to_words): Print warnings if NaNs are found and the target CPU
+	does not support them.  Allow largest exponent to be used in normal
+	numbers if TC_LARGEST_EXPONENT_IS_NORMAL evaluates to true.
+
+	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+
+	2001-02-26  Mark Elbrecht  <snowball3@bigfoot.com>
+	* config/obj-coff.c [BFD_ASSEMBLER] (obj_coff_section): Set
+	SEC_NEVER_LOAD when the 'n' flag is used.
+	Add SEC_NEVER_LOAD to matchflags.
+
+	2001-02-24  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+	* symbols.c (decode_local_label_name): Initialize message_format
+	only when an error is reported (perf pb due to I18N).
+
+	2001-02-23  H.J. Lu  <hjl@gnu.org>
+	* dwarf2dbg.c (dwarf2_directive_file): Call s_app_file (0) if
+	BFD_ASSEMBLER is not defined.
+
+	2001-02-16  matthew green  <mrg@redhat.com>
+	* cgen.c (gas_cgen_md_apply_fix3): Support BFD_RELOC_64.
+
+	2001-02-11  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+	* config/tc-mips.c (macro): For M_LA_AB emit a
+	BFD_RELOC_MIPS_CALL16 relocation or a
+	BFD_RELOC_MIPS_CALL_HI16/BFD_RELOC_MIPS_CALL_LO16 pair instead of
+	BFD_RELOC_MIPS_GOT16 and
+	BFD_RELOC_MIPS_GOT_HI16/BFD_RELOC_MIPS_GOT_LO16, respectively for
+	loading the jump register when generating SVR4_PIC code.
+
+	2001-02-10  Chris Demetriou  <cgd@broadcom.com>
+	* configure.in: Make 'mipself' and 'mipsecoff' emulations
+	map to MIPS-specific files, as they used to do before the
+	change on 2000-05-21.
+	* configure: Regerate.
+
+	2001-02-10  Chris Demetriou  <cgd@broadcom.com>
+	* config/tc-mips.c (md_parse_option): Don't try to compile
+	ELF-only option code if not ELF.
+
+2001-06-10  Philip Blundell  <philb@gnu.org>
+
+	* configure.in: Set version to 2.11.1.
+	* configure: Regenerate.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Most files: Update copyright notices.
+
+2001-06-06  Hans-Peter Nilsson  <hp@axis.com>
+
+	* config/tc-cris.c (cris_insn_first_word_frag): New.
+	(md_assemble): Call cris_insn_first_word_frag to get the first
+	frag in an insn, not frag_more.  Don't call dwarf2_emit_insn at
+	end.  Drop variable insn_size.
+	(gen_bdap): Call cris_insn_first_word_frag, not frag_more.
+
+2001-06-06  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* as.c (show_usage): Remove L from listing options.  It is not a
+	generic option.
+
+2001-06-06  Tracy Kuhrt <Tracy.Kuhrt@microchip.com>
+
+	* as.c (parse_args): Correct option name "listing-lhs-width2".
+
+2001-05-30  Richard Henderson  <rth@redhat.com>
+
+	* read.c (emit_leb128_expr): Call md_cons_align.
+
+2001-05-28  Jeff Sturm  <jsturm@one-point.com>
+
+	* config/tc-sparc.c (md_apply_fix3): Handle BFD_RELOC_SPARC_UA16,
+	BFD_RELOC_SPARC_UA32 and BFD_RELOC_SPARC_UA64.
+	(tc_gen_reloc): Likewise.
+	(sparc_cons_align): Don't clear sparc_no_align_cons.
+	(cons_fix_new_sparc): Substitute BFD_RELOC_SPARC_UA{16|32|64} for 
+	BFD_RELOC_{16|32|64} iff sparc_no_align_cons is set.
+
+2001-05-23  Alan Modra  <amodra@one.net.au>
+
+	Merge from mainline.
+	2001-05-22  Alan Modra  <amodra@one.net.au>
+	* config/tc-arc.c (md_assemble): Use is_end_of_line instead of
+	testing for NULs.
+
+	2001-05-16  Alan Modra  <amodra@one.net.au>
+	* config/tc-arc.c (md_assemble): Correct dwarf2_emit_insn param
+	for 8 byte insns.
+	* config/tc-i386.c (md_assemble): Call dwarf2_emit_insn before
+	opcodes are output rather than after.  Delete insn_size.
+	* config/tc-v850.c (md_assemble): Similarly, but delete
+	total_insn_size.  Update copyright.
+
+	2001-05-03  Alan Modra  <amodra@one.net.au>
+	* config/tc-i386.c (i386_displacement): Call as_bad for bad GOTOFF
+	expressions rather than triggering an assert.
+
+	2001-03-30  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-i386.c (UNCOND_JUMP, COND_JUMP, COND_JUMP86): Decrement.
+	(md_relax_table): Remove first four unused entries.  Increment
+	rlx_length by one throughout table, and update comments to suit.
+	(md_estimate_size_before_relax): Return size of current variable
+	part of frag to reflect reality when relaxing more than once.
+
+	2001-03-25  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-i386.c (i386_scale): Accept an absolute expression for
+	scale factor, and return the end of the expression.
+	(i386_operand): Modify for above.
+
+	2001-03-13  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-i386.c (RELOC_ENUM): Define.  Use throughout file.
+	(NUM_FLAG_CODE): Define.
+	(lex_got): New function.
+	(got_reloc): New global var.
+	(x86_cons_fix_new): New function.
+	(x86_cons): New function.
+	(i386_immediate): Use lex_got here, replacing inline code.  Change
+	"ignoring junk.." error message to "junk.."
+	(i386_displacement): Likewise.
+	* config/tc-i386.h (TC_PARSE_CONS_EXPRESSION): Define.
+	(x86_cons): Declare.
+	(TC_CONS_FIX_NEW): Define.
+	(x86_cons_fix_new): Declare.
+
+	2001-03-07  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-i386.c (struct _i386_insn): Rename disp_reloc to reloc.
+	(md_assemble) <smallest displacement>: Use correct field of i.op[]
+	union.
+	<JumpInterSegment output>: Use correct i.disp_reloc[].
+	<immediate output>: Likewise.
+
+	2001-02-13  Alan Modra  <alan@linuxcare.com.au>
+	* doc/c-i386.texi (i386-Arch): Add "jumps"/"nojumps" blurb.
+	Mention effect of < 386 architectures on jump promotion.
+	(i386-Jumps): xref above.  Don't assume long disp is 32 bits.
+
+	* config/tc-i386.c (no_cond_jump_promotion): New.
+	(set_cpu_arch): Parse "jumps" arch modifier.
+	(insn_size): Modify usage comment.
+	(ENCODE_RELAX_STATE): Reformat and protect macro arg.
+	(SIZE_FROM_RELAX_STATE): Rename to DISP_SIZE_FROM_RELAX_STATE.
+	(TYPE_FROM_RELAX_STATE): New define.
+	(UNCOND_JUMP, COND_JUMP): Renumber.
+	(md_relax_table): Reorder to suit.
+	(COND_JUMP86): New define.
+	(md_relax_table): Handle COND_JUMP86 cases. Add a few comments.
+	(md_assemble): Create frag var for jumps of max size, encode relax
+	state for COND_JUMP86.
+	(md_estimate_size_before_relax): Handle COND_JUMP86 cases, and
+	leave conditional jumps small if no_cond_jump_promotion.
+	(md_convert_frag): Likewise.
+
+	2001-05-10  Alan Modra  <amodra@one.net.au>
+	* config/tc-v850.c (md_estimate_size_before_relax): Rewrite.
+	(md_convert_frag): Don't bother clearing fr_var.
+	(md_pseudo_table): Correct initialization.
+
+	2001-05-12  Peter Targett  <peter.targett@arccores.com>
+	* config/tc-arc.c: Update copyright and tidy source comments.
+	(md_pseudo_table): Add directive .cpu back as an alias for
+	.option.  Add .file and .line for dwarf2 support.
+	(arc_mach_type): Make bfd_mach_arc_6 default.
+	(md_longopts): Add entry 'pre-v6' representing old command line
+	option when assembling for 'arc5' core versions.
+	(md_parse_option): Make OPTION_ARC same as OPTION_ARC6, for new
+	default behaviour.
+	(arc_code_symbol): Make symbol value for @h30 fixup expression
+	equal to O_constant.
+	(md_assemble): Call dwarf2_emit_insn.
+	Include "dwarf2dbg2.h".  Formatting fixes throughout file.
+	* config/tc-arc.h (DWARF2_LINE_MIN_INSN_LENGTH): Define.
+	* doc/c-arc.texi (ARC_CORE_DEFAULT): Update to new default.
+
+	2001-05-15  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (mn10300_force_relocation): Don't
+	optimize differences between symbols in code sections to
+	constants.
+	(mn10300_fix_adjustable): Don't adjust to section+offset
+	relocations pointing at symbols in code sections.
+
+	2001-05-14  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (md_assemble): Anchor dwarf2 line info
+	before a relaxable insns.
+
+	2001-05-13  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (tc_gen_reloc): Don't reject differences
+	between symbols if the base symbol is in the current section;
+	emit a PC-relative relocation instead.
+
+	2001-05-09  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (md_apply_fix3): Accept PC-relative relocs.
+
+	2001-05-06  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (md_assemble): Subtract operand->shift
+	from offset in non-pcrel operands too.
+
+	2001-04-14  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (md_assemble): Simplify offset adjustment of
+	pc-relative relocations not placed at the end of the instruction.
+
+	2001-04-06  Alexandre Oliva  <aoliva@redhat.com>
+	* config/tc-mn10300.c (xr_registers): Added `pc'.
+
+	2001-03-30  Alan Modra  <alan@linuxcare.com.au>
+	* config/tc-mn10300.c (md_estimate_size_before_relax): Rewrite.
+
+	2001-02-23   Richard Sandiford <rsandifo@redhat.com>
+	* config/tc-mn10300.c (md_apply_fix3): Don't mark a fixup as
+	done if it's against a symbol.
+
+	2001-03-28  H.J. Lu  <hjl@gnu.org>
+	* read.c (equals): Set to local for COFF only if it hasn't been
+	defined before.
+
+	2001-03-27  Nick Papadonis  <nick@coelacanth.com>
+	* read.c (equals): (for COFF) default symbols to being local.
+
+	2001-03-23  Richard Sandiford  <rsandifo@redhat.com>
+	* write.c (fix_new_exp): Print an error if passed a register.
+
+	2001-03-20  Alan Modra  <alan@linuxcare.com.au>
+	* frags.h (struct frag): Add relax_marker.
+	* write.c (is_dnrange): Delete.
+	(relax_frag): Use correct types for `aim', `target', `address'.
+	Delete `offset', `was_address'.  Test `relax_marker' instead of
+	using fragile (and slow) address test.
+	(relax_segment): Init and flip `relax_marker'.
+
+	2001-02-13  Ian Lance Taylor  <ian@zembu.com>
+	* write.c (is_dnrange): Stop as soon as the address becomes
+	larger.
+	(relax_frag): Add segment parameter.  Only call symbol_get_frag
+	once.  Only call is_dnrange if the symbol is in the same segment,
+	and the symbol address is larger.
+	(relax_segment): Pass segment to md_relax_frag and relax_frag.
+	* write.h (relax_frag): Update declaration.
+	* config/tc-fr30.c (fr30_relax_frag): Add segment parameter.  Pass
+	it to relax_frag.
+	* config/tc-m32r.c (m32r_relax_frag): Likewise.
+	* config/tc-m32r.h (md_relax_frag): Add segment parameter.
+	(m32r_relax_frag): Update declaration.
+	* config/tc-mips.h (md_relax_frag): Add segment parameter.
+	* config/tc-tic54x.h (md_relax_frag): Likewise.
+	* doc/internals.texi (CPU backend): Update documentation for
+	md_relax_frag.
+
+	2001-03-15  DJ Delorie  <dj@redhat.com>
+	* stabs.c (s_stab_generic): Don't corrupt the notes obstack by
+	blindly freeing string if it isn't at the top of the obstack.
+
+2001-05-14  Richard Henderson  <rth@redhat.com>
+
+	* ehopt.c (eh_frame_convert_frag): Fix missed subtype adjustment
+	last change.
+
+2001-05-14  Richard Henderson  <rth@redhat.com>
+
+	* ehopt.c (get_cie_info): Rename from eh_frame_code_alignment;
+	also collect whether to expect an FDE augmentation.
+	(check_eh_frame): Rewrite as a state machine.  Track where in
+	an FDE we are located, skip any augmentation.
+	(eh_frame_estimate_size_before_relax): Get code alignment from
+	the fragment subtype.
+	(eh_frame_relax_frag, eh_frame_convert_frag): Likewise.
+	* read.c (emit_leb128_expr): Call check_eh_frame.
+
+2001-05-09  Richard Henderson  <rth@redhat.com>
+
+	* config/tc-ia64.c (generate_unwind_image): Align the fragment
+	beginning a function's unwind info block.
+
+2001-04-27  David Mosberger  <davidm@hpl.hp.com>
+
+	* config/tc-ia64.c (dot_spillmem_p): Fix output_spill_?sprel_p()
+	argument passing order: predicate goes last, not first.
+
+2001-04-16  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.in: Add the em type for FreeBSD targets.
+	* configure: Regenerate.
+
+2001-04-13  Jim Wilson  <wilson@redhat.com>
+
+	* tc-ia64.c (is_conditional_branch): Return true for br, brl, and br.
+	excluding br.i.
+
 2001-04-02  Philip Blundell  <philb@gnu.org>
 
 	From 2001-03-17  Richard Henderson  <rth@redhat.com>
@@ -107,7 +677,7 @@
 	* config/tc-i386.c (tc_i386_fix_adjustable): Fix GOTPCREL GOT
 	entry.
 
-001-02-18  David O'Brien  <obrien@FreeBSD.org>
+2001-02-18  David O'Brien  <obrien@FreeBSD.org>
 
 	* configure.in (cpu_type, arch): Add a generic FreeBSD specification as
 	all FreeBSD platforms should look the same at this level.

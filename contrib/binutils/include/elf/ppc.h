@@ -1,5 +1,5 @@
 /* PPC ELF support for BFD.
-   Copyright (C) 1995, 96, 98, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1998, 2000 Free Software Foundation, Inc.
 
    By Michael Meissner, Cygnus Support, <meissner@cygnus.com>, from information
    in the System V Application Binary Interface, PowerPC Processor Supplement

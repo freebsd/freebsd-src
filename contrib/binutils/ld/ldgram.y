@@ -1,6 +1,6 @@
-/* A YACC grammer to parse a superset of the AT&T linker scripting languaue.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
-   Free Software Foundation, Inc.
+/* A YACC grammar to parse a superset of the AT&T linker scripting language.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of GNU ld.

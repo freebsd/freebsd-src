@@ -77,7 +77,7 @@ CPU_TYPES = \
 	z8k
 
 # Object format types.  This is only used for dependency information.
-# We deliberately omit som, since it does not work as a cross assembler.
+# We deliberately omit SOM, since it does not work as a cross assembler.
 
 OBJ_FORMATS = \
 	aout \
@@ -337,6 +337,8 @@ TARG_ENV_HFILES = \
 	config/te-go32.h \
 	config/te-hp300.h \
 	config/te-hppa.h \
+	config/te-hppa64.h \
+	config/te-hppalinux64.h \
 	config/te-i386aix.h \
 	config/te-ic960.h \
 	config/te-linux.h \
@@ -354,7 +356,8 @@ TARG_ENV_HFILES = \
 	config/te-sparcaout.h \
 	config/te-sun3.h \
 	config/te-svr4.h \
-	config/te-sysv32.h
+	config/te-sysv32.h \
+	config/te-tmips.h
 
 # Multi files in config
 
@@ -945,13 +948,15 @@ DEPTC_alpha_evax = $(srcdir)/config/obj-evax.h $(srcdir)/config/tc-alpha.h \
   $(INCDIR)/opcode/alpha.h $(srcdir)/config/atof-vax.c
 DEPTC_arc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arc.h \
   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
-  subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h \
-  $(INCDIR)/elf/arc.h $(INCDIR)/elf/reloc-macros.h
+  struc-symbol.h subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h \
+  $(srcdir)/../opcodes/arc-ext.h $(INCDIR)/elf/arc.h \
+  $(INCDIR)/elf/reloc-macros.h dwarf2dbg.h
 DEPTC_arc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
-  $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h subsegs.h \
-  $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h $(INCDIR)/elf/arc.h \
-  $(INCDIR)/elf/reloc-macros.h
+  $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h struc-symbol.h \
+  subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h \
+  $(srcdir)/../opcodes/arc-ext.h $(INCDIR)/elf/arc.h \
+  $(INCDIR)/elf/reloc-macros.h dwarf2dbg.h
 DEPTC_arm_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-arm.h \
   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h
 DEPTC_arm_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arm.h \
@@ -1179,7 +1184,7 @@ DEPTC_ppc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ppc.h subsegs.h \
   $(INCDIR)/obstack.h $(INCDIR)/opcode/ppc.h $(INCDIR)/elf/ppc.h \
-  $(INCDIR)/elf/reloc-macros.h
+  $(INCDIR)/elf/reloc-macros.h dwarf2dbg.h
 DEPTC_sh_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sh.h \
   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sh.h $(BFDDIR)/libcoff.h \
   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(srcdir)/../opcodes/sh-opc.h \
@@ -1303,11 +1308,11 @@ DEPOBJ_alpha_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
 DEPOBJ_alpha_evax = $(srcdir)/config/obj-evax.h $(srcdir)/config/tc-alpha.h
 DEPOBJ_arc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arc.h \
   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
-  $(INCDIR)/obstack.h subsegs.h
+  struc-symbol.h $(INCDIR)/obstack.h subsegs.h
 DEPOBJ_arc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
-  $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h subsegs.h \
-  $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+  $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h struc-symbol.h \
+  subsegs.h $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
 DEPOBJ_arm_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-arm.h \
   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
   $(INCDIR)/obstack.h
@@ -1849,7 +1854,7 @@ BMKDEP = #DO NOT PUT ANYTHING BETWEEN THIS LINE AND THE MATCHING WARNING ABOVE.
 #MKDEP    DO NOT PUT ANYTHING BETWEEN THIS LINE AND THE MATCHING WARNING BELOW.
 app.o: app.c
 as.o: as.c subsegs.h $(INCDIR)/obstack.h output-file.h \
-  sb.h macro.h
+  sb.h macro.h dwarf2dbg.h
 atof-generic.o: atof-generic.c
 bignum-copy.o: bignum-copy.c
 cond.o: cond.c macro.h sb.h $(INCDIR)/obstack.h
@@ -1879,7 +1884,8 @@ stabs.o: stabs.c $(INCDIR)/obstack.h subsegs.h ecoff.h \
 subsegs.o: subsegs.c subsegs.h $(INCDIR)/obstack.h
 symbols.o: symbols.c $(INCDIR)/obstack.h subsegs.h \
   struc-symbol.h
-write.o: write.c subsegs.h $(INCDIR)/obstack.h output-file.h
+write.o: write.c subsegs.h $(INCDIR)/obstack.h output-file.h \
+  dwarf2dbg.h
 gasp.o: gasp.c sb.h macro.h
 itbl-ops.o: itbl-ops.c itbl-ops.h
 e-crisaout.o: $(srcdir)/config/e-crisaout.c emul-target.h

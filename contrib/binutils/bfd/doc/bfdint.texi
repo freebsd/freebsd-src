@@ -1,4 +1,7 @@
 \input texinfo
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
+@c 2000
+@c Free Software Foundation, Inc.
 @setfilename bfdint.info
 
 @settitle BFD Internals
@@ -293,7 +296,7 @@ The target vector starts with a set of constants.
 @item name
 The name of the target vector.  This is an arbitrary string.  This is
 how the target vector is named in command line options for tools which
-use BFD, such as the @samp{-oformat} linker option.
+use BFD, such as the @samp{--oformat} linker option.
 
 @item flavour
 A general description of the type of target.  The following flavours are

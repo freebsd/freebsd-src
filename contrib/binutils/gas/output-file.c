@@ -1,5 +1,5 @@
 /* output-file.c -  Deal with the output file
-   Copyright (C) 1987, 90, 91, 93, 92, 94, 95, 96, 1998
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1996, 1998, 1999
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
