@@ -1,5 +1,5 @@
 /*
- * Device driver for Specialix range (SLXOS) of serial line multiplexors.
+ * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  *
  * Copyright (C) 1990, 1992 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.13 1995/11/04 17:07:47 bde Exp $
+ *	$Id: si.c,v 1.14 1995/11/09 21:53:45 peter Exp $
  */
 
 #ifndef lint
@@ -69,7 +69,7 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 
 /*
  * This device driver is designed to interface the Specialix International
- * range of serial multiplexor cards (SLXOS) to BSDI/386 on an ISA bus machine.
+ * range of serial multiplexor cards (SI/XIO) to BSDI/386 on an ISA bus machine.
  *
  * The controller is interfaced to the host via dual port ram
  * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
@@ -78,7 +78,7 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #define	POLL		/* turn on poller to generate buffer empty interrupt */
 #undef	FASTPOLL	/* turn on 100Hz poller, (XXX: NOTYET!) */
 #define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
-#define SI_I_HIGH_WATER	(TTYHOG - 2 * SLXOS_BUFFERSIZE)
+#define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 
 enum si_mctl { GET, SET, BIS, BIC };
 
@@ -250,8 +250,8 @@ siprobe(id)
 	maddr = id->id_maddr;		/* virtual address... */
 	paddr = (caddr_t)vtophys(id->id_maddr);	/* physical address... */
 
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS probe at virtual=0x%x physical=0x%x\n",
-		id->id_maddr, paddr));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: probe at virtual=0x%x physical=0x%x\n",
+		id->id_unit, id->id_maddr, paddr));
 
 	/*
 	 * this is a lie, but it's easier than trying to handle caching
@@ -302,7 +302,7 @@ siprobe(id)
 		id->id_irq = eisa_irqs[irq];
 
 		DPRINT((0, DBG_AUTOBOOT,
-		    "SLXOS: si%d: EISA base %x, irq %x, id_irq %x, port %x\n",
+		    "si%d: EISA base %x, irq %x, id_irq %x, port %x\n",
 		    id->id_unit, base, irq, id->id_irq, port));
 
 		if ((id->id_irq&(IRQ1|IRQ2|IRQ8|IRQ13)) != 0)
@@ -368,7 +368,8 @@ try_mk1:
 	ramsize = SIHOST_RAMSIZE;
 
 got_card:
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS: found type %d card, try memory test\n", type));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: found type %d card, try memory test\n",
+		id->id_unit, type));
 	/* Try the acid test */
 	ux = (BYTE *)(maddr + SIRAM);
 	for (i=0; i<ramsize; i++, ux++)
@@ -450,7 +451,7 @@ siattach(id)
 	int nmodule, nport, x, y;
 	int uart_type;
 
-	DPRINT((0, DBG_AUTOBOOT, "SLXOS siattach\n"));
+	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", id->id_unit));
 
 	sc->sc_paddr = (caddr_t)vtophys(id->id_maddr);
 	sc->sc_maddr = id->id_maddr;
@@ -464,7 +465,8 @@ siattach(id)
 	 * OK, now lets download the firmware and try and boot the CPU..
 	 */
 
-	DPRINT((0, DBG_DOWNLOAD, "SLXOS si_download: nbytes %d\n", si_dsize));
+	DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
+		id->id_unit, si_dsize));
 	bcopy(si_download, maddr, si_dsize);
 
 	switch (sc->sc_type) {
@@ -1618,8 +1620,8 @@ si_modem_state(pp, tp, hi_ip)
 /*
  * Poller to catch missed interrupts.
  *
- * Note that the SYSV SLXOS drivers poll at 100 times per second to get better
- * response.  We could really use a "periodic" version timeout(). :-)
+ * Note that the SYSV Specialix drivers poll at 100 times per second to get
+ * better response.  We could really use a "periodic" version timeout(). :-)
  */
 #ifdef POLL
 static void
@@ -1682,7 +1684,7 @@ out:
  * it is called.
  */
 
-static BYTE si_rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
+static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
 
 void
 siintr(int unit)
@@ -1848,7 +1850,7 @@ siintr(int unit)
 			 * characters and possibly flushing input inside the
 			 * ldisc l_rint() routine.
 			 */
-			if (n <= SLXOS_BUFFERSIZE - op) {
+			if (n <= SI_BUFFERSIZE - op) {
 
 				DPRINT((pp, DBG_INTR, "\tsingle copy\n"));
 				z = ccbp->hi_rxbuf + op;
@@ -1856,7 +1858,7 @@ siintr(int unit)
 
 				op += n;
 			} else {
-				x = SLXOS_BUFFERSIZE - op;
+				x = SI_BUFFERSIZE - op;
 
 				DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
 				z = ccbp->hi_rxbuf + op;
@@ -2012,17 +2014,17 @@ si_start(tp)
 		amount = min(nchar, (255 - (BYTE)count));
 		ipos = (unsigned int)ccbp->hi_txipos;
 		/* will it fit in one lump? */
-		if ((SLXOS_BUFFERSIZE - ipos) >= amount) {
+		if ((SI_BUFFERSIZE - ipos) >= amount) {
 			n = q_to_b(&tp->t_outq,
 				(char *)&ccbp->hi_txbuf[ipos], amount);
 		} else {
 			n = q_to_b(&tp->t_outq,
 				(char *)&ccbp->hi_txbuf[ipos],
-				SLXOS_BUFFERSIZE-ipos);
-			if (n == SLXOS_BUFFERSIZE-ipos) {
+				SI_BUFFERSIZE-ipos);
+			if (n == SI_BUFFERSIZE-ipos) {
 				n += q_to_b(&tp->t_outq,
 					(char *)&ccbp->hi_txbuf[0],
-					amount - (SLXOS_BUFFERSIZE-ipos));
+					amount - (SI_BUFFERSIZE-ipos));
 			}
 		}
 		ccbp->hi_txipos += n;
@@ -2269,7 +2271,7 @@ si_dprintf(pp, flags, str, a1, a2, a3, a4, a5, a6)
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
 	    	if (pp != NULL)
-	    		printf("SLXOS %ci%d(%d): ", 's',
+	    		printf("%ci%d(%d): ", 's',
 	    			(int)SI_CARD(pp->sp_tty->t_dev),
 	    			(int)SI_PORT(pp->sp_tty->t_dev));
 		printf(str, a1, a2, a3, a4, a5, a6);
