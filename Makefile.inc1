@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.41 1998/11/15 10:03:12 jb Exp $
+#	$Id: Makefile.inc1,v 1.42 1998/11/18 00:40:38 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -577,6 +577,7 @@ includes:
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
@@ -652,6 +653,7 @@ lib-tools:
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
 # libtermcap must be built before libcurses, libedit and libreadline.
+# libdes, libkrb, libradius and libtacplus must be built before libpam.
 #
 # Some libraries are built conditionally and/or are in inconsistently
 # named directories:
@@ -716,22 +718,24 @@ bootstrap-libraries:
 # the prerequisites first, then build almost everything else in
 # alphabetical order.
 #
+_libs=		${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
+		lib/libmytinfo lib/libncurses lib/libtermcap \
+		lib/libradius lib/libtacplus
+.if !defined(NOCRYPT) && !defined(NOSECURE)
+_libs+=		secure/lib
+.endif
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+_libs+=		kerberosIV/lib
+.endif
+_libs+=		gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
+		usr.sbin/pcvt/keycap
+
 libraries:
-.for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
-    lib/libmytinfo lib/libncurses lib/libtermcap \
-    gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
-    usr.sbin/pcvt/keycap
+.for _lib in ${_libs}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
 .endfor
-.if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib; ${MAKE} all; ${MAKE} -B install
-.endif
-.if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS4)
-	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} all; ${MAKE} -B install
-.endif
 
 #
 # Exclude unused tools from build-tools.
