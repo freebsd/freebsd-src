@@ -37,54 +37,729 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <err.h>
+/* USBD creates 'threads' in the kernel, used for doing discovery when a
+ * device has attached or detached. This functionality should be removed
+ * once kernel threads have been added to the kernel.
+ * It also handles the event queue, and executing commands based on those
+ * events.
+ *
+ * See usbd(8).
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <ctype.h>
+#include <signal.h>
+#include <paths.h>
+#include <sys/types.h>
 #include <sys/time.h>
-#if defined(__FreeBSD__)
 #include <sys/ioctl.h>
-#endif
+#include <sys/errno.h>
+#include <sys/queue.h>
+#include <sys/wait.h>
+
 #include <dev/usb/usb.h>
+
+/* default name of configuration file
+ */
+
+#define CONFIGFILE	"/etc/usbd.conf"
 
 /* the name of the device spitting out usb attach/detach events as well as
  * the prefix for the individual busses (used as a semi kernel thread).
  */
-#define USBDEV "/dev/usb"
+#define USBDEV		"/dev/usb"
 
 /* Maximum number of USB busses expected to be in a system
+ * XXX should be replaced by dynamic allocation.
  */
-#define MAXUSBDEV 4
+#define MAXUSBDEV	4
 
-/*
- * Sometimes a device does not respond in time for interrupt
+/* Sometimes a device does not respond in time for interrupt
  * driven explore to find it.  Therefore we run an exploration
  * at regular intervals to catch those.
  */
-#define TIMEOUT 30
+#define TIMEOUT		30
+
+/* The wildcard used in actions for strings and integers
+ */
+#define WILDCARD_STRING	NULL
+#define WILDCARD_INT	-1
 
 
-extern char *__progname;
+extern char *__progname;	/* name of program */
 
-void usage(void);
+char *configfile = CONFIGFILE;	/* name of configuration file */
+
+char *devs[MAXUSBDEV];		/* device names */
+int fds[MAXUSBDEV];		/* file descriptors for USBDEV\d+ */
+int ndevs = 0;			/* number of entries in fds / devs */
+int fd = -1;			/* file descriptor for USBDEV */
+
+int lineno;
+int verbose = 0;		/* print message on what it is doing */
+
+typedef struct event_name_s {
+	int	type;		/* event number (from usb.h) */
+	char	*name;
+} event_name_t;
+
+event_name_t event_names[] = {
+	{USB_EVENT_ATTACH, "attach"},
+	{USB_EVENT_DETACH, "detach"},
+	{0, NULL}			/* NULL indicates end of list, not 0 */
+};
+
+#define DEVICE_FIELD		0	/* descriptive field */
+
+#define PRODUCT_FIELD		1	/* selective fields */
+#define VENDOR_FIELD		2
+#define RELEASE_FIELD		3
+#define CLASS_FIELD		4
+#define SUBCLASS_FIELD		5
+#define PROTOCOL_FIELD		6
+
+#define ATTACH_FIELD		8	/* command fields */
+#define DETACH_FIELD		9
+
+
+typedef struct action_s {
+	char 	*name;		/* descriptive string */
+
+	int	product;	/* selection criteria */
+	int	vendor;
+	int	release;
+	int	class;
+	int	subclass;
+	int	protocol;
+
+	char	*attach;	/* commands to execute */
+	char	*detach;
+
+	STAILQ_ENTRY(action_s) next;
+} action_t;
+
+STAILQ_HEAD(action_list, action_s) actions = STAILQ_HEAD_INITIALIZER(actions);
+
+
+/* the function returns 0 for failure, 1 for all arguments found and 2 for
+ * arguments left over in trail.
+ */
+typedef int (*config_field_fn)	__P((action_t *action, char *args,
+					char **trail));
+
+int set_device_field(action_t *action, char *args, char **trail);
+int set_product_field(action_t *action, char *args, char **trail);
+int set_vendor_field(action_t *action, char *args, char **trail);
+int set_release_field(action_t *action, char *args, char **trail);
+int set_class_field(action_t *action, char *args, char **trail);
+int set_subclass_field(action_t *action, char *args, char **trail);
+int set_protocol_field(action_t *action, char *args, char **trail);
+int set_attach_field(action_t *action, char *args, char **trail);
+int set_detach_field(action_t *action, char *args, char **trail);
+
+/* the list of fields supported in an entry */
+typedef struct config_field_s {
+	int	event;
+	char 	*name;
+	config_field_fn	function;
+} config_field_t;
+
+config_field_t config_fields[] = {
+	{DEVICE_FIELD,		"device",	set_device_field},
+
+	{PRODUCT_FIELD,		"product",	set_product_field},
+	{VENDOR_FIELD,		"vendor",	set_vendor_field},
+	{RELEASE_FIELD,		"release",	set_release_field},
+	{CLASS_FIELD,		"class",	set_class_field},
+	{SUBCLASS_FIELD,	"subclass",	set_subclass_field},
+	{PROTOCOL_FIELD,	"protocol",	set_protocol_field},
+
+	{ATTACH_FIELD,		"attach",	set_attach_field},
+	{DETACH_FIELD,		"detach",	set_detach_field},
+
+	{0, NULL, NULL}		/* NULL is EOL marker, not the 0 */
+};
+
+
+/* prototypes for some functions */
+void print_event	__P((struct usb_event *event));
+void print_action	__P((action_t *action, int i));
+void print_actions	__P((void));
+action_t *find_action	__P((struct usb_device_info *devinfo));
+
 
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [-d] [-e] [-f dev] [-t timeout] [-v]\n",
+	fprintf(stderr, "Usage: %s [-d] [-v] [-t timeout] [-e] [-f dev]\n"
+			"           [-n] [-c config]\n",
 		__progname);
-	fprintf(stderr, "  -d         for debugging\n");
-	fprintf(stderr, "  -e         only do 1 explore\n");
-	fprintf(stderr, "  -f dev     for example /dev/usb0, "
-		"and can be specified multiple times.");
-	fprintf(stderr, "  -t timeout timeout between explores\n");
-	fprintf(stderr, "  -v         verbose output\n");
-
 	exit(1);
 }
+
+
+/* generic helper functions for the functions to set the fields of actions */
+int
+get_string(char *src, char **rdst, char **rsrc)
+{
+	/* Takes the first string from src, taking quoting into account.
+	 * rsrc (if not NULL) is set to the first byte not included in the
+	 * string returned in rdst.
+	 *
+	 * Input is:
+	 *   src = 'fir"st \'par"t       second part';
+	 * Returned is:
+	 *   *dst = 'hello \'world';
+	 *   if (rsrc != NULL)
+	 *     *rsrc = 'second part';
+	 *
+	 * Notice the fact that the single quote enclosed in double quotes is
+	 * returned. Also notice that before second part there is more than
+	 * one space, which is removed in rsrc.
+	 *
+	 * The string in src is not modified.
+	 */
+
+	char *dst;		/* destination string */
+	int i;			/* index into src */
+	int j;			/* index into dst */
+	int quoted = 0;		/* 1 for single, 2 for double quoted */
+
+	dst = malloc(strlen(src));	/* XXX allocation is too big, realloc?*/
+	if (dst == NULL) {		/* should not happen, really */
+		fprintf(stderr, "%s:%d: Out of memory\n", configfile, lineno);
+		exit(2);
+	}
+
+	/* find the end of the current string. If quotes are found the search
+	 * continues until the corresponding quote is found.
+	 * So,
+	 *   hel'lo" "wor'ld
+	 * represents the string
+	 *   hello" "world
+	 * and not (hello world).
+	 */
+	for (i = 0, j = 0; i < strlen(src); i++) {
+		if (src[i] == '\'' && (quoted == 0 || quoted == 1)) {
+			quoted = (quoted? 0:1);
+		} else if (src[i] == '"' && (quoted == 0 || quoted == 2)) {
+			quoted = (quoted? 0:2);
+		} else if (isspace(src[i]) && !quoted) {
+			/* found a space outside quotes -> terminates src */
+			break;
+		} else {
+			dst[j++] = src[i];	/* copy character */
+		}
+	}
+
+	/* quotes being left open? */
+	if (quoted) {
+		fprintf(stderr, "%s:%d: Missing %s quote at end of '%s'\n",
+			configfile, lineno,
+			(quoted == 1? "single":"double"), src);
+		exit(2);
+	}
+
+	/* skip whitespace for second part */
+	for (/*i is set*/; i < strlen(src) && isspace(src[i]); i++)
+		;	/* nop */
+
+	dst[j] = '\0';			/* make sure it's NULL terminated */
+
+	*rdst = dst;			/* and return the pointers */
+	if (rsrc != NULL)		/* if info wanted */
+		*rsrc = &src[i];
+
+	if (*dst == '\0') {		/* empty string */
+		return 0;
+	} else if (src[i] == '\0') {	/* completely used (1 argument) */
+		return 1;
+	} else {			/* 2 or more args, *rsrc is rest */
+		return 2;
+	}
+}
+
+int
+get_integer(char *src, int *dst, char **rsrc)
+{
+	char *endptr;
+
+	/* Converts str to a number. If one argument was found in
+	 * str, 1 is returned and *dst is set to the value of the integer.
+	 * If 2 or more arguments were presented, 2 is returned,
+	 * *dst is set to the converted value and rsrc, if not null, points
+	 * at the start of the next argument (whitespace skipped).
+	 * Else 0 is returned and nothing else is valid.
+	 */
+
+	if (src == NULL || *src == '\0')	/* empty src */
+		return(0);
+
+	*dst = (int) strtol(src, &endptr, 0);
+
+	/* skip over whitespace of second argument */
+	while (isspace(*endptr))
+		endptr++;
+
+	if (rsrc)
+		*rsrc = endptr;
+
+	if (isspace(*endptr)) {		/* partial match, 2 or more arguments */
+		return(2);
+	} else if (*endptr == '\0') {	/* full match, 1 argument */
+		return(1);
+	} else {			/* invalid src, no match */
+		return(0);
+	}
+}
+
+/* functions to set the fields of the actions appropriately */
+int
+set_device_field(action_t *action, char *args, char **trail)
+{
+	return(get_string(args, &action->name, trail));
+}
+int
+set_product_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->product, trail));
+}
+int
+set_vendor_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->vendor, trail));
+}
+int
+set_release_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->release, trail));
+}
+int
+set_class_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->class, trail));
+}
+int
+set_subclass_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->subclass, trail));
+}
+int
+set_protocol_field(action_t *action, char *args, char **trail)
+{
+	return(get_integer(args, &action->protocol, trail));
+}
+int
+set_attach_field(action_t *action, char *args, char **trail)
+{
+	return(get_string(args, &action->attach, trail));
+}
+int
+set_detach_field(action_t *action, char *args, char **trail)
+{
+	return(get_string(args, &action->detach, trail));
+}
+
+
+void
+read_configuration(void)
+{
+	FILE *file;		/* file descriptor */
+	char *line;		/* current line */
+	char *linez;		/* current line, NULL terminated */
+	char *field;		/* first part, the field name */
+	char *args;		/* second part, arguments */
+	char *trail;		/* remaining part after parsing, should be '' */
+	int len;		/* length of current line */
+	int i,j;		/* loop counters */
+	action_t *action = NULL;	/* current action */
+
+	file = fopen(configfile, "r");
+	if (file == NULL) {
+		fprintf(stderr, "%s: Could not open for reading, %s\n",
+			configfile, strerror(errno));
+		exit(2);
+	}
+
+	for (lineno = 1; /* nop */;lineno++) {
+	
+		line = fgetln(file, &len);
+		if (line == NULL) {
+			if (feof(file))			/* EOF */
+				break;
+			if (ferror(file)) {
+				fprintf(stderr, "%s:%d: Could not read, %s\n",
+					configfile, lineno, strerror(errno));
+				exit(2);
+			}
+		}
+
+		/* skip initial spaces */
+		while (*line != '\0' && isspace(*line)) {
+			line++;
+			len--;
+		}
+
+		if (len == 0)		/* empty line */
+			continue;
+		if (line[0] == '#')	/* comment line */
+			continue;
+
+		/* make a NULL terminated copy of the string */
+		linez = malloc(len+1);
+		if (linez == NULL) {
+			fprintf(stderr, "%s:%d: Out of memory\n",
+				configfile, lineno);
+			exit(2);
+		}
+		strncpy(linez, line, len);
+		linez[len+1] = '\0';
+
+		/* find the end of the current word (is field), that's the
+		 * start of the arguments
+		 */
+		field = linez;
+		args = linez;
+		while (*args != '\0' && !isspace(*args))
+			args++;
+
+		/* If arguments is not the empty string, NULL terminate the
+		 * field and move the argument pointer to the first character
+		 * of the arguments.
+		 * If arguments is the empty string field and arguments both
+		 * are terminated (strlen(field) >= 0, strlen(arguments) == 0).
+		 */
+		if (*args != '\0') {
+			*args = '\0';
+			args++;
+		}
+
+		/* Skip initial spaces */
+		while (*args != '\0' && isspace(*args))
+			args++;
+
+		/* Cut off trailing whitespace */
+		for (i = 0, j = 0; args[i] != '\0'; i++)
+			if (!isspace(args[i]))
+				j = i+1;
+		args[j] = '\0';
+
+		/* We now have the field and the argument separated into
+		 * two strings that are NULL terminated
+		 */
+
+		/* If the field is 'device' we have to start a new action. */
+		if (strcmp(field, "device") == 0) {
+			/* Allocate a new action and set defaults */
+			action = malloc(sizeof(*action));
+			if (action == NULL) {
+				fprintf(stderr, "%s:%d: Out of memory\n",
+					configfile, lineno);
+				exit(2);
+			}
+			memset(action, 0, sizeof(*action));
+			action->product = WILDCARD_INT;
+			action->vendor = WILDCARD_INT;
+			action->release = WILDCARD_INT;
+			action->class = WILDCARD_INT;
+			action->subclass = WILDCARD_INT;
+			action->protocol = WILDCARD_INT;
+
+			/* Add it to the end of the list to preserve order */
+			STAILQ_INSERT_TAIL(&actions, action, next);
+		}
+
+		if (action == NULL) {
+			line[len] = '\0';	/* XXX zero terminate */
+			fprintf(stderr, "%s:%d: Doesn't start with 'device' "
+				"but '%s'\n", configfile, lineno, field);
+			exit(2);
+		}
+		
+		for (i = 0; config_fields[i].name  ; i++) {
+			/* does the field name match? */
+			if (strcmp(config_fields[i].name, field) == 0) {
+				/* execute corresponding set-field function */
+				if ((config_fields[i].function)(action, args,
+								&trail)
+				    != 1) {
+					fprintf(stderr,"%s:%d: "
+						"Syntax error in '%s'\n",
+						configfile, lineno, linez);
+					exit(2);
+				}
+				break;
+			}
+		}
+		if (config_fields[i].name == NULL) {	/* Reached end of list*/
+			fprintf(stderr, "%s:%d: Unknown field '%s'\n",
+				configfile, lineno, field);
+			exit(2);
+		}
+	}
+
+	fclose(file);
+
+	if (verbose >= 2)
+		print_actions();
+}
+
+
+void
+print_event(struct usb_event *event)
+{
+	int i;
+	struct timespec *timespec = &event->ue_time;
+	struct usb_device_info *devinfo = &event->ue_device;
+
+	printf("%s: ", __progname);
+	for (i = 0; event_names[i].name != NULL; i++) {
+		if (event->ue_type == event_names[i].type) {
+			printf("%s event", event_names[i].name);
+			break;
+		}
+	}
+	if (event_names[i].name == NULL)
+		printf("unknown event %d", event->ue_type);
+
+	printf(" at %ld.%09ld, %s, %s:\n",
+		timespec->tv_sec, timespec->tv_nsec,
+		devinfo->product, devinfo->vendor);
+
+	printf("  prdct=0x%04x vndr=0x%04x rlse=0x%04x "
+	       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
+	       devinfo->productNo, devinfo->vendorNo, devinfo->releaseNo,
+	       devinfo->class, devinfo->subclass, devinfo->protocol);
+}
+
+void
+print_action(action_t *action, int i)
+{
+	if (action == NULL)
+		return;
+
+	printf("%s: action %d: %s\n",
+		__progname, i,
+		(action->name? action->name:""));
+	if (action->product != WILDCARD_INT ||
+	    action->vendor != WILDCARD_INT ||
+	    action->release != WILDCARD_INT ||
+	    action->class != WILDCARD_INT ||
+	    action->subclass != WILDCARD_INT ||
+	    action->protocol != WILDCARD_INT)
+		printf(" ");
+	if (action->product != WILDCARD_INT)
+		printf(" prdct=0x%04x", action->product);
+	if (action->vendor != WILDCARD_INT)
+		printf(" vndr=0x%04x", action->vendor);
+	if (action->release != WILDCARD_INT)
+		printf(" rlse=0x%04x", action->release);
+	if (action->class != WILDCARD_INT)
+		printf(" clss=0x%04x", action->class);
+	if (action->subclass != WILDCARD_INT)
+		printf(" subclss=0x%04x", action->subclass);
+	if (action->protocol != WILDCARD_INT)
+		printf(" prtcl=0x%04x", action->protocol);
+	if (action->product != WILDCARD_INT ||
+	    action->vendor != WILDCARD_INT ||
+	    action->release != WILDCARD_INT ||
+	    action->class != WILDCARD_INT ||
+	    action->subclass != WILDCARD_INT ||
+	    action->protocol != WILDCARD_INT)
+		printf("\n");
+
+	if (action->attach != NULL)
+		printf("%s:    attach='%s'\n",
+			__progname, action->attach);
+	if (action->detach != NULL)
+		printf("%s:    detach='%s'\n",
+			__progname, action->detach);
+}
+
+void
+print_actions()
+{
+	int i = 0;
+	action_t *action;
+
+	STAILQ_FOREACH(action, &actions, next)
+		print_action(action, ++i);
+
+	printf("%s: %d action%s\n", __progname, i, (i == 1? "":"s"));
+}
+
+action_t *
+find_action(struct usb_device_info *devinfo)
+{
+	action_t *action;
+
+	STAILQ_FOREACH(action, &actions, next) {
+		if ((action->product == WILDCARD_INT ||
+		     action->product == devinfo->productNo) &&
+		    (action->vendor == WILDCARD_INT ||
+		     action->vendor == devinfo->vendorNo) &&
+		    (action->release == WILDCARD_INT ||
+		     action->release == devinfo->releaseNo) &&
+		    (action->class == WILDCARD_INT ||
+		     action->class == devinfo->class) &&
+		    (action->subclass == WILDCARD_INT ||
+		     action->subclass == devinfo->subclass) &&
+		    (action->protocol == WILDCARD_INT ||
+		     action->protocol == devinfo->protocol)) {
+			/* found match !*/
+			break;
+		}
+	}
+
+	if (verbose)
+		printf("%s: Found action '%s' for %s, %s\n",
+			__progname, action->name,
+			devinfo->product, devinfo->vendor);
+	return(action);
+}
+
+void
+execute_command(char *cmd)
+{
+	pid_t pid;
+	int pstat;
+	struct sigaction ign, intact, quitact;
+	sigset_t newsigblock, oldsigblock;
+	int status;
+	int i;
+
+	if (verbose)
+		printf("%s: Executing '%s'\n", __progname, cmd);
+	if (cmd == NULL)
+		return;
+
+	/* The code below is directly taken from the system(3) call.
+	 * Added to it is the closing of open file descriptors.
+	 */
+	/*
+	 * Ignore SIGINT and SIGQUIT, block SIGCHLD. Remember to save
+	 * existing signal dispositions.
+	 */
+	ign.sa_handler = SIG_IGN;
+	(void) sigemptyset(&ign.sa_mask);
+	ign.sa_flags = 0;
+	(void) sigaction(SIGINT, &ign, &intact);
+	(void) sigaction(SIGQUIT, &ign, &quitact);
+	(void) sigemptyset(&newsigblock);
+	(void) sigaddset(&newsigblock, SIGCHLD);
+	(void) sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
+	pid = fork();
+	if (pid == -1) {
+		fprintf(stderr, "%s: fork failed, %s\n",
+			__progname, strerror(errno));
+	} else if (pid == 0) {
+		/* child here */
+
+		/* close all open file handles for USBDEV\d* devices */
+		for (i = 0; i < ndevs; i++)
+			close(fds[i]);		/* USBDEV\d+ */
+		close(fd);			/* USBDEV */
+
+		/* Restore original signal dispositions and exec the command. */
+		(void) sigaction(SIGINT, &intact, NULL);
+		(void) sigaction(SIGQUIT,  &quitact, NULL);
+		(void) sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+
+		execl(_PATH_BSHELL, "sh", "-c", cmd, (char *)NULL);
+
+		exit(127);
+	} else {
+		/* parent here */
+		do {
+			pid = waitpid(pid, &pstat, 0);
+		} while (pid == -1 && errno == EINTR);
+	}
+	(void) sigaction(SIGINT, &intact, NULL);
+	(void) sigaction(SIGQUIT,  &quitact, NULL);
+	(void) sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+
+	if (pid == -1) {
+		fprintf(stderr, "%s: waitpid returned: %s\n",
+			__progname, strerror(errno));
+	} else if (pid == 0) {
+		fprintf(stderr, "%s: waitpid returned 0 ?!\n",
+			__progname);
+	} else {
+		if (status == -1) {
+			fprintf(stderr, "%s: Could not start '%s'\n",
+				__progname, cmd);
+		} else if (status == 127) {
+			fprintf(stderr, "%s: Shell failed for '%s'\n",
+				__progname, cmd);
+		} else if (WIFEXITED(status)) {
+			fprintf(stderr, "%s: '%s' returned %d\n",
+				__progname, cmd, WEXITSTATUS(status));
+		} else if (WIFSIGNALED(status)) {
+			fprintf(stderr, "%s: '%s' caught signal %d\n",
+				__progname, cmd, WTERMSIG(status));
+		} else if (verbose) {
+			printf("%s: '%s' is done\n", __progname, cmd);
+		}
+	}
+}
+
+void
+process_event_queue(int fd)
+{
+	struct usb_event event;
+	int len;
+	action_t *action;
+
+	for (;;) {
+		len = read(fd, &event, sizeof(event));
+		if (len == -1) {
+			if (errno == EWOULDBLOCK) {
+				/* no more events */
+				break;
+			} else {
+				fprintf(stderr,"%s: Could not read event, %s\n",
+					__progname, strerror(errno));
+				exit(1);
+			}
+		}
+		if (len == 0)
+			break;
+		if (len != sizeof(event)) {
+			fprintf(stderr, "partial read on %s\n", USBDEV);
+			exit(1);
+		}
+
+		/* we seem to have gotten a valid event */
+
+		if (verbose)
+			print_event(&event);
+
+		/* handle the event appropriately */
+		switch (event.ue_type) {
+		case USB_EVENT_ATTACH:
+		case USB_EVENT_DETACH:
+			action = find_action(&event.ue_device);
+			if (action == NULL)
+				break;
+			else if (verbose >= 2)
+				print_action(action, 0);
+
+			if (event.ue_type == USB_EVENT_ATTACH && action->attach)
+				execute_command(action->attach);
+			if (event.ue_type == USB_EVENT_DETACH && action->detach)
+				execute_command(action->detach);
+
+			break;
+		default:
+			printf("Unknown USB event %d\n", event.ue_type);
+		}
+	}	
+}
+
 
 int
 main(int argc, char **argv)
@@ -93,32 +768,35 @@ main(int argc, char **argv)
 	int ch;			/* getopt option */
 	extern char *optarg;	/* from getopt */
 	extern int optind;	/* from getopt */
-	char *devs[MAXUSBDEV];	/* device names */
-	int ndevs = 0;		/* number of devices found */
-	int verbose = 0;	/* print message on what it is doing */
 	int debug = 0;		/* print debugging output */
-	int explore = 0;	/* don't do only explore */
+	int explore_once = 0;	/* don't do only explore */
+	int handle_events = 1;	/* do handle the event queue */
 	int maxfd;		/* maximum fd in use */
 	char buf[50];		/* for creation of the filename */
-	int fds[MAXUSBDEV];	/* open filedescriptors */
-	fd_set fdset;
-	int itimo = TIMEOUT;	/* timeout for select */
-	struct timeval timo;
+	fd_set r,w;
+	int itimeout = TIMEOUT;	/* timeout for select */
+	struct timeval tv;
 
-	while ((ch = getopt(argc, argv, "def:t:v")) != -1) {
+	while ((ch = getopt(argc, argv, "c:def:nt:v")) != -1) {
 		switch(ch) {
+		case 'c':
+			configfile = strdup(optarg);
+			break;
 		case 'd':
 			debug++;
 			break;
 		case 'e':
-			explore++;
+			explore_once = 1;
 			break;
 		case 'f':
 			if (ndevs < MAXUSBDEV)
 				devs[ndevs++] = optarg;
 			break;
+		case 'n':
+			handle_events = 0;
+			break;
 		case 't':
-			itimo = atoi(optarg);
+			itimeout = atoi(optarg);
 			break;
 		case 'v':
 			verbose++;
@@ -131,16 +809,16 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	/* open all the files /dev/usb\d+ or specified with -f */
 	maxfd = 0;
 	if (ndevs == 0) {
+		/* open all the USBDEVS\d+ devices */
 		for (i = 0; i < MAXUSBDEV; i++) {
 			sprintf(buf, "%s%d", USBDEV, i);
 			fds[ndevs] = open(buf, O_RDWR);
 			if (fds[ndevs] >= 0) {
 				devs[ndevs] = strdup(buf);
 				if (verbose)
-					printf("%s: opening %s\n", 
+					printf("%s: opened %s\n", 
 					       __progname, devs[ndevs]);
 				if (fds[ndevs] > maxfd)
 					maxfd = fds[ndevs];
@@ -148,14 +826,23 @@ main(int argc, char **argv)
 			}
 		}
 	} else {
+		/* open all the files specified with -f */
 		for (i = 0; i < ndevs; i++) {
 			fds[i] = open(devs[i], O_RDWR);
-			if (fds[i] < 0)
-				err(1, "%s", devs[i]);
-			else if (fds[i] > maxfd)
-				maxfd = fds[i];
+			if (fds[i] < 0) {
+				fprintf(stderr, "%s: Could not open %s, %s\n",
+					__progname, devs[i], strerror(errno));
+				exit(1);
+			} else {
+				if (verbose)
+					printf("%s: opened %s\n", 
+					       __progname, devs[i]);
+				if (fds[i] > maxfd)
+					maxfd = fds[i];
+			}
 		}
 	}
+
 	if (ndevs == 0) {
 		fprintf(stderr, "No USB host controllers found\n");
 		exit(1);
@@ -163,13 +850,37 @@ main(int argc, char **argv)
 
 
 	/* Do the explore once and exit */
-	if (explore) {
+	if (explore_once) {
 		for (i = 0; i < ndevs; i++) {
 			error = ioctl(fds[i], USB_DISCOVER);
-			if (error < 0)
-				err(1, "USB_DISCOVER");
+			if (error < 0) {
+				fprintf(stderr, "%s: ioctl(%s, USB_DISCOVER) "
+					"failed, %s\n",
+					__progname, devs[i], strerror(errno));
+				exit(1);
+			}
 		}
 		exit(0);
+	}
+
+	if (handle_events) {
+		if (verbose)
+			printf("%s: reading configuration file %s\n",
+				__progname, configfile);
+		read_configuration();
+
+		fd = open(USBDEV, O_RDONLY | O_NONBLOCK);
+		if (fd < 0) {
+			fprintf(stderr, "%s: Could not open %s, %s\n",
+				__progname, USBDEV, strerror(errno));
+			exit(1);
+		}
+		if (verbose)
+			printf("%s: opened %s\n", __progname, USBDEV);
+		if (fd > maxfd)
+			maxfd = fd;
+
+		process_event_queue(fd);	/* dequeue the initial events */
 	}
 
 	/* move to the background */
@@ -178,22 +889,45 @@ main(int argc, char **argv)
 
 	/* start select on all the open file descriptors */
 	for (;;) {
-		FD_ZERO(&fdset);
+		FD_ZERO(&r);
+		FD_ZERO(&w);
+		if (handle_events)
+			FD_SET(fd, &r);		/* device USBDEV */
 		for (i = 0; i < ndevs; i++)
-			FD_SET(fds[i], &fdset);
-		timo.tv_usec = 0;
-		timo.tv_sec = itimo;
-		error = select(maxfd+1, 0, &fdset, 0, itimo ? &timo : 0);
-		if (error < 0)
-			warn("select failed\n");
-		for (i = 0; i < ndevs; i++)
-			if (error == 0 || FD_ISSET(fds[i], &fdset)) {
-				if (verbose)
+			FD_SET(fds[i], &w);	/* device USBDEV\d+ */
+		tv.tv_usec = 0;
+		tv.tv_sec = itimeout;
+		error = select(maxfd+1, &r, &w, 0, itimeout ? &tv : 0);
+		if (error < 0) {
+			fprintf(stderr, "%s: Select failed, %s\n",
+				__progname, strerror(errno));
+			exit(1);
+		}
+
+		/* USBDEV\d+ devices have signaled change, do a usb_discover */
+		for (i = 0; i < ndevs; i++) {
+			if (error == 0 || FD_ISSET(fds[i], &w)) {
+				if (verbose >= 2)
 					printf("%s: doing %sdiscovery on %s\n", 
 					       __progname,
 					       (error? "":"timeout "), devs[i]);
-				if (ioctl(fds[i], USB_DISCOVER) < 0)
-					err(1, "USB_DISCOVER");
+				if (ioctl(fds[i], USB_DISCOVER) < 0) {
+					fprintf(stderr, "%s: ioctl(%s, "
+						"USB_DISCOVER) failed, %s\n",
+						__progname, devs[i],
+						strerror(errno));
+					exit(1);
+				}
 			}
+		}
+
+		/* check the event queue */
+		if (handle_events && (FD_ISSET(fd, &r) || error == 0)) {
+			if (verbose >= 2)
+				printf("%s: processing event queue %son %s\n",
+					__progname,
+				       (error? "":"due to timeout "), USBDEV);
+			process_event_queue(fd);
+		}
 	}
 }
