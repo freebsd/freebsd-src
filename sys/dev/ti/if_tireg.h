@@ -73,6 +73,7 @@
  */
 #define NG_VENDORID			0x1385
 #define NG_DEVICEID_GA620		0x620A
+#define NG_DEVICEID_GA620T		0x630A
 
 /*
  * SGI device/vendor ID.
