@@ -4,7 +4,6 @@
 .PATH:	${.CURDIR}/../../contrib/pf/man
 
 PROG=	pfctl
-BINDIR=	${PREFIX}/sbin
 MAN=	pfctl.8 pf.4 pflog.4 pfsync.4 pf.conf.5 pf.os.5
 
 SRCS = pfctl.c parse.y pfctl_parser.c pf_print_state.c pfctl_altq.c
