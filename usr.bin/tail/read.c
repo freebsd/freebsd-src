@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -61,11 +65,11 @@ static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
  */
 int
 bytes(fp, off)
-	register FILE *fp;
+	FILE *fp;
 	off_t off;
 {
-	register int ch, len, tlen;
-	register char *ep, *p, *t;
+	int ch, len, tlen;
+	char *ep, *p, *t;
 	int wrap;
 	char *sp;
 
@@ -129,7 +133,7 @@ bytes(fp, off)
  */
 int
 lines(fp, off)
-	register FILE *fp;
+	FILE *fp;
 	off_t off;
 {
 	struct {
@@ -137,8 +141,8 @@ lines(fp, off)
 		u_int len;
 		char *l;
 	} *lines;
-	register int ch;
-	register char *p;
+	int ch;
+	char *p;
 	int blen, cnt, recno, wrap;
 	char *sp;
 
