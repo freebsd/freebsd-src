@@ -113,7 +113,6 @@ sig_handler(int sig)
 struct xferstat {
 	char		 name[40];
 	struct timeval	 start;
-	struct timeval	 end;
 	struct timeval	 last;
 	off_t		 size;
 	off_t		 offset;
@@ -126,8 +125,7 @@ struct xferstat {
 static void
 stat_eta(struct xferstat *xs)
 {
-	long elapsed;
-	long remaining;
+	long elapsed, remaining;
 
 	elapsed = xs->last.tv_sec - xs->start.tv_sec;
 	remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
@@ -145,11 +143,15 @@ stat_eta(struct xferstat *xs)
 static void
 stat_bps(struct xferstat *xs)
 {
-	long elapsed;
-	double bps;
+	double delta, bps;
 
-	elapsed = xs->last.tv_sec - xs->start.tv_sec;
-	bps = (xs->rcvd - xs->offset) / elapsed;
+	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
+	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
+	if (delta == 0.0) {
+		fprintf(stderr, "?? Bps");
+		return;
+	}
+	bps = (xs->rcvd - xs->offset) / delta;
 	if (bps > 1024*1024)
 		fprintf(stderr, "%.2f MBps", bps / (1024*1024));
 	else if (bps > 1024)
@@ -184,12 +186,9 @@ stat_display(struct xferstat *xs, int force)
 	if (xs->size <= 0) {
 		fprintf(stderr, ": %lld bytes", (long long)xs->rcvd);
 	} else {
-		long elapsed;
-
 		fprintf(stderr, " (%lld bytes): %d%%", (long long)xs->size,
 		    (int)((100.0 * xs->rcvd) / xs->size));
-		elapsed = xs->last.tv_sec - xs->start.tv_sec;
-		if (elapsed > 30 && xs->rcvd > 0) {
+		if (xs->rcvd > 0 && xs->last.tv_sec >= xs->start.tv_sec + 30) {
 			fprintf(stderr, " (ETA ");
 			stat_eta(xs);
 			if (v_level > 1) {
@@ -210,7 +209,6 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	snprintf(xs->name, sizeof xs->name, "%s", name);
 	gettimeofday(&xs->start, NULL);
 	xs->last.tv_sec = xs->last.tv_usec = 0;
-	xs->end = xs->last;
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
@@ -238,11 +236,11 @@ stat_end(struct xferstat *xs)
 	if (!v_level)
 		return;
 
-	gettimeofday(&xs->end, NULL);
+	gettimeofday(&xs->last, NULL);
 
 	stat_display(xs, 1);
 	fputc('\n', stderr);
-	delta = (xs->end.tv_sec + (xs->end.tv_usec / 1.e6))
+	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
 	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
 	fprintf(stderr, "%lld bytes transferred in %.1f seconds (",
 	    (long long)(xs->rcvd - xs->offset), delta);
