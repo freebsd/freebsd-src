@@ -39,7 +39,7 @@
 #include <machine/specialreg.h>
 
 #ifdef SMP
-#include "machine/smp.h"
+#include <machine/smp.h>
 #endif
 
 /*
@@ -576,9 +576,10 @@ static void
 i686_mem_drvinit(void *unused)
 {
     /* Try for i686 MTRRs */
-    if (!strcmp(cpu_vendor, "GenuineIntel") &&
-	cpu_feature & CPUID_MTRR &&
-	(cpu_id & 0xf00) == 0x600) {
+    if ((cpu_feature & CPUID_MTRR) &&
+	((cpu_id & 0xf00) == 0x600) &&
+	((strcmp(cpu_vendor, "GenuineIntel") == 0) ||
+	(strcmp(cpu_vendor, "AuthenticAMD") == 0))) {
 	mem_range_softc.mr_op = &i686_mrops;
     }
 }
