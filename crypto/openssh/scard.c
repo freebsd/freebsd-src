@@ -24,7 +24,7 @@
 
 #include "includes.h"
 #if defined(SMARTCARD) && defined(USE_SECTOK)
-RCSID("$OpenBSD: scard.c,v 1.25 2002/03/26 18:46:59 rees Exp $");
+RCSID("$OpenBSD: scard.c,v 1.26 2002/06/23 03:30:17 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <sectok.h>
@@ -191,7 +191,7 @@ sc_read_pubkey(Key * k)
 
 	status = 0;
 	p = key_fingerprint(k, SSH_FP_MD5, SSH_FP_HEX);
-	debug("fingerprint %d %s", key_size(k), p);
+	debug("fingerprint %u %s", key_size(k), p);
 	xfree(p);
 
 err:

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: msg.c,v 1.2 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: msg.c,v 1.3 2002/06/24 15:49:22 itojun Exp $");
 
 #include "buffer.h"
 #include "getput.h"
@@ -36,7 +36,7 @@ msg_send(int fd, u_char type, Buffer *m)
 	u_char buf[5];
 	u_int mlen = buffer_len(m);
 
-	debug3("msg_send: type %d", type);
+	debug3("msg_send: type %u", (unsigned int)type & 0xff);
 
 	PUT_32BIT(buf, mlen + 1);
 	buf[4] = type;		/* 1st byte of payload is mesg-type */
@@ -59,7 +59,7 @@ msg_recv(int fd, Buffer *m)
 	if (res != sizeof(buf)) {
 		if (res == 0)
 			return -1;
-		fatal("msg_recv: read: header %d", res);
+		fatal("msg_recv: read: header %ld", (long)res);
 	}
 	msg_len = GET_32BIT(buf);
 	if (msg_len > 256 * 1024)

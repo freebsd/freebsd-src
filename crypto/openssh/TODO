@@ -87,4 +87,20 @@ Packaging:
 - HP-UX: Provide DEPOT package scripts.
   (gilbert.r.loomis@saic.com)
 
-$Id: TODO,v 1.46 2002/01/22 11:26:20 djm Exp $
+
+PrivSep Issues:
+- mmap() issues.
+  + /dev/zero solution (Solaris)
+  + No/broken MAP_ANON (Irix)
+  + broken /dev/zero parse (Linux)
+- PAM 
+  + See above PAM notes
+- AIX
+  + usrinfo() does not set TTY, but only required for legicy systems.  Works
+    with PrivSep.
+- OSF
+  + SIA is broken
+- Cygwin
+  + Privsep for Pre-auth only (no fd passing)
+
+$Id: TODO,v 1.50 2002/06/25 17:12:27 mouring Exp $

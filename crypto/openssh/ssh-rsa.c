@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-rsa.c,v 1.20 2002/06/10 16:53:06 stevesk Exp $");
+RCSID("$OpenBSD: ssh-rsa.c,v 1.21 2002/06/23 03:30:17 deraadt Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -39,9 +39,7 @@ RCSID("$OpenBSD: ssh-rsa.c,v 1.20 2002/06/10 16:53:06 stevesk Exp $");
 
 /* RSASSA-PKCS1-v1_5 (PKCS #1 v2.0 signature) with SHA1 */
 int
-ssh_rsa_sign(
-    Key *key,
-    u_char **sigp, u_int *lenp,
+ssh_rsa_sign(Key *key, u_char **sigp, u_int *lenp,
     u_char *data, u_int datalen)
 {
 	const EVP_MD *evp_md;
@@ -72,17 +70,18 @@ ssh_rsa_sign(
 
 	if (ok != 1) {
 		int ecode = ERR_get_error();
-		error("ssh_rsa_sign: RSA_sign failed: %s", ERR_error_string(ecode, NULL));
+		error("ssh_rsa_sign: RSA_sign failed: %s",
+		    ERR_error_string(ecode, NULL));
 		xfree(sig);
 		return -1;
 	}
 	if (len < slen) {
 		int diff = slen - len;
-		debug("slen %d > len %d", slen, len);
+		debug("slen %u > len %u", slen, len);
 		memmove(sig + diff, sig, len);
 		memset(sig, 0, diff);
 	} else if (len > slen) {
-		error("ssh_rsa_sign: slen %d slen2 %d", slen, len);
+		error("ssh_rsa_sign: slen %u slen2 %u", slen, len);
 		xfree(sig);
 		return -1;
 	}
@@ -105,9 +104,7 @@ ssh_rsa_sign(
 }
 
 int
-ssh_rsa_verify(
-    Key *key,
-    u_char *signature, u_int signaturelen,
+ssh_rsa_verify(Key *key, u_char *signature, u_int signaturelen,
     u_char *data, u_int datalen)
 {
 	Buffer b;
@@ -148,12 +145,12 @@ ssh_rsa_verify(
 	/* RSA_verify expects a signature of RSA_size */
 	modlen = RSA_size(key->rsa);
 	if (len > modlen) {
-		error("ssh_rsa_verify: len %d > modlen %d", len, modlen);
+		error("ssh_rsa_verify: len %u > modlen %u", len, modlen);
 		xfree(sigblob);
 		return -1;
 	} else if (len < modlen) {
 		int diff = modlen - len;
-		debug("ssh_rsa_verify: add padding: modlen %d > len %d",
+		debug("ssh_rsa_verify: add padding: modlen %u > len %u",
 		    modlen, len);
 		sigblob = xrealloc(sigblob, modlen);
 		memmove(sigblob + diff, sigblob, len);
@@ -176,7 +173,8 @@ ssh_rsa_verify(
 	xfree(sigblob);
 	if (ret == 0) {
 		int ecode = ERR_get_error();
-		error("ssh_rsa_verify: RSA_verify failed: %s", ERR_error_string(ecode, NULL));
+		error("ssh_rsa_verify: RSA_verify failed: %s",
+		    ERR_error_string(ecode, NULL));
 	}
 	debug("ssh_rsa_verify: signature %scorrect", (ret==0) ? "in" : "");
 	return ret;
