@@ -50,6 +50,7 @@ static const char rcsid[] =
  *	Author:  John Kunze, UCB
  */
 
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,7 +83,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct	openfile *ip;
+	struct	openfile *ip;
 
 	getargs(argv);
 	if (!morefiles)
@@ -104,9 +105,8 @@ void
 getargs(av)
 	char *av[];
 {
-	register struct	openfile *ip = input;
-	register char *p;
-	register char *c;
+	struct	openfile *ip = input;
+	char *p, *c;
 	static char fmtbuf[BUFSIZ];
 	char *fmtp = fmtbuf;
 	int P, S, F, T;
@@ -114,7 +114,8 @@ getargs(av)
 	P = S = F = T = 0;		/* capitalized options */
 	while ((p = *++av) != NULL) {
 		if (*p != '-' || !p[1]) {
-			morefiles++;
+			if (++morefiles >= MAXOFILES)
+				errx(1, "too many input files");
 			if (*p == '-')
 				ip->fp = stdin;
 			else if ((ip->fp = fopen(p, "r")) == NULL) {
@@ -130,7 +131,8 @@ getargs(av)
 			ip++;
 			continue;
 		}
-		switch (*(c = ++p) | 040) {
+		c = ++p;
+		switch (tolower(*c)) {
 		case 's':
 			if (*++p || (p = *++av))
 				ip->sepstring = p;
@@ -149,13 +151,19 @@ getargs(av)
 		case 'p':
 			ip->pad = 1;
 			P = (*c == 'P' ? 1 : 0);
+			/* FALLTHROUGH */
 		case 'f':
 			F = (*c == 'F' ? 1 : 0);
 			if (*++p || (p = *++av)) {
 				fmtp += strlen(fmtp) + 1;
-				if (fmtp > fmtbuf + BUFSIZ)
+				if (fmtp >= fmtbuf + sizeof(fmtbuf))
 					errx(1, "no more format space");
-				sprintf(fmtp, "%%%ss", p);
+				/* restrict format string to only valid width formatters */
+				if (strspn(p, "-.0123456789") != strlen(p))
+					errx(1, "invalid format string `%s'", p);
+				if (snprintf(fmtp, fmtbuf + sizeof(fmtbuf) - fmtp, "%%%ss", p)
+				    >= fmtbuf + sizeof(fmtbuf) - fmtp)
+					errx(1, "no more format space");
 				ip->format = fmtp;
 			}
 			else
@@ -175,13 +183,12 @@ char *
 pad(ip)
 	struct openfile *ip;
 {
-	register char *p = ip->sepstring;
-	register char *lp = linep;
+	char *lp = linep;
 
-	while (*p)
-		*lp++ = *p++;
+	strlcpy(lp, ip->sepstring, line + sizeof(line) - lp);
+	lp += strlen(lp);
 	if (ip->pad) {
-		sprintf(lp, ip->format, "");
+		snprintf(lp, line + sizeof(line) - lp, ip->format, "");
 		lp += strlen(lp);
 	}
 	return (lp);
@@ -192,10 +199,10 @@ gatherline(ip)
 	struct openfile *ip;
 {
 	char s[BUFSIZ];
-	register int c;
-	register char *p;
-	register char *lp = linep;
-	char *end = s + BUFSIZ;
+	int c;
+	char *p;
+	char *lp = linep;
+	char *end = s + sizeof(s) - 1;
 
 	if (ip->eof)
 		return (pad(ip));
@@ -210,10 +217,9 @@ gatherline(ip)
 		morefiles--;
 		return (pad(ip));
 	}
-	p = ip->sepstring;
-	while (*p)
-		*lp++ = *p++;
-	sprintf(lp, ip->format, s);
+	strlcpy(lp, ip->sepstring, line + sizeof(line) - lp);
+	lp += strlen(lp);
+	snprintf(lp, line + sizeof(line) - lp, ip->format, s);
 	lp += strlen(lp);
 	return (lp);
 }
