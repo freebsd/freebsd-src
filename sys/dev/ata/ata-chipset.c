@@ -2662,7 +2662,7 @@ ata_setup_interrupt(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int rid = ATA_IRQ_RID;
 
-    if (!ATA_MASTERDEV(dev)) {
+    if (!ata_legacy(dev)) {
 	if (!(ctlr->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 						   RF_SHAREABLE | RF_ACTIVE))) {
 	    device_printf(dev, "unable to map interrupt\n");
