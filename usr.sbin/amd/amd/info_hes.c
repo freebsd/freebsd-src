@@ -37,7 +37,7 @@
  *
  *	@(#)info_hes.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: info_hes.c,v 1.4 1997/02/22 16:01:31 peter Exp $
  *
  */
 
@@ -107,7 +107,7 @@ time_t *tp;
  * Do a Hesiod nameserver call.
  * Modify time is ignored by Hesiod - XXX
  */
-int hesiod_search P((mnt_map *m, char *map, char **pval, time_t *tp));
+int hesiod_search P((mnt_map *m, char *map, char *key, char **pval, time_t *tp));
 int hesiod_search(m, map, key, pval, tp)
 mnt_map *m;
 char *map;
