@@ -46,8 +46,7 @@
  * and to do a partial ifconfig(8) and route(8) so that the critical net
  * interface can communicate with the server.
  * The primary bootstrap is expected to fill in the appropriate fields before
- * starting the kernel. Whether or not the swap area is nfs mounted is
- * determined by the value in swdevt[0]. (equal to NODEV --> swap over nfs)
+ * starting the kernel.
  * Currently only works for AF_INET protocols.
  * NB: All fields are stored in net byte order to avoid hassles with
  * client/server byte ordering differences.
@@ -64,13 +63,6 @@
 struct nfsv3_diskless {
 	struct ifaliasreq myif;			/* Default interface */
 	struct sockaddr_in mygateway;		/* Default gateway */
-	struct nfs_args	swap_args;		/* Mount args for swap file */
-	int		swap_fhsize;		/* Size of file handle */
-	u_char		swap_fh[NFSX_V3FHMAX];	/* Swap file's file handle */
-	struct sockaddr_in swap_saddr;		/* Address of swap server */
-	char		swap_hostnam[MNAMELEN];	/* Host name for mount pt */
-	int		swap_nblks;		/* Size of server swap file */
-	struct ucred	swap_ucred;		/* Swap credentials */
 	struct nfs_args	root_args;		/* Mount args for root fs */
 	int		root_fhsize;		/* Size of root file handle */
 	u_char		root_fh[NFSX_V3FHMAX];	/* File handle of root dir */
@@ -106,12 +98,6 @@ struct onfs_args {
 struct nfs_diskless {
 	struct ifaliasreq myif;			/* Default interface */
 	struct sockaddr_in mygateway;		/* Default gateway */
-	struct onfs_args swap_args;		/* Mount args for swap file */
-	u_char		swap_fh[NFSX_V2FH];	/* Swap file's file handle */
-	struct sockaddr_in swap_saddr;		/* Address of swap server */
-	char		swap_hostnam[MNAMELEN];	/* Host name for mount pt */
-	int		swap_nblks;		/* Size of server swap file */
-	struct ucred	swap_ucred;		/* Swap credentials */
 	struct onfs_args root_args;		/* Mount args for root fs */
 	u_char		root_fh[NFSX_V2FH];	/* File handle of root dir */
 	struct sockaddr_in root_saddr;		/* Address of root server */

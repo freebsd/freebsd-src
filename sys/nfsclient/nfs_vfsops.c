@@ -141,13 +141,6 @@ SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
 	&nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
 	"%Ssockaddr_in", "");
 
-SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_swappath, CTLFLAG_RD,
-	nfsv3_diskless.swap_hostnam, 0, "");
-
-SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_swapaddr, CTLFLAG_RD,
-	&nfsv3_diskless.swap_saddr, sizeof nfsv3_diskless.swap_saddr,
-	"%Ssockaddr_in","");
-
 
 void		nfsargs_ntoh(struct nfs_args *);
 static int	nfs_mountdiskless(char *, char *, int,
@@ -204,15 +197,6 @@ nfs_convert_diskless(void)
 		sizeof(struct ifaliasreq));
 	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
 		sizeof(struct sockaddr_in));
-	nfs_convert_oargs(&nfsv3_diskless.swap_args,&nfs_diskless.swap_args);
-	nfsv3_diskless.swap_fhsize = NFSX_V2FH;
-	bcopy(nfs_diskless.swap_fh, nfsv3_diskless.swap_fh, NFSX_V2FH);
-	bcopy(&nfs_diskless.swap_saddr,&nfsv3_diskless.swap_saddr,
-		sizeof(struct sockaddr_in));
-	bcopy(nfs_diskless.swap_hostnam, nfsv3_diskless.swap_hostnam, MNAMELEN);
-	nfsv3_diskless.swap_nblks = nfs_diskless.swap_nblks;
-	bcopy(&nfs_diskless.swap_ucred, &nfsv3_diskless.swap_ucred,
-		sizeof(struct ucred));
 	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
 	nfsv3_diskless.root_fhsize = NFSX_V2FH;
 	bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
@@ -385,7 +369,6 @@ nfsmout:
 int
 nfs_mountroot(struct mount *mp, struct thread *td)
 {
-	struct mount  *swap_mp;
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
@@ -408,17 +391,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * XXX splnet, so networks will receive...
 	 */
 	splnet();
-
-#ifdef notyet
-	/* Set up swap credentials. */
-	proc0.p_ucred->cr_uid = ntohl(nd->swap_ucred.cr_uid);
-	proc0.p_ucred->cr_gid = ntohl(nd->swap_ucred.cr_gid);
-	if ((proc0.p_ucred->cr_ngroups = ntohs(nd->swap_ucred.cr_ngroups)) >
-		NGROUPS)
-		proc0.p_ucred->cr_ngroups = NGROUPS;
-	for (i = 0; i < proc0.p_ucred->cr_ngroups; i++)
-	    proc0.p_ucred->cr_groups[i] = ntohl(nd->swap_ucred.cr_groups[i]);
-#endif
 
 	/*
 	 * Do enough of ifconfig(8) so that the critical net interface can
@@ -486,41 +458,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	if ((error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
 	    &nd->root_saddr, &nd->root_args, td, &vp, &mp)) != 0) {
 		return (error);
-	}
-
-	swap_mp = NULL;
-	if (nd->swap_nblks) {
-
-		/* Convert to DEV_BSIZE instead of Kilobyte */
-		nd->swap_nblks *= 2;
-
-		/*
-		 * Create a fake mount point just for the swap vnode so that the
-		 * swap file can be on a different server from the rootfs.
-		 */
-		nd->swap_args.fh = nd->swap_fh;
-		nd->swap_args.fhsize = nd->swap_fhsize;
-		l = ntohl(nd->swap_saddr.sin_addr.s_addr);
-		snprintf(buf, sizeof(buf), "%ld.%ld.%ld.%ld:%s",
-			(l >> 24) & 0xff, (l >> 16) & 0xff,
-			(l >>  8) & 0xff, (l >>  0) & 0xff, nd->swap_hostnam);
-		printf("NFS SWAP: %s\n", buf);
-		if ((error = nfs_mountdiskless(buf, "/swap", 0,
-		    &nd->swap_saddr, &nd->swap_args, td, &vp, &swap_mp)) != 0)
-			return (error);
-		vfs_unbusy(swap_mp, td);
-
-		VTONFS(vp)->n_size = VTONFS(vp)->n_vattr.va_size =
-				nd->swap_nblks * DEV_BSIZE ;
-		/*
-		 * Since the swap file is not the root dir of a filesystem,
-		 * hack it to a regular file.
-		 */
-		vp->v_type = VREG;
-		vp->v_vflag = 0;
-		vp->v_iflag = 0;
-		VREF(vp);
-		swaponvp(td, vp, NODEV, nd->swap_nblks);
 	}
 
 	mp->mnt_flag |= MNT_ROOTFS;
