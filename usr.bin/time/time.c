@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.4.2.2 1997/08/29 05:30:00 imp Exp $";
+	"$Id: time.c,v 1.4.2.3 1998/03/08 14:04:04 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
 static int getstathz __P((void));
 static void usage __P((void));
@@ -69,6 +70,7 @@ main(argc, argv)
 	int ch, status, lflag;
 	struct timeval before, after;
 	struct rusage ru;
+	int exitonsig = 0; /* Die with same signal as child */
 
 	lflag = 0;
 	while ((ch = getopt(argc, argv, "l")) != -1)
@@ -101,8 +103,10 @@ main(argc, argv)
 	(void)signal(SIGQUIT, SIG_IGN);
 	while (wait3(&status, 0, &ru) != pid);		/* XXX use waitpid */
 	gettimeofday(&after, (struct timezone *)NULL);
-	if (status&0377)
+	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
+	if (WIFSIGNALED(status))
+		exitonsig = WTERMSIG(status);
 	after.tv_sec -= before.tv_sec;
 	after.tv_usec -= before.tv_usec;
 	if (after.tv_usec < 0)
@@ -154,6 +158,12 @@ main(argc, argv)
 			ru.ru_nvcsw, "voluntary context switches");
 		fprintf(stderr, "%10ld  %s\n",
 			ru.ru_nivcsw, "involuntary context switches");
+	}
+	if (exitonsig) {
+		if (signal(exitonsig, SIG_DFL) < 0)
+			perror("signal");
+		else
+			kill(getpid(), exitonsig);
 	}
 	exit (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
 }
