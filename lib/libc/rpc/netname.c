@@ -26,6 +26,8 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ * $FreeBSD$
  */
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
@@ -47,10 +49,11 @@ static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #include <rpcsvc/ypclnt.h>
 #endif
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 256
@@ -58,6 +61,19 @@ static char sccsid[] = "@(#)netname.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #ifndef NGROUPS
 #define NGROUPS 16
 #endif
+
+#define TYPE_BIT(type)  (sizeof (type) * CHAR_BIT)
+
+#define TYPE_SIGNED(type) (((type) -1) < 0)
+
+/*
+** 302 / 1000 is log10(2.0) rounded up.
+** Subtract one for the sign bit if the type is signed;
+** add one for integer division truncation;
+** add one more for a minus sign if the type is signed.
+*/
+#define INT_STRLEN_MAXIMUM(type) \
+    ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 1000 + 1 + TYPE_SIGNED(type))
 
 static char *OPSYS = "unix";
 
@@ -90,15 +106,13 @@ user2netname(netname, uid, domain)
 {
 	char *dfltdom;
 
-#define MAXIPRINT	(11)	/* max length of printed integer */
-
 	if (domain == NULL) {
 		if (_rpc_get_default_domain(&dfltdom) != 0) {
 			return (0);
 		}
 		domain = dfltdom;
 	}
-	if (strlen(domain) + 1 + MAXIPRINT > MAXNETNAMELEN) {
+	if (strlen(domain) + 1 + INT_STRLEN_MAXIMUM(u_long) + 1 + strlen(OPSYS) > MAXNETNAMELEN) {
 		return (0);
 	}
 	(void) sprintf(netname, "%s.%ld@%s", OPSYS, (u_long)uid, domain);	
@@ -128,7 +142,7 @@ host2netname(netname, host, domain)
 		(void) gethostname(hostname, sizeof(hostname));
 		host = hostname;
 	}
-	if (strlen(domain) + 1 + strlen(host) > MAXNETNAMELEN) {
+	if (strlen(domain) + 1 + strlen(host) + 1 + strlen(OPSYS) > MAXNETNAMELEN) {
 		return (0);
 	} 
 	(void) sprintf(netname, "%s.%s@%s", OPSYS, host, domain);
