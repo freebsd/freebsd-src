@@ -596,6 +596,8 @@ vinum_lsi(int sdno, int recurse)
 		(long long) sd.sectors * DEV_BSIZE,
 		(long long) sd.sectors / (MEGABYTE / DEV_BSIZE),
 		sd_state(sd.state));
+	    if (sd.flags & VF_RETRYERRORS)
+	        printf("\t\tretryerrors\n"); 
 	    if (sd.plexno >= 0) {
 		get_plex_info(&plex, sd.plexno);
 		printf("\t\tPlex %s", plex.name);

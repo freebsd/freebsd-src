@@ -67,8 +67,10 @@ complete_rqe(struct buf *bp)
     struct rqgroup *rqg;
     struct buf *ubp;					    /* user buffer */
     struct drive *drive;
+    struct sd *sd;
+    char *gravity;					    /* for error messages */
 
-    rqe = (struct rqelement *) bp;			    /* point to the element element that completed */
+    rqe = (struct rqelement *) bp;			    /* point to the element that completed */
     rqg = rqe->rqg;					    /* and the request group */
     rq = rqg->rq;					    /* and the complete request */
     ubp = rq->bp;					    /* user buffer */
@@ -84,29 +86,40 @@ complete_rqe(struct buf *bp)
     ||(vinum_conf.active == VINUM_MAXACTIVE))		    /* or the global limit */
 	wakeup(&launch_requests);			    /* let another one at it */
     if ((bp->b_flags & B_ERROR) != 0) {			    /* transfer in error */
+	gravity = "";
+	sd = &SD[rqe->sdno];
+
 	if (bp->b_error != 0)				    /* did it return a number? */
 	    rq->error = bp->b_error;			    /* yes, put it in. */
 	else if (rq->error == 0)			    /* no: do we have one already? */
 	    rq->error = EIO;				    /* no: catchall "I/O error" */
-	SD[rqe->sdno].lasterror = rq->error;
+	sd->lasterror = rq->error;
 	if (bp->b_flags & B_READ) {
+	    if ((rq->error == ENXIO) || (sd->flags & VF_RETRYERRORS) == 0) {
+		gravity = " fatal";
+		set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
+	    }
 	    log(LOG_ERR,
-		"%s: fatal read I/O error, block %d for %ld bytes\n",
-		SD[rqe->sdno].name,
+		"%s:%s read error, block %d for %ld bytes\n",
+		gravity,
+		sd->name,
 		bp->b_blkno,
 		bp->b_bcount);
-	    set_sd_state(rqe->sdno, sd_crashed, setstate_force); /* subdisk is crashed */
 	} else {					    /* write operation */
+	    if ((rq->error == ENXIO) || (sd->flags & VF_RETRYERRORS) == 0) {
+		gravity = "fatal ";
+		set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
+	    }
 	    log(LOG_ERR,
-		"%s: fatal write I/O error, block %d for %ld bytes\n",
-		SD[rqe->sdno].name,
+		"%s:%s write error, block %d for %ld bytes\n",
+		gravity,
+		sd->name,
 		bp->b_blkno,
 		bp->b_bcount);
-	    set_sd_state(rqe->sdno, sd_stale, setstate_force); /* subdisk is stale */
 	}
 	log(LOG_ERR,
 	    "%s: user buffer block %d for %ld bytes\n",
-	    SD[rqe->sdno].name,
+	    sd->name,
 	    ubp->b_blkno,
 	    ubp->b_bcount);
 	if (rq->error == ENXIO) {			    /* the drive's down too */
@@ -192,7 +205,7 @@ complete_rqe(struct buf *bp)
 	}
     }
     if (rq->active == 0) {				    /* request finished, */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
 		Debugger("resid");

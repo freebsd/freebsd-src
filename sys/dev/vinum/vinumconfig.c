@@ -1174,6 +1174,9 @@ config_subdisk(int update)
 		partition = token[parameter][0];
 	    break;
 
+	case kw_retryerrors:
+	    sd->flags |= VF_RETRYERRORS;
+	    break;
 
 	default:
 	    throw_rude_remark(EINVAL, "%s: invalid keyword: %s", sd->name, token[parameter]);
