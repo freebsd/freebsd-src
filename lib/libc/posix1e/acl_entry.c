@@ -41,7 +41,6 @@ int
 acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 {
 	acl_t acl;
-	struct acl_entry newentry;
 
 	if (!acl_p || !*acl_p || ((*acl_p)->acl_cnt >= ACL_MAX_ENTRIES) ||
 	    ((*acl_p)->acl_cnt < 0)) {
@@ -49,29 +48,13 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 		return -1;
 	}
 
-	entry_p = malloc(sizeof(acl_entry_t));
-	if (!entry_p)
-		return -1;
-	*entry_p = malloc(sizeof(struct acl_entry));
-	if (!*entry_p)
-		return -1;
-
 	acl = *acl_p;
 
-	**entry_p = acl->acl_entry[acl->acl_cnt];
+	*entry_p = &acl->acl_entry[acl->acl_cnt++];
 
 	(**entry_p).ae_tag  = ACL_UNDEFINED_TAG;
 	(**entry_p).ae_id   = ACL_UNDEFINED_ID;
 	(**entry_p).ae_perm = ACL_PERM_NONE;
-
-	acl->acl_entry[acl->acl_cnt] = newentry;
-	acl->acl_cnt++;
-
-	**entry_p = newentry;
-
-	/* XXX - ok? */
-	free(*entry_p);
-	free(entry_p);
 
 	return 0;
 }
