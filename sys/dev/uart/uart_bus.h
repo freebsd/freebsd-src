@@ -113,6 +113,8 @@ struct uart_softc {
 	struct uart_bas	sc_bas;
 	device_t	sc_dev;
 
+	struct mtx	sc_hwmtx;	/* Spinlock protecting hardware. */
+
 	struct resource	*sc_rres;	/* Register resource. */
 	int		sc_rrid;
 	int		sc_rtype;	/* SYS_RES_{IOPORT|MEMORY}. */

@@ -427,15 +427,19 @@ i8251_bus_flush(struct uart_softc *sc, int what)
 {
 	struct i8251_softc *i8251 = (struct i8251_softc*)sc;
 	struct uart_bas *bas;
+	int error;
 
 	bas = &sc->sc_bas;
+	mtx_lock_spin(&sc->sc_hwmtx);
 	if (sc->sc_hasfifo) {
 		i8251_flush(bas, what);
 		uart_setreg(bas, REG_FCR, i8251->fcr);
 		uart_barrier(bas);
-		return (0);
-	}
-	return (i8251_drain(bas, what));
+		error = 0;
+	} else
+		error = i8251_drain(bas, what);
+	mtx_unlock_spin(&sc->sc_hwmtx);
+	return (error);
 }
 
 static int
@@ -447,7 +451,9 @@ i8251_bus_getsig(struct uart_softc *sc)
 	do {
 		old = sc->sc_hwsig;
 		sig = old;
+		mtx_lock_spin(&sc->sc_hwmtx);
 		msr = uart_getreg(&sc->sc_bas, REG_MSR);
+		mtx_unlock_spin(&sc->sc_hwmtx);
 		SIGCHG(msr & MSR_DSR, sig, UART_SIG_DSR, UART_SIG_DDSR);
 		SIGCHG(msr & MSR_CTS, sig, UART_SIG_CTS, UART_SIG_DCTS);
 		SIGCHG(msr & MSR_DCD, sig, UART_SIG_DCD, UART_SIG_DDCD);
@@ -461,9 +467,12 @@ static int
 i8251_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct uart_bas *bas;
+	int error;
 	uint8_t lcr;
 
 	bas = &sc->sc_bas;
+	error = 0;
+	mtx_lock_spin(&sc->sc_hwmtx);
 	switch (request) {
 	case UART_IOCTL_BREAK:
 		lcr = uart_getreg(bas, REG_LCR);
@@ -475,9 +484,11 @@ i8251_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		uart_barrier(bas);
 		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	return (0);
+	mtx_unlock_spin(&sc->sc_hwmtx);
+	return (error);
 }
 
 static int
@@ -488,13 +499,16 @@ i8251_bus_ipend(struct uart_softc *sc)
 	uint8_t iir, lsr;
 
 	bas = &sc->sc_bas;
+	mtx_lock_spin(&sc->sc_hwmtx);
 	iir = uart_getreg(bas, REG_IIR);
-	if (iir & IIR_NOPEND)
+	if (iir & IIR_NOPEND) {
+		mtx_unlock_spin(&sc->sc_hwmtx);
 		return (0);
-
+	}
 	ipend = 0;
 	if (iir & IIR_RXRDY) {
 		lsr = uart_getreg(bas, REG_LSR);
+		mtx_unlock_spin(&sc->sc_hwmtx);
 		if (lsr & LSR_OE)
 			ipend |= UART_IPEND_OVERRUN;
 		if (lsr & LSR_BI)
@@ -502,12 +516,12 @@ i8251_bus_ipend(struct uart_softc *sc)
 		if (lsr & LSR_RXRDY)
 			ipend |= UART_IPEND_RXREADY;
 	} else {
+		mtx_unlock_spin(&sc->sc_hwmtx);
 		if (iir & IIR_TXRDY)
 			ipend |= UART_IPEND_TXIDLE;
 		else
 			ipend |= UART_IPEND_SIGCHG;
 	}
-
 	return ((sc->sc_leaving) ? 0 : ipend);
 }
 
@@ -516,9 +530,13 @@ i8251_bus_param(struct uart_softc *sc, int baudrate, int databits,
     int stopbits, int parity)
 {
 	struct uart_bas *bas;
+	int error;
 
 	bas = &sc->sc_bas;
-	return (i8251_param(bas, baudrate, databits, stopbits, parity));
+	mtx_lock_spin(&sc->sc_hwmtx);
+	error = i8251_param(bas, baudrate, databits, stopbits, parity);
+	mtx_unlock_spin(&sc->sc_hwmtx);
+	return (error);
 }
 
 static int
@@ -661,6 +679,7 @@ i8251_bus_receive(struct uart_softc *sc)
 	uint8_t lsr;
 
 	bas = &sc->sc_bas;
+	mtx_lock_spin(&sc->sc_hwmtx);
 	while (!uart_rx_full(sc)) {
 		lsr = uart_getreg(bas, REG_LSR);
 		if ((lsr & LSR_RXRDY) == 0)
@@ -672,6 +691,7 @@ i8251_bus_receive(struct uart_softc *sc)
 			xc |= UART_STAT_PARERR;
 		uart_rx_put(sc, xc);
 	}
+	mtx_unlock_spin(&sc->sc_hwmtx);
  	return (0);
 }
 
@@ -695,6 +715,7 @@ i8251_bus_setsig(struct uart_softc *sc, int sig)
 			    UART_SIG_DRTS);
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
+	mtx_lock_spin(&sc->sc_hwmtx);
 	i8251->mcr &= ~(MCR_DTR|MCR_RTS);
 	if (new & UART_SIG_DTR)
 		i8251->mcr |= MCR_DTR;
@@ -702,6 +723,7 @@ i8251_bus_setsig(struct uart_softc *sc, int sig)
 		i8251->mcr |= MCR_RTS;
 	uart_setreg(bas, REG_MCR, i8251->mcr);
 	uart_barrier(bas);
+	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
 
@@ -713,6 +735,7 @@ i8251_bus_transmit(struct uart_softc *sc)
 	int i;
 
 	bas = &sc->sc_bas;
+	mtx_lock_spin(&sc->sc_hwmtx);
 	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
 		;
 	uart_setreg(bas, REG_IER, i8251->ier | IER_ETXRDY);
@@ -722,5 +745,6 @@ i8251_bus_transmit(struct uart_softc *sc)
 		uart_barrier(bas);
 	}
 	sc->sc_txbusy = 1;
+	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
