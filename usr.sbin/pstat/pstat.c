@@ -119,8 +119,8 @@ static struct nlist nl[] = {
 static int	usenumflag;
 static int	totalflag;
 static int	swapflag;
-static char	*nlistf	= NULL;
-static char	*memf	= NULL;
+static char	*nlistf;
+static char	*memf;
 static kvm_t	*kd;
 
 static char	*usagestr;
@@ -174,7 +174,7 @@ main(int argc, char *argv[])
 		usagestr = "swapinfo [-k] [-M core] [-N system]";
 	} else {
 		opts = "TM:N:fknst";
-		usagestr = "pstat [-Tfknstv] [-M core] [-N system]";
+		usagestr = "pstat [-Tfknst] [-M core] [-N system]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) != -1)
