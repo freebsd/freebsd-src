@@ -604,11 +604,21 @@ On extraction, the list of fragments is collected from the
 header (including any extension headers), and the data
 is then read and written to the file at appropriate offsets.
 .It Va isextended
-If this is set to non-zero, the header will be followed by
-additional
+If this is set to non-zero, the header will be followed by additional
 .Dq sparse header
 records.
-Each such record contains XXX more details needed XXX
+Each such record contains information about as many as 21 additional
+sparse blocks as shown here:
+.Bd -literal -offset indent
+struct gnu_sparse_header {
+	struct {
+		char offset[12];
+		char numbytes[12];
+	} sparse[21];
+	char    isextended[1];
+	char    padding[7];
+};
+.Ed
 .It Va realsize
 A binary representation of the file's complete size, with a much larger range
 than the POSIX file size.
