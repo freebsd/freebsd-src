@@ -41,11 +41,6 @@ TAILQ_HEAD(cv_waitq, thread);
  * Condition variable.
  */
 struct cv {
-	struct cv_waitq	cv_waitq;	/* Queue of condition waiters. */
-	struct mtx	*cv_mtx;	/*
-					 * Mutex passed in by cv_*wait*(),
-					 * currently only used for INVARIANTS.
-					 */
 	const char	*cv_description;
 };
 
@@ -63,10 +58,6 @@ void	cv_broadcastpri(struct cv *cvp, int);
 
 #define cv_broadcast(cvp)	cv_broadcastpri(cvp, -1)
 
-void	cv_waitq_remove(struct thread *td);
-void	cv_abort(struct thread *td);
-
-#define	cv_waitq_empty(cvp)	(TAILQ_EMPTY(&(cvp)->cv_waitq))
 #define	cv_wmesg(cvp)		((cvp)->cv_description)
 
 #endif	/* _KERNEL */

@@ -622,12 +622,12 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
-sched_sleep(struct thread *td, u_char prio)
+sched_sleep(struct thread *td)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	td->td_ksegrp->kg_slptime = 0;
-	td->td_priority = prio;
+	td->td_base_pri = td->td_priority;
 }
 
 void

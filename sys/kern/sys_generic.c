@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/resourcevar.h>
 #include <sys/selinfo.h>
+#include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -1212,15 +1213,9 @@ doselwakeup(sip, pri)
 	TAILQ_REMOVE(&td->td_selq, sip, si_thrlist);
 	sip->si_thread = NULL;
 	mtx_lock_spin(&sched_lock);
-	if (td->td_wchan == &selwait) {
-		cv_waitq_remove(td);
-		TD_CLR_SLEEPING(td);
-		if (pri >= PRI_MIN && pri <= PRI_MAX && td->td_priority > pri)
-			td->td_priority = pri;
-		setrunnable(td);
-	} else
-		td->td_flags &= ~TDF_SELECT;
+	td->td_flags &= ~TDF_SELECT;
 	mtx_unlock_spin(&sched_lock);
+	sleepq_remove(td, &selwait);
 	mtx_unlock(&sellock);
 }
 
