@@ -553,7 +553,7 @@ static int
 acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct thread *td)
 {
     struct acd_softc *cdp = pp->geom->softc;
-    int error = 0;
+    int error = 0, nocopyout;
 
     if (!cdp)
 	return ENXIO;
@@ -574,6 +574,7 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 	    cdp->flags |= F_LOCKED;
 	    break;
 	}
+    nocopyout = 0;
     switch (cmd) {
 
     case CDIOCRESUME:
@@ -738,6 +739,9 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 	}
 	break;
 
+    case CDIOCREADSUBCHANNEL_SYSSPACE:
+        nocopyout = 1;
+        /* Fallthrough */
     case CDIOCREADSUBCHANNEL:
 	{
 	    struct ioc_read_subchannel *args =
@@ -782,7 +786,12 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 		    break;
 		}
 	    }
-	    error = copyout(&cdp->subchan, args->data, args->data_len);
+	    if (nocopyout == 0) {
+	        error = copyout(&cdp->subchan, args->data, args->data_len);
+	    } else {
+	        error = 0;
+	        bcopy(&cdp->subchan, args->data, args->data_len);
+	    }
 	}
 	break;
 
