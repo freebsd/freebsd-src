@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.13 1997/10/21 08:41:15 bde Exp $
+#	$Id: Makefile.inc,v 1.14 1998/02/20 08:23:55 jb Exp $
 
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/string ${.CURDIR}/../libc/string
 
@@ -27,4 +27,5 @@ MLINKS+=strcat.3 strncat.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 strncpy.3
 MLINKS+=strerror.3 perror.3 strerror.3 sys_errlist.3 strerror.3 sys_nerr.3
+MLINKS+=strtok.3 strtok_r.3
 .endif
