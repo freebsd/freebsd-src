@@ -1,4 +1,5 @@
-/*	$NetBSD$	*/
+/*	$NetBSD: llib-lposix,v 1.2 1995/07/03 21:25:09 cgd Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -69,7 +70,8 @@ double	(acos)(double x);
 unsigned (alarm)(unsigned seconds);
 char	*(asctime)(const struct tm *timeptr);
 double	(asin)(double x);
-void	(__assert)(const char *expression, int line, const char *file);
+void	(__assert)(const char *expression, const char *func, int line,
+		   const char *file);
 double	(atan)(double x);
 double	(atan2)(double y, double x);
 int	(atexit)(void (*func)(void));
