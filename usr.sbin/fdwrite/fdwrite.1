@@ -22,12 +22,14 @@
 .Op Fl f Ar inputfile
 .Op Fl d Ar device
 .Sh DESCRIPTION
-.Nm Fdwrite
-formats and writes one and more floppy disks.
+The
+.Nm
+utility formats and writes one and more floppy disks.
 Any floppy disk device capable of formatting can be used.
 .Pp
-.Nm Fdwrite
-will ask the user
+The
+.Nm
+utility will ask the user
 (on
 .Pa /dev/tty )
 to insert a new floppy and press return.
@@ -62,8 +64,9 @@ The name of the floppy device to write to.  Default is
 .Pa /dev/fd0 .
 .El
 .Pp
-.Nm Fdwrite
-actually closes the
+The
+.Nm
+utility actually closes the
 .Ar device
 while it waits for the user to press return,
 it is thus quite possible to use the drive for other purposes at this
@@ -76,7 +79,9 @@ If custom formatting is needed, please use
 .Xr fdformat 1
 instead.
 .Sh EXAMPLES
-.Nm Fdwrite
+The
+.Nm
+utility
 was planned as a tool to make life easier when writing a set of floppies,
 one such use could be to write a tar-archive:
 .Pp
@@ -90,8 +95,9 @@ thus reducing the amount of work for the floppy-jockey.
 .Sh SEE ALSO
 .Xr fdformat 1
 .Sh HISTORY
-.Nm Fdwrite
-was written while waiting for ``make world'' to complete.
+The
+.Nm
+utility was written while waiting for ``make world'' to complete.
 Some of the code was taken from
 .Xr fdformat 1 .
 .Sh AUTHORS

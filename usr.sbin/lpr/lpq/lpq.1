@@ -46,13 +46,15 @@
 .Op  job # ...\&
 .Op  user ...\&
 .Sh DESCRIPTION
-.Nm Lpq
-examines the spooling area used by
+The
+.Nm
+utility examines the spooling area used by
 .Xr lpd  8
 for printing files on the line printer, and reports the status of the
 specified jobs or all jobs associated with a user.
-.Nm Lpq
-invoked
+The
+.Nm
+utility invoked
 without any arguments reports on any jobs currently in the queue.
 .Pp
 Options:
@@ -123,8 +125,9 @@ The lock file to obtain the currently active job.
 .Xr lpc 8 ,
 .Xr lpd 8
 .Sh HISTORY
-.Nm Lpq
-appeared in
+A
+.Nm
+utility appeared in
 .Bx 3 .
 .Sh BUGS
 Due to the dynamic nature of the information in the spooling directory

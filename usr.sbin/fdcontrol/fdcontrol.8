@@ -40,15 +40,17 @@
 .Op Fl s
 .Ar device
 .Sh DESCRIPTION
-.Nm Fdcontrol
-allows the modification of the run-time behavior of the floppy
+The
+.Nm
+utility allows the modification of the run-time behavior of the floppy
 disk device specified by
 .Ar device .
 .Ar Device
 should be a character device.
 .Pp
-.Nm Fdcontrol
-currently supports the specification of device parameters for the
+The
+.Nm
+utility currently supports the specification of device parameters for the
 floppy disk drive
 .Fl ( s ,
 also default mode),
@@ -75,7 +77,7 @@ facility.
 .Sh BUGS
 The
 .Nm
-command is currently under development.
+utility is currently under development.
 It's user interface is rather
 silly and likely to change in future, options should be provided to
 allow anything being modified from the command line.
@@ -90,8 +92,9 @@ to overflow the syslog if not used with extreme care.
 .Xr warn 3 ,
 .Xr fdc 4
 .Sh HISTORY
-.Nm Fdcontrol
-is currently under development.
+The
+.Nm
+utility is currently under development.
 It's user interface and overall
 functionality are subjects to future improvements and changes.
 .Sh AUTHORS
