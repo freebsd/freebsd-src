@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.158 1995/12/13 15:12:23 julian Exp $
+ *	$Id: machdep.c,v 1.159 1995/12/14 14:35:34 peter Exp $
  */
 
 #include "npx.h"
@@ -969,6 +969,10 @@ dumpsys()
 	if (dumpdev == NODEV)
 		return;
 	if ((minor(dumpdev)&07) != 1)
+		return;
+	if (!(bdevsw[major(dumpdev)]))
+		return;
+	if (!(bdevsw[major(dumpdev)]->d_dump))
 		return;
 	dumpsize = Maxmem;
 	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.49 1995/12/13 15:12:13 julian Exp $
+ *	$Id: autoconf.c,v 1.50 1995/12/14 23:35:17 bde Exp $
  */
 
 /*
@@ -281,11 +281,13 @@ setdumpdev(dev)
 	maj = major(dev);
 	if (maj >= nblkdev)
 		return (ENXIO);
+	if (bdevsw[maj] == NULL)
+		return (ENXIO);		/* XXX is this right? */
 	if (bdevsw[maj]->d_psize == NULL)
-		return (ENXIO);		/* XXX should sometimes be ENODEV */
+		return (ENXIO);		/* XXX should be ENODEV ? */
 	psize = bdevsw[maj]->d_psize(dev);
 	if (psize == -1)
-		return (ENXIO);		/* XXX should sometimes be ENODEV */
+		return (ENXIO);		/* XXX should be ENODEV ? */
 	newdumplo = psize - Maxmem * NBPG / DEV_BSIZE;
 	if (newdumplo < 0)
 		return (ENOSPC);
