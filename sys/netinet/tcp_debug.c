@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.11 1997/09/16 18:36:04 joerg Exp $
+ * $Id: tcp_debug.c,v 1.12 1998/01/08 23:41:53 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -155,10 +155,11 @@ tcp_trace(act, ostate, tp, ti, req)
 	printf("\n");
 	if (tp == 0)
 		return;
-	printf("\trcv_(nxt,wnd,up) (%x,%x,%x) snd_(una,nxt,max) (%x,%x,%x)\n",
-	    tp->rcv_nxt, tp->rcv_wnd, tp->rcv_up, tp->snd_una, tp->snd_nxt,
-	    tp->snd_max);
-	printf("\tsnd_(wl1,wl2,wnd) (%x,%x,%x)\n",
-	    tp->snd_wl1, tp->snd_wl2, tp->snd_wnd);
+	printf(
+	"\trcv_(nxt,wnd,up) (%lx,%lx,%lx) snd_(una,nxt,max) (%lx,%lx,%lx)\n",
+	    (u_long)tp->rcv_nxt, tp->rcv_wnd, (u_long)tp->rcv_up,
+	    (u_long)tp->snd_una, (u_long)tp->snd_nxt, (u_long)tp->snd_max);
+	printf("\tsnd_(wl1,wl2,wnd) (%lx,%lx,%lx)\n",
+	    (u_long)tp->snd_wl1, (u_long)tp->snd_wl2, tp->snd_wnd);
 #endif /* TCPDEBUG */
 }

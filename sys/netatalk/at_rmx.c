@@ -72,11 +72,12 @@ at_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 
 	printf("at_addroute: v=%s\n", prsockaddr(v_arg));
 	printf("at_addroute: n=%s\n", prsockaddr(n_arg));
-	printf("at_addroute: head=%x treenodes=%x\n", head, treenodes);
+	printf("at_addroute: head=%p treenodes=%p\n",
+	    (void *)head, (void *)treenodes);
 
 	rn = rn_addroute(v_arg, n_arg, head, treenodes);
 
-	printf("at_addroute: returns rn=%x\n", rn);
+	printf("at_addroute: returns rn=%p\n", (void *)rn);
 
 	return rn;
 }
@@ -87,11 +88,11 @@ at_matroute(void *v_arg, struct radix_node_head *head)
 	struct radix_node *rn;
 
 	printf("at_matroute: v=%s\n", prsockaddr(v_arg));
-	printf("at_matroute: head=%x\n", head);
+	printf("at_matroute: head=%p\n", (void *)head);
 
 	rn = rn_match(v_arg, head);
 
-	printf("at_matroute: returns rn=%x\n", rn);
+	printf("at_matroute: returnr rn=%p\n", (void *)rn);
 
 	return rn;
 }
@@ -103,11 +104,11 @@ at_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 
 	printf("at_lookup: v=%s\n", prsockaddr(v_arg));
 	printf("at_lookup: n=%s\n", prsockaddr(m_arg));
-	printf("at_lookup: head=%x\n", head);
+	printf("at_lookup: head=%p\n", (void *)head);
 
 	rn = rn_lookup(v_arg, m_arg, head);
 
-	printf("at_lookup: returns rn=%x\n", rn);
+	printf("at_lookup: returns rn=%p\n", (void *)rn);
 
 	return rn;
 }
@@ -119,11 +120,11 @@ at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 
 	printf("at_delroute: v=%s\n", prsockaddr(v_arg));
 	printf("at_delroute: n=%s\n", prsockaddr(netmask_arg));
-	printf("at_delroute: head=%x\n", head);
+	printf("at_delroute: head=%p\n", (void *)head);
 
 	rn = rn_delete(v_arg, netmask_arg, head);
 
-	printf("at_delroute: returns rn=%x\n", rn);
+	printf("at_delroute: returns rn=%p\n", (void *)rn);
 
 	return rn;
 }
