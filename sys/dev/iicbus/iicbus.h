@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.h,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iicbus.h,v 1.1.2.3 1998/08/13 17:10:43 son Exp $
  *
  */
 #ifndef __IICBUS_H
@@ -31,9 +31,8 @@
 
 struct iicbus_softc {
 
+	u_char ownaddr;		/* address of the adapter */
 	device_t owner;		/* iicbus owner device structure */
-	u_char started;		/* address of the 'started' slave
-				 * 0 if no start condition succeeded */
 };
 
 extern devclass_t iicbus_devclass;

@@ -23,7 +23,7 @@ POPDIVERT
 #  sendmail.
 #
 
-VERSIONID(`@(#)nullclient.m4	8.12 (Berkeley) 5/19/1998')
+VERSIONID(`@(#)nullclient.m4	8.12 (Berkeley) 5/19/98')
 
 PUSHDIVERT(6)
 # hub host (to which all mail is sent)

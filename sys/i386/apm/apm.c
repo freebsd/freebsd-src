@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.76 1998/12/04 21:28:39 archie Exp $
+ *	$Id: apm.c,v 1.73 1998/07/06 06:29:03 imp Exp $
  */
 
 #include "opt_devfs.h"
@@ -29,7 +29,6 @@
 #endif /*DEVFS*/
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/reboot.h>
 #include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
@@ -246,13 +245,12 @@ apm_display(int newstate)
 /*
  * Turn off the entire system.
  */
-static void
-apm_power_off(int howto, void *junk)
+void
+apm_power_off(void)
 {
 	u_long eax, ebx, ecx, edx;
 
-	/* Not halting powering off, or not active */
-	if (!(howto & RB_POWEROFF) || !apm_softc.active)
+	if (!apm_softc.active)
 		return;
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
@@ -795,7 +793,7 @@ apmattach(struct isa_device *dvp)
 	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
 	sc->cs32_limit = apm_cs32_limit - 1;
 	if (apm_cs16_limit == 0)
-	    apm_cs16_limit = apm_cs32_limit;
+	    apm_cs16_limit == apm_cs32_limit;
 	sc->cs16_limit = apm_cs16_limit - 1;
 	sc->ds_limit = apm_ds_limit - 1;
 	sc->cs_entry = apm_cs_entry;
@@ -904,9 +902,6 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	apm_event_enable();
-
-	/* Power the system off using APM */
-	at_shutdown_pri(apm_power_off, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_LAST);
 
 	sc->initialized = 1;
 

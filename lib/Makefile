@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.86 1998/11/29 02:47:52 bde Exp $
+#	$Id: Makefile,v 1.81 1998/10/01 14:49:57 jkh Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -8,23 +8,19 @@
 # libcom_err must be built before libss.
 # libcrypt must be built before libskey.
 # libm must be built before libf2c, libg++ and libstdc++.
-# libmd must be built before libatm, libopie, libradius, libskey,
-# and libtacplus.
+# libmd must be built before libatm, libopie and libskey.
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
-# libradius must be built before libpam.
-# libskey must be built before libpam.
-# libtacplus must be built before libpam.
 # libtermcap must be built before libcurses, libedit and libreadline.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd libmytinfo \
-	libncurses libradius libskey libtacplus libtermcap \
+	libncurses libtermcap \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libcurses libdevstat libdisk libedit libf2c libfetch \
-	libftpio libgnumalloc ${_libio} libipx libkvm libopie libpam \
-	libpcap libresolv librpcsvc libss libstand \
+	libftpio libgnumalloc libipx libkvm libopie \
+	libpcap libresolv librpcsvc libskey libss libstand \
 	${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
@@ -54,10 +50,6 @@ _libvgl=	libvgl
 _libm=		libm
 .else
 _libm=		msun
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-_libio=		libio
 .endif
 
 .if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || \

@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.17 1998/12/04 22:54:54 archie Exp $	*/
+/*	$Id: bootp_subr.c,v 1.14 1998/08/18 00:32:47 bde Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -262,11 +262,13 @@ bootpc_call(call,reply,procp)
 {
 	struct socket *so;
 	struct sockaddr_in *sin, sa;
+	struct mbuf *m;
 	struct uio auio;
 	struct sockopt sopt;
 	struct iovec aio;
 	struct timeval tv;
 	int error, on, len, rcvflg, secs, timo;
+	u_int tport;
 
 	/*
 	 * Create socket and set its recieve timeout.
@@ -343,7 +345,7 @@ bootpc_call(call,reply,procp)
 		error = sosend(so, (struct sockaddr *)sin, &auio, NULL, 
 			       NULL, 0, procp);
 		if (error) {
-			printf("bootpc_call: sosend: %d state %08x\n", error, (int)so->so_state);
+			printf("bootpc_call: sosend: %d\n", error);
 			goto out;
 		}
 
@@ -728,7 +730,7 @@ bootpc_init(void)
   struct socket *so;
   int error;
   int code,ncode,len;
-  int j;
+  int i,j;
   char *p;
   unsigned int ip;
 
@@ -742,6 +744,7 @@ bootpc_init(void)
   char lookup_path[24];
 
 #define EALEN 6
+  unsigned char ea[EALEN];
   struct ifaddr *ifa;
   struct sockaddr_dl *sdl = NULL;
   char *delim;
@@ -771,8 +774,7 @@ bootpc_init(void)
   bzero(&ireq, sizeof(ireq));
   for (ifp = TAILQ_FIRST(&ifnet); ifp != 0; ifp = TAILQ_NEXT(ifp,if_link))
   {
-    snprintf(ireq.ifr_name, sizeof(ireq.ifr_name),
-	"%s%d", ifp->if_name, ifp->if_unit);
+    sprintf(ireq.ifr_name, "%s%d", ifp->if_name, ifp->if_unit);
 #ifdef BOOTP_WIRED_TO
     if (strcmp(ireq.ifr_name, __XSTRING(BOOTP_WIRED_TO)) == 0)
         break;
@@ -883,7 +885,7 @@ bootpc_init(void)
   myaddr.sin_addr = reply.yiaddr;
 
   ip = ntohl(myaddr.sin_addr.s_addr);
-  snprintf(lookup_path, sizeof(lookup_path), "swap.%d.%d.%d.%d",
+  sprintf(lookup_path,"swap.%d.%d.%d.%d",
 	  ip >> 24, (ip >> 16) & 255 ,(ip >> 8) & 255 ,ip & 255 );
 
   printip("My ip address",myaddr.sin_addr);

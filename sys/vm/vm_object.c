@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.137 1999/01/08 17:31:26 eivind Exp $
+ * $Id: vm_object.c,v 1.128 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -91,6 +91,7 @@
 #include <vm/vm_zone.h>
 
 static void	vm_object_qcollapse __P((vm_object_t object));
+static void vm_object_dispose __P((vm_object_t));
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -119,9 +120,7 @@ static void	vm_object_qcollapse __P((vm_object_t object));
  */
 
 struct object_q vm_object_list;
-#ifndef NULL_SIMPLELOCKS
 static struct simplelock vm_object_list_lock;
-#endif
 static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
@@ -242,8 +241,10 @@ vm_object_reference(object)
 	if (object == NULL)
 		return;
 
-	KASSERT(!(object->flags & OBJ_DEAD),
-	    ("vm_object_reference: attempting to reference dead obj"));
+#if defined(DIAGNOSTIC)
+	if (object->flags & OBJ_DEAD)
+		panic("vm_object_reference: attempting to reference dead obj");
+#endif
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
@@ -260,11 +261,11 @@ vm_object_vndeallocate(object)
 	vm_object_t object;
 {
 	struct vnode *vp = (struct vnode *) object->handle;
-
-	KASSERT(object->type == OBJT_VNODE,
-	    ("vm_object_vndeallocate: not a vnode object"));
-	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
-#ifdef INVARIANTS
+#if defined(DIAGNOSTIC)
+	if (object->type != OBJT_VNODE)
+		panic("vm_object_vndeallocate: not a vnode object");
+	if (vp == NULL)
+		panic("vm_object_vndeallocate: missing vp");
 	if (object->ref_count == 0) {
 		vprint("vm_object_vndeallocate", vp);
 		panic("vm_object_vndeallocate: bad object reference count");
@@ -294,6 +295,7 @@ void
 vm_object_deallocate(object)
 	vm_object_t object;
 {
+	int s;
 	vm_object_t temp;
 
 	while (object != NULL) {
@@ -326,10 +328,12 @@ vm_object_deallocate(object)
 				vm_object_t robject;
 
 				robject = TAILQ_FIRST(&object->shadow_head);
-				KASSERT(robject != NULL,
-				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
-					 object->ref_count,
-					 object->shadow_count));
+#if defined(DIAGNOSTIC)
+				if (robject == NULL)
+					panic("vm_object_deallocate: ref_count: %d,"
+						  " shadow_count: %d",
+						  object->ref_count, object->shadow_count);
+#endif
 				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
@@ -414,8 +418,10 @@ vm_object_terminate(object)
 	 */
 	vm_object_pip_wait(object, "objtrm");
 
-	KASSERT(!object->paging_in_progress,
-		("vm_object_terminate: pageout in progress"));
+#if defined(DIAGNOSTIC)
+	if (object->paging_in_progress != 0)
+		panic("vm_object_terminate: pageout in progress");
+#endif
 
 	/*
 	 * Clean and free the pages, as appropriate. All references to the
@@ -436,51 +442,58 @@ vm_object_terminate(object)
 
 		vp = (struct vnode *) object->handle;
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
+
+		/*
+		 * Let the pager know object is dead.
+		 */
+		vm_pager_deallocate(object);
+
 	}
 
-	if (object->ref_count != 0)
-		panic("vm_object_terminate: object with references, ref_count=%d", object->ref_count);
+	if ((object->type != OBJT_VNODE) && (object->ref_count == 0)) {
 
-	/*
-	 * Now free any remaining pages. For internal objects, this also
-	 * removes them from paging queues. Don't free wired pages, just
-	 * remove them from the object.
-	 */
-	s = splvm();
-	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+		/*
+		 * Now free the pages. For internal objects, this also removes them
+		 * from paging queues.
+		 */
+		while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 #if !defined(MAX_PERF)
-		if (p->busy || (p->flags & PG_BUSY))
-			printf("vm_object_terminate: freeing busy page\n");
+			if (p->busy || (p->flags & PG_BUSY))
+				printf("vm_object_terminate: freeing busy page\n");
 #endif
-		if (p->wire_count == 0) {
 			vm_page_busy(p);
 			vm_page_free(p);
 			cnt.v_pfree++;
-		} else {
-			vm_page_busy(p);
-			vm_page_remove(p);
 		}
+		/*
+		 * Let the pager know object is dead.
+		 */
+		vm_pager_deallocate(object);
+
 	}
-	splx(s);
 
-	/*
-	 * Let the pager know object is dead.
-	 */
-	vm_pager_deallocate(object);
+	if ((object->ref_count == 0) && (object->resident_page_count == 0))
+		vm_object_dispose(object);
+}
 
-	/*
-	 * Remove the object from the global object list.
-	 */
-	simple_lock(&vm_object_list_lock);
-	TAILQ_REMOVE(&vm_object_list, object, object_list);
-	simple_unlock(&vm_object_list_lock);
-
-	wakeup(object);
-
-	/*
-	 * Free the space for the object.
-	 */
-	zfree(obj_zone, object);
+/*
+ * vm_object_dispose
+ *
+ * Dispose the object.
+ */
+static void
+vm_object_dispose(object)
+	vm_object_t object;
+{
+		simple_lock(&vm_object_list_lock);
+		TAILQ_REMOVE(&vm_object_list, object, object_list);
+		vm_object_count--;
+		simple_unlock(&vm_object_list_lock);
+		/*
+   		* Free the space for the object.
+   		*/
+		zfree(obj_zone, object);
+		wakeup(object);
 }
 
 /*
@@ -516,6 +529,7 @@ vm_object_page_clean(object, start, end, flags)
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 	int curgeneration;
+	struct proc *pproc = curproc;	/* XXX */
 
 	if (object->type != OBJT_VNODE ||
 		(object->flags & OBJ_MIGHTBEDIRTY) == 0)
@@ -771,6 +785,7 @@ vm_object_madvise(object, pindex, count, advise)
 	int count;
 	int advise;
 {
+	int s;
 	vm_pindex_t end, tpindex;
 	vm_object_t tobject;
 	vm_page_t m;
@@ -1292,7 +1307,7 @@ vm_object_page_remove(object, start, end, clean_only)
 {
 	register vm_page_t p, next;
 	unsigned int size;
-	int all;
+	int s, all;
 
 	if (object == NULL)
 		return;

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fixmount.c,v 1.3 1998/11/14 03:13:31 obrien Exp $
+ * $Id: fixmount.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  */
 
@@ -87,14 +87,11 @@ void print_dump(mountlist);
 void usage(void);
 
 /* dummy variables */
-#if 0
 char *progname;
 char hostname[MAXHOSTNAMELEN];
+int orig_umask, foreground, debug_flags;
 pid_t mypid;
 serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 void
 usage(void)
@@ -357,7 +354,7 @@ main(int argc, char *argv[])
       perror("gethostname");
       exit(1);
     }
-    thishost[sizeof(thishost) - 1] = '\0';
+	thishost[sizeof(thishost) - 1] = '\0';
 
     /*
      * We need the hostname as it appears to the other side's

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.43 1998/12/07 21:58:34 archie Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.38 1998/05/17 18:09:28 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -50,7 +50,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -72,9 +71,7 @@ static struct denode **dehashtbl;
 static u_long dehash;			/* size of hash table - 1 */
 #define	DEHASH(dev, dcl, doff)	(dehashtbl[((dev) + (dcl) + (doff) / 	\
 				sizeof(struct direntry)) & dehash])
-#ifndef NULL_SIMPLELOCKS
 static struct simplelock dehash_slock;
-#endif
 
 union _qcvt {
 	quad_t qcvt;
@@ -293,7 +290,6 @@ deget(pmp, dirclust, diroffset, depp)
 		nvp->v_flag |= VROOT; /* should be further down		XXX */
 
 		ldep->de_Attributes = ATTR_DIRECTORY;
-		ldep->de_LowerCase = 0;
 		if (FAT32(pmp))
 			ldep->de_StartCluster = pmp->pm_rootdirblk;
 			/* de_FileSize will be filled in further down */
@@ -412,6 +408,7 @@ detrunc(dep, length, flags, cred, p)
 {
 	int error;
 	int allerror;
+	int vflags;
 	u_long eofentry;
 	u_long chaintofree;
 	daddr_t bn;
@@ -419,6 +416,7 @@ detrunc(dep, length, flags, cred, p)
 	int isadir = dep->de_Attributes & ATTR_DIRECTORY;
 	struct buf *bp;
 	struct msdosfsmount *pmp = dep->de_pmp;
+	struct timespec ts;
 
 #ifdef MSDOSFS_DEBUG
 	printf("detrunc(): file %s, length %lu, flags %x\n", dep->de_Name, length, flags);
@@ -509,14 +507,10 @@ detrunc(dep, length, flags, cred, p)
 	dep->de_FileSize = length;
 	if (!isadir)
 		dep->de_flag |= DE_UPDATE|DE_MODIFIED;
-	allerror = vtruncbuf(DETOV(dep), cred, p, length, pmp->pm_bpcluster);
-#ifdef MSDOSFS_DEBUG
-	if (allerror)
-		printf("detrunc(): vtruncbuf error %d\n", allerror);
-#endif
-	error = deupdat(dep, 1);
-	if (error && (allerror == 0))
-		allerror = error;
+	vflags = (length > 0 ? V_SAVE : 0) | V_SAVEMETA;
+	vinvalbuf(DETOV(dep), vflags, cred, p, 0, 0);
+	vnode_pager_setsize(DETOV(dep), length);
+	allerror = deupdat(dep, 1);
 #ifdef MSDOSFS_DEBUG
 	printf("detrunc(): allerror %d, eofentry %lu\n",
 	       allerror, eofentry);
@@ -561,6 +555,7 @@ deextend(dep, length, cred)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long count;
 	int error;
+	struct timespec ts;
 
 	/*
 	 * The root of a DOS filesystem cannot be extended.
@@ -666,6 +661,7 @@ msdosfs_inactive(ap)
 	struct denode *dep = VTODE(vp);
 	struct proc *p = ap->a_p;
 	int error = 0;
+	struct timespec ts;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_inactive(): dep %p, de_Name[0] %x\n", dep, dep->de_Name[0]);

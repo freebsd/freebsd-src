@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.16	(Berkeley)	7/12/1998
+#	@(#)Makefile.m4	8.15	(Berkeley)	6/4/98
 #
 
 # C compiler
@@ -41,7 +41,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of praliases binary (usually /usr/sbin or /usr/etc)
-SBINDIR=${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
+BINDIR=	${DESTDIR}ifdef(`confSBINDIR', `confSBINDIR', `/usr/sbin')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -89,7 +89,7 @@ praliases.${MAN8SRC}: praliases.8
 install: install-praliases install-docs
 
 install-praliases: praliases
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} praliases ${SBINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} praliases ${BINDIR}
 
 install-docs: praliases.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

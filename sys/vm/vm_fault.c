@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.92 1999/01/08 17:31:24 eivind Exp $
+ * $Id: vm_fault.c,v 1.87 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -183,6 +183,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault;
 	int faultcount;
+	struct proc *p = curproc;	/* XXX */
 	struct faultstate fs;
 
 	cnt.v_vm_faults++;	/* needs lock XXX */
@@ -275,7 +276,7 @@ RetryFault:;
 			
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			int queue, s;
+			int queue;
 			/*
 			 * If the page is being brought in, wait for it and
 			 * then retry.
@@ -283,6 +284,8 @@ RetryFault:;
 			if ((fs.m->flags & PG_BUSY) ||
 				(fs.m->busy &&
 				 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+				int s;
+
 				unlock_things(&fs);
 				s = splvm();
 				if ((fs.m->flags & PG_BUSY) ||
@@ -298,9 +301,7 @@ RetryFault:;
 			}
 
 			queue = fs.m->queue;
-			s = splvm();
 			vm_page_unqueue_nowakeup(fs.m);
-			splx(s);
 
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
@@ -527,8 +528,11 @@ readrest:
 			vm_object_pip_add(fs.object, 1);
 		}
 	}
-	KASSERT((fs.m->flags & PG_BUSY) != 0,
-	    ("vm_fault: not busy after main loop"));
+
+#if defined(DIAGNOSTIC)
+	if ((fs.m->flags & PG_BUSY) == 0)
+		panic("vm_fault: not busy after main loop");
+#endif
 
 	/*
 	 * PAGE HAS BEEN FOUND. [Loop invariant still holds -- the object lock
@@ -735,7 +739,7 @@ readrest:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m, 1);
+			vm_page_unwire(fs.m);
 	} else {
 		vm_page_activate(fs.m);
 	}
@@ -867,7 +871,7 @@ vm_fault_unwire(map, start, end)
 		pa = pmap_extract(pmap, va);
 		if (pa != (vm_offset_t) 0) {
 			pmap_change_wiring(pmap, va, FALSE);
-			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
+			vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 		}
 	}
 

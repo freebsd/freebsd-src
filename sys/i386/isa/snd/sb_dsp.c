@@ -324,10 +324,18 @@ again:
     if ( reason & 1 ) { /* possibly a write interrupt */
 	if ( d->dbuf_out.dl )
 	    dsp_wrintr(d);
+	else {
+	    if (PLAIN_SB16(d->bd_flags))
+	       printf("WARNING: wrintr but write DMA inactive!\n");
+	}
     }
     if ( reason & 2 ) {
 	if ( d->dbuf_in.dl )
 	    dsp_rdintr(d);
+	else {
+	    if (PLAIN_SB16(d->bd_flags))
+	       printf("WARNING: rdintr but read DMA inactive!\n");
+	}
     }
     if ( c & 2 )
 	inb(DSP_DATA_AVL16); /* 16-bit int ack */
@@ -337,7 +345,7 @@ again:
     /*
      * the sb16 might have multiple sources etc.
      */
-    if ((d->bd_flags & BD_F_SB16) && (c & 3))
+    if (d->bd_flags & BD_F_SB16 && (c & 3) )
 	goto again;
 }
 
@@ -382,6 +390,7 @@ sb_callback(snddev_info *d, int reason)
 	 * the proper initialization for each one.
 	 */
 	if (PLAIN_SB16(d->bd_flags)) {
+	    u_char c, c1 ;
 
 	    /* the original SB16 (non-PnP, or PnP, or Vibra16C)
 	     * can do full duplex using one 16-bit channel
@@ -427,63 +436,29 @@ sb_callback(snddev_info *d, int reason)
 		d->dbuf_in.chan = d->dbuf_out.chan;
 		d->dbuf_out.chan = c ;
 	    }
-	}
-	else if (d->bd_flags & BD_F_ESS) {
-		u_char c;
-
-		DEB(printf("SND_CB_INIT, play_fmt == 0x%x, rec_fmt == 0x%x\n",
-			(int) d->play_fmt, (int) d->rec_fmt));
-
-		/* autoinit DMA mode */
-		if (d->play_fmt)
-			ess_write(d->io_base, 0xb8, 0x04);
-		else
-			ess_write(d->io_base, 0xb8, 0x0e);
-
-		c = (ess_read(d->io_base, 0xa8) & ~0x03) | 0x01;
-		if ((d->flags & SND_F_STEREO) == 0)
-			c++;
-		ess_write(d->io_base, 0xa8, c);	/* select mono/stereo */
-		ess_write(d->io_base, 0xb9, 2);	/* demand 4 bytes/transfer */
-
-		switch (d->play_fmt ? d->play_fmt : d->rec_fmt) {
-		case AFMT_S16_LE:
-			if (d->flags & SND_F_STEREO) {
-				/* 16 bit stereo */
-				if (d->play_fmt)
-					ess_write(d->io_base, 0xb6, 0x00);
-				ess_write(d->io_base, 0xb7, 0x71);
-				ess_write(d->io_base, 0xb7, 0xbc);
-			}
-			else {
-				/* 16 bit mono */
-				if (d->play_fmt)
-					ess_write(d->io_base, 0xb6, 0x00);
-				ess_write(d->io_base, 0xb7, 0x71);
-				ess_write(d->io_base, 0xb7, 0xf4);
-			}
-			break;
-		case AFMT_U8:
-			if (d->flags & SND_F_STEREO) {
-				/* 8 bit stereo */
-				if (d->play_fmt)
-					ess_write(d->io_base, 0xb6, 0x80);
-				ess_write(d->io_base, 0xb7, 0x51);
-				ess_write(d->io_base, 0xb7, 0x98);
-			}
-			else {
-				/* 8 bit mono */
-				if (d->play_fmt)
-					ess_write(d->io_base, 0xb6, 0x80);
-				ess_write(d->io_base, 0xb7, 0x51);
-				ess_write(d->io_base, 0xb7, 0xd0);
-			}
-			break;
-		}
-		ess_write(d->io_base, 0xb1,
-			  ess_read(d->io_base, 0xb1) | 0x50);
-		ess_write(d->io_base, 0xb2,
-			  ess_read(d->io_base, 0xb1) | 0x50);
+	} else if (d->bd_flags & BD_F_ESS) {
+	    u_char c ;
+	    if (d->play_fmt == 0) {
+		/* initialize for record */
+		static u_char cmd[] = {
+		    0x51,0xd0,0x71,0xf4,0x51,0x98,0x71,0xbc
+		};
+		ess_write(d->io_base, 0xb8, 0x0e);
+		c = ( ess_read(d->io_base, 0xa8) & 0xfc ) | 1 ;
+		if (d->flags & SND_F_STEREO)
+		    c++ ;
+		ess_write(d->io_base, 0xa8, c);
+		ess_write(d->io_base, 0xb9, 2); /* 4bytes/transfer */
+		/*
+		 * set format in b6, b7
+		 */
+	    } else {
+		/* initialize for play */
+		static u_char cmd[] = {
+		    0x80,0x51,0xd0,0x00,0x71,0xf4,
+		    0x80,0x51,0x98,0x00,0x71,0xbc
+		};
+	    }
 	}
 	reset_dbuf(& (d->dbuf_in), SND_CHAN_RD );
 	reset_dbuf(& (d->dbuf_out), SND_CHAN_WR );
@@ -499,6 +474,7 @@ sb_callback(snddev_info *d, int reason)
                  * the second one takes the next...
                  * The default is to be ready for play.
                  */
+                int swap = 0 ;
 		DEB(printf("start %s -- now dma %d:%d\n",
 			rd ? "rd" : "wr",
 			d->dbuf_out.chan, d->dbuf_in.chan););
@@ -544,18 +520,10 @@ sb_callback(snddev_info *d, int reason)
 	    sb_cmd(d->io_base, c );
 	    sb_cmd3(d->io_base, c1 , l - 1) ;
 	} else if (d->bd_flags & BD_F_ESS) {
-		u_long fmt = rd ? d->rec_fmt : d->play_fmt;
-
-		DEB(printf("SND_CB_START: %s (%d)\n", rd ? "rd" : "wr", l));
-		if (fmt == AFMT_S16_LE)
-			l >>= 1;
-		l--;
-		if (!rd)
-			sb_cmd(d->io_base, DSP_CMD_SPKON);
-		ess_write(d->io_base, 0xa4, l);
-		ess_write(d->io_base, 0xa5, l >> 8);
-		ess_write(d->io_base, 0xb8,
-			  ess_read(d->io_base, 0xb8) | (rd ? 0x0f : 0x05));
+	    /* XXX this code is still incomplete */
+	    sb_cmd2(d->io_base,  0xb8, rd ? 4 : 0xe ) ; /* auto dma */
+	    sb_cmd2(d->io_base,  0xa8, d->flags & SND_F_STEREO ? 1 : 2) ;
+	    sb_cmd2(d->io_base,  0xb9, 2) ; /* demand dma */
 	} else { /* SBPro -- stereo not supported */
 	    u_char c ;
 	    if (!rd)
@@ -586,7 +554,6 @@ sb_callback(snddev_info *d, int reason)
     case SND_CB_STOP :
 	{
 	    int cmd = DSP_CMD_DMAPAUSE_8 ; /* default: halt 8 bit chan */
-		DEB(printf("SND_CB_XXX: reason 0x%x\n", reason));
 	    if ( b->chan > 4
 		 || (rd && d->rec_fmt == AFMT_S16_LE)
 		 || (!rd && d->play_fmt == AFMT_S16_LE)
@@ -763,20 +730,14 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 		/* the ESS488 can be treated as an SBPRO */
 		printf("ESS488 (rev %d)\n", ess_minor & 0x0f);
 		break ;
-	    }
-		else if (ess_major == 0x68 && (ess_minor & 0xf0) == 0x80) {
-			int rev = ess_minor & 0xf;
-
-			if (rev >= 8)
-				printf("ESS1868 (rev %d)\n", rev);
-			else
-				printf("ESS688 (rev %d)\n", rev);
-			d->bd_flags |= BD_F_ESS;
-			d->audio_fmt |= AFMT_S16_LE;
-
-			/* enable extended ESS mode */
-			sb_cmd(d->io_base, 0xc6);
-			break;
+	    } else if (ess_major == 0x68 && (ess_minor & 0xf0) == 0x80) {
+		int rev = ess_minor & 0xf ;
+		if ( rev >= 8 )
+		    printf("ESS1868 (rev %d)\n", rev);
+		else
+		    printf("ESS688 (rev %d)\n", rev);
+		/* d->audio_fmt |= AFMT_S16_LE; */ /* not yet... */
+		break ; /* XXX */
 	    } else {
 		printf("Unknown card 0x%x 0x%x -- hope it is SBPRO\n",
 			ess_major, ess_minor);
@@ -786,8 +747,7 @@ sb_dsp_init(snddev_info *d, struct isa_device *dev)
 
     }
 
-    snprintf(d->name, sizeof(d->name),
-	fmt, (d->bd_id >> 8) &0xff, d->bd_id & 0xff);
+    sprintf(d->name, fmt, (d->bd_id >> 8) &0xff, d->bd_id & 0xff);
 
     sb_mix_init(d);
 }
@@ -878,9 +838,9 @@ sb_setmixer(int io_base, u_int port, u_int value)
     u_long   flags;
   
     flags = spltty();
-    outb(io_base + SB_MIX_ADDR, (u_char) (port & 0xff));   /* Select register */
+    outb(io_base + 4, (u_char) (port & 0xff));   /* Select register */
     DELAY(10);
-    outb(io_base + SB_MIX_DATA, (u_char) (value & 0xff));
+    outb(io_base + 5, (u_char) (value & 0xff));
     DELAY(10); 
     splx(flags);
 }
@@ -1228,6 +1188,7 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
 {   
     struct pnp_cinfo d ;
     snddev_info tmp_d ; /* patched copy of the basic snddev_info */
+    int the_irq = 0 ; 
     
     tmp_d = sb_op_desc;
     snddev_last_probed = &tmp_d;
@@ -1256,12 +1217,10 @@ ess1868_attach(u_long csn, u_long vend_id, char *name,
 
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = (inthand2_t *)pcmintr ; 
+    dev->id_intr = pcmintr ; 
     dev->id_flags = 0 /* DV_F_DUAL_DMA | (d.drq[1] ) */;
 
-#if 0
     snddev_last_probed->probe(dev); /* not really necessary but doesn't harm */
-#endif
     pcmattach(dev); 
 }
 
@@ -1339,7 +1298,7 @@ sb16pnp_attach(u_long csn, u_long vend_id, char *name,
 
     dev->id_drq = d.drq[0] ; /* primary dma */
     dev->id_irq = (1 << d.irq[0] ) ;
-    dev->id_intr = (inthand2_t *)pcmintr ; 
+    dev->id_intr = pcmintr ; 
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
     pcm_info[dev->id_unit] = tmp_d; /* pcm_info[] will be reinitialized after */

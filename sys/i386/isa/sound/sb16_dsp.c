@@ -197,6 +197,8 @@ sb16_dsp_ioctl(int dev, u_int cmd, ioctl_arg arg, int local)
 static int
 sb16_dsp_open(int dev, int mode)
 {
+    int             retval;
+
     DEB(printf("sb16_dsp_open()\n"));
 
     if (!sb16_dsp_ok) {
@@ -448,8 +450,8 @@ sb16_dsp_init(struct address_info * hw_config)
     if (sbc_major < 4)
 	return;		/* Not a SB16 */
 
-    snprintf(sb16_dsp_operations.name, sizeof(sb16_dsp_operations.name),
-	"SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
+    sprintf(sb16_dsp_operations.name, "SoundBlaster 16 %d.%d",
+		sbc_major, sbc_minor);
 
     conf_printf(sb16_dsp_operations.name, hw_config);
 

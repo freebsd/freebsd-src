@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.57 1998/11/26 18:50:23 eivind Exp $
+ *	$Id: devfs_tree.c,v 1.55 1998/07/04 22:30:22 julian Exp $
  */
 
 
@@ -56,7 +56,7 @@ static MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
 static MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
 
 devnm_p	dev_root;		/* root of the backing tree */
-static struct mount *devfs_hidden_mount;
+struct mount *devfs_hidden_mount;
 int devfs_up_and_going; 
 
 /*
@@ -1129,7 +1129,7 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 * this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
 void *
-devfs_makelink(void *original, char *fmt, ...)
+devfs_link(void *original, char *fmt, ...)
 {
 	devnm_p	new_dev;
 	devnm_p	orig = (devnm_p) original;

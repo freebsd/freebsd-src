@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.77 1998/12/07 21:58:33 archie Exp $
+ * $Id: spec_vnops.c,v 1.73 1998/09/05 14:13:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -257,7 +257,7 @@ spec_read(ap)
 	daddr_t bn, nextbn;
 	long bsize, bscale;
 	struct partinfo dpart;
-	int n, on;
+	int n, on, majordev;
 	d_ioctl_t *ioctl;
 	int error = 0;
 	dev_t dev;
@@ -285,7 +285,8 @@ spec_read(ap)
 			return (EINVAL);
 		bsize = BLKDEV_IOSIZE;
 		dev = vp->v_rdev;
-		if ((ioctl = bdevsw[major(dev)]->d_ioctl) != NULL &&
+		if ((majordev = major(dev)) < nblkdev &&
+		    (ioctl = bdevsw[majordev]->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
 		    dpart.part->p_fstype == FS_BSDFFS &&
 		    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -379,11 +380,11 @@ spec_write(ap)
 				bp = getblk(vp, bn, bsize, 0, 0);
 			else
 				error = bread(vp, bn, bsize, NOCRED, &bp);
+			n = min(n, bsize - bp->b_resid);
 			if (error) {
 				brelse(bp);
 				return (error);
 			}
-			n = min(n, bsize - bp->b_resid);
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize)
 				bawrite(bp);
@@ -476,8 +477,8 @@ spec_fsync(ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -499,7 +500,7 @@ loop:
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
 #ifdef DIAGNOSTIC
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+		if (vp->v_dirtyblkhd.lh_first) {
 			vprint("spec_fsync: dirty", vp);
 			splx(s);
 			goto loop;
@@ -605,6 +606,7 @@ spec_close(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
+	struct proc *p = ap->a_p;
 	dev_t dev = vp->v_rdev;
 	d_close_t *devclose;
 	int mode, error;

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_host.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
+ * $Id: amfs_host.c,v 5.2.2.2 1992/05/31 16:36:08 jsp Exp $
  *
  */
 
@@ -256,7 +256,7 @@ fetch_fhandle(CLIENT * client, char *dir, am_nfs_handle_t *fhp, u_long nfs_versi
 			  (SVC_IN_ARG_TYPE) &fhp->v2,
 			  tv);
     if (clnt_stat != RPC_SUCCESS) {
-      const char *msg = clnt_sperrno(clnt_stat);
+      char *msg = clnt_sperrno(clnt_stat);
       plog(XLOG_ERROR, "mountd rpc failed: %s", msg);
       return EIO;
     }
@@ -347,7 +347,7 @@ amfs_host_fmount(mntfs *mf)
    * The original 10 second per try timeout is WAY too large, especially
    * if we're only waiting 10 or 20 seconds max for the response.
    * That would mean we'd try only once in 10 seconds, and we could
-   * lose the transmit or receive packet, and never try again.
+   * lose the transmitt or receive packet, and never try again.
    * A 2-second per try timeout here is much more reasonable.
    * 09/28/92 Mike Mitchell, mcm@unx.sas.com
    */
@@ -392,7 +392,7 @@ amfs_host_fmount(mntfs *mf)
 			(SVC_IN_ARG_TYPE) & exlist,
 			tv2);
   if (clnt_stat != RPC_SUCCESS) {
-    const char *msg = clnt_sperrno(clnt_stat);
+    char *msg = clnt_sperrno(clnt_stat);
     plog(XLOG_ERROR, "host_fmount rpc failed: %s", msg);
     /* clnt_perror(client, "rpc"); */
     error = EIO;
@@ -673,7 +673,7 @@ amfs_host_umounted(am_node *mp)
 			tv);
   if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_SYSTEMERROR) {
     /* RPC_SYSTEMERROR seems to be returned for no good reason ... */
-    const char *msg = clnt_sperrno(clnt_stat);
+    char *msg = clnt_sperrno(clnt_stat);
     plog(XLOG_ERROR, "unmount all from %s rpc failed: %s", host, msg, clnt_stat);
     goto out;
   }

@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.18 1998/11/15 15:33:50 bde Exp $
+ *  $Id: fpu_entry.c,v 1.14 1998/08/16 01:21:48 bde Exp $
  *
  */
 
@@ -483,18 +483,48 @@ if (--lookahead_limit)
 	return (0);		/* --pink-- */
 }
 
+#ifdef LKM
+MOD_MISC(gnufpu);
 static int
-gnufpu_modevent(module_t mod, int type, void *unused) 
+gnufpu_load(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate) {
+		printf("Math emulator already present\n");
+		return EBUSY;
+	}
+	pmath_emulate = math_emulate;
+	return 0;
+}
+
+static int
+gnufpu_unload(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate != math_emulate) {
+		printf("Cannot unload another math emulator\n");
+		return EACCES;
+	}
+	pmath_emulate = 0;
+	return 0;
+}
+
+int
+gnufpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	MOD_DISPATCH(gnufpu, lkmtp, cmd, ver, gnufpu_load, gnufpu_unload,
+	    lkm_nullcmd);
+}
+#else /* !LKM */
+
+static int
+gnufpu_modevent(module_t mod, modeventtype_t type, void *unused) 
 {
 	switch (type) {
 	case MOD_LOAD:
 		if (pmath_emulate) {
 			printf("Another Math emulator already present\n");
 			return EACCES;
-		}
-		pmath_emulate = math_emulate;
-		if (bootverbose)
-			printf("GPL Math emulator present\n");
+		} else
+			pmath_emulate = math_emulate;
 		break;
 	case MOD_UNLOAD:
 		if (pmath_emulate != math_emulate) {
@@ -502,8 +532,6 @@ gnufpu_modevent(module_t mod, int type, void *unused)
 			return EACCES;
 		}
 		pmath_emulate = 0;
-		if (bootverbose)
-			printf("GPL Math emulator unloaded\n");
 		break;
 	default:
 		break;
@@ -516,4 +544,6 @@ moduledata_t gnufpumod = {
 	gnufpu_modevent,
 	0
 };
-DECLARE_MODULE(gnufpu, gnufpumod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+DECLARE_MODULE(gnufpu, gnufpu_modevent, SI_SUB_PSEUDO, SI_ORDER_ANY);
+
+#endif /* LKM */

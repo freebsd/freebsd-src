@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_venus.c,v 1.5 1998/10/28 19:33:50 rvb Exp $
+ *  $Id: coda_venus.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -112,7 +112,6 @@
 	  if (from & FWRITE)  to |= C_O_WRITE; 		\
 	  if (from & O_TRUNC) to |= C_O_TRUNC; 		\
 	  if (from & O_EXCL)  to |= C_O_EXCL; 		\
-	  if (from & O_CREAT) to |= C_O_CREAT;		\
     } while (0)
 
 #define CNV_VV2V_ATTR(top, fromp) \
@@ -158,8 +157,6 @@
 		(top)->va_filerev = (fromp)->va_filerev; \
 	} while (0)
 
-
-int coda_kernel_version = CODA_KERNEL_VERSION;
 
 int
 venus_root(void *mdp,
@@ -410,17 +407,7 @@ venus_lookup(void *mdp, ViceFid *fid,
     INIT_IN(&inp->ih, CODA_LOOKUP, cred, p);
     inp->VFid = *fid;
 
-    /* NOTE:
-     * Between version 1 and version 2 we have added an extra flag field
-     * to this structure.  But because the string was at the end and because
-     * of the wierd way we represent strings by having the slot point to
-     * where the string characters are in the "heap", we can just slip the
-     * flag parameter in after the string slot pointer and veni that don't
-     * know better won't see this new flag field ...
-     * Otherwise we'd need two different venus_lookup functions.
-     */
     inp->name = Isize;
-    inp->flags = CLU_CASE_SENSITIVE;	/* doesn't really matter for BSD */
     STRCPY(name, nm, len);		/* increments Isize */
 
     error = coda_call(mdp, Isize, &Osize, (char *)inp);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.65 1998/10/17 12:28:02 brian Exp $
+ * $Id: lcp.c,v 1.63 1998/09/04 18:25:59 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -663,24 +663,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 #ifdef HAVE_DES
             link2physical(fp->link)->dl->chap.using_MSChap = cp[4] == 0x80;
 #endif
-	  } else {
-            if (IsAccepted(lcp->cfg.chap)) {
-#ifndef HAVE_DES
-              if (cp[4] == 0x80)
-                log_Printf(LogWARN, "Chap 0x80 not available without DES\n");
-              else
-#endif
-                log_Printf(LogWARN, "Chap 0x%02x not supported\n",
-                           (unsigned)cp[4]);
-            }
-            if (IsAccepted(lcp->cfg.pap)) {
-	      *dec->nakend++ = *cp;
-	      *dec->nakend++ = 4;
-	      *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
-	      *dec->nakend++ = (unsigned char) PROTO_PAP;
-	    } else
-	      goto reqreject;
-          }
+	  } else if (IsAccepted(lcp->cfg.pap)) {
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 4;
+	    *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_PAP;
+	  } else
+	    goto reqreject;
 	  break;
 
 	default:
@@ -921,7 +910,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  goto reqreject;
         break;
       case MODE_NAK:
-        /* We don't do what he NAKs with, we do things in our preferred order */
+        /* We don't do what he NAKs want, we do things in our preferred order */
         if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_AUTH))
           lcp->want_callback.opmask &= ~CALLBACK_BIT(CALLBACK_AUTH);
         else if (lcp->want_callback.opmask & CALLBACK_BIT(CALLBACK_CBCP))

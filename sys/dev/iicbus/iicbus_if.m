@@ -23,13 +23,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: iicbus_if.m,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+#	$Id: iicbus_if.m,v 1.1.2.4 1998/08/13 17:10:43 son Exp $
 #
 
-INTERFACE iicbus;
+INTERFACE iicbus
 
 #
-# Interpret interrupt
+# Interprete interrupt
 #
 METHOD int intr {
 	device_t dev;
@@ -38,21 +38,11 @@ METHOD int intr {
 };
 
 #
-# iicbus callback
-#
-METHOD int callback {
-	device_t dev;
-	int index;
-	caddr_t data;
-};
-
-#
 # Send REPEATED_START condition
 #
 METHOD int repeated_start {
 	device_t dev;
 	u_char slave;
-	int timeout;
 };
 
 #
@@ -61,7 +51,6 @@ METHOD int repeated_start {
 METHOD int start {
 	device_t dev;
 	u_char slave;
-	int timeout;
 };
 
 #
@@ -79,8 +68,6 @@ METHOD int read {
 	char *buf;
 	int len;
 	int *bytes;
-	int last;
-	int delay;
 };
 
 #
@@ -91,7 +78,6 @@ METHOD int write {
 	char *buf;
 	int len;
 	int *bytes;
-	int timeout;
 };
 
 #
@@ -100,6 +86,4 @@ METHOD int write {
 METHOD int reset {
 	device_t dev;
 	u_char speed;
-	u_char addr;
-	u_char *oldaddr;
 };

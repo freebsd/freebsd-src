@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.45 1998/11/11 10:04:09 truckman Exp $
+ * $Id: bpf.c,v 1.43 1998/10/04 23:04:48 alex Exp $
  */
 
 #include "bpfilter.h"
@@ -61,7 +61,6 @@
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
-#include <sys/filedesc.h>
 
 #if defined(sparc) && BSD < 199103
 #include <sys/stream.h>
@@ -380,7 +379,6 @@ bpfclose(dev, flags, fmt, p)
 	register struct bpf_d *d = &bpf_dtab[minor(dev)];
 	register int s;
 
-	funsetown(d->bd_sigio);
 	s = splimp();
 	if (d->bd_bif)
 		bpf_detachd(d);
@@ -536,9 +534,14 @@ static inline void
 bpf_wakeup(d)
 	register struct bpf_d *d;
 {
+	struct proc *p;
+
 	wakeup((caddr_t)d);
-	if (d->bd_async && d->bd_sig && d->bd_sigio)
-		pgsigio(d->bd_sigio, d->bd_sig, 0);
+	if (d->bd_async && d->bd_sig)
+		if (d->bd_pgid > 0)
+			gsignal (d->bd_pgid, d->bd_sig);
+		else if (p = pfind (-d->bd_pgid))
+			psignal (p, d->bd_sig);
 
 #if BSD >= 199103
 	selwakeup(&d->bd_sel);
@@ -831,22 +834,18 @@ bpfioctl(dev, cmd, addr, flags, p)
 		d->bd_async = *(int *)addr;
 		break;
 
-	case FIOSETOWN:
-		error = fsetown(*(int *)addr, &d->bd_sigio);
+/* N.B.  ioctl (FIOSETOWN) and fcntl (F_SETOWN) both end up doing the
+   equivalent of a TIOCSPGRP and hence end up here.  *However* TIOCSPGRP's arg
+   is a process group if it's positive and a process id if it's negative.  This
+   is exactly the opposite of what the other two functions want!  Therefore
+   there is code in ioctl and fcntl to negate the arg before calling here. */
+
+	case TIOCSPGRP:		/* Process or group to send signals to */
+		d->bd_pgid = *(int *)addr;
 		break;
 
-	case FIOGETOWN:
-		*(int *)addr = fgetown(d->bd_sigio);
-		break;
-
-	/* This is deprecated, FIOSETOWN should be used instead. */
-	case TIOCSPGRP:
-		error = fsetown(-(*(int *)addr), &d->bd_sigio);
-		break;
-
-	/* This is deprecated, FIOGETOWN should be used instead. */
 	case TIOCGPGRP:
-		*(int *)addr = -fgetown(d->bd_sigio);
+		*(int *)addr = d->bd_pgid;
 		break;
 
 	case BIOCSRSIG:		/* Set receive signal */

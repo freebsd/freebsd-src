@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tzsetup.c,v 1.10 1998/01/10 15:55:11 steve Exp $";
+	"$Id: tzsetup.c,v 1.9 1997/11/07 00:07:27 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -631,7 +631,7 @@ usage()
 int
 main(int argc, char **argv)
 {
-	int c, fd;
+	int c;
 
 	while ((c = getopt(argc, argv, "n")) != -1) {
 		switch(c) {
@@ -657,15 +657,10 @@ main(int argc, char **argv)
 			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
 			  "please choose NO here!", 7, 72)) {
 		if (reallydoit)
-			unlink(_PATH_WALL_CMOS_CLOCK);
+			system("rm -f /etc/wall_cmos_clock");
 	} else {
-		if (reallydoit) {
-			fd = open(_PATH_WALL_CMOS_CLOCK,
-				  O_WRONLY|O_CREAT|O_TRUNC, 0666);
-			if (fd < 0)
-				err(1, "create %s", _PATH_WALL_CMOS_CLOCK);
-			close(fd);
-		}
+		if (reallydoit)
+			system("touch /etc/wall_cmos_clock");
 	}
 	dialog_clear_norefresh();
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 

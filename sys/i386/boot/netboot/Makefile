@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/11/28 08:03:24 joerg Exp $
+#	$Id: Makefile,v 1.18 1998/06/30 11:10:24 phk Exp $
 #
 # Makefile for NETBOOT
 #
@@ -30,6 +30,7 @@ PROG=	nb8390.com nb3c509.com nb8390.rom nb3c509.rom
 # Order is very important on the SRCS line for this prog
 SRCS=	start2.S main.c misc.c bootmenu.c rpc.c
 
+BINDIR=		/usr/mdec
 BINMODE=	555
 #CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} -DASK_BOOT
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} # -DASK_BOOT
@@ -40,12 +41,10 @@ NS8390=	-DINCLUDE_NE
 #NS8390+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
 CLEANFILES+=	netboot.com
 CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
-ROMLDFLAGS=	${LDFLAGS} -aout -N -T ${RELOCADDR} -e _start -nostdlib
+ROMLDFLAGS=	${LDFLAGS} -N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 MAN8=	netboot.8
-SIZE=	size -aout
 STRIP=
-STRIPCMD=	strip -aout
 
 ROMSIZE=16384
 RELOCADDR=0x90000
@@ -66,27 +65,27 @@ makerom: makerom.c
 
 nb8390.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} ns8390.o
-	${STRIPCMD} ${.TARGET}
-	${SIZE} ${.TARGET}
+	strip ${.TARGET}
+	size ${.TARGET}
 	${.OBJDIR}/makerom ${.TARGET}
 
 nb3c509.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} 3c509.o
-	${STRIPCMD} ${.TARGET}
-	${SIZE} ${.TARGET}
+	strip ${.TARGET}
+	size ${.TARGET}
 	${.OBJDIR}/makerom ${.TARGET}
 
 nb8390.com:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET}.tmp ${OBJS} ns8390.o
-	${STRIPCMD} ${.TARGET}.tmp
-	${SIZE} ${.TARGET}.tmp
+	strip ${.TARGET}.tmp
+	size ${.TARGET}.tmp
 	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
 	rm -f ${.TARGET}.tmp
 
 nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
 	${LD} ${ROMLDFLAGS} -o ${.TARGET}.tmp ${OBJS} 3c509.o
-	${STRIPCMD} ${.TARGET}.tmp
-	${SIZE} ${.TARGET}.tmp
+	strip ${.TARGET}.tmp
+	size ${.TARGET}.tmp
 	dd ibs=32 skip=1 if=${.TARGET}.tmp of=${.TARGET}
 	rm -f ${.TARGET}.tmp
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.43 1999/01/06 23:05:38 julian Exp $
+ *  $Id: linux_sysvec.c,v 1.36 1998/10/11 21:08:02 alex Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -70,7 +70,7 @@ static void     linux_sendsig __P((sig_t catcher, int sig, int mask,
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-static int bsd_to_linux_errno[ELAST + 1] = {
+static int bsd_to_linux_errno[ELAST] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
@@ -79,7 +79,7 @@ static int bsd_to_linux_errno[ELAST + 1] = {
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, -6, -43, -42, -75, -6, -84
+  	-6, -43, -42
 };
 
 int bsd_to_linux_signal[NSIG] = {
@@ -217,11 +217,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 *	and the stack can not be grown. useracc will return FALSE
 	 *	if access is denied.
 	 */
-#ifdef VM_STACK
-	if ((grow_stack (p, (int)fp) == FALSE) ||
-#else
 	if ((grow(p, (int)fp) == FALSE) ||
-#endif 
 	    (useracc((caddr_t)fp, sizeof (struct linux_sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -285,7 +281,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 * Build context to run handler in.
 	 */
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
 	regs->tf_eflags &= ~PSL_VM;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -399,7 +395,7 @@ struct sysentvec linux_sysvec = {
 	0xff,
 	NSIG,
 	bsd_to_linux_signal,
-	ELAST + 1, 
+	ELAST, 
 	bsd_to_linux_errno,
 	translate_traps,
 	linux_fixup,
@@ -417,7 +413,7 @@ struct sysentvec elf_linux_sysvec = {
         0xff,
         NSIG,
         bsd_to_linux_signal,
-        ELAST + 1,
+        ELAST,
         bsd_to_linux_errno,
         translate_traps,
         elf_linux_fixup,
@@ -429,6 +425,9 @@ struct sysentvec elf_linux_sysvec = {
 	elf_coredump
 };
 
+/*
+ * Installed either via SYSINIT() or via LKM stubs.
+ */
 static Elf32_Brandinfo linux_brand = {
 					"Linux",
 					"/compat/linux",
@@ -449,8 +448,14 @@ Elf32_Brandinfo *linux_brandlist[] = {
 					NULL
 				};
 
+/*
+ * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
+ * "proof of concept" stage and will be fixed shortly
+ */
+static int linux_elf_modevent __P((module_t mod, modeventtype_t type, void *data));
+
 static int
-linux_elf_modevent(module_t mod, int type, void *data)
+linux_elf_modevent(module_t mod, modeventtype_t type, void *data)
 {
 	Elf32_Brandinfo **brandinfo;
 	int error;

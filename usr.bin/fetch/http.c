@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.23 1999/01/15 16:56:22 wollman Exp $
+ *	$Id: http.c,v 1.19 1998/07/12 09:07:36 se Exp $
  */
 
 #include <sys/types.h>
@@ -440,7 +440,6 @@ http_retrieve(struct fetch_state *fs)
 	char *base64ofmd5;
 	int to_stdout, restarting, redirection, retrying, autherror, chunked;
 	char rangebuf[sizeof("Range: bytes=18446744073709551616-\r\n")];
-	int tried_head;
 
 	setup_http_auth();
 
@@ -449,7 +448,6 @@ http_retrieve(struct fetch_state *fs)
 	restarting = fs->fs_restart;
 	redirection = 0;
 	retrying = 0;
-	tried_head = 0;
 
 	/*
 	 * Figure out the timeout.  Prefer the -T command-line value,
@@ -509,14 +507,7 @@ http_retrieve(struct fetch_state *fs)
         } while(0)
 
 retry:
-	if (fs->fs_reportsize && !tried_head) {
-		addstr(iov, n, "HEAD ");
-		tried_head = 1;
-	}
-	else {
-		addstr(iov, n, "GET ");
-		tried_head = 0;
-	}
+	addstr(iov, n, "GET ");
 	addstr(iov, n, https->http_remote_request);
 	addstr(iov, n, " HTTP/1.1\r\n");
 	/*
@@ -747,16 +738,6 @@ got100reply:
 		else
 			autherror = 407;
 		break;
-	case 501:		/* Not Implemented */
-		/* If we tried HEAD, retry with GET */
-		if (tried_head) {
-			n = 0;
-			goto retry;
-		}
-		else {
-			errstr = safe_strdup(line);
-			break;
-		}
 	case 503:		/* Service Unavailable */
 		if (!fs->fs_auto_retry)
 			errstr = safe_strdup(line);
@@ -964,23 +945,6 @@ spewerror:
 
 	fs->fs_status = "retrieving file from HTTP/1.x server";
 
-	if (fs->fs_reportsize) {
-		if (total_length == -1) {
-			warnx("%s: size not known\n",
-				fs->fs_outputfile);
-			printf("Unknown\n");
-			status = 1;
-		}
-		else {
-			printf("%qd\n", (quad_t)total_length);
-			status = 0;
-		}
-		fclose(remote);
-		unsetup_sigalrm();
-		return status;
-	}
-
-
 	/*
 	 * OK, if we got here, then we have finished parsing the header
 	 * and have read the `\r\n' line which denotes the end of same.
@@ -1072,29 +1036,18 @@ http_suck(struct fetch_state *fs, FILE *remote, FILE *local,
 {
 	static char buf[BUFFER_SIZE];
 	ssize_t readresult, writeresult;
-	off_t remain = total_length;
-
-	if (total_length == -1)
-		remain = 1;	/*XXX*/
 
 	do {
 		alarm(timo);
 		readresult = fread(buf, 1, sizeof buf, remote);
 		alarm(0);
 
-		/*
-		 * If know the content-length, ignore anything more the
-		 * the server chooses to send us.
-		 */
-		if (total_length != -1 && ((remain -= readresult) < 0))
-			readresult += remain;
-
 		if (readresult == 0)
 			return 0;
 		display(fs, total_length, readresult);
 
 		writeresult = fwrite(buf, 1, readresult, local);
-	} while (writeresult == readresult && remain > 0);
+	} while (writeresult == readresult);
 	return 0;
 }
 
@@ -1394,14 +1347,6 @@ parse_http_date(char *string)
 		tm.tm_year = i - 1900;
 	} else {
 		/* Monday, 27-Jan-97 14:31:09 stuffwedon'tcareabout */
-		/* Quoth RFC 2068:
-  o  HTTP/1.1 clients and caches should assume that an RFC-850 date
-     which appears to be more than 50 years in the future is in fact
-     in the past (this helps solve the "year 2000" problem).
-                 */
-		time_t now;
-		struct tm *tmnow;
-		int this2dyear;
 		char *comma = strchr(string, ',');
 		char mname[4];
 
@@ -1423,15 +1368,6 @@ parse_http_date(char *string)
 		if (i >= 12)
 			return -1;
 		tm.tm_mon = i;
-		/*
-		 * RFC 2068 year interpretation.
-		 */
-		time(&now);
-		tmnow = gmtime(&now);
-		this2dyear = tmnow->tm_year % 100;
-		tm.tm_year += tmnow->tm_year - this2dyear;
-		if (tm.tm_year - tmnow->tm_year >= 50)
-			tm.tm_year -= 100;
 	}
 #undef digit
 

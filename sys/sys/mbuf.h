@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.30 1998/11/05 14:28:25 dg Exp $
+ * $Id: mbuf.h,v 1.28 1998/08/23 03:07:17 wollman Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -138,7 +138,7 @@ struct mbuf {
 #define	MT_HEADER	2	/* packet header */
 /*efine	MT_SOCKET	3*/	/* socket structure */
 /*efine	MT_PCB		4*/	/* protocol control block */
-/*efine	MT_RTABLE	5*/	/* routing tables */
+#define	MT_RTABLE	5	/* routing tables */
 /*efine	MT_HTABLE	6*/	/* IMP host tables */
 /*efine	MT_ATABLE	7*/	/* address resolution tables */
 #define	MT_SONAME	8	/* socket name */
@@ -390,7 +390,6 @@ extern char	*mclrefcnt;		/* cluster reference counts */
 extern struct mbstat mbstat;
 extern int	nmbclusters;
 extern int	nmbufs;
-extern int	nsfbufs;
 extern struct mbuf *mmbfree;
 extern union mcluster *mclfree;
 extern int	max_linkhdr;		/* largest link-level header */

@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.102 1998/12/22 20:38:06 luigi Exp $
+ *	$Id: ip_fw.c,v 1.96 1998/08/23 03:07:14 wollman Exp $
  */
 
 /*
@@ -21,7 +21,6 @@
 
 #if !defined(KLD_MODULE) && !defined(IPFIREWALL_MODULE)
 #include "opt_ipfw.h"
-#include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_inet.h"
 #ifndef INET
@@ -44,17 +43,11 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#ifdef DUMMYNET
-#include <net/route.h>
-#include <netinet/ip_dummynet.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
-
-#include <netinet/if_ether.h> /* XXX ethertype_ip */
 
 static int fw_debug = 1;
 #ifdef IPFIREWALL_VERBOSE
@@ -62,7 +55,6 @@ static int fw_verbose = 1;
 #else
 static int fw_verbose = 0;
 #endif
-static int fw_one_pass = 0; /* XXX */
 #ifdef IPFIREWALL_VERBOSE_LIMIT
 static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #else
@@ -71,14 +63,13 @@ static int fw_verbose_limit = 0;
 
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
-LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
+static LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
-MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+static MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, debug, CTLFLAG_RW, &fw_debug, 0, "");
-SYSCTL_INT(_net_inet_ip_fw, OID_AUTO,one_pass,CTLFLAG_RW, &fw_one_pass, 0, "");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw_verbose, 0, "");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw_verbose_limit, 0, "");
 #endif
@@ -109,11 +100,8 @@ static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
 static void	ipfw_report __P((struct ip_fw *f, struct ip *ip,
 				struct ifnet *rif, struct ifnet *oif));
 
-static void flush_rule_ptrs(void);
-
 static int	ip_fw_chk __P((struct ip **pip, int hlen,
 			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-			struct ip_fw_chain **flow_id,
 			struct sockaddr_in **next_hop));
 static int	ip_fw_ctl __P((struct sockopt *sopt));
 
@@ -291,7 +279,6 @@ static void
 ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
-    if (ip) {
 	static u_int64_t counter;
 	struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
 	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
@@ -332,11 +319,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		case IP_FW_F_SKIPTO:
 			printf("SkipTo %d", f->fw_skipto_rule);
 			break;
-#ifdef DUMMYNET
-		case IP_FW_F_PIPE:
-			printf("Pipe %d", f->fw_skipto_rule);
-			break;
-#endif
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
 			printf("Forward to ");
@@ -400,46 +382,16 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	if (fw_verbose_limit != 0 && count == fw_verbose_limit)
 		printf("ipfw: limit reached on rule #%d\n",
 		f ? f->fw_number : -1);
-    }
-}
-
-/*
- * given an ip_fw_chain *, lookup_next_rule will return a pointer
- * of the same type to the next one. This can be either the jump
- * target (for skipto instructions) or the next one in the chain (in
- * all other cases including a missing jump target).
- * Backward jumps are not allowed, so start looking from the next
- * rule...
- */ 
-static struct ip_fw_chain * lookup_next_rule(struct ip_fw_chain *me);
-
-static struct ip_fw_chain *
-lookup_next_rule(struct ip_fw_chain *me)
-{
-    struct ip_fw_chain *chain ;
-    int rule = me->rule->fw_skipto_rule ; /* guess... */
-
-    if ( (me->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_SKIPTO )
-	for (chain = me->chain.le_next; chain ; chain = chain->chain.le_next )
-	    if (chain->rule->fw_number >= rule)
-                return chain ;
-    return me->chain.le_next ; /* failure or not a skipto */
 }
 
 /*
  * Parameters:
  *
- *	pip	Pointer to packet header (struct ip **)
- *      bridge_ipfw extension: pip = NULL means a complete ethernet packet
- *      including ethernet header in the mbuf. Other fields
- *      are ignored/invalid.
- *
+ *	ip	Pointer to packet header (struct ip *)
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
  *	*m	The packet; we set to NULL when/if we nuke it.
- *	*flow_id pointer to the last matching rule (in/out)
- *	*next_hop socket we are forwarding to (in/out).
  *
  * Return value:
  *
@@ -452,58 +404,17 @@ lookup_next_rule(struct ip_fw_chain *me)
 static int 
 ip_fw_chk(struct ip **pip, int hlen,
 	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-	struct ip_fw_chain **flow_id,
         struct sockaddr_in **next_hop)
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *rule = NULL;
-	struct ip *ip = NULL ;
+	struct ip *ip = *pip;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
-	u_short offset = 0 ;
+	u_short offset = (ip->ip_off & IP_OFFMASK);
 	u_short src_port, dst_port;
 	u_int16_t skipto = *cookie;
 
-	if (pip) { /* normal ip packet */
-	    ip = *pip;
-	    offset = (ip->ip_off & IP_OFFMASK);
-	} else { /* bridged or non-ip packet */
-	    struct ether_header *eh = mtod(*m, struct ether_header *);
-	    switch (ntohs(eh->ether_type)) {
-	    case ETHERTYPE_IP :
-		if ((*m)->m_len<sizeof(struct ether_header) + sizeof(struct ip))
-		    goto non_ip ;
-		ip = (struct ip *)(eh + 1 );
-		if (ip->ip_v != IPVERSION)
-		    goto non_ip ;
-		hlen = ip->ip_hl << 2;
-		if (hlen < sizeof(struct ip)) /* minimum header length */
-		    goto non_ip ;
-		if ((*m)->m_len < 14 + hlen + 14) {
-		    printf("-- m_len %d, need more...\n", (*m)->m_len);
-		    goto non_ip ;
-		}
-		offset = (ntohs(ip->ip_off) & IP_OFFMASK);
-		break ;
-	    default :
-non_ip:         ip = NULL ;
-		break ;
-	    }
-	}
-
-	if (*flow_id) {
-	    if (fw_one_pass)
-		return 0 ; /* accept if passed first test */
-	    /*
-	     * pkt has already been tagged. Look for the next rule
-	     * to restart processing
-	     */
-	    chain = LIST_NEXT( *flow_id, chain);
-
-	    if ( (chain = (*flow_id)->rule->next_rule_ptr) == NULL )
-		chain = (*flow_id)->rule->next_rule_ptr =
-			lookup_next_rule(*flow_id) ;
-		if (! chain) goto dropit;
-	} else {
+	*cookie = 0;
 	/*
 	 * Go down the chain, looking for enlightment
 	 * If we've been asked to start at a given rule immediatly, do so.
@@ -517,12 +428,8 @@ non_ip:         ip = NULL ;
 		}
 		if (! chain) goto dropit;
 	}
-	}
-	*cookie = 0;
 	for (; chain; chain = LIST_NEXT(chain, chain)) {
-		register struct ip_fw * f ;
-again:
-		f = chain->rule;
+		register struct ip_fw *const f = chain->rule;
 
 		if (oif) {
 			/* Check direction outbound */
@@ -533,43 +440,9 @@ again:
 			if (!(f->fw_flg & IP_FW_F_IN))
 				continue;
 		}
-		if (ip == NULL ) {
-		    /*
-		     * do relevant checks for non-ip packets:
-		     * after this, only goto got_match or continue
-		     */
-		    struct ether_header *eh = mtod(*m, struct ether_header *);
-
-		    /*
-		     * make default rule always match or we have a panic
-		     */
-		    if (f->fw_number == IPFW_DEFAULT_RULE)
-			goto got_match ;
-		    /*
-		     * temporary hack: 
-		     *   udp from 0.0.0.0 means this rule applies.
-		     *   1 src port is match ether type
-		     *   2 src ports (interval) is match ether type
-		     *   3 src ports is match ether address
-		     */
-		    if ( f->fw_src.s_addr != 0 || f->fw_prot != IPPROTO_UDP)
-			continue;
-		    switch (IP_FW_GETNSRCP(f)) {
-		    case 1: /* match one type */
-			if (  /* ( (f->fw_flg & IP_FW_F_INVSRC) != 0) ^ */
-				( f->fw_uar.fw_pts[0] == ntohs(eh->ether_type) )  ) {
-			    printf("match!\n");
-			    goto got_match ;
-			}
-			break ;
-		    default:
-			break ;
-		    }
-		    continue ;
-		}
 
 		/* Fragments */
-		if ((f->fw_flg & IP_FW_F_FRAG) && offset == 0 )
+		if ((f->fw_flg & IP_FW_F_FRAG) && !(ip->ip_off & IP_OFFMASK))
 			continue;
 
 		/* If src-addr doesn't match, not this rule. */
@@ -615,19 +488,14 @@ again:
 		if (ip->ip_p != f->fw_prot) 
 			continue;
 
-#define PULLUP_TO(len)							\
-	do {								\
-	    if ((*m)->m_len < (len) ) {					\
-		if ( (*m = m_pullup(*m, (len))) == 0)			\
-		    goto bogusfrag;					\
-		ip = mtod(*m, struct ip *);				\
-		if (pip) {						\
-		    *pip = ip ;						\
-		    offset = (ip->ip_off & IP_OFFMASK);			\
-		} else							\
-		    offset = (ntohs(ip->ip_off) & IP_OFFMASK);		\
-	    }								\
-	} while (0)
+#define PULLUP_TO(len)	do {						\
+			    if ((*m)->m_len < (len)			\
+				&& (*m = m_pullup(*m, (len))) == 0) {	\
+				    goto bogusfrag;			\
+			    }						\
+			    *pip = ip = mtod(*m, struct ip *);		\
+			    offset = (ip->ip_off & IP_OFFMASK);		\
+			} while (0)
 
 		/* Protocol specific checks */
 		switch (ip->ip_p) {
@@ -710,12 +578,9 @@ bogusfrag:
 		}
 
 got_match:
-		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		if (ip) {
-		    f->fw_bcnt += pip ? ip->ip_len : ntohs(ip->ip_len);
-		}
+		f->fw_bcnt += ip->ip_len;
 		f->timestamp = time_second;
 
 		/* Log to console if desired */
@@ -728,11 +593,9 @@ got_match:
 			return(0);
 		case IP_FW_F_COUNT:
 			continue;
-#ifdef IPDIVERT
 		case IP_FW_F_DIVERT:
 			*cookie = f->fw_number;
 			return(f->fw_divert_port);
-#endif
 		case IP_FW_F_TEE:
 			/*
 			 * XXX someday tee packet here, but beware that you
@@ -743,17 +606,17 @@ got_match:
 			 * to write custom routine.
 			 */
 			continue;
-		case IP_FW_F_SKIPTO: /* XXX check */
-			if ( f->next_rule_ptr )
-			    chain = f->next_rule_ptr ;
-			else
-			    chain = lookup_next_rule(chain) ;
-			if (! chain) goto dropit;
-			goto again ;
-#ifdef DUMMYNET
-		case IP_FW_F_PIPE:
-			return(f->fw_pipe_nr | 0x10000 );
+		case IP_FW_F_SKIPTO:
+#ifdef DIAGNOSTIC
+			while (LIST_NEXT(chain, chain)
+			    && LIST_NEXT(chain, chain)->rule->fw_number
+				< f->fw_skipto_rule)
+#else
+			while (LIST_NEXT(chain, chain)->rule->fw_number
+			    < f->fw_skipto_rule)
 #endif
+				chain = LIST_NEXT(chain, chain);
+			continue;
 #ifdef IPFIREWALL_FORWARD
 		case IP_FW_F_FWD:
 			/* Change the next-hop address for this packet.
@@ -793,7 +656,6 @@ got_match:
 	 * - The packet is not a multicast or broadcast packet
 	 */
 	if ((rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
-	    && ip
 	    && (ip->ip_p != IPPROTO_ICMP || is_icmp_query(ip))
 	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
 	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
@@ -836,28 +698,12 @@ dropit:
 	/*
 	 * Finally, drop the packet.
 	 */
-	/* *cookie = 0; */ /* XXX is this necessary ? */
+	*cookie = 0;
 	if (*m) {
 		m_freem(*m);
 		*m = NULL;
 	}
 	return(0);
-}
-
-/*
- * when a rule is added/deleted, zero the direct pointers within
- * all firewall rules. These will be reconstructed on the fly
- * as packets are matched.
- * Must be called at splnet().
- */
-static void
-flush_rule_ptrs()
-{
-    struct ip_fw_chain *fcp ;
-
-    for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next) {
-	fcp->rule->next_rule_ptr = NULL ;
-    }
 }
 
 static int
@@ -881,8 +727,6 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	ftmp->fw_in_if.fu_via_if.name[FW_IFNLEN - 1] = '\0';
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
-	ftmp->next_rule_ptr = NULL ;
-	ftmp->pipe_ptr = NULL ;
 	fwc->rule = ftmp;
 	
 	s = splnet();
@@ -919,7 +763,6 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 			fcpl = fcp;
 		}
 	}
-	flush_rule_ptrs();
 
 	splx(s);
 	return (0);
@@ -943,10 +786,6 @@ del_entry(struct ip_fw_head *chainptr, u_short number)
 
 					next = LIST_NEXT(fcp, chain);
 					LIST_REMOVE(fcp, chain);
-#ifdef DUMMYNET
-					dn_rule_delete(fcp) ;
-#endif
-					flush_rule_ptrs();
 					free(fcp->rule, M_IPFW);
 					free(fcp, M_IPFW);
 					fcp = next;
@@ -1102,7 +941,6 @@ check_ipfw_struct(struct ip_fw *frwl)
 		}
 		break;
 	case IP_FW_F_DIVERT:		/* Diverting to port zero is invalid */
-	case IP_FW_F_PIPE:              /* piping through 0 is invalid */
 	case IP_FW_F_TEE:
 		if (frwl->fw_divert_port == 0) {
 			dprintf(("%s can't divert to port 0\n", err_prefix));
@@ -1211,14 +1049,11 @@ ip_fw_ctl(struct sockopt *sopt)
 		break;
 
 	default:
-		printf("ip_fw_ctl invalid option %d\n", sopt->sopt_name);
-		error = EINVAL ;
+		panic("ip_fw_ctl");
 	}
 
 	return (error);
 }
-
-struct ip_fw_chain *ip_fw_default_rule ;
 
 void
 ip_fw_init(void)
@@ -1242,7 +1077,6 @@ ip_fw_init(void)
 	    add_entry(&ip_fw_chain, &default_rule))
 		panic("ip_fw_init");
 
-	ip_fw_default_rule = ip_fw_chain.lh_first ;
 	printf("IP packet filtering initialized, "
 #ifdef IPDIVERT
 		"divert enabled, ");
@@ -1320,7 +1154,7 @@ ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 }
 #else
 static int
-ipfw_modevent(module_t mod, int type, void *unused)
+ipfw_modevent(module_t mod, modeventtype_t type, void *unused)
 {
 	int s;
 	
@@ -1356,7 +1190,7 @@ ipfw_modevent(module_t mod, int type, void *unused)
 	return 0;
 }
 
-static moduledata_t ipfwmod = {
+moduledata_t ipfwmod = {
 	"ipfw",
 	ipfw_modevent,
 	0

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.19 1998/10/29 02:12:54 brian Exp $
+ *	$Id: bundle.h,v 1.12 1998/08/07 18:42:47 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -33,15 +33,13 @@
 #define	PHASE_TERMINATE		4	/* Terminating link */
 
 /* cfg.opt bit settings */
-#define OPT_IDCHECK	0x0001
-#define OPT_IFACEALIAS	0x0002
-#define OPT_LOOPBACK	0x0004
-#define OPT_PASSWDAUTH	0x0008
-#define OPT_PROXY	0x0010
-#define OPT_PROXYALL	0x0020
-#define OPT_SROUTES	0x0040
-#define OPT_THROUGHPUT	0x0080
-#define OPT_UTMP	0x0100
+#define OPT_IDCHECK	0x01
+#define OPT_LOOPBACK	0x02
+#define OPT_PASSWDAUTH	0x04
+#define OPT_PROXY	0x08
+#define OPT_SROUTES	0x10
+#define OPT_THROUGHPUT	0x20
+#define OPT_UTMP	0x40
 
 #define MAX_ENDDISC_CLASS 5
 
@@ -53,22 +51,22 @@ struct physical;
 struct link;
 struct server;
 struct prompt;
-struct iface;
 
 struct bundle {
   struct descriptor desc;     /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
   const char **argv;          /* From main() */
-  const char *argv0;          /* Original */
-  const char *argv1;          /* Original */
 
   struct {
     char Name[20];            /* The /dev/XXXX name */
     int fd;                   /* The /dev/XXXX descriptor */
   } dev;
 
-  u_long ifSpeed;             /* struct tuninfo speed */
-  struct iface *iface;        /* Interface information */
+  struct {
+    u_long Speed;             /* struct tuninfo speed */
+    int Index;                /* The interface index */
+    char *Name;               /* The interface name */
+  } ifp;
 
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
@@ -183,5 +181,3 @@ extern int bundle_RenameDatalink(struct bundle *, struct datalink *,
                                  const char *);
 extern void bundle_setsid(struct bundle *, int);
 extern void bundle_LockTun(struct bundle *);
-extern int bundle_HighestState(struct bundle *);
-extern int bundle_Exception(struct bundle *, int);

@@ -42,6 +42,9 @@ for normal IP Filter log records.
 Flush the current packet log buffer.  The number of bytes flushed is displayed,
 even should the result be zero.
 .TP
+.B "\-N <device>"
+Set the logfile to be opened for reading NAT log records from to <device>.
+.TP
 .B \-n
 IP addresses and port numbers will be mapped, where possible, back into
 hostnames and service names.
@@ -62,6 +65,10 @@ as for \fB-o\fP.
 .B \-s
 Packet information read in will be sent through syslogd rather than
 saved to a file.  The following levels are used:
+.TP
+.B "\-S <device>"
+Set the logfile to be opened for reading state log records from to <device>.
+.TP
 .IP
 .B LOG_INFO
 \- packets logged using the "log" keyword as the action rather
@@ -77,8 +84,8 @@ than pass or block.
 \- packets which have been logged and which can be considered
 "short".
 .TP
-.B "\-S <device>"
-Set the logfile to be opened for reading state log records from to <device>.
+.B \-S
+Treat the logfile as being composed of state log records.
 .TP
 .B \-t
 read the input file/device in a manner akin to tail(1).
@@ -100,4 +107,4 @@ recorded data.
 /dev/ipstate
 .SH SEE ALSO
 ipl(4), ipf(8), ipfstat(8), ipnat(8)
-.\".SH BUGS
+.SH BUGS

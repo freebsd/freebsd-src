@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.8 1998/12/12 23:52:46 gibbs Exp $
+ *      $Id: scsi_ch.c,v 1.3 1998/10/02 21:20:21 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -101,13 +101,13 @@
  * ELEMENT STATUS).
  */
 
-static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
-static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
-static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
-static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
-static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 10000;
-static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
-static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
+const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
+const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
+const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
+const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
+const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 10000;
+const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
+const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
 typedef enum {
 	CH_FLAG_INVALID		= 0x001,
@@ -183,7 +183,6 @@ static	d_close_t	chclose;
 static	d_ioctl_t	chioctl;
 static	periph_init_t	chinit;
 static  periph_ctor_t	chregister;
-static	periph_oninv_t	choninvalidate;
 static  periph_dtor_t   chcleanup;
 static  periph_start_t  chstart;
 static	void		chasync(void *callback_arg, u_int32_t code,
@@ -287,43 +286,13 @@ chinit(void)
 }
 
 static void
-choninvalidate(struct cam_periph *periph)
-{
-	struct ch_softc *softc;
-	struct ccb_setasync csa;
-
-	softc = (struct ch_softc *)periph->softc;
-
-	/*
-	 * De-register any async callbacks.
-	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = chasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
-
-	softc->flags |= CH_FLAG_INVALID;
-
-	xpt_print_path(periph->path);
-	printf("lost device\n");
-
-}
-
-static void
 chcleanup(struct cam_periph *periph)
 {
-	struct ch_softc *softc;
 
-	softc = (struct ch_softc *)periph->softc;
-
-	devstat_remove_entry(&softc->device_stats);
-	cam_extend_release(chperiphs, periph->unit_number);
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
-	free(softc, M_DEVBUF);
+        cam_extend_release(chperiphs, periph->unit_number);
+        xpt_print_path(periph->path);
+        printf("removing device entry\n");
+        free(periph->softc, M_DEVBUF);
 }
 
 static void
@@ -349,9 +318,8 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(chregister, choninvalidate,
-					  chcleanup, chstart, "ch",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+		status = cam_periph_alloc(chregister, chcleanup, chstart,
+					  "ch", CAM_PERIPH_BIO, cgd->ccb_h.path,
 					  chasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -363,8 +331,42 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 	}
 	case AC_LOST_DEVICE:
+	{
+		int s;
+		struct ch_softc *softc;
+		struct ccb_setasync csa;
+
+		softc = (struct ch_softc *)periph->softc;
+
+		/*
+		 * Insure that no other async callbacks that
+		 * might affect this peripheral can come through.
+		 */
+		s = splcam();
+
+		/*
+		 * De-register any async callbacks.
+		 */
+		xpt_setup_ccb(&csa.ccb_h, periph->path,
+			      /* priority */ 5);
+		csa.ccb_h.func_code = XPT_SASYNC_CB;
+		csa.event_enable = 0;
+		csa.callback = chasync;
+		csa.callback_arg = periph;
+		xpt_action((union ccb *)&csa);
+
+		softc->flags |= CH_FLAG_INVALID;
+
+		devstat_remove_entry(&softc->device_stats);
+
+		xpt_print_path(periph->path);
+		printf("lost device\n");
+
+		splx(s);
+
 		cam_periph_invalidate(periph);
 		break;
+	}
 	case AC_TRANSFER_NEG:
 	case AC_SENT_BDR:
 	case AC_SCSI_AEN:
@@ -443,7 +445,6 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct cam_periph *periph;
 	struct ch_softc *softc;
 	int unit, error;
-	int s;
 
 	unit = CHUNIT(dev);
 	periph = cam_extend_get(chperiphs, unit);
@@ -453,19 +454,12 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct ch_softc *)periph->softc;
 
-	s = splsoftcam();
-	if (softc->flags & CH_FLAG_INVALID) {
-		splx(s);
+	if (softc->flags & CH_FLAG_INVALID)
 		return(ENXIO);
-	}
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
-		splx(s);
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
 		return (error);
-	}
 	
-	splx(s);
-
 	if ((softc->flags & CH_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 			return(ENXIO);
@@ -618,8 +612,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->sc_picker = softc->sc_firsts[CHET_MT];
 
 #define PLURAL(c)	(c) == 1 ? "" : "s"
-			snprintf(announce_buf, sizeof(announce_buf),
-				"%d slot%s, %d drive%s, "
+			sprintf(announce_buf, "%d slot%s, %d drive%s, "
 				"%d picker%s, %d portal%s",
 		    		softc->sc_counts[CHET_ST],
 				PLURAL(softc->sc_counts[CHET_ST]),
@@ -851,7 +844,7 @@ chmove(struct cam_periph *periph, struct changer_move *cm)
 	 * Check the request against the changer's capabilities.
 	 */
 	if ((softc->sc_movemask[cm->cm_fromtype] & (1 << cm->cm_totype)) == 0)
-		return (ENODEV);
+		return (EINVAL);
 
 	/*
 	 * Calculate the source and destination elements.
@@ -909,7 +902,7 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 	     (1 << ce->ce_fdsttype)) == 0) ||
 	    ((softc->sc_exchangemask[ce->ce_fdsttype] &
 	     (1 << ce->ce_sdsttype)) == 0))
-		return (ENODEV);
+		return (EINVAL);
 
 	/*
 	 * Calculate the source and destination elements.

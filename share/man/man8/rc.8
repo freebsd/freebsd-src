@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: rc.8,v 1.6 1998/12/12 23:08:34 dillon Exp $
+.\"	$Id: rc.8,v 1.4 1998/02/26 02:44:17 jkh Exp $
 .\"
 .Dd December 11, 1993
 .Dt RC 8
@@ -56,16 +56,12 @@ is the command script which controls the automatic reboot
 (calling the other scripts) and
 .Nm rc.local
 is the script holding commands which are pertinent only
-to a specific site.  Typically, the /usr/local/etc/rc.d
-mechanism is used instead of rc.local these days but if 
-you do want to use rc.local, /etc/rc still supports it.
-In this case, rc.local should source /etc/rc.conf and
-contain additional custom startup code for your system.
+to a specific site.
 .Nm Rc.conf
 contains the global system configuration information referenced
 by the rc files, while
 .Nm rc.conf.local
-contains the local system configuration.  See rc.conf(5)
+contains the local system configuration.
 .Pp
 .Nm Rc.shutdown
 is the command script which contains any necessary commands

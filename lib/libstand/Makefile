@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1998/11/04 07:39:53 msmith Exp $
+# $Id: Makefile,v 1.5 1998/10/04 08:10:29 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -13,16 +13,16 @@ NOPIC=		YES
 MAN3=		libstand.3
 
 # Mostly OK, some of the libc imports are a bit noisy
-CFLAGS+=	-Wall -g
+CFLAGS+=	-Wall #-g
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
 
 # standalone components and stuff we have modified locally
-SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
-	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
+SRCS+=	__main.c bcd.c bswap.c environment.c getopt.c gets.c globals.c \
+	pager.c printf.c strdup.c strerror.c strtol.c random.c sbrk.c \
+	twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
@@ -31,7 +31,7 @@ SRCS+=	strcasecmp.c
 .PATH:	${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
-        memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
+        memcpy.c memmove.c memset.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
@@ -89,12 +89,6 @@ __reml.S: ${.CURDIR}/../libc/alpha/gen/divrem.m4
 # network support from libc
 .PATH:	${.CURDIR}/../libc/net
 SRCS+=	inet_ntoa.c inet_addr.c
-
-# _setjmp/_longjmp
-.PATH:	${.CURDIR}/../libc/${MACHINE_ARCH}/gen
-SRCS+=	_setjmp.S
-# really only required for i386
-CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz

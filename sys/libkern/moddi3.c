@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: moddi3.c,v 1.5 1997/02/22 09:39:56 peter Exp $
+ * $Id$
  */
 
 #include <libkern/quad.h>
@@ -57,7 +57,7 @@ __moddi3(a, b)
 	else
 		ua = a, neg = 0;
 	if (b < 0)
-		ub = -(u_quad_t)b;
+		ub = -(u_quad_t)b, neg ^= 1;
 	else
 		ub = b;
 	(void)__qdivrem(ua, ub, &ur);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: console.c,v 1.3 1998/10/11 10:19:11 peter Exp $
+ *	$Id: console.c,v 1.2 1998/09/26 01:29:13 msmith Exp $
  */
 
 #include <stand.h>
@@ -150,12 +150,8 @@ cons_set(struct env_var *ev, int flags, void *value)
 {
     int		cons, active;
 
-    if ((value == NULL) || ((active = cons_find(value)) == -1)) {
-	if (value != NULL) 
-	    printf("no such console '%s'\n", (char *)value);
-	printf("Available consoles:\n");
-	for (cons = 0; consoles[cons] != NULL; cons++)
-	    printf("    %s\n", consoles[cons]->c_name);
+    if ((active = cons_find(value)) == -1) {
+	printf("no such console '%s'\n", (char *)value);
 	return(CMD_ERROR);
     }
 

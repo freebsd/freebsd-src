@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: setup.c,v 1.12 1998/06/28 19:23:03 bde Exp $";
+	"$Id: setup.c,v 1.11 1998/06/15 07:07:21 charnier Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES
@@ -82,7 +82,7 @@ setup(dev)
 
 	havesb = 0;
 	fswritefd = -1;
-	skipclean = fflag ? 0 : preen;
+	skipclean = preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
 		return (0);
@@ -114,7 +114,8 @@ setup(dev)
 	asblk.b_un.b_buf = malloc(SBSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
-	if ((lp = getdisklabel(NULL, fsreadfd)))
+	lp = getdisklabel((char *)NULL, fsreadfd);
+	if (lp)
 		dev_bsize = secsize = lp->d_secsize;
 	else
 		dev_bsize = secsize = DEV_BSIZE;
@@ -145,10 +146,6 @@ setup(dev)
 		}
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
 		bflag = 0;
-	}
-	if (skipclean && sblock.fs_clean) {
-		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
-		return (-1);
 	}
 	maxfsblock = sblock.fs_size;
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
@@ -268,6 +265,12 @@ setup(dev)
 		}
 	}
 	/*
+	 * If we survive the above basic checks and are preening,
+	 * quit here unless forced.
+	 */
+	if (skipclean && sblock.fs_clean && !fflag)
+		return (-1);
+	/*
 	 * allocate and initialize the necessary maps
 	 */
 	bmapsize = roundup(howmany(maxfsblock, NBBY), sizeof(short));
@@ -277,11 +280,22 @@ setup(dev)
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	inostathead = calloc((unsigned)(sblock.fs_ncg),
-	    sizeof(struct inostatlist));
-	if (inostathead == NULL) {
-		printf("cannot alloc %u bytes for inostathead\n",
-		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
+	statemap = calloc((unsigned)(maxino + 1), sizeof(char));
+	if (statemap == NULL) {
+		printf("cannot alloc %u bytes for statemap\n",
+		    (unsigned)(maxino + 1));
+		goto badsb;
+	}
+	typemap = calloc((unsigned)(maxino + 1), sizeof(char));
+	if (typemap == NULL) {
+		printf("cannot alloc %u bytes for typemap\n",
+		    (unsigned)(maxino + 1));
+		goto badsb;
+	}
+	lncntp = (short *)calloc((unsigned)(maxino + 1), sizeof(short));
+	if (lncntp == NULL) {
+		printf("cannot alloc %u bytes for lncntp\n",
+		    (unsigned)(maxino + 1) * sizeof(short));
 		goto badsb;
 	}
 	numdirs = sblock.fs_cstotal.cs_ndir;
@@ -460,11 +474,9 @@ calcsb(dev, devfd, fs)
 			fstypenames[pp->p_fstype] : "unknown");
 		return (0);
 	}
-	if (pp->p_fsize == 0 || pp->p_frag == 0 ||
-	    pp->p_cpg == 0 || pp->p_size == 0) {
-		pfatal("%s: %s: type %s fsize %d, frag %d, cpg %d, size %d\n",
-		    dev, "INCOMPLETE LABEL", fstypenames[pp->p_fstype],
-		    pp->p_fsize, pp->p_frag, pp->p_cpg, pp->p_size);
+	if (pp->p_fsize == 0 || pp->p_frag == 0) {
+		pfatal("%s: LABELED AS A %s FILE SYSTEM, BUT BLOCK SIZE IS 0\n",
+			dev, fstypenames[pp->p_fstype]);
 		return (0);
 	}
 	memset(fs, 0, sizeof(struct fs));

@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.6 1999/01/12 16:40:57 eivind Exp $
+ *	$Id: ip_dummynet.c 1.2 1998/08/21 15:01:13 luigi Exp $
  */
 
 /*
@@ -40,7 +40,6 @@
 #include <sys/queue.h>			/* XXX */
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
@@ -51,7 +50,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/ip_var.h>
 
 #ifdef BRIDGE
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -70,13 +68,11 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, calls, CTLFLAG_RD, &dn_calls, 0, "")
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, idle, CTLFLAG_RD, &dn_idle, 0, "");
 #endif
 
-static int ip_dn_ctl(struct sockopt *sopt);
+static int ip_dn_ctl(int optname, struct mbuf **mm);
 
-static void rt_unref(struct rtentry *);
-static void dummynet(void *);
+static void dummynet(void);
 static void dn_restart(void);
 static void dn_move(struct dn_pipe *pipe, int immediate);
-static void dummynet_flush(void);
 
 /*
  * the following is needed when deleting a pipe, because rules can
@@ -100,20 +96,10 @@ dn_restart()
 	/* if there any pipe that needs work, restart */
 	if (pipe->r.head || pipe->p.head || pipe->numbytes < 0 ) {
 	    dn_idle = 0;
-	    timeout(dummynet, NULL, 1);
+	    timeout(dummynet, (caddr_t)NULL, 1);
 	    return ;
 	}
     }
-}
-
-static void
-rt_unref(struct rtentry *rt)
-{
-    if (rt == NULL)
-	return ;
-    if (rt->rt_refcnt <= 0)
-	printf("-- warning, refcnt now %d, decreasing\n", rt->rt_refcnt);
-    RTFREE(rt);
 }
 
 /*
@@ -122,7 +108,7 @@ rt_unref(struct rtentry *rt)
 static void
 dn_move(struct dn_pipe *pipe, int immediate)
 {
-    struct dn_pkt *pkt;
+    struct dn_pkt *tmp, *pkt;
  
     /*
      * consistency check, should catch new pipes which are
@@ -130,7 +116,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
      */
     if ( pipe->p.head == NULL &&
 		pipe->ticks_from_last_insert != pipe->delay) {
-	printf("Warning, empty pipe and delay %d (should be %d)\n",
+	printf("Warning, empty pipe and delay %d (should be %a)d\n",
 		pipe->ticks_from_last_insert, pipe->delay);
 	pipe->ticks_from_last_insert = pipe->delay;
     }
@@ -180,8 +166,8 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	/*** XXX just a sanity check */
 	if ( ( pkt == NULL && pipe->r_len != 0) ||
 	     ( pkt != NULL && pipe->r_len == 0) )
-	    printf("-- Warning, pipe head %p len %d\n",
-		    (void *)pkt, pipe->r_len);
+	    printf("-- Warning, pipe head %x len %d\n",
+		    pkt, pipe->r_len);
     }
  
     /*
@@ -216,7 +202,8 @@ dn_move(struct dn_pipe *pipe, int immediate)
 
 	    (void)ip_output((struct mbuf *)pkt, (struct mbuf *)pkt->ifp,
 			&(pkt->ro), pkt->dn_hlen, NULL);
-	    rt_unref (tmp_rt) ;
+	    if (tmp_rt)
+		 tmp_rt->rt_refcnt--; /* XXX return a reference count */
 	    }
 	    break ;
 	case DN_TO_IP_IN :
@@ -239,9 +226,8 @@ dn_move(struct dn_pipe *pipe, int immediate)
  * this is the periodic task that moves packets between the R-
  * and the P- queue
  */
-/*ARGSUSED*/
 void
-dummynet(void * __unused unused)
+dummynet()
 {
     struct dn_pipe *p ;
     int s ;
@@ -321,7 +307,6 @@ dummynet_io(int pipe_nr, int dir,
 	m_freem(m);
 	return 0 ; /* XXX error */
     }
-    bzero(pkt, sizeof(*pkt) );
     /* build and enqueue packet */
     pkt->hdr.mh_type = MT_DUMMYNET ;
     (struct ip_fw_chain *)pkt->hdr.mh_data = rule ;
@@ -368,14 +353,16 @@ purge_pipe(struct dn_pipe *pipe)
     struct rtentry *tmp_rt ;
 
     for (pkt = pipe->r.head ; pkt ; ) {
-	rt_unref (tmp_rt = pkt->ro.ro_rt ) ;
+	if (tmp_rt = pkt->ro.ro_rt )
+	     tmp_rt->rt_refcnt--; /* XXX return a reference count */
 	m_freem(pkt->dn_m);
 	n = pkt ;
 	pkt = (struct dn_pkt *)pkt->dn_next ;
 	free(n, M_IPFW) ;
     }
     for (pkt = pipe->p.head ; pkt ; ) {
-	rt_unref (tmp_rt = pkt->ro.ro_rt ) ;
+	if (tmp_rt = pkt->ro.ro_rt )
+	     tmp_rt->rt_refcnt--; /* XXX return a reference count */
 	m_freem(pkt->dn_m);
 	n = pkt ;
 	pkt = (struct dn_pkt *)pkt->dn_next ;
@@ -413,25 +400,18 @@ extern struct ip_fw_chain *ip_fw_default_rule ;
 void
 dn_rule_delete(void *r)
 {
-    struct dn_pipe *p ;
-    int matches = 0 ;
 
-    for ( p = all_pipes ; p ; p = p->next ) {
+    struct dn_pipe *q, *p = all_pipes ;
+
+    for ( p= all_pipes ; p ; p = p->next ) {
 	struct dn_pkt *x ;
 	for (x = p->r.head ; x ; x = (struct dn_pkt *)x->dn_next )
-	    if (x->hdr.mh_data == r) {
-		matches++ ;
+	    if (x->hdr.mh_data == r)
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
-	    }
 	for (x = p->p.head ; x ; x = (struct dn_pkt *)x->dn_next )
-	    if (x->hdr.mh_data == r) {
-		matches++ ;
+	    if (x->hdr.mh_data == r)
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
-	    }
     }
-    printf("dn_rule_delete, r %p, default %p%s, %d matches\n",
-	    (void *)r, (void *)ip_fw_default_rule,
-	    r == ip_fw_default_rule ? "  AARGH!":"",  matches);
 }
 
 /*
@@ -439,53 +419,51 @@ dn_rule_delete(void *r)
  * (get, flush, config, del)
  */
 static int
-ip_dn_ctl(struct sockopt *sopt)
+ip_dn_ctl(int optname, struct mbuf **mm)
 {
-    int error = 0 ;
-    size_t size ;
-    char *buf, *bp ;
-    struct dn_pipe *p, tmp_pipe ;
-
-    struct dn_pipe *x, *a, *b ;
-
-    /* Disallow sets in really-really secure mode. */
-    if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
-	return (EPERM);
-
-    switch (sopt->sopt_name) {
-    default :
-	panic("ip_dn_ctl -- unknown option");
-
-    case IP_DUMMYNET_GET :
-	for (p = all_pipes, size = 0 ; p ; p = p->next )
-	    size += sizeof( *p ) ;
-	buf = malloc(size, M_TEMP, M_WAITOK);
-	if (buf == 0) {
-	    error = ENOBUFS ;
-	    break ;
-	}
-	for (p = all_pipes, bp = buf ; p ; p = p->next ) {
-	    struct dn_pipe *q = (struct dn_pipe *)bp ;
-
-	    bcopy(p, bp, sizeof( *p ) );
+	struct mbuf *m ;
+	if (optname == IP_DUMMYNET_GET) {
+	    struct dn_pipe *p = all_pipes ;
+	    *mm = m = m_get(M_WAIT, MT_SOOPTS);
+	    m->m_len = 0 ;
+	    m->m_next = NULL ;
+	    for (; p ;  p = p->next ) {
+		struct dn_pipe *q = mtod(m,struct dn_pipe *) ;
+		memcpy( m->m_data, p, sizeof(*p) );
 		/*
 		 * return bw and delay in bits/s and ms, respectively
 		 */
 		q->bandwidth *= (8*hz) ;
 		q->delay = (q->delay * 1000) / hz ;
-	    bp += sizeof( *p ) ;
+
+		m->m_len = sizeof(*p) ;
+		m->m_next = m_get(M_WAIT, MT_SOOPTS);
+		m = m->m_next ;
+		m->m_len = 0 ;
+	    }
+	    return 0 ;
 	}
-	error = sooptcopyout(sopt, buf, size);
-	FREE(buf, M_TEMP);
-	break ;
-    case IP_DUMMYNET_FLUSH :
+	if (securelevel > 2) { /* like in the firewall code... */
+	    if (m) (void)m_free(m);
+	    return (EPERM) ;
+	}
+	m = *mm ;
+	if (optname == IP_DUMMYNET_FLUSH) {
 	    dummynet_flush() ;
-	break ;
-    case IP_DUMMYNET_CONFIGURE :
-	p = &tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
-	if (error)
-	    break ;
+	    if (m) (void)m_free(m);
+	    return 0 ;
+	}
+	if (!m)		/* need an argument for the following */
+		return (EINVAL);
+	if (optname == IP_DUMMYNET_CONFIGURE) {
+	    struct dn_pipe *p = mtod(m,struct dn_pipe *) ;
+	    struct dn_pipe *x, *a, *b ;
+	    if (m->m_len != sizeof (*p) ) {
+		printf("dn_pipe Invalid length, %d instead of %d\n",
+			m->m_len, sizeof(*p) );
+		(void)m_free(m);
+		return (EINVAL);
+	    }
 	    /*
 	     * The config program passes parameters as follows:
 	     * bandwidth = bits/second (0 = no limits);
@@ -531,8 +509,7 @@ ip_dn_ctl(struct sockopt *sopt)
 		x = malloc(sizeof(struct dn_pipe), M_IPFW, M_DONTWAIT) ;
 		if (x == NULL) {
 		    printf("ip_dummynet.c: sorry no memory\n");
-		error = ENOSPC ;
-		break ;
+		    return (ENOSPC) ;
 		}
 		bzero(x, sizeof(*x) );
 		x->bandwidth = p->bandwidth ;
@@ -551,13 +528,12 @@ ip_dn_ctl(struct sockopt *sopt)
 		    a->next = x ;
 		splx(s);
 	    }
-	break ;
-
-    case IP_DUMMYNET_DEL :
-	p = &tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
-	if (error)
-	    break ;
+	    (void)m_free(m);
+	    return 0 ;
+	}
+	if (optname == IP_DUMMYNET_DEL) {
+	    struct dn_pipe *p = mtod(m,struct dn_pipe *) ;
+	    struct dn_pipe *x, *a, *b ;
 
 	    for (a = NULL , b = all_pipes ; b && b->pipe_nr < p->pipe_nr ;
 		 a = b , b = b->next) ;
@@ -581,9 +557,8 @@ ip_dn_ctl(struct sockopt *sopt)
 		purge_pipe(b);	/* remove pkts from here */
 		free(b, M_IPFW);
 	    }
-	break ;
 	}
-    return error ;
+	return 0 ;
 }
 
 void

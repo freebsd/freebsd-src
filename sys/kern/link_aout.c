@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.16 1998/11/03 14:25:21 peter Exp $
+ *	$Id: link_aout.c,v 1.13 1998/10/09 23:49:28 peter Exp $
  */
 
 #ifndef __alpha__
@@ -54,6 +54,13 @@ static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
 						linker_sym_t* sym, long* diffp);
 static void		link_aout_unload_file(linker_file_t);
 static void		link_aout_unload_module(linker_file_t);
+
+/*
+ * The file representing the currently running kernel.  This contains
+ * the global symbol table.
+ */
+
+static linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_aout_class_ops = {
     link_aout_load_module,
@@ -119,7 +126,7 @@ link_aout_init(void* arg)
 #endif
 }
 
-SYSINIT(link_aout, SI_SUB_KLD, SI_ORDER_THIRD, link_aout_init, 0);
+SYSINIT(link_aout, SI_SUB_KLD, SI_ORDER_SECOND, link_aout_init, 0);
 
 static int
 link_aout_load_module(const char* filename, linker_file_t* result)
@@ -301,10 +308,8 @@ load_dependancies(linker_file_t lf)
     /*
      * All files are dependant on /kernel.
      */
-    if (linker_kernel_file) {
-	linker_kernel_file->refs++;
-	linker_file_add_dependancy(lf, linker_kernel_file);
-    }
+    linker_kernel_file->refs++;
+    linker_file_add_dependancy(lf, linker_kernel_file);
 
     off = LD_NEED(af->dynamic);
 
@@ -556,6 +561,7 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 	struct nzlist* sp;
 	struct nzlist* ep;
 	struct nzlist* best = 0;
+	int i;
 
 	for (sp = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic)),
 		 ep = (struct nzlist *) ((caddr_t) sp + LD_STABSZ(af->dynamic));

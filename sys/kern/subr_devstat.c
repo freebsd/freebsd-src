@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.7 1998/12/04 22:54:51 archie Exp $
+ *	$Id: subr_devstat.c,v 1.3 1998/10/06 04:16:07 ken Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@ STAILQ_HEAD(devstatlist, devstat) device_statq;
  * and add it to the queue of devices.  
  */
 void
-devstat_add_entry(struct devstat *ds, const char *dev_name, 
+devstat_add_entry(struct devstat *ds, char *dev_name, 
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type)
@@ -73,7 +73,6 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 	ds->device_number = devstat_current_devnumber++;
 	ds->unit_number = unit_number;
 	strncpy(ds->device_name, dev_name, DEVSTAT_NAME_LEN);
-	ds->device_name[DEVSTAT_NAME_LEN - 1] = 0;
 	ds->block_size = block_size;
 	ds->flags = flags;
 	ds->device_type = device_type;
@@ -178,10 +177,18 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 
 		/* Add our busy time to the total busy time. */
 		timevaladd(&ds->busy_time, &busy_time);
-	} else if (ds->busy_count < 0)
+	}
+	/*
+	 * XXX KDM this is temporarily disabled to avoid causing
+	 * unsophisticated users to panic.  There are unfixed bugs in the
+	 * wd driver that will set off this error message.
+	 */
+#if 0
+	else if (ds->busy_count < 0)
 		printf("devstat_end_transaction: HELP!! busy_count "
 		       "for %s%d is < 0 (%d)!\n", ds->device_name,
 		       ds->unit_number, ds->busy_count);
+#endif
 }
 
 /*
@@ -243,6 +250,6 @@ SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
 SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, &devstat_num_devs,
 	  0, "Number of devices in the devstat list");
 SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
-	    &devstat_generation, "Devstat list generation");
+	    &devstat_generation, 0, "Devstat list generation");
 SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, &devstat_version,
 	  0, "Devstat list version number");

@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1998/08/08 08:13:04 phk Exp $";
+	"$Id: main.c,v 1.21 1998/08/05 13:54:07 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -105,21 +105,23 @@ static struct nlist nl[] = {
 	{ "_nfile" },
 #define	N_FILE		18
 	{ "_file" },
-#define N_MRTSTAT	19
+#define N_MRTPROTO	19
+	{ "_ip_mrtproto" },
+#define N_MRTSTAT	20
 	{ "_mrtstat" },
-#define N_MFCTABLE	20
+#define N_MFCTABLE	21
 	{ "_mfctable" },
-#define N_VIFTABLE	21
+#define N_VIFTABLE	22
 	{ "_viftable" },
-#define N_IPX		22
+#define N_IPX		23
 	{ "_ipxpcb"},
-#define N_IPXSTAT	23
+#define N_IPXSTAT	24
 	{ "_ipxstat"},
-#define N_SPXSTAT	24
+#define N_SPXSTAT	25
 	{ "_spx_istat"},
-#define N_DDPSTAT	25
+#define N_DDPSTAT	26
 	{ "_ddpstat"},
-#define N_DDPCB		26
+#define N_DDPCB		27
 	{ "_ddpcb"},
 	{ "" },
 };
@@ -388,9 +390,11 @@ main(argc, argv)
 	if (gflag) {
 		kread(0, 0, 0);
 		if (sflag)
-			mrt_stats(nl[N_MRTSTAT].n_value);
+			mrt_stats(nl[N_MRTPROTO].n_value,
+			    nl[N_MRTSTAT].n_value);
 		else
-			mroutepr(nl[N_MFCTABLE].n_value,
+			mroutepr(nl[N_MRTPROTO].n_value,
+			    nl[N_MFCTABLE].n_value,
 			    nl[N_VIFTABLE].n_value);
 		exit(0);
 	}

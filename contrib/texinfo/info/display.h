@@ -1,10 +1,9 @@
-/* display.h -- How the display in Info is done.
-   $Id: display.h,v 1.2 1997/07/15 18:37:29 karl Exp $
+/* display.h -- How the display in Info is done. */
 
-   This file is part of GNU Info, a program for reading online documentation
+/* This file is part of GNU Info, a program for reading online documentation
    stored in Info format.
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +21,8 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#ifndef INFO_DISPLAY_H
-#define INFO_DISPLAY_H
+#if !defined (_DISPLAY_H_)
+#define _DISPLAY_H_
 
 #include "info-utils.h"
 #include "terminal.h"
@@ -74,4 +73,4 @@ extern void display_scroll_display ();
    that appear in the OLD_STARTS array. */
 extern void display_scroll_line_starts ();
 
-#endif /* not INFO_DISPLAY_H */
+#endif /* !_DISPLAY_H_ */

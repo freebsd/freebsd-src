@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.70 1999/01/16 11:43:12 kato Exp $
+ *	$Id: wd.c,v 1.63 1998/09/15 14:07:08 kato Exp $
  */
 
 /* TODO:
@@ -67,8 +67,8 @@
 #include "opt_atapi.h"
 #include "opt_devfs.h"
 #include "opt_hw_wdog.h"
-#include "opt_ide_delay.h"
 #include "opt_wd.h"
+#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/dkbad.h>
@@ -112,11 +112,7 @@
 
 extern void wdstart(int ctrlr);
 
-#ifdef IDE_DELAY
-#define TIMEOUT		IDE_DELAY
-#else
 #define TIMEOUT		10000
-#endif
 #define	RETRIES		5	/* number of retries before giving up */
 #define RECOVERYTIME	500000	/* usec for controller to recover after err */
 #define	MAXTRANSFER	255	/* max size of transfer in sectors */
@@ -337,16 +333,19 @@ wdprobe(struct isa_device *dvp)
 	du->dk_ctrlr = dvp->id_unit;
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
-	du->dk_port = dvp->id_iobase;
-	if (wddma[interface].wdd_candma != NULL) {
-		du->dk_dmacookie =
-		    wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr,
-		    du->dk_unit);
-		du->dk_altport =
-		    wddma[interface].wdd_altiobase(du->dk_dmacookie);
-	}
-	if (du->dk_altport == 0)
+#if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
+	if (wddma[interface].wdd_candma) {
+		du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+		du->dk_port = dvp->id_iobase;
+		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
+	} else {
+		du->dk_port = dvp->id_iobase;
 		du->dk_altport = du->dk_port + wd_ctlr;
+	}
+#else
+	du->dk_port = dvp->id_iobase;
+	du->dk_altport = du->dk_port + wd_ctlr;
+#endif
 
 	/* check if we have registers that work */
 #ifdef PC98
@@ -367,11 +366,9 @@ wdprobe(struct isa_device *dvp)
 	    }
 	}
 	du->dk_altport = du->dk_port + wd_ctlr;
-#if 0
 	if ((PC98_SYSTEM_PARAMETER(0x55d) & 3) == 0) {
 		goto nodevice;
 	}
-#endif
 	outb(0x432,(du->dk_unit)%2);
 #else /* IBM-PC */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
@@ -395,31 +392,11 @@ wdprobe(struct isa_device *dvp)
 	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
 	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
 		goto reset_ok;
-#ifdef PC98
-	du->dk_unit = 2;
-#else
 	du->dk_unit = 1;
-#endif
 	outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10); /* slave */
 	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
 	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
 		goto reset_ok;
-#ifdef PC98
-	du->dk_unit = 1;
-	outb(0x432,(du->dk_unit)%2);
-	if (wdreset(du) == 0)
-	        goto reset_ok;
-	/* test for ATAPI signature */
-	outb(du->dk_port + wd_sdh, WDSD_IBM);           /* master */
-	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
-	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
-		goto reset_ok;
-	du->dk_unit = 3;
-	outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10); /* slave */
-	if (inb(du->dk_port + wd_cyl_lo) == 0x14 &&
-	    inb(du->dk_port + wd_cyl_hi) == 0xeb)
-		goto reset_ok;
-#endif
 #endif
 	DELAY(RECOVERYTIME);
 	if (wdreset(du) != 0) {
@@ -508,8 +485,6 @@ wdattach(struct isa_device *dvp)
 	struct isa_device *wdup;
 	struct disk *du;
 	struct wdparams *wp;
-
-	dvp->id_intr = wdintr;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
@@ -773,16 +748,16 @@ wdstrategy(register struct buf *bp)
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
+	bufqdisksort(&drive_queue[lunit], bp);
+
+	if (wdutab[lunit].b_active == 0)
+		wdustart(du);	/* start drive */
+
 	/* Pick up changes made by readdisklabel(). */
 	if (du->dk_flags & DKFL_LABELLING && du->dk_state > RECAL) {
 		wdsleep(du->dk_ctrlr, "wdlab");
 		du->dk_state = WANTOPEN;
 	}
-
-	bufqdisksort(&drive_queue[lunit], bp);
-
-	if (wdutab[lunit].b_active == 0)
-		wdustart(du);	/* start drive */
 
 #ifdef CMD640
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 0)
@@ -1166,12 +1141,11 @@ wdstart(int ctrlr)
  */
 
 void
-wdintr(void *unitnum)
+wdintr(int unit)
 {
 	register struct	disk *du;
 	register struct buf *bp;
 	int dmastat = 0;			/* Shut up GCC */
-	int unit = (int)unitnum;
 
 #ifdef CMD640
 	int ctrlr_atapi;
@@ -1223,7 +1197,8 @@ wdintr(void *unitnum)
 	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
 		/* XXX SMP boxes sometimes generate an early intr.  Why? */
 		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
-		    != 0)
+		    == 0)
+			return;
 		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
 	}
 
@@ -2097,8 +2072,7 @@ failed:
 	 * check drive's DMA capability
 	 */
 	if (wddma[du->dk_interface].wdd_candma) {
-		du->dk_dmacookie = wddma[du->dk_interface].wdd_candma(
-		    du->dk_port, du->dk_ctrlr, du->dk_unit);
+		du->dk_dmacookie = wddma[du->dk_interface].wdd_candma(du->dk_port, du->dk_ctrlr);
 	/* does user want this? */
 		if ((du->cfg_flags & WDOPT_DMA) &&
 	    /* have we got a DMA controller? */
@@ -2502,11 +2476,11 @@ static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
 {
 	if (bp == NULL)
-		printf("wd%d: %s", du->dk_lunit, mesg);
+		printf("wd%d: %s:\n", du->dk_lunit, mesg);
 	else
 		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip,
 			dsgetlabel(bp->b_dev, du->dk_slices));
-	printf(" (status %b error %b)\n",
+	printf("wd%d: status %b error %b\n", du->dk_lunit,
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.71 1998/12/08 23:11:24 eivind Exp $
+ * $Id: nfs_serv.c,v 1.68 1998/05/31 20:08:52 peter Exp $
  */
 
 /*
@@ -1776,7 +1776,8 @@ out:
 			vrele(nd.ni_dvp);
 		else
 			vput(nd.ni_dvp);
-		vput(vp);
+		if (vp != NULLVP);
+			vput(vp);
 	}
 	if (dirp && v3) {
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, procp);
@@ -3121,7 +3122,7 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 	for_ret = VOP_GETATTR(vp, &bfor, cred, procp);
 	if (vp->v_object &&
 	   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
+			vm_object_page_clean(vp->v_object, 0, 0, TRUE);
 	}
 	error = VOP_FSYNC(vp, cred, MNT_WAIT, procp);
 	aft_ret = VOP_GETATTR(vp, &aft, cred, procp);

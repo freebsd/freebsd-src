@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.42 1998/12/14 05:34:33 dillon Exp $
+ *	$Id: db_interface.c,v 1.40 1998/06/08 08:43:20 dfr Exp $
  */
 
 /*
@@ -69,7 +69,7 @@ kdb_trap(type, code, regs)
 	int	type, code;
 	register struct i386_saved_state *regs;
 {
-	volatile int ddb_mode = !(boothowto & RB_GDB);
+	int ddb_mode = !(boothowto & RB_GDB);
 
 	/*
 	 * XXX try to do nothing if the console is in graphics mode.
@@ -295,12 +295,11 @@ db_write_bytes(addr, size, data)
  * Move this to machdep.c and allow it to be called if any debugger is
  * installed.
  */
-volatile int in_Debugger = 0;
-
 void
 Debugger(msg)
 	const char *msg;
 {
+	static volatile u_char in_Debugger;
 
 	/*
 	 * XXX

@@ -1,4 +1,4 @@
-/* $Id: config.h,v 1.8 1998/11/20 05:18:34 obrien Exp $ */
+/* $Id: config.h,v 1.6 1998/08/27 08:09:41 obrien Exp $ */
 /* portions derived from 
    $NetBSD: config.h,v 1.11 1998/08/08 22:33:37 christos Exp $	*/
 /* config.h.  Generated automatically by configure.  */
@@ -927,7 +927,7 @@
 #define PACKAGE "am-utils"
 
 /* Define version of package (must be defined by configure.in) */
-#define VERSION "6.0"
+#define VERSION "6.0a16"
 
 /* We pick some parameters from our local config file */
 #include "config_local.h"

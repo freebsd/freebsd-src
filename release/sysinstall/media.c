@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.93 1998/12/02 03:27:37 jkh Exp $
+ * $Id: media.c,v 1.88 1998/10/10 09:43:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,6 +204,8 @@ mediaSetFloppy(dialogMenuItem *self)
     }
     else
 	mediaDevice = devs[0];
+    if (mediaDevice)
+	mediaDevice->private = "/dist";
     return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
@@ -385,28 +387,18 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
-	msgNotify("Looking up host %s.", hostname);
-    	if (isDebug())
-	    msgDebug("Starting DNS.\n");
 	kickstart_dns();
-    	if (isDebug())
-	    msgDebug("Looking up hostname, %s, using inet_addr().\n", hostname);
-	if (inet_addr(hostname) == INADDR_NONE) {
-    	    if (isDebug())
-		msgDebug("Looking up hostname, %s, using gethostbyname().\n",
-			hostname);
-	    if (gethostbyname(hostname) == NULL) {
-		msgConfirm("Cannot resolve hostname `%s'!  Are you sure that"
-			" your\nname server, gateway and network interface are"
-			" correctly configured?", hostname);
-		if (networkDev)
-		    networkDev->shutdown(networkDev);
-		networkDev = NULL;
-		variable_unset(VAR_FTP_PATH);
-		return DITEM_FAILURE | what;
-	    }
+	if ((inet_addr(hostname) == INADDR_NONE) && (gethostbyname(hostname) == NULL)) {
+	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		       "name server, gateway and network interface are correctly configured?", hostname);
+	    if (networkDev)
+		networkDev->shutdown(networkDev);
+	    networkDev = NULL;
+	    variable_unset(VAR_FTP_PATH);
+	    return DITEM_FAILURE | what;
 	}
-	msgDebug("Found DNS entry for %s successfully..\n", hostname);
+	else
+	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
@@ -462,7 +454,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device nfsDevice;
     static Device *networkDev = NULL;
     char *cp, *idx;
-    char hostname[MAXPATHLEN];
+    char hostname[MAXHOSTNAMELEN];
     mediaClose();
     dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
@@ -762,23 +754,3 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     }
     return DITEM_SUCCESS;
 }
-
-/* A generic open which follows a well-known "path" of places to look */
-FILE *
-mediaGenericGet(char *base, const char *file)
-{
-    char	buf[PATH_MAX];
-
-    snprintf(buf, PATH_MAX, "%s/%s", base, file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/releases/%s", base, file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/%s/%s", base, variable_get(VAR_RELNAME), file);
-    if (file_readable(buf))
-	return fopen(buf, "r");
-    snprintf(buf, PATH_MAX, "%s/releases/%s/%s", base, variable_get(VAR_RELNAME), file);
-    return fopen(buf, "r");
-}
-

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.40 1998/07/29 18:41:30 dfr Exp $
+ *	$Id: sys_process.c,v 1.39 1998/07/15 04:43:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -407,10 +407,7 @@ ptrace(curp, uap)
 		return (error);
 
 	case PT_READ_U:
-		if ((uintptr_t)uap->addr > UPAGES * PAGE_SIZE - sizeof(int)) {
-			return EFAULT;
-		}
-		if ((uintptr_t)uap->addr & (sizeof(int) - 1)) {
+		if ((uintptr_t)uap->addr > UPAGES * PAGE_SIZE - sizeof(long)) {
 			return EFAULT;
 		}
 		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iiconf.h,v 1.1.1.10 1998/08/13 17:10:43 son Exp $
  */
 #ifndef __IICONF_H
 #define __IICONF_H
@@ -59,14 +59,6 @@
 #define IIC_FAST	0x2
 #define IIC_FASTEST	0x3
 
-#define IIC_LAST_READ	0x1
-
-/*
- * callback index
- */
-#define IIC_REQUEST_BUS	0x1
-#define IIC_RELEASE_BUS	0x2
-
 /*
  * interrupt events
  */
@@ -89,8 +81,6 @@
 #define IIC_ESTATUS	0x5	/* status error */
 #define IIC_EUNDERFLOW	0x6	/* slave ready for more data */
 #define IIC_EOVERFLOW	0x7	/* too much data */
-#define IIC_ENOTSUPP	0x8	/* request not supported */
-#define IIC_ENOADDR	0x9	/* no address assigned to the interface */
 
 /*
  * ivars codes
@@ -103,25 +93,23 @@ extern device_t iicbus_alloc_bus(device_t);
 
 extern void iicbus_intr(device_t, int, char *);
 
-extern int iicbus_null_repeated_start(device_t, u_char);
-extern int iicbus_null_callback(device_t, int, caddr_t);
+#define iicbus_repeated_start(bus,slave) \
+	(IICBUS_REPEATED_START(device_get_parent(bus), slave))
+#define iicbus_start(bus,slave) \
+	(IICBUS_START(device_get_parent(bus), slave))
+#define iicbus_stop(bus) \
+	(IICBUS_STOP(device_get_parent(bus)))
+#define iicbus_reset(bus,speed) \
+	(IICBUS_RESET(device_get_parent(bus), speed))
+#define iicbus_write(bus,buf,len,sent) \
+	(IICBUS_WRITE(device_get_parent(bus), buf, len, sent))
+#define iicbus_read(bus,buf,len,sent) \
+	(IICBUS_READ(device_get_parent(bus), buf, len, sent))
 
-#define iicbus_repeated_start(bus,slave,timeout) \
-	(IICBUS_REPEATED_START(device_get_parent(bus), slave, timeout))
-#define iicbus_reset(bus,speed,addr,oldaddr) \
-	(IICBUS_RESET(device_get_parent(bus), speed, addr, oldaddr))
-
-/* basic I2C operations */
-extern int iicbus_started(device_t);
-extern int iicbus_start(device_t, u_char, int);
-extern int iicbus_stop(device_t);
-extern int iicbus_write(device_t, char *, int, int *, int);
-extern int iicbus_read(device_t, char *, int, int *, int, int);
-
-/* Read/write operations with start/stop conditions managed */
 extern int iicbus_block_write(device_t, u_char, char *, int, int *);
 extern int iicbus_block_read(device_t, u_char, char *, int, int *);
 
 extern u_char iicbus_get_addr(device_t);
+extern u_char iicbus_get_own_address(device_t);
 
 #endif

@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_add.1
-.\"     $Id: pkg_add.1,v 1.28 1999/01/17 01:22:55 billf Exp $
+.\"     $Id$
 .\"
 .Dd November 25, 1994
 .Dt pkg_add 1
@@ -25,7 +25,7 @@
 .Nd a utility for installing software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl vInfrRMS
+.Op Fl vInfRMS
 .Op Fl t Ar template
 .Op Fl p Ar prefix
 .Ar pkg-name [pkg-name ...]
@@ -48,10 +48,10 @@ attacks from miscreants who create dangerous package files.
 You are advised to verify the competence and identity of those who
 provide installable package files.  For extra protection, use the
 .Fl M
-flag to extract the package file, and inspect its contents and scripts to
-insure it poses no danger to your system's integrity.  Pay particular
-attention to any +INSTALL, +POST-INSTALL, +DEINSTALL, +POST-DEINSTALL,
-+REQUIRE or +MTREE_DIRS files, and inspect the +CONTENTS file for
+flag to extract the package file, and inspect its contents and scripts
+to insure it poses no danger to your system's integrity.  Pay particular
+attention to any +INSTALL, +DEINSTALL, +REQUIRE or +MTREE_DIRS files,
+and inspect the +CONTENTS file for
 .Cm @cwd ,
 .Cm @mode 
 (check for setuid),
@@ -78,8 +78,7 @@ will search them in each directory named by
 .It Fl v
 Turn on verbose output.
 .It Fl I
-If a installation scripts (pre-install or post-install) exist for a given
-package, do not execute them.
+If an installation script exists for a given package, do not execute it.
 .It Fl n
 Don't actually install a package, just report the steps that
 would be taken if it was.
@@ -87,9 +86,6 @@ would be taken if it was.
 Do not record the installation of a package.  This means
 that you cannot deinstall it later, so only use this option if
 you know what you are doing!
-.It Fl r
-Use the remote fetching feature. This will determine the appropriate
-objformat and release and then fetch and install the package. 
 .It Fl f
 Force installation to proceed even if prerequisite packages are not
 installed or the requirements script fails.  Although
@@ -201,7 +197,7 @@ passive mode
 .Ef
 ftp.
 .Sh TECHNICAL DETAILS
-.Nm pkg_add
+.Nm Pkg_add
 is fairly simple.  It extracts each package's "packing list"
 into a special staging directory, parses it,
 and then runs through the following sequence to fully extract the contents:
@@ -248,32 +244,18 @@ is the name of the package in question and the
 keyword denotes this as an installation requirements check (useful if
 you want to have one script serving multiple functions).
 .It
-If a
-.Ar pre-install
-script exists for the package, it is then executed with the following
-arguments:
+If an
+.Ar install
+script exists for the package, it is then executed with the following arguments:
 .Bd -filled -offset indent -compact
-.Cm script
 .Ar pkg-name
-.Ar PRE-INSTALL
+.Ar PRE-INSTALL 
 .Ed
-
 where
 .Ar pkg-name
 is the name of the package in question and
 .Ar PRE-INSTALL
 is a keyword denoting this as the preinstallation phase.
-
-.Cm Note:
-The
-.Ar PRE-INSTALL
-keyword will not appear if separate scripts for pre-install and post-install
-are given during package creation time (using the
-.Cm Fl i
-and 
-.Cm Fl I
-flags to 
-.Xr pkg_create 1 ).
 .It
 If
 .Cm @option extract-in-place
@@ -307,39 +289,17 @@ flag was specified, the name of the first directory named by a
 .Cm @cwd
 directive within this package.
 .It
-If a
-.Ar post-install
+If an
+.Ar install
 script exists for the package, it is then executed as 
 .Bd -filled -offset indent -compact
 .Cm script
 .Ar pkg-name
 .Ar POST-INSTALL 
 .Ed
-where
-.Ar pkg-name
-is the name of the package in question and
-.Ar POST-INSTALL
-is a keyword denoting this as the post-installation phase.
-
-.Cm Note:
-The
-.Ar POST-INSTALL
-keyword will not appear if separate scripts for pre-install and post-install
-are given during package creation time (using the
-.Cm Fl i
-and 
-.Cm Fl I
-flags to 
-.Xr pkg_create 1 ).
-
-Reasoning behind passing keywords such as
-.Ar POST-INSTALL
-and
-.Ar PRE-INSTALL
-is that this allows you to write a single
+This all allows you to write a single
 .Ar install
-script that does both ``before and after'' actions. But, separating the
-functionality is more advantageous and easier from a maintainence viewpoint.
+script that does both ``before and after'' actions.
 .It
 After installation is complete, a copy of the packing list,
 .Ar deinstall
@@ -396,17 +356,6 @@ will use the first of
 or
 .Pa /usr/tmp
 with sufficient space.
-.Pp
-The environment variable
-.Ev PACKAGESITE
-specifies an alternate location for 
-.Nm
-to fetch from. This variable subverts the automatic directory logic
-that
-.Nm
-uses when the 
-.Fl r
-option is invoked.
 .Sh FILES
 .Bl -tag -width /var/db/pkg -compact
 .It Pa /var/tmp

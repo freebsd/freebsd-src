@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pcm86.c,v 1.5 1998/12/04 22:54:50 archie Exp $
+ * $Id: pcm86.c,v 1.3 1997/02/22 09:38:14 peter Exp $
  */
 
 /*
@@ -1890,8 +1890,7 @@ pcm86_detect(struct address_info *hw_config)
     outb(opna_iobase + 2, 0x30);
 
     /* Ok.  Detection finished. */
-    snprintf(pcm86_operations.name, sizeof(pcm86_operations.name),
-	"%s", board_name[pcm_s.board_type]);
+    sprintf(pcm86_operations.name, board_name[pcm_s.board_type]);
     pcm_initialized = NO;
     pcm_s.irq = irq;
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscf_uni.c,v 1.3 1998/10/31 20:07:00 phk Exp $
+ *	@(#) $Id: sscf_uni.c,v 1.1 1998/09/15 08:23:06 phk Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: sscf_uni.c,v 1.1 1998/09/15 08:23:06 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/uni.h>
 #include <netatm/uni/sscop.h>
 #include <netatm/uni/sscf_uni.h>
 #include <netatm/uni/sscf_uni_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: sscf_uni.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
-#endif
 
 
 /*
@@ -310,7 +310,7 @@ sscf_uni_pdu_print(uvp, m, msg)
 	struct vccb	*vcp;
 
 	vcp = uvp->uv_connvc->cvc_vcc;
-	snprintf(buf, sizeof(buf), "sscf_uni %s: vcc=(%d,%d)\n",
+	sprintf(buf, "sscf_uni %s: vcc=(%d,%d)\n",
 			msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }

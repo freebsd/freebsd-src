@@ -23,13 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.5 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppb_base.c,v 1.4 1998/08/03 19:14:31 msmith Exp $
  *
  */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <machine/clock.h>
 
 #include <dev/ppbus/ppbconf.h>
 
@@ -71,39 +70,28 @@ int
 ppb_poll_device(struct ppb_device *dev, int max,
 		char mask, char status, int how)
 {
-	int i, j, error;
-	char r;
+	int i, error;
 
-	/* try at least up to 10ms */
-	for (j = 0; j < ((how & PPB_POLL) ? max : 1); j++) {
-		for (i = 0; i < 10000; i++) {
-			r = ppb_rstr(dev);
-			DELAY(1);
-			if ((r & mask) == status)
-				return (0);
-		}
-	}
-
-	if (!(how & PPB_POLL)) {
-	   for (i = 0; max == PPB_FOREVER || i < max-1; i++) {
+	for (i = 0; i < max; i++) {
 		if ((ppb_rstr(dev) & mask) == status)
 			return (0);
 
 		switch (how) {
 		case PPB_NOINTR:
 			/* wait 10 ms */
-			tsleep((caddr_t)dev, PPBPRI, "ppbpoll", hz/100);
+			if ((error = tsleep((caddr_t)dev, PPBPRI,
+						"ppbpoll", hz/100)))
+				return (error);
 			break;
 
 		case PPB_INTR:
 		default:
 			/* wait 10 ms */
 			if ((error = tsleep((caddr_t)dev, PPBPRI | PCATCH,
-					"ppbpoll", hz/100)) != EWOULDBLOCK)
+						"ppbpoll", hz/100)))
 				return (error);
 			break;
 		}
-	   }
 	}
 
 	return (EWOULDBLOCK);
@@ -120,28 +108,13 @@ ppb_set_mode(struct ppb_device *dev, int mode)
 	struct ppb_data *ppb = dev->ppb;
 	int old_mode = ppb_get_mode(dev);
 
-	if ((*ppb->ppb_link->adapter->setmode)(
-			ppb->ppb_link->adapter_unit, mode))
+	if ((*ppb->ppb_link->adapter->setmode)(dev->id_unit, mode))
 		return (-1);
 
 	/* XXX yet device mode = ppbus mode = chipset mode */
-	dev->mode = ppb->mode = (mode & PPB_MASK);
+	dev->mode = ppb->mode = mode;
 
 	return (old_mode);
-}
-
-/*
- * ppb_write()
- *
- * Write charaters to the port
- */
-int
-ppb_write(struct ppb_device *dev, char *buf, int len, int how)
-{
-	struct ppb_data *ppb = dev->ppb;
-
-	return (ppb->ppb_link->adapter->write(ppb->ppb_link->adapter_unit,
-						buf, len, how));
 }
 
 /*
@@ -157,7 +130,7 @@ ppb_reset_epp_timeout(struct ppb_device *dev)
 	if (ppb->ppb_owner != dev)
 		return (EACCES);
 
-	(*ppb->ppb_link->adapter->reset_epp_timeout)(ppb->ppb_link->adapter_unit);
+	(*ppb->ppb_link->adapter->reset_epp_timeout)(dev->id_unit);
 
 	return (0);
 }
@@ -175,7 +148,7 @@ ppb_ecp_sync(struct ppb_device *dev)
 	if (ppb->ppb_owner != dev)
 		return (EACCES);
 
-	(*ppb->ppb_link->adapter->ecp_sync)(ppb->ppb_link->adapter_unit);
+	(*ppb->ppb_link->adapter->ecp_sync)(dev->id_unit);
 
 	return (0);
 }

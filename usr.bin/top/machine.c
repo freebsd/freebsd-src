@@ -19,11 +19,10 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.17 1998/11/26 12:59:21 bde Exp $
+ * $Id: machine.c,v 1.14 1998/08/12 09:58:15 wosch Exp $
  */
 
 
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -88,32 +87,37 @@ struct handle
 
 /* definitions for indices in the nlist array */
 
+
 static struct nlist nlst[] = {
 #define X_CCPU		0
-    { "_ccpu" },
+    { "_ccpu" },		/* 0 */
 #define X_CP_TIME	1
-    { "_cp_time" },
-#define X_AVENRUN	2
-    { "_averunnable" },
+    { "_cp_time" },		/* 1 */
+#define X_HZ		2
+    { "_hz" },		        /* 2 */
+#define X_STATHZ	3
+    { "_stathz" },		/* 3 */
+#define X_AVENRUN	4
+    { "_averunnable" },		/* 4 */
 
 /* Swap */
-#define VM_SWAPLIST	3
+#define VM_SWAPLIST	5
 	{ "_swaplist" },/* list of free swap areas */
-#define VM_SWDEVT	4
+#define VM_SWDEVT	6
 	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_NSWAP	5
+#define VM_NSWAP	7
 	{ "_nswap" },	/* size of largest swap device */
-#define VM_NSWDEV	6
+#define VM_NSWDEV	8
 	{ "_nswdev" },	/* number of swap devices */
-#define VM_DMMAX	7
+#define VM_DMMAX	9
 	{ "_dmmax" },	/* maximum size of a swap block */
-#define X_BUFSPACE	8
+#define X_BUFSPACE	10
 	{ "_bufspace" },	/* K in buffer cache */
-#define X_CNT           9
+#define X_CNT           11
     { "_cnt" },		        /* struct vmmeter cnt */
 
 /* Last pid */
-#define X_LASTPID	10
+#define X_LASTPID	12
     { "_nextpid" },		
     { 0 }
 };
@@ -154,6 +158,7 @@ static double logcpu;
 
 /* these are retrieved from the kernel in _init */
 
+static          long hz;
 static load_avg  ccpu;
 
 /* these are offsets obtained via nlist and used in the get_ functions */
@@ -274,6 +279,13 @@ struct statics *statics;
 	return(-1);
     }
 
+    /* get the symbol values out of kmem */
+    (void) getkval(nlst[X_STATHZ].n_value, (int *)(&hz), sizeof(hz), "!");
+    if (!hz) {
+	(void) getkval(nlst[X_HZ].n_value, (int *)(&hz), sizeof(hz),
+		       nlst[X_HZ].n_name);
+    }
+
     (void) getkval(nlst[X_CCPU].n_value,   (int *)(&ccpu),	sizeof(ccpu),
 	    nlst[X_CCPU].n_name);
 
@@ -344,9 +356,6 @@ struct system_info *si;
 {
     long total;
     load_avg avenrun[3];
-    int mib[2];
-    struct timeval boottime;
-    size_t bt_size;
 
     /* get the cp_time array */
     (void) getkval(cp_time_offset, (int *)cp_time, sizeof(cp_time),
@@ -441,20 +450,6 @@ struct system_info *si;
 	si->last_pid = lastpid;
     } else {
 	si->last_pid = -1;
-    }
-
-    /*
-     * Print how long system has been up.
-     * (Found by looking getting "boottime" from the kernel)
-     */
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_BOOTTIME;
-    bt_size = sizeof(boottime);
-    if (sysctl(mib, 2, &boottime, &bt_size, NULL, 0) != -1 &&
-	boottime.tv_sec != 0) {
-	si->boottime = boottime;
-    } else {
-	si->boottime.tv_sec = -1;
     }
 }
 
@@ -633,8 +628,8 @@ char *(*get_userid)();
 	    status,
 	    smpmode ? PP(pp, p_lastcpu) : 0,
 	    format_time(cputime),
-	    100.0 * weighted_cpu(pct, pp),
-	    100.0 * pct,
+	    10000.0 * weighted_cpu(pct, pp) / hz,
+	    10000.0 * pct / hz,
 	    cmdlength,
 	    printable(PP(pp, p_comm)));
 
@@ -739,7 +734,7 @@ static unsigned char sorted_state[] =
  
 
 #define ORDERKEY_PCTCPU \
-  if (lresult = (long) PP(p2, p_pctcpu) - (long) PP(p1, p_pctcpu), \
+  if (lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu), \
      (result = lresult > 0 ? 1 : lresult < 0 ? -1 : 0) == 0)
 
 #define ORDERKEY_CPTICKS \

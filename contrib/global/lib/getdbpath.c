@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,10 +41,12 @@
 
 #include "die.h"
 #include "getdbpath.h"
+#include "locatestring.h"
 #include "test.h"
 
-static const char *makeobjdirprefix;	/* obj partition		*/
-static const char *makeobjdir;		/* obj directory		*/
+static char	*makeobjdirprefix;	/* obj partition		*/
+static char	*makeobjdir;		/* obj directory		*/
+static int	bsd;			/* if BSD			*/
 
 /*
  * gtagsexist: test whether GTAGS's existence.
@@ -65,15 +67,17 @@ char	*dbpath;
 		strcpy(dbpath, candidate);
 		return 1;
 	}
-	sprintf(path, "%s/%s/GTAGS", candidate, makeobjdir);
-	if (test("fr", path)) {
-		sprintf(dbpath, "%s/%s", candidate, makeobjdir);
-		return 1;
-	}
-	sprintf(path, "%s%s/GTAGS", makeobjdirprefix, candidate);
-	if (test("fr", path)) {
-		sprintf(dbpath, "%s%s", makeobjdirprefix, candidate);
-		return 1;
+	if (bsd) {
+		sprintf(path, "%s/%s/GTAGS", candidate, makeobjdir);
+		if (test("fr", path)) {
+			sprintf(dbpath, "%s/%s", candidate, makeobjdir);
+			return 1;
+		}
+		sprintf(path, "%s%s/GTAGS", makeobjdirprefix, candidate);
+		if (test("fr", path)) {
+			sprintf(dbpath, "%s%s", makeobjdirprefix, candidate);
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -106,14 +110,17 @@ char	*dbpath;
 	if (!strcmp(cwd, "/"))
 		die("It's root directory! What are you doing?");
 
-	if ((p = getenv("MAKEOBJDIRPREFIX")) != NULL)
-		makeobjdirprefix = p;
-	else
-		makeobjdirprefix = "/usr/obj";
-	if ((p = getenv("MAKEOBJDIR")) != NULL)
-		makeobjdir = p;
-	else
-		makeobjdir = "obj";
+	if (getenv("OSTYPE") && locatestring(getenv("OSTYPE"), "BSD", 0)) {
+		if ((p = getenv("MAKEOBJDIRPREFIX")) != NULL)
+			makeobjdirprefix = p;
+		else
+			makeobjdirprefix = "/usr/obj";
+		if ((p = getenv("MAKEOBJDIR")) != NULL)
+			makeobjdir = p;
+		else
+			makeobjdir = "obj";
+		bsd = 1;
+	}
 
 	if ((p = getenv("GTAGSROOT")) != NULL) {
 		if (*p != '/')

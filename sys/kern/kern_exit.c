@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.70 1998/12/19 02:55:33 julian Exp $
+ * $Id: kern_exit.c,v 1.66 1998/04/06 08:26:03 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
@@ -73,9 +72,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
-#ifdef COMPAT_LINUX_THREADS
-#include <sys/user.h>
-#endif
 
 static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
@@ -184,18 +180,10 @@ exit1(p, rv)
 	 */
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	p->p_flag |= P_WEXIT;
-#ifndef COMPAT_LINUX_THREADS
 	p->p_sigignore = ~0;
-#endif /* COMPAT_LINUX_THREADS */
 	p->p_siglist = 0;
 	if (timevalisset(&p->p_realtimer.it_value))
 		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-
-	/*
-	 * Reset any sigio structures pointing to us as a result of
-	 * F_SETOWN with our pid.
-	 */
-	funsetownlst(&p->p_sigiolst);
 
 	/*
 	 * Close open files and release open-file table.
@@ -287,9 +275,6 @@ exit1(p, rv)
 		LIST_REMOVE(q, p_sibling);
 		LIST_INSERT_HEAD(&initproc->p_children, q, p_sibling);
 		q->p_pptr = initproc;
-#ifdef COMPAT_LINUX_THREADS
-		q->p_sigparent = 0;
-#endif /* COMPAT_LINUX_THREADS */
 		/*
 		 * Traced processes are killed
 		 * since their existence means someone is screwing up.
@@ -314,11 +299,7 @@ exit1(p, rv)
 	 * flag set, notify process 1 instead (and hope it will handle
 	 * this situation).
 	 */
-#ifndef COMPAT_LINUX_THREADS
 	if (p->p_pptr->p_flag & P_NOCLDWAIT) {
-#else
-	if (p->p_pptr->p_procsig->ps_flag & P_NOCLDWAIT) {
-#endif /* COMPAT_LINUX_THREADS */
 		struct proc *pp = p->p_pptr;
 		proc_reparent(p, initproc);
 		/*
@@ -330,15 +311,7 @@ exit1(p, rv)
 			wakeup((caddr_t)pp);
 	}
 
-#ifndef COMPAT_LINUX_THREADS
 	psignal(p->p_pptr, SIGCHLD);
-#else
-	if (p->p_sigparent && p->p_pptr != initproc) {
-	        psignal(p->p_pptr, p->p_sigparent);
-	} else {
-	        psignal(p->p_pptr, SIGCHLD);
-	}
-#endif /* COMPAT_LINUX_THREADS */
 	wakeup((caddr_t)p->p_pptr);
 #if defined(tahoe)
 	/* move this to cpu_exit */
@@ -508,14 +481,6 @@ loop:
 			LIST_REMOVE(p, p_list);	/* off zombproc */
 			LIST_REMOVE(p, p_sibling);
 
-#ifdef COMPAT_LINUX_THREADS
-			if (--p->p_procsig->ps_refcnt == 0) {
-				if (p->p_sigacts != &p->p_addr->u_sigacts)
-					FREE(p->p_sigacts, M_SUBPROC);
-			        FREE(p->p_procsig, M_SUBPROC);
-				p->p_procsig = NULL;
-			}
-#endif /* COMPAT_LINUX_THREADS */
 			/*
 			 * Give machine-dependent layer a chance
 			 * to free anything that cpu_exit couldn't
@@ -626,22 +591,3 @@ rm_at_exit(function)
 	}
 	return (count);
 }
-
-#ifdef COMPAT_LINUX_THREADS
-void check_sigacts (void)
-{
-	struct proc *p = curproc;
-	struct sigacts *pss;
-	int s;
-
-	if (p->p_procsig->ps_refcnt == 1 &&
-	    p->p_sigacts != &p->p_addr->u_sigacts) {
-		pss = p->p_sigacts;
-		s = splhigh();
-		p->p_addr->u_sigacts = *pss;
-		p->p_sigacts = &p->p_addr->u_sigacts;
-		splx(s);
-		FREE(pss, M_SUBPROC);
-	}
-}
-#endif

@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
 #endif
 static const char rcsid[] =
-	"$Id: rwall.c,v 1.6 1997/08/08 12:18:16 charnier Exp $";
+	"$Id: rwall.c,v 1.5 1997/02/22 19:56:55 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -134,9 +134,10 @@ makemsg(fname)
 	time_t now, time();
 	FILE *fp;
 	int fd;
-	char *whom, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	char *whom, hostname[MAXHOSTNAMELEN], lbuf[100], tmpname[15];
 
-	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
+	(void)strcpy(tmpname, _PATH_TMP);
+	(void)strcat(tmpname, "wall.XXXXXX");
 	if (!(fd = mkstemp(tmpname)) || !(fp = fdopen(fd, "r+")))
 		errx(1, "can't open temporary file");
 	(void)unlink(tmpname);

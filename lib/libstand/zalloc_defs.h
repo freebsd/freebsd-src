@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc_defs.h,v 1.4 1998/10/16 19:23:37 msmith Exp $
+ *	$Id: zalloc_defs.h,v 1.2 1998/09/26 10:48:50 dfr Exp $
  */
 
 /*
@@ -63,7 +63,7 @@ typedef long saddr_t;		/* signed int same size as pointer	*/
  * block extension for sbrk()
  */
 
-#define BLKEXTEND	(4 * 1024)
+#define BLKEXTEND	(64 * 1024)
 #define BLKEXTENDMASK	(BLKEXTEND - 1)
 
 /*

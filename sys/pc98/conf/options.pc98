@@ -1,7 +1,5 @@
-#	$Id: options.pc98,v 1.77 1999/01/04 08:09:15 kato Exp $
-
+#	$Id: options.pc98,v 1.68 1998/09/28 08:23:26 kato Exp $
 DISABLE_PSE
-IDE_DELAY
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
@@ -26,13 +24,19 @@ BREAK_TO_DEBUGGER	opt_comconsole.h
 CONSPEED		opt_comconsole.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
+DSI_SOFT_MODEM		opt_sio.h
 EXTRA_SIO		opt_sio.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
 
-# i386 SMP options
+# These two SMP options have dramatic implications all over the kernel
+SMP			opt_global.h
 APIC_IO			opt_global.h
+
+# Standard SMP options
+NCPU			opt_smp.h
+NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
 
@@ -56,7 +60,6 @@ CPU_UPGRADE_HW_CACHE		opt_cpu.h
 CPU_WT_ALLOC			opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
-NO_MEMORY_HOLE			opt_cpu.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
 I386_CPU		opt_global.h
@@ -64,17 +67,16 @@ I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
 
+SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
+SLOW_VGA		opt_syscons.h
 STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
-
-FB_INSTALL_CDEV		opt_fb.h
+SC_ALT_SEQACCESS	opt_syscons.h
 
 VESA			opt_vesa.h
-
-GDC			opt_gdc.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
@@ -82,11 +84,10 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
-KBD_INSTALL_CDEV	opt_kbd.h
-KBD_MAXRETRY		opt_kbd.h
-KBD_MAXWAIT		opt_kbd.h
-KBD_RESETDELAY		opt_kbd.h
-KBDIO_DEBUG		opt_kbd.h
+KBD_RESETDELAY		opt_kbdio.h
+KBD_MAXRETRY		opt_kbdio.h
+KBD_MAXWAIT		opt_kbdio.h
+KBDIO_DEBUG		opt_kbdio.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
@@ -95,13 +96,12 @@ CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
-INTRO_USERCONFIG	opt_userconfig.h
+USERCONFIG_BOOT		opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
 
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
-FDC_YE				opt_fdc.h
 
 # pcvt(4) has a bunch of options
 FAT_CURSOR		opt_pcvt.h
@@ -125,42 +125,6 @@ GUS_IRQ			opt_sound.h
 
 # Video spigot
 SPIGOT_UNSECURE		opt_spigot.h
-# -------------------------------
-# isdn4bsd: passive ISA cards
-# -------------------------------
-TEL_S0_8		opt_i4b.h
-TEL_S0_16		opt_i4b.h
-TEL_S0_16_3		opt_i4b.h
-AVM_A1			opt_i4b.h
-USR_STI			opt_i4b.h
-ITKIX1			opt_i4b.h
-# -------------------------------
-# isdn4bsd: passive ISA PnP cards
-# -------------------------------
-CRTX_S0_P		opt_i4b.h
-DRN_NGO                 opt_i4b.h
-TEL_S0_16_3_P		opt_i4b.h
-SEDLBAUER		opt_i4b.h
-DYNALINK		opt_i4b.h
-ELSA_QS1ISA		opt_i4b.h
-# -------------------------------
-# isdn4bsd: passive PCI cards
-# -------------------------------
-ELSA_QS1PCI		opt_i4b.h
-# -------------------------------
-# isdn4bsd: passive PCMCIA cards
-# -------------------------------
-AVM_A1_PCMCIA		opt_i4b.h
-# -------------------------------
-# isdn4bsd: misc options
-# -------------------------------
-# temporary workaround for SMP machines
-I4B_SMP_WORKAROUND      opt_i4b.h
-# enable VJ compression code for ipr i/f
-IPR_VJ			opt_i4b.h
-# -------------------------------
-# EOF
-# -------------------------------
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h

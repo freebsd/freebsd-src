@@ -47,7 +47,7 @@
 #include <dev/vx/if_vxreg.h>
 
 static void vx_pci_shutdown(int, void *);
-static const char *vx_pci_probe(pcici_t, pcidi_t);
+static char *vx_pci_probe(pcici_t, pcidi_t);
 static void vx_pci_attach(pcici_t, int unit);
 
 static void
@@ -59,7 +59,7 @@ vx_pci_shutdown(
    vxfree(sc);
 }
 
-static const char*
+static char*
 vx_pci_probe(
 	pcici_t config_id,
 	pcidi_t device_id)
@@ -96,9 +96,7 @@ vx_pci_attach(
        return;
     }
 
-    if ((sc = vxalloc(unit)) == NULL) {
-	return;
-    }
+    sc = vxalloc(unit);
 
     sc->vx_io_addr = pci_conf_read(config_id, 0x10) & 0xffffffe0;
 

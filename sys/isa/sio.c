@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.219 1998/12/13 23:12:54 steve Exp $
+ *	$Id: sio.c,v 1.216 1998/09/26 13:59:26 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -68,7 +68,6 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -79,7 +78,6 @@
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
-#include <machine/resource.h>
 
 #include <isa/sioreg.h>
 
@@ -92,7 +90,6 @@
 
 #include "card.h"
 #if NCARD > 0
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
@@ -495,7 +492,17 @@ static int	sioinit		__P((struct pccard_devinfo *));
 static void	siounload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-PCCARD_MODULE(sio, sioinit, siounload, card_intr, 0, tty_imask);
+static struct pccard_device sio_info = {
+	driver_name,
+	sioinit,
+	siounload,
+	card_intr,
+	0,			/* Attributes - presently unused */
+	&tty_imask		/* Interrupt mask for device */
+				/* XXX - Should this also include net_imask? */
+};
+
+DATA_SET(pccarddrv_set, sio_info);
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -914,8 +921,6 @@ sioattach(dev)
 	int		s;
 	int		unit;
 	void		*ih;
-	struct resource *res;
-	int		zero = 0;
 	u_int		flags = isa_get_flags(dev);
 
 #if 0
@@ -1131,10 +1136,13 @@ determined_type: ;
 #endif
 	com->flags = isa_get_flags(dev); /* Heritate id_flags for later */
 
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
-				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, siointr, com,
-		       &ih);
+	ih = BUS_CREATE_INTR(device_get_parent(dev), dev,
+			     isa_get_irq(dev),
+			     siointr, com);
+	if (!ih)
+		return ENXIO;
+
+	BUS_CONNECT_INTR(device_get_parent(dev), ih);
 
 	return (0);
 }
@@ -3109,7 +3117,6 @@ static pnpid_t siopnp_ids[] = {
 	{ 0x7121b04e, "SupraExpress 56i Sp"},
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
-	{ 0x31307256, "USR3031"},
 	{ 0 }
 };
 

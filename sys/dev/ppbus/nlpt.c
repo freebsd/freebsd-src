@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.11 1998/12/04 22:00:33 archie Exp $
+ *	$Id: nlpt.c,v 1.9 1998/08/03 19:14:31 msmith Exp $
  */
 
 /*
@@ -81,19 +81,12 @@
 #endif /*KERNEL*/
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/ppb_1284.h>
 #include <dev/ppbus/nlpt.h>
 
-#include "opt_nlpt.h"
-
 #ifndef NLPT_DEBUG
-#define nlprintf(args)
+#define nlprintf (void)
 #else
-#define nlprintf(args)						\
-		do {						\
-			if (nlptflag)				\
-				printf args;			\
-		} while (0)
+#define nlprintf		if (nlptflag) printf
 static int volatile nlptflag = 1;
 #endif
 
@@ -102,7 +95,6 @@ static int volatile nlptflag = 1;
 #define	LPTOUTMAX	1	/* maximal timeout 1 s */
 #define	LPPRI		(PZERO+8)
 #define	BUFSIZE		1024
-#define	BUFSTATSIZE	32
 
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
@@ -167,12 +159,11 @@ DATA_SET(ppbdriver_set, nlptdriver);
 static	d_open_t	nlptopen;
 static	d_close_t	nlptclose;
 static	d_write_t	nlptwrite;
-static	d_read_t	nlptread;
 static	d_ioctl_t	nlptioctl;
 
 #define CDEV_MAJOR 16
 static struct cdevsw nlpt_cdevsw = 
-	{ nlptopen,	nlptclose,	nlptread,	nlptwrite,	/*16*/
+	{ nlptopen,	nlptclose,	noread,		nlptwrite,	/*16*/
 	  nlptioctl,	nullstop,	nullreset,	nodevtotty,	/* lpt */
 	  seltrue,	nommap,		nostrat,	LPT_NAME,	NULL,	-1 };
 
@@ -180,9 +171,6 @@ static int
 lpt_request_ppbus(struct lpt_data *sc, int how)
 {
 	int error;
-
-	if (sc->sc_state & HAVEBUS)
-		return (0);
 
 	/* we have the bus only if the request succeded */
 	if ((error = ppb_request_bus(&sc->lpt_dev, how)) == 0)
@@ -194,10 +182,13 @@ lpt_request_ppbus(struct lpt_data *sc, int how)
 static int
 lpt_release_ppbus(struct lpt_data *sc)
 {
-	ppb_release_bus(&sc->lpt_dev);
-	sc->sc_state &= ~HAVEBUS;
+	int error;
 
-	return (0);
+	/* we do not have the bus only if the request succeeded */
+	if ((error = ppb_release_bus(&sc->lpt_dev)) == 0)
+		sc->sc_state &= ~HAVEBUS;
+
+	return (error);
 }
 
 /*
@@ -216,7 +207,7 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 		temp = ppb_rdtr(&sc->lpt_dev) & mask;
 	}
 	while (temp != data && --timeout);
-	nlprintf(("out=%x\tin=%x\ttout=%d\n", data, temp, timeout));
+	nlprintf("out=%x\tin=%x\ttout=%d\n", data, temp, timeout);
 	return (temp == data);
 }
 
@@ -377,15 +368,15 @@ nlptattach(struct ppb_device *dev)
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 
 	/* check if we can use interrupt, should be done by ppc stuff */
-	nlprintf(("oldirq %x\n", sc->sc_irq));
+	nlprintf("oldirq %x\n", sc->sc_irq);
 	if (ppb_get_irq(&sc->lpt_dev)) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf(LPT_NAME "%d: Interrupt-driven port\n", dev->id_unit);
 	} else {
 		sc->sc_irq = 0;
-		nlprintf((LPT_NAME "%d: Polled port\n", dev->id_unit));
+		nlprintf(LPT_NAME "%d: Polled port\n", dev->id_unit);
 	}
-	nlprintf(("irq %x\n", sc->sc_irq));
+	nlprintf("irq %x\n", sc->sc_irq);
 
 	lpt_release_ppbus(sc);
 
@@ -407,7 +398,7 @@ nlptout(void *arg)
 	struct lpt_data *sc = arg;
 	int pl;
 
-	nlprintf(("T %x ", ppb_rstr(&sc->lpt_dev)));
+	nlprintf ("T %x ", ppb_rstr(&sc->lpt_dev));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
@@ -444,7 +435,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct lpt_data *sc;
 
 	int s;
-	int trys, err;
+	int trys;
 	u_int unit = LPTUNIT(minor(dev));
 
 	if ((unit >= nlpt))
@@ -453,7 +444,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	sc = lptdata[unit];
 
 	if (sc->sc_state) {
-		nlprintf((LPT_NAME ": still open %x\n", sc->sc_state));
+		nlprintf(LPT_NAME ": still open %x\n", sc->sc_state);
 		return(EBUSY);
 	} else
 		sc->sc_state |= LPTINIT;
@@ -467,11 +458,12 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
-		return (err);
+	if ((sc->sc_state & HAVEBUS) == 0 &&
+			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+		return (EINTR);
 
 	s = spltty();
-	nlprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
+	nlprintf(LPT_NAME " flags 0x%x\n", sc->sc_flags);
 
 	/* set IRQ status according to ENABLE_IRQ flag */
 	if (sc->sc_irq & LP_ENABLE_IRQ)
@@ -497,7 +489,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		if (trys++ >= LPINITRDY*4) {
 			splx(s);
 			sc->sc_state = 0;
-			nlprintf(("status %x\n", ppb_rstr(&sc->lpt_dev)));
+			nlprintf ("status %x\n", ppb_rstr(&sc->lpt_dev) );
 
 			lpt_release_ppbus(sc);
 			return (EBUSY);
@@ -530,7 +522,6 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	sc->sc_state = OPEN;
 	sc->sc_inbuf = geteblk(BUFSIZE);
-	sc->sc_statbuf = geteblk(BUFSTATSIZE);
 	sc->sc_xfercnt = 0;
 	splx(s);
 
@@ -538,14 +529,14 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	lpt_release_ppbus(sc);
 
 	/* only use timeout if using interrupt */
-	nlprintf(("irq %x\n", sc->sc_irq));
+	nlprintf("irq %x\n", sc->sc_irq);
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
 		timeout(nlptout, (caddr_t)sc,
 			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
-	nlprintf(("opened.\n"));
+	nlprintf("opened.\n");
 	return(0);
 }
 
@@ -564,7 +555,8 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+	if ((sc->sc_state & HAVEBUS) == 0 &&
+		(err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)))
 		return (err);
 
 	sc->sc_state &= ~OPEN;
@@ -581,7 +573,6 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 	brelse(sc->sc_inbuf);
-	brelse(sc->sc_statbuf);
 
 end_close:
 	/* release the bus anyway */
@@ -589,7 +580,7 @@ end_close:
 
 	sc->sc_state = 0;
 	sc->sc_xfercnt = 0;
-	nlprintf(("closed.\n"));
+	nlprintf("closed.\n");
 	return(0);
 }
 
@@ -607,7 +598,7 @@ nlpt_pushbytes(struct lpt_data *sc)
 	int spin, err, tic;
 	char ch;
 
-	nlprintf(("p"));
+	nlprintf("p");
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
 		/* printer data */
@@ -654,40 +645,6 @@ nlpt_pushbytes(struct lpt_data *sc)
 }
 
 /*
- * nlptread --retrieve printer status in IEEE1284 NIBBLE mode
- */
-
-static int
-nlptread(dev_t dev, struct uio *uio, int ioflag)
-{
-	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
-	int error = 0, len;
-
-	if ((error = ppb_1284_negociate(&sc->lpt_dev, PPB_NIBBLE, 0)))
-		return (error);
-
-	/* read data in an other buffer, read/write may be simultaneous */
-	len = 0;
-	while (uio->uio_resid) {
-		if ((error = ppb_1284_read(&sc->lpt_dev, PPB_NIBBLE,
-				sc->sc_statbuf->b_data, min(BUFSTATSIZE,
-				uio->uio_resid), &len))) {
-			goto error;
-		}
-
-		if (!len)
-			goto error;		/* no more data */
-
-		if ((error = uiomove(sc->sc_statbuf->b_data, len, uio)))
-			goto error;
-	}
-
-error:
-	ppb_1284_terminate(&sc->lpt_dev);
-	return (error);
-}
-
-/*
  * nlptwrite --copy a line from user space to a local buffer, then call
  * putc to get the chars moved to the output queue.
  *
@@ -699,7 +656,6 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
-        u_int	unit = LPTUNIT(minor(dev));
 	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
 
 	if(sc->sc_flags & LP_BYPASS) {
@@ -708,46 +664,26 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
-		return (err);
+	if ((sc->sc_state & HAVEBUS) == 0 &&
+			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+		return (EINTR);
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
 		sc->sc_cp = sc->sc_inbuf->b_data ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
-
-		if (sc->sc_irq & LP_ENABLE_EXT) {
-			/* try any extended mode */
-			err = ppb_write(&sc->lpt_dev, sc->sc_cp,
-							sc->sc_xfercnt, 0);
-			switch (err) {
-			case 0:
-				/* if not all data was sent, we could rely
-				 * on polling for the last bytes */
-				sc->sc_xfercnt = 0;
-				break;
-			case EINTR:
-				sc->sc_state |= INTERRUPTED;	
-				return(err);
-			case EINVAL:
-				/* advanced mode not avail */
-				log(LOG_NOTICE, LPT_NAME "%d: advanced mode not avail, polling\n", unit);
-				break;
-			default:
-				return(err);
-			}
-		} else while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
-			nlprintf(("i"));
+		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
+			nlprintf("i");
 			/* if the printer is ready for a char, */
 			/* give it one */
 			if ((sc->sc_state & OBUSY) == 0){
-				nlprintf(("\nC %d. ", sc->sc_xfercnt));
+				nlprintf("\nC %d. ", sc->sc_xfercnt);
 				pl = spltty();
 				nlpt_intr(sc->lpt_unit);
 				(void) splx(pl);
 			}
-			nlprintf(("W "));
+			nlprintf("W ");
 			if (sc->sc_state & OBUSY)
 				if ((err = tsleep((caddr_t)sc,
 					 LPPRI|PCATCH, LPT_NAME "write", 0))) {
@@ -755,10 +691,9 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 					return(err);
 				}
 		}
-
 		/* check to see if we must do a polled write */
 		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
-			nlprintf(("p"));
+			nlprintf("p");
 
 			err = nlpt_pushbytes(sc);
 
@@ -806,7 +741,7 @@ nlpt_intr(int unit)
 
 		if (sc->sc_xfercnt) {
 			/* send char */
-			/*nlprintf(("%x ", *sc->sc_cp)); */
+			/*nlprintf("%x ", *sc->sc_cp); */
 			ppb_wdtr(&sc->lpt_dev, *sc->sc_cp++) ;
 			ppb_wctr(&sc->lpt_dev, sc->sc_control|LPC_STB);
 			/* DELAY(X) */
@@ -824,7 +759,7 @@ nlpt_intr(int unit)
 
 		if(!(sc->sc_state & INTERRUPTED))
 			wakeup((caddr_t)sc);
-		nlprintf(("w "));
+		nlprintf("w ");
 		return;
 	} else	{	/* check for error */
 		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
@@ -832,7 +767,7 @@ nlpt_intr(int unit)
 			sc->sc_state |= EERROR;
 		/* nlptout() will jump in and try to restart. */
 	}
-	nlprintf(("sts %x ", sts));
+	nlprintf("sts %x ", sts);
 }
 
 static void
@@ -870,35 +805,15 @@ nlptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 			 * this gets syslog'd.
 			 */
 			old_sc_irq = sc->sc_irq;
-			switch(*(int*)data) {
-			case 0:
+			if(*(int*)data == 0)
 				sc->sc_irq &= (~LP_ENABLE_IRQ);
-				break;
-			case 1:
-				sc->sc_irq &= (~LP_ENABLE_EXT);
+			else
 				sc->sc_irq |= LP_ENABLE_IRQ;
-				break;
-			case 2:
-				/* classic irq based transfer and advanced
-				 * modes are in conflict
-				 */
-				sc->sc_irq &= (~LP_ENABLE_IRQ);
-				sc->sc_irq |= LP_ENABLE_EXT;
-				break;
-			case 3:
-				sc->sc_irq &= (~LP_ENABLE_EXT);
-				break;
-			default:
-				break;
-			}
-				
 			if (old_sc_irq != sc->sc_irq )
-				log(LOG_NOTICE, LPT_NAME "%d: switched to %s %s mode\n",
+				log(LOG_NOTICE, LPT_NAME "%d: switched to %s mode\n",
 					unit,
 					(sc->sc_irq & LP_ENABLE_IRQ)?
-					"interrupt-driven":"polled",
-					(sc->sc_irq & LP_ENABLE_EXT)?
-					"extended":"standard");
+					"interrupt-driven":"polled");
 		} else /* polled port */
 			error = EOPNOTSUPP;
 		break;

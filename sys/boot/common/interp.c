@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.11 1999/01/13 21:59:58 abial Exp $
+ *	$Id: interp.c,v 1.5 1998/10/07 02:38:26 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -35,15 +35,6 @@
 #include <string.h>
 #include "bootstrap.h"
 
-#ifdef BOOT_FORTH
-#include "ficl.h"
-#define	RETURN(x)	stackPushINT32(bf_vm->pStack,!x); return(x)
-
-extern FICL_VM *bf_vm;
-#else
-#define	RETURN(x)	return(x)
-#endif
-
 #define	MAXARGS	20			/* maximum number of arguments allowed */
 
 static void	prompt(void);
@@ -51,10 +42,10 @@ static void	prompt(void);
 /*
  * Perform the command
  */
-int
+static int
 perform(int argc, char *argv[])
 {
-    int				result;
+    int				i, result;
     struct bootblk_command	**cmdp;
     bootblk_cmd_t		*cmd;
 
@@ -67,17 +58,17 @@ perform(int argc, char *argv[])
     cmd = NULL;
     result = CMD_ERROR;
 
-    /* search the command set for the command */
-    SET_FOREACH(cmdp, Xcommand_set) {
-	if (((*cmdp)->c_name != NULL) && !strcmp(argv[0], (*cmdp)->c_name))
-	    cmd = (*cmdp)->c_fn;
+    cmdp = (struct bootblk_command **)Xcommand_set.ls_items;
+    for (i = 0; i < Xcommand_set.ls_length; i++) {
+	if ((cmdp[i]->c_name != NULL) && !strcmp(argv[0], cmdp[i]->c_name))
+	    cmd = cmdp[i]->c_fn;
     }
     if (cmd != NULL) {
 	result = (cmd)(argc, argv);
     } else {
 	command_errmsg = "unknown command";
     }
-    RETURN(result);
+    return(result);
 }
 
 /*
@@ -87,20 +78,13 @@ void
 interact(void)
 {
     char	input[256];			/* big enough? */
-#ifndef BOOT_FORTH
     int		argc;
     char	**argv;
-#endif
-
-#ifdef BOOT_FORTH
-    bf_init();
-#endif
 
     /*
      * Read our default configuration
      */
-    if(source("/boot/loader.rc")!=CMD_OK)
-	source("/boot/boot.conf");
+    source("/boot/boot.conf");
     printf("\n");
     /*
      * Before interacting, we might want to autoboot.
@@ -118,9 +102,6 @@ interact(void)
 	input[0] = '\0';
 	prompt();
 	ngets(input, sizeof(input));
-#ifdef BOOT_FORTH
-	bf_run(input);
-#else
 	if (!parse(&argc, &argv, input)) {
 	    if (perform(argc, argv))
 		printf("%s: %s\n", argv[0], command_errmsg);
@@ -128,7 +109,6 @@ interact(void)
 	} else {
 	    printf("parse error\n");
 	}
-#endif
     }
 }
 
@@ -147,12 +127,10 @@ static int
 command_source(int argc, char *argv[])
 {
     int		i;
-    int		res;
 
-    res=CMD_OK;
-    for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res=source(argv[i]);
-    return(res);
+    for (i = 1; i < argc; i++)
+	source(argv[i]);
+    return(CMD_OK);
 }
 
 struct sourceline 
@@ -165,18 +143,18 @@ struct sourceline
     struct sourceline	*next;
 };
 
-int
+void
 source(char *filename)
 {
     struct sourceline	*script, *se, *sp;
     char		input[256];			/* big enough? */
-    int			argc,res;
+    int			argc;
     char		**argv, *cp;
     int			fd, flags, line;
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
-	sprintf(command_errbuf,"can't open '%s': %s\n", filename, strerror(errno));
-	return(CMD_ERROR);
+	printf("can't open '%s': %s\n", filename, strerror(errno));
+	return;
     }
 
     /*
@@ -223,7 +201,6 @@ source(char *filename)
      * Execute the script
      */
     argv = NULL;
-    res = CMD_OK;
     for (sp = script; sp != NULL; sp = sp->next) {
 	
 	/* print if not being quiet */
@@ -237,16 +214,13 @@ source(char *filename)
 	    if ((argc > 0) && (perform(argc, argv) != 0)) {
 		/* normal command */
 		printf("%s: %s\n", argv[0], command_errmsg);
-		if (!(sp->flags & SL_IGNOREERR)) {
-		    res=CMD_ERROR;
+		if (!(sp->flags & SL_IGNOREERR))
 		    break;
-		}
 	    }
 	    free(argv);
 	    argv = NULL;
 	} else {
 	    printf("%s line %d: parse error\n", filename, sp->line);
-	    res=CMD_ERROR;
 	    break;
 	}
     }
@@ -257,7 +231,6 @@ source(char *filename)
 	script = script->next;
 	free(se);
     }
-    return(res);
 }
 
 /*

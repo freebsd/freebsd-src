@@ -41,6 +41,8 @@
 #include <machine/ansi.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#include <machine/types.h>
+
 #ifdef	_BSD_RUNE_T_
 typedef	_BSD_RUNE_T_	rune_t;
 #undef	_BSD_RUNE_T_
@@ -130,7 +132,7 @@ void	 srand48 __P((long));
 
 void	*alloca __P((size_t));		/* built-in for gcc */
 					/* getcap(3) functions */
-__uint32_t
+u_int32_t
 	 arc4random __P((void));
 void	 arc4random_addrandom __P((unsigned char *dat, int datlen));
 void	 arc4random_stir __P((void));
@@ -168,8 +170,8 @@ void	 srandom __P((unsigned long));
 void	 srandomdev __P((void));
 char	*user_from_uid __P((unsigned long, int));
 #ifndef __STRICT_ANSI__
-__int64_t	 strtoq __P((const char *, char **, int));
-__uint64_t
+int64_t	 strtoq __P((const char *, char **, int));
+u_int64_t
 	 strtouq __P((const char *, char **, int));
 #endif
 void	 unsetenv __P((const char *));

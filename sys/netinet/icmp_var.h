@@ -31,15 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.11 1998/12/04 03:49:18 dillon Exp $
+ * $Id: icmp_var.h,v 1.8 1997/08/25 16:29:25 wollman Exp $
  */
 
 #ifndef _NETINET_ICMP_VAR_H_
 #define _NETINET_ICMP_VAR_H_
-
-#ifdef KERNEL
-#include "opt_icmp_bandlim.h"		/* for ICMP_BANDLIM     */
-#endif
 
 /*
  * Variables related to this implementation
@@ -67,20 +63,12 @@ struct	icmpstat {
  */
 #define	ICMPCTL_MASKREPL	1	/* allow replies to netmask requests */
 #define	ICMPCTL_STATS		2	/* statistics (read-only) */
-#define ICMPCTL_ICMPLIM		3
-#define ICMPCTL_MAXID		4
+#define ICMPCTL_MAXID		3
 
 #define ICMPCTL_NAMES { \
 	{ 0, 0 }, \
 	{ "maskrepl", CTLTYPE_INT }, \
 	{ "stats", CTLTYPE_STRUCT }, \
-	{ "icmplim", CTLTYPE_INT }, \
 }
-
-#ifdef KERNEL
-#ifdef ICMP_BANDLIM
-extern int badport_bandlim __P((int));
-#endif
-#endif
 
 #endif

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.179 1999/01/06 13:55:12 peter Exp $
+ * $Id: menus.c,v 1.170 1998/09/30 11:49:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,11 +233,11 @@ DMenu MenuIndex = {
       { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-      { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
-      { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
-      { "Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
+      { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
+      { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
+      { "Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "install" },
       { "Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "RELNOTES" },
+      { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
@@ -290,8 +290,8 @@ DMenu MenuIndex = {
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "/stand/sysinstall Main Menu",			/* title */
-    "Welcome to the FreeBSD installation and configuration tool.  Please\n" /* prompt */
+    "Welcome to FreeBSD! [" RELEASE_NAME "]",			/* title */
+    "This is the main menu of the FreeBSD installation system.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
     "option by pressing [ENTER] or [TAB-ENTER] to exit the installation.", 
@@ -303,13 +303,13 @@ DMenu MenuInitial = {
       { "2 Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "3 Keymap",	"Select keyboard type",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { "4 Options",	"View/Set various installation options",	NULL, optionsEditor },
-      { "5 Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { "6 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
-      { "7 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
-      { "8 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-      { "9 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
-      { "U Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
-      { "L Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
+      { "5 Novice",	"Begin a novice installation (for beginners)",	NULL, installNovice },
+      { "6 Express",	"Begin a quick installation (for the impatient)", NULL, installExpress },
+      { "7 Custom",	"Begin a custom installation (for experts)",	NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+      { "8 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
+      { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "l Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
       { "0 Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
@@ -317,7 +317,7 @@ DMenu MenuInitial = {
 /* The main documentation menu */
 DMenu MenuDocumentation = {
     DMENU_NORMAL_TYPE,
-    "FreeBSD Documentation Menu",
+    "Documentation for FreeBSD " RELEASE_NAME,
     "If you are at all unsure about the configuration of your hardware\n"
     "or are looking to build a system specifically for FreeBSD, read the\n"
     "Hardware guide!  New users should also read the Install document for\n"
@@ -325,11 +325,11 @@ DMenu MenuDocumentation = {
     "consult the README file.",
     "Confused?  Press F1 for help.",
     "usage",
-    { { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "README" },
-      { "2 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
-      { "3 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
+    { { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "readme" },
+      { "2 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
+      { "3 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "install" },
       { "4 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
+      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "relnotes" },
       { "6 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
       { "7 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
       { "0 Exit",	"Exit this menu (returning to previous)",	NULL, dmenuExit },
@@ -489,6 +489,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://current.freebsd.org/pub/FreeBSD/" },
       { "2.2 SNAP Server", "releng22.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://releng22.freebsd.org/pub/FreeBSD/" },
+      { "2.1 SNAP Server", "releng210.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://releng210.freebsd.org/pub/FreeBSD/" },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
       { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -573,12 +575,6 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.kr.freebsd.org/pub/FreeBSD/" },
       { "Korea #2",	"ftp2.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp2.kr.freebsd.org/pub/FreeBSD/" },
-      { "Korea #3",	"ftp3.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp3.kr.freebsd.org/pub/FreeBSD/" },
-      { "Korea #4",	"ftp4.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp4.kr.freebsd.org/pub/FreeBSD/" },
-      { "Korea #5",	"ftp5.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp5.kr.freebsd.org/pub/FreeBSD/" },
       { "Poland",	"ftp.pl.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.pl.freebsd.org/pub/FreeBSD/" },
       { "Portugal",	"ftp.pt.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -763,7 +759,7 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-      { "XFree86",	"The XFree86 3.3.3 distribution",
+      { "XFree86",	"The XFree86 3.3.2.3 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
@@ -821,6 +817,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_LIB },
       { "libexec",	"/usr/src/libexec (system programs)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_LIBEXEC },
+      { "lkm",		"/usr/src/lkm (Loadable Kernel Modules)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_LKM	},
       { "release",	"/usr/src/release (release-generation tools)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_RELEASE },
       { "bin",		"/usr/src/bin (system binaries)",
@@ -848,8 +846,8 @@ DMenu MenuSrcDistributions = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.3 Distribution",
-    "Please select the components you need from the XFree86 3.3.3\n"
+    "XFree86 3.3.2.3 Distribution",
+    "Please select the components you need from the XFree86 3.3.2.3\n"
     "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
@@ -864,7 +862,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.3 base distribution types",
+    "XFree86 3.3.2.3 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -891,9 +889,9 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
       { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-      { "sources",	"XFree86 3.3.3 standard sources",
+      { "sources",	"XFree86 3.3.2.3 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { "csources",	"XFree86 3.3.3 contrib sources",
+      { "csources",	"XFree86 3.3.2.3 contrib sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { "All",		"Select all of the above",
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
@@ -1064,18 +1062,11 @@ DMenu MenuInstallCustom = {
     "Press F1 to read the installation guide",
     "install",
     { { "1 Options",		"View/Set various installation options", NULL, optionsEditor },
-#ifdef __alpha__
-      { "2 Label",		"Label disk partitions",		NULL, diskLabelEditor },
-      { "3 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
-      { "4 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
-      { "5 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
-#else
       { "2 Partition",		"Allocate disk space for FreeBSD",	NULL, diskPartitionEditor },
       { "3 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor },
       { "4 Distributions",	"Select distribution(s) to extract",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
       { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCustomCommit },
-#endif
       { "0 Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { NULL } },
 };
@@ -1095,7 +1086,7 @@ DMenu MenuMBRType = {
     "  NOTE:  PC-DOS users will almost certainly require \"None\"!",
     "Press F1 to read about drive setup",
     "drives",
-    { { "BootMgr",	"Install the FreeBSD Boot Manager",
+    { { "BootMgr",	"Install the FreeBSD Boot Manager (\"Booteasy\")",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
       { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.5 1999/01/09 18:08:23 nsouch Exp $
+ *	$Id: smb.c,v 1.2 1998/09/04 17:53:42 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -119,6 +119,8 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
+	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
+
 	return (0);
 }
 
@@ -157,9 +159,24 @@ smbclose(dev_t dev, int flags, int fmt, struct proc *p)
 static int
 smbwrite(dev_t dev, struct uio * uio, int ioflag)
 {
-	/* not supported */
+	device_t smbdev = IIC_DEVICE(minor(dev));
+	struct smb_softc *sc = IIC_SOFTC(minor(dev));
+	int error, count;
 
-	return (EINVAL);
+	if (!sc || !smbdev)
+		return (EINVAL);
+
+	if (sc->sc_count == 0)
+		return (EINVAL);
+
+	count = min(uio->uio_resid, BUFSIZE);
+	uiomove(sc->sc_buffer, count, uio);
+
+	/* we consider the command char as the first character to send */
+	smbus_bwrite(device_get_parent(smbdev), sc->sc_addr,
+				sc->sc_buffer[0], count-1, sc->sc_buffer+1);
+
+	return (0);
 }
 
 static int
@@ -180,62 +197,65 @@ smbioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	int error = 0;
 	struct smbcmd *s = (struct smbcmd *)data;
 
-	if (!sc || !s)
+	if (!sc)
 		return (EINVAL);
 
 	switch (cmd) {
 	case SMB_QUICK_WRITE:
-		error=smbus_quick(parent, s->slave, SMB_QWRITE);
+		smbus_quick(parent, sc->sc_addr, SMB_QWRITE);
 		goto end;
 
 	case SMB_QUICK_READ:
-		error=smbus_quick(parent, s->slave, SMB_QREAD);
+		smbus_quick(parent, sc->sc_addr, SMB_QREAD);
 		goto end;
 	};
 
+	if (!s)
+		return (EINVAL);
+
 	switch (cmd) {
 	case SMB_SENDB:
-		error=smbus_sendb(parent, s->slave, s->cmd);
+		smbus_sendb(parent, sc->sc_addr, s->cmd);
 		break;
 
 	case SMB_RECVB:
-		error=smbus_recvb(parent, s->slave, &s->cmd);
+		smbus_recvb(parent, sc->sc_addr, &s->cmd);
 		break;
 
 	case SMB_WRITEB:
-		error=smbus_writeb(parent, s->slave, s->cmd, s->data.byte);
+		smbus_writeb(parent, sc->sc_addr, s->cmd, s->data.byte);
 		break;
 
 	case SMB_WRITEW:
-		error=smbus_writew(parent, s->slave, s->cmd, s->data.word);
+		smbus_writew(parent, sc->sc_addr, s->cmd, s->data.word);
 		break;
 
 	case SMB_READB:
 		if (s->data.byte_ptr)
-			error=smbus_readb(parent, s->slave, s->cmd,
+			smbus_readb(parent, sc->sc_addr, s->cmd,
 							s->data.byte_ptr);
 		break;
 
 	case SMB_READW:
 		if (s->data.word_ptr)
-			error=smbus_readw(parent, s->slave, s->cmd, s->data.word_ptr);
+			smbus_readw(parent, sc->sc_addr, s->cmd, s->data.word_ptr);
 		break;
 
 	case SMB_PCALL:
 		if (s->data.process.rdata)
-			error=smbus_pcall(parent, s->slave, s->cmd,
+			smbus_pcall(parent, sc->sc_addr, s->cmd,
 				s->data.process.sdata, s->data.process.rdata);
 		break;
 
 	case SMB_BWRITE:
 		if (s->count && s->data.byte_ptr)
-			error=smbus_bwrite(parent, s->slave, s->cmd, s->count,
+			smbus_bwrite(parent, sc->sc_addr, s->cmd, s->count,
 							s->data.byte_ptr);
 		break;
 
 	case SMB_BREAD:
 		if (s->count && s->data.byte_ptr)
-			error=smbus_bread(parent, s->slave, s->cmd, s->count,
+			smbus_bread(parent, sc->sc_addr, s->cmd, s->count,
 							s->data.byte_ptr);
 		break;
 		

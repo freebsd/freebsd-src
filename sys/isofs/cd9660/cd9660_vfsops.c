@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.46 1998/12/06 11:36:24 jkh Exp $
+ * $Id: cd9660_vfsops.c,v 1.43 1998/09/07 13:17:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -122,13 +122,13 @@ iso_get_ssector(dev, p)
 	if (ioctlp == NULL)
 		return 0;
 
-	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) != 0)
+	if (ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, p) == -1)
 		return 0;
 
 	for (i = h.ending_track; i >= 0; i--) {
 		t.address_format = CD_LBA_FORMAT;
 		t.track = i;
-		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) != 0)
+		if (ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, p) == -1)
 			return 0;
 		if ((t.entry.control & 4) != 0)
 			/* found a data track */
@@ -140,6 +140,8 @@ iso_get_ssector(dev, p)
 
 	return ntohl(t.entry.addr.lba);
 }
+
+#ifndef	VFS_LKM /* mount root makes no sense to an LKM */
 
 static int iso_mountroot __P((struct mount *mp, struct proc *p));
 
@@ -166,6 +168,7 @@ iso_mountroot(mp, p)
 	(void)cd9660_statfs(mp, &mp->mnt_stat, p);
 	return (0);
 }
+#endif	/* ! VFS_LKM */
 
 /*
  * VFS Operations.
@@ -187,11 +190,13 @@ cd9660_mount(mp, path, data, ndp, p)
 	mode_t accessmode;
 	struct iso_mnt *imp = 0;
 
+#ifndef VFS_LKM /* mount root makes no sense to an LKM */
 	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
 		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		return (iso_mountroot(mp, p));
 	}
+#endif	/* ! VFS_LKM */
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
 		return (error);
 
@@ -224,8 +229,7 @@ cd9660_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return ENOTBLK;
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	if (major(devvp->v_rdev) >= nblkdev) {
 		vrele(devvp);
 		return ENXIO;
 	}

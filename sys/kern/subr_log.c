@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.32 1998/11/11 10:55:56 truckman Exp $
+ * $Id: subr_log.c,v 1.29 1998/05/28 09:30:20 phk Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/poll.h>
-#include <sys/filedesc.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -76,7 +75,7 @@ static struct cdevsw log_cdevsw =
 static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
 	struct	selinfo sc_selp;	/* process waiting on select call */
-	struct  sigio *sc_sigio;	/* information for async I/O */
+	int	sc_pgid;		/* process/group for async I/O */
 } logsoftc;
 
 int	log_open;			/* also used in log() */
@@ -91,7 +90,7 @@ logopen(dev, flags, mode, p)
 	if (log_open)
 		return (EBUSY);
 	log_open = 1;
-	fsetown(p->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+	logsoftc.sc_pgid = p->p_pid;		/* signal process only */
 	return (0);
 }
 
@@ -105,7 +104,6 @@ logclose(dev, flag, mode, p)
 
 	log_open = 0;
 	logsoftc.sc_state = 0;
-	funsetown(logsoftc.sc_sigio);
 	return (0);
 }
 
@@ -180,11 +178,17 @@ logpoll(dev, events, p)
 void
 logwakeup()
 {
+	struct proc *p;
+
 	if (!log_open)
 		return;
 	selwakeup(&logsoftc.sc_selp);
-	if ((logsoftc.sc_state & LOG_ASYNC) && logsoftc.sc_sigio != NULL)
-		pgsigio(logsoftc.sc_sigio, SIGIO, 0);
+	if (logsoftc.sc_state & LOG_ASYNC) {
+		if (logsoftc.sc_pgid < 0)
+			gsignal(-logsoftc.sc_pgid, SIGIO);
+		else if ((p = pfind(logsoftc.sc_pgid)))
+			psignal(p, SIGIO);
+	}
 	if (logsoftc.sc_state & LOG_RDWAIT) {
 		wakeup((caddr_t)msgbufp);
 		logsoftc.sc_state &= ~LOG_RDWAIT;
@@ -225,20 +229,12 @@ logioctl(dev, com, data, flag, p)
 			logsoftc.sc_state &= ~LOG_ASYNC;
 		break;
 
-	case FIOSETOWN:
-		return (fsetown(*(int *)data, &logsoftc.sc_sigio));
-
-	case FIOGETOWN:
-		*(int *)data = fgetown(logsoftc.sc_sigio);
+	case TIOCSPGRP:
+		logsoftc.sc_pgid = *(int *)data;
 		break;
 
-	/* This is deprecated, FIOSETOWN should be used instead. */
-	case TIOCSPGRP:
-		return (fsetown(-(*(int *)data), &logsoftc.sc_sigio));
-
-	/* This is deprecated, FIOGETOWN should be used instead */
 	case TIOCGPGRP:
-		*(int *)data = -fgetown(logsoftc.sc_sigio);
+		*(int *)data = logsoftc.sc_pgid;
 		break;
 
 	default:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.117 1998/11/03 21:07:50 msmith Exp $
+ *	$Id: locore.s,v 1.115 1998/10/09 23:36:25 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -206,9 +206,9 @@ NON_GPROF_ENTRY(btext)
 
 #ifdef PC98
 	jmp	1f
-	.globl	CNAME(pc98_system_parameter)
+	.globl	_pc98_system_parameter
 	.org	0x400
-CNAME(pc98_system_parameter):
+_pc98_system_parameter:
 	.space	0x240		/* BIOS parameter block */
 1:
 	/* save SYSTEM PARAMETER for resume (NS/T or other) */
@@ -598,6 +598,15 @@ olddiskboot:
 	movl	%eax,R(_boothowto)
 	movl	12(%ebp),%eax
 	movl	%eax,R(_bootdev)
+
+#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+	movl	$0x10200, %esi
+	movl	$R(_userconfig_from_boot),%edi
+	movl	$512,%ecx
+	cld
+	rep
+	movsb
+#endif /* USERCONFIG_BOOT */
 
 	ret
 

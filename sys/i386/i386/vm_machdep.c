@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.114 1998/12/16 15:21:51 bde Exp $
+ *	$Id: vm_machdep.c,v 1.111 1998/09/28 03:34:39 tegge Exp $
  */
 
 #include "npx.h"
@@ -507,7 +507,6 @@ cpu_reset_real()
 	while(1);
 }
 
-#ifndef VM_STACK
 /*
  * Grow the user stack to allow for 'sp'. This version grows the stack in
  *	chunks of SGROWSIZ.
@@ -521,10 +520,10 @@ grow(p, sp)
 	caddr_t v;
 	struct vmspace *vm = p->p_vmspace;
 
-	if ((caddr_t)sp <= vm->vm_maxsaddr || sp >= USRSTACK)
-		return (1);
+	if ((caddr_t)sp <= vm->vm_maxsaddr || (unsigned)sp >= (unsigned)USRSTACK)
+	    return (1);
 
-	nss = roundup(USRSTACK - sp, PAGE_SIZE);
+	nss = roundup(USRSTACK - (unsigned)sp, PAGE_SIZE);
 
 	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
 		return (0);
@@ -560,27 +559,10 @@ grow(p, sp)
 
 	return (1);
 }
-#else
-int
-grow_stack(p, sp)
-	struct proc *p;
-	u_int sp;
-{
-	int rv;
-
-	rv = vm_map_growstack (p, sp);
-	if (rv != KERN_SUCCESS)
-		return (0);
-
-	return (1);
-}
-#endif
-
 
 static int cnt_prezero;
 
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
 
 /*
  * Implement the pre-zeroed page mechanism.

@@ -34,8 +34,6 @@
 #endif /* DEVFS */
 
 #if NSND > 0	/* from "snd.h" */
-#include "uart.h"
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <sys/mman.h>
@@ -132,8 +130,6 @@ struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
 short ipri_to_irq(u_short ipri);
 
-static ointhand2_t sndintr;
-
 u_long
 get_time(void)
 {
@@ -147,6 +143,7 @@ get_time(void)
 static int
 sndmmap( dev_t dev, int offset, int nprot )
 {
+	int		unit;
 	struct dma_buffparms * dmap;
 
 	dev = minor(dev) >> 4;
@@ -399,41 +396,8 @@ sndattach(struct isa_device * dev)
     static int      midi_initialized = 0;
     static int      seq_initialized = 0;
     struct address_info hw_config;
-    char   *dname;
     void   *tmp;
-
-    /*
-     * Associate interrupt handlers with devices.  XXX this may be incomplete.
-     */
-    dname = dev->id_driver->name;
-#if defined(CONFIG_AD1848)
-    if (strcmp(dname, "css") == 0 || strcmp(dname, "gusxvi") == 0 ||
-	strcmp(dname, "mss") == 0)
-	dev->id_ointr = adintr;
-#endif
-#ifdef CONFIG_GUS
-    if (strcmp(dname, "gus") == 0)
-	dev->id_ointr = gusintr;
-#endif
-#ifdef CONFIG_PAS
-    if (strcmp(dname, "pas") == 0)
-	dev->id_ointr = pasintr;
-#endif
-#if NSB > 0 && (defined(CONFIG_MIDI) || defined(CONFIG_AUDIO))
-    if (strcmp(dname, "sb") == 0)
-	dev->id_ointr = sbintr;
-#endif
-    if (strcmp(dname, "sscape_mss") == 0)
-	dev->id_ointr = sndintr;
-#if NSSCAPE > 0
-    if (strcmp(dname, "sscape") == 0 || strcmp(dname, "trix") == 0)
-	dev->id_ointr = sscapeintr;
-#endif
-#if NUART > 0
-    if (strcmp(dname, "uart0") == 0)
-	dev->id_ointr = m6850intr;
-#endif
-
+    
     unit = driver_to_voxunit(dev->id_driver);
     hw_config.io_base = dev->id_iobase;
     hw_config.irq = ipri_to_irq(dev->id_irq);
@@ -499,35 +463,35 @@ sndattach(struct isa_device * dev)
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SEQ,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "sequencer%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "sequencer");
+	if (tmp) devfs_link(tmp, "sequencer");
     } else if (dev->id_driver == &mpudriver || 
                dev->id_driver == &sbmididriver ||
 	       dev->id_driver == &uartdriver){
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "midi%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "midi");
+	if (tmp) devfs_link(tmp, "midi");
     } else {
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "dsp%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "dsp");
+	if (tmp) devfs_link(tmp, "dsp");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "dspW%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "dspW");
+	if (tmp) devfs_link(tmp, "dspW");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "audio%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "audio");
+	if (tmp) devfs_link(tmp, "audio");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "mixer%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "mixer");
+	if (tmp) devfs_link(tmp, "mixer");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "sndstat%r", dev->id_unit);
-	if (tmp) devfs_makelink(tmp, "sndstat");
+	if (tmp) devfs_link(tmp, "sndstat");
     }
 #endif /* DEVFS */
     return TRUE;
@@ -612,7 +576,7 @@ snd_set_irq_handler(int int_lvl, void (*hndlr) (int), sound_os_info * osp)
     return 1;
 }
 
-static void
+void
 sndintr(int unit)
 {
     if ( (unit >= MAX_UNIT) || (irq_proc[unit] == NULL) )

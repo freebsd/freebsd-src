@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.6 1998/12/07 14:09:17 rnordier Exp $";
+	"$Id: newfs_msdos.c,v 1.3 1998/07/16 12:24:51 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -243,7 +243,6 @@ main(int argc, char *argv[])
     u_int8_t *img;
     const char *fname, *dtype, *bname;
     ssize_t n;
-    time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
     int ch, fd, fd1;
 
@@ -412,7 +411,7 @@ main(int argc, char *argv[])
 	bpb.rde = opt_e;
     if (mflag) {
 	if (opt_m < 0xf0)
-	    errx(1, "illegal media descriptor (%#x)", opt_m);
+	    errx(1, "illegal media descriptor (0x%x)", opt_m);
 	bpb.mid = opt_m;
     }
     if (opt_a)
@@ -427,7 +426,7 @@ main(int argc, char *argv[])
     if (opt_B) {
 	bname = opt_B;
 	if (!strchr(bname, '/')) {
-	    snprintf(buf, sizeof(buf), "/boot/%s", bname);
+	    snprintf(buf, sizeof(buf), "/usr/mdec/%s", bname);
 	    if (!(bname = strdup(buf)))
 		err(1, NULL);
 	}
@@ -542,8 +541,7 @@ main(int argc, char *argv[])
     print_bpb(&bpb);
     if (!opt_N) {
 	gettimeofday(&tv, NULL);
-	now = tv.tv_sec;
-	tm = localtime(&now);
+	tm = localtime(&tv.tv_sec);
 	if (!(img = malloc(bpb.bps)))
 	    err(1, NULL);
 	dir = bpb.res + (bpb.spf ? bpb.spf : bpb.bspf) * bpb.nft;
@@ -804,7 +802,7 @@ print_bpb(struct bpb *bpb)
 	printf(" rde=%u", bpb->rde);
     if (bpb->sec)
 	printf(" sec=%u", bpb->sec);
-    printf(" mid=%#x", bpb->mid);
+    printf(" mid=0x%x", bpb->mid);
     if (bpb->spf)
 	printf(" spf=%u", bpb->spf);
     printf(" spt=%u hds=%u hid=%u", bpb->spt, bpb->hds, bpb->hid);
@@ -813,9 +811,9 @@ print_bpb(struct bpb *bpb)
     if (!bpb->spf) {
 	printf(" bspf=%u rdcl=%u", bpb->bspf, bpb->rdcl);
 	printf(" infs=");
-	printf(bpb->infs == MAXU16 ? "%#x" : "%u", bpb->infs);
+	printf(bpb->infs == MAXU16 ? "0x%x" : "%u", bpb->infs);
 	printf(" bkbs=");
-	printf(bpb->bkbs == MAXU16 ? "%#x" : "%u", bpb->bkbs);
+	printf(bpb->bkbs == MAXU16 ? "0x%x" : "%u", bpb->bkbs);
     }
     printf("\n");
 }

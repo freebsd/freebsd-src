@@ -26,14 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.8 1998/12/16 21:00:06 ken Exp $
+ *      $Id: cam_periph.c,v 1.4 1998/10/13 21:41:32 ken Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/linker_set.h>
+#include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/devicestat.h>
@@ -62,11 +62,10 @@ static	void		camperiphdone(struct cam_periph *periph,
 static  void		camperiphfree(struct cam_periph *periph);
 
 cam_status
-cam_periph_alloc(periph_ctor_t *periph_ctor,
-		 periph_oninv_t *periph_oninvalidate,
-		 periph_dtor_t *periph_dtor, periph_start_t *periph_start,
-		 char *name, cam_periph_type type, struct cam_path *path,
-		 ac_callback_t *ac_callback, ac_code code, void *arg)
+cam_periph_alloc(periph_ctor_t *periph_ctor, periph_dtor_t *periph_dtor,
+		 periph_start_t *periph_start, char *name, cam_periph_type type,
+		 struct cam_path *path, ac_callback_t *ac_callback,
+		 ac_code code, void *arg)
 {
 	struct		periph_driver **p_drv;
 	struct		cam_periph *periph;
@@ -123,7 +122,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	cam_init_pinfo(&periph->pinfo);
 	periph->periph_start = periph_start;
 	periph->periph_dtor = periph_dtor;
-	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
 	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
@@ -374,19 +372,10 @@ cam_periph_invalidate(struct cam_periph *periph)
 {
 	int s;
 
-	s = splsoftcam();
-	/*
-	 * We only call this routine the first time a peripheral is
-	 * invalidated.  The oninvalidate() routine is always called at
-	 * splsoftcam().
-	 */
-	if (((periph->flags & CAM_PERIPH_INVALID) == 0)
-	 && (periph->periph_oninval != NULL))
-		periph->periph_oninval(periph);
-
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
 
+	s = splsoftcam();
 	if (periph->refcount == 0)
 		camperiphfree(periph);
 	else if (periph->refcount < 0)
@@ -490,14 +479,24 @@ cam_periph_unlock(struct cam_periph *periph)
 int
 cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 {
-	int numbufs, i;
-	int flags[CAM_PERIPH_MAXMAPS];
+	int flags, numbufs, i;
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
 
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
+		if (ccb->cdm.pattern_buf_len > MAXPHYS) {
+			printf("cam_periph_mapmem: attempt to map %u bytes, "
+			       "which is greater than MAXPHYS(%d)\n",
+			       ccb->cdm.pattern_buf_len, MAXPHYS);
+			return(E2BIG);
+		} else if (ccb->cdm.match_buf_len > MAXPHYS) {
+			printf("cam_periph_mapmem: attempt to map %u bytes, "
+			       "which is greater than MAXPHYS(%d)\n",
+			       ccb->cdm.match_buf_len, MAXPHYS);
+			return(E2BIG);
+		}
 		if (ccb->cdm.match_buf_len == 0) {
 			printf("cam_periph_mapmem: invalid match buffer "
 			       "length 0\n");
@@ -519,74 +518,24 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 		break;
 	case XPT_SCSI_IO:
+		if (ccb->csio.dxfer_len > MAXPHYS) {
+			printf("cam_periph_mapmem: attempt to map %u bytes, "
+			       "which is greater than MAXPHYS(%d)\n",
+				ccb->csio.dxfer_len, MAXPHYS);
+			return(E2BIG);
+		}
+
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
 			return(0);
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
-		lengths[0] = ccb->csio.dxfer_len;
+		lengths[0] = ccb->csio.dxfer_len;;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
 	default:
 		return(EINVAL);
 		break; /* NOTREACHED */
-	}
-
-	/*
-	 * Check the transfer length and permissions first, so we don't
-	 * have to unmap any previously mapped buffers.
-	 */
-	for (i = 0; i < numbufs; i++) {
-
-		flags[i] = 0;
-
-		/*
-		 * The userland data pointer passed in may not be page
-		 * aligned.  vmapbuf() truncates the address to a page
-		 * boundary, so if the address isn't page aligned, we'll
-		 * need enough space for the given transfer length, plus
-		 * whatever extra space is necessary to make it to the page
-		 * boundary.
-		 */
-		if ((lengths[i] +
-		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > DFLTPHYS){
-			printf("cam_periph_mapmem: attempt to map %u bytes, "
-			       "which is greater than DFLTPHYS(%d)\n",
-			       lengths[i] +
-			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK),
-			       DFLTPHYS);
-			return(E2BIG);
-		}
-
-		if (dirs[i] & CAM_DIR_IN) {
-			flags[i] = B_READ;
-			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
-				printf("cam_periph_mapmem: error, "
-					"address %p, length %lu isn't "
-					"user accessible for READ\n",
-					(void *)*data_ptrs[i],
-					(u_long)lengths[i]);
-				return(EACCES);
-			}
-		}
-
-		/*
-		 * XXX this check is really bogus, since B_WRITE currently
-		 * is all 0's, and so it is "set" all the time.
-		 */
-		if (dirs[i] & CAM_DIR_OUT) {
-			flags[i] |= B_WRITE;
-			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
-				printf("cam_periph_mapmem: error, "
-					"address %p, length %lu isn't "
-					"user accessible for WRITE\n",
-					(void *)*data_ptrs[i],
-					(u_long)lengths[i]);
-
-				return(EACCES);
-			}
-		}
-
 	}
 
 	/* this keeps the current process from getting swapped */
@@ -596,6 +545,54 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	curproc->p_flag |= P_PHYSIO;
 
 	for (i = 0; i < numbufs; i++) {
+		flags = 0;
+
+		if (dirs[i] & CAM_DIR_IN) {
+			flags = B_READ;
+			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
+				printf("cam_periph_mapmem: error, "
+					"address %p, length %lu isn't "
+					"user accessible for READ\n",
+					(void *)*data_ptrs[i],
+					(u_long)lengths[i]);
+				/*
+				 * If we've already mapped one or more
+				 * buffers for this CCB, unmap it (them).
+				 */
+				if (i > 0)
+					cam_periph_unmapmem(ccb, mapinfo);
+				else
+					curproc->p_flag &= ~P_PHYSIO;
+
+				return(EACCES);
+			}
+		}
+
+		/*
+		 * XXX this check is really bogus, since B_WRITE currently
+		 * is all 0's, and so it is "set" all the time.
+		 */
+		if (dirs[i] & CAM_DIR_OUT) {
+			flags |= B_WRITE;
+			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
+				printf("cam_periph_mapmem: error, "
+					"address %p, length %lu isn't "
+					"user accessible for WRITE\n",
+					(void *)*data_ptrs[i],
+					(u_long)lengths[i]);
+				/*
+				 * If we've already mapped one or more
+				 * buffers for this CCB, unmap it (them).
+				 */
+				if (i > 0)
+					cam_periph_unmapmem(ccb, mapinfo);
+				else
+					curproc->p_flag &= ~P_PHYSIO;
+
+				return(EACCES);
+			}
+		}
+
 		/*
 		 * Get the buffer.
 		 */
@@ -607,11 +604,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
 
-		/* set the transfer length, we know it's < DFLTPHYS */
+		/* set the transfer length, we know it's < 64K */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the flags */
-		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS | B_BUSY;
+		mapinfo->bp[i]->b_flags = flags | B_PHYS | B_BUSY;
 
 		/* map the buffer into kernel memory */
 		vmapbuf(mapinfo->bp[i]);

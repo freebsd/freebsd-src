@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.145 1998/10/31 17:38:46 brian Exp $
+ * $Id: main.c,v 1.142 1998/08/09 09:13:54 brian Exp $
  *
  *	TODO:
  */
@@ -75,7 +75,6 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
-#include "iface.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -179,27 +178,27 @@ Usage(void)
 #ifndef NOALIAS
           " [ -alias ]"
 #endif
-          " [system ...]\n");
+          " [system]\n");
   exit(EX_START);
 }
 
-static int
+static char *
 ProcessArgs(int argc, char **argv, int *mode, int *alias)
 {
-  int optc, newmode, arg;
+  int optc, labelrequired, newmode;
   char *cp;
 
-  optc = 0;
+  optc = labelrequired = 0;
   *mode = PHYS_INTERACTIVE;
   *alias = 0;
-  for (arg = 1; arg < argc && *argv[arg] == '-'; arg++, optc++) {
-    cp = argv[arg] + 1;
+  while (argc > 0 && **argv == '-') {
+    cp = *argv + 1;
     newmode = Nam2mode(cp);
     switch (newmode) {
       case PHYS_NONE:
         if (strcmp(cp, "alias") == 0) {
 #ifdef NOALIAS
-          log_Printf(LogWARN, "Cannot load alias library (compiled out)\n");
+          log_Printf(LogWARN, "Cannot load alias library\n");
 #else
           *alias = 1;
 #endif
@@ -212,9 +211,23 @@ ProcessArgs(int argc, char **argv, int *mode, int *alias)
         Usage();
         break;
 
+      case PHYS_AUTO:
+      case PHYS_BACKGROUND:
+      case PHYS_DDIAL:
+        labelrequired = 1;
+        /* fall through */
+
       default:
         *mode = newmode;
     }
+    optc++;
+    argv++;
+    argc--;
+  }
+
+  if (argc > 1) {
+    fprintf(stderr, "You may specify only one system label.\n");
+    exit(EX_START);
   }
 
   if (optc > 1) {
@@ -222,36 +235,20 @@ ProcessArgs(int argc, char **argv, int *mode, int *alias)
     exit(EX_START);
   }
 
-  if (*mode == PHYS_AUTO && arg == argc) {
-    fprintf(stderr, "A system must be specified in auto mode.\n");
+  if (labelrequired && argc != 1) {
+    fprintf(stderr, "Destination system must be specified in"
+            " auto, background or ddial mode.\n");
     exit(EX_START);
   }
 
-  return arg;		/* Don't SetLabel yet ! */
+  return argc == 1 ? *argv : NULL;	/* Don't SetLabel yet ! */
 }
-
-static void
-CheckLabel(const char *label, struct prompt *prompt, int mode)
-{
-  const char *err;
-
-  if ((err = system_IsValid(label, prompt, mode)) != NULL) {
-    fprintf(stderr, "You may not use ppp in this mode with this label\n");
-    fprintf(stderr, "%s: %s\n", label, err);
-    if (mode == PHYS_DIRECT)
-      log_Printf(LogWARN, "Label %s rejected -direct connection: %s\n",
-                 label, err);
-    log_Close();
-    exit(1);
-  }
-}
-
 
 int
 main(int argc, char **argv)
 {
-  char *name;
-  int nfds, mode, alias, label, arg;
+  char *name, *label;
+  int nfds, mode, alias;
   struct bundle *bundle;
   struct prompt *prompt;
 
@@ -271,7 +268,7 @@ main(int argc, char **argv)
 #ifndef NOALIAS
   PacketAliasInit();
 #endif
-  label = ProcessArgs(argc, argv, &mode, &alias);
+  label = ProcessArgs(argc - 1, argv + 1, &mode, &alias);
 
 #ifdef __FreeBSD__
   /*
@@ -315,11 +312,16 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (label < argc)
-    for (arg = label; arg < argc; arg++)
-      CheckLabel(argv[arg], prompt, mode);
-  else
-    CheckLabel("default", prompt, mode);
+  if (!system_IsValid(label, prompt, mode)) {
+    fprintf(stderr, "You may not use ppp in this mode with this label\n");
+    if (mode == PHYS_DIRECT) {
+      const char *l;
+      l = label ? label : "default";
+      log_Printf(LogWARN, "Label %s rejected -direct connection\n", l);
+    }
+    log_Close();
+    return 1;
+  }
 
   if ((bundle = bundle_Create(TUN_PREFIX, mode, (const char **)argv)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
@@ -327,12 +329,10 @@ main(int argc, char **argv)
   }
   if (prompt) {
     prompt->bundle = bundle;	/* couldn't do it earlier */
-    prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
+    prompt_Printf(prompt, "Using interface: %s\n", bundle->ifp.Name);
   }
   SignalBundle = bundle;
   bundle->AliasEnabled = alias;
-  if (alias)
-    bundle->cfg.opt |= OPT_IFACEALIAS;
 
   if (system_Select(bundle, "default", CONFFILE, prompt, NULL) < 0)
     prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
@@ -349,21 +349,25 @@ main(int argc, char **argv)
 
   sig_signal(SIGUSR2, BringDownServer);
 
-  for (arg = label; arg < argc; arg++) {
-    /* In case we use LABEL or ``set enddisc label'' */
-    bundle_SetLabel(bundle, argv[argc - 1]);
-    system_Select(bundle, argv[arg], CONFFILE, prompt, NULL);
-  }
-
-  if (label < argc)
-    /* In case the last label did a ``load'' */
-    bundle_SetLabel(bundle, argv[argc - 1]);
-
-  if (mode == PHYS_AUTO &&
-      bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
-    prompt_Printf(prompt, "You must ``set ifaddr'' with a peer address "
-                  "in auto mode.\n");
-    AbortProgram(EX_START);
+  if (label) {
+    /*
+     * Set label both before and after system_Select !
+     * This way, "set enddisc label" works during system_Select, and we
+     * also end up with the correct label if we have embedded load
+     * commands.
+     */
+    bundle_SetLabel(bundle, label);
+    if (system_Select(bundle, label, CONFFILE, prompt, NULL) < 0) {
+      prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
+      AbortProgram(EX_START);
+    }
+    bundle_SetLabel(bundle, label);
+    if (mode == PHYS_AUTO &&
+	bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
+      prompt_Printf(prompt, "You must \"set ifaddr\" with a peer address "
+                    "in label %s for auto mode.\n", label);
+      AbortProgram(EX_START);
+    }
   }
 
   if (mode != PHYS_INTERACTIVE) {
@@ -515,12 +519,8 @@ DoLoop(struct bundle *bundle)
 
     for (i = 0; i <= nfds; i++)
       if (FD_ISSET(i, &efds)) {
-        log_Printf(LogPHASE, "Exception detected on descriptor %d\n", i);
-        /* We deal gracefully with link descriptor exceptions */
-        if (!bundle_Exception(bundle, i)) {
-          log_Printf(LogERROR, "Exception cannot be handled !\n");
-          break;
-        }
+        log_Printf(LogERROR, "Exception detected on descriptor %d\n", i);
+        break;
       }
 
     if (i <= nfds)

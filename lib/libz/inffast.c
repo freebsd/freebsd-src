@@ -13,12 +13,14 @@
 struct inflate_codes_state {int dummy;}; /* for buggy compilers */
 
 /* simplify the use of the inflate_huft type with some defines */
+#define base more.Base
+#define next more.Next
 #define exop word.what.Exop
 #define bits word.what.Bits
 
 /* macros for bit input with no checking and for returning unused bytes */
 #define GRABBITS(j) {while(k<(j)){b|=((uLong)NEXTBYTE)<<k;k+=8;}}
-#define UNGRAB {c=z->avail_in-n;c=(k>>3)<c?k>>3:c;n+=c;p-=c;k-=c<<3;}
+#define UNGRAB {n+=(c=k>>3);p-=c;k&=7;}
 
 /* Called with number of bytes left to write in window at least 258
    (the maximum string length) and number of input bytes available
@@ -118,10 +120,7 @@ z_streamp z;
             break;
           }
           else if ((e & 64) == 0)
-          {
-            t += t->base;
-            e = (t += ((uInt)b & inflate_mask[e]))->exop;
-          }
+            e = (t = t->next + ((uInt)b & inflate_mask[e]))->exop;
           else
           {
             z->msg = (char*)"invalid distance code";
@@ -134,8 +133,7 @@ z_streamp z;
       }
       if ((e & 64) == 0)
       {
-        t += t->base;
-        if ((e = (t += ((uInt)b & inflate_mask[e]))->exop) == 0)
+        if ((e = (t = t->next + ((uInt)b & inflate_mask[e]))->exop) == 0)
         {
           DUMPBITS(t->bits)
           Tracevv((stderr, t->base >= 0x20 && t->base < 0x7f ?

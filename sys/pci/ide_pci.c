@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.27 1999/01/17 05:18:54 bde Exp $
+ *	$Id: ide_pci.c,v 1.13 1998/07/11 07:45:52 bde Exp $
  */
 
 #include "pci.h"
@@ -120,15 +120,6 @@ via_571_dmainit(struct	ide_pci_cookie *cookie,
 	void	*wdinfo);
 
 static void
-acer_status(struct ide_pci_cookie *cookie);
-
-static int 
-acer_dmainit(struct ide_pci_cookie *cookie,
-	struct  wdparams *wp,
-	int	(*wdcmd)(int, void *),
-	void 	*wdinfo);
-
-static void
 intel_piix_dump_drive(char	*ctlr,
 	int	sitre,
 	int	is_piix4,
@@ -159,7 +150,7 @@ mkcookie(int		iobase_wd,
 
 
 static void ide_pci_attach(pcici_t tag, int unit);
-static void *ide_pci_candma(int, int, int);
+static void *ide_pci_candma(int, int);
 static int ide_pci_dmainit(void *, 
 	struct wdparams *, 
 	int (*)(int, void *),
@@ -276,14 +267,8 @@ generic_dmainit(struct ide_pci_cookie *cookie,
 		printf("ide_pci: generic_dmainit %04x:%d: warning, IDE controller timing not set\n",
 			cookie->iobase_wd,
 			cookie->unit);
-		/* If we're here, then this controller is most likely not set 
-		   for UDMA, even if the drive may be. Make the drive wise
-		   up. */  
-		   
-		if(!wdcmd(WDDMA_MDMA2, wdinfo)) 
-			printf("generic_dmainit: could not set multiword DMA mode!\n");
 		return 1;
-	}	
+	}
 #ifdef IDE_PCI_DEBUG
 	printf("pio_mode: %d, mwdma_mode(wp): %d, udma_mode(wp): %d\n",
 		pio_mode(wp), mwdma_mode(wp), udma_mode(wp));
@@ -404,7 +389,7 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 
 		/* UDMA enable by SET FEATURES, DMA cycles, cycle time 2T */
 		mask = 0xe3000000 >> (unitno * 8);
-		new = 0x40000000 >> (unitno * 8);
+		new = 0x80000000 >> (unitno * 8);
 
 		word50 &= ~mask;
 		word50 |= new;
@@ -418,10 +403,10 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		 */
 		/* Set UDMA mode 2 on drive */
 		if (bootverbose)
-			printf("via_571_dmainit: setting ultra DMA mode 2\n");
+			printf("intel_piix_dmainit: setting ultra DMA mode 2\n");
 		r = wdcmd(WDDMA_UDMA2, wdinfo);
 		if (!r) {
-			printf("via_571_dmainit: setting DMA mode failed\n");
+			printf("intel_piix_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
 
@@ -437,10 +422,10 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 
 		/* Set multiword DMA mode 2 on drive */
 		if (bootverbose)
-			printf("via_571_dmainit: setting multiword DMA mode 2\n");
+			printf("intel_piix_dmainit: setting multiword DMA mode 2\n");
 		r = wdcmd(WDDMA_MDMA2, wdinfo);
 		if (!r) {
-			printf("via_571_dmainit: setting DMA mode failed\n");
+			printf("intel_piix_dmainit: setting DMA mode failed\n");
 			return 0;
 		}
 
@@ -452,7 +437,8 @@ via_571_dmainit(struct ide_pci_cookie *cookie,
 		 * enable prefetch/postwrite-- XXX may cause problems
 		 * with CD-ROMs? 
 		 */
-		workword |= 0xc000 >> (cookie->ctlr * 2);
+		workword &= ~(3 << (cookie->ctlr * 2 + 12));
+		workword |= 3 << (cookie->ctlr * 2 + 12);
 
 		/* FIFO configurations-- equal split, threshold 1/2 */
 		workword &= 0x90ffffff;
@@ -493,175 +479,6 @@ static struct vendor_fns vs_via_571 =
 { 
 	via_571_dmainit, 
 	via_571_status
-};
-
-/* Cyrix Cx5530 Courtesy of Whistle Communications */
-
-/*
- * Verify that controller can handle a dma request for cp.  Should
- * not affect any hardware or driver state.
- * Special version for 5530 that allows only transfers on 16 byte boundaries.(!)
- * (Yes the Cyrix 5530 can only UDMA to cache-line boundaries.(bleh!))
- * Luckily nearly all disk IO is to kernel bufers which are page alligned.
- * They may fix this in some other version of the chip, but it's in the latest
- * at this time (Jan 1999).
- */
-static int
-cyrix_5530_dmaverify(void *xcp, char *vaddr, u_long count, int dir)
-{
-	int badfu;
-
-	/*
-	 * check for nonaligned or odd-length Stuff
-	 */
-	badfu = ((unsigned int)vaddr & 0xf) || (count & 0xf);
-#ifdef DIAGNOSTIC
-	if (badfu) {
-		printf("ide_pci: dmaverify odd vaddr or length, ");
-		printf("vaddr = %p length = %08lx\n", (void *)vaddr, count);
-	}
-#endif
-	return (!badfu);
-}
-
-/*
- * XXX Unit number handling  may be broken in the Cx5530 modules.
- * It has only been checked with a single drive.
- * 12MByte/Sec transfer rates were seen with Quantum Fireball drives
- * with negligable CPU usage.
- */
-static void
-cyrix_5530_status(struct ide_pci_cookie *cookie)
-{
-	int iobase_wd;
-	int ctlr, unit;
-	int iobase_bm;
-	pcici_t tag;
-	pcidi_t type;
-	u_long	PIO_config;
-	u_long	DMA_config;
-	int unitno;
-
-	iobase_wd = cookie->iobase_wd;
-	unit = cookie->unit;
-	ctlr = cookie->ctlr;
-	iobase_bm = cookie->iobase_bm;
-	tag = cookie->tag;
-	type = cookie->type;
-
-	unitno = ctlr * 2 + unit;
-
-	/* set some values the BIOS should have set */
-	printf("Using 0x%x\n", cookie->iobase_bm);
-	outl(iobase_bm + (unit * 0x10) + 0x20, 0x00040010);
-	outl(iobase_bm + (unit * 0x10) + 0x24, 0x00911030);
-	/* if ((ctlr == 0) && (unit == 0)) */	/* XXX */
-		/* outb(iobase_bm + (unit * 0x10) + BMISTA_PORT, 0xe6);*/
-
-	PIO_config = inl(iobase_bm + (unit * 0x10) + 0x20);
-	DMA_config = inl(iobase_bm + (unit * 0x10) + 0x24);
-
-
-	printf("cyrix_5530_status: %s:%u IDE PIO cfg: 0x%08lx\n",
-	       (ctlr ? "Secondary" : "Primary"), unit, PIO_config);
-	printf("cyrix_5530_status: %s:%u IDE DMA cfg: 0x%08lx\n",
-	       (ctlr ? "Secondary" : "Primary"), unit, DMA_config);
-}
-
-/*
- * XXX timing values set here are only good for 30/33MHz buses; should deal
- * with slower ones too (BTW: you overclock-- you lose)
- */
-
-static int
-cyrix_5530_dmainit(struct ide_pci_cookie *cookie, 
-		struct wdparams *wp, 
-		int(*wdcmd)(int, void *),
-		void *wdinfo)
-{
-	int r;
-	u_long	pci_revision;
-	int	unitno;
-	int	iobase_bm;
-	int	unit;
-
-	/*cookie->unit = 0; */	/* XXX */
-	unit = cookie->unit;
-	pci_revision = pci_conf_read(cookie->tag, PCI_CLASS_REG) & 
-		PCI_REVISION_MASK;
-
-	unitno = cookie->ctlr * 2 + unit;
-	iobase_bm = cookie->iobase_bm;
-
-	printf("Setting using 0x%x\n", iobase_bm);
-	if ((cookie->ctlr == 0) && (unit == 0))	/* XXX */
-		outb(iobase_bm + (unit * 0x10) + BMISTA_PORT, 0xe6);
-	outl(iobase_bm + (unit * 0x10) + 0x20, 0x00040010);
-	outl(iobase_bm + (unit * 0x10) + 0x24, 0x00911030);
-	/* If it's a UDMA drive on a '5530, set it up */
-	/* 
-	 * depending on what the drive can do,
-	 * set the correct modes,
-	 */
-	printf("wd%d: mw=0x%x, pio=0x%x, pcirev=0x%lx, udma=0x%x\n",
-		unitno,
-		mwdma_mode(wp), pio_mode(wp),
-		pci_revision, udma_mode(wp));
-	if (/* pci_revision >= 1 && */ udma_mode(wp) >= 2) {
-		/*outl(iobase_bm + 0x20 + (cookie->unit * 16), 0x00100010);*/
-		outl(iobase_bm + 0x24 + (cookie->unit * 16), 0x00911030);
-
-		/*
-		 * With the Cx5530, drive configuration should come *after* the
-		 * controller configuration, to make sure the controller sees 
-		 * the command and does the right thing.
-		 */
-		/* Set UDMA mode 2 on drive */
-		if (bootverbose)
-			printf("cyrix_5530_dmainit: setting ultra DMA mode 2\n");
-		r = wdcmd(WDDMA_UDMA2, wdinfo);
-		if (!r) {
-			printf("cyrix_5530_dmainit: setting DMA mode failed\n");
-			return 0;
-		}
-
-		if (bootverbose)
-			cyrix_5530_status(cookie);
-		return 1;
-
-	}
-
-	/* otherwise, try and program it for MW DMA mode 2 */
-	else if (mwdma_mode(wp) >= 2 && pio_mode(wp) >= 4) {
-
-		/* Set multiword DMA mode 2 on drive */
-		if (bootverbose)
-			printf("cyrix_5530_dmainit: setting multiword DMA mode 2\n");
-		r = wdcmd(WDDMA_MDMA2, wdinfo);
-		if (!r) {
-			printf("cyrix_5530_dmainit: setting DMA mode failed\n");
-			return 0;
-		}
-
-		/* Configure the controller appropriately for MWDMA mode 2 */
-
-		/*outl(iobase_bm + 0x20 + (cookie->unit * 16), 0x00100010);*/
-		outl(iobase_bm + 0x24 + (cookie->unit * 16), 0x00002020);
-
-		if (bootverbose)
-			cyrix_5530_status(cookie);
-
-		return 1;
-
-	}
-	return 0;
-}
-
-
-static struct vendor_fns vs_cyrix_5530 = 
-{ 
-	cyrix_5530_dmainit, 
-	cyrix_5530_status
 };
 
 
@@ -879,8 +696,8 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 
 		unitno = cookie->ctlr * 2 + cookie->unit;
 
-		mask = (1 << unitno) + (3 << (16 + unitno * 4));
-		new  = (1 << unitno) + (2 << (16 + unitno * 4));
+		mask = 1 << unitno + 3 << (16 + unitno * 4);
+		new = 1 << unitno + 2 << (16 + unitno * 4);
 
 		pci_conf_write(cookie->tag, 0x48, 
 			(pci_conf_read(cookie->tag, 0x48) & ~mask) | new);
@@ -1019,70 +836,6 @@ static struct vendor_fns vs_intel_piix =
 	intel_piix_status
 };
 
-
-static void
-acer_status(struct ide_pci_cookie *cookie) {
-	/* XXX does not do anything right now */
-}
-
-static int
-acer_dmainit(struct ide_pci_cookie *cookie,
-                   struct wdparams *wp,
-                   int(*wdcmd)(int, void *),
-                   void *wdinfo)
-{
-	/* Acer Aladdin DMA setup code. UDMA looks to be sinfully easy to set
-	   on this thing - just one register. */
-	
-	u_long word54 = pci_conf_read(cookie->tag, 0x54);
-	
-	/* Set the default Acer FIFO settings (0x55 = 13-word depth and
-	   slave operation mode 1) */
-	
-	word54 |= 0x5555;
-	
-	/* Is this drive UDMA? Set it up if so... */
-	if(udma_mode(wp) >= 2) {
-		/* This is really easy to do. Just write 0xa (enable 
-		   UDMA mode with 2T timing) into the word at the right
-		   places. */
-		word54 |= (0xA << (16 + (cookie->ctlr * 8) + (cookie->unit * 4)));
-		
-		/* Now set the drive for UDMA2. */
-		if(!wdcmd(WDDMA_UDMA2, wdinfo)) {
-			printf("acer_dmainit: could not set UDMA2 mode on wdc%d:%d!\n", cookie->ctlr, cookie->unit);
-			return 0;
-		}
-		
-		/* Write the new config into the registers. I'm not 
-		   sure if I'm doing this in the right order. */
-		
-		pci_conf_write(cookie->tag, 0x54, word54);
-		
-	} else if(mwdma_mode(wp) >= 2 && pio_mode(wp) >=4) {
-	
-	
-		/* Otherwise, we're already set for regular DMA. */
-
-		if(!wdcmd(WDDMA_MDMA2, wdinfo)) {
-			printf("acer_dmainit: could not set MWDMA2 mode on wdc%d:%d!\n", 
-			     cookie->ctlr, cookie->unit);
-			return 0;
-		}
-		return 1;
-	}
-	
-	return 0;
-}
- 
-static struct vendor_fns vs_acer = 
-{
-	acer_dmainit,
-	acer_status
-};
-	
-	 
-
 /* Generic SFF-8038i code-- all code below here, except for PCI probes,
  * more or less conforms to the SFF-8038i spec as extended for PCI.
  * There should be no code that goes beyond that feature set below.
@@ -1145,7 +898,7 @@ mkcookie(int iobase_wd,
 	return cp;
 }
 
-static const char *
+static char *
 ide_pci_probe(pcici_t tag, pcidi_t type)
 {
 	u_long data;
@@ -1164,11 +917,7 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 		if (type == PROMISE_ULTRA33)
 	    		return ("Promise Ultra/33 IDE controller");
 		if (type == 0x05711106)
-		      return ("VIA 82C586x (Apollo) Bus-master IDE controller");
-		if (type == 0x01021078)
-			return ("Cyrix 5530 Bus-master IDE controller");
-		if (type == 0x522910b9)
-			return ("Acer Aladdin IV/V (M5229) Bus-master IDE controller");
+			return ("VIA 82C586x (Apollo) Bus-master IDE controller");
 		if (data & 0x8000)
 			return ("PCI IDE controller (busmaster capable)");
 #ifndef CMD640
@@ -1186,7 +935,7 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 static void
 ide_pci_attach(pcici_t tag, int unit)
 {
-	u_long class = 0, cmd;
+	u_long class, cmd;
 	int bmista_1, bmista_2;
 	int iobase_wd_1, iobase_wd_2, iobase_bm_1, iobase_bm_2;
 	int altiobase_wd_1, altiobase_wd_2;
@@ -1232,13 +981,6 @@ ide_pci_attach(pcici_t tag, int unit)
 		vp = &vs_promise;
 		break;
 
-	case 0x01021078: /* cyrix 5530 */
-		printf("cyrix 5530\n");
-		vp = &vs_cyrix_5530;
-		break;
-	case 0x522910B9: /* Acer Aladdin IV/V (M5229) */
-		vp = &vs_acer;
-		break;
 	default:
 		/* everybody else */
 		vp = &vs_generic;
@@ -1269,19 +1011,16 @@ ide_pci_attach(pcici_t tag, int unit)
 	}
 
 	iobase_bm_1 = pci_conf_read(tag, 0x20) & 0xfffc;
+	iobase_bm_2 = iobase_bm_1 + SFF8038_CTLR_1;
 	if (iobase_bm_1 == 0) {
-		printf("ide_pci: BIOS has not configured busmaster"
-			"I/O address,\n ide_pci:  giving up\n");
+		printf("ide_pci: BIOS has not configured busmaster I/O address,\n\
+ide_pci:  giving up\n");
 		return;
 	}
-	iobase_bm_2 = iobase_bm_1 + SFF8038_CTLR_1;
 
 	wddma[unit].wdd_candma = ide_pci_candma;
 	wddma[unit].wdd_dmainit = ide_pci_dmainit;
-	if (type == 0x01021078 /*CYRIX_5530*/)
-		wddma[unit].wdd_dmaverify = cyrix_5530_dmaverify;
-	else
-		wddma[unit].wdd_dmaverify = ide_pci_dmaverify;
+	wddma[unit].wdd_dmaverify = ide_pci_dmaverify;
 	wddma[unit].wdd_dmaprep = ide_pci_dmasetup;
 	wddma[unit].wdd_dmastart = ide_pci_dmastart;
 	wddma[unit].wdd_dmadone = ide_pci_dmadone;
@@ -1331,7 +1070,7 @@ ide_pci_attach(pcici_t tag, int unit)
 							if (dvup->id_id == 0) {
 								iobase_wd_2 = 0;
 								break;
-			    				}
+			    			}
 						}
 
 						if (dvup->id_unit == biotabunit + 2) {
@@ -1389,8 +1128,6 @@ ide_pci_attach(pcici_t tag, int unit)
 		if (bootverbose) {
 			vp->vendor_status(cookie);
 
-	bmista_1 = inb(iobase_bm_1 + BMISTA_PORT);
-	bmista_2 = inb(iobase_bm_2 + BMISTA_PORT);
 			printf("ide_pci: busmaster 0 status: %02x from port: %08x\n", 
 			       bmista_1, iobase_bm_1+BMISTA_PORT);
 
@@ -1401,7 +1138,9 @@ ide_pci_attach(pcici_t tag, int unit)
 		}
 	}
 
-	if (iobase_wd_2 != 0) {
+	if (bmista_1 & BMISTA_SIMPLEX || bmista_2 & BMISTA_SIMPLEX) {
+		printf("ide_pci: controller is simplex, no DMA on secondary channel\n");
+	} else if (iobase_wd_2 != 0) {
 		cookie = mkcookie(iobase_wd_2,
 				  ctlridx + 1,
 				  0, 
@@ -1423,8 +1162,6 @@ ide_pci_attach(pcici_t tag, int unit)
 		if (bootverbose) {
 			vp->vendor_status(cookie);
 
-	bmista_1 = inb(iobase_bm_1 + BMISTA_PORT);
-	bmista_2 = inb(iobase_bm_2 + BMISTA_PORT);
 			printf("ide_pci: busmaster 1 status: %02x from port: %08x\n",
 			       bmista_2, iobase_bm_2+BMISTA_PORT);
 
@@ -1449,17 +1186,16 @@ static struct pci_device ide_pci_device = {
 DATA_SET(pcidevice_set, ide_pci_device);
 
 /*
- * Return a cookie if we may be able to do DMA on the specified
- * (iobase_wd, ctlr, unit).
+ * Return a cookie if we can do DMA on the specified (iobase_wd, unit).
  */
 static void *
-ide_pci_candma(int iobase_wd, int ctlr, int unit)
+ide_pci_candma(int iobase_wd, int unit)
 {
 	struct ide_pci_cookie *cp;
 
 	cp = softc.cookies.lh_first;
 	while(cp) {
-		if (cp->ctlr == ctlr && cp->unit == unit &&
+		if (cp->ctlr == unit &&
 			((iobase_wd == 0) || (cp->iobase_wd == iobase_wd)))
 			break;
 		cp = cp->le.le_next;
@@ -1529,10 +1265,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 	u_long prd_base, prd_count;
 	u_long nbase, ncount, nend;
 	int iobase_bm;
-	u_long count;
-#ifdef DIAGNOSTIC
-	u_long checkcount;
-#endif
+	u_long count, checkcount;
 
 	prd = cp->prd;
 
@@ -1568,22 +1301,10 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 		 * Coalesce if physically contiguous and not crossing
 		 * 64k boundary. 
 		 */
-#if 0
-	/*
-	 * Aggregation is NOT an optimisation worth doing,
-	 * and the Cyrix UDMA controller screws itself 
-	 * in some aggregated situations.
-	 * We might as well just assign each 4K page a DMA entry
-	 * as this doesn't really gain us anything to aggregate them.
-	 * This was basically copied from my agregation code in the aha
-	 * driver, but I doubt it helped much there either. [JRE]
-	 */
 		if ((prd_base + prd_count == nbase) && 
 		    ((((nend - 1) ^ prd_base) & ~0xffff) == 0)) {
 			prd_count += ncount;
-		} else 
-#endif
-		{
+		} else {
 			prd[i].prd_base = prd_base;
 			prd[i].prd_count = (prd_count & 0xffff);
 			i++;
@@ -1670,10 +1391,11 @@ ide_pci_dmadone(void *xcp)
 static int
 ide_pci_status(void *xcp)
 {
+	struct ide_pci_cookie *cp = xcp;
 	int iobase_bm, status, bmista;
 
 	status = 0;
-	iobase_bm = ((struct ide_pci_cookie *)xcp)->iobase_bm;
+	iobase_bm = cp->iobase_bm;
 
 	bmista = inb(iobase_bm + BMISTA_PORT);
 
@@ -1683,6 +1405,7 @@ ide_pci_status(void *xcp)
 		status |= WDDS_ERROR;
 	if (bmista & BMISTA_DMA_ACTIVE)
 		status |= WDDS_ACTIVE;
+
 	return status;
 }
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: isapnp.c,v 1.3 1998/10/21 20:07:04 msmith Exp $
+ *      $Id: isapnp.c,v 1.1 1998/09/18 00:24:25 msmith Exp $
  */
 
 /*
@@ -43,17 +43,17 @@ static void	isapnp_write(int d, u_char r);
 static u_char	isapnp_read(int d);
 static void	isapnp_send_Initiation_LFSR();
 static int	isapnp_get_serial(u_int8_t *p);
-static int	isapnp_isolation_protocol(void);
-static void	isapnp_enumerate(void);
+static int	isapnp_isolation_protocol(struct pnpinfo **pnplist);
+static void	isapnp_enumerate(struct pnpinfo **pnplist);
 
 /* PnP read data port */
-int		isapnp_readport = 0;
+static int	pnp_rd_port;
 
 #define _PNP_ID_LEN	9
 
 struct pnphandler isapnphandler =
 {
-    "ISA bus",
+    "isapnp",
     isapnp_enumerate
 };
 
@@ -68,7 +68,7 @@ static u_char
 isapnp_read(int d)
 {
     outb (_PNP_ADDRESS, d);
-    return (inb(isapnp_readport));
+    return (inb(3 | (pnp_rd_port <<2)));
 }
 
 /*
@@ -104,11 +104,11 @@ isapnp_get_serial(u_int8_t *data)
     bzero(data, _PNP_ID_LEN);
     outb(_PNP_ADDRESS, SERIAL_ISOLATION);
     for (i = 0; i < 72; i++) {
-	bit = inb(isapnp_readport) == 0x55;
+	bit = inb((pnp_rd_port << 2) | 0x3) == 0x55;
 	delay(250);	/* Delay 250 usec */
 
 	/* Can't Short Circuit the next evaluation, so 'and' is last */
-	bit = (inb(isapnp_readport) == 0xaa) && bit;
+	bit = (inb((pnp_rd_port << 2) | 0x3) == 0xaa) && bit;
 	delay(250);	/* Delay 250 usec */
 
 	valid = valid || bit;
@@ -126,112 +126,87 @@ isapnp_get_serial(u_int8_t *data)
 }
 
 /*
- * Fills the buffer with resource info from the device.
- * Returns nonzero if the device fails to report
+ * Format a pnp id as a string in standard ISA PnP format, AAAIIRR
+ * where 'AAA' is the EISA ID, II is the product ID and RR the revision ID.
  */
-static int
-isapnp_get_resource_info(u_int8_t *buffer, int len)
+static char *
+isapnp_format(u_int8_t *data)
 {
-    int		i, j;
-    u_char	temp;
+    static char	idbuf[8];
+    const char	hextoascii[] = "0123456789abcdef";
 
-    for (i = 0; i < len; i++) {
-        outb(_PNP_ADDRESS, STATUS);
-        for (j = 0; j < 100; j++) {
-            if ((inb(isapnp_readport)) & 0x1)
-                break;
-            delay(1);
-        }
-        if (j == 100) {
-            printf("PnP device failed to report resource data\n");
-            return(1);
-        }
-        outb(_PNP_ADDRESS, RESOURCE_DATA);
-        temp = inb(isapnp_readport);
-        if (buffer != NULL)
-            buffer[i] = temp;
-    }
-    return(0);
+    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+    idbuf[2] = '@' + (data[1] & 0x1f);
+    idbuf[3] = hextoascii[(data[2] >> 4)];
+    idbuf[4] = hextoascii[(data[2] & 0xf)];
+    idbuf[5] = hextoascii[(data[3] >> 4)];
+    idbuf[6] = hextoascii[(data[3] & 0xf)];
+    idbuf[7] = 0;
 }
 
 /*
- * Scan Resource Data for useful information.
- *
- * We scan the resource data for compatible device IDs and
- * identifier strings; we only take the first identifier string
- * and assume it's for the card as a whole.
- *
- * Returns 0 if the scan completed OK, nonzero on error.
+ * Try to read a compatible device ID from the current device, return
+ * 1 if we found one.
  */
+#define READ_RSC(c)	{while ((isapnp_read(STATUS) & 1) == 0); (c) = isapnp_read(RESOURCE_DATA);}
 static int
-isapnp_scan_resdata(struct pnpinfo *pi)
+isapnp_getid(u_int8_t *data)
 {
-    u_char	tag, resinfo[8];
-    int		large_len, limit;
-    char	*str;
-
-    limit = 1000;
-    while ((limit-- > 0) && !isapnp_get_resource_info(&tag, 1)) {
-        if (PNP_RES_TYPE(tag) == 0) {
-            /* Small resource */
-            switch (PNP_SRES_NUM(tag)) {
-
-                case COMP_DEVICE_ID:
-                    /* Got a compatible device id resource */
-                    if (isapnp_get_resource_info(resinfo, PNP_SRES_LEN(tag)))
-			return(1);
-		    pnp_addident(pi, pnp_eisaformat(resinfo));
-
-                case END_TAG:
-		    return(0);
-                    break;
-
-                default:
-                    /* Skip this resource */
-                    if (isapnp_get_resource_info(NULL, PNP_SRES_LEN(tag)))
-			return(1);
-                    break;
-            }
-        } else {
-	    /* Large resource */
-	    if (isapnp_get_resource_info(resinfo, 2))
-		return(1);
-
-	    large_len = resinfo[1];
-	    large_len = (large_len << 8) + resinfo[0];
-
-	    switch(PNP_LRES_NUM(tag)) {
-
-	    case ID_STRING_ANSI:
-		str = malloc(large_len + 1);
-		if (isapnp_get_resource_info(str, large_len)) {
-		    free(str);
-		    return(1);
-		}
-		str[large_len] = 0;
-		if (pi->pi_desc == NULL) {
-		    pi->pi_desc = str;
-		} else {
-		    free(str);
-		}
-		break;
-		
-	    default:
-		/* Large resource, skip it */
-		if (isapnp_get_resource_info(NULL, large_len))
-		    return(1);
-	    }
+    int		discard, pos, len;
+    u_int8_t	c, t;
+    
+    discard = 0;
+    len = 0;
+    pos = 0;
+    
+    for (;;) {
+	READ_RSC(c);
+	/* skipping junk? */
+	if (discard > 0) {
+	    discard--;
+	    continue;
 	}
+	/* copying data? */
+	if (len > 0) {
+	    data[pos++] = c;
+	    /* got all data? */
+	    if (pos >= len)
+		return(1);
+	}
+	/* resource type */
+	if (c & 0x80) {		/* large resource, throw it away */
+	    if (c == 0xff)
+		return(0);	/* end of resources */
+	    READ_RSC(c);
+	    discard = c;
+	    READ_RSC(c);
+	    discard += ((int)c << 8);
+	    continue;
+	}
+	/* small resource */
+	t = (c >> 3) & 0xf;
+	if (t == 0xf)
+	    return(0);		/* end of resources */
+	if ((t == LOG_DEVICE_ID) || (t == COMP_DEVICE_ID)) {
+	    len = c & 7;
+	    pos = 0;
+	    continue;
+	}
+	discard = c & 7;	/* unwanted small resource */
     }
-    return(1);
+    
 }
 
+
 /*
- * Run the isolation protocol. Upon exiting, all cards are aware that
- * they should use isapnp_readport as the READ_DATA port.
+ * Run the isolation protocol. Use pnp_rd_port as the READ_DATA port
+ * value (caller should try multiple READ_DATA locations before giving
+ * up). Upon exiting, all cards are aware that they should use
+ * pnp_rd_port as the READ_DATA port.
  */
 static int
-isapnp_isolation_protocol(void)
+isapnp_isolation_protocol(struct pnpinfo **pilist)
 {
     int			csn;
     struct pnpinfo	*pi;
@@ -246,32 +221,30 @@ isapnp_isolation_protocol(void)
     for (csn = 1; ; csn++) {
 	/* Wake up cards without a CSN (ie. all of them) */
 	isapnp_write(WAKE, 0);
-	isapnp_write(SET_RD_DATA, (isapnp_readport >> 2));
+	isapnp_write(SET_RD_DATA, pnp_rd_port);
 	outb(_PNP_ADDRESS, SERIAL_ISOLATION);
 	delay(1000);	/* Delay 1 msec */
 
 	if (isapnp_get_serial(cardid)) {
 	    isapnp_write(SET_CSN, csn);
-	    pi = pnp_allocinfo();
+	    pi = malloc(sizeof(struct pnpinfo));
+	    pi->pi_next = *pilist;
+	    *pilist = pi;
 	    ndevs++;
-	    pnp_addident(pi, pnp_eisaformat(cardid));
 	    /* scan the card obtaining all the identifiers it holds */
-	    if (isapnp_scan_resdata(pi)) {
-		pnp_freeinfo(pi);	/* error getting data, ignore */
-	    } else {
-		pnp_addinfo(pi);
+	    while (isapnp_getid(cardid)) {
+		printf("   %s\n", isapnp_format(cardid));
+		pnp_addident(pi, isapnp_format(cardid));
 	    }
-	} else {
+	} else
 	    break;
-	}
     }
     /* Move all cards to wait-for-key state */
-    while (--csn > 0) {
+    while (csn >= 0) {
 	isapnp_send_Initiation_LFSR();
 	isapnp_write(WAKE, csn);
 	isapnp_write(CONFIG_CONTROL, 0x02);
 	delay(1000); /* XXX is it really necessary ? */
-	csn--;
     }
     return(ndevs);
 }
@@ -280,40 +253,17 @@ isapnp_isolation_protocol(void)
  * Locate ISA-PnP devices and populate the supplied list.
  */
 static void
-isapnp_enumerate(void) 
+isapnp_enumerate(struct pnpinfo **pnplist) 
 {
-    int		pnp_rd_port;
-    
-    /* Check for I/O port access */
-    if ((archsw.arch_isainb == NULL) || (archsw.arch_isaoutb == NULL))
-	return;
+    int			devs;
 
-    /* 
-     * Validate a possibly-suggested read port value.  If the autoscan failed
-     * last time, this will return us to autoscan mode again.
-     */
-    if ((isapnp_readport > 0) &&
-	(((isapnp_readport < 0x203) ||
-	  (isapnp_readport > 0x3ff) ||
-	  (isapnp_readport & 0x3) != 0x3)))
-	 /* invalid, go look for ourselves */
-	isapnp_readport = 0;
-
-    if (isapnp_readport < 0) {
-	/* someone is telling us there is no ISA in the system */
-	return;
-
-    } else if (isapnp_readport > 0) {
-	/* Someone has told us where the port is/should be, or we found one last time */
-	isapnp_isolation_protocol();
-
-    } else {
-	/* No clues, look for it ourselves */
-	for (pnp_rd_port = 0x80; pnp_rd_port < 0xff; pnp_rd_port += 0x10) {
-	    /* Look for something, quit when we find it */
-	    isapnp_readport = (pnp_rd_port << 2) | 0x3;
-	    if (isapnp_isolation_protocol() > 0)
-		break;
-	}
+    for (pnp_rd_port = 0x80; pnp_rd_port < 0xff; pnp_rd_port += 0x10) {
+	
+	/* Look for something, quit when we find it */
+	if ((devs = isapnp_isolation_protocol(pnplist)) > 0)
+	    break;
     }
+    printf("Found %d ISA PnP devices\n", devs);
 }
+
+

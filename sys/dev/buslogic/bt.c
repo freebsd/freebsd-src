@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.12 1998/12/04 22:54:44 archie Exp $
+ *      $Id: bt.c,v 1.6 1998/10/15 23:17:58 gibbs Exp $
  */
 
  /*
@@ -181,26 +181,12 @@ u_long bt_unit = 0;
  */
 struct bt_isa_port bt_isa_ports[] =
 {
-	{ 0x130, 0, 4 },
-	{ 0x134, 0, 5 },
-	{ 0x230, 0, 2 },
-	{ 0x234, 0, 3 },
-	{ 0x330, 0, 0 },
-	{ 0x334, 0, 1 }
-};
-
-/*
- * I/O ports listed in the order enumerated by the
- * card for certain op codes.
- */
-u_int16_t bt_board_ports[] =
-{
-	0x330,
-	0x334,
-	0x230,
-	0x234,
-	0x130,
-	0x134
+	{ 0x330, 0 },
+	{ 0x334, 0 },
+	{ 0x230, 0 },
+	{ 0x234, 0 },
+	{ 0x130, 0 },
+	{ 0x134, 0 }
 };
 
 /* Exported functions */
@@ -449,15 +435,15 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 
 	if (esetup_info.bus_type == 'A'
 	 && bt->firmware_ver[0] == '2') {
-		snprintf(bt->model, sizeof(bt->model), "542B");
+		strcpy(bt->model, "542B");
 	} else if (esetup_info.bus_type == 'E'
 		&& (strncmp(bt->firmware_ver, "2.1", 3) == 0
 		 || strncmp(bt->firmware_ver, "2.20", 4) == 0)) {
-		snprintf(bt->model, sizeof(bt->model), "742A");
+		strcpy(bt->model, "742A");
 	} else if (esetup_info.bus_type == 'E'
 		&& bt->firmware_ver[0] == '0') {
 		/* AMI FastDisk EISA Series 441 0.x */
-		snprintf(bt->model, sizeof(bt->model), "747A");
+		strcpy(bt->model, "747A");
 	} else {
 		ha_model_data_t model_data;
 		int i;
@@ -819,7 +805,7 @@ bt_name(struct bt_softc *bt)
 {
 	static char name[10];
 
-	snprintf(name, sizeof(name), "bt%d", bt->unit);
+	sprintf(name, "bt%d", bt->unit);
 	return (name);
 }
 
@@ -828,7 +814,7 @@ bt_check_probed_iop(u_int ioport)
 {
 	u_int i;
 
-	for (i = 0; i < BT_NUM_ISAPORTS; i++) {
+	for (i=0; i < BT_NUM_ISAPORTS; i++) {
 		if (bt_isa_ports[i].addr == ioport) {
 			if (bt_isa_ports[i].probed != 0)
 				return (1);
@@ -844,7 +830,7 @@ void
 bt_mark_probed_bio(isa_compat_io_t port)
 {
 	if (port < BIO_DISABLED)
-		bt_mark_probed_iop(bt_board_ports[port]);
+		bt_isa_ports[port].probed = 1;
 }
 
 void
@@ -859,44 +845,6 @@ bt_mark_probed_iop(u_int ioport)
 		}
 	}
 }
-
-void
-bt_find_probe_range(int ioport, int *port_index, int *max_port_index)
-{
-	if (ioport > 0) {
-		int i;
-
-		for (i = 0;i < BT_NUM_ISAPORTS; i++)
-			if (ioport <= bt_isa_ports[i].addr)
-				break;
-		if ((i >= BT_NUM_ISAPORTS)
-		 || (ioport != bt_isa_ports[i].addr)) {
-			printf("
-bt_isa_probe: Invalid baseport of 0x%x specified.
-bt_isa_probe: Nearest valid baseport is 0x%x.
-bt_isa_probe: Failing probe.\n",
-			       ioport,
-			       (i < BT_NUM_ISAPORTS)
-				    ? bt_isa_ports[i].addr
-				    : bt_isa_ports[BT_NUM_ISAPORTS - 1].addr);
-			*port_index = *max_port_index = -1;
-			return;
-		}
-		*port_index = *max_port_index = bt_isa_ports[i].bio;
-	} else {
-		*port_index = 0;
-		*max_port_index = BT_NUM_ISAPORTS - 1;
-	}
-}
-
-int
-bt_iop_from_bio(isa_compat_io_t bio_index)
-{
-	if (bio_index >= 0 && bio_index < BT_NUM_ISAPORTS)
-		return (bt_board_ports[bio_index]);
-	return (-1);
-}
-
 
 static void
 btallocccbs(struct bt_softc *bt)
@@ -970,7 +918,6 @@ btfreeccb(struct bt_softc *bt, struct bt_ccb *bccb)
 	}
 	bccb->flags = BCCB_FREE;
 	SLIST_INSERT_HEAD(&bt->free_bt_ccbs, bccb, links);
-	bt->active_ccbs--;
 	splx(s);
 }
 
@@ -983,16 +930,13 @@ btgetccb(struct bt_softc *bt)
 	s = splcam();
 	if ((bccb = SLIST_FIRST(&bt->free_bt_ccbs)) != NULL) {
 		SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
-		bt->active_ccbs++;
 	} else if (bt->num_ccbs < bt->max_ccbs) {
 		btallocccbs(bt);
 		bccb = SLIST_FIRST(&bt->free_bt_ccbs);
 		if (bccb == NULL)
 			printf("%s: Can't malloc BCCB\n", bt_name(bt));
-		else {
+		else
 			SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
-			bt->active_ccbs++;
-		}
 	}
 	splx(s);
 
@@ -1015,6 +959,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct	bt_ccb	*bccb;
 		struct	bt_hccb *hccb;
+		u_int16_t targ_mask;
 
 		/*
 		 * get a bccb to use.
@@ -1047,6 +992,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 		hccb->target_lun = ccb->ccb_h.target_lun;
 		hccb->btstat = 0;
 		hccb->sdstat = 0;
+		targ_mask = (0x01 << hccb->target_id);
 
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			struct ccb_scsiio *csio;
@@ -1055,8 +1001,8 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 			csio = &ccb->csio;
 			ccbh = &csio->ccb_h;
 			hccb->opcode = INITIATOR_CCB_WRESID;
-			hccb->datain = (ccb->ccb_h.flags & CAM_DIR_IN) ? 1 : 0;
-			hccb->dataout =(ccb->ccb_h.flags & CAM_DIR_OUT) ? 1 : 0;
+			hccb->datain = (ccb->ccb_h.flags & CAM_DIR_IN) != 0;
+			hccb->dataout = (ccb->ccb_h.flags & CAM_DIR_OUT) != 0;
 			hccb->cmd_len = csio->cdb_len;
 			if (hccb->cmd_len > sizeof(hccb->scsi_cdb)) {
 				ccb->ccb_h.status = CAM_REQ_INVALID;
@@ -1365,7 +1311,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		bus_dmamap_sync(bt->buffer_dmat, bccb->dmamap, op);
 
 	} else {
-		bccb->hccb.opcode = INITIATOR_CCB;
+		bccb->hccb.opcode = INITIATOR_SG_CCB;
 		bccb->hccb.data_len = 0;
 		bccb->hccb.data_addr = 0;
 	}
@@ -1395,27 +1341,8 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	/* Tell the adapter about this command */
 	bt->cur_outbox->ccb_addr = btccbvtop(bt, bccb);
-	if (bt->cur_outbox->action_code != BMBO_FREE) {
-		/*
-		 * We should never encounter a busy mailbox.
-		 * If we do, warn the user, and treat it as
-		 * a resource shortage.  If the controller is
-		 * hung, one of the pending transactions will
-		 * timeout causing us to start recovery operations.
-		 */
-		printf("%s: Encountered busy mailbox with %d out of %d "
-		       "commands active!!!", bt_name(bt), bt->active_ccbs,
-		       bt->max_ccbs);
-		untimeout(bttimeout, bccb, ccb->ccb_h.timeout_ch);
-		if (nseg != 0)
-			bus_dmamap_unload(bt->buffer_dmat, bccb->dmamap);
-		btfreeccb(bt, bccb);
-		bt->resource_shortage = TRUE;
-		xpt_freeze_simq(bt->sim, /*count*/1);
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
-		xpt_done(ccb);
-		return;
-	}
+	if (bt->cur_outbox->action_code != BMBO_FREE)
+		panic("%s: Too few mailboxes or to many ccbs???", bt_name(bt));
 	bt->cur_outbox->action_code = BMBO_START;	
 	bt_outb(bt, COMMAND_REG, BOP_START_MBOX);
 	btnextoutbox(bt);
@@ -1536,22 +1463,14 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 		break;
 	case BMBI_ABORT:
 	case BMBI_ERROR:
-		if (bootverbose) {
-			printf("bt: ccb %p - error %x occured.  "
-			       "btstat = %x, sdstat = %x\n",
-			       (void *)bccb, comp_code, bccb->hccb.btstat,
-			       bccb->hccb.sdstat);
-		}
+#if 0
+		printf("bt: ccb %x - error %x occured.  btstat = %x, sdstat = %x\n",
+		       bccb, comp_code, bccb->hccb.btstat, bccb->hccb.sdstat);
+#endif
 		/* An error occured */
 		switch(bccb->hccb.btstat) {
 		case BTSTAT_DATARUN_ERROR:
-			if (bccb->hccb.data_len == 0) {
-				/*
-				 * At least firmware 4.22, does this
-				 * for a QUEUE FULL condition.
-				 */
-				bccb->hccb.sdstat = SCSI_STATUS_QUEUE_FULL;
-			} else if (bccb->hccb.data_len < 0) {
+			if (bccb->hccb.data_len <= 0) {
 				csio->ccb_h.status = CAM_DATA_RUN_ERR;
 				break;
 			}
@@ -1779,13 +1698,11 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	u_int	intstat;
 	u_int	reply_buf_size;
 	int	s;
-	int	cmd_complete;
 
 	/* No data returned to start */
 	reply_buf_size = reply_len;
 	reply_len = 0;
 	intstat = 0;
-	cmd_complete = 0;
 
 	bt->command_cmp = 0;
 	/*
@@ -1821,13 +1738,10 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
-		 == (INTR_PENDING|CMD_COMPLETE)) {
-			cmd_complete = 1;
+		 == (INTR_PENDING|CMD_COMPLETE))
 			break;
-		}
 		if (bt->command_cmp != 0) {
 			status = bt->latched_status;
-			cmd_complete = 1;
 			break;
 		}
 		if ((status & DATAIN_REG_READY) != 0)
@@ -1849,7 +1763,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	 * the CMD_REG_BUSY status to clear and check for a command
 	 * failure.
 	 */
-	if (cmd_complete == 0 && opcode == BOP_MODIFY_IO_ADDR) {
+	if (opcode == BOP_MODIFY_IO_ADDR) {
 
 		while (--cmd_timeout) {
 			status = bt_inb(bt, STATUS_REG);
@@ -1874,7 +1788,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	 * For all other commands, we wait for any output data
 	 * and the final comand completion interrupt.
 	 */
-	while (cmd_complete == 0 && --cmd_timeout) {
+	while (--cmd_timeout) {
 
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);

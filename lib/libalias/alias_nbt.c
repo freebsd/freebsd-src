@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: alias_nbt.c,v 1.1 1998/05/24 03:03:10 amurai Exp $
+ * $Id:$
  *
  *  TODO:
  *       oClean up. 
@@ -132,21 +132,15 @@ void PrintRcode( u_char rcode )  {
 
 
 /* Handling Name field */
-u_char *AliasHandleName ( u_char *p, char *pmax ) {
+u_char *AliasHandleName ( u_char *p ) {
 
 	u_char *s;
 	u_char c;
 	int		compress;
 
 	/* Following length field */
-
-	if (p == NULL || (char *)p >= pmax)
-		return(NULL);
-
 	if (*p & 0xc0 ) {
 		p = p + 2;
-		if ((char *)p > pmax)
-			return(NULL);
 		return ((u_char *)p);
 	}
 	while ( ( *p & 0x3f) != 0x00 ) {
@@ -158,10 +152,6 @@ u_char *AliasHandleName ( u_char *p, char *pmax ) {
 		
 	 	/* Get next length field */
 		p = (u_char *)(p + (*p & 0x3f) + 1);
-		if ((char *)p > pmax) {
-			p = NULL;
-			break;
-		}
 #ifdef DEBUG
 		printf(":");
 #endif
@@ -189,10 +179,7 @@ u_char *AliasHandleName ( u_char *p, char *pmax ) {
     }
 
 	/* Set up to out of Name field */
-	if (p == NULL || (char *)p >= pmax)
-	    p = NULL;
-	else
-	    p++;
+	p++;
 	return ((u_char *)p);
 }
 
@@ -207,24 +194,19 @@ u_char *AliasHandleName ( u_char *p, char *pmax ) {
 #define DGM_POSITIVE_RES	0x15
 #define DGM_NEGATIVE_RES	0x16
 
-int AliasHandleUdpNbt(
+void AliasHandleUdpNbt(
 	struct ip 		  	*pip,	 /* IP packet to examine/patch */
 	struct alias_link 	*link,
 	struct in_addr		*alias_address,
-    u_short 		alias_port
-) {
+	u_short 			alias_port )
+{
     struct udphdr *	uh;
     NbtDataHeader 	*ndh;
-    u_char		*p = NULL;
-    char		*pmax;
+	u_char			*p;
         
     /* Calculate data length of UDP packet */
     uh =  (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
-    pmax = (char *)uh + ntohs( uh->uh_ulen );
-
 	ndh = (NbtDataHeader *)((char *)uh + (sizeof (struct udphdr)));
-    if ((char *)(ndh + 1) > pmax)
-	    return(-1);
 #ifdef DEBUG
 	printf("\nType=%02x,", ndh->type );
 #endif
@@ -233,8 +215,8 @@ int AliasHandleUdpNbt(
 		case DGM_DIRECT_GROUP:
 		case DGM_BROADCAST:
 			p = (u_char *)ndh + 14;
-		    p = AliasHandleName ( p, pmax ); /* Source Name */
-		    p = AliasHandleName ( p, pmax ); /* Destination Name */
+			p = AliasHandleName ( p ); /* Source Name */
+			p = AliasHandleName ( p ); /* Destination Name */
 			break;
 		case DGM_ERROR:
 			p = (u_char *)ndh + 11;
@@ -243,11 +225,9 @@ int AliasHandleUdpNbt(
 		case DGM_POSITIVE_RES:
 		case DGM_NEGATIVE_RES:
 			p = (u_char *)ndh + 10;
-		    p = AliasHandleName ( p, pmax ); /* Destination Name */
+			p = AliasHandleName ( p ); /* Destination Name */
 			break;
 	}
-    if (p == NULL || (char *)p > pmax)
-	    p = NULL;
 #ifdef DEBUG
 	printf("%s:%d-->", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port) );
 #endif
@@ -271,7 +251,6 @@ int AliasHandleUdpNbt(
 	printf("%s:%d\n", inet_ntoa(ndh->source_ip), ntohs(ndh->source_port) );
 	fflush(stdout);
 #endif
-    return((p == NULL) ? -1 : 0);
 }
 /* Question Section */
 #define QS_TYPE_NB		0x0020
@@ -282,22 +261,14 @@ typedef struct {
 	u_short	class;	/* The class of Request */
 } NBTNsQuestion;
 
-u_char *
-AliasHandleQuestion(
-    u_short count,
+u_char *AliasHandleQuestion(u_short count,
 							NBTNsQuestion *q,
-    char *pmax,
 							NBTArguments  *nbtarg)
 {
 
 	while ( count != 0 ) {
 		/* Name Filed */
-		q = (NBTNsQuestion *)AliasHandleName((u_char *)q, pmax);
-
-		if (q == NULL || (char *)(q + 1) > pmax) {
-			q = NULL;
-			break;
-		}
+		q = (NBTNsQuestion *)AliasHandleName((u_char *)q );
 
 		/* Type and Class filed */
 		switch ( ntohs(q->type) ) {
@@ -337,17 +308,12 @@ typedef struct {
 	struct	in_addr	addr;
 } NBTNsRNB;
 
-u_char *
-AliasHandleResourceNB( 
-    NBTNsResource *q,
-    char *pmax, 
+u_char *AliasHandleResourceNB( NBTNsResource *q,
 							   NBTArguments  *nbtarg)
 {
 	NBTNsRNB	*nb;
 	u_short bcount;
 
-	if (q == NULL || (char *)(q + 1) > pmax)
-		return(NULL);
 	/* Check out a length */
 	bcount = ntohs(q->rdlen);
 
@@ -359,11 +325,7 @@ AliasHandleResourceNB(
 	printf("NB rec[%s", inet_ntoa(nbtarg->oldaddr));
             printf("->%s, %dbytes] ",inet_ntoa(nbtarg->newaddr ), bcount);
 #endif
-	while ( nb != NULL && bcount != 0 )  {
-		if ((char *)(nb + 1) > pmax) {
-			nb = NULL;
-			break;
-		}
+	while ( bcount != 0 )  {
 #ifdef DEBUG
 		printf("<%s>", inet_ntoa(nb->addr) );
 #endif
@@ -394,9 +356,6 @@ AliasHandleResourceNB(
 		nb=(NBTNsRNB *)((u_char *)nb + SizeOfNsRNB);
 	 	bcount -= SizeOfNsRNB;
 	}
-	if (nb == NULL || (char *)(nb + 1) > pmax) {
-		nb = NULL;
-	}
 
 	return ((u_char *)nb);
 }
@@ -406,17 +365,11 @@ typedef struct {
 	struct	in_addr	addr;
 } NBTNsResourceA;
 
-u_char *
-AliasHandleResourceA( 
-    NBTNsResource *q,
-    char *pmax,
+u_char *AliasHandleResourceA( NBTNsResource *q,
 						 	  NBTArguments  *nbtarg)
 {
 	NBTNsResourceA	*a;
 	u_short bcount;
-
-	if (q == NULL || (char *)(q + 1) > pmax)
-		return(NULL);
 
 	/* Forward to Resource A position */
 	a = (NBTNsResourceA *)( (u_char *)q + sizeof(NBTNsResource) );
@@ -430,8 +383,6 @@ AliasHandleResourceA(
         printf("->%s]",inet_ntoa(nbtarg->newaddr ));
 #endif
 	while ( bcount != 0 )  {
-		if (a == NULL || (char *)(a + 1) > pmax)
-			return(NULL);
 #ifdef DEBUG
 		printf("..%s", inet_ntoa(a->addr) );
 #endif
@@ -454,8 +405,6 @@ AliasHandleResourceA(
 		a++;	/*XXXX*/
 		bcount -= SizeOfResourceA;
 	}
-	if (a == NULL || (char *)(a + 1) > pmax)
-		a =  NULL;
 	return ((u_char *)a);
 }
 
@@ -463,17 +412,11 @@ typedef struct {
 	u_short opcode:4, flags:8, resv:4;
 } NBTNsResourceNULL;
 
-u_char *
-AliasHandleResourceNULL( 
-    NBTNsResource *q, 
-    char *pmax,
+u_char *AliasHandleResourceNULL( NBTNsResource *q,
 						 	     NBTArguments  *nbtarg)
 {
 	NBTNsResourceNULL	*n;
 	u_short bcount;
-
-	if (q == NULL || (char *)(q + 1) > pmax)
-		return(NULL);
 
 	/* Forward to Resource NULL position */
 	n = (NBTNsResourceNULL *)( (u_char *)q + sizeof(NBTNsResource) );
@@ -483,30 +426,18 @@ AliasHandleResourceNULL(
 
 	/* Processing all in_addr array */
 	while ( bcount != 0 )  {
-		if ((char *)(n + 1) > pmax) {
-			n = NULL;
-			break;
-		}
 		n++;
 		bcount -= sizeof(NBTNsResourceNULL);
 	}
-	if ((char *)(n + 1) > pmax)
-		n = NULL;
 
 	return ((u_char *)n);
 }
 
-u_char *
-AliasHandleResourceNS( 
-    NBTNsResource *q,
-    char *pmax,
+u_char *AliasHandleResourceNS( NBTNsResource *q,
 						 	     NBTArguments  *nbtarg)
 {
 	NBTNsResourceNULL	*n;
 	u_short bcount;
-
-	if (q == NULL || (char *)(q + 1) > pmax)
-		return(NULL);
 
 	/* Forward to Resource NULL position */
 	n = (NBTNsResourceNULL *)( (u_char *)q + sizeof(NBTNsResource) );
@@ -515,11 +446,8 @@ AliasHandleResourceNS(
 	bcount = ntohs(q->rdlen);
 
 	/* Resource Record Name Filed */
-	q = (NBTNsResource *)AliasHandleName( (u_char *)n, pmax ); /* XXX */
+	q = (NBTNsResource *)AliasHandleName( (u_char *)n ); /* XXX */
 
-	if (q == NULL || (char *)((u_char *)n + bcount) > pmax)
-		return(NULL);
-	else
 	return ((u_char *)n + bcount);
 }
 
@@ -527,17 +455,11 @@ typedef struct {
 	u_short	numnames;
 } NBTNsResourceNBSTAT;
 
-u_char *
-AliasHandleResourceNBSTAT(
-    NBTNsResource *q,
-    char *pmax,
+u_char *AliasHandleResourceNBSTAT( NBTNsResource *q,
 						 	       NBTArguments  *nbtarg)
 {
 	NBTNsResourceNBSTAT	*n;
 	u_short bcount;
-
-	if (q == NULL || (char *)(q + 1) > pmax)
-		return(NULL);
 
 	/* Forward to Resource NBSTAT position */
 	n = (NBTNsResourceNBSTAT *)( (u_char *)q + sizeof(NBTNsResource) );
@@ -545,26 +467,16 @@ AliasHandleResourceNBSTAT(
 	/* Check out of length */
 	bcount = ntohs(q->rdlen);
 
-	if (q == NULL || (char *)((u_char *)n + bcount) > pmax)
-		return(NULL);
-	else
 	return ((u_char *)n + bcount);
 }
 
-u_char *
-AliasHandleResource(
-    u_short count, 
+u_char *AliasHandleResource(u_short count,
 							NBTNsResource *q,
-    char *pmax,
-    NBTArguments  
-    *nbtarg)
+							NBTArguments  *nbtarg)
 {
 	while ( count != 0 ) {
 		/* Resource Record Name Filed */
-		q = (NBTNsResource *)AliasHandleName( (u_char *)q, pmax );
-
-		if (q == NULL || (char *)(q + 1) > pmax)
-			break;
+		q = (NBTNsResource *)AliasHandleName( (u_char *)q );
 #ifdef DEBUG
 		printf("type=%02x, count=%d\n", ntohs(q->type), count );
 #endif
@@ -572,45 +484,22 @@ AliasHandleResource(
 		/* Type and Class filed */
 		switch ( ntohs(q->type) ) {
 			case RR_TYPE_NB:
-				q = (NBTNsResource *)AliasHandleResourceNB( 
-				    q,
-				    pmax,
-				    nbtarg 
-				);
+				q = (NBTNsResource *)AliasHandleResourceNB( q, nbtarg );
 				break;
 			case RR_TYPE_A: 
-				q = (NBTNsResource *)AliasHandleResourceA( 
-				    q, 
-				    pmax, 
-				    nbtarg
-				);
+				q = (NBTNsResource *)AliasHandleResourceA( q, nbtarg );
 				break;
 			case RR_TYPE_NS:
-				q = (NBTNsResource *)AliasHandleResourceNS( 
-				    q,
-				    pmax, 
-				    nbtarg 
-				);
+				q = (NBTNsResource *)AliasHandleResourceNS( q, nbtarg );
 				break;
 			case RR_TYPE_NULL:
-				q = (NBTNsResource *)AliasHandleResourceNULL( 
-				    q, 
-				    pmax, 
-				    nbtarg 
-				);
+				q = (NBTNsResource *)AliasHandleResourceNULL( q, nbtarg );
 				break;
 			case RR_TYPE_NBSTAT:
-				q = (NBTNsResource *)AliasHandleResourceNBSTAT(
-				    q,
-				    pmax, 
-				    nbtarg
-				);
+				q = (NBTNsResource *)AliasHandleResourceNBSTAT( q, nbtarg );
 				break;
-			default: 
-				printf(
-				    "\nUnknown Type of Resource %0x\n", 
-				    ntohs(q->type) 
-				);
+			default: printf("\nUnknown Type of Resource %0x\n",
+								 ntohs(q->type) );
 				break;
 		}
 		count--;
@@ -619,7 +508,7 @@ AliasHandleResource(
 	return ((u_char *)q);
 }
 
-int AliasHandleUdpNbtNS(
+void AliasHandleUdpNbtNS(
 	struct ip 		  	*pip,	 /* IP packet to examine/patch */
 	struct alias_link 	*link,
 	struct in_addr		*alias_address,
@@ -629,8 +518,8 @@ int AliasHandleUdpNbtNS(
 {
     struct udphdr *	uh;
 	NbtNSHeader	  * nsh;
+	u_short		    dlen;
 	u_char		  * p;
-	char		*pmax;
 	NBTArguments    nbtarg;
 
 	/* Set up Common Parameter */	
@@ -642,16 +531,12 @@ int AliasHandleUdpNbtNS(
     /* Calculate data length of UDP packet */
     uh =  (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
 	nbtarg.uh_sum	=	&(uh->uh_sum);
+    dlen = ntohs( uh->uh_ulen );
 	nsh = (NbtNSHeader *)((char *)uh + (sizeof(struct udphdr)));
 	p = (u_char *)(nsh + 1);
-    pmax = (char *)uh + ntohs( uh->uh_ulen );
-
-    if ((char *)(nsh + 1) > pmax)
-	return(-1);
 
 #ifdef DEBUG
-    printf(" [%s] ID=%02x, op=%01x, flag=%02x, rcode=%01x, qd=%04x"
-	   ", an=%04x, ns=%04x, ar=%04x, [%d]-->", 
+	printf(" [%s] ID=%02x, op=%01x, flag=%02x, rcode=%01x, qd=%04x, an=%04x, ns=%04x, ar=%04x, [%d]-->", 
 		nsh->dir ? "Response": "Request",
 		nsh->nametrid,
 		nsh->opcode,
@@ -661,53 +546,31 @@ int AliasHandleUdpNbtNS(
 		ntohs(nsh->ancount),
 		ntohs(nsh->nscount),
 		ntohs(nsh->arcount),
-	(u_char *)p -(u_char *)nsh
-    );
+		(u_char *)p -(u_char *)nsh);
 #endif
 
 	/* Question Entries */
 	if (ntohs(nsh->qdcount) !=0 ) {
-	p = AliasHandleQuestion(
-	    ntohs(nsh->qdcount),
-	    (NBTNsQuestion *)p,
-	    pmax, 
-	    &nbtarg 
-	);
+	p = AliasHandleQuestion(ntohs(nsh->qdcount), (NBTNsQuestion *)p, &nbtarg );
 	}
 
 	/* Answer Resource Records */
 	if (ntohs(nsh->ancount) !=0 ) {
-	p = AliasHandleResource(
-	    ntohs(nsh->ancount),
-	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
-	);
+	p = AliasHandleResource(ntohs(nsh->ancount), (NBTNsResource *)p, &nbtarg );
 	}
 
 	/* Authority Resource Recodrs */
 	if (ntohs(nsh->nscount) !=0 ) {
-	p = AliasHandleResource(
-	    ntohs(nsh->nscount), 
-	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
-	);
+	p = AliasHandleResource(ntohs(nsh->nscount), (NBTNsResource *)p, &nbtarg );
 	}
 
 	/* Additional Resource Recodrs */
 	if (ntohs(nsh->arcount) !=0 ) {
-	p = AliasHandleResource(
-	    ntohs(nsh->arcount),
-	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
-	);
+	p = AliasHandleResource(ntohs(nsh->arcount), (NBTNsResource *)p, &nbtarg );
 	}
 
 #ifdef DEBUG
 	 	PrintRcode(nsh->rcode);
 #endif
-    return ((p == NULL) ? -1 : 0);
+	return;
 }
-

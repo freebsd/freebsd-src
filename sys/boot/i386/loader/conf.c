@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.9 1998/10/22 20:23:58 msmith Exp $
+ *	$Id: conf.c,v 1.6 1998/09/30 19:48:42 peter Exp $
  */
 
 #include <stand.h>
@@ -85,12 +85,10 @@ struct console *consoles[] = {
 };
 
 extern struct pnphandler isapnphandler;
-extern struct pnphandler biospnphandler;
-extern struct pnphandler biospcihandler;
+/* extern struct pnphandler pcipnphandler;*/
 
 struct pnphandler *pnphandlers[] = {
-    &biospnphandler,		/* should go first, as it may set isapnp_readport */
-    &isapnphandler,
-    &biospcihandler,
+/*    &isapnphandler, */
+/*    &pcipnphandler, */
     NULL
 };

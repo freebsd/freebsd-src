@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.48 1998/10/28 13:37:02 dg Exp $
+ * $Id: vm_page.h,v 1.45 1998/09/01 17:12:19 wollman Exp $
  */
 
 /*
@@ -203,6 +203,7 @@ extern struct vpgqueues {
  */
 #define	PG_BUSY		0x01		/* page is in transit (O) */
 #define	PG_WANTED	0x02		/* someone is waiting for page (O) */
+#define	PG_TABLED	0x04		/* page is in an object (O) */
 #define	PG_FICTITIOUS	0x08		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x10		/* page is mapped writeable */
 #define PG_MAPPED	0x20		/* page is mapped */
@@ -361,7 +362,7 @@ vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
 void vm_page_remove __P((vm_page_t));
 void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
-void vm_page_unwire __P((vm_page_t, int));
+void vm_page_unwire __P((vm_page_t));
 void vm_page_wire __P((vm_page_t));
 void vm_page_unqueue __P((vm_page_t));
 void vm_page_unqueue_nowakeup __P((vm_page_t));
@@ -391,8 +392,12 @@ vm_page_hold(vm_page_t mem)
 static __inline void
 vm_page_unhold(vm_page_t mem)
 {
+#ifdef DIAGNOSTIC
+	if (--mem->hold_count < 0)
+		panic("vm_page_unhold: hold count < 0!!!");
+#else
 	--mem->hold_count;
-	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
+#endif
 }
 
 static __inline void

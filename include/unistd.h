@@ -202,7 +202,6 @@ pid_t	 vfork __P((void));
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt __P((char **, char * const *, char **));
 #endif /* !_POSIX_SOURCE */
-extern int optreset;			/* getopt(3) external variable */
 __END_DECLS
 
 #endif /* !_UNISTD_H_ */

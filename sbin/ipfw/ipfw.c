@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.63 1998/12/14 18:43:03 luigi Exp $
+ * $Id: ipfw.c,v 1.59 1998/08/04 14:41:37 thepish Exp $
  *
  */
 
@@ -25,21 +25,18 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
-#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <netdb.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -48,22 +45,17 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#include <net/route.h> /* def. of struct route */
-#include <sys/param.h>
-#include <sys/mbuf.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
 int 		lineno = -1;
 
 int 		s;				/* main RAW socket 	   */
-int 		do_resolv=0;			/* Would try to resolve all */
+int 		do_resolv=0;			/* Would try to resolv all */
 int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
 int		do_quiet=0;			/* Be quiet in add and flush  */
 int		do_force=0;			/* Don't ask for confirmation */
-int		do_pipe=0;                      /* this cmd refers to a pipe */
 
 struct icmpcode {
 	int	code;
@@ -224,9 +216,6 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		case IP_FW_F_SKIPTO:
 			printf("skipto %u", chain->fw_skipto_rule);
 			break;
-                case IP_FW_F_PIPE:
-                        printf("pipe %u", chain->fw_skipto_rule);
-                        break ;
 		case IP_FW_F_REJECT:
 			if (chain->fw_reject_code == IP_FW_REJECT_RST)
 				printf("reset");
@@ -422,64 +411,12 @@ list(ac, av)
 {
 	struct ip_fw *r;
 	struct ip_fw rules[1024];
-	struct dn_pipe *p;
-	struct dn_pipe pipes[1024];
 	int l,i,bytes;
 	unsigned long rulenum;
 	int pcwidth = 0;
 	int bcwidth = 0;
 
 	/* extract rules from kernel */
-        if (do_pipe) {
-            memset(rules,0,sizeof pipes);
-            bytes = sizeof pipes;
-            i = getsockopt(s, IPPROTO_IP, IP_DUMMYNET_GET, pipes, &bytes);
-            if (i < 0)
-                    err(2,"getsockopt(IP_DUMMYNET_GET)");
-            /* display requested pipes */
-            if (ac > 0)
-                rulenum = strtoul(*av++, NULL, 10);
-            else
-                rulenum = 0 ;
-            for (p = pipes, l = bytes; l >= sizeof pipes[0]; 
-                             p++, l-=sizeof pipes[0]) {
-                if (rulenum == 0 || rulenum == p->pipe_nr) {
-                   double b = p->bandwidth ;
-                    int l ;
-                    char buf[30] ;
-                    char qs[30] ;
-                    char plr[30] ;
- 
-                    if (b == 0)
-                        sprintf(buf, "unlimited");
-                    else if (b >= 1000000)
-                        sprintf(buf, "%7.3f Mbit/s", b/1000000 );
-                    else if (b >= 1000)
-                        sprintf(buf, "%7.3f Kbit/s", b/1000 );
-                    else
-                        sprintf(buf, "%7.3f bit/s ", b );
- 
-                    if ( (l = p->queue_size_bytes) ) {
-                        if (l >= 8192)
-                            sprintf(qs,"%d KB", l / 1024);
-                        else
-                            sprintf(qs,"%d B", l);
-                    } else
-			sprintf(qs,"%3d sl.", p->queue_size);
-                    if (p->plr)
-                        sprintf(plr,"plr %f", 1.0*p->plr/(double)(0x7fffffff));
-                    else
-                        plr[0]='\0';
-                        
-                    printf("%05d: %s %4d ms %s %s -- %d pkts (%d B) %d drops\n",
-                        p->pipe_nr, buf, p->delay, qs, plr,
-                        p->r_len, p->r_len_bytes, p->r_drops);
-                }
-            }
-        
-            return ;
-        }
-
 	memset(rules,0,sizeof rules);
 	bytes = sizeof rules;
 	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &bytes);
@@ -841,33 +778,21 @@ delete(ac,av)
 	char **av;
 {
 	struct ip_fw rule;
-	struct dn_pipe pipe;
 	int i;
 	int exitval = EX_OK;
 
 	memset(&rule, 0, sizeof rule);
-	memset(&pipe, 0, sizeof pipe);
 
 	av++; ac--;
 
 	/* Rule number */
 	while (ac && isdigit(**av)) {
-            if (do_pipe) {
-                pipe.pipe_nr = atoi(*av); av++; ac--;
-                i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_DEL,
-                    &pipe, sizeof pipe);
-                if (i) {
-                    exitval = 1;
-                    warn("rule %u: setsockopt(%s)", pipe.pipe_nr, "IP_DUMMYNET_DEL");
-                }
-            } else {
 		rule.fw_number = atoi(*av); av++; ac--;
 		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
 		if (i) {
 			exitval = EX_UNAVAILABLE;
 			warn("rule %u: setsockopt(%s)", rule.fw_number, "IP_FW_DEL");
 		}
-	}
 	}
 	if (exitval != EX_OK)
 		exit(exitval);
@@ -919,69 +844,6 @@ fill_iface(char *which, union ip_fw_if *ifu, int *byname, int ac, char *arg)
 }
 
 static void
-config_pipe(int ac, char **av)
-{
-       struct dn_pipe pipe;
-        int i ;
-        char *end ;
- 
-        memset(&pipe, 0, sizeof pipe);
- 
-        av++; ac--;
-        /* Pipe number */
-        if (ac && isdigit(**av)) {
-                pipe.pipe_nr = atoi(*av); av++; ac--;
-        }
-        while (ac > 1) {
-            if (!strncmp(*av,"bw",strlen(*av)) ||
-                ! strncmp(*av,"bandwidth",strlen(*av))) {
-                pipe.bandwidth = strtoul(av[1], &end, 0);
-                if (*end == 'K')
-                        end++, pipe.bandwidth *= 1000 ;
-                else if (*end == 'M')
-                        end++, pipe.bandwidth *= 1000000 ;
-                if (*end == 'B')
-                        pipe.bandwidth *= 8 ;
-                av+=2; ac-=2;
-            } else if (!strncmp(*av,"delay",strlen(*av)) ) {
-                pipe.delay = strtoul(av[1], NULL, 0);
-                av+=2; ac-=2;
-            } else if (!strncmp(*av,"plr",strlen(*av)) ) {
-                
-                double d = strtod(av[1], NULL);
-                pipe.plr = (int)(d*0x7fffffff) ;
-                av+=2; ac-=2;
-            } else if (!strncmp(*av,"queue",strlen(*av)) ) {
-                end = NULL ;
-                pipe.queue_size = strtoul(av[1], &end, 0);
-                if (*end == 'K') {
-                    pipe.queue_size_bytes = pipe.queue_size*1024 ;
-                    pipe.queue_size = 0 ;
-                } else if (*end == 'B') {
-                    pipe.queue_size_bytes = pipe.queue_size ;
-                    pipe.queue_size = 0 ;
-                }
-                av+=2; ac-=2;
-            } else
-                show_usage("unrecognised option ``%s''", *av);
-        }
-        if (pipe.pipe_nr == 0 )
-            show_usage("pipe_nr %d be > 0", pipe.pipe_nr);
-        if (pipe.queue_size > 100 )
-            show_usage("queue size %d must be 2 <= x <= 100", pipe.queue_size);
-        if (pipe.delay > 10000 )
-            show_usage("delay %d must be < 10000", pipe.delay);
-#if 0
-        printf("configuring pipe %d bw %d delay %d size %d\n",
-                pipe.pipe_nr, pipe.bandwidth, pipe.delay, pipe.queue_size);
-#endif
-        i = setsockopt(s,IPPROTO_IP, IP_DUMMYNET_CONFIGURE, &pipe,sizeof pipe);
-        if (i)
-                err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
-                
-}
-
-static void
 add(ac,av)
 	int ac;
 	char **av;
@@ -1011,15 +873,10 @@ add(ac,av)
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (!strncmp(*av,"count",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_COUNT; av++; ac--;
-        } else if (!strncmp(*av,"pipe",strlen(*av))) {
-                rule.fw_flg |= IP_FW_F_PIPE; av++; ac--;
-                if (!ac)
-                        show_usage("missing pipe number");
-                rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 	} else if (!strncmp(*av,"divert",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
 		if (!ac)
-			show_usage("missing %s port", "divert");
+			show_usage("missing divert port");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -1028,12 +885,12 @@ add(ac,av)
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal %s port", "divert");
+				show_usage("illegal divert port");
 		}
 	} else if (!strncmp(*av,"tee",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_TEE; av++; ac--;
 		if (!ac)
-			show_usage("missing %s port", "tee divert");
+			show_usage("missing divert port");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0) {
 			struct servent *s;
@@ -1042,11 +899,8 @@ add(ac,av)
 			if (s != NULL)
 				rule.fw_divert_port = ntohs(s->s_port);
 			else
-				show_usage("illegal %s port", "tee divert");
+				show_usage("illegal divert port");
 		}
-#ifndef IPFW_TEE_IS_FINALLY_IMPLEMENTED
-		err(EX_USAGE, "the ``tee'' action is not implemented");
-#endif
 	} else if (!strncmp(*av,"fwd",strlen(*av)) ||
 		   !strncmp(*av,"forward",strlen(*av))) {
 		struct in_addr dummyip;
@@ -1345,7 +1199,7 @@ ipfw_main(ac,av)
 {
 
 	int 		ch;
-	extern int 	optreset; /* XXX should be declared in <unistd.h> */
+	extern int 	optind;
 
 	if ( ac == 1 ) {
 		show_usage(NULL);
@@ -1354,7 +1208,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	optind = optreset = 1;
+	optind = 1;
 	while ((ch = getopt(ac, av, "afqtN")) != -1)
 	switch(ch) {
 		case 'a':
@@ -1381,24 +1235,8 @@ ipfw_main(ac,av)
 		 show_usage("Bad arguments");
 	}
 
-        if (!strncmp(*av, "pipe", strlen(*av))) {
-                do_pipe = 1 ;
-                ac-- ;
-                av++ ;
-        }
-	if (!ac) {
-		show_usage("pipe requires arguments");
-	}
-        /* allow argument swapping */
-        if (ac > 1 && *av[0]>='0' && *av[0]<='9') {
-                char *p = av[0] ;
-                av[0] = av[1] ;
-                av[1] = p ;
-        }
 	if (!strncmp(*av, "add", strlen(*av))) {
 		add(ac,av);
-        } else if (do_pipe && !strncmp(*av, "config", strlen(*av))) {
-                config_pipe(ac,av);
 	} else if (!strncmp(*av, "delete", strlen(*av))) {
 		delete(ac,av);
 	} else if (!strncmp(*av, "flush", strlen(*av))) {
@@ -1451,11 +1289,10 @@ main(ac, av)
 #define MAX_ARGS	32
 #define WHITESP		" \t\f\v\n\r"
 	char	buf[BUFSIZ];
-	char	*a, *p, *args[MAX_ARGS], *cmd = NULL;
+	char	*a, *args[MAX_ARGS];
 	char	linename[10];
-	int 	i, c, qflag, pflag, status;
-	FILE	*f = NULL;
-	pid_t	preproc = 0;
+	int 	i, qflag=0;
+	FILE	*f;
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 )
@@ -1463,94 +1300,14 @@ main(ac, av)
 
 	setbuf(stdout,0);
 
-	if (ac > 1 && access(av[ac - 1], R_OK) == 0) {
-		qflag = pflag = i = 0;
+	if (av[1] && (!access(av[1], R_OK) ||
+	    (av[2] && (qflag=!strcmp(av[1],"-q")) && !access(av[2], R_OK)))){
 		lineno = 0;
-
-		while ((c = getopt(ac, av, "D:U:p:q")) != -1)
-			switch(c) {
-			case 'D':
-				if (!pflag)
-					errx(EX_USAGE, "-D requires -p");
-				if (i > MAX_ARGS - 2)
-					errx(EX_USAGE,
-					     "too many -D or -U options");
-				args[i++] = "-D";
-				args[i++] = optarg;
-				break;
-
-			case 'U':
-				if (!pflag)
-					errx(EX_USAGE, "-U requires -p");
-				if (i > MAX_ARGS - 2)
-					errx(EX_USAGE,
-					     "too many -D or -U options");
-				args[i++] = "-U";
-				args[i++] = optarg;
-				break;
-
-			case 'p':
-				pflag = 1;
-				cmd = optarg;
-				args[0] = cmd;
-				i = 1;
-				break;
-
-			case 'q':
-				qflag = 1;
-				break;
-
-			default:
-				show_usage(NULL);
-			}
-
-		av += optind;
-		ac -= optind;
-		if (ac != 1)
-			show_usage("extraneous filename arguments");
-
-		if ((f = fopen(av[0], "r")) == NULL)
-			err(EX_UNAVAILABLE, "fopen: %s", av[0]);
-
-		if (pflag) {
-			/* pipe through preprocessor (cpp or m4) */
-			int pipedes[2];
-
-			args[i] = 0;
-
-			if (pipe(pipedes) == -1)
-				err(EX_OSERR, "cannot create pipe");
-
-			switch((preproc = fork())) {
-			case -1:
-				err(EX_OSERR, "cannot fork");
-
-			case 0:
-				/* child */
-				if (dup2(fileno(f), 0) == -1 ||
-				    dup2(pipedes[1], 1) == -1)
-					err(EX_OSERR, "dup2()");
-				fclose(f);
-				close(pipedes[1]);
-				close(pipedes[0]);
-				execvp(cmd, args);
-				err(EX_OSERR, "execvp(%s) failed", cmd);
-
-			default:
-				/* parent */
-				fclose(f);
-				close(pipedes[1]);
-				if ((f = fdopen(pipedes[0], "r")) == NULL) {
-					int savederrno = errno;
-
-					(void)kill(preproc, SIGTERM);
-					errno = savederrno;
-					err(EX_OSERR, "fdopen()");
-				}
-			}
-		}
-
+		if ((f = fopen(av[ac-1], "r")) == NULL)
+			err(EX_UNAVAILABLE, "fopen: %s", av[ac-1]);
 		while (fgets(buf, BUFSIZ, f)) {
+			char *p;
+
 			lineno++;
 			sprintf(linename, "Line %d", lineno);
 			args[0] = linename;
@@ -1564,7 +1321,7 @@ main(ac, av)
 			for (a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
-			if (i == (qflag? 2: 1))
+			if (i == 1)
 				continue;
 			if (i == MAX_ARGS)
 				errx(EX_USAGE, "%s: too many arguments", linename);
@@ -1573,21 +1330,6 @@ main(ac, av)
 			ipfw_main(i, args); 
 		}
 		fclose(f);
-		if (pflag) {
-			if (waitpid(preproc, &status, 0) != -1) {
-				if (WIFEXITED(status)) {
-					if (WEXITSTATUS(status) != EX_OK)
-						errx(EX_UNAVAILABLE,
-						     "preprocessor exited with status %d",
-						     WEXITSTATUS(status));
-				} else if (WIFSIGNALED(status)) {
-					errx(EX_UNAVAILABLE,
-					     "preprocessor exited with signal %d",
-					     WTERMSIG(status));
-				}
-			}
-		}
-
 	} else
 		ipfw_main(ac,av);
 	return EX_OK;

@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.60 1998/12/04 22:54:51 archie Exp $
+ *	$Id: subr_diskslice.c,v 1.57 1998/08/13 08:09:07 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -464,7 +464,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 				     (u_long)openmask);
 		/* XXX why doesn't setdisklabel() check this? */
 		if (error == 0 && lp->d_partitions[RAW_PART].p_offset != 0)
-			error = EXDEV;
+			error = EINVAL;
 		if (error == 0) {
 			if (lp->d_secperunit > sp->ds_size)
 				error = ENOSPC;
@@ -680,14 +680,13 @@ dsname(dname, unit, slice, part, partname)
 
 	if (strlen(dname) > 16)
 		dname = "nametoolong";
-	snprintf(name, sizeof(name), "%s%d", dname, unit);
+	sprintf(name, "%s%d", dname, unit);
 	partname[0] = '\0';
 	if (slice != WHOLE_DISK_SLICE || part != RAW_PART) {
 		partname[0] = 'a' + part;
 		partname[1] = '\0';
 		if (slice != COMPATIBILITY_SLICE)
-			snprintf(name + strlen(name),
-			    sizeof(name) - strlen(name), "s%d", slice - 1);
+			sprintf(name + strlen(name), "s%d", slice - 1);
 	}
 	return (name);
 }
@@ -1158,10 +1157,10 @@ set_ds_labeldevs_unaliased(dname, dev, ssp)
 		sname = dsname(dname, dkunit(dev), slice, part, partname);
 		if (part == RAW_PART && sp->ds_bdev != NULL) {
 			sp->ds_bdevs[part] =
-				devfs_makelink(sp->ds_bdev,
+				devfs_link(sp->ds_bdev,
 					   "%s%s", sname, partname);
 			sp->ds_cdevs[part] =
-				devfs_makelink(sp->ds_cdev,
+				devfs_link(sp->ds_cdev,
 					   "r%s%s", sname, partname);
 		} else {
 			mynor = minor(dkmodpart(dev, part));

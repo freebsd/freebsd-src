@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)utilities.c	8.6 (Berkeley) 5/19/95";
 #endif
 static const char rcsid[] =
-	"$Id: utilities.c,v 1.8 1998/06/15 07:07:21 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -45,6 +45,7 @@ static const char rcsid[] =
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <string.h>
 
@@ -112,26 +113,6 @@ reply(question)
 		return (1);
 	resolved = 0;
 	return (0);
-}
-
-/*
- * Look up state information for an inode.
- */
-struct inostat *
-inoinfo(inum)
-	ino_t inum;
-{
-	static struct inostat unallocated = { USTATE, 0, 0 };
-	struct inostatlist *ilp;
-	int iloff;
-
-	if (inum > maxino)
-		errx(EEXIT, "inoinfo: inumber %d out of range", inum);
-	ilp = &inostathead[inum / sblock.fs_ipg];
-	iloff = inum % sblock.fs_ipg;
-	if (iloff >= ilp->il_numalloced)
-		return (&unallocated);
-	return (&ilp->il_stat[iloff]);
 }
 
 /*
@@ -291,21 +272,14 @@ ckfini(markclean)
 	if (bufhead.b_size != cnt)
 		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
-	if (sblock.fs_clean != markclean) {
-		sblock.fs_clean = markclean;
+	if (markclean && sblock.fs_clean == 0) {
+		sblock.fs_clean = 1;
 		sbdirty();
 		ofsmodified = fsmodified;
 		flush(fswritefd, &sblk);
 		fsmodified = ofsmodified;
-		if (!preen) {
-			printf("\n***** FILE SYSTEM MARKED %s *****\n",
-			    markclean ? "CLEAN" : "DIRTY");
-			if (!markclean)
-				rerun = 1;
-		}
-	} else if (!preen && !markclean) {
-		printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
-		rerun = 1;
+		if (!preen)
+			printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
 	}
 	if (debug)
 		printf("cache missed %ld of %ld (%d%%)\n", diskreads,
@@ -350,8 +324,6 @@ bread(fd, buf, blk, size)
 		}
 	}
 	printf("\n");
-	if (errs)
-		resolved = 0;
 	return (errs);
 }
 
@@ -376,7 +348,6 @@ bwrite(fd, buf, blk, size)
 		fsmodified = 1;
 		return;
 	}
-	resolved = 0;
 	rwerror("WRITE", blk);
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK", blk);
@@ -467,8 +438,7 @@ getpathname(namebuf, curdir, ino)
 		return;
 	}
 	if (busy ||
-	    (inoinfo(curdir)->ino_state != DSTATE &&
-	     inoinfo(curdir)->ino_state != DFOUND)) {
+	    (statemap[curdir] != DSTATE && statemap[curdir] != DFOUND)) {
 		(void)strcpy(namebuf, "?");
 		return;
 	}
@@ -619,16 +589,14 @@ pfatal(fmt, va_alist)
 		va_end(ap);
 		if (usedsoftdep)
 			(void)fprintf(stderr,
-			    "\nUNEXPECTED SOFT UPDATE INCONSISTENCY\n");
+			    "\nUNEXPECTED SOFTDEP INCONSISTENCY\n");
 		return;
 	}
-	if (cdevname == NULL)
-		cdevname = "fsck";
 	(void)fprintf(stderr, "%s: ", cdevname);
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr,
 	    "\n%s: UNEXPECTED%sINCONSISTENCY; RUN fsck MANUALLY.\n",
-	    cdevname, usedsoftdep ? " SOFT UPDATE " : " ");
+	    cdevname, usedsoftdep ? " SOFTDEP " : " ");
 	ckfini(0);
 	exit(EEXIT);
 }

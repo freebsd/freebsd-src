@@ -22,11 +22,11 @@
 #include "skey.h"
 #include "pathnames.h"
 
-static char *skipspace __P((char *));
+static char *skipspace();
 
 #define setpriority(x,y,z)	/* nothing */
 
-static const char *month[12] = {
+static char *month[12] = {
 	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.47 1998/11/10 21:45:18 dfr Exp $
+ * $Id: conf.h,v 1.44 1998/08/20 06:10:42 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -66,7 +66,7 @@ typedef void d_stop_t __P((struct tty *tp, int rw));
 typedef int d_reset_t __P((dev_t dev));
 typedef struct tty *d_devtotty_t __P((dev_t dev));
 typedef int d_poll_t __P((dev_t dev, int events, struct proc *p));
-typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
+typedef int d_mmap_t __P((dev_t dev, int offset, int nprot));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
 typedef int l_close_t __P((struct tty *tp, int flag));
@@ -199,26 +199,29 @@ d_close_t	nullclose;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
-struct module;
+/*
+ * XXX This is ugly.
+ */
+#ifdef _SYS_MODULE_H_
 
 struct cdevsw_module_data {
-	int	(*chainevh)(struct module *, int, void *); /* next handler */
-	void	*chainarg;	/* arg for next event handler */
-	dev_t	dev;		/* device major to use */
-	struct	cdevsw *cdevsw; /* device functions */
+    modeventhand_t	chainevh; /* next event handler in chain */
+    void*		chainarg; /* arg for next event handler */
+    dev_t		dev;	/* device major to use */
+    struct cdevsw*	cdevsw;	/* device functions */
 };
 
 struct bdevsw_module_data {
-	int	(*chainevh)(struct module *, int, void *); /* next handler */
-	void	*chainarg;	/* arg for next event handler */
-	int	bdev;		/* device major to use */
-	int	cdev;		/* device major to use */
-	struct	cdevsw *cdevsw;	/* device functions */
+    modeventhand_t	chainevh; /* next event handler in chain */
+    void*		chainarg; /* arg for next event handler */
+    int			bdev;	/* device major to use */
+    int			cdev;	/* device major to use */
+    struct cdevsw*	cdevsw;	/* device functions */
 };
 
 #define CDEV_MODULE(name, major, devsw, evh, arg)			\
 static struct cdevsw_module_data name##_cdevsw_mod = {			\
-    evh, arg, major == NODEV ? NODEV : makedev(major, 0), &devsw	\
+    evh, arg, makedev(major, 0), &devsw					\
 };									\
 									\
 static moduledata_t name##_mod = {					\
@@ -230,8 +233,7 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+major)
 
 #define BDEV_MODULE(name, bdev, cdev, devsw, evh, arg)			\
 static struct bdevsw_module_data name##_bdevsw_mod = {			\
-    evh, arg, mdev == NODEV ? NODEV : makedev(bdev, 0),			\
-    cdev == NODEV ? NODEV :  makedev(cdev, 0), &devsw			\
+    evh, arg, makedev(bdev, 0), makedev(cdev, 0), &devsw		\
 };									\
 									\
 static moduledata_t name##_mod = {					\
@@ -241,8 +243,10 @@ static moduledata_t name##_mod = {					\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cdev)
 
-int	cdevsw_module_handler __P((struct module *mod, int what, void *arg));
-int	bdevsw_module_handler __P((struct module *mod, int what, void *arg));
+int	cdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
+int	bdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
+
+#endif /* _SYS_MODULE_H_ */
 
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 void	cdevsw_add_generic __P((int bdev, int cdev, struct cdevsw *cdevsw));

@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pt_conf.c,v 1.4 1998/07/06 07:19:25 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -50,6 +50,5 @@ provider providers[] = {
 	{ "exec",	portal_exec },
 	{ "file",	portal_file },
 	{ "tcp",	portal_tcp },
-	{ "tcplisten",	portal_tcplisten },
 	{ 0, 0 }
 };

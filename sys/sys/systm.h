@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.83 1999/01/15 00:03:39 msmith Exp $
+ * $Id: systm.h,v 1.76 1998/09/15 10:07:26 gibbs Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -76,12 +76,6 @@ extern struct vnode *swapdev_vp;/* vnode for swap device */
 extern int boothowto;		/* reboot flags, from console subsystem */
 extern int bootverbose;		/* nonzero to print verbose messages */
 
-#ifdef	INVARIANTS		/* The option is always available */
-#define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
-#else
-#define	KASSERT(exp,msg)
-#endif
-
 /*
  * General function declarations.
  */
@@ -113,17 +107,11 @@ int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 void	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
 int	printf __P((const char *, ...)) __printflike(1, 2);
-int	snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);
 int	sprintf __P((char *buf, const char *, ...)) __printflike(2, 3);
 void	uprintf __P((const char *, ...)) __printflike(1, 2);
 void	vprintf __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
-int	vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_)) __printflike(3, 0);
 int     vsprintf __P((char *buf, const char *, _BSD_VA_LIST_)) __printflike(2, 0);
 void	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
-int	sscanf __P((const char *, char const *, ...));
-int	vsscanf __P((const char *, char const *, _BSD_VA_LIST_));
-u_quad_t strtouq __P((const char *, char **, int));
-quad_t	strtoq __P((const char *, char **, int base));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
@@ -163,7 +151,6 @@ void	setstatclockrate __P((int hzrate));
 void	hardpps __P((struct timeval *tvp, long usec));
 
 char	*getenv __P((char *name));
-int	getenv_int __P((char *name, int *data));
 extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
@@ -280,14 +267,10 @@ int	rm_at_fork __P((forklist_fn function));
 #define	SHUTDOWN_PRE_SYNC	0
 #define	SHUTDOWN_POST_SYNC	1
 #define	SHUTDOWN_FINAL		2
-#define	SHUTDOWN_PRI_FIRST	0
-#define	SHUTDOWN_PRI_DEFAULT	10000
-#define	SHUTDOWN_PRI_LAST	20000
 
 typedef void (*bootlist_fn) __P((int, void *));
 
 int	at_shutdown __P((bootlist_fn function, void *arg, int position));
-int	at_shutdown_pri __P((bootlist_fn function, void *arg, int position, int pri));
 int	rm_at_shutdown __P((bootlist_fn function, void *arg));
 
 /*
@@ -306,8 +289,6 @@ extern watchdog_tickle_fn	wdog_tickler;
  * less often.
  */
 int	tsleep __P((void *chan, int pri, const char *wmesg, int timo));
-int	asleep __P((void *chan, int pri, const char *wmesg, int timo));
-int	await  __P((int pri, int timo));
 void	wakeup __P((void *chan));
 
 #endif /* !_SYS_SYSTM_H_ */

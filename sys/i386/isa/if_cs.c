@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.7 1998/12/07 21:58:21 archie Exp $
+ * $Id: if_cs.c,v 1.4 1998/08/27 22:41:18 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -100,9 +100,7 @@ static struct cs_softc {
 
 } cs_softc[NCS];
 
-#if NPNP > 0
 static u_long	cs_unit = NCS;
-#endif
 
 static int	cs_recv_delay = 570;
 SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "");
@@ -110,7 +108,6 @@ SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "")
 static int	cs_attach		__P((struct cs_softc *, int, int));
 static int	cs_attach_isa		__P((struct isa_device *));
 static void	cs_init			__P((void *));
-static ointhand2_t	csintr;
 static int	cs_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static int	cs_probe		__P((struct isa_device *));
 static int	cs_cs89x0_probe		__P((struct cs_softc *,
@@ -192,6 +189,7 @@ get_eeprom_cksum(int off, int len, int *buffer)
 static int
 wait_eeprom_ready(struct cs_softc *sc)
 {
+	int timeout=1000;
 	DELAY ( 30000 );	/* XXX should we do some checks here ? */
 	return 0;
 }
@@ -234,6 +232,7 @@ cs_duplex_auto(struct cs_softc *sc)
 static int
 enable_tp(struct cs_softc *sc)
 {
+	int i;
 	int unit = sc->arpcom.ac_if.if_unit;
 
 	cs_writereg(sc->nic_addr, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
@@ -254,6 +253,7 @@ enable_tp(struct cs_softc *sc)
 static int
 send_test_pkt(struct cs_softc *sc)
 {
+	int unit = sc->arpcom.ac_if.if_unit;
 	char test_packet[] = { 0,0,0,0,0,0, 0,0,0,0,0,0,
 				0, 46,  /* A 46 in network order */
 				0, 0,   /* DSAP=0 & SSAP=0 fields */
@@ -342,7 +342,7 @@ cs_cs89x0_probe(struct cs_softc *sc, u_int *dev_irq,
 			int *dev_drq, int iobase, int unit, int flags)
 {
 	unsigned rev_type = 0;
-	int i, irq=0;
+	int i, irq=0, result;
 	int eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
 	char chip_revision;
@@ -633,7 +633,6 @@ cs_attach_isa(struct isa_device *dev)
         struct cs_softc *sc=&cs_softc[unit];
         int flags=dev->id_flags;
 
-	dev->id_ointr = csintr;
         return cs_attach(sc, unit, flags);
 }
 
@@ -645,7 +644,7 @@ cs_init(void *xsc)
 {
 	struct cs_softc *sc=(struct cs_softc *)xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int i, s, rx_cfg;
+	int i, s, result, rx_cfg;
 
 	/* address not known */
 	if (TAILQ_EMPTY(&ifp->if_addrhead)) /* unlikely? XXX */
@@ -815,7 +814,7 @@ static void
 csintr_sc(struct cs_softc *sc, int unit)
 {
 	struct ifnet *ifp = &(sc->arpcom.ac_if);
-	int status;
+	int status, s;
 
 #ifdef CS_DEBUG
 	printf(CS_NAME"%1d: Interrupt.\n", unit);
@@ -872,7 +871,7 @@ csintr_sc(struct cs_softc *sc, int unit)
 /*
  * Handle interrupts
  */
-static void
+void
 csintr(int unit)
 {
 	struct cs_softc *sc = &cs_softc[unit];
@@ -1305,6 +1304,7 @@ csintr_pnp_add(struct cs_softc *sc, int unit)
 static void
 csintr_pnp(int unit)
 {
+    struct cs_softc *sc;
     struct csintr_list *intr;
 
     for (intr=csintr_head; intr; intr=intr->next) {
@@ -1350,8 +1350,8 @@ cs_pnp_attach(u_long csn, u_long vend_id, char *name,
     struct pnp_cinfo d;
     int	ldn = 0;
     int iobase, unit, flags;
-    u_int irq;
-    int drq;
+    u_short irq;
+    short drq;
     struct isa_device *dvp;
     struct cs_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
@@ -1367,7 +1367,7 @@ cs_pnp_attach(u_long csn, u_long vend_id, char *name,
     irq = dev->id_irq = (1 << d.irq[0] );
     drq = dev->id_drq = d.drq[0];
     dev->id_maddr = 0;
-    dev->id_ointr = csintr_pnp;
+    dev->id_intr = csintr_pnp;
     flags = dev->id_flags = 0;
     unit = dev->id_unit;
 

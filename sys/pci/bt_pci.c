@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.3 1998/11/10 06:45:14 gibbs Exp $
+ *	$Id$
  */
 
 #include "pci.h"
@@ -53,7 +53,7 @@
 
 static int btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
 				  bus_space_handle_t* bshp);
-static const char* bt_pci_probe(pcici_t tag, pcidi_t type);
+static char* bt_pci_probe(pcici_t tag, pcidi_t type);
 static void bt_pci_attach(pcici_t config_id, int unit);
 
 static struct  pci_device bt_pci_driver = {
@@ -98,7 +98,7 @@ btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
 	return (0);
 }
 
-static const char*
+static  char*
 bt_pci_probe (pcici_t config_id, pcidi_t type)
 {
 	switch(type) {
@@ -110,6 +110,7 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 		        bus_space_handle_t bsh;
 			pci_info_data_t pci_info;
 			int error;
+			u_int8_t new_addr;
 
 			if (btpcideterminebusspace(config_id, &tag, &bsh) != 0)
 				break;
@@ -121,8 +122,7 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 			/*
 			 * Determine if an ISA compatible I/O port has been
 			 * enabled.  If so, record the port so it will not
-			 * be probed by our ISA probe.  If the PCI I/O port
-			 * was not set to the compatibility port, disable it.
+			 * be probed by our ISA probe, and disable the port.
 			 */
 			error = bt_cmd(bt, BOP_INQUIRE_PCI_INFO,
 				       /*param*/NULL, /*paramlen*/0,
@@ -131,19 +131,14 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 			if (error == 0
 			 && pci_info.io_port < BIO_DISABLED) {
 				bt_mark_probed_bio(pci_info.io_port);
-				if (bsh != bt_iop_from_bio(pci_info.io_port)) {
-					u_int8_t new_addr;
-
-					new_addr = BIO_DISABLED;
-					bt_cmd(bt, BOP_MODIFY_IO_ADDR,
-					       /*param*/&new_addr,
-					       /*paramlen*/1, /*reply_buf*/NULL,
-					       /*reply_len*/0,
-					       DEFAULT_CMD_TIMEOUT);
-				}
 			}
+
+			new_addr = BIO_DISABLED;
+			bt_cmd(bt, BOP_MODIFY_IO_ADDR, /*param*/&new_addr,
+			       /*paramlen*/1, /*reply_buf*/NULL, /*reply_len*/0,
+			       DEFAULT_CMD_TIMEOUT);
 			bt_free(bt);
-			return ("Buslogic Multi-Master SCSI Host Adapter");
+			return ("Buslogic Multimaster SCSI host adapter");
 			break;
 		}
 		default:

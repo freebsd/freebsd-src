@@ -193,7 +193,6 @@ vfspath(const char *name)
 int
 vfsisloadable(const char *name)
 {
-#if 0
 	int fd;
 
 	fd = open("/dev/lkm", O_RDWR, 0);
@@ -203,24 +202,16 @@ vfsisloadable(const char *name)
 	close(fd);
 
 	return !!vfspath(name);
-#else
-	return 1;
-#endif
 }
 
 int
 vfsload(const char *name)
 {
-	const char *path;
+	const char *path = vfspath(name);
 	char name_mod[sizeof("_mod") + strlen(name)];
 	pid_t pid;
 	int status;
 
-	status = kldload(name);
-	if (status != -1)
-		return 0;
-
-	path = vfspath(name);
 	if(!path) {
 		errno = ENOENT;
 		return -1;

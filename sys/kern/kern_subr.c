@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.23 1999/01/08 17:31:10 eivind Exp $
+ * $Id: kern_subr.c,v 1.21 1998/07/15 02:32:10 bde Exp $
  */
 
 #include <sys/param.h>
@@ -61,11 +61,12 @@ uiomove(cp, n, uio)
 	u_int cnt;
 	int error;
 
-	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-	    ("uiomove: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
-	    ("uiomove proc"));
-
+#ifdef DIAGNOSTIC
+	if (uio->uio_rw != UIO_READ && uio->uio_rw != UIO_WRITE)
+		panic("uiomove: mode");
+	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
+		panic("uiomove proc");
+#endif
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
 		cnt = iov->iov_len;
@@ -119,11 +120,12 @@ uiomoveco(cp, n, uio, obj)
 	u_int cnt;
 	int error;
 
-	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-	    ("uiomoveco: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
-	    ("uiomoveco proc"));
-
+#ifdef DIAGNOSTIC
+	if (uio->uio_rw != UIO_READ && uio->uio_rw != UIO_WRITE)
+		panic("uiomove: mode");
+	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
+		panic("uiomove proc");
+#endif
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
 		cnt = iov->iov_len;

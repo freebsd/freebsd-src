@@ -59,8 +59,7 @@ bs_args_copy(bsc, ia, hw)
 		bsc->sm_offset = 0;
 
 	bsc->sc_cfgflags = DVCFG_MINOR(ia->ia_cfgflags);
-	snprintf(bsc->sc_dvname, sizeof(bsc->sc_dvname),
-		"%s", bsc->sc_dev.dv_xname);
+	strcpy(bsc->sc_dvname, bsc->sc_dev.dv_xname);
 }
 
 static int

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.121 1998/11/09 11:08:48 dima Exp $
+#	$Id: Makefile,v 1.116 1998/10/03 17:59:26 sef Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -32,12 +32,9 @@ SUBDIR=	apply \
 	cpp \
 	ctags \
 	cut \
-	dig \
 	dirname \
-	dnsquery \
 	du \
 	ee \
-	enigma \
 	env \
 	error \
 	expand \
@@ -53,7 +50,6 @@ SUBDIR=	apply \
 	fpr \
 	from \
 	fsplit \
-	fstat \
 	ftp \
 	gencat \
 	gensetdefs \
@@ -61,7 +57,6 @@ SUBDIR=	apply \
 	global \
 	head \
 	hexdump \
-	host \
 	id \
 	indent \
 	ipcrm \
@@ -145,7 +140,6 @@ SUBDIR=	apply \
 	split \
 	su \
 	symorder \
-	systat \
 	tail \
 	talk \
 	tconv \
@@ -178,7 +172,6 @@ SUBDIR=	apply \
 	vgrind \
 	vi \
 	vis \
-	vmstat \
 	w \
 	wall \
 	wc \
@@ -209,16 +202,22 @@ SUBDIR+=telnet
 # Things that don't compile on alpha or are aout specific:
 SUBDIR+=ar \
 	brandelf \
+	dig \
+	dnsquery \
+	fstat \
 	gcore \
 	gprof \
 	gprof4 \
+	host \
 	modstat \
 	nm \
 	ranlib \
 	sasc \
 	size \
 	strings \
-	strip
+	strip \
+	systat \
+	vmstat
 .endif
 
 .include <bsd.subdir.mk>

@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994-1999 Justin Gibbs.
+ * Copyright (c) 1994-1998 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.11 1998/12/17 00:06:52 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.4 1997/06/27 19:38:39 gibbs Exp $
  */
 
 /*
@@ -471,7 +471,7 @@ register SEQCTL {
  * Sequencer RAM Data (p. 3-34)
  * Single byte window into the Scratch Ram area starting at the address
  * specified by SEQADDR0 and SEQADDR1.  To write a full word, simply write
- * four bytes in succession.  The SEQADDRs will increment after the most
+ * four bytes in sucessesion.  The SEQADDRs will increment after the most
  * significant byte is written
  */
 register SEQRAM {
@@ -675,20 +675,20 @@ register INTSTAT {
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
+	mask	EXTENDED_MSG	0x40|SEQINT	/* Extended message received */
 	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
+	mask	REJECT_MSG	0x60|SEQINT	/* Reject message received */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
-	mask	TRACE_POINT	0x90|SEQINT
-	mask	HOST_MSG_LOOP	0xa0|SEQINT	/*
-						 * The bus is ready for the
-						 * host to perform another
-						 * message transaction.  This
-						 * mechanism is used for things
-						 * like sync/wide negotiation
-						 * that require a kernel based
-						 * message state engine.
+	mask	AWAITING_MSG	0xa0|SEQINT	/*
+						 * Kernel requested to specify
+						 * a message to this target
+						 * (command was null), so tell
+						 * it that it can fill the
+						 * message buffer.
 						 */
 	mask	TARGET_MSG_HELP	0xb0|SEQINT
+	mask	TARGET_SYNC_CMD	0xc0|SEQINT
 	mask	TRACEPOINT	0xd0|SEQINT
 	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
 						 * Target changed phase on us
@@ -761,16 +761,6 @@ register DFSTATUS {
 	bit	DFTHRESH	0x04
 	bit	FIFOFULL	0x02
 	bit	FIFOEMP		0x01
-}
-
-register DFWADDR {
-	address			0x95
-	access_mode RW
-}
-
-register DFRADDR {
-	address			0x97
-	access_mode RW
 }
 
 register DFDAT {
@@ -1265,25 +1255,18 @@ scratch_ram {
 		size		1
 	}
 	/*
-	 * Kernel and sequencer offsets into the queue of
-	 * incoming target mode command descriptors.  The
-	 * queue is full when the ((KERNEL_TQINPOS - TQINPOS) == 1)
+	 * Offset into the command descriptor array for the next
+	 * available desciptor to use.
 	 */
-	KERNEL_TQINPOS {
-		size		1
-	}
-	TQINPOS {                
+	TMODE_CMDADDR_NEXT {
 		size		1
 	}
 	ARG_1 {
 		size		1
-		mask	SEND_MSG		0x80
-		mask	SEND_SENSE		0x40
-		mask	SEND_REJ		0x20
-		mask	MSGOUT_PHASEMIS		0x10
-		mask	EXIT_MSG_LOOP		0x08
-		mask	CONT_MSG_LOOP		0x04
-		mask	CONT_TARG_SESSION	0x02
+		mask	SEND_MSG	0x80
+		mask	SEND_SENSE	0x40
+		mask	SEND_REJ	0x20
+		mask	MSGOUT_PHASEMIS	0x10
 		alias	RETURN_1
 	}
 	ARG_2 {
@@ -1306,44 +1289,6 @@ scratch_ram {
 		size		1
 	}
 
-	/*
-	 * Interrupt kernel for a message to this target on
-	 * the next transaction.  This is usually used for
-	 * negotiation requests.
-	 */
-	TARGET_MSG_REQUEST {
-		size		2
-	}
-
-	/*
-	 * Sequences the kernel driver has okayed for us.  This allows
-	 * the driver to do things like prevent initiator or target
-	 * operations.
-	 */
-	SCSISEQ_TEMPLATE {
-		size		1
-		bit	ENSELO		0x40
-		bit	ENSELI		0x20
-		bit	ENRSELI		0x10
-		bit	ENAUTOATNO	0x08
-		bit	ENAUTOATNI	0x04
-		bit	ENAUTOATNP	0x02
-	}
-
-	/*
-	 * Track whether the transfer byte count for
-	 * the current data phase is odd.
-	 */
-	DATA_COUNT_ODD {
-		size		1
-	}
-
-	/*
-	 * The initiator specified tag for this target mode transaction.
-	 */
-	INITIATOR_TAG {
-		size		1
-	}
 
 	/*
 	 * These are reserved registers in the card's scratch ram.  Some of
@@ -1415,7 +1360,5 @@ const CMD_GROUP5_BYTE_DELTA	11
 
 /*
  * Number of command descriptors in the command descriptor array.
- * No longer used, but left here as an example for how downloaded
- * constantants can be defined.
-const TMODE_NUMCMDS	download
  */
+const TMODE_NUMCMDS	download

@@ -52,11 +52,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
-#include "opt_ddb.h"
-
-#ifdef DDB
-void	ext2_checkoverlap __P((struct buf *, struct inode *));
-#endif
+static void	ext2_checkoverlap __P((struct buf *, struct inode *));
 
 /*
  * Return buffer with the contents of block "offset" from the beginning of
@@ -92,8 +88,9 @@ ext2_blkatoff(vp, offset, res, bpp)
 	return (0);
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
-void
+static void
 ext2_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;

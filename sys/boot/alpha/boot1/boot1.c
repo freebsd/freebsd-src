@@ -1,5 +1,5 @@
 /*
- * $Id: boot1.c,v 1.2 1998/09/26 10:51:36 dfr Exp $
+ * $Id: boot1.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  * From	$NetBSD: bootxx.c,v 1.4 1997/09/06 14:08:29 drochner Exp $ 
  */
 
@@ -181,7 +181,7 @@ main()
 
     init_prom_calls();
     
-    loadfile("/boot/loader", loadaddr);
+    loadfile("/boot/boot2", loadaddr);
 
     entry = (void (*)())loadaddr;
     (*entry)();

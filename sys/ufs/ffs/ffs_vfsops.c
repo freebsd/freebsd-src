@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.94 1999/01/05 18:50:03 eivind Exp $
+ * $Id: ffs_vfsops.c,v 1.87 1998/09/14 19:56:41 sos Exp $
  */
 
 #include "opt_quota.h"
@@ -290,8 +290,7 @@ ffs_mount( mp, path, data, ndp, p)
 		err = ENOTBLK;
 		goto error_2;
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	if (major(devvp->v_rdev) >= nblkdev) {
 		err = ENXIO;
 		goto error_2;
 	}
@@ -453,16 +452,15 @@ ffs_reload(mp, cred, p)
 		panic("ffs_reload: dirty1");
 
 	dev = devvp->v_rdev;
-
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.  See ffs_mountmfs() for more details.
+	 * block device.  This excludes the original MFS implementation.
+	 * Note that it is optional that the backing device be VMIOed.  This
+	 * increases the opportunity for metadata caching.
 	 */
-	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		vfs_object_create(devvp, p, p->p_ucred);
+	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
 		simple_lock(&devvp->v_interlock);
-		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
+		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
 
 	/*
@@ -578,10 +576,12 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	register struct ufsmount *ump;
 	struct buf *bp;
 	register struct fs *fs;
+	struct cg *cgp;
 	dev_t dev;
 	struct partinfo dpart;
+	struct csum cstotal;
 	caddr_t base, space;
-	int error, i, blks, size, ronly;
+	int error, i, cyl, blks, size, ronly;
 	int32_t *lp;
 	struct ucred *cred;
 	u_int64_t maxfilesize;					/* XXX */
@@ -615,12 +615,11 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (devvp->v_tag != VT_MFS && devvp->v_type == VBLK) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		vfs_object_create(devvp, p, p->p_ucred);
+	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
 		simple_lock(&devvp->v_interlock);
-		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
+		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
+
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
@@ -951,6 +950,7 @@ ffs_sync(mp, waitfor, cred, p)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
+	struct timeval tv;
 	int error, allerror = 0;
 
 	fs = ump->um_fs;
@@ -975,7 +975,7 @@ loop:
 		ip = VTOI(vp);
 		if ((vp->v_type == VNON) || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || (waitfor == MNT_LAZY))) {
+		    ((vp->v_dirtyblkhd.lh_first == NULL) || (waitfor == MNT_LAZY))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -997,8 +997,9 @@ loop:
 		} else {
 			simple_unlock(&mntvnode_slock);
 			simple_unlock(&vp->v_interlock);
-			/* UFS_UPDATE(vp, waitfor == MNT_WAIT); */
-			UFS_UPDATE(vp, 0);
+			getmicrotime(&tv);
+			/* UFS_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
+			UFS_UPDATE(vp, &tv, &tv, 0);
 			simple_lock(&mntvnode_slock);
 		}
 	}

@@ -36,8 +36,9 @@
 extern unsigned char *storage;
 
 void *
-kzipmalloc(nbytes)
+malloc(nbytes, junk1, junk2) /* junk? not used */
 	size_t nbytes;
+	int junk1, junk2;
 {
 	unsigned char *p = storage;
 	storage += nbytes;
@@ -50,7 +51,8 @@ kzipmalloc(nbytes)
 }
 
 void
-kzipfree(cp)
+free(cp, junk) /* junk not used */
 	void *cp;
+	int junk;
 {
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.9 1998/08/09 16:41:01 brian Exp $
+ *	$Id: tun.c,v 1.8 1998/06/27 14:18:15 brian Exp $
  */
 
 #include <sys/types.h>
@@ -65,10 +65,9 @@ tun_configure(struct bundle *bundle, int mtu)
 {
   struct tuninfo info;
 
-  memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
   info.mtu = mtu;
-  info.baudrate = bundle->ifSpeed;
+  info.baudrate = bundle->ifp.Speed;
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif

@@ -37,11 +37,9 @@
 
 #include <net/route.h>
 
-int at_inithead(void **head, int off);
-
 static char hexbuf[256];
 
-static char *
+char *
 prsockaddr(void *v)
 {
 	char *bp = &hexbuf[0];
@@ -149,3 +147,4 @@ at_inithead(void **head, int off)
 	rnh->rnh_lookup = at_lookup;
 	return 1;
 }
+

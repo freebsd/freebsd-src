@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.10 1998/11/04 15:20:58 peter Exp $
+ *	$Id: linker.h,v 1.8 1998/10/09 23:07:27 peter Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -131,11 +131,6 @@ struct linker_class {
  * the files which contain them.
  */
 extern linker_file_t	linker_current_file;
-
-/*
- * The "file" for the kernel.
- */
-extern linker_file_t	linker_kernel_file;
 
 /*
  * Add a new file class to the linker.
@@ -264,14 +259,6 @@ struct kld_file_stat {
     size_t	size;		/* size in bytes */
 };
 
-struct kld_sym_lookup {
-    int		version;	/* set to sizeof(struct kld_sym_lookup) */
-    char	*symname;	/* Symbol name we are looking up */
-    u_long	symvalue;
-    size_t	symsize;
-};
-#define KLDSYM_LOOKUP	1
-
 #ifndef KERNEL
 
 #include <sys/cdefs.h>
@@ -283,7 +270,6 @@ int	kldfind(const char* file);
 int	kldnext(int fileid);
 int	kldstat(int fileid, struct kld_file_stat* stat);
 int	kldfirstmod(int fileid);
-int	kldsym(int _fileid, int _cmd, void *_data);
 __END_DECLS
 
 #endif

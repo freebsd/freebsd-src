@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.6 1998/06/09 04:31:02 imp Exp $";
+	"$Id: main.c,v 1.5 1997/08/14 06:47:39 charnier Exp $";
 #endif /* not lint */
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
@@ -373,7 +373,7 @@ put(argc, argv)
 			printf("putting %s to %s:%s [%s]\n",
 				cp, hostname, targ, mode);
 		peeraddr.sin_port = port;
-		xmitfile(fd, targ, mode);
+		sendfile(fd, targ, mode);
 		return;
 	}
 				/* this assumes the target is a directory */
@@ -391,7 +391,7 @@ put(argc, argv)
 			printf("putting %s to %s:%s [%s]\n",
 				argv[n], hostname, targ, mode);
 		peeraddr.sin_port = port;
-		xmitfile(fd, targ, mode);
+		sendfile(fd, targ, mode);
 	}
 }
 

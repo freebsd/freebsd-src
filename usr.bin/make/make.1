@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
-.\"	$Id: make.1,v 1.15 1998/11/15 05:51:55 bde Exp $
+.\"	$Id: make.1,v 1.11 1997/07/24 06:58:07 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt MAKE 1
@@ -40,7 +40,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm make
-.Op Fl Beiknqrstv
+.Op Fl Beiknqrst
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl f Ar makefile
@@ -57,17 +57,15 @@
 is a program designed to simplify the maintenance of other programs.
 Its input is a list of specifications as to the files upon which programs
 and other files depend.
-.Nm Make
-searches a built-in path for this list.
 If the file
 .Ql Pa makefile
-exists along this path, it is read for this list of specifications.
+exists, it is read for this list of specifications.
 If it does not exist, the file
 .Ql Pa Makefile
-is used.
+is read.
 If the file
 .Ql Pa .depend
-exists, it is also read (see
+exists, it is read (see
 .Xr mkdep 1) .
 .Pp
 This manual page is intended as a reference document only.
@@ -185,9 +183,6 @@ Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
-.It Fl v
-Be extra verbose.
-For multi-job makes, this will cause file banners to be generated.
 .It Ar variable=value
 Set the value of the variable
 .Ar variable
@@ -433,8 +428,7 @@ entered into the environment for all programs which
 .Nm make
 executes.
 .It Ev PWD
-Alternate path to the current directory.  Supported if built with WANT_ENV_PWD
-defined.
+Alternate path to the current directory.
 .Nm make
 normally sets
 .Ql Va .CURDIR
@@ -940,33 +934,6 @@ command in the file.
 Each source specifies a suffix to
 .Nm make .
 If no sources are specified, any previous specified suffices are deleted.
-.Sh SEARCH PATH
-.Nm Make
-searches for
-.Ql Pa Makefile
-in the following directories, in order:
-.Pp
-.Bl -enum -compact
-.It
-${MAKEOBJDIRPREFIX}`cwd`
-.It
-${MAKEOBJDIR}
-.It
-obj.${MACHINE}
-.It
-obj 
-.It
-/usr/obj${MACHINE}`cwd`
-.It
-The current directory (`cwd`).
-.El
-.Pp
-If
-.Nm make
-finds the
-.Ql Pa Makefile
-someplace other than the current working directory, it adds the CWD to
-the search path.
 .Sh ENVIRONMENT
 .Nm Make
 utilizes the following environment variables, if they exist:
@@ -985,16 +952,12 @@ list of dependencies
 list of dependencies
 .It makefile
 list of dependencies
-.It obj
-object directory
 .It sys.mk
 system makefile
 .It /usr/share/mk
 system makefile directory
 .It /usr/share/doc/psd/12.make
 PMake tutorial
-.It /usr/obj
-system object directory prefix
 .El
 .Sh SEE ALSO
 .Xr mkdep 1

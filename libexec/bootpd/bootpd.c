@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
-	$Id: bootpd.c,v 1.9 1998/12/12 20:56:53 dillon Exp $
+	$Id: bootpd.c,v 1.7 1997/05/11 14:27:03 phk Exp $
 
 ************************************************************************/
 
@@ -635,8 +635,6 @@ handle_request()
 	char *homedir, *bootfile;
 	int n;
 
-	bp->bp_file[sizeof(bp->bp_file)-1] = '\0';
-
 	/* XXX - SLIP init: Set bp_ciaddr = recv_addr here? */
 
 	/*
@@ -835,7 +833,7 @@ HW addr type is IEEE 802.  convert to %s and check again\n",
 	 * daemon chroot directory (i.e. /tftpboot).
 	 */
 	if (hp->flags.tftpdir) {
-		snprintf(realpath, sizeof(realpath), "%s", hp->tftpdir->string);
+		strcpy(realpath, hp->tftpdir->string);
 		clntpath = &realpath[strlen(realpath)];
 	} else {
 		realpath[0] = '\0';

@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.22 1998/12/01 23:27:24 dg Exp $";
+	"$Id: rshd.c,v 1.20 1997/12/02 12:30:04 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -61,7 +61,6 @@ static const char rcsid[] =
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -80,9 +79,9 @@ static const char rcsid[] =
 #endif
 
 int	keepalive = 1;
+int	check_all;
 int	log_success;		/* If TRUE, log all successful accesses */
 int	sent_null;
-int	no_delay;
 
 void	 doit __P((struct sockaddr_in *));
 void	 error __P((const char *, ...));
@@ -96,13 +95,13 @@ void	 usage __P((void));
 #include <krb.h>
 #define	VERSION_SIZE	9
 #define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"
-#define	OPTIONS		"alnkvxDL"
+#define	OPTIONS		"alnkvxL"
 char	authbuf[sizeof(AUTH_DAT)];
 char	tickbuf[sizeof(KTEXT_ST)];
 int	doencrypt, use_kerberos, vacuous;
 Key_schedule	schedule;
 #else
-#define	OPTIONS	"alnDL"
+#define	OPTIONS	"alnL"
 #endif
 
 int
@@ -121,7 +120,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
 		case 'a':
-			/* ignored for compatability */
+			check_all = 1;
 			break;
 		case 'l':
 			__check_rhosts_file = 0;
@@ -144,9 +143,6 @@ main(argc, argv)
 			break;
 #endif
 #endif
-		case 'D':
-			no_delay = 1;
-			break;
 		case 'L':
 			log_success = 1;
 			break;
@@ -186,9 +182,6 @@ main(argc, argv)
 	if (setsockopt(0, SOL_SOCKET, SO_LINGER, (char *)&linger,
 	    sizeof (linger)) < 0)
 		syslog(LOG_WARNING, "setsockopt (SO_LINGER): %m");
-	if (no_delay &&
-	    setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
-		syslog(LOG_WARNING, "setsockopt (TCP_NODELAY): %m");
 	doit(&from);
 	/* NOTREACHED */
 	return(0);
@@ -213,9 +206,10 @@ doit(fromp)
 	fd_set ready, readfrom;
 	int cc, nfd, pv[2], pid, s;
 	int one = 1;
-	char *hostname, *errorstr;
+	char *hostname, *errorstr, *errorhost;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
+	char remotehost[2 * MAXHOSTNAMELEN + 1];
 	char fromhost[2 * MAXHOSTNAMELEN + 1];
 #ifdef	LOGIN_CAP
 	login_cap_t *lc;
@@ -294,7 +288,6 @@ doit(fromp)
 
 	(void) alarm(60);
 	port = 0;
-	s = 0;		/* not set or used if port == 0 */
 	for (;;) {
 		char c;
 		if ((cc = read(STDIN_FILENO, &c, 1)) != 1) {
@@ -303,7 +296,7 @@ doit(fromp)
 			shutdown(0, 1+1);
 			exit(1);
 		}
-		if (c == 0)
+		if (c== 0)
 			break;
 		port = port * 10 + c - '0';
 	}
@@ -348,38 +341,64 @@ doit(fromp)
 	dup2(f, 2);
 #endif
 	errorstr = NULL;
-	strncpy(fromhost, inet_ntoa(fromp->sin_addr),
-		sizeof(fromhost) - 1);
-	hostname = fromhost;
 	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof (struct in_addr),
 		fromp->sin_family);
 	if (hp) {
 		/*
-		 * OK, it looks like a DNS name is attached.. Lets see if
-		 * it looks like we can use it.  If it doesn't check out,
-		 * ditch it and use the IP address for logging instead.
-		 * Note that iruserok() does it's own hostname checking!!
+		 * If name returned by gethostbyaddr is in our domain,
+		 * attempt to verify that we haven't been fooled by someone
+		 * in a remote net; look up the name and check that this
+		 * address corresponds to the name.
 		 */
 		strncpy(fromhost, hp->h_name, sizeof(fromhost) - 1);
 		fromhost[sizeof(fromhost) - 1] = 0;
-		hp = gethostbyname(fromhost);
-		if (hp == NULL) {
-			strncpy(fromhost, inet_ntoa(fromp->sin_addr),
-				sizeof(fromhost) - 1);
-		} else for (; ; hp->h_addr_list++) {
-			if (hp->h_addr_list[0] == NULL) {
-				/* End of list - ditch it */
+		hostname = fromhost;
+#ifdef	KERBEROS
+		if (!use_kerberos)
+#endif
+		if (check_all || local_domain(hp->h_name)) {
+			strncpy(remotehost, hp->h_name, sizeof(remotehost) - 1);
+			remotehost[sizeof(remotehost) - 1] = 0;
+			errorhost = remotehost;
+			hp = gethostbyname(remotehost);
+			if (hp == NULL) {
+				syslog(LOG_INFO,
+				    "couldn't look up address for %s",
+				    remotehost);
+				errorstr =
+				"Couldn't look up address for your host (%s)\n";
 				strncpy(fromhost, inet_ntoa(fromp->sin_addr),
 					sizeof(fromhost) - 1);
-				break;
+				fromhost[sizeof(fromhost) - 1] = 0;
+				hostname = fromhost;
+			} else for (; ; hp->h_addr_list++) {
+				if (hp->h_addr_list[0] == NULL) {
+					syslog(LOG_NOTICE,
+					  "host addr %s not listed for host %s",
+					    inet_ntoa(fromp->sin_addr),
+					    hp->h_name);
+					errorstr =
+					    "Host address mismatch for %s\n";
+					strncpy(fromhost, inet_ntoa(fromp->sin_addr),
+						sizeof(fromhost) - 1);
+					fromhost[sizeof(fromhost) - 1] = 0;
+					hostname = fromhost;
+					break;
+				}
+				if (!bcmp(hp->h_addr_list[0],
+				    (caddr_t)&fromp->sin_addr,
+				    sizeof(fromp->sin_addr))) {
+					hostname = remotehost;
+					break;
+				}
 			}
-			if (!bcmp(hp->h_addr_list[0],
-			    (caddr_t)&fromp->sin_addr,
-			    sizeof(fromp->sin_addr)))
-				break;		/* OK! */
 		}
+	} else {
+		strncpy(fromhost, inet_ntoa(fromp->sin_addr),
+			sizeof(fromhost) - 1);
+		fromhost[sizeof(fromhost) - 1] = 0;
+		errorhost = hostname = fromhost;
 	}
-	fromhost[sizeof(fromhost) - 1] = 0;
 
 #ifdef	KERBEROS
 	if (use_kerberos) {
@@ -488,7 +507,7 @@ doit(fromp)
 fail:
 			if (errorstr == NULL)
 				errorstr = "Login incorrect.\n";
-			error(errorstr, hostname);
+			error(errorstr, errorhost);
 			exit(1);
 		}
 

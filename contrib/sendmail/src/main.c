@@ -19,7 +19,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.322 (Berkeley) 12/18/1998";
+static char sccsid[] = "@(#)main.c	8.302 (Berkeley) 6/4/98";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -129,7 +129,6 @@ main(argc, argv, envp)
 	extern char *getcfname __P((void));
 	extern SIGFUNC_DECL sigusr1 __P((int));
 	extern SIGFUNC_DECL sighup __P((int));
-	extern SIGFUNC_DECL quiesce __P((int));
 	extern void initmacros __P((ENVELOPE *));
 	extern void init_md __P((int, char **));
 	extern int getdtsize __P((void));
@@ -305,7 +304,9 @@ main(argc, argv, envp)
 	if (tTd(0, 101))
 	{
 		printf("Version %s\n", Version);
-		finis(FALSE, EX_OK);
+		endpwent();
+		setuid(RealUid);
+		exit(EX_OK);
 	}
 
 	/*
@@ -418,8 +419,8 @@ main(argc, argv, envp)
 	environ = emptyenviron;
 
 	/*
-	**  restore any original TZ setting until TimeZoneSpec has been
-	**  determined - or early log messages may get bogus time stamps
+	** restore any original TZ setting until TimeZoneSpec has been
+	** determined - or early log messages may get bogus time stamps
 	*/
 	if ((p = getextenv("TZ")) != NULL)
 	{
@@ -548,7 +549,7 @@ main(argc, argv, envp)
 	QueueLimitId = (QUEUE_CHAR *) NULL;
 
 	/*
-	**  Crack argv.
+	** Crack argv.
 	*/
 
 	av = argv;
@@ -834,7 +835,8 @@ main(argc, argv, envp)
 # endif
 
 		  default:
-			finis(TRUE, EX_USAGE);
+			ExitStat = EX_USAGE;
+			finis();
 			break;
 		}
 	}
@@ -969,11 +971,8 @@ main(argc, argv, envp)
 	}
 
 	/* check for permissions */
-	if ((OpMode == MD_DAEMON ||
-	     OpMode == MD_FGDAEMON ||
-	     OpMode == MD_PURGESTAT) &&
-	    RealUid != 0 &&
-	    RealUid != TrustedUid)
+	if ((OpMode == MD_DAEMON || OpMode == MD_FGDAEMON ||
+	     OpMode == MD_PURGESTAT) && RealUid != 0)
 	{
 		if (LogLevel > 1)
 			sm_syslog(LOG_ALERT, NOQID,
@@ -982,7 +981,7 @@ main(argc, argv, envp)
 				OpMode != MD_PURGESTAT ? "run daemon"
 						       : "purge host status");
 		usrerr("Permission denied");
-		finis(FALSE, EX_USAGE);
+		exit(EX_USAGE);
 	}
 
 	if (MeToo)
@@ -1084,17 +1083,6 @@ main(argc, argv, envp)
 		setoption('d', "", TRUE, FALSE, CurEnv);
 	}
 
-#ifdef VENDOR_CODE
-	/* check for vendor mismatch */
-	if (VendorCode != VENDOR_CODE)
-	{
-		extern char *getvendor __P((int));
-
-		message("Warning: .cf file vendor code mismatch: sendmail expects vendor %s, .cf file vendor is %s",
-			getvendor(VENDOR_CODE), getvendor(VendorCode));
-	}
-#endif
-	
 	/* check for out of date configuration level */
 	if (ConfigLevel < MAXCONFIGLEVEL)
 	{
@@ -1211,22 +1199,6 @@ main(argc, argv, envp)
 	setclass('b', "application/octet-stream");
 #endif
 
-#if _FFR_MAX_MIME_HEADER_LENGTH
-	/* MIME headers which have fields to check for overflow */
-	setclass(macid("{checkMIMEFieldHeaders}", NULL), "content-disposition");
-	setclass(macid("{checkMIMEFieldHeaders}", NULL), "content-type");
-
-	/* MIME headers to check for length overflow */
-	setclass(macid("{checkMIMETextHeaders}", NULL), "content-description");
-
-	/* MIME headers to check for overflow and rebalance */
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-disposition");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-id");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-transfer-encoding");
-	setclass(macid("{checkMIMEHeaders}", NULL), "content-type");
-	setclass(macid("{checkMIMEHeaders}", NULL), "mime-version");
-#endif
-
 	/* operate in queue directory */
 	if (QueueDir == NULL)
 	{
@@ -1269,14 +1241,18 @@ main(argc, argv, envp)
 		{
 			/* nope, really a botch */
 			usrerr("You do not have permission to process the queue");
-			finis(FALSE, EX_NOPERM);
+			exit (EX_NOPERM);
 		}
 	}
 # endif /* QUEUE */
 
 	/* if we've had errors so far, exit now */
 	if (ExitStat != EX_OK && OpMode != MD_TEST)
-		finis(FALSE, ExitStat);
+	{
+		endpwent();
+		setuid(RealUid);
+		exit(ExitStat);
+	}
 
 #if XDEBUG
 	checkfd012("before main() initmaps");
@@ -1292,31 +1268,31 @@ main(argc, argv, envp)
 		/* print the queue */
 #if QUEUE
 		dropenvelope(CurEnv, TRUE);
-		signal(SIGPIPE, quiesce);
 		printqueue();
-		finis(FALSE, EX_OK);
+		endpwent();
+		setuid(RealUid);
+		exit(EX_OK);
 #else /* QUEUE */
 		usrerr("No queue to print");
-		finis(FALSE, ExitStat);
+		finis();
 #endif /* QUEUE */
-		break;
 
 	  case MD_HOSTSTAT:
-		signal(SIGPIPE, quiesce);
 		mci_traverse_persistent(mci_print_persistent, NULL);
-		finis(FALSE, EX_OK);
+		exit(EX_OK);
 	    	break;
 
 	  case MD_PURGESTAT:
 		mci_traverse_persistent(mci_purge_persistent, NULL);
-		finis(FALSE, EX_OK);
+		exit(EX_OK);
 	    	break;
 
 	  case MD_INITALIAS:
-		/* initialize maps */
+		/* initialize alias database */
 		initmaps(TRUE, CurEnv);
-		finis(FALSE, ExitStat);
-		break;
+		endpwent();
+		setuid(RealUid);
+		exit(ExitStat);
 
 	  case MD_SMTP:
 	  case MD_DAEMON:
@@ -1325,11 +1301,11 @@ main(argc, argv, envp)
 		CurEnv->e_envid = NULL;
 		CurEnv->e_flags &= ~(EF_RET_PARAM|EF_NO_BODY_RETN);
 
-		/* don't open maps for daemon -- done below in child */
+		/* don't open alias database -- done in srvrsmtp */
 		break;
 
 	  default:
-		/* open the maps */
+		/* open the alias database */
 		initmaps(FALSE, CurEnv);
 		break;
 	}
@@ -1383,7 +1359,7 @@ main(argc, argv, envp)
 				printf("> ");
 			(void) fflush(stdout);
 			if (fgets(buf, sizeof buf, stdin) == NULL)
-				finis(TRUE, ExitStat);
+				finis();
 			p = strchr(buf, '\n');
 			if (p != NULL)
 				*p = '\0';
@@ -1401,7 +1377,7 @@ main(argc, argv, envp)
 	if (queuemode && OpMode != MD_DAEMON && QueueIntvl == 0)
 	{
 		(void) runqueue(FALSE, Verbose);
-		finis(TRUE, ExitStat);
+		finis();
 	}
 # endif /* QUEUE */
 
@@ -1426,7 +1402,7 @@ main(argc, argv, envp)
 			if (i < 0)
 				syserr("daemon: cannot fork");
 			if (i != 0)
-				finis(FALSE, EX_OK);
+				exit(EX_OK);
 
 			/* disconnect from our controlling tty */
 			disconnect(2, CurEnv);
@@ -1519,9 +1495,6 @@ main(argc, argv, envp)
 			snprintf(pbuf, sizeof pbuf, "0");
 		define(macid("{client_port}", NULL), newstr(pbuf), &BlankEnvelope);
 
-		/* initialize maps now for check_relay ruleset */
-		initmaps(FALSE, CurEnv);
-
 		if (OpMode == MD_DAEMON)
 		{
 			/* validate the connection */
@@ -1566,7 +1539,7 @@ main(argc, argv, envp)
 		/* collect body for UUCP return */
 		if (OpMode != MD_VERIFY)
 			collect(InChannel, FALSE, NULL, CurEnv);
-		finis(TRUE, ExitStat);
+		finis();
 	}
 
 	/*
@@ -1610,7 +1583,7 @@ main(argc, argv, envp)
 		/* bail out if message too large */
 		if (bitset(EF_CLRQUEUE, CurEnv->e_flags))
 		{
-			finis(TRUE, ExitStat);
+			finis();
 			/*NOTREACHED*/
 			return -1;
 		}
@@ -1642,18 +1615,11 @@ main(argc, argv, envp)
 	**	Don't send return error message if in VERIFY mode.
 	*/
 
-	finis(TRUE, ExitStat);
+	finis();
 	/*NOTREACHED*/
 	return -1;
 }
 
-/* ARGSUSED */
-SIGFUNC_DECL
-quiesce(sig)
-	int sig;
-{
-	finis(FALSE, EX_OK);
-}
 
 /* ARGSUSED */
 SIGFUNC_DECL
@@ -1669,8 +1635,7 @@ intindebug(sig)
 **  FINIS -- Clean up and exit.
 **
 **	Parameters:
-**		drop -- whether or not to drop CurEnv envelope
-**		exitstat -- exit status to use for exit() call
+**		none
 **
 **	Returns:
 **		never
@@ -1680,21 +1645,14 @@ intindebug(sig)
 */
 
 void
-finis(drop, exitstat)
-	bool drop;
-	volatile int exitstat;
+finis()
 {
-	extern void closemaps __P((void));
-#ifdef USERDB
-	extern void _udbx_close __P((void));
-#endif
-
 	if (tTd(2, 1))
 	{
 		extern void printenvflags __P((ENVELOPE *));
 
 		printf("\n====finis: stat %d e_id=%s e_flags=",
-			exitstat,
+			ExitStat,
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id);
 		printenvflags(CurEnv);
 	}
@@ -1710,19 +1668,11 @@ finis(drop, exitstat)
 
 	/* clean up temp files */
 	CurEnv->e_to = NULL;
-	if (drop && CurEnv->e_id != NULL)
+	if (CurEnv->e_id != NULL)
 		dropenvelope(CurEnv, TRUE);
 
 	/* flush any cached connections */
 	mci_flush(TRUE, NULL);
-
-	/* close maps belonging to this pid */
-	closemaps();
-
-#ifdef USERDB
-	/* close UserDatabase */
-	_udbx_close();
-#endif
 
 # ifdef XLA
 	/* clean up extended load average stuff */
@@ -1735,14 +1685,14 @@ finis(drop, exitstat)
 		sm_syslog(LOG_DEBUG, CurEnv->e_id,
 			"finis, pid=%d",
 			getpid());
-	if (exitstat == EX_TEMPFAIL || CurEnv->e_errormode == EM_BERKNET)
-		exitstat = EX_OK;
+	if (ExitStat == EX_TEMPFAIL || CurEnv->e_errormode == EM_BERKNET)
+		ExitStat = EX_OK;
 
 	/* reset uid for process accounting */
 	endpwent();
 	setuid(RealUid);
 
-	exit(exitstat);
+	exit(ExitStat);
 }
 /*
 **  INTSIG -- clean up on interrupt
@@ -1769,11 +1719,15 @@ intsig(sig)
 		sm_syslog(LOG_DEBUG, CurEnv->e_id, "interrupt");
 	FileName = NULL;
 	unlockqueue(CurEnv);
-	closecontrolsocket(TRUE);
 #ifdef XLA
 	xla_all_end();
 #endif
-	finis(FALSE, EX_OK);
+
+	/* reset uid for process accounting */
+	endpwent();
+	setuid(RealUid);
+
+	exit(EX_OK);
 }
 /*
 **  INITMACROS -- initialize the macro system
@@ -2203,24 +2157,23 @@ sighup(sig)
 	{
 		if (LogLevel > 3)
 			sm_syslog(LOG_INFO, NOQID, "could not restart: need full path");
-		finis(FALSE, EX_OSFILE);
+		exit(EX_OSFILE);
 	}
 	if (LogLevel > 3)
 		sm_syslog(LOG_INFO, NOQID, "restarting %s on signal", SaveArgv[0]);
 	alarm(0);
 	releasesignal(SIGHUP);
-	closecontrolsocket(TRUE);
 	if (drop_privileges(TRUE) != EX_OK)
 	{
 		if (LogLevel > 0)
 			sm_syslog(LOG_ALERT, NOQID, "could not set[ug]id(%d, %d): %m",
 				RunAsUid, RunAsGid);
-		finis(FALSE, EX_OSERR);
+		exit(EX_OSERR);
 	}
 	execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);
 	if (LogLevel > 0)
 		sm_syslog(LOG_ALERT, NOQID, "could not exec %s: %m", SaveArgv[0]);
-	finis(FALSE, EX_OSFILE);
+	exit(EX_OSFILE);
 }
 /*
 **  DROP_PRIVILEGES -- reduce privileges to those of the RunAsUser option

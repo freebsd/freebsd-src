@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $
+ *	@(#) $Id: eni_transmit.c,v 1.20 1998/07/17 20:20:16 root Exp $
  *
  */
 
@@ -36,15 +36,15 @@
  */
 
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: eni_transmit.c,v 1.20 1998/07/17 20:20:16 root Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $");
-#endif
 
 /*
  * Make a variable which controls printing of PDUs
@@ -467,7 +467,7 @@ retry:
 			/*
 			 * Gotta slide the data up
 			 */
-			eup->eu_stats.eni_st_drv.drv_xm_segnoal++;
+			eup->eu_stats.eni_st_drv.drv_xm_segnoal;
 			bfr = cp - align;
 			KM_COPY ( cp, bfr, KB_LEN ( m ) );
 			KB_HEADMOVE ( m, -align );

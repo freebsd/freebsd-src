@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,29 +28,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	tab.c					8-Oct-98
+ *	tab.c					20-Oct-97
  *
  */
 #include <stdio.h>
 
 #include "tab.h"
 
-static	int	tabs = 8;
-
-#define TABPOS(i)	((i)%tabs == 0)
-/*
- * settabs: set default tab stop
- *
- *	i)	n	tab stop
- */
-void
-settabs(n)
-int	n;
-{
-	if (n < 1 || n > 32)
-		return;
-	tabs = n;
-}
+#define TABPOS(i)	((i)%8 == 0)
 /*
  * detab: convert tabs into spaces and print
  *
@@ -99,8 +84,7 @@ char	*buf;
 				blanks++;		/* count blanks */
 				continue;
 			}
-			/* don't convert single blank into tab */
-			buf[dst++] = (blanks == 0) ? ' ' : '\t';
+			buf[dst++] = '\t';
 		} else if (c == '\t') {
 			while (!TABPOS(++pos))
 				;
@@ -113,8 +97,5 @@ char	*buf;
 		}
 		blanks = 0;
 	}
-	if (blanks > 0)
-		while (blanks--)
-			buf[dst++] = ' ';
 	buf[dst] = 0;
 }

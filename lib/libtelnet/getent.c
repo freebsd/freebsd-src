@@ -58,7 +58,7 @@ char *cp, *name;
 #ifndef	SOLARIS
 /*ARGSUSED*/
 char *
-Getstr(id, cpp)
+getstr(id, cpp)
 char *id, **cpp;
 {
 # ifdef	HAS_CGETENT

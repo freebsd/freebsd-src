@@ -1,5 +1,4 @@
-/* $Id: isp_freebsd.h,v 1.8 1999/01/10 02:51:06 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $FreeBSD$ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -36,7 +35,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	98
+#define	ISP_PLATFORM_VERSION_MINOR	97
 
 #include <sys/param.h>
 
@@ -80,11 +79,7 @@ struct isposinfo {
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 #define	DFLT_DBLEVEL		1
 
-#define	MEMZERO			BZERO
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
-
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
-#define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
 #define	ISP_LOCK(isp)		isp_spl_save = splbio()
 #define	ISP_ILOCK(isp)		ISP_LOCK(isp)
@@ -103,7 +98,7 @@ struct isposinfo {
 #define	XS_STS(xs)		(xs)->status
 #define	XS_TIME(xs)		(xs)->timeout
 #define	XS_SNSP(xs)		(&(xs)->sense)
-#define	XS_SNSLEN(xs)		(sizeof((xs)->sense))
+#define	XS_SNSLEN(xs)		(sizeof (xs)->sense)
 #define	XS_SNSKEY(xs)		((xs)->sense.ext.extended.flags)
 
 #define	HBA_NOERROR		XS_NOERROR
@@ -135,14 +130,17 @@ struct isposinfo {
 /*
  * Our default tag
  */
-#define	XS_KINDOF_TAG(xs)	REQFLAG_STAG
+#define	XS_KINDOF_TAG(xs)	REQFLAG_OTAG
 
 
 #define	CMD_COMPLETE		COMPLETE
 #define	CMD_EAGAIN		TRY_AGAIN_LATER
 #define	CMD_QUEUED		SUCCESSFULLY_QUEUED
 
+
+
 #define	isp_name	isp_osinfo.name
+
 
 #define	SYS_DELAY(x)	DELAY(x)
 
@@ -161,7 +159,6 @@ struct isposinfo {
 
 #define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
 extern void isp_attach __P((struct ispsoftc *));
-extern void isp_uninit __P((struct ispsoftc *));
 
 #define	PVS 				"Qlogic ISP Driver, FreeBSD Non-Cam"
 

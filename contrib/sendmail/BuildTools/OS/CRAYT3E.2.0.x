@@ -1,4 +1,4 @@
-#	@(#)CRAYT3E.2.0.x	8.1	(Berkeley)	4/21/1998
+#	@(#)CRAYT3E.2.0.x	8.1	(Berkeley)	4/21/98
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-DUNICOS ')
 define(`confOPTIMIZE', `-O')

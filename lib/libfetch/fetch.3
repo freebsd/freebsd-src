@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: fetch.3,v 1.6 1998/12/16 15:29:03 des Exp $
+.\"	$Id: fetch.3,v 1.1.1.1 1998/07/09 16:52:43 des Exp $
 .\"
 .Dd July 1, 1998
 .Dt FETCH 3
@@ -30,74 +30,44 @@
 .Sh NAME
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
-.Nm fetchStatURL ,
-.Nm fetchListURL ,
 .Nm fetchParseURL ,
+.Nm fetchFreeURL ,
 .Nm fetchGet ,
 .Nm fetchPut ,
-.Nm fetchStat ,
-.Nm fetchList ,
 .Nm fetchGetFile ,
 .Nm fetchPutFile ,
-.Nm fetchStatFile ,
-.Nm fetchListFile ,
 .Nm fetchGetHTTP ,
 .Nm fetchPutHTTP ,
-.Nm fetchStatHTTP ,
-.Nm fetchListHTTP ,
 .Nm fetchGetFTP ,
 .Nm fetchPutFTP
-.Nm fetchStatFTP
-.Nm fetchListFTP ,
 .Nd file transfer library
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <stdio.h>
 .Fd #include <fetch.h>
 .Ft FILE *
 .Fn fetchGetURL "char *URL" "char *flags"
 .Ft FILE *
 .Fn fetchPutURL "char *URL" "char *flags"
-.Ft int
-.Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
-.Ft struct url_ent *
-.Fn fetchListURL "char *URL" "char *flags"
-.Ft struct url *
+.Ft url_t *
 .Fn fetchParseURL "char *URL" "char *flags"
+.Ft void
+.Fn fetchFreeURL "url_t *u"
 .Ft FILE *
-.Fn fetchGet "struct url *URL" "char *flags"
+.Fn fetchGet "url_t *URL" "char *flags"
 .Ft FILE *
-.Fn fetchPut "struct url *URL" "char *flags"
-.Ft int
-.Fn fetchStat "struct url *URL" "struct url_stat *us" "char *flags"
-.Ft struct url_ent *
-.Fn fetchList "struct url *" "char *flags"
+.Fn fetchPut "url_t *URL" "char *flags"
 .Ft FILE *
-.Fn fetchGetFile "struct url *u" "char *flags"
+.Fn fetchGetFile "url_t *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutFile "struct url *u" "char *flags"
-.Ft int
-.Fn fetchStatFile "struct url *URL" "struct url_stat *us" "char *flags"
-.Ft struct url_ent *
-.Fn fetchListFile "struct url *" "char *flags"
+.Fn fetchPutFile "url_t *u" "char *flags"
 .Ft FILE *
-.Fn fetchGetHTTP "struct url *u" "char *flags"
+.Fn fetchGetHTTP "url_t *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutHTTP "struct url *u" "char *flags"
-.Ft int
-.Fn fetchStatHTTP "struct url *URL" "struct url_stat *us" "char *flags"
-.Ft struct url_ent *
-.Fn fetchListHTTP "struct url *" "char *flags"
+.Fn fetchPutHTTP "url_t *u" "char *flags"
 .Ft FILE *
-.Fn fetchGetFTP "struct url *u" "char *flags"
+.Fn fetchGetFTP "url_t *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutFTP "struct url *u" "char *flags"
-.Ft int
-.Fn fetchStatFTP "struct url *URL" "struct url_stat *us" "char *flags"
-.Ft struct url_ent *
-.Fn fetchListFTP "struct url *" "char *flags"
+.Fn fetchPutFTP "url_t *u" "char *flags"
 .Sh DESCRIPTION
-.Pp
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
 .Pp
@@ -113,42 +83,6 @@ actual transfer. The
 argument is a string of characters which specify transfer options. The
 meaning of the individual flags is scheme-dependent, and is detailed
 in the appropriate section below.
-.Pp
-.Fn fetchStatURL
-attempts to obtain the requested document's metadata and fill in the
-structure pointed to by it's second argument. The
-.Fa url_stat
-structure is defined as follows in
-.Aq Pa fetch.h :
-.Bd -literal
-struct url_stat {
-    off_t	 size;
-    time_t	 atime;
-    time_t	 mtime;
-};
-.Ed
-.Pp
-.Fn fetchListURL
-attempts to list the contents of the directory pointed to by the URL
-provided. If successful, it returns a malloced array of
-.Fa url_ent
-structures. The
-.Fa url_ent
-structure is defined as follows in
-.Aq Pa fetch.h :
-.Bd -literal
-struct url_ent {
-    char         name[MAXPATHLEN];
-    struct url_stat stat;
-};
-.Ed
-.Pp
-The list is terminated by an entry with an empty name.
-.Pp
-The pointer returned by
-.Fn fetchListURL
-should be freed using
-.Fn free .
 .Pp
 .Fn fetchParseURL
 takes a URL in the form of a null-terminated string and splits it into
@@ -166,21 +100,19 @@ and <document> components.
 The pointer returned by
 .Fn fetchParseURL
 should be freed using
-.Fn free .
+.Fn fetchFreeURL .
 .Pp
-.Fn fetchGet ,
+.Fn fetchGet
+and
 .Fn fetchPut
-and
-.Fn fetchStat
 are similar to
-.Fn fetchGetURL ,
-.Fn fetchPutURL
+.Fn fetchGetURL
 and
-.Fn fetchStatURL ,
+.Fn fetchPutURL ,
 except that they expect a pre-parsed URL in the form of a pointer to
-a
-.Fa struct url
-rather than a string.
+an
+.Fa url_t
+structure rather than a string.
 .Pp
 All of the
 .Fn fetchGetXXX
@@ -244,66 +176,18 @@ is currently unimplemented.
 .Sh RETURN VALUES
 .Fn fetchParseURL
 returns a pointer to a
-.Fa struct url
-containing the individual components of the URL. If it is
+.Fa url_t
+structure containing the individual components of the URL. If it is
 unable to allocate memory, or the URL is syntactically incorrect,
 .Fn fetchParseURL
 returns a NULL pointer.
 .Pp
-The 
-.Fn fetchStat
-functions return 0 on success and -1 on failure.
+.Fn fetchFreeURL
+does not return any value.
 .Pp
 All other functions return a stream pointer which may be used to
-access the requested document, or NULL if an error occurred.
-.Pp
-.Nm Libfetch
-uses the Common Error Library
-.Nm ( libcom_err )
-to report errors. The error code passed to
-.Fn com_err
-is one of:
-.Bl -tag -width Er
-.It Bq Er FETCH_ABORT
-Operation aborted    
-.It Bq Er FETCH_AUTH
-Authentication failed    
-.It Bq Er FETCH_DOWN
-Service unavailable    
-.It Bq Er FETCH_EXISTS
-File exists    
-.It Bq Er FETCH_FULL
-File system full   
-.It Bq Er FETCH_INFO
-Informational response    
-.It Bq Er FETCH_MEMORY
-Insufficient memory    
-.It Bq Er FETCH_MOVED
-File has moved   
-.It Bq Er FETCH_NETWORK
-Network error    
-.It Bq Er FETCH_OK
-No error    
-.It Bq Er FETCH_PROTO
-Protocol error    
-.It Bq Er FETCH_RESOLV
-Resolver error    
-.It Bq Er FETCH_SERVER
-Server error    
-.It Bq Er FETCH_TEMP
-Temporary error    
-.It Bq Er FETCH_TIMEOUT
-Operation timed out   
-.It Bq Er FETCH_UNAVAIL
-File is not available  
-.It Bq Er FETCH_UNKNOWN
-Unknown error    
-.It Bq Er FETCH_URL
-Invalid URL
-.El
-.Pp
-The accompanying error message includes a protocol-specific error code
-and message, e.g. "File is not available (404 Not Found)"
+access the requested document. Upon failure of any kind, they return a
+NULL pointer.
 .Sh ENVIRONMENT
 The FTP and HTTP related functions use the
 .Ev HTTP_PROXY
@@ -312,7 +196,6 @@ and
 environment variables, respectively, as the address of a proxy server
 to use for transferring files.
 .Sh SEE ALSO
-.Xr com_err 3 ,
 .Xr fetch 1 ,
 .Xr ftpio 3
 .Rs
@@ -333,14 +216,13 @@ to use for transferring files.
 .%B File Transfer Protocol
 .%O RFC959
 .Re
+.Sh DIAGNOSTICS
+Add later.
 .Sh NOTES
-The
-.Nm fetch
-library uses the Common Error library, and applications which link
-with
-.Nm libfetch
-must therefore also link with
-.Nm libcom_err .
+Some parts of the library are not yet implemented. The most notable
+examples of this are
+.Fn fetchPutHTTP
+and proxy support for the FTP access method.
 .Sh HISTORY
 The
 .Nm fetch
@@ -352,27 +234,18 @@ The
 library was mostly written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 with numerous suggestions from
-.An Jordan K. Hubbard Aq jkh@FreeBSD.org ,
-.An Eugene Skepner Aq eu@qub.com
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org
 and other FreeBSD developers.
-It replaces the older
+It incorporates the older
 .Nm ftpio
-library written by
-.An Poul-Henning Kamp Aq pkh@FreeBSD.org
-and
+library, which was originally written by
+.Nm Poul-Henning Kamp Aq pkh@FreeBSD.org
+and later turned inside out by
 .An Jordan K. Hubbard Aq jkh@FreeBSD.org .
 .Pp
 This manual page was written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 .Sh BUGS
-Some parts of the library are not yet implemented. The most notable
-examples of this are
-.Fn fetchPutHTTP ,
-.Fn fetchStatHTTP ,
-.Fn fetchListHTTP ,
-.Fn fetchListFTP ,
-and FTP proxy support.
-.Pp
 There's no way to select a proxy at run-time other than setting the
 .Ev HTTP_PROXY
 or
@@ -386,21 +259,6 @@ code; as far as I can determine,
 .Nm libfetch
 handles HTTP/1.1 basic authentication correctly as outlined in
 RFC2068, but I haven't been able to find an HTTP server that honors
-the Authentication: header field. Also,
-.Nm libfetch
-does not attempt to interpret and respond to authentication requests
-from the HTTP server.
-.Pp
-No attempt is made to encode spaces etc. within URLs. Spaces in the
-document part of an URLshould be replaced with "%20" in HTTP URLs and
-"\\ " in FTP URLs.
-.Pp
-Error numbers are unique only within a certain context; the error
-codes used for FTP and HTTP overlap, as do those used for resolver and
-system errors. For instance, error code 202 means "Command not
-implemented, superfluous at this site" in an FTP context and
-"Accepted" in an HTTP context.
-.Pp
-The man page is poorly written and produces badly formatted text.
+the Authentication: header field.
 .Pp
 Tons of other stuff.

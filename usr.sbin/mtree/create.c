@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: create.c,v 1.12 1999/01/12 02:58:23 jkoshy Exp $";
+	"$Id: create.c,v 1.10 1998/06/05 14:43:39 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-#include <vis.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -139,19 +138,11 @@ statf(indent, p)
 	struct passwd *pw;
 	u_long len, val;
 	int fd, offset;
-	char *escaped_name;
-
-	escaped_name = calloc(1, p->fts_namelen * 4  +  1);
-	if (escaped_name == NULL)
-		errx(1, "statf(): calloc() failed");
-	strvis(escaped_name, p->fts_name, VIS_WHITE | VIS_OCTAL);
 
 	if (iflag || S_ISDIR(p->fts_statp->st_mode))
-		offset = printf("%*s%s", indent, "", escaped_name);
+		offset = printf("%*s%s", indent, "", p->fts_name);
 	else
-		offset = printf("%*s    %s", indent, "", escaped_name);
-	
-	free(escaped_name);
+		offset = printf("%*s    %s", indent, "", p->fts_name);
 
 	if (offset > (INDENTNAMELEN + indent))
 		offset = MAXLINELEN;

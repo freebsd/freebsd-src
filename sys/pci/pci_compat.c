@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.19 1999/01/14 06:22:10 jdp Exp $
+ * $Id: pci_compat.c,v 1.11 1998/09/15 08:21:09 gibbs Exp $
  *
  */
 
@@ -35,7 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/linker_set.h>
+#include <sys/kernel.h> /* for DATA_SET support */
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -48,10 +48,6 @@
 #include <sys/drvresource.h>
 #endif
 
-#ifdef APIC_IO
-#include <machine/smp.h>
-#endif
-
 #ifdef PCI_COMPAT
 
 /* ------------------------------------------------------------------------- */
@@ -59,16 +55,13 @@
 static int
 pci_mapno(pcicfgregs *cfg, int reg)
 {
-	int i, nummaps;
-	pcimap *map;
-
-	nummaps = cfg->nummaps;
-	map = cfg->map;
-
-	for (i = 0; i < nummaps; i++)
-		if (map[i].reg == reg)
-			return (i);
-	return (-1);
+	int map = -1;
+	if ((reg & 0x03) == 0) {
+		map = (reg -0x10) / 4;
+		if (map < 0 || map >= cfg->nummaps)
+			map = -1;
+	}
+	return (map);
 }
 
 static int
@@ -175,10 +168,11 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
+	vm_offset_t dense;
+	int retval = 0;
+
 	if(pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
-		vm_offset_t dense;
-
 		if(dense = pci_cvt_to_dense(*pa)){
 			*pa = dense;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);
@@ -195,10 +189,11 @@ pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
+	vm_offset_t bwx;
+	int retval = 0;
+
 	if(pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
-		vm_offset_t bwx;
-
 		if(bwx = pci_cvt_to_bwx(*pa)){
 			*pa = bwx;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);
@@ -212,15 +207,9 @@ pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	return (0);
 }
 
-int
-pci_map_int(pcici_t cfg, pci_inthand_t *handler, void *arg, intrmask_t *maskptr)
-{
-	return (pci_map_int_right(cfg, handler, arg, maskptr, 0));
-}
 
 int
-pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
-		  intrmask_t *maskptr, u_int flags)
+pci_map_int(pcici_t cfg, pci_inthand_t *func, void *arg, unsigned *maskptr)
 {
 	int error;
 #ifdef APIC_IO
@@ -231,8 +220,7 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		void *dev_instance = (void *)-1; /* XXX use cfg->devdata  */
 		void *idesc;
 
-		idesc = intr_create(dev_instance, irq, handler, arg, maskptr,
-				    flags);
+		idesc = intr_create(dev_instance, irq, func, arg, maskptr, 0);
 		error = intr_connect(idesc);
 		if (error != 0)
 			return 0;
@@ -265,8 +253,8 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 
 		nextpin = next_apic_irq(irq);
 		while (nextpin >= 0) {
-			idesc = intr_create(dev_instance, nextpin, handler,
-					    arg, maskptr, flags);
+			idesc = intr_create(dev_instance, nextpin, func, arg,
+					    maskptr, 0);
 			error = intr_connect(idesc);
 			if (error != 0)
 				return 0;
@@ -355,9 +343,9 @@ pci_freeunit(pcicfgregs *cfg, char *name, int unit)
 	return (unit);
 }
 
-static const char *drvname;
+static char *drvname;
 
-static const char*
+static char*
 pci_probedrv(pcicfgregs *cfg, struct pci_device *dvp)
 {
 	if (dvp && dvp->pd_probe) {
@@ -435,7 +423,6 @@ pci_drvattach(struct pci_devinfo *dinfo)
 		else
 			strncpy(dinfo->conf.pd_name, "????",
 				sizeof(dinfo->conf.pd_name));
-		dinfo->conf.pd_name[sizeof(dinfo->conf.pd_name) - 1] = 0;
 
 		dinfo->conf.pd_unit = unit;
 
@@ -461,7 +448,7 @@ int pci_register_lkm (struct pci_device *dvp, int if_revision)
 		return (-1);
 	}
 	lkm = malloc (sizeof (*lkm), M_DEVBUF, M_WAITOK);
-	if (lkm == NULL) {
+	if (lkm != NULL) {
 		return (-1);
 	}
 

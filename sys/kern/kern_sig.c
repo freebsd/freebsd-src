@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.52 1999/01/08 17:31:10 eivind Exp $
+ * $Id: kern_sig.c,v 1.46 1998/09/14 05:36:49 jdp Exp $
  */
 
 #include "opt_compat.h"
@@ -86,16 +86,6 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, 
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
 	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
 
-/*
- * Policy -- Can real uid ruid with ucred uc send a signal to process q?
- */
-#define CANSIGIO(ruid, uc, q) \
-	((uc)->cr_uid == 0 || \
-	    (ruid) == (q)->p_cred->p_ruid || \
-	    (uc)->cr_uid == (q)->p_cred->p_ruid || \
-	    (ruid) == (q)->p_ucred->cr_uid || \
-	    (uc)->cr_uid == (q)->p_ucred->cr_uid)
-
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, &sugid_coredump, 0, "");
 
@@ -135,17 +125,9 @@ sigaction(p, uap)
 			sa->sa_flags |= SA_RESETHAND;
 		if ((ps->ps_signodefer & bit) != 0)
 			sa->sa_flags |= SA_NODEFER;
-#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
-#else
-		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
-#endif /* COMPAT_LINUX_THREADS */
 			sa->sa_flags |= SA_NOCLDSTOP;
-#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDWAIT)
-#else
-		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDWAIT)
-#endif /* COMPAT_LINUX_THREADS */
 			sa->sa_flags |= SA_NOCLDWAIT;
 		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
 		    sizeof (vec))))
@@ -203,15 +185,9 @@ setsigvec(p, signum, sa)
 #endif
 	if (signum == SIGCHLD) {
 		if (sa->sa_flags & SA_NOCLDSTOP)
-#ifndef COMPAT_LINUX_THREADS
 			p->p_flag |= P_NOCLDSTOP;
 		else
 			p->p_flag &= ~P_NOCLDSTOP;
-#else
-			p->p_procsig->ps_flag |= P_NOCLDSTOP;
-		else
-			p->p_procsig->ps_flag &= ~P_NOCLDSTOP;
-#endif /* COMPAT_LINUX_THREADS */
 		if (sa->sa_flags & SA_NOCLDWAIT) {
 			/*
 			 * Paranoia: since SA_NOCLDWAIT is implemented by
@@ -220,21 +196,11 @@ setsigvec(p, signum, sa)
 			 * forbidden to set SA_NOCLDWAIT.
 			 */
 			if (p->p_pid == 1)
-#ifndef COMPAT_LINUX_THREADS
 				p->p_flag &= ~P_NOCLDWAIT;
 			else
 				p->p_flag |= P_NOCLDWAIT;
-#else
-				p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
-			else
-				p->p_procsig->ps_flag |= P_NOCLDWAIT;
-#endif /* COMPAT_LINUX_THREADS */
 		} else
-#ifndef COMPAT_LINUX_THREADS
 			p->p_flag &= ~P_NOCLDWAIT;
-#else
-			p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
-#endif /* COMPAT_LINUX_THREADS */
 	}
 	/*
 	 * Set bit in p_sigignore for signals that are set to SIG_IGN,
@@ -409,11 +375,7 @@ osigvec(p, uap)
 		if ((ps->ps_signodefer & bit) != 0)
 			sv->sv_flags |= SV_NODEFER;
 #ifndef COMPAT_SUNOS
-#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
-#else
-		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
-#endif /* COMPAT_LINUX_THREADS */
 			sv->sv_flags |= SV_NOCLDSTOP;
 #endif
 		if ((error = copyout((caddr_t)sv, (caddr_t)uap->osv,
@@ -498,12 +460,8 @@ sigsuspend(p, uap)
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
-#ifndef COMPAT_LINUX_THREADS
 	ps->ps_oldmask = p->p_sigmask;
 	ps->ps_flags |= SAS_OLDMASK;
-#else
-	p->p_oldsigmask = p->p_sigmask;
-#endif /* COMPAT_LINUX_THREADS */
 	p->p_sigmask = uap->mask &~ sigcantmask;
 	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
@@ -762,13 +720,8 @@ trapsignal(p, signum, code)
 			ps->ps_sigact[signum] = SIG_DFL;
 		}
 	} else {
-#ifndef COMPAT_LINUX_THREADS
 		ps->ps_code = code;	/* XXX for core dump/debugger */
 		ps->ps_sig = signum;	/* XXX to verify code */
-#else
-		p->p_code = code;	/* XXX for core dump/debugger */
-		p->p_sig = signum;	/* XXX to verify code */
-#endif /* COMPAT_LINUX_THREADS */
 		psignal(p, signum);
 	}
 }
@@ -817,11 +770,7 @@ psignal(p, signum)
 		 * and if it is set to SIG_IGN,
 		 * action will be SIG_DFL here.)
 		 */
-#ifndef COMPAT_LINUX_THREADS
 		if (p->p_sigignore & mask)
-#else
-		if ((p->p_sigignore & mask) || (p->p_flag & P_WEXIT))
-#endif /* COMPAT_LINUX_THREADS */
 			return;
 		if (p->p_sigmask & mask)
 			action = SIG_HOLD;
@@ -903,11 +852,7 @@ psignal(p, signum)
 				goto out;
 			p->p_siglist &= ~mask;
 			p->p_xstat = signum;
-#ifndef COMPAT_LINUX_THREADS
 			if ((p->p_pptr->p_flag & P_NOCLDSTOP) == 0)
-#else
-			if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
-#endif /* COMPAT_LINUX_THREADS */
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			goto out;
@@ -1114,11 +1059,7 @@ issignal(p)
 					break;	/* == ignore */
 				p->p_xstat = signum;
 				stop(p);
-#ifndef COMPAT_LINUX_THREADS
 				if ((p->p_pptr->p_flag & P_NOCLDSTOP) == 0)
-#else
-				if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
-#endif /* COMPAT_LINUX_THREADS */
 					psignal(p->p_pptr, SIGCHLD);
 				mi_switch();
 				break;
@@ -1183,21 +1124,18 @@ postsig(signum)
 	register sig_t action;
 	int code, mask, returnmask;
 
-	KASSERT(signum != 0, ("postsig"));
-
+#ifdef DIAGNOSTIC
+	if (signum == 0)
+		panic("postsig");
+#endif
 	mask = sigmask(signum);
 	p->p_siglist &= ~mask;
 	action = ps->ps_sigact[signum];
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_PSIG))
 		ktrpsig(p->p_tracep,
-#ifndef COMPAT_LINUX_THREADS
 		    signum, action, ps->ps_flags & SAS_OLDMASK ?
 		    ps->ps_oldmask : p->p_sigmask, 0);
-#else
-		    signum, action, p->p_oldsigmask ?
-		    p->p_oldsigmask : p->p_sigmask, 0);
-#endif /* COMPAT_LINUX_THREADS */
 #endif
 	STOPEVENT(p, S_SIG, signum);
 
@@ -1212,8 +1150,10 @@ postsig(signum)
 		/*
 		 * If we get here, the signal must be caught.
 		 */
-		KASSERT(action != SIG_IGN && (p->p_sigmask & mask) == 0,
-		    ("postsig action"));
+#ifdef DIAGNOSTIC
+		if (action == SIG_IGN || (p->p_sigmask & mask))
+			panic("postsig action");
+#endif
 		/*
 		 * Set the new mask value and also defer further
 		 * occurences of this signal.
@@ -1224,15 +1164,9 @@ postsig(signum)
 		 * restored after the signal processing is completed.
 		 */
 		(void) splhigh();
-#ifndef COMPAT_LINUX_THREADS
 		if (ps->ps_flags & SAS_OLDMASK) {
 			returnmask = ps->ps_oldmask;
 			ps->ps_flags &= ~SAS_OLDMASK;
-#else
-		if (p->p_oldsigmask) {
-			returnmask = p->p_oldsigmask;
-			p->p_oldsigmask = 0;
-#endif /* COMPAT_LINUX_THREADS */
 		} else
 			returnmask = p->p_sigmask;
 		p->p_sigmask |= ps->ps_catchmask[signum] |
@@ -1248,22 +1182,12 @@ postsig(signum)
 		}
 		(void) spl0();
 		p->p_stats->p_ru.ru_nsignals++;
-#ifndef COMPAT_LINUX_THREADS
 		if (ps->ps_sig != signum) {
-#else
-		if (p->p_sig != signum) {
-#endif /* COMPAT_LINUX_THREADS */
 			code = 0;
 		} else {
-#ifndef COMPAT_LINUX_THREADS
 			code = ps->ps_code;
 			ps->ps_code = 0;
 			ps->ps_sig = 0;
-#else
-			code = p->p_code;
-			p->p_code = 0;
-			p->p_sig = 0;
-#endif /* COMPAT_LINUX_THREADS */
 		}
 		(*p->p_sysent->sv_sendsig)(action, signum, returnmask, code);
 	}
@@ -1298,17 +1222,17 @@ sigexit(p, signum)
 
 	p->p_acflag |= AXSIG;
 	if (sigprop[signum] & SA_CORE) {
-#ifndef COMPAT_LINUX_THREADS
 		p->p_sigacts->ps_sig = signum;
-#else
-		p->p_sig = signum;
-#endif /* COMPAT_LINUX_THREADS */
 		/*
 		 * Log signals which would cause core dumps
 		 * (Log as LOG_INFO to appease those who don't want
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
+
+		/* Use the correct function to dump core, as stored in
+		   the sysentvec struct.  This way we can do ELF and a.out
+		   dumps without breaking a sweat. */
 		if (p->p_sysent->sv_coredump != NULL &&
 		    (*p->p_sysent->sv_coredump)(p) == 0)
 			signum |= WCOREFLAG;
@@ -1349,8 +1273,6 @@ const char *name; int uid; int pid; {
 	char *format = corefilename;
 
 	temp = malloc(MAXPATHLEN + 3, M_TEMP, M_NOWAIT);
-	if (temp == NULL)
-		return NULL;
 	bzero(temp, MAXPATHLEN+3);
 	for (i = 0, n = 0; i < MAXPATHLEN && format[i]; i++) {
 		int l;
@@ -1425,31 +1347,4 @@ nosys(p, args)
 
 	psignal(p, SIGSYS);
 	return (EINVAL);
-}
-
-/*
- * Send a signal to a SIGIO or SIGURG to a process or process group using
- * stored credentials rather than those of the current process.
- */
-void
-pgsigio(sigio, signum, checkctty)
-	struct sigio *sigio;
-	int signum, checkctty;
-{
-	if (sigio == NULL)
-		return;
-		
-	if (sigio->sio_pgid > 0) {
-		if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred,
-		             sigio->sio_proc))
-			psignal(sigio->sio_proc, signum);
-	} else if (sigio->sio_pgid < 0) {
-		struct proc *p;
-
-		for (p = sigio->sio_pgrp->pg_members.lh_first; p != NULL;
-		     p = p->p_pglist.le_next)
-			if (CANSIGIO(sigio->sio_ruid, sigio->sio_ucred, p) &&
-			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
-				psignal(p, signum);
-	}
 }

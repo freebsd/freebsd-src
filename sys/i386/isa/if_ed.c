@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.147 1998/12/13 23:00:48 eivind Exp $
+ *	$Id: if_ed.c,v 1.144 1998/08/24 02:28:15 bde Exp $
  */
 
 /*
@@ -138,7 +138,6 @@ static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
 static void ed_init		__P((void *));
-static ointhand2_t edintr;
 static int ed_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -194,7 +193,6 @@ static u_long	ds_crc		__P((u_char *ep));
 #endif
 #if NCARD > 0
 #include <sys/select.h>
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -205,7 +203,17 @@ static int	edinit		__P((struct pccard_devinfo *));
 static void	edunload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-PCCARD_MODULE(ed, edinit, edunload, card_intr, 0, net_imask);
+static struct pccard_device ed_info = {
+	"ed",
+	edinit,
+	edunload,
+	card_intr,
+	0,			/* Attributes - presently unused */
+	&net_imask		/* Interrupt mask for device */
+				/* XXX - Should this also include net_imask? */
+};
+
+DATA_SET(pccarddrv_set, ed_info);
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -1731,7 +1739,6 @@ ed_attach_isa(isa_dev)
 	struct ed_softc *sc = &ed_softc[unit];
 	int flags = isa_dev->id_flags;
 
-	isa_dev->id_ointr = edintr;
 	return ed_attach(sc, unit, flags);
 }
 
@@ -2560,7 +2567,7 @@ edintr_sc(sc)
 	}
 }
 
-static void 
+void 
 edintr(unit)
 	int unit;
 {
@@ -3459,7 +3466,7 @@ edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	dev->id_iobase = d.port[0];
 	dev->id_irq = (1 << d.irq[0]);
-	dev->id_ointr = edintr;
+	dev->id_intr = edintr;
 	dev->id_drq = -1;
 
 	if (dev->id_driver == NULL) {

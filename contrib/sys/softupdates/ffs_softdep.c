@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.19 1999/01/06 18:18:04 bde Exp $
+ *	$Id: ffs_softdep.c,v 1.14 1998/09/24 15:02:46 luoqi Exp $
  */
 
 /*
@@ -982,7 +982,7 @@ softdep_mount(devvp, mp, fs, cred)
 	}
 #ifdef DEBUG
 	if (!bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
-		printf("ffs_mountfs: superblock updated for soft updates\n");
+		printf("ffs_mountfs: superblock updated\n");
 #endif
 	bcopy(&cstotal, &fs->fs_cstotal, sizeof cstotal);
 	return (0);
@@ -1261,7 +1261,7 @@ allocdirect_merge(adphead, newadp, oldadp)
 	if (newadp->ad_oldblkno != oldadp->ad_newblkno ||
 	    newadp->ad_oldsize != oldadp->ad_newsize ||
 	    newadp->ad_lbn >= NDADDR)
-		panic("allocdirect_check: old %d != new %d || lbn %ld >= %d",
+		panic("allocdirect_check: old %d != new %d || lbn %d >= %d",
 		    newadp->ad_oldblkno, oldadp->ad_newblkno, newadp->ad_lbn,
 		    NDADDR);
 	newadp->ad_oldblkno = oldadp->ad_oldblkno;
@@ -1664,8 +1664,8 @@ softdep_setup_freeblocks(ip, length)
 		tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "sdsetf", 0);
 		ACQUIRE_LOCK_INTERLOCKED(&lk);
 	}
-	while (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
-		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+	while (getdirtybuf(&LIST_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
+		bp = LIST_FIRST(&vp->v_dirtyblkhd);
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
 		bp->b_flags |= B_INVAL | B_NOCACHE;
@@ -2827,12 +2827,12 @@ initiate_write_inodeblock(inodedep, bp)
 		prevlbn = adp->ad_lbn;
 		if (adp->ad_lbn < NDADDR &&
 		    dp->di_db[adp->ad_lbn] != adp->ad_newblkno)
-			panic("%s: direct pointer #%ld mismatch %d != %d",
+			panic("%s: direct pointer #%d mismatch %d != %d",
 			    "softdep_write_inodeblock", adp->ad_lbn,
 			    dp->di_db[adp->ad_lbn], adp->ad_newblkno);
 		if (adp->ad_lbn >= NDADDR &&
 		    dp->di_ib[adp->ad_lbn - NDADDR] != adp->ad_newblkno)
-			panic("%s: indirect pointer #%ld mismatch %d != %d",
+			panic("%s: indirect pointer #%d mismatch %d != %d",
 			    "softdep_write_inodeblock", adp->ad_lbn - NDADDR,
 			    dp->di_ib[adp->ad_lbn - NDADDR], adp->ad_newblkno);
 		deplist |= 1 << adp->ad_lbn;
@@ -3137,9 +3137,11 @@ handle_written_inodeblock(inodedep, bp)
 	struct inodedep *inodedep;
 	struct buf *bp;		/* buffer containing the inode block */
 {
+	struct pagedep *pagedep;
 	struct worklist *wk, *filefree;
 	struct allocdirect *adp, *nextadp;
 	struct dinode *dp;
+	struct diradd *dap;
 	int hadchanges;
 
 	if ((inodedep->id_state & IOSTARTED) == 0)
@@ -3173,14 +3175,14 @@ handle_written_inodeblock(inodedep, bp)
 			panic("handle_written_inodeblock: new entry");
 		if (adp->ad_lbn < NDADDR) {
 			if (dp->di_db[adp->ad_lbn] != adp->ad_oldblkno)
-				panic("%s: %s #%ld mismatch %d != %d",
+				panic("%s: %s #%d mismatch %d != %d",
 				    "handle_written_inodeblock",
 				    "direct pointer", adp->ad_lbn,
 				    dp->di_db[adp->ad_lbn], adp->ad_oldblkno);
 			dp->di_db[adp->ad_lbn] = adp->ad_newblkno;
 		} else {
 			if (dp->di_ib[adp->ad_lbn - NDADDR] != 0)
-				panic("%s: %s #%ld allocated as %d",
+				panic("%s: %s #%d allocated as %d",
 				    "handle_written_inodeblock",
 				    "indirect pointer", adp->ad_lbn - NDADDR,
 				    dp->di_ib[adp->ad_lbn - NDADDR]);
@@ -3430,6 +3432,7 @@ softdep_load_inodeblock(ip)
 	struct inode *ip;	/* the "in_core" copy of the inode */
 {
 	struct inodedep *inodedep;
+	int error, gotit;
 
 	/*
 	 * Check for alternate nlink count.
@@ -3463,7 +3466,7 @@ void
 softdep_update_inodeblock(ip, bp, waitfor)
 	struct inode *ip;	/* the "in_core" copy of the inode */
 	struct buf *bp;		/* the buffer containing the inode block */
-	int waitfor;		/* nonzero => update must be allowed */
+	int waitfor;		/* 1 => update must be allowed */
 {
 	struct inodedep *inodedep;
 	struct worklist *wk;
@@ -3583,9 +3586,7 @@ softdep_fsync(vp)
 	struct fs *fs;
 	struct proc *p = CURPROC;		/* XXX */
 	int error, ret, flushparent;
-#ifndef __FreeBSD__
 	struct timeval tv;
-#endif
 	ino_t parentino;
 	ufs_lbn_t lbn;
 
@@ -3652,13 +3653,12 @@ softdep_fsync(vp)
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (flushparent) {
-#ifdef __FreeBSD__
-			error = UFS_UPDATE(pvp, 1);
-#else
+#ifndef __FreeBSD__
 			tv = time;
-			error = UFS_UPDATE(pvp, &tv, &tv, 1);
-#endif
-			if (error) {
+#else
+			getmicrotime(&tv);
+#endif /* __FreeBSD__ */
+			if (error = UFS_UPDATE(pvp, &tv, &tv, MNT_WAIT)) {
 				vput(pvp);
 				return (error);
 			}
@@ -3740,7 +3740,7 @@ softdep_sync_metadata(ap)
 	 */
 	waitfor = MNT_NOWAIT;
 top:
-	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
+	if (getdirtybuf(&LIST_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
 			FREE_LOCK_INTERLOCKED(&lk);
@@ -3751,7 +3751,7 @@ top:
 		FREE_LOCK(&lk);
 		return (0);
 	}
-	bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
+	bp = LIST_FIRST(&vp->v_dirtyblkhd);
 loop:
 	/*
 	 * As we hold the buffer locked, none of its dependencies
@@ -3850,8 +3850,8 @@ loop:
 			/* NOTREACHED */
 		}
 	}
-	(void) getdirtybuf(&TAILQ_NEXT(bp, b_vnbufs), MNT_WAIT);
-	nbp = TAILQ_NEXT(bp, b_vnbufs);
+	(void) getdirtybuf(&LIST_NEXT(bp, b_vnbufs), MNT_WAIT);
+	nbp = LIST_NEXT(bp, b_vnbufs);
 	FREE_LOCK(&lk);
 	bawrite(bp);
 	ACQUIRE_LOCK(&lk);
@@ -3887,7 +3887,7 @@ loop:
 	 * then we are done. For certain directories and block
 	 * devices, we may need to do further work.
 	 */
-	if (TAILQ_FIRST(&vp->v_dirtyblkhd) == NULL) {
+	if (LIST_FIRST(&vp->v_dirtyblkhd) == NULL) {
 		FREE_LOCK(&lk);
 		return (0);
 	}
@@ -4012,9 +4012,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct inodedep *inodedep;
 	struct ufsmount *ump;
 	struct diradd *dap;
-#ifndef __FreeBSD__
 	struct timeval tv;
-#endif
 	struct vnode *vp;
 	int gotit, error = 0;
 	struct buf *bp;
@@ -4027,14 +4025,13 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * has a MKDIR_PARENT dependency.
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
-			FREE_LOCK(&lk);
-#ifdef __FreeBSD__
-			error = UFS_UPDATE(pvp, 1);
-#else
+#ifndef __FreeBSD__
 			tv = time;
-			error = UFS_UPDATE(pvp, &tv, &tv, 1);
-#endif
-			if (error)
+#else
+			getmicrotime(&tv);
+#endif /* __FreeBSD__ */
+			FREE_LOCK(&lk);
+			if (error = UFS_UPDATE(pvp, &tv, &tv, MNT_WAIT))
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -4116,12 +4113,12 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			}
 			FREE_LOCK(&lk);
 		}
-#ifdef __FreeBSD__
-		error = UFS_UPDATE(vp, 1);
-#else
+#ifndef __FreeBSD__
 		tv = time;
-		error = UFS_UPDATE(vp, &tv, &tv, 1);
-#endif
+#else
+		getmicrotime(&tv);
+#endif /* __FreeBSD__ */
+		error = UFS_UPDATE(vp, &tv, &tv, MNT_WAIT);
 		vput(vp);
 		if (error)
 			break;

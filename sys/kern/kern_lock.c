@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.22 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_lock.c,v 1.18 1998/03/07 19:25:34 dyson Exp $
  */
 
 #include "opt_lint.h"
@@ -83,8 +83,14 @@ sharelock(struct lock *lkp, int incr) {
 
 static LOCK_INLINE void
 shareunlock(struct lock *lkp, int decr) {
-
-	KASSERT(lkp->lk_sharecount >= decr, ("shareunlock: count < decr"));
+#if defined(DIAGNOSTIC)
+	if (lkp->lk_sharecount < decr)
+#if defined(DDB)
+		Debugger("shareunlock: count < decr");
+#else
+		panic("shareunlock: count < decr");
+#endif
+#endif
 
 	if (lkp->lk_sharecount == decr) {
 		lkp->lk_flags &= ~LK_SHARE_NONZERO;
@@ -171,20 +177,11 @@ acquire(struct lock *lkp, int extflags, int wanted) {
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-#ifndef	DEBUG_LOCKS
 lockmgr(lkp, flags, interlkp, p)
-#else
-debuglockmgr(lkp, flags, interlkp, p, name, file, line)
-#endif
 	struct lock *lkp;
 	u_int flags;
 	struct simplelock *interlkp;
 	struct proc *p;
-#ifdef	DEBUG_LOCKS
-	const char *name;	/* Name of lock function */
-	const char *file;	/* Name of file call is from */
-	int line;		/* Line number in file */
-#endif
 {
 	int error;
 	pid_t pid;
@@ -292,11 +289,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 				panic("lockmgr: non-zero exclusive count");
 #endif
 			lkp->lk_exclusivecount = 1;
-#if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
-#endif
 			COUNT(p, 1);
 			break;
 		}
@@ -352,11 +344,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			panic("lockmgr: non-zero exclusive count");
 #endif
 		lkp->lk_exclusivecount = 1;
-#if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
-#endif
 		COUNT(p, 1);
 		break;
 
@@ -402,11 +389,6 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = pid;
 		lkp->lk_exclusivecount = 1;
-#if defined(DEBUG_LOCKS)
-			lkp->lk_filename = file;
-			lkp->lk_lineno = line;
-			lkp->lk_lockername = name;
-#endif
 		COUNT(p, 1);
 		break;
 
@@ -522,7 +504,7 @@ lockmgr_printinfo(lkp)
 static int lockpausetime = 0;
 SYSCTL_INT(_debug, OID_AUTO, lockpausetime, CTLFLAG_RW, &lockpausetime, 0, "");
 
-static int simplelockrecurse;
+int simplelockrecurse;
 
 /*
  * Simple lock functions so that the debugger can see from whence

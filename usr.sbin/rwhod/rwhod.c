@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: rwhod.c,v 1.8 1998/12/17 11:05:57 des Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -115,8 +115,6 @@ static const char rcsid[] =
 #define INADDR_WHOD_GROUP (u_long)0xe0000103      /* 224.0.1.3 */
 					  /* (belongs in protocols/rwhod.h) */
 
-int			insecure_mode;
-int			quiet_mode;
 int			multicast_mode  = NO_MULTICAST;
 int			multicast_scope;
 struct sockaddr_in	multicast_addr  = { sizeof multicast_addr, AF_INET };
@@ -196,10 +194,6 @@ main(argc, argv)
 			}
 			else multicast_mode = PER_INTERFACE_MULTICAST;
 		}
-		else if (strcmp(*argv, "-i") == 0)
-			insecure_mode = 1;
-		else if (strcmp(*argv, "-l") == 0)
-			quiet_mode = 1;
 		else
 			usage();
 		argv++, argc--;
@@ -258,10 +252,8 @@ main(argc, argv)
 	setuid(unpriv_uid);
 	if (!configure(s))
 		exit(1);
-	if (!quiet_mode) {
-		signal(SIGALRM, onalrm);
-		onalrm(0);
-	}
+	signal(SIGALRM, onalrm);
+	onalrm(0);
 	for (;;) {
 		struct whod wd;
 		int cc, whod, len = sizeof(from);
@@ -273,7 +265,7 @@ main(argc, argv)
 				syslog(LOG_WARNING, "recv: %m");
 			continue;
 		}
-		if (from.sin_port != sp->s_port && !insecure_mode) {
+		if (from.sin_port != sp->s_port) {
 			syslog(LOG_WARNING, "%d: bad from port",
 				ntohs(from.sin_port));
 			continue;
@@ -327,7 +319,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: rwhod [-i] [-m [ttl]]\n");
+	fprintf(stderr, "usage: rwhod [-m [ttl]]\n");
 	exit(1);
 }
 

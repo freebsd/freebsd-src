@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.42 1998/11/11 10:03:55 truckman Exp $
+ * $Id: sys_generic.c,v 1.40 1998/08/24 08:39:38 dfr Exp $
  */
 
 #include "opt_ktrace.h"
@@ -469,6 +469,37 @@ ioctl(p, uap)
 		error = (*fp->f_ops->fo_ioctl)(fp, FIOASYNC, (caddr_t)&tmp, p);
 		break;
 
+	case FIOSETOWN:
+		tmp = *(int *)data;
+		if (fp->f_type == DTYPE_SOCKET) {
+			((struct socket *)fp->f_data)->so_pgid = tmp;
+			error = 0;
+			break;
+		}
+		if (tmp <= 0) {
+			tmp = -tmp;
+		} else {
+			struct proc *p1 = pfind(tmp);
+			if (p1 == 0) {
+				error = ESRCH;
+				break;
+			}
+			tmp = p1->p_pgrp->pg_id;
+		}
+		error = (*fp->f_ops->fo_ioctl)
+			(fp, (int)TIOCSPGRP, (caddr_t)&tmp, p);
+		break;
+
+	case FIOGETOWN:
+		if (fp->f_type == DTYPE_SOCKET) {
+			error = 0;
+			*(int *)data = ((struct socket *)fp->f_data)->so_pgid;
+			break;
+		}
+		error = (*fp->f_ops->fo_ioctl)(fp, (int)TIOCGPGRP, data, p);
+		*(int *)data = -*(int *)data;
+		break;
+
 	default:
 		error = (*fp->f_ops->fo_ioctl)(fp, com, data, p);
 		/*
@@ -762,11 +793,9 @@ pollscan(p, fds, nfd)
 	int n = 0;
 
 	for (i = 0; i < nfd; i++, fds++) {
-		if (fds->fd >= fdp->fd_nfiles) {
+		if ((u_int)fds->fd >= fdp->fd_nfiles) {
 			fds->revents = POLLNVAL;
 			n++;
-		} else if (fds->fd < 0) {
-			fds->revents = 0;
 		} else {
 			fp = fdp->fd_ofiles[fds->fd];
 			if (fp == 0) {

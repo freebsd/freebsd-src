@@ -1,7 +1,6 @@
-#	$Id: Makefile,v 1.5 1997/08/22 15:42:31 peter Exp $
+#	$Id: Makefile,v 1.4 1997/02/22 19:54:21 peter Exp $
 
 PROG=	chat
-CFLAGS+=-Wall
 SRCS=	chat.c
 MAN8=	chat.8
 

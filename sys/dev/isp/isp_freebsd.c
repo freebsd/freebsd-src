@@ -1,5 +1,4 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $FreeBSD$ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -42,7 +41,8 @@ static void isp_poll __P((struct cam_sim *));
 static void isp_action __P((struct cam_sim *, union ccb *));
 
 void
-isp_attach(struct ispsoftc *isp)
+isp_attach(isp)
+	struct ispsoftc *isp;
 {
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
@@ -96,7 +96,11 @@ isp_attach(struct ispsoftc *isp)
 }
 
 static void
-isp_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
+isp_async(cbarg, code, path, arg)
+	void *cbarg;
+	u_int32_t code;
+	struct cam_path *path;
+	void *arg;
 {
 	struct cam_sim *sim;
 	struct ispsoftc *isp;
@@ -130,14 +134,17 @@ isp_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 }
 
 static void
-isp_poll(struct cam_sim *sim)
+isp_poll(sim)
+	struct cam_sim *sim;
 {
 	isp_intr((struct ispsoftc *) cam_sim_softc(sim));
 }
 
 
 static void
-isp_action(struct cam_sim *sim, union ccb *ccb)
+isp_action(sim, ccb)
+	struct cam_sim *sim;
+	union ccb *ccb;
 {
 	int s, tgt, error;
 	struct ispsoftc *isp;
@@ -188,13 +195,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			if (ccb->ccb_h.target_id > (MAX_FC_TARG-1)) {
 				ccb->ccb_h.status = CAM_PATH_INVALID;
-#ifdef	SCCLUN
 			} else if (ccb->ccb_h.target_lun > 15) {
 				ccb->ccb_h.status = CAM_PATH_INVALID;
-#else
-			} else if (ccb->ccb_h.target_lun > 65535) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-#endif
 			}
 		}
 		if (ccb->ccb_h.status == CAM_PATH_INVALID) {
@@ -205,14 +207,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
-		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_INFO,
-		    ("cdb[0]=0x%x dlen%d\n",
-		    (ccb->ccb_h.flags & CAM_CDB_POINTER)?
-			ccb->csio.cdb_io.cdb_ptr[0]:
-			ccb->csio.cdb_io.cdb_bytes[0], ccb->csio.dxfer_len));
-
 		s = splcam();
-		DISABLE_INTS(isp);
 		switch (ispscsicmd((ISP_SCSI_XFER_T *) ccb)) {
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
@@ -240,7 +235,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		ENABLE_INTS(isp);
 		splx(s);
 		break;
 
@@ -484,26 +478,28 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->max_target = MAX_FC_TARG-1;
 			cpi->initiator_id =
 			    ((fcparam *)isp->isp_param)->isp_loopid;
-#ifdef	SCCLUN
-			cpi->max_lun = (1 << 16) - 1;
-#else
-			cpi->max_lun = (1 << 4) - 1;
-#endif
+			/*
+			 * XXX: actually, this is not right if we have
+			 * XXX: 1.14 F/W and the second level lun addressing
+			 * XXX: in place. It's also probably not right
+			 * XXX: even for 1.13 f/w.
+			 */
+			cpi->max_lun = 15;
 		} else {
 			cpi->initiator_id =
 			    ((sdparam *)isp->isp_param)->isp_initiator_id;
 			cpi->max_target =  MAX_TARGETS-1;
 			if (isp->isp_fwrev >= ISP_FW_REV(7, 55)) {
-#if	0
 				/*
 				 * Too much breakage.
 				 */
-				cpi->max_lun = (1 << 5) - 1;
+#if	0
+				cpi->max_lun = 31;
 #else
-				cpi->max_lun = (1 << 3) - 1;
+				cpi->max_lun = 7;
 #endif
 			} else {
-				cpi->max_lun = (1 << 3) - 1;
+				cpi->max_lun = 7;
 			}
 		}
 
@@ -522,50 +518,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 }
-
-#define	ISPDDB	(CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB)
-void
-isp_done(struct ccb_scsiio *sccb)
-{
-	struct ispsoftc *isp = XS_ISP(sccb);
-
-	if (XS_NOERR(sccb))
-		XS_SETERR(sccb, CAM_REQ_CMP);
-	sccb->ccb_h.status &= ~CAM_STATUS_MASK;
-	sccb->ccb_h.status |= sccb->ccb_h.spriv_field0;
-	if ((sccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
-	    (sccb->scsi_status != SCSI_STATUS_OK)) {
-		sccb->ccb_h.status &= ~CAM_STATUS_MASK;
-		sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
-	}
-	if ((sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-			IDPRINTF(3, ("%s: freeze devq %d.%d ccbstat 0x%x\n",
-			    isp->isp_name, sccb->ccb_h.target_id,
-			    sccb->ccb_h.target_lun, sccb->ccb_h.status));
-			xpt_freeze_devq(sccb->ccb_h.path, 1);
-			sccb->ccb_h.status |= CAM_DEV_QFRZN;
-		}
-	}
-	if (isp->isp_osinfo.simqfrozen) {
-		sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		isp->isp_osinfo.simqfrozen = 0;
-	}
-	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-	if (CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB) &&
-	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		xpt_print_path(sccb->ccb_h.path);
-		printf("cam completion status 0x%x\n", sccb->ccb_h.status);
-	}
-	xpt_done((union ccb *) sccb);
-}
-
 #else
 
 static void ispminphys __P((struct buf *));
 static u_int32_t isp_adapter_info __P((int));
 static int ispcmd __P((ISP_SCSI_XFER_T *));
-static void isp_watch __P((void *arg));
 
 static struct scsi_adapter isp_switch = {
 	ispcmd, ispminphys, 0, 0, isp_adapter_info, "isp", { 0, 0 }
@@ -580,7 +537,8 @@ static int isp_poll __P((struct ispsoftc *, ISP_SCSI_XFER_T *, int));
  * Complete attachment of hardware, include subdevices.
  */
 void
-isp_attach(struct ispsoftc *isp)
+isp_attach(isp)
+	struct ispsoftc *isp;
 {
 	struct scsibus_data *scbus;
 
@@ -589,7 +547,6 @@ isp_attach(struct ispsoftc *isp)
 		return;
 	}
 	isp->isp_state = ISP_RUNSTATE;
-	START_WATCHDOG(isp);
 
 	isp->isp_osinfo._link.adapter_unit = isp->isp_osinfo.unit;
 	isp->isp_osinfo._link.adapter_softc = isp;
@@ -626,7 +583,8 @@ isp_attach(struct ispsoftc *isp)
  */
 
 static void
-ispminphys(struct buf *bp)
+ispminphys(bp)
+	struct buf *bp;
 {
 	/*
 	 * Only the 10X0 has a 24 bit limit.
@@ -637,7 +595,8 @@ ispminphys(struct buf *bp)
 }
 
 static u_int32_t
-isp_adapter_info(int unit)
+isp_adapter_info(unit)
+	int unit;
 {
 	/*
  	 * XXX: FIND ISP BASED UPON UNIT AND GET REAL QUEUE LIMIT FROM THAT
@@ -646,7 +605,8 @@ isp_adapter_info(int unit)
 }
 
 static int
-ispcmd(ISP_SCSI_XFER_T *xs)
+ispcmd(xs)
+	ISP_SCSI_XFER_T *xs;
 {
 	struct ispsoftc *isp;
 	int r;
@@ -683,7 +643,10 @@ ispcmd(ISP_SCSI_XFER_T *xs)
 }
 
 static int
-isp_poll(struct ispsoftc *isp, ISP_SCSI_XFER_T *xs, int mswait)
+isp_poll(isp, xs, mswait)
+	struct ispsoftc *isp;
+	ISP_SCSI_XFER_T *xs;
+	int mswait;
 {
 
 	while (mswait) {
@@ -698,74 +661,4 @@ isp_poll(struct ispsoftc *isp, ISP_SCSI_XFER_T *xs, int mswait)
 	}
 	return (1);
 }
-
-static void
-isp_watch(void *arg)
-{
-	int i;
-	struct ispsoftc *isp = arg;
-	ISP_SCSI_XFER_T *xs;
-	ISP_ILOCKVAL_DECL;
-
-	/*
-	 * Look for completely dead commands (but not polled ones).
-	 */
-	ISP_ILOCK(isp);
-	for (i = 0; i < RQUEST_QUEUE_LEN; i++) {
-		if ((xs = (ISP_SCSI_XFER_T *) isp->isp_xflist[i]) == NULL) {
-			continue;
-		}
-		if (XS_TIME(xs) == 0) {
-			continue;
-		}
-		XS_TIME(xs) -= (WATCH_INTERVAL * 1000);
-		/*
-		 * Avoid later thinking that this
-		 * transaction is not being timed.
-		 * Then give ourselves to watchdog
-		 * periods of grace.
-		 */
-		if (XS_TIME(xs) == 0)
-			XS_TIME(xs) = 1;
-		else if (XS_TIME(xs) > -(2 * WATCH_INTERVAL * 1000)) {
-			continue;
-		}
-		if (isp_control(isp, ISPCTL_ABORT_CMD, xs)) {
-			printf("%s: isp_watch failed to abort command\n",
-			    isp->isp_name);
-			isp_restart(isp);
-			break;
-		}
-	}
-	RESTART_WATCHDOG(isp_watch, arg);
-	ISP_IUNLOCK(isp);
-}
 #endif
-
-/*
- * Free any associated resources prior to decommissioning and
- * set the card to a known state (so it doesn't wake up and kick
- * us when we aren't expecting it to).
- *
- * Locks are held before coming here.
- */
-void
-isp_uninit(struct ispsoftc *isp)
-{
-	ISP_ILOCKVAL_DECL;
-	ISP_ILOCK(isp);
-	/*
-	 * Leave with interrupts disabled.
-	 */
-	DISABLE_INTS(isp);
-
-	/*
-	 * Turn off the watchdog (if active).
-	 */
-	STOP_WATCHDOG(isp_watch, isp);
-
-	/*
-	 * And out...
-	 */
-	ISP_IUNLOCK(isp);
-}

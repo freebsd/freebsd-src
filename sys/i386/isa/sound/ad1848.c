@@ -914,6 +914,7 @@ ad1848_start_input(int dev, u_long buf, int count,
 static int
 ad1848_prepare_for_IO(int dev, int bsize, int bcount)
 {
+    int             timeout;
     u_char   fs, old_fs;
     u_long   flags;
     ad1848_info    *devc = (ad1848_info *) audio_devs[dev]->devc;
@@ -1439,13 +1440,11 @@ ad1848_init(char *name, int io_base, int irq,
     outb(io_Status(devc), 0);	/* Clear pending interrupts */
 
     if (name != NULL && name[0] != 0)
-	snprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
-	    sizeof(ad1848_pcm_operations[nr_ad1848_devs].name),
-		"%s (%s)", name, devc->chip_name);
+	sprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
+	    "%s (%s)", name, devc->chip_name);
     else
-	snprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
-	    sizeof(ad1848_pcm_operations[nr_ad1848_devs].name),
-		"Generic audio codec (%s)", devc->chip_name);
+	sprintf(ad1848_pcm_operations[nr_ad1848_devs].name,
+	    "Generic audio codec (%s)", devc->chip_name);
 
     conf_printf2(ad1848_pcm_operations[nr_ad1848_devs].name,
 	     devc->base, devc->irq, dma_playback, dma_capture);

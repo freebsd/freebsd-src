@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: ipatm_input.c,v 1.1 1998/09/15 08:23:00 phk Exp $
+ *	@(#) $Id: ipatm_input.c,v 1.9 1998/04/07 23:03:52 mks Exp $
  *
  */
 
@@ -35,15 +35,15 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: ipatm_input.c,v 1.9 1998/04/07 23:03:52 mks Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm.h>
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: ipatm_input.c,v 1.1 1998/09/15 08:23:00 phk Exp $");
-#endif
 
 
 /*
@@ -111,10 +111,7 @@ ipatm_ipinput(inp, m)
 	struct ip_nif	*inp;
 	KBuffer		*m;
 {
-	int		s;
-#if	BSD < 199103
-	int		space;
-#endif
+	int		s, space;
 
 #ifdef DIAGNOSTIC
 	if (ipatm_print) {

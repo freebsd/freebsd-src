@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,20 +28,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	gozilla.c				17-Jul-98
+ *	gozilla.c				27-Oct-97
  *
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "global.h"
 
-const char *progname  = "gozilla";		/* command name */
+char	*progname  = "gozilla";		/* command name */
 
 static void	usage __P((void));
-
-int	main __P((int, char **));
-int	issource __P((char *));
+void	main __P((int, char **));
 int	sendcommand __P((char *));
 
 int	bflag;
@@ -57,17 +54,17 @@ usage()
 	exit(1);
 }
 
-int
+void
 main(argc, argv)
 int	argc;
 char	*argv[];
 {
 	char	c, *p, *q;
-	char	*browser = NULL;
-	char	*command = NULL;
-	char	*arg     = NULL;
+	char	*browser = (char *)0;
+	char	*command = (char *)0;
+	char	*arg     = (char *)0;
 	char	URL[MAXPATHLEN+1];
-	char	com[MAXFILLEN+1];
+	char	com[MAXCOMLINE+1];
 	int	linenumber = 0;
 	int	status;
 
@@ -104,19 +101,16 @@ char	*argv[];
 	}
 	if (argc == 0)
 		usage();
-	if (locatestring(argv[0], "http:", MATCH_AT_FIRST) ||
-		locatestring(argv[0], "ftp:", MATCH_AT_FIRST) ||
-		locatestring(argv[0], "news:", MATCH_AT_FIRST) ||
-		locatestring(argv[0], "mail:", MATCH_AT_FIRST) ||
-		locatestring(argv[0], "file:", MATCH_AT_FIRST))
+	if (locatestring(argv[0], "http:", 1) || locatestring(argv[0], "file:", 1))
 		strcpy(URL, argv[0]);
 	else {
 		char	*abspath;
-		char	buf[MAXPATHLEN+1];
+		char	pathbuf[MAXPATHLEN+1];
+		char	htmlpath[MAXPATHLEN+1];
 
-		if (!test("f", argv[0]) && !test("d", NULL))
+		if (!test("f", argv[0]) && !test("d", argv[0]))
 			die1("path '%s' not found.", argv[0]);
-		if (!(abspath = realpath(argv[0], buf)))
+		if (!(abspath = realpath(argv[0], pathbuf)))
 			die1("cannot make absolute path name. realpath(%s) failed.", argv[0]);
 		if (*abspath != '/')
 			die("realpath(3) is not compatible with BSD version.");
@@ -158,7 +152,7 @@ char	*argv[];
 	/*
 	 * execute generic browser.
 	 */
-	if (browser && !locatestring(browser, "netscape", MATCH_AT_LAST)) {
+	if (browser && !locatestring(browser, "netscape", 3)) {
 		sprintf(com, "%s '%s'", browser, URL);
 		system(com);
 		exit (0);
@@ -177,40 +171,12 @@ char	*argv[];
 		if ((pid = fork()) < 0) {
 			die("cannot execute netscape (fork).");
 		} else if (pid == 0) {
-			execlp("netscape", "netscape", URL, NULL);
+			execlp("netscape", "netscape", URL, (char *)0);
 			die("loading mozilla failed.");
 		}
 		exit(0);
 	}
 	exit(status);
-}
-int
-issource(path)
-char	*path;
-{
-	STRBUF	*sb = stropen();
-	char	*p;
-	char	suff[MAXPATHLEN+1];
-	int	retval = 0;
-
-	if (!getconfs("suffixes", sb)) {
-		strclose(sb);
-		return 0;
-	}
-	suff[0] = '.';
-	for (p = strvalue(sb); p; ) {
-		char    *unit = p;
-		if ((p = locatestring(p, ",", MATCH_FIRST)) != NULL)
-			*p++ = 0;
-		strcpy(&suff[1], unit);
-		if (locatestring(path, suff, MATCH_AT_LAST)) {
-			retval = 1;
-			break;
-		}
-	}
-	strclose(sb);
-	return retval;
-
 }
 int
 sendcommand(com)
@@ -222,7 +188,7 @@ char	*com;
 	argv[0] = "netscape-remote";
 	argv[1] = "-remote";
 	argv[2] = com;
-	argv[3] = NULL;
+	argv[3] = (char *)0;
 
 	return netscape_remote(argc, argv);
 }

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.79 1998/11/29 22:38:57 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.75 1998/07/11 07:45:50 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -174,7 +174,6 @@ msdosfs_create(ap)
 
 	ndirent.de_Attributes = (ap->a_vap->va_mode & VWRITE) ?
 				ATTR_ARCHIVE : ATTR_ARCHIVE | ATTR_READONLY;
-	ndirent.de_LowerCase = 0;
 	ndirent.de_StartCluster = 0;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
@@ -329,6 +328,7 @@ msdosfs_getattr(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	u_int cn;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct vattr *vap = ap->a_vap;
@@ -609,10 +609,10 @@ msdosfs_read(ap)
 			return (error);
 		}
 		error = uiomove(bp->b_data + on, (int) n, uio);
+		if (!isadir)
+			dep->de_flag |= DE_ACCESS;
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
-	if (!isadir && !(vp->v_mount->mnt_flag & MNT_NOATIME))
-		dep->de_flag |= DE_ACCESS;
 	return (error);
 }
 
@@ -835,8 +835,8 @@ msdosfs_fsync(ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_vnbufs);
+	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
+		nbp = bp->b_vnbufs.le_next;
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -852,7 +852,7 @@ loop:
 		(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "msdosfsn", 0);
 	}
 #ifdef DIAGNOSTIC
-	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
+	if (vp->v_dirtyblkhd.lh_first) {
 		vprint("msdosfs_fsync: dirty", vp);
 		goto loop;
 	}
@@ -1402,7 +1402,6 @@ msdosfs_mkdir(ap)
 		goto bad;
 
 	ndirent.de_Attributes = ATTR_DIRECTORY;
-	ndirent.de_LowerCase = 0;
 	ndirent.de_StartCluster = newcluster;
 	ndirent.de_FileSize = 0;
 	ndirent.de_dev = pdep->de_dev;
@@ -1715,9 +1714,7 @@ msdosfs_readdir(ap)
 			if (chksum != winChksum(dentp->deName))
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
-				    dentp->deLowerCase |
-					((pmp->pm_flags & MSDOSFSMNT_SHORTNAME) ?
-					(LCASE_BASE | LCASE_EXT) : 0),
+				    pmp->pm_flags & MSDOSFSMNT_SHORTNAME,
 				    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
 				    pmp->pm_d2u,
 				    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
@@ -1797,6 +1794,7 @@ msdosfs_bmap(ap)
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
+	struct msdosfsmount *pmp = dep->de_pmp;
 
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = dep->de_devvp;

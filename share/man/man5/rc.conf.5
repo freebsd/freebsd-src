@@ -22,17 +22,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.26 1998/12/12 23:26:52 dillon Exp $
+.\"     $Id: rc.conf.5,v 1.23 1998/10/06 19:24:26 phk Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
 .Os FreeBSD 2.2.2
 .Sh NAME
 .Nm rc.conf
-.Nd system configuration information.
-.Pp
-.Nm rc.conf.local
-.Nd localized system configuration information.
+.Nd local configuration information.
 .Sh DESCRIPTION
 The file
 .Nm rc.conf
@@ -43,16 +40,15 @@ started up at system initial boot time.  In new installations, the
 file is generally initialized by the system installation utility:
 .Pa /stand/sysinstall .
 .Pp
-The 
-.Nm rc.conf.local
-file may be used to override variables set in rc.conf.  The system
-administrator typically uses the distribution-supplied 
-.Nm rc.conf 
-file and maintains local overrides/additions in 
-.Nm rc.conf.local.
-.Pp
+It is the duty of the system administrator to properly maintain this file
+as changes occur on the local host.
+.Sh FILES
+.Bl -tag -width /etc/rc.conf -compact
+.It Pa /etc/rc.conf
+.El
+.Sh DESCRIPTION
 The purpose of
-.Nm rc.conf[.local]
+.Nm
 is not to run commands or perform system startup actions
 directly.  Instead, it is included by the
 various generic startup scripts in
@@ -264,12 +260,6 @@ and
 run the
 .Xr rwhod 8
 daemon at boot time.
-.It Ar rwhod_flags
-(str) If
-.Ar rwhod_enable
-is set to
-.Ar YES ,
-these are the flags to pass to it.
 .It Ar amd_enable
 (bool) If set to
 .Ar YES ,
@@ -283,15 +273,6 @@ is set to
 .Ar YES ,
 these are the flags to pass to it.  Use the \fBinfo amd\fR
 command for more information.
-.It Ar update_motd
-(bool) If set to 
-.Ar YES ,
-.Nm /etc/motd
-will be updated at boot time to reflect the kernel release
-bring run.  If set to
-.Ar NO ,
-.Nm
-will not be updated
 .It Ar nfs_client_enable
 (bool) If set to
 .Ar YES ,
@@ -304,16 +285,6 @@ is set to
 these are the flags to pass to the
 .Xr nfsiod 8
 daemon.
-.It Ar nfs_access_cache
-if
-.Ar nfs_client_enable
-is set to 
-.Ar YES ,
-this can be set to
-.Ar 0
-to disable NFS ACCESS RPC caching, or to the number of seconds for which NFS ACCESS
-results should be cached.  A value of 2-10 seconds will substantially reduce network
-traffic for many NFS operations.
 .It Ar nfs_server_enable
 (bool) If set to
 .Ar YES ,
@@ -930,14 +901,7 @@ most secure).  See
 .Xr init 8
 for the list of possible security levels and their effect
 on system operation.
-.Sh FILES
-.Bl -tag -width /etc/rc.conf -compact
-.It Pa /etc/rc.conf
-.El
-.Pp
-.Bl -tag -width /etc/rc.conf.local -compact
-.It Pa /etc/rc.conf.local
-.El
+
 .Sh SEE ALSO
 .Xr gdb 1 ,
 .Xr info 1 ,
@@ -951,7 +915,6 @@ on system operation.
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
 .Xr lpd 8 ,
-.Xr motd 5 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
 .Xr named 8 ,

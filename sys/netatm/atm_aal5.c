@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $
  *
  */
 
@@ -35,12 +35,12 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: atm_aal5.c,v 1.1 1998/09/15 08:22:57 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 #include <sys/stat.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: atm_aal5.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
-#endif
 
 
 /*
@@ -193,14 +193,15 @@ static Atm_attributes	atm_aal5_defattr = {
 	if (atm_stackq_head != NULL)				\
 		panic("atm_aal5: stack queue not empty");	\
 	;
-#else /* !DIAGNOSTIC */
+#else
 #define ATM_INTRO(f)						\
 	int		s, err = 0;				\
 	s = splnet();						\
 	;
-#endif /* DIAGNOSTIC */
+#endif
 
 #define	ATM_OUTRO()						\
+out:								\
 	/*							\
 	 * Drain any deferred calls				\
 	 */							\
@@ -243,7 +244,7 @@ atm_aal5_attach(so, proto, p)
 	 */
 	err = atm_sock_attach(so, atm_aal5_sendspace, atm_aal5_recvspace);
 	if (err)
-		ATM_RETERR(err);
+		goto out;
 
 	/*
 	 * Finish up any protocol specific stuff
@@ -257,7 +258,6 @@ atm_aal5_attach(so, proto, p)
 	atp->atp_attr = atm_aal5_defattr;
 	strncpy(atp->atp_name, "(AAL5)", T_ATM_APP_NAME_LEN);
 
-out:
 	ATM_OUTRO();
 }
 
@@ -521,7 +521,6 @@ atm_aal5_send(so, flags, m, addr, control, p)
 		KB_FREEALL(m);
 	}
 
-out:
 	ATM_OUTRO();
 }
 
@@ -693,7 +692,7 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 	Atm_attributes	*ap;
 	void		**tokp;
 {
-	Atm_pcb		*atp0 = tok, *atp;
+	Atm_pcb		*atp = tok;
 	struct socket	*so;
 	int		err = 0;
 
@@ -703,11 +702,11 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 	 * Note that our attach function will be called via sonewconn
 	 * and it will allocate and setup most of the pcb.
 	 */
-	atm_sock_stat.as_inconn[atp0->atp_type]++;
+	atm_sock_stat.as_inconn[atp->atp_type]++;
 #if (defined(BSD) && (BSD >= 199103))
-	so = sonewconn(atp0->atp_socket, 0);
+	so = sonewconn(atp->atp_socket, 0);
 #else
-	so = sonewconn(atp0->atp_socket);
+	so = sonewconn(atp->atp_socket);
 #endif
 
 	if (so) {
@@ -716,12 +715,10 @@ atm_aal5_incoming(tok, cop, ap, tokp)
 		 */
 		atp = sotoatmpcb(so);
 		atp->atp_conn = cop;
-		atp->atp_attr = *atp0->atp_conn->co_lattr;
-		strncpy(atp->atp_name, atp0->atp_name, T_ATM_APP_NAME_LEN);
 		*tokp = atp;
 	} else {
 		err = ECONNABORTED;
-		atm_sock_stat.as_connfail[atp0->atp_type]++;
+		atm_sock_stat.as_connfail[atp->atp_type]++;
 	}
 
 	return (err);
@@ -826,7 +823,6 @@ atm_aal5_ctloutput(so, sopt)
 			break;
 
 		case T_ATM_CAUSE:
-		case T_ATM_APP_NAME:
 			break;
 
 		default:
@@ -856,7 +852,6 @@ atm_aal5_ctloutput(so, sopt)
 		break;
 	}
 
-out:
 	ATM_OUTRO();
 }
 

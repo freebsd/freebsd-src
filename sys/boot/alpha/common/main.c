@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.8 1998/10/31 17:12:32 dfr Exp $
+ *	$Id: main.c,v 1.4 1998/09/03 02:10:02 msmith Exp $
  */
 
 
@@ -63,50 +63,6 @@ memsize()
     return total;
 }
 
-static void
-extend_heap()
-{
-    struct rpb *hwrpb = (struct rpb *)HWRPB_ADDR;
-    struct mddt *mddtp;
-    struct mddt_cluster *memc;
-    int i;
-    unsigned long total = 0;
-    unsigned long startpfn;
-    vm_offset_t startva;
-    vm_offset_t startpte;
-
-    /*
-     * Find the last usable memory cluster and add some of its pages
-     * to our address space.  The 256k allowed by the firmware isn't quite
-     * adequate for our needs.
-     */
-    mddtp = (struct mddt *)(((caddr_t)hwrpb) + hwrpb->rpb_memdat_off);
-    for (i = mddtp->mddt_cluster_cnt - 1; i >= 0; i--) {
-	memc = &mddtp->mddt_clusters[i];
-	if (!(memc->mddt_usage & (MDDT_NONVOLATILE | MDDT_PALCODE)))
-	    break;
-    }
-
-    /*
-     * We want to extend the heap from 256k to 512k.  With 8k pages
-     * (assumed), we need 32 pages.  We take pages from the end of the
-     * last usable memory region, taking care to avoid the memory used
-     * by the kernel's message buffer.  We allow 4 pages for the
-     * message buffer.
-     */
-    startpfn = memc->mddt_pfn + memc->mddt_pg_cnt - 4 - 32;
-    startva = 0x20040000;
-    startpte = 0x40000000
-	+ (((startva >> 23) & 0x3ff) << PAGE_SHIFT)
-	+ (((startva >> 13) & 0x3ff) << 3);
-
-    for (i = 0; i < 32; i++) {
-	u_int64_t pte;
-	pte = ((startpfn + i) << 32) | 0x1101;
-	*(u_int64_t *) (startpte + 8 * i) = pte;
-    }
-}
-
 void
 main(void)
 {
@@ -114,37 +70,23 @@ main(void)
     char	bootfile[128];
     
     /* 
-     * Initialise the heap as early as possible.  Once this is done,
-     * alloc() is usable. The stack is buried inside us, so this is
-     * safe.
+     * Initialise the heap as early as possible.  Once this is done, alloc() is usable.
+     * The stack is buried inside us, so this is safe 
      */
-    extend_heap();
-    setheap((void *)end, (void *)0x20080000);
+    setheap((void *)end, (void *)0x20040000);
 
-#ifdef LOADER
-    /*
-     * If this is the two stage disk loader, add the memory used by
-     * the first stage to the heap.
-     */
-    free_region((void *)PRIMARY_LOAD_ADDRESS,
-		(void *)SECONDARY_LOAD_ADDRESS);
-#endif
 
     /* 
-     * XXX Chicken-and-egg problem; we want to have console output
-     * early, but some console attributes may depend on reading from
-     * eg. the boot device, which we can't do yet.  We can use
-     * printf() etc. once this is done.
+     * XXX Chicken-and-egg problem; we want to have console output early, but some
+     * console attributes may depend on reading from eg. the boot device, which we
+     * can't do yet.
+     *
+     * We can use printf() etc. once this is done.
      */
     cons_probe();
 
     /* switch to OSF pal code. */
     OSFpal();
-
-    /*
-     * Initialise the block cache
-     */
-    bcache_init(32, 512);	/* 16k XXX tune this */
 
     /*
      * March through the device switch probing for things.

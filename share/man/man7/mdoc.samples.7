@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mdoc.samples.7	8.2 (Berkeley) 12/30/93
-.\"	$Id: mdoc.samples.7,v 1.16 1997/12/08 07:44:20 charnier Exp $
+.\"	$Id: mdoc.samples.7,v 1.15 1997/03/20 16:04:04 mpp Exp $
 .\"
 .\" This tutorial sampler invokes every macro in the package several
 .\" times and is guaranteed to give a worst case performance
@@ -120,7 +120,7 @@ outlined as follows:
 .It "A manual page template" .
 .El
 .It
-.Tn "TITLE MACROS" .
+.Tn "INTRODUCTION OF TITLE MACROS" .
 .It
 .Tn "INTRODUCTION OF MANUAL AND GENERAL TEXT DOMAINS" .
 .Bl -tag -width flag -compact -offset indent
@@ -156,7 +156,6 @@ outlined as follows:
 .Bl -tag -width flag -compact -offset indent
 .It "AT&T Macro" .
 .It "BSD Macro" .
-.It "FreeBSD Macro" .
 .It "UNIX Macro" .
 .It "Enclosure/Quoting Macros"
 .Bl -tag -width flag -compact -offset indent
@@ -167,13 +166,13 @@ outlined as follows:
 .It "Single Quotes/Enclosure" .
 .It "Prefix Macro" .
 .El
+.It "Extended  Arguments" .
 .It "No\-Op or Normal Text Macro" .
 .It "No Space Macro" .
 .It "Section Cross References" .
 .It "References and Citations" .
 .It "Return Values (sections two and three only)"
 .It "Trade Names (Acronyms and Type Names)" .
-.It "Extended  Arguments" .
 .El
 .It
 .Tn "PAGE STRUCTURE DOMAIN"
@@ -395,7 +394,7 @@ is created by
 .Ql \&.Fn fetch char\e *str
 .It Fn fetch "char *str"
 can also be created by
-.Ql \&.Fn fetch "\\*qchar *str\\*q"
+.Ql \&.Fn fetch "\\*q*char *str\\*q"
 .El
 .Pp
 If the
@@ -445,7 +444,6 @@ Several example man pages can also be found
 in 
 .Pa /usr/share/examples/mdoc .
 .Pp
-.Ss A manual page template
 .Bd -literal -offset indent
 \&.\e" The following requests are required for all man pages.
 \&.Dd Month day, year
@@ -596,7 +594,7 @@ The date should be written formally:
 .ne 5
 .Dl January 25, 1989
 .El
-.Sh INTRODUCTION OF MANUAL AND GENERAL TEXT DOMAINS
+.Sh MANUAL DOMAIN
 .Ss What's in a name...
 The manual domain macro names are derived from the day to day
 informal language used to describe commands, subroutines and related
@@ -804,7 +802,6 @@ escape them with
 Typical syntax is shown in the first content macro displayed
 below,
 .Ql \&.Ad .
-.Sh MANUAL DOMAIN
 .Ss Address Macro
 The address macro identifies an address construct
 of the form addr1[,addr2[,addr3]].
@@ -824,9 +821,9 @@ of the form addr1[,addr2[,addr3]].
 .El
 .Pp
 It is an error to call
-.Ql \&.Ad
+.Li \&.Ad
 without arguments.
-.Ql \&.Ad
+.Li \&.Ad
 is callable by other macros and is parsed.
 .Ss Author Name
 The
@@ -857,7 +854,7 @@ without
 any arguments.
 .Ss Argument Macro
 The
-.Ql \&.Ar
+.Li \&.Ar
 argument macro may be used whenever
 a command line argument is referenced.
 .Pp
@@ -878,12 +875,12 @@ a command line argument is referenced.
 .El
 .Pp
 If
-.Ql \&.Ar
+.Li \&.Ar
 is called without arguments
 .Ql Ar
 is assumed.
 The
-.Ql \&.Ar
+.Li \&.Ar
 macro is parsed and is callable.
 .Ss Configuration Declaration (section four only)
 The
@@ -1173,7 +1170,7 @@ anywhere else in the man page without problems, but its main purpose
 is to present the function type in kernel normal form for the
 .Sx SYNOPSIS
 of sections two and three
-(it causes a line break allowing the function name to appear
+(it causes a page break allowing the function name to appear
 on the next line).
 .Pp
 .Dl Usage: .Ft type ... \*(Pu
@@ -1561,7 +1558,7 @@ example of
 macro usage at its worst.
 .Ss No\-Op or Normal Text Macro
 The macro
-.Ql \&.No
+.Li \&.No
 is
 a hack for words in a macro command line which should
 .Em not
@@ -1681,9 +1678,9 @@ macro
 is parsed and is callable by other macros.
 .Ss Extended  Arguments
 The
-.Ql \&.Xo
+.Li \&.Xo
 and
-.Ql \&.Xc
+.Li \&.Xc
 macros allow one to extend an argument list
 on a macro boundary.
 Argument lists cannot
@@ -1854,8 +1851,7 @@ name macro
 .Ql \&.Nm
 is required for sections 1, 5, 6, 7, 8.
 Section 4 manuals require a
-.Ql ".Nm" , 
-.Ql ".Fd"
+.Ql ".Nm" , ".Fd"
 or a
 .Ql ".Cd"
 configuration device usage macro.
@@ -1999,14 +1995,12 @@ User specified
 sections may be added,
 for example, this section was set with:
 .Bd -literal -offset 14n
-\&.Sh PAGE STRUCTURE DOMAIN
+\&.Sh PAGE LAYOUT MACROS
 .Ed
 .Ss Paragraphs and Line Spacing.
 .Bl -tag -width 6n
 .It \&.Pp
-The
-.Ql \&.Pp
-paragraph command may
+The \&.Pp paragraph command may
 be used to specify a line space where necessary.
 The macro is not necessary after a
 .Ql \&.Sh
@@ -2147,7 +2141,7 @@ and
 .Ql \&.Ek
 (end-keep).
 The only option that
-.Ql \&.Bk
+.Ql \&.Bl
 accepts is
 .Fl words
 and is useful for preventing line breaks in the middle of options.
@@ -2532,7 +2526,7 @@ Here is the source text which produced the above example:
 \&.El
 .Ed
 .Pp
-Here is a hanged list with two items:
+Here is a hanged list with just one item:
 .Bl -hang -offset indent
 .It Em Hanged
 labels appear similar to tagged lists when the

@@ -1,4 +1,4 @@
-#	@(#)A-UX	8.4	(Berkeley)	3/12/1998
+#	@(#)A-UX	8.4	(Berkeley)	3/12/98
 define(`confMAPDEF', `-DNDBM')
 define(`confENVDEF', `-D_POSIX_SOURCE ')
 define(`confLIBS', `-ldbm -lposix -lUTIL')

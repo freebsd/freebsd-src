@@ -82,8 +82,6 @@ static char sccsid[] = "@(#)factor.c	8.4 (Berkeley) 5/4/95";
 extern ubig prime[];
 extern ubig *pr_limit;		/* largest prime in the prime array */
 
-int	hflag;
-
 void	pr_fact __P((ubig));	/* print factors of a value */
 void	usage __P((void));
 
@@ -96,11 +94,8 @@ main(argc, argv)
 	int ch;
 	char *p, buf[100];		/* > max number of digits. */
 
-	while ((ch = getopt(argc, argv, "h")) != -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
-		case 'h':
-			hflag++;
-			break;
 		case '?':
 		default:
 			usage();
@@ -122,7 +117,7 @@ main(argc, argv)
 			if (*p == '-')
 				errx(1, "negative numbers aren't permitted.");
 			errno = 0;
-			val = strtoul(buf, &p, 0);
+			val = strtoul(buf, &p, 10);
 			if (errno)
 				err(1, "%s", buf);
 			if (*p != '\n')
@@ -135,7 +130,7 @@ main(argc, argv)
 			if (argv[0][0] == '-')
 				errx(1, "negative numbers aren't permitted.");
 			errno = 0;
-			val = strtoul(argv[0], &p, 0);
+			val = strtoul(argv[0], &p, 10);
 			if (errno)
 				err(1, "%s", argv[0]);
 			if (*p != '\0')
@@ -173,7 +168,7 @@ pr_fact(val)
 	}
 
 	/* Factor value. */
-	(void)printf(hflag ? "0x%lx:" : "%lu:", val);
+	(void)printf("%lu:", val);
 	for (fact = &prime[0]; val > 1; ++fact) {
 		/* Look for the smallest factor. */
 		do {
@@ -183,15 +178,15 @@ pr_fact(val)
 
 		/* Watch for primes larger than the table. */
 		if (fact > pr_limit) {
-			(void)printf(hflag ? " 0x%lx" : " %lu", val);
+			(void)printf(" %lu", val);
 			break;
 		}
 
 		/* Divide factor out until none are left. */
 		do {
-			(void)printf(hflag ? " 0x%lx" : " %lu", *fact);
-			val /= *fact;
-		} while ((val % *fact) == 0);
+			(void)printf(" %lu", *fact);
+			val /= (long)*fact;
+		} while ((val % (long)*fact) == 0);
 
 		/* Let the user know we're doing something. */
 		(void)fflush(stdout);
@@ -202,6 +197,6 @@ pr_fact(val)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: factor -h [value ...]\n");
+	(void)fprintf(stderr, "usage: factor [value ...]\n");
 	exit (0);
 }

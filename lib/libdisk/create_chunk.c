@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.33 1999/01/08 00:32:19 jkh Exp $
+ * $Id: create_chunk.c,v 1.30 1998/03/20 23:43:03 jkh Exp $
  *
  */
 
@@ -151,7 +151,6 @@ Fixup_Names(struct disk *d)
 	    continue;
 	if (strcmp(c2->name,"X"))
 	    continue;
-#ifndef __alpha__
 	c2->oname = malloc(12);
 	if(!c2->oname) err(1,"malloc failed");
 	for(j=1;j<=NDOSPART;j++) {
@@ -168,10 +167,6 @@ Fixup_Names(struct disk *d)
 	}
 	if (c2->oname)
 	    free(c2->oname);
-#else
-	free(c2->name);
-	c2->name = strdup(c1->name);
-#endif
     }
     for(c2 = c1->part; c2 ; c2 = c2->next) {
 	if (c2->type == freebsd) {
@@ -259,19 +254,18 @@ MakeDev(struct chunk *c1, const char *path)
 	return 0;
     
     if (!strncmp(p, "wd", 2))
-	bmaj = 0, cmaj = 3, p += 2;
+	bmaj = 0, cmaj = 3;
     else if (!strncmp(p, "sd", 2))
-	bmaj = 4, cmaj = 13, p += 2;
+	bmaj = 4, cmaj = 13;
     else if (!strncmp(p, "wfd", 3))
-	bmaj = 1, cmaj = 87, p += 3;
-    else if (!strncmp(p, "fla", 3))
-	bmaj = 28, cmaj = 101, p += 3;
+	bmaj = 1, cmaj = 87;
     else if (!strncmp(p, "da", 2))	/* CAM support */
-	bmaj = 4, cmaj = 13, p += 2;
+	bmaj = 4, cmaj = 13;
     else {
 	msgDebug("MakeDev: Unknown major/minor for devtype %s\n", p);
 	return 0;
     }
+    p += 2;
     if (!isdigit(*p)) {
 	msgDebug("MakeDev: Invalid disk unit passed: %s\n", p);
 	return 0;
@@ -288,7 +282,6 @@ MakeDev(struct chunk *c1, const char *path)
 	unit += (*p - '0');
 	p++;
     }
-#ifndef __alpha__
     if (*p != 's') {
 	msgDebug("MakeDev: `%s' is not a valid slice delimiter\n", p);
 	return 0;
@@ -306,9 +299,6 @@ MakeDev(struct chunk *c1, const char *path)
 	p++;
     }
     slice = slice + 1;
-#else
-    slice = 0;
-#endif
     if (!*p) {
 	part = 2;
 	if(c1->type == freebsd)

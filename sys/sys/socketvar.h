@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.31 1998/11/11 10:04:13 truckman Exp $
+ *	$Id: socketvar.h,v 1.28 1998/06/07 17:13:03 dfr Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -77,8 +77,7 @@ struct socket {
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
-	struct  sigio *so_sigio;	/* information for async I/O or
-					   out of band data (SIGURG) */
+	pid_t	so_pgid;		/* pgid for signals */
 	u_long	so_oobmark;		/* chars to oob mark */
 /*
  * Variables for socket buffering.
@@ -255,13 +254,6 @@ struct sockopt {
 	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
 	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
 	struct	proc *sopt_p;	/* calling process or null if kernel */
-};
-
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	int		refcnt;		/* reference count */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
 };
 
 #ifdef MALLOC_DECLARE

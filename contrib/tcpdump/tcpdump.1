@@ -646,7 +646,7 @@ ping packets):
 .RS
 .nf
 .B
-tcpdump 'icmp[0] != 8 and icmp[0] != 0'
+tcpdump 'icmp[0] != 8 and icmp[0] != 0"
 .fi
 .RE
 .SH OUTPUT FORMAT
@@ -1190,7 +1190,7 @@ is made to account for the time lag between when the
 ethernet interface removed the packet from the wire and when the kernel
 serviced the `new packet' interrupt.
 .SH "SEE ALSO"
-bpf(4), pcap(3)
+traffic(1C), nit(4P), bpf(4), pcap(3)
 .SH AUTHORS
 Van Jacobson,
 Craig Leres and

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.36 1998/12/04 22:54:51 archie Exp $
+ * $Id: kernfs_vnops.c,v 1.34 1998/06/25 16:54:18 dt Exp $
  */
 
 /*
@@ -106,9 +106,11 @@ static int nkern_targets = sizeof(kern_targets) / sizeof(kern_targets[0]);
 
 static int	kernfs_access __P((struct vop_access_args *ap));
 static int	kernfs_badop __P((void));
+static int	kernfs_enotsupp __P((void));
 static int	kernfs_getattr __P((struct vop_getattr_args *ap));
 static int	kernfs_inactive __P((struct vop_inactive_args *ap));
 static int	kernfs_lookup __P((struct vop_lookup_args *ap));
+static int	kernfs_pathconf __P((struct vop_pathconf_args *ap));
 static int	kernfs_print __P((struct vop_print_args *ap));
 static int	kernfs_read __P((struct vop_read_args *ap));
 static int	kernfs_readdir __P((struct vop_readdir_args *ap));
@@ -131,13 +133,13 @@ kernfs_xread(kt, buf, len, lenp)
 	case KTT_TIME: {
 		struct timeval tv;
 		microtime(&tv);
-		snprintf(buf, len, "%ld %ld\n", tv.tv_sec, tv.tv_usec);
+		sprintf(buf, "%ld %ld\n", tv.tv_sec, tv.tv_usec);
 		break;
 	}
 
 	case KTT_INT: {
 		int *ip = kt->kt_data;
-		snprintf(buf, len, "%d\n", *ip);
+		sprintf(buf, "%d\n", *ip);
 		break;
 	}
 
@@ -179,7 +181,7 @@ kernfs_xread(kt, buf, len, lenp)
 	}
 
 	case KTT_AVENRUN:
-		snprintf(buf, len, "%lu %lu %lu %ld\n",
+		sprintf(buf, "%lu %lu %lu %ld\n",
 		    (u_long)averunnable.ldavg[0], (u_long)averunnable.ldavg[1],
 		    (u_long)averunnable.ldavg[2], averunnable.fscale);
 		break;
@@ -233,6 +235,7 @@ kernfs_lookup(ap)
 	struct proc *p = cnp->cn_proc;
 	struct kern_target *kt;
 	struct vnode *fvp;
+	int nameiop = cnp->cn_nameiop;
 	int error, i;
 
 #ifdef KERNFS_DIAGNOSTIC
@@ -371,6 +374,7 @@ kernfs_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct timeval tv;
 	int error = 0;
 	char strbuf[KSTRING];
 
@@ -455,6 +459,7 @@ kernfs_read(ap)
 	char strbuf[KSTRING];
 	int off = uio->uio_offset;
 	int error, len;
+	char *cp;
 
 	if (vp->v_type == VDIR)
 		return (EOPNOTSUPP);

@@ -111,9 +111,6 @@ mergesort(base, nmemb, size, cmp)
 		return (-1);
 	}
 
-	if (nmemb == 0)
-		return (0);
-
 	/*
 	 * XXX
 	 * Stupid subtraction for the Cray.
@@ -150,7 +147,7 @@ mergesort(base, nmemb, size, cmp)
 	    			sense = 0;
 	    		}
 	    		if (!big) {	/* here i = 0 */
-				while ((b += size) < t && cmp(q, b) >sense)
+LINEAR:	    			while ((b += size) < t && cmp(q, b) >sense)
 	    				if (++i == 6) {
 	    					big = 1;
 	    					goto EXPONENTIAL;
@@ -171,7 +168,7 @@ EXPONENTIAL:	    		for (i = size; ; i <<= 1)
 	    					goto FASTCASE;
 	    				} else
 	    					b = p;
-				while (t > b+size) {
+SLOWCASE:	    		while (t > b+size) {
 	    				i = (((t - b) / size) >> 1) * size;
 	    				if ((*cmp)(q, p = b + i) <= sense)
 	    					t = p;

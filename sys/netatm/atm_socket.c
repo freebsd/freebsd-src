@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_socket.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_socket.c,v 1.3 1998/07/30 22:30:53 mks Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#include <netatm/kern_include.h>
-
 #ifndef lint
-__RCSID("@(#) $Id: atm_socket.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+static char *RCSid = "@(#) $Id: atm_socket.c,v 1.3 1998/07/30 22:30:53 mks Exp $";
 #endif
+
+#include <netatm/kern_include.h>
 
 
 /*
@@ -1207,8 +1207,8 @@ atm_sock_getopt(so, sopt, atp)
 			struct ifnet		*ifp;
 
 			ifp = &ap->nif->nif_if;
-			(void) snprintf(netif.net_intf, sizeof(netif.net_intf),
-			    "%s%d", ifp->if_name, ifp->if_unit);
+			(void) sprintf(netif.net_intf, "%s%d",
+					ifp->if_name, ifp->if_unit);
 			return (sooptcopyout(sopt, &netif,
 					sizeof netif));
 		} else {

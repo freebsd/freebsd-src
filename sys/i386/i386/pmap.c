@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.218 1999/01/09 21:41:22 dt Exp $
+ *	$Id: pmap.c,v 1.208 1998/09/04 13:10:34 ache Exp $
  */
 
 /*
@@ -184,14 +184,6 @@ static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
 
-/*
- *  PPro_vmtrr
- */
-struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
-
-/* AIO support */
-extern struct vmspace *aiovmspace;
-
 #ifdef SMP
 extern char prv_CPAGE1[], prv_CPAGE2[], prv_CPAGE3[];
 extern pt_entry_t *prv_CMAP1, *prv_CMAP2, *prv_CMAP3;
@@ -297,9 +289,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte;
-#ifdef SMP
 	int i, j;
-#endif
 
 	avail_start = firstaddr;
 
@@ -469,7 +459,7 @@ getmtrr()
 {
 	int i;
 
-	if (cpu_class == CPUCLASS_686) {
+	if (cpu == CPU_686) {
 		for(i = 0; i < NPPROVMTRR; i++) {
 			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
 			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
@@ -482,7 +472,7 @@ putmtrr()
 {
 	int i;
 
-	if (cpu_class == CPUCLASS_686) {
+	if (cpu == CPU_686) {
 		wbinvd();
 		for(i = 0; i < NPPROVMTRR; i++) {
 			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
@@ -495,7 +485,7 @@ void
 pmap_setvidram(void)
 {
 #if 0
-	if (cpu_class == CPUCLASS_686) {
+	if (cpu == CPU_686) {
 		wbinvd();
 		/*
 		 * Set memory between 0-640K to be WB
@@ -518,7 +508,7 @@ pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
 	unsigned long long base;
 	unsigned long long mask;
 
-	if (cpu_class != CPUCLASS_686)
+	if (cpu != CPU_686)
 		return;
 
 	free = -1;
@@ -606,11 +596,6 @@ pmap_init(phys_start, phys_end)
 	int initial_pvs;
 
 	/*
-	 * object for kernel page table pages
-	 */
-	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
-
-	/*
 	 * calculate the number of pv_entries needed
 	 */
 	vm_first_phys = phys_avail[0];
@@ -644,6 +629,10 @@ pmap_init(phys_start, phys_end)
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit, pv_npg);
+	/*
+	 * object for kernel page table pages
+	 */
+	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -731,6 +720,19 @@ invltlb_1pg( vm_offset_t va) {
 #endif
 	{
 		invlpg(va);
+	}
+}
+
+static PMAP_INLINE void
+invltlb_2pg( vm_offset_t va1, vm_offset_t va2) {
+#if defined(I386_CPU)
+	if (cpu_class == CPUCLASS_386) {
+		invltlb();
+	} else
+#endif
+	{
+		invlpg(va1);
+		invlpg(va2);
 	}
 }
 
@@ -1044,7 +1046,7 @@ pmap_dispose_proc(p)
 		*(ptek + i) = 0;
 		if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386))
 			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m);
 		vm_page_free(m);
 	}
 
@@ -1071,7 +1073,8 @@ pmap_swapout_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_swapout_proc: upage already missing???");
 		m->dirty = VM_PAGE_BITS_ALL;
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m);
+		vm_page_deactivate(m);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
 }
@@ -1121,6 +1124,7 @@ pmap_swapin_proc(p)
  */
 static int 
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
+	int s;
 
 	while (vm_page_sleep(m, "pmuwpt", NULL));
 
@@ -1251,6 +1255,7 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
+retry:
 	ptdpg = vm_page_grab( pmap->pm_pteobj, PTDPTDI,
 			VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -1284,6 +1289,7 @@ pmap_release_free_page(pmap, p)
 	struct pmap *pmap;
 	vm_page_t p;
 {
+	int s;
 	unsigned *pde = (unsigned *) pmap->pm_pdir;
 	/*
 	 * This code optimizes the case of freeing non-busy
@@ -1322,8 +1328,6 @@ pmap_release_free_page(pmap, p)
 	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
 		pmap->pm_ptphint = NULL;
 
-	p->wire_count--;
-	cnt.v_wire_count--;
 	vm_page_free_zero(p);
 	return 1;
 }
@@ -1557,10 +1561,6 @@ pmap_growkernel(vm_offset_t addr)
 				pmap = &p->p_vmspace->vm_pmap;
 				*pmap_pde(pmap, kernel_vm_end) = newpdir;
 			}
-		}
-		if (aiovmspace != NULL) {
-			pmap = &aiovmspace->vm_pmap;
-			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
@@ -2426,6 +2426,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 		((addr & (NBPDR - 1)) == 0) &&
 		((size & (NBPDR - 1)) == 0) ) {
 		int i;
+		int s;
 		vm_page_t m[1];
 		unsigned int ptepindex;
 		int npdes;
@@ -2818,7 +2819,7 @@ pmap_zero_page(phys)
 	cpu_invlpg(&prv_CPAGE3);
 
 #if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686)
+	if (cpu == CPU_686)
 		i686_pagezero(&prv_CPAGE3);
 	else
 #endif
@@ -2839,7 +2840,7 @@ pmap_zero_page(phys)
 	}
 
 #if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686)
+	if (cpu == CPU_686)
 		i686_pagezero(CADDR2);
 	else
 #endif
@@ -3193,7 +3194,7 @@ pmap_phys_address(ppn)
 int
 pmap_ts_referenced(vm_offset_t pa)
 {
-	register pv_entry_t pv, pvf, pvn;
+	register pv_entry_t pv;
 	pv_table_t *ppv;
 	unsigned *pte;
 	int s;
@@ -3214,11 +3215,9 @@ pmap_ts_referenced(vm_offset_t pa)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	pvf = 0;
-	for (pv = TAILQ_FIRST(&ppv->pv_list); pv && pv != pvf; pv = pvn) {
-		if (!pvf)
-			pvf = pv;
-		pvn = TAILQ_NEXT(pv, pv_list);
+	for (pv = TAILQ_FIRST(&ppv->pv_list);
+		pv;
+		pv = TAILQ_NEXT(pv, pv_list)) {
 
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		/*
@@ -3493,7 +3492,7 @@ pmap_pid_dump(int pid) {
 #if defined(DEBUG)
 
 static void	pads __P((pmap_t pm));
-void		pmap_pvdump __P((vm_offset_t pa));
+static void	pmap_pvdump __P((vm_offset_t pa));
 
 /* print address space of pmap*/
 static void
@@ -3520,7 +3519,7 @@ pads(pm)
 
 }
 
-void
+static void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.6 1998/08/15 21:51:53 bde Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 1.5 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -1110,12 +1110,12 @@ ip_t *ip;
 
 # if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
 	(defined(OpenBSD) && (OpenBSD >= 199603))
-	snprintf(fname, sizeof(fname), "/tmp/%s", ifp->if_xname);
+	sprintf(fname, "/tmp/%s", ifp->if_xname);
 	if ((fp = fopen(fname, "a"))) {
 		fclose(fp);
 	}
 # else
-	snprintf(fname, sizeof(fname), "/tmp/%s%d", ifp->if_name, ifp->if_unit);
+	sprintf(fname, "/tmp/%s%d", ifp->if_name, ifp->if_unit);
 	if ((fp = fopen(fname, "a"))) {
 		fwrite((char *)ip, ntohs(ip->ip_len), 1, fp);
 		fclose(fp);
@@ -1139,8 +1139,7 @@ char *name;
 	char ifname[32], *s;
 
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
-		(void) snprintf(ifname, sizeof(ifname),
-			"%s%d", ifp->if_name, ifp->if_unit);
+		(void) sprintf(ifname, "%s%d", ifp->if_name, ifp->if_unit);
 		if (!strcmp(name, ifname))
 			return ifp;
 	}
@@ -1191,7 +1190,7 @@ void init_ifp()
 	(defined(OpenBSD) && (OpenBSD >= 199603))
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
 		ifp->if_output = write_output;
-		snprintf(fname, sizeof(fname), "/tmp/%s", ifp->if_xname);
+		sprintf(fname, "/tmp/%s", ifp->if_xname);
 		if ((fp = fopen(fname, "w")))
 			fclose(fp);
 	}
@@ -1199,8 +1198,7 @@ void init_ifp()
 
 	for (ifa = ifneta; ifa && (ifp = *ifa); ifa++) {
 		ifp->if_output = write_output;
-		snprintf(fname, sizeof(fname),
-		    "/tmp/%s%d", ifp->if_name, ifp->if_unit);
+		sprintf(fname, "/tmp/%s%d", ifp->if_name, ifp->if_unit);
 		if ((fp = fopen(fname, "w")))
 			fclose(fp);
 	}

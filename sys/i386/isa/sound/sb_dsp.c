@@ -539,6 +539,8 @@ sb_dsp_halt_xfer(int dev)
 static int
 sb_dsp_open(int dev, int mode)
 {
+    int             retval;
+
     if (!sb_dsp_ok) {
 	printf("SB Error: SoundBlaster board not installed\n");
 	return -(ENXIO);
@@ -1079,8 +1081,7 @@ sb_dsp_init(struct address_info * hw_config)
 	fmt = "SoundBlaster %d.%d" ;
     }
 
-    snprintf(sb_dsp_operations.name, sizeof(sb_dsp_operations.name),
-	fmt, sbc_major, sbc_minor);
+    sprintf(sb_dsp_operations.name, fmt, sbc_major, sbc_minor);
     conf_printf(sb_dsp_operations.name, hw_config);
 
 #if defined(CONFIG_SB16) && defined(CONFIG_SBPRO)

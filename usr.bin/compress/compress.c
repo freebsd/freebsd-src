@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
+static char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,6 @@ main(argc, argv)
 	int bits, cat, ch;
 	char *p, newname[MAXPATHLEN];
 
-	cat = 0;
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
@@ -89,13 +88,10 @@ main(argc, argv)
 		style = DECOMPRESS;
 	else if (!strcmp(p, "compress"))
 		style = COMPRESS;
-	else if (!strcmp(p, "zcat")) {
-		cat = 1;
-		style = DECOMPRESS;
-	} else
+	else
 		errx(1, "unknown program name");
 
-	bits = 0;
+	bits = cat = 0;
 	while ((ch = getopt(argc, argv, "b:cdfv")) != -1)
 		switch(ch) {
 		case 'b':

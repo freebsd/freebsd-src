@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: camcontrol.c,v 1.8 1998/12/20 20:32:34 mjacob Exp $
+ *	$Id: camcontrol.c,v 1.4 1998/10/13 16:23:26 ken Exp $
  */
 
 #include <sys/ioctl.h>
@@ -64,7 +64,6 @@ typedef enum {
 	CAM_ARG_DEVTREE		= 0x00000009,
 	CAM_ARG_USAGE		= 0x0000000a,
 	CAM_ARG_DEBUG		= 0x0000000b,
-	CAM_ARG_RESET		= 0x0000000c,
 	CAM_ARG_OPT_MASK	= 0x0000000f,
 	CAM_ARG_VERBOSE		= 0x00000010,
 	CAM_ARG_DEVICE		= 0x00000020,
@@ -116,7 +115,6 @@ struct camcontrol_opts option_table[] = {
 	{"stop", CAM_ARG_STARTSTOP, NULL},
 	{"eject", CAM_ARG_STARTSTOP | CAM_ARG_EJECT, NULL},
 	{"rescan", CAM_ARG_RESCAN, NULL},
-	{"reset", CAM_ARG_RESET, NULL},
 	{"cmd", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"command", CAM_ARG_SCSI_CMD, scsicmd_opts},
 	{"defects", CAM_ARG_READ_DEFECTS, readdefect_opts},
@@ -152,9 +150,9 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int scsixferrate(struct cam_device *device);
-static int dorescan_or_reset(int argc, char **argv, int rescan);
-static int rescan_or_reset_bus(int bus, int rescan);
-static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
+static int dorescan(int argc, char **argv);
+static int rescanbus(int bus);
+static int scanlun(int bus, int target, int lun);
 static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
 static void modepage(struct cam_device *device, int argc, char **argv,
@@ -350,9 +348,6 @@ getdevtree(void)
 					dev_result->path_id,
 					dev_result->target_id,
 					dev_result->target_lun);
-
-				need_close = 1;
-
 				break;
 			}
 			case DEV_MATCH_PERIPH: {
@@ -361,14 +356,14 @@ getdevtree(void)
 				periph_result =
 				      &ccb.cdm.matches[i].result.periph_result;
 
-				if (need_close > 1)
+				if (need_close)
 					fprintf(stdout, ",");
 
 				fprintf(stdout, "%s%d",
 					periph_result->periph_name,
 					periph_result->unit_number);
 
-				need_close++;
+				need_close = 1;
 				break;
 			}
 			default:
@@ -802,16 +797,14 @@ scsixferrate(struct cam_device *device)
 }
 
 static int
-dorescan_or_reset(int argc, char **argv, int rescan)
+dorescan(int argc, char **argv)
 {
-	static const char *must =
-		"you must specify a bus, or a bus:target:lun to %s";
 	int error = 0;
 	int bus = -1, target = -1, lun = -1;
 	char *tstr, *tmpstr = NULL;
 
 	if (argc < 3) {
-		warnx(must, rescan? "rescan" : "reset");
+		warnx("you must specify a bus, or a bus:target:lun to rescan");
 		return(1);
 	}
 	/*
@@ -840,12 +833,13 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 				arglist |= CAM_ARG_LUN;
 			} else {
 				error = 1;
-				warnx(must, rescan? "rescan" : "reset");
+				warnx("you must specify either a bus or");
+				warnx("a bus, target and lun for rescanning");
 			}
 		}
 	} else {
 		error = 1;
-		warnx(must, rescan? "rescan" : "reset");
+		warnx("you must at least specify a bus to rescan");
 	}
 
 
@@ -853,19 +847,20 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 		if ((arglist & CAM_ARG_BUS)
 		 && (arglist & CAM_ARG_TARGET)
 		 && (arglist & CAM_ARG_LUN))
-			error = scanlun_or_reset_dev(bus, target, lun, rescan);
+			error = scanlun(bus, target, lun);
 		else if (arglist & CAM_ARG_BUS)
-			error = rescan_or_reset_bus(bus, rescan);
+			error = rescanbus(bus);
 		else {
 			error = 1;
-			warnx(must, rescan? "rescan" : "reset");
+			warnx("you must specify either a bus or");
+			warnx("a bus, target and lun for rescanning");
 		}
 	}
 	return(error);
 }
 
 static int
-rescan_or_reset_bus(int bus, int rescan)
+rescanbus(int bus)
 {
 	union ccb ccb;
 	int fd;
@@ -881,7 +876,7 @@ rescan_or_reset_bus(int bus, int rescan)
 		return(1);
 	}
 
-	ccb.ccb_h.func_code = rescan? XPT_SCAN_BUS : XPT_RESET_BUS;
+	ccb.ccb_h.func_code = XPT_SCAN_BUS;
 	ccb.ccb_h.path_id = bus;
 	ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
 	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
@@ -899,19 +894,17 @@ rescan_or_reset_bus(int bus, int rescan)
 	close(fd);
 
 	if ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-		fprintf(stdout, "%s of bus %d was successful\n",
-		    rescan? "Re-scan" : "Reset", bus);
+		fprintf(stdout, "Re-scan of bus %d was successful\n", bus);
 		return(0);
 	} else {
-		fprintf(stdout, "%s of bus %d returned error %#x\n",
-		    rescan? "Re-scan" : "Reset", bus,
-		    ccb.ccb_h.status & CAM_STATUS_MASK);
+		fprintf(stdout, "Re-scan of bus %d returned error %#x\n",
+			bus, ccb.ccb_h.status & CAM_STATUS_MASK);
 		return(1);
 	}
 }
 
 static int
-scanlun_or_reset_dev(int bus, int target, int lun, int scan)
+scanlun(int bus, int target, int lun)
 {
 	union ccb ccb;
 	int fd;
@@ -938,7 +931,7 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 		return(1);
 	}
 
-	ccb.ccb_h.func_code = (scan)? XPT_SCAN_LUN : XPT_RESET_DEV;
+	ccb.ccb_h.func_code = XPT_SCAN_LUN;
 	ccb.ccb_h.path_id = bus;
 	ccb.ccb_h.target_id = target;
 	ccb.ccb_h.target_lun = lun;
@@ -956,13 +949,12 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 	close(fd);
 
 	if ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-		fprintf(stdout, "%s of %d:%d:%d was successful\n",
-		    scan? "Re-scan" : "Reset", bus, target, lun);
+		fprintf(stdout, "Re-scan of %d:%d:%d was successful\n",
+			bus, target, lun);
 		return(0);
 	} else {
-		fprintf(stdout, "%s of %d:%d:%d returned error %#x\n",
-		    scan? "Re-scan" : "Reset", bus, target, lun,
-		    ccb.ccb_h.status & CAM_STATUS_MASK);
+		fprintf(stdout, "Re-scan of %d:%d:%d returned error %#x\n",
+			bus, target, lun, ccb.ccb_h.status & CAM_STATUS_MASK);
 		return(1);
 	}
 }
@@ -1797,7 +1789,6 @@ usage(void)
 "        camcontrol stop       [generic args]\n"
 "        camcontrol eject      [generic args]\n"
 "        camcontrol rescan     <bus[:target:lun]>\n"
-"        camcontrol reset      <bus[:target:lun]>\n"
 "        camcontrol defects    [generic args] <-f format> [-P][-G]\n"
 "        camcontrol modepage   [generic args] <-m page> [-P pagectl][-e][-d]\n"
 "        camcontrol cmd        [generic args] <-c cmd [args]> \n"
@@ -1812,7 +1803,6 @@ usage(void)
 "stop        send a Stop Unit command to the device\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "rescan      rescan the given bus, or bus:target:lun\n"
-"reset       reset the given bus, or bus:target:lun\n"
 "defects     read the defect list of the specified device\n"
 "modepage    display or edit (-e) the given mode page\n"
 "cmd         send the given scsi command, may need -i or -o as well\n"
@@ -1999,8 +1989,7 @@ main(int argc, char **argv)
 	 * commands, we don't use a passthrough device at all, just the
 	 * transport layer device.
 	 */
-	if (((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_RESCAN)
-	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_RESET)
+	if (((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_RESCAN) 
 	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_DEVTREE)
 	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_USAGE)
 	 && ((arglist & CAM_ARG_OPT_MASK) != CAM_ARG_DEBUG)) {
@@ -2011,7 +2000,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Reset optind to 2, and reset getopt, so these routines can parse
+	 * Reset optind to 2, and reset getopt, so these routines cam parse
 	 * the arguments again.
 	 */
 	optind = 2;
@@ -2037,10 +2026,7 @@ main(int argc, char **argv)
 					  timeout);
 			break;
 		case CAM_ARG_RESCAN:
-			error = dorescan_or_reset(argc, argv, 1);
-			break;
-		case CAM_ARG_RESET:
-			error = dorescan_or_reset(argc, argv, 0);
+			error = dorescan(argc, argv);
 			break;
 		case CAM_ARG_READ_DEFECTS:
 			error = readdefects(cam_dev, argc, argv, combinedopt,

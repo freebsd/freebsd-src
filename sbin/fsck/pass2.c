@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: pass2.c,v 1.7 1998/06/15 07:07:18 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@ pass2()
 	struct dinode dino;
 	char pathbuf[MAXPATHLEN + 1];
 
-	switch (inoinfo(ROOTINO)->ino_state) {
+	switch (statemap[ROOTINO]) {
 
 	case USTATE:
 		pfatal("ROOT INODE UNALLOCATED");
@@ -113,13 +113,12 @@ pass2()
 		break;
 
 	default:
-		errx(EEXIT, "BAD STATE %d FOR ROOT INODE",
-		    inoinfo(ROOTINO)->ino_state);
+		errx(EEXIT, "BAD STATE %d FOR ROOT INODE", statemap[ROOTINO]);
 	}
-	inoinfo(ROOTINO)->ino_state = DFOUND;
+	statemap[ROOTINO] = DFOUND;
 	if (newinofmt) {
-		inoinfo(WINO)->ino_state = FSTATE;
-		inoinfo(WINO)->ino_type = DT_WHT;
+		statemap[WINO] = FSTATE;
+		typemap[WINO] = DT_WHT;
 	}
 	/*
 	 * Sort the directory list into disk block order.
@@ -182,9 +181,9 @@ pass2()
 		inp = *inpp;
 		if (inp->i_parent == 0 || inp->i_isize == 0)
 			continue;
-		if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
-		    inoinfo(inp->i_number)->ino_state == DSTATE)
-			inoinfo(inp->i_number)->ino_state = DFOUND;
+		if (statemap[inp->i_parent] == DFOUND &&
+		    statemap[inp->i_number] == DSTATE)
+			statemap[inp->i_number] = DFOUND;
 		if (inp->i_dotdot == inp->i_parent ||
 		    inp->i_dotdot == (ino_t)-1)
 			continue;
@@ -194,15 +193,15 @@ pass2()
 			if (reply("FIX") == 0)
 				continue;
 			(void)makeentry(inp->i_number, inp->i_parent, "..");
-			inoinfo(inp->i_parent)->ino_linkcnt--;
+			lncntp[inp->i_parent]--;
 			continue;
 		}
 		fileerror(inp->i_parent, inp->i_number,
 		    "BAD INODE NUMBER FOR '..'");
 		if (reply("FIX") == 0)
 			continue;
-		inoinfo(inp->i_dotdot)->ino_linkcnt++;
-		inoinfo(inp->i_parent)->ino_linkcnt--;
+		lncntp[inp->i_dotdot]++;
+		lncntp[inp->i_parent]--;
 		inp->i_dotdot = inp->i_parent;
 		(void)changeino(inp->i_number, "..", inp->i_parent);
 	}
@@ -229,7 +228,7 @@ pass2check(idesc)
 	 * If converting, set directory entry type.
 	 */
 	if (doinglevel2 && dirp->d_ino > 0 && dirp->d_ino < maxino) {
-		dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
+		dirp->d_type = typemap[dirp->d_ino];
 		ret |= ALTERED;
 	}
 	/*
@@ -285,7 +284,7 @@ pass2check(idesc)
 		proto.d_reclen = entrysize;
 		memmove(dirp, &proto, (size_t)entrysize);
 		idesc->id_entryno++;
-		inoinfo(dirp->d_ino)->ino_linkcnt--;
+		lncntp[dirp->d_ino]--;
 		dirp = (struct direct *)((char *)(dirp) + entrysize);
 		memset(dirp, 0, (size_t)n);
 		dirp->d_reclen = n;
@@ -320,7 +319,7 @@ chk1:
 		proto.d_reclen = dirp->d_reclen - n;
 		dirp->d_reclen = n;
 		idesc->id_entryno++;
-		inoinfo(dirp->d_ino)->ino_linkcnt--;
+		lncntp[dirp->d_ino]--;
 		dirp = (struct direct *)((char *)(dirp) + n);
 		memset(dirp, 0, (size_t)proto.d_reclen);
 		dirp->d_reclen = proto.d_reclen;
@@ -357,7 +356,7 @@ chk1:
 	}
 	idesc->id_entryno++;
 	if (dirp->d_ino != 0)
-		inoinfo(dirp->d_ino)->ino_linkcnt--;
+		lncntp[dirp->d_ino]--;
 	return (ret|KEEPON);
 chk2:
 	if (dirp->d_ino == 0)
@@ -395,7 +394,7 @@ chk2:
 			ret |= ALTERED;
 	} else {
 again:
-		switch (inoinfo(dirp->d_ino)->ino_state) {
+		switch (statemap[dirp->d_ino]) {
 		case USTATE:
 			if (idesc->id_entryno <= 2)
 				break;
@@ -407,7 +406,7 @@ again:
 		case FCLEAR:
 			if (idesc->id_entryno <= 2)
 				break;
-			if (inoinfo(dirp->d_ino)->ino_state == FCLEAR)
+			if (statemap[dirp->d_ino] == FCLEAR)
 				errmsg = "DUP/BAD";
 			else if (!preen && !usedsoftdep)
 				errmsg = "ZERO LENGTH DIRECTORY";
@@ -419,14 +418,14 @@ again:
 			if ((n = reply("REMOVE")) == 1)
 				break;
 			dp = ginode(dirp->d_ino);
-			inoinfo(dirp->d_ino)->ino_state =
+			statemap[dirp->d_ino] =
 			    (dp->di_mode & IFMT) == IFDIR ? DSTATE : FSTATE;
-			inoinfo(dirp->d_ino)->ino_linkcnt = dp->di_nlink;
+			lncntp[dirp->d_ino] = dp->di_nlink;
 			goto again;
 
 		case DSTATE:
-			if (inoinfo(idesc->id_number)->ino_state == DFOUND)
-				inoinfo(dirp->d_ino)->ino_state = DFOUND;
+			if (statemap[idesc->id_number] == DFOUND)
+				statemap[dirp->d_ino] = DFOUND;
 			/* fall through */
 
 		case DFOUND:
@@ -440,10 +439,10 @@ again:
 				    namebuf);
 				if (preen) {
 					printf(" (REMOVED)\n");
-					n = 1;
-					break;
+  					n = 1;
+  					break;
 				}
-				if ((n = reply("REMOVE")) == 1)
+				else if ((n = reply("REMOVE")) == 1)
 					break;
 			}
 			if (idesc->id_entryno > 2)
@@ -451,20 +450,19 @@ again:
 			/* fall through */
 
 		case FSTATE:
-			if (newinofmt &&
-			    dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {
+			if (newinofmt && dirp->d_type != typemap[dirp->d_ino]) {
 				fileerror(idesc->id_number, dirp->d_ino,
 				    "BAD TYPE VALUE");
-				dirp->d_type = inoinfo(dirp->d_ino)->ino_type;
+				dirp->d_type = typemap[dirp->d_ino];
 				if (reply("FIX") == 1)
 					ret |= ALTERED;
 			}
-			inoinfo(dirp->d_ino)->ino_linkcnt--;
+			lncntp[dirp->d_ino]--;
 			break;
 
 		default:
 			errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-			    inoinfo(dirp->d_ino)->ino_state, dirp->d_ino);
+			    statemap[dirp->d_ino], dirp->d_ino);
 		}
 	}
 	if (n == 0)

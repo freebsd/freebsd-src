@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.21 1998/10/28 02:18:08 jkh Exp $
+ * $Id: dos.c,v 1.19 1998/09/08 11:44:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,26 +50,29 @@
 #undef MSDOSFS
 
 static Boolean DOSMounted;
-static char mountpoint[] = "/dist";
 
 Boolean
 mediaInitDOS(Device *dev)
 {
     struct msdosfs_args args;
 
-    if (DOSMounted)
+    if (!RunningAsInit || DOSMounted)
 	return TRUE;
      
-    Mkdir(mountpoint);
+    if (DITEM_STATUS(Mkdir("/dist")) != DITEM_SUCCESS)
+	return FALSE;
+
     memset(&args, 0, sizeof(args));
     args.fspec = dev->devname;
     args.uid = args.gid = 0;
     args.mask = 0777;
 
-    if (mount("msdos", mountpoint, MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on %s: %s (%u)", args.fspec, mountpoint, strerror(errno), errno);
+    if (mount("msdos", "/dist", MNT_RDONLY, (caddr_t)&args) == -1) {
+	msgConfirm("Error mounting %s on /dist: %s (%u)", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
+    else
+	msgDebug("Mounted DOS device (%s) on /dist.\n", args.fspec);
     DOSMounted = TRUE;
     return TRUE;
 }
@@ -77,18 +80,33 @@ mediaInitDOS(Device *dev)
 FILE *
 mediaGetDOS(Device *dev, char *file, Boolean probe)
 {
-    return mediaGenericGet(mountpoint, file);
+    char	buf[PATH_MAX];
+
+    if (isDebug())
+	msgDebug("Request for %s from DOS\n", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
+    if (file_readable(buf))
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
+    return fopen(buf, "r");
 }
 
 void
 mediaShutdownDOS(Device *dev)
 {
-    if (!DOSMounted)
+    if (!RunningAsInit || !DOSMounted)
 	return;
-    if (unmount(mountpoint, MNT_FORCE) != 0)
-	msgConfirm("Could not unmount the DOS partition from %s: %s",
-		   mountpoint, strerror(errno));
-    else
-	DOSMounted = FALSE;
+    msgDebug("Unmounting %s from /dist\n", dev->name);
+    if (unmount("/dist", MNT_FORCE) != 0)
+	msgConfirm("Could not unmount the DOS partition: %s", strerror(errno));
+    if (isDebug())
+	msgDebug("Unmount successful\n");
+    DOSMounted = FALSE;
     return;
 }

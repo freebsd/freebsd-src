@@ -58,6 +58,7 @@ static int comcnrate = CONSPEED;
 
 void dec_2100_a50_init __P((void));
 static void dec_2100_a50_cons_init __P((void));
+static void dec_2100_a50_device_register __P((struct device *, void *));
 static void dec_2100_a50_intr_map  __P((void *));
 void            sio_intr_establish __P((int));
 void            sio_intr_disestablish __P((int));
@@ -148,7 +149,7 @@ dec_2100_a50_cons_init()
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
-		panic("consinit: unknown console type %ld\n",
+		panic("consinit: unknown console type %d\n",
 		    ctb->ctb_term_type);
 	}
 }
@@ -162,6 +163,7 @@ dec_2100_a50_intr_map(void *arg)
 	u_int32_t pirqreg;
 	int pirq=0;  /* gcc -Wuninitialized XXX */
 	pcicfgregs *cfg = (pcicfgregs *)arg;
+	static int intr_setup_done=0;
 
         /*
          * Slot->interrupt translation.  Taken from NetBSD 

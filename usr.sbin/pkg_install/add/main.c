@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.19 1999/01/17 01:22:54 billf Exp $";
+	"$Id: main.c,v 1.17 1998/09/08 10:42:19 jkh Exp $";
 #endif
 
 /*
@@ -26,16 +26,14 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <sys/param.h>
-#include <objformat.h>
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfnrp:SMt:";
+static char Options[] = "hvIRfnp:SMt:";
 
 char	*Prefix		= NULL;
 Boolean	NoInstall	= FALSE;
 Boolean	NoRecord	= FALSE;
-Boolean Remote		= FALSE;
 
 char	*Mode		= NULL;
 char	*Owner		= NULL;
@@ -49,9 +47,6 @@ add_mode_t AddMode	= NORMAL;
 char	pkgnames[MAX_PKGS][MAXPATHLEN];
 char	*pkgs[MAX_PKGS];
 
-static char *getpackagesite(char *);
-int getosreldate(void);
-
 static void usage __P((void));
 
 int
@@ -60,10 +55,6 @@ main(int argc, char **argv)
     int ch, err;
     char **start;
     char *cp;
-
-    char *remotepkg = NULL, *ptr;
-    static char binformat[1024];
-    static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/";
 
     start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1) {
@@ -91,10 +82,6 @@ main(int argc, char **argv)
 	case 'n':
 	    Fake = TRUE;
 	    Verbose = TRUE;
-	    break;
-
-	case 'r':
-	    Remote = TRUE;
 	    break;
 
 	case 't':
@@ -129,24 +116,10 @@ main(int argc, char **argv)
 
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
-    	    if (Remote) {
-		if (getenv("PACKAGESITE") == NULL) {
-		   getobjformat(binformat, sizeof(binformat), &argc, argv); 
-		   strcat(packageroot, getpackagesite(binformat));
-		}
-		else
-	    	   strcpy(packageroot, (getenv("PACKAGESITE")));
-		remotepkg = strcat(packageroot, *argv);
-		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
-			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
-		   strcat(remotepkg, ".tgz");
-    	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		pkgs[ch] = "-";
 	    else if (isURL(*argv))	/* preserve URLs */
 		pkgs[ch] = strcpy(pkgnames[ch], *argv);
-	    else if ((Remote) && isURL(remotepkg))
-		pkgs[ch] = strcpy(pkgnames[ch], remotepkg);
 	    else {			/* expand all pathnames to fullnames */
 		if (fexists(*argv)) /* refers to a file directly */
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
@@ -183,30 +156,11 @@ main(int argc, char **argv)
 	return 0;
 }
 
-static char *
-getpackagesite(char binform[1024])
-{
-    int reldate;
-
-    reldate = getosreldate();
-
-    if (reldate == 300005)
-  	return "packages-3.0/Latest/";
-    else if (30004 > reldate && reldate >= 300000)
-	return "packages-current-aout/Latest/" ;
-    else if (30004 < reldate) 
-	return !strcmp(binform, "elf") ? "packages-current/Latest/" :
-		"packages-current-aout/Latest";
-
-    return(0);
-
-}
-
 static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix]",
+		"usage: pkg_add [-vInfRMS] [-t template] [-p prefix]",
 		"               pkg-name [pkg-name ...]");
     exit(1);
 }

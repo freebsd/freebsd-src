@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.42 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_proc.c,v 1.36 1998/02/20 13:52:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,6 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
 #include <vm/vm.h>
@@ -195,19 +194,22 @@ enterpgrp(p, pgid, mksess)
 {
 	register struct pgrp *pgrp = pgfind(pgid);
 
-	KASSERT(pgrp == NULL || !mksess,
-	    ("enterpgrp: setsid into non-empty pgrp"));
-	KASSERT(!SESS_LEADER(p),
-	    ("enterpgrp: session leader attempted setpgrp"));
-
+#ifdef DIAGNOSTIC
+	if (pgrp != NULL && mksess)	/* firewalls */
+		panic("enterpgrp: setsid into non-empty pgrp");
+	if (SESS_LEADER(p))
+		panic("enterpgrp: session leader attempted setpgrp");
+#endif
 	if (pgrp == NULL) {
 		pid_t savepid = p->p_pid;
 		struct proc *np;
 		/*
 		 * new process group
 		 */
-		KASSERT(p->p_pid == pgid,
-		    ("enterpgrp: new pgrp and pid != pgid"));
+#ifdef DIAGNOSTIC
+		if (p->p_pid != pgid)
+			panic("enterpgrp: new pgrp and pid != pgid");
+#endif
 		MALLOC(pgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
 		    M_WAITOK);
 		if ((np = pfind(savepid)) == NULL || np != p)
@@ -221,7 +223,6 @@ enterpgrp(p, pgid, mksess)
 			MALLOC(sess, struct session *, sizeof(struct session),
 			    M_SESSION, M_WAITOK);
 			sess->s_leader = p;
-			sess->s_sid = p->p_pid;
 			sess->s_count = 1;
 			sess->s_ttyvp = NULL;
 			sess->s_ttyp = NULL;
@@ -229,8 +230,10 @@ enterpgrp(p, pgid, mksess)
 			    sizeof(sess->s_login));
 			p->p_flag &= ~P_CONTROLT;
 			pgrp->pg_session = sess;
-			KASSERT(p == curproc,
-			    ("enterpgrp: mksession and p != curproc"));
+#ifdef DIAGNOSTIC
+			if (p != curproc)
+				panic("enterpgrp: mksession and p != curproc");
+#endif
 		} else {
 			pgrp->pg_session = p->p_session;
 			pgrp->pg_session->s_count++;
@@ -239,7 +242,6 @@ enterpgrp(p, pgid, mksess)
 		LIST_INIT(&pgrp->pg_members);
 		LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
 		pgrp->pg_jobc = 0;
-		SLIST_INIT(&pgrp->pg_sigiolst);
 	} else if (pgrp == p->p_pgrp)
 		return (0);
 
@@ -281,12 +283,6 @@ static void
 pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
-
-	/*
-	 * Reset any sigio structures pointing to us as a result of
-	 * F_SETOWN with our pgid.
-	 */
-	funsetownlst(&pgrp->pg_sigiolst);
 
 	if (pgrp->pg_session->s_ttyp != NULL &&
 	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
@@ -415,11 +411,6 @@ fill_eproc(p, ep)
 		if (p->p_ucred)
 			ep->e_ucred = *p->p_ucred;
 	}
-#ifdef COMPAT_LINUX_THREADS
-	if (p->p_procsig){
-		ep->e_procsig = *p->p_procsig;
-	}
-#endif
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		register struct vmspace *vm = p->p_vmspace;
 

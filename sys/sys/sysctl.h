@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.68 1998/12/27 18:03:29 dfr Exp $
+ * $Id: sysctl.h,v 1.64 1998/09/05 14:13:35 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -78,7 +78,6 @@ struct ctlname {
 #define CTLFLAG_RW	(CTLFLAG_RD|CTLFLAG_WR)
 #define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 #define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
-#define CTLFLAG_SECURE	0x08000000	/* Permit set only if securelevel<=0 */
 
 /*
  * USE THIS instead of a hardwired number from the categories below
@@ -156,10 +155,15 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "I", descr)
 
-/* Oid for a long.  The pointer must be non NULL. */
-#define SYSCTL_LONG(parent, nbr, name, access, ptr, descr) \
+/* Oid for a long.  If ptr is NULL, val is returned. */
+#define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
-		ptr, 0, sysctl_handle_long, "L", descr)
+		ptr, val, sysctl_handle_long, "L", descr)
+
+/* Oid for an intptr_t.  If ptr is NULL, val is returned. */
+#define SYSCTL_INTPTR(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_intptr, "P", descr)
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \

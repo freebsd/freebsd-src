@@ -59,9 +59,9 @@
 #include "libiberty.h"
 
 #ifdef isascii
-#define isgraphic(c) (isascii (c) && (isprint (c) || isblank (c)))
+#define isgraphic(c) (isascii (c) && isprint (c))
 #else
-#define isgraphic(c) (isprint (c) || isblank (c))
+#define isgraphic(c) (isprint (c))
 #endif
 
 #ifndef errno

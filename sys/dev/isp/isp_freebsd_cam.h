@@ -1,5 +1,4 @@
-/* $Id: isp_freebsd_cam.h,v 1.11 1999/01/10 02:51:06 mjacob Exp $ */
-/* release_12_28_98_A+ */
+/* $FreeBSD$ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -69,6 +68,7 @@ struct isposinfo {
 	int			unit;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct callout_handle	watchid;
 	volatile char		simqfrozen;
 };
 
@@ -89,9 +89,6 @@ struct isposinfo {
 #define	PRINTF			printf
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 
-#define	MEMZERO			bzero
-#define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
-
 #ifdef	CAMDEBUG
 #define	DFLT_DBLEVEL		2
 #else
@@ -99,7 +96,6 @@ struct isposinfo {
 #endif
 
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
-#define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
 #define	ISP_LOCK(isp)		isp_spl_save = splcam()
 #define	ISP_ILOCK(isp)		ISP_LOCK(isp)
@@ -119,7 +115,7 @@ struct isposinfo {
 #define	XS_STS(ccb)		(ccb)->scsi_status
 #define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
-#define	XS_SNSLEN(ccb)		imin((sizeof((ccb)->sense_data)), ccb->sense_len)
+#define	XS_SNSLEN(ccb)		imin((sizeof (ccb)->sense_data), ccb->sense_len)
 #define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
 
 /*
@@ -148,8 +144,32 @@ struct isposinfo {
 #define	XS_NOERR(ccb)		\
 	((ccb)->ccb_h.spriv_field0 == CAM_REQ_INPROG)
 
-extern void isp_done(struct ccb_scsiio *);
-#define	XS_CMD_DONE(sccb)	isp_done(sccb)
+#define	XS_CMD_DONE(sccb)	\
+	if (XS_NOERR((sccb))) \
+		XS_SETERR((sccb), CAM_REQ_CMP); \
+	(sccb)->ccb_h.status &= ~CAM_STATUS_MASK; \
+	(sccb)->ccb_h.status |= (sccb)->ccb_h.spriv_field0; \
+	if (((sccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP && \
+	    (sccb)->scsi_status != SCSI_STATUS_OK) { \
+		(sccb)->ccb_h.status &= ~CAM_STATUS_MASK; \
+		(sccb)->ccb_h.status |= CAM_SCSI_STATUS_ERROR; \
+	} \
+	if (((sccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) { \
+		if (((sccb)->ccb_h.status & CAM_DEV_QFRZN) == 0) { \
+			struct ispsoftc *isp = XS_ISP((sccb)); \
+			IDPRINTF(3, ("%s: freeze devq %d.%d ccbstat 0x%x\n",\
+			    isp->isp_name, (sccb)->ccb_h.target_id, \
+			    (sccb)->ccb_h.target_lun, (sccb)->ccb_h.status)); \
+			xpt_freeze_devq((sccb)->ccb_h.path, 1); \
+			(sccb)->ccb_h.status |= CAM_DEV_QFRZN; \
+		} \
+	} \
+	if ((XS_ISP((sccb)))->isp_osinfo.simqfrozen) { \
+		(sccb)->ccb_h.status |= CAM_RELEASE_SIMQ; \
+		(XS_ISP((sccb)))->isp_osinfo.simqfrozen = 0; \
+	} \
+	(sccb)->ccb_h.status &= ~CAM_SIM_QUEUED; \
+	xpt_done((union ccb *)(sccb))
 
 #define	XS_IS_CMD_DONE(ccb)	\
 	(((ccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
@@ -174,8 +194,14 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_QUEUED		2
 
 #define	SYS_DELAY(x)	DELAY(x)
-#define	STOP_WATCHDOG(f, s)
+
+#define	WATCH_INTERVAL		30
+#define	START_WATCHDOG(f, s)	\
+	(s)->isp_osinfo.watchid = timeout(f, s, WATCH_INTERVAL * hz), \
+	s->isp_dogactive = 1
+#define	STOP_WATCHDOG(f, s)	untimeout(f, s, (s)->isp_osinfo.watchid),\
+	(s)->isp_dogactive = 0
+#define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
 extern void isp_attach __P((struct ispsoftc *));
-extern void isp_uninit __P((struct ispsoftc *));
 
 #endif	/* _ISP_FREEBSD_CAM_H */

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.67 1998/11/09 09:30:55 peter Exp $
+ *	$Id: pccard.c,v 1.65 1998/09/08 18:09:51 brian Exp $
  */
 
 #include "opt_devfs.h"
@@ -50,7 +50,6 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #include "apm.h"
 #if	NAPM > 0
@@ -98,9 +97,6 @@ static struct pccard_device *find_driver(char *);
 static void		remove_device(struct pccard_devinfo *);
 static inthand2_t	slot_irq_handler;
 static void		power_off_slot(void *);
-
-static void		pccard_configure(void *);
-SYSINIT(pccard, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE + 1, pccard_configure, NULL);
 
 #if	NAPM > 0
 /*
@@ -151,41 +147,24 @@ static struct cdevsw crd_cdevsw =
  *	Each controller indicates the number of slots
  *	that it sees, and these are mapped to a master
  *	slot number accessed via the character device entries.
- *
- *	XXX this is a relic.  Each controller has it's own probe
- *	configuration hook.  Printing a list of configured devices
- *	with pccard support probably isn't all that useful.
  */
-static void
-pccard_configure(dummy)
-	void *dummy;
+void
+pccard_configure(void)
 {
-	struct pccard_device **driver, *drv;
+	struct pccard_device **drivers, *drv;
 
-	/* This isn't strictly correct, but works because of initialize order */
-	driver = &drivers;
+#include "pcic.h"
+#if NPCIC > 0
+	pcic_probe();
+#endif
+
+	drivers = (struct pccard_device **)pccarddrv_set.ls_items;
 	printf("Initializing PC-card drivers:");
-	while ((drv = *driver++))
+	while ((drv = *drivers++)) {
 		printf(" %s", drv->name);
-	printf("\n");
-}
-
-int
-pccard_module_handler(module_t mod, int what, void *arg)
-{
-	struct pccard_device *drv = (struct pccard_device *)arg;
-
-	switch(what) {
-	case MOD_LOAD:
 		pccard_add_driver(drv);
-		break;
-	case MOD_UNLOAD:
-		pccard_remove_driver(drv);
-		break;
-	default:
-		break;
 	}
-	return 0;
+	printf("\n");
 }
 
 /*

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.57 1998/10/22 05:58:39 bde Exp $
+ *	$Id: if_ie.c,v 1.55 1998/08/10 14:27:32 bde Exp $
  */
 
 /*
@@ -176,7 +176,6 @@ static struct mbuf *last_not_for_us;
 
 static int	ieprobe(struct isa_device * dvp);
 static int	ieattach(struct isa_device * dvp);
-static ointhand2_t	ieintr;
 static int	sl_probe(struct isa_device * dvp);
 static int	el_probe(struct isa_device * dvp);
 static int	ni_probe(struct isa_device * dvp);
@@ -790,8 +789,6 @@ ieattach(struct isa_device *dvp)
 	struct ifnet *ifp = &ie->arpcom.ac_if;
 	size_t	allocsize;
 
-	dvp->id_ointr = ieintr;
-
 	/*
 	 * based on the amount of memory we have, allocate our tx and rx
 	 * resources.
@@ -854,7 +851,7 @@ ieattach(struct isa_device *dvp)
 /*
  * What to do upon receipt of an interrupt.
  */
-static void
+void
 ieintr(int unit)
 {
 	register struct ie_softc *ie = &ie_softc[unit];
@@ -2261,9 +2258,7 @@ static int
 ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
-#if defined(IPX) || defined(NS)
 	struct ie_softc *ie = ifp->if_softc;
-#endif
 	struct ifreq *ifr = (struct ifreq *) data;
 	int	s, error = 0;
 

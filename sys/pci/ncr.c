@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $
+**  $Id: ncr.c,v 1.136 1998/09/29 09:14:52 bde Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1333,6 +1333,7 @@ static	void	ncr_getsync	(ncb_p np, u_char sfac, u_char *fakp,
 				 u_char *scntl3p);
 static	void	ncr_setsync	(ncb_p np, nccb_p cp,u_char scntl3,u_char sxfer,
 				 u_char period);
+static	void	ncr_settags     (tcb_p tp, lcb_p lp, u_long usrtag);
 static	void	ncr_setwide	(ncb_p np, nccb_p cp, u_char wide, u_char ack);
 static	int	ncr_show_msg	(u_char * msg);
 static	int	ncr_snooptest	(ncb_p np);
@@ -1340,7 +1341,7 @@ static	void	ncr_action	(struct cam_sim *sim, union ccb *ccb);
 static	void	ncr_timeout	(void *arg);
 static  void    ncr_wakeup	(ncb_p np, u_long code);
 
-static  const char*	ncr_probe	(pcici_t tag, pcidi_t type);
+static  char*	ncr_probe	(pcici_t tag, pcidi_t type);
 static	void	ncr_attach	(pcici_t tag, int unit);
 
 #endif /* KERNEL */
@@ -1355,10 +1356,8 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 */
 
 
-#if !defined(lint)
-static const char ident[] =
-	"\n$Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $\n";
-#endif
+static char ident[] =
+	"\n$Id: ncr.c,v 1.136 1998/09/29 09:14:52 bde Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1411,7 +1410,7 @@ DATA_SET (pcidevice_set, ncr_device);
 static char *ncr_name (ncb_p np)
 {
 	static char name[10];
-	snprintf(name, sizeof(name), "ncr%d", np->unit);
+	sprintf(name, "ncr%d", np->unit);
 	return (name);
 }
 
@@ -3357,7 +3356,7 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 
 
 
-static	const char* ncr_probe (pcici_t tag, pcidi_t type)
+static	char* ncr_probe (pcici_t tag, pcidi_t type)
 {
 	u_char rev = pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 	int i;
@@ -5014,6 +5013,8 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 	tp->tinfo.wval = scntl3;
 
 	if (sxfer & 0x1f) {
+		unsigned f10 = 100000 << tp->tinfo.current.width;
+		unsigned mb10 = (f10 + period_10ns/2) / period_10ns;
 		/*
 		**  Disable extended Sreq/Sack filtering
 		*/
@@ -7115,7 +7116,7 @@ struct tekram_eeprom {
 #define	TKR_ADPT_ACTNEG	0x08
 #define	TKR_ADPT_NOSEEK	0x10
 #define	TKR_ADPT_MORLUN	0x20
-  u_char	delay;		/* unit ? ( table ??? ) */
+  u_char	delay;		/* unit ? (table ???) */
   u_char	tags;		/* use 4 times as many ... */
   u_char	filler[60];
 };

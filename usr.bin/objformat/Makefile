@@ -1,8 +1,14 @@
 # $FreeBSD$
 
 PROG=		objformat
-CFLAGS+=	-Wall
-NOSHARED?=	YES
+NOMAN=		not yet
+CFLAGS+=	-DMAIN
+
+.if ${OBJFORMAT} == elf
+CFLAGS+=	-DFREEBSD_ELF
+.else
+CFLAGS+=	-DFREEBSD_AOUT
+.endif
 
 LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
 LINKS+=	${BINDIR}/objformat ${BINDIR}/ar

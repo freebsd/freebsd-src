@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.64 1999/01/14 03:47:55 msmith Exp $
+$Id: majors.i386,v 1.49 1998/09/15 10:01:14 gibbs Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -32,7 +32,7 @@ blkdev	name		comments
 16	scd		Sony CDROM interface
 17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 18	ata		"device independent" ATA/IDE driver
-19	acdb		ATAPI CDROM client of "ata"
+19	wcdb		ATAPI CDROM client of "ata"
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 24	wstb		ATAPI tape client of "ata"
@@ -40,9 +40,6 @@ blkdev	name		comments
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
 28	fla		M-Systems DiskOnChip(r)
-29	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
-100	??		entries from 100-127 are reserved for local use
-127	??		entries from 100-127 are reserved for local use
 
 chrdev	name		comments
 0	cn		console
@@ -114,7 +111,7 @@ chrdev	name		comments
 66	labpc		National Instruments LabPC
 67	meteor		Matrox Meteor video capture
 68	si		Specialix SI/XIO (peter@freebsd.org)
-69	acd		ATAPI CDROM client of "ata"
+69	wcd		ATAPI CDROM client of "ata"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	??		was qcam
@@ -128,9 +125,9 @@ chrdev	name		comments
 81	rp		RocketPort/Steve Gericke <steveg@comtrol.com>
 82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
 83	can		CAN16-2 CAN-PC Interface
-84	dtfp		Datum Time and Frequency processor (louie@UU.NET)
+84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
 85	vesa		VESA support device (j_mini@efn.org)
-86      alog            Industrial Computer Source AIO8-P driver (deprecated)
+86      alog            Industrial Computer Source AIO8-P driver
 87	wfd		ATAPI floppy client of "ata"
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
@@ -152,12 +149,3 @@ chrdev	name		comments
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver (shocking@prth.pgs.com)
-108	usb		Universal Serial Bus (nick.hibma@jrc.it)
-109	id		Intelligent Disk [Array] (md@doc.ic.ac.uk)
-110	ses		SCSI Environmental Services driver (mjacob@feral.com)
-111	ums		USB Mouse (nick.hibma@jrc.it)
-112	kbd		keyboard
-113	ulpt		USB Printer (nick.hibma@jrc.it)
-114	ugen		USB Generic device (nick.hibma@jrc.it)
-200	??		entries from 200-255 are reserved for local use
-255	??		entries from 200-255 are reserved for local use

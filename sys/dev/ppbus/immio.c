@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.4 1998/10/31 11:35:21 nsouch Exp $
+ *	$Id: immio.c,v 1.2 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 
@@ -46,8 +46,6 @@
 #ifdef	KERNEL
 #include <sys/kernel.h>
 #endif /*KERNEL */
-
-#include "opt_vpo.h"
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
@@ -288,13 +286,9 @@ imm_disconnect(struct vpoio_data *vpo, int *connected, int release_bus)
 
 	ppb_MS_microseq(&vpo->vpo_dev, cpp_microseq, &ret);
 
-	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x38)) {
-		if (bootverbose)
-			printf("imm%d: (disconnect) s1=0x%x s2=0x%x, s3=0x%x\n",
-				vpo->vpo_unit, s1 & 0xff, s2 & 0xff, s3 & 0xff);
-		if (connected)
-			*connected = VP0_ECONNECT;
-	}
+	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x38) &&
+								connected)
+		*connected = VP0_ECONNECT;
 
 	if (release_bus)
 		return (ppb_release_bus(&vpo->vpo_dev));
@@ -340,13 +334,9 @@ imm_connect(struct vpoio_data *vpo, int how, int *disconnected, int request_bus)
 
 	ppb_MS_microseq(&vpo->vpo_dev, cpp_microseq, &ret);
 
-	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x30)) {
-		if (bootverbose)
-			printf("imm%d: (connect) s1=0x%x s2=0x%x, s3=0x%x\n",
-				vpo->vpo_unit, s1 & 0xff, s2 & 0xff, s3 & 0xff);
-		if (disconnected)
-			*disconnected = VP0_ECONNECT;
-	}
+	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x30)
+							&& disconnected)
+		*disconnected = VP0_ECONNECT;
 
 	return (0);
 }

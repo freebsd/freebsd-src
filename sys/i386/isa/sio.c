@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.223 1999/01/12 01:04:37 eivind Exp $
+ *	$Id: sio.c,v 1.214 1998/08/23 10:16:26 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -70,9 +70,6 @@
 
 #include <machine/clock.h>
 #include <machine/ipl.h>
-#ifndef SMP
-#include <machine/lock.h>
-#endif
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -86,7 +83,6 @@
 
 #include "card.h"
 #if NCARD > 0
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
@@ -314,7 +310,6 @@ static	int	sioattach	__P((struct isa_device *dev));
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
-static	ointhand2_t	siointr;
 static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
@@ -326,6 +321,9 @@ static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
+#ifdef DSI_SOFT_MODEM
+static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr));
+#endif /* DSI_SOFT_MODEM */
 
 static char driver_name[] = "sio";
 
@@ -466,7 +464,17 @@ static int	sioinit		__P((struct pccard_devinfo *));
 static void	siounload	__P((struct pccard_devinfo *));
 static int	card_intr	__P((struct pccard_devinfo *));
 
-PCCARD_MODULE(sio, sioinit, siounload, card_intr, 0, tty_imask);
+static struct pccard_device sio_info = {
+	driver_name,
+	sioinit,
+	siounload,
+	card_intr,
+	0,			/* Attributes - presently unused */
+	&tty_imask		/* Interrupt mask for device */
+				/* XXX - Should this also include net_imask? */
+};
+
+DATA_SET(pccarddrv_set, sio_info);
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -873,7 +881,6 @@ sioattach(isdp)
 	int		s;
 	int		unit;
 
-	isdp->id_ointr = siointr;
 	isdp->id_ri_flags |= RI_FAST;
 	iobase = isdp->id_iobase;
 	unit = isdp->id_unit;
@@ -942,6 +949,12 @@ sioattach(isdp)
 	/* attempt to determine UART type */
 	printf("sio%d: type", unit);
 
+#ifdef DSI_SOFT_MODEM
+	if((inb(iobase+7) ^ inb(iobase+7)) & 0x80) {
+	    printf(" Digicom Systems, Inc. SoftModem");
+	goto determined_type;
+	}
+#endif /* DSI_SOFT_MODEM */
 
 #ifdef COM_MULTIPORT
 	if (!COM_ISMULTIPORT(isdp) && !COM_IIR_TXRDYBUG(isdp))
@@ -1456,7 +1469,7 @@ siodtrwakeup(chan)
 	wakeup(&com->dtr_wait);
 }
 
-static void
+void
 siointr(unit)
 	int	unit;
 {
@@ -1506,6 +1519,7 @@ siointr1(com)
 	u_char	modem_status;
 	u_char	*ioptr;
 	u_char	recv_data;
+	u_char	int_ident;
 	u_char	int_ctl;
 	u_char	int_ctl_new;
 
@@ -1729,6 +1743,34 @@ sioioctl(dev, cmd, data, flag, p)
 		case TIOCGWINSZ:
 			bzero(data, sizeof(struct winsize));
 			return (0);
+#ifdef DSI_SOFT_MODEM
+		/*
+		 * Download micro-code to Digicom modem.
+		 */
+		case TIOCDSIMICROCODE:
+			{
+			u_long l;
+			u_char *p,*pi;
+
+			pi = (u_char*)(*(caddr_t*)data);
+			error = copyin(pi,&l,sizeof l);
+			if(error)
+				{return error;};
+			pi += sizeof l;
+
+			p = malloc(l,M_TEMP,M_NOWAIT);
+			if(!p)
+				{return ENOBUFS;}
+			error = copyin(pi,p,l);
+			if(error)
+				{free(p,M_TEMP); return error;};
+			if(error = LoadSoftModem(
+			    MINOR_TO_UNIT(mynor),iobase,l,p))
+				{free(p,M_TEMP); return error;}
+			free(p,M_TEMP);
+			return(0);
+			}
+#endif /* DSI_SOFT_MODEM */
 		default:
 			return (ENOTTY);
 		}
@@ -1993,9 +2035,11 @@ comparam(tp, t)
 	int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
+	int		error;
 	Port_t		iobase;
 	int		s;
 	int		unit;
+	int		txtimeout;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
@@ -2061,7 +2105,53 @@ comparam(tp, t)
 		outb(iobase + com_fifo, com->fifo_image);
 	}
 
+	/*
+	 * Some UARTs lock up if the divisor latch registers are selected
+	 * while the UART is doing output (they refuse to transmit anything
+	 * more until given a hard reset).  Fix this by stopping filling
+	 * the device buffers and waiting for them to drain.  Reading the
+	 * line status port outside of siointr1() might lose some receiver
+	 * error bits, but that is acceptable here.
+	 */
+	disable_intr();
+retry:
+	com->state &= ~CS_TTGO;
+	txtimeout = tp->t_timeout;
+	enable_intr();
+	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
+	       != (LSR_TSRE | LSR_TXRDY)) {
+		tp->t_state |= TS_SO_OCOMPLETE;
+		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
+				 "siotx", hz / 100);
+		if (   txtimeout != 0
+		    && (!error || error	== EAGAIN)
+		    && (txtimeout -= hz	/ 100) <= 0
+		   )
+			error = EIO;
+		if (com->gone)
+			error = ENODEV;
+		if (error != 0 && error != EAGAIN) {
+			if (!(tp->t_state & TS_TTSTOP)) {
+				disable_intr();
+				com->state |= CS_TTGO;
+				enable_intr();
+			}
+			splx(s);
+			return (error);
+		}
+	}
+
 	disable_intr();		/* very important while com_data is hidden */
+
+	/*
+	 * XXX - clearing CS_TTGO is not sufficient to stop further output,
+	 * because siopoll() calls comstart() which usually sets it again
+	 * because TS_TTSTOP is clear.  Setting TS_TTSTOP would not be
+	 * sufficient, for similar reasons.
+	 */
+	if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
+	    != (LSR_TSRE | LSR_TXRDY))
+		goto retry;
 
 	if (divisor != 0) {
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
@@ -2254,6 +2344,7 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
+			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
@@ -2269,6 +2360,7 @@ siostop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
+			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
@@ -2479,18 +2571,6 @@ static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
 static void siocntxwait	__P((void));
 
-/*
- * XXX: sciocnget() and sciocnputc() are not declared static, as they are
- * referred to from i386/i386/i386-gdbstub.c.
- */
-static cn_probe_t siocnprobe;
-static cn_init_t siocninit;
-static cn_checkc_t siocncheckc;
-       cn_getc_t siocngetc;
-       cn_putc_t siocnputc;
-
-CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
-
 static void
 siocntxwait()
 {
@@ -2612,7 +2692,7 @@ siocnclose(sp)
 	outb(iobase + com_ier, sp->ier);
 }
 
-static void
+void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
@@ -2678,14 +2758,14 @@ siocnprobe(cp)
 		}
 }
 
-static void
+void
 siocninit(cp)
 	struct consdev	*cp;
 {
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
-static int
+int
 siocncheckc(dev)
 	dev_t	dev;
 {
@@ -2743,6 +2823,126 @@ siocnputc(dev, c)
 	splx(s);
 }
 
+#ifdef DSI_SOFT_MODEM
+/*
+ * The magic code to download microcode to a "Connection 14.4+Fax"
+ * modem from Digicom Systems Inc.  Very magic.
+ */
+
+#define DSI_ERROR(str) { ptr = str; goto error; }
+static int
+LoadSoftModem(int unit, int base_io, u_long size, u_char *ptr)
+{
+    int int_c,int_k;
+    int data_0188, data_0187;
+
+    /*
+     * First see if it is a DSI SoftModem
+     */
+    if(!((inb(base_io+7) ^ inb(base_io+7)) & 0x80))
+	return ENODEV;
+
+    data_0188 = inb(base_io+4);
+    data_0187 = inb(base_io+3);
+    outb(base_io+3,0x80);
+    outb(base_io+4,0x0C);
+    outb(base_io+0,0x31);
+    outb(base_io+1,0x8C);
+    outb(base_io+7,0x10);
+    outb(base_io+7,0x19);
+
+    if(0x18 != (inb(base_io+7) & 0x1A))
+	DSI_ERROR("dsp bus not granted");
+
+    if(0x01 != (inb(base_io+7) & 0x01)) {
+	outb(base_io+7,0x18);
+	outb(base_io+7,0x19);
+	if(0x01 != (inb(base_io+7) & 0x01))
+	    DSI_ERROR("program mem not granted");
+    }
+
+    int_c = 0;
+
+    while(1) {
+	if(int_c >= 7 || size <= 0x1800)
+	    break;
+
+	for(int_k = 0 ; int_k < 0x800; int_k++) {
+	    outb(base_io+0,*ptr++);
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,*ptr++);
+	}
+
+	size -= 0x1800;
+	int_c++;
+    }
+
+    if(size > 0x1800) {
+ 	outb(base_io+7,0x18);
+ 	outb(base_io+7,0x19);
+	if(0x00 != (inb(base_io+7) & 0x01))
+	    DSI_ERROR("program data not granted");
+
+	for(int_k = 0 ; int_k < 0x800; int_k++) {
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,0);
+	    outb(base_io+1,*ptr++);
+	    outb(base_io+2,*ptr++);
+	}
+
+	size -= 0x1800;
+
+	while(size > 0x1800) {
+	    for(int_k = 0 ; int_k < 0xC00; int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	    size -= 0x1800;
+	}
+
+	if(size < 0x1800) {
+	    for(int_k=0;int_k<size/2;int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	}
+
+    } else if (size > 0) {
+	if(int_c == 7) {
+	    outb(base_io+7,0x18);
+	    outb(base_io+7,0x19);
+	    if(0x00 != (inb(base_io+7) & 0x01))
+		DSI_ERROR("program data not granted");
+	    for(int_k = 0 ; int_k < size/3; int_k++) {
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,0);
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	} else {
+	    for(int_k = 0 ; int_k < size/3; int_k++) {
+		outb(base_io+0,*ptr++);
+		outb(base_io+1,*ptr++);
+		outb(base_io+2,*ptr++);
+	    }
+	}
+    }
+    outb(base_io+7,0x11);
+    outb(base_io+7,3);
+
+    outb(base_io+4,data_0188 & 0xfb);
+
+    outb(base_io+3,data_0187);
+
+    return 0;
+error:
+    printf("sio%d: DSI SoftModem microcode load failed: <%s>\n",unit,ptr);
+    outb(base_io+7,0x00); \
+    outb(base_io+3,data_0187); \
+    outb(base_io+4,data_0188);  \
+    return EIO;
+}
+#endif /* DSI_SOFT_MODEM */
 
 /*
  * support PnP cards if we are using 'em
@@ -2820,7 +3020,7 @@ siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	dev->id_iobase = d.port[0];
 	dev->id_irq = (1 << d.irq[0]);
-	dev->id_ointr = siointr;
+	dev->id_intr = siointr;
 	dev->id_ri_flags = RI_FAST;
 	dev->id_drq = -1;
 

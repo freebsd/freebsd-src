@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.256 (Berkeley) 11/15/1998";
+static char sccsid[] = "@(#)map.c	8.239 (Berkeley) 6/5/98";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -437,9 +437,9 @@ map_init(s, pass)
 			pass);
 
 	/*
-	**  Pass 0 opens all non-rebuildable maps.
-	**  Pass 1 opens all rebuildable maps for read.
-	**  Pass 2 rebuilds all rebuildable maps.
+	** Pass 0 opens all non-rebuildable maps.
+	** Pass 1 opens all rebuildable maps for read.
+	** Pass 2 rebuilds all rebuildable maps.
 	*/
 
 	rebuildable = (bitset(MF_ALIAS, map->map_mflags) &&
@@ -478,7 +478,6 @@ map_init(s, pass)
 				map->map_file == NULL ? "NULL" :
 					map->map_file);
 		map->map_mflags |= MF_OPEN;
-		map->map_pid = getpid();
 	}
 	else
 	{
@@ -497,53 +496,8 @@ map_init(s, pass)
 
 			map->map_class = &BogusMapClass;
 			map->map_mflags |= MF_OPEN;
-			map->map_pid = getpid();
 		}
 	}
-}
-/*
-**  CLOSEMAPS -- close all open maps opened by the current pid.
-**
-**	Parameters:
-**		none
-**
-**	Returns:
-**		none.
-*/
-
-void
-closemaps()
-{
-	extern void map_close __P((STAB *, int));
-
-	stabapply(map_close, 0);
-}
-
-/* ARGSUSED1 */
-void
-map_close(s, unused)
-	register STAB *s;
-	int unused;
-{
-	MAP *map;
-
-	if (s->s_type != ST_MAP)
-		return;
-	
-	map = &s->s_map;
-
-	if (!bitset(MF_VALID, map->map_mflags) ||
-	    !bitset(MF_OPEN, map->map_mflags) ||
-	    map->map_pid != getpid())
-		return;
-	
-	if (tTd(38, 5))
-		printf("closemaps: closing %s (%s)\n",
-		       map->map_mname == NULL ? "NULL" : map->map_mname,
-		       map->map_file == NULL ? "NULL" : map->map_file);
-	
-	map->map_class->map_close(map);
-	map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
 }
 /*
 **  GETCANONNAME -- look up name using service switch
@@ -999,11 +953,10 @@ ndbm_map_open(map, mode)
 	else
 	{
 		map->map_mflags |= MF_LOCKED;
-#if _FFR_TRUSTED_USER
-		if (geteuid() == 0 && TrustedUid != 0)
+		if (geteuid() == 0 && TrustedFileUid != 0)
 		{
-			if (fchown(dfd, TrustedUid, -1) < 0 ||
-			    fchown(pfd, TrustedUid, -1) < 0)
+			if (fchown(dfd, TrustedFileUid, -1) < 0 ||
+			    fchown(pfd, TrustedFileUid, -1) < 0)
 			{
 				int err = errno;
 
@@ -1014,7 +967,6 @@ ndbm_map_open(map, mode)
 					map->map_file, errstring(err));
 			}
 		}
-#endif
 	}
 	if (fstat(dfd, &st) >= 0)
 		map->map_mtime = st.st_mtime;
@@ -1068,7 +1020,6 @@ lockdbm:
 		if (map->map_class->map_open(map, omode))
 		{
 			map->map_mflags |= MF_OPEN;
-			map->map_pid = getpid();
 			if ((omode && O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			goto lockdbm;
@@ -1082,7 +1033,6 @@ lockdbm:
 				*statp = EX_TEMPFAIL;
 				map->map_class = &BogusMapClass;
 				map->map_mflags |= MF_OPEN;
-				map->map_pid = getpid();
 				syserr("Cannot reopen NDBM database %s",
 					map->map_file);
 			}
@@ -1209,7 +1159,7 @@ ndbm_map_close(map)
 	{
 #ifdef NDBM_YP_COMPAT
 		bool inclnull;
-		char buf[MAXHOSTNAMELEN];
+		char buf[200];
 
 		inclnull = bitset(MF_INCLNULL, map->map_mflags);
 		map->map_mflags &= ~MF_INCLNULL;
@@ -1550,10 +1500,9 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 	if (mode == O_RDWR)
 	{
 		(void) db->sync(db, 0);
-#if _FFR_TRUSTED_USER
-		if (geteuid() == 0 && TrustedUid != 0)
+		if (geteuid() == 0 && TrustedFileUid != 0)
 		{
-			if (fchown(fd, TrustedUid, -1) < 0)
+			if (fchown(fd, TrustedFileUid, -1) < 0)
 			{
 				int err = errno;
 
@@ -1564,7 +1513,6 @@ db_map_open(map, mode, mapclassname, dbtype, openinfo)
 					buf, errstring(err));
 			}
 		}
-#endif
 	}
 
 	if (fd >= 0 && fstat(fd, &st) >= 0)
@@ -1642,7 +1590,6 @@ db_map_lookup(map, name, av, statp)
 		if (map->map_class->map_open(map, omode))
 		{
 			map->map_mflags |= MF_OPEN;
-			map->map_pid = getpid();
 			if ((omode && O_ACCMODE) == O_RDWR)
 				map->map_mflags |= MF_WRITABLE;
 			db = (DB *) map->map_db2;
@@ -1657,7 +1604,6 @@ db_map_lookup(map, name, av, statp)
 				*statp = EX_TEMPFAIL;
 				map->map_class = &BogusMapClass;
 				map->map_mflags |= MF_OPEN;
-				map->map_pid = getpid();
 				syserr("Cannot reopen DB database %s",
 					map->map_file);
 			}
@@ -1871,31 +1817,9 @@ db_map_close(map)
 #if DB_VERSION_MAJOR < 2
 	if (db->close(db) != 0)
 #else
-	/*
-	**  Berkeley DB can use internal shared memory
-	**  locking for its memory pool.  Closing a map
-	**  opened by another process will interfere
-	**  with the shared memory and locks of the parent
-	**  process leaving things in a bad state.
-	**
-	**  If this map was not opened by the current
-	**  process, do not close it here but recover
-	**  the file descriptor.
-	*/
-	if (map->map_pid != getpid())
-	{
-		int fd = -1;
-
-		errno = db->fd(db, &fd);
-		if (fd >= 0)
-			(void) close(fd);
-		return;
-	}
-
 	if ((errno = db->close(db, 0)) != 0)
 #endif
-		syserr("db_map_close(%s, %s, %lx): db close failure",
-			map->map_mname, map->map_file, map->map_mflags);
+		syserr("readaliases: db close failure");
 }
 
 #endif
@@ -2326,10 +2250,7 @@ nisplus_map_lookup(map, name, av, statp)
 	if (!bitset(MF_OPEN, map->map_mflags))
 	{
 		if (nisplus_map_open(map, O_RDONLY))
-		{
 			map->map_mflags |= MF_OPEN;
-			map->map_pid = getpid();
-		}
 		else
 		{
 			*statp = EX_UNAVAILABLE;
@@ -2670,38 +2591,18 @@ ldap_map_start(map)
 		ev = setevent(lmap->timeout.tv_sec, ldaptimeout, 0);
 	}
 
-#ifdef LDAP_VERSION3
-	ld = ldap_init(lmap->ldaphost,lmap->ldapport);
-#else
-	ld = ldap_open(lmap->ldaphost,lmap->ldapport);
-#endif
-
- 	/* clear the event if it has not sprung */
-	if (lmap->timeout.tv_sec != 0)
-		clrevent(ev);
-
-	if (ld == NULL)
+	if ((ld = ldap_open(lmap->ldaphost,lmap->ldapport)) == NULL)
 	{
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
-			syserr("%sldapopen failed to %s in map %s",
-				bitset(MF_NODEFER, map->map_mflags) ? "" : "421 ",
+			syserr("ldapopen failed to %s in map %s",
 				lmap->ldaphost, map->map_mname);
 		}
 		return FALSE;
 	}
 
-#ifdef LDAP_VERSION3
-	ldap_set_option(ld, LDAP_OPT_DEREF, &lmap->deref);
-	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->timelimit);
-	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->sizelimit);
-	ldap_set_option(ld, LDAP_OPT_REFERRALS, &lmap->ldap_options);
-
-	/* ld needs to be cast into the map struct */
-	lmap->ld = ld; 
-	return TRUE;
-#else
-
+	/* clear the event if it has not sprung */
+	clrevent(ev);
 	/* From here on in we can use ldap internal timelimits */
 	ld->ld_deref = lmap->deref;
 	ld->ld_timelimit = lmap->timelimit;
@@ -2724,12 +2625,11 @@ ldap_map_start(map)
 	}
 
 	return FALSE;
-#endif
 }
 
 
 /*
-**  LDAP_MAP_CLOSE -- close ldap map
+** LDAP_MAP_CLOSE -- close ldap map
 */
 
 void
@@ -2745,8 +2645,8 @@ ldap_map_close(map)
 
 #ifdef SUNET_ID
 /*
-**  SUNET_ID_HASH -- Convert a string to it's Sunet_id canonical form
-**  This only makes sense at Stanford University.
+** SUNET_ID_HASH -- Convert a string to it's Sunet_id canonical form
+** This only makes sense at Stanford University.
 */
 
 char *
@@ -2780,7 +2680,7 @@ sunet_id_hash(str)
 
 #endif /* SUNET_ID */
 /*
-**  LDAP_MAP_LOOKUP -- look up a datum in a LDAP map
+** LDAP_MAP_LOOKUP -- look up a datum in a LDAP map
 */
 
 char *
@@ -2799,7 +2699,6 @@ ldap_map_lookup(map, name, av, statp)
 	char **attr_values = NULL;
 	char *result;
 	int name_len;
-	char *fp, *p, *q;
 
 	if (tTd(38, 20))
 		printf("ldap_map_lookup(%s, %s)\n", map->map_mname, name);
@@ -2828,28 +2727,8 @@ ldap_map_lookup(map, name, av, statp)
 		makelower(keybuf);
 #endif /*SUNET_ID */
 
-	/* substitute keybuf into filter, perhaps multiple times */
-	fp = filter;
-	p = lmap->filter;
-	while ((q = strchr(p, '%')) != NULL)
-	{
-		if (q[1] == 's')
-		{
-			snprintf(fp, SPACELEFT(filter, fp), "%.*s%s",
-				 q - p, p, keybuf);
-			p = q + 2;
-		}
-		else
-		{
-			snprintf(fp, SPACELEFT(filter, fp), "%.*s",
-				 q - p + 1, p);
-			p = q + (q[1] == '%' ? 2 : 1);
-		}
-		fp += strlen(fp);
-	}
-	snprintf(fp, SPACELEFT(filter, fp), "%s", p);
-	if (tTd(38, 20))
-		printf("ldap search filter=%s\n", filter);
+	/* sprintf keybuf into filter */
+	snprintf(filter, sizeof filter, lmap->filter, keybuf);
 
 	if (ldap_search_st(lmap->ld, lmap->base,lmap->scope,filter,
 			   lmap->attr, lmap->attrsonly, &(lmap->timeout),
@@ -2870,8 +2749,7 @@ ldap_map_lookup(map, name, av, statp)
 		{
 			if (!bitset(MF_OPTIONAL, map->map_mflags))
 			{
-				syserr("%sError in ldap_search_st using %s in map %s",
-					bitset(MF_NODEFER, map->map_mflags) ? "" : "421 ",
+				syserr("Error in ldap_search_st using %s in map %s",
 					filter, map->map_mname);
 			}
 			result = NULL;
@@ -2924,7 +2802,7 @@ ldap_map_lookup(map, name, av, statp)
 
 
 /*
-**  LDAP_MAP_DEQUOTE - helper routine for ldap_map_parseargs
+** LDAP_MAP_DEQUOTE - helper routine for ldap_map_parseargs
 */
 
 char *
@@ -2954,7 +2832,7 @@ ldap_map_dequote(str)
 }
 
 /*
-**  LDAP_MAP_PARSEARGS -- parse ldap map definition args.
+** LDAP_MAP_PARSEARGS -- parse ldap map definition args.
 */
 
 bool
@@ -3158,8 +3036,8 @@ ldap_map_parseargs(map,args)
 		map->map_domain = newstr(ldap_map_dequote(map->map_domain));
 
 	/*
-	**  We need to swallow up all the stuff into a struct
-	**  and dump it into map->map_dbptr1
+	** We need to swallow up all the stuff into a struct
+	** and dump it into map->map_dbptr1
 	*/
 
 	if (lmap->ldaphost != NULL)
@@ -3217,7 +3095,7 @@ ldap_map_parseargs(map,args)
 
 #endif /* LDAP Modules */
 /*
-**  syslog map
+** syslog map
 */
 
 #if _FFR_MAP_SYSLOG
@@ -3225,7 +3103,7 @@ ldap_map_parseargs(map,args)
 #define map_prio	map_lockfd	/* overload field */
 
 /*
-**  SYSLOG_MAP_PARSEARGS -- check for priority level to syslog messages.
+** SYSLOG_MAP_PARSEARGS -- check for priority level to syslog messages.
 */
 
 bool
@@ -3307,7 +3185,7 @@ syslog_map_parseargs(map, args)
 }
 
 /*
-**  SYSLOG_MAP_LOOKUP -- rewrite and syslog message.  Always return empty string
+** SYSLOG_MAP_LOOKUP -- rewrite and syslog message.  Always return empty string
 */
 
 char *
@@ -3504,6 +3382,8 @@ ni_map_open(map, mode)
 	MAP *map;
 	int mode;
 {
+	char *p;
+
 	if (tTd(38, 2))
 		printf("ni_map_open(%s, %s, %d)\n",
 			map->map_mname, map->map_file, mode);
@@ -3786,7 +3666,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 	return propval;
 }
 
-#endif /* NETINFO */
+#endif
 /*
 **  TEXT (unindexed text file) Modules
 **
@@ -3962,11 +3842,6 @@ text_map_lookup(map, name, av, statp)
 		return NULL;
 	}
 	vp = get_column(linebuf, map->map_valcolno, delim, buf, sizeof buf);
-	if (vp == NULL)
-	{
-		*statp = EX_NOTFOUND;
-		return NULL;
-	}
 	vsize = strlen(vp);
 	*statp = EX_OK;
 	if (bitset(MF_MATCHONLY, map->map_mflags))

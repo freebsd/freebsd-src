@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_subr.c,v 1.4 1998/10/31 20:08:03 phk Exp $
+ *	@(#) $Id: unisig_subr.c,v 1.1 1998/09/15 08:23:12 phk Exp $
  *
  */
 
@@ -35,15 +35,15 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: unisig_subr.c,v 1.1 1998/09/15 08:23:12 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/unisig_msg.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: unisig_subr.c,v 1.4 1998/10/31 20:08:03 phk Exp $");
-#endif
 
 
 /*
@@ -73,7 +73,7 @@ extern struct ie_epst  ie_epst_absent;
 
 
 /*
- * Set a User Location cause code in an ATM attribute block
+ * Set a cause code in an ATM attribute block
  *
  * Arguments:
  *	aap	pointer to attribute block
@@ -84,13 +84,10 @@ extern struct ie_epst  ie_epst_absent;
  *
  */
 void
-unisig_cause_attr_from_user(aap, cause)
+unisig_set_cause_attr(aap, cause)
 	Atm_attributes	*aap;
 	int		cause;
 {
-	if (cause == T_ATM_ABSENT)
-		return;
-
 	/*
 	 * Set the fields in the attribute block
 	 */
@@ -100,35 +97,6 @@ unisig_cause_attr_from_user(aap, cause)
 	aap->cause.v.cause_value = cause;
 	KM_ZERO(aap->cause.v.diagnostics,
 			sizeof(aap->cause.v.diagnostics));
-}
-
-
-/*
- * Set a cause code in an ATM attribute block from a Cause IE
- *
- * Arguments:
- *	aap	pointer to attribute block
- *	iep	pointer to Cause IE
- *
- * Returns:
- *	none
- *
- */
-void
-unisig_cause_attr_from_ie(aap, iep)
-	Atm_attributes		*aap;
-	struct ie_generic	*iep;
-{
-	/*
-	 * Set the fields in the attribute block
-	 */
-	aap->cause.tag = T_ATM_PRESENT;
-	aap->cause.v.coding_standard = iep->ie_coding;
-	aap->cause.v.location = iep->ie_caus_loc;
-	aap->cause.v.cause_value = iep->ie_caus_cause;
-	KM_ZERO(aap->cause.v.diagnostics, sizeof(aap->cause.v.diagnostics));
-	KM_COPY(iep->ie_caus_diagnostic, aap->cause.v.diagnostics,
-		MIN(sizeof(aap->cause.v.diagnostics), iep->ie_caus_diag_len));
 }
 
 
@@ -434,7 +402,7 @@ unisig_clear_vcc(usp, uvp, cause)
 			outstate == UNI_SSCF_RECOV ||
 			outstate == UNI_PVC_ACT_DOWN ||
 			outstate == UNI_PVC_ACTIVE) {
-		unisig_cause_attr_from_user(&uvp->uv_connvc->cvc_attr, cause);
+		unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr, cause);
 		atm_cm_cleared(uvp->uv_connvc);
 	}
 
@@ -1080,8 +1048,6 @@ unisig_set_attrs(usp, msg, ap)
 						ap->blli.v.layer_2_protocol.ID.simple_ID;
 				break;
 			case T_ATM_USER_ID:
-				msg->msg_ie_blli->ie_blli_l2_id =
-						UNI_IE_BLLI_L2P_USER;
 				msg->msg_ie_blli->ie_blli_l2_user_proto =
 						ap->blli.v.layer_2_protocol.ID.user_defined_ID;
 				break;

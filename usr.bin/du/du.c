@@ -35,13 +35,13 @@
  */
 
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
+static char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 
@@ -112,7 +112,7 @@ main(argc, argv)
 				errno = 0;
 				depth = atoi(optarg);
 				if (errno == ERANGE || depth < 0) {
-					(void) fprintf(stderr, "Invalid argument to option d: %s\n", optarg);
+					(void) fprintf(stderr, "Invalid argument to option d: %s", optarg);
 					usage();
 				}
 				break;
@@ -120,6 +120,7 @@ main(argc, argv)
 				cflag = 1;
 				break;
 			case '?':
+			case 'h':
 			default:
 				usage();
 		}
@@ -262,6 +263,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] [-k] [-x] [file ...]\n");
+		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-k] [-x] [file ...]\n");
 	exit(1);
 }

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.221 1998/10/17 15:25:26 bde Exp $
+#	$Id: Makefile,v 1.219 1998/09/28 20:39:23 jb Exp $
 #
 # The user-driven targets are:
 #
@@ -52,8 +52,8 @@
 # this overrides /etc/objformat.
 #
 # Unless -DNOAOUT is specified, a `make world' with OBJFORMAT=elf will
-# update the legacy support for aout. This includes all libraries, ld.so
-# and boot objects. This part of build should be regarded as
+# update the legacy support for aout. This includes all libraries, ld.so,
+# lkms and boot objects. This part of build should be regarded as
 # deprecated and you should _not_ expect to be able to do this past the
 # release of 3.1. You have exactly one major release to move entirely
 # to elf.
@@ -92,10 +92,9 @@
 # Define the user-driven targets. These are listed here in alphabetical
 # order, but that's not important.
 #
-TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
-	depend distribute everything hierarchy includes install installmost \
-	installworld lint maninstall mk most obj objlink regress rerelease \
-	tags update world
+TGTS =	afterdistribute all buildworld clean cleandepend cleandir cleanobj \
+	depend distribute everything hierarchy includes installmost install \
+	installworld mk most obj rerelease update world
 
 #
 # Handle the user-driven targets, using the source relative mk files.

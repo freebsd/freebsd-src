@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.64 1998/12/07 21:58:43 archie Exp $
+ * $Id: nfs_bio.c,v 1.61 1998/09/29 21:46:54 mckusick Exp $
  */
 
 
@@ -86,6 +86,7 @@ nfs_getpages(ap)
 	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
 	struct iovec iov;
+	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
 	struct vnode *vp;
@@ -197,6 +198,7 @@ nfs_putpages(ap)
 {
 	struct uio uio;
 	struct iovec iov;
+	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
 	int iomode, must_commit, i, error, npages, count;
@@ -277,8 +279,7 @@ nfs_bioread(vp, uio, ioflag, cred, getpages)
 	int getpages;
 {
 	register struct nfsnode *np = VTONFS(vp);
-	register int biosize, i;
-	off_t diff;
+	register int biosize, diff, i;
 	struct buf *bp = 0, *rabp;
 	struct vattr vattr;
 	struct proc *p;
@@ -433,7 +434,7 @@ again:
 		bufsize = biosize;
 		if ((off_t)(lbn + 1) * biosize > np->n_size && 
 		    (off_t)(lbn + 1) * biosize - np->n_size < biosize) {
-			bufsize = np->n_size - (off_t)lbn * biosize;
+			bufsize = np->n_size - lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
@@ -755,11 +756,11 @@ again:
 		if (uio->uio_offset + n > np->n_size) {
 			np->n_size = uio->uio_offset + n;
 			np->n_flag |= NMODIFIED;
-			vnode_pager_setsize(vp, np->n_size);
+			vnode_pager_setsize(vp, (u_long)np->n_size);
 		}
 		bufsize = biosize;
-		if ((off_t)(lbn + 1) * biosize > np->n_size) {
-			bufsize = np->n_size - (off_t)lbn * biosize;
+		if ((lbn + 1) * biosize > np->n_size) {
+			bufsize = np->n_size - lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
@@ -771,8 +772,9 @@ again:
 		}
 		np->n_flag |= NMODIFIED;
 
-		if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
-			bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
+		if ((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend > np->n_size) {
+			bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
+		}
 
 		/*
 		 * If the new write will leave a contiguous dirty
@@ -903,10 +905,10 @@ nfs_getcacheblk(vp, bn, size, p)
 	} else
 		bp = getblk(vp, bn, size, 0, 0);
 
-	if (vp->v_type == VREG) {
+	if( vp->v_type == VREG) {
 		int biosize;
 		biosize = mp->mnt_stat.f_iosize;
-		bp->b_blkno = bn * (biosize / DEV_BSIZE);
+		bp->b_blkno = (bn * biosize) / DEV_BSIZE;
 	}
 
 	return (bp);
@@ -1216,13 +1218,13 @@ nfs_doio(bp, cr, p)
 		bp->b_error = error;
 	    }
 	} else {
-	    if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
-		bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
+	    if (((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend) > np->n_size)
+		bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
 
 	    if (bp->b_dirtyend > bp->b_dirtyoff) {
 		io.iov_len = uiop->uio_resid = bp->b_dirtyend
 		    - bp->b_dirtyoff;
-		uiop->uio_offset = (off_t)bp->b_blkno * DEV_BSIZE
+		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE
 		    + bp->b_dirtyoff;
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;

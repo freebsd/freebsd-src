@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_decode.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_decode.c,v 1.1 1998/09/15 08:23:10 phk Exp $
  *
  */
 
@@ -35,6 +35,10 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: unisig_decode.c,v 1.1 1998/09/15 08:23:10 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/unisig.h>
@@ -42,10 +46,6 @@
 #include <netatm/uni/unisig_msg.h>
 #include <netatm/uni/unisig_mbuf.h>
 #include <netatm/uni/unisig_decode.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: unisig_decode.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
-#endif
 
 #define	ALLOC_IE(ie)						\
 	(ie) = (struct ie_generic *) atm_allocate(&unisig_iepool); \

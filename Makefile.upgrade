@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.8 1999/01/07 06:30:14 peter Exp $
+#	$Id: Makefile.upgrade,v 1.5 1998/09/09 06:02:31 jb Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -15,8 +15,7 @@ MAKEOBJDIRPREFIX?=/usr/obj
 # The installed operating system release gives us the hint as to whether
 # we need to build a kernel too.
 #
-INSTALLEDVERSION!=sh ${.CURDIR}/tools/tools/upgrade/getosreldate.sh
-INSTALLEDNAME!=uname -r
+INSTALLEDVERSION!=uname -r
 
 #
 # Upgrade the installed make to the current version using the installed
@@ -67,7 +66,7 @@ ${MAKEOBJDIRPREFIX}/do_aout_buildworld :
 	@echo " Doing an aout buildworld to get an up-to-date set of tools"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout \
-		OBJFORMAT=aout REALLY_WANT_DEPRECIATED_AOUT=yes \
+		OBJFORMAT=aout \
 		make -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_buildworld
 
@@ -166,7 +165,7 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 	@echo "--------------------------------------------------------------"
 	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
 .endif
-.if	${INSTALLEDVERSION} < 300003
+.if	${INSTALLEDVERSION} != "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Saving a copy of programs required to shut the system down"
@@ -192,10 +191,10 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 # directory as an obscure name just in case a reboot is required?
 #
 ${MAKEOBJDIRPREFIX}/do_aout_kernel :
-.if	${INSTALLEDVERSION} >= 300003
+.if	${INSTALLEDVERSION} == "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " You are already running 3.0, so a kernel build"
+	@echo " You are already running 3.0-BETA, so a kernel build"
 	@echo " is probably not required."
 	@echo "--------------------------------------------------------------"
 .else
@@ -206,17 +205,11 @@ ${MAKEOBJDIRPREFIX}/do_aout_kernel :
 .if	exists(${.CURDIR}/sys/compile/GENERICupgrade)
 	@rm -rf ${.CURDIR}/sys/compile/GENERICupgrade
 .endif
-.if	!exists(${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade)
-	-cp ${.CURDIR}/sys/${MACHINE}/conf/GENERIC \
-		${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade
-.endif
 	@cd ${.CURDIR}/sys/${MACHINE}/conf; config GENERICupgrade
 	@-cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout depend && \
-		OBJFORMAT=aout make KERNFORMAT=aout all
+		OBJFORMAT=aout make depend && make all
 	@cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout depend && \
-		OBJFORMAT=aout make KERNFORMAT=aout all
+		OBJFORMAT=aout make depend && make all
 .endif
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_kernel
 
@@ -265,7 +258,7 @@ ${MAKEOBJDIRPREFIX}/do_set_objformat	:
 # and reboot.
 #
 ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
-.if	${INSTALLEDVERSION} >= 300003
+.if	${INSTALLEDVERSION} == "3.0-BETA"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Your system has been updated to run elf by default!"
@@ -279,7 +272,7 @@ ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
 	@echo "--------------------------------------------------------------"
 	@echo " Your system has been updated to run elf by default!"
 	@echo
-	@echo " Since you are running ${INSTALLEDNAME}, the kernel must"
+	@echo " Since you are running ${INSTALLEDVERSION}, the kernel must"
 	@echo " be installed before the system is rebooted. You can type"
 	@echo " Ctrl-C to abort the kernel installation (at your own risk),"
 	@echo " or press return for the kernel to be installed and the"

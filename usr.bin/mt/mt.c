@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.19 1998/12/19 20:23:37 mjacob Exp $";
+	"$Id: mt.c,v 1.15 1998/09/15 10:28:20 gibbs Exp $";
 #endif /* not lint */
 
 /*
@@ -101,28 +101,15 @@ struct commands {
 	{ "rewind",	MTREW,	1 },
 	{ "rewoffl",	MTOFFL,	1 },
 	{ "status",	MTNOP,	1 },
-#if defined(__FreeBSD__)
-	{ "weof",	MTWEOF,	0, ZERO_ALLOWED },
-#else
 	{ "weof",	MTWEOF,	0 },
-#endif
 #if defined(__FreeBSD__)
 	{ "erase",	MTERASE, 0, ZERO_ALLOWED},
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
 	{ "eod",	MTEOD, 1 },
-	{ "smk",	MTWSS, 0 },
-	{ "wss",	MTWSS, 0 },
-	{ "fss",	MTFSS, 1 },
-	{ "bss",	MTBSS, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED|IS_COMP },
 	{ "retension",	MTRETENS, 1 },
-	{ "rdhpos",     MTIOCRDHPOS,  0 },
-	{ "rdspos",     MTIOCRDSPOS,  0 },
-	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
-	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
-	{ "errstat",	MTIOCERRSTAT, 0 },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
@@ -191,7 +178,7 @@ main(argc, argv)
 		if (*argv) {
 #if defined (__FreeBSD__)
 			if (!isdigit(**argv) &&
-			    (comp->c_flags & IS_DENSITY)) {
+			    comp->c_flags & IS_DENSITY) {
 				const char *dcanon;
 				mt_com.mt_count = stringtodens(*argv);
 				if (mt_com.mt_count == 0)
@@ -203,7 +190,7 @@ main(argc, argv)
 					       *argv, dcanon);
 				p = "";
 			} else if (!isdigit(**argv) &&
-				   (comp->c_flags & IS_COMP)) {
+				   comp->c_flags & IS_COMP) {
 
 				mt_com.mt_count = stringtocomp(*argv);
 				if ((u_int32_t)mt_com.mt_count == 0xf0f0f0f0)
@@ -216,83 +203,18 @@ main(argc, argv)
 #else
 			mt_com.mt_count = strtol(*argv, &p, 10);
 #endif /* defined(__FreeBSD__) */
-			if ((mt_com.mt_count <=
+			if (mt_com.mt_count <=
 #if defined (__FreeBSD__)
 			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
 			    && ((comp->c_flags & IS_COMP) == 0)
 #else
 			    0
 #endif /* defined (__FreeBSD__) */
-			    ) || *p)
+			    || *p)
 				errx(1, "%s: illegal count", *argv);
 		}
 		else
 			mt_com.mt_count = 1;
-#if	defined(__FreeBSD__)
-		switch (comp->c_code) {
-		case MTIOCERRSTAT:
-		{
-			int i;
-			union mterrstat umn;
-			struct scsi_tape_errors *s = &umn.scsi_errstat;
-
-			if (ioctl(mtfd, comp->c_code, (caddr_t)&umn) < 0)
-				err(2, "%s", tape);
-			(void)printf("Last I/O Residual: %u\n", s->io_resid);
-			(void)printf(" Last I/O Command:");
-			for (i = 0; i < sizeof (s->io_cdb); i++)
-				(void)printf(" %02X", s->io_cdb[i]);
-			(void)printf("\n");
-			(void)printf("   Last I/O Sense:\n\n\t");
-			for (i = 0; i < sizeof (s->io_sense); i++) {
-				(void)printf(" %02X", s->io_sense[i]);
-				if (((i + 1) & 0xf) == 0) {
-					(void)printf("\n\t");
-				}
-			}
-			(void)printf("\n");
-			(void)printf("Last Control Residual: %u\n",
-			    s->ctl_resid);
-			(void)printf(" Last Control Command:");
-			for (i = 0; i < sizeof (s->ctl_cdb); i++)
-				(void)printf(" %02X", s->ctl_cdb[i]);
-			(void)printf("\n");
-			(void)printf("   Last Control Sense:\n\n\t");
-			for (i = 0; i < sizeof (s->ctl_sense); i++) {
-				(void)printf(" %02X", s->ctl_sense[i]);
-				if (((i + 1) & 0xf) == 0) {
-					(void)printf("\n\t");
-				}
-			}
-			(void)printf("\n\n");
-			exit(0);
-			/* NOTREACHED */
-		}
-		case MTIOCRDHPOS:
-		case MTIOCRDSPOS:
-		{
-			u_int32_t block;
-			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
-				err(2, "%s", tape);
-			(void)printf("%s: %s block location %u\n", tape,
-			    (comp->c_code == MTIOCRDHPOS)? "hardware" :
-			    "logical", block);
-			exit(0);
-			/* NOTREACHED */
-		}
-		case MTIOCSLOCATE:
-		case MTIOCHLOCATE:
-		{
-			u_int32_t block = (u_int32_t)mt_com.mt_count;
-			if (ioctl(mtfd, comp->c_code, (caddr_t)&block) < 0)
-				err(2, "%s", tape);
-			exit(0);
-			/* NOTREACHED */
-		}
-		default:
-			break;
-		}
-#endif
 		if (ioctl(mtfd, MTIOCTOP, &mt_com) < 0)
 			err(1, "%s: %s", tape, comp->c_name);
 	} else {
@@ -300,7 +222,7 @@ main(argc, argv)
 			err(1, NULL);
 		status(&mt_status);
 	}
-	exit(0);
+	exit (0);
 	/* NOTREACHED */
 }
 

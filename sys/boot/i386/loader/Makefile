@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.27 1999/01/11 05:52:28 msmith Exp $
+# $Id: Makefile,v 1.11 1998/10/12 01:03:00 rnordier Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -11,17 +11,8 @@ BINDIR?=	/boot
 SRCS=		main.c conf.c
 
 # Enable PnP and ISA-PnP code.
-HAVE_PNP=	yes
-HAVE_ISABUS=	yes
-
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
+#HAVE_PNP=	yes
+#HAVE_ISABUS=	yes
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
@@ -29,7 +20,8 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
-CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
+CLEANFILES+=	vers.c vers.o ${BASE}.list setdef0.o setdef1.o setdefs.h \
+		gensetdefs.o gensetdefs ${BASE}.bin
 
 CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext 0x1000
@@ -57,9 +49,6 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # BTX is expecting ELF components
 CFLAGS+=	-elf
 
-# New linker set code
-CFLAGS+=	-DNEW_LINKER_SET
-
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
@@ -68,47 +57,34 @@ vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
+${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
-#	/usr/bin/kzip ${.TARGET}
-#	mv ${.TARGET}.kz ${.TARGET}
 
-${BASE}.bin: ${BASE}.sym
-	cp ${.ALLSRC} ${.TARGET}
-	strip ${.TARGET}
+${BASE}.bin: ${OBJS} ${LIBI386} vers.o setdef0.o setdef1.o
+	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} setdef0.o ${OBJS} vers.o setdef1.o \
+		${LIBSTAND} ${LIBI386} ${LIBSTAND}
 
-${BASE}.help: help.common help.i386
-	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+setdef0.o:	setdefs.h
 
-beforeinstall:
-.if exists(${DESTDIR}/boot/loader)
-	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
-.endif
-.if exists(${.OBJDIR}/loader.help)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/${BASE}.help ${DESTDIR}/boot
-.endif
-
-# Cannot use ${OBJS} above this line
-.include <bsd.prog.mk>
-
-${BASE}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
-	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
-		${LIBFICL} ${LIBSTAND} ${LIBI386} ${LIBSTAND}
-
-# If it's not there, don't consider it a target
-.if exists(${.CURDIR}/../../../i386/include)
-beforedepend ${OBJS}: machine
+setdef1.o:	setdefs.h
 
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 
-.endif
-
 CLEANFILES+=	machine
 
+.include <bsd.prog.mk>
 
+# Linker set gymnastics
+setdefs.h: gensetdefs ${OBJS}
+	@echo Generating linker sets
+	@./gensetdefs ${OBJS} >setdefs.h
+
+gensetdefs: gensetdefs.o
+	${CC} -static gensetdefs.o -o $@
+
+gensetdefs.o: gensetdefs.c
+	${CC} -c $<
+
+beforedepend ${OBJS}: machine

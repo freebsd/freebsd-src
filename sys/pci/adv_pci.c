@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_pci.c,v 1.3 1998/12/14 06:32:54 dillon Exp $
+ *	$Id$
  */
 
 #include <pci.h>
@@ -76,16 +76,16 @@
 #define ADV_PCI_MAX_DMA_ADDR    (0xFFFFFFFFL)
 #define ADV_PCI_MAX_DMA_COUNT   (0xFFFFFFFFL)
 
-static const char* advpciprobe(pcici_t tag, pcidi_t type);
+static char* advpciprobe(pcici_t tag, pcidi_t type);
 static void advpciattach(pcici_t config_id, int unit);
 
 /* 
  * The overrun buffer shared amongst all PCI adapters.
  */
 static  u_int8_t*	overrun_buf;
-static	bus_dma_tag_t	overrun_dmat;
-static	bus_dmamap_t	overrun_dmamap;
-static	bus_addr_t	overrun_physbase;
+bus_dma_tag_t		overrun_dmat;
+bus_dmamap_t		overrun_dmamap;
+bus_addr_t		overrun_physbase;
 
 static struct  pci_device adv_pci_driver = {
 	"adv",
@@ -97,7 +97,7 @@ static struct  pci_device adv_pci_driver = {
 
 DATA_SET (pcidevice_set, adv_pci_driver);
 
-static const char*
+static  char*
 advpciprobe(pcici_t tag, pcidi_t type)
 {
 	int rev = pci_conf_read(tag, PCI_CLASS_REG) & 0xff;
@@ -122,6 +122,7 @@ static void
 advpciattach(pcici_t config_id, int unit)
 {
 	u_int16_t	io_port;
+	u_int16_t	config_msw;
 	struct		adv_softc *adv;
 	u_int32_t	id;
 	u_int32_t	command;
@@ -251,13 +252,9 @@ advpciattach(pcici_t config_id, int unit)
 	adv->max_dma_addr = ADV_PCI_MAX_DMA_ADDR;
 
 #if CC_DISABLE_PCI_PARITY_INT
-	{
-		u_int16_t config_msw;
-
-		config_msw = ADV_INW(adv, ADV_CONFIG_MSW);
-		config_msw &= 0xFFC0;
-		ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw); 
-	}
+	config_msw = ADV_INW(adv, ADV_CONFIG_MSW);
+	config_msw &= 0xFFC0;
+	ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw); 
 #endif
  
 	if (id == PCI_DEVICE_ID_ADVANSYS_1200A

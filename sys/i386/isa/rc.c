@@ -172,7 +172,6 @@ static int rc_rcsrt[16] = {
 };
 
 /* Static prototypes */
-static ointhand2_t rcintr;
 static void rc_hwreset          __P((int, int, unsigned int));
 static int  rc_test             __P((int, int));
 static void rc_discard_output   __P((struct rc_chans *));
@@ -232,8 +231,6 @@ rcattach(dvp)
 	static int              rc_started = 0;
 	struct tty              *tp;
 
-	dvp->id_ointr = rcintr;
-
 	/* Thorooughly test the device */
 	if (rcb->rcb_probed != RC_PROBED)
 		return 0;
@@ -281,8 +278,7 @@ rcattach(dvp)
 }
 
 /* RC interrupt handling */
-static void
-rcintr(unit)
+void    rcintr(unit)
 	int             unit;
 {
 	register struct rc_softc        *rcb = &rc_softc[unit];

@@ -276,8 +276,7 @@ ext2_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENOTBLK);
 	}
-	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw[major(devvp->v_rdev)] == NULL) {
+	if (major(devvp->v_rdev) >= nblkdev) {
 		vrele(devvp);
 		return (ENXIO);
 	}
@@ -893,6 +892,7 @@ ext2_sync(mp, waitfor, cred, p)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct ext2_sb_info *fs;
+	struct timeval tv;
 	int error, allerror = 0;
 
 	fs = ump->um_e2fs;
@@ -918,7 +918,8 @@ loop:
 		if (vp->v_type == VNON ||
 		    (ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY)) {
+		    (vp->v_dirtyblkhd.lh_first == NULL ||
+		    waitfor == MNT_LAZY)) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}
@@ -1170,7 +1171,7 @@ ext2_sbupdate(mp, waitfor)
 	register struct ext2_sb_info *fs = mp->um_e2fs;
 	register struct ext2_super_block *es = fs->s_es;
 	register struct buf *bp;
-	int error = 0;
+	int i, error = 0;
 /*
 printf("\nupdating superblock, waitfor=%s\n", waitfor == MNT_WAIT ? "yes":"no");
 */

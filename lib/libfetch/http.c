@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.10 1998/12/18 14:32:48 des Exp $
+ *	$Id: http.c,v 1.4 1998/07/12 22:34:40 des Exp $
  */
 
 /*
@@ -61,9 +61,15 @@
  * SUCH DAMAGE. */
 
 #include <sys/param.h>
+#include <sys/errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#include <netinet/in.h>
 
 #include <err.h>
 #include <ctype.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,8 +77,13 @@
 #include <unistd.h>
 
 #include "fetch.h"
-#include "common.h"
-#include "httperr.h"
+#include "httperr.c"
+
+#ifndef NDEBUG
+#define DEBUG(x) do x; while (0)
+#else
+#define DEBUG(x) do { } while (0)
+#endif
 
 extern char *__progname;
 
@@ -90,6 +101,20 @@ struct cookie
     int b_cur, eof;
     unsigned b_len, chunksize;
 };
+
+/*
+ * Look up error code
+ */
+static const char *
+_http_errstring(int e)
+{
+    struct httperr *p = _http_errlist;
+
+    while ((p->num != -1) && (p->num != e))
+	p++;
+    
+    return p->string;
+}
 
 /*
  * Send a formatted line; optionally echo to terminal
@@ -288,19 +313,17 @@ _http_auth(char *usr, char *pwd)
 }
 
 /*
- * Retrieve a file by HTTP
+ * retrieve a file by HTTP
  */
 FILE *
-fetchGetHTTP(struct url *URL, char *flags)
+fetchGetHTTP(url_t *URL, char *flags)
 {
-    int sd = -1, e, i, enc = ENC_NONE, verbose;
+    int sd = -1, err, i, enc = ENC_NONE;
     struct cookie *c;
-    char *ln, *p, *px, *q;
+    char *ln, *p, *q;
     FILE *f, *cf;
     size_t len;
 
-    verbose = (strchr(flags, 'v') != NULL);
-    
     /* allocate cookie */
     if ((c = calloc(1, sizeof(struct cookie))) == NULL)
 	return NULL;
@@ -310,11 +333,13 @@ fetchGetHTTP(struct url *URL, char *flags)
 	URL->port = 80; /* default HTTP port */
     
     /* attempt to connect to proxy server */
-    if ((px = getenv("HTTP_PROXY")) != NULL) {
-	char host[MAXHOSTNAMELEN];
+    if (getenv("HTTP_PROXY")) {
+	char *px, host[MAXHOSTNAMELEN];
 	int port = 3128; /* XXX I think 3128 is default... check? */
+	size_t len;
 
 	/* measure length */
+	px = getenv("HTTP_PROXY");
 	len = strcspn(px, ":");
 
 	/* get port (atoi is a little too tolerant perhaps?) */
@@ -328,12 +353,12 @@ fetchGetHTTP(struct url *URL, char *flags)
 	host[len] = 0;
 
 	/* connect */
-	sd = _fetch_connect(host, port, verbose);
+	sd = fetchConnect(host, port);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
-	if ((sd = _fetch_connect(URL->host, URL->port, verbose)) == -1)
+	if ((sd = fetchConnect(URL->host, URL->port)) == -1)
 	    goto ouch;
     }
 
@@ -343,9 +368,6 @@ fetchGetHTTP(struct url *URL, char *flags)
     c->real_f = f;
 
     /* send request (proxies require absolute form, so use that) */
-    if (verbose)
-	_fetch_info("requesting http://%s:%d%s",
-		    URL->host, URL->port, URL->doc);
     _http_cmd(f, "GET http://%s:%d%s HTTP/1.1" ENDL,
 	      URL->host, URL->port, URL->doc);
 
@@ -375,12 +397,13 @@ fetchGetHTTP(struct url *URL, char *flags)
 	p++;
     if (!isdigit(*p))
 	goto fouch;
-    e = atoi(p);
-    DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", e));
+    err = atoi(p);
+    DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", err));
     
     /* add code to handle redirects later */
-    if (e != 200) {
-	_http_seterr(e);
+    if (err != 200) {
+	fetchLastErrCode = err;
+	fetchLastErrText = _http_errstring(err);
 	goto fouch;
     }
 
@@ -434,38 +457,16 @@ ouch:
     if (sd >= 0)
 	close(sd);
     free(c);
-    _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 fouch:
     fclose(f);
     free(c);
-    _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 }
 
 FILE *
-fetchPutHTTP(struct url *URL, char *flags)
+fetchPutHTTP(url_t *URL, char *flags)
 {
     warnx("fetchPutHTTP(): not implemented");
-    return NULL;
-}
-
-/*
- * Get an HTTP document's metadata
- */
-int
-fetchStatHTTP(struct url *url, struct url_stat *us, char *flags)
-{
-    warnx("fetchStatHTTP(): not implemented");
-    return -1;
-}
-
-/*
- * List a directory
- */
-struct url_ent *
-fetchListHTTP(struct url *url, char *flags)
-{
-    warnx("fetchListHTTP(): not implemented");
     return NULL;
 }

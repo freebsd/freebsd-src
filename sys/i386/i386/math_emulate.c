@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.31 1998/11/15 15:33:50 bde Exp $
+ *	$Id: math_emulate.c,v 1.27 1998/07/15 09:01:18 bde Exp $
  */
 
 /*
@@ -117,10 +117,7 @@ math_emulate(struct trapframe * info)
 			(u_long)oldeip);
 		panic("?Math emulation needed in kernel?");
 	}
-	/* completely ignore an operand-size prefix */
-	if (get_fs_byte((char *) info->tf_eip) == 0x66)
-		info->tf_eip++;
-	code = get_fs_word((unsigned short *) info->tf_eip);
+	code = get_fs_word((unsigned short *) oldeip);
 	bswapw(code);
 	code &= 0x7ff;
 	I387.fip = oldeip;
@@ -1543,18 +1540,46 @@ int_to_real(const temp_int * a, temp_real * b)
 	}
 }
 
+#ifdef LKM
+MOD_MISC(fpu);
 static int
-fpu_modevent(module_t mod, int type, void *unused)
+fpu_load(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate) {
+		printf("Math emulator already present\n");
+		return EBUSY;
+	}
+	pmath_emulate = math_emulate;
+	return 0;
+}
+
+static int
+fpu_unload(struct lkm_table *lkmtp, int cmd)
+{
+	if (pmath_emulate != math_emulate) {
+		printf("Cannot unload another math emulator\n");
+		return EACCES;
+	}
+	pmath_emulate = 0;
+	return 0;
+}
+
+int
+fpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	MOD_DISPATCH(fpu, lkmtp, cmd, ver, fpu_load, fpu_unload, lkm_nullcmd);
+}
+#else /* !LKM */
+
+static int
+fpu_modevent(module_t mod, modeventtype_t type, void *unused)
 {
 	switch (type) {
 	case MOD_LOAD:
-		if (pmath_emulate) {
+		if (pmath_emulate)
 			printf("Another Math emulator already present\n");
-			return EBUSY;
-		}
-		pmath_emulate = math_emulate;
-		if (bootverbose)
-			printf("Math emulator present\n");
+		else
+			pmath_emulate = math_emulate;
 		break;
 	case MOD_UNLOAD:
 		if (pmath_emulate != math_emulate) {
@@ -1562,9 +1587,6 @@ fpu_modevent(module_t mod, int type, void *unused)
 			return EACCES;
 		}
 		pmath_emulate = 0;
-		if (bootverbose)
-			printf("Math emulator unloaded\n");
-		break;
 	default:
 		break;
 	}
@@ -1575,4 +1597,6 @@ moduledata_t fpumod = {
 	fpu_modevent,
 	0
 };
-DECLARE_MODULE(fpu, fpumod, SI_SUB_DRIVERS, SI_ORDER_ANY);
+DECLARE_MODULE(fpu, fpumod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+
+#endif /* LKM */

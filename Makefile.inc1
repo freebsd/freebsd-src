@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.58 1999/01/07 13:09:15 eivind Exp $
+#	$Id: Makefile.inc1,v 1.33 1998/10/13 08:13:32 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -8,6 +8,7 @@
 #	-DNOCLEAN do not clean at all
 #	-DNOTOOLS do not rebuild any tools first
 #	-DNOCRYPT will prevent building of crypt versions
+#	-DNOLKM do not build loadable kernel modules
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
 #	-DNOGAMES do not go into games subdir
@@ -80,6 +81,9 @@ SUBDIR+= usr.sbin
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 SUBDIR+= secure
+.endif
+.if exists(lkm) && !defined(NOLKM) && ${OBJFORMAT} == "aout"
+SUBDIR+= lkm
 .endif
 
 # etc must be last for "distribute" to work
@@ -166,12 +170,12 @@ WORLDTMP=	/usr/obj${.CURDIR}/tmp
 # Default root of the tool tree
 TOOLROOT?=	
 # Choose the PATH relative to the root of the tool tree
-PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin
+PATH=		${TOOLROOT}/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/sbin:${TOOLROOT}/usr/bin:${TOOLROOT}/usr/games
 .else
 TOOLROOT=	${WORLDTMP}
 .endif
-STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin
-TMPPATH=	${STRICTTMPPATH}:${PATH}
+STRICTTMPPATH=	${TOOLROOT}/sbin:${TOOLROOT}/usr/sbin:${TOOLROOT}/bin:${TOOLROOT}/usr/bin:${TOOLROOT}/usr/games
+TMPPATH=	${STRICTTMPPATH}:${PATH}:/usr/games
 
 # XXX COMPILER_PATH is needed for finding cc1, ld and as
 # XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecessary now
@@ -189,7 +193,6 @@ COMPILER_ENV=	BISON_SIMPLE=${TOOLROOT}/usr/share/misc/bison.simple \
 BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec:/usr/libexec
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
-		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00502 \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
 
@@ -358,7 +361,7 @@ reinstall:
 	@echo ">>> Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
-.if ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout" && !defined(DESTDIR)
+.if ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Re-scanning the shared libraries.."
@@ -469,6 +472,22 @@ hierarchy:
 # for the dependency information to be gathered from.
 #
 bootstrap:
+.if defined(DESTDIR)
+	rm -f ${DESTDIR}/usr/src/sys
+	ln -s ${.CURDIR}/sys ${DESTDIR}/usr/src
+	cd ${.CURDIR}/include; find -dx . | cpio -dump ${DESTDIR}/usr/include
+.for d in net netatm netinet posix4 sys vm machine
+	if [ -h ${DESTDIR}/usr/include/$d ]; then \
+		rm -f ${DESTDIR}/usr/include/$d ; \
+	fi
+.endfor
+	cd ${.CURDIR}/sys; \
+		find -dx net netatm netinet posix4 sys vm -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include
+	mkdir -p ${DESTDIR}/usr/include/machine
+	cd ${.CURDIR}/sys/${MACHINE_ARCH}/include; find -dx . -name '*.h' -o -type d | \
+		cpio -dump ${DESTDIR}/usr/include/machine
+.endif
 	cd ${.CURDIR}/usr.bin/make; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
@@ -486,6 +505,9 @@ bootstrap:
 	cd ${.CURDIR}/usr.sbin/mtree; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.if defined(DESTDIR)
+	cd ${.CURDIR}/include && ${MAKE} copies
+.endif
 
 #
 # include-tools - generally the same as 'bootstrap', except that it's for
@@ -555,13 +577,10 @@ includes:
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss;		${MAKE} -B hdrs beforeinstall
@@ -609,6 +628,7 @@ lib-tools:
 		${_aout_strip}		\
 		gnu/usr.bin/binutils	\
 		usr.bin/uudecode	\
+		share/info		\
 		usr.bin/objformat
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
@@ -622,19 +642,12 @@ lib-tools:
 # To satisfy shared library linkage when only the libraries being built
 # are visible:
 #
-# csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libss.
-# libcrypt must be built before libskey and libkrb.
-# libdes must be built before libpam.
-# libkrb must be built before libpam.
-# libm must be built before libf2c, libg++ and libstdc++.
-# libmd must be built before libatm, libopie, libradius, libskey,
-# and libtacplus.
+# libcrypt and libmd must be built before libskey.
+# libm must be built before libf2c, libg++ and libstdc++
+# libmd must be built before libatm and libopie
 # libmytinfo must be built before libdialog and libncurses.
 # libncurses must be built before libdialog.
-# libradius must be built before libpam.
-# libskey must be built before libpam.
-# libtacplus must be built before libpam.
 # libtermcap must be built before libcurses, libedit and libreadline.
 #
 # Some libraries are built conditionally and/or are in inconsistently
@@ -650,13 +663,8 @@ _csu=lib/csu/${MACHINE_ARCH}
 
 .if !defined(NOSECURE) && !defined(NOCRYPT)
 _libcrypt=	secure/lib/libcrypt lib/libcrypt
-_secure_lib=	secure/lib
 .else
 _libcrypt=	lib/libcrypt
-.endif
-
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-_kerberosIV_lib=kerberosIV/lib
 .endif
 
 .if defined(WANT_CSRG_LIBM)
@@ -706,16 +714,21 @@ bootstrap-libraries:
 # alphabetical order.
 #
 libraries:
-.for _lib in ${_csu} lib/libcom_err ${_libcrypt} ${_libm} lib/libmd \
-    lib/libmytinfo lib/libncurses lib/libtermcap \
-    lib/libradius lib/libskey lib/libtacplus \
-    ${_secure_lib} ${_kerberosIV_lib} \
+.for _lib in lib/libcom_err ${_libcrypt} ${_libm} lib/libmytinfo \
+    lib/libncurses lib/libtermcap \
     gnu/lib gnu/usr.bin/cc/libgcc ${_libperl} lib usr.bin/lex/lib \
     usr.sbin/pcvt/keycap
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; ${MAKE} all; ${MAKE} -B install
 .endif
 .endfor
+.if exists(${.CURDIR}/secure/lib) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib; ${MAKE} all; ${MAKE} -B install
+.endif
+.if exists(${.CURDIR}/kerberosIV/lib) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} all; ${MAKE} -B install
+.endif
 
 #
 # Exclude unused tools from build-tools.
@@ -733,8 +746,8 @@ _perl=		gnu/usr.bin/perl/miniperl
 .if !defined(NOSHARE) && exists(${.CURDIR}/share)
 _scrnmaps=	share/syscons/scrnmaps
 .endif
-.if ${MACHINE_ARCH} == i386
-_kldlinux=	sys/modules/linux
+.if !defined(NOLKM) && exists(${.CURDIR}/lkm) && ${OBJFORMAT} == "aout"
+_linux=		lkm/linux
 .endif
 .if ${OBJFORMAT} == "aout"
 _netboot=	sys/${MACHINE}/boot/netboot
@@ -791,7 +804,6 @@ build-tools:
 		usr.bin/file2c		\
 		usr.bin/find		\
 		usr.bin/gencat		\
-		usr.bin/gensetdefs	\
 		usr.bin/id		\
 		usr.bin/join		\
 		usr.bin/lorder		\
@@ -834,7 +846,6 @@ build-tools:
 		gnu/usr.bin/cc/cc_tools	\
 		lib/libmytinfo		\
 		${_linux}		\
-		${_kldlinux}		\
 		${_scrnmaps}		\
 		${_netboot}
 	cd ${.CURDIR}/$d; ${MAKE} ${BTMAKEFLAGS} build-tools
@@ -878,6 +889,14 @@ legacy-build:
 	cd ${.CURDIR}/libexec/rtld-aout; \
 		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
 	@echo
+.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Building legacy lkms"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}/lkm; \
+		${XMAKE} -DNOMAN depend; ${XMAKE} -DNOMAN all;
+	@echo
+.endif
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building legacy boot"
 	@echo "--------------------------------------------------------------"
@@ -916,6 +935,13 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
 	@echo
+.if exists(${.CURDIR}/lkm) && !defined(NOLKM)
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Installing legacy lkms"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}/lkm; ${MAKE} -DNOMAN install
+	@echo
+.endif
 .if ${MACHINE_ARCH} != "alpha"
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
@@ -944,16 +970,6 @@ check-objformat	:
 	@/bin/sh -c "echo \"It looks like you set OBJFORMAT=${OBJFORMAT} in /etc/make.conf. Don't do that!\" "
 	@/bin/sh -c "echo \"If you want to override the installed object format, you must set OBJFORMAT\" "
 	@/bin/sh -c "echo \"in your environment.\" "
-	@exit 1
-.endif
-.if	!defined(REALLY_WANT_DEPRECIATED_AOUT) && ${OBJFORMAT} == "aout"
-	@echo "==== NOTICE: a.out buildworld is depreciated and disabled! ====="
-	@echo "Read: http://www.freebsd.org/~peter/elfday.html for information."
-	@echo "You need to complete a 'make aout-to-elf' to bring your system"
-	@echo "up to date with ELF tools.  This requires a fair amount of disk"
-	@echo "space to complete.  Alternatively, you can do a binary upgrade"
-	@echo "using the 3.0-RELEASE binaries from CD or ftp.freebsd.org in"
-	@echo "/pub/FreeBSD/3.0-RELEASE/bin/ to convert your userland to ELF."
 	@exit 1
 .endif
 

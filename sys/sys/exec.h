@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.20 1998/11/15 15:33:52 bde Exp $
+ * $Id: exec.h,v 1.18 1998/03/02 05:47:40 peter Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -60,7 +60,8 @@ struct ps_strings {
 /*
  * Address of ps_strings structure (in user space).
  */
-#define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
+#define	PS_STRINGS ((struct ps_strings *) \
+	(USRSTACK - sizeof(struct ps_strings)))
 #define SPARE_USRSPACE	256
 
 struct image_params;
@@ -84,7 +85,8 @@ int exec_unregister __P((const struct execsw *));
 #ifndef LKM
 #include <sys/module.h>
 #define EXEC_SET(name, execsw_arg) \
-	static int name ## _modevent(module_t mod, int type, void *data) \
+	static int name ## _modevent(module_t mod, modeventtype_t type, \
+		void *data) \
 	{ \
 		struct execsw *exec = (struct execsw *)data; \
 		int error = 0; \

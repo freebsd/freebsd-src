@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.86 1999/01/08 00:14:22 jkh Exp $
+ * $Id: system.c,v 1.83 1998/09/30 11:44:29 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -22,12 +22,12 @@
 #include <machine/console.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
+#include <sys/wait.h>
 
 
 /* Where we stick our temporary expanded doc file */
-#define	DOC_TMP_DIR	"/tmp/.doc"
-#define	DOC_TMP_FILE	"/tmp/.doc/doc.tmp"
+#define	DOC_TMP_DIR	"/tmp"
+#define	DOC_TMP_FILE	"/tmp/doc.tmp"
 
 static pid_t ehs_pid;
 
@@ -53,15 +53,8 @@ expand(char *fname)
 {
     char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
 
-    if (!directory_exists(DOC_TMP_DIR)) {
-	Mkdir(DOC_TMP_DIR);
-	if (chown(DOC_TMP_DIR, 0, 0) < 0)
-	    return NULL;
-	if (chmod(DOC_TMP_DIR, S_IRWXU) < 0)
-	    return NULL;
-    }
-    else
-	unlink(DOC_TMP_FILE);
+    Mkdir(DOC_TMP_DIR);
+    unlink(DOC_TMP_FILE);
     if (!file_readable(fname) || vsystem("%s < %s > %s", gunzip, fname, DOC_TMP_FILE))
 	return NULL;
     return DOC_TMP_FILE;
@@ -138,7 +131,6 @@ systemInitialize(int argc, char **argv)
     if (!getenv("HOME"))
 	setenv("HOME", "/", 1);
     signal(SIGINT, handle_intr);
-    (void)vsystem("rm -rf %s", DOC_TMP_DIR);
 }
 
 /* Close down and prepare to exit */
@@ -161,18 +153,14 @@ systemShutdown(int status)
     /* Shut down curses */
     endwin();
 
-    /* If we have a temporary doc dir lying around, nuke it */
-    (void)vsystem("rm -rf %s", DOC_TMP_DIR);
+    /* If we have a temporary doc file lying around, nuke it */
+    unlink(DOC_TMP_FILE);
 
     /* REALLY exit! */
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-#ifdef __alpha__
-	reboot(RB_HALT);
-#else
 	reboot(0);
-#endif
     }
     else
 	exit(status);
@@ -235,13 +223,7 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp.gz", file);
     if (file_readable(buf)) 
 	return expand(buf);
-    snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT.gz", file);
-    if (file_readable(buf)) 
-	return expand(buf);
     snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.hlp", file);
-    if (file_readable(buf))
-	return buf;
-    snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.TXT", file);
     if (file_readable(buf))
 	return buf;
     return NULL;

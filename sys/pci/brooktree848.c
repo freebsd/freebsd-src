@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.60 1998/12/07 21:58:45 archie Exp $ */
+/* $Id$ */
 /* BT848 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -353,13 +353,7 @@
 
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-#include <sys/bus.h>
 #include <pci/brktree_reg.h>
-#include <pci/bt848_i2c.h>
-#include <dev/smbus/smbconf.h>
-#include <dev/iicbus/iiconf.h>
-#include "smbus_if.h"
-#include "iicbus_if.h"
 #include <sys/sysctl.h>
 static int bt848_card = -1;
 static int bt848_tuner = -1;
@@ -438,7 +432,7 @@ static bktr_reg_t brooktree[ NBKTR ];
 #define MINOR(x)	((x >> 4) & 0x0f)
 #define ATTACH_ARGS	pcici_t tag, int unit
 
-static const char*	bktr_probe( pcici_t tag, pcidi_t type );
+static char*	bktr_probe( pcici_t tag, pcidi_t type );
 static void	bktr_attach( ATTACH_ARGS );
 
 static u_long	bktr_count;
@@ -1123,11 +1117,10 @@ static int	readEEProm( bktr_ptr_t bktr, int offset, int count,
 
 
 #ifdef __FreeBSD__
-
 /*
  * the boot time probe routine.
  */
-static const char*
+static char*
 bktr_probe( pcici_t tag, pcidi_t type )
 {
 	switch (type) {
@@ -1144,6 +1137,8 @@ bktr_probe( pcici_t tag, pcidi_t type )
 	return ((char *)0);
 }
 #endif /* __FreeBSD__ */
+
+
 
 
 /*
@@ -1178,9 +1173,6 @@ bktr_attach( ATTACH_ARGS )
 	fun = pci_conf_read(tag, 0x40);
 	pci_conf_write(tag, 0x40, fun | 1);
 
-	/* XXX call bt848_i2c dependent attach() routine */
-	if (bt848_i2c_attach(unit, bktr->base, &bktr->i2c_sc))
-		printf("bktr%d: i2c_attach: can't attach\n", unit);
 
 #ifdef BROOKTREE_IRQ		/* from the configuration file */
 	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
@@ -1940,6 +1932,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 static int
 video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 {
+	int			tmp_int;
 	bt848_ptr_t		bt848;
 	volatile u_char		c_temp;
 	unsigned int		temp;
@@ -1950,6 +1943,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	struct meteor_video	*video;
 	struct bktr_capture_area *cap_area;
 	vm_offset_t		buf;
+	struct format_params	*fp;
 	int                     i;
 	char                    char_temp;
 
@@ -2998,7 +2992,7 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
  * 
  */
 int
-bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
+bktr_mmap( dev_t dev, int offset, int nprot )
 {
 	int		unit;
 	bktr_ptr_t	bktr;
@@ -4167,55 +4161,6 @@ static int oformat_meteor_to_bt( u_long format )
 				 BT848_DATA_CTL_I2CSCL |	\
 				 BT848_DATA_CTL_I2CSDA)
 
-#if defined(__FreeBSD__)
-
-/*
- * The hardware interface is actually SMB commands
- */
-static int
-i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
-{
-	char cmd;
-
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID)
-		cmd = I2C_COMMAND;
-	else
-		cmd = I2C_COMMAND_878;
-
-	if (byte2 != -1) {
-		if (smbus_writew(bktr->i2c_sc.smbus, addr, cmd,
-			(short)(((byte2 & 0xff) << 8) | (byte1 & 0xff))))
-			return (-1);
-	} else {
-		if (smbus_writeb(bktr->i2c_sc.smbus, addr, cmd,
-			(char)(byte1 & 0xff)))
-			return (-1);
-	}
-
-	/* return OK */
-	return( 0 );
-}
-
-static int
-i2cRead( bktr_ptr_t bktr, int addr )
-{
-	char result;
-	char cmd;
-
-	if (bktr->id == BROOKTREE_848_ID ||
-	    bktr->id == BROOKTREE_849_ID)
-		cmd = I2C_COMMAND;
-	else
-		cmd = I2C_COMMAND_878;
-
-	if (smbus_readb(bktr->i2c_sc.smbus, addr, cmd, &result))
-		return (-1);
-
-	return ((int)result);
-}
-
-#else /* defined(__FreeBSD__) */
 
 /*
  * 
@@ -4299,8 +4244,6 @@ i2cRead( bktr_ptr_t bktr, int addr )
 	/* it was a read */
 	return( (bt848->i2c_data_ctl >> 8) & 0xff );
 }
-
-#endif /* !define(__FreeBSD__) */
 
 #if defined( I2C_SOFTWARE_PROBE )
 
@@ -4418,8 +4361,6 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
 	return( 0 );
 }
 
-#define ABSENT		(-1)
-
 /*
  * get a signature of the card
  * read all 128 possible i2c read addresses from 0x01 thru 0xff
@@ -4427,6 +4368,7 @@ readEEProm( bktr_ptr_t bktr, int offset, int count, u_char *data )
  *
  * XXX FIXME: use offset & count args
  */
+#define ABSENT		(-1)
 static int
 signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig )
 {
@@ -4482,6 +4424,8 @@ static int locate_tuner_address( bktr_ptr_t bktr) {
   if (i2cRead( bktr, 0xc7) != ABSENT) return 0xc6;
   return -1; /* no tuner found */
 }
+
+#undef ABSENT
   
 /*
  * determine the card brand/model
@@ -4489,11 +4433,12 @@ static int locate_tuner_address( bktr_ptr_t bktr) {
  * can be used to select a specific device, regardless of the
  * autodetection and i2c device checks.
  */
+#define ABSENT		(-1)
 static void
 probeCard( bktr_ptr_t bktr, int verbose )
 {
 	int	card, i,j, card_found;
-	int	status;
+	int	status, *test;
 	bt848_ptr_t	bt848;
 	u_char probe_signature[128], *probe_temp;
         int   any_i2c_devices;
@@ -4735,6 +4680,7 @@ checkMSP:
 
 checkEnd:
 
+checkPLL:
 #if defined( BKTR_USE_PLL )
 	bktr->xtal_pll_mode = BT848_USE_PLL;
 	goto checkPLLEnd;
@@ -4745,9 +4691,7 @@ checkEnd:
 	if ((card == CARD_HAUPPAUGE) &&
 	   (bktr->id==BROOKTREE_878_ID || bktr->id==BROOKTREE_879_ID) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
-#if defined( BKTR_USE_PLL )
 checkPLLEnd:
-#endif
 
 
 	bktr->card.tuner_pllAddr = tuner_i2c_address;

@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: pw_util.c,v 1.12 1998/12/13 01:36:45 dillon Exp $";
+	"$Id: pw_util.c,v 1.9 1997/10/27 07:53:19 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -45,7 +45,6 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -115,27 +114,11 @@ pw_lock()
 	 * that users can't get at the encrypted passwords while editing.
 	 * Open should allow flock'ing the file; see 4.4BSD.	XXX
 	 */
-	for (;;) {
-		struct stat st;
-
-		lockfd = open(_PATH_MASTERPASSWD, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", _PATH_MASTERPASSWD);
-		if (flock(lockfd, LOCK_EX|LOCK_NB))
-			errx(1, "the password db file is busy");
-
-		/*
-		 * If the password file was replaced while we were trying to
-		 * get the lock, our hardlink count will be 0 and we have to
-		 * close and retry.
-		 */
-		if (fstat(lockfd, &st) < 0)
-			errx(1, "fstat() failed");
-		if (st.st_nlink != 0)
-			break;
-		close(lockfd);
-		lockfd = -1;
-	}
+	lockfd = open(_PATH_MASTERPASSWD, O_RDONLY, 0);
+	if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
+		err(1, "%s", _PATH_MASTERPASSWD);
+	if (flock(lockfd, LOCK_EX|LOCK_NB))
+		errx(1, "the password db file is busy");
 	return (lockfd);
 }
 
@@ -202,18 +185,16 @@ pw_edit(notsetuid)
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
-		errno = 0;
 		execlp(editor, p, tempname, NULL);
-		_exit(errno);
+		_exit(1);
 	}
 	for (;;) {
 		editpid = waitpid(editpid, (int *)&pstat, WUNTRACED);
-		errno = WEXITSTATUS(pstat);
 		if (editpid == -1)
 			pw_error(editor, 1, 1);
 		else if (WIFSTOPPED(pstat))
 			raise(WSTOPSIG(pstat));
-		else if (WIFEXITED(pstat) && errno == 0)
+		else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0)
 			break;
 		else
 			pw_error(editor, 1, 1);

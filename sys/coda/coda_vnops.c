@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.12 1999/01/07 16:14:12 bde Exp $
+ *  $Id: coda_vnops.c,v 1.5 1998/09/25 17:38:32 rvb Exp $
  * 
  */
 
@@ -48,34 +48,6 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
- * Revision 1.12  1999/01/07 16:14:12  bde
- * Don't pass unused unused timestamp args to UFS_UPDATE() or waste
- * time initializing them.  This almost finishes centralizing (in-core)
- * timestamp updates in ufs_itimes().
- *
- * Revision 1.11  1999/01/05 18:49:51  eivind
- * Remove the 'waslocked' parameter to vfs_object_create().
- *
- * Revision 1.10  1998/12/04 18:44:21  rvb
- * Don't print diagnostic anymore
- *
- * Revision 1.9  1998/11/16 19:48:26  rvb
- * A few bug fixes for Robert Watson
- *
- * Revision 1.8  1998/10/28 20:31:13  rvb
- * Change the way unmounting happens to guarantee that the
- * client programs are allowed to finish up (coda_call is
- * forced to complete) and release their locks.  Thus there
- * is a reasonable chance that the vflush implicit in the
- * unmount will not get hung on held locks.
- *
- * Revision 1.7  1998/10/25 17:44:41  phk
- * Nitpicking and dusting performed on a train.  Removes trivial warnings
- * about unused variables, labels and other lint.
- *
- * Revision 1.6  1998/09/28 20:52:58  rvb
- * Cleanup and fix THE bug
- *
  * Revision 1.5  1998/09/25 17:38:32  rvb
  * Put "stray" printouts under DIAGNOSTIC.  Make everything build
  * with DEBUG on.  Add support for lkm.  (The macro's don't work
@@ -370,7 +342,7 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
 #define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 #define UFS_TRUNCATE(aa, bb, cc, dd, ee) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd, ee)
-#define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
+#define UFS_UPDATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_update(aa, bb, cc, dd)
 
     missing
     { &vop_reallocblks_desc,	(vop_t *) ufs_missingop },
@@ -390,12 +362,10 @@ int
 coda_vop_error(void *anon) {
     struct vnodeop_desc **desc = (struct vnodeop_desc **)anon;
 
-    myprintf(("coda_vop_error: Vnode operation %s called, but not defined.\n",
+    myprintf(("Vnode operation %s called, but not defined\n",
 	      (*desc)->vdesc_name));
-    /*
     panic("coda_vop_error");
-    */
-    return EIO;
+    return 0;
 }
 
 /* A generic do-nothing.  For lease_check, advlock */
@@ -513,7 +483,7 @@ coda_open(v)
     }
 /* grab (above) does this when it calls newvnode unless it's in the cache*/
     if (vp->v_type == VREG) {
-    	error = vfs_object_create(vp, p, cred);
+    	error = vfs_object_create(vp, p, cred, 1);
 	if (error != 0) {
 	    printf("coda_open: vfs_object_create() returns %d\n", error);
 	    vput(vp);
@@ -554,12 +524,7 @@ coda_close(v)
 	    printf("coda_close: destroying container ref %d, ufs vp %p of vp %p/cp %p\n",
 		    vp->v_usecount, cp->c_ovp, vp, cp);
 #endif
-#ifdef	hmm
 	    vgone(cp->c_ovp);
-#else
-	    VOP_CLOSE(cp->c_ovp, flag, cred, p); /* Do errors matter here? */
-	    vrele(cp->c_ovp);
-#endif
 	} else {
 #ifdef	CODA_VERBOSE
 	    printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
@@ -673,7 +638,7 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
 		return (error);
 	    }
 	    if (vp->v_type == VREG) {
-		error = vfs_object_create(vp, p, cred);
+		error = vfs_object_create(vp, p, cred, 1);
 		if (error != 0) {
 		    printf("coda_rdwr: vfs_object_create() returns %d\n", error);
 		    vput(vp);
@@ -1547,6 +1512,8 @@ coda_link(v)
 
     CODADEBUG(CODA_LINK,	myprintf(("in link result %d\n",error)); )
 
+exit:
+
     /* Drop the name buffer if we don't need to SAVESTART */
     if ((cnp->cn_flags & SAVESTART) == 0) {
 	zfree(namei_zone, cnp->cn_pnbuf);
@@ -1896,7 +1863,7 @@ printf("coda_readdir: Internally Opening %p\n", vp);
 		return (error);
 	    }
 	    if (vp->v_type == VREG) {
-		error = vfs_object_create(vp, p, cred);
+		error = vfs_object_create(vp, p, cred, 1);
 		if (error != 0) {
 		    printf("coda_readdir: vfs_object_create() returns %d\n", error);
 		    vput(vp);
@@ -1956,9 +1923,7 @@ coda_bmap(v)
 #endif
 		return ret;
 	} else {
-#if	0
 		printf("coda_bmap: no container\n");
-#endif
 		return(EOPNOTSUPP);
 	}
 }
@@ -2042,12 +2007,7 @@ coda_lock(v)
 		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique));
     }
 
-#ifndef	DEBUG_LOCKS
     return (lockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, p));
-#else
-    return (debuglockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, p,
-			 "coda_lock", vp->filename, vp->line));
-#endif
 }
 
 int

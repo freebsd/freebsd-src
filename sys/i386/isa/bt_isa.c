@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.4 1998/10/12 18:53:33 imp Exp $
+ *	$Id: bt_isa.c,v 1.3 1998/10/10 00:44:12 imp Exp $
  */
 
 #include <sys/param.h>
@@ -86,10 +86,24 @@ bt_isa_probe(dev)
 	 * Bound our board search if the user has
 	 * specified an exact port.
 	 */
-	bt_find_probe_range(dev->id_iobase, &port_index, &max_port_index);
-
-	if (port_index < 0)
-		return 0;
+	if (dev->id_iobase > 0) {
+		for (;port_index <= max_port_index; port_index++)
+			if (dev->id_iobase >= bt_isa_ports[port_index].addr)
+				break;
+		if ((port_index > max_port_index)
+		 || (dev->id_iobase != bt_isa_ports[port_index].addr)) {
+			printf("
+bt_isa_probe: Invalid baseport of 0x%x specified.
+bt_isa_probe: Nearest valid baseport is 0x%x.
+bt_isa_probe: Failing probe.\n",
+			       dev->id_iobase,
+			       (port_index <= max_port_index)
+				    ? bt_isa_ports[port_index].addr
+				    : bt_isa_ports[max_port_index].addr);
+			return 0;
+		}
+		max_port_index = port_index;
+	}
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
@@ -97,7 +111,7 @@ bt_isa_probe(dev)
 		u_int ioport;
 		int error;
 
-		ioport = bt_iop_from_bio(port_index);
+		ioport = bt_isa_ports[port_index].addr;
 
 		/*
 		 * Ensure this port has not already been claimed already
@@ -105,7 +119,7 @@ bt_isa_probe(dev)
 		 */
 		if (bt_check_probed_iop(ioport) != 0)
 			continue;
-		dev->id_iobase = ioport;
+		dev->id_iobase = bt_isa_ports[port_index].addr;
 		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
 			continue;
 
@@ -155,7 +169,6 @@ bt_isa_probe(dev)
 				printf("bt_isa_probe: Invalid DMA setting "
 				       "detected for adapter at 0x%x.  "
 				       "Failing probe\n", ioport);
-				return (0);
 			}
 		} else {
 			/* VL DMA */

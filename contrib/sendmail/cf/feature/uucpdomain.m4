@@ -12,11 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)uucpdomain.m4	8.14 (Berkeley) 10/6/1998')
+VERSIONID(`@(#)uucpdomain.m4	8.13 (Berkeley) 5/19/98')
 divert(-1)
 
-define(`UUDOMAIN_TABLE', ifelse(_ARG_, `',
-				ifdef(`_USE_ETC_MAIL_',
-				      DATABASE_MAP_TYPE` -o /etc/mail/uudomain',
-				      DATABASE_MAP_TYPE` -o /etc/uudomain'),
-				`_ARG_'))dnl
+define(`UUDOMAIN_TABLE', ifelse(_ARG_, `', DATABASE_MAP_TYPE` -o /etc/uudomain', `_ARG_'))dnl

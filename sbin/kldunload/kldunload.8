@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: kldunload.8,v 1.5 1998/11/07 00:42:52 des Exp $
+.\"	$Id: kldunload.8,v 1.3 1998/01/05 07:10:41 charnier Exp $
 .\"
 .Dd April 25, 1997
 .Dt KLDUNLOAD 8
@@ -34,10 +34,8 @@
 .Sh SYNOPSIS
 .Nm kldunload
 .Op Fl v
-.Fl i Ar id
-.Nm kldunload
-.Op Fl v
-.Fl n Ar name
+.Op Fl i Ar id
+.Op Fl n Ar name
 .Sh DESCRIPTION
 The
 .Nm
@@ -45,7 +43,7 @@ utility unloads a file which was previously loaded with
 .Xr kldload 8 .
 .Pp
 The following options are available:
-.Bl -tag -width indentXX
+.Bl -tag -width indent
 .It Fl v
 Be more verbose.
 .It Fl i Ar id
@@ -53,11 +51,6 @@ Unload the file with this ID.
 .It Fl n Ar name
 Unload the file with this name.
 .El
-.Sh DIAGNOSTICS
-The
-.Nm
-utility exits with a status of 0 on success
-and with a nonzero status if an error occurs.
 .Sh SEE ALSO
 .Xr kldload 8 ,
 .Xr kldstat 8
@@ -65,9 +58,6 @@ and with a nonzero status if an error occurs.
 The
 .Nm
 command first appeared in
-.Fx 3.0 ,
-replacing the
-.Xr lkm 4
-interface.
+.Fx 3.0 .
 .Sh AUTHORS
 .An Doug Rabson Aq dfr@FreeBSD.org

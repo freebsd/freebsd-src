@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.25 1999/01/08 17:31:29 eivind Exp $
+ * $Id: vm_zone.c,v 1.21 1998/04/25 04:50:01 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -194,7 +194,7 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zitems = NULL;
 	for (i = 0; i < nitems; i++) {
 		((void **) item)[0] = z->zitems;
-#ifdef INVARIANTS
+#if defined(DIAGNOSTIC)
 		((void **) item)[1] = (void *) ZENTRY_FREE;
 #endif
 		z->zitems = item;
@@ -357,7 +357,7 @@ _zget(vm_zone_t z)
 		nitems -= 1;
 		for (i = 0; i < nitems; i++) {
 			((void **) item)[0] = z->zitems;
-#ifdef INVARIANTS
+#if defined(DIAGNOSTIC)
 			((void **) item)[1] = (void *) ZENTRY_FREE;
 #endif
 			z->zitems = item;
@@ -367,7 +367,7 @@ _zget(vm_zone_t z)
 	} else if (z->zfreecnt > 0) {
 		item = z->zitems;
 		z->zitems = ((void **) item)[0];
-#ifdef INVARIANTS
+#if defined(DIAGNOSTIC)
 		if (((void **) item)[1] != (void *) ZENTRY_FREE)
 			zerror(ZONE_ERROR_NOTFREE);
 		((void **) item)[1] = 0;
@@ -388,8 +388,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	char tmpbuf[128];
 	char tmpname[14];
 
-	snprintf(tmpbuf, sizeof(tmpbuf),
-	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
+	sprintf(tmpbuf, "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
 	error = SYSCTL_OUT(req, tmpbuf, strlen(tmpbuf));
 	if (error)
 		return (error);
@@ -414,7 +413,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 			tmpbuf[0] = '\n';
 		}
 
-		snprintf(tmpbuf + offset, sizeof(tmpbuf) - offset,
+		sprintf(tmpbuf + offset,
 			"%s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
 			tmpname, curzone->zsize, curzone->zmax,
 			(curzone->ztotal - curzone->zfreecnt),
@@ -432,7 +431,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	return (0);
 }
 
-#ifdef INVARIANT_SUPPORT
+#if defined(DIAGNOSTIC)
 void
 zerror(int error)
 {
@@ -460,8 +459,8 @@ SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
 	NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 
 SYSCTL_INT(_vm, OID_AUTO, zone_kmem_pages,
-	CTLFLAG_RD, &zone_kmem_pages, 0, "Number of interrupt safe pages allocated by zone");
+	CTLFLAG_RD, &zone_kmem_pages, 0, "");
 SYSCTL_INT(_vm, OID_AUTO, zone_kmem_kvaspace,
-	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "KVA space allocated by zone");
+	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "");
 SYSCTL_INT(_vm, OID_AUTO, zone_kern_pages,
-	CTLFLAG_RD, &zone_kern_pages, 0, "Number of non-interrupt safe pages allocated by zone");
+	CTLFLAG_RD, &zone_kern_pages, 0, "");

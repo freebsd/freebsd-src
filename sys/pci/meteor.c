@@ -197,7 +197,7 @@ static meteor_reg_t meteor[NMETEOR];
 
 #define METPRI (PZERO+8)|PCATCH
 
-static	const char*	met_probe (pcici_t tag, pcidi_t type);
+static	char*	met_probe (pcici_t tag, pcidi_t type);
 static	void	met_attach(pcici_t tag, int unit);
 static	u_long	met_count;
 
@@ -517,7 +517,7 @@ register int		err = 0;
 }
 #undef i2c_print
 
-static	const char *
+static	char *
 met_probe (pcici_t tag, pcidi_t type)
 {
 	
@@ -2054,7 +2054,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 }
 
 int
-meteor_mmap(dev_t dev, vm_offset_t offset, int nprot)
+meteor_mmap(dev_t dev, int offset, int nprot)
 {
 
 	int	unit;

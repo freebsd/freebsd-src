@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.12 1999/01/02 11:34:56 bde Exp $
+ * $Id: lock.h,v 1.10 1997/09/21 04:24:02 dyson Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -59,11 +59,6 @@ struct lock {
 	char	*lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
 	pid_t	lk_lockholder;		/* pid of exclusive lock holder */
-#ifdef	DEBUG_LOCKS
-	const char *lk_filename;
-	const char *lk_lockername;
-	int     lk_lineno;
-#endif
 };
 /*
  * Lock request types:
@@ -174,19 +169,8 @@ struct proc;
 
 void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
 			int flags));
-#ifdef DEBUG_LOCKS
-int	debuglockmgr __P((struct lock *, u_int flags,
-			struct simplelock *, struct proc *p,
-			const char *,
-			const char *,
-			int));
-#define lockmgr(lockp, flags, slockp, proc) \
-	debuglockmgr((lockp), (flags), (slockp), (proc), \
-	    "lockmgr", __FILE__, __LINE__)
-#else
 int	lockmgr __P((struct lock *, u_int flags,
 			struct simplelock *, struct proc *p));
-#endif
 void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *));
 
@@ -200,7 +184,6 @@ void _simple_lock __P((struct simplelock *alp, const char *, int));
 void simple_lock_init __P((struct simplelock *alp));
 #else /* !SIMPLELOCK_DEBUG */
 #if NCPUS == 1 /* no multiprocessor locking is necessary */
-#define	NULL_SIMPLELOCKS
 #define	simple_lock_init(alp)
 #define	simple_lock(alp)
 #define	simple_lock_try(alp)	(1)	/* always succeeds */

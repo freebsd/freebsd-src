@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.3 1998/11/08 12:39:01 dfr Exp $
+ *	$Id: mem.c,v 1.1 1998/06/10 10:52:54 dfr Exp $
  */
 
 /*
@@ -271,7 +271,7 @@ kmemphys:
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, int prot)
+memmmap(dev_t dev, int offset, int prot)
 {
 	/*
 	 * /dev/mem is the only one that makes sense through this
@@ -400,22 +400,16 @@ iskmemdev(dev)
 	dev_t dev;
 {
 
-	return (((major(dev) == mem_cdevsw.d_maj)
-		 && (minor(dev) == 0 || minor(dev) == 1))
-/* or the osf/1 mem device */
-		||((major(dev) == 0) 
-		   && (minor(dev) == 0x00200002)));
+	return ((major(dev) == mem_cdevsw.d_maj)
+	      && (minor(dev) == 0 || minor(dev) == 1));
 }
 
 int
 iszerodev(dev)
 	dev_t dev;
 {
-	return (((major(dev) == mem_cdevsw.d_maj)
-		 && minor(dev) == 12)
-/* or the osf/1 zero device */
-		||((major(dev) == 0) 
-		   && (minor(dev) == 0x02600000)));
+	return ((major(dev) == mem_cdevsw.d_maj)
+	  && minor(dev) == 12);
 }
 
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
+ *	$Id: smbconf.c,v 1.1.1.2 1998/08/13 15:16:57 son Exp $
  *
  */
 #include <sys/param.h>
@@ -65,29 +65,10 @@ smbus_alloc_bus(device_t parent)
 	/* add the bus to the parent */
 	child = device_add_child(parent, "smbus", -1, NULL);
 
+	if (child)
+		device_set_desc(child, "System Management Bus");
+
 	return (child);
-}
-
-static int
-smbus_poll(struct smbus_softc *sc, int how)
-{
-	int error;
-
-	switch (how) {
-	case (SMB_WAIT | SMB_INTR):
-		error = tsleep(sc, SMBPRI|PCATCH, "smbreq", 0);
-		break;
-
-	case (SMB_WAIT | SMB_NOINTR):
-		error = tsleep(sc, SMBPRI, "smbreq", 0);
-		break;
-
-	default:
-		return (EWOULDBLOCK);
-		break;
-	}
-
-	return (error);
 }
 
 /*
@@ -103,20 +84,25 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	struct smbus_softc *sc = (struct smbus_softc *)device_get_softc(bus);
 	int s, error = 0;
 
-	/* first, ask the underlying layers if the request is ok */
-	do {
-		error = SMBUS_CALLBACK(device_get_parent(bus),
-						SMB_REQUEST_BUS, (caddr_t)&how);
-		if (error)
-			error = smbus_poll(sc, how);
-	} while (error);
-
 	while (!error) {
 		s = splhigh();	
 		if (sc->owner) {
 			splx(s);
 
-			error = smbus_poll(sc, how);
+			switch (how) {
+			case (SMB_WAIT | SMB_INTR):
+				error = tsleep(sc, SMBPRI|PCATCH, "smbreq", 0);
+				break;
+
+			case (SMB_WAIT | SMB_NOINTR):
+				error = tsleep(sc, SMBPRI, "smbreq", 0);
+				break;
+
+			default:
+				return (EWOULDBLOCK);
+				break;
+			}
+
 		} else {
 			sc->owner = dev;
 
@@ -137,13 +123,7 @@ int
 smbus_release_bus(device_t bus, device_t dev)
 {
 	struct smbus_softc *sc = (struct smbus_softc *)device_get_softc(bus);
-	int s, error;
-
-	/* first, ask the underlying layers if the release is ok */
-	error = SMBUS_CALLBACK(device_get_parent(bus), SMB_RELEASE_BUS, NULL);
-
-	if (error)
-		return (error);
+	int s;
 
 	s = splhigh();
 	if (sc->owner != dev) {
@@ -168,7 +148,7 @@ smbus_release_bus(device_t bus, device_t dev)
 u_char
 smbus_get_addr(device_t dev)
 {
-	uintptr_t addr;
+	u_long addr;
 	device_t parent = device_get_parent(dev);
 
 	BUS_READ_IVAR(parent, dev, SMBUS_IVAR_ADDR, &addr);

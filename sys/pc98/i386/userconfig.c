@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.64 1999/01/16 11:39:08 kato Exp $
+ **      $Id: userconfig.c,v 1.56 1998/10/08 12:09:38 kato Exp $
  **/
 
 /**
@@ -117,8 +117,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
-#include <sys/linker.h>
-#include <sys/sysctl.h>
 
 #include <machine/cons.h>
 #include <machine/md_var.h>
@@ -137,156 +135,36 @@ static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
 
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
+#ifdef USERCONFIG_BOOT
+char userconfig_from_boot[512] = "";
 static int userconfig_boot_parsing;	/* set if we are reading from the boot instructions */
 
-#define putchar(x)	cnputc(x)
-
-static int
-sysctl_machdep_uc_devlist SYSCTL_HANDLER_ARGS
-{
-	struct isa_device *id;
-	int error=0;
-	char name[8];
-
-	if(!req->oldptr) {
-		/* Only sizing */
-		id=isa_devlist;
-		while(id) {
-			error+=sizeof(struct isa_device)+8;
-			id=id->id_next;
-		}
-		return(SYSCTL_OUT(req,0,error));
-	} else {
-		/* Output the data. The buffer is filled with consecutive
-		 * struct isa_device and char buf[8], containing the name
-		 * (not guaranteed to end with '\0').
-		 */
-		id=isa_devlist;
-		while(id) {
-			error=sysctl_handle_opaque(oidp,id,
-				sizeof(struct isa_device),req);
-			if(error) return(error);
-			strncpy(name,id->id_driver->name,8);
-			error=sysctl_handle_opaque(oidp,name,
-				8,req);
-			if(error) return(error);
-			id=id->id_next;
-		}
-		return(0);
-	}
-}
-
-SYSCTL_PROC( _machdep, OID_AUTO, uc_devlist, CTLFLAG_RD,
-	0, 0, sysctl_machdep_uc_devlist, "A",
-	"List of ISA devices changed in UserConfig");
-
-/*
-** Obtain command input.
-**
-** Initially, input is read from a possibly-loaded script.
-** At the end of the script, or if no script is supplied, 
-** behaviour is determined by the RB_CONFIG (-c) flag.  If 
-** the flag is set, user input is read from the console; if
-** unset, the 'quit' command is invoked and userconfig
-** will exit.
-**
-** Note that quit commands encountered in the script will be
-** ignored if the RB_CONFIG flag is supplied.
-*/
 static int
 getchar(void)
 {
-    static const char	*asp;
-    static int		assize;		/* use of int for -ve magic value */
-    static int		autocheck = 0;
-    caddr_t		autoentry, autoattr;
-    int			c = 0;
-    static int		intro = 0;
-    
-    /* Look for loaded userconfig script */
-    if (autocheck == 0) 
-    {
-	autocheck = 1;
-	autoentry = preload_search_by_type("userconfig_script");
-	if (autoentry != NULL) 
-	{
-	    /* We have one, get size and data */
-	    assize = 0;
-	    if ((autoattr = preload_search_info(autoentry, MODINFO_SIZE)) != NULL)
-		assize = (size_t)*(u_int32_t *)autoattr;
-	    asp = NULL;
-	    if ((autoattr = preload_search_info(autoentry, MODINFO_ADDR)) != NULL)
-		asp = *(const char **)autoattr;
-	    /* sanity check */
-	    if ((assize == 0) || (asp == NULL)) {
-		assize = 0;
-		asp = NULL;
-	    }
-	}
-    }
+    static char *next = userconfig_from_boot;
 
-    if (assize > 0) 
-    {
-	/* Consume character from loaded userconfig script, display */
-	userconfig_boot_parsing = 1;
-	c = *asp;
-	asp++;
-	assize--;
-
-    } else if (assize == 0) {
-	
-#ifdef INTRO_USERCONFIG
-	if (intro == 0) 
-	{
-	    /* 
-	     * We don't want intro if we just executed a
-	     * script (userconfig_boot_parsing==1), otherwise
-	     * we would always block here waiting for user input.
-	     */
-	    intro = 1;
-	    if (userconfig_boot_parsing == 0)
-	    {
-		/* userconfig_boot_parsing will be set to 1 on next pass,
-		 * which will allow using 'intro' in the middle of other
-		 * userconfig_script commands.
-		 */
-	        c = 'i';
-	        asp = "ntro\n";
-	        assize = strlen(asp);
-	    } else {
-	        userconfig_boot_parsing = 0;
-		assize=-1;
-	    }
-#else
-	userconfig_boot_parsing = 0;
-	if (!(boothowto & RB_CONFIG)) 
-	{
-	    /* don't want to drop to interpreter */
-	    c = 'q';
-	    asp = "uit\n";
-	    assize = strlen(asp);
-#endif
-	    userconfig_boot_parsing = 0;
+    if (next == userconfig_from_boot) {
+	if (strncmp(next, "USERCONFIG\n", 11)) {
+	    next++;
+	    strcpy(next, "intro\n");
 	} else {
-	    /* Only display signon banner if we are about to go interactive */
-	    if (!intro)
-		printf("\nFreeBSD Kernel Configuration Utility - Version 1.2\n"
-		       " Type \"help\" for help" 
-#ifdef VISUAL_USERCONFIG
-		       " or \"visual\" to go to the visual\n"
-		       " configuration interface (requires MGA/VGA display or\n"
-		       " serial terminal capable of displaying ANSI graphics)"
-#endif	
-		       ".\n");
-	    assize = -1;
+	    next += 11;
 	}
+    } 
+    if (*next) {
+	userconfig_boot_parsing = 1;
+	return (*next++);
+    } else {
+	userconfig_boot_parsing = 0;
+	return cngetc();
     }
-    if (assize < 0) {
-	/* No script, read from the keyboard */
-	c = cngetc();
-    }
-    return(c);
 }
+#else /* !USERCONFIG_BOOT */
+#define getchar()	cngetc()
+#endif /* USERCONFIG_BOOT */
+
+#define putchar(x)	cnputc(x)
 
 #ifndef FALSE
 #define FALSE	(0)
@@ -403,16 +281,10 @@ static DEV_INFO device_info[] = {
 {"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
-{"ax",          "ASIC AX88140A ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
-{"rl",          "RealTek 8129/8139 ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"mx",          "Macronix PMAC ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"pn",          "Lite-On 82c168/82c169 PNIC adapter",	FLG_FIXED,	CLS_NETWORK},
-{"tl",          "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
-{"vr",          "VIA Rhine/Rhine II ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"wb",          "Winbond W89C840F ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
-{"xl",          "3COM 3C90x PCI ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"tlc",         "Texas Instruments ThunderLAN ethernet adapter", FLG_FIXED, CLS_NETWORK},
+{"xl",          "3COM 3C90x PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
 
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
@@ -2081,17 +1953,15 @@ static void
 helpscreen(void) 
 {
     int		topline = 0;			/* where we are in the text */
-    int		c, delta = 1;
+    int		line, c, delta = 1;
     char	prompt[80];
 
     for (;;)					/* loop until user quits */
     {
-	int line = 0;
-
 	/* display help text */
 	if (delta) 
 	{
-	    clear();				/* remove everything else */
+	    clear();					/* remove everything else */
 	    for (line = topline; 
 		 (line < (topline + 24)) && (helptext[line]); 
 		 line++)
@@ -2531,7 +2401,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.64 1999/01/16 11:39:08 kato Exp $
+ *      $Id: userconfig.c,v 1.56 1998/10/08 12:09:38 kato Exp $
  */
 
 #include "scbus.h"
@@ -2584,7 +2454,7 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
-#if defined(INTRO_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
 static int introfunc(CmdParm *);
 #endif
 
@@ -2622,12 +2492,10 @@ static CmdParm dev_parms[] = {
     { -1, {} },
 };
 
-#if NPNP > 0
 static CmdParm string_arg[] = {
     { PARM_STRING, {} },
     { -1, {} },
 };
-#endif
 
 #if NEISA > 0
 static CmdParm int_arg[] = {
@@ -2647,7 +2515,7 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
-#if defined(INTRO_USERCONFIG)
+#if defined(USERCONFIG_BOOT)
     { "intro", 	introfunc, 		NULL },		/* intro screen	*/
 #endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
@@ -2675,6 +2543,16 @@ userconfig(void)
     char input[80];
     int rval;
     Cmd *cmd;
+
+    printf("\nFreeBSD Kernel Configuration Utility - Version 1.1\n"
+	   " Type \"help\" for help" 
+#ifdef VISUAL_USERCONFIG
+	   " or \"visual\" to go to the visual\n"
+	   " configuration interface (requires MGA/VGA display or\n"
+	   " serial terminal capable of displaying ANSI graphics)"
+#endif
+	   ".\n");
+
 
     while (1) {
 	printf("config> ");
@@ -2989,6 +2867,7 @@ set_num_eisa_slots(CmdParm *parms)
 static int
 quitfunc(CmdParm *parms)
 {
+#ifdef USERCONFIG_BOOT
     /*
      * If kernel config supplied, and we are parsing it, and -c also supplied,
      * ignore a quit command,  This provides a safety mechanism to allow
@@ -2996,6 +2875,7 @@ quitfunc(CmdParm *parms)
      */
     if ((boothowto & RB_CONFIG) && userconfig_boot_parsing)
 	return 0;
+#endif
     return 1;
 }
 
@@ -3038,7 +2918,7 @@ helpfunc(CmdParm *parms)
     return 0;
 }
 
-#if defined(INTRO_USERCONFIG) 
+#if defined(USERCONFIG_BOOT) 
 
 #if defined (VISUAL_USERCONFIG)
 static void
@@ -3172,10 +3052,7 @@ introfunc(CmdParm *parms)
 		    return visuserconfig();
 		else {
 		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
-		    /* enable quitfunc */
-    		    userconfig_boot_parsing=0;
 		    move (0, 3);
-		    boothowto |= RB_CONFIG;	/* force -c */
 		    return 0;
 		}
 		break;
@@ -3204,14 +3081,12 @@ lspnp ()
 		"mem 0x%x 0x%x 0x%x 0x%x";
 	    char buf[256];
 	    if (lineno >= 23) {
-		    if (!userconfig_boot_parsing) {
-			    printf("<More> ");
-			    if (getchar() == 'q') {
-				    printf("quit\n");
-				    return (1);
-			    }
-			    printf("\n");
+		    printf("<More> ");
+		    if (getchar() == 'q') {
+			    printf("quit\n");
+			    return (1);
 		    }
+		    printf("\n");
 		    lineno = 0;
 	    }
 	    if (lineno == 0 || first)
@@ -3257,13 +3132,11 @@ lsdevtab(struct isa_device *dt)
 
 	if (lineno >= 23) {
 		printf("<More> ");
-		if (!userconfig_boot_parsing) {
-			if (getchar() == 'q') {
-				printf("quit\n");
-				return (1);
-			}
-			printf("\n");
+		if (getchar() == 'q') {
+			printf("quit\n");
+			return (1);
 		}
+		printf("\n");
 		lineno = 0;
 	}
 	if (lineno == 0) {

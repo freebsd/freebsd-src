@@ -1,4 +1,4 @@
-#	$Id: options,v 1.120 1999/01/17 19:02:39 peter Exp $
+#	$Id: options,v 1.104 1998/10/09 23:26:26 peter Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -44,7 +44,6 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 COMPAT_43	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
 COMPILING_LINT	opt_lint.h
-CY_PCI_FASTINTR
 DDB
 DDB_UNATTENDED	opt_ddb.h
 GDB_REMOTE_CHAT	opt_ddb.h
@@ -55,7 +54,6 @@ KTRACE
 MD5
 MFS_ROOT	opt_mfs.h
 MFS_ROOT_SIZE	opt_mfs.h
-NTIMECOUNTER	opt_ntp.h
 EXPORTMFS	opt_mfs.h
 NO_LKM
 NSWAPDEV	opt_swap.h
@@ -67,7 +65,6 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 UCONSOLE
-ICMP_BANDLIM
 
 # POSIX kernel options
 P1003_1B	opt_posix.h
@@ -125,7 +122,6 @@ CD9660_ROOTDELAY	opt_cd9660.h
 UNION
 
 # Options used only in param.c.
-HZ		opt_param.h
 MAXUSERS	opt_param.h
 MSGMNB		opt_param.h
 MSGMNI		opt_param.h
@@ -134,7 +130,6 @@ MSGSSZ		opt_param.h
 MSGTQL		opt_param.h
 NBUF		opt_param.h
 NMBCLUSTERS	opt_param.h
-NSFBUFS		opt_param.h
 SEMMAP		opt_param.h
 SEMMNI		opt_param.h
 SEMMNS		opt_param.h
@@ -187,11 +182,9 @@ BOOTP_COMPAT		opt_bootp.h
 BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
-BRIDGE			opt_bdg.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
 IPDIVERT
-DUMMYNET		opt_ipdn.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
@@ -240,11 +233,7 @@ DPT_RESET_HBA		opt_dpt.h
 # 'DEBUG', and then let people recompile just the interesting modules
 # with 'make CC="cc -DDEBUG'.
 CLUSTERDEBUG		opt_debug_cluster.h
-DEBUG_1284		opt_ppb_1284.h
-PERIPH_1284		opt_ppb_1284.h
-DONTPROBE_1284		opt_ppb_1284.h
-VP0_DEBUG		opt_vpo.h
-NLPT_DEBUG		opt_nlpt.h
+DEBUG_1284		opt_debug_1284.h
 LOCKF_DEBUG		opt_debug_lockf.h
 LOUTB			opt_debug_outb.h
 NPX_DEBUG		opt_debug_npx.h
@@ -255,14 +244,9 @@ SI_DEBUG		opt_debug_si.h
 
 # These cause changes all over the kernel
 DEBUG			opt_global.h
-DEBUG_LOCKS		opt_global.h
-DEBUG_VFS_LOCKS		opt_global.h
 DIAGNOSTIC		opt_global.h
-ENABLE_VFS_IOOPT	opt_global.h
-INVARIANT_SUPPORT	opt_global.h
-INVARIANTS		opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
-VFS_BIO_DEBUG		opt_global.h
+ENABLE_VFS_IOOPT	opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE	opt_vm.h
@@ -275,10 +259,6 @@ PQ_MEDIUMCACHE	opt_vmpage.h
 PQ_LARGECACHE	opt_vmpage.h
 PQ_HUGECACHE	opt_vmpage.h
 
-# Standard SMP options
-SMP			opt_global.h
-NCPU			opt_smp.h
-NBUS			opt_smp.h
 
 # sys/netkey
 KEY
@@ -320,16 +300,3 @@ METEOR_DEALLOC_ABOVE	opt_meteor.h
 
 # Include tweaks for running under the SimOS machine simulator.
 SIMOS			opt_simos.h
-
-# options for bus/device framework
-BUS_DEBUG		opt_bus.h
-
-# options for USB support
-USB_DEBUG		opt_usb.h
-USBVERBOSE		opt_usb.h
-
-# Vinum options
-VINUMDEBUG		opt_vinum.h
-
-# Include LKM compatability module
-LKM

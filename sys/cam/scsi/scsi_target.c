@@ -1,7 +1,7 @@
 /*
  * Implementation of a simple Target Mode SCSI Proccessor Target driver for CAM.
  *
- * Copyright (c) 1998, 1999 Justin T. Gibbs.
+ * Copyright (c) 1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.6 1998/12/17 00:03:14 gibbs Exp $
+ *      $Id: scsi_target.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -46,7 +46,6 @@
 #include <cam/cam_ccb.h>
 #include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
-#include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
 
@@ -64,8 +63,7 @@ typedef enum {
 typedef enum {
 	TARG_FLAG_NONE		 = 0x00,
 	TARG_FLAG_SEND_EOF	 = 0x01,
-	TARG_FLAG_RECEIVE_EOF	 = 0x02,
-	TARG_FLAG_LUN_ENABLED	 = 0x04
+	TARG_FLAG_RECEIVE_EOF	 = 0x02
 } targ_flags;
 
 typedef enum {
@@ -106,13 +104,11 @@ struct targ_softc {
 	u_int		init_level;
 	u_int		inq_data_len;
 	struct		scsi_inquiry_data *inq_data;
-	struct		ccb_accept_tio *accept_tio_list;
-	struct		ccb_hdr_slist immed_notify_slist;
 	struct		initiator_state istate[MAX_INITIATORS];
 };
 
 struct targ_cmd_desc {
-	struct	  ccb_accept_tio* atio_link;
+	SLIST_ENTRY(targ_cmd_desc) links;
 	u_int	  data_resid;	/* How much left to transfer */
 	u_int	  data_increment;/* Amount to send before next disconnect */
 	void*	  data;		/* The data. Can be from backing_store or not */
@@ -159,8 +155,6 @@ static int		targsendccb(struct cam_periph *periph, union ccb *ccb,
 static periph_init_t	targinit;
 static void		targasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
-static cam_status	targenlun(struct cam_periph *periph);
-static cam_status	targdislun(struct cam_periph *periph);
 static periph_ctor_t	targctor;
 static periph_dtor_t	targdtor;
 static void		targrunqueue(struct cam_periph *periph,
@@ -267,7 +261,7 @@ targasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 			break;
 		}
-		status = cam_periph_alloc(targctor, NULL, targdtor, targstart,
+		status = cam_periph_alloc(targctor, targdtor, targstart,
 					  "targ", CAM_PERIPH_BIO,
 					  new_path, targasync,
 					  AC_PATH_REGISTERED,
@@ -293,20 +287,62 @@ targasync(void *callback_arg, u_int32_t code,
 	}
 }
 
-/* Attempt to enable our lun */
 static cam_status
-targenlun(struct cam_periph *periph)
+targctor(struct cam_periph *periph, void *arg)
 {
 	union ccb immed_ccb;
 	struct targ_softc *softc;
 	cam_status status;
 	int i;
 
-	softc = (struct targ_softc *)periph->softc;
+	/* Allocate our per-instance private storage */
+	softc = (struct targ_softc *)malloc(sizeof(*softc), M_DEVBUF, M_NOWAIT);
+	if (softc == NULL) {
+		printf("targctor: unable to malloc softc\n");
+		return (CAM_REQ_CMP_ERR);
+	}
 
-	if ((softc->flags & TARG_FLAG_LUN_ENABLED) != 0)
-		return (CAM_REQ_CMP);
+	bzero(softc, sizeof(softc));
+	TAILQ_INIT(&softc->pending_queue);
+	TAILQ_INIT(&softc->work_queue);
+	TAILQ_INIT(&softc->snd_ccb_queue);
+	TAILQ_INIT(&softc->rcv_ccb_queue);
+	TAILQ_INIT(&softc->unknown_atio_queue);
+	bufq_init(&softc->snd_buf_queue);
+	bufq_init(&softc->rcv_buf_queue);
+	softc->state = TARG_STATE_NORMAL;
+	periph->softc = softc;
+	softc->init_level++;
 
+	cam_extend_set(targperiphs, periph->unit_number, periph);
+
+	/*
+	 * We start out life with a UA to indicate power-on/reset.
+	 */
+	for (i = 0; i < MAX_INITIATORS; i++)
+		softc->istate[i].pending_ua = UA_POWER_ON;
+	
+	/*
+	 * Allocate an initial inquiry data buffer.  We might allow the
+	 * user to override this later via an ioctl.
+	 */
+	softc->inq_data_len = sizeof(*softc->inq_data);
+	softc->inq_data = malloc(softc->inq_data_len, M_DEVBUF, M_NOWAIT);
+	if (softc->inq_data == NULL) {
+		printf("targctor - Unable to malloc inquiry data\n");
+		targdtor(periph);
+	}
+	bzero(softc->inq_data, softc->inq_data_len);
+	softc->inq_data->device = T_PROCESSOR | (SID_QUAL_LU_CONNECTED << 5);
+	softc->inq_data->version = 2;
+	softc->inq_data->response_format = 2; /* SCSI2 Inquiry Format */
+	softc->inq_data->additional_length = softc->inq_data_len - 4;
+	strncpy(softc->inq_data->vendor, "FreeBSD ", SID_VENDOR_SIZE);
+	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
+	strncpy(softc->inq_data->revision, "0.0 ", SID_REVISION_SIZE);
+	softc->init_level++;
+
+	/* Attempt to enable the lun of interrest */
 	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, /*priority*/1);
 	immed_ccb.ccb_h.func_code = XPT_EN_LUN;
 
@@ -316,15 +352,17 @@ targenlun(struct cam_periph *periph)
 	immed_ccb.cel.enable = 1;
 	xpt_action(&immed_ccb);
 	status = immed_ccb.ccb_h.status;
+
 	if (status != CAM_REQ_CMP) {
 		xpt_print_path(periph->path);
-		printf("targenlun - Enable Lun Rejected for status 0x%x\n",
+		printf("targctor - Enable Lun Rejected for status 0x%x\n",
 		       status);
+		targdtor(periph);
 		return (status);
 	}
-	
-	softc->flags |= TARG_FLAG_LUN_ENABLED;
 
+	softc->init_level++;
+	
 	/*
 	 * Build up a buffer of accept target I/O
 	 * operations for incoming selections.
@@ -353,20 +391,16 @@ targenlun(struct cam_periph *periph)
 		xpt_action((union ccb *)atio);
 		status = atio->ccb_h.status;
 		if (status != CAM_REQ_INPROG) {
-			freedescr(atio->ccb_h.ccb_descr);
 			free(atio, M_DEVBUF);
 			break;
 		}
-		((struct targ_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link =
-		    softc->accept_tio_list;
-		softc->accept_tio_list = atio;
 	}
 
 	if (i == 0) {
 		xpt_print_path(periph->path);
-		printf("targenlun - Could not allocate accept tio CCBs: "
+		printf("targctor - Could not allocate accept tio CCBs: "
 		       "status = 0x%x\n", status);
-		targdislun(periph);
+		targdtor(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
@@ -394,129 +428,15 @@ targenlun(struct cam_periph *periph)
 			free(inot, M_DEVBUF);
 			break;
 		}
-		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
-				  periph_links.sle);
 	}
 
 	if (i == 0) {
 		xpt_print_path(periph->path);
-		printf("targenlun - Could not allocate immediate notify CCBs: "
+		printf("targctor - Could not allocate immediate notify CCBs: "
 		       "status = 0x%x\n", status);
-		targdislun(periph);
-		return (CAM_REQ_CMP_ERR);
-	}
-
-	return (CAM_REQ_CMP);
-}
-
-static cam_status
-targdislun(struct cam_periph *periph)
-{
-	union ccb ccb;
-	struct targ_softc *softc;
-	struct ccb_accept_tio* atio;
-	struct ccb_hdr *ccb_h;
-
-	softc = (struct targ_softc *)periph->softc;
-	if ((softc->flags & TARG_FLAG_LUN_ENABLED) == 0)
-		return CAM_REQ_CMP;
-
-	/* XXX Block for Continue I/O completion */
-
-	/* Kill off all ACCECPT and IMMEDIATE CCBs */
-	while ((atio = softc->accept_tio_list) != NULL) {
-		
-		softc->accept_tio_list =
-		    ((struct targ_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link;
-		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
-		ccb.cab.ccb_h.func_code = XPT_ABORT;
-		ccb.cab.abort_ccb = (union ccb *)atio;
-		xpt_action(&ccb);
-	}
-
-	while ((ccb_h = SLIST_FIRST(&softc->immed_notify_slist)) != NULL) {
-		SLIST_REMOVE_HEAD(&softc->immed_notify_slist, periph_links.sle);
-		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
-		ccb.cab.ccb_h.func_code = XPT_ABORT;
-		ccb.cab.abort_ccb = (union ccb *)ccb_h;
-		xpt_action(&ccb);
-	}
-
-	/*
-	 * Dissable this lun.
-	 */
-	xpt_setup_ccb(&ccb.cel.ccb_h, periph->path, /*priority*/1);
-	ccb.cel.ccb_h.func_code = XPT_EN_LUN;
-	ccb.cel.enable = 0;
-	xpt_action(&ccb);
-
-	if (ccb.cel.ccb_h.status != CAM_REQ_CMP)
-		printf("targdislun - Disabling lun on controller failed "
-		       "with status 0x%x\n", ccb.cel.ccb_h.status);
-	else 
-		softc->flags &= ~TARG_FLAG_LUN_ENABLED;
-	return (ccb.cel.ccb_h.status);
-}
-
-static cam_status
-targctor(struct cam_periph *periph, void *arg)
-{
-	struct ccb_pathinq *cpi;
-	struct targ_softc *softc;
-	int i;
-
-	cpi = (struct ccb_pathinq *)arg;
-
-	/* Allocate our per-instance private storage */
-	softc = (struct targ_softc *)malloc(sizeof(*softc), M_DEVBUF, M_NOWAIT);
-	if (softc == NULL) {
-		printf("targctor: unable to malloc softc\n");
-		return (CAM_REQ_CMP_ERR);
-	}
-
-	bzero(softc, sizeof(softc));
-	TAILQ_INIT(&softc->pending_queue);
-	TAILQ_INIT(&softc->work_queue);
-	TAILQ_INIT(&softc->snd_ccb_queue);
-	TAILQ_INIT(&softc->rcv_ccb_queue);
-	TAILQ_INIT(&softc->unknown_atio_queue);
-	bufq_init(&softc->snd_buf_queue);
-	bufq_init(&softc->rcv_buf_queue);
-	softc->accept_tio_list = NULL;
-	SLIST_INIT(&softc->immed_notify_slist);
-	softc->state = TARG_STATE_NORMAL;
-	periph->softc = softc;
-	softc->init_level++;
-
-	cam_extend_set(targperiphs, periph->unit_number, periph);
-
-	/*
-	 * We start out life with a UA to indicate power-on/reset.
-	 */
-	for (i = 0; i < MAX_INITIATORS; i++)
-		softc->istate[i].pending_ua = UA_POWER_ON;
-	
-	/*
-	 * Allocate an initial inquiry data buffer.  We might allow the
-	 * user to override this later via an ioctl.
-	 */
-	softc->inq_data_len = sizeof(*softc->inq_data);
-	softc->inq_data = malloc(softc->inq_data_len, M_DEVBUF, M_NOWAIT);
-	if (softc->inq_data == NULL) {
-		printf("targctor - Unable to malloc inquiry data\n");
 		targdtor(periph);
+		return (CAM_REQ_CMP_ERR);
 	}
-	bzero(softc->inq_data, softc->inq_data_len);
-	softc->inq_data->device = T_PROCESSOR | (SID_QUAL_LU_CONNECTED << 5);
-	softc->inq_data->version = 2;
-	softc->inq_data->response_format = 2; /* SCSI2 Inquiry Format */
-	softc->inq_data->flags =
-	    cpi->hba_inquiry & (PI_SDTR_ABLE|PI_WIDE_16|PI_WIDE_32);
-	softc->inq_data->additional_length = softc->inq_data_len - 4;
-	strncpy(softc->inq_data->vendor, "FreeBSD ", SID_VENDOR_SIZE);
-	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
-	strncpy(softc->inq_data->revision, "0.0 ", SID_REVISION_SIZE);
-	softc->init_level++;
 
 	return (CAM_REQ_CMP);
 }
@@ -530,11 +450,25 @@ targdtor(struct cam_periph *periph)
 
 	softc->state = TARG_STATE_TEARDOWN;
 
-	targdislun(periph);
-
 	switch (softc->init_level) {
 	default:
 		/* FALLTHROUGH */
+	case 3:
+	{
+		struct ccb_en_lun cel;
+		/*
+		 * XXX Spec requires abort of all ACCEPT and
+		 * IMMEDIATE CCBS first.  Act accordingly.
+		 */
+		/*
+		 * Dissable this lun.
+		 */
+		xpt_setup_ccb(&cel.ccb_h, periph->path, /*priority*/1);
+		cel.ccb_h.func_code = XPT_EN_LUN;
+		cel.enable = 0;
+		xpt_action((union ccb *)&cel);
+		/* FALLTHROUGH */
+	}
 	case 2:
 		free(softc->inq_data, M_DEVBUF);
 		/* FALLTHROUGH */
@@ -550,68 +484,32 @@ static int
 targopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct cam_periph *periph;
-	u_int unit;
-	cam_status status;
-	int error;
-	int s;
+	struct targ_softc *softc;
+	u_int  unit;
+	int    s;
 
 	unit = minor(dev);
-
-	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
-	if (periph == NULL) {
+	if (periph == NULL)
 		return (ENXIO);
-        	splx(s);
-	}
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
-		splx(s);
-		return (error);
-	}
-        splx(s);
-	
-	status = targenlun(periph);
-	switch (status) {
-	case CAM_REQ_CMP:
-		error = 0;
-		break;
-	case CAM_RESRC_UNAVAIL:
-		error = ENOMEM;
-		break;
-	case CAM_LUN_ALRDY_ENA:
-		error = EADDRINUSE;
-		break;
-	default:
-		error = ENXIO;
-		break;
-	}
-        cam_periph_unlock(periph);
-	return (error);
+	softc = (struct targ_softc *)periph->softc;
+
+	return (0);
 }
 
 static int
 targclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	struct	cam_periph *periph;
-	struct	targ_softc *softc;
-	u_int	unit;
-	int	s;
-	int	error;
+	struct cam_periph *periph;
+	struct targ_softc *softc;
+	u_int  unit;
+	int    s;
 
 	unit = minor(dev);
-	s = splsoftcam();
 	periph = cam_extend_get(targperiphs, unit);
-	if (periph == NULL) {
-		splx(s);
+	if (periph == NULL)
 		return (ENXIO);
-	}
-	if ((error = cam_periph_lock(periph, PRIBIO)) != 0)
-		return (error);
 	softc = (struct targ_softc *)periph->softc;
-	splx(s);
-
-	targdislun(periph);
-
-	cam_periph_unlock(periph);
 
 	return (0);
 }
@@ -623,6 +521,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct targ_softc *softc;
 	u_int  unit;
 	int    error;
+	int    s;
 
 	unit = minor(dev);
 	periph = cam_extend_get(targperiphs, unit);
@@ -700,8 +599,8 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = EINVAL;
 			break;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("GET/SETISTATE for %d\n", ioc_istate->initiator_id));
+		xpt_print_path(periph->path);
+		printf("GET/SETISTATE for %d\n", ioc_istate->initiator_id);
 		if (cmd == TARGIOCGETISTATE) {
 			bcopy(&softc->istate[ioc_istate->initiator_id],
 			      &ioc_istate->istate, sizeof(ioc_istate->istate));
@@ -709,9 +608,9 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			bcopy(&ioc_istate->istate,
 			      &softc->istate[ioc_istate->initiator_id],
 			      sizeof(ioc_istate->istate));
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("pending_ca now %x\n",
-			   softc->istate[ioc_istate->initiator_id].pending_ca));
+			xpt_print_path(periph->path);
+			printf("pending_ca now %x\n",
+			       softc->istate[ioc_istate->initiator_id].pending_ca);
 		}
 		break;
 	}
@@ -730,6 +629,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 static int
 targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 {
+	struct buf *bp[2];
 	struct targ_softc *softc;
 	struct cam_periph_map_info mapinfo;
 	int error, need_unmap;
@@ -946,12 +846,12 @@ targstrategy(struct buf *bp)
 	 */
 	bp->b_resid = bp->b_bcount;
 	if ((bp->b_flags & B_READ) != 0) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("Queued a SEND buffer\n"));
+		xpt_print_path(periph->path);
+		printf("Queued a SEND buffer\n");
 		bufq_insert_tail(&softc->snd_buf_queue, bp);
 	} else {
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("Queued a RECEIVE buffer\n"));
+		xpt_print_path(periph->path);
+		printf("Queued a RECEIVE buffer\n");
 		bufq_insert_tail(&softc->rcv_buf_queue, bp);
 	}
 
@@ -983,6 +883,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 	struct	buf *bp;
 	struct	targ_cmd_desc *desc;
 	struct	ccb_hdr *ccbh;
+	int	added;
 	int	s;
 
 	s = splbio();
@@ -1004,9 +905,9 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		if (bp == NULL)
 			softc->flags &= ~TARG_FLAG_SEND_EOF;
 		else {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-				  ("De-Queued a SEND buffer %ld\n",
-				   bp->b_bcount));
+			xpt_print_path(periph->path);
+			printf("De-Queued a SEND buffer %ld\n",
+			       bp->b_bcount);
 		}
 		bufq = &softc->snd_buf_queue;
 		pending_queue = &softc->snd_ccb_queue;
@@ -1017,9 +918,9 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		if (bp == NULL)
 			softc->flags &= ~TARG_FLAG_RECEIVE_EOF;
 		else {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-				  ("De-Queued a RECEIVE buffer %ld\n",
-				   bp->b_bcount));
+			xpt_print_path(periph->path);
+			printf("De-Queued a RECEIVE buffer %ld\n",
+			       bp->b_bcount);
 		}
 		bufq = &softc->rcv_buf_queue;
 		pending_queue = &softc->rcv_ccb_queue;
@@ -1044,9 +945,9 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			desc->data_increment =
 			    MIN(desc->data_resid, bp->b_resid);
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("Buffer command: data %x: datacnt %d\n",
-			   (intptr_t)desc->data, desc->data_increment));
+		xpt_print_path(periph->path);
+		printf("Buffer command: data %x: datacnt %d\n",
+		       (intptr_t)desc->data, desc->data_increment);
 		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
 				  periph_links.tqe);
 	}
@@ -1116,8 +1017,8 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 
 		start_ccb->ccb_h.ccb_type = TARG_CCB_WORKQ;
 		start_ccb->ccb_h.ccb_atio = atio;
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("Sending a CTIO\n"));
+		xpt_print_path(periph->path);
+		printf("Sending a CTIO\n");
 		xpt_action(start_ccb);
 		s = splbio();
 		ccbh = TAILQ_FIRST(&softc->work_queue);
@@ -1152,9 +1053,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		descr = (struct targ_cmd_desc*)atio->ccb_h.ccb_descr;
 		istate = &softc->istate[atio->init_id];
 		cdb = atio->cdb_io.cdb_bytes;
-		if (softc->state == TARG_STATE_TEARDOWN
-		 || atio->ccb_h.status == CAM_REQ_ABORTED) {
-			printf("Freed an accept tio\n");
+		if (softc->state == TARG_STATE_TEARDOWN) {
 			freedescr(descr);
 			free(done_ccb, M_DEVBUF);
 			return;
@@ -1209,8 +1108,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				inq = (struct scsi_inquiry *)cdb;
 				sense = &istate->sense_data;
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					  ("Saw an inquiry!\n"));
+				xpt_print_path(periph->path);
+				printf("Saw an inquiry!\n");
 				/*
 				 * Validate the command.  We don't
 				 * support any VPD pages, so complain
@@ -1285,9 +1184,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					fill_sense(sense, SSD_CURRENT_ERROR,
 						   SSD_KEY_NO_SENSE, 0x00,
 						   0x00);
-					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
-						  ("No pending CA!\n"));
+					xpt_print_path(periph->path);
+					printf("No pending CA!\n");
 				} else if (pending_ca == CA_UNIT_ATTN) {
 					u_int ascq;
 
@@ -1298,9 +1196,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					fill_sense(sense, SSD_CURRENT_ERROR,
 						   SSD_KEY_UNIT_ATTENTION,
 						   0x29, ascq);
-					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
-						  ("Pending UA!\n"));
+					xpt_print_path(periph->path);
+					printf("Pending UA!\n");
 				}
 				/*
 				 * Direction is always relative
@@ -1334,9 +1231,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				atio->ccb_h.flags &= ~CAM_DIR_MASK;
 				if (cdb[0] == SEND) {
 					atio->ccb_h.flags |= CAM_DIR_OUT;
-					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
-						  ("Saw a SEND!\n"));
+					xpt_print_path(periph->path);
+					printf("Saw a SEND!\n");
 					atio->ccb_h.flags |= CAM_DIR_OUT;
 					TAILQ_INSERT_TAIL(&softc->snd_ccb_queue,
 							  &atio->ccb_h,
@@ -1344,9 +1240,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					selwakeup(&softc->snd_select);
 				} else {
 					atio->ccb_h.flags |= CAM_DIR_IN;
-					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
-						  ("Saw a RECEIVE!\n"));
+					xpt_print_path(periph->path);
+					printf("Saw a RECEIVE!\n");
 					TAILQ_INSERT_TAIL(&softc->rcv_ccb_queue,
 							  &atio->ccb_h,
 							  periph_links.tqe);
@@ -1389,8 +1284,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		struct targ_cmd_desc *desc;
 		struct buf *bp;
 
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-			  ("Received completed CTIO\n"));
+		xpt_print_path(done_ccb->ccb_h.path);
+		printf("Received completed CTIO\n");
 		atio = (struct ccb_accept_tio*)done_ccb->ccb_h.ccb_atio;
 		desc = (struct targ_cmd_desc *)atio->ccb_h.ccb_descr;
 
@@ -1404,9 +1299,9 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->b_resid -= desc->data_increment;
 			bp->b_error = 0;
 
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-				  ("Buffer I/O Completed - Resid %ld:%d\n",
-				   bp->b_resid, desc->data_resid));
+			xpt_print_path(done_ccb->ccb_h.path);
+			printf("Buffer I/O Completed - Resid %ld:%d\n",
+			       bp->b_resid, desc->data_resid);
 			/*
 			 * Send the buffer back to the client if
 			 * either the command has completed or all
@@ -1418,8 +1313,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					/* Short transfer */
 					bp->b_flags |= B_ERROR;
 				
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					  ("Completing a buffer\n"));
+				xpt_print_path(done_ccb->ccb_h.path);
+				printf("Completing a buffer\n");
 				biodone(bp);
 				desc->bp = NULL;
 			}
@@ -1433,26 +1328,22 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * Send the original accept TIO back to the
 				 * controller to handle more work.
 				 */
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					  ("Returning ATIO to target\n"));
+				xpt_print_path(atio->ccb_h.path);
+				printf("Returning ATIO to target\n");
 				xpt_action((union ccb *)atio);
 				break;
 			}
 
+			if (desc->bp != NULL)
+				panic("targ%d: desc->bp should be NULL", 
+				      periph->unit_number);
+
 			/* Queue us up for another buffer */
 			if (atio->cdb_io.cdb_bytes[0] == SEND) {
-				if (desc->bp != NULL)
-					TAILQ_INSERT_HEAD(
-						&softc->snd_buf_queue.queue,
-						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->snd_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
 			} else {
-				if (desc->bp != NULL)
-					TAILQ_INSERT_HEAD(
-						&softc->rcv_buf_queue.queue,
-						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->rcv_ccb_queue,
 						  &atio->ccb_h,
 						  periph_links.tqe);
@@ -1472,9 +1363,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case XPT_IMMED_NOTIFY:
 	{
-		if (softc->state == TARG_STATE_TEARDOWN
-		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED) {
-			printf("Freed an immediate notify\n");
+		if (softc->state == TARG_STATE_TEARDOWN) {
 			free(done_ccb, M_DEVBUF);
 		}
 		break;
@@ -1552,7 +1441,7 @@ allocdescr()
 static void
 freedescr(struct targ_cmd_desc *descr)
 {
-	free(descr->backing_store, M_DEVBUF);
+	free(descr->data, M_DEVBUF);
 	free(descr, M_DEVBUF);
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.2 1998/11/15 18:25:15 dfr Exp $
+ *	$Id: sys_machdep.c,v 1.34 1998/03/23 19:52:34 jlemon Exp $
  *
  */
 
@@ -50,11 +50,8 @@
 #include <sys/user.h>
 
 #include <machine/cpu.h>
-#include <machine/sysarch.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
-
-#include <machine/fpu.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -62,10 +59,6 @@ struct sysarch_args {
 	char *parms;
 };
 #endif
-
-static int alpha_sethae(struct proc *p, char *args);
-static int alpha_get_fpmask(struct proc *p, char *args);
-static int alpha_set_fpmask(struct proc *p, char *args);
 
 int
 sysarch(p, uap)
@@ -75,79 +68,9 @@ sysarch(p, uap)
 	int error = 0;
 
 	switch(SCARG(uap,op)) {
-	case ALPHA_SETHAE:
-		error = alpha_sethae(p, uap->parms);
-		break;
-	case ALPHA_GET_FPMASK:
-		error = alpha_get_fpmask(p, uap->parms);
-		break;
-	case ALPHA_SET_FPMASK:
-		error = alpha_set_fpmask(p, uap->parms);
-		break;
-	    
 	default:
 		error = EINVAL;
 		break;
 	}
-	return (error);
-}
-
-struct alpha_sethae_args {
-	u_int64_t hae;
-};
-
-static int
-alpha_sethae(struct proc *p, char *args)
-{
-	int error;
-	struct alpha_sethae_args ua;
-
-	if (error = copyin(args, &ua, sizeof(struct alpha_sethae_args)))
-		return (error);
-
-	if (securelevel > 0)
-		return (EPERM);
-
-	if (error = suser(p->p_ucred, &p->p_acflag))
-		return error;
-
-	p->p_md.md_flags |= MDP_HAEUSED;
-	p->p_md.md_hae = ua.hae;
-
-	return (0);
-}
-
-struct alpha_fpmask_args {
-	u_int64_t mask;
-};
-
-static	int
-alpha_get_fpmask(struct proc *p, char *args)
-{
-	int error;
-	struct alpha_fpmask_args ua;
-
-	ua.mask = p->p_addr->u_pcb.pcb_fp_control;
-	error = copyout(&ua, args, sizeof(struct alpha_fpmask_args));
-
-	return (error);
-}
-
-static	int
-alpha_set_fpmask(struct proc *p, char *args)
-{
-	int error;
-	u_int64_t oldmask, *fp_control;
-	struct alpha_fpmask_args ua;
-	
-	if (error = copyin(args, &ua, sizeof(struct alpha_fpmask_args)))
-		return (error);
-
-	fp_control = &p->p_addr->u_pcb.pcb_fp_control;
-	oldmask = *fp_control;
-	*fp_control = ua.mask & IEEE_TRAP_ENABLE_MASK;
-	ua.mask = oldmask;
-
-	error = copyout(&ua, args, sizeof(struct alpha_fpmask_args));
 	return (error);
 }

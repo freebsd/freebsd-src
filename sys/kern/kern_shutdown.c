@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.43 1998/12/04 22:54:51 archie Exp $
+ * $Id: kern_shutdown.c,v 1.39 1998/09/15 08:49:52 gibbs Exp $
  */
 
 #include "opt_ddb.h"
@@ -49,7 +49,6 @@
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
@@ -80,9 +79,9 @@
 
 #ifdef DDB
 #ifdef DDB_UNATTENDED
-int debugger_on_panic = 0;
+static int debugger_on_panic = 0;
 #else
-int debugger_on_panic = 1;
+static int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "");
@@ -112,7 +111,6 @@ typedef struct shutdown_list_element {
 	LIST_ENTRY(shutdown_list_element) links;
 	bootlist_fn function;
 	void *arg;
-	int priority;
 } *sle_p;
 
 /*
@@ -225,21 +223,6 @@ boot(howto)
 			sync(&proc0, NULL);
 			DELAY(50000 * iter);
 		}
-		/*
-		 * Count only busy local buffers to prevent forcing 
-		 * a fsck if we're just a client of a wedged NFS server
-		 */
-		nbusy = 0;
-		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) 
-			    ||((bp->b_flags & (B_DELWRI | B_INVAL))== B_DELWRI))
-				if(bp->b_dev == NODEV)
-					CIRCLEQ_REMOVE(&mountlist, bp->b_vp->v_mount, mnt_list);
-				else
-					nbusy++;
-
-
-		}
 		if (nbusy) {
 			/*
 			 * Failed to sync all blocks. Indicate this and don't
@@ -292,6 +275,7 @@ boot(howto)
 		(*ep->function)(howto, ep->arg);
 
 	if (howto & RB_HALT) {
+		cpu_power_down();
 		printf("\n");
 		printf("The operating system has halted.\n");
 		printf("Please press any key to reboot.\n\n");
@@ -427,7 +411,7 @@ panic(const char *fmt, ...)
 		panicstr = fmt;
 
 	va_start(ap, fmt);
-	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
+	(void)vsprintf(buf, fmt, ap);
 	if (panicstr == fmt)
 		panicstr = buf;
 	va_end(ap);
@@ -447,7 +431,7 @@ panic(const char *fmt, ...)
 }
 
 /*
- * Three routines to handle adding/deleting items on the
+ * Two routines to handle adding/deleting items on the
  * shutdown callout lists
  *
  * at_shutdown():
@@ -458,19 +442,7 @@ panic(const char *fmt, ...)
 int
 at_shutdown(bootlist_fn function, void *arg, int queue)
 {
-	return(at_shutdown_pri(function, arg, queue, SHUTDOWN_PRI_DEFAULT));
-}
-
-/*
- * at_shutdown_pri():
- * Take the arguments given and put them onto the shutdown callout list
- * with the given execution priority.
- * returns 0 on success.
- */
-int
-at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
-{
-	sle_p ep, ip;
+	sle_p ep;
 
 	if (queue < SHUTDOWN_PRE_SYNC
 	 || queue > SHUTDOWN_FINAL) {
@@ -485,23 +457,7 @@ at_shutdown_pri(bootlist_fn function, void *arg, int queue, int pri)
 		return (ENOMEM);
 	ep->function = function;
 	ep->arg = arg;
-	ep->priority = pri;
-
-	/* Sort into list of items on this queue */
-	ip = LIST_FIRST(&shutdown_lists[queue]);
-	if (ip == NULL) {
-		LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
-	} else {
-		for (; LIST_NEXT(ip, links) != NULL; ip = LIST_NEXT(ip, links)) {
-			if (ep->priority < ip->priority) {
-				LIST_INSERT_BEFORE(ip, ep, links);
-				ep = NULL;
-				break;
-			}
-		}
-		if (ep != NULL)
-			LIST_INSERT_AFTER(ip, ep, links);
-	}
+	LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
 	return (0);
 }
 

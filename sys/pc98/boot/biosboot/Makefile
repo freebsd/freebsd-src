@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1999/01/03 05:03:46 kato Exp $
+#	$Id: Makefile,v 1.18 1998/05/28 13:46:04 kato Exp $
 #
 
 PROG=	boot
@@ -6,6 +6,7 @@ PROG=	boot
 SRCS=	start.S table.c boot2.S boot.c asm.S bios.S serial.S
 SRCS+=	probe_keyboard.c io.c disk.c sys.c
 
+BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-mno-486 \
@@ -15,8 +16,7 @@ CFLAGS+=	${CWARNFLAGS}
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
-#BOOT_COMCONSOLE_PORT?=0x30
-BOOT_COMCONSOLE_PORT?=0x238
+BOOT_COMCONSOLE_PORT?=0x30
 BOOT_COMCONSOLE_CLK?=16
 BOOT_COMCONSOLE_MODE=0x0c
 CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
@@ -24,8 +24,8 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 		-DCOMCONSOLE_MODE=${BOOT_COMCONSOLE_MODE}
 
 # feature not implemented
-BOOT_COMCONSOLE_SPEED?=9600
-CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
+# BOOT_COMCONSOLE_SPEED?=9600
+# CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
@@ -64,8 +64,8 @@ BOOTSTACK=	0xFFF0
 
 boot.strip:	boot
 	cp -p boot boot.strip
-	strip -aout boot.strip
-	size -aout boot.strip
+	strip boot.strip
+	size boot.strip
 
 boot.nohdr:	boot.strip
 	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
@@ -86,11 +86,19 @@ boot2:		boot.nohdr
 all:		boot1 boot2
 
 install:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		boot1 boot2 ${DESTDIR}${BINDIR}/
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+		boot1 ${DESTDIR}${BINDIR}/boot1
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+		boot2 ${DESTDIR}${BINDIR}/boot2
+	for i in da fd wd od vn wfd ; do \
+		( cd ${DESTDIR}${BINDIR} ; \
+		rm -f boot$${i} $${i}boot ; \
+		ln -s boot1 $${i}boot ; \
+		ln -s boot2 boot$${i} ; ) \
+	done
 
 install-boothelp:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
 		${.CURDIR}/boot.help ${DESTDIR}/
 
 .include <bsd.kern.mk>

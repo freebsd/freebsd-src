@@ -229,7 +229,7 @@ synthprobe(struct isa_device * dev)
 }
 
 /*
- * this is the ISA part of the generic attach routine
+ * this is the generic attach routine
  */
 
 int
@@ -238,8 +238,8 @@ pcmattach(struct isa_device * dev)
     snddev_info *d = NULL ;
     struct isa_device *dvp;
     int stat = 0;
-
-    dev->id_ointr = pcmintr;
+    dev_t isadev;
+    void *cookie;
 
     if ( (dev->id_unit >= NPCM_MAX) ||		/* too many devs	*/
 	 (snddev_last_probed == NULL) ||	/* last probe failed	*/
@@ -282,67 +282,18 @@ pcmattach(struct isa_device * dev)
     isa_dma_acquire(d->dbuf_out.chan);
     if (FULL_DUPLEX(d))
 	isa_dma_acquire(d->dbuf_in.chan);
-
-
-    /*
-     * should try and find a suitable value for id_id, otherwise
-     * the interrupt is not registered and dispatched properly.
-     * This is important for PnP devices, where "dev" is built on
-     * the fly and many field are not initialized.
-     */
-    if (dev->id_driver == NULL) {
-	dev->id_driver = &pcmdriver ;
-	dvp=find_isadev(isa_devtab_tty, &pcmdriver, 0);
-	if (dvp)
-	    dev->id_id = dvp->id_id;
-    }
-
-    /*
-     * call the generic part of the attach
-     */
-    pcminit(d, dev->id_unit);
-    /*
-     * and finally, call the device attach routine
-     * XXX I should probably use d->attach(dev)
-     */
-    stat = snddev_last_probed->attach(dev);
-#if 0
-    /*
-     * XXX hooks for synt support. Try probe and attach...
-     */
-    if (d->synth_base && opl3_probe(dev) ) {
-	opl3_attach(dev);
-    }
-#endif
-    snddev_last_probed = NULL ;
-
-    return stat ;
-}
-
-/*
- * This is the generic init routine
- */
-int
-pcminit(snddev_info *d, int unit)
-{
-#ifdef DEVFS
-    void *cookie;
-#endif
-    dev_t isadev;
-
-    isadev = makedev(CDEV_MAJOR, 0);
-    cdevsw_add(&isadev, &snd_cdevsw, NULL);
-
     /*
      * initialize standard parameters for the device. This can be
      * overridden by device-specific configurations but better do
      * here the generic things.
      */
 
-    d->magic = MAGIC(unit); /* debugging... */
     d->play_speed = d->rec_speed = 8000 ;
     d->play_blocksize = d->rec_blocksize = 2048 ;
     d->play_fmt = d->rec_fmt = AFMT_MU_LAW ;
+
+    isadev = makedev(CDEV_MAJOR, 0);
+    cdevsw_add(&isadev, &snd_cdevsw, NULL);
 
 #ifdef DEVFS
 #ifndef GID_GAMES
@@ -359,40 +310,70 @@ pcminit(snddev_info *d, int unit)
      * Make links to first successfully probed unit.
      * Attempts by later devices to make these links will fail.
      */
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_DSP,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "dsp%r", unit);
-    if (cookie) devfs_makelink(cookie, "dsp");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "dsp%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "dsp");
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_DSP16,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "dspW%r", unit);
-    if (cookie) devfs_makelink(cookie, "dspW");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "dspW%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "dspW");
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_AUDIO,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "audio%r", unit);
-    if (cookie) devfs_makelink(cookie, "audio");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "audio%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "audio");
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_CTL,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "mixer%r", unit);
-    if (cookie) devfs_makelink(cookie, "mixer");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "mixer%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "mixer");
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_STATUS,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "sndstat%r", unit);
-    if (cookie) devfs_makelink(cookie, "sndstat");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "sndstat%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "sndstat");
 
 #if 0 /* these two are still unsupported... */
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_MIDIN,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "midi%r", unit);
-    if (cookie) devfs_makelink(cookie, "midi");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "midi%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "midi");
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_SYNTH,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "sequencer%r", unit);
-    if (cookie) devfs_makelink(cookie, "sequencer");
+    cookie = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SYNTH,
+	DV_CHR, UID_SND, GID_SND, PERM_SND, "sequencer%r", dev->id_unit);
+    if (cookie) devfs_link(cookie, "sequencer");
 #endif
 #endif /* DEVFS */
-#if NAPM > 0
-    init_sound_apm(unit);
+
+    /*
+     * should try and find a suitable value for id_id, otherwise
+     * the interrupt is not registered and dispatched properly.
+     * This is important for PnP devices, where "dev" is built on
+     * the fly and many field are not initialized.
+     */
+    if (dev->id_driver == NULL) {
+	dev->id_driver = &pcmdriver ;
+	dvp=find_isadev(isa_devtab_tty, &pcmdriver, 0);
+	if (dvp)
+	    dev->id_id = dvp->id_id;
+    }
+
+    d->magic = MAGIC(dev->id_unit); /* debugging... */
+    /*
+     * and finally, call the device attach routine
+     * XXX I should probably use d->attach(dev)
+     */
+    stat = snddev_last_probed->attach(dev);
+#if 0
+    /*
+     * XXX hooks for synt support. Try probe and attach...
+     */
+    if (d->synth_base && opl3_probe(dev) ) {
+	opl3_attach(dev);
+    }
 #endif
-    return 0 ;
+    snddev_last_probed = NULL ;
+
+#if NAPM > 0
+    init_sound_apm(dev->id_unit);
+#endif
+    return stat ;
 }
 
 int midiattach(struct isa_device * dev) { return 0 ; }
@@ -605,14 +586,6 @@ sndread(dev_t i_dev, struct uio * buf, int flag)
 	return uiomove(p, l, buf) ;
     }
 
-    /*
-     * XXX read from the ad1816 with a single DMA channel is unsupported.
-     * This is really not the place for machine-dependent functions,
-     * a proper device routine will be supplied in the future - luigi
-     */
-    if ((d->bd_id == MD_AD1816) && (!(FULL_DUPLEX(d))))
-	return EIO;
-
     if (d->read)	/* device-specific read */
 	return d->read(i_dev, buf, flag);
 
@@ -810,12 +783,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
      * we start with the new ioctl interface.
      */
     case AIONWRITE :	/* how many bytes can write ? */
-	if (d->dbuf_out.dl) {
-	    if (d->special_dma)
-		d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
-	    else
-		dsp_wr_dmaupdate(&(d->dbuf_out));
-	}
+	if (d->dbuf_out.dl)
+	    dsp_wr_dmaupdate(&(d->dbuf_out));
 	*(int *)arg = d->dbuf_out.fl;
 	break;
 
@@ -901,7 +870,7 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	break ;
 
     case AIOSYNC:
-	printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
+	printf("AIOSYNC chan 0x%03lx pos %d unimplemented\n",
 	    ((snd_sync_parm *)arg)->chan,
 	    ((snd_sync_parm *)arg)->pos);
 	break;
@@ -909,12 +878,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
      * here follow the standard ioctls (filio.h etc.)
      */
     case FIONREAD : /* get # bytes to read */
-	if ( d->dbuf_in.dl ) {
-	    if (d->special_dma)
-		d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
-	    else
-		dsp_rd_dmaupdate(&(d->dbuf_in));
-	}
+	if ( d->dbuf_in.dl )
+	    dsp_rd_dmaupdate(&(d->dbuf_in));
 	*(int *)arg = d->dbuf_in.rl;
 	break;
 
@@ -1071,12 +1036,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    audio_buf_info *a = (audio_buf_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_in);
-	    if (b->dl) {
-		if (d->special_dma)
-		    d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
-		else
-		    dsp_rd_dmaupdate( b );
-	    }
+	    if (b->dl)
+		dsp_rd_dmaupdate( b );
 	    a->bytes = d->dbuf_in.fl ;
 	    a->fragments = 1 ;
 	    a->fragstotal = b->bufsize / d->rec_blocksize ;
@@ -1089,12 +1050,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    audio_buf_info *a = (audio_buf_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_out);
-	    if (b->dl) {
-		if (d->special_dma)
-		    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
-		else
-		    dsp_wr_dmaupdate( b );
-	    }
+	    if (b->dl)
+		dsp_wr_dmaupdate( b );
 	    a->bytes = d->dbuf_out.fl ;
 	    a->fragments = 1 ;
 	    a->fragstotal = b->bufsize / d->play_blocksize ;
@@ -1106,12 +1063,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    count_info *a = (count_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_in);
-	    if (b->dl) {
-		if (d->special_dma)
-		    d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
-		else
-		    dsp_rd_dmaupdate( b );
-	    }
+	    if (b->dl)
+		dsp_rd_dmaupdate( b );
 	    a->bytes = b->total;
 	    a->blocks = (b->total - b->prev_total +
 		    d->rec_blocksize -1 ) / d->rec_blocksize ;
@@ -1124,12 +1077,8 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	{
 	    count_info *a = (count_info *)arg;
 	    snd_dbuf *b = &(d->dbuf_out);
-	    if (b->dl) {
-		if (d->special_dma)
-		    d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
-		else
-		    dsp_wr_dmaupdate( b );
-	    }
+	    if (b->dl)
+		dsp_wr_dmaupdate( b );
 	    a->bytes = b->total;
 	    a->blocks = (b->total - b->prev_total
 		    /* +d->play_blocksize -1*/ ) / d->play_blocksize ;
@@ -1217,12 +1166,8 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 	    /* XXX fix the test here for half duplex devices */
 	    if (1 /* write is compatible with current mode */) {
 		flags = spltty();
-		if (d->dbuf_out.dl) {
-		    if (d->special_dma)
-			d->callback(d, SND_CB_WR | SND_CB_DMAUPDATE) ;
-		    else
-			dsp_wr_dmaupdate(&(d->dbuf_out));
-		}
+		if (d->dbuf_out.dl)
+		    dsp_wr_dmaupdate(&(d->dbuf_out));
 		c = d->dbuf_out.fl ;
 		if (c < lim) /* no space available */
 		    selrecord(p, & (d->wsel));
@@ -1239,12 +1184,8 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 		flags = spltty();
 		if ( d->dbuf_in.dl == 0 ) /* dma idle, restart it */
 		    dsp_rdintr(d);
-		else {
-		    if (d->special_dma)
-			d->callback(d, SND_CB_RD | SND_CB_DMAUPDATE) ;
-		    else
-			dsp_rd_dmaupdate(&(d->dbuf_in));
-		}
+		else
+		    dsp_rd_dmaupdate(&(d->dbuf_in));
 		c = d->dbuf_in.rl ;
 		if (c < lim) /* no data available */
 		    selrecord(p, & (d->rsel));
@@ -1283,7 +1224,7 @@ sndselect(dev_t i_dev, int rw, struct proc * p)
 #include <vm/vm_extern.h>
 
 static int
-sndmmap(dev_t dev, vm_offset_t offset, int nprot)
+sndmmap(dev_t dev, int offset, int nprot)
 {
     snddev_info *d = get_snddev_info(dev, NULL);
 
@@ -1357,21 +1298,19 @@ init_status(snddev_info *d)
 
     if (status_len != 0) /* only do init once */
 	return ;
-    snprintf(status_buf, sizeof(status_buf),
+    sprintf(status_buf,
 	"FreeBSD Audio Driver (981002) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {
         if (pcm_info[i].open)
-            snprintf(status_buf + strlen(status_buf),
-		sizeof(status_buf) - strlen(status_buf),
+            sprintf(status_buf + strlen(status_buf),
 		"pcm%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, pcm_info[i].name, pcm_info[i].io_base,
 		pcm_info[i].irq,
 		pcm_info[i].dbuf_out.chan, pcm_info[i].dbuf_in.chan);
         if (midi_info[i].open)
-            snprintf(status_buf + strlen(status_buf),
-		sizeof(status_buf) - strlen(status_buf),
+            sprintf(status_buf + strlen(status_buf),
 		"midi%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, midi_info[i].name, midi_info[i].io_base,
 		midi_info[i].irq,
@@ -1384,8 +1323,7 @@ init_status(snddev_info *d)
 	    case 4 : s = "OPL4"; break;
 	    }
 
-            snprintf(status_buf + strlen(status_buf),
-		sizeof(status_buf) - strlen(status_buf),
+            sprintf(status_buf + strlen(status_buf),
 		"sequencer%d: <%s> at 0x%x (not functional)\n",
 		i, s, pcm_info[i].synth_base);
 	}
@@ -1505,6 +1443,7 @@ change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval)
  * full-duplex)
  */
 
+#if 1
 void
 translate_bytes (u_char *table, u_char *buff, int n)
 {
@@ -1516,5 +1455,22 @@ translate_bytes (u_char *table, u_char *buff, int n)
     for (i = 0; i < n; ++i)
 	buff[i] = table[buff[i]];
 }
+#else
+/* inline */
+void
+translate_bytes (const void *table, void *buff, int n)
+{     
+    if (n > 0) { 
+	__asm__ (  "   cld\n"
+		   "1: lodsb\n"
+		   "   xlatb\n"
+		   "   stosb\n"
+		   "   loop 1b\n":
+	    : "b" (table), "c" (n), "D" (buff), "S" (buff)
+	    : "bx", "cx", "di", "si", "ax");
+    }
+}   
+
+#endif
 
 #endif	/* NPCM > 0 */

@@ -53,4 +53,4 @@ Jakie sa roznice w stosunku do poprzedniej wersji?
 
 Milej zabawy!
   
-Andrzej Bialecki <abial@freebsd.org>
+Andrzej Bialecki <abial@nask.pl>

@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.77 1998/10/22 05:58:39 bde Exp $
+ *  $Id: if_ep.c,v 1.75 1998/06/07 17:10:28 dfr Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -118,7 +118,6 @@ static	int ep_isa_attach __P((struct isa_device *));
 static	int epioctl __P((struct ifnet * ifp, u_long, caddr_t));
 
 static	void epinit __P((struct ep_softc *));
-static	ointhand2_t epintr;
 static	void epread __P((struct ep_softc *));
 void	epreset __P((int));
 static	void epstart __P((struct ifnet *));
@@ -149,7 +148,6 @@ struct isa_driver epdriver = {
 
 #if NCARD > 0
 #include <sys/select.h>
-#include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 
@@ -161,7 +159,16 @@ static int ep_pccard_attach  __P((struct pccard_devinfo *));
 static void ep_unload __P((struct pccard_devinfo *));
 static int card_intr __P((struct pccard_devinfo *));
 
-PCCARD_MODULE(ep, ep_pccard_init, ep_unload, card_intr, 0, net_imask);
+static struct pccard_device ep_info = {
+    "ep",
+    ep_pccard_init,
+    ep_unload,
+    card_intr,
+    0,                      /* Attributes - presently unused */
+    &net_imask
+};
+
+DATA_SET(pccarddrv_set, ep_info);
 
 /*
  * Initialize the device - called from Slot manager.
@@ -531,7 +538,6 @@ ep_isa_attach(is)
     u_short config;
     int irq;
 
-    is->id_ointr = epintr;
     sc->ep_connectors = 0;
     config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
     if (config & IS_AUI) {
@@ -894,7 +900,7 @@ readcheck:
     goto startagain;
 }
 
-static void
+void
 epintr(unit)
     int unit;
 {

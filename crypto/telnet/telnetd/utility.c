@@ -36,12 +36,11 @@
 static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id: utility.c,v 1.3 1998/02/16 12:09:28 markm Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #ifdef __FreeBSD__
 #include <locale.h>
-#include <sys/utsname.h>
 #endif
 #define PRINTOPTIONS
 #include "telnetd.h"
@@ -472,21 +471,11 @@ putf(cp, where)
 #else
 	extern char *strrchr();
 #endif
-#ifdef __FreeBSD__
-	static struct utsname kerninfo;
-
-	if (!*kerninfo.sysname)
-		uname(&kerninfo);
-#endif
 
 	putlocation = where;
 
 	while (*cp) {
-		if (*cp =='\n') {
-			putstr("\r\n");
-			cp++;
-			continue;
-		} else if (*cp != '%') {
+		if (*cp != '%') {
 			putchr(*cp++);
 			continue;
 		}
@@ -517,24 +506,6 @@ putf(cp, where)
 			(void)strftime(db, sizeof(db), fmtstr, localtime(&t));
 			putstr(db);
 			break;
-
-#ifdef __FreeBSD__
-		case 's':
-			putstr(kerninfo.sysname);
-			break;
-
-		case 'm':
-			putstr(kerninfo.machine);
-			break;
-
-		case 'r':
-			putstr(kerninfo.release);
-			break;
-
-		case 'v':
-			putstr(kerninfo.version);
-			break;
-#endif
 
 		case '%':
 			putchr('%');

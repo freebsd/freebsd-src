@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.71 (Berkeley) 11/29/1998";
+static char sccsid[] = "@(#)makemap.c	8.62 (Berkeley) 6/24/98";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,10 +57,10 @@ uid_t	RunAsUid;
 uid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
-bool	DontInitGroups = FALSE;
+bool	DontInitGroups = TRUE;
 long	DontBlameSendmail = DBS_SAFE;
 u_char	tTdvect[100];
-uid_t	TrustedUid = 0;
+uid_t	TrustedFileUid = 0;
 
 #define BUFSIZE		1024
 
@@ -79,20 +79,16 @@ main(argc, argv)
 	bool foldcase = TRUE;
 	int exitstat;
 	int opt;
-	char *typename = NULL;
-	char *mapname = NULL;
-	char *ext = NULL;
+	char *typename;
+	char *mapname;
+	char *ext;
 	int lineno;
 	int st;
 	int mode;
-	int putflags = 0;
-#ifdef NEWDB
+	int putflags;
 	long dbcachesize = 1024 * 1024;
-#endif
 	enum type type;
-#if !O_EXLOCK
 	int fd;
-#endif
 	int sff = SFF_ROOTOK|SFF_REGONLY;
 	struct passwd *pw;
 	union
@@ -120,7 +116,7 @@ main(argc, argv)
 #ifdef NDBM
 	char pbuf[MAXNAME];
 #endif
-#if _FFR_TRUSTED_USER
+#if _FFR_TRUSTED_FILE_OWNER
 	FILE *cfp;
 	char buf[MAXLINE];
 #endif
@@ -149,7 +145,7 @@ main(argc, argv)
 	RunAsUserName = RealUserName = rnamebuf;
 
 #if _FFR_NEW_MAKEMAP_FLAGS
-#define OPTIONS		"C:Nc:dflorsv"
+#define OPTIONS		"C:Nc:dforsv"
 #else
 #define OPTIONS		"C:Ndforsv"
 #endif
@@ -167,9 +163,7 @@ main(argc, argv)
 
 #if _FFR_NEW_MAKEMAP_FLAGS
 		  case 'c':
-# ifdef NEWDB
 			dbcachesize = atol(optarg);
-# endif
 			break;
 #endif
 
@@ -180,19 +174,6 @@ main(argc, argv)
 		  case 'f':
 			foldcase = FALSE;
 			break;
-
-#if _FFR_NEW_MAKEMAP_FLAGS
-		  case 'l':
-# ifdef NDBM
-			printf("dbm\n");
-# endif
-# ifdef NEWDB
-			printf("hash\n");
-			printf("btree\n");
-# endif
-			exit(EX_OK);
-			break;
-#endif
 
 		  case 'o':
 			notrunc = TRUE;
@@ -251,7 +232,7 @@ main(argc, argv)
 			type = T_UNKNOWN;
 	}
 
-#if _FFR_TRUSTED_USER
+#if _FFR_TRUSTED_FILE_OWNER
 	if ((cfp = fopen(cfile, "r")) == NULL)
 	{
 		fprintf(stderr, "mailstats: ");
@@ -269,8 +250,8 @@ main(argc, argv)
 		switch (*b++)
 		{
 		  case 'O':		/* option */
-			if (strncasecmp(b, " TrustedUser", 12) == 0 &&
-			    !(isascii(b[12]) && isalnum(b[12])))
+			if (strncasecmp(b, " TrustedFileOwner", 17) == 0 &&
+			    !(isascii(b[17]) && isalnum(b[17])))
 			{
 				b = strchr(b, '=');
 				if (b == NULL)
@@ -278,26 +259,26 @@ main(argc, argv)
 				while (isascii(*++b) && isspace(*b))
 					continue;
 				if (isascii(*b) && isdigit(*b))
-					TrustedUid = atoi(b);
+					TrustedFileUid = atoi(b);
 				else
 				{
 					register struct passwd *pw;
 					
-					TrustedUid = 0;
+					TrustedFileUid = 0;
 					pw = getpwnam(b);
 					if (pw == NULL)
 						fprintf(stderr,
-							"TrustedUser: unknown user %s\n", b);
+							"TrustedFileOwner: unknown user %s", b);
 					else
-						TrustedUid = pw->pw_uid;
+						TrustedFileUid = pw->pw_uid;
 				}
 				
 # ifdef UID_MAX
-				if (TrustedUid > UID_MAX)
+				if (TrustedFileUid > UID_MAX)
 				{
-					syserr("TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-					       TrustedUid, UID_MAX);
-					TrustedUid = 0;
+					syserr("TrustedFileOwner: uid value (%ld) > UID_MAX (%ld)",
+					       TrustedFileUid, UID_MAX);
+					TrustedFileUid = 0;
 				}
 # endif
 				break;
@@ -315,7 +296,7 @@ main(argc, argv)
 	  case T_ERR:
 #if _FFR_NEW_MAKEMAP_FLAGS
 		fprintf(stderr,
-			"Usage: %s [-N] [-c cachesize] [-d] [-f] [-l] [-o] [-r] [-s] [-v] type mapname\n",
+			"Usage: %s [-N] [-c cachesize] [-d] [-f] [-o] [-r] [-s] [-v] type mapname\n",
 			progname);
 #else
 		fprintf(stderr, "Usage: %s [-N] [-d] [-f] [-o] [-r] [-s] [-v] type mapname\n", progname);
@@ -524,18 +505,16 @@ main(argc, argv)
 			dbm_close(dbp.dbm);
 			exit(EX_CANTCREAT);
 		}
-#if _FFR_TRUSTED_USER
-		if (geteuid() == 0 && TrustedUid != 0)
+		if (geteuid() == 0 && TrustedFileUid != 0)
 		{
-			if (fchown(dbm_dirfno(dbp.dbm), TrustedUid, -1) < 0 ||
-			    fchown(dbm_pagfno(dbp.dbm), TrustedUid, -1) < 0)
+			if (fchown(dbm_dirfno(dbp.dbm), TrustedFileUid, -1) < 0 ||
+			    fchown(dbm_pagfno(dbp.dbm), TrustedFileUid, -1) < 0)
 			{
 				fprintf(stderr,
 					"WARNING: ownership change on %s failed: %s",
 					mapname, errstring(errno));
 			}
 		}
-#endif
 
 		break;
 #endif
@@ -590,17 +569,15 @@ main(argc, argv)
 				exit(EX_CANTCREAT);
 			}
 			(void) (*dbp.db->sync)(dbp.db, 0);
-#if _FFR_TRUSTED_USER
-			if (geteuid() == 0 && TrustedUid != 0)
+			if (geteuid() == 0 && TrustedFileUid != 0)
 			{
-				if (fchown(fd, TrustedUid, -1) < 0)
+				if (fchown(fd, TrustedFileUid, -1) < 0)
 				{
 					fprintf(stderr,
 						"WARNING: ownership change on %s failed: %s",
 						mapname, errstring(errno));
 				}
 			}
-#endif
 		}
 		break;
 
@@ -651,17 +628,15 @@ main(argc, argv)
 				exit(EX_CANTCREAT);
 			}
 			(void) (*dbp.db->sync)(dbp.db, 0);
-#if _FFR_TRUSTED_USER
-			if (geteuid() == 0 && TrustedUid != 0)
+			if (geteuid() == 0 && TrustedFileUid != 0)
 			{
-				if (fchown(fd, TrustedUid, -1) < 0)
+				if (fchown(fd, TrustedFileUid, -1) < 0)
 				{
 					fprintf(stderr,
 						"WARNING: ownership change on %s failed: %s",
 						mapname, errstring(errno));
 				}
 			}
-#endif
 		}
 		break;
 #endif
@@ -961,12 +936,10 @@ const char *
 errstring(err)
 	int err;
 {
-#if !HASSTRERROR
 	static char errstr[64];
-# if !defined(ERRLIST_PREDEFINED)
+#if !HASSTRERROR && !defined(ERRLIST_PREDEFINED)
 	extern char *sys_errlist[];
 	extern int sys_nerr;
-# endif
 #endif
 
 	/* handle pseudo-errors internal to sendmail */

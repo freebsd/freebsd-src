@@ -36,11 +36,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.111 1998/12/12 21:07:09 dillon Exp $
+ * $Id: vfs_syscalls.c,v 1.106 1998/09/10 02:27:52 tegge Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
 #include "opt_compat.h"
+
+/*
+ * XXX - The following is required because of some magic done 
+ * in getdirentries() below which is only done if the translucent
+ * filesystem `UNION' is compiled into the kernel.  This is broken,
+ * but I don't have time to study the code deeply enough to understand
+ * what's going on and determine an appropriate fix.  -GAW
+ */
+#include "opt_union.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,7 +60,6 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/linker.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -60,7 +68,9 @@
 #include <sys/proc.h>
 #include <sys/dirent.h>
 
+#ifdef UNION
 #include <miscfs/union/union.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -75,8 +85,6 @@ static int setfmode __P((struct proc *, struct vnode *, int));
 static int setfflags __P((struct proc *, struct vnode *, int));
 static int setutimes __P((struct proc *, struct vnode *, struct timeval *, int));
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
-
-int (*union_dircheckp) __P((struct proc *, struct vnode **, struct file *));
 
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
 
@@ -225,36 +233,8 @@ mount(p, uap)
 		if (!strcmp(vfsp->vfc_name, fstypename))
 			break;
 	if (vfsp == NULL) {
-		linker_file_t lf;
-
-		/* Refuse to load modules if securelevel raised */
-		if (securelevel > 0) {
-			vput(vp);
-			return EPERM; 
-		}
-		/* Only load modules for root (very important!) */
-		if (error = suser(p->p_ucred, &p->p_acflag)) {
-			vput(vp);
-			return error;
-		}
-		error = linker_load_file(fstypename, &lf);
-		if (error || lf == NULL) {
-			vput(vp);
-			if (lf == NULL)
-				error = ENODEV;
-			return error;
-		}
-		lf->userrefs++;
-		/* lookup again, see if the VFS was loaded */
-		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (!strcmp(vfsp->vfc_name, fstypename))
-				break;
-		if (vfsp == NULL) {
-			lf->userrefs--;
-			linker_file_unload(lf);
-			vput(vp);
-			return (ENODEV);
-		}
+		vput(vp);
+		return (ENODEV);
 	}
 	simple_lock(&vp->v_interlock);
 	if ((vp->v_flag & VMOUNT) != 0 ||
@@ -494,8 +474,6 @@ dounmount(mp, flags, p)
 		mp->mnt_flag |= async_flag;
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
 		    &mountlist_slock, p);
-		if (mp->mnt_kern_flag & MNTK_MWAIT)
-			wakeup((caddr_t)mp);
 		return (error);
 	}
 	CIRCLEQ_REMOVE(&mountlist, mp, mnt_list);
@@ -976,7 +954,7 @@ open(p, uap)
 		fp->f_flag |= FHASLOCK;
 	}
 	if ((vp->v_type == VREG) && (vp->v_object == NULL))
-		vfs_object_create(vp, p, p->p_ucred);
+		vfs_object_create(vp, p, p->p_ucred, TRUE);
 	VOP_UNLOCK(vp, 0, p);
 	p->p_retval[0] = indx;
 	return (0);
@@ -2432,7 +2410,7 @@ fsync(p, uap)
 	vp = (struct vnode *)fp->f_data;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (vp->v_object)
-		vm_object_page_clean(vp->v_object, 0, 0, 0);
+		vm_object_page_clean(vp->v_object, 0, 0, FALSE);
 	if ((error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p)) == 0 &&
 	    vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP) &&
 	    bioops.io_fsync)
@@ -2675,7 +2653,7 @@ ogetdirentries(p, uap)
 		syscallarg(long *) basep;
 	} */ *uap;
 {
-	struct vnode *vp;
+	register struct vnode *vp;
 	struct file *fp;
 	struct uio auio, kuio;
 	struct iovec aiov, kiov;
@@ -2756,12 +2734,57 @@ unionread:
 	VOP_UNLOCK(vp, 0, p);
 	if (error)
 		return (error);
-	if (union_dircheckp && SCARG(uap, count) == auio.uio_resid) {
-		error = union_dircheckp(p, &vp, fp);
-		if (error == -1)
+
+#ifdef UNION
+{
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_op == union_vnodeop_p)) {
+		struct vnode *lvp;
+
+		lvp = union_dircache(vp, p);
+		if (lvp != NULLVP) {
+			struct vattr va;
+
+			/*
+			 * If the directory is opaque,
+			 * then don't show lower entries
+			 */
+			error = VOP_GETATTR(vp, &va, fp->f_cred, p);
+			if (va.va_flags & OPAQUE) {
+				vput(lvp);
+				lvp = NULL;
+			}
+		}
+		
+		if (lvp != NULLVP) {
+			error = VOP_OPEN(lvp, FREAD, fp->f_cred, p);
+			if (error) {
+				vput(lvp);
+				return (error);
+			}
+			VOP_UNLOCK(lvp, 0, p);
+			fp->f_data = (caddr_t) lvp;
+			fp->f_offset = 0;
+			error = vn_close(vp, FREAD, fp->f_cred, p);
+			if (error)
+				return (error);
+			vp = lvp;
 			goto unionread;
-		if (error)
-			return (error);
+		}
+	}
+}
+#endif /* UNION */
+
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_flag & VROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_data = (caddr_t) vp;
+		fp->f_offset = 0;
+		vrele(tvp);
+		goto unionread;
 	}
 	error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
 	    sizeof(long));
@@ -2791,7 +2814,7 @@ getdirentries(p, uap)
 		syscallarg(long *) basep;
 	} */ *uap;
 {
-	struct vnode *vp;
+	register struct vnode *vp;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -2822,12 +2845,57 @@ unionread:
 	VOP_UNLOCK(vp, 0, p);
 	if (error)
 		return (error);
-	if (union_dircheckp && SCARG(uap, count) == auio.uio_resid) {
-		error = union_dircheckp(p, &vp, fp);
-		if (error == -1)
+
+#ifdef UNION
+{
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_op == union_vnodeop_p)) {
+		struct vnode *lvp;
+
+		lvp = union_dircache(vp, p);
+		if (lvp != NULLVP) {
+			struct vattr va;
+
+			/*
+			 * If the directory is opaque,
+			 * then don't show lower entries
+			 */
+			error = VOP_GETATTR(vp, &va, fp->f_cred, p);
+			if (va.va_flags & OPAQUE) {
+				vput(lvp);
+				lvp = NULL;
+			}
+		}
+
+		if (lvp != NULLVP) {
+			error = VOP_OPEN(lvp, FREAD, fp->f_cred, p);
+			if (error) {
+				vput(lvp);
+				return (error);
+			}
+			VOP_UNLOCK(lvp, 0, p);
+			fp->f_data = (caddr_t) lvp;
+			fp->f_offset = 0;
+			error = vn_close(vp, FREAD, fp->f_cred, p);
+			if (error)
+				return (error);
+			vp = lvp;
 			goto unionread;
-		if (error)
-			return (error);
+		}
+	}
+}
+#endif /* UNION */
+
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_flag & VROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_data = (caddr_t) vp;
+		fp->f_offset = 0;
+		vrele(tvp);
+		goto unionread;
 	}
 	if (SCARG(uap, basep) != NULL) {
 		error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),

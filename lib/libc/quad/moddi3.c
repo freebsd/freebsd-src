@@ -59,7 +59,7 @@ __moddi3(a, b)
 	else
 		ua = a, neg = 0;
 	if (b < 0)
-		ub = -(u_quad_t)b;
+		ub = -(u_quad_t)b, neg ^= 1;
 	else
 		ub = b;
 	(void)__qdivrem(ua, ub, &ur);

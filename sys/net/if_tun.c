@@ -30,7 +30,6 @@
 #include <sys/ttycom.h>
 #include <sys/poll.h>
 #include <sys/signalvar.h>
-#include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #ifdef DEVFS
@@ -38,7 +37,13 @@
 #endif /*DEVFS*/
 #include <sys/conf.h>
 #include <sys/uio.h>
+/*
+ * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't
+ * exist if we are an LKM.
+ */
+#undef KERNEL
 #include <sys/vnode.h>
+#define KERNEL
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -210,7 +215,7 @@ tunclose(dev, foo, bar, p)
 		}
 		splx(s);
 	}
-	funsetown(tp->tun_sigio);
+	tp->tun_pgrp = 0;
 	selwakeup(&tp->tun_rsel);
 
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
@@ -301,6 +306,7 @@ tunoutput(ifp, m0, dst, rt)
 	struct rtentry *rt;
 {
 	struct tun_softc *tp = &tunctl[ifp->if_unit];
+	struct proc	*p;
 	int		s;
 
 	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);
@@ -366,8 +372,12 @@ tunoutput(ifp, m0, dst, rt)
 		tp->tun_flags &= ~TUN_RWAIT;
 		wakeup((caddr_t)tp);
 	}
-	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
-		pgsigio(tp->tun_sigio, SIGIO, 0);
+	if (tp->tun_flags & TUN_ASYNC && tp->tun_pgrp) {
+		if (tp->tun_pgrp > 0)
+			gsignal(tp->tun_pgrp, SIGIO);
+		else if ((p = pfind(-tp->tun_pgrp)) != 0) 
+			psignal(p, SIGIO);
+	}
 	selwakeup(&tp->tun_rsel);
 	return 0;
 }
@@ -424,22 +434,12 @@ tunioctl(dev, cmd, data, flag, p)
 			*(int *)data = 0;
 		splx(s);
 		break;
-	case FIOSETOWN:
-		return (fsetown(*(int *)data, &tp->tun_sigio));
-
-	case FIOGETOWN:
-		*(int *)data = fgetown(tp->tun_sigio);
-		return (0);
-
-	/* This is deprecated, FIOSETOWN should be used instead. */
 	case TIOCSPGRP:
-		return (fsetown(-(*(int *)data), &tp->tun_sigio));
-
-	/* This is deprecated, FIOGETOWN should be used instead. */
+		tp->tun_pgrp = *(int *)data;
+		break;
 	case TIOCGPGRP:
-		*(int *)data = -fgetown(tp->tun_sigio);
-		return (0);
-
+		*(int *)data = tp->tun_pgrp;
+		break;
 	default:
 		return (ENOTTY);
 	}

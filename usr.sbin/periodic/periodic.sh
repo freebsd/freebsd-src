@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.6 1998/12/29 22:48:54 hoek Exp $
+# $Id: periodic.sh,v 1.4 1997/08/16 17:08:35 pst Exp $
 #
 # Run nightly periodic scripts
 #
@@ -48,7 +48,7 @@ else
    dirlist="$*"
 fi
 
-host=`hostname`
+host=`hostname -s`
 echo "Subject: $host $run run output"
 
 # Execute each executable file in the directory list.  If the x bit is not
@@ -57,7 +57,7 @@ echo "Subject: $host $run run output"
 
 for dir in $dirlist ; do
     for file in $dir/* ; do
-	if [ -x $file -a ! -d $file ] ; then
+	if [ -x $file ] ; then
 	    $file
 	fi
     done

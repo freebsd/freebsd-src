@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
-.\"	$Id: shutdown.8,v 1.8 1998/12/11 10:35:38 bde Exp $
+.\"     @(#)shutdown.8	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
-.Dd Dec 11, 1998
+.Dd June 5, 1993
 .Dt SHUTDOWN 8
 .Os BSD 4
 .Sh NAME
@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm shutdown
 .Op Fl 
-.Op Fl hknpr
+.Op Fl hkrn
 .Ar time
 .Op Ar warning-message ...
 .Sh DESCRIPTION
@@ -61,7 +61,7 @@ when
 executes
 .Xr halt 8 .
 .It Fl k
-Kick everybody off.
+Kick every body off.
 The
 .Fl k
 option
@@ -71,8 +71,6 @@ system multi-user with logins disabled (for all but super-user).
 Prevent the normal
 .Xr sync 2
 before stopping.
-.It Fl p
-The system will turn the power off after shutdown if it can.
 .It Fl r 
 .Nm Shutdown
 executes
@@ -110,7 +108,7 @@ and starting at ten hours before shutdown, warning messages are displayed
 on the terminals of all users logged in.  Five minutes before
 shutdown, or immediately if shutdown is in less than 5 minutes,
 logins are disabled by creating
-.Pa /var/run/nologin
+.Pa /etc/nologin
 and copying the
 warning message there.  If this file exists when a user attempts to
 log in,
@@ -129,13 +127,13 @@ to bring the system down to single-user state (depending on above
 options).
 The time of the shutdown and the warning message
 are placed in
-.Pa /var/run/nologin
+.Pa /etc/nologin
 and should be used to
 inform the users about when the system will be back up
 and why it is going down (or anything else).
 .Sh FILES
-.Bl -tag -width /var/run/nologin -compact
-.It Pa /var/run/nologin
+.Bl -tag -width /etc/nologin -compact
+.It Pa /etc/nologin
 tells login not to let anyone log in
 .El
 .Sh SEE ALSO

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $
+ *	@(#) $Id: uniarp.c,v 1.1 1998/09/15 08:23:09 phk Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
+#ifndef lint
+static char *RCSid = "@(#) $Id: uniarp.c,v 1.1 1998/09/15 08:23:09 phk Exp $";
+#endif
+
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/uniip_var.h>
-
-#ifndef lint
-__RCSID("@(#) $Id: uniarp.c,v 1.4 1998/12/04 22:54:53 archie Exp $");
-#endif
 
 
 /*
@@ -225,6 +225,7 @@ void
 uniarp_ipdact(uip)
 	struct uniip		*uip;
 {
+	struct ip_nif		*inp = uip->uip_ipnif;
 	struct uniarp		*uap, *unext;
 	int	i;
 
@@ -1022,8 +1023,7 @@ uniarp_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					uap->ua_dstip.s_addr;
-				(void) snprintf(aar.aap_intf,
-				    sizeof(aar.aap_intf), "%s%d",
+				(void) sprintf(aar.aap_intf, "%s%d",
 					nip->nif_if.if_name,
 					nip->nif_if.if_unit);
 				aar.aap_flags = uap->ua_flags;
@@ -1077,8 +1077,7 @@ uniarp_ioctl(code, data, arg1)
 			 */
 			SATOSIN(&aar.aap_arp_addr)->sin_family = AF_INET;
 			SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr = 0;
-			(void) snprintf(aar.aap_intf,
-			    sizeof(aar.aap_intf), "%s%d",
+			(void) sprintf(aar.aap_intf, "%s%d",
 				nip->nif_if.if_name, nip->nif_if.if_unit);
 			aar.aap_flags = 0;
 			aar.aap_origin = uap->ua_origin;
@@ -1137,14 +1136,14 @@ updbuf:
 		 * Get ARP server information
 		 */
 		aip = (struct atminfreq *)data;
-		nip = (struct atm_nif *)arg1;
 
 		buf_addr = aip->air_buf_addr;
 		buf_len = aip->air_buf_len;
 
 		for (uip = uniip_head; uip; uip = uip->uip_next) {
 
-			if (uip->uip_ipnif->inf_nif != nip)
+			if ((arg1 != NULL) &&
+			    (uip->uip_ipnif->inf_nif != (struct atm_nif *)arg1))
 				continue;
 
 			/*
@@ -1158,8 +1157,8 @@ updbuf:
 			/*
 			 * Fill in info to be returned
 			 */
-			(void) snprintf(asr.asp_intf,
-			    sizeof(asr.asp_intf), "%s%d",
+			nip = uip->uip_ipnif->inf_nif;
+			(void) sprintf(asr.asp_intf, "%s%d",
 				nip->nif_if.if_name, nip->nif_if.if_unit);
 			asr.asp_state = uip->uip_arpstate;
 			if (uip->uip_arpstate == UIAS_SERVER_ACTIVE) {

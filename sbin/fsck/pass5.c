@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: pass5.c,v 1.14 1998/08/15 10:07:33 dfr Exp $";
+	"$Id: pass5.c,v 1.13 1998/08/04 09:19:03 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@ static const char rcsid[] =
 void
 pass5()
 {
-	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
+	int c, blk, frags, basesize, sumsize, mapsize, savednrpos;
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
@@ -66,7 +66,7 @@ pass5()
 	register struct cg *newcg = (struct cg *)buf;
 	struct ocg *ocg = (struct ocg *)buf;
 
-	inoinfo(WINO)->ino_state = USTATE;
+	statemap[WINO] = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
 	newcg->cg_niblk = fs->fs_ipg;
 	if (cvtlevel >= 3) {
@@ -207,8 +207,8 @@ pass5()
 		if (fs->fs_postblformat == FS_42POSTBLFMT)
 			ocg->cg_magic = CG_MAGIC;
 		j = fs->fs_ipg * c;
-		for (i = 0; i < inostathead[c].il_numalloced; j++, i++) {
-			switch (inoinfo(j)->ino_state) {
+		for (i = 0; i < fs->fs_ipg; j++, i++) {
+			switch (statemap[j]) {
 
 			case USTATE:
 				break;
@@ -229,7 +229,7 @@ pass5()
 				if (j < ROOTINO)
 					break;
 				errx(EEXIT, "BAD STATE %d FOR INODE I=%ld",
-				    inoinfo(j)->ino_state, j);
+				    statemap[j], j);
 			}
 		}
 		if (c == 0)
@@ -325,7 +325,7 @@ pass5()
 					if (cg_inosused(cg)[i] & (1 << k))
 						continue;
 					pwarn("ALLOCATED INODE %d MARKED FREE\n",
-					    c * fs->fs_ipg + i * NBBY + k);
+					    c * fs->fs_ipg + i * 8 + k);
 				}
 			}
 			for (i = 0; i < blkmapsize; i++) {
@@ -338,7 +338,7 @@ pass5()
 					if (cg_blksfree(newcg)[i] & (1 << k))
 						continue;
 					pwarn("ALLOCATED FRAG %d MARKED FREE\n",
-					    c * fs->fs_fpg + i * NBBY + k);
+					    c * fs->fs_fpg + i * 8 + k);
 				}
 			}
 		}
@@ -355,7 +355,24 @@ pass5()
 	    && dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
 		memmove(&fs->fs_cstotal, &cstotal, sizeof *cs);
 		fs->fs_ronly = 0;
-		fs->fs_fmod = 0;
 		sbdirty();
+	}
+	if (fs->fs_fmod != 0) {
+		pwarn("MODIFIED FLAG SET IN SUPERBLOCK");
+		if (preen)
+			printf(" (FIXED)\n");
+		if (preen || reply("FIX") == 1) {
+			fs->fs_fmod = 0;
+			sbdirty();
+		}
+	}
+	if (fs->fs_clean == 0) {
+		pwarn("CLEAN FLAG NOT SET IN SUPERBLOCK");
+		if (preen)
+			printf(" (FIXED)\n");
+		if (preen || reply("FIX") == 1) {
+			fs->fs_clean = 1;
+			sbdirty();
+		}
 	}
 }

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)safefile.c	8.43 (Berkeley) 10/13/1998";
+static char sccsid[] = "@(#)safefile.c	8.40 (Berkeley) 6/5/98";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -102,7 +102,7 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 		if (bitset(S_ISUID, st->st_mode))
 #else
 		if (bitset(S_ISUID, st->st_mode) && st->st_uid != 0 &&
-		    st->st_uid != TrustedUid)
+		    st->st_uid != TrustedFileUid)
 #endif
 		{
 			uid = st->st_uid;
@@ -206,7 +206,7 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 
 			if (stbuf.st_uid == uid)
 				;
-			else if (uid == 0 && stbuf.st_uid == TrustedUid)
+			else if (uid == 0 && TrustedFileUid != 0 && stbuf.st_uid == TrustedFileUid)
 				;
 			else
 			{
@@ -299,7 +299,7 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 		mode >>= 6;
 	else if (st->st_uid == uid)
 		;
-	else if (uid == 0 && st->st_uid == TrustedUid)
+	else if (uid == 0 && TrustedFileUid != 0 && st->st_uid == TrustedFileUid)
 		;
 	else
 	{
@@ -328,7 +328,7 @@ safefile(fn, uid, gid, uname, flags, mode, st)
 			(int) st->st_uid, (int) st->st_nlink,
 			(u_long) st->st_mode, (u_long) mode);
 	if ((st->st_uid == uid || st->st_uid == 0 ||
-	     st->st_uid == TrustedUid ||
+	     st->st_uid == TrustedFileUid ||
 	     !bitset(SFF_MUSTOWN, flags)) &&
 	    (st->st_mode & mode) == mode)
 	{
@@ -429,9 +429,9 @@ safedirpath(fn, uid, gid, uname, flags)
 		}
 
 		/*
-		**  Let OS determine access to file if we are not
-		**  running as a privileged user.  This allows ACLs
-		**  to work.
+		** Let OS determine access to file if we are not
+		** running as a privileged user.  This allows ACLs
+		** to work.
 		*/
 		if (geteuid() != 0)
 			continue;

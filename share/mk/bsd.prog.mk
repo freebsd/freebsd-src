@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.79 1998/10/18 09:35:17 obrien Exp $
+#	$Id: bsd.prog.mk,v 1.77 1998/08/30 20:33:27 jb Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -7,6 +7,9 @@ __initialized__:
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 .endif
+
+# Default executable format
+OBJFORMAT?=	aout
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 
@@ -92,7 +95,7 @@ realinstall: beforeinstall
 	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
 .endif
 .if defined(HIDEGAME)
-	(cd ${DESTDIR}/${GBINDIR}; rm -f ${PROG}; ln -s dm ${PROG}; \
+	(cd ${DESTDIR}/usr/games; rm -f ${PROG}; ln -s dm ${PROG}; \
 	    chown games:bin ${PROG})
 .endif
 .if defined(LINKS) && !empty(LINKS)

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $
+ *	@(#) $Id: atm_usrreq.c,v 1.7 1998/06/29 21:51:29 mks Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#include <netatm/kern_include.h>
-
 #ifndef lint
-__RCSID("@(#) $Id: atm_usrreq.c,v 1.2 1998/10/31 20:06:54 phk Exp $");
+static char *RCSid = "@(#) $Id: atm_usrreq.c,v 1.7 1998/06/29 21:51:29 mks Exp $";
 #endif
+
+#include <netatm/kern_include.h>
 
 
 /*
@@ -98,6 +98,7 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 #endif
 
 #define	ATM_OUTRO()						\
+done:								\
 	/*							\
 	 * Drain any deferred calls				\
 	 */							\
@@ -108,7 +109,7 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 
 #define	ATM_RETERR(errno) {					\
 	err = errno;						\
-	goto out;						\
+	goto done;						\
 }
 
 
@@ -437,7 +438,6 @@ atm_dgram_control(so, cmd, data, ifp, p)
 		err = EOPNOTSUPP;
 	}
 
-out:
 	ATM_OUTRO();
 }
 
@@ -547,17 +547,11 @@ atm_dgram_info(data)
 			for (pip = atm_interface_head; pip;
 					pip = pip->pif_next) {
 				if (smp = pip->pif_sigmgr) {
-					for (nip = pip->pif_nif; nip; 
-							nip = nip->nif_pnext) {
-						err = (*smp->sm_ioctl)
-							(AIOCS_INF_ASV, data,
-							(caddr_t)nip);
-						if (err)
-							break;
-					}
-					if (err)
-						break;
+					err = (*smp->sm_ioctl)(AIOCS_INF_ASV,
+						data, NULL);
 				}
+				if (err)
+					break;
 			}
 		}
 		break;

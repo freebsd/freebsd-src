@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.23 1999/01/06 20:03:11 n_hibma Exp $
+ * $Id: queue.h,v 1.21 1998/05/12 03:55:25 gibbs Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -133,7 +133,7 @@ struct {								\
 	(head)->slh_first = NULL;					\
 }
 
-#define SLIST_INSERT_AFTER(slistelm, elm, field) do {			\
+#define SLIST_INSERT_AFTER(slistelm, elm, field) do  {			\
 	(elm)->field.sle_next = (slistelm)->field.sle_next;		\
 	(slistelm)->field.sle_next = (elm);				\
 } while (0)
@@ -170,9 +170,6 @@ struct name {								\
 	struct type *stqh_first;/* first element */			\
 	struct type **stqh_last;/* addr of last next element */		\
 }
-
-#define STAILQ_HEAD_INITIALIZER(head)					\
-	{ NULL, &(head).stqh_first }
 
 #define STAILQ_ENTRY(type)						\
 struct {								\
@@ -218,12 +215,6 @@ struct {								\
 		(head)->stqh_last = &(head)->stqh_first;		\
 } while (0)
 
-#define STAILQ_REMOVE_HEAD_UNTIL(head, elm, field) do {			\
-	if (((head)->stqh_first = (elm)->field.stqe_next) == NULL)	\
-		(head)->stqh_last = &(head)->stqh_first;		\
-} while (0)
-
-
 #define STAILQ_REMOVE(head, elm, type, field) do {			\
 	if ((head)->stqh_first == (elm)) {				\
 		STAILQ_REMOVE_HEAD(head, field);			\
@@ -245,9 +236,6 @@ struct {								\
 struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
-
-#define LIST_HEAD_INITIALIZER(head)					\
-	{ NULL }
 
 #define LIST_ENTRY(type)						\
 struct {								\

@@ -1,39 +1,26 @@
-# $Id: Makefile,v 1.12 1998/12/22 11:51:25 abial Exp $
+# $Id: Makefile,v 1.7 1998/09/30 22:36:45 peter Exp $
 #
-LIB=			i386
+LIB=	i386
 NOPIC=
 NOPROFILE=
-INTERNALLIB=		true
+INTERNALLIB=	true
 INTERNALSTATICLIB=	true
 
-SRCS=	aout_freebsd.c biosdisk.c biosmem.c biospnp.c biospci.c \
-	bootinfo.c comconsole.c devicename.c elf_freebsd.c gatea20.c \
-	i386_copy.c i386_module.c time.c vidconsole.c
+SRCS=	aout_freebsd.c biosdisk.c biosmem.c bootinfo.c comconsole.c \
+	devicename.c elf_freebsd.c gatea20.c i386_copy.c i386_module.c time.c vidconsole.c
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../.. -I.
 
-BOOT_COMCONSOLE_PORT?= 0x3f8
-CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
-
-BOOT_COMCONSOLE_SPEED?= 9600
-CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
-
 # Make the disk code more talkative
 #CFLAGS+= -DDISK_DEBUG
 
-# Include simple terminal emulation (cons25-compatible)
-CFLAGS+= -DTERM_EMU
-
-# If it's not there, don't consider it a target
-.if exists(${.CURDIR}/../../../i386/include)
-beforedepend ${OBJS}: machine
 
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 
-.endif
-
 CLEANFILES+=	machine
 
 .include <bsd.lib.mk>
+
+beforedepend ${OBJS}: machine

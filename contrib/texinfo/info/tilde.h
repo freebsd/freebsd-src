@@ -25,10 +25,13 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#ifndef TILDE_H
-#define TILDE_H
-
-#include "info.h"
+/* Function pointers can be declared as (Function *)foo. */
+#if !defined (__FUNCTION_DEF)
+#  define __FUNCTION_DEF
+typedef int Function ();
+typedef void VFunction ();
+typedef char *CFunction ();
+#endif /* _FUNCTION_DEF */
 
 /* If non-null, this contains the address of a function to call if the
    standard meaning for expanding a tilde fails.  The function is called
@@ -53,4 +56,3 @@ extern char *tilde_expand ();
    tilde.  If there is no expansion, call tilde_expansion_failure_hook. */
 extern char *tilde_expand_word ();
 
-#endif /* not TILDE_H */

@@ -27,12 +27,16 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_fbsd.cr,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_fbsd.c,v 1.10 1999/01/05 18:49:49 eivind Exp $
+ *  $Id: coda_fbsd.c,v 1.6 1998/09/28 20:52:57 rvb Exp $
  * 
  */
 
+#ifdef	VFS_LKM
+#define NVCODA 4
+#else
 #include "vcoda.h"
 #include "opt_devfs.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -80,58 +84,59 @@ static struct cdevsw codadevsw =
   vc_nb_poll,      nommap,         NULL,              "Coda", NULL, -1 
 };
 
+void vcattach __P((void));
+static dev_t codadev;
+
 int     vcdebug = 1;
 #define VCDEBUG if (vcdebug) printf
 
-static int
-codadev_modevent(module_t mod, int type, void *data)
+void
+vcattach(void)
+{
+  /*
+   * In case we are an LKM, set up device switch.
+   */
+  if (0 == (codadev = makedev(VC_DEV_NO, 0)))
+    VCDEBUG("makedev returned null\n");
+  else 
+    VCDEBUG("makedev OK.\n");
+    
+  cdevsw_add(&codadev, &codadevsw, NULL);
+  VCDEBUG("coda: codadevsw entry installed at %d.\n", major(codadev));
+}
+
+static vc_devsw_installed = 0;
+static void 	vc_drvinit __P((void *unused));
+
+static void
+vc_drvinit(void *unused)
 {
 	dev_t dev;
 #ifdef DEVFS
 	int i;
 #endif
-	static struct cdevsw *oldcdevsw;
 
-	switch (type) {
-	case MOD_LOAD:
+	if( ! vc_devsw_installed ) {
 		dev = makedev(VC_DEV_NO, 0);
-		cdevsw_add(&dev,&codadevsw, &oldcdevsw);
+		cdevsw_add(&dev,&codadevsw, NULL);
+		vc_devsw_installed = 1;
+    	}
 #ifdef DEVFS
-		/* tmp */
+	/* tmp */
 #undef	NVCODA
 #define	NVCODA 1
-		for (i = 0; i < NVCODA; i++) {
-			cfs_devfs_token[i] =
-				devfs_add_devswf(&codadevsw, i,
-					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-					"cfs%d", i);
-			coda_devfs_token[i] =
-				devfs_add_devswf(&codadevsw, i,
-					DV_CHR, UID_ROOT, GID_WHEEL, 0666,
-					"coda%d", i);
-		}
-#endif
-		break;
-	case MOD_UNLOAD:
-#ifdef DEVFS
-		for (i = 0; i < NVCODA; i++) {
-			devfs_remove_dev(cfs_devfs_token[i]);
-			devfs_remove_dev(coda_devfs_token[i]);
-		}
-#endif
-		cdevsw_add(&dev, oldcdevsw, NULL);
-		break;
-	default:
-		break;
+	for (i = 0; i < NVCODA; i++) {
+		cfs_devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i,
+				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+				"cfs%d", i);
+		coda_devfs_token[i] =
+			devfs_add_devswf(&codadevsw, i,
+				DV_CHR, UID_ROOT, GID_WHEEL, 0666,
+				"coda%d", i);
 	}
-	return 0;
+#endif
 }
-static moduledata_t codadev_mod = {
-	"codadev",
-	codadev_modevent,
-	NULL
-};
-DECLARE_MODULE(codadev, codadev_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+VC_DEV_NO);
 
 int
 coda_fbsd_getpages(v)
@@ -172,7 +177,7 @@ printf("coda_getp: Internally Opening %p\n", vp);
 		return (error);
 	}
 	if (vp->v_type == VREG) {
-	    error = vfs_object_create(vp, p, cred);
+	    error = vfs_object_create(vp, p, cred, 1);
 	    if (error != 0) {
 		printf("coda_getpage: vfs_object_create() returns %d\n", error);
 		vput(vp);
@@ -214,3 +219,57 @@ coda_fbsd_putpages(v)
 	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
 		ap->a_sync, ap->a_rtvals);
 }
+
+
+SYSINIT(codadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+VC_DEV_NO,vc_drvinit,NULL)
+
+#ifdef	VFS_LKM
+
+#include <sys/mount.h>
+#include <sys/lkm.h>
+
+extern struct vfsops coda_vfsops;
+
+static struct vfsconf _fs_vfsconf = { &coda_vfsops, "coda", -1, 0, 0 };
+
+extern struct linker_set coda_modvnops ;
+
+static struct lkm_vfs coda_mod_vfs  = {
+	LM_VFS,	LKM_VERSION, "coda", 0, &coda_modvnops, &_fs_vfsconf };
+
+static struct lkm_dev coda_mod_dev = {
+	LM_DEV, LKM_VERSION, "codadev", VC_DEV_NO, LM_DT_CHAR, (void *) &codadevsw};
+
+int coda_mod(struct lkm_table *, int, int);
+int
+coda_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	int error = 0;
+
+	if (ver != LKM_VERSION)
+		return EINVAL;
+
+	switch (cmd) {
+	case LKM_E_LOAD:
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_dev;
+		error = lkmdispatch(lkmtp, cmd);
+		if (error)
+			break;
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_vfs ;
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	case LKM_E_UNLOAD:
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_vfs ;
+		error = lkmdispatch(lkmtp, cmd);
+		if (error)
+			break;
+		lkmtp->private.lkm_any = (struct lkm_any *) &coda_mod_dev;
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	case LKM_E_STAT:
+		error = lkmdispatch(lkmtp, cmd);
+		break;
+	}
+	return error;
+}
+#endif

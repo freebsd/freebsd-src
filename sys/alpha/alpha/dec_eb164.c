@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.5 1998/12/05 22:36:31 mjacob Exp $ */
+/* $Id: dec_eb164.c,v 1.3 1998/07/22 08:18:34 dfr Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -80,7 +80,6 @@ dec_eb164_init()
 	platform.pci_intr_enable = eb164_intr_enable;
 }
 
-extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
 static void
 dec_eb164_cons_init()
 {
@@ -106,11 +105,6 @@ dec_eb164_cons_init()
 			 */
 			DELAY(160000000 / comcnrate);
 
-                        /* 
-                         * force a comconsole on com1 if the SRM has a serial
-			 * console
-                         */
-                        comconsole = 0;
 			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
@@ -132,7 +126,7 @@ dec_eb164_cons_init()
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
 		panic("consinit: unknown console type %d\n",
-		    (int) ctb->ctb_term_type);
+		    ctb->ctb_term_type);
 	}
 }
 

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.13 1999/01/11 17:45:22 eivind Exp $
+ *      $Id: scsi_cd.c,v 1.6 1998/10/12 17:02:37 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -187,7 +187,6 @@ static	periph_init_t	cdinit;
 static	periph_ctor_t	cdregister;
 static	periph_dtor_t	cdcleanup;
 static	periph_start_t	cdstart;
-static	periph_oninv_t	cdoninvalidate;
 static	void		cdasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
 static	void		cdshorttimeout(void *arg);
@@ -199,7 +198,7 @@ static	int		cdrunccb(union ccb *ccb,
 						      u_int32_t cam_flags,
 						      u_int32_t sense_flags),
 				 u_int32_t cam_flags, u_int32_t sense_flags);
-static union	ccb 	*cdgetccb(struct cam_periph *periph,
+union	ccb 		*cdgetccb(struct cam_periph *periph,
 				  u_int32_t priority);
 static	void		cddone(struct cam_periph *periph,
 			       union ccb *start_ccb);
@@ -306,7 +305,7 @@ struct cdchanger {
 	STAILQ_HEAD(chdevlist, cd_softc) chluns;
 };
 
-static STAILQ_HEAD(changerlist, cdchanger) changerq;
+STAILQ_HEAD(changerlist, cdchanger) changerq;
 
 void
 cdinit(void)
@@ -353,74 +352,14 @@ cdinit(void)
 }
 
 static void
-cdoninvalidate(struct cam_periph *periph)
-{
-	int s;
-	struct cd_softc *softc;
-	struct buf *q_bp;
-	struct ccb_setasync csa;
-
-	softc = (struct cd_softc *)periph->softc;
-
-	/*
-	 * De-register any async callbacks.
-	 */
-	xpt_setup_ccb(&csa.ccb_h, periph->path,
-		      /* priority */ 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = 0;
-	csa.callback = cdasync;
-	csa.callback_arg = periph;
-	xpt_action((union ccb *)&csa);
-
-	softc->flags |= CD_FLAG_INVALID;
-
-	/*
-	 * Although the oninvalidate() routines are always called at
-	 * splsoftcam, we need to be at splbio() here to keep the buffer
-	 * queue from being modified while we traverse it.
-	 */
-	s = splbio();
-
-	/*
-	 * Return all queued I/O with ENXIO.
-	 * XXX Handle any transactions queued to the card
-	 *     with XPT_ABORT_CCB.
-	 */
-	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-		bufq_remove(&softc->buf_queue, q_bp);
-		q_bp->b_resid = q_bp->b_bcount;
-		q_bp->b_error = ENXIO;
-		q_bp->b_flags |= B_ERROR;
-		biodone(q_bp);
-	}
-	splx(s);
-
-	/*
-	 * If this device is part of a changer, and it was scheduled
-	 * to run, remove it from the run queue since we just nuked
-	 * all of its scheduled I/O.
-	 */
-	if ((softc->flags & CD_FLAG_CHANGER)
-	 && (softc->pinfo.index != CAM_UNQUEUED_INDEX))
-		camq_remove(&softc->changer->devq, softc->pinfo.index);
-
-	xpt_print_path(periph->path);
-	printf("lost device\n");
-}
-
-static void
 cdcleanup(struct cam_periph *periph)
 {
 	struct cd_softc *softc;
-	int s;
 
 	softc = (struct cd_softc *)periph->softc;
 
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-
-	s = splsoftcam();
 	/*
 	 * In the queued, non-active case, the device in question
 	 * has already been removed from the changer run queue.  Since this
@@ -490,10 +429,8 @@ cdcleanup(struct cam_periph *periph)
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
-	devstat_remove_entry(&softc->device_stats);
 	cam_extend_release(cdperiphs, periph->unit_number);
-	free(softc, M_DEVBUF);
-	splx(s);
+	free(periph->softc, M_DEVBUF);
 }
 
 static void
@@ -519,11 +456,9 @@ cdasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(cdregister, cdoninvalidate,
-					  cdcleanup, cdstart,
-					  "cd", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, cdasync,
-					  AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(cdregister, cdcleanup, cdstart,
+					  "cd", CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  cdasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG)
@@ -533,8 +468,65 @@ cdasync(void *callback_arg, u_int32_t code,
 		break;
 	}
 	case AC_LOST_DEVICE:
+	{
+		int s;
+		struct cd_softc *softc;
+		struct buf *q_bp;
+		struct ccb_setasync csa;
+
+		softc = (struct cd_softc *)periph->softc;
+
+		/*
+		 * Insure that no other async callbacks that
+		 * might affect this peripheral can come through.
+		 */
+		s = splcam();
+
+		/*
+		 * De-register any async callbacks.
+		 */
+		xpt_setup_ccb(&csa.ccb_h, periph->path,
+			      /* priority */ 5);
+		csa.ccb_h.func_code = XPT_SASYNC_CB;
+		csa.event_enable = 0;
+		csa.callback = cdasync;
+		csa.callback_arg = periph;
+		xpt_action((union ccb *)&csa);
+
+		softc->flags |= CD_FLAG_INVALID;
+
+		/*
+		 * Return all queued I/O with ENXIO.
+		 * XXX Handle any transactions queued to the card
+		 *     with XPT_ABORT_CCB.
+		 */
+		while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
+			bufq_remove(&softc->buf_queue, q_bp);
+			q_bp->b_resid = q_bp->b_bcount;
+			q_bp->b_error = ENXIO;
+			q_bp->b_flags |= B_ERROR;
+			biodone(q_bp);
+		}
+
+		/*
+		 * If this device is part of a changer, and it was scheduled
+		 * to run, remove it from the run queue since we just nuked
+		 * all of its scheduled I/O.
+		 */
+		if ((softc->flags & CD_FLAG_CHANGER)
+		 && (softc->pinfo.index != CAM_UNQUEUED_INDEX))
+			camq_remove(&softc->changer->devq, softc->pinfo.index);
+
+		devstat_remove_entry(&softc->device_stats);
+
+		xpt_print_path(periph->path);
+		printf("lost device\n");
+
+		splx(s);
+
 		cam_periph_invalidate(periph);
 		break;
+	}
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
@@ -880,7 +872,6 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct ccb_getdev cgd;
 	u_int32_t size;
 	int unit, error;
-	int s;
 
 	unit = dkunit(dev);
 	periph = cam_extend_get(cdperiphs, unit);
@@ -890,21 +881,11 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct cd_softc *)periph->softc;
 
-	/*
-	 * Grab splsoftcam and hold it until we lock the peripheral.
-	 */
-	s = splsoftcam();
-	if (softc->flags & CD_FLAG_INVALID) {
-		splx(s);
+	if (softc->flags & CD_FLAG_INVALID)
 		return(ENXIO);
-	}
 
-	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0) {
-		splx(s);
+	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
 		return (error);
-	}
-
-	splx(s);
 
 	if ((softc->flags & CD_FLAG_OPEN) == 0) {
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
@@ -964,7 +945,7 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Initialize slice tables. */
 	error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
-		       &softc->cd_slices, &label, cdstrategy1,
+		       &softc->cd_slices, &label, cdstrategy,
 		       (ds_setgeom_t *)NULL, &cd_cdevsw);
 
 	if (error == 0) {
@@ -1330,7 +1311,7 @@ cdrunccb(union ccb *ccb, int (*error_routine)(union ccb *ccb,
 	return(error);
 }
 
-static union ccb *
+union ccb *
 cdgetccb(struct cam_periph *periph, u_int32_t priority)
 {
 	struct cd_softc *softc;
@@ -1691,7 +1672,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 
-			snprintf(announce_buf, sizeof(announce_buf),
+			sprintf(announce_buf,
 				"cd present [%lu x %lu byte records]",
 				cdp->disksize, (u_long)cdp->blksize);
 
@@ -1759,8 +1740,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				if ((have_sense)
 				 && ((asc == 0x3a) || (asc == 0x04))
 				 && (error_code == SSD_CURRENT_ERROR))
-					snprintf(announce_buf,
-					    sizeof(announce_buf),
+					sprintf(announce_buf, 
 						"Attempt to query device "
 						"size failed: %s, %s",
 						scsi_sense_key_text[sense_key],
@@ -1794,18 +1774,17 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 					}
 					xpt_print_path(periph->path);
 					printf("fatal error, failed" 
-					       " to attach to device\n");
+					       " to attach to device");
 
 					/*
-					 * Invalidate this peripheral.
+					 * Free up resources.
 					 */
 					cam_periph_invalidate(periph);
 
 					announce_buf[0] = '\0';
 				} else {
-
 					/*
-					 * Invalidate this peripheral.
+					 * Free up resources.
 					 */
 					cam_periph_invalidate(periph);
 					announce_buf[0] = '\0';
@@ -1813,23 +1792,14 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 		free(rdcap, M_TEMP);
-		if (announce_buf[0] != '\0') {
+		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
-			if (softc->flags & CD_FLAG_CHANGER)
-				cdchangerschedule(softc);
-		}
 		softc->state = CD_STATE_NORMAL;		
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the probe lock on the peripheral.
-		 * The peripheral will only go away once the last lock
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
-		xpt_release_ccb(done_ccb);
+		if (softc->flags & CD_FLAG_CHANGER)
+			cdchangerschedule(softc);
 		cam_periph_unlock(periph);
-		return;
+
+		break;
 	}
 	case CD_CCB_WAITING:
 	{
@@ -1840,8 +1810,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
-	default:
-		break;
 	}
 	xpt_release_ccb(done_ccb);
 }
@@ -2486,7 +2454,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		 * don't, dsioctl will pass back an error code of ENOIOCTL.
 		 */
 		error = dsioctl("cd", dev, cmd, addr, flag, &softc->cd_slices,
-				cdstrategy1, (ds_setgeom_t *)NULL);
+				cdstrategy, (ds_setgeom_t *)NULL);
 
 		if (error != ENOIOCTL)
 			break;

@@ -13,11 +13,11 @@
 # purpose.
 #
 
-#	$Id: sio.s,v 1.2 1998/10/20 20:20:48 rnordier Exp $
+#	$Id:$
 
-		.set SIO_PRT,SIOPRT		# Base port
-		.set SIO_FMT,SIOFMT		# 8N1
-		.set SIO_DIV,(115200/SIOSPD)	# 115200 / SPD
+		.set SIO_PRT,0x3f8		# Base port
+		.set SIO_FMT,0x3		# 8N1
+		.set SIO_DIV,0xc		# 115200 / 9600
 
 		.globl sio_init
 		.globl sio_flush

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.60 1998/11/03 03:38:55 jkh Exp $
+ * $Id: installUpgrade.c,v 1.58 1998/05/24 02:49:54 steve Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -164,7 +164,7 @@ installUpgrade(dialogMenuItem *self)
 	return installUpgradeNonInteractive(self);
 
     variable_set2(SYSTEM_STATE, "upgrade");
-    systemDisplayHelp("UPGRADE");
+    systemDisplayHelp("upgrade");
 
     dialog_clear_norefresh();
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
@@ -331,6 +331,18 @@ media:
 	}
     }
 
+    if (extractingBin) {
+	msgNotify("OK, now it's time to go pound on your root a little bit to create all the\n"
+		  "/dev entries and such that a new system expects to see.  I'll also perform a\n"
+		  "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
+		  "on top of an existing system..");
+	if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE) {
+	    msgConfirm("Hmmmmm.  The fixups don't seem to have been very happy.\n"
+		       "You may wish to examine the system a little more closely when\n"
+		       "it comes time to merge your /etc customizations back.");
+	}
+    }
+    
     msgNotify("First stage of upgrade completed successfully!\n\n"
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
@@ -472,6 +484,16 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	}
     }
 
+    msgNotify("OK, now it's time to go pound on your root a little bit to create all the\n"
+	      "/dev entries and such that a new system expects to see.  I'll also perform a\n"
+	      "few \"fixup\" operations to repair the effects of splatting a bin distribution\n"
+	      "on top of an existing system..");
+    if (DITEM_STATUS(installFixup(self)) == DITEM_FAILURE) {
+	msgNotify("Hmmmmm.  The fixups don't seem to have been very happy.\n"
+		  "You may wish to examine the system a little more closely when\n"
+		  "it comes time to merge your /etc customizations back.");
+    }
+    
     msgNotify("First stage of upgrade completed successfully.");
     if (vsystem("tar -cpBf - -C %s . | tar --unlink -xpBf - -C /etc", saved_etc)) {
 	msgNotify("Unable to resurrect your old /etc!");

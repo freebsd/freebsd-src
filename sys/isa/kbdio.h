@@ -26,12 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.h,v 1.9 1999/01/06 05:49:30 yokota Exp $
+ * $Id$
  * from: i386/isa kbdio.h,v 1.7
  */
 
-#ifndef _ISA_KBDIO_H_
-#define	_ISA_KBDIO_H_
+#ifndef _I386_ISA_KBDIO_H_
+#define	_I386_ISA_KBDIO_H_
 
 /* constants */
 
@@ -51,6 +51,9 @@
 					 * and mouse command port 
 					 */
 #endif	/* PC98 */
+
+/* FIXME: `IO_PSMSIZE' should really be in `isa.h'. */
+#define IO_PSMSIZE		(KBD_COMMAND_PORT - KBD_DATA_PORT + 1) /* 5 */
 
 /* controller commands (sent to KBD_COMMAND_PORT) */
 #define KBDC_SET_COMMAND_BYTE 	0x0060
@@ -204,4 +207,4 @@ int set_controller_command_byte __P((KBDC kbdc, int command, int flag));
 
 #endif /* KERNEL */
 
-#endif /* !_ISA_KBDIO_H_ */
+#endif /* !_I386_ISA_KBDIO_H_ */

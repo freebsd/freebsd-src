@@ -154,9 +154,7 @@ getpwnam(name)
 
 	bf[0] = _PW_KEYBYNAME;
 	len = strlen(name);
-	if (len > UT_NAMESIZE)
-		return(NULL);
-	bcopy(name, bf + 1, len);
+	bcopy(name, bf + 1, MIN(len, UT_NAMESIZE));
 	key.data = (u_char *)bf;
 	key.size = len + 1;
 	rval = __hashpw(&key);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.39 1998/12/07 21:58:42 archie Exp $
+ *	$Id: tcp_usrreq.c,v 1.37 1998/01/27 09:15:11 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -368,13 +368,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			socantsendmore(so);
 			tp = tcp_usrclosed(tp);
 		}
-		if (tp != NULL) {
-			if (flags & PRUS_MORETOCOME)
-				tp->t_flags |= TF_MORETOCOME;
+		if (tp != NULL)
 			error = tcp_output(tp);
-			if (flags & PRUS_MORETOCOME)
-				tp->t_flags &= ~TF_MORETOCOME;
-		}
 	} else {
 		if (sbspace(&so->so_snd) < -512) {
 			m_freem(m);
@@ -580,6 +575,7 @@ tcp_ctloutput(so, sopt)
 	int	error, opt, optval, s;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
+	struct	mbuf *m;
 
 	error = 0;
 	s = splnet();		/* XXX */

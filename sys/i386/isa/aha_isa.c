@@ -28,14 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.5 1998/11/10 06:44:54 gibbs Exp $
+ *	$Id: aha_isa.c,v 1.3 1998/10/10 00:44:12 imp Exp $
  */
-
-#include "pnp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -45,13 +42,9 @@
 
 #include <cam/scsi/scsi_all.h>
 
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
-static	int aha_isa_probe(struct isa_device *dev);
-static	int aha_isa_attach(struct isa_device *dev);
-static	void aha_isa_intr(void *unit);
+static	int aha_isa_probe __P((struct isa_device *dev));
+static	int aha_isa_attach __P((struct isa_device *dev));
+static	void aha_isa_intr __P((void *unit));
 
 struct isa_driver ahadriver =
 {
@@ -75,18 +68,41 @@ aha_isa_probe(dev)
 	 */
 	struct	aha_softc *aha;
 	int	port_index;
-	int	max_port_index;
+        int	max_port_index;
+
+	/*
+	 * We ignore the unit number assigned by config to allow
+	 * consistant numbering between PCI/EISA/ISA devices.
+	 * This is a total kludge until we have a configuration
+	 * manager.
+	 */
+	dev->id_unit = aha_unit;
 
 	aha = NULL;
-
+	port_index = 0;
+	max_port_index = AHA_NUM_ISAPORTS - 1;
 	/*
 	 * Bound our board search if the user has
 	 * specified an exact port.
 	 */
-	aha_find_probe_range(dev->id_iobase, &port_index, &max_port_index);
-
-	if (port_index < 0)
-		return 0;
+	if (dev->id_iobase > 0) {
+		for (;port_index <= max_port_index; port_index++)
+			if (dev->id_iobase >= aha_isa_ports[port_index].addr)
+				break;
+		if ((port_index > max_port_index)
+		 || (dev->id_iobase != aha_isa_ports[port_index].addr)) {
+			printf("
+aha_isa_probe: Invalid baseport of 0x%x specified.
+aha_isa_probe: Nearest valid baseport is 0x%x.
+aha_isa_probe: Failing probe.\n",
+			       dev->id_iobase,
+			       (port_index <= max_port_index)
+				    ? aha_isa_ports[port_index].addr
+				    : aha_isa_ports[max_port_index].addr);
+			return 0;
+		}
+		max_port_index = port_index;
+	}
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
@@ -94,7 +110,7 @@ aha_isa_probe(dev)
 		u_int ioport;
 		int error;
 
-		ioport = aha_iop_from_bio(port_index);
+		ioport = aha_isa_ports[port_index].addr;
 
 		/*
 		 * Ensure this port has not already been claimed already
@@ -102,7 +118,7 @@ aha_isa_probe(dev)
 		 */
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
-		dev->id_iobase = ioport;
+		dev->id_iobase = aha_isa_ports[port_index].addr;
 		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
 			continue;
 
@@ -125,7 +141,7 @@ aha_isa_probe(dev)
 		 * Determine our IRQ, and DMA settings and
 		 * export them to the configuration system.
 		 */
-		error = aha_cmd(aha, AOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
+		error = aha_cmd(aha, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
 			       (u_int8_t*)&config_data, sizeof(config_data),
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
@@ -150,7 +166,6 @@ aha_isa_probe(dev)
 			printf("aha_isa_probe: Invalid DMA setting "
 				"detected for adapter at 0x%x.  "
 				"Failing probe\n", ioport);
-			return (0);
 		}
 		dev->id_irq = (config_data.irq << 9);
 		dev->id_intr = aha_isa_intr;
@@ -213,79 +228,3 @@ aha_isa_intr(void *unit)
 	struct aha_softc* arg = aha_softcs[(int)unit];
 	aha_intr((void *)arg);
 }
-
-/*
- * support PnP cards if we are using 'em
- */
-
-#if NPNP > 0
-
-static char *ahapnp_probe(u_long csn, u_long vend_id);
-static void ahapnp_attach(u_long csn, u_long vend_id, char *name,
-	struct isa_device *dev);
-static u_long nahapnp = NAHA;
-
-static struct pnp_device ahapnp = {
-	"ahapnp",
-	ahapnp_probe,
-	ahapnp_attach,
-	&nahapnp,
-	&bio_imask
-};
-DATA_SET (pnpdevice_set, ahapnp);
-
-static char *
-ahapnp_probe(u_long csn, u_long vend_id)
-{
-	struct pnp_cinfo d;
-	char *s = NULL;
-
-	if (vend_id != AHA1542_PNP && vend_id != AHA1542_PNPCOMPAT)
-		return (NULL);
-
-	read_pnp_parms(&d, 0);
-	if (d.enable == 0 || d.flags & 1) {
-		printf("CSN %lu is disabled.\n", csn);
-		return (NULL);
-	}
-	s = "Adaptec 1542CP";
-
-	return (s);
-}
-
-static void
-ahapnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
-{
-	struct pnp_cinfo d;
-	struct isa_device *dvp;
-
-	if (dev->id_unit >= NAHATOT)
-		return;
-
-	if (read_pnp_parms(&d, 0) == 0) {
-		printf("failed to read pnp parms\n");
-		return;
-	}
-
-	write_pnp_parms(&d, 0);
-
-	enable_pnp_card();
-
-	dev->id_iobase = d.port[0];
-	dev->id_irq = (1 << d.irq[0]);
-	dev->id_intr = aha_intr;
-	dev->id_drq = d.drq[0];
-
-	if (dev->id_driver == NULL) {
-		dev->id_driver = &ahadriver;
-		dvp = find_isadev(isa_devtab_tty, &ahadriver, 0);
-		if (dvp != NULL)
-			dev->id_id = dvp->id_id;
-	}
-
-	if ((dev->id_alive = aha_isa_probe(dev)) != 0)
-		aha_isa_attach(dev);
-	else
-		printf("aha%d: probe failed\n", dev->id_unit);
-}
-#endif

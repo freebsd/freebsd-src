@@ -1,15 +1,23 @@
-#	$Id: Makefile,v 1.5 1999/01/13 23:05:26 grog Exp $
-
 PROG=	vinum
-SRCS=	v.c list.c vinumparser.c vinumutil.c vext.h commands.c
+SRCS=	v.c list.c parser.c util.c vext.h commands.c
 MAN8=	vinum.8
 
-CFLAGS+=	-I${.CURDIR}/../../sys -g -Wall -DVINUMDEBUG
-DPADD=		${LIBUTIL} ${LIBREADLINE} ${LIBTERMCAP}
-LDADD=		-lutil -lreadline -ltermcap
-BINGRP=		kmem
-BINMODE=	555
+CFLAGS=	-I${.CURDIR}/../../lkm/vinum -g -Wall -DDEBUG -DRAID5
 
-.PATH: ${.CURDIR}/../../sys/dev/vinum
+LDADD+=		-lutil -lreadline -ltermcap
+# DPADD+=		${LIBKVM}
+BINGRP=		kmem
+BINMODE=	2555
+
+parser.c:
+	rm -f $@
+	ln -s ${.CURDIR}/../../lkm/vinum/$@ .
+
+util.c:	statetexts.h
+	rm -f $@
+	ln -s ${.CURDIR}/../../lkm/vinum/$@ .
+
+statetexts.h:
+	(cd ${.CURDIR}/../../lkm/vinum; make $@)
 
 .include <bsd.prog.mk>

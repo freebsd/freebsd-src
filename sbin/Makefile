@@ -1,16 +1,16 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.61 1998/12/28 11:06:21 sos Exp $
+#	$Id: Makefile,v 1.56 1998/09/15 11:44:41 phk Exp $
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR=	adjkerntz \
-	atm \
+SUBDIR=	atm \
 	badsect \
 	camcontrol \
 	ccdconfig \
 	clri \
 	disklabel \
 	dmesg \
+	dset \
 	dump \
 	dumpfs \
 	dumpon \
@@ -54,8 +54,8 @@ SUBDIR=	adjkerntz \
 	savecore \
 	shutdown \
 	slattach \
-	spppcontrol \
 	startslip \
+	spppcontrol \
 	swapon \
 	tunefs \
 	umount \
@@ -63,6 +63,10 @@ SUBDIR=	adjkerntz \
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 SUBDIR+= ${MACHINE_ARCH}
+.endif
+
+.if ${MACHINE_ARCH} == "i386"
+SUBDIR+=adjkerntz
 .endif
 
 .include <bsd.subdir.mk>

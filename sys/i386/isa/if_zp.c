@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.48 1998/06/07 17:10:40 dfr Exp $
+ *	$Id: if_zp.c,v 1.47 1998/05/26 02:28:18 jmb Exp $
  */
 /*-
  * TODO:
@@ -198,7 +198,6 @@ static int zpioctl __P((struct ifnet * ifp, u_long, caddr_t));
 static u_short read_eeprom_data __P((int, int));
 
 static void zpinit __P((int));
-static ointhand2_t zpintr;
 static void zpmbuffill __P((void *));
 static void zpmbufempty __P((struct zp_softc *));
 static void zpread __P((struct zp_softc *));
@@ -484,8 +483,6 @@ zpattach(isa_dev)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_short i;
 	int     pl;
-
-	isa_dev->id_ointr = zpintr;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */
 	if (isa_dev->id_reconfig) {
@@ -777,7 +774,7 @@ readcheck:
 	}
 	goto startagain;
 }
-static void
+void
 zpintr(unit)
 	int     unit;
 {

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
+ *    must display the following acknowledgement:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.3 1998/11/14 03:13:31 obrien Exp $
+ * $Id: hlfsd.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -83,22 +83,18 @@ char *alt_spooldir = ALT_SPOOLDIR;
 char *home_subdir = HOME_SUBDIR;
 char *logfile = DEFAULT_LOGFILE;
 char *passwdfile = NULL;	/* alternate passwd file to use */
-#if 0
 char *progname;
-int foreground = 1;		/* This is the top-level server */
-#endif
 char *slinkname = 0;
 char hostname[MAXHOSTNAMELEN + 1] = "localhost";
 int cache_interval = DEFAULT_CACHE_INTERVAL;
+int foreground = 1;		/* This is the top-level server */
 gid_t hlfs_gid = (gid_t) INVALIDID;
 int masterpid = 0;
 int noverify = 0;
-int orig_umask = 022;
+int orig_umask;
 int serverpid = 0;
 nfstime startup;
-#if 0
 pid_t mypid;			/* Current process id */
-#endif
 serv_state amd_state;
 u_short nfs_port;
 
@@ -109,11 +105,9 @@ char *mnttab_file_name = MNTTAB_FILE_NAME;
 char *mnttab_file_name = NULL;
 #endif /* not MOUNT_TABLE_ON_FILE */
 
-#if 0
 #ifdef DEBUG
 int debug_flags = 0;
 #endif /* DEBUG */
-#endif
 
 /* forward declarations */
 void hlfsd_going_down(int rc);
@@ -124,7 +118,7 @@ usage(void)
 {
   fprintf(stderr,
 	  "Usage: %s [-Cfhnpv] [-a altdir] [-c cache-interval] [-g group]\n",
-	  am_get_progname());
+	  progname);
   fprintf(stderr, "\t[-i interval] [-l logfile] [-o mntopts] [-P passwdfile]\n");
   show_opts('x', xlog_opt);
 #ifdef DEBUG
@@ -143,7 +137,6 @@ main(int argc, char *argv[])
   char hostpid_fs[MAXHOSTNAMELEN + 1 + 16];	/* room for ":(pid###)" */
   char progpid_fs[PROGNAMESZ + 1 + 11];		/* room for ":pid" */
   char preopts[128];
-  char *progname;
   int forcecache = 0;
   int forcefast = 0;
   int genflags = 0;
@@ -178,15 +171,14 @@ main(int argc, char *argv[])
     progname = argv[0];
   if ((int) strlen(progname) > PROGNAMESZ) /* truncate to reasonable size */
     progname[PROGNAMESZ] = '\0';
-  am_set_progname(progname);
 
-  while ((opt = getopt(argc, argv, "a:c:CD:fg:hi:l:no:pP:x:v")) != -1)
+  while ((opt = getopt(argc, argv, "a:c:CD:fg:hi:l:no:pP:x:v")) != EOF)
     switch (opt) {
 
     case 'a':
       if (!optarg || optarg[0] != '/') {
 	printf("%s: invalid directory for -a: %s\n",
-	       am_get_progname(), optarg);
+	       progname, optarg);
 	exit(3);
       }
       alt_spooldir = optarg;
@@ -195,7 +187,7 @@ main(int argc, char *argv[])
     case 'c':
       if (!atoi(optarg)) {
 	printf("%s: invalid interval for -c: %s\n",
-	       am_get_progname(), optarg);
+	       progname, optarg);
 	exit(3);
       }
       cache_interval = atoi(optarg);
@@ -216,7 +208,7 @@ main(int argc, char *argv[])
     case 'i':
       if (!atoi(optarg)) {
 	printf("%s: invalid interval for -i: %s\n",
-	       am_get_progname(), optarg);
+	       progname, optarg);
 	exit(3);
       }
       reloadinterval.it_interval.tv_sec = atoi(optarg);
@@ -255,7 +247,7 @@ main(int argc, char *argv[])
 #ifdef DEBUG
       opterrs += debug_option(optarg);
 #else /* not DEBUG */
-      fprintf(stderr, "%s: not compiled with DEBUG -- sorry.\n", am_get_progname());
+      fprintf(stderr, "%s: not compiled with DEBUG -- sorry.\n", progname);
 #endif /* not DEBUG */
       break;
 
@@ -268,7 +260,7 @@ main(int argc, char *argv[])
   if (xlog_level_init == ~0)
     switch_option("");
   /* need my pid before any dlog/plog */
-  am_set_mypid();
+  mypid = getpid();
 #ifdef DEBUG
   switch_option("debug");
 #endif /* DEBUG */
@@ -279,7 +271,7 @@ main(int argc, char *argv[])
  */
 #if !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_FIELD_NFS_ARGS_T_ACREGMIN)
   if (!forcecache) {
-    fprintf(stderr, "%s: will not be able to turn off attribute caches.\n", am_get_progname());
+    fprintf(stderr, "%s: will not be able to turn off attribute caches.\n", progname);
     exit(1);
   }
 #endif /* !defined(MNT2_NFS_OPT_ACREGMIN) && !defined(MNT2_NFS_OPT_NOAC) && !defined(HAVE_FIELD_NFS_ARGS_T_ACREGMIN) */
@@ -310,19 +302,19 @@ main(int argc, char *argv[])
   /* find gid for hlfs_group */
   if ((grp = getgrnam(hlfs_group)) == (struct group *) NULL) {
     fprintf(stderr, "%s: cannot get gid for group \"%s\".\n",
-	    am_get_progname(), hlfs_group);
+	    progname, hlfs_group);
   } else {
     hlfs_gid = grp->gr_gid;
   }
 
   /* get hostname for logging and open log before we reset umask */
-  gethostname(hostname, sizeof(hostname));
+  gethostname(hostname, sizeof hostname);
   hostname[sizeof(hostname) - 1] = '\0';
   if ((dot = strchr(hostname, '.')) != NULL)
     *dot = '\0';
-  orig_umask = umask(0);
   if (logfile)
-    switch_to_logfile(logfile, orig_umask);
+    switch_to_logfile(logfile);
+  orig_umask = umask(0);
 
 #if defined(DEBUG) && !defined(MOUNT_TABLE_ON_FILE)
   if (debug_flags & D_MTAB)
@@ -347,7 +339,7 @@ main(int argc, char *argv[])
     if (slinkname)
       *--slinkname = '/';
     printf("%s: invalid mount directory/link %s\n",
-	   am_get_progname(), dir_name);
+	   progname, dir_name);
     exit(3);
   }
 
@@ -362,7 +354,7 @@ main(int argc, char *argv[])
 
     if ((stmodes.st_mode & 0555) != 0555) {
       fprintf(stderr, "%s: directory %s not read/executable\n",
-	      am_get_progname(), dir_name);
+	      progname, dir_name);
       plog(XLOG_WARNING, "directory %s not read/executable",
 	   dir_name);
     }
@@ -380,7 +372,7 @@ main(int argc, char *argv[])
 
     if (direntry != NULL) {
       fprintf(stderr, "%s: %s/%s will be hidden by mount\n",
-	      am_get_progname(), dir_name, direntry->d_name);
+	      progname, dir_name, direntry->d_name);
       plog(XLOG_WARNING, "%s/%s will be hidden by mount\n",
 	   dir_name, direntry->d_name);
     }
@@ -389,7 +381,7 @@ main(int argc, char *argv[])
     /* make sure alternate spool dir exists */
     if ((errno = mkdirs(alt_spooldir, OPEN_SPOOLMODE))) {
       fprintf(stderr, "%s: cannot create alternate dir ",
-	      am_get_progname());
+	      progname);
       perror(alt_spooldir);
       plog(XLOG_ERROR, "cannot create alternate dir %s: %m",
 	   alt_spooldir);
@@ -401,7 +393,7 @@ main(int argc, char *argv[])
     if (lstat(dir_name, &stmodes) == 0 &&
 	(stmodes.st_mode & S_IFMT) != S_IFLNK) {
       fprintf(stderr, "%s: failsafe %s not a symlink\n",
-	      am_get_progname(), dir_name);
+	      progname, dir_name);
       plog(XLOG_WARNING, "failsafe %s not a symlink\n",
 	   dir_name);
     } else {
@@ -410,7 +402,7 @@ main(int argc, char *argv[])
       if (symlink(alt_spooldir, dir_name) < 0) {
 	fprintf(stderr,
 		"%s: cannot create failsafe symlink %s -> ",
-		am_get_progname(), dir_name);
+		progname, dir_name);
 	perror(alt_spooldir);
 	plog(XLOG_WARNING,
 	     "cannot create failsafe symlink %s -> %s: %m",
@@ -525,7 +517,7 @@ main(int argc, char *argv[])
    * Update hostname field.
    * Make some name prog:pid (i.e., hlfsd:174) for hostname
    */
-  sprintf(progpid_fs, "%s:%d", am_get_progname(), masterpid);
+  sprintf(progpid_fs, "%s:%d", progname, masterpid);
 
   /* Most kernels have a name length restriction. */
   if ((int) strlen(progpid_fs) >= (int) MAXHOSTNAMELEN)
@@ -601,7 +593,7 @@ main(int argc, char *argv[])
       fatal("nfsmount: %m");
   } else {			/* asked for -D nodaemon */
     if (fork() == 0) {		/* child runs mount */
-      am_set_mypid();
+      mypid = getpid();
       foreground = 0;
       plog(XLOG_INFO, "child NFS mounting hlfsd service points");
       if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 0, NULL, mnttab_file_name) < 0) {
@@ -678,7 +670,7 @@ hlfsd_init(void)
 
   if (child != 0) {		/* parent process - save child pid */
     masterpid = child;
-    am_set_mypid();		/* for logging routines */
+    mypid = getpid();		/* for logging routines */
     return;
   }
 
@@ -691,7 +683,7 @@ hlfsd_init(void)
   plt_init();			/* initialize database */
   plog(XLOG_INFO, "home directory database initialized");
 
-  masterpid = serverpid = am_set_mypid(); /* for logging routines */
+  masterpid = serverpid = mypid = getpid(); /* for logging routines */
 
   /*
    * SIGALRM/SIGHUP: reload password database if timer expired
@@ -724,7 +716,7 @@ hlfsd_init(void)
 #endif /* not HAVE_SIGACTION */
 
   /*
-   * SIGCHLD: interlock synchronization and testing
+   * SIGCHLD: interlock sycronization and testing
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = interlock;
@@ -815,7 +807,7 @@ reload(int signum)
    * can be rotated)
    */
   if (signum == SIGHUP && logfile)
-    switch_to_logfile(logfile, orig_umask);
+    switch_to_logfile(logfile);
 
   /*
    * parent performs the reload, while the child continues to serve
@@ -823,7 +815,7 @@ reload(int signum)
    */
   if ((child = fork()) > 0) {
     serverpid = child;		/* parent runs here */
-    am_set_mypid();
+    mypid = getpid();
 
     plt_init();
 
@@ -847,7 +839,7 @@ reload(int signum)
   } else {
     /* let child handle requests while we reload */
     serverpid = getpid();
-    am_set_mypid();
+    mypid = getpid();
   }
 }
 
@@ -871,10 +863,10 @@ cleanup(int signum)
 #endif /* DEBUG */
     if (fork() != 0) {
     masterpid = 0;
-    am_set_mypid();
+    mypid = getpid();
     return;
   }
-  am_set_mypid();
+  mypid = getpid();
 
   for (;;) {
     while ((umount_result = UMOUNT_FS(dir_name, mnttab_file_name)) == EBUSY) {
@@ -886,7 +878,7 @@ cleanup(int signum)
     if (stat(dir_name, &stbuf) == 0 && stbuf.st_ino == ROOTID) {
       plog(XLOG_ERROR, "unable to unmount %s", dir_name);
       plog(XLOG_ERROR, "suspending, unmount before terminating");
-      kill(am_mypid, SIGSTOP);
+      kill(mypid, SIGSTOP);
       continue;			/* retry unmount */
     }
     break;
@@ -922,7 +914,7 @@ reaper(int signum)
 void
 hlfsd_going_down(int rc)
 {
-  int mypid = getpid();		/* XXX: should this be the global am_mypid */
+  int mypid = getpid();
 
   if (mypid == masterpid)
     cleanup(0);
@@ -943,17 +935,17 @@ fatal(char *mess)
     messlen = strlen(mess);
 
     if (!STREQ(&mess[messlen + 1 - sizeof(ERRM)], ERRM))
-      fprintf(stderr, "%s: %s\n", am_get_progname(), mess);
+      fprintf(stderr, "%s: %s\n", progname, mess);
     else {
       strcpy(lessmess, mess);
       lessmess[messlen - 4] = '\0';
 
       if (errno < sys_nerr)
-	fprintf(stderr, "%s: %s: %s\n", am_get_progname(),
+	fprintf(stderr, "%s: %s: %s\n", progname,
 		lessmess, sys_errlist[errno]);
       else
 	fprintf(stderr, "%s: %s: Error %d\n",
-		am_get_progname(), lessmess, errno);
+		progname, lessmess, errno);
     }
   }
   plog(XLOG_FATAL, mess);

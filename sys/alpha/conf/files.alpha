@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.14 1998/12/04 10:52:47 dfr Exp $
+#	$Id: files.alpha,v 1.10 1998/09/17 09:38:36 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -19,7 +19,6 @@ alpha/alpha/cpuconf.c		standard
 alpha/alpha/atomic.s		standard
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
 alpha/alpha/dec_eb164.c		optional	dec_eb164
-alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
 alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
 alpha/alpha/dec_st550.c		optional	dec_st550
@@ -44,8 +43,7 @@ alpha/alpha/in_cksum.c		optional	inet
 # now normal.
 # alpha/alpha/locore.s		standard
 alpha/alpha/machdep.c		standard
-alpha/alpha/fp_emulate.c	standard
-alpha/alpha/ieee_float.c	standard
+alpha/alpha/math_emulate.c	optional	math_emulate
 alpha/alpha/mem.c		standard
 alpha/alpha/mp_machdep.c	optional	smp
 alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
@@ -66,13 +64,13 @@ clock_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 clock_if.c			standard				\
-	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/alpha/alpha/clock_if.m" \
+	dependency	"$S/kern/makedevops.sh $S/alpha/alpha/clock_if.m"	\
+	compile-with	"sh $S/kern/makedevops.sh -c $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"clock_if.c"
 clock_if.h			standard				\
-	dependency	"$S/kern/makedevops.pl $S/alpha/alpha/clock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/alpha/alpha/clock_if.m" \
+	dependency	"$S/kern/makedevops.sh $S/alpha/alpha/clock_if.m"	\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/alpha/alpha/clock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"clock_if.h"
 alpha/alpha/diskslice_machdep.c	standard
@@ -98,23 +96,23 @@ mcclock_if.o			standard				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
 mcclock_if.c			standard				\
-	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -c $S/dev/dec/mcclock_if.m" \
+	dependency	"$S/kern/makedevops.sh $S/dev/dec/mcclock_if.m"	\
+	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"mcclock_if.c"
 mcclock_if.h			standard				\
-	dependency	"$S/kern/makedevops.pl $S/dev/dec/mcclock_if.m"	\
-	compile-with	"perl $S/kern/makedevops.pl -h $S/dev/dec/mcclock_if.m" \
+	dependency	"$S/kern/makedevops.sh $S/dev/dec/mcclock_if.m"	\
+	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/dec/mcclock_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"mcclock_if.h"
 alpha/pci/cia.c			optional	cia
 alpha/pci/pci_eb164_intr.s	optional	cia
+alpha/isa/mcclock_isa.c		optional	cia
 alpha/pci/apecs.c		optional	apecs
-alpha/pci/pci_eb64plus_intr.s	optional	apecs
 alpha/pci/lca.c			optional	lca
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
-alpha/isa/mcclock_isa.c		optional	isa
+kern/link_elf.c			standard
 alpha/alpha/elf_machdep.c	standard
 libkern/bcd.c			standard
 libkern/bcmp.c			standard

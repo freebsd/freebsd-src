@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.6 1998/12/28 19:07:51 nsouch Exp $
+ *	$Id: smbus.c,v 1.1.1.2 1998/08/13 15:16:58 son Exp $
  *
  */
 #include <sys/param.h>
@@ -46,6 +46,7 @@
  */
 struct smbus_device {
 	const char *smbd_name;		/* device name */
+	const u_char smbd_addr;		/* address of the device */
 	const char *smbd_desc;		/* device descriptor */
 };
 
@@ -53,7 +54,7 @@ struct smbus_device {
  * list of known devices
  */
 struct smbus_device smbus_children[] = {
-	{ "smb", "SMBus general purpose I/O" },
+	{ "smb", 0, "General Call" },
 	{ NULL, 0 }
 };
 
@@ -65,10 +66,7 @@ static devclass_t smbus_devclass;
 static int smbus_probe(device_t);
 static int smbus_attach(device_t);
 static void smbus_print_child(device_t, device_t);
-
-#if 0
 static int smbus_read_ivar(device_t , device_t, int, u_long *);
-#endif
 
 static device_method_t smbus_methods[] = {
         /* device interface */
@@ -79,8 +77,10 @@ static device_method_t smbus_methods[] = {
 
         /* bus interface */
         DEVMETHOD(bus_print_child,      smbus_print_child),
-        DEVMETHOD(bus_read_ivar,        bus_generic_read_ivar),
+        DEVMETHOD(bus_read_ivar,        smbus_read_ivar),
         DEVMETHOD(bus_write_ivar,       bus_generic_write_ivar),
+        DEVMETHOD(bus_create_intr,      bus_generic_create_intr),
+        DEVMETHOD(bus_connect_intr,     bus_generic_connect_intr),
 
         { 0, 0 }
 };
@@ -100,7 +100,14 @@ static driver_t smbus_driver = {
 static int
 smbus_probe(device_t dev)
 {
-	device_set_desc(dev, "System Management Bus");
+	struct smbus_device *smbdev;
+	device_t child;
+
+	for (smbdev = smbus_children; smbdev->smbd_name; smbdev++) {
+
+		child = device_add_child(dev, smbdev->smbd_name, -1, smbdev);
+		device_set_desc(child, smbdev->smbd_desc);
+	}
 
 	return (0);
 }
@@ -108,20 +115,10 @@ smbus_probe(device_t dev)
 static int
 smbus_attach(device_t dev)
 {
-	struct smbus_device *smbdev;
+	struct smbus_softc *sc = device_get_softc(dev);
+	device_t parent = device_get_parent(dev);
 
-	/* add known devices */
-	for (smbdev = smbus_children; smbdev->smbd_name; smbdev++) {
-		device_t child;
-
-		if (devclass_find(smbdev->smbd_name)) {
-			child = device_add_child(dev, smbdev->smbd_name,
-								-1, smbdev);
-			device_set_desc(child, smbdev->smbd_desc);
-		} else if (bootverbose)
-			printf("smbus: %s devclass not found\n",
-				smbdev->smbd_name);
-	}
+	printf("Probing for devices on the SMB bus:\n");
 	bus_generic_attach(dev);
          
         return (0);
@@ -136,27 +133,25 @@ smbus_generic_intr(device_t dev, u_char devaddr, char low, char high)
 static void
 smbus_print_child(device_t bus, device_t dev)
 {
+	struct smbus_device* smbdev = DEVTOSMBUS(dev);
 
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
+	printf(" on %s%d addr 0x%x", device_get_name(bus),
+		device_get_unit(bus), smbdev->smbd_addr);
 
 	return;
 }
 
-#if 0
 static int
 smbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
 {
 	struct smbus_device* smbdev = DEVTOSMBUS(dev);
 
 	switch (index) {
-	default:
+	case SMBUS_IVAR_ADDR:
+		*result = smbdev->smbd_addr;
 		break;
 	}
 	return (ENOENT);
 }
-#endif
 
 DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, bti2c, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, smbv, smbus_driver, smbus_devclass, 0, 0);
