@@ -30,7 +30,7 @@
 .\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.1 2003/12/03 10:08:33 hbb Exp $
+.\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.3 2004/04/13 17:01:31 novo Exp $
 .\"
 .Dd August 15, 2002
 .Dt SNMPD 1
@@ -239,9 +239,9 @@ is
 Default pid file.
 .It Pa /etc:/usr/etc/:/usr/local/etc
 This is the default search path for system include files.
-.It Pa /usr/local/share/snmp/mibs/FOKUS-MIB.txt
-.It Pa /usr/local/share/snmp/mibs/BEGEMOT-MIB.txt
-.It Pa /usr/local/share/snmp/mibs/BEGEMOT-SNMPD.txt
+.It Pa @MIBSPATH@FOKUS-MIB.txt
+.It Pa @MIBSPATH@BEGEMOT-MIB.txt
+.It Pa @MIBSPATH@BEGEMOT-SNMPD.txt
 The definitions for the MIBs implemented in the daemon.
 .El
 .Sh SEE ALSO
@@ -251,6 +251,6 @@ The
 .Nm
 conforms to the applicable IETF RFCs.
 .Sh AUTHORS
-.An Hartmut Brandt Aq brandt@fokus.gmd.de
+.An Hartmut Brandt Aq harti@freebsd.org
 .Sh BUGS
 Sure.
