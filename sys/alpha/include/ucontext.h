@@ -44,7 +44,10 @@ typedef struct __mcontext {
 	unsigned long mc_fpcr;
 	unsigned long mc_fp_control;
 	long	mc_ownedfp;
-	long	__spare__[7];
+#define	__UC_REV0_SIGFRAME	1	/* context is a signal frame */
+#define	__UC_REV0_TRAPFRAME	2	/* context is a trap frame */
+	long	mc_format;
+	long	__spare__[6];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
