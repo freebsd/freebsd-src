@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.7 1997/05/16 10:40:00 bde Exp $
+ *	$Id: serial.S,v 1.8 1997/06/09 05:10:55 bde Exp $
  */
 
 /*
@@ -67,8 +67,9 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 	.file	"serial.s"
 
+#include <i386/isa/sioreg.h>
 #include "asm.h"
-#include "../../isa/sioreg.h"
+
 	.text
 
 /*
@@ -91,25 +92,21 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 ENTRY(serial_putc)
-	push	%ebp
-	mov	%esp, %ebp
-
 	movl	$10000, %ecx	# timeout
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 1:
 	decl	%ecx
 	je	2f
 	inb	%dx, %al
-	test	$0x20, %al
+	testb	$0x20, %al
 	jz	1b		# TX buffer not empty
 
-	movb	0x8(%ebp), %al
+	movb	0x4(%esp), %al
 
 	sub	$5, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
 2:
-	pop	%ebp
 	ret
 
 /*
@@ -118,9 +115,6 @@ ENTRY(serial_putc)
  */
 
 ENTRY(serial_getc)
-	push	%ebp
-	mov	%esp, %ebp
-
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 1:
 	inb	%dx, %al
@@ -131,12 +125,11 @@ ENTRY(serial_getc)
 	sub	$5, %edx	# RX buffer reg
 	inb	%dx, %al	# fetch (first) character
 
-	and	$0x7F, %eax	# remove any parity bits we get
-	cmp	$0x7F, %eax	# make DEL...
+	andb	$0x7F, %al	# remove any parity bits we get
+	cmpb	$0x7F, %al	# make DEL...
 	jne	2f
-	mov	$0x08, %eax	# look like BS
+	movb	$0x08, %al	# look like BS
 2:
-	pop	%ebp
 	ret
 
 /*
@@ -144,15 +137,10 @@ ENTRY(serial_getc)
  *       if there is a character pending, return true; otherwise return 0
  */
 ENTRY(serial_ischar)
-	push	%ebp
-	mov	%esp, %ebp
-
 	xorl	%eax, %eax
 	mov	$COMCONSOLE + 5, %edx	# line status reg
 	inb	%dx, %al
 	andb	$0x01, %al		# RX char available?
-
-	pop	%ebp
 	ret
 
 /*
@@ -160,9 +148,6 @@ ENTRY(serial_ischar)
  * 	initialize the serial console port to 9600 Bd, 8 bpc
  */
 ENTRY(init_serial)
-	push	%ebp
-	mov	%esp, %ebp
-
 	mov	$COMCONSOLE + 3, %edx	# line control reg
 	movb	$0x80, %al
 	outb	%al, %dx	# enable DLAB
@@ -183,19 +168,17 @@ ENTRY(init_serial)
 	outb	%al, %dx	# 8 bit, no parity, 1 stop bit
 
 	inc	%edx		# modem control reg
-	mov	$3, %al
+	movb	$3, %al
 	outb	%al, %dx	# enable DTR/RTS
 
 	/* now finally, flush the input buffer */
 	inc	%edx		# line status reg
 1:
+	subl	$5, %edx	# rx buffer reg
+	inb	%dx, %al	# throw away (unconditionally the first time)
+	addl	$5, %edx	# line status reg
 	inb	%dx, %al
 	testb	$0x01, %al
-	jz	2f		# no more characters buffered
-	sub	$5, %edx	# rx buffer reg
-	inb	%dx, %al	# throw away
-	add	$5, %edx
-	jmp	1b
-2:
-	pop	%ebp
+	jne	1b		# more
+
 	ret
