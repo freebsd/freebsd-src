@@ -1264,8 +1264,8 @@ scsi_low_done(slp, cb)
 	}
 	else
 	{
-		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID == 0) && 
-		    cb->ccb_rcnt < slp->sl_max_retry)
+		if (((ccb->ccb_h.status & CAM_AUTOSNS_VALID) == 0) && 
+		    (cb->ccb_rcnt < slp->sl_max_retry))
 			goto retry;
 #else
 	if (xs->error == XS_NOERROR)
@@ -2084,11 +2084,11 @@ scsi_low_synch(ti)
 	struct targ_info *ti;
 {
 	struct scsi_low_softc *slp = ti->ti_sc;
-	struct lun_info *li = ti->ti_li;
-	u_int period = 0, offset = 0;
 #ifdef SCSI_LOW_INFORM
+	struct lun_info *li = ti->ti_li;
 	u_int speed;
 #endif
+	u_int period = 0, offset = 0;
 	u_char *s;
 	int error;
 
