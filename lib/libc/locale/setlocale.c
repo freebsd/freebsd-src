@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: setlocale.c,v 1.8.2.2 1997/02/05 09:56:14 davidg Exp $
+ * $Id: setlocale.c,v 1.8.2.3 1997/02/05 23:20:51 joerg Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: setlocale.c,v 1.8.2.2 1997/02/05 09:56:14 davidg Exp $";
+	"$Id: setlocale.c,v 1.8.2.3 1997/02/05 23:20:51 joerg Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -159,7 +159,7 @@ setlocale(category, locale)
 				return (NULL);	/* Hmm, just slashes... */
 			do {
 				len = r - locale > 31 ? 31 : r - locale;
-				(void)strncpy(new_categories[i++], locale, len);
+				(void)strncpy(new_categories[i], locale, len);
 				new_categories[i++][len] = 0;
 				locale = r;
 				while (*locale == '/')
