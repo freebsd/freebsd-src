@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.7 1993/10/08 16:52:44 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.8 1993/10/14 17:09:54 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -65,7 +65,7 @@ PROFILE_C=	${CC} -S -c ${CFLAGS} $< ; \
 
 clean:
 	rm -f eddep *386bsd tags *.o locore.i [a-uw-z]*.s \
-		errs linterrs makelinks
+		errs linterrs makelinks genassym
 
 lint: /tmp param.c
 	@lint -hbxn -I. -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
@@ -99,12 +99,14 @@ assym.s: Makefile
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
 
-assym.s: genassym.o
-	./genassym.o >assym.s
+assym.s: genassym $S/sys/param.h machine/pte.h \
+	$S/sys/buf.h $S/sys/vmmeter.h \
+	$S/sys/proc.h $S/sys/msgbuf.h machine/vmparam.h
+	./genassym >assym.s
 
-genassym.o:
+genassym:
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
-		 ${I386}/i386/genassym.c -o genassym.o
+		 ${I386}/i386/genassym.c -o genassym
 
 depend: assym.s param.c
 	sh /usr/bin/mkdep -DLOAD_ADDRESS=0x${LOAD_ADDRESS} ${COPTS} ${CFILES} ioconf.c param.c ${I386}/i386/conf.c
