@@ -2033,8 +2033,7 @@ fxp_init(void *xsc)
 	cb_ias->cb_status = 0;
 	cb_ias->cb_command = FXP_CB_COMMAND_IAS | FXP_CB_COMMAND_EL;
 	cb_ias->link_addr = -1;
-	bcopy(sc->arpcom.ac_enaddr,
-	    (void *)(uintptr_t)(volatile void *)cb_ias->macaddr,
+	bcopy(sc->arpcom.ac_enaddr, cb_ias->macaddr,
 	    sizeof(sc->arpcom.ac_enaddr));
 
 	/*
@@ -2388,8 +2387,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 				break;
 			}
 			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    (void *)(uintptr_t)(volatile void *)
-				&sc->mcsp->mc_addr[nmcasts][0], 6);
+			    &sc->mcsp->mc_addr[nmcasts][0], 6);
 			nmcasts++;
 		}
 	}
