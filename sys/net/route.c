@@ -1121,7 +1121,7 @@ rtinit(ifa, cmd, flags)
 	error = rtrequest1(cmd, &info, &nrt);
 	if (error == 0 && (rt = nrt) != NULL) {
 		/*
-		 * notify any listenning routing agents of the change
+		 * notify any listening routing agents of the change
 		 */
 		rt_newaddrmsg(cmd, ifa, error, rt);
 		if (cmd == RTM_DELETE) {
