@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.7 1997/02/22 09:41:56 peter Exp $
+ * $Id: ipx_proto.c,v 1.8 1997/04/05 20:05:08 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,8 @@
 #include <netipx/ipx.h>
 #include <netipx/spx.h>
 
+static struct pr_usrreqs nousrreqs;
+
 /*
  * IPX protocol family: IPX, ERR, PXP, SPX, ROUTE.
  */
@@ -58,6 +60,7 @@ struct protosw ipxsw[] = {
   0,		0,		0,		0,
   0,
   ipx_init,	0,		0,		0,
+  &nousrreqs
 },
 { SOCK_DGRAM,	&ipxdomain,	0,		PR_ATOMIC|PR_ADDR,
   0,		0,		ipx_ctlinput,	ipx_ctloutput,
