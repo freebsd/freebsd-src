@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -43,4 +46,5 @@ off_t offs;
 	lseek(fd, offs, SEEK_SET);
 	if (write(fd, &c, 1) != 1)
 		perror(name);
+	return 0;
 }

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <syslog.h>
@@ -107,7 +109,6 @@ int i;
 void
 reset_slot(struct slot *sp)
 {
-struct card *cp = sp->card;
 char c;
 off_t offs;
 struct mem_desc mem;
@@ -155,7 +156,7 @@ char	*p, *cp, *lp;
 		lp = cmdp->line;
 		if (*lp == 0)
 			continue;
-		while (p = strchr(lp, '$'))
+		while ((p = strchr(lp, '$')) != 0)
 			{
 /*
  *	copy over preceding string.
@@ -199,7 +200,7 @@ char	*p, *cp, *lp;
 /*
  *	No more replacements. Copy rest of string.
  */
-		while (*cp++ = *lp++)
+		while ((*cp++ = *lp++) != 0)
 			;
 #ifdef	DEBUG
 		fprintf(stderr, "Executing [%s]\n", cmd);

@@ -12,8 +12,14 @@
 
 #include "readcis.h"
 
-int dump_pwr_desc(unsigned char *);
-void print_ext_speed(unsigned char, int);
+int	dump_pwr_desc(unsigned char *);
+void	print_ext_speed(unsigned char, int);
+void	dump_device_desc(unsigned char *p, int len, char *type);
+void	dump_info_v1(unsigned char *p, int len);
+void	dump_config_map(struct tuple *tp);
+void	dump_cis_config(struct tuple *tp);
+void	dump_other_cond(unsigned char *p);
+void	dump_func_ext(unsigned char *p, int len);
 
 void
 dumpcis(struct cis *cp)
@@ -152,6 +158,7 @@ unsigned char *p;
 /*
  *	Dump configuration map tuple.
  */
+void
 dump_config_map(struct tuple *tp)
 {
 unsigned char *p, x;
@@ -168,7 +175,7 @@ union {
 	p = tp->data + 2;
 	for (i = 0 ; i < rlen; i++)
 		u.b[i] = *p++;
-	printf("\tReg len = %d, config register addr = 0x%x, last config = 0x%x\n",
+	printf("\tReg len = %d, config register addr = 0x%lx, last config = 0x%x\n",
 		rlen, u.l, tp->data[1]);
 	if (mlen)
 		printf("\tRegisters: ");
@@ -183,15 +190,12 @@ union {
 /*
  *	Dump a config entry.
  */
+void
 dump_cis_config(struct tuple *tp)
 {
 unsigned char *p, feat;
 int	i, j;
 char	c;
-union {
-	unsigned long l;
-	unsigned char b[4];
-	}u;
 
 	p = tp->data;
 	printf("\tConfig index = 0x%x%s\n", *p & 0x3F,
@@ -501,6 +505,7 @@ union {
 /*
  *	dump_other_cond - Dump other conditions.
  */
+void
 dump_other_cond(unsigned char *p)
 {
 	if (p[0])
@@ -566,6 +571,7 @@ static char *mant[] =
 	return(len);
 }
 
+void
 dump_device_desc(unsigned char *p, int len, char *type)
 {
 static char *un_name[] =
@@ -617,6 +623,7 @@ int count = 0;
 /*
  *	Print version info
  */
+void
 dump_info_v1(unsigned char *p, int len)
 {
 	printf("\tVersion = %d.%d", p[0], p[1]);
@@ -635,6 +642,7 @@ dump_info_v1(unsigned char *p, int len)
 /*
  *	dump functional extension tuple.
  */
+void
 dump_func_ext(unsigned char *p, int len)
 {
 	if (len == 0)
