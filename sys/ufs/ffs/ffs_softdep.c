@@ -825,6 +825,7 @@ softdep_flushfiles(oldmnt, flags, p)
  * an existing entry is not found.
  */
 #define DEPALLOC	0x0001	/* allocate structure if lookup fails */
+#define NODELAY		0x0002	/* cannot do background work */
 
 /*
  * Structures and routines associated with pagedep caching.
@@ -943,7 +944,7 @@ top:
 	/*
 	 * If we are over our limit, try to improve the situation.
 	 */
-	if (num_inodedep > max_softdeps && firsttry &&
+	if (num_inodedep > max_softdeps && firsttry && (flags & NODELAY) == 0 &&
 	    request_cleanup(FLUSH_INODES, 1)) {
 		firsttry = 0;
 		goto top;
@@ -1145,7 +1146,7 @@ softdep_setup_inomapdep(bp, ip, newinum)
 	 * the cylinder group map from which it was allocated.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (inodedep_lookup(ip->i_fs, newinum, DEPALLOC, &inodedep) != 0)
+	if ((inodedep_lookup(ip->i_fs, newinum, DEPALLOC | NODELAY, &inodedep)))
 		panic("softdep_setup_inomapdep: found inode");
 	inodedep->id_buf = bp;
 	inodedep->id_state &= ~DEPCOMPLETE;
@@ -1279,7 +1280,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 		panic("softdep_setup_allocdirect: lost block");
 
 	ACQUIRE_LOCK(&lk);
-	(void) inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC, &inodedep);
+	inodedep_lookup(ip->i_fs, ip->i_number, DEPALLOC | NODELAY, &inodedep);
 	adp->ad_inodedep = inodedep;
 
 	if (newblk->nb_state == DEPCOMPLETE) {
@@ -4439,10 +4440,14 @@ request_cleanup(resource, islocked)
 	 * inode as that could lead to deadlock.
 	 */
 	if (num_on_worklist > max_softdeps / 10) {
+		if (islocked)
+			FREE_LOCK(&lk);
 		process_worklist_item(NULL, LK_NOWAIT);
 		process_worklist_item(NULL, LK_NOWAIT);
 		stat_worklist_push += 2;
-		return(0);
+		if (islocked)
+			ACQUIRE_LOCK(&lk);
+		return(1);
 	}
 	/*
 	 * Next, we attempt to speed up the syncer process. If that
