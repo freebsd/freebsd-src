@@ -232,6 +232,7 @@ static short tmspc10[] = {		/* from termcap */
 	0, 2000, 1333, 909, 743, 666, 500, 333, 166, 83, 55, 41, 20, 10, 5, 3, 2, 1
 };
 
+#if 0
 delay_output() {
 	/* delay 50 ms - could also use a 'nap'-system call */
 	/* BUG: if the padding character is visible, as it is on the 5620
@@ -246,7 +247,6 @@ delay_output() {
 		(void) fflush(stdout);
 		usleep(50*1000);
 	}
-#if 0
 	else if(ospeed > 0 || ospeed < SIZE(tmspc10)) if(CM) {
 		/* delay by sending cm(here) an appropriate number of times */
 		register int cmlen = strlen(tgoto(CM, curx-1, cury-1));
@@ -257,8 +257,8 @@ delay_output() {
 			i -= cmlen*tmspc10[ospeed];
 		}
 	}
-#endif
 }
+#endif /* 0 */
 
 cl_eos()			/* free after Robert Viduya */
 {				/* must only be called with curx = 1 */
