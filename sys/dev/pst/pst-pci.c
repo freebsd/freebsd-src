@@ -93,7 +93,6 @@ iop_pci_attach(device_t dev)
 		     PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, 1);
 
     sc->ibase = rman_get_virtual(sc->r_mem);
-    sc->phys_ibase = vtophys(sc->ibase);
     sc->reg = (struct i2o_registers *)sc->ibase;
     sc->dev = dev;
     mtx_init(&sc->mtx, "pst lock", MTX_DEF, 0);

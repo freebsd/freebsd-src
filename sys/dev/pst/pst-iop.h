@@ -42,7 +42,6 @@ struct iop_softc {
     struct resource		*r_mem;
     struct resource		*r_irq;
     caddr_t			ibase;
-    u_int32_t			phys_ibase;
     caddr_t			obase;
     u_int32_t			phys_obase;
     struct i2o_registers	*reg;
