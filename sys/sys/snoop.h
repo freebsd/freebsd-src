@@ -13,9 +13,15 @@
  * Snoop stuff.
  */
 
-#ifndef _SNOOP_H_
-#define	_SNOOP_H_
+#ifndef _SYS_SNOOP_H_
+#define	_SYS_SNOOP_H_
 
+#ifndef KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
+
+#ifdef KERNEL
 #define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
 						 * 4K tested to be the minimum
 						 * for which on normal tty
@@ -49,6 +55,12 @@ struct snoop {
 	struct selinfo	snp_sel;	/* Selection info	       */
 };
 
+/* XXX several wrong storage classes and types here. */
+int	snpdown __P((struct snoop *snp));
+int	snpin __P((struct snoop *snp, char *buf, int n));
+int	snpinc __P((struct snoop *snp, char c));
+#endif /* KERNEL */
+
 /*
  * Theese are snoop io controls
  * SNPSTTY accepts 'struct snptty' as input.
@@ -68,11 +80,4 @@ struct snoop {
 #define SNP_TTYCLOSE		-2
 #define SNP_DETACH		-3
 
-#ifdef KERNEL
-/* XXX several wrong storage classes and types here. */
-int	snpdown __P((struct snoop *snp));
-int	snpin __P((struct snoop *snp, char *buf, int n));
-int	snpinc __P((struct snoop *snp, char c));
-#endif /* KERNEL */
-
-#endif /* _SNOOP_H_ */
+#endif /* !_SYS_SNOOP_H_ */
