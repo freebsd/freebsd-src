@@ -124,14 +124,17 @@ linux_open(struct proc *p, struct linux_open_args *args)
     bsd_open_args.mode = args->mode;
 
     error = open(p, &bsd_open_args);
+    PROC_LOCK(p);
     if (!error && !(bsd_open_args.flags & O_NOCTTY) && 
 	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp = fdp->fd_ofiles[p->p_retval[0]];
 
+	PROC_UNLOCK(p);
 	if (fp->f_type == DTYPE_VNODE)
 	    fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, p);
-    }
+    } else
+	PROC_UNLOCK(p);
 #ifdef DEBUG
     printf("Linux-emul(%d): open returns error %d\n", 
 	   p->p_pid, error);
@@ -402,6 +405,7 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args)
     int buflen, error, eofflag, nbytes, justone;
     u_long *cookies = NULL, *cookiep;
     int ncookies;
+    struct ucred *uc;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): getdents(%d, *, %d)\n",
@@ -419,7 +423,13 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args)
     if (vp->v_type != VDIR)
 	return (EINVAL);
 
-    if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p))) {
+    PROC_LOCK(p);
+    uc = p->p_ucred;
+    crhold(uc);
+    PROC_UNLOCK(p);
+    error = VOP_GETATTR(vp, &va, uc, p);
+    crfree(uc);
+    if (error) {
 	return error;
     }
 
