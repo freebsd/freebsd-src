@@ -74,7 +74,7 @@
 static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
 static struct router_info *
-		find_rti __P((struct ifnet *ifp));
+		find_rti(struct ifnet *ifp);
 
 static struct igmpstat igmpstat;
 
@@ -87,7 +87,7 @@ static u_long igmp_all_rtrs_group;
 static struct mbuf *router_alert;
 static struct router_info *Head;
 
-static void igmp_sendpkt __P((struct in_multi *, int, unsigned long));
+static void igmp_sendpkt(struct in_multi *, int, unsigned long);
 
 void
 igmp_init()

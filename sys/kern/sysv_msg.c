@@ -37,14 +37,14 @@
 
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 
-static void msginit __P((void));
-static int msgunload __P((void));
-static int sysvmsg_modload __P((struct module *, int, void *));
+static void msginit(void);
+static int msgunload(void);
+static int sysvmsg_modload(struct module *, int, void *);
 
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK
 
-static void msg_freehdr __P((struct msg *msghdr));
+static void msg_freehdr(struct msg *msghdr);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *msgcalls[] = {

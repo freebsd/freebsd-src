@@ -92,10 +92,10 @@
 #include <sys/malloc.h>
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
-static void encap_add __P((struct encaptab *));
-static int mask_match __P((const struct encaptab *, const struct sockaddr *,
-		const struct sockaddr *));
-static void encap_fillarg __P((struct mbuf *, const struct encaptab *));
+static void encap_add(struct encaptab *);
+static int mask_match(const struct encaptab *, const struct sockaddr *,
+		const struct sockaddr *);
+static void encap_fillarg(struct mbuf *, const struct encaptab *);
 
 #ifndef LIST_HEAD_INITIALIZER
 /* rely upon BSS initialization */
@@ -369,7 +369,7 @@ const struct encaptab *
 encap_attach_func(af, proto, func, psw, arg)
 	int af;
 	int proto;
-	int (*func) __P((const struct mbuf *, int, int, void *));
+	int (*func)(const struct mbuf *, int, int, void *);
 	const struct protosw *psw;
 	void *arg;
 {

@@ -1198,7 +1198,7 @@ selwakeup(sip)
 	mtx_unlock(&sellock);
 }
 
-static void selectinit __P((void *));
+static void selectinit(void *);
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, selectinit, NULL)
 
 /* ARGSUSED*/

@@ -591,7 +591,7 @@ _mtx_assert(struct mtx *m, int what, const char *file, int line)
  */
 #ifdef MUTEX_DEBUG
 
-void	mtx_validate __P((struct mtx *));
+void	mtx_validate(struct mtx *);
 
 void
 mtx_validate(struct mtx *m)

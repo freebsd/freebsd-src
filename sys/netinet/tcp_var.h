@@ -434,40 +434,39 @@ extern	int tcp_do_newreno;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
 
-void	 tcp_canceltimers __P((struct tcpcb *));
+void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
-	 tcp_close __P((struct tcpcb *));
-void	 tcp_ctlinput __P((int, struct sockaddr *, void *));
-int	 tcp_ctloutput __P((struct socket *, struct sockopt *));
+	 tcp_close(struct tcpcb *);
+void	 tcp_ctlinput(int, struct sockaddr *, void *);
+int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
-	 tcp_drop __P((struct tcpcb *, int));
-void	 tcp_drain __P((void));
-void	 tcp_fasttimo __P((void));
+	 tcp_drop(struct tcpcb *, int);
+void	 tcp_drain(void);
+void	 tcp_fasttimo(void);
 struct rmxp_tao *
-	 tcp_gettaocache __P((struct in_conninfo *));
-void	 tcp_init __P((void));
-void	 tcp_input __P((struct mbuf *, int));
-void	 tcp_mss __P((struct tcpcb *, int));
-int	 tcp_mssopt __P((struct tcpcb *));
-void	 tcp_drop_syn_sent __P((struct inpcb *, int));
-void	 tcp_mtudisc __P((struct inpcb *, int));
+	 tcp_gettaocache(struct in_conninfo *);
+void	 tcp_init(void);
+void	 tcp_input(struct mbuf *, int);
+void	 tcp_mss(struct tcpcb *, int);
+int	 tcp_mssopt(struct tcpcb *);
+void	 tcp_drop_syn_sent(struct inpcb *, int);
+void	 tcp_mtudisc(struct inpcb *, int);
 struct tcpcb *
-	 tcp_newtcpcb __P((struct inpcb *));
-int	 tcp_output __P((struct tcpcb *));
-void	 tcp_quench __P((struct inpcb *, int));
-void	 tcp_respond __P((struct tcpcb *, void *,
-	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int));
+	 tcp_newtcpcb(struct inpcb *);
+int	 tcp_output(struct tcpcb *);
+void	 tcp_quench(struct inpcb *, int);
+void	 tcp_respond(struct tcpcb *, void *,
+	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 struct rtentry *
-	 tcp_rtlookup __P((struct in_conninfo *));
-void	 tcp_setpersist __P((struct tcpcb *));
-void	 tcp_slowtimo __P((void));
+	 tcp_rtlookup(struct in_conninfo *);
+void	 tcp_setpersist(struct tcpcb *);
+void	 tcp_slowtimo(void);
 struct tcptemp *
-	 tcp_maketemplate __P((struct tcpcb *));
-void	 tcp_fillheaders __P((struct tcpcb *, void *, void *));
+	 tcp_maketemplate(struct tcpcb *);
+void	 tcp_fillheaders(struct tcpcb *, void *, void *);
 struct tcpcb *
-	 tcp_timers __P((struct tcpcb *, int));
-void	 tcp_trace __P((int, int, struct tcpcb *, void *, struct tcphdr *,
-			int));
+	 tcp_timers(struct tcpcb *, int);
+void	 tcp_trace(int, int, struct tcpcb *, void *, struct tcphdr *, int);
 void	 syncache_init(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcphdr *,
@@ -480,7 +479,7 @@ void	 syncache_badack(struct in_conninfo *);
 extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
 extern	u_long tcp_recvspace;
-tcp_seq tcp_new_isn __P((struct tcpcb *));
+tcp_seq tcp_new_isn(struct tcpcb *);
 
 #endif /* _KERNEL */
 

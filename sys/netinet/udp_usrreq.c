@@ -126,15 +126,15 @@ struct udp_ip6 {
 } udp_ip6;
 #endif /* INET6 */
 
-static void udp_append __P((struct inpcb *last, struct ip *ip,
-			    struct mbuf *n, int off));
+static void udp_append(struct inpcb *last, struct ip *ip,
+			    struct mbuf *n, int off);
 #ifdef INET6
-static void ip_2_ip6_hdr __P((struct ip6_hdr *ip6, struct ip *ip));
+static void ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip);
 #endif
 
-static int udp_detach __P((struct socket *so));
-static	int udp_output __P((struct inpcb *, struct mbuf *, struct sockaddr *,
-			    struct mbuf *, struct thread *));
+static int udp_detach(struct socket *so);
+static	int udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
+			    struct mbuf *, struct thread *);
 
 void
 udp_init()
@@ -509,7 +509,7 @@ udp_ctlinput(cmd, sa, vip)
 {
 	struct ip *ip = vip;
 	struct udphdr *uh;
-	void (*notify) __P((struct inpcb *, int)) = udp_notify;
+	void (*notify)(struct inpcb *, int) = udp_notify;
         struct in_addr faddr;
 	struct inpcb *inp;
 	int s;

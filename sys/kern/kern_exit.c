@@ -78,7 +78,7 @@ MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
 static MALLOC_DEFINE(M_ATEXIT, "atexit", "atexit callback");
 
-static int wait1 __P((struct thread *, struct wait_args *, int));
+static int wait1(struct thread *, struct wait_args *, int);
 
 /*
  * callout list for things to do at exit time

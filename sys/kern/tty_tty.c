@@ -213,7 +213,7 @@ cttypoll(dev, events, td)
 	return (VOP_POLL(ttyvp, events, td->td_ucred, td));
 }
 
-static void ctty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+static void ctty_clone(void *arg, char *name, int namelen, dev_t *dev);
 
 static dev_t ctty;
 
@@ -235,7 +235,7 @@ ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
 }
 
 
-static void ctty_drvinit __P((void *unused));
+static void ctty_drvinit(void *unused);
 static void
 ctty_drvinit(unused)
 	void *unused;

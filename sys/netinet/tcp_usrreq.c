@@ -88,17 +88,17 @@
  */
 extern	char *tcpstates[];	/* XXX ??? */
 
-static int	tcp_attach __P((struct socket *, struct thread *td));
-static int	tcp_connect __P((struct tcpcb *, struct sockaddr *, 
-				 struct thread *td));
+static int	tcp_attach(struct socket *, struct thread *td);
+static int	tcp_connect(struct tcpcb *, struct sockaddr *, 
+				 struct thread *td);
 #ifdef INET6
-static int	tcp6_connect __P((struct tcpcb *, struct sockaddr *,
-				 struct thread *td));
+static int	tcp6_connect(struct tcpcb *, struct sockaddr *,
+				 struct thread *td);
 #endif /* INET6 */
 static struct tcpcb *
-		tcp_disconnect __P((struct tcpcb *));
+		tcp_disconnect(struct tcpcb *);
 static struct tcpcb *
-		tcp_usrclosed __P((struct tcpcb *));
+		tcp_usrclosed(struct tcpcb *);
 
 #ifdef TCPDEBUG
 #define	TCPDEBUG0	int ostate = 0

@@ -76,7 +76,7 @@
 #include <sys/mutex.h>
 
 /* can't call it m_dup(), as freebsd[34] uses m_dup() with different arg */
-static struct mbuf *m_dup1 __P((struct mbuf *, int, int, int));
+static struct mbuf *m_dup1(struct mbuf *, int, int, int);
 
 /*
  * ensure that [off, off + len) is contiguous on the mbuf chain "m".

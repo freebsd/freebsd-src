@@ -30,8 +30,8 @@
 static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
 	"Timecounter stable storage");
 
-static void tco_setscales __P((struct timecounter *tc));
-static __inline unsigned tco_delta __P((struct timecounter *tc));
+static void tco_setscales(struct timecounter *tc);
+static __inline unsigned tco_delta(struct timecounter *tc);
 
 time_t time_second;
 

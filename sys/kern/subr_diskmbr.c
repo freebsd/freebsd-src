@@ -83,17 +83,17 @@ static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
 	{ 0x80, 0, 1, 0, DOSPTYP_386BSD, 254, 255, 255, 0, 50000, },
 };
 
-static int check_part __P((char *sname, struct dos_partition *dp,
+static int check_part(char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
-			   u_long mbr_offset));
-static void mbr_extended __P((dev_t dev, struct disklabel *lp,
+			   u_long mbr_offset);
+static void mbr_extended(dev_t dev, struct disklabel *lp,
 			      struct diskslices *ssp, u_long ext_offset,
 			      u_long ext_size, u_long base_ext_offset,
 			      int nsectors, int ntracks, u_long mbr_offset,
-			      int level));
-static int mbr_setslice __P((char *sname, struct disklabel *lp,
+			      int level);
+static int mbr_setslice(char *sname, struct disklabel *lp,
 			     struct diskslice *sp, struct dos_partition *dp,
-			     u_long br_offset));
+			     u_long br_offset);
 
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )

@@ -38,7 +38,7 @@
 #include <sys/tty.h>
 #include <sys/clist.h>
 
-static void clist_init __P((void *));
+static void clist_init(void *);
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)
 
 static struct cblock *cfreelist = 0;
@@ -50,10 +50,10 @@ static int ctotcount;
 #define	INITIAL_CBLOCKS 50
 #endif
 
-static struct cblock *cblock_alloc __P((void));
-static void cblock_alloc_cblocks __P((int number));
-static void cblock_free __P((struct cblock *cblockp));
-static void cblock_free_cblocks __P((int number));
+static struct cblock *cblock_alloc(void);
+static void cblock_alloc_cblocks(int number);
+static void cblock_free(struct cblock *cblockp);
+static void cblock_free_cblocks(int number);
 
 #include "opt_ddb.h"
 #ifdef DDB

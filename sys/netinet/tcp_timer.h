@@ -128,11 +128,11 @@ extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 
-void	tcp_timer_2msl __P((void *xtp));
-void	tcp_timer_keep __P((void *xtp));
-void	tcp_timer_persist __P((void *xtp));
-void	tcp_timer_rexmt __P((void *xtp));
-void	tcp_timer_delack __P((void *xtp));
+void	tcp_timer_2msl(void *xtp);
+void	tcp_timer_keep(void *xtp);
+void	tcp_timer_persist(void *xtp);
+void	tcp_timer_rexmt(void *xtp);
+void	tcp_timer_delack(void *xtp);
 
 #endif /* _KERNEL */
 

@@ -315,7 +315,7 @@ struct ipfw_dyn_rule {
 /*
  * Function definitions.
  */
-void ip_fw_init __P((void));
+void ip_fw_init(void);
 
 /* Firewall hooks */
 struct ip;

@@ -59,17 +59,17 @@
 
 #include <machine/limits.h>
 
-static int vn_closefile __P((struct file *fp, struct thread *td));
-static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
-		struct thread *td));
-static int vn_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td));
-static int vn_poll __P((struct file *fp, int events, struct ucred *cred,
-		struct thread *td));
-static int vn_kqfilter __P((struct file *fp, struct knote *kn));
-static int vn_statfile __P((struct file *fp, struct stat *sb, struct thread *td));
-static int vn_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred, int flags, struct thread *td));
+static int vn_closefile(struct file *fp, struct thread *td);
+static int vn_ioctl(struct file *fp, u_long com, caddr_t data, 
+		struct thread *td);
+static int vn_read(struct file *fp, struct uio *uio, 
+		struct ucred *cred, int flags, struct thread *td);
+static int vn_poll(struct file *fp, int events, struct ucred *cred,
+		struct thread *td);
+static int vn_kqfilter(struct file *fp, struct knote *kn);
+static int vn_statfile(struct file *fp, struct stat *sb, struct thread *td);
+static int vn_write(struct file *fp, struct uio *uio, 
+		struct ucred *cred, int flags, struct thread *td);
 
 struct 	fileops vnops = {
 	vn_read, vn_write, vn_ioctl, vn_poll, vn_kqfilter,
