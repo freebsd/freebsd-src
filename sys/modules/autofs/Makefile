@@ -1,11 +1,13 @@
 # $FreeBSD$
+# $Id: Makefile,v 1.10 2004/09/01 07:03:32 bright Exp $
 
-TOPDIR=${.CURDIR}/../..
 
-.PATH: ${TOPDIR}/fs/autofs
+SRCDIR=        ${.CURDIR}/../../fs/autofs
 
-CFLAGS+=	-I${TOPDIR}/fs/autofs
-CFLAGS+=	-Werror
+.PATH: ${SRCDIR}
+
+CFLAGS+=	-I${SRCDIR}
+
 KMOD=	autofs
 
 SRCS=	vnode_if.h \
