@@ -1,0 +1,30 @@
+#
+# Makefile for uurate 1.0
+#
+
+# Where uurate is installed
+BIN=/usr/local/bin
+
+# Flags to use when compiling uurate
+CFLAGS=-I..
+
+CC=cc
+SHELL=/bin/sh
+PROGS=uurate
+
+#-----------
+
+all: $(PROGS)
+
+install: $(PROGS)
+	@for i in $(PROGS) ; do \
+		echo "Install $$i into $(BIN)..." ; \
+		cp $$i $(BIN) ; \
+		echo "Set ownership and protection..." ; \
+		/bin/chmod 0555 $(BIN)/$$i ; \
+		/bin/chown bin $(BIN)/$$i ; \
+		/bin/chgrp bin $(BIN)/$$i ; \
+	done
+
+clean:
+	rm -f $(PROGS) core

@@ -1,0 +1,68 @@
+The following options are missing:
+	[no]optimize	- affects screen redrawing method
+	[no]redraw	- simulate character insertion by redrawing line
+	[no]slowopen	- don't use character insertion
+	tags="tags"	- list of tags, used as TAGPATH
+
+I'd like to improve the versatility of the options whose value is a command:
+cc, make, kp, and ep.  I'd like to add some notation that allows you to say
+where to insert the current filename or current word.
+-------------------------------------------------------------------------------
+Currently, elvis is configured to look for | only in .exrc files.  It doesn't
+look for | in any interactively entered command lines, yet.
+-------------------------------------------------------------------------------
+The 'p', '#', and 'l' flags aren't supported.  Also, ex commands don't accept
+counts; e.g., ":c5" can't be used to change five lines. 
+-------------------------------------------------------------------------------
+The following have been reported, but have not been verified.  If you have
+experienced any of the following, and haven't reported it yet, then please
+report it now!  I need more information about these bugs.
+
+[Bugs that are not in this list should also be reported, of course.]
+
+- Under VMS on an 80-column screen, after scolling sideways to approximately
+  column 110, a ^L will not redraw the part of the line after the cursor.
+- On an Atari ST running under TOS: some ASCII keys seem to send '#' plus
+  another key.  (This is normal for non-ASCII keys like <F1> or <Help>, but
+  ASCII keys should always send a single ASCII character.)
+-------------------------------------------------------------------------------
+BIG JOBS:
+  Desirable extension: merge input mode and visual command mode.
+  Display long lines by wrapping, like the real vi (if ":set sidescroll=0")
+-------------------------------------------------------------------------------
+
+- In the ":w >>filename" command, elvis doesn't allow any whitespace between
+  the ">>" and "filename".
+
+- Elvis doesn't allow "backslash newline" inside a single EX command.
+
+- VMS intercepts the control-T character, which is normally used to increase
+  indentation.  The <Tab> key works, but it doesn't do quite the same thing.
+  (":map! ^I ^T" helps.)
+
+- Under VMS, file I/O is very slow.  Looking over the vmsio.c file, I get the
+  impression that it is rather over-done for elvis.  Its speed could
+  probably be inproved.
+
+- The errlist feature doesn't seem to work with the Borland compilers.  Perhaps
+  they write to stderr instead of stdout?  This will probably be easy to solve
+  once I modify the "cc" and "make" options, as described earlier.
+
+- The command ":0" should move the cursor to line 1.  Currently, it doesn't
+  move the cursor at all.
+
+- File preservation is still flakey.  On DOS/TOS/VMS systems, it is also more
+  complex that it should be.
+
+- The act of appending to a cut buffer (as in "Ayy) sets file modification
+  flag.  It shouldn't!
+
+- The .exrc file is limited to BLKSIZE bytes -- 2048 on most systems, but
+  1024 on Minicx-PC, Coherent, and MS-DOS.
+
+- I *still* haven't quite perfected the screen update code.  If you suspect
+  that the screen doesn't accurately reflect the contents of the edit buffer,
+  then you should try doing a control-L.
+
+  I'll be overhauling the screen update code soon to make it wrap long lines
+  like the real vi.  I expect to fix this bug then.

@@ -1,0 +1,247 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)00.contents	5.2 (Berkeley) 4/17/91
+.\"
+.OH '''USD Contents'
+.EH 'USD Contents'''
+.TL
+UNIX User's Supplementary Documents (USD)
+.sp
+\s-24.3 Berkeley Software Distribution, Virtual \s-2VAX\s+2\-11 Version\s+2
+.sp
+\fRFebruary, 1986\fR
+.PP
+This volume contains documents which supplement the manual pages in
+.I
+The Unix User's Reference Manual
+.R
+for the Virtual \s-2VAX\s0-11 version of the system as distributed by U.C.
+Berkeley, and Volumes 2a and 2b as provided by Bell Laboratories.
+
+.SH
+Getting Started
+.IP
+.tl 'Unix for Beginners \- Second Edition''USD:1'
+.QP
+An introduction to the most basic uses of the system.
+.IP
+.tl 'Learn \- Computer\-Aided Instruction on UNIX (Second Edition)''USD:2'
+.QP
+Describes a computer-aided instruction program that walks new users through
+the basics of files, the editor, and document prepararation software.
+.SH
+Basic Utilities
+.IP
+.tl 'An Introduction to the UNIX Shell''USD:3'
+.QP
+Steve Bourne's introduction to the capabilities of 
+.I sh,
+a command interpreter especially popular for writing shell scripts.
+.IP
+.tl 'An Introduction to the C shell''USD:4'
+.QP
+This introduction to
+.I csh,
+(a command interpreter popular for interactive work)  describes many 
+commonly used UNIX commands, assumes little prior knowledge of UNIX,
+and has a glossary useful for beginners.
+.IP
+.tl 'DC \- An Interactive Desk Calculator''USD:5'
+.QP
+A super HP calculator, if you do not need floating point.
+.IP
+.tl 'BC \- An Arbitrary Precision Desk-Calculator Language''USD:6'
+.QP
+A front end for DC that provides infix notation, control flow, and 
+built\-in functions.
+.SH
+Communicating with the World
+.IP
+.tl 'Mail Reference Manual''USD:7'
+.QP
+Complete details on one of the programs for sending and reading your mail.
+.IP
+.tl 'The Rand MH Message Handling System''USD:8'
+.QP
+This system for managing your computer mail uses lots of small programs, 
+instead of one large one.
+.IP
+.tl 'How to Read the Network News''USD:9'
+.QP
+Describes how news works (generally) and some alternatives for reading it,
+.I readnews
+and 
+.I vnews .
+.IP
+.tl 'How to Use USENET Effectively''USD:10'
+.QP
+Describes the customs, protocols, and etiquette of network news, plus answers
+to the questions most frequently asked by newcomers to the network.
+.IP
+.tl 'Notesfile Reference Manual''USD:11'
+.QP
+This feature-packed system for maintaining computer-aided discussion groups is
+also useful for reading netnews.
+.SH
+Text Editing
+.IP
+.tl 'A Tutorial Introduction to the Unix Text Editor''USD:12'
+.QP
+An easy way to get started with the line editor, 
+.I ed.
+.IP
+.tl 'Advanced Editing on Unix''USD:13'
+.QP
+The next step.
+.IP
+.tl 'Edit: A Tutorial''USD:14'
+.QP
+An introduction to 
+.I edit, 
+a line\-oriented editor which is a version of 
+.I ex, 
+assuming no previous knowledge of UNIX or text editing.
+.IP
+.tl 'An Introduction to Display Editing with Vi''USD:15'
+.QP
+The document to learn to use the \fIvi\fR screen editor.
+.IP
+.tl 'Ex Reference Manual (Version 3.7)''USD:16'
+.QP
+The final reference for the \fIex\fR editor, which underlies both \fIedit\fR
+and \fIvi\fR. 
+.IP
+.tl 'Jove Manual for UNIX Users''USD:17'
+.QP
+Jove is a small, self-documenting, customizable display editor, based on
+EMACS.  A plausible alternative to 
+.I vi.
+.IP
+.tl 'SED \- A Non-interactive Text Editor''USD:18'
+.QP
+Describes a one-pass variant of 
+.I ed
+useful as a filter for processing large files.
+.IP
+.tl 'AWK \- A Pattern Scanning and Processing Language (Second Edition)''USD:19'
+.QP
+A program for data selection and transformation.
+.SH
+Document Preparation
+.IP
+.tl 'Typing Documents on UNIX: Using the \-ms Macros with Troff and Nroff''USD:20'
+.QP
+Describes and gives examples of the basic use of the typesetting tools and 
+``-ms'', a frequently used package of formatting requests that make it easier 
+to lay out most documents.
+.IP
+.tl 'A Revised Version of \-ms''USD:21'
+.QP
+A brief description of the Berkeley revisions made to the \-ms formatting
+macros for nroff and troff.
+.IP
+.tl 'Writing Papers with \fInroff\fR using \-me''USD:22'
+.QP
+Another popular macro package for
+.I nroff.
+.IP
+.tl '\-me Reference Manual''USD:23'
+.QP
+The final word on \-me.
+.IP
+.tl 'NROFF/TROFF User\'s Manual''USD:24'
+.QP
+Extremely detailed information about these document formatting programs.
+.KS
+.IP
+.tl 'A TROFF Tutorial''USD:25'
+.QP
+An introduction to the most basic uses of
+.I troff 
+for those who really want to know such things, or want to write their 
+own macros.
+.KE
+.KS
+.IP
+.tl 'A System for Typesetting Mathematics''USD:26'
+.QP
+Describes 
+.I eqn, 
+an easy-to-learn language for high-quality mathematical typesetting.
+.IP
+.tl 'Typesetting Mathematics \- User\'s Guide (Second Edition)''USD:27'
+.QP
+More details about how to use 
+.I eqn.
+.IP
+.KE
+.tl 'Tbl \- A Program to Format Tables''USD:28'
+.QP
+A program for easily typesetting tabular material.
+.IP
+.tl 'Refer \- A Bibliography System''USD:29'
+.QP
+An introduction to one set of tools used to maintain bibliographic databases. 
+The major program, 
+.I refer,
+is used to automatically retrieve and format the references 
+based on document citations.
+.IP
+.tl 'Some Applications of Inverted Indexes on the UNIX System''USD:30'
+.QP
+Mike Lesk's paper describes the
+.I refer 
+programs in a somewhat larger context.
+.IP
+.tl 'BIB \- A Program for Formatting Bibliographies''USD:31'
+.QP
+This is an alternative to
+.I refer
+for expanding citations in documents.
+.IP
+.tl 'Writing Tools \- The STYLE and DICTION Programs''USD:32'
+.QP
+These are programs which can help you understand and improve your 
+writing style.
+.SH 
+Amusements
+.IP
+.tl 'A Guide to the Dungeons of Doom''USD:33'
+.QP
+An introduction to the popular game of \fIrogue\fP, a fantasy game
+which is one of the biggest known users of VAX cycles.
+.IP
+.tl 'Star Trek''USD:34'
+.QP
+You are the Captain of the Starship Enterprise.  Wipe out the
+Klingons and save the Federation.
+.IP

@@ -1,0 +1,93 @@
+.\" $Header: /a/cvs/386BSD/src/usr.bin/crontab/crontab.1,v 1.1.1.1 1993/06/12 14:53:53 rgrimes Exp $
+.\"
+.\"/* Copyright 1988,1990 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie, 329 Noe Street, San Francisco, CA, 94114, (415) 864-7013,
+.\" * paul@vixie.sf.ca.us || {hoptoad,pacbell,decwrl,crash}!vixie!paul
+.\" */
+.TH CRONTAB 1 "9 December 1988"
+.UC 4
+.SH NAME
+crontab \- maintain crontab files for individual users
+.SH SYNOPSIS
+crontab [ -u user ] { -l | -d | -r file }
+.SH DESCRIPTION
+.I Crontab
+is the program used to install, deinstall or list the tables
+used to drive the
+.IR crond (8)
+daemon in Vixie Cron.  Each user has their own crontab, and though these are
+files in /var, they are not readable or writable by anyone or anything
+except the super-user or the
+.IR crond (8)
+or
+.I crontab
+programs.
+.PP
+If the
+.I allow
+file exists, then you must be listed therein in order to be allowed to use
+this command.  If the
+.I allow
+file does not exist but the
+.I deny
+file does exist, then you must \fBnot\fR be listed in the
+.I deny
+file in order to use this command.  If neither of these files exists, then
+depending on site-dependent configuration parameters, only the super user
+will be allowed to use this command, or all users will be able to use this
+command.
+.PP
+If the
+.I -u
+option is given, it specifies the name of the user whose crontab is to be
+tweaked.  If this option is not given,
+.I crontab
+examines "your" crontab, i.e., the crontab of the person executing the
+command.  Note that
+.IR su (8)
+can confuse
+.I crontab
+and that if you are running inside of
+.IR su (8)
+you should always use the
+.I -u
+option for safety's sake.
+.PP
+The
+.I -l
+option causes the current crontab to be displayed on standard output.
+.PP
+The
+.I -d
+option causes the current crontab to be deleted.
+.PP
+The
+.I -r
+option is used to replace the current
+crontab (if any) with the contents of the named file.
+.SH "SEE ALSO"
+crontab(5), crond(8)
+.SH FILES
+.nf
+/var/cron/allow
+/var/cron/deny
+.fi
+.SH DIAGNOSTICS
+A fairly informative usage message appears if you run it with a bad command
+line.
+.SH AUTHOR
+.nf
+Paul Vixie, paul@vixie.sf.ca.us

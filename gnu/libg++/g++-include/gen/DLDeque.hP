@@ -1,0 +1,130 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>DLDeque_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>DLDeque_h
+
+#include "<T>.DLList.h"
+#include "<T>.Deque.h"
+
+class <T>DLDeque : public <T>Deque
+{
+  <T>DLList    p;
+
+public:
+               <T>DLDeque();
+               <T>DLDeque(const <T>DLDeque& d);
+               ~<T>DLDeque();
+
+  void          operator = (const <T>DLDeque&);
+
+  void          push(<T&> item); // insert at front
+  void          enq(<T&> item);  // insert at rear
+
+  <T>&          front();
+  <T>&          rear();
+
+  <T>           deq();
+  void          del_front();
+  void          del_rear();               
+
+  void          clear();
+  int           empty();
+  int           full();
+  int           length();
+               
+  int           OK();
+};
+
+
+inline <T>DLDeque::<T>DLDeque() : p() {}
+inline <T>DLDeque::<T>DLDeque(const <T>DLDeque& d) : p(d.p) {}
+
+inline <T>DLDeque::~<T>DLDeque() {}
+
+inline void <T>DLDeque::push(<T&>item)
+{
+  p.prepend(item);
+}
+
+inline void <T>DLDeque::enq(<T&>item)
+{
+  p.append(item);
+}
+
+inline <T> <T>DLDeque::deq()
+{
+  return p.remove_front();
+}
+
+inline <T>& <T>DLDeque::front()
+{
+  return p.front();
+}
+
+inline <T>& <T>DLDeque::rear()
+{
+  return p.rear();
+}
+
+inline void <T>DLDeque::del_front()
+{
+  p.del_front();
+}
+
+inline void <T>DLDeque::del_rear()
+{
+  p.del_rear();
+}
+
+inline void <T>DLDeque::operator =(const <T>DLDeque& s)
+{
+  p.operator = (s.p);
+}
+
+
+inline int <T>DLDeque::empty()
+{
+  return p.empty();
+}
+
+inline int <T>DLDeque::full()
+{
+  return 0;
+}
+
+inline int <T>DLDeque::length()
+{
+  return p.length();
+}
+
+inline int <T>DLDeque::OK()
+{
+  return p.OK();
+}
+
+inline void <T>DLDeque::clear()
+{
+  p.clear();
+}
+
+#endif

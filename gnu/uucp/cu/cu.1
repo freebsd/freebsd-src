@@ -1,0 +1,286 @@
+''' $Id: cu.1,v 1.1 1993/08/05 18:23:28 conklin Exp $
+.TH cu 1 "Taylor UUCP 1.04"
+.SH NAME
+cu \- Call up another system
+.SH SYNOPSIS
+.B cu
+[ options ] [ system | phone | "dir" ]
+.SH DESCRIPTION
+The
+.I cu
+command is used to call up another system and act as a dial in
+terminal.  It can also do simple file transfers with no error
+checking.
+
+.I cu
+takes a single argument, besides the options.  If the argument is the
+string "dir" cu will make a direct connection to the port.  This may
+only be used by users with write access to the port, as it permits
+reprogramming the modem.
+
+Otherwise, if the argument begins with a digit, it is taken to be a
+phone number to call.  Otherwise, it is taken to be the name of a
+system to call.  The
+.B \-z
+option may be used to name a system beginning with a digit, and the
+.B \-c
+option may be used to name a phone number that does not begin with a
+digit.
+
+.I cu
+locates a port to use in the UUCP configuration files.  If a simple
+system name is given, it will select a port appropriate for that
+system.  The
+.B \-p, \-l
+and
+.B \-s
+options may be used to control the port selection.
+
+When a connection is made to the remote system,
+.I cu
+forks into two processes.  One reads from the port and writes to the
+terminal, while the other reads from the terminal and writes to the
+port.
+
+.I cu
+provides several commands that may be used during the conversation.
+The commands all begin with an escape character, initially
+.B ~
+(tilde).  The escape character is only recognized at the beginning of
+a line.  To send an escape character to the remote system at the start
+of a line, it must be entered twice.  All commands are either a single
+character or a word beginning with
+.B %
+(percent sign).
+
+.I cu
+recognizes the following commands:
+
+.TP 5
+.B ~.
+Terminate the conversation.
+.TP 5
+.B ~! command
+Run command in a shell.  If command is empty, starts up a shell.
+.TP 5
+.B ~$ command
+Run command, sending the standard output to the remote system.
+.TP 5
+.B ~| command
+Run command, taking the standard input from the remote system.
+.TP 5
+.B ~+ command
+Run command, taking the standard input from the remote system and
+sending the standard output to the remote system.
+.TP 5
+.B ~#, ~%break
+Send a break signal, if possible.
+.TP 5
+.B ~c directory, ~%cd directory
+Change the local directory.
+.TP 5
+.B ~> file
+Send a file to the remote system.  This just dumps the file over the
+communication line.  It is assumed that the remote system is expecting
+it.
+.TP 5
+.B ~<
+Receive a file from the remote system.  This prompts for the local
+file name and for the remote command to execute to begin the file
+transfer.  It continues accepting data until the contents of the
+.B eofread
+variable are seen.
+.TP 5
+.B ~p from to, ~%put from to
+Send a file to a remote Unix system.  This runs the appropriate
+commands on the remote system.
+.TP 5
+.B ~t from to, ~%take from to
+Retrieve a file from a remote Unix system.  This runs the appropriate
+commands on the remote system.
+.TP 5
+.B ~s variable value
+Set a
+.I cu
+variable to the given value.  If value is not given, the variable is
+set to
+.B true.
+.TP 5
+.B ~! variable
+Set a
+.I cu
+variable to
+.B false.
+.TP 5
+.B ~z
+Suspend the cu session.  This is only supported on some systems.  On
+systems for which ^Z may be used to suspend a job, 
+.B ~^Z
+will also suspend the session.
+.TP 5
+.B ~%nostop
+Turn off XON/XOFF handling.
+.TP 5
+.B ~%stop
+Turn on XON/XOFF handling.
+.TP 5
+.B ~v
+List all the variables and their values.
+.TP 5
+.B ~?
+List all commands.
+
+.I cu
+also supports several variables.  They may be listed with the
+.B ~v
+command, and set with the
+.B ~s
+or
+.B ~!
+commands.
+
+.TP 5
+.B escape
+The escape character.  Initially
+.B ~
+(tilde).
+.TP 5
+.B delay
+If this variable is true,
+.I cu
+will delay for a second after recognizing the escape character before
+printing the name of the local system.  The default is true.
+.TP 5
+.B eol
+The list of characters which are considered to finish a line.  The
+escape character is only recognized after one of these is seen.  The
+default is carriage return, ^U, ^C, ^O, ^D, ^S, ^Q, ^R.
+.TP 5
+.B binary
+Whether to transfer binary data when sending a file.  If this is
+false, then newlines in the file being sent are converted to carriage
+returns.  The default is false.
+.TP 5
+.B binary-prefix
+A string used before sending a binary character in a file transfer, if
+the
+.B binary
+variable is true.  The default is ^Z.
+.TP 5
+.B echo-check
+Whether to check file transfers by examining what the remote system
+echoes back.  This probably doesn't work very well.  The default is
+false.
+.TP 5
+.B echonl
+The character to look for after sending each line in a file.  The
+default is carriage return.
+.TP 5
+.B timeout
+The timeout to use, in seconds, when looking for a character, either
+when doing echo checking or when looking for the
+.B echonl
+character.  The default is 30.
+.TP 5
+.B kill
+The character to use delete a line if the echo check fails.  The
+default is ^U.
+.TP 5
+.B resend
+The number of times to resend a line if the echo check continues to
+fail.  The default is 10.
+.TP 5
+.B eofwrite
+The string to write after sending a file with the
+.B ~>
+command.  The default is ^D.
+.TP 5
+.B eofread
+The string to look for when receiving a file with the
+.B ~<
+command.  The default is $, which is intended to be a typical shell
+prompt.
+.TP 5
+.B verbose
+Whether to print accumulated information during a file transfer.  The
+default is true.
+.SH OPTIONS
+The following options may be given to
+.I cu.
+.TP 5
+.B \-e
+Use even parity.
+.TP 5
+.B \-o
+Use odd parity.  If both
+.B \-e
+and
+.B \-o
+are used, no parity is used.  Otherwise the default parity of the line
+is used.
+.TP 5
+.B \-h
+Echo characters locally (half-duplex mode).
+.TP 5
+.B \-z system
+The system to call.
+.TP 5
+.B \-c phone-number
+The phone number to call.
+.TP 5
+.B \-p port
+Name the port to use.
+.TP 5
+.B \-a port
+Equivalent to
+.B \-p port.
+.TP 5
+.B \-l line
+Name the line to use by giving a device name.  This may be used to
+dial out on ports that are not listed in the UUCP configuration files.
+Write access to the device is required.
+.TP 5
+.B \-s speed
+The speed (baud rate) to use.
+.TP 5
+.B \-#
+Where # is a number, equivalent to
+.B \-s #.
+.TP 5
+.B \-n
+Prompt for the phone number to use.
+.TP 5
+.B \-d
+Enter debugging mode.  Equivalent to
+.B \-x all.
+.TP 5
+.B \-x type
+Turn on particular debugging types.  The following types are
+recognized: abnormal, chat, handshake, uucp-proto, proto, port,
+config, spooldir, execute, incoming, outgoing.  Only abnormal, chat,
+handshake, port, config, incoming and outgoing are meaningful for
+.I cu.
+
+Multiple types may be given, separated by commas, and the
+.B \-x
+option may appear multiple times.  A number may also be given, which
+will turn on that many types from the foregoing list; for example,
+.B \-x 2
+is equivalent to
+.B \-x abnormal,chat.
+.B \-x all
+may be used to turn on all debugging options.
+.TP 5
+.B \-I file
+Set configuration file to use.  This option may not be available,
+depending upon how
+.I cu
+was compiled.
+.SH BUGS
+This program does not work very well.
+.SH FILES
+The file name may be changed at compilation time, so this is only an
+approximation.
+
+.br
+/usr/lib/uucp/config - Configuration file.

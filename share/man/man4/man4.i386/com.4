@@ -1,0 +1,102 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
+.\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
+.\"	$Id: com.4,v 1.1 1993/08/28 12:41:20 rgrimes Exp $
+.\"
+.Dd August 28, 1993
+.Dt COM 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm com
+.Nd
+serial communications interface
+.Sh SYNOPSIS
+.Cd "device com0 at isa? port" \&"IO_COM1\&" tty irq 4 vector comintr
+.Cd "device com1 at isa? port" \&"IO_COM2\&" tty irq 3 vector comintr
+.Cd "device com2 at isa? port" \&"IO_COM3\&" tty irq 5 vector comintr
+.Cd "device com3 at isa? port" \&"IO_COM4\&" tty irq 9 vector comintr
+.Sh DESCRIPTION
+The
+.Nm com
+driver provides support for NS8250-, NS16450-, and NS16550-based
+.Tn EIA
+.Tn RS-232C
+.Pf ( Tn CCITT
+.Tn V.28 )
+communications interfaces.  The NS8250 and NS16450 have single character
+buffers, and the NS16550 has a 16 character buffer.
+.Pp
+Input and output for each line may set to one of following baud rates;
+50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
+19200, 38400, 57600, or 115200.
+.Sh FILES
+.Bl -tag -width Pa
+.It Pa /dev/tty00
+.It Pa /dev/tty01
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It com%d: silo overflow.
+The single-character input
+.Dq silo
+has overflowed and incoming data has been lost.
+.\".It com%d: weird interrupt: %x.
+.\"The device has generated an unexpected interrupt
+.\"with the code listed.
+.El
+.Sh SEE ALSO
+.Xr tty 4
+.Xr sio 4
+.Sh HISTORY
+The
+.Nm
+driver is derived from the
+.Nm HP9000/300
+.Nm dca
+driver and is
+.Ud
+.Sh BUGS
+Data loss is possible on busy systems with baud rates greater than 300.
+The
+.Nm com
+driver is slow, buggy, and not properly tested.
+.Pp
+The name of this driver and the constants which define the locations
+of the various seiral ports are holdovers from
+.Nm DOS .
+.Pp
+As usual, you get what you pay for; cheap NS16550 clones
+generally don't work.

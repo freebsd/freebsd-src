@@ -1,0 +1,66 @@
+#	$Id: TODO,v 1.2 1993/07/20 03:27:21 jkh Exp $
+
+ 1) should understand "older", original High Sierra ("CDROM001") type
+
+   Not yet. ( I don't have this technical information, yet. )
+
+ 2) should understand Rock Ridge
+
+   Yes, we have follows function.
+
+       o Symbolic Link
+       o Real Name(long name)
+       o File Attribute 
+       o Time stamp
+       o uid, gid
+
+   Except follows:
+
+       o POSIX device modes
+
+         I have no idea right now, we should check a REAL implementation
+         for 386BSD.....
+         
+       o Limitation of 8 level directory( ISO9660 limitation )
+
+         Rock Ridge Extension are defined with the "CL/PL/RE" for getting
+         rid of this limitation. But as far as I test the cdroms,I'v never 
+         seen this definition and we can access the over 8 level without
+         it. (Another word, this limitation is NOT physical ISO9660's
+         FORMAT limitation for unix stuffs.... I believe... )
+
+ 3) should be called cdfs, as there are other ISO file system soon possible
+
+   Not yet. Probably we should make another file system when the ECMA draft 
+   is valid and do it. For doing Rock Ridge Support, I can use almost same
+   code. So I just use the same file system interface...
+
+ 4) should have file handles implemented for use with NFS, etc
+
+   Yes. we have already this one, and I based it for this release. 
+
+ 5) should have name translation enabled by mount flag
+
+   Yes. we can disable the Rock Ridge Extension by follows option;
+
+      "mount -t isofs -o -norrip /dev/cd0d /cdrom"
+
+ 6) should run as a user process, and not take up kernel space (cdroms
+    are slow)
+
+   Not yet. And addition, we should try to avoid a long seek by a absolute path
+   with using the PATH TABLE or other method.
+
+ 7) ECMA support.
+
+   Not yet. we need not only a technical spec but also ECMA format
+   cd-rom itself!
+
+ 8) Character set change by SVD ( multi SVD support )
+
+   Not yet. We should also hack the other part of system as 8 bit
+   clean. As far as I know, if you export the cdrom by NFS, the client
+   can access the 8 bit clean (ie. Solaris Japanese with EUC code )
+
+----------
+Last update July 19, '93 by Atsushi Murai. (amurai@spec.co.jp)

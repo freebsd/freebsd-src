@@ -1,0 +1,98 @@
+.\"
+.\" Copyright (c) 1993 Christopher G. Demetriou
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software withough specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id: mount_isofs.8,v 1.1 1993/07/21 07:51:50 cgd Exp $
+.\"
+.Dd July 19, 1993
+.Dt MOUNT_MSDOS 8
+.Os NetBSD 0.9
+.Sh NAME
+.Nm mount_isofs
+.Nd mount an ISO-9660 filesystem
+.Sh SYNOPSIS
+.Nm mount_isofs
+.Op Fl F Ar fsoptions
+.Op Fl norrip
+.Pa special
+.Pa node
+.Sh DESCRIPTION
+The
+.Nm mount_isofs
+command attaches the ISO-9660 filesystem residing on
+the device
+.Pa special
+to the global filesystem namespace at the location
+indicated by
+.Pa node .
+This command is normally executed by
+.Xr mount 8 .
+at boot time.
+.Pp
+If the filesystem includes Rockridge extensions, they are
+used unless the
+.Fl norrip
+flag is used.  If that option is given to
+.Nm
+then the Rockridge extensions will be ignored.
+.Sh EXAMPLES
+.Bd -literal -offset indent -compact
+mount_isofs /dev/cd0d /cdrom
+mount_isofs \-norrip /dev/cd0d /cdrom
+mount \-t isofs /dev/cd0d /cdrom
+mount \-t isofs \-o \-norrip /dev/cd0d /cdrom
+.Ed
+.Sh SEE ALSO
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Xr fstab 5
+.Sh BUGS
+The isofs filesystem should support the original "High Sierra"
+("CDROM001") format;
+it does not.
+.Pp
+POSIX device nodes are currently not supported.
+.Pp
+The filesystem name might need some rethinking, and some would
+say it should run as a user process.
+.Pp
+There is no ECMA support.
+.Sh HISTORY
+The
+.Nm mount_isofs
+utility first appeared in NetBSD 0.8.
+Handling of Rockridge extensions was added for NetBSD 0.9.
+.Sh AUTHORS
+.Bl -tag
+Pace Willisson <pace@blitz.com>, <pace@bsdi.com> wrote the
+original version of the ISO-9660 filesystem.
+.Pp
+Atsushi Murai <amurai@spec.co.jp> wrote the Rockridge support.
+.Pp
+Chris Demetriou <cgd@berkeley.edu> wrote the man page.
+.El

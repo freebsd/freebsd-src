@@ -1,0 +1,19 @@
+Here are some things that would be useful additions to groff:
+
+  a driver for the HP Laserjet 2 and 3
+
+  grap
+
+  -mv macros (for typesetting viewgraphs and slides)
+
+  a deroff that understands long names
+
+  a page-makeup postprocessor and associated macro package
+  (like pm and -mpm)
+
+  a complete, self-contained manual
+
+If you want to work on one of these, I suggest you contact me first.
+
+James Clark
+jjc@jclark.com

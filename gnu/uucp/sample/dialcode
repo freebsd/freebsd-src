@@ -1,0 +1,19 @@
+# This is an example of dialcode, the dialcode configuration file for
+# Taylor UUCP.  To use it, you must compile the package with
+# HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default), copy
+# this file to newconfigdir as set in Makefile.in (the default is
+# /usr/local/conf/uucp), and edit it as appropriate for your system.
+
+# Everything after a '#' character is a comment.  To uncomment any of
+# the sample lines below, just delete the '#'.
+
+# The dialcode file is used if \T is used in the dialer chat script
+# and the telephone number begins with alphabetic characters.  The
+# alphabetic characters are looked up and translated in dialcode.
+
+# Here are a couple of sample dialcodes.
+MA 617
+CA 415
+
+# For example, if the phone number (from the sys file) is MA7389449,
+# then the string sent to the modem will be 6177389449.

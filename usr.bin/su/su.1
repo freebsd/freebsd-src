@@ -1,0 +1,176 @@
+.\" Copyright (c) 1988, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)su.1	6.12 (Berkeley) 7/29/91
+.\"
+.Dd July 29, 1991
+.Dt SU 1
+.Os
+.Sh NAME
+.Nm su
+.Nd substitute user identity
+.Sh SYNOPSIS
+.Nm su
+.Op Fl Kflm
+.Op Ar login
+.Sh DESCRIPTION
+.Nm Su
+requests the Kerberos password for
+.Ar login
+(or for
+.Dq Ar login Ns .root ,
+if no login is provided), and switches to
+that user and group ID after obtaining a Kerberos ticket granting ticket.
+A shell is then executed.
+.Nm Su
+will resort to the local password file to find the password for
+.Ar login
+if there is a Kerberos error.
+If
+.Nm su
+is executed by root, no password is requested and a shell
+with the appropriate user ID is executed; no additional Kerberos tickets
+are obtained.
+.Pp
+By default, the environment is unmodified with the exception of
+.Ev USER ,
+.Ev HOME ,
+and
+.Ev SHELL .
+.Ev HOME
+and
+.Ev SHELL
+are set to the target login's default values.
+.Ev USER
+is set to the target login, unless the target login has a user ID of 0,
+in which case it is unmodified.
+The invoked shell is the target login's.
+This is the traditional behavior of
+.Nm su .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl K
+Do not attempt to use Kerberos to authenticate the user.
+.It Fl f
+If the invoked shell is
+.Xr csh 1 ,
+this option prevents it from reading the
+.Dq Pa .cshrc
+file.
+.It Fl l
+Simulate a full login.
+The environment is discarded except for
+.Ev HOME ,
+.Ev SHELL ,
+.Ev PATH ,
+.Ev TERM ,
+and
+.Ev USER .
+.Ev HOME
+and
+.Ev SHELL
+are modified as above.
+.Ev USER
+is set to the target login.
+.Ev PATH
+is set to
+.Dq Pa /bin:/usr/bin .
+.Ev TERM
+is imported from your current environment.
+The invoked shell is the target login's, and
+.Nm su
+will change directory to the target login's home directory.
+.It Fl m
+Leave the environment unmodified.
+The invoked shell is your login shell, and no directory changes are made.
+As a security precaution, if the target user's shell is a non-standard
+shell (as defined by
+.Xr getusershell 3 )
+and the caller's real uid is
+non-zero,
+.Nm su
+will fail.
+.El
+.Pp
+The
+.Fl l
+and
+.Fl m
+options are mutually exclusive; the last one specified
+overrides any previous ones.
+.Pp
+Only users in group 0 (normally
+.Dq wheel )
+can
+.Nm su
+to
+.Dq root .
+.Pp
+By default (unless the prompt is reset by a startup file) the super-user
+prompt is set to
+.Dq Sy \&#
+to remind one of its awesome power.
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr login 1 ,
+.Xr sh 1 ,
+.Xr kinit 1 ,
+.Xr kerberos 1 ,
+.Xr passwd 5 ,
+.Xr group 5 ,
+.Xr environ 7
+.Sh ENVIRONMENT
+Environment variables used by
+.Nm su :
+.Bl -tag -width HOME
+.It Ev HOME
+Default home directory of real user ID unless modified as
+specified above.
+.It Ev PATH
+Default search path of real user ID unless modified as specified above.
+.It Ev TERM
+Provides terminal type which may be retained for the substituted
+user ID.
+.It Ev USER
+The user ID is always the effective ID (the target user ID) after an
+.Nm su
+unless the user ID is 0 (root).
+.El
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v7 .
+The version desribed
+here is an adaptation of the
+.Tn MIT
+Athena Kerberos command.

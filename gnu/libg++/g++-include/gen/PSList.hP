@@ -1,0 +1,32 @@
+/*  : Light weight list: This will simply reuse code from a VoidP List, which 
+was genclassed from the SLList libg++ class. The classes generated from this file
+will all be derived classes from class VoidSLList or intSLList. Note that class SLList does not 
+offer all the functionality of List classes, such as sharing of sub-lists.
+However, no additional code is needed at all and no .cc file is generated. So it costs nothing
+to use these type-safe lists. Only member functions needing type casting are re-defined  */
+
+
+#ifndef _<T>SList_h
+#define _<T>SList_h 1
+
+#include "VoidP.SLList.h"
+#include "<T>.defs.h"
+
+class <T>SList : public VoidPSLList
+{
+public:
+  <T>SList() {}
+  <T>SList(<T>SList& a) : (a) {}
+  ~<T>SList() {}
+
+  <T>SList& operator = (<T>SList& a) {
+    return (<T>SList&) VoidPSLList::operator= (a); }
+
+  <T>& operator () (Pix p) { return (<T>&) (VoidPSLList::operator() (p)); }
+  <T>& front() { return (<T>&) VoidPSLList::front(); }
+  <T>& rear()  { return (<T>&) VoidPSLList::rear(); }
+  <T> remove_front() { return (<T>) VoidPSLList::remove_front(); }
+
+};
+
+#endif /* conditional include */

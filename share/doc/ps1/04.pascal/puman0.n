@@ -1,0 +1,154 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman0.n	6.3 (Berkeley) 4/17/91
+.\"
+.so tmac.p
+.EH 'PS1:4-%''Berkeley Pascal User\'s Manual'
+.OH 'Berkeley Pascal User\'s Manual''PS1:4-%'
+.TL
+Berkeley Pascal User's Manual
+.br
+Version 3.1 \- April 1986
+.AU
+William N. Joy\(dd, Susan L. Graham, Charles B. Haley\(dd,
+Marshall Kirk McKusick, and Peter B. Kessler\(dd
+.AI
+Computer Science Division
+.if n Department of Electrical Engineering
+.if n and Computer Science
+.if t Department of Electrical Engineering and Computer Science
+University of California, Berkeley
+Berkeley, California  94720
+...AI
+...MH
+.AB
+.FS
+Copyright 1977, 1979, 1980, 1983
+W. N. Joy, S. L. Graham, C. B. Haley, M. K. McKusick, P. B. Kessler
+.FE
+.FS
+\(ddAuthor's current addresses:
+William Joy: Sun Microsystems, 2550 Garcia Ave., Mountain View, CA 94043;
+Charles Haley: S & B Associates, 1110 Centennial Ave., Piscataway, NJ  08854;
+Peter Kessler: Xerox Research Park, Palo Alto, CA
+.FE
+.PP
+Berkeley
+Pascal
+is designed for interactive instructional use
+and runs on the \s-2PDP\s0/11 and \s-2VAX\s0/11 computers.
+Interpretive code is produced,
+providing fast translation at the expense of slower execution speed.
+There is also a fully compatible compiler for the \s-2VAX\s0/11.
+An execution profiler and
+Wirth's cross reference program are also
+available with the system.
+.PP
+The system supports full Pascal.
+The language accepted is 
+`standard' Pascal,
+and a small number of extensions.
+There is an option to suppress the extensions.
+The extensions include a separate compilation facility
+and the ability to link to object modules
+produced from other source languages.
+.PP
+The
+.UM
+gives a list of sources relating to the
+.UX
+system, the Pascal language, and the
+.UP
+system.
+Basic usage examples are provided for the Pascal components
+.PI ,
+.X ,
+.IX ,
+.PC ,
+and
+.XP .
+Errors commonly encountered in these programs are discussed.
+Details are given of special considerations due to the
+interactive implementation.
+A number of examples are provided including many dealing with
+input/output.  An appendix supplements Wirth's
+.I "Pascal Report"
+to form the full definition of the Berkeley implementation of the language.
+.AE
+.sp
+.SH
+'if n 'ND
+Introduction
+.PP
+The
+.UP
+.UM
+consists of five major sections and an appendix.
+In section 1 we give sources of information about 
+.UX ,
+about the programming
+language Pascal, and about the
+Berkeley
+implementation of the language.
+Section 2 introduces the
+Berkeley
+implementation and provides a number of tutorial examples.
+Section 3 discusses the error diagnostics produced by the translators
+.PC
+and
+.PI ,
+and the runtime interpreter
+.X .
+Section 4 describes input/output with special attention given to features
+of the interactive implementation and to features unique to
+.UX .
+Section 5 gives details on the components of the system
+and explanation of all relevant options.
+The
+.UM
+concludes with an appendix to Wirth's
+.I "Pascal Report"
+with which it forms a precise definition of the implementation.
+.SH
+History of the implementation
+.PP
+The first
+Berkeley
+system was written by Ken Thompson in early 1976.
+The main features of the present system were implemented by
+Charles Haley and William Joy during the latter half of 1976.
+Earlier versions of this system have been in use since January, 1977.
+.PP
+The system was moved to the \s-2VAX\s0-11
+by Peter Kessler and Kirk McKusick
+with the porting of the interpreter in the spring of 1979,
+and the implementation of the compiler in the summer of 1980.

@@ -1,0 +1,114 @@
+PCFS quirks file
+
+PCFS filesystems on floppy disks only are supported in this release.
+And, only high density floppy disks are supported.  This is because
+the floppy disk driver only supports high density disks. 
+
+Created files use only the user permissions bits.  And of these
+only the write bit is meaningful.  DOS files always have the
+execute and read bits on.
+
+PCFS does not turn on or off the DOS archive attribute bit.
+
+The timestamp on dos files is updated when ever the file is modified.
+There is no inode time or create time stamp.
+
+The timestamp placed on a dos file does not have corrections for
+daylight savings time included.  It does have the correction for
+timezone though.
+
+Unix times before 1980 will have their year set to 1980 in dos file
+timestamps.  This is because dos's idea of time starts in 1980.
+
+PCFS filesystems do not support sparse files.  Any attempt to seek
+past the end of a file results in the blocks being allocated and
+cleared.
+
+When read() is used to examine pcfs directories you will get dos
+directory contents.  Note that the root directory does not contain
+a "." or ".." entry.  Only the readdir() system call simulates these
+entries in the root directory of a dos filesystem.  readdir() returns
+directory entries as described in getdirentries(2).
+
+Using read() and write() to manipulate the contents of dos directories
+is unwise on an active dos filesystem since a more up to date copy of
+their contents may reside in data structures in the kernel.  It is
+probably safe to examine the filename field of dos directory entries.
+The filesystem code keeps this up to date at all times.
+
+The cluster allocation algorithm is very simplistic.  It starts at
+cluster 2 and searchs until the last cluster of the filesystem and
+takes the first available cluster.
+
+The fsync() system call does not work on file descriptors open on
+directories.  This isn't a terrible thing since very few programs
+open directories for writing.
+
+The pcfs filesystem truncates filenames quietly.  If a filename has
+more than 8 characters before the 1st period only the 1st eigth are
+used.  It only uses the 1st three characters after the period if
+they exist.  The filenames "abc" and "abc." are the same to pcfs.
+Filenames that begin with a "." are considered to be dos filenames
+with an extension only and so are limited to 3 characters after the
+leading ".".  For example ".imlost" would be seen as ".iml" by pcfs.
+PCFS folds filenames to upper case before writing them to disk or
+looking up filenames, and folds them to lower case when reading them
+from disk for presentation to the user (for example by readdir()).
+
+Directory entries for the DOS filesystem label are quietly ignored.
+
+This is probably going to be a problem.  This implementation expects
+the length of the root directory to be a multiple of the size of
+a cluster.  If this is not true a warning message is printed when
+the filesystem is mounted.
+
+PCFS supports DOS filesystems with 12 bit or 16 bit FATs.  It supports
+both regular and huge filesystems ( > 32 megabytes).  It supports
+both version 3.3 and 5.0 BPB's.  Don't know about version 4.x and
+less than 3.3.  It has not been tested with 16 bit fats or huge
+filesystems. This is because the hard disk drivers need to support
+dos partitions to do these things. 
+
+PCFS does not support symbolic links or hard links.  It does not
+support quotas.  How could it, pcfs files have no owners.  PCFS
+files have a simulated owner and group of 0.  PCFS does not support
+file locking.  Though it may in the future.  PCFS filesystems are
+not remote mountable, but they will be in the future.
+
+This is the first release and as such has performance problems.
+Reading large files is very slow because the read ahead code in pcfs_read()
+doesn't read far enough ahead for filesystems with small blocksizes.
+Performance and dos hard disk paritions are the next areas to be
+worked on.  Unless someone else does it.
+
+
+Operational Details
+-------------------
+
+To mount a pcfs filesystem:
+	mount -t pcfs /dev/fd0a /mnt
+
+To unmount a pcfs filesystem:
+	umount /mnt
+
+If you want to be sure the fat is ALWAYS up to date, mount the
+filesystem with the synchronous option:
+	mount -t pcfs -o synchronous /dev/fd0a /mnt
+This reasults in very slow file write performance because it turns
+off write behind of fst disk blocks.
+
+
+Configuring PCFS into your kernel
+---------------------------------
+
+Add the following statements to your configuration file in /sys/i386/conf/BLOT.
+Or whatever you call your config file.
+
+	options PCFS
+
+PCFS consumes approximately 24000 bytes of kernel code space and
+approximately 4000 bytes of bss.
+
+PCFS has some debug printf's that can be turned on by defining PCFSDEBUG.
+It produces lots of output.  If you use it be sure to kill syslogd before
+using a PCFS filesystem with debug.

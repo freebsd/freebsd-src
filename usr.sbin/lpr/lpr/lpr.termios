@@ -1,0 +1,1033 @@
+From pst@anise.acc.com Sat Aug 12 12:08:59 1989
+Date: Sat, 12 Aug 89 12:09:28 -0700
+From: pst@anise.acc.com (Paul Traina)
+To: bostic@okeeffe.Berkeley.EDU
+Subject: a lpr/lpd hack (the shar file)
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  lpr.diff aux.printcap
+# Wrapped by pst@anise on Sat Aug 12 11:55:57 1989
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'lpr.diff' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'lpr.diff'\"
+else
+echo shar: Extracting \"'lpr.diff'\" \(28134 characters\)
+sed "s/^X//" >'lpr.diff' <<'END_OF_FILE'
+X*** lpr/Makefile	Mon Apr 24 20:25:37 1989
+X--- newlpr/Makefile	Fri Aug 11 16:31:16 1989
+X***************
+X*** 21,29
+X  # DAEMON	someone special
+X  # SPGRP		the group id of the spooling programs
+X  #
+X! CFLAGS=	-O
+X! LIBDIR=	/usr/lib
+X! BINDIR=	/usr/ucb
+X  SPLDIR=	/usr/spool/lpd
+X  ROOT=	root
+X  DAEMON=	daemon
+X
+X--- 21,29 -----
+X  # DAEMON	someone special
+X  # SPGRP		the group id of the spooling programs
+X  #
+X! CFLAGS=	-O -DmacII
+X! LIBDIR=	/usr/local/lib
+X! BINDIR=	/usr/local/bin
+X  SPLDIR=	/usr/spool/lpd
+X  INS=	bsdinstall
+X  ROOT=	root
+X***************
+X*** 25,30
+X  LIBDIR=	/usr/lib
+X  BINDIR=	/usr/ucb
+X  SPLDIR=	/usr/spool/lpd
+X  ROOT=	root
+X  DAEMON=	daemon
+X  SPGRP=	daemon
+X
+X--- 25,31 -----
+X  LIBDIR=	/usr/local/lib
+X  BINDIR=	/usr/local/bin
+X  SPLDIR=	/usr/spool/lpd
+X+ INS=	bsdinstall
+X  ROOT=	root
+X  DAEMON=	daemon
+X  SPGRP=	daemon
+X***************
+X*** 91,104
+X  	cd vfilters; make ${MFLAGS} depend
+X  
+X  install: FRC
+X! 	install -s -o ${ROOT} -g ${SPGRP} -m 6711 lpd ${DESTDIR}/${LIBDIR}/lpd
+X! 	install -s -o ${ROOT} -g ${SPGRP} -m 6711 lpr ${DESTDIR}/${BINDIR}/lpr
+X! 	install -s -o ${ROOT} -g ${SPGRP} -m 6711 lpq ${DESTDIR}/${BINDIR}/lpq
+X! 	install -s -o ${ROOT} -g ${SPGRP} -m 6711 lprm ${DESTDIR}/${BINDIR}/lprm
+X! 	install -s -o bin -g ${SPGRP} -m 2711 lpc ${DESTDIR}/etc/lpc
+X! 	install -s -o bin -g bin -m 755 lptest ${DESTDIR}/${BINDIR}/lptest
+X! 	install -s -o bin -g bin -m 755 pac ${DESTDIR}/etc/pac
+X! 	/etc/chown ${DAEMON} ${DESTDIR}/${SPLDIR}
+X  	chgrp ${SPGRP} ${DESTDIR}/${SPLDIR}
+X  	chmod 775 ${DESTDIR}/${SPLDIR}
+X  	cd filters; make ${MFLAGS} DESTDIR=${DESTDIR} install
+X
+X--- 92,105 -----
+X  	cd vfilters; make ${MFLAGS} depend
+X  
+X  install: FRC
+X! 	$(INS) -s -o ${ROOT} -g ${SPGRP} -m 6711 lpd ${DESTDIR}/${LIBDIR}/lpd
+X! 	$(INS) -s -o ${ROOT} -g ${SPGRP} -m 6711 lpr ${DESTDIR}/${BINDIR}/lpr
+X! 	$(INS) -s -o ${ROOT} -g ${SPGRP} -m 6711 lpq ${DESTDIR}/${BINDIR}/lpq
+X! 	$(INS) -s -o ${ROOT} -g ${SPGRP} -m 6711 lprm ${DESTDIR}/${BINDIR}/lprm
+X! 	$(INS) -s -o bin -g ${SPGRP} -m 2711 lpc ${DESTDIR}/etc/lpc
+X! 	$(INS) -s -o bin -g bin -m 755 lptest ${DESTDIR}/${BINDIR}/lptest
+X! 	$(INS) -s -o bin -g bin -m 755 pac ${DESTDIR}/etc/pac
+X! 	chown ${DAEMON} ${DESTDIR}/${SPLDIR}
+X  	chgrp ${SPGRP} ${DESTDIR}/${SPLDIR}
+X  	chmod 775 ${DESTDIR}/${SPLDIR}
+X  	cd filters; make ${MFLAGS} DESTDIR=${DESTDIR} install
+X***************
+X*** 127,265
+X  
+X  # DO NOT DELETE THIS LINE -- mkdep uses it.
+X  # DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+X- 
+X- lpd.o: lpd.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- lpd.o: /usr/include/sys/types.h /usr/include/signal.h
+X- lpd.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- lpd.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- lpd.o: /usr/include/sys/dir.h /usr/include/sys/stat.h /usr/include/sys/socket.h
+X- lpd.o: /usr/include/sys/un.h /usr/include/netinet/in.h /usr/include/netdb.h
+X- lpd.o: /usr/include/pwd.h /usr/include/syslog.h /usr/include/signal.h
+X- lpd.o: /usr/include/sys/wait.h /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- lpd.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- lpd.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- lpd.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- lpr.o: lpr.c /usr/include/stdio.h /usr/include/sys/types.h
+X- lpr.o: /usr/include/sys/file.h /usr/include/sys/stat.h /usr/include/pwd.h
+X- lpr.o: /usr/include/grp.h /usr/include/signal.h /usr/include/machine/trap.h
+X- lpr.o: /usr/include/ctype.h /usr/include/syslog.h lp.local.h
+X- lpr.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- lpq.o: lpq.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- lpq.o: /usr/include/sys/types.h /usr/include/signal.h
+X- lpq.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- lpq.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- lpq.o: /usr/include/sys/dir.h /usr/include/sys/stat.h /usr/include/sys/socket.h
+X- lpq.o: /usr/include/sys/un.h /usr/include/netinet/in.h /usr/include/netdb.h
+X- lpq.o: /usr/include/pwd.h /usr/include/syslog.h /usr/include/signal.h
+X- lpq.o: /usr/include/sys/wait.h /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- lpq.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- lpq.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- lpq.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- lprm.o: lprm.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- lprm.o: /usr/include/sys/types.h /usr/include/signal.h
+X- lprm.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- lprm.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- lprm.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- lprm.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- lprm.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- lprm.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- lprm.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- lprm.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- lprm.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- lprm.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- pac.o: pac.c /usr/include/stdio.h lp.local.h /usr/include/a.out.h
+X- pac.o: /usr/include/sys/exec.h /usr/include/ar.h
+X- lpd.o: lpd.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- lpd.o: /usr/include/sys/types.h /usr/include/signal.h
+X- lpd.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- lpd.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- lpd.o: /usr/include/sys/dir.h /usr/include/sys/stat.h /usr/include/sys/socket.h
+X- lpd.o: /usr/include/sys/un.h /usr/include/netinet/in.h /usr/include/netdb.h
+X- lpd.o: /usr/include/pwd.h /usr/include/syslog.h /usr/include/signal.h
+X- lpd.o: /usr/include/sys/wait.h /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- lpd.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- lpd.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- lpd.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- cmds.o: cmds.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- cmds.o: /usr/include/sys/types.h /usr/include/signal.h
+X- cmds.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- cmds.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- cmds.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- cmds.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- cmds.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- cmds.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- cmds.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- cmds.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- cmds.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- cmds.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- cmds.o: /usr/include/sys/time.h /usr/include/time.h
+X- cmdtab.o: cmdtab.c lpc.h
+X- printjob.o: printjob.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- printjob.o: /usr/include/sys/types.h /usr/include/signal.h
+X- printjob.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- printjob.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- printjob.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- printjob.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- printjob.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- printjob.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- printjob.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- printjob.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- printjob.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- printjob.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- recvjob.o: recvjob.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- recvjob.o: /usr/include/sys/types.h /usr/include/signal.h
+X- recvjob.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- recvjob.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- recvjob.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- recvjob.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- recvjob.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- recvjob.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- recvjob.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- recvjob.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- recvjob.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- recvjob.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- recvjob.o: /usr/include/sys/fs.h
+X- displayq.o: displayq.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- displayq.o: /usr/include/sys/types.h /usr/include/signal.h
+X- displayq.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- displayq.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- displayq.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- displayq.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- displayq.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- displayq.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- displayq.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- displayq.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- displayq.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- displayq.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- rmjob.o: rmjob.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- rmjob.o: /usr/include/sys/types.h /usr/include/signal.h
+X- rmjob.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- rmjob.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- rmjob.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- rmjob.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- rmjob.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- rmjob.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- rmjob.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- rmjob.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- rmjob.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- rmjob.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- startdaemon.o: startdaemon.c /usr/include/stdio.h /usr/include/sys/types.h
+X- startdaemon.o: /usr/include/sys/socket.h /usr/include/sys/un.h lp.local.h
+X- startdaemon.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- common.o: common.c lp.h /usr/include/stdio.h /usr/include/sys/param.h
+X- common.o: /usr/include/sys/types.h /usr/include/signal.h
+X- common.o: /usr/include/machine/trap.h /usr/include/machine/machparam.h
+X- common.o: /usr/include/machine/endian.h /usr/include/sys/file.h
+X- common.o: /usr/include/sys/dir.h /usr/include/sys/stat.h
+X- common.o: /usr/include/sys/socket.h /usr/include/sys/un.h
+X- common.o: /usr/include/netinet/in.h /usr/include/netdb.h /usr/include/pwd.h
+X- common.o: /usr/include/syslog.h /usr/include/signal.h /usr/include/sys/wait.h
+X- common.o: /usr/include/sgtty.h /usr/include/sys/ioctl.h
+X- common.o: /usr/include/sys/ttychars.h /usr/include/sys/ttydev.h
+X- common.o: /usr/include/ctype.h /usr/include/errno.h lp.local.h
+X- common.o: /usr/include/a.out.h /usr/include/sys/exec.h /usr/include/ar.h
+X- printcap.o: printcap.c /usr/include/ctype.h /usr/include/stdio.h
+X- lpdchar.o: lpdchar.c lp.local.h /usr/include/a.out.h /usr/include/sys/exec.h
+X- lpdchar.o: /usr/include/ar.h
+X- 
+X- # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
+X
+X--- 128,130 -----
+X  
+X  # DO NOT DELETE THIS LINE -- mkdep uses it.
+X  # DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
+X*** lpr/common.c	Thu Jun 30 18:00:19 1988
+X--- newlpr/common.c	Fri Aug 11 14:15:40 1989
+X***************
+X*** 59,64
+X  short	PX;		/* page width in pixels */
+X  short	PY;		/* page length in pixels */
+X  short	BR;		/* baud rate if lp is a tty */
+X  int	FC;		/* flags to clear if lp is a tty */
+X  int	FS;		/* flags to set if lp is a tty */
+X  int	XC;		/* flags to clear for local mode */
+X
+X--- 59,72 -----
+X  short	PX;		/* page width in pixels */
+X  short	PY;		/* page length in pixels */
+X  short	BR;		/* baud rate if lp is a tty */
+X+ #ifdef macII
+X+ int	IC;		/* input flags to clear if lp is a tty */
+X+ int	IS;		/* input flags to set if lp is a tty */
+X+ int	OC;		/* output flags to clear if lp is a tty */
+X+ int	OS;		/* output flags to set if lp is a tty */
+X+ int	CC;		/* control flags to clear if lp is a tty */
+X+ int	CS;		/* control flags to set if lp is a tty */
+X+ #else
+X  int	FC;		/* flags to clear if lp is a tty */
+X  int	FS;		/* flags to set if lp is a tty */
+X  int	XC;		/* flags to clear for local mode */
+X***************
+X*** 63,68
+X  int	FS;		/* flags to set if lp is a tty */
+X  int	XC;		/* flags to clear for local mode */
+X  int	XS;		/* flags to set for local mode */
+X  short	RS;		/* restricted to those with local accounts */
+X  
+X  char	line[BUFSIZ];
+X
+X--- 71,77 -----
+X  int	FS;		/* flags to set if lp is a tty */
+X  int	XC;		/* flags to clear for local mode */
+X  int	XS;		/* flags to set for local mode */
+X+ #endif
+X  short	RS;		/* restricted to those with local accounts */
+X  
+X  char	line[BUFSIZ];
+X*** lpr/lp.h	Thu Jun 30 18:00:21 1988
+X--- newlpr/lp.h	Fri Aug 11 14:05:55 1989
+X***************
+X*** 34,39
+X  #include <syslog.h>
+X  #include <signal.h>
+X  #include <sys/wait.h>
+X  #include <sgtty.h>
+X  #include <ctype.h>
+X  #include <errno.h>
+X
+X--- 34,40 -----
+X  #include <syslog.h>
+X  #include <signal.h>
+X  #include <sys/wait.h>
+X+ #ifndef macII
+X  #include <sgtty.h>
+X  #endif
+X  #include <ctype.h>
+X***************
+X*** 35,40
+X  #include <signal.h>
+X  #include <sys/wait.h>
+X  #include <sgtty.h>
+X  #include <ctype.h>
+X  #include <errno.h>
+X  #include "lp.local.h"
+X
+X--- 36,42 -----
+X  #include <sys/wait.h>
+X  #ifndef macII
+X  #include <sgtty.h>
+X+ #endif
+X  #include <ctype.h>
+X  #include <errno.h>
+X  #ifdef macII
+X***************
+X*** 37,42
+X  #include <sgtty.h>
+X  #include <ctype.h>
+X  #include <errno.h>
+X  #include "lp.local.h"
+X  
+X  extern int	DU;		/* daeomon user-id */
+X
+X--- 39,50 -----
+X  #endif
+X  #include <ctype.h>
+X  #include <errno.h>
+X+ #ifdef macII
+X+ #undef FIOCLEX
+X+ #undef FIONCLEX
+X+ #include <sys/ioctl.h>
+X+ #include <termio.h>
+X+ #endif
+X  #include "lp.local.h"
+X  
+X  extern int	DU;		/* daeomon user-id */
+X***************
+X*** 73,78
+X  extern short	PY;		/* page length in pixels */
+X  extern short	PL;		/* page length */
+X  extern short	BR;		/* baud rate if lp is a tty */
+X  extern int	FC;		/* flags to clear if lp is a tty */
+X  extern int	FS;		/* flags to set if lp is a tty */
+X  extern int	XC;		/* flags to clear for local mode */
+X
+X--- 81,94 -----
+X  extern short	PY;		/* page length in pixels */
+X  extern short	PL;		/* page length */
+X  extern short	BR;		/* baud rate if lp is a tty */
+X+ #ifdef macII
+X+ extern int	IC;		/* input flags to clear if lp is a tty */
+X+ extern int	IS;		/* input flags to set if lp is a tty */
+X+ extern int	OC;		/* output flags to clear if lp is a tty */
+X+ extern int	OS;		/* output flags to set if lp is a tty */
+X+ extern int	CC;		/* control flags to clear if lp is a tty */
+X+ extern int	CS;		/* control flags to set if lp is a tty */
+X+ #else
+X  extern int	FC;		/* flags to clear if lp is a tty */
+X  extern int	FS;		/* flags to set if lp is a tty */
+X  extern int	XC;		/* flags to clear for local mode */
+X***************
+X*** 77,82
+X  extern int	FS;		/* flags to set if lp is a tty */
+X  extern int	XC;		/* flags to clear for local mode */
+X  extern int	XS;		/* flags to set for local mode */
+X  extern short	RS;		/* restricted to those with local accounts */
+X  
+X  extern char	line[BUFSIZ];
+X
+X--- 93,99 -----
+X  extern int	FS;		/* flags to set if lp is a tty */
+X  extern int	XC;		/* flags to clear for local mode */
+X  extern int	XS;		/* flags to set for local mode */
+X+ #endif
+X  extern short	RS;		/* restricted to those with local accounts */
+X  
+X  extern char	line[BUFSIZ];
+X*** lpr/lp.local.h	Thu Jun 30 18:00:21 1988
+X--- newlpr/lp.local.h	Fri Aug 11 15:38:14 1989
+X***************
+X*** 29,35
+X  #include <a.out.h>
+X  #include <ar.h>
+X  
+X! #ifndef A_MAGIC1	/* must be a VM/UNIX system */
+X  #	define A_MAGIC1	OMAGIC
+X  #	define A_MAGIC2	NMAGIC
+X  #	define A_MAGIC3	ZMAGIC
+X
+X--- 29,45 -----
+X  #include <a.out.h>
+X  #include <ar.h>
+X  
+X! #ifdef	macII
+X! #    ifndef A_MAGIC1
+X! #	define A_MAGIC1	0520		/* COFF object */
+X! #	define A_MAGIC2	0407		/* 4.0 executable */
+X! #	define A_MAGIC3	0410		/* 4.0 pure executable */
+X! #	define A_MAGIC4	0570		/* 5.0 executable */
+X! #	undef ARMAG
+X! #	define ARMAG	0177545		/* archive magic */
+X! #    endif
+X! #else
+X! #    ifndef A_MAGIC1	/* must be a VM/UNIX system */
+X  #	define A_MAGIC1	OMAGIC
+X  #	define A_MAGIC2	NMAGIC
+X  #	define A_MAGIC3	ZMAGIC
+X***************
+X*** 35,40
+X  #	define A_MAGIC3	ZMAGIC
+X  #	undef ARMAG
+X  #	define ARMAG	0177545
+X  #endif
+X  
+X  /*
+X
+X--- 45,51 -----
+X  #	define A_MAGIC3	ZMAGIC
+X  #	undef ARMAG
+X  #	define ARMAG	0177545
+X+ #    endif
+X  #endif
+X  
+X  /*
+X***************
+X*** 44,50
+X  #define DEFLOCK		"lock"
+X  #define DEFSTAT		"status"
+X  #define	DEFSPOOL	"/usr/spool/lpd"
+X- #define	DEFDAEMON	"/usr/lib/lpd"
+X  #define	DEFLOGF		"/dev/console"
+X  #define	DEFDEVLP	"/dev/lp"
+X  #define DEFRLPR		"/usr/lib/rlpr"
+X
+X--- 55,60 -----
+X  #define DEFLOCK		"lock"
+X  #define DEFSTAT		"status"
+X  #define	DEFSPOOL	"/usr/spool/lpd"
+X  #define	DEFLOGF		"/dev/console"
+X  #define	DEFDEVLP	"/dev/lp"
+X  #ifdef	macII
+X***************
+X*** 47,52
+X  #define	DEFDAEMON	"/usr/lib/lpd"
+X  #define	DEFLOGF		"/dev/console"
+X  #define	DEFDEVLP	"/dev/lp"
+X  #define DEFRLPR		"/usr/lib/rlpr"
+X  #define DEFBINDIR	"/usr/ucb"
+X  #define	DEFMX		1000
+X
+X--- 57,68 -----
+X  #define	DEFSPOOL	"/usr/spool/lpd"
+X  #define	DEFLOGF		"/dev/console"
+X  #define	DEFDEVLP	"/dev/lp"
+X+ #ifdef	macII
+X+ #define	DEFDAEMON	"/usr/local/lib/lpd"
+X+ #define DEFRLPR		"/usr/local/lib/rlpr"
+X+ #define DEFBINDIR	"/usr/local/bin"
+X+ #else
+X+ #define	DEFDAEMON	"/usr/lib/lpd"
+X  #define DEFRLPR		"/usr/lib/rlpr"
+X  #define DEFBINDIR	"/usr/ucb"
+X  #endif
+X***************
+X*** 49,54
+X  #define	DEFDEVLP	"/dev/lp"
+X  #define DEFRLPR		"/usr/lib/rlpr"
+X  #define DEFBINDIR	"/usr/ucb"
+X  #define	DEFMX		1000
+X  #define DEFMAXCOPIES	0
+X  #define DEFFF		"\f"
+X
+X--- 65,71 -----
+X  #define	DEFDAEMON	"/usr/lib/lpd"
+X  #define DEFRLPR		"/usr/lib/rlpr"
+X  #define DEFBINDIR	"/usr/ucb"
+X+ #endif
+X  #define	DEFMX		1000
+X  #define DEFMAXCOPIES	0
+X  #define DEFFF		"\f"
+X*** lpr/lpr.c	Thu Jun 30 18:00:24 1988
+X--- newlpr/lpr.c	Fri Aug 11 15:25:11 1989
+X***************
+X*** 512,517
+X   * Return -1 if it is not, 0 if its printable, and 1 if
+X   * we should remove it after printing.
+X   */
+X  test(file)
+X  	char *file;
+X  {
+X
+X--- 512,523 -----
+X   * Return -1 if it is not, 0 if its printable, and 1 if
+X   * we should remove it after printing.
+X   */
+X+ #ifdef	macII
+X+ #define	exec	filehdr
+X+ #define	execb	filehdrb
+X+ #define	a_magic	f_magic
+X+ #endif
+X+ 
+X  test(file)
+X  	char *file;
+X  {
+X***************
+X*** 575,580
+X  	(void) close(fd);
+X  	return(-1);
+X  }
+X  
+X  /*
+X   * itoa - integer to string conversion
+X
+X--- 581,592 -----
+X  	(void) close(fd);
+X  	return(-1);
+X  }
+X+ 
+X+ #ifdef	macII
+X+ #undef	exec
+X+ #undef	execb
+X+ #undef	a_magic
+X+ #endif
+X  
+X  /*
+X   * itoa - integer to string conversion
+X*** lpr/printjob.c	Thu Jun 30 18:00:26 1988
+X--- newlpr/printjob.c	Fri Aug 11 16:22:50 1989
+X***************
+X*** 65,71
+X  char	pxwidth[10] = "-x";	/* page width in pixels */
+X  char	pxlength[10] = "-y";	/* page length in pixels */
+X  char	indent[10] = "-i0";	/* indentation size in characters */
+X! char	tmpfile[] = "errsXXXXXX"; /* file name for filter output */
+X  
+X  printjob()
+X  {
+X
+X--- 65,71 -----
+X  char	pxwidth[10] = "-x";	/* page width in pixels */
+X  char	pxlength[10] = "-y";	/* page length in pixels */
+X  char	indent[10] = "-i0";	/* indentation size in characters */
+X! char	tmpfil[] = "errsXXXXXX"; /* file name for filter output */
+X  
+X  printjob()
+X  {
+X***************
+X*** 92,98
+X  	signal(SIGQUIT, abortpr);
+X  	signal(SIGTERM, abortpr);
+X  
+X! 	(void) mktemp(tmpfile);
+X  
+X  	/*
+X  	 * uses short form file names
+X
+X--- 92,98 -----
+X  	signal(SIGQUIT, abortpr);
+X  	signal(SIGTERM, abortpr);
+X  
+X! 	(void) mktemp(tmpfil);
+X  
+X  	/*
+X  	 * uses short form file names
+X***************
+X*** 210,216
+X  			if (TR != NULL)		/* output trailer */
+X  				(void) write(ofd, TR, strlen(TR));
+X  		}
+X! 		(void) unlink(tmpfile);
+X  		exit(0);
+X  	}
+X  	goto again;
+X
+X--- 210,216 -----
+X  			if (TR != NULL)		/* output trailer */
+X  				(void) write(ofd, TR, strlen(TR));
+X  		}
+X! 		(void) unlink(tmpfil);
+X  		exit(0);
+X  	}
+X  	goto again;
+X***************
+X*** 580,586
+X  	if ((child = dofork(DORETURN)) == 0) {	/* child */
+X  		dup2(fi, 0);
+X  		dup2(fo, 1);
+X! 		n = open(tmpfile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+X  		if (n >= 0)
+X  			dup2(n, 2);
+X  		for (n = 3; n < NOFILE; n++)
+X
+X--- 580,586 -----
+X  	if ((child = dofork(DORETURN)) == 0) {	/* child */
+X  		dup2(fi, 0);
+X  		dup2(fo, 1);
+X! 		n = open(tmpfil, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+X  		if (n >= 0)
+X  			dup2(n, 2);
+X  		for (n = 3; n < NOFILE; n++)
+X***************
+X*** 947,954
+X  			printf("\ncould not be printed without an account on %s\n", host);
+X  			break;
+X  		case FILTERERR:
+X! 			if (stat(tmpfile, &stb) < 0 || stb.st_size == 0 ||
+X! 			    (fp = fopen(tmpfile, "r")) == NULL) {
+X  				printf("\nwas printed but had some errors\n");
+X  				break;
+X  			}
+X
+X--- 947,954 -----
+X  			printf("\ncould not be printed without an account on %s\n", host);
+X  			break;
+X  		case FILTERERR:
+X! 			if (stat(tmpfil, &stb) < 0 || stb.st_size == 0 ||
+X! 			    (fp = fopen(tmpfil, "r")) == NULL) {
+X  				printf("\nwas printed but had some errors\n");
+X  				break;
+X  			}
+X***************
+X*** 1007,1013
+X   */
+X  abortpr()
+X  {
+X! 	(void) unlink(tmpfile);
+X  	kill(0, SIGINT);
+X  	if (ofilter > 0)
+X  		kill(ofilter, SIGCONT);
+X
+X--- 1007,1013 -----
+X   */
+X  abortpr()
+X  {
+X! 	(void) unlink(tmpfil);
+X  	kill(0, SIGINT);
+X  	if (ofilter > 0)
+X  		kill(ofilter, SIGCONT);
+X***************
+X*** 1107,1112
+X  	HL = pgetflag("hl");
+X  	RW = pgetflag("rw");
+X  	BR = pgetnum("br");
+X  	if ((FC = pgetnum("fc")) < 0)
+X  		FC = 0;
+X  	if ((FS = pgetnum("fs")) < 0)
+X
+X--- 1107,1126 -----
+X  	HL = pgetflag("hl");
+X  	RW = pgetflag("rw");
+X  	BR = pgetnum("br");
+X+ #ifdef	macII
+X+ 	if ((IC = pgetnum("ic")) < 0)
+X+ 		IC = 0;
+X+ 	if ((IS = pgetnum("is")) < 0)
+X+ 		IS = 0;
+X+ 	if ((OC = pgetnum("oc")) < 0)
+X+ 		OC = 0;
+X+ 	if ((OS = pgetnum("os")) < 0)
+X+ 		OS = 0;
+X+ 	if ((CC = pgetnum("cc")) < 0)
+X+ 		CC = 0;
+X+ 	if ((CS = pgetnum("cs")) < 0)
+X+ 		CS = 0;
+X+ #else
+X  	if ((FC = pgetnum("fc")) < 0)
+X  		FC = 0;
+X  	if ((FS = pgetnum("fs")) < 0)
+X***************
+X*** 1115,1120
+X  		XC = 0;
+X  	if ((XS = pgetnum("xs")) < 0)
+X  		XS = 0;
+X  	tof = !pgetflag("fo");
+X  }
+X  
+X
+X--- 1129,1135 -----
+X  		XC = 0;
+X  	if ((XS = pgetnum("xs")) < 0)
+X  		XS = 0;
+X+ #endif
+X  	tof = !pgetflag("fo");
+X  }
+X  
+X***************
+X*** 1227,1233
+X   */
+X  setty()
+X  {
+X- 	struct sgttyb ttybuf;
+X  	register struct bauds *bp;
+X  
+X  	if (ioctl(pfd, TIOCEXCL, (char *)0) < 0) {
+X
+X--- 1242,1247 -----
+X   */
+X  setty()
+X  {
+X  	register struct bauds *bp;
+X  
+X  #ifdef	macII
+X***************
+X*** 1230,1235
+X  	struct sgttyb ttybuf;
+X  	register struct bauds *bp;
+X  
+X  	if (ioctl(pfd, TIOCEXCL, (char *)0) < 0) {
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", printer);
+X  		exit(1);
+X
+X--- 1244,1285 -----
+X  {
+X  	register struct bauds *bp;
+X  
+X+ #ifdef	macII
+X+ 	struct termio ttybuf;
+X+ 
+X+ 	/* can't do exclusive lock on device once its opened, can we? */
+X+ 
+X+ 	if (ioctl(pfd, TCGETA, (char *)&ttybuf) < 0) {
+X+ 		syslog(LOG_ERR, "%s: ioctl(TCGETA): %m", printer);
+X+ 		exit(1);
+X+ 	}
+X+ 
+X+ 	if (BR > 0) {
+X+ 		for (bp = bauds; bp->baud; bp++)
+X+ 			if (BR == bp->baud)
+X+ 				break;
+X+ 		if (!bp->baud) {
+X+ 			syslog(LOG_ERR, "%s: illegal baud rate %d", printer, BR);
+X+ 			exit(1);
+X+ 		}
+X+ 		ttybuf.c_cflag &= ~CC;
+X+ 		ttybuf.c_cflag |= CS;
+X+ 		ttybuf.c_cflag = (ttybuf.c_cflag & ~CBAUD) | bp->baud;
+X+ 	}
+X+ 
+X+ 	ttybuf.c_iflag &= ~IC;
+X+ 	ttybuf.c_iflag |= IS;
+X+ 
+X+ 	ttybuf.c_oflag &= ~OC;
+X+ 	ttybuf.c_oflag |= OS;
+X+ 
+X+ 	if (ioctl(pfd, TCSETA, (char *)&ttybuf) < 0) {
+X+ 		syslog(LOG_ERR, "%s: ioctl(TCSETA): %m", printer);
+X+ 		exit(1);
+X+ 	}
+X+ #else
+X+ 	struct sgttyb ttybuf;
+X+ 
+X  	if (ioctl(pfd, TIOCEXCL, (char *)0) < 0) {
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", printer);
+X  		exit(1);
+X***************
+X*** 1234,1239
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", printer);
+X  		exit(1);
+X  	}
+X  	if (ioctl(pfd, TIOCGETP, (char *)&ttybuf) < 0) {
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCGETP): %m", printer);
+X  		exit(1);
+X
+X--- 1284,1290 -----
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCEXCL): %m", printer);
+X  		exit(1);
+X  	}
+X+ 
+X  	if (ioctl(pfd, TIOCGETP, (char *)&ttybuf) < 0) {
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCGETP): %m", printer);
+X  		exit(1);
+X***************
+X*** 1238,1243
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCGETP): %m", printer);
+X  		exit(1);
+X  	}
+X  	if (BR > 0) {
+X  		for (bp = bauds; bp->baud; bp++)
+X  			if (BR == bp->baud)
+X
+X--- 1289,1295 -----
+X  		syslog(LOG_ERR, "%s: ioctl(TIOCGETP): %m", printer);
+X  		exit(1);
+X  	}
+X+ 
+X  	if (BR > 0) {
+X  		for (bp = bauds; bp->baud; bp++)
+X  			if (BR == bp->baud)
+X***************
+X*** 1274,1279
+X  			exit(1);
+X  		}
+X  	}
+X  }
+X  
+X  /*VARARGS1*/
+X
+X--- 1326,1332 -----
+X  			exit(1);
+X  		}
+X  	}
+X+ #endif
+X  }
+X  
+X  /*VARARGS1*/
+X*** lpr/recvjob.c	Thu Jun 30 18:00:27 1988
+X--- newlpr/recvjob.c	Fri Aug 11 15:19:11 1989
+X***************
+X*** 25,30
+X   */
+X  
+X  #include "lp.h"
+X  #include <sys/fs.h>
+X  
+X  char	*sp = "";
+X
+X--- 25,31 -----
+X   */
+X  
+X  #include "lp.h"
+X+ #ifndef	macII
+X  #include <sys/fs.h>
+X  #endif
+X  
+X***************
+X*** 26,31
+X  
+X  #include "lp.h"
+X  #include <sys/fs.h>
+X  
+X  char	*sp = "";
+X  #define ack()	(void) write(1, sp, 1);
+X
+X--- 27,33 -----
+X  #include "lp.h"
+X  #ifndef	macII
+X  #include <sys/fs.h>
+X+ #endif
+X  
+X  #ifdef	macII
+X  #define	major(x) (x >> 8 & 255)
+X***************
+X*** 27,32
+X  #include "lp.h"
+X  #include <sys/fs.h>
+X  
+X  char	*sp = "";
+X  #define ack()	(void) write(1, sp, 1);
+X  
+X
+X--- 29,39 -----
+X  #include <sys/fs.h>
+X  #endif
+X  
+X+ #ifdef	macII
+X+ #define	major(x) (x >> 8 & 255)
+X+ #define	minor(x) (x & 255)
+X+ #endif
+X+ 
+X  char	*sp = "";
+X  #define ack()	(void) write(1, sp, 1);
+X  
+X***************
+X*** 262,267
+X  	struct stat stb;
+X  	register char *ddev;
+X  	int spacefree;
+X  	struct fs fs;
+X  
+X  	if (dfd < 0 || lseek(dfd, (long)(SBOFF), 0) < 0)
+X
+X--- 269,275 -----
+X  	struct stat stb;
+X  	register char *ddev;
+X  	int spacefree;
+X+ #ifndef	macII
+X  	struct fs fs;
+X  
+X  	if (dfd < 0 || lseek(dfd, (long)(SBOFF), 0) < 0)
+X***************
+X*** 272,277
+X  	size = (size + 1023) / 1024;
+X  	if (minfree + size > spacefree)
+X  		return(0);
+X  	return(1);
+X  }
+X  
+X
+X--- 280,286 -----
+X  	size = (size + 1023) / 1024;
+X  	if (minfree + size > spacefree)
+X  		return(0);
+X+ #endif
+X  	return(1);
+X  }
+X  
+X***************
+X*** 317,319
+X  	putchar('\1');		/* return error code */
+X  	exit(1);
+X  }
+X
+X--- 326,401 -----
+X  	putchar('\1');		/* return error code */
+X  	exit(1);
+X  }
+X+ 
+X+ #ifdef	macII
+X+ 
+X+ #define MAXHOSTNAMELEN 128
+X+ 
+X+ _validuser(hostf, rhost, luser, ruser, baselen)
+X+ char *rhost, *luser, *ruser;
+X+ FILE *hostf;
+X+ int baselen;
+X+ {
+X+ 	char *user;
+X+ 	char ahost[MAXHOSTNAMELEN];
+X+ 	register char *p;
+X+ 
+X+ 	while (fgets(ahost, sizeof (ahost), hostf)) {
+X+ 		p = ahost;
+X+ 		while (*p != '\n' && *p != ' ' && *p != '\t' && *p != '\0') {
+X+ 			*p = isupper(*p) ? tolower(*p) : *p;
+X+ 			p++;
+X+ 		}
+X+ 		if (*p == ' ' || *p == '\t') {
+X+ 			*p++ = '\0';
+X+ 			while (*p == ' ' || *p == '\t')
+X+ 				p++;
+X+ 			user = p;
+X+ 			while (*p != '\n' && *p != ' ' && *p != '\t' && *p != '\0')
+X+ 				p++;
+X+ 		} else
+X+ 			user = p;
+X+ 		*p = '\0';
+X+ 		if (_checkhost(rhost, ahost, baselen) &&
+X+ 		    !strcmp(ruser, *user ? user : luser)) {
+X+ 			return (0);
+X+ 		}
+X+ 	}
+X+ 	return (-1);
+X+ }
+X+ 
+X+ _checkhost(rhost, lhost, len)
+X+ char *rhost, *lhost;
+X+ int len;
+X+ {
+X+ 	static char ldomain[MAXHOSTNAMELEN + 1];
+X+ 	static char *domainp = NULL;
+X+ 	register char *cp;
+X+ 
+X+ 	if (len == -1)
+X+ 		return(!strcmp(rhost, lhost));
+X+ 	if (strncmp(rhost, lhost, len))
+X+ 		return(0);
+X+ 	if (!strcmp(rhost, lhost))
+X+ 		return(1);
+X+ 	if (*(lhost + len) != '\0')
+X+ 		return(0);
+X+ 	if (!domainp) {
+X+ 		if (gethostname(ldomain, sizeof(ldomain)) == -1) {
+X+ 			domainp = (char *)1;
+X+ 			return(0);
+X+ 		}
+X+ 		ldomain[MAXHOSTNAMELEN] = NULL;
+X+ 		if ((domainp = index(ldomain, '.') + 1) == (char *)1)
+X+ 			return(0);
+X+ 		cp = domainp;
+X+ 		while (*cp) {
+X+ 			*cp = isupper(*cp) ? tolower(*cp) : *cp;
+X+ 			cp++;
+X+ 		}
+X+ 	}
+X+ 	if (domainp == (char *)1)
+X+ 		return(0);
+X+ 	return(!strcmp(domainp, rhost + len +1));
+X+ }
+X+ #endif macII
+END_OF_FILE
+if test 28134 -ne `wc -c <'lpr.diff'`; then
+    echo shar: \"'lpr.diff'\" unpacked with wrong size!
+fi
+# end of 'lpr.diff'
+fi
+if test -f 'aux.printcap' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'aux.printcap'\"
+else
+echo shar: Extracting \"'aux.printcap'\" \(1353 characters\)
+sed "s/^X//" >'aux.printcap' <<'END_OF_FILE'
+X#
+X# Copyright (c) 1983 Regents of the University of California.
+X# All rights reserved.
+X#
+X# Redistribution and use in source and binary forms are permitted
+X# provided that this notice is preserved and that due credit is given
+X# to the University of California at Berkeley. The name of the University
+X# may not be used to endorse or promote products derived from this
+X# software without specific prior written permission. This software
+X# is provided ``as is'' without express or implied warranty.
+X#
+X#	@(#)etc.printcap	5.2 (Berkeley) 5/5/88
+X#
+X# DecWriter over a tty line.
+X#lp|ap|arpa|ucbarpa|LA-180 DecWriter III:\
+X#	:br#1200:cs#04260:cc#03500:os#05:oc#0177772:is#012541:ic#0472:
+X#	:tr=\f:of=/usr/local/lib/lpf:lf=/usr/adm/lpd-errs:
+X# typical remote printer entry
+X#ucbvax|vax|vx|ucbvax line printer:\
+X#	:lp=:rm=ucbvax:sd=/usr/spool/vaxlpd:lf=/usr/adm/lpd-errs:
+X#
+Xlp|Printronix P-300 in coffee room:\
+X	:lp=:rp=lp:rm=salt:sd=/usr/spool/remote/lp:lf=/usr/adm/lpd-errs:
+Xmac2|ps|PostScript|PostScript|LaserWriter in Engineering:\
+X	:lp=:rp=mac2:rm=salt:sd=/usr/spool/remote/mac2:lf=/usr/adm/lpd-errs:
+Xmac5|ps|PostScript|PostScript|LaserWriter in Personnel:\
+X	:lp=:rp=mac5:rm=salt:sd=/usr/spool/remote/mac5:lf=/usr/adm/lpd-errs:
+Xmac7|ps|PostScript|PostScript|LaserWriter in Customer Service:\
+X	:lp=:rp=mac7:rm=salt:sd=/usr/spool/remote/mac7:lf=/usr/adm/lpd-errs:
+END_OF_FILE
+if test 1353 -ne `wc -c <'aux.printcap'`; then
+    echo shar: \"'aux.printcap'\" unpacked with wrong size!
+fi
+# end of 'aux.printcap'
+fi
+echo shar: End of shell archive.
+exit 0
+

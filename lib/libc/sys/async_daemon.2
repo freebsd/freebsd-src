@@ -1,0 +1,73 @@
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)async_daemon.2	6.4 (Berkeley) 7/23/91
+.\"
+.Dd July 23, 1991
+.Dt ASYNC_DAEMON 2
+.Os
+.Sh NAME
+.Nm async_daemon
+.Nd create a local
+.Tn NFS
+asynchronous
+.Tn I/O
+server
+.Sh SYNOPSIS
+.Fd #include <unistd.h>
+.Ft int
+.Fn async_daemon void
+.Sh DESCRIPTION
+.Fn Async_daemon
+starts an NFS
+asynchronous 
+.Tn I/O
+server.
+Normally this system calls does not return unless the server
+is terminated by a signal at which time a value of 0 is returned.
+Otherwise, -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Em nfssvc
+fails if the following is true:
+.Bl -tag -width [EPERM]
+.It Bq Er EPERM
+The caller is not the super-user.
+.El
+.Sh SEE ALSO
+.Xr nfsiod 8
+.Sh HISTORY
+The
+.Nm async_daemon
+function call is
+.Ud .

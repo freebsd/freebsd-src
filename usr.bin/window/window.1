@@ -1,0 +1,940 @@
+.\" Copyright (c) 1985, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Edward Wang at The University of California, Berkeley.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)window.1	6.15 (Berkeley) 7/26/91
+.\"
+.Dd July 26, 1991
+.Dt WINDOW 1
+.Os BSD 4.3
+.Sh NAME
+.Nm window
+.Nd window environment
+.Sh SYNOPSIS
+.Nm window
+.Op Fl t
+.Op Fl f
+.Op Fl d
+.Op Fl e Ar escape-char
+.Op Fl c Ar command
+.Sh DESCRIPTION
+.Nm Window
+implements a window environment on
+.Tn ASCII
+terminals.
+.Pp
+A window is a rectangular portion of the physical terminal
+screen associated with a set of processes.  Its size and
+position can be changed by the user at any time.  Processes
+communicate with their window in the same way they normally
+interact with a terminal\-through their standard input, output,
+and diagnostic file descriptors.  The window program handles the
+details of redirecting input an output to and from the
+windows.  At any one time, only one window can receive
+input from the keyboard, but all windows can simultaneously send output
+to the display.
+.Pp
+When
+.Nm window
+starts up, the commands (see long commands below)
+contained in the file
+.Pa .windowrc
+in the user's home directory are
+executed.  If it does not exist, two equal sized windows spanning
+the terminal screen are created by default.
+.Pp
+The command line options are
+.Bl -tag -width Fl
+.It Fl t
+Turn on terse mode (see
+.Ic terse
+command below).
+.It Fl f
+Fast.  Don't perform any startup action.
+.It Fl d
+Ignore
+.Pa .windowrc
+and create the two default
+windows instead.
+.It Fl e Ar escape-char 
+Set the escape character to
+.Ar escape-char  .
+.Ar Escape-char
+can be a single character, or in the form
+.Ic ^X
+where
+.Ar X
+is any character, meaning
+.No control\- Ns Ar X  . 
+.It Fl c Ar command 
+Execute the string
+.Ar command
+as a long command (see below)
+before doing anything else.
+.El
+.Pp
+Windows can overlap and are framed as necessary.  Each window
+is named by one of the digits ``1'' to ``9''.  This one-character
+identifier, as well as a user definable label string, are displayed
+with the window on the top edge of its frame.  A window can be
+designated to be in the
+.Ar foreground  ,
+in which case it will always be
+on top of all normal, non-foreground windows, and can be covered
+only by other foreground windows.  A window need not be completely
+within the edges of the terminal screen.  Thus a large window
+(possibly larger than the screen) may be positioned to show only
+a portion of its full size.
+.Pp
+Each window has a cursor and a set of control functions.  Most intelligent
+terminal operations such as line and
+character deletion and insertion are supported.  Display modes
+such as underlining and reverse video are available if they are
+supported by the terminal.  In addition,
+similar to terminals with multiple pages of memory,
+each window has a text buffer which can have more lines than the window
+itself.
+.Ss Process Environment
+With each newly created window, a shell program is spawned with its
+process environment tailored to that window.  Its standard input,
+output, and diagnostic file descriptors are bound to one end of either
+a pseudo-terminal
+.Xr (pty 4 )
+or a
+.Ux
+domain socket
+.Xr (socketpair 4 ) .
+If a pseudo-terminal is used, then its special
+characters and modes (see
+.Xr stty 1 )
+are copied from the physical
+terminal.  A
+.Xr termcap 5
+entry tailored to this window is created
+and passed as environment
+.Xr (environ 5 )
+variable
+.Ev TERMCAP  .
+The termcap entry contains the window's size and
+characteristics as well as information from the physical terminal,
+such as the existence of underline, reverse video, and other display
+modes, and the codes produced by the terminal's function keys,
+if any.  In addition, the window size attributes of the pseudo-terminal
+are set to reflect the size of this window, and updated whenever
+it is changed by the user.  In particular, the editor
+.Xr vi 1
+uses
+this information to redraw its display.
+.Ss Operation
+During normal execution,
+.Nm window
+can be in one of two states:
+conversation mode and command mode.  In conversation mode, the
+terminal's real cursor is placed at the cursor position of a particular
+window--called the current window--and input from the keyboard is sent
+to the process in that window.  The current window is always
+on top of all other windows, except those in foreground.  In addition,
+it is set apart by highlighting its identifier and label in reverse video.
+.Pp
+Typing
+.Nm window Ns 's 
+escape character (normally
+.Ic ^P )
+in conversation
+mode switches it into command mode.  In command mode, the top line of
+the terminal screen becomes the command prompt window, and
+.Nm window
+interprets input from the keyboard as commands to manipulate windows.
+.Pp
+There are two types of commands: short commands are usually one or two
+key strokes; long commands are strings either typed by the user in the
+command window (see the
+.Dq Ic \&:
+command below), or read from a file (see
+.Ic source
+below).
+.Ss Short Commands
+Below,
+.Ar \&#
+represents one of the digits ``1'' to ``9''
+corresponding to the windows 1 to 9.
+.Ic ^X
+means
+.No control\- Ns Ar X  , 
+where
+.Ar X
+is any character.  In particular,
+.Ic ^^
+is
+.Li control\-^.
+.Ar Escape
+is the escape key, or
+.Ic ^\&[ .
+.Bl -tag -width Ds
+.It Ar #
+Select window
+.Ar #
+as the current window
+and return to conversation mode.
+.It Ic \&% Ns Ar # 
+Select window
+.Ar #
+but stay in command mode.
+.It Ic ^^
+Select the previous window and return to conversation
+mode.  This is useful for toggling between two windows.
+.It Ic escape
+Return to conversation mode.
+.It Ic ^P
+Return to conversation mode and write
+.Ic ^P
+to the
+current window.  Thus, typing two
+.Ic ^P Ns 's
+in conversation
+mode sends one to the current window.  If the
+.Nm window
+escape is changed to some other character, that
+character takes the place of
+.Ic ^P
+here.
+.It Ic ?
+List a short summary of commands.
+.It Ic ^L
+Refresh the screen.
+.It Ic q
+Exit
+.Nm window  .
+Confirmation is requested.
+.It Ic ^Z
+Suspend
+.Nm window  .
+.It Ic w
+Create a new window.  The user is prompted for the positions
+of the upper left and lower right corners of the window.
+The cursor is placed on the screen and the keys ``h'', ``j'',
+``k'', and ``l''
+move the cursor left, down, up, and right, respectively.
+The keys ``H'', ``J'', ``K'', and ``L'' move the cursor to the respective
+limits of the screen.  Typing a number before the movement keys
+repeats the movement that number of times.  Return enters the cursor position
+as the upper left corner of the window.  The lower right corner
+is entered in the same manner.  During this process,
+the placement of the new window is indicated by a rectangular
+box drawn on the screen, corresponding to where the new window
+will be framed.  Typing escape at any point
+cancels this command.
+.Pp
+This window becomes the current window,
+and is given the first available ID.  The default buffer size
+is used (see
+.Ar default_nline
+command below).
+.Pp
+Only fully visible windows can be created this way.
+.It Ic c Ns Ar # 
+Close window
+.Ar # .
+The process in the window is sent
+the hangup signal (see
+.Xr kill 1 ) .
+.Xr Csh 1
+should
+handle this signal correctly and cause no problems.
+.It Ic m Ns Ar # 
+Move window
+.Ar #
+to another location.  A box in the shape
+of the window is drawn on
+the screen to indicate the new position of the window, and the same keys as
+those for the
+.Ic w
+command are used to position the box.  The
+window can be moved partially off-screen.
+.It Ic M Ns Ar # 
+Move window
+.Ar #
+to its previous position.
+.It Ic s Ns Ar # 
+Change the size of window
+.Ar # .
+The user is prompted
+to enter the new lower right corner of the window.  A box
+is drawn to indicate the new window size.  The same
+keys used in
+.Ic w
+and
+.Ic m
+are used to enter the position.
+.It Ic S Ns Ar # 
+Change window
+.Ar #
+to its previous size.
+.It Ic ^Y
+Scroll the current window up by one line.
+.It Ic ^E
+Scroll the current window down by one line.
+.It Ic ^U
+Scroll the current window up by half the window size.
+.It Ic ^D
+Scroll the current window down by half the window size.
+.It Ic ^B
+Scroll the current window up by the full window size.
+.It Ic ^F
+Scroll the current window down by the full window size.
+.It Ic h
+Move the cursor of the current window left by one column.
+.It Ic j
+Move the cursor of the current window down by one line.
+.It Ic k
+Move the cursor of the current window up by one line.
+.It Ic l
+Move the cursor of the current window right by one column.
+.It Ic ^S
+Stop output in the current window.
+.It Ic ^Q
+Start output in the current window.
+.It Ic :
+Enter a line to be executed as long commands.
+Normal line
+editing characters (erase character, erase word, erase line)
+are supported.
+.El
+.Ss Long Commands
+Long commands are a sequence of statements
+parsed much like a programming language, with a syntax
+similar to that of C.  Numeric and string expressions and variables
+are supported, as well as conditional statements.
+.Pp
+There are two data types: string and number.  A string is a sequence
+of letters or digits beginning with a letter.  ``_'' and ``.'' are
+considered letters.  Alternately, non-alphanumeric characters can
+be included in strings by quoting them in ``"'' or escaping them
+with ``\\''.  In addition, the ``\\'' sequences of C are supported,
+both inside and outside quotes (e.g., ``\\n'' is a new line,
+``\\r'' a carriage return).  For example, these are legal strings:
+abcde01234, "&#$^*&#", ab"$#"cd, ab\\$\\#cd, "/usr/ucb/window".
+.Pp
+A number is an integer value in one of three forms:
+a decimal number, an octal number preceded by ``0'',
+or a hexadecimal number preceded by ``0x'' or ``0X''.  The natural
+machine integer size is used (i.e., the signed integer type
+of the C compiler).  As in C, a non-zero number represents
+a boolean true.
+.Pp
+The character ``#'' begins a comment which terminates at the
+end of the line.
+.Pp
+A statement is either a conditional or an expression.  Expression
+statements are terminated with a new line or ``;''.  To continue
+an expression on the next line, terminate the first line with ``\\''.
+.Ss Conditional Statement
+.Nm Window
+has a single control structure:
+the fully bracketed if statement in the form
+.Pp
+.Bd -literal -offset indent -compact
+if <expr> then
+\t<statement>
+\t...
+elsif <expr> then
+\t<statement>
+\t...
+else
+\t<statement>
+\t...
+endif
+.Ed
+.Pp
+The
+.Ic else
+and
+.Ic elsif
+parts are optional, and the latter can
+be repeated any number of times.
+<Expr>
+must be numeric.
+.Ss Expressions
+Expressions in
+.Nm window
+are similar to those in the
+C language, with most C operators supported on numeric
+operands.  In addition, some are overloaded to operate on strings.
+.Pp
+When an expression is used as a statement, its value is discarded
+after evaluation.  Therefore, only expressions with side
+effects (assignments and function calls) are useful as statements.
+.Pp
+Single valued (no arrays) variables are supported, of both
+numeric and string values.  Some variables are predefined.  They
+are listed below.
+.Pp
+The operators in order of increasing precedence:
+.Bl -tag -width Fl
+.It Xo
+.Aq Va expr1
+.Ic =
+.Aq Va expr2
+.Xc
+Assignment.  The variable of name
+.Aq Va expr1 , 
+which must be string valued,
+is assigned the result of
+.Aq Va expr2 . 
+Returns the value of
+.Aq Va expr2 . 
+.It Xo
+.Aq Va expr1
+.Ic ?
+.Aq Va expr2
+.Ic :
+.Aq Va expr3
+.Xc
+Returns the value of
+.Aq Va expr2 
+if
+.Aq Va expr1 
+evaluates true
+(non-zero numeric value); returns the value of
+.Aq Va expr3 
+otherwise.  Only
+one of
+.Aq Va expr2 
+and
+.Aq Va expr3 
+is evaluated.
+.Aq Va Expr1 
+must
+be numeric.
+.It Xo
+.Aq Va expr1
+.Ic \&|\&|
+.Aq Va expr2
+.Xc
+Logical or.  Numeric values only.  Short circuit evaluation is supported
+(i.e., if
+.Aq Va expr1 
+evaluates true, then
+.Aq Va expr2 
+is not evaluated).
+.It Xo
+.Aq Va expr1
+.Ic \&&\&&
+.Aq Va expr2
+.Xc
+Logical and with short circuit evaluation.  Numeric values only.
+.It Xo
+.Aq Va expr1
+.Ic \&|
+.Aq Va expr2
+.Xc
+Bitwise or.  Numeric values only.
+.It Xo
+.Aq Va expr1
+.Ic ^
+.Aq Va expr2
+.Xc
+Bitwise exclusive or.  Numeric values only.
+.It Xo
+.Aq Va expr1
+.Ic \&&
+.Aq Va expr2
+.Xc
+Bitwise and.  Numeric values only.
+.It Xo
+.Aq Va expr1
+.Ic ==
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic !=
+.Aq expr2
+.Xc
+Comparison (equal and not equal, respectively).  The boolean
+result (either 1 or 0) of the comparison is returned.  The
+operands can be numeric or string valued.  One string operand
+forces the other to be converted to a string in necessary.
+.It Xo
+.Aq Va expr1
+.Ic <
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic >
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic <=
+.Aq Va expr2 ,
+.Xc
+Less than, greater than, less than or equal to,
+greater than or equal to.  Both numeric and string values, with
+automatic conversion as above.
+.It Xo
+.Aq Va expr1
+.Ic <<
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic >>
+.Aq Va expr2
+.Xc
+If both operands are numbers,
+.Aq Va expr1
+is bit
+shifted left (or right) by
+.Aq Va expr2
+bits.  If
+.Aq Va expr1
+is
+a string, then its first (or last)
+.Aq Va expr2
+characters are
+returns (if
+.Aq Va expr2
+is also a string, then its length is used
+in place of its value).
+.It Xo
+.Aq Va expr1
+.Ic +
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic -
+.Aq Va expr2
+.Xc
+Addition and subtraction on numbers.  For ``+'', if one
+argument is a string, then the other is converted to a string,
+and the result is the concatenation of the two strings.
+.It Xo
+.Aq Va expr1
+.Ic \&*
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic \&/
+.Aq Va expr2 ,
+.Aq Va expr1
+.Ic \&%
+.Aq Va expr2
+.Xc
+Multiplication, division, modulo.  Numbers only.
+.It Xo
+.Ic \- Ns Aq Va expr ,
+.Ic ~ Ns Aq Va expr ,
+.Ic \&! Ns Aq Va expr ,
+.Ic \&$ Ns Aq Va expr ,
+.Ic \&$? Ns Aq Va expr
+.Xc
+The first three are unary minus, bitwise complement and logical complement
+on numbers only.  The operator, ``$'', takes
+.Aq Va expr
+and returns
+the value of the variable of that name.  If
+.Aq Va expr
+is numeric
+with value
+.Ar n
+and it appears within an alias macro (see below),
+then it refers to the nth argument of the alias invocation.  ``$?''
+tests for the existence of the variable
+.Aq Va expr ,
+and returns 1
+if it exists or 0 otherwise.
+.It Xo
+.Ao Va expr Ac Ns Pq Aq Ar arglist
+.Xc
+Function call.
+.Aq Va Expr
+must be a string that is the unique
+prefix of the name of a builtin
+.Nm window
+function
+or the full name of a user defined alias macro.  In the case of a builtin
+function,
+.Aq Ar arglist
+can be in one of two forms:
+.Bd -literal -offset indent
+<expr1>, <expr2>, ...
+argname1 = <expr1>, argname2 = <expr2>, ...
+.Ed
+.Pp
+The two forms can in fact be intermixed, but the result is
+unpredictable.  Most arguments can be omitted; default values will
+be supplied for them.  The
+.Ar argnames
+can be unique prefixes
+of the the argument names.  The commas separating
+arguments are used only to disambiguate, and can usually be omitted.
+.Pp
+Only the first argument form is valid for user defined aliases.  Aliases
+are defined using the
+.Ic alias
+builtin function (see below).  Arguments
+are accessed via a variant of the variable mechanism (see ``$'' operator
+above).
+.Pp
+Most functions return value, but some are used for side effect
+only and so must be used as statements.  When a function or an alias is used
+as a statement, the parenthesis surrounding
+the argument list may be omitted.  Aliases return no value.
+.El
+.Ss  Builtin Functions
+The arguments are listed by name in their natural
+order.  Optional arguments are in square brackets
+.Sq Op .
+Arguments
+that have no names are in angle brackets
+.Sq <> .
+An argument meant to be a boolean flag (often named
+.Ar flag )
+can be one of
+.Ar on ,
+.Ar off ,
+.Ar yes ,
+.Ar no ,
+.Ar true ,
+or
+.Ar false ,
+with
+obvious meanings, or it can be a numeric expression,
+in which case a non-zero value is true.
+.Bl -tag -width Fl
+.It Xo
+.Ic alias Ns Po Bq Aq Ar string ,
+.Bq Aq Ar string\-list Pc
+.Xc
+If no argument is given, all currently defined alias macros are
+listed.  Otherwise,
+.Aq Ar string
+is defined as an alias,
+with expansion
+.Aq Ar string\-list > . 
+The previous definition of
+.Aq Ar string ,
+if any, is returned.  Default for
+.Aq Ar string\-list
+is no change.
+.It Ic close Ns Pq Aq Ar window\-list
+Close the windows specified in
+.Aq Ar window\-list .
+If
+.Aq Ar window\-list
+is the word
+.Ar all  ,
+than all windows are closed.  No value is returned.
+.It Ic cursormodes Ns Pq Bq Ar modes
+Set the window cursor to
+.Ar modes  .
+.Ar Modes
+is the bitwise
+or of the mode bits defined as the variables
+.Ar m_ul
+(underline),
+.Ar m_rev
+(reverse video),
+.Ar m_blk
+(blinking),
+and
+.Ar m_grp
+(graphics, terminal dependent).  Return
+value is the previous modes.  Default is no change.
+For example,
+.Li cursor($m_rev$m_blk)
+sets the window cursors to blinking
+reverse video.
+.It Ic default_nline Ns Pq Bq Ar nline
+Set the default buffer size to
+.Ar nline  .
+Initially, it is
+48 lines.  Returns the old default buffer size.  Default is
+no change.  Using a very large buffer can slow the program down
+considerably.
+.It Ic default_shell Ns Pq Bq Aq Ar string\-list
+Set the default window shell program to
+.Aq Ar string\-list .
+Returns
+the first string in the old shell setting.  Default is no change.  Initially,
+the default shell is taken from the environment variable
+.Ev SHELL  .
+.It Ic default_smooth Ns Pq Bq Ar flag
+Set the default value of the
+.Ar smooth
+argument
+to the command
+.Nm window
+(see below).  The argument
+is a boolean flag (one of
+.Ar on  ,
+.Ar off  ,
+.Ar yes  ,
+.Ar no  ,
+.Ar true  ,
+.Ar false  ,
+or a number,
+as described above).  Default is no change.
+The old value (as a number) is returned.
+The initial value is 1 (true).
+.It Xo
+.Ic echo Ns ( Op Ar window ,
+.Bq Aq Ar string\-list )
+.Xc
+Write the list of strings,
+.Aq Ar string-list ,
+to
+.Nm window  ,
+separated
+by spaces and terminated with a new line.  The strings are only
+displayed in the window, the processes in the window are not
+involved (see
+.Ic write
+below).  No value is returned.  Default
+is the current window.
+.It Ic escape Ns Pq Bq Ar escapec
+Set the escape character to
+.Ar escape-char  .
+Returns the old
+escape character as a one-character string.  Default is no
+change.
+.Ar Escapec
+can be a string of a single character, or
+in the form
+.Fl ^X ,
+meaning
+.No control\- Ns Ar X .
+.It Xo
+.Ic foreground Ns ( Bq Ar window ,
+.Bq Ar flag ) 
+.Xc
+Move
+.Nm window
+in or out of foreground.
+.Ar Flag
+is a boolean value.  The old foreground flag
+is returned.  Default for
+.Nm window
+is the current window,
+default for
+.Ar flag
+is no change.
+.It Xo
+.Ic label Ns ( Bq Ar window ,
+.Bq Ar label ) 
+.Xc
+Set the label of
+.Nm window
+to
+.Ar label  .
+Returns the old
+label as a string.  Default for
+.Nm window
+is the current
+window, default for
+.Ar label
+is no change.  To turn
+off a label, set it to an empty string ("").
+.It Ic list Ns Pq
+No arguments.  List the identifiers and labels of all windows.  No
+value is returned.
+.It Ic select Ns Pq Bq Ar window
+Make
+.Nm window
+the current window.  The previous current window
+is returned.  Default is no change.
+.It Ic source Ns Pq Ar filename
+Read and execute the long commands in
+.Ar filename  .
+Returns \-1 if the file cannot be read, 0 otherwise.
+.It Ic terse Ns Pq Bq flag
+Set terse mode to
+.Ar flag  .
+In terse mode, the command window
+stays hidden even in command mode, and errors are reported by
+sounding the terminal's bell.
+.Ar Flag
+can take on the same
+values as in
+.Ar foreground
+above.  Returns the old terse flag.
+Default is no change.
+.It Ic unalias Ns Pq Ar alias
+Undefine
+.Ar alias  .
+Returns -1 if
+.Ar alias
+does not exist,
+0 otherwise.
+.It Ic unset Ns Pq Ar variable
+Undefine
+.Ar variable  .
+Returns -1 if
+.Ar variable
+does not exist,
+0 otherwise.
+.It Ic variables Ns Pq
+No arguments.  List all variables.  No value is returned.
+.It Xo
+.Ic window Ns ( Bq Ar row ,
+.Bq Ar column ,
+.Bq Ar nrow ,
+.Bq Ar ncol ,
+.Bq Ar nline ,
+.Bq Ar label ,
+.Bq Ar pty , 
+.Bq Ar frame ,
+.Bq Ar mapnl ,
+.Bq Ar keepopen ,
+.Bq Ar smooth ,
+.Bq Ar shell ) . 
+.Xc
+Open a window with upper left corner at
+.Ar row  ,
+.Ar column
+and size
+.Ar nrow  ,
+.Ar ncol  .
+If
+.Ar nline
+is specified,
+then that many lines are allocated for the text buffer.  Otherwise,
+the default buffer size is used.  Default values for
+.Ar row  ,
+.Ar column  ,
+.Ar nrow  ,
+and
+.Ar ncol
+are, respectively,
+the upper, left-most, lower, or right-most extremes of the
+screen.
+.Ar Label
+is the label string.
+.Ar Frame  ,
+.Ar pty  ,
+and
+.Ar mapnl
+are flag values
+interpreted in the same way as the argument to
+.Ar foreground
+(see above);
+they mean, respectively, put a frame around this window (default true),
+allocate pseudo-terminal for this window rather than socketpair (default
+true), and map new line characters in this window to carriage return
+and line feed (default true if socketpair is used, false otherwise).
+Normally, a window is automatically closed when its process
+exits.  Setting
+.Ar keepopen
+to true (default false) prevents this
+action.  When
+.Ar smooth
+is true, the screen is updated more frequently
+(for this window) to produce a more terminal-like behavior.
+The default value of
+.Ar smooth
+is set by the
+.Ar default_smooth
+command (see above).
+.Ar Shell
+is a list of strings that will be used as the shell
+program to place in the window (default is the program specified
+by
+.Ar default_shell  ,
+see above).  The created window's identifier
+is returned as a number.
+.It Xo
+.Ic write Ns ( Bq Ar window ,
+.Bq Aq Ar string\-list )
+.Xc
+Send the list of strings,
+.Aq Ar string-list ,
+to
+.Nm window  ,
+separated
+by spaces but not terminated with a new line.  The strings are actually
+given to the window as input.  No value is returned.  Default
+is the current window.
+.El
+.Ss Predefined Variables
+These variables are for information only.  Redefining them does
+not affect the internal operation of
+.Nm window  .
+.Bl -tag -width modes
+.It Ar baud
+The baud rate as a number between 50 and 38400.
+.It Ar modes
+The display modes (reverse video, underline, blinking, graphics)
+supported by the physical terminal.  The value of
+.Ar modes
+is the bitwise or of some of the one bit values,
+.Ar m_blk ,
+.Ar m_grp ,
+.Ar m_rev ,
+and
+.Ar m_ul
+(see below).
+These values are useful
+in setting the window cursors' modes (see
+.Ar cursormodes
+above).
+.It Ar m_blk
+The blinking mode bit.
+.It Ar m_grp
+The graphics mode bit (not very useful).
+.It Ar m_rev
+The reverse video mode bit.
+.It Ar m_ul
+The underline mode bit.
+.It Ar ncol
+The number of columns on the physical screen.
+.It Ar nrow
+The number of rows on the physical screen.
+.It Ar term
+The terminal type.  The standard name, found in the second name
+field of the terminal's
+.Ev TERMCAP
+entry, is used.
+.Sh ENVIRONMENT
+.Nm Window
+utilizes these environment variables:
+.Ev HOME ,
+.Ev SHELL ,
+.Ev TERM ,
+.Ev TERMCAP ,
+.Ev WINDOW_ID .
+.Sh FILES
+.Bl -tag -width /dev/[pt]ty[pq]? -compact
+.It Pa ~/.windowrc
+startup command file.
+.It Pa /dev/[pt]ty[pq]? 
+pseudo-terminal devices.
+.El
+.Sh HISTORY
+The
+.Nm window
+command appeared in
+.Bx 4.3 .
+.Sh DIAGNOSTICS
+Should be self explanatory.

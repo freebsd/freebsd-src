@@ -1,0 +1,940 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman5.n	6.3 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+.ND
+.nr H1 4
+.NH
+Details on the components of the system
+.NH 2
+Options
+.PP
+The programs
+.PI ,
+.PC ,
+and
+.XP
+take a number of options.\*(dg
+.FS
+\*(dgAs
+.IX
+uses
+.PI
+to translate Pascal programs,
+it takes the options of
+.PI
+also.
+We refer to them here, however, as
+.PI
+options.
+.FE
+There is a standard
+.UX
+convention for passing options to programs on the command line,
+and this convention is followed by the
+.UP
+system programs.
+As we saw in the examples above,
+option related arguments consisted of the character `\-' followed
+by a single character option name.
+.PP
+Except for the
+.B b
+option
+which takes a single digit value,
+each option may be set on (enabled)
+or off (disabled.)
+When an on/off valued option appears on the command line of
+.PI
+or
+.PX
+it inverts the default setting of that option.
+Thus
+.LS
+% \*bpi -l foo.p\fR
+.LE
+enables the listing option
+.B l ,
+since it defaults off, while
+.LS
+% \*bpi -t foo.p\fR
+.LE
+disables the run time tests option
+.B t ,
+since it defaults on.
+.PP
+In additon to inverting the default settings of
+.PI
+options on the command line, it is also possible to control the
+.PI
+options 
+within the body of the program by using comments of a special
+form illustrated by
+.LS
+{$l-}
+.LE
+.PP
+Here we see that the opening comment delimiter (which could also be a `(*')
+is immediately followed by the character `$'.
+After this `$', which signals the start of the option list,
+we can place a sequence of letters and option controls, separated by `,'
+characters\*(dd.
+.FS
+\*(ddThis format was chosen because it is used by Pascal 6000-3.4.
+In general the options common to both implementations are controlled
+in the same way so that comment control in options is mostly
+portable.
+It is recommended, however, that only one control be put per comment for
+maximum portability, as the Pascal 6000-3.4
+implementation will ignore controls
+after the first one which it does not recognize.
+.FE
+The most basic actions for options are to set them, thus
+.LS
+{$l+ Enable listing}
+.LE
+or to clear them
+.LS
+{$t-,p- No run-time tests, no post mortem analysis}
+.LE
+Notice that `+' always enables an option and `\-' always disables it,
+no matter what the default is.
+Thus `\-' has a different meaning in an option comment than it has on the
+command line.
+As shown in the examples,
+normal comment text may follow the option list.
+.NH 2
+Options common to Pi, Pc, and Pix
+.PP
+The following options are common to both the compiler
+and the interpreter.
+With each option we give its default setting,
+the setting it would have if it appeared on the command line,
+and a sample command using the option.
+Most options are on/off valued,
+with the
+.B b
+option
+taking a single digit value.
+.SH
+Buffering of the file output \- b
+.PP
+The
+.B b
+option controls the buffering of the file
+.I output .
+The default is line buffering, with flushing at
+each reference to the file
+.I input
+and under certain other circumstances detailed in section 5
+below.
+Mentioning
+.B b
+on the command line, e.g.
+.LS
+% \*bpi -b assembler.p\fR
+.LE
+causes standard output to be block buffered,
+where a block is some system\-defined number of characters.
+The
+.B b
+option may also be controlled in comments.
+It, unique among the
+.UP
+options,
+takes a single digit value rather than an on or off setting.
+A value of 0, e.g.
+.LS
+	{$b0}
+.LE
+causes the file
+.I output
+to be unbuffered.
+Any value 2 or greater causes block buffering and is equivalent
+to the flag on the command line.
+The option control comment setting
+.B b
+must precede the
+.B program
+statement.
+.SH
+Include file listing \- i
+.PP
+The
+.B i
+option takes the name of an
+.B include
+file,
+.B procedure
+or
+.B function
+name and causes it
+to be listed while translating\*(dg.
+.FS
+\*(dg\*bInclude\fR files are discussed in section 5.9.
+.FE
+Typical uses would be
+.LS
+% \*bpix -i scanner.i compiler.p\fR
+.LE
+to make a listing of the routines in the file scanner.i, and
+.LS
+% \*bpix -i scanner compiler.p\fR
+.LE
+to make a listing of only the routine
+.I scanner .
+This option is especially useful for conservation-minded programmers making
+partial program listings.
+.SH
+Make a listing \- l
+.PP
+The
+.B l
+option enables a listing of the program.
+The
+.B l
+option defaults off.
+When specified on the command line, it causes
+a header line identifying the version of the translator in use
+and a line giving the modification time of the file being translated
+to appear before the actual program listing.
+The
+.B l
+option is pushed and popped by the
+.B i
+option at appropriate points in the program.
+.SH
+Standard Pascal only \- s
+.PP
+The
+.B s
+option causes many of the features of the
+.SM UNIX
+implementation which are not found in standard Pascal
+to be diagnosed as `s' warning errors.
+This option defaults off and is enabled when mentioned on the command line.
+Some of the features which are diagnosed are:
+non-standard
+.B procedure s
+and
+.B function s,
+extensions to the
+.B procedure
+.I write ,
+and the padding of constant strings with blanks.
+In addition, all letters are mapped to lower case except in
+strings and characters so that the case of keywords and identifiers
+is effectively ignored.
+The
+.B s
+option is most useful when a program is to be transported, thus
+.LS
+% \*bpi -s isitstd.p\fR
+.LE
+will produce warnings unless the program meets the standard.
+.SH
+Runtime tests \- t and C
+.PP
+These
+options control the generation of tests that subrange variable
+values are within bounds at run time.
+.PI
+defaults to generating tests and uses the option
+.B t
+to disable them.
+.PC
+defaults to not generating tests,
+and uses the option
+.B C
+to enable them.
+Disabling runtime tests also causes
+.B assert
+statements to be treated as comments.\*(dd
+.FS
+\*(ddSee section A.1 for a description of
+.B assert
+statements.
+.FE
+.SH
+Suppress warning diagnostics \- w
+.PP
+The
+.B w
+option, which defaults on,
+allows the translator to print a number of warnings about inconsistencies
+it finds in the input program.
+Turning this option off with a comment of the form
+.LS
+{$w-}
+.LE
+or on the command line
+.LS
+% \*bpi -w tryme.p\fR
+.LE
+suppresses these usually useful diagnostics.
+.SH
+Generate counters for a pxp execution profile \- z
+.PP
+The
+.B z
+option, which defaults off,
+enables the production of execution profiles.
+By specifying
+.B z
+on the command line, i.e.
+.LS
+% \*bpi -z foo.p\fR
+.LE
+or by enabling it in a comment before the
+.B program
+statement causes
+.PI
+and
+.PC
+to insert operations in the interpreter code to
+count the number of times each statement was executed.
+An example of using
+.XP
+was given in section 2.6;
+its options are described in section 5.6.
+Note that the
+.B z
+option cannot be used on separately compiled programs.
+.NH 2
+Options available in Pi
+.SH
+Post-mortem dump \- p
+.PP
+The
+.B p
+option defaults on,
+and causes the runtime system to initiate a post-mortem
+backtrace when an error occurs.
+It also cause
+.X
+to count statements in the executing program,
+enforcing a statement limit to prevent infinite loops.
+Specifying
+.B p
+on the command line disables these checks and the ability
+to give this post-mortem analysis.
+It does make smaller and faster programs, however.
+It is also possible to control the
+.B p
+option in comments.
+To prevent the post-mortem backtrace on error,
+.B p
+must be off at the end of the
+.B program
+statement.
+Thus, the Pascal cross-reference program was translated with
+.LS
+% \*bpi -pbt pxref.p\fR
+.LE
+.NH 2
+Options available in Px
+.PP
+The first argument to
+.X
+is the name of the file containing the program to be interpreted.
+If no arguments are given, then the file
+.I obj
+is executed.
+If more arguments are given, they are available to the Pascal
+program by using the built-ins
+.I argc
+and
+.I argv
+as described in section 4.6.
+.ne 7
+.PP
+.I Px
+may also be invoked automatically.
+In this case, whenever a Pascal object file name is given as a command,
+the command will be executed with
+.X
+prepended to it; that is
+.LS
+% \*bobj primes\fR
+.LE
+will be converted to read
+.LS
+% \*bpx obj primes\fR
+.LE
+.NH 2
+Options available in Pc
+.SH
+Generate assembly language \- S
+.PP
+The program is compiled and the assembly language
+output is left in file appended .s.
+Thus
+.LS
+% \*bpc -S foo.p\fR
+.LE
+creates a file
+.I foo.s .
+No executable file is created.
+.SH
+Symbolic Debugger Information \- g
+.PP
+The
+.B g
+option causes the compiler to generate information
+needed by
+.I sdb (1)
+the symbolic debugger.
+For a complete description of
+.I sdb
+see Volume 2c of the
+.UX
+Reference Manual.
+.SH
+Redirect the output file \- o
+.PP
+The
+.I name
+argument after the
+.B -o
+is used as the name of the output file instead of
+.I a.out .
+Its typical use is to name the compiled program using
+the root of the file name.
+Thus:
+.LS
+% \*bpc -o myprog myprog.p\fR
+.LE
+causes the compiled program to be called
+.I myprog .
+.SH
+Generate counters for a \*iprof\fP execution profile \- p
+.PP
+The compiler produces code which counts the number of times each
+routine is called.
+The profiling is based on a periodic sample taken by the
+system rather than by inline counters used by
+.XP .
+This results in less degradation in execution,
+at somewhat of a loss in accuracy.
+See
+.I prof (1)
+for a more complete description.
+.SH
+Run the object code optimizer \- O
+.PP
+The output of the compiler is run through
+the object code optimizer.
+This provides an increase in compile time in
+exchange for a decrease in compiled code size
+and execution time.
+.NH 2
+Options available in Pxp
+.PP
+.I Pxp
+takes, on its command line, a list of options followed by the program file
+name, which must end in `.p' as it must for
+.PI ,
+.PC ,
+and
+.IX .
+.I Pxp
+will produce an execution profile if any of the
+.B z ,
+.B t
+or
+.B c
+options is specified on the command line.
+If none of these options is specified, then
+.XP
+functions as a program reformatter.
+.PP
+It is important to note that only the
+.B z
+and
+.B w
+options of
+.XP ,
+which are common to
+.PI ,
+.PC ,
+and
+.XP
+can be controlled in comments.
+All other options must be specified on the command line to have any effect.
+.PP
+The following options are relevant to profiling with
+.XP :
+.SH
+Include the bodies of all routines in the profile \- a
+.PP
+.I Pxp
+normally suppresses printing the bodies of routines
+which were never executed, to make the profile more compact.
+This option forces all routine bodies to be printed.
+.SH
+Suppress declaration parts from a profile \- d
+.PP
+Normally a profile includes declaration parts.
+Specifying
+.B d
+on the command line suppresses declaration parts.
+.SH
+Eliminate include directives \- e
+.PP
+Normally,
+.XP
+preserves
+.B include
+directives to the output when reformatting a program,
+as though they were comments.
+Specifying
+.B \-e
+causes the contents of the specified files to be reformatted
+into the output stream instead.
+This is an easy way to eliminate
+.B include
+directives, e.g. before transporting a program.
+.SH
+Fully parenthesize expressions \- f
+.PP
+Normally
+.XP
+prints expressions with the minimal parenthesization necessary to
+preserve the structure of the input.
+This option causes
+.I pxp
+to fully parenthesize expressions.
+Thus the statement which prints as
+.LS
+d := a + b mod c / e
+.LE
+with minimal parenthesization, the default, will print as
+.LS
+d := a + ((b mod c) / e)
+.LE
+with the
+.B f
+option specified on the command line.
+.SH
+Left justify all procedures and functions \- j
+.PP
+Normally, each
+.B procedure
+and
+.B function
+body is indented to reflect its static nesting depth.
+This option prevents this nesting and can be used if the indented
+output would be too wide.
+.SH
+Print a table summarizing procedure and function calls \- t
+.PP
+The
+.B t
+option causes
+.XP
+to print a table summarizing the number of calls to each
+.B procedure
+and
+.B function
+in the program.
+It may be specified in combination with the
+.B z
+option, or separately.
+.SH
+Enable and control the profile \- z
+.PP
+The
+.B z
+profile option is very similar to the
+.B i
+listing control option of
+.PI .
+If
+.B z
+is specified on the command line, then all arguments up to the
+source file argument which ends in `.p' are taken to be the names of
+.B procedure s
+and
+.B function s
+or
+.B include
+files which are to be profiled.
+If this list is null, then the whole file is to be profiled.
+A typical command for extracting a profile of part of a large program
+would be
+.LS
+% \*bpxp -z test parser.i compiler.p\fR
+.LE
+This specifies that profiles of the routines in the file
+.I parser.i
+and the routine
+.I test
+are to be made.
+.NH 2
+Formatting programs using pxp
+.PP
+The program
+.XP
+can be used to reformat programs, by using a command of the form
+.LS
+% \*bpxp dirty.p > clean.p\fR
+.LE
+Note that since the shell creates the output file `clean.p' before
+.XP
+executes, so `clean.p' and `dirty.p' must not be the same file.
+.PP
+.I Pxp
+automatically paragraphs the program, performing housekeeping
+chores such as comment alignment, and
+treating blank lines, lines containing exactly one blank
+and lines containing only a form-feed character as though they
+were comments, preserving their vertical spacing effect in the output.
+.I Pxp
+distinguishes between four kinds of comments:
+.HP
+.RS
+.IP 1)
+Left marginal comments, which begin in the first column of the
+input line and are placed in the first column of an output line.
+.IP 2)
+Aligned comments, which are preceded by no input tokens on the
+input line.
+These are aligned in the output with the running program text.
+.IP 3)
+Trailing comments, which are preceded in the input line by a token with
+no more than two spaces separating the token from the comment.
+.IP 4)
+Right marginal comments, which are preceded in the input line
+by a token from which they are separated by at least three spaces or a tab.
+These are aligned down the right margin of the output,
+currently to the first tab stop after the 40th column from the current
+``left margin''.
+.RE
+.LP
+Consider the following program.
+.LS
+% \*bcat comments.p\fR
+.so comments1.p
+.LE
+When formatted by
+.XP
+the following output is produced.
+.LS
+% \*bpxp comments.p\fR
+.so commentsout
+%
+.LE
+The following formatting related options are currently available in
+.XP .
+The options
+.B f
+and
+.B j
+described in the previous section may also be of interest.
+.SH
+Strip comments \-s
+.PP
+The
+.B s
+option causes
+.XP
+to remove all comments from the input text.
+.SH
+Underline keywords \- \_
+.PP
+A command line argument of the form
+.B \-\_
+as in
+.LS
+% \*bpxp -_ dirty.p\fR
+.LE
+can be used to cause
+.XP
+to underline all keywords in the output for enhanced readability.
+.SH
+Specify indenting unit \- [23456789]
+.PP
+The normal unit which
+.XP
+uses to indent a structure statement level is 4 spaces.
+By giving an argument of the form
+\fB\-\fId\fR
+with
+.I d
+a digit,
+2 \(<=
+.I d
+\(<= 9
+you can specify that
+.I d
+spaces are to be used per level instead.
+.NH 2
+Pxref
+.PP
+The cross-reference program
+.I pxref
+may be used to make cross-referenced listings of Pascal
+programs.
+To produce a cross-reference of the program in the file
+`foo.p'
+one can execute the command:
+.LS
+% \*bpxref foo.p\fR
+.LE
+The cross-reference is, unfortunately, not block structured.
+Full details on
+.I pxref
+are given in its manual section
+.I pxref
+(1).
+.NH 2
+Multi-file programs
+.PP
+A text inclusion facility is available with
+.UP .
+This facility allows the interpolation of source text from other
+files into the source stream of the translator.
+It can be used to divide large programs into more manageable pieces
+for ease in editing, listing, and maintenance.
+.PP
+The
+.B include
+facility is based on that of the
+.SM
+UNIX
+.NL
+C compiler.
+To trigger it you can place the character `#' in the first portion of
+a line and then, after an arbitrary number of blanks or tabs,
+the word
+`include'
+followed by a filename enclosed in single `\(aa' or double `"' quotation
+marks.
+The file name may be followed by a semicolon `;' if you wish to treat
+this as a pseudo-Pascal statement.
+The filenames of included files must end in `.i'.
+An example of the use of included files in a main program would be:
+.LS
+\*bprogram\fR compiler(input, output, obj);
+
+#\*binclude\fR "globals.i"
+#\*binclude\fR "scanner.i"
+#\*binclude\fR "parser.i"
+#\*binclude\fR "semantics.i"
+
+\*bbegin\fR
+    { main program }
+\*bend\fR.
+.LE
+.PP
+At the point the
+.B include
+pseudo-statement is encountered in the input, the lines from
+the included file are interpolated into the input stream.
+For the purposes of translation and runtime diagnostics and
+statement numbers in the listings and post-mortem backtraces,
+the lines in the included file are numbered from 1.
+Nested includes are possible up to 10 deep.
+.PP
+See the descriptions of the
+.B i
+option of
+.PI
+in section 5.2
+above;
+this can be used to control listing when
+.B include
+files are present.
+.PP
+When a non-trivial line is encountered in the source text after an
+.B include
+finishes, the
+`popped' filename is printed, in the same manner as above.
+.PP
+For the purposes of error diagnostics when not making a listing, the filename
+will be printed before each diagnostic if the current
+filename has changed since the last
+filename was printed.
+.NH 2
+Separate Compilation with Pc
+.PP
+A separate compilation facility is provided with the Berkeley Pascal compiler,
+.PC .
+This facility allows programs to be divided into a number of files and 
+the pieces to be compiled individually,
+to be linked together at some later time.
+This is especially useful for large programs,
+where small changes would otherwise require
+time-consuming re-compilation of the entire program.
+.PP
+Normally,
+.PC
+expects to be given entire Pascal programs.
+However, if given the
+.B \-c
+option on the command line, it will accept a sequence of definitions and
+declarations, and compile them into a
+.B .o
+file, to be linked with a Pascal program at a later time.
+In order that procedures and functions be available across
+separately compiled files, they must be declared with the directive
+.B external .
+This directive is similar to the directive
+.B forward
+in that it must precede the resolution of the function or procedure,
+and formal parameters and function result types must be specified
+at the
+.B external
+declaration and may not be specified at the resolution.
+.PP
+Type checking is performed across separately compiled files.
+Since Pascal type defintions define unique types,
+any types which are shared between separately compiled files
+must be the same definition.
+This seemingly impossible problem is solved using a facility similar
+to the
+.B include
+facility discussed above.
+Definitions may be placed in files with the extension
+.B .h
+and the files included by separately compiled files.
+Each definition from a 
+.B .h
+file defines a unique type, and all uses of a definition from the same 
+.B .h
+file define the same type.
+Similarly, the facility is extended to allow the definition of 
+.B const s
+and the declaration of
+.B label s,
+.B var s,
+and
+.B external
+.B function s
+and
+.B procedure s.
+Thus
+.B procedure s
+and
+.B function s
+which are used between separately compiled files must be declared
+.B external ,
+and must be so declared in a
+.B .h
+file included by any file which calls or resolves the 
+.B function
+or 
+.B procedure .
+Conversely,
+.B function s
+and
+.B procedure s
+declared
+.B external
+may only be so declared in 
+.B .h
+files.
+These files may be included only at the outermost level,
+and thus define or declare global objects.
+Note that since only
+.B external
+.B function
+and
+.B procedure
+declarations (and not resolutions) are allowed in
+.B .h
+files, statically nested
+.B function s
+and
+.B procedure s
+can not be declared
+.B external .
+.PP
+An example of the use of included
+.B .h
+files in a program would be:
+.LS
+\*bprogram\fR compiler(input, output, obj);
+
+#\*binclude\fR "globals.h"
+#\*binclude\fR "scanner.h"
+#\*binclude\fR "parser.h"
+#\*binclude\fR "semantics.h"
+
+\*bbegin\fR
+    { main program }
+\*bend\fR.
+.LE
+.PP
+This might include in the main program
+the definitions and declarations of all the global 
+.B label s,
+.B const s,
+.B type s and
+.B var s
+from the file globals.h,
+and the
+.B external
+.B function
+and
+.B procedure
+declarations for each of the
+separately compiled files for the scanner, parser and semantics.
+The header file
+.I scanner.h
+would contain declarations of the form:
+.LS
+\*btype\fR
+    token = \*brecord\fR
+	{ token fields }
+    \*bend\fR;
+
+\*bfunction\fR scan(\*bvar\fR inputfile: text): token;
+    \*bexternal\fR;
+.LE
+.ne 15
+Then the scanner might be in a separately compiled file containing:
+.LS
+#\*binclude\fR "globals.h"
+#\*binclude\fR "scanner.h"
+
+\*bfunction\fR scan;
+\*bbegin\fR
+    { scanner code }
+\*bend\fR;
+.LE
+which includes the same global definitions and declarations
+and resolves the scanner functions and procedures declared
+.B external
+in the file scanner.h.

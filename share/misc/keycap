@@ -1,0 +1,486 @@
+# Contributed to 386bsd 0.1 and later versions
+#
+#	Copyright 1992,1993 by Holger Veit
+#	May be freely used with Bill Jolitz's port of 
+#	386bsd and may be included in a 386bsd collection
+#	as long as binary and source are available and reproduce the above
+#	copyright.
+#
+#	You may freely modify this code and contribute improvements based
+#	on this code as long as you don't claim to be the original author.
+#	Commercial use of this source requires permittance of the copyright 
+#	holder. A general license for 386bsd will override this restriction.
+#
+#	Use at your own risk. The copyright holder or any person who makes
+#	this code available for the public (administrators of public archives
+#	for instance) are not responsible for any harm to hardware or software
+#	that might happen due to wrong application or program faults.
+#
+# You must have the codrv-0.1.2 console driver in the same package generated
+# into the 386bsd kernel, otherwise this software does not work.
+#
+#	@(#) keycap,v	1.4 (Contributed to 386bsd) 04/27/93
+#
+#--------------------------------------------------------------------------
+#
+# All maps labelled "untested" are really untested and were entered
+# from an OS/2 keyboard manual (one of the few manual that exist for this
+# OS ;-).
+#
+# Note that these mappings use ISO-LATIN1 encoding for characters >128
+#
+# -hv-
+
+# Must be there to allow restoring the keymap in case of crash
+# don't delete
+df|default|default entry:\
+	:de:
+
+tt|test|Test entry which swaps y and z:\
+	:K22=z:S22=Z:C22=\032:\
+	:K46=y:S46=Y:C46=\031:\
+	:fn0=/root/latest/font/8x13.bdf:
+
+
+# untested
+be|belgium|Belgian mapping:\
+	:K1=\262:S1=\263:\
+	:K2=&:S2=1:A2=|:\
+	:K3=\351:S3=2:A3=@:\
+	:K4=":S4=3:A4=#:\
+	:K5=':S5=4:\
+	:K6=(:S6=5:\
+	:K7=\247:S7=6:A7=\136:\
+	:K8=\350:S8=7:\
+	:K9=!:S9=8:\
+	:K10=\347:S10=9:A10={:\
+	:K11=\340:S11=0:A11=}:\
+	:K12=):S12=\260:\
+	:K13=-:S13=_:\
+	:K17=a:S17=A:C17=^A:\
+	:K18=z:S18=Z:C18=^z:\
+	:K27=\136:S27=\250:A27=[:p1#27:\
+	:K28=$:S28=*:A28=]:\
+	:K31=q:S31=Q:C31=^q:\
+	:K40=m:S40=M:C40=^m:\
+	:K41=\371:S41=%:A41=':p2#41:\
+	:K42=\265:S42=\243:A42=\264:p3#42:\
+	:K45=<:S45=>:A45=\\:\
+	:K46=w:S46=W:C46=^w:\
+	:K52=,:S52=\077:\
+	:K53=;:S53=.:\
+	:K54=\072:S54=/:\
+	:K55==:S55=+:A55=~:\
+	:l1#62:a0:
+
+# untested
+dk|denmark|Danish mapping:\
+	:K1=\275:S1=\247:\
+	:S3=":A3=@:\
+	:A4=\243:\
+	:S5=\244:A5=$:\
+	:S7=&:S8=/:A8={:S9=(:A9=[:S10=):A10=]:S11==:A11=}:\
+	:K12=+:S12=\077:\
+	:K13=':S13=`:A13=|:p1#13:\
+	:K27=\345:S27=\305:\
+	:K28=\250:S28=\136:A28=~:p2#28:\
+	:K40=\346:S40=\306:\
+	:K41=\370:S41=\330:\
+	:K42=:S42=*:\
+	:K45=<:S45=>:A45=\\:\
+	:S53=;:S54=\072:\
+	:K55=-:S55=_:\
+	:l1#62:a0:
+
+# Includes improvements by Thomas Hiller (hiller@fzi.de)
+# and Andreas Israel (ai@hrz.tu-chemnitz.de)
+de|germany|German mapping:\
+	:K1=\136:S1=\260:C1=|:\
+	:S3=\042:S4=#:S7=&:S8=/:S9=(:S10=):S11=\075:\
+	:A8={:A9=[:A10=]:A11=}:A17=@:A28=~:\
+	:K12=\337:S12=\077:C12=\036:A12=\\:\
+	:K13=':S13=`:C13=\134:p1#13:\
+	:K22=z:S22=Z:C22=\032:\
+	:K27=\374:S27=\334:C27=\035:\
+	:K28=+:S28=*:C28=\000:\
+	:K29=<:S29=>:C29=\134:\
+	:K40=\366:S40=\326:C40=\034:\
+	:K41=\344:S41=\304:C41=\033:\
+	:K46=y:S46=Y:C46=\031:\
+	:S53=;:S54=\072:\
+	:K55=-:S55=_:\
+	:l1#62:a0:
+
+# Contribution by Thomas Hiller (hiller@fzi.de)
+# "K42 may not work on 102 keys kbds, K29 seems to work"
+d1|de-102|german with mf2:\
+	:K29=#:\
+	:K42=#:\
+	:K45=<:S45=>:A45=|:\
+	:tc=germany:
+
+hv|holgi|Holgi's special MF1 keyboard mapping:\
+	:K1=<:S1=>:C1=|:\
+	:K29=#:S29=\136:A29=\\:C29=~:\
+	:tc=germany:
+
+# Contributed by Andreas Israel (ai@hrz.tu-chemnitz.de)
+ai|nixmf2|ct22|nix|nix7|German Nixdorf MF2:\
+	:A28=~:\
+	:K29=#:S29=':\
+	:K45=<:S45=>:A45=|:\
+	:tc=germany:
+
+# Finnish keyboard map with 7-bit versions of the national
+# chars. The Latin1 chars are available with Alt-7, Alt-8, etc
+# (where normally you would have the 7-bit ones).
+# Makes C/C++ programming more comfortable, since the 7-bit chars
+# (|\{[}]) are needed much more often than the Latin1 chars.
+# -- Petri.Wessman@hut.fi
+fi|finland|finland7b|finland-ascii|Finnish ASCII mapping:\
+	:l1#60:l2#62:\
+	:A8=\344:A9=\304:A10=\305:A11=\345:A12=\326:A13=\366:\
+	:K40=|:S40=\\:K41={:S41=[:K27=}:S27=]:\
+	:S1=\275:K1=\247:\
+	:S3=":A3=@:\
+	:A4=\243:\
+	:S5=$:A5=$:\
+	:S7=&:S8=/:S9=(:S10=):S11==:\
+	:K12=+:S12=\077:\
+	:K13=':S13=`:\
+	:K28=~:S28=\136:A28=~:\
+	:K29=':S29=*:\
+	:K45=<:S45=>:A45=|:\
+	:S53=;:S54=\072:\
+	:K55=-:S55=_:\
+	:a0:
+
+# Finnish keyboard map with the Latin1 national chars in
+# their "right" place. --Petri.Wessman@hut.fi
+f8|finland8b|finland-latin1|Finnish Latin1 mapping:\
+	:A8={:A9=[:A10=]:A11=}:A12=\\:\
+	:K40=\366:S40=\326:K41=\344:S41=\304:K27=\345:S27=\305:\
+	:tc=finland:
+
+# untested
+f1|france120|French 120 mapping:\
+	:tc=belgium:
+
+# untested
+f2|france189|French 189 mapping:\
+	:S1=:A1=':p3#1:\
+	:A2=:A3=~:A5={:A6=[:A7=|:A8=`:\
+	:S9=_:A9=\\:A10=\136:A11=@:A12=]:A13=}:\
+	:A27=:A28=\244:A41=:A42=:\
+	:A45=:!:S45=\247:\
+	:tc=belgium:
+
+# This entry has been corrected by Mike Trim (mtrim@crucible.demon.co.uk)
+# (hv's comment: For the keys # and ~ you might also check the following 
+# line
+#	:K42=#:S42=~:\
+# Also I think I was wrong with the ALTGR key. If you need one, add this:
+#	:l1#62:
+g1|greatbritain166|British 166 mapping:\
+	:K1=`:S1=\254:A1=|:\
+	:S3=":S4=\243:\
+	:K41=':S41=@:\
+	:K29=#:S29=~:\
+	:K45=\\:S45=|:
+
+# untested
+g2|greatbritain168|British 168 mapping:\
+	:K1=\\:S1=|:\
+	:S3=":S4=\243:S7=&:S8=:S9=(:S10=):A10=\261:\
+	:S11=#:A11=\260:S12=:K13=\254:S13=-:\
+	:K27=@:S27=`:\
+	:K28=[:S28={:A28=~:\
+	:K40=;:S40=+:\
+	:K41=\072:S41=*:A41=\136:\
+	:K42=]:S42=}:\
+	:K45=|:S45=_:\
+	:A52=\265:\
+	:l1#62:a0:
+
+# sorry, missing font coding, just not my native language -hv-
+il:israel|hebrew mapping:\
+	:de:
+
+# untested
+is:iceland:Island mapping:\
+	:K1=\260:S1=\250:p1#1:\
+	:S2=":S7=&:S8=/:A8={:S9=(:A9=[:S10=):A10=]:S11==:A11=}:\
+	:K12=\\:S12=\326:\
+	:K13=':S13=`:A13=|:\
+	:A17=@:K27=\360:S27=\320:\
+	:K28=':S28=\077:A28=~:\
+	:K40=\346:S40=\306:\
+	:K41=':S41=':A41=\136:p2#41:\
+	:K42=+:S42=*:A42=`:p3#42:\
+	:K45=<:S45=>:A45=|:\
+	:S53=;:S54=\072:\
+	:K54=\376:S54=\336:\
+	:K104=,:104=,:\
+	:l1#62:a0:
+
+# untested
+i1|italy141|Italian 141 mapping:\
+	:K1=\\:S1=|:\
+	:S3=":S4=\243:S7=&:S8=/:S9=(:S10=):S11==:\
+	:K12=':S12=\077:\
+	:K13=\354:S13=\136:\
+	:K27=\350:S27=\351:\A27=[:\
+	:K28=+:S28=*:A28=]:\
+	:K40=\362:S40=\347:A40=@:\
+	:K41=\340:S41=\260:A41=#:\
+	:K42=\371:S42=\247:\
+	:K45=<:S45=>:\
+	:S53=;:S54=\072:\
+	:K55=-:S55=_:\
+	:l1#62:a0:
+
+# untested
+i2|italy142|Italian 142 mapping:\
+	:A8={:A9=[:A10=]:A11=}:\
+	:A17=@:A27=:A28=~:A40=:A41=:\
+	:tc=italy141:a0:
+
+# yugoslavia what?
+yu|yugoslavia|Latin Yugoslavian mapping:\
+	:de:
+
+# untested
+ca|canadafr|Canadian French mapping:\
+	:K1=#:S1=|:A1=\\:\
+	:A2=\261:S3=":A3=@:S4=/:A4=\243:A5=\242:\
+	:A6=\244:S7=\077:A7=\254:S8=&:A8=\246:S9=*:A9=\262:\
+	:S10=(:A10=\263:S11=):A11=\274:\
+	:K12=-:S12=_:A12=\275:\
+	:K13==:S13=+:A13=\276:\
+	:A25=\247:A26=\266:\
+	:K27=\136:S27=\136:A27=[:\
+	:K28=\270:S28=\250:A28=]:p1#28:\
+	:A40=~:K41=`:S41=`:A41={:\
+	:K42=<:S42=>:A42=}:\
+	:K45=\253:S45=\273:A45=\260:\
+	:A49=\253:A50=\273:A51=\260:\
+	:A52=\265:K53=,:S53=,:A53=-:\
+	:K54=\351:S54=\311:A54=':\
+	:l1#62:a0:
+
+# untested
+nl|netherlands|Dutch mapping:\
+	:K1=@:S1=\247:A1=\254:\
+	:A2=\271:S3=":A3=\262:S4=#:A4=\263:A5=\274:A6=\275:S7=&:\
+	:A7=\276:S8=_:A8=\243:S9=(:A9={:S10=):A10=}:S11=':\
+	:K12=/:S12=\077:A12=\\:\
+	:K13=\260:S13=~:A13=\270:p1#13:\
+	:K20=\266:K27=\250:S27=^:p2#27:\
+	:K28=*:S28=|:\
+	:K40=+:S40=\261:\
+	:K41=':S41=`:\
+	:K42=<:S42=>:\
+	:K45=[:S45=]:A45=|:\
+	:S53=;:S54=\072:K55=-:S55=_:\
+	:K104=,:S104=,:\
+	:l1#62:a0:
+
+# untested
+no|norway|Norwegian mapping:\
+	:K1=|:\
+	:K13=\\:S13=`:A13=':p1#13:\
+	:K41=\346:S41=\306:\
+	:K40=\370:S40=\330:\
+	:A45=:\
+	:tc=denmark:
+
+# untested
+pt|portugal|Portugesian mapping:\
+	:K1=\\:S1=|:\
+	:S3=":A3=@:A4=\243:A5=\247:S7=&:S8=/:A8={:S9=(:A9=[:\
+	:S10=):A10=]:S11=}:A11==:\
+	:K12=':S12=\077:\
+	:K13=\253:S13=\273:\
+	:K40=\347:S40=\307:\
+	:K41=\272:S41=\252:\
+	:K42=~:S42=^:p1#42:\
+	:K45=<:S45=>:\
+	:S53=;:S54=\072:K55=-:S55=_:\
+	:l1#62:a0:
+
+# Contributed by Mats O Jansson, moj@stacken.kth.se
+# "Here is my map, rather large, but i want ALTGR normaly to be dead.
+# Only seven bit national characters have been placed where national characters
+# is on the keyboard."
+# We can help this man, just use the 'a0' capability -hv-
+s1|sweden1|Swedish mapping:\
+	:l1#62:a0:\
+	:D1:\
+	:K12=+:K13=':K29=':\
+	:S2=!:S3=":S4=#:S5=$:S6=%:S7=&:S8=/:\
+	:S9=(:S10=):S11=\075:S12=\077:S13=`:S29=*:\
+	:C2=:C3=\000:C4=\033:C5=\034:C6=\035:C7=:C8=:C9=:\
+	:C10=:C11=:C12=:C13=:C29=:\
+	:A3=\100:A5=$:A8={:\
+	:A9=[:A10=]:A11=}:A12=\134:\
+	:K27=]:K28=:\
+	:S27=}:S28=\136:\
+	:C27=\035:C28=:\
+	:A28=\176:\
+	:K40=\134:K41=[:\
+	:S40=|:S41={:\
+	:C40=\034:C41=\033:\
+	:K45=<:K53=,:K54=.:K55=-:\
+	:S45=>:S53=;:S54=\072:S55=_:\
+	:C45=\034:C53=:C54=:C55=:\
+	:A45=|:\
+	:C61=\000:
+
+# Contributed by Mats O Jansson, moj@stacken.kth.se
+# "Here is my map, rather large, but i want ALTGR normaly to be dead.
+# Only seven bit national characters have been placed where national
+# characters is on the keyboard."
+# We can help this man, just use the 'a0' capability -hv-
+# Corrected by Paul Pries, 5322@msg.abc.se (Some national shifts were
+# wrong).
+sa|sweden1a|Swedish 7bit mapping ISO 646:\
+:l1#62:a0:\
+:D1:\
+:K12=+:K13=':K29=':\
+:S2=!:S3=":S4=#:S5=$:S6=%:S7=&:S8=/:\
+:S9=(:S10=):S11=\075:S12=\077:S13=`:S29=*:\
+:C2=:C3=\000:C4=\033:C5=\034:C6=\035:C7=:C8=:C9=:\
+:C10=:C11=:C12=:C13=:C29=:\
+:A3=\100:A5=$:A8={:\
+:A9=[:A10=]:A11=}:A12=\134:\
+:K27=}:K28=:\
+:S27=]:S28=\136:\
+:C27=\035:C28=:\
+:A28=\176:\
+:S40=\134:S41=[:\
+:K40=|:K41={:\
+:C40=\034:C41=\033:\
+:K45=<:K53=,:K54=.:K55=-:\
+:S45=>:S53=;:S54=\072:S55=_:\
+:C45=\034:C53=:C54=:C55=:\
+:A45=|:\
+:C61=\000:
+
+# Swedish keyboard map with national characters.
+# Paul Pries, 5322@msg.abc.se
+s2|sweden2|Swedish 8bit mapping ISO 8859-1:\
+:l1#62:\
+:K1=\247:S1=:\
+:K12=+:K13=':K29=':\
+:S2=!:S3=":S4=#:S5=$:S6=%:S7=&:S8=/:\
+:S9=(:S10=):S11=\075:S12=\077:S13=`:S29=*:\
+:C2=:C3=\000:C4=\033:C5=\034:C6=\035:C7=:C8=:C9=:\
+:C10=:C11=:C12=:C13=:C29=:\
+:A3=\100:A4=\234:A5=$:A8={:\
+:A9=[:A10=]:A11=}:A12=\134:\
+:K27=\206:K28=:\
+:S27=\217:S28=\136:\
+:C27=\035:C28=:\
+:A28=\176:\
+:S40=\231:S41=\216:\
+:K40=\224:K41=\204:\
+:C40=\034:C41=\033:\
+:K45=<:K53=,:K54=.:K55=-:\
+:S45=>:S53=;:S54=\072:S55=_:\
+:C45=\034:C53=:C54=:C55=:\
+:A45=|:\
+:C61=\000:
+
+c1|swissde|Swiss German mapping:\
+	:K1=\247:S1=\260:p1#1:\
+	:S2=+:A2=|:S3=":A3=@:S4=*:A4=#:S5=\347:S7=&:A7=\254:\
+	:S8=/:A8=\246:S9=(:A9=\242:S10=):S11==:\
+	:K12=`:S12=\077:A12=':p2#12:\
+	:K13=^:S13=\\:A13=~:p3#13:\
+	:K22=z:S22=Z:C22=\032:\
+	:S27=\350:K27=\374:A27=[:\
+	:K28=\250:S28=!:A28=]:\
+	:S40=\351:K40=\366:\
+	:S41=\340:K41=\344:A41={:\
+	:K42=$:S42=\243:A42=}:\
+	:K45=<:S45=>:A45=\\:\
+	:K46=y:S46=Y:C46=\031:
+	:S53=;:S54=\072:K55=-:S55=_:\
+	:l1#62:a0:
+
+c2|swissfr|Swiss French mapping:\
+	:K27=\350:S27=\374:A27=[:\
+	:K40=\351:S40=\366:\
+	:K41=\340:S41=\344:A41={:\
+	:tc=swissde:
+
+# untested
+es|spain|Spainish mapping:\
+	:K1=\272:S1=\252:A1=\\:\
+	:A2=|:S3=":A3=@:S4=:A4=#:S7=&:A7=\254:S8=/:S9=(:S10=):S11==:\
+	:K12=':S12=\077:p1#12:\
+	:K13=\277:S13=\241:\
+	:K27=`:S27=^:A27=[:p2#27:\
+	:K28=+:S28=*:A28=]:\
+	:K40=\361:S41=\321:\
+	:K41=/:S41=\250:A41={:p3#41:\
+	:K42=\347:S42=\307:A42=}:\
+	:K45=<:S45=>:\
+	:S53=;:S54=\072:\
+	:K55=-:S55=_:\
+	:K104=,:S104=,:\
+	:l1#62:a0:
+
+# this *is* tested :-)
+us|usa|United States mapping:\
+	:de:
+
+# Cyrillic koi8 by Serge Vakulenko
+# Delete remapped to ^[[K
+# Shift-Tab remapped to ^[[z
+# Caps Lock is ALTGRLOCK
+# Right Alt key is CAPSLOCK
+# Use TERM=pc3nc!
+k8|koi8|Good old cyrillic KOI8:\
+	:fn0=/usr/share/misc/font/koi8x16.bdf:\
+	:K76=^[[K:A76=^[[K:S16=^[[z:X16=^[[z:ag#30:ca#62:la#2:\
+	:X3=":X4=':X6=\72:X7=,:X8=.:X9=;:\
+	:M24=\246:M25=\266:M37=\247:M38=\267:M19=\244:M20=\264:\
+	:M35=\255:M36=\275:M22=\256:M23=\276:\
+	:A1=~\243:A17=~\312:A18=~\303:A19=~\325:A20=~\313:A21=~\305:A22=~\316:\
+	:A23=~\307:A24=~\333:A25=~\335:A26=~\332:A27=~\310:A28=~\337:A31=~\306:\
+	:A32=~\331:A33=~\327:A34=~\301:A35=~\320:A36=~\322:A37=~\317:A38=~\314:\
+	:A39=~\304:A40=~\326:A41=~\334:A46=~\321:A47=~\336:A48=~\323:A49=~\315:\
+	:A50=~\311:A51=~\324:A52=~\330:A53=~\302:A54=~\300:\
+	:X1=\263:X17=\352:X18=\343:X19=\365:X20=\353:X21=\345:X22=\356:\
+	:X23=\347:X24=\373:X25=\375:X26=\372:X27=\350:X28=\377:X31=\346:\
+	:X32=\371:X33=\367:X34=\341:X35=\360:X36=\362:X37=\357:X38=\354:\
+	:X39=\344:X40=\366:X41=\374:X46=\361:X47=\376:X48=\363:X49=\355:\
+	:X50=\351:X51=\364:X52=\370:X53=\342:X54=\340:
+
+#
+# Greek ISO 8859-7 (ELOT 928) Keyboard
+# K J Dryllerakis 1993. Contributed to codrv and 386bsd May 1993
+#
+# Altgr toggles between Latin-Greek Interpretation of keyboard
+# (should indicate that in caps lock LED)
+#
+# hv: Note this keymap is incomplete in that it lacks a method for
+# representing accents. This is a known problem of codrv-0.1.2
+# and will be corrected in a later version.
+#
+gr|greek|Greek ISO-8859-7 on AT Class Keyboards:\
+        :fn0=/usr/share/misc/fonts/8x16elot928.bdf:\
+        :l1#60:ag#62:ca#30:la#2:p1#40:\
+        :A17=;:X17=\072:A18=~\362:X18=\323:A19=~\345:X19=\305:\
+        :A20=~\361:X20=\321:A21=~\364:X21=\324:A22=~\365:X22=\325:\
+        :A23=~\350:X23=\310:A24=~\351:X24=\311:A25=~\357:X25=\317:\
+        :A26=~\360:X26=\320:\
+        :A31=~\341:X31=\301:A32=~\363:X32=\323:A33=~\344:X33=\304:\
+        :A34=~\366:X34=\326:A35=~\343:X35=\303:A36=~\347:X36=\307:\
+        :A37=~\356:X37=\316:A38=~\352:X38=\312:A39=~\353:X39=\313:\
+        :A46=~\346:X46=\306:A47=~\367:X47=\327:A48=~\370:X48=\330:\
+        :A49=~\371:X49=\331:A50=~\342:X50=\302:A51=~\355:X51=\315:\
+        :A52=~\354:X52=\314:
+
+

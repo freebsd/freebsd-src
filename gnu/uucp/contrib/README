@@ -1,0 +1,46 @@
+This is the README file for the Taylor UUCP contrib directory.
+
+This directory contains contributed shell scripts and programs that
+you may find useful.
+
+xchat.c, xchat.man, README-XCHAT, xc-conf.h-dist, Makefile.xchat:
+    A program by Bob Denny that may be invoked by the ``chat-program''
+    command for any of the various types of chat scripts.  It is
+    driven by scripts which are written in its own little language.
+    It is a powerful program that can add a lot of flexibility to your
+    chat scripts.
+
+Dial.Hayes, Hangup.Hayes, Login.LAT, Login.PortSel, Login.VMS:
+    Sample scripts for xchat.
+
+uurate.c, uurate.man, README-UURATE, Makefile.uurt:
+    A nifty little program by Bob Denny which analyzes the Log and
+    Stats file and prints various sorts of reports.
+
+uutraf:
+    Another program to produce neat reports from your log files, this
+    one a perl script by Johan Vromans.
+
+savelog.sh, savelog.man:
+    A handy shell script to rename a log file and cycle old versions
+    through a set of names, throwing away the oldest one.  It will
+    also optionally compress the old log files.  I believe that this
+    is originally from smail.  It was written by Ronald S. Karr and
+    Landon Curt Noll, and was given to me by Bob Denny.
+
+uureroute:
+    A perl script reroute all mail queued up for one host to another.
+    Written by Bill Campbell and contributed by Francois Pinard.
+
+stats.sh:
+    A gawk script by Zacharias Beckman which reads the Stats file and
+    prints the last 80 lines as a nicely formatted table.
+
+uuq.sh:
+    A uuq workalike shell script by Zacharias Beckman.
+
+tstout.c:
+    A program to remove a user from utmp and wtmp, essentially logging
+    them out.  I put this together from BSD code.  I need it to use
+    tstuu with the system UUCP on Ultrix 4.0, for reasons that escape
+    me.  Most people will have little use for this.

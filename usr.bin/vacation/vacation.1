@@ -1,0 +1,176 @@
+.\" Copyright (c) 1985, 1987, 1990, 1991 Regents of the University of California.
+.\" All rights reserved.
+
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)vacation.1	6.9 (Berkeley) 7/30/91
+.\"
+.Dd July 30, 1991
+.Dt VACATION 1
+.Os BSD 4.3
+.Sh NAME
+.Nm vacation
+.Nd return ``I am not here'' indication
+.Sh SYNOPSIS
+.Nm vacation
+.Fl i
+.Op Fl r Ar interval
+.Nm vacation
+.Op Fl a Ar alias
+.Ar login
+.Sh DESCRIPTION
+.Nm Vacation
+returns a message to the sender of a message telling them that you
+are currently not reading your mail.  The intended use is in a
+.Pa .forward
+file.  For example, your
+.Pa .forward
+file might have:
+.Bd -literal -offset indent
+\eeric, "|/usr/bin/vacation -a allman eric"
+.Ed
+which would send messages to you (assuming your login name was eric) and
+reply to any messages for
+.Dq eric
+or
+.Dq allman .
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl a Ar alias
+Handle messages for
+.Ar alias
+in the same manner as those received for the user's
+login name.
+.It Fl i
+Initialize the vacation database files.  It should be used
+before you modify your
+.Pa .forward
+file.
+.It Fl r
+Set the reply interval to
+.Ar interval
+days.  The default is one week.  An interval of
+.Dq 0
+means that
+a reply is sent to each message, and an interval of
+.Dq Li infinite
+(actually, any non-numeric character) will never send more than
+one reply.  It should be noted that intervals of
+.Dq Li \&0
+are quite
+dangerous, as it allows mailers to get into
+.Dq I am on vacation
+loops.
+.El
+.Pp
+No message will be sent unless
+.Ar login
+(or an
+.Ar alias
+supplied using the
+.Fl a
+option) is part of either the
+.Dq To:
+or
+.Dq Cc:
+headers of the mail.
+No messages from
+.Dq ???-REQUEST ,
+.Dq Postmaster ,
+.Dq Tn UUCP ,
+.Dq MAILER ,
+or
+.Dq MAILER-DAEMON
+will be replied to (where these strings are
+case insensitive) nor is a notification sent if a
+.Dq Precedence: bulk
+or
+.Dq Precedence: junk
+line is included in the mail headers.
+The people who have sent you messages are maintained as an
+.Xr ndbm 3
+database in the files
+.Pa .vacation.pag
+and
+.Pa .vacation.dir
+in your home directory.
+.Pp
+.Pp
+.Nm Vacation
+expects a file
+.Pa .vacation.msg ,
+in your home directory, containing a message to be sent back to each
+sender.  It should be an entire message (including headers).  For
+example, it might contain:
+.Pp
+.Bd -unfilled -offset indent -compact
+From: eric@ucbmonet.Berkeley.EDU (Eric Allman)
+Subject: I am on vacation
+Delivered-By-The-Graces-Of: The Vacation program
+Precedence: bulk
+
+I am on vacation until July 22.  If you have something urgent,
+please contact Joe Kalash <kalash@ucbingres.Berkeley.EDU>.
+--eric
+.Ed
+.Pp
+.Nm Vacation
+reads the first line from the standard input for a
+.Ux
+.Dq From
+line to determine the sender.
+.Xr Sendmail 8
+includes this
+.Dq From
+line automatically.
+.Pp
+Fatal errors, such as calling
+.Nm vacation
+with incorrect arguments, or with non-existent
+.Ar login Ns Ar s ,
+are logged in the system log file, using
+.Xr syslog 8 .
+.Sh FILES
+.Bl -tag -width "vacation.dirxxx" -compact
+.It Pa ~/.vacation.dir
+database file
+.It Pa ~/.vacation.msg
+message to send
+.It Pa ~/.vacation.pag
+database file
+.El
+.Sh SEE ALSO
+.Xr sendmail 8 ,
+.Xr syslog 8
+.Sh HISTORY
+The
+.Nm vacation
+command appeared in
+.Bx 4.3 .

@@ -1,0 +1,60 @@
+#	@(#)Makefile.dist	5.5 (Berkeley) 8/23/90
+
+STDDEF= -DDEBUG -DSTATS
+### -DSIG_FN=void -DALLOW_T_UNSPEC -Dmalloc=rt_malloc -Dfree=rt_free
+### ALLOC=storage.o
+CFLAGS=	-O ${STDDEF} ${DEFINES}
+
+RES=
+LIBS=	${RES}
+#LIBC=	/lib/libc.a
+
+SRCS=	db_dump.c db_load.c db_lookup.c db_reload.c db_save.c db_update.c \
+	ns_forw.c ns_init.c ns_main.c ns_maint.c ns_req.c ns_resp.c \
+	ns_sort.c ns_stats.c db_glue.c named-xfer.c
+HDRS=	db.h ns.h
+OBJS=	db_dump.o db_load.o db_lookup.o db_reload.o db_save.o db_update.o \
+	ns_forw.o ns_init.o ns_main.o ns_maint.o ns_req.o ns_resp.o \
+	ns_sort.o ns_stats.o db_glue.o $(ALLOC)
+XFEROBJ=   named-xfer.o db_glue.o
+
+#MAN=	named.0
+
+all: named named-xfer
+
+named: ${OBJS} ${LIBC} version.c
+	${CC} -o $@ version.c ${OBJS} ${LIBS}
+
+version.c: Version.c
+	(u=$${USER-root} d=`pwd` h=`hostname` t=`date`; \
+	sed -e "s|%WHEN%|$${t}|" \
+	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
+	    < Version.c > version.c)
+
+named-xfer:	${XFEROBJ} ${LIBC}
+	${CC} -o $@ ${XFEROBJ} ${LIBS}
+
+clean:
+	rm -f ${OBJS} ${XFEROBJ} core named named-xfer version.o version.c
+
+cleandir: clean
+	rm -f ${MAN} tags .depend
+
+depend .depend: ${SRCS}
+	mkdep ${CFLAGS} ${SRCS}
+
+install: ${MAN}
+	install -s -o bin -g bin -m 755 named ${DESTDIR}/etc/named
+	install -s -o bin -g bin -m 755 named-xfer ${DESTDIR}/etc/named-xfer
+#	install -c -o bin -g bin -m 444 ${MAN} ${DESTDIR}/usr/man/cat8
+	install -c -o bin -g bin -m 755 named.restart ${DESTDIR}/etc
+	install -c -o bin -g bin -m 755 named.reload ${DESTDIR}/etc
+
+lint: ${SRCS} ${HDRS}
+	lint -Dlint ${CFLAGS} ${SRCS}
+
+tags: ${SRCS}
+	ctags -t ${SRCS} ${HDRS}
+
+# DO NOT DELETE THIS LINE -- mkdep uses it.
+# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.

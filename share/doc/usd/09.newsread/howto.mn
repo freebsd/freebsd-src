@@ -1,0 +1,1373 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)howto.mn	6.2 (Berkeley) 4/17/91
+.\"
+.\" Modified 9/29/85 by Matt Bishop (mab@riacs.arpa)
+.\" to work with the TROFF news document macros.
+.ds h0 "How to Read the Network News
+.ds h1
+.ds h2 USD:9-%
+.ds f0 "\*(vr
+.ds f1
+.ds f2 "February 26, 1986
+.de Qp					\" quoted command as hanging char
+.lp "\\f3\\$1\\f1" \\$2
+..
+.de Qc					\" quoted command as hanging string
+.lp "\\f3<\\s-2\\$1\\s0>\\f1" \\$2
+..
+.de Op					\" option as hanging string
+.lp "\\f3\\$1\\f1" \\$2
+..
+.mt
+How to Read the Network News
+.au
+Mark R. Horton
+.ai
+AT&T Bell Laboratories
+Columbus, OH  43213
+.au
+Revised by Rick Adams for 2.10.3
+.bt
+.hu
+What is the Network News?
+.pg
+USENET (Users' Network)
+is a bulletin board shared among many
+computer systems around the world.
+USENET is a logical network,
+sitting on top of several physical networks,
+among them
+.i UUCP ,
+.i BLICN ,
+.i BERKNET ,
+.i X.25 ,
+and the
+.i ARPANET .
+Sites on USENET include many universities,
+private companies and research organizations.
+Most of the members of USENET are either
+university computer science departments
+or part of AT&T.
+Currently, there are over 2000 USENET sites in the USA, Canada, Europe, Japan 
+and Korea with more joining every day. Most are running the
+.ux
+operating system.
+.pg
+The network news,
+or simply
+.i netnews ,
+is the set of programs that provide access to the news
+and transfer it from one machine to the next.
+Netnews was originally written at Duke University
+and has been modified extensively by the University
+of California at Berkeley and others.
+Netnews allows articles to be posted for limited or very wide distribution.
+This document contains a list of newsgroups
+that were active at the time the document was written.
+It exists
+to assist you in determining which newsgroups you may
+want to subscribe to.
+When creating a new article,
+the level of distribution can be controlled
+by use of the
+.cf Distribution
+field.
+This will prevent notices of apartments for rent in New Jersey
+being broadcast to California
+(or even Europe).
+.pg
+Any user can post an article,
+which will be sent out to the network
+to be read by persons interested in that topic.
+You can specify which topics are of interest to you by putting them in a
+.i "subscription list" .
+Then,
+whenever you ask to read news,
+the news reading program will present all unread articles of interest.
+There are also facilities for browsing through old news,
+posting follow-up articles,
+and sending direct electronic mail replies to the author of an article.
+.pg
+This paper is a tutorial,
+aimed at the user who wants to read and possibly post news.
+The system administrator who must install the software
+should see the companion document
+.i "USENET Version B Installation" .
+.hu
+Why USENET?
+.pg
+USENET is useful in a number of ways.
+Someone wishing to announce a new program or product can reach a wide audience.
+A user can ask \*(lqDoes anyone have an
+.i x ?\*(rq
+and will usually get several responses within a day or two.
+Bug reports and their fixes can be made quickly available
+without the usual overhead of sending out mass mailings.
+Discussions involving many people at different locations
+can take place without having to get everyone together.
+.pg
+Another facility with similar capabilities to
+.i netnews
+is the
+.i "electronic mailing list" .
+A mailing list is a collection of electronic mailing addresses of users
+who are interested in a particular topic.
+By sending electronic mail to the list,
+all users on the list receive a copy of the article.
+While the mailing list facility is quite useful,
+USENET offers a number of advantages not present in mailing lists.
+Getting yourself on a mailing list is not always easy.
+You have to figure out who maintains the list and ask them to put you on it.
+Often these people are out of town or busy,
+and don't put you on the list for several days.
+Sometimes you have to send mail to the entire mailing list,
+hoping that one of the readers will tell you who maintains the list.
+Once you are on the list,
+you often find yourself in the middle of a discussion.
+Netnews keeps old articles around until they expire (usually about two weeks)
+so you can browse through old news to catch up on what you missed.
+Similarly,
+referring to an old article is easy,
+without having to keep a personal file of all old mail to the list.
+.pg
+Another advantage is appreciated by the other users of the system.
+There is less overhead in having only one copy of each message
+sent to each machine,
+rather than having separate copies sent
+to each of several users on the same machine.
+This cuts down on computer time to process the messages,
+and on-line costs for telephone calls to transfer messages
+from one machine to another (when phone lines are used).
+Another advantage is in the disk space consumed.
+When only one message is sent to each system,
+only one copy of the message is kept on disk.
+In a mailing list environment,
+each user has a copy in a mailbox.
+.hu
+How do I Read News?
+.pg
+In the USENET jargon,
+interest topics are called
+.i newsgroups .
+A newsgroup list appears in a later section,
+current as this paper was written.
+You have your own
+.i "subscription list"
+of newsgroups to which you are said to
+.i subscribe .
+.pg
+The simplest way to read news is to type the command:
+.sd c
+readnews
+.ed
+Other possibilities include: a full-screen-oriented news reading program,
+.i vnews (1),
+(described in the Appendix) and the
+.i notesfile
+system, which can also be used for news (described in a separate paper.)
+Each newsgroup to which you subscribe will be presented,
+one article at a time.
+As each article is presented,
+you will be shown the
+.i header
+(containing the name of the author,
+the subject,
+and the length of the article)
+and you will be asked if you want more.
+There are a number of possible choices you can make at this point.
+The three most common
+.qp y , (
+.qp n ,
+and
+.qp q )
+are suggested by the program.
+(To see a complete list of possible responses,
+type
+.qp ?
+for help.)
+You can type
+.qp y
+for \*(lqyes\*(rq
+(or simply hit
+.qc RETURN )
+and the rest of the message will be displayed.
+(If the message is long,
+it may stop before it runs off the top of the screen.
+Type
+.qc SPACE
+or
+.qc RETURN
+to see more of the message.
+Another choice you can make is
+.qp n
+for \*(lqno\*(rq.
+This means you are not interested in the message \-
+it will not be offered to you again.
+A third option is
+.qp q
+for \*(lqquit\*(rq.
+This causes a record to be made of which articles you read
+(or refused)
+and you will exit netnews.
+When you have read all the news,
+this happens automatically.
+The
+.qp q
+command is mainly useful if you are in a hurry
+and don't have time to read all the news right now.
+(Many users put a
+.i readnews (1)
+or
+.i checknews (1)
+command in their
+.i .profile
+or
+.i .login
+files so that they will see new news each time they log in.)
+.pg
+If you are reading news for the first time,
+you may find yourself swamped by the volume of unread news,
+especially if the default subscription is
+.ng all .
+Don't let this bother you.
+If you are getting newsgroups in which you have no interest,
+you can change your subscription list
+(see below).
+Also,
+bear in mind that what you see
+is probably at least two weeks' accumulation of news.
+If you want to just get rid of all old news and start anew,
+type
+.sd c
+readnews \-p \-n all > /dev/null &
+.ed
+which will throw away all old news,
+recording that you have seen it all.
+(The
+.qp &
+puts it in the background;
+chances are that there is so much old news on your machine
+that you won't want to wait for it all.)
+Or,
+you can use the
+.qp K
+command to mark all articles in the current newsgroup as read.
+.pg
+Once you catch up with (or ignore) all the old news,
+the news will come in daily at a more manageable rate.
+(If the daily rate is still too much
+you may wish to unsubscribe to some of the higher volume, less useful newsgroups.)
+Finally,
+note that while an article is printing,
+you can hit
+your interrupt character
+(usually
+.qc CONTROL-C
+or
+.qc DELETE ),
+which will throw away the rest of the article.
+.pg
+Among the other commands you can type after seeing the header
+of an article are:
+.Qp x 13
+Exit
+.i readnews .
+This is different from
+.qp q
+in that the
+.qp q
+command
+will update the record of which articles you have read,
+but
+.qp x
+will pretend you never started
+.i readnews .
+.Qp N 13
+Go on to the next newsgroup.
+The remaining articles in the current newsgroup are considered
+.i unread ,
+and will be offered to you again the next time you read news.
+.Qp "s \f2file\fP" 13
+The article is saved in a disk file with the given name.
+In practice,
+what usually happens is that an article is printed,
+and then
+.i readnews
+goes on to print the header of the next article
+before you get a chance to type anything.
+So you usually want to write out the
+.i previous
+message
+(the last one you have read in full);
+in this case,
+use the form
+.qp s\-
+.i filename .
+.Qp e 13
+Erase the memory of having seen this article.
+It will be offered to you again next time,
+as though you had never seen it.
+The
+.qp e\-
+case variation (erase  memory of the previously read article instead of
+the current article)
+is useful for checking follow-ups to see
+if anyone has already said what you wanted to say.
+.Qp r 13
+Reply to the author of the message.
+You will be placed in the editor,
+with a set of headers derived from the message you are replying to.
+Type in your message after the blank line.
+If you wish to edit the header list
+to add more recipients or send carbon copies,
+for instance,
+you can edit the header lines.
+Anyone listed on a line beginning with
+.hf To
+or
+.hf Cc
+will receive a copy of your reply.
+Note that the path used to receive a piece of news may not be the fastest
+way to reply by mail. If speed is important and you know a faster way,
+edit it in place of what the reply command supplied.
+A mail command will then be started up,
+addressed to the persons listed in the header.
+You are then returned to
+.i readnews .
+The case
+.qp r\-
+is also useful to reply to the previous message.
+Another variation on this is
+.qp rd\-
+which puts you in
+.b $MAILER
+(or
+.i mail (1)
+by default)
+to type in your reply directly.
+.Qp f 13
+Post a follow-up message to the same newsgroup.
+This posts an article on this newsgroup
+with the same title as the original article.
+Use common sense when posting follow-ups. (Read Matt Bishop's paper
+\*(lqHow to use USENET Effectively\*(rq for extended discussion of when
+and when not to post -- many follow-up articles should have just been replies.)
+You will be placed in the editor. Enter your message and exit.
+The case
+.qp f\-
+is also useful to follow up the previous message.
+In each case,
+the editor you are placed in will be
+.i vi (1)
+unless you set
+.b EDITOR
+(in your environment) to some other editor.
+You should enter the text of the follow-up after the blank line.
+.Qp + 13
+The article is skipped for now.
+The next time you read news,
+you will be offered this article again.
+.Qp \- 13
+Go back to the previous article.
+This toggles,
+so that two
+.qp \- 's
+get you the current article.
+.Qp b 13
+Back up one article in the current group.
+This is not necessarily the previous article.
+.Qp U 13
+Unsubscribe from this newsgroup.
+Your
+.i \&.newsrc (5)
+file will be edited to change the
+.qp :
+for that newsgroup to an
+.qp !
+preventing you from being shown that newsgroup again.
+.Qp ? 13
+If you type any unrecognized command,
+a summary of valid commands will be printed.
+.hu
+Changing your Subscription List
+.pg
+If you take no special action you will subscribe to a default subscription list.
+This default varies locally.
+To find out your local default,
+type
+.sd c
+readnews \-s
+.ed
+Typically this list will include all newsgroups ending in \*(lqgeneral\*(rq,
+such as
+.ng general ,
+and
+.ng net.general .
+(As distributed,
+the default is
+.ng general\f1,\fPall.general .
+Another popular default is
+.ng all .)
+You can change this by creating a file in your home directory named
+.i .newsrc
+which contains as its first line a line of the form:
+.sd c
+options \-n newsgroup,newsgroup,newsgroup ...
+.ed
+If your lines get too long,
+you can continue them on subsequent lines
+by beginning those lines with a space.
+(The netnews system will put extra lines in this file
+to record which articles you have read.
+You should ignore these lines unless you want to edit them.)
+For example,
+if you are creating a subscription list for the first time,
+and have already read news,
+you will find some text already in your
+.i .newsrc
+file,
+recording which articles you have read.
+You should put your
+.b options
+line before the first line of the file.)
+Thus,
+.sd c
+options \-n general,net.general,mod.human-nets
+.ed
+will subscribe to those three newsgroups.
+.pg
+An
+.qp !
+can be used to exclude certain newsgroups and the word
+.ng all
+can be used as a wild card,
+representing any newsgroup.
+You can also use
+.ng all
+as a prefix or suffix to match a class of newsgroups.
+For example,
+.sd c
+options \-n all,!mod.all,!net.jokes,!all.unix-all
+.ed
+will result in a subscription to all newsgroups except for ARPANET news,
+jokes,
+and any
+.ux
+information.
+The metacharacter
+.qp .
+is like
+.qp /
+to the shell,
+and
+.ng all
+is like
+.qp * .
+.pg
+A simpler way to subscribe to news is to subscribe to
+.ng all ,
+and then use the
+.qp U
+.i readnews
+command to unsubscribe to newsgroups you don't want to read.
+This way you will see new newsgroups that are created,
+get a chance to evaluate them,
+and then unsubscribe to those that don't interest you.
+.pg
+The order of the newsgroups in your
+.i .newsrc
+(after the options line)
+is the order in which newsgroups will be shown.
+If you want something other than the default,
+move the lines around until you are satisfied with the order.
+Be careful to keep the options line as the first line in the file.
+.hu
+Submitting Articles
+.pg
+To submit a new news article type
+.sd c
+postnews
+.ed
+First,
+it will ask you if this is a follow-up to an article.
+Answer
+.b yes
+or
+.b no .
+If
+.b yes ,
+you really should have done an
+.qp f
+from
+.i readnews ,
+but it will try and figure out which article you are following up to.
+It will ask for the newsgroup in which you read the article
+and the article number.
+If you can't remember,
+go back to
+.i readnews
+and find out.
+It is important that discussions are kept together.
+It is very frustrating for someone to read a follow-up that says:
+\&\*(lqI agree.
+It's very dangerous to leave that program as distributed.\*(rq
+and not have any idea what the poster was referring to.
+.pg
+If you answer
+.b no ,
+.i postnews (1)
+will ask you for the subject of the new article.
+This should be as informative as possible.
+For example,
+.cf "'67 Porsche for sale in New Jersey"
+is much better than
+.cf "Car for sale"
+or even
+.cf "For sale" .
+It will then ask which newsgroups you want the article posted in.
+If you are unsure,
+type
+.qp ?
+instead of a specific newsgroup
+and it will show you the list of currently available groups.
+Then,
+you will be asked how far your article should be distributed.
+It is important to keep this as small as possible
+to accomplish the purpose of your article.
+Remember that many newsgroups are read in Europe,
+Australia,
+and Asia in addition to the United States and Canada.
+It does no good
+(to use the previous example)
+to post a
+.cf "Car for sale in New Jersey"
+article with a distribution of 
+.ng world .
+There is almost no chance that a person in Sweden or Korea
+would be interested in buying your car (even if it is a Porsche).
+It is a waste of money and computer resources
+to transmit the article that far.
+For this specific case,
+the appropriate distribution would be
+.ng nj
+or only in New Jersey.
+If there were no local distribution available,
+at least it should be confined to
+.ng usa .
+If you are unsure of the distributions available at your site,
+type
+.qp ?
+instead of a distribution
+and you will receive a list of distributions valid for your site.
+If the distribution is
+.ng world ,
+your article will be read (perhaps with disgust)
+by thousands of people around the world.
+.pg
+Then you will be placed in the editor.
+Enter the text of your article,
+after the blank line,
+and exit the editor.
+The article will be posted to the newsgroups specified.
+If you change your mind about the headers while you are still in the editor,
+you can edit them as well.
+Extra headers can also be added before the blank line.
+.hu
+Browsing through Old News
+.pg
+There are a number of command line options to the
+.i readnews
+command to help you find an old article you want to see again.
+The
+.op \-n
+.i newsgroups
+option restricts your search to certain newsgroups.
+The
+.op \-x
+option arranges to ignore the record of articles read,
+which is kept in your
+.i \&.newsrc
+file.
+This will cause all articles in all newsgroups to which you
+subscribe to be displayed,
+even those which you have already seen.
+It also causes
+.i readnews
+to not update the
+.i \&.newsrc
+file.
+The
+.op \-a
+.i date
+option asks for news received after the given
+.i date .
+Note that even with the
+.op \-a
+option, only articles you have not already seen will be printed,
+unless you combine it with the
+.op \-x
+option.
+(Articles are kept on file until they expire,
+typically after two weeks.)
+The
+.op \-t
+.i keywords
+option restricts the query to articles mentioning one of the
+.i keywords
+in the title of the article.
+Thus,
+the command
+.sd c
+readnews \-n net.unix \-x \-a last thursday \-t setuid
+.ed
+asks for all articles in newsgroup
+.ng net.unix
+since last Thursday about the setuid feature.
+(Be careful with the
+.op \-t
+option.
+The above example will not find articles about
+.cf suid ,
+nor will it find articles with no title or
+whose author did not use the word
+.cf setuid
+in the title.)
+.pg
+Other useful options include the
+.op \-l
+option (which lists only the headers of articles \-
+a useful form for browsing through lots of messages.)
+The
+.op \-p
+option prints the messages without asking for any input;
+this is similar to some older news programs on many
+.ux
+systems and is useful for directing output to a printer.
+The
+.op \-r
+option produces articles in reverse order,
+from newest to oldest.
+.hu
+User Interfaces
+.pg
+The
+.i "user interface"
+of a program is the view it presents to the user,
+that is,
+what it prints and what it allows you to type.
+.i Readnews
+has options allowing you to use different user interfaces.
+The interface described above is called the \*(lqmsgs\*(rq interface
+because it mimics the style of the Berkeley
+.i msgs (1)
+program.
+(This program,
+in turn,
+mimics a program at MIT of the same name.)
+The key element of the msgs interface is that after printing the header,
+you are asked if you want the rest of the message.
+.pg
+Another interface is available with the
+.op \-c
+option.
+In this case,
+the entire message is printed,
+header and body,
+and you are prompted at the end of the message.
+The command options are the same as the msgs interface,
+but it is usually not necessary to use the
+.qp \-
+suffix on the
+.qp r ,
+.qp s ,
+or
+.qp f
+commands.
+This interface is called the \*(lq/bin/mail\*(rq
+(pronounced \*(lqbin mail\*(lq)
+interface,
+because it mimics the
+.ux
+program of that name.
+.pg
+A third interface is the
+.i Mail (1)
+(pronounced \*(lqcap mail\*(rq) interface,
+available with the
+.op \-M
+option.
+This invokes the
+.i Mail
+program directly,
+and allows you to read news with the same commands as you read mail.
+(This interface may not work on your system \-
+it requires a special version of
+.i Mail
+with a
+.qp \-T
+option.)
+.pg
+A fourth interface, is the MH news/mail program from Rand.
+That program can be used directly to read network news.
+.pg
+A fifth interface,
+.i vnews ,
+which works well on display terminals, is described in the Appendix.
+.pg
+A sixth possibility is the 
+.i notesfile
+system, described in a separate paper.  It is also display-oriented.
+.pg
+A seventh possibility is to use your favorite mail system as an interface.
+There are a number of different mail reading programs, including
+.i /bin/mail (1),
+.i Mail ,
+.i msg (1),
+and MH.
+Any mail system with an option to specify an alternative mailbox
+can be used to read news.
+For example,
+to use
+.i Mail
+without the
+.qp \-M
+option,
+type
+.sd c
+readnews \-c "Mail \-f %"
+.ed
+The shell command in quotes is invoked as a child of
+.i readnews.
+The
+.qp \-f
+option to
+.i Mail
+names the alternative mailbox.
+.i Readnews
+will put the news in a temporary file,
+and give the name of this file to the mailer in place of the
+.qp % .
+There is an important difference when using this kind of interface.
+The mailers do not give any indication of which articles you read
+and which ones you skipped.
+.i Readnews
+will assume you read
+.i all
+the articles,
+even if you didn't,
+and mark them all read.
+By contrast,
+the
+.op \-M
+option uses the
+.op \-T
+option to
+.i Mail ,
+asking
+.i Mail
+to tell
+.i readnews
+which articles you read.
+.hu
+Getting News when you Log In
+.pg
+Most users like to be told when they first log in if there is any news.
+This way they are reminded of news,
+but are not interrupted by it during the day.
+If you log in once in the morning,
+you can think of getting the news as reading the morning newspaper.
+It is common to put a
+.i checknews
+or
+.i readnews
+command in your
+.i .profile
+or
+.i .login
+file of commands that are executed when you log in.
+.pg
+Since there might not be any news,
+and since the
+.i readnews
+command goes to a considerable amount of work to find all unread news
+(assuming you are going to read it),
+there is another command,
+called
+.i checknews ,
+which tells you if there is any news.
+The
+.i checknews
+command is smaller and faster than
+.i readnews ,
+and was designed especially for a login file.
+There are also options to be silent if there is (or is not) news,
+and to start up
+.i readnews
+automatically if there is news.
+.pg
+The options to
+.i checknews
+are:
+.Op \-y 10
+Print \*(lqThere is news\*(rq if there is any unread news.
+.Op \-v 10
+If
+.op \-y
+is also given,
+instead of printing \*(lqThere is news\*(rq,
+prints \*(lqNews: \fInewsgroup\fP ...\*(rq
+giving the name of the first newsgroup containing unread news.
+If
+.ng general
+is the first newsgroup presented,
+this can be used to tell users whether the unread news is important.
+.Op \-n 10
+Print \*(lqNo news\*(rq if there is no unread news.
+.Op \-e 10
+If there is any unread news,
+start up
+.i readnews.
+Any additional arguments after the
+.op \-e
+will be passed to readnews.
+.pg
+Thus,
+.sd c
+checknews \-yn
+.ed
+tells you whether there is any unread news.
+.sd c
+checknews \-e \-M
+.ed
+starts up
+.i readnews
+with the
+.i Mail
+interface if there is news,
+and otherwise does nothing.
+.sd c
+checknews \-y
+.ed
+tells you if there is news,
+and is silent if there is no news.
+.hu
+Creating New Newsgroups
+.pg
+New newsgroups are proposed by the users and created by site administrators.
+To create a newsgroup,
+first make sure this is the right thing to do.
+Normally a suggestion is first posted to
+.ng net.news.group\f1,\fPnet.relatedgroup
+for a net newsgroup
+.ng net.relatedgroup "" (
+should be the group which you are proposing to subdivide.)
+For example,
+to propose creating
+.ng net.tv.soaps ,
+post
+the original article to
+.ng net.tv\f1,\fPnet.news.group ).
+Followups are made to
+.ng net.news.group
+.i only .
+(You can force this by putting the line:
+.sd c
+Followup-To: net.news.group
+.ed
+in the headers of your original posting).
+If it is established that there is general interest in such a group,
+and a name is agreed on,
+then ask your local netnews administrator to create the newsgroup.
+(It can actually be created by any netnews administrator anywhere on the net,
+within the scope of the newsgroup.)
+Once the newsgroup is created and the first article has been posted,
+the newsgroup is available for all interested persons to post to.
+.hu
+List of Newsgroups
+.pg
+This section lists the newsgroups that are currently active.
+It is intended to help you decide what you want to subscribe to.
+Note that the list is constantly changing.
+Note also that this list only describes those groups available
+on a network-wide basis. Since not all installations choose to receive all
+newsgroups, it is recommended that each installation edit the list of local
+newsgroups to be correct before distributing this document to their users.
+If this is not possible,
+a local appendix can be created.
+.hu 2
+Local
+.pg
+Local groups are kept on the current machine only.
+Local names can be identified by the lack of a prefix,
+that is, there are no periods in local newsgroup names.
+.lp general 10
+News to be read by everyone on the local machine.
+For example:
+\&\*(lqThe system will be down Monday morning for PM.\*(rq
+Or,
+\&\*(lqA new version of program
+.i x
+has been installed.\*(rq
+This newsgroup is usually mandatory \-
+you are required to subscribe to this newsgroup.
+(The list of mandatory newsgroups varies locally.)
+This requirement assures that important announcements reach all users.
+(Formerly
+.i msgs .)
+.hu 2
+Network Wide
+.pg
+These are the groups as of the last editing of this manual.
+The list is undoubtably already out of date.
+A current list can be obtained by typing
+.qp ?
+to the \*(lqNewsgroups? \*(rq prompt in postnews.
+.nf
+.ta 2.5i
+net.abortion	All sorts of discussions on abortion.
+net.ai	Artificial intelligence discussions.
+net.analog	Analog design developments, ideas, and components.
+net.announce	Moderated, general announcements of interest to all.
+net.announce.newusers	Moderated, explanatory postings for new users.
+net.announce.arpa-internet	Announcements from the Arpa world.
+net.arch	Computer architecture.
+net.astro	Astronomy discussions and information.
+net.astro.expert	Discussion by experts in astronomy.
+net.audio	High fidelity audio.
+net.auto	Automobiles, automotive products and laws.
+net.auto.tech	Technical aspects of automobiles, et. al.
+net.aviation	Aviation rules, means, and methods.
+net.bicycle	Bicycles, related products and laws.
+net.bio	Biology and related sciences.
+net.books	Books of all \fIgenres\fP, shapes, and sizes.
+net.bugs	General bug reports and fixes.
+net.bugs.2bsd	Reports of UNIX* version 2BSD related bugs.
+net.bugs.4bsd	Reports of UNIX version 4BSD related bugs.
+net.bugs.usg	Reports of USG (System III, V, etc.) bugs.
+net.bugs.uucp	Reports of UUCP related bugs.
+net.bugs.v7	Reports of UNIX V7 related bugs.
+net.cog-eng	Cognitive engineering.
+net.college	College, college activities, campus life, etc.
+net.columbia	The space shuttle and the STS program.
+net.comics	The funnies, old and new.
+net.consumers	Consumer interests, product reviews, etc.
+net.cooks	Food, cooking, cookbooks, and recipes.
+net.crypt	Different methods of data en/decryption.
+net.cse	Computer science education.
+net.cycle	Motorcycles and related products and laws.
+net.database	Database and data management issues and theory.
+net.dcom	Data communications hardware and software.
+net.decus	DEC* Users' Society newsgroup.
+net.emacs	EMACS editors of different flavors.
+net.eunice	The SRI Eunice system.
+net.followup	Followups to articles in net.general.
+net.games	Games and computer games.
+net.games.board	Discussion and hints on board games.
+net.games.chess	Chess & computer chess.
+net.games.emp	Discussion and hints about Empire.
+net.games.frp	Discussion about Fantasy Role Playing games.
+net.games.go	Discussion about Go.
+net.games.hack	Discussion, hints, etc. about the Hack game.
+net.games.pbm	Discussion about Play by Mail games.
+net.games.rogue	Discussion and hints about Rogue.
+net.games.trivia	Discussion about trivia.
+net.games.video	Discussion about video games.
+net.garden	Gardening, methods and results.
+net.general	*Important* and timely announcements of interest to all.
+net.graphics	Computer graphics, art, animation, image processing.
+net.ham-radio	Amateur Radio practices, contests, events, rules, etc.
+net.ham-radio.packet	Discussion about packet radio setups.
+net.info-terms	All sorts of terminals.
+net.internat	Discussion about international standards
+net.invest	Investments and the handling of money.
+net.jobs	Job announcements, requests, etc.
+net.jokes	Jokes and the like.  May be somewhat offensive.
+net.jokes.d	Discussions on the content of net.jokes articles
+net.kids	Children, their behavior and activities.
+net.lan	Local area network hardware and software.
+net.lang	Different computer languages.
+net.lang.ada	Discussion about Ada*.
+net.lang.apl	Discussion about APL.
+net.lang.c	Discussion about C.
+net.lang.f77	Discussion about FORTRAN.
+net.lang.forth	Discussion about Forth.
+net.lang.lisp	Discussion about LISP.
+net.lang.mod2	Discussion about Modula-2.
+net.lang.pascal	Discussion about Pascal.
+net.lang.prolog	Discussion about PROLOG.
+net.lang.st80	Discussion about Smalltalk 80.
+net.legal	Legalities and the ethics of law.
+net.lsi	Large scale integrated circuits.
+net.mag	Magazine summaries, tables of contents, etc.
+net.mail	Proposed new mail/network standards.
+net.mail.headers	Gatewayed from the ARPA header-people list.
+net.math	Mathematical discussions and puzzles.
+net.math.stat	Statistics discussion.
+net.math.symbolic	Symbolic algebra discussion.
+net.med	Medicine and its related products and regulations.
+net.micro	Micro computers of all kinds.
+net.micro.16k	National Semiconductor 32000 series chips
+net.micro.6809	Discussion about 6809's.
+net.micro.68k	Discussion about 68k's.
+net.micro.apple	Discussion about Apple micros.
+net.micro.amiga	Talk about the new Amiga micro.
+net.micro.atari	Discussion about Atari micros.
+net.micro.att	Discussions about AT&T microcomputers .
+net.micro.cbm	Discussion about Commodore micros.
+net.micro.cpm	Discussion about the CP/M operating system.
+net.micro.hp	Discussion about Hewlett/Packard's.
+net.micro.mac	Material about the Apple Macintosh & Lisa.
+net.micro.pc	Discussion about IBM personal computers.
+net.micro.ti	Discussion about Texas Instruments.
+net.micro.trs-80	Discussion about TRS-80's.
+net.misc	Various discussions too short-lived for other groups.
+net.motss	Issues pertaining to homosexuality.
+net.movies	Reviews and discussions of movies.
+net.music	Music lovers' group.
+net.music.classical	Discussion about classical music.
+net.music.folk	Folks discussing folk music of various sorts.
+net.music.gdead	A group for (Grateful) Dead-heads.
+net.music.synth	Synthesizers and computer music.
+net.net-people	Announcements, requests, etc. about people on the net.
+net.news	Discussions of USENET itself.
+net.news.adm	Comments directed to news administrators.
+net.news.b	Discussion about B news software.
+net.news.config	Postings of system down times and interruptions.
+net.news.group	Discussions and lists of newsgroups
+net.news.newsite	Postings of new site announcements.
+net.news.notes	Notesfile software from the Univ. of Illinois.
+net.news.sa	Comments directed to system administrators.
+net.news.stargate	Discussion about satellite transmission of news.
+net.nlang	Natural languages, cultures, heritages, etc.
+net.nlang.africa	Discussions about Africa & things African.
+net.nlang.celts	Group about Celtics.
+net.nlang.greek	Group about Greeks.
+net.nlang.india	Group for discussion about India & things Indian
+net.origins	Evolution versus creationism (sometimes hot!).
+net.periphs	Peripheral devices.
+net.pets	Pets, pet care, and household animals in general.
+net.philosophy	Philosophical discussions.
+net.physics	Physical laws, properties, etc.
+net.poems	For the posting of poems.
+net.politics	Political discussions.  Could get hot.
+net.politics.theory	Theory of politics and political systems.
+net.puzzle	Puzzles, problems, and quizzes.
+net.railroad	Real and model train fans' newsgroup.
+net.rec	Recreational/participant sports.
+net.rec.birds	Hobbyists interested in bird watching.
+net.rec.boat	Hobbyists interested in boating.
+net.rec.bridge	Hobbyists interested in bridge.
+net.rec.nude	Hobbyists interested in naturist/nudist activities.
+net.rec.photo	Hobbyists interested in photography.
+net.rec.scuba	Hobbyists interested in SCUBA diving.
+net.rec.ski	Hobbyists interested in skiing.
+net.rec.skydive	Hobbyists interested in skydiving.
+net.rec.wood	Hobbyists interested in woodworking.
+net.religion	Religious, ethical, and moral implications of actions.
+net.religion.christian	Discussion about form and nature of Christianity
+net.religion.jewish	Information and discussion about Judaism.
+net.research	Research and computer research.
+net.roots	Genealogical matters.
+net.rumor	For the posting of rumors.
+net.sci	General purpose scientific discussions.
+net.sf-lovers	Science fiction lovers' newsgroup.
+net.singles	Newsgroup for single people, their activities, etc.
+net.social	Like net.singles, but for everyone.
+net.sources	For the posting of software packages & documentation.
+net.sources.bugs	For bug fixes and features discussion.
+net.sources.games	Postings of recreational software.
+net.sources.mac	Software for the Apple Macintosh.
+net.space	Space, space programs, space related research, etc.
+net.sport	Spectator sports.
+net.sport.baseball	Discussion about baseball.
+net.sport.football	Discussion about football.
+net.sport.hockey	Discussion about hockey.
+net.sport.hoops	Discussion about basketball.
+net.startrek	Star Trek, the TV show and the movies.
+net.suicide	Suicide, laws, ethics, and its causes and effects (!).
+net.taxes	Tax laws and advice.
+net.test	For testing of network software.  Very boring.
+net.text	Text processing.
+net.travel	Traveling all over the world.
+net.tv	The boob tube, its history, and past and current shows.
+net.tv.drwho	Discussion about Dr. Who.
+net.tv.soaps	Postings about soap operas.
+net.unix	UNIX neophytes group.
+net.unix-wizards	Discussions, bug reports, and fixes on and for UNIX.
+net.usenix	USENIX Association events and announcements.
+net.veg	Vegetarians.
+net.video	Video and video components.
+net.wanted	Requests for things that are needed.
+net.wanted.sources	Requests for software, termcap entries, etc.
+net.wines	Wines and spirits.
+net.wobegon	"A Prairie Home Companion" radio show discussion.
+net.women	Women's rights, discrimination, etc.
+net.works	Assorted workstations.
+mod.ai	Discussions about Artificial Intelligence
+mod.compilers	Discussion about compiler construction, theory, etc.
+mod.computers	Discussion about various computers and related.
+mod.computers.apollo	Apollo computer systems.
+mod.computers.ibm-pc	The IBM PC, PC-XT, and PC-AT.
+mod.computers.laser-printers	Laser printers, hardware and software.
+mod.computers.macintosh	Apple Macintosh micros.
+mod.computers.pyramid	Pyramid 90x computers.
+mod.computers.ridge	Ridge 32 computers and ROS.
+mod.computers.sequent	Sequent systems, (esp. Balance 8000).
+mod.computers.sun	Sun "workstation" computers
+mod.computers.vax	DEC's VAX* line of computers & VMS.
+mod.computers.workstations	Various workstation-type computers.
+mod.graphics	Graphics software, hardware, theory, etc.
+mod.human-nets	Computer aided communications digest.
+mod.legal	Discussions of computers and the law.
+mod.map	Various maps, including UUCP maps.
+mod.motss	Moderated newsgroup on gay issues and topics.
+mod.movies	Moderated reviews and discussion of movies.
+mod.music	Moderated reviews and discussion of things musical.
+mod.newprod	Announcements of new products of interest to readers.
+mod.newslists	Postings of news-related statistics and lists.
+mod.os	Disussions about operating systems and related areas.
+mod.os.os9	Discussions about the os9 operating system.
+mod.os.unix	Moderated discussion of Unix* features and bugs.
+mod.politics	Discussions on political problems, systems, solutions.
+mod.politics.arms-d	Arms discussion digest.
+mod.protocols	Various forms and types of FTP protocol discussions.
+mod.protocols.appletalk	Applebus hardware & software discussion.
+mod.protocols.kermit	Information about the Kermit package.
+mod.protocols.tcp-ip	TCP and IP network protocols.
+mod.rec	Discussions on pastimes (not currently active).
+mod.rec.guns	Discussions about firearms.
+mod.recipes	A "distributed cookbook" of screened recipes.
+mod.risks	Risks to the public from computers & users.
+mod.sources	Moderated postings of public-domain sources.
+mod.sources.doc	Archived public-domain documentation.
+mod.std	Moderated discussion about various standards.
+mod.std.c	Discussion about C language standards.
+mod.std.mumps	Discussion for the X11.1 committee on Mumps.
+mod.std.unix	Discussion for the P1003 committee on Unix.
+mod.techreports	Announcements and lists of technical reports.
+mod.telecom	Telecommunications digest.
+mod.test	Testing of moderated newsgroups -- no moderator.
+mod.vlsi	Very large scale integrated circuits.
+.fi
+.bp
+.hu
+Appendix \- How to use vnews
+.hu 2 
+Overview
+.pg
+.i Vnews
+is a program for reading USENET news.
+It is based on
+.i readnews
+but has a CRT-oriented (full screen) user interface.
+The command line options are identical.
+The list of available commands is quite similar,
+although since
+.i vnews
+is a
+.i visual
+interface,
+most
+.i vnews
+commands do not have to be terminated by a newline.
+.pg
+.i Vnews
+uses all but the last two lines of the screen to display the current article.
+The next to the last line is the secondary prompt line,
+and is used to input string arguments to commands.
+The last line contains several fields.
+The first field is the prompt field.
+If
+.i vnews
+is at the end of an article,
+the prompt is
+.cf next? ;
+otherwise the prompt is
+.cf more? .
+The second field is the newsgroup field,
+which displays the current newsgroup,
+the number of the current article,
+and the number of the last article in the newsgroup.
+The third field contains the current time,
+and the last field contains the word
+.cf mail
+if you have mail.
+When you receive new mail,
+the bell on the terminal is rung and the word
+.cf MAIL
+appears in capital letters for 30 seconds.
+.hu 2
+Commands
+.pg
+Most of the
+.i readnews
+commands have
+.i vnews
+counterparts and vice versa.
+Some differences are:
+.si
+.lp \(bu 5
+It lacks a \*(lqdigest\*(rq command (to deal specially with collections
+of articles bundled together).
+This would be nice to have,
+but it does not seem to be a major deficiency
+since you can move around in the digest with
+.i vnews
+commands.
+.lp \(bu 5
+To get to the previous group,
+use the
+.qp N
+command with a
+.qp \-
+argument.
+.lp \(bu 5
+.i Vnews
+has commands for moving around in the article which
+.i readnews
+does not have since they aren't applicable.
+.lp \(bu 5
+It has a \*(lqparent\*(rq command which will go to the article
+that the current article is a follow-up to,
+and a \*(lqwrite\*(rq
+command that writes out the body of an article without the header.
+.lp \(bu 5
+You can refer to the current article from the shell or
+while writing a follow-up as
+.b $A .
+.lp \(bu 5
+The \*(lqdecrypt\*(rq command (for decoding possibly offensive
+material) always does
+.i rot13
+which seems to be the default standard but the
+.i readnews
+version of it occasionally gets confused.
+.ei
+.hu 2
+Commands that differ from
+.bi readnews
+.pg
+Each
+.i vnews
+command may be preceded by a
+.i count .
+Some commands use the count; others ignore it.
+If
+.i count
+is omitted,
+it defaults to one.
+Some commands prompt for an argument
+on the second line from the bottom of the screen.
+Standard
+.ux
+erase and kill processing is done on this argument.
+The argument is terminated by a return.
+An interrupt
+.qc DELETE "" (
+or
+.qc BREAK )
+gets you out of any partially entered command. 
+.Qc CR
+A carriage return prints more of the current article,
+or goes on to the next article if you are at the end of the current article.
+A
+.qc SPACE
+is equivalent to
+.qc CR .
+.Qc CONTROL-B
+Go backwards
+.i count
+pages.
+.Qc CONTROL-F
+Go forward
+.i count
+pages.
+.Qc CONTROL-D
+Go forwards half a page.
+.Qc CONTROL-U
+Go backwards half a page.
+.Qc CONTROL-N
+Go forwards
+.i count
+lines.
+.Qc CONTROL-Z
+Go backwards
+.i count
+lines.
+.Qc CONTROL-L
+Redraw the screen.
+.qc CONTROL-L
+may be typed at any time.
+.Qp b
+Back up one article in the current group.
+.Qp l
+Redisplay the article after you have sent a follow-up or reply.
+.Qp n
+Move on to the next item in a digest.
+.qp \*(lq\&.\*(rq
+is equivalent to
+.qp n .
+This is convenient if your terminal has a keypad.
+.Qp p
+Show the parent article
+(the article that the current article is a follow-up to).
+This doesn't work if the current article was posted by A-news or notesfiles.
+To switch between the current and parent articles,
+use the
+.qp \-
+command.
+Unfortunately,
+if you use several
+.qp p
+commands
+to trace the discussion back further,
+there is no command to return to the original level.
+.Qp ug
+Unsubscribe to the current group.
+This is a two character command to ensure that it is not typed accidentally
+and to leave room for other types of unsubscribes
+.i e\f1.\fPg ., (
+unsubscribe to discussion).
+.Qp v
+Print the current version of the news software.
+.Qp D
+Decrypts a joke.
+It only handles
+.pa rot13
+jokes.
+The
+.qp D
+command is a toggle;
+typing another
+.qp D
+re-encrypts the joke.

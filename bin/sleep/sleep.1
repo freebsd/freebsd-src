@@ -1,0 +1,116 @@
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)sleep.1	6.6 (Berkeley) 7/27/91
+.\"
+.Dd July 27, 1991
+.Dt SLEEP 1
+.Os
+.Sh NAME
+.Nm sleep
+.Nd suspend execution for an interval of time
+.Sh SYNOPSIS
+.Nm sleep
+.Ar seconds
+.Sh DESCRIPTION
+The
+.Nm sleep
+command
+suspends execution for a minimum of
+.Ar seconds .
+.Nm Sleep
+is used to schedule the execution of other commands (see
+.Sx EXAMPLES
+below).
+.Pp
+The
+.Nm Sleep
+utility exits with one of the following values:
+.Bl -tag -width flag
+.It Li \&0
+On successful completetion, or if the signal
+.Dv SIGALRM
+was received.
+.It Li \&>\&0
+An error occurred.
+.El
+.Sh EXAMPLES
+To schedule the execution of a command for
+.Va x
+number seconds later:
+.Pp
+.Dl (sleep 1800; sh command_file >& errors)&
+.Pp
+This incantation would wait a half hour before
+running the script command_file. (See the
+.Xr at 1
+utility.)
+.Pp
+To reiteratively run a command (with the
+.Xr csh 1 ) :
+.Pp
+.Bd -literal -offset indent -compact
+while (1)
+	if (! -r zzz.rawdata) then
+		sleep 300
+	else
+		foreach i (`ls *.rawdata`)
+			sleep 70
+			awk -f collapse_data $i >> results
+		end
+		break
+	endif
+end
+.Ed
+.Pp
+The scenario for a script such as this might be: a program currently
+running is taking longer than expected to process a series of
+files, and it would be nice to have
+another program start processing the files created by the first
+program as soon as it is finished (when zzz.rawdata is created).
+The script checks every five minutes for the file zzz.rawdata,
+when the file is found, then another portion processing
+is done curteously by sleeping for 70 seconds in between each
+awk job.
+.Sh SEE ALSO
+.Xr setitimer 2 ,
+.Xr alarm 3 ,
+.Xr sleep 3 ,
+.Xr at 1
+.Sh STANDARDS
+The
+.Nm sleep
+command is expected to be
+.St -p1003.2
+compatible.

@@ -1,0 +1,112 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+    based on code by Marc Shapiro (shapiro@sor.inria.fr)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>FPQueue_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>FPQueue_h
+
+#include "<T>.FPlex.h"
+#include "<T>.Queue.h"
+
+class <T>FPQueue : public <T>Queue
+{
+  <T>FPlex     p;
+
+public:
+               <T>FPQueue(int chunksize = DEFAULT_INITIAL_CAPACITY);
+               <T>FPQueue(const <T>FPQueue& q);
+               ~<T>FPQueue();
+
+  void          operator = (const <T>FPQueue&);
+
+  void          enq(<T&> item);
+  <T>           deq();
+  <T>&          front();
+  void          del_front();
+
+  void          clear();
+  int           empty();
+  int           full();
+  int           length();
+               
+  int           OK();
+};
+
+inline <T>FPQueue::<T>FPQueue(int chunksize) : p(chunksize) {}
+inline <T>FPQueue::<T>FPQueue(const <T>FPQueue& q) : p(q.p) {}
+
+inline <T>FPQueue::~<T>FPQueue() {}
+
+inline void <T>FPQueue::enq(<T&>item)
+{
+  p.add_high(item);
+}
+
+inline <T> <T>FPQueue::deq()
+{
+  <T> res = p.low_element();
+  p.del_low();
+  return res;
+}
+
+inline <T>& <T>FPQueue::front()
+{
+  return p.low_element();
+}
+
+
+inline void <T>FPQueue::del_front()
+{
+  p.del_low();
+}
+
+inline void <T>FPQueue::operator =(const <T>FPQueue& s)
+{
+  p = s.p;
+}
+
+inline int <T>FPQueue::empty()
+{
+  return p.empty();
+}
+
+inline int <T>FPQueue::full()
+{
+  return p.full();
+}
+
+inline int <T>FPQueue::length()
+{
+  return p.length();
+}
+
+inline int <T>FPQueue::OK()
+{
+  return p.OK();
+}
+
+inline void <T>FPQueue::clear()
+{
+  p.clear();
+}
+
+#endif

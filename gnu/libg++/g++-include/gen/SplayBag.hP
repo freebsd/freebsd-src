@@ -1,0 +1,144 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988, 1982 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>SplayBag_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>SplayBag_h 1
+
+#include "<T>.Bag.h"
+#include "<T>.SplayNode.h"
+
+class <T>SplayBag : public <T>Bag
+{
+protected:
+  <T>SplayNode*   root;
+
+  <T>SplayNode*   leftmost();
+  <T>SplayNode*   rightmost();
+  <T>SplayNode*   pred(<T>SplayNode* t);
+  <T>SplayNode*   succ(<T>SplayNode* t);
+  void            _kill(<T>SplayNode* t);
+  <T>SplayNode*   _copy(<T>SplayNode* t);
+  void            _del(<T>SplayNode* t);
+
+public:
+                  <T>SplayBag();
+                  <T>SplayBag(<T>SplayBag& a);
+                  ~<T>SplayBag();
+
+  Pix           add(<T&> item);
+  void          del(<T&> item);
+  void          remove(<T&>item);
+  int           nof(<T&> item);
+  int           contains(<T&> item);
+
+  void          clear();
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          operator () (Pix i);
+  Pix           seek(<T&> item, Pix from = 0);
+
+  Pix           last();
+  void          prev(Pix& i);
+
+  int           OK();
+};
+
+
+inline <T>SplayBag::~<T>SplayBag()
+{
+  _kill(root);
+}
+
+inline <T>SplayBag::<T>SplayBag()
+{
+  root = 0;
+  count = 0;
+}
+
+inline <T>SplayBag::<T>SplayBag(<T>SplayBag& b)
+{
+  count = b.count;
+  root = _copy(b.root);
+}
+
+inline Pix <T>SplayBag::first()
+{
+  return Pix(leftmost());
+}
+
+inline Pix <T>SplayBag::last()
+{
+  return Pix(rightmost());
+}
+
+inline void <T>SplayBag::next(Pix& i)
+{
+  if (i != 0) i = Pix(succ((<T>SplayNode*)i));
+}
+
+inline void <T>SplayBag::prev(Pix& i)
+{
+  if (i != 0) i = Pix(pred((<T>SplayNode*)i));
+}
+
+inline <T>& <T>SplayBag::operator () (Pix i)
+{
+  if (i == 0) error("null Pix");
+  return ((<T>SplayNode*)i)->item;
+}
+
+inline void <T>SplayBag::clear()
+{
+  _kill(root);
+  count = 0;
+  root = 0;
+}
+
+inline int <T>SplayBag::contains(<T&> key)
+{
+  return seek(key) != 0;
+}
+
+inline void <T>SplayBag::del(<T&> key)
+{
+  _del((<T>SplayNode*)(seek(key)));
+}
+
+#endif

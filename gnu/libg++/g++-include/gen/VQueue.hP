@@ -1,0 +1,130 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>VQueue_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>VQueue_h 1
+
+#include "<T>.Queue.h"
+
+class <T>VQueue : public <T>Queue
+{
+protected:
+  int                   size;
+  int                   cnt;
+  int                   inp;
+  int                   outp;
+  <T>*                  s;
+
+public:
+
+                        <T>VQueue(int sz = DEFAULT_INITIAL_CAPACITY);
+                        <T>VQueue(<T>VQueue&);
+                        ~<T>VQueue();
+
+  void                  operator = (<T>VQueue&);
+
+  void                  enq(<T&> item);
+  <T>                   deq();
+  <T>&                  front();
+  void                  del_front();
+
+  int                   length();
+  int                   empty();
+  int                   full();
+
+  int                   capacity();
+  void                  resize(int sz);
+  void                  clear();
+
+  int                   OK();
+};
+
+
+inline <T>VQueue::<T>VQueue(int sz)
+{
+  s = new <T> [size = sz];
+  cnt = inp = outp = 0;
+}
+
+inline <T>VQueue::~<T>VQueue()
+{
+  delete [] s;
+}
+
+inline void <T>VQueue::clear()
+{
+  inp = outp = 0;
+  cnt = 0;
+}
+
+inline int <T>VQueue::empty()
+{
+  return cnt <= 0;
+}
+
+inline int <T>VQueue::capacity()
+{
+  return size;
+}
+
+inline int <T>VQueue::full()
+{
+  return cnt >= size;
+}
+
+inline int <T>VQueue::length()
+{
+  return cnt;
+}
+
+inline void <T>VQueue::enq(<T&> item)
+{
+  if (cnt >= size) error("enq to full Queue.");
+  ++cnt;
+  s[inp] = item;
+  if (++inp == size) inp = 0;
+}
+
+inline <T> <T>VQueue::deq()
+{
+  if (cnt <= 0) error("deq from empty Queue.");
+  --cnt;
+  int i = outp;
+  if (++outp == size) outp = 0;
+  return s[i];
+}
+
+
+inline void <T>VQueue::del_front()
+{
+  if (cnt <= 0) error("delete from empty Queue.");
+  --cnt;
+  if (++outp == size) outp = 0;
+}
+
+inline <T>& <T>VQueue::front()
+{
+  if (empty()) error("top from empty Queue.");
+  return s[outp];
+}
+
+#endif

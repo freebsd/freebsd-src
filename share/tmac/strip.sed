@@ -1,0 +1,1 @@
+../me/strip.sed

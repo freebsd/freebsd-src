@@ -1,0 +1,234 @@
+''' $Id: uux.1,v 1.1 1993/08/05 18:28:17 conklin Exp $
+.TH uux 1 "Taylor UUCP 1.04"
+.SH NAME
+uux \- Remote command execution over UUCP
+.SH SYNOPSIS
+.B uux
+[ options ] command
+.SH DESCRIPTION
+The
+.I uux
+command is used to execute a command on a remote system, or to execute
+a command on the local system using files from remote systems.
+The command
+is not executed immediately; the request is queued until the
+.I uucico
+(8) daemon calls the system and executes it.  The daemon is
+started automatically unless the
+.B \-r
+switch is given.
+
+The actual command execution is done by the
+.I uuxqt
+(8) daemon.
+
+File arguments can be gathered from remote systems to the execution
+system, as can standard input.  Standard output may be directed to a
+file on a remote system.
+
+The command name may be preceded by a system name followed by an
+exclamation point if it is to be executed on a remote system.  An
+empty system name is taken as the local system.
+
+Each argument that contains an exclamation point is treated as naming
+a file.  The system which the file is on is before the exclamation
+point, and the pathname on that system follows it.  An empty system
+name is taken as the local system; this must be used to transfer a
+file to a command being executed on a remote system.  If the path is
+not absolute, it will be appended to the current working directory on
+the local system; the result may not be meaningful on the remote
+system.  A pathname may begin with ~/, in which case it is relative to
+the UUCP public directory (usually /usr/spool/uucppublic) on the
+appropriate system.  A pathname may begin with ~name/, in which case
+it is relative to the home directory of the named user on the
+appropriate system.
+
+Standard input and output may be redirected as usual; the pathnames
+used may contain exclamation points to indicate that they are on
+remote systems.  Note that the redirection characters must be quoted
+so that they are passed to
+.I uux
+rather than interpreted by the shell.  Append redirection (>>) does
+not work.
+
+All specified files are gathered together into a single directory
+before execution of the command begins.  This means that each file
+must have a distinct base name.  For example,
+.EX
+uux 'sys1!diff sys2!~user1/foo sys3!~user2/foo >!foo.diff'
+.EE
+will fail because both files will be copied to sys1 and stored under
+the name foo.
+
+Arguments may be quoted by parentheses to avoid interpretation of
+exclamation points.  This is useful when executing the
+.I uucp
+command on a remote system.
+.SH OPTIONS
+The following options may be given to
+.I uux.
+.TP 5
+.B \-,\-p
+Read standard input and use it as the standard input for the command
+to be executed.
+.TP 5
+.B \-c
+Do not copy local files to the spool directory.  This is the default.
+If they are
+removed before being processed by the
+.I uucico
+(8) daemon, the copy will fail.  The files must be readable by the
+.I uucico
+(8) daemon,
+as well as the by the invoker of
+.I uux.
+.TP 5
+.B \-C
+Copy local files to the spool directory.
+.TP 5
+.B \-l
+Link local files into the spool directory.  If a file can not be
+linked because it is on a different device, it will be copied unless
+the
+.B \-c
+option also appears (in other words, use of
+.B \-l
+switches the default from
+.B \-c
+to
+.B \-C).
+If the files are changed before being processed by the
+.I uucico
+(8) daemon, the changed versions will be used.  The files must be
+readable by the
+.I uucico
+(8) daemon, as well as by the invoker of
+.I uux.
+.TP 5
+.B \-g grade
+Set the grade of the file transfer command.  Jobs of a higher grade
+are executed first.  Grades run 0 ... 9 A ... Z a ... z from high to
+low.
+.TP 5
+.B \-n
+Do not send mail about the status of the job, even if it fails.
+.TP 5
+.B \-z
+Send mail about the status of the job if an error occurs.  For many
+.I uuxqt
+daemons, including the Taylor UUCP
+.I uuxqt,
+this is the default action; for those,
+.B \-z
+will have no effect.  However, some
+.I uuxqt
+daemons will send mail if the job succeeds unless the
+.B \-z
+option is used, and some other
+.I uuxqt
+daemons will not send mail if the job fails unless the
+.B \-z
+option is used.
+.TP 5
+.B \-r
+Do not start the
+.I uucico
+(8) daemon immediately; merely queue up the execution request for later
+processing.
+.TP 5
+.B \-j
+Print jobids on standard output.  A jobid will be generated for each
+file copy operation required to perform the operation.  These file
+copies may be cancelled by
+passing the jobid to the
+.B \-k
+switch of
+.I uustat
+(1), which will make the execution impossible to complete.
+.TP 5
+.B \-a address
+Report job status to the specified e-mail address.
+.TP 5
+.B \-x type
+Turn on particular debugging types.  The following types are
+recognized: abnormal, chat, handshake, uucp-proto, proto, port,
+config, spooldir, execute, incoming, outgoing.  Only abnormal, config,
+spooldir and execute are meaningful for
+.I uux.
+
+Multiple types may be given, separated by commas, and the
+.B \-x
+option may appear multiple times.  A number may also be given, which
+will turn on that many types from the foregoing list; for example,
+.B \-x 2
+is equivalent to
+.B \-x abnormal,chat.
+.TP 5
+.B \-I file
+Set configuration file to use.  This option may not be available,
+depending upon how
+.I uux
+was compiled.
+.SH EXAMPLES
+.EX
+uux -z - sys1!rmail user1
+.EE
+Execute the command ``rmail user1'' on the system sys1, giving it as
+standard input whatever is given to
+.I uux
+as standard input.  If a failure occurs, send a message using
+.I mail
+(1).
+.EX
+uux 'diff -c sys1!~user1/file1 sys2!~user2/file2 >!file.diff'
+.EE
+Fetch the two named files from system sys1 and system sys2 and execute
+.I diff
+putting the result in file.diff in the current directory.  The current
+directory must be writable by the
+.I uuxqt
+(8) daemon for this to work.
+.EX
+uux 'sys1!uucp ~user1/file1 (sys2!~user2/file2)'
+.EE
+Execute 
+.I uucp
+on the system sys1 copying file1 (on system sys1) to sys2.  This
+illustrates the use of parentheses for quoting.
+.SH RESTRICTIONS
+The remote system may not permit you to execute certain commands.
+Many remote systems only permit the execution of
+.I rmail
+and
+.I rnews.
+
+Some of the options are dependent on the capabilities of the
+.I uuxqt
+(8) daemon on the remote system.
+.SH FILES
+The file names may be changed at compilation time or by the
+configuration file, so these are only approximations.
+
+.br
+/usr/lib/uucp/config - Configuration file.
+.br
+/usr/spool/uucp -
+UUCP spool directory.
+.br
+/usr/spool/uucp/Log -
+UUCP log file.
+.br
+/usr/spool/uucppublic -
+Default UUCP public directory.
+.SH SEE ALSO
+mail(1), uustat(1), uucp(1), uucico(8), uuxqt(8)
+.SH BUGS
+Files can not be referenced across multiple systems.
+
+Too many jobids are output by
+.B \-j,
+and there is no good way to cancel a local execution requiring remote
+files.
+.SH AUTHOR
+Ian Lance Taylor
+(ian@airs.com or uunet!airs!ian)

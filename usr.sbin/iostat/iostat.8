@@ -1,0 +1,134 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)iostat.8	6.8 (Berkeley) 4/24/91
+.\"
+.TH IOSTAT 8 "April 24, 1991"
+.UC 4
+.SH NAME
+iostat \- report I/O statistics
+.SH SYNOPSIS
+.nf
+.ft B
+iostat [ \-c count ] [ \-M core ] [ \-N system ]
+.ti +5
+[ \-w wait ] [ drives ]
+.ft R
+.fi
+.SH DESCRIPTION
+.I Iostat
+reports certain kernel statistics kept about terminal, disk and cpu
+activity.
+.PP
+The options are as follows:
+.TP
+\-c
+Repeat the display
+.I count
+times.
+The first display is for the time since a reboot and each subsequent
+report is for the time period since the last display.
+If no
+.I wait
+interval is specified, the default is 1 second.
+.TP
+\-M
+Extract values associated with the name list from the specified core
+instead of the default ``/dev/kmem''.
+.TP
+\-N
+Extract the name list from the specified system instead of the default
+``/386bsd''.
+.TP
+\-w
+Pause
+.I wait
+seconds between each display.
+If no repeat
+.I count
+is specified, the default is infinity.
+.PP
+.I Iostat
+displays its information in the following format:
+.TP
+tty
+.nf
+.RS
+tin	characters read from terminals
+tout	characters written to terminals
+.RE
+.fi
+.TP
+disks
+Disk operations (this field is system dependent). 
+The header of the field is the disk name and unit number.
+If more than four disk drives are configured in the system,
+.I iostat
+displays only the first four drives.
+To force
+.I iostat
+to display specific drives, their names may be supplied on the command
+line.
+.sp
+.nf
+.RS
+sps	sectors transferred per second
+tps	transfers per second
+msps	milliseconds per average seek (including implied
+	seeks and rotational latency)
+.RE
+.fi
+.TP
+cpu
+.nf
+.RS
+us	% of cpu time in user mode
+ni	% of cpu time in user mode running niced processes
+sy	% of cpu time in system mode
+id	% of cpu time in idle mode
+.RE
+.fi
+.SH FILES
+.ta \w'/dev/kmem  'u
+/386bsd	default kernel namelist
+.br
+/dev/kmem	default memory file
+.SH SEE ALSO
+.IR fstat (1),
+.IR netstat (1),
+.IR nfsstat (1),
+.IR ps (1),
+.IR systat (1),
+.IR vmstat (1),
+.IR pstat (8)
+.sp
+The sections starting with ``Interpreting system activity'' in
+.IR "Installing and Operating 4.3BSD" .

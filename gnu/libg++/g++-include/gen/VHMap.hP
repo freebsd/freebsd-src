@@ -1,0 +1,84 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T><C>VHMap_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T><C>VHMap_h 1
+
+#include "<T>.<C>.Map.h"
+
+
+class <T><C>VHMap : public <T><C>Map
+{
+protected:
+  <T>*           tab;
+  <C>*           cont;
+  char*          status;
+  unsigned int   size;
+
+public:
+                <T><C>VHMap(<C&> dflt,unsigned int sz=DEFAULT_INITIAL_CAPACITY);
+                <T><C>VHMap(<T><C>VHMap& a);
+                ~<T><C>VHMap();
+
+  <C>&          operator [] (<T&> key);
+
+  void          del(<T&> key);
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          key(Pix i);
+  <C>&          contents(Pix i);
+
+  Pix           seek(<T&> key);
+  int           contains(<T&> key);
+
+  void          clear(); 
+  void          resize(unsigned int newsize = 0);
+
+  int           OK();
+};
+
+inline <T><C>VHMap::~<T><C>VHMap()
+{
+  delete [] tab;
+  delete [] cont;
+  delete [] status;
+}
+
+inline int <T><C>VHMap::contains(<T&> key)
+{
+  return seek(key) != 0;
+}
+
+inline <T>& <T><C>VHMap::key(Pix i)
+{
+  if (i == 0) error("null Pix");
+  return *((<T>*)i);
+}
+
+inline <C>& <T><C>VHMap::contents(Pix i)
+{
+  if (i == 0) error("null Pix");
+  return cont[((unsigned)(i) - (unsigned)(tab)) / sizeof(<T>)];
+}
+
+#endif

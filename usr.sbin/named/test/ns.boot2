@@ -1,0 +1,9 @@
+;
+;	boot file for name server
+;
+; type		domain		source file or host
+;
+primary		ARPA		hosts.mff
+primary		UCB.ARPA	ns.pw2
+primary		UCB.ARPA	ns.al2
+cache		.		ns.ca2		; initial cache data

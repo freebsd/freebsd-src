@@ -1,0 +1,166 @@
+.\"	from: @(#)rpcinfo.8c	2.2 88/08/03 4.0 RPCSRC; from 1.24 88/02/25 SMI
+.\"	$Id: rpcinfo.8,v 1.1 1993/09/13 23:22:41 jtc Exp $
+.\"
+.Dd December 17, 1987
+.Dt RPCINFO 8
+.Os
+.Sh NAME
+.Nm rpcinfo
+.Nd report RPC information
+.Sh SYNOPSIS
+.Nm rpcinfo
+.Fl p
+.Op Ar host
+.Nm rpcinfo
+.Op Fl n Ar portnum
+.Fl u Ar host
+.Ar program
+.Op Ar version
+.Nm rpcinfo
+.Op Fl n Ar portnum
+.Fl t Ar host 
+.Ar program
+.Op Ar version
+.Nm rpcinfo
+.Fl b
+.Ar program version
+.Nm rpcinfo
+.Fl d
+.Ar program version
+.Sh DESCRIPTION
+.Nm rpcinfo
+makes an
+.Tn RPC
+call to an
+.Tn RPC
+server and reports what it finds.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl p
+Probe the portmapper on
+.Ar host ,
+and print a list of all registered
+.Tn RPC
+programs.  If
+.Ar host
+is not specified, it defaults to the value returned by
+.Xr hostname 1 .
+.It Fl u
+Make an
+.Tn RPC
+call to procedure 0 of
+.Ar program
+on the specified
+.Ar host
+using
+.Tn UDP ,
+and report whether a response was received.
+.It Fl t
+Make an
+.Tn RPC
+call to procedure 0 of
+.Ar program
+on the specified
+.Ar host
+using
+.Tn TCP ,
+and report whether a response was received.
+.It Fl n
+Use
+.Ar portnum
+as the port number for the
+.Fl t
+and
+.Fl u
+options instead of the port number given by the portmapper.
+.It Fl b
+Make an
+.Tn RPC
+broadcast to procedure 0 of the specified
+.Ar program
+and
+.Ar version
+using
+.Tn UDP
+and report all hosts that respond.
+.It Fl d
+Delete registration for the
+.Tn RPC
+service of the specified
+.Ar program
+and
+.Ar version .
+This option can be exercised only by the super-user.
+.El
+.Pp
+The
+.Ar program
+argument can be either a name or a number.
+.Pp
+If a
+.Ar version
+is specified,
+.Nm rpcinfo
+attempts to call that version of the specified
+.Ar program .
+Otherwise,
+.Nm rpcinfo
+attempts to find all the registered version
+numbers for the specified
+.Ar program
+by calling version 0 (which is presumed not
+to exist; if it does exist,
+.Ar rpcinfo
+attempts to obtain this information by calling
+an extremely high version
+number instead) and attempts to call each registered version.
+Note: the version number is required for
+.Fl b
+and
+.Fl d
+options.
+.Sh EXAMPLES
+To show all of the
+.Tn RPC
+services registered on the local machine use:
+.Pp
+.Dl example% rpcinfo -p
+.Pp
+To show all of the
+.Tn RPC
+services registered on the machine named
+.Ar klaxon
+use:
+.Pp
+.Dl example% rpcinfo -p klaxon
+.Pp
+To show all machines on the local net that are running the Yellow Pages
+service use:
+.Pp
+.Dl example% rpcinfo -b ypserv 'version' | uniq
+.Pp
+where 'version' is the current Yellow Pages version obtained from the
+results of the
+.Fl p
+switch above.
+.Pp
+To delete the registration for version 1 of the
+.Nm walld
+service use:
+.Pp
+.Dl example% rpcinfo -d walld 1
+.Sh SEE ALSO
+.Xr rpc 5 ,
+.Xr portmap 8
+.Rs
+.%T "RPC Programming Guide"
+.Re
+.Sh BUGS
+In releases prior to SunOS 3.0, the Network File System (NFS) did not
+register itself with the portmapper;
+.Nm rpcinfo
+cannot be used to make
+.Tn RPC
+calls to the
+.Tn NFS
+server on hosts running such releases.

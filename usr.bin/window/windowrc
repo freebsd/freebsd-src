@@ -1,0 +1,85 @@
+# Copyright (c) 1983 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)windowrc	3.9 (Berkeley) 4/18/91
+#
+
+# Configuration file example for window manager
+# To be installed in ~/.windowrc
+#
+# Create two unequal sized windows of full screen width,
+# and set up some useful aliases.
+#
+
+#
+# Optional settings
+#
+# terse on			# set terse mode
+# escape "^A"			# set escape character
+# nline 100			# set default buffer size
+				# initially, this is 48
+
+#
+# Make two windows
+# The bottom one is MIN(24, total lines * 3 / 4) lines
+# The top one is the rest of the screen.
+#
+three_fourth = $nrow - ((_ = $nrow * 3 / 4) > 24 ? 24 : $_)
+unset _
+window row = 0, nrow = $three_fourth - 1, label = "Top"
+window row = $three_fourth, label = "Local"
+
+#
+# Useful aliases
+#
+#
+# Standard window
+#
+alias std "window r = $three_fourth, l = $?1 ? $1 : ''"
+#
+# Sysline, add your own options
+#
+alias sysline "_ = select();" \
+	"foreground window(r = 0, nr = 1, nc = $ncol + 1, nl = 0," \
+		"l = sysline, pty = no, frame = no, sh = sysline \\-w), 1;" \
+	"select $_; unset _"
+#
+# Rlogin
+#
+alias rlogin "window r = $three_fourth, l = $1, pty = no, mapnl = no," \
+	"sh = sh \\-c 'echo $TERMCAP | rsh ' + $1 + ' \\'cat > .TERMCAP\\' ;" \
+	"exec rlogin ' + $1"
+alias rl rlogin \$1
+#
+# Two equal windows
+#
+alias two "window r = 1, nr = $nrow / 2 - 1, l = top;" \
+	"window r = $nrow / 2 + 1, l = bottom"

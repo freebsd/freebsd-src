@@ -1,0 +1,36 @@
+.\"
+.\" Skrivet av Jörgen Hägg, Lund, Sverige
+.\"
+.TH GROFF_MMSE 7 "21 February 1993" "Groff Version 1.08"
+.SH NAMN
+groff_mmse \- svenska mm makro för groff
+.SH SYNTAX
+.B groff
+.B \-mmse
+[
+.IR flaggor .\|.\|.
+]
+[
+.IR filer .\|.\|.
+]
+.SH BESKRIVNING
+\fBmmse\fP är en svensk variant av \fBmm\fP. Alla texter
+är översatta. En A4 sida får text som är 13 cm bred, 3.5 cm indragning
+samt är 28.5 cm hög.
+.LP
+\fBCOVER\fP kan använda \fIse_ms\fP som argument. Detta ger ett
+svenskt försättsblad.
+Se \fBgroff_mm(7)\fP för övriga detaljer.
+.SH "SKRIVET AV"
+Jörgen Hägg, Lunds Tekniska Högskola <jh@efd.lth.se>
+.SH FILER
+.B /usr/share/tmac/tmac.mse
+.B /usr/share/tmac/mm/se_*.cov
+.SH "SE OCKSÅ"
+.BR groff (1),
+.BR troff (1),
+.BR tbl (1),
+.BR pic (1),
+.BR eqn (1)
+.br
+.BR mm (7)

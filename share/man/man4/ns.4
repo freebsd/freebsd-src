@@ -1,0 +1,179 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ns.4	1.6 (Berkeley) 3/28/91
+.\"
+.Dd March 28, 1991
+.Dt NS 4
+.Os BSD 4.3
+.Sh NAME
+.Nm ns
+.Nd Xerox Network Systems(tm) protocol family
+.Sh SYNOPSIS
+.Nm options NS
+.Nm options NSIP
+.Nm pseudo-device ns
+.Sh DESCRIPTION
+The
+.Tn NS
+protocol family is a collection of protocols
+layered atop the
+.Em Internet  Datagram  Protocol
+.Pq Tn IDP
+transport layer, and using the Xerox 
+.Tn NS
+address formats.
+The
+.Tn NS
+family provides protocol support for the
+.Dv SOCK_STREAM , SOCK_DGRAM , SOCK_SEQPACKET ,
+and
+.Dv SOCK_RAW
+socket types; the
+.Dv SOCK_RAW
+interface is a debugging tool, allowing you to trace all packets
+entering, (or with toggling kernel variable, additionally leaving) the local
+host.
+.Sh ADDRESSING
+.Tn NS
+addresses are 12 byte quantities, consisting of a 
+4 byte Network number, a 6 byte Host number and a 2 byte port number,
+all stored in network standard format.
+(on the
+.Tn VAX
+these are word and byte reversed; on the
+.Tn Sun
+they are not
+reversed).  The include file
+.Aq Pa netns/ns.h
+defines the
+.Tn NS
+address as a structure containing unions (for quicker
+comparisons).
+.Pp
+Sockets in the Internet protocol family use the following
+addressing structure:
+.Bd -literal -offset indent
+struct sockaddr_ns {
+	short		sns_family;
+	struct ns_addr	sns_addr;
+	char		sns_zero[2];
+};
+.Ed
+.Pp
+where an
+.Ar ns_addr
+is composed as follows:
+.Bd -literal -offset indent
+union ns_host {
+	u_char		c_host[6];
+	u_short		s_host[3];
+};
+
+union ns_net {
+	u_char		c_net[4];
+	u_short		s_net[2];
+};
+
+struct ns_addr {
+	union ns_net	x_net;
+	union ns_host	x_host;
+	u_short	x_port;
+};
+.Ed
+.Pp
+Sockets may be created with an address of all zeroes to effect
+.Dq wildcard
+matching on incoming messages.
+The local port address specified in a
+.Xr bind 2
+call is restricted to be greater than
+.Dv NSPORT_RESERVED
+(=3000, in
+.Aq Pa netns/ns.h )
+unless the creating process is running
+as the super-user, providing a space of protected port numbers.
+.Sh PROTOCOLS
+The
+.Tn NS
+protocol family supported by the operating system
+is comprised of
+the Internet Datagram Protocol
+.Pq Tn IDP
+.Xr idp 4 ,
+Error Protocol (available through
+.Tn IDP ) ,
+and
+Sequenced Packet Protocol
+.Pq Tn SPP
+.Xr spp 4 .
+.Pp
+.Tn SPP
+is used to support the
+.Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
+abstraction,
+while
+.Tn IDP
+is used to support the
+.Dv SOCK_DGRAM
+abstraction.
+The Error protocol is responded to by the kernel
+to handle and report errors in protocol processing;
+it is, however,
+only accessible to user programs through heroic actions.
+.Sh SEE ALSO
+.Xr intro 3 ,
+.Xr byteorder 3 ,
+.Xr gethostbyname 3 ,
+.Xr getnetent 3 ,
+.Xr getprotoent 3 ,
+.Xr getservent 3 ,
+.Xr ns 3 ,
+.Xr intro 4 ,
+.Xr spp 4 ,
+.Xr idp 4 ,
+.Xr nsip 4
+.Rs
+.%T "Internet Transport Protocols"
+.%R Xerox Corporation document XSIS
+.%N 028112
+.Re
+.Rs
+.%T "An Advanced 4.3 BSD Interprocess Communication Tutorial"
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol family
+appeared in
+.Bx 4.3 .

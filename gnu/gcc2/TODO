@@ -1,0 +1,3 @@
+Fix obj library -- doesn't compile with b-make
+Move i386 sources to arch dependant directory
+Fix up make to build insn files from config files.

@@ -1,0 +1,42 @@
+.\" -*- nroff -*-
+.TH SOELIM 1 "15 September 1992" "Groff Version 1.08"
+.SH NAME
+soelim \- interpret .so requests in groff input
+.SH SYNOPSIS
+.B soelim
+[
+.B \-Cv
+]
+[
+.IR files \|.\|.\|.\|
+]
+.SH DESCRIPTION
+.B soelim
+reads
+.I files
+and replaces lines of the form
+.IP
+.BI .so\  file
+.LP
+by the contents of
+.IR file .
+It is useful if files included with
+.B so
+need to be preprocessed.
+Normally,
+.B soelim
+should be invoked with the
+.B \-s
+option of
+.BR groff .
+.SH OPTIONS
+.TP
+.B \-C
+Recognize
+.B .so
+even when followed by a character other than space or newline.
+.TP
+.B \-v
+Print the version number.
+.SH "SEE ALSO"
+.BR groff (1)

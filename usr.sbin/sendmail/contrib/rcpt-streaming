@@ -1,0 +1,297 @@
+(Message /home/auspex/a/staff/eric/.mh/inbox:2575)
+From:    John Gardiner Myers <jgm+@cmu.edu>
+Subject: contrib/rcpt-streaming
+Date:    Fri,  4 Jun 1993 13:54:06 -0400 (EDT)
+To:      sendmail@cs.berkeley.edu
+
+This patch implements "RCPT streaming" in sendmail version 6.  This
+patch is not an official part of sendmail.  Please report all problems
+with this patch to jgm+@cmu.edu.
+
+RCPT streming avoids network round trips by sending all RCPT commands
+for a single SMTP transaction together.  Sendmail then waits for all
+the replies, matching them up with the apropriate addresses.
+
+Apply to the sendmail src directory (your line numbers may vary) and
+compile with -DRCPTSTREAM
+
+diff -cr src.orig/deliver.c src/deliver.c
+*** src.orig/deliver.c	Thu May 27 14:38:22 1993
+--- src/deliver.c	Fri Jun  4 13:50:02 1993
+***************
+*** 1325,1330 ****
+--- 1325,1345 ----
+  			register int i;
+  
+  			/* send the recipient list */
++ #ifdef RCPTSTREAM
++ /***********************************************************************
++  *
++  * RCPT streaming code by John G Myers, jgm+@cmu.edu
++  * This is not supported by the maintainer of sendmail.
++  * Report all bugs concerning RCPT streaming to jgm+@cmu.edu
++  *
++  ***********************************************************************
++  */
++ 			for (to = tochain; to != NULL; to = to->q_tchain)
++ 			{
++ 				smtpstreammessage("RCPT To:<%s>", m, mci,
++ 						  to->q_user);
++ 			}
++ #endif
+  			tobuf[0] = '\0';
+  			for (to = tochain; to != NULL; to = to->q_tchain)
+  			{
+diff -cr src.orig/usersmtp.c src/usersmtp.c
+*** src.orig/usersmtp.c	Thu May 27 14:38:09 1993
+--- src/usersmtp.c	Fri Jun  4 13:48:24 1993
+***************
+*** 44,49 ****
+--- 44,61 ----
+  
+  # include <sysexits.h>
+  # include <errno.h>
++ #ifdef RCPTSTREAM
++ /***********************************************************************
++  *
++  * RCPT streaming code by John G Myers, jgm+@cmu.edu
++  * This is not supported by the maintainer of sendmail.
++  * Report all bugs concerning RCPT streaming to jgm+@cmu.edu
++  *
++  ***********************************************************************
++  */
++ # include <sys/types.h>
++ # include <sys/time.h>
++ #endif
+  
+  # ifdef SMTP
+  
+***************
+*** 62,67 ****
+--- 74,87 ----
+  char	SmtpError[MAXLINE] = "";	/* save failure error messages */
+  int	SmtpPid;			/* pid of mailer */
+  
++ #ifdef RCPTSTREAM
++ char	*SmtpStreamBuf;			/* buffer for streaming output */
++ int	SmtpStreamBufSize = 0;		/* allocated size of buffer */
++ char	*SmtpStreamStart;		/* pointer to text not yet written */
++ int	SmtpStreamLen = 0;		/* # chars not yet written */
++ #endif
++ 
++ 
+  #ifdef __STDC__
+  extern	smtpmessage(char *f, MAILER *m, MCI *mci, ...);
+  #endif
+***************
+*** 404,410 ****
+--- 424,432 ----
+  {
+  	register int r;
+  
++ #ifndef RCPTSTREAM
+  	smtpmessage("RCPT To:<%s>", m, mci, to->q_user);
++ #endif
+  
+  	SmtpPhase = mci->mci_phase = "RCPT wait";
+  	setproctitle("%s %s: %s", e->e_id, CurHostName, mci->mci_phase);
+***************
+*** 626,631 ****
+--- 648,657 ----
+  	bool firstline = TRUE;
+  	char junkbuf[MAXLINE];
+  
++ #ifdef RCPTSTREAM
++ 	extern char MsgBuf[];		/* err.c */
++ #endif
++ 
+  	if (mci->mci_out != NULL)
+  		(void) fflush(mci->mci_out);
+  
+***************
+*** 641,646 ****
+--- 667,709 ----
+  		register char *p;
+  		extern time_t curtime();
+  
++ #ifdef RCPTSTREAM
++ 		if (SmtpStreamLen > 0) {
++ 		    int outfd;
++ 
++ 		    outfd = fileno(mci->mci_out);
++ 
++ 		    nonblock(outfd, TRUE);
++ 		    r = write(outfd, SmtpStreamStart, SmtpStreamLen);
++ 		    nonblock(outfd, FALSE);
++ 		    if (r == -1 && errno != EAGAIN
++ #ifdef EWOULDBLOCK
++ 			&& errno != EWOULDBLOCK
++ #endif
++ 			) {
++ 
++ 			mci->mci_errno = errno;
++ 			message("451 streamreply: write error to %s",
++ 				mci->mci_host);
++ 
++ 			/* if debugging, pause so we can see state */
++ 			if (tTd(18, 100))
++ 			  pause();
++ # ifdef LOG
++ 			if (LogLevel > 0)
++ 			  syslog(LOG_INFO, "%s", &MsgBuf[4]);
++ # endif /* LOG */
++ 			/* stop trying to write output */
++ 			SmtpStreamLen = 0;
++ 			continue;
++ 		    }
++ 		    if (r > 0) {
++ 			SmtpStreamStart += r;
++ 			SmtpStreamLen -= r;
++ 		    }
++ 		}
++ #endif /* RCPTSTREAM */
++ 
+  		/* actually do the read */
+  		if (e->e_xfp != NULL)
+  			(void) fflush(e->e_xfp);	/* for debugging */
+***************
+*** 742,747 ****
+--- 805,880 ----
+  
+  	return (r);
+  }
++ 
++ #ifdef RCPTSTREAM
++ /*
++ **  SMTPSTREAMMESSAGE -- buffer message to be streamed to server
++ **
++ **	Parameters:
++ **		f -- format
++ **		m -- the mailer to control formatting.
++ **		a, b, c -- parameters
++ **
++ **	Returns:
++ **		none.
++ **
++ **	Side Effects:
++ **		stores message in SmtpStreamBuf
++ */
++ 
++ /*VARARGS1*/
++ #ifdef __STDC__
++ smtpstreammessage(char *f, MAILER *m, MCI *mci, ...)
++ #else
++ smtpstreammessage(f, m, mci, va_alist)
++ 	char *f;
++ 	MAILER *m;
++ 	MCI *mci;
++ 	va_dcl
++ #endif
++ {
++ 	VA_LOCAL_DECL
++ 	int len;
++ 
++ 	VA_START(mci);
++ 	(void) vsprintf(SmtpMsgBuffer, f, ap);
++ 	VA_END;
++ 
++ 	if (tTd(18, 1) || Verbose)
++ 		nmessage(">>> %s", SmtpMsgBuffer);
++ 
++ 	if (mci->mci_out == NULL) {
++ 	    if (tTd(18, 1)) printf("smtpstreammessage: NULL mci_out\n");
++ 	    return;
++ 	}
++ 
++ 	strcat(SmtpMsgBuffer, m == NULL ? "\r\n" : m->m_eol);
++ 	len = strlen(SmtpMsgBuffer);
++ 
++ 	if (SmtpStreamLen == 0) {
++ 	    if (SmtpStreamBufSize == 0) {
++ 		SmtpStreamBufSize = MAXLINE;
++ 		SmtpStreamBuf = xalloc(SmtpStreamBufSize);
++ 	    }
++ 	    SmtpStreamStart = SmtpStreamBuf;
++ 	}
++ 
++ 	if (SmtpStreamBufSize - SmtpStreamLen < len + 1) {
++ 	    int start = SmtpStreamStart - SmtpStreamBuf;
++ 	    SmtpStreamBufSize += MAXLINE;
++ 	    SmtpStreamBuf = realloc(SmtpStreamBuf, SmtpStreamBufSize);
++ 	    if (!SmtpStreamBuf) {
++ 		syserr("Out of memory!!");
++ 		abort();
++ 		/* exit(EX_UNAVAILABLE); */
++ 	    }
++ 	    SmtpStreamStart = SmtpStreamBuf + start;
++ 	}
++ 
++ 	strcpy(SmtpStreamBuf + SmtpStreamLen, SmtpMsgBuffer);
++ 	SmtpStreamLen += len;
++ }
++ #endif /* RCPTSTREAM */
+  /*
+  **  SMTPMESSAGE -- send message to server
+  **
+Only in src: usersmtp.c.orig
+Only in src: usersmtp.c~
+Only in src: usersmtp.o
+diff -cr src.orig/util.c src/util.c
+*** src.orig/util.c	Thu May 27 14:38:20 1993
+--- src/util.c	Wed Jun  2 16:39:15 1993
+***************
+*** 955,960 ****
+--- 955,1004 ----
+  			return (FALSE);
+  	return (TRUE);
+  }
++ 
++ #ifdef RCPTSTREAM
++ /***********************************************************************
++  *
++  * RCPT streaming code by John G Myers, jgm+@cmu.edu
++  * This is not supported by the maintainer of sendmail.
++  * Report all bugs concerning RCPT streaming to jgm+@cmu.edu
++  *
++  ***********************************************************************
++  */
++ 
++ #include <fcntl.h>
++ 
++ /*
++ **  NONBLOCK -- set or clear non-blocking mode on file descriptor
++ **
++ **	Parameters:
++ **		fd -- the file descriptor
++ **		mode -- TRUE to set non-blocking mode
++ **			FALSE to clear non-blocking mode
++ **
++ **	Returns:
++ **		none
++ **
++ **	Side Effects:
++ **		modifies nonblocking status of fd
++ */
++ 
++ nonblock(fd, mode)
++ int fd;
++ bool mode;
++ {
++     int flags;
++ 
++     flags = fcntl(fd, F_GETFL, 0);
++     if (mode) {
++ 	flags |= FNONBIO;
++     }
++     else {
++ 	flags &= ~FNONBIO;
++     }
++     fcntl(fd, F_SETFL, flags);
++ }
++ #endif
+  /*
+  **  STRCONTAINEDIN -- tell if one string is contained in another
+  **
+Only in src: util.c.orig
+Only in src: util.o
+Only in src: version.o

@@ -1,0 +1,176 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1991 Free Software Foundation
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+/*
+ * Bags implemented via William Pugh SkipList algorithms.
+ * CACM, June 1990, p 668-676.
+ *
+ */
+
+#ifndef _<T><C>SkipMap_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T><C>SkipMap_h 1
+
+#include "<T>.<C>.Map.h"
+
+#include <values.h>
+#include <MLCG.h>
+
+class <T><C>SkipMap;
+class <T><C>RealSkipMapNode;
+
+class <T><C>SkipMapNode
+{
+friend class <T><C>SkipMap;
+  private:
+    <T><C>RealSkipMapNode * * forward;
+  protected:
+    <T><C>SkipMapNode(int size);
+};
+
+class <T><C>RealSkipMapNode : public <T><C>SkipMapNode
+{
+friend class <T><C>SkipMap;
+  private:
+    <T>             item;
+    <C>             cont;
+    <T><C>RealSkipMapNode(<T&> h, <C&> i, int size);
+};
+
+typedef <T><C>RealSkipMapNode* <T><C>SkipMapNodePtr;
+
+inline <T><C>SkipMapNode::<T><C>SkipMapNode(int size)
+: forward(new <T><C>SkipMapNodePtr[size+1])
+{
+}
+
+inline <T><C>RealSkipMapNode::<T><C>RealSkipMapNode(<T&> h, <C&> i, int size)
+: item(h), cont(i),
+  <T><C>SkipMapNode(size)
+{
+}
+
+class <T><C>SkipMap : public <T><C>Map
+{
+friend class <T><C>SkipMapinit;
+  protected:
+    <T><C>SkipMapNode*   header;
+    int                  level;
+    int                  max_levels;
+    int                  randoms_left;
+    long                 random_bits;
+    
+    static MLCG*         gen;
+    int                  random_level(void);
+    
+    <T><C>SkipMapNodePtr leftmost();
+    <T><C>SkipMapNodePtr rightmost();
+    <T><C>SkipMapNodePtr pred(<T><C>SkipMapNodePtr t);
+    <T><C>SkipMapNodePtr succ(<T><C>SkipMapNodePtr t);
+    void                 _kill();
+  private:
+    enum { BITS_IN_RANDOM = LONGBITS-1 };
+    
+  public:
+    <T><C>SkipMap( <C&> dflt, long size=DEFAULT_INITIAL_CAPACITY);
+    <T><C>SkipMap(<T><C>SkipMap& a);
+    ~<T><C>SkipMap();
+    
+    <C>&          operator [] (<T&> key);
+    
+    void          del(<T&> key);
+    
+    Pix           first();
+    void          next(Pix& i);
+    <T>&          key(Pix i);
+    <C>&          contents(Pix i);
+    
+    Pix           seek(<T&> key);
+    int           contains(<T&> key);
+    void          clear(); 
+    
+    Pix           last();
+    void          prev(Pix& i);
+    
+    int           OK();
+};
+
+inline <T><C>SkipMap::~<T><C>SkipMap()
+{
+    _kill();
+    delete header;
+}
+
+inline <T><C>SkipMapNodePtr <T><C>SkipMap::leftmost()
+{
+    return header->forward[0]==header ? 0 : header->forward[0];
+}
+
+inline Pix <T><C>SkipMap::first()
+{
+    return Pix(leftmost());
+}
+
+inline Pix <T><C>SkipMap::last()
+{
+    return Pix(rightmost());
+}
+
+inline <T><C>SkipMapNodePtr <T><C>SkipMap::succ(<T><C>SkipMapNodePtr t)
+{
+    return t->forward[0]==header ? 0 : t->forward[0];
+}
+
+inline void <T><C>SkipMap::next(Pix& i)
+{
+    if (i != 0) i = Pix(succ((<T><C>SkipMapNodePtr)i));
+}
+
+inline void <T><C>SkipMap::prev(Pix& i)
+{
+    if (i != 0) i = Pix(pred((<T><C>SkipMapNodePtr)i));
+}
+
+inline <T>& <T><C>SkipMap::key (Pix i)
+{
+    if (i == 0) error("null Pix");
+    return ((<T><C>SkipMapNodePtr)i)->item;
+}
+
+inline <C>& <T><C>SkipMap::contents (Pix i)
+{
+    if (i == 0) error("null Pix");
+    return ((<T><C>SkipMapNodePtr)i)->cont;
+}
+
+inline int <T><C>SkipMap::contains(<T&> key)
+{
+    return seek(key) != 0;
+}
+
+static class <T><C>SkipMapinit
+{
+  public:
+    <T><C>SkipMapinit();
+    ~<T><C>SkipMapinit();
+  private:
+    static int count;
+} <T><C>skipMapinit;
+
+#endif

@@ -1,0 +1,27 @@
+# /etc/crontab.src - root's crontab for Vixie's cron
+#
+# PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
+# --------------------         -----   ----------------------
+# CURRENT PATCH LEVEL:         1       00131
+# --------------------         -----   ----------------------
+#
+# 06 Apr 93	Adam Glass	Fixed to be a better template for 386bsd
+#
+SHELL=/bin/sh
+PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
+HOME=/var/log
+#
+#minute	hour	mday	month	wday	command
+#
+#0/10	*	*	*	*	/etc/dmesg - >> messages
+#0/15	* 	*	*	*	/usr/lib/atrun
+#37	4	*	*	*	./cronrun-day > cronout-day 2>&1
+#43	4	*	*	Sun	./cronrun-wk  > cronout-wk  2>&1
+#51	4	1	*	*	./cronrun-mon > cronout-mon 2>&1
+0/15	*	*	*	*	/usr/libexec/atrun
+0	2	*	*	*	/etc/daily > /var/log/daily.out 2>&1
+30	3	*	*	6	/etc/weekly > /var/log/weekly.out 2>&1
+30	5	1	*	*	/etc/monthly > /var/log/monthly.out 2>&1
+#45	*	*	*	*	/bin/echo /usr/local/bin/uucico -r1 | /bin/su uucpa
+#0-59/5	*	*	*	*	/usr/local/bin/uucico -r1
+#37	*	*	*	*	touch /var/spool/uucp/jpunix/C./C.A0000

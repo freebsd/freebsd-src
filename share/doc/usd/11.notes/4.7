@@ -1,0 +1,81 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)4.7	6.2 (Berkeley) 4/17/91
+.\"	4.7,v 1.2 1993/08/01 07:37:23 mycroft Exp
+.\"
+.se "Modifying Access Rights for Many Notesfiles"
+
+	It is convenient to add entries to a large number of
+access lists simultaneously.
+The nfaccess program adds an access specification to each of
+a specified list of notesfiles.
+Nfaccess functions similarly to chmod(1).
+Nfaccess is invoked as:
+
+	nfaccess <access-right> notesfile [notesfile ...]
+
+The ``access-right'' is formatted as: ``type:name=mode''.
+Type can be any of ``user'', ``group'', or ``system'';
+capitalized variants are also valid.
+The ``type:'' specification can be omitted.
+``User'' is assumed in these cases.
+The ``mode'' field consists of a sequence of the
+characters ``d'', ``r'', ``w'', ``a'' and ``n''.
+These indicate director, read, write, answer (respond) and null
+access respectively.
+
+	Nfaccess requires user and group entries to be valid
+by looking for them in /etc/passwd and /etc/group.
+System entries are not checked for validity.
+Nfaccess will add the entry to the access list of the specified
+notesfiles.
+If an entry for that particular user, group or system exists,
+the new access right replaces the old access rights.
+The computed mode is an absolute mode; the previous value in
+the access list (if any) is replaced with the new mode.
+
+	Any user can run the nfaccess program.
+Nfaccess refuses to modify access lists for any notesfile
+where the user is not a director.
+The nfaccess program is stored in the notesfile utility
+directory, typically ``/usr/spool/notes/.utilities''.
+
+	Nfaccess is often used to remedy missing permissions
+in a number of notesfiles.
+One example is when the notesfile administrator is replaced;
+nfaccess is used to grant director access to the appropriate
+notesfiles (usually most of them).
+As new notesfiles are created, the access list can be tuned
+by placing lists of access-rights in the file
+``/usr/spool/notes/.utilities/access-template''.
+These access-rights are added to the default access list
+of newly created notesfiles.

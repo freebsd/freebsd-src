@@ -1,0 +1,198 @@
+.\"	ci.1,v 1.2 1993/08/02 17:51:19 mycroft Exp	-*- nroff -*-
+.TH CI 1 6/29/83 "Purdue University"
+.SH NAME
+ci \- check in RCS revisions
+.SH SYNOPSIS
+.B ci
+[ options ]
+file ...
+.SH DESCRIPTION
+.I Ci
+stores new revisions into RCS files.
+Each file name ending in `,v' is taken to be an RCS file, all others
+are assumed to be working files containing new revisions.
+\fICi\fR deposits the contents of each working file
+into the corresponding RCS file.
+.PP
+Pairs of RCS files and working files may be specified in 3 ways (see also the
+example section of \fIco\fR (1)).
+.PP
+1) Both the RCS file and the working file are given. The RCS file name is of
+the form \fIpath1/workfile\fR,v
+and the working file name is of the form
+\fIpath2/workfile\fR, where 
+\fIpath1/\fR and
+\fIpath2/\fR are (possibly different or empty) paths and
+\fIworkfile\fR is a file name.
+.PP
+2) Only the RCS file is given. 
+Then the working file is assumed to be in the current
+directory and its name is derived from the name of the RCS file
+by removing \fIpath1/\fR and the suffix `,v'.
+.PP
+3) Only the working file is given. 
+Then the name of the RCS file is derived from the name of the working file
+by removing \fIpath2/\fR
+and appending the suffix `,v'.
+.PP
+If the RCS file is omitted or specified without a path, then \fIci\fR
+looks for the RCS file first in the directory ./RCS and then in the current
+directory. 
+.PP
+For \fIci\fR to work, the caller's login must be on the access list,
+except if the access list is empty or the caller is the superuser or the
+owner of the file.
+To append a new revision to an existing branch, the tip revision on
+that branch must be locked by the caller. Otherwise, only a 
+new branch can be created. This restriction is not enforced
+for the owner of the file, unless locking is set to \fIstrict\fR
+(see \fIrcs\fR (1)).
+A lock held by someone else may be broken with the \fIrcs\fR command.
+.PP
+Normally, \fIci\fR checks whether the revision to be deposited is different
+from the preceding one. If it is not different, \fIci\fR
+either aborts the deposit (if \fB-q\fR is given) or asks whether to abort
+(if \fB-q\fR is omitted). A deposit can be forced with the \fB-f\fR option.
+.PP
+For each revision deposited, \fIci\fR prompts for a log message.
+The log message should summarize the change and must be terminated with
+a line containing a single `.' or a control-D.
+If several files are checked in, \fIci\fR asks whether to reuse the
+previous log message.
+If the std. input is not a terminal, \fIci\fR suppresses the prompt 
+and uses the same log message for all files.
+See also \fB-m\fR.
+.PP
+The number of the deposited revision can be given by any of the options
+\fB-r\fR, \fB-f\fR, \fB-k\fR, \fB-l\fR, \fB-u\fR, or \fB-q\fR (see \fB-r\fR).
+.PP
+If the RCS file does not exist, \fIci\fR creates it and
+deposits the contents of the working file as the initial revision
+(default number: 1.1).
+The access list is initialized to empty.
+Instead of the log message, \fIci\fR requests descriptive text (see
+\fB-t\fR below).
+.TP 10
+.B \-r\fR[\fIrev\fR] 
+assigns the revision number \fIrev\fR 
+to the checked-in revision, releases the corresponding lock, and
+deletes the working file. This is also the default.
+
+If \fIrev\fR is omitted, \fIci\fR derives the new revision number from
+the caller's last lock. If the caller has locked the tip revision of a branch,
+the new revision is appended to that branch. The new revision number is obtained
+by incrementing the tip revision number.
+If the caller locked a non-tip revision, a new branch is started at
+that revision by incrementing the highest branch number at that revision.
+The default initial branch and level numbers are 1.
+If the caller holds no lock, but he is the owner of the file and locking
+is not set to \fIstrict\fR, then the revision is appended to the trunk.
+
+If \fIrev\fR indicates a revision number, it must be higher than the latest
+one on the branch to which \fIrev\fR belongs, or must start a new branch.
+
+If \fIrev\fR indicates a branch instead of a revision,
+the new revision is appended to that branch. The level number is obtained
+by incrementing the tip revision number of that branch.
+If \fIrev\fR indicates a non-existing branch,
+that branch is created with the initial revision numbered \fIrev.1\fR.
+
+Exception: On the trunk, revisions can be appended to the end, but
+not inserted.
+.TP 10
+.B \-f\fR[\fIrev\fR]
+forces a deposit; the new revision is deposited even it is not different
+from the preceding one.
+.TP 10
+.B \-k\fR[\fIrev\fR]
+searches the working file for keyword values to determine its revision number, 
+creation date, author, and state (see \fIco\fR (1)), and assigns these 
+values to the deposited revision, rather than computing them locally.
+A revision number given by a command option overrides the number
+in the working file.
+This option is useful for software distribution. A revision that is sent to
+several sites should be checked in with the \fB-k\fR option at these sites to 
+preserve its original number, date, author, and state. 
+.TP 10
+.B \-l\fR[\fIrev\fR]
+works like \fB-r\fR, except it performs an additional \fIco -l\fR for the
+deposited revision. Thus, the deposited revision is immediately
+checked out again and locked.
+This is useful for saving a revision although one wants to continue 
+editing it after the checkin.
+.TP 10
+.B \-u\fR[\fIrev\fR]
+works like \fB-l\fR, except that the deposited revision is not locked.
+This is useful if one wants to process (e.g., compile) the revision
+immediately after checkin.
+.TP 10
+.B \-q\fR[\fIrev\fR] 
+quiet mode; diagnostic output is not printed.
+A revision that is not different from the preceding one is not deposited,
+unless \fB-f\fR is given.
+.TP 10
+.BI \-m "msg"
+uses the string \fImsg\fR as the log message for all revisions checked in.
+.TP 10
+.BI \-n "name"
+assigns the symbolic name \fIname\fR to the number of the checked-in revision.
+\fICi\fR prints an error message if \fIname\fR is already assigned to another
+number.
+.TP 10
+.BI \-N "name"
+same as \fB-n\fR, except that it overrides a previous assignment of \fIname\fR.
+.TP
+.BI \-s "state"
+sets the state of the checked-in revision to the identifier \fIstate\fR.
+The default is \fIExp\fR.
+.TP
+.B \-t\fR[\fItxtfile\fR]
+writes descriptive text into the RCS file (deletes the existing text).
+If \fItxtfile\fR is omitted, 
+\fIci\fR prompts the user for text supplied from the std. input,
+terminated with a line containing a single `.' or control-D.
+Otherwise, the descriptive text is copied from the file \fItxtfile\fR.
+During initialization, descriptive text is requested
+even if \fB-t\fR is not given.
+The prompt is suppressed if std. input is not a terminal.
+.SH DIAGNOSTICS
+For each revision,
+\fIci\fR prints the RCS file, the working file, and the number
+of both the deposited and the preceding revision.
+The exit status always refers to the last file checked in,
+and is 0 if the operation was successful, 1 otherwise.
+.SH "FILE MODES"
+An RCS file created by \fIci\fR inherits the read and execute permissions
+from the working file. If the RCS file exists already, \fIci\fR
+preserves its read and execute permissions.
+\fICi\fR always turns off all write permissions of RCS files. 
+.SH FILES
+The caller of the command
+must have read/write permission for the directories containing
+the RCS file and the working file, and read permission for the RCS file itself.
+A number of temporary files are created.
+A semaphore file is created in the directory containing the RCS file.
+\fICi\fR always creates a new RCS file and unlinks the old one.
+This strategy makes links to RCS files useless.
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:19
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+co (1), ident(1), rcs (1), rcsdiff (1), rcsintro (1), rcsmerge (1), rlog (1), rcsfile (5), sccstorcs (8).
+.sp 0
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision Control
+System," in \fIProceedings of the 6th International Conference on Software
+Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH BUGS
+

@@ -1,0 +1,5 @@
+UCBVAX.BERKELEY.EDU.   99999999        IN      A           128.32.0.10
+UCBARPA.BERKELEY.EDU.  99999999        IN      A           128.32.0.4
+BERKELEY.EDU.          99999999        IN      A           10.2.0.78
+BERKELEY.EDU.          99999999        IN      NS          UCBVAX.BERKELEY.EDU
+                       99999999        IN      NS          UCBARPA.BERKELEY.EDU

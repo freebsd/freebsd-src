@@ -1,0 +1,168 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)qsort.3	6.7 (Berkeley) 6/29/91
+.\"
+.Dd June 29, 1991
+.Dt QSORT 3
+.Os
+.Sh NAME
+.Nm qsort, heapsort
+.Nd sort functions
+.Sh SYNOPSIS
+.Fd #include <stdlib.h>
+.Ft void
+.Fn qsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Ft int
+.Fn heapsort "void *base" "size_t nmemb" "size_t size" "int (*compar)(const void *, const void *)"
+.Sh DESCRIPTION
+The
+.Fn qsort
+function is a modified partition-exchange sort, or quicksort.
+The
+.Fn heapsort
+function is a modified selection sort.
+.Pp
+The
+.Fn qsort
+and
+.Fn heapsort
+functions sort an array of
+.Fa nmemb
+objects, the initial member of which is pointed to by
+.Fa base .
+The size of each object is specified by
+.Fa size .
+.Pp
+The contents of the array are sorted in ascending order according to
+a comparison function pointed to by
+.Fa compar ,
+which is called with two arguments that point to the objects being
+compared.
+.Pp
+The comparison function must return an integer less than, equal to, or
+greater than zero if the first argument is considered to be respectively
+less than, equal to, or greater than the second.
+.Pp
+The functions
+.Fn qsort
+and
+.Fn heapsort
+are
+.Em not
+stable, that is, if two members compare as equal, their order in
+the sorted array is undefined.
+.Pp
+The
+.Fn qsort
+function is an implementation of C.A.R. Hoare's ``quicksort'' algorithm,
+a variant of partition-exchange sorting; in particular, see D.E. Knuth's
+Algorithm Q.
+.Fn Qsort
+takes O N lg N average time.
+This implementation uses median selection to avoid the traditional
+O N**2 worst-case behavior.
+.Pp
+The
+.Fn heapsort
+function is an implementation of J.W.J. William's ``heapsort'' algorithm,
+a variant of selection sorting; in particular, see D.E. Knuth's Algorithm H.
+.Fn Heapsort
+takes O N lg N worst-case time.
+Its
+.Em only
+advantage over
+.Fn qsort
+is that it uses no additional memory.
+.Sh RETURN VALUES
+The
+.Fn qsort
+function
+returns no value.
+.Pp
+Upon successful completion,
+.Fn heapsort
+returns 0.
+Otherwise, it returns \-1 and the global variable
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn heapsort
+function succeeds unless:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa size
+argument is zero.
+.Sh COMPATIBILITY
+Previous versions of
+.Fn qsort
+did not permit the comparison routine to itself call
+.Fn qsort 3 .
+This is no longer true.
+.Sh SEE ALSO
+.Xr sort 1 ,
+.Xr radixsort 3
+.Rs
+.%A Hoare, C.A.R.
+.%D 1962
+.%T "Quicksort"
+.%J "The Computer Journal"
+.%V 5:1
+.%P pp. 10-15
+.Re
+.Rs
+.%A Williams, J.W.J
+.%D 1964
+.%T "Heapsort"
+.%J "Communications of the ACM"
+.%V 7:1
+.%P pp. 347-348
+.Re
+.Rs
+.%A Knuth, D.E.
+.%D 1968
+.%B "The Art of Computer Programming"
+.%V Vol. 3
+.%T "Sorting and Searching"
+.%P pp. 114-123, 145-149
+.Re
+.Sh STANDARDS
+The
+.Fn qsort
+function
+conforms to
+.St -ansiC .

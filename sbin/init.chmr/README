@@ -1,0 +1,44 @@
+This is a new version of /sbin/init, with many features:
+already implemented and working:
+	o modular design (separate function for each state)
+	o error logging via syslog()
+	o extensive debugging facilities (compile time option)
+	o detection of failing getty processes (exit status and runtime)
+	o if a getty process is failing repeatedly, retry it after
+	  configurable time intervals.
+	o recovery from non-fatal errors such as out of memory or
+	  fork failed.
+	o a manual page
+	o most parameters can be changed from a configuration file (default
+	  startup state, retry time etc)
+	o some system parameters can also be set from the configuration file
+	  (default process limits, initial environment variables)
+	o fully compatible with old init (if config file does not exist)
+planned but not yet implemented:
+	o redirecting error messages to stderr instead of syslog if init
+	  is executed by the user (Syntaxcheck)
+	o support for ty_window (for window systems)
+	o maybe sometime support for /etc/inittab
+
+What you can define (Add "CFLAGS += -D..." to the Makefile):
+	-DDEBUG		enables debugging facilities:
+			you can increment debug level with debug keyword in
+			config file, -d option, or by sending SIGUSR1 to init.
+			SIGUSR2 sets debug level to 0.
+	-DUNTRUSTED	debugging code: on SIGINT it execs /sbin/init.ori
+			(do this only in singleuser mode !)
+	-DCONFIGURE	on startup (and when requested), read /etc/init.conf
+			and set parameters in it.
+	-DFAKE_SYSLOG	do not use syslog, but write to /dev/console.
+			This makes it MUCH smaller !
+	-DSMALL		do not use perror, but write error codes.
+			Makes it even smaller, but requires -DFAKE_SYSLOG.
+For the floppy version, compile this with -DFAKE_SYSLOG -DSMALL. If compiled
+with gcc1, it is not bigger than the original init (20k).
+
+If you want to use CONFIGURE, you also have to copy init.conf to /etc .
+
+I'm interested in any feedback you have !
+
+							Christoph Robitschko
+							chmr@edvz.tu-graz.ac.at

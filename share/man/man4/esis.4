@@ -1,0 +1,220 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)esis.4	6.2 (Berkeley) 3/28/91
+.\"
+.Dd March 28, 1991
+.Dt ESIS 4
+.Os
+.Sh NAME
+.Nm es-is
+.Nd End System to Intermediate System Routing Protocol
+.Sh SYNOPSIS
+.Sy pseudo-device
+.Nm ether
+.Sh DESCRIPTION
+The
+.Nm ES-IS
+routing protocol is used to dynamically map between
+.Tn ISO NSAP
+addresses and
+.Tn ISO SNPA
+addresses; to permit End and Intermediate Systems
+to learn of each other's existence; and to allow Intermediate Systems
+to inform End Systems of (potentially) better routes to use when 
+forwarding
+.Tn NPDU Ns s
+to a particular destination.
+.Pp
+The mapping between
+.Tn NSAP
+addresses and
+.Tn SNPA
+addresses is accomplished by
+transmitting hello
+.Tn PDU Ns s
+between the cooperating Systems. These
+.Tn PDU Ns s
+are transmitted whenever the
+.Em configuration
+timer expires.
+When a hello
+.Tn PDU
+is received, the
+.Tn SNPA
+address that it conveys is stored in the routing table for as long as the
+.Em holding time
+in the
+.Tn PDU
+suggests. The default
+.Em holding time
+(120 seconds) placed in the hello
+.Tn PDU ,
+the configuration timer value,
+and the system type (End System or Intermediate System) may be changed by
+issuing an
+.Dv SIOCSSTYPE
+.Xr ioctl 2 ,
+which is defined in
+.Pa /sys/netiso/iso_snpac.h.
+.Pp
+The protocol behaves differently depending on whether the System is
+configured as an End System or an Intermediate System.
+.Sh END SYSTEM OPERATION
+When an interface requests a mapping for an address not in the cache,
+the
+.Tn SNPA
+of any known Intermediate System is returned. If an Intermediate
+System is not known, then the
+.Em all end systems
+multicast address
+is returned. It is assumed that the intended recipient of the NPDU will
+immediately transmit a hello
+.Tn PDU
+back to the originator of the
+.Tn NPDU .
+.Pp
+If an
+.Tn NPDU
+is forwarded by the End System, a redirect
+.Tn PDU
+will not be
+generated.
+However, redirect
+.Tn PDU Ns s
+received will be processed. This processing
+consists of adding an entry in the routing table. If the
+redirect is towards an Intermediate System, then an entry is made in the
+routing table as well.
+The entry in the routing table will may mark the
+.Tn NSAP
+address contained in the redirect
+.Tn PDU
+as the gateway for the destination
+system (if an NET is supplied), or will create a route with
+the NSAP address as the
+destination and the
+.Tn SNPA
+address (embodied as a link-level sockaddr) as the
+gateway.
+.Pp
+If the System is configured as an End System, it will report all the
+.Tn NSAP Ns s
+that have been configured using the ifconfig command, and no others.
+It is possible to have more than one
+.Tn NSAP
+assigned to a given interface,
+and it is also possible to have the same
+.Tn NSAP
+assigned to multiple
+interfaces.
+However, any
+.Tn NSAP
+containing an NSEL that is consistent with the
+nsellength option (default one) of any interface will be accepted as
+an
+.Tn NSAP
+for this System.
+.Sh INTERMEDIATE SYSTEM OPERATION
+When an interface requests a mapping for an address not in the routing table,
+an error is returned.
+.Pp
+When an
+.Tn NPDU
+is forwarded out on the same interface that the
+.Tn NPDU
+arrived upon,
+a redirect
+.Tn PDU
+is generated.
+.Sh MANUAL ROUTING TABLE MODIFICATION
+.Pp
+To facilitate communications with systems which do not use
+.Nm ES-IS,
+one may add a route whose destination is a sockaddr_iso containing
+the
+.Tn NSAP
+in question, and the gateway being a link-level sockaddr,
+either by writing a special purpose program, or using the
+.Xr route 8
+command e.g.:
+.Bd -literal
+route add -iface -osi 49.0.4.8.0.2b.b.83.bf \
+	-link qe0:8.0.2b.b.83.bf
+.Ed
+.Pp
+If the
+System is configured as an End System and has a single network interface
+which does not support multicast reception,
+it is necessary to manually configure the location of an
+.Tn IS ,
+using the route command in a similar way.
+There, the destination address should be
+.Dq default
+(spelled 
+out literally as 7
+.Tn ASCII
+characters), and the gateway should be
+once again be a link-level sockaddr specifying the
+.Tn SNPA
+of the
+.Tn IS .
+.Sh SEE ALSO
+.Xr un 4 ,
+.Xr iso 4 ,
+.Xr route 8 ,
+.Xr ifconfig 8
+.Rs
+.%T "End system to Intermediate system routing exchange protocol for use in conjunction with the Protocol for providing the connectionless-mode network service"
+.%R ISO
+.%N 9542
+.Re
+.Sh HISTORY
+The
+.Nm
+protocol implementation
+.Ud
+.Sh BUGS
+Redirect
+.Tn PDU Ns s
+do not contain options from the forwarded
+.Tn NPDU
+which generated
+the redirect. The multicast address used on the 802.3 network is taken from
+the
+.Tn NBS
+December 1987 agreements. This multicast address is not compatible
+with the 802.5 (Token Ring) multicast addresses format. Therefore, broadcast
+addresses are used on the 802.5 subnetwork.
+Researchers at the University of Wisconsin are constructing an implementation
+of the
+.Tn IS-IS
+routing protocol.

@@ -1,0 +1,132 @@
+.\"	rlog.1,v 1.2 1993/08/02 17:51:28 mycroft Exp	-*- nroff -*-
+.TH RLOG 1 6/29/83 "Purdue University"
+.SH NAME
+rlog \- print log messages and other information about RCS files
+.SH SYNOPSIS
+.B rlog
+[ options ]
+file ...
+.SH DESCRIPTION
+.I Rlog
+prints information about RCS files.
+Files ending in `,v' are RCS files, all others are working files. If
+a working file is given, \fIrlog\fR tries to find the corresponding
+RCS file first in directory ./RCS and then in the current directory,
+as explained in \fIco\fR (1).
+.PP
+\fIRlog\fR prints the following information for each
+RCS file: RCS file name, working file name, head (i.e., the number
+of the latest revision on the trunk), access list, locks,
+symbolic names, suffix, total number of revisions, 
+number of revisions selected for printing, and 
+descriptive text. This is followed by entries for the selected revisions in
+reverse chronological order for each branch. For each revision,
+\fIrlog\fR prints revision number, author, date/time, state, number of
+lines added/deleted (with respect to the previous revision),
+locker of the revision (if any), and log message.
+Without options, \fIrlog\fR prints complete information.
+The options below restrict this output.
+.TP 10
+.B \-L
+ignores RCS files that have no locks set; convenient in combination with
+\fB-R\fR, \fB-h\fR, or \fB-l\fR.
+.TP 10
+.B \-R
+only prints the name of the RCS file; convenient for translating a
+working file name into an RCS file name.
+.TP 10
+.B \-h
+prints only RCS file name, working file name, head, 
+access list, locks,
+symbolic names, and suffix.
+.TP 10
+.B \-t
+prints the same as \fB-h\fR, plus the descriptive text.
+.TP 10
+.BI \-d "dates"
+prints information about revisions with a checkin date/time in the ranges given by
+the semicolon-separated list of \fIdates\fR.
+A range of the form \fId1<d2\fR or \fId2>d1\fR
+selects the revisions that were deposited between
+\fId1\fR and \fId2\fR, (inclusive).
+A range of the form \fI<d\fR or \fId>\fR selects
+all revisions dated
+\fId\fR or earlier.
+A range of the form \fId<\fR or \fI>d\fR selects
+all revisions dated \fId\fR or later.
+A range of the form \fId\fR selects the single, latest revision dated \fId\fR or
+earlier.
+The date/time strings \fId, d1, \fRand \fId2\fR
+are in the free format explained in \fIco\fR (1). 
+Quoting is normally necessary, especially for \fI<\fR and \fI>\fR. Note that the separator is
+a semicolon.
+.TP 10
+.B \-l\fR[\fIlockers\fR]
+prints information about locked revisions.
+If the comma-separated list \fIlockers\fR of login names is given,
+only the revisions locked by the given login names are printed.
+If the list is omitted, all locked revisions are printed.
+.TP 10
+.BI \-r "revisions"
+prints information about revisions given in the comma-separated list
+\fIrevisions\fR of revisions and ranges. A range \fIrev1\-rev2\fR means revisions
+\fIrev1\fR to \fIrev2\fR on the same branch, \fI\-rev\fR means revisions
+from the beginning of the branch up to and including \fIrev\fR,
+and \fIrev\-\fR means revisions starting with \fIrev\fR to the end of the
+branch containing \fIrev\fR. An argument that is a branch means all
+revisions on that branch. A range of branches means all revisions
+on the branches in that range.
+.TP 10
+.BI \-s "states"
+prints information about revisions whose state attributes match one of the
+states given in the comma-separated list \fIstates\fR.
+.TP 10
+.B \-w\fR[\fIlogins\fR]
+prints information about revisions checked in by users with 
+login names appearing in the comma-separated list \fIlogins\fR.
+If \fIlogins\fR is omitted, the user's login is assumed.
+.PP
+\fIRlog\fR prints the intersection of the revisions selected with
+the options \fB-d\fR, \fB-l\fR, \fB-s\fR, \fB-w\fR, intersected
+with the union of the revisions selected by \fB-b\fR and \fB-r\fR.
+.SH EXAMPLES
+.nf
+.sp
+	rlog  -L  -R  RCS/*,v
+	rlog  -L  -h  RCS/*,v
+	rlog  -L  -l  RCS/*,v
+	rlog  RCS/*,v
+.sp
+.fi
+The first command prints the names of all RCS files in the subdirectory `RCS'
+which have locks. The second command prints the headers of those files,
+and the third prints the headers plus the log messages of the locked revisions.
+The last command prints complete information.
+.SH DIAGNOSTICS
+The exit status always refers to the last RCS file operated upon,
+and is 0 if the operation was successful, 1 otherwise.
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:28
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+ci (1), co (1), ident(1), rcs (1), rcsdiff (1), rcsintro (1), rcsmerge (1), rcsfile (5), sccstorcs (8).
+.sp 0
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision Control
+System," in \fIProceedings of the 6th International Conference on Software
+Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH BUGS
+
+
+
+

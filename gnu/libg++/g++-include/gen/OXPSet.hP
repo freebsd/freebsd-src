@@ -1,0 +1,102 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>OXPSet_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>OXPSet_h 1
+
+#include "<T>.Set.h"
+#include "<T>.XPlex.h"
+
+class <T>OXPSet : public <T>Set
+{
+protected:
+  <T>XPlex       p;
+
+public:
+                <T>OXPSet(int chunksize = DEFAULT_INITIAL_CAPACITY);
+                <T>OXPSet(const <T>OXPSet&);
+
+  Pix           add(<T&> item);
+  void          del(<T&> item);
+  int           contains(<T&> item);
+
+  void          clear();
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          operator () (Pix i);
+  int           owns(Pix i);
+  Pix           seek(<T&> item);
+
+  void          operator |= (<T>OXPSet& b);
+  void          operator -= (<T>OXPSet& b);
+  void          operator &= (<T>OXPSet& b);
+
+  int           operator == (<T>OXPSet& b);
+  int           operator != (<T>OXPSet& b);
+  int           operator <= (<T>OXPSet& b); 
+
+  int           OK();
+};
+
+
+inline <T>OXPSet::<T>OXPSet(int chunksize) 
+     : p(chunksize) { count = 0; }
+
+inline <T>OXPSet::<T>OXPSet(const <T>OXPSet& s) : p(s.p) { count = s.count; }
+
+inline Pix <T>OXPSet::first()
+{
+  return p.first();
+}
+
+inline void <T>OXPSet::next(Pix  & idx)
+{
+  p.next(idx);
+}
+
+inline <T>& <T>OXPSet::operator ()(Pix   idx)
+{
+  return p(idx);
+}
+
+inline void <T>OXPSet::clear()
+{
+  count = 0;  p.clear();
+}
+
+inline int <T>OXPSet::contains (<T&> item)
+{
+  return seek(item) != 0;
+}
+
+inline int <T>OXPSet::owns (Pix   idx)
+{
+  return p.owns(idx);
+}
+
+inline int <T>OXPSet::operator != (<T>OXPSet& b)
+{
+  return !(*this == b);
+}
+
+#endif

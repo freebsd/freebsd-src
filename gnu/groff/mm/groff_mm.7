@@ -1,0 +1,738 @@
+.TH GROFF_MM 7 "4 March 1993" "Groff Version 1.08"
+.SH NAME
+groff_mm \- groff mm macros
+.SH SYNOPSIS
+.B groff
+.B \-mm
+[
+.IR options .\|.\|.
+]
+[
+.IR files .\|.\|.
+]
+.SH DESCRIPTION
+The groff mm macros are intended to be compatible with the DWB mm macros
+with the following limitations:
+.TP
+.B \(bu
+no letter macros implemented (yet).
+.TP
+.B \(bu
+no Bell Labs localisms implemented.
+.TP
+.B \(bu
+the macros OK and PM is not implemented.
+.TP
+.B \(bu
+groff mm does not support cut marks
+.LP
+\fBmm\fP is intended to be international. Therefore it is 
+possible to write short national macrofiles which change all
+english text to the preferred language. Use \fBmmse\fP as an example.
+.LP
+Groff mm has several extensions:
+.TP
+.B "APP name text"
+Begin an appendix with name \fIname\fP. Automatic naming occurs if
+\fIname\fP is "". The appendixes starts with \fBA\fP if auto is used.
+An new page is ejected, and a header is also produced if the number
+variable \fBAph\fP is non-zero. This is the default.
+The appendix always appear in the 'List of contents' with correct
+pagenumber. The name \fIAPPENDIX\fP can be changed by setting
+the string \fBApp\fP to the desired text.
+.TP
+.B "APPSK name pages text"
+Same as \fB.APP\fP, but the pagenr is incremented with \fIpages\fP.
+This is used when diagrams or other non-formatted documents are
+included as appendixes.
+.TP
+.B B1
+Begin box (as the ms macro)
+Draws a box around the text.
+.TP
+.B B2
+End box. Finish the box.
+.TP
+.B BVL
+Start of 
+broken variable-item list.
+As VL but text begins always at the next line
+.TP
+.B "COVER [arg]"
+\&\fBCOVER\fP begins a coversheet definition. It is important
+that \fB.COVER\fP appears before any normal text.
+\&\fB.COVER\fP uses \fIarg\fP to build the filename 
+/usr/share/tmac/mm/\fIarg\fP.cov. Therefore it is possible to create unlimited
+types of coversheets.
+\fIms.cov\fP is supposed to look like the \fBms\fP coversheet.
+\&\fB.COVER\fP requires a \fB.COVEND\fP at the end of the coverdefinition.
+Always use this order of the covermacros:
+.nf
+\&.COVER
+\&.TL
+\&.AF
+\&.AU
+\&.AT
+\&.AS
+\&.AE
+\&.COVEND
+.fi
+However, only \fB.TL\fP and \fB.AU\fP are required.
+.TP
+.B COVEND
+This finish the cover description and prints the cover-page.
+It is defined in the cover file.
+.TP
+.B "GETHN refname [varname]"
+Includes the headernumber where the corresponding \fBSETR\fP \fIrefname\fP
+was placed. Will be X.X.X. in pass 1. See \fBINITR\fP.
+If varname is used, \fBGETHN\fP sets the stringvariable \fIvarname\fP to the 
+headernumber.
+.TP
+.B "GETPN refname [varname]"
+Includes the pagenumber where the corresponding \fBSETR\fP \fIrefname\fP
+was placed. Will be 9999 in pass 1. See \fBINITR\fP.
+If varname is used, \fBGETPN\fP sets the stringvariable \fIvarname\fP
+to the pagenumber.
+.TP
+.B "GETR refname"
+Combines \fBGETHN\fP and \fBGETPN\fP with the text 'chapter' and ', page'.
+The string \fIQrf\fP contains the text for reference:
+.ti +.5i
+\&.ds Qrf See chapter \e\e*[Qrfh], page \e\e*[Qrfp].
+.br
+\fIQrf\fP may be changed to support other languages.
+Strings \fIQrfh\fP and \fIQrfp\fP are set by \fBGETR\fP
+and contains the page and headernumber.
+.TP
+.B "GETST refname [varname]"
+Includes the string saved with the second argument to \fB.SETR\fP.
+Will be dummystring in pass 1.
+If varname is used, \fBGETST\fP sets the stringvariable \fIvarname\fP to the 
+saved string. See \fBINITR\fP.
+.TP
+.B "INITR filename"
+Initialize the refencemacros. References will be written to
+\fIfilename.tmp\fP and \fIfilename.qrf\fP. Requires two passes with groff.
+The first looks for references and the second includes them.
+\fBINITR\fP can be used several times, but it is only the first
+occurence of \fBINITR\fP that is active.
+See also \fBSETR\fP, \fBGETPN\fP and \fBGETHN\fP.
+.TP
+.B "MC column-size [column-separation] "
+Begin multiple columns. Return to normal with 1C.
+.TP
+.B "MT [arg [addressee]]"
+Memorandom type.
+The \fIarg\fP is part of a filename in \fI/usr/share/tmac/mm/*.MT\fP.
+Memorandum type 0 thru 5 are supported, including \fI"string"\fP.
+\fIAddresse\fP just sets a variable, used in the AT&T macros.
+.TP
+.B "MOVE y-pos [x-pos [line-length]]"
+Move to a position, pageoffset set to \fIx-pos\fP.
+If \fIline-length\fP is not given, the difference between
+current and new pageoffset is used.
+Use \fBPGFORM\fP without arguments to return to normal.
+.TP
+.B "MULB cw1 space1 [cw2 space2 [cw3 ...]]"
+Begin a special multi-column mode. Every columns width must be specified.
+Also the space between the columns must be specified. The last column
+does not need any space-definition. MULB starts a diversion and MULE
+ends the diversion and prints the columns.
+The unit for width and space is 'n', but MULB accepts all 
+normal unitspecifications like 'c' and 'i'.
+MULB operates in a separate environment.
+.TP
+.B "MULN"
+Begin the next column. This is the only way to switch column.
+.TP
+.B "MULE"
+End the multi-column mode and print the columns.
+.TP
+.B "PGFORM [linelength [pagelength [pageoffset]]]"
+Sets linelength, pagelength and/or pageoffset.
+This macro can be used for special formatting, like letterheads
+and other.
+\fBPGFORM\fP can be used without arguments 
+to reset everything after a \fBMOVE\fP.
+.TP
+.B PGNH
+No header is printed on the next page. Used to get rid off
+the header in letters or other special texts
+This macro must be used before any text to inhibit the pageheader
+on the first page.
+.TP
+.B "SETR refname [string]"
+Remember the current header and page-number as refname.
+Saves \fIstring\fP if \fIstring\fP is defined. \fIstring\fP is retrieved
+with \fB.GETST\fP.
+See \fBINITR\fP.
+.TP
+.B TAB
+reset tabs to every 5n. Normally used to reset any previous tabpositions.
+.TP
+.B VERBON [flag [pointsize [font]]]
+Begin verbatim output using courier font.
+Usually for printing programs.
+All character has equal width.
+The pointsize can be changed with
+the second argument. By specifying the font-argument
+it is possible to use another font instead of courier.
+\fIflag\fP control several special features.
+It contains the sum of all wanted features.
+.in +.5i
+.ti -.5i
+Value
+.sp -1
+Description
+.ti -.5i
+1
+.sp -1
+Enable the escape-character (\e). This is normally turned off during
+verbose output.
+.ti -.5i
+2
+.sp -1
+Add en empty line before the verbose text.
+.ti -.5i
+4
+.sp -1
+Add en empty line after the verbose text.
+.ti -.5i
+8
+.sp -1
+Print the verbose text with numbered lines. This adds four digitsized
+spaces in the beginning of each line. Finer control is available with
+the string-variable \fBVerbnm\fP. It contains all arguments to the
+\fBtroff\fP-command \fB.nm\fP, normally '1'.
+.ti -.5i
+16
+.sp -1
+Indent the verbose text with five 'n':s. This is controlled by the
+number-variable \fBVerbin\fP (in units).
+.in
+.TP
+.B VERBOFF
+End verbatim output.
+.sp
+.LP
+.\"########################################################################
+New variables in mm:
+.TP
+.B App
+A string containing the word "APPENDIX".
+.TP
+.B Aph
+Print an appendix-page for every new appendix 
+if this numbervariable is non-zero.
+No output will occur if \fBAph\fP is zero, but there will always
+be an appendix-entry in the 'List of contents'.
+.TP
+.B Hps
+Numbervariable with the heading pre-space level. If the heading-level
+is less than or equal to \fBHps\fP, then two lines will precede the
+section heading instead of one. Default is first level only.
+The real amount of lines is controlled by the variables \fBHps1\fP and
+\fBHps2\fP.
+.TP
+.B Hps1
+This is the number of lines preceding \fB.H\fP when the heading-level
+is greater than \fBHps\fP. Value is in units, normally 0.5v.
+.TP
+.B Hps2
+This is the number of lines preceding \fB.H\fP when the heading-level
+is less than or equal to \fBHps\fP. Value is in units, normally 1v.
+.TP
+.B Lifg
+String containing \fIFigure\fP.
+.TP
+.B Litb
+String containing \fITABLE\fP.
+.TP
+.B Liex
+String containing \fIExhibit\fP.
+.TP
+.B Liec
+String containing \fIEquation\fP.
+.TP
+.B Licon
+String containing \fICONTENTS\fP.
+.TP
+.B Lsp
+.TP
+The size of an empty line. Normally 0.5v, but it is 1v 
+if \fBn\fP is set (\fB.nroff\fP).
+.B "MO1 - MO12"
+Strings containing \fIJanuary\fI to \fIDecember\fP.
+.TP
+.B Qrf
+String containing "See chapter \e\e*[Qrfh], page \e\en[Qrfp].".
+.TP
+.B Sectf
+Flag controlling "section-figures". A non-zero value enables this.
+Se also register N.
+.TP
+.B Sectp
+Flag controlling "section-page-numbers". A non-zero value enables this.
+Se also register N.
+.TP
+.B .mgm
+Always 1.
+.\"########################################################################
+.LP
+A file called \fBlocale\fP or \fIlang\fP\fB_locale\fP is read
+after the initiation of the global variables. It is therefore
+possible to localize the macros with companyname and so on.
+.sp 3
+.LP
+The following standard macros are implemented:
+.TP
+.B 1C
+Begin one column processing
+.TP
+.B 2C
+Begin two column processing
+.TP
+.B AE
+Abstract end
+.TP
+.B "AF [name of firm]"
+Authors firm
+.TP
+.B "AL [type [text-indent [1]]]]"
+Start autoincrement list
+.TP
+.B "AS [arg [indent]]"
+Abstract start. Indent is specified in 'ens', but scaling is allowed.
+.TP
+.B "AST [title]"
+Abstract title. Default is 'ABSTRACT'.
+.TP
+.B "AT title1 [title2 ...]"
+Authors title
+.TP
+.B "AU name [initials [loc [dept [ext [room [arg [arg [arg]]]]]]]]"
+Author information
+.TP
+.B "B [bold-text [prev-font-tex [...]]]"
+Begin boldface
+No limit on the number of arguments.
+.TP
+.B BE
+End bottom block
+.TP
+.B "BI [bold-text [italic-text [bold-text [...]]]"
+Bold-italic.
+No limit on the number of arguments.
+.TP
+.B "BL [text-indent [1]]"
+Start bullet list
+.TP
+.B "BR [bold-text [roman-text [bold-text [...]]]"
+Bold-roman.
+No limit on the number of arguments.
+.TP
+.B BS
+Bottom block start
+.TP
+.B DE
+Display end
+.TP
+.B "DF [format [fill [rindent]]]"
+Begin floating display (no nesting allowed)
+.TP
+.B "DL [text-indent [1]]"
+Dash list start
+.TP
+.B "DS [format [fill [rindent]]]"
+Static display start.
+Can now have unlimited nesting. Also
+right adjusted text and block may be used (R or RB as \fIformat\fP).
+.TP
+.B "EC [title [override [flag [refname]]]]"
+Equation title.
+If \fIrefname\fP is used, then the equationnumber is saved with
+\&\fB.SETR\fP, and can be retrieved with \fB.GETST\fP \fIrefname\fP.
+.TP
+.B "EF [arg]"
+Even-page footer.
+.TP
+.B "EH [arg]"
+Even-page header.
+.TP
+.B EN
+Equation end.
+.TP
+.B "EQ [label]"
+Equation start.
+.TP
+.B "EX [title [override [flag [refname]]]]"
+Exhibit title.
+If \fIrefname\fP is used, then the exhibitnumber is saved with
+\&\fB.SETR\fP, and can be retrieved with \fB.GETST\fP \fIrefname\fP.
+.TP
+.B "FD [arg [1]]"
+Footnote default format.
+.TP
+.B FE
+Footnote end.
+.TP
+.B "FG [title [override [flag [refname]]]]"
+Figure title.
+If \fIrefname\fP is used, then the figurenumber is saved with
+\&\fB.SETR\fP, and can be retrieved with \fB.GETST\fP \fIrefname\fP.
+.TP
+.B FS
+Footnote start.
+Footnotes in displays is now possible.
+.TP
+.B "H level [heading-text [heading-suffix]]"
+Numbered heading.
+.TP
+.B "HC [hypenation-character]"
+Set hypenation character.
+.TP
+.B "HM [arg1 [arg2 [... [arg7]]]]"
+Heading mark style. 
+.TP
+.B "HU heading-text"
+Unnumbered header.
+.TP
+.B "HX dlevel rlevel heading-text"
+Userdefined heading exit.
+Called just before printing the header.
+.TP
+.B "HY dlevel rlevel heading-text"
+Userdefined heading exit.
+Called just before printing the header.
+.TP
+.B "HZ dlevel rlevel heading-text"
+Userdefined heading exit.
+Called just after printing the header.
+.TP
+.B "I [italic-text [prev-font-text [italic-text [...]]]"
+Italic.
+.TP
+.B "IB [italic-text [bold-text [italic-text [...]]]"
+Italic-bold
+.TP
+.B "IR [italic-text [roman-text [italic-text [...]]]"
+Italic-roman
+.TP
+.B "LB text-indent mark-indent pad type [mark [LI-space [LB-space]]]"
+List begin macro.
+.TP
+.B "LC [list level]"
+List-status clear
+.TP
+.B LE
+List end.
+.TP
+.B "LI [mark [1]]"
+List item
+.TP
+.B "ML mark [text-indent]"
+Marked list start
+.TP
+.B "MT [arg [addressee]]"
+Memorandom type. See above note about MT.
+.TP
+.B "ND new-date"
+New date.
+.TP
+.B "OF [arg]"
+Odd-page footer
+.TP
+.B "OH [arg]"
+Odd-page header
+.TP
+.B OP
+Skip to odd page.
+.TP
+.B "P [type]"
+Begin new paragraph.
+.TP
+.B PE
+Picture end.
+.TP
+.B "PF [arg]"
+Page footer
+.TP
+.B "PH [arg]"
+Page header
+.TP
+.B PS
+Picture start (from pic)
+.TP
+.B PX
+Page-header user-defined exit.
+.TP
+.B R
+Roman.
+.TP
+.B "RB [roman-text [bold-text [roman-text [...]]]"
+Roman-bold.
+.TP
+.B "RD [prompt [diversion [string]]]"
+Read to diversion and/or string.
+.TP
+.B RF
+Reference end
+.TP
+.B "RI [roman-text [italic-text [roman-text [...]]]"
+Roman-italic.
+.TP
+.B "RL [text-indent [1]]"
+Reference list start
+.TP
+.B "RP [arg [arg]]"
+Produce reference page.
+.TP
+.B "RS [string-name]"
+Reference start.
+.TP
+.B "S [size [spacing]]"
+Set point size and vertical spacing. If any argument is equal 'P', then
+the previous value is used. A 'C' means current value, and 'D' default value.
+If '+' or '-' is used before the value, then increment or decrement of
+the current value will be done.
+.TP
+.B "SA [arg]"
+Set adjustment.
+.TP
+.B "SK [pages]"
+Skip pages.
+.TP
+.B "SM string1 [string2 [string3]]"
+Make a string smaller.
+.TP
+.B "SP [lines]"
+Space vertically. \fIlines\fP can have any scalingfactor, like \fI3i\fP or
+\fI8v\fP.
+.TP
+.B "TB [title [override [flag [refname]]]]"
+Table title.
+If \fIrefname\fP is used, then the tablenumber is saved with
+\&\fB.SETR\fP, and can be retrieved with \fB.GETST\fP \fIrefname\fP.
+.TP
+.B "TC [slevel [spacing [tlevel [tab [h1 [h2 [h3 [h4 [h5]]]]]]]]]"
+Table of contents.
+All texts can be redefined, new stringvariables 
+\fILifg\fP, \fILitb\fP, \fILiex\fP, \fILiec\fP and \fILicon\fP contains
+"Figure", "TABLE", "Exhibit", "Equation" and "CONTENTS".
+These can be redefined to other languages.
+.TP
+.B TE
+Table end.
+.TP
+.B "TH [N]"
+Table header.
+.TP
+.B TL
+Begin title of memorandom.
+.TP
+.B TM [num1 [num2 [...]]]
+Technical memorandumnumbers used in \fB.MT\fP. Unlimited number
+of arguments may be given.
+.TP
+.B TP
+Top of page user-defined macro.
+.TP
+.B "TS [H]"
+Table start
+.TP
+.B TX
+Userdefined table of contents exit.
+.TP
+.B TY
+Userdefined tbale of contents exit (no "CONTENTS").
+.TP
+.B "VL [text-indent [mark-indent [1]]]"
+Variable-item list start
+.TP
+.B "VM [top [bottom]]"
+Vertical margin.
+.TP
+.B "WC [format]"
+Footnote and display width control.
+.sp 3
+.LP
+Strings used in mm:
+.TP
+.B "EM"
+Em dash string
+.TP
+.B HF
+Fontlist for headings, normally "2 2 2 2 2 2 2".
+Nonnumeric fontnames may also be used.
+.TP
+.B HP
+Pointsize list for headings. Normally "0 0 0 0 0 0 0" which is the same as
+"10 10 10 10 10 10 10".
+.TP
+.B Lf
+Contains "LIST OF FIGURES".
+.TP
+.B Lt
+Contains "LIST OF TABLES".
+.TP
+.B Lx
+Contains "LIST OF EXHIBITS".
+.TP
+.B Le
+Contains "LIST OF EQUATIONS".
+.TP
+.B Rp
+Contains "REFERENCES".
+.TP
+.B Tm
+Contains \e(tm, trade mark.
+.\"-----------------------------------
+.LP
+Number variables used in mm:
+.TP
+.B Cl=2
+Contents level [0:7], contents saved if heading level <= Cl
+.TP
+.B Cp=0
+Eject page between LIST OF XXXX if Cp == 0
+.TP
+.B D=0
+Debugflag, values >0 produces varying degree of debug. A value of 1
+gives information about the progress of formatting.
+.TP
+.B De=0
+Eject after floating display is output [0:1]
+.TP
+.B Df=5
+Floating keep output [0:5]
+.TP
+.B Ds=1
+space before and after display if == 1 [0:1]
+.TP
+.B Ej=0
+Eject page
+.TP
+.B Eq=0
+Eqation lable adjust 0=left, 1=right
+.TP
+.B Fs=1
+Footnote spacing
+.TP
+.B "H1-H7"
+Heading counters
+.TP
+.B Hb=2
+Heading break level [0:7]
+.TP
+.B Hc=0
+Heading centering level, [0:7]
+.TP
+.B Hi=1
+Heading temporary indent [0:2]
+0 -> 0 indent, left margin
+.br
+1 -> indent to right , like .P 1
+.br
+2 -> indent to line up with text part of preceding heading
+.TP
+.B Hs=2
+Heading space level [0:7]
+.TP
+.B Ht=0
+Heading numbering type
+0 -> multiple (1.1.1 ...)
+.br
+1 -> single
+.TP
+.B Hu=2
+Unnumbered heading level
+.TP
+.B Hy=1
+Hyphenation in body
+0 -> no hyphenation
+.br
+1 -> hyphenation 14 on
+.TP
+.B "Lf=1, Lt=1, Lx=1, Le=0"
+Enables (1) or disables (0) the printing of List of figures,
+List of tables, List of exhibits and List of equations.
+.TP
+.B Li=6
+List indent, used by .AL
+.TP
+.B Ls=99
+List space, if current listlevel > Ls then no spacing will occur around lists.
+.TP
+.B N=0
+Numbering style [0:5]
+0 == (default) normal header for all pages.
+.br
+1 == header replaces footer on first page, header is empty.
+.br
+2 == page header is removed on the first page.
+.br
+3 == "section-page" numbering enabled.
+.br
+4 == page header is removed on the first page.
+.br
+5 == "section-page" and "section-figure" numbering enabled.
+Se also the number-register Sectf and Sectp.
+.TP
+.B Np=0
+Numbered paragraphs.
+.br
+0 == not numbered
+.br
+1 == numbered in first level headings.
+.TP
+.B Of=0
+Format of figure,table,exhibit,equation titles.
+.br
+0= ". "
+.br
+1= " - "
+.TP
+.B P
+Current page-number, normally the same as % unless "section-page" numbering
+is enabled.
+.TP
+.B Pi=5
+paragraph indent
+.TP
+.B Ps=1
+paragraph spacing
+.TP
+.B Pt=0
+Paragraph type.
+.br
+0 == left-justified
+.br
+1 == indented .P
+.br
+2 == indented .P except after .H, .DE or .LE.
+.TP
+.B Si=5
+Display indent.
+.LP
+.\".SH BUGS
+.SH AUTHOR
+Jörgen Hägg, Lund Institute of Technology, Sweden <jh@efd.lth.se>
+.SH FILES
+.TP
+.B /usr/share/tmac/tmac.m
+.TP
+.B /usr/share/tmac/mm/*.cov
+.TP
+.B /usr/share/tmac/mm/*.MT
+.TP
+.B /usr/share/tmac/mm/locale
+.SH "SEE ALSO"
+.BR groff (1),
+.BR troff (1),
+.BR tbl (1),
+.BR pic (1),
+.BR eqn (1)
+.br
+.BR mm (7)
+.BR mmse (7)

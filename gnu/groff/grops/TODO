@@ -1,0 +1,25 @@
+Read PFB files directly.
+
+Generate %%DocumentMedia comment.
+
+For efficiency it might be better to have the printer interface have
+support for the t and u commands.
+
+Angles in arc command: don't generate more digits after the decimal
+point than are necessary.
+
+Possibly generate BoundingBox comment.
+
+Per font composite character mechanism (sufficient for fractions).
+
+Consider whether we ought to do rounding of graphical objects other
+than lines. What's the point?
+
+Error messages should refer to output page number.
+
+Search for downloadable fonts using their PostScript names if not
+found in download file.
+
+Separate path for searching for downloadable font files.
+
+Clip to the BoundingBox when importing documents.

@@ -1,0 +1,52 @@
+.\"	sccstorcs.1,v 1.2 1993/08/02 17:51:29 mycroft Exp	-*- nroff -*-
+.TH SCCSTORCS 8 "29 June 1983"
+.UC 4
+.SH NAME
+sccstorcs \- build RCS file from SCCS file
+.SH SYNOPSIS
+\fBsccstorcs\fR [\fB\-t\fR] [\fB\-v\fR] \fIs.file\fR ...
+.SH DESCRIPTION
+.I Sccstorcs
+builds an RCS file from each SCCS file argument.
+The deltas and comments for each delta are preserved and installed into
+the new RCS file in order.
+Also preserved are
+the user access list and descriptive text, if any,
+from the SCCS file.
+.PP
+The following flags are meaningful:
+.TP
+\fB\-t\fR
+Trace only.
+Prints detailed information about the SCCS file and lists the
+commands that would be executed to produce the RCS file.
+No commands are actually executed and no RCS file is made.
+.TP
+\fB\-v\fR
+Verbose.
+Prints each command that is run while it is building the RCS file.
+.SH FILES
+For each s.\fIsomefile\fR,
+.I Sccstorcs
+writes the files \fIsomefile\fR and \fIsomefile\fR,v
+which should not already exist.
+.I Sccstorcs
+will abort, rather than overwrite those files if they do exist.
+.SH SEE ALSO
+ci (1), co (1), rcs (1).
+.br
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision
+Control System," in \fIProceedings of the 6th International Conference
+on Software Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH DIAGNOSTICS
+All diagnostics are written to stderr.
+Non-zero exit status on error.
+.SH BUGS
+.I Sccstorcs
+does not preserve all SCCS options specified in the SCCS file.
+Most notably, it does not preserve removed deltas, MR numbers,
+and cutoff points.
+.SH AUTHOR
+Ken Greer
+
+Copyright \(co 1983 by Kenneth L. Greer

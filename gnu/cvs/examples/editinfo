@@ -1,0 +1,30 @@
+#
+# editinfo,v 1.1 1992/03/21 06:49:39 berliner Exp
+#
+# The "editinfo" file is used to allow verification of logging
+# information.  It works best when a template (as specified in the
+# rcsinfo file) is provided for the logging procedure.  Given a
+# template with locations for, a bug-id number, a list of people who
+# reviewed the code before it can be checked in, and an external
+# process to catalog the differences that were code reviewed, the
+# following test can be applied to the code:
+#
+#   Making sure that the entered bug-id number is correct.
+#   Validating that the code that was reviewed is indeed the code being
+#       checked in (using the bug-id number or a seperate review
+#       number to identify this particular code set.).
+#
+# If any of the above test failed, then the commit would be aborted.
+#
+# Actions such as mailing a copy of the report to each reviewer are
+# better handled by an entry in the loginfo file.
+#
+# Although these test could be handled by an interactive script being
+# called via an entry in commitinfo,  The information reported in
+# such a script can't be easily merged into the report.
+#
+# One thing that should be noted  is the the ALL keyword is not
+# supported. There can be only one entry that matches a given
+# repository.
+#
+DEFAULT			$CVSROOT/CVSROOT/edit "%s"

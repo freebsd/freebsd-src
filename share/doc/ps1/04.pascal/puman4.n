@@ -1,0 +1,609 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman4.n	6.3 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+.nr H1 3
+.if n 'ND
+.NH
+Input/output
+.PP
+This section describes features of the Pascal input/output environment,
+with special consideration of the features peculiar to an
+interactive implementation.
+.NH 2
+Introduction
+.PP
+Our first sample programs, in section 2, used the file
+.I output .
+We gave examples there of redirecting the output to a file and to the line
+printer using the shell.
+Similarly, we can read the input from a file or another program.
+Consider the following Pascal program which is similar to the program
+.I cat 
+(1).
+.LS
+% \*bpix -l kat.p <primes\fR
+.so katout
+%
+.LE
+Here we have used the shell's syntax to redirect the program input from
+a file in
+.I primes
+in which we had placed the output of our prime number program of section 2.6.
+It is also possible to
+`pipe' input to this program much as we piped input
+to the line printer daemon
+.I lpr
+(1)
+before.
+Thus, the same output as above would be produced by
+.LS
+% \*bcat primes | pix -l kat.p\fR
+.LE
+.PP
+All of these examples use the shell to control the input and output
+from files.
+One very simple way to associate Pascal files with named
+.UX
+files is to place the file name in the
+.B program
+statement.
+For example, suppose we have previously created the file
+.I data.
+We then use it as input to another version of a listing program.
+.LS
+% \*bcat data\fR
+.so data
+% \*bpix -l copydata.p\fR
+.so copydataout
+%
+.LE
+By mentioning the file
+.I data
+in the
+.B program
+statement, we have indicated that we wish it
+to correspond to the
+.UX
+file
+.I data .
+Then, when we
+`reset(data)',
+the Pascal system opens our file `data' for reading.
+More sophisticated, but less portable, examples of using
+.UX
+files will be given in sections 4.5 and 4.6.
+There is a portability problem even with this simple example.
+Some Pascal systems attach meaning to the ordering of the file in the
+.B program
+statement file list.
+.UP
+does not do so.
+.NH 2
+Eof and eoln
+.PP
+An extremely common problem encountered by new users of Pascal, especially
+in the interactive environment offered by
+.UX ,
+relates to the definitions of
+.I eof
+and
+.I eoln .
+These functions are supposed to be defined at the beginning of execution of
+a Pascal program, indicating whether the input device is at the end of a
+line or the end of a file.
+Setting
+.I eof
+or
+.I eoln
+actually corresponds to an implicit read in which the input is
+inspected, but no input is ``used up''.
+In fact, there is no way the system can know whether the input is
+at the end-of-file or the end-of-line unless it attempts to read a line from it.
+If the input is from a previously created file,
+then this reading can take place without run-time action by the user.
+However, if the input is from a terminal, then the input
+is what the user types.\*(dg
+If the system were to do an initial read
+automatically at the beginning of program execution,
+and if the input were a terminal,
+the user would have to type some input before execution could begin.
+.FS
+\*(dgIt is not possible to determine whether the input is
+a terminal, as the input may appear to be a file but actually be a
+.I pipe,
+the output of a program which is reading from the terminal.
+.FE
+This would make it impossible for the program to begin by prompting
+for input or printing a herald.
+.PP
+.UP
+has been designed so that an initial read is not necessary.
+At any given time, the Pascal system may or may not know whether the
+end-of-file or end-of-line conditions are true.
+Thus, internally, these functions can have three values \-
+true, false, and ``I don't know yet; if you ask me I'll have to
+find out''.
+All files remain in this last, indeterminate state until the Pascal
+program requires a value for
+.I eof
+or
+.I eoln
+either explicitly or implicitly, e.g. in a call to
+.I read .
+The important point to note here is that if you force the Pascal
+system to determine whether the input is at the end-of-file or the end-of-line,
+it will be necessary for it to attempt to read from the input.
+.PP
+Thus consider the following example code
+.LS
+\*bwhile not\fP eof \*bdo\fP \*bbegin\fP
+    write('number, please? ');
+    read(i);
+    writeln('that was a ', i: 2)
+\*bend\fP
+.LE
+At first glance, this may be appear to be a correct program
+for requesting, reading and echoing numbers.
+Notice, however, that the
+.B while
+loop asks whether
+.I eof
+is true
+.I before
+the request is printed.
+This will force the Pascal system to decide whether the input is at the
+end-of-file.
+The Pascal system will give no messages;
+it will simply wait for the user to type a line.
+By producing the desired prompting before testing
+.I eof,
+the following code avoids this problem:
+.LS
+write('number, please ?');
+\*bwhile not\fP eof \*bdo\fP \*bbegin\fP
+    read(i);
+    writeln('that was a ', i:2);
+    write('number, please ?')
+\*bend\fP
+.LE
+The user must still type a line before the
+.B while
+test is completed, but the prompt will ask for it.
+This example, however, is still not correct.
+To understand why, it is first necessary to know, as we will discuss below,
+that there is a blank character at the end of each line in a Pascal text
+file.
+The
+.I read
+procedure, when reading integers or real numbers,
+is defined so that,
+if there are only blanks left in the file,
+it will return a zero value and set the end-of-file condition.
+If, however, there is a number remaining in the file, the end-of-file
+condition will not be set even if it is the last number, as
+.I read
+never reads the blanks after the number, and there is always at least
+one blank.
+Thus the modified code will still put out a spurious
+.LS
+that was a 0
+.LE
+at the end of a session with it when the end-of-file is reached.
+The simplest way to correct the problem in this example is to use the procedure
+.I readln
+instead of
+.I read
+here.
+In general, unless we test the end-of-file condition both before and
+after calls to
+.I read
+or
+.I readln ,
+there will be inputs for which our program will attempt
+to read past end-of-file.
+.NH 2
+More about eoln
+.PP
+To have a good understanding of when
+.I eoln
+will be true it is necessary to know that in any file
+there is a special character indicating end-of-line,
+and that, in effect, the Pascal system always reads one character ahead of the 
+Pascal
+.I read
+commands.\*(dg
+.FS
+\*(dgIn Pascal terms,
+`read(ch)'
+corresponds to
+`ch := input^; get(input)'
+.FE
+For instance,
+in response to `read(ch)',
+the system sets
+.I ch
+to the current input character and gets the next input character.
+If the current input character is the last character of the line,
+then the next input character from the file is the new-line character,
+the normal
+.UX
+line separator.
+When the read routine gets the new-line character,
+it replaces that character by a blank
+(causing every line to end with a blank)
+and sets
+.I eoln
+to true.
+.I Eoln
+will be true as soon as we read the last character of the line and
+.B before
+we read the blank character corresponding to the end of line.
+Thus it is almost always a mistake to write a program which deals with
+input in the following way:
+.LS
+read(ch);
+\*bif\fP eoln \*bthen\fP
+    \fIDone with line\fP
+\*belse\fP
+    \fINormal processing\fP
+.LE
+as this will almost surely have the effect of ignoring the last character
+in the line.
+The `read(ch)' belongs as part of the normal processing.
+.PP
+Given this framework, it is not hard to explain the function of a
+.I readln
+call, which is defined as:
+.LS
+\*bwhile not\fP eoln \*bdo\fP
+    get(input);
+get(input);
+.LE
+This advances the file until the blank corresponding to the end-of-line
+is the current input symbol and then discards this blank.
+The next character available from
+.I read
+will therefore be the first character of the next line,
+if one exists.
+.NH 2
+Output buffering
+.PP
+A final point about Pascal input-output must be noted here.
+This concerns the buffering of the file
+.I output .
+It is extremely inefficient for the Pascal system to send each character
+to the user's terminal as the program generates it for output;
+even less efficient if the output is the input of another
+program such as the line printer daemon
+.I lpr
+(1).
+To gain efficiency, the Pascal system ``buffers'' the output characters
+(i.e. it saves them in memory until the buffer is full and then emits
+the entire buffer in one system interaction.)
+However, to allow interactive prompting to work as in the example given
+above, this prompt must be printed before the Pascal system waits for a
+response.
+For this reason, Pascal normally prints all the output which has
+been generated for the file
+.I output
+whenever
+.HP
+.RS
+.IP 1)
+A
+.I writeln
+occurs, or
+.IP 2)
+The program reads from the terminal, or
+.IP 3)
+The procedure
+.I message
+or
+.I flush
+is called.
+.RE
+.LP
+Thus, in the code sequence
+.ne 5
+.LS
+\*bfor\fP i := 1 to 5 \*bdo begin\fP
+    write(i: 2);
+    \fICompute a lot with no output\fP
+\*bend;\fP
+writeln
+.LE
+the output integers will not print until the
+.I writeln
+occurs.
+The delay can be somewhat disconcerting, and you should be aware 
+that it will occur.
+By setting the
+.B b
+option to 0 before the
+.B program
+statement by inserting a comment of the form
+.LS
+(*$b0*)
+.LE
+we can cause
+.I output
+to be completely unbuffered, with a corresponding horrendous degradation
+in program efficiency.
+Option control in comments is discussed in section 5.
+.NH 2
+Files, reset, and rewrite
+.PP
+It is possible to use extended forms of the built-in functions
+.I reset
+and
+.I rewrite
+to get more general associations of
+.UX
+file names with Pascal file variables.
+When a file other than
+.I input
+or
+.I output
+is to be read or written, then the reading or writing must be preceded
+by a
+.I reset
+or
+.I rewrite
+call.
+In general, if the Pascal file variable has never been used before,
+there will be no
+.UX
+filename associated with it.
+As we saw in section 2.9,
+by mentioning the file in the
+.B program
+statement,
+we could cause a
+.UX
+file with the same name as the Pascal variable to be associated with it.
+If we do not mention a file in the
+.B program
+statement and use it for the first time with the statement
+.LS
+reset(f)
+.LE
+or
+.LS
+rewrite(f)
+.LE
+then the Pascal system will generate a temporary name of the form
+`tmp.x'
+for some character `x',
+and associate this
+.UX
+file name name with the Pascal file.
+The first such generated name will be `tmp.1'
+and the names continue by incrementing their last character through the
+.SM ASCII
+set.
+The advantage of using such temporary files is that they are automatically
+.I remove d
+by the Pascal system as soon as they become inaccessible.
+They are not removed, however, if a runtime error causes termination
+while they are in scope.
+.PP
+To cause a particular
+.UX
+pathname to be associated with a Pascal file variable
+we can give that name in the
+.I reset
+or
+.I rewrite
+call, e.g. we could have associated the Pascal file
+.I data
+with the file
+`primes'
+in our example in section 3.1 by doing:
+.LS
+reset(data, 'primes')
+.LE
+instead of a simple
+.LS
+reset(data)
+.LE
+In this case it is not essential to mention `data'
+in the program statement, but it is still a good idea
+because is serves as an aid to program documentation.
+The second parameter to
+.I reset
+and
+.I rewrite
+may be any string value, including a variable.
+Thus the names of 
+.UX
+files to be associated with Pascal file variables can be read
+in at run time.
+Full details on file name/file variable associations are given in
+section A.3.
+.NH 2
+Argc and argv
+.PP
+Each
+.UX
+process receives a variable
+length sequence of arguments each of which is a variable length
+character string.
+The built-in function
+.I argc
+and the built-in procedure
+.I argv
+can be used to access and process these arguments.
+The value of the function
+.I argc
+is the number of arguments to the process.
+By convention,
+the arguments are treated as an array,
+and indexed from 0 to
+.I argc \-1,
+with the zeroth argument being the name of the program being executed.
+The rest of the
+arguments are those passed to the command on the command line.
+Thus, the command
+.LS
+% \*bobj  /etc/motd  /usr/dict/words hello\fR
+.LE
+will invoke the program in the file
+.I obj
+with
+.I argc
+having a value of 4.
+The zeroth element accessed by
+.I argv
+will be `obj', the first `/etc/motd', etc.
+.PP
+Pascal does not provide variable size arrays, nor does it allow
+character strings of varying length.
+For this reason,
+.I argv
+is a procedure and has the syntax
+.LS
+argv(i, a)
+.LE
+where
+.I i
+is an integer and
+.I a
+is a string variable.
+This procedure call assigns the (possibly truncated or blank padded)
+.I i \|'th
+argument of the current process to the string variable
+.I a .
+The file manipulation routines
+.I reset
+and
+.I rewrite
+will strip trailing blanks from their optional second arguments
+so that this blank padding is not a problem in the usual case
+where the arguments are file names.
+.PP
+We are now ready to give a
+Berkeley
+Pascal program `kat',
+based on that given in section 3.1 above,
+which can be used with the same syntax as the
+.UX
+system program
+.I cat
+(1).
+.LS
+% \*bcat kat.p\fR
+.so kat3.p
+%
+.LE
+Note that the
+.I reset
+call to the file
+.I input
+here, which is necessary for a clear program,
+may be disallowed on other systems.
+As this program deals mostly with
+.I argc
+and
+.I argv
+and
+.UX
+system dependent considerations,
+portability is of little concern.
+.PP
+If this program is in the file `kat.p', then we can do
+.LS
+% \*bpi kat.p\fR
+% \*bmv obj kat\fR
+% \*bkat primes\fR
+.so kat2out
+% \*bkat\fR
+.so katscript
+%
+.LE
+Thus we see that, if it is given arguments, `kat' will,
+like
+.I cat,
+copy each one in turn.
+If no arguments are given, it copies from the standard input.
+Thus it will work as it did before, with
+.LS
+% \*bkat < primes\fR
+.LE
+now equivalent to
+.LS
+% \*bkat primes\fR
+.LE
+although the mechanisms are quite different in the two cases.
+Note that if `kat' is given a bad file name, for example:
+.LS
+% \*bkat xxxxqqq\fR
+.so xxxxqqqout
+%
+.LE
+it will give a diagnostic and a post-mortem control flow backtrace
+for debugging.
+If we were going to use `kat', we might want to translate it
+differently, e.g.:
+.LS
+% \*bpi -pb kat.p\fR
+% \*bmv obj kat\fR
+.LE
+Here we have disabled the post-mortem statistics printing, so
+as not to get the statistics or the full traceback on error.
+The
+.B b
+option will cause the system to block buffer the input/output so that
+the program will run more efficiently on large files.
+We could have also specified the
+.B t
+option to turn off runtime tests if that was felt to be a speed hindrance
+to the program.
+Thus we can try the last examples again:
+.LS
+% \*bkat xxxxqqq\fR
+.so xxxxqqqout2
+% \*bkat primes\fR
+.so primes-d
+%
+.LE
+.PP
+The interested reader may wish to try writing a program which
+accepts command line arguments like
+.PI
+does, using
+.I argc
+and
+.I argv
+to process them.

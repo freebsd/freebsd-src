@@ -1,0 +1,858 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman2.n	6.3 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+'if n 'ND
+.nr H1 1
+.NH
+Basic UNIX Pascal
+.PP
+The following sections
+explain the basics of using
+.UP .
+In examples here we use the text editor
+.I ex 
+(1).
+Users of the text editor
+.I ed
+should have little trouble following these examples,
+as
+.I ex
+is similar to
+.I ed .
+We use
+.I ex
+because it
+allows us to make clearer examples.\(dg
+.FS
+\(dg Users with \s-2CRT\s0 terminals should find the editor
+.I vi
+more pleasant to use;
+we do not show its use here because its display oriented nature
+makes it difficult to illustrate.
+.FE
+The new
+.UX
+user will find it helpful to read one of the text editor documents
+described in section 1.4 before continuing with this section.
+.NH 2
+A first program
+.PP
+To prepare a program for
+.UP
+we first need to have an account on
+.UX
+and to `login'
+to the system on this account.
+These procedures are described in the documents
+.I "Communicating with UNIX" 
+and
+.I "UNIX for Beginners".
+.PP
+Once we are logged in we need to choose a name for our program;
+let us call it `first' as this is the first example.
+We must also choose a name for the file in which the program will be stored.
+The
+.UP
+system requires that programs reside in files which have names ending with
+the sequence `.p' so we will call our file `first.p'.
+.PP
+A sample editing session to create this file would begin:
+.LS
+% \*bex first.p\fR
+"first.p" [New file]
+:
+.LE
+We didn't expect the file to exist, so the error diagnostic doesn't
+bother us.
+The editor now knows the name of the file we are creating.
+The `:' prompt indicates that it is ready for command input.
+We can add the text for our program using the `append'
+command as follows.
+.LS
+:\*bappend\fR
+.B
+program first(output)
+begin
+	writeln('Hello, world!')
+end.
+\&.
+.R
+:
+.LE
+The line containing the single `\*b.\fR' character here indicated
+the end of the appended text.
+The `:' prompt indicates that
+.I ex
+is ready for another command.
+As the editor operates in a temporary work space we must now store the contents
+of this work space in the file `first.p'
+so we can use the Pascal 
+translator and executor
+.IX
+on it.
+.LS
+:\*bwrite\fR
+"first.p" [New file] 4 lines, 59 characters
+:\*bquit\fR
+% 
+.LE
+We wrote out the file from the edit buffer here with the
+`write'
+command, and
+.I ex
+indicated the number of lines and characters written.
+We then quit the editor, and now have a prompt from the shell.\(dd
+.FS
+\(dd Our examples here assume you are using
+.I csh.
+.FE
+.KS
+.PP
+We are ready to try
+to translate and execute our program.
+.DS
+.tr '\(aa^\(ua
+% \*bpix first.p\fR
+.so firstout
+.tr ''^^
+%
+.DE
+.KE
+.PP
+The translator first printed a syntax error diagnostic.
+The number 2 here indicates that the rest of the line is an image
+of the second line of our program.
+The translator is saying that it expected to find a `;' before the
+keyword
+.B begin
+on this line.
+If we look at the Pascal syntax charts in the Jensen-Wirth
+.I "User Manual" ,
+or at some of the sample programs therein, we will see that
+we have omitted the terminating `;' of the
+.B program 
+statement on the first
+line of our program.
+.PP
+One other thing to notice about the error diagnostic is the letter `e'
+at the beginning.
+It stands for `error',
+indicating that our input was not legal Pascal.
+The fact that it is an `e' rather than an `E'
+indicates that the translator managed to recover from this error well
+enough that generation of code and execution could take place.
+Execution is possible whenever no fatal `E' errors
+occur during translation.
+The other classes of diagnostics are `w' warnings,
+which do not necessarily indicate errors in the program,
+but point out inconsistencies which are likely to be due to program bugs,
+and `s' standard-Pascal violations.\*(dg
+.FS
+\*(dgThe standard Pascal warnings occur only when the associated
+.B s
+translator option is enabled.
+The
+.B s
+option is discussed in sections 5.1 and A.6 below.
+Warning diagnostics are discussed at the end of section 3.2,
+the associated
+.B w
+option is described in section 5.2.
+.FE
+.PP
+After completing the translation of the program to interpretive code,
+the Pascal system indicates that execution of the translated program began.
+The output from the execution of the program then appeared.
+At program termination, the Pascal runtime system indicated the
+number of statements executed, and the amount of cpu time
+used, with the resolution of the latter being 1/60'th of a second.
+.PP
+Let us now fix the error in the program and translate it to a permanent
+object code file
+.I obj
+using
+.PI .
+The program
+.PI
+translates Pascal programs but stores the object code instead of executing it\*(dd.
+.FS
+\*(ddThis script indicates some other useful approaches to debugging
+Pascal programs.
+As in
+.I ed
+we can shorten commands in
+.I ex
+to an initial prefix of the command name as we did
+with the
+.I substitute
+command here.
+We have also used the `!' shell escape command here to execute other
+commands with a shell without leaving the editor.
+.FE
+.LS
+% \*bex first.p\fR
+"first.p" 4 lines, 59 characters
+:\*b1 print\fR
+program first(output)
+:\*bs/$/;\fR
+program first(output);
+:\*bwrite\fR
+"first.p" 4 lines, 60 characters
+:\*bquit\fR
+% \*bpi first.p\fR
+%
+.LE
+If we now use the
+.UX
+.I ls
+list files command we can see what files we have:
+.LS
+% \*bls\fR
+first.p
+obj
+%
+.LE
+The file `obj' here contains the Pascal interpreter code.
+We can execute this by typing:
+.LS
+% \*bpx obj\fR
+.so firstobjout
+%
+.LE
+Alternatively, the command:
+.LS
+% \*bobj\fR
+.LE
+will have the same effect.
+Some examples of different ways to execute the program follow.
+.LS
+% \*bpx\fR
+.so firstobjout
+% \*bpi -p first.p\fR
+% \*bpx obj\fR
+.so firstobjout2
+% \*bpix -p first.p\fR
+.so firstobjout2
+%
+.LE
+.PP
+Note that
+.I px
+will assume that `obj' is the file we wish to execute
+if we don't tell it otherwise.
+The last two translations use the
+.B \-p
+no-post-mortem option to eliminate
+execution statistics and
+`Execution begins'
+and
+`Execution terminated'
+messages.
+See section 5.2 for more details.
+If we now look at the files in our directory we will see:
+.LS
+% \*bls\fR
+first.p
+obj
+%
+.LE
+We can give our object program a name other than `obj' by using the move
+command
+.I mv
+(1).
+Thus to name our program `hello':
+.LS
+% \*bmv obj hello\fR
+% \*bhello\fR
+Hello, world!
+% \*bls\fR
+first.p
+hello
+%
+.LE
+Finally we can get rid of the Pascal object code by using the
+.I rm
+(1) remove file command, e.g.:
+.LS
+% \*brm hello\fR
+% \*bls\fR
+first.p
+%
+.LE
+.PP
+For small programs which are being developed
+.IX
+tends to be more convenient to use than
+.PI
+and
+.X .
+Except for absence of the
+.I obj
+file after a
+.IX
+run,
+a
+.IX
+command is equivalent to a
+.PI
+command followed by a
+.X
+command.
+For larger programs,
+where a number of runs testing different parts of the program are
+to be made,
+.PI
+is useful as this
+.I obj
+file can be executed any desired number of times.
+.. >>> INSERT SECTION FOR PC <<<
+.NH 2
+A larger program
+.PP
+Suppose that we have used the editor to put a larger program
+in the file `bigger.p'.
+We can list this program with line numbers by using the program
+.I cat -n
+i.e.:
+.LS
+% \*bcat -n bigger.p\fR
+.so bigger3.p
+%
+.LE
+This program is similar to program 4.9 on page 30 of the
+Jensen-Wirth
+.I "User Manual" .
+A number of problems have been introduced into this example for
+pedagogical reasons.
+.br
+.PP
+If we attempt to translate and execute the program using
+.IX
+we get the following response:
+.LS
+% \*bpix bigger.p\fR
+.so bigout1
+%
+.LE
+.PP
+Since there were fatal `E' errors in our program,
+no code was generated and execution was necessarily suppressed.
+One thing which would be useful at this point is a listing of the
+program with the error messages.
+We can get this by using the command:
+.LS
+% \*bpi -l bigger.p\fR
+.LE
+There is no point in using
+.IX
+here, since we know there are fatal errors in the program.
+This command will produce the output at our terminal.
+If we are at a terminal which does not produce a hard copy
+we may wish to print this
+listing off-line on a line printer.
+We can do this with the command:
+.LS
+% \*bpi -l bigger.p | lpr\fR
+.LE
+.PP
+In the next few sections we will illustrate various aspects of the
+Berkeley
+Pascal system by correcting this program.
+.NH 2
+Correcting the first errors
+.PP
+Most of the errors which occurred in this program were
+.I syntactic
+errors, those in the format and structure of the program rather than
+its content.
+Syntax errors are flagged by printing the offending line, and then a line
+which flags the location at which an error was detected.
+The flag line also gives an explanation
+stating either a possible cause of the error,
+a simple action which can be taken to recover from the error so
+as to be able to continue the analysis,
+a symbol which was expected at the point of error,
+or an indication that the input was `malformed'.
+In the last case, the recovery may skip ahead in the input
+to a point where analysis of the program can continue.
+.PP
+In this example,
+the first error diagnostic indicates that the translator detected
+a comment within a comment.
+While this is not considered an error in `standard'
+Pascal, it usually corresponds to an error in the program which
+is being translated.
+In this case, we have accidentally omitted the trailing `*)' of the comment
+on line 8.
+We can begin an editor session to correct this problem by doing:
+.LS
+% \*bex bigger.p\fR
+"bigger.p" 24 lines, 512 characters
+:\*b8s/$/ *)\fR
+        s = 32;       (* 32 character width for interval [x, x+1] *)
+:
+.LE
+.PP
+The second diagnostic, given after line 16,
+indicates that the keyword
+.B do
+was expected before the keyword
+.B begin
+in the
+.B for
+statement.
+If we examine the
+.I statement
+syntax chart on page 118 of the
+Jensen-Wirth
+.I "User Manual"
+we will discover that
+.B do
+is a necessary part of the
+.B for
+statement.
+Similarly, we could have referred to section C.3 of the
+Jensen-Wirth
+.I "User Manual"
+to learn about the
+.B for
+statement and gotten the same information there.
+It is often useful to refer to these syntax charts and to the
+relevant sections of this book.
+.PP
+We can correct this problem by first scanning for the keyword
+.B for
+in the file and then substituting the keyword
+.B do
+to appear in front of the keyword
+.B begin
+there.
+Thus:
+.LS
+:\*b/for\fR
+	for i := 0 to lim begin
+:\*bs/begin/do &\fR
+	for i := 0 to lim do begin
+:
+.LE
+The next error in the program is easy to pinpoint.
+On line 18, we didn't hit the shift key and got a `9'
+instead of a `)'.
+The translator diagnosed that `x9'
+was an undefined variable and, later,
+that a `)' was missing in the statement.
+It should be stressed that
+.PI
+is not suggesting that you should insert a `)' before the `;'.
+It is only indicating that making this change will help it to be able to
+continue analyzing the program so as to be able to diagnose further
+errors.
+You must then determine the true cause of the error and make the
+appropriate correction to the source text.
+.PP
+This error also illustrates the fact that one error in the input may lead
+to multiple error diagnostics.
+.I Pi
+attempts
+to give only one diagnostic for each error,
+but single errors in the input sometimes appear to be more than
+one error.
+It is also the case that
+.PI
+may not detect an error when it occurs, but may detect it later in
+the input.
+This would have happened
+in this example if we had typed `x' instead of `x9'.
+.PP
+The translator next detected, on line 19, that the function
+.I Round
+and the variable
+.I h
+were undefined.
+It does not know about
+.I Round
+because
+.UP
+normally distinguishes between upper and lower case.\*(dg
+.FS
+\*(dgIn ``standard'' Pascal no distinction is made based on case.
+.FE
+On
+.UX
+lower-case is preferred\*(dd,
+.FS
+\*(ddOne good reason for using lower-case is that it is easier to type.
+.FE
+and all keywords and built-in
+.B procedure
+and
+.B function
+names are composed of lower-case letters,
+just as they are in the Jensen-Wirth
+.I "Pascal Report" .
+Thus we need to use the function
+.I round
+here.
+As far as
+.I h
+is concerned,
+we can see why it is undefined if we look back to line 9
+and note that its definition was lost in the non-terminated
+comment.
+This diagnostic need not, therefore, concern us.
+.PP
+The next error which occurred in the program caused the translator
+to insert a `;' before the statement calling
+.I writeln
+on line 23.
+If we examine the program around the point of error we will see
+that the actual error is that the keyword
+.B until
+and an associated expression have been omitted here.
+Note that the diagnostic from the translator does not indicate the actual
+error, and is somewhat misleading.
+The translator made the correction which seemed to be most plausible.
+As the omission of a `;' character is a common mistake,
+the translator chose to indicate this as a possible fix here.
+It later detected that the keyword
+.B until
+was missing, but not until it saw the keyword
+.B end
+on line 24.
+The combination of these diagnostics indicate to us the true problem.
+.PP
+The final syntactic error message indicates that the translator needed an
+.B end
+keyword to match the
+.B begin 
+at line 15.
+Since the
+.B end
+at line 24 is supposed to match this
+.B begin ,
+we can infer that another
+.B begin
+must have been mismatched, and have matched this
+.B end .
+Thus we see that we need an
+.B end
+to match the
+.B begin
+at line 16,
+and to appear before the final
+.B end .
+We can make these corrections:
+.LS
+:\*b/x9/s//x)\fR
+                y := exp(-x) * sin(i * x);
+:\*b+s/Round/round\fR
+                n := round(s * y) + h;
+:\*b/write\fR
+                        write(' ');
+:\*b/\fR
+                writeln('*')
+:\*binsert\fR
+                \*buntil n = 0;\fR
+\&\*b.\fR
+:\*b$\fR
+end.
+:\*binsert\fR
+        \*bend\fR
+\&\*b.\fR
+:
+.LE
+.PP
+At the end of each
+.B procedure
+or
+.B function
+and the end of the
+.B program
+the translator summarizes references to undefined variables
+and improper usages of variables.
+It also gives
+warnings about potential errors.
+In our program, the summary errors do not indicate any further problems
+but the warning that
+.I c
+is unused is somewhat suspicious.
+Examining the program we see that the constant was intended
+to be used in the expression which is an argument to
+.I sin ,
+so we can correct this expression, and translate the program.
+We have now made a correction for each diagnosed error
+in our program.
+.LS
+:\*b?i ?s//c /\fR
+		y := exp(-x) * sin(c * x);
+:\*bwrite\fR
+"bigger.p" 26 lines, 538 characters
+:\*bquit\fR
+% \*bpi bigger.p\fR
+%
+.LE
+It should be noted that the translator suppresses warning
+diagnostics for a particular
+.B procedure ,
+.B function
+or the main
+.B program
+when it finds severe syntax errors in that part of the source
+text.
+This is to prevent possibly confusing and
+incorrect warning diagnostics from being produced.
+Thus these warning diagnostics may not appear in a program with
+bad syntax errors until these errors are corrected.
+.KS
+.PP
+We are now ready to execute our program for the first
+time.
+We will do so in the next section after giving a listing
+of the corrected program for reference purposes.
+.LS
+% \*bcat -n bigger.p\fR
+.so bigger6.p
+%
+.LE
+.NH 2
+Executing the second example
+.PP
+We are now ready to execute the second example.
+The following output was produced by our first run.
+.LS
+% \*bpx\fR
+.so bigout2
+%
+.LE
+Here the interpreter is presenting us with a runtime error diagnostic.
+It detected a `division by zero' at line 17.
+Examining line 17, we see that we have written
+the statement `x := d / i' instead of `x := d * i'.
+We can correct this and rerun the program:
+.LS
+% \*bex bigger.p\fR
+"bigger.p" 26 lines, 538 characters
+:\*b17\fR
+        x := d / i
+:\*bs'/'*\fR
+        x := d * i
+:\*bwrite\fR
+"bigger.p" 26 lines, 538 characters
+:\*bq\fR
+% \*bpix bigger.p\fR
+.so bigout3
+%
+.LE
+.KS
+.PP
+This appears to be the output we wanted.
+We could now save the output in a file if we wished by using the shell
+to redirect the output:
+.LS
+% \*bpx > graph\fR
+.LE
+.KE
+We can use
+.I cat
+(1) to see the contents of the file graph.
+We can also make a listing of the graph on the line printer without
+putting it into a file, e.g.
+.LS
+% \*bpx | lpr\fR
+.so bigout4
+%
+.LE
+Note here that the statistics lines came out on our terminal.
+The statistics line comes out on the diagnostic output (unit 2.)
+There are two ways to get rid of the statistics line.
+We can redirect the statistics message to the printer using the
+syntax `|\|&' to the shell rather than `|', i.e.:
+.LS
+% \*bpx |\|& lpr\fR
+%
+.LE
+or we can translate the program with the
+.B p
+option disabled on the command line as we did above.
+This will disable all post-mortem dumping including the statistics line,
+thus:
+.LS
+% \*bpi -p bigger.p\fR
+% \*bpx | lpr\fR
+%
+.LE
+This option also disables the statement limit which normally guards
+against infinite looping.
+You should not use it until your program is debugged.
+Also if
+.B p
+is specified and an error occurs, you will
+not get run time diagnostic information to help you
+determine what the problem is.
+.NH 2
+Formatting the program listing
+.PP
+It is possible to use special lines within the source text of a program
+to format the program listing.
+An empty line (one with no characters on it) corresponds to a
+`space' macro in an assembler, leaving a completely blank line
+without a line number.
+A line containing only a control-l (form-feed) character
+will cause a page eject in the listing with the corresponding line number
+suppressed.
+This corresponds to an `eject' pseudo-instruction.
+See also section 5.2 for details on the
+.B n
+and
+.B i
+options of
+.PI .
+.NH 2
+Execution profiling
+.PP
+An execution profile consists of a structured listing of (all or part of)
+a program with information about the number of times each statement in
+the program was executed for a particular run of the program.
+These profiles can be used for several purposes.
+In a program which was abnormally terminated due to excessive looping
+or recursion or by a program fault, the counts can facilitate location
+of the error.
+Zero counts mark portions of the program which were not executed;
+during the early debugging stages they should prompt new test data or
+a re-examination of the program logic.
+The profile is perhaps most valuable, however, in drawing
+attention to the (typically small)
+portions of the program that dominate execution time.
+This information can be used for source level optimization.
+.SH
+An example
+.PP
+A prime number is a number which is divisible only by itself and the
+number one.
+The program
+.I primes ,
+written by Niklaus Wirth,
+determines the first few prime numbers.
+In translating the program we have specified the
+.B z
+option to
+.IX .
+This option causes the translator to generate counters and count instructions
+sufficient in number to determine the number of times each statement in the
+program was executed.\*(dg
+.FS
+\*(dgThe counts
+are completely accurate only in the absence of runtime errors and nonlocal
+.B goto
+statements.
+This is not generally a problem, however, as in structured programs
+nonlocal
+.B goto
+statements occur infrequently,
+and counts are incorrect after abnormal termination only when the
+.I "upward look"
+described below to get a count passes a suspended call point.
+.FE
+When execution of the program completes, either normally or abnormally,
+this count data is written to the file
+.I pmon.out
+in the current directory.\*(dd
+.FS
+\*(dd\c
+.I Pmon.out
+has a name similar to
+.I mon.out
+the monitor file produced by the profiling facility of the C compiler
+.I cc
+(1).
+See
+.I prof
+(1) for a discussion of the C compiler profiling facilities.
+.FE
+It is then possible to prepare an execution profile by giving
+.XP
+the name of the file associated with this data, as was done in the following
+example.
+.LS
+% \*bpix -l -z primes.p\fR
+.so primeout1
+%
+.LE
+.SH
+Discussion
+.PP
+The header lines of the outputs of
+.IX
+and
+.XP
+in this example indicate the version of the translator and execution
+profiler in use at the time this example was prepared.
+The time given with the file name (also on the header line)
+indicates the time of last modification of the program source file.
+This time serves to
+.I "version stamp"
+the input program.
+.I Pxp
+also indicates the time at which the profile data was gathered.
+.LS
+% \*bpxp -z primes.p\fR
+.so primeout2
+%
+.LE
+.KE
+.PP
+To determine the number of times a statement was executed,
+one looks to the left of the statement and finds the corresponding
+vertical bar `|'.
+If this vertical bar is labelled with a count then that count gives the 
+number of times the statement was executed.
+If the bar is not labelled, we look up in the listing to find the first
+`|' which directly above the original one which has a count and that
+is the answer.
+Thus, in our example,
+.I k
+was incremented 157 times on line 18,
+while the
+.I write
+procedure call on line 24 was executed 48 times as given by the count
+on the
+.B repeat .
+.PP
+More information on
+.I pxp
+can be found in its manual section
+.XP
+(1)
+and in sections 5.4, 5.5 and 5.10.

@@ -1,0 +1,57 @@
+#
+# Formats for various forms of compressed data
+# Formats for "compress" proper have been moved into "compress.c",
+# because it tries to uncompress it to figure out what's inside.
+#
+# XXX - the two "packed data" versions are byte-swapped versions of
+# one another; is that because the 2-byte magic number is written
+# out in native byte order, with "unpack" figuring out the byte order
+# from the magic number (in which case both can be left as is, or
+# changed to specify a byte order *and* to indicate the byte order of
+# the packing machine), or because the old "file" didn't have any way of
+# having "magic"-file entries that specified a particular byte order?
+#
+0	short		017436		packed data
+0	short		017037		packed data
+
+#
+# This magic number is byte-order-independent.
+#
+0	short		017437		old packed data
+
+#
+0	string		\377\037	compacted data
+0	short		0145405		huf output
+#
+# Squeeze and Crunch, from Keith Waclena <keith@cerberus.uchicago.edu>
+# These numbers were gleaned from the Unix versions of the programs to
+# handle these formats.  Note that I can only uncrunch, not crunch, and
+# I didn't have a crunched file handy, so the crunch number is untested.
+0	short		0x76FF		squeezed data (CP/M, DOS)
+0	short		0x76FE		crunched data (CP/M, DOS)
+# Freeze
+0	short		0x1f9f		Frozen file 2.1
+0	short		0x1f9e		Frozen file 1.0
+#
+# GNU gzip compressor, from christos@deshaw.com (Christos Zoulas)
+#
+0       string          \037\213        gzip compressed file method:
+>2      byte            <8              reserved,
+>2      byte            8               deflate,
+>3	byte		&0x1f		flags: 
+>3	byte		&0x01		ascii-text,
+>3	byte		&0x02		multi-part,
+>3	byte		&0x04		name-present,
+>3	byte		&0x08		comment-present,
+>3	byte		&0x10		encrypted,
+>4	ledate		x		last modified: %s,
+>8	byte		x		extra-flags: %x,
+>9	byte		=0x00		os: MS/DOS
+>9	byte		=0x01		os: Amiga
+>9	byte		=0x02		os: VMS
+>9	byte		=0x03		os: Unix
+>9	byte		=0x05		os: Atari
+>9	byte		=0x06		os: OS/2
+>9	byte		=0x07		os: MacOS
+>9	byte		=0x0A		os: Tops/20
+>9	byte		=0x0B		os: Win/32

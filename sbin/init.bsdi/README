@@ -1,0 +1,35 @@
+This is the source for a version of /sbin/init that runs on 4.4
+BSD and BSD/386 1.0 systems.  I wrote it for BSDI about two years
+ago and BSDI donated the source to UC Berkeley CSRG, but CSRG didn't
+get it working in time to include it with the Networking 2 release,
+although we had hoped it would appear there.  Since that time both
+BSDI and CSRG have worked on it to make it more useful and reliable,
+and recently the two groups have merged our efforts and produced
+a common version once more.  Since the source is freely redistributable
+under the terms of the standard BSD copyright, I'm posting it to
+the net on behalf of BSDI so other folks might get some use from
+it.  Keep in mind that I'm only paid to support this code if you
+bought a system from BSDI, so I probably won't be able to make very
+timely responses to random bug reports, but I am interested in
+seeing them.  (More formally: Neither BSDI nor I personally will
+make any guarantees about the reliability or usefulness of this
+code, and it's unsupported unless you have a support agreement.)
+
+I also make no promises that this code will just drop in and work
+on any particular system.  Please don't call me at home to tell me
+that you compiled and installed init, and now your system won't
+boot.  With a program as sensitive as init, you should always be
+prepared to fall back to an earlier working version if the new one
+fails.  ALWAYS save your old version before installing, and ALWAYS
+be prepared to boot from an alternate root (e.g. a floppy) if the
+new init fails.  I strongly advise you to read the man page carefully
+before you install.  One advance warning: I don't think anyone has
+ever tested the window system start-up code.  One of these days...
+This code is running on my systems at home, and an earlier version
+is running on hundreds of BSDI systems, so it can't be too broken.
+
+Enjoy,
+
+Donn Seeley
+Berkeley Software Design, Inc.  (Salt Lake City)
+June 14, 1993

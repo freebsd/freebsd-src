@@ -1,0 +1,47 @@
+.TH ELVREC 1
+.SH NAME
+elvrec - Recover the modified version of a file after a crash
+.SH SYNOPSIS
+.nf
+\fBelvrec\fP [\fIpreservedfile\fP [\fInewfile\fR]]
+.fi
+.SH DESCRIPTION
+.PP
+If you're editing a file when \fIelvis\fP dies, the system crashes, or power fails,
+the most recent version of your text will be preserved.
+The preserved text is stored in a special directory; it does NOT overwrite
+your text file automatically.
+.PP
+The \fIelvrec\fP program locates the preserved version of a given file,
+and writes it over the top of your text file -- or to a new file, if you prefer.
+The recovered file will have nearly all of your changes.
+.PP
+To see a list of all recoverable files, run \fIelvrec\fP with no arguments.
+.SH FILES
+.IP /usr/preserve/p*
+The text that was preserved when \fIelvis\fP died.
+.IP /usr/preserve/Index
+A text file which lists the names of all preserved files, and the names
+of the /usr/preserve/p* files which contain their preserved text.
+.SH BUGS
+.PP
+\fIelvrec\fP is very picky about filenames.
+You must tell it to recover the file using exactly the same pathname as
+when you were editing it.
+The simplest way to do this is to go into the same directory that you were
+editing, and invoke \fIelvrec\fP with the same filename as \fIelvis\fP.
+If that doesn't work, then try running \fIelvrec\fP with no arguments,
+to see exactly which pathname it is using for the desired file.
+.PP
+Due to the permissions on the /usr/preserve directory, on UNIX systems
+\fIelvrec\fP must be run as superuser.
+This is accomplished by making the \fIelvrec\fP executable be owned by "root"
+and setting its "set user id" bit.
+.PP
+If you're editing a nameless buffer when \fIelvis\fP dies, then \fIelvrec\fP
+will pretend that the file was named "foo".
+.SH AUTHOR
+.nf
+Steve Kirkendall
+kirkenda@cs.pdx.edu
+.fi

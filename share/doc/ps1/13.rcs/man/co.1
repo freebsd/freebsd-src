@@ -1,0 +1,268 @@
+.\"	co.1,v 1.2 1993/08/02 17:51:20 mycroft Exp	-*- nroff -*-
+.TH CO 1 6/29/83 "Purdue University"
+.SH NAME
+co \- check out RCS revisions
+.SH SYNOPSIS
+.B co
+[ options ]
+file ...
+.SH DESCRIPTION
+.I Co
+retrieves revisions from RCS files.
+Each file name ending in `,v' is taken to be an RCS file.
+All other files
+are assumed to be working files.
+\fICo\fR retrieves a revision from each RCS file and stores it into
+the corresponding working file.
+.PP
+Pairs of RCS files and working files may be specified in 3 ways (see also the
+example section).
+.PP
+1) Both the RCS file and the working file are given. The RCS file name is of
+the form \fIpath1/workfile\fR,v
+and the working file name is of the form
+\fIpath2/workfile\fR, where
+\fIpath1/\fR and
+\fIpath2/\fR are (possibly different or empty) paths and
+\fIworkfile\fR is a file name.
+.PP
+2) Only the RCS file is given. Then the working file is created in the current
+directory and its name is derived from the name of the RCS file
+by removing \fIpath1/\fR and the suffix `,v'.
+.PP
+3) Only the working file is given.
+Then the name of the RCS file is derived from the name of the working file
+by removing \fIpath2/\fR
+and appending the suffix `,v'.
+.PP
+If the RCS file is omitted or specified without a path, then \fIco\fR
+looks for the RCS file first in the directory ./RCS and then in the current
+directory.
+.PP
+Revisions of an RCS file may be checked out locked or unlocked. Locking a
+revision prevents overlapping updates. A revision checked out for reading or
+processing (e.g., compiling) need not be locked. A revision checked out
+for editing and later checkin must normally be locked. Locking a revision
+currently locked by another user fails. (A lock may be broken with
+the \fIrcs\fR (1) command.)
+\fICo\fR with locking requires the caller to be on the access list of
+the RCS file, unless he is the owner of the
+file or the superuser, or the access list is empty.
+\fICo\fR without locking is not subject to accesslist restrictions.
+.PP
+A revision is selected by number,
+checkin date/time,
+author, or state. If none of these options
+are specified, the latest revision
+on the trunk is retrieved.
+When the options
+are applied in combination, the latest revision
+that satisfies all of them is retrieved.
+The options for date/time, author, and state retrieve a revision on the \fIselected
+branch\fR. The selected branch is either derived from the revision number (if given),
+or is the highest branch on the trunk.
+A revision number may be attached
+to one of the options
+\fB-l\fR, \fB-p\fR, \fB-q\fR, or \fB-r\fR.
+.PP
+A \fIco\fR command applied to an RCS
+file with no revisions creates a zero-length file.
+\fICo\fR always performs keyword substitution (see below).
+.PP
+.TP 11
+.B \-l\fR[\fIrev\fR]
+locks the checked out revision for the caller.
+If omitted, the checked out revision is not locked.
+See option \fB-r\fR for handling of the revision number \fIrev\fR.
+.TP 11
+.B \-p\fR[\fIrev\fR]
+prints the retrieved revision on the std. output rather than storing it
+in the working file.
+This option is useful when \fIco\fR
+is part of a pipe.
+.TP 11
+.B \-q\fR[\fIrev\fR]
+quiet mode; diagnostics are not printed.
+.TP 11
+.BI \-d "date"
+retrieves the latest revision on the selected branch whose checkin date/time is less than or equal to \fIdate\fR.
+The date and time may be given in free format and are converted to local time.
+Examples of formats for \fIdate\fR:
+.nf
+
+\fI22-April-1982, 17:20-CDT,
+2:25 AM, Dec. 29, 1983,
+Tue-PDT, 1981, 4pm Jul 21\fR         \fR(free format),
+\fIFri, April 16 15:52:25 EST 1982 \fR(output of ctime).
+.fi
+
+Most fields in the date and time may be defaulted.
+\fICo\fR determines the defaults in the order year, month, day,
+hour, minute, and second (most to least significant). At least one of these
+fields must be provided. For omitted fields that are of higher significance
+than the highest provided field,
+the current values are assumed. For all other omitted fields,
+the lowest possible values are assumed.
+For example, the date "20, 10:30" defaults to
+10:30:00 of the 20th of the current month and current year.
+The date/time must be quoted if it contains spaces.
+.TP 11
+.B \-r\fR[\fIrev\fR]
+retrieves the latest revision whose number is less than or equal to \fIrev\fR.
+If \fIrev\fR indicates a branch rather than a revision,
+the latest revision on that branch is retrieved.
+\fIRev\fR is composed of one or more numeric or symbolic fields
+separated by `.'. The numeric equivalent of a symbolic field
+is specified with the \fB-n\fR option of the commands \fIci\fR and \fIrcs\fR.
+.TP 11
+.BI \-s "state"
+retrieves the latest revision on the selected branch whose state is set to \fIstate\fR.
+.TP 11
+.B \-w\fR[\fIlogin\fR]
+retrieves the latest revision on the selected branch which was checked in
+by the user with login name \fIlogin\fR. If the argument \fIlogin\fR is
+omitted, the caller's login is assumed.
+.TP 11
+.B \-j\fIjoinlist\fR
+generates a new revision which is the join of the revisions on \fIjoinlist\fR.
+\fIJoinlist\fR is a comma-separated list of pairs of the form
+\fIrev2:rev3\fR, where \fIrev2\fR and \fIrev3\fR are (symbolic or numeric)
+revision numbers.
+For the initial such pair, \fIrev1\fR denotes the revision selected
+by the options \fB-l\fR, ..., \fB-w\fR. For all other pairs, \fIrev1\fR
+denotes the revision generated by the previous pair. (Thus, the output
+of one join becomes the input to the next.)
+
+For each pair, \fIco\fR joins revisions \fIrev1\fR and \fIrev3\fR
+with respect to \fIrev2\fR.
+This means that all changes that transform
+\fIrev2\fR into \fIrev1\fR are applied to a copy of \fIrev3\fR.
+This is particularly useful if \fIrev1\fR
+and \fIrev3\fR are the ends of two branches that have \fIrev2\fR as a common
+ancestor. If \fIrev1\fR < \fIrev2\fR < \fIrev3\fR on the same branch,
+joining generates a new revision which is like \fIrev3\fR, but with all
+changes that lead from \fIrev1\fR to \fIrev2\fR undone.
+If changes from \fIrev2\fR to \fIrev1\fR overlap with changes from
+\fIrev2\fR to \fIrev3\fR, \fIco\fR prints a warning and includes the
+overlapping sections, delimited by the lines \fI<<<<<<<\ rev1,
+=======\fR, and \fI>>>>>>>\ rev3\fR.
+
+For the initial pair, \fIrev2\fR may be omitted. The default is the common
+ancestor.
+If any of the arguments indicate branches, the latest revisions
+on those branches are assumed. If the option \fB-l\fR is present,
+the initial \fIrev1\fR is locked.
+.SH "KEYWORD SUBSTITUTION"
+Strings of the form \fI$keyword$\fR and \fI$keyword:...$\fR embedded in
+the text are replaced
+with strings of the form \fI$keyword:\ value\ $\fR,
+where \fIkeyword\fR and \fIvalue\fR are pairs listed below.
+Keywords may be embedded in literal strings
+or comments to identify a revision.
+.PP
+Initially, the user enters strings of the form \fI$keyword$\fR.
+On checkout, \fIco\fR replaces these strings with strings of the form
+\fI$keyword:\ value\ $\fR. If a revision containing strings of the latter form
+is checked back in, the value fields will be replaced during the next
+checkout.
+Thus, the keyword values are automatically updated on checkout.
+.PP
+Keywords and their corresponding values:
+.TP 13
+$\&Author$
+The login name of the user who checked in the revision.
+.\".TP
+.\"$\&Class$
+.\"Prog, Def, Doc, or Test, depending on the class assigned to the file
+.\"with the \fB-c\fR option of the \fIrcs\fR command.
+.TP
+$\&Date$
+The date and time the revision was checked in.
+.TP
+$\&Header$
+A standard header containing the RCS file name, the
+revision number, the date, the author, and the state.
+.TP
+$\&Locker$
+The login name of the user who locked the revision (empty if not locked).
+.TP
+$\&Log$
+The log message supplied during checkin, preceded by a header
+containing the RCS file name, the revision number, the author, and the date.
+Existing log messages are NOT replaced.
+Instead, the new log message is inserted after \fI$\&Log:...$\fR.
+This is useful for
+accumulating a complete change log in a source file.
+.TP
+$\&Revision$
+The revision number assigned to the revision.
+.TP
+$\&Source$
+The full pathname of the RCS file.
+.TP
+$\&State$
+The state assigned to the revision with \fIrcs -s\fR or \fIci -s\fR.
+.SH DIAGNOSTICS
+The RCS file name, the working file name,
+and the revision number retrieved are
+written to the diagnostic output.
+The exit status always refers to the last file checked out,
+and is 0 if the operation was successful, 1 otherwise.
+.SH EXAMPLES
+Suppose the current directory contains a subdirectory `RCS' with an RCS file
+`io.c,v'. Then all of the following commands retrieve the latest
+revision from `RCS/io.c,v' and store it into `io.c'.
+.nf
+.sp
+        co  io.c;    co RCS/io.c,v;    co  io.c,v;
+        co  io.c  RCS/io.c,v;    co  io.c  io.c,v;
+        co  RCS/io.c,v  io.c;    co  io.c,v  io.c;
+.fi
+.SH "FILE MODES"
+The working file inherits the read and execute permissions from the RCS
+file. In addition, the owner write permission is turned on, unless the file
+is checked out unlocked and locking is set to \fIstrict\fR (see
+\fIrcs\fR (1)).
+.PP
+If a file with the name of the working file exists already and has write
+permission, \fIco\fR aborts the checkout if \fB-q\fR is given, or asks
+whether to abort if \fB-q\fR is not given. If the existing working file is
+not writable, it is deleted before the checkout.
+.SH FILES
+The caller of the command must have write permission in the working
+directory, read permission for the RCS file, and either read permission
+(for reading) or read/write permission (for locking) in the directory which
+contains the RCS file.
+.PP
+A number of temporary files are created.
+A semaphore file is created in the directory of the RCS file
+to prevent simultaneous update.
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:20
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+ci (1), ident(1), rcs (1), rcsdiff (1), rcsintro (1), rcsmerge (1), rlog (1), rcsfile (5), sccstorcs (8).
+.sp 0
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision Control
+System," in \fIProceedings of the 6th International Conference on Software
+Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH LIMITATIONS
+The option \fB-d\fR gets confused in some circumstances,
+and accepts no date before 1970.
+There is no way to suppress the expansion of keywords, except
+by writing them differently. In nroff and troff, this is done by embedding the
+null-character `\\&' into the keyword.
+.SH BUGS
+The option \fB-j\fR does not work for
+files that contain lines with a single `.'.

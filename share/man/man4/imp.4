@@ -1,0 +1,109 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)imp.4	6.5 (Berkeley) 3/28/91
+.\"
+.Dd March 28, 1991
+.Dt IMP 4
+.Os BSD 4.2
+.Sh NAME
+.Nm imp
+.Nd
+.Tn IMP
+raw socket interface
+.Sh SYNOPSIS
+.Fd #include <sys/socket.h>
+.Fd #include <netinet/in.h>
+.Fd #include <netimp/if_imp.h>
+.Ft int
+.Fn socket AF_IMPLINK SOCK_RAW proto
+.Sh DESCRIPTION
+The raw imp socket provides direct access to the
+.Nm imp
+network interface.  Users send packets through
+the interface using the 
+.Xr send 2
+calls, and receive packets with the
+.Xr recv 2 ,
+calls.  All outgoing packets must have an 1822 96-bit
+leader on the front.  Likewise, packets received
+by the user will have this leader on the front.  The
+1822 leader and the legal values for the various fields
+are defined in the include file
+.Aq Pa netimp/if_imp.h .
+The raw imp interface automatically installs the length
+and destination address in the 1822 leader of all
+outgoing packets; these need not be filled in by the user.
+.Pp
+If the protocol selected,
+.Fa proto ,
+is zero,
+the socket will receive
+all
+.Tn IMP
+messages except RFNM and incompletes
+which are not input data for a kernel protocol.
+If
+.Fa proto
+is non-zero,
+only messages for the specified link type will be received.
+.Sh DIAGNOSTICS
+An operation on a socket may fail with one of the following
+errors:
+.Bl -tag -width [EADDRNOTAVAIL]
+.It Bq Er EISCONN
+when trying to establish a connection on a socket which
+already has one, or when trying to send a datagram with the destination
+address specified and the socket is already connected;
+.It Bq Er ENOTCONN
+when trying to send a datagram, but
+no destination address is specified, and the socket hasn't been
+connected;
+.It Bq Er ENOBUFS
+when the system runs out of memory for
+an internal data structure;
+.It Bq Er ENOBUFS
+eight messages to the destination host are outstanding,
+and another eight are already queued for output;
+.It Bq Er EADDRNOTAVAIL
+when an attempt is made to create a 
+socket with a network address for which no network interface
+exists.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr inet 4 ,
+.Xr imp 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Bx 4.2 .

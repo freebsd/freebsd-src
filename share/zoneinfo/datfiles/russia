@@ -1,0 +1,18 @@
+# Change Time Rules for Moscow
+#
+# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETER/S
+# Historic rules
+Rule    Moscow  1930    1980    -       Jun     21      0:00     0      MSK
+Rule    Moscow  1981    1984    -       Apr     1       0:00     1      MSD
+Rule    Moscow  1981    1984    -       Oct     1       0:00     0      MSK
+Rule    Moscow  1984    1990    -       Mar     lastSun 2:00     1      MSD
+Rule    Moscow  1985    1990    -       Sep     lastSun 3:00     0      MSK
+Rule    Moscow  1991    only    -       Mar     lastSun 2:00     0      "EET DST"
+Rule    Moscow  1991    only    -       Sep     lastSun 3:00    -1      EET
+Rule    Moscow  1992    only    -       Jan     19      2:00     0      MSK
+# Current rules
+Rule    Moscow  1992    max     -       Mar     lastSun 2:00     1      MSD
+Rule    Moscow  1992    max     -       Sep     lastSun 3:00     0      MSK
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone    Moscow          3:00    Moscow          %s

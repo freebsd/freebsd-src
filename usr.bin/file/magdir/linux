@@ -1,0 +1,9 @@
+# Values for Linux/i386 binaries, From: Rik Faith <faith@cs.unc.edu>
+2       short           100             Linux/i386
+>0      short           0407            executable
+>0      short           0410            pure executable
+>0      short           0413            demand paged executable
+>16     long            >0              not stripped
+>0      string          Jump            jump
+# core dump file
+216     long            0421            core file (Linux)

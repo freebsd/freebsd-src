@@ -1,0 +1,74 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)setregid.2	6.4 (Berkeley) 3/10/91
+.\"
+.Dd March 10, 1991
+.Dt SETREGID 2
+.Os BSD 4.2
+.Sh NAME
+.Nm setregid
+.Nd set real and effective group ID
+.Sh SYNOPSIS
+.Fd #include <unistd.h>
+.Ft int
+.Fn setregid "int rgid" "int egid"
+.Sh DESCRIPTION
+The real and effective group ID's of the current process
+are set to the arguments.
+Unprivileged users may change the real group
+ID to the effective group ID and vice-versa; only the super-user may
+make other changes.
+.Pp
+Supplying a value of -1 for either the real or effective
+group ID forces the system to substitute the current
+ID in place of the -1 parameter.
+.Sh RETURN VALUES
+Upon successful completion, a value of 0 is returned.  Otherwise,
+a value of -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Bl -tag -width [EPERM]
+.It Bq Er EPERM
+The current process is not the super-user and a change
+other than changing the effective group-id to the real group-id
+was specified.
+.El
+.Sh SEE ALSO
+.Xr getgid 2 ,
+.Xr setreuid 2 ,
+.Xr setgid 3
+.Sh HISTORY
+The
+.Nm
+function call appeared in
+.Bx 4.2 .

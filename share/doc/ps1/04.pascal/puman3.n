@@ -1,0 +1,753 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman3.n	6.3 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+.if n 'ND
+.nr H1 2
+.NH
+Error diagnostics
+.PP
+This section of the
+.UM
+discusses the error diagnostics of the programs
+.PI ,
+.PC
+and
+.X .
+.I Pix
+is a simple but useful program which invokes
+.PI
+and
+.X
+to do all the real processing.
+See its manual section
+.IX
+(1)
+and section 5.2 below for more details.
+All the diagnostics given by
+.PI
+will also be given by
+.PC .
+.NH 2
+Translator syntax errors
+.PP
+A few comments on the general nature of the syntax errors usually
+made by Pascal programmers
+and the recovery mechanisms of the current translator may help in using
+the system.
+.SH
+Illegal characters
+.PP
+Characters such as `$', `!', and `@' are not part of the language Pascal.
+If they are found in the source program,
+and are not part of a constant string, a constant character, or a comment,
+they are considered to be
+`illegal characters'.
+This can happen if you leave off an opening string quote `\(aa'.
+Note that the character `"', although used in English to quote strings,
+is not used to quote strings in Pascal.
+Most non-printing characters in your input are also illegal except
+in character constants and character strings.
+Except for the tab and form feed characters,
+which are used to ease formatting of the program,
+non-printing characters in the input file print as the character `?'
+so that they will show in your listing.
+.SH
+String errors
+.PP
+There is no character string of length 0 in Pascal.
+Consequently the input `\(aa\(aa' is not acceptable.
+Similarly, encountering an end-of-line after an opening string quote `\(aa'
+without encountering the matching closing quote yields the diagnostic
+``Unmatched \(aa for string''.
+It is permissible to use the character `#'
+instead of `\''
+to delimit character and constant strings for portability reasons.
+For this reason, a spuriously placed `#' sometimes causes the diagnostic
+about unbalanced quotes.
+Similarly, a `#' in column one is used when preparing programs which are to
+be kept in multiple files.
+See section 5.11 for details.
+.SH
+Comments in a comment, non-terminated comments
+.PP
+As we saw above, these errors are usually caused by leaving off a comment
+delimiter.
+You can convert parts of your program to comments
+without generating this diagnostic
+since there are two different kinds of comments \- those delimited by
+`{' and `}', and those delimited by `(*' and `*)'.
+Thus consider:
+.LS
+{ This is a comment enclosing a piece of program
+a := functioncall;	(* comment within comment *)
+procedurecall;
+lhs := rhs;		(* another comment *)
+}
+.LE
+.PP
+By using one kind of comment exclusively in your program you can use
+the other delimiters when you need to
+``comment out''
+parts of your program\*(dg.
+.FS
+\*(dgIf you wish to transport your program,
+especially to the 6000-3.4 implementation,
+you should use the character sequence `(*' to delimit comments.
+For transportation over the
+.I rcslink
+to Pascal 6000-3.4, the character `#' should be used to delimit characters
+and constant strings.
+.FE
+In this way you will also allow the translator to help by detecting
+statements accidentally placed within comments.
+.PP
+If a comment does not terminate before the end of the input file,
+the translator will point to the beginning of the comment,
+indicating that the comment is not terminated.
+In this case processing will terminate immediately.
+See the discussion of ``QUIT'' below.
+.SH
+Digits in numbers
+.PP
+This part of the language is a minor nuisance.
+Pascal requires digits in real numbers both before and after the decimal
+point.
+Thus the following statements, which look quite reasonable to
+.SM
+FORTRAN
+.NL
+users, generate diagnostics in Pascal:
+.LS
+.so digitsout
+.LE
+These same constructs are also illegal as input to the Pascal interpreter
+.I px .
+.SH
+Replacements, insertions, and deletions
+.PP
+When a syntax error is encountered in the input text,
+the parser invokes an error recovery procedure.
+This procedure examines the input text immediately after the point
+of error and considers a set of simple corrections to see whether they
+will allow the analysis to continue.
+These corrections involve replacing an input token with a different
+token,
+inserting a token,
+or replacing an input token with a different token.
+Most of these changes will not cause fatal syntax errors.
+The exception is the insertion of or replacement with a symbol
+such as an identifier or a number;
+in this case the recovery makes no attempt to determine
+.I which
+identifier or
+.I what 
+number should be inserted,
+hence these are considered fatal syntax errors.
+.PP
+Consider the following example.
+.LS
+% \*bpix -l synerr.p\fR
+.tr --
+.so synerrout
+%
+.LE
+The only surprise here may be that Pascal does not have an exponentiation
+operator, hence the complaint about `**'.
+This error illustrates that, if you assume that the language has a feature
+which it does not, the translator diagnostic may not indicate this,
+as the translator is unlikely to recognize the construct you supply.
+.SH
+Undefined or improper identifiers
+.PP
+If an identifier is encountered in the input but is undefined,
+the error recovery will replace it with an identifier of the
+appropriate class.
+Further references to this identifier will be summarized at the
+end of the containing
+.B procedure
+or
+.B function
+or at the end of the
+.B program
+if the reference occurred in the main program.
+Similarly,
+if an identifier is used in an inappropriate way,
+e.g. if a
+.B type
+identifier is used in an assignment statement,
+or if a simple variable
+is used where a
+.B record
+variable is required,
+a diagnostic will be produced and an identifier of the appropriate
+type inserted.
+Further incorrect references to this identifier will be flagged only
+if they involve incorrect use in a different way,
+with all incorrect uses being summarized in the same way as undefined
+variable uses are.
+.SH
+Expected symbols, malformed constructs
+.PP
+If none of the above mentioned corrections appear reasonable, the
+error recovery will examine the input 
+to the left of the point of error to see if there is only one symbol
+which can follow this input.
+If this is the case, the recovery will print a diagnostic which
+indicates that the given symbol was `Expected'.
+.PP
+In cases where none of these corrections resolve the problems
+in the input,
+the recovery may issue a diagnostic that indicates that the
+input is ``malformed''.
+If necessary, the translator may then skip forward in the input to
+a place where analysis can continue.
+This process may cause some errors in the text to be missed.
+.PP
+Consider the following example:
+.LS
+% \*bpix -l synerr2.p\fR
+.so synerr2out
+%
+.LE
+Here we misspelled
+.I output
+and gave a
+.SM FORTRAN
+style variable declaration
+which the translator diagnosed as a `Malformed declaration'.
+When, on line 6, we used `(' and `)' for subscripting
+(as in
+.SM FORTRAN )
+rather than the `[' and `]' which are used in Pascal,
+the translator noted that
+.I a
+was not defined as a
+.B procedure .
+This occurred because
+.B procedure
+and
+.B function
+argument lists are delimited by parentheses in Pascal.
+As it is not permissible to assign to procedure calls the translator
+diagnosed a malformed statement at the point of assignment.
+.SH
+Expected and unexpected end-of-file, ``QUIT''
+.PP
+If the translator finds a complete program, but there is more non-comment text
+in the input file, then it will indicate that an end-of-file was expected.
+This situation may occur after a bracketing error, or if too many
+.B end s
+are present in the input.
+The message may appear
+after the recovery says that it
+``Expected \`.\'\|''
+since `.' is the symbol that terminates a program.
+.PP
+If severe errors in the input prohibit further processing
+the translator may produce a diagnostic followed by ``QUIT''.
+One example of this was given above \-
+a non-terminated comment;
+another example is a line which is longer than 160
+characters.
+Consider also the following example.
+.LS
+% \*bpix -l mism.p\fR
+.so mismout
+%
+.LE
+.NH 2
+Translator semantic errors
+.PP
+The extremely large number of semantic diagnostic messages which the translator
+produces make it unreasonable to discuss each message or group of messages
+in detail.
+The messages are, however, very informative.
+We will here explain the typical formats and the terminology used in the error
+messages so that you will be able to make sense out of them.
+In any case in which a diagnostic is not completely comprehensible you can
+refer to the
+.I "User Manual"
+by Jensen and Wirth for examples.
+.SH
+Format of the error diagnostics
+.PP
+As we saw in the example program above, the error diagnostics from
+the Pascal translator include the number of a line in the text of the program
+as well as the text of the error message.
+While this number is most often the line where the error occurred, it
+is occasionally the number of a line containing a bracketing keyword
+like
+.B end
+or
+.B until .
+In this case, the diagnostic may refer to the previous statement.
+This occurs because of the method the translator uses for sampling line
+numbers.
+The absence of a trailing `;' in the previous statement causes the line
+number corresponding to the
+.B end
+or
+.B until .
+to become associated with the statement.
+As Pascal is a free-format language, the line number associations
+can only be approximate and may seem arbitrary to some users.
+This is the only notable exception, however, to reasonable associations.
+.SH
+Incompatible types
+.PP
+Since Pascal is a strongly typed language, many semantic errors manifest
+themselves as type errors.
+These are called `type clashes' by the translator.
+The types allowed for various operators in the language are summarized on page
+108 of the
+Jensen-Wirth
+.I "User Manual" .
+It is important to know that the Pascal translator, in its diagnostics,
+distinguishes between the following type `classes':
+.br
+.ne 8
+.TS
+center;
+lew(10) le le le le.
+array	Boolean	char	file	integer
+pointer	real	record	scalar	string
+.TE
+These words are plugged into a great number of error messages.
+Thus, if you tried to assign an
+.I integer
+value to a
+.I char
+variable you would receive a diagnostic like the following:
+.LS
+.so clashout
+.LE
+In this case, one error produced a two line error message.
+If the same error occurs more than once, the same explanatory
+diagnostic will be given each time.
+.SH
+Scalar
+.PP
+The only class whose meaning is not self-explanatory is 
+`scalar'.
+Scalar has a precise meaning in the
+Jensen-Wirth
+.I "User Manual"
+where, in fact, it refers to
+.I char ,
+.I integer ,
+.I real ,
+and
+.I Boolean
+types as well as the enumerated types.
+For the purposes of the Pascal translator,
+scalar
+in an error message refers to a user-defined, enumerated
+type, such as
+.I ops
+in the example above or
+.I color
+in
+.LS
+\*btype\fP color = (red, green, blue)
+.LE
+For integers, the more explicit denotation
+.I integer
+is used.
+Although it would be correct, in the context of the
+.I "User Manual"
+to refer to an integer variable as a
+.I scalar
+variable
+.PI
+prefers the more specific identification.
+.SH
+Function and procedure type errors
+.PP
+For built-in procedures and functions, two kinds of errors occur.
+If the routines are called with the wrong number of arguments a message similar to:
+.LS
+.so sinout1
+.LE
+is given.
+If the type of the argument is wrong, a message like
+.LS
+.so sinout2
+.LE
+is produced.
+A few functions and procedures implemented in Pascal 6000-3.4 are
+diagnosed as unimplemented in
+Berkeley
+Pascal, notably those related to
+.B segmented 
+files.
+.SH
+Can't read and write scalars, etc.
+.PP
+The messages which state that scalar (user-defined) types
+cannot be written to and from files are often mysterious.
+It is in fact the case that if you define
+.LS
+\*btype\fP color = (red, green, blue)
+.LE
+``standard'' Pascal does not associate these constants with the strings
+`red', `green', and `blue' in any way.
+An extension has been added which allows enumerated types
+to be read and written, 
+however if the program is to be portable,
+you will have to write your own routines to perform these functions.
+Standard Pascal only allows the reading of characters, integers and real
+numbers from text files.
+You cannot read strings or Booleans.
+It is possible to make a
+.LS
+\*bfile of\fP color
+.LE
+but the representation is binary rather than string.
+.SH
+Expression diagnostics
+.PP
+The diagnostics for semantically ill-formed expressions are very explicit.
+Consider this sample translation:
+.LS
+% \*bpi -l expr.p\fP
+.so exprout
+%
+.LE
+This example is admittedly far-fetched, but illustrates that the error
+messages are sufficiently clear to allow easy determination of the
+problem in the expressions.
+.SH
+Type equivalence
+.PP
+Several diagnostics produced by the Pascal translator complain about
+`non-equivalent types'.
+In general,
+Berkeley
+Pascal considers variables to have the same type only if they were
+declared with the same constructed type or with the same type identifier.
+Thus, the variables
+.I x
+and
+.I y
+declared as
+.LS
+\*bvar\fP
+    x: ^ integer;
+    y: ^ integer;
+.LE
+do not have the same type.
+The assignment
+.LS
+x := y
+.LE
+thus produces the diagnostics:
+.LS
+.so typequout
+.LE
+Thus it is always necessary to declare a type such as
+.LS
+\*btype\fP intptr = ^ integer;
+.LE
+and use it to declare
+.LS
+\*bvar\fP x: intptr; y: intptr;
+.LE
+Note that if we had initially declared
+.LS
+\*bvar\fP x, y: ^ integer;
+.LE
+then the assignment statement would have worked.
+The statement
+.LS
+x^ := y^
+.LE
+is allowed in either case.
+Since the parameter to a
+.B procedure
+or
+.B function
+must be declared with a
+type identifier rather than a constructed type,
+it is always necessary, in practice,
+to declare any type which will be used in this way.
+.SH
+Unreachable statements
+.PP
+Berkeley
+Pascal flags unreachable statements.
+Such statements usually correspond to errors in the program logic.
+Note that a statement is considered to be reachable
+if there is a potential path of control,
+even if it can never be taken.
+Thus, no diagnostic is produced for the statement:
+.LS
+\*bif\fP false \*bthen\fP
+    writeln('impossible!')
+.LE
+.SH
+Goto's into structured statements
+.PP
+The translator detects and complains about
+.B goto
+statements which transfer control into structured statements (\c
+.B for ,
+.B while ,
+etc.)
+It does not allow such jumps, nor does it allow branching from the
+.B then
+part of an
+.B if
+statement into the
+.B else
+part.
+Such checks are made only within the body of a single procedure or
+function.
+.SH
+Unused variables, never set variables
+.PP
+Although
+.PI
+always clears variables to 0 at
+.B procedure
+and
+.B function
+entry,
+.PC
+does not unless runtime checking is enabled using the
+.B C
+option.
+It is
+.B not
+good programming practice to rely on this initialization.
+To discourage this practice, and to help detect errors in program logic,
+.PI
+flags as a `w' warning error:
+.IP
+.RS
+.HP 1)
+Use of a variable which is never assigned a value.
+.IP 2)
+A variable which is declared but never used, distinguishing
+between those variables for which values are computed but which are never
+used, and those completely unused.
+.RE
+.LP
+In fact, these diagnostics are applied to all declared items.
+Thus a
+.B const
+or a
+.B procedure
+which is declared but never used is flagged.
+The
+.B w
+option of
+.PI
+may be used to suppress these warnings;
+see sections 5.1 and 5.2.
+.NH 2
+Translator panics, i/o errors
+.SH
+Panics
+.PP
+One class of error which rarely occurs, but which causes termination
+of all processing when it does is a panic.
+A panic indicates a translator-detected internal inconsistency.
+A typical panic message is:
+.LS
+snark (rvalue) line=110 yyline=109
+Snark in pi
+.LE
+If you receive such a message, the translation will be quickly and perhaps
+ungracefully terminated.
+You should contact a teaching assistant or a member of the system staff,
+after saving a copy of your program for later inspection.
+If you were making changes to an existing program when the problem
+occurred, you may
+be able to work around the problem by ascertaining which change caused the
+.I snark
+and making a different change or correcting an error in the program.
+A small number of panics are possible in
+.X .
+All panics should be reported to a teaching assistant or systems
+staff so that they can be fixed.
+.SH
+Out of memory
+.PP
+The only other error which will abort translation when no errors are
+detected is running out of memory.
+All tables in the translator, with the exception of the parse stack,
+are dynamically allocated, and can grow to take up the full available
+process space of 64000 bytes on the \s-2PDP\s0-11.  On the \s-2VAX\s0-11,
+table sizes are extremely generous and very large (25000) line programs
+have been easily accommodated.  For the \s-2PDP\s0\-11, it is
+generally true that
+the size of the largest translatable program is directly related to
+.B procedure
+and
+.B function
+size.
+A number of non-trivial Pascal programs, including
+some with more than 2000 lines and 2500 statements
+have been translated and interpreted using
+Berkeley
+Pascal on \s-2PDP\s0-11's.
+Notable among these are the Pascal-S
+interpreter,
+a large set of programs for automated generation of
+code generators,
+and a general context-free parsing program which has been used to
+parse sentences with a grammar for a superset of English.
+In general,
+very large programs should be translated using
+.PC
+and the separate compilation facility.
+.PP
+If you receive an out of space message from the translator 
+during translation of a large
+.B procedure
+or
+.B function
+or one containing a large number of string constants
+you may yet be able
+to translate your program if you break this one
+.B procedure
+or
+.B function
+into several routines.
+.SH
+I/O errors
+.PP
+Other errors which you may encounter when running
+.PI
+relate to input-output.
+If
+.PI
+cannot open the file you specify,
+or if the file is empty,
+you will be so informed.
+.NH 2
+Run-time errors
+.PP
+We saw, in our second example, a run-time error.
+We here give the general description of run-time errors.
+The more unusual interpreter error messages are explained
+briefly in the manual section for
+.I px 
+(1).
+.SH
+Start-up errors
+.PP
+These errors occur when the object file to be executed is not available
+or appropriate.
+Typical errors here are caused by the specified object file not existing,
+not being a Pascal object, or being inaccessible to the user.
+.SH
+Program execution errors
+.PP
+These errors occur when the program interacts with the Pascal runtime
+environment in an inappropriate way.
+Typical errors are values or subscripts out of range,
+bad arguments to built-in functions,
+exceeding the statement limit because of an infinite loop,
+or running out of memory\*(dd.
+.FS
+\*(ddThe checks for running out of memory are not foolproof and there
+is a chance that the interpreter will fault, producing a core image
+when it runs out of memory.
+This situation occurs very rarely.
+.FE
+The interpreter will produce a backtrace after the error occurs,
+showing all the active routine calls,
+unless the
+.B p
+option was disabled when the program was translated.
+Unfortunately, no variable values are given and no way of extracting them
+is available.*
+.FS
+* On the \s-2VAX\s0-11, each variable
+is restricted to allocate at most 65000 bytes of storage (this is a
+\s-2PDP\s0-11ism that has survived to the \s-2VAX\s0.)
+.FE
+.PP
+As an example of such an error, assume that we have accidentally
+declared the constant
+.I n1
+to be 6, instead of 7
+on line 2 of the program primes as given in section 2.6 above.
+If we run this program we get the following response.
+.LS
+% \*bpix primes.p\fP
+.so primeout3
+%
+.LE
+.PP
+Here the interpreter indicates that the program terminated
+abnormally due to a subscript out of range near line 14,
+which is eight lines into the body of the program primes.
+.SH
+Interrupts
+.PP
+If the program is interrupted while executing
+and the
+.B p
+option was not specified,
+then a backtrace will be printed.\*(dg
+.FS
+\*(dgOccasionally, the Pascal system will be in an inconsistent
+state when this occurs,
+e.g. when an interrupt terminates a
+.B procedure
+or
+.B function
+entry or exit.
+In this case, the backtrace will only contain the current line.
+A reverse call order list of procedures will not be given.
+.FE
+The file
+.I pmon.out
+of profile information will be written if the program was translated
+with the
+.B z
+option enabled to
+.PI
+or
+.IX .
+.SH
+I/O interaction errors
+.PP
+The final class of interpreter errors results from inappropriate
+interactions with files, including the user's terminal.
+Included here are bad formats for integer and real numbers (such as
+no digits after the decimal point) when reading.

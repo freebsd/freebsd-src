@@ -1,0 +1,5 @@
+;
+; Initial cache data for root domain servers.
+;
+.		9999	IN	NS	    SRI-NIC.ARPA
+		9999	IN	NS	    USC-ISIB.ARPA

@@ -1,0 +1,2 @@
+soelim.o : soelim.cc ../include/lib.h ../include/errarg.h \
+  ../include/error.h ../include/stringclass.h

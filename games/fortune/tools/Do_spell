@@ -1,0 +1,10 @@
+#!/bin/sh -
+#
+#	@(#)Do_spell	5.2 (Berkeley) 4/8/91
+#
+
+F=_spell.$$
+echo $1
+spell < $1 > $F
+sort $F $1.sp.ok | uniq -u | column
+rm -f $F

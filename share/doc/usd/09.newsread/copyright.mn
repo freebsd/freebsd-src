@@ -1,0 +1,608 @@
+.\"	@(#)copyright.mn	6.1 (Berkeley) 5/26/86
+.\"
+.ds .f copyright.mn
+.ds h0 "Copyright Law
+.ds h1
+.ds h2 %
+.ds f0 "\*(vr
+.ds f1
+.ds f2 "February 26, 1986
+.mt
+Copyright Law
+.au
+Jordan J. Breslow
+.ai
+1225 Alpine Road, Suite 200
+Walnut Creek, CA 94596
++1 415 932 4828
+.bt
+.fn
+\(co Copyright 1986 Breslow, Redistributed by permission
+.ef
+.pg
+I am an attorney practicing copyright law and computer
+law.  I read a series of queries in net.legal about
+copyright law and was dismayed to find that people who
+had no idea what they were talking about were spreading
+misinformation over the network.  Considering that the
+penalties for copyright infringement can include
+$50,000.00 damages per infringed work, attorneys fees,
+court costs, criminal fines and imprisonment, and
+considering that ignorance is no excuse and innocent
+intent is not even a recognized defense, I cringe to see
+the network used as a soapbox for the ill-informed.  For
+that reason, this article will discuss copyright law and
+license law as they pertain to computer software.
+.pg
+My goal is to enable readers to determine when they
+should be concerned about infringing and when they can
+relax about it.  I also want to let programmers know how
+to obtain copyright for their work.  I'll explain the
+purpose of software licenses, and discuss the effect
+that the license has on copyright.  For those of you who
+are programmers, I'll help you decide whether you own
+the programs you write on the job or your boss owns
+them.  I will also mention trademark law and patent law
+briefly, in order to clarify some confusion about which
+is which.  Incidentally, if you read this entire essay,
+you will be able to determine whether or not the essay
+is copyrighted and whether or not you can make a
+printout of it.
+.pg
+This is a long article, and you may not want to
+read all of it.  Here is an outline to help you decide
+what to read and what to ignore:
+.nf
+.si 10
+1.	The Meaning of Copyright from the Viewpoint of the Software User
+1.1	A bit of history
+1.2	The meaning of \f2copyright\fP
+1.3	The meaning of \f2public domain\fP
+1.4	A hypothetical software purchase
+1.5	Can you use copyrighted software?
+1.6	Can you make a backup copy?
+1.7	Licenses may change the rules
+1.8	Can you modify the program?
+1.9	Can you break the copy protection scheme?
+1.10	Summary
+.sp
+2.	Copyright Sounds Neat -- How Do I Get One? Or, How Do I Know If
+	this Program is Copyrighted?
+2.1	How do you get a copyright?
+2.2	How do you lose a copyright?
+2.3	How do you waste a stamp?
+2.4	Do you have to register?
+2.5	How copyright comes into existence
+2.6	The copyright notice
+2.7	Advantages of registration
+2.8	A test to see if you understand this article
+.sp
+3.	Who Owns The Program You Wrote?
+3.1	Introduction
+3.2	Programs written as an employee
+3.3	Programs written as a contractor
+.sp
+4.	A Brief Word about Licenses
+4.1	Why a license?
+4.2	Is it valid?
+.sp
+.5	I Have a Neat Idea.  Can I Trademark it? What about a Patent?
+5.1	Trademark law explained
+5.2	Patent law
+.sp
+6.	Conclusion
+.ei
+.fi
+.sp 2
+.hn 1
+The Meaning of Copyright from the Viewpoint of the Software User
+.hn 2
+A bit of history
+.pg
+If you're not interested in history, you can
+skip this paragraph.
+.i Modern
+copyright law first came
+into existence in 1570,  by an act of Parliament called
+the Statute of Anne.  Like most laws, it hasn't changed
+much since.  It was written with books and pictures in
+mind.  Parliament, lacking the foresight to predict the
+success of the Intel and IBM corporations, failed to
+consider the issue of copyrighting computer programs. 
+.pg
+At first, courts questioned whether programs could be
+copyrighted at all.  The problem was that judges
+couldn't read the programs and they figured the
+Copyright Law was only meant to apply to things humans
+(which arguably includes judges) could read without the
+aid of a machine.  I saw some mythical discussion about
+that in some of the net.legal drivel.  Let's lay that to
+rest:  programs are copyrightable as long as there is
+even a minimal amount of creativity.  The issue was laid
+to rest with the Software Act of 1980.  That Act
+modified the Copyright Act (which is a Federal law by
+the way), in such a way as to make it clear that
+programs are copyrightable.  The few exceptions to this
+rule will rarely concern anyone.  The next question to
+arise was whether a program was copyrightable if it was
+stored in ROM rather than on paper.   The decision in
+the Apple v. Franklin case laid that to rest:  it is.
+.hn 2
+The meaning of \f2copyright\fP
+.pg
+Now, what is copyright?  As it is commonly
+understood, it is the right to make copies of something
+-- or to put it the other way around, it is the right to
+prohibit other people from making copies.  This is known
+as an exclusive right -- the exclusive right to
+.i reproduce ,
+in the biological language of the Copyright
+Act -- and what most people don't know is that copyright
+involves not one, not two, but five exclusive rights.   
+These are (1) the exclusive right to make copies, (2)
+the exclusive right to distribute copies to the public,
+(3) the exclusive right to prepare 
+.i "derivative works"
+(I'll explain, just keep reading), (4) the exclusive
+right to perform the work in public (this mainly applies
+to plays, dances and the like, but it could apply to
+software), and (5) the exclusive right to display the
+work in public (such as showing a film).
+.hn 2
+The meaning of \f2public domain\fP
+.pg
+Before we go any further, what is public
+domain?  I saw some discussion on the net about public
+domain software being copyrighted.  Nonsense.  The
+phrase 
+.i "public domain,"
+when used correctly, means the
+absence of copyright protection.  It means you can copy
+public domain software to your heart's content.  It
+means that the author has none of the exclusive rights
+listed above.  If someone uses the phrase
+.i "public domain"
+to refer to
+.i freeware
+(software which is copyrighted but is distributed without advance payment
+but with a request for a donation), he or she is using
+the term incorrectly.  Public domain means no copyright
+-- no exclusive rights.
+.hn 2
+A hypothetical software purchase
+.pg
+Let's look at those exclusive rights from the
+viewpoint of someone who has legitimately purchased a
+single copy of a copyrighted computer program.  For the
+moment, we'll have to ignore the fact that the program
+is supposedly licensed, because the license changes
+things.  I'll explain that later.  For now, assume you
+went to Fred's Diner and Software Mart and bought a
+dozen eggs, cat food and a word processing program.  And
+for now, assume the program is copyrighted.
+.hn 2
+Can you use copyrighted software?
+.pg
+What can you do with this copyrighted
+software?  Let's start with the obvious:  can you use it
+on your powerful Timex PC?  Is this a joke?  No.  Prior
+to 1980, my answer might have been No, you can't use it!
+.pg
+People actually pay me for advice like that!  Well
+think:  you take the floppy disk out of the zip lock
+baggy, insert it in drive A and load the program into
+RAM.  What have you just done?  You've made a copy in
+RAM -- in legalese, you've reproduced the work, in
+violation of the copyright owner's exclusive right to
+reproduce.  (I better clarify something here:  the
+copyright owner is the person or company whose name
+appears in the copyright notice on the box, or the disk
+or the first screen or wherever.  It may be the person
+who wrote the program, or it may be his boss, or it may
+be a publishing company that bought the rights to the
+program.  But in any case, it's not you. When you buy a
+copy of the program, you do not become the copyright
+owner.  You just own one copy.)
+.pg
+Anyway, loading the program into RAM means
+making a copy.  The Software Act of 1980 addressed this
+absurdity by allowing you to make a copy if the copy \*(lqis
+created as an essential step in the utilization of the
+computer program in conjunction with a machine and ...
+is used in no other manner ....\*(rq  By the way,
+somebody tell me what 
+.i "a machine"
+means.  If you connect
+5 PC's on a network is that 
+.i "a machine"
+or
+.i "several machines" ?
+A related question is whether or not running
+software on a network constitutes a performance.  The
+copyright owner has the exclusive right to do that,
+remember?
+.hn 2
+Can you make a backup copy?
+.pg
+OK, so you bought this copyrighted program
+and you loaded it into RAM or onto a hard disk without
+the FBI knocking on your door.  Now can you make a
+backup copy? 
+.b YES .
+The Software Act also provided that
+you can make a backup copy, provided that it \*(lqis for
+archival purposes only ....\*(rq  What you cannot do,
+however, is give the archive copy to your friend so that
+you and your pal both got the program for the price of
+one.  That violates the copyright owner's exclusive
+right to distribute copies to the public.  Get it?  You
+can, on the other hand, give both your original and
+backup to your friend -- or sell it to him, or lend it
+to him, as long as you don't retain a copy of the
+program you are selling.  Although the copyright owner
+has the exclusive right to distribute (sell) copies of
+the program, that right only applies to the first sale
+of any particular copy.  By analogy, if you buy a
+copyrighted book, you are free to sell your book to a
+friend.  The copyright owner does not have the right to
+control resales.  
+.hn 2
+Licenses may change the rules
+.pg
+At this point, let me remind you that we have
+assumed that the program you got at the store was sold
+to you, not licensed to you.  Licenses may change the
+rules.
+.hn 2
+Can you modify the program?
+.pg
+Now, you're a clever programmer, and you know
+the program could run faster with some modifications. 
+You could also add graphics and an interactive mode and
+lots of other stuff.  What does copyright law say about
+your plans?  Well ... several different things,
+actually.  First, recall that the copyright owner has
+the exclusive right to make derivative works.  A
+derivative work is a work based on one or more
+preexisting works.  It's easy to recognize derivative
+works when you think about music or books.  If a book is
+copyrighted, derivative works could include a
+screenplay, an abridged edition, or a translation into
+another language.  Derivative works of songs might be
+new arrangements (like the jazz version of Love Potion
+Number 9), a movie soundtrack, or a written
+transcription, or a 
+.i "long version" , (such as the fifteen
+minute version of \*(lqWipe Out\*(rq with an extended drum solo
+for dance parties).  In my opinion, you are making a
+derivative work when you take the store-bought word
+processor and modify it to perform differently.  The
+same would be true if you 
+.i translated
+a COBOL program
+into BASIC.  Those are copyright infringements -- you've
+horned in on the copyright owner's exclusive right to
+make derivative works.  There is, however, some
+breathing room.  The Software Act generously allows you
+to 
+.i adapt
+the code  if the adaptation \*(lqis created as an
+essential step in the utilization of the computer
+program in conjunction with a machine ....\*(rq  For
+example, you might have to modify the code to make it
+compatible with your machine.  
+.hn 2
+Can you break the copy protection scheme?
+.pg
+Moving right along, let's assume your store
+bought program is copy protected, and you'd really like
+to make a backup copy.  You know this nine-year-old whiz
+who can crack any copy-protection scheme faster than you
+can rearrange a Rubix cube.  Is there a copyright
+violation if he succeeds?  There's room to argue here. 
+When you try to figure out if something is an
+infringement, ask yourself, what exclusive right am I
+violating?  In this case, not the right to make copies,
+and not the right to distribute copies.  Public
+performance and display have no relevance.  So the key
+question is whether you are making a 
+.i "derivative work" .
+My answer to that question is, \*(lqI doubt it.\*(rq  On the
+other hand, I also doubt that breaking the protection
+scheme was \*(lqan essential step\*(rq in using the program in
+conjunction with a machine.  It might be a \*(lqfair use,\*(rq
+but that will have to wait for another article.  Anyone
+interested in stretching the limits of the \*(lqfair use\*(rq
+defense should read the Sony 
+.i Betamax
+case.
+.hn 2
+Summary
+.pg
+Let me summarize. Copyright means the
+copyright owner has the exclusive right to do certain
+things. Copyright infringement means you did one of
+those exclusive things (unless you did it within the
+limits of the Software Act, i.e., as an essential step ....).
+.hn 1
+Copyright Sounds Neat -- How Do I Get One?  Or, How Do I Know if this Program is Copyrighted?
+.hn 2
+How do you get a copyright?
+.pg
+If you've written an original program, what do you have to do to get a
+copyright? Nothing. You already have one.
+.hn 2
+How do you lose a copyright?
+.pg
+If you've written an original
+program, what do you have to do to lose your copyright
+protection?  Give copies away without the copyright
+notice.
+.hn 2
+How do you waste a stamp?
+.pg
+If you mail the program to yourself
+in a sealed envelope, what have you accomplished? 
+You've wasted a stamp and an envelope and burdened the
+postal system unnecessarily.  
+.hn 2
+Do you have to register?
+.pg
+Do you have to register your program
+with the U.S. Copyright Office?  No, but it's a damn
+good idea.
+.hn 2
+How copyright comes into existence
+.pg
+Copyright protection (meaning the five
+exclusive rights) comes into existence the moment you
+.i fix
+your program in a 
+.i "tangible medium" .
+That means
+write it down, or store it on a floppy disk, or do
+something similar.  Registration is optional.  The one
+thing you must do, however, is protect your copyright by
+including a copyright notice on every copy of every
+program you sell, give away, lend out, etc.  If you
+don't, someone who happens across your program with no
+notice on it can safely assume that it is in the public
+domain (unless he actually knows that it is not).  
+.hn 2
+The copyright notice
+.pg
+The copyright notice has three parts.  The
+first can be either a c with a circle around it (\(co), or the
+word 
+.b Copyright
+or the abbreviation 
+.b Copr.
+The c
+with a circle around it is preferable, because it is
+recognized around the world; the others are not.  That's
+incredibly important.  Countries around the world have
+agreed to recognize and uphold each others' copyrights,
+but this world-wide protection requires the use of the c
+in a circle.  On disk labels and program packaging, use
+the encircled c.  Unfortunately, computers don't draw
+small circles well, so programmers have resorted to a c
+in parentheses: (c).  Too bad.  That has no legal
+meaning.  When you put your notice in the code and on
+the screen, use 
+.b Copyright
+or 
+.b Copr.
+if you can't make a circle.
+.pg
+The second part of the notice is the \*(lqyear
+of first publication of the work.\*(rq  
+.i Publication
+doesn't mean distribution by Osborne Publishing Co.  It
+means distribution of copies of the program to the
+public \*(lqby sale or other transfer of ownership, or by
+rental, lease, or lending.\*(rq  So when you start handing
+out or selling copies of your precious code, you are
+publishing.  Publication also takes place when you
+merely OFFER to distribute copies to a group for further
+distribution.  Your notice must include the year that
+you first did so.
+.pg
+The third part of the notice is the name of
+the owner of the copyright.  Hopefully, that's you, in
+which case your last name will do.  If your company owns
+the program -- a legal issue which I will address later
+in this article -- the company name is appropriate.
+.pg
+Where do you put the notice?  The general
+idea is to put it where people are likely to see it. 
+Specifically, if you're distributing a human-readable
+code listing, put it on the first page in the first few
+lines of code, and hard code it so that it appears on
+the title screen, or at sign-off, or continuously.  If
+you're distributing machine-readable versions only, hard
+code it.  As an extra precaution, you should also place
+the notice on the gummed disk label or in some other
+fashion permanently attached to the storage medium.
+.hn 2
+Advantages of registration
+.pg
+Now, why register the program?  If no one
+ever rips off your program, you won't care much about
+registration.  If someone does rip it off, you'll kick
+yourself for not having registered it.  The reason is
+that if the program is registered before the
+infringement takes place, you can recover some big bucks
+from the infringer, called statutory damages, and the
+court can order the infringer to pay your attorneys
+fees.  Registration only costs $10.00, and it's easy to
+do yourself.  The only potential disadvantage is the
+requirement that you deposit the first and last 25 pages
+of your source code, which can be inspected (but not
+copied) by members of the public.  
+.hn 2
+A test to see if you understand this article
+.pg
+Now, someone tell me this:  is this article copyrighted?  Can you print it?
+.hn 1
+Who Owns The Program You Wrote?
+.hn 2
+Introduction
+.pg
+The starting point of this analysis is that if you wrote
+the program, you are the author, and copyright belongs
+to the author.  HOWEVER, that can change instantly. 
+There are two common ways for your ownership to shift to
+someone else:  first, your program might be a \*(lqwork for
+hire.\*(rq  Second, you might sell or assign your 
+.i rights
+in the program, which for our purposes means the
+copyright.  
+.hn 2
+Programs written as an employee
+.pg
+Most of the programs which you write at
+work, if not all of them, belong to your employer. 
+That's because a program prepared by an employee within
+the scope of his or her employment is a \*(lqwork for hire,\*(rq
+and the employer is considered the 
+.i author .
+This is more or less automatic if you are an employee -- no
+written agreement is necessary to make your employer the
+copyright owner.  By contrast, if you can convince your
+employer to let you be the copyright owner, you must
+have that agreement in writing.
+.pg
+By the way, before you give up hope of
+owning the copyright to the program you wrote at work,
+figure out if you are really an employee.  That is
+actually a complex legal question, but I can tell you
+now that just because your boss says you are an employee
+doesn't mean that it's so.  And remember that if you
+created the program outside the 
+.i scope
+of your job, the
+program is not a \*(lqwork for hire.\*(rq  Finally, in
+California and probably elsewhere, the state labor law
+provides that employees own products they create on
+their own time, using their own tools and materials. 
+Employment contracts which attempt to make the employer
+the owner of those off-the-job 
+.i inventions
+are void, at least in sunny California.
+.hn 2
+Programs written as a contractor
+.pg
+Wait a minute:  I'm an independent
+contractor to Company X, not an employee.  I come and go
+as I please, get paid by the hour with no tax withheld,
+and was retained to complete a specific project.  I
+frequently work at home with my own equipment.  Is the
+program I'm writing a \*(lqwork for hire,\*(rq owned by the
+Company?  Maybe, maybe not.  In California, this area is
+full of landmines for employers, and gold for
+contractors.
+.pg
+A contractor's program is not a \*(lqwork for
+hire,\*(rq and is not owned by the company, unless (1) there
+is a written agreement between the company and the
+contractor which says that it is, and (2) the work is a
+.i" commissioned work" .
+A
+.i "commissioned work"
+is one of
+the following:  (a)  a contribution to a 
+.i "collective work" ,
+(b) an audiovisual work (like a movie, and maybe like a video game),
+(c) a translation, (d) a compilation, (e) an instructional text,
+(f) a test or answer to a test, or (g) an atlas.  I know you must be
+tired of definitions, but this is what the real legal
+world is made of.  An example of a  collective work is a
+book of poetry, with poems contributed by various
+authors.  A piece of code which is incorporated into a
+large program isn't a contribution to a collective work,
+but a stand-alone program which is packaged and sold
+with other stand-alone programs could be.   
+.pg
+So where are we?  If you are a contract
+programmer, not an employee, and your program is a
+.i "commissioned work" ,
+and you have a written agreement
+that says that the program is a \*(lqwork for hire\*(rq owned by
+the greedy company, who owns the program?  That's right,
+the company.  But guess what?  In California and
+elsewhere the company just became your employer!  This
+means that the company must now provide worker's
+compensation benefits for you
+.b "AND UNEMPLOYMENT INSURANCE" .
+.hn 1
+A Brief Word About Licenses. 
+.hn 2
+Why a license?
+.pg
+When you get software at the local five and dime, the
+manufacturer claims that you have a license to use that
+copy of the program.  The reason for this is that the
+manufacturer wants to place more restrictions on your
+use of the program than copyright law places.  For
+example, licenses typically say you can only use the
+program on a single designated CPU.  Nothing in the
+copyright law says that.  Some licenses say you cannot
+make an archive copy.  The copyright law says you can,
+remember?  But if the license is a valid license, now
+you can't.  You can sell or give away your copy of a
+program if you purchased it, right?  That's permitted by
+copyright law, but the license may prohibit it.  The
+more restrictive terms of the license will apply instead
+of the more liberal copyright rules.
+.hn 2
+Is it valid?
+.pg
+Is the license valid?  This is hotly debated
+among lawyers.  (What isn't?  We'll argue about the time
+of day.)  A few states have passed or will soon pass
+laws declaring that they are valid.  A few will go the
+other way.  Federal legislation is unlikely.  My
+argument is that at the consumer level, the license is
+not binding because there is no true negotiation (unless
+a state law says it is binding), but hey that's just an
+argument and I'm not saying that that's the law.  In any
+case, I think businesses which buy software will be
+treated differently in court than consumers.  Businesses
+should read those licenses and negotiate with the
+manufacturer if the terms are unacceptable.  
+.hn 1
+I Have A Neat Idea. Can I Trademark It?  What About patent?
+.hn 2
+Trademark law explained
+.pg
+Sorry, no luck.  Trademark law protects names:  names of
+products and names of services.  (Note that I did not
+say names of companies.  Company names are not
+trademarkable.)  If you buy a program that has a
+trademarked name, all that means is that you can't sell
+your own similar program under the same name.  It has
+nothing to do with copying the program.  
+.hn 2
+Patent Law
+.pg
+Patent law can apply to computer programs,
+but it seldom does.  The main reasons it seldom applies
+are practical:  the patent process is too slow and too
+expensive to do much good in the software world.  There
+are also considerable legal hurdles to overcome in order
+to obtain a patent.  If, by chance, a program is
+patented, the patent owner has the exclusive right to
+make, use or sell it for 17 years.
+.hn 1
+CONCLUSION
+.pg
+I know this is a long article,
+but believe it or not I just scratched the surface. 
+Hopefully, you'll find this information useful, and
+you'll stop passing along myths about copyright law.  If
+anyone needs more information, I can be reached at the
+address on the first page.
+Sorry, but I do not usually have
+access to the network, so you can't reach me there. 
+.sp
+Thank you.  JORDAN J. BRESLOW

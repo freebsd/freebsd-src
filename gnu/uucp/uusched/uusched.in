@@ -1,0 +1,13 @@
+:
+# uusched
+# Call all systems which have work in a random order
+#
+# Copyright (C) 1992 Ian Lance Taylor
+#
+# Please feel free do whatever you like with this exciting shell
+# script.
+#
+# This is pretty trivial, since all the functionality was moved into
+# uucico itself.
+#
+@SBINDIR@/uucico -r1 $*

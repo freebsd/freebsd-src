@@ -1,0 +1,7 @@
+#	@(#)README	5.1 (Berkeley) 6/26/90
+
+The potentially offensive fortunes are not installed by default on BSD
+systems.  If you're absolutely, *positively*, without-a-shadow-of-a-doubt
+sure that your user community wants them installed, change the symbolic
+link "datfiles/fortunes-o" to point to "datfiles/fortunes-o.real.rot13",
+and do a make, followed by a make install.

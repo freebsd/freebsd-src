@@ -1,0 +1,100 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sigstack.2	6.5 (Berkeley) 3/10/91
+.\"
+.Dd March 10, 1991
+.Dt SIGSTACK 2
+.Os BSD 4.2
+.Sh NAME
+.Nm sigstack
+.Nd set and/or get signal stack context
+.Sh SYNOPSIS
+.Fd #include <sys/signal.h>
+.Bd -literal
+struct sigstack {
+	caddr_t ss_sp;
+	int     ss_onstack;
+};
+.Ed
+.Ft int
+.Fn sigstack "const struct sigstack *ss" "struct sigstack *oss"
+.Sh DESCRIPTION
+.Fn Sigstack
+allows users to define an alternate stack on which signals
+are to be processed.  If
+.Fa ss
+is non-zero,
+it specifies a
+.Em "signal stack"
+on which to deliver signals
+and tells the system if the process is currently executing
+on that stack.  When a signal's action indicates its handler
+should execute on the signal stack (specified with a
+.Xr sigvec 2
+call), the system checks to see
+if the process is currently executing on that stack.  If the
+process is not currently executing on the signal stack,
+the system arranges a switch to the signal stack for the
+duration of the signal handler's execution. 
+If
+.Fa oss
+is non-zero, the current signal stack state is returned.
+.Sh NOTES
+Signal stacks are not ``grown'' automatically, as is
+done for the normal stack.  If the stack overflows
+unpredictable results may occur.
+.Sh RETURN VALUES
+Upon successful completion, a value of 0 is returned.
+Otherwise, a value of -1 is returned and 
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn Sigstack
+will fail and the signal stack context will remain unchanged
+if one of the following occurs.
+.Bl -tag -width [EFAULT]
+.It Bq Er EFAULT
+Either
+.Fa ss
+or
+.Fa oss
+points to memory that is not a valid part of the process
+address space.
+.El
+.Sh SEE ALSO
+.Xr sigvec 2 ,
+.Xr setjmp 3
+.Sh HISTORY
+The
+.Nm
+function call appeared in
+.Bx 4.2 .

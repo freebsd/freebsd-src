@@ -1,0 +1,6 @@
+# sgml,v 1.1 1993/06/10 00:59:29 jtc Exp
+# SGML goop, mostly from rph@sq.
+0	string		\<!DOCTYPE	Exported SGML document
+0	string		\<!doctype	Exported SGML document
+0	string		\<!SUBDOC	Exported SGML subdocument
+0	string		\<!subdoc	Exported SGML subdocument

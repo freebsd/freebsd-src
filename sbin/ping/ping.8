@@ -1,0 +1,328 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ping.8	6.7 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt PING 8
+.Os BSD 4.3
+.Sh NAME
+.Nm ping
+.Nd send
+.Tn ICMP ECHO_REQUEST
+packets to network hosts
+.Sh SYNOPSIS
+.Nm ping
+.Op Fl dfnqrvR
+.Op Fl c Ar count
+.Op Fl i Ar wait
+.Op Fl l Ar preload
+.Op Fl p Ar pattern
+.Op Fl s Ar packetsize
+.Sh DESCRIPTION
+.Nm Ping
+uses the
+.Tn ICMP
+protocol's mandatory
+.Tn ECHO_REQUEST
+datagram to elicit an
+.Tn ICMP ECHO_RESPONSE
+from a host or gateway.
+.Tn ECHO_REQUEST
+datagrams (``pings'') have an IP and
+.Tn ICMP
+header,
+followed by a
+.Dq struct timeval
+and then an arbitrary number of ``pad'' bytes used to fill out the
+packet.
+The options are as follows:
+Other options are:
+.Bl -tag -width Ds
+.It Fl c Ar count
+Stop after sending (and receiving)
+.Ar count
+.Tn ECHO_RESPONSE
+packets.
+.It Fl d
+Set the
+.Dv SO_DEBUG
+option on the socket being used.
+.It Fl f
+Flood ping.
+Outputs packets as fast as they come back or one hundred times per second,
+whichever is more.
+For every
+.Tn ECHO_REQUEST
+sent a period ``.'' is printed, while for ever
+.Tn ECHO_REPLY
+received a backspace is printed.
+This provides a rapid display of how many packets are being dropped.
+Only the super-user may use this option.
+.Bf -emphasis
+This can be very hard on a network and should be used with caution.
+.Ef
+.It Fl i Ar wait
+Wait
+.Ar wait
+seconds
+.Em between sending each packet .
+The default is to wait for one second between each packet.
+This option is incompatible with the
+.Fl f
+option.
+.It Fl l Ar preload
+If
+.Ar preload
+is specified,
+.Nm ping
+sends that many packets as fast as possible before falling into its normal
+mode of behavior.
+.It Fl n
+Numeric output only.
+No attempt will be made to lookup symbolic names for host addresses.
+.It Fl p Ar pattern
+You may specify up to 16 ``pad'' bytes to fill out the packet you send.
+This is useful for diagnosing data-dependent problems in a network.
+For example,
+.Dq Li \-p ff
+will cause the sent packet to be filled with all
+ones.
+.It Fl q
+Quiet output.
+Nothing is displayed except the summary lines at startup time and
+when finished.
+.It Fl R
+Record route.
+Includes the
+.Tn RECORD_ROUTE
+option in the
+.Tn ECHO_REQUEST
+packet and displays
+the route buffer on returned packets.
+Note that the IP header is only large enough for nine such routes.
+Many hosts ignore or discard this option.
+.It Fl r
+Bypass the normal routing tables and send directly to a host on an attached
+network.
+If the host is not on a directly-attached network, an error is returned.
+This option can be used to ping a local host through an interface
+that has no route through it (e.g., after the interface was dropped by
+.Xr routed 8 ) .
+.It Fl s Ar packetsize
+Specifies the number of data bytes to be sent.  
+The default is 56, which translates into 64
+.Tn ICMP
+data bytes when combined
+with the 8 bytes of
+.Tn ICMP
+header data.
+.It Fl v
+Verbose output.
+.Tn ICMP
+packets other than
+.Tn ECHO_RESPONSE
+that are received are listed.
+.El
+.Pp
+When using
+.Nm ping
+for fault isolation, it should first be run on the local host, to verify
+that the local network interface is up and running.
+Then, hosts and gateways further and further away should be ``pinged''.
+Round-trip times and packet loss statistics are computed.
+If duplicate packets are received, they are not included in the packet
+loss calculation, although the round trip time of these packets is used
+in calculating the minimum/average/maximum round-trip time numbers.
+When the specified number of packets have been sent (and received) or
+if the program is terminated with a
+.Dv SIGINT ,
+a brief summary is displayed.
+.Pp
+This program is intended for use in network testing, measurement and
+management.
+Because of the load it can impose on the network, it is unwise to use
+.Nm ping
+during normal operations or from automated scripts.
+.Sh ICMP PACKET DETAILS
+An IP header without options is 20 bytes.
+An
+.Tn ICMP
+.Tn ECHO_REQUEST
+packet contains an additional 8 bytes worth
+of
+.Tn ICMP
+header followed by an arbitrary amount of data.
+When a
+.Ar packetsize
+is given, this indicated the size of this extra piece of data (the
+default is 56).
+Thus the amount of data received inside of an IP packet of type
+.Tn ICMP
+.Tn ECHO_REPLY
+will always be 8 bytes more than the requested data space
+(the
+.Tn ICMP
+header).
+.Pp
+If the data space is at least eight bytes large,
+.Nm ping
+uses the first eight bytes of this space to include a timestamp which
+it uses in the computation of round trip times.
+If less than eight bytes of pad are specified, no round trip times are
+given.
+.Sh DUPLICATE AND DAMAGED PACKETS
+.Nm Ping
+will report duplicate and damaged packets.
+Duplicate packets should never occur, and seem to be caused by
+inappropriate link-level retransmissions.
+Duplicates may occur in many situations and are rarely (if ever) a
+good sign, although the presence of low levels of duplicates may not
+always be cause for alarm.
+.Pp
+Damaged packets are obviously serious cause for alarm and often
+indicate broken hardware somewhere in the
+.Nm ping
+packet's path (in the network or in the hosts).
+.Sh TRYING DIFFERENT DATA PATTERNS
+The (inter)network layer should never treat packets differently depending
+on the data contained in the data portion.
+Unfortunately, data-dependent problems have been known to sneak into
+networks and remain undetected for long periods of time.
+In many cases the particular pattern that will have problems is something
+that doesn't have sufficient ``transitions'', such as all ones or all
+zeros, or a pattern right at the edge, such as almost all zeros.
+It isn't necessarily enough to specify a data pattern of all zeros (for
+example) on the command line because the pattern that is of interest is
+at the data link level, and the relationship between what you type and
+what the controllers transmit can be complicated.
+.Pp
+This means that if you have a data-dependent problem you will probably
+have to do a lot of testing to find it.
+If you are lucky, you may manage to find a file that either can't be sent
+across your network or that takes much longer to transfer than other
+similar length files.
+You can then examine this file for repeated patterns that you can test
+using the
+.Fl p
+option of
+.Nm ping .
+.Sh TTL DETAILS
+The
+.Tn TTL
+value of an IP packet represents the maximum number of IP routers
+that the packet can go through before being thrown away.
+In current practice you can expect each router in the Internet to decrement
+the
+.Tn TTL
+field by exactly one.
+.Pp
+The
+.Tn TCP/IP
+specification states that the
+.Tn TTL
+field for
+.Tn TCP
+packets should
+be set to 60, but many systems use smaller values (4.3
+.Tn BSD
+uses 30, 4.2 used
+15).
+.Pp
+The maximum possible value of this field is 255, and most Unix systems set
+the
+.Tn TTL
+field of
+.Tn ICMP ECHO_REQUEST
+packets to 255.
+This is why you will find you can ``ping'' some hosts, but not reach them
+with
+.Xr telnet 1
+or
+.Xr ftp 1 .
+.Pp
+In normal operation ping prints the ttl value from the packet it receives.
+When a remote system receives a ping packet, it can do one of three things
+with the
+.Tn TTL
+field in its response:
+.Bl -bullet
+.It
+Not change it; this is what Berkeley Unix systems did before the
+.Bx 4.3 tahoe
+release.
+In this case the
+.Tn TTL
+value in the received packet will be 255 minus the
+number of routers in the round-trip path.
+.It
+Set it to 255; this is what current Berkeley Unix systems do.
+In this case the
+.Tn TTL
+value in the received packet will be 255 minus the
+number of routers in the path
+.Xr from
+the remote system
+.Em to
+the
+.Nm ping Ns Em ing
+host.
+.It
+Set it to some other value.
+Some machines use the same value for
+.Tn ICMP
+packets that they use for
+.Tn TCP
+packets, for example either 30 or 60.
+Others may use completely wild values.
+.El
+.Sh BUGS
+Many Hosts and Gateways ignore the
+.Tn RECORD_ROUTE
+option.
+.Pp
+The maximum IP header length is too small for options like
+.Tn RECORD_ROUTE
+to
+be completely useful.
+There's not much that that can be done about this, however.
+.Pp
+Flood pinging is not recommended in general, and flood pinging the
+broadcast address should only be done under very controlled conditions.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr ifconfig 8 ,
+.Xr routed 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

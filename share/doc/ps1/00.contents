@@ -1,0 +1,172 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)00.contents	5.3 (Berkeley) 6/7/90
+.\"
+.OH '''PS1 Contents'
+.EH 'PS1 Contents'''
+.TL
+UNIX Programmer's Supplementary Documents, Volume 1 (PS1)
+.sp
+\s-24.3 Berkeley Software Distribution, Virtual \s-2VAX\s+2\-11 Version\s+2
+.sp
+\fRApril, 1986\fR
+.PP
+These two volumes contain documents which supplement the manual pages in
+.I
+The
+.UX
+Programmer's Reference Manual
+.R
+for the Virtual \s-2VAX\s0-11 version of the system as distributed by U.C.
+Berkeley.
+.SH
+Languages in common use (other languages in Programmer's Supplement, volume 2)
+.IP
+.tl 'The C Programming Language \- Reference Manual''PS1:1'
+.QP
+Official statement of the syntax of C.
+Should be supplemented by ``The C Programming Language,''
+B.W. Kernighan and D.M. Ritchie, Prentice-Hall, 1978, that
+contains a tutorial introduction and many examples.
+
+.IP
+.tl 'A Portable Fortran 77 Compiler''PS1:2'
+.QP
+A revised version of the document which originally appeared in
+Volume 2b of the Bell Labs documentation;
+this version reflects the ongoing work at Berkeley.
+
+.IP
+.tl 'Introduction to the f77 I/O Library''PS1:3'
+.QP
+A description of the revised input/output library for Fortran 77, 
+reflecting work carried out at Berkeley.
+
+.IP
+.tl 'Berkeley Pascal User\'s Manual''PS1:4'
+.QP
+An implementation of this language popular for learning to program.
+
+.IP
+.tl 'Berkeley Vax/UNIX Assembler Reference Manual''PS1:5'
+.QP
+The usage and syntax of the assembler;  useful mostly by compiler writers.
+
+.IP
+.SH
+General Reference
+.IP
+.tl 'Berkeley Software Architecture Manual (4.3 Edition)''PS1:6'
+.QP
+A concise and terse description of the system call interface
+provided in Berkeley Unix, as revised for 4.3BSD.
+This will never be a best seller.
+
+.IP
+.tl 'An Introductory 4.3BSD Interprocess Communication Tutorial''PS1:7'
+.QP
+How to write programs that use the Interprocess Communication Facilities
+of 4.3BSD.
+
+.IP
+.tl 'An Advanced 4.3BSD Interprocess Communication Tutorial''PS1:8'
+.QP
+The reference document (with some examples) for the Interprocess Communication 
+Facilities of 4.3BSD.
+
+.SH
+Programming Tools
+.IP
+.tl 'Lint, A C Program Checker''PS1:9'
+.QP
+Checks C programs for syntax errors, type violations, portability problems,
+and a variety of probable errors.
+
+.IP
+.tl 'A Tutorial Introduction to ADB''PS1:10'
+.QP
+How to debug programs using the \fIadb\fP debugger.
+For hints on the use of ADB for debugging the
+.UX
+kernel, see ``Using ADB to Debug the Kernel'', SMM:3
+
+.IP
+.tl 'Debugging with dbx''PS1:11'
+.QP
+How to debug programs without having to know much about machine language.
+
+.IP
+.tl 'Make \- A Program for Maintaining Computer Programs''PS1:12'
+.QP
+Indispensable tool for making sure large programs are properly
+compiled with minimal effort. 
+
+.IP
+.tl 'An Introduction to the Revision Control System''PS1:13'
+.QP
+RCS is a user-contributed tool for working together with other people
+without stepping on each other's toes.
+An alternative to \fIsccs\fR for controlling software changes.
+
+.IP
+.tl 'An Introduction to the Source Code Control System''PS1:14'
+.QP
+A useful introductory article for those users with
+installations licensed for SCCS.
+
+.IP
+.tl 'YACC: Yet Another Compiler-Compiler''PS1:15'
+.QP
+Converts a BNF specification of a language and semantic actions
+written in C into a compiler for that language.
+
+.IP
+.tl 'LEX \- A Lexical Analyzer Generator''PS1:16'
+.QP
+Creates a recognizer for a set of regular expressions:
+each regular expression can be followed by arbitrary C code
+to be executed upon finding the regular expression.
+
+.IP
+.tl 'The M4 Macro Processor''PS1:17'
+.QP
+M4 is a macro processor useful in its own right and as a
+front-end for C, Ratfor, and Cobol.
+
+.SH
+Programming Libraries
+.IP
+.tl 'Screen Updating and Cursor Movement Optimization''PS1:18'
+.QP
+Describes the \fIcurses\fP package, an aid for writing screen-oriented,
+terminal-independent programs.
+

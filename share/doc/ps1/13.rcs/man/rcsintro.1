@@ -1,0 +1,24 @@
+.\"	rcsintro.1,v 1.2 1993/08/02 17:51:26 mycroft Exp	-*- nroff -*-
+.TH RCSINTRO 1 "June 29, 1983" "Purdue University"
+.SH NAME
+rcsintro \- introduction to RCS commands
+.SH DESCRIPTION
+The Revision Control System (RCS) manages multiple revisions of text files.
+RCS automates the storing, retrieval, logging, identification, and merging
+of revisions. RCS is useful for text that is revised frequently, for example
+programs, documentation, graphics, papers, form letters, etc.
+.PP
+The basic user interface is extremely simple. The novice only needs
+to learn two commands:
+.I ci
+and
+.I co.
+\fICi\fR, short for "checkin", deposits the contents of a
+text file into an archival file called an RCS file. An RCS file
+contains all revisions of a particular text file.
+\fICo\fR, short for "checkout", retrieves revisions from an RCS file.
+.SH SEE ALSO
+ci(1), co(1), ident(1), merge(1), rcs(1), rcsdiff(1), rcsmerge(1), rlog(1), rcsfile(5).
+.br
+Walter F. Tichy, ``An Introduction to the Revision Control System'',
+Programmer Supplementary Documents, Volume 1 (PS1), #13

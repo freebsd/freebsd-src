@@ -1,0 +1,62 @@
+.\" Copyright (c) 1986, 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ucbhosts.rev	6.4 (Berkeley) 4/17/91
+.\"
+.sh 3 "host.rev"
+.(b L
+
+;
+;    @(#)ucb-hosts.rev    1.1    (Berkeley)    86/02/05
+;
+.TS
+l l l l s. 
+@	IN	SOA	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP kjd\fB.\fPmonet\fB.\fPBerkeley\fB.\fPEdu\fB.\fP (
+			1\fB.\fP1     ; Serial
+			10800     ; Refresh
+			1800      ; Retry
+			3600000   ; Expire
+			86400 )   ; Minimum
+	IN	NS	ucbarpa\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+	IN	NS	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+0\fB.\fP0	IN	PTR	Berkeley-net\fB.\fPBerkeley\fB.\fPEDU\fB.\fP
+	IN	A	255\fB.\fP255\fB.\fP255\fB.\fP0
+0\fB.\fP130	IN	PTR	csdiv-net\fB.\fPBerkeley\fB.\fPEDU\fB.\fP
+4\fB.\fP0	IN	PTR	ucbarpa\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+6\fB.\fP0	IN	PTR	ernie\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+7\fB.\fP0	IN	PTR	monet\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+10\fB.\fP0	IN	PTR	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+6\fB.\fP130	IN	PTR	monet\fB.\fPBerkeley\fB.\fPEdu\fB.\fP
+.TE
+.)b
+
+
+

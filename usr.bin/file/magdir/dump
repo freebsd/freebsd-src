@@ -1,0 +1,43 @@
+#
+# magic.dump, dump file format. For new and old dump filesystems
+#
+# No, these shouldn't specify a specific byte order, because the byte
+# order is dependent on the machine that produced the dump.
+#
+24	long	60012		new-fs dump file,
+>4	date	x		Previous dump %s,
+>8	date	x		This dump %s,
+>12	long	>0		Volume %ld,
+>692	long	0		Level zero, type:
+>692	long	>0		Level %d, type:
+>0	long	1		tape header,
+>0	long	2		beginning of file record,
+>0	long	3		map of inodes on tape,
+>0	long	4		continuation of file record,
+>0	long	5		end of volume,
+>0	long	6		map of inodes deleted,
+>0	long	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	long	>0		Flags %x
+
+24	long	60011		old-fs dump file,
+#>4	date	x		Previous dump %s,
+#>8	date	x		This dump %s,
+>12	long	>0		Volume %ld,
+>692	long	0		Level zero, type:
+>692	long	>0		Level %d, type:
+>0	long	1		tape header,
+>0	long	2		beginning of file record,
+>0	long	3		map of inodes on tape,
+>0	long	4		continuation of file record,
+>0	long	5		end of volume,
+>0	long	6		map of inodes deleted,
+>0	long	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	long	>0		Flags %x

@@ -1,0 +1,1373 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)manner.mn	6.2 (Berkeley) 4/17/91
+.\"
+.ds .f manner.mn
+.ds h0 "How to Use USENET Effectively
+.ds h1
+.ds h2 USD:10-%
+.ds f0 "\*(vr
+.ds f1
+.ds f2 "February 24, 1986
+.mt
+How to Use USENET Effectively
+.au
+Matt Bishop
+.ai
+Research Institute for Advanced Computer Science
+Mail Stop 230-5
+NASA Ames Research Center
+Moffett Field, CA  94035
+.bt
+.hn
+Introduction
+.pg
+USENET is a worldwide bulletin board system
+in which thousands of computers pass articles back and forth.
+Of necessity,
+customs have sprung up enabling very diverse people and groups
+to communicate peaceably and effectively using USENET.
+These customs are for the most part written,
+but are scattered over several documents
+that can be difficult to find;
+in any case,
+even if a new user can find all the documents,
+he most likely will have neither the time nor the inclination
+to read them all.
+This document is intended to collect all these conventions into one place,
+thereby making it easy for new users
+to learn about the world of USENET.
+(Old-timers,
+too,
+will benefit from reading this.)
+.pg
+You should read this document and understand it thoroughly
+before you even think about posting anything.
+If you have questions,
+please ask your USENET administrator (who
+can usually be reached by sending mail to
+.i usenet )
+or a more knowledgeable USENET user.
+Believe me,
+you will save yourself a lot of grief.
+.pg
+The mechanics of posting an article to USENET are explained in
+Mark Horton's excellent paper
+.i "How to Read the Network News" ;
+if you have not read that yet,
+stop here and do so.
+A lot of what follows depends on your knowing (at least vaguely)
+the mechanics of posting news.
+.pg
+Before we discuss these customs,
+we ought to look at the history of USENET,
+what it is today,
+and why we need these conventions.
+.hn
+All About USENET
+.pg
+USENET began on a set of computers in North Carolina's Research Triangle.
+The programs involved
+(known as \*(lqnetnews\*(rq then,
+and \*(lqA news\*(rq now)
+exchanged messages;
+it was a small, multi-computer bulletin board system.
+As time passed,
+administrators of other systems began to connect their computers
+to this bulletin board system.
+The network grew.
+Then,
+at Berkeley, the news programs were rewritten
+(this version became known as \*(lqB news\*(rq)
+and the format changed to conform to ARPA standards
+(again,
+this became the \*(lqB protocol for news\*(rq.\*(dg)
+.fn
+.lp \*(dg \w'\*(dg\ 'u
+See
+.i
+Standard for Interchange of USENET Messages
+.r
+for a description of the two formats.
+.ef
+This version of news was very widely distributed,
+and at this point USENET began to take on its current shape.
+.pg
+USENET is a
+.i logical
+network
+(as opposed to a
+.i physical
+network.)
+It is also a very amorphous network,
+in that there is no central administration or controlling site.
+There is not even an official list of members,
+although there is a very complete unofficial one.
+A site gets access to USENET by finding some other site already on USENET
+that it can connect to and exchange news articles.
+So long as this second site (called a
+.i neighbor
+of the first site)
+remains willing and able to pass articles to and from the first site,
+the first site is on USENET.
+A site leaves the USENET only when no one is willing or able
+to pass articles to,
+or accept articles from,
+it.
+.pg
+As a result,
+USENET has no equivalent of a \*(lqsysop\*(rq
+or central authority controlling the bulletin board.
+What little control is exercised is wielded by the person at each site
+who is responsible for maintaining the USENET connecions
+(this person is called the \*(lqUSENET administrator.\*(rq)
+Because most USENET administrators are (relatively) new to USENET,
+and because administering USENET locally involves a great deal of work,
+most USENET administrators tend to follow the lead of other,
+more experienced,
+administrators
+(often known somewhat irreverently as \*(lqnet gurus.\*(rq)
+This is not an abdication of responsibility,
+but a means of keeping the amount of work little enough
+so it can be done without interfering with the local USENET administrator's job.
+An example of this is the list of currently active newsgroups
+circulated every month or so.
+It is not \*(lqofficial\*(rq \-
+no one has that authority \-
+but as the maintainer is doing the work that every other USENET administrator
+would have to do otherwise,
+it is accepted as a valid list.
+If the maintainer changes the list in a way
+another USENET administrator finds unacceptable,
+that administrator can simply ignore the list.
+(Incidentally, the \*(lqnet gurus\*(rq became known as such
+because of the work they have contributed to USENET.
+Their experience is a valuable resource for each USENET administrator.)
+.pg
+Because the USENET has grown so wildly,
+a number of problems have appeared.
+One of these problems is technical,
+and a number of the conventions this document describes
+spring from attempts to keep this problem under control.
+.pg
+The technical problem arises due to the transport mechanism used by most USENET sites.
+Most computers on USENET do not have access to large-area networks like
+ARPANET.
+As a result the only viable transport mechanism these sites can use
+is a set of programs collectively known as UUCP
+and which communicate over dialup telephone lines.
+Initially,
+news programs generated one UUCP command per article.
+With the explosion of the USENET,
+the number of articles simply swamped many sites;
+phone lines would be tied up all day transmitting news,
+and many articles would be processed at the same time,
+slowing down the computers noticeably.
+.pg
+The solution was to batch messages.
+This way,
+many articles are sent via UUCP with one command,
+and the command on the receiving machine would split the file
+into separate articles,
+which could then be processed individually.
+While this increased the size of the files being sent,
+it cut down on the number of UUCP commands sent,
+and since sending a command involves quite a bit of overhead,
+this decreased the duration of phone calls,
+and to a lesser degree the load on the computer.
+At some sites,
+such as Purdue,
+this was not quite enough,
+so a simple spooler was implemented to process the individual articles
+one at a time.
+This reduced the system load to a very acceptable amount.
+.pg
+However,
+the problem has not gone away by any means.
+In one sense it has become worse;
+as more articles are posted to the network,
+phone costs and system load averages increase,
+and system administrators require USENET administrators to cut back
+or eliminate newsgroups and
+to transmit news only at night
+(which means long propagation delays).
+In short,
+everyone who has anything to do with administering any USENET site
+is very concerned about the future of USENET,
+both in general
+and at his own site.
+.pg
+Many of the rules you will read address this concern.
+The fear that USENET may collapse is not a bogeyman,
+but very real.
+We hope it will not collapse,
+and the rules below outline some ways to prevent problems
+and increase the likelihood
+that enough sites will remain on USENET to keep it alive.
+There is no central authority that can force you to follow them,
+but by doing so you will help keep USENET a valuable resource
+to the computer community.
+.hn
+Deciding to Post
+.pg
+Before you decide to post an article,
+you should consider a few things.
+.hn 2
+Do not repeat postings
+.pg
+This applies even if you did not post the information the first time around.
+If you know the answer to a question someone asked,
+first read the followups, and if you have something more to contribute,
+mail it to the questioner;
+if you think it should be seen by others,
+ask the questioner to summarize the answers he receives in a subsequent article.
+One of the biggest problems on USENET is that
+many copies of the same answer to a simple question are posted.
+.pg
+If you want to repost something because you believe
+it did not get to other USENET sites due to transmission problems
+(this happens sometimes,
+but a lot less often than commonly believed),
+do some checking before you repost.
+If you have a friend at another USENET site,
+call him and ask if the article made it to his site.
+Ask your USENET administrator if he knows of any problems in the USENET;
+there are special newsgroups to which USENET administrators subscribe
+in which problems are reported,
+or he can contact his counterparts at other sites for information.
+Finally,
+if you decide you must repost it,
+indicate in the article subject that it is a reposting,
+and say why you are reposting it
+(if you don't,
+you'll undoubtedly get some very nasty mail.)
+.pg
+Reposting announcements of products or services is flatly forbidden.
+Doing so may convince other sites to turn off your USENET access.
+.pg
+When school starts,
+hoards of new users descend upon the USENET
+asking questions.
+Many of these questions have been asked,
+and answered,
+literally thousands of times since USENET began.
+The most common of these questions,
+and their answers,
+have been collected in the hope that
+the new users will read them and not re-post the same questions.
+So,
+if you want to ask a question,
+check Appendix I
+.b "Answers to Frequently Asked Questions" ) (
+to be sure it isn't one that has been asked and answered
+literally hundreds of times before you started reading the USENET.
+.hn 2
+Do not post anything when upset, angry, or intoxicated
+.pg
+Posting an article is a lot like driving a car \-
+you have to be in control of yourself.
+Postings which begin \*(lqJane,
+you ignorant slut, ...\*(rq
+are very definitely considered in poor taste\*(dg.
+.fn
+\*(dg Unless you are critiquing
+.i "Saturday Night Live" .
+.ef
+Unfortunately,
+they are also far too common.
+.pg
+The psychology of this is interesting.
+One popular belief is that since we interact with USENET via computers,
+we all often forget that a computer did not do the posting;
+a human did.
+A contributing factor is that you don't have to look the target of abuse
+in the eye when you post an abusive message;
+eye-to-eye contact has an amazing effect on inhibiting obnoxious behavior.
+As a result,
+discussions on the USENET often degenerate into a catfight
+far more readily than would a face-to-face discussion.
+.pg
+Before you post an article,
+think a minute;
+decide whether or not you are upset,
+angry,
+or high.
+If you are,
+wait until you calm down (or come down) before deciding to post something.
+Then think about whether or not you really want to post it.
+You will be amazed what waiting a day or even a few hours can do
+for your perspective.
+.pg
+Bear in mind that
+shouting hasn't convinced anyone of anything
+since the days of Charlemagne,
+and being abusive makes people hold even more tenaciously
+to their ideas or opinions.
+Gentleness,
+courtesy,
+and eloquence are far more persuasive;
+not only do they indicate you have enough confidence in your words
+to allow them to speak for you,
+but also they indicate a respect for your audience.
+This in turn makes it easier for your audience to like or respect you \-
+and people tend to be far more interested in,
+and receptive to,
+arguments advanced by those they like or respect
+than by writers who are abusive.
+Finally,
+remember that some discussions or situations simply cannot be resolved.
+Because people are different,
+agreed-upon facts often lead to wildly different feelings and conclusions.
+These differences are what makes life so wonderful;
+were we all alike,
+the world would be a very boring place.
+So,
+don't get frantic;
+relax and enjoy the discussion.
+Who knows,
+you might even learn something!
+.hn 2
+Be sure your posting is appropriate to USENET
+.pg
+Some things are inappropriate to post to USENET.
+Discussing whether or not some other discussion is appropriate,
+or if it is in the right newsgroup,
+is an example.
+Invariably,
+the \*(lqmeta-discussion\*(rq generates so many articles
+that the discussion is simply overwhelmed and vanishes;
+but the meta-discussion lingers on for several weeks,
+driving most of the readers of that newsgroup
+out of their collective minds.
+Help preserve the sanity of your fellow USENET readers
+by mailing such comments to the people involved,
+rather than posting them.
+.pg
+Another example of inappropriate postings is the infamous
+\*(lqspelling flame.\*(rq
+Every few months someone takes another poster to task
+for poor spelling or grammar.
+Soon,
+everyone jumps on the bandwagon,
+tearing apart one another's postings for such errors.
+To put it mildly,
+this angers almost everyone involved
+for no real reason.
+Please remember that we all make mistakes,
+and there are a lot of people for whom English is a second language.
+So,
+try to keep your spelling and grammar comments to yourself \-
+but if you find you simply cannot,
+mail them to the poster rather than posting them.
+.pg
+Far more insidious are requests similar to
+\*(lqHow can I splice into the local cable TV transmission line?\*(rq
+Posting to USENET is akin to publishing,
+so don't ask for or post instructions on how to do something illegal.
+And please don't quote the First Amendment,
+or the laws allowing freedom of speech in your country;
+while the posting programs will not stop you,
+the aftermath could be very unpleasant \-
+lawsuits and court trials usually are,
+and the USENET would certainly collapse as sites dropped from it
+to protect themselves from legal liability.
+You wouldn't want that on your conscience,
+would you?
+Of course not.
+.pg
+Related to this is the next rule.
+.hn 2
+Do not post other people's work without permission
+.pg
+Posting something to USENET puts it in the public domain
+for all practical purposes.
+So,
+be careful about posting things like
+.ux -related
+material (specifically source code) or company documents;
+consider licensing and nondisclosure agreements first. Some people regard
+the posting of  \*(lqdiffs\*(rq based on licensed code to be a suitable
+compromise, as they are only useful to those who have the base code already.
+.pg
+Copyrighted works are a separate problem.
+Both United States and international law provide protection
+for copyrighted works;
+other than short extracts for purposes of criticism,
+you cannot copy a copyrighted work in whole or in part
+without permission of the copyright holder
+(who may,
+or may not,
+be the author.)
+Without this protection,
+artists could not make any money and hence would have limited incentive
+to make the fruits of their art available at all.
+Posting a copyrighted work without permission is theft,
+even though the property stolen is not tangible in most cases.
+Hence,
+posting movie and book reviews,
+song lyrics,
+or anything else which is copyrighted
+without the permission of the copyright holder,
+could cause you personally,
+your company,
+or the USENET itself
+to be held liable for damages.
+Please be very careful that you obey the law
+when posting such material!
+.hn 2
+Don't forget that opinions are those of the poster and not his employer.
+.pg
+Every so often,
+someone will post a particularly disgusting article,
+and a number of responses will ask
+if all employees of the original poster's company
+share his (revolting) opinion,
+or suggest that action be taken against that company.
+Please remember that all opinions or statements in articles
+are to be attributed to the poster
+.i only ,
+and in particular, do not necessarily represent the opinions
+of the poster's employer,
+the owner of the computer on which the article originated,
+or anyone involved with any aspect of USENET \-
+and consequently the responsibility for any USENET message
+rests with the poster and with no one else.
+The appropriate response is not to attack the company
+or its other employees;
+let the poster know what you think of his posting via mail.
+If the postings continue,
+take advantage of the news software's presenting you
+with the author's name and the subject line
+and then asking if you want to see the article;
+start looking for the poster's name or the offensive subject
+in the articles presented to you
+and skip them. If you really get offended, you can unsubscribe from a newsgroup.
+.pg
+Part of the price of freedom is allowing others to make fools of themselves.
+You wouldn't like to be censored,
+so don't advocate censorship of others.
+No one is forcing you to read the postings.
+.pg
+In some countries,
+posting or receiving certain types of articles may be a criminal offense.
+As a result,
+certain newsgroups which circulate freely within the United States
+may not be circulated in other nations
+without risking civil or criminal liabilities.
+In this case,
+the appropriate action for sites in that country
+is neither to accept nor to transmit the newsgroup.
+No site is
+.i ever
+forced to accept or pass on
+.i any
+newsgroup.
+.hn 1
+Where to Post
+.pg
+The various newsgroups and distributions
+have various rules associated with their use.
+This section will describe these rules
+and offer suggestions on which newsgroups to post your message.
+.hn 2
+Keep the distribution as limited as possible
+.pg
+A basic principle of posting is to keep the distribution of your article
+as limited as possible.
+Like our modern society,
+USENET is suffering from both an information glut and information pollution.
+It is widely believed that the USENET will cease to function
+unless we are able to cut down the quantity of articles.
+One step in this direction is not to post something to places
+where it will be worthless.
+For example,
+if you live in Hackensack,
+New Jersey,
+the probability of anyone in Korea wanting to buy your
+1972 Toyota is about as close to zero as you can get.
+So confine your posting to the New Jersey area.
+.pg
+To do this,
+you can either post to a local group, 
+or post to a net-wide group and use the
+.i distribution
+feature to limit how widely your article will go.
+When you give your posting program
+(usually
+.i postnews (1))
+a distribution,
+you are (in essence) saying that
+machines which do not recognize that distribution
+should not get the article.
+(Think of it as a subgroup based on locality and you'll get the idea.)
+For example,
+if you are posting in the San Francisco Bay Area,
+and you post your article to
+.ng net.auto
+but give
+.ng ba
+as the distribution,
+the article will not be sent beyond the San Francisco Bay Area
+(to which the
+.ng ba
+distribution is local)
+even though you put it in a net-wide newsgroup.
+Had you given the distribution as
+.ng ca
+(the California distribution),
+your article would have been sent to all Californian sites on USENET.
+Had you given the distribution as
+.ng net ,
+your article would have been sent to all sites on USENET.
+.hn 2
+Do not post the same article twice to different groups
+.pg
+If you have an article that you want to post to more than one group,
+post to both at the same time.
+Newer versions of the news software will show an article only once
+regardless of how many newsgroups it appears in.
+But if you post it once to each different group,
+all versions of news software will show it once for each newsgroup.
+This angers a lot of people
+and wastes everybody's time.
+.hn 2
+Do not post to \*(lqmod.\*(rq
+or \*(lqnet.announce\*(rq newsgroups
+.pg
+You may not post directly to certain newsgroups;
+you cannot post to some at all.
+Newer versions of the news software will inform you
+when either of these restrictions apply,
+but older versions of news software will not.
+.pg
+The
+.ng mod.
+newsgroups are
+.i "bona fide"
+moderated newsgroups.
+If you want to have the appropriate moderator post something,
+mail it to him.
+(If you do not know his address,
+ask your USENET administrator.
+In some cases,
+the software will automatically mail,
+rather than post,
+your article to the moderator.)
+.pg
+The newsgroup
+.ng net.announce
+and its subgroups are moderated newsgroups
+designed for important announcements.
+It is used to post important announcements that everyone on USENET can read.
+.ng Net.general "" (
+was meant to provide such a place,
+but so many inappropriate messages have been posted there
+that a lot of people began to unsubscribe;
+hence,
+this moderated newsgroup was set up.
+Very few messages are posted to it,
+so don't be afraid to subscribe;
+you will not be overwhelmed.)
+To post to this group,
+mail your announcement to the moderator,
+and he will either post it or suggest an alternative
+(such as a more appropriate newsgroup.)
+Messages for
+.ng net.announce
+should be short,
+important enough so that everyone on USENET should see the headers,
+not cross-posted to any other newsgroup,
+and signed;
+messages which are political,
+commercial,
+or religious in nature will be rejected.
+.hn 2
+Do not post to \*(lqnet.general\*(rq
+.pg
+Of course,
+there are exceptions to this rule,
+but almost all articles posted to
+.ng net.general
+do not belong there.
+Only articles of general interest and importance to
+.i everyone
+on USENET should be posted there.
+\*(lqEveryone\*(rq includes the USENET readers in Europe,
+Asia,
+Australia,
+Canada,
+the United States,
+and possibly other places.
+.pg
+This means that announcements of services or products,
+test messages,
+seminar announcements,
+program sources and bug reports,
+requests for addresses,
+and so forth do
+.i not
+go to
+.ng net.general .
+If you wish to post a follow-up to an article you saw in
+.ng net.general ,
+put the followup posting in
+.ng net.followup .
+(Again,
+newer versions of news software will do this automatically,
+but do not rely on this feature as your software
+may be old.)
+.pg
+Similarly,
+never post to
+.ng net.general
+and another newsgroup.
+If your article belongs in any other newsgroup,
+put it there,
+and not in
+.ng net.general .
+(There is one exception to this rule \-
+articles may be cross-posted to
+.ng net.general
+and
+.ng net.announce .
+Since
+.ng net.announce
+is moderated,
+though,
+the exception does not matter to you.)
+.hn 2
+Ask someone if you can't figure out where to post your article
+.pg
+If you cannot figure out where to post something,
+look in
+.ng net.announce.newusers
+for the list of active newsgroups.
+(This is posted biweekly.
+If you can't find it,
+look at the list in
+.i "How to Read the Network News" ;
+but be aware that list is undoubtedly out of date already.)
+If your article does not seem to fit in any of the listed groups,
+post it to
+.ng net.misc
+or don't post it.
+.pg
+If you still are not sure which newsgroup to post your article to,
+ask an old-timer.
+If your site doesn't have any old-timers
+(or none of the old-timers will admit to being old-timers),
+contact any of the following people:
+.sd
+Gene Spafford (spaf@gatech.CSNET, spaf@gatech.UUCP)
+Mark Horton (mark@cbosgd.UUCP)
+Rick Adams (rick@seismo.CSS.GOV, rick@seismo.UUCP)
+Chuq Von Rospach (chuq@sun.UUCP)
+Matt Bishop (mab@riacs.ARPA, mab@riacs.UUCP)
+.ed
+We will be happy to help you.
+But,
+please,
+do not post the article to the net before you ask us!
+.hn 2
+Be sure there is a consensus before creating a new newsgroup
+.pg
+Creating a new newsgroup is,
+in general,
+a very bad idea.
+Currently,
+there are so many articles being posted that the USENET is in dange of collapse
+as site after site decides to cease to accept and retransmit certain newsgroups.
+Moreover,
+there is no established procedure for deleting a newsgroup,
+so once created,
+newsgroups tend to stay around.
+They also tend to encourage people to think up new newsgroups,
+and the cycle repeats.
+Try to avoid thinking up new newsgroups.
+.pg
+If,
+however,
+you believe a new group should be created,
+be sure you have a consensus that the group is needed
+(either a mailing list has enough traffic and readers
+to justify turning it into a newsgroup,
+or a discussion in a current newsgroup
+becomes so large for a period of time long enough
+to warrant splitting it into a newsgroup.)
+Then post an article to
+.ng net.news.group
+as well as any other groups related to your proposed new group,
+and discuss the topics you are proposing be covered in your new group,
+what it should be called,
+whether it is
+.i really
+needed,
+and so forth.
+Try to resolve all objections,
+and take into account all suggestions and comments;
+finally,
+have everyone mail you a \*(lqyes\*(rq or \*(lqno\*(rq vote
+on whether the group should be created.
+Try to get at least 40 or 50 \*(lqyes\*(rq votes before creating the group;
+if you want to be safe,
+get around 100.
+.hn 2
+Watch out for newsgroups which have special rules about posting
+.pg
+Some newsgroups have special rules.
+This section summarizes them.
+.lp net.books 20
+Do not post anything revealing a plot or a plot twist
+without putting the word
+.cf spoiler
+somewhere in the
+.hf Subject
+field.
+This will let those who do not wish to have a surprise spoiled
+skip the article.
+.lp net.followup 20
+This group is for followups to articles posted in
+.ng net.general
+or for results of surveys.
+No discussions are allowed.
+.lp net.jokes 20
+If you want to post an offensive joke
+(this includes racial,
+religious,
+sexual,
+and scatalogical humor,
+among other kinds)
+rotate it.
+(If you do not know what this means,
+look in the section
+.b "Writing Your Posting" .)
+.lp net.movies 20
+Do not post anything revealing a plot or a plot twist
+without putting the word
+.cf spoiler
+in the
+.hf Subject
+field.
+This will let those who do not wish to have a surprise spoiled
+skip the article.
+.lp net.news.group 20
+Discussions about whether or not to create new groups,
+and what to name them,
+go here.
+Please mail your votes to the proposer;
+don't post them.
+.lp net.sources 20
+Source code postings go here.
+Discussions are not allowed.
+Do not post bug fixes here.
+.lp net.sources.bugs 20
+Bug reports and bug fixes to sources posted in
+.ng net.sources
+go here.
+.lp net.test 20
+Use the smallest distribution possible.
+In the body of the message,
+say what you are testing.
+.lp net.wanted 20
+Requests for things other than source code go here.
+Please use the smallest distribution possible.
+Post offers here,
+too.
+.lp net.wanted.sources 20
+Requests for sources go here.
+.hn 1
+Writing the Article
+.pg
+Here are some suggestions to help you communicate effectively
+with others on the USENET.
+Perhaps the best advice is not to be afraid to consult a book on
+writing style;
+two of the best are
+.i "How to Write for the World of Work"
+by Cunningham and Pearsall,
+and
+.i "Elements of Style"
+by Strunk and White.
+.hn 2
+Write for your audience
+.pg
+USENET is an international network,
+and any article you post will be
+.i very
+widely read.
+Even more importantly,
+your future employers may be among the readers!
+So,
+try to make a good impression.
+.pg
+A basic principle of all writing is to write at your readers' reading level.
+It is better to go below than above.
+Aiming where \*(lqtheir heads ought to be\*(rq may be fine
+if you are a college professor (and a lot of us would dispute even that),
+but it is guaranteed to cause people to ignore your article.
+Studies have shown that the average American reads at the fifth grade level
+and the average professional reads at the twelfth grade level.
+.hn 2
+Be clear and concise
+.pg
+Remember that you are writing for a very busy audience;
+your readers will not puzzle over your article.
+So be very clear and very concise.
+Be precise as well;
+choose the least ambiguous word you can,
+taking into account the context in which you are using the word.
+Split your posting into sections and paragraphs as appropriate.
+Use a descriptive title in the
+.hf Subject
+field,
+and be sure that the title is related to the body of the article.
+If the title is not related,
+feel free to change it to a title that is.
+.hn 2
+Proofread your article
+.pg
+This is a matter of courtesy;
+since you want others to read your article,
+the least you can do is check that it says what you mean in a clear,
+concise manner.
+Check for typographical errors,
+silly grammar errors,
+and misspellings;
+if you have a spelling checking program,
+use it.
+Also be sure the article is easy to read.
+Use white space \- blanks, tabs, and newlines \-
+and both upper and lower case letters.
+Do not omit the definite and indefinite articles,
+either;
+not only do \*(lqa\*(rq,
+\*(lqan\*(rq,
+and \*(lqthe\*(rq make a posting much easier to read,
+their omission can make a posting ambiguous.
+.hn 2
+Be extra careful with announcements of products or services
+.pg
+When writing a product or service announcement,
+bear in mind that others will be paying most of the telephone bills.
+So,
+if you are announcing several things,
+combine all the announcements into one article.
+Mark the posting as a product or service announcement
+in the title in the
+.hf Subject
+field.
+Advertising hyperbole is not appropriate here;
+remember that your audience is to a large degree technically literate,
+and your product will stand or fall on its technical merits.
+Be aware that posting obnoxious or inappropriate advertisements
+is very serious and if you do it,
+you may find your neighbors yanking your USENET access.
+.hn 2
+Indicate sarcasm and humor
+.pg
+Remember that people cannot see you when they read your posting;
+hence,
+all the subtle nuances of body and facial motion are hidden.
+It can be quite difficult to tell when you are being sarcastic or humorous.
+To deal with this problem,
+the USENET readers and posters have developed a special sign.
+Mark passages you intend to be taken as humorous with the
+\*(lqsmiley face\*(rq,
+while looks like this: \*(lq:\-)\*(rq.
+(Think of a head facing you lying on its right side and look again
+if you don't understand why that symbol was chosen.)
+As for sarcasm,
+there is no universal symbol for that
+(unless the sarcasm is meant humorously,
+in which case use the smiley face again.)
+But mark your passage so everyone will realize you are being sarcastic.
+.hn 2
+Mark postings which spoil surprises
+.pg
+High on the list of obnoxious messages
+are those that spoil the plot of a book or movie
+by giving away an unexpected detail.
+If you post such an article,
+please put the word
+.cf spoiler
+in the
+.hf Subject
+field of your posting,
+so people who do not wish to have a surprise ruined can skip the article.
+.hn 2
+Rotate offensive postings
+.pg
+If you feel you must post a message that may offend people,
+you can do one of two things.
+You can post it to the newsgroup
+.ng net.flame
+or you can take steps to be sure the message will only be read
+by those who explicitly ask for it to be shown to them.
+In the latter case,
+the USENET convention is to encrypt these messages
+by shifting each letter 13 characters,
+so that
+(for example)
+\*(lqa\*(rq becomes \*(lqn\*(rq.
+(In more precise terms,
+this is a Caesar cipher of shift 13;
+on the USENET,
+it is called
+.i rot13 .)
+When you do this,
+put the word
+.cf rot13
+in the
+.hf Subject
+field.
+The news reader you are using almost certainly has a command
+to encrypt and decrypt such messages;
+if not,
+use the
+.ux
+command
+.sd c
+tr a\-zA\-Z n\-za\-mN\-ZA\-M
+.ed
+.hn 2
+The shorter your signature, the better
+.pg
+Keep signatures concise;
+2 or 3 lines are usually plenty.
+Include your name and addresses on any major networks
+(such as ARPANET,
+BITNET,
+or CSNET).
+This helps people contact you quickly and easily,
+usually more so than by following the return path of the article.
+Do not include pictures, graphics or clever quotations that make the
+signature longer; this is not the appropriate place for them,
+and many sites resent paying the phone bills for such signatures.
+.hn 1
+Conclusion and Summary
+.pg
+Here is a list of the rules given above:
+.si
+.lp \(rh \w'\(rh\ 'u
+Deciding to post
+.si
+.lp \(bu \w'\(bu\ 'u
+Do not repeat postings
+.lp \(bu \w'\(bu\ 'u
+Do not post anything when upset, angry, or intoxicated
+.lp \(bu \w'\(bu\ 'u
+Be sure your posting is appropriate to USENET
+.lp \(bu \w'\(bu\ 'u
+Do not post other people's work without permission
+.lp \(bu \w'\(bu\ 'u
+Don't forget that opinions are those of the poster and not his company
+.ei
+.lp \(rh \w'\(rh\ 'u
+Where to Post
+.si
+.lp \(bu \w'\(bu\ 'u
+Keep the distribution as limited as possible
+.lp \(bu \w'\(bu\ 'u
+Do not post the same article twice to different groups
+.lp \(bu \w'\(bu\ 'u
+Do not post to
+.ng mod. ,
+or
+.ng net.announce
+newsgroups
+.lp \(bu \w'\(bu\ 'u
+Do not post to
+.ng net.general
+.lp \(bu \w'\(bu\ 'u
+Ask someone if you can't figure out where to post your article
+.lp \(bu \w'\(bu\ 'u
+Be sure there is a consensus before creating a new newsgroup
+.lp \(bu \w'\(bu\ 'u
+Watch out for newsgroups which have special rules about posting
+.ei
+.lp \(rh \w'\(rh\ 'u
+Writing the Article
+.si
+.lp \(bu \w'\(bu\ 'u
+Write for your audience
+.lp \(bu \w'\(bu\ 'u
+Be clear and concise
+.lp \(bu \w'\(bu\ 'u
+Proofread your article
+.lp \(bu \w'\(bu\ 'u
+Be extra careful with announcements of products or services
+.lp \(bu \w'\(bu\ 'u
+Indicate sarcasm and humor
+.lp \(bu \w'\(bu\ 'u
+Mark postings which spoil surprises
+.lp \(bu \w'\(bu\ 'u
+Rotate offensive postings
+.lp \(bu \w'\(bu\ 'u
+The shorter your signature, the better
+.ei
+.ei
+.pg
+The USENET can be a great place for us all.
+Sadly,
+not enough people are following the customs that have been established
+to keep the USENET civilized.
+This document was written to educate all users of the USENET
+on their responsibilities.
+Let's clean up the USENET,
+and turn it into a friendly,
+helpful community again!
+.sp
+.bi Acknowledgements:
+The writing of this document was inspired by Chuq von Rospach's posting
+on USENET etiquette,
+and it draws on previous work by Mark Horton,
+A. Jeff Offutt,
+Gene Spafford,
+and
+Chuq von Rospach.
+.bp
+.hu 1
+Appendix I.  Answers to Frequently Asked Questions
+.pg l
+.i
+originally from Jerry Schwarz (jerry@eagle.UUCP)
+.br
+modified by Gene Spafford (spaf@gatech.UUCP)
+.br
+modified by Matt Bishop (mab@riacs.ARPA)
+.r
+.sp
+.pg
+This document discusses some items that occur repeatedly on USENET.
+They frequently are submitted by new users,
+and result in many followups,
+sometimes swamping groups for weeks.
+The purpose of this note is to head off these annoying events
+by answering some questions
+and warning about the inevitable consequence of asking others.
+If you don't like my answers,
+let me know and I may include revisions in future versions of this note.
+.nr Qs \w'\0\0.\ 'u
+.de Lp
+.lp "\\$1" \\n(Qsu
+..
+.Lp \01.
+What does
+.ux
+stand for?
+.Lp
+It is not an acronym,
+but is a pun on \*(lqMULTICS.\*(rq
+MULTICS is a large operating system that was being developed shortly before
+.ux
+was created.
+.Lp \02.
+What is the derivation of \*(lqfoo\*(rq as a filler word?
+.Lp ""
+The favorite story is that it comes from \*(lqfubar\*(rq
+which is an acronym for \*(lqfouled up beyond all recognition,\*(rq
+which is supposed to be a military term.
+(Various forms of this exist,
+\*(lqfouled\*(rq usually being replaced by a stronger word.)
+\*(lqFoo\*(rq and \*(lqBar\*(rq have the same derivation.
+.Lp \03.
+Is a machine at \*(lqfoo\*(rq on the net?
+.Lp
+These questions belong in
+.ng net.news.config
+if anywhere,
+but in fact your best bet is usually to phone somebody
+at \*(lqfoo\*(rq to find out.
+If you don't know anybody at \*(lqfoo\*(rq you can always try calling
+and asking for the \*(lqcomputer center.\*(rq
+Also,
+see the newsgroup
+.ng mod.map ,
+where maps of USENET and the UUCP network are posted regularly.
+.Lp \04.
+What does \*(lqrc\*(rq at the end of files like
+.i .newsrc
+mean?
+.Lp
+According to Dennis Ritchie,
+\*(lqThe name
+.i rc
+comes from RUNCOM, which was the rough equivalent
+on the MIT CTSS system of what
+.ux
+calls shell scripts.  Of course
+RUNCOM derives from 
+.i "run commands.\*(rq"
+.Lp \05.
+What do \*(lq- (nf)\*(rq and \*(lqOrphaned Response\*(rq in an item's title mean?
+.Lp
+It means that the item was created by \*(lqnotefiles,\*(rq
+an alternative news handling interface that many people prefer.
+If you want to find out more you can read the
+.i \*(lqNotesfile
+System Reference Manual\*(rq or contact
+.cn uiucdcs!essick .
+.Lp \06.
+What does \*(lq:\-)\*(rq mean?
+.Lp
+This is the net convention for a \*(lqsmiley face.\*(rq
+It means that something is being said in jest.
+If it doesn't look like a smiley face to you,
+flop your head over to the left and look again.
+.Lp \07.
+How do I decrypt jokes in
+.ng net.jokes ?
+.Lp
+The standard cipher used in
+.ng net.jokes
+in called \*(lqrot13.\*(rq
+Each letter is replaced by the letter 13 further along in the alphabet
+(cycling around at the end).
+Most systems have a built in command to decrypt such articles;
+.i readnews (1)
+and
+.i vnews (1)
+have the
+.qp D
+command,
+.i rn (1)
+(another popular public-domain full screen news reader) has the
+.qp X
+or
+.qc CONTROL-X
+commands,
+.i notes (1)
+has
+.qp %
+or
+.qp R .
+If your system doesn't have a program to encrypt and decrypt these,
+you can quickly create a shell script using
+.i tr (1):
+.sd c
+tr A\-Za\-z N\-ZA\-Mn\-za\-m
+.ed
+On some versions of
+.ux ,
+the
+.i tr
+command should be written as:
+.sd c
+tr \*(lq[a\-m][n\-z][A\-M][N\-Z]\*(rq \*(lq[n\-z][a\-m][N\-Z][A\-M]\*(rq
+.ed
+.Lp \08.
+.ng net.general :
+Is John Doe out there anywhere?
+.Lp
+I suspect that these items are people looking for freshman roommates
+that they haven't seen in ten years.
+If you have some idea where the person is
+you are usually better off calling the organization.
+For example,
+if you call any Bell Labs location and request John Doe's number.
+They can give it to you even if he works at a different location.
+If you must try the net,
+use newsgroup
+.ng net.net-people ,
+.i not
+.ng net.general .
+.Lp \09.
+.ng net.math :
+Proofs that 1 \(eq 0.
+.Lp
+Almost everyone has seen one or more of these in high school.
+They are almost always based on either division by 0
+or taking the square root of a negative number.
+.Lp 10.
+.ng net.games :
+Where can I get the source for
+.i empire (6)
+or
+.i rogue (6)?
+.Lp
+You can't.
+The authors of these games,
+as is their right,
+have chosen not to make the sources available.
+.Lp 11.
+.ng net.unix-wizards :
+How do I remove files with
+.sm ASCII "" non-
+characters in their names?
+.Lp
+You can try to find a pattern that uniquely identifies the file.
+This sometimes fails because a peculiarity of some shells is that
+they strip off the high-order bit of characters in command lines.
+Next,
+you can try an \*(lqrm \-i\*(rq, or \*(lqrm \-r\*(rq
+(see
+.i rm (1).)
+Finally,
+you can mess around with i-node numbers and
+.i find (1).
+.Lp 12.
+.ng net.unix-wizards :
+There is a bug in the way
+.ux
+handles protection for programs that run setuid.
+.Lp
+There are indeed problems with the treatment of protection in setuid programs.
+When this is brought up,
+suggestions for changes range from implementing a full capability list
+arrangement to new kernel calls for allowing more control over when
+the effective id is used and when the real id is used to control accesses.
+Sooner or later you can expect this to be improved.
+For now you just have to live with it.
+.Lp 13.
+.ng net.women :
+What do you think about abortion?
+.Lp
+Although abortion might appear to be an appropriate topic for
+.ng net.women ,
+more heat than light is generated when it is brought up.
+Since the newsgroup
+.ng net.abortion
+has been created,
+all abortion-related discussion should take place there.
+.Lp 14.
+.ng net.singles :
+What do \*(lqMOTOS,\*(rq
+\*(lqMOTSS,\*(rq, \*(lqMOTAS\*(rq,
+and \*(lqSO\*(rq stand for?
+.Lp
+Member of the opposite sex,
+member of the same sex,
+member of the appropriate sex,
+and significant other,
+respectively.
+.Lp 15
+.ng net.columbia :
+Shouldn't this name be changed?
+.Lp
+The name was devised to honor the first space shuttle.
+It was realized at the time the group began that
+the name would quickly become out of date.
+The intent was to create a bit of instant nostalgia.
+.Lp 16.
+.ng net.columbia :
+Shouldn't this group be merged with
+.ng net.space ?
+No.
+.ng Net.columbia
+is for timely news bulletins.
+.ng Net.space
+is for discussions.
+.Lp 17.
+How do I use the
+.hf Distribution
+feature?
+.Lp
+When
+.i postnews (1)
+prompts you for a distribution,
+it's asking how widely distributed you want your article.
+The set of possible replies is different,
+depending on where you are,
+but at Bell Labs in Murray Hill,
+New Jersey,
+possibilities include:
+.sd c
+\!.ta 8n
+mh3bc1\tlocal to this machine
+mh\tBell Labs, Murray Hill Branch
+nj\tall sites in New Jersey
+btl\tAll Bell Labs machines
+att\tAll AT&T machines
+usa\tEverywhere in the USA
+na\tEverywhere in North America
+net\tEverywhere on USENET in the world (same as "world")
+.ed
+If you hit
+.qc RETURN ,
+you'll get the default,
+which is the first part of the newsgroup name.
+This default is often not appropriate \-
+.i please
+take a moment to think about how far away people are likely
+to be interested in what you have to say.
+Used car ads,
+housing wanted ads,
+and things for sale other than specialized equipment like computers
+certainly shouldn't be distributed to Europe and Korea,
+or even to the next state.
+.Lp
+The newsgroup
+.ng na.forsale
+exists for postings of sale announcements.
+Its distribution is limited to North America;
+posters should restrict this distribution even further,
+if possible and appropriate.
+.Lp 18.
+Why do some people put funny lines
+(\*(lqbug killers\*(rq)
+at the beginning of their articles?
+.Lp
+Some earlier versions of news had a bug which would drop
+the first 512 or 1024 bytes of text of certain articles.
+The bug was triggered whenever the article started with whitespace
+(a blank or a tab).
+A fix many people adopted was to begin their articles
+with a line containing a character other than white space.
+This gradually evolved into the habit of including amusing first lines.
+.Lp
+The original bug has since been fixed in newer version of news,
+and sites running older versions of news have applied a patch
+to prevent articles from losing text.
+The \*(lqbug-killer\*(rq lines are therefore probably no longer needed,
+but they linger on.
+.Lp 19.
+What is the address or phone number of the \*(lqfoo\*(rq company?
+.Lp
+Try the white and yellow pages of your phone directory,
+first;
+a sales representative will surely know,
+and if you're a potential customer they will be who you're looking for.
+Phone books for other cities are usually available in libraries of any size.
+Whoever buys or recommends things for your company
+will probably have some buyer's guides or national company directories.
+Call or visit the reference desk of your library;
+they have several company and organization directories
+and many will answer questions like this over the phone.
+Remember if you only know the city where the company is,
+you can telephone to find out their full address or a dealer.
+The network is
+.i not
+a free resource,
+although it may look like that to some people.
+It is far better to spend a few minutes of your own time
+researching an answer rather than broadcast
+your laziness and/or ineptitude to the net.

@@ -1,0 +1,113 @@
+# @(#)australasia	4.4
+
+# Incorporates updates for Australia from Robert Elz' australia 1.1
+# and further updates from the Australian consulate.
+
+###############################################################################
+
+# Australia
+
+# Australian Data (for states with DST), standard rules
+# Includes shift in 1987 to follow Vic/NSW rules for ending DST,
+# and shift in 1986 to start DST earlier.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Oz	1971	1985	-	Oct	lastSun	2:00	1:00	-
+Rule	Oz	1986	max	-	Oct	Sun<=24	2:00	1:00	-
+Rule	Oz	1972	only	-	Feb	27	3:00	0	-
+Rule	Oz	1973	1986	-	Mar	Sun>=1	3:00	0	-
+Rule	Oz	1987	max	-	Mar	Sun<=21	3:00	0	-
+
+# Zone	NAME			GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Australia/Tasmania	10:00	Oz	EST
+Zone	Australia/Queensland	10:00	-	EST	# No DST here
+Zone	Australia/North		9:30	-	CST	# No DST here
+Zone	Australia/West		8:00	-	WST	# No DST here
+Zone	Australia/South		9:30	Oz	CST
+
+# Victoria jumped to a later ending date for DST in 1986 rather than 1987.
+
+Zone	Australia/Victoria	10:00	Oz	EST	1985 Oct lastSun 2:00
+				10:00	1:00	EST	1986 Mar Sun<=21 3:00
+				10:00	Oz	EST
+
+# New South Wales and subjurisdictions have their own ideas of a fun time.
+# Based on law library research by John Mackin (john@basser.cs.su.oz),
+# who notes:
+#	In Australia, time is not legislated federally, but rather by the
+#	individual states.  Thus, while such terms as ``Eastern Standard Time''
+#	[I mean, of course, Australian EST, not any other kind] are in common
+#	use, _they have NO REAL MEANING_, as they are not defined in the
+#	legislation.  This is very important to understand. 
+#	I have researched New South Wales time only; . . .I hope that perhaps a
+#	resident of each state could be found to do it for their own state. 
+#	(And I can guarantee that Victoria and NSW are different, so the link
+#	between them in the current australasia file must be broken.)
+
+# From Robert Elz (May 5, 1989):
+#
+# From next year (1990) NSW will revert to ending DST on the 1st
+# Sunday in March (rather than the third, which it appears will
+# continue to be what everyone else uses).
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	NSW	1971	1985	-	Oct	lastSun	2:00	1:00	-
+Rule	NSW	1972	only	-	Feb	lastSun	3:00	0	-
+Rule	NSW	1973	1981	-	Mar	Sun>=1	3:00	0	-
+Rule	NSW	1982	only	-	Apr	4	3:00	0	-
+Rule	NSW	1983	1985	-	Mar	Sun>=1	3:00	0	-
+Rule	NSW	1986	only	-	Mar	16	3:00	0	-
+Rule	NSW	1986	only	-	Oct	19	2:00	1:00	-
+Rule	NSW	1987	only	-	Mar	15	3:00	0	-
+Rule	NSW	1987	max	-	Oct	lastSun	2:00	1:00	-
+Rule	NSW	1988	1989	-	Mar	Sun<=21	3:00	0	-
+Rule	NSW	1990	max	-	Mar	Sun>=1	3:00	0	-
+
+# Zone	NAME			GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Australia/NSW		10:00	NSW	EST
+# `Broken Hill' means the County of Yancowinna. [john@basser.cs.su.oz.au,1/4/89]
+Zone	Australia/Yancowinna	9:30	NSW	???
+Zone	Australia/LHI		10:30	NSW	???
+
+# A footnote here:
+#
+#	. . .
+#	Date: Thu, j19 Feb 87 12:02:17 EST
+#	From: Bradley White <seismo!k.cs.cmu.edu!bww>
+#	. . .
+#	I am including a description of Australian time zones. . .
+#	this stuff is definitely accurate.
+#	. . .
+#	a) Australian Eastern Time: (EST = GMT+10:00, EDT = GMT+11:00)
+#	. . .
+#	Summer of 86/87 - present (current legislation):
+#		third Sun Oct 02:00 EST -> third [S]un Mar 02:00 EST
+#
+# If this turns out to be true, substitute Sun<=21 (third Sunday in October)
+# for Sun<=24 (next-to-last Sunday in October) above. . .some time before
+# October 1988, the first time it makes a difference.
+
+###############################################################################
+
+# New Zealand
+
+# New Zealand, from Elz' asia 1.1
+# Elz says "no guarantees"
+# The 1989/90 rule may only last a year.  It is a trial that is
+# subject to Ministerial approval to be made permanent.
+# The termination of "daylight saving" may actually be second
+# to last Sunday in March.  Noone spoken to was very sure.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# NEW ZEALAND        12 H  AHEAD OF UTC  (EXCLUDING CHATHAM ISLAND)
+# NEW ZEALAND        13 H  AHEAD OF UTC  OCT 30, '88-MAR 4, '89
+# NEW ZEALAND       12H45M AHEAD OF UTC  CHATHAM ISLAND
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	NZ	1974	1988	-	Oct	lastSun	2:00	1:00	D
+Rule	NZ	1989	max	-	Oct	Sun>=8	2:00	1:00	D
+Rule	NZ	1975	1989	-	Mar	Sun>=1	3:00	0	S
+Rule	NZ	1990	max	-	Mar	Sun>=15	3:00	0	S
+
+# Zone	NAME			GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	NZ			12:00	NZ		NZ%sT	# New Zealand

@@ -1,0 +1,11 @@
+This is file $Id: TODO,v 1.2 1993/10/16 19:16:46 rgrimes Exp $
+
+1. add support for "soft" configuration network devices
+2. split console driver into kbd/vga/other drivers
+3. implement additional link layer support items (bpf et al)
+4. fd.c: other floppy types, type detection, optional partitions, QIC40/80
+5. if_ec: locks up with rcp/nfs: all ports read "0xff"?
+6. fd.c: missing controller queue, no unit start, abysmal
+7. if_ne.c: can't probe for ne1000/ne2000 differences, jams as a result!
+8. kbd needs to turn scancodes into keyindexs with state map, then look
+   through multinational scan map for foriegn keyboards.

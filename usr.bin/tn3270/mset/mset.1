@@ -1,0 +1,188 @@
+.\" Copyright (c) 1986, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mset.1	4.6 (Berkeley) 7/27/91
+.\"
+.Dd July 27, 1991
+.Dt MSET 1
+.Os BSD 4.3
+.Sh NAME
+.Nm mset
+.Nd retrieve
+.Tn ASCII
+to
+.Tn IBM
+3270 keyboard map
+.Sh SYNOPSIS
+.Nm mset
+.Op Fl picky
+.Op Fl shell
+.Op Ar keyboardname
+.Sh DESCRIPTION
+.Nm Mset
+retrieves mapping information
+for the
+.Tn ASCII
+keyboard to
+.Tn IBM
+3270 terminal
+special functions.
+Normally, these mappings are found
+in
+.Pa /usr/share/misc/map3270
+(see
+.Xr map3270  5  ) .
+This information is used by the
+.Xr tn3270
+command (see
+.Xr tn3270  1  ) .
+.Pp
+The default
+.Nm mset
+output can be used to store the mapping information in the process environment
+in order to avoid scanning
+.Nm map3270
+each time
+.Nm tn3270
+is invoked.
+To do this, place the following command in your
+.Pa .login
+file:
+.Bd -literal -offset indent
+set noglob; setenv MAP3270 "\(gamset\(ga"; unset noglob
+.Ed
+.Pp
+If the
+.Ar keyboardname
+argument is not supplied,
+.Nm mset
+attempts to determine the name of the keyboard the user is using,
+by checking the
+.Ev KEYBD
+environment variable.
+If the
+.Ev KEYBD
+environment variable is not set, then
+.Nm mset
+uses the user's terminal type from the environment variable
+.Ev TERM
+as the keyboard name.
+Normally,
+.Nm mset
+then uses the file
+.Xr map3270 5
+to find the keyboard mapping for that terminal.
+However, if the environment variable
+.Ev MAP3270
+exists and contains the entry for the specified keyboard, then that
+definition is used.
+If the value of
+.Ev MAP3270
+begins with a slash (`/') then it is assumed to be the full pathname
+of an alternate mapping file and that file is searched first.
+In any case, if the mapping for the keyboard is not found in
+the environment, nor in an alternate map file, nor in the standard map file,
+then the same search is performed for an entry for a keyboard with the name
+.Ar unknown  .
+If that search also fails,
+then a default mapping
+is used.
+.Pp
+The arguments to
+.Nm mset
+are:
+.Pp
+.Bl -tag -width Fl
+.It Fl picky
+When processing the various
+.Pa map3270
+entries (for the user's keyboard,
+and all those encountered before the one for the user's keyboard),
+.Nm mset
+normally will not complain about entries for unknown functions (like
+.Dq PFX1 ;
+the
+.Fl picky
+argument causes
+.Nm mset
+to issue warning messages about these unknown entries.
+.It Fl shell
+If the
+.Pa map3270
+entry is longer than the shell's 1024 environmental variable
+length limit, the default
+.Nm mset
+output cannot be used to store the mapping information in the process
+environment to avoid scanning
+.Pa map3270
+each time
+.Nm tn3270
+is invoked.
+The
+.Fl shell
+argument causes
+.Nm mset
+to generate shell commands to set the environmental variables
+.Ev MAP3270  ,
+.Ev MAP3270A ,
+and so on, breaking up the entry to fit within the shell environmental
+variable length limit.
+To set these variables, place the following command in your
+.Pa .login
+file:
+.Bd -literal -offset indent
+mset -shell > tmp ; source tmp ; /bin/rm tmp
+.Ed
+.It Ar keyboardname
+When searching for the
+.Pa map3270
+entry that matches the user's keyboard,
+.Nm mset
+will use
+.Ar keyboardname
+instead of determining the keyboard name from the
+.Ev KEYBD
+or
+.Ev TERM
+environmental variables.
+.Sh FILES
+.Bl -tag -width /usr/share/misc/map3270 -compact
+.It Pa /usr/share/misc/map3270
+keyboard mapping for known keyboards
+.El
+.Sh SEE ALSO
+.Xr tn3270 1 ,
+.Xr map3270 5
+.Sh HISTORY
+The
+.Nm mset
+command appeared in
+.Bx 4.3 .

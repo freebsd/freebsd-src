@@ -1,0 +1,127 @@
+.\" Copyright (c) 1988, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)makemap.8	8.1 (Berkeley) 6/17/93
+.\"
+.Dd November 16, 1992
+.Dt MAKEMAP 8
+.Os BSD 4.4
+.Sh NAME
+.Nm makemap
+.Nd create database maps for sendmail
+.Sh SYNOPSIS
+.Nm
+.Op Fl N
+.Op Fl f
+.Op Fl o
+.Op Fl r
+.Op Fl v
+.Ar maptype
+.Ar mapname
+.Sh DESCRIPTION
+.Nm
+creates the database maps used by the keyed map lookups in
+.Xr sendmail 8 .
+It reads input from the standard input
+and outputs them to the indicated
+.Ar mapname .
+.Pp
+Depending on how it is compiled,
+.Nm
+handles up to three different database formats,
+selected using the
+.Ar maptype
+parameter.
+They may be
+.Bl -tag -width Fl
+.It Li dbm
+DBM format maps.
+This requires the
+.Xr ndbm 3
+library.
+.It Li btree
+B-Tree format maps.
+This requires the new Berkeley
+.Xr db 3
+library.
+.It Li hash
+Hash format maps.
+This also requires the
+.Xr db 3
+library.
+.El
+.Pp
+In all cases,
+.Nm
+reads lines from the standard input consisting of two
+words separated by white space.
+The first is the database key,
+the second is the value.
+The value may contain
+``%\fIn\fP''
+strings to indicated parameter substitution.
+Literal parentheses should be doubled
+(``%%'').
+Blank lines and lines beginning with ``#'' are ignored.
+.Ss Flags
+.Bl -tag -width Fl
+.It Fl N
+Include the null byte that terminates strings
+in the map.
+This must match the \-N flag in the sendmail.cf
+``K'' line.
+.It Fl f
+Fold all upper case letters in the key
+to lower case;
+this is intended to mesh with the
+\-f flag in the
+\fBK\fP
+line in sendmail.cf.
+The value is not case folded.
+.It Fl o
+Append to an old file.
+This allows you to augment an existing file.
+.It Fl r
+Allow replacement of existing keys.
+Normally
+.Nm
+complains if you repeat a key,
+and does not do the insert.
+.It Fl v
+Verbosely print what it is doing.
+.El
+.Sh SEE ALSO
+.Xr sendmail 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.4 .

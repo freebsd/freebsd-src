@@ -1,0 +1,149 @@
+.\" Copyright (c) 1983, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)htable.8	6.6 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt HTABLE 8
+.Os BSD 4.2
+.Sh NAME
+.Nm htable
+.Nd convert
+.Tn NIC
+standard format host tables
+.Sh SYNOPSIS
+.Nm htable
+.Op Fl c Ar connected-nets
+.Op Fl l Ar local-nets
+.Ar file
+.Sh DESCRIPTION
+.Nm Htable
+is used to convert host files in the format specified
+in Internet
+.Tn RFC
+810 to the format used by the network
+library routines.  Three files are created as a result
+of running 
+.Nm htable :
+.Pa hosts ,
+.Pa networks ,
+and
+.Pa gateways .
+The 
+.Xr hosts
+file may be used by the 
+.Xr gethostbyname 3
+routines in mapping host names to addresses
+if the nameserver,
+.Xr named 8 ,
+is not used.
+The
+.Pa networks
+file is used by the
+.Xr getnetent 3
+routines in mapping network names to numbers.
+The
+.Pa gateways
+file may be used by the routing daemon
+in identifying
+.Dq passive
+Internet gateways;
+see
+.Xr routed 8
+for an explanation.
+.Pp
+Options available for
+.Nm htable :
+.Bl -tag -width Ds
+.It Fl c Ar connected-nets
+If the gateways file is to be used,
+.Ar connected-nets
+is a list of networks to which the host is directly connected.
+The networks, separated by commas,
+may be given by name or in Internet-standard dot notation,
+for example:
+.Bd -literal -offset indent
+\-c arpanet,128.32,local-ether-net.
+.Ed
+.Pp
+.Nm Htable
+only includes gateways
+which are directly connected to one of the networks specified,
+or which can be reached from another gateway on a connected net.
+.It Fl l Ar local-nets
+If the
+.Fl l
+option is given with a list of networks (in the same format as for
+.Fl c ) ,
+these networks will be treated as ``local,''
+and information about hosts on local networks is
+taken only from the localhosts file.
+Entries for local hosts from the main database will be omitted.
+This allows the localhosts file to completely override
+any entries in the input file.
+.El
+.Pp
+If any of the files
+.Pa localhosts ,
+.Pa localnetworks ,
+or
+.Pa localgateways
+are present in the current directory,
+the file's contents is prepended to the
+output file.
+Of these, only the gateways file is interpreted.
+This allows sites to maintain local aliases and
+entries which are not normally present in the
+master database.
+Only one gateway to each network will be placed in the gateways file;
+a gateway listed in the localgateways file will override any in the
+input file.
+.Pp
+.Nm Htable
+is best used in conjunction with the
+.Xr gettable 8
+program which retrieves the
+.Tn NIC
+database from a host.
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr gettable 8 ,
+.Xr named 8
+.Sh BUGS
+If the name-domain system provided network name mapping well as host
+name mapping,
+.Nm htable
+would no longer be needed.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

@@ -1,0 +1,191 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)appen.A	6.3 (Berkeley) 4/17/91
+.\"
+.ie t .oh '\*(Ln Appendix A''PS1:18-%'
+.eh 'PS1:18-%''\*(Ln Appendix A'
+.el .he ''\fIAppendix A\fR''
+.bp
+.(x
+.sp 2
+.in 0
+.bi Appendixes
+.sp
+.b "Appendix A"
+.)x
+.nr * 1
+.sh 1 "Capabilities from termcap" 1
+.sh 2 Disclaimer
+.pp
+The description of terminals is a difficult business,
+and we only attempt to summarize the capabilities here:
+for a full description see
+.b termcap (5).
+.sh 2 Overview
+.pp
+Capabilities from
+.b termcap
+are of three kinds:
+string valued options,
+numeric valued options,
+and boolean options.
+The string valued options are the most complicated,
+since they may include padding information,
+which we describe now.
+.pp
+Intelligent terminals often require padding on intelligent operations
+at high (and sometimes even low) speed.
+This is specified by a number before the string in the capability,
+and has meaning for the capabilities which have a
+.b P
+at the front of their comment.
+This normally is a number of milliseconds to pad the operation.
+In the current system which has no true programmable delays,
+we do this by sending a sequence of pad characters
+(normally nulls, but can be changed
+(specified by
+.i PC )).
+In some cases, the pad is better computed as some number of milliseconds
+times the number of affected lines
+(to the bottom of the screen usually,
+except when terminals have insert modes which will shift several lines.)
+This is specified as,
+i e.g. ,
+.b 12* .
+before the capability,
+to say 12 milliseconds per affected whatever
+(currently always line).
+Capabilities where this makes sense say
+.b P* .
+.sp
+.sh 2 "Variables Set By setterm()"
+.TS H
+c s s s
+l l l l.
+variables set by \fIsetterm()\fR
+
+Type	Name	Pad	Description
+_
+.TH
+char *	AL	P*	Add new blank Line
+bool	AM		Automatic Margins
+char *	BC		Back Cursor movement
+bool	BS		BackSpace works
+char *	BT	P	Back Tab
+bool	CA		Cursor Addressable
+char *	CD	P*	Clear to end of Display
+char *	CE	P	Clear to End of line
+char *	CL	P*	CLear screen
+char *	CM	P	Cursor Motion
+char *	DC	P*	Delete Character
+char *	DL	P*	Delete Line sequence
+char *	DM		Delete Mode (enter)
+char *	DO		DOwn line sequence
+char *	ED		End Delete mode
+bool	EO		can Erase Overstrikes with \' \'
+char *	EI		End Insert mode
+char *	HO		HOme cursor
+bool	HZ		HaZeltine ~ braindamage
+char *	IC	P	Insert Character
+bool	IN		Insert-Null blessing
+char *	IM		enter Insert Mode (IC usually set, too)
+char *	IP	P*	Pad after char Inserted using IM+IE
+char *	LL		quick to Last Line, column 0
+char *	MA		ctrl character MAp for cmd mode
+bool	MI		can Move in Insert mode
+bool	NC		No Cr: \er sends \er\en then eats \en
+char *	ND		Non-Destructive space
+bool	OS		OverStrike works
+char	PC		Pad Character
+char *	SE		Standout End (may leave space)
+char *	SF	P	Scroll Forwards
+char *	SO		Stand Out begin (may leave space)
+char *	SR	P	Scroll in Reverse
+char *	TA	P	TAb (not ^I or with padding)
+char *	TE		Terminal address enable Ending sequence
+char *	TI		Terminal address enable Initialization
+char *	UC		Underline a single Character
+char *	UE		Underline Ending sequence
+bool	UL		UnderLining works even though !OS
+char *	UP		UPline
+char *	US		Underline Starting sequence
+char *	VB		Visible Bell
+char *	VE		Visual End sequence
+char *	VS		Visual Start sequence
+bool	XN		a Newline gets eaten after wrap
+.TE
+Names starting with
+.bi X
+are reserved for severely nauseous glitches
+.pp
+For purposes of
+.Fn standout ,
+if
+.Fn SG
+is not 0,
+.Fn SO
+is set to
+.Fn NULL ,
+and if
+.Fn UG
+is not
+.Fn 0 ,
+.Fn US
+is set to
+.Fn NULL .
+If, after this,
+.Fn SO
+is
+.Fn NULL ,
+and
+.Fn US
+is not,
+.Fn SO
+is set to be
+.Fn US ,
+and
+.Fn SE
+is set to be
+.Fn UE .
+.sh 2 "Variables Set By gettmode()"
+.TS H
+c s s
+l l l.
+variables set by \fIgettmode()\fR
+
+type	name	description
+_
+.TH
+bool	NONL	Term can't hack linefeeds doing a CR
+bool	GT	Gtty indicates Tabs
+bool	UPPERCASE	Terminal generates only uppercase letters
+.TE

@@ -1,0 +1,86 @@
+.\" Copyright (c) 1980, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)biff.1	6.5 (Berkeley) 3/14/91
+.\"
+.Dd March 14, 1991
+.Dt BIFF 1
+.Os BSD 4
+.Sh NAME
+.Nm biff
+.Nd "be notified if mail arrives and who it is from"
+.Sh SYNOPSIS
+.Nm biff
+.Op Cm ny
+.Sh DESCRIPTION
+.Nm Biff
+informs the system whether you want to be notified when mail arrives
+during the current terminal session.
+.Pp
+Options supported by
+.Nm biff :
+.Bl -tag -width 4n
+.It Cm n
+Disables notification.
+.It Cm y
+Enables notification.
+.El
+.Pp
+When mail notification is enabled, the header and first few lines of
+the message will be printed on your screen whenever mail arrives.
+A
+.Dq Li biff y
+command is often included in the file
+.Pa \&.login
+or
+.Pa \&.profile
+to be executed at each login.
+.Pp
+.Nm Biff
+operates asynchronously.
+For synchronous notification use the
+.Ar MAIL
+variable of
+.Xr sh 1
+or the
+.Ar mail
+variable of
+.Xr csh 1 .
+.Sh SEE ALSO
+.Xr csh 1 ,
+.Xr mail 1 ,
+.Xr sh 1 ,
+.Xr comsat 8
+.Sh HISTORY
+The
+.Nm
+command appeared in 
+.Bx 4.0 .

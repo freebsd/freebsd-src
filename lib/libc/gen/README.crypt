@@ -1,0 +1,35 @@
+I have implemented the little "scrambler" algorithm I spoke of a few days
+ago. Below is a lib/other/crypt.c function (compressed-uuencoded) that does
+the trick. As an example, here's a little comparison between Minix 1.5 crypt
+and mine. Four crypted values are shown:
+
+Salt Password		Minix crypt()	My crypt()
+ --  -----------	-------------	-------------
+ 00  "password"		00|0WFy1B8Tz|	001dcsc5Sh3TQ
+ 00  "Password"		00|0WFy1B8Tv|	00rTQYCDHmeRY
+ 00  "password "	00|0WFy1B8Tz|	00pzqMhV9et9M
+ 03  "password"		03z||meFy1B8T	03nJJegU4/CEg
+
+You (of course) immediately notice that using upper-lowercase does not
+significatively change the password, nor changing the salt value, and that
+characters after the 8th are entirely unsignificant. In mine, however,
+everything is significant, even the 255th character of the password
+(basically, the 637 first characters are significant and 512 more have the
+potential of being used!!!). This is because of the CRC property of
+"spreading" significantly bits over a large place; every bit in the result
+depend of nearly every bit in the source in some complicated manner.
+
+Thos Sumner pointed out two algorithms for crypting that were posted recently,
+but since I do not have the full news (I get comp.os.minix thru the Bitnet
+mailing list), I don't know what to do with them. Anyway, my crypt() is
+perfectly compatible with Unix/Minix operation, so it's better in that respect.
+
+He also suggested using a machine-dependant (by machine, I mean SITE-dependant)
+info to discourage theft of /etc/passwd files for decryption at leisure. Is
+there such an info available on Minix in a standard way? Anyway, you'll notice
+that, even using mixs of chars, shorts, longs and 6-bits blocks the results
+are the same on 68000 and xxx86, even with the different byte ordering (this
+was not intended :-)
+
+Vincent Archer
+

@@ -1,0 +1,3 @@
+# BSDI BSD/386
+0	long	0314	demand paged (first page unmapped) pure executable
+>16	long	>0	not stripped

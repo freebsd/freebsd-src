@@ -1,0 +1,10 @@
+#
+# magic.postscript: Magic for postscript files
+#
+# XXX - should we match only versions 1.0 and 2.0, or should we wildcard
+# it?
+#
+0	string		%!		PostScript text
+>2	string	PS-Adobe-		conforming
+>>11	string	1.0			at level %s
+>>11	string	2.0			at level %s

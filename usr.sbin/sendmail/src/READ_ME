@@ -1,0 +1,243 @@
+# Copyright (c) 1983 Eric P. Allman
+# Copyright (c) 1988 The Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#	This product includes software developed by the University of
+#	California, Berkeley and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+#	@(#)READ_ME	8.3 (Berkeley) 7/13/93
+#
+
+This directory contains the source files for sendmail.
+
+For detailed instructions, please read the document ../doc/op.me:
+
+	eqn ../doc/op.me | pic | ditroff -me
+
+The Makefile is for the new Berkeley make, available from ftp.uu.net
+in the directory /systems/unix/bsd-sources/usr.bin/make.  There is
+also a Makefile.dist which is much less clever, but works on the old
+traditional make.  You can use this using:
+
+	make -f Makefile.dist
+
+There are a couple of other Makefiles for other systems -- these are
+the ones that I use, they have "Berkeley quirks" in them, and I don't
+guarantee that they will work in your environment.  To make it worse,
+some are for the new Berkeley make, and some are for the old make.
+I provide them for information only.  Still, they may help you get
+started.  They have names like "Makefile.HPUX".
+
+Whereever possible, I try to make sendmail pull in the correct
+compilation options needed to compile on various environments based on
+automatically defined symbols.  Some machines don't seem to have useful
+symbols availble, requiring the following compilation flags in the
+Makefile:
+
+SOLARIS		Define this if you are running Solaris 2.0 or higher.
+__NeXT__	Define this if you are on a NeXT box.  (This one may
+		be pre-defined for you.)
+_AIX3		Define this if you are IBM AIX 3.x.
+
+If you are a system that sendmail has already been ported to, you
+probably won't have to touch these.  But if you are porting, you may
+have to tweak the following compilation flags in order to get
+it to compile and link properly:
+
+UNSETENV	Define this if your system library does NOT include the
+		"unsetenv" subroutine.
+SYSTEM5		Adjust for System V.
+LOCKF		Set this if you do not have the flock system call -- it
+		will revert to System V file locking.  There are some
+		semantic gotchas, so flock is preferred.  Implied by
+		SYSTEM5.
+SYS5TZ		Use System V-style time zones.  If not set, the TZ
+		environment variable is ignored.  Implied by SYSTEM5.
+HASUNAME	Set if you have the "uname" system call.  Implied by
+		SYSTEM5.
+HASSTATFS	Define this if you have the statfs(2) system call.  It's
+		not a disaster to get this wrong -- but you do lose the
+		queue free space code.
+HASUSTAT	Define this if you have the ustat(2) system call.  It's
+		not a disaster to get this wrong -- but you do lose the
+		queue free space code.
+HASSETSID	Define this if you have the setsid(2) system call.  This
+		is implied if your system appears to be POSIX compliant.
+HASINITGROUPS	Define this if you have the initgroups(3) routine.
+HASSETVBUF	Define this if you have the setvbuf(3) library call.
+		If you don't, setlinebuf will be used instead.  This
+		defaults on if your compiler defines __STDC__.
+HASSETEUID	Define this if you have seteuid(2) ***AND*** root can use
+		it to change to an arbitrary user.  This second condition
+		is not satisfied on AIX 3.x.  You may find that
+		your system has setreuid(2) or setresuid(2), in which
+		case you will also have to #define seteuid(uid) to be
+		the appropriate call.  The important thing is that you
+		have a call that will set the effective uid and NOT
+		set the real or saved uid.  Setting this improves the
+		security somewhat, since sendmail doesn't have to read
+		.forward and :include: files as root.
+LA_TYPE		The type of load average your kernel supports.  These
+		can be LA_SUBR (4) if you have the getloadavg(3) routine,
+		LA_FLOAT (3) if you read kmem and interpret the value
+		as a floating point number, LA_INT (2) to interpret as
+		an integer.  These last two have several other parameters
+		that they try to divine: the name of your kernel, the name
+		of the variable in the kernel to examine, the number of
+		bits of precision in a fixed point load average, and so
+		forth.  In desparation, use LA_ZERO -- it always returns
+		the load average as "zero" (and does so on all architectures).
+		The actual code is in conf.c -- it can be tweaked if you
+		are brave.
+
+There are a bunch of features that you can decide to compile in, such
+as selecting various database packages and special protocol support.
+Several are assumed based on other compilation flags -- if you want to
+"un-assume" something, you probably need to edit conf.h.  Compilation
+flags that add support for special features include:
+
+NDBM		Include support for "new" DBM library for aliases and maps.
+NEWDB		Include support for Berkeley "db" package (hash & btree)
+		for aliases and maps.
+NIS		Define this to get NIS (YP) support for aliases and maps.
+YPCOMPAT	Define this to force building of DBM versions of alias
+		files even if you have NEWDB defined; this will only
+		occur on NIS master machines.  It is independent of NIS.
+USERDB		Include support for the User Information Database.  Implied
+		by NEWDB conf.h.
+IDENTPROTO	Define this to get IDENT (RFC 1413) protocol support.
+		This is assumed unless you are running on Ultrix or
+		HP-UX, both of which have a problem in the UDP
+		implementation.
+MIME		Include support for MIME-encapsulated error messages.
+FROZENCONFIG	Define this to get support for frozen configuration
+		files.  Frozen configurations make sense if your I/O system
+		is fast relative to your processor.  At this point this
+		is NOT recommended.
+LOG		Set this to get syslog(3) support.  Defined by default
+		in conf.h.  You want this if at all possible.
+NETINET		Set this to get TCP/IP support.  Defined by default
+		in conf.h.  You probably want this.
+NETISO		Define this to get ISO networking support.
+SMTP		Define this to get the SMTP code.  Implied by NETINET
+		or NETISO.
+NAMED_BIND	Define this to get DNS (name daemon) support, including
+		MX support.  The specs you must use this if you run
+		SMTP.  Defined by default in conf.h.
+QUEUE		Define this to get queueing code.  Implied by NETINET
+		or NETISO; required by SMTP.  This gives you other good
+		stuff -- it should be on.
+DAEMON		Define this to get general network support.  Implied by
+		NETINET or NETISO.  Defined by default in conf.h.  You
+		almost certainly want it on.
+MATCHGECOS	Permit fuzzy matching of user names against the full
+		name (GECOS) field in the /etc/passwd file.  This should
+		probably be on, since you can disable it from the config
+		file if you want to.  Defined by default in conf.h.
+SETPROCTITLE	Try to set the string printed by "ps" to something
+		informative about what sendmail is doing.  Defined by
+		default in conf.h.
+
+If you are compiling on SunOS and want to use frozen configuration
+files, you must use -Bstatic -- if you do not, frozen configuration
+files fail in bizarre ways and you will open up several security holes.
+
+If you are compiling on OSF/1 (DEC Alpha), you must use -lmld.
+
+If you are compiling on NeXT, you will have to create an empty file
+"unistd.h".
+
+If you use both -DNDBM and -DNEWDB, you must delete the module ndbm.o
+from libdb.a and delete the file "ndbm.h" from the files that get
+installed (that is, use the OLD ndbm.h, not the new ndbm.h).  This
+compatibility module maps ndbm calls into DB calls, and breaks things
+rather badly.
+
+You probably want to look over the compilation options in conf.h
+before you compile.  These are intended to be per-site information.
+
+The following list describes the files in this directory:
+
+Makefile	The makefile used here; this version only works with
+		the new Berkeley make.
+Makefile.dist	A trimmed down version of the makefile that works with
+		the old make.
+READ_ME		This file.
+TRACEFLAGS	My own personal list of the trace flags -- not guaranteed
+		to be particularly up to date.
+alias.c		Does name aliasing in all forms.
+arpadate.c	A subroutine which creates ARPANET standard dates.
+clock.c		Routines to implement real-time oriented functions
+		in sendmail -- e.g., timeouts.
+collect.c	The routine that actually reads the mail into a temp
+		file.  It also does a certain amount of parsing of
+		the header, etc.
+conf.c		The configuration file.  This contains information
+		that is presumed to be quite static and non-
+		controversial, or code compiled in for efficiency
+		reasons.  Most of the configuration is in sendmail.cf.
+conf.h		Configuration that must be known everywhere.
+convtime.c	A routine to sanely process times.
+daemon.c	Routines to implement daemon mode.  This version is
+		specifically for Berkeley 4.1 IPC.
+deliver.c	Routines to deliver mail.
+domain.c	Routines that interface with DNS (the Domain Name
+		System).
+err.c		Routines to print error messages.
+envelope.c	Routines to manipulate the envelope structure.
+headers.c	Routines to process message headers.
+macro.c		The macro expander.  This is used internally to
+		insert information from the configuration file.
+main.c		The main routine to sendmail.  This file also
+		contains some miscellaneous routines.
+map.c		Support for database maps.
+mci.c		Routines that handle mail connection information caching.
+parseaddr.c	The routines which do address parsing.
+queue.c		Routines to implement message queueing.
+readcf.c	The routine that reads the configuration file and
+		translates it to internal form.
+recipient.c	Routines that manipulate the recipient list.
+savemail.c	Routines which save the letter on processing errors.
+sendmail.h	Main header file for sendmail.
+srvrsmtp.c	Routines to implement server SMTP.
+stab.c		Routines to manage the symbol table.
+stats.c		Routines to collect and post the statistics.
+sysexits.c	List of error messages associated with error codes
+		in sysexits.h.
+trace.c		The trace package.  These routines allow setting and
+		testing of trace flags with a high granularity.
+udb.c		The user database interface module.
+usersmtp.c	Routines to implement user SMTP.
+util.c		Some general purpose routines used by sendmail.
+version.c	The version number and information about this
+		version of sendmail.  Theoretically, this gets
+		modified on every change.
+
+Eric Allman
+
+(Version 8.3, last update 7/13/93 12:57:56)

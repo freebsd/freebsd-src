@@ -1,0 +1,152 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>BSTSet_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>BSTSet_h 1
+
+#include "<T>.Set.h"
+
+#ifndef _<T>BSTNode
+#define _<T>BSTNode 1
+
+struct <T>BSTNode
+{
+  <T>BSTNode*         lt;
+  <T>BSTNode*         rt;
+  <T>BSTNode*         par;
+  <T>                 item;
+                      <T>BSTNode(<T&> h, <T>BSTNode* l=0, <T>BSTNode* r=0,
+                                 <T>BSTNode* p = 0);
+                      ~<T>BSTNode();
+};
+
+inline <T>BSTNode::<T>BSTNode(<T&> h, <T>BSTNode* l, <T>BSTNode* r,
+                              <T>BSTNode* p)
+:item(h), lt(l), rt(r), par(p) {}
+
+inline <T>BSTNode::~<T>BSTNode() {}
+
+typedef <T>BSTNode* <T>BSTNodePtr;
+
+#endif
+
+class <T>BSTSet : public <T>Set
+{
+protected:
+  <T>BSTNode*      root;
+
+  <T>BSTNode*     leftmost();
+  <T>BSTNode*     rightmost();
+  <T>BSTNode*     pred(<T>BSTNode* t);
+  <T>BSTNode*     succ(<T>BSTNode* t);
+  void            _kill(<T>BSTNode* t);
+  <T>BSTNode*     _copy(<T>BSTNode* t);
+
+public:
+                   <T>BSTSet();
+                   <T>BSTSet(<T>BSTSet& a);
+                   ~<T>BSTSet();
+
+  Pix             add(<T&> item);
+  void            del(<T&> item);
+  int             contains(<T&> item);
+
+  void            clear();
+
+  Pix             first();
+  void            next(Pix& i);
+  <T>&            operator () (Pix i);
+  Pix             seek(<T&> item);
+
+  Pix             last();
+  void            prev(Pix& i);
+
+  int             operator == (<T>BSTSet& b);
+  int             operator != (<T>BSTSet& b);
+  int             operator <= (<T>BSTSet& b); 
+
+  void            balance();
+  int             OK();
+};
+
+inline <T>BSTSet::~<T>BSTSet()
+{
+  _kill(root);
+}
+
+inline <T>BSTSet::<T>BSTSet()
+{
+  root = 0;
+  count = 0;
+}
+
+
+inline <T>BSTSet::<T>BSTSet(<T>BSTSet& a)
+{
+  count = a.count;
+  root = _copy(a.root);
+}
+
+inline int <T>BSTSet::operator != (<T>BSTSet& b)
+{
+  return ! (*this == b);
+}
+
+inline Pix <T>BSTSet::first()
+{
+  return Pix(leftmost());
+}
+
+inline Pix <T>BSTSet::last()
+{
+  return Pix(rightmost());
+}
+
+inline void <T>BSTSet::next(Pix& i)
+{
+  if (i != 0) i = Pix(succ((<T>BSTNode*)i));
+}
+
+inline void <T>BSTSet::prev(Pix& i)
+{
+  if (i != 0) i = Pix(pred((<T>BSTNode*)i));
+}
+
+inline <T>& <T>BSTSet::operator () (Pix i)
+{
+  if (i == 0) error("null Pix");
+  return ((<T>BSTNode*)i)->item;
+}
+
+inline void <T>BSTSet::clear()
+{
+  _kill(root);
+  count = 0;
+  root = 0;
+}
+
+inline int <T>BSTSet::contains(<T&> key)
+{
+  return seek(key) != 0;
+}
+
+#endif

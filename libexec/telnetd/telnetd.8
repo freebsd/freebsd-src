@@ -1,0 +1,180 @@
+.\" Copyright (c) 1983 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)telnetd.8	6.8 (Berkeley) 4/20/91
+.\"
+.TH TELNETD 8 "April 20, 1991"
+.UC 5
+.SH NAME
+telnetd \- DARPA TELNET protocol server
+.SH SYNOPSIS
+.B /etc/telnetd
+[\fB\-debug\fP [\fIport\fP]]
+[\fB\-l]
+[\fB\-D options\fP]
+[\fB\-D report\fP]
+[\fB\-D exercise\fP]
+[\fB\-D netdata\fP]
+[\fB\-D ptydata\fP]
+.SH DESCRIPTION
+.I Telnetd
+is a server which supports the DARPA standard
+.B TELNET
+virtual terminal protocol.
+.I Telnetd
+is invoked by the internet server (see
+.IR inetd (8)),
+normally for requests to connect to the
+.B TELNET
+port as indicated by the
+.I /etc/services
+file (see
+.IR services (5)).
+If the \fB\-debug\fP may be used, to start up \fBtelnetd\fP
+manually, instead of through
+.IR inetd (8).
+If started up this way, \fIport\fP may be specified to
+run \fItelnetd\fP on an alternate TCP port number.
+.PP
+The \fB\-D\fP option may be used for debugging purposes.
+This allows \fItelnet\fR to print out debugging information
+to the connection, allowing the user to see what telnetd
+is doing.
+There are several modifiers:
+\fBoptions\fR prints information about the negotiation
+of \fBTELNET\fR options,
+\fBreport\fR prints the \fBoptions\fR information, plus
+some additional information about what processing is going on,
+\fBnetdata\fP displays the data stream received by \fItelnetd\fP,
+\fBptydata\fP displays data written to the pty, and
+\fBexercise\fR has not been implemented yet.
+.PP
+.I Telnetd
+operates by allocating a pseudo-terminal device (see
+.IR pty (4))
+for a client, then creating a login process which has
+the slave side of the pseudo-terminal as 
+.BR stdin ,
+.BR stdout ,
+and
+.BR stderr .
+.I Telnetd
+manipulates the master side of the pseudo-terminal,
+implementing the
+.B TELNET
+protocol and passing characters
+between the remote client and the login process.
+.PP
+When a
+.B TELNET
+session is started up, 
+.I telnetd
+sends
+.B TELNET
+options to the client side indicating
+a willingness to do
+.I remote echo
+of characters, to
+.I suppress go
+.IR ahead ,
+to do
+.I remote flow
+.IR control ,
+and to receive
+.I terminal type
+.IR information ,
+.I terminal speed
+.IR information ,
+and
+.I window size information
+from the remote client.
+If the remote client is willing, the remote terminal type is
+propagated in the environment of the created login process.
+The pseudo-terminal allocated to the client is configured
+to operate in \*(lqcooked\*(rq mode, and with XTABS and CRMOD
+enabled (see
+.IR tty (4)).
+.PP
+.I Telnetd
+is willing to
+.IR do :
+.IR echo ,
+.IR binary ,
+.I suppress go
+.IR ahead ,
+and
+.I timing
+.IR mark .
+.I Telnetd
+is willing to have the remote client
+.IR do :
+.IR linemode ,
+.IR binary ,
+.I terminal
+.IR type ,
+.I terminal
+.IR speed ,
+.I window
+.IR size ,
+.I toggle flow
+.IR control ,
+.IR environment ,
+.I X display
+.IR location ,
+and
+.I suppress go
+.IR ahead .
+.SH "SEE ALSO"
+telnet(1)
+.SH BUGS
+Some
+.B TELNET
+commands are only partially implemented.
+.PP
+Because of bugs in the original 4.2 BSD
+.IR telnet (1),
+.I telnetd
+performs some dubious protocol exchanges to try to discover if the remote
+client is, in fact, a 4.2 BSD
+.IR telnet (1).
+.PP
+.I Binary mode
+has no common interpretation except between similar operating systems
+(Unix in this case).
+.PP
+The terminal type name received from the remote client is converted to
+lower case.
+.PP
+.I Telnetd
+never sends
+.B TELNET
+.I go ahead
+commands.

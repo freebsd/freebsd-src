@@ -1,0 +1,109 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>SLStack_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>SLStack_h 1
+
+#include "<T>.SLList.h"
+#include "<T>.Stack.h"
+
+class <T>SLStack : public <T>Stack
+{
+  <T>SLList     p;
+
+public:
+                <T>SLStack();
+                <T>SLStack(const <T>SLStack& s);
+                ~<T>SLStack();
+
+  void          operator = (const <T>SLStack&);
+
+  void          push(<T&> item);
+  <T>           pop();
+  <T>&          top();               
+  void          del_top();
+
+  int           empty();
+  int           full();
+  int           length();
+
+  void          clear();
+
+  int           OK();
+
+};
+
+inline <T>SLStack::<T>SLStack() :p() {}
+inline <T>SLStack::<T>SLStack(const <T>SLStack& a) : p(a.p) {}
+inline <T>SLStack::~<T>SLStack() {}
+
+inline void <T>SLStack::push(<T&> item)
+{
+  p.prepend(item);
+}
+
+inline <T> <T>SLStack::pop()
+{
+  return p.remove_front();
+}
+
+inline <T>& <T>SLStack::top()
+{
+  return p.front();
+}
+
+inline void <T>SLStack::del_top()
+{
+  p.del_front();
+}
+
+inline void <T>SLStack::operator =(const <T>SLStack& s)
+{
+  p = s.p;
+}
+
+inline int <T>SLStack::empty() 
+{
+  return p.empty();
+}
+
+inline int <T>SLStack::full() 
+{
+  return 0;
+}
+
+inline int <T>SLStack::length() 
+{
+  return p.length();
+}
+
+inline int <T>SLStack::OK() 
+{
+  return p.OK();
+}
+
+inline void <T>SLStack::clear() 
+{
+  p.clear();
+}
+
+#endif

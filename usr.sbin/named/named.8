@@ -1,0 +1,439 @@
+.\" Copyright (c) 1985, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)named.8	6.9 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt NAMED 8
+.Os BSD 4
+.Sh NAME
+.Nm named
+.Nd Internet domain name server
+.Sh SYNOPSIS
+.Nm named
+.Op Fl d Ar debuglevel
+.Op Fl p Ar port#
+.Oo Op Fl b
+.Ar bootfile Oc
+.Sh DESCRIPTION
+.Nm Named
+is the Internet domain name server.
+See
+.%T RFC883
+for more information on the Internet name-domain system.
+Without any arguments,
+.Nm named
+will read the default boot file
+.Pa /etc/named.boot ,
+read any initial data and listen for queries.
+.Pp
+Options are:
+.Bl -tag -width Ds
+.It Fl d
+Print debugging information.
+A number after the
+.Fl d
+determines the level of
+messages printed.
+.It Fl p
+Use a different port number.  The default is the standard port number
+as listed in
+.Pa /etc/services .
+.It Fl b
+Use an alternate boot file.  This is optional and allows you to
+specify a file with a leading dash.
+.El
+.Pp
+Any additional argument is taken as the name of the boot file.
+The boot file contains information about where the name server is to get
+its initial data.  If multiple boot files are specified, only the last
+is used.
+Lines in the boot file cannot be continued on subsequent lines.
+The following is a small example:
+.Bd -literal
+;
+;	boot file for name server
+;
+directory	/etc/namedb
+
+; type	domain	source host/file		      backup file
+
+cache	.					      root.cache
+primary   Berkeley.EDU          berkeley.edu.zone
+primary   32.128.IN-ADDR.ARPA   ucbhosts.rev
+secondary CC.Berkeley.EDU 128.32.137.8 128.32.137.3 cc.zone.bak
+secondary 6.32.128.IN-ADDR.ARPA 128.32.137.8 128.32.137.3 cc.rev.bak
+primary   0.0.127.IN-ADDR.ARPA localhost.rev
+forwarders 10.0.0.78 10.2.0.78
+; slave
+.Ed
+.Pp
+The ``directory'' line causes the server to change its
+working directory to the directory specified.  This can
+be important for the correct processing of
+.Li $INCLUDE
+files
+in primary zone files.
+.Pp
+The
+.Dq cache
+line specifies that data in
+.Dq Pa root.cache
+is to be
+placed in the backup cache.
+Its main use is to specify data such as locations of root domain servers.
+This cache is not used during normal operation,
+but is used as
+.Dq hints
+to find the current root servers.
+The file
+.Dq Pa root.cache
+is in the same format as
+.Dq Pa berkeley.edu.zone .
+There can be more than one
+.Dq cache
+file specified.
+.\"The first such file will be updated under certain conditions to snapshot the
+.\"cache (see
+.\" .Dv SIGQUIT
+.\" below).
+.\"The cache line can also have an optional interval argument after
+.\"the filename.
+.\"If an interval is listed,
+.\"it requests the nameserver to dump the cache contents
+.\"at that interval (in seconds).
+.\"The example above requests the nameserver to dump the cache content
+.\"every 3600 seconds (once an hour).
+.\"The use of automatic cache file updates is not currently recommended
+.\"because of the way the cache is currently managed by the server;
+.\"although the entire cache will be dumped for later reloading,
+.\"most of the cache contents will be ignored when reloaded.
+.\"The exact dump interval will vary
+.\"based on the minimum maintence interval time which is typically about
+.\"5 minutes.
+The cache files are processed in such a way as to preserve the
+time-to-live's
+of data dumped out.  Data for the root nameservers is kept artificially
+valid if necessary.
+.Pp
+The first
+.Dq primary
+line states that the file
+.Dq Pa berkeley.edu.zone
+contains
+authoritative data for the
+.Dq Berkeley. Ns Em EDU
+zone.
+The file
+.Dq Pa berkeley.edu.zone
+contains data in the master file format described in
+.%T RFC883 .
+All domain names are relative to the origin, in this
+case,
+.Dq Berkeley. Ns Em EDU
+(see below for a more detailed description).
+The second
+.Dq primary
+line states that the file
+.Dq Pa ucbhosts.rev
+contains
+authoritative data for the domain
+.Dq 32.128.IN-ADDR.ARPA ,
+which is used
+to translate addresses in network 128.32 to hostnames.
+Each master file should begin with an
+.Tn SOA
+record for the zone
+(see below).
+.Pp
+The first ``secondary'' line specifies that all authoritative data
+under
+.Dq CC.Berkeley. Ns Em EDU
+is to be transferred from the name server
+at 128.32.137.8.  If the transfer fails it will try 128.32.137.3 and
+continue trying the addresses, up to 10, listed on this line.
+The secondary copy is also authoritative for the specified domain.
+The first non-dotted-quad address on this line will be taken
+as a filename in which to backup the transfered zone.
+The name server will load the zone from this backup file if it exists
+when it boots, providing a complete copy even if the master servers
+are unreachable.
+Whenever a new copy of the domain is received by automatic zone transfer
+from one of the master servers, this file will be updated.
+The second
+.Dq secondary
+line states that the address-to-hostname
+mapping for the subnet 128.32.136 should be obtained from the same list
+of master servers as the previous zone.
+.Pp
+The
+.Dq forwarders
+line specifies the addresses of sitewide servers
+that will accept recursive queries from other servers.
+If the boot file specifies one or more forwarders, then the
+server will send all queries for data not in the cache to the forwarders first.
+Each forwarder will be asked in turn until an answer is returned
+or the list is exhausted.  If no answer is forthcoming from a
+forwarder, the server will continue as it would have without
+the forwarders line unless it is in ``slave'' mode.
+The forwarding facility is useful
+to cause a large sitewide cache to be generated on a master,
+and to reduce traffic over links to outside servers.
+It can also be used to allow servers to run that do not have
+access directly to the Internet, but wish to act as though
+they do.
+.Pp
+The ``slave'' line (shown commented out) is used to put the server
+in slave mode.  In this mode, the server will only make queries to
+forwarders.  This option is normally used on machine that wish to
+run a server but for physical or administrative reasons cannot
+be given access to the Internet, but have access to a host that
+does have access.
+.Pp
+The ``sortlist'' line can be used to indicate networks that are to be
+preferred over other, unlisted networks.
+Queries for host addresses from hosts on the same network as the server
+will receive responses with local network addresses listed first,
+then addresses on the sort list, then other addresses.
+This line is only acted on at initial startup.
+When reloading the nameserver with
+a
+.Dv SIGHUP ,
+this line will be ignored.
+.Pp
+The master file consists of control information
+and a list of resource records for objects in the zone
+of the forms:
+.Bd -literal
+$INCLUDE <filename> <opt_domain>
+$ORIGIN <domain>
+<domain> <opt_ttl> <opt_class> <type> <resource_record_data>
+.Ed
+.Pp
+where
+.Em domain
+is
+.Ql \&.
+for root,
+.Ql \&@
+for the current origin, or a standard domain
+name. If
+.Em domain
+is a standard domain name that does not end with
+.Ql \&. ,
+the current origin
+is appended to the domain. Domain names ending with
+.Ql \&.
+are
+unmodified.
+The
+.Em opt_domain
+field is used to define an origin for the data in an included file.
+It is equivalent to placing a
+.Li $ORIGIN
+statement before the first
+line of the included file.  The field is optional.
+Neither the
+.Em opt_domain
+field nor
+.Li $ORIGIN
+statements in the included file modify the current origin
+for this file.
+The
+.Em opt_ttl
+field is an optional integer number for the time-to-live field.
+It defaults to zero, meaning the minimum value specified in the
+SOA record for the zone.
+The
+.Em opt_class
+field is the object address type; currently only one type is supported,
+.Sy IN ,
+for objects connected to the
+.Tn DARPA
+Internet. 
+The
+.Em type
+field contains one of the following tokens; the data expected in the
+.Em resource_record_data
+field is in parentheses.
+.Bl -tag -width Fl
+.It A
+a host address (dotted quad)
+.It \&NS
+an authoritative name server (domain)
+.It \&MX
+a mail exchanger (domain)
+.It CNAME
+the canonical name for an alias (domain)
+.It SOA
+marks the start of a zone of authority (domain of originating host,
+domain address of maintainer, a serial number and the following
+parameters in seconds: refresh, retry, expire and minimum TTL
+(see
+.%T RFC883 ) )
+.It \&MB
+a mailbox domain name (domain)
+.It \&MG
+a mail group member (domain)
+.It \&MR
+a mail rename domain name (domain)
+.It NULL
+ra null resource record (no format or data)
+.It \&WKS
+a well know service description (not implemented yet)
+.It \&PTR
+a domain name pointer (domain)
+.It HINFO
+host information (cpu_type OS_type )
+.It MINFO
+mailbox or mail list information (request_domain error_domain)
+.El
+.Pp
+Resource records normally end at the end of a line,
+but may be continued across lines between opening and closing parentheses.
+Comments are introduced by semicolons and continue to the end of the line.
+.Pp
+Each master zone file should begin with an SOA
+record for the zone.
+An example SOA
+record is as follows:
+.Bd -literal
+@  IN  SOA  ucbvax.Berkeley.EDU. rwh.ucbvax.Berkeley.EDU. (
+                             2.89	; serial
+                             10800	; refresh
+                             3600	; retry
+                             3600000	; expire
+                             86400 )	; minimum
+.Ed
+.Pp
+The SOA
+lists a serial number, which should be changed each time the master
+file is changed.
+Secondary servers check the serial number at intervals specified by the refresh
+time in seconds; if the serial number changes, a zone transfer will be done
+to load the new data.
+If a master server cannot be contacted when a refresh is due, the retry time
+specifies the interval at which refreshes should be attempted until successful.
+If a master server cannot be contacted within the interval given by the
+expire time, all data from the zone is discarded by secondary servers.
+The minimum value is the time-to-live used by records in the file
+with no explicit time-to-live value.
+.Sh NOTES
+The boot file directives ``domain'' and ``suffixes'' have been
+obsoleted by a more useful resolver based implementation of
+suffixing for partially qualified domain names.  The prior mechanisms
+could fail under a number of situations, especially when then local
+nameserver did not have complete information.
+.Pp
+The following signals have the specified effect when sent to the
+server process using the
+.Xr kill 1
+command.
+.Bl -tag -width Fl
+.It Dv SIGHUP
+Causes server to read
+.Pa named.boot
+and reload database.
+.It Dv SIGINT
+Dumps current data base and cache to
+.Pa /var/tmp/named_dump.db
+.\".IP
+.\" .Dv SIGQUIT
+.\"Causes the server to checkpoint the cache into the first ``cache'' file.
+.It Dv SIGIOT
+Dumps statistics data into
+.Pa /var/tmp/named.stats
+if the server is
+compiled
+.Dv \-DSTATS .
+Statistics data is appended to the file.
+.It Dv SIGSYS
+Dumps the profiling data in
+.Pa /var/tmp
+if the server is compiled
+with profiling (server forks, chdirs and exits).
+.It Dv SIGTERM
+Dumps the primary and secondary database files.
+Used to save modified data on shutdown if the
+server is compiled with dynamic updating enabled.
+.It Dv SIGUSR1
+urnsTurns on debugging; each
+.Dv SIGUSR1
+increments debug level.
+.Pf ( Dv SIGEMT
+on older systems without
+.Dv SIGUSR1 )
+.It Dv SIGUSR2
+Turns off debugging completely.
+.Pf ( Dv SIGFPE
+on older systems without
+.Dv SIGUSR2 )
+.El
+.Sh FILES
+.Bl -tag -width /var/tmp/named_dump.db -compact
+.It Pa /etc/named.boot
+name server configuration boot file
+.It Pa /etc/named.pid
+the process id
+.It Pa /var/tmp/named.run
+debug output
+.It Pa /var/tmp/named_dump.db
+dump of the name server database
+.It Pa /var/tmp/named.stats
+nameserver statistics data
+.El
+.Sh SEE ALSO
+.Xr kill 1 ,
+.Xr gethostbyname 3 ,
+.Xr signal 3 ,
+.Xr resolver 3 ,
+.Xr resolver 5 ,
+.Xr hostname 7 ,
+.Rs
+.%T RFC882
+.Re
+.Rs
+.%T RFC883
+.Re
+.Rs
+.%T RFC973
+.Re
+.Rs
+.%T RFC974
+.Re
+.Rs
+.%T "Name Server Operations Guide for BIND"
+.Re
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

@@ -1,0 +1,708 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)termdesc.me	6.3 (Berkeley) 4/17/91
+.\"
+.+c
+.(l C
+.sz 14
+.b "Writing \s-2NROFF\s0 Terminal Descriptions"
+.sp
+.sz 10
+Eric Allman
+.i "Britton-Lee, Inc."
+.)l
+.sp 2
+.sh 1 "INTRODUCTION"
+.eh 'SMM:20-%''Writing NROFF Terminal Descriptions'
+.oh 'Writing NROFF Terminal Descriptions''SMM:20-%'
+.pp
+As of the Version 7 Phototypesetter release of \s-2UNIX\s0,*
+.(f
+*\s-2UNIX\s0 is a trademark of Bell Laboratories.
+.)f
+\s-2NROFF\s0 has supported terminal description files.
+These files describe the characteristics of available hard-copy printers.
+This document describes some of the details of how to write
+terminal description files.
+.pp
+.ul
+Disclaimer.
+This document describes the results of my personal experience.
+The effects of changing some of the fields from the norms
+may not be well defined,
+even if it seems like it
+.q ought
+to work given the descriptions herein.
+These tables are known to vary slightly
+for different versions of \s-2UNIX\s0.
+I have not seen \s-2UNIX\s0 3.0 at this time,
+so this may be irrelevant in that context.
+.sh 1 "GENERAL"
+.pp
+When \s-2NROFF\s0 starts up,
+it looks for a
+.b \-T
+flag describing the terminal type.
+For example,
+if the command line is given as
+.(b
+nroff \-T300s
+.)b
+\s-2NROFF\s0 prepares output for a
+.i DTC300S
+terminal.
+This terminal is described in the file
+/usr/lib/term/tab300s
+on most systems.
+.pp
+If no
+.b \-T
+flag is given,
+the terminal type
+.b 37
+(ASR 37 \*- a relic assumed for historical humor only)
+is assumed.
+.pp
+The terminal description table is a stripped
+.q \&.o
+file generated from a data structure,
+shown in figure one.
+.(z
+.hl
+.ta 8n 24n
+#define INCH 240	/* one inch in units */
+struct
+{
+	int bset;	/* stty bits to set */
+	int breset;	/* stty bits to reset */
+	int Hor;	/* horizontal resolution in units */
+	int Vert;	/* vertical resolution in units */
+	int Newline;	/* the distance a newline moves */
+	int Char;	/* the distance one char moves */
+	int Em;	/* size of an Em */
+	int Halfline;	/* the distance a halfline up/down moves */
+	int Adj;	/* default adjustment width */
+	char *twinit;	/* string to init the terminal */
+	char *twrest;	/* string to reset the terminal */
+	char *twnl;	/* string to send a newline (CR-LF) */
+	char *hlr;	/* half line reverse string */
+	char *hlf;	/* half line forward string */
+	char *flr;	/* full line reverse string */
+	char *bdon;	/* string to turn boldface on */
+	char *bdoff;	/* string to turn boldface off */
+	char *ploton;	/* string to turn plot on */
+	char *plotoff;	/* string to turn plot off */
+	char *up;	/* move up in plot mode */
+	char *down;	/* move down in plot mode */
+	char *right;	/* move right in plot mode */
+	char *left;	/* move left in plot mode */
+	char *codetab[256-32];  /* the codes to send for characters */
+	int zzz;	/* padding */
+};
+.sp
+.ce
+Figure 1 \*- the terminal descriptor data structure
+.hl
+.)z
+This structure can be dealt with in two sections:
+the terminal capability descriptor (everything to codetab),
+and the output descriptor.
+.sh 1 "TERMINAL CAPABILITIES"
+.pp
+The section of the data structure up to but excluding
+.i codetab
+describes the basic functions and setup requirements of the terminal.
+Distances are measured in
+.q units,
+which are 1/240 of an inch in \s-2NROFF\s0.
+In general, \s-2NROFF\s0 assumes that there is a
+.q "plot mode"
+on the terminal that allows you to move in small increments.
+A terminal has a resolution when in plot mode
+that is measured in units.
+This limits how well the terminal can simulate
+printing Greek and special characters.
+.sh 2 "bset, breset"
+.pp
+These fields define bits in a vanilla stty(2) word
+(sg_flags) to
+set and clear respectively when
+\s-2NROFF\s0 starts.
+They are normally represented in octal,
+although you could include <sgtty.h>.
+[Note:
+these fields are presumably different
+in \s-2UNIX\s0 3.0.]
+.sh 2 "Hor, Vert"
+.pp
+These represent the horizontal and vertical resolution respectively
+of the terminal when it is in plot mode.
+They are given in units.
+.sh 2 "Newline"
+.pp
+This field describes the distance that the
+.i twnl
+field (below) will move the paper;
+it is literally the size of a newline.
+.sh 2 "Char"
+.pp
+This is the distance that a regular character
+will move the print head to the right.
+.sh 2 "Em"
+.pp
+The
+.q em
+is a typesetting unit,
+approximately equal to the width of the letter
+.q m .
+In \s-2NROFF\s0 driver tables,
+this must be the distance a space or backspace character will move
+the carriage.
+.sh 2 "Halfline"
+.pp
+This is the distance that the
+.i hlr
+or
+.i hlf
+strings move the print head
+(reverse or forward respectively).
+.sh 2 "Adj"
+.pp
+This is the resolution that \s-2NROFF\s0 will normally adjust
+your lines to horizontally.
+Typically this is the same as Char.
+If the
+.b \-e
+flag is given to \s-2NROFF\s0,
+output resolution will be to the full device resolution.
+.sh 2 "twinit, twrest"
+.pp
+These strings are output when \s-2NROFF\s0 starts and finishes
+respectively.
+.sh 2 "twnl"
+.pp
+This string is output when \s-2NROFF\s0 wants to do a carriage return.
+Typically it will be
+.q "\er\en" .
+Remember,
+the terminal will normally have CRMOD turned off
+when this is set.
+.sh 2 "hlr, hlf"
+.pp
+These strings are sent to move the carriage back or forward
+one half line respectively.
+The actual amount that they moved is defined by
+Halfline.
+The carriage should be left in the same column.
+.sh 2 "flr"
+.pp
+The string to send to move a full line backwards.
+This should leave the carriage in the same column.
+.sh 2 "bdon, bdoff"
+.pp
+These strings are sent to turn boldface mode on and off
+respectively.
+Normally this will set the terminal into overstrike mode.
+If they are not given,
+some newer versions of \s-2NROFF\s0 will output the characters
+four times to force overstriking.
+.sh 2 "ploton, plotoff"
+.pp
+These strings turn plot mode on and off respectively.
+In plot mode,
+the carriage moves a very small amount,
+and only under specific control;
+i.e., characters do not automatically cause any carriage motion.
+.sh 2 "up, down, right, left"
+.pp
+These strings are only output in plot mode.
+They should move the carriage up, down, left, and right
+respectively;
+they will move the carriage a distance of Hor or Vert
+as appropriate.
+.sh 2 "An Example"
+.pp
+Consider the following table describing a
+DTC300S:
+.(b
+.ta 1.5i
+/*bset*/	0,
+/*breset*/	0177420,
+/*Hor*/	INCH/60,
+/*Vert*/	INCH/48,
+/*Newline*/	INCH/6,
+/*Char*/	INCH/10,
+/*Em*/	INCH/10,
+/*Halfline*/	INCH/12,
+/*Adj*/	INCH/10,
+/*twinit*/	"\e033\e006",
+/*twrest*/	"\e033\e006",
+/*twnl*/	"\e015\en",
+/*hlr*/	"\e033H",
+/*hlf*/	"\e033h",
+/*flr*/	"\e032",
+/*bdon*/	"",
+/*bdoff*/	"",
+/*ploton*/	"\e006",
+/*plotoff*/	"\e033\e006",
+/*up*/	"\e032",
+/*down*/	"\en",
+/*right*/	" ",
+/*left*/	"\eb",
+.)b
+This describes a terminal that should have the
+ALLDELAY and CRMOD bits turned off,
+1/60" horizontal and 1/48" vertical resolution,
+six lines per inch and ten characters per inch, including space,
+halfline takes 1/12" (one half of a full line),
+should send ESC-control-F to initialize and reset the terminal
+(to insure that it is in a normal state),
+takes <CR><LF> to give a newline,
+<ESC>H to move back one half line,
+<ESC>h to move forward one half line,
+control-Z to move back one full line,
+has no bold mode,
+takes control-F to enter plot mode
+and escape-control-F to exit plot mode,
+and uses control-Z, linefeed, space, and backspace
+to move up, down, right, and left respectively
+when in plot mode.
+.sh 1 "CHARACTER DESCRIPTIONS"
+.pp
+There is one character description
+for each possible character to be output.
+The easiest way to find what character corresponds to what position
+is to edit an existing character table;
+one is given in the appendix as an example.
+Character representations are represented as a string per
+character.
+.pp
+The first character of the string
+is interpreted as a binary number
+giving the number of character spaces taken up
+by this character.
+For regular characters
+this will always be
+.q "\e001" ,
+but Greek and special characters can take more.
+If the 0200 bit is set in this character,
+it indicates that the character should be underlined
+if we are in italic (underline) mode.
+Thus,
+alphabetic and numeric descriptions
+will begin
+.q "\e201" .
+.pp
+The remainder of the string is output to represent the character.
+If the first output character
+(i.e.,
+the second character in the total string)
+has the 0200 bit set,
+the character will be output in plot mode
+so that fancy characters can be built up from existing characters.
+If necessary,
+the
+.q "\e200"
+character can be used as a null character
+to force \s-2NROFF\s0 to set the terminal into plot mode.
+All characters without the 0200 bit are output literally;
+characters with the 0200 bit are not output,
+but are used to indicate local carriage movement.
+The next two bits (0140 bits) represent direction:
+.(b
+.ta \w'0200  'u
+0200	right
+0240	left
+0300	down
+0340	up
+.)b
+The bottom five bits represent a distance in terminal resolution units.
+This is rather confusing,
+but the examples should make this much more clear.
+.sh 2 "Some Examples"
+.pp
+The following examples are from the DTC300S table:
+.(b
+.ta 2i
+"\e001 ",	/*space*/
+"\e001=",	/*=*/
+"\e201A",	/*A*/
+.)b
+These entries show that all of these characters
+take one character width when output.
+The letter A is underlined in italic mode,
+but neither space nor equal sign is.
+.(b
+.ta 2i
+"\e001o\eb+",	/*bullet*/
+"\e002[]",	/*square*/
+"\e202f\^i",	/*f\^i*/
+.)b
+The bullet character takes only one character position,
+but is created by outputing the letter
+.q o
+and overstriking it with a plus sign.
+The square character is approximated
+with two brackets;
+it takes two full character positions
+when output.
+The
+.q fi
+ligature
+is produced using the letters
+.q f
+and
+.q i
+(surprise!);
+it is underlined in italic mode.
+.(b
+"\e001\e241c\e202(\e241", /*alpha*/
+"\e001\e200B\e242\e302|\e202\e342", /*beta*/
+.)b
+The letters alpha and beta both take a single character position.
+The alpha is output by entering plot mode,
+moving left 1 terminal unit (1/60" if you recall),
+outputing the letter
+.q c ,
+moving right 2/60",
+outputing a left parenthesis,
+and finally moving left 1/60";
+it is critical that the net space moved
+be zero both horizontally and vertically.
+The beta first has a dummy 0200 character
+to enter plot mode but not output anything.
+It then outputs a
+.q B ,
+moves left 2/60",
+moves down 2/48",
+outputs a vertical bar
+(which is designed to partically overstrike the left edge of the
+.q B ,
+and finally move right 2/60" and up 2/48"
+to set us back to the right place.
+.sh 1 "INSTALLATION"
+.pp
+To install a terminal descriptor,
+make it up by editing an existing terminal descriptor.
+Assuming your terminal name is
+.i term ,
+call your new descriptor
+.b tab \c
+.i term \c
+.b .c .
+Then, execute the following commands:
+.(b
+cc -c tabterm.c
+strip tabterm.c
+cp tabterm.o /usr/lib/term/tabterm
+.)b
+The directory /usr/src/cmd/troff/term
+typically has a shell file to do this.
+.+c
+.ce 2
+APPENDIX
+.sp
+A Sample Table
+.sp 3
+This table describes the DTC 300S.
+.(l
+.re
+#define INCH 240
+/*
+DASI300S
+nroff driving tables
+width and code tables
+*/
+
+struct {
+	int bset;
+	int breset;
+	int Hor;
+	int Vert;
+	int Newline;
+	int Char;
+	int Em;
+	int Halfline;
+	int Adj;
+	char *twinit;
+	char *twrest;
+	char *twnl;
+	char *hlr;
+	char *hlf;
+	char *flr;
+	char *bdon;
+	char *bdoff;
+	char *ploton;
+	char *plotoff;
+	char *up;
+	char *down;
+	char *right;
+	char *left;
+	char *codetab[256-32];
+	int zzz;
+	} t = {
+/*bset*/	0,
+/*breset*/	0177420,
+/*Hor*/		INCH/60,
+/*Vert*/	INCH/48,
+/*Newline*/	INCH/6,
+/*Char*/	INCH/10,
+/*Em*/		INCH/10,
+/*Halfline*/	INCH/12,
+/*Adj*/		INCH/10,
+/*twinit*/	"\e033\e006",
+/*twrest*/	"\e033\e006",
+/*twnl*/	"\e015\en",
+/*hlr*/		"\e033H",
+/*hlf*/		"\e033h",
+/*flr*/		"\e032",
+/*bdon*/	"",
+/*bdoff*/	"",
+/*ploton*/	"\e006",
+/*plotoff*/	"\e033\e006",
+/*up*/		"\e032",
+/*down*/	"\en",
+/*right*/	" ",
+/*left*/	"\eb",
+	/*codetab*/
+"\e001 ",	/*space*/
+"\e001!",	/*!*/
+"\e001\e"",	/*"*/
+"\e001#",	/*#*/
+"\e001$",	/*$*/
+"\e001%",	/*%*/
+"\e001&",	/*&*/
+"\e001'",	/*' close*/
+"\e001(",	/*(*/
+"\e001)",	/*)*/
+"\e001*",	/***/
+"\e001+",	/*+*/
+"\e001,",	/*,*/
+"\e001-",	/*- hyphen*/
+"\e001.",	/*.*/
+"\e001/",	/*/*/
+"\e2010",	/*0*/
+"\e2011",	/*1*/
+"\e2012",	/*2*/
+"\e2013",	/*3*/
+"\e2014",	/*4*/
+"\e2015",	/*5*/
+"\e2016",	/*6*/
+"\e2017",	/*7*/
+"\e2018",	/*8*/
+"\e2019",	/*9*/
+"\e001:",	/*:*/
+"\e001;",	/*;*/
+"\e001<",	/*<*/
+"\e001=",	/*=*/
+"\e001>",	/*>*/
+"\e001?",	/*?*/
+"\e001@",	/*@*/
+"\e201A",	/*A*/
+"\e201B",	/*B*/
+"\e201C",	/*C*/
+"\e201D",	/*D*/
+"\e201E",	/*E*/
+"\e201F",	/*F*/
+"\e201G",	/*G*/
+"\e201H",	/*H*/
+"\e201I",	/*I*/
+"\e201J",	/*J*/
+"\e201K",	/*K*/
+"\e201L",	/*L*/
+"\e201M",	/*M*/
+"\e201N",	/*N*/
+"\e201O",	/*O*/
+"\e201P",	/*P*/
+"\e201Q",	/*Q*/
+"\e201R",	/*R*/
+"\e201S",	/*S*/
+"\e201T",	/*T*/
+"\e201U",	/*U*/
+"\e201V",	/*V*/
+"\e201W",	/*W*/
+"\e201X",	/*X*/
+"\e201Y",	/*Y*/
+"\e201Z",	/*Z*/
+"\e001[",	/*[*/
+"\e001\e\e",	/*\e*/
+"\e001]",	/*]*/
+"\e001^",	/*^*/
+"\e001_",	/*_ dash*/
+"\e001`",	/*` open*/
+"\e201a",	/*a*/
+"\e201b",	/*b*/
+"\e201c",	/*c*/
+"\e201d",	/*d*/
+"\e201e",	/*e*/
+"\e201f",	/*f*/
+"\e201g",	/*g*/
+"\e201h",	/*h*/
+"\e201i",	/*i*/
+"\e201j",	/*j*/
+"\e201k",	/*k*/
+"\e201l",	/*l*/
+"\e201m",	/*m*/
+"\e201n",	/*n*/
+"\e201o",	/*o*/
+"\e201p",	/*p*/
+"\e201q",	/*q*/
+"\e201r",	/*r*/
+"\e201s",	/*s*/
+"\e201t",	/*t*/
+"\e201u",	/*u*/
+"\e201v",	/*v*/
+"\e201w",	/*w*/
+"\e201x",	/*x*/
+"\e201y",	/*y*/
+"\e201z",	/*z*/
+"\e001{",	/*{*/
+"\e001|",	/*|*/
+"\e001}",	/*}*/
+"\e001~",	/*~*/
+"\e000\e0",	/*narrow sp*/
+"\e001-",	 /*hyphen*/
+"\e001o\eb+",	 /*bullet*/
+"\e002[]",	 /*square*/
+"\e001-",	 /*3/4 em*/
+"\e001_",	 /*rule*/
+"\e000\e0",	 /*1/4*/
+"\e000\e0",	 /*1/2*/
+"\e000\e0",	 /*3/4*/
+"\e001-",	 /*minus*/
+"\e202f\^i",	 /*fi*/
+"\e202f\^l",	 /*fl*/
+"\e202f\^f",	 /*ff*/
+"\e203f\^f\^i",	 /*ffi*/
+"\e203f\^f\^l",	 /*ffl*/
+"\e000\e0",	 /*degree*/
+"\e000\e0",	 /*dagger*/
+"\e000\e0",	 /*section*/
+"\e001'",	 /*foot mark*/
+"\e001'",	 /*acute accent*/
+"\e001`",	 /*grave accent*/
+"\e001_",	 /*underrule*/
+"\e001/",	 /*slash (longer)*/
+"\e000\e0",	/*half narrow space*/
+"\e001 ",	/*unpaddable space*/
+"\e001\e241c\e202(\e241", /*alpha*/
+"\e001\e200B\e242\e302|\e202\e342", /*beta*/
+"\e001\e200)\e201/\e241", /*gamma*/
+"\e001\e200o\e342<\e302", /*delta*/
+"\e001<\eb-", /*epsilon*/
+"\e001\e200c\e201\e301,\e241\e343<\e302", /*zeta*/
+"\e001\e200n\e202\e302|\e242\e342", /*eta*/
+"\e001O\eb-", /*theta*/
+"\e001i",	 /*iota*/
+"\e001k",	 /*kappa*/
+"\e001\e200\e\e\e304\e241'\e301\e241'\e345\e202", /*lambda*/
+"\e001\e200u\e242,\e202", /*mu*/
+"\e001\e241(\e203/\e242", /*nu*/
+"\e001\e200c\e201\e301,\e241\e343c\e241\e301`\e201\e301", /*xi*/
+"\e001o",	 /*omicron*/
+"\e001\e341-\e303\e"\e301\e"\e343", /*pi*/
+"\e001\e200o\e242\e302|\e342\e202", /*rho*/
+"\e001\e200o\e301\e202~\e341\e242", /*sigma*/
+"\e001\e200t\e301\e202~\e243~\e201\e341", /*tau*/
+"\e001v",	 /*upsilon*/
+"\e001o\eb/", /*phi*/
+"\e001x",	 /*chi*/
+"\e001\e200/-\e302\e202'\e244'\e202\e342", /*psi*/
+"\e001\e241u\e203u\e242", /*omega*/
+"\e001\e242|\e202\e343-\e303\e202`\e242", /*Gamma*/
+"\e001\e242/\e303-\e204-\e343\e\e\e242", /*Delta*/
+"\e001O\eb=", /*Theta*/
+"\e001\e242/\e204\e\e\e242", /*Lambda*/
+"\e000\e0",	 /*Xi*/
+"\e001\e242[]\e204[]\e242\e343-\e303", /*Pi*/
+"\e001\e200>\e302-\e345-\e303", /*Sigma*/
+"\e000\e0",	 /**/
+"\e001Y",	 /*Upsilon*/
+"\e001o\eb[\eb]", /*Phi*/
+"\e001\e200[]-\e302\e202'\e244`\e202\e342", /*Psi*/
+"\e001\e200O\e302\e241-\e202-\e241\e342", /*Omega*/
+"\e000\e0",	 /*square root*/
+"\e000\e0",	 /*terminal sigma*/
+"\e000\e0",	 /*root en*/
+"\e001>\eb_",	 /*>=*/
+"\e001<\eb_",	 /*<=*/
+"\e001=\eb_",	 /*identically equal*/
+"\e001-",	 /*equation minus*/
+"\e001=\eb~",	 /*approx =*/
+"\e000\e0",	 /*approximates*/
+"\e001=\eb/",	 /*not equal*/
+"\e002->",	 /*right arrow*/
+"\e002<-",	 /*left arrow*/
+"\e001|\eb^",	 /*up arrow*/
+"\e000\e0",	 /*down arrow*/
+"\e001=",	 /*equation equal*/
+"\e001x",	 /*multiply*/
+"\e001/",	 /*divide*/
+"\e001+\eb_",	 /*plus-minus*/
+"\e001U",	 /*cup (union)*/
+"\e000\e0",	 /*cap (intersection)*/
+"\e000\e0",	 /*subset of*/
+"\e000\e0",	 /*superset of*/
+"\e000\e0",	 /*improper subset*/
+"\e000\e0",	 /* improper superset*/
+"\e002oo",	 /*infinity*/
+"\e001\e200o\e201\e301`\e241\e341`\e241\e341`\e201\e301", /*partial derivative*/
+"\e001\e242\e\e\e343-\e204-\e303/\e242", /*gradient*/
+"\e001\e200-\e202\e341,\e301\e242", /*not*/
+"\e001\e200|'\e202`\e243\e306'\e241`\e202\e346",	/*integral sign*/
+"\e000\e0",	 /*proportional to*/
+"\e000\e0",	 /*empty set*/
+"\e000\e0",	 /*member of*/
+"\e001+",	 /*equation plus*/
+"\e001r\ebO",	 /*registered*/
+"\e001c\ebO",	 /*copyright*/
+"\e001|",	 /*box rule */
+"\e001c\eb/",	 /*cent sign*/
+"\e000\e0",	 /*dbl dagger*/
+"\e000\e0",	 /*right hand*/
+"\e001*",	 /*left hand*/
+"\e001*",	 /*math * */
+"\e000\e0",	 /*bell system sign*/
+"\e001|",	 /*or (was star)*/
+"\e001O",	 /*circle*/
+"\e001|",	 /*left top (of big curly)*/
+"\e001|",	 /*left bottom*/
+"\e001|",	 /*right top*/
+"\e001|",	 /*right bot*/
+"\e001|",	 /*left center of big curly bracket*/
+"\e001|",	 /*right center of big curly bracket*/
+"\e001|",	/*bold vertical*/
+"\e001|",	/*left floor (left bot of big sq bract)*/
+"\e001|",	/*right floor (rb of ")*/
+"\e001|",	/*left ceiling (lt of ")*/
+"\e001|"};	/*right ceiling (rt of ")*/
+.)l

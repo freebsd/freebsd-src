@@ -1,0 +1,69 @@
+.\"	ident.1,v 1.2 1993/08/02 17:51:21 mycroft Exp	-*- nroff -*-
+.TH IDENT 1 6/29/83 "Purdue University"
+.SH NAME
+ident \- identify files
+.SH SYNOPSIS
+.B ident
+file ... 
+.SH DESCRIPTION
+.I Ident
+searches the named files for all occurrences of the pattern
+\fI$keyword:...$\fR, where \fIkeyword\fR is one of
+.nf
+
+        Author
+        Date
+        Header
+        Locker
+        Log
+        Revision
+        Source
+        State
+
+.fi
+These patterns are normally inserted automatically by the RCS command \fIco (1)\fR,
+but can also be inserted manually.
+.PP
+\fIIdent\fR works on text files as well as object files.
+For example, if the C program in file f.c contains
+.nf
+
+        char rcsid[] = "$\&Header:  Header information $";
+
+.fi
+and f.c is compiled into f.o, then the command
+.nf
+
+        ident  f.c  f.o
+
+will print
+
+        f.c:
+                $\&Header:  Header information $
+        f.o:
+                $\&Header:  Header information $
+
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:21
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+ci (1), co (1), rcs (1), rcsdiff(1), rcsintro (1), rcsmerge (1), rlog (1), rcsfile (5).
+.sp 0
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision Control
+System," in \fIProceedings of the 6th International Conference on Software
+Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH BUGS
+
+
+

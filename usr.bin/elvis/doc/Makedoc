@@ -1,0 +1,88 @@
+# This is the Makefile for Elvis' "doc" directory.  It makes use of a
+# troff-like formatter called mroff.  Since you probably don't have mroff,
+# you'll need to edit this Makefile before you can fully use it.  It can
+# also use nroff, though, so you should be able to get something out of it.
+#
+# make		Use nroff to create an ASCII version of the manual.
+# make foo.doc	Use nroff to create an ASCII version of foo.man or foo.ms
+# make manual	Use MROFF to print a typeset manual on a laser printer
+# make foo.1200	Use MROFF to print a typeset version of foo.man or foo.ms
+# make foo.100	Use MROFF to print a draft-quality version of foo.man or foo.ms
+# make foo.more	Use MROFF to preview foo.man or foo.more on your terminal
+#
+
+###############################################################################
+# Definitions...
+
+MAN=	ctags.man elvis.man elvprsv.man elvrec.man fmt.man ref.man
+MS=	title.ms index.ms intro.ms visual.ms ex.ms regexp.ms options.ms\
+	cutbufs.ms differ.ms internal.ms cflags.ms termcap.ms environ.ms\
+	versions.ms question.ms
+DOC=	title.doc index.doc intro.doc visual.doc ex.doc regexp.doc options.doc\
+	cutbufs.doc differ.doc internal.doc cflags.doc termcap.doc environ.doc\
+	versions.doc question.doc\
+	ctags.doc elvis.doc elvprsv.doc elvrec.doc fmt.doc ref.doc
+MANUAL=	title.1200 index.1200 intro.1200 visual.1200 ex.1200 regexp.1200 options.1200\
+	cutbufs.1200 differ.1200 internal.1200 cflags.1200 termcap.1200 environ.1200\
+	versions.1200\
+	ctags.1200 elvis.1200 elvprsv.1200 elvrec.1200 fmt.1200 ref.1200
+VER=	ver.ms
+TROFF=	mroff
+NROFF=	nroff
+
+###############################################################################
+# Rules...
+
+.SUFFIXES: .tmp .100 .1200 .more .doc .man .ms .vga .vgas
+
+.ms.tmp:
+	$(TROFF) -ms $(VER) $< >tmp
+
+.man.tmp:
+	$(TROFF) -man $< >tmp
+
+.ms.more:
+	$(TROFF) -ms $(VER) $< | draft | more
+
+.man.more:
+	$(TROFF) -man $< | draft | more
+
+.ms.1200:
+	$(TROFF) -ms $(VER) $< | hp2 1200 | lp -og $(PRINTER)
+
+.man.1200:
+	$(TROFF) -man $< | hp2 1200 | lp -og $(PRINTER)
+
+.ms.100:
+	$(TROFF) -ms $(VER) $< | hp2 100 | lp -og $(PRINTER)
+
+.man.100:
+	$(TROFF) -man $< | hp2 100 | lp -og $(PRINTER)
+
+.ms.doc:
+	$(NROFF) -ms $(VER) $< >$@
+
+.man.doc:
+	$(NROFF) -man $< >$@
+
+.ms.vga:
+	$(TROFF) -ms $(VER) $< >/tmp/foo
+	-vga /tmp/foo
+	rm /tmp/foo
+
+.ms.vgas:
+	$(TROFF) -ms $(VER) $< >/tmp/foo
+	-vgas /tmp/foo
+	rm /tmp/foo
+
+#############################################################################
+# Targets...
+
+Elvisman.txt: $(DOC)
+	cat $(DOC) | col -b >Elvisman.txt
+	#cat $(DOC) | col -b -x | sed 's/^/        /' >Elvisman.txt
+
+manual: $(MANUAL)
+
+clean:
+	rm -f *.doc

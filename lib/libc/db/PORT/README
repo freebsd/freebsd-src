@@ -1,0 +1,60 @@
+#	@(#)README	8.1 (Berkeley) 6/2/93
+
+This is the directory to use for creating a library of the dbopen(3)
+routines.  The Makefile builds the base system.  By changing it and
+the compat.h file, you should be able to pick and choose the various
+things your system needs to make libdb run.
+
+The knobs that you may have to turn:
+
+In the Makefile:
+	If you don't have mktemp(3) or mkstemp(3) on your system, add
+	"mktemp.o" to the MISC list.
+
+	If you don't have snprintf(3) on your system, add snprintf.o
+	to the MISC list.
+
+	If you don't have memmove(3), add memmove.o to the MISC list.
+
+In include/compat.h:
+	Before attempting to build this library, you should skim through
+	the compat.h file, and adjust it as necessary for your system.
+	It's possible to use the #ifndef construct to figure out if a
+	#ifdef has been set, but C provides no similar method to figure
+	out if a typedef has been done.  All of the typedef's are grouped
+	at the top of compat.h, your compile errors will tell you which
+	ones you need.
+
+	Particularly subtle problems can occur if you don't have the
+	BYTE_ORDER set right or if the realloc define is wrong.
+
+Some other problems:
+	You may see warning messages about illegal pointer combinations.
+	It's because systems prototype malloc, calloc and realloc in
+	different places.  If you want to stop the warnings, find out
+	where your system prototypes them, and include it in compat.h,
+	or, just prototype them yourself.
+
+To install:
+	Programs using the dbopen(3) interface have to include db.h.
+	To install the library, you'll need to put db.h (found in the
+	directory PORT/include) and the library libdb.a in some place
+	accesible to your program.
+
+Hints:
+	SunOS 4.1.2 works with ``MISC=realloc.o snprintf.o memmove.o''
+	and the include/compat.h realloc ``#if 0'' changed to ``#if 1''.
+	SunOS gives a bunch of warning messages on the malloc family
+	routines.
+
+	Ultrix 4.2A works with ``MISC=realloc.o snprintf.o memmove.o''
+	and the include/compat.h realloc ``#if 0'' changed to ``#if 1''
+	and BYTE_ORDER changed from BIG_ENDIAN to LITTLE_ENDIAN.
+	Ultrix does not give warning messages on the malloc family
+	routines.
+
+	The recno routines require the mmap(2) call.  It wouldn't be
+	difficult to port this package to a system without mmap.  Change
+	rec_open.c to do slightly different initialization and to write
+	two new routines for rec_get.c that handle regular files using
+	reads and writes.

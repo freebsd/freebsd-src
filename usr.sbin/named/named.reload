@@ -1,0 +1,5 @@
+#!/bin/sh -
+#
+#	@(#)named.reload	5.2 (Berkeley) 6/27/89
+#
+kill -HUP `cat /var/run/named.pid`

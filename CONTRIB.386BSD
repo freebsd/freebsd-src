@@ -1,0 +1,196 @@
+
+
+
+
+
+
+
+		     386BSD Release 0.1
+		      Contributor List
+
+		     Lynne Greer Jolitz
+		     William F. Jolitz
+
+
+_H_a_r_d_w_a_r_e _a_n_d _M_o_n_e_t_a_r_y _C_o_n_t_r_i_b_u_t_o_r_s
+
+Many people and firms have provided hardware and/or money to
+try and keep this unfunded project going despite a recession
+and hard times -- usually by digging into their own pockets.
+Each  of  these	contributors  gave,  not  only because they
+believed that the continuation of 386BSD  is  vital  to	the
+health of the research, educational, and development commun-
+ities, but also because they realize that an individual	can
+and does make a difference!
+
+Without the help of the people	listed	here,  this  release
+would  simply  not  have  been possible. We would especially
+like to thank Thos Sumner, whose loan of a  486/50  SCSI  PC
+made  development  go  more rapidly.  The rest of the 386BSD
+user community should make special note of all these  people
+and   firms  and  commend  them	for  their  generosity	and
+foresight.
+
+We hope that their leadership and vision will serve as shin-
+ing  examples to the entire 386BSD user community, and serve
+to encourage others to actively participate in 386BSD.
+
+    Jan van den Bosch
+    Compaq Computer Corporation
+    Cyrix Corporation
+    Dixon Dick
+    Steven P. Donegan
+    Jon Erickson
+    Eric J. Haug
+    Bob McGhee
+    Jesus Monroy Jr.
+    Andrew Moore
+    Rich Murphey
+    Mark Ng
+    Kenji Okamoto
+    John Plocher
+    Mark R. Riordan
+    John B. Scalia
+    Steve Sizemore
+    Thos Sumner
+    David E. Tweten
+
+
+
+
+
+386BSD CONTRIB LIST	  1			July 1992
+
+
+
+
+
+
+
+
+
+
+_S_o_f_t_w_a_r_e _C_o_n_t_r_i_b_u_t_o_r_s
+
+The following people have contributed key software programs,
+modules and fixes, including novel work and ports of popular
+public domain user programs.   Some  of	this  software	was
+directly  contributed  to  us,	while  other items were made
+available to  all  users  via  the  network.   Occasionally,
+several	people	came  up with a variety of approaches for a
+single item. In this instance, we tried to  choose  the	one
+which  we  felt would best serve the rest of the 386BSD user
+base for this release. However, the creativity and persever-
+ance  of all the software contributors trying to make 386BSD
+better for the entire 386BSD user  community  was  consider-
+able. Each individual effort is worthy of pride.
+
+We wish to personally thank all of  these  people,  as	they
+have  helped make 386BSD Release 0.1 a reality. We hope that
+these contributors and all the rest of the 386BSD user	com-
+munity	will continue to actively participate to make future
+releases even better!
+
+    James Van Artsdalen
+    Scott Burris
+    Randall Dean
+    Chris Demetriou
+    Mark Eichin
+    Bruce Evans
+    Steve Ferguson
+    Jeffrey Goh
+    David Greenman
+    Amancio Hasty Jr
+    John W. Hatley
+    Eric J. Haug
+    Tom Ivar Helbekkmo
+    John D. Irwin
+    Peter Klingebiel
+    Paul Kranenburg
+    Daniel Lanciani
+    Karl Lehenbauer
+    Lee M. J. McLoughlin
+    Andrew J. Michael
+    Jesus Monroy Jr.
+    Daniel A. Muntz
+    Richard Murphey
+    Glen Overby
+    Brad Parker
+    Herb Pereyl
+    Ken Raeburn
+    Paul Richards
+    Guido van Rooij
+    Peng-Toh Sim
+    Wolfgang Solfrank
+    Dave Stanhope
+
+
+386BSD CONTRIB LIST	  2			July 1992
+
+
+
+
+
+
+
+
+
+
+    Mark Tinguely
+    Linus Torvalds
+    Richard Tobin
+    Rob Warnock
+    Christian Wiedmann
+    Pace Willisson
+    Joerg Wunsch
+
+    And all of the other 386BSD Software Contributors.
+
+
+_S_u_p_p_o_r_t _a_n_d _A_d_v_i_c_e _C_o_n_t_r_i_b_u_t_o_r_s
+
+Many people have continually encouraged us over	the  course
+of these releases, and provided us with technical advice and
+guidance. These people have also spent considerable time and
+energy	getting	this software out to the rest of the 386BSD
+community.  While it is impossible for us to  list  everyone
+who  has  been	supportive  of 386BSD, we wish to personally
+thank some of the people who have been of special assistance
+to  us	directly  over	the course of getting 386BSD out the
+door.
+
+    Bruce Blakely
+    Dave Campbell
+    Free Software Foundation
+    Paul Fromberg
+    Tom Genereaux
+    John Gilmore
+    Dave Harris
+    Jim Joyce
+    Dan Kionka
+    Dory Leifer
+    Per Lindqvist
+    Marshall Midden
+    Rich Morin
+    Silicon Valley Computer Society
+    John Sokol
+    Thos Sumner
+    Karen Trocki
+    Rob Warnock
+
+    and a special thanks to:
+    John Erickson, Tami Zemel, Ray Valdez, Monica Berg, Michael Floyd
+	    and everyone else at Dr. Dobbs Journal.
+    Juergen Fey, Rainer Huttenloher, Gerd Oskar Bausewein
+	    and everyone else at UNIX Magazin.
+
+    And all of the 386BSD User Community.
+
+
+
+
+
+386BSD CONTRIB LIST	  3			July 1992
+
+
+

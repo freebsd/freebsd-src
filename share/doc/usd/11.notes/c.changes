@@ -1,0 +1,412 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)c.changes	6.2 (Berkeley) 4/17/91
+.\"
+.ls 1
+.ap C "Distributed Revisions of the Notesfile System"
+
+	Several revisions of the Notesfile System are available.
+This appendix attempts to describe the differences between
+each revision and the previous one.
+
+.a1 "Previous Revisions"
+
+	The Notesfile System was first distributed in June 1982.
+Since then it has gone through a number of internal revisions
+and several major revisions.
+The initial 1.0 revision had numerous bugs in the code and
+inadequacies for interfacing with the news system.
+Release 1.3 (the most recently ``announced'' release)
+became available in March 1983.
+
+	Revisions are maintained with the RCS system.
+Major releases are number 1.1, 1.2, 1.3 ... 1.x.
+Internal modifications are numbered off of the base revision.
+Internal revisions between 1.2 and 1.3 are of the form
+1.2.1.x.
+All files in a distribution will have the same major
+revision number; files modified since the major
+release will an internal revision number based off the major
+revision number.
+
+.a1 "Revision 1.5"
+
+	Revision 1.5 is an intermediate revision.
+Revision 1.4 was stillborn.
+It's primary purpose was to integrate a number of useful 
+modifications sent in by notesfile users.
+A number of recent 1.5+ distributions have almost the same
+functional differences from previous revisions as the newer
+revision 1.6 code.
+
+.a1 "Revision 1.6"
+
+	Revisions 1.6 of the Notesfile system includes a number
+of changes.  Numerous bugs in the code were repaired.
+Several functional differences are also evident in 
+this revision of the code.
+Major changes are listed below in chronological order.
+To see what has changed since you received your copy of the code,
+find the first date after you received your distribution 
+and read from there.
+
+Fall 1983:
+
+.bx
+.ix
+Archival techniques are more refined.
+Previous revisions determined the age at which to expire notesfiles
+from the nfarchive command line.
+Each notesfile now contains its own `expiration threshold'.
+This threshold can be set to an arbitrary time (3 days),
+default to the value specified on the nfarchive command line,
+or
+specify never to archive the notesfile.
+These options allow expiration of the entire ``net.*'' collection
+of notesfiles with the single command line `nfarchive net.*'.
+Shorter duration notesfiles (maybe net.jokes) can be explicitly
+set to a few days; notesfiles like net.bugs can be set to `never'.
+The remaining notesfiles might be set to `default'.
+A program `expirechange' is provided in the utility subdirectory
+of the distribution to initialize the expiration threshold of
+existing notesfiles.
+This is recommended because the previously
+unused field may contain garbage values.
+.ix
+A simple program `namechange' is included in the utility
+directory to change the name within the data base.  If you
+pick up copies of the data base and set them down on
+other systems this program will change the name of the system
+the data base thinks it is on for you.
+.ix
+Alignment within the notesfile descriptor structure caused
+me to remove 6 bytes of filler when adding a `long' to the
+structure.
+The size of the structure must be constant.
+The program in utility/structsizes.c prints the sizes of
+each of the possibly affected structures.
+It would be prudent to compile and execute this program
+once with the old structure definitions and once with the
+new definitions to ensure that the structures are the same size.
+Someday a notesfile dump/load program will be written that
+makes this worry disappear.
+.ix
+Mapping notes out to the news system is more sophisticated.
+The new scheme allows a notesfile to send base notes to
+one newsgroup and responses to another newsgroup.
+This is solely for the net.general/net.followup pair.
+See the section ``Copying Notesfiles to News'' for a
+more detailed explanation of this feature.
+.ix
+Binaries are portable.
+With Unix kernels supporting the ``uname'' or ``gethostname''
+system call the code determines the host at runtime.
+The code now also looks for the notesfile owner in /etc/passwd
+to dynamically determine the `notesuid'.
+As an example, a local network of Vaxen all running 4.1a Bsd
+can run the same binary even if the `notes' user id
+varies between machines.
+Eventually it would be nice to have a single binary handle all
+4.1a Vaxen, another for all 4.2 Vaxen, a third be adequate
+for all USG 5.0 3b-20's.
+(This does not mean that distributions will be binary only
+but rather that a local administrator will be able to compile
+once and ship copies of the binaries around with a simple shell
+script).
+.ix
+The ``rinstall'' shell script updates the notesfile binaries
+on a remote system.
+It assumes that the local binaries will work on the remote
+machine (don't rinstall from a Vax to a PDP-11).
+The script uses the 4.1a `rcp' and `rsh' facilities to
+perform the FTP and set modes on the remote files.
+.ex
+
+December 1983:
+
+.bx
+.ix
+Notesfiles can be specified as absolute pathnames.
+Commands such as ``notes /some/place/mynotes''
+are now legal.
+An anticipated modification will allow search rules for
+notesfiles similar to those command search rules used
+by many shells.
+.ix
+Archives are stored as notesfiles.
+Now that a notesfile can be specified by an absolute
+pathname, archives are stored in notesfile format.
+Access to archives can be either by explicit reference
+or through the new ``N'' command which automatically
+nests to the archive of the current notesfile.
+.ix
+Nfarchive now understands about ``working sets''.
+The working set is the minimum number of notes left in
+the active notesfile after an archive run.
+.ix
+Archive destinations are mapped.
+A file in the notes utility directory (.utilities/net.aliases/Archive-into)
+maps from active notesfiles to their respective archives.
+This file contains absolute pathnames.
+(/usr/spool/notes/somenotes instead of somenotes).
+.ix
+The beginnings of permission modes for an archive are there.
+Currently only directors are allowed to write in an 
+archive notesfile.
+Some more work on copying permission lists and 
+other information particular to the notesfile must be done.
+.ix
+The director page now contains information about
+the number of ``holes'' (deleted notes and responses)
+in a notesfile.
+This is useful for determining the need to compress a 
+notesfile.
+.ex
+
+January 1984:
+
+.bx
+.ix
+Each notesfile can now override the nfarchive command line options
+for archiving/deleting expired notes and for expiring notes
+on the basis of the director message status.
+The director options page offers options to modify these fields.
+The ``default'' value specifies using the value supplied on
+the nfarchive command line.
+.ix
+The director option page has been rearranged.  More information is
+displayed, more options are processed.
+Many of the changes are cosmetic and oriented towards helping
+the user figure out what is happening.
+.ix
+The 4.2 Bsd release of Unix now has its own kernel definition.
+Some of the new features of 4.2 Bsd are thus included.
+This includes longer filenames and (faster) advisory locking.
+.ix
+4.2 Bsd (and 4.1a) allow processes to belong to
+multiple groups.
+The notesfile code now uses all of these groups to
+determine access rights.
+For example, a user belongs to
+groups ``alpha'', ``beta'' and ``gamma''.
+Group ``alpha'' has read permission, group ``beta'' has
+write permission, and group ``gamma'' has no specific
+permissions (it's covered in the ``Other'' clause).
+The user is given the inclusive OR of his permissions:
+in this case he is given read/write privileges.
+The default ``Other'' group is used only when none of the
+user's groups are explicitly named in the permission list.
+Explicit permissions for users still takes precedence
+over group permissions.
+.ex
+
+February 1984:
+
+.bx
+.ix
+The networking software and the statistics printing package
+now keep track of how many orphans are adopted by their true
+parent.
+This lets us determine how many base notes are actually lost
+and how many show up behind their children.
+.ix
+The nfaccess program
+allows simple and quick editing of access lists for a number
+of notesfiles.
+Nfaccess functions similarly to chmod(1),
+you supply an access right and a list of notesfiles to apply it
+to.
+The new access right is placed in the access list of each notesfile
+specified.
+In the event of an existing access right, the new right replaces
+the old one.
+.ix
+The code now understands about the extra work it must to
+to function properly under the 4.2 Bsd signal semantics.
+.ix
+Nfabort provides user programs with a means of
+leaving core dumps in specified places and logging
+the fact with an arbitrary message in a notesfile.
+The notesfile code itself uses this routine when trapping
+internal errors.
+.ix
+Finally added the `l', `L' and `z' commands from Lou Salkind
+and Rick Spickelmier.
+The `l'-`L' pair mimic the `j'-`J' pair with the exception that
+when no unread notes are left, the l/L commands leave the notesfile.
+Thus `l' is almost a `jq' command.
+.ix
+The ! notesfile exclusion feature first implemented by Salkind
+and Spickelmier is now in this revision.
+Constructs like:
+.br
+	notes ``net.*'' !net.general
+.br
+are possible.
+This example specifies all ``net.'' notesfiles except net.general.
+.ix
+Alternate sequencers are now available.  An alternate
+sequencer allows users sharing the same signon to maintain
+separate sequencer files.
+.ex
+
+March 1984:
+
+.bx
+.ix
+Revision 1.6.2 created. Needed some distinction since 1.6 was
+getting rather long lived and we weren't ready to call it
+1.7 yet.
+.ix
+Each notesfile now enforces its own
+limit on the size of single notes and responses.
+This is initialized to a default value when the notesfile is
+created and can be changed from the director options page.
+Articles longer than the permitted maximum are truncated and
+have a message appended detailing how many bytes were ignored
+and the name of the site where it occurred.
+.ix
+Customized access lists are generated when each notesfile is created.
+The file `/usr/spool/notes/.utilities/access-template', if it
+exists, is used to modify the default access list when a notesfile
+is created.  This file contains ASCII specifications of access rights
+in the same form as used on the nfaccess command line. Lines in
+this file beginning with `#' are considered comments.
+.ix
+Author searching now understands about substrings. You no longer
+have to match exactly an author.
+Thus an author search would find articles written by
+a user ``mark'' on any machine,
+a user ``hallmark'' on any machine,
+and 
+any user on the ``market'' machine.
+.ix
+The notes/news interface has been rewritten.
+The news->notes code now understands all of the USENET standards
+for B-news 2.10.
+Newsinput understands about the References line.
+The notes->news code generates articles acceptable to the
+rest of USENET.
+.ex
+
+December 1984:
+
+.bx
+.ix
+The nfmail
+program has been re-written to understand about how to link
+responses into a notesfile. This means nfmail is now a viable
+way to have your incoming mail handled. After a little
+more work is done, it will handle outgoing mail via the ``p''
+command equaly well.
+.ix
+Notes now runs set-gid. This solves some privilege problems
+with set-uid programs such as signal delivery. It also
+makes it easier for users to kill their jobs.
+Thanks go to Lou Salkind for pointing this out long ago; I
+just took a long time to realize it.
+.ex
+
+.a1 "Revision 1.7"
+
+	The long ago promised revision 1.7 of the notesfile
+code is finally a reality.
+This version incorporates many of
+the features promised, and a few that weren't.
+I thought about merely changing things from revision 1.6.2 to
+1.6.3, but there was a change in the database format and I 
+decided a more drastic change in name was called for to match
+the database format change.
+
+	To upgrade to revision 1.7 from a previous revision (even 
+the last 1.6.2 revisions) requires a dump/load sequence with
+the ``nfdump'' and ``nfload'' programs.  The man pages for
+these programs give more information on how to carry out this
+procedure.
+
+	In addition to changing the format of the notesfile
+database, you must convert the format of the sequencer files.
+To do this, look at the programs ``seqtoascii'' and ``seqtobinary''
+in the ``utility/seq-cvt'' directory of the notesfile distribution.
+Appendix A also contains information on how to convert the
+sequencer files and database.
+
+	These changes took place during December of 1984 and 
+include the following differences from the 1.6.2 revision of
+the notesfile code.
+
+.bx
+.ix
+The author structure for a note/response now contains the home system
+name.
+This provides the ability for gateway machines
+to assign message-id's as needed without worrying about corrupting
+the author's home system.
+It also comes in handy within the context of the nfmail
+program:  nfmail can now report a true author for letters
+and still assign a unique identifier based on the local system.
+.ix
+Timestamps for articles are now stored in the standard UNIX
+format: seconds since 00:00 GMT, January 1, 1970.
+The code recognizes (and stores) both formats and will present
+either format as needed.
+.ix
+Notes now supports full domain based addressing.
+The nfxmit program expects a full doman address (e.g., ``uiucdcs.uiuc.arpa''),
+unique id and system information is generated with full domain
+information,
+and
+the notesfile/news gateway now generates complete domain addressing
+information.
+.ft B
+These changes require some care in upgrading from previous releases
+of the notesfile system.
+.ft P
+.ex
+
+.a1 "On the Blackboard"
+
+	The primary motivation for more work on the code
+is to eliminate known bugs.
+Integrating other's modifications into my code has taken
+a lower priority.
+
+	Sometime down the road, I hope to gather up all the
+lessons learned from this first version
+and 
+design a second implementation.
+Issues to be considered in the second implementation include:
+shared notesfile data bases between several hosts,
+different user-interfaces (notes-like, readnews-like),
+notesfile servers,
+and 
+interfacing with extant systems.

@@ -1,0 +1,116 @@
+.\" Copyright (c) 1989 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Landon Curt Noll.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)factor.6	5.3 (Berkeley) 6/23/90
+.\"
+.\"
+.\" By: Landon Curt Noll   chongo@toad.com,   ...!{sun,tolsoft}!hoptoad!chongo
+.\"
+.\"   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
+.\"
+.TH FACTOR 6 "June 23, 1990"
+.UC 7
+.SH NAME
+factor, primes \- factor a number, generate primes
+.SH SYNOPSIS
+.B factor
+[ number ] ...
+.PP
+.B primes
+[ start [ stop ]]
+.SH DESCRIPTION
+The
+.I factor
+utility will factor integers between -2147483648 and 2147483647 inclusive.
+When a number is factored, it is printed, followed by a ``:'',
+and the list of factors on a single line.
+Factors are listed in ascending order, and are preceded by a space.
+If a factor divides a value more than once, it will be printed
+more than once.
+.PP
+When
+.I factor
+is invoked with one or more arguments,
+each argument will be factored.
+.PP
+When
+.I factor
+is invoked with no arguments,
+.I factor
+reads numbers, one per line, from standard input, until end of file or error.
+Leading white-space and empty lines are ignored.
+Numbers may be preceded by a single - or +.
+Numbers are terminated by a non-digit character (such as a newline).
+After a number is read, it is factored.
+Input lines must not be longer than 255 characters.
+.PP
+The
+.I primes
+utility prints primes in ascending order, one per line, starting at or above
+.B start
+and continuing until, but not including
+.B stop.
+The
+.B start 
+value must be at least 0 and not greater than
+.B stop.\&
+The
+.B stop
+value must not be greater than 4294967295.
+The default value of
+.B stop
+is 4294967295.
+.PP
+When the
+.I primes
+utility is invoked with no arguments,
+.B start
+is read from standard input.
+.B Stop
+is taken to be 4294967295.
+The
+.B start
+value may be preceded by a single +.
+The
+.B start
+value is terminated by a non-digit character (such as a newline).
+The input line must not be longer than 255 characters.
+.SH DIAGNOSTICS
+Out of range or invalid input results in `ouch' being 
+written to standard error.
+.SH BUGS
+.I Factor
+cannot handle the ``10 most wanted'' factor list,
+.I primes
+won't get you a world record.

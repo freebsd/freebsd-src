@@ -1,0 +1,152 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>AVL_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>AVL_h 1
+
+#include "<T>.Set.h"
+
+struct <T>AVLNode
+{
+  <T>AVLNode*         lt;
+  <T>AVLNode*         rt;
+  <T>                 item;
+  char                stat;
+                      <T>AVLNode(<T&> h, <T>AVLNode* l=0, <T>AVLNode* r=0);
+                      ~<T>AVLNode();
+};
+
+inline <T>AVLNode::<T>AVLNode(<T&> h, <T>AVLNode* l, <T>AVLNode* r)
+:item(h), lt(l), rt(r), stat(0) {}
+
+inline <T>AVLNode::~<T>AVLNode() {}
+
+typedef <T>AVLNode* <T>AVLNodePtr;
+
+
+class <T>AVLSet : public <T>Set
+{
+protected:
+  <T>AVLNode*   root;
+
+                <T>AVLSet(<T>AVLNode* p, int l);
+
+  <T>AVLNode*   leftmost();
+  <T>AVLNode*   rightmost();
+  <T>AVLNode*   pred(<T>AVLNode* t);
+  <T>AVLNode*   succ(<T>AVLNode* t);
+  void          _kill(<T>AVLNode* t);
+  void          _add(<T>AVLNode*& t);
+  void          _del(<T>AVLNode* p, <T>AVLNode*& t);
+
+public:
+                <T>AVLSet();
+                <T>AVLSet(<T>AVLSet& a);
+                ~<T>AVLSet();
+
+  Pix           add(<T&> item);
+  void          del(<T&> item);
+  int           contains(<T&> item);
+
+  void          clear();
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          operator () (Pix i);
+  int           owns(Pix i);
+  Pix           seek(<T&> item);
+
+  Pix           last();
+  void          prev(Pix& i);
+
+  void          operator |= (<T>AVLSet& b);
+  void          operator -= (<T>AVLSet& b);
+  void          operator &= (<T>AVLSet& b);
+
+  int           operator == (<T>AVLSet& b);
+  int           operator != (<T>AVLSet& b);
+  int           operator <= (<T>AVLSet& b); 
+
+  int           OK();
+};
+
+inline <T>AVLSet::~<T>AVLSet()
+{
+  _kill(root);
+}
+
+inline <T>AVLSet::<T>AVLSet()
+{
+  root = 0;
+  count = 0;
+}
+
+inline <T>AVLSet::<T>AVLSet(<T>AVLNode* p, int l)
+{
+  root = p;
+  count = l;
+}
+
+inline int <T>AVLSet::operator != (<T>AVLSet& b)
+{
+  return ! ((*this) == b);
+}
+
+inline Pix <T>AVLSet::first()
+{
+  return Pix(leftmost());
+}
+
+inline Pix <T>AVLSet::last()
+{
+  return Pix(rightmost());
+}
+
+inline void <T>AVLSet::next(Pix& i)
+{
+  if (i != 0) i = Pix(succ((<T>AVLNode*)i));
+}
+
+inline void <T>AVLSet::prev(Pix& i)
+{
+  if (i != 0) i = Pix(pred((<T>AVLNode*)i));
+}
+
+inline <T>& <T>AVLSet::operator () (Pix i)
+{
+  if (i == 0) error("null Pix");
+  return ((<T>AVLNode*)i)->item;
+}
+
+inline void <T>AVLSet::clear()
+{
+  _kill(root);
+  count = 0;
+  root = 0;
+}
+
+inline int <T>AVLSet::contains(<T&> key)
+{
+  return seek(key) != 0;
+}
+
+#endif

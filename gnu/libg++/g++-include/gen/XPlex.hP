@@ -1,0 +1,238 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+    based on code by Marc Shapiro (shapiro@sor.inria.fr)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+#ifndef _<T>XPlex_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>XPlex_h 1
+
+#include "<T>.Plex.h"
+
+class <T>XPlex: public <T>Plex
+{
+  <T>IChunk*       ch;           // cached chunk
+
+  void             make_initial_chunks(int up = 1);
+
+  void             cache(int idx) const;
+  void             cache(const <T>* p) const;
+
+  <T>*             dopred(const <T>* p) const;
+  <T>*             dosucc(const <T>* p) const;
+
+  void             set_cache(const <T>IChunk* t) const; // logically, 
+                                               // not physically const
+public:
+                   <T>XPlex();                 // set low = 0;
+                                               // fence = 0;
+                                               // csize = default
+
+                   <T>XPlex(int ch_size);      // low = 0; 
+                                               // fence = 0;
+                                               // csize = ch_size
+
+                   <T>XPlex(int lo,            // low = lo; 
+                            int ch_size);      // fence=lo
+                                               // csize = ch_size
+
+                   <T>XPlex(int lo,            // low = lo
+                            int hi,            // fence = hi+1
+                            const <T&> initval,// fill with initval,
+                            int ch_size = 0);  // csize= ch_size
+                                               // or fence-lo if 0
+
+                   <T>XPlex(const <T>XPlex&);
+  
+  void             operator= (const <T>XPlex&);
+
+// virtuals
+
+
+  <T>&             high_element ();
+  <T>&             low_element ();
+
+  const <T>&       high_element () const;
+  const <T>&       low_element () const;
+
+  Pix              first() const;
+  Pix              last() const;
+  void             prev(Pix& ptr) const;
+  void             next(Pix& ptr) const;
+  int              owns(Pix p) const;
+  <T>&             operator () (Pix p);
+  const <T>&       operator () (Pix p) const;
+
+  int              low() const; 
+  int              high() const;
+  int              valid(int idx) const;
+  void             prev(int& idx) const;
+  void             next(int& x) const;
+  <T>&             operator [] (int index);
+  const <T>&       operator [] (int index) const;
+    
+  int              Pix_to_index(Pix p) const;
+  Pix              index_to_Pix(int idx) const;    
+
+  int              can_add_high() const;
+  int              can_add_low() const;
+  int              full() const;
+
+  int              add_high(const <T&> elem);
+  int              del_high ();
+  int              add_low (const <T&> elem);
+  int              del_low ();
+
+  void             fill(const <T&> x);
+  void             fill(const <T&> x, int from, int to);
+  void             clear();
+  void             reverse();
+    
+  int              OK () const; 
+
+};
+
+
+inline void <T>XPlex::prev(int& idx) const
+{
+  --idx;
+}
+
+inline void <T>XPlex::next(int& idx) const
+{
+  ++idx;
+}
+
+inline  int <T>XPlex::full () const
+{
+  return 0;
+}
+
+inline int <T>XPlex::can_add_high() const
+{
+  return 1;
+}
+
+inline int <T>XPlex::can_add_low() const
+{
+  return 1;
+}
+
+inline  int <T>XPlex::valid (int idx) const
+{
+  return idx >= lo && idx < fnc;
+}
+
+inline int <T>XPlex::low() const
+{
+  return lo;
+}
+
+inline int <T>XPlex::high() const
+{
+  return fnc - 1;
+}
+
+inline <T>& <T>XPlex:: operator [] (int idx)
+{
+  if (!ch->actual_index(idx)) cache(idx);
+  return *(ch->pointer_to(idx));
+}
+
+inline const <T>& <T>XPlex:: operator [] (int idx) const
+{
+  if (!ch->actual_index(idx)) cache(idx);
+  return *((const <T>*)(ch->pointer_to(idx)));
+}
+
+inline  <T>& <T>XPlex::low_element ()
+{
+  if (empty()) index_error();
+  return *(hd->pointer_to(lo));
+}
+
+inline  const <T>& <T>XPlex::low_element () const
+{
+  if (empty()) index_error();
+  return *((const <T>*)(hd->pointer_to(lo)));
+}
+
+inline  <T>& <T>XPlex::high_element ()
+{
+  if (empty()) index_error();
+  return *(tl()->pointer_to(fnc - 1));
+}
+
+inline const <T>& <T>XPlex::high_element () const
+{
+  if (empty()) index_error();
+  return *((const <T>*)(tl()->pointer_to(fnc - 1)));
+}
+
+inline  int <T>XPlex::Pix_to_index(Pix px) const
+{
+  <T>* p = (<T>*)px;
+  if (!ch->actual_pointer(p)) cache(p);
+  return ch->index_of(p);
+}
+
+inline  Pix <T>XPlex::index_to_Pix(int idx) const
+{
+  if (!ch->actual_index(idx)) cache(idx);
+  return (Pix)(ch->pointer_to(idx));
+}
+
+inline Pix <T>XPlex::first() const
+{
+  return Pix(hd-><T>IChunk::first_pointer());
+}
+
+inline Pix <T>XPlex::last() const
+{
+  return Pix(tl()-><T>IChunk::last_pointer());
+}
+
+inline void <T>XPlex::prev(Pix& p) const
+{
+  Pix q = Pix(ch-><T>IChunk::pred((<T>*) p));
+  p = (q == 0)? Pix(dopred((const <T>*) p)) : q;
+}
+
+inline void <T>XPlex::next(Pix& p) const
+{
+  Pix q = Pix(ch-><T>IChunk::succ((<T>*) p));
+  p = (q == 0)? Pix(dosucc((const <T>*)p)) : q;
+}
+
+inline <T>& <T>XPlex:: operator () (Pix p)
+{
+  return *((<T>*)p);
+}
+
+inline const <T>& <T>XPlex:: operator () (Pix p) const
+{
+  return *((const <T>*)p);
+}
+
+inline void <T>XPlex::set_cache(const <T>IChunk* t) const
+{
+  ((<T>XPlex*)(this))->ch = (<T>IChunk*)t;
+}
+
+#endif

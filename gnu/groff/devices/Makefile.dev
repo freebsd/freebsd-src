@@ -1,0 +1,68 @@
+#	@(#)Makefile.dev	6.2 (Berkeley) 3/16/91
+
+# Client Makefiles define DEVICE and FONTFILES and provide rules for
+#	individual font files
+
+.include "../../Makefile.cfg"
+
+FONTDIR?=	/usr/share/groff_font
+DEVICEDIR?=	$(FONTDIR)/dev$(DEVICE)
+FONTOWN?=	bin
+FONTGRP?=	bin
+FONTMODE?=	444
+
+.MAIN: all
+
+all:	$(FONTFILES)
+
+.if !target(obj)
+.if defined(NOOBJ)
+obj:
+.else
+obj:
+	@cd ${.CURDIR}; rm -rf obj; \
+	here=`pwd`; dest=/usr/obj/`echo $$here | sed 's,/usr/src/,,'`; \
+	echo "$$here -> $$dest"; ln -s $$dest obj; \
+	if test -d /usr/obj -a ! -d $$dest; then \
+		mkdir -p $$dest; \
+	else \
+		true; \
+	fi;
+.endif
+.endif
+
+.if !target(clean)
+clean:
+	-rm -f $(FONTFILES)
+.endif
+
+.if !target(cleandir)
+cleandir:
+	-rm -f $(FONTFILES)
+	cd ${.CURDIR}; rm -rf obj;
+.endif
+
+.if !target(maninstall)
+maninstall:
+	@echo -n
+.endif
+
+.if !target(install)
+install:
+	-if test ! -d $(DESTDIR)$(DEVICEDIR); then \
+		mkdir $(DESTDIR)$(DEVICEDIR); \
+		chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR); \
+		chmod 755 $(DESTDIR)$(DEVICEDIR); \
+	fi
+	-if test -d $(.CURDIR)/generate; then \
+		if test ! -d $(DESTDIR)$(DEVICEDIR)/generate; then \
+			mkdir $(DESTDIR)$(DEVICEDIR)/generate; \
+			chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR)/generate; \
+			chmod 755 $(DESTDIR)$(DEVICEDIR)/generate; \
+		fi; \
+	fi
+	-for f in $(FONTFILES); do \
+		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$f \
+			$(DESTDIR)$(DEVICEDIR)/$$f; \
+	done
+.endif

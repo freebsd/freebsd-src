@@ -1,0 +1,113 @@
+.\" Copyright (c) 1986, 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)build.me	6.5 (Berkeley) 4/22/91
+.\"
+.sh 1 "Building A System with a Name Server"
+.pp
+BIND is comprised of two parts.  One is the user interface called the 
+\fIresolver\fP
+which consists of a group of routines that reside in the C library 
+\fI/lib/libc.a\fP.
+Second is the actual server called \fInamed\fP.
+This is a daemon that runs in the background and services queries on a 
+given network port. The standard port for UDP and TCP is specified in 
+\fI/\|etc/\|services\fP.
+.sh 2 "Resolver Routines in libc"
+.pp
+When building your 4.3BSD system you may either
+build the C library to use the name server resolver routines 
+or use the host table lookup routines to do host name and address resolution.
+The default resolver for 4.3BSD uses the name server.
+.pp
+Building the C library to use the name server changes the way
+\fIgethostbyname\fP\|(3N), \fIgethostbyaddr\fP\|(3N), and \fIsethostent\fP\|(3N)
+do their functions.
+The name server renders \fIgethostent\fP\|(3N) obsolete,
+since it has no concept of a next line in the database.
+These library calls are built with the resolver routines needed
+to query the name server.
+.pp
+The \fIresolver\fP is comprised of a few routines that build query
+packets and exchange them with the name server.
+.pp
+Before building the C library, set the variable \fIHOSTLOOKUP\fP
+equal to \fInamed\fP in \fI/\|usr/\|src/\|lib/\|libc/\|Makefile\fP. 
+You then make and install the C library and compiler and then
+compile the rest of the 4.3BSD system.  For more information
+see section 6.6 of ``Installing and Operating 4.3BSD on the VAX\(dd''.
+.(f
+\(ddVAX is a Trademark of Digital Equipment Corporation
+.)f
+
+.sh 2 "The Name Service"
+.pp
+The basic function of the name server is to provide information about network
+objects by answering queries.  The specifications for this name server
+are defined in RFC1034, RFC1035 and RFC974.
+These documents can be found in \fI/usr/src/etc/named/doc\fP in 4.3BSD 
+or \fIftp\fPed from nic.ddn.mil. It is also recommended that 
+you read the related
+manual pages,  \fInamed\fP\|(8),
+\fIresolver\fP\|(3),
+and \fIresolver\fP\|(5).
+.pp
+The advantage of using a name server over the host table lookup for
+host name resolution is to avoid the need 
+for a single centralized clearinghouse for all names.
+The authority for this information can be delegated 
+to the different organizations on the network responsible for it.
+.pp
+The host table lookup routines require that the master file
+for the entire network be maintained at a central location by a few people.
+This works fine for small networks where there are only a few machines and the
+different organizations responsible for them cooperate.
+But this does not work well for large networks where machines
+cross organizational boundaries.
+.pp
+With the name server, the network can be broken into a hierarchy of domains. 
+The name space is organized as a tree according to organizational or
+administrative boundaries. 
+Each node, called a \fIdomain\fP, is given a label, and the name of the
+domain is the concatenation of all the labels of the domains from
+the root to the current domain, listed from right to left separated by dots.
+A label need only be unique within its domain.
+The whole space is partitioned into several areas called \fIzones\fP,
+each starting at a domain and extending down to the leaf domains or to
+domains where other zones start.  
+Zones usually represent administrative boundaries.
+An example of a host address for a host at the University of California,
+Berkeley would look as follows:
+.(b
+\fImonet\fP\|\fB.\fP\|\fIBerkeley\fP\|\fB.\fP\|\fIEDU\fP
+.)b
+The top level domain for educational organizations is EDU;
+Berkeley is a subdomain of EDU and monet is the name of the host.

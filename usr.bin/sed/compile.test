@@ -1,0 +1,25 @@
+#!/bin/sh
+SED=./sed
+PRINTF=printf
+
+# tests that a delimiter okay in ccl, i.e., s/[/]// deletes a /
+abc=`$PRINTF 'hello/world\n' | $SED 's/[/]/x/;s/\n//'`
+[ ! X"$abc" = Xhelloxworld ] && { echo "(1) failed: $abc"; }
+
+# tests that a \ is not a general escape character in ccl, i.e., s/[\]//
+# deletes a \
+abc=`$PRINTF 'hello\\world\n' | $SED 's/[\]/x/'`
+[ ! X"$abc" = Xhelloxworld ] && { echo "(2) failed: $abc"; }
+
+# tests that a \n is mapped to a newline in ccl, i.e., s/[\n]//
+# deletes a newline
+abc=`$PRINTF 'hello\nworld\n' | $SED 'N; s/[\n]/x/'`
+[ ! X"$abc" = Xhelloxworld ] && { echo "(3) failed: $abc"; }
+
+# tests that a \\ does not map to a \ in ccl, i.e., s/[\\n]//
+# deletes a newline - not a \ or an n
+abc=`$PRINTF 'hello\n\\world\n' | $SED 'N; s/[\\n]/x/;s/[\]/y/'`
+[ ! X"$abc" = Xhelloxyworld ] && { echo "(4) failed: $abc"; }
+
+abc=`$PRINTF 'helloworld\n' | $SED 's/[[:alpha:]]/x/'`
+[ ! X"$abc" = Xxelloworld ] && { echo "(5) failed: $abc"; }

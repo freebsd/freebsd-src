@@ -1,0 +1,58 @@
+.TH NROFF 1 "10 August 1992" "Groff Version 1.08"
+.SH NAME
+nroff \- emulate nroff command with groff
+.SH SYNOPSIS
+.B nroff
+[
+.B \-hi
+]
+[
+.BI \-m name
+]
+[
+.BI \-n num
+]
+[
+.BI \-o list
+]
+[
+.BI \-r cn
+]
+[
+.BI \-T name
+]
+[
+.I file\|.\|.\|.
+]
+.SH DESCRIPTION
+The
+.B nroff
+script emulates the
+.B nroff
+command using groff.
+The
+.B \-T
+option with an argument other than
+.B ascii
+and
+.B latin1
+will be ignored.
+The
+.B \-h
+option
+is equivalent to the
+.B grotty
+.B \-h
+option.
+Other options are as described in
+.BR troff (1).
+In addition the
+.BR \-e ,
+.B \-q
+and
+.B \-s
+options are silently ignored.
+.SH "SEE ALSO"
+.BR groff (1),
+.BR troff (1),
+.BR grotty (1)

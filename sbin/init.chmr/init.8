@@ -1,0 +1,359 @@
+.\" Copyright (c) 1993 Christoph M. Robitschko
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christoph M. Robitschko
+.\" 4. The name of the author may not be used to endorse or promote products
+.\"    derived from this software withough specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.Dd May 20, 1993
+.Dt INIT 8
+.Os 386BSD
+.Sh NAME
+.Nm init
+.Nd ancestor of all user-level processes
+.Sh SYNOPSIS
+.Nm init
+.Op Fl s
+.Op Fl f
+.Op Fl d Ar level
+.Op Fl C Ar file
+.Op Fl S
+.Sh DESCRIPTION
+.Nm init
+is started by the Operating System kernel as the first user-level process
+(PID 1).
+It creates more processes to execute the system startup script
+.Pa /etc/rc
+and enable users to login. If the system startup fails for any reason,
+it gives the system administrator a shell on the console.
+Note that you cannot execute the
+.Nm init
+program directly (except if you are a UNIX kernel, which seems unlikely).
+.Pp
+.Em Options
+.Bl -tag -width Ds -offset indent
+.It Fl s
+Starts a singleuser shell instead of booting the system to multiuser mode
+.It Fl f
+Fast boot. Calls the
+.Pa /etc/rc
+script without the
+.Sy autoboot
+argument, which causes it to skip disk checks
+.It Fl d Ar level
+Sets the debug level to the specified number.
+.It Fl C Ar file
+Causes
+.Nm init
+to read its configuration from file
+.Ar file
+instead of the default /etc/init.conf .
+.It Fl S
+Only checks the configuration file for syntax errors and exits immediately
+afterwards.
+.El
+.Pp
+.Em Singleuser and multiuser modes
+.Bd -filled -offset indent
+.Nm
+knows of two states:
+.Em singleuser
+and
+.Em multiuser
+\&. The normal state is multiuser, where system daemons such as
+.Xr crond 8
+or
+.Xr inetd 8
+are active and the system accepts logins from direct connect ttys (with 
+.Xr getty 8
+) and from the network. In singleuser mode, all daemons and user processes
+terminated, and
+.Nm
+starts a shell on the system console. This shell can be used by the 
+system manager for administrative purposes. Because no proceses are running
+that have files open, all file systems except the root file system can be
+unmounted.
+.Ed
+.Pp
+.Em System startup and shutdown
+.Bd -filled -offset indent
+When the system is booted, it creates process 1 and executes the file
+.Pa /sbin/init
+in it. The arguments that are given to the kernel are passed on to
+the
+.NM
+program. Unless the
+.Fl s
+flag is specified,
+.Nm
+starts a shell to execute the
+.Pa /etc/rc
+script with the argument
+.Sy "autoboot"
+(Unless the
+.Fl f
+flag is specified, in which case the script is called without arguments).
+This script checks and mounts file systems and starts
+system daemons. If the script fails (exits with a status unequal to zero),
+a shell is started on the console to enable the system administrator to
+cure the problem. When this shell terminates,
+.Nm
+starts over by executing
+.Pa /etc/rc
+again (without arguments). When finally this script terminates with
+an exit status of zero (signalling success),
+.Nm
+starts multiuser mode by reading the file
+.Pa /etc/ttys
+and starting getty processes for the terminals that are marked active
+in this file.
+.Pp
+To bring the system from multiuser to singleuser mode, you can use
+the
+.Xr shutdown 8
+program.
+.Ed
+.Pp
+.Em Signals
+.Bd -filled -offset indent
+The following list of signals is only here for completeness; You should
+not send any signals to
+.Nm init
+directly, but instead use the
+.Xr shutdown 8
+command to perform a state change.
+.Bl -tag -width SIGTERM
+.It SIGTERM
+go to singleuser mode immediately. All processes are terminated, and then
+a singleuser shell is started on the console.
+.It SIGHUP
+Reread the
+.Pa /etc/ttys
+file.
+.It SIGTSTP
+Drain the system. No new processes are created. The only way out of
+this pseudo-state is another SIGHUP or SIGTERM signal.
+.It SIGTTIN
+Re-read the configuration file. Only valid when in Singleuser mode.
+.It SIGUSR1
+Increase debugging level (if debugging is compiled in)
+.It SIGUSR2
+Turn off debugging
+.El
+.Ed
+.Pp
+.Em Configuration
+.Bd -filled -offset indent
+Upon startup,
+.Nm 
+reads the file
+.Pa /etc/init.conf
+or the file specified with the
+.Fl C
+option.
+Each line in this file specifies a thing to configure.
+Empty lines and lines with a hash character
+.Sy #
+as the first character are ignored.
+.Bd -literal
+limit LIMIT VALUE
+hlimit LIMIT VALUE
+.Ed
+.Bd -filled -offset indent
+set a soft or hard limit, respectively. LIMIT can be one of
+.Sy cputime ,
+.Sy filesize ,
+.Sy datasize ,
+.Sy stacksize ,
+.Sy coredumpsize ,
+.Sy memoryuse ,
+.Sy memorylocked ,
+.Sy maxproc ,
+.Sy openfiles .
+The VALUE is specified in bytes or seconds. See
+.Xr setrlimit 2
+for more information.
+.Pp
+Note that you cannot raise hard limits.
+Note also that the specified limits are not used for
+.Nm init
+itself, but for all processes it creates.
+.Ed
+.Bd -literal
+setenv VARIABLE "VALUE"
+.Ed
+.Bd -filled -offset indent
+Sets the specified environment-variable VAR with the specified VALUE. 
+VALUE can be ommitted. This setting is valid for all processes
+on the system, except
+.Nm init
+itself.
+.Ed
+.Bd -literal
+debug LEVEL
+.Ed
+.Bd -filled -offset indent
+Sets the debug level of init to the specified value. Note that a level
+specified with the
+.Fl d
+option takes precedence over this.
+.Ed
+.Bd -literal
+startup_state { singleuser | multiuser }
+.Ed 
+.Bd -filled -offset indent
+Sets the default runlevel to singleuser or multiuser mode, respectively.
+If
+.Fl s
+is specified, it always goes to singleuser mode.
+.Ed
+.Bd -literal
+include "FILE"
+.Ed
+.Bd -filled -offset indent
+Reads further configuration instructions from file "FILE" and continues in the
+current file afterwards. Include commands can be nested up to a level of 50.
+.Ed
+.Bd -literal
+singleusershell "COMMAND"
+.Ed
+.Bd -filled -offset indent
+Lets you specify a command to execute as a singleuser shell. Note that the
+first argument you specify is the 0th argument passed to the program.
+Default is "/bin/sh -".
+.Ed
+.Bd -literal
+singleuserterminal "TYPE"
+.Ed
+.Bd -filled -offset indent
+Lets you specify a terminal type that is passed in the TERM environment
+variable to the singleusershell. Default is "pc3".
+.Ed
+.Bd -literal
+singleuserdevice "DEVICE"
+.Ed
+.Bd -filled -offset indent
+Lets you specify a terminal device where the singleusershell will be started.
+Default is "/dev/console".
+.Ed
+.Bd -literal
+autobootcommand "COMMAND"
+fastbootcommand "COMMAND"
+.Ed
+.Bd -filled -offset indent
+Lets you specify a command that is executed when the system goes to multiuser
+mode. The difference between the two is that autobootcommand is only executed
+when the system starts multiuser mode immediately after boot, and only if
+.Fl f
+has not been specified.
+If the system has already been in singleuser mode or
+.Fl f
+was used, fastbootcommand is used instead. The defaults are
+"/bin/sh sh /etc/rc autoboot" for autobootcommand, and "/bin/sh sh /etc/rc"
+for fastbootcommand.
+.Ed
+.Bd -literal
+timeout shutdown sigterm TIME
+timeout shutdown sigkill TIME
+.Ed
+.Bd -filled -offset indent
+Normally, if you shutdown to singleuser mode,
+.Nm init
+sends a SIGTERM signal to all processes to give them a chance to
+terminate gracefully, waits 10 seconds, then sends a SIGKILL to all 
+remaining processes and waits up to 30 seconds. You can change these timeouts
+if you like.
+.Ed
+.Bd -literal
+timeout error-retry TIME
+.Ed
+.Bd -filled -offset indent
+If
+.Nm init
+encouters a serious problem (such as "fork failed" or "out of memory"), it 
+does not terminate, but instead continues its work and retries the operation
+at a later time. The default is to retry after 300 seconds.
+.Ed
+.Bd -literal
+respawn checkstatus { yes | no }
+.Ed
+.Bd -filled -offset indent
+Specifies whether
+.Nm init
+should check the termination status of its children, in order to see if these
+children fail (e.g. a getty on a non-existent device). The default is yes,
+but you may want to switch it off if you have programs that don't return any
+useful exit status.
+.Ed
+.Bd -literal
+respawn checktime { yes | no | TIME }
+.Ed
+.Bd -filled -offset indent
+Specifies whether or not
+.Nm init
+should assume that children that did not live longer than TIME seconds
+were failing. The default is yes, which is equivalent to a time of 5 seconds.
+0 is equivalent to no.
+.Ed
+.Sh ENVIRONMENT
+The UNIX kernel sets up the environment for
+.Nm init
+as part of its initialisation.
+Specifically,
+.Nm
+is called without any files open.
+.Sh FILES
+.Bl -tag -width "/etc/init.conf" -compact
+.It Pa /etc/init.conf
+Configuration file for
+.Nm init
+(See
+.Sx DESCRIPTION
+above)
+.It Pa /etc/rc
+System Startup Script
+.It Pa /etc/ttys
+specifies on which terminals to create login processes
+.El
+.Sh DIAGNOSTICS
+.Nm init
+logs all messages via
+.Xr syslogd 8
+with the
+.Sy LOG_DAEMON
+facility.
+If it cannot open a connectoin to a syslogd, it prints the message
+to the console. Fatal errors (such as a segmentaion fault) cause
+the kernel to panic with the message "init died".
+.Sh SEE ALSO
+.Xr rc 8 ,
+.Xr getty 8 ,
+.Xr syslogd 8 ,
+.Xr ttys 5 ,
+.Xr shutdown 8
+.Sh AUTHOR
+This incarnation of
+.Nm init
+was written by Christoph Robitschko for the 386BSD project.
+.Sh BUGS
+\&... should be reported to <chmr@edvz.tu-graz.ac.at>

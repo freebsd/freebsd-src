@@ -1,0 +1,496 @@
+.\" Copyright (c) 1986, 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)files.me	6.10 (Berkeley) 4/22/91
+.\"
+.sh 1 "Files
+.pp
+The name server uses several files to load its data base.
+This section covers the files and their formats needed for \fInamed\fP.
+.sh 2 "Boot File"
+.pp
+This is the file that is first read when \fInamed\fP starts up.
+This tells the server what type of server it is,
+which
+zones it has authority over and where to get its initial data.
+The default location for this file is \fI/\|etc\|/\|named\|.\|boot\fP\|.
+However this can be changed
+by setting the \fIBOOTFILE\fP variable when you compile \fInamed\fP 
+or by specifying
+the location on the command line when \fInamed\fP is started up.
+.sh 3 "Domain"
+.pp
+A default domain may be specified for the nameserver
+using a line such as
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIdomain 	Berkeley\fP\fB\|.\|\fP\fIEdu\fP
+.)b
+.re
+The name server uses this information when it receives a query for a
+name without a ``\fB.\fP'' that is not known.
+When it receives one of these queries, it appends the name in the second
+field to the query name.
+This is an obsolete facility which will be removed from future releases.
+.sh 3 "Directory"
+.pp
+The directory line specifies the directory in which the nameserver should
+run, allowing the other file names in the boot file to use relative
+path names.
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIdirectory  	/usr/local/domain\fP
+.)b
+.re
+If you have more than a couple of named files to be maintained,
+you may wish to place the named files in a directory such as
+/usr/local/domain and adjust the directory command properly.
+The main purposes of this command are to make sure named is
+in the proper directory when trying to include files by relative
+path names with $Include and to allow named to run in a location
+that is reasonable to dump core if it feels the urge.
+.sh 3 "Primary Master"
+.pp
+The line in the boot file that designates the server as a primary server 
+for a zone looks as follows:
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIprimary  	Berkeley\fP\fB\|.\|\fP\fIEdu	ucbhosts\fP
+.)b
+.re
+The first field specifies that the server is a primary one for the zone 
+stated in the second field.
+The third field is the name of the file from which the data is read.
+.sh 3 "Secondary Master"
+.pp
+The line for a secondary server is similar to the primary except
+that it lists addresses of other servers (usually primary servers)
+from which the zone data will be obtained.
+.(b l
+.ta 0.5i +\w`secondary   `u +\w`berkeley.edu   `u +.5i +.5i
+\fIsecondary	Berkeley\fP\fB\|.\|\fP\fIEdu	128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI10	\fP\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI4\fP \fIucbhosts.bak\fP
+.)b
+.re
+The first field specifies that the server is a secondary master server for
+the zone stated in the second field.
+The two network addresses 
+specify the name servers that are primary for the zone.
+The secondary server gets its data across the network from the listed servers.
+Each server is tried in the order listed until it successfully receives the data
+from a listed server.
+If a filename is present after the list of primary servers, data for the zone
+will be dumped into that file as a backup.
+When the server is first started, the data are loaded from the backup file
+if possible, and a primary server is then consulted to check that the zone
+is still up-to-date.
+.sh 3 "Caching Only Server"
+.pp
+You do not need a special line to designate that a server is a caching server.
+What denotes a caching only server is the absence of authority
+lines, such as \fIsecondary\fP or \fIprimary\fP in the boot file.
+.pp
+All servers should have a line as follows in the boot file to
+prime the name servers cache:
+.(b l
+\fIcache		\fP\fB.\fP\fI	root\fP\fB.\fP\fIcache\fP
+.)b
+All cache files listed will be read in at named boot time and
+any values still valid will be reinstated in the cache and the root
+nameserver information in the cache files will always be used.
+For information on cache file see section on \fICache Initialization\fP.
+.sh 3 "Forwarders"
+Any server can make use of \fIforwarders\fP.  A \fIforwarder\fP is another
+server capable of processing recursive queries that is willing to try
+resolving queries on behalf of other systems.  The \fIforwarders\fP
+command specifies forwarders by internet address as follows:
+.(b l
+\fIforwarders		\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI10	\fP\fI128\fP\fB.\fP\fI32\fP\fB.\fP\fI0\fP\fB.\fP\fI4\fP
+.)b
+.re
+There are two main reasons
+for wanting to do so.  First, the other systems may not have full network
+access and may be prevented from sending any IP packets into the rest of
+the network and therefore must rely on a forwarder which does have
+access to the full net.  The second reason is that the forwarder sees
+a union of all queries as they pass through his server and therefore he
+builds up a very rich cache of data compared to the cache in a typical
+workstation nameserver.  In effect, the \fIforwarder\fP becomes a meta-cache
+that all hosts can benefit from, thereby reducing the total number of queries
+from that site to the rest of the net.
+.sh 3 "Slave Mode"
+.pp
+Slave mode is used if the use of forwarders is the only possible way
+to resolve queries due to lack of full net access or if you wish to prevent
+the nameserver from using other than the listed forwarders.
+Slave mode is activated by placing the simple command
+.(b l
+\fIslave\fP
+.)b
+in the bootfile.  If \fIslave\fP is used, then you must specify forwarders.
+When in slave mode, the server will forward each query to each of the
+forwarders until an answer is found or the list of forwarders is
+exhausted.
+.sh 3 "Remote Server"
+.pp
+To set up a host that will use a remote server instead of a local
+server to answer queries, the file \fI/\|etc/\|resolv\|.\|conf\fP 
+needs to be created.
+This file designates the name servers on the network that should 
+be sent queries.
+It is not advisable to create this file if you have a local server
+running.  If this file exists it is read almost every time
+\fIgethostbyname\|()\fP or \fIgethostbyaddr\|()\fP is called.
+.sh 2 "Cache Initialization"
+.sh 3 root.cache
+.pp
+The name server needs to know the servers that are the authoritative 
+name servers for the root domain of the network.
+To do this we have to prime the name server's cache with the addresses
+of these higher authorities.  
+The location of this file is specified in the boot file.
+This file uses the Standard Resource Record Format (aka. Masterfile Format)
+covered further on
+in this paper.
+.sh 2 "Domain Data Files"
+.pp
+There are three standard files for specifying the data for a 
+domain.  These are \fInamed\|.\|local\fP, \fIhosts\fP and \fIhost\|.\|rev\fP.
+These files use the Standard Resource Record Format covered later
+in this paper.
+.sh 3 named\|.\|local
+.pp
+This file specifies the address for the local loopback interface,
+better known as \fIlocalhost\fP with the network address 127.0.0.1.
+The location of this file is specified in the boot file.
+.sh 3 hosts
+.pp
+This file contains all the data about the machines in this zone.
+The location of this file is specified in the boot file.
+.sh 3 hosts\|.\|rev
+.pp
+This file specifies the IN-ADDR\|.\|ARPA domain.
+This is a special domain for allowing address to name mapping.
+As internet host addresses do not fall within domain boundaries,
+this special domain was formed to allow inverse mapping.
+The IN-ADDR\|.\|ARPA domain has four
+labels preceding it. These labels correspond to the 4 octets of
+an Internet address. 
+All four octets must be specified even if an octets is zero.
+The Internet address 128.32.0.4 is located in the domain
+4\|.\|0\|.\|32\|.\|128\|.\|IN-ADDR\|.\|ARPA.
+This reversal of the address is awkward to read but allows 
+for the natural grouping of hosts in a network.
+.sh 2 "Standard Resource Record Format"
+.pp
+The records in the name server data files are called resource records.
+The Standard Resource Record Format (RR) is specified in RFC1035.
+The following is a general description of these records:
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	Record Type	Record Specific data\fP 
+.TE
+Resource records have a standard format shown above.
+The first field is always the name of the domain record
+and it must always start in column 1.
+For some RR's the name may be left blank;
+in that case it takes on the name of the previous RR.
+The second field is an optional time to live field.
+This specifies how long this data will be stored in the data base.
+By leaving this field blank the default time to live is specified
+in the \fIStart Of Authority\fP resource record (see below).
+The third field is the address class; currently, only one class is supported:
+\fIIN\fP for internet addresses and other information.
+The fourth field states the type of the resource record.
+The fields after that are dependent on the type of the RR.
+Case is preserved in names and data fields when loaded into the name server.
+All comparisons and lookups in the name server data base are case insensitive.
+.bl
+.b
+The following characters have special meanings:
+.ip \fB.\fP
+A free standing dot in the name field refers to the current domain.
+.ip @
+A free standing @ in the name field denotes the current origin.
+.ip "\fB.\|.\fP"
+Two free standing dots represent the null domain name of the root when used in 
+the name field.
+.ip "\\\X"
+Where X is any character other than a digit (0-9),
+quotes that character so that its special meaning does not apply.
+For example, ``\e.'' can be used to place a dot character in a label.
+.ip "\\\DDD"
+Where each D is a digit, is the octet corresponding to the
+decimal number described by DDD.  
+The resulting octet is assumed to be text and 
+is not checked for special meaning.
+.ip "( )"
+Parentheses are used to group data that crosses a line.  
+In effect, line terminations are not recognized within parentheses.
+.ip ";"
+Semicolon starts a comment; the remainder of the line is ignored.
+.ip "*"
+An asterisk signifies wildcarding.
+.pp
+Most resource records will have the current origin appended to names if they
+are not terminated by a ``\fB.\fP''.  
+This is useful for appending the current domain name to the data,
+such as machine names, but may cause problems where you do not want 
+this to happen.
+A good rule of thumb is that, if the name is not in the domain for which
+you are creating the data file, end the name with a ``\fB.\fP''.
+.sh 3 $INCLUDE
+.pp
+An include line begins with $INCLUDE, starting in column 1,
+and is followed by a file name.
+This feature is
+particularly useful for separating different types of data into multiple files.
+An example would be:
+.(b l
+$INCLUDE /usr/named/data/mailboxes
+.)b
+The line would be interpreted as a request to load the file
+\fI/usr/named/data/mailboxes\fP.
+The $INCLUDE command does not cause data to be loaded into a
+different zone or tree. This is simply a way to allow data for a
+given zone to be organized in separate files.  For example,
+mailbox data might be kept separately from host data using this
+mechanism.
+.sh 3 $ORIGIN
+.pp
+The origin is a way of changing the origin in a data file. 
+The line starts in column 1, and is followed by a domain origin. 
+This is useful for putting more then one domain in a data file.
+.sh 3 "SOA - Start Of Authority"
+.(b L
+.TS
+l l l l l l.
+\fIname	{ttl}	addr-class	SOA	Origin	Person in charge\fP
+@		IN	SOA	ucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP	kjd\fB.\fPucbvax\fB.\fPBerkeley\fB.\fPEdu\fB.\fP (
+			1\|.\|1	; Serial
+			10800	; Refresh
+			1800	; Retry
+			3600000	; Expire
+			86400 )	; Minimum
+.TE
+.)b
+The \fIStart of Authority, SOA,\fP record designates the start of a zone.
+The name is the name of the zone.  
+Origin is the name of the host on which this data file resides.
+Person in charge is the mailing address for the person responsible
+for the name server.
+The serial number is the version number of this data file,
+this number should be incremented whenever a change is made to the data.
+The name server cannot handle numbers over 9999 after the decimal point.
+The refresh indicates how often, in seconds, a secondary name servers
+is to check with the primary name server to see if an update is needed.
+The retry indicates how long, in seconds, a secondary server is to retry 
+after a failure to check for a refresh.
+Expire is the upper limit, in seconds, that a secondary name server
+is to use the data before it expires for lack of getting a refresh.
+Minimum is the default number of seconds to be used for the time to live
+field on resource records.
+There should only be one \fISOA\fP record per zone.
+.sh 3 "NS - Name Server"
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	NS	Name servers name\fP
+		IN	NS	ucbarpa\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB.\fP
+.TE
+The \fIName Server\fP record, \fINS\fP, lists a name server responsible 
+for a given domain.
+The first name field lists the domain that is serviced by 
+the listed name server.
+There should be one \fINS\fP record for each Primary Master 
+server for the domain.
+.sh 3 "A - Address"
+.TS
+l l l l l.
+\fI{name}	{ttl}	addr-class	A	address\fP
+ucbarpa		IN	A	128\fB.\fP32\fB.\fP0\fB.\fP4
+		IN	A	10\fB.\fP0\fB.\fP0\fB.\fP78
+.TE
+The \fIAddress\fP record, \fIA\fP, lists the address for a given machine. 
+The name field is the machine name and the address is the network address.
+There should be one \fIA\fP record for each address of the machine. 
+.sh 3 "HINFO - Host Information"
+.TS
+l l l l l l. 
+\fI{name}	{ttl}	addr-class	HINFO	Hardware	OS\fP
+		IN	HINFO	VAX-11/780	UNIX
+.TE
+\fIHost Information\fP resource record, \fIHINFO\fP, is for host specific data.
+This lists the hardware and operating system that are running at
+the listed host.
+It should be noted that only a single space separates the hardware info
+and the operating system info. 
+If you want to include a space in the machine name you must quote the name.
+There should be one \fIHINFO\fP record for each host.
+.(b L
+.sh 3 "WKS - Well Known Services"
+.TS
+l l l l l l l.
+\fI{name}	{ttl}	addr-class	WKS	address	protocol	list of services\fP
+		IN	WKS	128\fB.\fP32\fB.\fP0\fB.\fP10	UDP	who route timed domain
+		IN	WKS	128\fB.\fP32\fB.\fP0\fB.\fP10	TCP	( echo telnet
+						discard sunrpc sftp
+						uucp-path systat daytime
+						netstat qotd nntp
+						link chargen ftp 
+						auth time whois mtp
+						pop rje finger smtp
+						supdup hostnames 
+						domain
+						nameserver )
+.TE
+The \fIWell Known Services\fP record, \fIWKS\fP, 
+describes the well known services
+supported by a particular protocol at a specified address.
+The list of services and port numbers come from the list of services 
+specified in \fI/etc/services.\fP
+There should be only one \fIWKS\fP record per protocol per address.
+.)b
+.sh 3 "CNAME - Canonical Name"
+.TS
+l l l l l. 
+\fIaliases	{ttl}	addr-class	CNAME	Canonical name\fP
+ucbmonet		IN	CNAME	monet
+.TE
+\fICanonical Name\fP resource record, \fICNAME\fP, specifies an 
+alias for a canonical name.
+An alias should be the only record associated with the alias name;
+all other resource records should be
+associated with the canonical name and not with the alias.
+Any resource records that include a domain name as their value (e.g. NS or MX)
+should list the canonical name, not the alias.
+.sh 3 "PTR - Domain Name Pointer"
+.TS
+l l l l l. 
+\fIname	{ttl}	addr-class	PTR	real name\fP
+7.0		IN	PTR	monet\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+.TE
+A \fIDomain Name Pointer\fP record, \fIPTR\fP, allows special names 
+to point to some other location in the domain.  
+The above example of a \fIPTR\fP record is used in setting up reverse pointers
+for the special \fIIN-ADDR\fP\fB\|.\|\fP\fIARPA\fP domain. This line is from the example
+\fIhosts.rev\fP file.
+\fIPTR\fP names should be unique to the zone.
+.sh 3 "MB - Mailbox"
+.TS
+l l l l l. 
+\fIname	{ttl}	addr-class	MB	Machine \fP
+miriam		IN	MB	vineyd\fB.\fPDEC\fB.\fPCOM\fB.\fP
+.TE
+\fIMB\fP is the \fIMailbox\fP record.
+This lists the machine where a user wants to receive mail.
+The name field is the users login; the machine field denotes the machine
+to which mail is to be delivered.
+Mail Box names should be unique to the zone.
+(These records are currently for experimental use only.)
+.sh 3 "MR - Mail Rename Name"
+.TS
+l l l l l. 
+\fIname	{ttl}	addr-class	MR	corresponding MB\fP
+Postmistress		IN	MR	miriam 
+.TE
+\fIMail Rename, MR,\fP can be used to list aliases for a user.
+The name field lists the alias for the name listed in the fourth field,
+which should have a corresponding \fIMB\fP record.
+(These records are currently for experimental use only.)
+.sh 3 "MINFO - Mailbox Information"
+.TS
+l l l l l l. 
+\fIname	{ttl}	addr-class	MINFO	requests	maintainer\fP
+BIND		IN	MINFO	BIND-REQUEST	kjd\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+.TE
+\fIMail Information\fP record, \fIMINFO\fP, creates a mail 
+group for a mailing list.
+This resource record is usually associated with a mail group \fIMail Group\fP,
+but may be used with a \fIMail Box\fP record.
+The \fIname\fP specifies the name of the mailbox.
+The \fIrequests\fP field
+is where mail such as requests to be added to a mail group should be sent.
+The \fImaintainer\fP is a mailbox that should receive error messages.
+This is particularly appropriate for mailing lists when
+errors in members names should be reported to a person other than
+the sender.
+(These records are currently for experimental use only.)
+.sh 3 "MG - Mail Group Member"
+.TS
+l l l l l l. 
+\fI{mail group name}	{ttl}	addr-class	MG	member name\fP
+		IN	MG	Bloom
+.TE
+\fIMail Group, MG\fP lists members of a mail group.
+(These records are currently for experimental use only.)
+
+An example for setting up a mailing list is as follows:
+.TS
+l l l l l l. 
+Bind		IN	MINFO	Bind-Request	kjd\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+		IN	MG	Ralph\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+		IN	MG	Zhou\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+		IN	MG	Painter\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+		IN	MG	Riggle\fB\|.\|\fPBerkeley\fB\|.\|\fPEdu\fB\|.\fP
+		IN	MG	Terry\fB\|.\|\fPpa\fB\|.\|\fPXerox\fB\|.\|\fPCom\fB\|.\fP
+.TE
+.sh 3 "MX - Mail Exchanger"
+.TS
+l l l l l l. 
+\fIname	{ttl}	addr-class	MX	preference value	mailer exchanger\fP
+Munnari\fB\|.\|\fPOZ\fB\|.\|\fPAU\fB\|.\fP		IN	MX	0	Seismo\fB\|.\|\fPCSS\fB\|.\|\fPGOV\fB\|.\fP
+*\fB\|.\|\fPIL\fB\|.\fP		IN	MX	0	RELAY\fB\|.\|\fPCS\fB\|.\|\fPNET\fB\|.\fP
+.TE
+\fIMail Exchanger\fP records, \fIMX\fP, are used to specify a
+machine that knows how to deliver
+mail to a machine that is not directly connected to the network.
+In the first example, above, Seismo\fB\|.\|\fPCSS\fB\|.\|\fPGOV\fB\|.\fP is a mail gateway 
+that knows how to 
+deliver mail to Munnari\fB\|.\|\fPOZ\fB\|.\|\fPAU\fB\|.\fP but other machines 
+on the network can not deliver mail directly to Munnari. 
+These two machines may have a private connection or use a different
+transport medium.
+The preference value is the order that a mailer should follow
+when there is more then one way to deliver mail to a single machine.
+See RFC974 for more detailed information.
+.pp
+Wildcard names containing the character ``*'' may be
+used for mail routing with \fIMX\fP records.
+There are likely to be servers on the network
+that simply state that any mail to a domain is to be routed through a relay. 
+Second example, above, all mail to hosts in the domain IL is routed through RELAY.CS.NET.
+This is done by creating a wildcard resource record,
+which states that *.IL has an \fIMX\fP
+of RELAY.CS.NET.  
+.sh 2 "Sample Files"
+.pp
+The following section contains sample files for the name server.
+This covers example boot files for the different types of servers
+and example domain data base files.

@@ -1,0 +1,28 @@
+# @(#)leapseconds	4.1
+
+# Allowance for leapseconds added to each timezone file.
+
+# The correction (+ or -) is made at the given time, so lines
+# will typically look like:
+#	Leap	YEAR	MON	DAY	23:59:60	+	R/S
+# or
+#	Leap	YEAR	MON	DAY	23:59:59	-	R/S
+
+# If the leapsecond is Rolling (R) the given time is local time
+# If the leapsecond is Stationary (S) the given time is GMT
+
+# Leap	YEAR	MONTH	DAY	HH:MM:SS	CORR	R/S
+Leap	1972	Jun	30	23:59:60	+	S
+Leap	1972	Dec	31	23:59:60	+	S
+Leap	1973	Dec	31	23:59:60	+	S
+Leap	1974	Dec	31	23:59:60	+	S
+Leap	1975	Dec	31	23:59:60	+	S
+Leap	1976	Dec	31	23:59:60	+	S
+Leap	1977	Dec	31	23:59:60	+	S
+Leap	1978	Dec	31	23:59:60	+	S
+Leap	1979	Dec	31	23:59:60	+	S
+Leap	1981	Jun	30	23:59:60	+	S
+Leap	1982	Jun	30	23:59:60	+	S
+Leap	1983	Jun	30	23:59:60	+	S
+Leap	1985	Jun	30	23:59:60	+	S
+Leap	1987	Dec	31	23:59:60	+	S

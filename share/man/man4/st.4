@@ -1,0 +1,244 @@
+.Dd August 27, 1993
+.Dt ST 4
+.Os 386BSD/NetBSD
+.Sh NAME
+.Nm st
+.Nd scsi tape driver
+.Sh SYNOPSIS
+.Nm device-driver st
+.Op Ar count
+.Sh DESCRIPTION
+The
+.Xr st
+driver provides support for a 
+.Em scsi
+tape. It allows the tape
+to be run in upto four different modes depending on minor numbers
+and supports several different 'close' modes.
+The device can have both a
+.Em raw
+interface
+and a
+.Em Block mode
+interface however only the raw interface is usually used (or recommended).
+In general the interfaces are similar to those described by 
+.Xr wt 4 
+or
+.Xr mt 4 .
+
+.Pp
+Where the 
+.Xr wt 4
+device has a fairly low level interface to the system, 
+.Em SCSI
+devices have a much higher level interface and talk to the system via
+a 
+.Em SCSI Adapter
+and a
+.Em Scsi Adapter driver
+e.g. 
+.Xr AHA1542 .
+A scsi adapter must also be separatly configured into the system
+before a scsi tape can be configured.
+.Pp
+As the scsi adapter is probed during boot, the 
+.Em SCSI
+bus is scanned for devices. Any devices found which answer as 'Sequential'
+type devices will be attached to the 
+.Nm
+driver. The first found will be attached as
+.Em st0
+and the next, 
+.Em st1
+etc.
+.Pp
+The 
+.Nm
+driver allows the tape to have four different modes of operation.
+They are controlled by bits 2 and 3 of the minor number. In addition, bits
+0 and 1 of the minor number are interpretted as being 'close modes'.
+The following close modes are supported (1 free, suggestions accepted)
+.Bl -tag -width ABOUT_THIS_BIG
+.It Pa 00
+A close will rewind the device. If the tape has been 
+written, then a Filemark will be written before the rewind is requested.
+.It Pa 01
+A close will leave the tape loaded.
+If the tape was written to a filemark will be written.
+No other head positioning takes place.
+Any further reads or writes will occur directly after the
+last read, or the written filemark.
+.It Pa 10
+A close will rewind the device. If the tape has been 
+written, then a Filemark will be written before the rewind is requested.
+On completion of the rewind an UNLOAD command will be issued.
+.It Pa 11
+Not yet defined.. your suggestions welcome?
+Possibly like 01 but if the filemark has not already been encountered
+on a read, skip forward until it is found.
+.El
+
+Scsi Tapes may run in either 'variable' or 'fixed block' modes.
+Most QIC type devices run in Fixed block mode, where most 'reel to reel' tapes and 
+many new cartridge formats, allow variable blocksize. The difference between
+the two is as follows:
+.Bl -tag -width variable-blocksize
+.It Pa Variable Blocksize
+Each write made to the device results in a single logical record written to
+the tape. You can never read or write PART of a record from tape, (though you
+may request a larger block and read a smaller record). You cannot read
+multiple blocks either.
+Data from a single write
+is therefore read by a single read. The block size used may be any value
+supported by the device, the scsi adapter and the system.
+(often variable between 1 byte and 64k (sometimes more)).
+.Pp
+When reading a variable record/block from the tape,
+the head is logically considered to be immediatly after the last item read,
+and before the next item after that. If the next item is a Filemark, but
+you never read it because you have all the data, then the next process to read
+will immediatly read the filemark and return EOF. (assuming you were
+in non-rewind mode).
+.It Pa fixed Blocksize
+Data written by the user is passed to the tape as a succession of 
+fixed size blocks. It may be contiguouse in ram and read in a single DMA
+pass, however it is considered to be a series of independent blocks. You may
+never write an amount of data that is not an exact multiple of the blocksize.
+You may read and write the same data as a different set of records, 
+In other words, blocks that were written together may be read separatly, and
+visa versa.
+.Pp
+ If you ask for more blocks than there are left in the file,
+then the drive will encounter the filemark. Because there is some data to
+return to you (unless there were no records before the filemark) the driver
+will return the data to you (less than you requested), but hide from
+you the discovery of the Filemark. The  NEXT read will be returned
+immediatly with an EOF. If you never Make the next read, but close the device,
+the next process to read
+will immediatly read the filemark and return EOF. (assuming you were
+in non-rewind mode).
+.El
+
+There are four Operation modes. These are  controlled by bits 2 and 3 of
+the minor number and are designed to allow people to easily read
+and write different formats of tape on devices that allow multiple formats.
+The formats are: 00-default, 01-high-density, 10-medium-density, and
+11-low-density, though the actual densities in high, medium and low
+can be set by hand with the 
+.Xr st 1
+variant of the
+.Xr mt 1
+command.
+The exact mechanism for setting the densities may change in the future.
+.Pp
+Because different tape drives behave differently, there is a mechanism 
+within the source to st, to quickly and conveniently recognise and deal
+with brands and models of drive that have special requirements.
+.Pp
+There is a table (called the rogues gallery) in which the indentification
+strings of known errant drives can be stored. Along with each is
+a set of flags that allows the setting of densities for each 
+of the 4 modes, along with a set of 'QUIRK' flags that can be
+used to enable or disable sections of code within the driver if a particular
+drive is recognised.
+.Pp
+The handling of filemarks on write is pretty much automatic. If you
+have written to the tape, and not done a read since, then a filemark will
+be written to the tape when you close the device. If a rewind is requested
+after a write, then the driver assumes that you have written the last file
+on the tape and ensures that there are two filemarks written to the tape.
+It takes into account any filemarks already written (whether by close
+or by explicit ioctl). The exception to this is that there seems to be
+a standard (which we follow, but don't understand why) that certain
+types of tape do not actually write two filemarks to tape,
+but when read, report a 'phantom' filemark when the last file is read.
+These devices include the QIC family of devices. It might be that this
+set of devices is the same set as that of fixed block devices. This has not
+been detirmined yet, and they are treated as separate behaviours by the
+driver at this time.
+.Pp
+In configuring, if an optional
+.Ar count
+is given in
+the specification, that number of scsi tapes are configured;
+Most storage for them is allocated only when found so a large number 
+of configured devices is cheap. (once the first has included the driver).
+.Pp
+The following 
+.Xr ioctl 2
+calls apply to scsi tapes. Some also apply to other tapes. They are defined
+in the header file
+.Em /sys/mtio.h.
+
+.Bl -tag -width MTIOCEEOT
+.It Pa MTIOCGET
+Get the mt control structure filled out by the driver, showing
+all the present settings.
+.It Pa MTIOCTOP
+Perform one of the following operations. These operations all have a 
+single argument, which is either a boolean, or a signed integer, depending
+on the operation.
+.Bl -tag -width MTSELDNSTY
+.It Pa MTWEOF
+Write N end of file marks at the present head position.
+.It Pa MTFSF
+Skip over N Filemarks. Leave the head on the EOM side of the last skipped
+Filemark.
+.It Pa MTBSF
+Skip BACKWARDS over N Filemarks. Leave the head on the BOM (beginning of media)
+side of the last skipped Filemark.
+.It Pa MTFSR
+Skip forwards over N records.
+.It Pa MTBSR
+Skip backwards over N records.
+.It Pa MTREW
+Rewind the device to the beginning of the media.
+.It Pa MTOFFL
+Rewind the media (and if possible eject). Even if the device cannot
+eject the media it will often no longer respond to normal requests.
+.It Pa MTNOP
+No Op, set status only..
+.It Pa MTCACHE
+Enable controller Buffering.
+.It Pa MTNOCACHE
+Disable controller Buffering.
+.It Pa MTSETBSIZ
+Set the blocksize to use for the device. If the device is capable of
+variable blocksize operation, and the blocksize is set to 0, then the drive
+will be driven in variable mode.
+.It Pa MTSETDNSTY
+Set the Density value (see 
+.Xr st 1
+) to use when running in the mode openned (minor bits 2,3).
+.El
+.It Pa MTIOCIEOT
+?Set END of TAPE processing... not yet supported.
+.It Pa MTIOCEEOT
+?Set END of TAPE processing... not yet supported.
+.El
+
+.Sh FILES
+.Bl -tag -width /dev/[hml][n][e]rst[0-9] -compact
+.It Pa /dev/[hml][n][e]rst[0-9]
+general form:
+.It Pa /dev/hrst0	
+High density, rewind on close
+.It Pa /dev/mnrst0	
+Medium density, No rewind on close
+.It Pa /dev/lerst0	
+Low density, Eject on close (if capable)
+.It Pa /dev/rst0	
+default density, rewind on close
+.It Pa /dev/nrst0	
+default density, No rewind on close
+.El
+.Sh DIAGNOSTICS
+None.
+.Sh SEE ALSO
+.Xr mt 1
+.Xr st 1
+.Sh HISTORY
+This
+.Nm
+driver appeared in MACH 2.5 .
+

@@ -1,0 +1,204 @@
+.\" -*- nroff -*-
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH AFMTODIT 1 "23 February 1993" "Groff Version 1.08"
+.SH NAME
+afmtodit \- create font files for use with groff \-Tps
+.SH SYNOPSIS
+.B afmtodit
+[
+.B \-ns
+]
+[
+.BI \-d desc_file
+]
+[
+.BI \-e enc_file
+]
+[
+.BI \-i n
+]
+[
+.BI \-a n
+]
+.I afm_file
+.I map_file
+.I font
+.SH DESCRIPTION
+.B afmtodit
+creates a font file for use with groff and
+.BR grops .
+.B afmtodit
+is written in perl;
+you must have perl version 3 installed in order to run
+.BR afmtodit .
+.I afm_file
+is the AFM (Adobe Font Metric) file for the font.
+.I map_file
+is a file that says which groff character names map onto
+each PostScript character name;
+this file should contain a sequence of lines of the form
+.IP
+.I
+ps_char groff_char
+.LP
+where
+.I ps_char
+is the PostScript name of the character
+and
+.I groff_char
+is the groff name of the character (as used in the groff font file.)
+The same
+.I ps_char
+can occur multiple times in the file;
+each
+.I groff_char
+must occur at most once.
+.I font
+is the groff name of the font.
+If a PostScript character is in the encoding to be used for the font
+but is not mentioned in
+.I map_file
+then
+.B afmtodit
+will put it in the groff font file as an unnamed character,
+which can be accessed by the
+.B \eN
+escape sequence in
+.BR troff .
+The groff font file will be output to a file called
+.IR font .
+.LP
+If there is a downloadable font file for the font, it may be listed in
+the file
+.BR /usr/share/groff_font/devps/download ;
+see
+.BR grops (1).
+.LP
+If the
+.B \-i
+option is used,
+.B afmtodit
+will automatically generate an italic correction,
+a left italic correction and a subscript correction
+for each character
+(the significance of these parameters is explained in
+.BR groff_font (5));
+these parameters may be specified for individual characters by
+adding to the
+.I afm_file
+lines of the form:
+.IP
+.BI italicCorrection\  ps_char\ n
+.br
+.BI leftItalicCorrection\  ps_char\ n
+.br
+.BI subscriptCorrection\  ps_char\ n
+.LP
+where
+.I ps_char
+is the PostScript name of the character,
+and
+.I n
+is the desired value of the corresponding parameter in thousandths of an em.
+These parameters are normally needed only for italic (or oblique) fonts.
+.SH OPTIONS
+.TP
+.B \-n
+Don't output a
+.B ligatures
+command for this font.
+Use this with constant-width fonts.
+.TP
+.B \-s
+The font is special.
+The effect of this option is to add the
+.B special
+command to the font file.
+.TP
+.BI \-d desc_file
+The device description file is
+.I desc_file
+rather than the default
+.BR DESC .
+.TP
+.BI \-e enc_file
+The PostScript font should be reencoded to use the encoding described
+in enc_file.
+The format of
+.I enc_file
+is described in
+.BR grops (1).
+.TP
+.BI \-a n
+Use
+.I n
+as the slant parameter in the font file;
+this is used by groff in the positioning of accents.
+By default
+.B afmtodit
+uses the negative of the ItalicAngle specified in the afm file;
+with true italic fonts it is sometimes desirable to use
+a slant that is less than this.
+If you find that characters from an italic font have accents
+placed too far to the right over them,
+then use the
+.B \-a
+option to give the font a smaller slant.
+.TP
+.BI \-i n
+Generate an italic correction for each character so that 
+the character's width plus the character's italic correction
+is equal to
+.I n
+thousandths of an em
+plus the amount by which the right edge of the character's bounding
+is to the right of the character's origin.
+If this would result in a negative italic correction, use a zero
+italic correction instead.
+.IP
+Also generate a subscript correction equal to the 
+product of the tangent of the slant of the font and
+four fifths of the x-height of the font.
+If this would result in a subscript correction greater than the italic
+correction, use a subscript correction equal to the italic correction
+instead.
+.IP
+Also generate a left italic correction for each character
+equal to
+.I n
+thousandths of an em
+plus the amount by which the left edge of the character's bounding box
+is to the left of the character's origin.
+The left italic correction may be negative.
+.IP
+This option is normally needed only with italic (or oblique) fonts.
+The font files distributed with groff were created using an option of
+.B \-i50
+for italic fonts.
+.SH FILES
+.Tp \w'\fB/usr/share/groff_font/devps/download'u+2n
+.B /usr/share/groff_font/devps/DESC
+Device desciption file.
+.TP
+.BI /usr/share/groff_font/devps/ F
+Font description file for font
+.IR F .
+.TP
+.B /usr/share/groff_font/devps/download
+List of downloadable fonts.
+.TP
+.B /usr/share/groff_font/devps/text.enc
+Encoding used for text fonts.
+.TP
+.B /usr/share/groff_font/devps/generate/textmap
+Standard mapping.
+.SH "SEE ALSO"
+.BR groff (1),
+.BR grops (1),
+.BR groff_font (5),
+.BR perl (1)

@@ -1,0 +1,72 @@
+.\"	rcsmerge.1,v 1.2 1993/08/02 17:51:27 mycroft Exp	-*- nroff -*-
+.TH RCSMERGE 1 6/29/83 "Purdue University"
+.SH NAME
+rcsmerge \- merge RCS revisions
+.SH SYNOPSIS
+\fBrcsmerge\fR \fB-r\fIrev1\fR [ \fB-r\fIrev2\fR ] [ \fB-p\fR ] file
+.SH DESCRIPTION
+.I Rcsmerge
+incorporates the changes between \fIrev1\fR and \fIrev2\fR of an
+RCS file into the corresponding working file. If \fB-p\fR is given, the result
+is printed on the std. output, otherwise the result overwrites the
+working file.
+.PP
+A file name ending in ',v' is an RCS file name, otherwise a
+working file name. \fIMerge\fR derives the working file name from the RCS
+file name and vice versa, as explained in \fIco\fR (1). A pair consisting
+of both an RCS and a working file name may also be specified.
+.PP
+\fIRev1\fR may not be omitted. If \fIrev2\fR is omitted, the latest
+revision on the trunk is assumed.
+Both \fIrev1\fR and \fIrev2\fR may be given numerically or symbolically.
+.PP
+\fIRcsmerge\fR prints a warning if there are overlaps, and delimits
+the overlapping regions as explained in \fIco -j\fR.
+The command is useful for incorporating changes into a checked-out revision.
+.SH EXAMPLES
+Suppose you have released revision 2.8 of f.c. Assume
+furthermore that you just completed revision 3.4, when you receive
+updates to release 2.8 from someone else.
+To combine the updates to 2.8 and your changes between 2.8 and 3.4,
+put the updates to 2.8 into file f.c and execute
+.sp
+        rcsmerge  -p  -r2.8  -r3.4  f.c  >f.merged.c
+.sp
+Then examine f.merged.c.
+Alternatively, if you want to save the updates to 2.8 in the RCS file,
+check them in as revision 2.8.1.1 and execute \fIco -j\fR:
+.sp
+        ci  -r2.8.1.1  f.c
+        co  -r3.4  -j2.8:2.8.1.1  f.c
+.sp
+As another example, the following command undoes the changes
+between revision 2.4 and 2.8 in your currently checked out revision
+in f.c.
+.sp
+        rcsmerge  -r2.8  -r2.4  f.c
+.sp
+Note the order of the arguments, and that f.c will be
+overwritten.
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:27
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+ci (1), co (1), merge (1), ident (1), rcs (1), rcsdiff (1), rlog (1), rcsfile (5).
+.sp 0
+Walter F. Tichy, "Design, Implementation, and Evaluation of a Revision Control
+System," in \fIProceedings of the 6th International Conference on Software
+Engineering\fR, IEEE, Tokyo, Sept. 1982.
+.SH BUGS
+\fIRcsmerge\fR does not work for
+files that contain lines with a single `.'.

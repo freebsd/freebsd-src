@@ -1,0 +1,279 @@
+/*
+ * Copyright (c) 1985 Regents of the University of California.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * K.C. Ng, with Z-S. Alex Liu, S. McDonald, P. Tang, W. Kahan.
+ * Revised on 5/10/85, 5/13/85, 6/14/85, 8/20/85, 8/27/85, 9/11/85.
+ *
+ *	@(#)README	5.4 (Berkeley) 10/9/90
+ */
+
+******************************************************************************
+*  This is a description of the upgraded elementary functions (listed in 1). *
+*  Bessel functions (j0, j1, jn, y0, y1, yn), floor, and fabs passed over    *
+*  from 4.2BSD without change except perhaps for the way floating point      *
+*  exception is signaled on a VAX.  Three lines that contain "errno" in erf.c*
+*  (error functions erf, erfc) have been deleted to prevent overriding the   *
+*  system "errno".                                                           *
+******************************************************************************
+
+0. Total number of files: 40
+
+        IEEE/Makefile   VAX/Makefile    VAX/support.s   erf.c       lgamma.c
+        IEEE/atan2.c    VAX/argred.s    VAX/tan.s       exp.c       log.c
+        IEEE/cabs.c     VAX/atan2.s     acosh.c         exp__E.c    log10.c
+        IEEE/cbrt.c     VAX/cabs.s      asincos.c       expm1.c     log1p.c
+        IEEE/support.c  VAX/cbrt.s      asinh.c         floor.c     log__L.c
+        IEEE/trig.c     VAX/infnan.s    atan.c          j0.c        pow.c
+        Makefile        VAX/sincos.s    atanh.c         j1.c        sinh.c
+        README          VAX/sqrt.s      cosh.c          jn.c        tanh.c
+
+1. Functions implemented :
+    (A). Standard elementary functions (total 22) :
+        acos(x)                 ...in file  asincos.c 
+        asin(x)                 ...in file  asincos.c
+        atan(x)                 ...in file  atan.c
+        atan2(x,y)              ...in files IEEE/atan2.c, VAX/atan2.s
+        sin(x)                  ...in files IEEE/trig.c,  VAX/sincos.s
+        cos(x)                  ...in files IEEE/trig.c,  VAX/sincos.s
+        tan(x)                  ...in files IEEE/trig.c,  VAX/tan.s
+        cabs(x,y)               ...in files IEEE/cabs.c,  VAX/cabs.s
+        hypot(x,y)              ...in files IEEE/cabs.c,  VAX/cabs.s
+        cbrt(x)                 ...in files IEEE/cbrt.c,  VAX/cbrt.s
+        exp(x)                  ...in file  exp.c
+        expm1(x):=exp(x)-1      ...in file  expm1.c
+        log(x)                  ...in file  log.c
+        log10(x)                ...in file  log10.c
+        log1p(x):=log(1+x)      ...in file  log1p.c
+        pow(x,y)                ...in file  pow.c
+        sinh(x)                 ...in file  sinh.c
+        cosh(x)                 ...in file  cosh.c
+        tanh(x)                 ...in file  tanh.c
+        asinh(x)                ...in file  asinh.c
+        acosh(x)                ...in file  acosh.c
+        atanh(x)                ...in file  atanh.c
+                        
+    (B). Kernel functions :
+        exp__E(x,c) ...in file exp__E.c, used by expm1/exp/pow/cosh
+        log__L(s)   ...in file log__L.c, used by log1p/log/pow
+        libm$argred ...in file VAX/argred.s, used by VAX version of sin/cos/tan
+
+    (C). System supported functions :
+        sqrt()      ...in files IEEE/support.c, VAX/sqrt.s
+        drem()      ...in files IEEE/support.c, VAX/support.s
+        finite()    ...in files IEEE/support.c, VAX/support.s
+        logb()      ...in files IEEE/support.c, VAX/support.s
+        scalb()     ...in files IEEE/support.c, VAX/support.s
+        copysign()  ...in files IEEE/support.c, VAX/support.s
+        rint()      ...in file  floor.c
+
+
+   Notes: 
+       i. The codes in files ending with ".s" are written in VAX assembly 
+          language. They are intended for VAX computers.
+
+          Files that end with ".c" are written in C. They are intended
+          for either a VAX or a machine that conforms to the IEEE 
+          standard 754 for double precision floating-point arithmetic.
+
+      ii. On other than VAX or IEEE machines, run the original math 
+          library, formerly "/usr/lib/libm.a", now "/usr/lib/libom.a", if
+	  nothing better is available.
+
+     iii. The trigonometric functions sin/cos/tan/atan2 in files "VAX/sincos.s",
+          "VAX/tan.s" and "VAX/atan2.s" are different from those in
+          "IEEE/trig.c" and "IEEE/atan2.c".  The VAX assembler code uses the
+          true value of pi to perform argument reduction, while the C code uses
+          a machine value of PI (see "IEEE/trig.c").
+
+
+2. A computer system that conforms to IEEE standard 754 should provide 
+                sqrt(x),
+                drem(x,p), (double precision remainder function)
+                copysign(x,y),
+                finite(x),
+                scalb(x,N),
+                logb(x) and
+                rint(x).
+   These functions are either required or recommended by the standard.
+   For convenience, a (slow) C implementation of these functions is 
+   provided in the file "IEEE/support.c".
+
+   Warning: The functions in IEEE/support.c are somewhat machine dependent.
+   Some modifications may be necessary to run them on a different machine.
+   Currently, if compiled with a suitable flag, "IEEE/support.c" will work
+   on a National 32000, a Zilog 8000, a VAX, and a SUN (cf. the "Makefile"
+   in this directory). Invoke the C compiler thus:
+
+        cc -c -DVAX IEEE/support.c              ... on a VAX, D-format
+        cc -c -DNATIONAL IEEE/support.c         ... on a National 32000
+        cc -c  IEEE/support.c                   ... on other IEEE machines,
+                                                    we hope.
+
+   Notes: 
+      1. Faster versions of "drem" and "sqrt" for IEEE double precision
+         (coded in C but intended for assembly language) are given at the
+         end of "IEEE/support.c" but commented out since they require certain
+         machine-dependent functions.
+
+      2. A fast VAX assembler version of the system supported functions
+         copysign(), logb(), scalb(), finite(), and drem() appears in file 
+         "VAX/support.s".  A fast VAX assembler version of sqrt() is in
+         file "VAX/sqrt.s".
+
+3. Two formats are supported by all the standard elementary functions: 
+   the VAX D-format (56-bit precision), and the IEEE double format 
+   (53-bit precision).  The cbrt() in "IEEE/cbrt.c" is for IEEE machines 
+   only. The functions in files that end with ".s" are for VAX computers 
+   only. The functions in files that end with ".c" (except "IEEE/cbrt.c")
+   are for VAX and IEEE machines. To use the VAX D-format, compile the code 
+   with -DVAX; to use IEEE double format on various IEEE machines, see 
+   "Makefile" in this directory). 
+
+    Example:
+        cc -c -DVAX sin.c               ... for VAX D-format
+
+       Warning: The values of floating-point constants used in the code are
+                given in both hexadecimal and decimal.  The hexadecimal values
+                are the intended ones. The decimal values may be used provided 
+                that the compiler converts from decimal to binary accurately
+                enough to produce the hexadecimal values shown. If the
+                conversion is inaccurate, then one must know the exact machine 
+                representation of the constants and alter the assembly
+                language output from the compiler, or play tricks like
+                the following in a C program.
+
+                        Example: to store the floating-point constant 
+
+                             p1= 2^-6 * .F83ABE67E1066A (Hexadecimal)
+
+                        on a VAX in C, we use two longwords to store its 
+                        machine value and define p1 to be the double constant 
+                        at the location of these two longwords:
+
+                        static long  p1x[] = { 0x3abe3d78, 0x066a67e1};
+                        #define      p1      (*(double*)p1x)
+
+    Note:  On a VAX, some functions have two codes. For example, cabs() has
+	   one implementation in "IEEE/cabs.c", and another in "VAX/cabs.s". 
+           In this case, the assembly language version is preferred.
+
+
+4. Accuracy. 
+
+            The errors in expm1(), log1p(), exp(), log(), cabs(), hypot()
+            and cbrt() are below 1 ULP (Unit in the Last Place).
+
+            The error in pow(x,y) grows with the size of y. Nevertheless,
+            for integers x and y, pow(x,y) returns the correct integer value 
+            on all tested machines (VAX, SUN, NATIONAL, ZILOG), provided that 
+            x to the power of y is representable exactly.
+
+            cosh, sinh, acosh, asinh, tanh, atanh and log10 have errors below
+            about 3 ULPs. 
+
+            For trigonometric and inverse trigonometric functions: 
+
+                Let [trig(x)] denote the value actually computed for trig(x),
+
+                1) Those codes using the machine's value PI (true pi rounded):
+                   (source codes: IEEE/{trig.c,atan2.c}, asincos.c and atan.c)
+
+                   The errors in [sin(x)], [cos(x)], and [atan(x)] are below 
+                   1 ULP compared with sin(x*pi/PI), cos(x*pi/PI), and 
+                   atan(x)*PI/pi respectively, where PI is the machine's
+                   value of pi rounded. [tan(x)] returns tan(x*pi/PI) within
+                   about 2 ULPs; [acos(x)], [asin(x)], and [atan2(y,x)] 
+                   return acos(x)*PI/pi, asin(x)*PI/pi, and atan2(y,x)*PI/pi
+                   respectively to similar accuracy.
+
+
+                2) Those using true pi (for VAX D-format only):
+                   (source codes: VAX/{sincos.s,tan.s,atan2.s}, asincos.c and
+                   atan.c)
+
+                   The errors in [sin(x)], [cos(x)], and [atan(x)] are below
+                   1 ULP. [tan(x)], [atan2(y,x)], [acos(x)], and [asin(x)] 
+                   have errors below about 2 ULPs. 
+
+
+            Here are the results of some test runs to find worst errors on 
+            the VAX :
+
+    tan   :  2.09 ULPs          ...1,024,000 random arguments (machine PI)
+    sin   :  .861 ULPs          ...1,024,000 random arguments (machine PI)
+    cos   :  .857 ULPs          ...1,024,000 random arguments (machine PI)
+    (compared with tan, sin, cos of (x*pi/PI))
+
+    acos  :  2.07 ULPs          .....200,000 random arguments (machine PI)
+    asin  :  2.06 ULPs          .....200,000 random arguments (machine PI)
+    atan2 :  1.41 ULPs          .....356,000 random arguments (machine PI)
+    atan  :  0.86 ULPs          ...1,536,000 random arguments (machine PI)
+    (compared with (PI/pi)*(atan, asin, acos, atan2 of x))
+
+    tan   :  2.15 ULPs          ...1,024,000 random arguments (true pi)
+    sin   :  .814 ULPs          ...1,024,000 random arguments (true pi)
+    cos   :  .792 ULPs          ...1,024,000 random arguments (true pi)
+    acos  :  2.15 ULPs          ...1,024,000 random arguments (true pi)
+    asin  :  1.99 ULPs          ...1,024,000 random arguments (true pi)
+    atan2 :  1.48 ULPs          ...1,024,000 random arguments (true pi)
+    atan  :  .850 ULPs          ...1,024,000 random arguments (true pi)
+
+    acosh :  3.30 ULPs          .....512,000 random arguments
+    asinh :  1.58 ULPs          .....512,000 random arguments
+    atanh :  1.71 ULPs          .....512,000 random arguments  
+    cosh  :  1.23 ULPs          .....768,000 random arguments
+    sinh  :  1.93 ULPs          ...1,024,000 random arguments
+    tanh  :  2.22 ULPs          ...1,024,000 random arguments
+    log10 :  1.74 ULPs          ...1,536,000 random arguments
+    pow   :  1.79 ULPs          .....100,000 random arguments, 0 < x, y < 20.
+        
+    exp   :  .768 ULPs          ...1,156,000 random arguments
+    expm1 :  .844 ULPs          ...1,166,000 random arguments
+    log1p :  .846 ULPs          ...1,536,000 random arguments
+    log   :  .826 ULPs          ...1,536,000 random arguments
+    cabs  :  .959 ULPs          .....500,000 random arguments
+    cbrt  :  .666 ULPs          ...5,120,000 random arguments
+
+
+5. Speed.
+
+        Some functions coded in VAX assembly language (cabs(), hypot() and
+	sqrt()) are significantly faster than the corresponding ones in 4.2BSD.
+        In general, to improve performance, all functions in "IEEE/support.c"
+        should be written in assembly language and, whenever possible, should
+	be called via short subroutine calls.
+
+
+6. j0, j1, jn.
+
+        The modifications to these routines were only in how an invalid
+        floating point operations is signaled.

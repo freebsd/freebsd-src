@@ -1,0 +1,411 @@
+# Country Code : City Code : City : Country
+#	@(#)inter.phone	5.3 (Berkeley) 3/5/90
+20:2:Cairo:Egypt, Arab Rep. of
+20:3:Alexandria:Egypt, Arab Rep. of
+20:66:Port Said:Egypt, Arab Rep. of
+20:95:Luxor:Egypt, Arab Rep. of
+20:97:Aswan:Egypt, Arab Rep. of
+27:11:Johannesburg:South Africa
+27:12:Pretoria:South Africa
+27:21:Cape Town:South Africa
+27:31:Durban:South Africa
+27:51:Bloemfontein:South Africa
+30:1:Athens:Greece
+30:1:Piraeus:Greece
+30:241:Rhodes:Greece
+30:31:Thessaloniki:Greece
+30:321:Serrai:Greece
+30:41:Larissa:Greece
+30:421:Volos:Greece
+30:51:Kavala:Greece
+30:521:Drama:Greece
+30:61:Patrai:Greece
+30:651:Ioannina:Greece
+30:721:Kalamata:Greece
+30:81:Iraklion (Crete):Greece
+31:10:Rotterdam:Netherlands
+31:13:Tilburg:Netherlands
+31:20:Amsterdam:Netherlands
+31:30:Utrecht:Netherlands
+31:40:Eindhoven:Netherlands
+31:70:The Hague:Netherlands
+31:76:Breda:Netherlands
+31:85:Arnhem:Netherlands
+32:15:Malines (Mechelen):Belgium
+32:2:Brussels:Belgium
+32:3:Antwerp:Belgium
+32:41:Liege (Luik):Belgium
+32:91:Ghent (Gand):Belgium
+33:1:Paris:France
+33:20:Lille:France
+33:26:Reims:France
+33:35:Le Havre:France
+33:35:Rouen:France
+33:56:Bordeaux:France
+33:61:Toulouse:France
+33:628::Andorra
+33:67:Montpellier:France
+33:76:Grenoble:France
+33:77:St. Etienne:France
+33:7:Lyon:France
+33:88:Strasbourg:France
+33:91:Marseille:France
+33:93::Monaco
+33:93:Nice:France
+33:94:Toulon:France
+33:98:Brest:France
+33:99:Rennes:France
+34:1:Madrid:Spain
+34:28:Las Palmas (Canary Is.):Spain
+34:3:Barcelona:Spain
+34:48:Pamplona:Spain
+34:4:Bilbao:Spain
+34:54:Seville:Spain
+34:58:Granada:Spain
+34:6:Valencia:Spain
+34:71:Palma de Mallorca:Spain
+34:76:Zaragoza:Spain
+36:1:Budapest:Hungary
+37:2:Berlin:German Democratic Republic
+37:30:Frankfurt:German Democratic Republic
+37:41:Leipzig:German Democratic Republic
+37:51:Dresden:German Democratic Republic
+37:71:Karl-Marx-Stadt:German Democratic Republic
+38:11:Belgrade:Yugoslavia
+38:41:Zagreb:Yugoslavia
+38:50:Dubrovnik:Yugoslavia
+39:10:Genoa:Italy
+39:11:Turin:Italy
+39:2:Milan:Italy
+39:40:Trieste:Italy
+39:41:Venice:Italy
+39:45:Verona:Italy
+39:51:Bologna:Italy
+39:541::San Marino
+39:55:Florence:Italy
+39:6::Vatican City
+39:6:Rome:Italy
+39:80:Bari:Italy
+39:81:Naples:Italy
+39:90:Messina:Italy
+39:91:Palermo:Italy
+39:95:Catania:Italy
+39:99:Taranto:Italy
+40:0:Bucharest:Romania, Soc. Rep. of
+41:1:Zurich:Switzerland
+41:21:Lausanne:Switzerland
+41:22:Geneva:Switzerland
+41:31:Berne:Switzerland
+41:41:Lucerne:Switzerland
+41:52:Winterthur:Switzerland
+41:61:Basel:Switzerland
+41:75::Liechtenstein
+42:2:Prague:Czechoslovakia
+43:222:Vienna:Austria
+43:316:Graz:Austria
+43:5222:Innsbruck:Austria
+44:1:London, Eng.:United Kingdom
+44:203:Coventry, Eng.:United Kingdom
+44:21:Birmingham, Eng.:United Kingdom
+44:222:Cardiff, Wales:United Kingdom
+44:232:Belfast, N. Ire.:United Kingdom
+44:272:Bristol, Eng.:United Kingdom
+44:274:Bradford, Eng.:United Kingdom
+44:31:Edinburgh, Scot.:United Kingdom
+44:41:Glasgow, Scot.:United Kingdom
+44:484:Huddersfield, Eng.:United Kingdom
+44:485:Hillington, Eng.:United Kingdom
+44:51:Liverpool, Eng.:United Kingdom
+44:532:Leeds, Eng.:United Kingdom
+44:533:Leicester, Eng.:United Kingdom
+44:602:Nottingham, Eng.:United Kingdom
+44:61:Manchester, Eng.:United Kingdom
+44:682:New Castle-on-Tyne, Eng.:United Kingdom
+44:742:Sheffield, Eng.:United Kingdom
+44:752:Plymouth, Eng.:United Kingdom
+44:782:Stoke-on-Trent, Eng.:United Kingdom
+44:902:Wolverhampton, Eng.:United Kingdom
+45:3:Copenhagen:Denmark
+45:6:Aarhus:Denmark
+45:8:Aalborg:Denmark
+45:9:Odense:Denmark
+46:18:Uppsala:Sweden
+46:21:Vasteras:Sweden
+46:31:Goteborg:Sweden
+46:40:Malmo:Sweden
+46:8:Stockholm:Sweden
+47:2:Oslo:Norway
+47:5:Bergen:Norway
+47:7:Trondheim:Norway
+48:12:Crakow:Poland, People's Rep. of
+48:22:Warsaw:Poland, People's Rep. of
+48:42:Lodz:Poland, People's Rep. of
+48:58:Gdansk:Poland, People's Rep. of
+49:201:Essen:Germany, Fed. Rep. of
+49:202:Wuppertal:Germany, Fed. Rep. of
+49:203:Duisburg:Germany, Fed. Rep. of
+49:209:Gelsenkirchen:Germany, Fed. Rep. of
+49:211:Dusseldorf:Germany, Fed. Rep. of
+49:221:Cologne (Koln):Germany, Fed. Rep. of
+49:228:Bonn:Germany, Fed. Rep. of
+49:231:Dortmund:Germany, Fed. Rep. of
+49:30:Berlin:Germany, Fed. Rep. of
+49:40:Hamburg:Germany, Fed. Rep. of
+49:421:Bremen:Germany, Fed. Rep. of
+49:511:Hannover:Germany, Fed. Rep. of
+49:69:Frankfurt:Germany, Fed. Rep. of
+49:711:Stuttgart:Germany, Fed. Rep. of
+49:89:Munich:Germany, Fed. Rep. of
+49:911:Nuremberg:Germany, Fed. Rep. of
+51:14:Callao:Peru
+51:14:Lima:Peru
+51:54:Arequipa:Peru
+52:5:Mexico City:Mexico
+52:621:Hermosillo:Mexico
+52:631:Nogales:Mexico
+52:641:Ciudad Obregon:Mexico
+52:65:Mexicali:Mexico
+52:667:Ensenada:Mexico
+52:66:Tijuana:Mexico
+52:671:Culiacan:Mexico
+52:678:Mazatlan:Mexico
+52:681:Los Mochis:Mexico
+52:682:La Paz:Mexico
+52:684:Cabo San Lucas:Mexico
+54:1:Buenos Aires:Argentina
+54:21:La Plata:Argentina
+54:41:Rosario:Argentina
+54:51:Cordoba:Argentina
+55:11:San Paulo:Brazil
+55:21:Rio de Janeiro:Brazil
+55:31:Belo Horizonte:Brazil
+55:512:Porto Alegre:Brazil
+55:61:Brasilia:Brazil
+55:71:Salvador:Brazil
+55:81:Recife:Brazil
+55:91:Belem:Brazil
+56:2:Santiago:Chile
+56:31:Valparaiso:Chile
+57:3:Cali:Colombia
+57:4:Medellin:Colombia
+57:59:Cartagena:Colombia
+57:5:Barranquilla:Colombia
+57:71:Bucaramanga:Colombia
+57::Bogota:Colombia
+58:2:Caracas:Venezuela
+58:41:Valencia:Venezuela
+58:43:Maracay:Venezuela
+58:51:Barquisimeto:Venezuela
+58:61:Maracaibo:Venezuela
+58:76:San Cristobal:Venezuela
+58:81:Barcelona:Venezuela
+58:85:Ciudad Bolivar:Venezuela
+58:91:Maturin:Venezuela
+58:93:Cumana:Venezuela
+60:3:Kuala Lumpur:Malaysia
+60:5:Ipoh:Malaysia
+61:2:Sydney:Australia
+61:3:Melbourne:Australia
+61:62:Canberra:Australia
+61:7:Brisbane:Australia
+61:8:Adelaide:Australia
+61:9:Perth:Australia
+62:21:Jakarta:Indonesia
+63:2:Manila:Phillippines
+63:32:Cebu City:Phillippines
+63:33:Iloilo City:Phillippines
+63:34:Bacolod:Phillippines
+63:452:Tarlac City:Phillippines
+63:82:Davao:Phillippines
+64:3:Christchurch:New Zealand
+64:4:Wellington:New Zealand
+64:9:Auckland:New Zealand
+65:::Singapore, Rep. of
+66:2:Bangkok:Thailand
+81:11:Sapporo:Japan
+81:3:Tokyo:Japan
+81:44:Kawasaki (Kanagawa):Japan
+81:45:Yokohama:Japan
+81:52:Nagoya:Japan
+81:6:Amagasaki:Japan
+81:6:Osaka:Japan
+81:722:Sakai (Osaka):Japan
+81:75:Kyoto:Japan
+81:78:Kobe:Japan
+81:82:Hiroshima:Japan
+81:92:Fukuoka:Japan
+81:93:Kitakyushu:Japan
+81:958:Nagasaki:Japan
+82:2:Seoul:Korea, Rep. of
+82:32:Inchon:Korea, Rep. of
+82:51:Pusan:Korea, Rep. of
+82:53:Taegu:Korea, Rep. of
+82:62:Kwangju:Korea, Rep. of
+86:1:Beijing:China, People's Rep. of
+86:20:Ghuangzhou:China, People's Rep. of
+86:21:Shanghai:China, People's Rep. of
+86:591:Fuzhou:China, People's Rep. of
+90:1:Istanbul:Turkey
+90:4:Ankara:Turkey
+91:11:New Delhi:India
+91:22:Bombay:India
+91:33:Calcutta:India
+91:44:Madras:India
+92:21:Karachi:Pakistan
+92:51:Islamabad:Pakistan
+94:1:Colombo Central:Sri Lanka, Dem. Soc. Rep. of
+94:8:Kandy:Sri Lanka, Dem. Soc. Rep. of
+98:21:Teheran:Iran
+98:31:Esfahan:Iran
+98:41:Tabriz:Iran
+98:51:Mashad:Iran
+98:631:Abadan:Iran
+212:7:Rabat:Morocco, Kingdom of
+213:::Algeria
+216:1:Tunis:Tunisia
+218:21:Tripoli:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
+218:51:Misuratha:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
+218:61:Benghazi:Libyan Arab People's Socialist Jamahiriya (Libyan A.P.S.J.)
+220:::Gambia
+221:::Senegal Republic
+224:4:Conakry:Guinea, People's Rev. Rep.
+225:::Ivory Coast Rep. of
+227:::Niger Republic
+228:::Togo, Rep. of
+229:::Benin, People's Rep. of
+230:::Mauritius
+231:::Liberia
+233:21:Accra:Ghana
+234:1:Lagos:Nigeria, Fed. Rep. of
+234:22:Ibadan:Nigeria, Fed. Rep. of
+234:64:Kano:Nigeria, Fed. Rep. of
+237:::Cameroon, United Rep. of
+238:::Cape Verde Islands
+241:::Gabon Republic
+243:12:Kinshasa:Zaire, Rep. of
+243:222:Lubumbashi:Zaire, Rep. of
+247:::Ascension Island
+250:::Rwanda
+251:1:Addis Ababa:Ethiopia
+254:2:Nairobi:Kenya, Rep. of
+255:51:Dar Es Salaam:Tanzania
+256:41:Kampala:Uganda
+256:42:Entebbe:Uganda
+260:1:Lusaka:Zambia
+263:4:Harare:Zimbabwe
+264:61:Windhoek:Namibia
+265::Blantyre:Malawi
+265::Lilongwe:Malawi
+266:::Lesotho
+267:31:Gaborone:Botswana
+268:::Swaziland
+297:8::Aruba
+298:::Faeroe Islands
+299:11:Soendre Stroemfjord:Greenland (Kalaallit Nunaat)
+299:2:Godthaab:Greenland (Kalaallit Nunaat)
+299:50:Thule:Greenland (Kalaallit Nunaat)
+350:::Gibraltar
+351:1:Lisbon:Portugal
+351:2:Porto:Portugal
+352:::Luxembourg
+353:1:Dublin:Ireland, Rep. of
+353:21:Cork:Ireland, Rep. of
+353:51:Waterford:Ireland, Rep. of
+353:61:Limerick:Ireland, Rep. of
+353:91:Galway:Ireland, Rep. of
+354:1:Reykjavik:Iceland
+356:::Malta
+357:21:Nicosia:Cyprus
+358:0:Helsinki:Finland
+358:31:Tampere:Finland
+359:2:Sofia:Bulgaria
+501:2:Belize City:Belize
+501:8:Belmopan:Belize
+502:2:Guatemala City:Guatemala
+502:9:Amatitlan:Guatemala
+502:9:Antigua:Guatemala
+502:9:Quezaltenango:Guatemala
+502:9:Villa Nueva:Guatemala
+503:::El Salvador
+504:::Honduras
+505:2:Managua:Nicaragua
+505:311:Leon:Nicaragua
+506:::Costa Rica
+507:::Panama, Rep. of
+508:::St. Pierre and Miquelon
+509:1:Port Au Prince:Haiti
+590:::Guadeloupe
+591:2:La Paz:Bolivia
+591:64:Sucre:Bolivia
+592:2:Georgetown:Guyana
+593:2:Quito:Ecuador
+593:4:Cuenca:Ecuador
+593:4:Guayaquil:Ecuador
+594:::French Guiana
+595:21:Asuncion:Paraguay
+596:::French Antilles
+597:::Suriname
+598:2:Montevideo:Uruguay
+599:3:St. Eustatius:Netherlands Antilles
+599:4:Saba:Netherlands Antilles
+599:5:St. Maarten:Netherlands Antilles
+599:7:Bonaire:Netherlands Antilles
+599:9:Curacao:Netherlands Antilles
+670:::Saipan
+671:::Guam
+673:2:Bandar Seri Begawan:Brunei
+675:::Papua New Guinea
+676:::Tonga Islands
+679:::Fiji Islands
+684:::American Samoa
+687:::New Caledonia
+689:::French Polynesia (Moorea & Tahiti)
+691:320:Ponape:Micronesia, Fed. States of
+691:330:Truk:Micronesia, Fed. States of
+691:350:Yap:Micronesia, Fed. States of
+691:370:Kosrae:Micronesia, Fed. States of
+692:871:Ebeye:Marshall Islands
+692:9:Majuro:Marshall Islands
+852:0:Castle Peak:Hong Kong
+852:0:Kwai Chung:Hong Kong
+852:0:Sha Tin:Hong Kong
+852:0:Tai Po:Hong Kong
+852:0:Tsun Wan:Hong Kong
+852:3:Kowloon:Hong Kong
+852:5:Hong Kong:Hong Kong
+852:5:Lantau:Hong Kong
+852:5:Ma Wan:Hong Kong
+852:5:Peng Chau:Hong Kong
+853:::Macao
+880:2:Dhaka:Bangladesh, People's Rep. of
+886:2:Taipei:Taiwan, Rep. of China
+886:6:Tainan:Taiwan, Rep. of China
+886:7:Kaohsiung:Taiwan, Rep. of China
+960:::Maldives, Rep. of
+962:6:Amman:Jordan
+964:1:Baghdad:Iraq
+965:::Kuwait
+966:1:Riyadh:Saudi Arabia
+966:2:Jeddah:Saudi Arabia
+966:2:Makkah:Saudi Arabia
+966:3:Damman:Saudi Arabia
+967:2:Sanaa:Yemen Arab Republic
+968:::Oman
+971:2:Abu Dahabi:United Arab Emirates
+971:3:Al Ain:United Arab Emirates
+971:4:Dubai:United Arab Emirates
+971:52:Jebel Dhana:United Arab Emirates
+971:6:Ajman:United Arab Emirates
+971:6:Sharjah:United Arab Emirates
+971:6:Umm-Al-Quwain:United Arab Emirates
+971:70:Fujairah:United Arab Emirates
+972:2:Jerusalem:Israel
+972:3:Ramat Gan:Israel
+972:3:Tel Aviv:Israel
+972:4:Haifa:Israel
+972:65:Nazareth:Israel
+972:8:Rehovot:Israel
+973:::Bahrain
+974:::Qatar
+977:::Nepal
+5399:::Guantanamo Bay (U.S. Naval Base)

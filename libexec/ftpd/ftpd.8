@@ -1,0 +1,261 @@
+.\" Copyright (c) 1985, 1988, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)ftpd.8	6.9 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt FTPD 8
+.Os BSD 4.2
+.Sh NAME
+.Nm ftpd
+.Nd
+.Tn DARPA
+Internet File Transfer Protocol server
+.Sh SYNOPSIS
+.Nm ftpd
+.Op Fl d
+.Op Fl l
+.Op Fl t Ar timeout
+.Op Fl T Ar maxtimeout
+.Sh DESCRIPTION
+.Nm Ftpd
+is the
+.Tn DARPA
+Internet File Transfer Protocol
+server process.  The server uses the
+.Tn TCP
+protocol
+and listens at the port specified in the
+.Dq ftp
+service specification; see
+.Xr services 5 .
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl d
+Debugging information is written to the syslog.
+.It Fl l
+Each
+.Xr ftp 1
+session is logged in the syslog.
+.It Fl t
+The inactivity timeout period is set to
+.Ar timeout
+seconds (the default is 15 minutes).
+.It Fl T
+A client may also request a different timeout period;
+the maximum period allowed may be set to
+.Ar timeout
+seconds with the
+.Fl T
+option.
+The default limit is 2 hours.
+.El
+.Pp
+The ftp server currently supports the following ftp
+requests; case is not distinguished.
+.Bl -column "Request" -offset indent
+.It Request Ta "Description"
+.It ABOR Ta "abort previous command"
+.It ACCT Ta "specify account (ignored)"
+.It ALLO Ta "allocate storage (vacuously)"
+.It APPE Ta "append to a file"
+.It CDUP Ta "change to parent of current working directory"
+.It CWD Ta "change working directory"
+.It DELE Ta "delete a file"
+.It HELP Ta "give help information"
+.It LIST Ta "give list files in a directory" Pq Dq Li "ls -lgA"
+.It MKD Ta "make a directory"
+.It MDTM Ta "show last modification time of file"
+.It MODE Ta "specify data transfer" Em mode
+.It NLST Ta "give name list of files in directory"
+.It NOOP Ta "do nothing"
+.It PASS Ta "specify password"
+.It PASV Ta "prepare for server-to-server transfer"
+.It PORT Ta "specify data connection port"
+.It PWD Ta "print the current working directory"
+.It QUIT Ta "terminate session"
+.It REST Ta "restart incomplete transfer"
+.It RETR Ta "retrieve a file"
+.It RMD Ta "remove a directory"
+.It RNFR Ta "specify rename-from file name"
+.It RNTO Ta "specify rename-to file name"
+.It SITE Ta "non-standard commands (see next section)"
+.It SIZE Ta "return size of file"
+.It STAT Ta "return status of server"
+.It STOR Ta "store a file"
+.It STOU Ta "store a file with a unique name"
+.It STRU Ta "specify data transfer" Em structure
+.It SYST Ta "show operating system type of server system"
+.It TYPE Ta "specify data transfer" Em type
+.It USER Ta "specify user name"
+.It XCUP Ta "change to parent of current working directory (deprecated)"
+.It XCWD Ta "change working directory (deprecated)"
+.It XMKD Ta "make a directory (deprecated)"
+.It XPWD Ta "print the current working directory (deprecated)"
+.It XRMD Ta "remove a directory (deprecated)"
+.El
+.Pp
+The following non-standard or
+.Tn UNIX
+specific commands are supported
+by the
+SITE request.
+.Pp
+.Bl -column Request -offset indent
+.It Sy Request Ta Sy Description
+.It UMASK Ta change umask. Em E.g. SITE UMASK 002
+.It IDLE Ta set idle-timer. Em E.g. SITE IDLE 60
+.It CHMOD Ta change mode of a file. Em E.g.
+SITE CHMOD 755 filename
+.It HELP Ta give help information. Em E.g. SITE HELP
+.El
+.Pp
+The remaining ftp requests specified in Internet
+.%T "RFC 959"
+are
+recognized, but not implemented.
+MDTM and SIZE are not specified in
+.%T "RFC 959" ,
+but will appear in the next updated FTP RFC.
+.Pp
+The ftp server will abort an active file transfer only when the
+ABOR
+command is preceded by a Telnet "Interrupt Process" (IP)
+signal and a Telnet "Synch" signal in the command Telnet stream,
+as described in Internet
+.%T "RFC 959" .
+If a
+STAT
+command is received during a data transfer, preceded by a Telnet IP
+and Synch, transfer status will be returned.
+.Pp
+.Nm Ftpd
+interprets file names according to the
+.Dq globbing
+conventions used by
+.Xr csh 1 .
+This allows users to utilize the metacharacters
+.Dq Li \&*?[]{}~ .
+.Pp
+.Nm Ftpd
+authenticates users according to three rules. 
+.Pp
+.Bl -enum -offset indent
+.It
+The user name must be in the password data base,
+.Pa /etc/passwd ,
+and not have a null password.  In this case a password
+must be provided by the client before any file operations
+may be performed.
+.It
+The user name must not appear in the file
+.Pa /etc/ftpusers .
+.It
+The user must have a standard shell returned by 
+.Xr getusershell 3 .
+.It
+If the user name is
+.Dq anonymous
+or
+.Dq ftp ,
+an
+anonymous ftp account must be present in the password
+file (user
+.Dq ftp ) .
+In this case the user is allowed
+to log in by specifying any password (by convention this
+is given as the client host's name).
+.El
+.Pp
+In the last case, 
+.Nm ftpd
+takes special measures to restrict the client's access privileges.
+The server performs a 
+.Xr chroot 2
+command to the home directory of the
+.Dq ftp
+user.
+In order that system security is not breached, it is recommended
+that the
+.Dq ftp
+subtree be constructed with care;  the following
+rules are recommended.
+.Bl -tag -width "~ftp/pub" -offset indent
+.It Pa ~ftp
+Make the home directory owned by
+.Dq ftp
+and unwritable by anyone.
+.It Pa ~ftp/bin
+Make this directory owned by the super-user and unwritable by
+anyone.  The program
+.Xr ls 1
+must be present to support the list command.  This
+program should have mode 111.
+.It Pa ~ftp/etc
+Make this directory owned by the super-user and unwritable by
+anyone.  The files
+.Xr passwd 5
+and
+.Xr group 5
+must be present for the 
+.Xr ls
+command to be able to produce owner names rather than numbers.
+The password field in
+.Xr passwd
+is not used, and should not contain real encrypted passwords.
+These files should be mode 444.
+.It Pa ~ftp/pub
+Make this directory mode 777 and owned by
+.Dq ftp .
+Users
+should then place files which are to be accessible via the
+anonymous account in this directory.
+.El
+.Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr getusershell 3 ,
+.Xr syslogd 8
+.Sh BUGS
+The anonymous account is inherently dangerous and should
+avoided when possible.
+.Pp
+The server must run as the super-user
+to create sockets with privileged port numbers.  It maintains
+an effective user id of the logged in user, reverting to
+the super-user only when binding addresses to sockets.  The
+possible security holes have been extensively
+scrutinized, but are possibly incomplete.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

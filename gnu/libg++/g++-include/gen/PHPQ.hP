@@ -1,0 +1,108 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Dirk Grunwald (grunwald@cs.uiuc.edu)
+    adapted for libg++ by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+#ifndef <T>PHPQ_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define <T>PHPQ_h 1
+
+#include "<T>.PQ.h"
+
+#ifndef <T>PHPQIndex
+#define <T>PHPQIndex unsigned short
+#endif
+
+struct <T>PHPQNode
+{
+  <T>PHPQIndex   sibling;
+  <T>PHPQIndex   children;
+  <T>            item;
+  char           valid;
+};
+
+
+class <T>PHPQ : public <T>PQ
+{
+  <T>PHPQNode*  storage;        // table -- freelist in storage[0].sibling
+  int           root;
+  int           size;
+
+  void          prealloc(int);
+  int           check_sibling_list(int);
+
+public:
+
+                <T>PHPQ(int sz = DEFAULT_INITIAL_CAPACITY);
+                <T>PHPQ(<T>PHPQ&);
+                ~<T>PHPQ();
+
+  Pix           enq(<T&> item);
+  <T>           deq(); 
+
+  <T>&          front();
+  void          del_front();
+
+  int           contains(<T&> item);
+
+  void          clear(); 
+
+  Pix           first(); 
+  void          next(Pix& i);
+  <T>&          operator () (Pix i);
+  void          del(Pix i);
+  Pix           seek(<T&> item);
+
+  int           OK();                    // rep invariant
+};
+
+
+inline <T>PHPQ::~<T>PHPQ()
+{
+  delete [] storage;
+}
+
+
+inline <T> <T>PHPQ::deq()
+{
+  if (count == 0) error("deq of empty PQ");
+  <T> x = storage[root].item;
+  del_front();
+  return x;
+}
+
+
+inline <T>& <T>PHPQ::front()
+{
+  if (count == 0) error("front of empty PQ");
+  return storage[root].item;
+}
+
+inline int <T>PHPQ::contains(<T&> item)
+{
+  return seek(item) != 0;
+}
+
+inline <T>& <T>PHPQ::operator() (Pix p)
+{
+  if (p == 0) error("null Pix");
+  return storage[int(p)].item;
+}
+
+#endif

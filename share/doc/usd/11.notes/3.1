@@ -1,0 +1,610 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)3.1	6.2 (Berkeley) 4/17/91
+.\"	3.1,v 1.2 1993/08/01 07:37:33 mycroft Exp
+.\"
+.ls 1
+.ch "Managing Notesfiles"
+
+	The notesfile system is installed by a user who is known as the
+``owner'' of the notesfiles (UIUCDCS uses user ``notes'').
+This user can create, delete, rename, and initiate networking of notesfiles.
+Each notesfile is assigned a set of ``directors'' (who may or may not be
+associated with owner of notesfiles).  The directors have special privileges
+for managing the notesfile (see below).
+The ``owner'' rarely manages the day to day aspects of a notesfile,
+although he has director, read, write and response privileges to
+all notesfiles for
+handling emergencies and failures.
+
+.se "Director Options"
+
+	The director can:
+
+.bx
+.ix
+Change the access permissions.
+.ix
+Write the policy note.
+.ix
+Change the notesfile title and director message.
+.ix
+Open or close the notesfile.
+.ix
+Allow the notesfile to be networked.
+.ix
+Permit or restrict anonymous notes.
+.ix
+Compress the notesfile.
+.ix
+Change the notesfile's archival parameters.
+.ix
+Delete notes and responses.
+.ix
+Toggle director message on any note or response.
+.ex
+
+	The director can delete notes or toggle the director message
+above them while reading the notes.
+Access other options
+by typing ``d'' on the index page.  A display like this results:
+.KS
+.nf
+
+.ce 99
+Workstation Discussion
+*** Your Director Message Here ***
+
+.ce 0
+.ta 3i
+(a) Anonymous:   ON	Policy Note Exists: YES
+(o) Notesfile:   OPEN	Next note in slot: 1
+(n) Networked:   YES	Deleted Notes (holes): 0  
+(A) Is Archive:  NO	Deleted Responses (holes): 0  
+(e) Expiration Threshold: Default
+(E) Expiration Action:    ARCHIVE
+(D) Archive with Dirmsg:  NOCARE   
+(W) Working Set Size:     Default
+(l) Maximum Text/Article: 65000 bytes
+.TA
+
+
+
+
+
+
+Option:
+
+.ce 99
+= = = = = = = = = = = = = = = = = =
+.ce 0
+.fi
+.KE
+
+	Options available on this page include:  access lists, policy
+note writing, title and director messages, open/close notesfile,
+network enabling, anonymous notes, notesfile compress, and delete
+a list of notes.
+
+.ss "Access Lists"
+
+	The notesfile system allows directors to allow or restrict access
+to each notesfile.
+The access list can allow or deny read, write, respond, and director
+options to any user, group, or system.
+Type ``p'' (``permissions'') on the director options page
+to enter the access list editor.
+The system prompts for an option:
+``m'' to modify an extant entry, ``d'' to delete
+an entry, ``i'' to insert a new entry, ``r'' to replot the list,
+``q'' to quit editing the access list, and
+capital ``Q'' to quit editing the access list and IGNORE ANY CHANGES MADE.
+Delete or modify entries by entry number.  Scroll the entries using ``+'' and
+``-''.
+
+	After typing ``i'' to insert a new entry,
+the system prompts for a user type
+(``u'' for user, ``g'' for group, ``s'' for system).
+The system then prompts for the name of the user, group, or system.
+(Users and groups must be valid names)
+The default access options
+are then displayed: read, write, answer (for responses).  Use the keys
+``r'', ``w'', ``a'', and ``d'' to toggle the read, write, answer, and director
+privileges respectively.  Some options automatically
+enable others (e.g., ``w'' for writing automatically enables ``a'' for answering).
+It is not possible to remove answer access while write access is enabled.
+The ``n'' key will remove all privileges (``no access'').
+Type return (or ``q'') when the correct options have been entered.
+The system prompts for another user.  Press return at the prompt to exercise
+other access list options.
+
+	The access machinery checks user names before checking
+group names.
+If user ``john'' explicitly has no
+access but his group does, he will nevertheless be denied access to the file.
+If there is no explicit entry for user ``john'', a check is made for
+permissions granted to his group(s).
+(n.b.: an entry for user ``Other'' will match all users, 
+circumventing group permissions.
+The behavior typically desired can be achieved with a 
+group ``Other'' just as well.)
+
+	If no explicit user entry exists, a search for group permissions
+is initiated.
+Users can belong to more than one group
+(although kernels such as Version 7 only allow one at a time)
+and the notesfile code checks each of the user's groups.
+If permissions for several of these groups exist,
+the user is given the inclusive OR of the several permissions.
+If none of the user's groups are given permission, a
+default permission specified by group ``Other'' is usually
+assigned.
+The ``Other'' entry matches when none of the other group entries
+have matched.
+This entry can be deleted, in which case no access is granted.
+
+	The current implementation of system access
+enforcement is naive.
+The network software will send to a system only if it has read permission.
+Reception allows intermediaries
+to pass on notes even if they are not allowed write access to the notesfile;
+the access permission is determined from the originating system of each note
+or response
+instead of the site actually delivering the article.
+The name ``Other'' (capital ``O'') matches any system name not
+mentioned explicitly.
+
+	Many notesfiles allow several users and groups to have
+read/write access,
+a single user to have director access
+(in addition to the notesfile ``owner''),
+and all other users no access.
+
+	When a notesfile is first created, a default access 
+list is created.
+The notesfile ``owner'' is made director, group ``Other''
+and system ``Other'' are both given read/write access
+to the notesfile.
+If the file ``/usr/spool/notes/.utilities/access-template''
+exists, it contains a list of access-rights to add to
+the new notesfile's access list.
+The file contains lines of access-rights in the format used
+by the nfaccess program.
+Access-rights look like ``user:essick=drwa'';
+for more information on the format of these entries,
+see the man(I) page for nfaccess.
+
+.ss "Policy Note"
+
+	Type ``w'' (``write policy'') on the director option page to write a policy
+note (just like writing any other note).
+
+.ss "Title & Director Messages"
+
+	Change the notesfile title with ``t'', the director message with ``m''.
+The
+system prompts for a new message.
+Typing only a carriage return will not change the old message.
+
+.ss "Open/Close"
+
+	Type ``o'' (``open'') to toggle the availability of the notesfile (subject to
+the access list).
+Closed notesfiles are unavailable to non-directors.
+
+.ss "Network Options"
+
+	Type ``n'' (``network'') to toggle the availability of the notesfile
+for networking.
+Arrangements must be made with the notesfile system ``owner'' to do the network
+transfers.
+
+.ss "Anonymous Notes"
+
+	Type ``a'' (``anonymous'') to toggle the availability of
+anonymous notes in the notesfile.
+The availability of the anonymous option may provoke slanderous
+attacks from users
+(whose anonymity is completely protected).
+
+.ss "Compression"
+
+	Type ``c'' (``compress'') to compress the notesfile.  As notes
+are deleted, their text and index space is not reclaimed.  This command
+reclaims the space.  The notesfile must be closed.  On a VAX 11/780,
+20 seconds of real time (on a slightly loaded system) is required to
+reclaim the space of a notesfile with 50 remaining notes
+(compression time is dependent on remaining notes).
+Notesfiles should be compressed whenever many of their notes have been
+deleted.
+The notesfile archiver ``nfarchive'' and cron(8) can be used to automate this
+process.
+
+	The director's option page displays a count of ``holes''
+left by deleted notes and responses.
+This can be used as an indication of how much wasted space is within
+the notesfile.
+
+.ss "Expiration Threshold"
+
+	The `e' command allows a notesfile director to
+modify the notesfile's expiration threshold.
+Possible values include specific numbers of days, `default'
+and `never'.
+The value can be left unchanged by not specifying a 
+new value.
+The `default' value is assigned to new notesfiles;
+directors can change it as needed.
+
+	The notesfile archiving program (nfarchive) examines the
+expiration threshold of each notesfile it processes.
+This threshold determines how long a note string must be inactive
+before it is eligible for archival.
+The `Default' expiration threshold uses the expiration time
+specified on the `nfarchive' command line; 
+this is usually 2 weeks.
+Specific ages can be specified.
+The age specified in the notesfile overrides the value 
+on the `nfarchive' command line.
+The `Never' threshold tells `nfarchive' that this notesfile is
+not to be archived.
+
+.ss "Working Set Size"
+
+	Each notesfile contains a working set of notes.
+The working set is the number of notes left in the notesfile
+by the nfarchive program.
+When nfarchive runs, it determines a maximum number of notes
+to delete.
+This number is the number of notes written in the notesfile
+minus the number of ``holes'' caused by deletions minus
+the working set size.
+Nfarchive will leave a ``working set size'' of notes in
+the notesfile;
+if fewer notes existed in the notesfile, no notes are
+archived.
+
+	The working set size can be changed by the `s' command
+from the director page.
+Possible values include ``default'' and specific numbers.
+``Default'' specifies that the value supplied during
+the nfarchive run is to be used;
+explicit values in the notesfile always override values
+specified on the nfarchive command line.
+
+.ss "Expiration Action"
+
+	Each notesfile can decide on the destination of expired 
+notestrings.
+The expiration action field takes one of the values
+``Default'', ``Archive'' or ``Delete''.
+Archive and delete specify that expired notes are to be
+archived and deleted respectively.
+The default entry specifies that the expiration action should
+follow that specified on the nfarchive command line.
+
+.ss "Expire With Director Message"
+
+	Notesfiles can decide how to expire based on director
+message status individually.
+This option can assume four values:
+``Default'',
+``Nocare'',
+``On'',
+and 
+``Off''.
+The on and off values specify that only notes with the
+director message on or off respectively are eligible for
+expiration.
+The nocare value specifies that the director message status
+is not checked; both director and non-director marked notes
+are eligible for expiration.
+Select the default entry to use the value of this parameter
+as specified on the nfarchive command line.
+
+.ss "Maximum Text per Article"
+
+	The notesfile system imposes limits on the size of
+each article.  Earlier versions restricted articles to 64 kbytes;
+the current version provides for articles up to 4 Gigabytes.
+A constant is used to determine
+the actual maximum allowed per article.
+
+	Each notesfile can select a maximum text length per
+article.
+This limit is not allowed to exceed the hard-coded limit
+(currently 3 Mbytes).
+Articles exceeding this limit are truncated and a message
+detailing the count of excess bytes and the system responsible
+for truncating the text is appended.
+
+	Initially the maximum text length is set to the 
+highest permissible value.
+One reason for lowering the limit is to meet restrictions
+on the size of network transfers.
+
+.ss "Deleting and Un-Deleting Many Articles"
+
+	Type ``z'' (``zap'') to delete many notes (and their
+responses) quickly.
+Enter a list of note numbers or note ranges (aa-bb) separated by spaces.
+Confirm the command with ``y''; other responses will abort the command.
+It is economical and prudent to compress the notesfile
+shortly thereafter.
+Note that deleting notes in a networked notesfile makes those notes
+unavailable to those who poll your system for new notes and responses.
+
+	The ``u'' (undelete) command performs the opposite function
+of the ``z'' command. 
+This command allows you to specify a list of note strings to
+be un-deleted.
+When prompted, the director shoul supply the note numbers he wishes
+to re-activate.
+The specified notes are re-activated and can be viewed as before.
+This command is only effective until a compression of the notesfile;
+after that time the notes are no longer present in the notesfile.
+
+.ss "Director Options for Notes"
+
+	Directors may put a ``director message'' above any note they write.
+There is one single line director message for each notesfile.  Typical
+director messages
+are: ``New Policy'', ``*** This problem fixed or ignored ***'',
+or ``-- Eat Flaming Death Fascist Pigs --''.
+Directors can also toggle the director message on
+a note being
+read (``d'' for ``director message'').
+A director can delete a note (and all its
+responses) or any response while reading the text of the note or response
+by typing ``Z'' (``zap this one'') and confirming with ``y''.
+
+.ss "Default Sequencer Lists"
+
+	Some users never set up an ``NFSEQ'' environment variable 
+specifying the notesfile they wish to see.
+The file ``/usr/spool/notes/.utilities/Dflt-Seq'' contains a 
+default list of notesfiles.
+Users without an ``NFSEQ'' variable receive the notesfiles listed
+in this file.
+The file can be changed at anytime and will take effect with
+the next ``autoseq'' by a user.
+
+.se "Creation & Deletion of Notesfiles"
+
+	Only the ``owner'' of the notesfile system can create notesfiles.
+Create notesfiles with the mknf command:
+
+	mknf [ -aon ] topic1 [ ... ]
+
+	The created notesfiles have default status of
+closed, non-networked, and
+no anonymous notes permitted.
+Specify -a to permit anonymous notes in the new notesfiles.
+Use -o to have the notesfiles marked open for general use and
+the -n option to enable the notesfiles' network availability.
+These status flags can all be modified from the directors page at later
+times.
+
+	Delete notesfiles with rmnf:
+
+	rmnf [ -f ] topic1 [ ... ]
+
+Each notesfile to be removed must be verified with ``y'' after a
+prompt -- anything else will leave that notesfile intact.
+Use the -f option to blindly remove notesfiles;
+the verification step is bypassed when ``rmnf'' is invoked
+with the -f option.
+
+	The file /usr/spool/notes/.utilities/avail.notes contains
+a list of the public notesfiles.
+The notesfile owner should update this file when he creates
+new notesfiles;
+this file is not automatically updated by ``mknf'' and ``rmnf''.
+The contents and format of the file are at the discretion of the
+notesfile system owner.
+
+.se "Intersystem Notesfiles"
+
+	The notesfile system provides for intersystem notesfiles
+in an arbitrary connected network.
+Copies of a shared notesfile must exist on each
+of the systems wishing to read notes for that notesfile.
+The contents are kept in synchrony through occasional exchanges
+over a network (UIUCDCS uses both uucp and TCP/IP).
+Notesfiles to be shared must have their ``network status'' enabled (see
+director options).
+
+	Duplication of notes and responses is prevented by the use of
+unique identifiers.
+Each note and response in a notesfile is assigned a unique number.
+The networking software checks each note as it arrives to
+see if a copy already exists.
+In the event of duplication, the extra copy is discarded and
+the fact is logged in the statistics and the network log.
+
+	In the (hopefully rare) event that a response arrives at a 
+system before the base note does, the network reception program will
+generate a ``foster parent'' for the orphaned response.
+When the true parent arrives,
+the foster parent will be overwritten.
+A count of orphaned responses received is kept and available 
+through use of the nfstats program (see section 4.4).
+
+.ss "Transmitting Notesfile Updates"
+
+	The nfxmit program gathers the new notes and responses in specified
+notesfiles and sends them to a specified site.
+The notesfile ``owner'' must occasionally enter the following command (or
+have it entered for him by cron)
+to update remote notesfiles with new notes and receive new remote
+notes:
+
+	nfxmit -dsitename [-t datespec] [-r] [-a] [-f file] topic1 [...]
+
+The ``sitename'' is the name of the remote site
+to receive the new notes.
+The remote site should have notesfiles matching those specified
+by the topic1 parameter.
+For remote notesfiles with different names, see the section below on
+Name Mapping.
+
+	The optional -t specifies that all notes and responses
+since that date should be sent (normally -t is omitted and the notesfile
+system sends only new notes and responses).
+
+	The -r option specifies that the remote notes system
+should not only receive the current changes but also reply in kind.
+This is useful if the remote system does not automatically run the
+nfxmit program.
+
+	The -a option specifies that articles inserted
+from the news(I) system
+are to be sent also. Normally these articles are not sent because the 
+receiver probably has them; the primary use of this switch is for sites
+that do not run news(I).
+
+	Using the -f switch tells nfxmit
+to read the file specified for a list
+of notesfiles to transmit;
+multiple -f parameters are permitted and can be freely intermixed
+with `topic' parameters.
+Notesfile name pattern matching is
+performed on both `topic' parameters and
+the entries in a file specified by the -f option.
+
+	Nfxmit uses uux(1) as a transport and remote execution
+mechanism.  Connections using different protocols and mechanisms
+can be selected in the file ``/usr/spool/notes/.utilities/net.how'';
+its format is described in the section ``Non-Standard Links''.
+Uux typically permits a limited set of commands to be executed
+remotely.
+The file /usr/lib/uucp/L.cmds contains a list of
+acceptable commands; this file should be edited to include the
+``nfrcv'' program.
+
+.ss "Network Transaction Log"
+
+	The network software maintains a log of all transactions,
+including time, date, number of notes and responses transferred, direction
+of transfer,
+and number of notes replicated by transfer.
+This log is placed in a file called `net.log' and resides in the
+notesfile utility directory (by default: /usr/spool/notes/.utilities).
+
+	This file will grow without bounds.
+Occasional pruning is a good idea.
+There is no vital information stored in this file;
+its purpose is to provide a network audit trail.
+
+.ss "Non-Standard Links"
+
+	Some systems will be unable to keep the notesfile network
+software in a public directory (such as /usr/bin).
+Other sites will have non-uucp links.
+The `net.how' file is for these cases.  `Net.how' is
+kept in the notesfile utility
+directory (/usr/spool/notes/.utilities)
+and 
+contains information on linking to remote systems.
+Entries in the file are made for systems with non-standard links
+and 
+have the following format:
+
+	system:direction:protocol::command string
+
+	The system field contains the name of the remote system.
+The direction field
+contains either an `x' or `r' (no quotes) and specifies the direction
+that the line is for. 
+An `x' specifies that the command string is for sending notes to the
+remote site; an `r' specifies that the command string is used in
+coercing the remote system to send its new notes and responses back.
+Lines beginning with a `#' are comment lines and ignored by the notesfile
+code.
+
+	The protocol field is either empty or contains an integer
+value.  An empty field indicates protocol 0.
+Currently only protocols 0 and 1 are supported.
+The notesfile receiving programs automatically switch between
+protocols.
+
+	The command string is a printf control string (without quotes)
+with two `%s'
+entries.
+The first is for filling in the name of the notesfile, the second is
+for the local system name.
+Many entries in the `net.how' file will be to place
+different paths on the `nfrcv' and `nfxmit' commands.
+The default command line is:
+
+	uux -z - system\\!nfrcv %s %s
+
+for the `x' entry and for the `r' entry:
+
+	uux system\\!nfxmit %s -d%s
+
+In the following sample from our net.how file, the host
+``uicsovax'' is connected via UUCP and the notesfile networking
+programs live in non-standard directories.
+The host ``etherhost'' is reachable over a local network and the
+Berkeley ``rsh'' commands can be used to ship data between
+the local host and ``etherhost''.
+
+.nf
+	uicsovax:x:::uux - uicsovax!/mnt/dcs/essick/.commands/nfrcv %s %s
+	uicsovax:r:::uux uicsovax!/mnt/dcs/essick/.commands/nfxmit %s -d%s
+	etherhost:x:::rsh etherhost /usr/bin/nfrcv %s %s
+	etherhost:r:::rsh etherhost /usr/bin/nfxmit %s -d%s
+.fi
+
+
+.ss "Notesfile Name Mapping"
+
+	To provide flexibility in the naming of notesfile across systems,
+the network software looks in the
+directory /usr/spool/notes/.utilities/net.aliases
+for mappings of local notesfile names to remote notesfile names.
+Each file in the directory is named after a system (e.g., pur-ee or uicsovax).
+Each of these files contains lines which specify the mapping of local
+notesfiles to the particular systems notesfiles.
+Lines beginning with `#' in these files are comment lines and are ignored
+in the matching process.
+Data lines in the files look like:
+
+	local_nf:remote_nf
+
+	If there is no entry for a particular notesfile or
+the file for that system is missing, the local name is used.
+
+	Mapping is performed by the transmission program ``nfxmit''.
+The ``nfrcv'' program does not consult this table.
+

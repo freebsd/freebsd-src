@@ -1,0 +1,3172 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)install.mn	6.3 (Berkeley) 4/17/91
+.\"
+.ds h0 "USENET Version B Installation
+.ds h1
+.ds h2 "SMM:10-%
+.ds f0 
+.ds f1
+.ds f2 
+.mt
+USENET Version B Installation
+.au
+Matt Glickman
+.ai
+Computer Science Division
+Department of Electrical Engineering and Computer Sciences
+University of California
+Berkeley, California 94720
+.au
+Revised by Mark Horton for version 2.10
+Revised by Rick Adams for version 2.10.3
+.hn
+Introduction
+.pg
+This document is intended to help
+a USENET site install and maintain the network news software.
+Please ask questions of Rick Adams\*(dg;
+.fn
+\*(dg ARPANET: rick@seismo.CSS.GOV, UUCP: seismo!rick
+.ef
+such questions will help to point out areas that need
+to be addressed here.
+.pg
+The overall order of things to do is:
+.lp (a)
+Find somebody to link up with.
+You need a network connection of some kind,
+for example,
+ARPANET or UUCP.
+If you must use UUCP and have no connections,
+you must have at least a dialup and preferably a dialer,
+and find someone willing to call your machine.
+The USENET directory may be helpful in finding some other site geographically
+near yours to hook up to.
+.lp (b)
+Create a
+.i localize.sh
+script to make local changes to the makefile and
+.i defs.h
+files. (Section 2 gives more details about creating
+.i localize.sh \&.)
+Once you're finished editing
+.i localize.sh ,
+create a
+.i defs.h
+and
+.i Makefile
+tailored
+for your site with the command
+.ce
+sh localize.sh
+Inspect
+.i defs.h
+and
+.i Makefile
+to ensure that all your local customizations
+got into your final versions. If you saw a \*(lq?\*(rq when you ran
+.i localize.sh ,
+one or both of the files is certainly wrong. It's a good idea to
+anchor the patterns in
+.i localize.sh \&'s
+.i ed (1)
+scripts, especially in its
+.i Makefile -editing
+lines. For instance, use
+.b /^UUXFLAGS/
+instead of
+.b /UUXFLAGS/ .
+.lp (c)
+Compile the software using the
+.i make (1)
+command.
+.lp (d)
+.i Su (1)
+and type \*(lqmake install\*(rq.
+This will copy the files out to the right place and
+make directories containing most of the important files.
+It will configure you in with a connection to
+.cn oopsvax
+via UUCP links.
+This is undoubtedly wrong,
+so you will have to configure links as needed.
+If you are upgrading from a version older than 2.10.3, do \*(lqmake update\*(rq.
+This will cause various checks to be performed on important
+files in
+.b LIBDIR .
+The results will be reported to you.
+If you are not sure if you should do \*(lqmake update\*(rq, do it.
+It will not hurt anything if you have already done it.
+.lp (e)
+After editing the configuration table,
+get your contact at the other end of the link to add you to their netnews
+.i sys
+file.
+.lp (f)
+Post a message to the
+.bi sysname "" \f3to.\fP
+newsgroup which should be set up to go only to the site you are linked to,
+as a test.
+Have the other person send a message to your system using the same mechanism.
+If this doesn't work,
+find the problem and fix it.
+(Please don't use
+.ng net.test
+unless there is no alternative.
+It is almost always possible to use
+.ng test ,
+or
+.bi sysname "" \f3to.\fP
+or some
+.bi local \f3.test\fP
+group,
+instead of
+.ng net.test .)
+.lp (g)
+Fill out a USENET directory form (the file
+.i dirform
+in the
+.i misc
+directory).
+Post a copy to the USENET newsgroup
+.ng net.news.newsite
+and mail a copy to
+.i cbosgd!uucpmap .
+.lp (h)
+Format the document
+.i "\*(lqHow to Read the Network News\*(rq"
+(the file
+.i howto.mn
+in the
+.i doc
+directory),
+the document
+.i "\*(lqHow to Use USENET Effectively\*(rq"
+(the file
+.i manner.mn
+in the
+.i doc
+directory)
+and the document
+.i "\*(lqCopyright Law\*(rq"
+(the file
+.i copyright.mn
+in the
+.i doc
+directory)
+and post them to your
+.ng general
+newsgroup with a long expiration date.
+You can use
+.i inews (1)
+or
+.i postnews (1)
+to do this.
+.lp (i)
+It will probably be necessary to fix your uucp commands
+to allow
+.i rnews
+and to support the
+.op \-z
+and
+.op \-n
+options (if you are lucky enought to have the source).
+.hn
+Installation
+.hn 2
+Configuration
+.pg
+Local configuration of the USENET
+version B software requires you to edit a few files.
+Most importantly,
+the
+.i defs.h
+and
+.i Makefile
+files must be created from their templates
+.i defs.dist
+and
+.i Makefile.dst .
+You should create a shell script called
+.i localize.sh
+which copies the files and makes local changes to the copies.
+Even for a completely vanilla site,
+some changes will be necessary.
+For example,
+your script should start with
+.i localize.v7
+or
+.i localize.usg .
+You should include the name of the local organization
+.b MYORG ) (
+and the uid of the local news super user
+.b ROOTID ). (
+You should also choose how your hostname will be determined.
+If you are a USG site,
+define
+.b UNAME
+in
+.i defs.h .
+If you are
+running 4.[23] BSD,
+define
+.b GHNAME
+in
+.i defs.h .
+If you have your UUCP name in 
+.i /etc/uucpname ,
+define
+.b UUNAME
+in
+.i defs.h .
+Otherwise,
+news will look in the file
+.i /usr/include/whoami.h
+for a line of the form
+.sd c
+#define sysname your-sysname
+.ed
+.pg
+If you are running System 3 or System 5,
+you are a USG site.
+Otherwise,
+unless you are in AT&T,
+you are probably a V7 site.
+The previously mentioned defines are the only modifications that are
+.i necessary
+to install news at your site.
+However,
+you will probably want to change some of the ones listed below.
+If your compiler does not accept \*(lq(void)\*(rq,
+the simplest thing to do is add \*(lq\-Dvoid=int\*(rq to the
+.b CFLAGS
+line in the
+.i Makefile .
+.pg
+A sample localize shell script can be found in
+.i localize.sample .
+The most important parameters are:
+.hn 3
+ROOTID
+.pg
+The numerical uid of the person who is the news super user.
+This should not be set to 0.
+Normally it is set to the uid of the news contact person for the site.
+If it is not defined,
+the uid of
+.b NOTIFY
+will be looked up in
+.i /etc/passwd
+and used instead.
+.hn 3
+N_UMASK
+.pg
+Mask for
+.i umask (2)
+system call.
+Set it to something like 022 for a secure system.
+Unsecure systems might want 002 or 000.
+This mask controls the mode of news files created by the software.
+Insecure modes would allow people to edit the files directly.
+.hn 3
+DFLTEXP
+.pg
+The default number of seconds after which an article will expire.
+Two weeks (1,209,600 seconds) is the default choice.
+If you wish to expire articles faster than two weeks,
+it is recommended that you use the
+.op \-e
+flag to expire instead of decreasing
+.b DFLTEXP .
+.hn 3
+HISTEXP
+.pg
+Articles which were posted more than
+.b HISTEXP
+ago are considered too old and are moved into the junk directory.
+This is because they are too old to be in the history file,
+so it is impossible to tell if they really should be accepted
+or are endlessly looping around the network.
+(This was theoretically possible before this feature was added.)
+The articles are removed after
+.b DFLTEXP
+seconds,
+but a copy of their
+.hf Message-ID
+is kept in the history file for
+.b HISTEXP
+seconds (the default is 4 weeks).
+.hn 3
+DFLTSUB
+.pg
+The default subscription list.
+If a user does not specify any list of newsgroups,
+this will be used.
+Popular choices are
+.ng all
+and
+.ng general\f1,\fPall.general .
+.hn 3
+TMAIL
+.pg
+This is the version of the Berkeley
+.i Mail (1)
+program that has the
+.op \-T
+option.
+If left undefined,
+the
+.op \-M
+option to
+.i readnews (1)
+will be disabled.
+.hn 3
+ADMSUB
+.pg
+This newsgroup (or newsgroup list) will always be selected
+unless the user specifies a newsgroup list that doesn't include
+.b ADMSUB
+on the command line.
+That is,
+as long as the user doesn't use the
+.op \-n
+flag to
+.i readnews
+on the command line,
+.b ADMSUB
+will always be selected.
+This is usually set to
+.ng general .
+(The intent of this parameter is to have certain newsgroups
+which users are required to subscribe to.
+A typical site might require
+.op general .)
+.hn 3
+PAGE
+.pg
+The default program to which articles should be piped for paging.
+This can be disabled or changed by the environment variable
+.b PAGER .
+If you have it,
+the Berkeley
+.i more (1)
+command should be used,
+since the
+.op +
+option allows the headers to be skipped.
+.hn 3
+NOTIFY
+.pg
+If defined,
+this character string will be used as a user name to send mail
+to in the event of certain control messages of interest.
+(Currently these are
+.b newgroup ,
+.b rmgroup ,
+.b sendsys ,
+.b checkgroups ,
+and
+.b senduuname .)
+As distributed,
+mail will be sent to user
+.i usenet .
+It is recommended you create such a mailbox
+(have it forwarded to yourself) if possible,
+since this makes it easier for another site
+to contact the site administrator for your site.
+If you are unable to do this
+.i e\f1.\fPg ., (
+you are not the super user)
+you should change this name to yourself.
+Also,
+messages about missing or extra newsgroups are mailed to this user
+by the
+.b checkgroups
+control message.
+.hn 3
+DFTXMIT
+.pg
+This is the default command to use to transmit news
+if no explicit command is given in the fourth field of the
+.i sys
+file.
+It normally includes
+.i uux (1)
+with the
+.op \-z
+option.
+You should install this modification to UUCP at once;
+otherwise your users will start being bombarded with annoying
+.i uux
+completion messages.
+However,
+you can turn this off to get news installed.
+.hn 3
+UXMIT
+.pg
+This is the default command used if the
+.b U
+flag is present in the flags portion of a
+.i sys
+file line.
+In this case,
+the second \*(lq%s\*(rq refers to the name of a file in the news spool area,
+not a temporary file.
+It can usually only be used
+when local modifications are made to the uucp system,
+such as the
+.op \-c
+option to
+.i uux .
+.hn 3
+DFTEDITOR
+.pg
+This is the full path name of the default editor to use
+during followups and replies.
+It should be set to the most popular text editor on your system.
+As distributed,
+.i vi (1)
+is used.
+.hn 3
+UUPROG
+.pg
+If this is defined,
+it will be used as a command to run when the
+.b senduuname
+control message is sent around.
+Otherwise the command
+.i uuname (1)
+will be run.
+Normally,
+this program should be placed in
+.b LIBDIR .
+.hn 3
+MANUALLY
+.pg
+If this is defined,
+incoming
+.b rmgroup
+messages will not automatically remove the group.
+News will instead mail a message to
+.b NOTIFY
+advising that the group should be removed.
+If you define
+.b MANUALLY ,
+you should have
+.b NOTIFY
+defined.
+.b MANUALLY
+is defined by default to protect you against
+accidental or malicious removal of an important newsgroup.
+.hn 3
+NONEWGROUPS
+.pg
+If this is defined, incoming
+.b newgroup
+messages will not automatically create the group.
+News will instead mail a message to
+.b NOTIFY
+advising that the group should be created.
+If you define
+.b NONEWGROUPS ,
+you should have
+.b NOTIFY
+defined.
+.b NONEWGROUPS
+is undefined by default to make it easier to automatically maintain the
+news system.
+.hn 3
+BATCH
+.pg
+If set,
+this is the name of a program that will be used to unpack
+batched articles (those beginning with the character \*(lq#\*(rq.)
+Batched articles normally are files reading
+.sd c
+#! rnews 1234
+article containing 1234 characters
+#! rnews 4321
+article containing 4321 characters
+\\&. . .
+.ed
+Batching is
+.i strongly
+recommended for increased efficiency on both sides.
+.hn 3
+LOCALNAME
+.pg
+Most systems have a full name database on line somewhere,
+showing for each user what their full name is.
+Most often this is in the gecos field of
+.i /etc/passwd .
+If your system has such a database,
+.b LOCALNAME
+should be left undefined.
+If not,
+define
+.b LOCALNAME ,
+and articles posted will only receive full names from local user information
+specified in
+.i NAME
+or
+.bi $HOME \f2/.name\fP
+by the user.
+If you have a nonstandard gcos format
+(not
+.i finger (1)
+or RJE)
+it will be necessary to make local changes to
+.i fullname.c
+as appropriate on your system.
+.hn 3
+INTERNET
+.pg
+If your system has a mailer that understands ARPA Internet syntax addresses
+.cf user@site.domain ) (
+turn this on,
+and replies will use the
+.hf "From"
+or
+.hf "Reply-To"
+headers.
+Otherwise,
+leave it disabled and replies will use the
+.hf "Path"
+header.
+.hn 3
+MYDOMAIN
+.pg
+When generating internet addresses,
+this domain will be appended to the local site name
+to form mailing address domains.
+For example,
+on system
+.cn ucbvax
+with user
+.i root ,
+if
+.b MYDOMAIN
+is set to
+.cf .UUCP ,
+addresses generated will read
+.cf root@ucbvax.UUCP .
+If
+.b MYDOMAIN
+is
+.cf .Berkeley.EDU ,
+the address would be
+.cf root@ucbvax.Berkeley.EDU .
+If your site is in more than one domain,
+use your primary domain.
+The domain always begins with a period,
+unless the local site name contains the domain;
+in this case
+.b MYDOMAIN
+should be the null string.
+.hn 3
+CHEAP
+.pg
+Do not
+.i chown (1)
+spool files to
+.i news .
+This will cause the owner of the file to be the person that started
+the
+.i inews
+process.
+This is used for obscure accounting reasons on some systems.
+.hn 3
+OLD
+.pg
+Define this if any of your USENET neighbors run
+2.9 or earlier versions of B news.
+It will cause all headers written to contain two extra lines,
+.hf Article-I.D.
+and
+.hf Posted ,
+for downward compatibility.
+Once all your neighbors have converted,
+you can save disk space and transmission costs by turning this off.
+It is strongly encouraged that they convert.
+2.10.3 is
+.i much
+faster than 2.9.
+The performance difference is dramatic.
+.hn 3
+UNAME
+.pg
+Define this if the
+.i uname (2)
+system call is available locally,
+even though you are not a USG system.
+USG systems always have
+.i uname (2)
+available and ignore this setting.
+.hn 3
+GHNAME
+.pg
+Define this if the 4.[23] BSD
+.i gethostname (2)
+system call is available.
+If neither
+.b UNAME
+or
+.b GHNAME
+is defined,
+.i inews
+will determine the name of the local system by reading
+.i /usr/include/whoami.h .
+.hn 3
+UUNAME
+.pg
+Define this if you keep your UUCP name in
+.i /etc/uucpname .
+.hn 3
+V7MAIL
+.pg
+Define this if your system uses V7 mail conventions.
+The V7 mail convention is that
+a mailbox contains several messages concatenated,
+each message beginning with a line reading
+.hf "From \f2user date\fP"
+and ending in a blank line.
+If this is defined,
+articles saved will have these lines added
+so that mail can be used to look at saved news.
+.hn 3
+SORTACTIVE
+.pg
+Define this if you want the news groups presented in the order of each person's
+.i .newsrc (5)
+instead of the active file.
+.hn 3
+ZAPNOTES
+.pg
+Define this if you want old style notesfile id's in the body of the article
+to be converted into
+.hf Nf-Id
+fields in the header.
+.hn 3
+DIGPAGE
+.pg
+If this is defined,
+.i vnews (1)
+will attempt to process the subarticles
+of a digest instead of treating the article as one big file.
+.hn 3
+DOXREFS
+.pg
+Define this if you are using
+.i rn (1).
+.i Rn
+uses this option to keep from showing the same article twice.
+.hn 3
+MULTICAST
+.pg
+If your transport mechanism supports multi-casting of messages,
+define this.
+Currently ACSNET is the only network that can handle this.
+.hn 3
+BSD4_2
+.pg
+Define this if you are running 4.2 or 4.3 BSD
+.ux .
+.hn 3
+BSD4_1C
+.pg
+Define this if you are running 4.1C BSD
+.ux .
+.hn 3
+SENDMAIL
+.pg
+Use this program instead of
+.i recmail (8)
+for sending mail.
+.hn 3
+MMDF
+.pg
+Use MMDF instead of
+.i recmail
+for sending mail.
+.hn 3
+MYORG
+.pg
+This should be set to the name of your organization.
+Please keep the name short,
+because it will be printed,
+along with the electronic address and full name of the author of each message.
+Forty characters is probably a good upper bound on the length.
+If the city and state or country of your organization are not obvious,
+please try to include them.
+If the organization name begins with a \*(lq/\*(rq,
+it will be taken as the name of a file.
+The first line in that file will be used as the organization.
+This permits the same binary to be used on many different machines.
+A good file name would be
+.i /usr/lib/news/organization .
+For example,
+an organization might read
+.cf "AT&T Bell Labs, Murray Hill" ,
+.cf "U.C. Berkeley" ,
+.cf MIT ,
+or
+.cf "Computer Corp. of America, Cambridge, Mass" .
+.pg
+.hn 3
+HIDDENNET
+.pg
+If you want all your news to look like it came from a single machine
+instead of from every machine on your local network,
+define
+.b HIDDENNET
+to be the name of the machine you wish to pretend to be.
+Make sure that you have you own machine defined as
+.cn ME
+in the sysfile
+or you may get some unnecessary article retransmission.
+.hn 3
+NICENESS
+.pg
+If
+.b NICENESS
+is defined,
+.i rnews
+does a
+.i nice (2)
+to priority
+.b NICENESS
+before processing news.
+.hn 3
+FASCIST
+.pg
+If this is defined,
+.i inews
+checks to see if the posting user is allowed to
+post to the given newsgroup.  If the username is not in the file
+.b LIBDIR \f2/authorized\fP
+then the default newsgroup pattern in the symbol
+.b FASCIST
+is used.
+.pg
+The format of the file
+.i authorized
+is:
+.br
+.si 
+user:allowed groups  
+.ei
+.pg
+For example:
+.si
+.sd
+root:net.all,mod.all
+naughty_person:junk,net.politics
+operator:!net.all,general,test,mod.unix
+.ed
+.ei
+.pg
+An open environment could have
+.b FASCIST
+set to
+.ng all
+and then individual entries could be made in the authorized file
+to prevent certain individuals from posting to such a wide
+area.
+.pg
+Note that a distribution of
+.ng all
+does
+.i not
+mean to allow postings
+only to local groups \-
+.ng all
+includes
+.ng all.all .  
+Use
+.ng all\f1,!\fPall.all
+to get that behavior
+.hn 3
+SMALL_ADDRESS_SPACE
+.pg
+Define this if your machine has 16 bit (or smaller) pointers.
+If you are on a
+.pd ,
+this is automatically defined.
+.hn 2
+Makefile
+.pg
+There are also a few parameters in the
+.i Makefile
+as well.
+These are:
+.hn 3
+OSTYPE
+.pg
+This is the type of
+.ux
+system you are using.
+It should be either
+.b v7
+or
+.b USG .
+Any BSD system is v7. Any System 3 or System 5 system is USG.
+This is normally set by
+.i localize.sh .
+.hn 3
+NEWSUSR
+.pg
+This is the owner (user name) of
+.i inews .
+If you are a superuser,
+you should probably create a new user id (traditionally
+.i news )
+and use this id.
+If you are not a superuser,
+you can use your own user id.
+If you are able to,
+you should create a mail alias
+.i usenet
+and have mail to this alias forwarded to you.
+This will make it easier for other sites to find the right person
+in the presence of changing jobs and out of date or nonexistent directory pages.
+.b NEWSUSR
+and
+.b ROOTID
+do not need to represent the same user.
+.hn 3
+NEWSGRP
+.pg
+This is the group (name) to which
+.i inews
+belongs.
+The same considerations as
+.b NEWSUSR
+apply.
+.hn 3
+SPOOLDIR
+.pg
+This directory contains subdirectories in which news articles will be stored.
+It is normally
+.i /usr/spool/news .
+.pg
+Briefly,
+for each newsgroup (say
+.ng net.general )
+there will be a subdirectory
+.i /usr/spool/news/net/general
+containing articles,
+whose file names are sequential numbers,
+.i e\f1.\fPg .,
+.i /usr/spool/news/net/general/1 ,
+etc.
+.pg
+Each article file is in a mail-compatible format.
+It begins with a number of header lines,
+followed by a blank line,
+followed by the body of the article.
+The format has deliberately been chosen to be compatible
+with the ARPANET standard for mail documented in RFC 822.
+.pg
+You should place news in an area of the disk with enough free space
+to hold the news you intend to keep on line.
+The total volume of news in
+.ng net.all
+currently runs about 1 Mbyte per day.
+If you expire news after the default 2 weeks,
+you will need about 14 Mbytes of disk space
+(plus some extra as a safety margin and
+to allow for increased traffic in the future.)
+If you only receive some of the newsgroups,
+or expire news after a different interval,
+these figures can be adjusted accordingly.
+.hn 3
+BATCHDIR
+.pg
+This directory will contain the list of articles to send to each system.
+It is normally
+.i /usr/spool/batch .
+.hn 3
+LIBDIR
+.pg
+This directory will contain various system files.
+It is normally
+.i /usr/lib/news .
+.hn 3
+BINDIR
+.pg
+This is the directory in which
+.i readnews ,
+.i postnews ,
+.i vnews ,
+and
+.i checknews (1)
+are to be installed.
+This is normally
+.i /usr/bin .
+If you decide to set
+.b BINDIR
+to a local binary directory,
+you should consider that the
+.i rnews
+and
+.i cunbatch
+commands must be in a directory that can be found by
+.i uuxqt ,
+which normally only searches
+.i /bin
+and
+.i /usr/bin .
+.hn 3
+UUXFLAGS
+.pg
+These are the flags
+.i uux
+will be called with.
+.hn 3
+LNRNEWS
+.pg
+This is the program used to link
+.i rnews
+and
+.i inews .
+If you have symbolic links,
+you can replace the \*(lqln\*(rq with \*(lqln \-s\*(rq.
+.hn 3
+SCCSID
+.pg
+If this is defined, sccs ids will be included in each file. If you
+are short on address space, don't define this.
+.hn
+FILES
+.pg
+This section lists the files in
+.b LIBDIR
+and comments briefly what they do.
+.hn 2
+active
+.pg
+A list of active newsgroups.
+It is automatically updated as new newsgroups come in.
+The order here is the order news is initially presented by
+.i readnews ,
+so you can edit this file to put important newsgroups first.
+If you have
+.b SORTACTIVE
+defined,
+after the first time the user invokes
+.i readnews ,
+it will be presented in the order of his
+.i .newsrc .
+Each line of the active file contains four fields,
+separated by a space:
+the newsgroup name,
+the highest local article number
+(for the most recently received article),
+the lowest local article number that has not yet expired,
+and a single character used to determine if the user can post to that newsgroup.
+If the character is
+\&\*(lqy\*(rq
+the user is permitted to post articles to that group.
+If the character is
+\&\*(lqn\*(rq
+the user is not permitted to post articles to that groups.
+(This field takes the place of the
+.i ngfile
+in earlier versions of news.
+Local article numbers begin at 1 and count sequentially
+within the newsgroup as articles are received.
+They do not usually correspond to local article numbers on other sites.
+The article numbers are always stored as a five digit number
+(with leading zeros) to allow updating of the file in place.
+.pg
+The active file should contain
+.ng all
+active net-wide active newsgroups
+.ng net.all and (
+.ng mod.all ).
+It is important that they all be present,
+as they are used as a check for valid newsgroup names
+and invalid newsgroup names are removed from any articles processed by
+.i inews .
+You should use the
+.i sys
+file to keep out unwanted newsgroups.
+.hn 2
+aliases
+.pg
+This file is used to map bad newsgroup names to the correct ones.
+(For example,
+.ng net.unix.wizards
+is mapped into
+.ng net.unix-wizards ).
+Each line consists of two fields separated by a space.
+If the first field is found in the newsgroup list of the incoming article,
+it is changed to the second field.
+This change takes place in the article
+before it is passed on to other systems,
+not just locally.
+.hn 2
+batch
+.pg
+This program reads a list of filenames of articles
+and outputs the articles themselves.
+It is typically used by the shell script 
+.i sendbatch .
+.hn 2
+c7unbatch
+.pg
+This is used to decompress news that has been
+.b encoded
+for transmission over a network that only supports 7-bit transfers (e.g X.25.)
+.hn 2
+caesar
+.pg
+This is a program to do Caesar decoding of rotated text,
+on a line by line basis.
+The standard input is copied to the standard output,
+rotating each line according to a static single letter frequency table.
+If an integer argument is given
+.i e\f1.\fPg ., (
+13),
+every line is rotated by that argument,
+without regard to letter frequencies.
+This program is invoked by the
+.qp D
+.i readnews
+command.
+It is also used by
+.i postnews
+with the \*(lq13\*(rq argument to encode selected material for posting.
+.hn 2
+checkgroups
+.pg
+.i Checkgroups
+is a shell file to aid in automatically checking
+the accuracy of your active file.
+It is executed by the
+.b checkgroups
+control message and mails a list of out of date newsgroups
+to the person defined by
+.b NOTIFY
+It also updates the
+.i newsgroups
+file that is used by
+.i postnews
+as a helpfile for newsgroup selection.
+.hn 2
+compress
+.pg
+This program does a modified Lempel-Ziv data compression. It is used by the
+compressed batching scheme.
+It averages 50% compression on a typical batch of news.
+.hn 2
+distributions
+.pg
+This is a list of distributions that are valid for your site.
+Each line has two fields separated by the first space on the line.
+The first field is the name of the distribution
+.i e\f1.\fPg ., (
+.ng usa ,
+.ng na ,
+etc.).
+The second field is text describing the distribution.
+As distributed,
+this file is only correct for sites in the USA.
+You should examine this file and add or delete the appropriate distributions.
+.hn 2
+encode
+.pg
+This program transforms an 8-bit binary file into a file suitable for
+sending over a link that only allows 7-bit characters. It is used
+by
+.b "sendbatch -c7."
+.hn 2
+errlog
+.pg
+This file contains the \*(lqimportant\*(rq error messages found in the log file.
+These errors usually indicate that something was wrong with an article.
+This file should be watched closely.
+The
+.i log
+file contains much more verbose information
+and it is often difficult to detect errors in it.
+.hn 2
+expire
+.pg
+This program expires old articles and archives them if archiving is selected.
+It is typically run once a day from
+.i cron (8).
+.hn 2
+help
+.pg
+This contains a list of commands printed when an illegal command is typed to
+.i readnews .
+.hn 2
+history
+.pg
+A list of every article that has come in to your system.
+It is used to reject articles that come in for the second time
+(presumably via a different path).
+This file will grow but is cleaned out by the
+.i expire (8)
+command.
+.hn 2
+history.d
+.pg
+On USG systems, this directory contains 10 files (history.[0-9]) which are
+used as part of a simple hashing algorithm to speed up history searches.
+Since V7 systems have DBM, this is not used on V7 systems.
+.hn 2
+history.dir,history.pag
+.pg
+These two files are used on V7 systems as a hashed version of
+.i history ,
+containing the message id's of all articles in history.
+They are only used if
+.b \-DDBM
+and
+.b \-ldbm
+appear in
+.i Makefile .
+.hn 2
+inews
+.pg
+This is the program that actually sends and receives news.
+All other programs interface eventually with it.
+It is not intended to be used directly by a human,
+so it is no longer in
+.i /usr/bin .
+.hn 2
+log
+.pg
+If present,
+a log of articles processed and error conditions is kept here.
+This file grows without limit unless cleaned out periodically.
+The
+.i trimlib
+script in
+.i misc
+can be invoked from
+.i cron
+daily or weekly to keep the log short.
+.hn 2
+moderators
+.pg
+This file contains a list of the moderators and their mailing addresses
+for each moderated newsgroup.
+Each line consists of two fields.
+the first is the name of the moderated group.
+The second is the mailing address of the group's moderator.
+As distributed,
+they are almost certainly wrong.
+You will need to modify the paths so they work from your site.
+.hn 2
+newsgroups
+.pg
+This file is displayed by
+.i postnews
+when a user hits
+.qp ?
+in response to its request for newsgroups.
+It is also used by
+.i vnews
+when it displays the newsgroup name.
+It is updated automatically by the
+.b checkgroups
+control message.
+.hn 2
+notify
+.pg
+If this file is present,
+its contents will be taken as the name of the user
+to notify in case of a problem.
+If the file is empty,
+nobody will be notified.
+(This overrides the
+.b NOTIFY
+option in
+.i defs.h ).
+Having a null file is useful if one person administers several systems
+and does not want multiple copies of control message notifications.
+.hn 2
+oactive, ohistory, ohistory.dir, ohistory.pag
+.pg
+These are copies of the corresponding
+.i active ,
+.i history ,
+.i history.dir ,
+and
+.i history.pag
+files before
+.i expire
+ran.
+They are kept in case something happens to the originals.
+.hn 2
+recmail
+.pg
+This program can serve as a link between news and your local mailer.
+If you have
+.i sendmail (8),
+don't use
+.i recmail .
+.i Sendmail
+is much more useful.
+.hn 2
+recnews
+.pg
+A program which allows you to send mail to get news posted.
+You usually need to run
+.i sendmail
+or
+.i delivermail (8)
+to be able to use this.
+.hn 2
+recording
+.pg
+A list of newsgroup classes and filenames to display recordings for.
+The recording feature is analogous to the recordings played in some areas
+when you dial directory assistance,
+trying to be annoying and make you think twice.
+Recordings on certain newsgroups are intended to remind the user
+of the rules for the newsgroup,
+or,
+in the case of a company worried about letting proprietary information out,
+reminding authors that anything they say is seen outside the company
+and so proprietary information should not be included.
+.pg
+The file contains one line per recording.
+The line contains two fields,
+separated by a space.
+The first field is the newsgroup class
+.i e\f1.\fPg ., (
+.ng net.all ),
+the second field is the name of the file containing the recorded message.
+If the file name does not begin with a slash,
+it will be searched for in
+.b LIBDIR .
+Sample recording files can be found in the
+.i misc
+directory.
+.hn 2
+rmgroup
+.pg
+This shell file should be used to remove any groups that are no longer used.
+.hn 2
+sendbatch
+.pg
+This shell file is used to send batched articles to other systems.
+It is typically run from
+.i cron .
+See the manual page for more details.
+.hn 2
+sendnews
+.pg
+A program to send news internally from one computer to another.
+It is useful if you must use mail links to transmit articles.
+.hn 2
+seq
+.pg
+This file contains the current sequence number for your system.
+It is used to generate unique article id's.
+.hn 2
+sys
+.pg
+This file contains a list of all your neighbors,
+which newsgroups they get,
+and how to send news to them.
+The format is documented below.
+.hn 2
+unbatch
+.pg
+This program is used to unbatch the incoming batched news
+and feed each article to
+.i inews .
+It's horrible and will go away in the future.
+.hn 2
+users
+.pg
+A list of users that have read news on your system.
+.hn 2
+uurec
+.pg
+A program to receive news sent by
+.i sendnews (8).
+.hn 2
+vnews.help
+.pg
+This is the helpfile used by
+.i vnews .
+.hn 1
+Setting Up Links
+.pg
+There are two basic types of links for exchanging news:
+those that use mail and those that don't.
+The ones that use mail are more indirect,
+yet more versatile, while the ones that don't are simpler.
+The default method does not use mail, so that is discussed first.
+.hn 2
+Non-mail Links
+.pg
+The basic theory behind a non-mail link is that the
+.i rnews
+program is invoked on the remote system
+with the article being transmitted as the standard input.
+This is possible on several networks,
+but the most common implementation is via the UUCP network.
+Using the
+.i uux
+command,
+the command which is forked to the shell looks like:
+.sd c
+uux \- \-r \-z remotesys!rnews < article
+.ed
+This is the default transmission method.
+In order to set up such a link,
+obviously a UUCP link with the remote system must be in effect.
+In addition,
+.i rnews
+must be available and executable by
+.i uuxqt
+on the remote machine.
+In most cases,
+this means that
+.i rnews
+must be in
+.i /usr/bin
+so
+.i uux
+can find it.
+Also,
+the list of allowed UUCP commands (in
+.i /usr/src/usr.bin/uucp/uuxqt.c
+or
+.i /usr/lib/uucp/L.cmds ,
+depending on the version of UUCP)
+should be checked to make sure
+that
+.i rnews
+is an allowed command.
+.pg
+Other networks that allow remote execution include the BERKNET,
+BLICN
+.i usend (1)), (
+many Ethernets,
+and the NSC hyperchannel
+.i nusend (1)). (
+It is important,
+however,
+that a spooling mechanism be available.
+Otherwise,
+if system
+.cn A
+tries to send an article to system
+.cn B
+via a remote execution command,
+and
+.cn B
+is down,
+the article could be lost.
+Spooling arranges that the system will try again when
+.cn B
+comes back up.
+.hn 2
+Mail Links
+.pg
+When using mail to transmit articles,
+two intermediary programs are necessary.
+These are
+.i sendnews
+and
+.i uurec (8).
+The idea is that when system
+.cn A
+wants to send an article to system
+.cn B ,
+the
+.i sys
+file on system
+.cn A
+has an entry for system
+.cn B
+such as:
+.sd c
+/usr/lib/news/sendnews \-a rnews@B
+.ed
+which runs
+.i sendnews
+on the article.
+The
+.op \-a
+option specifies that the mail should be formatted for the ARPANET.
+.i Sendnews
+packages the article and mails it to
+.cf rnews@B .
+Somehow,
+the B system is expected to make sure that all mail to user
+.cf rnews
+is fed as input to the program
+.i uurec .
+This program unpackages it and invokes
+.i rnews .
+.pg
+The best way to get mail to
+.cf rnews
+fed into
+.i uurec
+is to use
+.i sendmail
+or
+.i delivermail ,
+if you are on a system running them.
+Create an alias in
+.i /usr/lib/aliases
+as follows:
+.sd c
+rnews: "|/usr/lib/news/uurec"
+.ed
+and
+.i sendmail
+will handle it.
+If you do not have a facility for forwarding mail to a program,
+you can gimmick your mailer to watch for it
+(using
+.i popen (3S),
+this is easy)
+or,
+if you don't want to do any programming,
+you can have
+.i cron
+invoke
+.i uurec
+every hour with
+.i /usr/spool/mail/rnews
+as standard input.
+This solution is messier because
+.i uurec
+must potentially deal with multiple messages,
+something that has never been tested.
+.hn 1
+Format of the
+.bi sys
+file
+.pg
+To set up a link to another site,
+edit the
+.i sys
+file in
+.b LIBDIR .
+This file is similar to the
+.i L.sys
+file of UUCP.
+Each line contains four fields,
+separated by colons:
+.lp (1)
+The system name of a site to which you forward news.
+Normally all systems you have links to will be
+included.
+You should also have a line for your own system.
+If this field is
+.cn ME,
+it will be used as if it were your local system name.
+If the system name is followed by a \*(lq/\*(rq, the article will not be
+forwarded to this system if it has already passwd through any of the
+(comma separated) list of sites immediately following the \*(lq/\*(rq.
+For example, if the sysline was:
+.sd c
+yoursite/sitea,siteb,sitec:net,mod,na,usa,to.yoursite::
+.ed
+the incoming article would only be forwarded to
+.i yoursite
+if it had not already been to any of
+.i sitea ,
+.i siteb ,
+or
+.i sitec .
+This is normally used to reduce the number of duplicate articles received
+at a site that has multiple main newsfeeds.
+.lp (2)
+The newsgroups to be forwarded to them.
+This is a pattern of the same kind as a subscription list.
+Generally,
+you will list classes of newsgroups,
+that is,
+using
+.ng all
+for everything.
+A typical forwarding list for a new site would be
+.sd c
+net,mod,na,usa,to.\f2sysname\fP
+.ed
+where
+.i sysname
+is the name of the remote system.
+(Of course, if you are not in the USA or North America,
+you would remove those distributions
+and replace them with the ones appropriate for you).
+In particular,
+you don't want to forward
+.ng all
+since local newsgroups
+(those without dots)
+should not be sent.
+For the line describing your own system,
+this field describes the newsgroups your site will accept from remote sites.
+Thus,
+if another site insists on sending you a newsgroup you don't want,
+for example
+.ng net.jokes ,
+include
+.ng !net.jokes
+here.
+.lp (3)
+This field contains flags describing the connection.
+An
+.b A
+will indicate that the other site is running an A version of netnews.
+A
+.b B
+indicates a B version.
+Leaving it empty defaults to
+.b B .
+If you are reading this document,
+you have a B version.
+Some existing sites run A versions.
+If you aren't sure,
+ask your contact at the other site,
+with whom you should be talking to set this up anyway.
+The
+.b F
+flag indicates that the fourth field is the name of a file.
+The full path name of a file containing the article in
+.b SPOOL
+will be appended to this file.
+The
+.b L
+flag prevents transmission unless the article was created on this site.
+If a number follows the
+.b L
+.i e\f1.\fPg ., (
+.b L3 ),
+sites less than that number of hops away will be considered local.
+(It is recommended that you feed an
+.b L
+link to a backbone site,
+to ensure that your submissions will be more likely
+to get to the entire network,
+even in the event of a local problem.
+Please make sure that a mail link exists too,
+so you can get replies.)
+The
+.b N
+flag can also be included here,
+indicating that mail should
+be sent using the
+.pa ihave/sendme
+protocol described below.
+The
+.b H
+flag can be used to interpolate the history file into the command.
+The
+.b S
+flags says to execute the transmission command directly
+instead of forking a shell.
+The
+.b U
+field arranges that the parameter to the optional \*(lq%s\*(rq
+in the command field to be filled in with a permanent file name from
+.b SPOOL
+instead of a temporary customized file name.
+The
+.b M
+flag says to use multi-casting. Multi-casting is described in an appendix.
+.lp (4)
+This field is the command to be run to send news to the remote site.
+The article will be on the standard input.
+Leaving this field blank means an ordinary UUCP link is being used,
+that is,
+the command defaults to
+.sd c
+uux \- \-r \-z sysname!rnews
+.ed
+The
+.op \-
+option tells
+.i uux
+to expect input from the standard input.
+The
+.op \-z
+option is nonstandard \- you should add it
+(see the
+.i minus.z*
+files in the uucp source directory.)
+It shuts off the annoying message you would otherwise get mailed to you
+telling you that your article was broadcast successfully.
+To avoid using the
+.op \-z
+option,
+change the source or put the
+.i uux
+command in the fourth field.
+The
+.op \-r
+option tells
+.i uux
+not to call the other system once the job is queued.
+This turns out to ease the load on the system,
+at the expense of making news be transmitted a bit slower.
+The news will be sent when the next call is made;
+usually this means the next time mail is sent to or from your system.
+If this turns out to be unreasonably long,
+put a line in
+.i crontab
+to run
+.sd c
+/usr/lib/uucp/uucico \-r1 \-s\f1system\fP
+.ed
+every hour or so.
+.pg
+Here is a sample
+.i sys
+file for a site
+.cn myvax
+with connections to
+.cn yourvax
+where
+.cn myvax
+also passes news on to
+.cn downstream .
+We assume that
+.cn myvax
+and
+.cn downstream
+exchange a local newsgroup class
+.ng lng.all
+as well as the network wide newsgroups.
+News to
+.cn downstream
+is batched.
+We also assume that
+.cn myvax
+and
+.cn yourvax
+are in the USA,
+while
+.cn downstream
+is in Canada.
+.sd
+myvax:net,mod,na,usa,lng,to::
+yourvax:net,mod,na,usa,to.yourvax::
+downstream:net,mod,na,lng,to.downstream:F:/usr/spool/batch/downstream
+.ed
+.hn
+Posting Methods
+.pg
+The basic method is
+.i postnews .
+This program will prompt you for the title,
+newsgroups,
+and distribution,
+then place you in the editor.
+(The system default
+.b EDITOR
+is used unless the environment variable
+.b EDITOR
+is set,
+overriding the system default.)
+The text should be typed after the blank line.
+The title and newsgroups are available for editing at the top of the buffer.
+Other header lines can be added,
+such as an expiration date or a distribution.
+When you write out the file and exit from the editor,
+you will be prompted for what to do next. Your choices are:
+.b w rite
+the message to a file,
+.b s end
+the message,
+.b l ist
+the message or
+.b e dit
+it again.
+.pg
+Another method is to use mail.
+This can only be done on systems that allow mail to a given name
+to be fed into an arbitrary program as input.
+This is easily done with the Berkeley
+.i delivermail
+or
+.i sendmail
+program,
+and not with any other mailer the author is familiar with.
+(It may be possible to painfully set this up with MMDF,
+provided the newsgroup name is no more than 8 characters long.)
+To use mail,
+set up an alias such as the following:
+.sd c
+net.general: "|/usr/lib/news/recnews net.general"
+.ed
+Whenever a user sends mail to
+.ng net.general ,
+this starts up the given shell command which calls
+.ng recnews
+with one argument,
+the name of the newsgroup.
+You need to create one alias for each newsgroup,
+and to keep the list up to date as new newsgroups are created.
+.i Recnews (8)
+will in turn invoke
+.i inews .
+.pg
+Note that there are problems with
+.i recnews .
+There is no way to use it to post to multiple newsgroups
+without creating separate articles
+(something frowned upon because it forces people
+to read the same thing more than once.)
+Also,
+there is no way to make the recording feature
+(to remind people to not accidently divulge proprietary information)
+work when recnews is used.
+.hn
+Various considerations
+.hn 2
+Setuid bits
+.pg
+The current intended state of affairs is that
+.i inews
+runs setuid to
+.b NEWSUSR .
+The
+.i readnews
+program does not need to be setuid.
+This makes it possible to write your own interface to read news instead of using
+.i readnews .
+(As distributed,
+.i inews
+is also setgid.
+I know of no good reason for this.)
+.hn 2
+Modes of Spool Directories
+.pg
+All the files should be writable by
+.b NEWSUSR .
+However,
+due to a glitch,
+you will probably have to make the
+.b SPOOLDIR
+and its subdirectories mode 777.
+It could be 755 except for one problem.
+When a new newsgroup comes in,
+.i inews
+will attempt to
+.i mkdir (1)
+a new subdirectory of
+.b SPOOLDIR
+for the newsgroup.
+Since both
+.i inews
+and
+.i mkdir
+are setuid,
+.i mkdir
+will use the uid of the person who ran 
+.i inews
+instead of
+.b NEWSUSR
+when checking for permissions.
+If the directory mode isn't 777 the check will fail.
+Here are several alternatives if you don't want a 777 directory around:
+.hn 3
+Fix Real Uid
+.pg
+If
+.i inews
+is always run by
+.i cron
+or as
+.i root ,
+the real uid can be arranged to be
+.i root
+or
+.b NEWSUSR .
+This is a poor solution
+since it makes the local creation of new newsgroups
+require super user permissions,
+and is a potential security hole.
+If this approach is taken,
+care must be taken to insure that the owner of the created directory is
+.b NEWSUSR .
+.hn 3
+Change the Kernel
+.pg
+.i Inews
+will do:
+.b setuid(geteuid())
+(see
+.i setuid (2)
+and
+.i geteuid (2))
+before it forks the
+.i mkdir .
+If your system permits this call,
+there will be no problem.
+In particular,
+Berkeley 4.0
+.ux
+and later systems allow this.
+An alternative change to the kernel is to automatically stack uids:
+when a setuid program is run,
+set the new real uid to the old effective uid.
+.hn 3
+Groups
+.pg
+You could have
+.i inews
+be setgid to
+.b NEWSGRP
+and all files writable by the group.
+This approach has been tested and the problem turns out to be that the
+.i mkdir
+command uses the
+.i access (2)
+system call to check permissions.
+Since
+.i access
+uses the real gid,
+you run into the same problem.
+.hn 3
+Another
+.bi Mkdir
+.pg
+You could create a version of
+.i mkdir
+that does less checking and put it in a directory that can only be accessed by
+.b NEWSUSR
+(mode 700,
+owned by
+.b NEWSUSR ).
+Have
+.i inews
+fork this
+.i mkdir .
+.hn 2
+Expiration dates
+.pg
+To get articles to expire automatically, put a line in
+.i crontab
+to run
+.sd c
+/usr/lib/news/expire
+.ed
+every night.
+This command deletes all expired news.
+The
+.op \-a
+.i newsgroups
+option causes all expired news to be archived under
+.i /usr/spool/oldnews
+depending on which newsgroups are selected.
+(See
+.i expire (8)
+for details.)
+.pg
+Sometimes news is not expired when it should be.
+Be sure to check that
+.i expire
+has permissions to unlink files,
+and that it is properly setuid to 
+.b NEWSUSR .
+You can manually invoke
+.i expire
+with the
+.op \-v
+(verbose) option to find out what it's doing.
+Adding levels of verbosity
+.i e\f1.\fPg ., (
+.op \-v6 )
+will get more and more output.
+.hn 2
+Version to Version
+.pg
+Version B will understand incoming news in either version A or B format,
+automatically (presuming 
+.b OLD
+is defined in defs.h.)
+Version B
+will generate either format,
+depending on the flag in the third field of the
+.i sys
+line.
+Version A will not understand version B format.
+Thus,
+it is possible for two version B
+sites to communicate using version A
+format.
+This will work but is not a good idea,
+since the translation from B to A loses information
+(such as the expiration date)
+which will not be there when translated back to version B.
+.pg
+News from versions A and 2.9 B
+do not conform to the USENET interchange standard.
+2.10 B supports the standard and will communicate with either A or 2.9 B news.
+A news is written (losing other header information) if
+A is in the flags for the system.
+If
+.b OLD
+is defined,
+2.10 will write out headers with both standard
+.hf Date "" (
+.hf Message-ID )
+and 2.9
+.hf Posted "" (
+.hf Article-I.D. )
+lines so that either B system will properly handle the article.
+Incoming news is recognized by the first letter
+.qp A "" (
+for A news),
+or the lack of an
+.cf @
+in the
+.hf From
+line (2.9).
+Missing fields are constructed as well as possible
+from the available information.
+.hn 2
+Presentation Order
+.pg
+The order of the newsgroups listed in
+.bi LIBDIR \f2/active\fP
+is the order the newsgroups will be presented in initially.
+If
+.b SORTACTIVE
+is defined in
+.i defs.h ,
+after the first time news will be presented in the order of the person's
+.i .newsrc .
+Initially this will be directory order,
+but you can edit important newsgroups like
+.ng general
+to the top.
+.pg
+A recommended order to maintain your active file in is this:
+.sd
+net.announce.newusers
+general
+local.general
+net.announce
+local \fInewsgroups in alphabetical order\fP
+mod.all \fInewsgroups in alphabetical order\fP
+net.all \fInewsgroups in alphabetical order\fP
+test
+all.test
+to.all
+control
+junk
+.ed
+.hn
+Control Messages
+.pg
+Some news systems will send you articles that are not for human consumption.
+They are messages to your news system called
+.i "control messages" .
+Such messages contain the
+.hf Control
+header.
+Older systems use newsgroups matching
+.ng all.all.ctl ,
+and this will still work,
+although the
+.hf Control
+header is preferred.
+Since the newsgroup name is used for distribution only,
+and is not checked to ensure it's in the active file,
+such newsgroup names can still be used.
+This makes it possible to post network wide control messages with
+.ng net.msg.ctl
+(or restricted broadcast such as
+.ng btl.msg.ctl )
+or messages for a particular system:
+.ng to.ucbvax.ctl .
+Messages are canceled,
+however,
+with a
+.hf Control
+line in a message to the same newsgroup(s)
+as the original message.
+.pg
+A control message contains a command and zero or more arguments
+(much like a
+.ux
+program).
+The subject of the article contains the command and arguments.
+The body of the article is usually ignored,
+although some messages can use it for additional text information.
+Control messages are not stored in
+.b SPOOL ;
+rather,
+they are acted on and discarded at once.
+.hn 2
+ihave/sendme
+.pg
+Two control messages are
+.b ihave
+and
+.b sendme .
+These messages allow two participating sites to set up a link
+so that one site will tell the other site it has a given article
+and wait for a request before it actually sends it.
+The normal case is to send an entire article to a system,
+which consults the history file to see if the article has already been seen,
+and then throws it away if it has been seen before.
+.pg
+Note that,
+since most messages are short anyway,
+experience has indicated that for ordinary UUCP unbatched communication,
+all
+.pa ihave/sendme
+does is triple the load and slow down forwarding.
+We hope future code will allow
+.b ihave 's
+with multiple message id's in the body,
+and existing code in 2.10 understands such messages,
+but does not generate them.
+So we advise that you don't use
+.pa ihave/sendme
+for now.
+.pg
+Use of these control messages can cut down on this wasted transmission,
+but if you have a polled UUCP connection,
+they can slow down receipt of news due to polling delays.
+It is up to each connected pair of sites whether they want to use this protocol.
+The choice is controlled by the
+.b N
+flag in the
+.i sys
+file.
+In the case of a leaf node
+(one with only one neighbor)
+there is no advantage to this protocol.
+Even if both sites are able to initiate a connection
+(have dialers or the link is hardwired)
+the
+.op \-r
+option on the
+.i uux
+can cause 2 hour or more delays in propagating news.
+Since this protocol can triple the number of messages generated,
+you should carefully evaluate your situation when deciding whether to use it.
+If transmission time and phone bills dominate your costs,
+and you are sending news to several sites,
+and large article bodies dominate the costs
+(rather than the headers and the time spent by UUCP negotiating transmission)
+it is probably worthwhile to use
+.pa ihave/sendme .
+If your costs are dominated by CPU load from UUCP,
+or if you send news to a site that cannot get it from anywhere else,
+you probably do not want to use this protocol.
+The decision can be made independently for each site in your
+.i sys
+file.
+.pg
+This pair works as follows:
+Site
+.cn mysite
+receives article
+.cf <123@abc.UUCP> .
+It enters it locally and then broadcasts it to its neighbors.
+One of its neighbors is site
+.cn yoursite
+which has the
+.b N
+flag in the
+.i sys
+file.
+So
+.cn mysite
+sends an article on newsgroup
+.bi yoursite \f3.ctl\fP \f3to.\fP
+with title
+.cf "ihave <123@abc.UUCP> mysite" .
+This control message has two arguments \-
+the first
+.cf <123@abc.UUCP> ) (
+is the article id of the article in question,
+the second
+.cf mysite ) (
+is the name of the site sending the article.
+The name of the newsgroup and the
+.i sys
+file control transmission of the article.
+Normally the
+.i sys
+file will read something like
+.sd c
+yoursite:net.all,fa.all,to.yoursite:BN:
+.ed
+which will cause an article on
+.b to.yoursite.ctl
+to be transmitted.
+.pg
+.cn Yoursite
+receives the message and looks to see if it has seen it before.
+If it has,
+it throws the message away and stops.
+If it hasn't,
+it sends a message on
+.bi mysite \f3.ctl\fP \f3to.\fP
+with title
+.cf "sendme <123@abc.UUCP> yoursite"
+which is transmitted to
+.cn mysite .
+(The two arguments to
+.i sendme
+are the article id requested and the site to send it to.)
+Then
+.cn mysite
+gets this message
+and actually transmits the article to
+.cn yoursite .
+.hn 2
+newgroup
+.pg
+This message has one argument,
+the name of a newsgroup to be created.
+This allows special action to be taken locally when a new newsgroup is created.
+It is generated by the
+.op \-C
+option to
+.i inews .
+By default,
+the newsgroup is added to the active file,
+and mail is sent to the local contact advising that this has happened.
+The directory will be created when a message for that newsgroup arrives.
+See the routine \*(lqc_newgroup\*(rq in
+.i control.c
+if you want something different to happen.
+(Note that,
+although the body of the message contains a brief description
+of the purpose of the group,
+this body is usually thrown away by existing software.)
+.hn 2
+rmgroup
+.pg
+This message has one argument,
+the name of a newsgroup to be removed.
+It is used for network-wide cancellation of a newsgroup.
+If
+.b MANUALLY
+is not defined,
+it will remove the articles,
+directory,
+and active file line for the group.
+There is a shell script
+.i rmgroup
+that does essentially the same thing as this message,
+but the shell script only removes the group locally.
+We recommend that you leave
+.b MANUALLY
+defined,
+and when you receive mail advising you of the demise of the newsgroup,
+you run
+.i rmgroup
+by hand.
+This will prevent accidental or malicious removal of a good newsgroup.
+.hn 2
+cancel
+.pg
+This message cancels a given article.
+It takes one argument,
+the message id of the article to cancel.
+It should be broadcast to the same newsgroup as the original article.
+If the article to be canceled is not present, the control message
+will not be propagated to downstream sites.
+.hn 2
+sendsys
+.pg
+The
+.i sys
+file is mailed to the originator of the message.
+There are no arguments.
+This is used for making maps.
+Since your
+.i sys
+file is public information,
+you should not remove or change this control message.
+.hn 2
+senduuname
+.pg
+The
+.i uuname
+program is run and the output is mailed to the originator of the message.
+There are no arguments.
+This is used for making UUCP maps.
+If you do not run UUCP or have sites in your
+.i L.sys
+which are a secret,
+you may wish to edit this.
+Note that only the output of
+.i uuname
+is mailed,
+not the contents of
+.i L.sys
+(which news does not have access to anyway).
+If you do make a change,
+you should arrange that some mail still is sent out
+to the originator of the message, so he will know your site received it.
+See the code in routine \*(lqc_senduuname\*(rq in
+.i control.c .
+.hn 2
+version
+.pg
+The local version name/number of the netnews software
+is mailed back to the author of the control message.
+.hn 2
+checkgroups
+.pg
+This control message is an attempt at semi-automatic maintenance
+of the list of active news groups.
+This control messages takes the body of the article and pipes it into
+.bi LIB \f2/checkgroups\fP.
+As mentioned previously,
+.bi LIB \f2/checkgroups\fP
+will update the newsgroups file,
+add any missing newsgroups, and mail a message to
+.b NOTIFY
+about any old newsgroups that should be removed.
+It is expected that the person who maintains the list of active newsgroups
+will broadcast this control message on a regular basis.
+.hn 2
+Other Messages
+.pg
+Any unrecognized message will cause an error message to be mailed
+to the local site administrator.
+Additional messages may be defined as time goes on,
+such as messages to automatically update directories or maps.
+You should be willing to go into the code
+.i control.c ) (
+and add messages as they become standardized.
+.hn
+Maintenance
+.pg
+There are some things you should do periodically
+to keep your news system running smoothly.
+We hope to eventually automate all or most of this,
+but right now some of it must be done by hand.
+.pg
+The
+.i history
+and
+.i log
+files in your
+.b LIB
+directory will grow.
+You should make sure that they are cleaned up periodically.
+The
+.bi LIB \f2/expire\fP
+program will remove lines from history corresponding to deleted articles,
+but it is a good idea to check the file every few months
+to make sure it is not going wild.
+Be sure not to completely lose your history file when you clean it up,
+in case another neighbor tries to send you an article you recently got.
+(If you only get news from one site it is safe to clean it out completely.)
+.pg
+The log file is not automatically cleaned out by any netnews software,
+and will grow quickly.
+The
+.i misc/trimlib
+script can be installed in
+.bi LIB \f2/trimlib\fP,
+and invoked weekly by
+.i cron .
+.pg
+You should also clean out old newsgroups that are no longer active.
+To remove a newsgroup
+.ng net.foo ,
+you should run the shell script
+.i rmgroup
+with
+.b net.foo
+as the argument.
+That is,
+.sd c
+/usr/lib/news/rmgroup net.foo
+.ed
+.pg
+Note that clearing up UUCP constipation is another thing you'll have to do
+if you have flaky hardware or phone lines.
+If you have more than one connection,
+chances are that UUCP will get clogged up when one of your neighbors goes down
+for more than a few hours.
+Various spooling schemes are being worked on
+to help make the news/uucp system more robust,
+but one thing you can and should do,
+if you find your
+.i /usr/spool/uucp
+directory getting too big,
+is to install a subdirectory fix to UUCP.
+A quick and dirty version of this is available from Duke,
+which traps the file-oriented system calls
+at the assembly language level and maps,
+for example,
+D.fooA1234 into D.foo/D.fooA1234.
+Since the C. and
+.i local "" D.
+directories still get big,
+in practice this can still create some big directories,
+but the directories tend to be a factor of 5 smaller,
+resulting in a factor of 25 improvement to speed
+(since a directory traversal for all files is quadratic on
+.ux ).
+Right now,
+UUCP is the weak link in netnews distribution,
+and you should certainly keep an eye on it.
+.hn
+Creating New Newsgroups
+.pg
+As system news administrator,
+you are able to create newsgroups.
+To create a newsgroup,
+first make sure this is the right thing to do.
+Normally a suggestion is first posted to
+.ng net.news.group\f1,\fPnet.relatedgroup
+for a net newsgroup
+.b net.relatedgroup (
+should be the group which you are proposing to sub-divide.
+For instance,
+to propose creating
+.ng net.tv.soaps ,
+post the original article to
+.ng net.tv\f1,\fPnet.news.group ).
+Followups are made to
+.ng net.news.group
+.i only .
+(You can force this by putting the line:
+.sd c
+Followup-To: net.news.group
+.ed
+in the headers of your original posting).
+If it is established that there is general interest in such a group,
+and a name is agreed on,
+then someone creates it by typing the command
+.sd c
+inews \-C \fInewsgroup\fP
+.ed
+This will create the active entry locally. The directory will be
+created automatically when the first article for that newsgroup is
+received.
+It will also prompt you for a paragraph describing the group and start up an
+.i inews
+to post a newgroup control message announcing the group.
+This control message will be sent out on
+.ng net.msg.ctl
+and other sites may have configured their systems to do something
+with these messages.
+A human readable announcement is not made \-
+you can post this to
+.ng net.news.group
+if necessary.
+.pg
+You must be the super user to use the
+.op \-C
+option to
+.i inews .
+(That is,
+your uid must match
+.b ROOTID .
+It is recommended that you change
+.b ROOTID
+to your own uid so you don't have to
+.i su
+to create newsgroups.)
+.hn
+Conversion from A to B
+.pg
+If you are currently running version A on your system,
+note that B is incompatible with A.
+The files are stored in a different format
+(headers have mail like field names now).
+The directory organization is different
+(each newsgroup has a subdirectory of its own,
+and the file names are numbers rather than
+.i site\f1.\fPid
+pairs).
+There are no
+.i bitmap ,
+.i uindex ,
+or
+.i nindex
+files to be trashed
+(which articles have been read is stored in each users
+.i .newsrc
+file).
+The user interface is slightly different
+.i netnews (1) (news/
+is now called
+.i readnews ,
+news is posted using
+.i inews ,
+subscription is done by editing
+.i .newsrc ,
+the sense of the
+.op \-c
+option is reversed,
+news is presented in newsgroup order,
+the
+.op \-a
+and
+.op \-t
+options now probably need
+.op \-x
+as well,
+and there are many minor changes).
+.pg
+We decided not to provide a program to convert from version A to version B.
+Rather,
+the following strategy was adopted for conversion:
+.lp (1)
+Install the new news in a different spool directory from the old one.
+For example,
+you can use
+.i /usr/spool/newnews .
+You can change to the standard name later if you want.
+Get it to work for local messages.
+.lp (2)
+Post an article to newsgroup
+.b general
+with the old news announcing the change.
+Make available documentation such as the accompanying paper
+.i "How to Read the Network News"
+to the users.
+This article will be the last one in the old news.
+.lp (3)
+.i Chmod
+the old news directory to 555 to prevent any more news from being posted.
+(Actually,
+this will prevent the bitfile from being updated,
+so it may not be a good idea.)
+.lp (4)
+Replace the old
+.i rnews
+program with the new
+.i rnews
+program.
+.lp (5)
+Test it by having your neighbor send you a message.
+.lp (6)
+Wait a reasonable period for everyone to have read the final article
+with the old news.
+Perhaps a few weeks is right.
+.lp (7)
+Uninstall the old news.
+.pg
+Users will have to invoke
+.i readnews
+instead of
+.i netnews
+to read news.
+Depending on your old method of posting,
+this could be changed too.
+(If you were using mail,
+it does not need to be changed.)
+They will also have to fix their subscriptions.
+In general,
+they can type
+.sd c
+netnews \-s
+.ed
+to see what they subscribe to on the old system,
+and then create a file in their home directory called
+.i .newsrc
+containing
+.sd c
+options \-n \f2their subscription\fP
+.ed
+The format of the subscription pattern matching is the same as in A
+except that
+.ng ALL
+is replaced by
+.ng all
+(change to lower case).
+Something along the lines of this could be used to automate this:
+.sd c
+(echo \-n "options \-s" ; netnews \-s | sed s/ALL/all/) > .newsrc
+.ed
+.hn
+Conversion from 2.9 to 2.10
+.pg
+Conversion from 2.9 to 2.10 is not nearly as involved as an A to B conversion.
+The user interface does not change much,
+and the user
+.i .newsrc
+files are not affected.
+However,
+it is recommended that you do the conversion during a time
+when no news is received,
+so that incoming news will not get lost.
+One way to ensure this is to make
+.i /usr/bin/rnews
+be a shell script which saves the article in
+.bi $$ "" /usr/spool/innews/
+.bi $$ "" (
+is the process id of the particular shell and will be unique for each article).
+.pg
+The first step to conversion is to customize the sources.
+In the past,
+you had to take a fresh distribution and edit the
+.i defs.h
+file and
+.i Makefile
+to suit local preferences.
+If you had many local changes,
+or didn't record the local changes,
+upgrading could be annoying.
+2.10 provides a mechanism to automate these changes.
+Create a shell script in the src directory called
+.i localize.sh .
+(You can use
+.i localize.sample
+as a template.)
+This shell script should copy
+.i defs.dist
+to
+.i defs.h ,
+and copy either
+.i Makefile.v7
+or
+.i Makefile.usg
+to
+.i Makefile .
+It should
+.i chmod
+any files that need to be changed
+(often
+.i Makefile
+and
+.i defs.h )
+to a writable mode.
+Then it should invoke
+.i ed (1)
+on the files,
+making any necessary local changes.
+.pg
+The next step is to compile the software,
+with
+.i make (1).
+It may be necessary to update the
+.i localize.sh
+file until you are satisfied with the compilation.
+Note that after any change to the
+.i Makefile
+in
+.i localize.sh ,
+you should run
+.i localize.sh
+by hand.
+Otherwise,
+although make will run it for you,
+it will then continue to do the make with the old
+.i Makefile .
+.pg
+When the software is compiled,
+you should run the
+.i cvt.active.sh
+shell script,
+with the
+.i lib
+and
+.i spool
+directories as parameters.
+This will create a new active file in
+.bi LIB \f2/active\fP.
+Then run
+.i cvt.links.sh
+with the
+.i lib
+and
+.i spool
+directories as parameters.
+Then run
+.i cvt.names.sh
+with the
+.i lib
+and
+.i spool
+directories as parameters.
+Old news will be linked into the new hierarchy
+while leaving links in the old hierarchy.
+If you were using the default library and spool directories,
+you would do the following:
+.sd
+sh cvt.active.sh /usr/lib/news /usr/spool/news
+sh cvt.links.sh /usr/lib/news /usr/spool/news
+sh cvt.names.sh /usr/lib/news /usr/spool/news
+.ed
+.pg
+The next step is to back up the old binaries:
+.sd
+mv /usr/bin/rnews /usr/bin/ornews
+\&...
+.ed
+and to install 2.10 with
+.sd c
+make install
+.ed
+Once it is installed,
+any incoming news will be placed into the new hierarchy but not the old one.
+The critical time window is between running the three shell files and
+installing the new software \-
+any incoming news between these two points will appear
+in only the old hierarchy and be lost to the new software.
+If any significant time elapses here,
+you should divert
+.i rnews
+into a separate spool directory as described above.
+.pg
+It is crucial that you run
+.i expire
+before any new news arrives.
+.i Expire
+will update several key files automatically.
+.pg
+Finally,
+test things by posting articles to
+.bi neighbor "" \f3to.\fP
+newsgroups and watching some incoming news,
+and announce the change to your users.
+.pg
+When you are satisfied that the conversion was successful,
+run the shell file
+.i cvt.clean.sh
+which will remove the old 2.9 news hierarchy.
+.bp
+.hu
+Appendix A: Setting up a Compressed, Batched Newsfeed
+.pg
+First,
+.b BATCH 
+must have been
+.i #define 'd
+when you built the news system.
+To check,
+look in the file
+.i defs.h
+in the news source directory.
+.b BATCH 
+should be defined as a program name (by default,
+.i unbatch ).
+If it's undefined or commented out,
+define it,
+re-make the news system,
+and install the new software.
+.pg
+You'll also need a working
+.i compress
+program.
+Use the one shipped with this news distribution,
+which is based on version 4.0.
+Your news neighbors should be running a compatible version of compress.
+Versions 3.0 and 4.0 are compatible with each other,
+but both are incompatible with versions 2.0 and before.
+.pg
+Update your
+.i sys
+file.
+First,
+add the
+.b F
+flag to the other news system's line.
+For instance,
+if your compressed-and-batched news feed is named
+.cn frobozz ,
+and its
+.i sys
+file entry looks like:
+.si
+frobozz:net,mod,na,usa,ca,to.frobozz::
+.ei
+then add the
+.b F
+flag as the third (colon-separated) field:
+.si
+frobozz:net,mod,na,usa,ca,to.frobozz:F:
+.ei
+Now the pathnames of articles to be sent will be stashed in a file.
+This file is named in the fourth field of the
+.i sys
+entry;
+add it now.
+Use an entry of the form
+.bi BATCHDIR \f2/system\fP,
+where
+.bi BATCHDIR
+is usually
+.i /usr/spool/batch
+(the actual value is defined in the news
+.i Makefile ),
+and
+.i system
+is the name of the remote system,
+in this example
+.cn frobozz .
+A name of that form is necessary:
+the
+.i sendbatch
+script,
+which sends the batched news,
+looks for a file name of this form
+to decide if there's news for the remote system.
+.pg
+Your completed
+.i sys
+file line should look something like:
+.si
+.sd
+frobozz:net,mod,na,usa,ca,to.frobozz:F:/usr/spool/batch/frobozz
+.ed
+.ei
+.pg
+In
+.i /usr/lib/crontab ,
+find or create at least two news lines:
+one that runs nightly,
+and one that runs every hour or so.
+The nightly-run script should run
+.i expire ,
+trim log files,
+and perhaps compile weekly statistics
+that you post to a local-area newsgroup one day a week.
+The hourly-run script should complete the transmitting task
+with a line like:
+.sd c
+sendbatch -c frobozz
+.ed
+Make sure the script knows how to get to the directory in which
+.i sendbatch
+lives.
+You can either mention the directory in the script's
+.b PATH -setting
+line,
+or replace
+.i sendbatch
+with its full pathname.
+.i Sendbatch
+reads the files mentioned in
+.i /usr/spool/batch/frobozz ,
+batches them,
+optionally compresses them,
+sends them to the remote system,
+and arranges for remote processing.
+.pg
+This remote processing is directed by another file in
+.b BATCHDIR .
+Make a file with a name of the form
+.bi BATCHDIR \f2/system\fP.cmd
+(for this example,
+.i /usr/spool/batch/frobozz.cmd ).
+Put a line in it specifying the command that the remote system
+should execute to unpack the news batches that your system will send.
+An example
+.i frobozz.cmd
+would be:
+.sd c
+uux - -r -z -n -gd frobozz!rnews
+.ed
+.pg
+Now your system will transmit compressed batches.
+The receiving side of the business is handled largely by a program called
+.i rnews ,
+which will call other programs in
+.b LIBDIR
+to do additional processing on the incoming batches.
+.pg
+Make sure there is an executable file called
+.i rnews
+in the
+.b BINDIR
+directory
+(check the
+.i Makefile
+for its actual location).
+It must be reachable by UUCP
+or by whatever transport you'll use to transfer the netnews.
+If you defined
+.b BINDIR
+as
+.i /usr/bin ,
+you should have no problems because
+.i uuxqt
+can already get there.
+If you defined it as a different directory,
+you may have to teach
+.i uuxqt
+to look in that directory;
+accomplishing this varies from system to system.
+On 4.2BSD, add the directory to the
+.b PATH=
+line of your UUCP
+.i L.cmds
+file.
+On System V,
+on the
+.i rnews
+line of your
+.i L.cmds
+file,
+add a comma followed by
+the remote system's name on that line.
+If yours is in
+.i /usr/bin/news/rnews ,
+your
+.i L.cmds
+file will look like:
+.si
+.sd
+[For 4.2BSD]
+PATH=/bin:/usr/bin:/usr/bin/news
+rnews
+.ed
+.sd
+[For System V]
+/usr/bin/news/rnews,frobozz
+.ed
+.ei
+Other systems have a similar file in the
+.i /usr/lib/uucp
+directory by which you can specify added programs
+and paths different from the defaults.
+HP-UX,
+for example,
+has a
+.i /usr/lib/uucp/COMMANDS
+file which expands
+.i uuxqt 's
+horizons.
+In more restrictive cases,
+paths are compiled into
+.i uuxqt .
+If you can't modify any UUCP files,
+just put
+.i rnews
+in
+.i /usr/bin.
+.pg
+You must also have a
+.i cunbatch
+in
+.b LIBDIR
+(wherever your
+.i Makefile
+defines it),
+because
+.i rnews
+will eventually try to exec that copy.
+.pg
+Tell the person at the other end of your newsfeed to use
+.i "sendbatch \-c"
+to send you news.
+Once that's in place,
+watch your UUCP
+.i LOGFILE
+and your news
+.i log
+and
+.i errlog
+files to ensure that news is being correctly received and unpacked
+on your system.
+.pg
+Older compressed batching systems will try to exec
+.i cunbatch
+instead of
+.i rnews .
+If you are still communicating with these, leave 
+.i cunbatch
+in 
+.b BINDIR
+until they have upgraded their software.
+.bp
+.hu
+Appendix B: MULTICAST
+.pg
+If this is defined (in
+.i defs.h )
+then two new flag characters
+become defined in the
+.i sys
+file.
+The first,
+and most important,
+of these is the
+.b M
+flag.
+.pg
+If the
+.b M
+flag is set on some line in the
+.i sys
+file,
+then the fourth field (transfer command) is redefined to become a
+.i multicast
+name.
+That is simply another system name,
+expected to be found in the first field of some line in the
+.i sys
+file (textually following the line containing the
+.b M
+flag).
+.pg
+When a news item is being retransmitted,
+if it should (according to the subscription list) be sent to a system
+that has the
+.b M
+flag set,
+then instead of a command being run immediately to transmit the news,
+the news system remembers the system name,
+along with the multicast name (fourth field).
+.pg
+Eventually the multicast system name is found in first field of a sys file line.
+If its subscription list allows transmission of this news item,
+then its command will be executed.
+This command may have up to two \*(lq%s\*(rq substitutions in it.
+The second of those is replaced by the name of a file
+containing the news item (used with the
+.b U
+flag).
+The first is subjected to rather special treatment.
+The whole \*(lqword\*(rq (delimited by white space)
+containing that \*(lq%s\*(rq is duplicated as many times
+as there were systems with the
+.b M
+flag set that referenced this multicast name
+(which might be 0 times,
+causing that \*(lqword\*(rq to be omitted).
+In each of these duplicates,
+the \*(lq%s\*(rq is replaced by the name of a system.
+Note the multicast system name itself is not included in this process.
+Then the command is executed as usual.
+.pg
+The second flag available if the news system is built with
+.b MULTICAST
+defined is
+.b O .
+If this flag is set,
+then the sys file line will be ignored unless the system name is
+a multicast name from some earlier line with the
+.b M
+flag,
+and the news item is to be sent to that (earlier) system.
+This allows the subscription list for the multicast system name
+(which is likely to be a fake system name,
+invented just for this purpose)
+to be given a very wide subscription list
+(like
+.ng all )
+without any unusual effects.
+.pg
+Here is an example.
+Assume that you wish to forward
+.ng net.unix
+to four people by mail.
+You could do this as ...
+.si
+.sd
+fred:net.unix::mail fred
+harry:net.unix::mail harry
+jane:net.unix::mail jane
+tony:net.unix::mail tony
+.ed
+.ei
+however this causes the mail program to be started 4 times,
+once for each recipient.
+On some systems starting the mail program is a very expensive operation.
+If
+.b MULTICAST 
+is defined,
+an alternative method is
+.si
+.sd
+fred:net.unix:M:tony
+harry:net.unix:M:tony
+jane:net.unix:M:tony
+tony:net.unix::mail tony %s
+.ed
+.ei
+This would cause just one command to be run:
+\*(lqmail tony fred harry jane\*(rq.
+Note that \*(lqtony\*(rq must still be explicitly included in the argument
+list to the mail command;
+the \*(lq%s\*(rq does not expand to include
+the multicast \*(lqsystem name\*(rq itself.
+.pg
+A more useful way of doing this,
+which does not assume that all the mail readers
+will want to read the same newsgroups is as follows.
+.si
+.sd
+fred:net.unix:M:Mail
+harry:net.physics,net.astro:M:Mail
+jane:net.unix-wizards,net.women:M:Mail
+tony:net.unix,net.unix-wizards,net.jokes:M:Mail
+Mail:all:O:mail %s
+.ed
+.ei
+.pg
+Now,
+if a news item in group
+.ng net.unix
+was received,
+the command
+.sd c
+mail fred tony
+.ed
+would be executed.
+If the news were in both
+.ng net.unix
+and
+.ng net.unix-wizards
+then the command would be
+.sd c
+mail fred jane tony
+.ed
+.pg
+If a newsitem in
+.ng net.med
+(which no-one gets by mail) arrives,
+then the \*(lqMail\*(rq line will be ignored,
+because of the
+.b O
+flag.
+\*(lqMail\*(rq is a fake system invented just so its \*(lqtransfer command\*(rq
+can be used to send news to the other recipients.
+.pg
+The same kind of technique can be used for normal transfer
+of news to other systems if your transport network supports
+a facility to send to many other systems in one command.
+(That is,
+if it has a multicast facility.)
+SunIII (the network used in Australia) has this ability,
+so a typical Australian
+.i sys
+file looks like
+.sd
+emuvax:aus,net,mod,fa:M:FakeName
+kremlin:aus,net,mod:M:FakeName
+kanga:aus,net,!net.all,net.unix:M:FakeName
+FakeName:all:OUS:/bin/sendfile -NRSareporter -d%s -x%s
+.ed
+.pg
+A news item in
+.ng aus.general
+causes the following command
+.sd c
+/bin/sendfile -NRSareporter -demuvax -dkremlin -dkanga -x/usr/spool/...
+.ed
+to be executed.
+Just one command is run to send the news to three remote systems.
+.pg
+If a multicast system has the
+.b F
+flag set,
+then the name of a file containing the news is appended to the file
+whose name is in the fourth field,
+as usual.
+But on the same line,
+separated by spaces,
+will be appended the names of all the systems
+that referenced this multicast system.
+.pg
+For example,
+if the Australian site wanted to batch news,
+instead of sending it directly,
+it would simply change the last line of its
+.i sys
+file to
+.sd c
+FakeName:all:F:/usr/spool/batched/allsites
+.ed
+.pg
+Then a news item in
+.ng net.jobs
+would cause the following line to be appended to
+.i /usr/spool/batched/allsites
+.sd c
+/usr/spool/news/net/jobs/5542 emuvax kremlin
+.ed
+.pg
+This can then be processed later, in something like the normal manner.
+(Unfortunately no commands to do this processing are yet available).
+.pg
+Caution: when
+.b MULTICAST
+is defined,
+the first \*(lq%s\*(rq in all transfer commands is used for multicast,
+regardless of whether or not the system name is ever used as the last field
+of some line with the
+.b M
+flag set.
+To use the
+.b U
+flag in such a case,
+a dummy \*(lq%s\*(rq should be used,
+it will simply be omitted from the command that is executed.
+.pg
+As an example,
+if a
+.i sys
+file line were
+.sd c
+foovax:net,na,usa:U:uux - foovax!foonews <%s
+.ed
+without
+.b MULTICAST ,
+it would need to be changed to
+.sd c
+foovax:net,na,usa:U:uux - foovax!foonews %s <%s
+.ed
+if
+.b MULTICAST
+were defined.
+.pg
+Additional caution:
+The numbers of system names that may be used
+in this way are quite severly restricted.
+Typically there may only be about 10 multicast system names,
+and each of those is restricted to sending to no more than about 20 systems.
+These limits are dynamic
+(that is,
+the numbers counted are the number of multicast systems
+receiving any single news item,
+and the number of systems that each of those
+will actually cause this particular news item to be sent to).
+These limits should easily suffice for real news sending to remote systems;
+however they are not likely to suffice if you want to mail news to everyone
+on your host.

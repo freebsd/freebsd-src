@@ -1,0 +1,462 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)b.interface	6.2 (Berkeley) 4/17/91
+.\"
+.ls 1
+.ap B "Interfacing Notesfiles to News"
+
+	The News system provides functions similar to
+those provided by the Notesfile system.
+It is possible to gateway articles between the two systems.
+In USENET, a common configuration is for several notesfiles
+sites to form a subnetwork of USENET and
+gateway articles between the local notesfile network and
+the rest of USENET.
+These articles propogate across USENET in the news system.
+Article originating in the news system are gatewayed into
+the notesfile network.
+When several notesfile networks exist as subnetworks of
+a larger news network (such as USENET), articles written
+in one notesfile network will be correctly interpreted
+when arriving at another notesfile network.
+``Correctly'' interpreted includes proper linking of
+responses to their true parents;
+this is sometimes not possible with articles written in the
+news system.
+
+	The notesfile gateway code recognizes articles meeting
+the USENET standards.
+Additionally, the A-news protocol and older B-news protocols
+are recognized.
+Incoming (news \(-> notes) articles are parsed and placed in the
+appropriate notesfiles.
+Articles written within a notesfile subnetwork are formatted according
+to USENET standards and transmitted to the news system.
+
+.a1 "Configurations for Sites without News"
+
+	Sites running notesfiles without the news program have
+several possible configuations.
+If your site is part of a notesfile subnetwork and you wish to
+have your articles gatewayed to the news system and the
+rest of USENET, you must find a site who will act as a 
+gateway for your articles.
+The gateway code performs its task in such a way as to allow
+several sites to gateway the same article into the news system;
+the multiple copies will have identical unique identifiers 
+and one copy will be canceled when they meet on a remote system.
+
+.a2 "Sites with no News Neighbors"
+
+	If you have no immediate neighbor running news, there is
+no particular action you should take other than to reassure
+yourself that some site in the notesfile subnetwork is gatewaying
+notes-generated articles to the news system.
+This can be done in one of several ways.
+If the site wants to gateway articles specifically from your
+machine, the following command should be executed on that site
+occasionally. This is typically done through cron(8).
+
+	newsoutput -syoursite notesfile-list
+
+A more typical arrangement is where the gateway site sends all
+notes-generated articles that arrive on its system into the 
+news system.
+In this case, the gateway site will execute a command such as 
+the following:
+
+	newsoutput -a notesfile-list
+
+A site gate using this command line will automatically gateway
+articles written at your site and eliminates the need of running
+a command similar to the first command line.
+
+
+.a2 "Sites with Neighbors running News"
+
+	If a neighboring system runs both notes and news, you
+have the option of gatewaying your own articles or allowing
+the neighbor to gateway articles for you.
+If the neighbor does not run the notesfile system, you must
+provide your own gateway functions.
+
+	Gatewaying can be done similarly to the site without
+a news neighbor.  You can let your articles propogate across
+a notesfile network to a gateway site which will send them
+to the news system.
+Another option is to gateway your articles,
+and possibly any notesfile-generated articles,
+into the news system at the neighboring site.
+This gets your articles into USENET as quickly as possible.
+The two options are not mutually exclusive;
+you can gateway your own articles and allow another site to
+gateway them.
+When copies of the same article meet on a news system, the
+extra copy will be removed from the network.
+
+	To gateway articles into news, you must modify the
+file
+/usr/spool/notes/.utilities/net.how
+to tell the newsoutput
+program how to get to the news system.
+More information on this can be found in the section
+``Copying Notesfiles to News'' later in this appendix.
+
+	To gateway from the news system to the notesfile
+system, you must arrange to have the news system at the remote
+site send articles as standard input to the program
+/usr/spool/notes/.utilities/newsinput 
+on your system.
+
+	Information on mapping functions between notesfiles
+and news, how to configure a news system to send articles to
+a notesfile system,
+and
+how to have a notesfile system send articles to a news system
+can be found later in this appendix.
+
+.a1 "Configurations for Sites running News"
+
+	A site running both notesfiles and news will typically
+perform gateway functions in both directions,
+from the notesfile system to the news system
+and
+from the news system to the notesfile system.
+In these cases all the operations are local.
+
+.a1 "Gatewaying between Notesfiles and News"
+
+	The two notesfile programs ``newsoutput'' and ``newsinput''
+perform gatewaying between notesfile and news systems.
+Newsoutput takes notesfile-generated articles, formats them,
+and hands them to the news system.
+Newsinput takes articles from the news system and inserts
+them in the notesfile system.
+
+.a2 "Copying News to Notesfiles"
+
+	The news system maintains ``subscription lists'' for
+each neighboring system.
+The subscription list is stored in the file /usr/lib/news/sys
+on a B-news system.
+On an A-news system, the subscription list is in 
+/usr/spool/news/.sys
+
+	News feeds articles to neighboring systems as they 
+arrive.
+In many cases, the article is queued for transmission.
+In other cases, the article is given to a batching program
+which collects a number of articles for transfer
+and sends them to an appropriate un-batching program at
+the receiving end.
+
+	In the case where the notesfile system resides on another
+machine, the news subscription line should be generated similarly
+to that for a normal news feed with several exceptions.
+The first is that the newsinput program does not understand about
+batching; articles must be sent one at a time.
+Also, one must specify the method of transmitting the article.
+To feed the system ``somesite'' with news, the
+neighbor will add a line of the following form to his /usr/lib/news/sys:
+
+	somesite:subscription::uux - -n somesite!/usr/spool/notes/.utilities/newsinput
+
+Of course, networks other than UUCP can be used.
+
+	To forward to a notesfile system on the same machine as the
+news system, create a pseudo site which doesn't exist elsewhere
+(a sitename such as ``nf_sys'' works), and add a line like:
+
+	nf_sys:subscription::/usr/spool/notes/.utilities/newsinput
+
+Articles arriving at the local system will now be forwarded to
+the notesfile system.
+By default, news articles are placed in notesfiles with the
+same name.
+To map newsgroups to particular notesfiles, see the later
+section ``Naming Notesfiles and Newsgroups''.
+
+.a2 "Copying Notesfiles to News"
+
+	The newsoutput program transfers notesfile-generated
+articles from the notesfile system to a news system.
+The news system does not have to be on the same machine.
+
+	Newsoutput accepts parameters telling it to gateway
+articles from specific systems or any system.
+Additional options allow backwards compatible
+headers for older versions of the notesfile software.
+A typical newsoutput invocation looks like:
+
+	newsoutput -a notesfile-list
+
+The -a parameter indicates that notesfile generated articles
+from any site are to be sent to the news system.
+Under no circumstances will newsoutput transfer an article
+to the news system if it has passed through the news system
+before.
+Thus if a notes generated article passes from one notesfile
+subnetwork to another through the news system, the 
+article will not be sent into the news system by anyone in 
+the second notesfile subnetwork.
+
+	The ``notesfile-list'' can contain a mixture of
+specific notesfiles, wild-card specifications (net.*),
+or ``-f file'' parameters which specifies a file
+containing a list of notesfiles to send.
+
+	Alternatively, articles for only one system can be
+gatewayed with a command line of the form:
+
+	newsoutput -ssitename notesfile-list
+
+This invocation method maintains a sequencer for each system;
+the -a option maintains a single global sequencer.
+
+	A third invocation method of newsoutput uses the
+``-c'' option and specifies a specific set of systems to
+gateway articles for.  The command looks like:
+
+	newsoutput -c gateway-site-file notesfile-list
+
+The ``gateway-site-file'' specifies a file containing a list
+of sitenames.
+Articles written at any of these sites are gatewayed to the
+news system.
+Thus newsoutput has the ability to send articles to news
+for a single system, several systems, or any system.
+
+	Newsoutput assumes that a news system is installed
+on the local system.
+If the news system is in a non-standard location on the
+local system or
+the news system is on a different machine, newsoutput
+can be told where to send articles.
+The file /usr/spool/notes/.utilities/net.how contains
+command templates for notesfile networking.
+To specify a non-standard place for the ``rnews'' program,
+add a line of the form:
+
+	Usenet:x:::uux - -n myneighbor!/usr/bin/rnews
+
+Non-UUCP connections and the like can be specified.
+
+.a2 "Naming Notesfiles and Newsgroups"
+
+	Notesfiles and newsgroups for the same topic can have
+different names.
+Notesfiles are currently limited in the last component of
+their name to the length of a filename;
+under V7, System III, System V, and 4.1 Bsd this is 14
+characters.  4.2 Bsd extends the length of a filename
+to a maximum of 255 characters per component.
+Newsgroup names are no longer limited in total length;
+the only restriction in current news versions is
+that each component (between .'s) is unique in
+the first 14 characters.
+
+	The file ``/usr/spool/notes/.utilities/newsgroups''
+defines the relationships between notesfiles and newsgroups.
+Lines in the file have the general form:
+
+	notesfile:base_newsgroup:respone_newsgroup
+
+Lines beginning with the ``#'' character are considered
+comment lines.
+The ``response_newsgroup'' field and the colon separating
+it from the base_newsgroup field are optional.
+
+	Entries in this file need be made for only a few reasons:
+(1) The newsgroup which matches the notesfile is longer than fourteen
+characters,
+(2) the notesfile and the newsgroup are different names
+(e.g. the notesfile `Bnews' can be linked to the newsgroup `net.news.b'
+with an entry of `Bnews:net.news.b'),
+(3) you want several newsgroups linked to a single notesfile,
+and
+(4) notes and responses from a notesfile should go to
+different newsgroups (net.general/net.followup is one example).
+The file is scanned from the beginning until EOF or a match is found.
+When no match is found, the code returns the original argument as if
+it had matched itself.
+The process is similar to having placed a sentinel line of the
+form:
+
+	myarg:myarg
+
+at the end of the file.
+
+	The optional third field in the line is used to send 
+notes and responses from a notesfile to separate newsgroups.
+The net.general/net.followup convention is an example of
+how this would be used.
+Typically the net.general and net.followup newsgroups are
+mapped into the same notesfile.
+To preserve peace with news users, responses written in a
+notesfile `net.general' should go to the newsgroup `net.followup'.
+The following pair of lines will map all news from net.general
+and net.followup into the notesfile net.general. 
+Base notes from the notesfile net.general will go to the newsgroup
+net.general;
+responses in the net.general notesfile will be sent to
+the net.followup newsgroup.
+
+.nf
+	net.general:net.general:net.followup
+	net.general:net.followup
+.fi
+
+The first line maps news in net.general to the notesfile net.general.
+It also does the mapping from notesfiles to newsgroups.
+The second line maps news from net.followup into the notesfile
+net.general.
+Note that the response field is not used in the mapping from
+newsgroups to notesfiles; it is used only for mapping notesfile
+responses into a different newsgroup.
+
+	To map several newsgroups into the same notesfile, 
+place lines of the following form in the ``newsgroups'' file:
+
+.nf
+	somenotesfile:newsgroup1
+	somenotesfile:newsgroup2
+.fi
+
+If you wish to have articles from the notesfile ``somenotesfile''
+go to both of the newsgroups, insert a line before the above lines
+to map articles going to notesfiles.
+The result would look like:
+
+.nf
+	somenotesfile:newsgroup1,newsgroup2
+	somenotesfile:newsgroup1
+	somenotesfile:newsgroup2
+.fi
+
+The first line is the one used for articles going from notesfiles
+to news; the newsgroups specification ``newsgroup1,newsgroup2''
+is used on those articles.
+Articles coming from the newsgroup ``newsgroup1'' will fail to
+match the first line, since the program expects exact matching.
+They will match the second line and be mapped to the 
+notesfile ``somenotesfile''.
+
+.a1 "Typical Configurations"
+
+	A typical notesfile subnetwork contains a number of
+pure notesfile sites and several sites running both news and
+notesfiles.
+In these situations, some subset of the sites running
+both notes and news
+act as gateway sites.
+The pure notesfile sites don't concern themselves with 
+gateway operations.
+The gateway sites typically gateway all notes-generated
+articles to news.
+Duplicate articles, gatewayed at several sites,
+will propogate across the news network.
+When two or more of these articles meet at some site, the
+superflous copy will be removed from the network.
+
+	If none of the sites in the notesfile subnetwork
+run the news program,
+the gateway site will be one or more of the sites having
+neighbors that do run news.
+These gateway sites will run newsoutput and direct the
+output to the news site by making the appropriate
+entry in /usr/spool/notes/.utilities/net.how
+for the pseudo-site ``Usenet''.
+
+.a1 "News Gateway Installation Checklist"
+
+	The following checklist covers the variables in the
+``newsgate.h'' file which may need to be changed on your system.
+It also mentions which files to modify to automate the transfer
+of articles between the two systems.
+
+.bz
+.iz
+[edit] src/newsgate.h
+.iz
+MYDOMAIN.
+This should be set to the domain your site is in.
+Typical domains are ``UUCP'' and ``ARPA''.
+.iz
+DFLTRNEWS.
+The news receiving program. 
+This can normally be left as is;
+alternate news insertion methods can be specified
+with more flexibility through the net.how file.
+.iz
+EXPANDPATH.
+If defined, the code looks in the file specified
+by PATHMAP for a route to an author's system.
+The code which does this is in ``src/newspath.c''
+and expects a particular format in the PATHMAP 
+file.
+You may wish to replace it with code of your own if
+your data base is in a different format.
+.iz
+PATHMAP.
+This is the full pathname of the routing tables
+used if EXPANDPATH is defined.
+.iz
+[finished editing] src/newsgate.h
+.iz
+make newsouput newsinput.
+This will recompile the notesfile/news gateway programs.
+.iz
+Check /usr/lib/news/sys
+to see that news will be forwarded to the notesfile system.
+.iz
+Make entries in /usr/lib/crontab to
+invoke newsoutput occcasionally.
+We use every 6 hours.
+.iz
+If the news system is on another machine or in a non-standard
+place,
+modify 
+/usr/spool/notes/.utilities/net.how.
+Add a pseudo-site ``Usenet'' which specifies how to
+get to the remote machine.  One example is:
+.br
+	Usenet:x:::uux - -z neighbor!/usr/bin/rnews
+.iz
+Check /usr/spool/notes/.utilities/newsgroups.
+A sample of how this file will look is included in the
+``Samples'' directory of the distribution.
+.iz
+Everything should be configured now.
+You will probably want to run several tests on local
+or limited distribution newsgroups to satisfy yourself
+that it works.
+.ez

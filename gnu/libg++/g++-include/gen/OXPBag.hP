@@ -1,0 +1,73 @@
+#ifndef _<T>OXPBag_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>OXPBag_h 1
+
+#include "<T>.Bag.h"
+#include "<T>.XPlex.h"
+
+class <T>OXPBag : public <T>Bag
+{
+protected:
+  <T>XPlex       p;
+
+public:
+                <T>OXPBag(int chunksize = DEFAULT_INITIAL_CAPACITY);
+                <T>OXPBag(const <T>OXPBag&);
+
+  Pix           add(<T&> item);
+  void          del(<T&> item);
+#undef remove
+  void          remove(<T&>item);
+  int           nof(<T&> item);
+  int           contains(<T&> item);
+
+  void          clear();
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          operator () (Pix i);
+  int           owns(Pix i);
+  Pix           seek(<T&> item, Pix from = 0);
+
+  int           OK();
+};
+
+
+inline <T>OXPBag::<T>OXPBag(int chunksize) 
+     : p(chunksize) { count = 0; }
+
+inline <T>OXPBag::<T>OXPBag(const <T>OXPBag& s) : p(s.p) { count = s.count; }
+
+inline Pix <T>OXPBag::first()
+{
+  return p.first();
+}
+
+inline void <T>OXPBag::next(Pix  & idx)
+{
+  p.next(idx);
+}
+
+inline <T>& <T>OXPBag::operator ()(Pix   idx)
+{
+  return p(idx);
+}
+
+inline void <T>OXPBag::clear()
+{
+  count = 0;  p.clear();
+}
+
+inline int <T>OXPBag::owns (Pix   idx)
+{
+  return p.owns(idx);
+}
+
+inline int <T>OXPBag::contains(<T&> item)
+{
+  return seek(item) != 0;
+}
+
+#endif

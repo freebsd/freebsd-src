@@ -1,0 +1,46 @@
+.\"	merge.1,v 1.2 1993/08/02 17:51:22 mycroft Exp	-*- nroff -*-
+.TH MERGE 1 6/29/83 "Purdue University"
+.SH NAME
+merge \- three-way file merge
+.SH SYNOPSIS
+\fBmerge\fR [ \fB-p\fR ] file1 file2 file3
+.SH DESCRIPTION
+.I Merge
+incorporates all changes that lead from \fIfile2\fR to \fIfile3\fR into 
+\fIfile1\fR. The result goes to std. output if \fB-p\fR is present, into 
+\fIfile1\fR otherwise. \fIMerge\fR is useful for combining separate changes 
+to an original. Suppose \fIfile2\fR is the original, and both \fIfile1\fR 
+and \fIfile3\fR are modifications of \fIfile2\fR. Then \fImerge\fR 
+combines both changes. 
+.PP
+An overlap occurs if both \fIfile1\fR and \fIfile3\fR
+have changes in a common segment of lines.
+\fIMerge\fR prints how many overlaps occurred, and includes both alternatives
+in the result. The alternatives are delimited as follows:
+.sp
+.nf
+        <<<<<<< file1
+        lines in file1
+        =======
+        lines in file3
+        >>>>>>> file3
+.fi
+.sp
+If there are overlaps, the user should edit the result and delete one of the
+alternatives.
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:22
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+diff3 (1), diff (1), rcsmerge (1), co (1).

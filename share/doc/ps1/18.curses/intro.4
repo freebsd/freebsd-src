@@ -1,0 +1,250 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)intro.4	6.3 (Berkeley) 4/17/91
+.\"	intro.4,v 1.2 1993/08/01 07:37:53 mycroft Exp
+.\"
+.sh 1 "Cursor Motion Optimization: Standing Alone"
+.pp
+It is possible to use the cursor optimization functions of this screen package
+without the overhead and additional size of the screen updating functions.
+The screen updating functions are designed for uses
+where parts of the screen are changed,
+but the overall image remains the same.
+This includes such programs as
+.b rogue
+and
+.b vi \**.
+.(f
+\**
+.b rogue
+actually uses these functions,
+.b vi
+does not.
+.)f
+Certain other programs
+will find it difficult to use these functions in this manner
+without considerable unnecessary program overhead.
+For such applications,
+such as some
+.q "\fIcrt hacks\fR\|" \**
+.(f
+\**
+Graphics programs designed to run on character-oriented terminals.
+I could name many,
+but they come and go,
+so the list would be quickly out of date.
+Recently, there have been programs such as
+.b rain ,
+.b rocket ,
+and
+.b gun .
+.)f
+and optimizing
+.b more (1)-type
+programs,
+all that is needed is the motion optimizations.
+This, therefore, is a description
+of what some of what goes on at the lower levels of this screen package.
+The descriptions assume a certain amount of familiarity
+with programming problems and some finer points of C.
+None of it is terribly difficult,
+but you should be forewarned.
+.sh 2 "Terminal Information"
+.pp
+In order to use a terminal's
+features to the best of a program's abilities,
+it must first know what they are\**.
+.(f
+\**
+If this comes as any surprise to you,
+there's this tower in Paris they're thinking of junking
+that I can let you have for a song.
+.)f
+The \*(tc \*(db describes these,
+but a certain amount of decoding is necessary,
+and there are, of course,
+both efficient and inefficient ways of reading them in.
+The algorithm that the uses is taken from
+.b vi
+and is hideously efficient.
+It reads them
+in a tight loop
+into a set of variables
+whose names are two uppercase letters with some mnemonic value.
+For example,
+.Vn HO
+is a string which moves the cursor to the "home" position\**.
+.(f
+\**
+These names are identical to those variables
+used in the
+.b termcap (5)
+\*(db to describe each capability.
+See Appendix A for a complete list of those read,
+and the
+.b termcap (5)
+manual page
+for a full description.
+.)f
+As there are two types of variables involving ttys,
+there are two routines.
+The first,
+.Fn gettmode ,
+sets some variables based upon the tty modes accessed by
+.b gtty (2)
+and
+.b stty (2) .
+The second,
+.Fn setterm ,
+a larger task by reading in the descriptions from the \*(tc \*(db.
+This is the way these routines are used by
+.Fn initscr :
+.(b
+.(l I
+\*fif\fP (isatty(0)) {
+       gettmode();
+       \*fif\fP ((sp=getenv("TERM")) != NULL)
+               setterm(sp);
+	\*felse\fP
+	       setterm(Def\*_term);
+}
+\*felse\fP
+       setterm(Def\*_term);
+\*_puts(TI);
+\*_puts(VS);
+.)l
+.)b
+.pp
+.Fn isatty
+checks to see if file descriptor 0 is a terminal\**.
+.(f
+\**
+.Fn isatty
+is defined in the default C library function routines.
+It does a
+.b gtty (2)
+on the descriptor and checks the return value.
+.)f
+If it is,
+.Fn gettmode
+sets the terminal description modes from a
+.b gtty (2) .
+.Fn getenv
+is then called to get the name of the terminal,
+and that value (if there is one) is passed to
+.Fn setterm ,
+which reads in the variables from \*(tc
+associated with that terminal.
+.Fn getenv "" (
+returns a pointer to a string containing the name of the terminal,
+which we save in the character pointer
+.Vn sp .)
+If
+.Fn isatty
+returns false,
+the default terminal
+.Vn Def\*_term
+is used.
+The
+.Vn TI
+and
+.Vn VS
+sequences initialize the terminal
+.Fn \*_puts "" (
+is a macro which uses
+.Fn tputs
+(see
+.b termcap (3))
+and 
+.Fn \*_putchar ""
+to put out a string).
+.Fn endwin
+undoes these things.
+.sh 2 "Movement Optimizations, or, Getting Over Yonder"
+.pp
+Now that we have all this useful information,
+it would be nice to do something with it\**.
+.(f
+\**
+Actually,
+it
+.i can
+be emotionally fulfilling just to get the information.
+This is usually only true, however,
+if you have the social life of a kumquat.
+.)f
+The most difficult thing to do properly is motion optimization.
+When you consider how many different features various terminals have
+(tabs, backtabs, non-destructive space, home sequences, absolute tabs, .....)
+you can see that deciding how to get from here to there
+can be a decidedly non-trivial task.
+The editor
+.b vi
+uses many of these features,
+and the routines it uses to do this take up many pages of code.
+Fortunately, I was able to liberate them with the author's permission,
+and use them here.
+.pp
+After using
+.Fn gettmode
+and
+.Fn setterm
+to get the terminal descriptions,
+the function
+.Fn mvcur
+deals with this task.
+It usage is simple:
+you simply tell it where you are now and where you want to go.
+For example
+.(l
+mvcur(0\*,0\*,LINES/2\*,COLS/2)
+.)l
+.lp
+would move the cursor from the home position (0\*,0)
+to the middle of the screen.
+If you wish to force absolute addressing,
+you can use the function
+.Fn tgoto
+from the
+.b termlib (7)
+routines,
+or you can tell
+.Fn mvcur
+that you are impossibly far away,
+like Cleveland.
+For example,
+to absolutely address the lower left hand corner of the screen
+from anywhere
+just claim that you are in the upper right hand corner:
+.(l
+mvcur(0\*,COLS\-1\*,LINES\-1\*,0)
+.)l

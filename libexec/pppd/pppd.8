@@ -1,0 +1,281 @@
+.\" manual page v0.4 [3/3/93] for pppd 1.2beta
+.\" SH section heading
+.\" SS subsection heading
+.\" LP paragraph
+.\" IP indented paragraph
+.\" TP hanging label
+.TH PPPD 8
+.SH NAME
+pppd \- Point to Point Protocol daemon
+.SH SYNOPSIS
+.B pppd
+[
+.I option
+]
+.B tty_name speed
+[
+.I local_IP_address
+]:[
+.I remote_IP_address
+]
+.SH DESCRIPTION
+.LP
+The Point-to-Point Protocol (PPP) provides a method for transmitting
+datagrams over serial point-to-point links. 
+.I pppd
+is composed of three parts:
+.TP
+1. A method for encapsulating datagrams over serial links.
+.TP
+2. An extensible Link Control Protocol (LCP).
+.TP
+3. A family of Network Control Protocols (NCP) for establishing
+and configuring different network-layer protocols.
+.LP
+.I pppd
+currently supports the encapsulation scheme, the basic LCP, and an
+NCP for establishing and configuring the Internet Protocol (IP)
+(called the IP Control Protocol, IPCP).
+.SH OPTIONS
+.TP
+.B -all
+Don't request/allow any options
+.TP
+.B -ac
+Disable Address/Control compression negotiation
+.TP
+.B -am
+Disable asyncmap negotiation
+.TP
+.B -as <n>
+Set the desired async map to hex <n>.  The default async map is 0xffffffff.
+.TP
+.B -d
+Increase debugging level
+.TP
+.B -detach
+Don't fork to become a background process
+.TP
+.B -ip
+Disable IP address negotiation
+.TP
+.B -mn
+Disable magic number negotiation
+.TP
+.B -mru
+Disable MRU [Maximum Receive Unit] negotiation
+.TP
+.B -p
+Set passive mode
+.TP
+.B -pc
+Disable protocol field compression negotiation
+.TP
+.B +ua <p>
+Require UPAP [User/Password Authentication Protocol] authentication.
+Use the data in file <p> for the user and password to send to the
+peer. The file contains the remote user name, followed by a newline,
+followed by the remote password.
+.TP
+.B -ua
+Don't allow UPAP authentication
+.TP
+.B +chap
+Require CHAP [Cryptographic Handshake Authentication Protocol] authentication.
+Use the data in file /usr/local/etc/ppp/chap, which contains
+host name/secret pairs separated by newlines, to authenticate the peer.
+In the data file, a host name of "default" will match any host name
+not already specified in the file.
+.TP
+.B -chap
+Don't allow CHAP authentication
+.TP
+.B asyncmap <map>
+Set the async character map to <map>.
+This map describes which control characters to "escape" in the serial data
+stream.
+The argument is a 32 bit hex number represented as 8 hex characters,
+with each bit representing a character to escape.  
+The lowest bit (i.e. 00000001) represents the character 0x00
+The highest bit (i.e. 80000000) represents the character 0x1f or ^_.  
+.TP
+.B connect <p>
+Use the executable or shell command specified by <p> to set-up the
+serial line.  This script would typically use the "chat" program to
+dial the modem and start the remote ppp session.
+.TP
+.B crtscts
+Use hardware flow control (i.e. RTS/CTS) to control the flow of data on
+the serial port.
+.TP
+.B debug
+Increase debugging level
+.TP
+.B domain <d>
+Append the domain name <d> to the local host name for authentication
+purposes.  I.e., if gethostname() returns the name porsche, but the
+fully qualified domain name is porsche.Quotron.COM, you would use the
+domain option to set the domain name to Quotron.COM.
+.TP
+.B mru <n>
+Set MRU value to <n> for negotiation.  The minimum MRU value is 128.
+The default MRU value is 1500.
+.TP
+.B netmask <n>
+Set the interface netmask to <n>, a 32 bit netmask in "decimal dot notation"
+(i.e. 255.255.255.0).
+.TP
+.B passive
+Set passive mode; Don't send LCP configure requests. Sets initial state to
+"listen".
+.TP
+.B vjmode <m>
+Specifies which version of IPCP Van Jacobson Compression negotiation
+to use. Specify
+.I old
+for <m> to have backward compatibility with early versions of
+.I pppd
+which operated "incorrectly" when negotiating Compression-Type due to a
+typographical error in the RFC.
+.I pppd
+(4.1, patch level 4 and later)
+have this problem corrected but to allow interoperability with older versions
+you can force this "incorrect" behavior.  Specify
+.I rfc1172
+for <m> to use the RFC1172 value for negotiation.  To use the
+new version of negotiation specified in RFC1132 for
+IPCP (the default), specify
+.I rfc1132
+for <m>.
+.TP
+.B -vj
+This disables the use of Van Jacobson style IP header compression
+altogether.  
+.TP
+.B <tty_name>
+Communicate over the named device
+.TP
+.B <speed>
+Set the baud rate to <speed>
+.TP
+.B <local_IP_address>:<remote_IP_address>
+Set the local and/or remote interface IP addresses.  Either one may be omitted.
+\".SH EXAMPLES
+\".SH FILES
+.SH SEE ALSO
+.TP
+.B RFC1144
+Jacobson, V.
+.I Compressing TCP/IP headers for low-speed serial links.
+1990 February.
+.TP
+.B RFC1171
+Perkins, D.
+.I Point\-to\-Point Protocol for the transmission of multi\-protocol
+.I datagrams over Point\-to\-Point links.
+1990 July.
+.TP
+.B RFC1172
+Perkins, D.; Hobby, R.
+.I Point\-to\-Point Protocol (PPP) initial configuration options.
+1990 July.
+.TP
+.B RFC1331
+Simpson, W.
+.I The Point\-to\-Point Protocol (PPP) for the Transmission of Multi-protocol
+.I Datagrams over Point\-to\-Point Links
+1992 May.
+.TP
+.B RFC1332
+McGregor, G.
+.I The PPP Internet Protocol Control Protocol (IPCP).
+1991 August.
+.TP
+.B RFC1333
+Simpson, W.
+.I PPP Link Quality Monitoring
+1992 May.
+.TP
+.B Internet Draft
+Lloyd, B.; Simpson, W.
+.I PPP Authentication Protocols.
+1991 November.
+.TP
+.B Internet Draft
+Rivest, R.
+.I The MD5 Message-Digest Algorithm.
+1991 July.
+.SH DIAGNOSTICS
+.LP
+There is, currently, only one level of debugging available.  Debugging is
+enabled by setting the -d or debug flag on the command line.  Debugging may
+also be enabled after
+.I pppd
+is running by sending a SIGUSR1 to the
+.I pppd
+process.
+Debugging may be disabled by sending a SIGUSR2 to the
+.I pppd
+process.
+.LP
+Error and warning messages are sent to the syslog daemon using facility
+LOG_DAEMON unless
+.I pppd
+has been compiled with debugging code.  In this case the logging
+facility used will be LOG_LOCAL2 in order to allow separation of the debug
+output from the other daemons using the  LOG_DAEMON facility.  You can
+override this by defining the macro LOG_PPP to the desired facility
+and recompiling.  In order to see the error and debug messages, you
+will need to edit your /etc/syslog.conf file to direct the messages to
+the desired output device or file.
+.LP
+Debugging is currently available for 
+.I fsm.c
+\- the {Link, IP} Control Protocol Finite State Machine module;
+.I lcp.c
+\- the PPP Link Control Protocol module;
+.I ipcp.c
+\- the PPP IP Control Protocol module;
+.I upap.c
+\- the User/Password Authentication Protocol module;
+and
+.I chap.c
+\- the Challenge Handshake Authentication Protocol module.
+.SH NOTES
+The following signals have the specified effect when sent to the
+.I pppd
+process.
+.TP
+.B SIGINT
+This signal is normally generated by a Ctrl-C or DEL.
+Causes
+.I pppd
+to initiate a graceful disconnect and exit.
+.I pppd
+will adjust the timeouts and close the connection.
+.TP
+.B SIGTERM
+Causes 
+.I pppd
+to initiate a graceful disconnect and exit.
+.I pppd
+will adjust the timeouts and close the connection.
+.TP
+.B SIGHUP
+Indicates that the physical layer has been disconnected.  You will
+probably see "Bad file number" errors in the log output due to the way
+the STREAMS-based tty driver handles a hangup.  You can ignore
+these errors in this case.
+.I pppd
+will adjust the timeouts and reset the connection.
+.SH BUGS
+Note that sections the current implementation of
+.I pppd
+ are based on older RFCs and draft RFCs and may not be fully
+compatible with the latest draft RFC versions.
+.SH AUTHORS
+Drew Perkins,
+Brad Clements,
+Karl Fox,
+Greg Christy,
+Brad Parker (brad@fcr.com)

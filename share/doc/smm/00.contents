@@ -1,0 +1,177 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)00.contents	5.3 (Berkeley) 4/17/91
+.\"
+.OH '''SMM Contents'
+.EH 'SMM Contents'''
+.TL
+UNIX System Manager's Manual (SMM)
+.sp
+\s-24.3 Berkeley Software Distribution, Virtual \s-2VAX\s+2\-11 Version\s+2
+.sp
+\fRApril, 1986\fR
+.PP
+This volume contains manual pages and supplementary documents useful to system
+administrators.
+The information in these documents applies to
+the Virtual \s-2VAX\s0-11 version of the system as distributed by U.C.
+Berkeley.
+.SH
+Reference Manual \- Section 8
+.tl '''(8)'
+.IP
+Section 8 of the UNIX Programmer's Manual contains information related to
+system operation, administration,  and maintenance.
+.SH
+System Installation and Administration
+.IP
+.tl 'Installing and Operating 4.3BSD on the VAX''SMM:1'
+.QP
+The definitive reference document for those occasions when
+you find you need to start over again.
+
+.IP
+.tl 'Building 4.3BSD UNIX Systems with \fIConfig\fP''SMM:2'
+.QP
+In-depth discussions of the use and operation of the \fIconfig\fP
+program, and how to build your very own Unix kernel.
+
+.IP
+.tl 'Using ADB to Debug the Kernel''SMM:3'
+.QP
+Techniques for figuring out after the fact why the kernel crashed.
+
+.IP
+.tl 'Disc Quotas in a UNIX Environment''SMM:4'
+.QP
+A light introduction to the techniques
+for limiting the use of disc resources.
+
+.IP
+.tl 'Fsck \- The UNIX File System Check Program''SMM:5'
+.QP
+A reference document for using the \fIfsck\fP program during
+times of file system distress.
+
+.IP
+.tl 'Line Printer Spooler Manual''SMM:6'
+.QP
+This document describes the structure and installation procedure
+for the line printer spooling system.  
+
+.IP
+.tl 'Sendmail Installation and Operation Guide''SMM:7'
+.QP
+The last word in installing and operating the \fIsendmail\fP program.
+
+.IP
+.tl 'Timed Installation and Operation Guide''SMM:8'
+.QP
+Describes how to maintain time synchronization between machines
+in a local network.
+
+.IP
+.tl 'UUCP Implementation Description''SMM:9'
+.QP
+Describes the implementation of uucp; for the installer and administrator.
+
+.IP
+.tl 'USENET Version B Installation''SMM:10'
+.QP
+How to install and maintain the News system.
+
+.IP
+.tl 'Name Server Operations Guide''SMM:11'
+.QP
+If you have a network this will be of interest.
+
+.SH
+Supporting Documentation
+
+.IP
+.tl 'Bug Fixes and Changes in 4.3BSD''SMM:12'
+.QP
+This document summarizes changes visible to the user accustomed to 4.2BSD.
+
+.IP
+.tl 'Changes to the Kernel in 4.3BSD''SMM:13'
+.QP
+A summary for the hard-core of changes in the kernel from 4.2BSD to 4.3BSD.
+
+.IP
+.tl 'A Fast File System for UNIX''SMM:14'
+.QP
+A description of the 4.2BSD file system organization, design and implementation.
+
+.IP
+.tl '4.3BSD Networking Implementation Notes''SMM:15'
+.QP
+A concise description of the system interfaces used within the
+networking subsystem.
+
+.IP
+.tl 'Sendmail \- An Internetwork Mail Router''SMM:16'
+.QP
+An overview document on the design and implementation of \fIsendmail\fP.
+
+.IP
+.tl 'On the Security of UNIX''SMM:17'
+.QP
+Hints on how to break UNIX, and how to avoid your system being broken.
+
+.IP
+.tl 'Password Security \- A Case History''SMM:18'
+.QP
+How the bad guys used to be able to break the password algorithm, and why
+they cannot now (at least not so easily).
+
+.IP
+.tl 'A Tour Through the Portable C Compiler''SMM:19'
+.QP
+How the portable C compiler works inside.  
+
+.IP
+.tl 'Writing NROFF Terminal Descriptions''SMM:20'
+.QP
+A description of how to add a printer with new characteristics
+to Version 7 \fInroff\fP.
+
+.IP
+.tl 'A Dial\-Up Network of UNIX Systems''SMM:21'
+.QP
+Describes UUCP, a program for communicating files between UNIX systems.
+
+.IP
+.tl 'The Berkeley UNIX Time Synchronization Protocol''SMM:22'
+.QP
+The protocols and algorithms used by timed,
+the network time synchronization daemon.

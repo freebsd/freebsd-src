@@ -1,0 +1,26 @@
+.\" Undo the effect of tmac.psold.  This gives access to the additional
+.\" characters that are present in the text fonts of newer PostScript
+.\" printers.  It is a bad idea to use this if you are going to
+.\" distribute the resulting PostScript output to others.
+.nr _C \n(.C
+.cp 0
+.rchar \('y\('Y\(12\(14\(34\(S1\(S2\(S3\(bb\(de\(Tp\(TP\(-D\(Sd
+.tr \[char166]\[char166]
+.tr \[char176]\[char176]
+.tr \[char177]\[char177]
+.tr \[char178]\[char178]
+.tr \[char179]\[char179]
+.tr \[char181]\[char181]
+.tr \[char185]\[char185]
+.tr \[char188]\[char188]
+.tr \[char189]\[char189]
+.tr \[char190]\[char190]
+.tr \[char208]\[char208]
+.tr \[char215]\[char215]
+.tr \[char221]\[char221]
+.tr \[char222]\[char222]
+.tr \[char240]\[char240]
+.tr \[char247]\[char247]
+.tr \[char253]\[char253]
+.tr \[char254]\[char254]
+.cp \n(_C

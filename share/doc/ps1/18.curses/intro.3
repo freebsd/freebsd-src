@@ -1,0 +1,231 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)intro.3	6.3 (Berkeley) 4/17/91
+.\"	intro.3,v 1.2 1993/08/01 07:37:54 mycroft Exp
+.\"
+.sh 1 Usage
+.pp
+This is a description of how to actually use the screen package.
+In it, we assume all updating, reading, etc.
+is applied to
+.Vn stdscr .
+All instructions will work on any window,
+with changing the function name and parameters as mentioned above.
+.sh 2 "Starting up"
+.pp
+In order to use the screen package,
+the routines must know about terminal characteristics,
+and the space for
+.Vn curscr
+and
+.Vn stdscr
+must be allocated.
+These functions are performed by
+.Fn initscr .
+Since it must allocate space for the windows,
+it can overflow core when attempting to do so.
+On this rather rare occasion,
+.Fn initscr
+returns ERR.
+.Fn initscr
+must
+.bi always
+be called before any of the routines which affect windows are used.
+If it is not,
+the program will core dump as soon as either
+.Vn curscr
+or
+.Vn stdscr
+are referenced.
+However, it is usually best to wait to call it
+until after you are sure you will need it,
+like after checking for startup errors.
+Terminal status changing routines
+like
+.Fn nl
+and
+.Fn cbreak
+should be called after
+.Fn initscr .
+.pp
+Now that the screen windows have been allocated,
+you can set them up for the run.
+If you want to, say, allow the window to scroll,
+use
+.Fn scrollok .
+If you want the cursor to be left after the last change, use
+.Fn leaveok .
+If this isn't done,
+.Fn refresh
+will move the cursor to the window's current \*y after updating it.
+New windows of your own can be created, too, by using the functions
+.Fn newwin
+and
+.Fn subwin .
+.Fn delwin
+will allow you to get rid of old windows.
+If you wish to change the official size of the terminal by hand,
+just set the variables
+.Vn LINES
+and
+.Vn COLS
+to be what you want,
+and then call
+.Fn initscr .
+This is best done before,
+but can be done either before or after,
+the first call to
+.Fn initscr ,
+as it will always delete any existing
+.Vn stdscr
+and/or
+.Vn curscr
+before creating new ones.
+.pp
+.sh 2 "The Nitty-Gritty"
+.sh 3 Output
+.pp
+Now that we have set things up,
+we will want to actually update the terminal.
+The basic functions
+used to change what will go on a window are
+.Fn addch
+and
+.Fn move .
+.Fn addch
+adds a character at the current \*y,
+returning ERR if it would cause the window to illegally scroll,
+.i i.e. ,
+printing a character in the lower right-hand corner
+of a terminal which automatically scrolls
+if scrolling is not allowed.
+.Fn move
+changes the current \*y to whatever you want them to be.
+It returns ERR if you try to move off the window when scrolling is not allowed.
+As mentioned above, you can combine the two into
+.Fn mvaddch
+to do both things in one fell swoop.
+.pp
+The other output functions,
+such as
+.Fn addstr
+and
+.Fn printw ,
+all call
+.Fn addch
+to add characters to the window.
+.pp
+After you have put on the window what you want there,
+when you want the portion of the terminal covered by the window
+to be made to look like it,
+you must call
+.Fn refresh .
+In order to optimize finding changes,
+.Fn refresh
+assumes that any part of the window not changed
+since the last
+.Fn refresh
+of that window has not been changed on the terminal,
+.i i.e. ,
+that you have not refreshed a portion of the terminal
+with an overlapping window.
+If this is not the case,
+the routines
+.Fn touchwin ,
+.Fn touchline ,
+and
+.Fn touchoverlap
+are provided to make it look like a desired part of window has been changed,
+thus forcing
+.Fn refresh
+check that whole subsection of the terminal for changes.
+.pp
+If you call
+.Fn wrefresh
+with
+.Vn curscr ,
+it will make the screen look like
+.Vn curscr
+thinks it looks like.
+This is useful for implementing a command
+which would redraw the screen in case it get messed up.
+.sh 3 Input
+.pp
+Input is essentially a mirror image of output.
+The complementary function to
+.Fn addch
+is
+.Fn getch
+which,
+if echo is set,
+will call
+.Fn addch
+to echo the character.
+Since the screen package needs to know what is on the terminal at all times,
+if characters are to be echoed,
+the tty must be in raw or cbreak mode.
+If it is not,
+.Fn getch
+sets it to be cbreak,
+and then reads in the character.
+.sh 3 Miscellaneous
+.pp
+All sorts of fun functions exists for maintaining and changing information
+about the windows.
+For the most part,
+the descriptions in section 5.4. should suffice.
+.sh 2 "Finishing up"
+.pp
+In order to do certain optimizations,
+and,
+on some terminals,
+to work at all,
+some things must be done
+before the screen routines start up.
+These functions are performed in
+.Fn getttmode
+and
+.Fn setterm ,
+which are called by
+.Fn initscr .
+In order to clean up after the routines,
+the routine
+.Fn endwin
+is provided.
+It restores tty modes to what they were
+when
+.Fn initscr
+was first called.
+Thus,
+anytime after the call to initscr,
+.Fn endwin
+should be called before exiting.

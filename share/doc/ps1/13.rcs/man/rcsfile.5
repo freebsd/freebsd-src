@@ -1,0 +1,144 @@
+.\"	rcsfile.5,v 1.2 1993/08/02 17:51:25 mycroft Exp	-*- nroff -*-
+.TH RCSFILE 5 6/29/83 "Purdue University"
+.SH NAME
+rcsfile \- format of RCS file
+.SH DESCRIPTION
+An RCS file is an ASCII file. Its contents is described by the grammar
+below. The text is free format, i.e., spaces, tabs and new lines have
+no significance except in strings. Strings are enclosed by `@'.
+If a string contains a `@', it must be doubled.
+.PP
+The meta syntax uses the following conventions: `|' (bar) separates
+alternatives; `{' and `}' enclose optinal phrases; `{' and `}*' enclose
+phrases that may be repeated zero or more times;
+`{' and '}+' enclose phrases that must appear at least once and may be
+repeated;
+`<' and `>' enclose nonterminals.
+.PP
+.ta 1.5i 2.0i 3i
+.fc ~
+.nf
+
+ 
+<rcstext>  ~~::=~~<admin> {<delta>}* <desc> {<deltatext>}*
+           
+<admin>    ~~::=~~\fBhead\fR     ~~{<num>};
+           ~~   ~~\fBaccess\fR   ~~{<id>}*;
+           ~~   ~~\fBsymbols\fR  ~~{<id> : <num>}*;  
+           ~~   ~~\fBlocks\fR    ~~{<id> : <num>}*;
+           ~~   ~~\fBcomment\fR  ~~{<string>};
+           
+<delta>    ~~::=~~<num>
+           ~~   ~~\fBdate\fR     ~~<num>;
+           ~~   ~~\fBauthor\fR   ~~<id>;
+           ~~   ~~\fBstate\fR    ~~{<id>};
+           ~~   ~~\fBbranches\fR ~~{<num>}*;
+           ~~   ~~\fBnext\fR     ~~{<num>};
+           
+<desc>     ~~::=~~\fBdesc\fR     ~~<string>
+
+<deltatext>~~::=~~<num>   
+           ~~   ~~\fBlog\fR      ~~<string>
+           ~~   ~~\fBtext\fR     ~~<string>
+
+
+<num>      ~~::=~~{<digit>{.}}+
+             
+<digit>    ~~::=~~0 | 1 | ... | 9
+             
+<id>       ~~::=~~<letter>{<idchar>}*
+
+<letter>   ~~::=~~A | B | ... | Z | a | b | ... | z
+
+<idchar>   ~~::=~~Any printing ASCII character except space,
+           ~~   ~~tab, carriage return, new line, and <special>.
+
+<special>  ~~::=~~; | : | , | @
+
+<string>   ~~::=~~@{any ASCII character, with `@' doubled}*@
+
+.fi
+.PP
+Identifiers are case sensitive. Keywords are in lower case only.
+The sets of keywords and identifiers may overlap.
+.PP
+The <delta> nodes form a tree. All nodes whose numbers
+consist of a single pair
+(e.g., 2.3, 2.1, 1.3, etc.)
+are on the "trunk", and are linked through the "next"
+field in order of decreasing numbers. The "head" field in the
+<admin> node points to the head of that sequence (i.e., contains
+the highest pair). 
+.PP
+All <delta> nodes whose numbers consist of 2n fields (n\(>=2)
+(e.g., 3.1.1.1, 2.1.2.2, etc.)
+are linked as follows. All nodes whose first (2n)-1 number fields are identical
+are linked through the "next" field in order of increasing numbers.
+For each such sequence, 
+the <delta> node whose number is identical to the first 
+2(n-1) number fields of the deltas on that sequence is called the branchpoint.
+The "branches" field of a node contains a list of the
+numbers of the first nodes of all sequences for which it is a branchpoint.
+This list is ordered in increasing numbers.
+.PP
+Example:
+.nf
+.vs 12pts
+.cs 1 20
+                                    Head
+                                      |
+                                      |
+                                      v
+                                  ---------
+            / \\          / \\      |       |      / \\           / \\     
+           /   \\        /   \\     |  2.1  |     /   \\         /   \\
+          /     \\      /     \\    |       |    /     \\      /       \\
+         /1.2.1.3\\    /1.3.1.1\\   |       |   /1.2.2.2\\   /1.2.2.1.1.1\\
+         ---------    ---------   ---------   ---------   -------------
+             ^            ^           |           ^             ^
+             |            |           |           |             |
+             |            |           v           |             |
+            / \\           |       ---------      / \\            |
+           /   \\          |       \\  1.3  /     /   \\           |
+          /     \\         ---------\\     /     /     \\-----------
+         /1.2.1.1\\                  \\   /     /1.2.2.1\\           
+         ---------                   \\ /      --------- 
+             ^                        |           ^     
+             |                        |           |     
+             |                        v           |     
+             |                    ---------       |     
+             |                    \\  1.2  /       |     
+             ----------------------\\     /---------     
+                                    \\   /               
+                                     \\ /                
+                                      |                 
+                                      |                 
+                                      v                 
+                                  ---------             
+                                  \\  1.1  /             
+                                   \\     /              
+                                    \\   /               
+                                     \\ /                
+                                                        
+
+.cs 1
+.ce
+Fig. 1: A revision tree
+.fi
+.PP
+.SH IDENTIFICATION
+.de VL
+\\$2
+..
+Author: Walter F. Tichy,
+Purdue University, West Lafayette, IN, 47907.
+.sp 0
+Revision Number:
+.VL 1.2
+; Release Date:
+.VL 1993/08/02 17:51:25
+\&.
+.sp 0
+Copyright \(co 1982 by Walter F. Tichy.
+.SH SEE ALSO
+ci (1), co (1), ident (1), rcs (1), rcsdiff (1), rcsintro (1), rcsmerge (1), rlog (1), sccstorcs (8).

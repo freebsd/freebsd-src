@@ -1,0 +1,150 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)Title	6.4 (Berkeley) 4/17/91
+.\"
+.ps 18
+.vs 22
+.sp 2.75i
+.ft B
+.ce 2
+UNIX System Manager's Manual
+(SMM)
+.ps 14
+.vs 16
+.sp |4i
+.ce 2
+4.3 Berkeley Software Distribution
+Virtual VAX\-11 Version
+.sp |5.75i
+.ft R
+.pt 12
+.vs 16
+.ce
+April, 1986
+.sp |8.2i
+.ce 5
+Computer Systems Research Group
+Computer Science Division
+Department of Electrical Engineering and Computer Science
+University of California
+Berkeley, California  94720
+.bp
+.ll 5.3i
+.in 1.25i
+.hy 0
+.ps 10
+.vs 12p
+.sp |2.8i
+Copyright 1979, 1980, 1983, 1986 Regents of the University of California.
+Permission to copy these documents or any portion thereof as necessary
+for licensed use of the software is granted to licensees of this
+software, provided this copyright notice and statement of permission
+are included.
+.sp 2
+Documents SMM:17, 18, and 21
+are copyright 1979, AT&T Bell Laboratories, Incorporated.
+Documents SMM:9 and 19 are modifications of earlier documents that
+are copyrighted 1979 by AT&T Bell Laboratories, Incorporated.
+Holders of \x'-1p'UNIX\v'-4p'\s-3TM\s0\v'4p'/32V,
+System III, or System V software licenses are
+permitted to copy these documents, or any portion of them,
+as necessary for licensed use of the software,
+provided this copyright notice and statement of permission
+are included.
+.sp 2
+Document SMM:10 is part of the user contributed software.
+.sp 2
+This manual reflects system enhancements made at Berkeley and sponsored
+in part by the Defense Advanced Research Projects Agency
+(DoD), Arpa Order No. 4871 monitored by the Naval Electronics Systems
+Command under contract No. N00039-84-C-0089.
+The views and conclusions contained in these documents are those of the
+authors and should not be interpreted as representing official policies,
+either expressed or implied, of the Defense Research Projects Agency
+or of the US Government.
+.br
+.ll 6.5i
+.lt 6.5i
+.po .75i
+.in 0i
+.af % i
+.ds ET\"
+.de HD
+.po 0
+.lt 7.4i
+.tl ''''
+.lt
+.po
+'sp 18p
+.if o .tl '\\*(ET''- % -'
+.if e .tl '- % -''\\*(ET'
+'sp 18p
+.ns
+..
+.de FO
+'sp 18p
+.if e .tl '\s9\\*(Dt''\\*(Ed\s0'
+.if o .tl '\s9\\*(Ed''\\*(Dt\s0'
+'bp
+..
+.wh 0 HD
+.wh -60p FO
+.bp 1
+.ds ET \s9\f2Table \|of \|Contents\fP\s0
+.ds Ed 4.3BSD
+.ds Dt April \|1986
+.ce
+\f3TABLE \|OF \|CONTENTS\fP
+.nr x .5i
+.in +\nxu
+.nf
+.ta \n(.lu-\nxuR
+.de xx
+\\$1\f3 \a \fP\\$2
+..
+.de t
+.sp 1v
+.ne .5i
+.cs 3
+.ti -.5i
+.ss 18
+\f3\s9\\$2. \\$3\s0\fP
+.ss 12
+.if t .sp .5v
+.cs 3 36
+.so \\$1
+..
+.t /usr/man/man0/toc8 8 "System Maintenance"
+.in -.5i
+.cs 3
+.if n .ta 8n 16n 24n 32n 40n 48n 56n 64n 72n 80n
+.if t .ta .5i 1i 1.5i 2i 2.5i 3i 3.5i 4i 4.5i 5i 5.5i 6i 6.5i

@@ -1,0 +1,233 @@
+.\" Copyright (c) 1989, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfsd.8	5.9 (Berkeley) 8/5/91
+.\"
+.Dd August 5, 1991
+.Dt NFSD 8
+.Os
+.Sh NAME
+.Nm nfsd
+.Nd remote
+.Tn NFS
+server
+.Sh SYNOPSIS
+.Nm nfsd
+.Op Fl r
+.Bk -words
+.Op Fl t Ar msk,mtch,hostadr1,hostadr2,...
+.Ek
+.Bk -words
+.Op Fl u Ar msk,mtch,numprocs
+.Ek
+.Op Ar numprocs
+.Sh DESCRIPTION
+.Nm Nfsd
+runs on a server machine to service
+.Tn NFS
+requests from client machines.
+At least one
+.Nm nfsd
+must be running for a machine to operate as a server.
+The options
+.Fl u
+and
+.Fl t
+are used to indicate which transport protocols are to be served.
+.Pp
+Options available to
+.Nm nfsd :
+.Bl -tag -width Ds
+.It Fl r
+Register the
+.Tn NFS
+service with
+.Xr portmap 8
+without creating any servers. This option can be used along with the
+.Fl u
+or
+.Fl t
+options to re-register NFS if the portmap server is restarted.
+.It Fl t
+Serve
+.Tn TCP NFS
+clients.
+.It Fl u
+Serve
+.Tn UDP NFS
+clients.
+.El
+.Pp
+The following arguments to the
+.Fl u
+or
+.Fl t
+options are used to specify parameters for service using the respective
+protocol:
+.Bl -tag -width Ds
+.It Ar msk , mtch
+These arguments permit restriction of
+.Tn NFS
+services
+to a subset of the host addresses. The
+.Ar msk
+and
+.Ar mtch
+are applied to the client host address as follows:
+.Pp
+.Bd -filled -offset indent -compact
+if ((
+.Ar host_address No \&& Em msk
+) ==
+.Ar mtch
+)
+.br
+	\- service the client request
+.br
+else
+.br
+	\- drop the request
+.Ed
+.It Ar hostadr1 , ...
+You may also specify zero or more specific host addresses to be accepted
+as well as ones that pass the
+.Ar msk , mtch
+test above.
+This may only be done for transport protocols that are connection based, such
+as
+.Tn TCP .
+For the internet domain,
+.Ar msk , mtch
+and
+.Ar hostadrs
+are specified in internet
+.Em dot
+notation.
+.It Ar numprocs
+Specifies how many servers to fork off. This may only be specified for
+non-connection based protocols such as
+.Tn UDP .
+.El
+.Pp
+If neither
+.Fl u
+or
+.Fl t
+are specified,
+.Ar numprocs
+servers for
+.Tn UDP
+accepting requests from all clients are started.
+If
+.Ar numprocs
+is not specified, it defaults to 1.
+.Pp
+For example:
+.Bd -literal
+nfsd \-u 255.255.255.0,131.104.48.0,4 \-t \e
+	255.255.0.0,131.104.0.0,131.102.31.2
+.Ed
+.Bl -item -offset indent
+.It
+Serves
+.Tn UDP
+and
+.Tn TCP
+transports. For
+.Tn UDP ,
+it runs 4 daemons that accept requests
+from any client on subnet 131.104.48.
+For
+.Tn TCP ,
+it accepts connections from any client on network 131.104
+plus the client with the address 131.102.31.2.
+.El
+.Bd -literal
+nfsd \-u 255.255.240.0,131.104.0.0,6 \-t 0,0
+.Ed
+.Bl -item -offset indent
+.It
+Serves
+.Tn UDP
+and
+.Tn TCP
+transports.
+For
+.Tn UDP ,
+it runs 6 daemons that accept requests from clients with
+addresses in the range 131.104.0.x - 131.104.15.x.
+For
+.Tn TCP ,
+it accepts connections from any client.
+.El
+.Pp
+.Li nfsd \-u 0,0,4
+.Bl -item -offset indent
+.It
+Serves any
+.Tn UDP
+client with 4 servers, only.
+.El
+.Pp
+.Li nfsd 4
+.Bl -item -offset indent
+.It
+Serves any
+.Tn UDP
+client with 4 servers, only. (Compatibility)
+.El
+.Pp
+A server should typically run enough daemons to handle
+the maximum level of concurrency from its clients,
+typically four to six.
+.Pp
+.Nm Nfsd
+listens for service requests at the port indicated in the
+.Tn NFS
+server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC1094.
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr nfssvc 2 ,
+.Xr mountd 8 ,
+.Xr portmap 8
+.Sh BUGS
+The client host address restrictions specified here are unrelated to
+the mount restrictions specified in
+.Pa /etc/exports
+for
+.Xr mountd 8 .
+.Sh HISTORY
+The
+.Nm
+command is
+.Ud .

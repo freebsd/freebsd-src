@@ -1,0 +1,56 @@
+.\" $Header: /a/cvs/386BSD/src/libexec/crond/crond.8,v 1.1.1.1 1993/06/12 14:55:04 rgrimes Exp $
+.\" 
+.\"/* Copyright 1988,1990 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie, 329 Noe Street, San Francisco, CA, 94114, (415) 864-7013,
+.\" * paul@vixie.sf.ca.us || {hoptoad,pacbell,decwrl,crash}!vixie!paul
+.\" */
+.TH CROND 8 "15 Nov 1988"
+.UC 4
+.SH NAME
+crond \- daemon to execute scheduled commands (Vixie Cron)
+.SH SYNOPSIS
+crond
+.SH DESCRIPTION
+.I Crond
+should be started from /etc/rc or /etc/rc.local.  It will return immediately,
+so you don't need to start it with '&'.
+.PP
+.I Crond
+searches /var/cron/tabs for crontab files which are named after accounts in
+/etc/passwd; crontabs found are loaded into memory.
+.I Crond
+then wakes up every minute, examining all stored crontabs, checking each
+command to see if it should be run in the current minute.  When executing
+commands, any output is mailed to the owner of the crontab (or to the user
+named in the MAILTO environment variable in the crontab, if such exists).
+.PP
+Additionally,
+.I crond
+checks each minute to see if its spool directory's modtime has changed, and
+if it has,
+.I crond
+will then examine the modtime on all crontabs and reload those which have
+changed.  Thus
+.I crond
+need not be restarted whenever a crontab file is modified.  Note that the
+.IR Crontab (1)
+command updates the modtime of the spool directory whenever it changes a
+crontab.
+.SH "SEE ALSO"
+crontab(1), crontab(5)
+.SH AUTHOR
+.nf
+Paul Vixie, paul@vixie.sf.ca.us

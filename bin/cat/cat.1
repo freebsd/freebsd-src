@@ -1,0 +1,121 @@
+.\" Copyright (c) 1989, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)cat.1	6.16 (Berkeley) 6/27/91
+.\"
+.Dd June 27, 1991
+.Dt CAT 1
+.Os BSD 3
+.Sh NAME
+.Nm cat
+.Nd concatenate and print files
+.Sh SYNOPSIS
+.Nm cat
+.Op Fl benstuv
+.Op Fl
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm cat
+utility reads files sequentially, writing them to the standard output.
+The
+.Ar file
+operands are processed in command line order.
+A single dash represents standard input.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl b
+Implies the
+.Fl n
+option but doesn't number blank lines.
+.It Fl e
+Implies the
+.Fl v
+option, and displays a dollar sign
+.Pq Ql \&$
+at the end of each line
+as well.
+.It Fl n
+Number the
+.Ar output
+lines, starting at 1.
+.It Fl s
+Squeeze multiple adjacent empty lines, causing the output to be
+single spaced.
+.It Fl t
+Implies the
+.Fl v
+option, and displays tab characters as
+.Pq Ql ^I
+as well.
+.It Fl u
+The
+.Fl u
+option guarantees that the output is unbuffered.
+.It Fl v
+Displays non-printing characters so they are visible.
+Control characters print line
+.Ql ^X
+for control-X; the delete
+character (octal 0177) prints as
+.Ql ^?
+Non-ascii characters (with the high bit set) are printed as
+.Ql M-
+(for meta) followed by the character for the low 7 bits.
+.El
+.Pp
+The
+.Nm cat
+utility exits 0 on success, and >0 if an error occurs.
+.Sh BUGS
+Because of the shell language mechanism used to perform output
+redirection, the command
+.Dq Li cat file1 file 2 > file1
+will cause the original data in file1 to be destroyed!
+.Sh SEE ALSO
+.Xr head 1 ,
+.Xr more 1 ,
+.Xr pr 1 ,
+.Xr tail 1
+.Rs
+.%A Rob Pike
+.%T "UNIX Style, or cat -v Considered Harmful"
+.%J "USENIX Summer Conference Proceedings"
+.%D 1983
+.Re
+.Sh HISTORY
+A
+.Nm
+command appeared in Version 6 AT&T UNIX.

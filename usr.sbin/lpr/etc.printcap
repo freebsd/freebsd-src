@@ -1,0 +1,31 @@
+#
+# Copyright (c) 1983 Regents of the University of California.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms are permitted
+# provided that this notice is preserved and that due credit is given
+# to the University of California at Berkeley. The name of the University
+# may not be used to endorse or promote products derived from this
+# software without specific prior written permission. This software
+# is provided ``as is'' without express or implied warranty.
+#
+#	@(#)etc.printcap	5.2 (Berkeley) 5/5/88
+#
+# DecWriter over a tty line.
+lp|ap|arpa|ucbarpa|LA-180 DecWriter III:\
+	:br#1200:fs#06320:tr=\f:of=/usr/lib/lpf:lf=/usr/adm/lpd-errs:
+# typical remote printer entry
+ucbvax|vax|vx|ucbvax line printer:\
+	:lp=:rm=ucbvax:sd=/usr/spool/vaxlpd:lf=/usr/adm/lpd-errs:
+varian|va|Benson Varian:\
+	:lp=/dev/va0:sd=/usr/spool/vad:mx#2000:pl#58:px#2112:py#1700:tr=\f:\
+	:of=/usr/lib/vpf:if=/usr/lib/vpf:tf=/usr/lib/rvcat:cf=/usr/lib/vdmp:\
+	:gf=/usr/lib/vplotf:df=/usr/local/dvif:\
+	:vf=/usr/lib/vpltdmp:lf=/usr/adm/lpd-errs:
+versatec|vp|Versatec plotter:\
+	:lp=/dev/vp0:sd=/usr/spool/vpd:sb:sf:mx#0:pw#106:pl#86:px#7040:py#2400:\
+	:of=/usr/lib/vpfW:if=/usr/lib/vpsf:tf=/usr/lib/vcat:cf=/usr/lib/vdmp:\
+	:gf=/usr/lib/vplotf:vf=/usr/lib/vpltdmp:lf=/usr/adm/lpd-errs:\
+	:tr=\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\
+\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\
+\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n:

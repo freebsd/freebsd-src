@@ -1,0 +1,20 @@
+uurate V1.2 - Gather and display Taylor UUCP traffic statistics
+
+Bob Denny (denny@alisa.com) - Thu Sep  3 19:47:41 1992
+
+See the man page for documentation.
+
+Installation:
+------------
+
+(1) Copy Makefile.uurt to Makefile.
+
+(2) Edit Makefile: set BIN where you want uurate to be installed, and
+    set CFLAGS to point to the directory containing the UUCP sources
+    (this is .. by default).
+
+(3) Type ``make'' to compile the program.
+
+(4) Type ``make install'' to install the program.
+
+(5) Install the man page if you want. I didn't put that into the Makefile.

@@ -1,0 +1,5 @@
+# the following are for 386BSD/FreeBSD
+
+0	long		0410		pure executable
+0	long		0413		demand paged executable
+>16	long		>0		not stripped

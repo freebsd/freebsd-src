@@ -1,0 +1,131 @@
+.\" Copyright (c) 1980, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)whereis.1	6.5 (Berkeley) 4/23/91
+.\"
+.Dd April 23, 1991
+.Dt WHEREIS 1
+.Os BSD 3
+.Sh NAME
+.Nm whereis
+.Nd locate binary, manual, and or source for program
+.Sh SYNOPSIS
+.Nm whereis
+.Op Fl bms
+.Op Fl u
+.Op Fl BMS Ar dir Ar ... Fl f
+.Ar name Ar ...
+.Sh DESCRIPTION
+.Nm Whereis
+locates source/binary and manuals sections for specified files.
+The supplied names are first stripped of leading pathname components
+and of any (single) trailing extension of the form
+.Ql .ext ,
+e.g. 
+.Ql \&.c .
+Prefixes of
+.Ql \&.s
+resulting from use of source code control are also
+dealt with.
+.Nm Whereis
+then attempts to locate the desired program in a list of standard places.
+.Pp
+Available options:
+.Bl -tag -width Ds
+.It Fl B
+Change or limit directories searched for binaries. Requires the
+.Fl f
+flag.
+.It Fl M
+Change or limit directories searched for manual entries. Requires the
+.Fl f
+flag.
+.It Fl S
+Change or limit directories searched for source. Requires the
+.Fl f
+flag.
+.It Fl b
+Search for binaries.
+.It Fl f
+Signals the end of a directory list specified by one or more of the
+.Fl B , M
+or
+.Fl S
+options and the start of file
+.Ar names .
+.It Fl m
+Search for manual entries.
+.It Fl s
+Search for source.
+.It Fl u
+Search for unusual entries.
+A file is said to be unusual if it does not have one entry of
+each requested type.
+Thus:
+.Pp
+.Dl whereis -m -u *
+.Pp
+asks for those files in the current
+directory which have no documentation.
+.El
+.Sh EXAMPLE
+The following finds all the files in
+.Pa /usr/bin
+which are not documented
+in
+.Pa /usr/share/man/man1
+with source in
+.Pa /usr/src/cmd:
+.Bd -literal -offset indent -compact
+cd /usr/ucb
+whereis \-u \-M /usr/share/man/man1 \-S /usr/src/cmd \-f *
+.Ed
+.Sh FILES
+.Bl -tag -width /lib,x/etc,x/usr/{lib,bin,ucb,old,new,local} -compact
+.It Pa /usr/src/*
+.It Pa /usr/{doc,man}/*
+.It Pa /lib, /etc, /usr/{lib,bin,ucb,old,new,local}
+.El
+.Sh BUGS
+Since the program uses
+.Xr chdir 2
+to run faster, pathnames given with the
+.Fl M
+.Fl S
+and
+.Fl B
+must be full; i.e. they must begin with a
+.Ql \&/ .
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 3.0 .

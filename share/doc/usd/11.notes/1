@@ -1,0 +1,97 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)1	6.2 (Berkeley) 4/17/91
+.\"
+.sp |.5i
+.ls 1
+.ch "Introduction"
+.wh 0 hh
+
+	Notesfiles support computer managed discussion
+forums.  Discussions can have many different purposes and scopes: the
+notesfile system has been designed to be flexible enough to handle differing
+requirements.
+
+	Each notesfile discusses a single
+topic.
+The depth of discussion within a notesfile is ideally held constant.
+While some users may require a general discussion of personal workstations,
+a different group may desire detailed discussions about the I/O bus
+structure of the WICAT 68000 (a particular workstation).  These discussions
+might well be separated into two different notesfiles.
+
+	Each notesfile contains a list of logically
+independent notes (called base notes).
+A note is a block of text with a comment or question intended to be seen by members
+of the notesfile community.  The note display shows the text,
+its creation time, its title, the notesfile's title,
+the author's name (some notesfiles allow anonymous notes), the number of ``responses'',
+and optionally a ``director message''.
+Each base note can have a number of ``responses'': replies, retorts, further
+comments, criticism, or related questions concerning the base note.
+Thus, a notesfile contains an ordered list of ordered lists.  This arrangement
+has historically been more convenient than other proposals (e.g., trees
+were studied on the PLATO (trademark of Control Data Corporation) system).
+
+	The concept of a notesfile was originally implemented at
+the University of Illinois, Urbana-Champaign,
+on the PLATO system.
+The UNIX (trademark of Bell Laboratoris) 
+notesfile system
+includes these ideas with
+adaptations
+and enhancements
+made possible by the UNIX environment.
+
+	The UNIX notesfile system was
+designed and
+implemented by Ray Essick at the University of Illinois, Urbana-Champaign.
+It provides users with the abilities to
+read notes and responses, write notes and responses, forward note text to
+other users (via mail) or other notesfiles, save note text in their own files,
+and sequence through a set of notesfiles seeing just new text.
+Each notesfile has a set of ``directors'' who manage the notesfile:
+they delete old notes, compress the file when needed, grant and restrict
+access to the notesfile, and set different notesfile parameters (e.g.,
+title, ``director message'', policy note, whether notes' authors can be
+anonymous).
+Some notesfiles contain correspondence from other computers.
+Like the UNIX ``USENET'', notes and responses are exchanged (often over phone lines)
+with remote machines.
+The notesfile system provides automatic exchange and updating of notes in an
+arbitrarily connected network.
+
+	This document details the use of notesfiles from invocation through
+intersystem notes exchanges.  The last chapter summarizes the entire set of
+commands for easy reference.
+An appendix contains detailed checklists for the
+installation of a notesfile system.

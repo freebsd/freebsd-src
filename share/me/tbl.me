@@ -1,0 +1,143 @@
+.nr _0 \n(c.
+.\" Copyright (c) 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)tbl.me	5.1 (Berkeley) 4/17/91
+.\"
+.\"	%beginstrip%
+.\"
+.de TS			\" *** table start
+.sp \\n(bsu
+.@C 1
+.fi				\" drop into fill mode for text boxes
+.if "\\$1"H" \
+\{\
+.	di |h			\" save header part
+.	nr ?T 1
+.\}
+.ls 1
+.ch @f -(\\n(_bu+1v)		\" set pseudo-trap for bottom line
+..
+.de TH			\" *** end header part of table
+.nr T. 0
+.T# 0
+.di
+.nr _i \\n(.i
+.in 0
+.|h				\" put in the initial header
+.in \\n(_iu
+.rr _i
+.mk #T
+..
+.de TE			\" *** table end
+.nr ?T 0
+.ch @f -\\n(_bu			\" reset pseudo-trap
+.ev
+.sp \\n(bsu+\\n(.Lv-1v
+.re
+.rr 31
+.rr 32
+.rr 33
+.rr 34
+.rr 35
+.rr 36
+.rr 37
+.rr 38
+.rr 39
+.rr 40
+.rr 41
+.rr 42
+.rr 43
+.rr 44
+.rr 45
+.rr 46
+.rr 47
+.rr 48
+.rr 49
+.rr 50
+.rr 51
+.rr 52
+.rr 53
+.rr 54
+.rr 55
+.rr 56
+.rr 57
+.rr 58
+.rr 59
+.rr 60
+.rr 61
+.rr 62
+.rr 63
+.rr 64
+.rr 65
+.rr 66
+.rr 67
+.rr 68
+.rr 69
+.rr 70
+.rr 71
+.rr 72
+.rr 73
+.rr 74
+.rr 75
+.rr 76
+.rr 77
+.rr 78
+.rr 79
+.rr 80
+.rr 81
+.rr 82
+.rr 83
+.rr 84
+.rr 85
+.rr 86
+.rr 87
+.rr 88
+.rr 89
+.rr 90
+.rr 91
+.rr 92
+.rr 93
+.rr 94
+.rr 95
+.rr 96
+.rr 97
+.rr 98
+.rr 99
+.rr #I
+.rr #T
+.rr #a
+.rr ##
+.rr #-
+.rr #^
+.rr T.
+..
+.nr c. \n(_0

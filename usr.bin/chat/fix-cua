@@ -1,0 +1,16 @@
+#!/bin/sh
+
+LOCKDIR=/var/spool/lock
+
+case "$1" in
+    "")		echo "Usage: fix-cua device"; exit 1 ;;
+esac
+
+if [ -f $LOCKDIR/LCK..$1 ]
+then
+    echo "/dev/$1 is locked" 2>&1
+    exit 1
+fi
+
+chown root /dev/$1
+chmod 666 /dev/$1

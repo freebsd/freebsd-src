@@ -1,0 +1,175 @@
+.\" @(#)rpcgen.1	2.2 88/08/02 4.0 RPCSRC
+.TH RPCGEN 1 "18 January 1988"
+.SH NAME
+rpcgen \- an RPC protocol compiler
+.SH SYNOPSIS
+.BI rpcgen " infile"
+.br
+.B rpcgen
+.BR \-c \|| \|\-h \|| \|\-l \||\fB\|\-m
+[
+.BI \-o " outfile"
+]
+[
+.I infile
+]
+.br
+.B rpcgen \-s
+.I transport
+[
+.BI \-o " outfile"
+]
+[
+.I infile
+]
+.br
+.SH DESCRIPTION
+.IX "compilers" rpcgen "" "\fLrpcgen\fR \(em generate RPC protocols, C header files"
+.IX rpcgen "" "\fLrpcgen\fR \(em generate RPC protocol, C header files, and server skeleton"
+.IX RPC "generate protocols \(em \fLrpcgen\fR"
+.B rpcgen
+is a tool that generates C
+code to implement an
+.SM RPC
+protocol.  The input to
+.B rpcgen
+is a language similar to C
+known as
+.SM RPC
+Language (Remote Procedure Call Language).  Information
+about the syntax of
+.SM RPC
+Language is available in the
+.RI ` rpcgen ' " Programming Guide."
+.LP
+.B rpcgen
+is normally used as in the first synopsis where it takes an input file
+and generates four output files. If the
+.I infile
+is named
+.BR proto.x ,
+then
+.B rpcgen
+will generate a header file in
+.BR proto.h ,
+.SM XDR
+routines in
+.BR proto_xdr.c ,
+server-side stubs in
+.BR proto_svc.c ,
+and client-side stubs in
+.BR proto_clnt.c .
+.LP
+The other synopses shown above are used when one does not want to
+generate all the output files, but only a particular one.  Their
+usage is described in the
+.SM USAGE
+section below.
+.LP
+The C-preprocessor,
+.BR cpp (1),
+is run on all input files before they are actually
+interpreted by
+.BR rpcgen ,
+so all the
+.B cpp
+directives are legal within an
+.B rpcgen
+input file.  For each type of output file,
+.B rpcgen
+defines a special
+.B cpp
+symbol for use by the
+.B rpcgen
+programmer:
+.PP
+.PD 0
+.TP 12
+.SM RPC_HDR
+defined when compiling into header files
+.TP
+.SM RPC_XDR
+defined when compiling into
+.SM XDR
+routines
+.TP
+.SM RPC_SVC
+defined when compiling into server-side stubs
+.TP
+.SM RPC_CLNT
+defined when compiling into client-side stubs
+.PD
+.LP
+In addition,
+.B rpcgen
+does a little preprocessing of its own.
+Any line beginning with
+.RB ` % '
+is passed directly into the output file, uninterpreted by
+.BR rpcgen .
+.LP
+You can customize some of your
+.SM XDR
+routines by leaving those data
+types undefined.  For every data type that is undefined,
+.B rpcgen
+will assume that there exists a routine with the name
+.B xdr_
+prepended to the name of the undefined type.
+.SH OPTIONS
+.TP
+.B \-c
+Compile into
+.SM XDR
+routines.
+.TP
+.B \-h
+Compile into
+.B C
+data-definitions (a header file)
+.TP
+.B \-l
+Compile into client-side stubs.
+.TP
+.B \-m
+Compile into server-side stubs, but do not generate a \(lqmain\(rq routine.
+This option is useful for doing callback-routines and for people who
+need to write their own \(lqmain\(rq routine to do initialization.
+.TP
+.BI \-o " outfile"
+Specify the name of the output file.
+If none is specified, standard output is used
+.RB ( \-c ,
+.BR \-h ,
+.B \-l
+and
+.B \-s
+modes only).
+.TP
+.BI \-s " transport"
+Compile into server-side stubs, using the the given transport.  The
+supported transports
+are
+.B udp
+and
+.BR tcp .
+This option may be invoked more than once
+so as to compile a server that serves multiple transports.
+.br
+.ne 5
+.SH "SEE ALSO"
+.BR cpp (1)
+.LP
+.RI ` rpcgen ' " Programming Guide."
+.br
+.ne 4
+.SH BUGS
+.LP
+Nesting is not supported.
+As a work-around, structures can be declared at
+top-level, and their name used inside other structures in order to achieve
+the same effect.
+.LP
+Name clashes can occur when using program definitions, since the apparent
+scoping does not really apply. Most of these can be avoided by giving
+unique names for programs, versions, procedures and types.

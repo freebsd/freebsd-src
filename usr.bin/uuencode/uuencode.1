@@ -1,0 +1,105 @@
+.\" Copyright (c) 1980, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)uuencode.1	6.9 (Berkeley) 4/23/91
+.\"
+.Dd April 23, 1991
+.Dt UUENCODE 1
+.Os BSD 4
+.Sh NAME
+.Nm uuencode ,
+.Nm uudecode
+.Nd encode/decode a binary file
+.Sh SYNOPSIS
+.Nm uuencode
+.Op Ar file
+.Ar name
+.Nm uudecode
+.Op Ar file ...
+.Sh DESCRIPTION
+.Nm Uuencode
+and
+.Nm uudecode
+are used to transmit binary files over transmission mediums
+that do not support other than simple
+.Tn ASCII
+data.
+.Pp
+.Nm Uuencode
+reads
+.Ar file
+(or by default the standard input) and writes an encoded version
+to the standard output.
+The encoding uses only printing
+.Tn ASCII
+characters and includes the
+mode of the file and the operand
+.Ar name
+for use by
+.Nm uudecode .
+.Pp
+.Nm Uudecode
+transforms
+.Em uuencoded
+files (or by default, the standard input) into the original form.
+The resulting file is named
+.Ar name
+and will have the mode of the original file except that setuid
+and execute bits are not retained.
+.Nm Uudecode
+ignores any leading and trailing lines.
+.Sh EXAMPLES
+The following example packages up a source tree, compresses it,
+uuencodes it and mails it to a user on another system.
+When
+.Nm uudecode
+is run on the target system, the file ``src_tree.tar.Z'' will be
+created which may then be uncompressed and extracted into the original
+tree.
+.Pp
+.Bd -literal -offset indent -compact
+tar cf \- src_tree \&| compress \&|
+uuencode src_tree.tar.Z \&| mail sys1!sys2!user
+.Ed
+.Sh SEE ALSO
+.Xr compress 1 ,
+.Xr mail 1 ,
+.Xr uucp 1 ,
+.Xr uuencode 5 ,
+.Xr format 5
+.Sh BUGS
+The encoded form of the file is expanded by 35% (3 bytes become 4 plus
+control information).
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.0 .

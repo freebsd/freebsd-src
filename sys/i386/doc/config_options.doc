@@ -1,0 +1,34 @@
+This file desribes what options do in a kernel config file, these options
+change kernl code mostly by #ifdef/#endif pairs in the source.
+
+Note that options which have an underscore ( _ ) in them must be enclosed
+in quotes.  This also applies to options that take a numeric value.
+
+options	CCITT			X.25 networking support
+options	"COMPAT_43"		Compatible with BSD 4.3
+options	"COM_BIDIR"		Bidirectional support in sys/isa/sio.c
+options	"COM_MULTIPORT"		Multiport support in sys/isa/sio.c
+options	EON
+options	FIFO			Named pipes (fifos) support
+options	GATEWAY			Internetwork gateway
+options	INET			Internet communications protocols
+options	ISO			ISO networking (TP4?)
+options	ISOFS			ISO 9660 File System
+options	KTRACE			Kernel tracing
+options	MATH_EMULATE		Support for x87 emulation
+options	MFS			Memroy File System
+options	"NCONS=8"		Number of syscons virtual consoles
+options	NFS			Network File System
+options	NS			Xerox NS communications protocols
+options	PANICDELAY		Kernel waits 20 secounds after a panic
+options	PANICWAIT		Kernel waits for a key stroke after a panic
+options	PCFS			PC (MSDOS) File System
+options	QUOTA			Enable disk quotas
+options	"SHMMAXPGS=64"		256Kb of sharable memory
+options	"SYMTAB_SPACE=89000"	Amount of DDB symbol table space
+options	SYSVSHM			System V shared memory support
+options	"TCP_COMPAT_42"		Tcp/Ip compatible with 4.2
+options	UCONSOLE		Xconsole support
+options	XSERVER			Xserver support
+
+$Id: config_options.doc,v 1.2 1993/10/16 19:21:57 rgrimes Exp $

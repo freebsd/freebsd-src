@@ -1,0 +1,9 @@
+#
+# login	local-addr	remote-addr	mask		opt1	opt2 
+#						(normal,compress,noicmp)	
+#
+Shavoc	okeeffe         havoc		0xffffff00	normal
+Soxford	okeeffe		oxford-gw	0xffffff00	compress
+Schez	okeeffe		chez		0xffffff00	compress
+Smjk	okeeffe		pissaro		0xffffff00	compress
+Smjk2	okeeffe		pissaro		0xffffff00	compress

@@ -1,0 +1,449 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)puman1.n	6.2 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+.if n 'ND
+'nr H1 0
+.NH
+Sources of information
+.PP
+This section lists the resources available
+for information about
+general features of
+.UX ,
+text editing,
+the Pascal language,
+and the
+.UP
+implementation,
+concluding with a list of references.
+The available documents include both so-called standard documents \-
+those distributed with all
+.UX
+system \-
+and documents (such as this one) written at Berkeley.
+.NH 2
+Where to get documentation
+.PP
+Current documentation for most of the
+.UX
+system is available ``on line'' at your terminal.
+Details on getting such documentation interactively are given
+in section 1.3.
+.NH 2
+Documentation describing UNIX
+.PP
+The following documents are those recommended as tutorial and
+reference material about the
+.UX
+system.
+We give the documents with the introductory and tutorial materials
+first, the reference materials last.
+.SH
+UNIX For Beginners \- Second Edition
+.PP
+This document is the basic tutorial for 
+.UX
+available with the standard system.
+.SH
+Communicating with UNIX
+.PP
+This is also a basic tutorial on the system and assumes
+no previous familiarity
+with computers; it was written at Berkeley.
+.SH
+An introduction to the C shell
+.PP
+This document introduces
+.I csh,
+the shell in common use at Berkeley, and provides a good deal of general
+description about the way in which the system functions.
+It provides a useful glossary of terms used in discussing the system.
+.SH
+UNIX Programmer's Manual
+.PP
+This manual is the major source of details on the components of the
+.UX
+system.
+It consists of an Introduction,
+a permuted index,
+and eight command sections.
+Section 1 consists of descriptions of most of the ``commands''
+of
+.UX .
+Most of the other sections have limited relevance to the user
+of
+Berkeley
+Pascal, being of interest mainly to system programmers.
+.PP
+U\s-2NIX\s0
+documentation often refers the reader to sections of the manual.
+Such a reference consists of a command name and a section number or name.
+An example of such a reference would be:
+.I ed
+(1).
+Here
+.I ed
+is a command name \- the standard
+.UX
+text editor, and `(1)' indicates that its documentation is in section 1 of the
+manual.
+.PP
+The pieces of the
+Berkeley
+Pascal system are
+.I pi
+(1),
+.X
+(1),
+the combined Pascal translator and interpretive executor
+.IX
+(1),
+the Pascal compiler
+.PC
+(1),
+the Pascal execution profiler
+.XP
+(1),
+and
+the Pascal cross-reference generator
+.I pxref
+(1).
+.PP
+It is possible to obtain a copy of a manual section
+by using the
+.I man
+(1) command.
+To get the Pascal documentation just described one could issue the
+command:
+.LS
+% \*bman pi\fP
+.LE
+to the shell.
+The user input here is shown in
+.B "bold face" ;
+the `% ',
+which was printed by the shell as a prompt,
+is not.
+Similarly the command:
+.LS
+% \*bman man\fP
+.LE
+asks the
+.I man
+command to describe itself.
+.NH 2
+Text editing documents
+.PP
+The following documents introduce the various
+.UX
+text editors.
+Most Berkeley users use a version of the text editor
+.I ex;
+either
+.I edit,
+which is a version of
+.I ex
+for new and casual users,
+.I ex
+itself,
+or
+.I vi
+(visual) which focuses on the display editing portion of
+.I ex.
+.SH
+A Tutorial Introduction to the UNIX Text Editor
+.PP
+This document, written by Brian Kernighan of Bell Laboratories,
+is a tutorial for the standard
+.UX
+text editor
+.I ed.
+It introduces you to the basics of text editing,
+and provides enough information to meet day-to-day editing needs,
+for
+.I ed
+users.
+.SH
+Edit: A tutorial
+.PP
+This introduces the use of
+.I edit,
+an editor similar to
+.I ed
+which provides a more hospitable environment for beginning users.
+.SH
+Ex/edit Command Summary
+.PP
+This summarizes the features of the editors
+.I ex
+and
+.I edit
+in a concise form.  If you have used a line oriented editor before
+this summary alone may be enough to get you started.
+.SH
+Ex Reference Manual \- Version 3.7
+.PP
+A complete reference on the features of
+.I ex
+and
+.I edit.
+.SH
+An Introduction to Display Editing with Vi
+.PP
+.I Vi
+is a display oriented text editor.  It can be used on most any \s-2CRT\s0
+terminal,
+and uses the screen as a window into the file you are editing.  Changes
+you make to the file are reflected in what you see.  This manual serves
+both as an introduction to editing with
+.I vi
+and a reference manual.
+.SH
+Vi Quick Reference
+.PP
+This reference card is a handy quick guide to
+.I vi;
+you should get one when you get the introduction to
+.I vi.
+.NH 2
+Pascal documents \- The language
+.PP
+This section describes the documents on the Pascal language
+which are likely to be most useful to the
+Berkeley
+Pascal user.
+Complete references for these documents are given in section 1.7.
+.SH
+Pascal User Manual
+.PP
+By Kathleen Jensen and Niklaus Wirth, the
+.I "User Manual"
+provides a tutorial introduction to the features
+of the language Pascal,
+and serves as an excellent quick-reference to the language.
+The reader with no familiarity with Algol-like languages 
+may prefer one of the Pascal text books listed below,
+as they provide more examples and explanation.
+Particularly important here are pages 116-118 which define the syntax
+of the language.
+Sections 13 and 14 and Appendix F pertain only to the
+6000-3.4 implementation of Pascal.
+.SH
+Pascal Report
+.PP
+By Niklaus Wirth, this document is bound with the
+.I "User Manual."
+It is the guiding reference for implementors and the fundamental
+definition of the language.
+Some programmers find this report too concise to be of practical use,
+preferring the
+.I "User Manual"
+as a reference.
+.SH
+Books on Pascal
+.PP
+Several good books which teach Pascal or use it as a medium are
+available.
+The books by Wirth
+.I "Systematic Programming"
+and
+.I "Algorithms + Data Structures = Programs"
+use Pascal as a vehicle for teaching programming and data structure
+concepts respectively.
+They are both recommended.
+Other books on Pascal are listed in the references below.
+.NH 2
+Pascal documents \- The Berkeley Implementation
+.PP
+This section describes the documentation which is available
+describing the
+Berkeley
+implementation of Pascal.
+.SH
+User's Manual
+.PP
+The document you are reading is the 
+.I "User's Manual"
+for
+.UP .
+We often refer the reader to the
+Jensen-Wirth
+.I "User Manual"
+mentioned above,
+a different document with a similar name.
+.SH
+Manual sections
+.PP
+The sections relating to Pascal in the
+.I "UNIX Programmer's Manual"
+are
+.IX
+(1),
+.PI
+(1),
+.PC
+(1),
+.X
+(1),
+.I pxp
+(1),
+and
+.I pxref
+(1).
+These sections give a description of each program,
+summarize the available options,
+indicate files used by the program,
+give basic information on the diagnostics produced 
+and include a list of known bugs.
+.SH
+Implementation notes
+.PP
+For those interested in the internal organization of the
+Berkeley
+Pascal system there are a series of
+.I "Implementation Notes"
+describing these details.
+The
+.I "Berkeley Pascal PXP Implementation Notes"
+describe the Pascal interpreter
+.X \|;
+and the
+.I "Berkeley Pascal PX Implementation Notes"
+describe the structure of the
+execution profiler
+.I pxp .
+.br
+.ne 8
+.NH 2
+References
+.de re
+.sp
+.IP
+'nf
+..
+.SH
+UNIX Documents
+.re
+.I "Communicating With UNIX"
+Computer Center
+University of California, Berkeley
+January, 1978.
+.re
+Ricki Blau and James Joyce
+.I "Edit: a tutorial"
+UNIX User's Supplementary Documents (USD), 14
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+.I "Ex/edit Command Summary"
+Computer Center
+University of California, Berkeley
+August, 1978.
+.re
+William Joy
+.I "Ex Reference Manual \- Version 3.7"
+UNIX User's Supplementary Documents (USD), 16
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+William Joy
+.I "An Introduction to Display Editing with Vi"
+UNIX User's Supplementary Documents (USD), 15
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+William Joy
+.I "An Introduction to the C shell (Revised)"
+UNIX User's Supplementary Documents (USD), 4
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+Brian W. Kernighan
+.I "UNIX for Beginners \- Second Edition"
+UNIX User's Supplementary Documents (USD), 1
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+Brian W. Kernighan
+.I "A Tutorial Introduction to the UNIX Text Editor"
+UNIX User's Supplementary Documents (USD), 12
+University of California, Berkeley, CA. 94720
+April, 1986.
+.re
+Dennis M. Ritchie and Ken Thompson
+.I "The UNIX Time Sharing System"
+Reprinted from Communications of the ACM July 1974 in
+UNIX Programmer's Supplementary Documents, Volume 2 (PS2), 1
+University of California, Berkeley, CA. 94720
+April, 1986.
+.SH
+Pascal Language Documents
+.re
+Cooper and Clancy
+.I "Oh! Pascal!, 2nd Edition"
+W. W. Norton & Company, Inc.
+500 Fifth Ave., NY, NY. 10110
+1985, 475 pp.
+.re
+Cooper
+.I "Standard Pascal User Reference Manual"
+W. W. Norton & Company, Inc.
+500 Fifth Ave., NY, NY. 10110
+1983, 176 pp.
+.re
+Kathleen Jensen and Niklaus Wirth
+.I "Pascal \- User Manual and Report"
+Springer-Verlag, New York.
+1975, 167 pp.
+.re
+Niklaus Wirth
+.I "Algorithms + Data structures = Programs"
+Prentice-Hall, New York.
+1976, 366 pp.
+.SH
+Berkeley Pascal documents
+.PP
+The following documents are available from the Computer Center Library
+at the University of California, Berkeley.
+.nf
+.re
+William N. Joy
+.I "Berkeley Pascal PX Implementation Notes"
+Version 1.1, April 1979.
+(Vax-11 Version 2.0 By Kirk McKusick, December, 1979)
+.re
+William N. Joy
+.I "Berkeley Pascal PXP Implementation Notes"
+Version 1.1, April 1979.

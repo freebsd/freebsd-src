@@ -1,0 +1,154 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T><C>SplayMap_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T><C>SplayMap_h 1
+
+#include "<T>.<C>.Map.h"
+
+#ifndef _<T><C>SplayNode
+#define _<T><C>SplayNode 1
+
+struct <T><C>SplayNode
+{
+  <T><C>SplayNode*   lt;
+  <T><C>SplayNode*   rt;
+  <T><C>SplayNode*   par;
+  <T>                item;
+  <C>                cont;
+                     <T><C>SplayNode(<T&> h, <C&> c, 
+                                     <T><C>SplayNode* l=0, 
+                                     <T><C>SplayNode* r=0);
+                  ~<T><C>SplayNode();
+};
+
+
+inline <T><C>SplayNode::<T><C>SplayNode(<T&> h, <C&> c, 
+                                        <T><C>SplayNode* l, 
+                                        <T><C>SplayNode* r)
+     :item(h), cont(c), lt(l), rt(r), par(0) {}
+
+inline <T><C>SplayNode::~<T><C>SplayNode() {}
+
+typedef <T><C>SplayNode* <T><C>SplayNodePtr;
+
+#endif
+
+class <T><C>SplayMap : public <T><C>Map
+{
+protected:
+  <T><C>SplayNode*   root;
+
+  <T><C>SplayNode*   leftmost();
+  <T><C>SplayNode*   rightmost();
+  <T><C>SplayNode*   pred(<T><C>SplayNode* t);
+  <T><C>SplayNode*   succ(<T><C>SplayNode* t);
+  void               _kill(<T><C>SplayNode* t);
+  <T><C>SplayNode*   _copy(<T><C>SplayNode* t);
+
+public:
+               <T><C>SplayMap(<C&> dflt);
+               <T><C>SplayMap(<T><C>SplayMap& a);
+               ~<T><C>SplayMap();
+
+  <C>&          operator [] (<T&> key);
+
+  void          del(<T&> key);
+
+  Pix           first();
+  void          next(Pix& i);
+  <T>&          key(Pix i);
+  <C>&          contents(Pix i);
+
+  Pix           seek(<T&> key);
+  int           contains(<T&> key);
+
+  void          clear(); 
+
+  Pix           last();
+  void          prev(Pix& i);
+
+  int           OK();
+};
+
+
+inline <T><C>SplayMap::~<T><C>SplayMap()
+{
+  _kill(root);
+}
+
+inline <T><C>SplayMap::<T><C>SplayMap(<C&> dflt) :<T><C>Map(dflt)
+{
+  root = 0;
+}
+
+inline <T><C>SplayMap::<T><C>SplayMap(<T><C>SplayMap& b) :<T><C>Map(b.def)
+{
+  count = b.count;
+  root = _copy(b.root);
+}
+
+inline Pix <T><C>SplayMap::first()
+{
+  return Pix(leftmost());
+}
+
+inline Pix <T><C>SplayMap::last()
+{
+  return Pix(rightmost());
+}
+
+inline void <T><C>SplayMap::next(Pix& i)
+{
+  if (i != 0) i = Pix(succ((<T><C>SplayNode*)i));
+}
+
+inline void <T><C>SplayMap::prev(Pix& i)
+{
+  if (i != 0) i = Pix(pred((<T><C>SplayNode*)i));
+}
+
+inline <T>& <T><C>SplayMap::key (Pix i)
+{
+  if (i == 0) error("null Pix");
+  return ((<T><C>SplayNode*)i)->item;
+}
+
+inline <C>& <T><C>SplayMap::contents (Pix i)
+{
+  if (i == 0) error("null Pix");
+  return ((<T><C>SplayNode*)i)->cont;
+}
+
+inline void <T><C>SplayMap::clear()
+{
+  _kill(root);
+  count = 0;
+  root = 0;
+}
+
+inline int <T><C>SplayMap::contains(<T&> key)
+{
+  return seek(key) != 0;
+}
+
+#endif

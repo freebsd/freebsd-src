@@ -1,0 +1,12 @@
+#
+# Sun rasterfiles
+#
+0	string	\x59\xa6\x6a\x95	rasterfile
+>4	belong	x		%ld x
+>8	belong	x		%ld x
+>12	belong	x		%ld
+>20	belong	0		old format image
+>20	belong	1		standard format image
+>20	belong	2		run-length byte encoded image
+>20	belong	0xffff		experimental format image
+>24	belong	1		with color map

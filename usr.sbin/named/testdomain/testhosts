@@ -1,0 +1,17 @@
+;
+;	@(#)testhosts	1.17	(berkeley)	86/02/05
+;
+
+@	IN	SOA	UCBVAX.Berkeley.EDU. KJD.UCBVAX.Berkeley.EDU. (
+			        1.17	; Serial
+                                3600    ; Refresh
+                                300     ; Retry
+                                3600000 ; Expire
+                                3600 )  ; Minimum
+h1.t1		IN	MX	10 	t2
+h2.t1		IN	MX	10	t2
+*.t1		IN	MX	5	t3
+*.t4		IN	MX	7	t2
+c1.t1		IN	CNAME		monet.berkeley.edu.
+c2.t1		IN	CNAME		rip.berkeley.edu.
+c3.t1		IN	CNAME		matisse.berkeley.edu.

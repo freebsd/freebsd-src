@@ -1,0 +1,124 @@
+.\" Copyright (c) 1990, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fgetline.3	5.4 (Berkeley) 4/19/91
+.\"
+.Dd April 19, 1991
+.Dt FGETLINE 3
+.Os
+.Sh NAME
+.Nm fgetline
+.Nd get a line from a stream
+.Sh SYNOPSIS
+.Fd #include <stdio.h>
+.Ft char *
+.Fn fgetline "FILE *stream" "size_t *len"
+.Sh DESCRIPTION
+The
+.Fn fgetline
+function
+returns a pointer to the next line from the stream referenced by
+.Fa stream .
+The newline character at the end of the line is replaced by a
+.Dv NUL .
+.Pp
+If
+.Fa len
+is non-NULL, the length of the line, not counting the terminating
+.Dv NUL ,
+is stored in the memory location it references.
+.Sh RETURN VALUES
+Upon successful completion a pointer is returned;
+this pointer becomes invalid after the next
+.Tn I/O
+operation on
+.Fa stream
+(whether successful or not)
+or as soon as the stream is closed.
+Otherwise,
+.Dv NULL
+is returned.
+The
+.Fn fgetline
+function
+does not distinguish between end-of-file and error; the routines
+.Xr feof 3
+and
+.Xr ferror 3
+must be used
+to determine which occurred.
+If an error occurrs, the global variable
+.Va errno
+is set to indicate the error.
+The end-of-file condition is remembered, even on a terminal, and all
+subsequent attempts to read will return
+.Dv NULL
+until the condition is
+cleared with
+.Xr clearerr 3 .
+.Pp
+The text to which the returned pointer points may be modified,
+provided that no changes are made beyond the terminating
+.Dv NUL .
+These changes are lost as soon as the pointer becomes invalid.
+.Sh ERRORS
+.Bl -tag -width [EBADF]
+.It Bq Er EBADF
+The argument
+.Fa stream
+is not a stream open for reading.
+.El
+.Pp
+The
+.Fn fgetline
+function
+may also fail and set
+.Va errno
+for any of the errors specified for the routines
+.Xr fflush 3 ,
+.Xr malloc 3 ,
+.Xr read 2 ,
+.Xr stat 2 ,
+or
+.Xr realloc 3 .
+.Sh SEE ALSO
+.Xr ferror 3 ,
+.Xr fgets 3 ,
+.Xr fopen 3 ,
+.Xr putc 3
+.Sh HISTORY
+The
+.Fn fgetline
+function is
+.Ud .
+.Sh BUGS
+It is not possible to tell whether the final line of an input file
+was terminated with a newline.

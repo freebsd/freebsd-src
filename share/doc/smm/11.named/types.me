@@ -1,0 +1,100 @@
+.\" Copyright (c) 1986, 1988 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)types.me	6.5 (Berkeley) 4/17/91
+.\"
+.sh 1 "Types of Servers"
+.pp
+There are several types of servers: Master, Caching, Remote, and Slave.
+.sh 2 "Master Servers"
+.pp
+A Master Server for a domain is the authority for that domain.
+This server maintains all the data corresponding to its domain.
+Each domain should have at least two master servers, a primary master and 
+some secondary masters to provide backup service if the primary 
+is unavailable or overloaded.
+A server may be a master for multiple domains, being primary for
+some domains and secondary for others.
+.sh 3 Primary
+.pp
+A Primary Master Server is a server that loads its data from a file on disk.
+This server may also delegate authority to other servers in its domain.
+.sh 3 Secondary
+.pp
+A Secondary Master Server is a server that is delegated authority and receives  
+its data for a domain from a primary master server.
+At boot time, the secondary server requests 
+all the data for the given zone from the primary master server.
+This server then periodically checks with the primary server to see
+if it needs to update its data.
+.sh 2 "Caching Only Server"
+.pp
+All servers are caching servers. This means that the server
+caches the information that it receives for use until the data expires. 
+A \fICaching Only Server\fP is a server that is not authoritative for any domain.
+This server services queries and asks other servers,
+who have the authority, for the information needed.
+All servers keep data in their cache until the data expires,
+based on a time to live field attached to the data when it is received
+from another server.
+.sh 2 "Remote Server"
+.pp
+A Remote Server is an option given to people who would like to use 
+a name server on their workstation or on a machine that has a limited
+amount of memory and CPU cycles.
+With this option you can run all of the networking programs that use
+the name server without the name server running on the local machine.
+All of the queries are serviced by a name server that is running on another 
+machine on the network.
+.sh 2 "Slave Server"
+.pp
+A Slave Server is a server that always forwards queries it cannot
+satisfy locally to a fixed list of \fIforwarding\fP servers
+instead of interacting
+with the master nameservers for the root and other domains.
+The queries to the \fIforwarding servers\fP are recursive queries.
+There may be one or more forwarding servers, and they are tried in turn
+until the list is exhausted.
+A Slave and forwarder configuration is typically used when you do not
+wish all the servers at a give site to be interacting with the rest
+of the Internet servers.  A typically scenario would involve a number of
+workstations and a departmental timesharing machine with Internet
+access.  The workstations might be
+administratively prohibited from having Internet access.
+To give the workstations the appearance of access to the Internet
+domain system, the workstations could be Slave servers to the timesharing
+machine which would forward the queries and interact with other
+nameservers to resolve the query before returning the answer.
+An added benefit of using the forwarding feature is that the central
+machine develops a much more complete cache of information that
+all the workstations can take advantage of.  Slave mode
+and forwarding is discussed further under the description of
+the named bootfile commands.

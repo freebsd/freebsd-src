@@ -1,0 +1,21 @@
+# a very simple makefile...
+
+CFLAGS = -I. -DMACHINE=\"sun3\"
+
+MAKESRC = arch.c buf.c compat.c cond.c dir.c hash.c job.c main.c make.c \
+	  parse.c str.c suff.c targ.c var.c
+MAKEOBJS = arch.o buf.o compat.o cond.o dir.o hash.o job.o main.o make.o \
+	   parse.o str.o suff.o targ.o var.o
+
+
+all: make
+	
+lst.lib/liblst.a:
+	cd lst.lib ; make -f Makefile.dist
+
+make: $(MAKEOBJS) lst.lib/liblst.a
+	$(CC) -o make $(MAKEOBJS) lst.lib/liblst.a
+
+clean: 
+	rm -f $(MAKEOBJS) make
+	cd lst.lib ; make -f Makefile.dist clean

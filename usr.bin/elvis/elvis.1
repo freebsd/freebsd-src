@@ -1,0 +1,149 @@
+.TH ELVIS 1
+.SH NAME
+elvis, ex, vi, view, input - The editor
+.SH SYNOPSIS
+\fBelvis\fP [\fIflags\fP] [\fB+\fP\fIcmd\fP] [\fIfiles\fP...]
+.SH DESCRIPTION
+\fIElvis\fP is a text editor which emulates \fIvi\fP/\fIex\fP.
+.PP
+On systems which pass the program name as an argument, such as Unix and Minix,
+you may also install \fIelvis\fP under the names "ex", "vi", "view", and "input".
+These extra names would normally be links to elvis;
+see the "ln" shell command.
+.PP
+When \fIelvis\fP is invoked as "vi",
+it behaves exactly as though it was invoked as "elvis".
+However, if you invoke \fIelvis\fP as "view",
+then the readonly option is set as though you had given it the "-R" flag.
+If you invoke \fIelvis\fP as "ex",
+then \fIelvis\fP will start up in the colon command mode
+instead of the visual command mode,
+as though you had given it the "-e" flag.
+If you invoke \fIelvis\fP as "input" or "edit",
+then \fIelvis\fP will start up in input mode,
+as though the "-i" flag was given.
+.SH OPTIONS
+.IP \fB-r\fP
+To the real vi, this flag means that a previous edit should be recovered.
+\fIElvis\fP, though, has a separate program, called \fIelvrec(1)\fP, for recovering
+files.
+When you invoke \fIelvis\fP with -r, \fIelvis\fP will tell you to run \fIelvrec\fP.
+.IP \fB-R\fP
+This sets the "readonly" option,
+so you won't accidentally overwrite a file.
+.IP "\fB-t\fP \fItag\fP"
+This causes \fIelvis\fP to start editing at the given tag.
+.IP "\fB-m\fP [\fIfile\fP]"
+\fIElvis\fP will search through \fIfile\fP for something that looks like
+an error message from a compiler.
+It will then begin editing the source file that caused the error,
+with the cursor sitting on the line where the error was detected.
+If you don't explicitly name a \fIfile\fP, then "errlist" is assumed.
+.IP \fB-e\fP
+\fIElvis\fP will start up in colon command mode.
+.IP \fB-v\fP
+\fIElvis\fP will start up in visual command mode.
+.IP \fB-i\fP
+\fIElvis\fP will start up in input mode.
+.IP "\fB-w\fR \fIwinsize\fR"
+Sets the "window" option's value to \fIwinsize\fR.
+.IP "\fB+\fP\fIcommand\fP or \fB-c\fP \fIcommand\fP"
+If you use the +\fIcommand\fP parameter,
+then after the first file is loaded
+\fIcommand\fP is executed as an EX command.
+A typical example would be "elvis +237 foo",
+which would cause \fIelvis\fP to start editing foo and
+then move directly to line 237.
+The "-c \fIcommand\fP" variant was added for UNIX SysV compatibility.
+.SH FILES
+.IP /tmp/elv*
+During editing,
+\fIelvis\fP stores text in a temporary file.
+For UNIX, this file will usually be stored in the /tmp directory,
+and the first three characters will be "elv".
+For other systems, the temporary files may be stored someplace else;
+see the version-specific section of the documentation.
+.IP tags
+This is the database used by the \fI:tags\fP command and the \fB-t\fP option.
+It is usually created by the \fIctags(1)\fP program.
+.IP ".exrc or elvis.rc"
+On UNIX-like systems, a file called ".exrc" in your home directory
+is executed as a series of \fIex\fR commands.
+A file by the same name may be executed in the current directory, too.
+On non-UNIX systems, ".exrc" is usually an invalid file name;
+there, the initialization file is called "elvis.rc" instead.
+.SH ENVIRONMENT
+.IP TERM
+This is the name of your terminal's entry in the termcap or terminfo
+database.
+The list of legal values varies from one system to another.
+.IP TERMCAP
+Optional.
+If your system uses termcap, and the TERMCAP variable is unset, then
+\*E will read your terminal's definition from \fB/etc/termcap\fR.
+If TERMCAP is set to the full pathname of a file (starting with a '/')
+then \*E will look in the named file instead of \fB/etc/termcap\fR.
+If TERMCAP is set to a value which doesn't start with a '/',
+then its value is assumed to be the full termcap entry for your terminal.
+.IP TERMINFO
+Optional.
+If your system uses terminfo, and the TERMINFO variable is unset, then
+\*E will read your terminal's definition from the database in the
+\fB/usr/lib/terminfo\fR database.
+If TERMINFO is set, then its value is used as the database name to use
+instead of \fB/usr/lib/terminfo\fR.
+.IP "LINES, COLUMNS"
+Optional.
+These variables, if set, will override the screen size values given in
+the termcap/terminfo for your terminal.
+On windowing systems such as X, \*E has other ways of determining the
+screen size, so you should probably leave these variables unset.
+.IP EXINIT
+Optional.
+This variable can hold EX commands which will be executed before any .exrc
+files.
+.IP SHELL
+Optional.
+The SHELL variable sets the default value for the "shell" option,
+which determines which shell program is used to perform wildcard
+expansion in file names, and also which is used to execute filters
+or external programs.
+The default value on UNIX systems is "/bin/sh".
+.IP
+Note: Under MS-DOS, this variable is called COMSPEC instead of SHELL.
+.IP HOME
+This variable should be set to the name of your home directory.
+\*E looks for its initialization file there;
+if HOME is unset then the initialization file will not be executed.
+.IP TAGPATH
+Optional.
+This variable is used by the "ref" program, which is invoked by the shift-K,
+control-], and :tag commands.
+See "ref" for more information.
+.IP "TMP, TEMP"
+These optional environment variables are only used in non-UNIX versions
+of \*E.
+They allow you to supply a directory name to be used for storing temporary files.
+.SH "SEE ALSO"
+ctags(1), ref(1), virec(1)
+.PP
+\fIElvis - A Clone of Vi/Ex\fP, the complete \fIelvis\fP documentation.
+.SH BUGS
+There is no LISP support.
+Certain other features are missing, too.
+.PP
+Auto-indent mode is not quite compatible with the real vi.
+Among other things, 0^D and ^^D don't do what you might expect.
+.PP
+Long lines are displayed differently.
+The real vi wraps long lines onto multiple rows of the screen,
+but \fIelvis\fP scrolls sideways.
+.SH AUTHOR
+.nf
+Steve Kirkendall
+kirkenda@cs.pdx.edu
+.fi
+.PP
+Many other people have worked to port \fIelvis\fP to various operating systems.
+To see who deserves credit, run the \fI:version\fP command from within \fIelvis\fP,
+or look in the system-specific section of the complete documentation.

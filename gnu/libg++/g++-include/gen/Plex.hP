@@ -1,0 +1,494 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+    based on code by Marc Shapiro (shapiro@sor.inria.fr)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+#ifndef _<T>Plex_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>Plex_h 1
+
+#include <std.h>
+#include <Pix.h>
+#include "<T>.defs.h"
+
+// Plexes are made out of <T>IChunks
+
+#include <stddef.h>
+
+class <T>IChunk
+{
+//public: // kludge until C++ `protected' policies settled
+protected:      
+
+  <T>*           data;           // data, from client
+
+  int            base;           // lowest possible index
+  int            low;            // lowest valid index
+  int            fence;          // highest valid index + 1
+  int            top;            // highest possible index + 1
+
+  <T>IChunk*     nxt;            // circular links
+  <T>IChunk*     prv;
+
+public:
+
+// constructors
+
+                 <T>IChunk(<T>*     d,       // ptr to array of elements
+                        int      base_idx, // initial indices
+                        int      low_idx,  
+                        int      fence_idx,
+                        int      top_idx);
+
+  virtual       ~<T>IChunk();
+
+// status reports
+
+  int            size() const;    // number of slots
+
+  virtual int    empty() const ;
+  virtual int    full() const ; 
+
+  int            can_grow_high () const ;  // there is space to add data
+  int            can_grow_low () const;        
+  
+  int            base_index() const;   // lowest possible index;
+  int            low_index() const;    // lowest actual index;
+  virtual int    first_index() const;  // lowest valid index or fence if none
+  virtual int    last_index() const;   // highest valid index or low-1 if none
+  int            fence_index() const;  // highest actual index + 1
+  int            top_index() const;    // highest possible index + 1
+
+// indexing conversion
+
+  int            possible_index(int i) const; // i between base and top
+  int            actual_index(int i) const;   // i between low and fence
+  virtual int    valid_index(int i) const;    // i not deleted (mainly for mchunks)
+
+  int            possible_pointer(const <T>* p) const; // same for ptr
+  int            actual_pointer(const <T>* p) const; 
+  virtual int    valid_pointer(const <T>* p) const; 
+
+  <T>*           pointer_to(int i) const ;   // pointer to data indexed by i
+                                      // caution: i is not checked for validity
+  int            index_of(const <T>* p) const; // index of data pointed to by p
+                                      // caution: p is not checked for validity
+
+  virtual int    succ(int idx) const;     // next valid index or fence if none
+  virtual int    pred(int idx) const;     // previous index or low - 1 if none
+
+  virtual <T>*   first_pointer() const;   // pointer to first valid pos or 0
+  virtual <T>*   last_pointer() const;    // pointer to first valid pos or 0
+  virtual <T>*   succ(<T>*  p) const;     // next pointer or 0
+  virtual <T>*   pred(<T>* p) const;     // previous pointer or 0
+
+// modification
+
+  virtual <T>*   grow_high ();      // return spot to add an element
+  virtual <T>*   grow_low ();  
+
+  virtual void   shrink_high ();    // logically delete top index
+  virtual void   shrink_low ();     
+
+  virtual void   clear(int lo);     // reset to empty ch with base = lo
+  virtual void   cleardown(int hi); // reset to empty ch with top = hi
+  void           re_index(int lo);  // re-index so lo is new low
+
+// chunk traversal
+
+  <T>IChunk*     next() const;
+  <T>IChunk*     prev() const;
+
+  void           link_to_prev(<T>IChunk* prev);
+  void           link_to_next(<T>IChunk* next);
+  void           unlink();
+
+// state checks
+
+  <T>*           invalidate();     // mark self as invalid; return data
+                                   // for possible deletion
+
+  virtual int    OK() const;             // representation invariant
+
+  void   error(const char*) const;
+  void   empty_error() const;
+  void   full_error() const;
+  void   index_error() const;
+};
+
+// <T>Plex is a partly `abstract' class: few of the virtuals
+// are implemented at the Plex level, only in the subclasses
+
+class <T>Plex
+{
+protected:      
+
+  <T>IChunk*       hd;          // a chunk holding the data
+  int              lo;          // lowest  index
+  int              fnc;         // highest index + 1
+  int              csize;       // size of the chunk
+
+  void             invalidate();              // mark so OK() is false
+  void             del_chunk(<T>IChunk*);        // delete a chunk
+
+  <T>IChunk*       tl() const;                // last chunk;
+  int              one_chunk() const;         // true if hd == tl()
+
+public:
+
+// constructors, etc.
+
+                    <T>Plex();                  // no-op
+
+  virtual           ~<T>Plex();
+
+  
+// Access functions 
+    
+  virtual <T>&      operator [] (int idx) = 0; // access by index;
+  virtual <T>&      operator () (Pix p) = 0;   // access by Pix;
+
+  virtual <T>&      high_element () = 0;      // access high element
+  virtual <T>&      low_element () = 0;       // access low element
+
+// read-only versions for const Plexes
+
+  virtual const <T>& operator [] (int idx) const = 0; // access by index;
+  virtual const <T>& operator () (Pix p) const = 0;   // access by Pix;
+
+  virtual const <T>& high_element () const = 0;      // access high element
+  virtual const <T>& low_element () const = 0;       // access low element
+
+
+// Index functions
+
+  virtual int       valid (int idx) const = 0;      // idx is an OK index
+
+  virtual int       low() const = 0;         // lowest index or fence if none
+  virtual int       high() const = 0;        // highest index or low-1 if none
+
+  int               ecnef() const;         // low limit index (low-1)
+  int               fence() const;         // high limit index (high+1)
+
+  virtual void      prev(int& idx) const= 0; // set idx to preceding index
+                                          // caution: pred may be out of bounds
+
+  virtual void      next(int& idx) const = 0;       // set to next index
+                                          // caution: succ may be out of bounds
+
+  virtual Pix       first() const = 0;        // Pix to low element or 0
+  virtual Pix       last() const = 0;         // Pix to high element or 0
+  virtual void      prev(Pix& pix) const = 0;  // preceding pix or 0
+  virtual void      next(Pix& pix) const = 0;  // next pix or 0
+  virtual int       owns(Pix p) const = 0;     // p is an OK Pix
+
+// index<->Pix 
+
+  virtual int       Pix_to_index(Pix p) const = 0;   // get index via Pix
+  virtual Pix       index_to_Pix(int idx) const = 0; // Pix via index
+
+// Growth
+
+  virtual int       add_high(const <T&> elem) =0;// add new element at high end
+                                                // return new high
+
+  virtual int       add_low(const <T&> elem) = 0;   // add new low element,
+                                                // return new low
+
+// Shrinkage
+
+  virtual int       del_high() = 0;           // remove the element at high end
+                                          // return new high
+  virtual int       del_low() = 0;        // delete low element, return new lo
+
+                                          // caution: del_low/high
+                                          // does not necessarily 
+                                          // immediately call <T>::~<T>
+
+
+// operations on multiple elements
+
+  virtual void      fill(const <T&> x);          // set all elements = x
+  virtual void      fill(const <T&> x, int from, int to); // fill from to to
+  virtual void      clear() = 0;                // reset to zero-sized Plex
+  virtual int       reset_low(int newlow); // change low index,return old
+  virtual void      reverse();                   // reverse in-place
+  virtual void      append(const <T>Plex& a);    // concatenate a copy
+  virtual void      prepend(const <T>Plex& a);   // prepend a copy
+
+// status
+
+  virtual int       can_add_high() const = 0;
+  virtual int       can_add_low() const = 0;
+  
+  int               length () const;       // number of slots
+
+  int               empty () const;        // is the plex empty?
+  virtual int       full() const = 0;      // it it full?
+
+  int               chunk_size() const;    // report chunk size;
+
+  virtual int       OK() const = 0;        // representation invariant
+
+  void		    error(const char* msg) const;
+  void		    index_error() const;
+  void		    empty_error() const;
+  void		    full_error() const;
+};
+
+
+// <T>IChunk ops
+
+inline int <T>IChunk:: size() const
+{
+  return top - base;
+}
+
+
+inline int <T>IChunk:: base_index() const
+{
+  return base;
+}
+
+inline  int <T>IChunk:: low_index() const
+{
+  return low;
+}
+
+inline  int  <T>IChunk:: fence_index() const
+{
+  return fence;
+}
+
+inline  int  <T>IChunk:: top_index() const
+{
+  return top;
+}
+
+inline  <T>* <T>IChunk:: pointer_to(int i) const
+{
+  return &(data[i-base]);
+}
+
+inline  int  <T>IChunk:: index_of(const <T>* p) const
+{
+  return ((int)p - (int)data) / sizeof(<T>) + base;
+}
+
+inline  int  <T>IChunk:: possible_index(int i) const
+{
+  return i >= base && i < top;
+}
+
+inline  int  <T>IChunk:: possible_pointer(const <T>* p) const
+{
+  return p >= data && p < &(data[top-base]);
+}
+
+inline  int  <T>IChunk:: actual_index(int i) const
+{
+  return i >= low && i < fence;
+}
+
+inline  int  <T>IChunk:: actual_pointer(const <T>* p) const
+{
+  return p >= data && p < &(data[fence-base]);
+}
+
+inline  int  <T>IChunk:: can_grow_high () const
+{
+  return fence < top;
+}
+
+inline  int  <T>IChunk:: can_grow_low () const
+{
+  return base < low;
+}
+
+inline  <T>* <T>IChunk:: invalidate()
+{
+  <T>* p = data;
+  data = 0;
+  return p;
+}
+
+
+inline <T>IChunk* <T>IChunk::prev() const
+{
+  return prv;
+}
+
+inline <T>IChunk* <T>IChunk::next() const
+{
+  return nxt;
+}
+
+inline void <T>IChunk::link_to_prev(<T>IChunk* prev)
+{
+  nxt = prev->nxt;
+  prv = prev;
+  nxt->prv = this;
+  prv->nxt = this;
+}
+
+inline void <T>IChunk::link_to_next(<T>IChunk* next)
+{
+  prv = next->prv;
+  nxt = next;
+  nxt->prv = this;
+  prv->nxt = this;
+}
+
+inline void <T>IChunk::unlink()
+{
+  <T>IChunk* n = nxt;
+  <T>IChunk* p = prv;
+  n->prv = p;
+  p->nxt = n;
+  prv = nxt = this;
+}
+
+inline  int <T>IChunk:: empty() const
+{
+  return low == fence;
+}
+
+inline  int  <T>IChunk:: full() const
+{
+  return top - base == fence - low;
+}
+
+inline int <T>IChunk:: first_index() const
+{
+  return (low == fence)? fence : low;
+}
+
+inline int <T>IChunk:: last_index() const
+{
+  return (low == fence)? low - 1 : fence - 1;
+}
+
+inline  int  <T>IChunk:: succ(int i) const
+{
+  return (i < low) ? low : i + 1;
+}
+
+inline  int  <T>IChunk:: pred(int i) const
+{
+  return (i > fence) ? (fence - 1) : i - 1;
+}
+
+inline  int  <T>IChunk:: valid_index(int i) const
+{
+  return i >= low && i < fence;
+}
+
+inline  int  <T>IChunk:: valid_pointer(const <T>* p) const
+{
+  return p >= &(data[low - base]) && p < &(data[fence - base]);
+}
+
+inline  <T>* <T>IChunk:: grow_high ()
+{
+  if (!can_grow_high()) full_error();
+  return &(data[fence++ - base]);
+}
+
+inline  <T>* <T>IChunk:: grow_low ()
+{
+  if (!can_grow_low()) full_error();
+  return &(data[--low - base]);
+}
+
+inline  void <T>IChunk:: shrink_high ()
+{
+  if (empty()) empty_error();
+  --fence;
+}
+
+inline  void <T>IChunk:: shrink_low ()
+{
+  if (empty()) empty_error();
+  ++low;
+}
+
+inline <T>* <T>IChunk::first_pointer() const
+{
+  return (low == fence)? 0 : &(data[low - base]);
+}
+
+inline <T>* <T>IChunk::last_pointer() const
+{
+  return (low == fence)? 0 : &(data[fence - base - 1]);
+}
+
+inline <T>* <T>IChunk::succ(<T>* p) const
+{
+  return ((p+1) <  &(data[low - base]) || (p+1) >= &(data[fence - base])) ? 
+    0 : (p+1);
+}
+
+inline <T>* <T>IChunk::pred(<T>* p) const
+{
+  return ((p-1) <  &(data[low - base]) || (p-1) >= &(data[fence - base])) ? 
+    0 : (p-1);
+}
+
+
+// generic Plex operations
+
+inline <T>Plex::<T>Plex() {}
+
+inline int <T>Plex::chunk_size() const
+{
+  return csize;
+}
+
+inline  int <T>Plex::ecnef () const
+{
+  return lo - 1;
+}
+
+
+inline  int <T>Plex::fence () const
+{
+  return fnc;
+}
+
+inline int <T>Plex::length () const
+{
+  return fnc - lo;
+}
+
+inline  int <T>Plex::empty () const
+{
+  return fnc == lo;
+}
+
+inline <T>IChunk* <T>Plex::tl() const
+{
+  return hd->prev();
+}
+
+inline int <T>Plex::one_chunk() const
+{
+  return hd == hd->prev();
+}
+
+#endif

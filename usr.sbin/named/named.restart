@@ -1,0 +1,9 @@
+#!/bin/sh -
+#
+#	@(#)named.restart	5.4 (Berkeley) 6/27/89
+#
+
+PATH=/bin:/sbin:/usr/sbin:/usr/bin
+
+kill -9 `cat /var/run/named.pid`
+named 

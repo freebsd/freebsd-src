@@ -1,0 +1,11 @@
+./"init"16t"end"n2p
++/"move"16t"insline"16t"delline"16t"delchar"n4p
++/"write"16t"putc"16tn2p
++/"clreol"16t"clreos"16t"clear"n3p
++/"scroll_down"16t"scroll_up"16t"setscroll"n3p
++/"setinsert"16t"setmodes"n2p
++/"modes"8t"nmodes"8t"insert"8t"ninsert"n4b
++/"row"16t"col"16t"scrtop"16t"sclbot"n4D
++/"nrow"16t"ncol"16t"hasins"8t"avlmods"8t"wrap"8t"retain"n2D4b
++/"frame"
+*./16b

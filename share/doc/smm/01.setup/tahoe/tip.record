@@ -1,0 +1,136 @@
+
+#>y.#>fr /boot
+fsd(0,0)/etc
+
+Boot
+: dk(0,0)vdformat
+50176+14336+776780 start 0x1000
+VDFORMAT                   Version 3.0 
+
+controller 0: smd
+controller 1: smd-e
+
+Type `Help' for help, `Start' to execute operations.
+
+vdformat> help
+  The following commands are available:
+    KILL     - Abort all operations.
+    STATus   - Display formatter state.
+    RESET    - Reinitialize VDFORMAT, and start over.
+    EXIT     - Terminate program.
+    List     - List operations specified so far.
+    Delete   - Delete specific operations.
+    Format   - Format and verify disk surface.
+    Verify   - Destructively verify disk surface.
+    Relocate - Add known flaws to bad sector map.
+    Correct  - Correct erroneous relocations or drive ID.
+    Info     - Display known disk information.
+    Profile  - Display seek profile graph of disk.
+    Exercise - Perform seek exercises on disk.
+    STARt    - Start operations.
+
+vdformat> format
+  Format on which controllers? 1
+    Drives on controller 1? 0
+      Number of patterns to use while verifying? 1
+      Drive type for controller 1, drive 0? egl
+        Module serial number for controller 1, drive 0? 1
+vdformat> list
+  The following operations will occur when Start is issued:
+    Format: Controller 1, drive 0, type EGL.
+vdformat> info
+  Info on which controllers? 0
+    Drives on controller 0? 0
+      Drive type for controller 0, drive 0? fsd
+vdformat> list
+  The following operations will occur when Start is issued:
+    Info: Controller 0, drive 0, type FSD.
+    Format: Controller 1, drive 0, type EGL.
+vdformat> help
+  The following commands are available:
+    KILL     - Abort all operations.
+    STATus   - Display formatter state.
+    RESET    - Reinitialize VDFORMAT, and start over.
+    EXIT     - Terminate program.
+    List     - List operations specified so far.
+    Delete   - Delete specific operations.
+    Format   - Format and verify disk surface.
+    Verify   - Destructively verify disk surface.
+    Relocate - Add known flaws to bad sector map.
+    Correct  - Correct erroneous relocations or drive ID.
+    Info     - Display known disk information.
+    Profile  - Display seek profile graph of disk.
+    Exercise - Perform seek exercises on disk.
+    STARt    - Start operations.
+
+vdformat> delete
+    0) Info: Controller 0, drive 0, type FSD.
+    1) Format: Controller 1, drive 0, type EGL.
+  Delete line? 0
+    Line 0 has been deleted.
+  Delete line? 
+  Delete line? 
+  Delete line? 
+  Delete line? -1
+    Line 1 has been deleted.
+  Delete line? ?
+    The following commands are available:
+      STATus - Display formatter state.
+      QUIT   - Terminate current operation.
+            Any line number between 0 and 1 may be entered.
+        Delete line? q
+  Delete line? quit
+  Confirm quit operations? [Yes/No] yes
+vdformat> format
+  Format on which controllers? 1
+    Drives on controller 1? 0
+      Number of patterns to use while verifying? 1
+      Drive type for controller 1, drive 0? (EGL) 
+        Module serial number for controller 1, drive 0? (1) 
+vdformat> list
+  The following operations will occur when Start is issued:
+    Format: Controller 1, drive 0, type EGL.
+vdformat> start
+stat  Starting format on controller 1, drive 0, type EGL.
+us
+        Formatting on controller 1, drive 0.
+        Currently accessing cylinder 841, head 1.
+        Currently determining drive state.
+  Module serial numbers do not match!
+  Use `info' to find the real serial number.
+vdformat> info
+  Info on which controllers? 1
+    Drives on controller 1? 0
+      Drive type for controller 1, drive 0? (EGL) 
+vdformat> list
+  The following operations will occur when Start is issued:
+    Info: Controller 1, drive 0, type EGL.
+vdformat> start
+  Gathering information for controller 1, drive 0.
+
+  Module serial number is 98765.
+  Drive type is EGL.
+  Drive contains a bad sector map.
+  The following sector is known to be bad:
+    cyl 840, head 9, pos 14550, len 1 (Sector #739619) -> Sector 736560.
+  Information display completed successfully.
+vdformat> format
+  Format on which controllers? 1
+    Drives on controller 1? 0
+      Number of patterns to use while verifying? 1
+      Drive type for controller 1, drive 0? (EGL) 
+        Module serial number for controller 1, drive 0? (1) 98765
+vdformat> start
+  Starting format on controller 1, drive 0, type EGL.
+Starting format on system areas
+Starting format on data area
+Starting verify on system areas
+Starting verify on data area
+    Error at sector 651795 (cyl 740 trk 13 sect 23),
+      status=40d00000<CPDCRT,SFTERR,ANYERR,COMPLETE>, ecode=0x4d.
+  Sector will be relocated.
+vdformat> quit
+Confirm quit operations? [Yes/No] y
+vdformat> quit
+Confirm quit operations? [Yes/No] yes
+vdformat>

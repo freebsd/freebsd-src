@@ -1,0 +1,360 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)3.2	6.2 (Berkeley) 4/17/91
+.\"	3.2,v 1.2 1993/08/01 07:37:32 mycroft Exp
+.\"
+.ls 1
+.se "Initial Installation & Parameters"
+
+	Installation of the notesfile system requires
+the following:
+
+.bx
+.ix
+A working familiarity with version 7 UNIX (or later)
+(and UUCP for intersystem transfers).
+.ix
+The notesfile distribution tape. (The distribution is already in /usr/src/new/notes,
+the user-contributed software area, in 4.3BSD).
+.ix
+A signon for the notesfile owner.
+This signon should be in its own group.  The notes
+package runs set-gid; mixing the notes group with other
+groups is not recommended.
+.ix
+An ``anonymous'' signon.
+This signon should be an unused user-id.
+The notesfile system prohibits this user-id from reading and
+writing notes.
+.ix
+The ability to write into the directories where the notesfile
+binaries and data base are to live.
+.ex
+
+	Appendix A (``Notesfile Installation Checklist'') is a helpful
+guide for installing the notesfile system.
+The distribution is made from a VAX running 4.2 Bsd.
+In most cases there are only a few files that need to be
+modified:
+``src/parms.h'',
+``src/Makefile'',
+and
+``src/newsgate.h'' (if you are interfacing to USENET).
+
+	First: read in the
+distribution tape.
+The tape is a TAR format tape. 
+This will read in several directories worth of data. 
+The ``src'' directory contains all source code for the notesfile
+system and the internal help files.
+The ``doc'' directory contains an nroff source for the user manual and
+the macros that were used to generate it.
+The ``man'' directory contains the nroff sources
+for the 
+notesfile manual pages.
+The ``Samples'' directory is a collection of various system files from our
+machine;
+they are included to provide examples in setting the matching files on
+your system.
+
+	After the tape has been read in, select the appropriate parameters.
+
+.ss "Selecting Appropriate Constants"
+
+	Before compiling the notesfile system, 
+it must be configured to match your system.
+The location of spooling directories and command directories,
+the UNIX kernel,
+and
+policies on ``non-standard'' software
+may require changes in the default configuration.
+
+	Configuring the notesfile system is accomplished through
+modifying two files, both in the ``src'' directory of
+the distribution.
+The ``parms.h'' file contains information on values for
+the default archival time,
+UNIX kernel type,
+and
+the behavior of the notesfile system such as whether
+to keep core images when the notesfile system detects an
+internal error.
+The ``Makefile'' file contains definitions
+of the spooling and command directories,
+the notesfile ``owner'',
+and
+the ``anonymous'' user.
+
+	The distribution is configured for a UNIX 4.2 BSD system.
+The most frequently changed values,
+after the kernel definition,
+are the notesfile ``owner'' and the location of spooling
+and command directories.
+
+	Appendix A (``Notesfile Installation Checklist'')
+details each of the options in ``parms.h'' and ``Makefile''.
+It describes the meaning of the option and the effects of
+changing the value.
+The recommended method for choosing an appropriate configuration
+is to sit at a terminal with the checklist and mark each option
+as it is selected or rejected.
+
+.ss "Compiling the Notesfile System"
+
+	After all the appropriate parameters are set up, the next step is
+to generate the notesfile system.
+First, the requisite directories and files
+in /usr/bin (or wherever) should be manufactured.
+This procedure should be run exactly once and will probably have to be run
+by the superuser.
+To make these files type:
+
+.nf
+	make base
+.fi
+
+The next phase should be run while signed in as the notesfile ``owner''.
+Type:
+
+.nf
+	make boot
+.fi
+
+	If all goes well, this should end with a message to the effect
+that the notesfile system has been installed
+(approximately 17 minutes on a VAX-11/780)
+If anything goes wrong, perusal of the terminal dialogue should
+point out the offending steps.
+The most likely cause of errors will be a missing directory.
+
+	To replace the notesfile software
+any time after these two steps have been run, type:
+
+.nf
+	make install
+.fi
+
+	If at some time you are must change some of the internal constants
+of the notesfile package (such as string lengths and blocking factors),
+all the existing notesfiles on your system will be incompatible with the
+new instantiation of the program.  
+The ``nfdump'' and ``nfload'' programs are useful for converting
+the data base from one format to another.
+The ``nfdump'' program should be compiled with the old configuration
+and the ``nfload'' program should be compiled with the new configuration.
+Documentation on these programs can be found in the appendices.
+
+.ss "User Subroutines"
+
+	The notesfile package contains several routines available
+to users in general.
+The nfabort routine generates a core image, places it in a specified
+place, logs the fact in a notesfile, and terminates.
+The nfcomment routine allows users to log text in a notesfile.
+These routines are useful for debugging information, and communication
+between program developers and users.
+Users can load these routines by specifying `-lnfcom' on 
+the `cc' or `ld' command lines.
+
+	The normal installation procedure (``make install'') will 
+compile the nfcomment routine and place it in the library directory.
+As distributed, the file is placed in the ``/usr/local/lib'' directory.
+To change this, modify the definition of ``LIBDIR'' in `Makefile'.
+
+.se "Installing the Man(1) Documentation"
+
+	Install the man(1) pages for the notesfile with the following
+commands.
+They are best done as super-user.
+
+.nf
+.ne 2
+	cd man
+	make install
+.fi
+
+The nroff sources for the documentation will be installed in the
+directory /usr/man in subdirectories man1, man3, and man8.
+
+.se "Interfacing to News(I)"
+
+	The notesfile system interfaces to the news(I)
+system.
+The newsinput program parses articles from the news system
+and inserts them in the appropriate notesfiles.
+The newsoutput program moves notes from the notesfile system
+to the news system.
+Neither program will move text between the two systems if the notesfile
+is not enabled for networking (see section 3.1.5).
+Newsoutput will not retransmit articles inserted by newsinput.
+Sites sharing notesfiles can all run both newsinput and newsoutput.
+
+	Appendix B contains instructions on how to interface
+a notesfile system to a news system.
+Configurations for isolated notesfiles sites, notesfile subnetworks,
+mapping between notesfile and newsgroup names,
+and a checklist for the gateway installation are included.
+
+	Since the notes system stores the
+entire text of a single notesfile
+in a single file, a notesfile system uses less space than the
+same scale news system.
+The notesfile system is generally more space-efficient
+than B news.
+
+.se "Housekeeping"
+
+	Notesfiles has a number of utilities to manage its
+data base.
+A number of shell scripts are included with the distribution
+which invoke the archival programs and trim logging files
+which otherwise grow without bounds.
+These shell scripts are included in the ``Samples'' subdirectory
+of the notesfile distribution and 
+can be invoked automatically through cron(8).
+
+.ss "Cleaning up Disk Space"
+
+	When a note or response is deleted, a hole is left in that notesfile.
+This makes for quick deletion but tends to leave some disk space wasted.
+The compress option on the director page is one way that this space is
+reclaimed.
+The nfarchive program (see section 3.7.2) also returns unused space.
+Have cron run the nfarchive program weekly to automate
+space reclamation.
+
+.ss "Automatic Removal of Notes"
+
+	The nfarchive program archives notes untouched for more than
+a specified number of days.
+Archived notes and their responses are stored in 
+an ``archive'' notesfile.
+``Archive'' notesfiles are typically found in the directory
+/usr/spool/oldnotes; this may vary between installations.
+The archives can be accessed automatically using the ``N'' command
+from the index, note and response displays or
+by explicitly naming the notesfile
+(notes /usr/spool/oldnotes/mynotes).
+The notes are deleted after they have been archived. 
+After the archival, a compression of the notesfile is performed to
+recover the space formerly occupied by the archived notes.
+Nfarchive assumes that all months have 30 days and all years have 12 months.
+The format of the nfarchive command line is:
+
+	nfarchive [-d] [-m+ or -m-] [-#] [-w#] [-f file] topic
+
+	The -d option specifies that no archiving is to take place;
+the notes eligible are to be deleted.
+
+	The -m option specifies whether to check the director message
+status before archiving notes.
+Use ``-m+'' to archive notes which meet the age requirement and have
+the director message on.
+The ``-m-'' option archives notes of sufficient age with the director
+message turned off.
+If this option is omitted, notes are archived on the basis of age only.
+
+	The -# option specifies the age of eligible notes. The
+increment is days.
+The default is determined by the value of ARCHTIME in `parms.h' and 
+is distributed as fourteen days.
+Each notesfile can specify a (possibly) different expiration
+threshold.
+Normally the notesfile will specify `default' and nfarchive
+uses the time specified on its command line.
+Ages specified in a notesfile override the times given on the
+nfarchive command line.
+
+	The -w# parameter specifies the working set size to
+use for notesfiles which do not specify a working set size.
+This determines a minimum number of notes to remain in a notesfile.
+If unspecified, the default working set size is 0.
+This value can be changed through the WORKSETSIZE variable
+in ``parms.h''.
+
+	Working sets and expiration thresholds work together 
+in the following manner.
+Nfarchive first determines a maximum number of notes to delete.
+This is calculated from the number of notes in the notesfile
+(total notes minus ``holes'' caused by deletions)
+and the working set size.
+The archival program proceeds through the notesfile deleting
+notes older than the expiration threshold until it runs
+out of notes or the maximum number of notes has been deleted.
+
+	The -f option specifies a file containing a list of notesfiles
+to be archived.
+Multiple -f parameters are permitted and can be intermixed with
+`topic' parameters.
+Notesfile name pattern matching is performed on both `topic' parameters
+and the entries in a file specified by the -f option.
+
+	Mapping between an active notesfile and its archive is
+listed in the file ``.utilities/net.aliases/Archive-into''.
+This file contains pairs of ABSOLUTE notesfile names
+(``/usr/spool/notes/mynotes'' instead of ``mynotes'').
+The first entry specifies the active notesfile;
+the second entry specifies the archive notesfile.
+Notesfiles not appearing in the archive mapping file will
+be placed in ``/usr/spool/oldnotes'' with the same
+final component as the active notesfile.
+Conflicts are possible.
+If unmapped, the notesfiles ``/usr/spool/notes/mynotes'' and
+``/some/other/place/mynotes'' will be archived into
+the same archive ``/usr/spool/oldnotes/mynotes''.
+
+.ss "Cleaning Sequencer Files"
+
+	A tool to remove sequencer entries for deleted users will be 
+included in future releases of the notesfile package. 
+This tool will traverse the sequencer directory removing files
+belonging to users whose signons no longer exist.
+The process can be made automatic by including an entry in the cron table.
+
+	A second sequencer related utility will traverse
+the sequencer directory
+and remove entries for deleted notesfiles.
+A similar user program will be provided to permit users to remove
+their sequencer entries for notesfiles that they no longer peruse.
+
+.ss "Additions to System Boot"
+
+	Since the notesfile system maintains several lock files to 
+ensure mutual exclusion of each notesfile, a line similar to the following
+should be added to the /etc/rc or /etc/rc.local file:
+
+	rm -f /usr/spool/notes/.locks/*
+
+	Make sure `/usr/spool/notes' matches the MSTDIR parameter in the
+Makefile. 
+This line will remove any locks left if the system has
+crashed.

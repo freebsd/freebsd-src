@@ -1,0 +1,8 @@
+;
+;	boot file for name server
+; Note that there should be one primary entry for each SOA record.
+;
+; type		domain		source file or host
+;
+primary		ucb.arpa	ns.db3
+cache		.		ns.ca3		; initial cache data

@@ -1,0 +1,12 @@
+common.o : common.cc
+index.o : index.cc ../include/posix.h ../include/lib.h ../include/cset.h \
+  ../include/cmap.h ../include/errarg.h ../include/error.h \
+  ../include/refid.h ../include/search.h ../include/index.h \
+  ../include/defs.h
+linear.o : linear.cc ../include/posix.h ../include/lib.h \
+  ../include/errarg.h ../include/error.h ../include/cset.h \
+  ../include/cmap.h ../include/refid.h ../include/search.h
+search.o : search.cc ../include/posix.h ../include/lib.h \
+  ../include/errarg.h ../include/error.h ../include/refid.h \
+  ../include/search.h
+map.o : map.c

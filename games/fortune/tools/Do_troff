@@ -1,0 +1,10 @@
+#!/bin/csh -f
+#
+#	@(#)Do_troff	5.4 (Berkeley) 4/8/91
+#
+
+set file=$1
+shift
+( echo ".ds Se $file" ; cat Troff.mac ; sed -f Troff.sed $file ) | \
+	$* -me >& $file.tr
+echo troff output in $file.tr

@@ -1,0 +1,26 @@
+.TH FMT 1
+.SH NAME
+fmt - adjust line-length for paragraphs of text
+.SH SYNOPSIS
+\fBfmt\fP [\-\fIwidth\fP] [\fIfiles\fP]...
+.SH DESCRIPTION
+\fIfmt\fR is a simple text formatter.
+It inserts or deletes newlines, as necessary, to make all lines in a
+paragraph be approximately the same width.
+It preserves indentation and word spacing.
+.PP
+The default line width is 72 characters.
+You can override this with the \-\fIwidth\fR flag.
+If you don't name any files on the command line,
+then \fIfmt\fR will read from stdin.
+.PP
+It is typically used from within \fIvi\fR to adjust the line breaks
+in a single paragraph.
+To do this, move the cursor to the top of the paragraph,
+type "!}fmt", and
+hit <Return>.
+.SH AUTHOR
+.nf
+Steve Kirkendall
+kirkenda@cs.pdx.edu
+.fi

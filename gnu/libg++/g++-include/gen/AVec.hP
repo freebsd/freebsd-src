@@ -1,0 +1,113 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>AVec_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>AVec_h 1
+
+#include "<T>.Vec.h"
+
+class <T>AVec : public <T>Vec
+{
+protected:
+  void                  check_len(int l);
+  <T>*                  vec();
+                        <T>AVec(int l, <T>* d);
+  public:
+                        <T>AVec ();
+                        <T>AVec (int l);
+                        <T>AVec (int l, <T&> fill_value);
+                        <T>AVec (<T>AVec&);
+                        ~<T>AVec ();
+
+  <T>AVec&              operator =  (<T>AVec& a);
+  <T>AVec&              operator =  (<T&> fill_value);
+
+// vector by scalar -> vector operations
+
+  friend <T>AVec        operator +  (<T>AVec& a, <T&> b);
+  friend <T>AVec        operator -  (<T>AVec& a, <T&> b);
+  friend <T>AVec        operator *  (<T>AVec& a, <T&> b);
+  friend <T>AVec        operator /  (<T>AVec& a, <T&> b);
+
+  <T>AVec&              operator += (<T&> b);
+  <T>AVec&              operator -= (<T&> b);
+  <T>AVec&              operator *= (<T&> b);
+  <T>AVec&              operator /= (<T&> b);
+
+// vector by vector -> vector operations
+
+  friend <T>AVec        operator +  (<T>AVec& a, <T>AVec& b);
+  friend <T>AVec        operator -  (<T>AVec& a, <T>AVec& b);
+  <T>AVec&              operator += (<T>AVec& b);
+  <T>AVec&              operator -= (<T>AVec& b);
+
+  <T>AVec               operator - ();
+
+  friend <T>AVec        product(<T>AVec& a, <T>AVec& b);
+  <T>AVec&              product(<T>AVec& b);
+  friend <T>AVec        quotient(<T>AVec& a, <T>AVec& b);
+  <T>AVec&              quotient(<T>AVec& b);
+
+// vector -> scalar operations
+
+  friend <T>            operator * (<T>AVec& a, <T>AVec& b);
+
+  <T>                   sum();
+  <T>                   min();
+  <T>                   max();
+  <T>                   sumsq();
+
+// indexing
+
+  int                   min_index();
+  int                   max_index();
+
+// redundant but necesssary
+  friend <T>AVec        concat(<T>AVec& a, <T>AVec& b);
+  friend <T>AVec        map(<T>Mapper f, <T>AVec& a);
+  friend <T>AVec        merge(<T>AVec& a, <T>AVec& b, <T>Comparator f);
+  friend <T>AVec        combine(<T>Combiner f, <T>AVec& a, <T>AVec& b);
+  friend <T>AVec        reverse(<T>AVec& a);
+  <T>AVec               at(int from = 0, int n = -1);
+};
+
+inline <T>AVec::<T>AVec() {}
+inline <T>AVec::<T>AVec(int l) :<T>Vec(l) {}
+inline <T>AVec::<T>AVec(int l, <T&> fill_value) : <T>Vec (l, fill_value) {}
+inline <T>AVec::<T>AVec(<T>AVec& v) :<T>Vec(v) {}
+inline <T>AVec::<T>AVec(int l, <T>* d) :<T>Vec(l, d) {}
+inline <T>AVec::~<T>AVec() {}
+
+
+inline <T>* <T>AVec::vec()
+{
+  return s;
+}
+
+
+inline void <T>AVec::check_len(int l)
+{
+  if (l != len)
+    error("nonconformant vectors.");
+}
+
+#endif

@@ -1,0 +1,631 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)2.1	6.2 (Berkeley) 4/17/91
+.\"	2.1,v 1.2 1993/08/01 07:37:36 mycroft Exp
+.\"
+.ls 1
+.ch "Using Notesfiles"
+
+	The notesfile system is invoked with a single command line.
+Most notesfile commands require only a single character (like the vi editor).
+Those that require more than one character are terminated by a carriage
+return.
+
+.se "Invocation"
+
+	Invoke the notesfile system with:
+
+	notes [ -sxi ] [-a subsequencer] [ -t termtype ] [ -f nfile ] [ topic1 ] [ topic2 ... ]
+
+The topic list (e.g., topic1) specifies the notesfiles to read.
+Invoking the notes system with NO arguments yields a list of some
+available topics.
+When more than one topic is specified, the user encounters each topic
+sequentially (i.e., topic2 is entered upon completion of topic1).
+
+	The -s switch activates the ``notesfile sequencer'' which is discussed
+in section 2.8.
+Specify  ``-x'' to use the extended sequencer.
+The ``-i'' flag selects yet another sequencing mode.
+The ``-a'' option specifies a particular subsequencer.
+This allows several users sharing a signon to maintain their
+own sequencing timestamp information.
+
+	The -t option directs the notesfile system to use  ``termtype'' as the user's
+terminal type, overriding the TERM shell variable.
+
+	The -f option directs the notesfile system to read the contents
+of the file ``nfile'' for a list of notesfiles to read.
+See section 2.3 (``The -f Option'')
+for more information on the format of this file.
+
+.se "Notesfile Names and Wildcards"
+
+	Notesfiles can be specified in several ways.
+The most common way is to merely give the name of the notesfile,
+such as ``general''.
+These notesfiles typically reside in the directory
+``/usr/spool/notes''.
+Notesfiles may also be specified by their complete pathname;
+thus you could also refer to ``general'' by its full
+pathname ``/usr/spool/notes/general''.
+Using complete naming, notesfiles can be placed anywhere in
+the filesystem.
+This allows ``private'' notesfiles to be
+stored in personal directories.
+
+	The notesfile system supports pattern matching for names in
+the same manner as the shell.
+By using the shell meta-characters ``*'', ``?'', ``['' and ``]'', the user
+can specify a number of notesfiles with a single entry.
+To read all the notesfiles that pertain to
+unix, enter the following
+line (the quotes are required to protect the metacharacters from interpretation
+by the shell):
+
+	notes ``*unix*''
+
+There are several ways to read the notesfiles
+test1, test2, test3 and test4:
+
+	notes test1 test2 test3 test4
+.br
+	notes ``test?''
+.br
+	notes ``test[1234]''
+
+	Entries can also be eliminated from the list of notesfiles to
+look at.
+By prefixing a notesfile name (possibly containing wildcard characters)
+with a `!', the notesfiles are excluded from the list 
+to be examined.
+If one wished to look at all of the ``test'' notesfiles except
+test3, one could specify:
+
+	notes ``test?'' !test3
+
+If you use the c shell, you will have to escape the `!', the history character:
+
+	notes ``test?'' \\!test3
+
+	These features are available from
+the normal entry (notes) and
+the automatic sequencer entry (see section 2.8).
+Most notesfile programs recognize this format. Among those
+which do not are programs which must receive exactly one
+notesfile name.
+
+.se "The -f Option"
+
+	The ``-f'' option of the notesfile system
+specifies a file of notesfile names to read.
+The file consists of lines containing notesfile names:
+
+.ne 4
+.nf
+	nfgripes
+	net.unix-wizards
+	net.general
+	fa.telecom
+.fi
+
+The names start at the left margin; they are indented here
+for readability.
+Wildcard characters (``*'', ``?'', ``['', and ``]'')
+are acceptable in this context.
+Full names such as ``/usr/spool/notes/general'' 
+are also accepted.
+Notesfiles can be eliminated through the ``!'' feature
+as described in section 2.2.
+The sequencer mode can be changed (see section 2.8)
+by inserting a line of the form:
+
+	-s
+
+	Again, this starts at the left margin.
+The ``s'' can be any of: ``s'', ``x'', ``i'', or ``n''.
+When a line of this form is read from the file, the sequencer mode
+is set to the corresponding mode: The normal ``s''equencer,
+the e``x''tended sequencer,
+the ``i''ndex sequencer,
+and
+``n''o sequencer.
+
+	To always enter nfgripes, micronotes, and bicycle
+while only entering the networked notesfiles ``net.*'' when new notes
+are present, one might use ``notes -f myfile''
+with this ``myfile'':
+
+.ne 6
+.nf
+	-x
+	nfgripes
+	micronotes
+	bicycle
+	-s
+	net.*
+.fi
+
+.se "General"
+
+	Almost all notesfile commands consist of exactly one character
+(no carriage return).  Only commands that are longer than one character
+require a terminating carriage return (currently, choosing a note to read
+is the only non-single character command).
+
+	The commands were chosen to be easy to remember.
+Upper case forms of commands usually function
+like their lower case counterparts but with some additional
+feature or power (i.e., ``w'' writes a response, ``W'' includes the current
+displayed text in the response).
+
+	Some commands are available almost everywhere in the notesfile
+system.  These include those for help, exiting, forking a shell,
+and making a comment for the suggestion box.
+
+.ss "Help"
+
+	Typing ``?'' anywhere will list the available options in
+an abbreviated format.
+
+.ss "Exiting"
+
+	Type ``q'' (``quit'') to leave the current notesfile.
+Capital ``Q''
+leaves the current notesfile and refrains from entering your
+last entry time into the sequencer table (see section ``The Sequencer'').
+The notesfile system
+proceeds to the next topic in the invocation list.
+The ``k'' and ``K'' keys function exactly as ``q'' and ``Q''.
+
+	Use control-D (``signoff'')
+to leave the notesfile system completely (without updating
+entry time information).
+The ``z'' command (which functions only when reading notes or responses
+or when on the index page)
+behaves similarly to control-D:
+the user exits the notesfile system immediately, but unlike control-D,
+updates the
+entry time information for the current notesfile.
+
+
+.ss "Shells"
+
+	Fork a shell at any time by typing ``!''
+(just like many other Unix programs).
+
+.ss "Comments & Suggestions"
+
+	Type capital ``B'' (``suggestion Box'')
+while on the index page or reading notes
+to make a comment or suggestion about the notesfile program.
+Your suggestion will be stored in another
+notesfile reviewed frequently by the notesfile system manager.
+
+.se "The Index Page"
+
+	When the notes system is invoked without the -s option,
+the user sees an index
+of the most recent notes.
+A sample page is shown below:
+
+.KS
+.nf
+.in +10
+Workstation Discussion                     2:03 pm  Jan 4, 1982
+
+.ta .75i 3.0i 3.25i
+12/9/81	2 Stanford SUN	4	horton
+	3*WICAT 68000		kolstad
+	4 M68000	1	horton
+	5 Dolphin	3	duke!johnson
+12/10	6 CDC Standalone	1	smith
+	8 IBM Personal Computer		henry
+	9 Personal computers harmful?	8	Anonymous
+	10 Ethernet interfaces 3 mhz?	23	essick
+	11 Requirements for uiucdcs	10	botten
+1/1/82	12 Happy New Year!	5	mjk
+
+
+.TA
+.in
+.fi
+.KE
+	The upper left corner shows the notesfile's title.  In this
+example, the notesfile discusses personal workstations.
+The current time and date are displayed in the upper right corner.
+Approximately ten note titles are displayed (if available).
+More notes are displayed on longer
+screens (such as the Ann Arbor Ambassador).
+Each note is displayed
+with its date (if different from the previous date), note number,
+title, number of responses (if any), and author.  The first note above
+was written by user ``horton'' on December 9th, is entitled ``Stanford
+SUN'' and has four responses.  Note 7 has been deleted for some reason
+(by either its author or a notesfile director).  Note 5 was written
+by user ``johnson'' whose signon resides on the ``duke'' system.
+Note 9 was written by an author who preferred to remain unidentified.
+Notes with director messages (sometimes denoting importance) are displayed
+with a ``*'' next to the note number (see note 3 above).
+
+	From the index page the user may:
+
+.br
+.bx
+.ix
+Scroll the index forward or backward.
+.ix
+Read a note.
+.ix
+Write a note.
+.ix
+Go to the next unread note.
+.ix
+Search for notes or responses after a specific date/time.
+.ix
+Search for keywords within notes' titles.
+.ix
+Search for notes/responses by a specific author.
+.ix
+Go to another notesfile.
+.ix
+Consult the notesfile's archive.
+.ix
+Read the policy note.
+.ix
+Check on anonymous and networked status.
+.ix
+Register a complaint/suggestion about notesfiles.
+.ix
+Fork a shell.
+.ix
+Exit the notes program.
+.ix
+Invoke notesfile director options (if the user is a director).
+.ex
+
+.ss "Scrolling the Index Page"
+
+	Scroll the index page by:
+
+.nf
+.ls 1
+	+, <return>, <space> 	forward one page
+	*	forward to the most recent page (* is multiple +'s)
+	-	backward one page
+	=	backward all the way (= is multiple -'s)
+.br
+.ls
+.fi
+
+.ss "Choosing Notes & Responses"
+
+	While on the index page, choose a note to read by typing its number
+followed by a carriage return.
+(This is the only command that requires a carriage return after it.)
+Usually the space bar is used to scan text.
+To skip to a particular note or response, use the features below.
+
+	While reading a note, ``;'' or ``+''
+advances to the
+first response of the note.
+The next note is displayed if there are no responses.
+The number keys (``1'', ``2'', ... , ``9'') advance that many
+responses.
+If there are fewer responses, the last response is displayed.
+The return key skips the responses and goes to the next note.
+Press ``-'' or backspace to see the previous page of the current note;
+if the page currently displayed is the first, the notesfile program
+displays the first page of the previous note.
+
+	While a response is on the screen, the ``;'' and ``+'' keys
+display the next response.
+As with reading a note, if there are no further responses these
+keys advance to the next note.
+The number keys (``1'', ... , ``9'') will advance the appropriate number
+of responses.
+If there are fewer responses, the last response is displayed.
+The ``-'' or backspace keys display the previous page of the current
+response. If the current page is the first page of the response,
+these keys display the first page of the previous response.
+Enter ``='' to see the base note of the current note string.
+Press the return key to proceed to the next note.
+
+.se "Notes & Responses"
+
+.ss "Reading Notes"
+
+	After selecting a note from the index page (or entering the
+notesfile with your ``sequencer'' on), the note is displayed.  A sample
+display is shown below:
+
+.KS
+.nf
+Note 15                   Workstation Discussion                2 responses
+horton                         WICAT 150              4:03 pm  Dec 11, 1981
+
+Wicat System 150
+
+8 MHz 68000, Mem. mgmt, Multibus architecture, 256k to 1.5 Mb RAM,16/32/64Kbyte EPROM, 
+10 ms interval timer, 2 RS232 (19.6k async, 56k sync), 16 bit parallel intelligent disk controller,
+10 Mbyte winchester (5.25", 3600 rpm, access: 3 ms trk-trk, 70 avg, 150 max),
+960Kb floppy (5.25", 300 rpm, access 10 ms trk-trk, 267 avg, 583 max)
+Options: battery backed clock, graphics with touch panel, video disk control,
+High Speed Serial Network Interface
+Unix/V7 avail, Pascal, C, APL, ADA, Cobol, Fortran, Lisp, Basic, Asm
+
+.fi
+.KE
+
+	This is note number 15 in the ``Workstation Discussion'' file.
+User ``horton'' wrote this note at 4:03 pm on December 11th, 1981.  Two
+responses have been written.  The note's title is ``WICAT 150''.  If a
+director had written the note, the ``director message'' might have been
+displayed beneath the note's title.  Director's notes sometimes contain
+important information or new policies.
+
+	Since notes and responses can each be up to 3 Mbytes long, 
+the display routine breaks text into pages automatically.
+For all but the last page of a long note or response,
+the lower right corner of the display  shows the percentage of the
+note that has been shown.
+For all but the first page of long text, the message ``[Continued]''
+appears in the upper left portion of the display.
+Use the space bar to see the next page of a long note or response.
+When the last page is displayed, the space key functions as the ``;'' 
+key: it proceeds to the next response.
+The ``-'' and backspace keys back up the display to the previous page.
+Only the first 50 pages of text are managed this way;
+typing ``-'' from the fifty-second page will return to the fiftieth page.
+The ``='' key returns to the first page of the note.
+
+	While reading a note, it is possible to:
+.br
+.bx
+.ix
+Display the next, previous, or first page of the note.
+.ix
+Write a response to the displayed note.
+.ix
+Read next note or previous note.
+.ix
+Read next unread response or note.
+.ix
+Return to the index page.
+.ix
+Skip to a given response.
+.ix
+Delete the note (if you are its author or a file director).
+.ix
+Edit the note's title (if it is yours).
+.ix
+Edit the note (if it is yours and there are no responses).
+.ix
+Copy the note to another notesfile.
+.ix
+Save the note in your file space.
+.ix
+Mail the note to someone.
+.ix
+Talk (``write'') to the author of the note.
+.ix
+Search for keywords in note titles.
+.ix
+Search for notes/responses by a particular author.
+.ix
+Toggle the director message (if privileged).
+.ix
+Fork a shell.
+.ix
+Go to another notesfile.
+.ix
+Make a comment or suggestion about notesfiles.
+.ix
+Exit the notesfile program.
+.ex
+
+.ss "Reading Responses"
+
+	Response displays are similar to those of main notes with the exception that
+``Response x of y'' replaces the note's title.
+The first response to note 15 is shown below:
+
+.KS
+.nf
+Note 15                   Workstation Discussion                
+koehler                      Response 1 of 2         11:53 pm  Dec 11, 1981
+
+Does anyone have any insight about the relative speeds of the Winchester disks available 
+on these systems?  The previous disk seems to have track to track response times commensurate 
+with reasonably fast 8" floppies.  I wonder if some of the manufacturers are using disks that
+will not meet reasonable specifications for response time for these kinds of applications.
+
+On the other hand, with intelligent layout of file sectors, the I/O system
+could romp and stomp on often used files...
+                ======================================
+.fi
+.KE
+
+	The commands for manipulating the text of a long response
+are the same as those for looking at long notes.
+Typing space will move to the next page.
+Typing ``-'' or backspace will display the previous page, within the
+same limitations as for reading notes (only 50 pages are kept).
+Press ``='' to go back to the first page of the text.
+
+	The options available while reading responses include:
+.bx
+.ix
+Display the next, previous, or first page of the response.
+.ix
+Go to a different response (usually the next one).
+.ix
+Go to the next unread note/response.
+.ix
+Reread the base note.
+.ix
+Reread the previous note.
+.ix
+Return to the index page.
+.ix
+Copy the response to another notesfile.
+.ix
+Mail the response to someone.
+.ix
+Save the response in your file space.
+.ix
+Talk to the response's author.
+.ix
+Write another response to the note.
+.ix
+Search for keywords in note titles.
+.ix
+Search for notes/responses by particular authors.
+.ix
+Delete the response (if you are its author or a file director).
+.ix
+Edit the response (if it is yours and there are no later responses).
+.ix
+Fork a shell
+.ix
+Go to another notesfile.
+.ix
+Register a suggestion or complaint about the notesfile program.
+.ix
+Exit the notesfile program.
+.ex
+
+
+.ss "Writing Notes & Responses"
+
+	Write new base notes by hitting ``w'' while reading the index page.
+The notesfile system will then invoke an editor
+(
+``ed'' by default; use either of the shell variables NFED or EDITOR to change it).
+After the prompt,
+compose the text you wish to enter, then
+write the text to the disk and leave the editor.  The system will prompt
+you for various options if they are available:  anonymity, director
+message status, and the note's title.
+
+	To write a response to a note type ``w'' while that note or any of
+its responses is displayed. 
+The same steps used to write a base note
+should then be followed.
+
+.ss "Mailing Notesfile Text"
+
+	Both notes and responses can be mailed to other users (with
+optional appended text).
+The capital ``M'' (``mail'') command gives you the opportunity to edit the text then send
+it to anyone.  Its inferior counterpart, ``m'', allows you to mail a message to
+anyone.
+To mail to the author of the text,
+use capital ``P'' (``Personal comment'') to send the text
+and your comments; use ``p'' for a simple letter.
+
+	To use a specific mail program, set the environment variable
+MAILER. If this is not set, a standard mail program is used.
+
+.ss "Forwarding Text To Other Notesfiles"
+
+	There are several methods for forwarding text from one notesfile
+to another.
+Single notes or responses can be copied with the ``c'' or ``C'' command
+while entire note strings can be forwarded with the ``f'' and ``F''
+commands.
+
+	The ``f'' (``forward'') command is given when a base note
+is displayed on the screen.
+When given, the ``f'' command causes the base note and all of its
+responses to be copied to another notesfile.
+The user is prompted for the destination notesfile.
+The copied note and all of the copied responses contain header
+information detailing their origin.
+Where ``f'' copies the note string without change, the ``F''
+command allows the user to edit the text of the note and each
+response before inserting it into the target notesfile.
+
+	The ``c'' (``copy'') command prompts for a destination notesfile
+then
+copies the currently displayed note or response to the target notesfile.
+The user is allowed to choose between forwarding the note as a response
+or as a new base note.
+The ``c'' command does not give the user a chance to edit the text
+before inserting it in the new notesfile.
+The extended copying command ``C''
+allows editing of the note text before it is copied to the other notesfile.
+
+	Both the ``c'' and ``C'' commands provide for
+the forwarded text to be entered as either a new note or as a response
+to an existing note.
+In the latter case, an index page is given to the user for
+choosing the appropriate note to which to respond.
+
+.ss "Saving Text in Local Files"
+
+	The ``s'' (``save'') command appends the current displayed text to a
+file of your choice (which is created if not present).
+Notesfiles prompts for the file name;
+typing only a carriage return aborts the command -- no text is saved.
+Capital ``S'' appends
+the base note and all its responses. The number of lines saved and the name
+of the file written are printed when the command completes.
+
+.ss "Deletion"
+
+	Capital ``D'' (``delete'') deletes a note or response if it is yours and
+has no subsequent responses.  Notes already sent to the network can not be
+deleted by non-directors.
+Directors can delete any note or response with the ``Z'' (``zap'') command.
+
+
+.ss "Online Communication"
+
+	Typing ``t'' (``talk'') attempts to page the author of the current displayed
+text.  The Unix ``write'' command to him/her is issued
+if the author is local and non-anonymous. If the environment variable WRITE 
+is defined, the program it specifies is used to write to the author.
+
+.ss "Editing Note Titles"
+
+	While reading a base note, type ``e'' (``edit'') to
+change the note's title
+(provided you are the author of the note or a notesfile director).
+
+.ss "Editing Notes/Responses"
+
+	``E'' allows editing of the text of a note or response.
+It is not permitted to edit an article if it has subsequent responses or
+if it has been sent to the network.
+If the ``later responses'' are deleted, it is possible to edit the
+original text.

@@ -1,0 +1,121 @@
+.\" Copyright (c) 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" Kenneth Almquist.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)echo.1	5.1 (Berkeley) 3/7/91
+.\"	echo.1,v 1.4 1993/08/01 07:58:19 mycroft Exp
+.\"
+.TH ECHO 1"March 7, 1991"
+.UC 7
+.SH NAME
+echo \- produce message in a shell script
+.SH SYNOPSIS
+.B echo
+[
+.B -n
+|
+.B -e
+]
+.I args...
+.SH COPYRIGHT
+Copyright 1989 by Kenneth Almquist.
+.SH DESCRIPTION
+.I Echo
+prints its arguments on the standard output, separated by spaces.
+Unless the
+.B -n
+option is present, a newline is output following the arguments.
+The
+.B -e
+option causes
+.I echo
+to treat the escape sequences specially, as described in the following
+paragraph.  The
+.B -e
+option is the default, and is provided solely for compatibility with
+other systems.
+Only one of the options
+.B -n
+and
+.B -e
+may be given.
+.PP
+If any of the following sequences of characters is encountered during
+output, the sequence is not output.  Instead, the specified action is
+performed:
+.nr i 0.6i
+.de i
+.sp
+.ti -\\niu
+\\$1	\c
+.if \w'\\$1'-\\ni .br
+..
+.in 1.1i
+.ta 0.6i
+.i \eb
+A backspace character is output.
+.i \ec
+Subsequent output is suppressed.  This is normally used at the end of the
+last argument to suppress the trailing newline that
+.I echo
+would otherwise output.
+.i \ef
+Output a form feed.
+.i \en
+Output a newline character.
+.i \er
+Output a carriage return.
+.i \et
+Output a (horizontal) tab character.
+.i \ev
+Output a vertical tab.
+.i \e0\fIdigits\fR
+Output the character whose value is given by zero to three digits.
+If there are zero digits, a nul character is output.
+.i \e\e
+Output a backslash.
+.in -1.1i
+.SH HINTS
+Remember that backslash is special to the shell and needs to be escaped.
+To output a message to standard error, say
+.sp
+.ti +1i
+echo message >&2
+.SH BUGS
+The octal character escape mechanism (\e0\fIdigits\fR) differs from the
+C language mechanism.
+.PP
+There is no way to force
+.I echo
+to treat its arguments literally, rather than interpreting them as
+options and escape sequences.

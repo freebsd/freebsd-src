@@ -1,0 +1,54 @@
+.TH ELVPRSV 1
+.SH NAME
+elvprsv - Preserve the the modified version of a file after a crash.
+.SH SYNOPSIS
+.nf
+\fB\fBelvprsv\fP ["-\fIwhy elvis died\fP"] /tmp/\fIfilename\fP...
+\fB\fBelvprsv\fP -R /tmp/\fIfilename\fP...
+.fi
+.SH DESCRIPTION
+.PP
+\fIelvprsv\fP preserves your edited text after \fIelvis\fP dies.
+The text can be recovered later, via the \fIelvprsv\fP program.
+.PP
+For UNIX-like systems,
+you should never need to run this program from the command line.
+It is run automatically when \fIelvis\fP is about to die,
+and it should be run (via /etc/rc) when the computer is booted.
+THAT'S ALL!
+.PP
+For non-UNIX systems such as MS-DOS, you can either use \fIelvprsv\fP
+the same way as under UNIX systems (by running it from your AUTOEXEC.BAT file),
+or you can run it separately with the "-R" flag to recover the files
+in one step.
+.PP
+If you're editing a file when \fIelvis\fP dies
+(due to a bug, system crash, power failure, etc.)
+then \fIelvprsv\fP will preserve the most recent version of your text.
+The preserved text is stored in a special directory; it does NOT overwrite
+your text file automatically.
+.PP
+\fIelvprsv\fP will send mail to any user whose work it preserves,
+if your operating system normally supports mail.
+.SH FILES
+.IP /tmp/elv*
+The temporary file that \fIelvis\fP was using when it died.
+.IP /usr/preserve/p*
+The text that is preserved by \fIelvprsv\fP.
+.IP /usr/preserve/Index
+A text file which lists the names of all preserved files, and the names
+of the /usr/preserve/p* files which contain their preserved text.
+.SH BUGS
+.PP
+Due to the permissions on the /usr/preserve directory, on UNIX systems
+\fIelvprsv\fP must be run as superuser.
+This is accomplished by making the \fIelvprsv\fP executable be owned by "root"
+and turning on its "set user id" bit.
+.PP
+If you're editing a nameless buffer when \fIelvis\fP dies, then \fIelvprsv\fP will pretend
+that the file was named "foo".
+.SH AUTHOR
+.nf
+Steve Kirkendall
+kirkenda@cs.pdx.edu
+.fi

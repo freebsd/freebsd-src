@@ -1,0 +1,519 @@
+name TR
+internalname Times-Roman
+spacewidth 250
+encoding text.enc
+ligatures fi fl 0
+kernpairs
+A y -92
+A w -92
+A v -74
+A ' -111
+A Y -105
+A W -90
+A V -135
+A U -55
+A T -111
+A Q -55
+A O -55
+A G -40
+A C -40
+B U -10
+B A -35
+D Y -55
+D W -30
+D V -40
+D A -40
+F . -80
+F o -15
+F , -80
+F a -15
+F A -74
+J A -60
+K y -25
+K u -15
+K o -35
+K e -25
+K O -30
+L y -55
+L ' -92
+L Y -100
+L W -74
+L V -100
+L T -92
+N A -35
+O Y -50
+O X -40
+O W -35
+O V -50
+O T -40
+O A -35
+P . -111
+P , -111
+P a -15
+P A -92
+Q U -10
+R Y -65
+R W -55
+R V -80
+R U -40
+R T -60
+R O -40
+T y -80
+T w -80
+T u -45
+T ; -55
+T r -35
+T . -74
+T o -80
+T i -35
+T - -92
+T hy -92
+T char173 -92
+T e -70
+T , -74
+T : -50
+T a -80
+T O -18
+T A -93
+U A -40
+V u -75
+V ; -74
+V . -129
+V o -129
+V i -60
+V - -100
+V hy -100
+V char173 -100
+V e -111
+V , -129
+V : -74
+V a -111
+V O -40
+V G -15
+V A -135
+W y -73
+W u -50
+W ; -37
+W . -92
+W o -80
+W i -40
+W - -65
+W hy -65
+W char173 -65
+W e -80
+W , -92
+W : -37
+W a -80
+W O -10
+W A -120
+Y u -111
+Y ; -92
+Y . -129
+Y o -110
+Y i -55
+Y - -111
+Y hy -111
+Y char173 -111
+Y e -100
+Y , -129
+Y : -92
+Y a -100
+Y O -30
+Y A -120
+a w -15
+a v -20
+b v -15
+b u -20
+b . -40
+c y -15
+, ' -70
+, rq -70
+e y -15
+e x -15
+e w -25
+e v -25
+e g -15
+f ' 55
+f i -20
+f f -25
+f .i -50
+f a -10
+g a -5
+h y -5
+i v -25
+k y -15
+k o -10
+k e -10
+l w -10
+n y -15
+n v -40
+o y -10
+o w -25
+o v -15
+p y -10
+. ' -70
+. rq -70
+lq A -80
+` ` -74
+` oq -74
+oq ` -74
+oq oq -74
+` A -80
+oq A -80
+' v -50
+' t -18
+' s -55
+' r -50
+' ' -74
+' l -10
+' d -50
+r . -55
+r - -20
+r hy -20
+r char173 -20
+r g -18
+r , -40
+v . -65
+v o -20
+v e -15
+v , -65
+v a -25
+w . -65
+w o -10
+w , -65
+w a -10
+x e -15
+y . -65
+y , -65
+charset
+ha	469,662	2	0000	asciicircum
+ti	541,323	0	0001	asciitilde
+vS	556,886,14	2	0002	Scaron
+vZ	611,886	2	0003	Zcaron
+vs	389,674,10	2	0004	scaron
+vz	444,674	2	0005	zcaron
+:Y	722,835	2	0006	Ydieresis
+tm	980,662	2	0007	trademark
+aq	180,676	2	0010	quotesingle
+space	250	0	0040
+!	333,676,9	2	0041	exclam
+"	408,676	2	0042	quotedbl
+#	500,662	2	0043	numbersign
+sh	"
+$	500,727,87	2	0044	dollar
+Do	"
+%	833,676,13	2	0045	percent
+&	778,676,13	2	0046	ampersand
+'	333,676	2	0047	quoteright
+(	333,676,177	2	0050	parenleft
+)	333,676,177	2	0051	parenright
+*	500,676	2	0052	asterisk
++	564,506	0	0053	plus
+,	250,102,141	0	0054	comma
+-	333,257	0	0055	hyphen
+hy	"
+char173	"
+.	250,100,11	0	0056	period
+/	278,676,14	2	0057	slash
+sl	"
+0	500,676,14	2	0060	zero
+1	500,676	2	0061	one
+2	500,676	2	0062	two
+3	500,676,14	2	0063	three
+4	500,676	2	0064	four
+5	500,688,14	2	0065	five
+6	500,684,14	2	0066	six
+7	500,662,8	2	0067	seven
+8	500,676,14	2	0070	eight
+9	500,676,22	2	0071	nine
+:	278,459,11	0	0072	colon
+;	278,459,141	0	0073	semicolon
+<	564,514,8	0	0074	less
+=	564,386	0	0075	equal
+>	564,514,8	0	0076	greater
+?	444,676,8	2	0077	question
+@	921,676,14	2	0100	at
+at	"
+A	722,674	2	0101	A
+B	667,662	2	0102	B
+C	667,676,14	2	0103	C
+D	722,662	2	0104	D
+E	611,662	2	0105	E
+F	556,662	2	0106	F
+G	722,676,14	2	0107	G
+H	722,662	2	0110	H
+I	333,662	2	0111	I
+J	389,662,14	2	0112	J
+K	722,662	2	0113	K
+L	611,662	2	0114	L
+M	889,662	2	0115	M
+N	722,662,11	2	0116	N
+O	722,676,14	2	0117	O
+P	556,662	2	0120	P
+Q	722,676,178	2	0121	Q
+R	667,662	2	0122	R
+S	556,676,14	2	0123	S
+T	611,662	2	0124	T
+U	722,662,14	2	0125	U
+V	722,662,11	2	0126	V
+W	944,662,11	2	0127	W
+X	722,662	2	0130	X
+Y	722,662	2	0131	Y
+Z	611,662	2	0132	Z
+[	333,662,156	2	0133	bracketleft
+lB	"
+\	278,676,14	2	0134	backslash
+rs	"
+]	333,662,156	2	0135	bracketright
+rB	"
+a^	333,674	2	0136	circumflex
+^	"
+_	500,0,125	0	0137	underscore
+`	333,676	2	0140	quoteleft
+oq	"
+a	444,460,10	0	0141	a
+b	500,683,10	2	0142	b
+c	444,460,10	0	0143	c
+d	500,683,10	2	0144	d
+e	444,460,10	0	0145	e
+f	333,683	2	0146	f
+g	500,460,218	1	0147	g
+h	500,683	2	0150	h
+i	278,683	2	0151	i
+j	278,683,218	3	0152	j
+k	500,683	2	0153	k
+l	278,683	2	0154	l
+m	778,460	0	0155	m
+n	500,460	0	0156	n
+o	500,460,10	0	0157	o
+p	500,460,217	1	0160	p
+q	500,460,217	1	0161	q
+r	333,460	0	0162	r
+s	389,460,10	0	0163	s
+t	278,579,10	2	0164	t
+u	500,450,10	0	0165	u
+v	500,450,14	0	0166	v
+w	722,450,14	0	0167	w
+x	500,450	0	0170	x
+y	500,450,218	1	0171	y
+z	444,450	0	0172	z
+lC	480,680,181	2	0173	braceleft
+{	"
+ba	200,676,14	2	0174	bar
+|	"
+rC	480,680,181	2	0175	braceright
+}	"
+a~	333,638	2	0176	tilde
+~	"
+bq	333,102,141	0	0200	quotesinglbase
+Fo	500,416	0	0201	guillemotleft
+char171	"
+Fc	500,416	0	0202	guillemotright
+char187	"
+bu	350,466	0	0203	bullet
+Fn	500,676,189	2	0204	florin
+f/	167,676,14	2	0205	fraction
+%0	1000,706,19	2	0206	perthousand
+dg	500,676,149	2	0207	dagger
+dd	500,676,153	2	0210	daggerdbl
+en	500,250	0	0211	endash
+em	1000,250	0	0212	emdash
+fi	556,683	2	0214	fi
+fl	556,683	2	0215	fl
+.i	278,460	0	0220	dotlessi
+ga	333,678	2	0222	grave
+a"	333,678	2	0223	hungarumlaut
+a.	333,623	2	0224	dotaccent
+ab	333,664	2	0225	breve
+ah	333,674	2	0226	caron
+ao	333,711	2	0227	ring
+ho	333,0,165	0	0230	ogonek
+lq	444,676	2	0231	quotedblleft
+rq	444,676	2	0232	quotedblright
+oe	722,460,10	0	0233	oe
+/l	278,683	2	0234	lslash
+Bq	444,102,141	0	0235	quotedblbase
+OE	889,668,6	2	0236	OE
+/L	611,662	2	0237	Lslash
+r!	333,467,218	1	0241	exclamdown
+char161	"
+ct	500,579,138	2	0242	cent
+char162	"
+Po	500,676,8	2	0243	sterling
+char163	"
+Cs	500,602	2	0244	currency
+char164	"
+Ye	500,662	2	0245	yen
+char165	"
+bb	200,676,14	2	0246	brokenbar
+char166	"
+sc	500,676,148	2	0247	section
+char167	"
+ad	333,623	2	0250	dieresis
+char168	"
+co	760,676,14	2	0251	copyright
+char169	"
+Of	276,676	2	0252	ordfeminine
+char170	"
+fo	333,416	0	0253	guilsinglleft
+no	564,386	0	0254	logicalnot
+char172	"
+\-	564,286	0	0255	minus
+rg	760,676,14	2	0256	registered
+char174	"
+a-	333,601	2	0257	macron
+char175	"
+de	400,676	2	0260	degree
+char176	"
+char177	564,506	0	0261	plusminus
+S2	300,676	2	0262	twosuperior
+char178	"
+S3	300,676	2	0263	threesuperior
+char179	"
+aa	333,678	2	0264	acute
+char180	"
+char181	500,450,218	1	0265	mu
+ps	453,662,154	2	0266	paragraph
+char182	"
+char183	250,310	0	0267	periodcentered
+ac	333,0,215	0	0270	cedilla
+char184	"
+S1	300,676	2	0271	onesuperior
+char185	"
+Om	310,676	2	0272	ordmasculine
+char186	"
+fc	333,416	0	0273	guilsinglright
+14	750,676,14	2	0274	onequarter
+char188	"
+12	750,676,14	2	0275	onehalf
+char189	"
+34	750,676,14	2	0276	threequarters
+char190	"
+r?	444,466,218	1	0277	questiondown
+char191	"
+`A	722,890	2	0300	Agrave
+char192	"
+'A	722,890	2	0301	Aacute
+char193	"
+^A	722,886	2	0302	Acircumflex
+char194	"
+~A	722,850	2	0303	Atilde
+char195	"
+:A	722,835	2	0304	Adieresis
+char196	"
+oA	722,898	2	0305	Aring
+char197	"
+AE	889,662	2	0306	AE
+char198	"
+,C	667,676,215	2	0307	Ccedilla
+char199	"
+`E	611,890	2	0310	Egrave
+char200	"
+'E	611,890	2	0311	Eacute
+char201	"
+^E	611,886	2	0312	Ecircumflex
+char202	"
+:E	611,835	2	0313	Edieresis
+char203	"
+`I	333,890	2	0314	Igrave
+char204	"
+'I	333,890	2	0315	Iacute
+char205	"
+^I	333,886	2	0316	Icircumflex
+char206	"
+:I	333,835	2	0317	Idieresis
+char207	"
+-D	722,662	2	0320	Eth
+char208	"
+~N	722,850,11	2	0321	Ntilde
+char209	"
+`O	722,890,14	2	0322	Ograve
+char210	"
+'O	722,890,14	2	0323	Oacute
+char211	"
+^O	722,886,14	2	0324	Ocircumflex
+char212	"
+~O	722,850,14	2	0325	Otilde
+char213	"
+:O	722,835,14	2	0326	Odieresis
+char214	"
+char215	564,497	0	0327	multiply
+/O	722,734,80	2	0330	Oslash
+char216	"
+`U	722,890,14	2	0331	Ugrave
+char217	"
+'U	722,890,14	2	0332	Uacute
+char218	"
+^U	722,886,14	2	0333	Ucircumflex
+char219	"
+:U	722,835,14	2	0334	Udieresis
+char220	"
+'Y	722,890	2	0335	Yacute
+char221	"
+TP	556,662	2	0336	Thorn
+char222	"
+ss	500,683,9	2	0337	germandbls
+char223	"
+`a	444,678,10	2	0340	agrave
+char224	"
+'a	444,678,10	2	0341	aacute
+char225	"
+^a	444,674,10	2	0342	acircumflex
+char226	"
+~a	444,638,10	2	0343	atilde
+char227	"
+:a	444,623,10	2	0344	adieresis
+char228	"
+oa	444,711,10	2	0345	aring
+char229	"
+ae	667,460,10	0	0346	ae
+char230	"
+,c	444,460,215	0	0347	ccedilla
+char231	"
+`e	444,678,10	2	0350	egrave
+char232	"
+'e	444,678,10	2	0351	eacute
+char233	"
+^e	444,674,10	2	0352	ecircumflex
+char234	"
+:e	444,623,10	2	0353	edieresis
+char235	"
+`i	278,678	2	0354	igrave
+char236	"
+'i	278,678	2	0355	iacute
+char237	"
+^i	278,674	2	0356	icircumflex
+char238	"
+:i	278,623	2	0357	idieresis
+char239	"
+Sd	500,686,10	2	0360	eth
+char240	"
+~n	500,638	2	0361	ntilde
+char241	"
+`o	500,678,10	2	0362	ograve
+char242	"
+'o	500,678,10	2	0363	oacute
+char243	"
+^o	500,674,10	2	0364	ocircumflex
+char244	"
+~o	500,638,10	2	0365	otilde
+char245	"
+:o	500,623,10	2	0366	odieresis
+char246	"
+char247	564,516,10	0	0367	divide
+/o	500,551,112	0	0370	oslash
+char248	"
+`u	500,678,10	2	0371	ugrave
+char249	"
+'u	500,678,10	2	0372	uacute
+char250	"
+^u	500,674,10	2	0373	ucircumflex
+char251	"
+:u	500,623,10	2	0374	udieresis
+char252	"
+'y	500,678,218	3	0375	yacute
+char253	"
+Tp	500,683,217	3	0376	thorn
+char254	"
+:y	500,623,218	3	0377	ydieresis
+char255	"

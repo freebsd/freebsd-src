@@ -1,0 +1,369 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)2.2	6.2 (Berkeley) 4/17/91
+.\"	2.2,v 1.2 1993/08/01 07:37:34 mycroft Exp
+.\"
+.ls 1
+.se "Other Commands"
+
+.ss "Returning to the Index Page"
+
+	Type ``i'' (``index'') while reading notes or responses
+to return to the index page.
+
+.ss "Searching Titles for Keywords"
+
+	While reading, you can search backwards for keywords appearing in note titles.
+Typing ``x'' (``x is the unknown title'') prompts for the substring to be found.
+Searching begins
+at the current note (or from the last note shown on the index page)
+and proceeds towards note 1.
+The search is insensitive to upper/lowercase distinctions.
+Use upper case ``X'' to continue the search.
+The search can be aborted by hitting the RUBOUT (or DELETE) key.
+
+.ss "Searching for Authors"
+
+	The ``a'' command searches backwards for notes or responses written by
+a specific author.
+Notesfiles prompts for the author's name. 
+The ``A'' command continues the search  backwards.
+The author name may be preceded by an optional `system!'.
+Abort the search by hitting the RUBOUT (or DELETE) key.
+
+	The entire name need not be specified when searching
+for articles by a particular author.
+Author searching uses substring searching.
+Searching for the author ``john'' will yield articles written
+by a local user ``john'', 
+a remote user ``somewhere!johnston'',
+and any articles from the ``uiucjohnny'' machine.
+Author searching is case sensitive.
+
+.ss "Stacking Notesfiles"
+
+	Sometimes it is useful to be able to 
+glance at another notesfile while reading notes.
+Using ``n'', the user can save (stack) his current place and peruse
+another notesfile.
+
+	When on the index page or while reading notes/responses,
+type ``n'' (``nest'')
+to read another notesfile.
+Notesfiles prompts for the notesfile to read.
+If the notesfile exists, the place is marked in the old notesfile
+and the new one's index is displayed.
+
+	Type any of the standard keys to leave the nested notesfile.
+Both ``q'' and ``Q'' leave the nested notesfile
+and return to the previously stacked notesfile.
+Control-d (``signoff'') causes the notesfile program to exit regardless
+of the depth of nesting.
+
+	Sequencing is turned off in the new notesfile
+regardless of its state in the old notesfile.
+The depth of the stack of notesfiles is limited only by the 
+amount of memory available to the user.
+
+.ss "Accessing Archives"
+
+	As notesfiles grow, it becomes impractical to keep every discussion.
+In some cases, the old discussions are deleted;
+other cases require these old discussions to be saved somewhere.
+Each active notesfile can have an archive notesfile.
+An archive notesfile contains the old discussions from the
+active notesfile.
+
+	The archive of an active notesfile is accessed by explicitly
+naming the notesfile (/usr/spool/oldnotes/micronotes for example)
+or through the ``N'' command from the active notesfile.
+
+.ss "Policy Note"
+
+	A notesfile director can write an optional policy note to describe
+the purpose of a notesfile.
+Read the policy note by typing ``p'' (``policy'') from the index page.
+
+.se "The Sequencer"
+
+	Most users prefer to scan notesfiles and see only those notes written
+since their last reading.
+The notesfile ``sequencer'' provides this capability.
+It is activated by the ``-s'' option (``sequencer'') on the
+command line.
+When the sequencer is activated, the notesfile system automatically remembers
+the last time the user read notes in each notesfile.
+Subsequent entries to the
+notesfile can use the ``last time'' information to show only new notes and
+responses.
+If there is nothing new in a notesfile, 
+the sequencer proceeds to the next notesfile specified in the command line.
+
+	The normal sequencer does not give the user a chance to read
+the notesfile if there are no new notes or responses;
+sometimes it is desirable to be able to do so.
+Use the ``-x'' option
+to enable the sequencer and enter the  notesfile 
+even if there are no new notes.
+
+	No keys need be pressed if there are no new notes in the entire list
+and the normal (``-s'') sequencer mode is selected.
+With the extended (``-x'') sequencer,
+the user must type ``q'', ``Q'', or control-d
+for each notesfile regardless of whether
+there are new notes.
+
+	The ``-i'' mode of sequencing is similar to the ``-s'' mode. 
+Using the ``-i'' mode, notesfiles without new entries are passed over.
+The user starts reading
+on the index page of notesfiles which contain new notes.
+
+.ss "Seeing New Notes and Responses"
+
+	The sequencer always shows the base note of a
+modified note string,
+whether or not is has been shown before,
+in order to establish the context of the new response(s).
+The ``j'' command skips to the next modified text (note or response).
+
+	If the rest of a particular note string seems uninteresting,
+skip to the next modified note string with the ``J'' (``big Jump'')
+command.
+This skips any new responses on the current note string.
+It is common to follow closely only a few note strings,
+skipping others using the ``J'' command.
+
+	The ``last time'' information is kept in a special file for
+each user.
+When the sequencer is enabled, the time for the notesfile
+is loaded into
+a variable and used to specify which notes and responses are new.
+If the sequencer is not enabled, this variable is initialized to
+January 1, 1970.
+The ``j'' and ``J'' keys use this variable to determine which
+notes and responses are ``new''.
+
+	If the sequencer is enabled,
+after exiting a notesfile
+the ``last time'' information 
+is updated to the time that the user entered this notesfile. The
+entry time is used rather than the exit time to ensure that all
+notes are seen, including ones written during the just completed
+session.
+If the sequencer is disabled, the ``last time'' information is
+not modified.
+The ``last time'' information for a particular notesfile is updated
+as that notesfile is exited;
+using ``Q'' or control-D later will have no effect on the sequencer
+information for notesfiles already read.
+
+	The ``o'' and ``O'' commands allow the user to modify the
+variable used to determine whether notes and responses are ``new''.
+The ``o'' command allows the user to set this variable to any 
+date he wishes.
+Use the ``O'' command to set this variable to show
+only notes and responses written that day.
+The ``last time'' file kept for each user is never modified by
+the ``o'' and ``O'' commands.
+
+	When no more new notes or responses exist, both the 
+``j'' and ``J'' commands will take the user to the index page.
+To exit the notesfile, use the ``q'' command.
+Exiting with ``q'' will update the user's
+``last entry'' time.
+Exiting with capital ``Q'' will NOT modify the 
+``last entry'' time for that notesfile
+(neither will control-D).
+
+	The ``l'' and ``L'' command behave similarly to ``j'' and
+``J''.
+The difference is that while ``j'' and ''J' take the user to
+the last index page when no more new notes or responses
+exist, the ``l'' and ``L'' commands will leave the notesfile
+as if a ``q'' had been typed.
+Thus when no more new notes exist, the ``l'' command is
+like typing ``jq''.
+
+.ss "Alternate Sequencers"
+
+	If several people share a login account,
+it is convenient for each to have a set of sequencing
+timestamps.
+This is accomplished through the use of the 
+subsequencer option of notesfiles.
+
+	Specifying the -a option and a subsequencer name
+causes notes to use a different sequencing timestamp file.
+Many different subsequencer names can be used with
+each login account.
+
+	The main sequencer file for a given account is distinct from
+each of its subsequencer files.
+Each of the subsequencer files is normally distinct.
+If the subsequencer names are not unique in their
+first 6 characters, subsequencer files may collide.
+
+.ss "Automatic Sequencing"
+
+	An alternate entry to the notes program
+allows the user to invoke notes with the sequencer enabled and a list
+of notesfiles to be scanned with a single,
+simple
+command.
+The ``autoseq'' command is invoked by typing
+
+	autoseq
+
+and reads the environment variable ``NFSEQ'' to find the names of all 
+notesfiles to be scanned.
+On some systems, the ``autoseq'' command
+may be known as ``readnotes'', ``autonotes'' or some similar
+variant;
+substitute the appropriate name in the following paragraphs.
+The ``NFSEQ'' variable should be defined in .profile for
+Bourne shell users as follows:
+
+.nf
+.ls 1
+	NFSEQ=``pbnotes,micronotes,helpnotes,works''
+	export NFSEQ
+.ls
+.fi
+
+For users of the C shell, the following line should be
+added to the .login file:
+
+.nf
+	setenv  NFSEQ   ``pbnotes,micronotes,helpnotes,works''
+.fi
+
+	With NFSEQ assigned this value,
+a call to autoseq will process the notesfiles 
+``pbnotes'',
+``micronotes'',
+``helpnotes'',
+and
+``works''
+with the sequencer turned on.
+
+	The full naming conventions,
+pattern matching capabilities,
+and `!' exclusion 
+described in section 2.2
+(``Notesfile Names and Wildcards'') are available in autoseq.
+To read all notesfiles with ``unix'' in their names, and the
+four test notesfiles (``test1'' though ``test4''), the NFSEQ 
+variable might be defined as:
+
+	NFSEQ=``*unix*,test[1234]''
+
+	If the first character of an entry in the NFSEQ list is ``:'',
+the notesfile system reads the file name following for a list of
+notesfiles. 
+To have the automatic sequencer read the file ``/usr/essick/.nfseq''
+for a list of notesfiles to scan, define NFSEQ as:
+
+	NFSEQ=``:/usr/essick/.nfseq''
+
+	For this feature to work, the  file must have group read
+privileges.
+The notesfile program runs ``set-uid'' and 
+can not read files which are readable only by the owner.
+
+	The following definitions are also valid.
+The first one reads the notesfiles specified in the file ``/usr/essick/.nfseq''
+and then reads the notesfiles pbnotes and micronotes.
+The second definition will read the notesfile pbnotes, those specified in
+``/usr/essick/.nfseq'', micronotes and the ones specified in
+``/usr/essick/.other''.
+If the notesfile program is unable to read the file specified, it
+skips to the next entry.
+For a description of the format of these files, see the section 2.3,
+``The -f Option''.
+
+	NFSEQ=``:/usr/essick/.nfseq,pbnotes,micronotes''
+
+	NFSEQ=``pbnotes,:/usr/essick/.nfseq,micronotes,:/usr/essick/.other''
+
+
+	The automatic sequencer uses the ``-s'' mode of sequencing.
+The user does not enter notesfiles which have no new text.
+By specifying ``-x'' or ``-i'' on the command line, the user can
+use the appropriate sequencer mode.
+
+	The subsequencer option of notes is available from the
+autoseq program by specifying ``-a name'' on the command line, and has
+identical semantics with use of this option when invoking notes.
+
+.se "Environment Variables"
+
+	The notesfile program reads several environment variables to
+tailor the system to the user's preferences.
+Below is a list of the variables,
+their purpose,
+and
+their default values.
+These defaults are for UNIX 4.xBSD and may be slightly different 
+for other versions of UNIX.
+
+.bx
+.ix
+``NFED'' specifies which editor will be invoked when the user writes a
+note or response. 
+If this variable is not specified, the notesfile system looks for
+the environment variable ``EDITOR'' (which many other programs use).
+If neither ``NFED'' nor ``EDITOR'' are defined, a default editor is
+used (/bin/ed).
+.ix 
+``NFSEQ'' is a list of notesfiles that the user wishes to scan using the
+automatic sequencing entry to notesfiles.
+The use of this variable is described in the section on sequencing.
+If unspecified, the system uses a standard set which usually includes
+``general'' and ``net.general''.
+.ix
+``PAGER'' is the paging program (``more'', ``pg'') which is used for scrolling
+the help files.
+The default paging program is /usr/ucb/more.
+.ix
+``MAILER'' determines the mail program to use. This defaults to /usr/ucb/mail.
+.ix
+``WRITE'' is used to specify the program for communication between users.
+If undefined, the Unix program ``write'' is used.
+.ix
+``TERM'' determines the type of terminal in use. This must be set
+for notes to know what screen handling conventions to use. In most
+cases the value will be correctly initialized by the system at login
+time.
+.ix 
+``SHELL'' specifies which shell the user is running.
+This will almost always be set by the operating system.
+.ex

@@ -1,0 +1,29 @@
+%!PS-Adobe-3.0 Resource-Font
+%%DocumentNeededResources: font Symbol
+/MakeTransformedFont{
+findfont dup maxlength dict begin
+{
+exch dup dup/FID ne exch/UniqueID ne and{
+exch def
+}{
+pop pop
+}ifelse
+}forall
+/FontBBox
+currentdict/FontBBox get
+4 array copy def
+FontBBox aload pop
+4 index transform 4 2 roll
+4 index transform 4 2 roll
+FontBBox astore pop
+FontMatrix exch matrix concatmatrix
+/FontMatrix exch def
+dup/FontName exch def
+currentdict end
+definefont pop
+}bind def
+%%IncludeResource: font Symbol
+/Symbol-Slanted
+[.89 0.0 15.5 dup sin exch cos div .89 0.0 0.0]
+/Symbol
+MakeTransformedFont

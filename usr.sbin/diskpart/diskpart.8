@@ -1,0 +1,143 @@
+.\" Copyright (c) 1983, 1991 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)diskpart.8	6.6 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt DISKPART 8
+.Os BSD 4
+.Sh NAME
+.Nm diskpart
+.Nd calculate default disk partition sizes
+.Sh SYNOPSIS
+.Nm diskpart
+.Op Fl p
+.Op Fl d
+.Op Fl s Ar size
+.Ar disk-type
+.Sh DESCRIPTION
+.Nm Diskpart
+is used to calculate the disk partition sizes based on the
+default rules used at Berkeley.
+.Pp
+Available options and operands:
+.Bl -tag -width Fl
+.It Fl p
+Tables suitable for inclusion in a device driver
+are produced.
+.It Fl d
+An entry suitable for inclusion in the disk
+description file
+.Pa /etc/disktab
+is generated; for example,
+.Xr disktab 5 .
+.It Fl s Ar size
+The size of the disk may be limited to
+.Ar size
+with the
+.Fl s
+option.
+.El
+.Pp
+On disks that use
+.Xr bad144 8
+type of
+bad-sector forwarding,
+space is normally left in the last partition on the disk
+for a bad sector forwarding table, although this space
+is not reflected in the tables produced.  The space reserved
+is one track for the replicated copies of the table and
+sufficient tracks to hold a pool of 126 sectors to which bad sectors
+are mapped.  For more information, see 
+.Xr bad144 8 .
+The
+.Fl s
+option is intended for other controllers which reserve some space at the end
+of the disk for bad-sector replacements or other control areas,
+even if not a multiple of cylinders.
+.Pp
+The disk partition sizes are based on the total amount of
+space on the disk as given in the table below (all values
+are supplied in units of sectors).  The
+.Ql c
+partition
+is, by convention, used to access the entire physical disk.
+The device driver tables include
+the space reserved for the bad sector forwarding table in the
+.Ql c
+partition;
+those used in the disktab and default formats exclude reserved tracks.
+In normal operation, either the
+.Ql g
+partition is used, or the
+.Ql d ,
+.Ql e ,
+and
+.Ql f
+partitions are used.  The
+.Ql g
+and
+.Ql f
+partitions
+are variable-sized, occupying whatever space remains after allocation
+of the fixed sized partitions.
+If the disk is smaller than 20 Megabytes, then
+.Nm diskpart
+aborts with the message
+.Dq Li disk too small, calculate by hand .
+.Bl -column Partition 20-60\ MB 61-205\ MB 206-355\ MB 356+\ MB
+Partition	20-60 MB	61-205 MB	206-355 MB	356+ MB
+a	15884	15884	15884	15884
+b	10032	33440	33440	66880
+d	15884	15884	15884	15884
+e	unused	55936	55936	307200
+h	unused	unused	291346	291346
+.El
+.Pp
+If an unknown disk type is specified, 
+.Nm diskpart
+will prompt for the required disk geometry information.
+.Sh SEE ALSO
+.Xr disktab 5 ,
+.Xr bad144 8
+.Sh BUGS
+Most default partition sizes are based on historical artifacts
+(like the RP06), and may result in unsatisfactory layouts.
+.Pp
+When using the
+.Fl d
+flag, alternate disk names are not included
+in the output.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .

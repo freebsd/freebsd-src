@@ -1,0 +1,5 @@
+;
+; Initial cache data for root domain servers.
+;
+.		9999	IN	NS	    USC-ISIF.ARPA
+USC-ISIF.ARPA	9999	IN	A	    10.2.0.52

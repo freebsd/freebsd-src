@@ -1,0 +1,504 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)a.checklist	6.2 (Berkeley) 4/17/91
+.\"
+.ls 1
+.ap A "Notesfile Installation Checklist"
+
+.a1 "Installing Notesfile Code"
+
+	You can be sure that you have modified all necessary constants
+in the notesfile system by following this simple checklist.
+
+.bz
+.iz
+change to the notesfile source directory
+.iz
+tar x 
+[reads the notesfile tape]
+.iz
+cd src
+.iz
+[edit] parms.h
+.iz
+ARCHTIME.
+Default for how long unmodified note strings hang around.
+.iz
+WORKSETSIZE.
+The default number of notes to leave in a notesfile when archiving.
+.iz
+DFLTSH.
+This should be left as the Bourne shell, /bin/sh -RBE
+.iz
+DFLTED.
+The editor to use if no NFED or EDITOR environment variable
+exists.
+.iz
+SEQFILE.
+This is the name of a file in the utility directory which contains
+a list of notesfiles for users without an NFSEQ environment variable.
+The default is probably just fine.
+.iz
+DFLTSEQ.
+For users without an NFSEQ environment variable and when the file
+specified by the SEQFILE definition above doesn't exist, we
+finally fall back to using the notesfiles specified by this string.
+The nice thing about having things in SEQFILE is that you don't
+have to recompile the notesfile software everytime you wish to
+change the default set of notesfiles; instead you edit a file.
+.iz
+MAILER.
+The program which will do mailing.
+If you are in a networked environment, this mailer should
+manage to route letters to far away places for you.
+The notesfile system only retains the name of the destination site;
+a path to that site is not kept.
+.iz
+SUPERMAILER.
+This should be defined if you have an intelligent mail program.
+Intelligent here means that you can edit the letter and other
+fun things.
+.iz
+PAGER.
+A program which shows 1 screenful of information at a time.
+.iz
+WRITE.
+A program which allows online user-user communication
+(such as /bin/write).
+.iz
+FULLDOMAIN.
+This defines the domain name of your local systems. For many
+USENET sites, this should be ``UUCP''.
+Other examples include ``ARPA'' and ``Uiuc.ARPA''.
+This should not include the system name.
+In the UIUC Computer Science Department, we have machines named
+``uiucdcs'', ``uiucdcsb'', and so on;
+our value for FULLDOMAIN is ``Uiuc.ARPA''.
+The notesfile code puts
+things together to yield ``uiucdcsb.Uiuc.ARPA'' as a
+full domain name for one of our machines.
+Note that you do NOT need to place a ``.'' at the beginning of
+the domain name; the notesfile software does this for you.
+.ix
+IDDOMAIN.
+This switch is (for now) undefined.
+When defined it indicates the the unique id's associated with
+notes are to have a system component containing the system
+name and the string defined by FULLDOMAIN.
+The eventual goal is that this will be defined.
+Currently, there are problems with using long strings
+for unique identifiers. This is related to the old notesfile
+structure which used a 10 character maximum and didn't check for
+overflow.
+.br
+So for now, leave this undefined.
+I'm not sure when it will be good to enable this option.
+.iz
+Select a kernel type for your machine.
+If no kernel is selected, the code may compile but most
+likely will not run.
+.iz
+PROMPT.
+If you wish the system to give a command prompt.
+Otherwise the notesfile system is promptless.
+.iz
+USERHOST.
+If this is defined, the notesfile system uses the convention
+``user@host'' to indicate where an article originated.
+If undefined, the notesfile system uses a ``host!user''
+notation.
+If you are running in an environment which supports Internet
+style names, you may choose to use this.
+.iz
+DYNADIR.
+When defined, the notesfile system will determine the default
+spool directory notesfiles from /etc/passwd.
+The home directory for the user ``notes'' (actually whatever is
+specified in the Makefile) is read from /etc/passwd and the
+parent directory is used as the default spool directory.
+Thus if notes' home directory is ``/usr/spool/notes/.utilities'',
+the default directory is ``/usr/spool/notes''.
+This assumes that notes' home directory is in the .utilities
+directory.
+.sp
+This is useful for the case where a single binary will be run
+on several machines with differing disk layouts.
+On one, the database might live in /usr/spool/notes; another
+host might have the data base in /mnt/notes.
+By using DYNADIR and moving the ``notes'' home directory
+on various machines, only one binary is needed.
+.sp
+If the notes database lives in the same place on all of your
+machines, a better approach is to use the MSTDIR definition
+in the Makefile.
+.iz
+K_KEY.
+When defined, the ``k'' and ``K'' keys act similarly to the
+``q'' and ``Q' keys respectively.
+The choice is up to you.
+Defining them allows reading of notes with one hand.
+However some people get aggravated when the miss the ``j'' key
+and hit the ``k'' key.
+All the documentation considers the ``k'' key to be active.
+.iz
+BIGTEXT.
+Define this is you want to allow notes longer than 65000 bytes.
+Note that if you have old notesfiles, you will have to dump and
+reload them with the ``nfdump'' and ``nfload'' programs before
+the new code will work on them.
+.iz
+.ft B
+The following definitions are pretty much ``stock'' and
+usually aren't changed.
+.ft P
+.iz
+NFMAINT.
+This is the name of the notesfile which receives control messages,
+error reports and other notesfile logging functions.
+I do not recommend #undef'ing this.
+.iz
+AUTOCREATE.
+When defined, network receptions of previously undefined notesfiles
+will cause the creation of that notesfile.
+If undefined, the reception will fail if the notesfile doesn't
+exist.
+This is used in environments such as USENET where new notesfiles
+are often created remotely.
+.iz
+STATS.
+If defined, the statistics keeping code is enabled.  If undefined,
+the notesfile system will not keep statistics.
+Keeping statistics involves no space overhead and relatively
+little time overhead; I recommend leaving this defined.
+.iz
+FASTSEQ.
+Enables code which ``fails-quickly'' by determining in an
+inexpensive operation if there can't be any new articles.
+When there might be new articles,
+a more thorough and time consuming algorithm
+is used.
+.iz
+DUMPCORE.
+This defines a subdirectory of the notesfile utility directory
+where core images generated by internal consistency checks are
+placed.  If undefined, the errors will be logged but no core
+image is generated.
+.iz
+FASTFORK.
+This definition enables a quick forking algorithm which 
+exec's the desired program immediately instead of going through
+the system(III) interface.
+It avoids an extra fork()/execl() and shell startup costs.
+However some functionality is lost.
+.iz
+[finished editing parms.h] 
+.iz
+[edit] Makefile
+.iz
+select BIN.
+The directory where user commands are kept.
+The Makefile will NOT create this directory.
+At UIUC, we use /usr/bin. Another common choice is
+/usr/local.
+.iz
+MSTDIR.
+The default directory for notesfiles.
+The Makefile WILL make this directory for you.
+This is typically /usr/spool/notes.
+.iz
+ARCHDIR.
+Old notes never die, they go here instead;
+the Makefile WILL make this directory for you.
+.iz
+NET.
+This is the directory where the notesfile networking programs
+``nfxmit'' and ``nfrcv'' will be placed.
+In most cases, ``/usr/bin'' is a good choice.
+You may wish to change it if your UUCP or other networking
+mechanisms use other directories.
+This directory must already exist;
+the Makefile will not create it.
+.iz
+AUTOSEQ.
+The invocation name for the automatic sequencer.
+For multiple names like `autoseq', `readnotes' and `autonotes',
+make links to the file ``/usr/bin/notes'' with the appropriate
+names (assuming that BIN = `/usr/bin').
+.iz
+NOTES.
+The username of the user who ``owns'' all the notesfiles.
+.iz
+NOTESUID.
+The numeric userid of the notesfile ``owner''.
+For example NOTES = notes, NOTESUID = 10.
+.iz
+NOTESGRP.
+The name of the group to which the ``NOTES'' signon belongs.
+.ft B
+It is strongly recommended that this be a special group
+just for the notes database and programs.
+.ft P
+.iz
+ANON.
+The name of the ``anonymous'' user.
+.iz
+ANONUID.
+The numeric userid of the ``anonymous'' user;
+this should be an idle user id since it is not allowed to
+run the notesfile program.
+.iz
+LIBDIR.
+The directory to contain ``libnfcom.a'', a user accessible library
+of routines.
+This is distributed as /usr/local/lib.
+.iz
+CFLAGS.
+You may wish to arrange for split I/D loading on a PDP-11
+(the -i flag).
+It may also be prudent to optimize the code (-O flag).
+If code size is an issue, remove the RCSIDENT definition;
+when defined, version control information is included in the
+binaries and they are correspondingly larger.
+.iz
+[finished editing]
+Makefile
+.iz
+[may need to become super-user at this point]
+.iz
+type ``make base''
+and assess its completion.
+It will tell you if all went well.
+.ft B
+If you are merely installing a new version of the notesfile code,
+you should type ``touch base'' instead of ``make base''.
+.ft P
+.iz
+Signon as notesfile ``owner''.
+While remaining super-user isn't a fatal flaw at this point, it
+does mean that several default notesfiles won't be generated.
+These can be created by hand if you forget.
+Nothing from this point on (including future code updates) requires
+super-user privileges.
+.iz
+cd src
+.iz
+.ft B
+If you are merely installing a new version of the code,
+type ``touch spool'' now. This tells the makefile that the spool
+directories already exist.
+.ft P
+.iz
+make boot.
+This is the final step, it should complete with a message
+that the system is installed.
+An error message when doing the ``mknf -on nfmaint nfgripes''
+probaby means you are still super-user.
+Don't sweat it; just become notes and type the ``mknf'' command
+line over. Everything is now fine.
+.iz
+You may have to be Super-User for the next step depending on the
+modes of your manual directory, /usr/man.
+.iz
+cd ../man.
+[the man page directory for notesfiles]
+.iz
+make install.
+to install the man(I) pages for the notesfile system.
+They are placed, by default, in the directories /usr/man/man1,
+/usr/man/man3, and /usr/man/man8.
+.iz
+Examine the ``Samples'' directory for templates of files normally
+in the notesfile utility directory.
+These files include shell scripts to run through cron(8) which
+queue network transmissions, expire old notes, and
+map between notesfiles and news.
+.iz
+Modify UUCP's ``uuxqt.c'' to allow remote execution of ``nfrcv''.
+This is unnecessary if no notesfile networking will be done
+or if another remote execution mechanism will be used.
+Some versions of UUCP have a file ``/usr/lib/uucp/L.cmds''
+which contains names of permitted commands.
+.iz
+Modify /etc/rc to remove notesfile locks at boot time.
+[4.2 BSD machines might prefer to use /etc/rc.local.]
+Add the command ``rm -f /usr/spool/notes/.locks/*''.
+.ez
+
+.a1 "Upgrading Existing Notesfile Databases"
+
+	Revision 1.7 of the notesfile system requires converting
+existing notesfile databases to a new format.
+A set of programs to accomplish this task are included in the
+distribution.
+The ``nfdump'' program converts notesfiles into an ASCII representation.
+The ``nfload'' program converts this ASCII representation back
+into a properly formatted notesfile.
+To convert an existing notesfile database, these steps are what I
+follow:
+
+.bz
+.iz
+Compile ``nfdump'' with the OLD notes distribution.
+If your version of the software is old enough not to have a copy
+of nfdump,
+I suggest you either try to adapt the version in the current 
+distribution or using the networking programs ``nfxmit'' and ``nfrcv''
+to get the information between the old and new databases.
+.iz
+Compile ``nfload'' with the NEW notes distribution.
+.iz
+cd /usr/spool/notes
+.iz
+mkdir .OLD
+.iz
+mv * .OLD
+.iz
+run the following script:
+.nf
+.br
+#! /bin/csh -f
+foreach i (`ls .OLD`)
+  echo $i start
+  nfdump-old /usr/spool/notes/.OLD/$i - | nfload-new $i
+  echo $i done
+end
+echo ALL DONE
+.fi
+.iz
+rm -rf .OLD
+.ez
+
+	You will also have to convert the sequencer information.
+In the ``utility/seq-cvt'' directory there are a pair of programs
+``seqtoascii'' and ``seqtobinary''.
+To convert the sequencer information:
+
+.bz
+.iz
+make ``seqtoascii'' using the OLD structs.h and parms.h.
+.iz
+make ``seqtobinary'' using the NEW structs.h and parms.h.
+.iz
+cd /usr/spool/notes/.sequencer
+.iz
+mkdir .OLD
+.iz
+mv * .OLD
+.iz
+run this shell script:
+.nf
+.br
+#!/bin/csh -f
+foreach i (`ls .OLD`)
+  echo $i
+  seqtoascii .OLD/$i | seqtobinary $i
+end
+echo ALL DONE
+.fi
+.iz
+rm -rf .OLD
+.iz
+If you are going to use the FULLDOMAIN option, you may want
+to go ahead and perform the following steps:
+.iz
+run this shell script, appropriately modified to reflect
+your domain setup.
+This one reflects the naming at UIUC.
+.nf
+.br
+#!/bin/csh -f
+foreach i (Sy:*)
+  echo $i
+  ln $i $i.UUCP
+  ln $i $i.Uiuc.ARPA
+end
+echo ALL DONE
+.fi
+.iz
+You have now converted your notesfile database to 1.7 format.
+Install the new binaries and fire away.
+.ex
+
+
+.a1 "Hints on Installing Notesfiles on Multiple Systems"
+
+	Notesfile binaries are portable across similar machines.
+User-id's and hostnames are determined by examining /etc/passwd
+and through system calls.
+
+	To install the Notesfile system on a network of like machines
+(a collection of 68000 workstations for example)
+one machine must go through the procedure detailed above.
+A shell script ``rinstall'' is included in the notesfile
+source directory.
+This shell script will propagate copies across the network.
+Rinstall is a simple script that assumes the correct
+hierarchies exist on the target machines.
+It was written to use the 4.2 BSD ``rcp'' and ``rsh'' programs
+to copy files and remotely execute commands.
+Different networking commands will require changes to the shell
+script.
+
+	To generate the proper hierarchies on other systems,
+copy the Makefile to each of the machines and make both
+``base'' and ``spool''.  This will create the proper files
+and directories for the notesfile system.
+Then return to the master machine and run the rinstall script
+to send binaries to each of the other machines.
+
+	The ``Samples'' directory of the Notesfile distribution
+contains example cron scripts for sending information between
+a network of systems running notesfiles.
+These shell scripts can prove helpful in setting up notesfile
+transmissions around your local network.
+
+.a1 "Mail to Notesfiles"
+
+	To use the nfmail program with the 4.1 BSD /etc/delivermail
+or the 4.2 BSD /usr/lib/sendmail
+insert lines of the following form in the file /usr/lib/aliases.
+
+.in +1i
+.nf
+somenotes: ``|/usr/spool/notes/.utilities/nfmail somenotes''
+gripes: ``|/usr/spool/notes/.utilities/nfmail problems''
+.fi
+.in
+
+.a1 "The Notesfiles/News Gateway"
+
+	The notesfile/news gateway may need a little more tickling to
+convince it to work properly. For more information on how to set this
+up properly, see section 3.5 (``Interfacing to News'') and look at
+the file `Src/newsgate.h'.
+Appendix B (``Interfacing Notesfiles to News'')
+is another source of information for connecting the two systems.

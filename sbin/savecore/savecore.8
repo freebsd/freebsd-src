@@ -1,0 +1,117 @@
+.\" Copyright (c) 1980, 1991 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)savecore.8	6.6 (Berkeley) 3/16/91
+.\"
+.Dd March 16, 1991
+.Dt SAVECORE 8
+.Os BSD 4
+.Sh NAME
+.Nm savecore
+.Nd "save the details of a crash of the operating system"
+.Sh SYNOPSIS
+.Nm savecore
+.Ar dirname
+.Op Ar system
+.Sh DESCRIPTION
+.Nm Savecore
+is meant to be called near the end of the initialization file
+.Pa /etc/rc
+(see
+.Xr rc 8 ) .
+Its function
+is to detect the presence and save the state of the operating
+system's previous abnormal termination, assuming the state was recorded
+for this purpose. If this state information is found,
+.Nm savecore
+will also write a reboot message in the shutdown log.
+The state information is a snapshot of all RAM memory at the time
+of abnormal termination, untranslated by the processor's memory management
+unit, in physical rather than virtual order (like the memory device, see
+.Xr mem 4 ).
+.Pp
+Operands supported by
+.Nm savecore :
+.Bl -tag -width Ar
+.It Ar dirname
+The directory name where the core dump will be written.
+.It Ar system
+If the core dump was from a system other than
+.Pa /386bsd ,
+the name
+of that system must be supplied as
+.Ar system .
+.El
+.Pp
+.Nm Savecore
+looks for a physical RAM memory image of the current system
+(currently recorded during system crashes in the
+system's swap space) and it checks the image for veracity.
+If the saved memory image is valid, it saves this in
+.Ar dirname Ns Pa /ram.n
+and the current version of the operating system's executable file
+in
+.Ar dirname Ns Pa /system.n
+Sequence numbers are incremented and appended to the end of the pathnames
+each time
+.Nm savecore
+is run in the directory.
+.Pp
+Before savecore writes out a memory image, it reads a number from the file
+.Ar dirname Ns Pa /minfree .
+If the number of free kilobytes on the filesystem which contains
+.Ar dirname
+is less than the number obtained from the minfree file,
+the core dump is not saved.
+If the minfree file does not exist, savecore always writes out the core
+file (assuming that a core dump was taken).
+.Pp
+.Nm Savecore
+also logs a reboot message using facility
+.Dv LOG_AUTH
+(see
+.Xr syslog 3 )
+If the system crashed as a result of a panic,
+.Nm savecore
+logs the panic string too.
+.Sh FILES
+.Bl -tag -width /386bsd -compact
+.It Pa /386bsd
+current
+.Tn system executable file
+.El
+.Sh BUGS
+Can be fooled into thinking a core dump is the wrong size.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.1 .

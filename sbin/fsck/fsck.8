@@ -1,0 +1,328 @@
+.\" Copyright (c) 1980, 1989 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)fsck.8	6.9 (Berkeley) 4/20/91
+.\"
+.\"	$Header: /a/cvs/386BSD/src/sbin/fsck/fsck.8,v 1.2 1993/07/22 16:51:48 jkh Exp $
+.\"
+.TH FSCK 8 "April 20, 1991"
+.UC 4
+.de us
+\\$1\l'|0\(ul'
+..
+.SH NAME
+fsck \- file system consistency check and interactive repair
+.SH SYNOPSIS
+.B fsck
+.B \-p
+[
+.B \-m
+mode
+]
+.br
+.B fsck
+[
+.B \-b
+block#
+] [
+.B \-c
+] [
+.B \-y
+] [
+.B \-n
+] [
+.B \-m
+mode
+] [
+filesystem 
+] ...
+.SH DESCRIPTION
+The first form of
+.I fsck
+preens a standard set of filesystems or the specified file systems.
+It is normally used in the script
+.B /etc/rc
+during automatic reboot.
+Here
+.I fsck
+reads the table
+.B /etc/fstab
+to determine which file systems to check.
+Only partitions in fstab that are mounted ``rw,'' ``rq'' or ``ro''
+and that have non-zero pass number are checked.
+Filesystems with pass number 1 (normally just the root filesystem)
+are checked one at a time.
+When pass 1 completes, all remaining filesystems are checked,
+running one process per disk drive.
+The disk drive containing each filesystem is inferred from the longest prefix
+of the device name that ends in a digit; the remaining characters are assumed
+to be the partition designator.
+.PP
+The system takes care that only a restricted class of innocuous
+inconsistencies can happen unless hardware or software failures intervene.
+These are limited to the following:
+.IP
+Unreferenced inodes
+.ns
+.IP
+Link counts in inodes too large
+.ns
+.IP
+Missing blocks in the free map
+.ns
+.IP
+Blocks in the free map also in files
+.ns
+.IP
+Counts in the super-block wrong
+.PP
+These are the only inconsistencies that
+.I fsck
+with the
+.B \-p
+option will correct; if it encounters other inconsistencies, it exits
+with an abnormal return status and an automatic reboot will then fail.
+For each corrected inconsistency one or more lines will be printed
+identifying the file system on which the correction will take place,
+and the nature of the correction.  After successfully correcting a file
+system,
+.I fsck
+will print the number of files on that file system,
+the number of used and free blocks,
+and the percentage of fragmentation.
+.PP
+If sent a QUIT signal,
+.I fsck
+will finish the file system checks, then exit with an abnormal
+return status that causes an automatic reboot to fail.
+This is useful when to finish the file system checks during an automatic reboot,
+but do not want the machine to come up multiuser after the checks complete.
+.PP
+Without the
+.B \-p
+option,
+.I fsck
+audits and interactively repairs inconsistent conditions for file systems. 
+If the file system is inconsistent the operator is prompted for concurrence
+before each correction is attempted.
+It should be noted that some of the corrective actions which are not
+correctable under the
+.B \-p
+option will result in some loss of data.
+The amount and severity of data lost may be determined from the diagnostic
+output.
+The default action for each consistency correction
+is to wait for the operator to respond \fByes\fP or \fBno\fP.
+If the operator does not have write permission on the file system
+.I fsck
+will default to a 
+.BR "\-n " action.
+.PP
+.I Fsck
+has more consistency checks than
+its predecessors
+.IR "check, dcheck, fcheck, " "and" " icheck"
+combined.
+.PP
+The following flags are interpreted by
+.I fsck.
+.TP 6
+.B \-b
+Use the block specified immediately after the flag as
+the super block for the file system.  Block 32 is usually
+an alternate super block.
+.TP 6
+.B \-l
+Limit the number of parallel checks to the number specified in the following
+argument.
+By default, the limit is the number of disks, running one process per disk.
+If a smaller limit is given, the disks are checked round-robin, one filesystem
+at a time.
+.TP 6
+.B \-m
+Use the mode specified in octal immediately after the flag as the
+permission bits to use when creating the lost+found directory
+rather than the default 1777.
+In particular, systems that do not wish to have lost files accessible
+by all users on the system should use a more restrictive
+set of permissions such as 700.
+.TP 6
+.B  \-y
+Assume a yes response to all questions asked by 
+.IR fsck ;
+this should be used with great caution as this is a free license
+to continue after essentially unlimited trouble has been encountered.
+.TP 6
+.B  \-n
+Assume a no response to all questions asked by 
+.I fsck
+except for ``CONTINUE?'', which is assumed to be affirmative;
+do not open the file system for writing.
+.TP 6
+.B  \-c
+If the file system is in the old (static table) format,
+convert it to the new (dynamic table) format.
+If the file system is in the new format,
+convert it to the old format provided the old format
+can support the filesystem configuration.
+In interactive mode,
+.I fsck
+will list the direction the conversion is to be made
+and ask whether the conversion should be done.
+If a negative answer is given,
+no further operations are done on the filesystem.
+In preen mode,
+the direction of the conversion is listed and done if
+possible without user interaction.
+Conversion in preen mode is best used when all the file systems
+are being converted at once.
+The format of a file system can be determined from the
+first line of output from 
+.IR dumpfs (8).
+.PP
+If no filesystems are given to 
+.I fsck
+then a default list of file systems is read from
+the file
+.BR /etc/fstab .
+.PP
+.ne 10
+Inconsistencies checked are as follows:
+.TP 6
+1.
+Blocks claimed by more than one inode or the free map.
+.br
+.br
+.ns
+.TP 6
+2.
+Blocks claimed by an inode outside the range of the file system.
+.br
+.br
+.ns
+.TP 6
+3.
+Incorrect link counts.
+.br
+.br
+.ns
+.TP 6
+4.
+Size checks:
+.br
+.ns
+.IP "" 12
+Directory size not of proper format.
+.br
+Partially truncated file.
+.br
+.br
+.ns
+.TP 6
+5.
+Bad inode format.
+.br
+.br
+.ns
+.TP 6
+6.
+Blocks not accounted for anywhere.
+.br
+.br
+.ns
+.TP 6
+7.
+Directory checks:
+.br
+.br
+.ns
+.IP "" 12
+File pointing to unallocated inode.
+.br
+Inode number out of range.
+.br
+Dot or dot-dot not the first two entries of a directory
+or having the wrong inode number.
+.br
+.br
+.ns
+.TP 6
+8.
+Super Block checks:
+.br
+.br
+.ns
+.IP "" 12
+More blocks for inodes than there are in the file system.
+.br
+.br
+.ns
+.TP 6
+9.
+Bad free block map format.
+.br
+.br
+.ns
+.TP 6
+10.
+Total free block and/or free inode count incorrect.
+.PP
+Orphaned files and directories (allocated but unreferenced) are,
+with the operator's concurrence, reconnected by
+placing them in the 
+.B lost+found
+directory.
+The name assigned is the inode number.
+If the
+.I lost+found
+directory does not exist, it is created.
+If there is insufficient space its size is increased.
+.PP
+Because of inconsistencies between the block device and the buffer cache,
+the raw device should always be used.
+.SH FILES
+.br
+.ns
+.TP 21
+/etc/fstab
+contains default list of file systems to check.
+.SH DIAGNOSTICS
+The diagnostics produced by 
+.I fsck
+are fully enumerated and explained in Appendix A of
+``Fsck \- The UNIX File System Check Program'' (SMM:5).
+.SH "SEE ALSO"
+fstab(5),
+fs(5),
+fsdb(8),
+newfs(8),
+mkfs(8),
+reboot(8)

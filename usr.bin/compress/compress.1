@@ -1,0 +1,242 @@
+.\" Copyright (c) 1986, 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" James A. Woods, derived from original work by Spencer Thomas
+.\" and Joseph Orost.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)compress.1	6.10 (Berkeley) 7/30/91
+.\"
+.Dd July 30, 1991
+.Dt COMPRESS 1
+.Os BSD 4.3
+.Sh NAME
+.Nm compress ,
+.Nm uncompress ,
+.Nm zcat
+.Nd compress and expand data
+.Sh SYNOPSIS
+.Nm compress
+.Op Fl f
+.Op Fl v
+.Op Fl c
+.Op Fl b Ar bits
+.Op Ar
+.Nm uncompress
+.Op Fl f
+.Op Fl v
+.Op Fl c
+.Ar
+.Nm zcat
+.Op Ar
+.Sh DESCRIPTION
+.Nm Compress
+reduces the size of the named files using adaptive Lempel-Ziv coding.
+Whenever possible,
+each
+.Ar file
+is replaced by one with the extension
+.Ar \&.Z ,
+while keeping the same ownership modes, access and modification times.
+If no files are specified, the standard input is compressed to the
+standard output.
+Compressed files can be restored to their original form using
+.Nm uncompress
+or
+.Nm zcat
+.Bl -tag -width Ds
+.It Fl f
+Force compression of
+.Ar file ,
+even if it does not actually shrink
+or the corresponding
+.Ar file.Z
+file already exists.
+Except when run in the background under
+.Pa /bin/sh ,
+if
+.Fl f
+is not given the user is prompted as to whether an existing
+.Ar file.Z
+file should be overwritten.
+.It Fl c
+(``cat'').
+.Nm Compress/uncompress
+writes to the standard output; no files are changed.
+The nondestructive behavior of
+.Nm zcat
+is identical to that of
+.Nm uncompress
+.Fl c .
+.It Fl b
+Specify
+.Ar bits
+code limit (see below).
+.It Fl v
+Print the percentage reduction of each file.
+.El
+.Pp
+.Nm Compress
+uses the modified Lempel-Ziv algorithm popularized in
+"A Technique for High Performance Data Compression",
+Terry A. Welch,
+.Em IEEE Computer ,
+vol. 17,
+.no 6
+(June 1984), pp. 8-19.
+Common substrings in the file are first replaced by 9-bit codes 257 and up.
+When code 512 is reached, the algorithm switches to 10-bit codes and
+continues to use more bits until the
+limit specified by the
+.Fl b
+flag is reached (default 16).
+.Ar Bits
+must be between 9 and 16.  The default can be changed in the source to allow
+.Nm compress
+to be run on a smaller machine.
+.Pp
+After the
+.Ar bits
+limit is attained,
+.Nm compress
+periodically checks the compression ratio.  If it is increasing,
+.Nm compress
+continues to use the existing code dictionary.  However,
+if the compression ratio decreases,
+.Nm compress
+discards the table of substrings and rebuilds it from scratch.  This allows
+the algorithm to adapt to the next "block" of the file.
+.Pp
+Note that the
+.Fl b
+flag is omitted for
+.Ar uncompress
+since the
+.Ar bits
+parameter specified during compression
+is encoded within the output, along with
+a magic number to ensure that neither decompression of random data nor
+recompression of compressed data is attempted.
+.Pp
+.ne 8
+The amount of compression obtained depends on the size of the
+input, the number of
+.Ar bits
+per code, and the distribution of common substrings.
+Typically, text such as source code or English
+is reduced by 50\-60%.
+Compression is generally much better than that achieved by
+Huffman coding (as used in the historical command
+pack),
+or adaptive Huffman coding (as
+used in the historical command
+compact),
+and takes less time to compute.
+.Pp
+If an error occurs, exit status is 1;
+if the last file was not compressed because it became larger, the status
+is 2; otherwise the status is 0.
+.Sh DIAGNOSTICS
+.Bl -tag -width flag
+.It "Usage: compress [-fvc] [-b maxbits] [file ...]"
+Invalid options were specified on the command line.
+.It "Missing maxbits"
+Maxbits must follow
+.Fl b .
+.It Ar file : No "not in compressed format"
+The file specified to
+.Ar uncompress
+has not been compressed.
+.It Xo
+.Ar file : No "compressed with"
+.Ar \&xx No "bits, can only handle"
+.Ar \&yy No bits
+.Xc
+.Ar File
+was compressed by a program that could deal with
+more
+.Ar bits
+than the compress code on this machine.
+Recompress the file with smaller
+.Ar bits .
+.It Ar file : No "already has .Z suffix -- no change"
+The file is assumed to be already compressed.
+Rename the file and try again.
+.It Ar file : No "filename too long to tack on .Z"
+The file cannot be compressed because its name is longer than
+12 characters.
+Rename and try again.
+This message does not occur on
+.Bx
+systems.
+.It Ar file No "already exists; do you wish to overwrite (y or n)?"
+Respond "y" if you want the output file to be replaced; "n" if not.
+.It "uncompress: corrupt input"
+A
+.Dv SIGSEGV
+violation was detected which usually means that the input file is
+corrupted.
+.It Compression: Em "xx.xx%"
+Percentage of the input saved by compression.
+(Relevant only for
+.Fl v . )
+.It "-- not a regular file: unchanged"
+When the input file is not a regular file,
+(e.g. a directory), it is
+left unaltered.
+.It "-- has" Ar xx No "other links: unchanged"
+The input file has links; it is left unchanged.  See
+.Xr ln 1
+for more information.
+.It "-- file unchanged"
+No savings is achieved by
+compression.  The input remains virgin.
+.El
+.Sh FILES
+.Bl -tag -width file.Z
+.It Pa file.Z
+compressed file is file.Z
+.El
+.Sh BUGS
+Although compressed files are compatible between machines with large memory,
+.Fl b Ns Ar 12
+should be used for file transfer to architectures with
+a small process data space (64KB or less, as exhibited by the
+.Tn DEC PDP
+series, the Intel 80286, etc.)
+.Pp
+.Nm Compress
+should be more flexible about the existence of the `.Z' suffix.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

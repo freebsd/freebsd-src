@@ -1,0 +1,41 @@
+.\" Define the PSPIC macro.
+.\" When used other than with -Tps, it will draw a box around where
+.\" the picture would go.
+.de ps-bb
+.nr ps-nargs \\n[.$]
+.if \\n[ps-nargs]=4 \{\
+.	nr ps-llx 0\\$1
+.	nr ps-lly 0\\$2
+.	nr ps-urx 0\\$3
+.	nr ps-ury 0\\$4
+.\}
+..
+.de PSPIC
+.br
+.sy echo .ps-bb `psbb \\$1` >/tmp/psbb\\n[$$]
+.so /tmp/psbb\\n[$$]
+.if \\n[ps-nargs]=4 \{\
+.	nr ps-wid (\\n[ps-urx]-\\n[ps-llx])
+.	nr ps-ht (\\n[ps-ury]-\\n[ps-lly])
+.	if \\n[ps-wid]<0 .nr ps-wid 0-\\n[ps-wid]
+.	if \\n[ps-ht]<0 .nr ps-ht 0-\\n[ps-ht]
+.	ie \\n[.$]>=2 .nr ps-deswid (i;\\$2)
+.	el .nr ps-deswid \\n[.l]-\\n[.i]<?\\n[ps-wid]p
+.	ie \\n[.$]>=3 .nr ps-desht (i;\\$3)
+.	el .nr ps-desht \\n[ps-deswid]*1000+(\\n[ps-wid]/2)/\\n[ps-wid]\
+*\\n[ps-ht]+500/1000
+.	ne \\n[ps-desht]u+1v
+.	nr ps-offset \\n[.l]-\\n[.i]-\\n[ps-deswid]/2
+.	ie \\n[.$]>=3 .ds ps-desht \\n[ps-desht]
+.	el .ds ps-desht \" empty
+\h'\\n[ps-offset]u'\
+\X'ps: invis'\
+\Z'\D'p 0 \\n[ps-desht]u \\n[ps-deswid]u 0 0 -\\n[ps-desht]u''\
+\X'ps: endinvis'\
+\v'\\n[ps-desht]u'\X'ps: import \\$1 \
+\\n[ps-llx] \\n[ps-lly] \\n[ps-urx] \\n[ps-ury] \\n[ps-deswid] \\*[ps-desht]'
+.	br
+.	sp \\n[ps-desht]u
+.\}
+.sy rm /tmp/psbb\\n[$$]
+..

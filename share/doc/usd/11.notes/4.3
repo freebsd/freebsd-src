@@ -1,0 +1,126 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	from: @(#)4.3	6.2 (Berkeley) 4/17/91
+.\"	4.3,v 1.2 1993/08/01 07:37:28 mycroft Exp
+.\"
+.se "User Subroutines"
+
+.ss "Nfcomment"
+
+	The nfcomment subroutine is callable from a user's C program. It
+allows any user program to enter text into a notesfile:
+
+	nfcomment (nfname, text, title, dirflag, anonflag)
+
+.KS
+.br
+The parameters are:
+
+.br
+.ls 1
+	char *nfname;	/* name of notesfile */
+.br
+	char *text;	/* null terminated text to be entered */
+.br
+	char *title;	/* if non-null, title of note */
+.br
+	int dirflag;	/* != 0 -> director flag on (if allowed) */
+.br
+	int anonflag;	/* != 0 -> anonymous note (if allowed) */
+.br
+.ls
+.KE
+
+	If the text pointer is NULL, the text of the note will be read
+from standard input.
+If no title is specified the subroutine will manufacture a title
+from the first line of the note.
+This routine is useful for error reports, user comments
+about programs, and automatic logging of statistics or internal states.
+
+	This routine can be loaded with a C program by specifying `-lnfcom'
+on the `cc' command line.
+
+.ss "Nfabort"
+
+	Nfabort allows users to generate core images of their
+process, save the core image in a ``known'' place,
+and
+log that fact in a notesfile.
+This proves useful for intermittent failures;
+The programmer regularly scans the notesfile and can examine
+the core dump at leisure.
+Some of the problems of recreating conditions which cause errors
+are eliminated by this approach.
+
+	Nfabort is callable from the user program. It accepts
+the following parameters:
+
+	nfabort (nfname, message, title, cname, exitcode)
+
+.KS
+.br
+The parameters are:
+
+.br
+.ls 1
+	char *nfname;	/* name of notesfile */
+.br
+	char *message;	/* text string to insert */
+.br
+	char *title;	/* title of the message */
+.br
+	char *cname;	/* prefix for core image destination */
+.br
+	int exitcode;	/* code for exit() */
+.ls
+.KE
+
+	The core image is placed in the file specified by
+concatenating the ``cname'' argument and a unique 
+integer (the process id of the current process).
+The notesfile specified by the ``nfname'' parameter
+receives a note whose body consists of the text pointed
+to by ``message'' and a line telling the complete pathname
+of the core image.
+The title of the note is specified by the ``title'' 
+parameter.
+After the core image is generated and the
+note has been written, 
+nfabort terminates with the exit code specified
+by the ``exitcode'' parameter.
+
+	Nfabort generates default values for each of
+the string parameters if NULL pointers are passed.
+This routine can be loaded with a C program by specifying `-lnfcom'
+on the `cc' command line.
+

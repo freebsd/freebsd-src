@@ -1,0 +1,965 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)pumanA.n	6.3 (Berkeley) 4/17/91
+.\"
+.if !\n(xx \{\
+.so tmac.p \}
+.ND
+.nr H1 0
+.af H1 A
+.NH 
+Appendix to Wirth's Pascal Report
+.PP
+This section is an appendix to
+the definition of the Pascal language in Niklaus Wirth's
+.I "Pascal Report"
+and, with that Report, precisely defines the
+Berkeley
+implementation.
+This appendix includes a summary of extensions to the language,
+gives the ways in which the undefined specifications were resolved,
+gives limitations and restrictions of the current implementation,
+and lists the added functions and procedures available.
+It concludes with a list of differences with the commonly available
+Pascal 6000\-3.4 implementation,
+and some comments on standard and portable Pascal.
+.NH 2
+Extensions to the language Pascal
+.PP
+This section defines non-standard language constructs available in
+.UP .
+The
+.B s
+standard Pascal option of the translators
+.PI
+and
+.PC
+can be used to detect these extensions in programs which are to be transported.
+.SH
+String padding
+.PP
+.UP
+will pad constant strings with blanks in expressions and as
+value parameters to make them as long as is required.
+The following is a legal
+.UP
+program:
+.LS
+\*bprogram\fP x(output);
+\*bvar\fP z : \*bpacked\fP \*barray\fP [ 1 .. 13 ] \*bof\fP char;
+\*bbegin\fP
+    z := 'red';
+    writeln(z)
+\*bend\fP;
+.LE
+The padded blanks are added on the right.
+Thus the assignment above is equivalent to:
+.LS
+z := 'red          '
+.LE
+which is standard Pascal.
+.SH
+Octal constants, octal and hexadecimal write
+.PP
+Octal constants may be given as a sequence of octal digits followed
+by the character `b' or `B'.
+The forms
+.LS
+write(a:n \*boct\fP)
+.LE
+and
+.LS
+write(a:n \*bhex\fP)
+.LE
+cause the internal representation of
+expression
+.I a,
+which must be Boolean, character, integer, pointer, or a user-defined enumerated
+type,
+to be written in octal or hexadecimal respectively.
+.SH
+Assert statement
+.PP
+An
+.B assert
+statement causes a
+.I Boolean
+expression to be evaluated
+each time the statement is executed.
+A runtime error results if any of the expressions evaluates to be 
+.I false .
+The
+.B assert
+statement is treated as a comment if run-time tests are disabled.
+The syntax for
+.B assert
+is:
+.LS
+\*bassert\fP <expr>
+.LE
+.SH
+Enumerated type input-output
+.PP
+Enumerated types may be read and written.
+On output the string name associated with the enumerated
+value is output.
+If the value is out of range,
+a runtime error occurs.
+On input an identifier is read and looked up
+in a table of names associated with the
+type of the variable, and
+the appropriate internal value is assigned to the variable being
+read.
+If the name is not found in the table
+a runtime error occurs.
+.SH
+Structure returning functions
+.PP
+An extension has been added which allows functions 
+to return arbitrary sized structures rather than just
+scalars as in the standard.
+.SH
+Separate compilation
+.PP
+The compiler
+.PC
+has been extended to allow separate compilation of programs.
+Procedures and functions declared at the global level
+may be compiled separately.
+Type checking of calls to separately compiled routines is performed
+at load time to insure that the program as a whole
+is consistent.
+See section 5.10 for details.
+.NH 2
+Resolution of the undefined specifications
+.SH
+File name \- file variable associations
+.PP
+Each Pascal file variable is associated with a named
+.UX
+file.
+Except for
+.I input
+and
+.I output,
+which are
+exceptions to some of the rules, a name can become associated
+with a file in any of three ways:
+.IP "\ \ \ \ \ 1)" 10
+If a global Pascal file variable appears in the
+.B program
+statement
+then it is associated with
+.UX
+file of the same name.
+.IP "\ \ \ \ \ 2)"
+If a file was reset or rewritten using the
+extended two-argument form of
+.I reset
+or
+.I rewrite
+then the given name
+is associated.
+.IP "\ \ \ \ \ 3)"
+If a file which has never had
+.UX
+name associated
+is reset or rewritten without specifying a name
+via the second argument, then a temporary name
+of the form `tmp.x'
+is associated with the file.
+Temporary names start with
+`tmp.1' and continue by incrementing the last character in the
+.SM
+USASCII
+.NL
+ordering.
+Temporary files are removed automatically
+when their scope is exited.
+.SH
+The program statement
+.PP
+The syntax of the
+.B program
+statement is:
+.LS
+\*bprogram\fP <id> ( <file id> { , <file id > } ) ;
+.LE
+The file identifiers (other than
+.I input
+and
+.I output )
+must be declared as variables of
+.B file
+type in the global declaration part.
+.SH
+The files input and output
+.PP
+The formal parameters
+.I input
+and
+.I output
+are associated with the
+.UX
+standard input and output and have a
+somewhat special status.
+The following rules must be noted:
+.IP "\ \ \ \ \ 1)" 10
+The program heading
+.B must
+contains the formal parameter
+.I output.
+If
+.I input
+is used, explicitly or implicitly, then it must
+also be declared here.
+.IP "\ \ \ \ \ 2)"
+Unlike all other files, the
+Pascal files
+.I input
+and
+.I output
+must not be defined in a declaration,
+as their declaration is automatically:
+.LS
+\*bvar\fP input, output: text
+.LE
+.IP "\ \ \ \ \ 3)"
+The procedure
+.I reset
+may be used on
+.I input.
+If no
+.UX
+file name has ever been associated with
+.I input,
+and no file name is given, then an attempt will be made
+to `rewind'
+.I input.
+If this fails, a run time
+error will occur.
+.I Rewrite
+calls to output act as for any other file, except that
+.I output
+initially has no associated file.
+This means that a simple
+.LS
+rewrite(output)
+.LE
+associates a temporary name with
+.I output.
+.SH
+Details for files
+.PP
+If a file other than
+.I input
+is to be read,
+then reading must be initiated by a call to the
+procedure
+.I reset
+which causes the Pascal system to attempt to open the
+associated
+.UX
+file for reading.
+If this fails, then a runtime error occurs.
+Writing of a file other than
+.I output
+must be initiated by a
+.I rewrite
+call,
+which causes the Pascal system to create the associated
+.UX
+file and
+to then open the file for writing only.
+.SH
+Buffering
+.PP
+The buffering for
+.I output
+is determined by the value of the
+.B b
+option
+at the end of the
+.B program
+statement.
+If it has its default value 1,
+then
+.I output
+is
+buffered in blocks of up to 512 characters,
+flushed whenever a writeln occurs
+and at each reference to the file
+.I input.
+If it has the value 0,
+.I output
+is unbuffered.
+Any value of
+2 or more gives block buffering without line or
+.I input
+reference flushing.
+All other output files are always buffered in blocks of 512 characters.
+All output buffers are flushed when the files are closed at scope exit,
+whenever the procedure
+.I message
+is called, and can be flushed using the
+built-in procedure
+.I flush.
+.PP
+An important point for an interactive implementation is the definition
+of `input\(ua'.
+If
+.I input
+is a teletype, and the Pascal system reads a character at the beginning
+of execution to define `input\(ua', then no prompt could be printed
+by the program before the user is required to type some input.
+For this reason, `input\(ua' is not defined by the system until its definition
+is needed, reading from a file occurring only when necessary.
+.SH
+The character set
+.PP
+Seven bit
+.SM USASCII
+is the character set used on
+.UX .
+The standard Pascal
+symbols `and', 'or', 'not', '<=', '>=', '<>',
+and the uparrow `\(ua' (for pointer qualification)
+are recognized.\*(dg
+.FS
+\*(dgOn many terminals and printers, the up arrow is represented
+as a circumflex `^'.
+These are not distinct characters, but rather different graphic
+representations of the same internal codes.
+.FE
+Less portable are the 
+synonyms tilde `~'
+for
+.B not ,
+`&' for
+.B and ,
+and `|' for
+.B or .
+.PP
+Upper and lower case are considered to be distinct.\*(st
+.FS
+\*(stThe proposed standard for Pascal considers them to be the same.
+.FE
+Keywords and built-in
+.B procedure
+and
+.B function
+names are
+composed of all lower case letters.
+Thus the identifiers GOTO and GOto are distinct both from each other and
+from the keyword
+\*bgoto\fP.
+The standard type `boolean' is also available as `Boolean'.
+.PP
+Character strings and constants may be delimited by the character
+`\''
+or by the character `#';
+the latter is sometimes convenient when programs are to be transported.
+Note that the `#' character has special meaning 
+.up
+when it is the first character on a line \- see
+.I "Multi-file programs"
+below.
+.SH
+The standard types
+.PP
+The standard type
+.I integer
+is conceptually defined as
+.LS
+\*btype\fP integer = minint .. maxint;
+.LE
+.I Integer
+is implemented with 32 bit twos complement arithmetic.
+Predefined constants of type
+.I integer
+are:
+.LS
+\*bconst\fP maxint = 2147483647; minint = -2147483648;
+.LE
+.PP
+The standard type
+.I char
+is conceptually defined as
+.LS
+\*btype\fP char = minchar .. maxchar;
+.LE
+Built-in character constants are `minchar' and `maxchar', `bell' and `tab';
+ord(minchar) = 0, ord(maxchar) = 127.
+.PP
+The type
+.I real
+is implemented using 64 bit floating point arithmetic.
+The floating point arithmetic is done in `rounded' mode, and
+provides approximately 17 digits of precision
+with numbers as small as 10 to the negative 38th power and as large as
+10 to the 38th power.
+.SH
+Comments
+.PP
+Comments can be delimited by either `{' and `}' or by `(*' and `*)'.
+If the character `{' appears in a comment delimited by `{' and `}',
+a warning diagnostic is printed.
+A similar warning will be printed if the sequence `(*' appears in
+a comment delimited by `(*' and `*)'.
+The restriction implied by this warning is not part of standard Pascal,
+but detects many otherwise subtle errors.
+.SH
+Option control
+.PP
+Options of the translators may be controlled
+in two distinct ways.
+A number of options may appear on the command line invoking the translator.
+These options are given as one or more strings of letters preceded by the
+character `\-' and cause the default setting of
+each given option to be changed.
+This method of communication of options is expected to predominate
+for
+.UX .
+Thus the command
+.LS
+% \*bpi \-l \-s foo.p\fR
+.LE
+translates the file foo.p with the listing option enabled (as it normally
+is off), and with only standard Pascal features available.
+.PP
+If more control over the portions of the program where options are enabled is
+required, then option control in comments can and should be used.
+The
+format for option control in comments is identical to that used in Pascal
+6000\-3.4.
+One places the character `$' as the first character of the comment
+and follows it by a comma separated list of directives.
+Thus an equivalent to the command line example given above would be:
+.LS
+{$l+,s+ listing on, standard Pascal}
+.LE
+as the first line of the program.
+The `l'
+option is more appropriately specified on the command line,
+since it is extremely unlikely in an interactive environment
+that one wants a listing of the program each time it is translated.
+.PP
+Directives consist of a letter designating the option,
+followed either by a `+' to turn the option on, or by a `\-' to turn the
+option off.
+The
+.B b
+option takes a single digit instead of
+a `+' or `\-'.
+.SH
+Notes on the listings
+.PP
+The first page of a listing
+includes a banner line indicating the version and date of generation of
+.PI
+or
+.PC .
+It also
+includes the
+.UX
+path name supplied for the source file and the date of
+last modification of that file.
+.PP
+Within the body of the listing, lines are numbered consecutively and
+correspond to the line numbers for the editor.
+Currently, two special
+kinds of lines may be used to format the listing:
+a line consisting of a form-feed
+character, control-l, which causes a page
+eject in the listing, and a line with
+no characters which causes the line number to be suppressed in the listing,
+creating a truly blank line.
+These lines thus correspond to `eject' and `space' macros found in many
+assemblers.
+Non-printing characters are printed as the character `?' in the listing.\*(dg
+.FS
+\*(dgThe character generated by a control-i indents
+to the next `tab stop'.
+Tab stops are set every 8 columns in
+.UX .
+Tabs thus provide a quick way of indenting in the program.
+.FE
+.SH
+The standard procedure write
+.PP
+If no minimum field length parameter is specified
+for a
+.I write,
+the following default
+values are assumed:
+.KS
+.TS
+center;
+l n.
+integer	10
+real	22
+Boolean	length of `true' or `false'
+char	1
+string	length of the string
+oct	11
+hex	8
+.TE
+.KE
+The end of each line in a text file should be explicitly
+indicated by `writeln(f)', where `writeln(output)' may be written
+simply as `writeln'.
+For
+.UX ,
+the built-in function `page(f)' puts a single
+.SM ASCII
+form-feed character on the output file.
+For programs which are to be transported the filter
+.I pcc
+can be used to interpret carriage control, as
+.UX
+does not normally do so.
+.NH 2
+Restrictions and limitations
+.SH
+Files
+.PP
+Files cannot be members of files or members of dynamically
+allocated structures.
+.SH
+Arrays, sets and strings
+.PP
+The calculations involving array subscripts and set elements
+are done with 16 bit arithmetic.
+This
+restricts the types over which arrays and sets may be defined.
+The lower bound of such a range must be greater than or equal to
+\-32768, and the upper bound less than 32768.
+In particular, strings may have any length from 1 to 65535 characters,
+and sets may contain no more than 65535 elements.
+.SH
+Line and symbol length
+.PP
+There is no intrinsic limit on the length of identifiers.
+Identifiers
+are considered to be distinct if they differ
+in any single position over their entire length.
+There is a limit, however, on the maximum input
+line length.
+This limit is quite generous however, currently exceeding 160
+characters.
+.SH
+Procedure and function nesting and program size
+.PP
+At most 20 levels of 
+.B procedure 
+and 
+.B function 
+nesting are allowed.
+There is no fundamental, translator defined limit on the size of the
+program which can be translated.
+The ultimate limit is supplied by the
+hardware and thus, on the \s-2PDP\s0-11,
+by the 16 bit address space.
+If
+one runs up against the `ran out of memory' diagnostic the program may yet
+translate if smaller procedures are used, as a lot of space is freed
+by the translator at the completion of each 
+.B procedure
+or
+.B function
+in the current
+implementation.
+.PP
+On the \s-2VAX\s0-11, there is an implementation defined limit
+of 65536 bytes per variable.
+There is no limit on the number of variables.
+.SH
+Overflow
+.PP
+There is currently no checking for overflow on arithmetic operations at
+run-time on the \s-2PDP\s0-11.
+Overflow checking is performed on the \s-2VAX\s0-11 by the hardware.
+.br
+.ne 15
+.NH 2
+Added types, operators, procedures and functions
+.SH
+Additional predefined types
+.PP
+The type
+.I alfa
+is predefined as:
+.LS
+\*btype\fP alfa = \*bpacked\fP \*barray\fP [ 1..10 ] \*bof\fP \*bchar\fP
+.LE
+.PP
+The type
+.I intset
+is predefined as:
+.LS
+\*btype\fP intset = \*bset of\fP 0..127
+.LE
+In most cases the context of an expression involving a constant
+set allows the translator to determine the type of the set, even though the
+constant set itself may not uniquely determine this type.
+In the
+cases where it is not possible to determine the type of the set from
+local context, the expression type defaults to a set over the entire base
+type unless the base type is integer\*(dg.
+.FS
+\*(dgThe current translator makes a special case of the construct
+`if ... in [ ... ]' and enforces only the more lax restriction
+on 16 bit arithmetic given above in this case.
+.FE
+In the latter case the type defaults to the current
+binding of
+.I intset,
+which must be ``type set of (a subrange of) integer'' at that point.
+.PP
+Note that if 
+.I intset 
+is redefined via:
+.LS
+\*btype\fP intset = \*bset of\fP 0..58;
+.LE
+then the default integer set is the implicit
+.I intset 
+of
+Pascal 6000\-3.4
+.SH
+Additional predefined operators
+.PP
+The relationals `<' and `>' of proper set
+inclusion are available.
+With
+.I a
+and
+.I b
+sets, note that
+.LS
+(\*bnot\fR (\fIa\fR < \fIb\fR)) <> (\fIa\fR >= \fIb\fR)
+.LE
+As an example consider the sets
+.I a
+= [0,2]
+and
+.I b
+= [1].
+The only relation true between these sets is `<>'.
+.SH
+Non-standard procedures
+.IP argv(i,a) 25
+where
+.I i 
+is an integer and
+.I a
+is a string variable
+assigns the (possibly truncated or blank padded)
+.I i \|'th
+argument
+of the invocation of the current
+.UX
+process to the variable
+.I a .
+The range of valid
+.I i
+is
+.I 0
+to
+.I argc\-1 .
+.IP date(a) 
+assigns the current date to the alfa variable 
+.I a
+in the format `dd mmm yy ', where `mmm' is the first
+three characters of the month, i.e. `Apr'.
+.IP flush(f) 
+writes the output buffered for Pascal file
+.I f
+into the associated
+.UX
+file.
+.IP halt 
+terminates the execution of the program with
+a control flow backtrace.
+.IP linelimit(f,x)\*(dd
+.FS
+\*(ddCurrently ignored by pdp-11
+.X .
+.FE
+with
+.I f 
+a textfile and
+.I x 
+an integer expression
+causes
+the program to be abnormally terminated if more than
+.I x 
+lines are
+written on file
+.I f .
+If
+.I x 
+is less than 0 then no limit is imposed.
+.IP message(x,...) 
+causes the parameters, which have the format of those
+to the
+built-in
+.B procedure
+.I write,
+to be written unbuffered on the diagnostic unit 2,
+almost always the user's terminal.
+.IP null
+a procedure of no arguments which does absolutely nothing.
+It is useful as a place holder,
+and is generated by
+.XP
+in place of the invisible empty statement.
+.IP remove(a) 
+where
+.I a 
+is a string causes the
+.UX
+file whose
+name is
+.I a, 
+with trailing blanks eliminated, to be removed.
+.IP reset(f,a) 
+where
+.I a 
+is a string causes the file whose name
+is
+.I a 
+(with blanks trimmed) to be associated with
+.I f 
+in addition
+to the normal function of
+.I reset.
+.IP rewrite(f,a) 
+is analogous to `reset' above.
+.IP stlimit(i)
+where
+.I i 
+is an integer sets the statement limit to be
+.I i 
+statements.
+Specifying the
+.B p
+option to
+.I pc
+disables statement limit counting.
+.IP time(a) 
+causes the current time in the form `\ hh:mm:ss\ ' to be
+assigned to the alfa variable
+.I a.
+.SH
+Non-standard functions
+.IP argc 25
+returns the count of arguments when the Pascal program
+was invoked.
+.I Argc
+is always at least 1.
+.IP card(x) 
+returns the cardinality of the set
+.I x, 
+i.e. the
+number of elements contained in the set.
+.IP clock 
+returns an integer which is the number of central processor
+milliseconds of user time used by this process.
+.IP expo(x) 
+yields the integer valued exponent of the floating-point
+representation of
+.I x ;
+expo(\fIx\fP) = entier(log2(abs(\fIx\fP))).
+.IP random(x) 
+where
+.I x 
+is a real parameter, evaluated but otherwise
+ignored, invokes a linear congruential random number generator.
+Successive seeds are generated as (seed*a + c) mod m and
+the new random number is a normalization of the seed to the range 0.0 to 1.0;
+a is 62605, c is 113218009, and m is
+536870912.
+The initial seed
+is 7774755.
+.IP seed(i) 
+where
+.I i 
+is an integer sets the random number generator seed
+to
+.I i 
+and returns the previous seed.
+Thus seed(seed(i))
+has no effect except to yield value
+.I i.
+.IP sysclock
+an integer function of no arguments returns the number of central processor
+milliseconds of system time used by this process.
+.IP undefined(x) 
+a Boolean function.
+Its argument is a real number and
+it always returns false.
+.IP wallclock 
+an integer function of no arguments returns the time
+in seconds since 00:00:00 GMT January 1, 1970.
+.NH 2
+Remarks on standard and portable Pascal
+.PP
+It is occasionally desirable to prepare Pascal programs which will be
+acceptable at other Pascal installations.
+While certain system dependencies are bound to creep in,
+judicious design and programming practice can usually eliminate
+most of the non-portable usages.
+Wirth's
+.I "Pascal Report"
+concludes with a standard for implementation and program exchange.
+.PP
+In particular, the following differences may cause trouble when attempting
+to transport programs between this implementation and Pascal 6000\-3.4.
+Using the
+.B s
+translator option may serve to indicate many problem areas.\*(dg
+.FS
+\*(dgThe
+.B s
+option does not, however, check that identifiers differ
+in the first 8 characters.
+.I Pi
+and
+.PC
+also do not check the semantics of
+.B packed .
+.FE
+.SH
+Features not available in Berkeley Pascal
+.IP
+Segmented files and associated functions and procedures.
+.IP
+The function
+.I trunc 
+with two arguments.
+.IP
+Arrays whose indices exceed the capacity of 16 bit arithmetic.
+.SH
+Features available in Berkeley Pascal but not in Pascal 6000-3.4
+.IP
+The procedures
+.I  reset 
+and
+.I  rewrite 
+with file names.
+.IP
+The functions
+.I argc,
+.I seed,
+.I sysclock,
+and
+.I wallclock.
+.IP
+The procedures
+.I argv,
+.I flush,
+and
+.I remove.
+.IP
+.I Message
+with arguments other than character strings.
+.IP
+.I Write
+with keyword
+.B hex .
+.IP
+The
+.B assert
+statement.
+.IP
+Reading and writing of enumerated types.
+.IP
+Allowing functions to return structures.
+.IP
+Separate compilation of programs.
+.IP
+Comparison of records.
+.SH
+Other problem areas
+.PP
+Sets and strings are more general in \*
+.UP ;
+see the restrictions given in
+the 
+Jensen-Wirth
+.I "User Manual"
+for details on the 6000\-3.4 restrictions.
+.PP
+The character set differences may cause problems,
+especially the use of the function
+.I chr,
+characters as arguments to
+.I ord,
+and comparisons of characters,
+since the character set ordering
+differs between the two machines.
+.PP
+The Pascal 6000\-3.4 compiler uses a less strict notion of type equivalence.
+In
+.UP ,
+types are considered identical only if they are represented
+by the same type identifier.
+Thus, in particular, unnamed types are unique
+to the variables/fields declared with them.
+.PP
+Pascal 6000\-3.4 doesn't recognize our option
+flags, so it is wise to
+put the control of
+.UP
+options to the end of option lists or, better
+yet, restrict the option list length to one.
+.PP
+For Pascal 6000\-3.4 the ordering of files in the program statement has
+significance.
+It is desirable to place
+.I input 
+and
+.I output 
+as the first two files in the
+.B program
+statement.
+.sp 2
+.SH
+Acknowledgments
+.PP
+The financial support of William Joy and Susan Graham by
+the National Science Foundation under grants
+MCS74-07644-A04, MCS78-07291, and MCS80-05144,
+and the William Joy by an
+.SM IBM
+Graduate Fellowship are gratefully acknowledged.

@@ -1,0 +1,120 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+
+#ifndef _<T>VStack_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>VStack_h 1
+
+#include "<T>.Stack.h"
+
+class <T>VStack : public <T>Stack
+{
+protected:
+  int                   size;
+  int                   ptr;
+  <T>*                  s;
+
+public:
+
+                        <T>VStack(int sz = DEFAULT_INITIAL_CAPACITY);
+                        <T>VStack(<T>VStack&);
+                        ~<T>VStack();
+
+  void                  operator = (<T>VStack&);
+  void                  push(<T&> item);
+  <T>                   pop();
+  <T>&                  top();
+  void                  del_top();
+
+  int                   length();
+  int                   empty();
+  int                   full();
+  void                  clear();
+
+  void                  resize(int sz);
+  int                   capacity();
+
+  int                   OK();
+};
+
+
+inline <T>VStack::<T>VStack(int sz)
+{
+  s = new <T> [size = sz];
+  ptr = 0;
+}
+
+inline <T>VStack::~<T>VStack()
+{
+  delete [] s;
+}
+
+inline void <T>VStack::clear()
+{
+  ptr = 0;
+}
+
+inline int <T>VStack::capacity()
+{
+  return size;
+}
+
+inline int <T>VStack::empty()
+{
+  return ptr == 0;
+}
+
+inline int <T>VStack::full()
+{
+  return ptr == size;
+}
+
+inline int <T>VStack::length()
+{
+  return ptr;
+}
+
+inline void <T>VStack::push(<T&> item)
+{
+  if (full()) error("push to full stack.");
+  s[ptr++] = item;
+}
+
+inline <T> <T>VStack::pop()
+{
+  if (empty()) error("pop from empty stack.");
+  return s[--ptr];
+}
+
+
+inline void <T>VStack::del_top()
+{
+  if (empty()) error("del_top from empty stack.");
+  --ptr;
+}
+
+inline <T>& <T>VStack::top()
+{
+  if (empty()) error("top from empty stack.");
+  return s[ptr-1];
+}
+
+#endif

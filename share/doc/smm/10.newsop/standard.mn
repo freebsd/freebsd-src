@@ -1,0 +1,1456 @@
+.\" Copyright (c) 1986 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)standard.mn	5.2 (Berkeley) 4/17/91
+.\"
+.ds h0 "Standard for Interchange of USENET Messages
+.ds h1
+.ds h2 %
+.ds f0 "\*(vr
+.ds f1
+.ds f2 "January 17, 1986
+.mt
+Standard for Interchange of USENET Messages
+.au
+Mark R. Horton
+.ai
+Bell Laboratories
+Columbus, OH  43213
+.au
+Revised for 2.10.3 by Rick Adams
+.hn
+Introduction
+.pg
+This document defines the standard format for the interchange
+of network Nnws articles among USENET sites.
+It describes the format for articles themselves,
+and gives partial standards for transmission of news.
+The news transmission is not entirely standardized
+in order to give a good deal of flexibility
+to the individual hosts to choose transmission hardware and software,
+whether to batch news,
+and so on.
+.pg
+There are five sections to this document.
+Section two section defines the format.
+Section three defines the valid control messages.
+Section four specifies some valid transmission methods.
+Section five describes the overall news propagation algorithm.
+.hn
+Article Format
+.pg
+The primary consideration in choosing an article format is
+that it fit in with existing tools as well as possible.
+Existing tools include both implementations of mail and news.
+(The
+.i notesfiles
+system from the University of Illinois
+is considered a news implementation.)
+A standard format for mail messages has existed for many years on the ARPANET,
+and this format meets most of the needs of USENET.
+Since the ARPANET format is extensible,
+extensions to meet the additional needs of USENET
+are easily made within the ARPANET standard.
+Therefore,
+the rule is adopted that all USENET news articles
+must be formatted as valid ARPANET mail messages,
+according to the ARPANET standard RFC 822.
+This standard is more restrictive than the ARPANET standard,
+placing additional requirements on each article
+and forbidding use of certain ARPANET features.
+However,
+it should always be possible to use a tool
+expecting an ARPANET message to process a news article.
+In any situation where this standard conflicts with the ARPANET standard,
+RFC 822 should be considered correct and this standard in error.
+.pg
+An example message is included to illustrate the fields.
+.sd
+From: jerry@eagle.uucp (Jerry Schwarz)
+Path: cbosgd!mhuxj!mhuxt!eagle!jerry
+Newsgroups: net.general
+Subject: Usenet Etiquette -- Please Read
+Message-ID: <642@eagle.UUCP>
+Date: Friday, 19 Nov 82 16:14:55 EST
+Followup-To: net.news
+Expires: Saturday, 1 Jan 83 00:00:00 EST
+Organization: Bell Labs, Murray Hill
+
+The body of the article comes here, after a blank line.
+.ed
+Here is an example of a message in the old format
+(before the existence of this standard).
+It is recommended that implementations also accept articles
+in this format to ease upward conversion.
+.sd
+From: cbosgd!mhuxj!mhuxt!eagle!jerry (Jerry Schwarz)
+Newsgroups: net.general
+Title: Usenet Etiquette -- Please Read
+Article-I.D.: eagle.642
+Posted: Fri Nov 19 16:14:55 1982
+Received: Fri Nov 19 16:59:30 1982
+Expires: Mon Jan  1 00:00:00 1990
+
+The body of the article comes here, after a blank line.
+.ed
+Some news systems transmit news in the
+.pa A
+format,
+which looks like this:
+.sd
+Aeagle.642
+net.general
+cbosgd!mhuxj!mhuxt!eagle!jerry
+Fri Nov 19 16:14:55 1982
+Usenet Etiquette - Please Read
+The body of the article comes here, with no blank line.
+.ed
+.pg
+An article consists of several header lines,
+followed by a blank line,
+followed by the body of the message.
+The header lines consist of a keyword,
+a colon,
+a blank,
+and some additional information.
+This is a subset of the ARPANET standard,
+simplified to allow simpler software to handle it.
+The
+.hf From
+line may optionally include a full name,
+in the format above,
+or use the ARPANET angle bracket syntax.
+To keep the implementations simple,
+other formats
+(for example,
+with part of the machine address after the close parenthesis)
+are not allowed.
+The ARPANET convention of continuation header lines
+(beginning with a blank or tab)
+is allowed.
+.pg
+Certain headers are required,
+and certain other headers are optional.
+Any unrecognized headers are allowed,
+and will be passed through unchanged.
+The required headers are
+.hf From ,
+.hf Date ,
+.hf Newsgroups ,
+.hf Subject ,
+.hf Message-ID ,
+and
+.hf Path .
+The optional headers are
+.hf Followup-To ,
+.hf Expires ,
+.hf Reply-To ,
+.hf Sender ,
+.hf References ,
+.hf Control ,
+.hf Distribution ,
+.hf Keywords ,
+.hf Summary ,
+and
+.hf Organization .
+.hn 2
+Required Headers
+.hn 3
+From
+.pg
+The
+.hf From
+line contains the electronic mailing address of the person who sent the message,
+in the ARPA internet syntax.
+It may optionally also contain the full name of the person,
+in parentheses,
+after the electronic address.
+The electronic address is the same as the entity responsible
+for originating the article,
+unless the
+.hf Sender
+header is present,
+in which case the
+.hf From
+header might not be verified.
+Note that in all site and domain names,
+upper and lower case are considered the same,
+thus
+.cf mark@cbosgd.UUCP ,
+.cf mark@cbosgd.uucp ,
+and
+.cf mark@CBosgD.UUcp
+are all equivalent.
+User names may or may not be case sensitive, for example,
+.cf Billy@cbosgd.UUCP
+might be different from
+.cf BillY@cbosgd.UUCP .
+Programs should avoid changing the case of electronic addresses
+when forwarding news or mail.
+.pg
+RFC 822 specifies that all text in parentheses is to be interpreted as a comment.
+It is common in ARPANET mail to place the full name of the user
+in a comment at the end of the
+.hf From
+line.
+This standard specifies a more rigid syntax.
+The full name is not considered a comment,
+but an optional part of the header line.
+Either the full name is omitted, 
+or it appears in parentheses after the electronic address
+of the person posting the article,
+or it appears before an electronic address enclosed in angle brackets.
+Thus,
+the three permissible forms are:
+.sd
+From: mark@cbosgd.UUCP
+From: mark@cbosgd.UUCP (Mark Horton)
+From: Mark Horton <mark@cbosgd.UUCP>
+.ed
+Full names may contain any printing ASCII characters from space through tilde,
+with the exceptions that they may not contain
+\&\*(lq(\*(rq (left parenthesis),
+\&\*(lq)\*(rq (right parenthesis),
+\&\*(lq<\*(rq (left angle bracket),
+or \*(lq>\*(rq (right angle bracket).
+Additional restrictions may be placed on full names by the mail standard,
+in particular,
+the characters
+\&\*(lq,\*(rq (comma),
+\&\*(lq:\*(rq (colon),
+and \*(lq;\*(rq (semicolon) are inadvisable in full names.
+.hn 3
+Date
+.pg
+The
+.hf Date
+line (formerly
+.hf Posted )
+is the date,
+in a format that must be acceptable both to the ARPANET
+and to the
+.i getdate (3)
+routine,
+that the article was originally posted to the network.
+This date remains unchanged as the article is propagated
+throughout the network.
+One format that is acceptable to both is
+.sd c
+\f2Wdy\fP, \f2DD\fP\ \f2Mon\fP\ \f2YY\fP \f2HH\fP:\f2MM\fP:\f2SS\fP \f2TIMEZONE\fP
+.ed
+Several examples of valid dates appear in the sample
+article above.
+Note in particular that
+.i ctime (3)
+format:
+.sd c
+\f2Wdy\fP \f2Mon\fP \f2DD\fP \f2HH\fP:\f2MM\fP:\f2SS\fP \f2YYYY\fP
+.ed
+is
+.i not
+acceptable because it is not a valid ARPANET date.
+However,
+since older software still generates this format,
+news implementations are encouraged to accept this format
+and translate it into an acceptable format.
+.pg
+The contents of the
+.i TIMEZONE
+field is currently subject to revision.
+Eventually,
+we hope to accept all possible worldwide time zone abbreviations,
+including the usual American zones
+(PST,
+PDT,
+MST,
+MDT,
+CST,
+CDT,
+EST,
+EDT),
+the other North American zones
+(Bering through Newfoundland),
+European zones,
+Australian zones,
+and so on.
+Lacking a complete list at present
+(and unsure if an unambiguous list exists),
+authors of software are encouraged to keep this code flexible,
+and in particular not to assume
+that time zone names are exactly three letters long.
+Implementations are free to edit this field,
+keeping the time the same,
+but changing the time zone
+(with an appropriate adjustment to the local time shown)
+to a known time zone.
+It is recommended that times in message headers be transmitted in GMT
+and displayed in the local time zone.
+.hn 3
+Newsgroups
+.pg
+The
+.hf Newsgroups
+line specifies which newsgroup or newsgroups the article belongs in.
+Multiple newsgroups may be specified, separated by a comma.
+Newsgroups specified must all be the names of existing newsgroups,
+as no new newsgroups will be created by simply posting to them.
+.pg
+Wildcards
+.i e\f1.\fPg ., (
+the word
+.ng all
+are never allowed in a
+.hf Newsgroups
+line.
+For example,
+a newsgroup
+.ng net.all
+is illegal,
+although a newsgroup name
+.ng net.sport.football
+is permitted.)
+.pg
+If an article is received with a
+.hf Newsgroups
+line listing some valid newsgroups and some invalid newsgroups,
+a site should not remove invalid newsgroups from the list.
+Instead,
+the invalid newsgroups should be ignored.
+For example,
+suppose site
+.cn A
+subscribes to the classes
+.ng btl.all
+and 
+.ng net.all ,
+and exchanges news articles with site
+.cn B ,
+which subscribes to
+.ng net.all
+but not
+.ng btl.all .
+Suppose
+.cn A
+receives an article with
+.sd c
+Newsgroups: net.micro,btl.general
+.ed
+This article is passed on to
+.cn B
+because
+.cn B
+receives
+.ng net.micro ,
+but
+.cn B
+does not receive
+.ng btl.general .
+.cn A
+must leave the
+.hf Newsgroups
+line unchanged.
+If it were to remove
+.ng btl.general ,
+the edited header could eventually reenter the
+.ng btl.all
+class,
+resulting in an article that is not shown to users subscribing to
+.ng btl.general .
+Also,
+followups from outside
+.ng btl.all
+would not be shown to such users.
+.hn 3
+Subject
+.pg
+The
+.hf Subject
+line
+(formerly
+.hf Title )
+tells what the article is about.
+It should be suggestive enough of the contents of the article
+to enable a reader to make a decision whether to read the article
+based on the subject alone.
+If the article is submitted in response to another article
+.i e\f1.\fPg ., (
+is a
+.i followup )
+the default subject should begin with the four characters \*(lqRe: \*(rq
+and the
+.hf Reference
+line is required.
+(The user might wish to edit the subject of the followup,
+but the default should begin with \*(lqRe: \*(rq.)
+.hn 3
+Message-ID
+.pg
+The
+.hf Message-ID
+line gives the article a unique identifier.
+The same message ID may not be reused during the lifetime of any article
+with the same message ID.
+(It is recommended that no message ID be reused for at least two years.)
+Message ID's have the syntax
+.sd c
+<\f2string not containing blank or \*(lq>\*(rq\fP>
+.ed
+In order to conform to RFC 822,
+the message ID must have the format
+.sd c
+<\f2unique\fP@\f2full_domain_name\fP>
+.ed
+where
+.i "full_domain_name"
+is the full name of the host at which the article entered the network,
+including a domain that host is in,
+and
+.i unique
+is any string of printing ASCII characters,
+not including
+\*(lq<\*(rq (left angle bracket),
+\*(lq>\*(rq (right angle bracket),
+or \*(lq@\*(rq (at sign).
+For example,
+the
+.i unique
+part could be an integer representing a sequence number
+for articles submitted to the network,
+or a short string derived from the date and time the article was created.
+For example,
+a valid message ID for an article submitted from site
+.cn ucbvax
+in domain
+.cf Berkeley.EDU
+would be
+.cf <4123@ucbvax.Berkeley.EDU> .
+Programmers are urged not to make assumptions
+about the content of message ID fields from other hosts,
+but to treat them as unknown character strings.
+It is not safe,
+for example,
+to assume that a message ID will be under 14 characters,
+nor that it is unique in the first 14 characters.
+.pg
+The angle brackets are considered part of the message ID.
+Thus,
+in references to the message ID,
+such as the
+.pa ihave/sendme
+and
+.b cancel
+control messages,
+the angle brackets are included.
+White space characters
+.i e\f1.\fPg ., (
+blank and tab)
+are not allowed in a message ID.
+All characters between the angle brackets must be printing ASCII characters.
+.hn 3
+Path
+.pg
+This line shows the path the article took to reach the current system.
+When a system forwards the message,
+it should add its own name to the list of systems in the
+.hf Path
+line.
+The names may be separated by any punctuation character or characters,
+thus
+.cf cbosgd!mhuxj!mhuxt ,
+.cf "cbosgd, mhuxj, mhuxt" ,
+and
+.cf "@cbosgd.uucp,@mhuxj.uucp,@mhuxt.uucp"
+and even
+.cf "teklabs, zehntel, sri-unix@cca!decvax"
+are valid entries.
+(The latter path indicates a message that passed through
+.cn decvax ,
+.cn cca ,
+.cn sri-unix ,
+.cn zehntel ,
+and
+.cn teklabs ,
+in that order.)
+Additional names should be added from the left,
+for example,
+the most recently added name in the third example was
+.cn teklabs .
+Letters,
+digits,
+periods and hyphens are considered part of site names;
+other punctuation,
+including blanks,
+are considered separators.
+.pg
+Normally,
+the rightmost name will be the name of the originating system.
+However,
+it is also permissible to include an extra entry on the right,
+which is the name of the sender.
+This is for upward compatibility with older system.
+.pg
+The
+.hf Path
+line is not used for replies,
+and should not be taken as a mailing address.
+It is intended to show the route
+the message travelled to reach the local site.
+There are several uses for this information.
+One is to monitor USENET routing for performance reasons.
+Another is to establish a path to reach new sites.
+Perhaps the most important is to cut down on redundant USENET traffic
+by failing to forward a message to a site that is
+known to have already received it.
+In particular,
+when site
+.cn A
+sends an article to site
+.cn B ,
+the
+.hf Path
+line includes
+.cn A ,
+so that site
+.cn B
+will not immediately send the article back to site
+.cn A .
+The site name each site uses to identify itself should be
+the same as the name by which its neighbors know it,
+in order to make this optimization possible.
+.pg
+A site adds its own name to the front of a path
+when it receives a message from another site.
+Thus, if a message with path
+.cf A!X!Y!Z
+is passed from site
+.cn A
+to site
+.cn B ,
+.cn B
+will add its own name to the path when it receives the message from
+.cn A ,
+.i e\f1.\fPg .,
+.cf \*(lqB!A!X!Y!Z\*(rq .
+If
+.cn B
+then passes the message on to
+.cn C ,
+the message sent to
+.cn C
+will contain the path
+.cf B!A!X!Y!Z ,
+and when
+.cn C
+receives it,
+.cn C
+will change it to
+.cf C!B!A!X!Y!Z .
+.pg
+Special upward compatibility note:
+Since the
+.hf From ,
+.hf Sender ,
+and
+.hf Reply-To
+lines are in internet format,
+and since many USENET sites do not yet have mailers
+capable of understanding internet format,
+it would break the reply capability to completely sever the connection
+between the
+.hf Path
+header and the reply function.
+It is recognized that the path is not always a valid reply string
+in older implementations,
+and no requirement to fix this problem is placed on implementations.
+However,
+the existing convention of placing the site name and an
+.cf !
+at the front of the path,
+and of starting the path with the site name,
+an
+.cf ! ,
+and the user name,
+should be maintained when possible.
+.hn 2
+Optional Headers
+.hn 3
+Reply-To
+.pg
+This line has the same format as
+.hf From .
+If present,
+mailed replies to the author should be sent to the name given here.
+Otherwise,
+replies are mailed to the name on the
+.hf From
+line.
+(This does not prevent additional copies from being sent to recipients
+named by the replier,
+or on
+.hf To
+or
+.hf Cc
+lines.)
+The full name may be optionally given,
+in parentheses,
+as in the
+.hf From
+line.
+.hn 3
+Sender
+.pg
+This field is present only if the submitter manually enters a
+.hf From
+line.
+It is intended to record the entity responsible
+for submitting the article to the network,
+and should be verified by the software at the submitting site.
+.pg
+For example,
+if John Smith is visiting CCA and wishes to post an article to the network,
+using friend Sarah Jones account,
+the message might read
+.sd
+From: smith@ucbvax.uucp (John Smith)
+Sender: jones@cca.arpa (Sarah Jones)
+.ed
+If a gateway program enters a mail message into the network at site
+.cn sri-unix ,
+the lines might read
+.sd
+From: John.Doe@CMU-CS-A.ARPA
+Sender: network@sri-unix.ARPA
+.ed
+The primary purpose of this field is to be able to track down articles
+to determine how they were entered into the network.
+The full name may be optionally given,
+in parentheses,
+as in the
+.hf From
+line.
+.hn 3
+Followup-To
+.pg
+This line has the same format as
+.hf Newsgroups .
+If present,
+follow-up articles are to be posted
+to the newsgroup or newsgroups listed here.
+If this line is not present,
+followups are posted to the newsgroup or newsgroups listed in the
+.hf Newsgroups
+line,
+except that followups to
+.ng net.general
+should instead go to
+.ng net.followup .
+.hn 3
+Expires
+.pg
+This line,
+if present,
+is in a legal USENET date format.
+It specifies a suggested expiration date for the article.
+If not present,
+the local default expiration date is used.
+.P
+This field is intended to be used to clean up
+articles with a limited usefulness,
+or to keep important articles around for longer than usual.
+For example,
+a message announcing an upcoming seminar
+could have an expiration date the day after the seminar,
+since the message is not useful after the seminar is over.
+Since local sites have local policies for expiration of news
+(depending on available disk space,
+for instance),
+users are discouraged from providing expiration dates for articles
+unless there is a natural expiration date associated with the topic.
+System software should almost never provide a default
+.hf Expires
+line.
+Leave it out and allow local policies to be used
+unless there is a good reason not to.
+.hn 3
+References
+.pg
+This field lists the message ID's of any articles prompting
+the submission of this article.
+It is required for all follow-up articles,
+and forbidden when a new subject is raised.
+Implementations should provide a follow-up command,
+which allows a user to post a follow-up article.
+This command should generate a
+.hf Subject
+line which is the same as the original article,
+except that if the original subject does not begin
+with \*(lqRe: \*(rq or \*(lqre: \*(rq,
+the four characters \*(lqRe: \*(rq are inserted before the subject.
+If there is no
+.hf References
+line on the original header,
+the
+.hf References
+line should contain the message ID of the original article
+(including the angle brackets).
+If the original article does have a
+.hf References
+line,
+the followup article should have a
+.hf References
+line containing the text of the original
+.hf References
+line,
+a blank,
+and the message ID of the original article.
+.pg
+The purpose of the
+.hf References
+header is to allow articles to be grouped into conversations
+by the user interface program.
+This allows conversations within a newsgroup to be kept together,
+and potentially users might shut off entire conversations
+without unsubscribing to a newsgroup.
+User interfaces may not make use of this header,
+but all automatically generated followups should generate the
+.hf References
+line for the benefit of systems that do use it,
+and manually generated followups
+.i e\f1.\fPg ., (
+typed in well after the original article has been printed by the machine)
+should be encouraged to include them as well.
+.hn 3
+Control
+.pg
+If an article contains a
+.hf Control
+line,
+the article is a control message.
+Control messages are used for communication among USENET host machines,
+not to be read by users.
+Control messages are distributed by the same newsgroup mechanism
+as ordinary messages.
+The body of the
+.hf Control
+header line is the message to the host.
+.pg
+For upward compatibility,
+messages that match the newsgroup pattern
+.ng all.all.ctl
+should also be interpreted as control messages.
+If no
+.hf Control
+header is present on such messages,
+the subject is used as the control message.
+However,
+messages on newsgroups matching this pattern do not conform to this standard.
+.hn 3
+Distribution
+.pg
+This line is used to alter the distribution scope of the message.
+It has the same format as the
+.hf Newsgroups
+line.
+User subscriptions are still controlled by
+.hf Newsgroups ,
+but the message is sent to all systems subscribing to the newsgroups
+on the
+.hf Distribution
+line instead of the
+.hf Newsgroups
+line.
+Thus, 
+a car for sale in New Jersey might have headers including
+.sd
+Newsgroups: net.auto,net.wanted
+Distribution: nj.all
+.ed
+so that it would only go to persons subscribing to
+.ng net.auto
+or
+.ng net.wanted
+within New Jersey.
+The intent of this header is to restrict
+the distribution of a newsgroup further,
+not to increase it.
+A local newsgroup,
+such as
+.ng nj.crazy-eddie ,
+will probably not be propagated by sites outside New Jersey
+that do not show such a newsgroup as valid.
+Wildcards in newsgroup names in the
+.hf Distribution
+line are allowed.
+Followup articles should default to the same
+.hf Distribution
+line as the original article,
+but the user can change it to a more limited one,
+or escalate the distribution
+if it was originally restricted
+and a more widely distributed reply is appropriate.
+.hn 3
+Organization
+.pg
+The text of this line is a short phrase describing the organization
+to which the sender belongs,
+or to which the machine belongs.
+The intent of this line is to help identify the person posting the message,
+since site names are often cryptic enough to make it hard
+to recognize the organization by the electronic address.
+.hn 3
+Keywords
+.pg
+A few, well selected keywords identifying this article should be on
+this line. This is used as an aid in determining if this article is
+interesting to the reader.
+.hn 3
+Summary
+.pg
+This line (lines) should contain a brief summary of the article. It is
+usually used as part of a followup to another article. Again, it is
+very useful to the reader in determining whether to read the article.
+.hn 1
+Control Messages
+.pg
+This section lists the control messages currently defined.
+The body of the
+.hf Control
+header is the control message.
+Messages are a sequence of zero or more words,
+separated by white space (blanks or tabs).
+The first word is the name of the control message,
+remaining words are parameters to the message.
+The remainder of the header and the body of the message
+are also potential parameters;
+for example,
+the
+.hf From
+line might suggest an address to which a response is to be mailed.
+.pg
+Implementors and administrators may choose to allow control messages
+to be carried out automatically,
+or to queue them for manual processing.
+However,
+manually processed messages should be dealt with promptly.
+.hn 2
+Cancel
+.pg l
+.sd
+cancel <message ID>
+.ed
+If an article with the given message ID is present on the local system,
+the article is cancelled.
+This mechanism allows a user to cancel an article
+after the article has been distributed over the network.
+.pg
+If the system is unable to cancel the article as requested, it should not
+forward the cancellation request to its neighbor systems.
+.pg
+Only the author of the article or the local super user
+is allowed to use this message.
+The verified sender of a message is the
+.hf Sender
+line,
+or if no
+.hf Sender
+line is present,
+the
+.hf From
+line.
+The verified sender of the cancel message must be the same
+as either the
+.hf Sender
+or
+.hf From
+field of the original message.
+A verified sender in the cancel message is allowed to match an unverified
+.hf From
+in the original message.
+.hn 2
+Ihave/Sendme
+.pg l
+.sd
+ihave <message ID list> <remotesys>
+sendme <message ID list> <remotesys>
+.ed
+This message is part of the
+.pa ihave/sendme
+protocol,
+which allows one site
+(say
+.cn A )
+to tell another site
+.cn B ) (
+that a particular message has been received on
+.cn A .
+Suppose that site
+.cn A
+receives article
+.cf ucbvax.1234 ,
+and wishes to transmit the article to site
+.cn B .
+.cn A
+sends the control message
+.cf "ihave ucbvax.1234 A"
+to site
+.cn B
+(by posting it to newsgroup
+.bi B ). \f3to.\fP
+.cn B
+responds with the control message
+.cf "sendme ucbvax.1234 B"
+(on newsgroup
+.bi A ) \f3to.\fP
+if it has not already received the article.
+Upon receiving the
+.pa sendme
+message,
+.cn A
+sends the article to
+.cn B .
+.pg
+This protocol can be used to cut down on redundant traffic between sites.
+It is optional and should be used
+only if the particular situation makes it worthwhile.
+Frequently,
+the outcome is that,
+since most original messages are short,
+and since there is a high overhead to start sending a new message with UUCP,
+it costs as much to send the
+.pa ihave
+as it would cost to send the article itself.
+.pg
+One possible solution to this overhead problem is to batch requests.
+Several message ID's may be announced or requested in one message.
+If no message ID's are listed in the control message,
+the body of the message should be scanned for message ID's,
+one per line.
+.hn 2
+Newgroup
+.sd
+newgroup <groupname>
+.ed
+.pg
+This control message creates a new newsgroup with the name given.
+Since no articles may be posted or forwarded until a newsgroup is created,
+this message is required before a newsgroup can be used.
+The body of the message is expected to be a short paragraph
+describing the intended use of the newsgroup.
+.hn 2
+Rmgroup
+.sd
+rmgroup <groupname>
+.ed
+.pg
+This message removes a newsgroup with the given name.
+Since the newsgroup is removed from every site on the network,
+this command should be used carefully by a responsible administrator.
+.hn 2
+Sendsys
+.sd
+sendsys	(no arguments)
+.ed
+.pg
+The
+.i sys
+file,
+listing all neighbors and which newsgroups are sent to each neighbor,
+will be mailed to the author of the control message
+.hf Reply-to , (
+if present,
+otherwise
+.hf From ).
+This information is considered public information,
+and it is a requirement of membership in USENET
+that this information be provided on request,
+either automatically in response to this control message,
+or manually,
+by mailing the requested information to the author of the message.
+This information is used to keep the map of USENET up to date,
+and to determine where netnews is sent.
+.pg
+The format of the file mailed back to the author
+should be the same as that of the
+.i sys
+file.
+This format has one line per neighboring site
+(plus one line for the local site),
+containing four colon separated fields.
+The first field has the site name of the neighbor,
+the second field has a newsgroup pattern
+describing the newsgroups sent to the neighbor.
+The third and fourth fields are not defined by this standard.
+A sample response:
+.sd
+From cbosgd!mark  Sun Mar 27 20:39:37 1983
+Subject: response to your sendsys request
+To: mark@cbosgd.UUCP
+
+Responding-System: cbosgd.UUCP
+cbosgd:osg,cb,btl,bell,net,to,test
+ucbvax:net,to.ucbvax:L:
+cbosg:net,bell,btl,cb,osg,to.cbosg:F:/usr/spool/outnews/cbosg
+cbosgb:osg,to.cbosgb:F:/usr/spool/outnews/cbosgb
+sescent:net,bell,btl,cb,to.sescent:F:/usr/spool/outnews/sescent
+npois:net,bell,btl,ug,to.npois:F:/usr/spool/outnews/npois
+mhuxi:net,bell,btl,ug,to.mhuxi:F:/usr/spool/outnews/mhuxi
+.ed
+.hn 2
+Senduuname
+.pg l
+.sd
+senduuname	(no arguments)
+.ed
+The
+.i uuname (1)
+program is run,
+and the output is mailed to the author of the control message
+.hf Reply-to , (
+if present,
+otherwise
+.hf From ).
+This program lists all UUCP neighbors of the local site.
+This information is used to make maps of the UUCP network.
+The
+.i sys
+file is
+.b not
+the same as the UUCP
+.i L.sys
+file.
+The
+.i L.sys
+file should
+.b never
+be transmitted to another party
+without the consent of the sites whose passwords are listed therein.
+.pg
+It is optional for a site to provide this information.
+Some reply should be made to the author of the control message,
+so that a transmission error won't be blamed.
+It is also permissible for a site to run the
+.i uuname
+program
+(or in some other way determine the UUCP neighbors)
+and edit the output,
+either automatically or manually,
+before mailing the reply back to the author.
+The file should contain one site per line,
+beginning with the UUCP site name.
+Additional information may be included,
+separated from the site name by a blank or tab.
+The phone number or password for the site should
+.ng not
+be included,
+as the reply is considered to be in the public domain.
+(The
+.i uuname
+program will send only the site name and not the entire contents of the
+.i L.sys
+file,
+thus,
+phone numbers and passwords are not transmitted.)
+.pg
+The purpose of this message is to generate and maintain UUCP mail routing maps.
+Thus, connections over which mail can be sent using the
+.cf site!user
+syntax should be included,
+regardless of whether the link is actually a UUCP link at the physical level.
+If a mail router should use it,
+it should be included.
+Since all information sent in response to this message is optional,
+sites are free to edit the list,
+deleting secret or private links they do not wish to publicize.
+.hn 2
+Version
+.pg l
+.sd
+version	(no arguments)
+.ed
+The name and version of the software running on the local system
+is to be mailed back to the author of the article
+.hf Reply-to "" (
+if present,
+otherwise
+.hf From ).
+.hn 1
+Transmission Methods
+.pg
+USENET is not a physical network,
+but rather a logical network
+resting on top of several existing physical networks.
+These networks include,
+but are not limited to,
+UUCP,
+the ARPANET,
+an Ethernet,
+the BLICN network,
+an NSC Hyperchannel,
+and a BERKNET.
+What is important is that two neighboring systems on USENET
+have some method to get a new article,
+in the format listed here,
+from one system to the other,
+and once on the receiving system,
+processed by the netnews software on that system.
+(On
+.ux
+systems,
+this usually means the
+.i rnews
+program being run with the article on the standard input.)
+.pg
+It is not a requirement that USENET sites have mail systems
+capable of understanding the ARPA Internet mail syntax,
+but it is strongly recommended.
+Since
+.hf From ,
+.hf Reply-To ,
+and
+.hf Sender
+lines use the Internet syntax, 
+replies will be difficult or impossible without an internet mailer.
+A site without an internet mailer can attempt to use the
+.hf Path
+header line for replies,
+but this field is not guaranteed to be a working path for replies.
+In any event,
+any site generating or forwarding news messages
+must have an internet address that allows them
+to receive mail from sites with internet mailers,
+and they must include their internet address on their From line.
+.hn 2
+Remote Execution
+.pg
+Some networks permit direct remote command execution.
+On these networks,
+news may be forwarded by spooling the
+.i rnews
+command with the article on the standard input.
+For example,
+if the remote system is called
+.cn remote ,
+news would be sent over a UUCP link with the command
+.sd c
+uux \- remote!rnews
+.ed
+and on a Berknet,
+.sd c
+net \-mremote rnews
+.ed
+It is important that the article be sent via a reliable mechanism,
+normally involving the possibility of spooling,
+rather than direct real-time remote execution.
+This is because,
+if the remote system is down,
+a direct execution command will fail,
+and the article will never be delivered.
+If the article is spooled,
+it will eventually be delivered when both systems are up.
+.hn 2
+Transfer by Mail
+.pg
+On some systems,
+direct remote spooled execution is not possible.
+However,
+most systems support electronic mail,
+and a news article can be sent as mail.
+One approach is to send a mail message
+which is identical to the news message:
+the mail headers are the news headers,
+and the mail body is the news body.
+By convention,
+this mail is sent to the user
+.i newsmail
+on the remote machine.
+.pg
+One problem with this method is that it may not be possible to convince
+the mail system that the
+.hf From
+line of the message is valid,
+since the mail message was generated by a program
+on a system different from the source of the news article.
+Another problem is that error messages caused by the mail transmission
+would be sent to the originator of the news article,
+who has no control over news transmission between two cooperating hosts
+and does not know who to contact.
+Transmission error messages should be directed to a responsible
+contact person on the sending machine.
+.pg
+A solution to this problem is to encapsulate the news article
+into a mail message,
+such that the entire article
+(headers and body)
+are part of the body of the mail message.
+The convention here is that such mail is sent to user
+.i rnews
+on the remote system.
+A mail message body is generated by prepending the letter
+.qp N
+to each line of the news article,
+and then attaching whatever mail headers are convenient to generate.
+The
+.qp N 's
+are attached to prevent any special lines in the news article
+from interfering with mail transmission,
+and to prevent any extra lines inserted by the mailer
+(headers,
+blank lines,
+etc.)
+from becoming part of the news article.
+A program on the receiving machine receives mail to
+.i rnews ,
+extracting the article itself and invoking the
+.i rnews
+program.
+An example in this format might look like this:
+.sd
+Date: Monday, 3-Jan-83 08:33:47 MST
+From: news@cbosgd.UUCP
+Subject: network news article
+To: rnews@npois.UUCP
+
+NPath: cbosgd!mhuxj!harpo!utah-cs!sask!derek
+NFrom: derek@sask.UUCP (Derek Andrew)
+NNewsgroups: net.test
+NSubject: necessary test
+NMessage-ID: <176@sask.UUCP>
+NDate: Monday, 3 Jan 83 00:59:15 MST
+N
+NThis really is a test.  If anyone out there more than 6 
+Nhops away would kindly confirm this note I would
+Nappreciate it.  We suspect that our news postings
+Nare not getting out into the world.
+N
+
+.ed
+.pg
+Using mail solves the spooling problem,
+since mail must always be spooled if the destination host is down.
+However,
+it adds more overhead to the transmission process
+(to encapsulate and extract the article)
+and makes it harder for software to give different priorities
+to news and mail.
+.hn 2
+Batching
+.pg
+Since news articles are usually short,
+and since a large number of messages
+are often sent between two sites in a day,
+it may make sense to batch news articles.
+Several articles can be combined into one large article,
+using conventions agreed upon in advance by the two sites.
+One such batching scheme is described here;
+its use is still considered experimental.
+.pg
+News articles are combined into a script, separated by a header of the form:
+.sd
+#! rnews 1234
+.ed
+where
+.i 1234
+is the length,
+in bytes,
+of the article.
+Each such line is followed by an article containing the given number of bytes.
+(The newline at the end of each line of the article is counted as one byte,
+for purposes of this count, even if it is stored as
+.qc "CARRIAGE RETURN\s+2><\s-2LINE FEED" \&.)
+For example,
+a batch of articles might look like this:
+.sd
+#! rnews 207
+From: jerry@eagle.uucp (Jerry Schwarz)
+Path: cbosgd!mhuxj!mhuxt!eagle!jerry
+Newsgroups: net.general
+Subject: Usenet Etiquette -- Please Read
+Message-ID: <642@eagle.UUCP>
+Date: Friday, 19 Nov 82 16:14:55 EST
+
+Here is an important message about USENET Etiquette.
+#! rnews 203
+From: jerry@eagle.uucp (Jerry Schwarz)
+Path: cbosgd!mhuxj!mhuxt!eagle!jerry
+Newsgroups: net.followup
+Subject: Notes on Etiquette article
+Message-ID: <643@eagle.UUCP>
+Date: Friday, 19 Nov 82 17:24:12 EST
+
+There was something I forgot to mention in the last message.
+.ed
+Batched news is recognized because the first character in the message is
+.qp # .
+The message is then passed to the unbatcher for interpretation.
+.hn 1
+The News Propagation Algorithm
+.pg
+This section describes the overall scheme of USENET and the algorithm
+followed by sites in propagating news to the entire network.
+Since all sites are affected by incorrectly formatted articles
+and by propagation errors,
+it is important for the method to be standardized.
+.pg
+USENET is a directed graph.
+Each node in the graph is a host computer,
+and each arc in the graph is a transmission path
+from one host to another host.
+Each arc is labelled with a newsgroup pattern,
+specifying which newsgroup classes are forwarded along that link.
+Most arcs are bidirectional,
+that is,
+if site
+.cn A
+sends a class of newsgroups to site
+.cn B ,
+then site
+.cn B
+usually sends the same class of newsgroups to site
+.cn A .
+This bidirectionality is not,
+however,
+required.
+.pg
+USENET is made up of many subnetworks.
+Each subnet has a name,
+such as
+.ng net
+or
+.ng btl .
+The special subnet
+.ng net
+is defined to be USENET,
+although the union of all subnets may be a superset of USENET
+(because of sites that get local newsgroup classes but do not get
+.ng net.all ).
+Each subnet is a connected graph,
+that is,
+a path exists from every node to every other node in the subnet.
+In addition,
+the entire graph is
+(theoretically)
+connected.
+(In practice,
+some political considerations have caused some sites
+to be unable to post articles reaching the rest of the network.)
+.pg
+An article is posted on one machine to a list of newsgroups.
+That machine accepts it locally,
+then forwards it to all its neighbors that are interested
+in at least one of the newsgroups of the message.
+(Site
+.cn A
+deems site
+.cn B
+to be \*(lqinterested\*(rq in a newsgroup
+if the newsgroup matches the pattern on the arc from
+.cn A
+to
+.cn B .
+This pattern is stored in a file on the
+.cn A
+machine.)
+The sites receiving the incoming article examine it
+to make sure they really want the article,
+accept it locally,
+and then in turn forward the article to all
+.i their
+interested neighbors.
+This process continues until the entire network has seen the article.
+.pg
+An important part of the algorithm is the prevention of loops.
+The above process would cause a message to loop along a cycle forever.
+In particular,
+when site
+.cn A
+sends an article to site
+.cn B ,
+site
+.cn B
+will send it back to site
+.cn A ,
+which will send it to site
+.cn B ,
+and so on.
+One solution to this is the history mechanism.
+Each site keeps track of all articles it has seen
+(by their message ID)
+and whenever an article comes in that it has already seen,
+the incoming article is discarded immediately.
+This solution is sufficient to prevent loops,
+but additional optimizations can be made to avoid sending articles to sites
+that will simply throw them away.
+.pg
+One optimization is that an article should never be sent to a machine
+listed in the
+.hf Path
+line of the header.
+When a machine name is in the
+.hf Path
+line,
+the message is known to have passed through the machine.
+Another optimization is that,
+if the article originated on site
+.cn A ,
+then site
+.cn A
+has already seen the article.
+(Origination can be determined by the
+.hf Posting-Version
+line.)
+.P
+Thus,
+if an article is posted to newsgroup
+.ng net.misc ,
+it will match the pattern
+.ng net.all
+(where
+.ng all
+is a metasymbol that matches any string),
+and will be forwarded to all sites that subscribe to
+.ng net.all
+(as determined by what their neighbors send them).
+These sites make up the
+.ng net
+subnetwork.
+An article posted to
+.ng btl.general
+will reach all sites receiving
+.ng btl.all ,
+but will not reach sites that do not get
+.ng btl.all .
+In effect,
+the articles reaches the
+.ng btl
+subnetwork.
+An article posted to newsgroups
+.ng net.micro,btl.general
+will reach all sites subscribing to either of the two classes.

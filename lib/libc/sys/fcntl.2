@@ -1,0 +1,215 @@
+.\" Copyright (c) 1983 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fcntl.2	6.7 (Berkeley) 3/10/91
+.\"
+.Dd March 10, 1991
+.Dt FCNTL 2
+.Os BSD 4.2
+.Sh NAME
+.Nm fcntl
+.Nd file control
+.Sh SYNOPSIS
+.Fd #include <sys/fcntl.h>
+.Ft int
+.Fn fcntl "int fd" "int cmd" "int arg"
+.Sh DESCRIPTION
+.Fn Fcntl
+provides for control over descriptors.
+The argument
+.Fa fd
+is a descriptor to be operated on by
+.Fa cmd
+as follows:
+.Bl -tag -width F_GETOWNX
+.It Dv F_DUPFD
+Return a new descriptor as follows:
+.Pp
+.Bl -bullet -compact -offset 4n
+.It
+Lowest numbered available descriptor greater than or equal to
+.Fa arg .
+.It
+Same object references as the original descriptor.
+.It
+New descriptor shares the same file offset if the object
+was a file.
+.It
+Same access mode (read, write or read/write).
+.It
+Same file status flags (i.e., both file descriptors
+share the same file status flags).
+.It
+The close-on-exec flag associated with the new file descriptor
+is set to remain open across
+.Xr execv 2
+system calls.
+.El
+.It Dv F_GETFD
+Get the close-on-exec flag associated with the file descriptor
+.Fa fd .
+If the low-order bit of the returned value is 0,
+the file will remain open across
+.Fn exec ,
+otherwise the file will be closed upon execution of
+.Fn exec
+.Fa ( arg
+is ignored).
+.It Dv F_SETFD
+Set the close-on-exec flag associated with
+.Fa fd
+to the low order bit of
+.Fa arg
+(0 or 1 as above).
+.It Dv F_GETFL
+Get descriptor status flags, as described below
+.Fa ( arg
+is ignored).
+.It Dv F_SETFL
+Set descriptor status flags to
+.Fa arg .
+.It Dv F_GETOWN
+Get the process ID or process group
+currently receiving
+.Dv SIGIO
+and
+.Dv SIGURG
+signals; process groups are returned
+as negative values
+.Fa ( arg
+is ignored).
+.It Dv F_SETOWN
+Set the process or process group
+to receive
+.Dv SIGIO
+and
+.Dv SIGURG
+signals;
+process groups are specified by supplying
+.Fa arg
+as negative, otherwise 
+.Fa arg
+is interpreted as a process ID.
+.El
+.Pp
+The flags for the
+.Dv F_GETFL
+and
+.Dv F_SETFL
+flags are as follows:
+.Bl -tag -width F_GETOWNX
+.It Dv O_NDELAY
+Non-blocking I/O; if no data is available to a
+.Xr read
+call, or if a
+.Xr write
+operation would block,
+the read or write call returns -1 with the error
+.Er EWOULDBLOCK .
+.It Dv O_APPEND
+Force each write to append at the end of file;
+corresponds to the
+.Dv O_APPEND
+flag of
+.Xr open 2 .
+.It Dv O_ASYNC
+Enable the
+.Dv SIGIO
+signal to be sent to the process group
+when I/O is possible, e.g.,
+upon availability of data to be read.
+.El
+.Sh RETURN VALUES
+Upon successful completion, the value returned depends on
+.Fa cmd
+as follows:
+.Bl -tag -width F_GETOWNX -offset indent
+.It Dv F_DUPFD
+A new file descriptor.
+.It Dv F_GETFD
+Value of flag (only the low-order bit is defined).
+.It Dv F_GETFL
+Value of flags.
+.It Dv F_GETOWN
+Value of file descriptor owner.
+.It other
+Value other than -1.
+.El
+.Pp
+Otherwise, a value of -1 is returned and
+.Va errno
+is set to indicate the error.
+.Sh ERRORS
+.Fn Fcntl
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+.Fa Fildes
+is not a valid open file descriptor.
+.It Bq Er EMFILE
+.Fa Cmd
+is
+.Dv F_DUPFD
+and the maximum allowed number of file descriptors are currently
+open.
+.It Bq Er EINVAL
+.Fa Cmd
+is
+.Dv F_DUPFD
+and
+.Fa arg
+is negative or greater than the maximum allowable number
+(see
+.Xr getdtablesize 2 ) .
+.It Bq Er ESRCH
+.Fa Cmd
+is
+.Dv F_SETOWN
+and
+the process ID given as argument is not in use.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr execve 2 ,
+.Xr getdtablesize 2 ,
+.Xr open 2 ,
+.Xr sigvec 2
+.Sh BUGS
+The asynchronous I/O facilities of
+.Dv FNDELAY
+and
+.Dv FASYNC
+are currently available only for tty and socket operations.
+.Sh HISTORY
+The
+.Nm
+function call appeared in
+.Bx 4.2 .

@@ -1,0 +1,50 @@
+This is the kernel source tree, where new versions of the operating system
+can be made.
+
+Machine dependent sources are segregated into a directory
+heirarchy (i386/), within which hardware drivers are isolated in a per-bus
+directory (i386/isa), processor specific archetecture files may be found
+in a per-processor directory (i386/i386), and externally visiable machine
+dependant include files may be found also in a seperate directory
+(i386/include -- note: these are referred to explicitly via the "machine"
+include file symbolic link, or, implictly via the master include files in
+located in /usr/include -- thus <sys/types.h> will include
+i386/include/types.h, for example). System configuration files, are located
+in a configuration directory (i386/conf), from where the config program
+*must* be run as the first step in making a new system kernel.
+
+Generic machine-independant code is located in the various directories
+(kern, ufs, nfs, isofs, vm, net, netinet, stand, ddb, sys, conf).
+The central kernel is in the "kern" directory, and all of it's include files
+and shared definitions with other kernel subsystems are located in the
+"sys" include file directory. Filesystem dependant code (ufs, nfs, isofs)
+are located in their respective directories, and interface to the kernel
+via a virtual filesystem interface (vfs), definied within the kernel proper.
+The virtual memory subsystem is located in the "vm" directory. It's interface
+is subject to considerable revision. The optional in kernel debugger is
+present in two directories (ddb, i386/ddb), to use it you must compile the
+system with the "ddb" device, and load the symbol table with the "dbsym"
+command. Networking interface code is in the "net" directory, while "netinet"
+holds the INTERNET core protocol implementation. Shared standalone bootstrap code
+is in the "stand" directory.
+
+The directory "compile" holds all per-host compilation directories. In use,
+one goes to the i386/conf directory, runs the config program on a host
+description file (e.g. config SUMNER), which builds the "compile/SUMNER"
+directory and all files. Then, in the "compile/SUMNER" directory, the
+command "make depend" is used to build the dependency graph (.depend)
+for make. Next, the system is compiled from scratch by typing "make".
+The system may be tested by copying into a floppy that holds a minimal
+set of utilies (e.g. fixit floppy), and when satisfactory, can be copied
+into the root as /386bsd on the hard disk, and the system rebooted.
+
+To debug the system, one can use the "gdb" debugger to examine post-mortum
+dumps, or to modify kernel memory on a running system (e.g. setting
+debug flags in drivers). To read a postmortum (in /var/crash), type something
+like "gdb -k /var/crash/system.N /var/crash/ram.N", for the Nth dump you
+wish to examine. To look at a running system, "gdb -k /386bsd /dev/mem".
+For in-kernel debugging, one can compile in the "ddb" debugger and enter
+it by typing CTRL, ALT, and ESC simulatineously. Finally, printfs can be
+scattered in the kernel for debugging, just like user programs. 
+
+$Id: ROADMAP,v 1.2 1993/10/16 19:32:13 rgrimes Exp $

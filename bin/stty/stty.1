@@ -1,0 +1,311 @@
+.\" Copyright (c) 1990 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Institute of Electrical and Electronics Engineers, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)stty.1	6.13 (Berkeley) 6/27/91
+.\"
+.Dd June 27, 1991
+.Dt STTY 1
+.Os
+.Sh NAME
+.Nm stty
+.Nd Set the options for a terminal device interface.
+.Sh SYNOPSIS
+.Nm stty
+.Op Fl a | Fl e | Fl g
+.Op Fl f Ar file
+.Op operands
+.Sh DESCRIPTION
+The 
+.Nm stty
+utility sets or reports on terminal
+characteristics for the device that is its standard input.
+If no options or operands are specified, it reports the settings of a set
+of characteristics as well as additional ones if they differ from their
+default values.
+Otherwise it modifies
+the terminal state according to the specified arguments.
+Some combinations of arguments are mutually
+exclusive on some terminal types.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl a
+Display all the current settings for the terminal to standard output 
+in the
+.St -p1003.2 .
+.It Fl e
+Display all the current settings for the terminal to standard output 
+in the traditional
+.Tn BSD
+``all'' and ``everything'' formats.
+.It Fl f
+Display the current settings for the terminal named by
+.Ar file .
+.It Fl g
+Display all the current settings for the terminal to standard output 
+in a form that may be used as an argument to a subsequent invocation of
+.Nm stty
+to restore the current terminal state.
+.El
+.Pp
+The following arguments are available to set the terminal
+characteristics:
+.Bl -tag -width Fl
+.It Cm parenb Pq Fl parenb
+Enable (disable) parity generation
+and detection.
+.It Cm parodd Pq Fl parodd
+Select odd (even) parity.
+.It Cm cs5 cs6 cs7 cs8
+Select character size, if possible.
+.It Ar number
+Set terminal baud rate to the
+number given, if possible.
+If the
+baud rate is set to zero, modem
+control is no longer
+asserted.
+.It Cm ispeed Ar number
+Set terminal input baud rate to the
+number given, if possible.
+If the
+input baud rate is set to zero, the
+input baud rate is set to the
+value of the output baud
+rate.
+.It Cm ospeed Ar number
+Set terminal output baud rate to
+the number given, if possible.
+If
+the output baud rate is set to
+zero, modem control is
+no longer asserted.
+.It Cm hupcl Pq Fl hupcl
+Stop asserting modem control
+(do not stop asserting modem control) on last close.
+.It Cm hup Pq Fl hup
+Same as hupcl
+.Pq Fl hupcl .
+.It Cm cstopb Pq Fl cstopb
+Use two (one) stop bits per character.
+.It Cm cread Pq Fl cread
+Enable (disable) the receiver.
+.It Cm clocal Pq Fl clocal
+Assume a line without (with) modem
+control.
+.It Cm ignbrk Pq Fl ignbrk
+Ignore (do not ignore) break on
+input.
+.It Cm brkint Pq Fl brkint
+Signal (do not signal)
+.Dv INTR
+on
+break.
+.It Cm ignpar Pq Fl ignpar
+Ignore (do not ignore) parity
+errors.
+.It Cm parmrk Pq Fl parmrk
+Mark (do not mark) parity errors.
+.It Cm inpck Pq Fl inpck
+Enable (disable) input parity
+checking.
+.It Cm istrip Pq Fl istrip
+Strip (do not strip) input characters
+to seven bits.
+.It Cm inlcr Pq Fl inlcr
+Map (do not map)
+.Dv NL
+to
+.Dv CR
+on input.
+.It Cm igncr Pq Fl igncr
+Ignore (do not ignore)
+.Dv CR
+on input.
+.It Cm icrnl Pq Fl icrnl
+Map (do not map)
+.Dv CR
+to
+.Dv NL
+on input.
+.It Cm ixon Pq Fl ixon
+Enable (disable)
+.Dv START/STOP
+output
+control.
+Output from the system is
+stopped when the system receives
+.Dv STOP
+and started when the system
+receives
+.Dv START .
+.It Cm ixoff Pq Fl ixoff
+Request that the system send (not
+send)
+.Dv START/STOP
+characters when
+the input queue is nearly
+empty/full.
+.It Cm opost Pq Fl opost
+Post-process output (do not
+post-process output; ignore all other
+output modes).
+.It Cm isig Pq Fl isig
+Enable (disable) the checking of
+characters against the special control
+characters
+.Dv INTR , QUIT ,
+and
+.Dv SUSP .
+.It Cm icanon Pq Fl icanon
+Enable (disable) canonical input
+.Pf ( Dv ERASE
+and
+.Dv KILL
+processing).
+.It Cm iexten Pq Fl iexten
+Enable (disable) any implementation
+defined special control characters
+not currently controlled by icanon,
+isig, or ixon.
+.It Cm echo Pq Fl echo
+Echo back (do not echo back) every
+character typed.
+.It Cm echoe Pq Fl echoe
+The
+.Dv ERASE
+character shall (shall
+not) visually erase the last character
+in the current line from the
+display, if possible.
+.It Cm echok Pq Fl echok
+Echo (do not echo)
+.Dv NL
+after
+.Dv KILL
+character.
+.It Cm echonl Pq Fl echonl
+Echo (do not echo)
+.Dv NL ,
+even if echo
+is disabled.
+.It Cm noflsh Pq Fl noflsh
+Disable (enable) flush after
+.Dv INTR , QUIT , SUSP .
+.It Cm control-character Ar string
+Set control-character to string.
+If string is a single character,
+the control character is set to
+that character.
+If string is the
+two character sequence "^-" or the
+string "undef" the control character
+is set to
+.Pf { Dv _POSIX_VDISABLE Ns }
+if
+it is in effect for the device; if
+.Pf { Dv _POSIX_VDISABLE Ns }
+is not in effect
+for the device, it is an
+error.
+.Pp
+Recognized control-characters:
+.Bd -ragged -offset indent
+.Bl -column character Subscript
+.It control- Ta Tn POSIX.1
+.It character	Subscript	Description
+.It _________	_________	_______________
+.It eof Ta Tn VEOF	EOF No character
+.It eol Ta Tn VEOL	EOL No character
+.It erase Ta Tn VERASE	ERASE No character
+.It intr Ta Tn VINTR	INTR No character
+.It kill Ta Tn VKILL	KILL No character
+.It quit Ta Tn VQUIT	QUIT No character
+.It susp Ta Tn VSUSP	SUSP No character
+.It start Ta Tn VSTART	START No character
+.It stop Ta Tn VSTOP	STOP No character
+.El
+.Ed
+.It Cm saved settings
+Set the current terminal
+characteristics to the saved settings
+produced by the
+.Fl g
+option.
+.It Cm min Ar number
+.It Cm time Ar number
+Set the value of min or time to
+number.
+.Dv MIN
+and
+.Dv TIME
+are used in
+Non-Canonical mode input processing
+(-icanon).
+.It Cm evenp No or Cm parity
+Enable parenb and cs7; disable
+parodd.
+.It Cm oddp
+Enable parenb, cs7, and parodd.
+.It Fl parity , evenp ,  oddp
+Disable parenb, and set cs8.
+.It Cm nl Pq Fl nl
+Enable (disable) icrnl.
+In addition
+-nl unsets inlcr and igncr.
+.It Cm ek
+Reset
+.Dv ERASE
+and
+.Dv KILL
+characters
+back to system defaults.
+.It Cm sane
+Resets all modes to reasonable values for interactive terminal use.
+.It Cm tty
+Set the line discipline to the standard terminal line discipline
+.Dv TTYDISC .
+.El
+.Pp
+The
+.Nm stty
+utility exits with a value of 0 if successful, and >0 if an error occurs.
+.Sh SEE ALSO
+.Xr stty 4
+.Sh STANDARDS
+The
+.Nm stty
+function is expected to be
+.St -p1003.2
+compatible.

@@ -1,0 +1,320 @@
+.\" Copyright (c) 1980 The Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)macros	6.2 (Berkeley) 4/17/91
+.\"
+.hw algo-rithm va-lid-ity mech-a-nism orga-nize per-cent-age jeop-ar-dizing un-known com-mu-ni-ca-tion en-a-bling  re-stric-tion
+.nr BT 1
+\" BT determines whether to leave white space at bottom of page
+.nr TP 1
+\" TP determines whether to leave white space at the top of page
+.ls 1
+.ie t \{\
+\" .ll 6.25i
+\" .lt 6.25i
+.po 1i
+.pl 11i \}
+.el \{\
+.ll 78
+.lt 78
+.pl 66 \}
+.if \n(BT .wh -1i JP
+.de JP
+'bp
+..
+.ds PA "USD:11-%
+.\".fp 1 R
+.\".fp 2 I
+.\".fp 3 B
+.\".fp 4 S
+.nh
+.de ch
+.br
+.ne 8
+.sp 2
+.ft B
+.nr a +1
+\\na\\ \\ 
+.nr b 0
+\\$1.
+.ft P
+
+.ds Rk "
+.if 10-\\n% .ds Rk ".
+.am vt
+
+\\fB\\na\\ \\ \\$1\\fP.\\*(Rk\\n%
+\\..
+..
+.de ap
+.nr b 0
+.am va
+\\fB\\$1\\ \\ \\$2\\fP
+\\..
+.ds PA "SMM:10-\\$1-%
+.ds AP "\\$1
+.pn 1
+.bp
+.ce 2
+.ft B
+APPENDIX \\$1
+\\$2
+.ft P
+
+..
+.de se
+.br
+.ne 6
+.sp 1
+.ft B
+.nr b +1
+.nr c 0
+\\na.\\nb\\ \\ 
+\\$1.
+.ft P
+.ds Rk "
+.if 10-\\n% .ds Rk ".
+.am vt
+\\ \\ \\ \\na.\\nb\\ \\ \\$1.\\*(Rk\\n%
+\\..
+..
+.de a1
+.br
+.ne 6
+.sp 1
+.ft B
+.nr b +1
+.nr c 0
+\\*(AP.\\nb\\ \\ 
+\\$1.
+.ft P
+..
+.de ss
+.br
+.ne 6
+.nr c +1
+.nr d 0
+.ft B
+\\na.\\nb.\\nc\\ \\ 
+\\$1.
+.ft P
+.ds rk "
+.if 10-\\nc .ds rk " 
+.ds Rk "
+.if 10-\\n% .ds Rk ".
+.am vt
+\\ \\ \\ \\ \\ \\ \\ \\ \\na.\\nb.\\nc\\*(rk\\ \\ \\$1.\\*(Rk\\n%
+\\..
+..
+.de a2
+.br
+.ne 6
+.nr c +1
+.nr d 0
+.ft B
+\\*(AP.\\nb.\\nc\\ \\ 
+\\$1.
+.ft P
+..
+.de s2
+.br
+.ne 4
+.nr d +1
+.ft B
+\\na.\\nb.\\nc.\\nd\\ \\ 
+\\$1.
+.ft P
+.ds rl "
+.if 10-\\nc .ds rl " 
+.am vt
+\\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\ \\na.\\nb.\\nc.\\nd\\*(rk\\ \\ \\$1.	\\n%
+\\..
+..
+.de s2
+.br
+.ne 4
+.sp 1
+.nr d +1
+.ft B
+\\na.\\nb.\\nc.\\nd\\ \\ 
+\\$1.
+.ft P
+.ds rl "
+.if 10-\\nc .ds rl " 
+..
+.de hh
+'if \n(TP 'sp |.5i
+.if \\n%>1 \{\
+.ie e .tl '\\*(TI''\\*(PA'
+.el .tl '\\*(PA''\\*(TI' \}
+'sp 1
+'ns
+.ev 2
+.ls 1
+.nf
+.if \\n(SW  .KK
+.fi
+.ev
+..
+.de lz
+.br
+.ls 1
+.nf
+..
+.de lq
+.br
+.fi
+.sp 1
+.ls
+..
+.de KS
+.br
+.di KK
+.nr FK 0
+\!.nr SW 0
+.ev 1
+.ls 1
+..
+.de KF
+.br
+.di KK
+.nr FK 1
+\!.nr SW 0
+.ev 1
+.ls 1
+..
+.de KE
+.br
+.sp 1
+.di
+.nf
+.nr SW 1
+.if \\n(.p-\\n(nl-\\n(dn+1 .nr SW 0
+.in 0
+.if !\\n(SW  .KK
+.in
+.ev
+.if !\\n(FK .if \\n(SW .bp
+.fi
+..
+.ev 1
+.ie t \{\
+.ll 6.25i
+.lt 6.25i
+.po 1i
+.pl 11i \}
+.el \{\
+.ll 78
+.lt 78
+.pl 66 \}
+.if \n(BT .wh -1i JP
+.hy 14
+.ev
+.ev 2
+.hy 14
+.ie t \{\
+.ll 6.25i
+.lt 6.25i
+.po 1i
+.pl 11i \}
+.el \{\
+.ll 78
+.lt 78
+.pl 66 \}
+.if \n(BT .wh -1i JP
+.ev
+.hy 14
+.if \n(mo-0 .ds mo January
+.if \n(mo-1 .ds mo February
+.if \n(mo-2 .ds mo March
+.if \n(mo-3 .ds mo April
+.if \n(mo-4 .ds mo May
+.if \n(mo-5 .ds mo June
+.if \n(mo-6 .ds mo July
+.if \n(mo-7 .ds mo August
+.if \n(mo-8 .ds mo September
+.if \n(mo-9 .ds mo October
+.if \n(mo-10 .ds mo November
+.if \n(mo-11 .ds mo December
+.if \n(dw-0 .ds dw Sunday
+.if \n(dw-1 .ds dw Monday
+.if \n(dw-2 .ds dw Tuesday
+.if \n(dw-3 .ds dw Wednesday
+.if \n(dw-4 .ds dw Thursday
+.if \n(dw-5 .ds dw Friday
+.if \n(dw-6 .ds dw Saturday
+.ds DA \*(mo \n(dy, 19\n(yr
+.de RS
+.ls 1
+.in +5
+..
+.de rf
+.br
+.ne 4
+.ti -5
+..
+.de RE
+.in -5
+.ls
+..
+.de ix
+.ti -4
+\(bu\ \c
+..
+.de bx
+.in +10
+.ls 1
+..
+.de ex
+.br
+.ls
+.in -10
+..
+.de bz
+.in +5
+.ll -5
+.ls 1
+..
+.de iz
+.ti -5
+____ \c
+..
+.de ez
+.ls
+.ll
+.in
+..
+.de TA
+.ta 0.5i 1.0i 1.5i 2.0i 2.5i 3.0i 3.5i 4.0i 4.5i 5i 5.5i 6i 6.5i
+..
+.ds TI "Notesfile Reference Manual
+.if \n(TP .sp |1i
+.wh 0 hh

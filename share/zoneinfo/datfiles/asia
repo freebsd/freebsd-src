@@ -1,0 +1,262 @@
+# @(#)asia	7.1
+
+# From Guy Harris:
+# Incorporates data for Singapore from Robert Elz' asia 1.1, as well as
+# additional information from Tom Yap, Sun Microsystems Intercontinental
+# Technical Support (including a page from the Official Airline Guide -
+# Worldwide Edition).  The names for time zones are guesses.
+
+###############################################################################
+
+# People's Republic of China
+
+# From Guy Harris:
+# People's Republic of China.  Yes, they really have only one time zone.
+
+# From Bob Devine (January 28, 1988):
+# No they don't.  See TIME mag, February 17, 1986 p.52.  Even though
+# China is across 4 physical time zones, before Feb 1, 1986 only the
+# Peking (Bejing) time zone was recognized.  Since that date, China
+# has two of 'em -- Peking's and Urumqi (named after the capital of
+# the Xinjiang Uighur Autonomous Region).  I don't know about DST for it.
+#
+# . . .I just deleted the DST table and this editor makes it too
+# painful to suck in another copy..  So, here is what I have for
+# DST start/end dates for Peking's time zone (info from AP):
+#
+#     1986 May 4 - Sept 14
+#     1987 mid-April - ??
+
+# From U. S. Naval Observatory (January 19, 1989):
+# CHINA               8 H  AHEAD OF UTC  ALL OF CHINA, INCL TAIWAN
+# CHINA               9 H  AHEAD OF UTC  APR 17 - SEP 10
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	PRC	1970	max	-	Apr	Sun<=14	2:00	1:00	D
+Rule	PRC	1970	max	-	Sep	Sun<=14	3:00	0	S
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	PRC		8:00	PRC		C%sT
+
+###############################################################################
+
+# Republic of China
+
+# From Guy Harris
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	ROC		8:00	-		CST
+
+###############################################################################
+
+# Hongkong
+
+# From Guy Harris
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Hongkong	8:00	-		HKT
+
+###############################################################################
+
+# Iran
+
+# From Bob Devine (January 28, 1988):
+# Iran: Last Sunday in March to third (?) Sunday in
+# September.  Since the revolution, the official calendar is Monarchic
+# calendar; I have no idea what the correspondence between dates are.
+
+# From U. S. Naval Observatory (January 19, 1989):
+# IRAN                3.5H AHEAD OF UTC
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Iran	1988	max	-	Mar	lastSun	2:00	1:00	D
+Rule	Iran	1988	max	-	Sep	Sun>=15	2:00	0	S
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Iran		3:30	Iran		I%sT
+
+###############################################################################
+
+# Israel
+
+# From U. S. Naval Observatory (January 19, 1989):
+# ISRAEL              2 H  AHEAD OF UTC
+# ISRAEL              3 H  AHEAD OF UTC  APR 10 - SEP 3
+
+# From Ephraim Silverberg (April 18, 1989):
+
+# Prior to 1989, the rules concerning Daylight Savings Time changed every
+# year; as information, regarding exact times and dates during this period,
+# is not readily available at the present time, the rules commence starting
+# with the year 1989.
+
+# From 1989 onwards the rules are as follows:
+#
+# 1. Daylight Savings Time commences midnight of the first Saturday night
+#    following the seven-day festival of Pesach (Passover).  The transition
+#    is from midnight Israel Standard Time to 1 a.m. Israel Daylight Savings
+#    time.  As the Pesach festival is dependent on the Lunar calendar (the
+#    first day is always on the 15th day of the month of Nisan), the rule
+#    changes every year on the Gregorian calendar.
+#
+# 2. Standard Time is reinstated on the Saturday night whereupon Jews
+#    following the Ashkenazi (European) rite begin to recite the Selichot
+#    (forgiveness) prayers prior to the Jewish Lunar New Year.  The transition
+#    is from midnight Israel Daylight Savings time to 11 p.m. Israel Standard
+#    Time.  The law (according to the Ashkenazi custom) concerning the
+#    commencement of the Selichot prayers is described in chapter 128, section
+#    5 of the "Code of Jewish Law," by Rabbi Shlomo Ganzfried (translated by
+#    Hyman E. Goldin):
+#
+#       Beginning with the Sunday [**] before Rosh Hashanah [***],
+#       we rise early for the service of Selichot (supplications for
+#       forgiveness).  If Rosh Hashanah occurs on Monday or Tuesday, we
+#       begin saying the Selichot from the Sunday of the preceding week.
+#
+#    This, too, varies from year to year on the Gregorian calendar and, thus,
+#    two explicit timezone rules are required for each Gregorian year.
+#
+#    [**] actually Saturday night as the Jewish day commences at nightfall.
+#    [***] the Jewish Lunar New Year.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Zion	1989	only	-	Apr	30	0:00	1:00	D
+Rule	Zion	1989	only	-	Sep	24	0:00	0:00	S
+Rule	Zion	1990	only	-	Apr	22	0:00	1:00	D
+Rule	Zion	1990	only	-	Sep	16	0:00	0:00	S
+Rule	Zion	1991	only	-	Apr	 7	0:00	1:00	D
+Rule	Zion	1991	only	-	Sep	 1	0:00	0:00	S
+Rule	Zion	1992	only	-	Apr	26	0:00	1:00	D
+Rule	Zion	1992	only	-	Sep	20	0:00	0:00	S
+Rule	Zion	1993	only	-	Apr	18	0:00	1:00	D
+Rule	Zion	1993	only	-	Sep	12	0:00	0:00	S
+Rule	Zion	1994	only	-	Apr	 3	0:00	1:00	D
+Rule	Zion	1994	only	-	Aug	28	0:00	0:00	S
+Rule	Zion	1995	only	-	Apr	23	0:00	1:00	D
+Rule	Zion	1995	only	-	Sep	17	0:00	0:00	S
+Rule	Zion	1996	only	-	Apr	14	0:00	1:00	D
+Rule	Zion	1996	only	-	Sep	 8	0:00	0:00	S
+Rule	Zion	1997	only	-	May	 4	0:00	1:00	D
+Rule	Zion	1997	only	-	Sep	28	0:00	0:00	S
+Rule	Zion	1998	only	-	Apr	19	0:00	1:00	D
+Rule	Zion	1998	only	-	Sep	13	0:00	0:00	S
+Rule	Zion	1999	only	-	Apr	11	0:00	1:00	D
+Rule	Zion	1999	only	-	Sep	 5	0:00	0:00	S
+Rule	Zion	2000	only	-	Apr	30	0:00	1:00	D
+Rule	Zion	2000	only	-	Sep	24	0:00	0:00	S
+Rule	Zion	2001	only	-	Apr	15	0:00	1:00	D
+Rule	Zion	2001	only	-	Sep	 9	0:00	0:00	S
+Rule	Zion	2002	only	-	Apr	 7	0:00	1:00	D
+Rule	Zion	2002	only	-	Sep	 1	0:00	0:00	S
+Rule	Zion	2003	only	-	Apr	27	0:00	1:00	D
+Rule	Zion	2003	only	-	Sep	21	0:00	0:00	S
+Rule	Zion	2004	only	-	Apr	18	0:00	1:00	D
+Rule	Zion	2004	only	-	Sep	12	0:00	0:00	S
+Rule	Zion	2005	only	-	May	 1	0:00	1:00	D
+Rule	Zion	2005	only	-	Sep	25	0:00	0:00	S
+Rule	Zion	2006	only	-	Apr	23	0:00	1:00	D
+Rule	Zion	2006	only	-	Sep	17	0:00	0:00	S
+Rule	Zion	2007	only	-	Apr	15	0:00	1:00	D
+Rule	Zion	2007	only	-	Sep	 9	0:00	0:00	S
+Rule	Zion	2008	only	-	Apr	27	0:00	1:00	D
+Rule	Zion	2008	only	-	Sep	21	0:00	0:00	S
+Rule	Zion	2009	only	-	Apr	19	0:00	1:00	D
+Rule	Zion	2009	only	-	Sep	13	0:00	0:00	S
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Israel		2:00	Zion		I%sT
+
+# The following is a chart of the day of the week and Gregorian date of
+# the first day of Pesach and the first day of Rosh Hashanah for the years
+# 1989 through 2009 inclusive.
+#
+# First Day of Passover
+# ---------------------
+# Gregorian Year	Day of Week	Month		Day
+# --------------	-----------	-----		---
+#	1989		Thursday	April		20
+#	1990		Tuesday		April		10
+#	1991		Saturday	March		30
+#	1992		Saturday	April		18
+#	1993		Tuesday		April		 6
+#	1994		Sunday		March		27
+#	1995		Saturday	April		15
+#	1996		Thursday	April		 4
+#	1997		Tuesday		April		22
+#	1998		Saturday	April		11
+#	1999		Thursday	April		 1
+#	2000		Thursday	April		20
+#	2001		Sunday		April		 8
+#	2002		Thursday	March		28
+#	2003		Thursday	April		17
+#	2004		Tuesday		April		 6
+#	2005		Sunday		April		24
+#	2006		Thursday	April		13
+#	2007		Tuesday		April		 3
+#	2008		Sunday		April		20
+#	2009		Thursday	April		 9
+#
+# First Day of Rosh Hashanah
+# --------------------------
+# Gregorian Year	Day of Week	Month		Day
+# --------------	-----------	-----		---
+#	1989		Saturday	September	30
+#	1990		Thursday	September	20
+#	1991		Monday		September	 9
+#	1992		Monday		September	28
+#	1993		Thursday	September	16
+#	1994		Tuesday		September	 6
+#	1995		Monday		September	25
+#	1996		Saturday	September	14
+#	1997		Thursday	October		 2
+#	1998		Monday		September	21
+#	1999		Saturday	September	11
+#	2000		Saturday	September	30
+#	2001		Tuesday		September	18
+#	2002		Saturday	September	 7
+#	2003		Saturday	September	27
+#	2004		Thursday	September	16
+#	2005		Tuesday		October		 4
+#	2006		Saturday	September	23
+#	2007		Thursday	September	13
+#	2008		Tuesday		September	30
+#	2009		Saturday	September	19
+
+###############################################################################
+
+# Japan
+
+# From Guy Harris
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Japan		9:00	-		JST
+
+###############################################################################
+
+# Republic of Korea
+
+# From Guy Harris:
+# According to someone at the Korean Times in San Francisco,
+# Daylight Savings Time was not observed until 1987.  He did not know
+# at what time of day DST starts or ends.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	ROK	1987	max	-	May	Sun<=14	2:00	1:00	D
+Rule	ROK	1987	max	-	Oct	Sun<=14	3:00	0	S
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	ROK		9:00	ROK		K%sT
+
+###############################################################################
+
+# Lebanon
+
+# From Bob Devine (January 28, 1988):
+# Lebanon: They do have DST but I don't know the dates.
+
+###############################################################################
+
+# Singapore
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	Singapore	8:00	-		SST
