@@ -5483,59 +5483,51 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 			struct scsi_inquiry_data *inq_buf;
 			u_int8_t periph_qual;
-			u_int8_t periph_dtype;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
 			inq_buf = &path->device->inq_data;
 
 			periph_qual = SID_QUAL(inq_buf);
-			periph_dtype = SID_TYPE(inq_buf);
 			
-			if (periph_dtype != T_NODEVICE) {
-				switch(periph_qual) {
-				case SID_QUAL_LU_CONNECTED:
-				{
-					u_int8_t alen;
+			switch(periph_qual) {
+			case SID_QUAL_LU_CONNECTED:
+			{
+				u_int8_t alen;
 
-					/*
-					 * We conservatively request only
-					 * SHORT_INQUIRY_LEN bytes of inquiry
-					 * information during our first try
-					 * at sending an INQUIRY. If the device
-					 * has more information to give,
-					 * perform a second request specifying
-					 * the amount of information the device
-					 * is willing to give.
-					 */
-					alen = inq_buf->additional_length;
-					if (softc->action == PROBE_INQUIRY
-					 && alen > (SHORT_INQUIRY_LENGTH - 4)) {
-						softc->action =
-						    PROBE_FULL_INQUIRY;
-						xpt_release_ccb(done_ccb);
-						xpt_schedule(periph, priority);
-						return;
-					}
-
-					xpt_find_quirk(path->device);
-
-					if ((inq_buf->flags & SID_CmdQue) != 0)
-						softc->action =
-						    PROBE_MODE_SENSE;
-					else
-						softc->action =
-						    PROBE_SERIAL_NUM;
-
-					path->device->flags &= 
-						~CAM_DEV_UNCONFIGURED;
-
+				/*
+				 * We conservatively request only
+				 * SHORT_INQUIRY_LEN bytes of inquiry
+				 * information during our first try
+				 * at sending an INQUIRY. If the device
+				 * has more information to give,
+				 * perform a second request specifying
+				 * the amount of information the device
+				 * is willing to give.
+				 */
+				alen = inq_buf->additional_length;
+				if (softc->action == PROBE_INQUIRY
+				 && alen > (SHORT_INQUIRY_LENGTH - 4)) {
+					softc->action = PROBE_FULL_INQUIRY;
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
 					return;
 				}
-				default:
-					break;
-				}
+
+				xpt_find_quirk(path->device);
+
+				if ((inq_buf->flags & SID_CmdQue) != 0)
+					softc->action = PROBE_MODE_SENSE;
+				else
+					softc->action = PROBE_SERIAL_NUM;
+
+				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+
+				xpt_release_ccb(done_ccb);
+				xpt_schedule(periph, priority);
+				return;
+			}
+			default:
+				break;
 			}
 		} else if (cam_periph_error(done_ccb, 0,
 					    done_ccb->ccb_h.target_lun > 0
