@@ -62,7 +62,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id: MAKEDEV,v 1.8 1993/09/14 21:42:14 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.9 1993/09/30 20:18:59 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -87,6 +87,8 @@ std)
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
 	mknod mem	c 2 0;	chmod 640 mem;		chown root.kmem mem
 	mknod null	c 2 2;	chmod 666 null;		chown root.wheel null
+	mknod zero	c 2 12;	chmod 666 zero;		chown root.wheel zero
+	mknod io	c 2 14;	chmod 640 io;		chown root.kmem io
 	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
 	mknod klog	c 7 0;	chmod 600 klog;		chown root.wheel klog
 	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
