@@ -48,7 +48,7 @@ TCL_SHLIB_LD='ld -Bshareable -x'
 TCL_SHLIB_LD_LIBS=''
 
 # Suffix to use for the name of a shared library.
-TCL_SHLIB_SUFFIX='.so'
+TCL_SHLIB_SUFFIX='.so.1.0'
 
 # Library file(s) to include in tclsh and other base applications
 # in order to provide facilities needed by DLOBJ above.
@@ -90,7 +90,7 @@ TCL_LIB_VERSIONS_OK='nodots'
 # extension, and anything else needed).  May depend on the variables
 # VERSION and SHLIB_SUFFIX.  On most UNIX systems this is
 # ${VERSION}${SHLIB_SUFFIX}.
-TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.1'
+TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
 
 # String that can be evaluated to generate the part of an unshared library
 # name that comes after the "libxxx" (includes version number, if any,
