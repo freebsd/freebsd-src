@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.116 1996/09/08 20:44:10 dyson Exp $
+ *	$Id: pmap.c,v 1.117 1996/09/11 03:46:41 dyson Exp $
  */
 
 /*
@@ -179,7 +179,7 @@ static void	pmap_alloc_pv_entry __P((void));
 static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
 
 static int	pmap_is_managed __P((vm_offset_t pa));
-static int	pmap_remove_all __P((vm_offset_t pa));
+static void	pmap_remove_all __P((vm_offset_t pa));
 static vm_page_t pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_offset_t pa, vm_page_t mpte));
 static int pmap_remove_pte __P((struct pmap *pmap, unsigned *ptq,
@@ -694,6 +694,27 @@ pmap_page_alloc(object, pindex)
 	return m;
 }
 
+vm_page_t
+pmap_page_lookup(object, pindex)
+	vm_object_t object;
+	vm_pindex_t pindex;
+{
+	vm_page_t m;
+retry:
+	m = vm_page_lookup(object, pindex);
+	if (m) {
+		if (m->flags & PG_BUSY) {
+			m->flags |= PG_WANTED;
+			tsleep(m, PVM, "pplookp", 0);
+			goto retry;
+		}
+	}
+
+	return m;
+}
+		
+
+
 
 /***************************************************
  * Page table page management routines.....
@@ -705,10 +726,19 @@ pmap_page_alloc(object, pindex)
  */
 static int
 pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
+	int s;
+
 	vm_page_unhold(m);
+
+	s = splvm();
+	while (m->flags & PG_BUSY) {
+		m->flags |= PG_WANTED;
+		tsleep(m, PVM, "pmuwpt", 0);
+	}
+	splx(s);
+
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
-		int s;
 		/*
 		 * unmap the page table page
 		 */
@@ -723,26 +753,23 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 			pteva = UPT_MIN_ADDRESS + i386_ptob(m->pindex);
 			pmap_update_1pg(pteva);
 		}
+
 #if defined(PTPHINT)
 		if (pmap->pm_ptphint == m)
 			pmap->pm_ptphint = NULL;
 #endif
-		s = splvm();
-		while (m->flags & PG_BUSY) {
-			m->flags |= PG_WANTED;
-			tsleep(m, PVM, "pmuwpt", 0);
-		}
-		splx(s);
-		if (m->flags & PG_WANTED) {
-			m->flags &= ~PG_WANTED;
-			wakeup(m);
-		}
 
 		/*
 		 * If the page is finally unwired, simply free it.
 		 */
 		--m->wire_count;
 		if (m->wire_count == 0) {
+
+			if (m->flags & PG_WANTED) {
+				m->flags &= ~PG_WANTED;
+				wakeup(m);
+			}
+
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -772,11 +799,11 @@ pmap_unuse_pt(pmap, va, mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+			mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = mpte;
 		}
 #else
-		mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+		mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 #endif
 	}
 
@@ -977,6 +1004,7 @@ retry:
 		}
 	}
 
+	m->valid = VM_PAGE_BITS_ALL;
 	m->flags |= PG_MAPPED;
 
 	return m;
@@ -1015,11 +1043,11 @@ pmap_allocpte(pmap, va)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			m = pmap->pm_ptphint;
 		} else {
-			m = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+			m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = m;
 		}
 #else
-		m = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+		m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 #endif
 		++m->hold_count;
 		return m;
@@ -1074,6 +1102,7 @@ retry:
 		kmem_free(kernel_map, (vm_offset_t) pmap->pm_pdir, PAGE_SIZE);
 	}
 	pmap->pm_pdir = 0;
+	pmap_update();
 }
 
 /*
@@ -1147,7 +1176,7 @@ pmap_destroy(pmap)
 
 	count = --pmap->pm_count;
 	if (count == 0) {
-		pmap_lock(pmap);
+		pmap_release(pmap);
 		free((caddr_t) pmap, M_VMPMAP);
 	}
 }
@@ -1527,14 +1556,13 @@ pmap_remove(pmap, sva, eva)
  *		pmap_remove (slow...)
  */
 
-static int
+static void
 pmap_remove_all(pa)
 	vm_offset_t pa;
 {
-	register pv_entry_t pv, npv;
+	register pv_entry_t pv;
 	pv_table_t *ppv;
 	register unsigned *pte, tpte;
-	vm_page_t m;
 	int nmodify;
 	int update_needed;
 	int s;
@@ -1552,11 +1580,8 @@ pmap_remove_all(pa)
 #endif
 
 	s = splvm();
-	m = NULL;
 	ppv = pa_to_pvh(pa);
-	for (pv = TAILQ_FIRST(&ppv->pv_list);
-		pv;
-		pv = npv) {
+	while ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
 		pmap_lock(pv->pv_pmap);
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (tpte = *pte) {
@@ -1567,15 +1592,14 @@ pmap_remove_all(pa)
 			/*
 			 * Update the vm_page_t clean and reference bits.
 			 */
-			if ((tpte & (PG_M|PG_MANAGED)) == (PG_M|PG_MANAGED)) {
+			if (tpte & PG_M) {
 #if defined(PMAP_DIAGNOSTIC)
 				if (pmap_nw_modified((pt_entry_t) tpte)) {
 					printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
 				}
 #endif
-				if ((nmodify == 0) &&
-					pmap_track_modified(pv->pv_va))
-					nmodify = 1;
+				if (pmap_track_modified(pv->pv_va))
+					ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
 			}
 			if (!update_needed &&
 				((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
@@ -1584,8 +1608,6 @@ pmap_remove_all(pa)
 			}
 		}
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
-
-		npv = TAILQ_NEXT(pv, pv_list);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		--ppv->pv_list_count;
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
@@ -1596,7 +1618,7 @@ pmap_remove_all(pa)
 	if (update_needed)
 		pmap_update();
 	splx(s);
-	return nmodify;
+	return;
 }
 
 /*
@@ -1858,6 +1880,7 @@ pmap_enter_quick(pmap, va, pa, mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			++mpte->hold_count;
 		} else {
+retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -1873,12 +1896,14 @@ pmap_enter_quick(pmap, va, pa, mpte)
 					(pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
 				} else {
-					mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+					mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 					pmap->pm_ptphint = mpte;
 				}
 #else
-				mpte = vm_page_lookup( pmap->pm_pteobj, ptepindex);
+				mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 #endif
+				if (mpte == NULL)
+					goto retry;
 				++mpte->hold_count;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
@@ -2193,7 +2218,7 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 			continue;
 
 		srcmpte = vm_page_lookup(src_pmap->pm_pteobj, ptepindex);
-		if (srcmpte->hold_count == 0)
+		if ((srcmpte->hold_count == 0) || (srcmpte->flags & PG_BUSY))
 			continue;
 
 		if (pdnxt > end_addr)
@@ -2351,6 +2376,7 @@ pmap_page_exists(pmap, pa)
 	return (FALSE);
 }
 
+#ifdef NOT_USED_YET
 #define PMAP_REMOVE_PAGES_CURPROC_ONLY
 /*
  * Remove all pages from specified address space
@@ -2421,6 +2447,7 @@ pmap_remove_pages(pmap, sva, eva)
 	pmap_update();
 	pmap_unlock(pmap);
 }
+#endif
 
 /*
  * pmap_testbit tests bits in pte's
