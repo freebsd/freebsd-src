@@ -879,7 +879,7 @@ ng_btsocket_rfcomm_peeraddr(struct socket *so, struct sockaddr **nam)
 	sa.rfcomm_len = sizeof(sa);
 	sa.rfcomm_family = AF_BLUETOOTH;
 
-	*nam = dup_sockaddr((struct sockaddr *) &sa, 0);
+	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_rfcomm_peeraddr */
@@ -945,7 +945,7 @@ ng_btsocket_rfcomm_sockaddr(struct socket *so, struct sockaddr **nam)
 	sa.rfcomm_len = sizeof(sa);
 	sa.rfcomm_family = AF_BLUETOOTH;
 
-	*nam = dup_sockaddr((struct sockaddr *) &sa, 0);
+	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_rfcomm_sockaddr */
