@@ -79,6 +79,9 @@ CFLAGS+=	-DKLD_MODULE
 # add to the front of `make' variable.
 _ICFLAGS:=	${CFLAGS:M-I*}
 CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
+.if defined(KERNBUILDDIR)
+CFLAGS+=       -include ${KERNBUILDDIR}/opt_global.h
+.endif
 
 # Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
