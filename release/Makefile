@@ -470,6 +470,7 @@ cdrom.1:
 	cp ${.CURDIR}/fixit.profile ${CD}/filesys/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
 	cp ${CD}/cdrom.inf ${CD}/filesys
+	cp ${.CURDIR}/ABOUT.TXT ${CD}/ABOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD}/INSTALL.TXT
