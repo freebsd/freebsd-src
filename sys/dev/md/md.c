@@ -52,6 +52,8 @@ static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 
 static int mdrootready;
 
+static void mdcreate_malloc(void);
+
 #define CDEV_MAJOR	95
 #define BDEV_MAJOR	22
 
@@ -78,6 +80,8 @@ static struct cdevsw md_cdevsw = {
         /* bmaj */      BDEV_MAJOR
 };
 
+static struct cdevsw mddisk_cdevsw;
+
 struct md_s {
 	int unit;
 	struct devstat stats;
@@ -87,7 +91,6 @@ struct md_s {
 	int busy;
 	enum {MD_MALLOC, MD_PRELOAD} type;
 	unsigned nsect;
-	struct cdevsw devsw;
 
 	/* MD_MALLOC related fields */
 	unsigned nsecp;
@@ -111,6 +114,8 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 			devtoname(dev), flag, fmt, p);
 
 	sc = dev->si_drv1;
+	if (sc->unit + 1 == mdunits)
+		mdcreate_malloc();
 
 	dl = &sc->disk.d_label;
 	bzero(dl, sizeof(*dl));
@@ -335,7 +340,7 @@ mdstrategy_preload(struct buf *bp)
 }
 
 static struct md_s *
-mdcreate(struct cdevsw *devsw)
+mdcreate(void)
 {
 	struct md_s *sc;
 
@@ -347,7 +352,7 @@ mdcreate(struct cdevsw *devsw)
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
-	sc->dev = disk_create(sc->unit, &sc->disk, 0, devsw, &sc->devsw);
+	sc->dev = disk_create(sc->unit, &sc->disk, 0, &md_cdevsw, &mddisk_cdevsw);
 	sc->dev->si_drv1 = sc;
 	return (sc);
 }
@@ -357,7 +362,7 @@ mdcreate_preload(u_char *image, unsigned length)
 {
 	struct md_s *sc;
 
-	sc = mdcreate(&md_cdevsw);
+	sc = mdcreate();
 	sc->type = MD_PRELOAD;
 	sc->nsect = length / DEV_BSIZE;
 	sc->pl_ptr = image;
@@ -372,13 +377,14 @@ mdcreate_malloc(void)
 {
 	struct md_s *sc;
 
-	sc = mdcreate(&md_cdevsw);
+	sc = mdcreate();
 	sc->type = MD_MALLOC;
 
 	sc->nsect = MD_NSECT;	/* for now */
 	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK);
 	bzero(sc->secp, sizeof(u_char *));
 	sc->nsecp = 1;
+	printf("md%d: Malloc disk\n", sc->unit);
 }
 
 static void
@@ -411,7 +417,6 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		mdcreate_preload(ptr, len);
 	} 
-	printf("md%d: Malloc disk\n", mdunits);
 	mdcreate_malloc();
 }
 
