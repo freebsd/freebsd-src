@@ -76,12 +76,6 @@ static struct cdevsw acpi_cdevsw = {
 	.d_name =	"acpi",
 };
 
-static const char* sleep_state_names[] = {
-    "S0", "S1", "S2", "S3", "S4", "S5", "NONE"};
-
-/* this has to be static, as the softc is gone when we need it */
-static int acpi_off_state = ACPI_STATE_S5;
-
 #if __FreeBSD_version >= 500000
 struct mtx	acpi_mutex;
 #endif
@@ -187,6 +181,9 @@ static driver_t acpi_driver = {
 static devclass_t acpi_devclass;
 DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
 MODULE_VERSION(acpi, 1);
+
+static const char* sleep_state_names[] = {
+    "S0", "S1", "S2", "S3", "S4", "S5", "NONE"};
 
 SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RW, NULL, "ACPI debugging");
 static char acpi_ca_version[12];
@@ -1189,14 +1186,14 @@ acpi_shutdown_poweroff(void *arg)
     if (PCPU_GET(cpuid) != 0)
 	return;
 
-    status = AcpiEnterSleepStatePrep(acpi_off_state);
+    status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
     if (ACPI_FAILURE(status)) {
 	printf("AcpiEnterSleepStatePrep failed - %s\n",
 	       AcpiFormatException(status));
 	return;
     }
     ACPI_DISABLE_IRQS();
-    status = AcpiEnterSleepState(acpi_off_state);
+    status = AcpiEnterSleepState(ACPI_STATE_S5);
     if (ACPI_FAILURE(status)) {
 	printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
     } else {
