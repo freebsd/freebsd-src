@@ -74,8 +74,13 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#if (__FreeBSD_version < 500000)
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#else
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#endif
 
 #include "contrib/dev/oltr/trlld.h"
 
