@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.4.2.4 1995/06/05 12:04:03 jkh Exp $
+ * $Id: nfs.c,v 1.4.2.5 1995/06/10 00:49:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,7 +65,7 @@ mediaInitNFS(Device *dev)
 	return FALSE;
 
     if (vsystem("mount_nfs %s %s %s /nfs", (OptFlags & OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
-	    (OptFlags & OPT_NFS_SECURE) ? "-P" : "", dev->name))
+	    (OptFlags & OPT_NFS_SECURE) ? "-P" : "", dev->name)) {
 	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->name, strerror(errno), errno);
 	return FALSE;
     }
