@@ -7,30 +7,32 @@ prog="$0"
 # First try the "locale charmap" command, because it's most reliable.
 # On systems where it doesn't exist, look at the environment variables.
 case "`locale charmap 2>/dev/null`" in
-  UTF-8)
-    T=-Tutf8 ;;
   ISO*8859-1 | ISO*8859-15)
     T=-Tlatin1 ;;
-  IBM-1047)
-    T=-Tcp1047 ;;
   KOI8-R)
     T=-Tkoi8-r ;;
+  UTF-8)
+    T=-Tutf8 ;;
+  IBM-1047)
+    T=-Tcp1047 ;;
   *)
     case "${LC_ALL-${LC_CTYPE-${LANG}}}" in
-      *.UTF-8)
-        T=-Tutf8 ;;
       iso_8859_1 | *.ISO*8859-1 | *.ISO*8859-15)
         T=-Tlatin1 ;;
-      *.IBM-1047)
-        T=-Tcp1047 ;;
       *.KOI8-R)
         T=-Tkoi8-r ;;
+      *.UTF-8)
+        T=-Tutf8 ;;
+      *.IBM-1047)
+        T=-Tcp1047 ;;
       *)
         case "$LESSCHARSET" in
-          utf-8)
-            T=-Tutf8 ;;
           latin1)
             T=-Tlatin1 ;;
+          koi8-r)
+            T=-Tkoi8-r ;;
+          utf-8)
+            T=-Tutf8 ;;
           cp1047)
             T=-Tcp1047 ;;
           *)
