@@ -81,6 +81,7 @@
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
 #include <machine/smp.h>
+#include <machine/tick.h>
 #include <machine/tlb.h>
 #include <machine/tte.h>
 
