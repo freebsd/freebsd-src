@@ -61,9 +61,7 @@ void check(FILE *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	u_long column, start, stop;
 	int ch;
@@ -126,8 +124,7 @@ main(argc, argv)
 }
 
 void
-check(stream)
-	FILE *stream;
+check(FILE *stream)
 {
 	if (feof(stream))
 		exit(0);
@@ -136,7 +133,7 @@ check(stream)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: colrm [start [stop]]\n");
 	exit(1);
