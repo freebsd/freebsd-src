@@ -101,6 +101,13 @@ DATA_TYPE *aligned = &data.aligned;
 DATA_TYPE *misaligned = (DATA_TYPE *)data.misaligned;
 DATA_TYPE value = DATA_VALUE;
 
+void
+block_copy(void *dst, void *src, size_t sz)
+{
+
+	memcpy(dst, src, sz);
+}
+
 int
 main()
 {
@@ -112,7 +119,7 @@ main()
 	/*
 	 * LOAD
 	 */
-	memcpy(misaligned, &value, sizeof(DATA_TYPE));
+	block_copy(misaligned, &value, sizeof(DATA_TYPE));
 
 #  if POSTINC == NoPostInc
 	/* Misaligned load. */
@@ -179,7 +186,7 @@ main()
 	return (1);
 #  endif
 
-	memcpy(aligned, data.misaligned, sizeof(DATA_TYPE));
+	block_copy(aligned, data.misaligned, sizeof(DATA_TYPE));
 #endif
 
 	if (*aligned != value)
