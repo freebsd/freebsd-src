@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.25.2.7 1997/04/29 12:55:33 davidn Exp $
+ *	$Id: ftpd.c,v 1.25.2.8 1997/05/10 19:48:12 davidn Exp $
  */
 
 #if 0
@@ -1090,7 +1090,12 @@ skip:
 			syslog(LOG_INFO, "ANONYMOUS FTP LOGIN FROM %s, %s",
 			    remotehost, passwd);
 	} else {
+	    if (dochroot)
+		reply(230, "User %s logged in, access restrictions apply.", 
+			pw->pw_name);
+	    else
 		reply(230, "User %s logged in.", pw->pw_name);
+
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
 			 "%s: %s", remotehost, pw->pw_name);
