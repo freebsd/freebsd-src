@@ -109,7 +109,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    strncpy(PlayPen, optarg, sizeof(PlayPen));
+	    strlcpy(PlayPen, optarg, sizeof(PlayPen));
 	    break;
 
 	case 'X':
