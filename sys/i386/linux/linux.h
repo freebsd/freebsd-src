@@ -584,6 +584,7 @@ union l_semun {
 #define	LINUX_AF_AX25		3
 #define	LINUX_AF_IPX		4
 #define	LINUX_AF_APPLETALK	5
+#define	LINUX_AF_INET6		10
 
 #define	LINUX_SOL_SOCKET	1
 #define	LINUX_SOL_IP		0
