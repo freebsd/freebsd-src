@@ -599,6 +599,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
+# IPFIREWALL requires the option PFIL_HOOKS.
 #
 # WARNING:  IPFIREWALL defaults to a policy of "deny ip from any to any"
 # and if you do not add other rules during startup to allow access,
