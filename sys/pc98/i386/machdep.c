@@ -56,6 +56,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -97,7 +98,6 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #include <machine/bootinfo.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
 #include <machine/pc/bios.h>
@@ -997,7 +997,8 @@ cpu_halt(void)
  */
 #ifndef SMP
 static int	cpu_idle_hlt = 1;
-SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW, &cpu_idle_hlt, 0, "Idle loop HLT enable");
+SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
+    &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
 /*
  * Note that we have to be careful here to avoid a race between checking
@@ -1008,13 +1009,13 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW, &cpu_idle_hlt, 0, "Idle
 static void
 cpu_idle(void *junk, int count)
 {
-	if (cpu_idle_hlt){
+	if (cpu_idle_hlt) {
 		disable_intr();
-		if (procrunnable()) {
+  		if (procrunnable())
 			enable_intr();
-		} else {
+		else {
 			enable_intr();
-			__asm__ ("hlt");
+			__asm __volatile("hlt");
 		}
 	}
 }
@@ -1023,7 +1024,8 @@ static void cpu_idle_register(void *junk)
 {
 	EVENTHANDLER_FAST_REGISTER(idle_event, cpu_idle, NULL, IDLE_PRI_LAST);
 }
-SYSINIT(cpu_idle_register, SI_SUB_SCHED_IDLE, SI_ORDER_SECOND, cpu_idle_register, NULL)
+SYSINIT(cpu_idle_register, SI_SUB_SCHED_IDLE, SI_ORDER_SECOND,
+    cpu_idle_register, NULL)
 #endif /* !SMP */
 
 /*
