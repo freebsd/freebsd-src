@@ -237,28 +237,27 @@ vmspace_free(vm)
 int
 vmspace_swap_count(struct vmspace *vmspace)
 {
-    vm_map_t map = &vmspace->vm_map;
-    vm_map_entry_t cur;
-    int count = 0;
+	vm_map_t map = &vmspace->vm_map;
+	vm_map_entry_t cur;
+	int count = 0;
 
-    for (cur = map->header.next; cur != &map->header; cur = cur->next) {
-	vm_object_t object;
+	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
+		vm_object_t object;
 
-	if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
-	    (object = cur->object.vm_object) != NULL &&
-	    object->type == OBJT_SWAP
-	) {
-	    int n = (cur->end - cur->start) / PAGE_SIZE;
+		if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
+		    (object = cur->object.vm_object) != NULL &&
+		    object->type == OBJT_SWAP
+		) {
+			int n = (cur->end - cur->start) / PAGE_SIZE;
 
-	    if (object->un_pager.swp.swp_bcount) {
-		count += object->un_pager.swp.swp_bcount * SWAP_META_PAGES * n /
-			object->size + 1;
-	    }
+			if (object->un_pager.swp.swp_bcount) {
+				count += object->un_pager.swp.swp_bcount *
+				    SWAP_META_PAGES * n / object->size + 1;
+			}
+		}
 	}
-    }
-    return(count);
+	return(count);
 }
-
 
 /*
  *	vm_map_create:
