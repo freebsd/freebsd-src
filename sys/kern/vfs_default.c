@@ -879,7 +879,7 @@ vfs_stdsync(mp, waitfor, cred, td)
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -896,10 +896,10 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -910,9 +910,9 @@ loop:
 
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return (allerror);
 }
 

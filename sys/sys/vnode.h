@@ -464,11 +464,6 @@ struct vnodeop_desc {
  */
 extern struct vnodeop_desc *vnodeop_descs[];
 
-/*
- * Interlock for scanning list of vnodes attached to a mountpoint
- */
-extern struct mtx mntvnode_mtx;
-
 #define	VOPARG_OFFSETOF(s_type, field)	__offsetof(s_type, field)
 #define	VOPARG_OFFSETTO(s_type, s_offset, struct_p) \
     ((s_type)(((char*)(struct_p)) + (s_offset)))
