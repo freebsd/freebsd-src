@@ -62,7 +62,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "pathnames.h"
 
-void logerr(const char *, ...);
+void logerr(const char *, ...) __printflike(1, 2);
 
 int
 main(int argc, char *argv[])
