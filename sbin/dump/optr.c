@@ -44,19 +44,11 @@ static char sccsid[] = "@(#)optr.c	8.2 (Berkeley) 1/6/94";
 #include <grp.h>
 #include <signal.h>
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#endif
-#include <tzfile.h>
-#ifdef __STDC__
 #include <unistd.h>
-#endif
 #include <utmp.h>
-#ifndef __STDC__
-#include <varargs.h>
-#endif
 
 #include "dump.h"
 #include "pathnames.h"
@@ -511,7 +503,7 @@ lastdump(arg)
 		dt = fstabsearch(dtwalk->dd_name);
 		dumpme = (dt != NULL &&
 		    dt->fs_freq != 0 &&
-		    dtwalk->dd_ddate < tnow - (dt->fs_freq * SECSPERDAY));
+		    dtwalk->dd_ddate < tnow - (dt->fs_freq * 86400));
 		if (arg != 'w' || dumpme)
 			(void) printf(
 			    "%c %8s\t(%6s) Last dump: Level %c, Date %s\n",
