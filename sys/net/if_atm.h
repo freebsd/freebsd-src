@@ -230,9 +230,6 @@ struct atm_pseudohdr {
 				/* XXX: could be 9188 with LLC/SNAP according
 					to comer */
 
-/* user's ioctl hook for raw atm mode */
-#define	SIOCRAWATM	_IOWR('a', 122, int)	/* set driver's raw mode */
-
 /* atm_pseudoioctl: turns on and off RX VCIs  [for internal use only!] */
 struct atm_pseudoioctl {
 	struct atm_pseudohdr aph;

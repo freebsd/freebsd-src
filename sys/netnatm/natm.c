@@ -350,7 +350,6 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
     struct ifnet *ifp, d_thread_t *p)
 {
     struct natmpcb *npcb;
-    struct atm_rawioctl ario;
     int error = 0;
     int s = SPLSOFTNET();
 
@@ -360,31 +359,12 @@ natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 	goto out;
     }
 
-    /*
-     * raw atm ioctl.   comes in as a SIOCRAWATM.   we convert it to
-     * SIOCXRAWATM and pass it to the driver.
-     */
-    if (cmd == SIOCRAWATM) {
-        if (npcb->npcb_ifp == NULL) {
-	    error = ENOTCONN;
-	    goto out;
-        }
-        ario.npcb = npcb;
-        ario.rawvalue = *((int *)arg);
-        error = npcb->npcb_ifp->if_ioctl(npcb->npcb_ifp, 
-	    SIOCXRAWATM, (caddr_t) &ario);
-	if (!error) {
-	    if (ario.rawvalue) 
-		npcb->npcb_flags |= NPCB_RAW;
-	    else
-		npcb->npcb_flags &= ~(NPCB_RAW);
-	}
-    } else {
-        splx(s);
-	if (ifp == NULL || ifp->if_ioctl == NULL)
-		return (EOPNOTSUPP);
-	return ((*ifp->if_ioctl)(ifp, cmd, arg));
+    splx(s);
+    if (ifp == NULL || ifp->if_ioctl == NULL) {
+	error = EOPNOTSUPP;
+	goto out;
     }
+    return ((*ifp->if_ioctl)(ifp, cmd, arg));
 
  out:
     splx(s);
@@ -736,9 +716,7 @@ natmintr(struct mbuf *m)
 #endif
 #endif
 
-	if (sbspace(&so->so_rcv) > m->m_pkthdr.len ||
-	    ((npcb->npcb_flags & NPCB_RAW) != 0 &&
-	    so->so_rcv.sb_cc < NPCB_RAWCC)) {
+	if (sbspace(&so->so_rcv) > m->m_pkthdr.len) {
 #ifdef NATM_STAT
 		natm_sookcnt++;
 		natm_sookbytes += m->m_pkthdr.len;
