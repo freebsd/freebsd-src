@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.53 1995/12/04 16:48:30 phk Exp $
+ * $Id: kern_sysctl.c,v 1.54 1995/12/05 21:51:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -161,6 +161,34 @@ long hostid;
 /* Some trouble here, if sizeof (int) != sizeof (long) */
 SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
 
+/*
+ * This is really cheating.  These actually live in the libc, something
+ * which I'm not quite sure is a good idea anyway, but in order for 
+ * getnext and friends to actually work, we define dummies here.
+ */
+
+SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RW, "", 0, "");
+SYSCTL_INT(_user, USER_BC_BASE_MAX, bc_base_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_DIM_MAX, bc_dim_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_SCALE_MAX, bc_scale_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_BC_STRING_MAX, bc_string_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_COLL_WEIGHTS_MAX, coll_weights_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_EXPR_NEST_MAX, expr_nest_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_LINE_MAX, line_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_RE_DUP_MAX, re_dup_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_VERSION, posix2_version, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_C_BIND, posix2_c_bind, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_C_DEV, posix2_c_dev, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_CHAR_TERM, posix2_char_term, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_FORT_DEV, posix2_fort_dev, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_FORT_RUN, posix2_fort_run, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_LOCALEDEF, posix2_localedef, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_SW_DEV, posix2_sw_dev, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_UPE, posix2_upe, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RW, 0, 0, "");
+SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RW, 0, 0, "");
+
+
 /* 
  * End of MIB definitions.
  */
@@ -230,11 +258,19 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_order, &sysctl_);
 /*
  * "Staff-functions"
  *
+ * These functions implement a presently undocumented interface 
+ * used by the sysctl program to walk the tree, and get the type
+ * so it can print the value.
+ * This interface is under work and consideration, and should probably
+ * be killed with a big axe by the first person who can find the time.
+ * (be aware though, that the proper interface isn't as obvious as it
+ * may seem, there are various conflicting requirements.
+ *
  * {0,0}	printf the entire MIB-tree.
  * {0,1,...}	return the name of the "..." OID.
  * {0,2,...}	return the next OID.
  * {0,3}	return the OID of the name in "new"
- * {0,4,...}	return the format info for the "..." OID.
+ * {0,4,...}	return the kind & format info for the "..." OID.
  */
 
 static void
@@ -426,9 +462,7 @@ sysctl_sysctl_next SYSCTL_HANDLER_ARGS
 	i = sysctl_sysctl_next_ls (lsp, name, namelen, newoid, &j, 1, &oid);
 	if (i)
 		return ENOENT;
-	error = SYSCTL_OUT(req, &oid->oid_kind, sizeof oid->oid_kind);
-	if (!error)
-		error =SYSCTL_OUT(req, newoid, j * sizeof (int));
+	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
 	return (error);
 }
 
@@ -522,9 +556,7 @@ sysctl_sysctl_name2oid SYSCTL_HANDLER_ARGS
 	if (error)
 		return (error);
 
-	error = SYSCTL_OUT(req, &op->oid_kind, sizeof op->oid_kind);
-	if (!error)
-		error = SYSCTL_OUT(req, oid, len * sizeof *oid);
+	error = SYSCTL_OUT(req, oid, len * sizeof *oid);
 	return (error);
 }
 
@@ -534,7 +566,7 @@ SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW, 0, 0,
 static int
 sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
 {
-	int *name = (int *) arg1;
+	int *name = (int *) arg1, error;
 	u_int namelen = arg2;
 	int indx, j;
 	struct sysctl_oid **oidpp;
@@ -551,7 +583,7 @@ sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
 				if ((*oidpp)->oid_handler)
 					goto found;
 				if (indx == namelen)
-					return ENOENT;
+					goto found;
 				lsp = (struct linker_set*)(*oidpp)->oid_arg1;
 				j = lsp->ls_length;
 				oidpp = (struct sysctl_oid **)lsp->ls_items;
@@ -568,8 +600,12 @@ sysctl_sysctl_oidfmt SYSCTL_HANDLER_ARGS
 found:
 	if (!(*oidpp)->oid_fmt)
 		return ENOENT;
-	return (SYSCTL_OUT(req, (*oidpp)->oid_fmt, 
-		strlen((*oidpp)->oid_fmt)+1));
+	error = SYSCTL_OUT(req, 
+		&(*oidpp)->oid_kind, sizeof((*oidpp)->oid_kind));
+	if (!error)
+		error = SYSCTL_OUT(req, (*oidpp)->oid_fmt, 
+			strlen((*oidpp)->oid_fmt)+1);
+	return (error);
 }
 
 
