@@ -160,6 +160,7 @@ installUpgrade(dialogMenuItem *self)
 	return installUpgradeNonInteractive(self);
 
     variable_set2(SYSTEM_STATE, "upgrade", 0);
+    dialog_clear();
     systemDisplayHelp("UPGRADE");
 
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
@@ -198,7 +199,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		       "properly probed at boot time.  See the Hardware Guide on the\n"
 		       "Documentation menu for clues on diagnosing this type of problem.");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	else {
 	    /* Enable all the drives before we start */
@@ -218,7 +219,7 @@ installUpgrade(dialogMenuItem *self)
 	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
 		       "aborted.");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
 	/* Don't write out MBR info */
@@ -227,7 +228,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
 	msgNotify("Updating /stand on root filesystem");
@@ -237,7 +238,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		       "root partition or the way it's mounted if this doesn't work.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	chdir("/");
 	installEnvironment();
@@ -311,7 +312,7 @@ media:
 	    goto media;
 	}
 	else
-	    return DITEM_FAILURE | DITEM_REDRAW;
+	    return DITEM_FAILURE | DITEM_REDRAW | DITEM_RESTORE;
     }
     
     msgNotify("Beginning extraction of distributions..");
@@ -363,7 +364,7 @@ media:
 	       "using the old \"compatibility\" slice, you may also wish to update it to\n"
 	       "use a fully qualified slice name in order to avoid warnings on startup.\n\n"
 	       "When you're ready to reboot into the new system, simply exit the installation.");
-    return DITEM_SUCCESS | DITEM_REDRAW;
+    return DITEM_SUCCESS | DITEM_REDRAW | DITEM_RESTORE;
 }
 
 static int
