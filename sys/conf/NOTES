@@ -1793,6 +1793,7 @@ hint.gusc.0.flags="0x13"
 #
 # Miscellaneous hardware:
 #
+# scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
@@ -1844,7 +1845,10 @@ hint.gusc.0.flags="0x13"
 device		mcd      
 hint.mcd.0.at="isa"
 hint.mcd.0.port="0x300"
-
+# for the Sony CDU31/33A CDROM
+device		scd
+hint.scd.0.at="isa"
+hint.scd.0.port="0x230"
 device		joy			# PnP aware, hints for nonpnp only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"

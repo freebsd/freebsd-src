@@ -43,12 +43,6 @@ typedef unsigned char	bcd_t;
 #define	S_msf(msf)	msf[1]
 #define	F_msf(msf)	msf[2]
 
-#define	IS_ATTENTION(port)	((inb(port+IREG_STATUS) & SBIT_ATTENTION) != 0)
-#define	IS_BUSY(port)		((inb(port+IREG_STATUS) & SBIT_BUSY) != 0)
-#define	IS_DATA_RDY(port)	((inb(port+IREG_STATUS) & SBIT_DATA_READY) != 0)
-#define	STATUS_BIT(port, bit)	((inb(port+IREG_STATUS) & (bit)) != 0)
-#define	FSTATUS_BIT(port, bit)	((inb(port+IREG_FSTATUS) & (bit)) != 0)
-
 #define OREG_COMMAND	0
 #define OREG_WPARAMS	1
 #define OREG_CONTROL	3
