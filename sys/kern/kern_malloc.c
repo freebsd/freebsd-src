@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.4 1994/10/02 17:35:17 phk Exp $
+ * $Id: kern_malloc.c,v 1.5 1994/10/09 07:34:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -112,7 +112,7 @@ malloc(size, type, flags)
 #endif
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
-	s = splimp();
+	s = splhigh();
 #ifdef KMEMSTATS
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_NOWAIT) {
@@ -267,7 +267,7 @@ free(addr, type)
 	kup = btokup(addr);
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
-	s = splimp();
+	s = splhigh();
 #ifdef DIAGNOSTIC
 	/*
 	 * Check for returns of data that do not point to the
