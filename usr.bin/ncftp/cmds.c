@@ -42,6 +42,7 @@ str32				curtypename;		/* name of file transfer type */
 int					verbose; 			/* verbosity level of output */
 int					mprompt;			/* interactively prompt on m* cmds */
 int					passivemode;		/* no reverse FTP connections */
+int					restricted_data_ports;		/* high port range */
 int					debug;				/* debugging level */
 int					options;			/* used during socket creation */
 int					macnum;				/* number of defined macros */
@@ -2215,9 +2216,16 @@ int unimpl(int argc, char **argv)
 int setpassive(int argc, char **argv)
 {
 	passivemode = !passivemode;
-	printf( "Passive mode %s.\n", (passivemode ? "ON" : "OFF") );
+	printf("Passive mode %s.\n", (passivemode ? "ON" : "OFF"));
 	return NOERR;
 }
 
+int setrestrict(int argc, char **argv)
+{
+	restricted_data_ports = !restricted_data_ports;
+	printf("Data port range restrictions %s.\n",
+	       (restricted_data_ports ? "ON" : "OFF"));
+	return NOERR;
+}
 
 /* eof cmds.c */

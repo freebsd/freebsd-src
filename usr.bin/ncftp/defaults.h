@@ -52,6 +52,10 @@
 #define	dPASSIVE 0				/* Use PORT for more portability... */
 #endif
 
+#ifndef	dRESTRICT
+#define	dRESTRICT 1				/* should be safe to be 1 */
+#endif
+
 #ifndef dVERBOSE				/* V_QUIET, V_ERRS, V_TERSE, V_VERBOSE */
 #define dVERBOSE V_TERSE
 #endif

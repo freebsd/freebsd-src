@@ -105,6 +105,7 @@ extern struct macel			macros[];
 extern struct lslist		*lshead, *lstail;
 extern int					is_ls;
 extern int					passivemode;
+extern int					restricted_data_ports;
 
 #ifdef GATEWAY
 extern string				gateway;
@@ -1702,6 +1703,8 @@ int initconn(void)
 	char				*cp;
 	int					a1, a2, a3, a4, p1, p2;
 	unsigned char		n[6];
+	int			count;
+	static u_short		last_port = FTP_DATA_BOTTOM;
   
   	oldintr = Signal(SIGINT, SIG_IGN);
 
@@ -1791,9 +1794,6 @@ TryPort:
 	rval = 0;
 
 noport:
-	data_addr = myctladdr;
-	if (sendport)
-		data_addr.sin_port = 0;	/* let system pick one */ 
 	if (data != -1)
 		(void) close (data);
 	data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1804,20 +1804,57 @@ noport:
 		rval = 1;  goto Return;
 	}
 
-	if (!sendport)
-		if (setsockopt(data, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof (on)) < 0) {
+	data_addr = myctladdr;
+	if (sendport) {
+		if (restricted_data_ports) {
+			for (count = 0;
+			     count < FTP_DATA_TOP - FTP_DATA_BOTTOM;
+			     count++) {
+				last_port++;
+				if (last_port < FTP_DATA_BOTTOM ||
+				    last_port > FTP_DATA_TOP)
+					last_port = FTP_DATA_BOTTOM;
+
+				data_addr.sin_port = htons(last_port);
+#ifdef SOCKS
+				if (Rbind(data,&data_addr,sizeof data_addr,
+					  hisctladdr.sin_addr.s_addr) <0) {
+#else
+				if (Bind(data,&data_addr,sizeof data_addr) <0) {
+#endif
+					if (errno == EADDRINUSE)
+						continue;
+					else {
+						warn("bind");
+						goto bad;
+					}
+				}
+				break;
+			}
+			if (count >= FTP_DATA_TOP-FTP_DATA_BOTTOM) {
+				PERROR("initconn", "bind");
+				goto bad;
+			}
+		} else {
+			data_addr.sin_port = 0;	/* use any port */
+#ifdef	SOCKS
+			if (Rbind(data,&data_addr,sizeof data_addr,
+				  hisctladdr.sin_addr.s_addr) <0) {
+#else
+			if (Bind(data,&data_addr, sizeof data_addr) <0) {
+#endif
+				PERROR("initconn", "bind");
+				goto bad;
+			}
+		}
+	} else {
+		if (setsockopt(data, SOL_SOCKET, SO_REUSEADDR, (char *)&on,
+			       sizeof (on)) < 0) {
 			PERROR("initconn", "setsockopt (reuse address)");
 			goto bad;
 		}
-
-#ifdef SOCKS
-	if (Rbind(data, (struct sockaddr *)&data_addr, sizeof (data_addr), hisctladdr.sin_addr.s_addr) < 0) {
-#else
-	if (Bind(data, &data_addr, sizeof (data_addr)) < 0) {
-#endif
-		PERROR("initconn", "bind");
-		goto bad;
 	}
+
 #ifdef LINGER	/* If puts don't complete, you could try this. */
 	{
 		struct linger li;

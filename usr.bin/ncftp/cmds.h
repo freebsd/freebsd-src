@@ -122,6 +122,7 @@ long GetDateSizeFromLSLine(char *fName, unsigned long *mod_time);
 long GetDateAndSize(char *fName, unsigned long *mod_time);
 int SetTypeByNumber(int i);
 int setpassive(int argc, char **argv);
+int setrestrict(int argc, char **argv);
 
 
 /* In util.c: */
