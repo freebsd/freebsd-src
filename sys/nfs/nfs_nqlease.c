@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_nqlease.c,v 1.15 1995/08/24 11:04:02 davidg Exp $
+ * $Id: nfs_nqlease.c,v 1.16 1995/10/29 15:32:55 phk Exp $
  */
 
 /*
@@ -79,10 +79,23 @@ int nqsrv_clockskew = NQ_CLOCKSKEW;
 int nqsrv_writeslack = NQ_WRITESLACK;
 int nqsrv_maxlease = NQ_MAXLEASE;
 int nqsrv_maxnumlease = NQ_MAXNUMLEASE;
-void nqsrv_instimeq(), nqsrv_send_eviction(), nfs_sndunlock();
-void nqsrv_unlocklease(), nqsrv_waitfor_expiry(), nfsrv_slpderef();
-void nqsrv_addhost(), nqsrv_locklease(), nqnfs_serverd();
-void nqnfs_clientlease();
+
+struct vop_lease_args;
+
+extern void	nqnfs_lease_check __P((struct vnode *vp, struct proc *p,
+				       struct ucred *cred, int flag));
+extern void	nqnfs_lease_updatetime __P((int deltat));
+extern int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
+extern int	nqnfs_vop_lease_check __P((struct vop_lease_args *ap));
+extern void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
+				   struct mbuf *nam));
+extern void	nqsrv_instimeq __P((struct nqlease *lp, u_long duration));
+extern void	nqsrv_locklease __P((struct nqlease *lp));
+extern void	nqsrv_send_eviction __P((struct vnode *vp, struct nqlease *lp,
+					 struct nfssvc_sock *slp,
+					 struct mbuf *nam, struct ucred *cred));
+extern void	nqsrv_unlocklease __P((struct nqlease *lp));
+extern void	nqsrv_waitfor_expiry __P((struct nqlease *lp));
 
 /*
  * Signifies which rpcs can have piggybacked lease requests
