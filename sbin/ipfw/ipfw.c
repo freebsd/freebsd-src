@@ -80,7 +80,7 @@ char	action_tab[][MAXSTR]={
 #define A_ZERO		7 
 "l",
 #define A_LIST		8 
-"p",
+"po",
 #define A_POLICY	9 
 "",
 #define A_NONE		10
