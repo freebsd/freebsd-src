@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.6 1998/11/07 14:35:41 nsouch Exp $
+ *	$Id: if_plip.c,v 1.7 1999/01/09 18:10:37 nsouch Exp $
  */
 
 /*
@@ -101,6 +101,8 @@
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/nlpt.h>
 
+#include "opt_plip.h"
+
 #ifndef LPMTU			/* MTU for the lp# interfaces */
 #define	LPMTU	1500
 #endif
@@ -129,11 +131,7 @@
 
 #define	LPIPTBLSIZE	256	/* Size of octet translation table */
 
-#ifndef DEBUG
-#define DEBUG
-#endif
-
-#ifndef DEBUG
+#ifndef PLIP_DEBUG
 #define lprintf (void)
 #else
 #define lprintf		if (lptflag) printf
