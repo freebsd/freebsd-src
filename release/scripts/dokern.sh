@@ -54,7 +54,11 @@ sed	-e '/	pci$/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/atapist/d' \
+	-e '/ugen/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
 	-e '/urio/d' \
+	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
@@ -84,6 +88,7 @@ sed	-e '/pty/d' \
 	-e '/uhid/d' \
 	-e '/ulpt/d' \
 	-e '/urio/d' \
+	-e '/uscanner/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
@@ -128,6 +133,7 @@ sed	-e '/pty/d' \
 	-e '/umass/d' \
 	-e '/ums/d' \
 	-e '/urio/d' \
+	-e '/uscanner/d' \
 	-e '/aue/d' \
 	-e '/cue/d' \
 	-e '/kue/d' \
