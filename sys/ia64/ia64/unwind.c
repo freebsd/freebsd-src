@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003, 2004 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,15 +27,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 
 #include <machine/frame.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/unwind.h>
 
 #include <uwx.h>
@@ -60,8 +61,8 @@ LIST_HEAD(unw_table_list, unw_table);
 
 static struct unw_table_list unw_tables;
 
-#ifdef DDB
-#define	DDBHEAPSZ	8192
+#ifdef KDB
+#define	KDBHEAPSZ	8192
 
 struct mhdr {
 	uint32_t	sig;
@@ -72,35 +73,33 @@ struct mhdr {
 	int32_t		prev;
 };
 
-extern int db_active;
-
-static struct mhdr *ddbheap;
-#endif /* DDB */
+static struct mhdr *kdbheap;
+#endif /* KDB */
 
 static void *
 unw_alloc(size_t sz)
 {
-#ifdef DDB
+#ifdef KDB
 	struct mhdr *hdr, *hfree;
 
-	if (db_active) {
+	if (kdb_active) {
 		sz = (sz + 15) >> 4;
-		hdr = ddbheap;
+		hdr = kdbheap;
 		while (hdr->sig != MSIG_FREE || hdr->size < sz) {
 			if (hdr->next == -1)
 				return (NULL);
-			hdr = ddbheap + hdr->next;
+			hdr = kdbheap + hdr->next;
 		}
 		if (hdr->size > sz + 1) {
 			hfree = hdr + sz + 1;
 			hfree->sig = MSIG_FREE;
 			hfree->size = hdr->size - sz - 1;
-			hfree->prev = hdr - ddbheap;
+			hfree->prev = hdr - kdbheap;
 			hfree->next = hdr->next;
 			hdr->size = sz;
-			hdr->next = hfree - ddbheap;
+			hdr->next = hfree - kdbheap;
 			if (hfree->next >= 0) {
-				hfree = ddbheap + hfree->next;
+				hfree = kdbheap + hfree->next;
 				hfree->prev = hdr->next;
 			}
 		}
@@ -114,30 +113,30 @@ unw_alloc(size_t sz)
 static void
 unw_free(void *p)
 {
-#ifdef DDB
+#ifdef KDB
 	struct mhdr *hdr, *hfree;
 
-	if (db_active) {
+	if (kdb_active) {
 		hdr = (struct mhdr*)p - 1;
 		if (hdr->sig != MSIG_USED)
 			return;
 		hdr->sig = MSIG_FREE;
-		if (hdr->prev >= 0 && ddbheap[hdr->prev].sig == MSIG_FREE) {
-			hfree = ddbheap + hdr->prev;
+		if (hdr->prev >= 0 && kdbheap[hdr->prev].sig == MSIG_FREE) {
+			hfree = kdbheap + hdr->prev;
 			hfree->size += hdr->size + 1;
 			hfree->next = hdr->next;
 			if (hdr->next >= 0) {
-				hfree = ddbheap + hdr->next;
+				hfree = kdbheap + hdr->next;
 				hfree->prev = hdr->prev;
 			}
 		} else if (hdr->next >= 0 &&
-		    ddbheap[hdr->next].sig == MSIG_FREE) {
-			hfree = ddbheap + hdr->next;
+		    kdbheap[hdr->next].sig == MSIG_FREE) {
+			hfree = kdbheap + hdr->next;
 			hdr->size += hfree->size + 1;
 			hdr->next = hfree->next;
 			if (hdr->next >= 0) {
-				hfree = ddbheap + hdr->next;
-				hfree->prev = hdr - ddbheap;
+				hfree = kdbheap + hdr->next;
+				hfree->prev = hdr - kdbheap;
 			}
 		}
 		return;
@@ -158,11 +157,101 @@ unw_table_lookup(uint64_t ip)
 	return (NULL);
 }
 
+static uint64_t
+unw_copyin_from_frame(struct trapframe *tf, uint64_t from)
+{
+	uint64_t val;
+	int reg;
+
+	if (from == UWX_REG_AR_PFS)
+		val = tf->tf_special.pfs;
+	else if (from == UWX_REG_PREDS)
+		val = tf->tf_special.pr;
+	else if (from == UWX_REG_AR_RNAT)
+		val = tf->tf_special.rnat;
+	else if (from == UWX_REG_AR_UNAT)
+		val = tf->tf_special.unat;
+	else if (from >= UWX_REG_GR(0) && from <= UWX_REG_GR(127)) {
+		reg = from - UWX_REG_GR(0);
+		if (reg == 1)
+			val = tf->tf_special.gp;
+		else if (reg == 12)
+			val = tf->tf_special.sp;
+		else if (reg == 13)
+			val = tf->tf_special.tp;
+		else if (reg >= 2 && reg <= 3)
+			val = (&tf->tf_scratch.gr2)[reg - 2];
+		else if (reg >= 8 && reg <= 11)
+			val = (&tf->tf_scratch.gr8)[reg - 8];
+		else if (reg >= 14 && reg <= 31)
+			val = (&tf->tf_scratch.gr14)[reg - 14];
+		else
+			goto oops;
+	} else if (from >= UWX_REG_BR(0) && from <= UWX_REG_BR(7)) {
+		reg = from - UWX_REG_BR(0);
+		if (reg == 0)
+			val = tf->tf_special.rp;
+		else if (reg >= 6 && reg <= 7)
+			val = (&tf->tf_scratch.br6)[reg - 6];
+		else
+			goto oops;
+	} else
+		goto oops;
+	return (val);
+
+ oops:
+	printf("UNW: %s(%p, %lx)\n", __func__, tf, from);
+	return (0UL);
+}
+
+static uint64_t
+unw_copyin_from_pcb(struct pcb *pcb, uint64_t from)
+{
+	uint64_t val;
+	int reg;
+
+	if (from == UWX_REG_AR_PFS)
+		val = pcb->pcb_special.pfs;
+	else if (from == UWX_REG_PREDS)
+		val = pcb->pcb_special.pr;
+	else if (from == UWX_REG_AR_RNAT)
+		val = pcb->pcb_special.rnat;
+	else if (from == UWX_REG_AR_UNAT)
+		val = pcb->pcb_special.unat;
+	else if (from >= UWX_REG_GR(0) && from <= UWX_REG_GR(127)) {
+		reg = from - UWX_REG_GR(0);
+		if (reg == 1)
+			val = pcb->pcb_special.gp;
+		else if (reg == 12)
+			val = pcb->pcb_special.sp;
+		else if (reg == 13)
+			val = pcb->pcb_special.tp;
+		else if (reg >= 4 && reg <= 7)
+			val = (&pcb->pcb_preserved.gr4)[reg - 4];
+		else
+			goto oops;
+	} else if (from >= UWX_REG_BR(0) && from <= UWX_REG_BR(7)) {
+		reg = from - UWX_REG_BR(0);
+		if (reg == 0)
+			val = pcb->pcb_special.rp;
+		else if (reg >= 1 && reg <= 5)
+			val = (&pcb->pcb_preserved.br1)[reg - 1];
+		else
+			goto oops;
+	} else
+		goto oops;
+	return (val);
+
+ oops:
+	printf("UNW: %s(%p, %lx)\n", __func__, pcb, from);
+	return (0UL);
+}
+
 static int
 unw_cb_copyin(int req, char *to, uint64_t from, int len, intptr_t tok)
 {
 	struct unw_regstate *rs = (void*)tok;
-	int reg;
+	uint64_t val;
 
 	switch (req) {
 	case UWX_COPYIN_UINFO:
@@ -174,49 +263,19 @@ unw_cb_copyin(int req, char *to, uint64_t from, int len, intptr_t tok)
 		*((uint64_t*)to) = *((uint64_t*)from);
 		return (8);
 	case UWX_COPYIN_REG:
-		if (from == UWX_REG_AR_PFS)
-			from = rs->frame->tf_special.pfs;
-		else if (from == UWX_REG_PREDS)
-			from = rs->frame->tf_special.pr;
-		else if (from == UWX_REG_AR_RNAT)
-			from = rs->frame->tf_special.rnat;
-		else if (from == UWX_REG_AR_UNAT)
-			from = rs->frame->tf_special.unat;
-		else if (from >= UWX_REG_GR(0) && from <= UWX_REG_GR(127)) {
-			reg = from - UWX_REG_GR(0);
-			if (reg == 1)
-				from = rs->frame->tf_special.gp;
-			else if (reg == 12)
-				from = rs->frame->tf_special.sp;
-			else if (reg == 13)
-				from = rs->frame->tf_special.tp;
-			else if (reg >= 2 && reg <= 3)
-				from = (&rs->frame->tf_scratch.gr2)[reg - 2];
-			else if (reg >= 8 && reg <= 11)
-				from = (&rs->frame->tf_scratch.gr8)[reg - 8];
-			else if (reg >= 14 && reg <= 31)
-				from = (&rs->frame->tf_scratch.gr14)[reg - 14];
-			else
-				goto oops;
-		} else if (from >= UWX_REG_BR(0) && from <= UWX_REG_BR(7)) {
-			reg = from - UWX_REG_BR(0);
-			if (reg == 0)
-				from = rs->frame->tf_special.rp;
-			else if (reg >= 6 && reg <= 7)
-				from = (&rs->frame->tf_scratch.br6)[reg - 6];
-			else
-				goto oops;
-		} else
+		if (rs->frame != NULL)
+			val = unw_copyin_from_frame(rs->frame, from);
+		else if (rs->pcb != NULL)
+			val = unw_copyin_from_pcb(rs->pcb, from);
+		else
 			goto oops;
-
-		*((uint64_t*)to) = from;
+		*((uint64_t*)to) = val;
 		return (len);
 	}
 
  oops:
 	printf("UNW: %s(%d, %p, %lx, %d, %lx)\n", __func__, req, to, from,
 	    len, tok);
-
 	return (0);
 }
 
@@ -249,17 +308,13 @@ unw_cb_lookup(int req, uint64_t ip, intptr_t tok, uint64_t **vec)
 }
 
 int
-unw_create(struct unw_regstate *rs, struct trapframe *tf)
+unw_create_from_frame(struct unw_regstate *rs, struct trapframe *tf)
 {
-	struct unw_table *ut;
-	uint64_t bsp;
-	int nats, sof, uwxerr;
-
-	ut = unw_table_lookup(tf->tf_special.iip);
-	if (ut == NULL)
-		return (ENOENT);
+	uint64_t bsp, ip;
+	int uwxerr;
 
 	rs->frame = tf;
+	rs->pcb = NULL;
 	rs->env = uwx_init();
 	if (rs->env == NULL)
 		return (ENOMEM);
@@ -270,10 +325,44 @@ unw_create(struct unw_regstate *rs, struct trapframe *tf)
 		return (EINVAL);		/* XXX */
 
 	bsp = tf->tf_special.bspstore + tf->tf_special.ndirty;
-	sof = (int)(tf->tf_special.cfm & 0x7f);
-	nats = (sof + 63 - ((int)(bsp >> 3) & 0x3f)) / 63;
-	uwxerr = uwx_init_context(rs->env, tf->tf_special.iip,
-	    tf->tf_special.sp, bsp - ((sof + nats) << 3), tf->tf_special.cfm);
+	bsp = ia64_bsp_adjust(bsp, -IA64_CFM_SOF(tf->tf_special.cfm));
+	ip = tf->tf_special.iip + ((tf->tf_special.psr >> 41) & 3);
+
+	uwxerr = uwx_init_context(rs->env, ip, tf->tf_special.sp, bsp,
+	    tf->tf_special.cfm);
+
+	return ((uwxerr) ? EINVAL : 0);		/* XXX */
+}
+
+int
+unw_create_from_pcb(struct unw_regstate *rs, struct pcb *pcb)
+{
+	uint64_t bsp, cfm, ip;
+	int uwxerr;
+
+	rs->frame = NULL;
+	rs->pcb = pcb;
+	rs->env = uwx_init();
+	if (rs->env == NULL)
+		return (ENOMEM);
+
+	uwxerr = uwx_register_callbacks(rs->env, (intptr_t)rs,
+	    unw_cb_copyin, unw_cb_lookup);
+	if (uwxerr)
+		return (EINVAL);		/* XXX */
+
+	bsp = pcb->pcb_special.bspstore;
+	if (pcb->pcb_special.__spare == ~0UL) {
+		ip = pcb->pcb_special.iip + ((pcb->pcb_special.psr >> 41) & 3);
+		cfm = pcb->pcb_special.cfm;
+		bsp += pcb->pcb_special.ndirty;
+		bsp = ia64_bsp_adjust(bsp, -IA64_CFM_SOF(cfm));
+	} else {
+		ip = pcb->pcb_special.rp;
+		cfm = pcb->pcb_special.pfs;
+		bsp = ia64_bsp_adjust(bsp, -IA64_CFM_SOL(cfm));
+	}
+	uwxerr = uwx_init_context(rs->env, ip, pcb->pcb_special.sp, bsp, cfm);
 
 	return ((uwxerr) ? EINVAL : 0);		/* XXX */
 }
@@ -372,12 +461,12 @@ unw_initialize(void *dummy __unused)
 
 	LIST_INIT(&unw_tables);
 	uwx_register_alloc_cb(unw_alloc, unw_free);
-#ifdef DDB
-	ddbheap = malloc(DDBHEAPSZ, M_UNWIND, M_WAITOK);
-	ddbheap->sig = MSIG_FREE;
-	ddbheap->size = (DDBHEAPSZ - sizeof(struct mhdr)) >> 4;
-	ddbheap->next = -1;
-	ddbheap->prev = -1;
+#ifdef KDB
+	kdbheap = malloc(KDBHEAPSZ, M_UNWIND, M_WAITOK);
+	kdbheap->sig = MSIG_FREE;
+	kdbheap->size = (KDBHEAPSZ - sizeof(struct mhdr)) >> 4;
+	kdbheap->next = -1;
+	kdbheap->prev = -1;
 #endif
 }
 SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, unw_initialize, 0);

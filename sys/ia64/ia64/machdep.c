@@ -35,6 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
+#include <sys/kdb.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/imgact.h>
@@ -126,8 +127,7 @@ SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
     "The CPU family name");
 
 #ifdef DDB
-/* start and end of kernel symbol table */
-void	*ksym_start, *ksym_end;
+extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 static void cpu_startup(void *);
@@ -586,8 +586,8 @@ ia64_init(void)
 	 */
 	kernstart = trunc_page(kernel_text);
 #ifdef DDB
-	ksym_start = (void *)bootinfo.bi_symtab;
-	ksym_end = (void *)bootinfo.bi_esymtab;
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
@@ -766,13 +766,13 @@ ia64_init(void)
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
 	 */
-#ifdef DDB
 	kdb_init();
-	if (boothowto & RB_KDB) {
-		printf("Boot flags requested debugger\n");
-		breakpoint();
-	}
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter("Boot flags requested debugger\n");
 #endif
+
 	ia64_set_tpr(0);
 
 	/*
@@ -1379,14 +1379,6 @@ ia64_highfp_save(struct thread *td)
 	KASSERT(thr == td, ("Inconsistent high FP state"));
 	return (1);
 }
-
-#ifndef DDB
-void
-Debugger(const char *msg)
-{
-	printf("Debugger(\"%s\") called.\n", msg);
-}
-#endif /* no DDB */
 
 int
 sysbeep(int pitch, int period)

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
@@ -73,10 +74,6 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
-#endif
-
-#ifdef DDB
-#include <ddb/ddb.h>
 #endif
 
 static int print_usertrap = 0;
@@ -316,8 +313,8 @@ trap_panic(int vector, struct trapframe *tf)
 {
 
 	printtrap(vector, tf, 1, TRAPF_USERMODE(tf));
-#ifdef DDB
-	kdb_trap(vector, tf);
+#ifdef KDB
+	kdb_trap(vector, 0, tf);
 #endif
 	panic("trap");
 }
@@ -374,6 +371,10 @@ trap(int vector, struct trapframe *tf)
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
+#ifdef KDB
+		if (kdb_active)
+			kdb_reenter();
+#endif
 	}
 
 	sig = 0;
@@ -498,8 +499,8 @@ trap(int vector, struct trapframe *tf)
 			} else
 				sig = SIGILL;
 		} else {
-#ifdef DDB
-			if (kdb_trap(vector, tf))
+#ifdef KDB
+			if (kdb_trap(vector, 0, tf))
 				return;
 			panic("trap");
 #else
@@ -663,8 +664,8 @@ trap(int vector, struct trapframe *tf)
 	case IA64_VEC_SINGLE_STEP_TRAP:
 		tf->tf_special.psr &= ~IA64_PSR_SS;
 		if (!user) {
-#ifdef DDB
-			if (kdb_trap(vector, tf))
+#ifdef KDB
+			if (kdb_trap(vector, 0, tf))
 				return;
 			panic("trap");
 #else
@@ -939,9 +940,9 @@ syscall(struct trapframe *tf)
 	atomic_add_int(&cnt.v_syscall, 1);
 
 	td = curthread;
+	td->td_frame = tf;
 	p = td->td_proc;
 
-	td->td_frame = tf;
 	sticks = td->td_sticks;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
