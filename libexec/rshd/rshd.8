@@ -56,7 +56,9 @@ The
 .Nm
 server
 listens for service requests at the port indicated in
-the ``cmd'' service specification; see
+the
+.Dq cmd
+service specification; see
 .Xr services 5 .
 When a service request is received the following protocol
 is initiated:
@@ -87,7 +89,7 @@ and requests the corresponding host name (see
 .Xr gethostbyaddr 3 ,
 .Xr hosts 5
 and
-.Xr named 8 ).
+.Xr named 8 ) .
 If the hostname cannot be determined or the hostname and address do
 not match after verification,
 the dot-notation representation of the host address is used.
@@ -218,6 +220,8 @@ and is not preceded by a flag byte.
 .Xr gethostbyaddr 3 ,
 .Xr rcmd 3 ,
 .Xr ruserok 3 ,
+.Xr auth.conf 5 ,
+.Xr hosts.equiv 5 ,
 .Xr hosts 5 ,
 .Xr login.conf 5 ,
 .Xr nologin 5 ,
@@ -230,13 +234,17 @@ and is not preceded by a flag byte.
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf
-.It Pa $HOME/.rhosts
+.Sm off
+.It Pa Ev $HOME /.rhosts
+.Sm on
 .It Pa /var/run/nologin
 .El
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.  This is
-insecure, but is useful in an ``open'' environment.
+insecure, but is useful in an
+.Dq open
+environment.
 .Pp
 A facility to allow all data exchanges to be encrypted should be
 present.
