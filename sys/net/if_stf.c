@@ -488,7 +488,6 @@ stf_output(ifp, m, dst, rt)
 	}
 	bcopy(ptr, &in4, sizeof(in4));
 
-#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -498,19 +497,8 @@ stf_output(ifp, m, dst, rt)
 		 * try to free it or keep a pointer a to it).
 		 */
 		u_int32_t af = AF_INET6;
-#ifdef HAVE_OLD_BPF
-		struct mbuf m0;
-		
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-		
-		BPF_MTAP(ifp, &m0);
-#else
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-#endif
 	}
-#endif /*NBPFILTER > 0*/
 
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip))
@@ -756,17 +744,7 @@ in_stf_input(m, off)
 		 * try to free it or keep a pointer a to it).
 		 */
 		u_int32_t af = AF_INET6;
-#ifdef HAVE_OLD_BPF
-		struct mbuf m0;
-		
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-		
-		BPF_MTAP(ifp, &m0);
-#else
-		bpf_mtap2(ifp->if_bpf, &af, sizeof(ah), m);
-#endif
+		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
 	/*
