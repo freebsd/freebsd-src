@@ -35,7 +35,7 @@
 .\"     @(#)wc.1	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2002
+.Dd February 23, 2005
 .Dt WC 1
 .Os
 .Sh NAME
@@ -50,11 +50,17 @@ The
 .Nm
 utility displays the number of lines, words, and bytes contained in each
 input
-.Ar file
-(or standard input, by default) to the standard output.
-A line is defined as a string of characters delimited by a <newline>
-character,
-and a word is defined as a string of characters delimited by white space
+.Ar file ,
+or standard input (if no file is specified) to the standard output.
+A line is defined as a string of characters delimited by a
+.Aq newline
+character.
+Characters beyond the final
+.Aq newline
+character will not be included
+in the line count.
+.Pp
+A word is defined as a string of characters delimited by white space
 characters.
 White space characters are the set of characters for which the
 .Xr iswspace 3
@@ -68,6 +74,9 @@ The following options are available:
 .It Fl c
 The number of bytes in each input file
 is written to the standard output.
+This will cancel out any prior usage of the
+.Fl w
+option.
 .It Fl l
 The number of lines in each input file
 is written to the standard output.
@@ -75,6 +84,9 @@ is written to the standard output.
 The number of characters in each input file is written to the standard output.
 If the current locale does not support multibyte characters, this
 is equivalent to the
+.Fl c
+option.
+This will cancel out any prior usage of the
 .Fl c
 option.
 .It Fl w
@@ -85,6 +97,8 @@ is written to the standard output.
 When an option is specified,
 .Nm
 only reports the information requested by that option.
+The order of output always takes the form of line, word,
+byte, and file name.
 The default action is equivalent to specifying the
 .Fl c , l
 and
@@ -93,6 +107,9 @@ options.
 .Pp
 If no files are specified, the standard input is used and no
 file name is displayed.
+The prompt will accept input until receiving EOF, or
+.Bq ^D
+in most environments.
 .Sh ENVIRONMENT
 The
 .Ev LANG , LC_ALL
