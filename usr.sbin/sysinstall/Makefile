@@ -13,13 +13,19 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c kget.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c index.c install.c installUpgrade.c keymap.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c mouse.c \
-	msg.c network.c nfs.c options.c package.c system.c \
+	msg.c network.c nfs.c options.c package.c pccard.c system.c \
 	tape.c tcpip.c termcap.c ufs.c user.c variable.c wizard.c \
 	keymap.h
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
 CFLAGS+= -I${.CURDIR}/../../sys
 CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS
+
+PCCARD?= NO
+
+.if ${PCCARD} == "YES"
+CFLAGS+= -DPCCARD
+.endif
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk -lftpio
@@ -81,6 +87,5 @@ keymap.h:
 	done
 	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
 	mv keymap.tmp keymap.h
-
 
 .include <bsd.prog.mk>

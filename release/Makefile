@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.489 1999/05/23 20:01:20 brian Exp $
+#	$Id: Makefile,v 1.490 1999/05/29 00:42:05 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -24,6 +24,17 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
 #RELEASETAG=RELENG_3
+
+PCCARD?=NO
+
+.if ${PCCARD} == "YES"
+CARDDEV=card0 card1 card2 card3
+KERNCONF=PCCARD
+.else
+CARDDEV=
+KERNCONF=GENERIC
+.endif
+
 
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
@@ -251,7 +262,7 @@ rerelease release:
 	chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf boot_crunch release.[0-9]
+	rm -rf boot_crunch ${.OBJDIR}/boot_crunch.conf release.[0-9]
 
 # Clean out /R and make the directory structure.
 release.1:
@@ -309,6 +320,11 @@ release.3:
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
 	@mkdir -p /stand
+.if ${PCCARD} == "YES"
+	cp ${.CURDIR}/boot_crunch.conf.pccard ${.OBJDIR}/boot_crunch.conf
+.else
+	cp ${.CURDIR}/boot_crunch.conf.generic ${.OBJDIR}/boot_crunch.conf
+.endif
 	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
@@ -317,7 +333,10 @@ release.4:
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
 		( cd $${j}_crunch && \
-		  crunchgen ${.CURDIR}/$${j}_crunch.conf && \
+		  ( ( [ -f ${.CURDIR}/$${j}_crunch.conf ] && \
+		    crunchgen ${.CURDIR}/$${j}_crunch.conf ) || \
+		    ( [ -f ${.OBJDIR}/$${j}_crunch.conf ] && \
+		    crunchgen ${.OBJDIR}/$${j}_crunch.conf ) ) && \
 		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
@@ -435,9 +454,12 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero | \
+		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero ${CARDDEV} | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
+.if ${PCCARD} == "YES"
+	cp ${.CURDIR}/../etc/pccard.conf.sample ${RD}/mfsfd/etc/pccard.conf
+.endif
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
@@ -622,9 +644,15 @@ installCRUNCH:
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
 	@chmod 555 ${DIR}/${CRUNCH}_crunch
-	@for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
-		ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
-	done
+	@if [ -f ${.OBJDIR}/${CRUNCH}_crunch.conf ] ; then \
+		for i in `crunchgen -l ${.OBJDIR}/${CRUNCH}_crunch.conf` ; do \
+			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
+		done \
+	else \
+		for i in `crunchgen -l ${.CURDIR}/${CRUNCH}_crunch.conf` ; do \
+			ln -f ${DIR}/${CRUNCH}_crunch ${DIR}/$$i ; \
+		done \
+	fi
 
 #
 # --==## Compile a kernel by name ${KERNEL} ##==--
@@ -647,7 +675,7 @@ doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${MACHINE_ARCH}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < GENERIC > BOOTMFS
+	  sh ${.CURDIR}/scripts/dokern.sh ${BIGBOOT} < ${KERNCONF} > BOOTMFS
 .if ${MACHINE_ARCH} == "i386"
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
