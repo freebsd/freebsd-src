@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.2 1994/01/16 23:34:17 jkh Exp $
+ *	$Id: mcdreg.h,v 1.3 1994/02/22 08:44:31 rgrimes Exp $
  */
 
 #ifndef MCD_H
@@ -107,10 +107,14 @@ typedef unsigned char	bcd_t;
 #define	MCD_CMDGETVOLINFO	0x10	/* gets mcd_volinfo */
 #define	MCD_CMDGETQCHN		0x20	/* gets mcd_qchninfo */
 #define	MCD_CMDGETSTAT		0x40	/* gets a byte of status */
+
 #define	MCD_CMDSETMODE		0x50	/* set transmission mode, needs byte */
 #define	MCD_MD_RAW		0x60
+#define MCD_MD_BIN_RAW          0x61
 #define	MCD_MD_COOKED		0x01
+#define MCD_MD_BIN_COOKED       0x81
 #define	MCD_MD_TOC		0x05
+
 #define	MCD_CMDSTOPAUDIO	0x70
 #define	MCD_CMDGETVOLUME	0x8E	/* gets mcd_volume */
 #define	MCD_CMDSETVOLUME	0xAE	/* sets mcd_volume */
@@ -119,6 +123,7 @@ typedef unsigned char	bcd_t;
 #define	MCD_CMDCONTINFO		0xDC	/* Get controller info */
 #define	MCD_CMDEJECTDISK	0xF6
 #define	MCD_CMDCLOSETRAY	0xF8
+
 #define	MCD_CMDLOCKDRV		0xFE	/* needs byte */
 #define	MCD_LK_UNLOCK	0x00
 #define	MCD_LK_LOCK	0x01
