@@ -227,8 +227,6 @@ LEAF(switch_trampoline, 0)
  * exception_return: return from trap, exception, or syscall
  */
 
-IMPORT(astpending, 4)
-
 LEAF(exception_return, 1)			/* XXX should be NESTED */
 	br	pv, Ler1
 Ler1:	LDGP(pv)
