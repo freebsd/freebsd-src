@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.61 1996/01/30 12:07:06 ache Exp $
+ *	$Id: mcd.c,v 1.62 1996/01/30 13:15:22 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -186,7 +186,7 @@ static  int     mcd_setflags(int unit,struct mcd_data *cd);
 static	int	mcd_getstat(int unit,int sflg);
 static	int	mcd_send(int unit, int cmd,int nretrys);
 static	void	hsg2msf(int hsg, bcd_t *msf);
-static	int	msf2hsg(bcd_t *msf);
+static  int     msf2hsg(bcd_t *msf, int relative);
 static	int	mcd_volinfo(int unit);
 static	int	mcd_waitrdy(int port,int dly);
 static 	void	mcd_doread(int state, struct mcd_mbx *mbxin);
@@ -701,7 +701,7 @@ int mcdsize(dev_t dev)
 
 	if (mcd_volinfo(unit) == 0) {
 		cd->blksize = MCDBLK;
-		size = msf2hsg(cd->volinfo.vol_msf);
+		size = msf2hsg(cd->volinfo.vol_msf, 0);
 		cd->disksize = size * (MCDBLK/DEV_BSIZE);
 		return 0;
 	}
@@ -942,18 +942,18 @@ static void
 hsg2msf(int hsg, bcd_t *msf)
 {
 	hsg += 150;
-	M_msf(msf) = bin2bcd(hsg / 4500);
-	hsg %= 4500;
-	S_msf(msf) = bin2bcd(hsg / 75);
 	F_msf(msf) = bin2bcd(hsg % 75);
+	hsg /= 75;
+	S_msf(msf) = bin2bcd(hsg % 60);
+	hsg /= 60;
+	M_msf(msf) = bin2bcd(hsg);
 }
 
 static int
-msf2hsg(bcd_t *msf)
+msf2hsg(bcd_t *msf, int relative)
 {
-	return (bcd2bin(M_msf(msf)) * 60 +
-		bcd2bin(S_msf(msf))) * 75 +
-		bcd2bin(F_msf(msf)) - 150;
+	return (bcd2bin(M_msf(msf)) * 60 + bcd2bin(S_msf(msf))) * 75 +
+		bcd2bin(F_msf(msf)) - (!relative) * 150;
 }
 
 static int
@@ -1343,7 +1343,7 @@ mcd_toc_header(int unit, struct ioc_toc_header *th)
 	if ((r = mcd_volinfo(unit)) != 0)
 		return r;
 
-	th->len = msf2hsg(cd->volinfo.vol_msf);
+	th->len = msf2hsg(cd->volinfo.vol_msf, 0);
 	th->starting_track = bcd2bin(cd->volinfo.trk_low);
 	th->ending_track = bcd2bin(cd->volinfo.trk_high);
 
@@ -1481,7 +1481,7 @@ mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te)
 			entries[n].addr.msf.frame = bcd2bin(cd->toc[trk].hd_pos_msf[2]);
 			break;
 		case CD_LBA_FORMAT:
-			entries[n].addr.lba = msf2hsg(cd->toc[trk].hd_pos_msf);
+			entries[n].addr.lba = htonl(msf2hsg(cd->toc[trk].hd_pos_msf, 0));
 			break;
 		}
 		len -= sizeof(struct cd_toc_entry);
@@ -1499,9 +1499,11 @@ mcd_stop(int unit)
 
 	/* Verify current status */
 	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS &&
-	    cd->audio_status != CD_AS_PLAY_PAUSED) {
+	    cd->audio_status != CD_AS_PLAY_PAUSED &&
+	    cd->audio_status != CD_AS_PLAY_COMPLETED) {
 		if (cd->debug)
-			printf("mcd%d: stop attempted when not playing\n", unit);
+			printf("mcd%d: stop attempted when not playing, audio status %d\n",
+				unit, cd->audio_status);
 		return EINVAL;
 	}
 	if (cd->audio_status == CD_AS_PLAY_IN_PROGRESS)
@@ -1539,6 +1541,7 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 	struct mcd_data *cd = mcd_data + unit;
 	struct mcd_qchninfo q;
 	struct cd_sub_channel_info data;
+	int lba;
 
 	if (cd->debug)
 		printf("mcd%d: subchan af=%d, df=%d\n", unit,
@@ -1559,7 +1562,7 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 		return EIO;
 
 	data.header.audio_status = cd->audio_status;
-	data.what.position.data_format = CD_CURRENT_POSITION;
+	data.what.position.data_format = sc->data_format;
 	data.what.position.control = q.control;
 	data.what.position.addr_type = q.addr_type;
 	data.what.position.track_number = bcd2bin(q.trk_no);
@@ -1576,8 +1579,16 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 		data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
 		break;
 	case CD_LBA_FORMAT:
-		data.what.position.reladdr.lba = msf2hsg(q.trk_size_msf);
-		data.what.position.absaddr.lba = msf2hsg(q.hd_pos_msf);
+		lba = msf2hsg(q.trk_size_msf, 1);
+		/*
+		 * Pre-gap has index number of 0, and decreasing MSF
+		 * address.  Must be converted to negative LBA, per
+		 * SCSI spec.
+		 */
+		if (data.what.position.index_number == 0)
+			lba = -lba;
+		data.what.position.reladdr.lba = htonl(lba);
+		data.what.position.absaddr.lba = htonl(msf2hsg(q.hd_pos_msf, 0));
 		break;
 	}
 
@@ -1681,9 +1692,11 @@ mcd_pause(int unit)
 	int rc;
 
 	/* Verify current status */
-	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
+	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS &&
+	    cd->audio_status != CD_AS_PLAY_PAUSED) {
 		if (cd->debug)
-			printf("mcd%d: pause attempted when not playing\n", unit);
+			printf("mcd%d: pause attempted when not playing, audio status %d\n",
+			       unit, cd->audio_status);
 		return EINVAL;
 	}
 
