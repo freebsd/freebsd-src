@@ -151,7 +151,16 @@ ef_parse_dynamic(elf_file_t ef)
 	Elf_Hashelt hashhdr[2];
 /*	int plttype = DT_REL;*/
 	int error;
+	Elf_Off rel_off;
+	Elf_Off rela_off;
+	int rel_sz;
+	int rela_sz;
+	int rel_entry;
+	int rela_entry;
 
+	rel_off = rela_off = 0;
+	rel_sz = rela_sz = 0;
+	rel_entry = rela_entry = 0;
 	for (dp = ef->ef_dyn; dp->d_tag != DT_NULL; dp++) {
 		switch (dp->d_tag) {
 		case DT_HASH:
@@ -187,6 +196,36 @@ ef_parse_dynamic(elf_file_t ef)
 			if (dp->d_un.d_val != sizeof(Elf_Sym))
 				return EFTYPE;
 			break;
+		case DT_REL:
+			if (rel_off != 0)
+				warnx("second DT_REL entry ignored");
+			rel_off = dp->d_un.d_ptr;
+			break;
+		case DT_RELSZ:
+			if (rel_sz != 0)
+				warnx("second DT_RELSZ entry ignored");
+			rel_sz = dp->d_un.d_val;
+			break;
+		case DT_RELENT:
+			if (rel_entry != 0)
+				warnx("second DT_RELENT entry ignored");
+			rel_entry = dp->d_un.d_val;
+			break;
+		case DT_RELA:
+			if (rela_off != 0)
+				warnx("second DT_RELA entry ignored");
+			rela_off = dp->d_un.d_ptr;
+			break;
+		case DT_RELASZ:
+			if (rela_sz != 0)
+				warnx("second DT_RELASZ entry ignored");
+			rela_sz = dp->d_un.d_val;
+			break;
+		case DT_RELAENT:
+			if (rela_entry != 0)
+				warnx("second DT_RELAENT entry ignored");
+			rela_entry = dp->d_un.d_val;
+			break;
 		}
 	}
 	if (ef->ef_symoff == 0) {
@@ -209,6 +248,56 @@ ef_parse_dynamic(elf_file_t ef)
 		(void**)&ef->ef_strtab) != 0) {
 		warnx("can't load .dynstr section");
 		return EIO;
+	}
+	if (rel_off != 0) {
+		if (rel_entry == 0) {
+			warnx("%s: no DT_RELENT for DT_REL", ef->ef_name);
+			return (EFTYPE);
+		}
+		if (rel_entry != sizeof(Elf_Rel)) {
+			warnx("%s: inconsistent DT_RELENT value",
+			    ef->ef_name);
+			return (EFTYPE);
+		}
+		if (rel_sz % rel_entry != 0) {
+			warnx("%s: inconsistent values for DT_RELSZ and "
+			    "DT_RELENT", ef->ef_name);
+			return (EFTYPE);
+		}
+		if (ef_read_entry(ef, ef_get_offset(ef, rel_off), rel_sz,
+		    (void **)&ef->ef_rel) != 0) {
+			warnx("%s: cannot load DT_REL section", ef->ef_name);
+			return (EIO);
+		}
+		ef->ef_relsz = rel_sz / rel_entry;
+		if (ef->ef_verbose)
+			warnx("%s: %d REL entries", ef->ef_name,
+			    ef->ef_relsz);
+	}
+	if (rela_off != 0) {
+		if (rela_entry == 0) {
+			warnx("%s: no DT_RELAENT for DT_RELA", ef->ef_name);
+			return (EFTYPE);
+		}
+		if (rela_entry != sizeof(Elf_Rela)) {
+			warnx("%s: inconsistent DT_RELAENT value",
+			    ef->ef_name);
+			return (EFTYPE);
+		}
+		if (rela_sz % rela_entry != 0) {
+			warnx("%s: inconsistent values for DT_RELASZ and "
+			    "DT_RELAENT", ef->ef_name);
+			return (EFTYPE);
+		}
+		if (ef_read_entry(ef, ef_get_offset(ef, rela_off), rela_sz,
+		    (void **)&ef->ef_rela) != 0) {
+			warnx("%s: cannot load DT_RELA section", ef->ef_name);
+			return (EIO);
+		}
+		ef->ef_relasz = rela_sz / rela_entry;
+		if (ef->ef_verbose)
+			warnx("%s: %d RELA entries", ef->ef_name,
+			    ef->ef_relasz);
 	}
 	return 0;
 }
@@ -259,6 +348,23 @@ ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 }
 
 int
+ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
+{
+	u_long ofs = ef_get_offset(ef, offset);
+	int error;
+
+	if (ofs == 0) {
+		if (ef->ef_verbose)
+			warnx("ef_seg_read(%s): zero offset (%lx:%ld)",
+			    ef->ef_name, (long)offset, ofs);
+		return EFAULT;
+	}
+	if ((error = ef_read(ef, ofs, len, dest)) != 0)
+		return (error);
+	return (ef_reloc(ef, offset, len, dest));
+}
+
+int
 ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 {
 	int error;
@@ -267,6 +373,20 @@ ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
 	if (*ptr == NULL)
 		return ENOMEM;
 	error = ef_seg_read(ef, offset, len, *ptr);
+	if (error)
+		free(*ptr);
+	return error;
+}
+
+int
+ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr)
+{
+	int error;
+
+	*ptr = malloc(len);
+	if (*ptr == NULL)
+		return ENOMEM;
+	error = ef_seg_read_rel(ef, offset, len, *ptr);
 	if (error)
 		free(*ptr);
 	return error;

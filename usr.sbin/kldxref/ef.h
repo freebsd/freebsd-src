@@ -28,6 +28,10 @@ typedef struct elf_file {
 	int		ef_nsegs;
 	Elf_Phdr *	ef_segs[2];
 	int		ef_verbose;
+	Elf_Rel *	ef_rel;			/* relocation table */
+	int		ef_relsz;		/* number of entries */
+	Elf_Rela *	ef_rela;		/* relocation table */
+	int		ef_relasz;		/* number of entries */
 } *elf_file_t;
 
 __BEGIN_DECLS
@@ -35,8 +39,11 @@ int ef_open(const char *, elf_file_t, int);
 int ef_close(elf_file_t ef);
 int ef_read(elf_file_t ef, Elf_Off offset, size_t len, void* dest);
 int ef_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void **ptr);
+int ef_reloc(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
 int ef_seg_read(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
+int ef_seg_read_rel(elf_file_t ef, Elf_Off offset, size_t len, void *dest);
 int ef_seg_read_entry(elf_file_t ef, Elf_Off offset, size_t len, void**ptr);
+int ef_seg_read_entry_rel(elf_file_t ef, Elf_Off offset, size_t len, void**ptr);
 int ef_lookup_symbol(elf_file_t ef, const char* name, Elf_Sym** sym);
 __END_DECLS
 
