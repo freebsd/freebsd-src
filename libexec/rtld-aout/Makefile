@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.16 1996/01/11 03:45:55 jdp Exp $
+#	$Id: Makefile,v 1.17 1996/01/11 17:27:16 phk Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -28,6 +28,6 @@ realinstall:
 	-ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
 	mv ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
 	chflags schg ${DESTDIR}${BINDIR}/${PROG}
-	rm ${DESTDIR}${BINDIR}/${PROG}.old
+	-rm ${DESTDIR}${BINDIR}/${PROG}.old
 
 .include <bsd.prog.mk>
