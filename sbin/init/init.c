@@ -737,8 +737,6 @@ runcom(void)
 #ifdef LOGIN_CAP
 		setprocresources(RESOURCE_RC);
 #endif
-		execv(_PATH_RUNCOM, argv + 1);
-		warning("can't exec %s: %m", _PATH_RUNCOM);
 		execv(_PATH_BSHELL, argv);
 		stall("can't exec %s for %s: %m", _PATH_BSHELL, _PATH_RUNCOM);
 		_exit(1);	/* force single user mode */
@@ -1499,8 +1497,6 @@ runshutdown(void)
 #ifdef LOGIN_CAP
 		setprocresources(RESOURCE_RC);
 #endif
-		execv(_PATH_RUNDOWN, argv + 1);
-		warning("can't exec %s: %m", _PATH_RUNDOWN);
 		execv(_PATH_BSHELL, argv);
 		warning("can't exec %s for %s: %m", _PATH_BSHELL, _PATH_RUNDOWN);
 		_exit(1);	/* force single user mode */
