@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: w.c,v 1.21 1997/08/25 06:42:19 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -96,6 +96,7 @@ int		ttywidth;	/* width of tty */
 int		argwidth;	/* width of tty */
 int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
+int		dflag;		/* true if -d flag: output debug info */
 int		sortidle;	/* sort bu idle time */
 char	       *sel_user;	/* login of particular user selected */
 char		domain[MAXHOSTNAMELEN];
@@ -106,10 +107,11 @@ char		domain[MAXHOSTNAMELEN];
 struct	entry {
 	struct	entry *next;
 	struct	utmp utmp;
-	dev_t	tdev;		/* dev_t of terminal */
-	time_t	idle;		/* idle time of terminal in seconds */
-	struct	kinfo_proc *kp;	/* `most interesting' proc */
-	char	*args;		/* arg list of interesting process */
+	dev_t	tdev;			/* dev_t of terminal */
+	time_t	idle;			/* idle time of terminal in seconds */
+	struct	kinfo_proc *kp;		/* `most interesting' proc */
+	char	*args;			/* arg list of interesting process */
+	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
 static void	 pr_header __P((time_t *, int));
@@ -126,6 +128,7 @@ main(argc, argv)
 {
 	extern char *__progname;
 	struct kinfo_proc *kp;
+	struct kinfo_proc *dkp;
 	struct hostent *hp;
 	struct stat *stp;
 	FILE *ut;
@@ -146,12 +149,15 @@ main(argc, argv)
 		p = "";
 	} else {
 		wcmd = 1;
-		p = "hiflM:N:nsuw";
+		p = "dhiflM:N:nsuw";
 	}
 
 	memf = nlistf = NULL;
 	while ((ch = getopt(argc, argv, p)) != -1)
 		switch (ch) {
+		case 'd':
+			dflag = 1;
+			break;
 		case 'h':
 			header = 0;
 			break;
@@ -254,13 +260,26 @@ main(argc, argv)
 			continue;
 		e = &kp->kp_eproc;
 		for (ep = ehead; ep != NULL; ep = ep->next) {
-			if (ep->tdev == e->e_tdev && e->e_pgid == e->e_tpgid) {
+			if (ep->tdev == e->e_tdev) {
 				/*
-				 * Proc is in foreground of this terminal
+				 * proc is associated with this terminal
 				 */
-				if (proc_compare(&ep->kp->kp_proc, p))
-					ep->kp = kp;
-				break;
+				if (ep->kp == NULL && e->e_pgid == e->e_tpgid) {
+					/*
+					 * Proc is 'most interesting'
+					 */
+					if (proc_compare(&ep->kp->kp_proc, p))
+						ep->kp = kp;
+				}
+				/*
+				 * Proc debug option info; add to debug
+				 * list using kinfo_proc kp_eproc.e_spare
+				 * as next pointer; ptr to ptr avoids the
+				 * ptr = long assumption.
+				 */
+				dkp = ep->dkp;
+				ep->dkp = kp;
+				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[ 0])) = dkp;
 			}
 		}
 	}
@@ -341,6 +360,16 @@ main(argc, argv)
 			(void)snprintf(buf, sizeof(buf), "%s:%.*s", p,
 			    ep->utmp.ut_host + UT_HOSTSIZE - x, x);
 			p = buf;
+		}
+		if( dflag) {
+			for( dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[ 0]))) {
+				char *p;
+				p = fmt_argv(kvm_getargv(kd, dkp, argwidth),
+					    dkp->kp_proc.p_comm, MAXCOMLEN);
+				if (p == NULL)
+					p = "-";
+				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, p);
+			}
 		}
 		(void)printf("%-*.*s %-3.3s %-*.*s ",
 		    UT_NAMESIZE, UT_NAMESIZE, ep->utmp.ut_name,
