@@ -138,8 +138,8 @@ sapic_enable(struct sapic *sa, int input, int vector,
 	u_int64_t lid = ia64_get_lid();
 
 	bzero(&rte, sizeof(rte));
-	rte.rte_destination_id = (lid >> 24) & 15;
-	rte.rte_destination_eid = (lid >> 16) & 15;
+	rte.rte_destination_id = (lid >> 24) & 255;
+	rte.rte_destination_eid = (lid >> 16) & 255;
 	rte.rte_trigger_mode = trigger_mode;
 	rte.rte_polarity = polarity;
 	rte.rte_delivery_mode = 0; /* fixed */
