@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.6 1995/03/16 18:14:54 bde Exp $
+ * $Id: ip_icmp.c,v 1.7 1995/05/30 08:09:42 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -220,13 +220,14 @@ icmp_input(m, hlen)
 	m->m_data -= hlen;
 
 #ifdef ICMPPRINTFS
-	/*
-	 * Message type specific processing.
-	 */
 	if (icmpprintfs)
 		printf("icmp_input, type %d code %d\n", icp->icmp_type,
 		    icp->icmp_code);
 #endif
+
+	/*
+	 * Message type specific processing.
+	 */
 	if (icp->icmp_type > ICMP_MAXTYPE)
 		goto raw;
 	icmpstat.icps_inhist[icp->icmp_type]++;
@@ -291,6 +292,9 @@ icmp_input(m, hlen)
 			goto freeit;
 		}
 		NTOHS(icp->icmp_ip.ip_len);
+		/* Discard ICMP's in response to multicast packets */
+		if (IN_MULTICAST(ntohl(icp->icmp_ip.ip_dst.s_addr)))
+			goto badcode;
 #ifdef ICMPPRINTFS
 		if (icmpprintfs)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
