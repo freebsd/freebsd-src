@@ -2528,7 +2528,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	SLIST_FOREACH(tp, &tty_list, t_list) {
 		t = *tp;
 		if (t.t_dev)
-			t.t_dev = (dev_t)dev2udev(t.t_dev);
+			t.ttyu.t_udev = dev2udev(t.t_dev);
 		error = SYSCTL_OUT(req, (caddr_t)&t, sizeof(t));
 		if (error)
 			return (error);
