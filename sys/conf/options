@@ -1,4 +1,4 @@
-#	$Id: options,v 1.40 1997/12/15 21:51:44 eivind Exp $
+#	$Id: options,v 1.41 1997/12/16 17:39:55 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -26,9 +26,11 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # time, since the corresponding lkms cannot work if there are any static
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
+EXT2FS		opt_dontuse.h
 FDESC		opt_dontuse.h
 KERNFS		opt_dontuse.h
 MFS		opt_dontuse.h
+MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
 PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
