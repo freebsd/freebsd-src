@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1994/10/24 09:56:42 sos Exp $
+#	$Id: Makefile,v 1.11 1994/11/08 03:58:52 phk Exp $
 #
 # Doing a make install builds /usr/share/examples
 
@@ -22,7 +22,8 @@ copies:
 	@-for a in ${DIRS}; do \
 		rm -rf ${DDIR}/$$a; \
 	done
-	find ${DIRS} -print | grep -v /CVS | cpio -dumpv ${DDIR}
+	find ${DIRS} -print | grep -v /CVS | \
+		grep -v Makefile | cpio -dumpv ${DDIR}
 
 symlinks:
 	@${ECHO} installing symlinks in ${DDIR}
