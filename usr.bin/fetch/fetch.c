@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
  * All rights reserved.
@@ -88,6 +87,9 @@ u_int	 http_timeout;	/* default timeout for HTTP transfers */
 u_char	*buf;		/* transfer buffer */
 
 
+/*
+ * Signal handler
+ */
 static void
 sig_handler(int sig)
 {
@@ -114,6 +116,9 @@ struct xferstat {
 	off_t		 rcvd;
 };
 
+/*
+ * Update the stats display
+ */
 static void
 stat_display(struct xferstat *xs, int force)
 {
@@ -135,6 +140,9 @@ stat_display(struct xferstat *xs, int force)
 		    (int)((100.0 * xs->rcvd) / xs->size));
 }
 
+/*
+ * Initialize the transfer statistics
+ */
 static void
 stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 {
@@ -148,6 +156,9 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	stat_display(xs, 1);
 }
 
+/*
+ * Update the transfer statistics
+ */
 static void
 stat_update(struct xferstat *xs, off_t rcvd)
 {
@@ -155,6 +166,9 @@ stat_update(struct xferstat *xs, off_t rcvd)
 	stat_display(xs, 0);
 }
 
+/*
+ * Finalize the transfer statistics
+ */
 static void
 stat_end(struct xferstat *xs)
 {
@@ -181,6 +195,9 @@ stat_end(struct xferstat *xs)
 		fprintf(stderr, "(%.2f Bps)\n", bps);
 }
 
+/*
+ * Ask the user for authentication details
+ */
 static int
 query_auth(struct url *URL)
 {
@@ -220,6 +237,9 @@ query_auth(struct url *URL)
 	return 0;
 }
 
+/*
+ * Fetch a file
+ */
 static int
 fetch(char *URL, const char *path)
 {
@@ -566,9 +586,12 @@ NAME(const char *s, TYPE *v)				\
 	return 0;					\
 }
 
-PARSENUM(parseint, u_int)
-PARSENUM(parseoff, off_t)
+PARSENUM(parseint, u_int);
+PARSENUM(parseoff, off_t);
 
+/*
+ * Entry point
+ */
 int
 main(int argc, char *argv[])
 {
