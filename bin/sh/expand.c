@@ -116,20 +116,13 @@ STATIC char *cvtnum(int, char *);
 STATIC int collate_range_cmp(int, int);
 
 STATIC int
-collate_range_cmp (int c1, int c2)
+collate_range_cmp(int c1, int c2)
 {
 	static char s1[2], s2[2];
-	int ret;
 
-	c1 &= UCHAR_MAX;
-	c2 &= UCHAR_MAX;
-	if (c1 == c2)
-		return (0);
 	s1[0] = c1;
 	s2[0] = c2;
-	if ((ret = strcoll(s1, s2)) != 0)
-		return (ret);
-	return (c1 - c2);
+	return (strcoll(s1, s2));
 }
 
 /*
