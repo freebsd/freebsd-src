@@ -21,15 +21,15 @@ md4hl.c: mdXhl.c
 md5hl.c: mdXhl.c
 	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' $> > $@
 
-md2.3: mdX.3
+md2.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' $> > $@
 	cat ${.CURDIR}/md2.copyright >> $@
 
-md4.3: mdX.3
+md4.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md4/g' -e 's/MDX/MD4/g' $> > $@
 	cat ${.CURDIR}/md4.copyright >> $@
 
-md5.3: mdX.3
+md5.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md5/g' -e 's/MDX/MD5/g' $> > $@
 	cat ${.CURDIR}/md5.copyright >> $@
 	
