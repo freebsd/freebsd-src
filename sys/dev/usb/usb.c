@@ -103,12 +103,6 @@ SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
 int	usbdebug = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
 	   &usbdebug, 0, "usb debug level");
-#ifdef USB_DEBUG
-extern int uhcidebug;
-#endif
-#ifdef USB_DEBUG
-extern int ohcidebug;
-#endif
 /*
  * 0  - do usual exploration
  * 1  - do not use timeout exploration
@@ -573,13 +567,6 @@ usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
   	case USB_DISCOVER:
   		break;
 #endif
-#ifdef USB_DEBUG
-	case USB_SETDEBUG:
-		usbdebug  = ((*(int *)data) & 0x000000ff);
-		uhcidebug = ((*(int *)data) & 0x0000ff00) >> 8;
-		ohcidebug = ((*(int *)data) & 0x00ff0000) >> 16;
-		break;
-#endif /* USB_DEBUG */
 	case USB_REQUEST:
 	{
 		struct usb_ctl_request *ur = (void *)data;
