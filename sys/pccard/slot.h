@@ -86,14 +86,13 @@ struct slot_ctrl {
  *	devices together.
  */
 struct pccard_devinfo {
-	u_char	name[128];
-	int running;			/* Current state of driver */
-	u_char	misc[128];		/* For any random info */
-	u_int	manufacturer;		/* Manufacturer ID */
-	u_int	product;		/* Product ID */
-	u_int	prodext;		/* Product ID (extended) */
-	struct slot *slt;		/* Back pointer to slot */
-
+	uint8_t		name[128];
+	int		running;	/* Current state of driver */
+	uint8_t		misc[116];	/* For any random info */
+	uint32_t	manufacturer;	/* Manufacturer ID */
+	uint32_t	product;	/* Product ID */
+	uint32_t	prodext;	/* Product ID (extended) */
+	struct slot	*slt;		/* Back pointer to slot */
 	struct resource_list resources;
 };
 
