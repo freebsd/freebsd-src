@@ -1,0 +1,87 @@
+.\"
+.\" Copyright (c) 2001 Jonathan Lemon <jlemon@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Oct 23, 2001
+.Dt CONSCONTROL 8
+.Os
+.Sh NAME
+.Nm conscontrol
+.Nd control physical console devices
+.Sh SYNOPSIS
+.Nm
+.Op list
+.Nm 
+.Ic mute
+.Ar on|off
+.Nm
+.Ic add|delete
+.Ar console
+.Sh DESCRIPTION
+.Nm Conscontrol
+is used to examine and modify the physical devices which back
+the virtual console console devices.
+If no arguments are specified
+(or only the
+.Ar list
+argument),
+the current console settings are shown.
+.Pp
+There are two types of logical consoles; a high level console which
+is represented by /dev/console, and a low level console.
+The low level console is used for kernel printfs and debugger support,
+while the high level console is used by user programs like syslog.
+Multiple device support is implemented only for the low level console,
+the high level console is set to the first device in the console list.
+.Pp
+Multiple console support may be invoked by passing the kernel the
+-D
+flag from the boot loader, or by using
+.Nm
+to change the list of console devices after the system has booted.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Cm add|delete Ar console
+Add or delete a physical device from the logical console.
+The device must support low-level console operations.
+Adding a device will place it at the front of the list of console
+devices; the first device is used for the high level console.
+.It Cm mute Ar on|off
+Change the state of the console muting.
+.El
+.Sh SEE ALSO
+.Xr boot 8 ,
+.Xr loader 8 ,
+.Xr sio 4 ,
+.Xr syscons 4
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 4.5 .
+.Sh AUTHORS
+.An Jonathan Lemon
