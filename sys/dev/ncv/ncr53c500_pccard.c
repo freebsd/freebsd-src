@@ -91,10 +91,10 @@ extern struct ncv_softc *ncvdata[];
 static int ncvprobe(DEVPORT_PDEVICE devi);
 static int ncvattach(DEVPORT_PDEVICE devi);
 
-static int	ncv_card_intr __P((DEVPORT_PDEVICE));
 static void	ncv_card_unload __P((DEVPORT_PDEVICE));
 #if defined(__FreeBSD__) && __FreeBSD_version < 400001
 static int	ncv_card_init __P((DEVPORT_PDEVICE));
+static int	ncv_card_intr __P((DEVPORT_PDEVICE));
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 400001
@@ -303,6 +303,14 @@ ncv_card_init(DEVPORT_PDEVICE devi)
 		return (ENXIO);
 	return (0);
 }
+
+static int
+ncv_card_intr(DEVPORT_PDEVICE devi)
+{
+
+	ncvintr(DEVPORT_PDEVGET_SOFTC(devi));
+	return 1;
+}
 #endif
 
 static void
@@ -313,14 +321,6 @@ ncv_card_unload(DEVPORT_PDEVICE devi)
 	printf("%s: unload\n", sc->sc_sclow.sl_xname);
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
-}
-
-static int
-ncv_card_intr(DEVPORT_PDEVICE devi)
-{
-
-	ncvintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
 }
 
 static int
