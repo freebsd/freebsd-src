@@ -32,7 +32,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd April 2, 1994
+.Dd October 16, 2004
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -231,7 +231,9 @@ The
 system call may also return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The specified file offset is invalid.
+The
+.Fa offset
+value was negative.
 .It Bq Er ESPIPE
 The file descriptor is associated with a pipe, socket, or FIFO.
 .El
