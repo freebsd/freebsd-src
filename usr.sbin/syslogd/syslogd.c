@@ -89,7 +89,6 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syslimits.h>
-#include <paths.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -99,6 +98,8 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -116,7 +117,7 @@ static const char rcsid[] =
 #ifdef NI_WITHSCOPEID
 static const int withscopeid = NI_WITHSCOPEID;
 #else
-static const int withscopeid = 0;
+static const int withscopeid;
 #endif
 
 const char	*ConfFile = _PATH_LOGCONF;
@@ -253,71 +254,70 @@ const char *TypeNames[8] = {
 	"FORW",		"USERS",	"WALL",		"PIPE"
 };
 
-struct	filed *Files;
-struct	filed consfile;
+static struct filed *Files;	/* Log files that we write to */
+static struct filed consfile;	/* Console */
 
-int	Debug;			/* debug flag */
-int	resolve = 1;		/* resolve hostname */
-char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
-const char	*LocalDomain;		/* our local domain name */
-int	*finet = NULL;		/* Internet datagram socket */
-int	fklog = -1;		/* /dev/klog */
-int	Initialized = 0;	/* set when we have initialized ourselves */
-int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
-int	MarkSeq = 0;		/* mark sequence number */
-int	SecureMode = 0;		/* when true, receive only unix domain socks */
+static int	Debug;		/* debug flag */
+static int	resolve = 1;	/* resolve hostname */
+static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
+static char	*LocalDomain;	/* our local domain name */
+static int	*finet;		/* Internet datagram socket */
+static int	fklog = -1;	/* /dev/klog */
+static int	Initialized;	/* set when we have initialized ourselves */
+static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
+static int	MarkSeq;	/* mark sequence number */
+static int	SecureMode;	/* when true, receive only unix domain socks */
 #ifdef INET6
-int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+static int	family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
 #else
-int	family = PF_INET;	/* protocol family (IPv4 only) */
+static int	family = PF_INET; /* protocol family (IPv4 only) */
 #endif
-int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
-int	no_compress = 0;	/* don't compress messages (1=pipes, 2=all) */
+static int	send_to_all;	/* send message to all IPv4/IPv6 addresses */
+static int	no_compress;	/* don't compress messages (1=pipes, 2=all) */
 
-char	bootfile[MAXLINE+1];	/* booted kernel file */
+static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
-struct allowedpeer *AllowedPeers;
-int	NumAllowed = 0;		/* # of AllowedPeer entries */
+struct allowedpeer *AllowedPeers; /* List of allowed peers */
+static int	NumAllowed;	/* Number of entries in AllowedPeers */
 
-int	UniquePriority = 0;	/* Only log specified priority? */
-int	LogFacPri = 0;		/* Put facility and priority in log message: */
+static int	UniquePriority;	/* Only log specified priority? */
+static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
-int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
+static int	KeepKernFac;	/* Keep remotely logged kernel facility */
 
 volatile sig_atomic_t MarkSet, WantDie;
 
-int	allowaddr __P((char *));
-void	cfline __P((const char *, struct filed *, const char *, const char *));
-const char	*cvthname __P((struct sockaddr *));
-void	deadq_enter __P((pid_t, const char *));
-int	deadq_remove __P((pid_t));
-int	decode __P((const char *, CODE *));
-void	die __P((int));
-void	dodie __P((int));
-void	domark __P((int));
-void	fprintlog __P((struct filed *, int, const char *));
-int*	socksetup __P((int, const char *));
-void	init __P((int));
-void	logerror __P((const char *));
-void	logmsg __P((int, const char *, const char *, int));
-void	log_deadchild __P((pid_t, int, const char *));
-void	markit __P((void));
-void	printline __P((const char *, char *));
-void	printsys __P((char *));
-int	p_open __P((const char *, pid_t *));
-void	readklog __P((void));
-void	reapchild __P((int));
-static void	usage __P((void));
-int	validate __P((struct sockaddr *, const char *));
-static void	unmapped __P((struct sockaddr *));
-void	wallmsg __P((struct filed *, struct iovec *));
-int	waitdaemon __P((int, int, int));
-void	timedout __P((int));
+static int	allowaddr(char *);
+static void	cfline(const char *, struct filed *,
+		    const char *, const char *);
+static const char *cvthname(struct sockaddr *);
+static void	deadq_enter(pid_t, const char *);
+static int	deadq_remove(pid_t);
+static int	decode(const char *, CODE *);
+static void	die(int);
+static void	dodie(int);
+static void	domark(int);
+static void	fprintlog(struct filed *, int, const char *);
+static int	*socksetup(int, const char *);
+static void	init(int);
+static void	logerror(const char *);
+static void	logmsg(int, const char *, const char *, int);
+static void	log_deadchild(pid_t, int, const char *);
+static void	markit(void);
+static void	printline(const char *, char *);
+static void	printsys(char *);
+static int	p_open(const char *, pid_t *);
+static void	readklog(void);
+static void	reapchild(int);
+static void	usage(void);
+static int	validate(struct sockaddr *, const char *);
+static void	unmapped(struct sockaddr *);
+static void	wallmsg(struct filed *, struct iovec *);
+static int	waitdaemon(int, int, int);
+static void	timedout(int);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, i, fdsrmax = 0, l;
 	struct sockaddr_un sunx, fromunix;
@@ -404,8 +404,9 @@ main(argc, argv)
 		ppid = waitdaemon(0, 0, 30);
 		if (ppid < 0)
 			err(1, "could not become daemon");
-	} else
+	} else {
 		setlinebuf(stdout);
+	}
 
 	if (NumAllowed)
 		endservent();
@@ -448,7 +449,7 @@ main(argc, argv)
 		    bind(funix[i], (struct sockaddr *)&sunx,
 			 SUN_LEN(&sunx)) < 0 ||
 		    chmod(funixn[i], 0666) < 0) {
-			(void) snprintf(line, sizeof line,
+			(void)snprintf(line, sizeof line,
 					"cannot create %s", funixn[i]);
 			logerror(line);
 			dprintf("cannot create %s (%d)\n", funixn[i], errno);
@@ -468,8 +469,9 @@ main(argc, argv)
 						die(0);
 				}
 			}
-		} else
+		} else {
 			dprintf("listening on inet and/or inet6 socket\n");
+		}
 		dprintf("sending on inet and/or inet6 socket\n");
 	}
 
@@ -483,7 +485,7 @@ main(argc, argv)
 	fp = fopen(PidFile, "w");
 	if (fp != NULL) {
 		fprintf(fp, "%d\n", getpid());
-		(void) fclose(fp);
+		(void)fclose(fp);
 	}
 
 	dprintf("off & running....\n");
@@ -592,8 +594,7 @@ main(argc, argv)
 }
 
 static void
-unmapped(sa)
-	struct sockaddr *sa;
+unmapped(struct sockaddr *sa)
 {
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin4;
@@ -618,7 +619,7 @@ unmapped(sa)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
@@ -633,10 +634,8 @@ usage()
  * Take a raw input line, decode the message, and print the message
  * on the appropriate log files.
  */
-void
-printline(hname, msg)
-	const char *hname;
-	char *msg;
+static void
+printline(const char *hname, char *msg)
 {
 	int c, pri;
 	char *p, *q, line[MAXLINE + 1];
@@ -668,16 +667,17 @@ printline(hname, msg)
 			*q++ = '-';
 		}
 		if (isascii(c) && iscntrl(c)) {
-			if (c == '\n')
+			if (c == '\n') {
 				*q++ = ' ';
-			else if (c == '\t')
+			} else if (c == '\t') {
 				*q++ = '\t';
-			else {
+			} else {
 				*q++ = '^';
 				*q++ = c ^ 0100;
 			}
-		} else
+		} else {
 			*q++ = c;
+		}
 	}
 	*q = '\0';
 
@@ -687,8 +687,8 @@ printline(hname, msg)
 /*
  * Read /dev/klog while data are available, split into lines.
  */
-void
-readklog()
+static void
+readklog(void)
 {
 	char *p, *q, line[MAXLINE + 1];
 	int len, i;
@@ -696,14 +696,15 @@ readklog()
 	len = 0;
 	for (;;) {
 		i = read(fklog, line + len, MAXLINE - 1 - len);
-		if (i > 0)
+		if (i > 0) {
 			line[i + len] = '\0';
-		else if (i < 0 && errno != EINTR && errno != EAGAIN) {
-			logerror("klog");
-			fklog = -1;
+		} else {
+			if (i < 0 && errno != EINTR && errno != EAGAIN) {
+				logerror("klog");
+				fklog = -1;
+			}
 			break;
-		} else
-			break;
+		}
 
 		for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
 			*q = '\0';
@@ -724,9 +725,8 @@ readklog()
 /*
  * Take a raw input line from /dev/klog, format similar to syslog().
  */
-void
-printsys(p)
-	char *p;
+static void
+printsys(char *p)
 {
 	int pri, flags;
 
@@ -749,17 +749,14 @@ printsys(p)
 	logmsg(pri, p, LocalHostName, flags);
 }
 
-time_t	now;
+static time_t	now;
 
 /*
  * Log a message to the appropriate log files, users, etc. based on
  * the priority.
  */
-void
-logmsg(pri, msg, from, flags)
-	int pri;
-	const char *msg, *from;
-	int flags;
+static void
+logmsg(int pri, const char *msg, const char *from, int flags)
 {
 	struct filed *f;
 	int i, fac, msglen, omask, prilev;
@@ -781,9 +778,9 @@ logmsg(pri, msg, from, flags)
 		flags |= ADDDATE;
 
 	(void)time(&now);
-	if (flags & ADDDATE)
+	if (flags & ADDDATE) {
 		timestamp = ctime(&now) + 4;
-	else {
+	} else {
 		timestamp = msg;
 		msg += 16;
 		msglen -= 16;
@@ -804,7 +801,7 @@ logmsg(pri, msg, from, flags)
 
 	/* extract program name */
 	for (i = 0; i < NAME_MAX; i++) {
-		if (!isalnum(msg[i]))
+		if (!isprint(msg[i]) || msg[i] == ':' || msg[i] == '[')
 			break;
 		prog[i] = msg[i];
 	}
@@ -919,17 +916,14 @@ logmsg(pri, msg, from, flags)
 	(void)sigsetmask(omask);
 }
 
-void
-fprintlog(f, flags, msg)
-	struct filed *f;
-	int flags;
-	const char *msg;
+static void
+fprintlog(struct filed *f, int flags, const char *msg)
 {
 	struct iovec iov[7];
 	struct iovec *v;
 	struct addrinfo *r;
 	int i, l, lsent = 0;
-	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg;
+	char line[MAXLINE + 1], repbuf[80], greetings[200], *wmsg = NULL;
 	const char *msgret;
 
 	v = iov;
@@ -1062,12 +1056,29 @@ fprintlog(f, flags, msg)
 				if (lsent == l && !send_to_all) 
 					break;
 			}
+			dprintf("lsent/l: %d/%d\n", lsent, l);
 			if (lsent != l) {
 				int e = errno;
-				(void)close(f->f_file);
-				errno = e;
-				f->f_type = F_UNUSED;
 				logerror("sendto");
+				errno = e;
+				switch (errno) {
+				case EHOSTUNREACH:
+				case EHOSTDOWN:
+					break;
+				/* case EBADF: */
+				/* case EACCES: */
+				/* case ENOTSOCK: */
+				/* case EFAULT: */
+				/* case EMSGSIZE: */
+				/* case EAGAIN: */
+				/* case ENOBUFS: */
+				/* case ECONNREFUSED: */
+				default:
+					dprintf("removing entry\n", e);
+					(void)close(f->f_file);
+					f->f_type = F_UNUSED;
+					break;
+				}
 			}
 		}
 		break;
@@ -1148,10 +1159,8 @@ fprintlog(f, flags, msg)
  *	Write the specified message to either the entire
  *	world, or a list of approved users.
  */
-void
-wallmsg(f, iov)
-	struct filed *f;
-	struct iovec *iov;
+static void
+wallmsg(struct filed *f, struct iovec *iov)
 {
 	static int reenter;			/* avoid calling ourselves */
 	FILE *uf;
@@ -1198,9 +1207,8 @@ wallmsg(f, iov)
 	reenter = 0;
 }
 
-void
-reapchild(signo)
-	int signo __unused;
+static void
+reapchild(int signo __unused)
 {
 	int status;
 	pid_t pid;
@@ -1233,9 +1241,8 @@ reapchild(signo)
 /*
  * Return a printable representation of a host address.
  */
-const char *
-cvthname(f)
-	struct sockaddr *f;
+static const char *
+cvthname(struct sockaddr *f)
 {
 	int error;
 	sigset_t omask, nmask;
@@ -1273,17 +1280,15 @@ cvthname(f)
 	return (hname);
 }
 
-void
-dodie(signo)
-	int signo;
+static void
+dodie(int signo)
 {
 
 	WantDie = signo;
 }
 
-void
-domark(signo)
-	int signo __unused;
+static void
+domark(int signo __unused)
 {
 
 	MarkSet = 1;
@@ -1292,9 +1297,8 @@ domark(signo)
 /*
  * Print syslogd errors some place.
  */
-void
-logerror(type)
-	const char *type;
+static void
+logerror(const char *type)
 {
 	char buf[512];
 
@@ -1308,9 +1312,8 @@ logerror(type)
 	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
 }
 
-void
-die(signo)
-	int signo;
+static void
+die(int signo)
 {
 	struct filed *f;
 	int was_initialized;
@@ -1342,9 +1345,8 @@ die(signo)
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
-void
-init(signo)
-	int signo;
+static void
+init(int signo)
 {
 	int i;
 	FILE *cf;
@@ -1369,8 +1371,9 @@ init(signo)
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		*p++ = '\0';
 		LocalDomain = p;
-	} else
+	} else {
 		LocalDomain = "";
+	}
 
 	/*
 	 *  Close all open log files.
@@ -1549,12 +1552,8 @@ init(signo)
 /*
  * Crack a configuration file line
  */
-void
-cfline(line, f, prog, host)
-	const char *line;
-	struct filed *f;
-	const char *prog;
-	const char *host;
+static void
+cfline(const char *line, struct filed *f, const char *prog, const char *host)
 {
 	struct addrinfo hints, *res;
 	int error, i, pri;
@@ -1606,6 +1605,7 @@ cfline(line, f, prog, host)
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
 		int pri_done;
 		int pri_cmp;
+		int pri_invert;
 
 		/* find the end of this facility name list */
 		for (q = p; *q && *q != '\t' && *q != ' ' && *q++ != '.'; )
@@ -1614,6 +1614,11 @@ cfline(line, f, prog, host)
 		/* get the priority comparison */
 		pri_cmp = 0;
 		pri_done = 0;
+		pri_invert = 0;
+		if (*q == '!') {
+			pri_invert = 1;
+			q++;
+		}
 		while (!pri_done) {
 			switch (*q) {
 			case '<':
@@ -1633,11 +1638,6 @@ cfline(line, f, prog, host)
 				break;
 			}
 		}
-		if (!pri_cmp)
-			pri_cmp = (UniquePriority)
-				  ? (PRI_EQ)
-				  : (PRI_EQ | PRI_GT)
-				  ;
 
 		/* collect priority name */
 		for (bp = buf; *q && !strchr("\t,; ", *q); )
@@ -1649,9 +1649,10 @@ cfline(line, f, prog, host)
 			q++;
 
 		/* decode priority name */
-		if (*buf == '*')
+		if (*buf == '*') {
 			pri = LOG_PRIMASK + 1;
-		else {
+			pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
+		} else {
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
 				(void)snprintf(ebuf, sizeof ebuf,
@@ -1660,6 +1661,13 @@ cfline(line, f, prog, host)
 				return;
 			}
 		}
+		if (!pri_cmp)
+			pri_cmp = (UniquePriority)
+				  ? (PRI_EQ)
+				  : (PRI_EQ | PRI_GT)
+				  ;
+		if (pri_invert)
+			pri_cmp ^= PRI_LT | PRI_EQ | PRI_GT;
 
 		/* scan facilities */
 		while (*p && !strchr("\t.; ", *p)) {
@@ -1667,12 +1675,12 @@ cfline(line, f, prog, host)
 				*bp++ = *p++;
 			*bp = '\0';
 
-			if (*buf == '*')
+			if (*buf == '*') {
 				for (i = 0; i < LOG_NFACILITIES; i++) {
 					f->f_pmask[i] = pri;
 					f->f_pcmp[i] = pri_cmp;
 				}
-			else {
+			} else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
 					(void)snprintf(ebuf, sizeof ebuf,
@@ -1695,8 +1703,7 @@ cfline(line, f, prog, host)
 	while (*p == '\t' || *p == ' ')
 		p++;
 
-	switch (*p)
-	{
+	switch (*p) {
 	case '@':
 		(void)strlcpy(f->f_un.f_forw.f_hname, ++p,
 			sizeof(f->f_un.f_forw.f_hname));
@@ -1764,10 +1771,8 @@ cfline(line, f, prog, host)
 /*
  *  Decode a symbolic name to a numeric value
  */
-int
-decode(name, codetab)
-	const char *name;
-	CODE *codetab;
+static int
+decode(const char *name, CODE *codetab)
 {
 	CODE *c;
 	char *p, buf[40];
@@ -1789,7 +1794,7 @@ decode(name, codetab)
 	return (-1);
 }
 
-void
+static void
 markit(void)
 {
 	struct filed *f;
@@ -1816,6 +1821,7 @@ markit(void)
 	/* Walk the dead queue, and see if we should signal somebody. */
 	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = next) {
 		next = TAILQ_NEXT(q, dq_entries);
+
 		switch (q->dq_timeout) {
 		case 0:
 			/* Already signalled once, try harder now. */
@@ -1849,9 +1855,8 @@ markit(void)
  * before returing to the parent, or we get disk thrashing at boot etc.
  * Set a timer so we don't hang forever if it wedges.
  */
-int
-waitdaemon(nochdir, noclose, maxwait)
-	int nochdir, noclose, maxwait;
+static int
+waitdaemon(int nochdir, int noclose, int maxwait)
 {
 	int fd;
 	int status;
@@ -1903,9 +1908,8 @@ waitdaemon(nochdir, noclose, maxwait)
  * We also get a signal from the kernel if the timer expires, so check to
  * see what happened.
  */
-void
-timedout(sig)
-	int sig __unused;
+static void
+timedout(int sig __unused)
 {
 	int left;
 	left = alarm(0);
@@ -1930,9 +1934,8 @@ timedout(sig)
  *
  * Returns -1 on error, 0 if the argument was valid.
  */
-int
-allowaddr(s)
-	char *s;
+static int
+allowaddr(char *s)
 {
 	char *cp1, *cp2;
 	struct allowedpeer ap;
@@ -1953,12 +1956,12 @@ allowaddr(s)
 		if (strlen(cp1) == 1 && *cp1 == '*')
 			/* any port allowed */
 			ap.port = 0;
-		else if ((se = getservbyname(cp1, "udp")))
+		else if ((se = getservbyname(cp1, "udp"))) {
 			ap.port = ntohs(se->s_port);
-		else {
+		} else {
 			ap.port = strtol(cp1, &cp2, 0);
 			if (*cp2 != '\0')
-				return -1; /* port not numeric */
+				return (-1); /* port not numeric */
 		}
 	} else {
 		if ((se = getservbyname("syslog", "udp")))
@@ -1972,7 +1975,7 @@ allowaddr(s)
 	    strspn(cp1 + 1, "0123456789") == strlen(cp1 + 1)) {
 		*cp1 = '\0';
 		if ((masklen = atoi(cp1 + 1)) < 0)
-			return -1;
+			return (-1);
 	}
 #ifdef INET6
 	if (*s == '[') {
@@ -1980,10 +1983,12 @@ allowaddr(s)
 		if (*cp2 == ']') {
 			++s;
 			*cp2 = '\0';
-		} else
+		} else {
 			cp2 = NULL;
-	} else
+		}
+	} else {
 		cp2 = NULL;
+	}
 #endif
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -2014,7 +2019,7 @@ allowaddr(s)
 					maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
 			} else {
 				freeaddrinfo(res);
-				return -1;
+				return (-1);
 			}
 			/* Lose any host bits in the network number. */
 			addrp->s_addr &= maskp->s_addr;
@@ -2043,7 +2048,7 @@ allowaddr(s)
 #endif
 		else {
 			freeaddrinfo(res);
-			return -1;
+			return (-1);
 		}
 		freeaddrinfo(res);
 	} else {
@@ -2074,8 +2079,9 @@ allowaddr(s)
 				    ip, sizeof ip, NULL, 0,
 				    NI_NUMERICHOST | withscopeid);
 			printf("mask = %s; ", ip);
-		} else
+		} else {
 			printf("domainname = %s; ", ap.a_name);
+		}
 		printf("port = %d\n", ap.port);
 	}
 
@@ -2086,16 +2092,14 @@ allowaddr(s)
 		exit(1);
 	}
 	memcpy(&AllowedPeers[NumAllowed - 1], &ap, sizeof(struct allowedpeer));
-	return 0;
+	return (0);
 }
 
 /*
  * Validate that the remote peer has permission to log to us.
  */
-int
-validate(sa, hname)
-	struct sockaddr *sa;
-	const char *hname;
+static int
+validate(struct sockaddr *sa, const char *hname)
 {
 	int i, j, reject;
 	size_t l1, l2;
@@ -2108,7 +2112,7 @@ validate(sa, hname)
 
 	if (NumAllowed == 0)
 		/* traditional behaviour, allow everything */
-		return 1;
+		return (1);
 
 	(void)strlcpy(name, hname, sizeof(name));
 	memset(&hints, 0, sizeof(hints));
@@ -2123,7 +2127,7 @@ validate(sa, hname)
 	}
 	if (getnameinfo(sa, sa->sa_len, ip, sizeof ip, port, sizeof port,
 			NI_NUMERICHOST | withscopeid | NI_NUMERICSERV) != 0)
-		return 0;	/* for safety, should not occur */
+		return (0);	/* for safety, should not occur */
 	dprintf("validate: dgram from IP %s, port %s, name %s;\n",
 		ip, port, name);
 	sport = atoi(port);
@@ -2199,19 +2203,17 @@ validate(sa, hname)
 			}
 		}
 		dprintf("accepted in rule %d.\n", i);
-		return 1;	/* hooray! */
+		return (1);	/* hooray! */
 	}
-	return 0;
+	return (0);
 }
 
 /*
  * Fairly similar to popen(3), but returns an open descriptor, as
  * opposed to a FILE *.
  */
-int
-p_open(prog, pid)
-	const char *prog;
-	pid_t *pid;
+static int
+p_open(const char *prog, pid_t *pid)
 {
 	int pfd[2], nulldesc, i;
 	sigset_t omask, mask;
@@ -2219,10 +2221,10 @@ p_open(prog, pid)
 	char errmsg[200];
 
 	if (pipe(pfd) == -1)
-		return -1;
+		return (-1);
 	if ((nulldesc = open(_PATH_DEVNULL, O_RDWR)) == -1)
 		/* we are royally screwed anyway */
-		return -1;
+		return (-1);
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGALRM);
@@ -2232,7 +2234,7 @@ p_open(prog, pid)
 	case -1:
 		sigprocmask(SIG_SETMASK, &omask, 0);
 		close(nulldesc);
-		return -1;
+		return (-1);
 
 	case 0:
 		/* XXX should check for NULL return */
@@ -2264,9 +2266,9 @@ p_open(prog, pid)
 		dup2(nulldesc, STDOUT_FILENO);
 		dup2(nulldesc, STDERR_FILENO);
 		for (i = getdtablesize(); i > 2; i--)
-			(void) close(i);
+			(void)close(i);
 
-		(void) execvp(_PATH_BSHELL, argv);
+		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);
 	}
 
@@ -2290,13 +2292,11 @@ p_open(prog, pid)
 			       (int)*pid);
 		logerror(errmsg);
 	}
-	return pfd[1];
+	return (pfd[1]);
 }
 
-void
-deadq_enter(pid, name)
-	pid_t pid;
-	const char *name;
+static void
+deadq_enter(pid_t pid, const char *name)
 {
 	dq_t p;
 	int status;
@@ -2323,27 +2323,24 @@ deadq_enter(pid, name)
 	TAILQ_INSERT_TAIL(&deadq_head, p, dq_entries);
 }
 
-int
-deadq_remove(pid)
-	pid_t pid;
+static int
+deadq_remove(pid_t pid)
 {
 	dq_t q;
 
-	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+	TAILQ_FOREACH(q, &deadq_head, dq_entries) {
 		if (q->dq_pid == pid) {
 			TAILQ_REMOVE(&deadq_head, q, dq_entries);
 				free(q);
-				return 1;
+				return (1);
 		}
+	}
 
-	return 0;
+	return (0);
 }
 
-void
-log_deadchild(pid, status, name)
-	pid_t pid;
-	int status;
-	const char *name;
+static void
+log_deadchild(pid_t pid, int status, const char *name)
 {
 	int code;
 	char buf[256];
@@ -2365,10 +2362,8 @@ log_deadchild(pid, status, name)
 	logerror(buf);
 }
 
-int *
-socksetup(af, bindhostname)
-	int af;
-	const char *bindhostname;
+static int *
+socksetup(int af, const char *bindhostname)
 {
 	struct addrinfo hints, *res, *r;
 	int error, maxs, *s, *socks;
@@ -2422,12 +2417,12 @@ socksetup(af, bindhostname)
 	if (*socks == 0) {
 		free(socks);
 		if (Debug)
-			return(NULL);
+			return (NULL);
 		else
 			die(0);
 	}
 	if (res)
 		freeaddrinfo(res);
 
-	return(socks);
+	return (socks);
 }

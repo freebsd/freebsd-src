@@ -85,7 +85,7 @@ are encoded as a
 a period
 .Pq Dq \&. ,
 an optional set of comparison flags
-.Pq Bq <=> ,
+.Pq Oo \&! Oc Op <=> ,
 and a
 .Em level ,
 with no intervening white-space.
@@ -123,6 +123,15 @@ list of a priority
 level equal or greater than
 .Em level
 will be logged.
+Comparison flags beginning with
+.Dq Li \&!
+will have their logical sense inverted.
+Thus
+.Dq !=info
+means all levels except info and
+.Dq !notice
+has the same meaning as
+.Dq <notice .
 .Pp
 The
 .Em level
@@ -440,7 +449,7 @@ implement the same set of facilities.  The facilities
 authpriv, cron, ftp, and ntp that are known to this implementation
 might be absent on the target system.  Even worse, DEC UNIX uses
 facility number 10 (which is authpriv in this implementation) to
-log events for their AdvFS file system.
+log events for their AdvFS filesystem.
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr syslogd 8
