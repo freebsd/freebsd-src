@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.43 1996/10/07 19:21:46 wollman Exp $
+ *	$Id: ip_output.c,v 1.44 1996/10/22 22:26:02 sos Exp $
  */
 
 #define _IP_VHL
@@ -628,6 +628,7 @@ ip_ctloutput(op, so, level, optname, mp)
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
+		case IP_RECVIF:
 			if (m == 0 || m->m_len != sizeof(int))
 				error = EINVAL;
 			else {
@@ -657,6 +658,10 @@ ip_ctloutput(op, so, level, optname, mp)
 
 				case IP_RECVDSTADDR:
 					OPTSET(INP_RECVDSTADDR);
+					break;
+
+				case IP_RECVIF:
+					OPTSET(INP_RECVIF);
 					break;
 				}
 			}
@@ -728,6 +733,7 @@ ip_ctloutput(op, so, level, optname, mp)
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
+		case IP_RECVIF:
 			*mp = m = m_get(M_WAIT, MT_SOOPTS);
 			m->m_len = sizeof(int);
 			switch (optname) {
@@ -752,6 +758,10 @@ ip_ctloutput(op, so, level, optname, mp)
 
 			case IP_RECVDSTADDR:
 				optval = OPTBIT(INP_RECVDSTADDR);
+				break;
+
+			case IP_RECVIF:
+				optval = OPTBIT(INP_RECVIF);
 				break;
 			}
 			*mtod(m, int *) = optval;

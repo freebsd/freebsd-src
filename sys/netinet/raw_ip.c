@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.36 1996/10/07 19:21:46 wollman Exp $
+ *	$Id: raw_ip.c,v 1.37 1996/10/25 17:57:48 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -107,7 +107,8 @@ rip_input(m, iphlen)
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register struct inpcb *inp;
-	struct socket *last = 0;
+	struct inpcb *last = 0;
+	struct mbuf *opts = 0;
 
 	ripsrc.sin_addr = ip->ip_src;
 	for (inp = ripcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
@@ -122,23 +123,34 @@ rip_input(m, iphlen)
 		if (last) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 			if (n) {
-				if (sbappendaddr(&last->so_rcv,
+				if (last->inp_flags & INP_CONTROLOPTS ||
+				    last->inp_socket->so_options & SO_TIMESTAMP)
+				    ip_savecontrol(last, &opts, ip, n);
+				if (sbappendaddr(&last->inp_socket->so_rcv,
 				    (struct sockaddr *)&ripsrc, n,
-				    (struct mbuf *)0) == 0)
+				    opts) == 0) {
 					/* should notify about lost packet */
 					m_freem(n);
-				else
-					sorwakeup(last);
+					if (opts)
+					    m_freem(opts);
+				} else
+					sorwakeup(last->inp_socket);
+				opts = 0;
 			}
 		}
-		last = inp->inp_socket;
+		last = inp;
 	}
 	if (last) {
-		if (sbappendaddr(&last->so_rcv, (struct sockaddr *)&ripsrc,
-		    m, (struct mbuf *)0) == 0)
+		if (last->inp_flags & INP_CONTROLOPTS ||
+		    last->inp_socket->so_options & SO_TIMESTAMP)
+			ip_savecontrol(last, &opts, ip, m);
+		if (sbappendaddr(&last->inp_socket->so_rcv,
+		    (struct sockaddr *)&ripsrc, m, opts) == 0) {
 			m_freem(m);
-		else
-			sorwakeup(last);
+			if (opts)
+			    m_freem(opts);
+		} else
+			sorwakeup(last->inp_socket);
 	} else {
 		m_freem(m);
               ipstat.ips_noproto++;
