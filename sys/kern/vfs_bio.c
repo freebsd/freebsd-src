@@ -624,7 +624,7 @@ bwrite(struct buf * bp)
 	 * filesystem (if any).
 	 */
 	if ((vp = bp->b_vp) != NULL) {
-		if (vp->v_type == VBLK)
+		if (vn_isdisk(vp))
 			mp = vp->v_specmountpoint;
 		else
 			mp = vp->v_mount;
@@ -915,7 +915,7 @@ brelse(struct buf * bp)
 	 */
 	if ((bp->b_flags & B_VMIO)
 	    && !(bp->b_vp->v_tag == VT_NFS &&
-		 bp->b_vp->v_type != VBLK &&
+		 !vn_isdisk(bp->b_vp) &&
 		 (bp->b_flags & B_DELWRI))
 	    ) {
 
@@ -2103,7 +2103,7 @@ loop:
 		int bsize, maxsize, vmio;
 		off_t offset;
 
-		if (vp->v_type == VBLK)
+		if (vn_isdisk(vp))
 			bsize = DEV_BSIZE;
 		else if (vp->v_mountedhere)
 			bsize = vp->v_mountedhere->mnt_stat.f_iosize;
@@ -2690,7 +2690,7 @@ biodone(register struct buf * bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 #endif
-				if (vp->v_type != VBLK)
+				if (!vn_isdisk(vp))
 #if !defined(MAX_PERF)
 					printf(" iosize: %ld, lblkno: %d, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
