@@ -1166,11 +1166,11 @@ pci_probe_nomatch(device_t dev, device_t child)
 	pcicfgregs *cfg;
 
 	/* a few 'known' devices */
-	if (pci_get_class(dev) == PCIC_SERIALBUS
-	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
-		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
-			device_printf(dev, "UHCI USB controller (vendor");
-		} else if (pci_get_progif(dev) == 0x10 /* OHCI */ ) {
+	if (pci_get_class(child) == PCIC_SERIALBUS
+	    && pci_get_subclass(child) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(child) == 0x00 /* UHCI */ ) {
+			device_printf(dev, "UHCI USB controller");
+		} else if (pci_get_progif(child) == 0x10 /* OHCI */ ) {
 			device_printf(dev, "OHCI USB controller");
 		} else {
 			device_printf(dev, "USB controller");
