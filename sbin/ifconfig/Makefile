@@ -7,8 +7,8 @@ SRCS=	ifconfig.c
 #comment out to exclude SIOC[GS]IFMEDIA support
 SRCS+=	ifmedia.c
 CFLAGS+=-DUSE_IF_MEDIA
-.if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DINET6
+.if !defined(RELEASE_CRUNCH)
 
 #comment out to exclude SIOC[GS]ETVLAN support
 SRCS+=	ifvlan.c
