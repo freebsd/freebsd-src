@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.7 1995/12/17 07:19:54 bde Exp $
+ * $Id: pmap.h,v 1.8 1995/12/17 07:38:58 bde Exp $
  */
 
 /*
@@ -120,6 +120,8 @@ void		 pmap_reference __P((pmap_t));
 void		 pmap_release __P((pmap_t));
 void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
 void		 pmap_zero_page __P((vm_offset_t));
+void		 pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
+		    vm_map_entry_t entry, vm_object_t object));
 #endif /* KERNEL */
 
 #endif /* _PMAP_VM_ */
