@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.214 1999/07/20 07:50:26 jkh Exp $
+ * $Id: menus.c,v 1.215 1999/07/23 03:42:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -295,7 +295,9 @@ DMenu MenuIndex = {
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+#ifdef __i386__
       { "XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
+#endif
       { NULL } },
 };
 
@@ -948,8 +950,10 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
       { "lib",		"Data files needed at runtime",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
+#ifdef __i386__
       { "lk98",		"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
+#endif
       { "lkit",		"Server link kit for all other machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
       { "man",		"Manual pages",
@@ -958,8 +962,10 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
+#ifdef __i386__
       { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
+#endif
       { "sources",	"XFree86 3.3.4 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.3.4 contrib sources",
@@ -1056,6 +1062,7 @@ DMenu MenuXF86SelectServer = {
       { NULL } },
 };
 
+#ifdef __i386__
 DMenu MenuXF86SelectPC98Server = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "PC98 X Server selection.",
@@ -1097,6 +1104,7 @@ Mono servers are particularly well-suited to most LCD displays).",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } }
 };
+#endif
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
