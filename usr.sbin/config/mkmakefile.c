@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.26 1998/02/18 04:15:04 eivind Exp $";
+	"$Id: mkmakefile.c,v 1.27 1998/02/19 00:51:49 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -261,18 +261,15 @@ makefile()
 	(void) fclose(ifp);
 	(void) fclose(ofp);
 	moveifchanged(path("Makefile.new"), path("Makefile"));
-	if (warn_make_clean) {
-		printf("\nUnknown option%s used (not in ../../conf/options or ./options.%s)",
-			(warn_make_clean > 1 ? "s" : ""), 
-			machinename);
-	 	if (old_config_present) {
-			printf(" - it is\nVERY important that you do ``make clean && make depend'' before recompiling!\n\n");
-		} else {
-			printf(".\n\n");
-		}
-	} else {
-		printf("Don't forget to do a ``make depend''.\n\n");
-	}
+
+	if (warn_make_clean != 0 && old_config_present) {
+		printf(
+		"Unknown option%s used - it is VERY important that you do\n",
+			(warn_make_clean > 1 ? "s" : ""));
+		printf("         make clean && make depend\n");
+		printf("before recompiling\n");
+	} else
+		printf("Don't forget to do a ``make depend''\n");
 }
 
 /*
