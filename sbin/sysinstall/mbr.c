@@ -241,6 +241,7 @@ Fdisk()
     u_long cyl, hd, sec, tsec;
     u_long l, l1, l2, l3, l4;
     int changed = 0;
+    char *grumble = NULL;
     
     *buf = 0;
     i = AskEm(stdscr, "Enter number of disk to Fdisk> ", buf, 2);
@@ -298,14 +299,20 @@ Fdisk()
 	    }
 	}
 	mvprintw(20, 0, "Commands available:   ");
-	if (changed) {
+	mvprintw(21, 0, "(H)elp   (T)utorial   (D)elete   (E)dit   (R)eread   (W)rite MBR   (Q)uit");
+	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   Write MBR (B)ootcode");
+	mvprintw(23, 0, "Enter Command> ");
+	move(24,0);
+	if (grumble) {
+	    standout();
+ 	    printw(grumble);
+	    standend();
+	    grumble = NULL;
+	} else if (changed) {
 	    standout();
  	    printw("Use (W)rite to save changes to disk");
 	    standend();
 	}
-	mvprintw(21, 0, "(H)elp   (T)utorial   (D)elete   (E)dit   (R)eread   (W)rite MBR   (Q)uit");
-	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   Write MBR (B)ootcode");
-	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
 
@@ -346,8 +353,7 @@ Press any key to return to FDISK editor...
 
 	case 'b': case 'B':
 	    write_bootcode(Dfd[diskno]);
-	    standout(); mvprintw(24, 0, "Wrote boot manager"); standend();
-	    beep();
+	    grumble = "Wrote boot manager"; 
 	    break;
 
 	case 'e': case 'E':
@@ -497,12 +503,20 @@ Press any key to return to FDISK editor...
 	    disable_label(Dfd[diskno]);
 	    changed=0;
 	    
-	    if (Dlbl[diskno]->d_partitions[OURPART].p_size) 
+	    if (Dlbl[diskno]->d_partitions[OURPART].p_size) {
 		WriteBootblock(Dfd[diskno], lbl, dp);
+		grumble = "Wrote MBR and disklabel to disk";
+	    } else {
+		grumble = "Wrote MBR to disk";
+	    }
+
 	    break;
 
 	case 'q': case 'Q':
 	    return;
+	    break;
+	default:
+	    beep();
 	    break;
 	}
     }
