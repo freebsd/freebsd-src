@@ -91,12 +91,12 @@ nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
 oltr	i386
 pcn	i386,pc98,alpha,ia64,amd64
+pst	i386
 rue	i386,pc98,amd64
 safe	i386,pc98,amd64
 sbp	i386,sparc64,ia64,amd64
 sf	i386,pc98,alpha,ia64,amd64
 sis	i386,pc98,alpha,ia64,amd64
-pst	i386
 sk	i386,pc98,alpha,amd64
 sn	i386,amd64
 snc	pc98
@@ -116,6 +116,8 @@ snd_maestro3	i386,alpha,amd64
 snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
+snd_via82c686.4	i386,amd64
+snd_vibes.4	i386,amd64
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
 ti	i386,pc98,amd64
