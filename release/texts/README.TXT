@@ -1,10 +1,10 @@
    -----------------------------------------
-       FreeBSD 4.1  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 4.2  ---  SNAPSHOT Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a snapshot release of the 4.1.1-stable        /- _  `-/  '
+This is a snapshot release of the 4.2-stable          /- _  `-/  '
 (RELENG_4) branch which is currently moving          (/\/ \ \   /\
-towards the release of 4.2.                          / /   | `    \
+towards the release of 4.3.                          / /   | `    \
                                                      O O   ) /    |
                                                      `-^--'`<     '
                                                     (_.)  _  )   /
@@ -74,8 +74,8 @@ so much as simply keeping up to date on the latest FreeBSD technology,
 you can also install one of our "snapshot" releases:
 
 For the most up-to-date software along the RELENG_4 branch
-(also known as 4.1-stable), now proceeding towards the release
-of FreeBSD 4.2, please install your snapshots from:
+(also known as 4.2-stable), now proceeding towards the release
+of FreeBSD 4.3, please install your snapshots from:
 
         ftp://releng4.freebsd.org/pub/FreeBSD/
 
