@@ -109,8 +109,12 @@ as the field delimiter character instead of the tab character.
 .It Fl f Ar list
 The
 .Ar list
-specifies fields, delimited in the input by a single tab character.
-Output fields are separated by a single tab character.
+specifies fields, separated in the input by the field delimiter character
+(see the
+.Fl d
+option.)
+Output fields are separated by a single occurrence of the field delimiter
+character.
 .It Fl n
 Do not split multi-byte characters.
 .It Fl s
