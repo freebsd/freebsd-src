@@ -171,7 +171,7 @@ dialog_mesgbox(unsigned char *title, unsigned char *prompt, int height, int widt
     for (i = 0; i < width-2; i++)
     waddch(dialog, ' ');
     display_helpline(dialog, height-1, width);
-    print_button(dialog, " CONTINUE ", height-2, width/2-8, TRUE);
+    print_button(dialog, " OK ", height-2, width/2-2, TRUE);
     wattrset(dialog, dialog_attr);
 
     theight = height - 4;
