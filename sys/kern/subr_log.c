@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.25 1997/10/28 15:58:21 bde Exp $
+ * $Id: subr_log.c,v 1.26 1998/01/24 02:54:34 eivind Exp $
  */
 
 /*
@@ -243,7 +243,7 @@ logioctl(dev, com, data, flag, p)
 	return (0);
 }
 
-static log_devsw_installed = 0;
+static	int	log_devsw_installed;
 #ifdef DEVFS
 static	void	*log_devfs_token;
 #endif
