@@ -61,7 +61,7 @@ function
 obtains the next input character (if present) from the stream pointed at by
 .Fa stream ,
 or the next character pushed back on the stream via
-.Xr ungetc .
+.Xr ungetc 3 .
 .Pp
 The
 .Fn getc
@@ -103,7 +103,7 @@ The end-of-file condition is remembered, even on a terminal, and all
 subsequent attempts to read will return
 .Dv EOF
 until the condition is cleared with
-.Xr clearerr .
+.Xr clearerr 3 .
 .Sh SEE ALSO
 .Xr ferror 3 ,
 .Xr fread 3 ,
@@ -123,9 +123,9 @@ conform to
 Since
 .Dv EOF
 is a valid integer value,
-.Xr feof
+.Xr feof 3
 and
-.Xr ferror
+.Xr ferror 3
 must be used to check for failure after calling
 .Fn getw .
 The size and byte order of an
