@@ -161,6 +161,7 @@ extern int radeon_cp_start( DRM_IOCTL_ARGS );
 extern int radeon_cp_stop( DRM_IOCTL_ARGS );
 extern int radeon_cp_reset( DRM_IOCTL_ARGS );
 extern int radeon_cp_idle( DRM_IOCTL_ARGS );
+extern int radeon_cp_resume( DRM_IOCTL_ARGS );
 extern int radeon_engine_reset( DRM_IOCTL_ARGS );
 extern int radeon_fullscreen( DRM_IOCTL_ARGS );
 extern int radeon_cp_buffers( DRM_IOCTL_ARGS );
@@ -583,6 +584,7 @@ extern void radeon_do_release(drm_device_t *dev);
 #define RADEON_TXFORMAT_ARGB4444	5
 #define RADEON_TXFORMAT_ARGB8888	6
 #define RADEON_TXFORMAT_RGBA8888	7
+#define RADEON_TXFORMAT_Y8		8
 #define RADEON_TXFORMAT_VYUY422         10
 #define RADEON_TXFORMAT_YVYU422         11
 #define RADEON_TXFORMAT_DXT1            12
@@ -668,6 +670,10 @@ extern void radeon_do_release(drm_device_t *dev);
 #define R200_SE_VTX_STATE_CNTL            0x2180
 #define R200_RE_POINTSIZE                 0x2648
 #define R200_SE_TCL_INPUT_VTX_VECTOR_ADDR_0 0x2254
+
+#define RADEON_PP_TEX_SIZE_0                0x1d04  /* NPOT */
+#define RADEON_PP_TEX_SIZE_1                0x1d0c
+#define RADEON_PP_TEX_SIZE_2                0x1d14
 
 
 #define SE_VAP_CNTL__TCL_ENA_MASK                          0x00000001
@@ -854,7 +860,7 @@ do {									\
 
 #define COMMIT_RING() do {						\
 	/* Flush writes to ring */					\
-	DRM_READMEMORYBARRIER( dev_priv->mmio );			\
+	DRM_MEMORYBARRIER();						\
 	GET_RING_HEAD( dev_priv );					\
 	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );		\
 	/* read from PCI bus to ensure correct posting */		\
