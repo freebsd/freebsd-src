@@ -182,7 +182,7 @@ smp_init_secondary(void)
 	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
 
 	/* Build our map of 'other' CPUs. */
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
+	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 

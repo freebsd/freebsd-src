@@ -567,7 +567,7 @@ static __inline void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 #if defined(SMP)
-	if (pmap->pm_active & (1 << PCPU_GET(cpuid)))
+	if (pmap->pm_active & PCPU_GET(cpumask))
 		cpu_invlpg((void *)va);
 	if (pmap->pm_active & PCPU_GET(other_cpus))
 		smp_invltlb();
@@ -581,7 +581,7 @@ static __inline void
 pmap_invalidate_all(pmap_t pmap)
 {
 #if defined(SMP)
-	if (pmap->pm_active & (1 << PCPU_GET(cpuid)))
+	if (pmap->pm_active & PCPU_GET(cpumask))
 		cpu_invltlb();
 	if (pmap->pm_active & PCPU_GET(other_cpus))
 		smp_invltlb();
@@ -3409,7 +3409,7 @@ pmap_activate(struct thread *td)
 
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 #if defined(SMP)
-	pmap->pm_active |= 1 << PCPU_GET(cpuid);
+	pmap->pm_active |= PCPU_GET(cpumask);
 #else
 	pmap->pm_active |= 1;
 #endif

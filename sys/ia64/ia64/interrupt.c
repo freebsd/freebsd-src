@@ -127,7 +127,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	} else if (vector == mp_ipi_vector[IPI_RENDEZVOUS]) {
 		smp_rendezvous_action();
 	} else if (vector == mp_ipi_vector[IPI_STOP]) {
-		u_int32_t mybit = 1 << PCPU_GET(cpuid);
+		u_int32_t mybit = PCPU_GET(cpumask);
 
 		savectx(PCPU_GET(pcb));
 		stopped_cpus |= mybit;

@@ -171,7 +171,7 @@ cpu_mp_start()
 #if 0
 		pc->pc_current_pmap = PCPU_GET(current_pmap);
 #endif
-		pc->pc_other_cpus = all_cpus & ~(1UL << pc->pc_cpuid);
+		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
 			ap_stack = kmem_alloc(kernel_map,
 			    KSTACK_PAGES * PAGE_SIZE);
@@ -237,7 +237,7 @@ ipi_selected(u_int64_t cpus, int ipi)
 	struct pcpu *pc;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		if (cpus & (1UL << pc->pc_cpuid))
+		if (cpus & pc->pc_cpumask)
 			ipi_send(pc->pc_lid, ipi);
 	}
 }
