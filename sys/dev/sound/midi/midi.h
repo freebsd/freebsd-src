@@ -65,12 +65,38 @@
 #include <sys/rman.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
+#include <sys/mutex.h>
 
 #include <dev/sound/midi/miditypes.h>
 #include <dev/sound/midi/midibuf.h>
 #include <dev/sound/midi/midisynth.h>
 
 #define MIDI_CDEV_MAJOR 30
+
+/*#define MIDI_OUTOFGIANT*/
+
+#if defined(MIDI_OUTOFGIANT)
+#define MIDI_DROP_GIANT			DROP_GIANT
+#define MIDI_DROP_GIANT_NOSWITCH	DROP_GIANT_NOSWITCH
+#define MIDI_PICKUP_GIANT		PICKUP_GIANT
+#define MIDI_PARTIAL_PICKUP_GIANT	PARTIAL_PICKUP_GIANT
+#else
+#define MIDI_DROP_GIANT()
+#define MIDI_DROP_GIANT_NOSWITCH()
+#define MIDI_PICKUP_GIANT()
+#define MIDI_PARTIAL_PICKUP_GIANT()
+#endif /* MIDI_OUTOFGIANT */
+
+
+/*
+ * The order of mutex lock (from the first to the last)
+ *
+ * 1. sequencer flags, queues, timer and device list
+ * 2. midi synth voice and channel
+ * 3. midi synth status
+ * 4. generic midi flags and queues
+ * 5. midi device
+ */
 
 /*
  * descriptor of midi operations ...
@@ -89,10 +115,7 @@ struct _mididev_info {
 
 	d_open_t *open;
 	d_close_t *close;
-	d_read_t *read;
-	d_write_t *write;
 	d_ioctl_t *ioctl;
-	d_poll_t *poll;
 	midi_callback_t *callback;
 
 	/*
@@ -133,6 +156,9 @@ struct _mididev_info {
 			 * mss codec type, etc. etc.
 			 */
 
+	struct mtx flagqueue_mtx; /* Mutex to protect flags and queues */
+
+	/* Queues */
 	midi_dbuf midi_dbuf_in; /* midi input event/message queue */
 	midi_dbuf midi_dbuf_out; /* midi output event/message queue */
 	midi_dbuf midi_dbuf_passthru; /* midi passthru event/message queue */
@@ -142,6 +168,7 @@ struct _mididev_info {
          * Generic things like busy flag, speed, etc are here.
          */
 
+	/* Flags */
 	volatile u_long  flags ;     /* 32 bits, used for various purposes. */
 	int fflags; /* file flag */
 
@@ -211,6 +238,12 @@ struct _mididev_info {
 
 	/* This is the status message to display via /dev/midistat */
 	char midistat[128];
+
+	/* The tailq entry of the next midi device. */
+	TAILQ_ENTRY(_mididev_info) md_link;
+
+	/* The tailq entry of the next midi device opened by a sequencer. */
+	TAILQ_ENTRY(_mididev_info) md_linkseq;
 } ;
 
 /*
@@ -243,7 +276,7 @@ struct _mididev_info {
 /*
  * finally, all default parameters
  */
-#define MIDI_BUFFSIZE (4 * 1024) /* XXX */
+#define MIDI_BUFFSIZE (1024) /* XXX */
 
 /*
  * some macros for debugging purposes
@@ -263,7 +296,7 @@ struct _mididev_info {
 /* This provides an access to the mididev_info. */
 	mididev_info *get_mididev_info(dev_t i_dev, int *unit);
 	mididev_info *get_mididev_info_unit(int unit);
-	mididev_info *create_mididev_info_unit(int *unit, int type);
+	mididev_info *create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf);
 	int mididev_info_number(void);
 #define MDT_MIDI	(0)
 #define MDT_SYNTH	(1)
@@ -279,10 +312,8 @@ struct _mididev_info {
 /* Common interrupt handler */
 void midi_intr(mididev_info *);
 
-/*
- * library functions (in midi.c)
- */
-#define splmidi() spltty()
+/* Sync output */
+int midi_sync(mididev_info *);
 
 /*
  * Minor numbers for the midi driver.

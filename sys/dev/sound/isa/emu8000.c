@@ -383,8 +383,6 @@ static int emupnp_attach(device_t dev) __unused;
 
 static d_open_t emu_open;
 static d_close_t emu_close;
-static d_read_t emu_read;
-static d_write_t emu_write;
 static d_ioctl_t emu_ioctl;
 static midi_callback_t emu_callback;
 
@@ -396,6 +394,8 @@ static mdsy_writeraw_t emu_writeraw;
 struct emu_softc {
 	device_t dev; /* device information */
 	mididev_info *devinfo; /* midi device information */
+
+	struct mtx mtx; /* Mutex to protect a device */
 
 	struct resource *io[3]; /* Base of io port */
 	int io_rid[3]; /* Io resource ID */
@@ -518,11 +518,7 @@ mididev_info emu_op_desc = {
 
 	emu_open,
 	emu_close,
-	emu_read,
-	emu_write,
 	emu_ioctl,
-	NULL,
-
 	emu_callback,
 
 	MIDI_BUFFSIZE, /* Queue Length */
@@ -723,23 +719,17 @@ emu_attach(device_t dev)
 	emu_writehwcf3(scp, 0x0004);
 
 	/* Fill the softc for this unit. */
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_SYNTH);
 	bcopy(&emu_synthinfo, &scp->synthinfo, sizeof(emu_synthinfo));
+	mtx_init(&scp->mtx, "emumid", MTX_DEF);
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_SYNTH, &emu_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */
-	bcopy(&emu_op_desc, devinfo, sizeof(emu_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&midisynth_op_desc, &devinfo->synth, sizeof(midisynth_op_desc));
 	devinfo->synth.readraw = emu_readraw;
 	devinfo->synth.writeraw = emu_writeraw;
 	snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x, 0x%x, 0x%x",
 		 (u_int)rman_get_start(scp->io[0]), (u_int)rman_get_start(scp->io[1]), (u_int)rman_get_start(scp->io[2]));
 
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
+	midiinit(devinfo, dev);
 
 	DEB(printf("emu%d: attached.\n", unit));
 
@@ -761,59 +751,6 @@ emu_open(dev_t i_dev, int flags, int mode, struct proc *p)
 static int
 emu_close(dev_t i_dev, int flags, int mode, struct proc *p)
 {
-	return (0);
-}
-
-static int
-emu_read(dev_t i_dev, struct uio *buf, int flag)
-{
-	sc_p scp;
-	mididev_info *devinfo;
-	int unit/*, s, len, ret*/;
-
-	unit = MIDIUNIT(i_dev);
-
-	devinfo = get_mididev_info(i_dev, &unit);
-	if (devinfo == NULL) {
-		DEB(printf("emu_read: unit %d is not configured.\n", unit));
-		return (ENXIO);
-	}
-	scp = devinfo->softc;
-	if ((devinfo->fflags & FREAD) == 0) {
-		DEB(printf("emu_read: unit %d is not for reading.\n", unit));
-		return (EIO);
-	}
-
-	/* Drain the data. */
-	midibuf_init(&devinfo->midi_dbuf_in);
-
-	return (0);
-}
-
-static int
-emu_write(dev_t i_dev, struct uio *buf, int flag)
-{
-	sc_p scp;
-	mididev_info *devinfo;
-	int unit/*, s, len, ret*/;
-
-	unit = MIDIUNIT(i_dev);
-
-	devinfo = get_mididev_info(i_dev, &unit);
-	if (devinfo == NULL) {
-		DEB(printf("emu_write: unit %d is not configured.\n", unit));
-		return (ENXIO);
-	}
-	scp = devinfo->softc;
-	if ((devinfo->fflags & FWRITE) == 0) {
-		DEB(printf("emu_write: unit %d is not for writing.\n", unit));
-		return (EIO);
-	}
-
-	/* Drain the data. */
-	midibuf_init(&devinfo->midi_dbuf_out);
-	midibuf_init(&devinfo->midi_dbuf_passthru);
-
 	return (0);
 }
 
@@ -868,6 +805,8 @@ emu_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 static int
 emu_callback(mididev_info *devinfo, int reason)
 {
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	return (0);
 }
 

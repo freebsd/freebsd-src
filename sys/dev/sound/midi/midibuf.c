@@ -44,6 +44,7 @@
 static void queuerawdata(midi_dbuf *dbuf, char *data, int len);
 static void queueuiodata(midi_dbuf *dbuf, struct uio *buf, int len);
 static void dequeuerawdata(midi_dbuf *dbuf, char *data, int len);
+static void undequeuerawdata(midi_dbuf *dbuf, char *data, int len);
 static void copyrawdata(midi_dbuf *dbuf, char *data, int len);
 static void dequeueuiodata(midi_dbuf *dbuf, struct uio *buf, int len);
 
@@ -57,7 +58,23 @@ midibuf_init(midi_dbuf *dbuf)
 {
 	if (dbuf->buf != NULL)
 		free(dbuf->buf, M_DEVBUF);
-	dbuf->buf = malloc(MIDI_BUFFSIZE, M_DEVBUF, M_NOWAIT);
+	dbuf->buf = malloc(MIDI_BUFFSIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+
+	return (midibuf_clear(dbuf));
+}
+
+int
+midibuf_destroy(midi_dbuf *dbuf)
+{
+	if (dbuf->buf != NULL)
+		free(dbuf->buf, M_DEVBUF);
+
+	return (0);
+}
+
+int
+midibuf_clear(midi_dbuf *dbuf)
+{
 	bzero(dbuf->buf, MIDI_BUFFSIZE);
 	dbuf->bufsize = MIDI_BUFFSIZE;
 	dbuf->rp = dbuf->fp = 0;
@@ -77,7 +94,7 @@ midibuf_init(midi_dbuf *dbuf)
 
 /* The sequencer calls this function to queue data. */
 int
-midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len)
+midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m)
 {
 	int i, lwrt, lwritten;
 
@@ -104,7 +121,7 @@ midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len)
 		/* Have we got still more data to write? */
 		if (len > 0) {
 			/* Yes, sleep until we have enough space. */
-			i = tsleep((void *)&dbuf->tsleep_out, PRIBIO | PCATCH, "mbsqwt", 0);
+			i = msleep((void *)&dbuf->tsleep_out, m, PRIBIO | PCATCH, "mbsqwt", 0);
 			if (i == EINTR || i == ERESTART)
 				return (-i);
 		}
@@ -115,7 +132,7 @@ midibuf_seqwrite(midi_dbuf *dbuf, u_char* data, int len)
 
 /* sndwrite calls this function to queue data. */
 int
-midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len)
+midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m)
 {
 	int i, lwrt, lwritten;
 
@@ -141,7 +158,7 @@ midibuf_uiowrite(midi_dbuf *dbuf, struct uio *buf, int len)
 		/* Have we got still more data to write? */
 		if (len > 0) {
 			/* Yes, sleep until we have enough space. */
-			i = tsleep(&dbuf->tsleep_out, PRIBIO | PCATCH, "mbuiwt", 0);
+			i = msleep(&dbuf->tsleep_out, m, PRIBIO | PCATCH, "mbuiwt", 0);
 			if (i == EINTR || i == ERESTART)
 				return (-i);
 		}
@@ -202,7 +219,7 @@ midibuf_input_intr(midi_dbuf *dbuf, u_char *data, int len)
 
 /* The sequencer calls this function to dequeue data. */
 int
-midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len)
+midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m)
 {
 	int i, lrd, lread;
 
@@ -216,7 +233,7 @@ midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len)
 		/* Have we got data to read? */
 		if ((lrd = DATA_AVAIL(dbuf)) == 0) {
 			/* No, sleep until we have data ready to read. */
-			i = tsleep(&dbuf->tsleep_in, PRIBIO | PCATCH, "mbsqrd", 0);
+			i = msleep(&dbuf->tsleep_in, m, PRIBIO | PCATCH, "mbsqrd", 0);
 			if (i == EINTR || i == ERESTART)
 				return (-i);
 			if (i == EWOULDBLOCK)
@@ -240,9 +257,49 @@ midibuf_seqread(midi_dbuf *dbuf, u_char* data, int len)
 	return (lread);
 }
 
+/* The sequencer calls this function to undo dequeued data. */
+int
+midibuf_sequnread(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m)
+{
+	int i, lrd, lunread;
+
+	/* Is this a real queue? */
+	if (dbuf == (midi_dbuf *)NULL)
+		return (0);
+
+	lunread = 0;
+	/* Write down every single byte. */
+	while (len > 0) {
+		/* Have we got data to read? */
+		if ((lrd = SPACE_AVAIL(dbuf)) == 0) {
+			/* No, sleep until we have data ready to read. */
+			i = msleep(&dbuf->tsleep_in, m, PRIBIO | PCATCH, "mbsqur", 0);
+			if (i == EINTR || i == ERESTART)
+				return (-i);
+			if (i == EWOULDBLOCK)
+				continue;
+			/* Find out the number of bytes to unread. */
+			lrd = SPACE_AVAIL(dbuf);
+		}
+
+		if (lrd > len)
+			lrd = len;
+		if (lrd > 0) {
+			/* We can read some data now. Dequeue the data. */
+			undequeuerawdata(dbuf, data, lrd);
+
+			lunread += lrd;
+			len -= lrd;
+			data += lrd;
+		}
+	}
+
+	return (lunread);
+}
+
 /* The sequencer calls this function to copy data without dequeueing. */
 int
-midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len)
+midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len, struct mtx *m)
 {
 	int i, lrd, lread;
 
@@ -256,7 +313,7 @@ midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len)
 		/* Have we got data to read? */
 		if ((lrd = DATA_AVAIL(dbuf)) == 0) {
 			/* No, sleep until we have data ready to read. */
-			i = tsleep(&dbuf->tsleep_in, PRIBIO | PCATCH, "mbsqrd", 0);
+			i = msleep(&dbuf->tsleep_in, m, PRIBIO | PCATCH, "mbsqrd", 0);
 			if (i == EINTR || i == ERESTART)
 				return (-i);
 			if (i == EWOULDBLOCK)
@@ -282,7 +339,7 @@ midibuf_seqcopy(midi_dbuf *dbuf, u_char* data, int len)
 
 /* sndread calls this function to dequeue data. */
 int
-midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len)
+midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len, struct mtx *m)
 {
 	int i, lrd, lread;
 
@@ -295,7 +352,7 @@ midibuf_uioread(midi_dbuf *dbuf, struct uio *buf, int len)
 		/* Have we got data to read? */
 		if ((lrd = DATA_AVAIL(dbuf)) == 0) {
 			/* No, sleep until we have data ready to read. */
-			i = tsleep(&dbuf->tsleep_in, PRIBIO | PCATCH, "mbuird", 0);
+			i = msleep(&dbuf->tsleep_in, m, PRIBIO | PCATCH, "mbuird", 0);
 			if (i == EINTR || i == ERESTART)
 				return (-i);
 			if (i == EWOULDBLOCK)
@@ -382,6 +439,28 @@ dequeuerawdata(midi_dbuf *dbuf, char *data, int len)
 	/* Wake up the processes sleeping on queueing. */
 	wakeup(&dbuf->tsleep_out);
 	if (dbuf->sel.si_pid && dbuf->fl >= dbuf->blocksize)
+		selwakeup(&dbuf->sel);
+}
+
+/* Undo the last dequeue. */
+static void
+undequeuerawdata(midi_dbuf *dbuf, char *data, int len)
+{
+	/* Copy the data. */
+	if (dbuf->rp < len) {
+		memcpy(dbuf->buf, data + (len - dbuf->rp), dbuf->rp);
+		memcpy(dbuf->buf + (dbuf->bufsize - (len - dbuf->rp)), data, len - dbuf->rp);
+	} else
+		memcpy(dbuf->buf + (dbuf->rp - len), data, len);
+
+	/* Adjust the pointer and the length counters. */
+	dbuf->rp = (dbuf->rp - len + dbuf->bufsize) % dbuf->bufsize;
+	dbuf->rl += len;
+	dbuf->fl -= len;
+
+	/* Wake up the processes sleeping on queueing. */
+	wakeup(&dbuf->tsleep_in);
+	if (dbuf->sel.si_pid && dbuf->rl >= dbuf->blocksize)
 		selwakeup(&dbuf->sel);
 }
 

@@ -53,6 +53,7 @@
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/condvar.h>
 #include <machine/clock.h>	/* for DELAY */
 #include <sys/soundcard.h>
 
@@ -68,6 +69,16 @@
 typedef struct _seqdev_info seqdev_info;
 
 typedef int (seq_callback_t)(seqdev_info *sd, int reason);
+
+/*
+ * The order of mutex lock (from the first to the last)
+ *
+ * 1. sequencer flags, queues, timer and device list
+ * 2. midi synth voice and channel
+ * 3. midi synth status
+ * 4. generic midi flags and queues
+ * 5. midi device
+ */
 
 /*
  * descriptor of sequencer operations ...
@@ -128,14 +139,20 @@ struct _seqdev_info {
 			 * mss codec type, etc. etc.
 			 */
 
+	struct mtx flagqueue_mtx; /* Mutex to protect flags and queues */
+	struct cv insync_cv; /* Conditional variable for sync */
+
+	/* Queues */
 	midi_dbuf midi_dbuf_in; /* midi input event/message queue */
 	midi_dbuf midi_dbuf_out; /* midi output event/message queue */
+	
 
         /*
          * these parameters describe the operation of the board.
          * Generic things like busy flag, speed, etc are here.
          */
 
+	/* Flags */
 	volatile u_long  flags ;     /* 32 bits, used for various purposes. */
 
 	/*
@@ -186,6 +203,8 @@ struct _seqdev_info {
 	 */
 #define SEQ_F_INIT              0x4000  /* changed parameters. need init */
 
+#define SEQ_F_INSYNC            0x8000  /* a pending sync */
+
 	int     play_blocksize, rec_blocksize;  /* blocksize for io and dma ops */
 
 #define swsel midi_dbuf_out.sel
@@ -194,6 +213,9 @@ struct _seqdev_info {
 	u_long	magic;
 #define	MAGIC(unit) ( 0xa4d10de0 + unit )
 	void    *device_data ;	/* just in case it is needed...*/
+
+	/* The tailq entry of the next sequencer device. */
+	TAILQ_ENTRY(_seqdev_info) sd_link;
 } ;
 
 
@@ -225,8 +247,6 @@ struct _seqdev_info {
 #ifndef DEB
 #define DEB(x)
 #endif
-
-	extern seqdev_info seq_info[NSEQ_MAX] ;
 
 #define MIDI_DEV_SEQ	1	/* Sequencer output /dev/sequencer (FM
 				   synthesizer and MIDI output) */
