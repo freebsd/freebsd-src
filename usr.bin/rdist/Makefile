@@ -2,11 +2,15 @@
 
 PROG=	rdist
 CFLAGS+=-I${.CURDIR}
-SRCS=	docmd.c expand.c lookup.c main.c server.c
+SRCS=	docmd.c expand.c lookup.c main.c rshrcmd.c server.c
 OBJS+=	gram.o
-BINOWN=	root
-BINMODE=4555
-INSTALLFLAGS=-fschg
 CLEANFILES=y.tab.h
+
+# To use the old method, which requires setuid-root and all the baggage and
+# security holes that goes with it, uncomment:
+# CFLAGS+= -DDIRECT_RCMD
+# BINOWN=	root
+# BINMODE=4555
+# INSTALLFLAGS=-fschg
 
 .include <bsd.prog.mk>

@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id: docmd.c,v 1.3 1995/05/30 06:33:02 rgrimes Exp $";
+	"$Id: docmd.c,v 1.4 1996/07/12 04:00:13 nate Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -56,6 +56,7 @@ static void	 dodcolon __P((char **,
 		    struct namelist *, char *, struct subcmd *));
 static void	 notify __P((char *, char *, struct namelist *, time_t));
 static void	 rcmptime __P((struct stat *));
+static int	 remotecmd __P((char *, char *, char *, char *));
 
 /*
  * Do the commands in cmds (initialized by yyparse).
@@ -129,7 +130,7 @@ doarrow(filev, files, rhost, cmds)
 	int n, ddir, opts = options;
 
 	if (debug)
-		printf("doarrow(%x, %s, %x)\n", files, rhost, cmds);
+		printf("doarrow(%p, %s, %p)\n", files, rhost, cmds);
 
 	if (files == NULL) {
 		error("no files to be updated\n");
@@ -194,6 +195,54 @@ done:
 	}
 }
 
+static int remotecmd(rhost, luser, ruser, cmd)
+	char *rhost;
+	char *luser, *ruser;
+	char *cmd;
+{
+	int desc;
+	static int port = -1;
+
+	if (debug) {
+		printf("local user = %s remote user = %s\n", luser, ruser);
+		printf("Remote command = '%s'\n", cmd);
+	}
+
+	(void) fflush(stdout);
+	(void) fflush(stderr);
+	(void) signal(SIGALRM, cleanup);
+	(void) alarm(RTIMEOUT);
+
+	if (geteuid() == 0 && strcmp(path_rsh, _PATH_RSH) == 0) {
+		if (debug) 
+			printf("I am root, therefore direct rcmd\n");
+
+		(void) signal(SIGPIPE, cleanup);
+
+		if (port < 0) {
+			struct servent *sp;
+		
+			if ((sp = getservbyname("shell", "tcp")) == NULL)
+				fatal("shell/tcp: unknown service");
+			port = sp->s_port;
+		}
+
+		desc = rcmd(&rhost, port, luser, ruser, cmd, 0);
+	} else {
+		if (debug)
+			printf("Remote shell command = '%s'\n", path_rsh);
+		(void) signal(SIGPIPE, SIG_IGN);
+		desc = rshrcmd(&rhost, -1, luser, ruser, cmd, 0);
+		if (desc > 0)
+			(void) signal(SIGPIPE, cleanup);
+	}
+
+	(void) alarm(0);
+
+	return(desc);
+}
+
+
 /*
  * Create a connection to the rdist server on the machine rhost.
  */
@@ -207,7 +256,9 @@ makeconn(rhost)
 	char tuser[20];
 	int n;
 	extern char user[];
+#if defined(DIRECT_RCMD)
 	extern int userid;
+#endif
 
 	if (debug)
 		printf("makeconn(%s)\n", rhost);
@@ -251,9 +302,13 @@ makeconn(rhost)
 	}
 
 	fflush(stdout);
+#if defined(DIRECT_RCMD)
 	seteuid(0);
 	rem = rcmd(&rhost, port, user, ruser, buf, 0);
 	seteuid(userid);
+#else
+	rem = remotecmd(rhost, user, ruser, buf);
+#endif
 	if (rem < 0)
 		return(0);
 	cp = buf;
@@ -463,7 +518,7 @@ rcmptime(st)
 	int len;
 
 	if (debug)
-		printf("rcmptime(%x)\n", st);
+		printf("rcmptime(%p)\n", st);
 
 	if ((d = opendir(target)) == NULL) {
 		error("%s: %s\n", target, strerror(errno));
@@ -471,7 +526,7 @@ rcmptime(st)
 	}
 	otp = tp;
 	len = tp - target;
-	while (dp = readdir(d)) {
+	while ((dp = readdir(d))) {
 		if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
 			continue;
 		if (len + 1 + strlen(dp->d_name) >= BUFSIZ - 1) {
@@ -481,7 +536,7 @@ rcmptime(st)
 		tp = otp;
 		*tp++ = '/';
 		cp = dp->d_name;
-		while (*tp++ = *cp++)
+		while ((*tp++ = *cp++))
 			;
 		tp--;
 		cmptime(target);

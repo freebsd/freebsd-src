@@ -59,7 +59,7 @@ define(name)
 {
 	register char *cp, *s;
 	register struct namelist *nl;
-	struct namelist *value;
+	struct namelist *value = NULL;
 
 	if (debug)
 		printf("define(%s)\n", name);
@@ -129,7 +129,7 @@ lookup(name, action, value)
 	char buf[256];
 
 	if (debug)
-		printf("lookup(%s, %d, %x)\n", name, action, value);
+		printf("lookup(%s, %d, %p)\n", name, action, value);
 
 	n = 0;
 	for (cp = name; *cp; )
