@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 /*

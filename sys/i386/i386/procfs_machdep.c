@@ -71,6 +71,7 @@
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/vnode.h>
+#include <sys/systm.h>
 #include <machine/reg.h>
 #include <machine/md_var.h>
 #include <miscfs/procfs/procfs.h>

@@ -47,15 +47,15 @@
 #include <sys/sysproto.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
-#include <sys/resourcevar.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 

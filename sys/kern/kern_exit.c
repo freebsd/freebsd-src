@@ -47,6 +47,7 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
@@ -65,7 +66,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
