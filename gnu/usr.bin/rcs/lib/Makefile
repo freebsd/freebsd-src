@@ -7,8 +7,8 @@ SRCS    = maketime.c partime.c rcsedit.c rcsfcmp.c rcsfnms.c rcsgen.c \
 	  rcskeep.c rcskeys.c rcslex.c rcsmap.c rcsrev.c rcssyn.c rcstime.c \
 	  rcsutil.c merger.c version.c
 
-NOPROFILE=noprofile
-
-install:
+NOPROFILE=		noprofile
+INTERNALLIB=		true
+INTERNALSTATICLIB=	true
 
 .include <bsd.lib.mk>

@@ -186,7 +186,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(utilId, "$Id$")
+libId(utilId, "$Id: rcsutil.c,v 1.6 1997/02/22 15:47:43 peter Exp $")
 
 #if !has_memcmp
 	int
@@ -1230,7 +1230,14 @@ getRCSINIT(argc, argv, newargv)
 	char **argv, ***newargv;
 {
 	register char *p, *q, **pp;
+	char const *ev;
 	size_t n;
+
+	if ((ev = cgetenv("RCSLOCALID")))
+		setRCSLocalId(ev);
+
+	if ((ev = cgetenv("RCSINCEXC")))
+		setIncExc(ev);
 
 	if (!(q = cgetenv("RCSINIT")))
 		*newargv = argv;

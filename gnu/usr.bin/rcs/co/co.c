@@ -178,7 +178,7 @@ static void cleanup P((void));
 
 static char const quietarg[] = "-q";
 
-static char const *expandarg, *suffixarg, *versionarg, *zonearg, *incexcarg;
+static char const *expandarg, *suffixarg, *versionarg, *zonearg;
 static char const **joinlist; /* revisions to be joined */
 static int joinlength;
 static FILE *neworkptr;
@@ -191,7 +191,7 @@ static struct hshentries *gendeltas;	/* deltas to be generated	*/
 static struct hshentry *targetdelta;	/* final delta to be generated	*/
 static struct stat workstat;
 
-mainProg(coId, "co", "$Id$")
+mainProg(coId, "co", "$Id: co.c,v 1.8 1997/02/22 15:47:21 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nco usage: co -{fIlMpqru}[rev] -ddate -jjoins -ksubst -sstate -T -w[who] -Vn -xsuff -zzone file ...";
@@ -312,11 +312,6 @@ mainProg(coId, "co", "$Id$")
 		case 'z':
 			zonearg = *argv;
 			zone_set(a);
-			break;
-
-		case 'K':    /*  set keyword inclusions/exclusions  */
-			incexcarg = *argv;
-			setIncExc(incexcarg);
 			break;
 
 		case 'k':    /*  set keyword expand mode  */
