@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from the Stanford/CMU enet packet filter,
@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: bpf.h,v 1.35 96/09/26 21:57:37 leres Exp $ (LBL)
+ * @(#) $Header: bpf.h,v 1.36 97/06/12 14:29:53 leres Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION
@@ -170,6 +170,8 @@ struct bpf_hdr {
 #define DLT_FDDI	10	/* FDDI */
 #define DLT_ATM_RFC1483	11	/* LLC/SNAP encapsulated atm */
 #define DLT_RAW		12	/* raw IP */
+#define DLT_SLIP_BSDOS	13	/* BSD/OS Serial Line IP */
+#define DLT_PPP_BSDOS	14	/* BSD/OS Point-to-point Protocol */
 
 /*
  * The instruction encondings.
