@@ -165,6 +165,25 @@ while [ $# -gt 0 ]; do
     -l | -CL | --lisp) FORMAT=lisp ;;
     -h | --help) echo "$USAGE"; exit 0 ;;
     -V | --version) echo "$VERSION"; exit 0 ;;
+    -a | --attach) if [ -z "$2" ]; then
+	  echo "$USAGE" ; exit 1; 
+	fi
+	if [ -e "$2" -a ! -d "$2" ]; then
+	  PRETTY_NAME=`basename $2`
+	  if file $2 | grep "text" >/dev/null 2>/dev/null ; then
+	    ATTACHED_FILES="$ATTACHED_FILES
+--- $PRETTY_NAME begins here ---
+`cat \"$2\"`
+--- $PRETTY_NAME ends here ---
+"
+	  else
+	    ATTACHED_FILES="$ATTACHED_FILES
+`uuencode \"$PRETTY_NAME\" < \"$2\"`
+"
+	  fi
+	  shift;
+	fi;
+	;;
     -*) echo "$USAGE" ; exit 1 ;;
     *) if [ -z "$USER_GNATS_SITE" ]; then
 	 if [ ! -r "$DATADIR/gnats/$1" ]; then
@@ -286,6 +305,10 @@ SEND-PR:
 SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
 SEND-PR: manual if you are not sure how to fill out a problem report.
 SEND-PR: Note that the Synopsis field is mandatory.
+SEND-PR:
+SEND-PR: Please note that (unless you state otherwise) if your report 
+SEND-PR: includes a patch then it will be taken under the same license as 
+SEND-PR: the one on the file(s) you want to change.
 SEND-PR:
 SEND-PR: Choose from the following categories:
 SEND-PR:
