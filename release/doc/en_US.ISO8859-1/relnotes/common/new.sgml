@@ -141,7 +141,7 @@
     <maketarget>buildkernel</maketarget>.  (The
     <maketarget>buildworld</maketarget> is still required when
     upgrading across major releases, across
-    <application>binutil</application> upgrades and when &man.config.8;
+    <application>binutil</application> updates and when &man.config.8;
     changes version.)
     </para>
 
@@ -1695,7 +1695,7 @@
       <para><application>BIND</application> has been updated to
       8.2.4-REL.</para>
 
-      <para><application>Binutils</application> have been upgraded to
+      <para><application>Binutils</application> have been updated to
       2.11.2. &merged;</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
@@ -1711,7 +1711,7 @@
       <para><application>file</application> has been updated to 3.36.</para>
 
       <para>&man.awk.1;, in the form of
-      <application>gawk</application>, has been upgraded from 3.0.4 to 3.0.6.
+      <application>gawk</application>, has been updated from 3.0.4 to 3.0.6.
       This fixes a number of non-critical bugs and includes a few
       performance tweaks. &merged;</para>
 
@@ -1754,7 +1754,7 @@
       <para><application>libpcap</application> has been updated to
       0.6.2. &merged;</para>
 
-      <para><application>libreadline</application> has been upgraded to
+      <para><application>libreadline</application> has been updated to
       4.2.</para>
 
       <para><application>Linux-PAM</application> has been updated to
@@ -1830,7 +1830,7 @@
       <sect4>
         <title>OpenSSH</title>
 
-	<para><application>OpenSSH</application> has been upgraded to
+	<para><application>OpenSSH</application> has been updated to
 	2.1.0, which provides support for the SSH2 protocol, including DSA
 	keys.  Therefore, <application>OpenSSH</application> users in the
 	US no longer need to rely on the restrictively-licensed
@@ -1844,7 +1844,7 @@
 	using OPIE passwords in SSH1 mode.  Support is not yet available
 	in SSH2 mode. &merged;</para>
 
-	<para><application>OpenSSH</application> has been upgraded to
+	<para><application>OpenSSH</application> has been updated to
 	2.2.0.  &man.ssh-add.1; and &man.ssh-agent.1; can now handle DSA
 	keys.  A server for sftp, interoperable with ssh.com
 	clients and others has been added.  &man.scp.1; can now handle
@@ -1853,7 +1853,7 @@
 	number of outstanding unauthenticated ssh connections in
 	&man.sshd.8; has been added. &merged;</para>
 
-	<para><application>OpenSSH</application> has been upgraded to
+	<para><application>OpenSSH</application> has been updated to
 	2.3.0.  This version adds support for the Rijndael encryption
 	algorithm. &merged;</para>
 
@@ -1902,7 +1902,7 @@
       <sect4>
         <title>OpenSSL</title>
 
-	<para><application>OpenSSL</application> has been upgraded to
+	<para><application>OpenSSL</application> has been updated to
 	0.9.6b.</para>
 
 	<para><application>OpenSSL</application> now has support for
@@ -1914,7 +1914,7 @@
       <sect4>
 	<title>sendmail</title>
 
-	<para><application>sendmail</application> has been upgraded from
+	<para><application>sendmail</application> has been updated from
 	version 8.9.3 to version 8.11.5.  Important changes include: new
 	default file locations (see
 	<filename>/usr/src/contrib/sendmail/cf/README</filename>);
