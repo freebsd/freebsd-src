@@ -81,11 +81,8 @@ thr_exit1(void)
 	/* Clean up cpu resources. */
 	cpu_thread_exit(td);
 
-	/* XXX make thread_unlink() */
-	TAILQ_REMOVE(&p->p_threads, td, td_plist);
-	p->p_numthreads--;
-	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
-	kg->kg_numthreads--;
+	/* Unlink the thread from the process and kseg.
+	thread_unlink(td);
 
 	ke->ke_state = KES_UNQUEUED;
 	ke->ke_thread = NULL;
