@@ -5,6 +5,13 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20020217:
+	sendmail 8.12.2 has been imported.  The sendmail binary is no
+	longer a set-user-ID root binary and the infrastructure to support
+	command line mail submission has changed.  Be sure to run
+	mergemaster (especially for updating /etc/rc, /etc/defaults/rc.conf,
+	and /etc/mail) and read /etc/mail/README for more details.
+
 20020112:
 	The preferred configuration method for PAM is now /etc/pam.d/
 	rather than /etc/pam.conf.  If you have an unmodified
