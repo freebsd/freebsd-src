@@ -130,8 +130,19 @@ struct mii_softc {
 typedef struct mii_softc mii_softc_t;
 
 /* mii_flags */
-#define	MIIF_NOISOLATE	0x0001		/* do not isolate the PHY */
-#define	MIIF_DOINGAUTO	0x0002		/* doing autonegotiation */
+#define	MIIF_INITDONE	0x0001		/* has been initialized (mii_data) */
+#define	MIIF_NOISOLATE	0x0002		/* do not isolate the PHY */
+#define	MIIF_NOLOOP	0x0004		/* no loopback capability */
+#define	MIIF_DOINGAUTO	0x0008		/* doing autonegotiation (mii_softc) */
+#define	MIIF_AUTOTSLEEP	0x0010		/* use tsleep(), not callout() */
+#define	MIIF_HAVEFIBER	0x0020		/* from parent: has fiber interface */
+#define	MIIF_HAVE_GTCR	0x0040		/* has 100base-T2/1000base-T CR */
+#define	MIIF_IS_1000X	0x0080		/* is a 1000BASE-X device */
+#define	MIIF_DOPAUSE	0x0100		/* advertise PAUSE capability */
+#define	MIIF_IS_HPNA	0x0200		/* is a HomePNA device */
+#define	MIIF_FORCEANEG	0x0400		/* is a HomePNA device */
+
+#define	MIIF_INHERIT_MASK	(MIIF_NOISOLATE|MIIF_NOLOOP|MIIF_AUTOTSLEEP)
 
 /*
  * Used to attach a PHY to a parent.

@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.12 2003/05/13 21:21:33 ps Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.4.2.13 2003/07/22 02:12:55 ps Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -205,3 +205,5 @@
 /* Marvell Semiconductor PHYs */
 #define	MII_MODEL_MARVELL_E1000	0x0000
 #define	MII_STR_MARVELL_E1000	"Marvell Semiconductor 88E1000* gigabit PHY"
+#define	MII_MODEL_MARVELL_E1011	0x0002
+#define	MII_STR_MARVELL_E1011	"Marvell Semiconductor 88E1011 Gigabit PHY"

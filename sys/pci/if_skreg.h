@@ -1,3 +1,5 @@
+/*	$OpenBSD: if_skreg.h,v 1.10 2003/08/12 05:23:06 nate Exp $	*/
+
 /*
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ctr.columbia.edu>.  All rights reserved.
@@ -33,14 +35,45 @@
  */
 
 /*
- * SysKonnect PCI vendor ID
+ * Copyright (c) 2003 Nathan L. Binkert <binkertn@umich.edu>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#define SK_VENDORID		0x1148
+
+/* Values to keep the different chip revisions apart */
+#define SK_GENESIS 0
+#define SK_YUKON 1
 
 /*
- * SK-NET gigabit ethernet device ID
+ * SysKonnect PCI vendor ID
  */
-#define SK_DEVICEID_GE		0x4300
+#define VENDORID_SK		0x1148
+
+/*
+ * SK-NET gigabit ethernet device IDs
+ */
+#define DEVICEID_SK_V1		0x4300
+#define DEVICEID_SK_V2		0x4320
+
+/*
+ * 3Com PCI vendor ID
+ */
+#define VENDORID_3COM		0x10b7
+
+/*
+ * 3Com gigabit ethernet device ID
+ */
+#define DEVICEID_3COM_3C940	0x1700
 
 /*
  * GEnesis registers. The GEnesis chip has a 256-byte I/O window
@@ -328,6 +361,8 @@
 #define SK_PHYTYPE_BCOM		1	/* Broadcom BCM5400 */
 #define SK_PHYTYPE_LONE		2	/* Level One LXT1000 */
 #define SK_PHYTYPE_NAT		3	/* National DP83891 */
+#define SK_PHYTYPE_MARV_COPPER	4       /* Marvell 88E1011S */
+#define SK_PHYTYPE_MARV_FIBER	5       /* Marvell 88E1011S (fiber) */
 
 /*
  * PHY addresses.
@@ -336,6 +371,7 @@
 #define SK_PHYADDR_BCOM		0x1
 #define SK_PHYADDR_LONE		0x3
 #define SK_PHYADDR_NAT		0x0
+#define SK_PHYADDR_MARV		0x0
 
 #define SK_CONFIG_SINGLEMAC	0x01
 #define SK_CONFIG_DIS_DSL_CLK	0x02
@@ -805,6 +841,28 @@
 
 #define SK_FIFO_END		0x3F
 
+/* Receive MAC FIFO 1 (Yukon Only) */
+#define SK_RXMF1_END		0x0C40
+#define SK_RXMF1_THRESHOLD	0x0C44
+#define SK_RXMF1_CTRL_TEST	0x0C48
+#define SK_RXMF1_WRITE_PTR	0x0C60
+#define SK_RXMF1_WRITE_LEVEL	0x0C68
+#define SK_RXMF1_READ_PTR	0x0C70
+#define SK_RXMF1_READ_LEVEL	0x0C78
+
+#define SK_RFCTL_WR_PTR_TST_ON	0x00004000	/* Write pointer test on*/
+#define SK_RFCTL_WR_PTR_TST_OFF	0x00002000	/* Write pointer test off */
+#define SK_RFCTL_WR_PTR_STEP	0x00001000	/* Write pointer increment */
+#define SK_RFCTL_RD_PTR_TST_ON	0x00000400	/* Read pointer test on */
+#define SK_RFCTL_RD_PTR_TST_OFF	0x00000200	/* Read pointer test off */
+#define SK_RFCTL_RD_PTR_STEP	0x00000100	/* Read pointer increment */
+#define SK_RFCTL_RX_FIFO_OVER	0x00000040	/* Clear IRQ RX FIFO Overrun */
+#define SK_RFCTL_FRAME_RX_DONE	0x00000010	/* Clear IRQ Frame RX Done */
+#define SK_RFCTL_OPERATION_ON	0x00000008	/* Operational mode on */
+#define SK_RFCTL_OPERATION_OFF	0x00000004	/* Operational mode off */
+#define SK_RFCTL_RESET_CLEAR	0x00000002	/* MAC FIFO Reset Clear */
+#define SK_RFCTL_RESET_SET	0x00000001	/* MAC FIFO Reset Set */
+
 /* Block 25 -- RX MAC FIFO 2 regisrers and LINK_SYNC counter */
 #define SK_RXF2_END		0x0C80
 #define SK_RXF2_WPTR		0x0C84
@@ -864,6 +922,31 @@
 #define SK_TXLED1_CTL		0x0D28
 #define SK_TXLED1_TST		0x0D29
 
+/* Receive MAC FIFO 1 (Yukon Only) */
+#define SK_TXMF1_END		0x0D40
+#define SK_TXMF1_THRESHOLD	0x0D44
+#define SK_TXMF1_CTRL_TEST	0x0D48
+#define SK_TXMF1_WRITE_PTR	0x0D60
+#define SK_TXMF1_WRITE_SHADOW	0x0D64
+#define SK_TXMF1_WRITE_LEVEL	0x0D68
+#define SK_TXMF1_READ_PTR	0x0D70
+#define SK_TXMF1_RESTART_PTR	0x0D74
+#define SK_TXMF1_READ_LEVEL	0x0D78
+
+#define SK_TFCTL_WR_PTR_TST_ON	0x00004000	/* Write pointer test on*/
+#define SK_TFCTL_WR_PTR_TST_OFF	0x00002000	/* Write pointer test off */
+#define SK_TFCTL_WR_PTR_STEP	0x00001000	/* Write pointer increment */
+#define SK_TFCTL_RD_PTR_TST_ON	0x00000400	/* Read pointer test on */
+#define SK_TFCTL_RD_PTR_TST_OFF	0x00000200	/* Read pointer test off */
+#define SK_TFCTL_RD_PTR_STEP	0x00000100	/* Read pointer increment */
+#define SK_TFCTL_TX_FIFO_UNDER	0x00000040	/* Clear IRQ TX FIFO Under */
+#define SK_TFCTL_FRAME_TX_DONE	0x00000020	/* Clear IRQ Frame TX Done */
+#define SK_TFCTL_IRQ_PARITY_ER	0x00000010	/* Clear IRQ Parity Error */
+#define SK_TFCTL_OPERATION_ON	0x00000008	/* Operational mode on */
+#define SK_TFCTL_OPERATION_OFF	0x00000004	/* Operational mode off */
+#define SK_TFCTL_RESET_CLEAR	0x00000002	/* MAC FIFO Reset Clear */
+#define SK_TFCTL_RESET_SET	0x00000001	/* MAC FIFO Reset Set */
+
 /* Block 27 -- TX MAC FIFO 2 regisrers  */
 #define SK_TXF2_END		0x0D80
 #define SK_TXF2_WPTR		0x0D84
@@ -903,35 +986,148 @@
 #define SK_FIFO_OFF		0x00000004
 #define SK_FIFO_ON		0x00000008
 
+/* Block 28 -- Descriptor Poll Timer */
+#define SK_DPT_INIT		0x0e00	/* Initial value 24 bits */
+#define SK_DPT_TIMER		0x0e04	/* Mul of 78.12MHz clk (24b) */
+
+#define SK_DPT_TIMER_CTRL	0x0e08	/* Timer Control 16 bits */
+#define SK_DPT_TCTL_STOP	0x0001	/* Stop Timer */
+#define SK_DPT_TCTL_START	0x0002	/* Start Timer */
+
+#define SK_DPT_TIMER_TEST	0x0e0a	/* Timer Test 16 bits */
+#define SK_DPT_TTEST_STEP	0x0001	/* Timer Decrement */
+#define SK_DPT_TTEST_OFF	0x0002	/* Test Mode Off */
+#define SK_DPT_TTEST_ON		0x0004	/* Test Mode On */
+
+/* Block 29 -- reserved */
+
+/* Block 30 -- GMAC/GPHY Control Registers (Yukon Only)*/
+#define SK_GMAC_CTRL		0x0f00	/* GMAC Control Register */
+#define SK_GPHY_CTRL		0x0f04	/* GPHY Control Register */
+#define SK_GMAC_ISR		0x0f08	/* GMAC Interrupt Source Register */
+#define SK_GMAC_IMR		0x0f08	/* GMAC Interrupt Mask Register */
+#define SK_LINK_CTRL		0x0f10	/* Link Control Register (LCR) */
+#define SK_WOL_CTRL		0x0f20	/* Wake on LAN Control Register */
+#define SK_MAC_ADDR_LOW		0x0f24	/* Mack Address Registers LOW */
+#define SK_MAC_ADDR_HIGH	0x0f28	/* Mack Address Registers HIGH */
+#define SK_PAT_READ_PTR		0x0f2c	/* Pattern Read Pointer Register */
+#define SK_PAT_LEN_REG0		0x0f30	/* Pattern Length Register 0 */
+#define SK_PAT_LEN0		0x0f30	/* Pattern Length 0 */
+#define SK_PAT_LEN1		0x0f31	/* Pattern Length 1 */
+#define SK_PAT_LEN2		0x0f32	/* Pattern Length 2 */
+#define SK_PAT_LEN3		0x0f33	/* Pattern Length 3 */
+#define SK_PAT_LEN_REG1		0x0f34	/* Pattern Length Register 1 */
+#define SK_PAT_LEN4		0x0f34	/* Pattern Length 4 */
+#define SK_PAT_LEN5		0x0f35	/* Pattern Length 5 */
+#define SK_PAT_LEN6		0x0f36	/* Pattern Length 6 */
+#define SK_PAT_LEN7		0x0f37	/* Pattern Length 7 */
+#define SK_PAT_CTR_REG0		0x0f38	/* Pattern Counter Register 0 */
+#define SK_PAT_CTR0		0x0f38	/* Pattern Counter 0 */
+#define SK_PAT_CTR1		0x0f39	/* Pattern Counter 1 */
+#define SK_PAT_CTR2		0x0f3a	/* Pattern Counter 2 */
+#define SK_PAT_CTR3		0x0f3b	/* Pattern Counter 3 */
+#define SK_PAT_CTR_REG1		0x0f3c	/* Pattern Counter Register 1 */
+#define SK_PAT_CTR4		0x0f3c	/* Pattern Counter 4 */
+#define SK_PAT_CTR5		0x0f3d	/* Pattern Counter 5 */
+#define SK_PAT_CTR6		0x0f3e	/* Pattern Counter 6 */
+#define SK_PAT_CTR7		0x0f3f	/* Pattern Counter 7 */
+
+#define SK_GMAC_LOOP_ON		0x00000020	/* Loopback mode for testing */
+#define SK_GMAC_LOOP_OFF	0x00000010	/* purposes */
+#define SK_GMAC_PAUSE_ON	0x00000008	/* enable forward of pause */
+#define SK_GMAC_PAUSE_OFF	0x00000004	/* signal to GMAC */
+#define SK_GMAC_RESET_CLEAR	0x00000002	/* Clear GMAC Reset */
+#define SK_GMAC_RESET_SET	0x00000001	/* Set GMAC Reset */
+
+#define SK_GPHY_SEL_BDT		0x10000000	/* Select Bidirectional xfer */
+#define SK_GPHY_INT_POL_HI	0x08000000	/* IRQ Polarity Active */
+#define SK_GPHY_75_OHM		0x04000000	/* Use 75 Ohm Termination */
+#define SK_GPHY_DIS_FC		0x02000000	/* Disable Auto Fiber/Copper */
+#define SK_GPHY_DIS_SLEEP	0x01000000	/* Disable Energy Detect */
+#define SK_GPHY_HWCFG_M_3	0x00800000	/* HWCFG_MODE[3] */
+#define SK_GPHY_HWCFG_M_2	0x00400000	/* HWCFG_MODE[2] */
+#define SK_GPHY_HWCFG_M_1	0x00200000	/* HWCFG_MODE[1] */
+#define SK_GPHY_HWCFG_M_0	0x00100000	/* HWCFG_MODE[0] */
+#define SK_GPHY_ANEG_0		0x00080000	/* ANEG[0] */
+#define SK_GPHY_ENA_XC		0x00040000	/* Enable MDI Crossover */
+#define SK_GPHY_DIS_125		0x00020000	/* Disable 125MHz Clock */
+#define SK_GPHY_ANEG_3		0x00010000	/* ANEG[3] */
+#define SK_GPHY_ANEG_2		0x00008000	/* ANEG[2] */
+#define SK_GPHY_ANEG_1		0x00004000	/* ANEG[1] */
+#define SK_GPHY_ENA_PAUSE	0x00002000	/* Enable Pause */
+#define SK_GPHY_PHYADDR_4	0x00001000	/* Bit 4 of Phy Addr */
+#define SK_GPHY_PHYADDR_3	0x00000800	/* Bit 3 of Phy Addr */
+#define SK_GPHY_PHYADDR_2	0x00000400	/* Bit 2 of Phy Addr */
+#define SK_GPHY_PHYADDR_1	0x00000200	/* Bit 1 of Phy Addr */
+#define SK_GPHY_PHYADDR_0	0x00000100	/* Bit 0 of Phy Addr */
+#define SK_GPHY_RESET_CLEAR	0x00000002	/* Clear GPHY Reset */
+#define SK_GPHY_RESET_SET	0x00000001	/* Set GPHY Reset */
+
+#define SK_GPHY_COPPER		(SK_GPHY_HWCFG_M_0 | SK_GPHY_HWCFG_M_1 | \
+				 SK_GPHY_HWCFG_M_2 | SK_GPHY_HWCFG_M_3 )
+#define SK_GPHY_FIBER		(SK_GPHY_HWCFG_M_0 | SK_GPHY_HWCFG_M_1 | \
+				 SK_GPHY_HWCFG_M_2 )
+#define SK_GPHY_ANEG_ALL	(SK_GPHY_ANEG_0 | SK_GPHY_ANEG_1 | \
+				 SK_GPHY_ANEG_2 | SK_GPHY_ANEG_3 )
+
+#define SK_GMAC_INT_TX_OFLOW	0x20	/* Transmit Counter Overflow */
+#define SK_GMAC_INT_RX_OFLOW	0x10	/* Receiver Overflow */
+#define SK_GMAC_INT_TX_UNDER	0x08	/* Transmit FIFO Underrun */
+#define SK_GMAC_INT_TX_DONE	0x04	/* Transmit Complete */
+#define SK_GMAC_INT_RX_OVER	0x02	/* Receive FIFO Overrun */
+#define SK_GMAC_INT_RX_DONE	0x01	/* Receive Complete */
+
+#define SK_LINK_RESET_CLEAR	0x0002	/* Link Reset Clear */
+#define SK_LINK_RESET_SET	0x0001	/* Link Reset Set */
+
+/* Block 31 -- reserved */
+
+/* Block 32-33 -- Pattern Ram */
+#define SK_WOL_PRAM		0x1000
+
+/* Block 0x22 - 0x3f -- reserved */
+
 /* Block 0x40 to 0x4F -- XMAC 1 registers */
 #define SK_XMAC1_BASE	0x2000
-#define SK_XMAC1_END	0x23FF
+
+/* Block 0x50 to 0x5F -- MARV 1 registers */
+#define SK_MARV1_BASE	0x2800
 
 /* Block 0x60 to 0x6F -- XMAC 2 registers */
 #define SK_XMAC2_BASE	0x3000
-#define SK_XMAC2_END	0x33FF
+
+/* Block 0x70 to 0x7F -- MARV 2 registers */
+#define SK_MARV2_BASE	0x3800
 
 /* Compute relative offset of an XMAC register in the XMAC window(s). */
-#define SK_XMAC_REG(reg, mac)	(((reg) * 2) + SK_XMAC1_BASE + \
-	(mac * (SK_XMAC2_BASE - SK_XMAC1_BASE)))
+#define SK_XMAC_REG(sc, reg)	(((reg) * 2) + SK_XMAC1_BASE +		\
+	(((sc)->sk_port) * (SK_XMAC2_BASE - SK_XMAC1_BASE)))
 
-#define SK_XM_READ_4(sc, reg)					\
-	(sk_win_read_2(sc->sk_softc,				\
-	SK_XMAC_REG(reg, sc->sk_port)) & 0xFFFF) |		\
-	((sk_win_read_2(sc->sk_softc,				\
-	SK_XMAC_REG(reg + 2, sc->sk_port)) << 16) & 0xFFFF0000)
+#if 0
+#define SK_XM_READ_4(sc, reg)						\
+	((sk_win_read_2(sc->sk_softc,					\
+	SK_XMAC_REG(sc, reg)) & 0xFFFF) |				\
+	((sk_win_read_2(sc->sk_softc,					\
+	SK_XMAC_REG(sc, reg + 2)) & 0xFFFF) << 16))
 
-#define SK_XM_WRITE_4(sc, reg, val)				\
-	sk_win_write_2(sc->sk_softc,				\
-	SK_XMAC_REG(reg, sc->sk_port), ((val) & 0xFFFF));	\
-	sk_win_write_2(sc->sk_softc,				\
-	SK_XMAC_REG(reg + 2, sc->sk_port), ((val) >> 16) & 0xFFFF);
+#define SK_XM_WRITE_4(sc, reg, val)					\
+	sk_win_write_2(sc->sk_softc, SK_XMAC_REG(sc, reg),		\
+	((val) & 0xFFFF));						\
+	sk_win_write_2(sc->sk_softc, SK_XMAC_REG(sc, reg + 2),		\
+	((val) >> 16) & 0xFFFF)
+#else
+#define SK_XM_READ_4(sc, reg)		\
+	sk_win_read_4(sc->sk_softc, SK_XMAC_REG(sc, reg))
 
-#define SK_XM_READ_2(sc, reg)					\
-	sk_win_read_2(sc->sk_softc, SK_XMAC_REG(reg, sc->sk_port))
+#define SK_XM_WRITE_4(sc, reg, val)	\
+	sk_win_write_4(sc->sk_softc, SK_XMAC_REG(sc, reg), (val))
+#endif
 
-#define SK_XM_WRITE_2(sc, reg, val)				\
-	sk_win_write_2(sc->sk_softc, SK_XMAC_REG(reg, sc->sk_port), val)
+#define SK_XM_READ_2(sc, reg)		\
+	sk_win_read_2(sc->sk_softc, SK_XMAC_REG(sc, reg))
+
+#define SK_XM_WRITE_2(sc, reg, val)	\
+	sk_win_write_2(sc->sk_softc, SK_XMAC_REG(sc, reg), val)
 
 #define SK_XM_SETBIT_4(sc, reg, x)	\
 	SK_XM_WRITE_4(sc, reg, (SK_XM_READ_4(sc, reg)) | (x))
@@ -945,6 +1141,34 @@
 #define SK_XM_CLRBIT_2(sc, reg, x)	\
 	SK_XM_WRITE_2(sc, reg, (SK_XM_READ_2(sc, reg)) & ~(x))
 
+/* Compute relative offset of an MARV register in the MARV window(s). */
+#define SK_YU_REG(sc, reg) \
+	((reg) + SK_MARV1_BASE + \
+	(((sc)->sk_port) * (SK_MARV2_BASE - SK_MARV1_BASE)))
+
+#define SK_YU_READ_4(sc, reg)		\
+	sk_win_read_4((sc)->sk_softc, SK_YU_REG((sc), (reg)))
+
+#define SK_YU_READ_2(sc, reg)		\
+	sk_win_read_2((sc)->sk_softc, SK_YU_REG((sc), (reg)))
+
+#define SK_YU_WRITE_4(sc, reg, val)	\
+	sk_win_write_4((sc)->sk_softc, SK_YU_REG((sc), (reg)), (val))
+
+#define SK_YU_WRITE_2(sc, reg, val)	\
+	sk_win_write_2((sc)->sk_softc, SK_YU_REG((sc), (reg)), (val))
+
+#define SK_YU_SETBIT_4(sc, reg, x)	\
+	SK_YU_WRITE_4(sc, reg, (SK_YU_READ_4(sc, reg)) | (x))
+
+#define SK_YU_CLRBIT_4(sc, reg, x)	\
+	SK_YU_WRITE_4(sc, reg, (SK_YU_READ_4(sc, reg)) & ~(x))
+
+#define SK_YU_SETBIT_2(sc, reg, x)	\
+	SK_YU_WRITE_2(sc, reg, (SK_YU_READ_2(sc, reg)) | (x))
+
+#define SK_YU_CLRBIT_2(sc, reg, x)	\
+	SK_YU_WRITE_2(sc, reg, (SK_YU_READ_2(sc, reg)) & ~(x))
 
 /*
  * The default FIFO threshold on the XMAC II is 4 bytes. On
@@ -1018,18 +1242,18 @@ struct vpd_key {
 #define VPD_RES_END	0x78	/* end tag */
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sk_btag, sc->sk_bhandle, reg, val)
+	bus_space_write_4((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->sk_btag, sc->sk_bhandle, reg, val)
+	bus_space_write_2((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->sk_btag, sc->sk_bhandle, reg, val)
+	bus_space_write_1((sc)->sk_btag, (sc)->sk_bhandle, (reg), (val))
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sk_btag, sc->sk_bhandle, reg)
+	bus_space_read_4((sc)->sk_btag, (sc)->sk_bhandle, (reg))
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->sk_btag, sc->sk_bhandle, reg)
+	bus_space_read_2((sc)->sk_btag, (sc)->sk_bhandle, (reg))
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->sk_btag, sc->sk_bhandle, reg)
+	bus_space_read_1((sc)->sk_btag, (sc)->sk_bhandle, (reg))
 
 struct sk_type {
 	u_int16_t		sk_vid;
