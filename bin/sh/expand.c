@@ -278,7 +278,7 @@ exptilde(char *p, int flag)
 	char c, *startp = p;
 	struct passwd *pw;
 	char *home;
-	int quotes = flag & (EXP_FULL | EXP_CASE);
+	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 
 	while ((c = *p) != '\0') {
 		switch(c) {
@@ -369,7 +369,7 @@ expari(int flag)
 	char *p, *start;
 	int result;
 	int begoff;
-	int quotes = flag & (EXP_FULL | EXP_CASE);
+	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int quoted;
 
 
@@ -436,7 +436,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
 	int saveherefd;
-	int quotes = flag & (EXP_FULL | EXP_CASE);
+	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 
 	INTOFF;
 	saveifs = ifsfirst;
@@ -635,7 +635,7 @@ evalvar(char *p, int flag)
 	int startloc;
 	int varlen;
 	int easy;
-	int quotes = flag & (EXP_FULL | EXP_CASE);
+	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 
 	varflags = *p++;
 	subtype = varflags & VSTYPE;
