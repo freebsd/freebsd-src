@@ -1,5 +1,5 @@
-.\" Copyright (c) 2003 Roman Kurakin <rik@cronyx.ru>
-.\" Copyright (c) 2003 Cronyx Engineering
+.\" Copyright (c) 2003-2004 Roman Kurakin <rik@cronyx.ru>
+.\" Copyright (c) 2003-2004 Cronyx Engineering
 .\" All rights reserved.
 .\"
 .\" This software is distributed with NO WARRANTIES, not even the implied
@@ -10,10 +10,10 @@
 .\" as long as this message is kept with the software, all derivative
 .\" works or modified versions.
 .\"
-.\" Cronyx Id: cx.4,v 1.1.2.2 2003/09/11 14:56:50 rik Exp $
+.\" Cronyx Id: cx.4,v 1.1.2.6 2004/06/21 17:56:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2003
+.Dd June 21, 2004
 .Dt CX 4 i386
 .Os
 .Sh NAME
@@ -34,9 +34,11 @@ The
 .Nm
 driver needs either
 .Xr sppp 4
-or 
+or
 .Xr netgraph 4 .
-Which one to use is determined by the NETGRAPH_CRONYX option.
+Which one to use is determined by the
+.Dv NETGRAPH_CRONYX
+option.
 If this option is present in your kernel configuration file, the
 .Nm
 driver will be compiled with
@@ -76,10 +78,11 @@ for information about the
 .Nm
 adapter configuration.
 .Sh SEE ALSO
-.Xr ctau 4 , 
-.Xr sppp 4 , 
-.Xr ifconfig 8 , 
-.Xr sconfig 8 , 
+.Xr cp 4 ,
+.Xr ctau 4 ,
+.Xr sppp 4 ,
+.Xr ifconfig 8 ,
+.Xr sconfig 8 ,
 .Xr spppcontrol 8
 .Sh HISTORY
 The
