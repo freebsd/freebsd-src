@@ -372,6 +372,10 @@ __ivaliduser(hostf, raddr, luser, ruser)
 			while ((ch = getc(hostf)) != '\n' && ch != EOF);
 			continue;
 		}
+		if (*p == '\n' || *p == '#') {
+			/* comment... */
+			continue;
+		}
 		while (*p != '\n' && *p != ' ' && *p != '\t' && *p != '\0') {
 			*p = isupper(*p) ? tolower(*p) : *p;
 			p++;
