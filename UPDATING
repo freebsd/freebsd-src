@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040205:	p25	FreeBSD-SA-04:02.shmat
+	Correct a reference counting bug in shmat(2).
+
 20040202:
 	Fixed a syntax issue in gensetdefs(8) sources which tripped up
 	newer compilers.  This has no impact on security, but allows
