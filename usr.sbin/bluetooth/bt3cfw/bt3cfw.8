@@ -1,0 +1,69 @@
+.\" bt3cfw.1
+.\" 
+.\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $Id: bt3cfw.8,v 1.1.1.1 2002/11/12 00:39:18 max Exp $
+.\" $FreeBSD$
+.Dd November 11, 2002
+.Dt BT3CFW 8
+.Os
+.Sh NAME
+.Nm BT3CFW
+.Nd Firmware download utility for 3Com Bluetooth PC card driver
+.Sh SYNOPSIS
+.Nm
+.Op Fl n Ar Netgraph node name
+.Op Fl f Ar Firmware file name
+.Sh DESCRIPTION
+The
+.Nm
+utility connects to the specified Netgraph driver node of type 
+.Dv BTCCC
+and downloads specified firmware file. 
+.Pp
+Due to copyright issues I will no longer provide firmware with the card
+driver. The firmware can be obtained from the Windows driver package that 
+can be downloaded from the 3COM web site at no charge. The firmware name 
+is BT3CPCC.BIN. I'm using original firmware that came with the card on CD-ROM.
+.Bd -literal -offset indent
+MD5 (BT3CPCC.BIN) = 36170fda56ea9fdbf1702c966f8a97f1
+.Ed
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl n Ar Netgraph node name
+Connect to the specified Netgraph driver node of type
+.Dv BTCCC .
+.It Fl f Ar Firmware file name
+Specify firmware file name for download.
+.El
+.Sh BUGS
+Please report if found.
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr ng_bt3c 4
+.Sh AUTHORS
+.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
