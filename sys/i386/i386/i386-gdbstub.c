@@ -91,6 +91,7 @@
  * $m0,10#2a               +$00010203040506070809101112131415#42
  *
  ****************************************************************************/
+/* $FreeBSD$ */
 
 #include <sys/param.h>
 #include <sys/reboot.h>
@@ -104,10 +105,10 @@
 #include "sio.h"
 #include "opt_ddb.h"
 
-void		gdb_handle_exception (db_regs_t *, int, int);
+int		gdb_handle_exception (db_regs_t *, int, int);
 
 #if NSIO == 0
-void
+int
 gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 {
 }
@@ -185,7 +186,9 @@ getpacket (char *buffer)
   int i;
   int count;
   unsigned char ch;
+  int s;
 
+  s = splhigh ();
   do
     {
       /* wait around for the start character, ignore all other characters */
@@ -236,6 +239,7 @@ getpacket (char *buffer)
 	}
     }
   while (checksum != xmitcsum);
+  splx (s);
 }
 
 /* send the packet in buffer.  */
@@ -246,8 +250,10 @@ putpacket (char *buffer)
   unsigned char checksum;
   int count;
   unsigned char ch;
+  int s;
 
   /*  $<packet info>#<checksum>. */
+  s = splhigh ();
   do
     {
 /*
@@ -279,6 +285,7 @@ putpacket (char *buffer)
       putDebugChar (hexchars[checksum & 0xf]);
     }
   while ((getDebugChar () & 0x7f) != '+');
+  splx (s);
 }
 
 static char  remcomInBuffer[BUFMAX];
@@ -418,7 +425,7 @@ hexToInt(char **ptr, int *intValue)
 /*
  * This function does all command procesing for interfacing to gdb.
  */
-void
+int
 gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 {
   int    sigval;
@@ -492,6 +499,8 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 
   while (1)
     {
+      if (gdbdev == NODEV)      /* somebody's removed it */
+	return 1;               /* get out of here */
       remcomOutBuffer[0] = 0;
 
       getpacket (remcomInBuffer);
@@ -507,7 +516,7 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	case 'D':		/* detach; say OK and turn off gdb */
 	  putpacket(remcomOutBuffer);
 	  boothowto &= ~RB_GDB;
-	  return;
+	  return 0;
 
 	case 'g':		/* return the value of the CPU registers */
 	  mem2hex ((vm_offset_t)&registers, remcomOutBuffer, NUMREGBYTES);
@@ -606,12 +615,13 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	  raw_regs->tf_ss = registers.ss;
 	  raw_regs->tf_ds = registers.ds;
 	  raw_regs->tf_es = registers.es;
-	  return;
+	  return 0;
 
 	} /* switch */
 
       /* reply to the request */
       putpacket (remcomOutBuffer);
     }
+  return 0;
 }
 #endif /* NSIO > 0 */
