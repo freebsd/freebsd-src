@@ -85,6 +85,12 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # and choose functionality over speed (on the widest variety of systems).
 options		FAILSAFE
 
+# This allows you to actually store this configuration file into
+# the kernel binary itself, where it may be later read by saying:
+#    strings /kernel | grep ^___ | sed -e 's/^___//' > MYKERNEL
+#
+options         INCLUDE_CONFIG_FILE     # Include this file in kernel
+
 #
 # This directive defines a number of things:
 #  - The compiled kernel is to be called `kernel'
