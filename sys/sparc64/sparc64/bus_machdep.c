@@ -128,6 +128,7 @@
 #include <vm/vm_map.h>
 
 #include <machine/asi.h>
+#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/bus_private.h>
 #include <machine/cache.h>
@@ -246,7 +247,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->dt_boundary = ulmin(parent->dt_boundary,
 		    newtag->dt_boundary);
 	}
-	newtag->dt_parent->dt_ref_count++;
+	atomic_add_int(&newtag->dt_parent->dt_ref_count, 1);
 
 	*dmat = newtag;
 	return (0);
@@ -262,7 +263,7 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			return (EBUSY);
 		while (dmat != NULL) {
 			parent = dmat->dt_parent;
-			dmat->dt_ref_count--;
+			atomic_subtract_int(&dmat->dt_ref_count, 1);
 			if (dmat->dt_ref_count == 0) {
 				free(dmat, M_DEVBUF);
 				/*
