@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.14 1999/05/02 20:35:42 peter Exp $
+ * $Id: if_fea.c,v 1.15 1999/07/10 19:46:08 peter Exp $
  */
 
 /*
@@ -53,7 +53,7 @@ static const char *	pdq_eisa_match		__P((eisa_id_t));
 static int 		pdq_eisa_probe		__P((device_t));
 static int		pdq_eisa_attach		__P((device_t));
 void			pdq_eisa_intr		__P((void *));
-static void		pdq_eisa_shutdown	__P((int, void *));
+static int		pdq_eisa_shutdown	__P((device_t));
 
 #define	DEFEA_IRQS			0x0000FBA9U
 
@@ -226,7 +226,6 @@ pdq_eisa_attach (dev)
 
 	bcopy((caddr_t) sc->sc_pdq->pdq_hwaddr.lanaddr_bytes, sc->sc_ac.ac_enaddr, 6);
 	pdq_ifattach(sc, NULL);
-	at_shutdown(pdq_eisa_shutdown, (void *) sc, SHUTDOWN_POST_SYNC);
 
 	return (0);
 
@@ -241,17 +240,21 @@ bad:
 	return (-1);
 }
 
-static void
-pdq_eisa_shutdown(howto, sc)
-	int		howto;
-	void		*sc;
+static int
+pdq_eisa_shutdown(dev)
+	device_t	dev;
 {
-	pdq_hwreset(((pdq_softc_t *)sc)->sc_pdq);
+	pdq_softc_t	*sc = device_get_softc(dev);
+
+	pdq_hwreset(sc->sc_pdq);
+
+	return (0);
 }
 
 static device_method_t pdq_eisa_methods[] = {
 	DEVMETHOD(device_probe,		pdq_eisa_probe),
 	DEVMETHOD(device_attach,	pdq_eisa_attach),
+	DEVMETHOD(device_shutdown,      pdq_eisa_shutdown),
 
 	{ 0, 0 }
 };
