@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.2.2.5 2002/10/13 16:37:51 ue Exp $
-	basiert auf: 1.1.2.6
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.2.2.6 2003/01/11 12:11:37 ue Exp $
+	basiert auf: 1.1.2.7
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -75,7 +75,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+4.6-stable")))))
+              (else        (string-append u "&" "manpath=FreeBSD+4.7-stable")))))
       ]]>
 
       (define (toc-depth nd)
