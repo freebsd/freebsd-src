@@ -122,7 +122,7 @@ aha_isa_probe(device_t dev)
 
 	port_rid = 0;
 	port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &port_rid,
-	  0, ~0, AHA_NREGS, RF_ACTIVE);
+	    0, ~0, AHA_NREGS, RF_ACTIVE);
 
 	if (port_res == NULL)
 		return (ENXIO);
@@ -150,7 +150,7 @@ aha_isa_probe(device_t dev)
 		    "settings for adapter at %#jx.  Failing probe\n",
 		    (uintmax_t)port_start);
 		aha_free(aha);
-		bus_release_resource(dev, SYS_RES_IOPORT, port_rid, 
+		bus_release_resource(dev, SYS_RES_IOPORT, port_rid,
 		    port_res);
 		return (ENXIO);
 	}
@@ -208,7 +208,8 @@ aha_isa_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!aha->irq) {
 		device_printf(dev, "Unable to allocate excluse use of irq\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		return ENOMEM;
 	}
 
@@ -217,7 +218,8 @@ aha_isa_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!aha->drq) {
 		device_printf(dev, "Unable to allocate drq\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		return ENOMEM;
 	}
@@ -247,41 +249,45 @@ aha_isa_attach(device_t dev)
 				/* lockfunc	*/ busdma_lock_mutex,
 				/* lockarg	*/ &Giant,
 				&aha->parent_dmat) != 0) {
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-                aha_free(aha);
-                return (ENOMEM);
-        }                              
+		aha_free(aha);
+		return (ENOMEM);
+	}
 
-        if (aha_init(aha)) {
+	if (aha_init(aha)) {
 		device_printf(dev, "init failed\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-                aha_free(aha);
-                return (ENOMEM);
-        }
+		aha_free(aha);
+		return (ENOMEM);
+	}
 
 	error = aha_attach(aha);
 	if (error) {
 		device_printf(dev, "attach failed\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-                aha_free(aha);
-                return (error);
+		aha_free(aha);
+		return (error);
 	}
 
-	error = bus_setup_intr(dev, aha->irq, INTR_TYPE_CAM|INTR_ENTROPY, aha_intr, aha,
-	    &ih);
+	error = bus_setup_intr(dev, aha->irq, INTR_TYPE_CAM|INTR_ENTROPY,
+	    aha_intr, aha, &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
-		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
+		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid,
+		    aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
-                aha_free(aha);
-                return (error);
+		aha_free(aha);
+		return (error);
 	}
 
 	return (0);
