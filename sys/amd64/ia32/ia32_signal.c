@@ -558,3 +558,44 @@ freebsd32_sigreturn(td, uap)
 	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
+
+/*
+ * Clear registers on exec
+ */
+void
+ia32_setregs(td, entry, stack, ps_strings)
+	struct thread *td;
+	u_long entry;
+	u_long stack;
+	u_long ps_strings;
+{
+	struct trapframe *regs = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
+	
+	wrmsr(MSR_FSBASE, 0);
+	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
+	pcb->pcb_fsbase = 0;
+	pcb->pcb_gsbase = 0;
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_udatasel);
+	load_gs(_udatasel);
+	pcb->pcb_ds = _udatasel;
+	pcb->pcb_es = _udatasel;
+	pcb->pcb_fs = _udatasel;
+	pcb->pcb_gs = _udatasel;
+
+	bzero((char *)regs, sizeof(struct trapframe));
+	regs->tf_rip = entry;
+	regs->tf_rsp = stack;
+	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
+	regs->tf_ss = _udatasel;
+	regs->tf_cs = _ucode32sel;
+	regs->tf_rbx = ps_strings;
+	load_cr0(rcr0() | CR0_MP | CR0_TS);
+	fpstate_drop(td);
+
+	/* Return via doreti so that we can change to a different %cs */
+	pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_retval[1] = 0;
+}
