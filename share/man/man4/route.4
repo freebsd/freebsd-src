@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)route.4	8.6 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: route.4,v 1.5 1997/02/22 13:24:40 peter Exp $
 .\"
 .Dd October 8, 1996
 .Dt ROUTE 4
@@ -39,6 +39,8 @@
 .Nm route 
 .Nd kernel packet forwarding database
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/time.h>
 .Fd #include <sys/socket.h>
 .Fd #include <net/if.h>
 .Fd #include <net/route.h>
