@@ -20,8 +20,8 @@
 #define SCRATCHSIZE 1024
 #define ERRMSGSIZE 256
 #define DEFROOTSIZE 16
-#define DEFSWAPSIZE 32
-#define DEFUSRSIZE 120
+#define DEFSWAPSIZE 16
+#define DEFUSRSIZE 80		/* My disk is not that big Paul ! */
 
 #define BOOT_MAGIC 0xAA55
 #define ACTIVE 0x80
