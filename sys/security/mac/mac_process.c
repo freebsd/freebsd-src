@@ -366,12 +366,11 @@ static int
 mac_policy_register(struct mac_policy_conf *mpc)
 {
 	struct mac_policy_conf *tmpc;
-	struct mac_policy_ops *ops;
 	struct mac_policy_op_entry *mpe;
 	int slot;
 
-	MALLOC(mpc->mpc_ops, struct mac_policy_ops *, sizeof(*ops), M_MACOPVEC,
-	    M_WAITOK | M_ZERO);
+	MALLOC(mpc->mpc_ops, struct mac_policy_ops *, sizeof(*mpc->mpc_ops),
+	    M_MACOPVEC, M_WAITOK | M_ZERO);
 	for (mpe = mpc->mpc_entries; mpe->mpe_constant != MAC_OP_LAST; mpe++) {
 		switch (mpe->mpe_constant) {
 		case MAC_OP_LAST:
