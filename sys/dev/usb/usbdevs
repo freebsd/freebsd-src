@@ -468,6 +468,7 @@ product AVISION 1200U		0x0268	1200U scanner
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
 product BELKIN USB2LAN		0x0121	USB to LAN Converter
 product BELKIN F5U103		0x0103	F5U103 Serial adapter
+product BELKIN F5U109		0x0109	F5U109 Serial adapter
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 
 /* Billionton products */
@@ -1044,6 +1045,7 @@ product SONY MSACUS1		0x002d	Memorystick MSAC-US1
 product SONY MSC		0x0032	MSC memory stick slot
 product SONY CLIE_40		0x0066	Sony Clie v4.0
 product SONY CLIE_41		0x009a	Sony Clie v4.1
+product SONY CLIE_50		0x00da	Sony Clie v5.0
 
 /* STMicroelectronics products */
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
