@@ -51,6 +51,8 @@ the buffer to be read or written
 .Pp
 This call either reads or writes data from a file, depending on the value of
 .Fa bp->b_io.bio_cmd .
+.Pp
+The call may block.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
