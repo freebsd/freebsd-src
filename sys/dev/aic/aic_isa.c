@@ -224,4 +224,5 @@ static driver_t aic_isa_driver = {
 
 extern devclass_t aic_devclass;
 
+MODULE_DEPEND(aic, cam, 1,1,1);
 DRIVER_MODULE(aic, isa, aic_isa_driver, aic_devclass, 0, 0);
