@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.21 1997/05/23 06:22:47 charnier Exp $
+ *	$Id: identcpu.c,v 1.22 1997/05/31 08:45:23 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -56,7 +56,7 @@
 #include <machine/sysarch.h>
 #include <machine/md_var.h>
 
-#include <i386/isa/isa_device.h>
+#include <i386/isa/intr_machdep.h>
 
 /* XXX - should be in header file */
 void	i486_bzero __P((void *buf, size_t len));

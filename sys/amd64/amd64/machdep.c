@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.244 1997/05/26 09:23:29 fsmp Exp $
+ *	$Id: machdep.c,v 1.245 1997/05/26 18:40:45 fsmp Exp $
  */
 
 #include "npx.h"
@@ -117,6 +117,7 @@
 #endif
 
 #include <i386/isa/isa_device.h>
+#include <i386/isa/intr_machdep.h>
 #include <i386/isa/rtc.h>
 #include <machine/random.h>
 
