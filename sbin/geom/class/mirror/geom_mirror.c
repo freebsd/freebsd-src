@@ -56,8 +56,12 @@ static void mirror_dump(struct gctl_req *req);
 static void mirror_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS },
-	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS },
+	{ "activate", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
+	    "[-v] name prov ..."
+	},
+	{ "clear", G_FLAG_VERBOSE, mirror_main, G_NULL_OPTS,
+	    "[-v] prov ..."
+	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_NONE },
@@ -67,11 +71,18 @@ struct g_command class_commands[] = {
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-adhnv] [-b balance] [-s slice] name"
 	},
-	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS },
-	{ "dump", 0, mirror_main, G_NULL_OPTS },
-	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS },
+	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov ..."
+	},
+	{ "dump", 0, mirror_main, G_NULL_OPTS,
+	    "prov ..."
+	},
+	{ "forget", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "name ..."
+	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
 		{ 'b', "balance", label_balance, G_TYPE_STRING },
@@ -79,7 +90,8 @@ struct g_command class_commands[] = {
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
 		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hnv] [-b balance] [-s slice] name prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
@@ -87,39 +99,26 @@ struct g_command class_commands[] = {
 		{ 'i', "inactive", NULL, G_TYPE_NONE },
 		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hiv] [-p priority] name prov ..."
 	},
-	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS },
-	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS },
+	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov ..."
+	},
+	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
+	    "[-v] name prov ..."
+	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
 
 static int verbose = 0;
-
-void usage(const char *);
-void
-usage(const char *comm)
-{
-	fprintf(stderr,
-	    "usage: %s label [-hnv] [-b balance] [-s slice] name prov ...\n"
-	    "       %s clear [-v] prov ...\n"
-	    "       %s dump prov ...\n"
-	    "       %s configure [-adhnv] [-b balance] [-s slice] name\n"
-	    "       %s rebuild [-v] name prov ...\n"
-	    "       %s insert [-hiv] [-p priority] name prov ...\n"
-	    "       %s remove [-v] name prov ...\n"
-	    "       %s activate [-v] name prov ...\n"
-	    "       %s deactivate [-v] name prov ...\n"
-	    "       %s forget name ...\n"
-	    "       %s stop [-fv] name ...\n",
-	    comm, comm, comm, comm, comm, comm, comm, comm, comm, comm, comm);
-}
 
 static void
 mirror_main(struct gctl_req *req, unsigned flags)
