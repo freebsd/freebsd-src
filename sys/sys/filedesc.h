@@ -40,7 +40,8 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/limits.h> /* XXX for CHAR_BIT */
+
+#include <machine/_limits.h>
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -56,7 +57,7 @@
 #define NDFILE		20
 #define NDSLOTTYPE	u_long
 #define NDSLOTSIZE	sizeof(NDSLOTTYPE)
-#define	NDENTRIES	(NDSLOTSIZE * CHAR_BIT)
+#define	NDENTRIES	(NDSLOTSIZE * __CHAR_BIT)
 #define NDSLOT(x)	((x) / NDENTRIES)
 #define NDBIT(x)	((NDSLOTTYPE)1 << ((x) % NDENTRIES))
 #define	NDSLOTS(x)	(((x) + NDENTRIES - 1) / NDENTRIES)
