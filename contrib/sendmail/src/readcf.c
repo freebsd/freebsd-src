@@ -1527,6 +1527,10 @@ struct optioninfo
 #define O_CONTROLSOCKET	0xa9
 	{ "ControlSocketName",		O_CONTROLSOCKET,	FALSE	},
 #endif
+#if _FFR_MAX_HEADER_LINES
+#define O_MAXHDRLINES	0xaa
+	{ "MaxHeaderLines",		O_MAXHDRLINES,	FALSE	},
+#endif
 	{ NULL,				'\0',		FALSE	}
 };
 
@@ -2463,6 +2467,25 @@ setoption(opt, val, safe, sticky, e)
 		if (ControlSocketName != NULL)
 			free(ControlSocketName);
 		ControlSocketName = newstr(val);
+		break;
+#endif
+
+#if _FFR_MAX_HEADER_LINES
+	  case O_MAXHDRLINES:
+		p = strchr(val, '/');
+		if (p != NULL)
+			*p++ = '\0';
+		MaxHeaderLines = atoi(val);
+		if (p != NULL && *p != '\0')
+			MaxHeaderLineLength = atoi(p);
+
+		if (MaxHeaderLines > 0 &&
+		    MaxHeaderLines < 50)
+			printf("Warning: MaxHeaderLines: header line limit set lower than 50\n");
+
+		if (MaxHeaderLineLength > 0 &&
+		    MaxHeaderLineLength < MAXHDRLINELEN)
+			printf("Warning: MaxHeaderLines: header line length limit set lower than %d\n", MAXHDRLINELEN);
 		break;
 #endif
 
