@@ -143,19 +143,40 @@ hookup(host0, port)
 	while (1) {
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (s < 0) {
+			res = res->ai_next;
+			if (res)
+				continue;
 			warn("socket");
 			code = -1;
 			return (0);
 		}
-		if (dobind &&
-		    bind(s, (struct sockaddr *)&bindto,
-			 ((struct sockaddr *)&bindto)->sa_len) == -1) {
+		if (dobind) {
+			struct addrinfo *bindres;
+			int binderr = -1;
+
+			for (bindres = bindres0;
+			     bindres != NULL;
+			     bindres = bindres->ai_next)
+				if (bindres->ai_family == res->ai_family)
+					break;
+			if (bindres == NULL)
+				bindres = bindres0;
+			binderr = bind(s, bindres->ai_addr,
+				       bindres->ai_addrlen);
+			if (binderr == -1)
+		      {
+			res = res->ai_next;
+			if (res) {
+				(void)close(s);
+				continue;
+			}
 			warn("bind");
-			goto next;
+			code = -1;
+			goto bad;
+		      }
 		}
 		if (connect(s, res->ai_addr, res->ai_addrlen) == 0)
 			break;
-	next:
 		if (res->ai_next) {
 			char hname[INET6_ADDRSTRLEN];
 			getnameinfo(res->ai_addr, res->ai_addrlen,
@@ -1159,10 +1180,24 @@ initconn()
 			warn("socket");
 			return (1);
 		}
-		if (dobind && bind(data, (struct sockaddr *)&bindto,
-				((struct sockaddr *)&bindto)->sa_len) == -1) {
+		if (dobind) {
+			struct addrinfo *bindres;
+			int binderr = -1;
+
+			for (bindres = bindres0;
+			     bindres != NULL;
+			     bindres = bindres->ai_next)
+				if (bindres->ai_family == data_addr.su_family)
+					break;
+			if (bindres == NULL)
+				bindres = bindres0;
+			binderr = bind(data, bindres->ai_addr,
+				       bindres->ai_addrlen);
+			if (binderr == -1)
+		     {
 			warn("bind");
 			goto bad;
+		     }
 		}
 		if ((options & SO_DEBUG) &&
 		    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on,
