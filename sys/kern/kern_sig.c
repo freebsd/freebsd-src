@@ -1953,7 +1953,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 			td->td_priority = PUSER;
 		}
 	}
-	if (TD_IS_SLEEPING(td)) {
+	if (TD_ON_SLEEPQ(td)) {
 		/*
 		 * If thread is sleeping uninterruptibly
 		 * we can't interrupt the sleep... the signal will
