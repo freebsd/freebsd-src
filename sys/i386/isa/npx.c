@@ -218,11 +218,7 @@ npx_intr(dummy)
 	 * The BUSY# latch must be cleared in all cases so that the next
 	 * unmasked npx exception causes an interrupt.
 	 */
-#ifdef PC98
-	outb(0xf8, 0);
-#else
-	outb(0xf0, 0);
-#endif
+	outb(IO_NPX, 0);
 
 	/*
 	 * fpcurthread is normally non-null here.  In that case, schedule an
@@ -270,13 +266,8 @@ npx_probe(dev)
 	    IO_NPX, IO_NPX + IO_NPXSIZE - 1, IO_NPXSIZE, RF_ACTIVE);
 	if (ioport_res == NULL)
 		panic("npx: can't get ports");
-#ifdef PC98
 	if (resource_int_value("npx", 0, "irq", &irq_num) != 0)
-		irq_num = 8;
-#else
-	if (resource_int_value("npx", 0, "irq", &irq_num) != 0)
-		irq_num = 13;
-#endif
+		irq_num = IRQ_NPX;
 	irq_rid = 0;
 	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, irq_num,
 	    irq_num, 1, RF_ACTIVE);
@@ -290,12 +281,9 @@ npx_probe(dev)
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
 	 * it after a warm boot.
 	 */
-#ifdef PC98
-	outb(0xf8,0);
-#else
-	outb(0xf1, 0);		/* full reset on some systems, NOP on others */
-	outb(0xf0, 0);		/* clear BUSY# latch */
-#endif
+	npx_full_reset();
+	outb(IO_NPX, 0);
+
 	/*
 	 * Prepare to trap all ESC (i.e., NPX) instructions and all WAIT
 	 * instructions.  We must set the CR0_MP bit and use the CR0_TS
