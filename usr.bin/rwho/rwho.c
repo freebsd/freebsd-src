@@ -136,7 +136,8 @@ main(argc, argv)
 	mp = myutmp;
 	width = 0;
 	for (i = 0; i < nusers; i++) {
-		int j = strlen(mp->myhost) + 1 + strlen(mp->myutmp.out_line);
+		/* append one for the blank and use 8 for the out_line */
+		int j = strlen(mp->myhost) + 1 + 8;
 		if (j > width)
 			width = j;
 		mp++;
@@ -144,7 +145,7 @@ main(argc, argv)
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ];
-		(void)sprintf(buf, "%s:%-8.8s", mp->myhost, mp->myutmp.out_line);
+		(void)sprintf(buf, "%s:%-.8s", mp->myhost, mp->myutmp.out_line);
 		printf("%-8.8s %-*s %.12s",
 		   mp->myutmp.out_name,
 		   width,
