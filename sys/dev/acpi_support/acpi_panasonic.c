@@ -223,9 +223,9 @@ acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS)
 
 	/* Set the new value via the appropriate function. */
 	error = handler(sc->handle, HKEY_SET, &arg);
-	ACPI_SERIAL_END(panasonic);
 
 out:
+	ACPI_SERIAL_END(panasonic);
 	return (error);
 }
 
