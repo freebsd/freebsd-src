@@ -63,12 +63,6 @@ script, which can be configured via
 .Xr rc.conf 5 .
 If values are specified manually, they may be overridden.
 .Bl -tag -width indent
-.It Va hw.acpi.cpu.throttle_max
-Maximum value for CPU throttling, equal to 100% of the clock rate.
-.It Va hw.acpi.cpu.throttle_state
-Get or set the current throttling state, from 1 to
-.Va hw.acpi.cpu.throttle_max .
-This scales back the CPU clock rate and the corresponding power consumption.
 .It Va hw.acpi.cpu.cx_usage
 Debugging information listing the percent of total usage for each sleep state.
 The values are reset when
