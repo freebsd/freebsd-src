@@ -345,7 +345,6 @@ static DEV_INFO device_info[] = {
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcd",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 {"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
-{"wd",		"IDE or ST506 compatible storage device", FLG_INVISIBLE, CLS_STORAGE},
 {"ad",		"ATA/ATAPI compatible storage device",	FLG_INVISIBLE,	CLS_STORAGE},	
 {"fd",		"Floppy disk device",			FLG_INVISIBLE,	CLS_STORAGE},
 
