@@ -28,14 +28,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ypxfrd_server.c,v 1.5 1997/04/10 13:48:59 wpaul Exp $
  */
 
-#include "ypxfrd.h"
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.5 1997/04/10 13:48:59 wpaul Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
+
+#include "ypxfrd.h"
 
 #include <stdio.h>
 #include <stdlib.h>

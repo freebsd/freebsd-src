@@ -28,11 +28,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ypxfrd_main.c,v 1.4 1997/03/11 15:56:48 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include "ypxfrd.h"
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h> /* getenv, exit */
 #include <unistd.h>
@@ -60,9 +65,6 @@
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-#ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_main.c,v 1.4 1997/03/11 15:56:48 peter Exp $";
-#endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
@@ -84,7 +86,7 @@ void _msgout(char* msg)
 	if (_rpcpmstart)
 		syslog(LOG_ERR, msg);
 	else
-		(void) fprintf(stderr, "%s\n", msg);
+		warnx("%s", msg);
 #else
 	syslog(LOG_ERR, msg);
 #endif
@@ -144,7 +146,7 @@ ypxfrd_svc_run()
 			if (errno == EINTR) {
 				continue;
 			}
-			perror("svc_run: - select failed");
+			warn("svc_run: - select failed");
 			return;
 		case 0:
 			continue;
@@ -177,17 +179,18 @@ static void reaper(sig)
 
 void usage()
 {
-	fprintf(stderr, "%s [-p path]\n", progname);
+	fprintf(stderr, "usage: rpc.ypxfrd [-p path]\n");
 	exit(0);
 }
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register SVCXPRT *transp;
+	register SVCXPRT *transp = NULL;
 	int sock;
-	int proto;
+	int proto = 0;
 	struct sockaddr_in saddr;
 	int asize = sizeof (saddr);
 	int ch;
@@ -223,10 +226,8 @@ main(argc, argv)
 		int pid, i;
 
 		pid = fork();
-		if (pid < 0) {
-			perror("cannot fork");
-			exit(1);
-		}
+		if (pid < 0)
+			err(1, "fork");
 		if (pid)
 			exit(0);
 		size = getdtablesize();
