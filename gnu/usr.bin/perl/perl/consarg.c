@@ -1,4 +1,4 @@
-/* $RCSfile: consarg.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:29 $
+/* $RCSfile: consarg.c,v $$Revision: 1.3 $$Date: 1995/05/30 05:02:57 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: consarg.c,v $
+ * Revision 1.3  1995/05/30 05:02:57  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/09/11  03:17:29  gclarkii
  * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
  * Added casts to shutup warnings in doio.c
@@ -1237,7 +1240,7 @@ int marking;
 
 		while (*s) {
 		    if (*s == '$' && s[1]) {
-			s = scanident(s,send,tokenbuf);
+			s = scanident(s,send,tokenbuf,sizeof tokenbuf);
 			stab = stabent(tokenbuf,TRUE);
 			if (marking)
 			    stab_lastexpr(stab) = exprnum;
