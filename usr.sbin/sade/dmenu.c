@@ -132,15 +132,21 @@ dmenuSetKmapVariable(dialogMenuItem *tmp)
 int
 dmenuToggleVariable(dialogMenuItem *tmp)
 {
-    char *var;
+    char *var, *cp;
     int status;
 
-    if (!(var = (char *)tmp->data)) {
+    if (!(var = strdup((char *)tmp->data))) {
 	msgConfirm("Incorrect data field for `%s'!", tmp->title);
 	return DITEM_FAILURE;
     }
+    if (!(cp = index(var, '='))) {
+	msgConfirm("Data field for %s is not in var=value format!", tmp->title);
+	return DITEM_FAILURE;
+    }
     status = variable_check(var);
+    *cp = '\0';
     variable_set2(var, status ? "NO" : "YES", *var != '_');
+    free(var);
     return DITEM_SUCCESS;
 }
 
