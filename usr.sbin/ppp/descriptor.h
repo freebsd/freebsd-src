@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.5 1999/02/06 02:54:45 brian Exp $
+ * $FreeBSD$
  */
 
 #define PHYSICAL_DESCRIPTOR (1)

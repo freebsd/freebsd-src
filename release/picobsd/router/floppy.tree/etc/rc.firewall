@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $FreeBSD$
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:

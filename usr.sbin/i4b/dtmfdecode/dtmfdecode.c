@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: dtmfdecode.c,v 1.5 1999/04/26 11:41:49 hm Exp $
+ * $FreeBSD$
  *
  * Extract DTMF signalling from ISDN4BSD A-law coded audio data
  *

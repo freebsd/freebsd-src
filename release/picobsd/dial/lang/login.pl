@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: login.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $FreeBSD$
 
 if [ "$2" != "root" ]
 then

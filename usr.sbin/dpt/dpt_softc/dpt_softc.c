@@ -30,7 +30,7 @@
 
 /* dpt_softc.c:  Dunp a DPT control structure */
 
-#ident "$Id: dpt_softc.c,v 1.1 1998/01/26 06:20:46 julian Exp $"
+#ident "$FreeBSD$"
 
 #include <stdlib.h>
 #include <fcntl.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ua.h,v 1.1 1998/09/04 18:26:00 brian Exp $
+ * $FreeBSD$
  */
 
 #ifdef __i386__		/* Do any other archs not care about alignment ? */

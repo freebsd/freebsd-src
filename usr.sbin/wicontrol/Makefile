@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/05/23 04:04:15 msmith Exp $
+# $FreeBSD$
 PROG=	wicontrol
 SRCS=	wicontrol.c
 

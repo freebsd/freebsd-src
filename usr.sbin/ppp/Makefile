@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.60 1999/08/27 06:01:27 jkh Exp $
+# $FreeBSD$
 
 MAINTAINER=brian@FreeBSD.org
 

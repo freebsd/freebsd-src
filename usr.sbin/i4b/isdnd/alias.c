@@ -30,7 +30,7 @@
  *	NOTE:	this has to stay in sync with isdntel/alias.c to be able
  *		to share a common aliasfile!
  *		
- *      $Id: alias.c,v 1.6 1999/02/14 09:44:55 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Sun Feb 14 10:10:03 1999]
  *

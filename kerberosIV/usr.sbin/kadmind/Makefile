@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/03/20 17:48:12 markm Exp $
+# $FreeBSD$
 
 PROG=		kadmind
 MAN8=		${KRB4DIR}/man/kadmind.8

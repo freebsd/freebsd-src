@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pppctl.c,v 1.18 1999/04/26 08:53:52 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  * 
- * $Id: jail.c,v 1.2 1999/05/04 18:20:53 phk Exp $
+ * $FreeBSD$
  * 
  */
 

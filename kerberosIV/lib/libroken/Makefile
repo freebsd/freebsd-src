@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:12 markm Exp $
+# $FreeBSD$
 
 LIB=		roken
 CFLAGS+=	-I${KRB4DIR}/include \

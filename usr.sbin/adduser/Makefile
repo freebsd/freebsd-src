@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1997/07/05 19:12:43 pst Exp $
+# $FreeBSD$
 
 MAINTAINER= wosch
 

@@ -1,4 +1,4 @@
-# $Id: mfs.rc.en,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $
+# $FreeBSD$
 # This file is interpreted by oinit(8)
 #
 ncons 2

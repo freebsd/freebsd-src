@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.c,v 1.7 1998/06/27 23:48:47 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 /*
- * $Id: dhcp.c,v 1.1 1999/07/19 10:06:17 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1999
  *	C. Stone.  All rights reserved.

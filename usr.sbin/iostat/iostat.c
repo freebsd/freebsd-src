@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iostat.c,v 1.13 1999/06/24 06:43:18 imp Exp $
+ * $FreeBSD$
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat

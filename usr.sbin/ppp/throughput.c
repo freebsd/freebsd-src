@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.11 1999/08/06 01:34:03 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

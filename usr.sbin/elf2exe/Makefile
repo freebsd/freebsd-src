@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=	elf2exe
 SRCS=	elf2exe.c

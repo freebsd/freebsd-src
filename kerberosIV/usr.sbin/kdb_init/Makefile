@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1997/10/02 15:03:21 markm Exp $
+# $FreeBSD$
 
 PROG=		kdb_init
 MAN8=		${KRB4DIR}/man/kdb_init.8

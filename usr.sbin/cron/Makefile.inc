@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 .if exists(${.OBJDIR}/../lib)
 LIBCRON=${.OBJDIR}/../lib/libcron.a

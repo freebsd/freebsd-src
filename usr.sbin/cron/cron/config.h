@@ -17,7 +17,7 @@
 
 /* config.h - configurables for Vixie Cron
  *
- * $Id$
+ * $FreeBSD$
  */
 
 #if !defined(_PATH_SENDMAIL)

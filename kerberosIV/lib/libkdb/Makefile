@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 LIB=		kdb
 CFLAGS+=	-I${KRB4DIR}/include \

@@ -3,7 +3,7 @@
  *      Custom cable to trace an ISDN S0 bus with two passive (!) ISDN boards
  *	---------------------------------------------------------------------
  *
- *	$Id: cable.txt,v 1.3 1999/02/14 09:44:58 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Thu Jan 22 19:57:50 1998]
  *

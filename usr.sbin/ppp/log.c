@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.c,v 1.39 1999/06/01 16:01:48 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

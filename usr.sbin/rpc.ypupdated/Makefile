@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1998/03/06 14:40:42 bde Exp $
+# $FreeBSD$
 
 PROG=	rpc.ypupdated
 SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \

@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-#	$Id: stage1,v 1.10 1999/08/23 08:33:08 luigi Exp $
+# $FreeBSD$
 #
 # stage1 -- this script fills the mfs for the picobsd kernel
 

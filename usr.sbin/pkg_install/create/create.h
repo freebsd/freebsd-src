@@ -1,4 +1,4 @@
-/* $Id: create.h,v 1.13 1997/10/08 07:46:19 charnier Exp $ */
+/* $FreeBSD$ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: probe.c,v 1.1 1998/06/24 19:36:36 brian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/time.h>

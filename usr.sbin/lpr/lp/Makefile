@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 BINDIR = /usr/bin
 MAN1 = lp.1

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iplist.h,v 1.2 1997/12/21 12:11:06 brian Exp $
+ * $FreeBSD$
  */
 
 struct iplist_cur {

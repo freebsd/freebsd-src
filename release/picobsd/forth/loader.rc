@@ -1,5 +1,5 @@
 \ Simple loader.rc for picobsd floppies
-\ $Id: loader.rc,v 1.1.2.1 1999/05/07 10:02:53 abial Exp $
+\ $FreeBSD$
 
 include /boot/loader.4th
 

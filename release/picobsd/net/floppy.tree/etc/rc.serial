@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.serial,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $FreeBSD$
 
 # Change some defaults for serial devices.
 # Standard defaults are:

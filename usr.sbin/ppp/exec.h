@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.h,v 1.2 1999/05/12 09:48:50 brian Exp $
+ * $FreeBSD$
  */
 
 struct physical;
