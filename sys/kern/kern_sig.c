@@ -172,7 +172,7 @@ static int sigproptbl[NSIG] = {
  * MP SAFE.
  */
 int
-CURSIG(struct proc *p)
+cursig(struct proc *p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1530,10 +1530,10 @@ out:
  * Stop signals with default action are processed immediately, then cleared;
  * they aren't returned.  This is checked after each entry to the system for
  * a syscall or trap (though this can usually be done without calling issignal
- * by checking the pending signal masks in the CURSIG macro.) The normal call
+ * by checking the pending signal masks in cursig.) The normal call
  * sequence is
  *
- *	while (sig = CURSIG(curproc))
+ *	while (sig = cursig(curproc))
  *		postsig(sig);
  */
 int

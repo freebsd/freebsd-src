@@ -234,7 +234,7 @@ extern struct mtx	sigio_lock;
 /*
  * Machine-independent functions:
  */
-int	CURSIG(struct proc *p);
+int	cursig(struct proc *p);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig);
 int	issignal(struct proc *p);
