@@ -131,9 +131,11 @@
 #include <machine/clock.h>              /* for DELAY */
 #define	PROC_LOCK(p)
 #define	PROC_UNLOCK(p)
+#include <pci/pcivar.h>
+#else
+#include <dev/pci/pcivar.h>
 #endif
 
-#include <pci/pcivar.h>
 
 #if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>	/* for bus space */
@@ -221,7 +223,6 @@ bktr_name(bktr_ptr_t bktr)
 #define	PROC_UNLOCK(p)
 
 #endif /* __NetBSD__ || __OpenBSD__ */
-
 
 
 typedef u_char bool_t;

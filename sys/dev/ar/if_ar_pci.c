@@ -40,8 +40,8 @@
 #include <machine/bus_memio.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/ic/hd64570.h>
 #include <dev/ar/if_arregs.h>

@@ -54,10 +54,11 @@
 #endif
 
 #ifdef __FreeBSD__
-#include <pci/pcivar.h>
-
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
+#include <pci/pcivar.h>
+#else
+#include <dev/pci/pcivar.h>
 #endif
 
 #if (__FreeBSD_version >=300000)

@@ -51,6 +51,11 @@
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+#else
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #endif
 
 #if (__FreeBSD_version >=300000)
@@ -59,8 +64,6 @@
 #include <sys/bus.h>
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 
