@@ -15,6 +15,7 @@ MAINTAINER=	green@FreeBSD.org
 test:	${PROG}
 	cc ${.CURDIR}/gen.c
 .for conv in ascii ebcdic ibm oldascii oldebcdic oldibm \
+    pareven parnone parodd parset \
     swab lcase ucase
 	@echo testing conv=${conv}
 	@./a.out | \
