@@ -70,8 +70,8 @@
 #define TMP_MIN_SIZE			20
 #define HOME_MIN_SIZE			20
 
-/* 
- * Swap size limit for auto-partitioning
+/*
+ * Swap size limit for auto-partitioning (4G).
  */
 #define SWAP_AUTO_LIMIT_SIZE		4096
 
@@ -916,7 +916,7 @@ diskLabel(Device *dev)
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
-                /*** This is where we assign focus to new label so it shows ***/
+                /* This is where we assign focus to new label so it shows. */
                 {
                     int i;
 		    label_focus = -1;
@@ -934,7 +934,7 @@ diskLabel(Device *dev)
 
 	case KEY_DC:
 	case 'R':	/* recover space (delete w/ recover) */
-  	    /*
+	    /*
 	     * Delete the partition w/ space recovery.
 	     */
 	    rflags = DELCHUNK_RECOVER;
@@ -1015,7 +1015,6 @@ diskLabel(Device *dev)
 	    if ((label_chunk_info[here].type == PART_FILESYSTEM) &&
 	        (label_chunk_info[here].c->private_data)) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-
 		if (!pi->newfs)
 		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
 		else
