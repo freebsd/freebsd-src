@@ -80,7 +80,7 @@ ENTRY(copyin)
 	/* Quick exit if length is zero */	
 	teq	r2, #0
 	moveq	r0, #0
-	RETEQ
+	RETeq
 
 	SAVE_REGS
 #ifdef MULTIPROCESSOR
