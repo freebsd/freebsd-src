@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.2 1998/05/21 21:47:57 brian Exp $
+ *	$Id: prompt.c,v 1.3 1998/05/23 22:24:48 brian Exp $
  */
 
 #include <sys/param.h>
@@ -285,13 +285,19 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     p->desc.Write = prompt_Write;
 
     if (fd == PROMPT_STD) {
+      char *tty = ttyname(STDIN_FILENO);
+
+      if (!tty) {
+        free(p);
+        return NULL;
+      }
       p->fd_in = STDIN_FILENO;
       p->fd_out = STDOUT_FILENO;
       p->Term = stdout;
       p->owner = NULL;
       p->auth = LOCAL_AUTH;
       p->src.type = "Controller";
-      strncpy(p->src.from, ttyname(p->fd_out), sizeof p->src.from - 1);
+      strncpy(p->src.from, tty, sizeof p->src.from - 1);
       p->src.from[sizeof p->src.from - 1] = '\0';
       tcgetattr(p->fd_in, &p->oldtio);	/* Save original tty mode */
     } else {
@@ -315,18 +321,20 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
 void
 prompt_Destroy(struct prompt *p, int verbose)
 {
-  if (p->Term != stdout) {
-    fclose(p->Term);
-    close(p->fd_in);
-    if (p->fd_out != p->fd_in)
-      close(p->fd_out);
-    if (verbose)
-      log_Printf(LogPHASE, "%s: Client connection dropped.\n", p->src.from);
-  } else
-    prompt_TtyOldMode(p);
+  if (p) {
+    if (p->Term != stdout) {
+      fclose(p->Term);
+      close(p->fd_in);
+      if (p->fd_out != p->fd_in)
+        close(p->fd_out);
+      if (verbose)
+        log_Printf(LogPHASE, "%s: Client connection dropped.\n", p->src.from);
+    } else
+      prompt_TtyOldMode(p);
 
-  log_UnRegisterPrompt(p);
-  free(p);
+    log_UnRegisterPrompt(p);
+    free(p);
+  }
 }
 
 void
