@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1995-1996 Søren Schmidt
- * Copyright (c) 1996      Peter Wemm
+ * Copyright (c) 1996 Peter Wemm
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: imgact_elf.c,v 1.1 1996/03/10 08:42:54 sos Exp $
  */
 
 #include <sys/param.h>
@@ -175,7 +175,7 @@ unmap_pages(struct vnode *vp, vm_offset_t buf, vm_size_t size)
 	size += pageoff;
 	size = round_page(size);/* size of aligned pages to map */
 	
-      	vm_map_remove(kernel_map, buf, size);
+      	vm_map_remove(kernel_map, buf, buf + size);
 }
 
 static int
@@ -288,13 +288,14 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 	 */
 	copy_len = (offset + filsz) - trunc_page(offset + filsz);
 	map_addr = trunc_page(vmaddr + filsz);
-	map_len = round_page(memsz) - trunc_page(filsz);
+	map_len = round_page(memsz - filsz);
 
-        if (map_len != 0)
+        if (map_len != 0) {
 		if (error = vm_map_find(&vmspace->vm_map, NULL, 0,
 					&map_addr, map_len, FALSE,
 					VM_PROT_ALL, VM_PROT_ALL,0))
 			return error; 
+	}
 
 	if (error = vm_mmap(kernel_map,
 			    (vm_offset_t *)&data_buf,
@@ -312,10 +313,11 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 		      (vm_offset_t)data_buf + PAGE_SIZE);
 
 	/*
-	 * Clear the remaining page, we dont need the potential
-	 * garbage from the file in there.
+	 * set it to the specified protection
 	 */
-	bzero((caddr_t)(map_addr+copy_len), map_len-copy_len);
+	vm_map_protect(&vmspace->vm_map, map_addr, map_addr + map_len,  prot,
+		       FALSE);
+
 	UPRINTF("bss size %d (%x)\n", map_len-copy_len, map_len-copy_len);
 	return error;
 }
@@ -414,14 +416,18 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 			 */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
 			hdr->e_entry <(phdr[i].p_vaddr+phdr[i].p_memsz)) {
-  				text_size = round_page(phdr[i].p_memsz);
   				text_addr = trunc_page(phdr[i].p_vaddr+(*addr));
+  				text_size = round_page(phdr[i].p_memsz +
+						       phdr[i].p_vaddr -
+						       trunc_page(phdr[i].p_vaddr));
 				*entry=(unsigned long)hdr->e_entry+(*addr);
 	    			UPRINTF(".text <%08x,%08x> entry=%08x\n",
 					text_addr, text_size, *entry);
 			} else {
-  				data_size = round_page(phdr[i].p_memsz);
   				data_addr = trunc_page(phdr[i].p_vaddr+(*addr));
+  				data_size = round_page(phdr[i].p_memsz +
+						       phdr[i].p_vaddr -
+						       trunc_page(phdr[i].p_vaddr));
 	    			UPRINTF(".data <%08x,%08x>\n",
 					data_addr, data_size);
 			}
@@ -548,14 +554,18 @@ exec_elf_imgact(struct image_params *imgp)
 			 */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
 			hdr->e_entry <(phdr[i].p_vaddr+phdr[i].p_memsz)) {
-  				text_size = round_page(phdr[i].p_memsz);
   				text_addr = trunc_page(phdr[i].p_vaddr);
+  				text_size = round_page(phdr[i].p_memsz +
+						       phdr[i].p_vaddr -
+						       text_addr);
 				entry = (u_long)hdr->e_entry;
 	    			UPRINTF(".text <%08x,%08x> entry=%08x\n",
 					text_addr, text_size, entry);
 			} else {
-  				data_size = round_page(phdr[i].p_memsz);
   				data_addr = trunc_page(phdr[i].p_vaddr);
+  				data_size = round_page(phdr[i].p_memsz +
+						       phdr[i].p_vaddr -
+						       data_addr);
 	    			UPRINTF(".data <%08x,%08x>\n",
 					data_addr, data_size);
 			}
