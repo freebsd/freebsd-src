@@ -48,6 +48,10 @@
  *    (and why do you want more ?)
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <fcntl.h>
 #include <netdb.h>
@@ -64,11 +68,6 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
-#ifndef lint
-static const char rcsid[] =
-	"$Id$";
-#endif /* not lint */
 
 /* Tunnel interface configuration stuff */
 static struct ifaliasreq ifra;
@@ -89,7 +88,7 @@ int Set_address(char *addr, struct sockaddr_in *sin)
   if((sin->sin_addr.s_addr = inet_addr(addr)) == (u_long)-1) {
     hp = gethostbyname(addr);
     if (!hp) {
-      syslog(LOG_ERR,"Unknown host %s\n", addr);
+      syslog(LOG_ERR,"unknown host %s", addr);
       return 1;
     }
     sin->sin_family = hp->h_addrtype;
@@ -106,7 +105,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
   /* Open tun device */
   tun = open (devname, O_RDWR);
   if (tun < 0) {
-    syslog(LOG_ERR,"Can't open %s - %m",devname);
+    syslog(LOG_ERR,"can't open %s - %m",devname);
     return(1);
   }
 
@@ -121,7 +120,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    syslog(LOG_ERR,"Can't open socket - %M");
+    syslog(LOG_ERR,"can't open socket - %M");
     goto tunc_return;
   }
 
@@ -149,13 +148,13 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
    */
   sin = (struct sockaddr_in *)&(ifra.ifra_broadaddr);
   if(Set_address(theiraddr,sin)) {
-    syslog(LOG_ERR,"Bad destination address:%s\n",theiraddr);
+    syslog(LOG_ERR,"bad destination address: %s",theiraddr);
     goto stunc_return;
   }
   sin->sin_len = sizeof(*sin);
 
   if (ioctl(s, SIOCAIFADDR, &ifra) < 0) {
-    syslog(LOG_ERR,"Can't set interface address - %m");
+    syslog(LOG_ERR,"can't set interface address - %m");
     goto stunc_return;
   }
 
@@ -163,7 +162,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
    *  Now, bring up the interface.
    */
   if (ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    syslog(LOG_ERR,"Can't get interface flags - %m");
+    syslog(LOG_ERR,"can't get interface flags - %m");
     goto stunc_return;
   }
 
@@ -172,7 +171,7 @@ int tun_open(char *devname, struct sockaddr *ouraddr, char *theiraddr)
     close(s);
     return(0);
   }
-  syslog(LOG_ERR,"Can't set interface UP - %m");
+  syslog(LOG_ERR,"can't set interface UP - %m");
 stunc_return:
   close(s);
 tunc_return:
@@ -184,13 +183,13 @@ void Finish(int signum)
 {
   int s;
 
-  syslog(LOG_INFO,"Exiting");
+  syslog(LOG_INFO,"exiting");
 
   close(net);
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    syslog(LOG_ERR,"Can't open socket - %m");
+    syslog(LOG_ERR,"can't open socket - %m");
     goto closing_tun;
   }
 
@@ -198,13 +197,13 @@ void Finish(int signum)
    *  Shut down interface.
    */
   if (ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    syslog(LOG_ERR,"Can't get interface flags - %m");
+    syslog(LOG_ERR,"can't get interface flags - %m");
     goto closing_fds;
   }
 
   ifrq.ifr_flags &= ~(IFF_UP|IFF_RUNNING);
   if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    syslog(LOG_ERR,"Can't set interface DOWN - %m");
+    syslog(LOG_ERR,"can't set interface DOWN - %m");
     goto closing_fds;
   }
 
@@ -215,7 +214,7 @@ void Finish(int signum)
   bzero(&ifra.ifra_broadaddr, sizeof(ifra.ifra_addr));
   bzero(&ifra.ifra_mask, sizeof(ifra.ifra_addr));
   if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
-    syslog(LOG_ERR,"Can't delete interface's addresses - %m");
+    syslog(LOG_ERR,"can't delete interface's addresses - %m");
   }
 closing_fds:
   close(s);
@@ -286,12 +285,12 @@ int main (int argc, char **argv)
     Finish(4);
 
   if ((net = socket(AF_INET, SOCK_RAW, 94)) < 0) {
-    syslog(LOG_ERR,"Can't open socket - %m");
+    syslog(LOG_ERR,"can't open socket - %m");
     Finish(5);
   }
 
   if (connect(net,&whereto,sizeof(struct sockaddr_in)) < 0 ) {
-    syslog(LOG_ERR,"Can't connect to target - %m");
+    syslog(LOG_ERR,"can't connect to target - %m");
     close(net);
     Finish(6);
   }
@@ -311,12 +310,12 @@ int main (int argc, char **argv)
 
     nfds = select(net+10,&rfds,&wfds,&efds,NULL);
     if(nfds < 0) {
-      syslog(LOG_ERR,"Interrupted select");
+      syslog(LOG_ERR,"interrupted select");
       close(net);
       Finish(7);
     }
     if(nfds == 0) {         /* Impossible ? */
-      syslog(LOG_ERR,"Timeout in select");
+      syslog(LOG_ERR,"timeout in select");
       close(net);
       Finish(8);
     }
@@ -339,7 +338,7 @@ int main (int argc, char **argv)
       len = read(tun, buf, sizeof(buf));
       /* ... and send to network */
       if(send(net, buf, len,0) <= 0) {
-	syslog(LOG_ERR,"Can't send - %m");
+	syslog(LOG_ERR,"can't send - %m");
       }
     }
   }
