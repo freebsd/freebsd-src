@@ -504,6 +504,14 @@
     <para>&man.adduser.8; now supports a <option>-g</option> option to
       set a user's default login group.</para>
 
+    <para>The &man.bsdlabel.8; utility is a replacement for the older
+      disklabel utility.  Like its predecessor, it installs, examines,
+      or modifies the BSD label on a disk partition, and can install
+      bootstrap code.  Compared to disklabel, a number of obsolete
+      options and parameters have been retired.  A new
+      <option>-m</option> option instructs &man.bsdlabel.8; to use the
+      layout suitable for a specific machine.</para>
+
     <para arch="alpha,i386">The <filename>compat4x</filename>
       distribution now includes the
       <filename>libcrypto.so.2</filename>,
@@ -526,15 +534,9 @@
       information about a disk device and optionally to run a naive
       performance test.</para>
 
-    <para>The <option>-N</option> and <option>-W</option> flags to
-      &man.disklabel.8; have been retired.</para>
-
-    <para>&man.disklabel.8; is now only built for architectures where
-      it is useful (i386, pc98, alpha, and ia64).</para>
-
-    <para>The <option>-s</option> option to &man.disklabel.8; has been
-      removed because the i386 boot loader now resides in a single
-      file.</para>
+    <para>The disklabel utility has been replaced by &man.bsdlabel.8;.
+      On the alpha, i386, and pc98 platforms, disklabel is a link to
+      &man.bsdlabel.8;.</para>
 
     <para>&man.dump.8; now supports caching of disk blocks with the
       <option>-C</option> option.  This can improve dump performance
@@ -719,7 +721,7 @@
       strengthened.</para>
 
     <para arch="sparc64">The sunlabel utility, a program analogous to
-      &man.disklabel.8; that works on Sun disk labels, has been
+      &man.bsdlabel.8; that works on Sun disk labels, has been
       added.</para>
 
     <para arch="i386,alpha,sparc64,ia64">&man.sysinstall.8; will now
