@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kadmind
+PROG=		k5admind
 SRCS=		kadmind.c server.c version4.c \
 		kadm5/private.h kadm5/admin.h kadm5/kadm5_err.h
 CFLAGS+=	-I${KRB5DIR}/include \

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		kpasswdd
+PROG=		k5passwdd
 SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h kadm5/admin.h 
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/asn1 \

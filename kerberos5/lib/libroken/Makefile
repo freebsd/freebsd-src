@@ -25,12 +25,12 @@ beforedepend all:	print_version.h
 
 .PATH:		${KRB5DIR}/lib/roken
 
-build-tools:	make-print-version
+build-tools:	make-print-version make-roken
 
 print_version.h: make-print-version
 	./make-print-version print_version.h
 
 make-print-version: make-print-version.c
-	${CC} ${CFLAGS} -o ${.TARGET} ${.OODATE}
+	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
 
 CLEANFILES+=	make-print-version print_version.h

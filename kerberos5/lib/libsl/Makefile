@@ -11,6 +11,10 @@ NOPIC=	yes
 
 install:
 
+beforeinstall:
+
 .include <bsd.lib.mk>
 
 .PATH:	${KRB5DIR}/lib/sl
+
+build-tools:	make-roken
