@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/dst_api.c,v 1.13 1999/10/13 16:39:22 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/dst_api.c,v 1.14 2000/02/28 07:51:50 vixie Exp $";
 #endif
 
 /*
@@ -334,7 +334,7 @@ dst_read_key(const char *in_keyname, const u_int16_t in_id,
 			 in_alg));
 		return (NULL);
 	}
-	if ((type && (DST_PUBLIC | DST_PRIVATE)) == 0) 
+	if ((type & (DST_PUBLIC | DST_PRIVATE)) == 0) 
 		return (NULL);
 	if (in_keyname == NULL) {
 		EREPORT(("dst_read_private_key(): Null key name passed in\n"));

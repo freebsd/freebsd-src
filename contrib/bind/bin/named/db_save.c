@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_save.c	4.16 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_save.c,v 8.26 1999/10/13 16:39:02 vixie Exp $";
+static const char rcsid[] = "$Id: db_save.c,v 8.27 2000/04/21 06:54:03 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static const char rcsid[] = "$Id: db_save.c,v 8.26 1999/10/13 16:39:02 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above

@@ -12,7 +12,7 @@ case $cachefile in
 *) cachefile=`pwd`/$cachefile ;;
 esac
 
-cd `dirname $0` > /dev/null
+cd `dirname $0`
 for systype in [a-z]*; do
 	if [ -f $systype/probe ]; then
 		if sh $systype/probe; then

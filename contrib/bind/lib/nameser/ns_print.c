@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_print.c,v 8.17 1999/10/19 02:06:54 gson Exp $";
+static const char rcsid[] = "$Id: ns_print.c,v 8.18 2000/02/29 05:48:12 vixie Exp $";
 #endif
 
 /* Import. */
@@ -127,9 +127,10 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 			T(addstr("@\t\t\t", 4, &buf, &buflen));
 		} else {
 			T(addstr(name, len, &buf, &buflen));
-			/* Origin not used and no trailing dot? */
-			if ((!origin || !origin[0] || name[len] == '\0') &&
-			    name[len - 1] != '.') {
+			/* Origin not used or not root, and no trailing dot? */
+			if (((origin == NULL || origin[0] == '\0') ||
+			    (origin[0] != '.' && origin[1] != '\0' &&
+			    name[len] == '\0')) && name[len - 1] != '.') {
 				T(addstr(".", 1, &buf, &buflen));
 				len++;
 			}
@@ -751,20 +752,22 @@ addname(const u_char *msg, size_t msglen,
 	if (n < 0)
 		goto enospc;	/* Guess. */
 	newlen = prune_origin(*buf, origin);
-	if ((origin == NULL || origin[0] == '\0' || (*buf)[newlen] == '\0') &&
-	    (newlen == 0 || (*buf)[newlen - 1] != '.')) {
-		/* No trailing dot. */
-		if (newlen + 2 > *buflen)
-			goto enospc;	/* No room for ".\0". */
-		(*buf)[newlen++] = '.';
-		(*buf)[newlen] = '\0';
-	}
 	if (newlen == 0) {
 		/* Use "@" instead of name. */
 		if (newlen + 2 > *buflen)
 			goto enospc;        /* No room for "@\0". */
 		(*buf)[newlen++] = '@';
 		(*buf)[newlen] = '\0';
+	} else {
+		if (((origin == NULL || origin[0] == '\0') ||
+		    (origin[0] != '.' && origin[1] != '\0' &&
+		    (*buf)[newlen] == '\0')) && (*buf)[newlen - 1] != '.') {
+			/* No trailing dot. */
+			if (newlen + 2 > *buflen)
+				goto enospc;	/* No room for ".\0". */
+			(*buf)[newlen++] = '.';
+			(*buf)[newlen] = '\0';
+		}
 	}
 	*pp += n;
 	addlen(newlen, buf, buflen);

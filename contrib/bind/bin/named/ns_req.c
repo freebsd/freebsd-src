@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.104 1999/10/15 19:49:04 vixie Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.113 2000/04/21 06:54:11 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static const char rcsid[] = "$Id: ns_req.c,v 8.104 1999/10/15 19:49:04 vixie Exp
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -138,6 +138,7 @@ struct addinfo {
 	u_int16_t	a_class;		/* class for data */
 };
 
+
 #ifndef BIND_UPDATE
 enum req_action { Finish, Refuse, Return };
 #endif
@@ -184,7 +185,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 #ifdef DEBUG
 	if (debug > 3) {
 		ns_debug(ns_log_packet, 3, "ns_req(from %s)", sin_ntoa(from));
-		res_pquery(&res, msg, msglen, log_get_stream(packet_channel));
+		fp_nquery(msg, msglen, log_get_stream(packet_channel));
 	}
 #endif
 	msglen_orig = msglen;
@@ -197,7 +198,13 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		char buf[MAXDNAME];
 
 		has_tsig = 1;
-		ns_name_ntop(tsigstart, buf, sizeof(buf));
+		n = dn_expand(msg, msg + msglen, tsigstart, buf, sizeof(buf));
+		if (n < 0) {
+			ns_debug(ns_log_default, 1,
+				 "ns_req: bad TSIG key name",
+				 buf);
+			key = NULL;
+		}
 		key = find_key(buf, NULL);
 		if (key == NULL) {
 			error = ns_r_badkey;
@@ -515,7 +522,7 @@ req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 			goto refuse;
 		}
 		if (findZonePri(zp, from) == -1) {
-			ns_info(ns_log_notify,
+			ns_debug(ns_log_notify, 1,
 			"NOTIFY(SOA) from non-master server (zone %s), from %s",
 				zp->z_origin, sin_ntoa(from));
 			goto refuse;
@@ -556,6 +563,7 @@ req_notify(HEADER *hp, u_char **cpp, u_char *eom, u_char *msg,
 }
 #endif /*BIND_NOTIFY*/
 
+
 static enum req_action
 req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	  int *buflenp, int *msglenp, u_char *msg, int dfd, int *ra,
@@ -578,6 +586,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	struct zoneinfo *zp;
 	struct databuf *dp;
 	DST_KEY *in_key = (in_tsig != NULL) ? in_tsig->key : NULL;
+
+
+
 
 	nameserIncr(from.sin_addr, nssRcvdQ);
 
@@ -633,7 +644,7 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	}
 
 	if (((ntohs(hp->nscount) != 0) && (type != ns_t_ixfr)) ||
-           ((ntohs(hp->nscount) != 1) && (type == ns_t_ixfr)))
+	    ((ntohs(hp->nscount) != 1) && (type == ns_t_ixfr)))
 	{
 		ns_debug(ns_log_default, 1, "FORMERR Query nscount wrong"); 
 		hp->rcode = ns_r_formerr;
@@ -647,6 +658,8 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 	 * Process query.
 	 */
 	if (type == ns_t_ixfr) {
+		ns_info(ns_log_security, "Request %s from %s",
+			p_type(type), sin_ntoa(from));
 		hp->nscount = htons(0);
 		hp->rd = 0; /* Force IXFR queries to be non recursive. */
 		n = dn_expand(msg, eom, *cpp, dnbuf2, sizeof dnbuf2);
@@ -741,6 +754,11 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		 np == NULL ? "missed" : "found",
 		 dname, fname, cname);
 
+
+	ns_debug(ns_log_default, 1, "req: %s '%s' as '%s' (cname=%d)",
+		 np == NULL ? "missed" : "found",
+		 dname, fname, cname);
+
 #ifdef YPKLUDGE
 	/* Some braindamaged resolver software will not 
 	   recognize internet addresses in dot notation and 
@@ -803,17 +821,21 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		if (SEQ_GT(serial_ixfr, zp->z_serial))
 			ixfr_found = 0;
 		else {
-		    ixfr_error = ixfr_have_log(zp, serial_ixfr, zp->z_serial);
-		    if (ixfr_error < 0) {
-			ns_debug(ns_log_default,
-				 1, "ixfr_have_log(%d %d) failed %d", 
-				 serial_ixfr, zp->z_serial, ixfr_error);
-			ixfr_found = 0;
-                        /* Refuse IXFR and send AXFR */
-                        type = ns_t_axfr;
-		    } else
-			ixfr_found = 1;
-	        }   
+			ixfr_error = ixfr_have_log(zp, serial_ixfr,
+						   zp->z_serial);
+			if (ixfr_error < 0) {
+				ns_info(ns_log_security, "No %s log from %d for \"%s\"",
+					p_type(type), serial_ixfr, *dname ? dname : ".");
+				ns_debug(ns_log_default,
+					 	1, "ixfr_have_log(%d %d) failed %d", 
+			 			serial_ixfr, zp->z_serial, ixfr_error);
+				ixfr_found = 0; /* Refuse IXFR and send AXFR */
+			} else if (ixfr_error == 1) {
+				ixfr_found = 1;
+			}
+		}   
+		ns_debug(ns_log_default, 1, "IXFR log lowest serial: %d", 
+			 zp->z_serial_ixfr_start);
 	}
 	/*
 	 * If recursion is turned on, we need to check recursion ACL
@@ -889,8 +911,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 				}
 			}
 			ns_notice(ns_log_security,
-				  "unapproved query from %s for \"%s\"",
+				  "denied query from %s for \"%s\"",
 				  sin_ntoa(from), *dname ? dname : ".");
+			nameserIncr(from.sin_addr, nssRcvdUQ);
 			return (Refuse);
 		}
 	} else {
@@ -908,9 +931,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 					       in_key))
 		{
 			ns_notice(ns_log_security,
-				  "unapproved %s from %s for \"%s\" (acl)",
+				  "denied %s from %s for \"%s\" (acl)",
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
+			nameserIncr(from.sin_addr, nssRcvdUXFR);
 			return (Refuse);
 		}
 
@@ -918,9 +942,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 
 		if (zp->z_type != z_master && zp->z_type != z_slave) {
 			ns_notice(ns_log_security,
-			 "unapproved %s from %s for \"%s\" (not master/slave)",
+			 "denied %s from %s for \"%s\" (not master/slave)",
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
+			nameserIncr(from.sin_addr, nssRcvdUXFR);
 			return (Refuse);
 		}
 
@@ -928,9 +953,10 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 
 		if ((zp->z_flags & Z_AUTH) == 0) {
 			ns_notice(ns_log_security,
-			 "unapproved %s from %s for \"%s\" (not authoritative)",
+			 "denied %s from %s for \"%s\" (not authoritative)",
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
+			nameserIncr(from.sin_addr, nssRcvdUXFR);
 			return (Refuse);
 		}
 
@@ -938,14 +964,20 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 
 		if (ns_samename(zp->z_origin, dname) != 1) {
 			ns_notice(ns_log_security,
-			  "unapproved %s from %s for \"%s\" (not zone top)",
+			  "denied %s from %s for \"%s\" (not zone top)",
 				  p_type(type), sin_ntoa(from),
 				  *dname ? dname : ".");
+			nameserIncr(from.sin_addr, nssRcvdUXFR);
 			return (Refuse);
 		}
 
-		ns_info(ns_log_security, "approved %s from %s for \"%s\"",
-			p_type(type), sin_ntoa(from), *dname ? dname : ".");
+		if (type == ns_t_ixfr) { 
+		    ns_info(ns_log_security, "approved %s from %s for \"%s\"",
+		    	(ixfr_found) ? p_type(type) : "IXFR/AXFR", 
+			sin_ntoa(from), *dname ? dname : ".");
+		} else
+		    ns_info(ns_log_security, "approved %s from %s for \"%s\"",
+		    	p_type(type), sin_ntoa(from), *dname ? dname : ".");
 	}
 
 	/*
@@ -1102,8 +1134,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
  		if (type == ns_t_ixfr) {
  			hp->aa = 1;
  			if ((SEQ_GT(serial_ixfr, zp->z_serial) ||
-  					  serial_ixfr == zp->z_serial))
+			     serial_ixfr == zp->z_serial)) {
  				return (Finish);
+			}
  		}
 
 		/*
@@ -1204,8 +1237,9 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 
 	if (!founddata && hp->rd && recursion_blocked_by_acl) {
 		ns_notice(ns_log_security,
-			  "unapproved recursive query from %s for %s",
+			  "denied recursion for query from %s for %s",
 			  sin_ntoa(from), *dname ? dname : ".");
+		nameserIncr(from.sin_addr, nssRcvdURQ);
 	}
 
 	/*
@@ -1591,11 +1625,11 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 	}
 #endif
 	if ((n = dn_comp(name, buf, buflen, comp_ptrs, edp)) < 0)
-		return (-1);
+		goto cleanup;
 	cp = buf + n;
 	buflen -= n;
 	if (buflen < 0)
-		return (-1);
+		goto cleanup;
 	PUTSHORT((u_int16_t)type, cp);
 	PUTSHORT((u_int16_t)dp->d_class, cp);
 	PUTLONG(ttl, cp);
@@ -1608,7 +1642,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 	case T_PTR:
 		n = dn_comp((char *)dp->d_data, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		PUTSHORT((u_int16_t)n, sp);
 		cp += n;
 		break;
@@ -1618,7 +1652,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* Store domain name in answer */
 		n = dn_comp((char *)dp->d_data, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		PUTSHORT((u_int16_t)n, sp);
 		cp += n;
 		if (doadd) {
@@ -1634,15 +1668,15 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		cp1 = dp->d_data;
 		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 		buflen -= type == T_SOA ? n + 5 * INT32SZ : n;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
 		cp1 += strlen((char *)cp1) + 1;
 		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 		if (type == T_SOA) {
 			cp1 += strlen((char *)cp1) + 1;
@@ -1670,7 +1704,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
  		/* copy order */
 		buflen -= INT16SZ;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
  		memcpy(cp, cp1, INT16SZ);
  		cp += INT16SZ;
  		cp1 += INT16SZ;
@@ -1680,7 +1714,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* copy preference */
 		buflen -= INT16SZ;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
 		memcpy(cp, cp1, INT16SZ);
 		cp += INT16SZ;
 		cp1 += INT16SZ;
@@ -1692,7 +1726,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		ns_debug(ns_log_default, 1, "size of n at flags = %d", n);
 		buflen -= n + 1;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
 		*cp++ = n;
 		memcpy(cp, cp1, n);
 		cp += n;
@@ -1704,7 +1738,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		n = *cp1++;
 		buflen -= n + 1;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
 		*cp++ = n;
 		memcpy(cp, cp1, n);
 		cp += n;
@@ -1716,7 +1750,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		n = *cp1++;
 		buflen -= n + 1;
 		if (buflen < 0)
-			return (-1);
+			goto cleanup;
 		*cp++ = n;
 		memcpy(cp, cp1, n);
 		cp += n;
@@ -1729,7 +1763,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		n = dn_comp((char *)cp1, cp, buflen, dnptrs, edp);
 		ns_debug(ns_log_default, 1, "dn_comp's n = %u", n);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 
 		/* save data length */
@@ -1747,7 +1781,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		cp1 = dp->d_data;
 
  		if ((buflen -= INT16SZ) < 0)
-			return (-1);
+			goto cleanup;
 
  		/* copy preference */
  		memcpy(cp, cp1, INT16SZ);
@@ -1757,7 +1791,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		if (type == T_SRV) {
 			buflen -= INT16SZ*2;
 			if (buflen < 0)
-				return (-1);
+				goto cleanup;
 			memcpy(cp, cp1, INT16SZ*2);
 			cp += INT16SZ*2;
 			cp1 += INT16SZ*2;
@@ -1767,7 +1801,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 			    (type == ns_t_mx) ? comp_ptrs : NULL,
 			    (type == ns_t_mx) ? edp : NULL);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 
 		/* save data length */
@@ -1781,7 +1815,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		cp1 = dp->d_data;
 
 		if ((buflen -= INT16SZ) < 0)
-			return (-1);
+			goto cleanup;
 
 		/* copy preference */
 		memcpy(cp, cp1, INT16SZ);
@@ -1790,13 +1824,13 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 
 		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 		buflen -= n;
 		cp1 += strlen((char *)cp1) + 1;
 		n = dn_comp((char *)cp1, cp, buflen, comp_ptrs, edp);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 
 		/* save data length */
@@ -1811,7 +1845,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* first just copy over the type_covered, algorithm, */
 		/* labels, orig ttl, two timestamps, and the footprint */
 		if ((dp->d_size - 18) > buflen)
-			return (-1);  /* out of room! */
+			goto cleanup;  /* out of room! */
 		memcpy(cp, cp1, 18);
 		cp  += 18;
 		cp1 += 18;
@@ -1820,7 +1854,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* then the signer's name */
 		n = dn_comp((char *)cp1, cp, buflen, NULL, NULL);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 		cp += n;
 		buflen -= n;
 		cp1 += strlen((char*)cp1)+1;
@@ -1828,20 +1862,20 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* finally, we copy over the variable-length signature */
 		n = dp->d_size - (u_int16_t)((cp1 - dp->d_data));
 		if (n > buflen)
-			return (-1);  /* out of room! */
+			goto cleanup;  /* out of room! */
 		memcpy(cp, cp1, n);
 		cp += n;
 		
-  		/* save data length & return */
+		/* save data length & return */
 		n = (u_int16_t)((cp - sp) - INT16SZ);
-  		PUTSHORT((u_int16_t)n, sp);
+		PUTSHORT((u_int16_t)n, sp);
 		break;
 
 	case T_NXT:
 		cp1 = dp->d_data;
 		n = dn_comp((char *)cp1, cp, buflen, NULL, NULL);
 		if (n < 0)
-			return (-1);
+			goto cleanup;
 
 		cp += n;
 		buflen -=n;
@@ -1850,7 +1884,7 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		/* copy nxt bit map */
 		n = dp->d_size - (u_int16_t)((cp1 - dp->d_data));
 		if (n > buflen)
-			return (-1);  /* out of room! */
+			goto cleanup;  /* out of room! */
 		memcpy(cp, cp1, n);
 		cp += n;
 		buflen -= n;
@@ -1864,12 +1898,18 @@ make_rr(const char *name, struct databuf *dp, u_char *buf,
 		if ((type == T_A || type == T_AAAA) && doadd)
 			addname(name, name, type, T_KEY, dp->d_class);
 		if (dp->d_size > buflen)
-			return (-1);
+			goto cleanup;
 		memcpy(cp, dp->d_data, dp->d_size);
 		PUTSHORT((u_int16_t)dp->d_size, sp);
 		cp += dp->d_size;
 	}
 	return (cp - buf);
+
+ cleanup:
+	/* Rollback RR. */
+	ns_name_rollback(buf, (const u_char **)comp_ptrs,
+			 (const u_char **)edp);
+	return (-1);
 }
 
 static void
@@ -1965,7 +2005,9 @@ loop:
 			    !match(dp, (int)ap->a_class, T_A) &&
 			    !match(dp, C_IN, T_A) &&
 			    !match(dp, (int)ap->a_class, T_AAAA) &&
-			    !match(dp, C_IN, T_AAAA)) {
+			    !match(dp, C_IN, T_AAAA) &&
+			    !match(dp, (int)ap->a_class, ns_t_a6) &&
+			    !match(dp, C_IN, ns_t_a6)) {
 				continue;
 			}
 			if (ap->a_type == T_KEY &&
@@ -1993,6 +2035,10 @@ loop:
 				ns_debug(ns_log_default, 5,
 			  "addinfo: not enough room, remaining msglen = %d",
 					 save_msglen);
+				/* Rollback RRset. */
+				ns_name_rollback(save_cp,
+						 (const u_char **)dnptrs,
+						 (const u_char **)dnptrs_end);
 				cp = save_cp;
 				msglen = save_msglen;
 				count = save_count;

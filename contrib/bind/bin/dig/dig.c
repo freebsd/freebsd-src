@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: dig.c,v 8.36 1999/11/05 05:05:14 vixie Exp $";
+static const char rcsid[] = "$Id: dig.c,v 8.41 2000/04/20 07:36:04 vixie Exp $";
 #endif
 
 /*
@@ -184,8 +184,8 @@ static const char rcsid[] = "$Id: dig.c,v 8.36 1999/11/05 05:05:14 vixie Exp $";
 
 /* Global. */
 
-#define VERSION 82
-#define VSTRING "8.2"
+#define VERSION 83
+#define VSTRING "8.3"
 
 #define PRF_DEF		0x2ff9
 #define PRF_MIN		0xA930
@@ -270,14 +270,14 @@ main(int argc, char **argv) {
 	ns_type xfr = ns_t_invalid;
         int bytes_out, bytes_in;
 
-	char cmd[256];
+	char cmd[512];
 	char domain[MAXDNAME];
         char msg[120], *msgptr;
 	char **vtmp;
 	char *args[DIG_MAXARGS];
 	char **ax;
 	int once = 1, dofile = 0; /* batch -vs- interactive control */
-	char fileq[100];
+	char fileq[384];
 	int  fp;
 	int wait=0, delay;
 	int envset=0, envsave=0;
@@ -357,8 +357,10 @@ main(int argc, char **argv) {
 	while ((dofile && fgets(fileq, sizeof fileq, qfp) != NULL) || 
 	       (!dofile && once--)) 
 	{
-		if (*fileq == '\n' || *fileq == '#' || *fileq==';')
-			continue;	/* ignore blank lines & comments */
+		if (*fileq == '\n' || *fileq == '#' || *fileq==';') {
+			printf("%s", fileq);	/* echo but otherwise ignore */
+			continue;		/* blank lines and comments  */
+		}
 
 /*
  * "Sticky" requests that before current parsing args
@@ -512,7 +514,8 @@ main(int argc, char **argv) {
 							";; bad -b addr\n");
 						exit(1);
 					}
-				  }
+				    }
+				    break;
 				case 'k':
 					/* -k keydir:keyname */
 					
@@ -946,7 +949,7 @@ where:	server,\n\
 	fputs("\
 notes:	defname and search don't work; use fully-qualified names.\n\
 	this is DiG version " VSTRING "\n\
-	$Id: dig.c,v 8.36 1999/11/05 05:05:14 vixie Exp $\n\
+	$Id: dig.c,v 8.41 2000/04/20 07:36:04 vixie Exp $\n\
 ", stderr);
 }
 
@@ -1104,6 +1107,7 @@ res_re_init() {
 	static char localdomain[] = "LOCALDOMAIN";
 	u_long pfcode = res.pfcode, options = res.options;
 	unsigned ndots = res.ndots;
+	int retrans = res.retrans, retry = res.retry;
 	char *buf;
 
 	/*
@@ -1116,6 +1120,8 @@ res_re_init() {
 	res.pfcode = pfcode;
 	res.options = options;
 	res.ndots = ndots;
+	res.retrans = retrans;
+	res.retry = retry;
 }
 
 /*
@@ -1185,7 +1191,7 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 	u_char *newmsg;
 	int newmsglen;
 	ns_tcp_tsig_state tsig_state;
-	int tsig_ret;
+	int tsig_ret, tsig_required, tsig_present;
 
 	switch (xfr) {
 	case ns_t_axfr:
@@ -1403,18 +1409,6 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 			break;
 		}
 
-		/*
-		 * Verify the TSIG
-		 */
-
-		if (key) {
-			tsig_ret = ns_verify_tcp(answer, &len, &tsig_state, 1);
-			if (tsig_ret == 0)
-				printf("; TSIG ok\n");
-			else
-				printf("; TSIG invalid\n");
-		}
-
 		result = print_axfr(stdout, answer, len);
 		if (result != 0) {
 			error = ERR_PRINTING;
@@ -1475,6 +1469,30 @@ printZone(ns_type xfr, const char *zone, const struct sockaddr_in *sin,
 				break;
 			}
 		}
+
+		/*
+		 * Verify the TSIG
+		 */
+
+		if (key) {
+			if (ns_find_tsig(answer, answer + len) != NULL)
+				tsig_present = 1;
+			else
+				tsig_present = 0;
+			if (numAnswers == 1 || soacnt > 1)
+				tsig_required = 1;
+			else
+				tsig_required = 0;
+			tsig_ret = ns_verify_tcp(answer, &len, &tsig_state,
+						 tsig_required);
+			if (tsig_ret == 0) {
+				if (tsig_present)
+					printf("; TSIG ok\n");
+			}
+			else
+				printf("; TSIG invalid\n");
+		}
+
 	}
 
 	printf(";; Received %d answer%s (%d record%s).\n",
@@ -1570,8 +1588,12 @@ print_axfr(FILE *file, const u_char *msg, size_t msglen) {
 		}
 		name = ns_rr_name(rr);
 		if (origin[0] == '\0' && name[0] != '\0') {
-			fprintf(file, "$ORIGIN %s.\n", name);
-			strcpy(origin, name);
+			if (strcmp(name, ".") != 0)
+				strcpy(origin, name);
+			fprintf(file, "$ORIGIN %s.\n", origin);
+			if (strcmp(name, ".") == 0)
+				strcpy(origin, name);
+			strcpy(name_ctx, "@");
 		}
 		if (ns_sprintrr(&handle, &rr, name_ctx, origin,
 				buf, sizeof buf) < 0) {

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.133 1999/11/05 04:40:57 vixie Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.143 2000/05/09 07:38:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -82,7 +82,7 @@ static const char rcsid[] = "$Id: ns_resp.c,v 8.133 1999/11/05 04:40:57 vixie Ex
  */
 
 /*
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-2000 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -148,7 +148,8 @@ static const char	skipnameFailedAnswer[] = "skipname failed in answer",
 			outofDataAFinal[] =	"out of data after final pass",
 			badNameFound[] =	"found an invalid domain name",
 			wrongQuestion[] =	"answer to wrong question",
-			danglingCname[] =	"dangling CNAME pointer";
+			danglingCname[] =	"dangling CNAME pointer",
+			nonRecursiveForwarder[]= "non-recursive forwarder";
 
 struct db_list {
 	struct db_list *db_next;
@@ -463,20 +464,14 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	 * XXX - should put this in STATS somewhere.
 	 */
 	for (fwd = NS_ZFWDTAB(qp->q_fzone); fwd; fwd = fwd->next)
-		if (ina_equal(fwd->fwdaddr.sin_addr, from.sin_addr))
+		if (ina_equal(fwd->fwddata->fwdaddr.sin_addr, from.sin_addr))
 			break;
 	/*
-	 * XXX:	note bad ambiguity here.  if one of our forwarders is also
-	 *	a delegated server for some domain, then we will not update
-	 *	the RTT information on any replies we get from those servers.
-	 *	Workaround: disable recursion on authoritative servers so that
-	 *	the ambiguity does not arise.
-	 */
 	/*
-	 * If we weren't using a forwarder, find the qinfo pointer and update
+	 * find the qinfo pointer and update
 	 * the rtt and fact that we have called on this server before.
 	 */
-	if (fwd == NULL) {
+	{
 		struct timeval *stp;
 
 		for (n = 0, qs = qp->q_addr; (u_int)n < qp->q_naddr; n++, qs++)
@@ -706,13 +701,15 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	/*
 	 *  Non-authoritative, no answer, no error, with referral.
 	 */
-	if (hp->rcode == NOERROR && !hp->aa && ancount == 0 && aucount > 0
+	if (hp->rcode == NOERROR && !hp->tc && !hp->aa &&
+	    ancount == 0 && aucount > 0
 #ifdef BIND_NOTIFY
 	    && hp->opcode != NS_NOTIFY_OP
 #endif
 	    ) {
 		u_char *tp;
-		int type, class;
+		int type, class, dlen;
+		int foundns, foundsoa;
 #ifdef DEBUG
 		if (debug > 0)
 			res_pquery(&res, msg, msglen,
@@ -723,23 +720,40 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 		 * we must be pointing at the authority section (aucount > 0).
 		 */
 		tp = cp;
-		n = dn_expand(msg, eom, tp, name, sizeof name);
-		if (n < 0) {
-			formerrmsg = expandFailedAuth;
-			goto formerr;
-		}
-		tp += n;
-		if (tp + 2 * INT16SZ > eom) {
-			formerrmsg = outofDataAuth;
-			goto formerr;
-		}
-		GETSHORT(type, tp);
-		GETSHORT(class, tp);
-		if (!ns_nameok(qp, name, class, NULL, response_trans,
-			       ns_ownercontext(type, response_trans),
-			       name, from.sin_addr)) {
-			formerrmsg = badNameFound;
-			goto refused;
+		foundns = foundsoa = 0;
+		for (i = 0 ; i < aucount ; i++) {
+			n = dn_expand(msg, eom, tp, name, sizeof name);
+			if (n < 0) {
+				formerrmsg = expandFailedAuth;
+				goto formerr;
+			}
+			tp += n;
+			if (tp + 3 * INT16SZ + INT32SZ > eom) {
+				formerrmsg = outofDataAuth;
+				goto formerr;
+			}
+			GETSHORT(type, tp);
+			GETSHORT(class, tp);
+			tp += INT32SZ;	/* ttl */
+			GETSHORT(dlen, tp);
+			if (!ns_nameok(qp, name, class, NULL, response_trans,
+				       ns_ownercontext(type, response_trans),
+				       name, from.sin_addr)) {
+				formerrmsg = badNameFound;
+				goto refused;
+			}
+			/* skip rest of record */
+			if (tp + dlen > eom) {
+				formerrmsg = outofDataAuth;
+				goto formerr;
+			}
+			tp += dlen;
+			if (type == T_NS) {
+				strcpy(aname, name);
+				foundns = 1;
+			}
+			if (type == T_SOA)
+				foundsoa = 1;
 		}
 
 		/*
@@ -751,11 +765,14 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 		 * classes tend to not have good strong delegation graphs).
 		 */
 
-		if (type == T_NS && ns_samedomain(qp->q_domain, name)) {
-			nameserIncr(from.sin_addr, nssRcvdLDel);
-			mark_lame(qp, from);
+		if (foundns && !foundsoa &&
+		    ns_samedomain(qp->q_domain, aname)) {
+			if (fwd == NULL) {
+				nameserIncr(from.sin_addr, nssRcvdLDel);
+				mark_lame(qp, from);
+			}
 			mark_bad(qp, from);
-			if (class == C_IN &&
+			if (class == C_IN && fwd == NULL &&
 			    !haveComplained(ina_ulong(from.sin_addr),
 					    nhash(qp->q_domain))) {
 				char *learnt_from = learntFrom(qp, &from);
@@ -768,6 +785,12 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 					learnt_from);
 				if (learnt_from != NULL)
 					freestr(learnt_from);
+			} else if (fwd != NULL) {
+				if (!haveComplained(ina_ulong(from.sin_addr),
+					  (u_long)nonRecursiveForwarder))
+					ns_warning(ns_log_default, "%s: %s",
+						   nonRecursiveForwarder,
+						   sin_ntoa(from));
 			}
 
 			fast_retry(qp, from);
@@ -788,7 +811,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	/* -ve $ing non-existence of record, must handle non-authoritative
 	 * NOERRORs with c == 0.
 	 */
-	if (!hp->aa && hp->rcode == NOERROR && c == 0)
+	if (!hp->aa && !hp->tc && hp->rcode == NOERROR && c == 0)
 		goto return_msg;
 
 	if (qp->q_flags & Q_SYSTEM)
@@ -979,19 +1002,22 @@ tcp_retry:
 				case T_SOA:
 					if (!ns_samedomain(aname, name)) {
 						ns_info(ns_log_resp_checks,
-						    "bad referral (%s !< %s)",
+					    "bad referral (%s !< %s) from %s",
 							aname[0] ? aname : ".",
-							name[0] ? name : ".");
+							name[0] ? name : ".",
+							sin_ntoa(from));
 						db_freedata(dp);
 						continue;
-					} else if (!ns_samedomain(name,
+					} else if (fwd == NULL &&
+						   !ns_samedomain(name,
 							       qp->q_domain)) {
 						if (!externalcname)
 						    ns_info(ns_log_resp_checks,
-						    "bad referral (%s !< %s)",
+					    "bad referral (%s !< %s) from %s",
 							 name[0] ? name : ".",
 							 qp->q_domain[0] ?
-							 qp->q_domain : ".");
+							 qp->q_domain : ".",
+							 sin_ntoa(from));
 						db_freedata(dp);
 						continue;
 					}
@@ -1182,17 +1208,11 @@ tcp_retry:
 	founddata = 0;
 	dname = name;
 	/*
-	 * If restart==0 and ancount > 0, we should
-	 * have some valid data because because the data in the answer
-	 * section is owned by the query name and that passes the
-	 * validation test by definition
-	 *
 	 * XXX - the restart stuff doesn't work if any of the answer RRs
 	 * is not cacheable (TTL==0 or unknown RR type), since all of the
 	 * answer must pass through the cache and be re-assembled.
 	 */
-	if ((forcecmsg && qp->q_cmsglen) ||
-	    ((!restart || !cname) && qp->q_cmsglen && ancount)) {
+	if (qp->q_cmsglen != 0) {
 		ns_debug(ns_log_default, 1, "Cname second pass");
 		newmsglen = MIN(PACKETSZ, qp->q_cmsglen);
 		memcpy(newmsg, qp->q_cmsg, newmsglen);
@@ -1461,8 +1481,7 @@ tcp_retry:
 	} else
 		hp = (HEADER *) qp->q_msg;
 	hp->id = qp->q_nsid = htons(nsid_next());
-	if (qp->q_addr[0].forwarder)
-		hp->rd = 1;
+	hp->rd = (qp->q_addr[0].forwarder ? 1 : 0);
 	unsched(qp);
 	schedretry(qp, retrytime(qp));
 	nsa = Q_NEXTADDR(qp, 0);
@@ -1560,6 +1579,11 @@ tcp_retry:
  return_msg:
 	nameserIncr(from.sin_addr, nssRcvdFwdR);
 	nameserIncr(qp->q_from.sin_addr, nssSentFwdR);
+	nameserIncr(qp->q_from.sin_addr, nssSentAns);
+	if (!hp->aa)
+		nameserIncr(qp->q_from.sin_addr, nssSentNaAns);
+	if (hp->rcode == NXDOMAIN)
+		nameserIncr(qp->q_from.sin_addr, nssSentNXD);
 	/* The "standard" return code */
 	hp->qr = 1;
 	hp->id = qp->q_id;
@@ -2093,6 +2117,7 @@ rrextract(u_char *msg, int msglen, u_char *rrp, struct databuf **dpp,
 		}
 		memcpy(cp1, cp, n2);
 		cp += n2;
+		cp1 += n2;
 
 		/* compute size of data */
 		n = cp1 - (u_char *)data;
@@ -2279,7 +2304,7 @@ sysquery(const char *dname, int class, int type,
 	nsp[0] = NULL;
 	ns_debug(ns_log_default, 3, "sysquery(%s, %d, %d, %#x, %d, %d)",
 		 dname, class, type, nss, nsc, ntohs(port));
-	qp = qnew(dname, class, type);
+	qp = qnew(dname, class, type, (nss != NULL && nsc != 0) ? 0 : 1);
 
 	if (nss != NULL && nsc != 0)
 		np = NULL;
@@ -3106,7 +3131,10 @@ finddata(struct namebuf *np, int class, int type,
 
 		case cyclic_order:
 			/* first we do the non-SIG records */
-			choice = ((u_int)rand()>>3) % non_sig_count;
+			if (non_sig_count > 0)
+				choice = ((u_int)rand()>>3) % non_sig_count;
+			else
+				choice = 0;
 			for (i = 0; i < non_sig_count ; i++) {
 				dp = found[(i + choice) % non_sig_count];
 				if (foundcname != 0 && dp->d_type == T_CNAME)
