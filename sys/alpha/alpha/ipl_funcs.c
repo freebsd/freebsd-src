@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.7 1998/09/19 09:29:40 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.8 1998/09/26 14:25:32 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -40,12 +40,10 @@ unsigned int cam_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
 
 static void swi_net(void);
-extern void swi_camnet(void);
-extern void swi_cambio(void);
 
 void	(*netisrs[32]) __P((void));
 swihand_t *ihandlers[32] = {	/* software interrupts */
-	swi_null,	swi_net,	swi_camnet,	swi_cambio,
+	swi_null,	swi_net,	swi_null,	swi_null,
 	swi_null,	softclock,	swi_null,	swi_null,
 	swi_null,	swi_null,	swi_null,	swi_null,
 	swi_null,	swi_null,	swi_null,	swi_null,
