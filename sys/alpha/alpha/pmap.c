@@ -646,7 +646,7 @@ pmap_init2()
 static void
 pmap_invalidate_asn(pmap_t pmap)
 {
-	pmap->pm_asn[PCPU_GET(cpuno)].gen = 0;
+	pmap->pm_asn[PCPU_GET(cpuid)].gen = 0;
 }
 
 struct pmap_invalidate_page_arg {
@@ -655,12 +655,24 @@ struct pmap_invalidate_page_arg {
 };
 
 static void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+#ifdef SMP
+	struct pmap_invalidate_page_arg arg;
+	arg.pmap = pmap;
+	arg.va = va;
+
+	smp_rendezvous(0, pmap_invalidate_page_action, 0, (void *) &arg);
+}
+
+static void
 pmap_invalidate_page_action(void *arg)
 {
 	pmap_t pmap = ((struct pmap_invalidate_page_arg *) arg)->pmap;
 	vm_offset_t va = ((struct pmap_invalidate_page_arg *) arg)->va;
+#endif
 
-	if (pmap->pm_active & (1 << PCPU_GET(cpuno))) {
+	if (pmap->pm_active & (1 << PCPU_GET(cpuid))) {
 		ALPHA_TBIS(va);
 		alpha_pal_imb();		/* XXX overkill? */
 	} else {
@@ -669,20 +681,19 @@ pmap_invalidate_page_action(void *arg)
 }
 
 static void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_all(pmap_t pmap)
 {
-	struct pmap_invalidate_page_arg arg;
-	arg.pmap = pmap;
-	arg.va = va;
-	smp_rendezvous(0, pmap_invalidate_page_action, 0, (void *) &arg);
+#ifdef SMP
+	smp_rendezvous(0, pmap_invalidate_all_action, 0, (void *) pmap);
 }
 
 static void
 pmap_invalidate_all_action(void *arg)
 {
 	pmap_t pmap = (pmap_t) arg;
+#endif
 
-	if (pmap->pm_active & (1 << PCPU_GET(cpuno))) {
+	if (pmap->pm_active & (1 << PCPU_GET(cpuid))) {
 		ALPHA_TBIA();
 		alpha_pal_imb();		/* XXX overkill? */
 	} else
@@ -690,15 +701,9 @@ pmap_invalidate_all_action(void *arg)
 }
 
 static void
-pmap_invalidate_all(pmap_t pmap)
-{
-	smp_rendezvous(0, pmap_invalidate_all_action, 0, (void *) pmap);
-}
-
-static void
 pmap_get_asn(pmap_t pmap)
 {
-	if (pmap->pm_asn[PCPU_GET(cpuno)].gen != PCPU_GET(current_asngen)) {
+	if (pmap->pm_asn[PCPU_GET(cpuid)].gen != PCPU_GET(current_asngen)) {
 		if (PCPU_GET(next_asn) > pmap_maxasn) {
 			/*
 			 * Start a new ASN generation.
@@ -727,7 +732,7 @@ pmap_get_asn(pmap_t pmap)
 				LIST_FOREACH(p, &allproc, p_list) {
 					if (p->p_vmspace) {
 						tpmap = vmspace_pmap(p->p_vmspace);
-						tpmap->pm_asn[PCPU_GET(cpuno)].gen = 0;
+						tpmap->pm_asn[PCPU_GET(cpuid)].gen = 0;
 					}
 				}
 				ALLPROC_LOCK(AP_RELEASE);
@@ -741,8 +746,8 @@ pmap_get_asn(pmap_t pmap)
 			ALPHA_TBIAP();
 			alpha_pal_imb();	/* XXX overkill? */
 		}
-		pmap->pm_asn[PCPU_GET(cpuno)].asn = PCPU_GET(next_asn)++;
-		pmap->pm_asn[PCPU_GET(cpuno)].gen = PCPU_GET(current_asngen);
+		pmap->pm_asn[PCPU_GET(cpuid)].asn = PCPU_GET(next_asn)++;
+		pmap->pm_asn[PCPU_GET(cpuid)].gen = PCPU_GET(current_asngen);
 	}
 }
 
@@ -917,10 +922,14 @@ pmap_new_proc(struct proc *p)
 	/*
 	 * allocate object for the upages
 	 */
+	PROC_LOCK(p);
 	if ((upobj = p->p_upages_obj) == NULL) {
+		PROC_UNLOCK(p);
 		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
+		PROC_LOCK(p);
 		p->p_upages_obj = upobj;
 	}
+	PROC_UNLOCK(p);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	if ((up = p->p_addr) == NULL) {
@@ -975,7 +984,9 @@ pmap_dispose_proc(p)
 	vm_page_t m;
 	pt_entry_t *ptek, oldpte;
 
+	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
+	PROC_UNLOCK(p);
 
 	ptek = vtopte((vm_offset_t) p->p_addr);
 	for(i=0;i<UPAGES;i++) {
@@ -1010,7 +1021,9 @@ pmap_swapout_proc(p)
 	 */
 	alpha_fpstate_save(p, 1);
 
+	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
+	PROC_UNLOCK(p);
 	/*
 	 * let the upages be paged
 	 */
@@ -1034,7 +1047,9 @@ pmap_swapin_proc(p)
 	vm_object_t upobj;
 	vm_page_t m;
 
+	PROC_LOCK(p);
 	upobj = p->p_upages_obj;
+	PROC_UNLOCK(p);
 	for(i=0;i<UPAGES;i++) {
 
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
@@ -2828,12 +2843,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 			panic("pmap_emulate_reference: user ref to kernel");
 		pte = vtopte(v);
 	} else {
-#ifdef DIAGNOSTIC
-		if (p == NULL)
-			panic("pmap_emulate_reference: bad proc");
-		if (p->p_vmspace == NULL)
-			panic("pmap_emulate_reference: bad p_vmspace");
-#endif
+		KASSERT(p == NULL, ("pmap_emulate_reference: bad proc"));
+		KASSERT(p->p_vmspace == NULL, ("pmap_emulate_reference: bad p_vmspace"));
 		pte = pmap_lev3pte(p->p_vmspace->vm_map.pmap, v);
 	}
 #ifdef DEBUG				/* These checks are more expensive */
@@ -2861,10 +2872,8 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 #endif
 	pa = pmap_pte_pa(pte);
 
-#ifdef DIAGNOSTIC
-	if ((*pte & PG_MANAGED) == 0)
-		panic("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed", p, v, user, write, pa);
-#endif
+	KASSERT((*pte & PG_MANAGED) == 0, ("pmap_emulate_reference(%p, 0x%lx, %d, %d): pa 0x%lx not managed",
+	    p, v, user, write, pa));
 
 	/*
 	 * Twiddle the appropriate bits to reflect the reference
@@ -3015,22 +3024,22 @@ pmap_activate(struct proc *p)
 
 	pmap = vmspace_pmap(p->p_vmspace);
 
-	if (pmap_active[PCPU_GET(cpuno)] && pmap != pmap_active[PCPU_GET(cpuno)]) {
-		atomic_clear_32(&pmap_active[PCPU_GET(cpuno)]->pm_active,
-				1 << PCPU_GET(cpuno));
-		pmap_active[PCPU_GET(cpuno)] = 0;
+	if (pmap_active[PCPU_GET(cpuid)] && pmap != pmap_active[PCPU_GET(cpuid)]) {
+		atomic_clear_32(&pmap_active[PCPU_GET(cpuid)]->pm_active,
+				1 << PCPU_GET(cpuid));
+		pmap_active[PCPU_GET(cpuid)] = 0;
 	}
 
 	p->p_addr->u_pcb.pcb_hw.apcb_ptbr =
 		ALPHA_K0SEG_TO_PHYS((vm_offset_t) pmap->pm_lev1) >> PAGE_SHIFT;
 
-	if (pmap->pm_asn[PCPU_GET(cpuno)].gen != PCPU_GET(current_asngen))
+	if (pmap->pm_asn[PCPU_GET(cpuid)].gen != PCPU_GET(current_asngen))
 		pmap_get_asn(pmap);
 
-	pmap_active[PCPU_GET(cpuno)] = pmap;
-	atomic_set_32(&pmap->pm_active, 1 << PCPU_GET(cpuno));
+	pmap_active[PCPU_GET(cpuid)] = pmap;
+	atomic_set_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
 
-	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuno)].asn;
+	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn[PCPU_GET(cpuid)].asn;
 
 	if (p == curproc) {
 		alpha_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
@@ -3042,8 +3051,8 @@ pmap_deactivate(struct proc *p)
 {
 	pmap_t pmap;
 	pmap = vmspace_pmap(p->p_vmspace);
-	atomic_clear_32(&pmap->pm_active, 1 << PCPU_GET(cpuno));
-	pmap_active[PCPU_GET(cpuno)] = 0;
+	atomic_clear_32(&pmap->pm_active, 1 << PCPU_GET(cpuid));
+	pmap_active[PCPU_GET(cpuid)] = 0;
 }
 
 vm_offset_t
