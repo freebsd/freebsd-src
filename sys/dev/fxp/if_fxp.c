@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.16 1996/09/19 09:15:20 davidg Exp $
+ *	$Id: if_fxp.c,v 1.17 1996/09/20 04:11:53 davidg Exp $
  */
 
 /*
@@ -979,21 +979,30 @@ fxp_add_rfabuf(sc, oldm)
 		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
+			if (oldm == NULL)
+				return 1;
 			m = oldm;
+			m->m_data = m->m_ext.ext_buf;
 		}
 	} else {
+		if (oldm == NULL)
+			return 1;
 		m = oldm;
+		m->m_data = m->m_ext.ext_buf;
 	}
-	if (m == NULL)
-		return 1;
+	/*
+	 * Get a pointer to the base of the mbuf cluster and move
+	 * data start past it.
+	 */
 	rfa = mtod(m, struct fxp_rfa *);
+	m->m_data += sizeof(struct fxp_rfa);
+	rfa->size = MCLBYTES - sizeof(struct fxp_rfa);
+
 	rfa->rfa_status = 0;
 	rfa->rfa_control = FXP_RFA_CONTROL_EL;
 	rfa->link_addr = -1;
 	rfa->rbd_addr = -1;
 	rfa->actual_size = 0;
-	rfa->size = MCLBYTES - sizeof(struct fxp_rfa);
-	m->m_data += sizeof(struct fxp_rfa);
 	/*
 	 * If there are other buffers already on the list, attach this
 	 * one to the end by fixing up the tail to point to this one.
