@@ -1307,8 +1307,7 @@ symlink(p, uap)
 		vput(nd.ni_vp);
 	vput(nd.ni_dvp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
-	if (error == 0)
-		ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
+	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
 	zfree(namei_zone, path);
 	return (error);
