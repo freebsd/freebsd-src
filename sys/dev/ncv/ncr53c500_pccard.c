@@ -78,11 +78,6 @@ extern struct ncv_softc *ncvdata[];
 #define OFFSET_KME_KXLC004_01 0x10
 
 /* pccard support */
-#include	"apm.h"
-#if NAPM > 0
-#include	<machine/apm_bios.h>
-#endif /* NAPM > 0 */
-
 #include	"card.h"
 #if NCARD > 0
 #include	<sys/kernel.h>

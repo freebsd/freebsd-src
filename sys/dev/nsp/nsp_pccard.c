@@ -73,12 +73,6 @@ extern struct nsp_softc *nspdata[];
 #define	NSP_HOSTID	7
 
 /* pccard support */
-
-#include "apm.h"
-#if NAPM > 0
-#include 	<machine/apm_bios.h>
-#endif
-
 #include	"card.h"
 #if NCARD > 0
 #include	<sys/kernel.h>
