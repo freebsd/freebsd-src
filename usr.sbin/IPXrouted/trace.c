@@ -34,12 +34,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -57,7 +59,7 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #ifdef DEBUG
 FILE	*ftrace = stdout;
 int	tracing = 1;
-#else DEBUG
+#else /* DEBUG */
 FILE	*ftrace = NULL;
 int	tracing = 0;
 #endif
