@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.13 1993/11/25 01:37:34 wollman Exp $
+ *      $Id: sd.c,v 1.14 1993/12/19 00:54:57 wollman Exp $
  */
 
 #define SPLSD splbio
@@ -22,6 +22,7 @@
 #include <sd.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -36,6 +37,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
+#include <vm/vm.h>
 
 u_int32 sdstrats, sdqueues;
 
@@ -60,6 +62,7 @@ int     Debugger();
 #define	SDOUTSTANDING	2
 #define SDQSIZE		4
 #define	SD_RETRIES	4
+#define	MAXTRANSFER	8		/* 1 page at a time */
 
 #define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
 #define	UNITSHIFT	3
@@ -117,6 +120,8 @@ struct sd_data {
 }      *sd_data[NSD];
 
 static u_int32 next_sd_unit = 0;
+
+static struct scsi_xfer sx;
 
 /*
  * The routine called by the low level scsi routine when it discovers
@@ -904,17 +909,6 @@ sdsize(dev_t dev)
 	return (int)sd->disklabel.d_partitions[part].p_size;
 }
 
-
-#define SCSIDUMP 1
-#undef	SCSIDUMP
-#define NOT_TRUSTED 1
-
-#ifdef SCSIDUMP
-#include <vm/vm.h>
-
-static struct scsi_xfer sx;
-#define	MAXTRANSFER 8		/* 1 page at a time */
-
 /*
  * dump all of physical memory into the partition specified, starting
  * at offset 'dumplo' into the partition.
@@ -931,8 +925,8 @@ sddump(dev_t dev)
 	struct	scsi_rw_big cmd;
 	extern	int Maxmem;
 	static	int sddoingadump = 0;
-#define MAPTO CADDR1
-	extern	caddr_t MAPTO;	/* map the page we are about to write, here */
+	extern	caddr_t CADDR1;	/* map the page we are about to write, here */
+	extern	struct pte *CMAP1;
 	struct	scsi_xfer *xs = &sx;
 	errval	retval;
 	int	c;
@@ -948,7 +942,7 @@ sddump(dev_t dev)
 	part = PARTITION(dev);	/* file system */
 	/* check for acceptable drive number */
 	if (unit >= NSD)
-		return (ENXIO);	/* 31 Jul 92 */
+		return (ENXIO);
 
 	sd = sd_data[unit];
 	if (!sd)
@@ -980,12 +974,9 @@ sddump(dev_t dev)
 	blknum = dumplo + blkoff;
 	/* blkcnt = initialise_me; */
 	while (num > 0) {
-		pmap_enter(kernel_pmap,
-		    MAPTO,
-		    trunc_page(addr),
-		    VM_PROT_READ,
-		    TRUE);
-#ifndef	NOT_TRUSTED
+                *(int *)CMAP1 =
+			PG_V | PG_KW | ((unsigned long)addr >> PG_SHIFT);
+                tlbflush();
 		/*
 		 *  Fill out the scsi command
 		 */
@@ -1013,7 +1004,7 @@ sddump(dev_t dev)
 		xs->resid = blkcnt * 512;
 		xs->error = XS_NOERROR;
 		xs->bp = 0;
-		xs->data = (u_char *) MAPTO;
+		xs->data = (u_char *) CADDR1;
 		xs->datalen = blkcnt * 512;
 
 		/*
@@ -1029,10 +1020,6 @@ sddump(dev_t dev)
 		default:
 			return (ENXIO);		/* we said not to sleep! */
 		}
-#else	/* NOT_TRUSTED */
-		/* lets just talk about this first... */
-		printf("sd%d: dump addr 0x%x, blk %d\n", unit, addr, blknum);
-#endif	/* NOT_TRUSTED */
 
 		if ((unsigned) addr % (1024 * 1024) == 0)
 			printf("%d ", num / 2048);
@@ -1047,12 +1034,3 @@ sddump(dev_t dev)
 	}
 	return (0);
 }
-#else	/* SCSIDUMP */
-errval
-sddump()
-{
-	printf("\nsddump()        -- not implemented\n");
-	DELAY(60000000);	/* 60 seconds */
-	return -1;
-}
-#endif	/* SCSIDUMP */
