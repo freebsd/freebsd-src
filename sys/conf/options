@@ -107,7 +107,6 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # options in a never-included header.
 EXT2FS		opt_dontuse.h
 FDESC		opt_dontuse.h
-KERNFS		opt_dontuse.h
 MFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
