@@ -71,6 +71,7 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 #include <machine/_limits.h>
+#include <_ctype.h>
 
 #ifndef _MBSTATE_T_DECLARED
 typedef	__mbstate_t	mbstate_t;
@@ -206,6 +207,7 @@ unsigned long long
 #if __XSI_VISIBLE
 int	wcswidth(const wchar_t *, size_t);
 int	wcwidth(wchar_t);
+#define	wcwidth(_c)	__wcwidth(_c)
 #endif
 
 #if __BSD_VISIBLE
