@@ -3,6 +3,9 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "zutil.h"
 #include "infblock.h"
 
