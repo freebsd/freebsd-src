@@ -90,11 +90,7 @@ __RCSID("$FreeBSD$");
 #include <fcntl.h>
 #include <stdio.h>
 #include <sysexits.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include <unistd.h>
 #include "make.h"
 #include "hash.h"
@@ -1100,22 +1096,11 @@ bad:
  */
 /* VARARGS */
 void
-#ifdef __STDC__
 Error(char *fmt, ...)
-#else
-Error(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	char *fmt;
 
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-#endif
+	va_start(ap, fmt);
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	(void)fprintf(stderr, "\n");
@@ -1135,22 +1120,11 @@ Error(va_alist)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
 Fatal(char *fmt, ...)
-#else
-Fatal(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	char *fmt;
 
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-#endif
+	va_start(ap, fmt);
 	if (jobsRunning)
 		Job_Wait();
 
@@ -1177,23 +1151,11 @@ Fatal(va_alist)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
 Punt(char *fmt, ...)
-#else
-Punt(va_alist)
-	va_dcl
-#endif
 {
 	va_list ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	char *fmt;
-
-	va_start(ap);
-	fmt = va_arg(ap, char *);
-#endif
-
 	(void)fprintf(stderr, "make: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);

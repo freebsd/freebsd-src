@@ -47,9 +47,7 @@
 #define _LST_H_
 
 #include	<sys/param.h>
-#ifdef __STDC__
 #include	<stdlib.h>
-#endif
 #include	"sprite.h"
 
 /*
