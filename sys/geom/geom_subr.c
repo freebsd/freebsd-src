@@ -60,6 +60,7 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
+#include <geom/geom_stats.h>
 #include <machine/stdarg.h>
 
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
@@ -145,7 +146,7 @@ g_new_consumer(struct g_geom *gp)
 	cp = g_malloc(sizeof *cp, M_ZERO);
 	cp->protect = 0x020016602;
 	cp->geom = gp;
-	cp->stat.id = cp;
+	cp->stat = g_stat_new(cp);
 	LIST_INSERT_HEAD(&gp->consumer, cp, consumer);
 	return(cp);
 }
@@ -162,6 +163,7 @@ g_destroy_consumer(struct g_consumer *cp)
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
 	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
 	LIST_REMOVE(cp, consumer);
+	g_stat_delete(cp->stat);
 	g_free(cp);
 }
 
@@ -185,7 +187,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	LIST_INIT(&pp->consumers);
 	pp->error = ENXIO;
 	pp->geom = gp;
-	pp->stat.id = pp;
+	pp->stat = g_stat_new(pp);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
 	g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
@@ -216,6 +218,7 @@ g_destroy_provider(struct g_provider *pp)
 	g_nproviders--;
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
+	g_stat_delete(pp->stat);
 	g_free(pp);
 	if (!(gp->flags & G_GEOM_WITHER))
 		return;
@@ -329,7 +332,8 @@ g_detach(struct g_consumer *cp)
 	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
 	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
 	KASSERT(cp->ace == 0, ("detach but nonzero ace"));
-	KASSERT(cp->stat.nop == cp->stat.nend, ("detach with active requests"));
+	KASSERT(cp->stat->nop == cp->stat->nend,
+	    ("detach with active requests"));
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
 	cp->provider = NULL;
