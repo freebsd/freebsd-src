@@ -433,4 +433,10 @@
                   Phase out the rgb_prog RISC program and use rgb_vbi_prog as
                   the default. Now you no longer have to open /dev/vbi
                   before /dev/bktr. - Roger Hardiman <roger@freebsd.org>
-                  
+
+2.06   7 Dec 1999 Fix bug which made the tuner fail on cards detected as
+                  IMS Turbo. Found by Patrick Mackeown<pgm@NS4.HELP-DESK.CO.UK>
+		  Put back some Hauppauge Tuner Types I deleted my mistake.
+		  Backout the switch from rgb_prob to rgb_vbi_prog due to
+		  problems with NTSC users.
+
