@@ -75,7 +75,7 @@ static const char rcsid[] =
 
 /* Global defs */
 #ifdef DEBUG
-#define	syslog(e, s)	fprintf(stderr,(s))
+#define	syslog(e, s...)	fprintf(stderr,s)
 int	debug = 1;
 #else
 int	debug = 0;
