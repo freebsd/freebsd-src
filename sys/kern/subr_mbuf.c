@@ -631,7 +631,8 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 					   (ticks - last_report) >= hz) {
 						last_report = ticks;
 						printf(
-"mb_alloc for mbuf type %d failed.\n", type);
+"All mbufs exhausted, please see tuning(7).\n", type);
+/* XXX: Actually could be clusters, but it gets the point across. */
 					}
 
 				}
