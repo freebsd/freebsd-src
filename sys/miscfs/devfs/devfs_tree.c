@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32 1996/10/28 11:36:02 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.33 1996/11/21 07:18:57 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -15,6 +15,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dir.h>		/* defines dirent structure		*/
@@ -892,6 +893,7 @@ devfs_dntovn(dn_p dnp, struct vnode **vn_pp)
 {
 	struct vnode *vn_p, *nvp;
 	int error = 0;
+	struct proc *p = curproc;	/* XXX */
 
 	vn_p = dnp->vn;
 DBPRINT(("dntovn "));
@@ -925,7 +927,7 @@ DBPRINT(("dntovn "));
 		}
 		if(vn_p->v_type != VNON)
 		{
-			vget(vn_p,1); /*XXX*/
+			vget(vn_p, LK_EXCLUSIVE, p);
 			*vn_pp = vn_p;
 			return(0);
 		}
@@ -990,7 +992,7 @@ DBPRINT(("(New vnode)"));
 		{
 			error = EINVAL;
 		}
-		VOP_LOCK(vn_p);
+		vn_lock(vn_p, LK_EXCLUSIVE | LK_RETRY, p);
 	}
 	return error;
 }
