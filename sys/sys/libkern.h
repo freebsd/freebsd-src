@@ -74,11 +74,17 @@ void	 arc4rand(void *ptr, u_int len, int reseed);
 int	 bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
-#ifndef HAVE_INLINE_FFS
+#ifndef	HAVE_INLINE_FFS
 int	 ffs(int);
+#endif
+#ifndef	HAVE_INLINE_FFSL
+int	 ffsl(long);
 #endif
 #ifndef	HAVE_INLINE_FLS
 int	 fls(int);
+#endif
+#ifndef	HAVE_INLINE_FLSL
+int	 flsl(long);
 #endif
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
