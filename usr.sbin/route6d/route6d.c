@@ -601,13 +601,13 @@ init()
 	int	error;
 	const int int0 = 0, int1 = 1, int255 = 255;
 	struct	addrinfo hints, *res;
-	char	port[10];
+	char	port[NI_MAXSERV];
 
 	ifc = (struct ifc *)NULL;
 	nifc = 0;
 	nindex2ifc = 0;	/*initial guess*/
 	index2ifc = NULL;
-	snprintf(port, sizeof(port), "%d", RIP6_PORT);
+	snprintf(port, sizeof(port), "%u", RIP6_PORT);
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_INET6;
