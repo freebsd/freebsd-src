@@ -55,7 +55,8 @@ pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 
 			if ((name = getenv("LOGNAME")) == NULL && (name = getenv("USER")) == NULL)
 				name = "unknown";
-			strftime(nfmt, sizeof nfmt, "%d-%b-%Y %R ", t);
+			/* ISO 8601 International Standard Date format */
+			strftime(nfmt, sizeof nfmt, "%Y-%m-%d %T ", t);
 			l = strlen(nfmt);
 			sprintf(nfmt + strlen(nfmt), "[%s:%s%s] %s\n", name, Which[which], Modes[mode], fmt);
 			va_start(argp, fmt);
