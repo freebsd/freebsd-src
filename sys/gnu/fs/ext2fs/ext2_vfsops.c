@@ -188,6 +188,7 @@ ext2_mount(mp, path, data, ndp, p)
 	struct vnode *devvp;
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
+	struct ucred *uc;
 	register struct ext2_sb_info *fs;
 	size_t size;
 	int error, flags;
@@ -230,13 +231,19 @@ ext2_mount(mp, path, data, ndp, p)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (p->p_ucred->cr_uid != 0) {
+			if (suser(p)) {
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+				PROC_LOCK(p);
+				uc = p->p_ucred;
+				crhold(uc);
+				PROC_UNLOCK(p);
 				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    p->p_ucred, p)) != 0) {
+				    uc, p)) != 0) {
+					crfree(uc);
 					VOP_UNLOCK(devvp, 0, p);
 					return (error);
 				}
+				crfree(uc);
 				VOP_UNLOCK(devvp, 0, p);
 			}
 
@@ -283,15 +290,21 @@ ext2_mount(mp, path, data, ndp, p)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (p->p_ucred->cr_uid != 0) {
+	if (suser(p)) {
 		accessmode = VREAD;
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			accessmode |= VWRITE;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-		if ((error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) != 0) {
+		PROC_LOCK(p);
+		uc = p->p_ucred;
+		crhold(uc);
+		PROC_UNLOCK(p);
+		if ((error = VOP_ACCESS(devvp, accessmode, uc, p)) != 0) {
+			crfree(uc);
 			vput(devvp);
 			return (error);
 		}
+		crfree(uc);
 		VOP_UNLOCK(devvp, 0, p);
 	}
 
@@ -617,6 +630,7 @@ ext2_mountfs(devvp, mp, p)
 {
 	register struct ufsmount *ump;
 	struct buf *bp;
+	struct ucred *uc;
 	register struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
 	dev_t dev = devvp->v_rdev;
@@ -635,8 +649,15 @@ ext2_mountfs(devvp, mp, p)
 		return (error);
 	if (vcount(devvp) > 1 && devvp != rootvp)
 		return (EBUSY);
-	if ((error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0)) != 0)
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
+	if ((error = vinvalbuf(devvp, V_SAVE, uc, p, 0, 0)) != 0) {
+		crfree(uc);
 		return (error);
+	}
+	crfree(uc);
 #ifdef READONLY
 /* turn on this to force it to be read-only */
 	mp->mnt_flag |= MNT_RDONLY;
