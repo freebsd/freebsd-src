@@ -17,13 +17,12 @@ Revision History
 
 --*/
 
-//
-// Build flags on input
-//  EFI32
-//  EFI_DEBUG               - Enable debugging code
-//  EFI_NT_EMULATOR         - Building for running under NT
-//
-
+/*
+ * Build flags on input
+ *  EFI32
+ *  EFI_DEBUG               - Enable debugging code
+ *  EFI_NT_EMULATOR         - Building for running under NT
+ */
 
 #ifndef _EFI_INCLUDE_
 #define _EFI_INCLUDE_
