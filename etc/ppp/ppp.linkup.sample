@@ -14,7 +14,7 @@
 #
 #  3) If given label name is not found, then label MYADDR is searched.
 #
-# $Id: ppp.linkup.sample,v 1.1.1.1 1995/01/31 06:24:33 amurai Exp $
+# $Id: ppp.linkup.sample,v 1.2 1996/01/31 15:03:06 mpp Exp $
 #
 #########################################################################
 #
@@ -22,7 +22,7 @@
 # to 192.244.176.0 network.
 #
 #192.244.176.32:
-# add 192.244.176.0 255.255.255.0 HISADDR
+# add 192.244.176.0 0 HISADDR
 #
 # If we are invoked with an argument ``iij-demand'', then
 # delete existing route entry and add peer as default gateway.
