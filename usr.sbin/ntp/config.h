@@ -933,7 +933,7 @@
 #define ONCORE_SHMEM_STATUS 1
 
 /* Use OpenSSL? */
-#define OPENSSL 
+/* #undef OPENSSL */
 
 /* Should we open the broadcast socket? */
 #define OPEN_BCAST_SOCKET 1
