@@ -50,6 +50,8 @@ size_t
 wcsftime(wchar_t * __restrict wcs, size_t maxsize,
     const wchar_t * __restrict format, const struct tm * __restrict timeptr)
 {
+	static const mbstate_t initial;
+	mbstate_t mbs;
 	char *dst, *dstp, *sformat;
 	size_t n, sflen;
 	int sverrno;
@@ -59,17 +61,15 @@ wcsftime(wchar_t * __restrict wcs, size_t maxsize,
 	/*
 	 * Convert the supplied format string to a multibyte representation
 	 * for strftime(), which only handles single-byte characters.
-	 *
-	 * We pass NULL as the state pointer to wcrtomb() because we don't
-	 * support state-dependent encodings and don't want to waste time
-	 * creating a zeroed mbstate_t that will not be used.
 	 */
-	sflen = wcsrtombs(NULL, &format, 0, NULL);
+	mbs = initial;
+	sflen = wcsrtombs(NULL, &format, 0, &mbs);
 	if (sflen == (size_t)-1)
 		goto error;
 	if ((sformat = malloc(sflen + 1)) == NULL)
 		goto error;
-	wcsrtombs(sformat, &format, sflen + 1, NULL);
+	mbs = initial;
+	wcsrtombs(sformat, &format, sflen + 1, &mbs);
 
 	/*
 	 * Allocate memory for longest multibyte sequence that will fit
@@ -87,7 +87,8 @@ wcsftime(wchar_t * __restrict wcs, size_t maxsize,
 	if (strftime(dst, maxsize, sformat, timeptr) == 0)
 		goto error;
 	dstp = dst;
-	n = mbsrtowcs(wcs, (const char **)&dstp, maxsize, NULL);
+	mbs = initial;
+	n = mbsrtowcs(wcs, (const char **)&dstp, maxsize, &mbs);
 	if (n == (size_t)-2 || n == (size_t)-1 || dstp != NULL)
 		goto error;
 
