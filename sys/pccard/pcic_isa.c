@@ -53,20 +53,22 @@ static struct isa_pnp_id pcic_ids[] = {
 	{0}
 };
 
-static char *bridges[] =
-{
-	"Intel i82365SL-A/B",
-	"IBM PCIC",
-	"VLSI 82C146",
-	"Cirrus logic 672x",
-	"Cirrus logic 6710",
-	"Vadem 365",
-	"Vadem 465",
-	"Vadem 468",
-	"Vadem 469",
-	"Ricoh RF5C396",
-	"IBM KING PCMCIA Controller",
-	"Intel i82365SL-DF"
+static struct {
+	const char *name;
+	u_int32_t flags;
+} bridges[] = {
+	{ "Intel i82365SL-A/B",	PCIC_AB_POWER},
+	{ "IBM PCIC",		PCIC_AB_POWER},
+	{ "VLSI 82C146",	PCIC_AB_POWER},
+	{ "Cirrus logic 672x",	PCIC_PD_POWER},
+	{ "Cirrus logic 6710", 	PCIC_PD_POWER},
+	{ "Vadem 365",		PCIC_VG_POWER},
+	{ "Vadem 465",		PCIC_VG_POWER},
+	{ "Vadem 468",		PCIC_VG_POWER},
+	{ "Vadem 469",		PCIC_VG_POWER},
+	{ "Ricoh RF5C396",	PCIC_AB_POWER},
+	{ "IBM KING",		PCIC_KING_POWER},
+	{ "Intel i82365SL-DF",	PCIC_DF_POWER}
 };
 
 /*
@@ -256,7 +258,8 @@ pcic_isa_probe(device_t dev)
 				sp->revision = 8 - ((c & 0x1F) >> 2);
 			}
 		}
-		device_set_desc(dev, bridges[(int) sp->controller]);
+		device_set_desc(dev, bridges[(int) sp->controller].name);
+		sc->flags = bridges[(int) sp->controller].flags;
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
