@@ -75,8 +75,6 @@ static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
 
-static mtx_t malloc_mtx;
-
 u_int vm_kmem_size;
 
 #ifdef INVARIANTS
@@ -154,7 +152,6 @@ malloc(size, type, flags)
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_ASLEEP) {
 			if (ksp->ks_limblocks < 65535)
@@ -163,7 +160,6 @@ malloc(size, type, flags)
 		}
 		if (flags & M_NOWAIT) {
 			splx(s);
-			mtx_exit(&malloc_mtx, MTX_DEF);
 			return ((void *) NULL);
 		}
 		if (ksp->ks_limblocks < 65535)
@@ -184,7 +180,6 @@ malloc(size, type, flags)
 		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
 		if (va == NULL) {
 			splx(s);
-			mtx_exit(&malloc_mtx, MTX_DEF);
 			return ((void *) NULL);
 		}
 		kbp->kb_total += kbp->kb_elmpercl;
@@ -269,7 +264,6 @@ out:
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
 	return ((void *) va);
 }
 
@@ -302,7 +296,6 @@ free(addr, type)
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
 #ifdef INVARIANTS
 	/*
 	 * Check for returns of data that do not point to the
@@ -328,7 +321,6 @@ free(addr, type)
 		ksp->ks_inuse--;
 		kbp->kb_total -= 1;
 		splx(s);
-		mtx_exit(&malloc_mtx, MTX_DEF);
 		return;
 	}
 	freep = (struct freelist *)addr;
@@ -395,7 +387,6 @@ free(addr, type)
 	}
 #endif
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
 }
 
 /*
@@ -420,8 +411,6 @@ kmeminit(dummy)
 #if	(MAXALLOCSAVE < PAGE_SIZE)
 #error "kmeminit: MAXALLOCSAVE too small"
 #endif
-
-	mtx_init(&malloc_mtx, "malloc", MTX_DEF);
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
@@ -525,7 +514,6 @@ malloc_uninit(data)
 
 #ifdef INVARIANTS
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		kbp = bucket + indx;
 		freep = (struct freelist*)kbp->kb_next;
@@ -536,7 +524,6 @@ malloc_uninit(data)
 		}
 	}
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
 
 	if (type->ks_memuse != 0)
 		printf("malloc_uninit: %ld bytes of '%s' still allocated\n",
