@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.33 1997/12/03 10:23:44 brian Exp $
+#	$Id: Makefile,v 1.34 1997/12/13 02:37:20 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
@@ -14,17 +14,26 @@ BINMODE=4550
 BINOWN=	root
 BINGRP=	network
 
-.if defined(NOALIAS)
+.if defined(NOALIAS) || defined(RELEASE_CRUNCH)
 CFLAGS+=-DNOALIAS
 .else
 SRCS+=	alias_cmd.c loadalias.c
 .endif
 
-.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
 CFLAGS+=-DHAVE_DES
 SRCS+=	chap_ms.c
 LDADD+= -ldes
 DPADD+= ${LIBDES}
+.endif
+
+.if defined(RELEASE_CRUNCH)
+# We must create these objects because the crunchgen will link them,
+# and we don't want any unused symbols to spoil the final link.
+SRCS+=	alias_cmd.c loadalias.c chap_ms.c
+chap_ms.o alias_cmd.o loadalias.o:
+	>null_$*.c
+	cc -c -o $@ null_$*.c
 .endif
 
 .include <bsd.prog.mk>
