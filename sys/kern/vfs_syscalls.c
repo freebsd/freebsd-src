@@ -487,10 +487,16 @@ sync(p, uap, retval)
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
+#if 0
+/*
+ * XXX don't call vfs_bufstats() yet because that routine
+ * was not imported in the Lite2 merge.
+ */
 #ifdef DIAGNOSTIC
 	if (syncprt)
 		vfs_bufstats();
 #endif /* DIAGNOSTIC */
+#endif
 	return (0);
 }
 
