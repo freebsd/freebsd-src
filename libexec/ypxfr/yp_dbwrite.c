@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dbwrite.c,v 1.9 1996/02/04 04:08:11 wpaul Exp wpaul $
+ *	$Id: yp_dbwrite.c,v 1.10 1996/06/03 03:11:25 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -46,7 +46,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.9 1996/02/04 04:08:11 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.10 1996/06/03 03:11:25 wpaul Exp $";
 #endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -54,9 +54,10 @@ static const char rcsid[] = "$Id: yp_dbwrite.c,v 1.9 1996/02/04 04:08:11 wpaul E
 /*
  * Open a DB database read/write
  */
-DB *yp_open_db_rw(domain, map)
+DB *yp_open_db_rw(domain, map, flags)
 	const char *domain;
 	const char *map;
+	const int flags;
 {
 	DB *dbp;
 	char buf[1025];
@@ -69,9 +70,10 @@ DB *yp_open_db_rw(domain, map)
 		return (NULL);
 	}
 
-	snprintf(buf, sizeof(buf), "%s/%s/%s", yp_dir, domain, map);
+#define FLAGS O_RDWR|O_EXLOCK|O_EXCL|O_CREAT
 
-	dbp = dbopen(buf,O_RDWR|O_EXLOCK|O_EXCL|O_CREAT, PERM_SECURE, DB_HASH, &openinfo);
+	snprintf(buf, sizeof(buf), "%s/%s/%s", yp_dir, domain, map);
+	dbp = dbopen(buf,flags ? flags : FLAGS,PERM_SECURE,DB_HASH,&openinfo);
 
 	if (dbp == NULL) {
 		switch(errno) {
@@ -90,14 +92,16 @@ DB *yp_open_db_rw(domain, map)
 	return (dbp);
 }
 
-int yp_put_record(dbp,key,data)
+int yp_put_record(dbp,key,data,allow_overwrite)
 	DB *dbp;
 	DBT *key;
 	DBT *data;
+	int allow_overwrite;
 {
 	int rval;
 
-	if ((rval = (dbp->put)(dbp,key,data,R_NOOVERWRITE))) {
+	if ((rval = (dbp->put)(dbp,key,data, allow_overwrite ? 0 :
+							R_NOOVERWRITE))) {
 		switch(rval) {
 		case 1:
 			return(YP_FALSE);

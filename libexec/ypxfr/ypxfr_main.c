@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.15 1996/01/10 17:41:55 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.17 1996/06/03 03:11:39 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,10 +47,11 @@
 #include <rpcsvc/yp.h>
 struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
+#include <rpcsvc/ypxfrd.h>
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.15 1996/01/10 17:41:55 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.17 1996/06/03 03:11:39 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -86,7 +87,8 @@ static void ypxfr_exit(retval, temp)
 
 		if ((clnt = clntudp_create(&ypxfr_callback_addr, ypxfr_prognum,
 					1, timeout, &sock)) == NULL) {
-			yp_error("%s", clnt_spcreateerror("failed to establish callback handle"));
+			yp_error("%s", clnt_spcreateerror("failed to \
+establish callback handle"));
 			exit(1);
 		}
 
@@ -136,7 +138,7 @@ int ypxfr_foreach(status, key, keylen, val, vallen, data)
 	dbval.data = val;
 	dbval.size = vallen;
 
-	if (yp_put_record(dbp, &dbkey, &dbval) != YP_TRUE)
+	if (yp_put_record(dbp, &dbkey, &dbval, 0) != YP_TRUE)
 		return(yp_errno);
 
 	return (0);
@@ -374,8 +376,16 @@ the local domain name isn't set");
 	snprintf(ypxfr_temp_map, sizeof(ypxfr_temp_map), "%s/%s/%s", yp_dir,
 		 ypxfr_dest_domain, tempmap);
 
+	if (getrpcport(ypxfr_master, YPXFRD_FREEBSD_PROG,
+					YPXFRD_FREEBSD_VERS, IPPROTO_TCP)) {
+		/* Try to send using ypxfrd. If it fails, use old method. */
+		if (!ypxfrd_get_map(ypxfr_master, ypxfr_mapname,
+					ypxfr_source_domain, ypxfr_temp_map))
+			goto leave;
+	}
+
 	/* Open the temporary map read/write. */
-	if ((dbp = yp_open_db_rw(ypxfr_dest_domain, tempmap)) == NULL) {
+	if ((dbp = yp_open_db_rw(ypxfr_dest_domain, tempmap, 0)) == NULL) {
 		yp_error("failed to open temporary map file");
 		ypxfr_exit(YPXFR_DBM,NULL);
 	}
@@ -389,7 +399,7 @@ the local domain name isn't set");
 	data.data = buf;
 	data.size = strlen(buf);
 
-	if (yp_put_record(dbp, &key, &data) != YP_TRUE) {
+	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write order number to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
 	}
@@ -399,7 +409,7 @@ the local domain name isn't set");
 	data.data = ypxfr_master;
 	data.size = strlen(ypxfr_master);
 
-	if (yp_put_record(dbp, &key, &data) != YP_TRUE) {
+	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write master name to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
 	}
@@ -409,7 +419,7 @@ the local domain name isn't set");
 	data.data = ypxfr_dest_domain;
 	data.size = strlen(ypxfr_dest_domain);
 
-	if (yp_put_record(dbp, &key, &data) != YP_TRUE) {
+	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write domain name to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
 	}
@@ -421,7 +431,7 @@ the local domain name isn't set");
 	data.data = &buf;
 	data.size = strlen(buf);
 
-	if (yp_put_record(dbp, &key, &data) != YP_TRUE) {
+	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write input name to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
 
@@ -435,7 +445,7 @@ the local domain name isn't set");
 	data.data = &buf;
 	data.size = strlen(buf);
 
-	if (yp_put_record(dbp, &key, &data) != YP_TRUE) {
+	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write output name to database");
 		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
 	}
@@ -450,6 +460,11 @@ the local domain name isn't set");
 
 	(void)(dbp->close)(dbp);
 	dbp = NULL; /* <- yes, it seems this is necessary. */
+
+leave:
+
+	snprintf(buf, sizeof(buf), "%s/%s/%s", yp_dir, ypxfr_dest_domain,
+							ypxfr_mapname);
 
 	/* Peek at the order number again and check for skew. */
 	if ((ypxfr_skew_check = ypxfr_get_order(ypxfr_source_domain,
@@ -466,8 +481,6 @@ the local domain name isn't set");
 
 	/*
 	 * Send a YPPROC_CLEAR to the local ypserv.
-	 * The FreeBSD ypserv doesn't really need this, but we send it
-	 * here anyway for the sake of consistency.
 	 */
 	if (ypxfr_clear) {
 		char in = 0;

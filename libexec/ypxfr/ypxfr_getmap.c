@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_getmap.c,v 1.7 1996/02/03 23:09:28 wpaul Exp $
+ *	$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>
@@ -40,7 +40,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_getmap.c,v 1.7 1996/02/03 23:09:28 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_getmap.c,v 1.8 1996/06/02 05:12:24 wpaul Exp $";
 #endif
 
 extern bool_t xdr_ypresp_all_seq __P(( XDR *, unsigned long * ));
@@ -75,7 +75,8 @@ int ypxfr_get_map(map, domain, host, callback)
 
 	/* YPPROC_ALL is a TCP service */
 	if ((clnt = clnt_create(host, YPPROG, YPVERS, "tcp")) == NULL) {
-		yp_error("%s", clnt_spcreateerror("failed to tcp handle"));
+		yp_error("%s", clnt_spcreateerror("failed to \
+create tcp handle"));
 		yp_errno = YPXFR_YPERR;
 		return(1);
 	}
