@@ -1147,8 +1147,10 @@ device_probe_and_attach(device_t dev)
 		BUS_PROBE_NOMATCH(bus, dev);
 	}
     } else {
+	if (bootverbose) {
 	    device_print_prettyname(dev);
 	    printf("not probed (disabled)\n");
+	}
     }
 
     return error;
