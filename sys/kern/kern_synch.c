@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.7 1994/10/02 17:35:18 phk Exp $
+ * $Id: kern_synch.c,v 1.8 1994/10/18 06:55:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -574,19 +574,21 @@ mi_switch()
 	 * If over max, kill it.  In any case, if it has run for more
 	 * than 10 minutes, reduce priority to give others a chance.
 	 */
-	rlim = &p->p_rlimit[RLIMIT_CPU];
-	if (s >= rlim->rlim_cur) {
-		if (s >= rlim->rlim_max)
-			psignal(p, SIGKILL);
-		else {
-			psignal(p, SIGXCPU);
-			if (rlim->rlim_cur < rlim->rlim_max)
-				rlim->rlim_cur += 5;
+	if (p->p_stat != SZOMB) {
+		rlim = &p->p_rlimit[RLIMIT_CPU];
+		if (s >= rlim->rlim_cur) {
+			if (s >= rlim->rlim_max)
+				psignal(p, SIGKILL);
+			else {
+				psignal(p, SIGXCPU);
+				if (rlim->rlim_cur < rlim->rlim_max)
+					rlim->rlim_cur += 5;
+			}
 		}
-	}
-	if (s > 10 * 60 && p->p_ucred->cr_uid && p->p_nice == NZERO) {
-		p->p_nice = NZERO + 4;
-		resetpriority(p);
+		if (s > 10 * 60 && p->p_ucred->cr_uid && p->p_nice == NZERO) {
+			p->p_nice = NZERO + 4;
+			resetpriority(p);
+		}
 	}
 
 	/*
