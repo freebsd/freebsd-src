@@ -1052,11 +1052,10 @@ findpcb:
 		}
 		/*
 		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
-		 * in_broadcast() should never return true on a received
-		 * packet with M_BCAST not set.
- 		 *
- 		 * Packets with a multicast source address should also
- 		 * be discarded.
+		 *
+		 * Note that it is quite possible to receive unicast
+		 * link-layer packets with a broadcast IP address. Use
+		 * in_broadcast() to find them.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST))
 			goto drop;
@@ -1069,7 +1068,8 @@ findpcb:
 #endif
 		if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 		    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
+		    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
+		    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 			goto drop;
 #ifdef INET6
 		if (isipv6) {
@@ -2332,7 +2332,8 @@ dropwithreset:
 #endif /* INET6 */
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
-	    ip->ip_src.s_addr == htonl(INADDR_BROADCAST))
+	    ip->ip_src.s_addr == htonl(INADDR_BROADCAST) ||
+	    in_broadcast(ip->ip_dst, m->m_pkthdr.rcvif))
 		goto drop;
 	/* IPv6 anycast check is done at tcp6_input() */
 
