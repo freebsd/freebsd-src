@@ -31,7 +31,7 @@
  *
  * Private thread definitions for the uthread kernel.
  *
- * $Id: pthread_private.h,v 1.21 1999/07/05 00:35:17 jasone Exp $
+ * $Id: pthread_private.h,v 1.22 1999/07/06 00:25:35 jasone Exp $
  */
 
 #ifndef _PTHREAD_PRIVATE_H
@@ -337,9 +337,11 @@ struct pthread_attr {
 #define PTHREAD_STACK_DEFAULT			65536
 /* Size of red zone at the end of each stack. */
 #define PTHREAD_STACK_GUARD			4096
-/* Maximum size of initial thread's stack.  This perhaps deserves to be larger
+/*
+ * Maximum size of initial thread's stack.  This perhaps deserves to be larger
  * than the stacks of other threads, since many applications are likely to run
- * almost entirely on this stack. */
+ * almost entirely on this stack.
+ */
 #define PTHREAD_STACK_INITIAL			0x100000
 /* Address immediately beyond the beginning of the initial thread stack. */
 #if defined(__FreeBSD__)
@@ -887,9 +889,11 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 #endif
 ;
 
-/* Spare stack queue.  Stacks of default size are cached in order to reduce
+/*
+ * Spare stack queue.  Stacks of default size are cached in order to reduce
  * thread creation time.  Spare stacks are used in LIFO order to increase cache
- * locality. */
+ * locality.
+ */
 SCLASS SLIST_HEAD(, stack)	_stackq;
 
 /* Base address of next unallocated default-size stack.  Stacks are allocated

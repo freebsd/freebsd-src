@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.13 1999/07/05 00:35:19 jasone Exp $
+ * $Id: uthread_init.c,v 1.14 1999/07/06 00:25:38 jasone Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -180,15 +180,17 @@ _thread_init(void)
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
 
-#ifdef __i386__
 		/* Initialize the thread stack cache: */
 		SLIST_INIT(&_stackq);
 
 		/* Create the red zone for the main stack. */
-		if (MAP_FAILED == mmap((void *) PTHREAD_STACK_TOP - PTHREAD_STACK_INITIAL, PTHREAD_STACK_GUARD, 0, MAP_ANON, -1, 0)) {
+		if (mmap((void *) PTHREAD_STACK_TOP
+			 - PTHREAD_STACK_INITIAL,
+			 PTHREAD_STACK_GUARD, 0, MAP_ANON,
+			 -1, 0) == MAP_FAILED) {
 			PANIC("Cannot allocate red zone for initial thread");
 		}
-#endif
+		
 		/*
 		 * Write a magic value to the thread structure
 		 * to help identify valid ones:
