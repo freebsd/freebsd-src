@@ -1585,7 +1585,6 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 
 	dbch = &sc->ir[dmach];
 	ir = &dbch->xferq;
-	ldesc = dbch->ndesc - 1;
 
 	if ((ir->flag & FWXFERQ_RUNNING) == 0) {
 		tag = (ir->flag >> 6) & 3;
@@ -1609,8 +1608,6 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	if(err)
 		return err;
 
-	s = splfw();
-
 	first = STAILQ_FIRST(&ir->stfree);
 	if (first == NULL) {
 		device_printf(fc->dev, "IR DMA no free chunk\n");
@@ -1618,6 +1615,8 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 		return 0;
 	}
 
+	ldesc = dbch->ndesc - 1;
+	s = splfw();
 	prev = STAILQ_LAST(&ir->stdma, fw_bulkxfer, link);
 	while  ((chunk = STAILQ_FIRST(&ir->stfree)) != NULL) {
 		volatile struct fwohcidb *db;
