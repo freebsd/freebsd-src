@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.34.2.1 1996/11/24 07:54:08 phk Exp $
+ * $Id: ip_mroute.c,v 1.34.2.2 1997/07/19 20:09:09 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -1394,7 +1394,7 @@ ip_mdq(m, ifp, rt, xmt_vif)
     register struct ip  *ip = mtod(m, struct ip *);
     register vifi_t vifi;
     register struct vif *vifp;
-    register int plen = ntohs(ip->ip_len);
+    register int plen = ip->ip_len;
 
 /*
  * Macro to send packet on vif.  Since RSVP packets don't get counted on
