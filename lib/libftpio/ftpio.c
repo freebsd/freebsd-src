@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.13 1996/08/31 22:02:18 jkh Exp $
+ * $Id: ftpio.c,v 1.14 1996/09/19 17:28:26 peter Exp $
  *
  */
 
@@ -291,7 +291,7 @@ ftpPassive(FILE *fp, int st)
 
     if (ftp->is_passive == st)
 	return SUCCESS;
-    i = cmd(ftp, "PASSIVE");
+    i = cmd(ftp, "PASV");
     if (i < 0)
         return i;
     ftp->is_passive = !ftp->is_passive;
