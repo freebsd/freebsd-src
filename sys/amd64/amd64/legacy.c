@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.14 1999/08/22 19:56:55 peter Exp $
+ *	$Id: nexus.c,v 1.15 1999/08/23 19:23:33 peter Exp $
  */
 
 /*
@@ -282,7 +282,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			/*
 			 * The first 1Mb is mapped at KERNBASE.
 			 */
-			vaddr = (caddr_t)((uintptr_t)KERNBASE + rv->r_start);
+			vaddr = (caddr_t)(uintptr_t)(KERNBASE + rv->r_start);
 		} else {
 			u_int32_t paddr;
 			u_int32_t psize;
@@ -351,7 +351,6 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	intrmask_t	*mask;
 	driver_t	*driver;
 	int	error, icflags;
-	char	name[32];
 
 	/* somebody tried to setup an irq that failed to allocate! */
 	if (irq == NULL)
@@ -395,10 +394,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	snprintf(name, sizeof(name), "%s%d", device_get_name(child),
-		 device_get_unit(child));
-	*cookiep = inthand_add(name, irq->r_start, ihand, arg,
-			    mask, icflags);
+	*cookiep = inthand_add(device_get_nameunit(child), irq->r_start,
+	    ihand, arg, mask, icflags);
 	if (*cookiep == NULL)
 		error = EINVAL;	/* XXX ??? */
 
