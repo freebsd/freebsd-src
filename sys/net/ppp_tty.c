@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.33 1998/04/06 11:43:12 phk Exp $ */
+/* $Id: ppp_tty.c,v 1.34 1998/04/15 17:46:46 bde Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -98,7 +98,7 @@
 # include <sys/vnode.h>
 #define KERNEL
 
-#ifdef __i386
+#ifdef __i386__
 #include <i386/isa/intr_machdep.h>
 #endif
 
@@ -170,7 +170,7 @@ void
 pppasyncattach(dummy)
     void *dummy;
 {
-#ifdef __i386
+#ifdef __i386__
     int s;
 
     s = splhigh();
