@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.47 1997/04/02 12:07:37 jkh Exp $
+ * $Id: installUpgrade.c,v 1.48 1997/04/28 10:31:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -230,6 +230,10 @@ installUpgrade(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
+	if (extractingBin) {
+	    msgNotify("chflags'ing old binaries - please wait.");
+	    (void)vsystem("chflags -R noschg /mnt/");
+	}
 	msgNotify("Updating /stand on root filesystem");
 	(void)vsystem("find -x /stand | cpio %s -pdum /mnt", cpioVerbosity());
 
