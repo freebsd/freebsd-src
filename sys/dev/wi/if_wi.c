@@ -145,7 +145,7 @@ static int  wi_write_rid(struct wi_softc *, int, void *, int);
 
 static int  wi_newstate(void *, enum ieee80211_state);
 
-static int  wi_scan_ap(struct wi_softc *);
+static int  wi_scan_ap(struct wi_softc *, u_int16_t, u_int16_t);
 static void wi_scan_result(struct wi_softc *, int, int);
 
 static void wi_dump_pkt(struct wi_frame *, struct ieee80211_node *, int rssi);
@@ -1297,6 +1297,89 @@ wi_sync_bssid(struct wi_softc *sc, u_int8_t new_bssid[IEEE80211_ADDR_LEN])
 }
 
 static void
+wi_rx_monitor(struct wi_softc *sc, int fid)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
+	struct wi_frame *rx_frame;
+	struct mbuf *m;
+	int datlen, hdrlen;
+
+	/* first allocate mbuf for packet storage */
+	m = m_getcl(M_DONTWAIT, MT_DATA, 0);
+	if (m == NULL) {
+		ifp->if_ierrors++;
+		return;
+	}
+
+	m->m_pkthdr.rcvif = ifp;
+
+	/* now read wi_frame first so we know how much data to read */
+	if (wi_read_bap(sc, fid, 0, mtod(m, caddr_t), sizeof(*rx_frame))) {
+		ifp->if_ierrors++;
+		goto done;
+	}
+
+	rx_frame = mtod(m, struct wi_frame *);
+
+	switch ((rx_frame->wi_status & WI_STAT_MAC_PORT) >> 8) {
+	case 7:
+		switch (rx_frame->wi_whdr.i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
+		case IEEE80211_FC0_TYPE_DATA:
+			hdrlen = WI_DATA_HDRLEN;
+			datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+			break;
+		case IEEE80211_FC0_TYPE_MGT:
+			hdrlen = WI_MGMT_HDRLEN;
+			datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+			break;
+		case IEEE80211_FC0_TYPE_CTL:
+			/*
+			 * prism2 cards don't pass control packets
+			 * down properly or consistently, so we'll only
+			 * pass down the header.
+			 */
+			hdrlen = WI_CTL_HDRLEN;
+			datlen = 0;
+			break;
+		default:
+			if_printf(ifp, "received packet of unknown type "
+				"on port 7\n");
+			ifp->if_ierrors++;
+			goto done;
+		}
+		break;
+	case 0:
+		hdrlen = WI_DATA_HDRLEN;
+		datlen = rx_frame->wi_dat_len + WI_FCS_LEN;
+		break;
+	default:
+		if_printf(ifp, "received packet on invalid "
+		    "port (wi_status=0x%x)\n", rx_frame->wi_status);
+		ifp->if_ierrors++;
+		goto done;
+	}
+
+	if (hdrlen + datlen + 2 > MCLBYTES) {
+		if_printf(ifp, "oversized packet received "
+		    "(wi_dat_len=%d, wi_status=0x%x)\n",
+		    datlen, rx_frame->wi_status);
+		ifp->if_ierrors++;
+		goto done;
+	}
+
+	if (wi_read_bap(sc, fid, hdrlen, mtod(m, caddr_t) + hdrlen,
+	    datlen + 2) == 0) {
+		m->m_pkthdr.len = m->m_len = hdrlen + datlen;
+		ifp->if_ipackets++;
+		BPF_MTAP(ifp, m);	/* Handle BPF listeners. */
+	} else
+		ifp->if_ierrors++;
+done:
+	m_freem(m);
+}
+
+static void
 wi_rx_intr(struct wi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -1310,6 +1393,16 @@ wi_rx_intr(struct wi_softc *sc)
 	u_int32_t rstamp;
 
 	fid = CSR_READ_2(sc, WI_RX_FID);
+
+	if (sc->wi_debug.wi_monitor) {
+		/*
+		 * If we are in monitor mode just
+		 * read the data from the device.
+		 */
+		wi_rx_monitor(sc, fid);
+		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
+		return;
+	}
 
 	/* First read in the frame header */
 	if (wi_read_bap(sc, fid, 0, &frmhdr, sizeof(frmhdr))) {
@@ -1689,7 +1782,8 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct wi_req wreq;
-	int len, n, error, mif, val;
+	struct wi_scan_res *res;
+	int len, n, error, mif, val, off, i;
 
 	error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 	if (error)
@@ -1767,7 +1861,6 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case WI_RID_READ_APS:
-	case WI_RID_SCAN_RES:		/* XXX */
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
 			return ieee80211_cfgget(ifp, cmd, data);
 		if (sc->sc_scan_timer > 0) {
@@ -1807,6 +1900,57 @@ wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case WI_RID_READ_CACHE:
 		return ieee80211_cfgget(ifp, cmd, data);
+
+	case WI_RID_SCAN_RES:		/* compatibility interface */
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
+			return ieee80211_cfgget(ifp, cmd, data);
+		if (sc->sc_scan_timer > 0) {
+			error = EINPROGRESS;
+			break;
+		}
+		n = sc->sc_naps;
+		off = sc->sc_firmware_type != WI_LUCENT ?
+			sizeof(struct wi_scan_p2_hdr) : 0;
+		if (len < off + sizeof(struct wi_scan_res) * n)
+			n = (len - off) / sizeof(struct wi_scan_res);
+		len = off + sizeof(struct wi_scan_res) * n;
+		if (off != 0) {
+			struct wi_scan_p2_hdr *p2 = (struct wi_scan_p2_hdr *)wreq.wi_val;
+			/*
+			 * Prepend Prism-specific header.
+			 */
+			if (len < sizeof(struct wi_scan_p2_hdr)) {
+				error = ENOSPC;
+				break;
+			}
+			p2 = (struct wi_scan_p2_hdr *)wreq.wi_val;
+			p2->wi_rsvd = 0;
+			p2->wi_reason = n;	/* XXX */
+		}
+		for (i = 0; i < n; i++) {
+			const struct wi_apinfo *ap = &sc->sc_aps[i];
+
+			res = (struct wi_scan_res *)((char *)wreq.wi_val + off);
+			res->wi_chan = ap->channel;
+			res->wi_noise = ap->noise;
+			res->wi_signal = ap->signal;
+			IEEE80211_ADDR_COPY(res->wi_bssid, ap->bssid);
+			res->wi_interval = ap->interval;
+			res->wi_capinfo = ap->capinfo;
+			res->wi_ssid_len = ap->namelen;
+			memcpy(res->wi_ssid, ap->name,
+				IEEE80211_NWID_LEN);
+			if (sc->sc_firmware_type != WI_LUCENT) {
+				/* XXX not saved from Prism cards */
+				memset(res->wi_srates, 0,
+					sizeof(res->wi_srates));
+				res->wi_rate = ap->rate;
+				res->wi_rsvd = 0;
+				off += WI_PRISM2_RES_SIZE;
+			} else
+				off += WI_WAVELAN_RES_SIZE;
+		}
+		break;
 
 	default:
 		if (sc->sc_enabled) {
@@ -1861,7 +2005,7 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 	if (error)
 		return error;
-	len = (wreq.wi_len - 1) * 2;
+	len = wreq.wi_len ? (wreq.wi_len - 1) * 2 : 0;
 	switch (wreq.wi_type) {
 	case WI_RID_DBM_ADJUST:
 		return ENODEV;
@@ -1954,7 +2098,12 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case WI_RID_SCAN_APS:
 		if (sc->sc_enabled && ic->ic_opmode != IEEE80211_M_HOSTAP)
-			error = wi_scan_ap(sc);
+			error = wi_scan_ap(sc, 0x3fff, 0x000f);
+		break;
+
+	case WI_RID_SCAN_REQ:		/* compatibility interface */
+		if (sc->sc_enabled && ic->ic_opmode != IEEE80211_M_HOSTAP)
+			error = wi_scan_ap(sc, wreq.wi_val[0], wreq.wi_val[1]);
 		break;
 
 	case WI_RID_MGMT_XMIT:
@@ -1982,6 +2131,18 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case WI_RID_PROCFRAME:		/* ignore for compatibility */
+		break;
+
+	case WI_RID_OWN_SSID:
+		if (le16toh(wreq.wi_val[0]) * 2 > len ||
+		    le16toh(wreq.wi_val[0]) > IEEE80211_NWID_LEN) {
+			error = ENOSPC;
+			break;
+		}
+		memset(ic->ic_des_essid, 0, IEEE80211_NWID_LEN);
+		ic->ic_des_esslen = le16toh(wreq.wi_val[0]) * 2;
+		memcpy(ic->ic_des_essid, &wreq.wi_val[1], ic->ic_des_esslen);
+		error = ENETRESET;
 		break;
 
 	default:
@@ -2479,7 +2640,7 @@ wi_newstate(void *arg, enum ieee80211_state nstate)
 }
 
 static int
-wi_scan_ap(struct wi_softc *sc)
+wi_scan_ap(struct wi_softc *sc, u_int16_t chanmask, u_int16_t txrate)
 {
 	int error = 0;
 	u_int16_t val[2];
@@ -2491,8 +2652,8 @@ wi_scan_ap(struct wi_softc *sc)
 		(void)wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_SCAN_RESULTS, 0, 0);
 		break;
 	case WI_INTERSIL:
-		val[0] = 0x3fff;	/* channel */
-		val[1] = 0x000f;	/* tx rate */
+		val[0] = chanmask;	/* channel */
+		val[1] = txrate;	/* tx rate */
 		error = wi_write_rid(sc, WI_RID_SCAN_REQ, val, sizeof(val));
 		break;
 	case WI_SYMBOL:
@@ -2507,7 +2668,8 @@ wi_scan_ap(struct wi_softc *sc)
 	if (error == 0) {
 		sc->sc_scan_timer = WI_SCAN_WAIT;
 		sc->sc_ic.ic_if.if_timer = 1;
-		DPRINTF(("wi_scan_ap: start scanning\n"));
+		DPRINTF(("wi_scan_ap: start scanning, "
+			"chamask 0x%x txrate 0x%x\n", chanmask, txrate));
 	}
 	return error;
 }
