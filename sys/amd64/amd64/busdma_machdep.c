@@ -42,6 +42,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
+#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
 
@@ -186,9 +187,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			newtag->filterarg = parent->filterarg;
 			newtag->parent = parent->parent;
 		}
-		if (newtag->parent != NULL) {
-			parent->ref_count++;
-		}
+		if (newtag->parent != NULL)
+			atomic_add_int(&parent->ref_count, 1);
 	}
 	
 	if (newtag->lowaddr < ptoa(Maxmem) && (flags & BUS_DMA_ALLOCNOW) != 0) {
@@ -235,7 +235,7 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			bus_dma_tag_t parent;
 
 			parent = dmat->parent;
-			dmat->ref_count--;
+			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
 				free(dmat, M_DEVBUF);
 				/*
