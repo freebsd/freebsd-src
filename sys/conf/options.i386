@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.23 1996/10/09 19:47:07 bde Exp $
+#	$Id: options.i386,v 1.24 1996/10/17 19:31:47 bde Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -15,6 +15,8 @@ AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
 COMCONSOLE		opt_comconsole.h
+CONADDR			opt_comconsole.h
+CONUNIT			opt_comconsole.h
 COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
@@ -41,7 +43,6 @@ I586_FAST_BCOPY		opt_temporary.h
 I586_OPTIMIZED_BCOPY	opt_temporary.h
 I586_OPTIMIZED_BZERO	opt_temporary.h
 
-SC_KBD_PROBE_WORKS	opt_syscons.h
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
