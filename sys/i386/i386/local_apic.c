@@ -97,10 +97,10 @@ struct lapic {
 static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 1, 1, APIC_LVT_DM_EXTINT, 0 },	/* LINT0: masked ExtINT */
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, 0 },	/* Timer: needs a vector */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, 0 },	/* Error: needs a vector */
+	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
+	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, 0 },	/* PMC */
-	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, 0 },	/* Thermal: needs a vector */
+	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
 
 static inthand_t *ioint_handlers[] = {
@@ -115,6 +115,9 @@ static inthand_t *ioint_handlers[] = {
 };
 
 volatile lapic_t *lapic;
+
+static void	lapic_enable(void);
+static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 
 static uint32_t
 lvt_mode(struct lapic *la, u_int pin, uint32_t value)
@@ -149,11 +152,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 		/* Use a vector of 0. */
 		break;
 	case APIC_LVT_DM_FIXED:
-#if 0
 		value |= lvt->lvt_vector;
-#else
-		panic("Fixed LINT pins not supported");
-#endif
 		break;
 	default:
 		panic("bad APIC LVT delivery mode: %#x\n", value);
@@ -167,7 +166,6 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 void
 lapic_init(uintptr_t addr)
 {
-	u_int32_t value;
 
 	/* Map the local APIC and setup the spurious interrupt handler. */
 	KASSERT(trunc_page(addr) == addr,
@@ -177,10 +175,7 @@ lapic_init(uintptr_t addr)
 	    GSEL(GCODE_SEL, SEL_KPL));
 
 	/* Perform basic initialization of the BSP's local APIC. */
-	value = lapic->svr;
-	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
-	value |= (APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT);
-	lapic->svr = value;
+	lapic_enable();
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
@@ -233,6 +228,9 @@ lapic_dump(const char* str)
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pcm: 0x%08x\n",
+	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
+	    lapic->lvt_pcint);
 }
 
 void
@@ -260,12 +258,6 @@ lapic_setup(void)
 	eflags = intr_disable();
 	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 
-	/* Program LINT[01] LVT entries. */
-	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
-	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
-
-	/* XXX: more LVT entries */
-
 	/* Initialize the TPR to allow all interrupts. */
 	lapic_set_tpr(0);
 
@@ -283,10 +275,14 @@ lapic_setup(void)
 	lapic->ldr = value;
 
 	/* Setup spurious vector and enable the local APIC. */
-	value = lapic->svr;
-	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
-	value |= (APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT);
-	lapic->svr = value;
+	lapic_enable();
+
+	/* Program LINT[01] LVT entries. */
+	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
+	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
+
+	/* XXX: more LVT entries */
+
 	intr_restore(eflags);
 }
 
@@ -298,6 +294,18 @@ lapic_disable(void)
 	/* Software disable the local APIC. */
 	value = lapic->svr;
 	value &= ~APIC_SVR_SWEN;
+	lapic->svr = value;
+}
+
+static void
+lapic_enable(void)
+{
+	u_int32_t value;
+
+	/* Program the spurious vector to enable the local APIC. */
+	value = lapic->svr;
+	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
+	value |= (APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT);
 	lapic->svr = value;
 }
 
