@@ -78,6 +78,7 @@ struct	ether_header;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>
+#include <sys/eventhandler.h>
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
@@ -293,6 +294,19 @@ typedef void if_init_f_t(void *);
 } while (0)
 
 #ifdef _KERNEL
+/* interface address change event */
+typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
+/* new interface arrival event */
+typedef void (*ifnet_arrival_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
+/* interface departure event */
+typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
+EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
+/* interface clone event */
+typedef void (*if_clone_event_handler_t)(void *, struct if_clone *);
+EVENTHANDLER_DECLARE(if_clone_event, if_clone_event_handler_t);
+
 #define	IF_AFDATA_LOCK_INIT(ifp)	\
     mtx_init(&(ifp)->if_afdata_mtx, "if_afdata", NULL, MTX_DEF)
 #define	IF_AFDATA_LOCK(ifp)	mtx_lock(&(ifp)->if_afdata_mtx)
