@@ -491,7 +491,7 @@ update_fileproc (callerdat, finfo)
 	&& tag != NULL
 	&& finfo->rcs != NULL)
     {
-	char *rev = RCS_getversion (finfo->rcs, tag, NULL, 1, NULL);
+	char *rev = RCS_getversion (finfo->rcs, tag, date, 1, NULL);
 	if (rev != NULL
 	    && !RCS_nodeisbranch (finfo->rcs, tag))
 	    nonbranch = 1;
