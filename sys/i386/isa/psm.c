@@ -144,7 +144,7 @@ psm_write_dev(int ioport, u_char value)
 	psm_poll_status();
 	outb(inport+PSM_CNTRL, 0xd4);
 	psm_poll_status();
-	outb(inport+PSM_DATA,value);
+	outb(inport+PSM_DATA, value);
 }
 
 static inline void
@@ -168,9 +168,9 @@ psmprobe(struct isa_device *dvp)
 	psm_write_dev(ioport, PSM_RESET);	/* Reset aux device */
 	psm_poll_status();
 #endif
-	outb(ioport+PSM_CNTRL,0xa9);
+	outb(ioport+PSM_CNTRL, 0xa9);
 	psm_poll_status();
-	outb(ioport+PSM_CNTRL,0xaa);
+	outb(ioport+PSM_CNTRL, 0xaa);
 	c = inb(ioport+PSM_DATA);
 	if(c & 0x04) {
 /*		printf("PS/2 AUX mouse is not found\n");*/
@@ -277,11 +277,12 @@ psm_poll_status(void)
 
 	while(inb(AUX_PORT+PSM_STATUS) & 0x03) {
 		if(inb(AUX_PORT+PSM_STATUS) & 0x2 == 0x2)
-			inb(AUX_PORT+PSM_DATA);}
+			inb(AUX_PORT+PSM_DATA);
+	}
 	return;
 }
 
-static	int
+static int
 psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit, ioport;
@@ -293,9 +294,9 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	ioport = psmaddr[unit];
 
 	/* Disable further mouse interrupts */
-	psm_command(ioport,PSM_INT_DISABLE);
+	psm_command(ioport, PSM_INT_DISABLE);
 	psm_poll_status();
-	outb(ioport+PSM_CNTRL,PSM_DISABLE );
+	outb(ioport+PSM_CNTRL, PSM_DISABLE);
 
 	/* Complete the close */
 	sc->state &= ~PSM_OPEN;
@@ -304,7 +305,7 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	return (0);
 }
 
-staticint
+static int
 psmread(dev_t dev, struct uio *uio, int flag)
 {
 	int s;
@@ -315,11 +316,9 @@ psmread(dev_t dev, struct uio *uio, int flag)
 	unsigned char buffer[100];
 
 	/* Get device information */
-
 	sc = &psm_softc[PSMUNIT(dev)];
 
 	/* Block until mouse activity occured */
-
 	s = spltty();
 	while (sc->inq.count == 0) {
 		if (minor(dev) & 0x1) {
@@ -365,7 +364,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
 	return (error);
 }
 
-staticint
+static int
 psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc;
@@ -421,10 +420,9 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	return (error);
 }
 
-void psmintr(unit)
-	int unit;
+void
+psmintr(int unit)
 {
-	struct psm_softc *sc = &psm_softc[unit];
 	int ioport = psmaddr[unit];
 
 	sc->inq.queue[sc->inq.last++ % MSBSZ] = inb(ioport+PSM_DATA);
@@ -463,7 +461,7 @@ psmselect(dev_t dev, int rw, struct proc *p)
 static psm_devsw_installed = 0;
 
 static void
-(void *unused)
+psm_drvinit(void *unused)
 {
 	dev_t dev;
 
@@ -476,5 +474,4 @@ static void
 
 SYSINIT(psmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,psm_drvinit,NULL)
 
-
-#endif
+#endif /* NPSM > 0 */
