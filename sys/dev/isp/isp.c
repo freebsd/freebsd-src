@@ -1,5 +1,5 @@
-/* $Id: isp.c,v 1.18 1999/04/14 17:37:36 mjacob Exp $ */
-/* release_5_11_99 */
+/* $Id: isp.c,v 1.19 1999/05/11 05:06:55 mjacob Exp $ */
+/* release_5_11_99+ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -3593,6 +3593,8 @@ isp_update_bus(isp, bus)
 		int get;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
+			PRINTF("%s: skipping update of target %d on bus %d\n",
+			    isp->isp_name, tgt, bus);
 			continue;
 		}
 
@@ -3631,6 +3633,10 @@ isp_update_bus(isp, bus)
 			sdp->isp_devparam[tgt].cur_dflags |=
 			    (sdp->isp_devparam[tgt].dev_flags & DPARM_TQING);
 			sdp->isp_devparam[tgt].dev_refresh = 1;
+			IDPRINTF(3, ("%s: bus %d set tgt %d flags 0x%x off 0x%x"
+			    " period 0x%x\n", isp->isp_name, bus, tgt,
+			    mbs.param[2], mbs.param[3] >> 8,
+			    mbs.param[3] & 0xff));
 			get = 0;
 		} else if (sdp->isp_devparam[tgt].dev_refresh) {
 			mbs.param[0] = MBOX_GET_TARGET_PARAMS;
