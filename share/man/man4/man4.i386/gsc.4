@@ -27,9 +27,12 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id: gsc.4,v 1.3 1996/12/29 20:35:55 wosch Exp $
+.\"
 .Dd January 9, 1995
 .Os FreeBSD
-.Dt GSC 4
+.Dt GSC 4 i386
 .Sh NAME
 .Nm gsc
 .Nd a device driver for a handy scanner
@@ -274,18 +277,18 @@ you can get debug output if you access the driver with a minor number
 whose debug bit (i.e. bit 5 out of 7) is set.
 .El
 .Sh SEE ALSO
-.Xr sgsc 1 ,
-.Xr open 2 ,
-.Xr ioctl 2 ,
-.Xr intro 2 ,
-.Xr read 2 ,
-.Xr close 2 ,
 .Xr cat 1 ,
 .Xr dd 1 ,
-.Xr pbm 5 ,
-.Xr pnm 1 ,
 .Xr pbmtopgm 1 ,
-.Xr termios 4
+.Xr pnm 1 ,
+.Xr sgsc 1 ,
+.Xr close 2 ,
+.Xr intro 2 ,
+.Xr ioctl 2 ,
+.Xr open 2 ,
+.Xr read 2 ,
+.Xr termios 4 ,
+.Xr pbm 5
 .Sh AUTHORS
 Gunther Schadow <gusw@fub46.zedat.fu-berlin.de>
 .Sh BUGS
