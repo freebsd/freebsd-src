@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.95 1997/11/13 12:10:50 brian Exp $
+ * $Id: main.c,v 1.96 1997/11/13 14:43:18 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -358,6 +358,14 @@ main(int argc, char **argv)
   ID0init();
   if (!ValidSystem(GetLabel())) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
+    if (mode & MODE_DIRECT) {
+      const char *l;
+      if ((l = GetLabel()) == NULL)
+        l = "default";
+      VarTerm = 0;
+      LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
+    }
+    LogClose();
     return 1;
   }
 
