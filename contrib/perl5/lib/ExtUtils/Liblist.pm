@@ -2,7 +2,7 @@ package ExtUtils::Liblist;
 use vars qw($VERSION);
 # Broken out of MakeMaker from version 4.11
 
-$VERSION = substr q$Revision: 1.25 $, 10;
+$VERSION = substr q$Revision: 1.1.1.1 $, 10;
 
 use Config;
 use Cwd 'cwd';
@@ -651,7 +651,7 @@ library to search for otherwise.  The C<$Config{lib_ext}> suffix will
 be appended to any entries that are not directories and don't already have
 the suffix.
 
-Note that the C<-L> and <-l> prefixes are B<not required>, but authors
+Note that the C<-L> and C<-l> prefixes are B<not required>, but authors
 who wish their extensions to be portable to Unix or OS/2 should use the
 prefixes, since the Unix-OS/2 version of ext() requires them.
 
