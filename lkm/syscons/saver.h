@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: saver.h,v 1.11 1998/09/15 18:16:38 sos Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>
@@ -42,4 +42,3 @@ extern int	scrn_blanked;
 extern int	fonts_loaded;
 extern char	font_8[], font_14[], font_16[];
 extern char	palette[];
-extern char	*video_mode_ptr;

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: green_saver.c,v 1.12 1998/09/15 18:16:39 sos Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@ green_saver(int blank)
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
+		cur_console->status |= SAVER_RUNNING;
 		switch (crtc_type) {
 		case KD_VGA:
 			outb(TSIDX, 0x01); val = inb(TSREG);
@@ -88,6 +89,7 @@ green_saver(int blank)
 		default:
 			break;
 		}
+		cur_console->status &= ~SAVER_RUNNING;
 		scrn_blanked = 0;
 	}
 }
