@@ -1,0 +1,233 @@
+.\"-
+.\" Copyright (c) 2000 Poul Henning Kamp and Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 10, 2000
+.Dt sbuf 9
+.Os FreeBSD
+.Sh NAME
+.Nm sbuf_new ,
+.Nm sbuf_setpos ,
+.Nm sbuf_cat ,
+.Nm sbuf_cpy ,
+.Nm sbuf_printf ,
+.Nm sbuf_putc ,
+.Nm sbuf_finish ,
+.Nm sbuf_data ,
+.Nm sbuf_len ,
+.Nm sbuf_delete
+.Nd safe string formatting
+.Sh SYNOPSIS
+.Fd #include <sys/sbuf.h>
+.Ft int
+.Fn sbuf_new "struct sbuf *s" "char *buf" "size_t length" "int flags"
+.Ft int
+.Fn sbuf_setpos "struct sbuf *s" "size_t pos"
+.Ft int
+.Fn sbuf_cat "struct sbuf *s" "char *str"
+.Ft int
+.Fn sbuf_cpy "struct sbuf *s" "char *str"
+.Ft int
+.Fn sbuf_printf "struct sbuf *s" "char *fmt" "..."
+.Ft int
+.Fn sbuf_putc "struct sbuf *s" "int c"
+.Ft int
+.Fn sbuf_finish "struct sbuf *s"
+.Ft char *
+.Fn sbuf_data "struct sbuf *s"
+.Ft size_t
+.Fn sbuf_len "struct sbuf *s"
+.Ft void
+.Fn sbuf_delete "struct sbuf *s"
+.Sh DESCRIPTION
+The
+.Nm sbuf
+family of functions allow one to safely allocate, construct and
+release bounded null-terminated strings in kernel space.
+Instead of arrays of characters, these functions operate on structures
+called
+.Fa sbufs ,
+defined in
+.Aq Pa sys/sbuf.h .
+.Pp
+The
+.Fn sbuf_new
+function initializes the
+.Fa sbuf
+pointed to by its first argument.
+The
+.Fa buf
+argument is a pointer to a buffer in which to store the actual string;
+if it is
+.Dv NULL ,
+.Fn sbuf_new
+will allocate one using
+.Xr malloc 9 .
+The
+.Fa length
+is the intended size of the storage buffer.
+The fourth argument,
+.Fa flags ,
+is currently unused and should always be set to zero.
+.Pp
+Note that if
+.Fa buf
+is not
+.Dv NULL ,
+it must point to an array of at least
+.Fa length
+characters.
+.Pp
+The
+.Fn sbuf_setpos
+function sets the
+.Fa sbuf Ns 's
+current position to
+.Fa pos ,
+which is a value between zero and one less than the size of the
+storage buffer.
+.Pp
+The
+.Fn sbuf_cat
+function appends the string
+.Fa str
+to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_cpy
+function replaces the contents of the
+.Fa sbuf
+with those of the string
+.Fa str .
+This is equivalent to calling
+.Fn sbuf_cat
+with a fresh
+.Fa sbuf
+or one which position has been reset to zero with
+.Fn sbuf_setpos .
+.Pp
+The
+.Fn sbuf_printf
+function formats its arguments according to the format string pointed
+to by
+.Fa fmt
+and appends the resulting string to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_putc
+function appends the character
+.Fa c
+to the
+.Fa sbuf
+at the current position.
+.Pp
+The
+.Fn sbuf_finish
+function null-terminates the
+.Fa sbuf
+and marks it as finished, which means that it may no longer be
+modified using
+.Fn sbuf_setpos ,
+.Fn sbuf_cat ,
+.Fn sbuf_cpu ,
+.Fn sbuf_printf
+or
+.Fn sbuf_putc .
+.Pp
+The
+.Fn sbuf_data
+and
+.Fn sbuf_len
+functions return the actual string and its length, respectively, and
+only work on a finished and non-overflowed
+.Fa sbuf .
+.Pp
+Finally, the
+.Fn sbuf_delete
+function clears the
+.Fa sbuf
+and frees its storage buffer if it was allocated by
+.Fn sbuf_new .
+.Sh NOTES
+If an operation caused an
+.Fa sbuf
+to overflow, most subsequent operations (including
+.Fn sbuf_finish )
+on it will fail until the
+.Fa sbuf Ns 's
+position is reset to a value between 0 and one less than the size of
+its storage buffer using
+.Fn sbuf_setpos ,
+or it is reinitialized to a sufficiently short string using
+.Fn sbuf_cpy .
+.Sh RETURN VALUES
+.Fn sbuf_new
+returns \-1 if it failed to allocate a storage buffer, and zero
+otherwise.
+.Pp
+.Fn sbuf_setpos
+returns \-1 if
+.Fa pos
+was invalid, and zero otherwise.
+.Pp
+.Fn sbuf_cat ,
+.Fn sbuf_cpy ,
+.Fn sbuf_printf ,
+.Fn sbuf_putc ,
+and
+.Fn sbuf_finish
+all return \-1 if the buffer overflowed, and zero otherwise.
+.Pp
+.Fn sbuf_data
+and
+.Fn sbuf_len
+return
+.Dv NULL
+and 0, respectively, if the buffer overflowed.
+.Sh SEE ALSO
+.Xr printf 3 ,
+.Xr strcat 3 ,
+.Xr strcpy 3
+.Sh HISTORY
+The
+.Nm sbuf
+family of functions first appeared in
+.Fx 4.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm sbuf
+family of functions was designed by
+.An Poul-Henning Kamp Aq phk@FreeBSD.org
+and implemented by
+.An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Dag-Erling Co\(:idan Sm\(/orgrav .
