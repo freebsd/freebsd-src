@@ -93,6 +93,9 @@ procfs_docurproc(PFS_FILL_ARGS)
 int
 procfs_attr(PFS_ATTR_ARGS)
 {
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
 	/* XXX inefficient, split into separate functions */
 	if (p->p_flag & P_SUGID)
 		vap->va_mode = 0;
@@ -106,8 +109,6 @@ procfs_attr(PFS_ATTR_ARGS)
 	    strcmp(pn->pn_name, "fpregs") == 0)
 		vap->va_mode = 0600;
 
-	/* p is locked by caller */
-	PROC_LOCK_ASSERT(p, MA_OWNED);
 	vap->va_uid = p->p_ucred->cr_uid;
 	vap->va_gid = p->p_ucred->cr_gid;
 	
@@ -121,6 +122,7 @@ procfs_attr(PFS_ATTR_ARGS)
 int
 procfs_notsystem(PFS_VIS_ARGS)
 {
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	return ((p->p_flag & P_SYSTEM) == 0);
 }
 
