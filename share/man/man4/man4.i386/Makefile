@@ -9,7 +9,7 @@ MAN=	acpi_toshiba.4 \
 	arl.4 \
 	CPU_ELAN.4 \
 	cs.4 \
-	ct.4 \
+	ctau.4 \
 	cx.4 \
 	cy.4 \
 	el.4 \
