@@ -692,6 +692,9 @@ SCLASS	pthread_cond_t  _gc_cond
  */
 SCLASS struct  sigaction _thread_sigact[NSIG];
 
+/* Precomputed signal set for _thread_suspend. */
+SCLASS sigset_t _thread_suspend_sigset;
+
 /* Tracks the number of threads blocked while waiting for a spinlock. */
 SCLASS	volatile int	_spinblock_count
 #ifdef GLOBAL_PTHREAD_PRIVATE
