@@ -209,6 +209,10 @@ bd_int13probe(struct bdinfo *bd)
     
     if (!(v86.efl & 0x1) &&				/* carry clear */
 	((v86.edx & 0xff) > ((unsigned)bd->bd_unit & 0x7f))) {	/* unit # OK */
+	if ((v86.ecx & 0x3f) == 0) {			/* absurd sector size */
+		DEBUG("Invalid geometry for unit %d", bd->bd_unit);
+		return(0);				/* skip device */
+	}
 	bd->bd_flags |= BD_MODEINT13;
 	bd->bd_type = v86.ebx & 0xff;
 
