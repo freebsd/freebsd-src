@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.8 1994/11/05 07:23:58 jkh Exp $
+ * $Id: stage5.c,v 1.9 1994/11/06 01:16:30 jkh Exp $
  *
  */
 
@@ -25,11 +25,11 @@
 #include "sysinstall.h"
 
 static unsigned char msg[] = "
-You are now done with the initial phase of the installation, which
+You are now done with the initial phase of the installation that
 gets FreeBSD onto your hard disk.  At this point, we need to go on
 to ftp, SLIP, DOS floppy, parallel port or carrier pigeon a bindist over
-so that your system is actually usable.  Select Yes to proceed with this
-phase, or No to simply drop into a shell.";
+so that your system is actually usable.  Select _Yes_ to proceed with this
+phase, or _No_ to simply drop into a shell.";
 
 void
 stage5()
