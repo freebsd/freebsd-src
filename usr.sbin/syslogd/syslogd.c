@@ -640,18 +640,21 @@ usage(void)
 static void
 printline(const char *hname, char *msg)
 {
+	char *p, *q;
+	long n;
 	int c, pri;
-	char *p, *q, line[MAXLINE + 1];
+	char line[MAXLINE + 1];
 
 	/* test for special codes */
-	pri = DEFUPRI;
 	p = msg;
+	pri = DEFUPRI;
 	if (*p == '<') {
-		pri = 0;
-		while (isdigit(*++p))
-			pri = 10 * pri + (*p - '0');
-		if (*p == '>')
-			++p;
+		errno = 0;
+		n = strtol(p + 1, &q, 10);
+		if (*q == '>' && n >= 0 && n < INT_MAX && errno == 0) {
+			p = q + 1;
+			pri = n;
+		}
 	}
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
@@ -729,24 +732,31 @@ readklog(void)
  * Take a raw input line from /dev/klog, format similar to syslog().
  */
 static void
-printsys(char *p)
+printsys(char *msg)
 {
-	int pri, flags;
+	char *p, *q;
+	long n;
+	int flags, isprintf, pri;
 
 	flags = ISKERNEL | SYNC_FILE | ADDDATE;	/* fsync after write */
+	p = msg;
 	pri = DEFSPRI;
+	isprintf = 1;
 	if (*p == '<') {
-		pri = 0;
-		while (isdigit(*++p))
-			pri = 10 * pri + (*p - '0');
-		if (*p == '>')
-			++p;
-		if ((pri & LOG_FACMASK) == LOG_CONSOLE)
-			flags |= IGN_CONS;
-	} else {
-		/* kernel printf's come out on console */
-		flags |= IGN_CONS;
+		errno = 0;
+		n = strtol(p + 1, &q, 10);
+		if (*q == '>' && n >= 0 && n < INT_MAX && errno == 0) {
+			p = q + 1;
+			pri = n;
+			isprintf = 0;
+		}
 	}
+	/*
+	 * Kernel printf's and LOG_CONSOLE messages have been displayed
+	 * on the console already.
+	 */
+	if (isprintf || (pri & LOG_FACMASK) == LOG_CONSOLE)
+		flags |= IGN_CONS;
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFSPRI;
 	logmsg(pri, p, LocalHostName, flags);
