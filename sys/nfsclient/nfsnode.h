@@ -194,10 +194,6 @@ nfs_rsunlock(struct nfsnode *np, struct thread *td)
 extern	vop_t	**fifo_nfsnodeop_p;
 extern	vop_t	**nfs_vnodeop_p;
 extern struct buf_ops buf_ops_nfs;
-
-#if 0
-extern	vop_t	**fifo_nfs4nodeop_p;
-#endif
 extern	vop_t	**nfs4_vnodeop_p;
 extern struct buf_ops buf_ops_nfs4;
 
