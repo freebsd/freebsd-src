@@ -1016,9 +1016,9 @@ installFilesystems(dialogMenuItem *self)
 	    iov[1].iov_base = "devfs";
 	    iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	    iov[2].iov_base = "fspath";
-	    iov[1].iov_len = strlen(iov[2].iov_base) + 1;
+	    iov[2].iov_len = strlen(iov[2].iov_base) + 1;
 	    iov[3].iov_base = "/mnt/dev";
-	    iov[1].iov_len = strlen(iov[3].iov_base) + 1;
+	    iov[3].iov_len = strlen(iov[3].iov_base) + 1;
 	    i = nmount(iov, 4, 0);
 
 	    if (i) {
