@@ -503,7 +503,7 @@ uhub_activate(device_ptr_t self, enum devact act)
 USB_DETACH(uhub)
 {
 	USB_DETACH_START(uhub, sc);
-	struct usbd_hub *hub = sc->sc_hub->hub;
+	usbd_device_handle dev = sc->sc_hub;
 	struct usbd_port *rup;
 	int port, nports;
 
@@ -513,22 +513,22 @@ USB_DETACH(uhub)
 	DPRINTF(("uhub_detach: sc=%port\n", sc));
 #endif
 
-	if (hub == NULL)		/* Must be partially working */
+	if (dev->hub == NULL)		/* Must be partially working */
 		return (0);
 
 	usbd_abort_pipe(sc->sc_ipipe);
 	usbd_close_pipe(sc->sc_ipipe);
 
-	nports = hub->hubdesc.bNbrPorts;
+	nports = dev->hub->hubdesc.bNbrPorts;
 	for(port = 0; port < nports; port++) {
-		rup = &hub->ports[port];
+		rup = &dev->hub->ports[port];
 		if (rup->device)
 			usb_disconnect_port(rup, self);
 	}
 	
 
-	free(hub, M_USBDEV);
-	sc->sc_hub->hub = NULL;
+	free(dev->hub, M_USBDEV);
+	dev->hub = NULL;
 
 	return (0);
 }
