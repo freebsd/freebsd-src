@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.8 1995/03/13 01:30:02 ache Exp $
+# $Id: Makefile,v 1.9 1996/09/19 15:42:15 peter Exp $
 #
 .include "../Makefile.inc"
 
@@ -19,11 +19,6 @@ SRCS=	bc-emit.c bc-optab.c \
 
 LIB=		cc_int
 NOPROFILE=	no thanks
-.if defined(SHARED_LIB_CC_INT)
-INTERNALLIB=	no thanks
-SHLIB_MAJOR=	272
-SHLIB_MINOR=	1
-.else
 NOPIC=		no thanks
 
 install:
