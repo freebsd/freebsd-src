@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.332 1997/05/09 12:19:04 kjc Exp $
+#	$Id: LINT,v 1.333 1997/05/10 09:18:46 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1133,6 +1133,9 @@ options	"EISA_SLOTS=12"
 #   option METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
 #	for initialization of fps routine when a signal is not present.
 #
+# The 'bktr' device is a PCI video capture board. It also has a TV tuner
+# on board.
+#
 controller	pci0
 controller	ahc1
 controller	ncr0
@@ -1142,6 +1145,7 @@ device		fxp0
 device		vx0
 device		fpa0
 device		meteor0
+device		bktr0
 
 
 #
