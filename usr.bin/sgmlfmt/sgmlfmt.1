@@ -1,5 +1,5 @@
-.Dd August 30, 1995
-.Os FreeBSD 2.0.5
+.Dd October 7, 1995
+.Os FreeBSD 2.1
 .Dt SGMLFMT 1
 .Sh NAME
 .Nm sgmlfmt
@@ -8,6 +8,7 @@
 .Nm
 .Fl f Ar format
 .Op Fl links
+.Op Fl ssi
 .Op Fl i Ar name ...
 .Ar file
 .Sh DESCRIPTION
@@ -63,25 +64,6 @@ This is actually an intermediate conversion used by the
 .Fl f Ar ascii
 format option.
 .El
-.It Fl links
-When used with the
-.Fl f Ar html
-option, for each 
-.Li <label id="foo">
-in the document source 
-.Nm
-generates a symbolic link
-.Pa foo.html
-pointing to the numbered
-.Pa .html
-file containing the reference.  Since the number of the file
-containing a particular section can change when a document
-is modified, this provides a convenient hook by which separate
-documents can provide links into another document without the
-links becoming invalid when the target document is modified.
-When creating a symbolic link, any occurence of a slash (/) in label 
-is replaced with percent (%), while any occurence of a space is replaced
-with an underscore (_).
 .It Fl i Ar name
 Pretend that
 .Dl <!ENTITY % name "INCLUDE">
@@ -101,6 +83,43 @@ and will use
 in the status keyword specification of a
 marked section declaration.  In this case the effect of the
 option will be to cause the marked section not to be ignored.
+.It Fl links
+When used with the
+.Fl f Ar html
+option, for each 
+.Li <label id="foo">
+in the document source 
+.Nm
+generates a symbolic link
+.Pa foo.html
+pointing to the numbered
+.Pa .html
+file containing the reference.  Since the number of the file
+containing a particular section can change when a document
+is modified, this provides a convenient hook by which separate
+documents can provide links into another document without the
+links becoming invalid when the target document is modified.
+When creating a symbolic link, any occurence of a slash (/) in label 
+is replaced with percent (%), while any occurence of a space is replaced
+with an underscore (_).
+.It Fl ssi
+When used with the
+.Fl f Ar html
+option, hooks will be placed to have an http server include a
+custom header and footer on the document using the server side
+include mechanism.  This mechanism is supported by the Apache and
+NCSA http servers and possibly others.  Included files are named
+.Pa file.hdr
+and 
+.Pa file.ftr
+for the header and footer of the
+.Pa file.html .
+Other pages include file are named
+.Pa file.ftr1 ,
+.Pa file.ftr2 ...
+.Pa file.ftrn
+where the number corresponds to the depth of the file from
+.Pa file.html .
 .El
 .Pp
 If the input file name ends with
@@ -138,9 +157,8 @@ The linuxdoc DTD was written by Matt Welsh
 and based on the Qwertz DTD written by Tom Gordon
 .Aq thomas.gordon@gmd.de .
 .Sh BUGS
-The ASCII output has many, many bugs including no table of
-contents, no meaningful cross references, and numerous formatting
-errors.
+The ASCII output has many, many bugs including no meaningful
+cross references, and numerous formatting problems.
 .Pp
 A line in the SGML source file beginning with a period (.) will
 confuse
@@ -157,8 +175,11 @@ the
 .Li </heading>
 tags are omitted following a
 sectioning tag such as
-.Li <sect> .  Furthermore, all text between
-.Li <heading>
-and
-.Li </heading>
-must be on one line.
+.Li <sect> . 
+.Pp
+Beginning and ending tags for the
+.Li <tag>
+element must occur on the same line for correct formatting with
+the
+.Fl ascii
+option.
