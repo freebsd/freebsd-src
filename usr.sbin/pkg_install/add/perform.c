@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26 1995/06/11 19:32:48 rgrimes Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.27 1995/07/30 09:11:20 jkh Exp $";
 #endif
 
 /*
@@ -118,6 +118,7 @@ pkg_do(char *pkg)
 	    }
 	}
 	Home = make_playpen(PlayPen, 0);
+	where_to = PlayPen;
 	sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 	if (unpack(pkg_fullname, extract_contents)) {
 	    whinge("Unable to extract table of contents file from `%s' - not a package?.", pkg_fullname);
@@ -165,8 +166,6 @@ pkg_do(char *pkg)
 	    }
 	}
 
-	if (!where_to)
-	    where_to = PlayPen;
 	/*
 	 * Apply a crude heuristic to see how much space the package will
 	 * take up once it's unpacked.  I've noticed that most packages
@@ -178,9 +177,8 @@ pkg_do(char *pkg)
 	}
 
 	if (min_free(where_to) < sb.st_size * 4) {
-	    whinge("Projected size of %d exceeds free space in %s.",
-		   sb.st_size * 4, where_to);
-	    whinge("Not extracting %s, sorry!", pkg_fullname);
+	    whinge("Projected size of %d exceeds available free space.\nPlease set your PKG_TMPDIR variable to point to a location with more\nfree space and try again.", sb.st_size * 4);
+	    whinge("Not extracting %s\ninto %s, sorry!", pkg_fullname, where_to);
 	    goto bomb;
 	}
 
