@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * $Id: ns.c,v 1.2 1994/08/02 07:51:43 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/protosw.h>

@@ -1,0 +1,37 @@
+#!/bin/sh
+
+#
+#	ppp-on
+#
+#	Set up a PPP link
+#
+
+LOCKDIR=/var/spool/lock
+DEVICE=com1
+
+PHONE=4511234
+USER=Pkarl
+PASSWORD=password
+OUR_IP_ADDR=137.175.6.3
+
+if [ -f $LOCKDIR/LCK..$DEVICE ]
+then
+    echo "PPP device is locked"
+    exit 1
+fi
+
+fix-cua $DEVICE
+
+(
+    stty 19200 -tostop
+
+    if chat -l LCK..$DEVICE ABORT "NO CARRIER" ABORT BUSY "" ATZ OK ATs50=255s111=0DT$PHONE CONNECT "" ogin: $USER ssword: \\q$PASSWORD
+    then
+	ppp mru 1500 $OUR_IP_ADDR: /dev/$DEVICE &
+	sleep 10
+	exit 0
+    else
+	echo "PPP call failed" 1>&2
+	exit 1
+    fi
+) < /dev/$DEVICE > /dev/$DEVICE

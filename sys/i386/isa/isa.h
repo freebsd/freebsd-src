@@ -34,23 +34,16 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.5 1994/04/21 14:20:54 sos Exp $
+ *	$Id: isa.h,v 1.10 1994/11/19 18:47:57 phk Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
-#define _I386_ISA_ISA_H_ 1
+#define	_I386_ISA_ISA_H_
 
+/* BEWARE:  Included in both assembler and C code */
 /*
  * ISA Bus conventions
  */
-
-#ifndef LOCORE
-#include <sys/cdefs.h>
-
-extern unsigned int atdevbase;	/* offset in virtual memory of ISA io mem */
-unsigned char rtcin __P((int));
-#endif
-
 
 /*
  * Input / Output Port Assignments
@@ -66,7 +59,7 @@ unsigned char rtcin __P((int));
 #define IO_TIMER1	0x040		/* 8253 Timer #1 */
 #define IO_TIMER2	0x048		/* 8253 Timer #2 */
 #define IO_KBD		0x060		/* 8042 Keyboard */
-#define IO_PPI		0x061		/* Programmabel Peripheral Interface */
+#define IO_PPI		0x061		/* Programmable Peripheral Interface */
 #define IO_RTC		0x070		/* RTC */
 #define IO_NMI		IO_RTC		/* NMI Control */
 #define IO_DMAPG	0x080		/* DMA Page Registers */
@@ -149,6 +142,7 @@ unsigned char rtcin __P((int));
 #define	IO_TMRSIZE	16		/* 8253 programmable timers */
 #define	IO_NPXSIZE	16		/* 80387/80487 NPX registers */
 #define	IO_VGASIZE	16		/* VGA controllers */
+#define IO_EISASIZE	4096		/* EISA controllers */
 #define	IO_PMPSIZE	2		/* 82347 power management peripheral */
 
 #endif	/* IO_ISASIZES */
@@ -182,4 +176,5 @@ unsigned char rtcin __P((int));
 #define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif	COMPAQ_RAMRELOC
-#endif /* _I386_ISA_ISA_H_ */
+
+#endif /* !_I386_ISA_ISA_H_ */

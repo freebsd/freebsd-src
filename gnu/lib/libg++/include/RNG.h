@@ -46,7 +46,7 @@ public:
     //
     // Return a long-words word of random bits
     //
-    virtual unsigned long asLong() = 0;
+    virtual _G_uint32_t asLong() = 0;
     virtual void reset() = 0;
     //
     // Return random bits converted to either a float or a double

@@ -61,6 +61,13 @@ extern int strtoerrno PARAMS ((const char *));
 
 extern int signo_max PARAMS ((void));
 
+/* Return a signal message string for a signal number
+   (e.g., strsignal (SIGHUP) returns something like "Hangup").  */
+/* This is commented out as it can conflict with one in system headers.
+   We still document its existence though.  */
+
+/*extern const char *strsignal PARAMS ((int));*/
+
 /* Return the name of a signal number (e.g., strsigno (SIGHUP) returns
    "SIGHUP").  */
 

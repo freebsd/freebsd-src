@@ -30,7 +30,7 @@ _IO_fsetpos(fp, posp)
      _IO_FILE* fp;
      const _IO_fpos_t *posp;
 {
-  COERCE_FILE(fp);
+  CHECK_FILE(fp, EOF);
   if (_IO_seekpos(fp, *posp, 0) == _IO_pos_BAD)
     {
       /*ANSI explicily requires setting errno to a positive value on failure.*/

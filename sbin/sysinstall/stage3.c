@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.7 1994/11/02 06:19:47 jkh Exp $
+ * $Id: stage3.c,v 1.9 1994/11/17 14:12:36 jkh Exp $
  *
  */
 
@@ -46,7 +46,9 @@ stage3()
 	if (*p++ != '/') continue;
 
 	if (!strcmp(fs->fs_type, "sw")) {
-	    swapon(fs->fs_spec);
+	    if (swapon(fs->fs_spec) == -1)
+		AskAbort("Unable to swap to %s - are you sure it's right?",
+			 fs->fs_spec);
 	    continue;
 	}
 
@@ -63,7 +65,7 @@ stage3()
 	TellEm("fsck -y %s",pbuf);
 	if (exec(0, "/stand/fsck",
 		 "/stand/fsck", "-y", pbuf, 0) == -1)
-	    Fatal(errmsg);
+	    Fatal("exec(fsck) failed");
 
 	MountUfs(p, fs->fs_file, 0, mountflags);
 	mountflags = 0;

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.75 1994/11/03 11:40:01 ache Exp $
+ *	$Id: syscons.c,v 1.77 1994/11/17 22:03:16 sos Exp $
  */
 
 #include "sc.h"
@@ -734,9 +734,19 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	    	scp->mode = cmd & 0xFF;
             	scp->status |= UNKNOWN_MODE;	/* graphics mode */
-		if (scp == cur_console)
+            	scp->xsize = (*(video_mode_ptr + (scp->mode*64))) * 8;
+            	scp->ysize = (*(video_mode_ptr + (scp->mode*64) + 1) + 1)
+		    	   * (*(video_mode_ptr + (scp->mode*64) + 2));
+		if (scp == cur_console) {
             		set_mode(scp);
-            	/* clear_graphics();*/
+            		/* clear_graphics();*/
+		}
+		if (tp->t_winsize.ws_xpixel != scp->xsize 
+		    || tp->t_winsize.ws_ypixel != scp->ysize) {
+			tp->t_winsize.ws_xpixel = scp->xsize;
+			tp->t_winsize.ws_ypixel = scp->ysize;
+			pgsignal(tp->t_pgrp, SIGWINCH, 1);
+		}
             	return 0;
 
 	case VT_SETMODE:	/* set screen switcher mode */
@@ -2339,6 +2349,17 @@ next_code:
 		case 0x53:	/* grey delete key */
 			keycode = 0x67;
 			break;
+
+		/* the following 3 are only used on the MS "Natural" keyboard */
+ 		case 0x5b:	/* left Window key */
+ 			keycode = 0x69;
+ 			break;
+ 		case 0x5c:	/* right Window key */
+ 			keycode = 0x6a;
+ 			break;
+ 		case 0x5d:	/* menu key */
+ 			keycode = 0x6b;
+ 			break;
 		default:	/* ignore everything else */
 			goto next_code;
 		}
@@ -2544,6 +2565,8 @@ next_code:
 			case NEXT:
 				switch_scr((get_scr_num()+1)%NCONS);
 				break;
+			case BTAB:
+				action = F(16);
 			default:
 				if (action >= F_SCR && action <= L_SCR) {
 					switch_scr(action - F_SCR);

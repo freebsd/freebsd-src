@@ -146,9 +146,9 @@ extern struct _IO_jump_t _IO_streambuf_jumps;
 extern struct _IO_jump_t _IO_proc_jumps;
 extern struct _IO_jump_t _IO_str_jumps;
 extern int _IO_do_write __P((_IO_FILE*, const char*, _IO_size_t));
-extern int _IO_flush_all __P(());
-extern void _IO_cleanup __P(());
-extern void _IO_flush_all_linebuffered __P(());
+extern int _IO_flush_all __P((void));
+extern void _IO_cleanup __P((void));
+extern void _IO_flush_all_linebuffered __P((void));
 
 #define _IO_do_flush(_f) \
   _IO_do_write(_f, (_f)->_IO_write_base, \
@@ -205,6 +205,7 @@ extern void _IO_str_init_readonly __P((_IO_FILE *, const char*, int));
 extern _IO_ssize_t _IO_str_count __P ((_IO_FILE*));
 
 extern _IO_size_t _IO_getline __P((_IO_FILE*,char*,_IO_size_t,int,int));
+extern _IO_ssize_t _IO_getdelim __P((char**, _IO_size_t*, int, _IO_FILE*));
 extern double _IO_strtod __P((const char *, char **));
 extern char * _IO_dtoa __P((double __d, int __mode, int __ndigits,
 				int *__decpt, int *__sign, char **__rve));
@@ -213,7 +214,7 @@ extern int _IO_outfloat __P((double __value, _IO_FILE *__sb, int __type,
 				 int __sign_mode, int __fill));
 
 extern _IO_FILE *_IO_list_all;
-extern void (*_IO_cleanup_registration_needed)();
+extern void (*_IO_cleanup_registration_needed) __P ((void));
 
 #ifndef EOF
 #define EOF (-1)
@@ -305,4 +306,21 @@ extern struct _IO_fake_stdiobuf _IO_stdin_buf, _IO_stdout_buf, _IO_stderr_buf;
 #define COERCE_FILE(FILE) \
   (((FILE)->_IO_file_flags & _IO_MAGIC_MASK) == _OLD_MAGIC_MASK \
     && (FILE) = *(FILE**)&((int*)fp)[1])
+#endif
+
+#ifdef EINVAL
+#define MAYBE_SET_EINVAL errno = EINVAL
+#else
+#define MAYBE_SET_EINVAL /* nothing */
+#endif
+
+#ifdef DEBUG
+#define CHECK_FILE(FILE,RET) \
+	if ((FILE) == NULL) { MAYBE_SET_EINVAL; return RET; } \
+	else { COERCE_FILE(FILE); \
+	       if (((FILE)->_IO_file_flags & _IO_MAGIC_MASK) != _IO_MAGIC) \
+	  { errno = EINVAL; return RET; }}
+#else
+#define CHECK_FILE(FILE,RET) \
+	COERCE_FILE(FILE)
 #endif

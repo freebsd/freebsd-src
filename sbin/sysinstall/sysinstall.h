@@ -12,7 +12,7 @@
  * its use.
  */
 
-#define TITLE	"FreeBSD 2.0-ALPHA Installation"
+#define TITLE	"FreeBSD 2.0-BETA Installation"
 
 #define BOOT1 "/stand/sdboot"
 #define BOOT2 "/stand/bootsd"
@@ -21,6 +21,7 @@
 #define MAX_NO_FS	30
 #define MAXFS	MAX_NO_FS
 
+#define BBSIZE		8192	/* Actually in ufs/ffs/fs.h I think */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -49,6 +50,7 @@
 #define COPYRIGHT_FILE	"/COPYRIGHT"
 #define README_FILE	"/README"
 #define HELPME_FILE	"/DISKSPACE.FAQ"
+#define TROUBLE_FILE	"/TROUBLESHOOTING"
 #define RELNOTES_FILE	"/RELNOTES.FreeBSD"
 
 #ifndef EXTERN
@@ -68,26 +70,22 @@ EXTERN int Nfs;
 EXTERN char *Fname[MAX_NO_FS+1];
 EXTERN char *Fmount[MAX_NO_FS+1];
 EXTERN char *Ftype[MAX_NO_FS+1];
+EXTERN int Faction[MAX_NO_FS+1];
 EXTERN u_long Fsize[MAX_NO_FS+1];
 
 EXTERN int dialog_active;
 EXTERN char selection[];
 EXTERN int debug_fd;
+EXTERN int dialog_active;
+EXTERN int fixit;
 
-
-extern unsigned char **avail_disknames;
 extern int no_disks;
 extern int inst_disk;
 extern unsigned char *scratch;
 extern unsigned char *errmsg;
-extern int *avail_fds;
-extern unsigned char **avail_disknames;
-extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
 /* utils.c */
-int     strheight __P((const char *p));
-int     strwidth __P((const char *p));
 void	Abort __P((void));
 void	ExitSysinstall __P((void));
 void	TellEm __P((char *fmt, ...));
@@ -104,6 +102,8 @@ void	CopyFile __P((char *p1, char *p2));
 u_long	PartMb(struct disklabel *lbl,int part);
 char *	SetMount __P((int disk, int part, char *path));
 void	CleanMount __P((int disk, int part));
+void	enable_label __P((int fd));
+void	disable_label __P((int fd));
 
 /* exec.c */
 int	exec __P((int magic, char *cmd, char *args, ...));
@@ -113,7 +113,7 @@ int	exec __P((int magic, char *cmd, char *args, ...));
 void	stage0 __P((void));
 
 /* stage1.c */
-void	stage1 __P((void));
+int	stage1 __P((void));
 
 /* stage2.c */
 void	stage2 __P((void));
@@ -134,12 +134,12 @@ int	set_termcap __P((void));
 int	makedevs __P((void));
 
 /* ourcurses.c */
-int	edit_line __P((WINDOW *window, int y, int x, char *field, int width, int maxlen));
 int AskEm __P((WINDOW *w,char *prompt, char *answer, int len));
 void ShowFile __P((char *filename, char *header));
 
-/* bootarea.c */
-void	enable_label __P((int fd));
-void	disable_label __P((int fd));
-int	write_bootblocks __P((int fd, struct disklabel *lbl));
+/* mbr.c */
 int	build_bootblocks __P((int dfd,struct disklabel *label,struct dos_partition *dospart));
+void	Fdisk __P((void));
+
+/* label.c */
+void	DiskLabel __P((void));

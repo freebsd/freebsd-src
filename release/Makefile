@@ -1,9 +1,11 @@
-#	$Id: Makefile,v 1.28 1994/11/08 18:36:45 jkh Exp $
+#	$Id: Makefile,v 1.55 1994/11/20 23:31:36 wollman Exp $
 #
 
+# Evil floppies are, of course, 1.2MB floppies.
 FLOPPY=		fd0
+#EVIL_FLOPPY=	yes
 
-.if 1
+.if defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
 DDBS=		15k
 DDCOUNT=	80
@@ -15,17 +17,22 @@ DDCOUNT=	80
 
 MNT=		/mnt
 
-CPIO1= cat chmod cp date dd df echo ed expr hostname kill ln ls mkdir
-CPIO1+= mt mv rcp rm rmdir sh sleep stty sync test [ -sh
-CPIO1+= badsect chown clri disklabel dump dmesg fdisk fsck ifconfig init
-CPIO1+= mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
+CPIO1= basename cat chmod cksum cp cu date dd df dmesg echo ed expr hostname 
+CPIO1+= kill ln ls mkdir mt mv rcp rm rmdir sh sleep stty sync tar test tip [ 
+CPIO1+= -sh badsect chown clri disklabel dump dmesg fdisk fsck getopt ifconfig 
+CPIO1+= init mknod mount mount_cd9660 mount_msdos mount_nfs ncftp newfs ping pwd
 CPIO1+= reboot restore slattach swapon umount route
-CPIO1+= rdump rrestore halt
+CPIO1+= rdump rrestore halt ft
 CPIO1+= ftp rsh sed telnet rlogin grep
 
 CPIO2=  etc/services etc/protocols
 
-CPIO3=	bininst
+# bininst MUST be the last file on the cpio floppy.  It's used to detect
+# a successful extraction.
+CPIO3=	miscfuncs.sh instdist.sh netinst.sh adduser.sh bininst
+
+CPIO4=	/usr/sbin/tzsetup
+
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
 CLEANFILES+=	boot_flp boot.flp cpio_flp_1
@@ -49,6 +56,8 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
 
 boot.flp: 
+	crunchgen ${.CURDIR}/boot_flp.conf
+	${MAKE} -f boot_flp.mk objs exe
 	-umount ${MNT}
 	-umount /dev/${FLOPPY}
 	# echo y | fdformat ${FLOPPY}
@@ -71,8 +80,11 @@ boot.flp:
 	chmod 755 ${MNT}/stand/sysinstall
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
+	ln ${MNT}/stand/sysinstall ${MNT}/stand/fsck
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
-	install -m 400 -c ${.CURDIR}/../README ${MNT}/README
+	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
+	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLESHOOTING \
+		${MNT}/TROUBLESHOOTING
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
@@ -85,10 +97,15 @@ boot.flp:
 	df -k /dev/r${FLOPPY}
 
 cpio.flp:
+	crunchgen ${.CURDIR}/cpio_flp_1.conf
+	${MAKE} -f cpio_flp_1.mk objs exe
 	for i in ${CPIO1} ; do rm -f ./$$i ; ln cpio_flp_1 ./$$i ; done
 	( cd /${DESTDIR} ; ls ${CPIO2} | cpio -H newc -oa ) | cpio -ivd
 	( cd ${.CURDIR} ; ls ${CPIO3} | cpio -H newc -oa ) | cpio -ivd
-	ls ${CPIO1} ${CPIO2} ${CPIO3} | cpio -H newc -oa | gzip -9 > cpio.flp
+	cp ${CPIO4} .
+	ls ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4} | \
+		cpio -H newc -oa | gzip -9 | \
+		dd conv=osync > cpio.flp
 	gzip -9 -v < cpio.flp > cpio.flp.gz
 	ls -l cpio.flp*
 
@@ -119,11 +136,72 @@ release20:
 	( cd ${.CURDIR}/../etc ; \
 		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
 			NOCRYPT=yes SHARED=copies)
-	(cd ${DESTDIR}; \
+	( cd ${RELEASEDIR}/filesys; \
 		tar cf - . | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bindist.)
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
+	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/mkchecksums.sh )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
+foo:
+	( cd ${.CURDIR}/../etc ; \
+		${MAKE} srcebones-tarball \
+			DESTDIR=${RELEASEDIR}/filesys \
+			NOCRYPT=yes SHARED=copies )
+		
+bar:
+	( cd ${.CURDIR}/../etc ; \
+		${MAKE} des-tarball \
+			DESTDIR=${RELEASEDIR}/filesys \
+			SHARED=copies )
+
+EXTRADISTRIBUTIONS=	des games manpages proflibs dict krb
+DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
+MTREEFILES=	${.CURDIR}/../etc/mtree
+
+distribute: 
+	-mkdir ${RELEASEDIR}
+	chflags -R noschg ${RELEASEDIR}/.
+	rm -rf ${RELEASEDIR}/*
+	for i in ${DISTRIBUTIONS} ; \
+	do \
+	mkdir ${RELEASEDIR}/$$i ; \
+	mtree -deU -f ${MTREEFILES}/BSD.root.dist -p ${RELEASEDIR}/$$i/ ; \
+	mtree -deU -f ${MTREEFILES}/BSD.var.dist -p ${RELEASEDIR}/$$i/var ; \
+	mtree -deU -f ${MTREEFILES}/BSD.usr.dist -p ${RELEASEDIR}/$$i/usr ; \
+	done 
+	( cd ${.CURDIR} ;  \
+		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
+	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
+		${RELEASEDIR}/bindist/kernel
+
+tarballs:
+	rm -rf ${RELEASEDIR}/manpages/usr/share/man
+	mv ${RELEASEDIR}/bindist/usr/share/man \
+		${RELEASEDIR}/manpages/usr/share/man
+	rm -rf ${RELEASEDIR}/games/usr/games
+	mv ${RELEASEDIR}/bindist/usr/games \
+		${RELEASEDIR}/games/usr/games
+	rm -rf ${RELEASEDIR}/games/usr/share/games
+	mv ${RELEASEDIR}/bindist/usr/share/games \
+		${RELEASEDIR}/games/usr/share/games
+	rm -rf ${RELEASEDIR}/dict/usr/share/dict
+	mv ${RELEASEDIR}/bindist/usr/share/dict \
+		${RELEASEDIR}/dict/usr/share/dict
+	mv ${RELEASEDIR}/bindist/usr/lib/*_p.a \
+		${RELEASEDIR}/proflibs/usr/lib
+	-cd ${RELEASEDIR} ; \
+	find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
+	rm -rf ${RELEASEDIR}/tarballs
+	mkdir ${RELEASEDIR}/tarballs
+	for i in ${DISTRIBUTIONS} ; \
+	do \
+		mkdir ${RELEASEDIR}/tarballs/$${i} ; \
+		( cd ${RELEASEDIR}/$${i}; \
+			tar cf - . | \
+			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
+	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
+	cp ${.CURDIR}/extract.sh cd ${RELEASEDIR}/tarballs/$${i} ;\
+	done
 
 .include <bsd.prog.mk>

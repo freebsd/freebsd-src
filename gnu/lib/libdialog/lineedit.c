@@ -26,14 +26,20 @@
 /*
  * Line editor
  */
-int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, int first, unsigned char *result)
+int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result)
 {
-  int i, key;
+  int i, key, len, max_len, fix_len;
+  chtype old_attr;
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
+  unsigned char erase_char = erasechar();
+  unsigned char kill_char = killchar();
+#ifdef notyet
+  unsignec char werase_char = cur_term->Ottyb.c_cc[VWERASE];
+#endif
 
-  wattrset(dialog, attr);
-    keypad(dialog, TRUE);
+  old_attr = getattrs(dialog);
+  keypad(dialog, TRUE);
 
   if (first) {
     memset(instr, 0, sizeof(instr));
@@ -41,14 +47,22 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
     i = strlen(instr);
     input_x = i % box_width;
     scroll = i - input_x;
-    wmove(dialog, box_y, box_x);
-    for (i = 0; i < box_width; i++)
-      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
   }
+  wmove(dialog, box_y, box_x);
+  wattrset(dialog, attr);
+  fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+  for (i = 0; i < fix_len; i++)
+    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+  len = strlen(instr);
+  wattrset(dialog, old_attr);
+  max_len = MIN(len-scroll,box_width);
+  for ( ; i < max_len; i++)
+    waddch(dialog, instr[scroll+i]);
 
   wmove(dialog, box_y, box_x + input_x);
-  wrefresh(dialog);
   for (;;) {
+    wattrset(dialog, attr);
+    wrefresh(dialog);
     key = wgetch(dialog);
     switch (key) {
       case TAB:
@@ -63,13 +77,20 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	if (key == '\r')
 	  key = '\n';
 	goto ret;
+      case '\025':
+      kill_it:
+	memset(instr, 0, sizeof(instr));
       case KEY_HOME:
 	input_x = scroll = 0;
 	wmove(dialog, box_y, box_x);
-	for (i = 0; i < box_width; i++)
+	fix_len = flen >= 0 ? MIN(flen,box_width) : box_width;
+	for (i = 0; i < fix_len; i++)
 	  waddch(dialog, instr[i] ? instr[i] : ' ');
+	wattrset(dialog, old_attr);
+	max_len = MIN(len,box_width);
+	for ( ; i < max_len; i++)
+	  waddch(dialog, instr[i]);
 	wmove(dialog, box_y, box_x);
-	wrefresh(dialog);
 	continue;
       case KEY_END:
 	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
@@ -78,38 +99,51 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	input_x = i % box_width;
 	scroll = i - input_x;
 	wmove(dialog, box_y, box_x);
-	for (i = 0; i < box_width; i++)
+	fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	for (i = 0; i < fix_len; i++)
 	  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	wattrset(dialog, old_attr);
+	max_len = MIN(len-scroll,box_width);
+	for ( ; i < max_len; i++)
+	  waddch(dialog, instr[scroll+i]);
 	wmove(dialog, box_y, input_x + box_x);
-	wrefresh(dialog);
 	continue;
       case KEY_LEFT:
 	if (input_x || scroll) {
-	  wattrset(dialog, inputbox_attr);
 	  if (!input_x) {
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
 	    wmove(dialog, box_y, box_x);
-	    for (i = 0; i < box_width; i++)
-	      waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
+	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	    for (i = 0; i < fix_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	    wattrset(dialog, old_attr);
+	    max_len = MIN(len-scroll,box_width);
+	    for ( ; i < max_len; i++)
+	      waddch(dialog, instr[scroll+i]);
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
 	    input_x--;
 	  wmove(dialog, box_y, input_x + box_x);
-	  wrefresh(dialog);
 	}
 	continue;
       case KEY_RIGHT:
-	  if (scroll+input_x < MAX_LEN) {
-	    wattrset(dialog, inputbox_attr);
+	  if (   scroll+input_x < MAX_LEN
+	      && (flen < 0 || scroll+input_x < flen)
+	     ) {
 	    if (!instr[scroll+input_x])
 	      instr[scroll+input_x] = ' ';
 	    if (input_x == box_width-1) {
 	      scroll++;
 	      wmove(dialog, box_y, box_x);
-	      for (i = 0; i < box_width; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = 0; i < fix_len; i++)
 		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
+		waddch(dialog, instr[scroll+i]);
 	      wmove(dialog, box_y, box_x + box_width - 1);
 	    }
 	    else {
@@ -117,62 +151,89 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	      waddch(dialog, instr[scroll+input_x]);
 	      input_x++;
 	    }
-	    wrefresh(dialog);
 	  } else
-	    flash(); /* Alarm user about overflow */
+	    beep(); /* Alarm user about overflow */
 	continue;
+      case '\b':
+      case '\177':
       case KEY_BACKSPACE:
       case KEY_DC:
+      erase_it:
 	if (input_x || scroll) {
 	  i = strlen(instr);
 	  memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
-	  wattrset(dialog, inputbox_attr);
 	  if (!input_x) {
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
 	    wmove(dialog, box_y, box_x);
-	    for (i = 0; i < box_width; i++)
-	      waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
+	    fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	    for (i = 0; i < fix_len; i++)
+	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
 	    input_x = oldscroll - 1 - scroll;
 	  }
 	  else
 	    input_x--;
 	  wmove(dialog, box_y, input_x + box_x);
-	  for (i = input_x; i < box_width; i++)
+	  fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	  for (i = input_x; i < fix_len; i++)
 	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	  wattrset(dialog, old_attr);
+	  max_len = MIN(len-scroll,box_width);
+	  for ( ; i < max_len; i++)
+	    waddch(dialog, instr[scroll+i]);
 	  wmove(dialog, box_y, input_x + box_x);
-	  wrefresh(dialog);
 	}
 	continue;
       default:
+	if (CCEQ(key, erase_char))
+	  goto erase_it;
+	if (CCEQ(key, kill_char))
+	  goto kill_it;
 	if (key < 0x100 && isprint(key)) {
 	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	    instr[i] = '\0';
 	  i++;
-	  if (i < MAX_LEN) {
+	  if (i < MAX_LEN && (flen < 0 || scroll+input_x < flen)) {
+	    if (flen < 0 || i < flen)
 	    memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
-	    wattrset(dialog, inputbox_attr);
 	    instr[scroll+input_x] = key;
-	    if (input_x == box_width-1) {
+	    if (input_x == box_width-1 && (flen < 0 || i < flen)) {
 	      scroll++;
 	      wmove(dialog, box_y, box_x);
-	      for (i = 0; i < box_width-1; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = 0; i < fix_len; i++)
+		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
 		waddch(dialog, instr[scroll+i]);
+	      wmove(dialog, box_y, input_x + box_x);
 	    }
 	    else {
 	      wmove(dialog, box_y, input_x + box_x);
-	      for (i = input_x; i < box_width; i++)
+	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
+	      for (i = input_x; i < fix_len; i++)
 		waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+	      wattrset(dialog, old_attr);
+	      max_len = MIN(len-scroll,box_width);
+	      for ( ; i < max_len; i++)
+		waddch(dialog, instr[scroll+i]);
 	      wmove(dialog, box_y, ++input_x + box_x);
 	    }
-	    wrefresh(dialog);
 	  } else
-	    flash(); /* Alarm user about overflow */
+	    beep(); /* Alarm user about overflow */
 	  continue;
 	}
       }
     }
 ret:
+    wattrset(dialog, old_attr);
+    wmove(dialog, box_y, box_x);
+    max_len = MIN(len-scroll,box_width);
+    for (i = 0; i < max_len; i++)
+      waddch(dialog, instr[scroll+i]);
+    wmove(dialog, box_y, input_x + box_x);
+    wrefresh(dialog);
     strcpy(result, instr);
     return key;
 }

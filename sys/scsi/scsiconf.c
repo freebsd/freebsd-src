@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.11 1994/10/19 20:34:15 wollman Exp $
+ *      $Id: scsiconf.c,v 1.14 1994/11/14 23:39:32 ats Exp $
  */
 
 #include <sys/types.h>
@@ -399,9 +399,7 @@ scsi_attachdevs(sc_link_proto)
 #undef	SCSI_DELAY
 #define SCSI_DELAY 2
 #endif	/* SCSI_DELAY */
-	if (scsibus == 0) {
-		DELAY(1000000 * SCSI_DELAY);
-	}
+	DELAY(1000000 * SCSI_DELAY);
 	scsibus++;
 	scsi_probe_bus(scsibus - 1,-1,-1);
 }
@@ -603,6 +601,7 @@ scsi_probedev(sc_link, maybe_more)
 	char    manu[32];
 	char    model[32];
 	char    version[32];
+	int	z;
 
 	bzero(&inqbuf, sizeof(inqbuf));
 	/*
@@ -736,11 +735,11 @@ scsi_probedev(sc_link, maybe_more)
 		desc = inqbuf.vendor;
 		desc[len - (desc - (char *) &inqbuf)] = 0;
 		strncpy(manu, inqbuf.vendor, 8);
-		manu[8] = 0;
 		strncpy(model, inqbuf.product, 16);
-		model[16] = 0;
 		strncpy(version, inqbuf.revision, 4);
-		version[4] = 0;
+		for(z = 0; z < 4; z++) {
+			if (version[z]<' ') version[z]='?';
+		}
 	} else
 		/*
 		 * If not advanced enough, use default values
@@ -751,6 +750,9 @@ scsi_probedev(sc_link, maybe_more)
 		strncpy(model, "unknown", 16);
 		strncpy(version, "????", 4);
 	}
+	manu[8] = 0;
+	model[16] = 0;
+	version[4] = 0;
 	printf("%s%d targ %d lun %d: type %ld(%s) %s SCSI%d\n"
 	    ,scsi_adapter->name
 	    ,unit

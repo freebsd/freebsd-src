@@ -375,17 +375,30 @@ void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chty
  */
 void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 {
-  int i;
+  int i,sx,sy;
 
   if (has_colors()) {    /* Whether terminal supports color? */
+    getbegyx(win,sy,sx);
+    /* small touch */
+    wattrset(win, A_INVIS);
+    wmove(win, y + height, x + 2);
+    for (i = 0; i < width; i++)
+      waddch(win, ' ');
+    /* end touch */
     wattrset(win, shadow_attr);
     wmove(win, y + height, x + 2);
     for (i = 0; i < width; i++)
-      waddch(win, winch(win) & A_CHARTEXT);
+      waddch(win, mvwinch(newscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
     for (i = y + 1; i < y + height + 1; i++) {
+      /* small touch */
+      wattrset(win, A_INVIS);
       wmove(win, i, x + width);
-      waddch(win, winch(win) & A_CHARTEXT);
-      waddch(win, winch(win) & A_CHARTEXT);
+      waddstr(win, "  ");
+      /* end touch */
+      wattrset(win, shadow_attr);
+      wmove(win, i, x + width);
+      waddch(win, mvwinch(newscr, sy+i, sx+x+width) & A_CHARTEXT);
+      waddch(win, mvwinch(newscr, sy+i, sx+x+width+1) & A_CHARTEXT);
     }
     wnoutrefresh(win);
   }
@@ -393,11 +406,17 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 /* End of draw_shadow() */
 #endif
 
-void dialog_clear(void)
+void dialog_clear_norefresh(void)
 {
     attr_clear(stdscr, LINES, COLS, screen_attr);
     touchwin(stdscr);
-    refresh();
+    wnoutrefresh(stdscr);
+}
+
+void dialog_clear(void)
+{
+    dialog_clear_norefresh();
+    doupdate();
 }
 
 void dialog_update(void)
@@ -409,3 +428,53 @@ void end_dialog(void)
 {
     endwin();
 }
+
+int strwidth(const char *p)
+{
+	int i = 0, len, incr;
+	const char *start, *s, *s1, *s2;
+
+	for (start = s = p; ; start = (s += incr)) {
+		s1 = strchr(s, '\n');
+		s2 = strstr(s, "\\n");
+		if (s2 == NULL)
+			s = s1;
+		else if (s1 == NULL)
+			s = s2;
+		else
+			s = MIN(s1, s2);
+		if (s == NULL)
+			break;
+		incr = 1 + (s == s2);
+		len = s - start;
+		if (len > i)
+			i = len;
+	}
+	len = strlen(start);
+	if (len > i)
+		i = len;
+	return i;
+}
+
+int strheight(const char *p)
+{
+	int i = 1, incr;
+	const char *s, *s1, *s2;
+
+	for (s = p; ; s += incr) {
+		s1 = strchr(s, '\n');
+		s2 = strstr(s, "\\n");
+		if (s2 == NULL)
+			s = s1;
+		else if (s1 == NULL)
+			s = s2;
+		else
+			s = MIN(s1, s2);
+		if (s == NULL)
+			break;
+		incr = 1 + (s == s2);
+		i++;
+	}
+	return i;
+}
+

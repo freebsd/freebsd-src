@@ -36,6 +36,7 @@ CONFIG: {
     $HR = 60 * $MIN;
     $DAYS = 24 * $HR;
     $YearFix = ((gmtime(946684800))[5] == 100) ? 100 : 0;
+    1;
 }
 
 sub timegm {

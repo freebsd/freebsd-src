@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.3 1994/08/21 07:16:08 paul Exp $
+ * $Id: lfs.h,v 1.4 1994/10/10 01:04:47 phk Exp $
  */
 
 #ifndef _UFS_LFS_LFS_H_
@@ -110,6 +110,7 @@ struct lfs {
 	daddr_t	lfs_offset;		/* offset in curseg for next partial */
 	daddr_t	lfs_lastpseg;		/* address of last partial written */
 	u_long	lfs_tstamp;		/* time stamp */
+	long	lfs_maxsymlinklen;	/* max length of an internal symlink */
 
 /* These are configuration parameters. */
 	u_long	lfs_minfree;		/* minimum percentage of free blocks */
@@ -157,6 +158,7 @@ struct lfs {
 	u_char	lfs_flags;		/* currently unused flag */
 	u_char	lfs_fsmnt[MNAMELEN];	/* name mounted on */
 	u_char	pad[3];			/* long-align */
+	u_char  pad2[156];              /* Block align */
 
 /* Checksum; valid on disk. */
 	u_long	lfs_cksum;		/* checksum for superblock checking */

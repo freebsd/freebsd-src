@@ -1,5 +1,6 @@
-#	$Id: Makefile.inc,v 1.1 1994/08/08 17:42:36 csgr Exp $
+#	$Id: Makefile.inc,v 1.2 1994/08/12 21:02:25 csgr Exp $
 
-.if exists(${.CURDIR}/../../../lib/Makefile.inc)
-.include "${.CURDIR}/../../../lib/Makefile.inc"
-.endif
+.include "${.CURDIR}/../../Makefile.inc"
+#.if exists(${.CURDIR}/../../../lib/Makefile.inc)
+#.include "${.CURDIR}/../../../lib/Makefile.inc"
+#.endif

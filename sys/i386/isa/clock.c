@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.25 1994/10/25 22:35:12 se Exp $
+ *	$Id: clock.c,v 1.27 1994/11/10 12:53:13 ache Exp $
  */
 
 /*
@@ -436,7 +436,6 @@ startrtclock()
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
-	writertc(RTC_DIAG, 0);
 }
 
 /*
@@ -490,7 +489,7 @@ inittodr(time_t base)
 	/* sec now contains the	number of seconds, since Jan 1 1970,
 	   in the local	time zone */
 
-	sec += tz.tz_minuteswest * 60;
+	sec += tz.tz_minuteswest * 60 + adjkerntz;
 
 	s = splclock();
 	time.tv_sec = sec;

@@ -22,6 +22,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Include common aspects of all 386 Unix assemblers.  */
 #include "i386/unix.h"
 
+/* Don't assume anything about the header files. */
+#define NO_IMPLICIT_EXTERN_C
+
 /* Use the Sequent Symmetry assembler syntax.  */
 
 #define TARGET_VERSION fprintf (stderr, " (80386, BSD syntax)");

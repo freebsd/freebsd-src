@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.6 1994/09/21 03:47:39 wollman Exp $
+ * $Id: lfs_vfsops.c,v 1.8 1994/11/14 13:21:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/file.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
@@ -278,6 +277,7 @@ lfs_mountfs(devvp, mp, p)
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
 	mp->mnt_stat.f_fsid.val[1] = MOUNT_LFS;
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_maxsymlinklen = fs->lfs_maxsymlinklen;
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;

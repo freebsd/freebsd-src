@@ -32,9 +32,7 @@ _IO_fclose(fp)
      register _IO_FILE *fp;
 {
   int status = 0;
-  COERCE_FILE(fp);
-  if ((fp->_IO_file_flags & _IO_MAGIC_MASK) != _IO_MAGIC)
-    return EOF;
+  CHECK_FILE(fp, EOF);
   if (fp->_IO_file_flags & _IO_IS_FILEBUF)
     status = _IO_file_close_it(fp);
   fp->_jumps->__finish(fp);

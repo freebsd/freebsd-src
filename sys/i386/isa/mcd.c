@@ -2,6 +2,7 @@
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
  * Changes Copyright 1993 by Gary Clark II
+ * Changes Copyright (C) 1994 by Andrew A. Chernov
  *
  * Rewrote probe routine to work on newer Mitsumi drives.
  * Additional changes (C) 1994 by Jordan K. Hubbard
@@ -39,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.26 1994/10/23 21:27:29 wollman Exp $
+ *	$Id: mcd.c,v 1.31 1994/11/14 19:25:43 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -101,6 +102,12 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define MCD_MAXTOCS	104	/* from the Linux driver */
 #define MCD_LASTPLUS1	170	/* special toc entry */
 
+#define	MCD_TYPE_UNKNOWN	0
+#define	MCD_TYPE_LU002S		1
+#define	MCD_TYPE_LU005S		2
+#define	MCD_TYPE_FX001		3
+#define	MCD_TYPE_FX001D		4
+
 struct mcd_mbx {
 	short		unit;
 	short		port;
@@ -115,6 +122,8 @@ struct mcd_mbx {
 };
 
 struct mcd_data {
+	short	type;
+	char	*name;
 	short	config;
 	short	flags;
 	short	status;
@@ -188,9 +197,6 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define MCD_RETRYS	5
 #define MCD_RDRETRYS	8
 
-#define MCDBLK	2048	/* for cooked mode */
-#define MCDRBLK	2352	/* for raw mode */
-
 /* several delays */
 #define RDELAY_WAITSTAT 300
 #define RDELAY_WAITMODE 300
@@ -206,7 +212,7 @@ static struct kern_devconf kdc_mcd[NMCD] = { {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_IDLE,		/* status */
-	"Mitsumi CD-ROM controller"
+	"Mitsumi CD-ROM controller"     /* properly filled later */
 } };
 
 static inline void
@@ -234,6 +240,8 @@ int mcd_attach(struct isa_device *dev)
 	mcd_configure(cd);
 #endif
 	mcd_registerdev(dev);
+	/* name filled in probe */
+	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
 
 	return 1;
 }
@@ -526,6 +534,8 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 		return 0;
 	case CDIOCRESET:
 		return mcd_hard_reset(unit);
+	case CDIOCALLOW:
+		return 0;
 	default:
 		return ENOTTY;
 	}
@@ -543,8 +553,13 @@ static int mcd_getdisklabel(int unit)
 		return -1;
 	
 	bzero(&cd->dlabel,sizeof(struct disklabel));
-	strncpy(cd->dlabel.d_typename,"Mitsumi CD ROM ",16);
-	strncpy(cd->dlabel.d_packname,"unknown        ",16);
+	/* filled with spaces first */
+	strncpy(cd->dlabel.d_typename,"               ",
+		sizeof(cd->dlabel.d_typename));
+	strncpy(cd->dlabel.d_typename, cd->name,
+		min(strlen(cd->name), sizeof(cd->dlabel.d_typename) - 1));
+	strncpy(cd->dlabel.d_packname,"unknown        ",
+		sizeof(cd->dlabel.d_packname));
 	cd->dlabel.d_secsize 	= cd->blksize;
 	cd->dlabel.d_nsectors	= 100;
 	cd->dlabel.d_ntracks	= 1;
@@ -671,6 +686,30 @@ mcd_probe(struct isa_device *dev)
 		mcd_data[unit].flags |= MCDNEWMODEL;
 		printf("mcd%d: Adjusted for newer drive model\n", unit);
 	}
+	switch (stbytes[1]) {
+	case 'M':
+		if (mcd_data[unit].flags & MCDNEWMODEL)	{
+			mcd_data[unit].type = MCD_TYPE_LU005S;
+			mcd_data[unit].name = "Mitsumi LU005S";
+		} else {
+			mcd_data[unit].type = MCD_TYPE_LU002S;
+			mcd_data[unit].name = "Mitsumi LU002S";
+		}
+		break;
+	case 'F':
+		mcd_data[unit].type = MCD_TYPE_FX001;
+		mcd_data[unit].name = "Mitsumi FX001";
+		break;
+	case 'D':
+		mcd_data[unit].type = MCD_TYPE_FX001D;
+		mcd_data[unit].name = "Mitsumi FX001D";
+		break;
+	default:
+		mcd_data[unit].type = MCD_TYPE_UNKNOWN;
+		mcd_data[unit].name = "Mitsumi ???";
+		break;
+	}
+	printf("mcd%d: type %s\n", unit, mcd_data[unit].name);
 	return 4;
 }
 
@@ -908,12 +947,10 @@ loop:
 
 			/* to check for raw/cooked mode */
 			if (cd->flags & MCDREADRAW) {
-				rm = (cd->flags & MCDNEWMODEL) ?
-					MCD_MD_BIN_RAW : MCD_MD_RAW;
+				rm = MCD_MD_RAW;
 				mbx->sz = MCDRBLK;
 			} else {
-				rm = (cd->flags & MCDNEWMODEL) ?
-					MCD_MD_BIN_COOKED : MCD_MD_COOKED;
+				rm = MCD_MD_COOKED;
 				mbx->sz = cd->blksize;
 			}
 
@@ -1303,9 +1340,11 @@ mcd_getqchan(int unit, struct mcd_qchninfo *q)
 	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0)
 		return -1;
 	if (cd->debug) {
-		printf("mcd%d: qchannel ctl=%d trk=%d ind=%d pos=%d:%d.%d\n",
+		printf("mcd%d: getqchan ctl=%d trk=%d ind=%d ttm=%d:%d.%d dtm=%d:%d.%d\n",
 		unit,
 		q->ctrl_adr, bcd2bin(q->trk_no), bcd2bin(q->idx_no),
+		bcd2bin(q->trk_size_msf[0]), bcd2bin(q->trk_size_msf[1]),
+		bcd2bin(q->trk_size_msf[2]),
 		bcd2bin(q->hd_pos_msf[0]), bcd2bin(q->hd_pos_msf[1]),
 		bcd2bin(q->hd_pos_msf[2]));
 	}
@@ -1339,8 +1378,16 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = CD_MSF_FORMAT;
 	data.what.position.track_number = bcd2bin(q.trk_no);
+	data.what.position.reladdr.msf.unused = 0;
+	data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
+	data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
+	data.what.position.reladdr.msf.frame = bcd2bin(q.trk_size_msf[2]);
+	data.what.position.absaddr.msf.unused = 0;
+	data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
+	data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
+	data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
 
-	if (copyout(&data, sc->data, sizeof(struct cd_sub_channel_info))!=0)
+	if (copyout(&data, sc->data, min(sizeof(struct cd_sub_channel_info), sc->data_len))!=0)
 		return EFAULT;
 	return 0;
 }
@@ -1370,7 +1417,7 @@ mcd_playtracks(int unit, struct ioc_play_track *pt)
 	struct mcd_read2 pb;
 	int a = pt->start_track;
 	int z = pt->end_track;
-	int rc;
+	int rc, i;
 
 	if ((rc = mcd_read_toc(unit)) != 0)
 		return rc;
@@ -1386,12 +1433,10 @@ mcd_playtracks(int unit, struct ioc_play_track *pt)
 	    || z > bcd2bin(cd->volinfo.trk_high))
 		return EINVAL;
 
-	pb.start_msf[0] = cd->toc[a].hd_pos_msf[0];
-	pb.start_msf[1] = cd->toc[a].hd_pos_msf[1];
-	pb.start_msf[2] = cd->toc[a].hd_pos_msf[2];
-	pb.end_msf[0] = cd->toc[z+1].hd_pos_msf[0];
-	pb.end_msf[1] = cd->toc[z+1].hd_pos_msf[1];
-	pb.end_msf[2] = cd->toc[z+1].hd_pos_msf[2];
+	for (i = 0; i < 3; i++) {
+		pb.start_msf[i] = cd->toc[a].hd_pos_msf[i];
+		pb.end_msf[i] = cd->toc[z+1].hd_pos_msf[i];
+	}
 
 	return mcd_play(unit, &pb);
 }

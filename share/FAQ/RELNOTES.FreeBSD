@@ -6,18 +6,19 @@
 ---------------------
 
 FreeBSD is a freely available, full source 4.4 BSD Lite based release
-for Intel i386/i486/Pentium (or compatable) based PC's.  It is based
+for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our first release of FreeBSD 1.0 almost 18 months ago, FreeBSD
+Since our first release of FreeBSD 1.0 some 18 months ago, FreeBSD
 has changed almost entirely.  A new port from the Berkeley 4.4 code
-base was done and brought the legal status of the system out of the
-shadows with the blessings of Novell (new owners of USL and UNIX).  The
+base was done, which brought the legal status of the system out of the
+shadows with the blessing of Novell (new owners of USL and UNIX).  The
 port to 4.4 has also brought in a host of new features, filesystems
-and driver support.  With our new unencumbered code base, we have every
-reason to hope that we'll be able to release quality operating systems
-without further legal encumbrance for some time to come!
+and enhanced driver support.  With our new unencumbered code base, we
+have every reason to hope that we'll be able to release quality
+operating systems without further legal encumbrance for some time to
+come!
 
 FreeBSD 2.0 represents the culmination of almost 2 years of work and
 many thousands of man hours put in by an international development team.
@@ -26,16 +27,16 @@ We hope you enjoy it!
 Many packages have also been upgraded or added, such as XFree86 3.1,
 xview 3.2, elm, nntp, mh, InterViews and dozens of other miscellaneous
 utilities have been ported and are now available as add-ons.  See the
-next section of this document for more details.
+ports collection (or the package collection) for a complete summary.
 
-For a list of contributors, please see the files "CONTRIB.FreeBSD" and
-"CONTRIB.386BSD", which should be bundled with your bindist distribution.
+For a list of contributors, please see the file "CONTRIB.FreeBSD",
+which should be bundled with your bindist distribution.
 
 Also see the new "REGISTER.FreeBSD" file for information on registering
 with the "Free BSD user counter".  We've also provided a list of who's
 responsible for what (so that you may query them directly) in the
 "ROSTER.FreeBSD" file; use of this file is encouraged to ensure faster
-resolution of an problems you may have!
+resolution of any problems you may have!
 
 The core of FreeBSD does not contain DES code which would inhibit its
 being exported outside the United States.  There is an add-on package
@@ -45,13 +46,21 @@ provided separately can be used by anyone.   A freely (from outside the
 U.S.) exportable European distribution of DES for our non U.S. users also
 exists and is described in the FreeBSD FAQ.
 
+If password security for FreeBSD is all you need, and you have no
+requirement for copying encrypted passwords from different hosts (Suns,
+DEC machines, etc) into FreeBSD password entries, then FreeBSD's MD5
+based security may be all you require!  We feel that our default security
+model is more than a match for DES, and without any messy export issues
+to deal with.  If you're outside (or even inside) the U.S., give it a try!
+
+
 1.1 What's new in 2.0?
 ----------------------
 
 4.4 Lite
 --------
 As previously stated, this release is based entirely on CSRG's
-latest (and last) BSD release - 4.4 Lite.  This features as number
+latest (and last) BSD release - 4.4 Lite.  This features a number
 of improvements over 4.2BSD (Net/2), not least of which are:
 
 o	Legal approval of Novell & U.C. Berkeley.  After the settlement
@@ -99,7 +108,7 @@ Loadable filesystems
 --------------------
 Most filesystems are now dynamically loadable on demand, with the
 exception of the UFS family (FFS, LFS, and MFS).  With the exception
-of NFS, all such filestystems can be unloaded when all references are
+of NFS, all such filesystems can be unloaded when all references are
 unmounted.  To support this functionality, the getvfsbyname(3)
 family of functions has been added to the C library and the lsvfs(1)
 command provides the same information at the shell level.  Be aware of
@@ -138,7 +147,7 @@ Sources involved:	lib/libskey, usr.bin/key* (plus patches to others)
 TCP/IP over parallel (printer) port
 -----------------------------------
 You can now run TCP/IP over a standard LapLink(tm) cable, if both ends
-have a interrupt-driven printerport.  The interface is named "lp0"
+have an interrupt-driven printerport.  The interface is named "lp0"
 where '0' is the same as the lpt# unit number.  This is not compatible
 with PLIP.  If you run NFS, try setting MTU to 9180, otherwise leave
 it at 1500 unless you have a good reason to change it.  Speed varies
@@ -149,7 +158,7 @@ Owner:			phk
 Sources involved:	isa/lpt.c
 
 
-ProAudioSpectrum SCSI-driver
+ProAudioSpectrum SCSI driver
 ----------------------------
 If you have a PAS board with a CD-ROM, and the MS-DOS driver is called
 TSLCDR.SYS, then the "pas" driver should work on your card.  You can
@@ -161,7 +170,21 @@ Owner:			phk
 Sources involved:	isa/pas.c
 
 
-Gzip'ed binaries
+Adaptec 2742/2842 SCSI driver
+-----------------------------
+Despite the non-cooperation of Adaptec in providing technical
+information, we now have a driver for the AHA-274x and AHA-284x
+series SCSI controller family.  This driver uses the GPL'd
+Linux sequencer code, so until we find an alternative, this
+will be part of the kernel that requires source code to be
+distributed with it at all times.  This shouldn't be a problem
+for any of FreeBSD's current users.
+
+Owner:			gibbs
+Sources involved:	isa/aic7770.c sys/gnu/misc/*
+
+
+Gzip'd binaries
 ----------------
 We have an experimental implementation for direct execution of gzip'ed
 binaries in this release.  When enabled, it allows you to simply gzip
@@ -176,10 +199,12 @@ Sources involved:	kern/imgact_gzip.c kern/inflate.c
 
 Diskless booting
 ----------------
-Diskless booting it in 2.0 and much improved since 1.1.5.  The boot-program
-is in src/sys/i386/boot/netboot, and can be run from a MSDOS system or 
-burned into an EPROM.  Local swapping is possible.  Presently WD, SMC and
-Novell cards are supported.
+
+Diskless booting in 2.0 is much improved since 1.1.5.  The
+boot-program is in src/sys/i386/boot/netboot, and can be run from an
+MSDOS system or burned into an EPROM.  Local swapping is also
+possible.  WD, SMC, 3COM and Novell ethernet cards are currently
+supported.
 
 Owner:			Martin Renters & phk
 Sources involved:	i386/boot/netboot, sys/nfs/nfs_vfsops.h
@@ -223,8 +248,8 @@ iBCS2 support
 FreeBSD now supports running iBCS2 compatible binaries (currently
 SCO UNIX 3.2.2 & 3.2.4 and ISC 2.2 COFF format are supported).
 The iBCS2 emulator is in its early stages, but it is functional, we
-havn't been able to do exhaustive testing (lack of commercial apps),
-but allmost all of SCO's 3.2.2 binaries are working, so is an old
+haven't been able to do exhaustive testing (lack of commercial apps),
+but almost all of SCO's 3.2.2 binaries are working, so is an old
 INFORMIX-2.10 for SCO. Further testing is nessesary to complete this
 project. There is also work under way for ELF & XOUT loaders, and
 most of the svr4 syscall wrappers have been written.
@@ -236,10 +261,11 @@ Sources involved:	sys/i386/ibcs2/* + misc kernel changes.
 2. Supported Configurations
 ---------------------------
 
-FreeBSD currently runs on a wide variety of ISA, EISA and PCI bus based
-PC's, ranging from 386sx to Pentium class machines (though the 386sx is
-not recommended).  Support for generic IDE or ESDI drive configurations,
-various SCSI controller, network and serial cards is also provided.
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
+based PC's, ranging from 386sx to Pentium class machines (though the
+386sx is not recommended).  Support for generic IDE or ESDI drive
+configurations, various SCSI controller, network and serial cards is
+also provided.
 
 Following is a list of all currently known disk controllers and
 ethernet cards known to work with FreeBSD.  Other configurations may
@@ -251,9 +277,25 @@ this.
 
 WD1003 (any generic MFM/RLL)
 WD1007 (any generic IDE/ESDI)
+[Note: the new Extended IDE controllers in newer PC's work, although no
+extended features are used.]
 
+Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
+Adaptec 2742/2842 series ISA/EISA SCSI controllers
+Adaptec AIC-6260 and AIC-6360 based boards, which includes
+the AHA-152x and SoundBlaster SCSI cards.
+
+** Note: You cannot boot from the Soundblaster cards
+as they have no on-board BIOS, which is necessary for mapping
+the boot device into the system BIOS I/O vectors.
+They're perfectly usable for external tapes, CDROMs, etc,
+however.  The same goes for any other AIC-6x60 based card
+without a boot ROM.  Some systems DO have a boot ROM, which
+is generally indicated by some sort of message when the system
+is first powered up or reset.  Check your system/board documentation
+for more details.
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -265,7 +307,7 @@ NCR 53C810 PCI SCSI controller.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-Ultra Store 14F, 24F and 34F SCSI controllers.
+UltraStor 14F, 24F and 34F SCSI controllers.
 
 Seagate ST01/02 SCSI controllers.
 
@@ -274,21 +316,22 @@ Future Domain 8xx/950 series SCSI controllers.
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM
-interface card) is the only way a CD ROM drive may be currently
-attached to a FreeBSD system; we do not support SoundBlaster CDROM
-interface, or other "non-SCSI" adapters.  The ProAudio Spectrum
-SCSI and SoundBlaster SCSI controllers are supported.
+interface card) are the only way a CD ROM drive may be currently
+attached to a FreeBSD system; we do not support SoundBlaster
+(non-SCSI) CDROM interface, or other "non-SCSI" adapters.  The
+ProAudio Spectrum SCSI and SoundBlaster SCSI controllers are
+supported.
 
 Some controllers have limitations with the way they deal with >16MB of
-memory, due to the fact that the ISA bus only has a DMA address space
-of 24 bits.  If you do your arithmetic, you'll see that this makes it
+memory, due to the fact that the ISA bus only has a DMA address space of
+24 bits.  If you do your arithmetic, you'll see that this makes it
 impossible to do direct DMA to any address >16MB.  This limitation is
 even true of some EISA controllers (which are normally 32 bit) when
 they're configured to emulate an ISA card, which they then do in *all*
-respects.  This problem is avoided entirely by IDE controllers (which
-do not use DMA), true EISA controllers (like the UltraStor or Adaptec
+respects.  This problem is avoided entirely by IDE controllers (which do
+not use DMA), true EISA controllers (like the UltraStor or Adaptec
 1742A) and most VLB (local bus) controllers.  In the cases where it's
-necessary, the system will use "bounce buffers" to to talk to the
+necessary, the system will use "bounce buffers" to talk to the
 controller so that you can still use more than 16Mb of memory without
 difficulty.
 
@@ -298,6 +341,9 @@ difficulty.
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
+
+DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
@@ -367,7 +413,7 @@ FreeBSD 2.0 may be ordered on CDROM from:
 	Concord CA  94520
 	1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
-Or via the internet from orders@cdrom.com.  There current catalog can
+Or via the internet from orders@cdrom.com.  Their current catalog can
 be obtained via ftp as ftp.cdrom.com:/cdrom/catalog.
 
 Cost is $39.95.  Shipping (per order not per disc) is $5 in the US, Canada,
@@ -390,13 +436,13 @@ Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached if you can!).
 
-The prefered method to submit bug reports from a machine with internet
-mail connectivity is to use the sendbug command.  Bug reports will be
+The preferred method to submit bug reports from a machine with internet
+mail connectivity is to use the send-pr command.  Bug reports will be
 dutifully filed by our faithful bugfiler program and you can be sure
 that we'll do our best to respond to all reported bugs as soon as
 possible.
 
-If, for some reason, you are unable to use the sendbug command to
+If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
 		bugs@FreeBSD.org
@@ -495,4 +541,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.4 1994/11/08 20:17:45 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.16 1994/11/18 13:02:23 jkh Exp $

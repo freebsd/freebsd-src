@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.12 1994/11/06 04:34:46 phk Exp $
+ * $Id: main.c,v 1.17 1994/11/17 23:36:46 ache Exp $
  *
  */
 
@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <dialog.h>
 
@@ -35,11 +36,21 @@ jmp_buf	jmp_restart;
  * XXX: mbr: edit geometry
  */
 
-extern int alloc_memory();
+void
+handle_intr(int sig)
+{
+	dialog_clear_norefresh();
+	dialog_msgbox("User Interrupt",
+		      "User interrupted.  Aborting the installation",
+		      -1, -1, 1);
+	ExitSysinstall();
+}
 
 int
 main(int argc, char **argv)
 {
+	signal(SIGINT, SIG_IGN);
+
 	/* Are we running as init? */
 	if (getpid() == 1) {
 		setsid();
@@ -64,8 +75,7 @@ main(int argc, char **argv)
 	/* If we haven't crashed I guess dialog is running ! */
 	dialog_active = 1;
 
-	if (alloc_memory() < 0)
-		Fatal("No memory\n");
+	signal(SIGINT, handle_intr);
 
 	if (getpid() != 1) {
 		stage0();
@@ -73,8 +83,11 @@ main(int argc, char **argv)
 		end_dialog();
 		dialog_active=0;
 	} else if (!access("/this_is_boot_flp",R_OK)) {
-		stage0();
-		stage1();
+		while(1) {
+			stage0();
+			if(!stage1())
+				break;
+		}
 		stage2();
 		end_dialog();
 		dialog_active=0;

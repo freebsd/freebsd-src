@@ -15,6 +15,7 @@ Author: Martin Renters
 #define VENDOR_NONE	0
 #define VENDOR_WD	1
 #define VENDOR_NOVELL	2
+#define VENDOR_3COM	3
 
 #define FLAG_PIO	0x01
 #define FLAG_16BIT	0x02
@@ -96,6 +97,83 @@ struct wd_board {
 	{NULL,		0,		0}
 };
 #endif
+/**************************************************************************
+3com 3c503 definitions
+**************************************************************************/
+
+#ifndef _3COM_BASE
+#define _3COM_BASE 0x300
+#endif
+
+#define _3COM_TX_PAGE_OFFSET_8BIT     0x20
+#define _3COM_TX_PAGE_OFFSET_16BIT    0x0
+#define _3COM_RX_PAGE_OFFSET_16BIT    0x20
+
+#define _3COM_ASIC_OFFSET 0x400
+#define _3COM_NIC_OFFSET 0x0
+
+#define _3COM_PSTR            0
+#define _3COM_PSPR            1
+
+#define _3COM_BCFR            3
+#define _3COM_BCFR_2E0        0x01
+#define _3COM_BCFR_2A0        0x02
+#define _3COM_BCFR_280        0x04
+#define _3COM_BCFR_250        0x08
+#define _3COM_BCFR_350        0x10
+#define _3COM_BCFR_330        0x20
+#define _3COM_BCFR_310        0x40
+#define _3COM_BCFR_300        0x80
+#define _3COM_PCFR            4
+#define _3COM_PCFR_C8000      0x10
+#define _3COM_PCFR_CC000      0x20
+#define _3COM_PCFR_D8000      0x40
+#define _3COM_PCFR_DC000      0x80
+#define _3COM_CR              6
+#define _3COM_CR_RST          0x01    /* Reset GA and NIC */
+#define _3COM_CR_XSEL         0x02    /* Transceiver select. BNC=1(def) AUI=0 */
+#define _3COM_CR_EALO         0x04    /* window EA PROM 0-15 to I/O base */
+#define _3COM_CR_EAHI         0x08    /* window EA PROM 16-31 to I/O base */
+#define _3COM_CR_SHARE        0x10    /* select interrupt sharing option */
+#define _3COM_CR_DBSEL        0x20    /* Double buffer select */
+#define _3COM_CR_DDIR         0x40    /* DMA direction select */
+#define _3COM_CR_START        0x80    /* Start DMA controller */
+#define _3COM_GACFR           5
+#define _3COM_GACFR_MBS0      0x01
+#define _3COM_GACFR_MBS1      0x02
+#define _3COM_GACFR_MBS2      0x04
+#define _3COM_GACFR_RSEL      0x08    /* enable shared memory */
+#define _3COM_GACFR_TEST      0x10    /* for GA testing */
+#define _3COM_GACFR_OWS       0x20    /* select 0WS access to GA */
+#define _3COM_GACFR_TCM       0x40    /* Mask DMA interrupts */
+#define _3COM_GACFR_NIM       0x80    /* Mask NIC interrupts */
+#define _3COM_STREG           7
+#define _3COM_STREG_REV       0x07    /* GA revision */
+#define _3COM_STREG_DIP       0x08    /* DMA in progress */
+#define _3COM_STREG_DTC       0x10    /* DMA terminal count */
+#define _3COM_STREG_OFLW      0x20    /* Overflow */
+#define _3COM_STREG_UFLW      0x40    /* Underflow */
+#define _3COM_STREG_DPRDY     0x80    /* Data port ready */
+#define _3COM_IDCFR           8
+#define _3COM_IDCFR_DRQ0      0x01    /* DMA request 1 select */
+#define _3COM_IDCFR_DRQ1      0x02    /* DMA request 2 select */
+#define _3COM_IDCFR_DRQ2      0x04    /* DMA request 3 select */
+#define _3COM_IDCFR_UNUSED    0x08    /* not used */
+#define _3COM_IDCFR_IRQ2      0x10    /* Interrupt request 2 select */
+#define _3COM_IDCFR_IRQ3      0x20    /* Interrupt request 3 select */
+#define _3COM_IDCFR_IRQ4      0x40    /* Interrupt request 4 select */
+#define _3COM_IDCFR_IRQ5      0x80    /* Interrupt request 5 select */
+#define _3COM_IRQ2      2
+#define _3COM_IRQ3      3
+#define _3COM_IRQ4      4
+#define _3COM_IRQ5      5
+#define _3COM_DAMSB           9
+#define _3COM_DALSB           0x0a
+#define _3COM_VPTR2           0x0b
+#define _3COM_VPTR1           0x0c
+#define _3COM_VPTR0           0x0d
+#define _3COM_RFMSB           0x0e
+#define _3COM_RFLSB           0x0f
 
 /**************************************************************************
 NE1000/2000 definitions
@@ -170,6 +248,7 @@ NE1000/2000 definitions
 
 #define D8390_TXBUF_SIZE	6
 #define D8390_RXBUF_END		32
+#define D8390_PAGE_SIZE         256
 
 struct ringbuffer {
 	unsigned char status;

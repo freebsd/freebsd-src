@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.7 1994/09/12 15:06:12 davidg Exp $
+ * $Id: vm_glue.c,v 1.8 1994/10/09 01:52:08 phk Exp $
  */
 
 #include <sys/param.h>
@@ -397,7 +397,7 @@ loop1:
 	pp = NULL;
 	ppri = INT_MIN;
 	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-		if (p->p_stat == SRUN && (p->p_flag & P_INMEM) == 0) {
+		if (p->p_stat == SRUN && (p->p_flag & (P_INMEM|P_SWAPPING)) == 0) {
 			int mempri;
 			pri = p->p_swtime + p->p_slptime - p->p_nice * 8;
 			mempri = pri > 0 ? pri : 0;
@@ -461,7 +461,7 @@ loop1:
 
 #define	swappable(p) \
 	(((p)->p_lock == 0) && \
-		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO)) == P_INMEM)
+		((p)->p_flag & (P_TRACED|P_NOSWAP|P_SYSTEM|P_INMEM|P_WEXIT|P_PHYSIO|P_SWAPPING)) == P_INMEM)
 
 extern int vm_pageout_free_min;
 /*
@@ -504,6 +504,12 @@ swapout_threads()
 			
 		case SSLEEP:
 		case SSTOP:
+			/*
+ 			 * do not swapout a realtime process
+ 			 */
+ 			if (p->p_rtprio.type == RTP_PRIO_REALTIME)
+ 				continue;
+
 			/*
 			 * do not swapout a process that is waiting for VM datastructures
 			 * there is a possible deadlock.
@@ -590,7 +596,7 @@ swapout(p)
 		remrq(p);
 	(void) spl0();
 
-	++p->p_lock;
+	p->p_flag |= P_SWAPPING;
 /* let the upages be paged */
 	pmap_remove(vm_map_pmap(kernel_map),
 		(vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * NBPG);
@@ -598,7 +604,7 @@ swapout(p)
 	vm_map_pageable(map, (vm_offset_t) kstack,
 		(vm_offset_t) kstack + UPAGES * NBPG, TRUE);
 
-	--p->p_lock;
+	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;
 }
 

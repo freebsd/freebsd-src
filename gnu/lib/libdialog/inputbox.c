@@ -28,11 +28,23 @@
  */
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result)
 {
-  int i, x, y, box_y, box_x, box_width, first,
+  int i, j, x, y, box_y, box_x, box_width, first,
       key = 0, button = -1;
   unsigned char instr[MAX_LEN+1];
   WINDOW *dialog;
 
+  if (height < 0)
+	height = strheight(prompt)+2+4;
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j) + 4;
+  }
+
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
@@ -86,10 +98,12 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
 
   first = 1;
   strcpy(instr, result);
+  wattrset(dialog, dialog_attr);
+
   while (key != ESC) {
 
     if (button == -1) {    /* Input box selected */
-      key = line_edit(dialog, box_y, box_x, box_width, dialog_attr, first, instr);
+      key = line_edit(dialog, box_y, box_x, -1, box_width, inputbox_attr, first, instr);
       first = 0;
     }
     else

@@ -31,22 +31,6 @@ extern struct mbr *mbr;
 extern char boot1[];
 extern char boot2[];
 
-void
-enable_label(int fd)
-{ 
-	int flag = 1;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
-	    Fatal("ioctl(DIOCWLABEL,1) failed: %s",strerror(errno));
-}
-
-void
-disable_label(int fd)
-{  
-	int flag = 0;
-	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
-	    Fatal("ioctl(DIOCWLABEL,0) failed: %s",strerror(errno));
-}
-
 int
 write_bootblocks(int fd, struct disklabel *lbl)
 {

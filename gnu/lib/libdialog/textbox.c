@@ -48,6 +48,12 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   unsigned char search_term[MAX_LEN+1], *tempptr, *found;
   WINDOW *dialog, *text;
 
+  if (height < 0 || width < 0) {
+    endwin();
+    fprintf(stderr, "\nAutosizing is impossible in dialog_textbox().\n");
+    exit(-1);
+  }
+
   search_term[0] = '\0';    /* no search term entered yet */
 
   /* Open input file for reading */
@@ -83,6 +89,10 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   buf[bytes_read] = '\0';    /* mark end of valid data */
   page = buf;    /* page is pointer to start of page to be displayed */
 
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
@@ -641,13 +651,14 @@ static int get_search_term(WINDOW *win, unsigned char *search_term, int height, 
   wattrset(win, searchbox_title_attr);
   wmove(win, y, x+box_width/2-4);
   waddstr(win, " Search ");
+  wattrset(win, dialog_attr);
 
   box_width -= 2;
   search_term[0] = '\0';
 
   first = 1;
   while (key != ESC) {
-    key = line_edit(win, y+1, x+1, box_width, searchbox_attr, first, search_term);
+    key = line_edit(win, y+1, x+1, -1, box_width, searchbox_attr, first, search_term);
     first = 0;
     switch (key) {
       case '\n':

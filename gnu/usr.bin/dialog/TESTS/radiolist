@@ -6,10 +6,10 @@ $DIALOG --title "RADIOLIST BOX" --clear \
 present a list of choices, one of them can be turned \n\
 on or off. If there are more items than can fit on the \n\
 screen, the list will be scrolled. You can use the \n\
-UP/DOWN arrow keys, the first letter of the choice as a \n\
+UP/DOWN arrow keys, the first letter of the choice as a\n\
 hot key, or the number keys 1-9 to choose an option. \n\
 Press SPACE to toggle an option on/off. \n\n\
-  Which of the following are fruits?" 20 61 5 \
+  Which of the following are fruits?" -1 -1 5 \
 	"Apple"  "It's an apple." off \
         "Dog"    "No, that's not my dog." ON \
         "Orange" "Yeah, that's juicy." off \

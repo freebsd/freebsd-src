@@ -29,9 +29,21 @@
  */
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause)
 {
-  int i, x, y, key = 0;
+  int i, j, x, y, key = 0;
   WINDOW *dialog;
 
+  if (height < 0)
+	height = strheight(prompt)+2+2*(!!pause);
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j)+4;
+  }
+
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;

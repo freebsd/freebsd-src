@@ -123,7 +123,7 @@ static randomStateTable[][3] = {
 //
 
 #define RANDOM_PERM_SIZE 64
-unsigned long randomPermutations[RANDOM_PERM_SIZE] = {
+_G_uint32_t randomPermutations[RANDOM_PERM_SIZE] = {
 0xffffffff, 0x00000000,  0x00000000,  0x00000000,  // 3210
 0x0000ffff, 0x00ff0000,  0x00000000,  0xff000000,  // 2310
 0xff0000ff, 0x0000ff00,  0x00000000,  0x00ff0000,  // 3120
@@ -149,7 +149,7 @@ unsigned long randomPermutations[RANDOM_PERM_SIZE] = {
 //	SEED_TABLE_SIZE must be a power of 2
 //
 #define SEED_TABLE_SIZE 32
-static unsigned long seedTable[SEED_TABLE_SIZE] = {
+static _G_uint32_t seedTable[SEED_TABLE_SIZE] = {
 0xbdcc47e5, 0x54aea45d, 0xec0df859, 0xda84637b,
 0xc8c6cb4f, 0x35574b01, 0x28260b7d, 0x0d07fdbf,
 0x9faaeeb0, 0x613dd169, 0x5ce2d818, 0x85b9e706,
@@ -171,15 +171,15 @@ static unsigned long seedTable[SEED_TABLE_SIZE] = {
 // LC_C = result of a long trial & error series = 3907864577
 //
 
-static const unsigned long LC_A = 66049;
-static const unsigned long LC_C = 3907864577;
-static inline unsigned long LCG(unsigned long x)
+static const _G_uint32_t LC_A = 66049;
+static const _G_uint32_t LC_C = 3907864577;
+static inline _G_uint32_t LCG(_G_uint32_t x)
 {
     return( x * LC_A + LC_C );
 }
 
 
-ACG::ACG(unsigned long seed, int size)
+ACG::ACG(_G_uint32_t seed, int size)
 {
 
     initialSeed = seed;
@@ -205,7 +205,7 @@ ACG::ACG(unsigned long seed, int size)
     //	Allocate the state table & the auxillary table in a single malloc
     //
     
-    state = new unsigned long[stateSize + auxSize];
+    state = new _G_uint32_t[stateSize + auxSize];
     auxState = &state[stateSize];
 
     reset();
@@ -217,7 +217,7 @@ ACG::ACG(unsigned long seed, int size)
 void
 ACG::reset()
 {
-    register unsigned long u;
+    register _G_uint32_t u;
 
     if (initialSeed < SEED_TABLE_SIZE) {
 	u = seedTable[ initialSeed ];
@@ -247,7 +247,7 @@ ACG::reset()
     
     lcgRecurr = u;
     
-    assert(sizeof(double) == 2 * sizeof(long));
+    assert(sizeof(double) == 2 * sizeof(_G_int32_t));
 }
 
 ACG::~ACG()
@@ -261,15 +261,16 @@ ACG::~ACG()
 //	Returns 32 bits of random information.
 //
 
-unsigned long ACG::asLong()
+_G_uint32_t
+ACG::asLong()
 {
-    unsigned long result = state[k] + state[j];
+    _G_uint32_t result = state[k] + state[j];
     state[k] = result;
     j = (j <= 0) ? (stateSize-1) : (j-1);
     k = (k <= 0) ? (stateSize-1) : (k-1);
     
     short int auxIndex = (result >> 24) & (auxSize - 1);
-    register unsigned long auxACG = auxState[auxIndex];
+    register _G_uint32_t auxACG = auxState[auxIndex];
     auxState[auxIndex] = lcgRecurr = LCG(lcgRecurr);
     
     //
@@ -277,7 +278,7 @@ unsigned long ACG::asLong()
     // do not want to run off the end of the permutation table.
     // This insures that we have always got four entries left.
     //
-    register unsigned long *perm = & randomPermutations[result & 0x3c];
+    register _G_uint32_t *perm = & randomPermutations[result & 0x3c];
     
     result =  *(perm++) & auxACG;
     result |= *(perm++) & ((auxACG << 24)

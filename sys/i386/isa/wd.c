@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.59 1994/11/03 18:16:47 joerg Exp $
+ *	$Id: wd.c,v 1.60 1994/11/04 05:21:17 phk Exp $
  */
 
 /* TODO:
@@ -78,12 +78,10 @@ static int wdtest = 0;
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 #include <machine/cpu.h>
+#include <machine/bootinfo.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
-#ifdef APM
-#include <machine/apm_bios.h>
-#endif
 #include <sys/syslog.h>
 #include <sys/dkstat.h>
 #include <vm/vm.h>
@@ -401,7 +399,11 @@ wdattach(struct isa_device *dvp)
 		    buf[sizeof(buf)-1] = '\0';
 		    printf("wdc%d: unit %d (wd%d): <%s>\n",
 			dvp->id_unit, unit, lunit, buf);
-		    if (du->dk_params.wdp_heads == 0)
+		    if (du->dk_params.wdp_heads == 0 && 
+			du->dk_dd.d_secperunit > 100)
+			printf("wd%d: size unknown, using BIOS values\n",
+			    lunit);
+		    else if (du->dk_params.wdp_heads == 0)
 			printf("wd%d: size unknown\n", lunit);
 		    else
 			printf("wd%d: %luMB (%lu total sec), ",
@@ -1057,7 +1059,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	 * Warn if a partion is opened that overlaps another partition which
 	 * is open unless one is the "raw" partition (whole disk).
 	 */
-	if ((du->dk_openpart & mask) == 0 && part != WDRAW) {
+	if ((du->dk_openpart & mask) == 0 && part != WDRAW && part != OURPART) {
 		int	start, end;
 
 		pp = &du->dk_dd.d_partitions[part];
@@ -1267,6 +1269,30 @@ wdgetctlr(struct disk *du)
 		    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
 			return (1);
 
+		if (du->dk_unit == bootinfo.n_bios_used) {
+			du->dk_dd.d_secsize = DEV_BSIZE;
+			du->dk_dd.d_nsectors = 
+			    bootinfo.bios_geom[du->dk_unit] & 0xff;
+			du->dk_dd.d_ntracks = 
+			    ((bootinfo.bios_geom[du->dk_unit] >> 8) & 0xff) +1;
+			/* XXX Why 2 ? */
+			du->dk_dd.d_ncylinders = 
+			    (bootinfo.bios_geom[du->dk_unit] >> 16) + 2;
+			du->dk_dd.d_secpercyl = 
+			    du->dk_dd.d_ntracks * du->dk_dd.d_nsectors; 
+			du->dk_dd.d_secperunit = 
+			    du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders; 
+			du->dk_dd.d_partitions[WDRAW].p_size = 
+				du->dk_dd.d_secperunit;
+			du->dk_dd.d_type = DTYPE_ST506;
+			du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
+			strncpy(du->dk_dd.d_typename, "Bios geometry",
+				sizeof du->dk_dd.d_typename);
+			strncpy(du->dk_params.wdp_model, "ST506",
+				sizeof du->dk_params.wdp_model);
+			bootinfo.n_bios_used ++;
+			return 0;
+		}
 		/*
 		 * Fake minimal drive geometry for reading the MBR.
 		 * readdisklabel() may enlarge it to read the label and the

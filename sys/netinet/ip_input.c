@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.9 1994/10/28 15:09:48 jkh Exp $
+ * $Id: ip_input.c,v 1.10 1994/11/08 12:47:29 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,9 @@
 #include <netinet/ip_icmp.h>
 
 #ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
+#ifdef IPACCT
 #include <netinet/ip_fw.h>
 #endif
 
@@ -352,6 +355,17 @@ next:
 	goto next;
 
 ours:
+
+#ifdef IPACCT
+		/*
+		 * If packet came to us we count it...
+		 * This way we count all incoming packets which has 
+		 * not been forwarded...
+		 * Do not convert ip_len to host byte order when 
+		 * counting,ppl already made it for us before..
+		 */
+		ip_acct_cnt(ip,ip_acct_chain,0);
+#endif
 
 	/*
 	 * If offset or IP_MF are set, must reassemble.
@@ -1125,6 +1139,11 @@ ip_forward(m, srcrt)
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
+#ifdef wrong
+#ifdef IPACCT
+		ip_acct_cnt(ip,ip_acct_chain);
+#endif
+#endif
 		ipstat.ips_forward++;
 		if (type)
 			ipstat.ips_redirectsent++;

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.8 1994/10/17 10:43:56 davidg Exp $
+ * $Id: vm_page.h,v 1.9 1994/10/21 01:19:28 wollman Exp $
  */
 
 /*
@@ -254,9 +254,8 @@ boolean_t	 vm_page_zero_fill __P((vm_page_t));
  * overhead and should be used only for *very* temporary
  * holding ("wiring").
  */
-static inline void
-vm_page_hold(mem)
-	vm_page_t mem;
+static __inline void
+vm_page_hold(vm_page_t mem)
 {
 	mem->hold_count++;
 }
@@ -265,9 +264,8 @@ vm_page_hold(mem)
 #include <sys/systm.h>		/* make GCC shut up */
 #endif
 
-static inline void
-vm_page_unhold(mem)
-	vm_page_t mem;
+static __inline void
+vm_page_unhold(vm_page_t mem)
 {
 #ifdef DIAGNOSTIC
 	if( --mem->hold_count < 0)
@@ -278,4 +276,5 @@ vm_page_unhold(mem)
 }
 
 #endif /* KERNEL */
+
 #endif /* !_VM_PAGE_ */

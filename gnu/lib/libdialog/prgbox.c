@@ -27,13 +27,22 @@
  * Display a message box. Program will pause and display an "OK" button
  * if the parameter 'pause' is non-zero.
  */
-int dialog_prgbox(unsigned char *title, const char *line, int height, int width, int pause, int use_shell)
+int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell)
 {
   int i, x, y, key = 0;
   WINDOW *dialog;
   FILE *f;
   unsigned char *s, buf[MAX_LEN];
 
+  if (height < 0 || width < 0) {
+    endwin();
+    fprintf(stderr, "\nAutosizing is impossible in dialog_prgbox().\n");
+    exit(-1);
+  }
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;

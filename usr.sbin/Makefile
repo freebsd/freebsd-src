@@ -5,10 +5,10 @@
 # XXX TEMP. BROKEN:	iostat
 SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 	diskpart edquota inetd kbdcontrol kgmon kvm_mkdb lpr lsdev manctl \
-	mtree mrouted named nslookup pkg_install portmap pstat  \
-	pwd_mkdb quotaon repquota routed rmt rwhod sa sendmail sliplogin \
-	slstat sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw \
-	xntpd xten ypbind yppoll ypset zic
+	mtree mrouted named nslookup pkg_install portmap pppd pppstats \
+	pstat pwd_mkdb quotaon repquota routed rmt rwhod sa \
+	sendmail sliplogin slstat sysctl syslogd tcpdump timed traceroute \
+	trpt tzsetup vipw xntpd xten ypbind yppoll ypset zic
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
@@ -18,13 +18,14 @@ SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 # SUBDIR+=XNSrouted trsp
 
 .if   make(clean) || make(cleandir)
-SUBDIR+=apm apmconf bad144 config config.new fdformat fdwrite fdcontrol \
-	iostat kbdcontrol lptcontrol ncrcontrol rtprio swapinfo vidcontrol 
+SUBDIR+=apm apmconf bad144 cdplay config config.new fdformat fdwrite \
+	fdcontrol iostat kbdcontrol lptcontrol ncrcontrol rtprio \
+	spkrtest swapinfo vidcontrol 
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat 
 .elif ${MACHINE} == "i386"
-SUBDIR+=apm apmconf bad144 config fdformat fdwrite fdcontrol kbdcontrol \
-	lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
+SUBDIR+=apm apmconf bad144 cdplay config fdformat fdwrite fdcontrol \
+	kbdcontrol lptcontrol ncrcontrol rtprio spkrtest swapinfo vidcontrol
 # iostat
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat 

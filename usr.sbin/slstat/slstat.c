@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: slstat.c,v 1.1.1.1 1994/06/17 06:42:39 rich Exp $";
+static char rcsid[] = "$Id: slstat.c,v 1.2 1994/10/17 06:05:32 davidg Exp $";
 #endif
 
 #include <stdio.h>
@@ -37,6 +37,7 @@ static char rcsid[] = "$Id: slstat.c,v 1.1.1.1 1994/06/17 06:42:39 rich Exp $";
 #include <sys/mbuf.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/file.h>
 #include <errno.h>
 #include <signal.h>
@@ -54,6 +55,9 @@ struct nlist nl[] = {
 	{ "_sl_softc" },
 	{ 0 }
 };
+
+#define INTERFACE_PREFIX        "sl%d" 
+char    interface[IFNAMSIZ];
 
 const char	*system = NULL;
 char	*kmemf = NULL;
@@ -99,9 +103,21 @@ main(argc, argv)
 			continue;
 		}
 		if (isdigit(argv[0][0])) {
+			int s;
+			struct ifreq ifr;
+
 			unit = atoi(argv[0]);
 			if (unit < 0)
 				usage();
+			sprintf(interface, INTERFACE_PREFIX, unit);
+			s = socket(AF_INET, SOCK_DGRAM, 0);
+			if (s < 0)
+				err(1, "creating socket");
+			strcpy(ifr.ifr_name, interface);
+			if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0)
+				errx(1,
+				"unable to confirm existence of interface '%s'",
+                    		interface);
 			++argv, --argc;
 			continue;
 		}

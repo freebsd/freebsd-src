@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.25 1994/11/07 04:53:23 phk Exp $
+ * $Id: utils.c,v 1.30 1994/11/17 23:36:49 ache Exp $
  *
  */
 
@@ -38,32 +38,6 @@ strip_trailing_newlines(char *p)
 		p[--len] = '\0';
 }
 
-int strwidth(const char *p)
-{
-	int i = 0, len;
-	const char *start, *s;
-
-	for (start = s = p; (s = strchr(s, '\n')) != NULL; start = ++s) {
-		len = s - start;
-		if (len > i)
-			i = len;
-	}
-	len = strlen(start);
-	if (len > i)
-		i = len;
-	return i;
-}
-
-int strheight(const char *p)
-{
-	int i = 1;
-	const char *s;
-
-	for (s = p; (s = strchr(s, '\n')) != NULL; s++)
-		i++;
-	return i;
-}
-
 void
 Debug(char *fmt, ...)
 {
@@ -92,9 +66,8 @@ TellEm(char *fmt, ...)
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
-	dialog_clear();
-	dialog_update();
-	dialog_msgbox("Progress", p, strheight(p)+2, strwidth(p)+4, 0);
+	dialog_clear_norefresh();
+	dialog_msgbox("Progress", p, -1, -1, 0);
 	free(p);
 }
 
@@ -109,7 +82,7 @@ Fatal(char *fmt, ...)
 	va_end(ap);
 	strip_trailing_newlines(p);
 	if (dialog_active)
-		dialog_msgbox("Fatal", p, strheight(p)+4, strwidth(p)+4, 1);
+		dialog_msgbox("Fatal", p, -1, -1, 1);
 	else
 		fprintf(stderr, "Fatal -- %s\n", p);
 	free(p);
@@ -127,8 +100,8 @@ AskAbort(char *fmt, ...)
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
 	strcat(p, "\n\nDo you wish to abort the installation?");
-	if (!dialog_yesno("Abort", p, 15, 60)) {
-		dialog_clear();
+	if (!dialog_yesno("Abort", p, -1, -1)) {
+		dialog_clear_norefresh();
 		Abort();
 	}
 	dialog_clear();
@@ -139,7 +112,7 @@ void
 Abort()
 {
 	if (dialog_yesno("Exit sysinstall","\n\nAre you sure you want to quit?",
-						  10, 40)) {
+						  -1, -1)) {
 		dialog_clear();
 		return;
 	}
@@ -158,7 +131,7 @@ ExitSysinstall()
 			if (dialog_active) {
 				clear();
 				dialog_msgbox(TITLE, "\n\nCan't reboot machine -- hit reset button",
-						  5,30,0);
+						 -1,-1,0);
 			} else
 				fprintf(stderr, "Can't reboot the machine -- hit the reset button");
 			while(1);
@@ -250,6 +223,8 @@ void
 Link(char *from, char *to)
 {
 	TellEm("ln %s %s", from, to);
+	if(fixit)
+	    unlink(to);
 	if (link(from, to) == -1)
 		Fatal("Couldn't create link: %s -> %s\n", from, to);
 }
@@ -296,6 +271,7 @@ void
 CleanMount(int disk, int part)
 {
     int i = MP[disk][part];
+    Faction[i] = 0;
     if (Fmount[i]) {
         free(Fmount[i]);
         Fmount[i] = 0;
@@ -331,12 +307,16 @@ SetMount(int disk, int part, char *path)
     switch (Dlbl[disk]->d_partitions[part].p_fstype) {
 	case FS_BSDFFS:
 	    Ftype[k] = StrAlloc("ufs");
+	    if(!fixit)
+		Faction[k] = 1;
 	    break;
 	case FS_MSDOS:
 	    Ftype[k] = StrAlloc("msdos");
+	    Faction[k] = 0;
 	    break;
 	case FS_SWAP:
 	    Ftype[k] = StrAlloc("swap");
+	    Faction[k] = 1;
 	    break;
 	default:
 	    CleanMount(disk,part);
@@ -347,3 +327,20 @@ SetMount(int disk, int part, char *path)
     MP[disk][part] = k;
     return NULL;
 }
+
+void
+enable_label(int fd)
+{ 
+	int flag = 1;
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,1) failed: %s",strerror(errno));
+}
+
+void
+disable_label(int fd)
+{  
+	int flag = 0;
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,0) failed: %s",strerror(errno));
+}
+

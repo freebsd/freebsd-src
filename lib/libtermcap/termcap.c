@@ -78,6 +78,7 @@ tgetent(bp, name)
 	char **pvec;			/* holds usable tail of path vector */
 	char  *termpath;
 
+	dummy = NULL;
 	fname = pathvec;
 	pvec = pathvec;
 	tbuf = bp;

@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.63 1994/11/03 19:14:08 jkh Exp $
+# $Id: bsd.port.mk,v 1.71 1994/11/17 10:07:45 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -18,6 +18,10 @@
 # PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally.
+# MASTER_SITE_OVERRIDE - If set, override the MASTER_SITES setting with this
+#				  value.
+# MASTER_SITE_FREEBSD - If set, only use the FreeBSD master repository for
+#				  MASTER_SITES.
 # PACKAGES		- A top level directory where all packages go (rather than
 #				  going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE			- Set to path of GNU make if not in $PATH (default: gmake).
@@ -45,6 +49,8 @@
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
+# NO_WRKDIR		- There's no work directory at all; port does this someplace
+#				  else.
 # NO_DEPENDS	- Don't verify build of dependencies.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
@@ -73,6 +79,7 @@
 # configure		- Applies patches, if any, and runs either GNU configure, one
 #				  or more local configure scripts or nothing, depending on
 #				  what's available.
+# patch			- Apply any provided patches to the source.
 # build			- Actually compile the sources.
 # install		- Install the results of a build.
 # reinstall		- Install the results of a build, ignoring "already installed"
@@ -89,10 +96,14 @@
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
-PREFIX?=		/usr/local
+X11BASE?=		/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
+.if !defined(NO_WRKDIR)
 WRKDIR?=		${.CURDIR}/work
+.else
+WRKDIR?=		${.CURDIR}
+.endif
 .if defined(NO_WRKSUBDIR)
 WRKSRC?=		${WRKDIR}
 .else
@@ -102,6 +113,11 @@ PATCHDIR?=		${.CURDIR}/patches
 SCRIPTDIR?=		${.CURDIR}/scripts
 FILESDIR?=		${.CURDIR}/files
 PKGDIR?=		${.CURDIR}/pkg
+.if defined(USE_IMAKE)
+PREFIX?=		${X11BASE}
+.else
+PREFIX?=		/usr/local
+.endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
 .include "${PORTSDIR}/../Makefile.inc"
@@ -113,6 +129,7 @@ EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
 CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
 INSTALL_COOKIE?=	${WRKDIR}/.install_done
 BUILD_COOKIE?=		${WRKDIR}/.build_done
+PATCH_COOKIE?=		${WRKDIR}/.patch_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
@@ -145,9 +162,17 @@ PKG_SUFX?=		.tgz
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
 
+.if defined(MASTER_SITE_FREEBSD)
+MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/ 
+.endif
+
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
+.if !defined(MASTER_SITE_OVERRIDE)
 MASTER_SITES+=	ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles/
+.else
+MASTER_SITES=	${MASTER_SITE_OVERRIDE}
+.endif
 
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
@@ -227,6 +252,10 @@ package:
 install:
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
+.if defined(NO_PATCH) && !target(patch)
+patch:
+	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
+.endif
 
 # More standard targets start here.
 
@@ -252,7 +281,7 @@ ${INSTALL_COOKIE}:
 	@(cd ${WRKSRC}; ${GMAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .else defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${MAKE} PREFIX=${PREFIX} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
-.if defined(USE_IMAKE)
+.if defined(USE_IMAKE) && defined(INSTALL_MANPAGES)
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
@@ -275,16 +304,8 @@ package: pre-package
 	fi
 .endif
 
-.if !target(pre-build)
-pre-build:
-	@${DO_NADA}
-.endif
-
-.if !target(build)
-build: configure pre-build ${BUILD_COOKIE}
-
-${BUILD_COOKIE}:
-	@echo "===>  Building for ${DISTNAME}"
+.if !target(depends)
+depends:
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
@@ -299,6 +320,18 @@ ${BUILD_COOKIE}:
 	@echo "===>  Returning to build of ${DISTNAME}"
 .endif
 .endif
+.endif
+
+.if !target(pre-build)
+pre-build:
+	@${DO_NADA}
+.endif
+
+.if !target(build)
+build: configure pre-build depends ${BUILD_COOKIE}
+
+${BUILD_COOKIE}:
+	@echo "===>  Building for ${DISTNAME}"
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
 .else defined(USE_GMAKE)
@@ -314,23 +347,33 @@ ${BUILD_COOKIE}:
 	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
 
+.if !target(pre-patch)
+pre-patch:
+	@${DO_NADA}
+.endif
+
+.if !target(patch)
+patch: pre-patch ${PATCH_COOKIE}
+
+${PATCH_COOKIE}:
+	@if [ -d ${PATCHDIR} ]; then \
+		echo "===>  Applying patches for ${DISTNAME}" ; \
+		for i in ${PATCHDIR}/patch-*; do ${PATCH} ${PATCH_ARGS} < $$i; done; \
+	fi
+	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
+.endif
+
 .if !target(pre-configure)
 pre-configure:
 	@${DO_NADA}
 .endif
 
 .if !target(configure)
-configure: extract ${CONFIGURE_COOKIE}
+configure: extract patch ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
 	@${MAKE} ${.MAKEFLAGS} pre-configure
-	@if [ -d ${PATCHDIR} ]; then \
-		echo "===>  Applying patches for ${DISTNAME}" ; \
-		for i in ${PATCHDIR}/patch-*; do \
-			${PATCH} ${PATCH_ARGS} < $$i; \
-	done; \
-	fi
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
@@ -349,7 +392,11 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
+.if defined(USE_GMAKE)
+	@(cd ${WRKSRC}; ${XMKMF} && ${GMAKE} Makefiles)
+.else
 	@(cd ${WRKSRC}; ${XMKMF} && ${MAKE} Makefiles)
+.endif
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
 		env CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
@@ -425,7 +472,7 @@ pre-clean:
 clean: pre-clean
 	@echo "===>  Cleaning for ${DISTNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
-		${BUILD_COOKIE}
+		${BUILD_COOKIE} ${PATCH_COOKIE}
 	@rm -rf ${WRKDIR}
 .endif
 

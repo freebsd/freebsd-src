@@ -34,12 +34,36 @@ static int menu_width, tag_x, item_x;
  */
 int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result)
 {
-  int i, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
-      scroll = 0, max_choice;
+  int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
+      l, k, scroll = 0, max_choice;
   WINDOW *dialog, *menu;
 
   max_choice = MIN(menu_height, item_no);
 
+  tag_x = 0;
+  item_x = 0;
+  /* Find length of longest item in order to center menu */
+  for (i = 0; i < item_no; i++) {
+    l = strlen(items[i*2]);
+    for (j = 0; j < item_no; j++) {
+      k = strlen(items[j*2 + 1]);
+      tag_x = MAX(tag_x, l + k + 2);
+    }
+    item_x = MAX(item_x, l);
+  }
+  if (height < 0)
+	height = strheight(prompt)+menu_height+4+2;
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j);
+	width = MAX(width,tag_x+4)+4;
+  }
+
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
@@ -96,13 +120,6 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
   /* draw a box around the menu items */
   draw_box(dialog, box_y, box_x, menu_height+2, menu_width+2, menubox_border_attr, menubox_attr);
 
-  tag_x = 0;
-  item_x = 0;
-  /* Find length of longest item in order to center menu */
-  for (i = 0; i < item_no; i++) {
-    tag_x = MAX(tag_x, strlen(items[i*2]) + strlen(items[i*2 + 1]) + 2);
-    item_x = MAX(item_x, strlen(items[i*2]));
-  }
   tag_x = (menu_width - tag_x) / 2;
   item_x = tag_x + item_x + 2;
 

@@ -64,21 +64,6 @@ extern two_arg_error_handler_t
        set_lib_error_handler(two_arg_error_handler_t f);
 
 
-double abs(double arg);
-float abs(float arg);
-short abs(short arg);
-long abs(long arg);
-int sign(long arg);
-int sign(double arg);
-long sqr(long arg);
-double sqr(double arg);
-int even(long arg);
-int odd(long arg);
-long lcm(long x, long y);
-void (setbit)(long& x, long b);
-void clearbit(long& x, long b);
-int testbit(long x, long b);
-
 #if !defined(IV)
 
 #if ! _G_MATH_H_INLINES /* hpux and SCO define this in math.h */

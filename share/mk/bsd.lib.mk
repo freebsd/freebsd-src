@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.9 1994/09/18 22:22:32 wollman Exp $
+#	$Id: bsd.lib.mk,v 1.12 1994/11/14 04:55:40 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -21,11 +21,14 @@ CFLAGS+= ${DEBUG_FLAGS}
 .endif
 
 INSTALL?=	install
+RANTOUCH?=	${RANLIB} -t
+
 LIBDIR?=	/usr/lib
 LINTLIBDIR?=	/usr/libdata/lint
 LIBGRP?=	bin
 LIBOWN?=	bin
 LIBMODE?=	444
+SHLIBDIR?=	${LIBDIR}
 
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
@@ -226,11 +229,11 @@ realinstall: beforeinstall
 .if !defined(INTERNALLIB)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
-	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}.a
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}.a
 .if !defined(NOPROFILE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
-	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_p.a
 .endif
 .endif
 .if !defined(NOPIC)
@@ -238,12 +241,12 @@ realinstall: beforeinstall
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
 	    lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	    ${DESTDIR}${LIBDIR}
+	    ${DESTDIR}${SHLIBDIR}
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
-	${RANLIB} -t ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
+	${RANTOUCH} ${DESTDIR}${LIBDIR}/lib${LIB}_pic.a
 .endif
 .endif
 .if defined(LINKS) && !empty(LINKS)
@@ -265,6 +268,12 @@ afterinstall: realinstall maninstall
 .else
 afterinstall: realinstall
 .endif
+.endif
+
+DISTRIBUTION?=	bindist
+.if !target(distribute)
+distribute:
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
 .if !target(lint)

@@ -6,7 +6,7 @@ SUBDIR=	fortune
 SUBDIR+=datfiles
 .endif
 
-.ifmake !(install)
+.if !make(install) && !make(distribute)
 SUBDIR+=strfile
 .else
 SUBDIR+=datfiles

@@ -33,6 +33,36 @@ extern struct mbr *mbr;
 extern int inst_part;
 extern int whole_disk;
 
+
+/* 
+ * Guess what ?  This is bteasy-1.4... didn't used to look this way, did it ?
+ * Written by Serge Vakulenko, <vak@kiae.su>
+ */
+static unsigned char bootcode[] = {
+51,192,142,192,142,216,250,142,208,188,0,124,251,252,139,244,191,0,6,185,0,
+1,242,165,234,99,6,0,0,139,213,88,162,72,7,60,53,116,29,180,16,246,228,5,
+174,4,139,240, 246,68,4,255,116,55,198,4,128,232,215,0,138,116,1,139,76,
+2,235,8,232,204,0,185,1,0,50,209,187,0,124,184,1,2,205,19,114,23,129,191,
+254,1,85,170,117,15,234,0,124,0,0,139,234,66,128,242,179,136,22,58,7,191,
+190,7,185,4,0,198,6,45,7,49,50,246,136,45,138,69,4,60,0,116,37,60,5,116,
+33,254,198,190,42,7,232,117,0,190,72,7,70,70,139,28,10,255,116,7,58,125,4,
+117,243,50,255,141,183,116,7,232,92,0,131,199,16,254,6,45,7,226,201,128,62,
+117,4,2,116,11,190,59,7,10,246,117,10,205,24,235,170,190,42,7,232,59,0,232,
+56,0,50,228,205,26,139,218,131,195,96,180,1,205,22,117,13,50,228,205,26,59,
+211,114,242,160,72,7,235,12,50,228,205,22,138,196,60,28,116,241,4,246,60,
+49,114,212,60,53,119,208,80,190,40,7,187,29,6,83,252,172,80,36,127,180,14,
+205,16,88,168,128,116,242,195,86,184,1,3,187,0,6,185,1,0,50,246,205,19,94,
+198,6,72,7,63,195,13,138,13,10,70,48,32,46,32,46,32,46,160,100,105,115,107,
+32,49,13,10,10,68,101,102,97,117,108,116,58,32,70,63,160,0,1,0,4,0,6,3,7,7,
+8,10,9,13,10,16,99,20,100,20,101,26,128,26,129,31,130,36,147,42,165,49,159,
+53,117,57,82,57,219,60,242,66,0,100,111,243,104,112,102,243,102,115,32,97,
+105,248,111,115,178,117,110,105,248,110,111,118,101,108,236,109,105,110,
+105,248,108,105,110,117,248,97,109,111,101,98,225,70,114,101,101,66,83,196,
+98,115,100,233,112,99,105,248,99,112,237,100,111,115,115,101,227,63,191,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,85,170
+};
+
 struct part_type part_types[] = PARTITION_TYPES
 
 char *
@@ -84,182 +114,121 @@ write_dospart(int fd, struct dos_partition *dp)
     disable_label(fd);
 }
 
-int
-read_mbr(int fd, struct mbr *mbr)
+void
+write_bootcode(int fd)
 {
-    if (lseek(fd, 0, SEEK_SET) == -1) {
-	sprintf(errmsg, "Couldn't seek for master boot record read\n");
-	return(-1);
-    }
-    if (read(fd, &(mbr->bootcode), MBRSIZE) == -1) {
-	sprintf(errmsg, "Failed to read master boot record\n");
-	return(-1);
-    }
-    return(0);
-}
+    u_char buf[512];
 
-int
-write_mbr(int fd, struct mbr *mbr)
-{
-    if (lseek(fd, 0, SEEK_SET) == -1) {
-	sprintf(errmsg, "Couldn't seek for master boot record write\n");
-	return(-1);
+    if (lseek(fd, 0, SEEK_SET) == -1) 
+	AskAbort("Couldn't seek for master boot record read\n");
+    if (read(fd, buf, 512) != 512) {
+	AskAbort("Failed to read master boot record\n");
     }
-    
+    memcpy(buf, bootcode, DOSPARTOFF);
+    buf[510] = 0x55;
+    buf[511] = 0xaa;
+    if (lseek(fd, 0, SEEK_SET) == -1) 
+	AskAbort("Couldn't seek for master boot record write\n");
     enable_label(fd);
-    
-    if (write(fd, mbr->bootcode, MBRSIZE) == -1) {
-	sprintf(errmsg, "Failed to write master boot record\n");
-	return(-1);
-    }
-    
+    if (write(fd, buf, 512) != 512) 
+	AskAbort("Failed to write master boot record\n");
     disable_label(fd);
-    
-    return(0);
-}
-
-void
-show_mbr(struct mbr *mbr)
-{
-    int i, j, key = 0;
-    int x, y;
-    WINDOW *window;
-    
-    if (use_shadow)
-	draw_shadow(stdscr, 1, 1, LINES-2, COLS-2);
-    window = newwin(LINES-2, COLS-2, 1, 1);
-    keypad(window, TRUE);
-    
-    draw_box(window, 1, 1, LINES - 2, COLS - 2, dialog_attr, border_attr);
-    wattrset(window, dialog_attr);
-    
-    for (i=0; i<NDOSPART/2; i++) {
-	for (j=0; j<NDOSPART/2; j++) {
-	    x = (j * 38) + 3;
-	    y = (i * 11) + 2;
-	    mvwprintw(window, y, x, "Partition %d: flags = %x",
-		      (i*2)+j, mbr->dospart[(i*2)+j].dp_flag);
-	    mvwprintw(window, y+1, x, "Starting at (C%d, H%d, S%d)",
-		      mbr->dospart[(i*2)+j].dp_scyl,
-		      mbr->dospart[(i*2)+j].dp_shd,
-		      mbr->dospart[(i*2)+j].dp_ssect);
-	    mvwprintw(window, y+2, x, "Type: %s (%x)",
-		      part_type(mbr->dospart[(i*2)+j].dp_typ),
-		      mbr->dospart[(i*2)+j].dp_typ);
-	    mvwprintw(window, y+3, x, "Ending at (C%d, H%d, S%d)",
-		      mbr->dospart[(i*2)+j].dp_ecyl,
-		      mbr->dospart[(i*2)+j].dp_ehd,
-		      mbr->dospart[(i*2)+j].dp_esect);
-	    mvwprintw(window, y+4, x, "Absolute start sector %ld",
-		      mbr->dospart[(i*2)+j].dp_start);
-	    mvwprintw(window, y+5, x, "Size (in sectors) %ld", mbr->dospart[(i*2)+j].dp_size);
-	}
-    }
-    dialog_update();
-    
-    while (key != '\n' && key != ' ' && key != '\033')
-	key = wgetch(window);
-    
-    delwin(window);
-    dialog_clear();
 }
 
 int
-clear_mbr(struct mbr *mbr, char *bootcode)
+WriteBootblock(int dfd,struct disklabel *label,struct dos_partition *dospart)
 {
-    int i;
     int fd;
-    
-    /*
-     * If installing to the whole disk
-     * then clobber any existing bootcode.
-     */
-    
-    sprintf(scratch, "\nLoading MBR code from %s\n", bootcode);
-    dialog_msgbox(TITLE, scratch, 5, 60, 0);
-    fd = open(bootcode, O_RDONLY);
-    if (fd < 0) {
-	sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
-	return(-1);
-    }  
-    
-    if (read(fd, mbr->bootcode, MBRSIZE) < 0) {
-	sprintf(errmsg, "Couldn't read from boot file %s\n", bootcode);
-	return(-1);
+    off_t of = label->d_partitions[OURPART].p_offset;
+    u_char bootblocks[BBSIZE];
+
+    Debug("Loading boot code from %s", BOOT1);
+
+    fd = open(BOOT1, O_RDONLY);
+    if (fd < 0) 
+	Fatal("Couldn't open boot file %s\n", BOOT1);
+
+    if (read(fd, bootblocks, MBRSIZE) < 0) 
+	Fatal("Couldn't read from boot file %s\n", BOOT1);
+
+    if (close(fd) == -1) 
+	Fatal("Couldn't close boot file %s\n", BOOT1);
+
+    Debug("Loading boot code from %s", BOOT2);
+
+    fd = open(BOOT2, O_RDONLY);
+    if (fd < 0) 
+	Fatal("Couldn't open boot file %s", BOOT2);
+
+    if (read(fd, &bootblocks[MBRSIZE], (int)(label->d_bbsize - MBRSIZE)) < 0) 
+	Fatal("Couldn't read from boot file %s\n", BOOT2);
+
+    if (close(fd) == -1) 
+	Fatal("Couldn't close boot file %s", BOOT2);
+
+    bcopy(dospart, &bootblocks[DOSPARTOFF],
+	  sizeof(struct dos_partition) * NDOSPART);
+
+    label->d_checksum = 0;
+    label->d_checksum = dkcksum(label);
+    bcopy(label, &bootblocks[(LABELSECTOR * label->d_secsize) + LABELOFFSET],
+		    sizeof *label);
+
+    Debug("Seeking to byte %ld ", of * label->d_secsize);
+
+    if (lseek(dfd, (of * label->d_secsize), SEEK_SET) < 0) {
+	    Fatal("Couldn't seek to start of partition\n");
     }
-    
-    if (close(fd) == -1) {
-	sprintf(errmsg, "Couldn't close boot file %s\n", bootcode);
-	return(-1);
+
+    enable_label(dfd);
+
+    if (write(dfd, bootblocks, label->d_bbsize) != label->d_bbsize) {
+	    Fatal("Failed to write bootblocks (%p,%d) %d %s\n",
+		    bootblocks, label->d_bbsize,
+		    errno, strerror(errno)
+		    );
     }
-    
-    /* Create an empty partition table */
-    
-    for (i=0; i < NDOSPART; i++) {
-	mbr->dospart[i].dp_flag = 0;
-	mbr->dospart[i].dp_shd = 0;
-	mbr->dospart[i].dp_ssect = 0;
-	mbr->dospart[i].dp_scyl = 0;
-	mbr->dospart[i].dp_typ = 0;
-	mbr->dospart[i].dp_ehd = 0;
-	mbr->dospart[i].dp_esect = 0;
-	mbr->dospart[i].dp_ecyl = 0;
-	mbr->dospart[i].dp_start = 0;
-	mbr->dospart[i].dp_size = 0;
-    }
-    
-    mbr->magic = MBR_MAGIC;
-    
-    dialog_clear();
+
+    disable_label(dfd);
+
     return(0);
 }
 
-int
-build_mbr(struct mbr *mbr, char *bootcode, struct disklabel *lb)
+static int
+FillIn(struct dos_partition *dp, int sec, int hd)
 {
-    int i;
-    struct dos_partition *dp = &mbr->dospart[inst_part];
-    
-    if (whole_disk) {
-	/* Install to entire disk */
-	if (clear_mbr(mbr, bootcode) == -1)
-	    return(-1);
-	dp->dp_scyl = 0;
-	dp->dp_shd = 1;
-	dp->dp_ssect = 1;
-	dp->dp_ecyl = lb->d_ncylinders - 1;
-	dp->dp_ehd = lb->d_ntracks - 1;
-	dp->dp_esect = lb->d_nsectors;
-	dp->dp_start = (dp->dp_scyl * lb->d_ntracks * lb->d_nsectors) + 
-	    (dp->dp_shd * lb->d_nsectors) +
-		dp->dp_ssect - 1;
-	dp->dp_size =
-	    (lb->d_nsectors * lb->d_ntracks * lb->d_ncylinders) - dp->dp_start;
-    }
-    
-    /* Validate partition - XXX need to spend some time making this robust */
-    if (!dp->dp_start) {
-	strcpy(errmsg, "The start address of the selected partition is 0\n");
-	return(-1);
-    }
-    
-    /* Set partition type to FreeBSD and make it the only active partition */
-    
-    for (i=0; i < NDOSPART; i++)
-	mbr->dospart[i].dp_flag &= ~ACTIVE;
-    dp->dp_typ = DOSPTYP_386BSD;
-    dp->dp_flag = ACTIVE;
-    
-    return(0);
-}
+    u_long l2,l3=0,sect,c,s,h;
 
-void
-edit_mbr(struct mbr *mbr, struct disklabel *label)
-{
-    
-    dialog_msgbox("DOS partition table editor", 
-		  "This editor is still under construction :-)", 10, 75, 1);
-    show_mbr(mbr);
+    sect = dp->dp_start;
+    l2 = sect / (sec*hd);
+    sect -= l2*sec*hd;
+    if(l2>1023) l2 = 1023;
+    c = (l2 & 0xff); 
+    s = (l2 >> 2) & 0xc0;
+    l2 = sect / sec;
+    h = l2;
+    sect -= l2*sec;
+    s |= (sect+1) & 0x3f;
+#define NIC(a,b) if (a != b) {a = b; l3++;}
+    NIC(dp->dp_ssect, s);
+    NIC(dp->dp_scyl, c);
+    NIC(dp->dp_shd, h);
+
+    sect = dp->dp_start + dp->dp_size-1;
+    l2 = sect / (sec*hd);
+    sect -= l2*sec*hd;
+    if(l2>1023) l2 = 1023;
+    c = (l2 & 0xff); 
+    s = (l2 >> 2) & 0xc0;
+    l2 = sect / sec;
+    h = l2;
+    sect -= l2*sec;
+    s |= (sect+1) & 0x3f;
+    NIC(dp->dp_esect, s);
+    NIC(dp->dp_ecyl, c);
+    NIC(dp->dp_ehd, h);
+#undef NIC
+    return l2;
 }
 
 void
@@ -271,6 +240,7 @@ Fdisk()
     struct disklabel *lbl;
     u_long cyl, hd, sec, tsec;
     u_long l, l1, l2, l3, l4;
+    int changed = 0;
     
     *buf = 0;
     i = AskEm(stdscr, "Enter number of disk to Fdisk> ", buf, 2);
@@ -280,7 +250,6 @@ Fdisk()
     if(!(diskno >= 0 && diskno < MAX_NO_DISKS && Dname[diskno])) return;
     lbl = Dlbl[diskno];
     lbl->d_bbsize = 8192;
-    cyl = lbl->d_ncylinders;
     hd = lbl->d_ntracks;
     sec = lbl->d_nsectors;
     tsec = Dlbl[diskno]->d_partitions[RAWPART].p_size;
@@ -292,11 +261,12 @@ Fdisk()
 	mvprintw(j++, 0, "%s -- Diskspace editor -- FDISK", TITLE);
 	j++;
 	mvprintw(j++, 0,
-		 "Geometry:  %lu Cylinders, %lu Heads, %lu Sectors, %luMb",
-		 cyl, hd, sec, (tsec+1024)/2048);
+		 "Disk: %s   Geometry:  %lu Cyl * %lu Hd * %lu Sect",
+		 Dname[diskno], cyl, hd, sec);
+	printw(" = %luMb = %lu Sect", (tsec+1024)/2048, tsec);
 	j++;
-	for(i=0;i<NDOSPART;i++, j+=3) {
-	    mvprintw(j++, 0, "%d ", i+1);
+	for(i=0;i<NDOSPART;i++, j+=4) {
+	    mvprintw(j, 0, "%d ", i+1);
 #if 0
 	    printw("[%02x %02x %02x %02x %02x %02x %02x %02x %08lx %08lx]\n",
 		   dp[i].dp_flag, dp[i].dp_shd, dp[i].dp_ssect, dp[i].dp_scyl,
@@ -327,18 +297,57 @@ Fdisk()
 		}
 	    }
 	}
-	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(H)elp  (D)elete  (E)dit  (R)eread  (W)rite  (Q)uit");
+	mvprintw(20, 0, "Commands available:   ");
+	if (changed) {
+	    standout();
+ 	    printw("Use (W)rite to save changes to disk");
+	    standend();
+	}
+	mvprintw(21, 0, "(H)elp   (T)utorial   (D)elete   (E)dit   (R)eread   (W)rite MBR   (Q)uit");
+	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   Write MBR (B)ootcode");
 	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
 
 	case 'h': case 'H':
+	    clear();
+	    mvprintw(0, 0, 
+"%s -- Diskspace editor -- FDISK -- Command Help
+
+Basic commands:
+
+(H)elp          - This screen
+(T)utorial      - A more detailed discussion of MBR's, disklabels, etc.
+(D)elete        - Delete an existing partition
+(E)dit          - Edit an existing partition
+(R)eread        - Read fdisk information from disk again, abandoning changes
+(W)rite MBR     - Write modified fdisk information to disk
+(Q)uit          - Exit the FDISK editor
+
+Advanced commands:
+
+(U)se entire disk for FreeBSD   - Assign ALL disk space on current drive
+(G)eometry                      - Edit the default disk geometry settings
+Write MBR (B)ootcode            - Install multi-OS bootmanager.
+
+
+Press any key to return to FDISK editor...
+", TITLE);
+	    getch();
+	    break;
+	case 't': case 'T':
             ShowFile(HELPME_FILE,"Help file for disklayout");
 	    break;
 
 	case 'r': case 'R':
 	    read_dospart(Dfd[diskno], dp);
+	    changed=0;
+	    break;
+
+	case 'b': case 'B':
+	    write_bootcode(Dfd[diskno]);
+	    standout(); mvprintw(24, 0, "Wrote boot manager"); standend();
+	    beep();
 	    break;
 
 	case 'e': case 'E':
@@ -377,30 +386,10 @@ Fdisk()
 	    }
 	    if(l3+l1 > tsec)
 		l3 = tsec - l1;
+	    changed=1;
 	    dp[l-1].dp_start=l1;
 	    dp[l-1].dp_size=l3;
-	    
-	    l3 += l1 - 1;
-	    
-	    l2 = l1 / (sec*hd);
-	    if(l2>1023) l2 = 1023;
-	    dp[l-1].dp_scyl = (l2 & 0xff); 
-	    dp[l-1].dp_ssect = (l2 >> 2) & 0xc0;
-	    l1 -= l2*sec*hd;
-	    l2 = l1 / sec;
-	    dp[l-1].dp_shd = l2;
-	    l1 -= l2*sec;
-	    dp[l-1].dp_ssect |= (l1+1) & 0x3f;
-	    
-	    l2 = l3 / (sec*hd);
-	    if(l2>1023) l2 = 1023;
-	    dp[l-1].dp_ecyl = (l2 & 0xff); 
-	    dp[l-1].dp_esect = (l2 >> 2) & 0xc0;
-	    l3 -= l2*sec*hd;
-	    l2 = l3 / sec;
-	    dp[l-1].dp_ehd = l2;
-	    l3 -= l2*sec;
-	    dp[l-1].dp_esect |= (l3+1) & 0x3f;
+	    FillIn(&dp[l-1],sec,hd);
 	    
 	    l4 = dp[l-1].dp_typ;
 	    if(!l4) l4 = MBR_PTYPE_FreeBSD;
@@ -424,6 +413,47 @@ Fdisk()
 				    dp[i].dp_flag = 0;
 	    break;
 
+	case 'u': case 'U':
+	    memset(&dp[0], 0, sizeof dp);
+	    changed=1;
+
+	    dp[0].dp_start = 0;
+	    dp[0].dp_size = tsec;
+	    FillIn(&dp[0],sec,hd);
+
+	    dp[0].dp_typ = MBR_PTYPE_FreeBSD;
+	    dp[0].dp_flag = 0x80;
+	    break;
+
+	case 'g': case 'G':
+	    sprintf(buf,"%lu",sec);
+	    i = AskEm(stdscr, "Number of Sectors> ",buf,7);
+	    l2 = strtoul(buf,0,0);
+	    if(l2 != sec)
+		changed++;
+	    sec=l2;
+	    sprintf(buf,"%lu",hd);
+	    i = AskEm(stdscr, "Number of Heads> ",buf,7);
+	    l2 = strtoul(buf,0,0);
+	    if(l2 != hd)
+		changed++;
+	    hd=l2;
+	    cyl = tsec/(hd*sec);
+	    sprintf(buf,"%lu",cyl);
+	    i = AskEm(stdscr, "Number of Cylinders> ",buf,7);
+	    l2 = strtoul(buf,0,0);
+	    if(l2 != cyl)
+		changed++;
+	    cyl=l2;
+
+	    for (l=0;l<NDOSPART;l++) {
+		if (!dp[l].dp_typ || !dp[l].dp_size)
+		    continue;
+		changed += FillIn(&dp[l], sec, hd);
+	    }
+	    
+	    break;
+	    
 	case 'd': case 'D':
 	    *buf = 0;
 	    i = AskEm(stdscr, "Delete which Slice> ",  buf,  2);
@@ -431,6 +461,7 @@ Fdisk()
 	    l = strtol(buf, 0, 0);
 	    if(l < 1 || l > NDOSPART) break;
 	    memset(&dp[l-1], 0, sizeof dp[l-1]);
+	    changed=1;
 	    break;
 
 	case 'w': case 'W':
@@ -448,6 +479,10 @@ Fdisk()
 			dp[i].dp_size;
 		}
 	    }
+	    Dlbl[diskno]->d_ntracks = hd;
+	    Dlbl[diskno]->d_nsectors = sec;
+	    Dlbl[diskno]->d_ncylinders = cyl;
+	    Dlbl[diskno]->d_secpercyl = hd*sec;
 	    Dlbl[diskno]->d_magic = DISKMAGIC;
 	    Dlbl[diskno]->d_magic2 = DISKMAGIC;
 	    Dlbl[diskno]->d_checksum = 0;
@@ -460,9 +495,10 @@ Fdisk()
 		AskAbort("Couldn't write label: %s", strerror(errno));
 	    flag=0;
 	    disable_label(Dfd[diskno]);
+	    changed=0;
 	    
 	    if (Dlbl[diskno]->d_partitions[OURPART].p_size) 
-		build_bootblocks(Dfd[diskno], lbl, dp);
+		WriteBootblock(Dfd[diskno], lbl, dp);
 	    break;
 
 	case 'q': case 'Q':
@@ -471,3 +507,4 @@ Fdisk()
 	}
     }
 }
+

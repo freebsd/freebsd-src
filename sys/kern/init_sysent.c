@@ -180,15 +180,6 @@ int	__sysctl();
 int	mlock();
 int	munlock();
 int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
-int	lkmnosys();
 
 #ifdef COMPAT_43
 #define compat(n, name) n, __CONCAT(o,name)

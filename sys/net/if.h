@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.6 1994/08/21 05:11:40 paul Exp $
+ * $Id: if.h,v 1.9 1994/11/15 14:41:34 bde Exp $
  */
 
 #ifndef _NET_IF_H_
-#define _NET_IF_H_
+#define	_NET_IF_H_
 
 /*
  * Structures defining a network interface, providing a packet
@@ -61,6 +61,9 @@
  * routing and gateway routines maintaining information used to locate
  * interfaces.  These routines live in the files if.c and route.c
  */
+
+#include <sys/socket.h>			/* for struct sockaddr */
+
 #ifndef _TIME_ /*  XXX fast fix for SNMP, going away soon */
 #include <sys/time.h>
 #endif
@@ -233,7 +236,8 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	ifaddr *ifa_next;	/* next address for interface */
-	void	(*ifa_rtrequest)();	/* check or clean routes (+ or -)'d */
+	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
+		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	short	ifa_refcnt;		/* extra to malloc for link info */
 	int	ifa_metric;		/* cost of going out this interface */
@@ -367,6 +371,6 @@ void	loopattach __P((void));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 void	lortrequest __P((int, struct rtentry *, struct sockaddr *));
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_NET_IF_H_ */
