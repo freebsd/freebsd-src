@@ -3329,7 +3329,7 @@ read_options:
 			jid = (int)strtol(*av, &end, 0);
 			if (jid < 0 || *end != '\0')
 				errx(EX_DATAERR, "jail requires prison ID");
-			cmd32->d[0] = (unsigned int)jid;
+			cmd32->d[0] = (uint32_t)jid;
 			cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
 			ac--; av++;
 		    }
