@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: ftpd.8,v 1.23 1998/09/29 22:02:06 alex Exp $
+.\"	$Id: ftpd.8,v 1.24 1998/12/02 22:11:02 billf Exp $
 .\"
 .Dd April 19, 1994
 .Dt FTPD 8
@@ -138,7 +138,7 @@ Allow only anonymous ftp access.
 .El
 .Pp
 The file
-.Pa /etc/nologin
+.Pa /var/run/nologin
 can be used to disable ftp access.
 If the file exists,
 .Nm
@@ -436,7 +436,7 @@ Virtual hosting configuration file.
 Welcome notice.
 .It Pa /etc/ftpmotd
 Welcome notice after login.
-.It Pa /etc/nologin
+.It Pa /var/run/nologin
 Displayed and access refused.
 .It Pa /var/log/ftpd
 Log file for anonymous transfers.

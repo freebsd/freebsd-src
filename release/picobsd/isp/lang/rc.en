@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.en,v 1.2 1998/09/26 17:27:22 abial Exp $
+# $Id: rc.en,v 1.3 1998/11/01 20:19:19 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
@@ -25,7 +25,6 @@ fi
 mount -a -t nfs
 chmod 666 /dev/tty[pqrsPQRS]*
 # clean up left-over files
-rm -f /etc/nologin
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 if [ -n "$network_pass1_done" ]; then
     network_pass2
