@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.26 1995/02/22 18:04:56 se Exp $
+**  $Id: ncr.c,v 1.27 1995/02/25 17:34:03 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -218,7 +218,7 @@
 */
 
 #ifdef SCSI_DEBUG_FLAGS
-	#define DEBUG_FLAGS ncr_debug;
+	#define DEBUG_FLAGS ncr_debug
 #else /* SCSI_DEBUG_FLAGS */
 	#define SCSI_DEBUG_FLAGS	0
 	#define DEBUG_FLAGS	0
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.26 1995/02/22 18:04:56 se Exp $\n";
+	"\n$Id: ncr.c,v 1.27 1995/02/25 17:34:03 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
