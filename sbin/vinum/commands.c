@@ -72,15 +72,42 @@ vinum_create(int argc, char *argv[], char *arg0[])
     char commandline[BUFSIZE];				    /* issue command from here */
     struct _ioctl_reply *reply;
     int ioctltype;					    /* for ioctl call */
+    char tempfile[PATH_MAX];				    /* name of temp file for direct editing */
+    char *file;						    /* file to read */
+    FILE *tf;						    /* temp file */
 
-    if (argc != 1) {					    /* wrong arg count */
+    if (argc == 0) {					    /* no args, */
+	char *editor;					    /* editor to start */
+	int status;
+
+	editor = getenv("EDITOR");
+	if (editor == NULL)
+	    editor = "/usr/bin/vi";
+	sprintf(tempfile, "/var/tmp/" VINUMMOD ".create.%d", getpid());	/* create a temp file */
+	tf = fopen(tempfile, "w");			    /* open it */
+	if (tf == NULL) {
+	    fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
+	    return;
+	}
+	printconfig(tf, "# ");				    /* and put the current config it */
+	fclose(tf);
+	sprintf(commandline, "%s %s", editor, tempfile);    /* create an edit command */
+	status = system(commandline);			    /* do it */
+	if (status != 0) {
+	    fprintf(stderr, "Can't edit config: status %d\n", status);
+	    return;
+	}
+	file = tempfile;
+    } else if (argc == 1)
+	file = argv[0];
+    else {
 	fprintf(stderr, "Expecting 1 parameter, not %d\n", argc);
 	return;
     }
     reply = (struct _ioctl_reply *) &buffer;
-    dfd = fopen(argv[0], "r");
+    dfd = fopen(file, "r");
     if (dfd == NULL) {					    /* no go */
-	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
+	fprintf(stderr, "Can't open %s: %s\n", file, strerror(errno));
 	return;
     }
     if (ioctl(superdev, VINUM_STARTCONFIG, &force)) {	    /* can't get config? */
@@ -93,6 +120,8 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	char *configline;
 
 	configline = fgets(buffer, BUFSIZE, dfd);
+	if (history)
+	    fprintf(history, "%s", buffer);
 
 	if (configline == NULL) {
 	    if (ferror(dfd))
@@ -342,6 +371,8 @@ vinum_init(int argc, char *argv[], char *arg0[])
 	long long offset;				    /* offset in subdisk */
 	long long sdsize;				    /* size of subdisk */
 
+	if (history)
+	    fflush(history);				    /* don't let all the kids do it. */
 	for (plexindex = 0; plexindex < argc; plexindex++) {
 	    plexno = find_object(argv[plexindex], &type);   /* find the object */
 	    if (plexno < 0)
@@ -1117,57 +1148,66 @@ vinum_help(int argc, char *argv[], char *argv0[])
     char commands[] =
     {
 	"COMMANDS\n"
-	"     create description-file\n"
-	"               Create a volume as described in description-file\n"
-	"     attach plex volume [rename]\n"
-	"     attach subdisk plex [offset] [rename]\n"
-	"               Attach a plex to a volume, or a subdisk to a plex.\n"
-	"     debug\n"
-	"               Cause the volume manager to enter the kernel debugger.\n"
-	"     detach [plex | subdisk]\n"
-	"      Detach a plex or subdisk from the volume or plex to which it is at-\n"
-	"      tached.\n"
-	"     info [-v]\n"
-	"               List information about volume manager state.\n"
-	"     init [-v]\n"
-	"               Initialize a plex by writing zeroes to all its subdisks.\n"
-	"     label volume\n"
-	"               Create a volume label\n"
-	"     list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
-	"               List information about specified objects\n"
-	"     l [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
-	"               List information about specified objects (alternative to\n"
-	"               list command)\n"
-	"     ld [-r] [-s] [-v] [-V] [volume]\n"
-	"               List information about drives\n"
-	"     ls [-r] [-s] [-v] [-V] [subdisk]\n"
-	"               List information about subdisks\n"
-	"     lp [-r] [-s] [-v] [-V] [plex]\n"
-	"               List information about plexes\n"
-	"     lv [-r] [-s] [-v] [-V] [volume]\n"
-	"               List information about volumes\n"
-	"     makedev\n"
-	"               Remake the device nodes in /dev/vinum.\n"
-	"     read disk-partition\n"
-	"               Read the vinum configuration from the specified disk partition.\n"
-	"     rename [-r] [drive | subdisk | plex | volume] newname\n"
-	"               Change the name of the specified object.\n"
-	"     replace [subdisk | plex] newobject\n"
-	"               Replace the object with an identical other object.  XXX not im-\n"
-	"               plemented yet.\n"
-	"     resetconfig\n"
-	"               Reset the complete vinum configuration.\n"
-	"     resetstats [-r] [volume | plex | subdisk]\n"
-	"               Reset statistisc counters for the specified objects, or for all\n"
-	"               objects if none are specified.\n"
-	"     rm [-f] [-r] volume | plex | subdisk\n"
-	"               Remove an object\n"
-	"     setdaemon options\n"
-	"               set the daemon options\n"
-	"     start [volume | plex | subdisk]\n"
-	"               Allow the system to access the objects\n"
-	"     stop [-f] [volume | plex | subdisk]\n"
-	"               Terminate access the objects\n"
+	"create [-f description-file]\n"
+	"          Create a volume as described in description-file\n"
+	"attach plex volume [rename]\n"
+	"attach subdisk plex [offset] [rename]\n"
+	"          Attach a plex to a volume, or a subdisk to a plex.\n"
+	"debug\n"
+	"          Cause the volume manager to enter the kernel debugger.\n"
+	"debug flags\n"
+	"          Set debugging flags.\n"
+	"detach [plex | subdisk]\n"
+	"          Detach a plex or subdisk from the volume or plex to which it is\n"
+	"          attached.\n"
+	"info [-v]\n"
+	"          List information about volume manager state.\n"
+	"init [-v] [-w] plex\n"
+	"          Initialize a plex by writing zeroes to all its subdisks.\n"
+	"label volume\n"
+	"          Create a volume label\n"
+	"list [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	"          List information about specified objects\n"
+	"l [-r] [-s] [-v] [-V] [volume | plex | subdisk]\n"
+	"          List information about specified objects (alternative to\n"
+	"          list command)\n"
+	"ld [-r] [-s] [-v] [-V] [volume]\n"
+	"          List information about drives\n"
+	"ls [-r] [-s] [-v] [-V] [subdisk]\n"
+	"          List information about subdisks\n"
+	"lp [-r] [-s] [-v] [-V] [plex]\n"
+	"          List information about plexes\n"
+	"lv [-r] [-s] [-v] [-V] [volume]\n"
+	"          List information about volumes\n"
+	"printconfig [file]\n"
+	"          Write a copy of the current configuration to file.\n"
+	"makedev\n"
+	"          Remake the device nodes in /dev/vinum.\n"
+	"quit\n"
+	"          Exit the vinum program when running in interactive mode.  Nor-\n"
+	"          mally this would be done by entering the EOF character.\n"
+	"read disk [disk...]\n"
+	"          Read the vinum configuration from the specified disks.\n"
+	"rename [-r] [drive | subdisk | plex | volume] newname\n"
+	"          Change the name of the specified object.\n"
+	"resetconfig\n"
+	"          Reset the complete vinum configuration.\n"
+	"resetstats [-r] [volume | plex | subdisk]\n"
+	"          Reset statistisc counters for the specified objects, or for all\n"
+	"          objects if none are specified.\n"
+	"rm [-f] [-r] volume | plex | subdisk\n"
+	"          Remove an object\n"
+	"saveconfig\n"
+	"          Save vinum configuration to disk.\n"
+	"setdaemon [value]\n"
+	"          Set daemon configuration.\n"
+	"start\n"
+	"          Read configuration from all vinum drives.\n"
+	"start [volume | plex | subdisk]\n"
+	"          Allow the system to access the objects\n"
+	"stop [-f] [volume | plex | subdisk]\n"
+	"          Terminate access to the objects, or stop vinum if no parameters\n"
+	"          are specified.\n"
     };
     puts(commands);
 }
@@ -1183,7 +1223,7 @@ vinum_setdaemon(int argc, char *argv[], char *argv0[])
     switch (argc) {
     case 0:
 	if (ioctl(superdev, VINUM_GETDAEMON, &options) < 0)
-	    fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
+	    fprintf(stderr, "Can't get daemon options: %s (%d)\n", strerror(errno), errno);
 	else
 	    printf("Options mask: %d\n", options);
 	break;
@@ -1211,5 +1251,5 @@ vinum_saveconfig(int argc, char *argv[], char *argv0[])
     }
     ioctltype = 1;					    /* user saveconfig */
     if (ioctl(superdev, VINUM_SAVECONFIG, &ioctltype) < 0)
-	fprintf(stderr, "Can't set daemon options: %s (%d)\n", strerror(errno), errno);
+	fprintf(stderr, "Can't save configuration: %s (%d)\n", strerror(errno), errno);
 }
