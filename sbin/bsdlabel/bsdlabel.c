@@ -373,34 +373,6 @@ makelabel(const char *type, const char *name, struct disklabel *lp)
 	if (dp == NULL)
 		errx(1, "%s: unknown disk type", type);
 	*lp = *dp;
-#if NUMBOOT > 0
-	/*
-	 * Set bootstrap name(s).
-	 * 1. If set from command line, use those,
-	 * 2. otherwise, check if disktab specifies them (b0 or b1),
-	 * 3. otherwise, makebootarea() will choose ones based on the name
-	 *    of the disk special file. E.g. /dev/ra0 -> raboot, bootra
-	 */
-	if (!xxboot && lp->d_boot0) {
-		if (*lp->d_boot0 != '/')
-			(void)sprintf(boot0, "%s/%s",
-				      _PATH_BOOTDIR, lp->d_boot0);
-		else
-			(void)strcpy(boot0, lp->d_boot0);
-		xxboot = boot0;
-	}
-#if NUMBOOT > 1
-	if (!bootxx && lp->d_boot1) {
-		if (*lp->d_boot1 != '/')
-			(void)sprintf(boot1, "%s/%s",
-				      _PATH_BOOTDIR, lp->d_boot1);
-		else
-			(void)strcpy(boot1, lp->d_boot1);
-		bootxx = boot1;
-	}
-#endif
-#endif
-	/* d_packname is union d_boot[01], so zero */
 	bzero(lp->d_packname, sizeof(lp->d_packname));
 	if (name)
 		(void)strncpy(lp->d_packname, name, sizeof(lp->d_packname));
