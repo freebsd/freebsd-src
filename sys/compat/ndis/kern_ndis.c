@@ -316,7 +316,6 @@ ndis_stop_thread(t)
 	int			t;
 {
 	struct ndis_req		*r;
-	struct timeval		tv;
 	struct ndisqhead	*q;
 	struct proc		*p;
 
@@ -343,9 +342,7 @@ ndis_stop_thread(t)
 
 	/* wait for thread exit */
 
-	tv.tv_sec = 60;
-	tv.tv_usec = 0;
-	tsleep(r, PPAUSE|PCATCH, "ndisthrexit", tvtohz(&tv));
+	tsleep(r, PPAUSE|PCATCH, "ndisthrexit", hz * 60);
 
 	/* Now empty the job list. */
 
@@ -565,6 +562,7 @@ ndis_resetdone_func(adapter, status, addressingreset)
 
 	if (block->nmb_ifp->if_flags & IFF_DEBUG)
 		device_printf (block->nmb_dev, "reset done...\n");
+	wakeup(block->nmb_ifp);
 	return;
 }
 
@@ -1035,7 +1033,6 @@ ndis_set_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	__stdcall ndis_setinfo_handler	setfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
-	struct timeval		tv;
 	int			error;
 
 	sc = arg;
@@ -1051,10 +1048,10 @@ ndis_set_info(arg, oid, buf, buflen)
 	    &byteswritten, &bytesneeded);
 
 	if (rval == NDIS_STATUS_PENDING) {
-		tv.tv_sec = 60;
-		tv.tv_usec = 0;
-		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    PPAUSE|PCATCH, "ndisset", tvtohz(&tv));
+		PROC_LOCK(curthread->td_proc);
+		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
+		    &curthread->td_proc->p_mtx, PPAUSE|PDROP,
+		    "ndisset", 5 * hz);
 		rval = sc->ndis_block.nmb_setstat;
 	}
 
@@ -1211,6 +1208,7 @@ ndis_reset_nic(arg)
 	__stdcall ndis_reset_handler	resetfunc;
 	uint8_t			addressing_reset;
 	struct ifnet		*ifp;
+	int			rval;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
@@ -1221,7 +1219,12 @@ ndis_reset_nic(arg)
 	if (adapter == NULL || resetfunc == NULL)
 		return(EIO);
 
-	resetfunc(&addressing_reset, adapter);
+	rval = resetfunc(&addressing_reset, adapter);
+	if (rval == NDIS_STATUS_PENDING) {
+		PROC_LOCK(curthread->td_proc);
+		msleep(sc, &curthread->td_proc->p_mtx,
+		    PPAUSE|PDROP, "ndisrst", 0);
+	}
 
 	return(0);
 }
@@ -1438,7 +1441,6 @@ ndis_get_info(arg, oid, buf, buflen)
 	ndis_handle		adapter;
 	__stdcall ndis_queryinfo_handler	queryfunc;
 	uint32_t		byteswritten = 0, bytesneeded = 0;
-	struct timeval		tv;
 	int			error;
 
 	sc = arg;
@@ -1456,10 +1458,10 @@ ndis_get_info(arg, oid, buf, buflen)
 	/* Wait for requests that block. */
 
 	if (rval == NDIS_STATUS_PENDING) {
-		tv.tv_sec = 60;
-		tv.tv_usec = 0;
-		error = tsleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    PPAUSE|PCATCH, "ndisget", tvtohz(&tv));
+		PROC_LOCK(curthread->td_proc);
+		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
+		    &curthread->td_proc->p_mtx, PPAUSE|PDROP,
+		    "ndisget", 5 * hz);
 		rval = sc->ndis_block.nmb_getstat;
 	}
 
@@ -1503,7 +1505,7 @@ ndis_unload_driver(arg)
 	return(0);
 }
 
-#define NDIS_LOADED		0x42534F44
+#define NDIS_LOADED		htonl(0x42534F44)
 
 int
 ndis_load_driver(img, arg)

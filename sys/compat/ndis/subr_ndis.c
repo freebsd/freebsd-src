@@ -1037,7 +1037,7 @@ ndis_query_resources(status, adapter, list, buflen)
 		return;
 	}
 
-	bcopy((char *)block->nmb_rlist, (char *)list, *buflen);
+	bcopy((char *)block->nmb_rlist, (char *)list, rsclen);
 	*status = NDIS_STATUS_SUCCESS;
 	return;
 }
@@ -2483,6 +2483,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 		mtx_unlock(&Giant);
 		*status = NDIS_STATUS_FILE_NOT_FOUND;
 		free(fh, M_TEMP);
+		printf("NDIS: open file %s failed: %d\n", path, error);
 		return;
 	}
 
