@@ -72,7 +72,7 @@ struct csession {
 	int		mackeylen;
 	u_char		tmp_mac[CRYPTO_MAX_MAC_LEN];
 
-	struct iovec	iovec[UIO_MAXIOV];
+	struct iovec	iovec;
 	struct uio	uio;
 	int		error;
 };
@@ -317,7 +317,7 @@ cryptodev_op(
 {
 	struct cryptop *crp = NULL;
 	struct cryptodesc *crde = NULL, *crda = NULL;
-	int i, error;
+	int error;
 
 	if (cop->len > 256*1024-4)
 		return (E2BIG);
@@ -325,18 +325,15 @@ cryptodev_op(
 	if (cse->txform && (cop->len % cse->txform->blocksize) != 0)
 		return (EINVAL);
 
-	bzero(&cse->uio, sizeof(cse->uio));
+	cse->uio.uio_iov = &cse->iovec;
 	cse->uio.uio_iovcnt = 1;
-	cse->uio.uio_resid = 0;
+	cse->uio.uio_offset = 0;
+	cse->uio.uio_resid = cop->len;
 	cse->uio.uio_segflg = UIO_SYSSPACE;
 	cse->uio.uio_rw = UIO_WRITE;
 	cse->uio.uio_td = td;
-	cse->uio.uio_iov = cse->iovec;
-	bzero(&cse->iovec, sizeof(cse->iovec));
 	cse->uio.uio_iov[0].iov_len = cop->len;
 	cse->uio.uio_iov[0].iov_base = malloc(cop->len, M_XDATA, M_WAITOK);
-	for (i = 0; i < cse->uio.uio_iovcnt; i++)
-		cse->uio.uio_resid += cse->uio.uio_iov[0].iov_len;
 
 	crp = crypto_getreq((cse->txform != NULL) + (cse->thash != NULL));
 	if (crp == NULL) {
