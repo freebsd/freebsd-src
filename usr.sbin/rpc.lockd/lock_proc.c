@@ -763,7 +763,7 @@ nlm_unlock_res_1_svc(arg, rqstp)
 	if (debug_level)
 		log_from_addr("nlm_unlock_res", rqstp);
 
-	lock_answer(&arg->cookie, arg->stat.stat, NLM_VERS);
+	lock_answer(-1, &arg->cookie, arg->stat.stat, NULL, NLM_VERS);
 
 	return (NULL);
 }
