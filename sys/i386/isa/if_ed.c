@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.77 1995/10/10 09:52:30 phk Exp $
+ * $Id: if_ed.c,v 1.78 1995/10/13 19:47:40 wollman Exp $
  */
 
 #include "ed.h"
@@ -223,7 +223,12 @@ void
 edunload(struct pccard_dev *dp)
 {
 	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+	if (sc->kdc.kdc_state == DC_UNCONFIGURED) {
+		printf("ed%d: already unloaded\n", dp->isahd.id_unit);
+		return;
+	}
 	sc->kdc.kdc_state = DC_UNCONFIGURED;
+	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING;
 	if_down(&sc->arpcom.ac_if);
 	sc->gone = 1;
 	printf("ed%d: unload\n", dp->isahd.id_unit);
@@ -2231,8 +2236,10 @@ ed_ioctl(ifp, command, data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
 
-	if (sc->gone)
-		return -1;
+	if (sc->gone) {
+		ifp->if_flags &= ~IFF_RUNNING;
+		return ENXIO;
+	}
 	s = splimp();
 
 	switch (command) {

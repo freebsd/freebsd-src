@@ -46,6 +46,20 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#include <sys/devconf.h>
+
+extern struct kern_devconf kdc_cpu0;
+
+struct kern_devconf kdc_pccard0 = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"pccard", 0, { MDDT_BUS, 0 },
+	0, 0, 0, BUS_EXTERNALLEN,
+	&kdc_cpu0,		/* parent is the CPU */
+	0,			/* no parentdata */
+	DC_UNCONFIGURED,	/* until we see it */
+	"PCCARD or PCMCIA bus",
+	DC_CLS_BUS		/* class */
+};
 
 #include "apm.h"
 #if	NAPM > 0
@@ -120,6 +134,8 @@ pccard_configure()
 {
 struct slot_cont *cp;
 struct slot *sp;
+
+	dev_attach(&kdc_pccard0);
 
 #include "pcic.h"
 #if NPCIC > 0
@@ -267,11 +283,12 @@ struct pccard_dev *devp;
  *	driver is accessing the device and it is removed, then
  *	all bets are off...
  */
-	for (devp = sp->devices; devp; devp = devp->next)
-		{
-		devp->drv->unload(devp);
-		devp->running = 0;
+	for (devp = sp->devices; devp; devp = devp->next) {
+		if (devp->running) {
+			devp->drv->unload(devp);
+			devp->running = 0;
 		}
+	}
 /*
  *	Power off the slot.
  */
@@ -338,6 +355,7 @@ int	slotno;
 			break;
 	if (slotno >= MAXSLOT)
 		return(0);
+	kdc_pccard0.kdc_state = DC_BUSY;
 	MALLOC(sp, struct slot *, sizeof(*sp), M_DEVBUF, M_WAITOK);
 	bzero(sp, sizeof(*sp));
 	if (cp->extra)
@@ -407,6 +425,7 @@ printf("IRQ=%d\n",irq);
 		if (register_intr(irq, 0, 0, hand, maskp, unit)==0)
 			{
 printf("IRQ=%d yes!\n",irq);
+			INTREN (1 << irq);
 
 			return(irq);
 			}
@@ -461,9 +480,6 @@ int err, irq = 0, s;
  */
 		else
 			{
-/* XXX ED.C
-dp->imask = &net_imask;
-*/
 			irq = pccard_alloc_intr(drvp->irqmask,
 				slot_irq_handler, (int)sp, dp->imask);
 			if (irq < 0)
@@ -509,7 +525,6 @@ dp->imask = &net_imask;
 		remove_device(devp);
 	else
 		devp->running = 1;
-	INTREN (1 << irq);
 	return(err);
 }
 static void
@@ -524,12 +539,17 @@ int s;
  *	then unregister it if no-one else is using it.
  */
 	s = splhigh();
-	if (dp->running)
+	if (dp->running) {
 		dp->drv->unload(dp);
+		dp->running = 0;
+	}
 	if (dp->isahd.id_irq && --sp->irqref == 0)
 		{
 		sp->cinfo->mapirq(sp, 0);
+		INTRDIS(1<<sp->irq);
 		unregister_intr(sp->irq, slot_irq_handler);
+		if (dp->drv->imask)
+			INTRUNMASK(*dp->drv->imask,(1<<sp->irq));
 		sp->irq = 0;
 		}
 	splx(s);

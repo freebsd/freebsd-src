@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.86 1995/09/30 15:19:44 davidg Exp $
+ *	$Id: wd.c,v 1.87 1995/10/14 15:41:10 davidg Exp $
  */
 
 /* TODO:
@@ -136,11 +136,14 @@ struct kern_devconf kdc_wdc[NWDC] = { {
 static inline void
 wd_registerdev(int ctlr, int unit)
 {
-	if(unit != 0)
+	if(unit != 0) {
 		kdc_wd[unit] = kdc_wd[0];
+		kdc_wd[unit].kdc_state = DC_IDLE;
+	}
 
 	kdc_wd[unit].kdc_unit = unit;
 	kdc_wd[unit].kdc_parent = &kdc_wdc[ctlr];
+	kdc_wdc[ctlr].kdc_state = DC_BUSY;
 	dev_attach(&kdc_wd[unit]);
 }
 
@@ -149,8 +152,10 @@ wdc_registerdev(struct isa_device *dvp)
 {
 	int unit = dvp->id_unit;
 
-	if(unit != 0)
+	if(unit != 0) {
 		kdc_wdc[unit] = kdc_wdc[0];
+		kdc_wdc[unit].kdc_state = DC_IDLE;
+	}
 
 	kdc_wdc[unit].kdc_unit = unit;
 	kdc_wdc[unit].kdc_parentdata = dvp;
@@ -1120,6 +1125,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
 #if 1
+	kdc_wd[lunit].kdc_state = DC_BUSY;
 	wdsleep(du->dk_ctrlr, "wdopn1");
 	du->dk_flags |= DKFL_LABELLING;
 	du->dk_state = WANTOPEN;
@@ -1624,6 +1630,7 @@ int
 wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	dsclose(dev, fmt, wddrives[dkunit(dev)]->dk_slices);
+	kdc_wd[wddrives[dkunit(dev)]->dk_lunit].kdc_state = DC_IDLE;
 	return (0);
 }
 
