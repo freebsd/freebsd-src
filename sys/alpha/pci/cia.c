@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cia.c,v 1.1 1998/07/05 12:16:14 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -35,12 +35,15 @@
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
 #include <machine/bwx.h>
+#include <machine/intr.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
 static devclass_t	cia_devclass;
 static device_t		cia0;		/* XXX only one for now */
 
+extern void eb164_intr_enable(int irq);
+extern void eb164_intr_disable(int irq);
 static void cia_intr(void* frame, u_long vector);
 
 struct cia_softc {
@@ -179,11 +182,17 @@ cia_bwx_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
+static void *cia_create_intr(device_t dev, device_t child, int irq, driver_intr_t *intr, void *arg);
+static int cia_connect_intr(device_t dev, void* ih);
 
 static device_method_t cia_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cia_probe),
 	DEVMETHOD(device_attach,	cia_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_create_intr,	cia_create_intr),
+	DEVMETHOD(bus_connect_intr,	cia_connect_intr),
 
 	{ 0, 0 }
 };
@@ -226,6 +235,7 @@ cia_attach(device_t dev)
 	struct cia_softc* sc = CIA_SOFTC(dev);
 
 	cia_init();
+	chipset.bridge = dev;
 
 	sc->dmem_base = CIA_EV56_BWMEM;
 	sc->smem_base = CIA_PCI_SMEM1;
@@ -237,9 +247,30 @@ cia_attach(device_t dev)
 	return 0;
 }
 
+static void *
+cia_create_intr(device_t dev, device_t child,
+		int irq, driver_intr_t *intr, void *arg)
+{
+	int vector = 0x900 + (irq << 4);
+	return alpha_create_intr(vector, intr, arg);
+}
+
+static int
+cia_connect_intr(device_t dev, void* ih)
+{
+	struct alpha_intr *i = ih;
+	int s = splhigh();
+	int error = alpha_connect_intr(i);
+	if (!error)
+		eb164_intr_enable((i->vector - 0x900) >> 4);
+	splx(s);
+	return error;
+}
+
 static void
 cia_intr(void* frame, u_long vector)
 {
+	alpha_dispatch_intr(vector);
 }
 
 DRIVER_MODULE(cia, root, cia_driver, cia_devclass, 0, 0);
