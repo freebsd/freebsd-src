@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.29 1999/04/06 03:02:11 peter Exp $
+ *	$Id: kern_linker.c,v 1.30 1999/04/27 11:15:57 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -151,14 +151,12 @@ linker_file_sysinit(linker_file_t lf)
 	    break;
 
 	case SI_TYPE_KTHREAD:
-#if !defined(SMP)
 	    /* kernel thread*/
 	    if (fork1(&proc0, RFFDG|RFPROC|RFMEM))
 		panic("fork kernel thread");
 	    cpu_set_fork_handler(pfind(proc0.p_retval[0]),
 		(*sipp)->func, (*sipp)->udata);
 	    break;
-#endif
 
 	case SI_TYPE_KPROCESS:
 	    /* kernel thread*/

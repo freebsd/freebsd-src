@@ -30,9 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.61 1999/03/21 12:30:50 phk Exp $
+ *	$Id: support.s,v 1.62 1999/03/30 09:00:40 phk Exp $
  */
 
+#include "opt_smp.h"
 #include "npx.h"
 
 #include <machine/asmacros.h>
@@ -42,8 +43,6 @@
 
 #include "assym.s"
 
-#define KDSEL		0x10			/* kernel data selector */
-#define KCSEL		0x8			/* kernel code selector */
 #define IDXSHIFT	10
 
 	.data
@@ -1495,9 +1494,12 @@ ENTRY(lgdt)
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
-	movl	%ax,%fs
 	movl	%ax,%gs
 	movl	%ax,%ss
+#ifdef SMP
+	movl	$KPSEL,%eax
+#endif
+	movl	%ax,%fs
 
 	/* reload code selector by turning return into intersegmental return */
 	movl	(%esp),%eax

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.330 1999/04/19 14:14:12 peter Exp $
+ *	$Id: machdep.c,v 1.331 1999/04/26 08:57:51 peter Exp $
  */
 
 #include "apm.h"
@@ -114,6 +114,7 @@
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #ifdef SMP
 #include <machine/smp.h>
+#include <machine/globaldata.h>
 #endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
@@ -552,6 +553,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_sc.sc_ds = regs->tf_ds;
 	sf.sf_sc.sc_ss = regs->tf_ss;
 	sf.sf_sc.sc_es = regs->tf_es;
+	sf.sf_sc.sc_fs = regs->tf_fs;
 	sf.sf_sc.sc_isp = regs->tf_isp;
 
 	/*
@@ -616,6 +618,7 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
 }
 
@@ -686,6 +689,7 @@ sigreturn(p, uap)
 		tf->tf_vm86_gs = scp->sc_gs;
 		tf->tf_ds = _udatasel;
 		tf->tf_es = _udatasel;
+		tf->tf_fs = _udatasel;
 	} else {
 #endif /* VM86 */
 		/*
@@ -724,6 +728,7 @@ sigreturn(p, uap)
 		}
 		regs->tf_ds = scp->sc_ds;
 		regs->tf_es = scp->sc_es;
+		regs->tf_fs = scp->sc_fs;
 #ifdef VM86
 	}
 #endif
@@ -808,17 +813,16 @@ setregs(p, entry, stack, ps_strings)
 	regs->tf_ss = _udatasel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
 	regs->tf_cs = _ucodesel;
 
 	/* PS_STRINGS value for BSD/OS binaries.  It is 0 for non-BSD/OS. */
 	regs->tf_ebx = ps_strings;
 
-	/* reset %fs and %gs as well */
-	pcb->pcb_fs = _udatasel;
+	/* reset %gs as well */
 	pcb->pcb_gs = _udatasel;
 	if (pcb == curpcb) {
-		__asm("movw %w0,%%fs" : : "r" (_udatasel));
-		__asm("movw %w0,%%gs" : : "r" (_udatasel));
+		load_gs(_udatasel);
 	}
 
 	/*
@@ -887,7 +891,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 
 int _default_ldt;
 #ifdef SMP
-union descriptor gdt[NGDT + NCPU];	/* global descriptor table */
+union descriptor gdt[NGDT * NCPU];	/* global descriptor table */
 #else
 union descriptor gdt[NGDT];		/* global descriptor table */
 #endif
@@ -898,11 +902,11 @@ union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;
 #endif
 
-extern struct i386tss common_tss;	/* One tss per cpu */
 #ifdef VM86
+#ifndef SMP
 extern struct segment_descriptor common_tssd;
-extern int private_tss;			/* flag indicating private tss */
-extern u_int my_tr;			/* which task register setting */
+#endif
+int private_tss;			/* flag indicating private tss */
 #endif /* VM86 */
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -917,11 +921,7 @@ extern  struct user *proc0paddr;
 
 
 /* software prototypes -- in more palatable form */
-struct soft_segment_descriptor gdt_segs[
-#ifdef SMP
-					NGDT + NCPU
-#endif
-						   ] = {
+struct soft_segment_descriptor gdt_segs[] = {
 /* GNULL_SEL	0 Null Descriptor */
 {	0x0,			/* segment base address  */
 	0x0,			/* length */
@@ -949,7 +949,26 @@ struct soft_segment_descriptor gdt_segs[
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GLDT_SEL	3 LDT Descriptor */
+/* GPRIV_SEL	3 SMP Per-Processor Private Data Descriptor */
+{	0x0,			/* segment base address  */
+	0xfffff,		/* length - all address space */
+	SDT_MEMRWA,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	1,			/* default 32 vs 16 bit size */
+	1  			/* limit granularity (byte/page units)*/ },
+/* GPROC0_SEL	4 Proc 0 Tss Descriptor */
+{
+	0x0,			/* segment base address */
+	sizeof(struct i386tss)-1,/* length - all address space */
+	SDT_SYS386TSS,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GLDT_SEL	5 LDT Descriptor */
 {	(int) ldt,		/* segment base address  */
 	sizeof(ldt)-1,		/* length - all address space */
 	SDT_SYSLDT,		/* segment type */
@@ -958,35 +977,7 @@ struct soft_segment_descriptor gdt_segs[
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GTGATE_SEL	4 Null Descriptor - Placeholder */
-{	0x0,			/* segment base address  */
-	0x0,			/* length - all address space */
-	0,			/* segment type */
-	0,			/* segment descriptor priority level */
-	0,			/* segment descriptor present */
-	0, 0,
-	0,			/* default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GPANIC_SEL	5 Panic Tss Descriptor */
-{	(int) &dblfault_tss,	/* segment base address  */
-	sizeof(struct i386tss)-1,/* length - all address space */
-	SDT_SYS386TSS,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GPROC0_SEL	6 Proc 0 Tss Descriptor */
-{
-	(int) &common_tss,	/* segment base address */
-	sizeof(struct i386tss)-1,/* length - all address space */
-	SDT_SYS386TSS,		/* segment type */
-	0,			/* segment descriptor priority level */
-	1,			/* segment descriptor present */
-	0, 0,
-	0,			/* unused - default 32 vs 16 bit size */
-	0  			/* limit granularity (byte/page units)*/ },
-/* GUSERLDT_SEL	7 User LDT Descriptor per process */
+/* GUSERLDT_SEL	6 User LDT Descriptor per process */
 {	(int) ldt,		/* segment base address  */
 	(512 * sizeof(union descriptor)-1),		/* length */
 	SDT_SYSLDT,		/* segment type */
@@ -995,7 +986,25 @@ struct soft_segment_descriptor gdt_segs[
 	0, 0,
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
-/* GAPMCODE32_SEL 8 APM BIOS 32-bit interface (32bit Code) */
+/* GTGATE_SEL	7 Null Descriptor - Placeholder */
+{	0x0,			/* segment base address  */
+	0x0,			/* length - all address space */
+	0,			/* segment type */
+	0,			/* segment descriptor priority level */
+	0,			/* segment descriptor present */
+	0, 0,
+	0,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GPANIC_SEL	8 Panic Tss Descriptor */
+{	(int) &dblfault_tss,	/* segment base address  */
+	sizeof(struct i386tss)-1,/* length - all address space */
+	SDT_SYS386TSS,		/* segment type */
+	0,			/* segment descriptor priority level */
+	1,			/* segment descriptor present */
+	0, 0,
+	0,			/* unused - default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
+/* GAPMCODE32_SEL 9 APM BIOS 32-bit interface (32bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
@@ -1004,7 +1013,7 @@ struct soft_segment_descriptor gdt_segs[
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GAPMCODE16_SEL 9 APM BIOS 32-bit interface (16bit Code) */
+/* GAPMCODE16_SEL 10 APM BIOS 32-bit interface (16bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
 	0xfffff,		/* length */
 	SDT_MEMERA,		/* segment type */
@@ -1013,7 +1022,7 @@ struct soft_segment_descriptor gdt_segs[
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
-/* GAPMDATA_SEL	10 APM BIOS 32-bit interface (Data) */
+/* GAPMDATA_SEL	11 APM BIOS 32-bit interface (Data) */
 {	0,			/* segment base address (overwritten by APM) */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
@@ -1160,11 +1169,6 @@ init386(first)
 	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	/*
-	 * Initialize the console before we print anything out.
-	 */
-	cninit();
-
-	/*
 	 * make gdt memory segments, the code segment goes up to end of the
 	 * page with etext in it, the data segment goes to the end of
 	 * the address space
@@ -1175,27 +1179,30 @@ init386(first)
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1;
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
-#ifdef BDE_DEBUGGER
-#define	NGDT1	8		/* avoid overwriting db entries with APM ones */
-#else
-#define	NGDT1	(sizeof gdt_segs / sizeof gdt_segs[0])
-#endif
-	for (x = 0; x < NGDT1; x++)
-		ssdtosd(&gdt_segs[x], &gdt[x].sd);
-#ifdef VM86
-	common_tssd = gdt[GPROC0_SEL].sd;
-#endif /* VM86 */
-
 #ifdef SMP
-	/*
-	 * Spin these up now.  init_secondary() grabs them.  We could use
-	 * #for(x,y,z) / #endfor cpp directives if they existed.
-	 */
-	for (x = 0; x < NCPU; x++) {
-		gdt_segs[NGDT + x] = gdt_segs[GPROC0_SEL];
-		ssdtosd(&gdt_segs[NGDT + x], &gdt[NGDT + x].sd);
-	}
+	gdt_segs[GPRIV_SEL].ssd_limit =
+		i386_btop(sizeof(struct privatespace)) - 1;
+	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
+	gdt_segs[GPROC0_SEL].ssd_base =
+		(int) &SMP_prvspace[0].globaldata.gd_common_tss;
+	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0];
+#else
+	gdt_segs[GPRIV_SEL].ssd_limit = i386_btop(0) - 1;
+	gdt_segs[GPROC0_SEL].ssd_base = (int) &common_tss;
 #endif
+
+	for (x = 0; x < NGDT; x++) {
+#ifdef BDE_DEBUGGER
+		/* avoid overwriting db entries with APM ones */
+		if (x >= GAPMCODE32_SEL && x <= GAPMDATA_SEL)
+			continue;
+#endif
+		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+	}
+
+	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
+	r_gdt.rd_base =  (int) gdt;
+	lgdt(&r_gdt);
 
 	/* make ldt memory segments */
 	/*
@@ -1220,6 +1227,12 @@ init386(first)
 	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
+
+	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
+	lldt(_default_ldt);
+#ifdef USER_LDT
+	currentldt = _default_ldt;
+#endif
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
@@ -1246,25 +1259,20 @@ init386(first)
  	setidt(0x80, &IDTVEC(int0x80_syscall),
 			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
 
+	r_idt.rd_limit = sizeof(idt) - 1;
+	r_idt.rd_base = (int) idt;
+	lidt(&r_idt);
+
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
 #include	"isa.h"
 #if	NISA >0
 	isa_defaultirq();
 #endif
 	rand_initialize();
-
-	r_gdt.rd_limit = sizeof(gdt) - 1;
-	r_gdt.rd_base =  (int) gdt;
-	lgdt(&r_gdt);
-
-	r_idt.rd_limit = sizeof(idt) - 1;
-	r_idt.rd_base = (int) idt;
-	lidt(&r_idt);
-
-	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
-	lldt(_default_ldt);
-#ifdef USER_LDT
-	currentldt = _default_ldt;
-#endif
 
 #ifdef DDB
 	kdb_init();
@@ -1289,7 +1297,7 @@ init386(first)
 	ltr(gsel_tss);
 #ifdef VM86
 	private_tss = 0;
-	my_tr = GPROC0_SEL;
+	common_tssd = gdt[GPROC0_SEL].sd;
 #endif
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
@@ -1607,6 +1615,7 @@ init386(first)
 #ifdef VM86
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 #endif
+	SET_CURPROC(&proc0);
 
 	/* Sigh, relocate physical addresses left from bootstrap */
 	if (bootinfo.bi_modulep) {
@@ -1732,6 +1741,7 @@ fill_regs(p, regs)
 	struct trapframe *tp;
 
 	tp = p->p_md.md_regs;
+	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
 	regs->r_edi = tp->tf_edi;
@@ -1747,7 +1757,6 @@ fill_regs(p, regs)
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
 	pcb = &p->p_addr->u_pcb;
-	regs->r_fs = pcb->pcb_fs;
 	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
@@ -1764,6 +1773,7 @@ set_regs(p, regs)
 	if (!EFLAGS_SECURE(regs->r_eflags, tp->tf_eflags) ||
 	    !CS_SECURE(regs->r_cs))
 		return (EINVAL);
+	tp->tf_fs = regs->r_fs;
 	tp->tf_es = regs->r_es;
 	tp->tf_ds = regs->r_ds;
 	tp->tf_edi = regs->r_edi;
@@ -1779,7 +1789,6 @@ set_regs(p, regs)
 	tp->tf_esp = regs->r_esp;
 	tp->tf_ss = regs->r_ss;
 	pcb = &p->p_addr->u_pcb;
-	pcb->pcb_fs = regs->r_fs;
 	pcb->pcb_gs = regs->r_gs;
 	return (0);
 }

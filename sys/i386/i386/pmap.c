@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.232 1999/04/23 20:29:58 dt Exp $
+ *	$Id: pmap.c,v 1.233 1999/04/25 18:40:05 alc Exp $
  */
 
 /*
@@ -71,6 +71,8 @@
 #include "opt_disable_pse.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
+#include "opt_vm86.h"
+#include "opt_user_ldt.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -100,6 +102,9 @@
 #if defined(SMP) || defined(APIC_IO)
 #include <machine/smp.h>
 #include <machine/apic.h>
+#include <machine/segments.h>
+#include <machine/tss.h>
+#include <machine/globaldata.h>
 #endif /* SMP || APIC_IO */
 
 #define PMAP_KEEP_PDIRS
@@ -146,7 +151,6 @@ static int protection_codes[8];
 
 static struct pmap kernel_pmap_store;
 pmap_t kernel_pmap;
-extern pd_entry_t my_idlePTD;
 
 vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
@@ -184,19 +188,8 @@ static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
 
-/* AIO support */
-extern struct vmspace *aiovmspace;
-
 #ifdef SMP
-extern char prv_CPAGE1[], prv_CPAGE2[], prv_CPAGE3[];
-extern pt_entry_t *prv_CMAP1, *prv_CMAP2, *prv_CMAP3;
-extern pd_entry_t *IdlePTDS[];
-extern pt_entry_t SMP_prvpt[];
-#endif
-
-#ifdef SMP
-extern unsigned int prv_PPAGE1[];
-extern pt_entry_t *prv_PMAP1;
+extern pt_entry_t *SMPpt;
 #else
 static pt_entry_t *PMAP1 = 0;
 static unsigned *PADDR1 = 0;
@@ -294,6 +287,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	pt_entry_t *pte;
 #ifdef SMP
 	int i, j;
+	struct globaldata *gd;
 #endif
 
 	avail_start = firstaddr;
@@ -404,12 +398,17 @@ pmap_bootstrap(firstaddr, loadaddr)
 		ptditmp &= ~(NBPDR - 1);
 		ptditmp |= PG_V | PG_RW | PG_PS | PG_U | pgeflag;
 		pdir4mb = ptditmp;
+
+#if !defined(SMP)
 		/*
 		 * We can do the mapping here for the single processor
 		 * case.  We simply ignore the old page table page from
 		 * now on.
 		 */
-#if !defined(SMP)
+		/*
+		 * For SMP, we still need 4K pages to bootstrap APs,
+		 * PSE will be enabled as soon as all APs are up.
+		 */
 		PTD[KPTDI] = (pd_entry_t) ptditmp;
 		kernel_pmap->pm_pdir[KPTDI] = (pd_entry_t) ptditmp;
 		invltlb();
@@ -421,44 +420,46 @@ pmap_bootstrap(firstaddr, loadaddr)
 	if (cpu_apic_address == 0)
 		panic("pmap_bootstrap: no local apic!");
 
-	/* 0 = private page */
-	/* 1 = page table page */
-	/* 2 = local apic */
-	/* 16-31 = io apics */
-	SMP_prvpt[2] = (pt_entry_t)(PG_V | PG_RW | pgeflag |
+	/* local apic is mapped on last page */
+	SMPpt[NPTEPG - 1] = (pt_entry_t)(PG_V | PG_RW | PG_N | pgeflag |
 	    (cpu_apic_address & PG_FRAME));
 
 	for (i = 0; i < mp_napics; i++) {
-		for (j = 0; j < 16; j++) {
+		for (j = 0; j < mp_napics; j++) {
 			/* same page frame as a previous IO apic? */
-			if (((vm_offset_t)SMP_prvpt[j + 16] & PG_FRAME) ==
+			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) ==
 			    (io_apic_address[0] & PG_FRAME)) {
-				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
+					+ (NPTEPG-2-j)*PAGE_SIZE);
 				break;
 			}
 			/* use this slot if available */
-			if (((vm_offset_t)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
-				SMP_prvpt[j + 16] = (pt_entry_t)(PG_V | PG_RW |
+			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) == 0) {
+				SMPpt[NPTEPG-2-j] = (pt_entry_t)(PG_V | PG_RW |
 				    pgeflag | (io_apic_address[i] & PG_FRAME));
-				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
+					+ (NPTEPG-2-j)*PAGE_SIZE);
 				break;
 			}
 		}
-		if (j == 16)
-			panic("no space to map IO apic %d!", i);
 	}
 
 	/* BSP does this itself, AP's get it pre-set */
-	prv_CMAP1 = &SMP_prvpt[3 + UPAGES];
-	prv_CMAP2 = &SMP_prvpt[4 + UPAGES];
-	prv_CMAP3 = &SMP_prvpt[5 + UPAGES];
-	prv_PMAP1 = &SMP_prvpt[6 + UPAGES];
+	gd = &SMP_prvspace[0].globaldata;
+	gd->gd_prv_CMAP1 = &SMPpt[1];
+	gd->gd_prv_CMAP2 = &SMPpt[2];
+	gd->gd_prv_CMAP3 = &SMPpt[3];
+	gd->gd_prv_PMAP1 = &SMPpt[4];
+	gd->gd_prv_CADDR1 = SMP_prvspace[0].CPAGE1;
+	gd->gd_prv_CADDR2 = SMP_prvspace[0].CPAGE2;
+	gd->gd_prv_CADDR3 = SMP_prvspace[0].CPAGE3;
+	gd->gd_prv_PADDR1 = (unsigned *)SMP_prvspace[0].PPAGE1;
 #endif
 
 	invltlb();
-
 }
 
+#ifdef SMP
 /*
  * Set 4mb pdir for mp startup, and global flags
  */
@@ -493,6 +494,7 @@ pmap_set_opt_bsp(void)
 	pmap_set_opt((unsigned *)PTD);
 	invltlb();
 }
+#endif
 
 /*
  *	Initialize the pmap module.
@@ -716,9 +718,9 @@ pmap_pte_quick(pmap, va)
 #ifdef SMP
 		if ( ((* (unsigned *) prv_PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) prv_PMAP1 = newpf | PG_RW | PG_V;
-			cpu_invlpg(&prv_PPAGE1);
+			cpu_invlpg(prv_PADDR1);
 		}
-		return prv_PPAGE1 + ((unsigned) index & (NPTEPG - 1));
+		return prv_PADDR1 + ((unsigned) index & (NPTEPG - 1));
 #else
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;
@@ -1122,7 +1124,6 @@ pmap_unuse_pt(pmap, va, mpte)
 	return pmap_unwire_pte_hold(pmap, mpte);
 }
 
-#if !defined(SMP)
 void
 pmap_pinit0(pmap)
 	struct pmap *pmap;
@@ -1136,14 +1137,6 @@ pmap_pinit0(pmap)
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
-#else
-void
-pmap_pinit0(pmap)
-	struct pmap *pmap;
-{
-	pmap_pinit(pmap);
-}
-#endif
 
 /*
  * Initialize a preallocated and zeroed pmap structure,
@@ -1189,6 +1182,9 @@ pmap_pinit(pmap)
 	/* wire in kernel global address entries */
 	/* XXX copies current process, does not fill in MPPTDI */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * PTESIZE);
+#ifdef SMP
+	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
+#endif
 
 	/* install self-referential address mapping entry */
 	*(unsigned *) (pmap->pm_pdir + PTDPTDI) =
@@ -1430,9 +1426,6 @@ pmap_growkernel(vm_offset_t addr)
 	int s;
 	vm_offset_t ptppaddr;
 	vm_page_t nkpg;
-#ifdef SMP
-	int i;
-#endif
 	pd_entry_t newpdir;
 
 	s = splhigh();
@@ -1468,22 +1461,11 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
-#ifdef SMP
-		for (i = 0; i < mp_ncpus; i++) {
-			if (IdlePTDS[i])
-				pdir_pde(IdlePTDS[i], kernel_vm_end) = newpdir;
-		}
-#endif
-
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			if (p->p_vmspace) {
 				pmap = vmspace_pmap(p->p_vmspace);
 				*pmap_pde(pmap, kernel_vm_end) = newpdir;
 			}
-		}
-		if (aiovmspace != NULL) {
-			pmap = vmspace_pmap(aiovmspace);
-			*pmap_pde(pmap, kernel_vm_end) = newpdir;
 		}
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
@@ -2739,14 +2721,14 @@ pmap_zero_page(phys)
 #endif
 
 	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(&prv_CPAGE3);
+	cpu_invlpg(prv_CADDR3);
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686)
-		i686_pagezero(&prv_CPAGE3);
+		i686_pagezero(prv_CADDR3);
 	else
 #endif
-		bzero(&prv_CPAGE3, PAGE_SIZE);
+		bzero(prv_CADDR3, PAGE_SIZE);
 
 	*(int *) prv_CMAP3 = 0;
 #else
@@ -2787,14 +2769,14 @@ pmap_zero_page_area(phys, off, size)
 #endif
 
 	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(&prv_CPAGE3);
+	cpu_invlpg(prv_CADDR3);
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
-		i686_pagezero(&prv_CPAGE3);
+		i686_pagezero(prv_CADDR3);
 	else
 #endif
-		bzero((char *)&prv_CPAGE3 + off, size);
+		bzero((char *)prv_CADDR3 + off, size);
 
 	*(int *) prv_CMAP3 = 0;
 #else
@@ -2838,10 +2820,10 @@ pmap_copy_page(src, dst)
 	*(int *) prv_CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) prv_CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
 
-	cpu_invlpg(&prv_CPAGE1);
-	cpu_invlpg(&prv_CPAGE2);
+	cpu_invlpg(prv_CADDR1);
+	cpu_invlpg(prv_CADDR2);
 
-	bcopy(&prv_CPAGE1, &prv_CPAGE2, PAGE_SIZE);
+	bcopy(prv_CADDR1, prv_CADDR2, PAGE_SIZE);
 
 	*(int *) prv_CMAP1 = 0;
 	*(int *) prv_CMAP2 = 0;

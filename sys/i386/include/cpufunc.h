@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.84 1999/01/08 19:51:02 bde Exp $
+ *	$Id: cpufunc.h,v 1.85 1999/01/09 13:00:27 bde Exp $
  */
 
 /*
@@ -426,6 +426,34 @@ wrmsr(u_int msr, u_int64_t newval)
 	__asm __volatile(".byte 0x0f, 0x30" : : "A" (newval), "c" (msr));
 }
 
+static __inline u_int
+rfs(void)
+{
+	u_int sel;
+	__asm __volatile("movl %%fs,%0" : "=r" (sel));
+	return (sel);
+}
+
+static __inline u_int
+rgs(void)
+{
+	u_int sel;
+	__asm __volatile("movl %%gs,%0" : "=r" (sel));
+	return (sel);
+}
+
+static __inline void
+load_fs(u_int sel)
+{
+	__asm __volatile("movl %0,%%fs" : : "r" (sel));
+}
+
+static __inline void
+load_gs(u_int sel)
+{
+	__asm __volatile("movl %0,%%gs" : : "r" (sel));
+}
+
 #else /* !__GNUC__ */
 
 int	breakpoint	__P((void));
@@ -456,6 +484,10 @@ void	setbits		__P((volatile u_int *addr, u_int bits));
 void	wbinvd		__P((void));
 void	write_eflags	__P((u_int ef));
 void	wrmsr		__P((u_int msr, u_int64_t newval));
+u_int	rfs		__P((void));
+u_int	rgs		__P((void));
+void	load_fs		__P((u_int sel));
+void	load_gs		__P((u_int sel));
 
 #endif	/* __GNUC__ */
 

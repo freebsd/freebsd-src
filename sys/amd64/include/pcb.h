@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.25 1997/10/10 12:40:09 peter Exp $
+ *	$Id: pcb.h,v 1.26 1998/02/03 21:27:50 bde Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -43,6 +43,7 @@
 /*
  * Intel 386 process control block
  */
+#include <machine/globals.h>
 #include <machine/npx.h>
 
 struct pcb {
@@ -64,14 +65,13 @@ struct pcb {
 #else
 	u_long	pcb_mpnest_dontuse;
 #endif
-	int	pcb_fs;
 	int	pcb_gs;
 #ifdef VM86
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
 #else
 	struct	pcb_ext	*pcb_ext_dontuse;
 #endif
-	u_long	__pcb_spare[1];	/* adjust to avoid core dump size changes */
+	u_long	__pcb_spare[2];	/* adjust to avoid core dump size changes */
 };
 
 /*
@@ -83,7 +83,9 @@ struct md_coredump {
 
 #ifdef KERNEL
 
+#ifndef curpcb
 extern struct pcb *curpcb;		/* our current running pcb */
+#endif
 
 void	savectx __P((struct pcb *));
 #endif

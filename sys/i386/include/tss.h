@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: tss.h,v 1.8 1997/02/22 09:35:20 peter Exp $
  */
 
 #ifndef _MACHINE_TSS_H_
 #define _MACHINE_TSS_H_ 1
+
+#include <machine/globals.h>
 
 /*
  * Intel 386 Context Data Type
@@ -79,4 +81,11 @@ struct i386tss {
 	int	tss_ioopt;	/* options & io offset bitmap: currently zero */
 				/* XXX unimplemented .. i/o permission bitmap */
 };
+
+#ifdef KERNEL
+#ifndef common_tss
+extern struct i386tss common_tss;
+#endif
+#endif
+
 #endif /* _MACHINE_TSS_H_ */

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.44 1999/02/25 15:54:06 bde Exp $
+ * $Id: vfs_aio.c,v 1.45 1999/04/04 21:41:16 dt Exp $
  */
 
 /*
@@ -242,11 +242,6 @@ SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
 static vm_zone_t kaio_zone=0, aiop_zone=0,
 	aiocb_zone=0, aiol_zone=0, aiolio_zone=0;
-
-/*
- * Single AIOD vmspace shared amongst all of them
- */
-struct vmspace *aiovmspace = NULL;
 
 /*
  * Startup initialization
@@ -607,7 +602,7 @@ aio_daemon(const void *uproc)
 {
 	int s;
 	struct aioproclist *aiop;
-	struct vmspace *myvm, *aiovm;
+	struct vmspace *myvm;
 	struct proc *mycp;
 
 	/*
@@ -615,35 +610,6 @@ aio_daemon(const void *uproc)
 	 */
 	mycp = curproc;
 	myvm = mycp->p_vmspace;
-
-	/*
-	 * We manage to create only one VM space for all AIOD processes.
-	 * The VM space for the first AIOD created becomes the shared VM
-	 * space for all of them.  We add an additional reference count,
-	 * even for the first AIOD, so the address space does not go away,
-	 * and we continue to use that original VM space even if the first
-	 * AIOD exits.
-	 */
-	if ((aiovm = aiovmspace) == NULL) {
-		aiovmspace = myvm;
-		myvm->vm_refcnt++;
-		/*
-		 * Remove userland cruft from address space.
-		 */
-		if (myvm->vm_shm)
-			shmexit(mycp);
-		pmap_remove_pages(vmspace_pmap(myvm), 0, USRSTACK);
-		vm_map_remove(&myvm->vm_map, 0, USRSTACK);
-		myvm->vm_tsize = 0;
-		myvm->vm_dsize = 0;
-		myvm->vm_ssize = 0;
-	} else {
-		aiovm->vm_refcnt++;
-		mycp->p_vmspace = aiovm;
-		pmap_activate(mycp);
-		vmspace_free(myvm);
-		myvm = aiovm;
-	}
 
 	if (mycp->p_textvp) {
 		vrele(mycp->p_textvp);
@@ -921,17 +887,13 @@ static int
 aio_newproc()
 {
 	int error;
-	struct rfork_args rfa;
 	struct proc *p, *np;
 
-	rfa.flags = RFPROC | RFCFDG;
-
-	p = curproc;
-	if ((error = rfork(p, &rfa)) != 0)
+	p = &proc0;
+	if (error = fork1(p, RFPROC|RFMEM|RFNOWAIT))
 		return error;
-
 	np = pfind(p->p_retval[0]);
-	cpu_set_fork_handler(np, aio_daemon, p);
+	cpu_set_fork_handler(np, aio_daemon, curproc);
 
 	/*
 	 * Wait until daemon is started, but continue on just in case (to

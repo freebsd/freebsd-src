@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.43 1998/05/17 22:12:05 tegge Exp $
+ * $Id: smp.h,v 1.44 1998/09/06 22:41:40 tegge Exp $
  *
  */
 
@@ -112,7 +112,6 @@ struct apic_intmapinfo {
 };
 extern struct apic_intmapinfo	int_to_apicintpin[];
 extern u_int			all_cpus;
-extern u_char			SMP_ioapic[];
 extern struct pcb		stoppcbs[];
 
 /* functions in mp_machdep.c */
@@ -174,12 +173,6 @@ void	u_sleep			__P((int));
 extern int			invltlb_ok;
 extern int			smp_active;
 extern volatile int		smp_idle_loops;
-
-/* 'private' global data in locore.s */
-extern volatile u_int		cpuid;
-extern volatile u_int		cpu_lockid;
-extern int			inside_intr;
-extern volatile u_int		other_cpus;
 
 #endif /* !LOCORE */
 #endif /* SMP || APIC_IO */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.55 1999/04/27 11:15:32 phk Exp $
+ *  $Id: linux_misc.c,v 1.56 1999/04/27 12:21:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -531,18 +531,18 @@ select_out:
 int
 linux_getpgid(struct proc *p, struct linux_getpgid_args *args)
 {
-    struct proc *curproc;
+    struct proc *curp;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): getpgid(%d)\n", p->p_pid, args->pid);
 #endif
     if (args->pid != p->p_pid) {
-	if (!(curproc = pfind(args->pid)))
+	if (!(curp = pfind(args->pid)))
 	    return ESRCH;
     }
     else
-	curproc = p;
-    p->p_retval[0] = curproc->p_pgid;
+	curp = p;
+    p->p_retval[0] = curp->p_pgid;
     return 0;
 }
 
@@ -576,10 +576,6 @@ linux_clone(struct proc *p, struct linux_clone_args *args)
     vm_offset_t    start;
     struct rfork_args rf_args;
 
-#ifdef SMP
-    printf("linux_clone(%d): does not work with SMP yet\n", p->p_pid);
-    return (EOPNOTSUPP);
-#endif
 #ifdef DEBUG
     if (args->flags & CLONE_PID)
 	printf("linux_clone(%d): CLONE_PID not yet supported\n", p->p_pid);

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.77 1999/03/20 18:44:13 alc Exp $
+ *	$Id: swtch.s,v 1.78 1999/04/02 17:59:39 alc Exp $
  */
 
 #include "npx.h"
@@ -258,25 +258,32 @@ _idle:
 
 	/* when called, we have the mplock, intr disabled */
 	/* use our idleproc's "context" */
-	movl	_my_idlePTD,%ecx
-	movl	%ecx,%cr3
+	movl	_IdlePTD, %ecx
+	movl	%cr3, %eax
+	cmpl	%ecx, %eax
+	je		2f
 #if defined(SWTCH_OPTIM_STATS)
+	decl	_swtch_optim_stats
 	incl	_tlb_flush_count
 #endif
+	movl	%ecx, %cr3
+2:
 	/* Keep space for nonexisting return addr, or profiling bombs */
-	movl	$_idlestack_top-4,%ecx	
-	movl	%ecx,%esp
+	movl	$gd_idlestack_top-4, %ecx	
+	addl	%fs:0, %ecx
+	movl	%ecx, %esp
 
 	/* update common_tss.tss_esp0 pointer */
-#ifdef VM86
-	movl	_my_tr, %esi
-#endif /* VM86 */
 	movl	%ecx, _common_tss + TSS_ESP0
 
 #ifdef VM86
-	cmpl	$0, _private_tss
-	je	1f
-	movl	$_common_tssd, %edi
+	movl	_cpuid, %esi
+	btrl	%esi, _private_tss
+	jae	1f
+
+	movl	$GPROC0_SEL, %esi
+	movl	$gd_common_tssd, %edi
+	addl	%fs:0, %edi
 
 	/* move correct tss descriptor into GDT slot, then reload tr */
 	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
@@ -388,14 +395,14 @@ idle_loop:
 #endif
 
 	/* update common_tss.tss_esp0 pointer */
-#ifdef VM86
-	movl	_my_tr, %esi
-#endif /* VM86 */
 	movl	%esp, _common_tss + TSS_ESP0
 
 #ifdef VM86
-	cmpl	$0, _private_tss
-	je	1f
+	movl	$0, %esi
+	btrl	%esi, _private_tss
+	jae	1f
+
+	movl	$GPROC0_SEL, %esi
 	movl	$_common_tssd, %edi
 
 	/* move correct tss descriptor into GDT slot, then reload tr */
@@ -477,7 +484,6 @@ ENTRY(cpu_switch)
 	movl	%ebp,PCB_EBP(%edx)
 	movl	%esi,PCB_ESI(%edx)
 	movl	%edi,PCB_EDI(%edx)
-	movl	%fs,PCB_FS(%edx)
 	movl	%gs,PCB_GS(%edx)
 
 #ifdef SMP
@@ -610,70 +616,55 @@ swtch_com:
 	movl	%eax,P_BACK(%ecx) 		/* isolate process to run */
 	movl	P_ADDR(%ecx),%edx
 
-#ifdef SMP
-	movl	PCB_CR3(%edx),%ebx
-	/* Grab the private PT pointer from the outgoing process's PTD */
-	movl	$_PTD, %esi
-	movl	4*MPPTDI(%esi), %eax		/* fetch cpu's prv pt */
-#else
 #if defined(SWTCH_OPTIM_STATS)
 	incl	_swtch_optim_stats
 #endif
 	/* switch address space */
 	movl	%cr3,%ebx
 	cmpl	PCB_CR3(%edx),%ebx
-	je		4f
+	je	4f
 #if defined(SWTCH_OPTIM_STATS)
 	decl	_swtch_optim_stats
 	incl	_tlb_flush_count
 #endif
 	movl	PCB_CR3(%edx),%ebx
-#endif /* SMP */
 	movl	%ebx,%cr3
 4:
 
-#ifdef SMP
-	/* Copy the private PT to the new process's PTD */
-	/* XXX yuck, the _PTD changes when we switch, so we have to
-	 * reload %cr3 after changing the address space.
-	 * We need to fix this by storing a pointer to the virtual
-	 * location of the per-process PTD in the PCB or something quick.
-	 * Dereferencing proc->vm_map->pmap->p_pdir[] is painful in asm.
-	 */
-	movl	%eax, 4*MPPTDI(%esi)		/* restore cpu's prv page */
-
-#if defined(SWTCH_OPTIM_STATS)
-	incl	_tlb_flush_count
-#endif
-	/* XXX: we have just changed the page tables.. reload.. */
-	movl	%ebx, %cr3
-#endif /* SMP */
-
 #ifdef VM86
-	movl	_my_tr, %esi
+#ifdef SMP
+	movl	_cpuid, %esi
+#else
+	xorl	%esi, %esi
+#endif
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
-	movl	$1, _private_tss		/* mark use of private tss */
+	btsl	%esi, _private_tss		/* mark use of private tss */
 	movl	PCB_EXT(%edx), %edi		/* new tss descriptor */
 	jmp	2f
 1:
 #endif
 
 	/* update common_tss.tss_esp0 pointer */
-	movl	$_common_tss, %eax
 	movl	%edx, %ebx			/* pcb */
 #ifdef VM86
 	addl	$(UPAGES * PAGE_SIZE - 16), %ebx
 #else
 	addl	$(UPAGES * PAGE_SIZE), %ebx
 #endif /* VM86 */
-	movl	%ebx, TSS_ESP0(%eax)
+	movl	%ebx, _common_tss + TSS_ESP0
 
 #ifdef VM86
-	cmpl	$0, _private_tss
-	je	3f
+	btrl	%esi, _private_tss
+	jae	3f
+#ifdef SMP
+	movl	$gd_common_tssd, %edi
+	addl	%fs:0, %edi
+#else
 	movl	$_common_tssd, %edi
+#endif
 2:
+	movl	$GPROC0_SEL, %esi
 	/* move correct tss descriptor into GDT slot, then reload tr */
 	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
 	movl	0(%edi), %eax
@@ -738,9 +729,6 @@ swtch_com:
 #endif
 
 	/* This must be done after loading the user LDT. */
-	.globl	cpu_switch_load_fs
-cpu_switch_load_fs:
-	movl	PCB_FS(%edx),%fs
 	.globl	cpu_switch_load_gs
 cpu_switch_load_gs:
 	movl	PCB_GS(%edx),%gs
@@ -791,7 +779,6 @@ ENTRY(savectx)
 	movl	%ebp,PCB_EBP(%ecx)
 	movl	%esi,PCB_ESI(%ecx)
 	movl	%edi,PCB_EDI(%ecx)
-	movl	%fs,PCB_FS(%ecx)
 	movl	%gs,PCB_GS(%ecx)
 
 #if NNPX > 0
