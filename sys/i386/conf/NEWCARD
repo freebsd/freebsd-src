@@ -31,7 +31,7 @@ maxusers	32
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"NEWCARD.hints"		#Default places to look for devices.
 
-#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	MATH_EMULATE		#Support for x87 emulation
 options 	INET			#InterNETworking
@@ -148,7 +148,6 @@ device		apm
 device		pmtimer
 
 # Pcmcia and cardbus bridge support
-#device		pcic			# pcmcia bridge
 device		pccbb			# cardbus (yenta) bridge
 device		pccard
 device		cardbus
@@ -168,6 +167,7 @@ device		ppi		# Parallel port interface device
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -216,7 +216,7 @@ device		ppp	1	# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
-device		gif	4	# IPv6 and IPv4 tunneling
+device		gif		# IPv6 and IPv4 tunneling
 device		faith	1	# IPv6-to-IPv4 relaying (translation)
 
 # The `bpf' device enables the Berkeley Packet Filter.
