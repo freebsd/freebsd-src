@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 #define PAM_SM_SESSION
 #define PAM_SM_PASSWORD
 
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <pam_mod_misc.h>
+#include <security/pam_mod_misc.h>
 
 enum {
 	PAM_OPT_EVEN_ROOT	= PAM_OPT_STD_MAX,
