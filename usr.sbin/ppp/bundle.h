@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.31 1998/04/17 22:05:06 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.32 1998/04/23 03:22:45 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -140,3 +140,5 @@ extern void bundle_DatalinkRemove(struct bundle *, struct datalink *);
 extern void bundle_CleanDatalinks(struct bundle *);
 extern void bundle_SetLabel(struct bundle *, const char *);
 extern const char *bundle_GetLabel(struct bundle *);
+extern void bundle_SendDatalink(struct datalink *, int);
+extern void bundle_ReceiveDatalink(struct bundle *, int);

@@ -23,11 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.6 1998/04/19 23:08:19 brian Exp $
+ *	$Id: id.c,v 1.6.4.7 1998/04/25 10:49:01 brian Exp $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -211,4 +212,30 @@ ID0logout(const char *device)
   } else
     LogPrintf(LogERROR, "ID0logout: No longer logged in on %s\n", ut.ut_line);
   ID0setuser();
+}
+
+int
+ID0bind_un(int s, const struct sockaddr_un *name, int namelen)
+{
+  int result;
+
+  ID0set0();
+  result = bind(s, (const struct sockaddr *)name, namelen);
+  LogPrintf(LogID0, "%d = bind(%d, \"%s\", %d)\n",
+            result, s, name->sun_path, namelen);
+  ID0setuser();
+  return result;
+}
+
+int
+ID0connect_un(int s, const struct sockaddr_un *name, int namelen)
+{
+  int result;
+
+  ID0set0();
+  result = connect(s, (const struct sockaddr *)name, namelen);
+  LogPrintf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
+            result, s, name->sun_path, namelen);
+  ID0setuser();
+  return result;
 }

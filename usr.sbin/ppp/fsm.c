@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.31 1998/04/23 21:50:07 brian Exp $
+ * $Id: fsm.c,v 1.27.2.32 1998/04/24 19:15:38 brian Exp $
  *
  *  TODO:
  */
@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <string.h>
 #include <termios.h>
@@ -261,8 +262,9 @@ FsmUp(struct fsm * fp)
 {
   switch (fp->state) {
     case ST_INITIAL:
+    LogPrintf(fp->LogLevel, "FSM: Using \"%s\" as a transport\n",
+              fp->link->name);
     NewState(fp, ST_CLOSED);
-    LogPrintf(fp->LogLevel, "Using \"%s\" as a transport\n", fp->link->name);
     break;
   case ST_STARTING:
     FsmInitRestartCounter(fp);

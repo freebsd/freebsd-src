@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.24 1998/04/18 23:17:24 brian Exp $
+ *	$Id: chat.c,v 1.44.2.25 1998/04/19 15:24:37 brian Exp $
  */
 
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <errno.h>
 #include <fcntl.h>

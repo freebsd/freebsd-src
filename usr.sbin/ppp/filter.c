@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.16 1998/04/16 18:30:51 brian Exp $
+ * $Id: filter.c,v 1.22.2.17 1998/04/25 10:48:59 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -28,6 +28,7 @@
 #include <netdb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <stdlib.h>

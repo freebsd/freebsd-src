@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.18 1998/04/19 03:41:01 brian Exp $
+ * $Id: route.c,v 1.42.2.19 1998/04/25 10:49:43 brian Exp $
  *
  */
 
@@ -31,6 +31,7 @@
 #include <net/if_dl.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <errno.h>
 #include <stdio.h>

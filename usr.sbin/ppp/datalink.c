@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.47 1998/04/25 00:09:09 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.48 1998/04/25 00:09:20 brian Exp $
  */
 
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -451,16 +452,21 @@ datalink_GotAuthname(struct datalink *dl, const char *name, int len)
 void
 datalink_AuthOk(struct datalink *dl)
 {
-  /* XXX: Connect to another ppp instance HERE */
-
   if (dl->physical->link.lcp.want_mrru && dl->physical->link.lcp.his_mrru) {
-    if (!mp_Up(&dl->bundle->ncp.mp, dl->name, &dl->peer,
-               dl->physical->link.lcp.want_mrru,
-               dl->physical->link.lcp.his_mrru,
-               dl->physical->link.lcp.want_shortseq,
-               dl->physical->link.lcp.his_shortseq)) {
-      datalink_AuthNotOk(dl);
-      return;
+    /* we've authenticated in multilink mode ! */
+    switch (mp_Up(&dl->bundle->ncp.mp, dl)) {
+      case MP_LINKSENT:
+        /* We've handed the link off to another ppp ! */
+        return;
+      case MP_UP:
+        AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
+        /* Fall through */
+      case MP_ADDED:
+        /* We're in multilink mode ! */
+        break;
+      case MP_FAILED:
+        datalink_AuthNotOk(dl);
+        return;
     }
   } else if (bundle_Phase(dl->bundle) == PHASE_NETWORK) {
     LogPrintf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
@@ -471,7 +477,6 @@ datalink_AuthOk(struct datalink *dl)
     ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
   }
 
-  AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
   FsmUp(&dl->physical->link.ccp.fsm);
   FsmOpen(&dl->physical->link.ccp.fsm);
   dl->state = DATALINK_OPEN;

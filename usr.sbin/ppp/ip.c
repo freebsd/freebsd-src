@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.22 1998/04/16 18:30:53 brian Exp $
+ * $Id: ip.c,v 1.38.2.23 1998/04/25 10:49:04 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -33,6 +33,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <net/if_tun.h>
+#include <sys/un.h>
 
 #ifndef NOALIAS
 #include <alias.h>

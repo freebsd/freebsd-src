@@ -16,11 +16,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.25 1998/04/16 00:26:13 brian Exp $
+ *  $Id: physical.c,v 1.1.2.26 1998/04/25 10:49:39 brian Exp $
  *
  */
 
 #include <sys/types.h>
+#include <sys/un.h>
 
 #include <sys/tty.h>
 

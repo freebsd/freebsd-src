@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.15 1998/04/25 00:09:21 brian Exp $
+ *	$Id: mp.c,v 1.1.2.16 1998/04/25 10:49:35 brian Exp $
  */
 
 #include <sys/types.h>
@@ -33,11 +33,14 @@
 #include <arpa/inet.h>
 #include <net/if_dl.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <errno.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -181,6 +184,8 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->fsmp.LayerFinish = mp_LayerFinish;
   mp->fsmp.object = mp;
 
+  mpserver_Init(&mp->server);
+
   mp->cfg.mrru = 0;
   mp->cfg.shortseq = NEG_ENABLED|NEG_ACCEPTED;
   mp->cfg.enddisc.class = 0;
@@ -192,31 +197,34 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 }
 
 int
-mp_Up(struct mp *mp, const char *name, const struct peerid *peer,
-      u_short local_mrru, u_short peer_mrru, int local_shortseq,
-      int peer_shortseq)
+mp_Up(struct mp *mp, struct datalink *dl)
 {
+  struct lcp *lcp = &dl->physical->link.lcp;
+  int fd;
+
   if (mp->active) {
     /* We're adding a link - do a last validation on our parameters */
-    if (!peerid_Equal(peer, &mp->peer)) {
-      LogPrintf(LogPHASE, "%s: Inappropriate peer !\n", name);
-      return 0;
+    if (!peerid_Equal(&dl->peer, &mp->peer)) {
+      LogPrintf(LogPHASE, "%s: Inappropriate peer !\n", dl->name);
+      return MP_FAILED;
     }
-    if (mp->local_mrru != local_mrru ||
-        mp->peer_mrru != peer_mrru ||
-        mp->local_is12bit != local_shortseq ||
-        mp->peer_is12bit != peer_shortseq) {
-      LogPrintf(LogPHASE, "%s: Invalid MRRU/SHORTSEQ MP parameters !\n", name);
-      return 0;
+    if (mp->local_mrru != lcp->want_mrru ||
+        mp->peer_mrru != lcp->his_mrru ||
+        mp->local_is12bit != lcp->want_shortseq ||
+        mp->peer_is12bit != lcp->his_shortseq) {
+      LogPrintf(LogPHASE, "%s: Invalid MRRU/SHORTSEQ MP parameters !\n",
+                dl->name);
+      return MP_FAILED;
     }
+    return MP_ADDED;
   } else {
     /* First link in multilink mode */
 
-    mp->local_mrru = local_mrru;
-    mp->peer_mrru = peer_mrru;
-    mp->local_is12bit = local_shortseq;
-    mp->peer_is12bit = peer_shortseq;
-    mp->peer = *peer;
+    mp->local_mrru = lcp->want_mrru;
+    mp->peer_mrru = lcp->his_mrru;
+    mp->local_is12bit = lcp->want_shortseq;
+    mp->peer_is12bit = lcp->his_shortseq;
+    mp->peer = dl->peer;
 
     throughput_init(&mp->link.throughput);
     memset(mp->link.Queue, '\0', sizeof mp->link.Queue);
@@ -227,17 +235,33 @@ mp_Up(struct mp *mp, const char *name, const struct peerid *peer,
     mp->seq.min_in = 0;
     mp->seq.next_in = 0;
 
-    /* Re-point our IPCP layer at our MP link */
-    ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
+    /*
+     * Now we create our server socket.
+     * If it already exists, join it.  Otherwise, create and own it
+     */
+    fd = mpserver_Open(&mp->server, &mp->peer);
+    if (fd >= 0) {
+      LogPrintf(LogPHASE, "mp: Transfer link %s\n", mp->server.ifsun.sun_path);
+      bundle_SendDatalink(dl, fd);
+      return MP_LINKSENT;
+    } else if (!mpserver_IsOpen(&mp->server))
+      return MP_FAILED;
+    else {
+      LogPrintf(LogPHASE, "mp: Listening on %s\n", mp->server.ifsun.sun_path);
+      LogPrintf(LogPHASE, "    First link: %s\n", dl->name);
 
-    /* Our lcp's already up 'cos of the NULL parent */
-    FsmUp(&mp->link.ccp.fsm);
-    FsmOpen(&mp->link.ccp.fsm);
+      /* Re-point our IPCP layer at our MP link */
+      ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
 
-    mp->active = 1;
+      /* Our lcp's already up 'cos of the NULL parent */
+      FsmUp(&mp->link.ccp.fsm);
+      FsmOpen(&mp->link.ccp.fsm);
+
+      mp->active = 1;
+    }
   }
 
-  return 1;
+  return MP_UP;
 }
 
 void
@@ -246,7 +270,10 @@ mp_Down(struct mp *mp)
   if (mp->active) {
     struct mbuf *next;
 
-    /* CCP goes down with a bank */
+    /* Don't want any more of these */
+    mpserver_Close(&mp->server);
+
+    /* CCP goes down with a bang */
     FsmDown(&mp->link.ccp.fsm);
     FsmClose(&mp->link.ccp.fsm);
 
@@ -570,6 +597,9 @@ mp_ShowStatus(struct cmdargs const *arg)
   struct mp *mp = &arg->bundle->ncp.mp;
 
   prompt_Printf(arg->prompt, "Multilink is %sactive\n", mp->active ? "" : "in");
+  if (mp->active)
+    prompt_Printf(arg->prompt, "Socket:         %s\n",
+                  mp->server.ifsun.sun_path);
 
   prompt_Printf(arg->prompt, "\nMy Side:\n");
   if (mp->active) {
@@ -742,4 +772,139 @@ mp_SetEnddisc(struct cmdargs const *arg)
   }
 
   return 0;
+}
+
+static int
+mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+                   int *n)
+{
+  struct mpserver *s = descriptor2mpserver(d);
+
+  if (r && s->fd >= 0) {
+    if (*n < s->fd + 1)
+      *n = s->fd + 1;
+    FD_SET(s->fd, r);
+    return 1;
+  }
+  return 0;
+}
+
+static int
+mpserver_IsSet(struct descriptor *d, const fd_set *fdset)
+{
+  struct mpserver *s = descriptor2mpserver(d);
+  return s->fd >= 0 && FD_ISSET(s->fd, fdset);
+}
+
+static void
+mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  struct mpserver *s = descriptor2mpserver(d);
+  int fd, size;
+
+  size = sizeof s->ifsun;
+  fd = accept(s->fd, (struct sockaddr *)&s->ifsun, &size);
+  if (fd < 0) {
+    LogPrintf(LogERROR, "mpserver_Read: accept(): %s\n", strerror(errno));
+    return;
+  }
+
+  if (s->ifsun.sun_family != AF_LOCAL) {		/* ??? */
+    close(fd);
+    return;
+  }
+
+  bundle_ReceiveDatalink(bundle, fd);
+}
+
+static void
+mpserver_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
+{
+  /* We never want to write here ! */
+  LogPrintf(LogERROR, "mpserver_Write: Internal error: Bad call !\n");
+}
+
+void
+mpserver_Init(struct mpserver *s)
+{
+  s->desc.type = MPSERVER_DESCRIPTOR;
+  s->desc.next = NULL;
+  s->desc.UpdateSet = mpserver_UpdateSet;
+  s->desc.IsSet = mpserver_IsSet;
+  s->desc.Read = mpserver_Read;
+  s->desc.Write = mpserver_Write;
+  s->fd = -1;
+  memset(&s->ifsun, '\0', sizeof s->ifsun);
+}
+
+int
+mpserver_Open(struct mpserver *s, struct peerid *peer)
+{
+  mode_t mask;
+  int f;
+
+  if (s->fd != -1) {
+    LogPrintf(LogERROR, "Internal error !  mpserver already open\n");
+    close(s->fd);
+    memset(&s->ifsun, '\0', sizeof s->ifsun);
+  }
+
+  s->ifsun.sun_len = snprintf(s->ifsun.sun_path, sizeof s->ifsun.sun_path,
+                              "%sppp-%s-%02x-", _PATH_VARRUN,
+                              peer->authname, peer->enddisc.class);
+
+  for (f = 0; f < peer->enddisc.len; f++) {
+    snprintf(s->ifsun.sun_path + s->ifsun.sun_len,
+             sizeof s->ifsun.sun_path - s->ifsun.sun_len,
+             "%02x", *(u_char *)(peer->enddisc.address+f));
+    s->ifsun.sun_len += 2;
+  }
+
+  s->ifsun.sun_family = AF_LOCAL;
+  s->fd = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
+  if (s->fd < 0) {
+    LogPrintf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
+    return -1;
+  }
+  setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, (struct sockaddr *)&s->ifsun,
+             sizeof s->ifsun);
+
+  mask = umask(0177);
+
+  if (ID0bind_un(s->fd, &s->ifsun, sizeof s->ifsun) < 0) {
+    umask(mask);
+    f = sizeof s->ifsun;
+    getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (struct sockaddr *)&s->ifsun, &f);
+    if (ID0connect_un(s->fd, &s->ifsun, sizeof s->ifsun) < 0) {
+      LogPrintf(LogPHASE, "mpserver: can't open bundle socket (%s)\n",
+                strerror(errno));
+      close(s->fd);
+      s->fd = -1;
+      return -1;
+    } else {
+      /* We wanna donate our link to the other guy */
+      int fd = s->fd;
+      s->fd = -1;
+      return fd;
+    }
+  } else {
+    umask(mask);
+    if (listen(s->fd, 5) != 0) {
+      LogPrintf(LogERROR, "mpserver: Unable to listen to socket"
+                " - BUNDLE overload?\n");
+      mpserver_Close(s);
+    }
+  }
+
+  return -1;
+}
+
+void
+mpserver_Close(struct mpserver *s)
+{
+  if (s->fd >= 0) {
+    close(s->fd);
+    ID0unlink(s->ifsun.sun_path);
+    s->fd = -1;
+  }
 }

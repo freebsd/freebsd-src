@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.28 1998/04/23 21:50:09 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.29 1998/04/24 19:16:03 brian Exp $
  *
  *	TODO:
  */
@@ -25,6 +25,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <string.h>

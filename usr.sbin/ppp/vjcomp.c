@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.13 1998/04/07 00:54:25 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.14 1998/04/16 00:26:21 brian Exp $
  *
  *  TODO:
  */
@@ -25,6 +25,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.13 1998/04/07 00:54:23 brian Exp $
+ *	$Id: tun.c,v 1.6.4.14 1998/04/25 10:49:52 brian Exp $
  */
 
 #include <sys/types.h>
@@ -33,6 +33,7 @@
 #include <net/if_tun.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <string.h>
 #include <sys/ioctl.h>

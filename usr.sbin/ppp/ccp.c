@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.38 1998/04/24 19:15:36 brian Exp $
+ * $Id: ccp.c,v 1.30.2.39 1998/04/25 10:48:49 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.50 1998/04/23 03:22:58 brian Exp $
+ * $Id: main.c,v 1.121.2.51 1998/04/25 10:49:26 brian Exp $
  *
  *	TODO:
  */
@@ -500,6 +500,8 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
+    descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
+                         &efds, &nfds);
 
     /* If there are aren't many packets queued, look for some more. */
     if (qlen < 20 && bundle->tun_fd >= 0) {
@@ -531,6 +533,9 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
         LogPrintf(LogALERT, "Exception detected on descriptor %d\n", i);
         break;
       }
+
+    if (descriptor_IsSet(&bundle->ncp.mp.server.desc, &rfds))
+      descriptor_Read(&bundle->ncp.mp.server.desc, bundle, &rfds);
 
     if (descriptor_IsSet(&server.desc, &rfds))
       descriptor_Read(&server.desc, bundle, &rfds);

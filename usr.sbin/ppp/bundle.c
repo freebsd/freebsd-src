@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.62 1998/04/25 10:48:45 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.63 1998/04/27 01:40:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <net/if_tun.h>
+#include <sys/un.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -1086,4 +1087,18 @@ const char *
 bundle_GetLabel(struct bundle *bundle)
 {
   return *bundle->cfg.label ? bundle->cfg.label : NULL;
+}
+
+void
+bundle_SendDatalink(struct datalink *dl, int fd)
+{
+  LogPrintf(LogERROR, "Can't send link yet !\n");
+  close(fd);
+}
+
+void
+bundle_ReceiveDatalink(struct bundle *bundle, int fd)
+{
+  LogPrintf(LogERROR, "Can't receive link yet !\n");
+  close(fd);
 }

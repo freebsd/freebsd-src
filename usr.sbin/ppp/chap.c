@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.24 1998/04/16 00:25:52 brian Exp $
+ * $Id: chap.c,v 1.28.2.25 1998/04/24 19:15:58 brian Exp $
  *
  *	TODO:
  */
@@ -25,15 +25,11 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/un.h>
 
-#ifdef HAVE_DES
-#endif
 #include <md5.h>
 #include <stdlib.h>
 #include <termios.h>
-#ifdef __OpenBSD__
-#else
-#endif
 
 #include "mbuf.h"
 #include "log.h"

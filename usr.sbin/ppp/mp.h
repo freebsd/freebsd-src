@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.1.2.6 1998/04/24 19:16:10 brian Exp $
+ *	$Id: mp.h,v 1.1.2.7 1998/04/25 00:09:22 brian Exp $
  */
 
 struct mbuf;
 struct physical;
 struct bundle;
 struct cmdargs;
+struct datalink;
 
 #define ENDDISC_NULL	0
 #define ENDDISC_LOCAL	1
@@ -37,6 +38,11 @@ struct cmdargs;
 #define ENDDISC_MAC	3
 #define ENDDISC_MAGIC	4
 #define ENDDISC_PSN	5
+
+#define MP_LINKSENT	0	/* We attached the link to another ppp */
+#define MP_UP		1	/* We've started MP */
+#define MP_ADDED	2	/* We've added the link to our MP */
+#define MP_FAILED	3	/* No go */
 
 struct enddisc {
   u_char class;
@@ -49,8 +55,11 @@ struct peerid {
   char authname[50];		/* Peers name (authenticated) */
 };
 
-extern void peerid_Init(struct peerid *);
-extern int peerid_Equal(const struct peerid *, const struct peerid *);
+struct mpserver {
+  struct descriptor desc;
+  int fd;			/* listen()ing here */
+  struct sockaddr_un ifsun;	/* On this socket */
+};
 
 struct mp {
   struct link link;
@@ -62,6 +71,7 @@ struct mp {
   u_short local_mrru;
 
   struct peerid peer;		/* Who are we talking to */
+  struct mpserver server;	/* Our ``sharing'' socket */
 
   struct {
     u_int32_t out;		/* next outgoing seq */
@@ -91,10 +101,19 @@ struct mp_header {
   u_int32_t seq;
 };
 
+#define mpserver2descriptor(s) (&(s)->desc)
+#define descriptor2mpserver(d) \
+  ((d)->type == MPSERVER_DESCRIPTOR ? (struct mpserver *)(d) : NULL)
+#define mpserver_IsOpen(s) ((s)->fd != -1)
+
+extern void peerid_Init(struct peerid *);
+extern int peerid_Equal(const struct peerid *, const struct peerid *);
+extern void mpserver_Init(struct mpserver *);
+extern int mpserver_Open(struct mpserver *, struct peerid *);
+extern void mpserver_Close(struct mpserver *);
 extern void mp_Init(struct mp *, struct bundle *);
 extern void mp_linkInit(struct mp_link *);
-extern int mp_Up(struct mp *, const char *, const struct peerid *, u_short,
-                 u_short, int, int);
+extern int mp_Up(struct mp *, struct datalink *);
 extern void mp_Down(struct mp *);
 extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
 extern int mp_FillQueues(struct bundle *);
