@@ -164,6 +164,10 @@ static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
 
+#ifdef WITNESS
+extern char *syscallnames[];
+#endif
+
 static __inline int
 userret(p, frame, oticks, have_giant)
 	struct proc *p;
@@ -1221,6 +1225,12 @@ bad:
 
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef WITNESS
+	if (witness_list(p)) {
+		panic("system call %s returning with mutex(s) held\n",
+		    syscallnames[code]);
+	}
+#endif
 }
 
 void
