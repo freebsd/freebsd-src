@@ -116,8 +116,7 @@ ipx_input(m, ipxp)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct sockaddr_ipx ipx_ipx;
 
-	if (ipxp == NULL)
-		panic("No ipxpcb");
+	KASSERT(ipxp != NULL, ("ipx_input: NUL ipxpcb"));
 	/*
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.

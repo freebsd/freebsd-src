@@ -143,10 +143,7 @@ spx_input(m, ipxp)
 	short ostate = 0;
 
 	spxstat.spxs_rcvtotal++;
-	if (ipxp == NULL) {
-		panic("No ipxpcb in spx_input\n");
-		return;
-	}
+	KASSERT(ipxp != NULL, ("spx_input: NULL ipxpcb"));
 
 	cb = ipxtospxpcb(ipxp);
 	if (cb == NULL)
