@@ -64,6 +64,8 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef int Reject_level;
 
