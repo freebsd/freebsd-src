@@ -284,6 +284,8 @@ pcic_isa_attach(device_t dev)
 	}
 	sc->iorid = rid;
 	sc->iores = r;
+	sc->csc_route = isa_parallel;
+	sc->func_route = isa_parallel;
 	return (pcic_attach(dev));
 }
 
@@ -298,7 +300,7 @@ static device_method_t pcic_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	pcic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
