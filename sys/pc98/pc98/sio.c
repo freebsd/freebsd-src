@@ -180,15 +180,6 @@
 #include <i386/isa/ic/rsa.h>
 #endif
 
-#include "card.h"
-#if NCARD > 0
-/* XXX should die XXX */
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-#endif
-
 #ifndef __i386__
 #define disable_intr()
 #define enable_intr()
@@ -879,13 +870,9 @@ static int
 sio_pccard_probe(dev)
 	device_t	dev;
 {
-	const char *name;
-
-	name = pccard_get_name(dev);
-	if (strcmp(name, "sio"))
-		return ENXIO;
-
 	/* Do not probe IRQ - pccardd has not arranged for it yet */
+	/* XXX Actually it has been asigned to you, but isn't activated   */
+	/* XXX until you specifically activate the resource for your use. */
 	SET_FLAG(dev, COM_C_NOPROBE);
 
 	return (sioprobe(dev));
@@ -907,7 +894,7 @@ sio_pccard_attach(dev)
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
-static void
+static int
 sio_pccard_detach(dev)
 	device_t	dev;
 {
@@ -935,6 +922,7 @@ sio_pccard_detach(dev)
 		free(com, M_DEVBUF);
 		device_printf(dev, "unload,gone\n");
 	}
+	return (0);
 }
 #endif /* NCARD > 0 */
 
