@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.22 1999/07/06 19:22:54 des Exp $ */
+/* $Id: if_wl.c,v 1.23 1999/08/18 06:11:59 mdodd Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -204,6 +204,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 
@@ -1181,7 +1182,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     case SIOCSIFADDR:
     case SIOCGIFADDR:
     case SIOCSIFMTU:
-        error = ether_ioctl(ifp, command, data);
+        error = ether_ioctl(ifp, cmd, data);
         break;
 
     case SIOCSIFFLAGS:

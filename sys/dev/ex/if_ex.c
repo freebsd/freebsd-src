@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.16 1999/07/06 19:22:47 des Exp $
+ *	$Id: if_ex.c,v 1.17 1999/08/18 06:11:58 mdodd Exp $
  */
 
 /*
@@ -48,7 +48,11 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -752,7 +756,6 @@ void ex_rx_intr(int unit)
 int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
   struct ex_softc *sc = &ex_sc[ifp->if_unit];
-  struct ifreq *ifr = (struct ifreq *) data;
   int s, error = 0;
 
   DODEBUG(Start_End, printf("ex_ioctl%d: start ", ifp->if_unit););
@@ -763,7 +766,7 @@ int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
   case SIOCSIFADDR:
   case SIOCGIFADDR:
   case SIOCSIFMTU:
-    error = ether_ioctl(ifp, command, data);
+    error = ether_ioctl(ifp, cmd, data);
     break;
 
   case SIOCSIFFLAGS:

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.61 1999/07/06 19:22:49 des Exp $
+ *	$Id: if_ie.c,v 1.62 1999/08/18 06:11:59 mdodd Exp $
  */
 
 /*
@@ -121,9 +121,13 @@ iomem and and with 0xffff.
 #include <sys/sockio.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #include "bpf.h"
 
@@ -2243,7 +2247,6 @@ ie_stop(int unit)
 static int
 ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ifreq *ifr = (struct ifreq *) data;
 	int	s, error = 0;
 
 	s = splimp();

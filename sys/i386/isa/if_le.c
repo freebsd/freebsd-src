@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.51 1999/07/06 19:22:49 des Exp $
+ * $Id: if_le.c,v 1.52 1999/08/18 06:11:59 mdodd Exp $
  */
 
 /*
@@ -48,9 +48,13 @@
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
 
 #include "bpf.h"
 
@@ -501,7 +505,7 @@ le_ioctl(
         case SIOCSIFADDR:
         case SIOCGIFADDR:
         case SIOCSIFMTU:
-                error = ether_ioctl(ifp, command, data);
+                error = ether_ioctl(ifp, cmd, data);
                 break;
 
 	case SIOCSIFFLAGS: {
