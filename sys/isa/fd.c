@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.51 1995/01/27 20:03:07 jkh Exp $
+ *	$Id: fd.c,v 1.52 1995/02/26 01:37:51 bde Exp $
  *
  */
 
@@ -1682,6 +1682,10 @@ fdformat(dev, finfo, p)
 	bp = (struct buf *)malloc(sizeof(struct buf), M_TEMP, M_NOWAIT);
 	if(bp == 0)
 		return ENOBUFS;
+	/*
+	 * keep the process from being swapped
+	 */
+	p->p_flag |= P_PHYSIO;
 	bzero((void *)bp, sizeof(struct buf));
 	bp->b_flags = B_BUSY | B_PHYS | B_FORMAT;
 	bp->b_proc = p;
@@ -1710,12 +1714,17 @@ fdformat(dev, finfo, p)
 	}
 	splx(s);
 	
-	if(rv == EWOULDBLOCK)
+	if(rv == EWOULDBLOCK) {
 		/* timed out */
 		rv = EIO;
+		biodone(bp);
+	}
 	if(bp->b_flags & B_ERROR)
 		rv = bp->b_error;
-	biodone(bp);
+	/*
+	 * allow the process to be swapped
+	 */
+	p->p_flag &= ~P_PHYSIO;
 	free(bp, M_TEMP);
 	return rv;
 }
