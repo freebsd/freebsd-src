@@ -104,7 +104,7 @@ _fseeko(fp, offset, whence, ltest)
 	int ltest;
 {
 	register fpos_t (*seekfn) __P((void *, fpos_t, int));
-	fpos_t target, curoff, spos;
+	fpos_t target, curoff;
 	size_t n;
 	struct stat st;
 	int havepos;
@@ -126,53 +126,11 @@ _fseeko(fp, offset, whence, ltest)
 	case SEEK_CUR:
 		/*
 		 * In order to seek relative to the current stream offset,
-		 * we have to first find the current stream offset a la
+		 * we have to first find the current stream offset via
 		 * ftell (see ftell for details).
 		 */
-		if (fp->_flags & __SOFF)
-			curoff = fp->_offset;
-		else {
-			curoff = (*seekfn)(fp->_cookie, (fpos_t)0, SEEK_CUR);
-			if (curoff == -1)
-				return (-1);
-		}
-		if (fp->_flags & __SRD) {
-			spos = curoff;
-			curoff -= fp->_r;
-			if (curoff < 0) {
-				if (HASUB(fp)) {
-					fp->_p -= curoff;
-					fp->_r += curoff;
-					curoff = 0;
-				} else {
-					fp->_p = fp->_bf._base;
-					fp->_r = 0;
-					curoff = spos;
-				}
-			}
-			if (HASUB(fp)) {
-				curoff -= fp->_ur;
-				if (curoff < 0) {
-					if (-curoff <= fp->_r) {
-						fp->_p -= curoff;
-						fp->_r += curoff;
-						curoff = 0;
-					} else {
-						fp->_p = fp->_bf._base;
-						fp->_r = 0;
-						FREEUB(fp);
-						curoff = spos;
-					}
-				}
-			}
-		} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
-			n = fp->_p - fp->_bf._base;
-			if (curoff > OFF_MAX - n) {
-				errno = EOVERFLOW;
-				return (-1);
-			}
-			curoff += n;
-		}
+		if ((curoff = _ftello(fp)) == -1)
+			return (-1);
 		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (-1);
@@ -252,43 +210,8 @@ _fseeko(fp, offset, whence, ltest)
 		}
 	}
 
-	if (!havepos) {
-		if (fp->_flags & __SOFF)
-			curoff = fp->_offset;
-		else {
-			curoff = (*seekfn)(fp->_cookie, (fpos_t)0, SEEK_CUR);
-			if (curoff == POS_ERR)
-				goto dumb;
-		}
-		spos = curoff;
-		curoff -= fp->_r;
-		if (curoff < 0) {
-			if (HASUB(fp)) {
-				fp->_p -= curoff;
-				fp->_r += curoff;
-				curoff = 0;
-			} else {
-				fp->_p = fp->_bf._base;
-				fp->_r = 0;
-				curoff = spos;
-			}
-		}
-		if (HASUB(fp)) {
-			curoff -= fp->_ur;
-			if (curoff < 0) {
-				if (-curoff <= fp->_r) {
-					fp->_p -= curoff;
-					fp->_r += curoff;
-					curoff = 0;
-				} else {
-					fp->_p = fp->_bf._base;
-					fp->_r = 0;
-					FREEUB(fp);
-					curoff = spos;
-				}
-			}
-		}
-	}
+	if (!havepos && (curoff = _ftello(fp)) == -1)
+		goto dumb;
 
 	/*
 	 * Compute the number of bytes in the input buffer (pretending
@@ -346,7 +269,6 @@ abspos:
 	fp->_p = fp->_bf._base;
 	if (HASUB(fp))
 		FREEUB(fp);
-	fp->_flags &= ~__SEOF;
 	n = target - curoff;
 	if (n) {
 		if (__srefill(fp) || fp->_r < n)
@@ -354,6 +276,7 @@ abspos:
 		fp->_p += n;
 		fp->_r -= n;
 	}
+	fp->_flags &= ~__SEOF;
 	return (0);
 
 	/*
