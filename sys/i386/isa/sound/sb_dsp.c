@@ -1091,7 +1091,7 @@ sb_dsp_detect (struct address_info *hw_config)
     }
 #endif
 
-  return 1;			/*
+  return 0x10;                  /*
 				 * Detected
 				 */
 }
