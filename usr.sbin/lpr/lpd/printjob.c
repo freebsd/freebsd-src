@@ -602,7 +602,7 @@ print(struct printer *pp, int format, char *file)
 	int fi, fo;
 	FILE *fp;
 	char *av[15], buf[BUFSIZ];
-	int pid, p[2], retcode, stopped, wstatus;
+	int pid, p[2], retcode, stopped, wstatus, wstatus_set;
 	struct stat stb;
 
 	if (lstat(file, &stb) < 0 || (fi = open(file, O_RDONLY)) < 0) {
@@ -810,6 +810,7 @@ start:
 		exit(2);
 	}
 	(void) close(fi);
+	wstatus_set = 0;
 	if (child < 0)
 		retcode = 100;
 	else {
@@ -819,8 +820,10 @@ start:
 			retcode = 100;
 			syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
 			    pp->printer, prog);
-		} else
+		} else {
+			wstatus_set = 1;
 			retcode = WEXITSTATUS(wstatus);
+		}
 	}
 	child = 0;
 	prchild = 0;
@@ -839,7 +842,7 @@ start:
 		fclose(fp);
 	}
 
-	if (!WIFEXITED(wstatus)) {
+	if (wstatus_set && !WIFEXITED(wstatus)) {
 		syslog(LOG_WARNING, "%s: filter '%c' terminated (termsig=%d)",
 		    pp->printer, format, WTERMSIG(wstatus));
 		return(ERROR);
