@@ -1,5 +1,4 @@
 /*	$NetBSD: sigsetjmp.S,v 1.2 1996/10/17 03:08:07 cgd Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -28,8 +27,10 @@
  * rights to redistribute these changes.
  */
 
-#define LOCORE
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
+#define LOCORE
 #include <machine/setjmp.h>
 
 /*

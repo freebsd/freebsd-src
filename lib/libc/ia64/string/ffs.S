@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: ffs.S,v 1.3 1996/10/17 03:08:13 cgd Exp $	*/
 
 /*
@@ -33,6 +32,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 ENTRY(ffs, 1)
 	sxt4	r14=in0 ;;

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: ntohs.S,v 1.1 1996/04/17 22:37:02 cgd Exp $	*/
 
 /*
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #define	ALIAS	ntohs
 #define	NAME	__ntohs
