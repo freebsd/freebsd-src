@@ -1,7 +1,5 @@
-/* $FreeBSD$ */
-/* From: NetBSD: stdarg.h,v 1.7 1997/04/06 08:47:44 cgd Exp */
-
 /*-
+ * Copyright (c) 2002 David E. O'Brien.  All rights reserved.
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -34,6 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdarg.h	8.1 (Berkeley) 6/10/93
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_STDARG_H_
@@ -43,8 +42,15 @@
 
 typedef _BSD_VA_LIST_	va_list;
 
-#define va_start(list, parmN)	__builtin_stdarg_start(list, parmN)
-#define va_end			__builtin_va_end
-#define va_arg			__builtin_va_arg
+#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+
+#define	va_start(ap, last) \
+	__builtin_stdarg_start((ap), (last))
+
+#define	va_arg(ap, type) \
+	__builtin_va_arg((ap), type)
+
+#define	va_end(ap) \
+	__builtin_va_end(ap)
 
 #endif /* !_MACHINE_STDARG_H_ */
