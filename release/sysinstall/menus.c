@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.60 1998/02/13 09:00:03 yokota Exp $
+ * $Id: menus.c,v 1.89.2.61 1998/02/19 02:22:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -343,56 +343,100 @@ DMenu MenuDocumentation = {
       { NULL } },
 };
 
-static int
-whichMouse(dialogMenuItem *self)
-{
-    int i;
-    char buf[BUFSIZ];
-    
-    if (!file_readable("/dev/mouse"))
-	return FALSE;
-    if ((i = readlink("/dev/mouse", buf, sizeof buf)) == -1)
-	return FALSE;
-    buf[i] = '\0';
-    if (!strcmp(self->prompt, "COM1"))
-	return !strcmp(buf, "/dev/cuaa0");
-    else if (!strcmp(self->prompt, "COM2"))
-	return !strcmp(buf, "/dev/cuaa1");
-    if (!strcmp(self->prompt, "COM3"))
-	return !strcmp(buf, "/dev/cuaa2");
-    if (!strcmp(self->prompt, "COM4"))
-	return !strcmp(buf, "/dev/cuaa3");
-    if (!strcmp(self->prompt, "BusMouse"))
-	return !strcmp(buf, "/dev/mse0");
-    if (!strcmp(self->prompt, "PS/2"))
-	return !strcmp(buf, "/dev/psm0");
-    return FALSE;
-}
+DMenu MenuMouseType = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "Select a protocol type for your mouse",
+    "If you are not sure, choose \"Auto\".  It should always work for bus\n"
+    "and PS/2 style mice.  It may not work for the serial mouse if the mouse\n"
+    "does not support the PnP standard.  But, it won't hurt.  Many 2-button\n"
+    "serial mice are compatible with \"Microsoft\" or \"MouseMan\".  3-button\n"
+    "serial mice may be compatible with \"MouseSystems\" or \"MouseMan\".  If\n"
+    "the mouse has a wheel, it may be compatible with \"IntelliMouse\".",
+    NULL,
+    NULL,
+    { { "Auto",		"Bus mouse, PS/2 style mouse or PnP serial mouse",	
+	dmenuVarCheck, dmenuSetVariable, NULL,
+	VAR_MOUSED_TYPE "=auto" },
+      { "GlidePoint",	"ALPS GlidePoint pad (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=glidepoint" },
+      { "Hitachi","Hitachi tablet (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=mmhittab" },
+      { "IntelliMouse",	"Microsoft IntelliMouse (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=intellimouse" },
+      { "Logitech",	"Logitech protocol (old models) (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=logitech" },
+      { "Microsoft",	"Microsoft protocol (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=microsoft" },
+      { "MM Series","MM Series protocol (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=mmseries" },
+      { "MouseMan",	"Logitech MouseMan/TrackMan models (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=mouseman" },
+      { "MouseSystems",	"MouseSystems protocol (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=mousesystems" },
+      { "ThinkingMouse","Kensington ThinkingMouse (serial)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_TYPE "=thinkingmouse" },
+      { NULL } },
+};
+
+DMenu MenuMousePort = {
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
+    "Select your mouse port from the following menu",
+    "Please note that for PS/2 mice, you need to enable the psm driver\n"
+    "in the kernel configuration menu when installing for the first time.",
+    NULL,
+    NULL,
+    { { "COM1",	"Serial mouse on COM1 (/dev/cuaa0)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/cuaa0" },
+      { "COM2",	"Serial mouse on COM2 (/dev/cuaa1)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/cuaa1" },
+      { "COM3",	"Serial mouse on COM3 (/dev/cuaa2)",
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/cuaa2" },
+      { "COM4",	"Serial mouse on COM4 (/dev/cuaa3)", 
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/cuaa3" },
+      { "BusMouse", "Logitech, ATI or MS bus mouse (/dev/mse0)", 
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/mse0" },
+      { "PS/2",	"PS/2 style mouse (must enable /dev/psm0)", 
+	dmenuVarCheck, dmenuSetVariable, NULL, 
+	VAR_MOUSED_PORT "=/dev/psm0" },
+      { NULL } },
+};
 
 DMenu MenuMouse = {
-    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select your mouse type from the following menu",
+    DMENU_NORMAL_TYPE,
+    "Please configure your mouse",
     "There are many different types of mice currently on the market,\n"
     "but this configuration menu should at least narrow down the choices\n"
-    "somewhat.  Once you've selected one of the below, you can specify\n"
-    "/dev/mouse as your mouse device when running the X configuration\n"
-    "utility (see Configuration menu).  Please note that for PS/2 mice,\n"
-    "you need to enable the psm driver in the kernel configuration menu\n"
-    "when installing for the first time.",
-    "For more information, visit the Documentation menu",
+    "somewhat.  Once you've done with the following menus, you can specify\n"
+    "\"/dev/sysmouse\" as your mouse device and \"SysMouse\" or \"MouseSystems\"\n"
+    "as mouse protocol when running the X configuration utility (see \n"
+    "Configuration menu).",
+    "Choose 3 after selecting a protocol and a port.",
     NULL,
-    { { "COM1",	"Serial mouse on COM1",	whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/cuaa0 /dev/mouse", '(', '*', ')', 1 },
-      { "COM2",	"Serial mouse on COM2", whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/cuaa1 /dev/mouse", '(', '*', ')', 1 },
-      { "COM3",	"Serial mouse on COM3", whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/cuaa2 /dev/mouse", '(', '*', ')', 1 },
-      { "COM4",	"Serial mouse on COM4", whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/cuaa3 /dev/mouse", '(', '*', ')', 1 },
-      { "BusMouse", "Logitech or ATI bus mouse", whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/mse0 /dev/mouse", '(', '*', ')', 1 },
-      { "PS/2",	"PS/2 style mouse (must enable psm0 device)", whichMouse, dmenuSystemCommand, NULL,
-	"ln -fs /dev/psm0 /dev/mouse", '(', '*', ')', 1 },
+    { { "1 Type",	"Select mouse protocol",
+	NULL, dmenuSubmenu, NULL, &MenuMouseType },
+      { "2 Port",	"Select mouse port",
+	NULL, dmenuSubmenu, NULL, &MenuMousePort },
+      { "3 Daemon",	"Test and run the mouse daemon",
+	NULL, mousedTest, NULL, NULL }, 
+      { "4 No mouse",	"Clear mouse configuration", 
+	NULL, dmenuSetVariables, NULL, 
+	VAR_MOUSED "=NO, " VAR_MOUSED_TYPE "=NO, " VAR_MOUSED_PORT "=" },
+      { "0 Exit", "Exit this menu (returning to previous)",
+	NULL, dmenuExit },
       { NULL } },
 };
 
@@ -740,7 +784,7 @@ DMenu MenuSubDistributions = {
       { "Xaccel",	"The XiG AcceleratedX 3.1 distribution",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XIG_SERVER },
 #else
-      { "XFree86",	"The XFree86 3.3.1 distribution",
+      { "XFree86",	"The XFree86 3.3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
 #endif
       { "All",		"All sources, binaries and X Window System binaries",
@@ -829,8 +873,8 @@ DMenu MenuSrcDistributions = {
 #ifndef USE_XIG_ENVIRONMENT
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.1 Distribution",
-    "Please select the components you need from the XFree86 3.3.1\n"
+    "XFree86 3.3.2 Distribution",
+    "Please select the components you need from the XFree86 3.3.2\n"
     "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
@@ -845,7 +889,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.1 base distribution types",
+    "XFree86 3.3.2 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -876,9 +920,9 @@ DMenu MenuXF86SelectCore = {
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
 #endif
-      { "sources",	"XFree86 3.3.1 standard sources",
+      { "sources",	"XFree86 3.3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { "csources",	"XFree86 3.3.1 contrib sources",
+      { "csources",	"XFree86 3.3.2 contrib sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { "All",		"Select all of the above",
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
@@ -1099,7 +1143,7 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "tzsetup" },
       { "4 Media",	"Change the installation media type",
 	NULL,	dmenuSubmenu, NULL, &MenuMedia	},
-      { "5 Mouse",	"Select the type of mouse you have",
+      { "5 Mouse",	"Configure your mouse",
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { "6 Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.47 1997/10/12 16:22:26 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.48 1997/10/14 18:17:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,6 +129,9 @@
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_MEDIA_TYPE			"mediaType"
 #define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
+#define VAR_MOUSED			"moused_enable"
+#define VAR_MOUSED_PORT			"moused_port"
+#define VAR_MOUSED_TYPE			"moused_type"
 #define VAR_NAMESERVER			"nameserver"
 #define VAR_NETINTERACTIVE		"netInteractive"
 #define VAR_NETMASK			"netmask"
@@ -635,6 +638,9 @@ extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
+
+/* mouse.c */
+extern int	mousedTest(dialogMenuItem *self);
 
 /* msg.c */
 extern Boolean	isDebug(void);
