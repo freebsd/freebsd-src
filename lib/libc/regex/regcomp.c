@@ -1849,7 +1849,7 @@ register struct re_guts *g;
 
 /*
  - altoffset - choose biggest offset among multiple choices
- = static int altoffset(sop *scan, int offset, int mccs);
+ == static int altoffset(sop *scan, int offset, int mccs);
  *
  * Compute, recursively if necessary, the largest offset among multiple
  * re paths.
@@ -2034,7 +2034,7 @@ struct re_guts *g;
 
         ssuffix = pmatches[suffix];
         while (suffix < g->mlen) {
-                while (suffix <= ssuffix) {
+                while (suffix <= ssuffix && suffix < g->mlen) {
                         g->matchjump[suffix] = MIN(g->matchjump[suffix],
 			    g->mlen + ssuffix - suffix);
                         suffix++;
