@@ -403,7 +403,8 @@ vunmapbuf(bp)
 void
 cpu_reset()
 {
-	/* prom_halt(0); */
+
+	cpu_boot(0);
 }
 
 int
