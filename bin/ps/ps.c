@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.20 1997/06/06 06:40:06 charnier Exp $
+ *	$Id: ps.c,v 1.21 1997/08/03 08:25:01 peter Exp $
  */
 
 #ifndef lint
@@ -79,6 +79,11 @@ int	termwidth;		/* width of screen (0 == infinity) */
 int	totwidth;		/* calculated width of requested variables */
 
 static int needuser, needcomm, needenv;
+#if defined(LAZY_PS)
+static int forceuread=0;
+#else
+static int forceuread=1;
+#endif
 
 enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
@@ -137,7 +142,11 @@ main(argc, argv)
 	ttydev = NODEV;
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
+#if defined(LAZY_PS)
+	    "aCcfeghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+#else
 	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+#endif
 		switch((char)ch) {
 		case 'a':
 			all = 1;
@@ -189,6 +198,12 @@ main(argc, argv)
 			parsefmt(optarg);
 			fmt = 1;
 			break;
+#if defined(LAZY_PS)
+		case 'f':
+			if (getuid() == 0 || getgid() == 0)
+			    forceuread = 1;
+			break;
+#endif
 		case 'p':
 			pid = atol(optarg);
 			xflg = 1;
@@ -430,6 +445,8 @@ fmt(fn, ki, comm, maxlen)
 	return (s);
 }
 
+#define UREADOK(ki)	(forceuread || (KI_PROC(ki)->p_flag & P_INMEM))
+
 static void
 saveuser(ki)
 	KINFO *ki;
@@ -439,7 +456,7 @@ saveuser(ki)
 	struct user *u_addr = (struct user *)USRSTACK;
 
 	usp = &ki->ki_u;
-	if (kvm_uread(kd, KI_PROC(ki), (unsigned long)&u_addr->u_stats,
+	if (UREADOK(ki) && kvm_uread(kd, KI_PROC(ki), (unsigned long)&u_addr->u_stats,
 	    (char *)&pstats, sizeof(pstats)) == sizeof(pstats)) {
 		/*
 		 * The u-area might be swapped out, and we can't get
@@ -456,15 +473,23 @@ saveuser(ki)
 	/*
 	 * save arguments if needed
 	 */
-	if (needcomm)
-		ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
-		    MAXCOMLEN);
-	else
-		ki->ki_args = NULL;
-	if (needenv)
-		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
-	else
-		ki->ki_env = NULL;
+	if (needcomm && UREADOK(ki)) {
+	    ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
+		MAXCOMLEN);
+	} else if (needcomm) {
+	    ki->ki_args = malloc(strlen(KI_PROC(ki)->p_comm) + 3);
+	    sprintf(ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
+    } else {
+	    ki->ki_args = NULL;
+    }
+    if (needenv && UREADOK(ki)) {
+	    ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
+    } else if (needenv) {
+	    ki->ki_env = malloc(3);
+	    strcpy(ki->ki_env, "()");
+    } else {
+	    ki->ki_env = NULL;
+    }
 }
 
 static int
