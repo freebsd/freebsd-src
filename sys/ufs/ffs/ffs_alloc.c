@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.7 1995/02/14 06:14:28 phk Exp $
+ * $Id: ffs_alloc.c,v 1.8 1995/02/27 17:43:57 se Exp $
  */
 
 #include <sys/param.h>
@@ -198,6 +198,13 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 		brelse(bp);
 		return (error);
 	}
+
+	if( bp->b_blkno == bp->b_lblkno) {
+		if( lbprev >= NDADDR)
+			panic("ffs_realloccg: lbprev out of range");
+		bp->b_blkno = fsbtodb(fs, bprev);
+	}
+		
 #ifdef QUOTA
 	error = chkdq(ip, (long)btodb(nsize - osize), cred, 0);
 	if (error) {
@@ -273,7 +280,6 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	    (u_long (*)())ffs_alloccg);
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
-		/* (void) vnode_pager_uncache(ITOV(ip)); */
 		ffs_blkfree(ip, bprev, (long)osize);
 		if (nsize < request)
 			ffs_blkfree(ip, bno + numfrags(fs, nsize),
