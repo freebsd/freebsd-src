@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 1995 John Hay.  All rights reserved.
+ * Copyright (c) 1995 John Hay.
+ * Copyright (c) 1996 SDL Communications, Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,18 +11,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by [your name]
- *	and [any other names deserving credit ]
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY [your name] AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_srregs.h,v 1.1 1996/07/05 18:49:22 jhay Exp $
  */
 #ifndef _IF_SRREGS_H_
 #define _IF_SRREGS_H_
@@ -38,6 +36,13 @@
 
 #define SR_BUF_SIZ		512
 #define SR_TX_BLOCKS		2    /* Sepperate sets of tx buffers */
+
+#define SR_CRD_N2		1
+#define SR_CRD_N2PCI		2
+
+/*
+ * RISCom/N2 ISA card.
+ */
 #define SRC_IO_SIZ		0x10 /* Actually a lie. It uses a lot more. */
 #define SRC_WIN_SIZ		0x00004000
 #define SRC_WIN_MSK		(SRC_WIN_SIZ - 1)
@@ -87,5 +92,32 @@
 #define SR_MCR_TE1		0x20 /* Enable RS422 TXD */
 #define SR_MCR_ETC0		0x40 /* Enable Ext Clock out */
 #define SR_MCR_ETC1		0x80 /* Enable Ext Clock out */
+
+/*
+ * RISCom/N2 PCI card.
+ */
+#define SR_FECR			0x0200 /* Front End Control Register */
+#define SR_FECR_ETC0		0x0001 /* Enable Ext Clock out */
+#define SR_FECR_ETC1		0x0002 /* Enable Ext Clock out */
+#define SR_FECR_TE0		0x0004 /* Enable RS422 TXD */
+#define SR_FECR_TE1		0x0008 /* Enable RS422 TXD */
+#define SR_FECR_GPO0		0x0010 /* General Purpose Output */
+#define SR_FECR_GPO1		0x0020 /* General Purpose Output */
+#define SR_FECR_DTR0		0x0040 /* 0 for active, 1 for inactive */
+#define SR_FECR_DTR1		0x0080 /* 0 for active, 1 for inactive */
+#define SR_FECR_DSR0		0x0100 /* DSR0 Status */
+#define SR_FECR_ID0		0x0E00 /* ID of channel 0 */
+#define SR_FECR_DSR1		0x1000 /* DSR1 Status */
+#define SR_FECR_ID1		0xE000 /* ID of channel 1 */
+
+#define SR_FE_ID_V35		0x00   /* V.35 Interface */
+#define SR_FE_ID_RS232		0x01   /* RS232 Interface */
+#define SR_FE_ID_TEST		0x02   /* Test Board */
+#define SR_FE_ID_RS422		0x03   /* RS422 Interface */
+#define SR_FE_ID_HSSI		0x05   /* HSSI Interface */
+#define SR_FE_ID_X21		0x06   /* X.21 Interface */
+#define SR_FE_ID_NONE		0x07   /* No card present */
+#define SR_FE_ID0_SHFT		   9
+#define SR_FE_ID1_SHFT		  13
 
 #endif /* _IF_SRREGS_H_ */

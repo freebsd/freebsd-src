@@ -307,6 +307,7 @@ pci/if_fxp.c		optional fxp device-driver
 pci/if_lnc_p.c		optional lnc device-driver
 pci/if_pdq.c		optional fea device-driver
 pci/if_pdq.c		optional fpa device-driver
+pci/if_sr_p.c		optional sr device-driver
 pci/if_vx.c		optional vx device-driver
 pci/meteor.c		optional meteor device-driver
 pci/ncr.c		optional ncr device-driver
