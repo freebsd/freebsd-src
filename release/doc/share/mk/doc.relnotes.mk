@@ -42,8 +42,10 @@ ARCHLIST?=	${RELN_ROOT}/share/misc/dev.archlist.txt
 DEV-AUTODIR=	${RELN_ROOT:S/${.CURDIR}/${.OBJDIR}/}/share/sgml
 CLEANFILES+=	${DEV-AUTODIR}/dev-auto.sgml ${DEV-AUTODIR}/catalog-auto
 
+MAN2HWNOTES_CMD=${RELN_ROOT}/share/misc/man2hwnotes.pl
+
 # Dependency that the article makefiles can use to pull in
 # dev-auto.sgml.
 ${DEV-AUTODIR}/catalog-auto ${DEV-AUTODIR}/dev-auto.sgml: ${MAN4PAGES} \
-	${ARCHLIST} ${RELN_ROOT}/share/misc/man2hwnotes.pl
+	${ARCHLIST} ${MAN2HWNOTES_CMD}
 	cd ${RELN_ROOT}/share/sgml && make dev-auto.sgml
