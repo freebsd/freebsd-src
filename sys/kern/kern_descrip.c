@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id$
+ * $Id: kern_descrip.c,v 1.3 1994/08/02 07:41:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -739,7 +739,7 @@ fdcloseexec(p)
 	for (i = 0; i <= fdp->fd_lastfile; i++, fpp++, fdfp++)
 		if (*fpp != NULL && (*fdfp & UF_EXCLOSE)) {
 			if (*fdfp & UF_MAPPED)
-				(void) munmapfd(i);
+				(void) munmapfd(p, i);
 			(void) closef(*fpp, p);
 			*fpp = NULL;
 			*fdfp = 0;
