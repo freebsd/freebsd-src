@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
- * acl_from_text: convert a text-form ACL from a string to an acl_t
+ * acl_from_text: Convert a text-form ACL from a string to an acl_t.
  */
 
 #include <sys/types.h>
@@ -37,13 +37,6 @@
 #include <string.h>
 
 #include "acl_support.h"
-
-enum PARSE_MODE {
-	PM_BASE,		/* initial, begin line, or after , */
-	PM_QUALIFIER,		/* in qualifier field */
-	PM_PERM,		/* in permission field */
-	PM_COMMENT,		/* in comment */
-};
 
 static char *
 string_skip_whitespace(char *string)
@@ -107,8 +100,8 @@ acl_string_to_tag(char *tag, char *qualifier)
 }
 
 /*
- * acl_from_text -- convert a string into an ACL
- * postpone most validity checking until the end and cal acl_valid to do
+ * acl_from_text -- Convert a string into an ACL.
+ * Postpone most validity checking until the end and call acl_valid() to do
  * that.
  */
 acl_t
@@ -122,7 +115,7 @@ acl_from_text(const char *buf_p)
 	char	*tag, *qualifier, *permission;
 	int	error;
 
-	/* local copy we can mess up */
+	/* Local copy we can mess up. */
 	mybuf_p = strdup(buf_p);
 	if (!mybuf_p) {
 		errno = ENOMEM;
@@ -136,27 +129,26 @@ acl_from_text(const char *buf_p)
 		return(0);
 	}
 
-	/* outer loop: delimit at \n boundaries */
+	/* Outer loop: delimit at \n boundaries. */
 	cur = mybuf_p;
 	while ((line = strsep(&cur, "\n"))) {
-		/* now split the line on the first # to strip out comments */
+		/* Now split the line on the first # to strip out comments. */
 		comment = line;
 		notcomment = strsep(&comment, "#");
 
-		/* inner loop: delimit at , boundaries */
+		/* Inner loop: delimit at ',' boundaries. */
 		while ((entry = strsep(&notcomment, ","))) {
-			/* now split into three :-delimited fields */
+			/* Now split into three ':' delimited fields. */
 			tag = strsep(&entry, ":");
 			if (!tag) {
-				/* printf("no tag\n"); */
 				errno = EINVAL;
 				goto error_label;
 			}
 			tag = string_skip_whitespace(tag);
 			if ((*tag == '\0') && (!entry)) {
 				/*
-				 * is an entirely comment line, skip to next
-				 * comma
+				 * Is an entirely comment line, skip to next
+				 * comma.
 				 */
 				continue;
 			}
@@ -164,7 +156,6 @@ acl_from_text(const char *buf_p)
 
 			qualifier = strsep(&entry, ":");
 			if (!qualifier) {
-				/* printf("no qualifier\n"); */
 				errno = EINVAL;
 				goto error_label;
 			}
@@ -173,15 +164,11 @@ acl_from_text(const char *buf_p)
 
 			permission = strsep(&entry, ":");
 			if ((!permission) || (entry)) {
-				/* printf("no permission, or more stuff\n"); */
 				errno = EINVAL;
 				goto error_label;
 			}
 			permission = string_skip_whitespace(permission);
 			string_trim_trailing_whitespace(permission);
-
-			/* printf("[%s/%s/%s]\n", tag, qualifier,
-			    permission); */
 
 			t = acl_string_to_tag(tag, qualifier);
 			if (t == -1) {
@@ -226,8 +213,8 @@ acl_from_text(const char *buf_p)
 	}
 
 #if 0
-	/* XXX should we only return ACLs valid according to acl_valid? */
-	/* verify validity of the ACL we read in */
+	/* XXX Should we only return ACLs valid according to acl_valid? */
+	/* Verify validity of the ACL we read in. */
 	if (acl_valid(acl) == -1) {
 		errno = EINVAL;
 		goto error_label;
