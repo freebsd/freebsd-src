@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.25 1996/04/19 19:22:29 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.26 1996/06/12 05:07:31 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,8 @@
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+
+#include <ufs/ffs/fs.h>
 
 #define b_cylinder	b_resid
 
@@ -642,6 +644,24 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
+
+		/*
+		 * Initialize defaults for the label for the whole disk so
+		 * that it can be used as a template for disklabel(8).
+		 * d_rpm = 3600 is unlikely to be correct for a modern
+		 * disk, but d_rpm is normally irrelevant.
+		 */
+		if (lp1->d_rpm == 0)
+			lp1->d_rpm = 3600;
+		if (lp1->d_interleave == 0)
+			lp1->d_interleave = 1;
+		if (lp1->d_npartitions == 0)
+			lp1->d_npartitions = MAXPARTITIONS;
+		if (lp1->d_bbsize == 0)
+			lp1->d_bbsize = BBSIZE;
+		if (lp1->d_sbsize == 0)
+			lp1->d_sbsize = SBSIZE;
+
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_label = lp1;
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_wlabel = TRUE;
 		if (setgeom != NULL) {
