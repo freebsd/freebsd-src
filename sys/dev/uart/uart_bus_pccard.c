@@ -95,7 +95,7 @@ uart_pccard_probe(dev)
 
 	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
 	/* until bus_setup_intr but how can I do so?*/
-	return (uart_bus_probe(dev, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, pccard, uart_pccard_driver, uart_devclass, 0, 0);

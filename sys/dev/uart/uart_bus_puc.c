@@ -63,7 +63,7 @@ uart_puc_probe(device_t dev)
 {
 	device_t parent;
 	struct uart_softc *sc;
-	uintptr_t rclk, regshft, type;
+	uintptr_t port, rclk, regshft, type;
 
 	parent = device_get_parent(dev);
 	sc = device_get_softc(dev);
@@ -73,12 +73,17 @@ uart_puc_probe(device_t dev)
 	switch (type) {
 	case PUC_PORT_UART_NS8250:
 		sc->sc_class = &uart_ns8250_class;
+		port = 0;
 		break;
 	case PUC_PORT_UART_SAB82532:
 		sc->sc_class = &uart_sab82532_class;
+		if (BUS_READ_IVAR(parent, dev, PUC_IVAR_PORT, &port))
+			port = 0;
 		break;
 	case PUC_PORT_UART_Z8530:
 		sc->sc_class = &uart_z8530_class;
+		if (BUS_READ_IVAR(parent, dev, PUC_IVAR_PORT, &port))
+			port = 0;
 		break;
 	default:
 		return (ENXIO);
@@ -88,7 +93,7 @@ uart_puc_probe(device_t dev)
 		rclk = 0;
 	if (BUS_READ_IVAR(parent, dev, PUC_IVAR_REGSHFT, &regshft))
 		regshft = 0;
-	return (uart_bus_probe(dev, regshft, rclk, 0));
+	return (uart_bus_probe(dev, regshft, rclk, 0, port));
 }
 
 DRIVER_MODULE(uart, puc, uart_puc_driver, uart_devclass, 0, 0);

@@ -155,13 +155,13 @@ uart_isa_probe(device_t dev)
 
 	if (!ISA_PNP_PROBE(parent, dev, isa_ns8250_ids)) {
 		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0));
+		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
 
 	/* Add checks for non-ns8250 IDs here. */
 
 	sc->sc_class = &uart_ns8250_class;
-	return (uart_bus_probe(dev, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, isa, uart_isa_driver, uart_devclass, 0, 0);
