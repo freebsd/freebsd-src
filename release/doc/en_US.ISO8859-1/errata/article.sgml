@@ -113,9 +113,9 @@
 
 <![ %release.type.snapshot [
     <para>Support for per-user <filename>~/.login_conf</filename>
-      files (as documented in &man.login.conf.5;) has been disabled
+      files (as documented in &man.login.conf.5;) was disabled
       due to incorrect merging of local and global settings.  This
-      problem will be fixed in future releases.</para>
+      problem has been fixed in &os; &release.current;.</para>
 
     <para>A local root vulnerability in
       <application>UUCP</application> was corrected before the release
