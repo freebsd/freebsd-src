@@ -575,6 +575,7 @@ union pthread_wait_data {
 	FILE		*fp;
 	struct pthread_poll_data *poll_data;
 	spinlock_t	*spinlock;
+	struct pthread	*thread;
 };
 
 /*
