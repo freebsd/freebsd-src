@@ -107,7 +107,7 @@ void start_daemon(void);
 char *token[MAXARGS];					    /* pointers to individual tokens */
 int tokens;						    /* number of tokens */
 
-int 
+int
 main(int argc, char *argv[], char *envp[])
 {
     if (modfind(VINUMMOD) < 0) {
@@ -212,7 +212,7 @@ main(int argc, char *argv[], char *envp[])
 }
 
 /* stop the hard way */
-void 
+void
 vinum_quit(int argc, char *argv[], char *argv0[])
 {
     exit(0);
@@ -258,11 +258,14 @@ struct funkey {
 	FUNKEY(mirror),
 	FUNKEY(setdaemon),
 	FUNKEY(readpol),
-	FUNKEY(resetstats)
+	FUNKEY(resetstats),
+	FUNKEY(setstate),
+	FUNKEY(checkparity),
+	FUNKEY(rebuildparity)
 };
 
 /* Take args arguments at argv and attempt to perform the operation specified */
-void 
+void
 parseline(int args, char *argv[])
 {
     int i;
@@ -283,6 +286,7 @@ parseline(int args, char *argv[])
 	return;
     }
     command = get_keyword(argv[0], &keyword_set);
+    dowait = 0;						    /* initialize flags */
     force = 0;						    /* initialize flags */
     verbose = 0;					    /* initialize flags */
     Verbose = 0;					    /* initialize flags */
@@ -354,7 +358,7 @@ parseline(int args, char *argv[])
     fprintf(stderr, "Unknown command: %s\n", argv[0]);
 }
 
-void 
+void
 get_drive_info(struct drive *drive, int index)
 {
     *(int *) drive = index;				    /* put in drive to hand to driver */
@@ -367,7 +371,7 @@ get_drive_info(struct drive *drive, int index)
     }
 }
 
-void 
+void
 get_sd_info(struct sd *sd, int index)
 {
     *(int *) sd = index;				    /* put in sd to hand to driver */
@@ -382,7 +386,7 @@ get_sd_info(struct sd *sd, int index)
 
 /* Get the contents of the sd entry for subdisk <sdno>
  * of the specified plex. */
-void 
+void
 get_plex_sd_info(struct sd *sd, int plexno, int sdno)
 {
     ((int *) sd)[0] = plexno;
@@ -397,7 +401,7 @@ get_plex_sd_info(struct sd *sd, int plexno, int sdno)
     }
 }
 
-void 
+void
 get_plex_info(struct plex *plex, int index)
 {
     *(int *) plex = index;				    /* put in plex to hand to driver */
@@ -410,7 +414,7 @@ get_plex_info(struct plex *plex, int index)
     }
 }
 
-void 
+void
 get_volume_info(struct volume *volume, int index)
 {
     *(int *) volume = index;				    /* put in volume to hand to driver */
@@ -442,7 +446,7 @@ find_drive_by_devname(char *name)
 }
 
 /* Create the device nodes for vinum objects */
-void 
+void
 make_devices(void)
 {
     int volno;
@@ -517,7 +521,7 @@ make_devices(void)
 }
 
 /* make the devices for a volume */
-void 
+void
 make_vol_dev(int volno, int recurse)
 {
     dev_t voldev;
@@ -571,7 +575,7 @@ make_vol_dev(int volno, int recurse)
  * Create device entries for the plexes in
  * /dev/vinum/<vol>.plex/ and /dev/vinum/plex.
  */
-void 
+void
 make_plex_dev(int plexno, int recurse)
 {
     dev_t plexdev;					    /* block device */
@@ -618,7 +622,7 @@ make_plex_dev(int plexno, int recurse)
 }
 
 /* Create the contents of /dev/vinum/sd and /dev/vinum/rsd */
-void 
+void
 make_sd_dev(int sdno)
 {
     dev_t sddev;					    /* block device */
@@ -643,7 +647,7 @@ make_sd_dev(int sdno)
 }
 
 /* command line interface for the 'makedev' command */
-void 
+void
 vinum_makedev(int argc, char *argv[], char *arg0[])
 {
     make_devices();
@@ -654,7 +658,7 @@ vinum_makedev(int argc, char *argv[], char *arg0[])
  * and the index as the return value.
  * If not found, return -1 and invalid_object.
  */
-int 
+int
 find_object(const char *name, enum objecttype *type)
 {
     int object;
@@ -706,21 +710,17 @@ find_object(const char *name, enum objecttype *type)
 }
 
 /* Continue reviving a subdisk in the background */
-void 
+void
 continue_revive(int sdno)
 {
     struct sd sd;
     pid_t pid;
     get_sd_info(&sd, sdno);
 
-#if VINUMDEBUG
-    if (debug)
-	pid = 0;					    /* wander through into the "child" process */
-    else
+    if (dowait == 0)
 	pid = fork();					    /* do this in the background */
-#else
-    pid = fork();					    /* do this in the background */
-#endif
+    else
+	pid = 0;
     if (pid == 0) {					    /* we're the child */
 	struct _ioctl_reply reply;
 	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
@@ -739,11 +739,13 @@ continue_revive(int sdno)
 		"can't revive %s: %s",
 		sd.name,
 		reply.msg[0] ? reply.msg : strerror(reply.error));
-	    exit(1);
+	    if (dowait == 0)
+		exit(1);
 	} else {
 	    get_sd_info(&sd, sdno);			    /* update the info */
 	    syslog(LOG_INFO | LOG_KERN, "%s is %s", sd.name, sd_state(sd.state));
-	    exit(0);
+	    if (dowait == 0)
+		exit(0);
 	}
     } else if (pid < 0)					    /* couldn't fork? */
 	fprintf(stderr, "Can't continue reviving %s: %s\n", sd.name, strerror(errno));
@@ -758,7 +760,7 @@ continue_revive(int sdno)
  * process, which will become the daemon if one isn't
  * running already
  */
-void 
+void
 start_daemon(void)
 {
     int pid;
@@ -800,7 +802,7 @@ start_daemon(void)
 	printf("Can't fork to check daemon\n");
 }
 
-void 
+void
 timestamp()
 {
     struct timeval now;
