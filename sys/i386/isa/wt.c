@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id$
+ * $Id: wt.c,v 1.38 1997/02/22 09:37:28 peter Exp $
  *
  */
 
@@ -66,7 +66,6 @@
 #include <sys/buf.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
-#include <sys/ioctl.h>
 #include <sys/mtio.h>
 #include <sys/proc.h>
 #include <sys/conf.h>

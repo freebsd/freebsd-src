@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.102 1997/02/22 09:44:37 peter Exp $
+ *      $Id: sd.c,v 1.103 1997/03/23 06:33:52 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -26,7 +26,6 @@
 #include <sys/kernel.h>
 #include <sys/dkbad.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>

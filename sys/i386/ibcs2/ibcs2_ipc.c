@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_ipc.c,v 1.10 1997/02/22 09:33:19 peter Exp $
  */
 
 #include <sys/param.h>
@@ -32,7 +32,6 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/ipc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>

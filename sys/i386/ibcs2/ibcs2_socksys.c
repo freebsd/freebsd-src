@@ -28,11 +28,9 @@
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/termios.h>
 #include <sys/tty.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <sys/sysproto.h>
 #include <net/if.h>
 #include <sys/kernel.h>

@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id$
+ *	$Id: procfs_status.c,v 1.8 1997/02/22 09:40:29 peter Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>

@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.16 1997/02/22 09:33:22 peter Exp $
+ * $Id: ibcs2_misc.c,v 1.17 1997/03/23 03:34:07 bde Exp $
  */
 
 /*
@@ -61,7 +61,6 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/ioctl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>

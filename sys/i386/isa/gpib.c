@@ -27,7 +27,6 @@
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/uio.h>

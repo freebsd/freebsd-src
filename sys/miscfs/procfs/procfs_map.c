@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id$
+ *	$Id: procfs_map.c,v 1.10 1997/02/22 09:40:28 peter Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>

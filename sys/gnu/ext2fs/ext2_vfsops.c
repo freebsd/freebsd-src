@@ -57,7 +57,6 @@
 #include <sys/mbuf.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>

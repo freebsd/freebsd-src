@@ -41,7 +41,7 @@
  */
 
 
-/* $Id$ */
+/* $Id: scd.c,v 1.27 1997/02/22 09:37:03 peter Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -58,7 +58,6 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
-#include <sys/ioctl.h>
 #include <sys/cdio.h>
 #include <sys/errno.h>
 #include <sys/dkbad.h>

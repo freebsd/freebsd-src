@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.85 1997/02/22 09:36:53 peter Exp $
+ *	$Id: mcd.c,v 1.86 1997/03/23 03:34:51 bde Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -55,7 +55,6 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
-#include <sys/ioctl.h>
 #include <sys/cdio.h>
 #include <sys/errno.h>
 #include <sys/dkbad.h>
