@@ -261,12 +261,10 @@ struct write_param {
     u_int8_t	sub_hdr_byte1;
     u_int8_t	sub_hdr_byte2;
     u_int8_t	sub_hdr_byte3;
-/*
     u_int8_t	vendor_specific_byte0;
     u_int8_t	vendor_specific_byte1;
     u_int8_t	vendor_specific_byte2;
     u_int8_t	vendor_specific_byte3;
-*/
 } __attribute__((packed));
 
 /* CDROM Read Track Information structure */
