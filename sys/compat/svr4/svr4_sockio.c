@@ -88,8 +88,6 @@ svr4_sock_ioctl(fp, p, retval, fd, cmd, data)
 	caddr_t data;
 {
 	int error;
-	int (*ctl) __P((struct file *, u_long,  caddr_t, struct proc *)) =
-			fp->f_ops->fo_ioctl;
 
 	*retval = 0;
 
@@ -136,7 +134,7 @@ svr4_sock_ioctl(fp, p, retval, fd, cmd, data)
 
 			(void) strncpy(br.ifr_name, sr.svr4_ifr_name,
 			    sizeof(br.ifr_name));
-			if ((error = (*ctl)(fp, SIOCGIFFLAGS, 
+			if ((error = fo_ioctl(fp, SIOCGIFFLAGS, 
 					    (caddr_t) &br, p)) != 0) {
 				DPRINTF(("SIOCGIFFLAGS (%s) %s: error %d\n", 
 					 br.ifr_name, sr.svr4_ifr_name, error));
@@ -160,7 +158,7 @@ svr4_sock_ioctl(fp, p, retval, fd, cmd, data)
 				sizeof(struct ifreq), sizeof(struct svr4_ifreq),
 				sc.svr4_ifc_len));
 
-			if ((error = (*ctl)(fp, OSIOCGIFCONF,
+			if ((error = fo_ioctl(fp, OSIOCGIFCONF,
 					    (caddr_t) &sc, p)) != 0)
 				return error;
 

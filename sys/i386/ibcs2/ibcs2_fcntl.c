@@ -194,7 +194,7 @@ ibcs2_open(p, uap)
 
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)
-			(fp->f_ops->fo_ioctl)(fp, TIOCSCTTY, (caddr_t) 0, p);
+			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, p);
 	}
 	return ret;
 }

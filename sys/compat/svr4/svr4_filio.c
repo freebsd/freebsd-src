@@ -196,8 +196,6 @@ svr4_fil_ioctl(fp, p, retval, fd, cmd, data)
 	int error;
 	int num;
 	struct filedesc *fdp = p->p_fd;
-	int (*ctl) __P((struct file *, u_long,  caddr_t, struct proc *)) =
-			fp->f_ops->fo_ioctl;
 
 	*retval = 0;
 
@@ -229,7 +227,7 @@ svr4_fil_ioctl(fp, p, retval, fd, cmd, data)
 #ifdef SVR4_DEBUG
 		if (cmd == FIOASYNC) DPRINTF(("FIOASYNC\n"));
 #endif
-		error = (*ctl)(fp, cmd, (caddr_t) &num, p);
+		error = fo_ioctl(fp, cmd, (caddr_t) &num, p);
 
 		if (error)
 			return error;

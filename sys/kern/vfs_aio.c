@@ -564,10 +564,10 @@ aio_process(struct aiocblist *aiocbe)
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
-		error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, FOF_OFFSET);
+		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
 	} else {
 		auio.uio_rw = UIO_WRITE;
-		error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, FOF_OFFSET);
+		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
 	}
 	inblock_end = mycp->p_stats->p_ru.ru_inblock;
 	oublock_end = mycp->p_stats->p_ru.ru_oublock;
@@ -1661,7 +1661,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
-	error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred, FOF_OFFSET);
+	error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, p);
 	if (error &&
 		(auio.uio_resid != cnt) &&
 		(error == ERESTART || error == EINTR || error == EWOULDBLOCK))
@@ -1727,7 +1727,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
-	error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred, FOF_OFFSET);
+	error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, p);
 	if (error) {
 		if (auio.uio_resid != cnt) {
 			if (error == ERESTART || error == EINTR || error == EWOULDBLOCK)

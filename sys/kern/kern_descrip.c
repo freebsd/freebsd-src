@@ -96,7 +96,7 @@ static struct cdevsw fildesc_cdevsw = {
 
 static int finishdup __P((struct filedesc *fdp, int old, int new, register_t *retval));
 static int badfo_readwrite __P((struct file *fp, struct uio *uio,
-    struct ucred *cred, int flags));
+    struct ucred *cred, int flags, struct proc *p));
 static int badfo_ioctl __P((struct file *fp, u_long com, caddr_t data,
     struct proc *p));
 static int badfo_poll __P((struct file *fp, int events,
@@ -263,26 +263,23 @@ fcntl(p, uap)
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(uap->arg & ~O_ACCMODE) & FCNTLFLAGS;
 		tmp = fp->f_flag & FNONBLOCK;
-		error = (*fp->f_ops->fo_ioctl)(fp, FIONBIO, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
 		if (error)
 			return (error);
 		tmp = fp->f_flag & FASYNC;
-		error = (*fp->f_ops->fo_ioctl)(fp, FIOASYNC, (caddr_t)&tmp, p);
+		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, p);
 		if (!error)
 			return (0);
 		fp->f_flag &= ~FNONBLOCK;
 		tmp = 0;
-		(void) (*fp->f_ops->fo_ioctl)(fp, FIONBIO, (caddr_t)&tmp, p);
+		(void)fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, p);
 		return (error);
 
 	case F_GETOWN:
-		error = (*fp->f_ops->fo_ioctl)
-			(fp, FIOGETOWN, (caddr_t)p->p_retval, p);
-		return (error);
+		return (fo_ioctl(fp, FIOGETOWN, (caddr_t)p->p_retval, p));
 
 	case F_SETOWN:
-		return ((*fp->f_ops->fo_ioctl)
-			(fp, FIOSETOWN, (caddr_t)&uap->arg, p));
+		return (fo_ioctl(fp, FIOSETOWN, (caddr_t)&uap->arg, p));
 
 	case F_SETLKW:
 		flg |= F_WAIT;
@@ -360,7 +357,7 @@ finishdup(fdp, old, new, retval)
 	fp = fdp->fd_ofiles[old];
 	fdp->fd_ofiles[new] = fp;
 	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
-	fp->f_count++;
+	fhold(fp);
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
 	*retval = new;
@@ -967,7 +964,7 @@ fdcopy(p)
 	fpp = newfdp->fd_ofiles;
 	for (i = newfdp->fd_lastfile; i-- >= 0; fpp++)
 		if (*fpp != NULL)
-			(*fpp)->f_count++;
+			fhold(*fpp);
 	return (newfdp);
 }
 
@@ -1048,7 +1045,6 @@ closef(fp, p)
 {
 	struct vnode *vp;
 	struct flock lf;
-	int error;
 
 	if (fp == NULL)
 		return (0);
@@ -1068,10 +1064,6 @@ closef(fp, p)
 		vp = (struct vnode *)fp->f_data;
 		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
 	}
-	if (--fp->f_count > 0)
-		return (0);
-	if (fp->f_count < 0)
-		panic("closef: count < 0");
 	if ((fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -1080,8 +1072,22 @@ closef(fp, p)
 		vp = (struct vnode *)fp->f_data;
 		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
 	}
+	return (fdrop(fp, p));
+}
+
+int
+fdrop(fp, p)
+	struct file *fp;
+	struct proc *p;
+{
+	int error;
+
+	if (--fp->f_count > 0)
+		return (0);
+	if (fp->f_count < 0)
+		panic("fdrop: count < 0");
 	if (fp->f_ops != &badfileops)
-		error = (*fp->f_ops->fo_close)(fp, p);
+		error = fo_close(fp, p);
 	else
 		error = 0;
 	ffree(fp);
@@ -1212,7 +1218,7 @@ dupfdopen(fdp, indx, dfd, mode, error)
 			return (EACCES);
 		fdp->fd_ofiles[indx] = wfp;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
-		wfp->f_count++;
+		fhold(wfp);
 		if (indx > fdp->fd_lastfile)
 			fdp->fd_lastfile = indx;
 		return (0);
@@ -1309,10 +1315,11 @@ struct fileops badfileops = {
 };
 
 static int
-badfo_readwrite(fp, uio, cred, flags)
+badfo_readwrite(fp, uio, cred, flags, p)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	struct proc *p;
 	int flags;
 {
 
