@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.5 1994/09/26 21:09:00 davidg Exp $
+ *	$Id: kern_acct.c,v 1.6 1994/10/02 17:35:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -183,9 +183,7 @@ acct_process(p)
 
 	/* (3) The elapsed time the commmand ran (and its starting time) */
 	acct.ac_btime = p->p_stats->p_start.tv_sec;
-	s = splclock();
-	tmp = time;
-	splx(s);
+	microtime(&tmp);
 	timevalsub(&tmp, &p->p_stats->p_start);
 	acct.ac_etime = encode_comp_t(tmp.tv_sec, tmp.tv_usec);
 
