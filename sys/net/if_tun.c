@@ -229,7 +229,7 @@ tuninit(unit)
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
-	microtime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 
 	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
 	     ifa = ifa->ifa_link.tqe_next) {
