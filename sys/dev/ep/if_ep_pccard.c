@@ -57,12 +57,6 @@
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
 
-/* XXX should die XXX */
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-
 static const char *ep_pccard_identify(u_short id);
 
 /*
