@@ -1801,6 +1801,8 @@ determined_type: ;
 	com->devs[5] = make_dev(&sio_cdevsw,
 	    minorbase | CALLOUT_MASK | CONTROL_LOCK_STATE,
 	    UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
+	for (rid = 0; rid < 6; rid++)
+		com->devs[rid]->si_drv1 = com;
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
 	pps_init(&com->pps);
