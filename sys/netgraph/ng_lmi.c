@@ -91,11 +91,11 @@
  */
 static ng_constructor_t	nglmi_constructor;
 static ng_rcvmsg_t	nglmi_rcvmsg;
-static ng_shutdown_t	nglmi_rmnode;
+static ng_shutdown_t	nglmi_shutdown;
 static ng_newhook_t	nglmi_newhook;
 static ng_rcvdata_t	nglmi_rcvdata;
 static ng_disconnect_t	nglmi_disconnect;
-static int	nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta);
+static int	nglmi_checkdata(hook_p hook, struct mbuf *m);
 
 static struct ng_type typestruct = {
 	NG_ABI_VERSION,
@@ -103,7 +103,7 @@ static struct ng_type typestruct = {
 	NULL,
 	nglmi_constructor,
 	nglmi_rcvmsg,
-	nglmi_rmnode,
+	nglmi_shutdown,
 	nglmi_newhook,
 	NULL,
 	NULL,
@@ -184,23 +184,17 @@ do {									\
  * Node constructor
  */
 static int
-nglmi_constructor(node_p *nodep)
+nglmi_constructor(node_p node)
 {
 	sc_p sc;
-	int error = 0;
 
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
-
 	callout_handle_init(&sc->handle);
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(sc, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = sc;
+	node->private = sc;
 	sc->protoname = NAME_NONE;
-	sc->node = *nodep;
+	sc->node = node;
 	sc->liv_per_full = NG_LMI_SEQ_PER_FULL;	/* make this dynamic */
 	sc->liv_rate = NG_LMI_KEEPALIVE_RATE;
 	return (0);
@@ -449,13 +443,14 @@ ngauto_state_machine(sc_p sc)
  * Receive a netgraph control message.
  */
 static int
-nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	     struct ng_mesg **rptr, hook_p lasthook)
+nglmi_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	sc_p    sc = node->private;
 	struct ng_mesg *resp = NULL;
 	int     error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
@@ -544,12 +539,8 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		break;
 	}
 
-	if (rptr)
-		*rptr = resp;
-	else if (resp != NULL)
-		FREE(resp, M_NETGRAPH);
-
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -564,8 +555,7 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * Anything coming in on the debug port is discarded.
  */
 static int
-nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+nglmi_rcvdata(hook_p hook, item_p item)
 {
 	sc_p    sc = hook->node->private;
 	u_char *data;
@@ -573,7 +563,10 @@ nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	u_short packetlen;
 	int     resptype_seen = 0;
 	int     seq_seen = 0;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 	if (hook->private == NULL) {
 		goto drop;
 	}
@@ -587,10 +580,9 @@ nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	if (m->m_len < packetlen && (m = m_pullup(m, packetlen)) == NULL) {
 		log(LOG_WARNING,
 		    "nglmi: m_pullup failed for %d bytes\n", packetlen);
-		NG_FREE_META(meta);
 		return (0);
 	}
-	if (nglmi_checkdata(hook, m, meta) == 0)
+	if (nglmi_checkdata(hook, m) == 0)
 		return (0);
 
 	/* pass the first 4 bytes (already checked in the nglmi_checkdata()) */
@@ -734,11 +726,11 @@ nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 nextIE:
 		STEPBY(segsize + 2);
 	}
-	NG_FREE_DATA(m, meta);
+	NG_FREE_M(m);
 	return (0);
 
 drop:
-	NG_FREE_DATA(m, meta);
+	NG_FREE_M(m);
 	return (EINVAL);
 }
 
@@ -748,7 +740,7 @@ drop:
  * All data is discarded if a 0 is returned.
  */
 static int
-nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta)
+nglmi_checkdata(hook_p hook, struct mbuf *m)
 {
 	sc_p    sc = hook->node->private;
 	u_char *data;
@@ -1052,7 +1044,7 @@ reject:
 			i++;
 		}
 	}
-	NG_FREE_DATA(m, meta);
+	NG_FREE_M(m);
 	return (0);
 }
 
@@ -1061,13 +1053,11 @@ reject:
  * Cut any remaining links and free our local resources.
  */
 static int
-nglmi_rmnode(node_p node)
+nglmi_shutdown(node_p node)
 {
 	const sc_p sc = node->private;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	node->private = NULL;
 	ng_unref(sc->node);
 	FREE(sc, M_NETGRAPH);
@@ -1092,7 +1082,8 @@ nglmi_disconnect(hook_p hook)
 		untimeout(LMI_ticker, sc, sc->handle);
 
 	/* Self-destruct */
-	ng_rmnode(hook->node);
+	if ((hook->node->flags & NG_INVALID) == 0)
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 

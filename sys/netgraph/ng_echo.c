@@ -55,6 +55,7 @@
 #include <netgraph/ng_echo.h>
 
 /* Netgraph methods */
+static ng_constructor_t	nge_cons;
 static ng_rcvmsg_t	nge_rcvmsg;
 static ng_rcvdata_t	nge_rcvdata;
 static ng_disconnect_t	nge_disconnect;
@@ -64,7 +65,7 @@ static struct ng_type typestruct = {
 	NG_ABI_VERSION,
 	NG_ECHO_NODE_TYPE,
 	NULL,
-	NULL,
+	nge_cons,
 	nge_rcvmsg,
 	NULL,
 	NULL,
@@ -76,33 +77,37 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(echo, &typestruct);
 
+static int
+nge_cons(node_p node)
+{
+	return (0);
+}
+
 /*
  * Receive control message. We just bounce it back as a reply.
  */
 static int
-nge_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr, hook_p lasthook)
+nge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	if (rptr) {
-		msg->header.flags |= NGF_RESP;
-		*rptr = msg;
-	} else {
-		FREE(msg, M_NETGRAPH);
-	}
-	return (0);
+	struct ng_mesg *msg;
+	int error = 0;
+
+	NGI_GET_MSG(item, msg);
+	msg->header.flags |= NGF_RESP;
+	NG_RESPOND_MSG(error, node, item, msg);
+	return (error);
 }
 
 /*
  * Receive data
  */
 static int
-nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+nge_rcvdata(hook_p hook, item_p item)
 {
 	int error = 0;
 
-	NG_SEND_DATA(error, hook, m, meta);
-	return (error);
+	NG_FWD_DATA(error, item, hook);
+	return (0);
 }
 
 /*
@@ -111,8 +116,10 @@ nge_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 static int
 nge_disconnect(hook_p hook)
 {
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0)) {
+		ng_rmnode_self(hook->node);
+	}
 	return (0);
 }
 

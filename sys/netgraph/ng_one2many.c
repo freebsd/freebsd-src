@@ -80,7 +80,7 @@ typedef struct ng_one2many_private *priv_p;
 /* Netgraph node methods */
 static ng_constructor_t	ng_one2many_constructor;
 static ng_rcvmsg_t	ng_one2many_rcvmsg;
-static ng_shutdown_t	ng_one2many_rmnode;
+static ng_shutdown_t	ng_one2many_shutdown;
 static ng_newhook_t	ng_one2many_newhook;
 static ng_rcvdata_t	ng_one2many_rcvdata;
 static ng_disconnect_t	ng_one2many_disconnect;
@@ -167,7 +167,7 @@ static struct ng_type ng_one2many_typestruct = {
 	NULL,
 	ng_one2many_constructor,
 	ng_one2many_rcvmsg,
-	ng_one2many_rmnode,
+	ng_one2many_shutdown,
 	ng_one2many_newhook,
 	NULL,
 	NULL,
@@ -185,10 +185,9 @@ NETGRAPH_INIT(one2many, &ng_one2many_typestruct);
  * Node constructor
  */
 static int
-ng_one2many_constructor(node_p *nodep)
+ng_one2many_constructor(node_p node)
 {
 	priv_p priv;
-	int error;
 
 	/* Allocate and initialize private info */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
@@ -197,12 +196,7 @@ ng_one2many_constructor(node_p *nodep)
 	priv->conf.xmitAlg = NG_ONE2MANY_XMIT_ROUNDROBIN;
 	priv->conf.failAlg = NG_ONE2MANY_FAIL_MANUAL;
 
-	/* Call superclass constructor */
-	if ((error = ng_make_node_common(&ng_one2many_typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = priv;
+	node->private = priv;
 
 	/* Done */
 	return (0);
@@ -260,13 +254,14 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_ONE2MANY_COOKIE:
 		switch (msg->header.cmd) {
@@ -369,11 +364,8 @@ ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
 	}
 
 	/* Done */
-	if (rptr)
-		*rptr = resp;
-	else if (resp != NULL)
-		FREE(resp, M_NETGRAPH);
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -381,8 +373,7 @@ ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
  * Receive data on a hook
  */
 static int
-ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_one2many_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
@@ -390,7 +381,9 @@ ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	struct ng_one2many_link *dst;
 	int error = 0;
 	int linkNum;
+	struct mbuf *m;
 
+	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
 	linkNum = LINK_NUM(hook);
 	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
@@ -409,7 +402,7 @@ ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	/* Figure out destination link */
 	if (linkNum == NG_ONE2MANY_ONE_LINKNUM) {
 		if (priv->numActiveMany == 0) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_ITEM(item);
 			return (ENOTCONN);
 		}
 		dst = &priv->many[priv->activeMany[priv->nextMany]];
@@ -422,7 +415,7 @@ ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	dst->stats.xmitOctets += m->m_pkthdr.len;
 
 	/* Deliver packet */
-	NG_SEND_DATA(error, dst->hook, m, meta);
+	NG_FWD_DATA(error, item, dst->hook);
 	return (error);
 }
 
@@ -430,12 +423,10 @@ ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Shutdown node
  */
 static int
-ng_one2many_rmnode(node_p node)
+ng_one2many_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
-	ng_unname(node);
-	ng_cutlinks(node);
 	KASSERT(priv->numActiveMany == 0,
 	    ("%s: numActiveMany=%d", __FUNCTION__, priv->numActiveMany));
 	FREE(priv, M_NETGRAPH);
@@ -469,8 +460,9 @@ ng_one2many_disconnect(hook_p hook)
 	}
 
 	/* If no hooks left, go away */
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 

@@ -355,21 +355,19 @@ USB_ATTACH(udbp)
 
 	if ((err = ng_make_node_common(&ng_udbp_typestruct, &sc->node)) == 0) {
 		char	nodename[128];
-		sc->node->private = sc;
-		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
-		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
-		mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", MTX_DEF);
-		mtx_init(&sc->xmitq_hipri.ifq_mtx, "usb_xmitq_hipri", MTX_DEF);
 		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
 		if ((err = ng_name_node(sc->node, nodename))) {
-			ng_rmnode(sc->node);
 			ng_unref(sc->node);
+			sc->node = NULL;
+			goto bad;
 		} else {
-			/* something to note it's done */
+			sc->node->private = sc;
+			sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
+			sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+			mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", MTX_DEF);
+			mtx_init(&sc->xmitq_hipri.ifq_mtx,
+					"usb_xmitq_hipri", MTX_DEF);
 		}
-	}
-	if (err) {
-		goto bad;
 	}
 	sc->flags = NETGRAPH_INITIALISED;
 	/* sc->flags &= ~DISCONNECTED; */ /* XXX */
@@ -612,7 +610,7 @@ DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, usbd_driver_load, 0);
  * to create nodes that depend on hardware (unless you can add the hardware :)
  */
 Static int
-ng_udbp_constructor(node_p *nodep)
+ng_udbp_constructor(node_p node)
 {
 	return (EINVAL);
 }
@@ -641,7 +639,6 @@ ng_udbp_newhook(node_p node, hook_p hook, const char *name)
 #endif
 
 	if (strcmp(name, NG_UDBP_HOOK_NAME) == 0) {
-		/* do something specific to a debug connection */
 		sc->hook = hook;
 		hook->private = NULL;
 	} else {
@@ -662,14 +659,14 @@ ng_udbp_newhook(node_p node, hook_p hook, const char *name)
  * (so that old userland programs could continue to work).
  */
 Static int
-ng_udbp_rcvmsg(node_p node,
-	   struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr,
-	   hook_p lasthook)
+ng_udbp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const udbp_p sc = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
 	case NGM_UDBP_COOKIE: 
@@ -706,13 +703,8 @@ ng_udbp_rcvmsg(node_p node,
 	}
 
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
-	/* Free the message and return */
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return(error);
 }
 
@@ -720,14 +712,18 @@ ng_udbp_rcvmsg(node_p node,
  * Accept data from the hook and queue it for output.
  */
 Static int
-ng_udbp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_udbp_rcvdata(hook_p hook, item_p item)
 {
 	const udbp_p sc = hook->node->private;
 	int error;
 	struct ifqueue	*xmitq_p;
 	int	s;
+	struct mbuf *m;
+	meta_p meta;
 
+	NGI_GET_M(item, m);
+	NGI_GET_META(item, meta);
+	NG_FREE_ITEM(item);
 	/* 
 	 * Now queue the data for when it can be sent
 	 */
@@ -756,7 +752,8 @@ bad:	/*
          * It was an error case.
 	 * check if we need to free the mbuf, and then return the error
 	 */
-	NG_FREE_DATA(m, meta);
+	NG_FREE_M(m);
+	NG_FREE_META(meta);
 	return (error);
 }
 
@@ -769,9 +766,9 @@ Static int
 ng_udbp_rmnode(node_p node)
 {
 	const udbp_p sc = node->private;
+	int err;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
 
 	/* Drain the queues */
 	IF_DRAIN(&sc->xmitq_hipri);
@@ -779,8 +776,21 @@ ng_udbp_rmnode(node_p node)
 
 	sc->packets_in = 0;		/* reset stats */
 	sc->packets_out = 0;
-	node->flags &= ~NG_INVALID;		/* reset invalid flag */
-	return (0);
+	ng_unref(node);			/* forget it ever existed */
+
+	/* stolen from attach routine */
+	if ((err = ng_make_node_common(&ng_udbp_typestruct, &sc->node)) == 0) {
+		char	nodename[128];
+		sprintf(nodename, "%s", USBDEVNAME(sc->sc_dev));
+		if ((err = ng_name_node(sc->node, nodename))) {
+			ng_unref(sc->node); /* out damned spot! */
+			sc->flags &= ~NETGRAPH_INITIALISED;
+			sc->node = NULL;
+		} else {
+			sc->node->private = sc;
+		}
+	}
+	return (err);
 }
 
 /*
@@ -807,8 +817,9 @@ ng_udbp_disconnect(hook_p hook)
 	const udbp_p sc = hook->node->private;
 	sc->hook = NULL;
 
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 

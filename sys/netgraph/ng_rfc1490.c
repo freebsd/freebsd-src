@@ -89,7 +89,7 @@ typedef struct ng_rfc1490_private *priv_p;
 /* Netgraph node methods */
 static ng_constructor_t	ng_rfc1490_constructor;
 static ng_rcvmsg_t	ng_rfc1490_rcvmsg;
-static ng_shutdown_t	ng_rfc1490_rmnode;
+static ng_shutdown_t	ng_rfc1490_shutdown;
 static ng_newhook_t	ng_rfc1490_newhook;
 static ng_rcvdata_t	ng_rfc1490_rcvdata;
 static ng_disconnect_t	ng_rfc1490_disconnect;
@@ -101,7 +101,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_rfc1490_constructor,
 	ng_rfc1490_rcvmsg,
-	ng_rfc1490_rmnode,
+	ng_rfc1490_shutdown,
 	ng_rfc1490_newhook,
 	NULL,
 	NULL,
@@ -119,22 +119,16 @@ NETGRAPH_INIT(rfc1490, &typestruct);
  * Node constructor
  */
 static int
-ng_rfc1490_constructor(node_p *nodep)
+ng_rfc1490_constructor(node_p node)
 {
 	priv_p priv;
-	int error;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = priv;
+	node->private = priv;
 
 	/* Done */
 	return (0);
@@ -169,10 +163,9 @@ ng_rfc1490_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message. We don't support any special ones.
  */
 static int
-ng_rfc1490_rcvmsg(node_p node, struct ng_mesg *msg,
-		  const char *raddr, struct ng_mesg **rp, hook_p lasthook)
+ng_rfc1490_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	FREE(msg, M_NETGRAPH);
+	NG_FREE_ITEM(item);
 	return (EINVAL);
 }
 
@@ -213,13 +206,14 @@ ng_rfc1490_rcvmsg(node_p node, struct ng_mesg *msg,
 #define OUICMP(P,A,B,C)	((P)[0]==(A) && (P)[1]==(B) && (P)[2]==(C))
 
 static int
-ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_rfc1490_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
 	int error = 0;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
 	if (hook == priv->downlink) {
 		u_char *start, *ptr;
 
@@ -248,8 +242,8 @@ ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 				m_adj(m, ptr - start);
 				switch (etype) {
 				case ETHERTYPE_IP:
-					NG_SEND_DATA(error,
-					    priv->inet, m, meta);
+					NG_FWD_NEW_DATA(error, item,
+					    priv->inet, m);
 					break;
 				case ETHERTYPE_ARP:
 				case ETHERTYPE_REVARP:
@@ -263,11 +257,11 @@ ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			break;
 		case NLPID_IP:
 			m_adj(m, ptr - start);
-			NG_SEND_DATA(error, priv->inet, m, meta);
+			NG_FWD_NEW_DATA(error, item, priv->inet, m);
 			break;
 		case NLPID_PPP:
 			m_adj(m, ptr - start);
-			NG_SEND_DATA(error, priv->ppp, m, meta);
+			NG_FWD_NEW_DATA(error, item, priv->ppp, m);
 			break;
 		case NLPID_Q933:
 		case NLPID_CLNP:
@@ -279,7 +273,7 @@ ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			if ((*ptr & 0x01) == 0x01)
 				ERROUT(0);
 			m_adj(m, ptr - start);
-			NG_SEND_DATA(error, priv->ppp, m, meta);
+			NG_FWD_NEW_DATA(error, item, priv->ppp, m);
 			break;
 		}
 	} else if (hook == priv->ppp) {
@@ -288,19 +282,21 @@ ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
 		mtod(m, u_char *)[1] = NLPID_PPP;
-		NG_SEND_DATA(error, priv->downlink, m, meta);
+		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else if (hook == priv->inet) {
 		M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
 		mtod(m, u_char *)[1] = NLPID_IP;
-		NG_SEND_DATA(error, priv->downlink, m, meta);
+		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
 		panic(__FUNCTION__);
 
 done:
-	NG_FREE_DATA(m, meta);
+	if (item)
+		NG_FREE_ITEM(item);
+	NG_FREE_M(m);
 	return (error);
 }
 
@@ -308,14 +304,12 @@ done:
  * Nuke node
  */
 static int
-ng_rfc1490_rmnode(node_p node)
+ng_rfc1490_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
 	/* Take down netgraph node */
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	bzero(priv, sizeof(*priv));
 	node->private = NULL;
 	ng_unref(node);		/* let the node escape */
@@ -330,8 +324,9 @@ ng_rfc1490_disconnect(hook_p hook)
 {
 	const priv_p priv = hook->node->private;
 
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	else if (hook == priv->downlink)
 		priv->downlink = NULL;
 	else if (hook == priv->inet)
