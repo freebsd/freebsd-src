@@ -265,6 +265,10 @@ product ELECOM MOUSE29UO	0x0002	mouse 29UO
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
+/* ALCOR products */
+product ALCOR STRONGMAN		0x9213	Strong Man Keyboard hub
+product ALCOR STRONGMAN_KBD	0x9410	Strong Man Keyboard
+
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
