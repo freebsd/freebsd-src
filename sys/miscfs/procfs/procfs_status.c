@@ -42,6 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
 #include <sys/vnode.h>
@@ -163,31 +164,44 @@ procfs_docmdline(curp, p, pfs, uio)
 	char *ps;
 	int xlen;
 	int error;
-	char psbuf[256];
-
+	char *buf, *bp;
+	int buflen;
 	struct ps_strings pstr;
 	int i;
 	size_t bytes_left, done;
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
-
+	
 	/*
-	 * This is a hack: the correct behaviour is only implemented for
-	 * the case of the current process enquiring about its own argv
-	 * (due to the difficulty of accessing other processes' address space).
-	 * For other cases, we cop out and just return argv[0] from p->p_comm.
+	 * If we are using the ps/cmdline caching, use that.  Otherwise
+	 * revert back to the old way which only implements full cmdline
+	 * for the currept process and just p->p_comm for all other
+	 * processes.
 	 * Note that if the argv is no longer available, we deliberately
 	 * don't fall back on p->p_comm or return an error: the authentic
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (curproc == p) {
+	if (p->p_args) {
+		bp = p->p_args->ar_args;
+		buflen = p->p_args->ar_length;
+		buf = 0;
+	} else if (p != curp) {
+		bp = p->p_comm;
+		buflen = MAXCOMLEN;
+		buf = 0;
+	} else {
+		buflen = 256;
+		MALLOC(buf, char *, buflen + 1, M_TEMP, M_WAITOK);
+		bp = buf;
+		ps = buf;
 		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
-		if (error)
+		if (error) {
+			FREE(buf, M_TEMP);
 			return (error);
-		bytes_left = sizeof(psbuf);
-		ps = psbuf;
+		}
+		bytes_left = buflen;
 		for (i = 0; bytes_left && (i < pstr.ps_nargvstr); i++) {
 			error = copyinstr(pstr.ps_argvstr[i], ps,
 					  bytes_left, &done);
@@ -199,21 +213,17 @@ procfs_docmdline(curp, p, pfs, uio)
 			ps += done;
 			bytes_left -= done;
 		}
-	}
-	else {
-		ps = psbuf;
-		bcopy(p->p_comm, ps, MAXCOMLEN);
-		ps[MAXCOMLEN] = '\0';
-		ps += strlen(ps);
+		buflen = ps - buf;
 	}
 
-	xlen = ps - psbuf;
-	xlen -= uio->uio_offset;
-	ps = psbuf + uio->uio_offset;
-	xlen = min(xlen, uio->uio_resid);
+	buflen -= uio->uio_offset;
+	ps = bp + uio->uio_offset;
+	xlen = min(buflen, uio->uio_resid);
 	if (xlen <= 0)
 		error = 0;
 	else
 		error = uiomove(ps, xlen, uio);
+	if (buf)
+		FREE(buf, M_TEMP);
 	return (error);
 }
