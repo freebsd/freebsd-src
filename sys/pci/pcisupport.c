@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.5 1994/10/25 18:45:19 se Exp $
+**  $Id: pcisupport.c,v 1.6 1994/12/22 21:20:39 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -51,7 +51,7 @@
 
 #include <sys/types.h>
 
-#include <i386/pci/pcireg.h>
+#include <pci/pcireg.h>
 
 extern	void	printf();
 
