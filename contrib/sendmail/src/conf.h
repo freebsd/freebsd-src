@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.1.1.12 2002/04/10 03:04:48 gshapiro Exp $
+ *	$Id: conf.h,v 8.562 2002/05/22 19:46:26 gshapiro Exp $
  */
 
 /* $FreeBSD$ */
@@ -134,6 +134,16 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #  endif /* STARTTLS */
 # endif /* ! AUTH_MECHANISMS */
 #endif /* SASL */
+
+/*
+**  Default database permissions (alias, maps, etc.)
+**	Used by sendmail and libsmdb
+*/
+
+#ifndef DBMMODE
+# define DBMMODE	0640
+#endif /* ! DBMMODE */
+
 
 /**********************************************************************
 **  Compilation options.
