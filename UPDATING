@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20030106:	p3	FreeBSD-SA-02:44.filedesc
+	Correct a reference counting bug in fpathconf(2).
+
 20021113:	p2	FreeBSD-SA-02:43.bind
 	Correct name server vulnerabilities.
 
