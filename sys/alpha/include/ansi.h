@@ -51,10 +51,10 @@
 #define	_BSD_CLOCKID_T_		int		/* clockid_t */
 #define	_BSD_PTRDIFF_T_		long		/* ptr1 - ptr2 */
 #define	_BSD_SIZE_T_		unsigned long	/* sizeof() */
+#define	_BSD_SOCKLEN_T_		__uint32_t
 #define	_BSD_SSIZE_T_		long		/* byte count or error */
 #define	_BSD_TIME_T_		int		/* time() */
 #define	_BSD_TIMER_T_		int		/* timer_t */
-#define	_BSD_SOCKLEN_T_		__uint32_t	/* socklen_t */
 
 #if defined __GNUC__ && (__GNUC__ > 2 || __GNUC_MINOR__ > 95)
 #define	_BSD_VA_LIST_		__builtin_va_list  /* internally known to gcc */
