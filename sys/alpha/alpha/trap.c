@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
@@ -67,9 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 #include <alpha/alpha/db_instruction.h>		/* for handle_opdec() */
 
 unsigned long	Sfloat_to_reg(unsigned int);
@@ -285,6 +283,13 @@ trap(a0, a1, a2, entry, framep)
 #endif
 	p = td->td_proc;
 
+#ifdef KDB
+	if (kdb_active) {
+		kdb_reenter();
+		return;
+	}
+#endif
+
 	/*
 	GIANT_REQUIRED;
 	 * Giant hasn't been acquired yet.
@@ -367,20 +372,20 @@ trap(a0, a1, a2, entry, framep)
 		 * These are always fatal in kernel, and should never happen.
 		 */
 		if (!user) {
-#ifdef DDB
+#ifdef KDB
 			/*
-			 * ...unless, of course, DDB is configured; BUGCHK
+			 * ...unless, of course, KDB is configured; BUGCHK
 			 * is used to invoke the kernel debugger, and we
 			 * might have set a breakpoint.
 			 */
 			if (a0 == ALPHA_IF_CODE_BUGCHK ||
 			    a0 == ALPHA_IF_CODE_BPT) {
-				if (kdb_trap(a0, a1, a2, entry, framep))
+				if (kdb_trap(entry, a0, framep))
 					goto out;
 			}
 
 			/*
-			 * If we get here, DDB did _not_ handle the
+			 * If we get here, KDB did _not_ handle the
 			 * trap, and we need to PANIC!
 			 */
 #endif
@@ -595,8 +600,8 @@ out:
 dopanic:
 	printtrap(a0, a1, a2, entry, framep, 1, user);
 	/* XXX dump registers */
-#ifdef DDB
-	kdb_trap(a0, a1, a2, entry, framep);
+#ifdef KDB
+	kdb_trap(entry, a0, framep);
 #endif
 	panic("trap");
 }

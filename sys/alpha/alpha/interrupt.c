@@ -31,8 +31,6 @@
  * notice.
  */
 
-#include "opt_ddb.h"
-
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 /* __KERNEL_RCSID(0, "$NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $");*/
 __FBSDID("$FreeBSD$");
@@ -41,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -65,10 +64,6 @@ __FBSDID("$FreeBSD$");
 struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #else
 #include <machine/intrcnt.h>
-#endif
-
-#ifdef DDB
-#include <ddb/ddb.h>
 #endif
 
 volatile int mc_expected, mc_received;
@@ -108,6 +103,7 @@ interrupt(a0, a1, a2, framep)
 	intr_restore(s);
 #endif
 	atomic_add_int(&td->td_intr_nesting_level, 1);
+
 #if KSTACK_GUARD_PAGES == 0
 #ifndef SMP
 	{
@@ -231,8 +227,8 @@ fatal:
 		printf("        pid = %d, comm = %s\n", curproc->p_pid,
 		    curproc->p_comm);
 	printf("\n");
-#ifdef DDB
-	kdb_trap(mces, vector, param, ALPHA_KENTRY_MM, framep);
+#ifdef KDB
+	kdb_trap(ALPHA_KENTRY_MM, mces, framep);
 #endif
 	panic("machine check");
 }
