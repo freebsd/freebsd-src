@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if QUEUE
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.11 2000/07/14 05:55:51 gshapiro Exp $ (with queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.17 2000/09/15 03:34:51 gshapiro Exp $ (with queueing)";
 # else /* QUEUE */
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.11 2000/07/14 05:55:51 gshapiro Exp $ (without queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.17 2000/09/15 03:34:51 gshapiro Exp $ (without queueing)";
 # endif /* QUEUE */
 #endif /* ! lint */
 
@@ -1056,7 +1056,7 @@ orderq(queuedir, doall)
 
 		WorkQ = nw;
 		free(w->w_name);
-		if (w->w_host)
+		if (w->w_host != NULL)
 			free(w->w_host);
 		free((char *) w);
 		w = nw;
@@ -1149,7 +1149,9 @@ orderq(queuedir, doall)
 		}
 
 		/* avoid work if possible */
-		if (QueueSortOrder == QSO_BYFILENAME)
+		if (QueueSortOrder == QSO_BYFILENAME &&
+		    QueueLimitSender == NULL &&
+		    QueueLimitRecipient == NULL)
 		{
 			w->w_name = newstr(d->d_name);
 			w->w_host = NULL;
@@ -2034,7 +2036,7 @@ readqf(e)
 			break;
 
 		  case 'H':		/* header */
-			(void) chompheader(&bp[1], 0, NULL, e);
+			(void) chompheader(&bp[1], CHHDR_QUEUE, NULL, e);
 			hdrsize += strlen(&bp[1]);
 			break;
 
@@ -2840,7 +2842,9 @@ setctluser(user, qfver)
 		}
 		else if ((pw = sm_getpwnam(user)) != NULL)
 		{
-			if (strcmp(pw->pw_dir, "/") == 0)
+			if (*pw->pw_dir == '\0')
+				a->q_home = NULL;
+			else if (strcmp(pw->pw_dir, "/") == 0)
 				a->q_home = "";
 			else
 				a->q_home = newstr(pw->pw_dir);
@@ -3029,6 +3033,10 @@ chkqdir(name, sff)
 	struct stat statb;
 	int i;
 
+	/* skip over . and .. directories */
+	if (name[0] == '.' &&
+	    (name[1] == '\0' || (name[2] == '.' && name[3] == '\0')))
+		return FALSE;
 # if HASLSTAT
 	if (lstat(name, &statb) < 0)
 # else /* HASLSTAT */

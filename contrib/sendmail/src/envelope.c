@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: envelope.c,v 8.180.14.3 2000/06/29 05:30:23 gshapiro Exp $";
+static char id[] = "@(#)$Id: envelope.c,v 8.180.14.4 2000/08/22 18:22:39 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -811,7 +811,9 @@ setsender(from, e, delimptr, delimchar, internal)
 			*/
 
 			/* extract home directory */
-			if (strcmp(pw->pw_dir, "/") == 0)
+			if (*pw->pw_dir == '\0')
+				e->e_from.q_home = NULL;
+			else if (strcmp(pw->pw_dir, "/") == 0)
 				e->e_from.q_home = newstr("");
 			else
 				e->e_from.q_home = newstr(pw->pw_dir);
@@ -844,9 +846,13 @@ setsender(from, e, delimptr, delimchar, internal)
 		if (e->e_from.q_home == NULL)
 		{
 			e->e_from.q_home = getenv("HOME");
-			if (e->e_from.q_home != NULL &&
-			    strcmp(e->e_from.q_home, "/") == 0)
-				e->e_from.q_home++;
+			if (e->e_from.q_home != NULL)
+			{
+				if (*e->e_from.q_home == '\0')
+					e->e_from.q_home = NULL;
+				else if (strcmp(e->e_from.q_home, "/") == 0)
+					e->e_from.q_home++;
+			}
 		}
 		e->e_from.q_uid = RealUid;
 		e->e_from.q_gid = RealGid;

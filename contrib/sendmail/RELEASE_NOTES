@@ -1,10 +1,118 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.80 2000/07/19 20:40:57 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.125 2000/09/27 06:25:28 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.1/8.11.1	2000/09/27
+	Fix SMTP EXPN command output if the address expands to a single
+		name.  Fix from John Beck of Sun Microsystems.
+	Don't try STARTTLS in the client if the PRNG has not been properly
+		seeded.  This problem only occurs on systems without
+		/dev/urandom.  Problem detected by Jan Krueger of
+		digitalanswers communications consulting gmbh and
+		Neil Rickert of Northern Illinois University.
+	Don't use the . and .. directories when expanding QueueDirectory
+		wildcards.
+	Do not try to cache LDAP connections across processes as a parent
+		process may close the connection before the child process
+		has completed.  Problem noted by Lai Yiu Fai of the Hong
+		Kong University of Science and Technology and Wolfgang
+		Hottgenroth of UUNET.
+	Use Timeout.fileopen to limit the amount of time spent trying to
+		read the LDAP secret from a file.
+	Prevent SIGTERM from removing a command line submitted item after
+		the user submits the message and before the first delivery
+		attempt completes.  Problem noted by Max France of AlphaNet.
+		Fix from Neil Rickert of Northern Illinois University.
+	Deal correctly with MaxMessageSize restriction if message size is
+		greater than 2^31.
+	Turn off queue checkpointing if CheckpointInterval is set to zero.
+	Treat an empty home directory (from getpw*() or $HOME) as
+		non-existent instead of treating it as /.  Problem noted by
+		Todd C. Miller of Courtesan Consulting.
+	Don't drop duplicate headers when reading a queued item.  Problem
+		noted by Motonori Nakamura of Kyoto University.
+	Avoid bogus error text when logging the savemail panic "cannot
+		save rejected email anywhere".  Problem noted by Marc G.
+		Fournier of Acadia University.
+	If an LDAP search fails because the LDAP server went down, close
+		the map so subsequent searches reopen the map.  If there are
+		multiple LDAP servers, the down server will be skipped and
+		one of the others may be able to take over.
+	Set the ${load_avg} macro to the current load average, not the
+		previous load average query result.
+	If a non-optional map used in a check_* ruleset can't be opened,
+		return a temporary failure to the remote SMTP client
+		instead of ignoring the map.  Problem noted by Allan E
+		Johannesen of Worcester Polytechnic Institute.
+	Avoid a race condition when queuing up split envelopes by saving
+		the split envelopes before the original envelope.
+	Fix a bug in the PH_MAP code which caused mail to bounce instead of
+		defer if the PH server could not be contacted.  From Mark
+		Roth of the University of Illinois at Urbana-Champaign.
+	Prevent QueueSortOrder=Filename from interfering with -qR, -qS, and
+		ETRN.  Problem noted by Erik R. Leo of SoVerNet.
+	Change error code for unrecognized parameters to the SMTP MAIL and
+		RCPT commands from 501 to 555 per RFC 1869.  Problem
+		reported to Postfix by Robert Norris of Monash University.
+	Prevent overwriting the argument of -B on certain OS.  Problem
+		noted by Matteo Gelosa of I.NET S.p.A.
+	Use the proper routine for freeing memory with Netscape's LDAP
+		client libraries.  Patch from Paul Hilchey of the
+		University of British Columbia.
+	Portability:
+		Move the NETINET6 define to devtools/OS/SunOS.5.{8,9}
+			instead of defining it in conf.h so users can
+			override the setting.  Suggested by
+			Henrik Nordstrom of Ericsson.
+		On HP-UX 10.X and 11.X, use /usr/sbin/sendmail instead of
+			/usr/lib/sendmail for rmail and vacation.  From
+			Jeff A. Earickson of Colby College.
+		On HP-UX 11.X, use /usr/sbin instead of /usr/libexec (which
+			does not exist).  From Jeff A. Earickson of Colby
+			College.
+		Avoid using the UCB subsystem on NCR MP-RAS 3.x.  From
+			Tom Moore of NCR.
+		NeXT 3.X and 4.X installs man pages in /usr/man.  From
+			Hisanori Gogota of NTT/InterCommunicationCenter.
+		Solaris 8 and later include /var/run.  The default PID file
+			location is now /var/run/sendmail.pid.  From John
+			Beck of Sun Microsystems.
+		SFIO includes snprintf() for those operating systems
+			which do not.  From Todd C. Miller of Courtesan
+			Consulting.
+	CONFIG: Use the result of _CERT_REGEX_SUBJECT_ not {cert_subject}.
+		Problem noted by Kaspar Brand of futureLab AG.
+	CONFIG: Change 553 SMTP reply code to 501 to avoid problems with
+		errors in the MAIL address.
+	CONFIG: Fix FEATURE(nouucp) usage in example .mc files.  Problem
+		noted by Ron Jarrell of Virginia Tech.
+	CONFIG: Add support for Solaris 8 (and later) as OSTYPE(solaris8).
+		Contributed by John Beck of Sun Microsystems.
+	CONFIG: Set confFROM_HEADER such that the mail hub can possibly add
+		GECOS information for an address.  This more closely
+		matches pre-8.10 nullclient behavior.  From Per Hedeland of
+		Ericsson.
+	CONFIG: Fix MODIFY_MAILER_FLAGS(): apply the flag modifications for
+		SMTP to all *smtp* mailers and those for RELAY to the relay
+		mailer as described in cf/README.
+	MAIL.LOCAL: Open the mailbox as the recipient not root so quotas
+		are obeyed.  Problem noted by Damian Kuczynski of NIK.
+	MAKEMAP: Do not change a map's owner to the TrustedUser if using
+		makemap to 'unmake' the map.
+	RMAIL: Avoid overflowing the list of recipients being passed to
+		sendmail.
+	RMAIL: Invoke sendmail with '-G' to indicate this is a gateway
+		submission.  Problem noted by Kari Hurtta of the Finnish
+		Meteorological Institute.
+	VACATION: Read the complete message to avoid "broken pipe" signals.
+	VACATION: Do not cut off vacation.msg files which have a single
+		dot as the only character on the line.
+	New Files:
+		cf/ostype/solaris8.m4
 
 8.11.0/8.11.0	2000/07/19
 	SECURITY: If sendmail is installed as a non-root set-user-ID binary
@@ -144,7 +252,7 @@ summary of the changes in that release.
 			fails and the socket needs to be reopened.  Patch
 			from Tom Moore of NCR.
 		NetBSD uses a .0 extension of formatted man pages.  From
-			Andrew Brown of Graffiti World Wide, Inc.
+			Andrew Brown of Crossbar Security.
 		Return to using the IPv6 AI_DEFAULT flag instead of AI_V4MAPPED
 			for calls to getipnodebyname().  The Linux
 			implementation is broken so AI_ADDRCONFIG is stripped

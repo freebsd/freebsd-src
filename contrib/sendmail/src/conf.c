@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.23 2000/07/15 17:35:18 gshapiro Exp $";
+static char id[] = "@(#)$Id: conf.c,v 8.646.2.2.2.32 2000/09/23 00:31:33 ca Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -199,6 +199,12 @@ struct dbsval DontBlameSendmailValues[] =
 #if _FFR_UNSAFE_SASL
 	{ "groupreadablesaslfile",	DBS_GROUPREADABLESASLFILE	},
 #endif /* _FFR_UNSAFE_SASL */
+#if _FFR_UNSAFE_WRITABLE_INCLUDE
+	{ "groupwritableforwardfile",	DBS_GROUPWRITABLEFORWARDFILE	},
+	{ "groupwritableincludefile",	DBS_GROUPWRITABLEINCLUDEFILE	},
+	{ "worldwritableforwardfile",	DBS_WORLDWRITABLEFORWARDFILE	},
+	{ "worldwritableincludefile",	DBS_WORLDWRITABLEINCLUDEFILE	},
+#endif /* _FFR_UNSAFE_WRITABLE_INCLUDE */
 	{ NULL,				0				}
 };
 
@@ -2147,7 +2153,7 @@ sm_getla(e)
 	{
 		char labuf[8];
 
-		snprintf(labuf, sizeof labuf, "%d", CurrentLA);
+		snprintf(labuf, sizeof labuf, "%d", la);
 		define(macid("{load_avg}", NULL), newstr(labuf), e);
 	}
 	return la;
@@ -2986,7 +2992,7 @@ setsid __P ((void))
 	fd = open("/dev/tty", O_RDWR, 0);
 	if (fd >= 0)
 	{
-		(void) ioctl(fd, (int) TIOCNOTTY, (char *) 0);
+		(void) ioctl(fd, TIOCNOTTY, (char *) 0);
 		(void) close(fd);
 	}
 #  endif /* TIOCNOTTY */
@@ -4919,7 +4925,7 @@ load_if_names()
 			if (addr != NULL)
 				(void) snprintf(ip_addr, sizeof ip_addr,
 						"[%.*s]",
-						sizeof ip_addr - 3, addr);
+						(int) sizeof ip_addr - 3, addr);
 			break;
 
 		  case AF_INET:
@@ -4934,7 +4940,7 @@ load_if_names()
 
 			/* save IP address in text from */
 			(void) snprintf(ip_addr, sizeof ip_addr, "[%.*s]",
-					sizeof ip_addr - 3, inet_ntoa(ia));
+					(int) sizeof ip_addr - 3, inet_ntoa(ia));
 			break;
 		}
 
@@ -4995,6 +5001,7 @@ load_if_names()
 		if (tTd(0, 4))
 			dprintf("SIOCGIFCONF failed: %s\n", errstring(errno));
 		(void) close(s);
+		free(ifc.ifc_buf);
 		return;
 	}
 

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: headers.c,v 8.203.4.6 2000/07/19 02:53:32 ca Exp $";
+static char id[] = "@(#)$Id: headers.c,v 8.203.4.7 2000/08/22 21:50:36 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -53,9 +53,7 @@ setupheaders()
 **
 **	Parameters:
 **		line -- header as a text line.
-**		pflag -- flags:
-**			CHHDR_DEF: this is a default value.
-**			CHHDR_CHECK: call rulesets.
+**		pflag -- flags for chompheader() (from sendmail.h)
 **		hdrp -- a pointer to the place to save the header.
 **		e -- the envelope including this header.
 **
@@ -416,7 +414,7 @@ hse:
 	h->h_macro = mid;
 	*hp = h;
 	h->h_flags = hi->hi_flags;
-	if (bitset(pflag, CHHDR_USER))
+	if (bitset(pflag, CHHDR_USER) || bitset(pflag, CHHDR_QUEUE))
 		h->h_flags |= H_USER;
 
 	/* strip EOH flag if parsing MIME headers */

@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.12 2000/07/17 19:55:08 ca Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.13 2000/09/26 00:46:21 gshapiro Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.12 2000/07/17 19:55:08 ca Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.13 2000/09/26 00:46:21 gshapiro Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -906,13 +906,13 @@ saslgetrealm(context, id, availrealms, result)
 {
 	if (LogLevel > 12)
 		sm_syslog(LOG_INFO, NOQID, "saslgetrealm: realm %s available realms %s",
-			  context,
-			  availrealms == NULL ? "<No Realms>" : *availrealms);
+			  context == NULL ? "<No Context>" : (char *) context,
+			  (availrealms == NULL || *availrealms == NULL) ? "<No Realms>" : *availrealms);
 	if (context == NULL)
 		return SASL_FAIL;
 
 	/* check whether context is in list? */
-	if (availrealms != NULL)
+	if (availrealms != NULL && *availrealms != NULL)
 	{
 		if (iteminlist(context, (char *)(*availrealms + 1), " ,}") ==
 		    NULL)

@@ -37,11 +37,11 @@ ifdef(`confNO_HELPFILE_INSTALL',, `bldPUSH_INSTALL_TARGET(`install-hf')')
 ifdef(`confNO_STATISTICS_INSTALL',, `bldPUSH_INSTALL_TARGET(`install-st')')
 divert(bldTARGETS_SECTION)
 install-hf:
-	if [ ! -d ${DESTDIR}${HFDIR} ]; then mkdir -p ${DESTDIR}${HFDIR}; fi
+	if [ ! -d ${DESTDIR}${HFDIR} ]; then mkdir -p ${DESTDIR}${HFDIR}; else :; fi
 	${INSTALL} -c -o ${UBINOWN} -g ${UBINGRP} -m 444 helpfile ${DESTDIR}${HFFILE}
 
 install-st: statistics
-	if [ ! -d ${DESTDIR}${STDIR} ]; then mkdir -p ${DESTDIR}${STDIR}; fi
+	if [ ! -d ${DESTDIR}${STDIR} ]; then mkdir -p ${DESTDIR}${STDIR}; else :; fi
 	${INSTALL} -c -o ${SBINOWN} -g ${UBINGRP} -m 644 statistics ${DESTDIR}${STFILE}
 divert(0)
 bldPRODUCT_END

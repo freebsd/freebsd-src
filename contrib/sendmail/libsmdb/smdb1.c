@@ -8,7 +8,7 @@
 */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smdb1.c,v 8.43 2000/03/17 07:32:43 gshapiro Exp $";
+static char id[] = "@(#)$Id: smdb1.c,v 8.43.4.1 2000/08/24 17:08:00 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <unistd.h>
@@ -192,6 +192,16 @@ smdb1_fd(database, fd)
 
 	return SMDBE_OK;
 }
+
+int
+smdb1_lockfd(database)
+	SMDB_DATABASE *database;
+{
+	SMDB_DB1_DATABASE *db1 = (SMDB_DB1_DATABASE *) database->smdb_impl;
+
+	return db1->smdb1_lock_fd;
+}
+
 
 int
 smdb1_get(database, key, data, flags)
@@ -482,6 +492,7 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 		smdb_db->smdb_close = smdb1_close;
 		smdb_db->smdb_del = smdb1_del;
 		smdb_db->smdb_fd = smdb1_fd;
+		smdb_db->smdb_lockfd = smdb1_lockfd;
 		smdb_db->smdb_get = smdb1_get;
 		smdb_db->smdb_put = smdb1_put;
 		smdb_db->smdb_set_owner = smdb1_set_owner;

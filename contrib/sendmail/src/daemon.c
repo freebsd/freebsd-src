@@ -16,9 +16,9 @@
 
 #ifndef lint
 # ifdef DAEMON
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.14 2000/07/14 04:15:00 gshapiro Exp $ (with daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.18 2000/09/21 21:52:16 ca Exp $ (with daemon mode)";
 # else /* DAEMON */
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.14 2000/07/14 04:15:00 gshapiro Exp $ (without daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.18 2000/09/21 21:52:16 ca Exp $ (without daemon mode)";
 # endif /* DAEMON */
 #endif /* ! lint */
 
@@ -38,6 +38,10 @@ static char id[] = "@(#)$Id: daemon.c,v 8.401.4.14 2000/07/14 04:15:00 gshapiro 
 #endif /* DAEMON || defined(USE_SOCK_STREAM) */
 
 #if DAEMON
+
+# if STARTTLS
+#    include <openssl/rand.h>
+# endif /* STARTTLS */
 
 # include <sys/time.h>
 
@@ -221,6 +225,10 @@ getrequests(e)
 		bool control = FALSE;
 		int save_errno;
 		int pipefd[2];
+# if STARTTLS
+		long seed;
+		time_t timenow;
+# endif /* STARTTLS */
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
@@ -264,10 +272,10 @@ getrequests(e)
 					/* log only if not logged before */
 					if (LogLevel >= 9)
 						sm_syslog(LOG_INFO, NOQID,
-							  "rejecting new messages: min free: %d",
+							  "rejecting new messages: min free: %ld",
 							  MinBlocksFree);
 					sm_setproctitle(TRUE, e,
-							"rejecting new messages: min free: %d",
+							"rejecting new messages: min free: %ld",
 							 MinBlocksFree);
 					setbitn(D_ETRNONLY, Daemons[idx].d_flags);
 				}
@@ -509,7 +517,16 @@ getrequests(e)
 		**  of a queue directory (and other things, e.g., MX selection)
 		**  are not "really" random.
 		*/
+# if STARTTLS
+		seed = get_random();
+		RAND_seed((void *) &last_disk_space_check,
+			sizeof last_disk_space_check);
+		timenow = curtime();
+		RAND_seed((void *) &timenow, sizeof timenow);
+		RAND_seed((void *) &seed, sizeof seed);
+# else /* STARTTLS */
 		(void) get_random();
+# endif /* STARTTLS */
 
 		/*
 		**  Create a pipe to keep the child from writing to the
@@ -1252,7 +1269,7 @@ setsockaddroptions(p, d)
 				if (!(isascii(*h) && isspace(*h)))
 				{
 					if (flags != d->d_mflags)
-						*f++ = ' ';
+						*flags++ = ' ';
 					*flags++ = *h;
 					if (isupper(*h))
 						*flags++ = *h;
@@ -2399,7 +2416,7 @@ getauthinfo(fd, may_be_forged)
 	int fd;
 	bool *may_be_forged;
 {
-	u_short port = 0;
+	volatile u_short port = 0;
 	SOCKADDR_LEN_T falen;
 	register char *volatile p = NULL;
 	SOCKADDR la;

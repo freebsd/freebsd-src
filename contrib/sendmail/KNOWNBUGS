@@ -1,7 +1,6 @@
 
 
 	     K N O W N   B U G S   I N   S E N D M A I L
-			     (for 8.9.3)
 
 
 The following are bugs or deficiencies in sendmail that I am aware of
@@ -13,6 +12,20 @@ distribution).
 
 This list is not guaranteed to be complete.
 
+* Delivery to programs that generate too much output may cause problems
+  (8.10, 8.11)
+
+  If e-mail is delivered to a program which generates too much
+  output, then sendmail may issue an error:
+
+  timeout waiting for input from local during Draining Input
+
+  Make sure that the program does not generate output beyond a
+  status message (corresponding to the exit status).  This may
+  require a wrapper around the actual program to redirect output
+  to /dev/null.
+
+  Such a problem has been reported for bulk_mailer.
 
 * Null bytes are not handled properly in headers.
 
@@ -198,4 +211,4 @@ This list is not guaranteed to be complete.
   state.  This option and it's use is deprecated and will be removed from a
   future version of sendmail.
 
-$Revision: 8.43 $, Last updated $Date: 1999/11/17 18:56:09 $
+$Revision: 8.43.16.1 $, Last updated $Date: 2000/09/28 00:45:37 $

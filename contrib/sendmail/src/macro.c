@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: macro.c,v 8.40.16.1 2000/05/25 18:56:15 gshapiro Exp $";
+static char id[] = "@(#)$Id: macro.c,v 8.40.16.2 2000/09/17 17:04:26 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>

@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: makemap.c,v 8.135.4.10 2000/07/18 05:41:39 gshapiro Exp $";
+static char id[] = "@(#)$Id: makemap.c,v 8.135.4.11 2000/09/13 01:11:10 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -339,7 +339,7 @@ main(argc, argv)
 
 	(void) database->smdb_sync(database, 0);
 
-	if (geteuid() == 0 && TrustedUid != 0)
+	if (!unmake && geteuid() == 0 && TrustedUid != 0)
 	{
 		errno = database->smdb_set_owner(database, TrustedUid, -1);
 		if (errno != SMDBE_OK)

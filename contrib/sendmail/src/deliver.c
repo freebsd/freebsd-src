@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.31 2000/07/18 02:24:43 gshapiro Exp $";
+static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.44 2000/09/21 21:52:17 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -484,10 +484,16 @@ sendall(e, mode)
 	     (mode != SM_VERIFY && SuperSafe)) &&
 	    (!bitset(EF_INQUEUE, e->e_flags) || splitenv != NULL))
 	{
-		/* be sure everything is instantiated in the queue */
-		queueup(e, mode == SM_QUEUE || mode == SM_DEFER);
+		/*
+		**  Be sure everything is instantiated in the queue.
+		**  Split envelopes first in case the machine crashes.
+		**  If the original were done first, we may lose
+		**  recipients.
+		*/
+
 		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
 			queueup(ee, mode == SM_QUEUE || mode == SM_DEFER);
+		queueup(e, mode == SM_QUEUE || mode == SM_DEFER);
 	}
 #endif /* QUEUE */
 
@@ -626,6 +632,15 @@ sendall(e, mode)
 			(void) waitfor(pid);
 			return;
 		}
+
+		/*
+		**  Since we have accepted responsbility for the message,
+		**  change the SIGTERM handler.  intsig() (the old handler)
+		**  would remove the envelope if this was a command line
+		**  message submission.
+		*/
+
+		(void) setsignal(SIGTERM, SIG_DFL);
 
 		/* double fork to avoid zombies */
 		pid = fork();
@@ -787,7 +802,8 @@ sendenvelope(e, mode)
 			**  Checkpoint the send list every few addresses
 			*/
 
-			if (e->e_nsent >= CheckpointInterval)
+			if (CheckpointInterval > 0 &&
+			    e->e_nsent >= CheckpointInterval)
 			{
 				queueup(e, FALSE);
 				e->e_nsent = 0;
@@ -1196,9 +1212,11 @@ deliver(e, firstto)
 		/*
 		**  Check to see that these people are allowed to
 		**  talk to each other.
+		**  Check also for overflow of e_msgsize.
 		*/
 
-		if (m->m_maxsize != 0 && e->e_msgsize > m->m_maxsize)
+		if (m->m_maxsize != 0 &&
+		    (e->e_msgsize > m->m_maxsize || e->e_msgsize < 0))
 		{
 			e->e_flags |= EF_NO_BODY_RETN;
 			if (bitnset(M_LOCALMAILER, to->q_mailer->m_flags))
@@ -2254,10 +2272,30 @@ reconnect:	/* after switching to an authenticated connection */
 			bool usetls;
 			bool saveQuickAbort = QuickAbort;
 			bool saveSuprErrs = SuprErrs;
+#  if _FFR_TLS_CLT1
+			char *p;
+#  endif /* _FFR_TLS_CLT1 */
 			extern SOCKADDR CurHostAddr;
 
 			rcode = EX_OK;
 			usetls = bitset(MCIF_TLS, mci->mci_flags);
+#  if _FFR_TLS_CLT1
+			if (usetls &&
+			    (p = macvalue(macid("{client_flags}", NULL), e))
+			    != NULL)
+			{
+				for (; *p != '\0'; p++)
+				{
+					/* look for just this one flag */
+					if (*p == D_CLTNOTLS)
+					{
+						usetls = FALSE;
+						break;
+					}
+				}
+			}
+#  endif /* _FFR_TLS_CLT1 */
+
 			hasdot = CurHostName[strlen(CurHostName) - 1] == '.';
 			if (hasdot)
 				CurHostName[strlen(CurHostName) - 1] = '\0';
@@ -2667,20 +2705,23 @@ do_transfer:
 				rcode = smtpgetstat(m, mci, e);
 			if (rcode == EX_OK)
 			{
-#if !_FFR_DYNAMIC_TOBUF
+#if _FFR_DYNAMIC_TOBUF
+				(void) strlcat(tobuf, ",", tobufsize);
+				(void) strlcat(tobuf, to->q_paddr, tobufsize);
+#else /* _FFR_DYNAMIC_TOBUF */
 				if (strlen(to->q_paddr) +
 				    strlen(tobuf) + 2 > sizeof tobuf)
 				{
 					syserr("LMTP tobuf overflow");
 				}
 				else
-#endif /* !_FFR_DYNAMIC_TOBUF */
 				{
 					(void) strlcat(tobuf, ",",
 						       sizeof tobuf);
 					(void) strlcat(tobuf, to->q_paddr,
 						       sizeof tobuf);
 				}
+#endif /* _FFR_DYNAMIC_TOBUF */
 				anyok = TRUE;
 			}
 			else
@@ -2716,7 +2757,7 @@ do_transfer:
 		**  Checkpoint the send list every few addresses
 		*/
 
-		if (e->e_nsent >= CheckpointInterval)
+		if (CheckpointInterval > 0 && e->e_nsent >= CheckpointInterval)
 		{
 			queueup(e, FALSE);
 			e->e_nsent = 0;
@@ -3012,9 +3053,9 @@ endmailer(mci, e, pv)
 				      endwaittimeout, 0);
 		else
 		{
-			syserr("endmailer %s: wait timeout (%d)",
+			syserr("endmailer %s: wait timeout (%ld)",
 			       mci->mci_mailer->m_name,
-			       mci->mci_mailer->m_wait);
+			       (long) mci->mci_mailer->m_wait);
 			return EX_TEMPFAIL;
 		}
 	}
@@ -3454,7 +3495,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 
 		sm_syslog(LOG_INFO, e->e_id,
 			  "to=%.*s [more]%s",
-			  ++q - p, p, buf);
+			  (int) (++q - p), p, buf);
 		p = q;
 	}
 #if _FFR_DYNAMIC_TOBUF
@@ -3487,7 +3528,7 @@ logdelivery(m, mci, dsn, status, ctladdr, xstart, e)
 
 		sm_syslog(LOG_INFO, e->e_id,
 			  "to=%.*s [more]",
-			  ++q - p, p);
+			  (int) (++q - p), p);
 		p = q;
 	}
 #if _FFR_DYNAMIC_TOBUF
@@ -4997,9 +5038,12 @@ starttls(m, mci, e)
 	ENVELOPE *e;
 {
 	int smtpresult;
-	int result;
+	int result = 0;
+	int rfd, wfd;
 	SSL *clt_ssl = NULL;
 
+	if (clt_ctx == NULL && !initclttls())
+		return EX_TEMPFAIL;
 	smtpmessage("STARTTLS", m, mci);
 
 	/* get the reply */
@@ -5018,8 +5062,6 @@ starttls(m, mci, e)
 
 	if (LogLevel > 13)
 		sm_syslog(LOG_INFO, e->e_id, "TLS: start client");
-	if (clt_ctx == NULL && !initclttls())
-		return EX_SOFTWARE;
 
 	/* start connection */
 	if ((clt_ssl = SSL_new(clt_ctx)) == NULL)
@@ -5034,9 +5076,13 @@ starttls(m, mci, e)
 		return EX_SOFTWARE;
 	}
 
+	rfd = fileno(mci->mci_in);
+	wfd = fileno(mci->mci_out);
+
 	/* SSL_clear(clt_ssl); ? */
-	if ((result = SSL_set_rfd(clt_ssl, fileno(mci->mci_in))) != 1 ||
-	    (result = SSL_set_wfd(clt_ssl, fileno(mci->mci_out))) != 1)
+	if (rfd < 0 || wfd < 0 ||
+	    (result = SSL_set_rfd(clt_ssl, rfd)) <= 0 ||
+	    (result = SSL_set_wfd(clt_ssl, wfd)) <= 0)
 	{
 		if (LogLevel > 5)
 		{
