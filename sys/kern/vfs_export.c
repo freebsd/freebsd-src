@@ -86,9 +86,18 @@ static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 static void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
 static void	insmntque __P((struct vnode *vp, struct mount *mp));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
+
+/*
+ * Number of vnodes in existence.  Increased whenever getnewvnode()
+ * allocates a new vnode, never decreased.
+ */
 static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
+/*
+ * Conversion tables for conversion from vnode types to inode formats
+ * and back.
+ */
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
 	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
@@ -98,13 +107,23 @@ int vttoif_tab[9] = {
 	S_IFSOCK, S_IFIFO, S_IFMT,
 };
 
-static TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
+/* vnode free list */
+static TAILQ_HEAD(freelst, vnode) vnode_free_list;
 
+/*
+ * Minimum number of free vnodes.  If there are fewer than this free vnodes,
+ * getnewvnode() will return a newly allocated vnode.
+ */
 static u_long wantfreevnodes = 25;
 SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
+/* Number of vnodes in the free list. */
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
+/*
+ * Various variables used for debugging the new implementation of reassignbuf().
+ * XXX These are probably of (very) limited utility now.
+ */
 static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
 static int reassignbufloops;
@@ -113,30 +132,78 @@ static int reassignbufsortgood;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortgood, CTLFLAG_RW, &reassignbufsortgood, 0, "");
 static int reassignbufsortbad;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 0, "");
+/* Set to 0 for old insertion-sort based reassignbuf, 1 for modern method. */
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 
 #ifdef ENABLE_VFS_IOOPT
+/* See NOTES for description */
 int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
-struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist); /* mounted fs */
+/* mounted fs */
+struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
+/* For any iteration/modification of mountlist */
 struct simplelock mountlist_slock;
+/* For any iteration/modification of mnt_vnodelist */
 struct simplelock mntvnode_slock;
+/*
+ * Cache for the mount type id assigned to NFS.  This is used for
+ * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
+ */
 int	nfs_mount_type = -1;
+
 #ifndef NULL_SIMPLELOCKS
+/* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct simplelock mntid_slock;
+/* For any iteration/modification of vnode_free_list */
 static struct simplelock vnode_free_list_slock;
+
+/*
+ * For any iteration/modification of dev->si_hlist (linked through
+ * v_specnext)
+ */
 static struct simplelock spechash_slock;
 #endif
-struct nfs_public nfs_pub;	/* publicly exported FS */
+
+/* Publicly exported FS */
+struct nfs_public nfs_pub;
+/* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static vm_zone_t vnode_zone;
-int	prtactive = 0;		/* 1 => print out reclaim of active vnodes */
+/* Set to 1 to print out reclaim of active vnodes */
+int	prtactive = 0;
 
 /*
  * The workitem queue.
+ * 
+ * It is useful to delay writes of file data and filesystem metadata
+ * for tens of seconds so that quickly created and deleted files need
+ * not waste disk bandwidth being created and removed. To realize this,
+ * we append vnodes to a "workitem" queue. When running with a soft
+ * updates implementation, most pending metadata dependencies should
+ * not wait for more than a few seconds. Thus, mounted on block devices
+ * are delayed only about a half the time that file data is delayed.
+ * Similarly, directory updates are more critical, so are only delayed
+ * about a third the time that file data is delayed. Thus, there are
+ * SYNCER_MAXDELAY queues that are processed round-robin at a rate of
+ * one each second (driven off the filesystem syncer process). The
+ * syncer_delayno variable indicates the next queue that is to be processed.
+ * Items that need to be processed soon are placed in this queue:
+ *
+ *	syncer_workitem_pending[syncer_delayno]
+ *
+ * A delay of fifteen seconds is done by placing the request fifteen
+ * entries later in the queue:
+ *
+ *	syncer_workitem_pending[(syncer_delayno + 15) & syncer_mask]
+ *
  */
+static int syncer_delayno = 0;
+static long syncer_mask; 
+LIST_HEAD(synclist, vnode);
+static struct synclist *syncer_workitem_pending;
+
 #define SYNCER_MAXDELAY		32
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 time_t syncdelay = 30;		/* max time to delay syncing data */
@@ -146,15 +213,14 @@ time_t dirdelay = 29;		/* time to delay syncing directories */
 SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
 time_t metadelay = 28;		/* time to delay syncing metadata */
 SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
-static int rushjob;			/* number of slots to run ASAP */
+static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
 
-static int syncer_delayno = 0;
-static long syncer_mask; 
-LIST_HEAD(synclist, vnode);
-static struct synclist *syncer_workitem_pending;
-
+/*
+ * Number of vnodes we want to exist at any one time.  Used all over the place.
+ * XXX Better documentation gladly accepted.
+ */
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, 
     &desiredvnodes, 0, "Maximum number of vnodes");
@@ -891,32 +957,6 @@ brelvp(bp)
 }
 
 /*
- * The workitem queue.
- * 
- * It is useful to delay writes of file data and filesystem metadata
- * for tens of seconds so that quickly created and deleted files need
- * not waste disk bandwidth being created and removed. To realize this,
- * we append vnodes to a "workitem" queue. When running with a soft
- * updates implementation, most pending metadata dependencies should
- * not wait for more than a few seconds. Thus, mounted on block devices
- * are delayed only about a half the time that file data is delayed.
- * Similarly, directory updates are more critical, so are only delayed
- * about a third the time that file data is delayed. Thus, there are
- * SYNCER_MAXDELAY queues that are processed round-robin at a rate of
- * one each second (driven off the filesystem syncer process). The
- * syncer_delayno variable indicates the next queue that is to be processed.
- * Items that need to be processed soon are placed in this queue:
- *
- *	syncer_workitem_pending[syncer_delayno]
- *
- * A delay of fifteen seconds is done by placing the request fifteen
- * entries later in the queue:
- *
- *	syncer_workitem_pending[(syncer_delayno + 15) & syncer_mask]
- *
- */
-
-/*
  * Add an item to the syncer work queue.
  */
 static void
@@ -1110,17 +1150,17 @@ pbrelvp(bp)
 	bp->b_flags &= ~B_PAGING;
 }
 
+/*
+ * Change the vnode a pager buffer is associated with.
+ */
 void
 pbreassignbuf(bp, newvp)
 	struct buf *bp;
 	struct vnode *newvp;
 {
-	if ((bp->b_flags & B_PAGING) == 0) {
-		panic(
-		    "pbreassignbuf() on non phys bp %p", 
-		    bp
-		);
-	}
+	KASSERT(bp->b_flags & B_PAGING,
+	    ("pbreassignbuf() on non phys bp %p", bp));
+
 	bp->b_vp = newvp;
 }
 
@@ -1339,14 +1379,14 @@ addaliasu(nvp, nvp_rdev)
 	return (ovp);
 }
 
+/* Local helper function  - same as addaliasu, but for a dev_t */
 static void
 addalias(nvp, dev)
 	struct vnode *nvp;
 	dev_t dev;
 {
-
-	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
-		panic("addalias on non-special vnode");
+	KASSERT(nvp->v_type == VBLK || nvp->v_type == VCHR,
+	    ("addalias on non-special vnode"));
 
 	nvp->v_rdev = dev;
 	simple_lock(&spechash_slock);
@@ -1376,9 +1416,8 @@ vget(vp, flags, p)
 	 * return failure. Cleaning is determined by checking that
 	 * the VXLOCK flag is set.
 	 */
-	if ((flags & LK_INTERLOCK) == 0) {
+	if ((flags & LK_INTERLOCK) == 0)
 		simple_lock(&vp->v_interlock);
-	}
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
 		simple_unlock(&vp->v_interlock);
@@ -1412,6 +1451,9 @@ vget(vp, flags, p)
 	return (0);
 }
 
+/* 
+ * Increase reference count of a vnode
+ */
 void
 vref(struct vnode *vp)
 {
@@ -1466,6 +1508,10 @@ vrele(vp)
 	}
 }
 
+/* 
+ * Release an already locked vnode.
+ * This gives almost the exact same effects as unlock+vrele()
+ */
 void
 vput(vp)
 	struct vnode *vp;
@@ -1523,7 +1569,7 @@ vhold(vp)
 }
 
 /*
- * One less who cares about this vnode.
+ * One less who cares about this vnode (opposite of vhold())
  */
 void
 vdrop(vp)
@@ -1939,7 +1985,6 @@ vcount(vp)
 /*
  * Same as above, but using the dev_t as argument
  */
-
 int
 count_dev(dev)
 	dev_t dev;
@@ -2050,6 +2095,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
 #endif
 
+	/* XXX The below code does not compile; vfs_sysctl does not exist. */
 #ifdef notyet
 	/* all sysctl names at this level are at least name and field */
 	if (namelen < 2)
@@ -2109,7 +2155,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 
 #endif /* 1 || COMPAT_PRELITE2 */
 
-#if 0
+#if COMPILING_LINT
 #define KINFO_VNODESLOP	10
 /*
  * Dump vnode list (via sysctl).
@@ -2168,14 +2214,12 @@ again:
 
 	return (0);
 }
-#endif
 
 /*
  * XXX
  * Exporting the vnode list on large systems causes them to crash.
  * Exporting the vnode list on medium systems causes sysctl to coredump.
  */
-#if 0
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, 0, sysctl_vnode, "S,vnode", "");
 #endif
@@ -2304,6 +2348,7 @@ out:
 	return (error);
 }
 
+/* Helper for vfs_free_addrlist */
 /* ARGSUSED */
 static int
 vfs_free_netcred(rn, w)
@@ -2560,6 +2605,9 @@ vfs_object_create(vp, p, cred)
 	return (VOP_CREATEVOBJECT(vp, cred, p));
 }
 
+/*
+ * Mark a vnode as free, putting it up for recycling.
+ */
 void
 vfree(vp)
 	struct vnode *vp;
@@ -2581,6 +2629,9 @@ vfree(vp)
 	splx(s);
 }
 
+/* 
+ * Opposite of vfree() - mark a vnode as in use.
+ */
 void
 vbusy(vp)
 	struct vnode *vp;
@@ -2909,6 +2960,10 @@ vn_isdisk(vp, errp)
 	return (1);
 }
 
+/*
+ * Free data allocated by namei().
+ * See namei(9) for details.
+ */
 void
 NDFREE(ndp, flags)
      struct nameidata *ndp;
