@@ -32,13 +32,14 @@
  * precedence is structured in regular expressions.  Serious changes in
  * regular-expression syntax might require a total rethink.
  */
+#include <limits.h>
+#include <locale.h>
 #include <regexp.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include "regmagic.h"
-#include "collate.h"
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -507,12 +508,12 @@ int *flagp;
 					else {
 						class = UCHARAT(regparse-2);
 						classend = UCHARAT(regparse);
-						if (__collcmp(class, classend) > 0)
+						if (collate_range_cmp(class, classend) > 0)
 							FAIL("invalid [] range");
 						for (i = 0; i <= UCHAR_MAX; i++)
 							if (   i != class
-							    && __collcmp(class, i) <= 0
-							    && __collcmp(i, classend) <= 0
+							    && collate_range_cmp(class, i) <= 0
+							    && collate_range_cmp(i, classend) <= 0
 							   )
 								regc(i);
 						regparse++;
