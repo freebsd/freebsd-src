@@ -160,9 +160,8 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 		printf(ARGS(newfstat, "%d, *"), args->fd);
 #endif
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 
 	error = fo_stat(fp, &buf, td);
 	fdrop(fp, td);

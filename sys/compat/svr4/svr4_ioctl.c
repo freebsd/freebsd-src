@@ -102,9 +102,8 @@ svr4_sys_ioctl(td, uap)
 	retval = td->td_retval;
 	cmd = SCARG(uap, com);
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return EBADF;
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
 
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);

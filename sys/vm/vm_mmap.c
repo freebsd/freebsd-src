@@ -292,11 +292,8 @@ mmap(td, uap)
 		 * sure it is of appropriate type.
 		 * don't let the descriptor disappear on us if we block
 		 */
-		fp = ffind_hold(td, uap->fd);
-		if (fp == NULL) {
-			error = EBADF;
+		if ((error = fget(td, uap->fd, &fp)) != 0)
 			goto done;
-		}
 		if (fp->f_type != DTYPE_VNODE) {
 			error = EINVAL;
 			goto done;

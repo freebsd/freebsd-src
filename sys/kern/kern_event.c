@@ -414,10 +414,10 @@ kevent(struct thread *td, struct kevent_args *uap)
 	struct timespec ts;
 	int i, n, nerrors, error;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL || fp->f_type != DTYPE_KQUEUE) {
-		if (fp != NULL)
-			fdrop(fp, td);
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
+	if (fp->f_type != DTYPE_KQUEUE) {
+		fdrop(fp, td);
 		return (EBADF);
 	}
 	if (uap->timeout != NULL) {

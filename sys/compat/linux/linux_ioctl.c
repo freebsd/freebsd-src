@@ -109,9 +109,8 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 	int error;
 	struct disklabel dl;
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
 		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td);
@@ -555,9 +554,9 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
+
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_TCGETS:
@@ -1249,9 +1248,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_CDROMPAUSE:
@@ -1706,9 +1704,8 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_KIOCSOUND:
@@ -2259,9 +2256,8 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		    (unsigned long)args->cmd);
 #endif
 
-	fp = ffind_hold(td, args->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, args->fd, &fp)) != 0)
+		return (error);
 	if ((fp->f_flag & (FREAD|FWRITE)) == 0) {
 		fdrop(fp, td);
 		return (EBADF);

@@ -603,7 +603,7 @@ ioctl(td, uap)
 	struct thread *td;
 	register struct ioctl_args *uap;
 {
-	register struct file *fp;
+	struct file *fp;
 	register struct filedesc *fdp;
 	register u_long com;
 	int error = 0;
@@ -616,9 +616,8 @@ ioctl(td, uap)
 	    long align;
 	} ubuf;
 
-	fp = ffind_hold(td, uap->fd);
-	if (fp == NULL)
-		return (EBADF);
+	if ((error = fget(td, uap->fd, &fp)) != 0)
+		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
 		return (EBADF);
@@ -992,8 +991,7 @@ selscan(td, ibits, obits, nfd)
 			for (fd = i; bits && fd < nfd; fd++, bits >>= 1) {
 				if (!(bits & 1))
 					continue;
-				fp = ffind_hold(td, fd);
-				if (fp == NULL)
+				if (fget(td, fd, &fp))
 					return (EBADF);
 				if (fo_poll(fp, flag[msk], fp->f_cred, td)) {
 					obits[msk][(fd)/NFDBITS] |=
