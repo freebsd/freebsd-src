@@ -41,6 +41,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -327,8 +328,6 @@ nospace:
 	return (ENOSPC);
 }
 
-SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW, 0, "FFS filesystem");
-
 /*
  * Reallocate a sequence of blocks into a contiguous sequence of blocks.
  *
@@ -343,11 +342,14 @@ SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW, 0, "FFS filesystem");
  * Note that the error return is not reflected back to the user. Rather
  * the previous block allocation will be used.
  */
+
+SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW, 0, "FFS filesystem");
+
 static int doasyncfree = 1;
-SYSCTL_INT(_vfs_ffs, FFS_ASYNCFREE, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
+SYSCTL_INT(_vfs_ffs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, "");
 
 static int doreallocblks = 1;
-SYSCTL_INT(_vfs_ffs, FFS_REALLOCBLKS, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
+SYSCTL_INT(_vfs_ffs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 #ifdef DEBUG
 static volatile int prtrealloc = 0;
@@ -612,7 +614,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		    ip->i_mode, (u_long)ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
 	}
-	if (ip->i_blocks) {				/* XXX */
+	if (ip->i_blocks && (fs->fs_flags & FS_UNCLEAN) == 0) {	    /* XXX */
 		printf("free inode %s/%lu had %ld blocks\n",
 		    fs->fs_fsmnt, (u_long)ino, (long)ip->i_blocks);
 		ip->i_blocks = 0;
@@ -1478,7 +1480,7 @@ ffs_checkblk(ip, bno, size)
  * Free an inode.
  */
 int
-ffs_vfree( pvp, ino, mode)
+ffs_vfree(pvp, ino, mode)
 	struct vnode *pvp;
 	ino_t ino;
 	int mode;
@@ -1487,27 +1489,25 @@ ffs_vfree( pvp, ino, mode)
 		softdep_freefile(pvp, ino, mode);
 		return (0);
 	}
-	return (ffs_freefile(pvp, ino, mode));
+	return (ffs_freefile(VTOI(pvp), ino, mode));
 }
 
 /*
  * Do the actual free operation.
  * The specified inode is placed back in the free map.
  */
- int
- ffs_freefile( pvp, ino, mode)
-	struct vnode *pvp;
+int
+ffs_freefile(pip, ino, mode)
+	struct inode *pip;
 	ino_t ino;
 	int mode;
 {
 	register struct fs *fs;
 	register struct cg *cgp;
-	register struct inode *pip;
 	struct buf *bp;
 	int error, cg;
 	u_int8_t *inosused;
 
-	pip = VTOI(pvp);
 	fs = pip->i_fs;
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
 		panic("ffs_vfree: range: dev = (%d,%d), ino = %d, fs = %s",
@@ -1529,8 +1529,8 @@ ffs_vfree( pvp, ino, mode)
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
 	if (isclr(inosused, ino)) {
-		printf("dev = %s, ino = %lu, fs = %s\n",
-		    devtoname(pip->i_dev), (u_long)ino, fs->fs_fsmnt);
+		printf("dev = %s, ino = %lu, fs = %s\n", devtoname(pip->i_dev),
+		    (u_long)ino + cg * fs->fs_ipg, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ffs_vfree: freeing free inode");
 	}
@@ -1725,4 +1725,209 @@ ffs_fserr(fs, uid, cp)
 
 	log(LOG_ERR, "pid %d (%s), uid %d on %s: %s\n", p ? p->p_pid : -1,
 			p ? p->p_comm : "-", uid, fs->fs_fsmnt, cp);
+}
+
+/*
+ * This function provides the capability for the fsck program to
+ * update an active filesystem. Six operations are provided:
+ *
+ * adjrefcnt(inode, amt) - adjusts the reference count on the
+ *	specified inode by the specified amount. Under normal
+ *	operation the count should always go down. Decrementing
+ *	the count to zero will cause the inode to be freed.
+ * adjblkcnt(inode, amt) - adjust the number of blocks used to
+ *	by the specifed amount.
+ * freedirs(inode, count) - directory inodes [inode..inode + count - 1]
+ *	are marked as free. Inodes should never have to be marked
+ *	as in use.
+ * freefiles(inode, count) - file inodes [inode..inode + count - 1]
+ *	are marked as free. Inodes should never have to be marked
+ *	as in use.
+ * freeblks(blockno, size) - blocks [blockno..blockno + size - 1]
+ *	are marked as free. Blocks should never have to be marked
+ *	as in use.
+ * setflags(flags, set/clear) - the fs_flags field has the specified
+ *	flags set (second parameter +1) or cleared (second parameter -1).
+ */
+
+static int sysctl_ffs_fsck __P((SYSCTL_HANDLER_ARGS));
+
+SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt, CTLFLAG_WR|CTLTYPE_STRUCT,
+	0, 0, sysctl_ffs_fsck, "S,fsck", "Adjust Inode Reference Count");
+
+SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Adjust Inode Used Blocks Count");
+
+SYSCTL_NODE(_vfs_ffs, FFS_DIR_FREE, freedirs, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Free Range of Directory Inodes");
+
+SYSCTL_NODE(_vfs_ffs, FFS_FILE_FREE, freefiles, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Free Range of File Inodes");
+
+SYSCTL_NODE(_vfs_ffs, FFS_BLK_FREE, freeblks, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Free Range of Blocks");
+
+SYSCTL_NODE(_vfs_ffs, FFS_SET_FLAGS, setflags, CTLFLAG_WR,
+	sysctl_ffs_fsck, "Change Filesystem Flags");
+
+#ifdef DEBUG
+static int fsckcmds = 0;
+SYSCTL_INT(_debug, OID_AUTO, fsckcmds, CTLFLAG_RW, &fsckcmds, 0, "");
+#endif /* DEBUG */
+
+static int
+sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
+{
+	struct fsck_cmd cmd;
+	struct inode tip;
+	struct ufsmount *ump;
+	struct vnode *vp;
+	struct inode *ip;
+	struct mount *mp;
+	struct fs *fs;
+	ufs_daddr_t blkno;
+	long blkcnt, blksize;
+	struct file *fp;
+	int filetype, error;
+
+	if (req->newlen > sizeof cmd)
+		return (EBADRPC);
+	if ((error = SYSCTL_IN(req, &cmd, sizeof cmd)) != 0)
+		return (error);
+	if (cmd.version != FFS_CMD_VERSION)
+		return (ERPCMISMATCH);
+	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
+		return (error);
+	mp = ((struct vnode *)fp->f_data)->v_mount;
+	if (mp->mnt_flag & MNT_RDONLY)
+		return (EROFS);
+	ump = VFSTOUFS(mp);
+	fs = ump->um_fs;
+	filetype = IFREG;
+
+	switch (oidp->oid_number) {
+
+	case FFS_SET_FLAGS:
+#ifdef DEBUG
+		if (fsckcmds)
+			printf("%s: %s flags\n", mp->mnt_stat.f_mntonname,
+			    cmd.size > 0 ? "set" : "clear");
+#endif /* DEBUG */
+		if (cmd.size > 0)
+			fs->fs_flags |= (long)cmd.value;
+		else
+			fs->fs_flags &= ~(long)cmd.value;
+		break;
+
+	case FFS_ADJ_REFCNT:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust inode %d count by %ld\n",
+			    mp->mnt_stat.f_mntonname, (ino_t)cmd.value,
+			    cmd.size);
+		}
+#endif /* DEBUG */
+		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
+			return (error);
+		ip = VTOI(vp);
+		ip->i_nlink += cmd.size;
+		ip->i_effnlink += cmd.size;
+		ip->i_flag |= IN_CHANGE;
+		if (DOINGSOFTDEP(vp))
+			softdep_change_linkcnt(ip);
+		vput(vp);
+		break;
+
+	case FFS_ADJ_BLKCNT:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("%s: adjust inode %d block count by %ld\n",
+			    mp->mnt_stat.f_mntonname, (ino_t)cmd.value,
+			    cmd.size);
+		}
+#endif /* DEBUG */
+		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
+			return (error);
+		ip = VTOI(vp);
+		ip->i_blocks += cmd.size;
+		ip->i_flag |= IN_CHANGE;
+		vput(vp);
+		break;
+
+	case FFS_DIR_FREE:
+		filetype = IFDIR;
+		/* fall through */
+
+	case FFS_FILE_FREE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			if (cmd.size == 1)
+				printf("%s: free %s inode %d\n",
+				    mp->mnt_stat.f_mntonname,
+				    filetype == IFDIR ? "directory" : "file",
+				    (ino_t)cmd.value);
+			else
+				printf("%s: free %s inodes %d-%d\n",
+				    mp->mnt_stat.f_mntonname,
+				    filetype == IFDIR ? "directory" : "file",
+				    (ino_t)cmd.value);
+				    (ino_t)cmd.value + cmd.size - 1);
+		}
+#endif /* DEBUG */
+		tip.i_devvp = ump->um_devvp;
+		tip.i_dev = ump->um_dev;
+		tip.i_fs = fs;
+		while (cmd.size > 0) {
+			if ((error = ffs_freefile(&tip, cmd.value, filetype)))
+				return (error);
+			cmd.size -= 1;
+			cmd.value += 1;
+		}
+		break;
+
+	case FFS_BLK_FREE:
+#ifdef DEBUG
+		if (fsckcmds) {
+			if (cmd.size == 1)
+				printf("%s: free block %d\n",
+				    mp->mnt_stat.f_mntonname,
+				    (ufs_daddr_t)cmd.value);
+			else
+				printf("%s: free blocks %d-%ld\n",
+				    mp->mnt_stat.f_mntonname, 
+				    (ufs_daddr_t)cmd.value,
+				    (ufs_daddr_t)cmd.value + cmd.size - 1);
+		}
+#endif /* DEBUG */
+		tip.i_number = ROOTINO;
+		tip.i_devvp = ump->um_devvp;
+		tip.i_dev = ump->um_dev;
+		tip.i_fs = fs;
+		tip.i_size = cmd.size * fs->fs_fsize;
+		tip.i_uid = 0;
+		tip.i_vnode = NULL;
+		blkno = (ufs_daddr_t)cmd.value;
+		blkcnt = cmd.size;
+		blksize = fs->fs_frag - (blkno % fs->fs_frag);
+		while (blkcnt > 0) {
+			if (blksize > blkcnt)
+				blksize = blkcnt;
+			ffs_blkfree(&tip, blkno, blksize * fs->fs_fsize);
+			blkno += blksize;
+			blkcnt -= blksize;
+			blksize = fs->fs_frag;
+		}
+		break;
+
+	default:
+#ifdef DEBUG
+		if (fsckcmds) {
+			printf("Invalid request %d from fsck\n",
+			    oidp->oid_number);
+		}
+#endif /* DEBUG */
+		return(EINVAL);
+
+	}
+	return (0);
 }

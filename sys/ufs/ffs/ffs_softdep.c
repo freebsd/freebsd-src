@@ -171,7 +171,7 @@ static	void free_allocdirect __P((struct allocdirectlst *,
 	    struct allocdirect *, int));
 static	int check_inode_unwritten __P((struct inodedep *));
 static	int free_inodedep __P((struct inodedep *));
-static	void handle_workitem_freeblocks __P((struct freeblks *));
+static	void handle_workitem_freeblocks __P((struct freeblks *, int));
 static	void merge_inode_lists __P((struct inodedep *));
 static	void setup_allocindir_phase2 __P((struct buf *, struct inode *,
 	    struct allocindir *));
@@ -684,7 +684,7 @@ process_worklist_item(matchmnt, flags)
 				"process_worklist_item");
 		if (mp == matchmnt)
 			matchcnt += 1;
-		handle_workitem_freeblocks(WK_FREEBLKS(wk));
+		handle_workitem_freeblocks(WK_FREEBLKS(wk), flags & LK_NOWAIT);
 		break;
 
 	case D_FREEFRAG:
@@ -1113,7 +1113,7 @@ softdep_mount(devvp, mp, fs, cred)
 	}
 #ifdef DEBUG
 	if (bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
-		printf("ffs_mountfs: superblock updated for soft updates\n");
+		printf("%s: superblock summary recomputed\n", fs->fs_fsmnt);
 #endif
 	bcopy(&cstotal, &fs->fs_cstotal, sizeof cstotal);
 	return (0);
@@ -1819,7 +1819,7 @@ softdep_setup_freeblocks(ip, length)
 	 * the dependencies.
 	 */
 	if (!delay)
-		handle_workitem_freeblocks(freeblks);
+		handle_workitem_freeblocks(freeblks, 0);
 }
 
 /*
@@ -2082,10 +2082,12 @@ free_inodedep(inodedep)
  * performed in this function.
  */
 static void
-handle_workitem_freeblocks(freeblks)
+handle_workitem_freeblocks(freeblks, flags)
 	struct freeblks *freeblks;
+	int flags;
 {
-	struct inode tip;
+	struct inode tip, *ip;
+	struct vnode *vp;
 	ufs_daddr_t bn;
 	struct fs *fs;
 	int i, level, bsize;
@@ -2130,13 +2132,27 @@ handle_workitem_freeblocks(freeblks)
 		ffs_blkfree(&tip, bn, bsize);
 		blocksreleased += btodb(bsize);
 	}
+	/*
+	 * If we still have not finished background cleanup, then check
+	 * to see if the block count needs to be adjusted.
+	 */
+	if (freeblks->fb_chkcnt != blocksreleased &&
+	    (fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0 &&
+	    VFS_VGET(freeblks->fb_mnt, freeblks->fb_previousinum, &vp) == 0) {
+		ip = VTOI(vp);
+		ip->i_blocks += freeblks->fb_chkcnt - blocksreleased;
+		ip->i_flag |= IN_CHANGE;
+		vput(vp);
+	}
 
 #ifdef DIAGNOSTIC
-	if (freeblks->fb_chkcnt != blocksreleased)
+	if (freeblks->fb_chkcnt != blocksreleased &&
+	    ((fs->fs_flags & FS_UNCLEAN) == 0 || (flags & LK_NOWAIT) != 0))
 		printf("handle_workitem_freeblocks: block count");
 	if (allerror)
 		softdep_error("handle_workitem_freeblks", allerror);
 #endif /* DIAGNOSTIC */
+
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
 }
 
@@ -2876,7 +2892,6 @@ handle_workitem_freefile(freefile)
 	struct freefile *freefile;
 {
 	struct fs *fs;
-	struct vnode vp;
 	struct inode tip;
 	struct inodedep *idp;
 	int error;
@@ -2892,9 +2907,7 @@ handle_workitem_freefile(freefile)
 	tip.i_devvp = freefile->fx_devvp;
 	tip.i_dev = freefile->fx_devvp->v_rdev;
 	tip.i_fs = fs;
-	tip.i_vnode = &vp;
-	vp.v_data = &tip;
-	if ((error = ffs_freefile(&vp, freefile->fx_oldinum, freefile->fx_mode)) != 0)
+	if ((error = ffs_freefile(&tip, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
