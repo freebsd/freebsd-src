@@ -26,50 +26,61 @@
 .\" $FreeBSD$
 .\"
 .Dd June 25, 2003
-.Dt watchdog 4
+.Dt WATCHDOG 4
 .Os
 .Sh NAME
 .Nm watchdog
-.Nd Hardware and Software watchdog
+.Nd "hardware and software watchdog"
 .Sh SYNOPSIS
-.Cd options CPU_ELAN
-.Cd options CPU_GEODE
-.Cd options SW_WATCHDOG
+.Cd "options CPU_ELAN"
+.Cd "options CPU_GEODE"
+.Cd "options SW_WATCHDOG"
 .Pp
 .In sys/watchdog.h
-.Bd -literal
-
-u_int u = WD_ACTIVE | WD_8SEC;
-int fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
-
-ioctl(fd, WDIOCPATPAT, &u);
-.Ed
 .Sh DESCRIPTION
+The
 .Nm
-is a facility for controlling hardware and software watchdog facilities.
+facility is used for controlling hardware and software watchdogs.
 .Pp
-The interface is through a device named "/dev/"
+The interface is through a device named
+.Qq Li /dev/
 .Dv _PATH_WATCHDOG
-which
-responds to a single ioctl call,
+which responds to a single
+.Xr ioctl 2
+call,
 .Dv WDIOCPATPAT .
 .Pp
-The ioctl call takes an argument which consists of a timeout value
+The call takes a single argument which represents a timeout value
 specified as an integer power of two nanoseconds.
 .Pp
 The
 .Dv WD_ACTIVE
-flag signals that the watchdog will be kept from 
+flag signals that the
+.Nm
+will be kept from
 timing out from userland, for instance by the
 .Xr watchdogd 8
 daemon.
 .Pp
-To disable the watchdogs, use an argument of zero.
+To disable the watchdogs, an argument of zero should be used.
 .Pp
-The ioctl call will return success if just one of the available
-watchdog implementations support the request.
-If the ioctl fails, for instance if no watchdog supports the timeout
-length, all watchdogs are disabled and must be explicitly reenabled.
+The
+.Xr ioctl 2
+call will return success if just one of the available
+.Xr watchdog 9
+implementations support the request.
+If the call fails, for instance if none of
+.Xr watchdog 9
+implementations support the timeout
+length, all watchdogs are disabled and must be explicitly re-enabled.
+.Sh EXAMPLES
+.\" XXX insert some descriptive text here
+.Bd -literal -offset indent
+u_int u = WD_ACTIVE | WD_TO_8SEC;
+int fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
+
+ioctl(fd, WDIOCPATPAT, &u);
+.Ed
 .Sh SEE ALSO
 .Xr watchdogd 8 ,
 .Xr watchdog 9
@@ -81,13 +92,11 @@ code first appeared in
 .Sh AUTHORS
 .An -nosplit
 The
-.Nm watchdog
-facility were written by
+.Nm
+facility was written by
 .An Poul-Henning Kamp Aq phk@FreeBSD.org .
-.Pp
-The
-.Nm SW_WATCHDOG
-code and manual page were written by
+The software watchdog code
+and this manual page were written by
 .An Sean Kelly Aq smkelly@FreeBSD.org .
 Some contributions were made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .
