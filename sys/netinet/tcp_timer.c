@@ -109,7 +109,7 @@ int	tcp_msl;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_msl, 0, sysctl_msec_to_ticks, "I", "Maximum segment lifetime");
 
-static int	always_keepalive = 0;
+static int	always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW, 
     &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
 
