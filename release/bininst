@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.43 1994/11/18 12:54:37 jkh Exp $
+# $Id: bininst,v 1.44 1994/11/18 13:58:25 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -66,7 +66,8 @@ ready to go, please remove the cpio floppy from the drive and press return!" -1 
 do_last_config()
 {
 	dialog --title "Auf Wiedersehen!" \
---msgbox "We now come to the end of the installation.  At this point in
+--msgbox "We now come to the end of the installation.  Please remove
+any floppies from the drive before exiting this dialog.  At this point in
 time, there's nothing fancy here, but for the release we plan to
 ask some additional questions about time zone setup, what sort of
 mail client this host is, etc.  We just ran out of time for ALPHA!
