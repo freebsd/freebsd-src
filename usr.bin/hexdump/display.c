@@ -154,7 +154,7 @@ print(pr, bp)
 	case F_INT:
 		switch(pr->bcnt) {
 		case 1:
-			(void)printf(pr->fmt, (quad_t)*bp);
+			(void)printf(pr->fmt, (quad_t)(signed char)*bp);
 			break;
 		case 2:
 			bcopy(bp, &s2, sizeof(s2));
