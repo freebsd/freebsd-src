@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.40 1997/10/27 15:26:23 bde Exp $
+ * $Id: vfs_vnops.c,v 1.41 1997/11/07 08:53:11 phk Exp $
  */
 
 #include <sys/param.h>
@@ -276,7 +276,8 @@ vn_read(fp, uio, cred)
 
 	VOP_LEASE(vp, p, cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);
-	uio->uio_offset = fp->f_offset;
+	if (uio->uio_offset == -1)
+		uio->uio_offset = fp->f_offset;
 	count = uio->uio_resid;
 	flag = 0;
 	if (fp->f_flag & FNONBLOCK)
@@ -329,7 +330,7 @@ vn_write(fp, uio, cred)
 	struct proc *p = uio->uio_procp;
 	int count, error, ioflag = IO_UNIT;
 
-	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
+	if (uio->uio_offset == -1 && vp->v_type == VREG && (fp->f_flag & O_APPEND))
 		ioflag |= IO_APPEND;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
