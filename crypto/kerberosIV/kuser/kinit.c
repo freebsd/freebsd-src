@@ -108,13 +108,41 @@ main(int argc, char **argv)
 	    printf("@%s", realm);
 	printf("\"\n");
     } else {
-	printf("Kerberos Initialization\n");
-	printf("Kerberos name: ");
-	get_input(name, sizeof(name), stdin);
-	if (!*name)
-	    return 0;
-	if ((k_errno = kname_parse(aname, inst, realm, name)) != KSUCCESS )
-	    errx(1, "%s", krb_get_err_text(k_errno));
+	if (iflag) {
+		printf("Kerberos Initialization\n");
+		printf("Kerberos name: ");
+		get_input(name, sizeof(name), stdin);
+		if (!*name)
+		    return 0;
+		if ((k_errno = kname_parse(aname, inst, realm, name)) 
+			!= KSUCCESS )
+			errx(1, "%s", krb_get_err_text(k_errno));
+	} else {
+	    int uid = getuid();
+	    char *getenv();
+	    struct passwd *pwd;
+
+	    /* default to current user name unless running as root */
+	    if (uid == 0 && (username = getenv("USER")) &&
+	        strcmp(username, "root") != 0) {
+	    	    strncpy(aname, username, sizeof(aname));
+		    strncpy(inst, "root", sizeof(inst));
+	        } else {
+		    pwd = getpwuid(uid);
+
+		    if (pwd == (struct passwd *) NULL) {
+			fprintf(stderr, "Unknown name for your uid\n");
+			printf("Kerberos name: ");
+			get_input(aname, sizeof(aname), stdin);
+		    } else
+			strncpy(aname, pwd->pw_name, sizeof(aname));
+	    }
+	    if (!*name)
+	        return 0;
+	    if (!k_isname(aname)) {
+	        errx(1, "%s", "bad Kerberos name format");
+	    }
+	}
     }
     /* optional instance */
     if (iflag) {
