@@ -128,9 +128,6 @@ CDROM_SET_1="${CDROM_SET_1} net/samba"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
-if [ "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} print/acroread4"
-fi
 if [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} print/acroread5"
 fi
