@@ -110,8 +110,11 @@ ed_insert(el, c)
 	re_refresh(el);
     }
 
+    if (el->el_state.inputmode == MODE_REPLACE_1 || el->el_state.inputmode == MODE_REPLACE)
+	el->el_chared.c_undo.action=CHANGE;
+
     if (el->el_state.inputmode == MODE_REPLACE_1)
-	(void) vi_command_mode(el, 0);
+	return vi_command_mode(el, 0);
 
     return CC_NORM;
 }

@@ -138,6 +138,7 @@ protected int   cv__isword	__P((int));
 protected void  cv_delfini	__P((EditLine *));
 protected char *cv__endword	__P((char *, char *, int));
 protected int   ce__isword	__P((int));
+protected int   c___isword	__P((int));
 protected void  cv_undo		__P((EditLine *, int, int, char *));
 protected char *cv_next_word	__P((EditLine*, char *, char *, int,
 				     int (*)(int)));

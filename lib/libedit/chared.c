@@ -153,10 +153,25 @@ ce__isword(p)
 
 
 /* cv__isword():
- *	Return if p is part of a word according to vi
+ *	Return type of word for p according to vi
  */
 protected int
 cv__isword(p)
+    int p;
+{
+    if (isspace((unsigned char) p))
+        return 0;
+    if ((unsigned char) p == '_' || isalnum((unsigned char) p))
+        return 1;
+    return 2;
+}
+
+
+/* c___isword():
+ *	Return if p is part of a space-delimited word (!isspace)
+ */
+protected int
+c___isword(p)
     int p;
 {
     return !isspace((unsigned char) p);
