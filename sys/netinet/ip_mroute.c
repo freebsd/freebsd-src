@@ -12,12 +12,14 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_mrouting.h"
 #include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -1630,6 +1632,9 @@ encap_send(ip, vifp, m)
     MGETHDR(mb_copy, M_DONTWAIT, MT_HEADER);
     if (mb_copy == NULL)
 	return;
+#ifdef MAC
+    mac_create_mbuf_multicast_encap(m, vifp->v_ifp, mb_copy);
+#endif
     mb_copy->m_data += max_linkhdr;
     mb_copy->m_len = sizeof(multicast_encap_iphdr);
 
