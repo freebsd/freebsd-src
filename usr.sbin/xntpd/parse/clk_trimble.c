@@ -41,7 +41,9 @@ static struct format trimsv6_fmt =
 static unsigned LONG cvt_trimsv6();
 
 clockformat_t clock_trimsv6 =
-{ cvt_trimsv6,		/* Trimble conversion */
+{
+  (unsigned LONG (*)())0,	/* XXX?: no input handling */
+  cvt_trimsv6,			/* Trimble conversion */
   syn_simple,			/* easy time stamps for RS232 (fallback) */
   pps_simple,			/* easy PPS monitoring */
   (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
@@ -49,6 +51,7 @@ clockformat_t clock_trimsv6 =
   "Trimble SV6",
   37,				/* string buffer */
   F_START|F_END|SYNC_START|SYNC_ONE, /* paket START/END delimiter, START synchronisation, PPS ONE sampling */
+  0,				/* XXX?: no private data (complete messages) */
   { 0, 0},
   '>',
   '<',
