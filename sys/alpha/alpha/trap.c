@@ -334,6 +334,8 @@ trap(a0, a1, a2, entry, framep)
 	cnt.v_trap++;
 	ucode = 0;
 	user = (framep->tf_regs[FRAME_PS] & ALPHA_PSL_USERMODE) != 0;
+	CTR5(KTR_TRAP, "%s trap: pid %d, (%lx, %lx, %lx)",
+	    user ? "user" : "kernel", p->p_pid, a0, a1, a2);
 	if (user)  {
 		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
@@ -481,13 +483,19 @@ trap(a0, a1, a2, entry, framep)
 		switch (a1) {
 		case ALPHA_MMCSR_FOR:
 		case ALPHA_MMCSR_FOE:
-			pmap_emulate_reference(p, a0, user, 0);
-			goto out;
-
 		case ALPHA_MMCSR_FOW:
-			pmap_emulate_reference(p, a0, user, 1);
-			goto out;
+		{
+			int hadvmlock;
 
+			hadvmlock = mtx_owned(&vm_mtx);
+			if (hadvmlock == 0)
+				mtx_lock(&vm_mtx);
+			pmap_emulate_reference(p, a0, user,
+			    a1 == ALPHA_MMCSR_FOW);
+			if (hadvmlock == 0)
+				mtx_unlock(&vm_mtx);
+			goto out;
+		}
 		case ALPHA_MMCSR_INVALTRANS:
 		case ALPHA_MMCSR_ACCESS:
 	    	{
