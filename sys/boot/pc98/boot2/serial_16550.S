@@ -80,7 +80,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * BIOS support is duplicated here.
  *
  * The base address and speed for the i/o port are passed from the
- * Makefile in the COMCONSOLE and CONSPEED preprocessor macros.  The
+ * Makefile in the COMCONSOLE and COMSPEED preprocessor macros.  The
  * line control parameters are currently hard-coded to 8 bits, no
  * parity, 1 stop bit (8N1).  This can be changed in init_serial().
  */
@@ -143,7 +143,7 @@ ENTRY(serial_ischar)
 
 /*
  * void init_serial(void);
- * 	Initialize port COMCONSOLE to speed CONSPEED, line settings 8N1.
+ * 	Initialize port COMCONSOLE to speed COMSPEED, line settings 8N1.
  */
 ENTRY(init_serial)
 	movl	$COMCONSOLE + 3, %edx	# line control reg
@@ -151,10 +151,10 @@ ENTRY(init_serial)
 	outb	%al, %dx	# enable DLAB
 
 	subl	$3, %edx	# divisor latch, low byte
-	movb	(1843200 / (16*(CONSPEED))) & 0xff, %al
+	movb	(1843200 / (16*(COMSPEED))) & 0xff, %al
 	outb	%al, %dx
 	incl	%edx		# divisor latch, high byte
-	movb	(1843200 / (16*(CONSPEED))) >> 8, %al
+	movb	(1843200 / (16*(COMSPEED))) >> 8, %al
 	outb	%al, %dx
 
 	incl	%edx		# fifo control register (if any)
