@@ -106,13 +106,14 @@ the system call
 would return a file descriptor to the file
 .Dq afile .
 .Pp
-There are five system calls that do not follow links, and which operate
+There are six system calls that do not follow links, and which operate
 on the symbolic link itself.
 They are:
 .Xr lchown 2 ,
 .Xr lstat 2 ,
 .Xr readlink 2 ,
 .Xr rename 2 ,
+.Xr rmdir 2 ,
 and
 .Xr unlink 2 .
 Because
@@ -120,6 +121,10 @@ Because
 is an alias for
 .Xr unlink 2 ,
 it also does not follow symbolic links.
+When
+.Xr rmdir 2
+is applied to a symbolic link, it fails with the error
+.Er ENOTDIR .
 .Pp
 The owner and group of an existing symbolic link can be changed by
 means of the
