@@ -75,18 +75,18 @@ tempnam(dir, pfx)
 	if ((f = (char *)dir)) {
 		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
 		    *(f + strlen(f) - 1) == '/'? "": "/", pfx);
-		if ((f = mktemp(name)))
+		if ((f = _mktemp(name)))
 			return(f);
 	}
 
 	f = P_tmpdir;
 	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
-	if ((f = mktemp(name)))
+	if ((f = _mktemp(name)))
 		return(f);
 
 	f = _PATH_TMP;
 	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
-	if ((f = mktemp(name)))
+	if ((f = _mktemp(name)))
 		return(f);
 
 	sverrno = errno;
