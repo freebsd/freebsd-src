@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.21 1995/06/05 11:31:18 jkh Exp $
+ * $Id: menus.c,v 1.41.2.22 1995/06/05 15:17:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -328,8 +328,8 @@ DMenu MenuInstallType = {
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"custom\".",
-    NULL,
-    NULL,
+    "Press F1 for more information on these options.",
+    "distributions.hlp",
     { { "Developer",	"Full sources, binaries and doc but no games [171MB]",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
       { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
