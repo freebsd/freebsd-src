@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: ypserv.8,v 1.1 1995/02/04 21:32:04 wpaul Exp $
+.\"	$Id: ypserv.8,v 1.2 1995/02/07 05:04:51 wpaul Exp $
 .\"
 .Dd February 4, 1995
 .Dt YPSERV 8
@@ -41,6 +41,7 @@
 .Nm ypserv
 .Op Fl dns
 .Op Fl debug
+.Op Fl k
 .Op Fl p Ar port
 .Sh DESCRIPTION
 .Nm NIS
@@ -98,9 +99,9 @@ good general practice.
 .Pp
 .Nm ypserv
 is started by
-.Nm /etc/rc.local
+.Nm /etc/rc
 if it has been enabled in
-.Nm /etc/netstart.
+.Nm /etc/sysconfig.
 .Sh SPECIAL FEATURES
 There are some problems associated with distributing FreeBSD's password
 database via NIS: FreeBSD normally only stores encrypted passwords
@@ -247,6 +248,20 @@ Run the server in debugging mode: the server does not background
 itself and prints copious debugging output to stderr for
 each
 request that it revceives.
+.It Fl k
+This flag is provided for compatibility with SunOS 4. The
+.Xr ypbind 8
+command in SunOS 4 apparently expects to obtain a response from an
+NIS v1 server. Starting
+.Xr ypserv 8
+with the
+.Fl k
+flag causes it to register itself as an NIS v1 server and
+respond to DOMAIN_NONACK requests. Note carefully: this is merely a
+kludge (hence the 'k') to pacify SunOS 4's
+.Xr ypbind 8
+command: attempts to make the server actually handle NIS v1 queries
+will undoubtedly fail quite miserably.
 .It Fl p Ar port
 Normally,
 .Nm ypserv
@@ -272,7 +287,7 @@ Resolver configuration file.
 .Sh LICENSE
 This program is covered by the GNU Public License version 2.
 .Sh AUTHOR
-Peter Eriksson <pem@signum.se> (original Linux version)
+Peter Eriksson <pem@signum.se> (original version)
 .br
 Bill Paul <wpaul@ctr.columbia.edu> (port to FreeBSD and various
 changes)
