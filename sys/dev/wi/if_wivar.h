@@ -132,6 +132,7 @@ struct wi_softc	{
 #define WI_FLAGS_HAS_MOR		0x20
 #define WI_FLAGS_HAS_ROAMING		0x30
 #define WI_FLAGS_HAS_DIVERSITY		0x40
+#define WI_FLAGS_HAS_HOSTAP		0x80
 	int			wi_if_flags;
 	u_int16_t		wi_procframe;
 	u_int16_t		wi_ptype;
