@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (c) 2001 Dima Dorfman <dima@unixfreak.org>
+.\" Copyright (c) 2003 Robert Watson <rwatson@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -32,12 +33,15 @@
 .Nm extattr_get_fd ,
 .Nm extattr_set_fd ,
 .Nm extattr_delete_fd ,
+.Nm extattr_list_fd ,
 .Nm extattr_get_file ,
 .Nm extattr_set_file ,
 .Nm extattr_delete_file
+.Nm extattr_list_file ,
 .Nm extattr_get_link ,
 .Nm extattr_set_link ,
 .Nm extattr_delete_link
+.Nm extattr_list_link ,
 .Nd system calls to manipulate VFS extended attributes
 .Sh LIBRARY
 .Lb libc
@@ -52,23 +56,30 @@
 .Ft int
 .Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
 .Ft ssize_t
+.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
 .Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
 .Ft ssize_t
+.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
 .Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"
+.Ft ssize_t
+.Fn extattr_list_link "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
 .Sh DESCRIPTION
 Named extended attributes are meta-data associated with vnodes
 representing files and directories.
 They exist as
 .Qq Li name=value
 pairs within a set of namespaces.
+.Pp
 The
 .Fn extattr_get_file
 system call retrieves the value of the specified extended attribute into
@@ -85,18 +96,23 @@ The
 .Fn extattr_delete_file
 system call deletes the extended attribute specified.
 The
-.Fn extattr_get_file
+.Fn extattr_list_file
+returns a list of attributes present in the requested namespace, separated
+by ASCII 0 (nul) characters.
+The
+.Fn extattr_get_file ,
 and
-.Fn extattr_set_file
+.Fn extattr_list_file
 calls consume the
 .Fa data
 and
 .Fa nbytes
 arguments in the style of
-.Xr read 2
-and
-.Xr write 2 ,
-respectively.
+.Xr read 2 ;
+.Fn extattr_set_file
+consumes these arguments in the style of
+.Xr write 2.
+.Pp
 If
 .Fa data
 is
@@ -238,3 +254,13 @@ Project, and introduced in
 .Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
+.Sh BUGS
+In earlier versions of this API, passing an empty string for the
+attribute name to
+.Fn extattr_get_fd ,
+.Fn extattr_get_file ,
+or
+.Fn extattr_get_link
+would return the list of attributes defined for the target object.
+This interface has been deprecated in preference to using the explicit
+list API, and should not be used.
