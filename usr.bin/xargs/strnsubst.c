@@ -24,6 +24,8 @@ void	strnsubst(char **, const char *, const char *, size_t);
  * maxsize bytes large.  It does not free the string pointed to by str, it
  * is up to the calling program to be sure that the original contents of
  * str as well as the new contents are handled in an appropriate manner.
+ * If replstr is NULL, then that internally is changed to a nil-string, so
+ * that we can still pretend to do somewhat meaningful substitution.
  * No value is returned.
  */
 void
@@ -37,6 +39,9 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	s2 = calloc(maxsize, 1);
 	if (s2 == NULL)
 		err(1, "calloc");
+
+	if (replstr == NULL)
+		replstr = "";
 
 	if (match == NULL || replstr == NULL || maxsize == strlen(s1)) {
 		strlcpy(s2, s1, maxsize);
