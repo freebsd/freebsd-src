@@ -39,8 +39,6 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_sio.h"
-#include "card.h"
-#include "pci.h"
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -114,30 +112,6 @@
  * modified for 8251(FIFO) by Seigo TANIMURA <tanimura@FreeBSD.org>
  */
 
-#ifdef PC98
-#define COM_IF_INTERNAL		0x00
-#define COM_IF_PC9861K_1	0x01
-#define COM_IF_PC9861K_2	0x02
-#define COM_IF_IND_SS_1		0x03
-#define COM_IF_IND_SS_2		0x04
-#define COM_IF_PIO9032B_1	0x05
-#define COM_IF_PIO9032B_2	0x06
-#define COM_IF_B98_01_1		0x07
-#define COM_IF_B98_01_2		0x08
-#define COM_IF_END1		COM_IF_B98_01_2
-#define COM_IF_RSA98		0x10	/* same as COM_IF_NS16550 */
-#define COM_IF_NS16550		0x11
-#define COM_IF_SECOND_CCU	0x12	/* same as COM_IF_NS16550 */
-#define COM_IF_MC16550II	0x13
-#define COM_IF_MCRS98		0x14	/* same as COM_IF_MC16550II */
-#define COM_IF_RSB3000		0x15
-#define COM_IF_RSB384		0x16
-#define COM_IF_MODEM_CARD	0x17
-#define COM_IF_RSA98III		0x18
-#define COM_IF_ESP98		0x19
-#define COM_IF_END2		COM_IF_ESP98
-#endif /* PC98 */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -160,21 +134,17 @@
 #include <sys/timetc.h>
 #include <sys/timepps.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_machdep.h>
-#else
-#include <isa/isareg.h>
-#endif
 #include <isa/isavar.h>
-#if NPCI > 0
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#endif
 
 #include <machine/resource.h>
 
 #include <dev/sio/sioreg.h>
+#include <dev/sio/siovar.h>
+
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
+#endif
 
 #ifdef COM_ESP
 #include <dev/ic/esp.h>
@@ -399,8 +369,6 @@ struct com_s {
 #ifdef COM_ESP
 static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
-static	int	sioattach	__P((device_t dev, int rid));
-static	int	sio_isa_attach	__P((device_t dev));
 
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
@@ -411,8 +379,6 @@ static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	void	siopoll		__P((void *));
-static	int	sioprobe	__P((device_t dev, int xrid));
-static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
@@ -421,73 +387,14 @@ static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
-#if NCARD > 0
-static	int	sio_pccard_attach __P((device_t dev));
-static	int	sio_pccard_detach __P((device_t dev));
-static	int	sio_pccard_probe __P((device_t dev));
-#endif /* NCARD > 0 */
-
-#if NPCI > 0
-static	int	sio_pci_attach __P((device_t dev));
-static	void	sio_pci_kludge_unit __P((device_t dev));
-static	int	sio_pci_probe __P((device_t dev));
-#endif /* NPCI > 0 */
-
-static char	driver_name[] = "sio";
+char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
 static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
-static	devclass_t	sio_devclass;
+devclass_t	sio_devclass;
 #define	com_addr(unit)	((struct com_s *) \
-			 devclass_get_softc(sio_devclass, unit))
-
-static device_method_t sio_isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_isa_probe),
-	DEVMETHOD(device_attach,	sio_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_isa_driver = {
-	driver_name,
-	sio_isa_methods,
-	sizeof(struct com_s),
-};
-
-#if NCARD > 0
-static device_method_t sio_pccard_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_pccard_probe),
-	DEVMETHOD(device_attach,	sio_pccard_attach),
-	DEVMETHOD(device_detach,	sio_pccard_detach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_pccard_driver = {
-	driver_name,
-	sio_pccard_methods,
-	sizeof(struct com_s),
-};
-#endif /* NCARD > 0 */
-
-#if NPCI > 0
-static device_method_t sio_pci_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sio_pci_probe),
-	DEVMETHOD(device_attach,	sio_pci_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t sio_pci_driver = {
-	driver_name,
-	sio_pci_methods,
-	sizeof(struct com_s),
-};
-#endif /* NPCI > 0 */
+			 devclass_get_softc(sio_devclass, unit)) /* XXX */
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -505,7 +412,7 @@ static struct cdevsw sio_cdevsw = {
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
-	/* name */	driver_name,
+	/* name */	sio_driver_name,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
@@ -549,8 +456,6 @@ static	int	sysclock;
 #define	PC98_CHECK_MODEM_INTERVAL	(hz/10)
 #define DCD_OFF_TOLERANCE		2
 #define DCD_ON_RECOGNITION		2
-#define GET_IFTYPE(flags)		((flags >> 24) & 0x1f)
-#define SET_IFTYPE(type)		(type << 24)
 #define IS_8251(if_type)		(!(if_type & 0x10))
 #define COM1_EXT_CLOCK			0x40000
 
@@ -842,6 +747,7 @@ struct {
 #ifdef PC98
 
 /* XXX configure this properly. */
+/* XXX quite broken for new-bus. */
 static  Port_t  likely_com_ports[] = { 0, 0xb0, 0xb1, 0 };
 static  Port_t  likely_esp_ports[] = { 0xc0d0, 0 };
 
@@ -919,34 +825,9 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
-#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
-#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
-
-#if NCARD > 0
-static int
-sio_pccard_probe(dev)
-	device_t	dev;
-{
-	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
-	/* until bus_setup_intr */
-#ifdef PC98
-	SET_FLAG(dev, COM_C_NOPROBE | SET_IFTYPE(COM_IF_MODEM_CARD));
-#else
-	SET_FLAG(dev, COM_C_NOPROBE);
-#endif
-
-	return (sioprobe(dev, 0));
-}
-
-static int
-sio_pccard_attach(dev)
-	device_t	dev;
-{
-	return (sioattach(dev, 0));
-}
-
 /*
- *	sio_detach - unload the driver and clear the table.
+ *	Unload the driver and clear the table.
+ *	XXX this is mostly wrong.
  *	XXX TODO:
  *	This is usually called when the card is ejected, but
  *	can be caused by a modunload of a controller driver.
@@ -954,8 +835,8 @@ sio_pccard_attach(dev)
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
-static int
-sio_pccard_detach(dev)
+int
+siodetach(dev)
 	device_t	dev;
 {
 	struct com_s	*com;
@@ -985,126 +866,17 @@ sio_pccard_detach(dev)
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
+		device_set_softc(dev, NULL);
+		free(com, M_DEVBUF);
 	}
-	device_printf(dev, "unloaded\n");
 	return (0);
 }
-#endif /* NCARD > 0 */
 
-#if NPCI > 0
-struct pci_ids {
-	u_int32_t	type;
-	const char	*desc;
-	int		rid;
-};
-
-static struct pci_ids pci_ids[] = {
-	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
-	{ 0x2000131f, "CyberSerial (1-port) 16550", 0x10 },
-	{ 0x01101407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x01111407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
-	{ 0x048011c1, "Lucent kermit based PCI Modem", 0x14 },
-	{ 0x95211415, "Oxford Semiconductor PCI Dual Port Serial", 0x10 },
-	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
-	/* { 0xXXXXXXXX, "Xircom Cardbus modem", 0x10 }, */
-	{ 0x00000000, NULL, 0 }
-};
-
-static int
-sio_pci_attach(dev)
-	device_t	dev;
-{
-	u_int32_t	type;
-	struct pci_ids	*id;
-
-	type = pci_get_devid(dev);
-	id = pci_ids;
-	while (id->type && id->type != type)
-		id++;
-	if (id->desc == NULL)
-		return (ENXIO);
-	sio_pci_kludge_unit(dev);
-	return (sioattach(dev, id->rid));
-}
-
-/*
- * Don't cut and paste this to other drivers.  It is a horrible kludge
- * which will fail to work and also be unnecessary in future versions.
- */
-static void
-sio_pci_kludge_unit(dev)
-	device_t dev;
-{
-	devclass_t	dc;
-	int		err;
-	int		start;
-	int		unit;
-
-	unit = 0;
-	start = 0;
-	while (resource_int_value("sio", unit, "port", &start) == 0 && 
-	    start > 0)
-		unit++;
-	if (device_get_unit(dev) < unit) {
-		dc = device_get_devclass(dev);
-		while (devclass_get_device(dc, unit))
-			unit++;
-		device_printf(dev, "moving to sio%d\n", unit);
-		err = device_set_unit(dev, unit);	/* EVIL DO NOT COPY */
-		if (err)
-			device_printf(dev, "error moving device %d\n", err);
-	}
-}
-
-static int
-sio_pci_probe(dev)
-	device_t	dev;
-{
-	u_int32_t	type;
-	struct pci_ids	*id;
-
-	type = pci_get_devid(dev);
-	id = pci_ids;
-	while (id->type && id->type != type)
-		id++;
-	if (id->desc == NULL)
-		return (ENXIO);
-	device_set_desc(dev, id->desc);
-	return (sioprobe(dev, id->rid));
-}
-#endif /* NPCI > 0 */
-
-static struct isa_pnp_id sio_ids[] = {
-#ifdef PC98
-	{0x0100e4a5, "RSA-98III"},
-#endif
-	{0}
-};
-
-
-
-static int
-sio_isa_probe(dev)
-	device_t	dev;
-{
-#ifdef PC98
-	int	logical_id;
-#endif
-	/* Check isapnp ids */
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
-		return (ENXIO);
-#ifdef PC98
-	logical_id = isa_get_logicalid(dev);
-	if (logical_id == 0x0100e4a5)		/* RSA-98III */
-		SET_FLAG(dev, SET_IFTYPE(COM_IF_RSA98III));
-#endif
-	return (sioprobe(dev, 0));
-}
-
-static int
-sioprobe(dev, xrid)
+int
+sioprobe(dev, xrid, noprobe)
 	device_t	dev;
 	int		xrid;
+	int		noprobe;
 {
 #if 0
 	static bool_t	already_init;
@@ -1167,12 +939,19 @@ sioprobe(dev, xrid)
 	}
 #endif
 
-	com = device_get_softc(dev);
+	com = malloc(sizeof(*com), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (com == NULL)
+		return (ENOMEM);
+	device_set_softc(dev, com);
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
 
-	if (atomic_cmpset_int(&sio_inited, 0, 1))
-		mtx_init(&sio_lock, driver_name, MTX_SPIN);
+	while (sio_inited != 2)
+		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
+			mtx_init(&sio_lock, sio_driver_name, (comconsole != -1) ?
+			    MTX_SPIN | MTX_QUIET : MTX_SPIN);
+			atomic_store_rel_int(&sio_inited, 2);
+		}
 
 #if 0
 	/*
@@ -1226,6 +1005,8 @@ sioprobe(dev, xrid)
 		printf("sio%d: reserved for low-level i/o\n",
 		       device_get_unit(dev));
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		device_set_softc(dev, NULL);
+		free(com, M_DEVBUF);
 		return (ENXIO);
 	}
 
@@ -1237,6 +1018,8 @@ sioprobe(dev, xrid)
 	 */
 	if (pc98_check_if_type(dev, &iod) == -1) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		device_set_softc(dev, NULL);
+		free(com, M_DEVBUF);
 		return (ENXIO);
 	}
 	if (iod.irq > 0)
@@ -1276,6 +1059,10 @@ sioprobe(dev, xrid)
 		    result = 0;
 		}
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		if (result) {
+			device_set_softc(dev, NULL);
+			free(com, M_DEVBUF);
+		}
 		return result;
 	}
 #endif /* PC98 */
@@ -1332,6 +1119,8 @@ sioprobe(dev, xrid)
 		outb(iobase + rsa_frr,   0x00);
 		if ((inb(iobase + rsa_srr) & 0x36) != 0x36) {
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+			device_set_softc(dev, NULL);
+			free(com, M_DEVBUF);
 			return (ENXIO);
 		}
 		outb(iobase + rsa_ier,   0x00);
@@ -1353,6 +1142,8 @@ sioprobe(dev, xrid)
 		printf("sio%d: irq configuration error\n",
 		       device_get_unit(dev));
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		device_set_softc(dev, NULL);
+		free(com, M_DEVBUF);
 		return (ENXIO);
 	    }
 	    outb((iobase & 0x00ff) | tmp, irqout);
@@ -1452,7 +1243,7 @@ sioprobe(dev, xrid)
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
 	 */
-	if (COM_NOPROBE(flags)) {
+	if (noprobe) {
 		/* Reading IIR register twice */
 		for (fn = 0; fn < 2; fn ++) {
 			DELAY(10000);
@@ -1479,7 +1270,13 @@ sioprobe(dev, xrid)
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		mtx_unlock_spin(&sio_lock);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-		return (iobase == siocniobase ? 0 : result);
+		if (iobase == siocniobase)
+			result = 0;
+		if (result != 0) {
+			device_set_softc(dev, NULL);
+			free(com, M_DEVBUF);
+		}
+		return (result);
 	}
 
 	/*
@@ -1564,7 +1361,13 @@ sioprobe(dev, xrid)
 			break;
 		}
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-	return (iobase == siocniobase ? 0 : result);
+	if (iobase == siocniobase)
+		result = 0;
+	if (result != 0) {
+		device_set_softc(dev, NULL);
+		free(com, M_DEVBUF);
+	}
+	return (result);
 }
 
 #ifdef COM_ESP
@@ -1648,14 +1451,7 @@ espattach(com, esp_port)
 }
 #endif /* COM_ESP */
 
-static int
-sio_isa_attach(dev)
-	device_t	dev;
-{
-	return (sioattach(dev, 0));
-}
-
-static int
+int
 sioattach(dev, xrid)
 	device_t	dev;
 	int		xrid;
@@ -4166,13 +3962,14 @@ void siogdbputc __P((int c));
 #else
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
+static cn_term_t siocnterm;
 #endif
 static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
 #ifndef __alpha__
-CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc,
+CONS_DRIVER(sio, siocnprobe, siocninit, siocnterm, siocngetc, siocncheckc,
 	    siocnputc, NULL);
 #endif
 
@@ -4424,6 +4221,13 @@ siocninit(cp)
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
+static void
+siocnterm(cp)
+	struct consdev	*cp;
+{
+	comconsole = -1;
+}
+
 #endif
 
 #ifdef __alpha__
@@ -4625,18 +4429,6 @@ siogdbputc(c)
 	siocnclose(&sp, siogdbiobase);
 	splx(s);
 }
-#endif
-
-DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
-#ifndef PC98
-DRIVER_MODULE(sio, acpi, sio_isa_driver, sio_devclass, 0, 0);
-#endif
-#if NCARD > 0
-DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
-#endif
-#if NPCI > 0
-DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
-DRIVER_MODULE(sio, cardbus, sio_pci_driver, sio_devclass, 0, 0);
 #endif
 
 #ifdef PC98

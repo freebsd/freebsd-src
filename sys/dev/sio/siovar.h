@@ -33,6 +33,36 @@
  * $FreeBSD$
  */
 
+#ifdef PC98
+#define COM_IF_INTERNAL		0x00
+#define COM_IF_PC9861K_1	0x01
+#define COM_IF_PC9861K_2	0x02
+#define COM_IF_IND_SS_1		0x03
+#define COM_IF_IND_SS_2		0x04
+#define COM_IF_PIO9032B_1	0x05
+#define COM_IF_PIO9032B_2	0x06
+#define COM_IF_B98_01_1		0x07
+#define COM_IF_B98_01_2		0x08
+#define COM_IF_END1		COM_IF_B98_01_2
+#define COM_IF_RSA98		0x10	/* same as COM_IF_NS16550 */
+#define COM_IF_NS16550		0x11
+#define COM_IF_SECOND_CCU	0x12	/* same as COM_IF_NS16550 */
+#define COM_IF_MC16550II	0x13
+#define COM_IF_MCRS98		0x14	/* same as COM_IF_MC16550II */
+#define COM_IF_RSB3000		0x15
+#define COM_IF_RSB384		0x16
+#define COM_IF_MODEM_CARD	0x17
+#define COM_IF_RSA98III		0x18
+#define COM_IF_ESP98		0x19
+#define COM_IF_END2		COM_IF_ESP98
+
+#define GET_IFTYPE(type)	(((type) >> 24) & 0x1f)
+#define SET_IFTYPE(type)	((type) << 24)
+
+#define SET_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) | (bit))
+#define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
+#endif /* PC98 */
+
 int	sioattach __P((device_t dev, int xrid));
 int	siodetach __P((device_t dev));
 int	sioprobe __P((device_t dev, int xrid, int noprobe));
