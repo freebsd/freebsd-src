@@ -428,10 +428,11 @@ smbfs_getpages(ap)
 	struct smbmount *smp;
 	struct smbnode *np;
 	struct smb_cred scred;
+	vm_object_t object;
 	vm_page_t *pages, m;
 
 	vp = ap->a_vp;
-	if (vp->v_object == NULL) {
+	if ((object = vp->v_object) == NULL) {
 		printf("smbfs_getpages: called with non-merged cache vnode??\n");
 		return VM_PAGER_ERROR;
 	}
@@ -455,12 +456,14 @@ smbfs_getpages(ap)
 	if (m->valid != 0) {
 		/* handled by vm_fault now	  */
 		/* vm_page_zero_invalid(m, TRUE); */
+		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != reqpage)
 				vm_page_free(pages[i]);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 		return 0;
 	}
 
@@ -488,6 +491,8 @@ smbfs_getpages(ap)
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
 
+	if (error)
+		VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
 		vm_page_lock_queues();
@@ -496,6 +501,7 @@ smbfs_getpages(ap)
 				vm_page_free(pages[i]);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
@@ -557,6 +563,8 @@ smbfs_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
+	if (error)
+		VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* SMBFS_RWGENERIC */
 }
