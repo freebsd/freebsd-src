@@ -165,20 +165,3 @@
 #define	alpha_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
-
-#ifdef _KERNEL
-#ifndef _LOCORE
-
-void	delay __P((unsigned long));
-#define	DELAY(n)	delay(n)
-
-/* XXX THE FOLLOWING PROTOTYPE BELONGS IN INTR.H */
-int spl0 __P((void));					/* drop ipl to zero */
-/* XXX END INTR.H */
-
-/* XXX THE FOLLOWING PROTOTYPE SHOULD BE A BUS.H INTERFACE */
-vm_offset_t alpha_XXX_dmamap __P((vm_offset_t));
-/* XXX END BUS.H */
-
-#endif
-#endif /* !_KERNEL */
