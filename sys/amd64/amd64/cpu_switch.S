@@ -173,7 +173,7 @@ sw1:
 sw1a:
 	call	_chooseproc			/* trash ecx, edx, ret eax*/
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	testl	%eax,%eax			/* no process? */
 	jz	badsw3				/* no, panic */
 #endif
@@ -183,9 +183,7 @@ sw1b:
 	xorl	%eax,%eax
 	andl	$~AST_RESCHED,_astpending
 
-#ifdef	DIAGNOSTIC
-	cmpl	%eax,P_WCHAN(%ecx)
-	jne	badsw1
+#ifdef	INVARIANTS
 	cmpb	$SRUN,P_STAT(%ecx)
 	jne	badsw2
 #endif
@@ -325,23 +323,11 @@ cpu_switch_load_gs:
 	movl	_curproc,%eax
 	movl	%eax,_sched_lock+MTX_LOCK
 
-#ifdef DIAGNOSTIC
-	pushfl
-	popl	%ecx
-	testl	$0x200, %ecx			/* interrupts enabled? */
-	jnz	badsw6				/* that way madness lies */
-#endif
 	ret
 
 CROSSJUMPTARGET(sw1a)
 
-#ifdef DIAGNOSTIC
-badsw1:
-	pushl	$sw0_1
-	call	_panic
-
-sw0_1:	.asciz	"cpu_switch: has wchan"
-
+#ifdef INVARIANTS
 badsw2:
 	pushl	$sw0_2
 	call	_panic
@@ -353,20 +339,6 @@ badsw3:
 	call	_panic
 
 sw0_3:	.asciz	"cpu_switch: chooseproc returned NULL"
-
-#endif
-
-#ifdef DIAGNOSTIC
-badsw5:
-	pushl	$sw0_5
-	call	_panic
-
-sw0_5:	.asciz	"cpu_switch: interrupts enabled (again)"
-badsw6:
-	pushl	$sw0_6
-	call	_panic
-
-sw0_6:	.asciz	"cpu_switch: interrupts enabled"
 #endif
 
 /*
