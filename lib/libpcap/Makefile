@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id$
+# $Id: Makefile,v 1.15 1997/02/22 15:07:50 peter Exp $
 
 LIB=    pcap
 SRCS=	grammar.c tokdefs.h pcap-bpf.c \
@@ -13,16 +13,16 @@ DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	-DHAVE_ETHER_HOSTTON=1 -DHAVE_STRERROR=1 \
 	-DHAVE_SOCKADDR_SA_LEN=1 -DLBL_ALIGN=1 
 
-CFLAGS+=-Wall -I. -I${.CURDIR} -Dyylval=pcap_lval -Dlint ${DEFS}
+CFLAGS+=-I. -Dyylval=pcap_lval ${DEFS}
 
 SHLIB_MAJOR=2
-SHLIB_MINOR=1
+SHLIB_MINOR=2
 
 #
 # Magic to grab sources out of src/contrib
 #
 PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
-CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl
+CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl -I${PCAP_DISTDIR}/bpf
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
 
