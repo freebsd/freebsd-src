@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <vm/uma.h>
@@ -67,7 +69,8 @@ static struct callout pfslow_callout;
 static void	pffasttimo(void *);
 static void	pfslowtimo(void *);
 
-struct domain *domains;
+struct domain *domains;		/* registered protocol domains */
+struct mtx dom_mtx;		/* domain list lock */
 
 /*
  * Add a new protocol domain to the list of supported domains
@@ -77,10 +80,8 @@ struct domain *domains;
 static void
 net_init_domain(struct domain *dp)
 {
-	register struct protosw *pr;
-	int	s;
+	struct protosw *pr;
 
-	s = splnet();
 	if (dp->dom_init)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
@@ -96,7 +97,6 @@ net_init_domain(struct domain *dp)
 	 */
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
-	splx(s);
 }
 
 /*
@@ -107,14 +107,13 @@ net_init_domain(struct domain *dp)
 void
 net_add_domain(void *data)
 {
-	int	s;
 	struct domain *dp;
 
 	dp = (struct domain *)data;
-	s = splnet();
+	mtx_lock(&dom_mtx);
 	dp->dom_next = domains;
 	domains = dp;
-	splx(s);
+	mtx_unlock(&dom_mtx);
 	net_init_domain(dp);
 }
 
@@ -130,6 +129,8 @@ domaininit(void *dummy)
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(socket_zone, maxsockets);
+
+	mtx_init(&dom_mtx, "domain list lock", NULL, MTX_DEF);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
