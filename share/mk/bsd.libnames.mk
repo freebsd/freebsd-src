@@ -34,6 +34,7 @@ LIBFTPIO?=	${DESTDIR}${LIBDIR}/libftpio.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
 LIBGCC?=	${DESTDIR}${LIBDIR}/libgcc.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
+LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a	# XXX in secure dist, not base
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
