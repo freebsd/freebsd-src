@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.197 1999/05/14 01:29:21 mckusick Exp $
+ * $Id: vfs_subr.c,v 1.198 1999/05/14 20:40:15 luoqi Exp $
  */
 
 /*
@@ -1175,7 +1175,7 @@ bdevvp(dev, vpp)
 	struct vnode *nvp;
 	int error;
 
-	if (dev == NODEV || major(dev) >= nblkdev || bdevsw(dev) == NULL) {
+	if (dev == NODEV || major(dev) >= nblkdev) {
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
