@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.97 1999/05/14 23:09:34 alc Exp $
+ * $Id: vm_mmap.c,v 1.98 1999/05/16 05:07:33 alc Exp $
  */
 
 /*
@@ -1035,7 +1035,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	docow = 0;
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0) {
-		docow = MAP_COPY_ON_WRITE;
+		docow = MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL;
 	}
 
 #if defined(VM_PROT_READ_IS_EXEC)
@@ -1065,14 +1065,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 */
 		vm_object_deallocate(object);
 		goto out;
-	}
-
-	/*
-	 * "Pre-fault" resident pages.
-	 */
-	if ((map->pmap != NULL) && (object != NULL)) {
-		pmap_object_init_pt(map->pmap, *addr,
-			object, (vm_pindex_t) OFF_TO_IDX(foff), size, 1);
 	}
 
 	/*

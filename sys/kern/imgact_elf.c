@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.56 1999/05/09 16:04:08 peter Exp $
+ *	$Id: imgact_elf.c,v 1.57 1999/05/14 23:09:00 alc Exp $
  */
 
 #include "opt_rlimit.h"
@@ -220,18 +220,10 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				      map_addr + map_len,/* virtual end */
 				      prot,
 				      VM_PROT_ALL,
-				      MAP_COPY_ON_WRITE);
+				      MAP_COPY_ON_WRITE | MAP_PREFAULT);
 		vm_map_unlock(&vmspace->vm_map);
 		if (rv != KERN_SUCCESS)
 			return EINVAL;
-
-		/* prefault the page tables */
-		pmap_object_init_pt(vmspace_pmap(vmspace),
-				    map_addr,
-				    object,
-				    (vm_pindex_t) OFF_TO_IDX(file_addr),
-				    map_len,
-				    0);
 
 		/* we can stop now if we've covered it all */
 		if (memsz == filsz)
@@ -270,14 +262,11 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				 TRUE,
 				 VM_PROT_READ,
 				 VM_PROT_ALL,
-				 MAP_COPY_ON_WRITE);
+				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
 			return EINVAL;
 		}
-		pmap_object_init_pt(exec_map->pmap, data_buf, object,
-			(vm_pindex_t) OFF_TO_IDX(trunc_page(offset + filsz)),
-			PAGE_SIZE, 1);
 
 		/* send the page fragment to user space */
 		error = copyout((caddr_t)data_buf, (caddr_t)map_addr, copy_len);
