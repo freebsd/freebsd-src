@@ -96,6 +96,14 @@ SHSEC
 .It
 STRIPE
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev GEOM_LIBRARY_PATH"
+.It Ev GEOM_LIBRARY_PATH
+Specifies the path where shared libraries are stored instead of
+.Pa /lib/geom/ .
+.El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
