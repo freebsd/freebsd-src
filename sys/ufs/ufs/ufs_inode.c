@@ -77,6 +77,8 @@ ufs_inactive(ap)
 	 */
 	if (ip->i_mode == 0)
 		goto out;
+	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
+		softdep_releasefile(ip);
 	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 #ifdef QUOTA

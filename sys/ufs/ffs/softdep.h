@@ -82,8 +82,10 @@
  * data structure is frozen from further change until its dependencies
  * have been completed and its resources freed after which it will be
  * discarded. The IOSTARTED flag prevents multiple calls to the I/O
- * start routine from doing multiple rollbacks. The ONWORKLIST flag
- * shows whether the structure is currently linked onto a worklist.
+ * start routine from doing multiple rollbacks. The SPACECOUNTED flag
+ * says that the files space has been accounted to the pending free
+ * space count. The ONWORKLIST flag shows whether the structure is
+ * currently linked onto a worklist.
  */
 #define	ATTACHED	0x0001
 #define	UNDONE		0x0002
@@ -95,6 +97,7 @@
 #define DIRCHG		0x0080
 #define GOINGAWAY	0x0100
 #define IOSTARTED	0x0200
+#define SPACECOUNTED	0x0400
 #define ONWORKLIST	0x8000
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)

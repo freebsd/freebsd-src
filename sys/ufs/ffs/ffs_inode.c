@@ -193,6 +193,8 @@ ffs_truncate(vp, length, flags, cred, p)
 			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT,
 			    p)) != 0)
 				return (error);
+			if (oip->i_flag & IN_SPACECOUNTED)
+				fs->fs_pendingblocks -= oip->i_blocks;
 		} else {
 #ifdef QUOTA
 			(void) chkdq(oip, -oip->i_blocks, NOCRED, 0);
