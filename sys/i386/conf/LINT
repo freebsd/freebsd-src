@@ -578,10 +578,7 @@ options 	NSWAPDEV=20
 options 	QUOTA			#enable disk quotas
 
 # Add more checking code to various filesystems
-#options 	NULLFS_DIAGNOSTIC
-#options 	KERNFS_DIAGNOSTIC
-#options 	UMAPFS_DIAGNOSTIC
-#options 	UNION_DIAGNOSTIC
+options 	NULLFS_DIAGNOSTIC
 
 # In particular multi-session CD-Rs might require a huge amount of
 # time in order to "settle".  If we are about mounting them as the
