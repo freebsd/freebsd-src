@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm rwhod
 .Op Fl i
+.Op Fl p
 .Op Fl l
 .Op Fl m Op Ar ttl
 .Sh DESCRIPTION
@@ -74,6 +75,15 @@ The
 option enables insecure mode, which causes
 .Nm
 to ignore the source port on incoming packets.
+.Pp
+The
+.Fl p
+option tells
+.Nm
+to ignore all
+.Dv POINTOPOINT
+interfaces.  This is useful if you do not wish to keep dial on demand
+interfaces permanently active.
 .Pp
 The
 .Fl l
