@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.2 1997/11/12 10:49:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.0.2.44.2.5 1997/11/24 10:02:02 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -275,7 +275,7 @@ int ipldetach()
 
 	fr_checkp = fr_savep;
 	inetsw[0].pr_slowtimo = fr_saveslowtimo;
-	frflush(IPL_LOGIPF, (caddr_t)&i);
+	frflush(IPL_LOGIPF, &i);
 	ipl_inited = 0;
 
 # ifdef NETBSD_PF
@@ -339,7 +339,7 @@ struct proc *p;
 )
 #endif
 dev_t dev;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (_BSDI_VERSION >= 199701)
 u_long cmd;
 #else
 int cmd;
@@ -351,7 +351,7 @@ int mode;
 #if defined(_KERNEL) && !SOLARIS
 	int s;
 #endif
-	int error = 0, unit = 0;
+	int error = 0, unit = 0, tmp;
 
 #ifdef	_KERNEL
 	unit = GET_MINOR(dev);
@@ -460,8 +460,11 @@ int mode;
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			error = EPERM;
-		else
-			frflush(unit, data);
+		else {
+			IRCOPY(data, (caddr_t)&tmp, sizeof(tmp));
+			frflush(unit, &tmp);
+			IWCOPY((caddr_t)&tmp, data, sizeof(tmp));
+		}
 		break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :
@@ -786,7 +789,7 @@ struct tcpiphdr *ti;
 	struct tcpiphdr *tp;
 	struct tcphdr *tcp;
 	struct mbuf *m;
-	int tlen = 0;
+	int tlen = 0, err;
 	ip_t *ip;
 # if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
 	struct route ro;
@@ -837,16 +840,16 @@ struct tcpiphdr *ti;
 
 # if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
 	bzero((char *)&ro, sizeof(ro));
-	(void) ip_output(m, (struct mbuf *)0, &ro, 0, 0);
+	err = ip_output(m, (struct mbuf *)0, &ro, 0, 0);
 	if (ro.ro_rt)
 		RTFREE(ro.ro_rt);
 # else
 	/*
 	 * extra 0 in case of multicast
 	 */
-	(void) ip_output(m, (struct mbuf *)0, 0, 0, 0);
+	err = ip_output(m, (struct mbuf *)0, 0, 0, 0);
 # endif
-	return 0;
+	return err;
 }
 
 
