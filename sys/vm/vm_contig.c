@@ -144,6 +144,7 @@ contigmalloc1(
 {
 	int i, s, start;
 	vm_paddr_t phys;
+	vm_object_t object;
 	vm_offset_t addr, tmp_addr;
 	int pass, pqtype;
 	vm_page_t pga = vm_page_array;
@@ -207,8 +208,14 @@ again1:
 			vm_page_t m = &pga[i];
 
 			if ((m->queue - m->pc) == PQ_CACHE) {
+				object = m->object;
+				if (!VM_OBJECT_TRYLOCK(object)) {
+					start++;
+					goto again;
+				}
 				vm_page_busy(m);
 				vm_page_free(m);
+				VM_OBJECT_UNLOCK(object);
 			}
 			mtx_lock_spin(&vm_page_queue_free_mtx);
 			vm_pageq_remove_nowakeup(m);
