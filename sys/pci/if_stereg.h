@@ -530,6 +530,5 @@ struct ste_mii_frame {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
-					+ 1*1024*1024*1024)
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
 #endif
