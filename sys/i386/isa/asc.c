@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.10 1995/12/08 11:13:47 julian Exp $
+ * $Id: asc.c,v 1.11 1995/12/10 13:38:20 phk Exp $
  */
 
 #include "asc.h"
@@ -68,7 +68,6 @@
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
