@@ -338,7 +338,8 @@ pppioctl(sc, cmd, data, flag, p)
     int flag;
     struct proc *p;
 {
-    int s, error, flags, mru, nb, npx;
+    int s, error, flags, mru, npx;
+    u_int nb;
     struct ppp_option_data *odp;
     struct compressor **cp;
     struct npioctl *npi;
