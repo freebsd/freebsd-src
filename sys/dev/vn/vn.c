@@ -381,7 +381,7 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 
 	IFOPT(vn,VN_FOLLOW)
-		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
+		printf("vnioctl(0x%lx, 0x%x, %p, 0x%x, %p): unit %d\n",
 		       dev, cmd, data, flag, p, vnunit(dev));
 
 	switch (cmd) {
