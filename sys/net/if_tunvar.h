@@ -48,6 +48,8 @@ struct tun_softc {
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
 	struct	selinfo	tun_wsel;	/* write select (not used) */
+
+	struct	tun_softc *next;	/* Next softc in list */
 };
 
 #endif /* !_NET_IF_TUNVAR_H_ */
