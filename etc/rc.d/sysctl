@@ -13,18 +13,10 @@
 
 name="sysctl"
 stop_cmd=":"
-
-case ${OSTYPE} in
-FreeBSD)
-	start_cmd="FreeBSD_start"
-	extra_commands="reload lastload"
-	reload_cmd="FreeBSD_start"
-	lastload_cmd="FreeBSD_start last"
-	;;
-NetBSD)
-	start_cmd="NetBSD_start"
-	;;
-esac
+start_cmd="FreeBSD_start"
+extra_commands="reload lastload"
+reload_cmd="FreeBSD_start"
+lastload_cmd="FreeBSD_start last"
 
 FreeBSD_start()
 {
@@ -55,14 +47,6 @@ FreeBSD_start()
 				;;
 			esac
 		done < /etc/sysctl.conf
-	fi
-}
-
-NetBSD_start()
-{
-	if [ -r /etc/sysctl.conf ]; then
-		echo "Setting sysctl variables:"
-		${SYSCTL} -f /etc/sysctl.conf
 	fi
 }
 

@@ -12,16 +12,8 @@
 
 name="mountcritremote"
 stop_cmd=":"
-
-case ${OSTYPE} in
-	FreeBSD)
-	start_cmd="mountcritremote_start"
-	start_precmd="mountcritremote_precmd"
-	;;
-NetBSD)
-	start_cmd="mountcritremote_start"
-	;;
-esac
+start_cmd="mountcritremote_start"
+start_precmd="mountcritremote_precmd"
 
 # Mount NFS filesystems if present in /etc/fstab
 #
@@ -47,50 +39,39 @@ mountcritremote_precmd()
 
 mountcritremote_start()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		# Mount nfs filesystems.
-		#
-		echo -n 'Mounting NFS file systems:'
-		mount -a -t nfs
-		echo '.'
+	# Mount nfs filesystems.
+	#
+	echo -n 'Mounting NFS file systems:'
+	mount -a -t nfs
+	echo '.'
 
-		# Mount other network filesystems if present in /etc/fstab.
-		case ${extra_netfs_types} in
-		[Nn][Oo])
-			;;
-		*)
-			netfs_types="${netfs_types} ${extra_netfs_types}"
-			;;
-		esac
-
-		for i in ${netfs_types}; do
-			fstype=${i%:*}
-			fsdecr=${i#*:}
-
-			[ "${fstype}" = "nfs" ] && continue
-
-			case "`mount -d -a -t ${fstype}`" in
-			*mount_${fstype}*)
-				echo -n "Mounting ${fsdecr} file systems:"
-				mount -a -t ${fstype}
-				echo '.'
-				;;
-			esac
-		done
-
-		# Cleanup /var again just in case it's a network mount.
-		/etc/rc.d/cleanvar reload
-		rm -f /var/run/clean_var /var/spool/lock/clean_var
+	# Mount other network filesystems if present in /etc/fstab.
+	case ${extra_netfs_types} in
+	[Nn][Oo])
 		;;
-	NetBSD)
-		#	Mount critical filesystems that may be `remote'.
-		#	(as specified in $critical_filesystems_remote)
-		#	This usually includes /usr.
-		#
-		mount_critical_filesystems remote
+	*)
+		netfs_types="${netfs_types} ${extra_netfs_types}"
 		;;
 	esac
+
+	for i in ${netfs_types}; do
+		fstype=${i%:*}
+		fsdecr=${i#*:}
+
+		[ "${fstype}" = "nfs" ] && continue
+
+		case "`mount -d -a -t ${fstype}`" in
+		*mount_${fstype}*)
+			echo -n "Mounting ${fsdecr} file systems:"
+			mount -a -t ${fstype}
+			echo '.'
+			;;
+		esac
+	done
+
+	# Cleanup /var again just in case it's a network mount.
+	/etc/rc.d/cleanvar reload
+	rm -f /var/run/clean_var /var/spool/lock/clean_var
 }
 
 load_rc_config $name

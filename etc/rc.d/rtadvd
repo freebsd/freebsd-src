@@ -18,14 +18,7 @@ start_precmd="rtadvd_precmd"
 
 rtadvd_precmd()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		IS_GATEWAY="checkyesno ipv6_gateway_enable"
-		;;
-	NetBSD)
-		IS_GATEWAY="eval [ \"$ip6mode\" = \"router\" ]"
-		;;
-	esac
+	IS_GATEWAY="checkyesno ipv6_gateway_enable"
 	if ! ${IS_GATEWAY}; then
 		warn \
 		  "${name} cannot be used on IPv6 host, only on an IPv6 router."
@@ -45,35 +38,31 @@ rtadvd_precmd()
 	# from another machine, so if you enable this, do it with
 	# enough care.)
 	#
-	case ${OSTYPE} in
-	FreeBSD)
-		# If specific interfaces haven't been specified,
-		# get a list of interfaces and enable it on them
-		#
-		case ${rtadvd_interfaces} in
-		'')
-			for i in `ifconfig -l` ; do
-				case $i in
-				lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
-					continue
-					;;
-				*)
-					rtadvd_interfaces="${rtadvd_interfaces} ${i}"
-					;;
-				esac
-			done
-			;;
-		esac
-		command_args="${rtadvd_interfaces}"
-
-		# Enable Router Renumbering, unicast case
-		# (use correct src/dst addr)
-		# rtadvd -R "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
-		# Enable Router Renumbering, multicast case
-		# (use correct src addr)
-		# rtadvd -R "in ipsec ah/transport/ff05::2-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
+	# If specific interfaces haven't been specified,
+	# get a list of interfaces and enable it on them
+	#
+	case ${rtadvd_interfaces} in
+	'')
+		for i in `ifconfig -l` ; do
+			case $i in
+			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
+				continue
+				;;
+			*)
+				rtadvd_interfaces="${rtadvd_interfaces} ${i}"
+				;;
+			esac
+		done
 		;;
 	esac
+	command_args="${rtadvd_interfaces}"
+
+	# Enable Router Renumbering, unicast case
+	# (use correct src/dst addr)
+	# rtadvd -R "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
+	# Enable Router Renumbering, multicast case
+	# (use correct src addr)
+	# rtadvd -R "in ipsec ah/transport/ff05::2-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
 	return 0
 }
 

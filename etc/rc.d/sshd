@@ -16,12 +16,6 @@ keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"
 pidfile="/var/run/${name}.pid"
 extra_commands="keygen reload"
-case ${OSTYPE} in
-NetBSD)
-	command="/usr/sbin/${name}"
-	required_files="/etc/ssh/sshd_config"
-	;;
-esac
 
 sshd_keygen()
 {
