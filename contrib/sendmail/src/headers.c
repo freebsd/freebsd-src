@@ -9,11 +9,13 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266.4.4 2003/01/18 00:41:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.5 2003/03/12 22:42:52 gshapiro Exp $")
 
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
 static int	priencode __P((char *));
@@ -770,6 +772,12 @@ eatheader(e, full, log)
 		else if (sm_strcasecmp(p, "non-urgent") == 0)
 			e->e_timeoutclass = TOC_NONURGENT;
 	}
+
+#if _FFR_QUEUERETURN_DSN
+	/* If no timeoutclass picked and it's a DSN, use that timeoutclass */
+	if (e->e_timeoutclass == TOC_NORMAL && bitset(EF_RESPONSE, e->e_flags))
+		e->e_timeoutclass = TOC_DSN;
+#endif /* _FFR_QUEUERETURN_DSN */
 
 	/* date message originated */
 	p = hvalue("posted-date", e->e_header);

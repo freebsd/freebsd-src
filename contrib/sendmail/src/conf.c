@@ -9,11 +9,13 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.972.2.27 2003/01/15 19:17:14 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972.2.35 2003/03/28 05:46:09 ca Exp $")
 
 #include <sendmail/pathnames.h>
 
@@ -329,6 +331,8 @@ setdefaults(e)
 	DontProbeInterfaces = DPI_PROBEALL;
 	DoubleBounceAddr = "postmaster";
 	MaxHeadersLength = MAXHDRSLEN;
+	MaxMimeHeaderLength = MAXLINE;
+	MaxMimeFieldLength = MaxMimeHeaderLength / 2;
 	MaxForwardEntries = 0;
 	FastSplit = 1;
 #if SASL
@@ -3081,7 +3085,7 @@ static char	*DefaultUserShells[] =
 	"/bin/pam",
 	"/usr/bin/keysh",	/* key shell (extended Korn shell) */
 	"/bin/posix/sh",
-	"/sbin/sh"
+	"/sbin/sh",
 #  endif /* V4FS */
 # endif /* __hpux */
 # if defined(_AIX3) || defined(_AIX4)
@@ -5881,202 +5885,318 @@ char	*OsCompileOptions[] =
 char	*FFRCompileOptions[] =
 {
 #if _FFR_ADAPTIVE_EOL
+	/* tries to be smart about \r\n versus \n from broken clients */
+	/* known to be broken, do not use */
 	"_FFR_ADAPTIVE_EOL",
 #endif /* _FFR_ADAPTIVE_EOL */
 #if _FFR_ALLOW_SASLINFO
+	/* DefaultAuthInfo can be specified by user. */
+	/* DefaultAuthInfo doesn't really work in 8.12 anymore. */
 	"_FFR_ALLOW_SASLINFO",
 #endif /* _FFR_ALLOW_SASLINFO */
 #if _FFR_ALLOW_S0_ERROR_4XX
+	/* Allow for tempfail from S0 (ruleset 0). */
 	"_FFR_ALLOW_S0_ERROR_4XX",
 #endif /* _FFR_ALLOW_S0_ERROR_4XX */
 #if _FFR_BESTMX_BETTER_TRUNCATION
+	/* Better truncation of list of MX records for dns map. */
 	"_FFR_BESTMX_BETTER_TRUNCATION",
 #endif /* _FFR_BESTMX_BETTER_TRUNCATION */
+#if _FFR_BLOCK_PROXIES
+	/*
+	**  Try to deal with open HTTP proxies that are used to send spam
+	**  by recognizing some commands from them.
+	*/
+
+	"_FFR_BLOCK_PROXIES",
+#endif /* _FFR_BLOCK_PROXIES */
 #if _FFR_CACHE_LPC
+	/* Cache connections to LCP based mailers */
 /* Christophe Wolfhugel of France Telecom Oleane */
 	"_FFR_CACHE_LPC",
 #endif /* _FFR_CACHE_LPC */
 #if _FFR_CATCH_BROKEN_MTAS
+	/* Deal with MTAs that send a reply during the DATA phase. */
 	"_FFR_CATCH_BROKEN_MTAS",
 #endif /* _FFR_CATCH_BROKEN_MTAS */
 #if _FFR_CATCH_LONG_STRINGS
+	/* Report long address strings instead of silently ignoring them. */
 	"_FFR_CATCH_LONG_STRINGS",
 #endif /* _FFR_CATCH_LONG_STRINGS */
 #if _FFR_CHECK_EOM
+	/* Enable check_eom ruleset */
 	"_FFR_CHECK_EOM",
 #endif /* _FFR_CHECK_EOM */
 #if _FFR_CHK_QUEUE
+	/* Stricter checks about queue directory permissions. */
 	"_FFR_CHK_QUEUE",
 #endif /* _FFR_CHK_QUEUE */
 #if _FFR_CONTROL_MSTAT
+	/* Extended daemon status. */
 	"_FFR_CONTROL_MSTAT",
 #endif /* _FFR_CONTROL_MSTAT */
 #if _FFR_DAEMON_NETUNIX
+	/* Allow local (not just TCP) socket connection to server. */
 	"_FFR_DAEMON_NETUNIX",
 #endif /* _FFR_DAEMON_NETUNIX */
 #if _FFR_DEAL_WITH_ERROR_SSL
+	/* Deal with SSL errors by recognizing them as EOF. */
 	"_FFR_DEAL_WITH_ERROR_SSL",
 #endif /* _FFR_DEAL_WITH_ERROR_SSL */
 #if _FFR_DEPRECATE_MAILER_FLAG_I
+	/* What it says :-) */
 	"_FFR_DEPRECATE_MAILER_FLAG_I",
 #endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
 #if _FFR_DIGUNIX_SAFECHOWN
+	/* Properly set SAFECHOWN (include/sm/conf.h) for Digital UNIX */
 /* Problem noted by Anne Bennett of Concordia University */
 	"_FFR_DIGUNIX_SAFECHOWN",
 #endif /* _FFR_DIGUNIX_SAFECHOWN */
 #if _FFR_DNSMAP_ALIASABLE
+	/* Allow dns map type to be used for aliases. */
 /* Don Lewis of TDK */
 	"_FFR_DNSMAP_ALIASABLE",
 #endif /* _FFR_DNSMAP_ALIASABLE */
 #if _FFR_DNSMAP_BASE
+	/* Specify a "base" domain for DNS lookups. */
 	"_FFR_DNSMAP_BASE",
 #endif /* _FFR_DNSMAP_BASE */
 #if _FFR_DNSMAP_MULTI
+	/* Allow multiple return values for DNS map. */
 	"_FFR_DNSMAP_MULTI",
 # if _FFR_DNSMAP_MULTILIMIT
+	/* Limit number of return values for DNS map. */
 	"_FFR_DNSMAP_MULTILIMIT",
 # endif /* _FFR_DNSMAP_MULTILIMIT */
 #endif /* _FFR_DNSMAP_MULTI */
 #if _FFR_DONTLOCKFILESFORREAD_OPTION
+	/* Enable DontLockFilesForRead option. */
 	"_FFR_DONTLOCKFILESFORREAD_OPTION",
 #endif /* _FFR_DONTLOCKFILESFORREAD_OPTION */
-# if _FFR_DONT_STOP_LOOKING
+#if _FFR_DONT_STOP_LOOKING
+	/* Continue with DNS lookups on ECONNREFUSED and TRY_AGAIN. */
 /* Noted by Neil Rickert of Northern Illinois University */
 	"_FFR_DONT_STOP_LOOKING",
-# endif /* _FFR_DONT_STOP_LOOKING */
+#endif /* _FFR_DONT_STOP_LOOKING */
 #if _FFR_DOTTED_USERNAMES
+	/* Allow usernames with '.' */
 	"_FFR_DOTTED_USERNAMES",
 #endif /* _FFR_DOTTED_USERNAMES */
 #if _FFR_DROP_TRUSTUSER_WARNING
+	/*
+	**  Don't issue this warning:
+	**  "readcf: option TrustedUser may cause problems on systems
+	**  which do not support fchown() if UseMSP is not set.
+	*/
+
 	"_FFR_DROP_TRUSTUSER_WARNING",
 #endif /* _FFR_DROP_TRUSTUSER_WARNING */
 #if _FFR_FIX_DASHT
+	/*
+	**  If using -t, force not sending to argv recipients, even
+	**  if they are mentioned in the headers.
+	*/
+
 	"_FFR_FIX_DASHT",
 #endif /* _FFR_FIX_DASHT */
 #if _FFR_FORWARD_SYSERR
+	/* Cause a "syserr" if forward file isn't "safe". */
 	"_FFR_FORWARD_SYSERR",
 #endif /* _FFR_FORWARD_SYSERR */
 #if _FFR_GEN_ORCPT
+	/* Generate a ORCPT DSN arg if not already provided */
 	"_FFR_GEN_ORCPT",
 #endif /* _FFR_GEN_ORCPT */
 #if _FFR_GROUPREADABLEAUTHINFOFILE
+	/* Allow group readable DefaultAuthInfo file. */
 	"_FFR_GROUPREADABLEAUTHINFOFILE",
 #endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
 #if _FFR_HANDLE_ISO8859_GECOS
+	/*
+	**  Allow ISO 8859 characters in GECOS field: replace them
+	**  ith ASCII "equivalent".
+	*/
+
 /* Peter Eriksson of Linkopings universitet */
 	"_FFR_HANDLE_ISO8859_GECOS",
 #endif /* _FFR_HANDLE_ISO8859_GECOS */
 #if _FFR_HDR_TYPE
+	/* Set 'h' in {addr_type} for headers. */
 	"_FFR_HDR_TYPE",
 #endif /* _FFR_HDR_TYPE */
 #if _FFR_HPUX_NSSWITCH
+	/* Use nsswitch on HP-UX */
 	"_FFR_HPUX_NSSWITCH",
 #endif /* _FFR_HPUX_NSSWITCH */
 #if _FFR_IGNORE_EXT_ON_HELO
+	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
 #if _FFR_LDAP_RECURSION
+	/* Support LDAP recursion in LDAP responses */
 /* Andrew Baucom */
 	"_FFR_LDAP_RECURSION",
 #endif /* _FFR_LDAP_RECURSION */
 #if _FFR_LDAP_SETVERSION
+	/* New LDAP map option for setting LDAP protocol version */
 	"_FFR_LDAP_SETVERSION",
 #endif /* _FFR_LDAP_SETVERSION */
 #if _FFR_LDAP_URI
+	/* Support LDAP URI form of specifying host/port (and allows ldaps) */
 	"_FFR_LDAP_URI",
 #endif /* _FFR_LDAP_URI */
 #if _FFR_MAX_FORWARD_ENTRIES
+	/* Try to limit number of .forward entries */
+	/* (doesn't work) */
 /* Randall S. Winchester of the University of Maryland */
 	"_FFR_MAX_FORWARD_ENTRIES",
 #endif /* _FFR_MAX_FORWARD_ENTRIES */
 #if MILTER
 # if _FFR_MILTER_421
+	/* If a filter returns 421, close the SMTP connection */
 	"_FFR_MILTER_421",
 # endif /* _FFR_MILTER_421 */
 # if  _FFR_MILTER_PERDAEMON
+	/* Per DaemonPortOptions InputMailFilter lists */
 	"_FFR_MILTER_PERDAEMON",
 # endif /* _FFR_MILTER_PERDAEMON */
 #endif /* MILTER */
 #if _FFR_NODELAYDSN_ON_HOLD
+	/* Do not issue a DELAY DSN for mailers that use the hold flag. */
 /* Steven Pitzl */
 	"_FFR_NODELAYDSN_ON_HOLD",
 #endif /* _FFR_NODELAYDSN_ON_HOLD */
 #if _FFR_NO_PIPE
+	/* Disable PIPELINING, delay client if used. */
 	"_FFR_NO_PIPE",
 #endif /* _FFR_NO_PIPE */
 #if _FFR_QUARANTINE
+	/* Quarantine items in the queue */
 	"_FFR_QUARANTINE",
 #endif /* _FFR_QUARANTINE */
 #if _FFR_QUEUEDELAY
+	/* Exponential queue delay; disabled in 8.13 since it isn't used. */
 	"_FFR_QUEUEDELAY",
 #endif /* _FFR_QUEUEDELAY */
 #if _FFR_QUEUE_GROUP_SORTORDER
+	/* Allow QueueSortOrder per queue group. */
 /* XXX: Still need to actually use qgrp->qg_sortorder */
 	"_FFR_QUEUE_GROUP_SORTORDER",
 #endif /* _FFR_QUEUE_GROUP_SORTORDER */
 #if _FFR_QUEUE_MACRO
+	/* Define {queue} macro. */
 	"_FFR_QUEUE_MACRO",
 #endif /* _FFR_QUEUE_MACRO */
+#if _FFR_QUEUERETURN_DSN
+	/*
+	**  Provide an option for different Timeout.queue{warn,return} for
+	**  DSN messages.  These days, queues are filled with bounces for
+	**  spam that will never make it to the sender and therefore slow
+	**  down queue runs until they timeout.
+	*/
+
+	"_FFR_QUEUERETURN_DSN",
+#endif /* _FFR_QUEUERETURN_DSN */
 #if _FFR_QUEUE_RUN_PARANOIA
+	/* Additional checks when doing queue runs. */
 	"_FFR_QUEUE_RUN_PARANOIA",
 #endif /* _FFR_QUEUE_RUN_PARANOIA */
 #if _FFR_QUEUE_SCHED_DBG
+	/* Debug output for the queue scheduler. */
 	"_FFR_QUEUE_SCHED_DBG",
 #endif /* _FFR_QUEUE_SCHED_DBG */
 #if _FFR_REDIRECTEMPTY
+	/*
+	**  envelope <> can't be sent to mailing lists, only owner-
+	**  send spam of this type to owner- of the list
+	**  ----  to stop spam from going to mailing lists.
+	*/
+
 	"_FFR_REDIRECTEMPTY",
 #endif /* _FFR_REDIRECTEMPTY */
 #if _FFR_REJECT_LOG
+	/* Log when we start/stop rejecting connections due to load, etc */
 	"_FFR_REJECT_LOG",
 #endif /* _FFR_REJECT_LOG */
 #if _FFR_REQ_DIR_FSYNC_OPT
+	/* Add cf option to fsync() directories */
 	"_FFR_REQ_DIR_FSYNC_OPT",
 #endif /* _FFR_REQ_DIR_FSYNC_OPT */
 #if _FFR_RESET_MACRO_GLOBALS
+	/* Allow macro 'j' to be set dynamically via rulesets. */
 	"_FFR_RESET_MACRO_GLOBALS",
 #endif /* _FFR_RESET_MACRO_GLOBALS */
 #if _FFR_RESPOND_ALL
-	/* in vacation */
+	/* in vacation: respond to every message, not just once per interval */
 	"_FFR_RESPOND_ALL",
 #endif /* _FFR_RESPOND_ALL */
 #if _FFR_RHS
+	/* Random shuffle for queue sorting. */
 	"_FFR_RHS",
 #endif /* _FFR_RHS */
 #if _FFR_SASL_OPT_M
+	/* Support SASL's SASL_SEC_MUTUAL_AUTH option */
 	"_FFR_SASL_OPT_M",
 #endif /* _FFR_SASL_OPT_M */
 #if _FFR_SELECT_SHM
+	/* Auto-select of shared memory key */
 	"_FFR_SELECT_SHM",
 #endif /* _FFR_SELECT_SHM */
 #if _FFR_SHM_STATUS
+	/* Donated code (unused). */
 	"_FFR_SHM_STATUS",
 #endif /* _FFR_SHM_STATUS */
 #if _FFR_SMFI_OPENSOCKET
+	/* libmilter: smfi_opensocket() to force the socket open early */
 	"_FFR_SMFI_OPENSOCKET",
 #endif /* _FFR_SMFI_OPENSOCKET */
 #if _FFR_SMTP_SSL
+	/* Support for smtps (SMTP over SSL) */
 	"_FFR_SMTP_SSL",
 #endif /* _FFR_SMTP_SSL */
 #if _FFR_SOFT_BOUNCE
+	/* Turn all errors into temporary errors. */
 	"_FFR_SOFT_BOUNCE",
 #endif /* _FFR_SOFT_BOUNCE */
 #if _FFR_SPT_ALIGN
+	/*
+	**  It looks like the Compaq Tru64 5.1A now aligns argv and envp to 64
+	**  bit alignment, so unless each piece of argv and envp is a multiple
+	**  of 8 bytes (including terminating NULL), initsetproctitle() won't
+	**  use any of the space beyond argv[0]. Be sure to set SPT_ALIGN_SIZE
+	**  if you use this FFR.
+	*/
+
 /* Chris Adams of HiWAAY Informations Services */
 	"_FFR_SPT_ALIGN",
 #endif /* _FFR_SPT_ALIGN */
 #if _FFR_STRIPBACKSL
+	/*
+	**  Strip backslash from addresses (so sender doesn't
+	**  decide to ignore forward)
+	*/
+
 	"_FFR_STRIPBACKSL",
 #endif /* _FFR_STRIPBACKSL */
 #if _FFR_TIMERS
+	/* Donated code (unused). */
 	"_FFR_TIMERS",
 #endif /* _FFR_TIMERS */
 #if _FFR_TLS_1
+	/* More STARTTLS options, e.g., secondary certs. */
 	"_FFR_TLS_1",
 #endif /* _FFR_TLS_1 */
 #if _FFR_TRUSTED_QF
+	/*
+	**  If we don't own the file mark it as unsafe.
+	**  However, allow TrustedUser to own it as well
+	**  in case TrustedUser manipulates the queue.
+	*/
+
 	"_FFR_TRUSTED_QF",
 #endif /* _FFR_TRUSTED_QF */
 #if _FFR_USE_SETLOGIN
+	/* Use setlogin() */
 /* Peter Philipp */
 	"_FFR_USE_SETLOGIN",
 #endif /* _FFR_USE_SETLOGIN */
