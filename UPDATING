@@ -215,15 +215,27 @@ COMMON ITEMS:
 
 	To build a kernel
 	-----------------
-	Update config, genassym and go:
-		config YOUR_KERNEL_HERE			[1]
-		cd ../../compile/YOUR_KERNEL_HERE
-		make depend && make
-		make install
-	[1] If upgrading, add -r won't hurt and sometimes helps.
+	If you are updating from a prior version of FreeBSD (even one just
+	a few days old), you should follow this proceedure. With a
+	/usr/obj tree with a fresh buildworld,
+	make buildkernel KERNEL=YOUR_KERNEL_HERE
+	make installkernel KERNEL=YOUR_KERNEL_HERE
 
-	To rebuild everything
-	---------------------
+	To just build a kernel when you know that it won't mess you up
+	--------------------------------------------------------------
+	cd src/sys/{i386,alpha}/conf
+	config KERNEL_NAME_HERE			[1]
+	cd ../../compile/KERNEL_NAME_HERE
+	make depend
+	make
+	make install	
+	
+	[1] If in doubt, -r might help here.
+
+	If this fails, go to the "To build a kernel" section.
+
+	To rebuild everything and install it on the current system.
+	-----------------------------------------------------------
 	make world
 
 	To upgrade from 4.x-stable to current
