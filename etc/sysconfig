@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.19 1995/08/10 16:25:57 ache Exp $
+#	$Id: sysconfig,v 1.20 1995/08/23 07:12:16 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -142,6 +142,15 @@ yppasswddflags="NO"
 # connection to the Internet.
 # For most hosts, flags should be "-b /etc/namedb/named.boot"
 namedflags="NO"
+
+# Set to YES if you run PC-NFSD (see /usr/ports/net/pcnfsd) for
+# sharing filesystems with DOS/Windows PCs.
+pcnfsd=NO
+
+# Set to YES if you have the Apache WEB server (see /sur/ports/net/apache)
+# installed and want to run it at system startup time (this is better than
+# running it from inetd if you're running a dedicated WWW server).
+apache_httpd=NO
 
 # Set to YES if you want to run the X-10 power controller daemon
 xtend=NO
