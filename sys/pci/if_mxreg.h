@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.12 1998/12/04 21:34:33 wpaul Exp $
+ *	$Id: if_mxreg.h,v 1.14 1999/04/01 02:01:04 wpaul Exp $
  */
 
 /*
@@ -502,7 +502,7 @@ struct mx_softc {
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_space_write_4(sc->mx_btag, sc->mx_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->mx_btag, sc->mx_bbhandle, reg, val)
+	bus_space_write_2(sc->mx_btag, sc->mx_bhandle, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
 	bus_space_write_1(sc->mx_btag, sc->mx_bhandle, reg, val)
 
@@ -695,3 +695,9 @@ struct mx_softc {
 #define PHY_BMSR_LINKSTAT		0x0004
 #define PHY_BMSR_JABBER			0x0002
 #define PHY_BMSR_EXTENDED		0x0001
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
+#endif
