@@ -41,8 +41,13 @@
  * USB Open Host Controller driver.
  *
  * OHCI spec: http://www.intel.com/design/usb/ohci11d.pdf
- * USB spec: http://www.teleport.com/cgi-bin/mailmerge.cgi/~usb/cgiform.tpl
  */
+
+/* The low level controller code for OHCI has been split into
+ * PCI probes and OHCI specific code. This was done to facilitate the
+ * sharing of code between *BSD's
+ */
+
 
 #include "opt_bus.h"
 
