@@ -1,4 +1,4 @@
-# $Id: secure-stable-supfile,v 1.7 1997/05/19 17:22:51 jdp Exp $
+# $Id: secure-stable-supfile,v 1.2.2.3 1997/05/19 17:29:01 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # source tree of the FreeBSD-stable international secure distribution.
@@ -41,9 +41,9 @@
 *default host=cvsup.internat.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
-# The following line is for 2.1-stable.  If you want 2.2-stable, change
-# "RELENG_2_1_0" to "RELENG_2_2".
-*default release=cvs tag=RELENG_2_1_0
+# The following line is for 2.2-stable.  If you want 2.1-stable, change
+# "RELENG_2_2" to "RELENG_2_1_0".
+*default release=cvs tag=RELENG_2_2
 *default delete use-rel-suffix
 
 # If your network link is a T1 or faster, comment out the following line.

@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.2.2.4 1997/05/19 17:29:01 jdp Exp $
+# $Id: stable-supfile,v 1.2.2.5 1997/07/22 18:21:51 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-stable source tree.
@@ -63,9 +63,9 @@
 *default host=cvsup.FreeBSD.org
 *default base=/usr
 *default prefix=/usr
-# The following line is for 2.1-stable.  If you want 2.2-stable, change
-# "RELENG_2_1_0" to "RELENG_2_2".
-*default release=cvs tag=RELENG_2_1_0
+# The following line is for 2.2-stable.  If you want 2.1-stable, change
+# "RELENG_2_2" to "RELENG_2_1_0".
+*default release=cvs tag=RELENG_2_2
 *default delete use-rel-suffix
 
 # If your network link is a T1 or faster, comment out the following line.
