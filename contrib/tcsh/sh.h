@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.h,v 3.86 1998/10/25 15:10:16 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.h,v 3.87 2000/01/14 22:57:28 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -324,9 +324,9 @@ typedef int sigret_t;
 # include <sys/filio.h>
 #endif /* (!FIOCLEX && SUNOS4) || (SYSVREL == 4 && !_SEQUENT_ && !SCO && !_SX ) */
 
-#if !defined(_MINIX) && !defined(COHERENT) && !defined(supermax) && !defined(WINNT)
+#if !defined(_MINIX) && !defined(COHERENT) && !defined(supermax) && !defined(WINNT) && !defined(IRIS4D)
 # include <sys/file.h>
-#endif	/* !_MINIX && !COHERENT && !supermax && !WINNT */
+#endif	/* !_MINIX && !COHERENT && !supermax && !WINNT && !defined(IRIS4D) */
 
 #if !defined(O_RDONLY) || !defined(O_NDELAY)
 # include <fcntl.h>
@@ -610,6 +610,7 @@ EXTERN clock_t clk_tck;
 #  endif /* POSIX */
 EXTERN struct tms shtimes;	/* shell and child times for process timing */
 # endif /* _SEQUENT_ */
+EXTERN long seconds0;
 #endif /* BSDTIMES */
 
 #ifndef HZ

@@ -1,3 +1,20 @@
+ 78. V6.09.01 - 20000114
+ 79. Circumvent IRIX4D ESTALE bug by exiting.
+ 78. IRIS4D de-linting.
+ 77. Finnish nls catalogs (Jukka A. Ukkonen)
+ 76. Even more multibyte fixes (Taga Nayuta)
+ 75. Patches to statically link tcsh under solaris-2.6 (John Hawkinson)
+ 74. Manual page typos (R. Bernstein)
+ 73. HP/UX-11 (9000/800) HP/UX-10.20 (9000/820) (Haflidi Sigtryggur Magnusson)
+ 72. Color-ls fixes (Luis Francisco Gonzalez)
+ 71. Don't re-use time0 to compare to stat's st_mtime, cause it could be
+     the value returned from times(2) which is the ticks since system
+     startup (Frank van der Linden)
+ 70. Time percentage wrap fix (Simon Burge)
+ 69. EUCKR support (HyunChul Kim)
+ 68. Grammar and typo fixes for tcsh.man (Steve Kelem)
+ 67. More multibyte fixes (Rodney Ruddock)
+ 66. Change 6.08 -> 6.09 where I missed it; update for utlrix 4.5 (Simon Burge)
  65. V6.09.00 - 19990816
  64. Add csh emacs mode (Dan Harkless)
  63. Make sure the the glob buffer matches the word buffer size (Brian Biswas)
