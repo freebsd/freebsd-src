@@ -41,7 +41,6 @@ struct	pmap {
 	u_int		pm_sr[16];
 	u_int		pm_active;
 	u_int		pm_context;
-	u_int		pm_count;
 	struct		pmap_statistics	pm_stats;
 };
 
