@@ -26,6 +26,17 @@
 
 #define _GNU_SOURCE
 
+#ifdef HAVE_CONFIG_H
+#if defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
+#include "config.h"
+#endif
+#endif
+
 /* We need this for `regex.h', and perhaps for the Emacs include files.  */
 #include <sys/types.h>
 
@@ -46,6 +57,14 @@
 
 #else  /* not emacs */
 
+#ifdef STDC_HEADERS
+#include <stdlib.h>
+#else
+char *malloc ();
+char *realloc ();
+#endif
+
+
 /* We used to test for `BSTRING' here, but only GCC and Emacs define
    `BSTRING', as far as I know, and neither of them use this code.  */
 #if HAVE_STRING_H || STDC_HEADERS
@@ -62,14 +81,6 @@
 #else
 #include <strings.h>
 #endif
-
-#ifdef STDC_HEADERS
-#include <stdlib.h>
-#else
-char *malloc ();
-char *realloc ();
-#endif
-
 
 /* Define the syntax stuff for \<, \>, etc.  */
 
@@ -235,6 +246,8 @@ char *alloca ();
 /* (Re)Allocate N items of type T using malloc, or fail.  */
 #define TALLOC(n, t) ((t *) malloc ((n) * sizeof (t)))
 #define RETALLOC(addr, n, t) ((addr) = (t *) realloc (addr, (n) * sizeof (t)))
+#define RETALLOC_IF(addr, n, t) \
+  if (addr) RETALLOC((addr), (n), t); else (addr) = TALLOC ((n), t)
 #define REGEX_TALLOC(n, t) ((t *) REGEX_ALLOCATE ((n) * sizeof (t)))
 
 #define BYTEWIDTH 8 /* In bits.  */
@@ -870,6 +883,387 @@ static const char *re_error_msg[] =
     "Regular expression too big",		/* REG_ESIZE */
     "Unmatched ) or \\)",			/* REG_ERPAREN */
   };
+
+/* Avoiding alloca during matching, to placate r_alloc.  */
+
+/* Define MATCH_MAY_ALLOCATE if we need to make sure that the
+   searching and matching functions should not call alloca.  On some
+   systems, alloca is implemented in terms of malloc, and if we're
+   using the relocating allocator routines, then malloc could cause a
+   relocation, which might (if the strings being searched are in the
+   ralloc heap) shift the data out from underneath the regexp
+   routines.
+
+   Here's another reason to avoid allocation: Emacs insists on
+   processing input from X in a signal handler; processing X input may
+   call malloc; if input arrives while a matching routine is calling
+   malloc, then we're scrod.  But Emacs can't just block input while
+   calling matching routines; then we don't notice interrupts when
+   they come in.  So, Emacs blocks input around all regexp calls
+   except the matching calls, which it leaves unprotected, in the
+   faith that they will not malloc.  */
+
+/* Normally, this is fine.  */
+#define MATCH_MAY_ALLOCATE
+
+/* But under some circumstances, it's not.  */
+#if defined (emacs) || (defined (REL_ALLOC) && defined (C_ALLOCA))
+#undef MATCH_MAY_ALLOCATE
+#endif
+
+
+/* Failure stack declarations and macros; both re_compile_fastmap and
+   re_match_2 use a failure stack.  These have to be macros because of
+   REGEX_ALLOCATE.  */
+   
+
+/* Number of failure points for which to initially allocate space
+   when matching.  If this number is exceeded, we allocate more
+   space, so it is not a hard limit.  */
+#ifndef INIT_FAILURE_ALLOC
+#define INIT_FAILURE_ALLOC 5
+#endif
+
+/* Roughly the maximum number of failure points on the stack.  Would be
+   exactly that if always used MAX_FAILURE_SPACE each time we failed.
+   This is a variable only so users of regex can assign to it; we never
+   change it ourselves.  */
+int re_max_failures = 2000;
+
+typedef unsigned char *fail_stack_elt_t;
+
+typedef struct
+{
+  fail_stack_elt_t *stack;
+  unsigned size;
+  unsigned avail;			/* Offset of next open position.  */
+} fail_stack_type;
+
+#define FAIL_STACK_EMPTY()     (fail_stack.avail == 0)
+#define FAIL_STACK_PTR_EMPTY() (fail_stack_ptr->avail == 0)
+#define FAIL_STACK_FULL()      (fail_stack.avail == fail_stack.size)
+#define FAIL_STACK_TOP()       (fail_stack.stack[fail_stack.avail])
+
+
+/* Initialize `fail_stack'.  Do `return -2' if the alloc fails.  */
+
+#ifdef MATCH_MAY_ALLOCATE
+#define INIT_FAIL_STACK()						\
+  do {									\
+    fail_stack.stack = (fail_stack_elt_t *)				\
+      REGEX_ALLOCATE (INIT_FAILURE_ALLOC * sizeof (fail_stack_elt_t));	\
+									\
+    if (fail_stack.stack == NULL)					\
+      return -2;							\
+									\
+    fail_stack.size = INIT_FAILURE_ALLOC;				\
+    fail_stack.avail = 0;						\
+  } while (0)
+#else
+#define INIT_FAIL_STACK()						\
+  do {									\
+    fail_stack.avail = 0;						\
+  } while (0)
+#endif
+
+
+/* Double the size of FAIL_STACK, up to approximately `re_max_failures' items.
+
+   Return 1 if succeeds, and 0 if either ran out of memory
+   allocating space for it or it was already too large.  
+   
+   REGEX_REALLOCATE requires `destination' be declared.   */
+
+#define DOUBLE_FAIL_STACK(fail_stack)					\
+  ((fail_stack).size > re_max_failures * MAX_FAILURE_ITEMS		\
+   ? 0									\
+   : ((fail_stack).stack = (fail_stack_elt_t *)				\
+        REGEX_REALLOCATE ((fail_stack).stack, 				\
+          (fail_stack).size * sizeof (fail_stack_elt_t),		\
+          ((fail_stack).size << 1) * sizeof (fail_stack_elt_t)),	\
+									\
+      (fail_stack).stack == NULL					\
+      ? 0								\
+      : ((fail_stack).size <<= 1, 					\
+         1)))
+
+
+/* Push PATTERN_OP on FAIL_STACK. 
+
+   Return 1 if was able to do so and 0 if ran out of memory allocating
+   space to do so.  */
+#define PUSH_PATTERN_OP(pattern_op, fail_stack)				\
+  ((FAIL_STACK_FULL ()							\
+    && !DOUBLE_FAIL_STACK (fail_stack))					\
+    ? 0									\
+    : ((fail_stack).stack[(fail_stack).avail++] = pattern_op,		\
+       1))
+
+/* This pushes an item onto the failure stack.  Must be a four-byte
+   value.  Assumes the variable `fail_stack'.  Probably should only
+   be called from within `PUSH_FAILURE_POINT'.  */
+#define PUSH_FAILURE_ITEM(item)						\
+  fail_stack.stack[fail_stack.avail++] = (fail_stack_elt_t) item
+
+/* The complement operation.  Assumes `fail_stack' is nonempty.  */
+#define POP_FAILURE_ITEM() fail_stack.stack[--fail_stack.avail]
+
+/* Used to omit pushing failure point id's when we're not debugging.  */
+#ifdef DEBUG
+#define DEBUG_PUSH PUSH_FAILURE_ITEM
+#define DEBUG_POP(item_addr) *(item_addr) = POP_FAILURE_ITEM ()
+#else
+#define DEBUG_PUSH(item)
+#define DEBUG_POP(item_addr)
+#endif
+
+
+/* Push the information about the state we will need
+   if we ever fail back to it.  
+   
+   Requires variables fail_stack, regstart, regend, reg_info, and
+   num_regs be declared.  DOUBLE_FAIL_STACK requires `destination' be
+   declared.
+   
+   Does `return FAILURE_CODE' if runs out of memory.  */
+
+#define PUSH_FAILURE_POINT(pattern_place, string_place, failure_code)	\
+  do {									\
+    char *destination;							\
+    /* Must be int, so when we don't save any registers, the arithmetic	\
+       of 0 + -1 isn't done as unsigned.  */				\
+    int this_reg;							\
+    									\
+    DEBUG_STATEMENT (failure_id++);					\
+    DEBUG_STATEMENT (nfailure_points_pushed++);				\
+    DEBUG_PRINT2 ("\nPUSH_FAILURE_POINT #%u:\n", failure_id);		\
+    DEBUG_PRINT2 ("  Before push, next avail: %d\n", (fail_stack).avail);\
+    DEBUG_PRINT2 ("                     size: %d\n", (fail_stack).size);\
+									\
+    DEBUG_PRINT2 ("  slots needed: %d\n", NUM_FAILURE_ITEMS);		\
+    DEBUG_PRINT2 ("     available: %d\n", REMAINING_AVAIL_SLOTS);	\
+									\
+    /* Ensure we have enough space allocated for what we will push.  */	\
+    while (REMAINING_AVAIL_SLOTS < NUM_FAILURE_ITEMS)			\
+      {									\
+        if (!DOUBLE_FAIL_STACK (fail_stack))			\
+          return failure_code;						\
+									\
+        DEBUG_PRINT2 ("\n  Doubled stack; size now: %d\n",		\
+		       (fail_stack).size);				\
+        DEBUG_PRINT2 ("  slots available: %d\n", REMAINING_AVAIL_SLOTS);\
+      }									\
+									\
+    /* Push the info, starting with the registers.  */			\
+    DEBUG_PRINT1 ("\n");						\
+									\
+    for (this_reg = lowest_active_reg; this_reg <= highest_active_reg;	\
+         this_reg++)							\
+      {									\
+	DEBUG_PRINT2 ("  Pushing reg: %d\n", this_reg);			\
+        DEBUG_STATEMENT (num_regs_pushed++);				\
+									\
+	DEBUG_PRINT2 ("    start: 0x%x\n", regstart[this_reg]);		\
+        PUSH_FAILURE_ITEM (regstart[this_reg]);				\
+                                                                        \
+	DEBUG_PRINT2 ("    end: 0x%x\n", regend[this_reg]);		\
+        PUSH_FAILURE_ITEM (regend[this_reg]);				\
+									\
+	DEBUG_PRINT2 ("    info: 0x%x\n      ", reg_info[this_reg]);	\
+        DEBUG_PRINT2 (" match_null=%d",					\
+                      REG_MATCH_NULL_STRING_P (reg_info[this_reg]));	\
+        DEBUG_PRINT2 (" active=%d", IS_ACTIVE (reg_info[this_reg]));	\
+        DEBUG_PRINT2 (" matched_something=%d",				\
+                      MATCHED_SOMETHING (reg_info[this_reg]));		\
+        DEBUG_PRINT2 (" ever_matched=%d",				\
+                      EVER_MATCHED_SOMETHING (reg_info[this_reg]));	\
+	DEBUG_PRINT1 ("\n");						\
+        PUSH_FAILURE_ITEM (reg_info[this_reg].word);			\
+      }									\
+									\
+    DEBUG_PRINT2 ("  Pushing  low active reg: %d\n", lowest_active_reg);\
+    PUSH_FAILURE_ITEM (lowest_active_reg);				\
+									\
+    DEBUG_PRINT2 ("  Pushing high active reg: %d\n", highest_active_reg);\
+    PUSH_FAILURE_ITEM (highest_active_reg);				\
+									\
+    DEBUG_PRINT2 ("  Pushing pattern 0x%x: ", pattern_place);		\
+    DEBUG_PRINT_COMPILED_PATTERN (bufp, pattern_place, pend);		\
+    PUSH_FAILURE_ITEM (pattern_place);					\
+									\
+    DEBUG_PRINT2 ("  Pushing string 0x%x: `", string_place);		\
+    DEBUG_PRINT_DOUBLE_STRING (string_place, string1, size1, string2,   \
+				 size2);				\
+    DEBUG_PRINT1 ("'\n");						\
+    PUSH_FAILURE_ITEM (string_place);					\
+									\
+    DEBUG_PRINT2 ("  Pushing failure id: %u\n", failure_id);		\
+    DEBUG_PUSH (failure_id);						\
+  } while (0)
+
+/* This is the number of items that are pushed and popped on the stack
+   for each register.  */
+#define NUM_REG_ITEMS  3
+
+/* Individual items aside from the registers.  */
+#ifdef DEBUG
+#define NUM_NONREG_ITEMS 5 /* Includes failure point id.  */
+#else
+#define NUM_NONREG_ITEMS 4
+#endif
+
+/* We push at most this many items on the stack.  */
+#define MAX_FAILURE_ITEMS ((num_regs - 1) * NUM_REG_ITEMS + NUM_NONREG_ITEMS)
+
+/* We actually push this many items.  */
+#define NUM_FAILURE_ITEMS						\
+  ((highest_active_reg - lowest_active_reg + 1) * NUM_REG_ITEMS 	\
+    + NUM_NONREG_ITEMS)
+
+/* How many items can still be added to the stack without overflowing it.  */
+#define REMAINING_AVAIL_SLOTS ((fail_stack).size - (fail_stack).avail)
+
+
+/* Pops what PUSH_FAIL_STACK pushes.
+
+   We restore into the parameters, all of which should be lvalues:
+     STR -- the saved data position.
+     PAT -- the saved pattern position.
+     LOW_REG, HIGH_REG -- the highest and lowest active registers.
+     REGSTART, REGEND -- arrays of string positions.
+     REG_INFO -- array of information about each subexpression.
+   
+   Also assumes the variables `fail_stack' and (if debugging), `bufp',
+   `pend', `string1', `size1', `string2', and `size2'.  */
+
+#define POP_FAILURE_POINT(str, pat, low_reg, high_reg, regstart, regend, reg_info)\
+{									\
+  DEBUG_STATEMENT (fail_stack_elt_t failure_id;)			\
+  int this_reg;								\
+  const unsigned char *string_temp;					\
+									\
+  assert (!FAIL_STACK_EMPTY ());					\
+									\
+  /* Remove failure points and point to how many regs pushed.  */	\
+  DEBUG_PRINT1 ("POP_FAILURE_POINT:\n");				\
+  DEBUG_PRINT2 ("  Before pop, next avail: %d\n", fail_stack.avail);	\
+  DEBUG_PRINT2 ("                    size: %d\n", fail_stack.size);	\
+									\
+  assert (fail_stack.avail >= NUM_NONREG_ITEMS);			\
+									\
+  DEBUG_POP (&failure_id);						\
+  DEBUG_PRINT2 ("  Popping failure id: %u\n", failure_id);		\
+									\
+  /* If the saved string location is NULL, it came from an		\
+     on_failure_keep_string_jump opcode, and we want to throw away the	\
+     saved NULL, thus retaining our current position in the string.  */	\
+  string_temp = POP_FAILURE_ITEM ();					\
+  if (string_temp != NULL)						\
+    str = (const char *) string_temp;					\
+									\
+  DEBUG_PRINT2 ("  Popping string 0x%x: `", str);			\
+  DEBUG_PRINT_DOUBLE_STRING (str, string1, size1, string2, size2);	\
+  DEBUG_PRINT1 ("'\n");							\
+									\
+  pat = (unsigned char *) POP_FAILURE_ITEM ();				\
+  DEBUG_PRINT2 ("  Popping pattern 0x%x: ", pat);			\
+  DEBUG_PRINT_COMPILED_PATTERN (bufp, pat, pend);			\
+									\
+  /* Restore register info.  */						\
+  high_reg = (unsigned) POP_FAILURE_ITEM ();				\
+  DEBUG_PRINT2 ("  Popping high active reg: %d\n", high_reg);		\
+									\
+  low_reg = (unsigned) POP_FAILURE_ITEM ();				\
+  DEBUG_PRINT2 ("  Popping  low active reg: %d\n", low_reg);		\
+									\
+  for (this_reg = high_reg; this_reg >= low_reg; this_reg--)		\
+    {									\
+      DEBUG_PRINT2 ("    Popping reg: %d\n", this_reg);			\
+									\
+      reg_info[this_reg].word = POP_FAILURE_ITEM ();			\
+      DEBUG_PRINT2 ("      info: 0x%x\n", reg_info[this_reg]);		\
+									\
+      regend[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
+      DEBUG_PRINT2 ("      end: 0x%x\n", regend[this_reg]);		\
+									\
+      regstart[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
+      DEBUG_PRINT2 ("      start: 0x%x\n", regstart[this_reg]);		\
+    }									\
+									\
+  DEBUG_STATEMENT (nfailure_points_popped++);				\
+} /* POP_FAILURE_POINT */
+
+
+
+/* Structure for per-register (a.k.a. per-group) information.
+   This must not be longer than one word, because we push this value
+   onto the failure stack.  Other register information, such as the
+   starting and ending positions (which are addresses), and the list of
+   inner groups (which is a bits list) are maintained in separate
+   variables.  
+   
+   We are making a (strictly speaking) nonportable assumption here: that
+   the compiler will pack our bit fields into something that fits into
+   the type of `word', i.e., is something that fits into one item on the
+   failure stack.  */
+typedef union
+{
+  fail_stack_elt_t word;
+  struct
+  {
+      /* This field is one if this group can match the empty string,
+         zero if not.  If not yet determined,  `MATCH_NULL_UNSET_VALUE'.  */
+#define MATCH_NULL_UNSET_VALUE 3
+    unsigned match_null_string_p : 2;
+    unsigned is_active : 1;
+    unsigned matched_something : 1;
+    unsigned ever_matched_something : 1;
+  } bits;
+} register_info_type;
+
+#define REG_MATCH_NULL_STRING_P(R)  ((R).bits.match_null_string_p)
+#define IS_ACTIVE(R)  ((R).bits.is_active)
+#define MATCHED_SOMETHING(R)  ((R).bits.matched_something)
+#define EVER_MATCHED_SOMETHING(R)  ((R).bits.ever_matched_something)
+
+
+/* Call this when have matched a real character; it sets `matched' flags
+   for the subexpressions which we are currently inside.  Also records
+   that those subexprs have matched.  */
+#define SET_REGS_MATCHED()						\
+  do									\
+    {									\
+      unsigned r;							\
+      for (r = lowest_active_reg; r <= highest_active_reg; r++)		\
+        {								\
+          MATCHED_SOMETHING (reg_info[r])				\
+            = EVER_MATCHED_SOMETHING (reg_info[r])			\
+            = 1;							\
+        }								\
+    }									\
+  while (0)
+
+
+/* Registers are set to a sentinel when they haven't yet matched.  */
+#define REG_UNSET_VALUE ((char *) -1)
+#define REG_UNSET(e) ((e) == REG_UNSET_VALUE)
+
+
+
+/* How do we implement a missing MATCH_MAY_ALLOCATE?
+   We make the fail stack a global thing, and then grow it to
+   re_max_failures when we compile.  */
+#ifndef MATCH_MAY_ALLOCATE
+static fail_stack_type fail_stack;
+
+static const char **     regstart, **     regend;
+static const char ** old_regstart, ** old_regend;
+static const char **best_regstart, **best_regend;
+static register_info_type *reg_info; 
+static const char **reg_dummy;
+static register_info_type *reg_info_dummy;
+#endif
+
 
 /* Subroutine declarations and macros for regex_compile.  */
 
@@ -2086,6 +2480,40 @@ regex_compile (pattern, size, syntax, bufp)
     }
 #endif /* DEBUG */
 
+#ifndef MATCH_MAY_ALLOCATE
+  /* Initialize the failure stack to the largest possible stack.  This
+     isn't necessary unless we're trying to avoid calling alloca in
+     the search and match routines.  */
+  {
+    int num_regs = bufp->re_nsub + 1;
+
+    /* Since DOUBLE_FAIL_STACK refuses to double only if the current size
+       is strictly greater than re_max_failures, the largest possible stack
+       is 2 * re_max_failures failure points.  */
+    fail_stack.size = (2 * re_max_failures * MAX_FAILURE_ITEMS);
+    if (fail_stack.stack)
+      fail_stack.stack =
+	(fail_stack_elt_t *) realloc (fail_stack.stack,
+				      (fail_stack.size
+				       * sizeof (fail_stack_elt_t)));
+    else
+      fail_stack.stack =
+	(fail_stack_elt_t *) malloc (fail_stack.size 
+				     * sizeof (fail_stack_elt_t));
+
+    /* Initialize some other variables the matcher uses.  */
+    RETALLOC_IF (regstart,	 num_regs, const char *);
+    RETALLOC_IF (regend,	 num_regs, const char *);
+    RETALLOC_IF (old_regstart,	 num_regs, const char *);
+    RETALLOC_IF (old_regend,	 num_regs, const char *);
+    RETALLOC_IF (best_regstart,  num_regs, const char *);
+    RETALLOC_IF (best_regend,	 num_regs, const char *);
+    RETALLOC_IF (reg_info,	 num_regs, register_info_type);
+    RETALLOC_IF (reg_dummy,	 num_regs, const char *);
+    RETALLOC_IF (reg_info_dummy, num_regs, register_info_type);
+  }
+#endif
+
   return REG_NOERROR;
 } /* regex_compile */
 
@@ -2275,280 +2703,6 @@ compile_range (p_ptr, pend, translate, syntax, b)
   return REG_NOERROR;
 }
 
-/* Failure stack declarations and macros; both re_compile_fastmap and
-   re_match_2 use a failure stack.  These have to be macros because of
-   REGEX_ALLOCATE.  */
-   
-
-/* Number of failure points for which to initially allocate space
-   when matching.  If this number is exceeded, we allocate more
-   space, so it is not a hard limit.  */
-#ifndef INIT_FAILURE_ALLOC
-#define INIT_FAILURE_ALLOC 5
-#endif
-
-/* Roughly the maximum number of failure points on the stack.  Would be
-   exactly that if always used MAX_FAILURE_SPACE each time we failed.
-   This is a variable only so users of regex can assign to it; we never
-   change it ourselves.  */
-int re_max_failures = 2000;
-
-typedef const unsigned char *fail_stack_elt_t;
-
-typedef struct
-{
-  fail_stack_elt_t *stack;
-  unsigned size;
-  unsigned avail;			/* Offset of next open position.  */
-} fail_stack_type;
-
-#define FAIL_STACK_EMPTY()     (fail_stack.avail == 0)
-#define FAIL_STACK_PTR_EMPTY() (fail_stack_ptr->avail == 0)
-#define FAIL_STACK_FULL()      (fail_stack.avail == fail_stack.size)
-#define FAIL_STACK_TOP()       (fail_stack.stack[fail_stack.avail])
-
-
-/* Initialize `fail_stack'.  Do `return -2' if the alloc fails.  */
-
-#define INIT_FAIL_STACK()						\
-  do {									\
-    fail_stack.stack = (fail_stack_elt_t *)				\
-      REGEX_ALLOCATE (INIT_FAILURE_ALLOC * sizeof (fail_stack_elt_t));	\
-									\
-    if (fail_stack.stack == NULL)					\
-      return -2;							\
-									\
-    fail_stack.size = INIT_FAILURE_ALLOC;				\
-    fail_stack.avail = 0;						\
-  } while (0)
-
-
-/* Double the size of FAIL_STACK, up to approximately `re_max_failures' items.
-
-   Return 1 if succeeds, and 0 if either ran out of memory
-   allocating space for it or it was already too large.  
-   
-   REGEX_REALLOCATE requires `destination' be declared.   */
-
-#define DOUBLE_FAIL_STACK(fail_stack)					\
-  ((fail_stack).size > re_max_failures * MAX_FAILURE_ITEMS		\
-   ? 0									\
-   : ((fail_stack).stack = (fail_stack_elt_t *)				\
-        REGEX_REALLOCATE ((fail_stack).stack, 				\
-          (fail_stack).size * sizeof (fail_stack_elt_t),		\
-          ((fail_stack).size << 1) * sizeof (fail_stack_elt_t)),	\
-									\
-      (fail_stack).stack == NULL					\
-      ? 0								\
-      : ((fail_stack).size <<= 1, 					\
-         1)))
-
-
-/* Push PATTERN_OP on FAIL_STACK. 
-
-   Return 1 if was able to do so and 0 if ran out of memory allocating
-   space to do so.  */
-#define PUSH_PATTERN_OP(pattern_op, fail_stack)				\
-  ((FAIL_STACK_FULL ()							\
-    && !DOUBLE_FAIL_STACK (fail_stack))					\
-    ? 0									\
-    : ((fail_stack).stack[(fail_stack).avail++] = pattern_op,		\
-       1))
-
-/* This pushes an item onto the failure stack.  Must be a four-byte
-   value.  Assumes the variable `fail_stack'.  Probably should only
-   be called from within `PUSH_FAILURE_POINT'.  */
-#define PUSH_FAILURE_ITEM(item)						\
-  fail_stack.stack[fail_stack.avail++] = (fail_stack_elt_t) item
-
-/* The complement operation.  Assumes `fail_stack' is nonempty.  */
-#define POP_FAILURE_ITEM() fail_stack.stack[--fail_stack.avail]
-
-/* Used to omit pushing failure point id's when we're not debugging.  */
-#ifdef DEBUG
-#define DEBUG_PUSH PUSH_FAILURE_ITEM
-#define DEBUG_POP(item_addr) *(item_addr) = POP_FAILURE_ITEM ()
-#else
-#define DEBUG_PUSH(item)
-#define DEBUG_POP(item_addr)
-#endif
-
-
-/* Push the information about the state we will need
-   if we ever fail back to it.  
-   
-   Requires variables fail_stack, regstart, regend, reg_info, and
-   num_regs be declared.  DOUBLE_FAIL_STACK requires `destination' be
-   declared.
-   
-   Does `return FAILURE_CODE' if runs out of memory.  */
-
-#define PUSH_FAILURE_POINT(pattern_place, string_place, failure_code)	\
-  do {									\
-    char *destination;							\
-    /* Must be int, so when we don't save any registers, the arithmetic	\
-       of 0 + -1 isn't done as unsigned.  */				\
-    int this_reg;							\
-    									\
-    DEBUG_STATEMENT (failure_id++);					\
-    DEBUG_STATEMENT (nfailure_points_pushed++);				\
-    DEBUG_PRINT2 ("\nPUSH_FAILURE_POINT #%u:\n", failure_id);		\
-    DEBUG_PRINT2 ("  Before push, next avail: %d\n", (fail_stack).avail);\
-    DEBUG_PRINT2 ("                     size: %d\n", (fail_stack).size);\
-									\
-    DEBUG_PRINT2 ("  slots needed: %d\n", NUM_FAILURE_ITEMS);		\
-    DEBUG_PRINT2 ("     available: %d\n", REMAINING_AVAIL_SLOTS);	\
-									\
-    /* Ensure we have enough space allocated for what we will push.  */	\
-    while (REMAINING_AVAIL_SLOTS < NUM_FAILURE_ITEMS)			\
-      {									\
-        if (!DOUBLE_FAIL_STACK (fail_stack))			\
-          return failure_code;						\
-									\
-        DEBUG_PRINT2 ("\n  Doubled stack; size now: %d\n",		\
-		       (fail_stack).size);				\
-        DEBUG_PRINT2 ("  slots available: %d\n", REMAINING_AVAIL_SLOTS);\
-      }									\
-									\
-    /* Push the info, starting with the registers.  */			\
-    DEBUG_PRINT1 ("\n");						\
-									\
-    for (this_reg = lowest_active_reg; this_reg <= highest_active_reg;	\
-         this_reg++)							\
-      {									\
-	DEBUG_PRINT2 ("  Pushing reg: %d\n", this_reg);			\
-        DEBUG_STATEMENT (num_regs_pushed++);				\
-									\
-	DEBUG_PRINT2 ("    start: 0x%x\n", regstart[this_reg]);		\
-        PUSH_FAILURE_ITEM (regstart[this_reg]);				\
-                                                                        \
-	DEBUG_PRINT2 ("    end: 0x%x\n", regend[this_reg]);		\
-        PUSH_FAILURE_ITEM (regend[this_reg]);				\
-									\
-	DEBUG_PRINT2 ("    info: 0x%x\n      ", reg_info[this_reg]);	\
-        DEBUG_PRINT2 (" match_null=%d",					\
-                      REG_MATCH_NULL_STRING_P (reg_info[this_reg]));	\
-        DEBUG_PRINT2 (" active=%d", IS_ACTIVE (reg_info[this_reg]));	\
-        DEBUG_PRINT2 (" matched_something=%d",				\
-                      MATCHED_SOMETHING (reg_info[this_reg]));		\
-        DEBUG_PRINT2 (" ever_matched=%d",				\
-                      EVER_MATCHED_SOMETHING (reg_info[this_reg]));	\
-	DEBUG_PRINT1 ("\n");						\
-        PUSH_FAILURE_ITEM (reg_info[this_reg].word);			\
-      }									\
-									\
-    DEBUG_PRINT2 ("  Pushing  low active reg: %d\n", lowest_active_reg);\
-    PUSH_FAILURE_ITEM (lowest_active_reg);				\
-									\
-    DEBUG_PRINT2 ("  Pushing high active reg: %d\n", highest_active_reg);\
-    PUSH_FAILURE_ITEM (highest_active_reg);				\
-									\
-    DEBUG_PRINT2 ("  Pushing pattern 0x%x: ", pattern_place);		\
-    DEBUG_PRINT_COMPILED_PATTERN (bufp, pattern_place, pend);		\
-    PUSH_FAILURE_ITEM (pattern_place);					\
-									\
-    DEBUG_PRINT2 ("  Pushing string 0x%x: `", string_place);		\
-    DEBUG_PRINT_DOUBLE_STRING (string_place, string1, size1, string2,   \
-				 size2);				\
-    DEBUG_PRINT1 ("'\n");						\
-    PUSH_FAILURE_ITEM (string_place);					\
-									\
-    DEBUG_PRINT2 ("  Pushing failure id: %u\n", failure_id);		\
-    DEBUG_PUSH (failure_id);						\
-  } while (0)
-
-/* This is the number of items that are pushed and popped on the stack
-   for each register.  */
-#define NUM_REG_ITEMS  3
-
-/* Individual items aside from the registers.  */
-#ifdef DEBUG
-#define NUM_NONREG_ITEMS 5 /* Includes failure point id.  */
-#else
-#define NUM_NONREG_ITEMS 4
-#endif
-
-/* We push at most this many items on the stack.  */
-#define MAX_FAILURE_ITEMS ((num_regs - 1) * NUM_REG_ITEMS + NUM_NONREG_ITEMS)
-
-/* We actually push this many items.  */
-#define NUM_FAILURE_ITEMS						\
-  ((highest_active_reg - lowest_active_reg + 1) * NUM_REG_ITEMS 	\
-    + NUM_NONREG_ITEMS)
-
-/* How many items can still be added to the stack without overflowing it.  */
-#define REMAINING_AVAIL_SLOTS ((fail_stack).size - (fail_stack).avail)
-
-
-/* Pops what PUSH_FAIL_STACK pushes.
-
-   We restore into the parameters, all of which should be lvalues:
-     STR -- the saved data position.
-     PAT -- the saved pattern position.
-     LOW_REG, HIGH_REG -- the highest and lowest active registers.
-     REGSTART, REGEND -- arrays of string positions.
-     REG_INFO -- array of information about each subexpression.
-   
-   Also assumes the variables `fail_stack' and (if debugging), `bufp',
-   `pend', `string1', `size1', `string2', and `size2'.  */
-
-#define POP_FAILURE_POINT(str, pat, low_reg, high_reg, regstart, regend, reg_info)\
-{									\
-  DEBUG_STATEMENT (fail_stack_elt_t failure_id;)			\
-  int this_reg;								\
-  const unsigned char *string_temp;					\
-									\
-  assert (!FAIL_STACK_EMPTY ());					\
-									\
-  /* Remove failure points and point to how many regs pushed.  */	\
-  DEBUG_PRINT1 ("POP_FAILURE_POINT:\n");				\
-  DEBUG_PRINT2 ("  Before pop, next avail: %d\n", fail_stack.avail);	\
-  DEBUG_PRINT2 ("                    size: %d\n", fail_stack.size);	\
-									\
-  assert (fail_stack.avail >= NUM_NONREG_ITEMS);			\
-									\
-  DEBUG_POP (&failure_id);						\
-  DEBUG_PRINT2 ("  Popping failure id: %u\n", failure_id);		\
-									\
-  /* If the saved string location is NULL, it came from an		\
-     on_failure_keep_string_jump opcode, and we want to throw away the	\
-     saved NULL, thus retaining our current position in the string.  */	\
-  string_temp = POP_FAILURE_ITEM ();					\
-  if (string_temp != NULL)						\
-    str = (const char *) string_temp;					\
-									\
-  DEBUG_PRINT2 ("  Popping string 0x%x: `", str);			\
-  DEBUG_PRINT_DOUBLE_STRING (str, string1, size1, string2, size2);	\
-  DEBUG_PRINT1 ("'\n");							\
-									\
-  pat = (unsigned char *) POP_FAILURE_ITEM ();				\
-  DEBUG_PRINT2 ("  Popping pattern 0x%x: ", pat);			\
-  DEBUG_PRINT_COMPILED_PATTERN (bufp, pat, pend);			\
-									\
-  /* Restore register info.  */						\
-  high_reg = (unsigned) POP_FAILURE_ITEM ();				\
-  DEBUG_PRINT2 ("  Popping high active reg: %d\n", high_reg);		\
-									\
-  low_reg = (unsigned) POP_FAILURE_ITEM ();				\
-  DEBUG_PRINT2 ("  Popping  low active reg: %d\n", low_reg);		\
-									\
-  for (this_reg = high_reg; this_reg >= low_reg; this_reg--)		\
-    {									\
-      DEBUG_PRINT2 ("    Popping reg: %d\n", this_reg);			\
-									\
-      reg_info[this_reg].word = POP_FAILURE_ITEM ();			\
-      DEBUG_PRINT2 ("      info: 0x%x\n", reg_info[this_reg]);		\
-									\
-      regend[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
-      DEBUG_PRINT2 ("      end: 0x%x\n", regend[this_reg]);		\
-									\
-      regstart[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
-      DEBUG_PRINT2 ("      start: 0x%x\n", regstart[this_reg]);		\
-    }									\
-									\
-  DEBUG_STATEMENT (nfailure_points_popped++);				\
-} /* POP_FAILURE_POINT */
-
 /* re_compile_fastmap computes a ``fastmap'' for the compiled pattern in
    BUFP.  A fastmap records which of the (1 << BYTEWIDTH) possible
    characters can start a string that matches the pattern.  This fastmap
@@ -2567,7 +2721,9 @@ re_compile_fastmap (bufp)
      struct re_pattern_buffer *bufp;
 {
   int j, k;
+#ifdef MATCH_MAY_ALLOCATE
   fail_stack_type fail_stack;
+#endif
 #ifndef REGEX_MALLOC
   char *destination;
 #endif
@@ -2577,7 +2733,7 @@ re_compile_fastmap (bufp)
   register char *fastmap = bufp->fastmap;
   unsigned char *pattern = bufp->buffer;
   unsigned long size = bufp->used;
-  const unsigned char *p = pattern;
+  unsigned char *p = pattern;
   register unsigned char *pend = pattern + size;
 
   /* Assume that each path through the pattern can be null until
@@ -3030,64 +3186,12 @@ static boolean alt_match_null_string_p (),
                common_op_match_null_string_p (),
                group_match_null_string_p ();
 
-/* Structure for per-register (a.k.a. per-group) information.
-   This must not be longer than one word, because we push this value
-   onto the failure stack.  Other register information, such as the
-   starting and ending positions (which are addresses), and the list of
-   inner groups (which is a bits list) are maintained in separate
-   variables.  
-   
-   We are making a (strictly speaking) nonportable assumption here: that
-   the compiler will pack our bit fields into something that fits into
-   the type of `word', i.e., is something that fits into one item on the
-   failure stack.  */
-typedef union
-{
-  fail_stack_elt_t word;
-  struct
-  {
-      /* This field is one if this group can match the empty string,
-         zero if not.  If not yet determined,  `MATCH_NULL_UNSET_VALUE'.  */
-#define MATCH_NULL_UNSET_VALUE 3
-    unsigned match_null_string_p : 2;
-    unsigned is_active : 1;
-    unsigned matched_something : 1;
-    unsigned ever_matched_something : 1;
-  } bits;
-} register_info_type;
-
-#define REG_MATCH_NULL_STRING_P(R)  ((R).bits.match_null_string_p)
-#define IS_ACTIVE(R)  ((R).bits.is_active)
-#define MATCHED_SOMETHING(R)  ((R).bits.matched_something)
-#define EVER_MATCHED_SOMETHING(R)  ((R).bits.ever_matched_something)
-
-
-/* Call this when have matched a real character; it sets `matched' flags
-   for the subexpressions which we are currently inside.  Also records
-   that those subexprs have matched.  */
-#define SET_REGS_MATCHED()						\
-  do									\
-    {									\
-      unsigned r;							\
-      for (r = lowest_active_reg; r <= highest_active_reg; r++)		\
-        {								\
-          MATCHED_SOMETHING (reg_info[r])				\
-            = EVER_MATCHED_SOMETHING (reg_info[r])			\
-            = 1;							\
-        }								\
-    }									\
-  while (0)
-
-
 /* This converts PTR, a pointer into one of the search strings `string1'
    and `string2' into an offset from the beginning of that string.  */
-#define POINTER_TO_OFFSET(ptr)						\
-  (FIRST_STRING_P (ptr) ? (ptr) - string1 : (ptr) - string2 + size1)
-
-/* Registers are set to a sentinel when they haven't yet matched.  */
-#define REG_UNSET_VALUE ((char *) -1)
-#define REG_UNSET(e) ((e) == REG_UNSET_VALUE)
-
+#define POINTER_TO_OFFSET(ptr)			\
+  (FIRST_STRING_P (ptr)				\
+   ? ((regoff_t) ((ptr) - string1))		\
+   : ((regoff_t) ((ptr) - string2 + size1)))
 
 /* Macros for dealing with the split strings in re_match_2.  */
 
@@ -3130,6 +3234,7 @@ typedef union
 
 
 /* Free everything we malloc.  */
+#ifdef MATCH_MAY_ALLOCATE
 #ifdef REGEX_MALLOC
 #define FREE_VAR(var) if (var) free (var); var = NULL
 #define FREE_VARIABLES()						\
@@ -3149,7 +3254,9 @@ typedef union
 /* Some MIPS systems (at least) want this to free alloca'd storage.  */
 #define FREE_VARIABLES() alloca (0)
 #endif /* not REGEX_MALLOC */
-
+#else
+#define FREE_VARIABLES() /* Do nothing!  */
+#endif /* not MATCH_MAY_ALLOCATE */
 
 /* These values must meet several constraints.  They must not be valid
    register values; since we have a limit of 255 registers (because
@@ -3230,7 +3337,9 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
      scanning the strings.  If the latter is zero, the failure point is
      a ``dummy''; if a failure happens and the failure point is a dummy,
      it gets discarded and the next next one is tried.  */
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, this is global.  */
   fail_stack_type fail_stack;
+#endif
 #ifdef DEBUG
   static unsigned failure_id = 0;
   unsigned nfailure_points_pushed = 0, nfailure_points_popped = 0;
@@ -3252,14 +3361,18 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
      matching and the regnum-th regend points to right after where we
      stopped matching the regnum-th subexpression.  (The zeroth register
      keeps track of what the whole pattern matches.)  */
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   const char **regstart, **regend;
+#endif
 
   /* If a group that's operated upon by a repetition operator fails to
      match anything, then the register for its start will need to be
      restored because it will have been set to wherever in the string we
      are when we last see its open-group operator.  Similarly for a
      register's end.  */
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   const char **old_regstart, **old_regend;
+#endif
 
   /* The is_active field of reg_info helps us keep track of which (possibly
      nested) subexpressions we are currently in. The matched_something
@@ -3267,14 +3380,18 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
      matched any of the pattern so far this time through the reg_num-th
      subexpression.  These two fields get reset each time through any
      loop their register is in.  */
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, this is global.  */
   register_info_type *reg_info; 
+#endif
 
   /* The following record the register info as found in the above
      variables when we find a match better than any we've seen before. 
      This happens as we backtrack through the failure points, which in
      turn happens only if we have not yet matched the entire string. */
   unsigned best_regs_set = false;
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   const char **best_regstart, **best_regend;
+#endif
   
   /* Logically, this is `best_regend[0]'.  But we don't want to have to
      allocate space for that if we're not allocating space for anything
@@ -3287,8 +3404,10 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
   const char *match_end = NULL;
 
   /* Used when we pop values we don't care about.  */
+#ifdef MATCH_MAY_ALLOCATE /* otherwise, these are global.  */
   const char **reg_dummy;
   register_info_type *reg_info_dummy;
+#endif
 
 #ifdef DEBUG
   /* Counts the total number of registers pushed.  */
@@ -3299,6 +3418,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
   
   INIT_FAIL_STACK ();
   
+#ifdef MATCH_MAY_ALLOCATE
   /* Do not bother to initialize all the register variables if there are
      no groups in the pattern, as it takes a fair amount of time.  If
      there are groups, we include space for register 0 (the whole
@@ -3323,7 +3443,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
           return -2;
         }
     }
-#ifdef REGEX_MALLOC
+#if defined (REGEX_MALLOC)
   else
     {
       /* We must initialize all our variables to NULL, so that
@@ -3333,6 +3453,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
       reg_info = reg_info_dummy = (register_info_type *) NULL;
     }
 #endif /* REGEX_MALLOC */
+#endif /* MATCH_MAY_ALLOCATE */
 
   /* The starting position is bogus.  */
   if (pos < 0 || pos > size1 + size2)
@@ -3509,8 +3630,9 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
               if (regs->num_regs > 0)
                 {
                   regs->start[0] = pos;
-                  regs->end[0] = (MATCHING_IN_FIRST_STRING ? d - string1
-			          : d - string2 + size1);
+                  regs->end[0] = (MATCHING_IN_FIRST_STRING
+				  ? ((regoff_t) (d - string1))
+			          : ((regoff_t) (d - string2 + size1)));
                 }
               
               /* Go through the first `min (num_regs, regs->num_regs)'
@@ -3521,8 +3643,10 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                     regs->start[mcnt] = regs->end[mcnt] = -1;
                   else
                     {
-		      regs->start[mcnt] = POINTER_TO_OFFSET (regstart[mcnt]);
-                      regs->end[mcnt] = POINTER_TO_OFFSET (regend[mcnt]);
+		      regs->start[mcnt]
+			= (regoff_t) POINTER_TO_OFFSET (regstart[mcnt]);
+                      regs->end[mcnt]
+			= (regoff_t) POINTER_TO_OFFSET (regend[mcnt]);
                     }
 		}
               
@@ -4031,11 +4155,27 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                detect that here, the alternative has put on a dummy
                failure point which is what we will end up popping.  */
 
-	    /* Skip over open/close-group commands.  */
-	    while (p2 + 2 < pend
-		   && ((re_opcode_t) *p2 == stop_memory
-		       || (re_opcode_t) *p2 == start_memory))
-	      p2 += 3;			/* Skip over args, too.  */
+	    /* Skip over open/close-group commands.
+	       If what follows this loop is a ...+ construct,
+	       look at what begins its body, since we will have to
+	       match at least one of that.  */
+	    while (1)
+	      {
+		if (p2 + 2 < pend
+		    && ((re_opcode_t) *p2 == stop_memory
+			|| (re_opcode_t) *p2 == start_memory))
+		  p2 += 3;
+		else if (p2 + 6 < pend
+			 && (re_opcode_t) *p2 == dummy_failure_jump)
+		  p2 += 6;
+		else
+		  break;
+	      }
+
+	    p1 = p + mcnt;
+	    /* p1[0] ... p1[2] are the `on_failure_jump' corresponding
+	       to the `maybe_finalize_jump' of this case.  Examine what 
+	       follows.  */
 
             /* If we're at the end of the pattern, we can change.  */
             if (p2 == pend)
@@ -4053,11 +4193,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
 	      {
 		register unsigned char c
                   = *p2 == (unsigned char) endline ? '\n' : p2[2];
-		p1 = p + mcnt;
 
-                /* p1[0] ... p1[2] are the `on_failure_jump' corresponding
-                   to the `maybe_finalize_jump' of this case.  Examine what 
-                   follows.  */
                 if ((re_opcode_t) p1[3] == exactn && p1[5] != c)
                   {
   		    p[-3] = (unsigned char) pop_failure_jump;
@@ -4077,6 +4213,54 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                     /* `not' is equal to 1 if c would match, which means
                         that we can't change to pop_failure_jump.  */
 		    if (!not)
+                      {
+  		        p[-3] = (unsigned char) pop_failure_jump;
+                        DEBUG_PRINT1 ("  No match => pop_failure_jump.\n");
+                      }
+		  }
+	      }
+            else if ((re_opcode_t) *p2 == charset)
+	      {
+		register unsigned char c
+                  = *p2 == (unsigned char) endline ? '\n' : p2[2];
+
+                if ((re_opcode_t) p1[3] == exactn
+		    && ! (p2[1] * BYTEWIDTH > p1[4]
+			  && (p2[1 + p1[4] / BYTEWIDTH]
+			      & (1 << (p1[4] % BYTEWIDTH)))))
+                  {
+  		    p[-3] = (unsigned char) pop_failure_jump;
+                    DEBUG_PRINT3 ("  %c != %c => pop_failure_jump.\n",
+                                  c, p1[5]);
+                  }
+                  
+		else if ((re_opcode_t) p1[3] == charset_not)
+		  {
+		    int idx;
+		    /* We win if the charset_not inside the loop
+		       lists every character listed in the charset after.  */
+		    for (idx = 0; idx < p2[1]; idx++)
+		      if (! (p2[2 + idx] == 0
+			     || (idx < p1[4]
+				 && ((p2[2 + idx] & ~ p1[5 + idx]) == 0))))
+			break;
+
+		    if (idx == p2[1])
+                      {
+  		        p[-3] = (unsigned char) pop_failure_jump;
+                        DEBUG_PRINT1 ("  No match => pop_failure_jump.\n");
+                      }
+		  }
+		else if ((re_opcode_t) p1[3] == charset)
+		  {
+		    int idx;
+		    /* We win if the charset inside the loop
+		       has no overlap with the one after the loop.  */
+		    for (idx = 0; idx < p2[1] && idx < p1[4]; idx++)
+		      if ((p2[2 + idx] & p1[5 + idx]) != 0)
+			break;
+
+		    if (idx == p2[1] || idx == p1[4])
                       {
   		        p[-3] = (unsigned char) pop_failure_jump;
                         DEBUG_PRINT1 ("  No match => pop_failure_jump.\n");

@@ -1,5 +1,5 @@
 /* Support routines for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -19,12 +19,33 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
 
+/* Queue up one-line messages to be printed at the end,
+   when -l is specified.  Each message is recorded with a `struct msg'.  */
+
+struct msg
+{
+  struct msg *next;
+  char const *format;
+  char const *arg1;
+  char const *arg2;
+  char const *arg3;
+  char const *arg4;
+};
+
+/* Head of the chain of queues messages.  */
+
+static struct msg *msg_chain;
+
+/* Tail of the chain of queues messages.  */
+
+static struct msg **msg_chain_end = &msg_chain;
+
 /* Use when a system call returns non-zero status.
    TEXT should normally be the file name.  */
 
 void
 perror_with_name (text)
-     char *text;
+     char const *text;
 {
   int e = errno;
   fprintf (stderr, "%s: ", program);
@@ -36,7 +57,7 @@ perror_with_name (text)
 
 void
 pfatal_with_name (text)
-     char *text;
+     char const *text;
 {
   int e = errno;
   print_message_queue ();
@@ -51,9 +72,7 @@ pfatal_with_name (text)
 
 void
 error (format, arg, arg1)
-     char *format;
-     char *arg;
-     char *arg1;
+     char const *format, *arg, *arg1;
 {
   fprintf (stderr, "%s: ", program);
   fprintf (stderr, format, arg, arg1);
@@ -64,7 +83,7 @@ error (format, arg, arg1)
 
 void
 fatal (m)
-     char *m;
+     char const *m;
 {
   print_message_queue ();
   error ("%s", m, 0);
@@ -76,28 +95,32 @@ fatal (m)
 
 void
 message (format, arg1, arg2)
-     char *format, *arg1, *arg2;
+     char const *format, *arg1, *arg2;
+{
+  message5 (format, arg1, arg2, 0, 0);
+}
+
+void
+message5 (format, arg1, arg2, arg3, arg4)
+     char const *format, *arg1, *arg2, *arg3, *arg4;
 {
   if (paginate_flag)
     {
       struct msg *new = (struct msg *) xmalloc (sizeof (struct msg));
-      if (msg_chain_end == 0)
-	msg_chain = msg_chain_end = new;
-      else
-	{
-	  msg_chain_end->next = new;
-	  msg_chain_end = new;
-	}
       new->format = format;
       new->arg1 = concat (arg1, "", "");
       new->arg2 = concat (arg2, "", "");
+      new->arg3 = arg3 ? concat (arg3, "", "") : 0;
+      new->arg4 = arg4 ? concat (arg4, "", "") : 0;
       new->next = 0;
+      *msg_chain_end = new;
+      msg_chain_end = &new->next;
     }
   else
     {
       if (sdiff_help_sdiff)
 	putchar (' ');
-      printf (format, arg1, arg2);
+      printf (format, arg1, arg2, arg3, arg4);
     }
 }
 
@@ -109,7 +132,7 @@ print_message_queue ()
   struct msg *m;
 
   for (m = msg_chain; m; m = m->next)
-    printf (m->format, m->arg1, m->arg2);
+    printf (m->format, m->arg1, m->arg2, m->arg3, m->arg4);
 }
 
 /* Call before outputting the results of comparing files NAME0 and NAME1
@@ -119,13 +142,13 @@ print_message_queue ()
    we fork off a `pr' and make OUTFILE a pipe to it.
    `pr' then outputs to our stdout.  */
 
-static char *current_name0;
-static char *current_name1;
+static char const *current_name0;
+static char const *current_name1;
 static int current_depth;
 
 void
 setup_output (name0, name1, depth)
-     char *name0, *name1;
+     char const *name0, *name1;
      int depth;
 {
   current_name0 = name0;
@@ -133,6 +156,8 @@ setup_output (name0, name1, depth)
   current_depth = depth;
   outfile = 0;
 }
+
+static pid_t pr_pid;
 
 void
 begin_output ()
@@ -143,49 +168,47 @@ begin_output ()
     return;
 
   /* Construct the header of this piece of diff.  */
-  name = (char *) xmalloc (strlen (current_name0) + strlen (current_name1)
-			   + strlen (switch_string) + 15);
-
-  strcpy (name, "diff");
-  strcat (name, switch_string);
-  strcat (name, " ");
-  strcat (name, current_name0);
-  strcat (name, " ");
-  strcat (name, current_name1);
+  name = xmalloc (strlen (current_name0) + strlen (current_name1)
+		  + strlen (switch_string) + 7);
+  /* Posix.2 section 4.17.6.1.1 specifies this format.  But there are some
+     bugs in the first printing (IEEE Std 1003.2-1992 p 251 l 3304):
+     it says that we must print only the last component of the pathnames,
+     and it requires two spaces after "diff" if there are no options.
+     These requirements are silly and do not match historical practice.  */
+  sprintf (name, "diff%s %s %s", switch_string, current_name0, current_name1);
 
   if (paginate_flag)
     {
       int pipes[2];
-      int desc;
 
-      /* For a `pr' and make OUTFILE a pipe to it.  */
+      /* Fork a `pr' and make OUTFILE a pipe to it.  */
       if (pipe (pipes) < 0)
 	pfatal_with_name ("pipe");
 
       fflush (stdout);
 
-      desc = vfork ();
-      if (desc < 0)
+      pr_pid = vfork ();
+      if (pr_pid < 0)
 	pfatal_with_name ("vfork");
 
-      if (desc == 0)
+      if (pr_pid == 0)
 	{
 	  close (pipes[1]);
-	  if (pipes[0] != fileno (stdin))
+	  if (pipes[0] != STDIN_FILENO)
 	    {
-	      if (dup2 (pipes[0], fileno (stdin)) < 0)
+	      if (dup2 (pipes[0], STDIN_FILENO) < 0)
 		pfatal_with_name ("dup2");
 	      close (pipes[0]);
 	    }
 
-	  if (execl (PR_FILE_NAME, PR_FILE_NAME, "-f", "-h", name, 0) < 0)
-	    pfatal_with_name (PR_FILE_NAME);
+	  execl (PR_FILE_NAME, PR_FILE_NAME, "-f", "-h", name, 0);
+	  pfatal_with_name (PR_FILE_NAME);
 	}
       else
 	{
 	  close (pipes[0]);
 	  outfile = fdopen (pipes[1], "w");
-	} 
+	}
     }
   else
     {
@@ -226,8 +249,25 @@ finish_output ()
 {
   if (outfile != 0 && outfile != stdout)
     {
-      fclose (outfile);
-      wait (0);
+      int wstatus;
+      if (ferror (outfile))
+	fatal ("write error");
+      if (fclose (outfile) != 0)
+	pfatal_with_name ("write error");
+#if HAVE_WAITPID
+      if (waitpid (pr_pid, &wstatus, 0) < 0)
+	pfatal_with_name ("waitpid");
+#else
+      for (;;) {
+	pid_t w = wait (&wstatus);
+	if (w < 0)
+	  pfatal_with_name ("wait");
+	if (w == pr_pid)
+	  break;
+      }
+#endif
+      if (! WIFEXITED (wstatus) || WEXITSTATUS (wstatus) != 0)
+	fatal ("subsidiary pr failed");
     }
 
   outfile = 0;
@@ -235,14 +275,14 @@ finish_output ()
 
 /* Compare two lines (typically one from each input file)
    according to the command line options.
-   Return 1 if the lines differ, like `bcmp'.  */
+   Return 1 if the lines differ, like `memcmp'.  */
 
 int
 line_cmp (s1, len1, s2, len2)
-     const char *s1, *s2;
-     int len1, len2;
+     char const *s1, *s2;
+     size_t len1, len2;
 {
-  register const unsigned char *t1, *t2;
+  register unsigned char const *t1, *t2;
   register unsigned char end_char = line_end_char;
 
   /* Check first for exact identity.
@@ -250,43 +290,41 @@ line_cmp (s1, len1, s2, len2)
      This detects the common case of exact identity
      faster than complete comparison would.  */
 
-  if (len1 == len2 && bcmp (s1, s2, len1) == 0)
+  if (len1 == len2 && memcmp (s1, s2, len1) == 0)
     return 0;
 
   /* Not exactly identical, but perhaps they match anyway
-     when case or whitespace is ignored.  */
+     when case or white space is ignored.  */
 
-  if (ignore_case_flag || ignore_space_change_flag || ignore_all_space_flag)
+  if (ignore_case_flag | ignore_space_change_flag | ignore_all_space_flag)
     {
-      t1 = (const unsigned char *) s1;
-      t2 = (const unsigned char *) s2;
+      t1 = (unsigned char const *) s1;
+      t2 = (unsigned char const *) s2;
 
       while (1)
 	{
 	  register unsigned char c1 = *t1++;
 	  register unsigned char c2 = *t2++;
 
-	  /* Ignore horizontal whitespace if -b or -w is specified.  */
+	  /* Ignore horizontal white space if -b or -w is specified.  */
 
 	  if (ignore_all_space_flag)
 	    {
 	      /* For -w, just skip past any white space.  */
-	      while (Is_space (c1)) c1 = *t1++;
-	      while (Is_space (c2)) c2 = *t2++;
+	      while (isspace (c1) && c1 != end_char) c1 = *t1++;
+	      while (isspace (c2) && c2 != end_char) c2 = *t2++;
 	    }
 	  else if (ignore_space_change_flag)
 	    {
-	      /* For -b, advance past any sequence of whitespace in line 1
+	      /* For -b, advance past any sequence of white space in line 1
 		 and consider it just one Space, or nothing at all
 		 if it is at the end of the line.  */
-	      if (c1 == ' ' || c1 == '\t')
+	      if (isspace (c1))
 		{
-		  while (1)
+		  while (c1 != end_char)
 		    {
 		      c1 = *t1++;
-		      if (c1 == end_char)
-			break;
-		      if (c1 != ' ' && c1 != '\t')
+		      if (! isspace (c1))
 			{
 			  --t1;
 			  c1 = ' ';
@@ -296,14 +334,12 @@ line_cmp (s1, len1, s2, len2)
 		}
 
 	      /* Likewise for line 2.  */
-	      if (c2 == ' ' || c2 == '\t')
+	      if (isspace (c2))
 		{
-		  while (1)
+		  while (c2 != end_char)
 		    {
 		      c2 = *t2++;
-		      if (c2 == end_char)
-			break;
-		      if (c2 != ' ' && c2 != '\t')
+		      if (! isspace (c2))
 			{
 			  --t2;
 			  c2 = ' ';
@@ -364,8 +400,8 @@ find_reverse_change (start)
 void
 print_script (script, hunkfun, printfun)
      struct change *script;
-     struct change * (*hunkfun) ();
-     void (*printfun) ();
+     struct change * (*hunkfun) PARAMS((struct change *));
+     void (*printfun) PARAMS((struct change *));
 {
   struct change *next = script;
 
@@ -380,7 +416,7 @@ print_script (script, hunkfun, printfun)
       /* Disconnect them from the rest of the changes,
 	 making them a hunk, and remember the rest for next iteration.  */
       next = end->link;
-      end->link = NULL;
+      end->link = 0;
 #ifdef DEBUG
       debug_script (this);
 #endif
@@ -399,18 +435,18 @@ print_script (script, hunkfun, printfun)
 
 void
 print_1_line (line_flag, line)
-     const char *line_flag;
-     const char * const *line;
+     char const *line_flag;
+     char const * const *line;
 {
-  const char *text = line[0], *limit = line[1]; /* Help the compiler.  */
+  char const *text = line[0], *limit = line[1]; /* Help the compiler.  */
   FILE *out = outfile; /* Help the compiler some more.  */
-  const char *flag_format = 0;
+  char const *flag_format = 0;
 
   /* If -T was specified, use a Tab between the line-flag and the text.
      Otherwise use a Space (as Unix diff does).
      Print neither space nor tab if line-flags are empty.  */
 
-  if (line_flag != NULL && line_flag[0] != 0)
+  if (line_flag && *line_flag)
     {
       flag_format = tab_align_flag ? "%s\t" : "%s ";
       fprintf (out, flag_format, line_flag);
@@ -418,7 +454,7 @@ print_1_line (line_flag, line)
 
   output_1_line (text, limit, flag_format, line_flag);
 
-  if ((line_flag == NULL || line_flag[0] != 0) && limit[-1] != '\n'
+  if ((!line_flag || line_flag[0]) && limit[-1] != '\n'
       && line_end_char == '\n')
     fprintf (out, "\n\\ No newline at end of file\n");
 }
@@ -430,15 +466,15 @@ print_1_line (line_flag, line)
 
 void
 output_1_line (text, limit, flag_format, line_flag)
-     const char *text, *limit, *flag_format, *line_flag;
+     char const *text, *limit, *flag_format, *line_flag;
 {
   if (!tab_expand_flag)
     fwrite (text, sizeof (char), limit - text, outfile);
   else
     {
       register FILE *out = outfile;
-      register char c;
-      register const char *t = text;
+      register unsigned char c;
+      register char const *t = text;
       register unsigned column = 0;
 
       while (t < limit)
@@ -469,11 +505,8 @@ output_1_line (text, limit, flag_format, line_flag)
 	    break;
 
 	  default:
-	    if (textchar[(unsigned char) c])
+	    if (isprint (c))
 	      column++;
-	    /* fall into */
-	  case '\f':
-	  case '\v':
 	    putc (c, out);
 	    break;
 	  }
@@ -501,7 +534,7 @@ change_letter (inserts, deletes)
 
 int
 translate_line_number (file, lnum)
-     struct file_data *file;
+     struct file_data const *file;
      int lnum;
 {
   return lnum + file->prefix_lines + 1;
@@ -509,7 +542,7 @@ translate_line_number (file, lnum)
 
 void
 translate_range (file, a, b, aptr, bptr)
-     struct file_data *file;
+     struct file_data const *file;
      int a, b;
      int *aptr, *bptr;
 {
@@ -544,7 +577,7 @@ print_number_range (sepchar, file, a, b)
 /* Look at a hunk of edit script and report the range of lines in each file
    that it applies to.  HUNK is the start of the hunk, which is a chain
    of `struct change'.  The first and last line numbers of file 0 are stored in
-   *FIRST0 and *LAST0, and likewise for file 1 in *FIRST1 and *LAST1. 
+   *FIRST0 and *LAST0, and likewise for file 1 in *FIRST1 and *LAST1.
    Note that these are internal line numbers that count from 0.
 
    If no lines from file 0 are deleted, then FIRST0 is LAST0+1.
@@ -560,28 +593,29 @@ analyze_hunk (hunk, first0, last0, first1, last1, deletes, inserts)
      int *first0, *last0, *first1, *last1;
      int *deletes, *inserts;
 {
-  int f0, l0, f1, l1, show_from, show_to;
+  int l0, l1, show_from, show_to;
   int i;
-  int nontrivial = !(ignore_blank_lines_flag || ignore_regexp_list);
+  int trivial = ignore_blank_lines_flag || ignore_regexp_list;
   struct change *next;
 
   show_from = show_to = 0;
 
-  f0 = hunk->line0;
-  f1 = hunk->line1;
+  *first0 = hunk->line0;
+  *first1 = hunk->line1;
 
-  for (next = hunk; next; next = next->link)
+  next = hunk;
+  do
     {
       l0 = next->line0 + next->deleted - 1;
       l1 = next->line1 + next->inserted - 1;
       show_from += next->deleted;
       show_to += next->inserted;
 
-      for (i = next->line0; i <= l0 && ! nontrivial; i++)
+      for (i = next->line0; i <= l0 && trivial; i++)
 	if (!ignore_blank_lines_flag || files[0].linbuf[i][0] != '\n')
 	  {
 	    struct regexp_list *r;
-	    const char *line = files[0].linbuf[i];
+	    char const *line = files[0].linbuf[i];
 	    int len = files[0].linbuf[i + 1] - line;
 
 	    for (r = ignore_regexp_list; r; r = r->next)
@@ -589,15 +623,15 @@ analyze_hunk (hunk, first0, last0, first1, last1, deletes, inserts)
 		break;	/* Found a match.  Ignore this line.  */
 	    /* If we got all the way through the regexp list without
 	       finding a match, then it's nontrivial.  */
-	    if (r == NULL)
-	      nontrivial = 1;
+	    if (!r)
+	      trivial = 0;
 	  }
 
-      for (i = next->line1; i <= l1 && ! nontrivial; i++)
+      for (i = next->line1; i <= l1 && trivial; i++)
 	if (!ignore_blank_lines_flag || files[1].linbuf[i][0] != '\n')
 	  {
 	    struct regexp_list *r;
-	    const char *line = files[1].linbuf[i];
+	    char const *line = files[1].linbuf[i];
 	    int len = files[1].linbuf[i + 1] - line;
 
 	    for (r = ignore_regexp_list; r; r = r->next)
@@ -605,20 +639,19 @@ analyze_hunk (hunk, first0, last0, first1, last1, deletes, inserts)
 		break;	/* Found a match.  Ignore this line.  */
 	    /* If we got all the way through the regexp list without
 	       finding a match, then it's nontrivial.  */
-	    if (r == NULL)
-	      nontrivial = 1;
+	    if (!r)
+	      trivial = 0;
 	  }
     }
+  while ((next = next->link) != 0);
 
-  *first0 = f0;
   *last0 = l0;
-  *first1 = f1;
   *last1 = l1;
 
   /* If all inserted or deleted lines are ignorable,
      tell the caller to ignore this hunk.  */
 
-  if (!nontrivial)
+  if (trivial)
     show_from = show_to = 0;
 
   *deletes = show_from;
@@ -629,7 +662,7 @@ analyze_hunk (hunk, first0, last0, first1, last1, deletes, inserts)
 
 VOID *
 xmalloc (size)
-     unsigned size;
+     size_t size;
 {
   register VOID *value;
 
@@ -639,7 +672,7 @@ xmalloc (size)
   value = (VOID *) malloc (size);
 
   if (!value)
-    fatal ("virtual memory exhausted");
+    fatal ("memory exhausted");
   return value;
 }
 
@@ -648,7 +681,7 @@ xmalloc (size)
 VOID *
 xrealloc (old, size)
      VOID *old;
-     unsigned int size;
+     size_t size;
 {
   register VOID *value;
 
@@ -658,7 +691,7 @@ xrealloc (old, size)
   value = (VOID *) realloc (old, size);
 
   if (!value)
-    fatal ("virtual memory exhausted");
+    fatal ("memory exhausted");
   return value;
 }
 
@@ -666,14 +699,22 @@ xrealloc (old, size)
 
 char *
 concat (s1, s2, s3)
-     char *s1, *s2, *s3;
+     char const *s1, *s2, *s3;
 {
-  int len = strlen (s1) + strlen (s2) + strlen (s3);
-  char *new = (char *) xmalloc (len + 1);
-  strcpy (new, s1);
-  strcat (new, s2);
-  strcat (new, s3);
+  size_t len = strlen (s1) + strlen (s2) + strlen (s3);
+  char *new = xmalloc (len + 1);
+  sprintf (new, "%s%s%s", s1, s2, s3);
   return new;
+}
+
+/* Yield the newly malloc'd pathname
+   of the file in DIR whose filename is FILE.  */
+
+char *
+dir_file_pathname (dir, file)
+     char const *dir, *file;
+{
+  return concat (dir, "/" + (*dir && dir[strlen (dir) - 1] == '/'), file);
 }
 
 void
@@ -690,11 +731,11 @@ debug_script (sp)
 #if !HAVE_MEMCHR
 char *
 memchr (s, c, n)
-     char *s;
+     char const *s;
      int c;
      size_t n;
 {
-  unsigned char *p = (unsigned char *) s, *lim = p + n;
+  unsigned char const *p = (unsigned char const *) s, *lim = p + n;
   for (;  p < lim;  p++)
     if (*p == c)
       return (char *) p;
