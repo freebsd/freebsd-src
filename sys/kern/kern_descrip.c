@@ -677,20 +677,14 @@ ofstat(td, uap)
 	struct thread *td;
 	register struct ofstat_args *uap;
 {
-	register struct filedesc *fdp = td->td_proc->p_fd;
-	register struct file *fp;
+	struct file *fp;
 	struct stat ub;
 	struct ostat oub;
 	int error;
 
 	mtx_lock(&Giant);
-
-	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
-		error = EBADF;
+	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	}
-	fhold(fp);
 	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtstat(&ub, &oub);
@@ -719,22 +713,15 @@ struct fstat_args {
 int
 fstat(td, uap)
 	struct thread *td;
-	register struct fstat_args *uap;
+	struct fstat_args *uap;
 {
-	register struct filedesc *fdp;
-	register struct file *fp;
+	struct file *fp;
 	struct stat ub;
 	int error;
 
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
-
-	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
-		error = EBADF;
+	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	}
-	fhold(fp);
 	error = fo_stat(fp, &ub, td);
 	if (error == 0)
 		error = copyout((caddr_t)&ub, (caddr_t)uap->sb, sizeof (ub));
@@ -762,21 +749,14 @@ nfstat(td, uap)
 	struct thread *td;
 	register struct nfstat_args *uap;
 {
-	register struct filedesc *fdp;
-	register struct file *fp;
+	struct file *fp;
 	struct stat ub;
 	struct nstat nub;
 	int error;
 
 	mtx_lock(&Giant);
-
-	fdp = td->td_proc->p_fd;
-	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
-		error = EBADF;
+	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	}
-	fhold(fp);
 	error = fo_stat(fp, &ub, td);
 	if (error == 0) {
 		cvtnstat(&ub, &nub);
@@ -806,21 +786,13 @@ fpathconf(td, uap)
 	struct thread *td;
 	register struct fpathconf_args *uap;
 {
-	struct filedesc *fdp;
 	struct file *fp;
 	struct vnode *vp;
-	int error = 0;
+	int error;
 
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
-
-	if ((unsigned)uap->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[uap->fd]) == NULL) {
-		error = EBADF;
+	if ((error = fget(td, uap->fd, &fp)) != 0)
 		goto done2;
-	}
-
-	fhold(fp);
 
 	switch (fp->f_type) {
 	case DTYPE_PIPE:
@@ -1333,6 +1305,124 @@ closef(fp, td)
 		    F_UNLCK, &lf, F_POSIX);
 	}
 	return (fdrop(fp, td));
+}
+
+/*
+ * Extract the file pointer associated with the specified descriptor for
+ * the current user process.  If no error occured 0 is returned, *fpp
+ * will be set to the file pointer, and the file pointer's ref count
+ * will be bumped.  Use fdrop() to drop it.  If an error occured the
+ * non-zero error is returned and *fpp is set to NULL.
+ *
+ * This routine requires Giant for the moment.  Once enough of the
+ * system is converted over to this and other encapsulated APIs we
+ * will be able to mutex it and call it without Giant.
+ */
+static __inline
+int
+_fget(struct thread *td, int fd, struct file **fpp, int flags)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+
+	GIANT_REQUIRED;
+	fdp = td->td_proc->p_fd;
+	*fpp = NULL;
+	if ((u_int)fd >= fdp->fd_nfiles)
+		return(EBADF);
+	if ((fp = fdp->fd_ofiles[fd]) == NULL)
+		return(EBADF);
+
+	/*
+	 * Note: FREAD failures returns EBADF to maintain backwards
+	 * compatibility with what routines returned before.
+	 *
+	 * Only one flag, or 0, may be specified.
+	 */
+	if (flags == FREAD && (fp->f_flag & FREAD) == 0)
+		return(EBADF);
+	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0)
+		return(EINVAL);
+	++fp->f_count;
+	*fpp = fp;
+	return(0);
+}
+
+int
+fget(struct thread *td, int fd, struct file **fpp)
+{
+    return(_fget(td, fd, fpp, 0));
+}
+
+int
+fget_read(struct thread *td, int fd, struct file **fpp)
+{
+    return(_fget(td, fd, fpp, FREAD));
+}
+
+int
+fget_write(struct thread *td, int fd, struct file **fpp)
+{
+    return(_fget(td, fd, fpp, FWRITE));
+}
+
+/*
+ * Like fget() but loads the underlying vnode, or returns an error if
+ * the descriptor does not represent a vnode.  Note that pipes use vnodes
+ * but never have VM objects (so VOP_GETVOBJECT() calls will return an
+ * error).  The returned vnode will be vref()d.
+ */
+
+static __inline
+int
+_fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+
+	GIANT_REQUIRED;
+	fdp = td->td_proc->p_fd;
+	*vpp = NULL;
+	if ((u_int)fd >= fdp->fd_nfiles)
+		return(EBADF);
+	if ((fp = fdp->fd_ofiles[fd]) == NULL)
+		return(EBADF);
+	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO)
+		return(EINVAL);
+	if (fp->f_data == NULL)
+		return(EINVAL);
+
+	/*
+	 * Note: FREAD failures returns EBADF to maintain backwards
+	 * compatibility with what routines returned before.
+	 *
+	 * Only one flag, or 0, may be specified.
+	 */
+	if (flags == FREAD && (fp->f_flag & FREAD) == 0)
+		return(EBADF);
+	if (flags == FWRITE && (fp->f_flag & FWRITE) == 0)
+		return(EINVAL);
+	*vpp = (struct vnode *)fp->f_data;
+	vref(*vpp);
+	return(0);
+}
+
+int
+fgetvp(struct thread *td, int fd, struct vnode **vpp)
+{
+	return(_fgetvp(td, fd, vpp, 0));
+}
+
+int
+fgetvp_read(struct thread *td, int fd, struct vnode **vpp)
+{
+	return(_fgetvp(td, fd, vpp, FREAD));
+}
+
+int
+fgetvp_write(struct thread *td, int fd, struct vnode **vpp)
+{
+	return(_fgetvp(td, fd, vpp, FWRITE));
 }
 
 int
