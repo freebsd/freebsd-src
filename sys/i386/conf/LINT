@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.191 1995/08/09 12:58:50 peter Exp $
+#	$Id: LINT,v 1.192 1995/08/11 17:18:42 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -675,7 +675,7 @@ device pca0 at isa? port IO_TIMER1 tty
 #  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
 #  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
 #  The cards can use an IRQ of 11, 12 or 15.
-#  *Do* be ready for trouble is you try to use it.
+#  *Do* be ready for trouble if you try to use it.
 #  It currently works for me (very well) but no guarantees yet.
 
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
