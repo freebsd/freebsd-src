@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.29 1997/06/25 19:32:33 brian Exp $
+ * $Id: main.c,v 1.22.2.30 1997/06/29 13:55:58 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -192,11 +192,11 @@ int excode;
 }
 
 static void
-Hangup(signo)
+CloseConnection(signo)
 int signo;
 {
   /* NOTE, these are manual, we've done a setsid() */
-  LogPrintf(LogPHASE, "Hangup: Caught signal %d, abort connection\n", signo);
+  LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;                  \
   reconnectCount = 0;                   \
   DownConnection();
@@ -366,9 +366,9 @@ char **argv;
 
   tcgetattr(0, &oldtio);		/* Save original tty mode */
 
-  pending_signal(SIGHUP, Hangup);
+  pending_signal(SIGHUP, CloseSession);
   pending_signal(SIGTERM, CloseSession);
-  pending_signal(SIGINT, CloseSession);
+  pending_signal(SIGINT, CloseConnection);
   pending_signal(SIGQUIT, CloseSession);
 #ifdef SIGPIPE
   signal(SIGPIPE, SIG_IGN);
