@@ -243,7 +243,7 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 
 ASSYM(PCB_SIZEOF, sizeof(struct pcb));
-ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
+ASSYM(PCB_UFP, offsetof(struct pcb, pcb_ufp));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
@@ -254,11 +254,6 @@ ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PM_CONTEXT, offsetof(struct pmap, pm_context));
 ASSYM(PM_TSB, offsetof(struct pmap, pm_tsb));
-
-ASSYM(FP_FB0, offsetof(struct fpstate, fp_fb[0]));
-ASSYM(FP_FB1, offsetof(struct fpstate, fp_fb[1]));
-ASSYM(FP_FB2, offsetof(struct fpstate, fp_fb[2]));
-ASSYM(FP_FB3, offsetof(struct fpstate, fp_fb[3]));
 
 ASSYM(CCFSZ, sizeof(struct frame));
 ASSYM(SPOFF, SPOFF);
