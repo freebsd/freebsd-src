@@ -61,4 +61,10 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
     : read_memory_integer ((FRAME)->frame + 4, 4)) \
    ))
 
+/* Sigtramp is not the same address as BSD/OS.. */
+#undef SIGTRAMP_START
+#undef SIGTRAMP_END
+#define SIGTRAMP_START	0xefbfdfc0
+#define SIGTRAMP_END	0xefbfe000
+ 
 #endif  /* TM_FBSD_H */
