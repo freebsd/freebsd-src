@@ -63,7 +63,7 @@
 #define INL	inl	(%dx)
 #define OUTL	outl	(%dx)
 
-#else	wheeze
+#else	/* wheeze */
 #define ALIGN
 #define	LCL(x)	x
 
@@ -74,12 +74,12 @@
 
 #define LBb(x,n) n ## b
 #define LBf(x,n) n ## f
-#else __STDC__
+#else	/* __STDC__ */
 #define EXT(x) _/**/x
 #define LEXT(x) _/**/x/**/:
 #define LBb(x,n) n/**/b
 #define LBf(x,n) n/**/f
-#endif __STDC__
+#endif	/* __STDC__ */
 #define SVC .byte 0x9a; .long 0; .word 0x7
 
 #define String	.ascii
@@ -92,7 +92,7 @@
 #define INL	inl	%dx, %eax
 #define OUTL	outl	%eax, %dx
 
-#endif	wheeze
+#endif	/* wheeze */
 
 #define addr32	.byte 0x67
 #define data32	.byte 0x66
@@ -109,7 +109,7 @@
 #define	ASENTRY(x) 	.globl x; .align ALIGN; x ## : ; \
   			pushl %ebp; movl %esp, %ebp; MCOUNT; popl %ebp;
 
-#else   __STDC__
+#else	/* __STDC__ */
 
 #define MCOUNT		.data; LB(x, 9): .long 0; .text; lea LBb(x, 9),%edx; call mcount
 #define	ENTRY(x)	.globl EXT(x); .align ALIGN; LEXT(x) ; \
@@ -119,8 +119,8 @@
 #define	ASENTRY(x) 	.globl x; .align ALIGN; x: ; \
   			pushl %ebp; movl %esp, %ebp; MCOUNT; popl %ebp;
 
-#endif	__STDC__
-#else	GPROF
+#endif	/* __STDC__ */
+#else	/* GPROF */
 #ifdef	__STDC__
 
 #define MCOUNT
@@ -129,7 +129,7 @@
 			.align ALIGN; LEXT(x) LEXT(y)
 #define	ASENTRY(x)	.globl x; .align ALIGN; x ## :
 
-#else 	__STDC__
+#else	/* __STDC__ */
 
 #define MCOUNT
 #define	ENTRY(x)	.globl EXT(x); .align ALIGN; LEXT(x)
@@ -137,8 +137,8 @@
 			.align ALIGN; LEXT(x) LEXT(y)
 #define	ASENTRY(x)	.globl x; .align ALIGN; x:
 
-#endif	__STDC__
-#endif	GPROF
+#endif	/* __STDC__ */
+#endif	/* GPROF */
 
 #define	Entry(x)	.globl EXT(x); .align ALIGN; LEXT(x)
 #define	DATA(x)		.globl EXT(x); .align ALIGN; LEXT(x)
