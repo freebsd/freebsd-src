@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.18 1995/10/04 03:43:18 julian Exp $
+ * $Id: conf.h,v 1.19 1995/11/04 13:25:32 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -163,9 +163,9 @@ int	unregister_cdev __P((const char *name, const struct cdevsw *cdp));
 #ifdef JREMOD
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw *old));
 int	bdevsw_add __P((dev_t *descrip,struct bdevsw *new,struct bdevsw *old));
-#endif
-#endif
+#endif	/* JREMOD */
 
 #include <machine/conf.h>
+#endif	/* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
