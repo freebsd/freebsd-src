@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.26 1996/09/18 06:09:13 swallace Exp $
+#	$Id: bsd.kmod.mk,v 1.27 1996/10/06 22:10:35 wosch Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -98,10 +98,6 @@ MODUNLOAD?=	/sbin/modunload
 # ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
 # actually lives in /sys directly.
 #
-CWARNFLAGS?= -W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
-	-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-	-Winline -Wunused -Wpointer-arith
-
 CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
 	${CWARNFLAGS}
 
@@ -217,3 +213,4 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
 .include <bsd.obj.mk>
 .include <bsd.dep.mk>
+.include <bsd.kern.mk>
