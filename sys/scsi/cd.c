@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.50 1995/12/10 10:58:20 julian Exp $
+ *      $Id: cd.c,v 1.51 1995/12/10 19:52:51 bde Exp $
  */
 
 #define SPLCD splbio
@@ -45,9 +45,8 @@
 #include <scsi/scsi_disk.h>	/* rw_big and start_stop come from there */
 #include <scsi/scsiconf.h>
 
-
-/* static function prototypes */
 static errval cd_get_parms __P((int, int));
+static u_int32 cd_size __P((int unit, int flags));
 static errval cd_get_mode __P((u_int32, struct cd_mode_data *, u_int32));
 static errval cd_set_mode __P((u_int32 unit, struct cd_mode_data *));
 static errval cd_read_toc __P((u_int32, u_int32, u_int32, struct cd_toc_entry *,
@@ -57,6 +56,7 @@ static errval cd_pause __P((u_int32, u_int32));
 static errval cd_reset __P((u_int32));
 static errval cd_play_msf __P((u_int32, u_int32, u_int32, u_int32, u_int32, u_int32, u_int32));
 static errval cd_play __P((u_int32, u_int32, u_int32));
+static errval cd_play_big __P((u_int32 unit, u_int32 blk, u_int32 len));
 static errval cd_play_tracks __P((u_int32, u_int32, u_int32, u_int32, u_int32));
 static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_sub_channel_info *, u_int32));
 static errval cd_getdisklabel __P((u_int8));
@@ -64,7 +64,6 @@ static errval cd_getdisklabel __P((u_int8));
 static	d_open_t	cdopen;
 static	d_close_t	cdclose;
 static	d_ioctl_t	cdioctl;
-static	d_psize_t	cdsize;
 static	d_strategy_t	cdstrategy;
 
 #define CDEV_MAJOR 15
@@ -72,7 +71,7 @@ static	d_strategy_t	cdstrategy;
 extern	struct	cdevsw	cd_cdevsw;
 static struct bdevsw cd_bdevsw = 
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
-	  nodump,	cdsize,		0,	"cd",	&cd_cdevsw,	-1 };
+	  nodump,	nopsize,	0,	"cd",	&cd_cdevsw,	-1 };
 
 static struct cdevsw cd_cdevsw = 
 	{ cdopen,	cdclose,	rawread,	nowrite,	/*15*/
@@ -269,9 +268,9 @@ cdattach(struct scsi_link *sc_link)
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
-errval
+static errval
 cd_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link)
+	struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
@@ -383,9 +382,9 @@ struct scsi_link *sc_link)
  * close the device.. only called if we are the LAST
  * occurence of an open device
  */
-errval
+static errval
 cd_close(dev_t dev, int flag, int fmt, struct proc *p,
-        struct scsi_link *sc_link)
+	 struct scsi_link *sc_link)
 {
 	u_int8  unit, part;
 	struct scsi_data *cd;
@@ -414,7 +413,7 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
  * understand.  The transfer is described by a buf and will include only one
  * physical transfer.
  */
-void
+static void
 cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32 opri;
@@ -503,7 +502,7 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
  * must be called at the correct (highish) spl level
  * cdstart() is called at SPLCD  from cdstrategy and scsi_done
  */
-void
+static void
 cdstart(unit, flags)
 	u_int32 unit;
 	u_int32 flags;
@@ -600,9 +599,9 @@ cdstart(unit, flags)
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-errval
+static errval
 cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
-struct scsi_link *sc_link)
+	 struct scsi_link *sc_link)
 {
 	errval  error = 0;
 	u_int8  unit, part;
@@ -947,7 +946,7 @@ struct scsi_link *sc_link)
  * EVENTUALLY take information about different
  * data tracks from the TOC and put it in the disklabel
  */
-errval
+static errval
 cd_getdisklabel(unit)
 	u_int8  unit;
 {
@@ -1082,7 +1081,7 @@ cd_get_mode(unit, data, page)
 /*
  * Get the requested page into the buffer given
  */
-errval
+static errval
 cd_set_mode(unit, data)
 	u_int32 unit;
 	struct cd_mode_data *data;
@@ -1108,7 +1107,7 @@ cd_set_mode(unit, data)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval
+static errval
 cd_play(unit, blk, len)
 	u_int32 unit, blk, len;
 {
@@ -1166,7 +1165,7 @@ cd_play_big(unit, blk, len)
 /*
  * Get scsi driver to send a "start playing" command
  */
-errval
+static errval
 cd_play_tracks(unit, strack, sindex, etrack, eindex)
 	u_int32 unit, strack, sindex, etrack, eindex;
 {
@@ -1192,7 +1191,7 @@ cd_play_tracks(unit, strack, sindex, etrack, eindex)
 /*
  * Get scsi driver to send a "play msf" command
  */
-errval
+static errval
 cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
 	u_int32 unit, startm, starts, startf, endm, ends, endf;
 {
@@ -1221,7 +1220,7 @@ cd_play_msf(unit, startm, starts, startf, endm, ends, endf)
 /*
  * Get scsi driver to send a "start up" command
  */
-errval
+static errval
 cd_pause(unit, go)
 	u_int32 unit, go;
 {
@@ -1245,7 +1244,7 @@ cd_pause(unit, go)
 /*
  * Get scsi driver to send a "RESET" command
  */
-errval
+static errval
 cd_reset(unit)
 	u_int32 unit;
 {
@@ -1255,7 +1254,7 @@ cd_reset(unit)
 /*
  * Read subchannel
  */
-errval
+static errval
 cd_read_subchannel(unit, mode, format, track, data, len)
 	u_int32 unit, mode, format;
 	int track;
@@ -1348,12 +1347,6 @@ cd_get_parms(unit, flags)
 	} else {
 		return (ENXIO);
 	}
-}
-
-int
-cdsize(dev_t dev)
-{
-	return (-1);
 }
 
 static cd_devsw_installed = 0;
