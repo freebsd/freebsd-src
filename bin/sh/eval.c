@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.11 1997/02/22 13:58:23 peter Exp $
+ *	$Id: eval.c,v 1.12 1997/04/28 03:06:33 steve Exp $
  */
 
 #ifndef lint
@@ -903,8 +903,8 @@ prehash(n)
 
 int
 bltincmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	listsetvar(cmdenviron);
 	/*
@@ -968,8 +968,8 @@ returncmd(argc, argv)
 
 int
 falsecmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	return 1;
 }
@@ -977,8 +977,8 @@ falsecmd(argc, argv)
 
 int
 truecmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	return 0;
 }
