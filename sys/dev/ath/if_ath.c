@@ -339,15 +339,20 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		&sc->sc_drvbpf);
 	/*
 	 * Initialize constant fields.
+	 * XXX make header lengths a multiple of 32-bits so subsequent
+	 *     headers are properly aligned; this is a kludge to keep
+	 *     certain applications happy.
 	 *
 	 * NB: the channel is setup each time we transition to the
 	 *     RUN state to avoid filling it in for each frame.
 	 */
-	sc->sc_tx_th.wt_ihdr.it_len = sizeof(sc->sc_tx_th);
-	sc->sc_tx_th.wt_ihdr.it_present = ATH_TX_RADIOTAP_PRESENT;
+	sc->sc_tx_th_len = roundup(sizeof(sc->sc_tx_th), sizeof(u_int32_t));
+	sc->sc_tx_th.wt_ihdr.it_len = htole16(sc->sc_tx_th_len);
+	sc->sc_tx_th.wt_ihdr.it_present = htole32(ATH_TX_RADIOTAP_PRESENT);
 
-	sc->sc_rx_th.wr_ihdr.it_len = sizeof(sc->sc_rx_th);
-	sc->sc_rx_th.wr_ihdr.it_present = ATH_RX_RADIOTAP_PRESENT;
+	sc->sc_rx_th_len = roundup(sizeof(sc->sc_rx_th), sizeof(u_int32_t));
+	sc->sc_rx_th.wr_ihdr.it_len = htole16(sc->sc_rx_th_len);
+	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
 
 	return 0;
 bad:
@@ -1726,7 +1731,7 @@ ath_rx_proc(void *arg, int npending)
 			/* XXX TSF */
 
 			bpf_mtap2(sc->sc_drvbpf,
-				&sc->sc_rx_th, sizeof(sc->sc_rx_th), m);
+				&sc->sc_rx_th, sc->sc_rx_th_len, m);
 		}
 
 		m_adj(m, -IEEE80211_CRC_LEN);
@@ -2070,7 +2075,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		sc->sc_tx_th.wt_antenna = antenna;
 
 		bpf_mtap2(sc->sc_drvbpf,
-			&sc->sc_tx_th, sizeof(sc->sc_tx_th), m0);
+			&sc->sc_tx_th, sc->sc_tx_th_len, m0);
 	}
 
 	/*
