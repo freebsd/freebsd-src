@@ -6,7 +6,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd October 30, 1998
+.Dd May 14, 2004
 .Os
 .Dt ENIGMA 1
 .Sh NAME
@@ -74,12 +74,17 @@ little more secure, but incompatible with other implementations.
 The cryptographic value of
 .Nm
 is rather small.  This program is only provided here for compatibility
-with other operating systems that also provide an implementation.  For
-real encryption, refer to
-.Xr bdes 1
-(from the DES distribution package), or
-.Xr pgp 1
-(from the ports collection).  However, restrictions for exporting,
+with other operating systems that also provide an implementation
+(usually called
+.Xr crypt 1
+there).
+For real encryption, refer to
+.Xr bdes 1 ,
+.Xr openssl 1 ,
+.Xr pgp 1 ,
+or
+.Xr gpg 1 .
+However, restrictions for exporting,
 importing or using such tools might exist in some countries, so those
 stronger programs are not being shipped as part of the operating
 system by default.
@@ -106,6 +111,8 @@ enigma XXX < encrypted
 This displays the previously created file on the terminal.
 .Sh SEE ALSO
 .Xr bdes 1 ,
+.Xr gpg 1 ,
+.Xr openssl 1 ,
 .Xr pgp 1 ,
 .Xr ps 1 ,
 .Xr getpass 3
