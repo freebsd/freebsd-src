@@ -130,7 +130,7 @@
     <para>The loader tunable <varname>debug.mpsafevm</varname> has been
       has been enabled by default.</para>
 
-    <para>MemGuard, a kernel memory allocator designed to help detect
+    <para>&man.memguard.9;, a kernel memory allocator designed to help detect
       <quote>tamper-after-free</quote> scenarios, has been added.
       This must be explicitly enabled via <literal>options
       DEBUG_MEMGUARD</literal>, plus small kernel modifications.  It
