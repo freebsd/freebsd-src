@@ -173,7 +173,8 @@ main(int argc, char **argv)
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
 		else {		/* look for the file in the expected places */
 		    if (!(cp = fileFindByPath(NULL, *argv)))
-			warnx("can't find package '%s'", *argv);
+				/* let pkg_do() fail later, so that error is reported */
+				pkgs[ch] = strcpy(pkgnames[ch], *argv);
 		    else {
 			if (s_strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch])))
 			    errx(1, "package name too long");
