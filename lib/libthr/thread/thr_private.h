@@ -211,6 +211,11 @@ struct pthread_mutex {
         spinlock_t                      lock;
 };
 
+struct pthread_spinlock {
+	void *s_owner;
+	unsigned int  s_magic;
+};
+
 /*
  * Flags for mutexes. 
  */

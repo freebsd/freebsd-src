@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 Michael Telahun Makonnen <mtm@FreeBSD.Org>
  * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -33,6 +34,9 @@
  *
  */
 
+#include <sys/types.h>
+#include <machine/atomic.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +47,88 @@
 #include <libc_private.h>
 
 #include "thr_private.h"
+
+#define THR_SPIN_MAGIC		0xdadadada
+#define THR_SPIN_UNOWNED	(void *)0
+#define MAGIC_TEST_RETURN_ON_FAIL(l)					   \
+	do {								   \
+		if ((l) == NULL || (l)->s_magic != THR_SPIN_MAGIC)	   \
+			return (EINVAL);				   \
+	} while(0)
+
+__weak_reference(_pthread_spin_destroy, pthread_spin_destroy);
+__weak_reference(_pthread_spin_init, pthread_spin_init);
+__weak_reference(_pthread_spin_lock, pthread_spin_lock);
+__weak_reference(_pthread_spin_trylock, pthread_spin_trylock);
+__weak_reference(_pthread_spin_unlock, pthread_spin_unlock);
+
+int
+_pthread_spin_destroy(pthread_spinlock_t *lock)
+{
+	MAGIC_TEST_RETURN_ON_FAIL((*lock));
+	if ((*lock)->s_owner == THR_SPIN_UNOWNED) {
+		(*lock)->s_magic = 0;
+		free((*lock));
+		*lock = NULL;
+		return (0);
+	}
+	return (EBUSY);
+}
+
+int
+_pthread_spin_init(pthread_spinlock_t *lock, int pshared)
+{
+	struct pthread_spinlock *s;
+
+	if (*lock != NULL) {
+		if ((*lock)->s_magic == THR_SPIN_MAGIC)
+			return (EBUSY);
+	}
+	s = (struct pthread_spinlock *)malloc(sizeof(struct pthread_spinlock));
+	if (s == NULL)
+		return (ENOMEM);
+	s->s_magic = THR_SPIN_MAGIC;
+	s->s_owner = THR_SPIN_UNOWNED;
+	*lock = s;
+	return (0);
+}
+
+/*
+ * If the caller sets nonblocking to 1, this function will return
+ * immediately without acquiring the lock it is owned by another thread.
+ * If set to 0, it will keep spinning until it acquires the lock.
+ */
+int
+_pthread_spin_lock(pthread_spinlock_t *lock)
+{
+	MAGIC_TEST_RETURN_ON_FAIL(*lock);
+	if ((*lock)->s_owner == curthread)
+		return (EDEADLK);
+        while (atomic_cmpset_acq_ptr(&(*lock)->s_owner, THR_SPIN_UNOWNED,
+            (void *)curthread) != 1)
+		;	/* SPIN */
+	return (0);
+}
+
+int
+_pthread_spin_trylock(pthread_spinlock_t *lock)
+{
+	MAGIC_TEST_RETURN_ON_FAIL(*lock);
+	if (atomic_cmpset_acq_ptr(&(*lock)->s_owner, THR_SPIN_UNOWNED,
+	    (void *)curthread) == 1)
+		return (0);
+	return (EBUSY);
+}
+
+int
+_pthread_spin_unlock(pthread_spinlock_t *lock)
+{
+	MAGIC_TEST_RETURN_ON_FAIL(*lock);
+	if (atomic_cmpset_rel_ptr(&(*lock)->s_owner, (void *)curthread,
+	    THR_SPIN_UNOWNED) == 1)
+		return (0);
+	return (EPERM);
+}
 
 void
 _spinunlock(spinlock_t *lck)
