@@ -8,8 +8,8 @@ if [ -d ${RD}/trees/bin/usr/share/dict ]; then
 fi
 
 for i in airport birthtoken flowers na.phone zipcodes; do
-	if [ -f ${RD}/trees/bin/usr/share/misc/$$i ]; then
-		mv ${RD}/trees/bin/usr/share/misc/$$i
+	if [ -f ${RD}/trees/bin/usr/share/misc/$i ]; then
+		mv ${RD}/trees/bin/usr/share/misc/$i
 			${RD}/trees/dict/usr/share/misc;
 	fi;
 done
