@@ -716,6 +716,7 @@ linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
 	args[2] = tf->tf_edx;
 	args[3] = tf->tf_esi;
 	args[4] = tf->tf_edi;
+	args[5] = tf->tf_ebp;	/* Unconfirmed */
 	*params = NULL;		/* no copyin */
 }
 
