@@ -1,0 +1,980 @@
+.TH ED 1 "21 May 1993"
+.SH NAME
+ed, red \- text editor
+.SH SYNOPSIS
+ed [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
+.LP
+red [-] [-sx] [-p \fIstring\fR] [\fIfile\fR]
+.SH DESCRIPTION
+.B ed
+is a line-oriented text editor.
+It is used to create, display, modify and otherwise manipulate text
+files.
+.B red
+is a restricted
+.BR ed :
+it can only edit files in the current
+directory and cannot execute shell commands.
+
+If invoked with a
+.I file
+argument, then a copy of
+.I file
+is read into the editor's buffer.
+Changes are made to this copy and not directly to
+.I file
+itself.
+Upon quitting
+.BR ed ,
+any changes not explicitly saved  with a
+.I `w'
+command are lost.
+
+Editing is done in two distinct modes:
+.I command
+and
+.IR input .
+When first invoked,
+.B ed
+is in command mode.
+In this mode commands are read from the standard input and
+executed to manipulate the contents of the editor buffer.
+A typical command might look like:
+.sp
+.RS
+,s/\fIold\fR/\fInew\fR/g
+.RE
+.sp
+which replaces all occurences of the string
+.I old
+with
+.IR new .
+
+When an input command, such as
+.I `a'
+(append),
+.I `i'
+(insert) or
+.I `c'
+(change), is given,
+.B ed
+enters input mode.  This is the primary means
+of adding text to a file.
+In this mode, no commands are available;
+instead, the standard input is written
+directly to the editor buffer.  Lines consist of text up to and
+including a
+.IR newline
+character.
+Input mode is terminated by
+entering a single period  (\fI.\fR) on a line.
+
+All
+.B ed
+commands operate on whole lines or ranges of lines; e.g.,
+the
+.I `d'
+command deletes lines; the
+.I `m'
+command moves lines, and so on.
+It is possible to modify only a portion of a line by means of replacement,
+as in the example above.  However even here, the
+.I `s'
+command is applied to whole lines at a time.
+
+In general,
+.B ed
+commands consist of zero or more line addresses, followed by a single
+character command and possibly additional parameters; i.e.,
+commands have the structure:
+.sp
+.RS
+.I [address [,address]]command[parameters]
+.RE
+.sp
+The address(es) indicate the line(s) to be affected by the command.
+If fewer addresses are given than the command accepts, then default
+addresses are supplied.
+
+.SS OPTIONS
+.TP 8
+-s
+Suppresses diagnostics. This should be used if
+.BR ed 's
+standard input is from a script.
+
+.TP 8
+-x
+Prompts for an encryption key to be used in subsequent reads and writes
+(see the
+.I `x'
+command).
+
+.TP 8
+.RI \-p \ string
+Specifies a command prompt.  This may be toggled on and off with the
+.I `P'
+command.
+
+.TP 8
+.I file
+Specifies the name of a file to read.  If
+.I file
+is prefixed with a
+bang (!), then it is interpreted as a shell command.  In this case,
+what is read is
+the standard output of
+.I file
+executed via
+.IR sh (1).
+To read a file whose name begins with a bang, prefix the
+name with a backslash (\\).
+The default filename is set to
+.I file
+only if it is not prefixed with a bang.
+
+.SS LINE ADDRESSING
+An address represents the number of line in the buffer.
+.B ed
+maintains a
+.I current address
+which is
+typically supplied to commands as the default address when none is specified.
+When a file is first read,  the current address is set to the last line
+of the file.  In general, the current address is set to the last line
+affected by a command.
+
+A line address is
+constructed from one of the bases in the list below, optionally followed
+by a numeric offset.  The offset may include any combination
+of digits, operators (i.e.,
+.IR + ,
+.I -
+and
+.IR ^ )
+and whitespace.
+Addresses are read from left to right, and their values are computed
+relative to the current address.
+
+One exception to the rule that addresses represent line numbers is the
+address
+.I 0
+(zero).
+This means "before the first line,"
+and is legal wherever it makes sense.
+
+An address range is two addresses separated either by a comma or
+semi-colon. The value of the first address in a range cannot exceed the
+value of the the second.  If an
+.IR n- tuple
+of addresses is given where
+.I n > 2,
+then the corresponding range is determined by the last two addresses
+in the
+.IR n- tuple.
+If only one address is expected, then the last
+address is used.
+
+Each address in a comma-delimited range is interpreted relative to the
+current address.  In a semi-colon-delimited range, the first address is
+used to set the current address, and the second address is interpreted
+relative to the first.
+
+The following address symbols are recognized.
+
+.TP 8
+\fR.\fR
+The current line (address) in the buffer.
+
+.TP 8
+$
+The last line in the buffer.
+
+.TP 8
+n
+The
+.IR n th,
+line in the buffer
+where
+.I n
+is a number in the range
+.I [0,$].
+
+.TP 8
+- or ^
+The previous line.
+This is equivalent to
+.I -1
+and may be repeated with cumulative effect.
+
+.TP 8
+-\fIn\fR or ^\fIn\fR
+The
+.IR n th
+previous line, where
+.I n
+is a non-negative number.
+
+.TP 8
++
+The
+next line.
+This is equivalent to
+.I +1
+and may be repeated with cumulative effect.
+
+.TP 8
++\fIn\fR or whitespace\fIn\fR
+The
+.IR n th
+next line, where
+.I n
+is a non-negative number.
+.I whitespace
+followed by a number
+.I n
+is interpreted as
+.IR +n .
+
+.TP 8
+, \fRor\fB %
+The first through last lines in the buffer.  This is equivalent to
+the address range
+.I 1,$.
+
+.TP 8
+;
+The
+current through last lines in the buffer.  This is equivalent to
+the address range
+.I .,$.
+
+.TP 8
+.RI / re/
+The
+next line containing the regular expression
+.IR re .
+The search wraps to the beginning of the buffer and continues down to the
+current line, if necessary.
+// repeats the last search.
+
+.TP 8
+.RI ? re?
+The
+previous line containing the regular expression
+.IR re .
+The search wraps to the end of the buffer and continues up to the
+current line, if necessary.
+?? repeats the last search.
+
+.TP 8
+.RI \' lc
+The
+line previously marked by a
+.I `k'
+(mark) command, where
+.I lc
+is a lower case letter.
+
+.SS REGULAR EXPRESSIONS
+Regular expressions are patterns used in selecting text.
+For example, the
+.B ed
+command
+.sp
+.RS
+g/\fIstring\fR/
+.RE
+.sp
+prints all lines containing
+.IR string .
+Regular expressions are also
+used by the
+.I `s'
+command for selecting old text to be replaced with new.
+
+In addition to a specifying string literals, regular expressions can
+represent
+classes of strings.  Strings thus represented are said to be matched
+by the corresponding regular expression.
+If it is possible for a regular expression
+to match several strings in a line, then the left-most longest match is
+the one selected.
+
+The following symbols are used in constructing regular expressions:
+
+.TP 8
+c
+Any character
+.I c
+not listed below, including `{', '}', `(', `)', `<' and `>',
+matches itself.
+
+.TP 8
+\fR\\\fIc\fR
+Any backslash-escaped character
+.IR c ,
+except for `{', '}', `(', `)', `<' and `>',
+matches itself.
+
+.TP 8
+\fR.\fR
+Matches any single character.
+
+.TP 8
+.I [char-class]
+Matches any single character in
+.IR char-class .
+To include a  `]'
+in
+.IR char-class ,
+it must be the first character.
+A range of characters may be specified by separating the end characters
+of the range with a `-', e.g., `a-z' specifies the lower case characters.
+The following literal expressions can also be used in
+.I char-class
+to specify sets of characters:
+.sp
+\ \ [:alnum:]\ \ [:cntrl:]\ \ [:lower:]\ \ [:space:]
+.PD 0
+\ \ [:alpha:]\ \ [:digit:]\ \ [:print:]\ \ [:upper:]
+.PD 0
+\ \ [:blank:]\ \ [:graph:]\ \ [:punct:]\ \ [:xdigit:]
+.sp
+If `-' appears as the first or last
+character of
+.IR char-class ,
+then it matches itself.
+All other characters in
+.I char-class
+match themselves.
+.sp
+Patterns in
+.I char-class
+of the form:
+.sp
+\ \ [.\fIcol-elm\fR.] or,
+.PD 0
+\ \ [=\fIcol-elm\fR=]
+.sp
+where
+.I col-elm
+is a
+.I collating element
+are interpreted according to
+.IR locale (5)
+(not currently supported).
+See
+.IR regex (3)
+for an explanation of these constructs.
+
+.TP 8
+[^\fIchar-class\fR]
+Matches any single character, other than newline, not in
+.IR char-class .
+.IR char-class
+is defined
+as above.
+
+.TP 8
+^
+If `^' is the first character of a regular expression, then it
+anchors the regular expression to the beginning of a line.
+Otherwise, it matches itself.
+
+.TP 8
+$
+If `$' is the last character of a regular expression, it
+anchors the regular expression to the end of a line.
+Otherwise, it matches itself.
+
+.TP 8
+\fR\\<\fR
+Anchors the single character regular expression or subexpression
+immediately following it to the beginning of a word.
+(This may not be available)
+
+.TP 8
+\fR\\>\fR
+Anchors the single character regular expression or subexpression
+immediately following it to the end of a word.
+(This may not be available)
+
+.TP 8
+\fR\\(\fIre\fR\\)\fR
+Defines a subexpression
+.IR re .
+Subexpressions may be nested.
+A subsequent backreference of the form \fI`\\n'\fR, where
+.I n
+is a number in the range [1,9], expands to the text matched by the
+.IR n th
+subexpression.
+For example, the regular expression `\\(.*\\)\\1' matches any string
+consisting of identical adjacent substrings.
+Subexpressions are ordered relative to
+their left delimiter.
+
+.TP 8
+*
+Matches the single character regular expression or subexpression
+immediately preceding it zero or more times.  If '*' is the first
+character of a regular expression or subexpression, then it matches
+itself.  The `*' operator sometimes yields unexpected results.
+For example, the regular expression `b*' matches the beginning of
+the string `abbb' (as opposed to the substring `bbb'), since a null match
+is the only left-most match.
+
+.TP 8
+\fR\\{\fIn,m\fR\\}\fR or \fR\\{\fIn,\fR\\}\fR or \fR\\{\fIn\fR\\}\fR
+Matches the single character regular expression or subexpression
+immediately preceding it at least
+.I n
+and at most
+.I m
+times.
+If
+.I m
+is omitted, then it matches at least
+.I n
+times.
+If the comma is also omitted, then it matches exactly
+.I n
+times.
+
+.LP
+Additional regular expression operators may be defined depending on the
+particular
+.IR regex (3)
+implementation.
+
+.SS COMMANDS
+All
+.B ed
+commands are single characters, though some require additonal parameters.
+If a command's parameters extend over several lines, then
+each line except for the last
+must be terminated with a backslash (\\).
+
+In general, at most one command is allowed per line.
+However, most commands accept a print suffix, which is any of
+.I `p'
+(print),
+.I `l'
+(list) ,
+or
+.I `n'
+(enumerate),
+to print the last line affected by the command.
+
+An interrupt (typically ^C) has the effect of aborting the current command
+and returning the editor to command mode.
+
+.B ed
+recognizes the following commands.  The commands are shown together with
+the default address or address range supplied if none is
+specified (in parenthesis).
+
+.TP 8
+(.)a
+Appends text to the buffer after the addressed line.
+Text is entered in input mode.
+The current address is set to last line entered.
+
+.TP 8
+(.,.)c
+Changes lines in the buffer.  The addressed lines are deleted
+from the buffer, and text is appended in their place.
+Text is entered in input mode.
+The current address is set to last line entered.
+
+.TP 8
+(.,.)d
+Deletes the addressed lines from the buffer.
+If there is a line after the deleted range, then the current address is set
+to this line. Otherwise the current address is set to the line
+before the deleted range.
+
+.TP 8
+.RI e \ file
+Edits
+.IR file ,
+and sets the default filename.
+If
+.I file
+is not specified, then the  default filename is used.
+Any lines in the buffer are deleted before
+the new file is read.
+The current address is set to the last line read.
+
+.TP 8
+.RI e \ !command
+Edits the standard output of
+.IR `!command' ,
+executed as described below.
+The default filename is unchanged.
+Any lines in the buffer are deleted before the output of
+.I command
+is read.
+The current address is set to the last line read.
+
+.TP 8
+.RI E \ file
+Edits
+.I file
+unconditionally.
+This is similar to the
+.I e
+command,
+except that unwritten changes are discarded without warning.
+The current address is set to the last line read.
+
+.TP 8
+.RI f \ file
+Sets the default filename to
+.IR file .
+If
+.I file
+is not specified, then the default unescaped filename is printed.
+
+.TP 8
+.RI (1,$)g /re/command-list
+Applies
+.I command-list
+to each of the addressed lines matching a regular expression
+.IR re .
+The current address is set to the
+line currently matched before
+.I command-list
+is executed.
+At the end of the
+.I `g'
+command, the current address is set to the last line affected by
+.IR command-list .
+
+Each command in
+.I command-list
+must be on a separate line,
+and every line except for the last must be terminated by a backslash
+(\\).
+Any commands are allowed, except for
+.IR `g' ,
+.IR `G' ,
+.IR `v' ,
+and
+.IR `V' .
+A newline alone in
+.I command-list
+is equivalent to a 
+.I `p'
+command.
+
+.TP 8
+.RI (1,$)G /re/
+Interactively edits the addressed lines matching a regular expression
+.IR re.
+For each matching line,
+the line is printed,
+the current address is set,
+and the user is prompted to enter a 
+.IR command-list .
+At the end of the
+.I `G'
+command, the current address
+is set to the last line affected by (the last)
+.IR command-list .
+
+The format of
+.I command-list
+is the same as that of the
+.I `g'
+command.  A newline alone acts as a null command list.
+A single `&' repeats the last non-null command list.
+
+.TP 8
+H
+Toggles the printing of error explanations.
+By default, explanations are not printed.
+It is recommended that ed scripts begin with this command to
+aid in debugging.
+
+.TP 8
+h
+Prints an explanation of the last error.
+
+.TP 8
+(.)i
+Inserts text in the buffer before the current line.
+Text is entered in input mode.
+The current address is set to the last line entered.
+
+.TP 8
+(.,.+1)j
+Joins the addressed lines.  The addressed lines are
+deleted from the buffer and replaced by a single
+line containing their joined text.
+The current address is set to the resultant line.
+
+.TP 8
+.RI (.)k lc
+Marks a line with a lower case letter
+.IR lc .
+The  line can then be addressed as
+.I 'lc
+(i.e., a single quote followed by
+.I lc
+) in subsequent commands.  The mark is not cleared until the line is
+deleted or otherwise modified.
+
+.TP 8
+(.,.)l
+Prints the addressed lines unambiguously.
+The current address is set to the last line
+printed.
+
+.TP 8
+(.,.)m(.)
+Moves lines in the buffer.  The addressed lines are moved to after the
+right-hand destination address, which may be the address
+.IR 0
+(zero).
+The current address is set to the
+last line moved.
+
+.TP 8
+(.,.)n
+Prints the addressed lines along with
+their line numbers.  The current address is set to the last line
+printed.
+
+.TP 8
+(.,.)p
+Prints the addressed lines. The current address is set to the last line
+printed.
+
+.TP 8
+P
+Toggles the command prompt on and off.
+Unless a prompt was specified by with command-line option
+\fI-p string\fR, the command prompt is by default turned off.
+
+.TP 8
+q
+Quits ed.
+
+.TP 8
+Q
+Quits ed unconditionally.
+This is similar to the
+.I q
+command,
+except that unwritten changes are discarded without warning.
+
+.TP 8
+.RI ($)r \ file
+Reads
+.I file
+to after the addressed line.  If
+.I file
+is not specified, then the default
+filename is used.  If there was no default filename prior to the command,
+then the default filename is set to
+.IR file .
+Otherwise, the default filename is unchanged.
+The current address is set to the last line read.
+
+.TP 8
+.RI ($)r \ !command
+Reads
+to after the addressed line
+the standard output of
+.IR `!command' ,
+executed as described below.
+The default filename is unchanged.
+The current address is set to the last line read.
+
+.HP
+.RI (.,.)s /re/replacement/
+.PD 0
+.HP
+.RI (.,.)s  /re/replacement/\fRg\fR
+.HP
+.RI (.,.)s  /re/replacement/n
+.br
+Replaces text in the addressed lines
+matching a regular expression
+.I re
+with
+.IR replacement .
+By default, only the first match in each line is replaced.
+The
+.I `g'
+(global) suffix causes every match to be replaced.
+The
+.I `n'
+suffix, where
+.I n
+is a postive number, causes only the
+.IR n th
+match to be replaced.
+It is an error if no substitutions are performed on any of the addressed
+lines.
+The current address is set the last line affected.
+
+.I re
+and
+.I replacement
+may be delimited by any character other than space and newline.
+If one or two of the last delimiters is omitted, then the last line
+affected is printed as though the print suffix
+.I `p'
+were specified.
+
+
+An unescaped `&' in
+.I replacement
+is replaced by the currently matched text.
+The character sequence
+\fI`\\m'\fR,
+where
+.I m
+is a number in the range [1,9], is replaced by the
+.IR m th
+backreference expression of the matched text.
+If
+.I replacement
+consists of a single `%', then
+.I replacement
+from the last substitution is used.
+Newlines may be embedded in
+.I replacement
+if they are escaped with a backslash (\\).
+
+.TP 8
+(.,.)s
+Repeats the last substitution.
+This form of the
+.I `s'
+command may be suffixed with
+any combination of the characters
+.IR `r' ,
+.IR `g' ,
+and
+.IR `p' .
+The
+.I `r'
+suffix causes
+the regular expression of the last search to be used instead of the
+that of the last substitution.
+The
+.I `g'
+suffix toggles the global suffix of the last substitution.
+The
+.I `p'
+suffix toggles the print suffix of the last substitution
+The current address is set to the last line affected.
+
+.TP 8
+(.,.)t(.)
+Copies (i.e., transfers) the addressed lines to after the right-hand
+destination address, which may be the address
+.IR 0
+(zero).
+The current address is set to the last line
+copied.
+
+.TP 8
+u
+Undoes the last command and restores the current address
+to what it was before the command.
+The global commands
+.IR `g' ,
+.IR `G' ,
+.IR `v' ,
+and
+.IR `V' .
+are treated as a single command by undo.
+.I `u'
+is its own inverse.
+
+.TP 8
+.RI (1,$)v /pat/command-list
+Applies
+.I command-list
+to each of the addressed lines not matching a regular expression
+.IR re .
+This is similar to the
+.I `g'
+command.
+
+.TP 8
+.RI (1,$)V /re/
+Interactively edits the addressed lines not matching a regular expression
+.IR re.
+This is similar to the
+.I `G'
+command.
+
+.TP 8
+.RI (1,$)w \ file
+Writes the addressed lines to
+.IR file .
+Any previous contents of
+.I file
+is lost without warning.
+If there is no default filename, then the default filename is set to
+.IR file,
+otherwise it is unchanged.  If no filename is specified, then the default
+filename is used.
+The current address is unchanged.
+
+.TP 8
+.RI (1,$)wq \ file
+Writes the addressed lines to
+.IR file ,
+and then executes a
+.I `q'
+command.
+
+.TP 8
+.RI (1,$)w \ !command
+Writes the addressed lines to the standard input of
+.IR `!command' ,
+executed as described below.
+The default filename and current address are unchanged.
+
+.TP 8
+.RI (1,$)W \ file
+Appends the addressed lines to the end of
+.IR file .
+This is similar to the
+.I `w'
+command, expect that the previous contents of file is not clobbered.
+The current address is unchanged.
+
+.TP 8
+x
+Prompts for an encryption key which is used in subsequent reads and
+writes.  If a newline alone is entered as the key, then encryption is
+turned off.  Otherwise, echoing is disabled while a key is read.
+Encryption/decryption is done using the bdes(1) algorithm.
+
+.TP 8
+.RI (.+1)z n
+Scrolls
+.I n
+lines at a time starting at addressed line.  If
+.I n
+is not specified, then the current window size is used.
+The current address is set to the last line printed.
+
+.TP 8
+.RI ! command
+Executes
+.I command
+via
+.IR sh (1).
+If the first character of
+.I command
+is `!', then it is replaced by text of the
+previous
+.IR `!command' .
+.B ed
+does not process
+.I command
+for backslash (\\) escapes.
+However, an unescaped
+.I `%'
+is replaced by the default filename.
+When the shell returns from execution, a `!'
+is printed to the standard output.
+The current line is unchanged.
+
+.TP 8
+.RI (.,.)! command
+Replaces the addressed lines with the output of
+.I `!command'
+as described above.
+The current address is set to the last line read.
+
+.TP 8
+($)=
+Prints the line number of the addressed line.
+
+.TP 8
+(.+1)newline
+Prints the addressed line, and sets the current address to
+that line.
+
+.SH FILES
+.TP 20
+/tmp/ed.*
+Buffer file
+.PD 0
+.TP 20
+\fR./ed.hup\fR, $HOME/ed.hup
+First and second files to which
+.B ed
+attempts to write the  buffer if the terminal hangs up.
+
+.SH SEE ALSO
+
+.IR vi (1),
+.IR sed (1),
+.IR regex (3),
+.IR bdes (1),
+.IR sh (1).
+
+USD:12-13
+
+B. W. Kernighan and P. J. Plauger,
+.I Software Tools in Pascal ,
+Addison-Wesley, 1981.
+
+.SH LIMITATIONS
+.B ed
+processes
+.I file
+arguments for backslash escapes, i.e.,  in a filename,
+any characters preceded by a backslash (\\) are
+interpreted literally.
+
+If a text (non-binary) file is not terminated by a newline character,
+then
+.B ed
+appends one on reading/writing it.  In the case of a binary file,
+.B ed
+does not append a newline on reading/writing.
+
+per line overhead: 4 ints
+
+.SH DIAGNOSTICS
+When an error occurs,
+.B ed
+prints a `?' and either returns to command mode
+or exits if its input is from a script.
+An explanation of the last error can be
+printed with the
+.I `h'
+(help) command.
+
+Since the 
+.I `g'
+(global) command  masks any errors from failed searches and substitutions,
+it can be used to perform conditional operations in scripts; e.g.,
+.sp
+.RS
+g/\fIold\fR/s//\fInew\fR/
+.RE
+.sp
+replaces any occurrences of
+.I old
+with
+.IR new .
+
+If diagnostics are not disabled, attempting to quit
+.B ed
+or edit another file before writing a modified buffer
+results in an error.
+If the command is entered a second time, it succeeds,
+but any changes to the buffer are lost.

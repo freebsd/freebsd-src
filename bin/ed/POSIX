@@ -1,0 +1,50 @@
+This version of ed is not strictly POSIX compliant, as described in the
+POSIX 1003.2 Draft 11.2 document.  BSD commands have been implemented
+wherever they do not conflict with the POSIX standard.  For backwards
+compatibility, the POSIX rule that says a range of addresses cannot be
+used where only a single address is expected has been relaxed.
+
+The BSD commands included are:
+	1) `s' (i.e., s[rgp]*) to repeat a previous substitution,
+	2) `W' for appending text to an existing file,
+	3) `wq' for exiting after a write, and
+	4) `z' for scrolling through the buffer.
+BSD line addressing syntax (i.e., `^' and `%').  is also recognized.
+
+The POSIX interactive global commands `G' and `V' are extended to support
+multiple commands, including `a', `i' and `c'.  The command format is the
+same as for the global commands `g' and `v', i.e., one command per line
+with each line, except for the last, ending in a backslash (\).
+
+If crypt is available, files can be read and written using DES encryption.
+The `x' command prompts the user to enter a key used for encrypting/
+decrypting subsequent reads and writes.  If only a newline is entered as
+the key, then encryption is disabled.  Otherwise, a key is read in the
+same manner as a password entry.  The key remains in effect until
+encryption is disabled.  For more information on the encryption algorithm,
+see the bdes(1) man page.  Encryption/decryption should be fully compatible
+with SunOS DES.
+
+An extension to the POSIX file commands `E', `e', `r', `W' and `w' is that
+<file> arguments are processed for backslash escapes, i.e.,  any character
+preceded by a backslash is interpreted literally.  If the first unescaped
+character of a <file> argument is a bang (!), then the rest of the line
+is interpreted as a shell command, and no escape processing is performed
+by ed.
+
+The vi editor's bang command syntax is supported, i.e.,
+(addr1,addr2) !<shell-cmd> replaces the addressed lines with the output of 
+	the command <shell-cmd>.
+[rwe] !! reads/writes/edits the previous !<shell-cmd>.
+
+If ed is invoked with a name argument prefixed by a bang, then the
+remainder of the argument is interpreted as a shell command.  To invoke
+ed on a file whose name starts with bang, prefix the name with a backslash.
+
+ed runs in restricted mode if invoked as red.  This limits editing of
+files in the local directory only and prohibits !<shell-cmd> commands.
+
+Though ed is not a binary editor, it can be used (if painfully) to edit
+binary files.  To assist in binary editing, when a file containing at
+least one ASCII NUL character is written, a newline is not appended
+if it did not already contain one upon reading.
