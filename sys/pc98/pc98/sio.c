@@ -1948,6 +1948,7 @@ open_top:
 		 * XXX we should goto open_top if comparam() slept.
 		 */
 		if (com->hasfifo) {
+			int i;
 			/*
 			 * (Re)enable and drain fifos.
 			 *
@@ -1959,7 +1960,7 @@ open_top:
 			 * and to handle races between enabling and fresh
 			 * input.
 			 */
-			while (TRUE) {
+			for (i = 0; i < 500; i++) {
 				sio_setreg(com, com_fifo,
 					   FIFO_RCV_RST | FIFO_XMT_RST
 					   | com->fifo_image);
@@ -1991,6 +1992,10 @@ open_top:
 				sio_setreg(com, com_fifo, 0);
 				DELAY(50);
 				(void) inb(com->data_port);
+			}
+			if (i == 500) {
+				error = EIO;
+				goto out;
 			}
 		}
 
