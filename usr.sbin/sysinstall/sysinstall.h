@@ -415,6 +415,7 @@ extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogM
 				  int (*check)(dialogMenuItem *d));
 extern void	deviceGetAll(void);
 extern Device	**deviceFind(char *name, DeviceType type);
+extern Device	**deviceFindDescr(char *name, char *desc, DeviceType class);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
