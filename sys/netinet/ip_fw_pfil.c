@@ -59,6 +59,8 @@
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
+#include <netgraph/ng_ipfw.h>
+
 #include <machine/in_cksum.h>
 
 static	int ipfw_pfil_hooked = 0;
@@ -68,6 +70,9 @@ ip_dn_ruledel_t	*ip_dn_ruledel_ptr = NULL;
 
 /* Divert hooks. */
 ip_divert_packet_t *ip_divert_ptr = NULL;
+
+/* ng_ipfw hooks. */
+ng_ipfw_input_t *ng_ipfw_input_p = NULL;
 
 /* Forward declarations. */
 static int	ipfw_divert(struct mbuf **, int, int);
@@ -79,6 +84,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ip_fw_args args;
+	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
@@ -102,6 +108,15 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		args.rule = dt->rule;
 
 		m_tag_delete(*m0, dn_tag);
+	}
+
+	ng_tag = (struct ng_ipfw_tag *)m_tag_locate(*m0, NGM_IPFW_COOKIE, 0,
+	    NULL);
+	if (ng_tag != NULL) {
+		KASSERT(ng_tag->dir == NG_IPFW_IN,
+		    ("ng_ipfw tag with wrong direction"));
+		args.rule = ng_tag->rule;
+		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
 
 again:
@@ -156,6 +171,17 @@ again:
 		} else
 			goto again;	/* continue with packet */
 
+	case IP_FW_NGTEE:
+		if (!NG_IPFW_LOADED)
+			goto drop;
+		(void)ng_ipfw_input_p(m0, NG_IPFW_IN, &args, 1);
+		goto again;		/* continue with packet */
+
+	case IP_FW_NETGRAPH:
+		if (!NG_IPFW_LOADED)
+			goto drop;
+		return ng_ipfw_input_p(m0, NG_IPFW_IN, &args, 0);
+
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
@@ -174,6 +200,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ip_fw_args args;
+	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
 	int ipfw = 0;
 	int divert;
@@ -197,6 +224,15 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 		args.rule = dt->rule;
 
 		m_tag_delete(*m0, dn_tag);
+	}
+
+	ng_tag = (struct ng_ipfw_tag *)m_tag_locate(*m0, NGM_IPFW_COOKIE, 0,
+	    NULL);
+	if (ng_tag != NULL) {
+		KASSERT(ng_tag->dir == NG_IPFW_OUT,
+		    ("ng_ipfw tag with wrong direction"));
+		args.rule = ng_tag->rule;
+		m_tag_delete(*m0, (struct m_tag *)ng_tag);
 	}
 
 again:
@@ -257,6 +293,17 @@ again:
 			return 0;	/* packet consumed */
 		} else
 			goto again;	/* continue with packet */
+
+	case IP_FW_NGTEE:
+		if (!NG_IPFW_LOADED)
+			goto drop;
+		(void)ng_ipfw_input_p(m0, NG_IPFW_OUT, &args, 1);
+		goto again;		/* continue with packet */
+
+	case IP_FW_NETGRAPH:
+		if (!NG_IPFW_LOADED)
+			goto drop;
+		return ng_ipfw_input_p(m0, NG_IPFW_OUT, &args, 0);
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));

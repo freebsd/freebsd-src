@@ -138,6 +138,12 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
 	O_TCPDATALEN,		/* arg1 = tcp data len		*/
 
+	/*
+	 * actions for ng_ipfw
+	 */
+	O_NETGRAPH,		/* send to ng_ipfw		*/
+	O_NGTEE,		/* copy to ng_ipfw		*/
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -425,6 +431,7 @@ enum {
 	IP_FW_TEE,
 	IP_FW_DUMMYNET,
 	IP_FW_NETGRAPH,
+	IP_FW_NGTEE,
 };
 
 /* flags for divert mtag */

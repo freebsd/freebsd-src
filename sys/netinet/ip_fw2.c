@@ -77,6 +77,9 @@
 #include <netinet/tcpip.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <netgraph/ng_ipfw.h>
+
 #include <altq/if_altq.h>
 
 #ifdef IPSEC
@@ -648,6 +651,14 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 				snprintf(SNPARGS(action2, len), ":%d",
 				    sa->sa.sin_port);
 			}
+			break;
+		case O_NETGRAPH:
+			snprintf(SNPARGS(action2, 0), "Netgraph %d",
+				cmd->arg1);
+			break;
+		case O_NGTEE:
+			snprintf(SNPARGS(action2, 0), "Ngtee %d",
+				cmd->arg1);
 			break;
 		default:
 			action = "UNKNOWN";
@@ -2528,6 +2539,14 @@ check_body:
 				retval = IP_FW_PASS;
 				goto done;
 
+			case O_NETGRAPH:
+			case O_NGTEE:
+				args->rule = f;	/* report matching rule */
+				args->cookie = cmd->arg1;
+				retval = (cmd->opcode == O_NETGRAPH) ?
+				    IP_FW_NETGRAPH : IP_FW_NGTEE;
+				goto done;
+
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
 			} /* end of switch() on opcodes */
@@ -3107,6 +3126,10 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_DIVERT:
 		case O_TEE:
 			if (ip_divert_ptr == NULL)
+				return EINVAL;
+		case O_NETGRAPH:
+		case O_NGTEE:
+			if (!NG_IPFW_LOADED)
 				return EINVAL;
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
