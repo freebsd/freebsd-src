@@ -421,7 +421,10 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 static int
 vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
+	int unit;
 	struct ifvlan *ifv = ifp->if_softc;
+
+	unit = ifp->if_dunit;
 
 	VLAN_LOCK();
 	LIST_REMOVE(ifv, ifv_list);
@@ -431,6 +434,8 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	ether_ifdetach(ifp);
 
 	free(ifv, M_VLAN);
+
+	ifc_free_unit(ifc, unit);
 
 	return (0);
 }
