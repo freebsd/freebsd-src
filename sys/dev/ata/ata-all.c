@@ -768,11 +768,12 @@ ata_reset(struct ata_channel *ch)
 	if (stat0 & ATA_S_BUSY) {
 	    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	    DELAY(10);
+
+	    /* check for ATAPI signature while its still there */
+	    lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
+	    msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
 	    stat0 = ATA_INB(ch->r_io, ATA_STATUS);
 	    if (!(stat0 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
-		msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
 		if (bootverbose)
 		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
 		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
@@ -782,11 +783,12 @@ ata_reset(struct ata_channel *ch)
 	if (stat1 & ATA_S_BUSY) {
 	    ATA_OUTB(ch->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
+
+	    /* check for ATAPI signature while its still there */
+	    lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
+	    msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
 	    stat1 = ATA_INB(ch->r_io, ATA_STATUS);
 	    if (!(stat1 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		lsb = ATA_INB(ch->r_io, ATA_CYL_LSB);
-		msb = ATA_INB(ch->r_io, ATA_CYL_MSB);
 		if (bootverbose)
 		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
 		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
