@@ -1284,6 +1284,8 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	return (reboot(td, &bsd_args));
 }
 
+#ifndef __alpha__
+
 /*
  * The FreeBSD native getpid(2), getgid(2) and getuid(2) also modify
  * td->td_retval[1] when COMPAT_43 or COMPAT_SUNOS is defined. This
@@ -1319,6 +1321,8 @@ linux_getuid(struct thread *td, struct linux_getuid_args *args)
 	td->td_retval[0] = td->td_proc->p_ucred->cr_ruid;
 	return (0);
 }
+
+#endif /*!__alpha__*/
 
 int
 linux_getsid(struct thread *td, struct linux_getsid_args *args)
