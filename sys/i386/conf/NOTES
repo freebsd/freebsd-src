@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.455 1998/08/27 01:30:53 obrien Exp $
+#	$Id: LINT,v 1.456 1998/08/27 02:37:11 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1444,6 +1444,41 @@ device		pcic1 at card?
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options		POWERFAIL_NMI	# make it beep instead of panicing
+
+#
+# SMB bus
+#
+# System Management Bus support provided by the 'smbus' device.
+#
+# Supported devices:
+# smb	standard io
+#
+# Supported interfaces:
+# iicsmb I2C to SMB bridge
+#
+controller smbus0
+
+device smb0	at smbus?
+
+#
+# I2C Bus
+#
+# Philips i2c bus support is provided by the `iicbus' device.
+#
+# Supported devices:
+# ic	i2c network interface
+# iic	i2c standard io
+#
+# Supported interfaces:
+# pcf	Philips PCF8584 ISA-bus controller
+#
+controller iicbus0
+
+device ic0	at iicbus?
+device iic0	at iicbus?
+device iicsmb0	at iicbus?
+
+controller pcf0	at isa? port 0x320 net irq 5 vector pcfintr
 
 #
 # Parallel-Port Bus
