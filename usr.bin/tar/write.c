@@ -165,6 +165,8 @@ tar_mode_c(struct bsdtar *bsdtar)
 		archive_write_set_bytes_per_block(a, DEFAULT_BYTES_PER_BLOCK);
 
 	switch (bsdtar->create_compression) {
+	case 0:
+		break;
 	case 'j': case 'y':
 		archive_write_set_compression_bzip2(a);
 		break;
