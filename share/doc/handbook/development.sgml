@@ -1,4 +1,4 @@
-<!-- $Id: development.sgml,v 1.6 1996/10/18 17:33:20 asami Exp $ -->
+<!-- $Id: development.sgml,v 1.7 1996/11/05 11:44:48 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The FreeBSD development model<label id="development"></heading>
@@ -35,7 +35,7 @@ to numerous mirror machines throughout the world.  The CVS tree, as well
 as the <ref id="current" name="-current"> and <ref id="stable"
 name="-stable"> trees which are checked out of it, can be easily
 replicated to your own machine as well.  Please refer to the
-<ref id="synching" name="Syncronizing your source tree">
+<ref id="synching" name="Synchronizing your source tree">
 section for more information on doing this.</item>
 
 <item><bf>The committers list</bf><label id="development:committers">
@@ -68,7 +68,7 @@ name="areas of responsibility">, meaning that they are committed to
 ensuring that some large portion of the system works as advertised.
 Note that most members of the core team are volunteers when it comes
 to FreeBSD development and do not benefit from the project
-financially, so "committment" should also not be misconstrued as
+financially, so "commitment" should also not be misconstrued as
 meaning "guaranteed support."  The ``board of directors'' analogy
 above is not actually very accurate, and it may be more suitable to
 say that these are the people who gave up their lives in favor of
@@ -84,7 +84,7 @@ more non-centralized development is to subscribe to the &a.hackers;
 (see <ref id="eresources:mail" name="mailing list info">) where such
 things are discussed.
 
-<ref id="contrib:additional" name="The list"> of those who've
+<ref id="contrib:additional" name="The list"> of those who have
 contributed something which made its way into our source tree is
 a long and growing one, so why not join it by contributing something
 back to FreeBSD today? <tt>:-)</tt>
