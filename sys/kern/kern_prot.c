@@ -73,9 +73,12 @@ struct getpid_args {
 #endif
 
 /*
- * getpid - MP SAFE
+ * getpid
  */
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getpid(p, uap)
@@ -83,17 +86,19 @@ getpid(p, uap)
 	struct getpid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	PROC_LOCK(p);
 	p->p_retval[1] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 #endif
+	mtx_unlock(&Giant);
 	return (0);
 }
 
 /*
- * getppid - MP SAFE
+ * getppid
  */
 
 #ifndef _SYS_SYSPROTO_H_
@@ -101,6 +106,9 @@ struct getppid_args {
         int     dummy;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getppid(p, uap)
@@ -108,9 +116,11 @@ getppid(p, uap)
 	struct getppid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	p->p_retval[0] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -124,14 +134,18 @@ struct getpgrp_args {
         int     dummy;
 };
 #endif
-
+/*
+ * MPSAFE
+ */
 int
 getpgrp(p, uap)
 	struct proc *p;
 	struct getpgrp_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_pgrp->pg_id;
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -142,27 +156,35 @@ struct getpgid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 getpgid(p, uap)
 	struct proc *p;
 	struct getpgid_args *uap;
 {
 	struct proc *pt;
-	int error;
+	int error = 0;
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0)
 		p->p_retval[0] = p->p_pgrp->pg_id;
 	else {
-		if ((pt = pfind(uap->pid)) == NULL)
-			return ESRCH;
+		if ((pt = pfind(uap->pid)) == NULL) {
+			error = ESRCH;
+			goto done2;
+		}
 		if ((error = p_cansee(p, pt))) {
 			PROC_UNLOCK(pt);
-			return (error);
+			goto done2;
 		}
 		p->p_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
 	}
-	return 0;
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -174,27 +196,35 @@ struct getsid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 getsid(p, uap)
 	struct proc *p;
 	struct getsid_args *uap;
 {
 	struct proc *pt;
-	int error;
+	int error = 0;
 
-	if (uap->pid == 0)
+	mtx_lock(&Giant);
+	if (uap->pid == 0) {
 		p->p_retval[0] = p->p_session->s_sid;
-	else {
-		if ((pt = pfind(uap->pid)) == NULL)
-			return ESRCH;
+	} else {
+		if ((pt = pfind(uap->pid)) == NULL) {
+			error = ESRCH;
+			goto done2;
+		}
 		if ((error = p_cansee(p, pt))) {
 			PROC_UNLOCK(pt);
-			return (error);
+			goto done2;
 		}
 		p->p_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
 	}
-	return 0;
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 
@@ -207,6 +237,9 @@ struct getuid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getuid(p, uap)
@@ -214,10 +247,12 @@ getuid(p, uap)
 	struct getuid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_ucred->cr_ruid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	p->p_retval[1] = p->p_ucred->cr_uid;
 #endif
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -237,7 +272,9 @@ geteuid(p, uap)
 	struct geteuid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_ucred->cr_uid;
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -250,6 +287,9 @@ struct getgid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getgid(p, uap)
@@ -257,10 +297,12 @@ getgid(p, uap)
 	struct getgid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_ucred->cr_rgid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	p->p_retval[1] = p->p_ucred->cr_groups[0];
 #endif
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -275,6 +317,9 @@ struct getegid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getegid(p, uap)
@@ -282,7 +327,9 @@ getegid(p, uap)
 	struct getegid_args *uap;
 {
 
+	mtx_lock(&Giant);
 	p->p_retval[0] = p->p_ucred->cr_groups[0];
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -292,27 +339,38 @@ struct getgroups_args {
 	gid_t	*gidset;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 getgroups(p, uap)
 	struct proc *p;
 	register struct	getgroups_args *uap;
 {
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred;
 	u_int ngrp;
-	int error;
+	int error = 0;
 
+	mtx_lock(&Giant);
+	cred = p->p_ucred;
 	if ((ngrp = uap->gidsetsize) == 0) {
 		p->p_retval[0] = cred->cr_ngroups;
-		return (0);
+		error = 0;
+		goto done2;
 	}
-	if (ngrp < cred->cr_ngroups)
-		return (EINVAL);
+	if (ngrp < cred->cr_ngroups) {
+		error = EINVAL;
+		goto done2;
+	}
 	ngrp = cred->cr_ngroups;
 	if ((error = copyout((caddr_t)cred->cr_groups,
-	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t))))
-		return (error);
+	    (caddr_t)uap->gidset, ngrp * sizeof(gid_t)))) {
+		goto done2;
+	}
 	p->p_retval[0] = ngrp;
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -321,20 +379,27 @@ struct setsid_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setsid(p, uap)
 	register struct proc *p;
 	struct setsid_args *uap;
 {
+	int error;
 
+	mtx_lock(&Giant);
 	if (p->p_pgid == p->p_pid || pgfind(p->p_pid)) {
-		return (EPERM);
+		error = EPERM;
 	} else {
 		(void)enterpgrp(p, p->p_pid, 1);
 		p->p_retval[0] = p->p_pid;
-		return (0);
+		error = 0;
 	}
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -356,6 +421,9 @@ struct setpgid_args {
 	int	pgid;	/* target pgrp id */
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setpgid(curp, uap)
@@ -368,24 +436,30 @@ setpgid(curp, uap)
 
 	if (uap->pgid < 0)
 		return (EINVAL);
+
+	mtx_lock(&Giant);
+
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == NULL || !inferior(targp)) {
 			if (targp)
 				PROC_UNLOCK(targp);
-			return (ESRCH);
+			error = ESRCH;
+			goto done2;
 		}
 		if ((error = p_cansee(curproc, targp))) {
 			PROC_UNLOCK(targp);
-			return (error);
+			goto done2;
 		}
 		if (targp->p_pgrp == NULL ||
 		    targp->p_session != curp->p_session) {
 			PROC_UNLOCK(targp);
-			return (EPERM);
+			error = EPERM;
+			goto done2;
 		}
 		if (targp->p_flag & P_EXEC) {
 			PROC_UNLOCK(targp);
-			return (EACCES);
+			error = EACCES;
+			goto done2;
 		}
 	} else {
 		targp = curp;
@@ -393,19 +467,25 @@ setpgid(curp, uap)
 	}
 	if (SESS_LEADER(targp)) {
 		PROC_UNLOCK(targp);
-		return (EPERM);
+		error = EPERM;
+		goto done2;
 	}
-	if (uap->pgid == 0)
+	if (uap->pgid == 0) {
 		uap->pgid = targp->p_pid;
-	else if (uap->pgid != targp->p_pid)
+	} else if (uap->pgid != targp->p_pid) {
 		if ((pgrp = pgfind(uap->pgid)) == 0 ||
 	            pgrp->pg_session != curp->p_session) {
 			PROC_UNLOCK(targp);
-			return (EPERM);
+			error = EPERM;
+			goto done2;
 		}
+	}
 	/* XXX: We should probably hold the lock across enterpgrp. */
 	PROC_UNLOCK(targp);
-	return (enterpgrp(targp, uap->pgid, 0));
+	error = enterpgrp(targp, uap->pgid, 0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -425,6 +505,9 @@ struct setuid_args {
 	uid_t	uid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setuid(p, uap)
@@ -433,10 +516,12 @@ setuid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	uid_t uid;
-	int error;
+	int error = 0;
 
 	uid = uap->uid;
 	oldcred = p->p_ucred;
+	mtx_lock(&Giant);
+
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
@@ -462,7 +547,7 @@ setuid(p, uap)
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
 	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
-		return (error);
+		goto done2;
 
 	newcred = crdup(oldcred);
 #ifdef _POSIX_SAVED_IDS
@@ -507,7 +592,9 @@ setuid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -515,6 +602,9 @@ struct seteuid_args {
 	uid_t	euid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 seteuid(p, uap)
@@ -523,14 +613,17 @@ seteuid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	uid_t euid;
-	int error;
+	int error = 0;
 
 	euid = uap->euid;
+
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+		goto done2;
+	}
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
 	 * not see our changes.
@@ -542,7 +635,9 @@ seteuid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -550,6 +645,9 @@ struct setgid_args {
 	gid_t	gid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setgid(p, uap)
@@ -558,9 +656,11 @@ setgid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	gid_t gid;
-	int error;
+	int error = 0;
 
 	gid = uap->gid;
+
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
@@ -580,8 +680,9 @@ setgid(p, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+		goto done2;
+	}
 
 	newcred = crdup(oldcred);
 #ifdef _POSIX_SAVED_IDS
@@ -625,7 +726,9 @@ setgid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -633,6 +736,9 @@ struct setegid_args {
 	gid_t	egid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setegid(p, uap)
@@ -641,14 +747,17 @@ setegid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	gid_t egid;
-	int error;
+	int error = 0;
 
 	egid = uap->egid;
+
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT))) {
+		goto done2;
+	}
 	newcred = crdup(oldcred);
 	if (oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -656,7 +765,9 @@ setegid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -665,6 +776,9 @@ struct setgroups_args {
 	gid_t	*gidset;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setgroups(p, uap)
@@ -675,12 +789,16 @@ setgroups(p, uap)
 	u_int ngrp;
 	int error;
 
+	mtx_lock(&Giant);
+
 	ngrp = uap->gidsetsize;
 	oldcred = p->p_ucred;
 	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)))
-		return (error);
-	if (ngrp > NGROUPS)
-		return (EINVAL);
+		goto done2;
+	if (ngrp > NGROUPS) {
+		error = EINVAL;
+		goto done2;
+	}
 	/*
 	 * XXX A little bit lazy here.  We could test if anything has
 	 * changed before crcopy() and setting P_SUGID.
@@ -698,14 +816,16 @@ setgroups(p, uap)
 		if ((error = copyin((caddr_t)uap->gidset,
 		    (caddr_t)newcred->cr_groups, ngrp * sizeof(gid_t)))) {
 			crfree(newcred);
-			return (error);
+			goto done2;
 		}
 		newcred->cr_ngroups = ngrp;
 	}
 	setsugid(p);
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -714,6 +834,9 @@ struct setreuid_args {
 	uid_t	euid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setreuid(p, uap)
@@ -722,17 +845,21 @@ setreuid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	uid_t ruid, euid;
-	int error;
+	int error = 0;
 
 	ruid = uap->ruid;
 	euid = uap->euid;
+
+	mtx_lock(&Giant);
+
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+		goto done2;
+	}
 	newcred = crdup(oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
@@ -749,7 +876,9 @@ setreuid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -758,6 +887,9 @@ struct setregid_args {
 	gid_t	egid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setregid(p, uap)
@@ -766,17 +898,21 @@ setregid(p, uap)
 {
 	struct ucred *newcred, *oldcred;
 	gid_t rgid, egid;
-	int error;
+	int error = 0;
 
 	rgid = uap->rgid;
 	egid = uap->egid;
+
+	mtx_lock(&Giant);
+
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+		goto done2;
+	}
 
 	newcred = crdup(oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
@@ -794,7 +930,9 @@ setregid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -809,6 +947,9 @@ struct setresuid_args {
 	uid_t	suid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setresuid(p, uap)
@@ -822,6 +963,8 @@ setresuid(p, uap)
 	ruid = uap->ruid;
 	euid = uap->euid;
 	suid = uap->suid;
+
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	     ruid != oldcred->cr_svuid &&
@@ -832,8 +975,9 @@ setresuid(p, uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
-		return (error);
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+		goto done2;
+	}
 
 	newcred = crdup(oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
@@ -850,7 +994,10 @@ setresuid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+	error = 0;
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -865,6 +1012,9 @@ struct setresgid_args {
 	gid_t	sgid;
 };
 #endif
+/* 
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setresgid(p, uap)
@@ -878,6 +1028,8 @@ setresgid(p, uap)
 	rgid = uap->rgid;
 	egid = uap->egid;
 	sgid = uap->sgid;
+
+	mtx_lock(&Giant);
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	      rgid != oldcred->cr_svgid &&
@@ -888,9 +1040,9 @@ setresgid(p, uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
-		return (error);
-
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+		goto done2;
+	}
 	newcred = crdup(oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -906,7 +1058,10 @@ setresgid(p, uap)
 	}
 	p->p_ucred = newcred;
 	crfree(oldcred);
-	return (0);
+	error = 0;
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -916,14 +1071,20 @@ struct getresuid_args {
 	uid_t	*suid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getresuid(p, uap)
 	register struct proc *p;
 	struct getresuid_args *uap;
 {
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
+
+	mtx_lock(&Giant);
+	cred = p->p_ucred;
 
 	if (uap->ruid)
 		error1 = copyout((caddr_t)&cred->cr_ruid,
@@ -934,6 +1095,7 @@ getresuid(p, uap)
 	if (uap->suid)
 		error3 = copyout((caddr_t)&cred->cr_svuid,
 		    (caddr_t)uap->suid, sizeof(cred->cr_svuid));
+	mtx_unlock(&Giant);
 	return error1 ? error1 : (error2 ? error2 : error3);
 }
 
@@ -944,14 +1106,20 @@ struct getresgid_args {
 	gid_t	*sgid;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getresgid(p, uap)
 	register struct proc *p;
 	struct getresgid_args *uap;
 {
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
+
+	mtx_lock(&Giant);
+	cred = p->p_ucred;
 
 	if (uap->rgid)
 		error1 = copyout((caddr_t)&cred->cr_rgid,
@@ -962,6 +1130,7 @@ getresgid(p, uap)
 	if (uap->sgid)
 		error3 = copyout((caddr_t)&cred->cr_svgid,
 		    (caddr_t)uap->sgid, sizeof(cred->cr_svgid));
+	mtx_unlock(&Giant);
 	return error1 ? error1 : (error2 ? error2 : error3);
 }
 
@@ -989,23 +1158,31 @@ issetugid(p, uap)
 	return (0);
 }
 
+/*
+ * MPSAFE
+ */
 int
 __setugid(p, uap)
 	struct proc *p;
 	struct __setugid_args *uap;
 {
-
 #ifdef REGRESSION
+	int error = 0;
+
+	mtx_lock(&Giant);
 	switch (uap->flag) {
 	case 0:
 		p->p_flag &= ~P_SUGID;
-		return (0);
+		break;
 	case 1:
 		p->p_flag |= P_SUGID;
-		return (0);
+		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
+	mtx_unlock(&Giant);
+	return (error);
 #else /* !REGRESSION */
 	return (ENOSYS);
 #endif /* !REGRESSION */
@@ -1384,17 +1561,24 @@ struct getlogin_args {
 	u_int	namelen;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getlogin(p, uap)
 	struct proc *p;
 	struct getlogin_args *uap;
 {
+	int error;
 
+	mtx_lock(&Giant);
 	if (uap->namelen > MAXLOGNAME)
 		uap->namelen = MAXLOGNAME;
-	return (copyout((caddr_t) p->p_pgrp->pg_session->s_login,
-	    (caddr_t) uap->namebuf, uap->namelen));
+	error = copyout((caddr_t) p->p_pgrp->pg_session->s_login,
+	    (caddr_t) uap->namebuf, uap->namelen);
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 /*
@@ -1405,6 +1589,9 @@ struct setlogin_args {
 	char	*namebuf;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setlogin(p, uap)
@@ -1414,15 +1601,19 @@ setlogin(p, uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
+	mtx_lock(&Giant);
 	if ((error = suser_xxx(0, p, PRISON_ROOT)))
-		return (error);
+		goto done2;
 	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
 	    sizeof(logintmp), (size_t *)0);
-	if (error == ENAMETOOLONG)
+	if (error == ENAMETOOLONG) {
 		error = EINVAL;
-	else if (!error)
+	} else if (!error) {
 		(void) memcpy(p->p_pgrp->pg_session->s_login, logintmp,
 		    sizeof(logintmp));
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 

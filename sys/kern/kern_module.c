@@ -36,6 +36,8 @@
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
@@ -216,48 +218,67 @@ module_setspecific(module_t mod, modspecific_t *datap)
 /*
  * Syscalls.
  */
+/*
+ * MPSAFE
+ */
 int
 modnext(struct proc* p, struct modnext_args* uap)
 {
     module_t mod;
+    int error = 0;
+
+    mtx_lock(&Giant);
 
     p->p_retval[0] = -1;
     if (SCARG(uap, modid) == 0) {
 	mod = TAILQ_FIRST(&modules);
-	if (mod) {
+	if (mod)
 	    p->p_retval[0] = mod->id;
-	    return 0;
-	} else
-	    return ENOENT;
+	else
+	    error = ENOENT;
+	goto done2;
     }
 
     mod = module_lookupbyid(SCARG(uap, modid));
-    if (!mod)
-	return ENOENT;
+    if (mod == NULL) {
+	error = ENOENT;
+	goto done2;
+    }
 
     if (TAILQ_NEXT(mod, link))
 	p->p_retval[0] = TAILQ_NEXT(mod, link)->id;
     else
 	p->p_retval[0] = 0;
-    return 0;
+done2:
+    mtx_unlock(&Giant);
+    return (error);
 }
 
+/*
+ * MPSAFE
+ */
 int
 modfnext(struct proc* p, struct modfnext_args* uap)
 {
     module_t mod;
+    int error;
 
     p->p_retval[0] = -1;
 
-    mod = module_lookupbyid(SCARG(uap, modid));
-    if (!mod)
-	return ENOENT;
+    mtx_lock(&Giant);
 
-    if (TAILQ_NEXT(mod, flink))
-	p->p_retval[0] = TAILQ_NEXT(mod, flink)->id;
-    else
-	p->p_retval[0] = 0;
-    return 0;
+    mod = module_lookupbyid(SCARG(uap, modid));
+    if (mod == NULL) {
+	error = ENOENT;
+    } else {
+	error = 0;
+	if (TAILQ_NEXT(mod, flink))
+	    p->p_retval[0] = TAILQ_NEXT(mod, flink)->id;
+	else
+	    p->p_retval[0] = 0;
+    }
+    mtx_unlock(&Giant);
+    return (error);
 }
 
 struct module_stat_v1 {
@@ -267,6 +288,9 @@ struct module_stat_v1 {
     int		id;
 };
 
+/*
+ * MPSAFE
+ */
 int
 modstat(struct proc* p, struct modstat_args* uap)
 {
@@ -276,9 +300,13 @@ modstat(struct proc* p, struct modstat_args* uap)
     int version;
     struct module_stat* stat;
 
+    mtx_lock(&Giant);
+
     mod = module_lookupbyid(SCARG(uap, modid));
-    if (!mod)
-	return ENOENT;
+    if (mod == NULL) {
+	error = ENOENT;
+	goto out;
+    }
 
     stat = SCARG(uap, stat);
 
@@ -315,9 +343,13 @@ modstat(struct proc* p, struct modstat_args* uap)
     p->p_retval[0] = 0;
 
 out:
+    mtx_unlock(&Giant);
     return error;
 }
 
+/*
+ * MPSAFE
+ */
 int
 modfind(struct proc* p, struct modfind_args* uap)
 {
@@ -328,12 +360,13 @@ modfind(struct proc* p, struct modfind_args* uap)
     if ((error = copyinstr(SCARG(uap, name), name, sizeof name, 0)) != 0)
 	goto out;
 
+    mtx_lock(&Giant);
     mod = module_lookupbyname(name);
-    if (!mod)
+    if (mod == NULL)
 	error = ENOENT;
     else
 	p->p_retval[0] = mod->id;
-
+    mtx_unlock(&Giant);
 out:
     return error;
 }

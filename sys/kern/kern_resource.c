@@ -80,6 +80,9 @@ struct getpriority_args {
 	int	who;
 };
 #endif
+/*
+ * MPSAFE
+ */
 int
 getpriority(curp, uap)
 	struct proc *curp;
@@ -87,9 +90,11 @@ getpriority(curp, uap)
 {
 	register struct proc *p;
 	register int low = PRIO_MAX + 1;
+	int error = 0;
+
+	mtx_lock(&Giant);
 
 	switch (uap->which) {
-
 	case PRIO_PROCESS:
 		if (uap->who == 0)
 			low = curp->p_nice;
@@ -130,12 +135,14 @@ getpriority(curp, uap)
 		break;
 
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	if (low == PRIO_MAX + 1)
-		return (ESRCH);
+	if (low == PRIO_MAX + 1 && error == 0)
+		error = ESRCH;
 	curp->p_retval[0] = low;
-	return (0);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -145,6 +152,9 @@ struct setpriority_args {
 	int	prio;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setpriority(curp, uap)
@@ -154,8 +164,9 @@ setpriority(curp, uap)
 	register struct proc *p;
 	int found = 0, error = 0;
 
-	switch (uap->which) {
+	mtx_lock(&Giant);
 
+	switch (uap->which) {
 	case PRIO_PROCESS:
 		if (uap->who == 0)
 			error = donice(curp, curp, uap->prio);
@@ -200,10 +211,12 @@ setpriority(curp, uap)
 		break;
 
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	if (found == 0)
-		return (ESRCH);
+	if (found == 0 && error == 0)
+		error = ESRCH;
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -240,6 +253,9 @@ struct rtprio_args {
  * Set realtime priority
  */
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 rtprio(curp, uap)
@@ -250,14 +266,19 @@ rtprio(curp, uap)
 	struct rtprio rtp;
 	int error;
 
+	mtx_lock(&Giant);
+
 	if (uap->pid == 0) {
 		p = curp;
 		PROC_LOCK(p);
-	} else
+	} else {
 		p = pfind(uap->pid);
+	}
 
-	if (p == NULL)
-		return (ESRCH);
+	if (p == NULL) {
+		error = ESRCH;
+		goto done2;
+	}
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
@@ -300,6 +321,8 @@ rtprio(curp, uap)
 		break;
 	}
 	PROC_UNLOCK(p);
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -355,6 +378,9 @@ struct osetrlimit_args {
 	struct	orlimit *rlp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 osetrlimit(p, uap)
@@ -370,7 +396,10 @@ osetrlimit(p, uap)
 		return (error);
 	lim.rlim_cur = olim.rlim_cur;
 	lim.rlim_max = olim.rlim_max;
-	return (dosetrlimit(p, uap->which, &lim));
+	mtx_lock(&Giant);
+	error = dosetrlimit(p, uap->which, &lim);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -379,6 +408,9 @@ struct ogetrlimit_args {
 	struct	orlimit *rlp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 ogetrlimit(p, uap)
@@ -386,16 +418,20 @@ ogetrlimit(p, uap)
 	register struct ogetrlimit_args *uap;
 {
 	struct orlimit olim;
+	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
+	mtx_lock(&Giant);
 	olim.rlim_cur = p->p_rlimit[uap->which].rlim_cur;
 	if (olim.rlim_cur == -1)
 		olim.rlim_cur = 0x7fffffff;
 	olim.rlim_max = p->p_rlimit[uap->which].rlim_max;
 	if (olim.rlim_max == -1)
 		olim.rlim_max = 0x7fffffff;
-	return (copyout((caddr_t)&olim, (caddr_t)uap->rlp, sizeof(olim)));
+	error = copyout((caddr_t)&olim, (caddr_t)uap->rlp, sizeof(olim));
+	mtx_unlock(&Giant);
+	return (error);
 }
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
@@ -405,6 +441,9 @@ struct __setrlimit_args {
 	struct	rlimit *rlp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 setrlimit(p, uap)
@@ -417,7 +456,10 @@ setrlimit(p, uap)
 	if ((error =
 	    copyin((caddr_t)uap->rlp, (caddr_t)&alim, sizeof (struct rlimit))))
 		return (error);
-	return (dosetrlimit(p, uap->which, &alim));
+	mtx_lock(&Giant);
+	error = dosetrlimit(p, uap->which, &alim);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int
@@ -531,17 +573,24 @@ struct __getrlimit_args {
 	struct	rlimit *rlp;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getrlimit(p, uap)
 	struct proc *p;
 	register struct __getrlimit_args *uap;
 {
+	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
-	return (copyout((caddr_t)&p->p_rlimit[uap->which], (caddr_t)uap->rlp,
-	    sizeof (struct rlimit)));
+	mtx_lock(&Giant);
+	error = copyout((caddr_t)&p->p_rlimit[uap->which], (caddr_t)uap->rlp,
+		    sizeof (struct rlimit));
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 /*
@@ -645,6 +694,9 @@ struct getrusage_args {
 	struct	rusage *rusage;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 getrusage(p, uap)
@@ -652,9 +704,11 @@ getrusage(p, uap)
 	register struct getrusage_args *uap;
 {
 	register struct rusage *rup;
+	int error = 0;
+
+	mtx_lock(&Giant);
 
 	switch (uap->who) {
-
 	case RUSAGE_SELF:
 		rup = &p->p_stats->p_ru;
 		mtx_lock_spin(&sched_lock);
@@ -667,10 +721,16 @@ getrusage(p, uap)
 		break;
 
 	default:
-		return (EINVAL);
+		rup = NULL;
+		error = EINVAL;
+		break;
 	}
-	return (copyout((caddr_t)rup, (caddr_t)uap->rusage,
-	    sizeof (struct rusage)));
+	mtx_unlock(&Giant);
+	if (error == 0) {
+		error = copyout((caddr_t)rup, (caddr_t)uap->rusage,
+		    sizeof (struct rusage));
+	}
+	return(error);
 }
 
 void
