@@ -1,7 +1,7 @@
 #	$FreeBSD$
 
 VOLUME=	papers
-DOC=	CONTENTS
+DOC=	contents
 
 SRCS=	contents.ms
 FILES=	${SRCS}
