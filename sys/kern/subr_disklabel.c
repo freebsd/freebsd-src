@@ -50,6 +50,12 @@
 #include <sys/disklabel.h>
 #include <sys/syslog.h>
 
+dev_t
+dkmodpart(dev_t dev, int part)
+{
+	return (makedev(major(dev), (minor(dev) & ~7) | part));
+}
+
 /*
  * Attempt to read a disk label from a device using the indicated strategy
  * routine.  The label must be partly set up before this: secpercyl, secsize
