@@ -150,7 +150,7 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 	int apmerr;
 
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
-	printf("APM Managment: %s\n", (aip->ai_status ? "Enabled" : "Disabled"));
+	printf("APM Management: %s\n", (aip->ai_status ? "Enabled" : "Disabled"));
 	printf("AC Line status: ");
 	if (aip->ai_acline == 255)
 		printf("unknown");
