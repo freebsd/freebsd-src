@@ -1616,7 +1616,7 @@ config_pipe(struct dn_pipe *p)
 
 	if ( x->rq == NULL ) { /* a new flow_set */
 	    r = alloc_hash(x, pfs) ;
-	    if (s) {
+	    if (r) {
 		free(x, M_DUMMYNET);
 		splx(s);
 		return r ;
