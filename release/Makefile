@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.6 1995/07/22 05:21:15 rgrimes Exp $
+#	$Id: Makefile,v 1.193.2.7 1995/07/25 19:15:36 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,8 +11,8 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.0
-#CHROOTDIR=/a/release
+BUILDNAME=2.1.0-950725-SNAP
+CHROOTDIR=/mnt/b/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_1_0
 
@@ -347,9 +347,9 @@ release.8: write_mfs_in_kernel
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
-	cpio -H newc -dump ${RD}/mfsfd/dev )
+	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
-	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -H newc -dump ${RD}/mfsfd/stand
+	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
@@ -398,7 +398,7 @@ release.9:
 	mv ${RD}/rootfd/stand/info/src/ssecure.inf ${RD}/rootfd/stand/info/des
 	mv ${RD}/rootfd/stand/info/src/sebones.inf ${RD}/rootfd/stand/info/des
 	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | tar xvf - -C ${RD}/rootfd/stand
-	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
+	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
@@ -416,7 +416,7 @@ release.10:
 		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
 		ls console tty ttyv0 ttyv1 null zero \
 		*[sw]d* fd[01] rfd[01] | \
-	cpio -H newc -dump ${RD}/fixitfd/dev )
+	cpio -dump ${RD}/fixitfd/dev )
 	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
 	ln -f ${RD}/fixitfd/stand/sh ${RD}/fixitfd/bin
 	cp ${RD}/trees/bin/usr/mdec/fdboot ${RD}/fixitfd/etc/boot1
@@ -431,8 +431,8 @@ release.10:
 ftp.1:
 	rm -rf ${FD}
 	mkdir ${FD}
-	cd ${RD} && find floppies -print | cpio -H newc -dumpl ${FD}
-	cd ${RD}/dists && find . -print | cpio -H newc -dumpl ${FD}
+	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
 
 	# This rule makes ${CHROOTDIR}/R/ftp a suitable anon ftp for testing.
@@ -444,14 +444,14 @@ cdrom.1:
 	rm -rf ${CD}
 	mkdir ${CD}
 	mkdir ${CD}/filesys
-	cd ${RD} && find floppies dists -print | cpio -H newc -dumpl ${CD}
+	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
 	ln -f ${RD}/kernels/MFSKERNEL ${CD}/kernel
 	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			( cd ${RD}/trees/$${i} && \
-			find . -depth -print | cpio -H newc -dumpl ${CD}/filesys ) ; \
+			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
 		fi \
 	done
 
@@ -545,7 +545,7 @@ doFS:
 .endif
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}
 	mount /dev/${VNDEVICE} ${MNT}
-	cd ${FSPROTO} && find . -print | cpio -H newc -dump ${MNT}
+	cd ${FSPROTO} && find . -print | cpio -dump ${MNT}
 	df -i /mnt
 	umount ${MNT}
 	fsck  /dev/r${VNDEVICE} < /dev/null
