@@ -366,6 +366,7 @@ init_transport(struct netconfig *nconf)
 			oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
 			if (bind(fd, sa, addrlen) != 0) {
 				syslog(LOG_ERR, "cannot bind %s on %s: %m",
+					(hosts[nhostsbak] == NULL) ? "*" :
 					hosts[nhostsbak], nconf->nc_netid);
 				if (res != NULL)
 					freeaddrinfo(res);
