@@ -77,7 +77,7 @@ parameters are set for the calling process.
 .Pp
 In this implementation, the policy of when a process can affect
 the scheduling parameters of another process is specified in
-.Xr p1003_1b
+.St -p1003.1b-93
 as a write-style operation.
 .Pp
 The scheduling policies are in
@@ -117,7 +117,7 @@ are returned.
 .Pp
 In this implementation, the policy of when a process can obtain the
 scheduling parameters of another process are detailed in
-.Xr p1003_1b
+.St -p1003.1b-93
 as a read-style operation.
 .Pp
 If
@@ -139,7 +139,7 @@ will be set to the corresponding value:
 The system is not configured to support this functionality.
 .It Bq Er EPERM
 The requesting process doesn not have permission as detailed in
-.Xr p1003_1b .
+.St -p1003.1b-93 .
 .It Bq Er ESRCH
 No process can be found corresponding to that specified by
 .Fa pid .
