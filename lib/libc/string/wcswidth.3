@@ -23,7 +23,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 8, 1999
+.\"
+.Dd August 20, 2002
 .Dt WCSWIDTH 3
 .Os
 .Sh NAME
@@ -49,7 +50,7 @@ The
 function returns 0 if
 .Fa pwcs
 is an empty string (L""),
--1 if a non-printing wide character is encountered,
+\-1 if a non-printing wide character is encountered,
 otherwise it returns the number of column positions occupied.
 .Sh SEE ALSO
 .Xr iswprint 3 ,
