@@ -388,7 +388,7 @@ exec_coff_imgact(imgp)
 
 			libbuf = malloc(MAXPATHLEN + emul_path_len,
 					M_TEMP, M_WAITOK);
-			strlcpy(libbuf, ibcs2_emul_path, MAXPATHLEN);
+			strcpy(libbuf, ibcs2_emul_path);
 
 		    	for (j = off; j < scns[i].s_size + off;) {
 				long stroff, nextoff;
@@ -402,7 +402,7 @@ exec_coff_imgact(imgp)
 
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
-				strcpy(&libbuf[emul_path_len], libname);
+				strlcpy(&libbuf[emul_path_len], libname, MAXPATHLEN);
 /* XXXKSE only 1:1 in coff */  	error = coff_load_file(
 				    FIRST_THREAD_IN_PROC(imgp->proc), libbuf);
 		      		if (error)
