@@ -128,21 +128,14 @@ SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
  * soalloc() returns a socket with a ref count of 0.
  */
 struct socket *
-soalloc(waitok)
-	int waitok;
+soalloc(int mflags)
 {
 	struct socket *so;
 #ifdef MAC
 	int error;
 #endif
-	int flag;
 
-	if (waitok == 1)
-		flag = M_WAITOK;
-	else
-		flag = M_NOWAIT;
-	flag |= M_ZERO;
-	so = uma_zalloc(socket_zone, flag);
+	so = uma_zalloc(socket_zone, mflags | M_ZERO);
 	if (so) {
 #ifdef MAC
 		error = mac_init_socket(so, flag);
@@ -195,7 +188,7 @@ socreate(dom, aso, type, proto, cred, td)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(1);
+	so = soalloc(M_WAITOK);
 	if (so == NULL)
 		return (ENOBUFS);
 
