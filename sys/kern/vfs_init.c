@@ -53,15 +53,9 @@
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
 /*
- * Zone for namei
+ * The highest defined VFS number.
  */
-struct vm_zone *namei_zone;
-
-/*
- * vfs_init() will set maxvfsconf
- * to the highest defined type number.
- */
-int maxvfsconf;
+int maxvfsconf = VFS_GENERIC + 1;
 struct vfsconf *vfsconf;
 
 /*
@@ -304,22 +298,7 @@ static void
 vfsinit(void *dummy)
 {
 
-	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
-
-	/*
-	 * Initialize the vnode table
-	 */
-	vntblinit();
-	/*
-	 * Initialize the vnode name cache
-	 */
-	nchinit();
-	/*
-	 * Initialize each file system type.
-	 * Vfs type numbers must be distinct from VFS_GENERIC (and VFS_VFSCONF).
-	 */
 	vattr_null(&va_null);
-	maxvfsconf = VFS_GENERIC + 1;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
