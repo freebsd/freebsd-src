@@ -929,6 +929,14 @@ will attempt to automatically initialize your .bde devices in
 List the devices that the script should try to attach,
 or
 .Dq Li AUTO .
+.It Va gbde_swap_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+any .bde swap devices listed in
+.Pa /etc/fstab
+will be initialized with a random, one-shot key.
+Note that this makes recovery of kernel dumps impossible.
 .It Va fsck_y_enable
 .Pq Vt bool
 If set to
