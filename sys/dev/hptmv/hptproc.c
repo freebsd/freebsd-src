@@ -38,7 +38,7 @@
 #include <dev/hptmv/global.h>
 #include <dev/hptmv/hptintf.h>
 #include <dev/hptmv/osbsd.h>
-#include <contrib/dev/hptmv/access601.h>
+#include <dev/hptmv/access601.h>
 
 int hpt_rescan_all(void);
 
