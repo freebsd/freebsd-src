@@ -479,7 +479,7 @@ exit1(struct thread *td, int rv)
 		mtx_unlock(&Giant);
 
 	/*
-	 * We have to wait until after releasing all locks before
+	 * We have to wait until after acquiring all locks before
 	 * changing p_state.  If we block on a mutex then we will be
 	 * back at SRUN when we resume and our parent will never
 	 * harvest us.
