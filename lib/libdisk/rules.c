@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: rules.c,v 1.1 1995/04/29 01:55:24 phk Exp $
  *
  */
 
@@ -19,6 +19,32 @@
 #include <sys/disklabel.h>
 #include <err.h>
 #include "libdisk.h"
+
+int
+Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect)
+		return 1;
+	if (offset % d->bios_sect)
+		return 0;
+	return 1;
+}
+
+u_long
+Prev_Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect)
+		return offset;
+	return (offset / d->bios_sect) * d->bios_sect;
+}
+
+u_long
+Next_Aligned(struct disk *d, u_long offset)
+{
+	if (!d->bios_sect)
+		return offset;
+	return Prev_Aligned(d,offset + d->bios_sect);
+}
 
 /*
  *  Rule#0:
@@ -44,7 +70,8 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
 
 /* 
  * Rule#1:
- *	All children of 'whole' must be track-aligned
+ *	All children of 'whole' must be track-aligned.
+ *	Exception: the end can be unaligned if it matches the end of 'whole'
  */
 void
 Rule_001(struct disk *d, struct chunk *c, char *msg)
@@ -63,7 +90,7 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
 			sprintf(msg+strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not start on a track boundary\n",
 				c1->name,c1->offset,c1->end);
-		if (!Aligned(d,c1->end+1))
+		if (c->end != c1->end && !Aligned(d,c1->end+1))
 			sprintf(msg+strlen(msg),
 		    "chunk '%s' [%ld..%ld] does not end on a track boundary\n",
 				c1->name,c1->offset,c1->end);
