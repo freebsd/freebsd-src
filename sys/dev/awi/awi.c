@@ -573,43 +573,35 @@ awi_ioctl(ifp, cmd, data)
 	case SIOCG80211:
 		switch(ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			bzero(tmpstr, IEEE80211_NWID_LEN);
-			if(ireq->i_val == -1 && ifp->if_flags & IFF_RUNNING) {
-				if (sc->sc_mib_local.Network_Mode) {
-					p = sc->sc_bss.essid;
-					len = p[1];
-					p += 2;
-				} else {
-					len = ETHER_ADDR_LEN;
-					p = sc->sc_bss.bssid;
-				}
-			} else if(ireq->i_val == 0) {
-				if (sc->sc_mib_local.Network_Mode)
-					p = sc->sc_mib_mac.aDesired_ESS_ID;
-				else
-					p = sc->sc_ownssid;
-				len = p[1];
-				p += 2;
-			} else {
+			if (ireq->i_val != -1 && ireq->i_val != 0) {
 				error = EINVAL;
 				break;
 			}
-			if(len > IEEE80211_NWID_LEN) {
+			if (!sc->sc_mib_local.Network_Mode)
+				p = sc->sc_ownssid;
+			else if (ireq->i_val == -1 &&
+			    (ifp->if_flags & IFF_RUNNING))
+				p = sc->sc_bss.essid;
+			else
+				p = sc->sc_mib_mac.aDesired_ESS_ID;
+			len = p[1];
+			p += 2;
+			if (len > IEEE80211_NWID_LEN) {
 				error = EINVAL;
 				break;
 			}
-			bcopy(p, tmpstr, len);
-			error = copyout(tmpstr, ireq->i_data,
-			    IEEE80211_NWID_LEN);
+			if (len > 0)
+				error = copyout(p, ireq->i_data, len);
+			ireq->i_len = len;
 			break;
 		case IEEE80211_IOC_NUMSSIDS:
 			ireq->i_val = 1;
 			break;
 		case IEEE80211_IOC_WEP:
-			/* XXX: I'm not sure this is entierly correct */
-			ireq->i_val = awi_wep_getalgo(sc);
-			if(ireq->i_val != IEEE80211_WEP_OFF)
-				ireq->i_val = IEEE80211_WEP_ON;
+			if (sc->sc_wep_algo != NULL)
+				ireq->i_val = IEEE80211_WEP_MIXED;
+			else
+				ireq->i_val = IEEE80211_WEP_OFF;
 			break;
 		case IEEE80211_IOC_WEPKEY:
 			if(ireq->i_val < 0 || ireq->i_val > 3) {
@@ -622,7 +614,7 @@ awi_ioctl(ifp, cmd, data)
 				break;
 			if(!suser(curproc))
 				bzero(tmpstr, len);
-			ireq->i_val = len;
+			ireq->i_len = len;
 			error = copyout(tmpstr, ireq->i_data, len);
 			break;
 		case IEEE80211_IOC_NUMWEPKEYS:
@@ -632,20 +624,11 @@ awi_ioctl(ifp, cmd, data)
 			ireq->i_val = sc->sc_wep_defkid;
 			break;
 		case IEEE80211_IOC_AUTHMODE:
-			/* XXX: Is this correct? */
 			ireq->i_val = IEEE80211_AUTH_OPEN;
 			break;
 		case IEEE80211_IOC_STATIONNAME:
-			bzero(tmpstr, IEEE80211_NWID_LEN);
-			p = hostname;
-			len = strlen(hostname);
-			if(len > IEEE80211_NWID_LEN) {
-				error = EINVAL;
-				break;
-			}
-			bcopy(p, tmpstr, len);
-			error = copyout(tmpstr, ireq->i_data,
-			    IEEE80211_NWID_LEN);
+			/* not used anywhere */
+			error = EINVAL;
 			break;
 		case IEEE80211_IOC_CHANNEL:
 			/* XXX: Handle FH cards */
@@ -653,10 +636,7 @@ awi_ioctl(ifp, cmd, data)
 			break;
 		case IEEE80211_IOC_POWERSAVE:
 			/*
-			 * There appears to be a mib for this in the
-			 * softc, but since there's no way to enable
-			 * powersaving reporting it's value isn't really
-			 * meaningfull.
+			 * The powersave mode is not supported by the driver.
 			 */
 			ireq->i_val = IEEE80211_POWERSAVE_NOSUP;
 			break;
@@ -674,14 +654,15 @@ awi_ioctl(ifp, cmd, data)
 			break;
 		switch(ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			if(ireq->i_val != 0) {
+			if (ireq->i_val != 0 ||
+			    ireq->i_len > IEEE80211_NWID_LEN) {
 				error = EINVAL;
 				break;
 			}
 			bzero(tmpstr, AWI_ESS_ID_SIZE);
 			tmpstr[0] = IEEE80211_ELEMID_SSID;
-			tmpstr[1] = ireq->i_val;
-			error = copyin(ireq->i_data, tmpstr+2, ireq->i_val);
+			tmpstr[1] = ireq->i_len;
+			error = copyin(ireq->i_data, tmpstr+2, ireq->i_len);
 			if(error)
 				break;
 			bcopy(tmpstr, sc->sc_mib_mac.aDesired_ESS_ID, 
@@ -695,16 +676,16 @@ awi_ioctl(ifp, cmd, data)
 				error = awi_wep_setalgo(sc, 1);
 			break;
 		case IEEE80211_IOC_WEPKEY:
-			error = copyin(ireq->i_data, tmpstr, 14);
-			if(error)
-				break;
 			if(ireq->i_val < 0 || ireq->i_val > 3 ||
-			    tmpstr[0] > 13) {
+			    ireq->i_len > 13) {
 				error = EINVAL;
 				break;
 			}
-			error = awi_wep_setkey(sc, ireq->i_val, tmpstr+1,
-			    tmpstr[0]);
+			error = copyin(ireq->i_data, tmpstr, ireq->i_len);
+			if(error)
+				break;
+			error = awi_wep_setkey(sc, ireq->i_val, tmpstr,
+			    ireq->i_len);
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
 			if(ireq->i_val < 0 || ireq->i_val > 3) {
@@ -714,7 +695,8 @@ awi_ioctl(ifp, cmd, data)
 			sc->sc_wep_defkid = ireq->i_val;
 			break;
 		case IEEE80211_IOC_AUTHMODE:
-			error = EINVAL;
+			if(ireq->i_val != IEEE80211_AUTH_OPEN)
+				error = EINVAL;
 			break;
 		case IEEE80211_IOC_STATIONNAME:
 			error = EPERM;
@@ -728,7 +710,7 @@ awi_ioctl(ifp, cmd, data)
 			sc->sc_ownch = ireq->i_val;
 			break;
 		case IEEE80211_IOC_POWERSAVE:
-			if(ireq->i_val != 0)
+			if(ireq->i_val != IEEE80211_POWERSAVE_OFF)
 				error = EINVAL;
 			break;
 		case IEEE80211_IOC_POWERSAVESLEEP:
