@@ -35,13 +35,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 
@@ -69,7 +68,7 @@ strregerror(errcode, preg)
 
 	if (oe != NULL)
 		free(oe);
-	s = regerror(errcode, preg, "", 0);
+	s = regerror(errcode, preg, NULL, 0);
 	if ((oe = malloc(s)) == NULL)
 		err(1, "malloc");
 	(void)regerror(errcode, preg, oe, s);

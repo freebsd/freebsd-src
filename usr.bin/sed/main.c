@@ -35,23 +35,22 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
+static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -97,6 +96,8 @@ struct s_flist {
  */
 static struct s_flist *files, **fl_nextp = &files;
 
+static FILE *curfile;		/* Current open file */
+
 int aflag, eflag, nflag;
 int rflags = 0;
 static int rval;		/* Exit status */
@@ -108,7 +109,6 @@ static int rval;		/* Exit status */
 const char *fname;		/* File name. */
 const char *inplace;		/* Inplace edit file extension. */
 u_long linenum;
-int lastline;			/* TRUE on the last line of the last file */
 
 static void add_compunit(enum e_cut, char *);
 static void add_file(char *);
@@ -299,36 +299,34 @@ mf_fgets(sp, spflag)
 	SPACE *sp;
 	enum e_spflag spflag;
 {
-	static FILE *f;		/* Current open file */
 	size_t len;
 	char *p;
 	int c;
 	static int firstfile;
 
-	if (f == NULL) {
+	if (curfile == NULL) {
 		/* stdin? */
 		if (files->fname == NULL) {
 			if (inplace != NULL)
 				errx(1, "-i may not be used with stdin");
-			f = stdin;
+			curfile = stdin;
 			fname = "stdin";
 		}
 		firstfile = 1;
 	}
 
 	for (;;) {
-		if (f != NULL && (c = getc(f)) != EOF) {
-			(void)ungetc(c, f);
+		if (curfile != NULL && (c = getc(curfile)) != EOF) {
+			(void)ungetc(c, curfile);
 			break;
 		}
 		/* If we are here then either eof or no files are open yet */
-		if (f == stdin) {
+		if (curfile == stdin) {
 			sp->len = 0;
-			lastline = 1;
 			return (0);
 		}
-		if (f != NULL) {
-			fclose(f);
+		if (curfile != NULL) {
+			fclose(curfile);
 		}
 		if (firstfile == 0) {
 			files = files->next;
@@ -336,7 +334,6 @@ mf_fgets(sp, spflag)
 			firstfile = 0;
 		if (files == NULL) {
 			sp->len = 0;
-			lastline = 1;
 			return (0);
 		}
 		if (inplace != NULL) {
@@ -344,7 +341,7 @@ mf_fgets(sp, spflag)
 				continue;
 		}
 		fname = files->fname;
-		if ((f = fopen(fname, "r")) == NULL) {
+		if ((curfile = fopen(fname, "r")) == NULL) {
 			warn("%s", fname);
 			rval = 1;
 			continue;
@@ -353,28 +350,21 @@ mf_fgets(sp, spflag)
 			unlink(fname);
 	}
 	/*
-	 * We are here only when f is open and we still have something to
-	 * read from it.
+	 * We are here only when curfile is open and we still have something
+	 * to read from it.
 	 *
 	 * Use fgetln so that we can handle essentially infinite input data.
 	 * Can't use the pointer into the stdio buffer as the process space
 	 * because the ungetc() can cause it to move.
 	 */
-	p = fgetln(f, &len);
-	if (ferror(f))
+	p = fgetln(curfile, &len);
+	if (ferror(curfile))
 		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
 	if (len != 0 && p[len - 1] == '\n')
 		len--;
 	cspace(sp, p, len, spflag);
 
 	linenum++;
-	if (files->next == NULL) {
-		if ((c = getc(f)) != EOF) {
-			(void)ungetc(c, f);
-		} else {
-			lastline = 1;
-		}
-	}
 
 	return (1);
 }
@@ -466,4 +456,17 @@ inplace_edit(filename)
 	freopen(*filename, "w", stdout);
 	*filename = strdup(backup);
 	return 0;
+}
+
+int
+lastline(void)
+{
+	int ch;
+
+	if (files->next != NULL)
+		return (0);
+	if ((ch = getc(curfile)) == EOF)
+		return (1);
+	ungetc(ch, curfile);
+	return (0);
 }
