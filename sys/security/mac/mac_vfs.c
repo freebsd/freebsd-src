@@ -3014,8 +3014,6 @@ mac_check_system_reboot(struct ucred *cred, int howto)
 {
 	int error;
 
-	ASSERT_VOP_LOCKED(vp, "mac_check_system_reboot");
-
 	if (!mac_enforce_system)
 		return (0);
 
