@@ -1,6 +1,6 @@
 #	@(#)Makefile	5.11 (Berkeley) 5/21/91
 
-NOOBJ=	oobj
+NOOBJ=	noobj
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -41,36 +41,38 @@ KC_FILES=	${COPYRIGHT}
 KC_FILES+=	bin/[ bin/cp bin/echo bin/sh bin/test
 KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
 #
-INST1_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
-INST1_TREES=	dev
-INST1_FILES=	${COPYRIGHT}
-INST1_FILES+=	bin/[ bin/cat bin/expr bin/ls bin/mkdir
-#INST1_FILES+=	bin/df
-INST1_FILES+=	bin/sh bin/sync bin/test
-INST1_FILES+=	dev/MAKEDEV dev/MAKEDEV.local
-#INST1_FILES+=	etc/disktab
-INST1_FILES+=	etc/group etc/master.passwd etc/passwd
-INST1_FILES+=	etc/pwd.db etc/spwd.db
-INST1_FILES+=	sbin/disklabel sbin/halt sbin/init sbin/mount sbin/umount
-INST1_FILES+=	sbin/mount_pcfs sbin/newfs sbin/reboot
-INST1_FILES+=	usr/bin/cpio
-INST1_FILES+=	${MDEC}
-INST1_FILES+=	usr/sbin/bad144
+FILESYSTEM_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
+FILESYSTEM_TREES=	dev
+FILESYSTEM_FILES=	${COPYRIGHT}
+FILESYSTEM_FILES+=	bin/[ bin/cat bin/expr bin/ls bin/mkdir
+FILESYSTEM_FILES+=	bin/df
+FILESYSTEM_FILES+=	bin/sh bin/sync bin/test
+FILESYSTEM_FILES+=	dev/MAKEDEV dev/MAKEDEV.local
+FILESYSTEM_FILES+=	etc/group
+FILESYSTEM_FILES+=	etc/master.passwd etc/passwd etc/pwd.db etc/spwd.db
+FILESYSTEM_FILES+=	sbin/disklabel sbin/halt sbin/init
+FILESYSTEM_FILES+=	sbin/mount sbin/mount_isofs sbin/mount_pcfs
+FILESYSTEM_FILES+=	sbin/newfs
+#FILESYSTEM_FILES+=	sbin/reboot
+FILESYSTEM_FILES+=	sbin/umount
+FILESYSTEM_FILES+=	usr/bin/cpio
+FILESYSTEM_FILES+=	${MDEC}
+FILESYSTEM_FILES+=	usr/sbin/bad144
 
-INST2_FILES=	${COPYRIGHT}
-INST2_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
-INST2_CPIO=	bin/chmod bin/cp bin/dd bin/mv bin/pwd bin/rm bin/stty
-INST2_CPIO+=	etc/protocols etc/services
-INST2_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
-#INST2_CPIO+=	sbin/mount_pcfs sbin/mount_isofs
-INST2_CPIO+=	sbin/route sbin/shutdown sbin/slattach
-INST2_CPIO+=	tmp
-INST2_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
-INST2_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
-INST2_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
-#INST2_CPIO+=	usr/local/bin/mread usr/local/bin/rz
-INST2_CPIO+=	usr/sbin/update usr/sbin/chown
-INST2_CPIO+=	var
+CPIO_FILES=	${COPYRIGHT}
+CPIO_FILES+=	usr/bin/gunzip usr/bin/gzcat usr/bin/gzip usr/bin/zcat
+CPIO_CPIO=	bin/chmod bin/cp bin/dd bin/mv bin/pwd bin/rm bin/stty
+CPIO_CPIO+=	etc/protocols etc/services
+CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
+#CPIO_CPIO+=	sbin/mount_pcfs sbin/mount_isofs
+CPIO_CPIO+=	sbin/route sbin/shutdown sbin/slattach
+CPIO_CPIO+=	tmp
+CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
+CPIO_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
+CPIO_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
+#CPIO_CPIO+=	usr/local/bin/mread usr/local/bin/rz
+CPIO_CPIO+=	usr/sbin/update usr/sbin/chown
+CPIO_CPIO+=	var
 
 CRYPT_LIB=	lib/libcrypt
 CRYPT_FILES=	bin/ed bin/rcp
@@ -104,15 +106,7 @@ distribution: distrib-dirs
 	install -c -o root -g wheel -m 600 crontab ${DESTDIR}/var/cron/tabs/root
 	install -c -o root -g wheel -m 600 /dev/null ${DESTDIR}/var/cron/log
 	install -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
-	#
-	# This is broken, it always does /etc. It IGNORES the ${DESTDIR} for 
-	# where to write the spwd.db pwd.db files.  
-	#(cd ${DESTDIR}/etc; pwd_mkdb -p master.passwd)
-	#
-	# Work around for above problem.
-	install -c -o root -g wheel -m 644 pwd.db ${DESTDIR}/etc
-	install -c -o root -g wheel -m 600 spwd.db ${DESTDIR}/etc
-	install -c -o root -g wheel -m 644 passwd ${DESTDIR}/etc
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
 .if defined(CDROMDIST)
@@ -181,7 +175,7 @@ hcx9-distribution:
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
 	    ${DESTDIR}/)
 
-kc-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
+kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 	(cd ../sys/compile; rm -rf GENERICAH GENERICBT)
 	(cd ../sys/i386/conf; config GENERICAH; config GENERICBT)
 	(cd ../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
@@ -191,7 +185,7 @@ kc-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 	    install -c -o root -g wheel -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICBT)
 
-kc-floppy:
+kcopy-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
@@ -208,58 +202,70 @@ kc-floppy:
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
 	    ${MOUNT}/.profile
 
-kc-ah-floppy: kc-floppy
+kcopy-ah-floppy: kcopy-floppy
 	(cd ../sys/compile/GENERICAH; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
+	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../kcopy-ah-floppy \
+		bs=15b count=160
+	gzip --no-name -9 -c ${DESTDIR}/../kcopy-ah-floppy \
+		>${DESTDIR}/../kcopy-ah-floppy.gz
 
-kc-bt-floppy: kc-floppy
+kcopy-bt-floppy: kcopy-floppy
 	(cd ../sys/compile/GENERICBT; \
 	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
+	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../kcopy-bt-floppy \
+		bs=15b count=160
+	gzip --no-name -9 -c ${DESTDIR}/../kcopy-bt-floppy \
+		>${DESTDIR}/../kcopy-bt-floppy.gz
 
-inst1-floppy:
+filesystem-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
-	    ls -d ${INST1_DIRS} | cpio -pdamuv ${MOUNT})
+	    ls -d ${FILESYSTEM_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
 	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1)
 	(cd ${DESTDIR}/; \
-	    ls ${INST1_FILES} | cpio -pdamuv ${MOUNT})
+	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst1.install \
 	    ${MOUNT}/install
 	(cd ${MOUNT}/; \
-	    ls ${INST1_FILES} >/tmp/filelist; \
-	    ls -d ${INST1_DIRS} >>/tmp/filelist; \
-	    find ${INST1_TREES} >>/tmp/filelist; \
+	    ls ${FILESYSTEM_FILES} >/tmp/filelist; \
+	    ls -d ${FILESYSTEM_DIRS} >>/tmp/filelist; \
+	    find ${FILESYSTEM_TREES} >>/tmp/filelist; \
 	    sort -u /tmp/filelist >filelist; \
 	    rm /tmp/filelist)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
+	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../filesystem-floppy \
+		bs=15b count=160
+	gzip --no-name -9 -c ${DESTDIR}/../filesystem-floppy \
+		>${DESTDIR}/../filesystem-floppy.gz
 
-inst2-floppy:
+cpio-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
 	chown root.wheel ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
-	    ls ${INST2_FILES} | cpio -pdamuv ${MOUNT})
+		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
 	(cd ${DESTDIR}/; \
-	    find ${INST2_CPIO} | cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
+	    find ${CPIO_CPIO} | cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
@@ -267,12 +273,15 @@ inst2-floppy:
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
+	dd if=/dev/r${FLOPPY}a of=${DESTDIR}/../cpio-floppy \
+		bs=15b count=160
+	gzip --no-name -9 -c ${DESTDIR}/../cpio-floppy \
+		>${DESTDIR}/../cpio-floppy.gz
 
 distrib-dirs:
 	mtree -u -f mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -u -f mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -u -f mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	(cd ${DESTDIR}; rm -f ${DESTDIR}/sys; \
-	    ln -s usr/src/sys sys )
+	cd ${DESTDIR}; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
 .include <bsd.prog.mk>
