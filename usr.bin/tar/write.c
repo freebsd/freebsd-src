@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef LINUX
+#include <ext2fs/ext2_fs.h>
+#include <sys/ioctl.h>
+#endif
 
 #include "bsdtar.h"
 
@@ -505,6 +509,10 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	FTSENT	*ftsent;
 	int	 ftsoptions;
 	char	*fts_argv[2];
+#ifdef LINUX
+	int	 fd, r;
+	unsigned long fflags;
+#endif
 
 	/*
 	 * Sigh: fts_open modifies it's first parameter, so we have to
@@ -566,13 +574,27 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			}
 #endif
 
+#ifdef LINUX
+			/*
+			 * Linux has a nodump flag too but to read it
+			 * we have to open() the file and do an ioctl on it...
+			 */
+			if (bsdtar->option_honor_nodump &&
+			    S_ISREG(ftsent->fts_statp->st_mode) &&
+			    ((fd = open(ftsent->fts_name, O_RDONLY|O_NONBLOCK)) >= 0) &&
+			    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags)),
+			    close(fd), r) >= 0 &&
+			    (fflags & EXT2_NODUMP_FL))
+				break;
+#endif
+
 			/*
 			 * In -u mode, we need to check whether this
 			 * is newer than what's already in the archive.
 			 */
 			if (!new_enough(bsdtar, ftsent->fts_path,
 				ftsent->fts_statp->st_mtime,
-				ftsent->fts_statp->st_mtimespec.tv_nsec))
+				ARCHIVE_STAT_MTIME_NANOS(ftsent->fts_statp)))
 				break;
 			/*
 			 * If this dir is excluded by a filename
@@ -619,6 +641,21 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			    (ftsent->fts_statp->st_flags & UF_NODUMP))
 				break;
 #endif
+
+#ifdef LINUX
+			/*
+			 * Linux has a nodump flag too but to read it
+			 * we have to open() the file and do an ioctl on it...
+			 */
+			if (bsdtar->option_honor_nodump &&
+			    S_ISREG(ftsent->fts_statp->st_mode) &&
+			    ((fd = open(ftsent->fts_name, O_RDONLY|O_NONBLOCK)) >= 0) &&
+			    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags)),
+			    close(fd), r) >= 0 &&
+			    (fflags & EXT2_NODUMP_FL))
+				break;
+#endif
+
 			/*
 			 * Skip this file if it's excluded by a
 			 * filename pattern.
@@ -632,7 +669,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			 */
 			if (!new_enough(bsdtar, ftsent->fts_path,
 				ftsent->fts_statp->st_mtime,
-				ftsent->fts_statp->st_mtimespec.tv_nsec))
+				ARCHIVE_STAT_MTIME_NANOS(ftsent->fts_statp)))
 				break;
 
 			if (bsdtar->option_interactive &&
@@ -671,7 +708,10 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 	struct archive_entry	*entry;
 	int			 e;
 	int			 fd;
-	char			*fflags = NULL;
+#ifdef LINUX
+	int			 r;
+	unsigned long		 stflags;
+#endif
 	static char		 linkbuffer[PATH_MAX+1];
 
 	(void)pathlen; /* UNUSED */
@@ -732,6 +772,15 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
+#ifdef LINUX
+	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) &&
+	    ((fd = open(accpath, O_RDONLY|O_NONBLOCK)) >= 0) &&
+	    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags)), close(fd), r) >= 0 &&
+	    stflags) {
+		archive_entry_set_fflags(entry, stflags, 0);
+	}
+#endif
+
         archive_entry_copy_stat(entry, st);
 	setup_acls(bsdtar, entry, accpath);
 
@@ -782,8 +831,6 @@ cleanup:
 
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
-
-	if (fflags != NULL) free(fflags);
 }
 
 
