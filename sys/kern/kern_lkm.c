@@ -30,14 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.20 1995/11/29 10:48:22 julian Exp $
- */
-
-/*
- * XXX it's not really safe to unload *any* of the types which are
- * currently loadable; e.g. you could unload a syscall which was being
- * blocked in, etc.  In the long term, a solution should be come up
- * with, but "not right now." -- cgd
+ * $Id: kern_lkm.c,v 1.21 1995/11/29 14:40:34 julian Exp $
  */
 
 #include <sys/param.h>
@@ -205,7 +198,8 @@ lkmcioctl(dev, cmd, data, flag, p)
 
 	switch(cmd) {
 	case LMRESERV:		/* reserve pages for a module */
-		if ((flag & FWRITE) == 0) /* only allow this if writing */
+		if ((flag & FWRITE) == 0 || securelevel > 0) 
+			/* only allow this if writing and insecure */
 			return EPERM;
 
 		resrvp = (struct lmc_resrv *)data;
@@ -245,7 +239,8 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMLOADBUF:		/* Copy in; stateful, follows LMRESERV */
-		if ((flag & FWRITE) == 0) /* only allow this if writing */
+		if ((flag & FWRITE) == 0 || securelevel > 0)
+			/* only allow this if writing and insecure */
 			return EPERM;
 
 		loadbufp = (struct lmc_loadbuf *)data;
@@ -280,7 +275,8 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMUNRESRV:		/* discard reserved pages for a module */
-		if ((flag & FWRITE) == 0) /* only allow this if writing */
+		if ((flag & FWRITE) == 0 || securelevel > 0)
+			/* only allow this if writing and insecure */
 			return EPERM;
 
 		lkmunreserve();	/* coerce state to LKM_IDLE */
@@ -290,7 +286,8 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMREADY:		/* module loaded: call entry */
-		if ((flag & FWRITE) == 0) /* only allow this if writing */
+		if ((flag & FWRITE) == 0 || securelevel > 0)
+			/* only allow this if writing or insecure */
 			return EPERM;
 
 		switch (lkm_state) {
@@ -354,7 +351,8 @@ lkmcioctl(dev, cmd, data, flag, p)
 		break;
 
 	case LMUNLOAD:		/* unload a module */
-		if ((flag & FWRITE) == 0) /* only allow this if writing */
+		if ((flag & FWRITE) == 0 || securelevel > 0)
+			/* only allow this if writing and insecure */
 			return EPERM;
 
 		unloadp = (struct lmc_unload *)data;
@@ -878,7 +876,6 @@ _lkm_exec(lkmtp, cmd)
 	const struct execsw **execsw =
 		(const struct execsw **)&execsw_set.ls_items[0];
 
-#if 1
 	switch(cmd) {
 	case LKM_E_LOAD:
 		/* don't load twice! */
@@ -924,9 +921,6 @@ _lkm_exec(lkmtp, cmd)
 	case LKM_E_STAT:	/* no special handling... */
 		break;
 	}
-#else
-	err = EINVAL;
-#endif
 	return(err);
 }
 
