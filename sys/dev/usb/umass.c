@@ -582,14 +582,16 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		/* Revisions < 1.28 do not handle the inerrupt endpoint
 		 * very well.
 		 */
-		if (UGETW(dd->bcdDevice) < 0x128)
+		if (UGETW(dd->bcdDevice) < 0x128) {
 			sc->proto = PROTO_UFI | PROTO_CBI;
-		else
+		} else {
 #if CBI_I
 			sc->proto = PROTO_UFI | PROTO_CBI_I;
 #else
 			sc->proto = PROTO_UFI | PROTO_CBI;
 #endif
+		}
+
 		/*
 		 * Revisions < 1.28 do not have the TEST UNIT READY command
 		 * Revisions == 1.28 have a broken TEST UNIT READY
@@ -599,10 +601,8 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 		sc->quirks |= RS_NO_CLEAR_UA;
 		sc->transfer_speed = UMASS_FLOPPY_TRANSFER_SPEED;
-		return(UMATCH_VENDOR_PRODUCT_REV);
+		return(UMATCH_VENDOR_PRODUCT);
 	}
-
-
 
 	id = usbd_get_interface_descriptor(iface);
 	if (id == NULL || id->bInterfaceClass != UCLASS_MASS)
