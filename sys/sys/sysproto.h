@@ -879,6 +879,15 @@ struct	utrace_args {
 	caddr_t	addr;	char addr_[PAD_(caddr_t)];
 	size_t	len;	char len_[PAD_(size_t)];
 };
+struct	sendfile_args {
+	int	fd;	char fd_[PAD_(int)];
+	int	s;	char s_[PAD_(int)];
+	off_t	offset;	char offset_[PAD_(off_t)];
+	size_t	nbytes;	char nbytes_[PAD_(size_t)];
+	struct sf_hdtr *	hdtr;	char hdtr_[PAD_(struct sf_hdtr *)];
+	off_t *	sbytes;	char sbytes_[PAD_(off_t *)];
+	int	flags;	char flags_[PAD_(int)];
+};
 int	nosys __P((struct proc *, struct nosys_args *));
 void	exit __P((struct proc *, struct rexit_args *)) __dead2;
 int	fork __P((struct proc *, struct fork_args *));
@@ -1084,6 +1093,7 @@ int	sched_get_priority_max __P((struct proc *, struct sched_get_priority_max_arg
 int	sched_get_priority_min __P((struct proc *, struct sched_get_priority_min_args *));
 int	sched_rr_get_interval __P((struct proc *, struct sched_rr_get_interval_args *));
 int	utrace __P((struct proc *, struct utrace_args *));
+int	sendfile __P((struct proc *, struct sendfile_args *));
 
 #ifdef COMPAT_43
 

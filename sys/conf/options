@@ -1,4 +1,4 @@
-#	$Id: options,v 1.105 1998/10/12 12:27:23 bde Exp $
+#	$Id: options,v 1.106 1998/10/28 08:37:10 dfr Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -130,6 +130,7 @@ MSGSSZ		opt_param.h
 MSGTQL		opt_param.h
 NBUF		opt_param.h
 NMBCLUSTERS	opt_param.h
+NSFBUFS		opt_param.h
 SEMMAP		opt_param.h
 SEMMNI		opt_param.h
 SEMMNS		opt_param.h

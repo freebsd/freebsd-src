@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socket.h	8.4 (Berkeley) 2/21/94
- * $Id: socket.h,v 1.25 1998/09/12 21:14:25 wollman Exp $
+ * $Id: socket.h,v 1.26 1998/09/15 11:44:44 phk Exp $
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -363,6 +363,16 @@ struct omsghdr {
 #define	SHUT_WR		1		/* shut down the writing side */
 #define	SHUT_RDWR	2		/* shut down both sides */
 
+/*
+ * sendfile(2) header/trailer struct
+ */
+struct sf_hdtr {
+	struct iovec *headers;	/* pointer to an array of header struct iovec's */
+	int hdr_cnt;		/* number of header iovec's */
+	struct iovec *trailers;	/* pointer to an array of trailer struct iovec's */
+	int trl_cnt;		/* number of trailer iovec's */
+};
+
 #ifndef	KERNEL
 
 #include <sys/cdefs.h>
@@ -382,6 +392,7 @@ ssize_t	send __P((int, const void *, size_t, int));
 ssize_t	sendto __P((int, const void *,
 	    size_t, int, const struct sockaddr *, int));
 ssize_t	sendmsg __P((int, const struct msghdr *, int));
+int	sendfile __P((int, int, off_t, size_t, struct sf_hdtr *, off_t *, int));
 int	setsockopt __P((int, int, int, const void *, int));
 int	shutdown __P((int, int));
 int	socket __P((int, int, int));
