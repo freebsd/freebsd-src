@@ -586,6 +586,16 @@ glob_for_file (path, section, name, cat)
 
       gf = glob_filename (pathname);
     }
+  if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
+    {
+      if (cat)
+	sprintf (pathname, "%s/cat%s/%s.0*", path, section, name);
+      else
+	sprintf (pathname, "%s/man%s/%s.0*", path, section, name);
+      if (debug)
+	fprintf (stderr, "globbing %s\n", pathname);
+      gf = glob_filename (pathname);
+    }
   return gf;
 }
 
