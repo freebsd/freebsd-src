@@ -44,6 +44,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/bio.h>
@@ -1336,6 +1337,23 @@ ffs_vget(mp, ino, flags, vpp)
 		ip->i_uid = ip->i_din1->di_ouid;	/* XXX */
 		ip->i_gid = ip->i_din1->di_ogid;	/* XXX */
 	}						/* XXX */
+
+#ifdef MAC
+	if ((mp->mnt_flag & MNT_MULTILABEL) && ip->i_mode) {
+		/*
+		 * If this vnode is already allocated, and we're running
+		 * multi-label, attempt to perform a label association
+		 * from the extended attributes on the inode.
+		 */
+		error = mac_associate_vnode_extattr(mp, vp);
+		if (error) {
+			/* ufs_inactive will release ip->i_devvp ref. */
+			vput(vp);
+			*vpp = NULL;
+			return (error);
+		}
+	}
+#endif
 
 	*vpp = vp;
 	return (0);
