@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.45 1996/12/05 11:21:47 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.46 1996/12/09 07:38:56 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -978,6 +978,23 @@ MAN8=      baz.8
 	  use them.
 
       <sect3>
+	<heading>INSTALL package script</heading>
+	<p>If your port needs execute commands when the binary package
+	  is installed with pkg_add you can do with via the pkg/INSTALL
+	  script.  This script will automattically be added to the 
+	  package, and will be run twice by pkg_add.  The first time
+	  will as `<tt>INSTALL ${PKGNAME} PRE-INSTALL</tt>'
+	  and the second time as `<tt>INSTALL ${PKGNAME} POST-INSTALL</tt>'.
+	  `<tt>&dollar;2</tt>' can be tested to determine which mode
+	  the script is being run in.
+	  The `<tt>PKG_PREFIX</tt>' environmental variable will be set to
+	  the package installation directory.
+	  Note, that this script is not run automatically if you install
+	  the port with `<tt>make install</tt>'.  If you are depending
+	  on it being run, you will have to explicitly call it on your
+	  port's Makefile.
+
+      <sect3>
 	<heading>Install additional documentation</heading>
 
 	<p>If your software has some documentation other than the
@@ -999,7 +1016,7 @@ MAN8=      baz.8
 <tscreen><verb>
  post-install:
  .if !defined(NOPORTDOCS)
-	 mkdir -p ${PREFIX}/share/doc/xv
+	 ${MKDIR} ${PREFIX}/share/doc/xv
 	 ${INSTALL_DATA} ${WRKSRC}/docs/xvdocs.ps ${PREFIX}/share/doc/xv
  .endif
 </verb></tscreen>
@@ -1008,6 +1025,13 @@ MAN8=      baz.8
 	  worry about <tt>NOPORTDOCS</tt> here; there is currently no
 	  way for the packages to read variables from
 	  <tt>/etc/make.conf</tt>.)
+
+	<p>If you need to display a message to the installer, you may
+	  place the message in <tt>pkg/DISPLAY</tt>.  This capibility
+	  is often useful to display additional installation steps to
+	  be taken after a pkg_add, or to display licensing information.
+	  (note: the DISPLAY file does not need to be added to pkg/PLIST).
+
 
       <sect3>
 	<heading>DIST_SUBDIR</heading>
@@ -1115,7 +1139,7 @@ MAN8=      baz.8
 	  `<tt>libexec</tt>' (executables started internally),
 	  `<tt>sbin</tt>' (executables for superusers/managers),
 	  `<tt>info</tt>' (documentation for info browser) or 
-	  `<tt>share</tt>' (architecture independent files).  See
+	  `<tt>share</tt>' (architecture independent files).  See man
 	  <tt>hier(7)</tt> for details, the rule governing
 	  <tt>/usr</tt> pretty much applies to <tt>/usr/local</tt>
 	  too.
