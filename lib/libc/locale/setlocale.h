@@ -1,6 +1,4 @@
-#ifndef _SETLOCALE_H
-#define _SETLOCALE_H
-/*
+/*-
  * Copyright (C) 1997 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
@@ -24,11 +22,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
+
+#ifndef _SETLOCALE_H_
+#define	_SETLOCALE_H_
 
 #define ENCODING_LEN 31
 #define CATEGORY_LEN 11
 
 extern char *_PathLocale;
 
-#endif /* SETLOCALE_H */
+#endif /* !_SETLOCALE_H_ */

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,10 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef _LDPART_H
-#define _LDPART_H
+#ifndef _LDPART_H_
+#define	_LDPART_H_
 
-extern int __part_load_locale(const char *, int*, char *, const char *,
-		int, int, const char **);
+int	__part_load_locale(const char *, int*, char *, const char *,
+		    int, int, const char **);
 
-#endif /* _LDPART_H */
+#endif /* !_LDPART_H_ */
