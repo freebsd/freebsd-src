@@ -91,9 +91,9 @@
 device_t isa_bus_device = 0;
 #endif
 
-static void	configure_first __P((void *));
-static void	configure __P((void *));
-static void	configure_final __P((void *));
+static void	configure_first(void *);
+static void	configure(void *);
+static void	configure_final(void *);
 
 #if defined(NFSCLIENT) && defined(NFS_ROOT) && !defined(BOOTP_NFSROOT)
 static void	pxe_setup_nfsdiskless(void);

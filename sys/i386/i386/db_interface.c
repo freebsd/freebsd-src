@@ -52,7 +52,7 @@
 static jmp_buf *db_nofault = 0;
 extern jmp_buf	db_jmpbuf;
 
-extern void	gdb_handle_exception __P((db_regs_t *, int, int));
+extern void	gdb_handle_exception(db_regs_t *, int, int);
 
 int	db_active;
 db_regs_t ddb_regs;

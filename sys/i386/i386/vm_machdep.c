@@ -86,9 +86,9 @@
 #include <i386/isa/isa.h>
 #endif
 
-static void	cpu_reset_real __P((void));
+static void	cpu_reset_real(void);
 #ifdef SMP
-static void	cpu_reset_proxy __P((void));
+static void	cpu_reset_proxy(void);
 static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
@@ -241,7 +241,7 @@ cpu_fork(td1, p2, td2, flags)
 void
 cpu_set_fork_handler(td, func, arg)
 	struct thread *td;
-	void (*func) __P((void *));
+	void (*func)(void *);
 	void *arg;
 {
 	/*

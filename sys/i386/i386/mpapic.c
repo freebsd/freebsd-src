@@ -129,8 +129,8 @@ apic_dump(char* str)
 #define REDIRCNT_IOAPIC(A) \
 	    ((int)((io_apic_versions[(A)] & IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) + 1)
 
-static int trigger __P((int apic, int pin, u_int32_t * flags));
-static void polarity __P((int apic, int pin, u_int32_t * flags, int level));
+static int trigger(int apic, int pin, u_int32_t * flags);
+static void polarity(int apic, int pin, u_int32_t * flags, int level);
 
 #define DEFAULT_FLAGS		\
 	((u_int32_t)		\
@@ -653,8 +653,8 @@ selected_apic_ipi(u_int target, int vector, int delivery_mode)
 #endif
 
 #if defined(READY)
-int acquire_apic_timer __P((void));
-int release_apic_timer __P((void));
+int acquire_apic_timer(void);
+int release_apic_timer(void);
 
 /*
  * Acquire the APIC timer for exclusive use.

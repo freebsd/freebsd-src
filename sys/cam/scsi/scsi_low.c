@@ -145,37 +145,37 @@
 /**************************************************************
  * Declarations
  **************************************************************/
-/* static */ void scsi_low_info __P((struct scsi_low_softc *, struct targ_info *, u_char *));
-static void scsi_low_engage __P((void *));
-static struct slccb *scsi_low_establish_ccb __P((struct targ_info *, struct lun_info *, scsi_low_tag_t));
-static int scsi_low_done __P((struct scsi_low_softc *, struct slccb *));
-static int scsi_low_setup_done __P((struct scsi_low_softc *, struct slccb *));
-static void scsi_low_bus_release __P((struct scsi_low_softc *, struct targ_info *));
-static void scsi_low_twiddle_wait __P((void));
-static struct lun_info *scsi_low_alloc_li __P((struct targ_info *, int, int));
-static struct targ_info *scsi_low_alloc_ti __P((struct scsi_low_softc *, int));
-static void scsi_low_calcf_lun __P((struct lun_info *));
-static void scsi_low_calcf_target __P((struct targ_info *));
-static void scsi_low_calcf_show __P((struct lun_info *));
-static void scsi_low_reset_nexus __P((struct scsi_low_softc *, int));
-static void scsi_low_reset_nexus_target __P((struct scsi_low_softc *, struct targ_info *, int));
-static void scsi_low_reset_nexus_lun __P((struct scsi_low_softc *, struct lun_info *, int));
-static int scsi_low_init __P((struct scsi_low_softc *, u_int));
-static void scsi_low_start __P((struct scsi_low_softc *));
-static void scsi_low_free_ti __P((struct scsi_low_softc *));
+/* static */ void scsi_low_info(struct scsi_low_softc *, struct targ_info *, u_char *);
+static void scsi_low_engage(void *);
+static struct slccb *scsi_low_establish_ccb(struct targ_info *, struct lun_info *, scsi_low_tag_t);
+static int scsi_low_done(struct scsi_low_softc *, struct slccb *);
+static int scsi_low_setup_done(struct scsi_low_softc *, struct slccb *);
+static void scsi_low_bus_release(struct scsi_low_softc *, struct targ_info *);
+static void scsi_low_twiddle_wait(void);
+static struct lun_info *scsi_low_alloc_li(struct targ_info *, int, int);
+static struct targ_info *scsi_low_alloc_ti(struct scsi_low_softc *, int);
+static void scsi_low_calcf_lun(struct lun_info *);
+static void scsi_low_calcf_target(struct targ_info *);
+static void scsi_low_calcf_show(struct lun_info *);
+static void scsi_low_reset_nexus(struct scsi_low_softc *, int);
+static void scsi_low_reset_nexus_target(struct scsi_low_softc *, struct targ_info *, int);
+static void scsi_low_reset_nexus_lun(struct scsi_low_softc *, struct lun_info *, int);
+static int scsi_low_init(struct scsi_low_softc *, u_int);
+static void scsi_low_start(struct scsi_low_softc *);
+static void scsi_low_free_ti(struct scsi_low_softc *);
 
-static int scsi_low_alloc_qtag __P((struct slccb *));
-static int scsi_low_dealloc_qtag __P((struct slccb *));
-static int scsi_low_enqueue __P((struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *, u_int, u_int));
-static int scsi_low_message_enqueue __P((struct scsi_low_softc *, struct targ_info *, struct lun_info *, u_int));
-static void scsi_low_unit_ready_cmd __P((struct slccb *));
-static void scsi_low_timeout __P((void *));
-static int scsi_low_timeout_check __P((struct scsi_low_softc *));
+static int scsi_low_alloc_qtag(struct slccb *);
+static int scsi_low_dealloc_qtag(struct slccb *);
+static int scsi_low_enqueue(struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *, u_int, u_int);
+static int scsi_low_message_enqueue(struct scsi_low_softc *, struct targ_info *, struct lun_info *, u_int);
+static void scsi_low_unit_ready_cmd(struct slccb *);
+static void scsi_low_timeout(void *);
+static int scsi_low_timeout_check(struct scsi_low_softc *);
 #ifdef	SCSI_LOW_START_UP_CHECK
-static int scsi_low_start_up __P((struct scsi_low_softc *));
+static int scsi_low_start_up(struct scsi_low_softc *);
 #endif	/* SCSI_LOW_START_UP_CHECK */
-static int scsi_low_abort_ccb __P((struct scsi_low_softc *, struct slccb *));
-static struct slccb *scsi_low_revoke_ccb __P((struct scsi_low_softc *, struct slccb *, int));
+static int scsi_low_abort_ccb(struct scsi_low_softc *, struct slccb *);
+static struct slccb *scsi_low_revoke_ccb(struct scsi_low_softc *, struct slccb *, int);
 
 int scsi_low_version_major = 2;
 int scsi_low_version_minor = 17;
@@ -217,9 +217,9 @@ int scsi_low_debug = 0;
 int scsi_low_test = 0;
 int scsi_low_test_id = 0;
 
-static void scsi_low_test_abort __P((struct scsi_low_softc *, struct targ_info *, struct lun_info *));
-static void scsi_low_test_cmdlnk __P((struct scsi_low_softc *, struct slccb *));
-static void scsi_low_test_atten __P((struct scsi_low_softc *, struct targ_info *, u_int));
+static void scsi_low_test_abort(struct scsi_low_softc *, struct targ_info *, struct lun_info *);
+static void scsi_low_test_cmdlnk(struct scsi_low_softc *, struct slccb *);
+static void scsi_low_test_atten(struct scsi_low_softc *, struct targ_info *, u_int);
 #define	SCSI_LOW_DEBUG_TEST_GO(fl, id) \
 	((scsi_low_test & (fl)) != 0 && (scsi_low_test_id & (1 << (id))) == 0)
 #define	SCSI_LOW_DEBUG_GO(fl, id) \
@@ -236,13 +236,13 @@ GENERIC_CCB(scsi_low, slccb, ccb_chain)
  * Inline functions
  **************************************************************/
 #define	SCSI_LOW_INLINE	static __inline
-SCSI_LOW_INLINE void scsi_low_activate_qtag __P((struct slccb *));
-SCSI_LOW_INLINE void scsi_low_deactivate_qtag __P((struct slccb *));
-SCSI_LOW_INLINE void scsi_low_ccb_message_assert __P((struct slccb *, u_int));
-SCSI_LOW_INLINE void scsi_low_ccb_message_exec __P((struct scsi_low_softc *, struct slccb *));
-SCSI_LOW_INLINE void scsi_low_ccb_message_retry __P((struct slccb *));
-SCSI_LOW_INLINE void scsi_low_ccb_message_clear __P((struct slccb *));
-SCSI_LOW_INLINE void scsi_low_init_msgsys __P((struct scsi_low_softc *, struct targ_info *));
+SCSI_LOW_INLINE void scsi_low_activate_qtag(struct slccb *);
+SCSI_LOW_INLINE void scsi_low_deactivate_qtag(struct slccb *);
+SCSI_LOW_INLINE void scsi_low_ccb_message_assert(struct slccb *, u_int);
+SCSI_LOW_INLINE void scsi_low_ccb_message_exec(struct scsi_low_softc *, struct slccb *);
+SCSI_LOW_INLINE void scsi_low_ccb_message_retry(struct slccb *);
+SCSI_LOW_INLINE void scsi_low_ccb_message_clear(struct slccb *);
+SCSI_LOW_INLINE void scsi_low_init_msgsys(struct scsi_low_softc *, struct targ_info *);
 
 SCSI_LOW_INLINE void
 scsi_low_activate_qtag(cb)
@@ -336,8 +336,8 @@ struct scsi_low_error_code {
 	int error_code;
 };
 
-static struct slccb *scsi_low_find_ccb __P((struct scsi_low_softc *, u_int, u_int, void *));
-static int scsi_low_translate_error_code __P((struct slccb *, struct scsi_low_error_code *));
+static struct slccb *scsi_low_find_ccb(struct scsi_low_softc *, u_int, u_int, void *);
+static int scsi_low_translate_error_code(struct slccb *, struct scsi_low_error_code *);
 
 static struct slccb *
 scsi_low_find_ccb(slp, target, lun, osdep)
@@ -397,23 +397,23 @@ scsi_low_translate_error_code(cb, tp)
 #define	SCSI_LOW_ALLOC_CCB(flags)	scsi_low_get_ccb((flags))
 #define	SCSI_LOW_XS_POLL_HZ		1000
 
-static int scsi_low_poll_xs __P((struct scsi_low_softc *, struct slccb *));
-static void scsi_low_scsi_minphys_xs __P((struct buf *));
+static int scsi_low_poll_xs(struct scsi_low_softc *, struct slccb *);
+static void scsi_low_scsi_minphys_xs(struct buf *);
 #ifdef	SCSI_LOW_TARGET_OPEN
-static int scsi_low_target_open __P((struct scsipi_link *, struct cfdata *));
+static int scsi_low_target_open(struct scsipi_link *, struct cfdata *);
 #endif	/* SCSI_LOW_TARGET_OPEN */
-static int scsi_low_scsi_cmd_xs __P((struct scsipi_xfer *));
-static int scsi_low_enable_xs __P((void *, int));
-static int scsi_low_ioctl_xs __P((struct scsipi_link *, u_long, caddr_t, int, struct proc *));
+static int scsi_low_scsi_cmd_xs(struct scsipi_xfer *);
+static int scsi_low_enable_xs(void *, int);
+static int scsi_low_ioctl_xs(struct scsipi_link *, u_long, caddr_t, int, struct proc *);
 
-static int scsi_low_attach_xs __P((struct scsi_low_softc *));
-static int scsi_low_world_start_xs __P((struct scsi_low_softc *));
-static int scsi_low_dettach_xs __P((struct scsi_low_softc *));
-static int scsi_low_ccb_setup_xs __P((struct scsi_low_softc *, struct slccb *));
-static int scsi_low_done_xs __P((struct scsi_low_softc *, struct slccb *));
-static void scsi_low_timeout_xs __P((struct scsi_low_softc *, int, int));
-static u_int scsi_low_translate_quirks_xs __P((u_int));
-static void scsi_low_setup_quirks_xs __P((struct targ_info *, struct lun_info *, u_int));
+static int scsi_low_attach_xs(struct scsi_low_softc *);
+static int scsi_low_world_start_xs(struct scsi_low_softc *);
+static int scsi_low_dettach_xs(struct scsi_low_softc *);
+static int scsi_low_ccb_setup_xs(struct scsi_low_softc *, struct slccb *);
+static int scsi_low_done_xs(struct scsi_low_softc *, struct slccb *);
+static void scsi_low_timeout_xs(struct scsi_low_softc *, int, int);
+static u_int scsi_low_translate_quirks_xs(u_int);
+static void scsi_low_setup_quirks_xs(struct targ_info *, struct lun_info *, u_int);
 
 struct scsi_low_osdep_funcs scsi_low_osdep_funcs_xs = {
 	scsi_low_attach_xs,
@@ -886,17 +886,17 @@ scsi_low_target_open(link, cf)
 #define	SCSI_LOW_FREE(pt)		free((pt), M_DEVBUF)
 #define	SCSI_LOW_ALLOC_CCB(flags)	scsi_low_get_ccb()
 
-static void scsi_low_poll_cam __P((struct cam_sim *));
-static void scsi_low_cam_rescan_callback __P((struct cam_periph *, union ccb *));
-static void scsi_low_rescan_bus_cam __P((struct scsi_low_softc *));
-void scsi_low_scsi_action_cam __P((struct cam_sim *, union ccb *));
+static void scsi_low_poll_cam(struct cam_sim *);
+static void scsi_low_cam_rescan_callback(struct cam_periph *, union ccb *);
+static void scsi_low_rescan_bus_cam(struct scsi_low_softc *);
+void scsi_low_scsi_action_cam(struct cam_sim *, union ccb *);
 
-static int scsi_low_attach_cam __P((struct scsi_low_softc *));
-static int scsi_low_world_start_cam __P((struct scsi_low_softc *));
-static int scsi_low_dettach_cam __P((struct scsi_low_softc *));
-static int scsi_low_ccb_setup_cam __P((struct scsi_low_softc *, struct slccb *));
-static int scsi_low_done_cam __P((struct scsi_low_softc *, struct slccb *));
-static void scsi_low_timeout_cam __P((struct scsi_low_softc *, int, int));
+static int scsi_low_attach_cam(struct scsi_low_softc *);
+static int scsi_low_world_start_cam(struct scsi_low_softc *);
+static int scsi_low_dettach_cam(struct scsi_low_softc *);
+static int scsi_low_ccb_setup_cam(struct scsi_low_softc *, struct slccb *);
+static int scsi_low_done_cam(struct scsi_low_softc *, struct slccb *);
+static void scsi_low_timeout_cam(struct scsi_low_softc *, int, int);
 
 struct scsi_low_osdep_funcs scsi_low_osdep_funcs_cam = {
 	scsi_low_attach_cam,
@@ -1651,10 +1651,9 @@ scsi_low_activate(slp)
  * scsi low log
  **************************************************************/
 #ifdef	SCSI_LOW_DIAGNOSTIC
-static void scsi_low_msg_log_init __P((struct scsi_low_msg_log *));
-static void scsi_low_msg_log_write __P((struct scsi_low_msg_log *, u_int8_t *,
-int));
-static void scsi_low_msg_log_show __P((struct scsi_low_msg_log *, char *, int));
+static void scsi_low_msg_log_init(struct scsi_low_msg_log *);
+static void scsi_low_msg_log_write(struct scsi_low_msg_log *, u_int8_t *, int);
+static void scsi_low_msg_log_show(struct scsi_low_msg_log *, char *, int);
 
 static void
 scsi_low_msg_log_init(slmlp)
@@ -2295,9 +2294,9 @@ static u_int8_t sms_cmd[6] = {SLSC_MODE_SENSE_SHORT, 0x08, 0x0a, 0,
 static u_int8_t inq_cmd[6] = {INQUIRY, 0, 0, 0, 
 			      sizeof(struct scsi_low_inq_data), 0}; 
 static u_int8_t unit_ready_cmd[6];
-static int scsi_low_setup_start __P((struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *));
-static int scsi_low_sense_abort_start __P((struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *));
-static int scsi_low_resume __P((struct scsi_low_softc *));
+static int scsi_low_setup_start(struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *);
+static int scsi_low_sense_abort_start(struct scsi_low_softc *, struct targ_info *, struct lun_info *, struct slccb *);
+static int scsi_low_resume(struct scsi_low_softc *);
 
 static void
 scsi_low_unit_ready_cmd(cb)
@@ -3249,24 +3248,24 @@ scsi_low_data(slp, ti, bp, direction)
 #define	MSGIN_WIDTHP(ti) ((ti)->ti_msgin[3])
 #define	MSGIN_DATA_LAST	0x30
 
-static int scsi_low_errfunc_synch __P((struct scsi_low_softc *, u_int));
-static int scsi_low_errfunc_wide __P((struct scsi_low_softc *, u_int));
-static int scsi_low_errfunc_identify __P((struct scsi_low_softc *, u_int));
-static int scsi_low_errfunc_qtag __P((struct scsi_low_softc *, u_int));
+static int scsi_low_errfunc_synch(struct scsi_low_softc *, u_int);
+static int scsi_low_errfunc_wide(struct scsi_low_softc *, u_int);
+static int scsi_low_errfunc_identify(struct scsi_low_softc *, u_int);
+static int scsi_low_errfunc_qtag(struct scsi_low_softc *, u_int);
 
-static int scsi_low_msgfunc_synch __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_wide __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_identify __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_abort __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_qabort __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_qtag __P((struct scsi_low_softc *));
-static int scsi_low_msgfunc_reset __P((struct scsi_low_softc *));
+static int scsi_low_msgfunc_synch(struct scsi_low_softc *);
+static int scsi_low_msgfunc_wide(struct scsi_low_softc *);
+static int scsi_low_msgfunc_identify(struct scsi_low_softc *);
+static int scsi_low_msgfunc_abort(struct scsi_low_softc *);
+static int scsi_low_msgfunc_qabort(struct scsi_low_softc *);
+static int scsi_low_msgfunc_qtag(struct scsi_low_softc *);
+static int scsi_low_msgfunc_reset(struct scsi_low_softc *);
 
 struct scsi_low_msgout_data {
 	u_int	md_flags;
 	u_int8_t md_msg;
-	int (*md_msgfunc) __P((struct scsi_low_softc *));
-	int (*md_errfunc) __P((struct scsi_low_softc *, u_int));
+	int (*md_msgfunc)(struct scsi_low_softc *);
+	int (*md_errfunc)(struct scsi_low_softc *, u_int);
 #define	MSG_RELEASE_ATN	0x0001
 	u_int md_condition;
 };
@@ -3290,24 +3289,24 @@ struct scsi_low_msgout_data scsi_low_msgout_data[] = {
 /* 15 */{SCSI_LOW_MSG_ALL, 0},
 };
 
-static int scsi_low_msginfunc_ext __P((struct scsi_low_softc *));
-static int scsi_low_synch __P((struct scsi_low_softc *));
-static int scsi_low_wide __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_msg_reject __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_rejop __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_rp __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_sdp __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_disc __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_cc __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_lcc __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_parity __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_noop __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_simple_qtag __P((struct scsi_low_softc *));
-static int scsi_low_msginfunc_i_wide_residue __P((struct scsi_low_softc *));
+static int scsi_low_msginfunc_ext(struct scsi_low_softc *);
+static int scsi_low_synch(struct scsi_low_softc *);
+static int scsi_low_wide(struct scsi_low_softc *);
+static int scsi_low_msginfunc_msg_reject(struct scsi_low_softc *);
+static int scsi_low_msginfunc_rejop(struct scsi_low_softc *);
+static int scsi_low_msginfunc_rp(struct scsi_low_softc *);
+static int scsi_low_msginfunc_sdp(struct scsi_low_softc *);
+static int scsi_low_msginfunc_disc(struct scsi_low_softc *);
+static int scsi_low_msginfunc_cc(struct scsi_low_softc *);
+static int scsi_low_msginfunc_lcc(struct scsi_low_softc *);
+static int scsi_low_msginfunc_parity(struct scsi_low_softc *);
+static int scsi_low_msginfunc_noop(struct scsi_low_softc *);
+static int scsi_low_msginfunc_simple_qtag(struct scsi_low_softc *);
+static int scsi_low_msginfunc_i_wide_residue(struct scsi_low_softc *);
 
 struct scsi_low_msgin_data {
 	u_int md_len;
-	int (*md_msgfunc) __P((struct scsi_low_softc *));
+	int (*md_msgfunc)(struct scsi_low_softc *);
 };
 
 struct scsi_low_msgin_data scsi_low_msgin_data[] = {
@@ -4666,7 +4665,7 @@ scsi_low_calcf_show(li)
 /**************************************************************
  * scsi world start up
  **************************************************************/
-static int scsi_low_poll __P((struct scsi_low_softc *, struct slccb *));
+static int scsi_low_poll(struct scsi_low_softc *, struct slccb *);
 
 static int
 scsi_low_start_up(slp)

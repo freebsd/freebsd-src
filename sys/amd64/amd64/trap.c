@@ -100,17 +100,17 @@
 
 #include <sys/sysctl.h>
 
-int (*pmath_emulate) __P((struct trapframe *));
+int (*pmath_emulate)(struct trapframe *);
 
-extern void trap __P((struct trapframe frame));
+extern void trap(struct trapframe frame);
 #ifdef I386_CPU
-extern int trapwrite __P((unsigned addr));
+extern int trapwrite(unsigned addr);
 #endif
-extern void syscall __P((struct trapframe frame));
+extern void syscall(struct trapframe frame);
 
-static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
-static void trap_fatal __P((struct trapframe *, vm_offset_t));
-void dblfault_handler __P((void));
+static int trap_pfault(struct trapframe *, int, vm_offset_t);
+static void trap_fatal(struct trapframe *, vm_offset_t);
+void dblfault_handler(void);
 
 extern inthand_t IDTVEC(lcall_syscall);
 
@@ -166,7 +166,7 @@ extern char *syscallnames[];
 
 #ifdef DEVICE_POLLING
 extern u_int32_t poll_in_trap;
-extern int ether_poll __P((int count));
+extern int ether_poll(int count);
 #endif /* DEVICE_POLLING */
 
 /*
