@@ -15,26 +15,26 @@
 /*
  * Format of an IP firewall descriptor
  *
- * src, dst, src_mask, dst_mask are always stored in network byte order.
- * flags and num_*_ports are stored in host byte order (of course).
+ * fw_src, fw_dst, fw_smsk, fw_dmsk are always stored in network byte order.
+ * fw_flg and fw_n*p are stored in host byte order (of course).
  * Port numbers are stored in HOST byte order.
  */
 #ifndef _IP_FW_H
 #define _IP_FW_H
 
 struct ip_fw {
-    struct ip_fw *next;			/* Next firewall on chain */
-    struct in_addr src, dst;		/* Source and destination IP addr */
-    struct in_addr src_mask, dst_mask;	/* Mask for src and dest IP addr */
-    struct in_addr via;			/* IP addr of interface "via" */
-    u_short flags;			/* Flags word */
-    u_short n_src_p, n_dst_p;           /* # of src ports and # of dst ports */
+    struct ip_fw *fw_next;		/* Next firewall on chain */
+    struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
+    struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
+    struct in_addr fw_via;		/* IP addr of interface "via" */
+    u_short fw_flg;			/* Flags word */
+    u_short fw_nsp, fw_ndp;             /* N'of src ports and # of dst ports */
     					/* in ports array (dst ports follow */
     					/* src ports; max of 10 ports in all; */
     					/* count of 0 means match all ports) */
 #define IP_FW_MAX_PORTS	10      	/* A reasonable maximum */
-    u_short ports[IP_FW_MAX_PORTS];     /* Array of port numbers to match */
-    u_long p_cnt,b_cnt;			/* Packet and byte counters */
+    u_short fw_pts[IP_FW_MAX_PORTS];    /* Array of port numbers to match */
+    u_long fw_pcnt,fw_bcnt;		/* Packet and byte counters */
 };
 
 /*
@@ -80,6 +80,7 @@ struct ip_fw {
 #define IP_ACCT_DEL   (IP_FW_BASE_CTL+11)
 #define IP_ACCT_FLUSH (IP_FW_BASE_CTL+12)
 #define IP_ACCT_ZERO  (IP_FW_BASE_CTL+13)
+#define IP_ACCT_CLR   (IP_FW_BASE_CTL+14)
 
 /*
  * Policy flags...

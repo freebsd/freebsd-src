@@ -205,10 +205,10 @@ struct ip_fw 	*chain;
 	dprintf1("\n");
 
 
-    for (f=chain;f;f=f->next) 
-		if ((src.s_addr&f->src_mask.s_addr)==f->src.s_addr
-		&&  (dst.s_addr&f->dst_mask.s_addr)==f->dst.s_addr) {
-       		if (f->via.s_addr && rif) {
+    for (f=chain;f;f=f->fw_next) 
+		if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
+		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
+       		if (f->fw_via.s_addr && rif) {
                         for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
                                 if (!ia_p->ifa_addr ||
                                      ia_p->ifa_addr->sa_family!=AF_INET)
@@ -220,7 +220,7 @@ struct ip_fw 	*chain;
                                         continue; 
                                 ia_i.s_addr=(((struct sockaddr_in *)\
                                             (ia_p->ifa_addr))->sin_addr.s_addr);
-                                if (ia_i.s_addr==f->via.s_addr)
+                                if (ia_i.s_addr==f->fw_via.s_addr)
                                         goto via_match;
                         }
 			/*
@@ -243,7 +243,7 @@ struct ip_fw 	*chain;
 		 */
                 continue; 
 via_match:
-			f_prt=f->flags&IP_FW_F_KIND;
+			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
 				/* Universal frwl - we've got a match! */
 			goto got_match;
@@ -254,7 +254,7 @@ via_match:
 	 * actually it is a concern of software which sets
 	 * firewall entries.
 	 */
-    if (f->flags&IP_FW_F_TCPSYN && notcpsyn)
+    if (f->fw_flg&IP_FW_F_TCPSYN && notcpsyn)
 		continue;
 
 	/*
@@ -264,10 +264,10 @@ via_match:
     if (prt==f_prt) {
 
     if (prt==IP_FW_F_ICMP ||
-       (port_match(&f->ports[0],f->n_src_p,src_port,
-					f->flags&IP_FW_F_SRNG) &&
-        port_match(&f->ports[f->n_src_p],f->n_dst_p,dst_port,
-					f->flags&IP_FW_F_DRNG))) {
+       (port_match(&f->fw_pts[0],f->fw_nsp,src_port,
+					f->fw_flg&IP_FW_F_SRNG) &&
+        port_match(&f->fw_pts[f->fw_nsp],f->fw_ndp,dst_port,
+					f->fw_flg&IP_FW_F_DRNG))) {
 		goto got_match;
     } /* Ports match */
     } /* Proto matches */
@@ -291,8 +291,8 @@ got_match:
 		 * VERY ugly piece of code which actually
 		 * makes kernel printf for denied packets...
 		 */
-    if (f->flags&IP_FW_F_PRN) {
-	if (f->flags&IP_FW_F_ACCEPT)
+    if (f->fw_flg&IP_FW_F_PRN) {
+	if (f->fw_flg&IP_FW_F_ACCEPT)
 		printf("Accept ");
 	else
 		printf("Deny ");
@@ -320,7 +320,7 @@ got_match:
 	printf("\n");
     }
 #endif
-	if (f->flags&IP_FW_F_ACCEPT)
+	if (f->fw_flg&IP_FW_F_ACCEPT)
 		goto good_packet;
 #ifdef noneed
 	else
@@ -340,7 +340,7 @@ bad_packet:
 			 * by entry with this flag
 			 * set only.
 			 */
-		if (!(f->flags&IP_FW_F_ICMPRPL))
+		if (!(f->fw_flg&IP_FW_F_ICMPRPL))
 			return 0;
    		m = m_get(M_DONTWAIT, MT_SOOPTS); 
 			/*
@@ -419,28 +419,28 @@ int nh_conv;
 			break;
 	}
 
-    for (f=chain;f;f=f->next) {
-		if ((src.s_addr&f->src_mask.s_addr)==f->src.s_addr
-		&&  (dst.s_addr&f->dst_mask.s_addr)==f->dst.s_addr) {
+    for (f=chain;f;f=f->fw_next) {
+		if ((src.s_addr&f->fw_smsk.s_addr)==f->fw_src.s_addr
+		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_dst.s_addr) {
 				rev=0;
 				goto addr_match;
 		}
-	 	if  ((f->flags&IP_FW_F_BIDIR) &&
-		    ((src.s_addr&f->src_mask.s_addr)==f->dst.s_addr
-		&&  (dst.s_addr&f->dst_mask.s_addr)==f->src.s_addr)) { 
+	 	if  ((f->fw_flg&IP_FW_F_BIDIR) &&
+		    ((src.s_addr&f->fw_smsk.s_addr)==f->fw_dst.s_addr
+		&&  (dst.s_addr&f->fw_dmsk.s_addr)==f->fw_src.s_addr)) { 
 				rev=1;
 				goto addr_match;
 		}
 		continue;
 addr_match:
-       		if (f->via.s_addr && rif) {
+       		if (f->fw_via.s_addr && rif) {
                         for (ia_p=ia;ia_p;ia_p=ia_p->ifa_next) {
                                 if (!ia_p->ifa_addr ||
                                      ia_p->ifa_addr->sa_family!=AF_INET)
                                         continue; 
                                 ia_i.s_addr=(((struct sockaddr_in *)\
                                             (ia_p->ifa_addr))->sin_addr.s_addr);
-                                if (ia_i.s_addr==f->via.s_addr)
+                                if (ia_i.s_addr==f->fw_via.s_addr)
                                         goto via_match;
                         }
                         continue; 
@@ -449,11 +449,11 @@ addr_match:
                 }
                 continue; 
 via_match:
-			f_prt=f->flags&IP_FW_F_KIND;
+			f_prt=f->fw_flg&IP_FW_F_KIND;
 			if (f_prt==IP_FW_F_ALL) {
 				/* Universal frwl - we've got a match! */
 
-     			f->p_cnt++;                 /* Rise packet count */
+     			f->fw_pcnt++;                 /* Rise packet count */
 
 						    /*
 						     * Rise byte count,
@@ -462,9 +462,9 @@ via_match:
 						     * order,do it.
 						     */
 			if (nh_conv)		    
-				f->b_cnt+=ntohs(ip->ip_len);
+				f->fw_bcnt+=ntohs(ip->ip_len);
 			else
-				f->b_cnt+=ip->ip_len;
+				f->fw_bcnt+=ip->ip_len;
 	    } else {
 	/*
 	 * Specific firewall - packet's
@@ -473,17 +473,17 @@ via_match:
     if (prt==f_prt) {
 
     if ((prt==IP_FW_F_ICMP ||
-       (port_match(&f->ports[0],f->n_src_p,src_port,
-					f->flags&IP_FW_F_SRNG) &&
-        port_match(&f->ports[f->n_src_p],f->n_dst_p,dst_port,
-					f->flags&IP_FW_F_DRNG)))
+       (port_match(&f->fw_pts[0],f->fw_nsp,src_port,
+					f->fw_flg&IP_FW_F_SRNG) &&
+        port_match(&f->fw_pts[f->fw_nsp],f->fw_ndp,dst_port,
+					f->fw_flg&IP_FW_F_DRNG)))
 	|| ((rev)   
-	&& (port_match(&f->ports[0],f->n_src_p,dst_port,
-                                        f->flags&IP_FW_F_SRNG)
-	&& port_match(&f->ports[f->n_src_p],f->n_dst_p,src_port,
-                                        f->flags&IP_FW_F_DRNG))))
+	&& (port_match(&f->fw_pts[0],f->fw_nsp,dst_port,
+                                        f->fw_flg&IP_FW_F_SRNG)
+	&& port_match(&f->fw_pts[f->fw_nsp],f->fw_ndp,src_port,
+                                        f->fw_flg&IP_FW_F_DRNG))))
 								{
-		f->p_cnt++;                   /* Rise packet count */
+		f->fw_pcnt++;                   /* Rise packet count */
 					      /*
 					       * Rise byte count,
 					       * if need to convert from
@@ -491,9 +491,9 @@ via_match:
 					       * order,do it.
 					       */
 		if (nh_conv)		    
-			f->b_cnt+=ntohs(ip->ip_len);
+			f->fw_bcnt+=ntohs(ip->ip_len);
 		else
-			f->b_cnt+=ip->ip_len;
+			f->fw_bcnt+=ip->ip_len;
     } /* Ports match */
     } /* Proto matches */
  }  /* ALL/Specific */
@@ -508,9 +508,9 @@ struct ip_fw *chainptr;
 {
 struct ip_fw *ctmp=chainptr;
   while(ctmp) {
-	ctmp->p_cnt=0l;
-	ctmp->b_cnt=0l;
-	ctmp=ctmp->next;
+	ctmp->fw_pcnt=0l;
+	ctmp->fw_bcnt=0l;
+	ctmp=ctmp->fw_next;
   }
 }
 
@@ -523,7 +523,7 @@ int s=splnet();
     while (*chainptr) {
 	struct ip_fw *ftmp;
 	ftmp = *chainptr;
-	*chainptr = ftmp->next;
+	*chainptr = ftmp->fw_next;
 	free(ftmp,M_SOOPTS);
     }
 splx(s);
@@ -554,10 +554,10 @@ struct ip_fw *frwl;
     }
 
     bcopy(frwl,ftmp,sizeof(struct ip_fw));
-    ftmp->p_cnt=0L;
-    ftmp->b_cnt=0L;
+    ftmp->fw_pcnt=0L;
+    ftmp->fw_bcnt=0L;
 
-    ftmp->next = NULL;
+    ftmp->fw_next = NULL;
 
     if (*chainptr==NULL)
        {
@@ -566,12 +566,12 @@ struct ip_fw *frwl;
     else
        {
 	chtmp_prev=NULL;
-	for (chtmp=*chainptr;chtmp!=NULL;chtmp=chtmp->next) {
+	for (chtmp=*chainptr;chtmp!=NULL;chtmp=chtmp->fw_next) {
 
 		addb4=0;
 
-		newkind=ftmp->flags & IP_FW_F_KIND;
-		oldkind=chtmp->flags & IP_FW_F_KIND;
+		newkind=ftmp->fw_flg & IP_FW_F_KIND;
+		oldkind=chtmp->fw_flg & IP_FW_F_KIND;
 
 		if (newkind!=IP_FW_F_ALL 
 		&&  oldkind!=IP_FW_F_ALL
@@ -583,15 +583,15 @@ struct ip_fw *frwl;
 		 * Very very *UGLY* code...
 		 * Sorry,but i had to do this....
 		 */
-		n_sa=ntohl(ftmp->src.s_addr);
-		n_da=ntohl(ftmp->dst.s_addr);
-		n_sm=ntohl(ftmp->src_mask.s_addr);
-		n_dm=ntohl(ftmp->dst_mask.s_addr);
+		n_sa=ntohl(ftmp->fw_src.s_addr);
+		n_da=ntohl(ftmp->fw_dst.s_addr);
+		n_sm=ntohl(ftmp->fw_smsk.s_addr);
+		n_dm=ntohl(ftmp->fw_dmsk.s_addr);
 
-		o_sa=ntohl(chtmp->src.s_addr);
-		o_da=ntohl(chtmp->dst.s_addr);
-		o_sm=ntohl(chtmp->src_mask.s_addr);
-		o_dm=ntohl(chtmp->dst_mask.s_addr);
+		o_sa=ntohl(chtmp->fw_src.s_addr);
+		o_da=ntohl(chtmp->fw_dst.s_addr);
+		o_sm=ntohl(chtmp->fw_smsk.s_addr);
+		o_dm=ntohl(chtmp->fw_dmsk.s_addr);
 
 		m_src_mask = o_sm & n_sm;
 		m_dst_mask = o_dm & n_dm;
@@ -630,25 +630,25 @@ struct ip_fw *frwl;
 				 * of ports.
 				 */
 
-				if (ftmp->flags & IP_FW_F_SRNG) 
-					n_sr=ftmp->ports[1]-ftmp->ports[0];
+				if (ftmp->fw_flg & IP_FW_F_SRNG) 
+					n_sr=ftmp->fw_pts[1]-ftmp->fw_pts[0];
 				else 
-					n_sr=(ftmp->n_src_p)?
-						ftmp->n_src_p : USHRT_MAX;
+					n_sr=(ftmp->fw_nsp)?
+						ftmp->fw_nsp : USHRT_MAX;
 					
-				if (chtmp->flags & IP_FW_F_SRNG) 
-				     o_sr=chtmp->ports[1]-chtmp->ports[0];
+				if (chtmp->fw_flg & IP_FW_F_SRNG) 
+				     o_sr=chtmp->fw_pts[1]-chtmp->fw_pts[0];
 				else 
-				     o_sr=(chtmp->n_src_p)?
-				 	    chtmp->n_src_p : USHRT_MAX;
+				     o_sr=(chtmp->fw_nsp)?
+				 	    chtmp->fw_nsp : USHRT_MAX;
 
 				if (n_sr<o_sr)
 					addb4++;
 				if (n_sr>o_sr)
 					addb4--;
 					
-				n_n=ftmp->n_src_p;
-				n_o=chtmp->n_src_p;
+				n_n=ftmp->fw_nsp;
+				n_o=chtmp->fw_nsp;
 		/*
 		 * Actually this cannot happen as the frwl control
 		 * procedure checks for number of ports in source and
@@ -658,17 +658,17 @@ struct ip_fw *frwl;
 				    (n_o>(IP_FW_MAX_PORTS-2)))
 					goto skip_check;
 
-				if (ftmp->flags & IP_FW_F_DRNG) 
-				       n_dr=ftmp->ports[n_n+1]-ftmp->ports[n_n];
+				if (ftmp->fw_flg & IP_FW_F_DRNG) 
+				       n_dr=ftmp->fw_pts[n_n+1]-ftmp->fw_pts[n_n];
 				else 
-				       n_dr=(ftmp->n_dst_p)?
-						ftmp->n_dst_p : USHRT_MAX;
+				       n_dr=(ftmp->fw_ndp)?
+						ftmp->fw_ndp : USHRT_MAX;
 
-				if (chtmp->flags & IP_FW_F_DRNG) 
-				     o_dr=chtmp->ports[n_o+1]-chtmp->ports[n_o];
+				if (chtmp->fw_flg & IP_FW_F_DRNG) 
+				     o_dr=chtmp->fw_pts[n_o+1]-chtmp->fw_pts[n_o];
 				else 
-				       o_dr=(chtmp->n_dst_p)?
-						chtmp->n_dst_p : USHRT_MAX;
+				       o_dr=(chtmp->fw_ndp)?
+						chtmp->fw_ndp : USHRT_MAX;
 				if (n_dr<o_dr)
 					addb4++;
 				if (n_dr>o_dr)
@@ -679,11 +679,11 @@ skip_check:
 		}
 		if (addb4>0) {
 			if (chtmp_prev) {
-				chtmp_prev->next=ftmp; 
-				ftmp->next=chtmp;
+				chtmp_prev->fw_next=ftmp; 
+				ftmp->fw_next=chtmp;
 			} else {
 				*chainptr=ftmp;
-				ftmp->next=chtmp;
+				ftmp->fw_next=chtmp;
 			}
 			splx(s);
 			return 0;
@@ -691,7 +691,7 @@ skip_check:
 		chtmp_prev=chtmp;
 	}
 	if (chtmp_prev)
-		chtmp_prev->next=ftmp;
+		chtmp_prev->fw_next=ftmp;
 	else
 #ifdef DIAGNOSTICS
 	panic("Can't happen");
@@ -728,22 +728,22 @@ struct ip_fw *frwl;
     while(ftmp)
     {
      matches=1;
-     if (ftmp->src.s_addr!=frwl->src.s_addr 
-     ||  ftmp->dst.s_addr!=frwl->dst.s_addr
-     ||  ftmp->src_mask.s_addr!=frwl->src_mask.s_addr
-     ||  ftmp->dst_mask.s_addr!=frwl->dst_mask.s_addr
-     ||  ftmp->via.s_addr!=frwl->via.s_addr
-     ||  ftmp->flags!=frwl->flags)
+     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr 
+     ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
+     ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
+     ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
+     ||  ftmp->fw_via.s_addr!=frwl->fw_via.s_addr
+     ||  ftmp->fw_flg!=frwl->fw_flg)
         matches=0;
-     tport1=ftmp->n_src_p+ftmp->n_dst_p;
-     tport2=frwl->n_src_p+frwl->n_dst_p;
+     tport1=ftmp->fw_nsp+ftmp->fw_ndp;
+     tport2=frwl->fw_nsp+frwl->fw_ndp;
      if (tport1!=tport2)
         matches=0;
      else
       if (tport1!=0)
       {
        for (tmpnum=0;tmpnum < tport1 && tmpnum < IP_FW_MAX_PORTS;tmpnum++)
-        if (ftmp->ports[tmpnum]!=frwl->ports[tmpnum])
+        if (ftmp->fw_pts[tmpnum]!=frwl->fw_pts[tmpnum])
            matches=0;
       }
     if(matches)
@@ -751,13 +751,13 @@ struct ip_fw *frwl;
         was_found=1;
         if (ltmp)
             {
-              ltmp->next=ftmp->next;
+              ltmp->fw_next=ftmp->fw_next;
 	      free(ftmp,M_SOOPTS);
-              ftmp=ltmp->next;
+              ftmp=ltmp->fw_next;
             }
         else
             {
-             *chainptr=ftmp->next; 
+             *chainptr=ftmp->fw_next; 
              free(ftmp,M_SOOPTS);
              ftmp=*chainptr;
             }
@@ -766,10 +766,62 @@ struct ip_fw *frwl;
     else
       {
        ltmp = ftmp;
-       ftmp = ftmp->next;
+       ftmp = ftmp->fw_next;
       }
     }
     splx(s);
+    if (was_found) return 0;
+    else return(EINVAL);
+}
+
+static
+int
+clr_entry(chainptr,frwl)
+struct ip_fw **chainptr;
+struct ip_fw *frwl;
+{
+    struct ip_fw *ftmp,*ltmp;
+    u_short	tport1,tport2,tmpnum;
+    char	matches,was_found;
+
+    ftmp=*chainptr;
+
+    if (ftmp == NULL) {
+	dprintf1("ip_fw_ctl:  chain is empty\n");
+	return(EINVAL);
+    }
+
+    was_found=0;
+
+    while(ftmp)
+    {
+     matches=1;
+     if (ftmp->fw_src.s_addr!=frwl->fw_src.s_addr 
+     ||  ftmp->fw_dst.s_addr!=frwl->fw_dst.s_addr
+     ||  ftmp->fw_smsk.s_addr!=frwl->fw_smsk.s_addr
+     ||  ftmp->fw_dmsk.s_addr!=frwl->fw_dmsk.s_addr
+     ||  ftmp->fw_via.s_addr!=frwl->fw_via.s_addr
+     ||  ftmp->fw_flg!=frwl->fw_flg)
+        matches=0;
+     tport1=ftmp->fw_nsp+ftmp->fw_ndp;
+     tport2=frwl->fw_nsp+frwl->fw_ndp;
+     if (tport1!=tport2)
+        matches=0;
+     else
+      if (tport1!=0)
+      {
+       for (tmpnum=0;tmpnum < tport1 && tmpnum < IP_FW_MAX_PORTS;tmpnum++)
+        if (ftmp->fw_pts[tmpnum]!=frwl->fw_pts[tmpnum])
+           matches=0;
+      }
+     if(matches)
+      {
+        was_found=1;
+        ftmp->fw_pcnt=0L;
+	ftmp->fw_bcnt=0L;
+      }
+     ftmp=ftmp->fw_next;
+    }
     if (was_found) return 0;
     else return(EINVAL);
 }
@@ -788,32 +840,32 @@ struct ip_fw *frwl;
 
 	    frwl = mtod(m,struct ip_fw*);
 
-	    if ( (frwl->flags & ~IP_FW_F_MASK) != 0 )	{
+	    if ( (frwl->fw_flg & ~IP_FW_F_MASK) != 0 )	{
 		dprintf2("ip_fw_ctl: undefined flag bits set (flags=%x)\n",
-						frwl->flags);
+						frwl->fw_flg);
 		return(NULL);
 	    }
 
-	    if ( (frwl->flags & IP_FW_F_SRNG) && frwl->n_src_p < 2 ) {
+	    if ( (frwl->fw_flg & IP_FW_F_SRNG) && frwl->fw_nsp < 2 ) {
 		dprintf2("ip_fw_ctl: src range set but n_src_p=%d\n",
-						frwl->n_src_p);
+						frwl->fw_nsp);
 		return(NULL);
 	    }
 
-	    if ( (frwl->flags & IP_FW_F_DRNG) && frwl->n_dst_p < 2 ) {
+	    if ( (frwl->fw_flg & IP_FW_F_DRNG) && frwl->fw_ndp < 2 ) {
 		dprintf2("ip_fw_ctl: dst range set but n_dst_p=%d\n",
-						frwl->n_dst_p);
+						frwl->fw_ndp);
 		return(NULL);
 	    }
 
-	    if ( frwl->n_src_p + frwl->n_dst_p > IP_FW_MAX_PORTS ) {
+	    if ( frwl->fw_nsp + frwl->fw_ndp > IP_FW_MAX_PORTS ) {
 		dprintf3("ip_fw_ctl: too many ports (%d+%d)\n",
-					frwl->n_src_p,frwl->n_dst_p);
+					frwl->fw_nsp,frwl->fw_ndp);
 		return(NULL);
 	    }
 
 #if 0
-	    if ( (frwl->flags & IP_FW_F_KIND) == IP_FW_F_ICMP ) {
+	    if ( (frwl->fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP ) {
 		dprintf1("ip_fw_ctl:  request for unsupported ICMP frwling\n");
 		return(NULL);
 	    }
@@ -842,6 +894,7 @@ if ( stage == IP_ACCT_ZERO )
        }
 if ( stage == IP_ACCT_ADD
   || stage == IP_ACCT_DEL
+  || stage == IP_ACCT_CLR
    ) {
 
 	    struct ip_fw *frwl;
@@ -854,12 +907,15 @@ if ( stage == IP_ACCT_ADD
 		return( add_entry(&ip_acct_chain,frwl));
 	    case IP_ACCT_DEL:
 		return( del_entry(&ip_acct_chain,frwl));
+	    case IP_ACCT_CLR:
+		return( clr_entry(&ip_acct_chain,frwl));
 	    default:
-		/*
- 		 * Should be panic but...
-		 */
+#ifdef DIAGNOSTICS
+		panic("Can't happen");
+#else
 		dprintf2("ip_acct_ctl:  unknown request %d\n",stage);
 		return(EINVAL);
+#endif
 	    }
  }
 	dprintf2("ip_acct_ctl:  unknown request %d\n",stage);
