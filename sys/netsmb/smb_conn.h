@@ -81,8 +81,8 @@
 #define	SMBV_WIN95		0x0010	/* used to apply bugfixes for this OS */
 #define	SMBV_PRIVATE		0x0020	/* connection can be used only by creator */
 #define	SMBV_RECONNECTING	0x0040	/* conn is in the process of reconnection */
-#define SMBV_SINGLESHARE	0x0080	/* only one share connectin should be allowed */
-#define SMBV_CREATE		0x0100	/* lookup for create opeartion */
+#define SMBV_SINGLESHARE	0x0080	/* only one share connecting should be allowed */
+#define SMBV_CREATE		0x0100	/* lookup for create operation */
 /*#define SMBV_FAILED		0x0200*/	/* last reconnect attempt has failed */
 #define SMBV_UNICODE		0x0400	/* connection is configured to use Unicode */
 
@@ -118,7 +118,7 @@ struct smb_sopt {
 	u_int16_t	sv_rawmode;
 	u_int32_t	sv_maxraw;	/* maximum raw-buffer size */
 	u_int32_t	sv_skey;	/* session key */
-	u_int32_t	sv_caps;	/* capabilites SMB_CAP_ */
+	u_int32_t	sv_caps;	/* capabilities SMB_CAP_ */
 };
 
 /*
@@ -266,7 +266,6 @@ struct smb_vc {
 	u_char 		vc_ch[SMB_MAXCHALLENGELEN];
 	u_short		vc_mid;		/* multiplex id */
 	struct smb_sopt	vc_sopt;	/* server options */
-	struct smb_cred*vc_scred;	/* used in reconnect procedure */
 	int		vc_txmax;	/* max tx/rx packet size */
 	struct smbiod *	vc_iod;
 	struct smb_slock vc_stlock;
@@ -299,7 +298,6 @@ struct smb_share {
 	int		ss_vcgenid;
 	char *		ss_pass;	/* password to a share, can be null */
 	struct smb_slock ss_stlock;
-	struct smb_cred *ss_cred;	/* used in reconnect procedure */
 };
 
 #define	ss_flags	obj.co_flags
