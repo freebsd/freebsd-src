@@ -23,8 +23,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_MOUSE_H_
-#define _MACHINE_MOUSE_H_
+#ifndef _SYS_MOUSE_H_
+#define _SYS_MOUSE_H_
 
 #include <sys/types.h>
 #include <sys/ioccom.h>
@@ -332,4 +332,4 @@ typedef struct mousevar {
 /* Mouse remote socket */
 #define _PATH_MOUSEREMOTE	"/var/run/MouseRemote"
 
-#endif /* _MACHINE_MOUSE_H_ */
+#endif /* _SYS_MOUSE_H_ */

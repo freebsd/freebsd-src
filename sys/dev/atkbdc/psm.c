@@ -78,7 +78,7 @@
 
 #include <machine/clock.h>
 #include <machine/limits.h>
-#include <machine/mouse.h>
+#include <sys/mouse.h>
 #include <machine/resource.h>
 
 #include <isa/isavar.h>
