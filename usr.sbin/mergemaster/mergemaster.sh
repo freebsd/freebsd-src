@@ -10,7 +10,7 @@
 
 # $FreeBSD$
 
-PATH=/bin:/usr/bin:/usr/sbin
+PATH=/bin:/usr/bin:/usr/sbin:/sbin
 
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
@@ -421,6 +421,11 @@ case "${RERUN}" in
   *) rm ${TEMPROOT}/etc/motd
      ;;
   esac
+
+  # Avoid trying to update MAKEDEV if /dev is on a devfs
+  if mount | grep -q "devfs on /dev "; then
+    rm ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
+  fi
 
   ;; # End of the "RERUN" test
 esac
