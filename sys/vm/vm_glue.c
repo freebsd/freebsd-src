@@ -353,7 +353,7 @@ vm_proc_swapin(struct proc *p)
  * The pages in the UAREA are marked dirty and their swap metadata is freed.
  */
 void
-vm_proc_swapin_all(int devidx)
+vm_proc_swapin_all(struct swdevt *devidx)
 {
 	struct proc *p;
 	vm_object_t object;

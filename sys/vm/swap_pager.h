@@ -50,13 +50,14 @@
 #ifdef _KERNEL
 
 extern int swap_pager_full;
-extern int vm_swap_size;
+extern int swap_pager_avail;
 
+struct swdevt;
 void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
 void swap_pager_freespace(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_swap_init(void);
-int swap_pager_isswapped(vm_object_t, int);
+int swap_pager_isswapped(vm_object_t, struct swdevt *);
 int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_status(int *total, int *used);
 
