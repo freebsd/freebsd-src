@@ -179,6 +179,7 @@ i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet
 i386/i386/initcpu.c		standard
 i386/i386/k6_mem.c		standard
+i386/i386/legacy.c		standard
 # locore.s needs to be handled in Makefile to put it first.  Otherwise it's
 # now normal.
 # i386/i386/locore.s		standard
