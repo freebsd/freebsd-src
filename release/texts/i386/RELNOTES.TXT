@@ -460,6 +460,10 @@ and the ability to specify compile-time port ranges.
 rc(8) now has an framework for handling dependencies between
 rc.conf(5) variables.
 
+The default TCP port range used by libfetch for passive FTP retrievals
+has changed; this affects the behavior of ftp(1), which has gained the
+-U option to restore the old behavior.
+
 
 2. Supported Configurations
 ---------------------------
