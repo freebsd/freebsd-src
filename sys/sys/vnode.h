@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.87 1999/05/11 19:55:01 phk Exp $
+ * $Id: vnode.h,v 1.88 1999/06/15 23:36:59 mckusick Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -174,7 +174,7 @@ struct vattr {
 	short		va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
-	long		va_fsid;	/* file system id (dev for now) */
+	udev_t		va_fsid;	/* file system id */
 	long		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
