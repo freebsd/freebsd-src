@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.23 1995/11/29 10:48:56 julian Exp $
+ *      $Id: ch.c,v 1.24 1995/11/29 14:40:54 julian Exp $
  */
 
 #include	<sys/types.h>
@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/chio.h>
 #include <sys/malloc.h>
 

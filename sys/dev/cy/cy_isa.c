@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.21 1995/11/29 10:47:35 julian Exp $
+ *	$Id: cy.c,v 1.22 1995/11/29 14:39:37 julian Exp $
  */
 
 #include "cy.h"
@@ -77,7 +77,6 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/file.h>
