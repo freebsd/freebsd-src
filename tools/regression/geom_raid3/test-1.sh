@@ -13,7 +13,7 @@ mdconfig -a -t malloc -s 3M -u $us2 || exit 1
 
 graid3 label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
 
-# Size of created device should be 1MB - 512b.
+# Size of created device should be 2MB - 1024B.
 
 mediasize=`diskinfo /dev/raid3/${name} | awk '{print $3}'`
 if [ $mediasize -eq 2096128 ]; then
