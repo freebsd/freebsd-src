@@ -24,15 +24,18 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef _KERNEL
 #include <stdlib.h>
-#else
-#define	free(p)		/* nullified */
-#define	malloc(sz)	NULL
 #endif
 
 #include "uwx_env.h"
 #include "uwx_scoreboard.h"
 #include "uwx_str.h"
 #include "uwx_trace.h"
+
+#ifdef _KERNEL
+static struct uwx_env uwx_env;
+#define	free(p)		/* nullified */
+#define	malloc(sz)	((sz == sizeof(uwx_env)) ? &uwx_env : NULL)
+#endif
 
 alloc_cb uwx_allocate_cb = 0;
 free_cb uwx_free_cb = 0;
@@ -88,6 +91,7 @@ struct uwx_env *uwx_init()
 	    env->context.fr[i].part1 = 0;
 	}
 	env->rstate = 0;
+	env->remapped_ip = 0;
 	env->function_offset = 0;
 	(void)uwx_init_history(env);
 	env->allocate_cb = uwx_allocate_cb;

@@ -52,6 +52,19 @@ int uwx_restore_freg(struct uwx_env *env, uint64_t rstate,
 int uwx_restore_nat(struct uwx_env *env, uint64_t rstate, int unat);
 
 
+/* uwx_lookupip_hook: Hook routine so dynamic instrumentation */
+/*      tools can intercept Lookup IP events. When not */
+/*      intercepted, it just returns "Not found", so that */
+/*      the callback routine is invoked. */
+
+/*ARGSUSED*/
+int uwx_lookupip_hook(int request, uint64_t ip, intptr_t tok, uint64_t **vecp,
+			size_t uvecsize)
+{
+    return UWX_LKUP_NOTFOUND;
+}
+
+
 /* uwx_get_frame_info: Gets unwind info for current frame */
 static
 int uwx_get_frame_info(struct uwx_env *env)
@@ -59,10 +72,12 @@ int uwx_get_frame_info(struct uwx_env *env)
     int i;
     int status;
     int cbstatus;
+    int cbcalled = 0;
+    uint64_t ip;
     uint64_t *uvec;
     uint64_t *rstate;
     struct uwx_utable_entry uentry;
-    uint64_t uvecout[4];
+    uint64_t uvecout[UVECSIZE];
 
     if (env->copyin == 0 || env->lookupip == 0)
 	return UWX_ERR_NOCALLBACKS;
@@ -76,7 +91,14 @@ int uwx_get_frame_info(struct uwx_env *env)
     /* current IP. If the predicate registers are valid, pass them */
     /* in the uvec. */
 
+    /* When self-unwinding, we call a hook routine before the */
+    /* callback. If the application is running under control of */
+    /* a dynamic instrumentation tool, that tool will have an */
+    /* opportunity to intercept lookup IP requests. */
+
     i = 0;
+    uvecout[i++] = UWX_KEY_VERSION;
+    uvecout[i++] = UWX_VERSION;
     if (env->context.valid_regs & (1 << UWX_REG_PREDS)) {
 	uvecout[i++] = UWX_KEY_PREDS;
 	uvecout[i++] = env->context.special[UWX_REG_PREDS];
@@ -84,8 +106,52 @@ int uwx_get_frame_info(struct uwx_env *env)
     uvecout[i++] = UWX_KEY_END;
     uvecout[i++] = 0;
     uvec = uvecout;
-    cbstatus = (*env->lookupip)(UWX_LKUP_LOOKUP,
-		env->context.special[UWX_REG_IP], env->cb_token, &uvec);
+    cbstatus = UWX_LKUP_NOTFOUND;
+    ip = env->context.special[UWX_REG_IP];
+    env->remapped_ip = ip;
+
+    /* Call the hook routine. */
+
+    if (env->remote == 0)
+	cbstatus = uwx_lookupip_hook(UWX_LKUP_LOOKUP, ip, env->cb_token, &uvec,
+		sizeof(uvecout));
+
+    /* If the hook routine remapped the IP, use the new IP for */
+    /* the callback instead of the original IP. */
+
+    if (cbstatus == UWX_LKUP_REMAP) {
+	for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
+	    switch ((int)uvec[i]) {
+		case UWX_KEY_NEWIP:
+		    ip = uvec[i+1];
+		    break;
+	    }
+	}
+	env->remapped_ip = ip;
+    }
+
+    /* Now call the callback routine unless the hook routine gave */
+    /* us all the info. */
+
+    if (cbstatus == UWX_LKUP_NOTFOUND || cbstatus == UWX_LKUP_REMAP) {
+	cbcalled = 1;
+	cbstatus = (*env->lookupip)(UWX_LKUP_LOOKUP, ip, env->cb_token, &uvec);
+    }
+
+    /* If the callback routine remapped the IP, call it one more time */
+    /* with the new IP. */
+
+    if (cbstatus == UWX_LKUP_REMAP) {
+	for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
+	    switch ((int)uvec[i]) {
+		case UWX_KEY_NEWIP:
+		    ip = uvec[i+1];
+		    break;
+	    }
+	}
+	env->remapped_ip = ip;
+	cbstatus = (*env->lookupip)(UWX_LKUP_LOOKUP, ip, env->cb_token, &uvec);
+    }
 
     /* If NOTFOUND, there's nothing we can do but return an error. */
 
@@ -101,12 +167,49 @@ int uwx_get_frame_info(struct uwx_env *env)
     /* block. */
 
     else if (cbstatus == UWX_LKUP_UTABLE) {
-	status = uwx_search_utable(env, uvec, &uentry);
-	(void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
+	status = uwx_search_utable(env, ip, uvec, &uentry);
+	if (cbcalled)
+	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
 	if (status == UWX_OK)
 	    status = uwx_decode_uinfo(env, &uentry, &rstate);
 	else if (status == UWX_ERR_NOUENTRY)
 	    status = uwx_default_rstate(env, &rstate);
+	if (status == UWX_OK)
+	    env->rstate = rstate;
+    }
+
+    /* If the callback returns an unwind info block, we can */
+    /* proceed directly to decoding the unwind information. */
+
+    else if (cbstatus == UWX_LKUP_UINFO) {
+	uentry.code_start = 0;
+	uentry.code_end = 0;
+	uentry.unwind_info = 0;
+	uentry.unwind_flags = 0;
+	for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
+	    switch ((int)uvec[i]) {
+		case UWX_KEY_UFLAGS:
+		    uentry.unwind_flags = uvec[i+1];
+		    break;
+		case UWX_KEY_UINFO:
+		    uentry.unwind_info = uvec[i+1];
+		    break;
+		case UWX_KEY_MODULE:
+		    env->module_name =
+				uwx_alloc_str(env, (char *)(uvec[i+1]));
+		    break;
+		case UWX_KEY_FUNC:
+		    env->function_name =
+				uwx_alloc_str(env, (char *)(uvec[i+1]));
+		    break;
+		case UWX_KEY_FUNCSTART:
+		    uentry.code_start = uvec[i+1];
+		    break;
+	    }
+	}
+	if (cbcalled)
+	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
+	status = uwx_decode_uinfo(env, &uentry, &rstate);
 	if (status == UWX_OK)
 	    env->rstate = rstate;
     }
@@ -118,7 +221,8 @@ int uwx_get_frame_info(struct uwx_env *env)
 
     else if (cbstatus == UWX_LKUP_FDESC) {
 	status = uwx_decode_uvec(env, uvec, &rstate);
-	(void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
+	if (cbcalled)
+	    (void) (*env->lookupip)(UWX_LKUP_FREE, 0, env->cb_token, &uvec);
 	if (status == UWX_OK)
 	    env->rstate = rstate;
     }
@@ -216,7 +320,7 @@ int uwx_get_sym_info(
 
     /* Get the symbolic information from the lookup IP callback. */
     if (env->function_name == 0) {
-	ip = env->context.special[UWX_REG_IP];
+	ip = env->remapped_ip;
 	i = 0;
 	if (env->function_offset >= 0) {
 	    uvecout[i++] = UWX_KEY_FUNCSTART;
@@ -225,8 +329,7 @@ int uwx_get_sym_info(
 	uvecout[i++] = UWX_KEY_END;
 	uvecout[i++] = 0;
 	uvec = uvecout;
-	cbstatus = (*env->lookupip)(UWX_LKUP_SYMBOLS,
-		    env->context.special[UWX_REG_IP], env->cb_token, &uvec);
+	cbstatus = (*env->lookupip)(UWX_LKUP_SYMBOLS, ip, env->cb_token, &uvec);
 
 	if (cbstatus == UWX_LKUP_SYMINFO) {
 	    for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
@@ -456,16 +559,35 @@ int uwx_step(struct uwx_env *env)
 
 int uwx_decode_uvec(struct uwx_env *env, uint64_t *uvec, uint64_t **rstate)
 {
-    while (*uvec != 0) {
-	switch ((int)*uvec++) {
+    int i;
+    int status;
+
+    status = uwx_default_rstate(env, rstate);
+    if (status != UWX_OK)
+	return status;
+
+    for (i = 0; uvec[i] != UWX_KEY_END; i += 2) {
+	switch ((int)uvec[i]) {
 	    case UWX_KEY_CONTEXT:
-		env->abi_context = (int)(*uvec++);
-		return UWX_ABI_FRAME;
+		env->abi_context = (int)(uvec[i+1]);
+		status = UWX_ABI_FRAME;
+		break;
+	    case UWX_KEY_MODULE:
+		env->module_name =
+				uwx_alloc_str(env, (char *)(uvec[i+1]));
+		break;
+	    case UWX_KEY_FUNC:
+		env->function_name =
+				uwx_alloc_str(env, (char *)(uvec[i+1]));
+		break;
+	    case UWX_KEY_FUNCSTART:
+		env->function_offset = env->remapped_ip - uvec[i+1];
+		break;
 	    default:
 		return UWX_ERR_CANTUNWIND;
 	}
     }
-    return UWX_OK;
+    return status;
 }
 
 

@@ -24,14 +24,38 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef _KERNEL
 #include <stdlib.h>
-#else
-#define	free(p)		/* nullified */
-#define	malloc(sz)	NULL
 #endif
 
 #include "uwx_env.h"
 #include "uwx_scoreboard.h"
 #include "uwx_trace.h"
+
+#ifdef _KERNEL
+static unsigned short uwx_allocated;
+static struct uwx_scoreboard uwx_scoreboard[sizeof(uwx_allocated) << 3];
+
+static void
+free(struct uwx_scoreboard *p)
+{
+	int idx = p - uwx_scoreboard;
+	uwx_allocated &= ~(1 << idx);
+}
+
+static struct uwx_scoreboard *
+malloc(size_t sz)
+{
+	int idx;
+	if (sz != sizeof(struct uwx_scoreboard))
+		return (NULL);
+	for (idx = 0; idx < (sizeof(uwx_allocated) << 3); idx++) {
+		if ((uwx_allocated & (1 << idx)) == 0) {
+			uwx_allocated |= 1 << idx;
+			return (uwx_scoreboard + idx);
+		}
+	}
+	return (NULL);
+}
+#endif
 
 
 struct uwx_scoreboard *uwx_alloc_scoreboard(struct uwx_env *env)
