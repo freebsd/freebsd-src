@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: things/unifdef.1,v 1.26 2002/09/24 19:44:12 fanf2 Exp $
+.\"	$dotat: things/unifdef.1,v 1.40 2002/12/13 11:33:34 fanf2 Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 24, 2002
@@ -112,13 +112,9 @@ utility also understands just enough about C
 to know when one of the directives is inactive
 because it is inside
 a comment,
-or a single or double quote.
-Parsing for quotes is very simplistic:
-when it finds an open quote,
-it ignores everything (except escaped quotes)
-until it finds a close quote, and
-it will not complain if it gets
-to the end of a line and finds no backslash for continuation.
+or affected by a backslash-continued line.
+It spots unusually-formatted preprocessor directives
+and knows when the layout is too odd to handle.
 .Pp
 A script called
 .Nm unifdefall
@@ -194,7 +190,9 @@ for creating
 command lines.
 .Pp
 .It Fl t
-Disables parsing for C comments and quotes, which is useful
+Disables parsing for C comments
+and line continuations,
+which is useful
 for plain text.
 .Pp
 .It Fl iD Ns Ar sym Ns Op = Ns Ar val
@@ -209,7 +207,8 @@ or code which is under construction,
 then you must tell
 .Nm
 which symbols are used for that purpose so that it will not try to parse
-for quotes and comments
+comments
+and line continuations
 inside those
 .Ic #ifdef Ns s .
 One specifies ignored symbols with
@@ -258,12 +257,23 @@ option of
 .Sh DIAGNOSTICS
 .Bl -item
 .It
-Inappropriate elif, else or endif.
+Too many levels of nesting.
+.It
+Inappropriate
+.Ic #elif ,
+.Ic #else
+or
+.Ic #endif .
+.It
+Obfuscated preprocessor control line.
 .It
 Premature
 .Tn EOF
-with line numbers of the unterminated
-.Ic #ifdef Ns s .
+(with the line number of the most recent unterminated
+.Ic #if Ns ).
+.It
+.Tn EOF
+in comment.
 .El
 .Pp
 The
@@ -273,9 +283,23 @@ utility exits 0 if the output is an exact copy of the input,
 .Sh BUGS
 Expression evaluation is very limited.
 .Pp
-Does not work correctly if input contains null characters.
+Preprocessor control lines split across more than one physical line
+(because of comments or backslash-newline)
+cannot be handled.
+.Pp
+Trigraphs are not recognized.
+.Pp
+There is no support for symbols with different definitions at
+different points in the source file.
+.Pp
+The text-mode and ignore functionality doesn't correspond to modern
+.Xr cpp 1
+behaviour.
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 4.3 .
+.Tn ANSI\~C
+support was added in
+.Fx 4.7 .
