@@ -46,8 +46,8 @@
 
 #ifdef SMP
 #include <machine/pmap.h>
-#include <machine/apic.h>
 #include <machine/smptests.h>		/** GRAB_LOPRIO */
+#include <machine/apic.h>
 #include <machine/lock.h>
 #endif /* SMP */
 
