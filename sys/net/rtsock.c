@@ -146,8 +146,10 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
-	soisconnected(so);
+	SIGIO_SLOCK();
+	soisconnected_locked(so);
 	so->so_options |= SO_USELOOPBACK;
+	SIGIO_SUNLOCK();
 	splx(s);
 	return 0;
 }

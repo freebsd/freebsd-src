@@ -197,9 +197,11 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 
 fallout:
 	DPRINT("fallout");
+	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
+	soisconnected_locked(so);
+	SIGIO_SUNLOCK();
 	return;
 }
 
@@ -269,9 +271,11 @@ readmore:
 
 fallout:
 	DPRINT("fallout");
+	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
+	soisconnected_locked(so);
+	SIGIO_SUNLOCK();
 	return;
 }
 
@@ -339,8 +343,10 @@ readmore:
 	return;
 
 gotit:
+	SIGIO_SLOCK();
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected(so);
+	soisconnected_locked(so);
+	SIGIO_SUNLOCK();
 	return;
 }

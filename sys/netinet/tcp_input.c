@@ -1842,10 +1842,14 @@ process_ACK:
 				 * specification, but if we don't get a FIN
 				 * we'll hang forever.
 				 */
+				SIGIO_SLOCK();
 				if (so->so_state & SS_CANTRCVMORE) {
-					soisdisconnected(so);
+					soisdisconnected_locked(so);
+					SIGIO_SUNLOCK();
 					callout_reset(tp->tt_2msl, tcp_maxidle,
 						      tcp_timer_2msl, tp);
+				} else {
+					SIGIO_SUNLOCK();
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}

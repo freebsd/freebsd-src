@@ -38,6 +38,10 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
+#include <sys/filedesc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <vm/uma.h>
 
@@ -51,6 +55,19 @@ typedef	u_quad_t so_gen_t;
 
 struct accept_filter;
 
+/*
+ * List of locks:
+ * (c)	const, inited in either socreate() or sonewconn()
+ * (m)	sb_mtx mutex
+ * (mr)	so_rcv.sb_mtx mutex
+ * (sg)	sigio_lock sx
+ * (sh)	sohead_lock sx
+ *
+ * Lock of so_rcv.sb_mtx can duplicate, provided that sohead_lock
+ * is exclusively locked.
+ *
+ * Brackets mean that this data is not protected yet.
+ */
 struct socket {
 	int	so_count;		/* reference count */
 	short	so_type;		/* generic type, see socket.h */
@@ -80,7 +97,7 @@ struct socket {
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
-	struct  sigio *so_sigio;	/* information for async I/O or
+	struct  sigio *so_sigio;	/* [sg]	information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* chars to oob mark */
 	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
@@ -267,15 +284,29 @@ struct xsocket {
 					sofree(so);	\
 			} while(0)
 
-#define	sorwakeup(so)	do { \
-			  if (sb_notify(&(so)->so_rcv)) \
-			    sowakeup((so), &(so)->so_rcv); \
-			} while (0)
+#define	sorwakeup_locked(so)	do {						\
+					SIGIO_ASSERT(SX_SLOCKED); /* XXX */	\
+					if (sb_notify(&(so)->so_rcv))		\
+						sowakeup((so), &(so)->so_rcv);	\
+				} while (0)
 
-#define	sowwakeup(so)	do { \
-			  if (sb_notify(&(so)->so_snd)) \
-			    sowakeup((so), &(so)->so_snd); \
-			} while (0)
+#define	sorwakeup(so)		do {						\
+					SIGIO_SLOCK();				\
+					sorwakeup_locked(so);			\
+					SIGIO_SUNLOCK();			\
+				} while (0)
+
+#define	sowwakeup_locked(so)	do {						\
+					SIGIO_ASSERT(SX_SLOCKED); /* XXX */	\
+					if (sb_notify(&(so)->so_snd))		\
+						sowakeup((so), &(so)->so_snd);	\
+				} while (0)
+
+#define	sowwakeup(so)		do {						\
+					SIGIO_SLOCK();				\
+					sowwakeup_locked(so);			\
+					SIGIO_SUNLOCK();			\
+				} while (0)
 
 #ifdef _KERNEL
 
@@ -387,8 +418,10 @@ void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 void	sohasoutofband(struct socket *so);
 void	soisconnected(struct socket *so);
+void	soisconnected_locked(struct socket *so);
 void	soisconnecting(struct socket *so);
 void	soisdisconnected(struct socket *so);
+void	soisdisconnected_locked(struct socket *so);
 void	soisdisconnecting(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *
