@@ -234,7 +234,7 @@ done:
 		return(ERR);
 
 	_nc_set_source("TERMCAP");
-	_nc_read_entry_source((FILE *)NULL, _nc_termcap, FALSE, FALSE,NULLHOOK);
+	_nc_read_entry_source((FILE *)NULL, _nc_termcap, FALSE, TRUE, NULLHOOK);
 
 	if (_nc_head == (ENTRY *)NULL)
 		return(ERR);
