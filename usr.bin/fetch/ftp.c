@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.2 1997/02/05 19:59:12 wollman Exp $
+ *	$Id: ftp.c,v 1.3 1997/02/10 18:49:40 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -136,8 +136,8 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 	} else {
 		ftps->ftp_user = 0;
 		ftps->ftp_hostname = safe_strdup(hostname);
-		ftps->ftp_port = port;
 	}
+	ftps->ftp_port = port;
 
 	p = ftps->ftp_remote_file = percent_decode(p);
 	/* now p is the decoded version */
@@ -190,7 +190,7 @@ ftp_proxy_parse(struct fetch_state *fs, const char *uri)
 	char *hostname;
 	char *port;
 	const char *user;
-	char *newpass;
+	char *newuser;
 	unsigned portno;
 	struct ftp_state *ftps;
 
@@ -229,30 +229,29 @@ ftp_proxy_parse(struct fetch_state *fs, const char *uri)
 	}
 
 	ftps = fs->fs_proto;
-	if (ftps->ftp_port != 21) {
-		ftp_close(fs);
-		warnx("`%s': FTP proxy requires the use of the standard port",
-		      uri);
-		return EX_USAGE;
-	}
 
-	ftps->ftp_port = portno;
 	user = ftps->ftp_user ? ftps->ftp_user : "anonymous";
-	newpass = safe_malloc(strlen(ftps->ftp_user 
-				     ? ftps->ftp_user : "anonymous")
-			      + 1 + strlen(ftps->ftp_hostname) + 1);
+	/* user @ hostname [ @port ] \0 */
+	newuser = safe_malloc(strlen(user) + 1 + strlen(ftps->ftp_hostname)
+			      + ((ftps->ftp_port != 21) ? 6 : 0) + 1);
 
-	strcpy(newpass, user);
-	strcat(newpass, "@");
-	strcpy(newpass, ftps->ftp_hostname);
+	strcpy(newuser, user);
+	strcat(newuser, "@");
+	strcat(newuser, ftps->ftp_hostname);
+	if (ftps->ftp_port != 21) {
+		char numbuf[6];
+
+		snprintf(numbuf, sizeof(numbuf), "%d", ftps->ftp_port);
+		numbuf[sizeof(numbuf)-1] = '\0';
+		strcat(newuser, "@");
+		strcat(newuser, numbuf);
+	}
+	
+	ftps->ftp_port = portno;
 	free(ftps->ftp_hostname);
 	ftps->ftp_hostname = safe_strdup(hostname);
-	free(ftps->ftp_password);
-	ftps->ftp_password = newpass;
 	free(ftps->ftp_user);
-	ftps->ftp_user = getenv("FTP_PROXY_USER");
-	if (ftps->ftp_user)
-		ftps->ftp_user = safe_strdup(ftps->ftp_user);
+	ftps->ftp_user = newuser;
 	return 0;
 }
 
@@ -286,7 +285,7 @@ ftp_retrieve(struct fetch_state *fs)
 	ftp = ftpLogin(ftps->ftp_hostname, 
 		       (char *)(ftps->ftp_user ? ftps->ftp_user : "anonymous"),
 		       /* XXX ^^^^ bad API */
-		       ftps->ftp_password, 0, fs->fs_verbose > 1,
+		       ftps->ftp_password, ftps->ftp_port, fs->fs_verbose > 1,
 		       &status);
 	if (ftp == 0) {
 		warnx("%s: %s", ftps->ftp_hostname, 
@@ -334,8 +333,9 @@ ftp_retrieve(struct fetch_state *fs)
 	remote = ftpGet(ftp, ftps->ftp_remote_file, &seekloc);
 	if (remote == 0) {
 		if (ftpErrno(ftp)) {
-			warnx("%s: %s", ftps->ftp_hostname, 
-			      ftpErrString(ftpErrno(ftp)));
+			warnx("ftp://%s/%s: FTP error:",
+				ftps->ftp_hostname, ftps->ftp_remote_file);
+			warnx("%s", ftpErrString(ftpErrno(ftp)));
 			fclose(ftp);
 			return EX_IOERR;
 		} else {
