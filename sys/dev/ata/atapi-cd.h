@@ -392,7 +392,6 @@ struct acd_softc {
     time_t			timestamp;	/* this instance timestamp */
     int				disk_size;	/* size of current media */
     int				block_size;	/* blocksize currently used */
-    struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev;		/* device place holders */
     eventhandler_tag		clone_evh;

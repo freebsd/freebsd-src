@@ -37,7 +37,6 @@
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/disklabel.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
@@ -169,7 +168,11 @@ acdattach(struct ata_device *atadev)
 				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 				  DEVSTAT_PRIORITY_CD);
 	    }
-	    name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT);
+	    if (!(name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT)))
+		ata_prtdev(atadev, "out of memory\n");
+		free(cdp, M_ACD);
+		return 0;
+	    }
 	    strcpy(name, atadev->name);
 	    strcat(name, "-");
 	    ata_free_name(atadev);
@@ -272,7 +275,7 @@ acd_clone(void *arg, char *name, int namelen, dev_t *dev)
     if (*p != '\0' && strcmp(p, "a") != 0 && strcmp(p, "c") != 0)
 	return;
     if (unit == cdp->lun)
-	*dev = makedev(acd_cdevsw.d_maj, dkmakeminor(cdp->lun, 0, 0));
+	*dev = makedev(acd_cdevsw.d_maj, cdp->lun);
 }
 
 static void
@@ -280,10 +283,8 @@ acd_make_dev(struct acd_softc *cdp)
 {
     dev_t dev;
 
-    dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, 0),
+    dev = make_dev(&acd_cdevsw, cdp->lun,
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%d", cdp->lun);
-    make_dev_alias(dev, "acd%da", cdp->lun);
-    make_dev_alias(dev, "acd%dc", cdp->lun);
     dev->si_drv1 = cdp;
     cdp->dev = dev;
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
@@ -1087,22 +1088,6 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    error = acd_read_structure(cdp, (struct dvd_struct *)addr);
 	break;
 
-    case DIOCGDINFO:
-	*(struct disklabel *)addr = cdp->disklabel;
-	break;
-
-    case DIOCWDINFO:
-    case DIOCSDINFO:
-	if ((flags & FWRITE) == 0)
-	    error = EBADF;
-	else
-	    error = setdisklabel(&cdp->disklabel, (struct disklabel *)addr, 0);
-	break;
-
-    case DIOCWLABEL:
-	error = EBADF;
-	break;
-
     default:
 	error = ENOTTY;
     }
@@ -1309,30 +1294,6 @@ acd_read_toc(struct acd_softc *cdp)
 	return;
     }
     cdp->disk_size = ntohl(sizes[0]) + 1;
-
-    bzero(&cdp->disklabel, sizeof(struct disklabel));
-    strncpy(cdp->disklabel.d_typename, "	       ", 
-	    sizeof(cdp->disklabel.d_typename));
-    strncpy(cdp->disklabel.d_typename, cdp->device->name, 
-	    min(strlen(cdp->device->name),sizeof(cdp->disklabel.d_typename)-1));
-    strncpy(cdp->disklabel.d_packname, "unknown	       ", 
-	    sizeof(cdp->disklabel.d_packname));
-    cdp->disklabel.d_secsize = cdp->block_size;
-    cdp->disklabel.d_nsectors = 100;
-    cdp->disklabel.d_ntracks = 1;
-    cdp->disklabel.d_ncylinders = (cdp->disk_size / 100) + 1;
-    cdp->disklabel.d_secpercyl = 100;
-    cdp->disklabel.d_secperunit = cdp->disk_size;
-    cdp->disklabel.d_rpm = 300;
-    cdp->disklabel.d_interleave = 1;
-    cdp->disklabel.d_flags = D_REMOVABLE;
-    cdp->disklabel.d_npartitions = 1;
-    cdp->disklabel.d_partitions[0].p_offset = 0;
-    cdp->disklabel.d_partitions[0].p_size = cdp->disk_size;
-    cdp->disklabel.d_partitions[0].p_fstype = FS_BSDFFS;
-    cdp->disklabel.d_magic = DISKMAGIC;
-    cdp->disklabel.d_magic2 = DISKMAGIC;
-    cdp->disklabel.d_checksum = dkcksum(&cdp->disklabel);
 
     while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
 	destroy_dev(entry->dev);
