@@ -986,7 +986,9 @@ static struct vfsops msdosfs_vfsops = {
 	msdosfs_fhtovp,
 	msdosfs_checkexp,
 	msdosfs_vptofh,
-	msdosfs_init
+	msdosfs_init,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(msdosfs_vfsops, msdos, 0);

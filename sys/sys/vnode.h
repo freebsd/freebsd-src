@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #include <sys/select.h>
 #include <sys/uio.h>
+#include <sys/acl.h>
 
 #include <machine/lock.h>
 

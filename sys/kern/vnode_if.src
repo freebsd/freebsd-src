@@ -154,7 +154,7 @@ vop_access {
 #
 vop_getattr {
 	IN struct vnode *vp;
-	IN struct vattr *vap;
+	OUT struct vattr *vap;
 	IN struct ucred *cred;
 	IN struct proc *p;
 };
@@ -483,4 +483,59 @@ vop_freeblks {
 vop_bwrite {
 	IN struct vnode *vp;
 	IN struct buf *bp;
+};
+
+#
+#% getacl	vp	= = =
+#
+vop_getacl {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	OUT struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% setacl	vp	L L L
+#
+vop_setacl {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	IN struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% aclcheck	vp	= = =
+#
+vop_aclcheck {
+	IN struct vnode *vp;
+	IN acl_type_t type;
+	IN struct acl *aclp;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% getextattr	vp	= = =
+#
+vop_getextattr {
+	IN struct vnode *vp;
+	IN char *name;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+	IN struct proc *p;
+};
+
+#
+#% setextattr	vp	L L L
+#
+vop_setextattr {
+	IN struct vnode *vp;
+	IN char *name;
+	INOUT struct uio *uio;
+	IN struct ucred *cred;
+	IN struct proc *p;
 };

@@ -1008,7 +1008,8 @@ static struct vfsops ntfs_vfsops = {
 	ntfs_checkexp,
 	ntfs_vptofh,
 	ntfs_init,
-	NULL
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);
 #elif defined(__NetBSD__)
