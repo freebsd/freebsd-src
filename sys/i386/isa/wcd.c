@@ -765,8 +765,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		if (! t->toc.hdr.ending_track)
 			return (EIO);
 
-		if (   te->data_len > sizeof(toc->tab)
-		    || te->data_len < sizeof(toc->tab[0])
+		if (   te->data_len < sizeof(toc->tab[0])
 		    || (te->data_len % sizeof(toc->tab[0])) != 0
 		   )
 			return EINVAL;
