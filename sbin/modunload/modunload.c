@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: modunload.c,v 1.4 1997/02/22 14:32:42 peter Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <err.h>
 #include <string.h>
 #include <a.out.h>
