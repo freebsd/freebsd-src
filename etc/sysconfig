@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.9 1995/04/04 17:34:40 ache Exp $
+#	$Id: sysconfig,v 1.10 1995/04/11 01:22:24 rgrimes Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -60,6 +60,9 @@ saver=NO
 # Set to the name of your host - this is pretty important!
 hostname=myname.my.domain
 
+# Set to the NIS domainname of your host, or NO if none
+defaultdomainname=NO
+
 # Set to the list of network devices on this host.  You must have an
 # ifconfig_${network_interface} line for each interface listed here.
 # for example:
@@ -81,7 +84,9 @@ timedflags=NO
 
 # xntpd flags, or NO if you don't want to start the xntpd daemon
 xntpdflags="NO"
-tickadj="-Aq"	# this is inoperative unless xntpd is enabled; NO to disable
+
+# this is inoperative unless xntpd is enabled; NO to disable
+tickadjflags="-Aq"
 
 # Set to the site you'd like to syncronize your clock from (gatekeeper.dec.com,
 # for example) or NO for no such site.
