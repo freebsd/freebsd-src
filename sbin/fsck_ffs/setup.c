@@ -39,7 +39,6 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#define DKTYPENAMES
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
