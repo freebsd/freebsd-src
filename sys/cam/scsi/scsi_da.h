@@ -151,6 +151,9 @@ struct scsi_read_defect_data_12
 #define	REASSIGN_BLOCKS		0x07
 #define MODE_SELECT		0x15
 #define MODE_SENSE		0x1a
+#define	READ_FORMAT_CAPACITIES	0x23
+#define	WRITE_AND_VERIFY	0x2e
+#define	VERIFY			0x2f
 #define READ_DEFECT_DATA_10	0x37
 #define READ_DEFECT_DATA_12	0xb7
 
@@ -180,6 +183,82 @@ struct format_ipat_descriptor
 #define FU_INIT_PAT_DEFAULT	0x00
 #define FU_INIT_PAT_REPEAT	0x01
 	u_int8_t pat_length[2];
+};
+
+struct scsi_read_format_capacities
+{
+	uint8_t	opcode;		/* READ_FORMAT_CAPACITIES */
+	uint8_t	byte2;
+#define	SRFC_LUN_MASK	0xE0
+	uint8_t	reserved0[5];
+	uint8_t	alloc_length[2];
+	uint8_t	reserved1[3];
+};
+
+struct scsi_verify
+{
+	uint8_t	opcode;		/* VERIFY */
+	uint8_t	byte2;
+#define	SVFY_LUN_MASK	0xE0
+#define	SVFY_RELADR	0x01
+#define	SVFY_BYTECHK	0x02
+#define	SVFY_DPO	0x10
+	uint8_t	addr[4];	/* LBA to begin verification at */
+	uint8_t	reserved0[1];
+	uint8_t	len[2];		/* number of blocks to verify */
+	uint8_t	reserved1[3];
+};
+
+struct scsi_write_and_verify
+{
+	uint8_t	opcode;		/* WRITE_AND_VERIFY */
+	uint8_t	byte2;
+#define	SWVY_LUN_MASK	0xE0
+#define	SWVY_RELADR	0x01
+#define	SWVY_BYTECHK	0x02
+#define	SWVY_DPO	0x10
+	uint8_t	addr[4];	/* LBA to begin verification at */
+	uint8_t	reserved0[1];
+	uint8_t	len[2];		/* number of blocks to write and verify */
+	uint8_t	reserved1[3];
+};
+
+/*
+ * Replies to READ_FORMAT_CAPACITIES look like this:
+ *
+ * struct format_capacity_list_header
+ * struct format_capacity_descriptor[1..n]
+ *
+ * These are similar, but not totally identical to, the
+ * defect list used to format a rigid disk.
+ *
+ * The appropriate csio_decode() format string looks like this:
+ * "{} *i3 {Len} i1 {Blocks} i4 {} *b6 {Code} b2 {Blocklen} i3"
+ *
+ * If the capacity_list_length is greater than
+ * sizeof(struct format_capacity_descriptor), then there are
+ * additional format capacity descriptors available which
+ * denote which format(s) the drive can handle.
+ *
+ * (Source: USB Mass Storage UFI Specification)
+ */
+
+struct format_capacity_list_header {
+	uint8_t	unused[3];
+	uint8_t	capacity_list_length;
+};
+
+struct format_capacity_descriptor {
+	uint8_t	nblocks[4];	/* total number of LBAs */
+	uint8_t	byte4;		/* only present in max/cur descriptor */
+#define FCD_CODE_MASK	0x03	/* mask for code field above */
+#define FCD_UNFORMATTED	0x01	/* unformatted media present,
+				 * maximum capacity returned */
+#define FCD_FORMATTED	0x02	/* formatted media present,
+				 * current capacity returned */
+#define FCD_NOMEDIA	0x03	/* no media present,
+				 * maximum device capacity returned */
+	uint8_t	block_length[3];	/* length of an LBA in bytes */
 };
 
 struct scsi_reassign_blocks_data
