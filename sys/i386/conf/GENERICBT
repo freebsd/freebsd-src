@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.48 1994/10/20 00:19:35 phk Exp $
+#	$Id: GENERICBT,v 1.49 1994/10/20 00:53:28 phk Exp $
 #
 
 machine		"i386"
@@ -74,6 +74,7 @@ device          lpt2    at isa? port? tty
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ed2 at isa? port 0x300 net irq 10 iomem 0xcc000 vector edintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 

@@ -1,7 +1,7 @@
 #
 # IPFIREWALL -- Sample Generic kernel suitable for building an IP firewall.
 #
-#	$Id$
+#	$Id: IPFIREWALL,v 1.1 1994/10/28 15:09:36 jkh Exp $
 #
 
 machine		"i386"
@@ -86,6 +86,7 @@ device		lpt2	at isa? port? tty
 device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ed2 at isa? port 0x300 net irq 10 iomem 0xcc000 vector edintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 
