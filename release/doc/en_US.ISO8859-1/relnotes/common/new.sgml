@@ -329,14 +329,6 @@
       more functionality and is updated by as part of
       buildworld/installworld operations.  More details can be found in
       &man.rescue.7;.
-
-      <note>
-        <para>Due to some cross-build interactions,
-        <filename>/rescue</filename> is currently disabled by default
-        and only included in buildworld/installworld operations if the
-        <varname>RESCUE</varname> Makefile variable is set.</para>
-      </note>
-
       </para>
 
   </sect2>
