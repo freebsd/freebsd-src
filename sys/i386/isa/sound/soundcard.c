@@ -499,35 +499,35 @@ sndattach(struct isa_device * dev)
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_SEQ,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "sequencer%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "sequencer");
+	if (tmp) devfs_makelink(tmp, "sequencer");
     } else if (dev->id_driver == &mpudriver || 
                dev->id_driver == &sbmididriver ||
 	       dev->id_driver == &uartdriver){
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_MIDIN,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "midi%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "midi");
+	if (tmp) devfs_makelink(tmp, "midi");
     } else {
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "dsp%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "dsp");
+	if (tmp) devfs_makelink(tmp, "dsp");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_DSP16,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "dspW%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "dspW");
+	if (tmp) devfs_makelink(tmp, "dspW");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_AUDIO,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "audio%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "audio");
+	if (tmp) devfs_makelink(tmp, "audio");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_CTL,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "mixer%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "mixer");
+	if (tmp) devfs_makelink(tmp, "mixer");
 	tmp = devfs_add_devswf(&snd_cdevsw, (dev->id_unit << 4) | SND_DEV_STATUS,
 			 DV_CHR, UID_SND, GID_SND, PERM_SND,
 			 "sndstat%r", dev->id_unit);
-	if (tmp) devfs_link(tmp, "sndstat");
+	if (tmp) devfs_makelink(tmp, "sndstat");
     }
 #endif /* DEVFS */
     return TRUE;

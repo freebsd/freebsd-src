@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.125 1998/12/04 22:54:46 archie Exp $
+ *	$Id: fd.c,v 1.126 1998/12/07 21:58:20 archie Exp $
  *
  */
 
@@ -784,10 +784,10 @@ fdattach(struct isa_device *dev)
 		}
 
 		for (i = 0; i < MAXPARTITIONS; i++) {
-			fd->bdevs[1 + NUMDENS + i] = devfs_link(fd->bdevs[0],
+			fd->bdevs[1 + NUMDENS + i] = devfs_makelink(fd->bdevs[0],
 					   "fd%d%c", fdu, 'a' + i);
 			fd->cdevs[1 + NUMDENS + i] =
-				devfs_link(fd->cdevs[0],
+				devfs_makelink(fd->cdevs[0],
 					   "rfd%d%c", fdu, 'a' + i);
 		}
 #endif /* DEVFS */
