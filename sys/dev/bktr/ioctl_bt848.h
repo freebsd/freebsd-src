@@ -138,3 +138,46 @@ struct eeProm {
 #define	METEOR_DEV0		0x00001000
 #define	METEOR_DEV1		0x00002000
 #define	METEOR_DEV2		0x00004000
+
+/*
+ * right now I don't know were to put these, but as they are suppose to be
+ * a part of a common video capture interface, these should be relocated to
+ * another place.  Probably most of the METEOR_xxx defines need to be
+ * renamed and moved to a common header
+ */
+
+typedef enum { METEOR_PIXTYPE_RGB, METEOR_PIXTYPE_YUV } METEOR_PIXTYPE;
+
+struct meteor_pixfmt {
+	u_int          index;         /* Index in supported pixfmt list     */
+	METEOR_PIXTYPE type;          /* What's the board gonna feed us     */
+	u_int          Bpp;           /* Bytes per pixel                    */
+	u_long         masks[3];      /* R,G,B or Y,U,V masks, respectively */
+	unsigned       swap_bytes :1; /* Bytes  swapped within shorts       */
+	unsigned       swap_shorts:1; /* Shorts swapped within longs        */
+};
+
+
+struct bktr_clip {
+    int          x_min;
+    int          x_max;
+    int          y_min;
+    int          y_max;
+};
+
+#define BT848_MAX_CLIP_NODE 100
+struct _bktr_clip {
+    struct bktr_clip x[BT848_MAX_CLIP_NODE];
+};
+
+/*
+ * I'm using METEOR_xxx just because that will be common to other interface
+ * and less of a surprise
+ */
+#define METEORSACTPIXFMT	_IOW('x', 64, int )
+#define METEORGACTPIXFMT	_IOR('x', 64, int )
+#define METEORGSUPPIXFMT	_IOWR('x', 65, struct meteor_pixfmt)
+
+/* set clip list */
+#define BT848SCLIP     _IOW('x', 66, struct _bktr_clip )
+#define BT848GCLIP     _IOR('x', 66, struct _bktr_clip )
