@@ -112,7 +112,7 @@ typedef	   U32 BF;
 typedef unsigned char BOOL;
 #endif
 
-#if !defined(__FAR__))
+#if !defined(__FAR__)
 # if defined(__BORLANDC__)
 #  define __FAR__ far
 # else
