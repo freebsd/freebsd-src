@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: Makefile,v 1.6 1997/02/22 14:01:22 peter Exp $
 
-SUBDIR= cat chmod cp csh date dd df domainname echo ed expr hostname \
+SUBDIR= cat chio chmod cp csh date dd df domainname echo ed expr hostname \
 	kill ln ls mkdir mv pax ps pwd rcp rm rmail rmdir sh sleep \
 	stty sync test
 
