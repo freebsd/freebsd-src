@@ -18,7 +18,10 @@ EXPORT_SYMS=_svr4_mod
 CLEANFILES= svr4_assym.h svr4_genassym.o
 
 svr4_assym.h:	svr4_genassym.o
-	genassym ${.ALLSRC} > ${.TARGET}
+.if exists(@)
+svr4_assym.h:	@/kern/genassym.sh
+.endif
+	sh @/kern/genassym.sh svr4_genassym.o > ${.TARGET}
 
 svr4_locore.o:	svr4_locore.s svr4_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
