@@ -782,6 +782,7 @@ out:
 		if_printf(ifp, "interface not running\n");
 		wi_stop(ifp, 0);
 	}
+	WI_UNLOCK(sc);
 	DPRINTF(("wi_init: return %d\n", error));
 	return;
 }
