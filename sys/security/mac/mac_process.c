@@ -761,8 +761,16 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_socket_listen =
 			    mpe->mpe_function;
 			break;
+		case MAC_CHECK_SOCKET_RECEIVE:
+			mpc->mpc_ops->mpo_check_socket_receive =
+			    mpe->mpe_function;
+			break;
 		case MAC_CHECK_SOCKET_RELABEL:
 			mpc->mpc_ops->mpo_check_socket_relabel =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_SOCKET_SEND:
+			mpc->mpc_ops->mpo_check_socket_send =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_SOCKET_VISIBLE:
@@ -2961,6 +2969,19 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 	return (error);
 }
 
+int
+mac_check_socket_receive(struct ucred *cred, struct socket *so)
+{
+	int error;
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_receive, cred, so, &so->so_label);
+
+	return (error);
+}
+
 static int
 mac_check_socket_relabel(struct ucred *cred, struct socket *socket,
     struct label *newlabel)
@@ -2969,6 +2990,19 @@ mac_check_socket_relabel(struct ucred *cred, struct socket *socket,
 
 	MAC_CHECK(check_socket_relabel, cred, socket, &socket->so_label,
 	    newlabel);
+
+	return (error);
+}
+
+int
+mac_check_socket_send(struct ucred *cred, struct socket *so)
+{
+	int error;
+
+	if (!mac_enforce_socket)
+		return (0);
+
+	MAC_CHECK(check_socket_send, cred, so, &so->so_label);
 
 	return (error);
 }

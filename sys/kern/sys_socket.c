@@ -34,9 +34,12 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/file.h>
+#include <sys/mac.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -68,6 +71,13 @@ soo_read(fp, uio, active_cred, flags, td)
 	int error;
 
 	mtx_lock(&Giant);
+#ifdef MAC
+	error = mac_check_socket_receive(active_cred, so);
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
+#endif
 	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
 	mtx_unlock(&Giant);
 	return (error);
@@ -86,6 +96,13 @@ soo_write(fp, uio, active_cred, flags, td)
 	int error;
 
 	mtx_lock(&Giant);
+#ifdef MAC
+	error = mac_check_socket_send(active_cred, so);
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
+#endif
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
 						    uio->uio_td);
 	mtx_unlock(&Giant);
