@@ -11,7 +11,7 @@
 #include "readelf.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: readelf.c,v 1.22 2002/07/03 18:26:38 christos Exp $")
+FILE_RCSID("@(#)$Id: readelf.c,v 1.23 2003/02/08 18:33:53 christos Exp $")
 #endif
 
 #ifdef	ELFCORE
@@ -104,6 +104,9 @@ getu64(int swap, uint64_t value)
 #define ph_offset	(class == ELFCLASS32		\
 			 ? getu32(swap, ph32.p_offset)	\
 			 : getu64(swap, ph64.p_offset))
+#define ph_align	(class == ELFCLASS32		\
+			 ? (ph32.p_align ? getu32(swap, ph32.p_align) : 4) \
+			 : (ph64.p_align ? getu64(swap, ph64.p_align) : 4))
 #define nh_size		(class == ELFCLASS32		\
 			 ? sizeof *nh32			\
 			 : sizeof *nh64)
@@ -157,6 +160,7 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 	char nbuf[BUFSIZ];
 	int bufsize;
 	size_t offset, nameoffset;
+	off_t savedoffset;
 
 	if (lseek(fd, off, SEEK_SET) == -1)
 		error("lseek failed (%s).\n", strerror(errno));
@@ -164,6 +168,8 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
   	for ( ; num; num--) {
   		if (read(fd, ph_addr, size) == -1)
   			error("read failed (%s).\n", strerror(errno));
+		if ((savedoffset = lseek(fd, 0, SEEK_CUR)) == -1)
+  			error("lseek failed (%s).\n", strerror(errno));
 
 		switch (ph_type) {
 		case PT_DYNAMIC:
@@ -179,7 +185,7 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 			 */
 			if (lseek(fd, (off_t) ph_offset, SEEK_SET) == -1)
 				error("lseek failed (%s).\n", strerror(errno));
-			bufsize = read(fd, nbuf, BUFSIZ);
+			bufsize = read(fd, nbuf, sizeof(nbuf));
 			if (bufsize == -1)
 				error(": " "read failed (%s).\n",
 				    strerror(errno));
@@ -202,7 +208,14 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 
 				nameoffset = offset;
 				offset += nh_namesz;
-				offset = ((offset + 3)/4)*4;
+				offset = ((offset+ph_align-1)/ph_align)*ph_align;
+
+				if ((nh_namesz == 0) && (nh_descsz == 0)) {
+					/*
+					 * We're out of note headers.
+					 */
+					break;
+				}
 
 				if (offset + nh_descsz >= bufsize)
 					break;
@@ -277,6 +290,8 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 					/* Content of note is always 0 */
 				}
 			}
+			if ((lseek(fd, savedoffset + offset, SEEK_SET)) == -1)
+				error("lseek failed (%s).\n", strerror(errno));
 			break;
 		}
 	}

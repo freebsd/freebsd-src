@@ -1,17 +1,20 @@
 .TH FILE __CSECTION__ "Copyright but distributable"
-.\" $Id: file.man,v 1.42 2002/07/03 18:26:37 christos Exp $
+.\" $Id: file.man,v 1.43 2003/02/08 18:33:53 christos Exp $
 .SH NAME
 file
 \- determine file type
 .SH SYNOPSIS
 .B file
 [
-.B \-bciknsvzL
+.B \-bciknNsvzL
 ]
 [
 .B \-f
 .I namefile
 ]
+[
+.B \-F
+separator ]
 [
 .B \-m
 .I magicfiles
@@ -172,6 +175,9 @@ Either
 or at least one filename argument must be present;
 to test the standard input, use ``\-'' as a filename argument.
 .TP 8
+.BI \-F " separator"
+Use the specified separator character instead of ``:''.
+.TP 8
 .B \-i
 Causes the file command to output mime type strings rather than the more
 traditional human readable ones. Thus it may say
@@ -194,6 +200,9 @@ This can be a single file, or a colon-separated list of files.
 Force stdout to be flushed after checking each file. This is only useful if
 checking a list of files. It is intended to be used by programs that want
 filetype output from a pipe.
+.TP 8
+.B \-N
+Don't pad output to align filenames nicely.
 .TP 8
 .B \-v
 Print the version of the program and exit.
@@ -228,7 +237,7 @@ to disregard the file size as reported by
 since on some systems it reports a zero size for raw disk partitions.
 .SH FILES
 .I __MAGIC__.mgc
-\- defaults compiled list of magic numbers
+\- default compiled list of magic numbers
 .PP
 .I __MAGIC__
 \- default list of magic numbers
