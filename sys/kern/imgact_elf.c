@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.59 1999/07/05 18:38:29 marcel Exp $
+ *	$Id: imgact_elf.c,v 1.60 1999/07/09 18:05:03 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -72,7 +72,7 @@ __ElfType(Auxargs);
 static int elf_check_header __P((const Elf_Ehdr *hdr));
 static int elf_freebsd_fixup __P((long **stack_base,
     struct image_params *imgp));
-static int elf_load_file __P((struct proc *p, char *file, u_long *addr,
+static int elf_load_file __P((struct proc *p, const char *file, u_long *addr,
     u_long *entry));
 static int elf_load_section __P((struct proc *p,
     struct vmspace *vmspace, struct vnode *vp,
@@ -297,7 +297,7 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
  * the entry point for the loaded file.
  */
 static int
-elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
+elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 {
 	const Elf_Ehdr *hdr = NULL;
 	const Elf_Phdr *phdr = NULL;
@@ -588,11 +588,9 @@ exec_elf_imgact(struct image_params *imgp)
 			 brand_info->emul_path, interp);
 		if ((error = elf_load_file(imgp->proc, path, &addr,
 					   &imgp->entry_addr)) != 0) {
-			snprintf(path, sizeof(path), "%s", interp);
-		        if ((error = elf_load_file(imgp->proc, path, &addr,
+		        if ((error = elf_load_file(imgp->proc, interp, &addr,
 						   &imgp->entry_addr)) != 0) {
-			        uprintf("ELF interpreter %s not found\n",
-					path);
+			        uprintf("ELF interpreter %s not found\n", path);
 				goto fail;
 			}
                 }
