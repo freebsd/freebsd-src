@@ -1,6 +1,6 @@
 
 
-Note: This is the README from the isdn4bsd 0.71.00 ftp-distribution. 
+Note: This is a modified README from the isdn4bsd 0.71.00 ftp-distribution. 
 
       In December 1998, i4b was integrated into the FreeBSD sourcetree
       and so the following parts about FreeBSD may not apply completely
@@ -52,8 +52,9 @@ Note: This is the README from the isdn4bsd 0.71.00 ftp-distribution.
                        This package is postcard-ware:
                        ==============================
 
-        The license fee for using isdn4bsd is sending a picture postcard
-       of your home town. My address can be found at the top of this file.
+        The (for laywer infected places: optional) license fee for using
+           isdn4bsd is sending a picture postcard of your home town.
+               My address can be found at the top of this file.
 
 
 --------------------------------------------------------------------------------
