@@ -182,7 +182,9 @@ shm_deallocate_segment(shmseg)
 	size_t size;
 
 	shm_handle = shmseg->shm_internal;
+	mtx_lock(&vm_mtx);
 	vm_object_deallocate(shm_handle->shm_object);
+	mtx_unlock(&vm_mtx);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
 	size = round_page(shmseg->shm_segsz);
@@ -203,7 +205,9 @@ shm_delete_mapping(p, shmmap_s)
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
 	size = round_page(shmseg->shm_segsz);
+	mtx_lock(&vm_mtx);
 	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va, shmmap_s->va + size);
+	mtx_unlock(&vm_mtx);
 	if (result != KERN_SUCCESS)
 		return EINVAL;
 	shmmap_s->shmid = -1;
