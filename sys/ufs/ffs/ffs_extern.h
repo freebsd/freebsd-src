@@ -101,6 +101,7 @@ void	softdep_initialize(void);
 void	softdep_uninitialize(void);
 int	softdep_mount(struct vnode *, struct mount *, struct fs *,
 	    struct ucred *);
+void	softdep_move_dependencies(struct buf *, struct buf *);
 int	softdep_flushworklist(struct mount *, int *, struct thread *);
 int	softdep_flushfiles(struct mount *, int, struct thread *);
 void	softdep_update_inodeblock(struct inode *, struct buf *, int);
