@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.50 1996/06/11 10:00:46 jkh Exp $
+#	$Id: Makefile,v 1.193.2.51 1996/06/17 21:09:30 jkh Exp $
 #
 # How to roll a release:
 #
@@ -413,6 +413,10 @@ ftp.1:
 	mkdir ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
+	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
+	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
+	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
+	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -432,6 +436,10 @@ cdrom.1:
 		fi \
 	done
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
+	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
+	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
+	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD}/INSTALL.TXT
+	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD}/RELNOTES.TXT
 
 # Various "subroutine" and other supporting targets.
 
