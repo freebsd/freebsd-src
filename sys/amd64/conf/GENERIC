@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.140 1998/12/27 13:55:47 sos Exp $
+#	$Id: GENERIC,v 1.141 1999/01/01 08:09:57 peter Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -142,6 +142,7 @@ device		psm0	at isa? port IO_KBD conflicts tty irq 12
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
+device ax0
 device de0
 device fxp0
 device mx0
