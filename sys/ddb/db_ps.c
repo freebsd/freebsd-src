@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.6 1995/05/30 07:57:07 rgrimes Exp $
+ *	$Id: db_ps.c,v 1.7 1995/08/20 05:25:11 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -39,7 +39,12 @@
 #include <machine/cons.h>
 
 void
-db_ps() {
+db_ps(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
+{
 	int np;
 	int nl = 0;
 	volatile struct proc *p, *pp;
