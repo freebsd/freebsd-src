@@ -120,6 +120,7 @@ static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 
 static void	acpi_system_eventhandler_sleep(void *arg, int state);
 static void	acpi_system_eventhandler_wakeup(void *arg, int state);
+static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
@@ -397,6 +398,9 @@ acpi_attach(device_t dev)
     sc->acpi_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_sysctl_ctx,
 			       SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
 			       device_get_name(dev), CTLFLAG_RD, 0, "");
+    SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "supported_sleep_state", CTLTYPE_STRING | CTLFLAG_RD,
+	0, 0, acpi_supported_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "power_button_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_power_button_sx, 0, acpi_sleep_state_sysctl, "A", "");
@@ -1910,6 +1914,25 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 
 out:
     ACPI_UNLOCK;
+    return(error);
+}
+
+static int
+acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    char sleep_state[4];
+    char buf[16];
+    int error;
+    UINT8 state, TypeA, TypeB;
+
+    buf[0] = '\0';
+    for (state = ACPI_STATE_S1; state < ACPI_S_STATES_MAX+1; state++) {
+	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
+	    sprintf(sleep_state, "S%d ", state);
+	    strcat(buf, sleep_state);
+	}
+    }
+    error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
     return(error);
 }
 
