@@ -27,7 +27,6 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 .Dd September 24, 1999
 .Dt PKG_SIGN 1
 .Os
@@ -36,7 +35,7 @@
 .Nm check_sign
 .Nd handle package signatures
 .Sh SYNOPSIS
-.Nm pkg_sign
+.Nm
 .Op Fl sc
 .Op Fl t Ar type
 .Op Fl u Ar id
@@ -48,26 +47,26 @@
 .Op Fl k Ar cert
 .Op Ar
 .Sh DESCRIPTION
-.Nm pkg_sign
+.Nm
 embeds a cryptographic signature within a gzip file
 .Ar file .
 .Ar type
 can be
-.Li pgp
+.Cm pgp
 (default), 
-.Li sha1 ,
+.Cm sha1 ,
 or
-.Li x509 .
+.Cm x509 .
 If
 .Ar type
 is
-.Li pgp ,
+.Cm pgp ,
 it will always prompt you for a passphrase to unlock your private
 pgp key, even if you don't use a passphrase (which is a bad idea, anyway).
 If
 .Ar type
 is
-.Li sha1 ,
+.Cm sha1 ,
 you must supply an
 .Ar id ,
 which will be recorded as the name of the package, and printed as the
@@ -78,7 +77,9 @@ checks that cryptographic signature.
 It currently disregards
 .Ar type
 and checks only the topmost signature.
-For sha1, it checksums the file
+For
+.Cm sha1 ,
+it checksums the file
 and verifies that the result matches the list of checksums recorded in
 .Pa /var/db/pkg/SHA1 .
 .Pp
@@ -88,12 +89,16 @@ and
 .Fl c
 can be used to force package signing or signature checking mode.
 .Pp
-For pgp, the
+For
+.Cm pgp ,
+the
 .Ar id
 to use to sign the package or verify the signature can be forced with
 .Fl u .
 .Pp
-For X.509, the signing key or verification certificate may be
+For
+.Cm x509 ,
+the signing key or verification certificate may be
 specified with the
 .Fl k
 option.  If not specified, packages are signed or verified with the
@@ -102,7 +107,7 @@ default keys and certificates documented below.
 If
 .Ar file
 is a single dash
-.Pq Sq \&-
+.Pq Sq Fl
 or absent,
 .Nm check_sign
 reads from the standard input.
@@ -112,24 +117,28 @@ set a flag
 .Dv EXTRA_FIELD
 in the gzip header and store extra data between the gzip header and the
 compressed file proper.
-The OpenBSD signing scheme uses eight bytes markers such `SIGPGP' \+ length
-or `CKSHA1' \+ length for its signatures (those markers are conveniently
+The
+.Ox
+signing scheme uses eight bytes markers such
+.Sq Li SIGPGP
++ length or
+.Sq CKSHA1
++ length for its signatures (those markers are conveniently
 eight bytes long).
-.Sh RESULTS
-.Nm pkg_sign
+.Sh DIAGNOSTICS
+.Nm
 and
 .Nm pkg_check
-return with an exit code > 0 if anything went wrong for any
+return with an exit code >0 if anything went wrong for any
 .Ar file .
 For
 .Nm pkg_check ,
 this usually indicates that the package is not signed, or that the
 signature is forged.
-.Sh DIAGNOSTICS
 .Bl -diag
 .It "File %s is already signed"
 There is a signature embedded within the gzip file already.
-.Nm pkg_sign
+.Nm
 currently does not handle multiple signatures.
 .It "File %s is not a signed gzip file"
 This is an unsigned package.
@@ -162,7 +171,7 @@ the checksum file are hard-coded to avoid tampering and hinder flexibility.
 .Bl -tag -width "/usr/local/bin/pgp" -compact
 .It Pa file.sign
 Temporary file built by
-.Nm pkg_sign
+.Nm
 from
 .Ar file .
 .It Pa /usr/local/bin/pgp
@@ -181,6 +190,14 @@ Default package verification certificate(s).
 .Xr pkg_add 1 ,
 .Xr sha1 1
 .Sh AUTHORS
-.Nm pkg_sign
-was created by Marc Espie for the OpenBSD Project.  X.509 signatures
-and FreeBSD support added by Wes Peters <wes@softweyr.com>.
+.An -nosplit
+.Nm
+was created by
+.An Marc Espie
+for the
+.Ox
+Project.
+X.509 signatures and
+.Fx
+support added by
+.An Wes Peters Aq wes@softweyr.com .
