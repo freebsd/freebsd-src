@@ -32,8 +32,8 @@ SRCS=		pam_unix.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBUTIL} ${LIBGCC_PIC} ${LIBCRYPT}
-LDADD+=		-lutil -lgcc_pic -lcrypt
+DPADD+=		${LIBUTIL} ${LIBCRYPT}
+LDADD+=		-lutil -lcrypt
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 

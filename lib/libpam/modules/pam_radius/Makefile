@@ -32,8 +32,8 @@ SRCS=		pam_radius.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBRADIUS} ${LIBGCC_PIC}
-LDADD+=		-lradius -lgcc_pic
+DPADD+=		${LIBRADIUS}
+LDADD+=		-lradius
 INTERNALLIB=    yes
 INTERNALSTATICLIB=yes
 
