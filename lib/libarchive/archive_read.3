@@ -30,12 +30,12 @@
 .Sh NAME
 .Nm archive_read_new ,
 .Nm archive_read_set_bytes_per_block ,
-.Nm archive_read_support_compression_none ,
-.Nm archive_read_support_compression_gzip ,
-.Nm archive_read_support_compression_bzip2 ,
 .Nm archive_read_support_compression_all ,
+.Nm archive_read_support_compression_bzip2 ,
+.Nm archive_read_support_compression_compress ,
+.Nm archive_read_support_compression_gzip ,
+.Nm archive_read_support_compression_none ,
 .Nm archive_read_support_format_tar ,
-.Nm archive_read_support_format_gnutar ,
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_all ,
 .Nm archive_read_open ,
@@ -57,17 +57,17 @@
 .Ft int
 .Fn archive_read_set_bytes_per_block "struct archive *" "int"
 .Ft int
-.Fn archive_read_support_compression_none "struct archive *"
-.Ft int
-.Fn archive_read_support_compression_gzip "struct archive *"
+.Fn archive_read_support_compression_all "struct archive *"
 .Ft int
 .Fn archive_read_support_compression_bzip2 "struct archive *"
 .Ft int
-.Fn archive_read_support_compression_all "struct archive *"
+.Fn archive_read_support_compression_compress "struct archive *"
+.Ft int
+.Fn archive_read_support_compression_gzip "struct archive *"
+.Ft int
+.Fn archive_read_support_compression_none "struct archive *"
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
-.Ft int
-.Fn archive_read_support_format_gnutar "struct archive *"
 .Ft int
 .Fn archive_read_support_format_cpio "struct archive *"
 .Ft int
@@ -317,7 +317,7 @@ The possible return codes include:
 .Cm ARCHIVE_READ_WARN
 (the operation succeeded but a non-critical error was encountered)
 .Cm ARCHIVE_READ_EOF
-(the operation failed because end-of-archive was encountered),
+(end-of-archive was encountered),
 .Cm ARCHIVE_READ_RETRY
 (the operation failed but can be retried),
 and
@@ -358,7 +358,7 @@ then return one of the non-zero values above.
 (Note that the value eventually returned to the client may
 not be the same; many errors that are not critical at the level
 of basic I/O can prevent the archive from being properly read,
-thus most errors eventually cause
+thus most I/O errors eventually cause
 .Cm ARCHIVE_FATAL
 to be returned.)
 .\" .Sh ERRORS
