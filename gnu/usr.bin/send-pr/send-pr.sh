@@ -295,6 +295,7 @@ else
   if [ -n "$PR_FORM" -a -z "$PRINT_INTERN" ]; then
     cp $PR_FORM $TEMP || 
       ( echo "$COMMAND: could not copy $PR_FORM" ; xs=1; exit )
+    [ -n "$ATTACHED_FILES" ] && echo "$ATTACHED_FILES" >> $TEMP
   else
     for file in $TEMP $REF ; do
       cat  > $file << '__EOF__'
