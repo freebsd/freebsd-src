@@ -168,7 +168,7 @@ chrdev	name		comments
 148	agp		AGP <dfr>
 149	tap		Ethernet tunneling device <myevmenkin@att.com>
 150	aac		Adaptec FSA RAID (controller)
-151	aacd		Adaptec FSA RAID (drives)
+151
 152	acpi		ACPI bios support (Takanori Watanabe takawata@shidahara1.planet.sci.kobe-u.ac.jp)
 153	ti		Tigon Gigabit Ethernet driver (ken@FreeBSD.ORG)
 154	asr		Adaptec SCSI RAID <msmith@freebsd.org>
