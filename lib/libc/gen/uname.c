@@ -37,89 +37,15 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#define uname wrapped_uname
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <errno.h>
+#undef uname
 
 int
-uname(name)
-	struct utsname *name;
+uname(struct utsname *name)
 {
-	int mib[2], rval;
-	size_t len;
-	char *p;
-	int oerrno;
-
-	rval = 0;
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_OSTYPE;
-	len = sizeof(name->sysname);
-	oerrno = errno;
-	if (sysctl(mib, 2, &name->sysname, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM)
-			errno = oerrno;
-		else
-			rval = -1;
-	}
-	name->sysname[sizeof(name->sysname) - 1] = '\0';
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_HOSTNAME;
-	len = sizeof(name->nodename);
-	oerrno = errno;
-	if (sysctl(mib, 2, &name->nodename, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM)
-			errno = oerrno;
-		else
-			rval = -1;
-	}
-	name->nodename[sizeof(name->nodename) - 1] = '\0';
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_OSRELEASE;
-	len = sizeof(name->release);
-	oerrno = errno;
-	if (sysctl(mib, 2, &name->release, &len, NULL, 0) == -1) {
-		if(errno == ENOMEM)
-			errno = oerrno;
-		else
-			rval = -1;
-	}
-	name->release[sizeof(name->release) - 1] = '\0';
-
-	/* The version may have newlines in it, turn them into spaces. */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_VERSION;
-	len = sizeof(name->version);
-	oerrno = errno;
-	if (sysctl(mib, 2, &name->version, &len, NULL, 0) == -1) {
-		if (errno == ENOMEM)
-			errno = oerrno;
-		else
-			rval = -1;
-	}
-	name->version[sizeof(name->version) - 1] = '\0';
-	for (p = name->version; len--; ++p) {
-		if (*p == '\n' || *p == '\t') {
-			if (len > 1)
-				*p = ' ';
-			else
-				*p = '\0';
-		}
-	}
-
-	mib[0] = CTL_HW;
-	mib[1] = HW_MACHINE;
-	len = sizeof(name->machine);
-	oerrno = errno;
-	if (sysctl(mib, 2, &name->machine, &len, NULL, 0) == -1) {
-		if (errno == ENOMEM)
-			errno = oerrno;
-		else
-			rval = -1;
-	}
-	name->machine[sizeof(name->machine) - 1] = '\0';
-	return (rval);
+	return __xuname(32, name);
 }
