@@ -19,7 +19,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
-	ldconfig local localdaemons lomac lpd \
+	ldconfig local localdaemons localpkg lomac lpd \
 	motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs \
 	named netif netoptions \
