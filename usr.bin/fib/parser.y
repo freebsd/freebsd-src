@@ -524,10 +524,10 @@ output_field(struct field_list *fields, char *fieldname, FILE *outf)
 				lim = 0;
 				for (i=0; i < fields->field.field.menu->no_options - 1; i++) {
 					fprintf(outf, "\"%s\", ", menu->option);
-					menu = menu->next;
 					len = strlen(menu->option);
 					if (len > lim)
 						lim = len;
+					menu = menu->next;
 				}
 				if (!fields->field.width)
 					fields->field.width = lim;
