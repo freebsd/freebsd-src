@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/29 15:02:05 $
+<date>$Date: 1997/01/30 20:39:26 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1805,6 +1805,19 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	       % ./MAKEDEV sd1s5
 	       % mount -t msdos /dev/sd1s5 /dos/e
 	    </verb>
+
+      <sect1>
+         <heading>Can I mount other foreign filesystems under FreeBSD?</heading>	   <p>
+	     <bf/ Digital UNIX/ UFS CDROMs can be mounted directly on FreeBSD.
+             Mounting disk partitions from Digital UNIX and other systems
+	     that support UFS may be more complex, depending on the details
+	     of the disk partitioning for the operating system in question.
+           <p>
+	     <bf/ Linux/: 2.2 and later have support for <bf/ext2fs/ partitions.
+	     See mount_ext2fs(8) for more information.
+
+	     Any other information on this subject would be appreciated.
+
       <sect1>
         <heading>How can I use the NT loader to boot FreeBSD?</heading>
         <p>
