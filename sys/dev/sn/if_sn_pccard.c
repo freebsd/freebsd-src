@@ -47,22 +47,23 @@
 #include <net/if.h> 
 #include <net/if_arp.h>
 
-
 #include <dev/sn/if_snvar.h>
 #include <dev/pccard/pccardvar.h>
-
 #include <dev/pccard/pccarddevs.h>
 
 #include "card_if.h"
 
 static const struct pccard_product sn_pccard_products[] = {
 	{ PCCARD_STR_MEGAHERTZ2_XJACK,		PCCARD_VENDOR_MEGAHERTZ2,
-	  PCCARD_PRODUCT_MEGAHERTZ2_XJACK,	 0, NULL, NULL },
+	  PCCARD_PRODUCT_MEGAHERTZ2_XJACK,	 0,
+	  PCCARD_CIS_MEGAHERTZ2_XJACK },
 	{ PCCARD_STR_NEWMEDIA_BASICS,		PCCARD_VENDOR_NEWMEDIA,
-	  PCCARD_PRODUCT_NEWMEDIA_BASICS,	0, NULL, NULL },
+	  PCCARD_PRODUCT_NEWMEDIA_BASICS,	0,
+	  PCCARD_CIS_NEWMEDIA_BASICS },
 #if 0
 	{ PCCARD_STR_SMC_8020BT,		PCCARD_VENDOR_SMC,
-	  PCCARD_PRODUCT_SMC_8020BT,		0, NULL, NULL},
+	  PCCARD_PRODUCT_SMC_8020BT,		0,
+	  PCCARD_CIS_SMC_8020BT },
 #endif
 	{ NULL }
 };
