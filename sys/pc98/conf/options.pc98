@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.83 1999/03/17 09:00:33 kato Exp $
+#	$Id: options.pc98,v 1.84 1999/04/18 14:42:14 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -96,9 +96,8 @@ INTRO_USERCONFIG	opt_userconfig.h
 
 EISA_SLOTS		opt_eisa.h
 
-FDC_DEBUG			opt_fdc.h
-FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
-FDC_YE				opt_fdc.h
+FDC_DEBUG		opt_fdc.h
+FDC_YE			opt_fdc.h
 
 FE_8BIT_SUPPORT		opt_fe.h
 
