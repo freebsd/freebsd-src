@@ -275,6 +275,25 @@ ex_attach(device_t dev)
 	return(0);
 }
 
+int
+ex_detach (device_t dev)
+{
+	struct ex_softc	*sc;
+	struct ifnet	*ifp;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+        ex_stop(sc);
+
+        ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+
+	ex_release_resources(dev);
+
+	return (0);
+}
+
 static void
 ex_init(void *xsc)
 {

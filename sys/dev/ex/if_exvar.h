@@ -75,6 +75,7 @@ extern u_char	plus_ee2irqmap[];
 int		ex_alloc_resources	(device_t);
 void		ex_release_resources	(device_t);
 int		ex_attach		(device_t);
+int		ex_detach		(device_t);
 
 driver_intr_t	ex_intr;
 

@@ -65,6 +65,7 @@ static device_method_t ex_methods[] = {
 	DEVMETHOD(device_identify,	ex_isa_identify),
 	DEVMETHOD(device_probe,		ex_isa_probe),
 	DEVMETHOD(device_attach,	ex_isa_attach),
+	DEVMETHOD(device_detach,	ex_detach),
 
 	{ 0, 0 }
 };
