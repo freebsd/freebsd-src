@@ -56,7 +56,6 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 /*
@@ -649,16 +648,6 @@ inserted(void *arg)
 }
 
 /*
- *	Insert/Remove beep
- */
-static int beepok = 0;
-
-static void enable_beep(void *dummy)
-{
-	beepok = 1;
-}
-
-/*
  *	Card event callback. Called at splhigh to prevent
  *	device interrupts from interceding.
  */
@@ -682,20 +671,14 @@ pccard_event(struct slot *slt, enum card_event event)
 			slt->state = empty;
 			splx(s);
 			printf("Card removed, slot %d\n", slt->slotnum);
-			if (beepok)
-				sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-			beepok = 0;
-			timeout(enable_beep, (void *)NULL, hz/5);
+			pccard_remove_beep();
 			selwakeup(&slt->selp);
 		}
 		break;
 	case card_inserted:
 		slt->insert_seq = 1;
 		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
-		if (beepok)
-			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-		beepok = 0;
-		timeout(enable_beep, (void *)NULL, hz/5);
+		pccard_remove_beep();
 		break;
 	}
 }
@@ -868,7 +851,7 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	int s, err;
 
 	/* beep is disabled until the 1st call of crdioctl() */
-	enable_beep(NULL);
+	pccard_beep_select(BEEP_ON);
 
 	if (slt == 0 && cmd != PIOCRWMEM)
 		return(ENXIO);
@@ -989,9 +972,9 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 			return(EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)
-			sysbeep(PCCARD_BEEP_PITCH1, PCCARD_BEEP_DURATION1);
+			pccard_success_beep();
 		else
-			sysbeep(PCCARD_BEEP_PITCH2, PCCARD_BEEP_DURATION2);
+			pccard_failure_beep();
 		return err;
 	}
 	return(0);
