@@ -789,9 +789,12 @@ hw.pcic.irq="0"</programlisting>
       (<application>FICL</application>) used in the boot loader has
       been updated to 2.05.</para>
 
-      <para>ACPI support has been merged in from the
-      <application>Intel ACPI</application>
-      project, and updated to the ACPI CA 20010831 release.</para>
+      <para>Support for Advanced Configuration and Power Interface
+      (ACPI), a multi-vendor standard for configuration and power
+      management, has been added.  This functionality has been
+      provided by the <application>Intel ACPI Component
+      Architecture</application> project, updated to the ACPI CA
+      20010831 release.</para>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
