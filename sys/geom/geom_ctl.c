@@ -447,6 +447,7 @@ static int
 g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct gctl_req *req;
+	int nerror;
 
 	req = (void *)data;
 	req->nerror = 0;
@@ -474,8 +475,9 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 	}
 
 	g_waitidle();
+	nerror = req->nerror;
 	gctl_free(req);
-	return (req->nerror);
+	return (nerror);
 }
 
 static int
