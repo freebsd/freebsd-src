@@ -346,6 +346,9 @@ struct ax_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	ax_bhandle;	/* bus space handle */
 	bus_space_tag_t		ax_btag;	/* bus space tag */
+	void			*ax_intrhand;
+	struct resource		*ax_irq;
+	struct resource		*ax_res;
 	struct ax_type		*ax_info;	/* ASIX adapter info */
 	struct ax_type		*ax_pinfo;	/* phy info */
 	u_int8_t		ax_unit;	/* interface number */
@@ -377,6 +380,7 @@ struct ax_softc {
 	bus_space_read_1(sc->ax_btag, sc->ax_bhandle, reg)
 
 #define AX_TIMEOUT		1000
+#define ETHER_ALIGN		2
 
 /*
  * General constants that are fun to know.
@@ -567,5 +571,6 @@ struct ax_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
 #endif

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mxreg.h,v 1.6 1999/05/26 23:01:48 gallatin Exp $
+ *	$Id: if_mxreg.h,v 1.7 1999/05/28 18:43:14 wpaul Exp $
  */
 
 /*
@@ -482,6 +482,9 @@ struct mx_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	mx_bhandle;	/* bus space handle */
 	bus_space_tag_t		mx_btag;	/* bus space tag */
+	void			*mx_intrhand;
+	struct resource		*mx_irq;
+	struct resource		*mx_res;
 	struct mx_type		*mx_info;	/* Macronix adapter info */
 	struct mx_type		*mx_pinfo;	/* phy info */
 	u_int8_t		mx_unit;	/* interface number */
@@ -514,6 +517,7 @@ struct mx_softc {
 	bus_space_read_1(sc->mx_btag, sc->mx_bhandle, reg)
 
 #define MX_TIMEOUT		1000
+#define ETHER_ALIGN		2
 
 /*
  * General constants that are fun to know.
