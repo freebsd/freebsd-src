@@ -819,8 +819,6 @@ mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 				break;
 		}
 	}
-	if (error != 0)
-		uma_zdestroy(sc->uma);
 	return (error);
 }
 
@@ -945,9 +943,8 @@ mddestroy(struct md_s *sc, struct thread *td)
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
 	if (sc->cred != NULL)
 		crfree(sc->cred);
-	if (sc->object != NULL) {
+	if (sc->object != NULL)
 		vm_object_deallocate(sc->object);
-	}
 	if (sc->indir)
 		destroy_indir(sc, sc->indir);
 	if (sc->uma)
