@@ -67,7 +67,6 @@ scripts: links
 	@sh config_h.sh
 	@sh cflags.sh
 	@sh writemain.sh
-	@sh myconfig
 	@${MINIPERL} ${PERL5SRC}/configpm \
 		Config.pm Porting/Glossary myconfig
 	@ln -sf ../Config.pm lib/Config.pm
@@ -77,8 +76,8 @@ scripts: links
 config.h:	scripts
 .endif
 
-CLEANFILES+=	links
-CLEANFILES+=	config.h config.sh config_h.sh
+CLEANFILES+=	links scripts
+CLEANFILES+=	config.h config.sh config_h.sh Config.pm
 CLEANFILES+=	regcomp.c regexec.c miniperlmain.c
 CLEANFILES+=	writemain writemain.sh cflags cflags.sh myconfig
 CLEANDIRS+=	lib ext Porting hints build
