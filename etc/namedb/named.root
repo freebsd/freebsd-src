@@ -1,7 +1,5 @@
-;	$Id$
-;
 ;       This file holds the information on root name servers needed to
-;       initialize cache of Internet domain name servers 
+;       initialize cache of Internet domain name servers
 ;       (e.g. reference this file in the "cache  .  <file>"
 ;       configuration file of BIND domain name servers).
 ;
@@ -14,27 +12,49 @@
 ;              submenu          InterNIC Registration Archives
 ;           file                named.root
 ;
-;       last update:    Oct 5, 1994
-;       related version of root zone:   1994100500
+;       last update:    Aug 25, 1995
+;       related version of root zone:   1995082500
 ;
-.                        99999999 IN  NS    NS.INTERNIC.NET.
-NS.INTERNIC.NET.         99999999     A     198.41.0.4
-.                        99999999     NS    NS1.ISI.EDU. 
-NS1.ISI.EDU.             99999999     A     128.9.0.107
-.                        99999999     NS    C.PSI.NET.
-C.PSI.NET.               99999999     A     192.33.4.12
-.                        99999999     NS    TERP.UMD.EDU.
-TERP.UMD.EDU.            99999999     A     128.8.10.90
-.                        99999999     NS    NS.NASA.GOV.
-NS.NASA.GOV.             99999999     A     128.102.16.10
-                         99999999     A     192.52.195.10
-.                        99999999     NS    NS.ISC.ORG.
-NS.ISC.ORG.              99999999     A     192.5.5.241
-.                        99999999     NS    NS.NIC.DDN.MIL.
-NS.NIC.DDN.MIL.          99999999     A     192.112.36.4
-.                        99999999     NS    AOS.ARL.ARMY.MIL.
-AOS.ARL.ARMY.MIL.        99999999     A     128.63.4.82
-                         99999999     A     192.5.25.82
-.                        99999999     NS    NIC.NORDU.NET.
-NIC.NORDU.NET.           99999999     A     192.36.148.17
+.                        3600000  IN  NS    NS.INTERNIC.NET.
+NS.INTERNIC.NET.         3600000      A     198.41.0.4
+;
+; formerly NS1.ISI.EDU
+;
+.                        3600000      NS    B.ROOT-SERVERS.NET.
+B.ROOT-SERVERS.NET.      3600000      A     128.9.0.107
+;
+; formerly C.PSI.NET
+;
+.                        3600000      NS    C.ROOT-SERVERS.NET.
+C.ROOT-SERVERS.NET.      3600000      A     192.33.4.12
+;
+; formerly TERP.UMD.EDU
+;
+.                        3600000      NS    D.ROOT-SERVERS.NET.
+D.ROOT-SERVERS.NET.      3600000      A     128.8.10.90
+;
+; formerly NS.NASA.GOV
+;
+.                        3600000      NS    E.ROOT-SERVERS.NET.
+E.ROOT-SERVERS.NET.      3600000      A     192.203.230.10
+;
+; formerly NS.ISC.ORG
+;
+.                        3600000      NS    F.ROOT-SERVERS.NET.
+F.ROOT-SERVERS.NET.      3600000      A     39.13.229.241
+;
+; formerly NS.NIC.DDN.MIL
+;
+.                        3600000      NS    G.ROOT-SERVERS.NET.
+G.ROOT-SERVERS.NET.      3600000      A     192.112.36.4
+;
+; formerly AOS.ARL.ARMY.MIL
+;
+.                        3600000      NS    H.ROOT-SERVERS.NET.
+H.ROOT-SERVERS.NET.      3600000      A     128.63.2.53
+;
+; formerly NIC.NORDU.NET
+;
+.                        3600000      NS    I.ROOT-SERVERS.NET.
+I.ROOT-SERVERS.NET.      3600000      A     192.36.148.17
 ; End of File
