@@ -3159,6 +3159,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       operate on a symbolic link, rather than what the link points
       to.</para>
 
+    <para>&man.tr.1; now has basic support for equivalence classes
+      for locales that support them. &merged;</para>
+
+    <para>&man.tr.1; now supports a <option>-C</option> flag to
+      complement the set of characters specified by the first string
+      argument.</para>
+
     <para role="historic">The &man.truncate.1; utility, which truncates or extends the
       length of files, has been added. &merged;</para>
 
@@ -3243,7 +3250,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-H</option> shows column headings; <option>-T</option>
       shows &man.mesg.1; state; <option>-m</option> is an equivalent
       to <option>am i</option>; <option>-u</option> shows idle time;
-      <option>-q</option> to list names in columns.</para>
+      <option>-q</option> to list names in columns. &merged;</para>
 
     <para role="historic">&man.whois.1; now directs queries for IP addresses to ARIN.
       If a query to ARIN references APNIC or RIPE, the appropriate
