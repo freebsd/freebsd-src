@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: link.5,v 1.11 1997/02/22 13:26:03 peter Exp $
+.\"	$Id: link.5,v 1.7.2.3 1997/02/28 03:27:24 mpp Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -126,9 +126,12 @@ and
 .Xr ld.so 1
 are
 .Em LD_VERSION_SUN (3),
-which is used by the SunOS 4.x releases, and
+which is used by the
+.Tn SunOS
+4.x releases, and
 .Em LD_VERSION_BSD (8),
-which is currently in use by FreeBSD since release 1.1.
+which has been in use since
+.Fx 1.1 .
 .It Fa d_un
 Refers to a
 .Em d_version
@@ -482,7 +485,9 @@ was loaded by crt0.
 .It Fa crt_dzfd
 On SunOS systems, this field contains an open file descriptor to
 .Dq Pa /dev/zero
-used to get demand paged zeroed pages. On FreeBSD systems it contains -1.
+used to get demand paged zeroed pages. On
+.Tn FreeBSD
+systems it contains -1.
 .It Fa crt_ldfd
 Contains an open file descriptor that was used by crt0 to load
 .Nm ld.so .
