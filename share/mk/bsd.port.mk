@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.179 1995/09/18 08:01:20 asami Exp $
+# $Id: bsd.port.mk,v 1.182 1995/10/04 23:22:21 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -96,6 +96,7 @@
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_SCRIPT - Name of configure script, defaults to 'configure'.
 # CONFIGURE_ARGS - Pass these args to configure, if ${HAS_CONFIGURE} set.
+# CONFIGURE_ENV  - Pass these env (shell-like) to configure, if ${HAS_CONFIGURE} set.
 # IS_INTERACTIVE - Set this if your port needs to interact with the user
 #				  during a build.  User can then decide to skip this port by
 #				  setting ${BATCH}, or compiling only the interactive ports
@@ -473,7 +474,7 @@ do-fetch:
 		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
-			    ${ECHO_MSG} ">> Attempting to fetch from $${site}"; \
+			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
 				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} || true); \
 				if [ -f $$file -o -f `/usr/bin/basename $$file` ]; then \
 					continue 2; \
@@ -599,7 +600,7 @@ do-configure:
 	@(cd ${WRKSRC}; CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
 	    INSTALL_PROGRAM="/usr/bin/install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}" \
-	    ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
+	    ${CONFIGURE_ENV} ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
 	@(cd ${WRKSRC}; ${XMKMF})
@@ -1041,7 +1042,7 @@ lib-depends:
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
-		if ldconfig -r | grep -q -e "-l$$lib"; then \
+		if /sbin/ldconfig -r | grep -q -e "-l$$lib"; then \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
