@@ -1,3 +1,5 @@
+@c $FreeBSD$
+
 \input texinfo   @c -*-texinfo-*-
 @setfilename send-pr.info
 @settitle Reporting Problems Using send-pr
@@ -10,13 +12,13 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* send-pr: (send-pr).		Reporting problems--using send-pr.
+* send-pr: (send-pr).		Reporting problems--using send-pr
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
 
 @ifinfo
-Copyright @copyright{} 1993 Free Software Foundation, Inc.
+Copyright @copyright{} 1993, 1994, 1995 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -50,7 +52,7 @@ into another language, under the above conditions for modified versions.
 
 @vskip 0pt plus 1filll
 
-Copyright @copyright{} 1993 Free Software Foundation, Inc.
+Copyright @copyright{} 1993, 1994, 1995 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -154,16 +156,15 @@ of Problem Reports}).
 @chapter An Example
 @cindex an example
 @cindex example PR
-@cindex Cygnus Support
-@cindex GNU software support
-
-Cygnus Support in Mountain View, CA, uses @sc{gnats} and @code{send-pr}
+@cindex Cygnus Solutions
+@cindex @sc{gnu} software support
+Cygnus Solutions in Sunnyvale, CA, uses @sc{gnats} and @code{send-pr}
 extensively for their support activities.  As a support company, Cygnus
 finds problem tracking to be a crucial part of everyday business.
 Cygnus supports the @sc{gnu} compiling tools (including @sc{gnats} and
 @code{send-pr}) over several many platforms
 
-With each shipment of the Cygnus Support Developer's Kit, customers
+With each shipment of the Cygnus Solutions Developer's Kit, customers
 receive the latest version of @code{send-pr}, which contains an
 up-to-date listing of valid categories (values for the @code{>Category:}
 field).  Using these tools, Cygnus' customers can communicate their
@@ -172,7 +173,7 @@ receipt as well as notification of changes in the status of their
 reported problems.  Much of Cygnus' support mechanism relies on
 electronic mail.
 
-As an example, let's pretend we're a customer of Cygnus Support, and
+As an example, let's pretend we're a customer of Cygnus Solutions, and
 that we're having a problem compiling some of our software using the
 @sc{gnu} C compiler, which Cygnus supports.
 
@@ -364,7 +365,7 @@ I'm working on robustisizing the bifrabulator now.
 How about lunch next week?
 --
 F.B. Hacker
-Cygnus Support, Mountain View, CA  415 903 1400
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
 #include <std-disclaimer.h>
 @end group
 @end smallexample
@@ -391,7 +392,7 @@ State-Changed-Why:
     figured out the problem, working on a patch this afternoon
 --
 F.B. Hacker
-Cygnus Support, Mountain View, CA  415 903 1400
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
 #include <std-disclaimer.h>
 @end group
 @end smallexample
@@ -415,7 +416,7 @@ Hey, that joke you sent me was great!  The one about the
 strings walking into a bar...  my boss laughed for an hour!
 --
 F.B. Hacker
-Cygnus Support, Mountain View, CA  415 903 1400
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
 #include <std-disclaimer.h>
 @end group
 @end smallexample
@@ -437,7 +438,7 @@ State-Changed-Why:
     got the patch finished, notified Jeff at Imaginary Software
 --
 F.B. Hacker
-Cygnus Support, Mountain View, CA  415 903 1400
+Cygnus Solutions, Sunnyvale, CA  408 542 9600
 #include <std-disclaimer.h>
 @end group
 @end smallexample
@@ -518,12 +519,12 @@ into @file{@var{prefix}/man/man1}
 @item @var{site}
 the list of valid @var{categories} for the Support Site from which you
 received @code{send-pr}, installed as
-@w{@file{@var{prefix}/lib/gnats/@var{site}}}
+@w{@file{@var{prefix}/share/gnats/@var{site}}}
 
 @item send-pr.el
-into @w{@file{@var{prefix}/lib/emacs/lisp}}@footnote{If your main Emacs
+into @w{@file{@var{prefix}/share/emacs/lisp}}@footnote{If your main Emacs
 lisp repository is in a different directory from this, substitute that
-directory for @w{@file{@var{prefix}/lib/emacs/lisp}}.}
+directory for @w{@file{@var{prefix}/share/emacs/lisp}}.}
 @end table
 
 @item info (@emph{optional})
@@ -554,7 +555,7 @@ into the template field @samp{>Submitter-Id:}.  If you've downloaded
 
 @item 
 Place the following line in
-@w{@file{@var{prefix}/lib/emacs/lisp/default.el}}, or instruct your
+@w{@file{@var{prefix}/share/emacs/lisp/default.el}}, or instruct your
 users to place the following line in their @file{.emacs} files:
 
 @smallexample
@@ -571,7 +572,7 @@ file to contain something like:
 
 @smallexample
 # support sites; for use with send-pr
-cygnus-gnats:     bugs@@cygnus.com            # Cygnus Support
+cygnus-gnats:     bugs@@cygnus.com            # Cygnus Solutions
 bumblebee-gnats:  bumblebugs@@bumblebee.com   # Bumblebee Inc.
 mycompany-gnats:  bugs@@my.company.com (@emph{if you use @sc{gnats} locally})
 @end smallexample
@@ -589,7 +590,7 @@ send-pr @var{site}@dots{}
 problems accepted by the site in question by looking in
 
 @smallexample
-@var{prefix}/lib/gnats/@var{site}
+@var{prefix}/share/gnats/@var{site}
 @end smallexample
 
 @end itemize
