@@ -38,6 +38,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -210,6 +211,13 @@ static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe, int type);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 
+static int	filt_aioattach(struct knote *kn);
+static void	filt_aiodetach(struct knote *kn);
+static int	filt_aio(struct knote *kn, long hint);
+
+struct filterops aio_filtops =
+	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
+
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
 static vm_zone_t kaio_zone = 0, aiop_zone = 0, aiocb_zone = 0, aiol_zone = 0;
@@ -327,6 +335,9 @@ aio_free_entry(struct aiocblist *aiocbe)
 		ki->kaio_buffer_count--;
 		num_buf_aio--;
 	}
+
+	/* aiocbe is going away, we need to destroy any knotes */
+	knote_remove(p, &aiocbe->klist);
 
 	if ((ki->kaio_flags & KAIO_WAKEUP) || ((ki->kaio_flags & KAIO_RUNDOWN)
 	    && ((ki->kaio_buffer_count == 0) && (ki->kaio_queue_count == 0)))) {
@@ -806,6 +817,7 @@ aio_daemon(void *uproc)
 				    plist);
 			}
 			splx(s);
+			KNOTE(&aiocbe->klist, 0);
 
 			if (aiocbe->jobflags & AIOCBLIST_RUNDOWN) {
 				wakeup(aiocbe);
@@ -933,7 +945,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct aio_liojob *lj;
 	int fd;
 	int s;
-	int cnt;
+	int cnt, notify;
 
 	cb = &aiocbe->uaiocb;
 	fdp = p->p_fd;
@@ -1034,6 +1046,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/* Perform transfer. */
 	BUF_STRATEGY(bp, 0);
 
+	notify = 0;
 	s = splbio();
 	
 	/*
@@ -1059,9 +1072,12 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 			TAILQ_REMOVE(&aio_bufjobs, aiocbe, list);
 			TAILQ_REMOVE(&ki->kaio_bufqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_bufdone, aiocbe, plist);
+			notify = 1;
 		}
 	}
 	splx(s);
+	if (notify)
+		KNOTE(&aiocbe->klist, 0);
 	return 0;
 
 doerror:
@@ -1174,7 +1190,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	unsigned int fd;
 	struct socket *so;
 	int s;
-	int error;
+	int error = 0;
 	int opcode;
 	struct aiocblist *aiocbe;
 	struct aioproclist *aiop;
@@ -1187,6 +1203,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
+	SLIST_INIT(&aiocbe->klist);
 
 	suword(&job->_aiocb_private.status, -1);
 	suword(&job->_aiocb_private.error, 0);
@@ -1270,6 +1287,45 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 			suword(&job->_aiocb_private.error, EINVAL);
 		}
 		return EINVAL;
+	}
+
+	/*
+	 * XXX  
+	 * Figure out how to do this properly.  This currently won't
+	 * work on the alpha, since we're passing in a pointer via
+	 * aio_lio_opcode, which is an int.
+	 */
+	{
+		struct kevent kev, *kevp;
+		struct kqueue *kq;
+
+		kevp = (struct kevent *)job->aio_lio_opcode;
+		if (kevp == NULL)
+			goto no_kqueue;
+
+		error = copyin((caddr_t)kevp, (caddr_t)&kev, sizeof(kev));
+		if (error)
+			goto aqueue_fail;
+
+		if ((u_int)kev.ident >= fdp->fd_nfiles ||
+		    (fp = fdp->fd_ofiles[kev.ident]) == NULL ||
+		    (fp->f_type != DTYPE_KQUEUE)) {
+			error = EBADF;
+			goto aqueue_fail;
+		}
+        	kq = (struct kqueue *)fp->f_data;
+		kev.ident = (u_long)aiocbe;
+		kev.filter = EVFILT_AIO;
+		kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
+		error = kqueue_register(kq, &kev, p);
+aqueue_fail:
+		if (error) {
+			TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
+			if (type == 0)
+				suword(&job->_aiocb_private.error, error);
+			return (error);
+		}
+no_kqueue:
 	}
 
 	suword(&job->_aiocb_private.error, EINPROGRESS);
@@ -1629,6 +1685,7 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 				cbe->uaiocb._aiocb_private.status=-1;
 				cbe->uaiocb._aiocb_private.error=ECANCELED;
 				cancelled++;
+/* XXX cancelled, knote? */
 			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
 				    SIGEV_SIGNAL)
 					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
@@ -1667,6 +1724,7 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 				cbe->jobstate = JOBST_JOBFINISHED;
 				cbe->uaiocb._aiocb_private.status = -1;
 				cbe->uaiocb._aiocb_private.error = ECANCELED;
+/* XXX cancelled, knote? */
 			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
 				    SIGEV_SIGNAL)
 					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
@@ -2174,7 +2232,8 @@ aio_physwakeup(struct buf *bp)
 			TAILQ_REMOVE(&aio_bufjobs, aiocbe, list);
 			TAILQ_REMOVE(&ki->kaio_bufqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_bufdone, aiocbe, plist);
-			
+
+			KNOTE(&aiocbe->klist, 0);
 			/* Do the wakeup. */
 			if (ki->kaio_flags & (KAIO_RUNDOWN|KAIO_WAKEUP)) {
 				ki->kaio_flags &= ~KAIO_WAKEUP;
@@ -2266,4 +2325,46 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 			return EAGAIN;
 	}
 #endif /* VFS_AIO */
+}
+
+static int
+filt_aioattach(struct knote *kn)
+{
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+
+	/*
+	 * The aiocbe pointer must be validated before using it, so
+	 * registration is restricted to the kernel; the user cannot
+	 * set EV_FLAG1.
+	 */
+	if ((kn->kn_flags & EV_FLAG1) == 0)
+		return (EPERM);
+	kn->kn_flags &= ~EV_FLAG1;
+
+	SLIST_INSERT_HEAD(&aiocbe->klist, kn, kn_selnext);
+
+	return (0);
+}
+
+static void
+filt_aiodetach(struct knote *kn)
+{
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+	int s = splhigh();	 /* XXX no clue, so overkill */
+
+	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
+	splx(s);
+}
+
+/*ARGSUSED*/
+static int
+filt_aio(struct knote *kn, long hint)
+{
+	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
+
+	kn->kn_data = 0;		/* XXX data returned? */
+	if (aiocbe->jobstate != JOBST_JOBFINISHED)
+		return (0);
+	kn->kn_flags |= EV_EOF; 
+	return (1);
 }

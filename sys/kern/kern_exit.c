@@ -307,6 +307,11 @@ exit1(p, rv)
 	switchticks = ticks;
 
 	/*
+	 * notify interested parties of our demise.
+	 */
+	KNOTE(&p->p_klist, NOTE_EXIT);
+
+	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
 	 * flag set, notify process 1 instead (and hope it will handle
 	 * this situation).

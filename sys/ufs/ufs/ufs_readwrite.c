@@ -47,7 +47,10 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
-#include <sys/poll.h>
+#include <sys/event.h>
+
+#define VN_KNOTE(vp, b) \
+	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
 
 /*
  * Vnode op for reading.
@@ -513,6 +516,8 @@ WRITE(ap)
 	 */
 	if (resid > uio->uio_resid && ap->a_cred && ap->a_cred->cr_uid != 0)
 		ip->i_mode &= ~(ISUID | ISGID);
+	if (resid > uio->uio_resid)
+		VN_KNOTE(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)UFS_TRUNCATE(vp, osize,
@@ -522,8 +527,6 @@ WRITE(ap)
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = UFS_UPDATE(vp, 1);
-	if (!error)
-		VN_POLLEVENT(vp, POLLWRITE | (extended ? POLLEXTEND : 0));
 
 	if (object)
 		vm_object_vndeallocate(object);

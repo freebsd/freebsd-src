@@ -47,7 +47,6 @@
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
-#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -58,7 +57,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_pager.h>
 
 #include <machine/reg.h>
@@ -309,6 +307,11 @@ interpret:
 		vrele(p->p_textvp);
 	VREF(ndp->ni_vp);
 	p->p_textvp = ndp->ni_vp;
+
+	/*
+	 * notify others that we exec'd
+	 */
+	KNOTE(&p->p_klist, NOTE_EXEC);
 
 	/*
 	 * If tracing the process, trap to debugger so breakpoints

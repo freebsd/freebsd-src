@@ -52,7 +52,9 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
-#include <vm/vm_zone.h>
+
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/inode.h>
 
 static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
@@ -67,6 +69,25 @@ static int vn_write __P((struct file *fp, struct uio *uio,
 
 struct 	fileops vnops =
 	{ vn_read, vn_write, vn_ioctl, vn_poll, vn_statfile, vn_closefile };
+
+static int	filt_nullattach(struct knote *kn);
+static int	filt_vnattach(struct knote *kn);
+static void	filt_vndetach(struct knote *kn);
+static int	filt_vnode(struct knote *kn, long hint);
+static int	filt_vnread(struct knote *kn, long hint);
+
+struct filterops vn_filtops =
+	{ 1, filt_vnattach, filt_vndetach, filt_vnode };
+
+/*
+ * XXX
+ * filt_vnread is ufs-specific, so the attach routine should really
+ * switch out to different filterops based on the vn filetype
+ */
+struct filterops vn_rwfiltops[] = {
+	{ 1, filt_vnattach, filt_vndetach, filt_vnread },
+	{ 1, filt_nullattach, NULL, NULL },
+};
 
 /*
  * Common code for vnode open operations.
@@ -638,4 +659,59 @@ vn_closefile(fp, p)
 	fp->f_ops = &badfileops;
 	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
 		fp->f_cred, p));
+}
+
+static int
+filt_vnattach(struct knote *kn)
+{
+	struct vnode *vp;
+
+	if (kn->kn_fp->f_type != DTYPE_VNODE &&
+	    kn->kn_fp->f_type != DTYPE_FIFO)
+		return (EBADF);
+
+	vp = (struct vnode *)kn->kn_fp->f_data;
+
+        simple_lock(&vp->v_pollinfo.vpi_lock);
+	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
+        simple_unlock(&vp->v_pollinfo.vpi_lock);
+
+	return (0);
+}
+
+static void
+filt_vndetach(struct knote *kn)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_fp->f_data;
+
+        simple_lock(&vp->v_pollinfo.vpi_lock);
+	SLIST_REMOVE(&vp->v_pollinfo.vpi_selinfo.si_note,
+	    kn, knote, kn_selnext);
+        simple_unlock(&vp->v_pollinfo.vpi_lock);
+}
+
+static int
+filt_vnode(struct knote *kn, long hint)
+{
+
+	if (kn->kn_sfflags & hint)
+		kn->kn_fflags |= hint;
+	return (kn->kn_fflags != 0);
+}
+
+static int
+filt_nullattach(struct knote *kn)
+{
+	return (ENXIO);
+}
+
+/*ARGSUSED*/
+static int
+filt_vnread(struct knote *kn, long hint)
+{
+	struct vnode *vp = (struct vnode *)kn->kn_fp->f_data;
+	struct inode *ip = VTOI(vp);
+
+	kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
+	return (kn->kn_data != 0);
 }
