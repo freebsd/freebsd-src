@@ -8,7 +8,8 @@ LIB=		cc_int
 NOPROFILE=	YES
 NOPIC=		YES
 
-SRCS=	c-common.c c-pragma.c \
+SRCS=	c-aux-info.c c-common.c c-convert.c c-decl.c c-iterate.c \
+	c-pragma.c c-typeck.c \
 	caller-save.c calls.c combine.c convert.c cse.c \
 	dbxout.c dwarfout.c emit-rtl.c explow.c expmed.c expr.c \
 	final.c flow.c fold-const.c function.c getpwd.c global.c graph.c \
@@ -28,10 +29,13 @@ SRCS+=	haifa-sched.c
 SRCS+=	sched.c
 .endif
 
+#	shared between the drivers
+SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
+
 #	stuff that makes libiberty now required (2.95) and shouldn't be...
 SRCS+=	obstack.c splay-tree.c
 
-CFLAGS+=	-DTARGET_NAME=\"${target}\"
+CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
 
 install:
 	@true

@@ -5,10 +5,10 @@
 .PATH: ${GCCDIR}
 
 PROG=	cpp
-SRCS=	gcc.c cppspec.c # version.c
+SRCS=	gcc.c cppspec.c
 NOMAN=	1
 
-DPADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
-LDADD+=	${LIBCC_DRV} ${LIBCC_FBSD}
+DPADD+=	${LIBCC_INT} ${LIBCC_FBSD}
+LDADD+=	${LIBCC_INT} ${LIBCC_FBSD}
 
 .include <bsd.prog.mk>
