@@ -1012,6 +1012,12 @@ sendorfree:
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
 		if (error == 0) {
+			/* Record statistics for this interface address. */
+			if (ia) {
+				ia->ia_ifa.if_opackets++;
+				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			}
+
 			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		} else
 			m_freem(m);
