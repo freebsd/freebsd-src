@@ -474,6 +474,7 @@ udp6_ctlinput(cmd, sa, d)
 static int
 udp6_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
 	int error, s;
@@ -484,7 +485,7 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 
 	if (req->newlen != sizeof(addrs))
 		return (EINVAL);
-	if (req->oldlen != sizeof(struct ucred))
+	if (req->oldlen != sizeof(struct xucred))
 		return (EINVAL);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
@@ -498,9 +499,12 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->inp_socket->so_cred,
-			   sizeof(struct ucred));
-
+	bzero(&xuc, sizeof(xuc));
+	xuc.cr_uid = inp->inp_socket->so_cred->cr_uid;
+	xuc.cr_ngroups = inp->inp_socket->so_cred->cr_ngroups;
+	bcopy(inp->inp_socket->so_cred->cr_groups, xuc.cr_groups,
+	    sizeof(xuc.cr_groups));
+	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	splx(s);
 	return (error);
@@ -508,7 +512,7 @@ out:
 
 SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 	    0, 0,
-	    udp6_getcred, "S,ucred", "Get the ucred of a UDP6 connection");
+	    udp6_getcred, "S,xucred", "Get the xucred of a UDP6 connection");
 
 static int
 udp6_abort(struct socket *so)
