@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
  * can use a simple formula for leap years.
  */
-#define	LEAPYEAR(y) ((u_int)(y) % 4 == 0)
+#define	LEAPYEAR(y) (((u_int)(y) % 4 == 0) ? 1 : 0)
 #define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
@@ -162,7 +162,8 @@ static struct timecounter i8254_timecounter = {
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"i8254"			/* name */
+	"i8254",		/* name */
+	0			/* quality */
 };
 
 static void
