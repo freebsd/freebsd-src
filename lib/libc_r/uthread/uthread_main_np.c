@@ -34,7 +34,7 @@
 __weak_reference(_pthread_main_np, pthread_main_np);
 
 /*
- * Provide the equivelant to Solaris thr_main() function
+ * Provide the equivalent to Solaris thr_main() function
  */
 int
 _pthread_main_np()
