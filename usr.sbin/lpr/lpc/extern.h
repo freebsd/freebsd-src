@@ -45,7 +45,8 @@ __BEGIN_DECLS
 void	 abort_q(struct printer *_pp);
 void	 clean_q(struct printer *_pp);
 void	 disable_q(struct printer *_pp);
-void	 down(int _argc, char *_argv[]);
+void	 down_gi(int _argc, char *_argv[]);
+void	 down_q(struct printer *_pp);
 void	 enable_q(struct printer *_pp);
 void	 generic(void (*_specificrtn)(struct printer *_pp), int _cmdopts,
 	    void (*_initcmd)(int _argc, char *_argv[]),
@@ -64,6 +65,7 @@ void	 topq(int _argc, char *_argv[]);
 void	 up_q(struct printer *_pp);
 void	 disable(struct printer *_pp);		/* X-version */
 void	 doabort(struct printer *_pp);		/* X-version */
+void	 down(int _argc, char *_argv[]);	/* X-version */
 void	 enable(struct printer *_pp);		/* X-version */
 void	 restart(struct printer *_pp);		/* X-version */
 void	 startcmd(struct printer *_pp);		/* X-version */

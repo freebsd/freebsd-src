@@ -118,8 +118,16 @@ generic(void (*specificrtn)(struct printer *_pp), int cmdopts,
 	char **margv, **targv;
 
 	if (argc == 1) {
+		/*
+		 * Usage needs a special case for 'down': The user must
+		 * either include `-msg', or only the first parameter
+		 * that they give will be processed as a printer name.
+		 */
 		printf("usage: %s  {all | printer ...}", argv[0]);
-		if (cmdopts & LPC_MSGOPT)
+		if (strcmp(argv[0], "down") == 0) {
+			printf(" -msg [<text> ...]\n");
+			printf("   or: down  {all | printer} [<text> ...]");
+		} else if (cmdopts & LPC_MSGOPT)
 			printf(" [-msg <text> ...]");
 		printf("\n");
 		return;
@@ -1145,6 +1153,60 @@ putmsg(struct printer *pp, int argc, char **argv)
 	*cp1 = '\0';
 	(void) write(fd, buf, strlen(buf));
 	(void) close(fd);
+}
+
+/*
+ * Disable queuing and printing and put a message into the status file
+ * (reason for being down).  If the user specified `-msg', then use
+ * everything after that as the message for the status file.  If the
+ * user did NOT specify `-msg', then the command should take the first
+ * parameter as the printer name, and all remaining parameters as the
+ * message for the status file.  (This is to be compatible with the
+ * original definition of 'down', which was implemented long before
+ * `-msg' was around).
+ */
+void
+down_gi(int argc, char *argv[])
+{
+
+	/* If `-msg' was specified, then this routine has nothing to do. */
+	if (generic_msg != NULL)
+		return;
+
+	/*
+	 * If the user only gave one parameter, then use a default msg.
+	 * (if argc == 1 at this point, then *argv == name of printer).
+	 */ 
+	if (argc == 1) {
+		generic_msg = strdup("printing disabled\n");
+		return;
+	}
+
+	/*
+	 * The user specified multiple parameters, and did not specify
+	 * `-msg'.  Build a message from all the parameters after the
+	 * first one (and nullify those parameters so generic-processing
+	 * will not process them as printer-queue names).
+	 */
+	argc--;
+	argv++;
+	generic_msg = args2line(argc, argv);
+	for (; argc > 0; argc--, argv++)
+		*argv = generic_nullarg;	/* "erase" it */
+}
+
+void
+down_q(struct printer *pp)
+{
+	int setres;
+	char lf[MAXPATHLEN];
+
+	lock_file_name(pp, lf, sizeof lf);
+	printf("%s:\n", pp->printer);
+
+	setres = set_qstate(SQS_DISABLEQ+SQS_STOPP, lf);
+	if (setres >= 0)
+		upstat(pp, generic_msg, 1);
 }
 
 /*
