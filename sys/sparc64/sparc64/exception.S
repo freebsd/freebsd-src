@@ -213,7 +213,6 @@ ENTRY(tl1_kstack_fault)
 	sub	ASP_REG, SPOFF + CCFSZ, %sp
 	clr	%fp
 
-	rdpr	%pil, %o1
 	b	%xcc, tl1_trap
 	 mov	T_KSTACK_FAULT | T_KERNEL, %o0
 END(tl1_kstack_fault)
@@ -505,12 +504,10 @@ ENTRY(tl0_sfsr_trap)
 END(tl0_sfsr_trap)
 
 	.macro	tl0_intr level, mask
-	wrpr	%g0, \level, %pil
-	set	\mask, %g1
-	wr	%g1, 0, %asr21
 	tl0_split
+	set	\mask, %o1
 	b	%xcc, tl0_intr
-	 mov	\level, %o2
+	 mov	\level, %o0
 	.align	32
 	.endm
 
@@ -1177,12 +1174,9 @@ ENTRY(tl0_dmmu_prot_trap)
 END(tl0_dmmu_prot_trap)
 
 	.macro	tl0_spill_0_n
-	andcc	%sp, 1, %g0
-	bz,pn	%xcc, 2f
-	 wr	%g0, ASI_AIUP, %asi
-1:	SPILL(stxa, %sp + SPOFF, 8, %asi)
+	wr	%g0, ASI_AIUP, %asi
+	SPILL(stxa, %sp + SPOFF, 8, %asi)
 	saved
-	wrpr	%g0, WSTATE_ASSUME64, %wstate
 	retry
 	.align	32
 	RSF_TRAP(T_SPILL)
@@ -1190,47 +1184,19 @@ END(tl0_dmmu_prot_trap)
 	.endm
 
 	.macro	tl0_spill_1_n
-	andcc	%sp, 1, %g0
-	bnz,pt	%xcc, 1b
-	 wr	%g0, ASI_AIUP, %asi
-2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	SPILL(stwa, %sp, 4, %asi)
-	saved
-	wrpr	%g0, WSTATE_ASSUME32, %wstate
-	retry
-	.align	32
-	RSF_TRAP(T_SPILL)
-	RSF_TRAP(T_SPILL)
-	.endm
-
-	.macro	tl0_spill_2_n
 	wr	%g0, ASI_AIUP, %asi
-	SPILL(stxa, %sp + SPOFF, 8, %asi)
-	saved
-	retry
-	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST32)
-	RSF_TRAP(T_SPILL)
-	.endm
-
-	.macro	tl0_spill_3_n
-	wr	%g0, ASI_AIUP, %asi
-	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	SPILL(stwa, %sp, 4, %asi)
 	saved
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST64)
+	RSF_TRAP(T_SPILL)
 	RSF_TRAP(T_SPILL)
 	.endm
 
 	.macro	tl0_fill_0_n
-	andcc	%sp, 1, %g0
-	bz,pn	%xcc, 2f
-	 wr	%g0, ASI_AIUP, %asi
-1:	FILL(ldxa, %sp + SPOFF, 8, %asi)
+	wr	%g0, ASI_AIUP, %asi
+	FILL(ldxa, %sp + SPOFF, 8, %asi)
 	restored
-	wrpr	%g0, WSTATE_ASSUME64, %wstate
 	retry
 	.align	32
 	RSF_TRAP(T_FILL)
@@ -1238,37 +1204,12 @@ END(tl0_dmmu_prot_trap)
 	.endm
 
 	.macro	tl0_fill_1_n
-	andcc	%sp, 1, %g0
-	bnz	%xcc, 1b
-	 wr	%g0, ASI_AIUP, %asi
-2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	FILL(lduwa, %sp, 4, %asi)
-	restored
-	wrpr	%g0, WSTATE_ASSUME32, %wstate
-	retry
-	.align	32
-	RSF_TRAP(T_FILL)
-	RSF_TRAP(T_FILL)
-	.endm
-
-	.macro	tl0_fill_2_n
 	wr	%g0, ASI_AIUP, %asi
-	FILL(ldxa, %sp + SPOFF, 8, %asi)
-	restored
-	retry
-	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST32)
-	RSF_TRAP(T_FILL)
-	.endm
-
-	.macro	tl0_fill_3_n
-	wr	%g0, ASI_AIUP, %asi
-	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	FILL(lduwa, %sp, 4, %asi)
 	restored
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST64)
+	RSF_TRAP(T_FILL)
 	RSF_TRAP(T_FILL)
 	.endm
 
@@ -1308,13 +1249,14 @@ END(tl0_sftrap)
 	.endr
 	.endm
 
-	.macro	tl1_kstack
+	.macro	tl1_split
+	rdpr	%wstate, %g1
+	wrpr	%g1, WSTATE_NESTED, %wstate
 	save	%sp, -CCFSZ, %sp
 	.endm
 
 	.macro	tl1_setup	type
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	b	%xcc, tl1_trap
 	 mov	\type | T_KERNEL, %o0
 	.endm
@@ -1342,8 +1284,7 @@ END(tl0_sftrap)
 	.endm
 
 ENTRY(tl1_insn_exceptn_trap)
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g3, %o4
 	mov	%g4, %o5
 	b	%xcc, tl1_trap
@@ -1383,8 +1324,7 @@ ENTRY(tl1_sfsr_trap)
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g3, %o4
 	mov	%g4, %o5
 	b	%xcc, tl1_trap
@@ -1392,13 +1332,10 @@ ENTRY(tl1_sfsr_trap)
 END(tl1_sfsr_trap)
 
 	.macro	tl1_intr level, mask
-	tl1_kstack
-	rdpr	%pil, %o1
-	wrpr	%g0, \level, %pil
-	set	\mask, %o2
-	wr	%o2, 0, %asr21
+	tl1_split
+	set	\mask, %o1
 	b	%xcc, tl1_intr
-	 mov	\level, %o2
+	 mov	\level, %o0
 	.align	32
 	.endm
 
@@ -1584,8 +1521,7 @@ ENTRY(tl1_immu_miss_trap)
 
 	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
 
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_INSTRUCTION_MISS | T_KERNEL, %o0
@@ -1727,8 +1663,7 @@ ENTRY(tl1_dmmu_miss_trap)
 
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
@@ -1763,8 +1698,7 @@ ENTRY(tl1_dmmu_miss_user)
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
 
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g2, %o3
 	b	%xcc, tl1_trap
 	 mov	T_DATA_MISS | T_KERNEL, %o0
@@ -1872,8 +1806,7 @@ ENTRY(tl1_dmmu_prot_trap)
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-	tl1_kstack
-	rdpr	%pil, %o1
+	tl1_split
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
@@ -1890,59 +1823,30 @@ END(tl1_dmmu_prot_trap)
 	RSF_FATAL(T_SPILL)
 	.endm
 
-	.macro	tl1_spill_4_n
-	andcc	%sp, 1, %g0
-	bz,pn	%xcc, 2f
-	 wr	%g0, ASI_AIUP, %asi
-1:	SPILL(stxa, %sp + SPOFF, 8, %asi)
-	saved
-	retry
-	.align	32
-	RSF_SPILL_TOPCB
-	RSF_SPILL_TOPCB
-	.endm
-
-	.macro	tl1_spill_5_n
-	andcc	%sp, 1, %g0
-	bnz,pt	%xcc, 1b
-	 wr	%g0, ASI_AIUP, %asi
-2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	SPILL(stwa, %sp, 4, %asi)
-	saved
-	retry
-	.align	32
-	RSF_SPILL_TOPCB
-	RSF_SPILL_TOPCB
-	.endm
-
-	.macro	tl1_spill_6_n
+	.macro	tl1_spill_2_n
 	wr	%g0, ASI_AIUP, %asi
 	SPILL(stxa, %sp + SPOFF, 8, %asi)
 	saved
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TRANSITION | WSTATE_TEST32)
+	RSF_SPILL_TOPCB
 	RSF_SPILL_TOPCB
 	.endm
 
-	.macro	tl1_spill_7_n
+	.macro	tl1_spill_3_n
 	wr	%g0, ASI_AIUP, %asi
-	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	SPILL(stwa, %sp, 4, %asi)
+	SPILL(stwa, %sp, 4, %asi) 
 	saved
 	retry
 	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TRANSITION | WSTATE_TEST64)
+	RSF_SPILL_TOPCB
 	RSF_SPILL_TOPCB
 	.endm
 
 	.macro	tl1_spill_0_o
-	andcc	%sp, 1, %g0
-	bz,pn	%xcc, 2f
-	 wr	%g0, ASI_AIUP, %asi
-1:	SPILL(stxa, %sp + SPOFF, 8, %asi)
+	wr	%g0, ASI_AIUP, %asi
+	SPILL(stxa, %sp + SPOFF, 8, %asi)
 	saved
-	wrpr	%g0, WSTATE_ASSUME64 << WSTATE_OTHER_SHIFT, %wstate
 	retry
 	.align	32
 	RSF_SPILL_TOPCB
@@ -1950,13 +1854,9 @@ END(tl1_dmmu_prot_trap)
 	.endm
 
 	.macro	tl1_spill_1_o
-	andcc	%sp, 1, %g0
-	bnz,pt	%xcc, 1b
-	 wr	%g0, ASI_AIUP, %asi
-2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
+	wr	%g0, ASI_AIUP, %asi
 	SPILL(stwa, %sp, 4, %asi)
 	saved
-	wrpr	%g0, WSTATE_ASSUME32 << WSTATE_OTHER_SHIFT, %wstate
 	retry
 	.align	32
 	RSF_SPILL_TOPCB
@@ -1964,24 +1864,8 @@ END(tl1_dmmu_prot_trap)
 	.endm
 
 	.macro	tl1_spill_2_o
-	wr	%g0, ASI_AIUP, %asi
-	SPILL(stxa, %sp + SPOFF, 8, %asi)
-	saved
-	retry
-	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST32 << WSTATE_OTHER_SHIFT)
 	RSF_SPILL_TOPCB
-	.endm
-
-	.macro	tl1_spill_3_o
-	wr	%g0, ASI_AIUP, %asi
-	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	SPILL(stwa, %sp, 4, %asi)
-	saved
-	retry
-	.align	32
-	RSF_ALIGN_RETRY(WSTATE_TEST64 << WSTATE_OTHER_SHIFT)
-	RSF_SPILL_TOPCB
+	.align	128
 	.endm
 
 	.macro	tl1_fill_0_n
@@ -1993,49 +1877,23 @@ END(tl1_dmmu_prot_trap)
 	RSF_FATAL(T_FILL)
 	.endm
 
-	.macro	tl1_fill_4_n
-	andcc	%sp, 1, %g0
-	bz,pn	%xcc, 2f
-	 wr	%g0, ASI_AIUP, %asi
-1:	FILL(ldxa, %sp + SPOFF, 8, %asi)
-	restored
-	retry
-	.align 32
-	RSF_FILL_MAGIC
-	RSF_FILL_MAGIC
-	.endm
-
-	.macro	tl1_fill_5_n
-	andcc	%sp, 1, %g0
-	bnz,pn	%xcc, 1b
-	 wr	%g0, ASI_AIUP, %asi
-2:	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
-	FILL(lduwa, %sp, 4, %asi)
-	restored
-	retry
-	.align 32
-	RSF_FILL_MAGIC
-	RSF_FILL_MAGIC
-	.endm
-
-	.macro	tl1_fill_6_n
+	.macro	tl1_fill_2_n
 	wr	%g0, ASI_AIUP, %asi
 	FILL(ldxa, %sp + SPOFF, 8, %asi)
 	restored
 	retry
 	.align 32
-	RSF_ALIGN_RETRY(WSTATE_TEST32 | WSTATE_TRANSITION)
+	RSF_FILL_MAGIC
 	RSF_FILL_MAGIC
 	.endm
 
-	.macro	tl1_fill_7_n
+	.macro	tl1_fill_3_n
 	wr	%g0, ASI_AIUP, %asi
-	wrpr	%g0, PSTATE_ALT | PSTATE_AM, %pstate
 	FILL(lduwa, %sp, 4, %asi)
 	restored
 	retry
 	.align 32
-	RSF_ALIGN_RETRY(WSTATE_TEST64 | WSTATE_TRANSITION)
+	RSF_FILL_MAGIC
 	RSF_FILL_MAGIC
 	.endm
 
@@ -2174,20 +2032,12 @@ tl0_spill_0_n:
 	tl0_spill_0_n					! 0x80
 tl0_spill_1_n:
 	tl0_spill_1_n					! 0x84
-tl0_spill_2_n:
-	tl0_spill_2_n					! 0x88
-tl0_spill_3_n:
-	tl0_spill_3_n					! 0x8c
-	tl0_spill_bad	12				! 0x90-0xbf
+	tl0_spill_bad	14				! 0x88-0xbf
 tl0_fill_0_n:
 	tl0_fill_0_n					! 0xc0
 tl0_fill_1_n:
 	tl0_fill_1_n					! 0xc4
-tl0_fill_2_n:
-	tl0_fill_2_n					! 0xc8
-tl0_fill_3_n:
-	tl0_fill_3_n					! 0xcc
-	tl0_fill_bad	12				! 0xc4-0xff
+	tl0_fill_bad	14				! 0xc8-0xff
 tl0_soft:
 	tl0_reserved	1				! 0x100
 	tl0_gen		T_BREAKPOINT			! 0x101
@@ -2280,36 +2130,27 @@ tl1_dmmu_prot:
 	tl1_reserved	16				! 0x270-0x27f
 tl1_spill_0_n:
 	tl1_spill_0_n					! 0x280
-	tl1_spill_bad	3				! 0x284-0x28f
-tl1_spill_4_n:
-	tl1_spill_4_n					! 0x290
-tl1_spill_5_n:
-	tl1_spill_5_n					! 0x294
-tl1_spill_6_n:
-	tl1_spill_6_n					! 0x298
-tl1_spill_7_n:
-	tl1_spill_7_n					! 0x29c
+	tl1_spill_bad	1				! 0x284
+tl1_spill_2_n:
+	tl1_spill_2_n					! 0x288
+tl1_spill_3_n:
+	tl1_spill_3_n					! 0x29c
+	tl1_spill_bad	4				! 0x290-0x29f
 tl1_spill_0_o:
 	tl1_spill_0_o					! 0x2a0
 tl1_spill_1_o:
 	tl1_spill_1_o					! 0x2a4
 tl1_spill_2_o:
 	tl1_spill_2_o					! 0x2a8
-tl1_spill_3_o:
-	tl1_spill_3_o					! 0x2ac
-	tl1_spill_bad	4				! 0x2b0-0x2bf
+	tl1_spill_bad	5				! 0x2ac-0x2bf
 tl1_fill_0_n:
 	tl1_fill_0_n					! 0x2c0
-	tl1_fill_bad	3				! 0x2c4-0x2cf
-tl1_fill_4_n:
-	tl1_fill_4_n					! 0x2d0
-tl1_fill_5_n:
-	tl1_fill_5_n					! 0x2d4
-tl1_fill_6_n:
-	tl1_fill_6_n					! 0x2d8
-tl1_fill_7_n:
-	tl1_fill_7_n					! 0x2dc
-	tl1_fill_bad	8				! 0x2e0-0x2ff
+	tl1_fill_bad	1				! 0x2c4
+tl1_fill_2_n:
+	tl1_fill_2_n					! 0x2d0
+tl1_fill_3_n:
+	tl1_fill_3_n					! 0x2d4
+	tl1_fill_bad	12				! 0x2d8-0x2ff
 	tl1_reserved	1				! 0x300
 tl1_breakpoint:
 	tl1_gen		T_BREAKPOINT			! 0x301
@@ -2484,9 +2325,7 @@ ENTRY(tl0_trap)
 END(tl0_trap)
 
 /*
- * System call entry point.
- *
- * Essentially the same as tl0_trap but calls syscall.
+ * void tl0_syscall(u_int type)
  */
 ENTRY(tl0_syscall)
 	/*
@@ -2569,6 +2408,9 @@ ENTRY(tl0_syscall)
 	 nop
 END(tl0_syscall)
 
+/*
+ * void tl0_intr(u_int level, u_int mask)
+ */
 ENTRY(tl0_intr)
 	/*
 	 * Force kernel store order.
@@ -2584,7 +2426,7 @@ ENTRY(tl0_intr)
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR,
-	    "tl0_intr: td=%p type=%#x pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
+	    "tl0_intr: td=%p level=%#x pil=%#lx pc=%#lx npc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
@@ -2596,6 +2438,9 @@ ENTRY(tl0_intr)
 	stx	%i6, [%g1 + KTR_PARM6]
 9:
 #endif
+
+	wrpr	%o0, 0, %pil
+	wr	%o1, 0, %asr21
 
 	and	%l5, WSTATE_NORMAL_MASK, %l5
 	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
@@ -2617,11 +2462,11 @@ ENTRY(tl0_intr)
 	stx	%fsr, [%sp + SPOFF + CCFSZ + TF_FSR]
 	wr	%g0, 0, %fprs
 
-	mov	T_INTERRUPT, %o0
-	mov	%o2, %l3
+	mov	%o0, %l3
+	mov	T_INTERRUPT, %o1
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stw	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	mov	PCB_REG, %l0
 	mov	PCPU_REG, %l1
@@ -2801,7 +2646,7 @@ END(tl0_ret)
 /*
  * Kernel trap entry point
  *
- * void tl1_trap(u_int type, u_char pil, u_long o2, u_long tar, u_long sfar,
+ * void tl1_trap(u_int type, u_long o1, u_long o2, u_long tar, u_long sfar,
  *		 u_int sfsr)
  *
  * This is easy because the stack is already setup and the windows don't need
@@ -2814,7 +2659,8 @@ ENTRY(tl1_trap)
 	rdpr	%tstate, %l0
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
-	mov	%o1, %l3
+	rdpr	%pil, %l3
+	rdpr	%wstate, %l4
 
 #if KTR_COMPILE & KTR_TRAP
 	CATR(KTR_TRAP, "tl1_trap: td=%p type=%#lx pil=%#lx pc=%#lx sp=%#lx"
@@ -2823,7 +2669,7 @@ ENTRY(tl1_trap)
 	stx	%g2, [%g1 + KTR_PARM1]
 	andn	%o0, T_KERNEL, %g2
 	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%o1, [%g1 + KTR_PARM3]
+	stx	%l3, [%g1 + KTR_PARM3]
 	stx	%l1, [%g1 + KTR_PARM4]
 	stx	%i6, [%g1 + KTR_PARM5]
 9:
@@ -2831,12 +2677,15 @@ ENTRY(tl1_trap)
 
 	wrpr	%g0, 1, %tl
 
+	and	%l4, WSTATE_OTHER_MASK, %l4
+	wrpr	%l4, WSTATE_KERNEL, %wstate
+
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
 
 	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stb	%o1, [%sp + SPOFF + CCFSZ + TF_PIL]
 	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
 	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
 	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
@@ -2907,41 +2756,49 @@ ENTRY(tl1_trap)
 	retry
 END(tl1_trap)
 
+/*
+ * void tl1_intr(u_int level, u_int mask)
+ */
 ENTRY(tl1_intr)
 	sub	%sp, TF_SIZEOF, %sp
 
 	rdpr	%tstate, %l0
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
-	mov	%o1, %l3
+	rdpr	%pil, %l3
+	rdpr	%wstate, %l4
 
 #if KTR_COMPILE & KTR_INTR
 	CATR(KTR_INTR,
-	    "tl1_intr: td=%p type=%#lx level=%#lx pil=%#lx pc=%#lx sp=%#lx"
+	    "tl1_intr: td=%p level=%#lx pil=%#lx pc=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	ldx	[PCPU(CURTHREAD)], %g2
 	stx	%g2, [%g1 + KTR_PARM1]
-	andn	%o0, T_KERNEL, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%o2, [%g1 + KTR_PARM3]
-	stx	%o1, [%g1 + KTR_PARM4]
-	stx	%l1, [%g1 + KTR_PARM5]
-	stx	%i6, [%g1 + KTR_PARM6]
+	stx	%o0, [%g1 + KTR_PARM2]
+	stx	%l3, [%g1 + KTR_PARM3]
+	stx	%l1, [%g1 + KTR_PARM4]
+	stx	%i6, [%g1 + KTR_PARM5]
 9:
 #endif
 
+	wrpr	%o0, 0, %pil
+	wr	%o1, 0, %asr21
+
 	wrpr	%g0, 1, %tl
+
+	and	%l4, WSTATE_OTHER_MASK, %l4
+	wrpr	%l4, WSTATE_KERNEL, %wstate
 
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
 
-	mov	T_INTERRUPT | T_KERNEL, %o0
-	mov	%o2, %l7
+	mov	%o0, %l7
+	mov	T_INTERRUPT | T_KERNEL, %o1
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stb	%o1, [%sp + SPOFF + CCFSZ + TF_PIL]
-	stw	%o2, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_LEVEL]
+	stw	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
 
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
