@@ -117,7 +117,7 @@ realinstall:	beforeinstall
 all:		all-nls
 install:	realinstall afterinstall
 
-DISTRIBUTION?=	bin
+DISTRIBUTION?=	base
 .if !target(distribute)
 distribute:
 .for dist in ${DISTRIBUTION}

@@ -60,9 +60,9 @@ FREEBSD+=	${COPYRIGHT}
 etc:
 
 distribute:
-	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/bin
+	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .if defined(OBJFORMAT)
-	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/bin/etc/objformat
+	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/${DISTRIBUTION}/etc/objformat
 .endif
 	@echo
 

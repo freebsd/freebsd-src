@@ -122,7 +122,7 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 .endif
 
 # Things which without too much trouble can be considered variables
-# BIN_DISTS are special in that they get full /etc installation sets.
+# BASE_DISTS are special in that they get full /etc installation sets.
 #
 .if ${MACHINE_ARCH} == "i386"
 COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
@@ -131,8 +131,8 @@ COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	manpages catpages games proflibs dict info doc
 CRYPTO_DISTS?=	crypto krb4 krb5
-BIN_DISTS?=	bin
-DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
+BASE_DISTS?=	base
+DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
 
 BOOT1=	etc/defaults/rc.conf
@@ -436,7 +436,7 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
-	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
+	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && make distribworld DISTDIR=${RD}/trees
 .if exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../kerberosIV && ( \
@@ -463,12 +463,12 @@ release.3:
 	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
 	cd ${.CURDIR} && ${MAKE} doSTDKERNEL KERNEL=${kernel} KODIR=/${kernel}
 	rm -rf ${.CURDIR}/../sys/${MACHINE}/compile/${kernel}
-	-mkdir ${RD}/trees/bin/boot/${kernel}
-	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/bin/boot/${kernel}
+	-mkdir ${RD}/trees/base/boot/${kernel}
+	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/base/boot/${kernel}
 .endfor
 	# Install a standard boot kernel+modules
-	mkdir -p ${RD}/trees/bin/boot/kernel
-	cp -Rp ${RD}/kernels/GENERIC/* ${RD}/trees/bin/boot/kernel
+	mkdir -p ${RD}/trees/base/boot/kernel
+	cp -Rp ${RD}/kernels/GENERIC/* ${RD}/trees/base/boot/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -603,7 +603,7 @@ release.8:
 		mkdir -p etc/defaults dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
-	( cd ${RD}/trees/bin/dev && \
+	( cd ${RD}/trees/base/dev && \
 		ls console tty bpf0 ttyd0 ttyv0 ttyv1 ttyv2 ttyv3 null zero card0 card1 card2 card3 usb usb0 uhid0 ums0 ulpt0 ugen0 kbd0 kmem mem xpt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
@@ -616,10 +616,10 @@ release.8:
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
-	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
+	cd ${RD}/trees/base && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	( for F in netconfig protocols ; do \
 		sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
-		${RD}/trees/bin/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
+		${RD}/trees/base/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
 	  done )
 	grep -E '^(ftp|nameserver|domain|sunrpc|cmd|nfsd)[^-\w]' \
 	    ${.CURDIR}/../etc/services | \
@@ -694,11 +694,11 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	@( cd ${RD}/fixitfd/dev && \
-		cp ${RD}/trees/bin/dev/MAKEDEV MAKEDEV && \
+		cp ${RD}/trees/base/dev/MAKEDEV MAKEDEV && \
 		chmod 755 MAKEDEV)
-	@cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
-		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
-	@cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
+	@cp ${RD}/trees/base/etc/spwd.db ${RD}/trees/base/etc/group \
+		${RD}/trees/base/etc/protocols ${RD}/fixitfd/etc
+	@cp ${RD}/trees/base/usr/share/misc/scsi_modes \
 		${RD}/fixitfd/usr/share/misc
 	@cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
@@ -825,7 +825,7 @@ doc.1:
 	@for i in ${DOCPORTS}; do \
 	  cd /usr/ports/$$i && make all install clean BATCH=yes JADETEX=no FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/bin/usr/share/doc
+	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
 	touch doc.1
 
 #
