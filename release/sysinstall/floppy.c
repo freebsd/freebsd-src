@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.11 1995/06/05 16:59:04 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.12 1995/06/05 20:22:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,7 +96,7 @@ getRootFloppy(void)
 	}
 	else if (cnt == 1) {
 	    floppyDev = devs[0];
-	    msgConfirm("Please insert the ROOT floppy in %s and press [RETURN]", floppyDev->description);
+	    msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
 	}
 	else  {
 	    DMenu *menu;
@@ -176,30 +176,29 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	extn = rindex(buf, '.');
 	snprintf(attrib, 10, "cksum%s", extn);
 	val = attr_match(dist_attrs, attrib);
-	if (val == NULL) {
-	    msgConfirm("Cannot find checksum information (%s) for file %s!", attrib, file);
-	    return -1;
+	if (val != NULL) {
+	    if (isDebug())
+		msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib, val);
+	    var = strdup(val);
+	    
+	    cval1 = strtol(var, &extn, 10);
+	    clen1 = strtol(extn, NULL, 10);
+	
+	    if (crc(fd, &cval2, &clen2) != 0) {
+		msgConfirm("crc() of file `%s' failed!", file);
+		close(fd);
+		return -1;
+	    }
+	
+	    if ((cval1 != cval2) || (clen1 != clen2)) {
+		msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
+		close(fd);
+		return -1;
+	    }
 	}
-	
-	if (isDebug())
-	    msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib, val);
-
-	var = strdup(val);
-	
-	cval1 = strtol(var, &extn, 10);
-	clen1 = strtol(extn, NULL, 10);
-	
-	if (crc(fd, &cval2, &clen2) != 0) {
-	    msgConfirm("crc() of file `%s' failed!", file);
-	    return -1;
-	}
-	
-	if ((cval1 != cval2) || (clen1 != clen2)) {
-	    msgConfirm("Invalid file `%s' (checksum `%ul %ul' should be %s)", file, cval2, clen2, var);
-	    return -1;
-	}
+	else
+	    msgNotify("No checksum information for file %s..", file);
     }
-    
     return fd;
 }
 
