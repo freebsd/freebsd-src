@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.48 1997/12/26 00:19:23 jkh Exp $
+#	$Id: bsd.info.mk,v 1.49 1998/03/12 20:02:09 eivind Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -62,9 +62,6 @@
 #
 #
 # +++ targets +++
-#
-#	depend:
-#		Dummy target, do nothing.
 #
 #	distribute:
 #		This is a variant of install, which will
@@ -181,8 +178,6 @@ ${INFO}.texi: ${SRCS}
 	cat ${.ALLSRC} > ${.TARGET}
 .endif
 
-depend: _SUBDIR
-
 # tex garbage
 .if ${FORMATS:Mps} || ${FORMATS:Mdvi} || ${FORMATS:Mlatin1}
 .for _f in aux cp fn ky log out pg toc tp vr dvi
@@ -217,5 +212,4 @@ maninstall: _SUBDIR
 regress:
 .endif
 
-.include <bsd.dep.mk>
 .include <bsd.obj.mk>
