@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.11 1996/05/06 06:15:19 gclarkii Exp $
+# $Id: adduser.perl,v 1.12 1996/08/13 21:50:51 wosch Exp $
 #
 
 # read variables
@@ -442,9 +442,9 @@ sub new_users_grplogin {
 	warn "Group does not exist!\a\n";
     }
 
-    if (defined($groupname{$group_login})) {
-	&add_group($groupname{$group_login}, $name);
-    }
+    #if (defined($groupname{$group_login})) {
+    #	&add_group($groupname{$group_login}, $name);
+    #}
 
     return ($group_login, $group_uniq) if $group_login eq $name;
     return ($group_login, $group_login);
@@ -463,9 +463,9 @@ sub new_users_grplogin_batch {
 	$group_login = $gid{$group_login};
     }
 
-    if (defined($groupname{$group_login})) {
-	&add_group($groupname{$group_login}, $name);
-    }
+    # if (defined($groupname{$group_login})) {
+    #	&add_group($groupname{$group_login}, $name);
+    # }
 
     return $group_login
 	if defined($groupname{$group_login}) || $group_login eq $name;
@@ -507,7 +507,10 @@ sub new_users_groups_valid {
 	    $e = $gid{$e};
 	}
 	if (defined($groupname{$e})) {
-	    if (&add_group($groupname{$e}, $name)) {
+	    if ($e eq $group_login) {
+		# do not add user to a group if this group
+		# is also the login group.
+	    } elsif (&add_group($groupname{$e}, $name)) {
 		$new_groups .= "$e ";
 	    } else {
 		warn "$name is already member of group ``$e''\n";
@@ -566,10 +569,10 @@ sub new_users_group_update {
     # Add *new* group
     if (!defined($groupname{$group_login}) &&
 	!defined($gid{$groupname{$group_login}})) {
-	push(@group_backup, "$group_login:*:$g_id:$group_login");
+	push(@group_backup, "$group_login:*:$g_id:");
 	$groupname{$group_login} = $g_id;
 	$gid{$g_id} = $group_login;
-	$groupmembers{$g_id} = $group_login;
+	# $groupmembers{$g_id} = $group_login;
     }
 
     if ($new_groups || defined($groupname{$group_login}) ||
@@ -583,7 +586,7 @@ sub new_users_group_update {
 	}
 	&append_file($group, @a);
     } else {
-	&append_file($group, "$group_login:*:$g_id:$group_login");
+	&append_file($group, "$group_login:*:$g_id:");
     }
 
 }
