@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	arp
-MAN=	arp.4 arp.8
-
 WARNS?=	2
+MAN=	arp.4 arp.8
 
 .include <bsd.prog.mk>
