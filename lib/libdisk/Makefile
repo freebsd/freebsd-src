@@ -10,7 +10,6 @@ CFLAGS+= 	-Wall
 CFLAGS+=	-DPC98
 .endif
 CLEANFILES+=	tmp.c tst01 tst01.o
-VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes
 NOSHARED=	yes
 NOPIC=		yes

@@ -46,28 +46,28 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	u_long *lp, sum;
 #endif
 
-	for(i=0;i<BBSIZE/512;i++) {
-		p = read_block(fd,WHERE(i + c1->offset,new));
-		memcpy(buf+512*i,p,512);
+	for(i = 0; i < BBSIZE/512; i++) {
+		p = read_block(fd, WHERE(i + c1->offset, new));
+		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
 #if defined(__i386__)
 	if(new->boot1)
-		memcpy(buf,new->boot1,512);
+		memcpy(buf, new->boot1, 512);
 
 	if(new->boot2)
-		memcpy(buf+512,new->boot2,BBSIZE-512);
+		memcpy(buf + 512, new->boot2, BBSIZE-512);
 #elif defined(__alpha__)
 	if(new->boot1)
-		memcpy(buf+512,new->boot1,BBSIZE-512);
+		memcpy(buf + 512, new->boot1, BBSIZE-512);
 #endif
 
-	dl = (struct disklabel *) (buf+512*LABELSECTOR+LABELOFFSET);
-	memset(dl,0,sizeof *dl);
+	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
+	memset(dl, 0, sizeof *dl);
 
-	for(c2=c1->part;c2;c2=c2->next) {
+	for(c2 = c1->part; c2; c2 = c2->next) {
 		if (c2->type == unused) continue;
-		if (!strcmp(c2->name,"X")) continue;
+		if (!strcmp(c2->name, "X")) continue;
 #ifdef __alpha__
 		j = c2->name[strlen(c2->name) - 1] - 'a';
 #else
@@ -75,7 +75,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
-			warn("weird partition letter %c",c2->name[strlen(new->name) + 2]);
+			warn("weird partition letter %c", c2->name[strlen(new->name) + 2]);
 #endif
 			continue;
 		}
@@ -92,7 +92,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	dl->d_interleave = DEF_INTERLEAVE;
 	dl->d_rpm = DEF_RPM;
 
-	strcpy(dl->d_typename,c1->name);
+	strcpy(dl->d_typename, c1->name);
 
 	dl->d_secsize = 512;
 	dl->d_secperunit = new->chunks->size;
@@ -137,10 +137,10 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for (lp = (u_long *)buf, i = 0, sum = 0; i < 63; i++)
 	    sum += lp[i];
 	lp[63] = sum;
-#endif
+#endif /*__alpha__*/
 
 	for(i=0;i<BBSIZE/512;i++) {
-		write_block(fd,WHERE(i + c1->offset,new),buf+512*i);
+		write_block(fd,WHERE(i + c1->offset, new), buf + 512 * i);
 	}
 
 	return 0;
@@ -152,7 +152,7 @@ Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	return 0;
 }
 
-#ifndef PC98
+#if defined(__i386__) && !defined(PC98)
 static void
 Write_Int32(u_int32_t *p, u_int32_t v)
 {
@@ -162,8 +162,9 @@ Write_Int32(u_int32_t *p, u_int32_t v)
     bp[2] = (v >> 16) & 0xff;
     bp[3] = (v >> 24) & 0xff;
 }
+#endif
 
-#ifndef __alpha__
+#if defined(__i386__) && !defined(PC98)
 /*
  * Special install-time configuration for the i386 boot0 boot manager.
  */
@@ -178,12 +179,14 @@ Cfg_Boot_Mgr(u_char *mbr, int edd)
     }
 }
 #endif
-#endif
 
 int
 Write_Disk(struct disk *d1)
 {
-	int fd,i,j;
+	int fd,i;
+#ifdef __i386__
+	int j;
+#endif
 	struct disk *old = 0;
 	struct chunk *c1;
 	int ret = 0;
@@ -195,7 +198,7 @@ Write_Disk(struct disk *d1)
 	int PC98_EntireDisk = 0;
 #else
 	int s[4];
-#ifndef __alpha__
+#ifdef __i386__
 	int need_edd = 0;	/* Need EDD (packet interface) */
 #endif
 #endif
@@ -216,7 +219,7 @@ Write_Disk(struct disk *d1)
         fd = open(device,O_RDWR);
         if (fd < 0) {
 #ifdef DEBUG
-                warn("open(%s) failed",device);
+                warn("open(%s) failed", device);
 #endif
                 return 1;
         }
@@ -224,18 +227,18 @@ Write_Disk(struct disk *d1)
 
 	memset(s,0,sizeof s);
 #ifdef PC98
-	mbr = read_block(fd,WHERE(1,d1));
+	mbr = read_block(fd, WHERE(1, d1));
 #else
-	mbr = read_block(fd,WHERE(0,d1));
+	mbr = read_block(fd, WHERE(0, d1));
 #endif
-	dp = (struct dos_partition*) (mbr + DOSPARTOFF);
-	memcpy(work,dp,sizeof work);
+	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
+	memcpy(work, dp, sizeof work);
 	dp = work;
 	free(mbr);
-	for (c1=d1->chunks->part; c1 ; c1 = c1->next) {
+	for (c1 = d1->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
-		if (!strcmp(c1->name,"X")) continue;
-#ifndef __alpha__
+		if (!strcmp(c1->name, "X")) continue;
+#ifdef __i386__
 		j = c1->name[4] - '1';
 		j = c1->name[strlen(d1->name) + 1] - '1';
 #ifdef PC98
@@ -248,12 +251,12 @@ Write_Disk(struct disk *d1)
 #endif
 #ifndef PC98
 		if (c1->type == extended)
-			ret += Write_Extended(fd, d1,old,c1);
+			ret += Write_Extended(fd, d1, old, c1);
 #endif
 		if (c1->type == freebsd)
-			ret += Write_FreeBSD(fd, d1,old,c1);
+			ret += Write_FreeBSD(fd, d1, old, c1);
 
-#ifndef __alpha__
+#ifdef __i386__
 #ifndef PC98
 		Write_Int32(&dp[j].dp_start, c1->offset);
 		Write_Int32(&dp[j].dp_size, c1->size);
@@ -285,11 +288,11 @@ Write_Disk(struct disk *d1)
 			i -= dp[j].dp_scyl;
 			dp[j].dp_ssect |= i >> 2;
 		}
-#endif
+#endif /* PC98 */
 
 #ifdef DEBUG
 		printf("S:%lu = (%x/%x/%x)",
-			c1->offset,dp[j].dp_scyl,dp[j].dp_shd,dp[j].dp_ssect);
+			c1->offset, dp[j].dp_scyl, dp[j].dp_shd, dp[j].dp_ssect);
 #endif
 
 		i = c1->end;
@@ -321,7 +324,7 @@ Write_Disk(struct disk *d1)
 
 #ifdef DEBUG
 		printf("  E:%lu = (%x/%x/%x)\n",
-			c1->end,dp[j].dp_ecyl,dp[j].dp_ehd,dp[j].dp_esect);
+			c1->end, dp[j].dp_ecyl, dp[j].dp_ehd, dp[j].dp_esect);
 #endif
 
 #ifdef PC98
@@ -340,11 +343,11 @@ Write_Disk(struct disk *d1)
 #endif
 #endif
 	}
-#ifndef __alpha__
+#ifdef __i386__
 	j = 0;
-	for(i=0;i<NDOSPART;i++) {
+	for(i = 0; i < NDOSPART; i++) {
 		if (!s[i])
-			memset(dp+i,0,sizeof *dp);
+			memset(dp + i, 0, sizeof *dp);
 #ifndef PC98
 		if (dp[i].dp_flag)
 			j++;
@@ -352,46 +355,46 @@ Write_Disk(struct disk *d1)
 	}
 #ifndef PC98
 	if (!j)
-		for(i=0;i<NDOSPART;i++)
+		for(i = 0; i < NDOSPART; i++)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 #endif
 
 #ifdef PC98
 	if (d1->bootipl)
-		write_block(fd,WHERE(0,d1),d1->bootipl);
+		write_block(fd, WHERE(0, d1), d1->bootipl);
 
-	mbr = read_block(fd,WHERE(1,d1));
-	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
+	mbr = read_block(fd, WHERE(1, d1));
+	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
 		if (((c1->type == freebsd) || (c1->type == fat))
 			 && (c1->offset == 0))
 			PC98_EntireDisk = 1;
 	if (PC98_EntireDisk == 0)
-		write_block(fd,WHERE(1,d1),mbr);
+		write_block(fd, WHERE(1, d1), mbr);
 
 	if (d1->bootmenu)
 		for (i = 0; i * 512 < d1->bootmenu_size; i++)
-			write_block(fd,WHERE(2+i,d1),&d1->bootmenu[i * 512]);
+			write_block(fd, WHERE(2 + i, d1), &d1->bootmenu[i * 512]);
 #else
-	mbr = read_block(fd,WHERE(0,d1));
+	mbr = read_block(fd, WHERE(0, d1));
 	if (d1->bootmgr) {
-		memcpy(mbr,d1->bootmgr,DOSPARTOFF);
+		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);
         }
-	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
+	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
-	write_block(fd,WHERE(0,d1),mbr);
+	write_block(fd, WHERE(0, d1), mbr);
 	if (d1->bootmgr && d1->bootmgr_size > 512)
 	  for(i = 1; i * 512 <= d1->bootmgr_size; i++)
-	    write_block(fd,WHERE(i,d1),&d1->bootmgr[i * 512]);
+	    write_block(fd, WHERE(i, d1), &d1->bootmgr[i * 512]);
 #endif
 #endif
 
 	i = 1;
-	i = ioctl(fd,DIOCSYNCSLICEINFO,&i);
+	i = ioctl(fd, DIOCSYNCSLICEINFO, &i);
 #ifdef DEBUG
 	if (i != 0)
 		warn("ioctl(DIOCSYNCSLICEINFO)");
@@ -400,4 +403,3 @@ Write_Disk(struct disk *d1)
 	close(fd);
 	return 0;
 }
-

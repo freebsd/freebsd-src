@@ -65,59 +65,59 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
     if (!strcmp(c->name, "X")) return;
     
     /* reset all names to "X" */
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	c1->oname = c1->name;
 	c1->name = malloc(12);
-	if(!c1->name) barfout(1,"Malloc failed");
+	if(!c1->name) barfout(1, "Malloc failed");
 	strcpy(c1->name,"X");
     }
     
     /* Allocate the first swap-partition we find */
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	if (c1->type == unused) continue;
 	if (c1->subtype != FS_SWAP) continue;
-	sprintf(c1->name,"%s%c",c->name,SWAP_PART+'a');
+	sprintf(c1->name, "%s%c", c->name, SWAP_PART + 'a');
 	break;
     }
     
     /* Allocate the first root-partition we find */
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	if (c1->type == unused) continue;
 	if (!(c1->flags & CHUNK_IS_ROOT)) continue;
-	sprintf(c1->name,"%s%c",c->name,0+'a');
+	sprintf(c1->name, "%s%c", c->name, 0 + 'a');
 	break;
     }
     
     /* Try to give them the same as they had before */
-    for (c1 = c->part; c1 ; c1 = c1->next) {
-	if (strcmp(c1->name,"X")) continue;
+    for (c1 = c->part; c1; c1 = c1->next) {
+	if (strcmp(c1->name, "X")) continue;
 	for(c3 = c->part; c3 ; c3 = c3->next)
 	    if (c1 != c3 && !strcmp(c3->name, c1->oname)) {
 		goto newname;
 	    }
-	strcpy(c1->name,c1->oname);
+	strcpy(c1->name, c1->oname);
     newname:
     }
     
     
     /* Allocate the rest sequentially */
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	const char order[] = "efghabd";
 	if (c1->type == unused) continue;
-	if (strcmp("X",c1->name)) continue;
+	if (strcmp("X", c1->name)) continue;
 	
-	for(j=0;j<strlen(order);j++) {
-	    sprintf(c1->name,"%s%c",c->name,order[j]);
+	for(j = 0; j < strlen(order); j++) {
+	    sprintf(c1->name, "%s%c", c->name, order[j]);
 	    for(c3 = c->part; c3 ; c3 = c3->next)
 		if (c1 != c3 && !strcmp(c3->name, c1->name))
 		    goto match;
 	    break;
 	match:
-	    strcpy(c1->name,"X");
+	    strcpy(c1->name, "X");
 	    continue;
 	}
     }
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	free(c1->oname);
 	c1->oname = 0;
     }
@@ -129,36 +129,40 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
     struct chunk *c1;
     int j=5;
     
-    for (c1 = c->part; c1 ; c1 = c1->next) {
+    for (c1 = c->part; c1; c1 = c1->next) {
 	if (c1->type == unused) continue;
 	free(c1->name);
 	c1->name = malloc(12);
-	if(!c1->name) barfout(1,"malloc failed");
-	sprintf(c1->name,"%ss%d",d->chunks->name,j++);
+	if(!c1->name) barfout(1, "malloc failed");
+	sprintf(c1->name, "%ss%d", d->chunks->name, j++);
 	if (c1->type == freebsd)
-	    Fixup_FreeBSD_Names(d,c1);
+	    Fixup_FreeBSD_Names(d, c1);
     }
 }
 
 void
 Fixup_Names(struct disk *d)
 {
-    struct chunk *c1, *c2, *c3;
-    int i,j;
+    struct chunk *c1, *c2;
+    int i;
+#ifdef __i386__
+    struct chunk *c3;
+    int j;
+#endif
     
     c1 = d->chunks;
     for(i=1,c2 = c1->part; c2 ; c2 = c2->next) {
 	c2->flags &= ~CHUNK_BSD_COMPAT;
 	if (c2->type == unused)
 	    continue;
-	if (strcmp(c2->name,"X"))
+	if (strcmp(c2->name, "X"))
 	    continue;
-#ifndef __alpha__
+#ifdef __i386__
 	c2->oname = malloc(12);
-	if(!c2->oname) barfout(1,"malloc failed");
-	for(j=1;j<=NDOSPART;j++) {
-	    sprintf(c2->oname,"%ss%d",c1->name,j);
-	    for(c3 = c1->part; c3 ; c3 = c3->next)
+	if(!c2->oname) barfout(1, "malloc failed");
+	for(j = 1; j <= NDOSPART; j++) {
+	    sprintf(c2->oname, "%ss%d", c1->name, j);
+	    for(c3 = c1->part; c3; c3 = c3->next)
 		if (c3 != c2 && !strcmp(c3->name, c2->oname))
 		    goto match;
 	    free(c2->name);
@@ -173,20 +177,20 @@ Fixup_Names(struct disk *d)
 #else
 	free(c2->name);
 	c2->name = strdup(c1->name);
-#endif
+#endif /*__i386__*/
     }
-    for(c2 = c1->part; c2 ; c2 = c2->next) {
+    for(c2 = c1->part; c2; c2 = c2->next) {
 	if (c2->type == freebsd) {
 	    c2->flags |= CHUNK_BSD_COMPAT;
 	    break;
 	}
     }
-    for(c2 = c1->part; c2 ; c2 = c2->next) {
+    for(c2 = c1->part; c2; c2 = c2->next) {
 	if (c2->type == freebsd)
-	    Fixup_FreeBSD_Names(d,c2);
+	    Fixup_FreeBSD_Names(d, c2);
 #ifndef PC98
 	if (c2->type == extended)
-	    Fixup_Extended_Names(d,c2);
+	    Fixup_Extended_Names(d, c2);
 #endif
     }
 }
@@ -215,7 +219,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 	    offset += d->bios_sect;
 	    size -= d->bios_sect;
 	}
-#endif
+#endif /* PC98 */
 	
 	/* Always end on cylinder boundary */
 	l = (offset+size) % (d->bios_sect * d->bios_hd);
@@ -223,9 +227,9 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
     }
     
 #ifdef PC98
-    i = Add_Chunk(d,offset,size,"X",type,subtype,flags,sname);
+    i = Add_Chunk(d, offset, size, "X", type, subtype, flags, sname);
 #else
-    i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
+    i = Add_Chunk(d, offset, size, "X", type, subtype, flags);
 #endif
     Fixup_Names(d);
     return i;
@@ -240,7 +244,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     
     if (!parent)
 	parent = d->chunks;
-    for (c1=parent->part; c1 ; c1 = c1->next) {
+    for (c1=parent->part; c1; c1 = c1->next) {
 	if (c1->type != unused) continue;
 	if (c1->size < size) continue;
 	offset = c1->offset;
@@ -249,17 +253,18 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     return 0;
  found:
 #ifdef PC98
-    i = Add_Chunk(d,offset,size,"X",type,subtype,flags,"-");
+    i = Add_Chunk(d, offset, size, "X", type, subtype, flags, "-");
 #else
-    i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
+    i = Add_Chunk(d, offset, size, "X", type, subtype, flags);
 #endif
     if (i)
 	return 0;
     Fixup_Names(d);
-    for (c1=parent->part; c1 ; c1 = c1->next)
+    for (c1=parent->part; c1; c1 = c1->next)
 	if (c1->offset == offset)
 	    return c1;
-    barfout(1,"Serious internal trouble");
+    barfout(1, "Serious internal trouble");
+    return 0;
 }
 
 int
@@ -278,11 +283,13 @@ MakeDev(struct chunk *c1, const char *path)
 	msgDebug("MakeDev: Called with %s on path %s\n", p, path);
     if (!strcmp(p, "X"))
 	return 0;
-    
-    if (!strncmp(p, "wd", 2))
-	cmaj = 3, p += 2;
-    else if (!strncmp(p, "ad", 2))
+
+    if (!strncmp(p, "ad", 2))
 	cmaj = 116, p += 2;
+#ifdef PC98
+    else if (!strncmp(p, "wd", 2))
+	cmaj = 3, p += 2;
+#endif
     else if (!strncmp(p, "wfd", 3))
 	cmaj = 87, p += 3;
     else if (!strncmp(p, "afd", 3))

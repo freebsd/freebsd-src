@@ -21,7 +21,7 @@ read_disklabel(int fd, daddr_t block)
 {
 	struct disklabel *dp;
 
-	dp = (struct disklabel *) read_block(fd,block);
+	dp = (struct disklabel *) read_block(fd, block);
 	if (dp->d_magic != DISKMAGIC)
 		return 0;
 	if (dp->d_magic2 != DISKMAGIC)

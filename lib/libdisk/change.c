@@ -30,7 +30,9 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 void
 Sanitize_Bios_Geom(struct disk *disk)
 {
-	int sane = 1;
+	int sane;
+
+	sane = 1;
 
 	if (disk->bios_cyl > 1024)
 		sane = 0;
@@ -38,8 +40,7 @@ Sanitize_Bios_Geom(struct disk *disk)
 		sane = 0;
 	if (disk->bios_sect > 63)
 		sane = 0;
-	if (disk->bios_cyl*disk->bios_hd*disk->bios_sect != 
-	    disk->chunks->size)
+	if (disk->bios_cyl*disk->bios_hd*disk->bios_sect != disk->chunks->size)
 		sane = 0;
 	if (sane)
 		return;
@@ -47,14 +48,14 @@ Sanitize_Bios_Geom(struct disk *disk)
 	/* First try something that IDE can handle */
 	disk->bios_sect = 63;
 	disk->bios_hd = 16;
-	disk->bios_cyl = disk->chunks->size/(disk->bios_sect*disk->bios_hd);
+	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
 
 	if (disk->bios_cyl < 1024)
 		return;
 
 	/* Hmm, try harder... */
 	disk->bios_hd = 255;
-	disk->bios_cyl = disk->chunks->size/(disk->bios_sect*disk->bios_hd);
+	disk->bios_cyl = disk->chunks->size / (disk->bios_sect*disk->bios_hd);
 
 	return;
 }
@@ -65,26 +66,27 @@ All_FreeBSD(struct disk *d, int force_all)
 	struct chunk *c;
 
     again:
-	for (c=d->chunks->part;c;c=c->next)
+	for (c = d->chunks->part; c; c = c->next)
 		if (c->type != unused) {
-			Delete_Chunk(d,c);
+			Delete_Chunk(d, c);
 			goto again;
 		}
-	c=d->chunks;
+	c = d->chunks;
 	if (force_all) {
 		Sanitize_Bios_Geom(d);
 #ifdef PC98
-		Create_Chunk(d,c->offset,c->size,freebsd,0x494,
-		     CHUNK_FORCE_ALL,"FreeBSD");
+		Create_Chunk(d, c->offset, c->size, freebsd, 0x494,
+		    CHUNK_FORCE_ALL, "FreeBSD");
 #else
-		Create_Chunk(d,c->offset,c->size,freebsd,0xa5,
-		     CHUNK_FORCE_ALL);
+		Create_Chunk(d, c->offset, c->size, freebsd, 0xa5,
+		    CHUNK_FORCE_ALL);
 #endif
 	} else {
 #ifdef PC98
-		Create_Chunk(d,c->offset,c->size,freebsd,0x494, 0,"FreeBSD");
+		Create_Chunk(d, c->offset, c->size, freebsd, 0x494, 0,
+		    "FreeBSD");
 #else
-		Create_Chunk(d,c->offset,c->size,freebsd,0xa5, 0);
+		Create_Chunk(d, c->offset, c->size, freebsd, 0xa5, 0);
 #endif
 	}
 }
