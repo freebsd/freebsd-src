@@ -150,6 +150,7 @@ UCHAR  DC390_EEpromInDO( USHORT mechnum );
 USHORT EEpromGetData1( USHORT mechnum );
 void   DC390_Prepare( USHORT mechnum, PUCHAR regval, UCHAR EEpromCmd );
 void   DC390_ReadEEprom( USHORT mechnum, USHORT index );
+USHORT DC390_DefaultEEprom( USHORT mechnum, USHORT index );
 USHORT DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index );
 USHORT DC390_ToMech( USHORT Mechnum, pcici_t config_id );
 
@@ -1492,6 +1493,26 @@ DC390_ReadEEprom( USHORT mechnum, USHORT index )
 
 
 USHORT
+DC390_DefaultEEprom( USHORT mechnum, USHORT index )
+{
+    PUCHAR  ptr;
+    USHORT  i;
+
+    ptr = (PUCHAR) &eepromBuf[index][0];
+    bzero (ptr, sizeof eepromBuf[index]);
+    for(i=0; i<0x40; i++)
+    {
+	*ptr = (TAG_QUEUING_|EN_DISCONNECT_|SYNC_NEGO_|PARITY_CHK_);
+	ptr += 4;
+    }
+    ptr[EE_ADAPT_SCSI_ID] = 7;
+    ptr[EE_MODE2] = (LUN_CHECK|ACTIVE_NEGATION);
+    ptr[EE_TAG_CMD_NUM] = 4;
+    return 0;
+}
+
+
+USHORT
 DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index )
 {
     USHORT wval, rc, *ptr;
@@ -1505,7 +1526,7 @@ DC390_CheckEEpromCheckSum( USHORT MechNum, USHORT index )
     if( wval == 0x1234 )
 	rc = 0;
     else
-	rc = -1;
+	rc = DC390_DefaultEEprom( MechNum, index);
     return( rc );
 }
 
