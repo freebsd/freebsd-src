@@ -217,7 +217,14 @@ nd6_ra_input(m, off, icmp6len)
 	union nd_opts ndopts;
 	struct nd_defrouter *dr;
 
+	/*
+	 * We only accept RAs only when
+	 * the system-wide variable allows the acceptance, and
+	 * per-interface variable allows RAs on the receiving interface.
+	 */
 	if (ip6_accept_rtadv == 0)
+		goto freeit;
+	if (!(ndi->flags & ND6_IFF_ACCEPT_RTADV))
 		goto freeit;
 
 	if (ip6->ip6_hlim != 255) {
