@@ -5544,6 +5544,14 @@ for machine in $build $host $target; do
 		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
 		gnu_ld=yes
 		;;
+	sparc64-*-freebsd*)
+		tmake_file=sparc/t-sp64
+		tm_file=sparc/sp64-elf.h
+		xm_file="sparc/xm-sp64.h sparc/xm-freebsd.h"
+		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
+		gas=yes
+		gnu_ld=yes
+		;;
 # This hasn't been upgraded to GCC 2.
 #	tahoe-harris-*)			# Harris tahoe, using COFF.
 #		tm_file=tahoe/harris.h
