@@ -97,7 +97,7 @@ the user is prompted for another password.
 This option will require the user
 to authenticate themself as the user
 given by
-.Xr getuid 2 ,
+.Xr getlogin 2 ,
 not as the account they are attempting to access.
 This is primarily for services like
 .Xr su 1 ,
@@ -140,7 +140,7 @@ password database.
 .El
 .Sh SEE ALSO
 .Xr passwd 1 ,
-.Xr getuid 2 ,
+.Xr getlogin 2 ,
 .Xr crypt 3 ,
 .Xr syslog 3 ,
 .Xr pam.conf 5 ,
