@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.39 1994/03/25 15:10:50 ache Exp $
+ *	$Id: sio.c,v 1.40 1994/03/26 13:40:18 ache Exp $
  */
 
 #include "sio.h"
@@ -715,12 +715,12 @@ bidir_open_top:
 		disable_intr();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
-		com->prev_modem_status = inb(com->modem_status_port);
+		if (!got_status)
+			com->last_modem_status =
+			com->prev_modem_status = inb(com->modem_status_port);
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
 		enable_intr();
-		if (!got_status)
-			com->last_modem_status = com->prev_modem_status;
 		if (com->prev_modem_status & MSR_DCD || FAKE_DCD(unit))
 			tp->t_state |= TS_CARR_ON;
 	} else if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
