@@ -78,17 +78,17 @@ static __inline__ int find_first_zero_bit(void * addr, unsigned size)
 
 	if (!size)
 		return 0;
-	__asm__("
-		cld
-		movl $-1,%%eax
-		xorl %%edx,%%edx
-		repe; scasl
-		je 1f
-		xorl -4(%%edi),%%eax
-		subl $4,%%edi
-		bsfl %%eax,%%edx
-1:		subl %%ebx,%%edi
-		shll $3,%%edi
+	__asm__("			\n\
+		cld			\n\
+		movl $-1,%%eax		\n\
+		xorl %%edx,%%edx	\n\
+		repe; scasl		\n\
+		je 1f			\n\
+		xorl -4(%%edi),%%eax	\n\
+		subl $4,%%edi		\n\
+		bsfl %%eax,%%edx	\n\
+1:		subl %%ebx,%%edi	\n\
+		shll $3,%%edi		\n\
 		addl %%edi,%%edx"
 		:"=d" (res)
 		:"c" ((size + 31) >> 5), "D" (addr), "b" (addr)
@@ -105,10 +105,10 @@ static __inline__ int find_next_zero_bit (void * addr, int size, int offset)
 		/*
 		 * Look for zero in first byte
 		 */
-		__asm__("
-			bsfl %1,%0
-			jne 1f
-			movl $32, %0
+		__asm__("			\n\
+			bsfl %1,%0		\n\
+			jne 1f			\n\
+			movl $32, %0		\n\
 1:			"
 			: "=r" (set)
 			: "r" (~(*p >> bit)));
@@ -146,10 +146,11 @@ static __inline__ char * memscan(void * addr, unsigned char c, int size)
 {
         if (!size)
                 return addr;
-        __asm__("cld
-                repnz; scasb
-                jnz 1f
-                dec %%edi
+        __asm__("			\n\
+		cld			\n\
+                repnz; scasb		\n\
+                jnz 1f			\n\
+                dec %%edi		\n\
 1:              "
                 : "=D" (addr), "=c" (size)
                 : "0" (addr), "1" (size), "a" (c));
