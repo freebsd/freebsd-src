@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Marshall
@@ -91,6 +91,7 @@ static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag,
 		    struct ucred *cred);
 static int	ffsext_strategy(struct vop_strategy_args *);
 static int	ffs_closeextattr(struct vop_closeextattr_args *);
+static int	ffs_deleteextattr(struct vop_deleteextattr_args *);
 static int	ffs_getextattr(struct vop_getextattr_args *);
 static int	ffs_listextattr(struct vop_listextattr_args *);
 static int	ffs_openextattr(struct vop_openextattr_args *);
@@ -107,6 +108,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
+	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
 	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
@@ -123,6 +125,7 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
+	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
 	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
@@ -139,6 +142,7 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_strategy_desc,		(vop_t *) ffsext_strategy },
 	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
+	{ &vop_deleteextattr_desc,	(vop_t *) ffs_deleteextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
 	{ &vop_listextattr_desc,	(vop_t *) ffs_listextattr },
 	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
@@ -1462,7 +1466,94 @@ struct vop_closeextattr_args {
 	return (ffs_close_ea(ap->a_vp, ap->a_commit, ap->a_cred, ap->a_td));
 }
 
+/*
+ * Vnode operation to remove a named attribute.
+ */
+static int
+ffs_deleteextattr(struct vop_deleteextattr_args *ap)
+/*
+vop_deleteextattr {
+	IN struct vnode *a_vp;
+	IN int a_attrnamespace;
+	IN const char *a_name;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	struct inode *ip;
+	struct fs *fs;
+	uint32_t ealength, ul;
+	int ealen, olen, eapad1, eapad2, error, i, easize;
+	u_char *eae, *p;
+	int stand_alone;
 
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_vp->v_type == VCHR)
+		return (EOPNOTSUPP);
+
+	if (strlen(ap->a_name) == 0)
+		return (EINVAL);
+
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, IWRITE);
+	if (error) {
+		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
+			ip->i_ea_error = error;
+		return (error);
+	}
+
+	if (ip->i_ea_area == NULL) {
+		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+		if (error)
+			return (error);
+		stand_alone = 1;
+	} else {
+		stand_alone = 0;
+	}
+
+	ealength = eapad1 = ealen = eapad2 = 0;
+
+	eae = malloc(ip->i_ea_len, M_TEMP, M_WAITOK);
+	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
+	easize = ip->i_ea_len;
+
+	olen = ffs_findextattr(eae, easize, ap->a_attrnamespace, ap->a_name,
+	    &p, NULL);
+	if (olen == -1) {
+		/* delete but nonexistent */
+		free(eae, M_TEMP);
+		if (stand_alone)
+			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		return(ENOATTR);
+	}
+	bcopy(p, &ul, sizeof ul);
+	i = p - eae + ul;
+	if (ul != ealength) {
+		bcopy(p + ul, p + ealength, easize - i);
+		easize += (ealength - ul);
+	}
+	if (easize > NXADDR * fs->fs_bsize) {
+		free(eae, M_TEMP);
+		if (stand_alone)
+			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		else if (ip->i_ea_error == 0)
+			ip->i_ea_error = ENOSPC;
+		return(ENOSPC);
+	}
+	p = ip->i_ea_area;
+	ip->i_ea_area = eae;
+	ip->i_ea_len = easize;
+	free(p, M_TEMP);
+	if (stand_alone)
+		error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
+	return(error);
+}
 
 /*
  * Vnode operation to retrieve a named extended attribute.
@@ -1635,6 +1726,10 @@ vop_setextattr {
 	if (strlen(ap->a_name) == 0)
 		return (EINVAL);
 
+	/* XXX Now unsupported API to delete EAs using NULL uio. */
+	if (ap->a_uio == NULL)
+		return (EOPNOTSUPP);
+
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IWRITE);
 	if (error) {
@@ -1652,21 +1747,15 @@ vop_setextattr {
 		stand_alone = 0;
 	}
 
-	/* Calculate the length of the EA entry */
-	if (ap->a_uio == NULL) {
-		/* delete */
-		ealength = eapad1 = ealen = eapad2 = 0;
-	} else {
-		ealen = ap->a_uio->uio_resid;
-		ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
-		eapad1 = 8 - (ealength % 8);
-		if (eapad1 == 8)
-			eapad1 = 0;
-		eapad2 = 8 - (ealen % 8);
-		if (eapad2 == 8)
-			eapad2 = 0;
-		ealength += eapad1 + ealen + eapad2;
-	}
+	ealen = ap->a_uio->uio_resid;
+	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
+	eapad1 = 8 - (ealength % 8);
+	if (eapad1 == 8)
+		eapad1 = 0;
+	eapad2 = 8 - (ealen % 8);
+	if (eapad2 == 8)
+		eapad2 = 0;
+	ealength += eapad1 + ealen + eapad2;
 
 	eae = malloc(ip->i_ea_len + ealength, M_TEMP, M_WAITOK);
 	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
@@ -1674,13 +1763,6 @@ vop_setextattr {
 
 	olen = ffs_findextattr(eae, easize,
 	    ap->a_attrnamespace, ap->a_name, &p, NULL);
-	if (olen == -1 && ealength == 0) {
-		/* delete but nonexistent */
-		free(eae, M_TEMP);
-		if (stand_alone)
-			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		return(ENOATTR);
-	}
         if (olen == -1) {
 		/* new, append at end */
 		p = eae + easize;
@@ -1701,28 +1783,27 @@ vop_setextattr {
 			ip->i_ea_error = ENOSPC;
 		return(ENOSPC);
 	}
-	if (ealength != 0) {
-		bcopy(&ealength, p, sizeof(ealength));
-		p += sizeof(ealength);
-		*p++ = ap->a_attrnamespace;
-		*p++ = eapad2;
-		*p++ = strlen(ap->a_name);
-		strcpy(p, ap->a_name);
-		p += strlen(ap->a_name);
-		bzero(p, eapad1);
-		p += eapad1;
-		error = uiomove(p, ealen, ap->a_uio);
-		if (error) {
-			free(eae, M_TEMP);
-			if (stand_alone)
-				ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-			else if (ip->i_ea_error == 0)
-				ip->i_ea_error = error;
-			return(error);
-		}
-		p += ealen;
-		bzero(p, eapad2);
+	bcopy(&ealength, p, sizeof(ealength));
+	p += sizeof(ealength);
+	*p++ = ap->a_attrnamespace;
+	*p++ = eapad2;
+	*p++ = strlen(ap->a_name);
+	strcpy(p, ap->a_name);
+	p += strlen(ap->a_name);
+	bzero(p, eapad1);
+	p += eapad1;
+	error = uiomove(p, ealen, ap->a_uio);
+	if (error) {
+		free(eae, M_TEMP);
+		if (stand_alone)
+			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		else if (ip->i_ea_error == 0)
+			ip->i_ea_error = error;
+		return(error);
 	}
+	p += ealen;
+	bzero(p, eapad2);
+
 	p = ip->i_ea_area;
 	ip->i_ea_area = eae;
 	ip->i_ea_len = easize;

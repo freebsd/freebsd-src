@@ -1151,7 +1151,7 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	}
 
 	/* authorize attribute removal as kernel */
-	error = VOP_RMEXTATTR(vp, attrnamespace, attrname, NULL, td);
+	error = VOP_DELETEEXTATTR(vp, attrnamespace, attrname, NULL, td);
 	if (error == EOPNOTSUPP)
 		error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
 		    NULL, td);
