@@ -1,49 +1,49 @@
-#
 # $FreeBSD$
-#
-SRCS+=		aout32.c	\
-		cf-m68klynx.c	\
-		coff-aux.c	\
-		coff-m68k.c	\
-		coff-svm68k.c	\
-		coff-u68k.c	\
-		cofflink.c	\
-		cpu-m68k.c	\
-		elf32-m68k.c	\
-		elf32-target.h	\
-		elf32.c		\
-		elflink.c	\
-		lynx-core.c	\
-		m68k4knetbsd.c	\
-		m68klinux.c	\
-		m68klynx.c	\
-		m68knetbsd.c	\
-		sunos.c
-VECS+=		bfd_elf32_m68k_vec	\
-		m68k4knetbsd_vec	\
-		m68kaux_coff_vec	\
-		m68kcoff_vec		\
-		m68kcoffun_vec		\
-		m68klinux_vec		\
-		m68klynx_aout_vec	\
-		m68klynx_coff_vec	\
-		m68knetbsd_vec		\
-		m68ksysvcoff_vec	\
-		sunos_big_vec
+
+SRCS+=	aout32.c	\
+	cf-m68klynx.c	\
+	coff-aux.c	\
+	coff-m68k.c	\
+	coff-svm68k.c	\
+	coff-u68k.c	\
+	cofflink.c	\
+	cpu-m68k.c	\
+	elf32-m68k.c	\
+	elf32-target.h	\
+	elf32.c		\
+	elflink.c	\
+	lynx-core.c	\
+	m68k4knetbsd.c	\
+	m68klinux.c	\
+	m68klynx.c	\
+	m68knetbsd.c	\
+	sunos.c
+VECS+=	bfd_elf32_m68k_vec	\
+	m68k4knetbsd_vec	\
+	m68kaux_coff_vec	\
+	m68kcoff_vec		\
+	m68kcoffun_vec		\
+	m68klinux_vec		\
+	m68klynx_aout_vec	\
+	m68klynx_coff_vec	\
+	m68knetbsd_vec		\
+	m68ksysvcoff_vec	\
+	sunos_big_vec
+
 .if ${TARGET_ARCH} == "m68k"
-CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_m68k_vec
+CFLAGS+= -DDEFAULT_VECTOR=bfd_elf32_m68k_vec
 .endif
-CFLAGS+=	-DHAVE_bfd_elf32_m68k_vec
-CFLAGS+=	-DHAVE_m68k4knetbsd_vec
-CFLAGS+=	-DHAVE_m68kaux_coff_vec
-CFLAGS+=	-DHAVE_m68kcoff_vec
-CFLAGS+=	-DHAVE_m68kcoffun_vec
-CFLAGS+=	-DHAVE_m68klinux_vec
-CFLAGS+=	-DHAVE_m68klynx_aout_vec
-CFLAGS+=	-DHAVE_m68klynx_coff_vec
-CFLAGS+=	-DHAVE_m68knetbsd_vec
-CFLAGS+=	-DHAVE_m68ksysvcoff_vec
-CFLAGS+=	-DHAVE_sunos_big_vec
+CFLAGS+= -DHAVE_bfd_elf32_m68k_vec
+CFLAGS+= -DHAVE_m68k4knetbsd_vec
+CFLAGS+= -DHAVE_m68kaux_coff_vec
+CFLAGS+= -DHAVE_m68kcoff_vec
+CFLAGS+= -DHAVE_m68kcoffun_vec
+CFLAGS+= -DHAVE_m68klinux_vec
+CFLAGS+= -DHAVE_m68klynx_aout_vec
+CFLAGS+= -DHAVE_m68klynx_coff_vec
+CFLAGS+= -DHAVE_m68knetbsd_vec
+CFLAGS+= -DHAVE_m68ksysvcoff_vec
+CFLAGS+= -DHAVE_sunos_big_vec
 CLEANFILES+=	elf32-target.h
 
 elf32-target.h:	elfxx-target.h

@@ -1,17 +1,16 @@
-#
 # $FreeBSD$
-#
-SRCS+=		cpu-i386.c elf32-i386.c elf32-target.h elf32.c elflink.c
-VECS+=		bfd_elf32_i386_vec
+
+SRCS+=	cpu-i386.c elf32-i386.c elf32-target.h elf32.c elflink.c
+VECS+=	bfd_elf32_i386_vec
 .if ${TARGET_ARCH} == "i386"
-CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_i386_vec
+CFLAGS+= -DDEFAULT_VECTOR=bfd_elf32_i386_vec
 .endif
-CFLAGS+=	-DHAVE_bfd_elf32_i386_vec
+CFLAGS+= -DHAVE_bfd_elf32_i386_vec
 
 .if	defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
-SRCS+=		pe-i386.c pei-i386.c
-VECS+=		i386pe_vec i386pei_vec
-CFLAGS+=	-DHAVE_i386pe_vec -DHAVE_i386pei_vec
+SRCS+=	pe-i386.c pei-i386.c
+VECS+=	i386pe_vec i386pei_vec
+CFLAGS+= -DHAVE_i386pe_vec -DHAVE_i386pei_vec
 .endif
 
 CLEANFILES+=	elf32-target.h
