@@ -552,10 +552,10 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 	    bcopy(iocmd->u.request.u.atapi.ccb, request->u.atapi.ccb, 16);
 	}
 	else {
-	     request->u.ata.command = iocmd->u.request.u.ata.command;
-	     request->u.ata.feature = iocmd->u.request.u.ata.feature;
-	     request->u.ata.lba = iocmd->u.request.u.ata.lba;
-	     request->u.ata.count = iocmd->u.request.u.ata.count;
+	    request->u.ata.command = iocmd->u.request.u.ata.command;
+	    request->u.ata.feature = iocmd->u.request.u.ata.feature;
+	    request->u.ata.lba = iocmd->u.request.u.ata.lba;
+	    request->u.ata.count = iocmd->u.request.u.ata.count;
 	}
 
 	request->timeout = iocmd->u.request.timeout;
