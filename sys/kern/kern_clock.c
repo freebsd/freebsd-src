@@ -192,6 +192,7 @@ hardclock(frame)
 {
 	int need_softclock = 0;
 
+	CTR0(KTR_INTR, "hardclock fired");
 	mtx_lock_spin(&sched_lock);
 	hardclock_process(curproc, CLKF_USERMODE(frame));
 	mtx_unlock_spin(&sched_lock);
@@ -445,6 +446,7 @@ statclock(frame)
 	register struct clockframe *frame;
 {
 
+	CTR0(KTR_INTR, "statclock fired");
 	mtx_lock_spin(&sched_lock);
 	if (--pscnt == 0)
 		pscnt = psdiv;
