@@ -122,8 +122,7 @@ __FBSDID("$FreeBSD$");
 #define	siodriver	cydriver
 #define	siodtrwakeup	cydtrwakeup
 #define	sioinput	cyinput
-#define	siointr		cyintr
-#define	siointr1	cyintr1
+#define	siointr1	cyintr
 #define	sioioctl	cyioctl
 #define	sioopen		cyopen
 #define	siopoll		cypoll
@@ -333,10 +332,11 @@ struct com_s {
 	u_char	obuf2[256];
 };
 
-/* PCI driver entry point. */
-int	cyattach_common(cy_addr cy_iobase, int cy_align);
-ointhand2_t	siointr;
+/* PCI driver entry points. */
+void	*cyattach_common(cy_addr cy_iobase, int cy_align);
+driver_intr_t	siointr1;
 
+static	ointhand2_t cyointr;
 static	int	cy_units(cy_addr cy_iobase, int cy_align);
 static	int	sioattach(struct isa_device *dev);
 static	void	cd1400_channel_cmd(struct com_s *com, int cmd);
@@ -347,9 +347,6 @@ static	void	cd_setreg(struct com_s *com, int reg, int val);
 static	timeout_t siodtrwakeup;
 static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
-#if 0
-static	void	siointr1(struct com_s *com);
-#endif
 static	int	commctl(struct com_s *com, int bits, int how);
 static	int	comparam(struct tty *tp, struct termios *t);
 static	void	siopoll(void *arg);
@@ -510,11 +507,13 @@ static int
 sioattach(isdp)
 	struct isa_device	*isdp;
 {
-	int	adapter;
+	int		adapter;
+	struct com_s	*com;
 
-	adapter = cyattach_common((cy_addr) isdp->id_maddr, 0);
-	if (adapter < 0)
+	com = cyattach_common((cy_addr) isdp->id_maddr, 0);
+	if (com == NULL)
 		return (0);
+	adapter = com->unit / CY_MAX_PORTS;
 
 	/*
 	 * XXX
@@ -525,12 +524,12 @@ sioattach(isdp)
 		printf("cy%d: attached as cy%d\n", isdp->id_unit, adapter);
 		isdp->id_unit = adapter;	/* XXX */
 	}
-	isdp->id_ointr = siointr;
-	/* isdp->id_ri_flags |= RI_FAST; XXX unimplemented - use newbus! */
+
+	isdp->id_ointr = cyointr;
 	return (1);
 }
 
-int
+void *
 cyattach_common(cy_iobase, cy_align)
 	cy_addr	cy_iobase;
 	int	cy_align;
@@ -548,11 +547,11 @@ cyattach_common(cy_iobase, cy_align)
 		printf(
 	"cy%d: can't attach adapter: insufficient cy devices configured\n",
 		       adapter);
-		return (-1);
+		return (NULL);
 	}
 	ncyu = cy_units(cy_iobase, cy_align);
 	if (ncyu == 0)
-		return (-1);
+		return (NULL);
 	cy_nr_cd1400s[adapter] = ncyu;
 	cy_total_devices++;
 
@@ -615,7 +614,7 @@ cyattach_common(cy_iobase, cy_align)
 	}
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		free(com, M_DEVBUF);
-		return (0);
+		return (NULL);
 	}
 	termioschars(&com->it_in);
 	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
@@ -656,7 +655,7 @@ cyattach_common(cy_iobase, cy_align)
 	/* ensure an edge for the next interrupt */
 	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
-	return (adapter);
+	return (com_addr(adapter * CY_MAX_PORTS));
 }
 
 static int
@@ -1111,22 +1110,32 @@ sioinput(com)
 #endif
 }
 
-void
-siointr(unit)
-	int	unit;
+static void
+cyointr(int unit)
 {
+	siointr1(com_addr(unit * CY_MAX_PORTS));
+}
+
+void
+siointr1(vcom)
+	void	*vcom;
+{
+	struct com_s	*basecom;
 	int	baseu;
 	int	cy_align;
 	cy_addr	cy_iobase;
 	int	cyu;
 	cy_addr	iobase;
 	u_char	status;
+	int	unit;
 
 	COM_LOCK();	/* XXX could this be placed down lower in the loop? */
 
-	baseu = unit * CY_MAX_PORTS;
-	cy_align = com_addr(baseu)->cy_align;
-	cy_iobase = com_addr(baseu)->cy_iobase;
+	basecom = (struct com_s *)vcom;
+	baseu = basecom->unit;
+	cy_align = basecom->cy_align;
+	cy_iobase = basecom->cy_iobase;
+	unit = baseu / CY_MAX_PORTS;
 
 	/* check each CD1400 in turn */
 	for (cyu = 0; cyu < cy_nr_cd1400s[unit]; ++cyu) {
@@ -1591,14 +1600,6 @@ terminate_tx_service:
 
 	COM_UNLOCK();
 }
-
-#if 0
-static void
-siointr1(com)
-	struct com_s	*com;
-{
-}
-#endif
 
 static int
 sioioctl(dev, cmd, data, flag, td)
