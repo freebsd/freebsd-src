@@ -36,15 +36,31 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#ifdef __linux__
+#if defined(__linux__)
 #include <linux/config.h>
 #include <asm/ioctl.h>		/* For _IO* macros */
-#define DRM_IOCTL_NR(n)	     _IOC_NR(n)
-#endif /* __linux__ */
-#ifdef __FreeBSD__
+#define DRM_IOCTL_NR(n)		_IOC_NR(n)
+#define DRM_IOC_VOID		_IOC_NONE
+#define DRM_IOC_READ		_IOC_READ
+#define DRM_IOC_WRITE		_IOC_WRITE
+#define DRM_IOC_READWRITE	_IOC_READ|_IOC_WRITE
+#define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
+#elif defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) && defined(XFree86Server)
+/* Prevent name collision when including sys/ioccom.h */
+#undef ioctl
 #include <sys/ioccom.h>
-#define DRM_IOCTL_NR(n)	     ((n) & 0xff)
-#endif /* __FreeBSD__ */
+#define ioctl(a,b,c)		xf86ioctl(a,b,c)
+#else
+#include <sys/ioccom.h>
+#endif /* __FreeBSD__ && xf86ioctl */
+#define DRM_IOCTL_NR(n)		((n) & 0xff)
+#define DRM_IOC_VOID		IOC_VOID
+#define DRM_IOC_READ		IOC_OUT
+#define DRM_IOC_WRITE		IOC_IN
+#define DRM_IOC_READWRITE	IOC_INOUT
+#define DRM_IOC(dir, group, nr, size) _IOC(dir, group, nr, size)
+#endif
 
 #define XFREE86_VERSION(major,minor,patch,snap) \
 		((major << 16) | (minor << 8) | patch)
@@ -70,7 +86,7 @@
 #define DRM_NAME	"drm"	  /* Name in kernel, /dev, and /proc	    */
 #define DRM_MIN_ORDER	5	  /* At least 2^5 bytes = 32 bytes	    */
 #define DRM_MAX_ORDER	22	  /* Up to 2^22 bytes = 4MB		    */
-#define DRM_RAM_PERCENT 50	  /* How much system ram can we lock?	    */
+#define DRM_RAM_PERCENT 10	  /* How much system ram can we lock?	    */
 
 #define _DRM_LOCK_HELD	0x80000000 /* Hardware lock is held		    */
 #define _DRM_LOCK_CONT	0x40000000 /* Hardware lock is contended	    */
@@ -85,6 +101,10 @@ typedef unsigned int  drm_magic_t;
 
 /* Warning: If you change this structure, make sure you change
  * XF86DRIClipRectRec in the server as well */
+
+/* KW: Actually it's illegal to change either for
+ * backwards-compatibility reasons.
+ */
 
 typedef struct drm_clip_rect {
 	unsigned short	x1;
@@ -326,6 +346,32 @@ typedef struct drm_irq_busid {
 	int funcnum;
 } drm_irq_busid_t;
 
+typedef enum {
+    _DRM_VBLANK_ABSOLUTE = 0x0,		/* Wait for specific vblank sequence number */
+    _DRM_VBLANK_RELATIVE = 0x1,		/* Wait for given number of vblanks */
+    _DRM_VBLANK_SIGNAL   = 0x40000000	/* Send signal instead of blocking */
+} drm_vblank_seq_type_t;
+
+#define _DRM_VBLANK_FLAGS_MASK _DRM_VBLANK_SIGNAL
+
+struct drm_wait_vblank_request {
+	drm_vblank_seq_type_t type;
+	unsigned int sequence;
+	unsigned long signal;
+};
+
+struct drm_wait_vblank_reply {
+	drm_vblank_seq_type_t type;
+	unsigned int sequence;
+	long tval_sec;
+	long tval_usec;
+};
+
+typedef union drm_wait_vblank {
+	struct drm_wait_vblank_request request;
+	struct drm_wait_vblank_reply reply;
+} drm_wait_vblank_t;
+
 typedef struct drm_agp_mode {
 	unsigned long mode;
 } drm_agp_mode_t;
@@ -365,10 +411,9 @@ typedef struct drm_scatter_gather {
 
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)
-#define DRM_IOR(nr,size)		_IOR(DRM_IOCTL_BASE,nr,size)
-#define DRM_IOW(nr,size)		_IOW(DRM_IOCTL_BASE,nr,size)
-#define DRM_IOWR(nr,size)		_IOWR(DRM_IOCTL_BASE,nr,size)
-
+#define DRM_IOR(nr,type)		_IOR(DRM_IOCTL_BASE,nr,type)
+#define DRM_IOW(nr,type)		_IOW(DRM_IOCTL_BASE,nr,type)
+#define DRM_IOWR(nr,type)		_IOWR(DRM_IOCTL_BASE,nr,type)
 
 #define DRM_IOCTL_VERSION		DRM_IOWR(0x00, drm_version_t)
 #define DRM_IOCTL_GET_UNIQUE		DRM_IOWR(0x01, drm_unique_t)
@@ -420,5 +465,11 @@ typedef struct drm_scatter_gather {
 
 #define DRM_IOCTL_SG_ALLOC		DRM_IOW( 0x38, drm_scatter_gather_t)
 #define DRM_IOCTL_SG_FREE		DRM_IOW( 0x39, drm_scatter_gather_t)
+
+#define DRM_IOCTL_WAIT_VBLANK		DRM_IOWR(0x3a, drm_wait_vblank_t)
+
+/* Device specfic ioctls should only be in their respective headers
+ * The device specific ioctl range is 0x40 to 0x79.                  */
+#define DRM_COMMAND_BASE                0x40
 
 #endif

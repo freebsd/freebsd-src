@@ -428,17 +428,16 @@ device		acpi
 options 	ACPI_DEBUG
 
 # DRM options:
-# gammadrm:  3Dlabs Oxygen GMX 2000
 # mgadrm:    AGP Matrox G200, G400, G450, G550
 # tdfxdrm:   3dfx Voodoo 3/4/5 and Banshee
-# r128drm:   AGP ATI Rage 128
-# radeondrm: AGP ATI Radeon, including 7200 and 7500
+# r128drm:   ATI Rage 128
+# radeondrm: ATI Radeon up to 9000/9100
 # DRM_LINUX: include linux compatibility, requires COMPAT_LINUX
-# DRM_DEBUG: include debugging code, very slow
+# DRM_DEBUG: include debug printfs, very slow
 #
-# mga, r128, and radeon require AGP in the kernel
+# mga requires AGP in the kernel, and it is recommended
+# for AGP r128 and radeon cards.
 
-device		gammadrm
 device		mgadrm
 device		"r128drm"
 device		radeondrm

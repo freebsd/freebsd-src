@@ -29,90 +29,51 @@
  * $FreeBSD$
  */
 
-
-#ifdef __linux__
-#include <linux/config.h>
-#endif /* __linux__ */
-
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <pci/pcivar.h>
-#endif /* __FreeBSD__ */
-
 #include "dev/drm/radeon.h"
 #include "dev/drm/drmP.h"
+#include "dev/drm/drm.h"
 #include "dev/drm/radeon_drm.h"
 #include "dev/drm/radeon_drv.h"
 #if __REALLY_HAVE_SG
-#include "ati_pcigart.h"
+#include "dev/drm/ati_pcigart.h"
 #endif
 
-#define DRIVER_AUTHOR		"Gareth Hughes, VA Linux Systems Inc."
-
-#define DRIVER_NAME		"radeon"
-#define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20010405"
-
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	1
-
-#ifdef __FreeBSD__
-/* List acquired from xc/xc/programs/Xserver/hw/xfree86/common/xf86PciInfo.h
- * Please report to eanholt@gladstone.uoregon.edu if your chip isn't
- * represented in the list or if the information is incorrect.
- */
-/* PCI cards are not supported with DRI under FreeBSD, and the 8500
- * is not supported on any platform yet.
- */
 drm_chipinfo_t DRM(devicelist)[] = {
-	{0x1002, 0x4242, 0, "ATI Radeon BB 8500 (AGP)"},
+	{0x1002, 0x4242, 1, "ATI Radeon BB AIW 8500DV (AGP)"},
+	{0x1002, 0x4336, 1, "ATI Radeon Mobility"},
+	{0x1002, 0x4337, 1, "ATI Radeon IGP 340"},
+	{0x1002, 0x4964, 1, "ATI Radeon Id 9000"},
+	{0x1002, 0x4965, 1, "ATI Radeon Ie 9000"},
+	{0x1002, 0x4966, 1, "ATI Radeon If 9000"},
+	{0x1002, 0x4967, 1, "ATI Radeon Ig 9000"},
+	{0x1002, 0x496e, 1, "ATI Radeon Ig 9000"},
 	{0x1002, 0x4C57, 1, "ATI Radeon LW Mobility 7 (AGP)"},
+	{0x1002, 0x4C58, 1, "ATI Radeon LX Mobility 7 (AGP)"},
 	{0x1002, 0x4C59, 1, "ATI Radeon LY Mobility 6 (AGP)"},
 	{0x1002, 0x4C5A, 1, "ATI Radeon LZ Mobility 6 (AGP)"},
-	{0x1002, 0x5144, 1, "ATI Radeon QD (AGP)"},
-	{0x1002, 0x5145, 1, "ATI Radeon QE (AGP)"},
-	{0x1002, 0x5146, 1, "ATI Radeon QF (AGP)"},
-	{0x1002, 0x5147, 1, "ATI Radeon QG (AGP)"},
-	{0x1002, 0x514C, 0, "ATI Radeon QL 8500 (AGP)"},
-	{0x1002, 0x514E, 0, "ATI Radeon QN 8500 (AGP)"},
-	{0x1002, 0x514F, 0, "ATI Radeon QO 8500 (AGP)"},
+	{0x1002, 0x4C64, 1, "ATI Radeon Ld Mobility 9000 (AGP)"},
+	{0x1002, 0x4C65, 1, "ATI Radeon Le Mobility 9000 (AGP)"},
+	{0x1002, 0x4C66, 1, "ATI Radeon Lf Mobility 9000 (AGP)"},
+	{0x1002, 0x4C67, 1, "ATI Radeon Lg Mobility 9000 (AGP)"},
+	{0x1002, 0x5144, 1, "ATI Radeon QD R100 (AGP)"},
+	{0x1002, 0x5145, 1, "ATI Radeon QE R100 (AGP)"},
+	{0x1002, 0x5146, 1, "ATI Radeon QF R100 (AGP)"},
+	{0x1002, 0x5147, 1, "ATI Radeon QG R100 (AGP)"},
+	{0x1002, 0x5148, 1, "ATI Radeon QH FireGL 8x00 (AGP)"},
+	{0x1002, 0x5149, 1, "ATI Radeon QI R200"},
+	{0x1002, 0x514A, 1, "ATI Radeon QJ R200"},
+	{0x1002, 0x514B, 1, "ATI Radeon QK R200"},
+	{0x1002, 0x514C, 1, "ATI Radeon QL 8500 (AGP)"},
 	{0x1002, 0x5157, 1, "ATI Radeon QW 7500 (AGP)"},
+	{0x1002, 0x5158, 1, "ATI Radeon QX 7500 (AGP)"},
 	{0x1002, 0x5159, 1, "ATI Radeon QY VE (AGP)"},
 	{0x1002, 0x515A, 1, "ATI Radeon QZ VE (AGP)"},
-	{0x1002, 0x516C, 0, "ATI Radeon Ql 8500 (AGP)"},
+	{0x1002, 0x5168, 1, "ATI Radeon Qh R200"},
+	{0x1002, 0x5169, 1, "ATI Radeon Qi R200"},
+	{0x1002, 0x516A, 1, "ATI Radeon Qj R200"},
+	{0x1002, 0x516B, 1, "ATI Radeon Qk R200"},
 	{0, 0, 0, NULL}
 };
-#endif /* __FreeBSD__ */
-
-#define DRIVER_IOCTLS							     \
- [DRM_IOCTL_NR(DRM_IOCTL_DMA)]               = { radeon_cp_buffers,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_INIT)]    = { radeon_cp_init,     1, 1 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_START)]   = { radeon_cp_start,    1, 1 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_STOP)]    = { radeon_cp_stop,     1, 1 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_RESET)]   = { radeon_cp_reset,    1, 1 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CP_IDLE)]    = { radeon_cp_idle,     1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_RESET)]    = { radeon_engine_reset,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_FULLSCREEN)] = { radeon_fullscreen,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_SWAP)]       = { radeon_cp_swap,     1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_CLEAR)]      = { radeon_cp_clear,    1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_VERTEX)]     = { radeon_cp_vertex,   1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_INDICES)]    = { radeon_cp_indices,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_TEXTURE)]    = { radeon_cp_texture,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_STIPPLE)]    = { radeon_cp_stipple,  1, 0 }, \
- [DRM_IOCTL_NR(DRM_IOCTL_RADEON_INDIRECT)]   = { radeon_cp_indirect, 1, 1 },
-
-
-#if 0
-/* GH: Count data sent to card via ring or vertex/indirect buffers.
- */
-#define __HAVE_COUNTERS         3
-#define __HAVE_COUNTER6         _DRM_STAT_IRQ
-#define __HAVE_COUNTER7         _DRM_STAT_PRIMARY
-#define __HAVE_COUNTER8         _DRM_STAT_SECONDARY
-#endif
-
 
 #include "dev/drm/drm_agpsupport.h"
 #include "dev/drm/drm_auth.h"
@@ -121,45 +82,19 @@ drm_chipinfo_t DRM(devicelist)[] = {
 #include "dev/drm/drm_dma.h"
 #include "dev/drm/drm_drawable.h"
 #include "dev/drm/drm_drv.h"
-
-#ifdef __linux__
-#ifndef MODULE
-/* DRM(options) is called by the kernel to parse command-line options
- * passed via the boot-loader (e.g., LILO).  It calls the insmod option
- * routine, drm_parse_drm.
- */
-
-/* JH- We have to hand expand the string ourselves because of the cpp.  If
- * anyone can think of a way that we can fit into the __setup macro without
- * changing it, then please send the solution my way.
- */
-static int __init radeon_options( char *str )
-{
-	DRM(parse_options)( str );
-	return 1;
-}
-
-__setup( DRIVER_NAME "=", radeon_options );
-#endif
-#endif /* __linux__ */
-
 #include "dev/drm/drm_fops.h"
 #include "dev/drm/drm_init.h"
 #include "dev/drm/drm_ioctl.h"
 #include "dev/drm/drm_lock.h"
 #include "dev/drm/drm_memory.h"
 #include "dev/drm/drm_vm.h"
-#ifdef __linux__
-#include "dev/drm/drm_proc.h"
-#include "dev/drm/drm_stub.h"
-#endif /* __linux__ */
-#ifdef __FreeBSD__
 #include "dev/drm/drm_sysctl.h"
-#endif /* __FreeBSD__ */
-#if __REALLY_HAVE_SG
+#if __HAVE_SG
 #include "dev/drm/drm_scatter.h"
 #endif
 
 #ifdef __FreeBSD__
-DRIVER_MODULE(radeon, pci, radeon_driver, radeon_devclass, 0, 0);
+DRIVER_MODULE(DRIVER_NAME, pci, DRM(driver), DRM(devclass), 0, 0);
+#elif defined(__NetBSD__)
+CFDRIVER_DECL(radeon, DV_TTY, NULL);
 #endif /* __FreeBSD__ */
