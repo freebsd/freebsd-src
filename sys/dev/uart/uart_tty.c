@@ -74,7 +74,6 @@ static struct cdevsw uart_cdevsw = {
 	.d_ioctl = uart_tty_ioctl,
 	.d_poll = ttypoll,
 	.d_name = uart_driver_name,
-	.d_maj = MAJOR_AUTO,
 	.d_flags = D_TTY,
 	.d_kqfilter = ttykqfilter,
 };
