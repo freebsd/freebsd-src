@@ -308,18 +308,41 @@ printable_part (pathname)
 /* Output TO_PRINT to rl_outstream.  If VISIBLE_STATS is defined and we
    are using it, check for and output a single character for `special'
    filenames.  Return 1 if we printed an extension character, 0 if not. */
+#define PUTX(c) \
+      if (CTRL_CHAR (c)) \
+        { \
+          putc ('^', rl_outstream); \
+          putc (UNCTRL (c), rl_outstream); \
+        } \
+      else if (c == RUBOUT) \
+        { \
+          putc ('^', rl_outstream); \
+          putc ('?', rl_outstream); \
+        } \
+      else \
+        putc (c, rl_outstream)
+
 static int
 print_filename (to_print, full_pathname)
      char *to_print, *full_pathname;
 {
 #if !defined (VISIBLE_STATS)
-  fputs (to_print, rl_outstream);
+  char *s;
+
+  for (s = to_print; *s; s++)
+    {
+      PUTX (*s);
+    }
   return 0;
 #else  
   char *s, c, *new_full_pathname;
   int extension_char = 0, slen, tlen;
 
-  fputs (to_print, rl_outstream);
+  for (s = to_print; *s; s++)
+    {
+      PUTX (*s);
+    }  
+
   if (rl_filename_completion_desired && rl_visible_stats)
     {
       /* If to_print != full_pathname, to_print is the basename of the
@@ -645,7 +668,7 @@ rl_complete_internal (what_to_do)
 		 not be checked, add !matches[1] to the if clause. */
 	      should_quote = rl_strpbrk (matches[0], rl_completer_word_break_characters) != 0;
 #if defined (SHELL)
-	      should_quote = should_quote || rl_strpbrk (matches[0], "#$`") != 0;
+	      should_quote = should_quote || rl_strpbrk (matches[0], "#$`?*[") != 0;
 #endif
 
 	      if (should_quote)

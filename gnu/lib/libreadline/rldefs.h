@@ -34,10 +34,6 @@
 #  include "memalloc.h"
 #endif
 
-#if defined (HAVE_UNISTD_H)
-#  include <unistd.h>
-#endif /* HAVE_UNISTD_H */
-
 #define NEW_TTY_DRIVER
 #define HAVE_BSD_SIGNALS
 /* #define USE_XON_XOFF */
@@ -90,18 +86,6 @@
 #if defined (NEW_TTY_DRIVER)
 #  include <sgtty.h>
 #endif
-
-/* Define _POSIX_VDISABLE if we are not using the `new' tty driver and
-   it is not already defined.  It is used both to determine if a
-   special character is disabled and to disable certain special
-   characters.  Posix systems should set to 0, USG systems to -1. */
-#if !defined (NEW_TTY_DRIVER) && !defined (_POSIX_VDISABLE)
-#  if defined (_POSIX_VERSION)
-#    define _POSIX_VDISABLE 0
-#  else /* !_POSIX_VERSION */
-#    define _POSIX_VDISABLE -1
-#  endif /* !_POSIX_VERSION */
-#endif /* !NEW_TTY_DRIVER && !_POSIX_VDISABLE */
 
 #if !defined (SHELL) && (defined (_POSIX_VERSION) || defined (USGr3))
 #  if !defined (HAVE_DIRENT_H)
@@ -175,6 +159,23 @@ extern char *strchr (), *strrchr ();
     defined (AIX)
 #  define GWINSZ_IN_SYS_IOCTL
 #endif
+
+/* Define _POSIX_VDISABLE if we are not using the `new' tty driver and
+   it is not already defined.  It is used both to determine if a
+   special character is disabled and to disable certain special
+   characters.  Posix systems should set to 0, USG systems to -1. */
+#if !defined (NEW_TTY_DRIVER) && !defined (_POSIX_VDISABLE)
+#  if defined (_SVR4_VDISABLE)
+#    define _POSIX_VDISABLE _SVR4_VDISABLE
+#  else
+#    if defined (_POSIX_VERSION)
+#      define _POSIX_VDISABLE 0
+#    else /* !_POSIX_VERSION */
+#      define _POSIX_VDISABLE -1
+#    endif /* !_POSIX_VERSION */
+#  endif /* !_SVR4_VDISABLE */
+#endif /* !NEW_TTY_DRIVER && !_POSIX_VDISABLE */
+
 
 #if !defined (emacs_mode)
 #  define no_mode -1

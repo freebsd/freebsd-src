@@ -102,6 +102,7 @@ static int subst_lhs_len = 0;
 static int subst_rhs_len = 0;
 
 static char *get_history_word_specifier ();
+static char *history_find_word ();
 
 #if defined (SHELL)
 extern char *single_quote ();
@@ -875,6 +876,9 @@ history_set_pos (pos)
 /* The last string searched for in a !?string? search. */
 static char *search_string = (char *)NULL;
 
+/* The last string matched by a !?string? search. */
+static char *search_match = (char *)NULL;
+
 /* Return the event specified at TEXT + OFFSET modifying OFFSET to
    point to after the event specifier.  Just a pointer to the history
    line is returned; NULL is returned in the event of a bad specifier.
@@ -1000,6 +1004,10 @@ get_history_event (string, caller_index, delimiting_quote)
 	      if (search_string)
 		free (search_string);
 	      search_string = temp;
+
+	      if (search_match)
+		free (search_match);
+	      search_match = history_find_word (entry->line, local_index);
 	    }
 	  else
 	    free (temp);
@@ -1799,7 +1807,7 @@ get_history_word_specifier (spec, from, caller_index)
   if (spec[i] == '%')
     {
       *caller_index = i + 1;
-      return (search_string ? savestring (search_string) : savestring (""));
+      return (search_match ? savestring (search_match) : savestring (""));
     }
 
   /* `*' matches all of the arguments, but not the command. */
@@ -1932,11 +1940,14 @@ history_arg_extract (first, last, string)
 
 #define slashify_in_quotes "\\`\"$"
 
-/* Return an array of tokens, much as the shell might.  The tokens are
-   parsed out of STRING. */
-char **
-history_tokenize (string)
+/* Parse STRING into tokens and return an array of strings.  If WIND is
+   not -1 and INDP is not null, we also want the word surrounding index
+   WIND.  The position in the returned array of strings is returned in
+   *INDP. */
+static char **
+history_tokenize_internal (string, wind, indp)
      char *string;
+     int wind, *indp;
 {
   char **result = (char **)NULL;
   register int i, start, result_index, size;
@@ -2026,6 +2037,11 @@ history_tokenize (string)
 	}
     got_token:
 
+      /* If we are looking for the word in which the character at a
+	 particular index falls, remember it. */
+      if (indp && wind >= 0 && wind >= start && wind < i)
+        *indp = result_index;
+
       len = i - start;
       if (result_index + 2 >= size)
 	result = (char **)xrealloc (result, ((size += 10) * sizeof (char *)));
@@ -2036,6 +2052,38 @@ history_tokenize (string)
     }
 
   return (result);
+}
+
+/* Return an array of tokens, much as the shell might.  The tokens are
+   parsed out of STRING. */
+char **
+history_tokenize (string)
+     char *string;
+{
+  return (history_tokenize_internal (string, -1, (int *)NULL));
+}
+
+/* Find and return the word which contains the character at index IND
+   in the history line LINE.  Used to save the word matched by the
+   last history !?string? search. */
+static char *
+history_find_word (line, ind)
+     char *line;
+     int ind;
+{
+  char **words, *s;
+  int i, wind;
+
+  words = history_tokenize_internal (line, ind, &wind);
+  if (wind == -1)
+    return ((char *)NULL);
+  s = words[wind];
+  for (i = 0; i < wind; i++)
+    free (words[i]);
+  for (i = wind + 1; words[i]; i++)
+    free (words[i]);
+  free (words);
+  return s;
 }
 
 #if defined (STATIC_MALLOC)

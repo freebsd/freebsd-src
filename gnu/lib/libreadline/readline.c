@@ -284,7 +284,7 @@ readline (prompt)
       return ((char *)NULL);
     }
 
-  rl_visible_prompt_length = (rl_prompt && *rl_prompt) ?  rl_expand_prompt (rl_prompt) : 0;
+  rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
 
   rl_initialize ();
   rl_prep_terminal (_rl_meta_flag);
