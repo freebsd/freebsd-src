@@ -263,6 +263,8 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	}
 
 	*entryp = entry;
+	a->read_data_output_offset = 0;
+	a->read_data_remaining = 0;
 	return (ret);
 }
 
@@ -336,6 +338,9 @@ archive_read_header_position(struct archive *a)
  * buffer, filling any gaps with zero bytes.  Clients using this
  * API can be completely ignorant of sparse-file issues; sparse files
  * will simply be padded with nulls.
+ *
+ * DO NOT intermingle calls to this function and archive_read_data_block
+ * to read a single entry body.
  */
 ssize_t
 archive_read_data(struct archive *a, void *buff, size_t s)
