@@ -583,6 +583,8 @@ static struct pci_ids pci_ids[] = {
 	{ 0x100812b9, "3COM PCI FaxModem", 0x10 },
 	{ 0x048011c1, "ActionTec 56k FAX PCI Modem", 0x14 },
 	{ 0x0000151f, "SmartLink 5634PCV SurfRider", 0x10 },
+	{ 0x01101407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
+	{ 0x01111407, "Koutech IOFLEX-2S PCI Dual Port Serial", 0x10 },
 	{ 0x00000000, NULL, 0 }
 };
 
@@ -662,6 +664,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
 	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
 	{0x56039008, NULL},	/* BDP0356 - Best Data 56x2 */
+	{0x56159008, NULL},	/* BDP1556 - B.D. Smart One 56SPS,Voice Modem*/
 	{0x36339008, NULL},	/* BDP3336 - Best Data Prods. 336F */
 	{0x0014490a, NULL},	/* BRI1400 - Boca 33.6 PnP */
 	{0x0015490a, NULL},	/* BRI1500 - Internal Fax Data */
@@ -692,6 +695,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x00914f3f, NULL},	/* OZO9100 - Zoom 2919 (K56 Faxmodem) */
 	{0x3024a341, NULL},	/* PMC2430 - Pace 56 Voice Internal Modem */
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
+	{0x1200b23d, NULL},     /* RSS0012 - OMRON ME5614ISA */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0x6202734a, NULL},	/* RSS0262 - 5614Jx3[G] V90+K56Flex Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
