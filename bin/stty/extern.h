@@ -38,12 +38,12 @@ int	c_cchars __P((const void *, const void *));
 int	c_modes __P((const void *, const void *));
 int	csearch __P((char ***, struct info *));
 void	checkredirect __P((void));
-void	gprint __P((struct termios *, struct winsize *, int));
-void	gread __P((struct termios *, char *));
+void	gprint __P((struct termios *, struct winsize *, int, int));
+void	gread __P((struct termios *, int *, char *));
 int	ksearch __P((char ***, struct info *));
 int	msearch __P((char ***, struct info *));
 void	optlist __P((void));
-void	print __P((struct termios *, struct winsize *, int, enum FMT));
+void	print __P((struct termios *, struct winsize *, int, int, enum FMT));
 void	usage __P((void));
 
 extern struct cchar cchars1[], cchars2[];

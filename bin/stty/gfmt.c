@@ -59,10 +59,11 @@ gerr(s)
 }
 
 void
-gprint(tp, wp, ldisc)
+gprint(tp, wp, ldisc, timeout)
 	struct termios *tp;
 	struct winsize *wp;
 	int ldisc;
+	int timeout;
 {
 	struct cchar *cp;
 
@@ -71,13 +72,14 @@ gprint(tp, wp, ldisc)
 	    (u_long)tp->c_oflag);
 	for (cp = cchars1; cp->name; ++cp)
 		(void)printf("%s=%x:", cp->name, tp->c_cc[cp->sub]);
-	(void)printf("ispeed=%lu:ospeed=%lu\n",
-	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp));
+	(void)printf("ispeed=%lu:ospeed=%lu:drainwait=%d\n",
+	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp), timeout);
 }
 
 void
-gread(tp, s)
+gread(tp, top, s)
 	struct termios *tp;
+	int *top;
 	char *s;
 {
 	struct cchar *cp;
@@ -120,6 +122,11 @@ gread(tp, s)
 		if (CHK("ospeed")) {
 			(void)sscanf(ep, "%ld", &tmp);
 			tp->c_ospeed = tmp;
+			continue;
+		}
+		if (CHK("drainwait")) {
+			(void)sscanf(ep, "%ld", &tmp);
+			*top = tmp;
 			continue;
 		}
 		for (cp = cchars1; cp->name != NULL; ++cp)
