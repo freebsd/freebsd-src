@@ -256,6 +256,7 @@ static char *nlistf = NULL, *memf = NULL;
 int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
 int	bflag;		/* show i/f total bytes in/out */
+int	cflag;		/* show mbuf cache information */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
 int	iflag;		/* show interfaces */
@@ -285,7 +286,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
+	while ((ch = getopt(argc, argv, "Aabcdf:gI:iLlM:mN:np:rSstuWw:z")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -295,6 +296,9 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bflag = 1;
+			break;
+		case 'c':
+			cflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -421,6 +425,10 @@ main(int argc, char *argv[])
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
+	if (cflag && !mflag) {
+		(void)fprintf(stderr, "-c only valid with -m\n");
+		usage();
+	}
 	if (mflag) {
 		if (memf != NULL) {
 			if (kread(0, 0, 0) == 0)
@@ -686,8 +694,8 @@ usage(void)
 "       netstat -s [-s] [-z] [-f protocol_family | -p protocol] [-M core]",
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -m [-M core] [-N system]",
-"       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -m [-c] [-M core] [-N system]",
+"       netstat -r [-AenW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-W] [-f address_family] [-M core] [-N system]",
 "       netstat -gs [-s] [-f address_family] [-M core] [-N system]");
