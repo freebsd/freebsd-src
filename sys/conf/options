@@ -1,4 +1,4 @@
-#	$Id: options,v 1.142 1999/06/15 13:14:34 des Exp $
+#	$Id: options,v 1.143 1999/06/27 19:28:26 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -190,6 +190,7 @@ SCSI_ISP_FCDUPLEX	opt_isp.h
 ISP_DISABLE_1020_SUPPORT	opt_isp.h
 ISP_DISABLE_1080_SUPPORT	opt_isp.h
 ISP_DISABLE_2100_SUPPORT	opt_isp.h
+ISP_DISABLE_2200_SUPPORT	opt_isp.h
 
 # Resource limits.
 DFLDSIZ			opt_rlimit.h
