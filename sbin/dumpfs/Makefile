@@ -2,8 +2,9 @@
 # $FreeBSD$
 
 PROG=	dumpfs
+DPADD=	-lufs
+LDADD=	-lufs
 WARNS=	0
 MAN=	dumpfs.8
-LDADD=	-lufs
 
 .include <bsd.prog.mk>
