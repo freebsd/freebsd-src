@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.29 1995/05/28 20:28:09 jkh Exp $
+ * $Id: disks.c,v 1.30 1995/05/30 08:28:27 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -322,14 +322,27 @@ int
 diskPartitionEditor(char *str)
 {
     DMenu *menu;
+    Device **devs;
+    int cnt;
 
-    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
-    if (!menu) {
-	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No disks found!  Please verify that your disk controller is being\nproperly probed at boot time.  See the Hardware Guide on the Documentation menu\nfor clues on diagnosing this type of problem.");
+	return 0;
+    }
+    else if (cnt == 1) {
+	devs[0]->private = diskPartition((Disk *)devs[0]->private);
+	devs[0]->enabled = TRUE;
     }
     else {
-	dmenuOpenSimple(menu);
-	free(menu);
+	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
+	if (!menu)
+	    msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+	else {
+	    dmenuOpenSimple(menu);
+	    free(menu);
+	}
     }
     return 0;
 }

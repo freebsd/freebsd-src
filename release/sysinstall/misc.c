@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.10 1995/05/29 11:01:31 jkh Exp $
+ * $Id: misc.c,v 1.11 1995/05/30 08:28:50 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -268,7 +268,7 @@ Mount_DOS(char *mountp, void *dev)
     msgDebug("mount %s %s\n", device, mountpoint);
     ufsargs.fspec = device;
     if (mount(MOUNT_MSDOS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
-	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
+	msgConfirm("Warning:  Unable to mount %s on %s : %s\nIs this partition actually DOS formatted?", device, mountpoint, strerror(errno));
 	return 1;
     }
     return 0;
