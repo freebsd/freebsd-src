@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.45 1998/08/07 18:42:47 brian Exp $
+#	$Id: Makefile,v 1.46 1998/08/30 23:53:25 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c command.c \
@@ -12,15 +12,9 @@ DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4554
 BINOWN=	root
 BINGRP=	network
-
-OPSYS!=	uname -s
-.if (${OPSYS} == "OpenBSD")
-MAN=	ppp.8
-.else
 MAN8=	ppp.8
 LDADD+=	-lmd -lcrypt
 DPADD+= ${LIBMD} ${LIBCRYPT}
-.endif
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
@@ -31,14 +25,8 @@ CFLAGS+=-DNOALIAS
 .else
 .if !defined(RELEASE_CRUNCH)
 SRCS+=	alias_cmd.c
-.if (${OPSYS} == "OpenBSD")
-CFLAGS+=-I../libalias
-LDADD+=	../libalias/libalias.a
-DPADD+= ../libalias/libalias.a
-.else
 LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
-.endif
 .endif
 .endif
 
