@@ -515,15 +515,20 @@ c_exec(option, argvp)
 	}
 
 	cnt = ap - *argvp + 1;
-	new->e_argv = (char **)emalloc((u_int)cnt * sizeof(char *));
-	new->e_orig = (char **)emalloc((u_int)cnt * sizeof(char *));
-	new->e_len = (int *)emalloc((u_int)cnt * sizeof(int));
+	if ((new->e_argv = malloc((u_int)cnt * sizeof(char *))) == NULL)
+		err(1, (char *)NULL);
+	if ((new->e_orig = malloc((u_int)cnt * sizeof(char *))) == NULL)
+		err(1, (char *)NULL);
+	if ((new->e_len = malloc((u_int)cnt * sizeof(int))) == NULL)
+		err(1, (char *)NULL);
 
 	for (argv = *argvp, cnt = 0; argv < ap; ++argv, ++cnt) {
 		new->e_orig[cnt] = *argv;
 		for (p = *argv; *p; ++p)
 			if (p[0] == '{' && p[1] == '}') {
-				new->e_argv[cnt] = emalloc((u_int)MAXPATHLEN);
+				if ((new->e_argv[cnt] =
+				    malloc((u_int)MAXPATHLEN)) == NULL)
+					err(1, (char *)NULL);
 				new->e_len[cnt] = MAXPATHLEN;
 				break;
 			}
