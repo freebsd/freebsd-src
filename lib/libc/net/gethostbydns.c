@@ -664,6 +664,10 @@ _gethostbydnsaddr(addr, len, af)
 		dprintf("res_query failed (%d)\n", n);
 		return (NULL);
 	}
+	if (n > sizeof buf.buf) {
+		dprintf("static buffer is too small (%d)\n", n);
+		return (NULL);
+	}
 	if (!(hp = gethostanswer(&buf, n, qbuf, T_PTR)))
 		return (NULL);	/* h_errno was set by gethostanswer() */
 #ifdef SUNSECURITY
