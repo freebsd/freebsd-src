@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.88 2001/11/10 16:53:32 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.89 2001/11/10 17:10:42 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -743,6 +743,7 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 void
 usbd_kill_pipe(usbd_pipe_handle pipe)
 {
+	usbd_abort_pipe(pipe);
 	pipe->methods->close(pipe);
 	pipe->endpoint->refcnt--;
 	free(pipe, M_USB);
