@@ -38,7 +38,7 @@
 .Nm msync
 .Nd synchronize a mapped region
 .Sh SYNOPSIS
-.Fn msync "caddr_t addr" "int len"
+.Fn msync "caddr_t addr" "int len" "int flags"
 .Sh DESCRIPTION
 The
 .Fn msync
@@ -57,11 +57,29 @@ is non-zero, only the pages containing
 and
 .Fa len
 succeeding locations will be examined.
-Any required synchronization of memory caches
-will also take place at this time.
-Filesystem operations on a file that is mapped for shared modifications
-are unpredictable except after an
-.Fn msync .
+The
+.Fa flags
+argument may be specified as follows:
+.Bd -literal
+MS_ASYNC	Return immediately (not currently implemented)
+MS_INVALIDATE	Invalidate all cached data
+.Ed
+.Sh RETURN VALUES
+If any errors occur, -1 is returned and errno is set to indicate the
+error. Otherwise, a 0 value is returned.
+.Sh ERRORS
+.Fn msync
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+.Fa addr
+is not a multiple of the hardware page size.
+.It Bq Er EINVAL
+.Fa len
+is too large or negative.
+.It Bq Er EINVAL
+.Fa flags
+was both MS_ASYNC and MS_INVALIDATE. Only one of these flags is allowed.
 .Sh SEE ALSO
 .Xr madvise 2 ,
 .Xr munmap 2 ,
