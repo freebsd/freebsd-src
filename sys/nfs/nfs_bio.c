@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28.2.7 1998/01/28 00:26:54 tegge Exp $
+ * $Id: nfs_bio.c,v 1.28.2.8 1998/08/16 00:09:03 dg Exp $
  */
 
 #include <sys/param.h>
@@ -1103,7 +1103,7 @@ nfs_doio(bp, cr, p)
 		 */
 			if (bp->b_flags & B_ASYNC)
 				reassignbuf(bp, vp);
-			else
+			else if (error)
 				bp->b_flags |= B_EINTR;
 	    	} else {
 			if (error) {
