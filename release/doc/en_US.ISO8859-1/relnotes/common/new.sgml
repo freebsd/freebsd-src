@@ -159,6 +159,15 @@
     and installed with debugging kernels will now occupy more space on
     disk than they did previously.</para>
 
+    <para arch="alpha">Compaq Tru64 and &os; keep the year in the TOY
+    clock chip in a different format. Compaq Tru64 uses a year-value that
+    is 52 years higher than &os;. In order to allow dual booting of an
+    Alpha machine without clobbering the TOY clock setting &os; now
+    supports a boot environment variable clock_compat_osf1 By setting this
+    variable to 1 on the &quot;ok&quot; prompt of the loader or 
+    by putting clock_compat_osf1=1 in /boot/loader.conf you can dual boot
+    without time warps.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
