@@ -146,8 +146,6 @@ int	noguestretr=0;		/* RETR command is disabled for anon users. */
 int	noguestmkd=0;		/* MKD command is disabled for anon users. */
 int	noguestmod=1;		/* anon users may not modify existing files. */
 
-static volatile sig_atomic_t recvurg;
-sig_atomic_t transflag;
 off_t	file_size;
 off_t	byte_count;
 #if !defined(CMASK) || CMASK == 0
@@ -220,13 +218,34 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 #define LOGCMD2(cmd, file1, file2)	logcmd((cmd), (file1), (file2), -1)
 #define LOGBYTES(cmd, file, cnt)	logcmd((cmd), (file), NULL, (cnt))
 
+static	volatile sig_atomic_t recvurg;
+static	int transflag;		/* NB: for debugging only */
+
+#define STARTXFER	flagxfer(1)
+#define ENDXFER		flagxfer(0)
+
+#define START_UNSAFE	maskurg(1)
+#define END_UNSAFE	maskurg(0)
+
+/* It's OK to put an `else' clause after this macro. */
+#define CHECKOOB(action)						\
+	if (recvurg) {							\
+		recvurg = 0;						\
+		if (myoob()) {						\
+			ENDXFER;					\
+			action;						\
+		}							\
+	}
+
 #ifdef VIRTUAL_HOSTING
 static void	 inithosts(void);
 static void	selecthost(union sockunion *);
 #endif
 static void	 ack(char *);
 static void	 sigurg(int);
-static void	 myoob(void);
+static void	 maskurg(int);
+static void	 flagxfer(int);
+static int	 myoob(void);
 static int	 checkuser(char *, char *, int, char **);
 static FILE	*dataconn(char *, off_t, char *);
 static void	 dolog(struct sockaddr *);
@@ -1978,6 +1997,30 @@ pdata_err:
 }
 
 /*
+ * A helper macro to avoid code duplication
+ * in send_data() and receive_data().
+ *
+ * XXX We have to block SIGURG during putc() because BSD stdio
+ * is unable to restart interrupted write operations and hence
+ * the entire buffer contents will be lost as soon as a write()
+ * call indicates EINTR to stdio.
+ */
+#define FTPD_PUTC(ch, file, label)					\
+	do {								\
+		int ret;						\
+									\
+		do {							\
+			START_UNSAFE;					\
+			ret = putc((ch), (file));			\
+			END_UNSAFE;					\
+			CHECKOOB(return (-1))				\
+			else if (ferror(file))				\
+				goto label;				\
+			clearerr(file);					\
+		} while (ret == EOF);					\
+	} while (0)
+
+/*
  * Tranfer the contents of "instr" to "outstr" peer using the appropriate
  * encapsulation of the data subject to Mode, Structure, and Type.
  *
@@ -1988,33 +2031,50 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 {
 	int c, cp, filefd, netfd;
 	char *buf;
-	off_t cnt;
 
-	transflag++;
+	STARTXFER;
+
 	switch (type) {
 
 	case TYPE_A:
-		cp = '\0';
-		while ((c = getc(instr)) != EOF) {
-			if (recvurg)
-				goto got_oob;
-			byte_count++;
-			if (c == '\n' && cp != '\r') {
-				if (ferror(outstr))
-					goto data_err;
-				(void) putc('\r', outstr);
+		cp = EOF;
+		for (;;) {
+			c = getc(instr);
+			CHECKOOB(return (-1))
+			else if (c == EOF && ferror(instr))
+				goto file_err;
+			if (c == EOF) {
+				if (ferror(instr)) {	/* resume after OOB */
+					clearerr(instr);
+					continue;
+				}
+				if (feof(instr))	/* EOF */
+					break;
+				syslog(LOG_ERR, "Internal: impossible condition"
+						" on file after getc()");
+				goto file_err;
 			}
-			(void) putc(c, outstr);
+			if (c == '\n' && cp != '\r') {
+				FTPD_PUTC('\r', outstr, data_err);
+				byte_count++;
+			}
+			FTPD_PUTC(c, outstr, data_err);
+			byte_count++;
 			cp = c;
 		}
-		if (recvurg)
-			goto got_oob;
-		fflush(outstr);
-		transflag = 0;
-		if (ferror(instr))
-			goto file_err;
-		if (ferror(outstr))
+#ifdef notyet	/* BSD stdio isn't ready for that */
+		while (fflush(outstr) == EOF) {
+			CHECKOOB(return (-1))
+			else
+				goto data_err;
+			clearerr(outstr);
+		}
+		ENDXFER;
+#else
+		ENDXFER;
+		if (fflush(outstr) == EOF)
 			goto data_err;
+#endif
 		reply(226, "Transfer complete.");
 		return (0);
 
@@ -2029,7 +2089,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 
 		if (isreg) {
 			char *msg = "Transfer complete.";
-			off_t offset;
+			off_t cnt, offset;
 			int err;
 
 			cnt = offset = 0;
@@ -2042,18 +2102,17 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 				 * It can be used in myoob() later.
 				 */
 				byte_count += cnt;
-				if (recvurg)
-					goto got_oob;
 				offset += cnt;
 				filesize -= cnt;
-
-				if (err == -1) {
-					if (cnt == 0 && offset == 0)
+				CHECKOOB(return (-1))
+				else if (err == -1) {
+					if (errno != EINTR &&
+					    cnt == 0 && offset == 0)
 						goto oldway;
-
 					goto data_err;
 				}
-
+				if (err == -1)	/* resume after OOB */
+					continue;
 				/*
 				 * We hit the EOF prematurely.
 				 * Perhaps the file was externally truncated.
@@ -2064,51 +2123,64 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 					break;
 				}
 			}
-
-			transflag = 0;
+			ENDXFER;
 			reply(226, msg);
 			return (0);
 		}
 
 oldway:
 		if ((buf = malloc(blksize)) == NULL) {
-			transflag = 0;
+			ENDXFER;
 			reply(451, "Ran out of memory.");
 			return (-1);
 		}
 
-		while ((cnt = read(filefd, buf, blksize)) > 0 &&
-		    write(netfd, buf, cnt) == cnt)
-			byte_count += cnt;
-		transflag = 0;
-		free(buf);
-		if (cnt != 0) {
-			if (cnt < 0)
+		for (;;) {
+			int cnt, len;
+			char *bp;
+
+			cnt = read(filefd, buf, blksize);
+			CHECKOOB(free(buf); return (-1))
+			else if (cnt < 0) {
+				free(buf);
 				goto file_err;
-			goto data_err;
+			}
+			if (cnt < 0)	/* resume after OOB */
+				continue;
+			if (cnt == 0)	/* EOF */
+				break;
+			for (len = cnt, bp = buf; len > 0;) {
+				cnt = write(netfd, bp, len);
+				CHECKOOB(free(buf); return (-1))
+				else if (cnt < 0) {
+					free(buf);
+					goto data_err;
+				}
+				if (cnt <= 0)
+					continue;
+				len -= cnt;
+				bp += cnt;
+				byte_count += cnt;
+			}
 		}
+		ENDXFER;
+		free(buf);
 		reply(226, "Transfer complete.");
 		return (0);
 	default:
-		transflag = 0;
+		ENDXFER;
 		reply(550, "Unimplemented TYPE %d in send_data.", type);
 		return (-1);
 	}
 
 data_err:
-	transflag = 0;
+	ENDXFER;
 	perror_reply(426, "Data connection");
 	return (-1);
 
 file_err:
-	transflag = 0;
+	ENDXFER;
 	perror_reply(551, "Error on input file");
-	return (-1);
-
-got_oob:
-	myoob();
-	recvurg = 0;
-	transflag = 0;
 	return (-1);
 }
 
@@ -2121,63 +2193,98 @@ got_oob:
 static int
 receive_data(FILE *instr, FILE *outstr)
 {
-	int c;
-	int cnt, bare_lfs;
-	char buf[BUFSIZ];
+	int c, cp;
+	int bare_lfs = 0;
 
-	transflag++;
-	bare_lfs = 0;
+	STARTXFER;
 
 	switch (type) {
 
 	case TYPE_I:
 	case TYPE_L:
-		while ((cnt = read(fileno(instr), buf, sizeof(buf))) > 0) {
-			if (recvurg)
-				goto got_oob;
-			if (write(fileno(outstr), buf, cnt) != cnt)
-				goto file_err;
-			byte_count += cnt;
+		for (;;) {
+			int cnt, len;
+			char *bp;
+			char buf[BUFSIZ];
+
+			cnt = read(fileno(instr), buf, sizeof(buf));
+			CHECKOOB(return (-1))
+			else if (cnt < 0)
+				goto data_err;
+			if (cnt < 0)	/* resume after OOB */
+				continue;
+			if (cnt == 0)	/* EOF */
+				break;
+			for (len = cnt, bp = buf; len > 0;) {
+				cnt = write(fileno(outstr), bp, len);
+				CHECKOOB(return (-1))
+				else if (cnt < 0)
+					goto file_err;
+				if (cnt <= 0)
+					continue;
+				len -= cnt;
+				bp += cnt;
+				byte_count += cnt;
+			}
 		}
-		if (recvurg)
-			goto got_oob;
-		if (cnt < 0)
-			goto data_err;
-		transflag = 0;
+		ENDXFER;
 		return (0);
 
 	case TYPE_E:
+		ENDXFER;
 		reply(553, "TYPE E not implemented.");
-		transflag = 0;
 		return (-1);
 
 	case TYPE_A:
-		while ((c = getc(instr)) != EOF) {
-			if (recvurg)
-				goto got_oob;
-			byte_count++;
-			if (c == '\n')
-				bare_lfs++;
-			while (c == '\r') {
-				if (ferror(outstr))
-					goto data_err;
-				if ((c = getc(instr)) != '\n') {
-					(void) putc ('\r', outstr);
-					if (c == '\0' || c == EOF)
-						goto contin2;
-				}
+		cp = EOF;
+		for (;;) {
+			c = getc(instr);
+			CHECKOOB(return (-1))
+			else if (c == EOF && ferror(instr))
+				goto data_err;
+			if (c == EOF && ferror(instr)) { /* resume after OOB */
+				clearerr(instr);
+				continue;
 			}
-			(void) putc(c, outstr);
-	contin2:	;
+
+			if (cp == '\r') {
+				if (c != '\n')
+					FTPD_PUTC('\r', outstr, file_err);
+			} else
+				if (c == '\n')
+					bare_lfs++;
+			if (c == '\r') {
+				byte_count++;
+				cp = c;
+				continue;
+			}
+
+			/* Check for EOF here in order not to lose last \r. */
+			if (c == EOF) {
+				if (feof(instr))	/* EOF */
+					break;
+				syslog(LOG_ERR, "Internal: impossible condition"
+						" on data stream after getc()");
+				goto data_err;
+			}
+
+			byte_count++;
+			FTPD_PUTC(c, outstr, file_err);
+			cp = c;
 		}
-		if (recvurg)
-			goto got_oob;
-		fflush(outstr);
-		if (ferror(instr))
-			goto data_err;
-		if (ferror(outstr))
+#ifdef notyet	/* BSD stdio isn't ready for that */
+		while (fflush(outstr) == EOF) {
+			CHECKOOB(return (-1))
+			else
+				goto file_err;
+			clearerr(outstr);
+		}
+		ENDXFER;
+#else
+		ENDXFER;
+		if (fflush(outstr) == EOF)
 			goto file_err;
-		transflag = 0;
+#endif
 		if (bare_lfs) {
 			lreply(226,
 		"WARNING! %d bare linefeeds received in ASCII mode.",
@@ -2186,25 +2293,19 @@ receive_data(FILE *instr, FILE *outstr)
 		}
 		return (0);
 	default:
+		ENDXFER;
 		reply(550, "Unimplemented TYPE %d in receive_data.", type);
-		transflag = 0;
 		return (-1);
 	}
 
 data_err:
-	transflag = 0;
+	ENDXFER;
 	perror_reply(426, "Data connection");
 	return (-1);
 
 file_err:
-	transflag = 0;
+	ENDXFER;
 	perror_reply(452, "Error writing to file");
-	return (-1);
-
-got_oob:
-	myoob();
-	recvurg = 0;
-	transflag = 0;
 	return (-1);
 }
 
@@ -2621,11 +2722,6 @@ dolog(struct sockaddr *who)
 void
 dologout(int status)
 {
-	/*
-	 * Prevent reception of SIGURG from resulting in a resumption
-	 * back to the main program loop.
-	 */
-	transflag = 0;
 
 	if (logged_in && dowtmp) {
 		(void) seteuid(0);
@@ -2643,13 +2739,54 @@ sigurg(int signo)
 }
 
 static void
+maskurg(int flag)
+{
+	int oerrno;
+	sigset_t sset;
+
+	if (!transflag) {
+		syslog(LOG_ERR, "Internal: maskurg() while no transfer");
+		return;
+	}
+	oerrno = errno;
+	sigemptyset(&sset);
+	sigaddset(&sset, SIGURG);
+	sigprocmask(flag ? SIG_BLOCK : SIG_UNBLOCK, &sset, NULL);
+	errno = oerrno;
+}
+
+static void
+flagxfer(int flag)
+{
+
+	if (flag) {
+		if (transflag)
+			syslog(LOG_ERR, "Internal: flagxfer(1): "
+					"transfer already under way");
+		transflag = 1;
+		maskurg(0);
+		recvurg = 0;
+	} else {
+		if (!transflag)
+			syslog(LOG_ERR, "Internal: flagxfer(0): "
+					"no active transfer");
+		maskurg(1);
+		transflag = 0;
+	}
+}
+
+/*
+ * Returns 0 if OK to resume or -1 if abort requested.
+ */
+static int
 myoob(void)
 {
 	char *cp;
 
-	/* only process if transfer occurring */
-	if (!transflag)
-		return;
+	if (!transflag) {
+		syslog(LOG_ERR, "Internal: myoob() while no transfer");
+		return (0);
+	}
 	cp = tmpline;
 	if (getline(cp, 7, stdin) == NULL) {
 		reply(221, "You could at least say goodbye.");
@@ -2660,6 +2797,7 @@ myoob(void)
 		tmpline[0] = '\0';
 		reply(426, "Transfer aborted. Data connection closed.");
 		reply(226, "Abort successful.");
+		return (-1);
 	}
 	if (strcmp(cp, "STAT\r\n") == 0) {
 		tmpline[0] = '\0';
@@ -2670,6 +2808,7 @@ myoob(void)
 			reply(213, "Status: %jd bytes transferred.",
 				   (intmax_t)byte_count);
 	}
+	return (0);
 }
 
 /*
@@ -3012,17 +3151,10 @@ send_file_list(char *whichf)
 			 * used NLST, do what the user meant.
 			 */
 			if (dirname[0] == '-' && *dirlist == NULL &&
-			    transflag == 0) {
+			    dout == NULL)
 				retrieve(_PATH_LS " %s", dirname);
-				goto out;
-			}
-			perror_reply(550, whichf);
-			if (dout != NULL) {
-				(void) fclose(dout);
-				transflag = 0;
-				data = -1;
-				pdata = -1;
-			}
+			else
+				perror_reply(550, whichf);
 			goto out;
 		}
 
@@ -3031,11 +3163,17 @@ send_file_list(char *whichf)
 				dout = dataconn("file list", -1, "w");
 				if (dout == NULL)
 					goto out;
-				transflag++;
+				STARTXFER;
 			}
+			START_UNSAFE;
 			fprintf(dout, "%s%s\n", dirname,
 				type == TYPE_A ? "\r" : "");
-			byte_count += strlen(dirname) + 1;
+			END_UNSAFE;
+			if (ferror(dout))
+				goto data_err;
+			byte_count += strlen(dirname) +
+				      (type == TYPE_A ? 2 : 1);
+			CHECKOOB(goto abrt);
 			continue;
 		} else if (!S_ISDIR(st.st_mode))
 			continue;
@@ -3046,12 +3184,7 @@ send_file_list(char *whichf)
 		while ((dir = readdir(dirp)) != NULL) {
 			char nbuf[MAXPATHLEN];
 
-			if (recvurg) {
-				myoob();
-				recvurg = 0;
-				transflag = 0;
-				goto out;
-			}
+			CHECKOOB(goto abrt);
 
 			if (dir->d_name[0] == '.' && dir->d_namlen == 1)
 				continue;
@@ -3072,33 +3205,43 @@ send_file_list(char *whichf)
 					dout = dataconn("file list", -1, "w");
 					if (dout == NULL)
 						goto out;
-					transflag++;
+					STARTXFER;
 				}
+				START_UNSAFE;
 				if (nbuf[0] == '.' && nbuf[1] == '/')
 					fprintf(dout, "%s%s\n", &nbuf[2],
 						type == TYPE_A ? "\r" : "");
 				else
 					fprintf(dout, "%s%s\n", nbuf,
 						type == TYPE_A ? "\r" : "");
-				byte_count += strlen(nbuf) + 1;
+				END_UNSAFE;
+				if (ferror(dout))
+					goto data_err;
+				byte_count += strlen(nbuf) +
+					      (type == TYPE_A ? 2 : 1);
+				CHECKOOB(goto abrt);
 			}
 		}
 		(void) closedir(dirp);
+		dirp = NULL;
 	}
 
 	if (dout == NULL)
 		reply(550, "No files found.");
-	else if (ferror(dout) != 0)
-		perror_reply(550, "Data connection");
+	else if (ferror(dout))
+data_err:	perror_reply(550, "Data connection");
 	else
 		reply(226, "Transfer complete.");
-
-	transflag = 0;
-	if (dout != NULL)
-		(void) fclose(dout);
-	data = -1;
-	pdata = -1;
 out:
+	if (dout) {
+		ENDXFER;
+abrt:
+		(void) fclose(dout);
+		data = -1;
+		pdata = -1;
+	}
+	if (dirp)
+		(void) closedir(dirp);
 	if (freeglob) {
 		freeglob = 0;
 		globfree(&gl);
