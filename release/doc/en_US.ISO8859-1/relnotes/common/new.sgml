@@ -180,6 +180,11 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.chroot.8; now allows the optional setting of a user,
+      primary group, or group list to use inside the chroot
+      environment via the <option>-u</option>, <option>-g</option>,
+      and <option>-G</option> options respectively.</para>
+
     <para>&man.uudecode.1; and &man.b64decode.1; now support a
       <option>-r</option> flag for decoding raw (or broken) files that
       may be missing the initial and possibly final framing
