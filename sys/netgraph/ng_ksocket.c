@@ -116,7 +116,7 @@ static const struct ng_ksocket_alias ng_ksocket_types[] = {
 /* Protocol aliases */
 static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 	{ "ip",		IPPROTO_IP,		PF_INET		},
-	{ "raw",	IPPROTO_IP,		PF_INET		},
+	{ "raw",	IPPROTO_RAW,		PF_INET		},
 	{ "icmp",	IPPROTO_ICMP,		PF_INET		},
 	{ "igmp",	IPPROTO_IGMP,		PF_INET		},
 	{ "tcp",	IPPROTO_TCP,		PF_INET		},
