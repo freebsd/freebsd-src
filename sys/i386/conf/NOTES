@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.541 1999/01/23 10:51:58 yokota Exp $
+#	$Id: LINT,v 1.542 1999/01/23 14:50:28 rnordier Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1804,6 +1804,16 @@ pseudo-device	"i4bisppp"	4
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.  
 #
+
+options		"DEBUG_1284"	# IEEE1284 signaling protocol debug
+options		"PERIPH_1284"	# Makes your computer act as a IEEE1284
+				# compliant peripheral
+options		"DONTPROBE_1284"# Avoid boot detection of PnP parallel devices
+options		"VP0_DEBUG"	# ZIP/ZIP+ debug
+options		"NLPT_DEBUG"	# Printer driver debug
+options		"PPC_DEBUG"	# Parallel chipset level debug
+options		"PLIP_DEBUG"	# Parallel network IP interface debug
+
 controller	ppbus0
 controller	vpo0	at ppbus?
 device		nlpt0	at ppbus?
@@ -1882,7 +1892,6 @@ options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
 options		DEBUG_VFS_LOCKS
-options		"DEBUG_1284"
 #options	DISABLE_PSE
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
