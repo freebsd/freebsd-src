@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.119 1999/01/06 09:09:22 abial Exp $
+ **      $Id: userconfig.c,v 1.120 1999/01/07 09:49:28 abial Exp $
  **/
 
 /**
@@ -239,14 +239,22 @@ getchar(void)
 	     * script (userconfig_boot_parsing==1), otherwise
 	     * we would always block here waiting for user input.
 	     */
+	    intro = 1;
 	    if (userconfig_boot_parsing == 0)
 	    {
-		intro = 1;
+		/* userconfig_boot_parsing will be set to 1 on next pass,
+		 * which will allow using 'intro' in the middle of other
+		 * userconfig_script commands.
+		 */
 	        c = 'i';
 	        asp = "ntro\n";
 	        assize = strlen(asp);
+	    } else {
+	        userconfig_boot_parsing = 0;
+		assize=-1;
 	    }
 #else
+	userconfig_boot_parsing = 0;
 	if (!(boothowto & RB_CONFIG)) 
 	{
 	    /* don't want to drop to interpreter */
@@ -2507,7 +2515,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.119 1999/01/06 09:09:22 abial Exp $
+ *      $Id: userconfig.c,v 1.120 1999/01/07 09:49:28 abial Exp $
  */
 
 #include "scbus.h"
@@ -3142,6 +3150,8 @@ introfunc(CmdParm *parms)
 		    return visuserconfig();
 		else {
 		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
+		    /* enable quitfunc */
+    		    userconfig_boot_parsing=0;
 		    move (0, 3);
 		    boothowto |= RB_CONFIG;	/* force -c */
 		    return 0;
