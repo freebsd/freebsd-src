@@ -38,13 +38,13 @@
 #define	PCIC_VLSI	2		/* VLSI chip */
 #define	PCIC_PD672X	3		/* Cirrus logic 627x */
 #define	PCIC_PD6710	4		/* Cirrus logic 6710 */
-#define	PCIC_CL6729	5
-#define	PCIC_VG468	6
-#define	PCIC_VG469	7
+#define	PCIC_CL6729	5		/* Cirrus logic 6729 */
+#define	PCIC_VG468	6		/* Vadem 468 */
+#define	PCIC_VG469	7		/* Vadem 469 */
 #define	PCIC_RF5C396	8		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	9		/* IBM KING PCMCIA Controller */
-#define	PCIC_PC98	10
-#define PCIC_TI1130	11		/* TI PCI1130 CardBus */
+#define	PCIC_PC98	10		/* NEC PC98 PCMCIA Controller */
+#define	PCIC_TI1130	11		/* TI PCI1130 CardBus */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -57,10 +57,10 @@
  *	identify the port number, and the lower 6 bits
  *	select one of the 64 possible data registers.
  */
-#define PCIC_INDEX_0	0x3E0	/* index reg, chips 0 and 1 */
-#define PCIC_DATA_0	0x3E1	/* data register, chips 0 and 1 */
-#define PCIC_INDEX_1	0x3E2	/* index reg, chips 2 and 3 */
-#define PCIC_DATA_1	0x3E3	/* data register, chips 2 and 3 */
+#define PCIC_INDEX_0	0x3E0			/* index reg, chips 0 and 1 */
+#define PCIC_DATA_0	(PCIC_INDEX_0 + 1)	/* data reg, chips 0 and 1 */
+#define PCIC_INDEX_1	(PCIC_INDEX_0 + 2)	/* index reg, chips 2 and 3 */
+#define PCIC_DATA_1	(PCIC_INDEX_1 + 1)	/* data reg, chips 2 and 3 */
 /*
  *	Register index addresses.
  */
