@@ -113,7 +113,9 @@ static void fw_bus_probe __P((struct firewire_comm *));
 static void fw_bus_explore __P((struct firewire_comm *));
 static void fw_bus_explore_callback __P((struct fw_xfer *));
 static void fw_attach_dev __P((struct firewire_comm *));
+#ifdef FW_VMACCESS
 static void fw_vmaccess __P((struct fw_xfer *));
+#endif
 struct fw_xfer *asyreqq __P((struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
 	u_int32_t, u_int32_t, void (*)__P((struct fw_xfer *))));
 
@@ -1604,9 +1606,11 @@ void fw_init(fc)
 	struct firewire_comm *fc;
 {
 	int i;
+	struct csrdir *csrd;
+#ifdef FW_VMACCESS
 	struct fw_xfer *xfer;
 	struct fw_bind *fwb;
-	struct csrdir *csrd;
+#endif
 
 	fc->max_asyretry = FW_MAXASYRTY;
 
@@ -1709,6 +1713,7 @@ void fw_init(fc)
 #endif
 
 
+#ifdef FW_VMACCESS
 	xfer = fw_xfer_alloc();
 	if(xfer == NULL) return;
 
@@ -1726,6 +1731,7 @@ void fw_init(fc)
 	fwb->addrlen = 0xffffffff;
 	fwb->xfer = xfer;
 	fw_bindadd(fc, fwb);
+#endif
 }
 /*
  * To lookup binded process from IEEE1394 address.
@@ -3152,6 +3158,8 @@ void fw_try_bmr(void *arg)
 	}
 	return;
 }
+
+#ifdef FW_VMACCESS
 /*
  * Software implementation for physical memory block access.
  * XXX:Too slow, usef for debug purpose only.
@@ -3226,6 +3234,8 @@ static void fw_vmaccess(struct fw_xfer *xfer){
 /**/
 	return;
 }
+#endif 
+
 /*
  * CRC16 check-sum for IEEE1394 register blocks.
  */
