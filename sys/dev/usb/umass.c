@@ -28,6 +28,13 @@
  *	$NetBSD: umass.c,v 1.28 2000/04/02 23:46:53 augustss Exp $
  */
 
+/* Also already merged from NetBSD:
+ *	$NetBSD: umass.c,v 1.67 2001/11/25 19:05:22 augustss Exp $
+ *	$NetBSD: umass.c,v 1.90 2002/11/04 19:17:33 pooka Exp $
+ *	$NetBSD: umass.c,v 1.108 2003/11/07 17:03:25 wiz Exp $
+ *	$NetBSD: umass.c,v 1.109 2003/12/04 13:57:31 keihan Exp $
+ */
+
 /*
  * Universal Serial Bus Mass Storage Class specs:
  * http://www.usb.org/developers/devclass_docs/usb_msc_overview_1.2.pdf
@@ -37,8 +44,8 @@
  */
 
 /*
- * Ported to NetBSD by Lennart Augustsson <augustss@netbsd.org>.
- * Parts of the code written my Jason R. Thorpe <thorpej@shagadelic.org>.
+ * Ported to NetBSD by Lennart Augustsson <augustss@NetBSD.org>.
+ * Parts of the code written by Jason R. Thorpe <thorpej@shagadelic.org>.
  */
 
 /*
