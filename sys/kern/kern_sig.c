@@ -395,8 +395,10 @@ kern_sigaction(td, sig, act, oact, flags)
 			}
 			/* never to be seen again */
 			SIGDELSET(p->p_siglist, sig);
+			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td0)
 				SIGDELSET(td0->td_siglist, sig);
+			mtx_unlock_spin(&sched_lock);
 			if (sig != SIGCONT)
 				/* easier in psignal */
 				SIGADDSET(ps->ps_sigignore, sig);
@@ -1589,10 +1591,13 @@ sigtd(struct proc *p, int sig, int prop)
 	 * way to deliver signal.
 	 */
 	signal_td = NULL;
+	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_waitset != NULL &&
-		    SIGISMEMBER(*(td->td_waitset), sig))
+		    SIGISMEMBER(*(td->td_waitset), sig)) {
+				mtx_unlock_spin(&sched_lock);
 				return (td);
+		}
 		if (!SIGISMEMBER(td->td_sigmask, sig)) {
 			if (td == curthread)
 				signal_td = curthread;
@@ -1602,6 +1607,7 @@ sigtd(struct proc *p, int sig, int prop)
 	}
 	if (signal_td == NULL)
 		signal_td = FIRST_THREAD_IN_PROC(p);
+	mtx_unlock_spin(&sched_lock);
 	return (signal_td);
 }
 
@@ -1741,8 +1747,10 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 		 * XXX Should investigate leaving STOP and CONT sigs only in
 		 * the proc's siglist.
 		 */
+		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td0)
 			SIG_STOPSIGMASK(td0->td_siglist);
+		mtx_unlock_spin(&sched_lock);
 	}
 
 	if (prop & SA_STOP) {
@@ -1757,8 +1765,10 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 		    (action == SIG_DFL))
 		        return;
 		SIG_CONTSIGMASK(p->p_siglist);
+		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td0)
 			SIG_CONTSIGMASK(td0->td_siglist);
+		mtx_unlock_spin(&sched_lock);
 		p->p_flag &= ~P_CONTINUED;
 	}
 
