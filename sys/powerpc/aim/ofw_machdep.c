@@ -48,12 +48,18 @@ static const char rcsid[] =
 
 #include <dev/ofw/openfirm.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_page.h>
+
 #include <machine/powerpc.h>
 
 #define	OFMEM_REGIONS	32
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
 
 extern long	ofmsr;
+extern struct	pmap ofw_pmap;
+extern int	pmap_bootstrapped;
 static int	(*ofwcall)(void *);
 
 /*
@@ -95,8 +101,48 @@ openfirmware(void *args)
 {
 	long	oldmsr;
 	int	result;
+	u_int	srsave[16];
 
-	__asm(	"\t"
+	if (pmap_bootstrapped) {
+		__asm __volatile("mfsr %0,0" : "=r"(srsave[0]));
+		__asm __volatile("mfsr %0,1" : "=r"(srsave[1]));
+		__asm __volatile("mfsr %0,2" : "=r"(srsave[2]));
+		__asm __volatile("mfsr %0,3" : "=r"(srsave[3]));
+		__asm __volatile("mfsr %0,4" : "=r"(srsave[4]));
+		__asm __volatile("mfsr %0,5" : "=r"(srsave[5]));
+		__asm __volatile("mfsr %0,6" : "=r"(srsave[6]));
+		__asm __volatile("mfsr %0,7" : "=r"(srsave[7]));
+		__asm __volatile("mfsr %0,8" : "=r"(srsave[8]));
+		__asm __volatile("mfsr %0,9" : "=r"(srsave[9]));
+		__asm __volatile("mfsr %0,10" : "=r"(srsave[10]));
+		__asm __volatile("mfsr %0,11" : "=r"(srsave[11]));
+		__asm __volatile("mfsr %0,12" : "=r"(srsave[12]));
+		__asm __volatile("mfsr %0,13" : "=r"(srsave[13]));
+		__asm __volatile("mfsr %0,14" : "=r"(srsave[14]));
+		__asm __volatile("mfsr %0,15" : "=r"(srsave[15]));
+
+		__asm __volatile("mtsr 0,%0" :: "r"(ofw_pmap.pm_sr[0]));
+		__asm __volatile("mtsr 1,%0" :: "r"(ofw_pmap.pm_sr[1]));
+		__asm __volatile("mtsr 2,%0" :: "r"(ofw_pmap.pm_sr[2]));
+		__asm __volatile("mtsr 3,%0" :: "r"(ofw_pmap.pm_sr[3]));
+		__asm __volatile("mtsr 4,%0" :: "r"(ofw_pmap.pm_sr[4]));
+		__asm __volatile("mtsr 5,%0" :: "r"(ofw_pmap.pm_sr[5]));
+		__asm __volatile("mtsr 6,%0" :: "r"(ofw_pmap.pm_sr[6]));
+		__asm __volatile("mtsr 7,%0" :: "r"(ofw_pmap.pm_sr[7]));
+		__asm __volatile("mtsr 8,%0" :: "r"(ofw_pmap.pm_sr[8]));
+		__asm __volatile("mtsr 9,%0" :: "r"(ofw_pmap.pm_sr[9]));
+		__asm __volatile("mtsr 10,%0" :: "r"(ofw_pmap.pm_sr[10]));
+		__asm __volatile("mtsr 11,%0" :: "r"(ofw_pmap.pm_sr[11]));
+		__asm __volatile("mtsr 12,%0" :: "r"(ofw_pmap.pm_sr[12]));
+		__asm __volatile("mtsr 13,%0" :: "r"(ofw_pmap.pm_sr[13]));
+		__asm __volatile("mtsr 14,%0" :: "r"(ofw_pmap.pm_sr[14]));
+		__asm __volatile("mtsr 15,%0" :: "r"(ofw_pmap.pm_sr[15]));
+	}
+
+	ofmsr |= PSL_RI|PSL_EE;
+
+	__asm __volatile(	"\t"
+		"sync\n\t"
 		"mfmsr  %0\n\t"
 		"mtmsr  %1\n\t"
 		"isync\n"
@@ -111,6 +157,27 @@ openfirmware(void *args)
 		"isync\n"
 		: : "r" (oldmsr)
 	);
+
+	if (pmap_bootstrapped) {
+		__asm __volatile("mtsr 0,%0" :: "r"(srsave[0]));
+		__asm __volatile("mtsr 1,%0" :: "r"(srsave[1]));
+		__asm __volatile("mtsr 2,%0" :: "r"(srsave[2]));
+		__asm __volatile("mtsr 3,%0" :: "r"(srsave[3]));
+		__asm __volatile("mtsr 4,%0" :: "r"(srsave[4]));
+		__asm __volatile("mtsr 5,%0" :: "r"(srsave[5]));
+		__asm __volatile("mtsr 6,%0" :: "r"(srsave[6]));
+		__asm __volatile("mtsr 7,%0" :: "r"(srsave[7]));
+		__asm __volatile("mtsr 8,%0" :: "r"(srsave[8]));
+		__asm __volatile("mtsr 9,%0" :: "r"(srsave[9]));
+		__asm __volatile("mtsr 10,%0" :: "r"(srsave[10]));
+		__asm __volatile("mtsr 11,%0" :: "r"(srsave[11]));
+		__asm __volatile("mtsr 12,%0" :: "r"(srsave[12]));
+		__asm __volatile("mtsr 13,%0" :: "r"(srsave[13]));
+		__asm __volatile("mtsr 14,%0" :: "r"(srsave[14]));
+		__asm __volatile("mtsr 15,%0" :: "r"(srsave[15]));
+		__asm __volatile("sync");
+	}
+
 
 	return (result);
 }

@@ -42,6 +42,8 @@
  * Machine dependent constants for PowerPC (32-bit only currently)
  */
 
+#include <machine/pte.h>
+
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
  * for all data types (int, long, ...).   The result is unsigned int
@@ -113,7 +115,8 @@
 #define	MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #ifndef KSTACK_UPAGES
-#define	KSTACK_PAGES	2		/* includes pcb */
+#define	KSTACK_PAGES		2		/* includes pcb */
+#define	KSTACK_GUARD_PAGES	1
 #endif
 #define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
 #define	UAREA_PAGES	1		/* holds struct user WITHOUT PCB */
@@ -179,6 +182,7 @@
 /* XXX: NetBSD defines that we're using for the moment */
 #define	USER_SR		13
 #define	KERNEL_SR	14
+#define	KERNEL_VSIDBITS	0xfffff
 #define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
 #define	EMPTY_SEGMENT	0xfffff0
 #define	USER_ADDR	((void *)(USER_SR << ADDR_SR_SHFT))

@@ -1,6 +1,5 @@
-/*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+/*
+ * Copyright (C) 2002 Benno Rice.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,13 +10,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by TooLs GmbH.
- * 4. The name of TooLs GmbH may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY TOOLS GMBH ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY Benno Rice ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
  * IN NO EVENT SHALL TOOLS GMBH BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -28,26 +22,23 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: fuswintr.c,v 1.2 2000/06/08 07:29:54 kleink Exp $
+ * $FreeBSD$
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/resourcevar.h>
+#ifndef _MACHINE_SR_H_
+#define _MACHINE_SR_H_
 
 /*
- * Emulate fuswintr
+ * Bit definitions for segment registers.
  *
- * Simply return fault for all cases
+ * PowerPC Microprocessor Family: The Programming Environments for 32-bit
+ * Microprocessors, section 2.3.5
  */
-int
-fuswintr(void *addr)
-{
 
-	return -1;
-}
+#define	SR_TYPE		0x80000000	/* Type selector */
+#define	SR_KS		0x40000000	/* Supervisor-state protection key */
+#define	SR_KP		0x20000000	/* User-state protection key */
+#define SR_N		0x10000000	/* No-execute protection */
+#define	SR_VSID_MASK	0x00ffffff	/* Virtual Segment ID mask */
+
+#endif /* !_MACHINE_SR_H_ */

@@ -126,9 +126,10 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	struct	trapframe *tf;
 	struct	callframe *cf;
 	struct	switchframe *sf;
-	caddr_t	stktop1, stktop2;
-	struct	pcb *pcb2;
+	struct	pcb *pcb;
 
+	KASSERT(td1 == curthread || td1 == thread0,
+	    ("cpu_fork: p1 not curproc and not proc0"));
 	CTR3(KTR_PROC, "cpu_fork: called td1=%08x p2=%08x flags=%x", (u_int)td1, (u_int)p2, flags);
 
 	if ((flags & RFPROC) == 0)
@@ -136,39 +137,42 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	p1 = td1->td_proc;
 
-	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	td2->td_pcb = pcb2;
+	pcb = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	    sizeof(struct pcb));
+	td2->td_pcb = pcb;
 
-	/* Copy p1's pcb. */
-	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+	/* Copy the pcb */
+	bcopy(td1->td_pcb, pcb, sizeof(struct pcb));
 
 	/*
-	 * Create a new fresh stack for the new process.
+	 * Create a fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
-	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
-	stktop2 = (caddr_t)td2->td_frame;
+	tf = (struct trapframe *)pcb - 1;
+	bcopy(td1->td_frame, tf, sizeof(*tf));
 
-	cf = (struct callframe *)stktop2;
+	/* XXX: Set up trap frame? */
+
+	td2->td_frame = tf;
+
+	/*
+	 * There happens to be a callframe, too.
+	 */
+	cf = (struct callframe *)tf - 1;
 	cf->lr = (int)fork_trampoline;
 
-	stktop2 -= 16;
-	cf = (struct callframe *)stktop2;
-	cf->r31 = (register_t)fork_return;
-	cf->r30 = (register_t)td2;
-
-	stktop2 -= roundup(sizeof *sf, 16);
-	sf = (struct switchframe *)stktop2;
-	bzero((void *)sf, sizeof *sf);
+	/*
+	 * Below that, we allocate the switch frame.
+	 */
+	sf = (struct switchframe *)cf - 1;
 	sf->sp = (int)cf;
-	sf->user_sr = kernel_pmap->pm_sr[USER_SR];
-	
-	pcb2->pcb_sp = (int)stktop2;
-	pcb2->pcb_spl = 0;
+	pcb->pcb_sp = (int)sf;
+
+	/*
+ 	 * Now cpu_switch() can schedule the new process.
+	 */
 }
 
 /*
@@ -233,10 +237,10 @@ cpu_coredump(td, vp, cred)
 	struct vnode *vp;
 	struct ucred *cred;
 {
-	struct proc *p = td->td_proc;
 
-	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)p->p_uarea, ctob(UAREA_PAGES),
-	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, p));
+	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)td->td_proc->p_uarea,
+	    ctob(UAREA_PAGES), (off_t)0, UIO_SYSSPACE, IO_UNIT, cred,
+	    (int *)NULL, td));
 }
 
 /*
