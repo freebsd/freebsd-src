@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.86 1994/12/31 17:09:58 jkh Exp $
+ *	$Id: syscons.c,v 1.87 1994/12/31 20:34:19 ats Exp $
  */
 
 #include "sc.h"
@@ -250,8 +250,6 @@ static void clear_screen(scr_stat *scp);
 static int switch_scr(u_int next_scr);
 static void exchange_scr(void);
 static void move_crsr(scr_stat *scp, int x, int y);
-static void move_up(u_short *s, u_short *d, u_int len);
-static void move_down(u_short *s, u_short *d, u_int len);
 static void scan_esc(scr_stat *scp, u_char c);
 static void ansi_put(scr_stat *scp, u_char c);
 static u_char *get_fstr(u_int c, u_int *len);
@@ -832,11 +830,14 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return switch_scr((*data) - 1);
 
 	case VT_WAITACTIVE:	/* wait for switch to occur */
-		if (*data > NCONS) 
+	{
+		u_int udata = *(u_char *)data;
+
+		if (udata > NCONS) 
 			return EINVAL;
-		if (minor(dev) == (*data) - 1) 
+		if (minor(dev) == udata - 1) 
 			return 0;
-		if (*data == 0) {
+		if (udata == 0) {
 			if (scp == cur_console)
 				return 0;
 			while ((error=tsleep((caddr_t)&scp->smode, 
@@ -844,9 +845,10 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		}
 		else 
 			while ((error=tsleep(
-      				(caddr_t)&console[*(data-1)].smode, 
+      				(caddr_t)&console[udata - 1].smode, 
 			    	PZERO|PCATCH, "waitvt", 0)) == ERESTART) ;
 		return error;
+	}
 
 	case VT_GETACTIVE:
 		*data = get_scr_num()+1;
@@ -1595,22 +1597,6 @@ move_crsr(scr_stat *scp, int x, int y)
 }
 
 static void 
-move_up(u_short *s, u_short *d, u_int len)
-{
-	s += len;
-	d += len;
-	while (len-- > 0)
-		*--d = *--s;
-}
-
-static void 
-move_down(u_short *s, u_short *d, u_int len)
-{
-	while (len-- > 0)
-		*d++ = *s++;
-}
-
-static void 
 scan_esc(scr_stat *scp, u_char c)
 {
 	static u_char ansi_col[16] = 
@@ -1633,9 +1619,20 @@ scan_esc(scr_stat *scp, u_char c)
 			if (scp->ypos > 0)
 				move_crsr(scp, scp->xpos, scp->ypos - 1);
 			else {
-				move_up(scp->crt_base, 
+				/*
+				 * XXX some *GA's are said not to handle
+				 * doubleword copies.  We use bcopyw to allow
+				 * for that here and in a few other places,
+				 * but not everywhere necessary.  Copying a
+				 * word at a time should not be much on
+				 * oldGA's since the ISA bus is only 16 bits.
+				 * But now there is VLB...
+				 */
+#define	bcopyw	bcopy		/* I have VLB :-) */
+				bcopyw(scp->crt_base, 
 					scp->crt_base + scp->xsize,
-					(scp->ysize - 1) * scp->xsize);
+					(scp->ysize - 1) * scp->xsize *
+					sizeof(u_short));
 				fillw(scp->term.cur_attr | scr_map[0x20], 
 				      scp->crt_base, scp->xsize);
 			}
@@ -1771,7 +1768,7 @@ scan_esc(scr_stat *scp, u_char c)
 			src = scp->crt_base + scp->ypos * scp->xsize;
 			dst = src + n * scp->xsize;
 			count = scp->ysize - (scp->ypos + n);
-			move_up(src, dst, count * scp->xsize);
+			bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20], src,
 			      n * scp->xsize);
 			break;
@@ -1783,7 +1780,7 @@ scan_esc(scr_stat *scp, u_char c)
 			dst = scp->crt_base + scp->ypos * scp->xsize;
 			src = dst + n * scp->xsize;
 			count = scp->ysize - (scp->ypos + n);
-			move_down(src, dst, count * scp->xsize);
+			bcopyw(src, dst, count * scp->xsize * sizeof(u_short));
 			src = dst + count * scp->xsize;
 			fillw(scp->term.cur_attr | scr_map[0x20], src,
 			      n * scp->xsize);
@@ -1796,7 +1793,7 @@ scan_esc(scr_stat *scp, u_char c)
 			dst = scp->crtat;
 			src = dst + n;
 			count = scp->xsize - (scp->xpos + n);
-			move_down(src, dst, count);
+			bcopyw(src, dst, count * sizeof(u_short));
 			src = dst + count;
 			fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 			break;
@@ -1808,7 +1805,7 @@ scan_esc(scr_stat *scp, u_char c)
 			src = scp->crtat;
 			dst = src + n;
 			count = scp->xsize - (scp->xpos + n);
-			move_up(src, dst, count);
+			bcopyw(src, dst, count * sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20], src, n);
 			break;
 
