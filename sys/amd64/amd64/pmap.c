@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.208 1998/09/04 13:10:34 ache Exp $
+ *	$Id: pmap.c,v 1.209 1998/09/06 23:04:20 tegge Exp $
  */
 
 /*
@@ -1328,6 +1328,8 @@ pmap_release_free_page(pmap, p)
 	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
 		pmap->pm_ptphint = NULL;
 
+	p->wire_count--;
+	cnt.v_wire_count--;
 	vm_page_free_zero(p);
 	return 1;
 }
