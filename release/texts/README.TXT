@@ -80,8 +80,8 @@ o It is also important to check the ERRATA.TXT file for any
   that an administrator should be aware of.
 
 For the most up-to-date software along the RELENG_3 branch
-(also known as 3.1-stable) which is now proceeding onwards toward
-the release of FreeBSD 3.2, please install from:
+(also known as 3.2-stable) which is now proceeding onwards toward
+the release of FreeBSD 3.3, please install from:
 
         ftp://releng3.freebsd.org/pub/FreeBSD/
 
