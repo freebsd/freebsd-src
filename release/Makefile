@@ -160,6 +160,7 @@ MNT=			/mnt
 .if ${TARGET} == "pc98"
 SMALLBOOTSIZE=		1200
 BOOTSIZE=		1440
+SMALLFIXITSIZE=		1200
 FIXITSIZE=		1440
 MFSSIZE=		4320
 BOOTINODE=		80000
@@ -167,6 +168,7 @@ FIXITINODE=		40000
 MFSINODE=		8000
 SMALLBOOTLABEL=		fd1200
 BOOTLABEL=		fd1440
+SMALLFIXITLABEL=	fd1200
 FIXITLABEL=		fd1440
 MFSLABEL=		minimum3
 .else
@@ -254,6 +256,8 @@ FIXIT_TARGET=
 .elif ${TARGET_ARCH} == "ia64"
 CRUNCH_TARGETS= boot
 FIXIT_TARGET=
+.elif ${TARGET} == "pc98"
+CRUNCH_TARGETS=	boot fixit fixit-small
 .endif
 
 .if !defined(CRUNCH_TARGETS)
@@ -740,8 +744,6 @@ release.10:
 	@cd ${RD}/fixitfd && \
 		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
 		usr/share/misc
-	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
-		DIR=${RD}/fixitfd/stand ZIP=false
 	@cp ${RD}/trees/base/etc/spwd.db ${RD}/trees/base/etc/group \
 		${RD}/trees/base/etc/protocols ${RD}/fixitfd/etc
 	@cp ${RD}/trees/base/usr/share/misc/scsi_modes \
@@ -750,6 +752,17 @@ release.10:
 	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
 	@chmod 555 ${RD}/fixitfd/stand/tar
+.if defined(SMALLFIXITSIZE)
+	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit-small \
+		DIR=${RD}/fixitfd/stand ZIP=false
+	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit-small.flp \
+		${RD} ${MNT} ${SMALLFIXITSIZE} ${RD}/fixitfd ${FIXITINODE} \
+		${SMALLFIXITLABEL}
+	@rm -rf ${RD}/fixitfd/stand
+	@mkdir ${RD}/fixitfd/stand
+.endif
+	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
+		DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
