@@ -131,18 +131,4 @@ void __mf (void);
 #define LOAD_INTERNAL_DRIVER(_if, type, name, entry)    \
         (_if)->LoadInternal(type, name, entry)
 
-/*
- * Some compilers don't support the forward reference construct:
- *  typedef struct XXXXX
- *
- * The following macro provide a workaround for such cases.
- */
-#ifdef NO_INTERFACE_DECL
-#define INTERFACE_DECL(x)
-#else
-#ifdef __CC_SUPPORTS_FORWARD_REFERENCE_CONSTRUCT
 #define INTERFACE_DECL(x) struct x
-#else
-#define INTERFACE_DECL(x) typedef struct x
-#endif
-#endif
