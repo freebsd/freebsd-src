@@ -597,7 +597,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 			 * here.
 			 */
 			message->index = plex.plexno;	    /* pass object number */
-			message->type = plex_object;	    /* it's a subdisk */
+			message->type = plex_object;	    /* it's a plex */
 			message->state = object_up;
 			message->force = 0;		    /* don't force it */
 			ioctl(superdev, VINUM_SETSTATE, message);
@@ -923,6 +923,7 @@ vinum_attach(int argc, char *argv[], char *argv0[])
     const char *supername = argv[1];
     int sdno = -1;
     int plexno = -1;
+    char oldname[MAXNAME + 8];
     char newname[MAXNAME + 8];
     int rename = 0;					    /* set if we want to rename the object */
 
@@ -1016,7 +1017,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 		    break;
 	    }
 	    sprintf(newname, "%s.s%d", plex.name, sdno);
-	    vinum_rename_2(sd.name, newname);
+	    sprintf(oldname, "%s", sd.name);
+	    vinum_rename_2(oldname, newname);
 	    break;
 
 	case plex_object:
@@ -1027,7 +1029,8 @@ vinum_attach(int argc, char *argv[], char *argv0[])
 		    break;
 	    }
 	    sprintf(newname, "%s.p%d", vol.name, plexno);
-	    vinum_rename_2(plex.name, newname);		    /* this may recurse */
+	    sprintf(oldname, "%s", plex.name);
+	    vinum_rename_2(oldname, newname);		    /* this may recurse */
 	    break;
 
 	default:					    /* can't get here */
