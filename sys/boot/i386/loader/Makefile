@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 1998/10/22 20:23:58 msmith Exp $
+# $Id: Makefile,v 1.15 1998/10/23 22:32:27 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -13,6 +13,11 @@ SRCS=		main.c conf.c
 # Enable PnP and ISA-PnP code.
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
+
+# Enable BootForth
+#BOOT_FORTH=	yes
+#CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
+#LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
@@ -52,8 +57,8 @@ CFLAGS+=	-elf
 CFLAGS+=	-DNEW_LINKER_SET
 
 # Debug me!
-#CFLAGS+=	-g
-#LDFLAGS+=	-g
+CFLAGS+=	-g
+LDFLAGS+=	-g
 
 vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
@@ -70,9 +75,9 @@ ${BASE}.bin: ${BASE}.sym
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
 
-${BASE}.sym: ${OBJS} ${LIBI386} vers.o
+${BASE}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
 	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
-		${LIBSTAND} ${LIBI386} ${LIBSTAND}
+		${LIBFICL} ${LIBSTAND} ${LIBI386} ${LIBSTAND}
 
 # If it's not there, don't consider it a target
 .if exists(${.CURDIR}/../../../i386/include)
