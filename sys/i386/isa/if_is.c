@@ -4,14 +4,21 @@
  *
  * By Paul Richards 
  *
+ * Copyright (C) 1993, Paul Richards. This software may be used, modified,
+ *   copied, distributed, and sold, in both source and binary form provided
+ *   that the above copyright and these terms are retained. Under no
+ *   circumstances is the author responsible for the proper functioning
+ *   of this software, nor does the author assume any responsibility
+ *   for damages incurred with its use.
+ *
 */
 
 /* TODO
 
-1) Add bpf and multicast support
+1) Add working multicast support
 2) Use better allocation of memory to card
 3) Advertise for more packets until all transmit buffers are full
-4) Add more of the timers/coutner e.g. arpcom.opackets etc.
+4) Add more of the timers/counters e.g. arpcom.opackets etc.
 */
 
 #include "is.h"
