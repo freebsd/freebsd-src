@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: uidswap.c,v 1.5 1999/11/24 19:53:54 markus Exp $");
+RCSID("$Id: uidswap.c,v 1.6 2000/04/14 10:30:34 markus Exp $");
 
 #include "ssh.h"
 #include "uidswap.h"
@@ -34,7 +34,7 @@ static uid_t saved_euid = 0;
  * Temporarily changes to the given uid.  If the effective user
  * id is not root, this does nothing.  This call cannot be nested.
  */
-void 
+void
 temporarily_use_uid(uid_t uid)
 {
 #ifdef SAVED_IDS_WORK_WITH_SETEUID
@@ -58,7 +58,7 @@ temporarily_use_uid(uid_t uid)
 /*
  * Restores to the original uid.
  */
-void 
+void
 restore_uid()
 {
 #ifdef SAVED_IDS_WORK_WITH_SETEUID
@@ -79,7 +79,7 @@ restore_uid()
  * Permanently sets all uids to the given uid.  This cannot be
  * called while temporarily_use_uid is effective.
  */
-void 
+void
 permanently_set_uid(uid_t uid)
 {
 	if (setuid(uid) < 0)
