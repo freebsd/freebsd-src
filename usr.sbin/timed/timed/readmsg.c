@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)readmsg.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: readmsg.c,v 1.2 1997/10/22 06:19:48 charnier Exp $";
+	"$Id: readmsg.c,v 1.3 1997/10/29 07:32:29 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"
@@ -435,6 +435,7 @@ print(msg, addr)
 	struct sockaddr_in *addr;
 {
 	char tm[26];
+	time_t tsp_time_sec;
 	switch (msg->tsp_type) {
 
 	case TSP_LOOP:
@@ -453,7 +454,8 @@ print(msg, addr)
 #ifdef sgi
 		(void)cftime(tm, "%D %T", &msg->tsp_time.tv_sec);
 #else
-		strncpy(tm, ctime(&msg->tsp_time.tv_sec)+3+1, sizeof(tm));
+		tsp_time_sec = msg->tsp_time.tv_sec;
+		strncpy(tm, ctime(&tsp_time_sec)+3+1, sizeof(tm));
 		tm[15] = '\0';		/* ugh */
 #endif /* sgi */
 		fprintf(fd, "%s %d %-6u %s %-15s %s\n",
