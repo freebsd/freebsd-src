@@ -515,6 +515,7 @@ Disk_Names()
     error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
     if (!error) {
 	    disklist = (char *)malloc(listsize);
+	    memset(disklist, 0, listsize);
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
 	    if (error) 
 		    return NULL;
