@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/10/11 18:13:42 markm Exp $
+# $FreeBSD$
 #
 
 PODS=	perl.pod perl5004delta.pod perlapio.pod perlbook.pod perlbot.pod \

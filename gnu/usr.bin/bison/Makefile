@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1999/08/15 22:36:41 obrien Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../contrib/bison
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 140.clean-rwho,v 1.2 1997/08/17 17:55:30 pst Exp $
+# $FreeBSD$
 #
 
 if [ -d /var/rwho ] ; then

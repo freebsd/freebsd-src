@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 PROG=		refer
 SRCS=		command.cc label.cc ref.cc refer.cc token.cc

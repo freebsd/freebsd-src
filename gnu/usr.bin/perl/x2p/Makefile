@@ -1,5 +1,5 @@
 #
-# $Id$
+# $FreeBSD$
 #
 
 SUBDIR= a2pl s2pl find2pl

@@ -28,7 +28,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(mergerId, "$Id$")
+libId(mergerId, "$FreeBSD$")
 
 	static char const *normalize_arg P((char const*,char**));
 	static char const *

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 999.local,v 1.1.1.1 1997/08/16 17:04:02 pst Exp $
+# $FreeBSD$
 #
 
 if [ -f /etc/weekly.local ]; then

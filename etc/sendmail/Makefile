@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.19 (Berkeley) 1/14/97
-#	$Id$
+# $FreeBSD$
 
 M4=	m4
 CFDIR=	${.CURDIR}/../../contrib/sendmail/cf

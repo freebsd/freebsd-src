@@ -46,7 +46,7 @@ Report problems and direct all questions to:
 #include "partime.h"
 
 char const partimeId[]
-  = "$Id$";
+  = "$FreeBSD$";
 
 
 /* Lookup tables for names of months, weekdays, time zones.  */

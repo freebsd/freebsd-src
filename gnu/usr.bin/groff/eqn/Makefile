@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1998/03/20 12:03:53 bde Exp $
+# $FreeBSD$
 
 PROG=		eqn
 SRCS=		eqn.cc eqn.tab.h main.cc lex.cc \

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1999/01/12 07:57:01 peter Exp $
+# $FreeBSD$
 #
 
 PROG=	suidperl

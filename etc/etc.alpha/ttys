@@ -1,5 +1,5 @@
 #
-#	$Id: ttys,v 1.4 1999/02/09 23:55:04 wes Exp $
+# $FreeBSD$
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
 # This file specifies various information about terminals on the system.

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.1 1999/05/02 11:31:55 dfr Exp $
+# $FreeBSD$
 #
 
 XSRCS+= freebsd-nat.c alpha-tdep.c kvm-fbsd.c

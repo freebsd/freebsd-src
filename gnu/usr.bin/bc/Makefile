@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1998/05/04 16:22:30 bde Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../contrib/bc/bc \
 	${.CURDIR}/../../../contrib/bc/lib \

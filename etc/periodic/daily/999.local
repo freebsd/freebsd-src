@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 999.local,v 1.1.1.1 1997/08/12 17:51:16 pst Exp $
+# $FreeBSD$
 #
 # Run the old /etc/daily.local script.  This is really for backwards
 # compatibility more than anything else.

@@ -4,7 +4,7 @@
  * Foundation.
  *
  *	from: @(#)symseg.h	5.4 (Berkeley) 4/30/91
- *	$Id$
+ * $FreeBSD$
  */
 
 /* GDB symbol table format definitions.

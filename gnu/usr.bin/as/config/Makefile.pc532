@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 SRCS+=		tc-ns32k.c atof-ns32k.c
 

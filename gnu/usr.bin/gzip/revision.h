@@ -13,4 +13,4 @@
 #  undef LZW
 #endif
 
-/* $Id$ */
+/* $FreeBSD$ */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1999/01/19 15:33:15 hm Exp $
+# $FreeBSD$
 
 I4BETCPROG=	answer		\
 		isdntel.sh	\

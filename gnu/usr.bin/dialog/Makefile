@@ -1,5 +1,5 @@
 # Makefile for dialog
-# $Id$
+# $FreeBSD$
 
 PROG=   dialog
 MAN1=   dialog.1

@@ -2,7 +2,7 @@
 #
 # Read in /etc/sysctl.conf and set things accordingly
 #
-# $Id: rc.sysctl,v 1.1 1999/03/28 20:36:03 imp Exp $
+# $FreeBSD$
 if [ -f /etc/sysctl.conf ]; then
 	3< /etc/sysctl.conf
 	while read 0<&3 var;

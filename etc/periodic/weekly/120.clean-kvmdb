@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: 120.clean-kvmdb,v 1.2 1998/01/01 09:04:47 bde Exp $
+# $FreeBSD$
 #
 
 if [ -d /var/db ] ; then

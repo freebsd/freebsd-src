@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/05/01 12:01:57 bde Exp $
+# $FreeBSD$
 
 BCDIR=	${.CURDIR}/../../../contrib/bc
 

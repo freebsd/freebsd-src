@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1999/04/25 17:09:48 obrien Exp $
+# $FreeBSD$
 
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.

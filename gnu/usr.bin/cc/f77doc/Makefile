@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/04/25 17:09:48 obrien Exp $
+# $FreeBSD$
 
 .include "../Makefile.inc"
 

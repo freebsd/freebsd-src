@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.37 1999/08/16 09:55:16 obrien Exp $
+# $FreeBSD$
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk

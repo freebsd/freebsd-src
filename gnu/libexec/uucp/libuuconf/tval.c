@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tval_rcsid[] = "$Id$";
+const char _uuconf_tval_rcsid[] = "$FreeBSD$";
 #endif
 
 /* Validate a login name for a system using Taylor UUCP configuration

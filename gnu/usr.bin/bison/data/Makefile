@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.6 1997/08/21 03:28:07 jmg Exp $
+# $FreeBSD$
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.1 1998/03/12 08:00:03 jb Exp $
+# $FreeBSD$
 #
 
 TARGET=		${MACHINE_ARCH}-unknown-freebsdelf
