@@ -283,6 +283,7 @@ filt_proc(struct knote *kn, long hint)
 		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_FLAG1;
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;			/* parent */
+		kev.udata = kn->kn_kevent.udata;	/* preserve udata */
 		error = kqueue_register(kn->kn_kq, &kev, NULL);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
@@ -447,7 +448,6 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 	 * kn now contains the matching knote, or NULL if no match
 	 */
 	if (kev->flags & EV_ADD) {
-		int attach = 0;
 
 		if (kn == NULL) {
 			kn = knote_alloc();
@@ -458,25 +458,34 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 			kn->kn_fp = fp;
 			kn->kn_kq = kq;
 			kn->kn_fop = fops;
-			attach = 1;
-		}
-		kn->kn_sfflags = kev->fflags;
-		kn->kn_sdata = kev->data;
-		kev->fflags = 0;
-		kev->data = 0;
-		kn->kn_kevent = *kev;
 
-		if (attach) {
+			kn->kn_sfflags = kev->fflags;
+			kn->kn_sdata = kev->data;
+			kev->fflags = 0;
+			kev->data = 0;
+			kn->kn_kevent = *kev;
+
 			knote_attach(kn, fdp);
 			if ((error = fops->f_attach(kn)) != 0) {
 				knote_drop(kn, p);
 				goto done;
 			}
+		} else {
+			/*
+			 * The user may change some filter values after the
+			 * initial EV_ADD, but doing so will not reset any 
+			 * filter which have already been triggered.
+			 */
+			kn->kn_sfflags = kev->fflags;
+			kn->kn_sdata = kev->data;
+			kn->kn_kevent.udata = kev->udata;
 		}
+
 		s = splhigh();
 		if (kn->kn_fop->f_event(kn, 0))
 			KNOTE_ACTIVATE(kn);
 		splx(s);
+
 	} else if (kev->flags & EV_DELETE) {
 		kn->kn_fop->f_detach(kn);
 		knote_drop(kn, p);
