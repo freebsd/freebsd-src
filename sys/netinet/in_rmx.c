@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.31 1998/02/04 22:33:05 eivind Exp $
+ *	$Id: in_rmx.c,v 1.32 1998/02/06 12:13:50 eivind Exp $
  */
 
 /*
@@ -378,6 +378,15 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	int err;
 
 	if (rt->rt_ifa == ap->ifa && !(rt->rt_flags & RTF_STATIC)) {
+		/*
+		 * We need to disable the automatic prune that happens
+		 * in this case in rtrequest() because it will blow
+		 * away the pointers that rn_walktree() needs in order
+		 * continue our descent.  We will end up deleting all
+		 * the routes that rtrequest() would have in any case,
+		 * so that behavior is not needed there.
+		 */
+		rt->rt_flags &= ~RTF_PRCLONING;
 		err = rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
 				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
 		if (err) {
