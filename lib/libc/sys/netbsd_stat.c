@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: netbsd_stat.c,v 1.1 1998/03/09 07:07:21 jb Exp $
 /*	From: NetBSD: stat.c,v 1.2 1997/10/22 00:56:39 fvdl Exp */
 
 /*
@@ -144,7 +144,11 @@ stat(file, ost)
 }
 
 int
+#ifdef	_THREAD_SAFE
+_thread_sys_fstat(f, ost)
+#else
 fstat(f, ost)
+#endif
 	int f;
 	struct stat *ost;
 {
