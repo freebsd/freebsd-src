@@ -41,7 +41,6 @@
 #include "opt_sio.h"
 #include "card.h"
 #include "pci.h"
-#include "sio.h"
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.

@@ -105,17 +105,8 @@
 
 #include <setjmp.h>
 
-/* #include "sio.h" */
 #include "opt_ddb.h"
 
-#include "sio.h"
-
-#if NSIO == 0
-void
-gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
-{
-}
-#else
 /************************************************************************/
 
 void		gdb_handle_exception (db_regs_t *, int);
@@ -130,10 +121,9 @@ extern jmp_buf	db_jmpbuf;
 /* Create private copies of common functions used by the stub.  This prevents
    nasty interactions between app code and the stub (for instance if user steps
    into strlen, etc..) */
-/* XXX this is fairly bogus.  strlen() and strcpy() should be reentrant,
-   and are reentrant under FreeBSD.  In any case, our versions should not
-   be named the same as the standard versions, so that the address `strlen'
-   is unambiguous...  */
+
+#define strlen  gdb_strlen
+#define strcpy  gdb_strcpy
 
 static int
 strlen (const char *s)
@@ -585,4 +575,3 @@ gdb_handle_exception (db_regs_t *raw_regs, int vector)
     }
 #endif
 }
-#endif /* NSIO > 0 */
