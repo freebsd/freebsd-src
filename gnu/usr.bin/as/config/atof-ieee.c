@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: atof-ieee.c,v 1.4 1996/09/22 00:55:46 pst Exp $";
+static char rcsid[] = "$Id: atof-ieee.c,v 1.5 1996/10/01 00:12:30 peter Exp $";
 #endif
 
 #include "as.h"
@@ -174,7 +174,7 @@ LITTLENUM_TYPE *words;	/* Build the binary here. */
 	generic_floating_point_number.low	= bits + MAX_PRECISION;
 	generic_floating_point_number.high	= NULL;
 	generic_floating_point_number.leader	= NULL;
-	generic_floating_point_number.exponent	= NULL;
+	generic_floating_point_number.exponent	= 0;
 	generic_floating_point_number.sign	= '\0';
 
 	/* Use more LittleNums than seems */
