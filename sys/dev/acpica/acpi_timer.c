@@ -98,11 +98,12 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
  * Timecounter.
  */
 static struct timecounter acpi_timer_timecounter = {
-    acpi_timer_get_timecount_safe,
-    0,
-    0xffffff,
-    0,
-    "ACPI"
+	acpi_timer_get_timecount_safe,
+	0,
+	0xffffff,
+	0,
+	"ACPI",
+	1000
 };
 
 

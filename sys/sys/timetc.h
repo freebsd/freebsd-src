@@ -51,6 +51,13 @@ struct timecounter {
 		/* Frequency of the counter in Hz. */
 	char			*tc_name;
 		/* Name of the timecounter. */
+	int			tc_quality;
+		/*
+		 * Used to determine if this timecounter is better than
+		 * another timecounter higher means better.  Negative
+		 * means "only use at explicit request".
+		 */
+
 	void			*tc_priv;
 		/* Pointer to the timecounter's private parts. */
 	struct timecounter	*tc_next;

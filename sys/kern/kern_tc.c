@@ -43,7 +43,7 @@ dummy_get_timecount(struct timecounter *tc)
 }
 
 static struct timecounter dummy_timecounter = {
-	dummy_get_timecount, 0, ~0u, 1000000, "dummy",
+	dummy_get_timecount, 0, ~0u, 1000000, "dummy", -1000000
 };
 
 struct timehands {
@@ -281,29 +281,33 @@ getmicrotime(struct timeval *tvp)
 }
 
 /*
- * Initialize a new timecounter.
- * We should really try to rank the timecounters and intelligently determine
- * if the new timecounter is better than the current one.  This is subject
- * to further study.  For now always use the new timecounter.
+ * Initialize a new timecounter and possibly use it.
  */
 void
 tc_init(struct timecounter *tc)
 {
 	unsigned u;
 
-	printf("Timecounter \"%s\" frequency %ju Hz",
-	    tc->tc_name, (intmax_t)tc->tc_frequency);
+	if (tc->tc_quality >= 0 || bootverbose)
+		printf("Timecounter \"%s\" frequency %ju Hz quality %d",
+		    tc->tc_name, (intmax_t)tc->tc_frequency,
+		    tc->tc_quality);
 
 	u = tc->tc_frequency / tc->tc_counter_mask;
 	if (u > hz) {
 		printf(" -- Insufficient hz, needs at least %u\n", u);
 		return;
 	}
+	printf("\n");
 	tc->tc_next = timecounters;
 	timecounters = tc;
-	printf("\n");
 	(void)tc->tc_get_timecount(tc);
 	(void)tc->tc_get_timecount(tc);
+	/* Never automatically use a timecounter with negative quality */
+	if (tc->tc_quality < 0)
+		return;
+	if (tc->tc_quality < timecounter->tc_quality)
+		return;
 	timecounter = tc;
 }
 
@@ -495,6 +499,29 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
     0, 0, sysctl_kern_timecounter_hardware, "A", "");
+
+
+/* Report or change the active timecounter hardware. */
+static int
+sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
+{
+	char buf[32], *spc;
+	struct timecounter *tc;
+	int error;
+
+	spc = "";
+	error = 0;
+	for (tc = timecounters; error == 0 && tc != NULL; tc = tc->tc_next) {
+		sprintf(buf, "%s%s(%d)",
+		    spc, tc->tc_name, tc->tc_quality);
+		error = SYSCTL_OUT(req, buf, strlen(buf));
+		spc = " ";
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_kern_timecounter_choice, "A", "");
 
 /*
  * RFC 2783 PPS-API implementation.

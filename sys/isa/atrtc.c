@@ -155,7 +155,8 @@ static struct timecounter i8254_timecounter = {
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
 	0,			/* frequency */
-	"i8254"			/* name */
+	"i8254",		/* name */
+	0			/* quality */
 };
 
 static void
