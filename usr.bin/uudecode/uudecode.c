@@ -138,16 +138,16 @@ decode(void)
 
 	/* decode only one file per input stream */
 	if (!cflag)
-		return(decode2(0));
+		return (decode2(0));
 
 	/* multiple uudecode'd files */
 	for (flag = 0; ; flag++)
 		if (decode2(flag))
-			return(1);
+			return (1);
 		else if (feof(stdin))
 			break;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -168,10 +168,10 @@ decode2(int flag)
 	do {
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			if (flag) /* no error */
-				return(0);
+				return (0);
 
 			warnx("%s: no \"begin\" line", filename);
-			return(1);
+			return (1);
 		}
 	} while (strncmp(buf, "begin", 5) != 0);
 
@@ -204,25 +204,25 @@ decode2(int flag)
 			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
 		if (buf[0] == '\0') {
 			warnx("%s: illegal filename", buffn);
-			return(1);
+			return (1);
 		}
 
 		/* handle ~user/file format */
 		if (buf[0] == '~') {
 			if (!(p = index(buf, '/'))) {
 				warnx("%s: illegal ~user", filename);
-				return(1);
+				return (1);
 			}
 			*p++ = '\0';
 			if (!(pw = getpwnam(buf + 1))) {
 				warnx("%s: no user %s", filename, buf);
-				return(1);
+				return (1);
 			}
 			n = strlen(pw->pw_dir);
 			n1 = strlen(p);
 			if (n + n1 + 2 > MAXPATHLEN) {
 				warnx("%s: path too long", filename);
-				return(1);
+				return (1);
 			}
 			bcopy(p, buf + n + 1, n1 + 1);
 			bcopy(pw->pw_dir, buf, n);
@@ -240,12 +240,12 @@ decode2(int flag)
 			err(1, "setmode()");
 		if (iflag && !access(buf, F_OK)) {
 			warnx("not overwritten: %s", buf);
-			return(0);
+			return (0);
 		} else if (freopen(buf, "w", stdout) == NULL ||
 		    stat(buf, &st) < 0 || (S_ISREG(st.st_mode) &&
 		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666))) {
 			warn("%s: %s", buf, filename);
-			return(1);
+			return (1);
 		}
 		free(mode_handle);
 		free(mode);
@@ -257,7 +257,7 @@ next:
 	for (;;) {
 		if (!fgets(p = buf, sizeof(buf), stdin)) {
 			warnx("%s: short file", filename);
-			return(1);
+			return (1);
 		}
 		if (base64) {
 			if (strncmp(buf, "====", 4) == 0)
@@ -274,7 +274,7 @@ next:
     warnx( \
 "\n\tinput file: %s\n\tencoded file: %s\n\tcharacter out of range: [%d-%d]", \
  	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
-        return(1); \
+        return (1); \
 }
 
 		/*
@@ -324,9 +324,9 @@ next:
 	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
 	     strcmp(buf, "end\r\n"))) {
 		warnx("%s: no \"end\" line", filename);
-		return(1);
+		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 void
