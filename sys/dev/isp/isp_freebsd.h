@@ -178,7 +178,11 @@ isp_unlock(struct ispsoftc *isp)
 
 #define	ISP_LOCK		isp_lock
 #define	ISP_UNLOCK		isp_unlock
+#define	SERVICING_INTERRUPT(isp)	1
+/* not ready yet... */
+#if	0
 #define	SERVICING_INTERRUPT(isp)	(intr_nesting_level != 0)
+#endif
 
 #define	MBOX_WAIT_COMPLETE(isp)		\
 	if (isp->isp_osinfo.intsok == 0 || SERVICING_INTERRUPT(isp)) { \
