@@ -58,7 +58,7 @@
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
-static vfs_mount_t	portal_mount;
+static vfs_omount_t	portal_omount;
 static vfs_unmount_t	portal_unmount;
 static vfs_root_t	portal_root;
 static vfs_statfs_t	portal_statfs;
@@ -67,11 +67,10 @@ static vfs_statfs_t	portal_statfs;
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-portal_mount(mp, path, data, ndp, td)
+portal_omount(mp, path, data, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
-	struct nameidata *ndp;
 	struct thread *td;
 {
 	struct file *fp;
@@ -236,7 +235,7 @@ portal_statfs(mp, sbp, td)
 }
 
 static struct vfsops portal_vfsops = {
-	.vfs_mount =		portal_mount,
+	.vfs_omount =		portal_omount,
 	.vfs_root =		portal_root,
 	.vfs_statfs =		portal_statfs,
 	.vfs_unmount =		portal_unmount,
