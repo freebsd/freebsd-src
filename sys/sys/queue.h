@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.20 1998/02/24 17:27:23 julian Exp $
+ * $Id: queue.h,v 1.21 1998/05/12 03:55:25 gibbs Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -92,11 +92,11 @@
  * _ENTRY		+	+	+	+	+
  * _INIT		+	+	+	+	+
  * _EMPTY		+	+	+	+	+
- * _FIRST		+	+	-	+	+
- * _NEXT		+	+	-	+	+
+ * _FIRST		+	+	+	+	+
+ * _NEXT		+	+	+	+	+
  * _PREV		-	-	-	+	+
- * _LAST		-	-	-	+	+
- * _FOREACH		+	+	-	+	-
+ * _LAST		-	-	+	+	+
+ * _FOREACH		+	+	-	+	+
  * _INSERT_HEAD		+	+	+	+	+
  * _INSERT_BEFORE	-	+	-	+	+
  * _INSERT_AFTER	+	+	+	+	+
