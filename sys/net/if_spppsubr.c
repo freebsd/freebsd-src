@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.43 1998/10/05 21:02:30 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.44 1998/10/06 20:47:53 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -3228,6 +3228,7 @@ sppp_chap_tlu(struct sppp *sp)
 	STDDCL;
 	int i, x;
 
+	i = 0;
 	sp->rst_counter[IDX_CHAP] = sp->lcp.max_configure;
 
 	/*
@@ -3299,9 +3300,11 @@ sppp_chap_tld(struct sppp *sp)
 static void
 sppp_chap_scr(struct sppp *sp)
 {
-	struct timeval tv;
 	u_long *ch, seed;
 	u_char clen;
+#if defined (__NetBSD__) || defined (__OpenBSD__)
+	struct timeval tv;
+#endif
 
 	/* Compute random challenge. */
 	ch = (u_long *)sp->myauth.challenge;
@@ -3804,6 +3807,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	struct sockaddr_in *si, *sm;
 	u_long ssrc, ddst;
 
+	sm = NULL;
 	ssrc = ddst = 0L;
 	/*
 	 * Pick the first AF_INET address from the list,
@@ -3846,7 +3850,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 static void
 sppp_set_ip_addr(struct sppp *sp, u_long src)
 {
-	STDDCL;
+	struct ifnet *ifp = &sp->pp_if;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;
 
