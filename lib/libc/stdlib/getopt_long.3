@@ -254,23 +254,23 @@ This section describes differences to the
 implementation
 found in glibc-2.1.3:
 .Bl -bullet
-.It
-Handling of
-.Ql -
-as first char of option string in presence of
-environment variable
-.Ev POSIXLY_CORRECT :
-.Bl -tag -width ".Bx"
-.It Tn GNU
-ignores
-.Ev POSIXLY_CORRECT
-and returns non-options as
-arguments to option '\e1'.
-.It Bx
-honors
-.Ev POSIXLY_CORRECT
-and stops at the first non-option.
-.El
+.\" .It
+.\" Handling of
+.\" .Ql -
+.\" as first char of option string in presence of
+.\" environment variable
+.\" .Ev POSIXLY_CORRECT :
+.\" .Bl -tag -width ".Bx"
+.\" .It Tn GNU
+.\" ignores
+.\" .Ev POSIXLY_CORRECT
+.\" and returns non-options as
+.\" arguments to option '\e1'.
+.\" .It Bx
+.\" honors
+.\" .Ev POSIXLY_CORRECT
+.\" and stops at the first non-option.
+.\" .El
 .It
 Handling of
 .Ql -
