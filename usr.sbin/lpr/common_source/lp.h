@@ -183,9 +183,13 @@ extern u_char	family;		/* address family */
 
 /*
  * Structure used for building a sorted list of control files.
+ * The job_processed value can be used by callers of getq(), to keep
+ * track of whatever processing they are doing.
  */
 struct jobqueue {
 	time_t	job_time;		/* last-mod time of cf-file */
+	int	job_matched;		/* used by match_jobspec() */
+	int	job_processed;		/* set to zero by getq() */
 	char	job_cfname[MAXNAMLEN+1];	/* control file name */
 };
 
