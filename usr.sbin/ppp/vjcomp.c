@@ -17,21 +17,32 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.4.2.3 1997/08/25 00:34:41 brian Exp $
+ * $Id: vjcomp.c,v 1.4.2.4 1997/10/07 21:56:09 brian Exp $
  *
  *  TODO:
  */
-#include "fsm.h"
-#include "lcpproto.h"
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+
+#include <stdio.h>
+#include <string.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "timer.h"
+#include "fsm.h"
+#include "lcpproto.h"
 #include "slcompress.h"
 #include "hdlc.h"
 #include "ipcp.h"
+#include "vjcomp.h"
 
 #define MAX_VJHEADER 16		/* Maximum size of compressed header */
 
-struct slcompress cslc;
+static struct slcompress cslc;
 
 void
 VjInit(int max_state)
@@ -43,14 +54,14 @@ void
 SendPppFrame(struct mbuf * bp)
 {
   int type;
-  int proto;
-  int cproto = IpcpInfo.his_compproto >> 16;
+  u_short proto;
+  u_short cproto = IpcpInfo.his_compproto >> 16;
 
   LogPrintf(LogDEBUG, "SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto == PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, (struct ip *) MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
-
+    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc,
+                           IpcpInfo.his_compproto & 0xff);
     LogPrintf(LogDEBUG, "SendPppFrame: type = %x\n", type);
     switch (type) {
     case TYPE_IP:
@@ -91,7 +102,7 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
     len = sl_uncompress_tcp(&bufp, len, type, &cslc);
     if (len <= 0) {
       pfree(bp);
-      bp = NULLBUFF;
+      bp = NULL;
     }
     return (bp);
   }
@@ -109,12 +120,12 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
   len = sl_uncompress_tcp(&bufp, olen, type, &cslc);
   if (len <= 0) {
     pfree(bp);
-    return NULLBUFF;
+    return NULL;
   }
   len -= olen;
   len += rlen;
   nbp = mballoc(len, MB_VJCOMP);
-  bcopy(bufp, MBUF_CTOP(nbp), len);
+  memcpy(MBUF_CTOP(nbp), bufp, len);
   nbp->next = bp;
   return (nbp);
 }
@@ -140,4 +151,14 @@ VjCompInput(struct mbuf * bp, int proto)
   }
   bp = VjUncompressTcp(bp, type);
   return (bp);
+}
+
+const char *
+vj2asc(u_int32_t val)
+{
+  static char asc[50];
+
+  sprintf(asc, "%d VJ slots %s slot compression",
+          (int)((val>>8)&15)+1, val & 1 ?  "with" : "without");
+  return asc;
 }

@@ -17,37 +17,57 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9.2.14 1997/10/04 00:16:36 brian Exp $
+ * $Id: ip.c,v 1.9.2.15 1998/01/04 20:33:14 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
  *		  and optionaly record it into log.
  */
-#include "fsm.h"
-#include "lcpproto.h"
-#include "hdlc.h"
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_tun.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+
+#ifndef NOALIAS
 #include <alias.h>
+#endif
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
+#include "hdlc.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "filter.h"
-#include "mbuf.h"
-#include "log.h"
 #include "os.h"
-
-extern void SendPppFrame();
-extern void LcpClose();
+#include "ipcp.h"
+#include "vjcomp.h"
+#include "lcp.h"
+#include "modem.h"
+#include "tun.h"
+#include "ip.h"
 
 static struct pppTimer IdleTimer;
 
 static void 
-IdleTimeout()
+IdleTimeout(void *v)
 {
   LogPrintf(LogPHASE, "Idle timer expired.\n");
   reconnect(RECON_FALSE);
@@ -61,11 +81,15 @@ IdleTimeout()
 void
 StartIdleTimer()
 {
+  static time_t IdleStarted;
+
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
     StopTimer(&IdleTimer);
     IdleTimer.func = IdleTimeout;
     IdleTimer.load = VarIdleTimeout * SECTICKS;
     IdleTimer.state = TIMER_STOPPED;
+    time(&IdleStarted);
+    IdleTimer.arg = (void *)&IdleStarted;
     StartTimer(&IdleTimer);
   }
 }
@@ -83,30 +107,37 @@ StopIdleTimer()
   StopTimer(&IdleTimer);
 }
 
+int
+RemainingIdleTime()
+{
+  if (VarIdleTimeout == 0 || IdleTimer.state != TIMER_RUNNING ||
+      IdleTimer.arg == NULL)
+    return -1;
+  return VarIdleTimeout - (time(NULL) - *(time_t *)IdleTimer.arg);
+}
+
 /*
  *  If any IP layer traffic is detected, refresh IdleTimer.
  */
 static void
-RestartIdleTimer()
+RestartIdleTimer(void)
 {
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && ipKeepAlive) {
+    time((time_t *)IdleTimer.arg);
     StartTimer(&IdleTimer);
-    ipIdleSecs = 0;
   }
 }
 
-static u_short interactive_ports[32] = {
+static const u_short interactive_ports[32] = {
   544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
 };
 
 #define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
 
-static char *TcpFlags[] = {
-  "FIN", "SYN", "RST", "PSH", "ACK", "URG",
-};
+static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
 
-static char *Direction[] = {"INP", "OUT", "OUT", "IN/OUT"};
+static const char *Direction[] = {"INP", "OUT", "OUT", "IN/OUT"};
 static struct filterent *Filters[] = {ifilters, ofilters, dfilters, afilters};
 
 static int
@@ -149,8 +180,10 @@ FilterCheck(struct ip * pip, int direction)
 	  return (A_PERMIT);
 	}
 	LogPrintf(LogDEBUG, "rule = %d\n", n);
-	if ((pip->ip_src.s_addr & fp->smask.s_addr) == fp->saddr.s_addr
-	    && (pip->ip_dst.s_addr & fp->dmask.s_addr) == fp->daddr.s_addr) {
+	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
+	    (fp->saddr.s_addr & fp->smask.s_addr) &&
+	    (pip->ip_dst.s_addr & fp->dmask.s_addr) ==
+	    (fp->daddr.s_addr & fp->dmask.s_addr)) {
 	  if (fp->proto) {
 	    if (!gotinfo) {
 	      ptop = (char *) pip + (pip->ip_hl << 2);
@@ -224,10 +257,10 @@ IcmpError(struct ip * pip, int code)
 
   if (pip->ip_p != IPPROTO_ICMP) {
     bp = mballoc(cnt, MB_IPIN);
-    bcopy(ptr, MBUF_CTOP(bp), cnt);
+    memcpy(MBUF_CTOP(bp), ptr, cnt);
     SendPppFrame(bp);
     RestartIdleTimer();
-    ipOutOctets += cnt;
+    IpcpAddOutOctets(cnt);
   }
 #endif
 }
@@ -248,7 +281,7 @@ PacketCheck(char *cp, int nb, int direction)
   int logit, loglen;
   static char logbuf[200];
 
-  logit = LogIsKept(LogTCPIP);
+  logit = LogIsKept(LogTCPIP) && direction != FL_DIAL;
   loglen = 0;
 
   pip = (struct ip *) cp;
@@ -326,19 +359,21 @@ PacketCheck(char *cp, int nb, int direction)
     break;
   }
 
-  if (logit)
-    LogPrintf(LogTCPIP, "%s\n", logbuf);
-
   if ((FilterCheck(pip, direction) & A_DENY)) {
-    LogPrintf(LogDEBUG, "blocked.\n");
+    if (logit)
+      LogPrintf(LogTCPIP, "%s - BLOCKED\n", logbuf);
     if (direction == 0)
       IcmpError(pip, pri);
     return (-1);
   } else {
     if (FilterCheck(pip, FL_KEEP) & A_DENY) {	/* Check Keep Alive filter */
-      ipKeepAlive = FALSE;
+      if (logit)
+        LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
+      ipKeepAlive = 0;
     } else {
-      ipKeepAlive = TRUE;
+      if (logit)
+        LogPrintf(LogTCPIP, "%s\n", logbuf);
+      ipKeepAlive = 1;
     }
     return (pri);
   }
@@ -350,28 +385,31 @@ IpInput(struct mbuf * bp)
   u_char *cp;
   struct mbuf *wp;
   int nb, nw;
-  u_char tunbuff[MAX_MRU];
+  struct tun_data tun;
 
-  cp = tunbuff;
+  tun_fill_header(tun, AF_INET);
+  cp = tun.data;
   nb = 0;
   for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
-    if (sizeof tunbuff - (cp - tunbuff) < wp->cnt) {
+    if (sizeof tun.data - (cp - tun.data) < wp->cnt) {
       LogPrintf(LogERROR, "IpInput: Packet too large (%d) - dropped\n",
                 plength(bp));
       pfree(bp);
       return;
     }
-    bcopy(MBUF_CTOP(wp), cp, wp->cnt);
+    memcpy(cp, MBUF_CTOP(wp), wp->cnt);
     cp += wp->cnt;
     nb += wp->cnt;
   }
 
+#ifndef NOALIAS
   if (mode & MODE_ALIAS) {
+    struct tun_data *frag;
     int iresult;
     char *fptr;
 
-    iresult = VarPacketAliasIn(tunbuff, sizeof tunbuff);
-    nb = ntohs(((struct ip *) tunbuff)->ip_len);
+    iresult = VarPacketAliasIn(tun.data, sizeof tun.data);
+    nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
       LogPrintf(LogERROR, "IpInput: Problem with IP header length\n");
@@ -380,14 +418,15 @@ IpInput(struct mbuf * bp)
     }
     if (iresult == PKT_ALIAS_OK
 	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-      if (PacketCheck(tunbuff, nb, FL_IN) < 0) {
+      if (PacketCheck(tun.data, nb, FL_IN) < 0) {
 	pfree(bp);
 	return;
       }
-      ipInOctets += nb;
+      IpcpAddInOctets(nb);
 
-      nb = ntohs(((struct ip *) tunbuff)->ip_len);
-      nw = write(tun_out, tunbuff, nb);
+      nb = ntohs(((struct ip *) tun.data)->ip_len);
+      nb += sizeof tun - sizeof tun.data;
+      nw = write(tun_out, &tun, nb);
       if (nw != nb)
         if (nw == -1)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
@@ -396,36 +435,44 @@ IpInput(struct mbuf * bp)
 	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = VarPacketAliasGetFragment(tunbuff)) != NULL) {
-	  VarPacketAliasFragmentIn(tunbuff, fptr);
+	while ((fptr = VarPacketAliasGetFragment(tun.data)) != NULL) {
+	  VarPacketAliasFragmentIn(tun.data, fptr);
 	  nb = ntohs(((struct ip *) fptr)->ip_len);
-	  nw = write(tun_out, fptr, nb);
+          frag = (struct tun_data *)
+	    ((char *)fptr - sizeof tun + sizeof tun.data);
+          nb += sizeof tun - sizeof tun.data;
+	  nw = write(tun_out, frag, nb);
 	  if (nw != nb)
             if (nw == -1)
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
                         strerror(errno));
             else
 	      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
-	  free(fptr);
+	  free(frag);
 	}
       }
     } else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
-      nb = ntohs(((struct ip *) tunbuff)->ip_len);
-      fptr = malloc(nb);
-      if (fptr == NULL)
+      nb = ntohs(((struct ip *) tun.data)->ip_len);
+      nb += sizeof tun - sizeof tun.data;
+      frag = (struct tun_data *)malloc(nb);
+      if (frag == NULL)
 	LogPrintf(LogALERT, "IpInput: Cannot allocate memory for fragment\n");
       else {
-	memcpy(fptr, tunbuff, nb);
-	VarPacketAliasSaveFragment(fptr);
+        tun_fill_header(*frag, AF_INET);
+	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
+	VarPacketAliasSaveFragment(frag->data);
       }
     }
-  } else {			/* no aliasing */
-    if (PacketCheck(tunbuff, nb, FL_IN) < 0) {
+  } else
+#endif /* #ifndef NOALIAS */
+  {			/* no aliasing */
+    if (PacketCheck(tun.data, nb, FL_IN) < 0) {
       pfree(bp);
       return;
     }
-    ipInOctets += nb;
-    nw = write(tun_out, tunbuff, nb);
+    IpcpAddInOctets(nb);
+    nb += sizeof tun - sizeof tun.data;
+    nw = write(tun_out, &tun, nb);
     if (nw != nb)
       if (nw == -1)
 	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));
@@ -445,24 +492,26 @@ IpEnqueue(int pri, char *ptr, int count)
   struct mbuf *bp;
 
   bp = mballoc(count, MB_IPQ);
-  bcopy(ptr, MBUF_CTOP(bp), count);
+  memcpy(MBUF_CTOP(bp), ptr, count);
   Enqueue(&IpOutputQueues[pri], bp);
 }
 
+#if 0
 int
 IsIpEnqueued()
 {
   struct mqueue *queue;
-  int exist = FALSE;
+  int exist = 0;
 
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--) {
     if (queue->qlen > 0) {
-      exist = TRUE;
+      exist = 1;
       break;
     }
   }
   return (exist);
 }
+#endif
 
 void
 IpStartOutput()
@@ -480,7 +529,7 @@ IpStartOutput()
 	cnt = plength(bp);
 	SendPppFrame(bp);
 	RestartIdleTimer();
-	ipOutOctets += cnt;
+        IpcpAddOutOctets(cnt);
 	break;
       }
     }

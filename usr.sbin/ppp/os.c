@@ -17,26 +17,31 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7.2.14 1997/09/03 00:42:15 brian Exp $
+ * $Id: os.c,v 1.7.2.15 1997/09/05 23:22:31 brian Exp $
  *
  */
-#include "fsm.h"
 #include <sys/param.h>
-#include <sys/socket.h>
-#if BSD >= 199206 || _BSDI_VERSION >= 199312
-#include <sys/select.h>
-#endif
-#include <sys/ioctl.h>
 #include <sys/time.h>
-
-#include <fcntl.h>
-#include <errno.h>
-
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <net/if.h>
-#include <net/if_tun.h>
-#include <net/route.h>
 #include <arpa/inet.h>
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "id.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
 #include "ipcp.h"
 #include "os.h"
 #include "loadalias.h"
@@ -44,47 +49,44 @@
 #include "arp.h"
 #include "systems.h"
 #include "route.h"
+#include "lcp.h"
+#include "ccp.h"
+
+char *IfDevName;
 
 static struct ifaliasreq ifra;
 static struct ifreq ifrq;
 static struct in_addr oldmine, oldhis;
 static int linkup;
 
-#ifdef bsdi
-extern char *inet_ntoa();
-
-#endif
-extern void HangupModem();
-
-char *IfDevName;
+enum set_method { SET_UP, SET_DOWN, SET_TRY };
 
 static int
 SetIpDevice(struct in_addr myaddr,
 	    struct in_addr hisaddr,
 	    struct in_addr netmask,
-	    int updown)
+	    enum set_method how)
 {
-  struct sockaddr_in *sin;
+  struct sockaddr_in *sock_in;
   int s;
-  int changeaddr = 0;
   u_long mask, addr;
 
-  s = socket(AF_INET, SOCK_DGRAM, 0);
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
     return (-1);
   }
-  if (updown == 0) {
+  if (how == SET_DOWN) {
     if (Enabled(ConfProxy))
-      cifproxyarp(s, oldhis.s_addr);
+      cifproxyarp(s, oldhis);
     if (oldmine.s_addr == 0 && oldhis.s_addr == 0) {
       close(s);
       return (0);
     }
-    bzero(&ifra.ifra_addr, sizeof(ifra.ifra_addr));
-    bzero(&ifra.ifra_broadaddr, sizeof(ifra.ifra_addr));
-    bzero(&ifra.ifra_mask, sizeof(ifra.ifra_addr));
-    if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+    memset(&ifra.ifra_addr, '\0', sizeof ifra.ifra_addr);
+    memset(&ifra.ifra_broadaddr, '\0', sizeof ifra.ifra_broadaddr);
+    memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
 		strerror(errno));
       close(s);
@@ -92,10 +94,7 @@ SetIpDevice(struct in_addr myaddr,
     }
     oldmine.s_addr = oldhis.s_addr = 0;
   } else {
-
-    /*
-     * If given addresses are alreay set, then ignore this request.
-     */
+    /* If given addresses are alreay set, then ignore this request */
     if (oldmine.s_addr == myaddr.s_addr && oldhis.s_addr == hisaddr.s_addr) {
       close(s);
       return (0);
@@ -105,27 +104,29 @@ SetIpDevice(struct in_addr myaddr,
      * If different address has been set, then delete it first.
      */
     if (oldmine.s_addr || oldhis.s_addr) {
-      changeaddr = 1;
+      memset(&ifra.ifra_addr, '\0', sizeof ifra.ifra_addr);
+      memset(&ifra.ifra_broadaddr, '\0', sizeof ifra.ifra_broadaddr);
+      memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
+      if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+        LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
+		  strerror(errno));
+        close(s);
+        return (-1);
+      }
     }
 
-    /*
-     * Set interface address
-     */
-    sin = (struct sockaddr_in *) & (ifra.ifra_addr);
-    sin->sin_family = AF_INET;
-    sin->sin_addr = oldmine = myaddr;
-    sin->sin_len = sizeof(*sin);
+    /* Set interface address */
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_addr);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr = myaddr;
+    sock_in->sin_len = sizeof *sock_in;
 
-    /*
-     * Set destination address
-     */
-    sin = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
-    sin->sin_family = AF_INET;
-    sin->sin_addr = oldhis = hisaddr;
-    sin->sin_len = sizeof(*sin);
+    /* Set destination address */
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr = hisaddr;
+    sock_in->sin_len = sizeof *sock_in;
 
-    /*
-     * */
     addr = ntohl(myaddr.s_addr);
     if (IN_CLASSA(addr))
       mask = IN_CLASSA_NET;
@@ -140,53 +141,76 @@ SetIpDevice(struct in_addr myaddr,
     if (netmask.s_addr && (ntohl(netmask.s_addr) & mask) == mask)
       mask = ntohl(netmask.s_addr);
 
-    sin = (struct sockaddr_in *) & (ifra.ifra_mask);
-    sin->sin_family = AF_INET;
-    sin->sin_addr.s_addr = htonl(mask);
-    sin->sin_len = sizeof(*sin);
+    sock_in = (struct sockaddr_in *) & (ifra.ifra_mask);
+    sock_in->sin_family = AF_INET;
+    sock_in->sin_addr.s_addr = htonl(mask);
+    sock_in->sin_len = sizeof *sock_in;
 
-    if (changeaddr) {
-
-      /*
-       * Interface already exists. Just change the address.
-       */
-      bcopy(&ifra.ifra_addr, &ifrq.ifr_addr, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFADDR, &ifra) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFADDR): %s\n",
+    if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
+      if (how != SET_TRY)
+        LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
 		  strerror(errno));
-      bcopy(&ifra.ifra_broadaddr, &ifrq.ifr_dstaddr, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFDSTADDR): %s\n",
-		  strerror(errno));
-#ifdef notdef
-      bcopy(&ifra.ifra_mask, &ifrq.ifr_broadaddr, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
-	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFBRDADDR): %s\n",
-		  strerror(errno));
-#endif
-    } else if (ioctl(s, SIOCAIFADDR, &ifra) < 0) {
-      LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
-		strerror(errno));
       close(s);
       return (-1);
     }
+
+    oldhis.s_addr = hisaddr.s_addr;
+    oldmine.s_addr = myaddr.s_addr;
     if (Enabled(ConfProxy))
-      sifproxyarp(s, hisaddr.s_addr);
+      sifproxyarp(s, hisaddr);
   }
   close(s);
   return (0);
 }
 
 int
-OsSetIpaddress(struct in_addr myaddr,
-	       struct in_addr hisaddr,
-	       struct in_addr netmask)
+CleanInterface(const char *name)
 {
-  return (SetIpDevice(myaddr, hisaddr, netmask, 1));
+  int s;
+
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
+  if (s < 0) {
+    LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
+    return (-1);
+  }
+  strncpy(ifrq.ifr_name, name, sizeof ifrq.ifr_name - 1);
+  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
+  while (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0) {
+    memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
+    ifra.ifra_addr = ifrq.ifr_addr;
+    if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
+      if (ifra.ifra_addr.sa_family == AF_INET)
+        LogPrintf(LogERROR, "tun_configure: Can't get dst for %s on %s !\n",
+                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
+                  name);
+      return 0;
+    }
+    ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+      if (ifra.ifra_addr.sa_family == AF_INET)
+        LogPrintf(LogERROR, "tun_configure: Can't delete %s address on %s !\n",
+                  inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
+                  name);
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+int
+OsTrySetIpaddress(struct in_addr myaddr, struct in_addr hisaddr)
+{
+  return (SetIpDevice(myaddr, hisaddr, ifnetmask, SET_TRY));
+}
+
+int
+OsSetIpaddress(struct in_addr myaddr, struct in_addr hisaddr)
+{
+  return (SetIpDevice(myaddr, hisaddr, ifnetmask, SET_UP));
 }
 
 static struct in_addr peer_addr;
-struct in_addr defaddr;
 
 void
 OsLinkup()
@@ -213,8 +237,8 @@ OsLinkup()
       LogPrintf(LogLCP, "OsLinkup: %s\n", s);
 
     if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKUPFILE) < 0) {
-      if (dstsystem) {
-	if (SelectSystem(dstsystem, LINKUPFILE) < 0)
+      if (GetLabel()) {
+	if (SelectSystem(GetLabel(), LINKUPFILE) < 0)
 	  SelectSystem("MYADDR", LINKUPFILE);
       } else
 	SelectSystem("MYADDR", LINKUPFILE);
@@ -236,20 +260,17 @@ OsLinkdown()
   int Level;
 
   if (linkup) {
-    FsmDown(&CcpFsm);	/* CCP must come down */
-
     s = (char *) inet_ntoa(peer_addr);
     Level = LogIsKept(LogLINK) ? LogLINK : LogIPCP;
     LogPrintf(Level, "OsLinkdown: %s\n", s);
 
     FsmDown(&IpcpFsm);	/* IPCP must come down */
+    FsmDown(&CcpFsm);	/* CCP must come down */
 
-    if (!(mode & MODE_AUTO))
-      DeleteIfRoutes(0);
     linkup = 0;
     if (SelectSystem(s, LINKDOWNFILE) < 0) {
-      if (dstsystem) {
-	if (SelectSystem(dstsystem, LINKDOWNFILE) < 0)
+      if (GetLabel()) {
+	if (SelectSystem(GetLabel(), LINKDOWNFILE) < 0)
 	  SelectSystem("MYADDR", LINKDOWNFILE);
       } else
 	SelectSystem("MYADDR", LINKDOWNFILE);
@@ -264,7 +285,7 @@ OsInterfaceDown(int final)
   int s;
 
   OsLinkdown();
-  if (!final && (mode & MODE_AUTO))	/* We still want interface alive */
+  if (!final && (mode & MODE_DAEMON))	/* We still want interface alive */
     return (0);
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -272,32 +293,17 @@ OsInterfaceDown(int final)
     return (-1);
   }
   ifrq.ifr_flags &= ~IFF_UP;
-  if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     LogPrintf(LogERROR, "OsInterfaceDown: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
     return (-1);
   }
   zeroaddr.s_addr = 0;
-  SetIpDevice(zeroaddr, zeroaddr, zeroaddr, 0);
+  SetIpDevice(zeroaddr, zeroaddr, zeroaddr, SET_DOWN);
 
   close(s);
   return (0);
-}
-
-void
-OsSetInterfaceParams(int type, int mtu, int speed)
-{
-  struct tuninfo info;
-
-  info.type = type;
-  info.mtu = mtu;
-  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
-    info.mtu = VarPrefMTU;
-  info.baudrate = speed;
-  if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
-    LogPrintf(LogERROR, "OsSetInterfaceParams: ioctl(TUNSIFINFO): %s\n",
-	      strerror(errno));
 }
 
 /*
@@ -320,8 +326,8 @@ OpenTunnel(int *ptun)
 
   err = ENOENT;
   for (unit = 0; unit <= MAX_TUN; unit++) {
-    snprintf(devname, sizeof(devname), "/dev/tun%d", unit);
-    tun_out = open(devname, O_RDWR);
+    snprintf(devname, sizeof devname, "/dev/tun%d", unit);
+    tun_out = ID0open(devname, O_RDWR);
     if (tun_out >= 0)
       break;
     if (errno == ENXIO) {
@@ -348,8 +354,8 @@ OpenTunnel(int *ptun)
    */
   strncpy(ifname, devname + 5, IFNAMSIZ - 1);
 
-  bzero((char *) &ifra, sizeof(ifra));
-  bzero((char *) &ifrq, sizeof(ifrq));
+  memset(&ifra, '\0', sizeof ifra);
+  memset(&ifrq, '\0', sizeof ifrq);
 
   strncpy(ifrq.ifr_name, ifname, IFNAMSIZ - 1);
   strncpy(ifra.ifra_name, ifname, IFNAMSIZ - 1);
@@ -370,7 +376,7 @@ OpenTunnel(int *ptun)
     return (-1);
   }
   ifrq.ifr_flags |= IFF_UP;
-  if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     LogPrintf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
@@ -388,20 +394,4 @@ OpenTunnel(int *ptun)
   LogPrintf(LogPHASE, "Using interface: %s\n", IfDevName);
   close(s);
   return (0);
-}
-
-void
-OsCloseLink(int flag)
-{
-  HangupModem(flag);
-}
-
-void
-OsAddInOctets(int cnt)
-{
-}
-
-void
-OsAddOutOctets(int cnt)
-{
 }

@@ -17,12 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.h,v 1.4 1997/06/09 03:27:28 brian Exp $
+ * $Id: main.h,v 1.1.4.2 1997/08/25 00:34:32 brian Exp $
  *
  */
 
-#ifndef _MAIN_H_
-#define	_MAIN_H_
-void Cleanup(int);
+extern int TermMode;
+extern int tunno;
 
-#endif
+extern void Cleanup(int);
+extern void TtyTermMode(void);
+extern void PacketMode(int);
+extern void TtyOldMode(void);
+extern void TtyCommandMode(int);

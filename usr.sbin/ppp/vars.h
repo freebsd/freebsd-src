@@ -15,18 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.14 1997/09/23 00:01:28 brian Exp $
+ * $Id: vars.h,v 1.7.2.15 1997/09/26 00:25:14 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef _VARS_H_
-#define	_VARS_H_
-
-#include <sys/param.h>
-
 struct confdesc {
-  char *name;
+  const char *name;
   int myside, hisside;
 };
 
@@ -37,18 +32,22 @@ struct confdesc {
 #define	CONF_DENY	0
 #define	CONF_ACCEPT	1
 
-#define	ConfVjcomp	0
-#define	ConfLqr		1
-#define	ConfChap	2
-#define	ConfPap		3
-#define	ConfAcfcomp	4
-#define	ConfProtocomp	5
+#define	ConfAcfcomp	0
+#define	ConfChap	1
+#define	ConfDeflate	2
+#define	ConfLqr		3
+#define	ConfPap		4
+#define	ConfPppdDeflate	5
 #define	ConfPred1	6
-#define	ConfProxy	7
-#define ConfMSExt	8
-#define ConfPasswdAuth	9
-#define ConfUtmp	10
-#define	MAXCONFS	11
+#define	ConfProtocomp	7
+#define	ConfVjcomp	8
+
+#define ConfMSExt	9
+#define ConfPasswdAuth	10
+#define	ConfProxy	11
+#define ConfThroughput	12
+#define ConfUtmp	13
+#define	MAXCONFS	14
 
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
 #define	Acceptable(x)	(pppConfs[x].hisside & CONF_ACCEPT)
@@ -56,8 +55,8 @@ struct confdesc {
 extern struct confdesc pppConfs[MAXCONFS + 1];
 
 struct pppvars {
-  u_long var_mru;		/* Initial MRU value */
-  u_long pref_mtu;		/* Preferred MTU value */
+  u_short var_mru;		/* Initial MRU value */
+  u_short pref_mtu;		/* Preferred MTU value */
   int var_accmap;		/* Initial ACCMAP value */
   int modem_speed;		/* Current modem speed */
   int modem_parity;		/* Parity setting */
@@ -71,9 +70,10 @@ struct pppvars {
   int redial_next_timeout;	/* Redial next timeout value */
   int dial_tries;		/* Dial attempts before giving up, 0 == inf */
   int loopback;			/* Turn around packets addressed to me */
+  char modem_devlist[LINE_LEN];	/* Comma-separated list of devices */
   char modem_dev[40];		/* Name of device / host:port */
-  char *base_modem_dev;		/* Pointer to base of modem_dev */
-  int open_mode;		/* LCP open mode */
+  const char *base_modem_dev;	/* Pointer to base of modem_dev */
+  int open_mode;		/* Delay before first LCP REQ (-1 = passive) */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
 #define LOCAL_DENY	0x03
@@ -81,49 +81,60 @@ struct pppvars {
   FILE *termfp;			/* The terminal */
 #define DIALUP_REQ	0x01
 #define DIALUP_DONE	0x02
-  char dial_script[200];	/* Dial script */
-  char login_script[200];	/* Login script */
+  char dial_script[SCRIPT_LEN];	/* Dial script */
+  char login_script[SCRIPT_LEN]; /* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
+  char local_auth_key[50];		/* Local auth passwd */
+  int have_local_auth_key;		/* Local auth passwd specified ? */
+#ifdef HAVE_DES
+  int use_MSChap;		/* Use MSCHAP encryption */
+#endif
   char phone_numbers[200];	/* Telephone Numbers */
   char phone_copy[200];		/* copy for strsep() */
   char *next_phone;		/* Next phone from the list */
   char *alt_phone;		/* Next phone from the list */
-  char shostname[MAXHOSTNAMELEN];	/* Local short Host Name */
-  char hangup_script[200];	/* Hangup script before modem is closed */
+  char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
+  char hangup_script[SCRIPT_LEN]; /* Hangup script before modem is closed */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 
-#define VarAccmap	pppVars.var_accmap
-#define VarMRU		pppVars.var_mru
-#define VarPrefMTU	pppVars.pref_mtu
-#define	VarDevice	pppVars.modem_dev
-#define	VarBaseDevice	pppVars.base_modem_dev
-#define	VarSpeed	pppVars.modem_speed
-#define	VarParity	pppVars.modem_parity
-#define	VarCtsRts	pppVars.modem_ctsrts
-#define	VarOpenMode	pppVars.open_mode
-#define	VarLocalAuth	pppVars.lauth
-#define	VarDialScript	pppVars.dial_script
-#define VarHangupScript pppVars.hangup_script
-#define	VarLoginScript	pppVars.login_script
-#define VarIdleTimeout  pppVars.idle_timeout
-#define	VarLqrTimeout	pppVars.lqr_timeout
-#define	VarRetryTimeout	pppVars.retry_timeout
-#define	VarAuthKey	pppVars.auth_key
-#define	VarAuthName	pppVars.auth_name
-#define VarPhoneList    pppVars.phone_numbers
-#define VarPhoneCopy    pppVars.phone_copy
-#define VarNextPhone    pppVars.next_phone
-#define VarAltPhone    pppVars.alt_phone
-#define	VarShortHost	pppVars.shostname
-#define VarReconnectTimer pppVars.reconnect_timer
-#define VarReconnectTries pppVars.reconnect_tries
-#define VarRedialTimeout pppVars.redial_timeout
-#define VarRedialNextTimeout pppVars.redial_next_timeout
-#define VarDialTries	pppVars.dial_tries
-#define VarLoopback	pppVars.loopback
-#define VarTerm		pppVars.termfp
+#define VarAccmap		pppVars.var_accmap
+#define VarMRU			pppVars.var_mru
+#define VarPrefMTU		pppVars.pref_mtu
+#define	VarDevice		pppVars.modem_dev
+#define	VarDeviceList		pppVars.modem_devlist
+#define	VarBaseDevice		pppVars.base_modem_dev
+#define	VarSpeed		pppVars.modem_speed
+#define	VarParity		pppVars.modem_parity
+#define	VarCtsRts		pppVars.modem_ctsrts
+#define	VarOpenMode		pppVars.open_mode
+#define	VarLocalAuth		pppVars.lauth
+#define	VarDialScript		pppVars.dial_script
+#define VarHangupScript 	pppVars.hangup_script
+#define	VarLoginScript		pppVars.login_script
+#define VarIdleTimeout  	pppVars.idle_timeout
+#define	VarLqrTimeout		pppVars.lqr_timeout
+#define	VarRetryTimeout		pppVars.retry_timeout
+#define	VarAuthKey		pppVars.auth_key
+#define	VarAuthName		pppVars.auth_name
+#define	VarLocalAuthKey		pppVars.local_auth_key
+#define	VarHaveLocalAuthKey	pppVars.have_local_auth_key
+#ifdef HAVE_DES
+#define	VarMSChap		pppVars.use_MSChap
+#endif
+#define VarPhoneList    	pppVars.phone_numbers
+#define VarPhoneCopy    	pppVars.phone_copy
+#define VarNextPhone    	pppVars.next_phone
+#define VarAltPhone     	pppVars.alt_phone
+#define	VarShortHost		pppVars.shostname
+#define VarReconnectTimer	pppVars.reconnect_timer
+#define VarReconnectTries	pppVars.reconnect_tries
+#define VarRedialTimeout	pppVars.redial_timeout
+#define VarRedialNextTimeout	pppVars.redial_next_timeout
+#define VarDialTries		pppVars.dial_tries
+#define VarLoopback		pppVars.loopback
+#define VarTerm			pppVars.termfp
 
 #define VarAliasHandlers	   pppVars.handler
 #define VarPacketAliasGetFragment  (*pppVars.handler.PacketAliasGetFragment)
@@ -138,13 +149,16 @@ struct pppvars {
 #define VarPacketAliasSetMode	   (*pppVars.handler.PacketAliasSetMode)
 #define VarPacketAliasFragmentIn   (*pppVars.handler.PacketAliasFragmentIn)
 
-#define	DEV_IS_SYNC	(VarSpeed == 0)
+#define	DEV_IS_SYNC (VarSpeed == 0)
 
 extern struct pppvars pppVars;
+extern char VarVersion[];
+extern char VarLocalVersion[];
 
-int Utmp;		/* Are we in /etc/utmp ? */
-int ipInOctets, ipOutOctets, ipKeepAlive;
-int ipConnectSecs, ipIdleSecs;
+extern int Utmp;		/* Are we in /etc/utmp ? */
+extern int ipKeepAlive;
+extern int reconnectState;
+extern int reconnectCount;
 
 #define RECON_TRUE (1)
 #define RECON_FALSE (2)
@@ -152,14 +166,13 @@ int ipConnectSecs, ipIdleSecs;
 #define RECON_ENVOKED (4)
 #define reconnect(x)                          \
   do                                          \
-    if (reconnectState == RECON_UNKNOWN) { \
-      reconnectState = x;                  \
+    if (reconnectState == RECON_UNKNOWN) {    \
+      reconnectState = x;                     \
       if (x == RECON_FALSE)                   \
         reconnectCount = 0;                   \
     }                                         \
   while(0)
 
-int reconnectState, reconnectCount;
 
 /*
  * This is the logic behind the reconnect variables:
@@ -184,4 +197,9 @@ int reconnectState, reconnectCount;
  *
  */
 
-#endif
+extern int EnableCommand(struct cmdargs const *);
+extern int DisableCommand(struct cmdargs const *);
+extern int AcceptCommand(struct cmdargs const *);
+extern int DenyCommand(struct cmdargs const *);
+extern int LocalAuthCommand(struct cmdargs const *);
+extern int DisplayCommand(struct cmdargs const *);

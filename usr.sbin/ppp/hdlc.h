@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.9 1997/06/09 03:27:22 brian Exp $
+ * $Id: hdlc.h,v 1.4.2.4 1997/08/25 00:34:27 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _HDLC_H_
-#define _HDLC_H_
 
 /*
  *  Definition for Async HDLC
@@ -60,12 +57,10 @@
 
 extern u_char EscMap[33];
 
-void HdlcInit(void);
-void HdlcErrorCheck(void);
-void HdlcInput(struct mbuf * bp);
-void HdlcOutput(int pri, u_short proto, struct mbuf * bp);
-void AsyncOutput(int pri, struct mbuf * bp, int proto);
-u_short HdlcFcs(u_short, u_char *, int);
-void DecodePacket(u_short, struct mbuf *);
-
-#endif
+extern void HdlcInit(void);
+extern void HdlcErrorCheck(void);
+extern void HdlcInput(struct mbuf *);
+extern void HdlcOutput(int, u_short, struct mbuf *bp);
+extern u_short HdlcFcs(u_short, u_char *, int);
+extern int ReportHdlcStatus(struct cmdargs const *);
+extern int ReportProtStatus(struct cmdargs const *);

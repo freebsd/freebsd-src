@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.10 1997/12/30 20:02:50 brian Exp $
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "defs.h"
@@ -69,16 +70,7 @@ GetLabel()
 void
 randinit()
 {
-#ifdef __FreeBSD__
-  static int initdone;
-
-  if (!initdone) {
-    initdone = 1;
-    srandomdev();
-  }
-#else
   srandom(time(NULL)^getpid());
-#endif
 }
 
 

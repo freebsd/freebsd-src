@@ -17,19 +17,25 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.8 1997/06/25 19:30:02 brian Exp $
+ * $Id: mbuf.c,v 1.3.6.4 1997/08/25 00:34:33 brian Exp $
  *
  */
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/param.h>
 #include <netinet/in.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
 #include "defs.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "server.h"
 
-struct memmap {
+static struct memmap {
   struct mbuf *queue;
   int count;
 }      MemMap[MB_MAX + 2];
@@ -60,7 +66,7 @@ mballoc(int cnt, int type)
     ServerClose();
     exit(1);
   }
-  bzero(bp, sizeof(struct mbuf));
+  memset(bp, '\0', sizeof(struct mbuf));
   p = (u_char *) malloc(cnt);
   if (p == NULL) {
     LogPrintf(LogALERT, "failed to allocate memory: %d\n", cnt);
@@ -72,6 +78,7 @@ mballoc(int cnt, int type)
   bp->base = p;
   bp->size = bp->cnt = cnt;
   bp->type = type;
+  bp->pnext = NULL;
   return (bp);
 }
 
@@ -108,7 +115,7 @@ mbread(struct mbuf * bp, u_char * ptr, int len)
       nb = bp->cnt;
     else
       nb = len;
-    bcopy(MBUF_CTOP(bp), ptr, nb);
+    memcpy(ptr, MBUF_CTOP(bp), nb);
     ptr += nb;
     bp->cnt -= nb;
     len -= nb;
@@ -136,14 +143,14 @@ mbwrite(struct mbuf * bp, u_char * ptr, int cnt)
 
   while (cnt > 0) {
     nb = (cnt < bp->cnt) ? cnt : bp->cnt;
-    bcopy(ptr, MBUF_CTOP(bp), nb);
+    memcpy(MBUF_CTOP(bp), ptr, nb);
     cnt -= bp->cnt;
     bp = bp->next;
   }
 }
 
 int
-ShowMemMap()
+ShowMemMap(struct cmdargs const *arg)
 {
   int i;
 

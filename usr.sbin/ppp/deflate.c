@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.5 1997/12/28 02:17:06 brian Exp $
+ *	$Id$
  */
 
 #include <sys/param.h>

@@ -15,17 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.9 1997/08/20 23:47:43 brian Exp $
+ * $Id: fsm.h,v 1.5.2.3 1997/08/25 00:34:26 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _FSM_H_
-#define	_FSM_H_
-
-#include "defs.h"
-#include <netinet/in.h>
-#include "timeout.h"
 
 /*
  *  State of machine
@@ -48,22 +41,22 @@
 #define	MODE_NAK	1
 #define	MODE_REJ	2
 #define	MODE_NOP	3
+#define	MODE_ACK	4	/* pseudo mode for ccp negotiations */
 
-#define	OPEN_ACTIVE	0
-#define	OPEN_PASSIVE	1
+#define	OPEN_PASSIVE	-1
 
 struct fsm {
-  char *name;			/* Name of protocol */
+  const char *name;		/* Name of protocol */
   u_short proto;		/* Protocol number */
   u_short max_code;
   int open_mode;
   int state;			/* State of the machine */
-  int reqid;			/* Next request id */
+  u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
   int maxconfig;
 
-  int reqcode;			/* Request code sent */
   struct pppTimer FsmTimer;	/* Restart Timer */
+  struct pppTimer OpenTimer;	/* Delay before opening */
 
   /*
    * This timer times the ST_STOPPED state out after the given value
@@ -112,7 +105,7 @@ struct fsmheader {
 
 struct fsmcodedesc {
   void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
-  char *name;
+  const char *name;
 };
 
 struct fsmconfig {
@@ -120,29 +113,20 @@ struct fsmconfig {
   u_char length;
 };
 
-u_char AckBuff[200];
-u_char NakBuff[200];
-u_char RejBuff[100];
-u_char ReqBuff[200];
-
-u_char *ackp, *nakp, *rejp;
+extern u_char AckBuff[200];
+extern u_char NakBuff[200];
+extern u_char RejBuff[100];
+extern u_char ReqBuff[200];
+extern u_char *ackp;
+extern u_char *nakp;
+extern u_char *rejp;
 
 extern char const *StateNames[];
+
 extern void FsmInit(struct fsm *);
-extern void NewState(struct fsm *, int);
 extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
 extern void FsmOpen(struct fsm *);
 extern void FsmUp(struct fsm *);
 extern void FsmDown(struct fsm *);
 extern void FsmInput(struct fsm *, struct mbuf *);
-
-extern void FsmRecvConfigReq(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvConfigAck(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvConfigNak(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvTermReq(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmRecvTermAck(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmClose(struct fsm * fp);
-
-extern struct fsm LcpFsm, IpcpFsm, CcpFsm;
-
-#endif				/* _FSM_H_ */
+extern void FsmClose(struct fsm *);

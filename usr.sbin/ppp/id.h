@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.h,v 1.2 1997/12/21 12:11:05 brian Exp $
+ *	$Id$
  */
 
 extern void ID0init(void);

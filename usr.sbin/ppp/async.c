@@ -17,9 +17,21 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.10 1997/06/23 23:08:23 brian Exp $
+ * $Id: async.c,v 1.5.2.4 1997/08/25 00:34:20 brian Exp $
  *
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
 #include "lcp.h"
@@ -27,18 +39,18 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "os.h"
+#include "async.h"
 
 #define HDLCSIZE	(MAX_MRU*2+6)
 
-struct async_state {
+static struct async_state {
   int mode;
   int length;
   u_char hbuff[HDLCSIZE];	/* recv buffer */
   u_char xbuff[HDLCSIZE];	/* xmit buffer */
   u_long my_accmap;
   u_long his_accmap;
-}           AsyncState;
+} AsyncState;
 
 #define MODE_HUNT 0x01
 #define MODE_ESC  0x02
@@ -54,7 +66,7 @@ AsyncInit()
 }
 
 void
-SetLinkParams(struct lcpstate * lcp)
+SetLinkParams(struct lcpstate *lcp)
 {
   struct async_state *stp = &AsyncState;
 
@@ -66,7 +78,7 @@ SetLinkParams(struct lcpstate * lcp)
  * Encode into async HDLC byte code if necessary
  */
 static void
-HdlcPutByte(u_char ** cp, u_char c, int proto)
+HdlcPutByte(u_char **cp, u_char c, int proto)
 {
   u_char *wp;
 
@@ -85,7 +97,7 @@ HdlcPutByte(u_char ** cp, u_char c, int proto)
 }
 
 void
-AsyncOutput(int pri, struct mbuf * bp, int proto)
+AsyncOutput(int pri, struct mbuf *bp, int proto)
 {
   struct async_state *hs = &AsyncState;
   u_char *cp, *sp, *ep;
@@ -116,18 +128,18 @@ AsyncOutput(int pri, struct mbuf * bp, int proto)
   cnt = cp - hs->xbuff;
   LogDumpBuff(LogASYNC, "WriteModem", hs->xbuff, cnt);
   WriteModem(pri, (char *) hs->xbuff, cnt);
-  OsAddOutOctets(cnt);
+  ModemAddOutOctets(cnt);
   pfree(bp);
 }
 
-struct mbuf *
+static struct mbuf *
 AsyncDecode(u_char c)
 {
   struct async_state *hs = &AsyncState;
   struct mbuf *bp;
 
   if ((hs->mode & MODE_HUNT) && c != HDLC_SYN)
-    return (NULLBUFF);
+    return NULL;
 
   switch (c) {
   case HDLC_SYN:
@@ -136,7 +148,7 @@ AsyncDecode(u_char c)
       bp = mballoc(hs->length, MB_ASYNC);
       mbwrite(bp, hs->hbuff, hs->length);
       hs->length = 0;
-      return (bp);
+      return bp;
     }
     break;
   case HDLC_ESC:
@@ -160,18 +172,18 @@ AsyncDecode(u_char c)
     hs->hbuff[hs->length++] = c;
     break;
   }
-  return NULLBUFF;
+  return NULL;
 }
 
 void
-AsyncInput(u_char * buff, int cnt)
+AsyncInput(u_char *buff, int cnt)
 {
   struct mbuf *bp;
 
-  OsAddInOctets(cnt);
+  ModemAddInOctets(cnt);
   if (DEV_IS_SYNC) {
     bp = mballoc(cnt, MB_ASYNC);
-    bcopy(buff, MBUF_CTOP(bp), cnt);
+    memcpy(MBUF_CTOP(bp), buff, cnt);
     bp->cnt = cnt;
     HdlcInput(bp);
   } else {

@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.4.2.3 1997/08/25 00:34:28 brian Exp $
+ * $Id: ipcp.h,v 1.4.2.4 1997/09/05 23:22:26 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _IPCP_H_
-#define _IPCP_H_
 
 #define	IPCP_MAXCODE	CODE_CODEREJ
 
@@ -36,17 +33,20 @@
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
+
+extern struct in_addr ns_entries[2];
+extern struct in_addr nbns_entries[2];
 #endif
 
 struct ipcpstate {
   struct in_addr his_ipaddr;	/* IP address he is willing to use */
-  u_long his_compproto;
+  u_int32_t his_compproto;
 
   struct in_addr want_ipaddr;	/* IP address I'm willing to use */
-  u_long want_compproto;
+  u_int32_t want_compproto;
 
-  u_long his_reject;		/* Request codes rejected by peer */
-  u_long my_reject;		/* Request codes I have rejected */
+  u_int32_t his_reject;		/* Request codes rejected by peer */
+  u_int32_t my_reject;		/* Request codes I have rejected */
   int heis1172;			/* True if he is speaking rfc1172 */
 };
 
@@ -65,18 +65,19 @@ struct in_range {
 extern struct ipcpstate IpcpInfo;
 extern struct in_range DefMyAddress;
 extern struct in_range DefHisAddress;
+extern struct iplist DefHisChoice;
 extern struct in_addr TriggerAddress;
 extern int HaveTriggerAddress;
-
-#ifndef NOMSEXT
-extern struct in_addr ns_entries[2];
-extern struct in_addr nbns_entries[2];
-
-#endif
+extern struct fsm IpcpFsm;
 
 extern void IpcpInit(void);
 extern void IpcpDefAddress(void);
-extern int IpcpOctetsIn(void);
-extern int IpcpOctetsOut(void);
-
-#endif
+extern void IpcpUp(void);
+extern void IpcpOpen(void);
+extern int  ReportIpcpStatus(struct cmdargs const *);
+extern void IpcpInput(struct mbuf *);
+extern void IpcpAddInOctets(int);
+extern void IpcpAddOutOctets(int);
+extern int  UseHisaddr(const char *, int);
+extern int  SetInitVJ(struct cmdargs const *);
+extern int  ShowInitVJ(struct cmdargs const *);

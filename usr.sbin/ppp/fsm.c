@@ -17,12 +17,24 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.7.2.7 1997/08/31 23:02:15 brian Exp $
+ * $Id: fsm.c,v 1.7.2.8 1997/09/12 01:02:12 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
  *		o Better option log display
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
 #include "lqr.h"
@@ -32,12 +44,18 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "pred.h"
 
-void FsmSendConfigReq(struct fsm * fp);
-void FsmSendTerminateReq(struct fsm * fp);
-void FsmInitRestartCounter(struct fsm * fp);
-void FsmTimeout(struct fsm * fp);
+u_char AckBuff[200];
+u_char NakBuff[200];
+u_char RejBuff[100];
+u_char ReqBuff[200];
+u_char *ackp = NULL;
+u_char *nakp = NULL;
+u_char *rejp = NULL;
+
+static void FsmSendConfigReq(struct fsm *);
+static void FsmSendTerminateReq(struct fsm *);
+static void FsmInitRestartCounter(struct fsm *);
 
 char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
@@ -45,9 +63,16 @@ char const *StateNames[] = {
 };
 
 static void
-StoppedTimeout(struct fsm * fp)
+StoppedTimeout(void *v)
 {
+  struct fsm *fp = (struct fsm *)v;
+
   LogPrintf(fp->LogLevel, "Stopped timer expired\n");
+  if (fp->OpenTimer.state == TIMER_RUNNING) {
+    LogPrintf(LogWARN, "%s: aborting open delay due to stopped timer\n",
+              fp->name);
+    StopTimer(&fp->OpenTimer);
+  }
   if (modem != -1)
     DownConnection();
   else
@@ -64,7 +89,7 @@ FsmInit(struct fsm * fp)
   fp->maxconfig = 3;
 }
 
-void
+static void
 NewState(struct fsm * fp, int new)
 {
   LogPrintf(fp->LogLevel, "State change %s --> %s\n",
@@ -95,11 +120,24 @@ FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
   lh.id = id;
   lh.length = htons(plen);
   bp = mballoc(plen, MB_FSM);
-  bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
+  memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
-    bcopy(ptr, MBUF_CTOP(bp) + sizeof(struct fsmheader), count);
+    memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "FsmOutput", bp);
   HdlcOutput(PRI_LINK, fp->proto, bp);
+}
+
+static void
+FsmOpenNow(void *v)
+{
+  struct fsm *fp = (struct fsm *)v;
+
+  StopTimer(&fp->OpenTimer);
+  if (fp->state <= ST_STOPPED) {
+    FsmInitRestartCounter(fp);
+    FsmSendConfigReq(fp);
+    NewState(fp, ST_REQSENT);
+  }
 }
 
 void
@@ -115,11 +153,18 @@ FsmOpen(struct fsm * fp)
   case ST_CLOSED:
     if (fp->open_mode == OPEN_PASSIVE) {
       NewState(fp, ST_STOPPED);
-    } else {
-      FsmInitRestartCounter(fp);
-      FsmSendConfigReq(fp);
-      NewState(fp, ST_REQSENT);
-    }
+    } else if (fp->open_mode > 0) {
+      if (fp->open_mode > 1)
+        LogPrintf(LogPHASE, "Entering STOPPED state for %d seconds\n",
+                  fp->open_mode);
+      NewState(fp, ST_STOPPED);
+      fp->OpenTimer.state = TIMER_STOPPED;
+      fp->OpenTimer.load = fp->open_mode * SECTICKS;
+      fp->OpenTimer.func = FsmOpenNow;
+      fp->OpenTimer.arg = (void *)fp;
+      StartTimer(&fp->OpenTimer);
+    } else
+      FsmOpenNow(fp);
     break;
   case ST_STOPPED:		/* XXX: restart option */
   case ST_REQSENT:
@@ -205,7 +250,7 @@ FsmClose(struct fsm * fp)
 /*
  *	Send functions
  */
-void
+static void
 FsmSendConfigReq(struct fsm * fp)
 {
   if (--fp->maxconfig > 0) {
@@ -217,7 +262,7 @@ FsmSendConfigReq(struct fsm * fp)
   }
 }
 
-void
+static void
 FsmSendTerminateReq(struct fsm * fp)
 {
   LogPrintf(fp->LogLevel, "SendTerminateReq.\n");
@@ -263,9 +308,11 @@ FsmSendConfigNak(struct fsm * fp,
 /*
  *	Timeout actions
  */
-void
-FsmTimeout(struct fsm * fp)
+static void
+FsmTimeout(void *v)
 {
+  struct fsm *fp = (struct fsm *)v;
+
   if (fp->restart) {
     switch (fp->state) {
       case ST_CLOSING:
@@ -302,7 +349,7 @@ FsmTimeout(struct fsm * fp)
   }
 }
 
-void
+static void
 FsmInitRestartCounter(struct fsm * fp)
 {
   StopTimer(&fp->FsmTimer);
@@ -315,7 +362,7 @@ FsmInitRestartCounter(struct fsm * fp)
 /*
  *   Actions when receive packets
  */
-void
+static void
 FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCR */
 {
@@ -323,7 +370,7 @@ FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   int ackaction = 0;
 
   plen = plength(bp);
-  flen = ntohs(lhp->length) - sizeof(*lhp);
+  flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
     LogPrintf(LogERROR, "FsmRecvConfigReq: plen (%d) < flen (%d)\n",
 	      plen, flen);
@@ -345,8 +392,9 @@ FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
     pfree(bp);
     return;
   case ST_CLOSING:
+    LogPrintf(fp->LogLevel, "Error: Got ConfigReq while state = %d\n",
+              fp->state);
   case ST_STOPPING:
-    LogPrintf(LogERROR, "Got ConfigReq while state = %d\n", fp->state);
     pfree(bp);
     return;
   }
@@ -400,7 +448,7 @@ FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCA */
 {
@@ -434,14 +482,14 @@ FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCN */
 {
   int plen, flen;
 
   plen = plength(bp);
-  flen = ntohs(lhp->length) - sizeof(*lhp);
+  flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
     pfree(bp);
     return;
@@ -487,7 +535,7 @@ FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RTR */
 {
@@ -519,7 +567,7 @@ FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RTA */
 {
@@ -544,14 +592,14 @@ FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCJ */
 {
   int plen, flen;
 
   plen = plength(bp);
-  flen = ntohs(lhp->length) - sizeof(*lhp);
+  flen = ntohs(lhp->length) - sizeof *lhp;
   if (plen < flen) {
     pfree(bp);
     return;
@@ -597,14 +645,14 @@ FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvCodeRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvCodeRej\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_short *sp, proto;
@@ -633,7 +681,7 @@ FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_char *cp;
@@ -654,7 +702,7 @@ FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_long *lp, magic;
@@ -677,47 +725,53 @@ FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvDiscReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvDiscReq\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvIdent(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvIdent\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvTimeRemain\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
-  LogPrintf(fp->LogLevel, "RecvResetReq\n");
+  LogPrintf(fp->LogLevel, "RecvResetReq(%d)\n", lhp->id);
   CcpRecvResetReq(fp);
-  LogPrintf(fp->LogLevel, "SendResetAck\n");
-  FsmOutput(fp, CODE_RESETACK, fp->reqid, NULL, 0);
+  /*
+   * All sendable compressed packets are queued in the PRI_NORMAL modem
+   * output queue.... dump 'em to the priority queue so that they arrive
+   * at the peer before our ResetAck.
+   */
+  SequenceQueues();
+  LogPrintf(fp->LogLevel, "SendResetAck(%d)\n", lhp->id);
+  FsmOutput(fp, CODE_RESETACK, lhp->id, NULL, 0);
   pfree(bp);
 }
 
-void
+static void
 FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
-  LogPrintf(fp->LogLevel, "RecvResetAck\n");
-  Pred1Init(1);			/* Initialize Input part */
+  LogPrintf(fp->LogLevel, "RecvResetAck(%d)\n", lhp->id);
+  CcpResetInput(lhp->id);
   fp->reqid++;
   pfree(bp);
 }
 
-struct fsmcodedesc FsmCodes[] = {
+static const struct fsmcodedesc FsmCodes[] = {
   {FsmRecvConfigReq, "Configure Request",},
   {FsmRecvConfigAck, "Configure Ack",},
   {FsmRecvConfigNak, "Configure Nak",},
@@ -740,7 +794,7 @@ FsmInput(struct fsm * fp, struct mbuf * bp)
 {
   int len;
   struct fsmheader *lhp;
-  struct fsmcodedesc *codep;
+  const struct fsmcodedesc *codep;
 
   len = plength(bp);
   if (len < sizeof(struct fsmheader)) {

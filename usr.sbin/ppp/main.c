@@ -17,32 +17,47 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.42 1997/10/16 23:58:06 brian Exp $
+ * $Id: main.c,v 1.22.2.43 1997/10/24 23:15:40 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
  */
-#include "fsm.h"
-#include <fcntl.h>
-#include <paths.h>
+#include <sys/param.h>
 #include <sys/time.h>
-#include <termios.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <netdb.h>
-#include <unistd.h>
+#include <sys/select.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <net/if.h>
+#include <net/if_tun.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <sysexits.h>
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "id.h"
+#include "timer.h"
+#include "fsm.h"
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
-#include "ccp.h"
 #include "lcp.h"
+#include "ccp.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -52,7 +67,12 @@
 #include "ip.h"
 #include "sig.h"
 #include "server.h"
-#include "lcpproto.h"
+#include "main.h"
+#include "vjcomp.h"
+#include "async.h"
+#include "pathnames.h"
+#include "tun.h"
+#include "route.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -60,25 +80,18 @@
 #endif
 #endif
 
-extern void VjInit(int), AsyncInit();
-extern void AsyncInput();
-extern int SelectSystem();
-
-extern void DecodeCommand(), Prompt();
-extern int aft_cmd;
-extern int IsInteractive();
-static void DoLoop(void);
-static void TerminalStop();
-static char *ex_desc();
+int TermMode = 0;
+int tunno = 0;
 
 static struct termios oldtio;	/* Original tty mode */
 static struct termios comtio;	/* Command level tty mode */
-int TermMode;
 static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
-static char if_filename[MAXPATHLEN];
-int tunno;
 static int dial_up;
+
+static void DoLoop(void);
+static void TerminalStop(int);
+static const char *ex_desc(int);
 
 static void
 TtyInit(int DontWantInt)
@@ -86,10 +99,10 @@ TtyInit(int DontWantInt)
   struct termios newtio;
   int stat;
 
-  stat = fcntl(0, F_GETFL, 0);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   newtio = oldtio;
   newtio.c_lflag &= ~(ECHO | ISIG | ICANON);
@@ -101,7 +114,7 @@ TtyInit(int DontWantInt)
   newtio.c_cc[VMIN] = 1;
   newtio.c_cc[VTIME] = 0;
   newtio.c_cflag |= CS8;
-  tcsetattr(0, TCSADRAIN, &newtio);
+  tcsetattr(netfd, TCSANOW, &newtio);
   comtio = newtio;
 }
 
@@ -116,15 +129,15 @@ TtyCommandMode(int prompt)
 
   if (!(mode & MODE_INTER))
     return;
-  tcgetattr(0, &newtio);
+  tcgetattr(netfd, &newtio);
   newtio.c_lflag |= (ECHO | ISIG | ICANON);
   newtio.c_iflag = oldtio.c_iflag;
   newtio.c_oflag |= OPOST;
-  tcsetattr(0, TCSADRAIN, &newtio);
-  stat = fcntl(0, F_GETFL, 0);
+  tcsetattr(netfd, TCSADRAIN, &newtio);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat |= O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   TermMode = 0;
   if (prompt)
@@ -139,11 +152,11 @@ TtyTermMode()
 {
   int stat;
 
-  tcsetattr(0, TCSADRAIN, &comtio);
-  stat = fcntl(0, F_GETFL, 0);
+  tcsetattr(netfd, TCSADRAIN, &comtio);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
   TermMode = 1;
 }
@@ -153,25 +166,24 @@ TtyOldMode()
 {
   int stat;
 
-  stat = fcntl(0, F_GETFL, 0);
+  stat = fcntl(netfd, F_GETFL, 0);
   if (stat > 0) {
     stat &= ~O_NONBLOCK;
-    (void) fcntl(0, F_SETFL, stat);
+    (void) fcntl(netfd, F_SETFL, stat);
   }
-  tcsetattr(0, TCSANOW, &oldtio);
+  tcsetattr(netfd, TCSADRAIN, &oldtio);
 }
 
 void
 Cleanup(int excode)
 {
-  OsLinkdown();
-  OsCloseLink(1);
-  nointr_sleep(1);
-  if (mode & MODE_AUTO)
-    DeleteIfRoutes(1);
-  (void) unlink(pid_filename);
-  (void) unlink(if_filename);
+  DropClient(1);
+  ServerClose();
   OsInterfaceDown(1);
+  HangupModem(1);
+  nointr_sleep(1);
+  DeleteIfRoutes(1);
+  ID0unlink(pid_filename);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
     char c = EX_ERRDEAD;
 
@@ -182,9 +194,8 @@ Cleanup(int excode)
     close(BGFiledes[1]);
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  LogClose();
-  ServerClose();
   TtyOldMode();
+  LogClose();
 
   exit(excode);
 }
@@ -193,11 +204,13 @@ static void
 CloseConnection(int signo)
 {
   /* NOTE, these are manual, we've done a setsid() */
+  pending_signal(SIGINT, SIG_IGN);
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
   DownConnection();
-  dial_up = FALSE;
+  dial_up = 0;
+  pending_signal(SIGINT, CloseConnection);
 }
 
 static void
@@ -214,11 +227,11 @@ CloseSession(int signo)
 }
 
 static void
-TerminalCont()
+TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
-  TtyCommandMode(getpgrp() == tcgetpgrp(0));
+  TtyCommandMode(getpgrp() == tcgetpgrp(netfd));
 }
 
 static void
@@ -235,58 +248,81 @@ SetUpServer(int signo)
 {
   int res;
 
+  VarHaveLocalAuthKey = 0;
+  LocalAuthInit();
   if ((res = ServerTcpOpen(SERVER_PORT + tunno)) != 0)
     LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
 	      res, SERVER_PORT + tunno);
 }
 
-static char *
+static void
+BringDownServer(int signo)
+{
+  VarHaveLocalAuthKey = 0;
+  LocalAuthInit();
+  ServerClose();
+}
+
+static const char *
 ex_desc(int ex)
 {
   static char num[12];
-  static char *desc[] = {"normal", "start", "sock",
-    "modem", "dial", "dead", "done", "reboot", "errdead",
-  "hangup", "term", "nodial", "nologin"};
+  static const char *desc[] = {
+    "normal", "start", "sock", "modem", "dial", "dead", "done",
+    "reboot", "errdead", "hangup", "term", "nodial", "nologin"
+  };
 
-  if (ex >= 0 && ex < sizeof(desc) / sizeof(*desc))
+  if (ex >= 0 && ex < sizeof desc / sizeof *desc)
     return desc[ex];
   snprintf(num, sizeof num, "%d", ex);
   return num;
 }
 
-void
-Usage()
+static void
+Usage(void)
 {
   fprintf(stderr,
-	  "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ] [ -alias ] [system]\n");
+	  "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ]"
+#ifndef NOALIAS
+          " [ -alias ]"
+#endif
+          " [system]\n");
   exit(EX_START);
 }
 
-void
+static char *
 ProcessArgs(int argc, char **argv)
 {
   int optc;
   char *cp;
 
   optc = 0;
+  mode = MODE_INTER;
   while (argc > 0 && **argv == '-') {
     cp = *argv + 1;
-    if (strcmp(cp, "auto") == 0)
+    if (strcmp(cp, "auto") == 0) {
       mode |= MODE_AUTO;
-    else if (strcmp(cp, "background") == 0)
-      mode |= MODE_BACKGROUND | MODE_AUTO;
-    else if (strcmp(cp, "direct") == 0)
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "background") == 0) {
+      mode |= MODE_BACKGROUND;
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "direct") == 0) {
       mode |= MODE_DIRECT;
-    else if (strcmp(cp, "dedicated") == 0)
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "dedicated") == 0) {
       mode |= MODE_DEDICATED;
-    else if (strcmp(cp, "ddial") == 0)
-      mode |= MODE_DDIAL | MODE_AUTO;
-    else if (strcmp(cp, "alias") == 0) {
+      mode &= ~MODE_INTER;
+    } else if (strcmp(cp, "ddial") == 0) {
+      mode |= MODE_DDIAL;
+      mode &= ~MODE_INTER;
+#ifndef NOALIAS
+    } else if (strcmp(cp, "alias") == 0) {
       if (loadAliasHandlers(&VarAliasHandlers) == 0)
 	mode |= MODE_ALIAS;
       else
 	LogPrintf(LogWARN, "Cannot load alias library\n");
       optc--;			/* this option isn't exclusive */
+#endif
     } else
       Usage();
     optc++;
@@ -297,17 +333,17 @@ ProcessArgs(int argc, char **argv)
     fprintf(stderr, "specify only one system label.\n");
     exit(EX_START);
   }
-  if (argc == 1)
-    dstsystem = *argv;
 
   if (optc > 1) {
     fprintf(stderr, "specify only one mode.\n");
     exit(EX_START);
   }
+
+  return argc == 1 ? *argv : NULL;	/* Don't SetLabel yet ! */
 }
 
 static void
-Greetings()
+Greetings(void)
 {
   if (VarTerm) {
     fprintf(VarTerm, "User Process PPP. Written by Toshiharu OHNO.\n");
@@ -319,53 +355,83 @@ int
 main(int argc, char **argv)
 {
   FILE *lockfile;
-  char *name;
+  char *name, *label;
+  int nfds;
+
+  nfds = getdtablesize();
+  if (nfds >= FD_SETSIZE)
+    /*
+     * If we've got loads of file descriptors, make sure they're all
+     * closed.  If they aren't, we may end up with a seg fault when our
+     * `fd_set's get too big when select()ing !
+     */
+    while (--nfds > 2)
+      close(nfds);
 
   VarTerm = 0;
-  name = rindex(argv[0], '/');
+  name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
+
+  tcgetattr(STDIN_FILENO, &oldtio);	/* Save original tty mode */
 
   argc--;
   argv++;
-  mode = MODE_INTER;		/* default operation is interactive mode */
-  netfd = modem = tun_in = -1;
-  server = -2;
-  ProcessArgs(argc, argv);
-  if (!(mode & MODE_DIRECT)) {
-    if (getuid() != 0) {
-      fprintf(stderr, "You may only run ppp in client mode as user id 0\n");
-      LogClose();
-      return EX_NOPERM;
-    }
+  label = ProcessArgs(argc, argv);
+  if (!(mode & MODE_DIRECT))
     VarTerm = stdout;
+
+  ID0init();
+  if (ID0realuid() != 0) {
+    char conf[200], *ptr;
+
+    snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
+    do {
+      if (!access(conf, W_OK)) {
+        LogPrintf(LogALERT, "ppp: Access violation: Please protect %s\n", conf);
+        return -1;
+      }
+      ptr = conf + strlen(conf)-2;
+      while (ptr > conf && *ptr != '/')
+        *ptr-- = '\0';
+    } while (ptr >= conf);
   }
+
+  if (!ValidSystem(label)) {
+    fprintf(stderr, "You may not use ppp in this mode with this label\n");
+    if (mode & MODE_DIRECT) {
+      const char *l;
+      l = label ? label : "default";
+      LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
+    }
+    LogClose();
+    return 1;
+  }
+
+  if (!GetShortHost())
+    return 1;
   Greetings();
-  GetUid();
   IpcpDefAddress();
-  LocalAuthInit();
+
+  if (mode & MODE_INTER)
+    VarLocalAuth = LOCAL_AUTH;
 
   if (SelectSystem("default", CONFFILE) < 0 && VarTerm)
     fprintf(VarTerm, "Warning: No default entry is given in config file.\n");
 
   if (OpenTunnel(&tunno) < 0) {
-    LogPrintf(LogWARN, "open_tun: %s\n", strerror(errno));
+    LogPrintf(LogWARN, "OpenTunnel: %s\n", strerror(errno));
     return EX_START;
   }
-  if (mode & (MODE_AUTO | MODE_DIRECT | MODE_DEDICATED))
-    mode &= ~MODE_INTER;
-  if (mode & MODE_INTER) {
+  CleanInterface(IfDevName);
+  if (mode & MODE_INTER)
     fprintf(VarTerm, "Interactive mode\n");
-    netfd = STDOUT_FILENO;
-  } else if (mode & MODE_AUTO) {
-    fprintf(VarTerm, "Automatic Dialer mode\n");
-    if (dstsystem == NULL) {
+  else if ((mode & MODE_OUTGOING_DAEMON) && !(mode & MODE_DEDICATED))
+    if (label == NULL) {
       if (VarTerm)
 	fprintf(VarTerm, "Destination system must be specified in"
 		" auto, background or ddial mode.\n");
       return EX_START;
     }
-  }
-  tcgetattr(0, &oldtio);	/* Save original tty mode */
 
   pending_signal(SIGHUP, CloseSession);
   pending_signal(SIGTERM, CloseSession);
@@ -388,33 +454,41 @@ main(int argc, char **argv)
     pending_signal(SIGTTOU, SIG_IGN);
 #endif
   }
+  if (!(mode & MODE_INTER)) {
 #ifdef SIGUSR1
-  if (mode != MODE_INTER)
     pending_signal(SIGUSR1, SetUpServer);
 #endif
+#ifdef SIGUSR2
+    pending_signal(SIGUSR2, BringDownServer);
+#endif
+  }
 
-  if (dstsystem) {
-    if (SelectSystem(dstsystem, CONFFILE) < 0) {
-      LogPrintf(LogWARN, "Destination system not found in conf file.\n");
+  if (label) {
+    if (SelectSystem(label, CONFFILE) < 0) {
+      LogPrintf(LogWARN, "Destination system %s not found in conf file.\n",
+                GetLabel());
       Cleanup(EX_START);
     }
-    if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      LogPrintf(LogWARN, "Must specify dstaddr with"
-		" auto, background or ddial mode.\n");
+    /*
+     * We don't SetLabel() 'till now in case SelectSystem() has an
+     * embeded load "otherlabel" command.
+     */
+    SetLabel(label);
+    if (mode & MODE_OUTGOING_DAEMON &&
+	DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
+      LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for"
+		" auto, background or ddial mode.\n", label);
       Cleanup(EX_START);
     }
   }
 
-  if (!(mode & MODE_INTER)) {
+  if (mode & MODE_DAEMON) {
     if (mode & MODE_BACKGROUND) {
       if (pipe(BGFiledes)) {
 	LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
 	Cleanup(EX_SOCK);
       }
     }
-    /* Create server socket and listen. */
-    if (server == -2)
-      ServerTcpOpen(SERVER_PORT + tunno);
 
     if (!(mode & MODE_DIRECT)) {
       pid_t bgpid;
@@ -450,29 +524,31 @@ main(int argc, char **argv)
     }
 
     VarTerm = 0;		/* We know it's currently stdout */
-    close(1);
-    close(2);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 
-#ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT | MODE_DEDICATED))
-#else
     if (mode & MODE_DIRECT)
-#endif
+      /* STDIN_FILENO gets used by OpenModem in DIRECT mode */
       TtyInit(1);
-    else {
+    else if (mode & MODE_DAEMON) {
       setsid();
-      close(0);
+      close(STDIN_FILENO);
     }
   } else {
+    close(STDIN_FILENO);
+    if ((netfd = open(_PATH_TTY, O_RDONLY)) < 0) {
+      fprintf(stderr, "Cannot open %s for intput !\n", _PATH_TTY);
+      return 2;
+    }
+    close(STDERR_FILENO);
     TtyInit(0);
     TtyCommandMode(1);
   }
 
-  snprintf(pid_filename, sizeof(pid_filename), "%stun%d.pid",
+  snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
            _PATH_VARRUN, tunno);
-  (void) unlink(pid_filename);
-
-  if ((lockfile = fopen(pid_filename, "w")) != NULL) {
+  lockfile = ID0fopen(pid_filename, "w");
+  if (lockfile != NULL) {
     fprintf(lockfile, "%d\n", (int) getpid());
     fclose(lockfile);
   } else
@@ -494,9 +570,9 @@ main(int argc, char **argv)
  *  Turn into packet mode, where we speak PPP.
  */
 void
-PacketMode()
+PacketMode(int delay)
 {
-  if (RawModem(modem) < 0) {
+  if (RawModem() < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
@@ -507,18 +583,17 @@ PacketMode()
   CcpInit();
   LcpUp();
 
-  LcpOpen(VarOpenMode);
-  if ((mode & (MODE_INTER | MODE_AUTO)) == MODE_INTER) {
+  LcpOpen(delay);
+  if (mode & MODE_INTER)
     TtyCommandMode(1);
-    if (VarTerm) {
-      fprintf(VarTerm, "Packet mode.\n");
-      aft_cmd = 1;
-    }
+  if (VarTerm) {
+    fprintf(VarTerm, "Packet mode.\n");
+    aft_cmd = 1;
   }
 }
 
 static void
-ShowHelp()
+ShowHelp(void)
 {
   fprintf(stderr, "The following commands are available:\r\n");
   fprintf(stderr, " ~p\tEnter Packet mode\r\n");
@@ -531,35 +606,29 @@ ShowHelp()
 }
 
 static void
-ReadTty()
+ReadTty(void)
 {
   int n;
   char ch;
   static int ttystate;
-  FILE *oVarTerm;
-
-#define MAXLINESIZE 200
-  char linebuff[MAXLINESIZE];
+  char linebuff[LINE_LEN];
 
   LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
 	    TermMode, netfd, mode);
   if (!TermMode) {
-    n = read(netfd, linebuff, sizeof(linebuff) - 1);
+    n = read(netfd, linebuff, sizeof linebuff - 1);
     if (n > 0) {
       aft_cmd = 1;
-      linebuff[n] = '\0';
-      LogPrintf(LogCOMMAND, "Client: %s\n", linebuff);
-      DecodeCommand(linebuff, n, 1);
-    } else {
-      LogPrintf(LogPHASE, "client connection closed.\n");
-      VarLocalAuth = LOCAL_NO_AUTH;
-      mode &= ~MODE_INTER;
-      oVarTerm = VarTerm;
-      VarTerm = 0;
-      if (oVarTerm && oVarTerm != stdout)
-	fclose(oVarTerm);
-      close(netfd);
-      netfd = -1;
+      if (linebuff[n-1] == '\n')
+        linebuff[--n] = '\0';
+      else
+        linebuff[n] = '\0';
+      if (n)
+        DecodeCommand(linebuff, n, IsInteractive(0) ? NULL : "Client");
+      Prompt();
+    } else if (n <= 0) {
+      LogPrintf(LogPHASE, "Client connection closed.\n");
+      DropClient(0);
     }
     return;
   }
@@ -567,7 +636,7 @@ ReadTty()
   /*
    * We are in terminal mode, decode special sequences
    */
-  n = read(fileno(VarTerm), &ch, 1);
+  n = read(netfd, &ch, 1);
   LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
 
   if (n > 0) {
@@ -588,10 +657,8 @@ ReadTty()
 	/*
 	 * XXX: Should check carrier.
 	 */
-	if (LcpFsm.state <= ST_CLOSED) {
-	  VarOpenMode = OPEN_ACTIVE;
-	  PacketMode();
-	}
+	if (LcpFsm.state <= ST_CLOSED)
+	  PacketMode(0);
 	break;
       case '.':
 	TermMode = 1;
@@ -605,7 +672,7 @@ ReadTty()
 	}
       case 'm':
 	if (LogIsKept(LogDEBUG)) {
-	  ShowMemMap();
+	  ShowMemMap(NULL);
 	  break;
 	}
       default:
@@ -624,7 +691,7 @@ ReadTty()
  *  Here, we'll try to detect HDLC frame
  */
 
-static char *FrameHeaders[] = {
+static const char *FrameHeaders[] = {
   "\176\377\003\300\041",
   "\176\377\175\043\300\041",
   "\176\177\175\043\100\041",
@@ -633,10 +700,10 @@ static char *FrameHeaders[] = {
   NULL,
 };
 
-u_char *
+static const u_char *
 HdlcDetect(u_char * cp, int n)
 {
-  char *ptr, *fp, **hp;
+  const char *ptr, *fp, **hp;
 
   cp[n] = '\0';			/* be sure to null terminated */
   ptr = NULL;
@@ -648,13 +715,13 @@ HdlcDetect(u_char * cp, int n)
     if (ptr)
       break;
   }
-  return ((u_char *) ptr);
+  return ((const u_char *) ptr);
 }
 
 static struct pppTimer RedialTimer;
 
 static void
-RedialTimeout()
+RedialTimeout(void *v)
 {
   StopTimer(&RedialTimer);
   LogPrintf(LogPHASE, "Redialing timer expired.\n");
@@ -681,33 +748,36 @@ StartRedialTimer(int Timeout)
   }
 }
 
+#define IN_SIZE sizeof(struct sockaddr_in)
+#define UN_SIZE sizeof(struct sockaddr_in)
+#define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
 static void
-DoLoop()
+DoLoop(void)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, wfd, nfds;
-  struct sockaddr_in hisaddr;
+  char hisaddr[ADDRSZ];
+  struct sockaddr *sa = (struct sockaddr *)hisaddr;
+  struct sockaddr_in *sin = (struct sockaddr_in *)hisaddr;
   struct timeval timeout, *tp;
-  int ssize = sizeof(hisaddr);
-  u_char *cp;
-  u_char rbuff[MAX_MRU];
+  int ssize = ADDRSZ;
+  const u_char *cp;
   int tries;
   int qlen;
   int res;
-  pid_t pgroup;
-
-  pgroup = getpgrp();
+  struct tun_data tun;
+#define rbuff tun.data
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (OpenModem(mode) < 0)
+    if (OpenModem() < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
-    PacketMode();
+    PacketMode(VarOpenMode);
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
-      while (OpenModem(mode) < 0)
+      while (OpenModem() < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -717,9 +787,9 @@ DoLoop()
   reconnectState = RECON_UNKNOWN;
 
   if (mode & MODE_BACKGROUND)
-    dial_up = TRUE;		/* Bring the line up */
+    dial_up = 1;		/* Bring the line up */
   else
-    dial_up = FALSE;		/* XXXX */
+    dial_up = 0;		/* XXXX */
   tries = 0;
   for (;;) {
     nfds = 0;
@@ -731,19 +801,19 @@ DoLoop()
      * If the link is down and we're in DDIAL mode, bring it back up.
      */
     if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
-      dial_up = TRUE;
+      dial_up = 1;
 
     /*
      * If we lost carrier and want to re-establish the connection due to the
      * "set reconnect" value, we'd better bring the line back up.
      */
     if (LcpFsm.state <= ST_CLOSED) {
-      if (dial_up != TRUE && reconnectState == RECON_TRUE) {
+      if (!dial_up && reconnectState == RECON_TRUE) {
 	if (++reconnectCount <= VarReconnectTries) {
 	  LogPrintf(LogPHASE, "Connection lost, re-establish (%d/%d)\n",
 		    reconnectCount, VarReconnectTries);
 	  StartRedialTimer(VarReconnectTimer);
-	  dial_up = TRUE;
+	  dial_up = 1;
 	} else {
 	  if (VarReconnectTries)
 	    LogPrintf(LogPHASE, "Connection lost, maximum (%d) times\n",
@@ -753,7 +823,8 @@ DoLoop()
 	    Cleanup(EX_DEAD);
 	}
 	reconnectState = RECON_ENVOKED;
-      }
+      } else if (mode & MODE_DEDICATED)
+        PacketMode(VarOpenMode);
     }
 
     /*
@@ -761,7 +832,7 @@ DoLoop()
      */
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n", modem);
-      if (OpenModem(mode) < 0) {
+      if (OpenModem() < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
@@ -772,7 +843,7 @@ DoLoop()
 	if (!(mode & MODE_DDIAL) && VarDialTries && tries >= VarDialTries) {
 	  if (mode & MODE_BACKGROUND)
 	    Cleanup(EX_DIAL);	/* Can't get the modem */
-	  dial_up = FALSE;
+	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  reconnectCount = 0;
 	  tries = 0;
@@ -787,14 +858,12 @@ DoLoop()
 	  LogPrintf(LogCHAT, "Dial attempt %u\n", tries);
 
 	if ((res = DialModem()) == EX_DONE) {
-	  nointr_sleep(1);		/* little pause to allow peer starts */
-	  ModemTimeout();
-	  PacketMode();
-	  dial_up = FALSE;
+	  ModemTimeout(NULL);
+	  PacketMode(VarOpenMode);
+	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  tries = 0;
 	} else {
-	  CloseModem();
 	  if (mode & MODE_BACKGROUND) {
 	    if (VarNextPhone == NULL || res == EX_SIG)
 	      Cleanup(EX_DIAL);	/* Tried all numbers - no luck */
@@ -806,7 +875,7 @@ DoLoop()
 		      res == EX_SIG)) {
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer(VarRedialTimeout);
-	    dial_up = FALSE;
+	    dial_up = 0;
 	    reconnectState = RECON_UNKNOWN;
 	    reconnectCount = 0;
 	    tries = 0;
@@ -839,16 +908,15 @@ DoLoop()
       FD_SET(server, &rfds);
     }
 
+#ifndef SIGALRM
     /*
      * *** IMPORTANT ***
-     * 
      * CPU is serviced every TICKUNIT micro seconds. This value must be chosen
-     * with great care. If this values is too big, it results loss of
-     * characters from modem and poor responce. If this values is too small,
-     * ppp process eats many CPU time.
+     * with great care. If this values is too big, it results in loss of
+     * characters from the modem and poor response.  If this value is too
+     * small, ppp eats too much CPU time.
      */
-#ifndef SIGALRM
-    nointr_usleep(TICKUNIT);
+    usleep(TICKUNIT);
     TimerService();
 #else
     handle_signals();
@@ -902,75 +970,99 @@ DoLoop()
       break;
     }
     if (server >= 0 && FD_ISSET(server, &rfds)) {
-      LogPrintf(LogPHASE, "connected to client.\n");
-      wfd = accept(server, (struct sockaddr *) & hisaddr, &ssize);
+      wfd = accept(server, sa, &ssize);
       if (wfd < 0) {
 	LogPrintf(LogERROR, "DoLoop: accept(): %s\n", strerror(errno));
 	continue;
       }
+      switch (sa->sa_family) {
+        case AF_LOCAL:
+          LogPrintf(LogPHASE, "Connected to local client.\n");
+          break;
+        case AF_INET:
+          if (ntohs(sin->sin_port) < 1024) {
+            LogPrintf(LogALERT, "Rejected client connection from %s:%u"
+                      "(invalid port number) !\n",
+                      inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+	    close(wfd);
+	    continue;
+          }
+          LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
+                    inet_ntoa(sin->sin_addr), sin->sin_port);
+          break;
+        default:
+	  write(wfd, "Unrecognised access !\n", 22);
+	  close(wfd);
+	  continue;
+      }
       if (netfd >= 0) {
-	write(wfd, "already in use.\n", 16);
+	write(wfd, "Connection already in use.\n", 27);
 	close(wfd);
 	continue;
-      } else
-	netfd = wfd;
+      }
+      netfd = wfd;
       VarTerm = fdopen(netfd, "a+");
-      mode |= MODE_INTER;
+      LocalAuthInit();
       Greetings();
-      (void) IsInteractive();
+      IsInteractive(1);
       Prompt();
     }
-    if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&
-	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
+    if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
       ReadTty();
+    if (modem >= 0 && FD_ISSET(modem, &wfds)) {
+      /* ready to write into modem */
+      ModemStartOutput(modem);
+      if (modem < 0)
+        dial_up = 1;
     }
-    if (modem >= 0) {
-      if (FD_ISSET(modem, &wfds)) {	/* ready to write into modem */
-	ModemStartOutput(modem);
-      }
-      if (FD_ISSET(modem, &rfds)) {	/* something to read from modem */
-	if (LcpFsm.state <= ST_CLOSED)
-	  nointr_usleep(10000);
-	n = read(modem, rbuff, sizeof(rbuff));
-	if ((mode & MODE_DIRECT) && n <= 0) {
-	  DownConnection();
-	} else
-	  LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
+    if (modem >= 0 && FD_ISSET(modem, &rfds)) {
+      /* something to read from modem */
+      if (LcpFsm.state <= ST_CLOSED)
+	nointr_usleep(10000);
+      n = read(modem, rbuff, sizeof rbuff);
+      if ((mode & MODE_DIRECT) && n <= 0) {
+	DownConnection();
+      } else
+	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-	if (LcpFsm.state <= ST_CLOSED) {
-
-	  /*
-	   * In dedicated mode, we just discard input until LCP is started.
-	   */
-	  if (!(mode & MODE_DEDICATED)) {
-	    cp = HdlcDetect(rbuff, n);
-	    if (cp) {
-
-	      /*
-	       * LCP packet is detected. Turn ourselves into packet mode.
-	       */
-	      if (cp != rbuff) {
-		write(modem, rbuff, cp - rbuff);
-		write(modem, "\r\n", 2);
-	      }
-	      PacketMode();
-	    } else
-	      write(fileno(VarTerm), rbuff, n);
-	  }
-	} else {
-	  if (n > 0)
-	    AsyncInput(rbuff, n);
+      if (LcpFsm.state <= ST_CLOSED) {
+	/*
+	 * In dedicated mode, we just discard input until LCP is started.
+	 */
+	if (!(mode & MODE_DEDICATED)) {
+	  cp = HdlcDetect(rbuff, n);
+	  if (cp) {
+	    /*
+	     * LCP packet is detected. Turn ourselves into packet mode.
+	     */
+	    if (cp != rbuff) {
+	      write(modem, rbuff, cp - rbuff);
+	      write(modem, "\r\n", 2);
+	    }
+	    PacketMode(0);
+	  } else
+	    write(fileno(VarTerm), rbuff, n);
 	}
+      } else {
+	if (n > 0)
+	  AsyncInput(rbuff, n);
       }
     }
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read
 							 * from tun */
-      n = read(tun_in, rbuff, sizeof(rbuff));
+      n = read(tun_in, &tun, sizeof tun);
       if (n < 0) {
 	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
       }
+      n -= sizeof tun - sizeof tun.data;
+      if (n <= 0) {
+	LogPrintf(LogERROR, "read from tun: Only %d bytes read\n", n);
+	continue;
+      }
+      if (!tun_check_header(tun, AF_INET))
+          continue;
       if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.want_ipaddr.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
@@ -978,12 +1070,14 @@ DoLoop()
 	  if (pri >= 0) {
 	    struct mbuf *bp;
 
+#ifndef NOALIAS
 	    if (mode & MODE_ALIAS) {
 	      VarPacketAliasIn(rbuff, sizeof rbuff);
 	      n = ntohs(((struct ip *) rbuff)->ip_len);
 	    }
+#endif
 	    bp = mballoc(n, MB_IPIN);
-	    bcopy(rbuff, MBUF_CTOP(bp), n);
+	    memcpy(MBUF_CTOP(bp), rbuff, n);
 	    IpInput(bp);
 	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
 	  }
@@ -996,24 +1090,18 @@ DoLoop()
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO)) {
-	pri = PacketCheck(rbuff, n, FL_DIAL);
-	if (pri >= 0) {
-	  if (mode & MODE_ALIAS) {
-	    VarPacketAliasOut(rbuff, sizeof rbuff);
-	    n = ntohs(((struct ip *) rbuff)->ip_len);
-	  }
-	  IpEnqueue(pri, rbuff, n);
-	  dial_up = TRUE;	/* XXX */
-	}
-	continue;
-      }
+      if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
+	  (pri = PacketCheck(rbuff, n, FL_DIAL)) >= 0)
+        dial_up = 1;
+
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
+#ifndef NOALIAS
 	if (mode & MODE_ALIAS) {
 	  VarPacketAliasOut(rbuff, sizeof rbuff);
 	  n = ntohs(((struct ip *) rbuff)->ip_len);
 	}
+#endif
 	IpEnqueue(pri, rbuff, n);
       }
     }

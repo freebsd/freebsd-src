@@ -17,71 +17,66 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.9.2.5 1997/08/25 00:34:27 brian Exp $
+ * $Id: hdlc.c,v 1.9.2.6 1997/09/12 01:02:14 brian Exp $
  *
  *	TODO:
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
 #include "lcpproto.h"
+#include "ipcp.h"
+#include "ip.h"
+#include "vjcomp.h"
+#include "pap.h"
+#include "chap.h"
 #include "lcp.h"
+#include "async.h"
 #include "lqr.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "pred.h"
 #include "modem.h"
 #include "ccp.h"
 
-struct hdlcstat {
+static struct hdlcstat {
   int badfcs;
   int badaddr;
   int badcommand;
   int unknownproto;
 }        HdlcStat;
 
-static int ifOutPackets, ifOutOctets, ifOutLQRs;
-static int ifInPackets, ifInOctets;
+static int ifOutPackets;
+static int ifOutOctets;
+static int ifOutLQRs;
 
-struct protostat {
+static struct protostat {
   u_short number;
-  char *name;
+  const char *name;
   u_long in_count;
   u_long out_count;
-}         ProtocolStat[] = {
-
-  {
-    PROTO_IP, "IP"
-  },
-  {
-    PROTO_VJUNCOMP, "VJ_UNCOMP"
-  },
-  {
-    PROTO_VJCOMP, "VJ_COMP"
-  },
-  {
-    PROTO_COMPD, "COMPD"
-  },
-  {
-    PROTO_LCP, "LCP"
-  },
-  {
-    PROTO_IPCP, "IPCP"
-  },
-  {
-    PROTO_CCP, "CCP"
-  },
-  {
-    PROTO_PAP, "PAP"
-  },
-  {
-    PROTO_LQR, "LQR"
-  },
-  {
-    PROTO_CHAP, "CHAP"
-  },
-  {
-    0, "Others"
-  },
+} ProtocolStat[] = {
+  { PROTO_IP, "IP" },
+  { PROTO_VJUNCOMP, "VJ_UNCOMP" },
+  { PROTO_VJCOMP, "VJ_COMP" },
+  { PROTO_COMPD, "COMPD" },
+  { PROTO_LCP, "LCP" },
+  { PROTO_IPCP, "IPCP" },
+  { PROTO_CCP, "CCP" },
+  { PROTO_PAP, "PAP" },
+  { PROTO_LQR, "LQR" },
+  { PROTO_CHAP, "CHAP" },
+  { 0, "Others" }
 };
 
 static u_short const fcstab[256] = {
@@ -124,8 +119,8 @@ u_char EscMap[33];
 void
 HdlcInit()
 {
-  ifInOctets = ifOutOctets = 0;
-  ifInPackets = ifOutPackets = 0;
+  ifOutOctets = 0;
+  ifOutPackets = 0;
   ifOutLQRs = 0;
 }
 
@@ -141,6 +136,26 @@ HdlcFcs(u_short fcs, u_char * cp, int len)
   return (fcs);
 }
 
+static inline u_short
+HdlcFcsBuf(u_short fcs, struct mbuf *m)
+{
+  int len;
+  u_char *pos, *end;
+
+  len = plength(m);
+  pos = MBUF_CTOP(m);
+  end = pos + m->cnt;
+  while (len--) {
+    fcs = (fcs >> 8) ^ fcstab[(fcs ^ *pos++) & 0xff];
+    if (pos == end && len) {
+      m = m->next;
+      pos = MBUF_CTOP(m);
+      end = pos + m->cnt;
+    }
+  }
+  return (fcs);
+}
+
 void
 HdlcOutput(int pri, u_short proto, struct mbuf * bp)
 {
@@ -150,18 +165,16 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
   u_char *cp;
   u_short fcs;
 
-  if ((proto & 0xfff1) == 0x21) {	/* Network Layer protocol */
-    if (CcpFsm.state == ST_OPENED) {
-      if (CcpInfo.want_proto == TY_PRED1) {
-        Pred1Output(pri, proto, bp);
+  if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
+    if (CcpFsm.state == ST_OPENED)
+      if (CcpOutput(pri, proto, bp))
         return;
-      }
-    }
-  }
+
   if (DEV_IS_SYNC)
-    mfcs = NULLBUFF;
+    mfcs = NULL;
   else
     mfcs = mballoc(2, MB_HDLCOUT);
+
   mhp = mballoc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
@@ -183,7 +196,10 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     mhp->cnt += 2;
   }
   mhp->next = bp;
+  while (bp->next != NULL)
+    bp = bp->next;
   bp->next = mfcs;
+  bp = mhp->next;
 
   lqr = &MyLqrData;
   lqr->PeerOutPackets = ifOutPackets++;
@@ -205,30 +221,171 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
     LqrChangeOrder(lqr, (struct lqrdata *) (MBUF_CTOP(bp)));
   }
   if (!DEV_IS_SYNC) {
-    fcs = HdlcFcs(INITFCS, MBUF_CTOP(mhp), mhp->cnt);
-    fcs = HdlcFcs(fcs, MBUF_CTOP(bp), bp->cnt);
+    mfcs->cnt = 0;
+    fcs = HdlcFcsBuf(INITFCS, mhp);
     fcs = ~fcs;
     cp = MBUF_CTOP(mfcs);
     *cp++ = fcs & 0377;		/* Low byte first!! */
     *cp++ = fcs >> 8;
+    mfcs->cnt = 2;
   }
   LogDumpBp(LogHDLC, "HdlcOutput", mhp);
   for (statp = ProtocolStat; statp->number; statp++)
     if (statp->number == proto)
       break;
   statp->out_count++;
+
+  LogPrintf(LogDEBUG, "HdlcOutput: proto = 0x%04x\n", proto);
+
   if (DEV_IS_SYNC)
     ModemOutput(pri, mhp);
   else
     AsyncOutput(pri, mhp, proto);
 }
 
-void
+/* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+static struct {
+  u_short from;
+  u_short to;
+  const char *name;
+} protocols[] = {
+  { 0x0001, 0x0001, "Padding Protocol" },
+  { 0x0003, 0x001f, "reserved (transparency inefficient)" },
+  { 0x0021, 0x0021, "Internet Protocol" },
+  { 0x0023, 0x0023, "OSI Network Layer" },
+  { 0x0025, 0x0025, "Xerox NS IDP" },
+  { 0x0027, 0x0027, "DECnet Phase IV" },
+  { 0x0029, 0x0029, "Appletalk" },
+  { 0x002b, 0x002b, "Novell IPX" },
+  { 0x002d, 0x002d, "Van Jacobson Compressed TCP/IP" },
+  { 0x002f, 0x002f, "Van Jacobson Uncompressed TCP/IP" },
+  { 0x0031, 0x0031, "Bridging PDU" },
+  { 0x0033, 0x0033, "Stream Protocol (ST-II)" },
+  { 0x0035, 0x0035, "Banyan Vines" },
+  { 0x0037, 0x0037, "reserved (until 1993)" },
+  { 0x0039, 0x0039, "AppleTalk EDDP" },
+  { 0x003b, 0x003b, "AppleTalk SmartBuffered" },
+  { 0x003d, 0x003d, "Multi-Link" },
+  { 0x003f, 0x003f, "NETBIOS Framing" },
+  { 0x0041, 0x0041, "Cisco Systems" },
+  { 0x0043, 0x0043, "Ascom Timeplex" },
+  { 0x0045, 0x0045, "Fujitsu Link Backup and Load Balancing (LBLB)" },
+  { 0x0047, 0x0047, "DCA Remote Lan" },
+  { 0x0049, 0x0049, "Serial Data Transport Protocol (PPP-SDTP)" },
+  { 0x004b, 0x004b, "SNA over 802.2" },
+  { 0x004d, 0x004d, "SNA" },
+  { 0x004f, 0x004f, "IP6 Header Compression" },
+  { 0x0051, 0x0051, "KNX Bridging Data" },
+  { 0x0053, 0x0053, "Encryption" },
+  { 0x0055, 0x0055, "Individual Link Encryption" },
+  { 0x006f, 0x006f, "Stampede Bridging" },
+  { 0x0071, 0x0071, "BAP Bandwidth Allocation Protocol" },
+  { 0x0073, 0x0073, "MP+ Protocol" },
+  { 0x007d, 0x007d, "reserved (Control Escape)" },
+  { 0x007f, 0x007f, "reserved (compression inefficient)" },
+  { 0x00cf, 0x00cf, "reserved (PPP NLPID)" },
+  { 0x00fb, 0x00fb, "compression on single link in multilink group" },
+  { 0x00fd, 0x00fd, "1st choice compression" },
+  { 0x00ff, 0x00ff, "reserved (compression inefficient)" },
+  { 0x0200, 0x02ff, "(compression inefficient)" },
+  { 0x0201, 0x0201, "802.1d Hello Packets" },
+  { 0x0203, 0x0203, "IBM Source Routing BPDU" },
+  { 0x0205, 0x0205, "DEC LANBridge100 Spanning Tree" },
+  { 0x0207, 0x0207, "Cisco Discovery Protocol" },
+  { 0x0209, 0x0209, "Netcs Twin Routing" },
+  { 0x0231, 0x0231, "Luxcom" },
+  { 0x0233, 0x0233, "Sigma Network Systems" },
+  { 0x0235, 0x0235, "Apple Client Server Protocol" },
+  { 0x1e00, 0x1eff, "(compression inefficient)" },
+  { 0x4001, 0x4001, "Cray Communications Control Protocol" },
+  { 0x4003, 0x4003, "CDPD Mobile Network Registration Protocol" },
+  { 0x4021, 0x4021, "Stacker LZS" },
+  { 0x8001, 0x801f, "Not Used - reserved" },
+  { 0x8021, 0x8021, "Internet Protocol Control Protocol" },
+  { 0x8023, 0x8023, "OSI Network Layer Control Protocol" },
+  { 0x8025, 0x8025, "Xerox NS IDP Control Protocol" },
+  { 0x8027, 0x8027, "DECnet Phase IV Control Protocol" },
+  { 0x8029, 0x8029, "Appletalk Control Protocol" },
+  { 0x802b, 0x802b, "Novell IPX Control Protocol" },
+  { 0x802d, 0x802d, "reserved" },
+  { 0x802f, 0x802f, "reserved" },
+  { 0x8031, 0x8031, "Bridging NCP" },
+  { 0x8033, 0x8033, "Stream Protocol Control Protocol" },
+  { 0x8035, 0x8035, "Banyan Vines Control Protocol" },
+  { 0x8037, 0x8037, "reserved till 1993" },
+  { 0x8039, 0x8039, "reserved" },
+  { 0x803b, 0x803b, "reserved" },
+  { 0x803d, 0x803d, "Multi-Link Control Protocol" },
+  { 0x803f, 0x803f, "NETBIOS Framing Control Protocol" },
+  { 0x8041, 0x8041, "Cisco Systems Control Protocol" },
+  { 0x8043, 0x8043, "Ascom Timeplex" },
+  { 0x8045, 0x8045, "Fujitsu LBLB Control Protocol" },
+  { 0x8047, 0x8047, "DCA Remote Lan Network Control Protocol (RLNCP)" },
+  { 0x8049, 0x8049, "Serial Data Control Protocol (PPP-SDCP)" },
+  { 0x804b, 0x804b, "SNA over 802.2 Control Protocol" },
+  { 0x804d, 0x804d, "SNA Control Protocol" },
+  { 0x804f, 0x804f, "IP6 Header Compression Control Protocol" },
+  { 0x8051, 0x8051, "KNX Bridging Control Protocol" },
+  { 0x8053, 0x8053, "Encryption Control Protocol" },
+  { 0x8055, 0x8055, "Individual Link Encryption Control Protocol" },
+  { 0x806f, 0x806f, "Stampede Bridging Control Protocol" },
+  { 0x8073, 0x8073, "MP+ Control Protocol" },
+  { 0x8071, 0x8071, "BACP Bandwidth Allocation Control Protocol" },
+  { 0x807d, 0x807d, "Not Used - reserved" },
+  { 0x80cf, 0x80cf, "Not Used - reserved" },
+  { 0x80fb, 0x80fb, "compression on single link in multilink group control" },
+  { 0x80fd, 0x80fd, "Compression Control Protocol" },
+  { 0x80ff, 0x80ff, "Not Used - reserved" },
+  { 0x8207, 0x8207, "Cisco Discovery Protocol Control" },
+  { 0x8209, 0x8209, "Netcs Twin Routing" },
+  { 0x8235, 0x8235, "Apple Client Server Protocol Control" },
+  { 0xc021, 0xc021, "Link Control Protocol" },
+  { 0xc023, 0xc023, "Password Authentication Protocol" },
+  { 0xc025, 0xc025, "Link Quality Report" },
+  { 0xc027, 0xc027, "Shiva Password Authentication Protocol" },
+  { 0xc029, 0xc029, "CallBack Control Protocol (CBCP)" },
+  { 0xc081, 0xc081, "Container Control Protocol" },
+  { 0xc223, 0xc223, "Challenge Handshake Authentication Protocol" },
+  { 0xc225, 0xc225, "RSA Authentication Protocol" },
+  { 0xc227, 0xc227, "Extensible Authentication Protocol" },
+  { 0xc26f, 0xc26f, "Stampede Bridging Authorization Protocol" },
+  { 0xc281, 0xc281, "Proprietary Authentication Protocol" },
+  { 0xc283, 0xc283, "Proprietary Authentication Protocol" },
+  { 0xc481, 0xc481, "Proprietary Node ID Authentication Protocol" }
+};
+
+#define NPROTOCOLS (sizeof protocols/sizeof protocols[0])
+
+static const char *
+Protocol2Nam(u_short proto)
+{
+  int f;
+
+  for (f = 0; f < NPROTOCOLS; f++)
+    if (proto >= protocols[f].from && proto <= protocols[f].to)
+      return protocols[f].name;
+    else if (proto < protocols[f].from)
+      break;
+  return "unrecognised protocol";
+}
+
+static void
 DecodePacket(u_short proto, struct mbuf * bp)
 {
   u_char *cp;
 
-  LogPrintf(LogDEBUG, "DecodePacket: proto = %04x\n", proto);
+  LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
+
+  /*
+   * If proto isn't PROTO_COMPD, we still want to pass it to the
+   * decompression routines so that the dictionary's updated
+   */
+  if (CcpFsm.state == ST_OPENED)
+    if (proto == PROTO_COMPD) {
+      if ((bp = CompdInput(&proto, bp)) == NULL)
+        return;
+    } else if ((proto & 0xfff1) == 0x21)	/* Network Layer protocol */
+      CcpDictSetup(proto, bp);
 
   switch (proto) {
   case PROTO_LCP:
@@ -247,7 +404,7 @@ DecodePacket(u_short proto, struct mbuf * bp)
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
     bp = VjCompInput(bp, proto);
-    if (bp == NULLBUFF) {
+    if (bp == NULL) {
       break;
     }
     /* fall down */
@@ -260,11 +417,9 @@ DecodePacket(u_short proto, struct mbuf * bp)
   case PROTO_CCP:
     CcpInput(bp);
     break;
-  case PROTO_COMPD:
-    Pred1Input(bp);
-    break;
   default:
-    LogPrintf(LogPHASE, "Unknown protocol 0x%04x\n", proto);
+    LogPrintf(LogPHASE, "Unknown protocol 0x%04x (%s)\n",
+              proto, Protocol2Nam(proto));
     bp->offset -= 2;
     bp->cnt += 2;
     cp = MBUF_CTOP(bp);
@@ -277,7 +432,7 @@ DecodePacket(u_short proto, struct mbuf * bp)
 }
 
 int
-ReportProtStatus()
+ReportProtStatus(struct cmdargs const *arg)
 {
   struct protostat *statp;
   int cnt;
@@ -297,11 +452,11 @@ ReportProtStatus()
   } while (statp->number);
   if (cnt)
     fprintf(VarTerm, "\n");
-  return (1);
+  return (0);
 }
 
 int
-ReportHdlcStatus()
+ReportHdlcStatus(struct cmdargs const *arg)
 {
   struct hdlcstat *hp = &HdlcStat;
 
@@ -321,7 +476,7 @@ HdlcErrorCheck()
   struct hdlcstat *hp = &HdlcStat;
   struct hdlcstat *op = &laststat;
 
-  if (bcmp(hp, op, sizeof(laststat))) {
+  if (memcmp(hp, op, sizeof laststat)) {
     LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	      hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
       hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
@@ -360,9 +515,6 @@ HdlcInput(struct mbuf * bp)
     return;
   }
   cp = MBUF_CTOP(bp);
-
-  ifInPackets++;
-  ifInOctets += bp->cnt;
 
   if (!LcpInfo.want_acfcomp) {
 

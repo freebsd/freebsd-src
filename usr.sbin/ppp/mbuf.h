@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.5 1997/06/09 03:27:29 brian Exp $
+ * $Id: mbuf.h,v 1.2.6.2 1997/08/25 00:34:33 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _MBUF_H_
-#define _MBUF_H_
 
 struct mbuf {
   u_char *base;			/* pointer to top of buffer space */
@@ -39,8 +36,6 @@ struct mqueue {
   int qlen;
 };
 
-#define	NULLBUFF	((struct mbuf *)0)
-
 #define MBUF_CTOP(bp)   (bp->base + bp->offset)
 
 #define MB_ASYNC	1
@@ -55,16 +50,11 @@ struct mqueue {
 #define	MB_IPQ		10
 #define	MB_MAX		MB_IPQ
 
-extern int plength(struct mbuf * bp);
-extern struct mbuf *mballoc(int cnt, int type);
-extern struct mbuf *mbfree(struct mbuf * bp);
-extern void pfree(struct mbuf * bp);
-extern void mbwrite(struct mbuf * bp, u_char * ptr, int cnt);
-extern struct mbuf *mbread(struct mbuf * bp, u_char * ptr, int cnt);
-extern void DumpBp(struct mbuf * bp);
-extern void Enqueue(struct mqueue * queue, struct mbuf * bp);
-extern struct mbuf *Dequeue(struct mqueue * queue);
-extern void LogMemory();
-extern int ShowMemMap();
-
-#endif
+extern int plength(struct mbuf *);
+extern struct mbuf *mballoc(int, int);
+extern struct mbuf *mbfree(struct mbuf *);
+extern void pfree(struct mbuf *);
+extern void mbwrite(struct mbuf *, u_char *, int);
+extern struct mbuf *mbread(struct mbuf *, u_char *, int);
+extern void LogMemory(void);
+extern int ShowMemMap(struct cmdargs const *);
