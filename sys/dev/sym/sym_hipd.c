@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.6.2-20000614"
+#define SYM_DRIVER_NAME	"sym-1.6.3-20000626"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -189,8 +189,8 @@ typedef	u_int32_t u32;
 #define __le16toh(v)	__htole16(v)
 #define __le32toh(v)	__htole32(v)
 
-static __inline__ u16	_htole16(u16 v) { return __htole16(v); }
-static __inline__ u32	_htole32(u32 v) { return __htole32(v); }
+static __inline u16	_htole16(u16 v) { return __htole16(v); }
+static __inline u32	_htole32(u32 v) { return __htole32(v); }
 #define _le16toh	_htole16
 #define _le32toh	_htole32
 
@@ -769,7 +769,7 @@ static void ___dma_freep(m_pool_s *mp, m_addr_t m)
 }
 #endif
 
-static __inline__ m_pool_s *___get_dma_pool(bus_dma_tag_t dev_dmat)
+static __inline m_pool_s *___get_dma_pool(bus_dma_tag_t dev_dmat)
 {
 	m_pool_s *mp;
 	for (mp = mp0.next; mp && mp->dev_dmat != dev_dmat; mp = mp->next);
@@ -2258,7 +2258,8 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 		}
 
 		if (DEBUG_FLAGS & DEBUG_SCRIPT)
-			printf ("%x:  <%x>\n", cur-start, (unsigned)opcode);
+			printf ("%d:  <%x>\n", (int) (cur-start),
+				(unsigned)opcode);
 
 		/*
 		 *  We don't have to decode ALL commands
@@ -4347,7 +4348,7 @@ static void sym_int_par (hcb_p np, u_short sist)
 	 *  must resend the whole thing that failed parity checking 
 	 *  or signal error. So, jumping to dispatcher should be OK.
 	 */
-	if (phase == 1) {
+	if (phase == 1 || phase == 5) {
 		/* Phase mismatch handled by SCRIPTS */
 		if (dsp == SCRIPTB_BA (np, pm_handle))
 			OUTL_DSP (dsp);
@@ -4411,7 +4412,7 @@ static void sym_int_ma (hcb_p np)
 	 *  raising the MA interrupt for interrupted INPUT phases.
 	 *  For DATA IN phase, we will check for the SWIDE later.
 	 */
-	if ((cmd & 7) != 1) {
+	if ((cmd & 7) != 1 && (cmd & 7) != 5) {
 		u_char ss0, ss2;
 
 		if (np->features & FE_DFBC)
@@ -4528,8 +4529,10 @@ static void sym_int_ma (hcb_p np)
 
 	/*
 	 *  check cmd against assumed interrupted script command.
+	 *  If dt data phase, the MOVE instruction hasn't bit 4 of 
+	 *  the phase.
 	 */
-	if (cmd != (scr_to_cpu(vdsp[0]) >> 24)) {
+	if (((cmd & 2) ? cmd : (cmd & ~4)) != (scr_to_cpu(vdsp[0]) >> 24)) {
 		PRINT_ADDR(cp);
 		printf ("internal error: cmd=%02x != %02x=(vdsp[0] >> 24)\n",
 			(unsigned)cmd, (unsigned)scr_to_cpu(vdsp[0]) >> 24);
@@ -4540,7 +4543,7 @@ static void sym_int_ma (hcb_p np)
 	/*
 	 *  if old phase not dataphase, leave here.
 	 */
-	if ((cmd & 5) != (cmd & 7)) {
+	if (cmd & 2) {
 		PRINT_ADDR(cp);
 		printf ("phase change %x-%x %d@%08x resid=%d.\n",
 			cmd&7, INB(nc_sbcl)&7, (unsigned)olen,
@@ -7823,7 +7826,7 @@ static int sym_setup_cdb(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 /*
  *  Set up data pointers used by SCRIPTS.
  */
-static void __inline__ 
+static void __inline 
 sym_setup_data_pointers(hcb_p np, ccb_p cp, int dir)
 {
 	u32 lastp, goalp;
@@ -8478,6 +8481,49 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		sym_xpt_done2(np, ccb, CAM_REQ_INVALID);
 		break;
 	}
+}
+
+/*
+ *  Asynchronous notification handler.
+ */
+static void
+sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
+{
+	hcb_p np;
+	struct cam_sim *sim;
+	u_int tn;
+	tcb_p tp;
+	int s;
+
+	s = splcam();
+
+	sim = (struct cam_sim *) cb_arg;
+	np  = (hcb_p) cam_sim_softc(sim);
+
+	switch (code) {
+	case AC_LOST_DEVICE:
+		tn = xpt_path_target_id(path);
+		if (tn >= SYM_CONF_MAX_TARGET)
+			break;
+
+		tp = &np->target[tn];
+
+		tp->to_reset  = 0;
+		tp->head.sval = 0;
+		tp->head.wval = np->rv_scntl3;
+		tp->head.uval = 0;
+
+		tp->tinfo.current.period  = tp->tinfo.goal.period = 0;
+		tp->tinfo.current.offset  = tp->tinfo.goal.offset = 0;
+		tp->tinfo.current.width   = tp->tinfo.goal.width  = BUS_8_BIT;
+		tp->tinfo.current.options = tp->tinfo.goal.options = 0;
+
+		break;
+	default:
+		break;
+	}
+
+	splx(s);
 }
 
 /*
@@ -9346,6 +9392,7 @@ int sym_cam_attach(hcb_p np)
 	struct cam_devq *devq = 0;
 	struct cam_sim *sim = 0;
 	struct cam_path *path = 0;
+	struct ccb_setasync csa;
 	int err, s;
 
 	s = splcam();
@@ -9412,20 +9459,16 @@ int sym_cam_attach(hcb_p np)
 #endif
 #endif
 
-#if 0
 	/*
 	 *  Establish our async notification handler.
 	 */
-	{
-	struct ccb_setasync csa;
 	xpt_setup_ccb(&csa.ccb_h, np->path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable    = AC_LOST_DEVICE;
 	csa.callback	    = sym_async;
 	csa.callback_arg    = np->sim;
 	xpt_action((union ccb *)&csa);
-	}
-#endif
+
 	/*
 	 *  Start the chip now, without resetting the BUS, since  
 	 *  it seems that this must stay under control of CAM.
