@@ -165,6 +165,15 @@ cp866c-8x16.fnt:ru:Шрифт cp866 (c) русский, 8x16
 cp866c-8x16.fnt:fr:Code page 866 (c) Russe, 8x16
 cp866c-8x16.fnt:es:PАgina de cСdigos 866 (c) ruso, 8x16
 
+cp1251-8x8.fnt:en:Codepage 1251 Cyrillic, 8x8
+cp1251-8x8.fnt:ru:Шрифт cp1251 кириллица, 8x8
+
+cp1251-8x14.fnt:en:Codepage 1251 Cyrillic, 8x14
+cp1251-8x14.fnt:ru:Шрифт cp1251 кириллица, 8x14
+
+cp1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16
+cp1251-8x16.fnt:ru:Шрифт cp1251 кириллица, 8x16
+
 iso-8x16.fnt:en:ISO-8859-1 West European, 8x16
 iso-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16
 iso-8x16.fnt:fr:ISO-8859-1 Est europИen, 8x16

@@ -8,6 +8,7 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp865-thin-8x8.fnt cp865-thin-8x16.fnt \
 	cp866-8x8.fnt cp866-8x14.fnt cp866-8x16.fnt \
 	cp866b-8x16.fnt cp866c-8x16.fnt \
+	cp1251-8x8.fnt cp1251-8x14.fnt cp1251-8x16.fnt \
 	iso-8x8.fnt iso-8x14.fnt iso-8x16.fnt \
 	iso02-8x8.fnt iso02-8x14.fnt iso02-8x16.fnt \
 	iso04-8x8.fnt iso04-8x14.fnt iso04-8x16.fnt iso04-wide-8x16.fnt \
