@@ -305,10 +305,7 @@ sscf_uni_abort(uvp, msg)
  *
  */
 void
-sscf_uni_pdu_print(uvp, m, msg)
-	struct univcc	*uvp;
-	KBuffer		*m;
-	char		*msg;
+sscf_uni_pdu_print(const struct univcc *uvp, const KBuffer *m, const char *msg)
 {
 	char		buf[128];
 	struct vccb	*vcp;
@@ -318,4 +315,3 @@ sscf_uni_pdu_print(uvp, m, msg)
 			msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }
-

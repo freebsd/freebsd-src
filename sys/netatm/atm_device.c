@@ -804,11 +804,8 @@ atm_unload()
  *
  */
 void
-atm_dev_pdu_print(cup, cvp, m, msg)
-	Cmn_unit	*cup;
-	Cmn_vcc		*cvp;
-	KBuffer		*m;
-	char		*msg;
+atm_dev_pdu_print(const Cmn_unit *cup, const Cmn_vcc *cvp,
+    const KBuffer *m, const char *msg)
 {
 	char		buf[128];
 
@@ -818,4 +815,3 @@ atm_dev_pdu_print(cup, cvp, m, msg)
 
 	atm_pdu_print(m, buf);
 }
-
