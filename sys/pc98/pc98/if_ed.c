@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.1 1996/12/04 16:01:01 phk Exp $
+ *	$Id: if_ed.c,v 1.11.2.2 1997/01/04 16:48:25 kato Exp $
  */
 
 /*
@@ -2535,6 +2535,7 @@ ed_attach_NE2000_pci(unit, port)
 	if (!sc)
 		return sc;
 
+	bzero(sc, sizeof *sc);
 	if (ed_probe_Novell_generic(sc, port, unit, isa_flags) == 0
 	    || ed_attach(sc, unit, isa_flags) == 0) {
 		free(sc, M_DEVBUF);
