@@ -383,10 +383,13 @@ case ${dumpdev} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -e "${dumpdev}" -a -d /var/crash ]; then
+	if [ -z "${dumpdir}" ]; then
+		dumpdir="/var/crash"
+	fi
+	if [ -e "${dumpdev}" -a -d "${dumpdir}" ]; then
 		/sbin/dumpon -v ${dumpdev}
 		echo -n 'Checking for core dump: '
-		/sbin/savecore ${savecore_flags} /var/crash
+		/sbin/savecore ${savecore_flags} "${dumpdir}"
 	fi
 	;;
 esac
