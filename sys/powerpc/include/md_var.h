@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: md_var.h,v 1.1 1998/06/10 10:55:11 dfr Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -34,6 +34,7 @@
  */
 
 extern	char	sigcode[];
+extern	char	esigcode[];
 extern	int	szsigcode;
 extern	int	Maxmem;
 extern	void	(*netisrs[32]) __P((void));
