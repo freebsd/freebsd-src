@@ -2138,7 +2138,7 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
  * XXX disable INTR_MPSAFE in network drivers without
  * XXX recompiling--in case of problems.
  */
-int	debug_mpsafenet = 1;
+int	debug_mpsafenet = 0;
 TUNABLE_INT("debug.mpsafenet", &debug_mpsafenet);
 SYSCTL_INT(_debug, OID_AUTO, mpsafenet, CTLFLAG_RW, &debug_mpsafenet, 0,
     "Enable/disable MPSAFE network support");
