@@ -426,6 +426,10 @@ as user name to the proxy, where
 is the real user name, and
 .Ql host
 is the name of the FTP server.
+If this variable is set to an empty string, no proxy will be used for
+FTP requests, even if the
+.Ev HTTP_PROXY
+variable is set.
 .It Ev HTTP_AUTH
 Specifies HTTP authorization parameters, used only if the server
 requires authorization and no user name or password was specified in
