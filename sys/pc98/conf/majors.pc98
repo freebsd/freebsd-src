@@ -36,10 +36,11 @@ blkdev	name		comments
 20	??		ATA disks
 21	ccd		concatenated disk
 22	md		Memory Disk
+23	worm		SCSI "worm type"
 24	was:wstb	ATAPI tape client of "wd"
 25	vinum		Volume manager
 26	sw		VM internal swap device
-27	myx		Mylex RAID (ulf@alameda.net)
+27	mlxd		Mylex DAC960 RAID (disk device)
 28	fla		M-Systems DiskOnChip(r)
 29	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
 30	ad		ATA disks
@@ -47,6 +48,7 @@ blkdev	name		comments
 32	afd		ATAPI floppy
 33	was:ast		ATAPI tape
 34	i2o		Intelligent I/O Block Device
+35	amrd		AMI MegaRAID
 100	??		entries from 100-127 are reserved for local use
 127	??		entries from 100-127 are reserved for local use
 
@@ -147,7 +149,7 @@ chrdev	name		comments
 94	loran		Loran-C Receiver
 95	md		Memory Disk
 96	altq		alternate queueing (including cbq, red, wfq)
-97	myx		Mylex RAID controller (ulf@alameda.net)
+97	??		(is prom on alpha)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
@@ -180,5 +182,9 @@ chrdev	name		comments
 127	fire		Firewire driver <ikob@koganei.wide.ad.jp>
 128	arla		Arla (AFS-clone) driver
 129	i2o		Intelligent I/O Character Device
+130	mlx		Mylex DAC960 RAID (control device)
+131	mlxd		Mylex DAC960 RAID (disk device)
+132	amr		AMI MegaRAID (control device)
+133	amrd		AMI MegaRAID (disk device)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
