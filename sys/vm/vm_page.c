@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.77 1997/03/23 02:44:54 dyson Exp $
+ *	$Id: vm_page.c,v 1.78 1997/05/01 14:36:01 dyson Exp $
  */
 
 /*
@@ -284,28 +284,6 @@ vm_page_startup(starta, enda, vaddr)
 		TAILQ_INIT(bucket);
 		bucket++;
 	}
-
-	/*
-	 * round (or truncate) the addresses to our page size.
-	 */
-
-	/*
-	 * Pre-allocate maps and map entries that cannot be dynamically
-	 * allocated via malloc().  The maps include the kernel_map and
-	 * kmem_map which must be initialized before malloc() will work
-	 * (obviously).  Also could include pager maps which would be
-	 * allocated before kmeminit.
-	 *
-	 * Allow some kernel map entries... this should be plenty since people
-	 * shouldn't be cluttering up the kernel map (they should use their
-	 * own maps).
-	 */
-
-	kentry_data_size = MAX_KMAP * sizeof(struct vm_map) +
-	    MAX_KMAPENT * sizeof(struct vm_map_entry);
-	kentry_data_size = round_page(kentry_data_size);
-	kentry_data = (vm_offset_t) vaddr;
-	vaddr += kentry_data_size;
 
 	/*
 	 * Validate these zone addresses.
