@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: timeout.9,v 1.3 1997/02/22 13:26:29 peter Exp $
 .\" "
 .Dd April 13, 1996
 .Os
@@ -33,17 +33,14 @@
 .Nm untimeout
 .Nd schedule timer events
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/systm.h>
-.Fd #include <sys/kernel.h>
-
-.Ft typedef void \*(lptimeout_t\*(rp \*(lpvoid *\*(rp;
-
-.Ft typedef timeout_t *timeout_func_t;
+.Ft typedef void timeout_t \*(lpvoid *\*(rp;
 
 .Ft void
-.Fn timeout "timeout_func_t func" "void *arg" "int ticks"
+.Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
-.Fn untimeout "timeout_func_t func" "void *arg"
+.Fn untimeout "timeout_t *func" "void *arg"
 .Sh DESCRIPTION
 The
 .Nm timeout
