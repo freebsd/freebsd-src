@@ -52,8 +52,9 @@ __FBSDID("$FreeBSD$");
 #define PAM_SM_SESSION
 #define PAM_SM_PASSWORD
 
+#include <security/pam_appl.h>
 #include <security/pam_modules.h>
-#include <pam_mod_misc.h>
+#include <security/pam_mod_misc.h>
 
 #include <security/_pam_macros.h>
 
@@ -163,6 +164,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused, int argc, const cha
 				pam_set_item(pamh, PAM_RUSER, p);
 				PAM_LOG("Got ruser: %s", p);
 				if (retval == PAM_SUCCESS) {
+					/* XXX XXX XXX */
 					p = strtok_r(NULL, "@", &context);
 					if (p != NULL) {
 						pam_set_item(pamh, PAM_RHOST, p);

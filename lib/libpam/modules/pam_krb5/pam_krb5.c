@@ -214,8 +214,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
-
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #define	COMPAT_HEIMDAL
 /* #define	COMPAT_MIT */
