@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.21 1997/12/03 10:23:44 brian Exp $
+ * $Id: ccp.c,v 1.22 1997/12/03 23:27:53 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -124,27 +124,22 @@ static int out_algorithm = -1;
 int
 ReportCcpStatus(struct cmdargs const *arg)
 {
-  struct ccpstate *icp = &CcpInfo;
-  struct fsm *fp = &CcpFsm;
-
   if (VarTerm) {
-    fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
+    fprintf(VarTerm, "%s [%s]\n", CcpFsm.name, StateNames[CcpFsm.state]);
     fprintf(VarTerm, "My protocol = %s, His protocol = %s\n",
-            protoname(icp->my_proto), protoname(icp->his_proto));
+            protoname(CcpInfo.my_proto), protoname(CcpInfo.his_proto));
     fprintf(VarTerm, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
-            icp->uncompout, icp->compout, icp->compin, icp->uncompin);
+            CcpInfo.uncompout, CcpInfo.compout,
+            CcpInfo.compin, CcpInfo.uncompin);
   }
   return 0;
 }
 
-void
-CcpInit()
+static void
+ccpstateInit(void)
 {
-  struct ccpstate *icp = &CcpInfo;
-
-  FsmInit(&CcpFsm);
-  memset(icp, '\0', sizeof(struct ccpstate));
-  icp->his_proto = icp->my_proto = -1;
+  memset(&CcpInfo, '\0', sizeof(struct ccpstate));
+  CcpInfo.his_proto = CcpInfo.my_proto = -1;
   if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
     (*algorithm[in_algorithm]->i.Term)();
     in_algorithm = -1;
@@ -153,6 +148,13 @@ CcpInit()
     (*algorithm[out_algorithm]->o.Term)();
     out_algorithm = -1;
   }
+}
+
+void
+CcpInit()
+{
+  FsmInit(&CcpFsm);
+  ccpstateInit();
   CcpFsm.maxconfig = 10;
 }
 
@@ -167,7 +169,6 @@ static void
 CcpSendConfigReq(struct fsm *fp)
 {
   u_char *cp;
-  struct ccpstate *icp = &CcpInfo;
   int f;
 
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
@@ -175,7 +176,7 @@ CcpSendConfigReq(struct fsm *fp)
   CcpInfo.my_proto = -1;
   out_algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
-    if (Enabled(algorithm[f]->Conf) && !REJECTED(icp, algorithm[f]->id)) {
+    if (Enabled(algorithm[f]->Conf) && !REJECTED(&CcpInfo, algorithm[f]->id)) {
       struct lcp_opt o;
 
       (*algorithm[f]->o.Get)(&o);
@@ -224,28 +225,14 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
-    (*algorithm[in_algorithm]->i.Term)();
-    in_algorithm = -1;
-  }
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
-    (*algorithm[out_algorithm]->o.Term)();
-    out_algorithm = -1;
-  }
+  ccpstateInit();
 }
 
 static void
 CcpLayerDown(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerDown.\n");
-  if (in_algorithm >= 0 && in_algorithm < NALGORITHMS) {
-    (*algorithm[in_algorithm]->i.Term)();
-    in_algorithm = -1;
-  }
-  if (out_algorithm >= 0 && out_algorithm < NALGORITHMS) {
-    (*algorithm[out_algorithm]->o.Term)();
-    out_algorithm = -1;
-  }
+  ccpstateInit();
 }
 
 /*
