@@ -204,7 +204,7 @@ of the signal are ignored and discarded.
 If a signal is caught during the system calls listed below,
 the call is normally restarted.
 The call can be forced to terminate prematurely with an
-.Dv EINTR
+.Er EINTR
 error return by setting the
 .Dv SV_INTERRUPT
 bit in
@@ -296,7 +296,7 @@ or
 .Xr signal 3 ,
 .Xr sigsetops 3 ,
 .Xr tty 4
-.Sh EXAMPLE
+.Sh EXAMPLES
 On the
 .Tn VAX\-11
 The handler routine can be declared:

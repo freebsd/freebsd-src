@@ -87,21 +87,23 @@ and its conversion to,
 and back from,
 the POSIX representation over the leap second inserted at the end of June,
 1993.
-.ta \w'93/06/30 'u +\w'23:59:59 'u +\w'A+0 'u +\w'X=time2posix(T) 'u
-DATE	TIME	T	X=time2posix(T)	posix2time(X)
-93/06/30	23:59:59	A+0	B+0	A+0
-93/06/30	23:59:60	A+1	B+1	A+1 or A+2
-93/07/01	00:00:00	A+2	B+1	A+1 or A+2
-93/07/01	00:00:01	A+3	B+2	A+3
-
-A leap second deletion would look like...
-
-DATE	TIME	T	X=time2posix(T)	posix2time(X)
-??/06/30	23:59:58	A+0	B+0	A+0
-??/07/01	00:00:00	A+1	B+2	A+1
-??/07/01	00:00:01	A+2	B+3	A+2
+.Bl -column "93/06/30" "23:59:59" "A+0" "X=time2posix(T)"
+.It Sy DATE	TIME	T	X=time2posix(T)	posix2time(X)
+.It 93/06/30	23:59:59	A+0	B+0	A+0
+.It 93/06/30	23:59:60	A+1	B+1	A+1 or A+2
+.It 93/07/01	00:00:00	A+2	B+1	A+1 or A+2
+.It 93/07/01	00:00:01	A+3	B+2	A+3
+.El
 .Pp
-	[Note: posix2time(B+1) => A+0 or A+1]
+A leap second deletion would look like...
+.Bl -column "??/06/30" "23:59:58" "A+0" "X=time2posix(T)"
+.It Sy DATE	TIME	T	X=time2posix(T)	posix2time(X)
+.It ??/06/30	23:59:58	A+0	B+0	A+0
+.It ??/07/01	00:00:00	A+1	B+2	A+1
+.It ??/07/01	00:00:01	A+2	B+3	A+2
+.El
+.Pp
+.D1 No "[Note: posix2time(B+1) => A+0 or A+1]"
 .Pp
 If leap-second support is not enabled,
 local time_t's and

@@ -109,17 +109,17 @@ interface, which is accessible to users via
 .Pp
 .Fn getnumdevs
 returns the number of devices registered with the
-.Nm devstat
+.Nm
 subsystem in the kernel.
 .Pp
 .Fn getgeneration
 returns the current generation of the
-.Nm devstat
+.Nm
 list of devices in the kernel.
 .Pp
 .Fn getversion
 returns the current kernel
-.Nm devstat
+.Nm
 version.
 .Pp
 .Fn checkversion
@@ -174,9 +174,9 @@ The
 .Va kern.devstat.all
 .Nm sysctl
 variable contains an array of
-.Nm devstat
+.Nm
 structures, but at the head of the array is the current
-.Nm devstat
+.Nm
 generation.  The reason the generation is at the head of the buffer is so
 that userland software accessing the devstat statistics information can
 atomically get both the statistics information and the corresponding
@@ -201,7 +201,7 @@ structures from the
 .Va kern.devstat.all
 .Nm sysctl
 variable.  The generation subelement of the
-.Nm devinfo
+.Va devinfo
 structure contains the generation number from the
 .Va kern.devstat.all
 .Nm sysctl
@@ -212,7 +212,7 @@ subelement of the
 .Va devinfo
 structure contains the current
 number of devices registered with the kernel
-.Nm devstat
+.Nm
 subsystem.
 .Pp
 .Fn selectdevs
@@ -476,7 +476,7 @@ fetching the variable.
 .Pp
 .Fn checkversion
 returns 0 if the kernel and userland
-.Nm devstat
+.Nm
 versions match.  If they do not match, it returns -1.
 .Pp
 .Fn getdevs

@@ -37,11 +37,11 @@
 .Fn setresuid "uid_t ruid" "uid_t euid" "uid_t suid"
 .Sh DESCRIPTION
 The
-.Nm setresuid
+.Fn setresuid
 system call sets the real,
 effective and saved user IDs of the current process.
 The analogous
-.Nm setresgid
+.Fn setresgid
 sets the real, effective and saved group IDs.
 .Pp
 Privileged processes may set these IDs
@@ -59,7 +59,7 @@ and the global variable
 is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er
-.It Er EPERM
+.It Bq Er EPERM
 The calling process was not privileged
 and tried to change one or more IDs to a value
 which was not the current real ID, the current effective ID

@@ -216,7 +216,7 @@ points outside the process's allocated address space.
 The following errors can occur for a
 .Em ufs
 filesystem mount:
-.Bl -tag -width [ENOTBLK]
+.Bl -tag -width Er
 .It Bq Er ENODEV
 A component of ufs_args
 .Ar fspec
@@ -251,7 +251,7 @@ points outside the process's allocated address space.
 The following errors can occur for a
 .Em nfs
 filesystem mount:
-.Bl -tag -width [ENOTBLK]
+.Bl -tag -width Er
 .It Bq Er ETIMEDOUT
 .Em Nfs
 timed out trying to contact the server.
@@ -263,7 +263,7 @@ points outside the process's allocated address space.
 The following errors can occur for a
 .Em mfs
 filesystem mount:
-.Bl -tag -width [ENOTBLK]
+.Bl -tag -width Er
 .It Bq Er EMFILE
 No space remains in the mount table.
 .It Bq Er EINVAL
@@ -283,7 +283,7 @@ points outside the process's allocated address space.
 The
 .Fn unmount
 function may fail with one of the following errors:
-.Bl -tag -width [ENOTBLK]
+.Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
 .It Bq Er ENOTDIR

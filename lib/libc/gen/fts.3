@@ -56,7 +56,7 @@
 .Fn fts_close "FTS *ftsp"
 .Sh DESCRIPTION
 The
-.Nm fts
+.Nm
 functions are provided for traversing
 .Tn UNIX
 file hierarchies.
@@ -66,7 +66,7 @@ function returns a
 .Dq handle
 on a file hierarchy, which is then supplied to
 the other
-.Nm fts
+.Nm
 functions.
 The function
 .Fn fts_read
@@ -262,13 +262,13 @@ field are undefined.
 .It Fa fts_number
 This field is provided for the use of the application program and is
 not modified by the
-.Nm fts
+.Nm
 functions.
 It is initialized to 0.
 .It Fa fts_pointer
 This field is provided for the use of the application program and is
 not modified by the
-.Nm fts
+.Nm
 functions.
 It is initialized to
 .Dv NULL .
@@ -368,7 +368,7 @@ followed immediately whether or not
 is also specified.
 .It Dv FTS_LOGICAL
 This option causes the
-.Nm fts
+.Nm
 routines to return
 .Fa FTSENT
 structures for the targets of symbolic links
@@ -387,14 +387,14 @@ be provided to the
 function.
 .It Dv FTS_NOCHDIR
 As a performance optimization, the
-.Nm fts
+.Nm
 functions change directories as they walk the file hierarchy.
 This has the side-effect that an application cannot rely on being
 in any particular directory during the traversal.
 The
 .Dv FTS_NOCHDIR
 option turns off this optimization, and the
-.Nm fts
+.Nm
 functions will not change the current directory.
 Note that applications should not themselves change their current directory
 and try to access files unless
@@ -410,7 +410,7 @@ structures reference file characteristic information (the
 field) for each file visited.
 This option relaxes that requirement as a performance optimization,
 allowing the
-.Nm fts
+.Nm
 functions to set the
 .Fa fts_info
 field to
@@ -420,7 +420,7 @@ and leave the contents of the
 field undefined.
 .It Dv FTS_PHYSICAL
 This option causes the
-.Nm fts
+.Nm
 routines to return
 .Fa FTSENT
 structures for symbolic links themselves instead
@@ -446,13 +446,13 @@ or
 .Ql ..
 encountered in the file hierarchy are ignored.
 This option causes the
-.Nm fts
+.Nm
 routines to return
 .Fa FTSENT
 structures for them.
 .It Dv FTS_XDEV
 This option prevents
-.Nm fts
+.Nm
 from descending into directories that have a different device number
 than the file from which the descent began.
 .El
@@ -751,7 +751,7 @@ The options were invalid.
 .Xr qsort 3
 .Sh STANDARDS
 The
-.Nm fts
+.Nm
 utility is expected to be included in a future
 .St -p1003.1-88
 revision.
