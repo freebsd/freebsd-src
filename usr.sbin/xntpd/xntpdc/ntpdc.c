@@ -53,7 +53,7 @@ static	int	findcmd		P((char *, struct xcmd *, struct xcmd *, struct xcmd **));
 static	int	getarg		P((char *, int, arg_v *));
 static	int	getnetnum	P((char *, U_LONG *, char *));
 static	void	help		P((struct parse *, FILE *));
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	helpsort	P((const void *, const void *));
 #else
 static	int	helpsort	P((char **, char **));
@@ -1153,7 +1153,7 @@ help(pcmd, fp)
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
 			cmdsort[n++] = xcp->keyword;
 
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 		qsort((void *)cmdsort, n, sizeof(char *), helpsort);
 #else
 		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
@@ -1199,7 +1199,7 @@ help(pcmd, fp)
  * helpsort - do hostname qsort comparisons
  */
 static int
-#if defined(sgi) || defined(SYS_BSDI)
+#if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 helpsort(t1, t2)
 	const void *t1;
 	const void *t2;
