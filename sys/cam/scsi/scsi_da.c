@@ -385,7 +385,7 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * DIVA USB Mp3 Player.
-		 * Doesn't work correctly with 6 byte reads/writes.
+		 * PR: kern/33638
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DIVA USB", "Media Reader","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
@@ -400,6 +400,7 @@ static struct da_quirk_entry da_quirk_table[] =
         {
 		/*
 		 * Apacer HandyDrive
+		 * PR: kern/43627
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Apacer", "HandyDrive", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
@@ -407,8 +408,9 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		/*
 		 * DaisyTechnology PhotoClip on Zoran chip
+		 * PR: kern/43580
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH DSC","*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -416,7 +418,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * HP 315 Digital Camera
 		 * PR: kern/41010
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB Camera*", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "HP", "USB CAMERA", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
