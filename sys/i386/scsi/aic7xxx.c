@@ -1217,8 +1217,7 @@ ahc_handle_seqint(ahc, intstat)
 				 * retrieve the sense.
 				 */
 				untimeout(ahc_timeout, (caddr_t)scb);
-				timeout(ahc_timeout, (caddr_t)scb,
-					(100 * hz) / 1000);
+				timeout(ahc_timeout, (caddr_t)scb, hz);
 				break;
 			}
 			/*
