@@ -354,13 +354,6 @@ sc_attach_unit(int unit, int flags)
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, 
 			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
 
-    /*
-     * syscons's cdevsw must be registered from here. As syscons and
-     * pcvt share the same major number, their cdevsw cannot be
-     * registered at module loading/initialization time or by SYSINIT.
-     */
-    cdevsw_add(&sc_cdevsw);	/* XXX do this just once... */
-
     for (vc = 0; vc < sc->vtys; vc++) {
 	dev = make_dev(&sc_cdevsw, vc + unit * MAXCONS,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc + unit * MAXCONS);
