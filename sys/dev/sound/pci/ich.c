@@ -157,6 +157,7 @@ struct {
 	char *name;
 } ich_devs[] = {
 	{0x71958086, 0, "Intel 443MX"},
+	{0x24138086, 0, "Intel 82801AA (ICH)"},
 	{0x24158086, 0, "Intel 82801AA (ICH)"},
 	{0x24258086, 0, "Intel 82901AB (ICH)"},
 	{0x24458086, 0, "Intel 82801BA (ICH2)"},
