@@ -29,7 +29,7 @@ STD8X16FONT?=	iso
 .if exists(./@/.)
 S=	./@
 .else
-S=	../..
+S=	../../..
 .endif
 .endif
 M=	${MACHINE_ARCH}
