@@ -62,7 +62,8 @@ main(int argc, char **argv)
     char *cp;
 
     char *remotepkg = NULL, *ptr;
-    static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
+    static const char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
+    static char temppackageroot[MAXPATHLEN];
 
     start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1) {
@@ -129,11 +130,12 @@ main(int argc, char **argv)
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
     	    if (Remote) {
+		strcpy(temppackageroot, packageroot);
 		if (getenv("PACKAGESITE") == NULL)
-		   strcat(packageroot, getpackagesite());
+		   strcat(temppackageroot, getpackagesite());
 		else
-	    	   strcpy(packageroot, (getenv("PACKAGESITE")));
-		remotepkg = strcat(packageroot, *argv);
+	    	   strcpy(temppackageroot, (getenv("PACKAGESITE")));
+		remotepkg = strcat(temppackageroot, *argv);
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
 			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
 		   strcat(remotepkg, ".tgz");
