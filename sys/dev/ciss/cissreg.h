@@ -33,7 +33,7 @@
  * This header only supports little-endian hosts at this time.
  */
 
-union ciss_device_address 
+union ciss_device_address
 {
     struct 				/* MODE_PERIPHERAL and MODE_MASK_PERIPHERAL */
     {
@@ -58,8 +58,8 @@ union ciss_device_address
 #define CISS_HDR_ADDRESS_MODE_PERIPHERAL	0x0
 #define CISS_HDR_ADDRESS_MODE_LOGICAL		0x1
 #define CISS_HDR_ADDRESS_MODE_MASK_PERIPHERAL	0x3
-    
-struct ciss_header 
+
+struct ciss_header
 {
     u_int8_t	:8;			/* reserved */
     u_int8_t	sg_in_list;		/* SG's in the command structure */
@@ -162,7 +162,7 @@ struct ciss_command
 #define CISS_OPCODE_REPORT_LOGICAL_LUNS		0xc2
 #define CISS_OPCODE_REPORT_PHYSICAL_LUNS	0xc3
 
-struct ciss_lun_report 
+struct ciss_lun_report
 {
     u_int32_t	list_size;		/* big-endian */
     u_int32_t	:32;
@@ -184,7 +184,7 @@ struct ciss_ldrive_geometry
     u_int8_t	res2[3];
 } __attribute__ ((packed));
 
-struct ciss_report_cdb 
+struct ciss_report_cdb
 {
     u_int8_t	opcode;
     u_int8_t	reserved[5];
@@ -200,7 +200,7 @@ struct ciss_report_cdb
  */
 #define CISS_OPCODE_MESSAGE_ABORT		0x00
 #define CISS_MESSAGE_ABORT_TASK			0x00
-#define CISS_MESSAGE_ABORT_TASK_SET		0x01	
+#define CISS_MESSAGE_ABORT_TASK_SET		0x01
 #define CISS_MESSAGE_ABORT_CLEAR_ACA		0x02
 #define CISS_MESSAGE_ABORT_CLEAR_TASK_SET	0x03
 
@@ -218,7 +218,7 @@ struct ciss_report_cdb
 
 #define CISS_OPCODE_MESSAGE_NOP			0x03
 
-struct ciss_message_cdb 
+struct ciss_message_cdb
 {
     u_int8_t	opcode;
     u_int8_t	type;
@@ -240,7 +240,7 @@ struct ciss_message_cdb
 #define CISS_COMMAND_NOTIFY_ON_EVENT	0xd0
 #define CISS_COMMAND_ABORT_NOTIFY	0xd1
 
-struct ciss_notify_cdb 
+struct ciss_notify_cdb
 {
     u_int8_t	opcode;
     u_int8_t	command;
@@ -335,7 +335,7 @@ struct ciss_notify_rebuild_aborted
     u_int8_t	big_error_drive;
 } __attribute__ ((packed));
 
-struct ciss_notify_io_error 
+struct ciss_notify_io_error
 {
     u_int16_t	logical_drive;
     u_int32_t	lba;
@@ -351,13 +351,13 @@ struct ciss_notify_consistency_completed
     u_int16_t	logical_drive;
 } __attribute__ ((packed));
 
-struct ciss_notify 
+struct ciss_notify
 {
     u_int32_t	timestamp;		/* seconds since controller power-on */
     u_int16_t	class;
     u_int16_t	subclass;
     u_int16_t	detail;
-    union 
+    union
     {
 	struct ciss_notify_drive		drive;
 	struct ciss_notify_locator		location;
@@ -379,12 +379,12 @@ struct ciss_notify
 } __attribute__ ((packed));
 
 /*
- * CISS config table, which describes the controller's 
+ * CISS config table, which describes the controller's
  * supported interface(s) and capabilities.
  *
  * This is mapped directly via PCI.
  */
-struct ciss_config_table 
+struct ciss_config_table
 {
     char	signature[4];		/* "CISS" */
     u_int32_t	valence;
@@ -392,7 +392,7 @@ struct ciss_config_table
 #define CISS_MAX_VALENCE	1
     u_int32_t	supported_methods;
 #define CISS_TRANSPORT_METHOD_READY	(1<<0)
-#define CISS_TRANSPORT_METHOD_SIMPLE	(1<<1)    
+#define CISS_TRANSPORT_METHOD_SIMPLE	(1<<1)
     u_int32_t	active_method;
     u_int32_t	requested_method;
     u_int32_t	command_physlimit;
@@ -463,11 +463,20 @@ struct ciss_config_table
 #define CISS_BIG_MAP_ENTRIES	128	/* number of entries in a BIG_MAP */
 
 /*
+ * In the device address of a logical volume, the bus number
+ * is encoded into the logical lun volume number starting
+ * at the second byte, with the first byte defining the
+ * logical drive number.
+ */
+#define CISS_LUN_TO_BUS(x)    (((x) >> 16) & 0xFF)
+#define CISS_LUN_TO_TARGET(x) ((x) & 0xFF)
+
+/*
  * BMIC CDB
  *
  * Note that the phys_drive/res1 field is nominally the 32-bit
  * "block number" field, but the only BMIC command(s) of interest
- * implemented overload the MSB (note big-endian format here) 
+ * implemented overload the MSB (note big-endian format here)
  * to be the physical drive ID, so we define accordingly.
  */
 struct ciss_bmic_cdb {
@@ -613,6 +622,9 @@ struct ciss_bmic_id_pdrive {
     char	connector[2];
     u_int8_t	res5;
     u_int8_t	bay;
+    u_int16_t	rpm;
+    u_int8_t	drive_type;
+    u_int8_t	res6[393];
 } __attribute__ ((packed));
 
 /* CISS_BMIC_BLINK_PDRIVE */
