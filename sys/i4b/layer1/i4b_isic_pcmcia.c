@@ -35,7 +35,7 @@
  *	i4b_isic_pcmcia.c - i4b FreeBSD PCMCIA support
  *	----------------------------------------------
  *
- *	$Id: i4b_isic_pcmcia.c,v 1.4 1999/03/07 16:08:16 hm Exp $
+ *	$Id: i4b_isic_pcmcia.c,v 1.5 1999/03/16 11:07:04 hm Exp $
  *
  *      last edit-date: [Tue Mar 16 10:36:56 1999]
  *
@@ -55,6 +55,7 @@
 #include <sys/param.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
+#include <sys/module.h>
 #include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
@@ -99,6 +100,9 @@ static int  isic_pccard_init    __P((struct pccard_devinfo *));
 static void isic_unload         __P((struct pccard_devinfo *));
 static int  isic_card_intr      __P((struct pccard_devinfo *));
     
+#ifdef PCCARD_MODULE
+PCCARD_MODULE(isic_pcmcia, isic_pccard_init, isic_unload, isic_card_intr, 0, net_imask);
+#else
 static struct pccard_device isic_info = {
     "isic",
     isic_pccard_init,
@@ -109,6 +113,7 @@ static struct pccard_device isic_info = {
 };  
 
 DATA_SET(pccarddrv_set, isic_info);
+#endif
 
 /*
  * Initialize the device - called from Slot manager.
