@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/param.h>
 
+int main __P((int, char *[]));
 void usage __P((void));
 
 int
@@ -85,7 +86,7 @@ main(argc, argv)
 			err(1, "%s", argv[0]);
 		(void)printf("%s\n", p);
 	} else  if (argc == 0) {
-		p = getcwd(NULL, 0);
+		p = getcwd(NULL, (size_t)0);
 		if (p == NULL)
 			err(1, ".");
 		(void)printf("%s\n", p);
