@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.31 1996/11/28 17:18:56 phk Exp $
+ * $Id: psm.c,v 1.32 1996/12/01 19:05:50 sos Exp $
  */
 
 /*
@@ -508,6 +508,8 @@ psmprobe(struct isa_device *dvp)
     if (unit >= NPSM)
         return (0);
 
+    psm_softc[unit] = NULL; 
+
     sc =  malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
     bzero(sc, sizeof *sc);
@@ -745,6 +747,9 @@ psmattach(struct isa_device *dvp)
     int unit = dvp->id_unit;
     struct psm_softc *sc = psm_softc[unit];
 
+    if (sc == NULL)    /* shouldn't happen */ 
+	return (0); 
+
     /* initial operation mode */
     sc->mode.accelfactor = PSM_ACCEL;
     sc->mode.protocol = MOUSE_PROTO_PS2;
@@ -786,7 +791,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 
     /* Get device data */
     sc = psm_softc[unit];
-    if ((sc->state & PSM_VALID) == 0)
+    if ((sc == NULL) || (sc->state & PSM_VALID) == 0)
 	/* the device is no longer valid/functioning */
         return (ENXIO);
     ioport = sc->addr;
