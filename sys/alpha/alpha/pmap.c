@@ -170,6 +170,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #include <sys/user.h>
 
@@ -321,7 +322,6 @@ static struct mtx allpmaps_lock;
  * Data for the pv entry allocation mechanism
  */
 static uma_zone_t pvzone;
-static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
 
@@ -345,7 +345,6 @@ static int pmap_release_free_page(pmap_t pmap, vm_page_t p);
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
 static vm_page_t pmap_page_lookup(vm_object_t object, vm_pindex_t pindex);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
-static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
 static void pmap_invalidate_all_action(void *arg);
@@ -566,11 +565,45 @@ pmap_uses_prom_console()
 	return 0;
 }
 
-static void *
-pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+void *
+uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
+	static vm_pindex_t color;
+	vm_page_t m;
+	int pflags;
+	void *va;
+
 	*flags = UMA_SLAB_PRIV;
-	return (void *)kmem_alloc(kernel_map, bytes);
+
+	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT;
+	else
+		pflags = VM_ALLOC_SYSTEM;
+
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
+
+	m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+
+	if (m) {
+		va = (void *)ALPHA_PHYS_TO_K0SEG(m->phys_addr);
+		if ((m->flags & PG_ZERO) == 0)
+			bzero(va, PAGE_SIZE);
+		return (va);
+	}
+
+	return (NULL);	
+}
+
+void
+uma_small_free(void *mem, int size, u_int8_t flags)
+{
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(ALPHA_K0SEG_TO_PHYS((vm_offset_t)mem));
+	vm_page_lock_queues();
+	vm_page_free(m);
+	vm_page_unlock_queues();
 }
 
 /*
@@ -609,7 +642,6 @@ pmap_init(phys_start, phys_end)
 		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 	/*
 	 * object for kernel page table pages
@@ -635,7 +667,6 @@ pmap_init2()
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
 
