@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#27 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#29 $
  *
  * $FreeBSD$
  */
@@ -342,8 +342,8 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 		if ((ahd->flags & AHD_39BIT_ADDRESSING) != 0) {
 			uint64_t high_addr;
 
-			high_addr = (ahd_le32toh(sg->len) & 0x7F000000) << 8;
-			scb->hscb->dataptr |= ahd_htole64(high_addr);
+			high_addr = ahd_le32toh(sg->len) & 0x7F000000;
+			scb->hscb->dataptr |= ahd_htole64(high_addr << 8);
 		}
 		scb->hscb->datacnt = sg->len;
 	}
