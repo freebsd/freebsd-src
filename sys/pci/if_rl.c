@@ -1704,7 +1704,7 @@ rl_rxeofcplus(sc)
 
 	/* Invalidate the descriptor memory */
 
-	bus_dmamap_sync(sc->rl_ldata.rl_mtag,
+	bus_dmamap_sync(sc->rl_ldata.rl_rx_list_tag,
 	    sc->rl_ldata.rl_rx_list_map,
 	    BUS_DMASYNC_POSTREAD);
 
@@ -1936,7 +1936,7 @@ rl_txeofcplus(sc)
 
 	/* Invalidate the TX descriptor list */
 
-	bus_dmamap_sync(sc->rl_ldata.rl_mtag,
+	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,
 	    sc->rl_ldata.rl_tx_list_map,
 	    BUS_DMASYNC_POSTREAD);
 
@@ -2383,7 +2383,7 @@ rl_startcplus(ifp)
 
 	/* Flush the TX descriptors */
 
-	bus_dmamap_sync(sc->rl_ldata.rl_mtag,
+	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,
 	    sc->rl_ldata.rl_tx_list_map,
 	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
 
