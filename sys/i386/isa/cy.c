@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.41.2.1 1996/11/16 21:31:33 phk Exp $
+ *	$Id: cy.c,v 1.41.2.2 1996/12/14 14:32:59 joerg Exp $
  */
 
 #include "cy.h"
@@ -1102,6 +1102,8 @@ siointr(unit)
 			int	ifree;
 
 			count = cd_inb(iobase, CD1400_RDCR, cy_align);
+			if (!count)
+				goto cont;
 			com->bytes_in += count;
 			ioptr = com->iptr;
 			ifree = com->ibufend - ioptr;
