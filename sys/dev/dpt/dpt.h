@@ -22,12 +22,14 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.6 1997/08/27 01:11:32 ShimonR Exp $"
+#ident "$Id: dpt.h,v 1.1.2.1 1998/03/06 23:44:05 julian Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
 
+/* till we have the CAM stuff, use our own */
 #undef DPT_USE_DPT_SWI
+#define DPT_USE_DPT_SWI	1
 
 extern u_long dpt_unit;
 
