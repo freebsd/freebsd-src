@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.5 1995/03/16 18:16:24 bde Exp $
+ * $Id: signalvar.h,v 1.6 1995/10/19 19:16:01 swallace Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -66,8 +66,8 @@ struct	sigacts {
 #define	SAS_ALTSTACK	0x02		/* have alternate signal stack */
 
 /* additional signal action values, used only temporarily/internally */
-#define	SIG_CATCH	(void (*)())2
-#define	SIG_HOLD	(void (*)())3
+#define	SIG_CATCH	((__sighandler_t *)2)
+#define	SIG_HOLD	((__sighandler_t *)3)
 
 /*
  * get signal action for process and signal; currently only for current process
@@ -159,6 +159,7 @@ void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
 int	issignal __P((struct proc *p));
 void	psignal __P((struct proc *p, int sig));
+void	setsigvec __P((struct proc *, int, struct sigaction *));
 void	sigexit	__P((struct proc *, int));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, unsigned code));
