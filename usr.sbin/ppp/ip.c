@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9.2.6 1997/05/19 02:02:18 brian Exp $
+ * $Id: ip.c,v 1.9.2.7 1997/05/24 10:29:26 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -44,8 +44,8 @@ static struct pppTimer IdleTimer;
 static void IdleTimeout()
 {
   LogPrintf(LOG_PHASE_BIT, "Idle timer expired.\n");
+  reconnect(RECON_FALSE);
   LcpClose();
-  reconnectCount = 0;
 }
 
 /*

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.7 1997/05/14 01:20:28 brian Exp $
+ * $Id: modem.c,v 1.24.2.8 1997/05/19 02:02:24 brian Exp $
  *
  *  TODO:
  */
@@ -253,7 +253,7 @@ ModemTimeout()
         if (mode & MODE_DEDICATED)
 	  PacketMode();
       } else {
-        reconnectRequired = 1;
+        reconnect(RECON_TRUE);
 	DownConnection();
       }
     }
