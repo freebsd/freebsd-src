@@ -1553,24 +1553,28 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			printf("Request completed with CAM_REQ_CMP_ERR\n");
 			printed++;
 		}
+		/* FALLTHROUGH */
 	case CAM_CMD_TIMEOUT:
 		if (bootverbose && printed == 0) {
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Command timed out\n");
 			printed++;
 		}
+		/* FALLTHROUGH */
 	case CAM_UNEXP_BUSFREE:
 		if (bootverbose && printed == 0) {
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Unexpected Bus Free\n");
 			printed++;
 		}
+		/* FALLTHROUGH */
 	case CAM_UNCOR_PARITY:
 		if (bootverbose && printed == 0) {
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Uncorrected Parity Error\n");
 			printed++;
 		}
+		/* FALLTHROUGH */
 	case CAM_DATA_RUN_ERR:
 		if (bootverbose && printed == 0) {
 			xpt_print_path(ccb->ccb_h.path);
