@@ -849,19 +849,18 @@ isp_scsi_init(isp)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
-	isp->isp_residx = 0;
+	isp->isp_residx = mbs.param[5];
 
 	mbs.param[0] = MBOX_INIT_REQ_QUEUE;
 	mbs.param[1] = RQUEST_QUEUE_LEN(isp);
 	mbs.param[2] = DMA_MSW(isp->isp_rquest_dma);
 	mbs.param[3] = DMA_LSW(isp->isp_rquest_dma);
 	mbs.param[4] = 0;
-	mbs.param[5] = 0;
 	isp_mboxcmd(isp, &mbs, MBLOGALL);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
-	isp->isp_reqidx = isp->isp_reqodx = 0;
+	isp->isp_reqidx = isp->isp_reqodx = mbs.param[4];
 
 	/*
 	 * Turn on Fast Posting, LVD transitions
@@ -914,6 +913,8 @@ isp_scsi_channel_init(isp, channel)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
+	isp_prt(isp, ISP_LOGINFO, "Initiator ID is %d", sdp->isp_initiator_id);
+
 
 	/*
 	 * Set current per-target parameters to a safe minimum.
