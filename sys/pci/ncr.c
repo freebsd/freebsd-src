@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.39 1995/07/07 12:30:39 se Exp $
+**  $Id: ncr.c,v 1.40 1995/08/13 14:59:38 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1223,7 +1223,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.39 1995/07/07 12:30:39 se Exp $\n";
+	"\n$Id: ncr.c,v 1.40 1995/08/13 14:59:38 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -4834,10 +4834,11 @@ static void ncr_timeout (ncb_p np)
 
 void ncr_exception (ncb_p np)
 {
-	u_char  istat, dstat;
-	u_short sist;
-	u_long	dsp;
-	int	i;
+	u_char	istat, dstat;
+	u_short	sist;
+	u_long	dsp, dsa;
+	ccb_p	cp;
+	int	i, script_ofs;
 
 	/*
 	**	interrupt on the fly ?
@@ -4985,16 +4986,40 @@ void ncr_exception (ncb_p np)
 	=============================================
 	*/
 
-	printf ("%s targ %d?: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%x).\n",
+	dsp = (unsigned) INL (nc_dsp);
+	dsa = (unsigned) INL (nc_dsa);
+
+	script_ofs = dsp - (unsigned) np->p_script,
+
+	printf ("%s targ %d?: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%08x).\n",
 		ncr_name (np), INB (nc_ctest0)&7, dstat, sist,
 		INB (nc_socl), INB (nc_sbcl), INB (nc_sbdl),
-		INB (nc_sxfer),INB (nc_scntl3),
-		((unsigned) (dsp = INL (nc_dsp))) - (unsigned) np->p_script,
+		INB (nc_sxfer),INB (nc_scntl3), script_ofs,
 		(unsigned) INL (nc_dbc));
-	printf ("	      reg:");
+
+	printf ("\treg:\t");
 	for (i=0; i<16;i++)
 		printf (" %x", ((u_char*)np->reg)[i]);
 	printf (".\n");
+
+	if (script_ofs < sizeof(*np->script))
+	{
+		u_long vpci;
+		u_long vpc = ((u_long) np->script) + script_ofs;
+
+		for (vpci = vpc; vpci >= 4; vpci -= 4);
+		while (vpci <= vpc) {
+			printf ("\tvirt.addr: 0x%08x instr: 0x%08x\n", 
+				vpci, *(ncrcmd *)(vpci));
+			vpci += 4;
+		}
+	}
+
+	cp = &np->ccb;
+	printf ("\tgather/scatter table:\n");
+	for (i = 0; i < MAX_SCATTER; i++) {
+		printf ("\t%02d\t0x%08x\n", i, cp->phys.data[i]);
+	}
 
 	/*----------------------------------------
 	**	clean up the dma fifo
@@ -5475,10 +5500,11 @@ void ncr_int_sir (ncb_p np)
 		**	a target reselected us.
 		**-------------------------------------------
 		*/
-		if (DEBUG_FLAGS & DEBUG_RESTART)
+		if (DEBUG_FLAGS & DEBUG_RESTART) {
 			PRINT_ADDR(cp->xfer);
 			printf ("in getcc reselect by t%d.\n",
 				INB(nc_ssid)&7);
+		}
 
 		/*
 		**	Mark this job
@@ -5531,7 +5557,7 @@ void ncr_int_sir (ncb_p np)
 **	to this target, in the controller's register, and in the "phys"
 **	field of the controller's struct ncb.
 **
-**	Possible cases:	    hs  sir   msg_in value  send   goto
+**	Possible cases:		   hs  sir   msg_in value  send   goto
 **	We try try to negotiate:
 **	-> target doesnt't msgin   NEG FAIL  noop   defa.  -      dispatch
 **	-> target rejected our msg NEG FAIL  reject defa.  -      dispatch
@@ -5539,11 +5565,11 @@ void ncr_int_sir (ncb_p np)
 **	-> target answered (!ok)   NEG SYNC  sdtr   defa.  REJ--->msg_bad
 **	-> target answered  (ok)   NEG WIDE  wdtr   set    -      clrack
 **	-> target answered (!ok)   NEG WIDE  wdtr   defa.  REJ--->msg_bad
-**	-> any other msgin	 NEG FAIL  noop   defa   -      dispatch
+**	-> any other msgin	   NEG FAIL  noop   defa.  -      dispatch
 **
 **	Target tries to negotiate:
-**	-> incoming message	--- SYNC  sdtr   set    SDTR   -
-**	-> incoming message	--- WIDE  wdtr   set    WDTR   -
+**	-> incoming message	   --- SYNC  sdtr   set    SDTR   -
+**	-> incoming message	   --- WIDE  wdtr   set    WDTR   -
 **      We sent our answer:
 **	-> target doesn't msgout   --- PROTO ?      defa.  -      dispatch
 **
