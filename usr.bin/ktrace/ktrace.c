@@ -49,7 +49,14 @@ static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <stdio.h>
+#include <signal.h>
 #include "ktrace.h"
+
+void noktrace() {
+	(void)fprintf(stderr, "ktrace: ktrace not enabled in kernel,to use ktrace\n");
+	(void)fprintf(stderr, "you need to add a line \"options KTRACE\" to your kernel\n");
+	exit(1);
+}
 
 main(argc, argv)
 	int argc;
@@ -65,6 +72,9 @@ main(argc, argv)
 	append = ops = pidset = inherit = 0;
 	trpoints = DEF_POINTS;
 	tracefile = DEF_TRACEFILE;
+	/* set up a signal handler for SIGSYS, this indicates that ktrace
+	is not enabled in the kernel */
+	signal(SIGSYS, noktrace);
 	while ((ch = getopt(argc,argv,"aCcdf:g:ip:t:")) != EOF)
 		switch((char)ch) {
 		case 'a':
