@@ -1551,6 +1551,19 @@ variable is assumed to exist
 whose contents will later be passed to a
 .Dq Nm route Cm add Fl inet6
 operation.
+.It Va natm_static_routes
+.Pq Vt str
+The
+.Xr natmip 4
+equivalent of
+.Va static_routes .
+If not empty then for each whitespace separated
+.Ar element
+in the value, a
+.Va route_ Ns Aq Ar element
+variable is assumed to exist whose contents will later be passed to a
+.Dq Nm atmconfig Cm natm Cm add
+operation.
 .It Va gateway_enable
 .Pq Vt bool
 If set to
