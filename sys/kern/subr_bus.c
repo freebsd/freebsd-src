@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.36 1999/08/14 05:11:01 wpaul Exp $
+ *	$Id: subr_bus.c,v 1.37 1999/08/14 13:20:04 n_hibma Exp $
  */
 
 #include <sys/param.h>
@@ -157,6 +157,7 @@ unregister_method(struct device_op_desc *desc)
     struct method *m = desc->method;
     m->refs--;
     if (m->refs == 0) {
+	PDEBUG(("method %s, reached refcount 0", desc->name));
 	LIST_REMOVE(m, link);
 	free(m, M_DEVBUF);
     	desc->method = 0;
