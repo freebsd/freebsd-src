@@ -49,9 +49,7 @@
 #if NISIC > 0 && defined(AVM_A1)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -61,7 +59,6 @@
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
-#include <i4b/include/i4b_global.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_isac.h>

@@ -43,7 +43,6 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -63,12 +62,9 @@
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
-#include <i4b/layer2/i4b_l2fsm.h>
 
 /*---------------------------------------------------------------------------*
  *	routine ESTABLISH DATA LINK (Q.921 03/93 page 83)

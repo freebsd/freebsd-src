@@ -48,7 +48,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 
 #if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000

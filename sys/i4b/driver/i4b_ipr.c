@@ -86,12 +86,10 @@
 #endif
 
 #include <sys/kernel.h>
-#include <sys/protosw.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -136,7 +134,6 @@
 #endif
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>

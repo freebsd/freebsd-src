@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:45:34 2000]
+ *      last edit-date: [Fri Oct 13 16:00:46 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,7 +43,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -58,11 +57,6 @@
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
-/* #include <i4b/include/i4b_l1l2.h> */
-#include <i4b/include/i4b_mbuf.h>
-#include <i4b/include/i4b_global.h>
-
-#include <sys/resource.h>
 #include <sys/bus.h>
 #include <isa/isavar.h>
 
