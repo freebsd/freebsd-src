@@ -34,7 +34,6 @@
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
-
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
