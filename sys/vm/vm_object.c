@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.103 1997/12/29 00:24:49 dyson Exp $
+ * $Id: vm_object.c,v 1.104 1998/01/06 05:26:04 dyson Exp $
  */
 
 /*
@@ -246,7 +246,7 @@ vm_object_reference(object)
 		vget((struct vnode *) object->handle, LK_NOOBJ, curproc);
 }
 
-inline void
+void
 vm_object_vndeallocate(object)
 	vm_object_t object;
 {
@@ -264,6 +264,8 @@ vm_object_vndeallocate(object)
 
 	object->ref_count--;
 	if (object->type == OBJT_VNODE) {
+		if (object->ref_count == 0)
+			vp->v_flag &= ~VTEXT;
 		vrele(vp);
 	}
 }
@@ -366,6 +368,8 @@ doterm:
 		if (temp) {
 			TAILQ_REMOVE(&temp->shadow_head, object, shadow_list);
 			temp->shadow_count--;
+			if (temp->shadow_count == 0)
+				temp->flags &= ~OBJ_OPT;
 		}
 		vm_object_terminate(object);
 		/* unlocks and deallocates object */
