@@ -377,8 +377,6 @@ static device_method_t cardbus_methods[] = {
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
 	DEVMETHOD(card_detach_card,	cardbus_detach_card),
-	DEVMETHOD(card_cis_read,	cardbus_cis_read),
-	DEVMETHOD(card_cis_free,	cardbus_cis_free),
 
 	/* Cardbus/PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
