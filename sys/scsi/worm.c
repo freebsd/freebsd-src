@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.26 1996/03/10 12:52:47 jkh Exp $
+ *      $Id: worm.c,v 1.27 1996/03/28 14:33:59 scrappy Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -58,6 +58,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_scsi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
