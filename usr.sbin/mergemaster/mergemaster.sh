@@ -398,9 +398,9 @@ fi
 CVS_ID_TAG=FreeBSD
 
 delete_temproot () {
-  rm -rf "${TEMPROOT}"
-  chflags -R 0 "${TEMPROOT}"
-  rm -rf "${TEMPROOT}"
+  rm -rf "${TEMPROOT}" 2>/dev/null
+  chflags -R 0 "${TEMPROOT}" 2>/dev/null
+  rm -rf "${TEMPROOT}" || exit 1
 }
 
 case "${RERUN}" in
