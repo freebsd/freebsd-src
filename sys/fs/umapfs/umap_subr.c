@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $Id: umap_subr.c,v 1.14 1998/08/16 01:21:51 bde Exp $
+ * $Id: umap_subr.c,v 1.15 1998/11/09 09:21:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -259,7 +259,7 @@ umap_node_create(mp, targetvp, newvpp)
 		 * Take another reference to the alias vnode
 		 */
 #ifdef UMAPFS_DIAGNOSTIC
-		vprint("umap_node_create: exists", ap->umap_vnode);
+		vprint("umap_node_create: exists", aliasvp);
 #endif
 		/* VREF(aliasvp); */
 	} else {
