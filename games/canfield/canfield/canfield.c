@@ -1569,16 +1569,13 @@ initall()
 {
 	int i;
 
+	if (dbfd < 0)
+		return;
 	srandomdev();
 	time(&acctstart);
 	initdeck(deck);
 	uid = getuid();
-	if (uid < 0)
-		uid = 0;
-	dbfd = open(_PATH_SCORE, 2);
-	setegid(getgid());
-	if (dbfd < 0)
-		return;
+
 	i = lseek(dbfd, uid * sizeof(struct betinfo), 0);
 	if (i < 0) {
 		close(dbfd);
@@ -1678,6 +1675,11 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	dbfd = open(_PATH_SCORE, 2);
+
+	/* revoke */
+	setgid(getgid());
+
 #ifdef MAXLOAD
 	double vec[3];
 
