@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.37 1998/08/26 18:07:56 brian Exp $
+ * $Id: chap.c,v 1.38 1999/01/28 01:56:31 brian Exp $
  *
  *	TODO:
  */
@@ -105,24 +105,24 @@ chap_SendChallenge(struct authinfo *auth, int chapid, struct physical *physical)
 
   randinit();
   cp = chap->challenge_data;
+
 #ifndef NORADIUS
   if (*physical->dl->bundle->radius.cfg.file) {
     /* For radius, our challenge is 16 readable NUL terminated bytes :*/
     *cp++ = chap->challenge_len = 16;
     for (i = 0; i < chap->challenge_len; i++)
-      *cp++ = (random() & (0x7f - 0x20)) + 0x20;
-    *cp = '\0';
-  } else {
+      *cp++ = (random() % 10) + '0';
+  } else
 #endif
+  {
     *cp++ = chap->challenge_len = random() % (CHAPCHALLENGELEN-16) + 16;
     for (i = 0; i < chap->challenge_len; i++)
       *cp++ = random() & 0xff;
-    len = strlen(physical->dl->bundle->cfg.auth.name);
-    memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
-    cp += len;
-#ifndef NORADIUS
   }
-#endif
+
+  len = strlen(physical->dl->bundle->cfg.auth.name);
+  memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
+  cp += len;
   ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
 	     cp - chap->challenge_data, NULL);
 }
@@ -131,8 +131,7 @@ static void
 RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
              struct physical *physical)
 {
-  int valsize, len;
-  int arglen, keylen, namelen;
+  int valsize, len, arglen, keylen, namelen, success;
   char *cp, *argp, *ap, *name, *digest;
   char *keyp;
   MD5_CTX MD5context;		/* context for MD5 */
@@ -229,20 +228,23 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
     /*
      * Get a secret key corresponds to the peer
      */
+    success = 0;
 #ifndef NORADIUS
     if (*bundle->radius.cfg.file) {
-      char chapname[AUTHLEN];
+      char chapname[AUTHLEN], chal[17];
 
       if (namelen > AUTHLEN - 1)
         namelen = AUTHLEN - 1;
       strncpy(chapname, name, namelen);
       chapname[namelen] = '\0';
-      strncpy(answer, cp-1, 17);
+      *answer = chp->id;
+      strncpy(answer+1, cp, 16);
       answer[17] = '\0';
+      strncpy(chal, physical->dl->chap.challenge_data + 1, 16);
+      chal[16] = '\0';
 
-      if (radius_Authenticate(&bundle->radius, bundle, chapname, answer,
-                              physical->dl->chap.challenge_data + 1))
-        break;		/* And there was much rejoicing ! */
+      if (radius_Authenticate(&bundle->radius, bundle, chapname, answer, chal))
+        success = 1;		/* And there was much rejoicing ! */
 
     } else
 #endif
@@ -264,30 +266,31 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
       /*
        * Compare with the response
        */
-      if (memcmp(cp, cdigest, 16) == 0) {
-        datalink_GotAuthname(physical->dl, name, namelen);
-	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10, NULL);
-	physical->link.lcp.auth_ineed = 0;
-        if (Enabled(bundle, OPT_UTMP))
-          physical_Login(physical, name);
-
-        if (physical->link.lcp.auth_iwait == 0)
-          /*
-           * Either I didn't need to authenticate, or I've already been
-           * told that I got the answer right.
-           */
-          datalink_AuthOk(physical->dl);
-
-	break;
-      }
+      if (memcmp(cp, cdigest, 16) == 0)
+        success = 1;
     }
 
-    /*
-     * Peer is not registerd, or response digest is wrong.
-     */
-    ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9, NULL);
-    datalink_AuthNotOk(physical->dl);
-    break;
+    if (success) {
+      datalink_GotAuthname(physical->dl, name, namelen);
+      ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10, NULL);
+      physical->link.lcp.auth_ineed = 0;
+      if (Enabled(bundle, OPT_UTMP))
+        physical_Login(physical, name);
+
+      if (physical->link.lcp.auth_iwait == 0)
+        /*
+         * Either I didn't need to authenticate, or I've already been
+         * told that I got the answer right.
+         */
+        datalink_AuthOk(physical->dl);
+    } else {
+      /*
+       * Peer is not registerd, or response digest is wrong.
+       */
+      ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9, NULL);
+      datalink_AuthNotOk(physical->dl);
+      break;
+    }
   }
 }
 
