@@ -798,7 +798,8 @@ coda_readlink(v)
 	return(error);
     }
 
-    error = venus_readlink(vtomi(vp), &cp->c_fid, cred, td->td_proc, &str, &len);
+    error = venus_readlink(vtomi(vp), &cp->c_fid, cred,
+        td != NULL ? td->td_proc : NULL, &str, &len);
 
     if (!error) {
 	uiop->uio_rw = UIO_READ;
