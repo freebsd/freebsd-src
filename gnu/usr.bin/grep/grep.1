@@ -161,7 +161,7 @@ characters are letters, digits, and the underscore.
 Select only those matches that exactly match the whole line.
 
 .PP
-Following options only available if compiled with FTS library:
+Following options are only available if compiled with FTS library:
 .PD 0
 .TP
 .BI \-H
@@ -171,24 +171,30 @@ option is specified, symbolic links on the command line
 are followed.  (Symbolic links encountered in the tree traversal
 are not followed.)
 .TP
-
 .BI \-L
 If the 
 .I \-R
 option is specified, all symbolic links are followed.
 .TP
-
 .BI \-P
 If the 
 .I \-R
 option is specified, no symbolic links are followed.
 .TP
-
 .BI \-R
 Search in the file hierarchies
 rooted in the files instead of just the files themselves.
-.TP
 
+.LP
+Following option is only available if compiled with zlib library:
+.PD 0
+.TP
+.BI \-Z
+If the 
+.I \-Z
+option is specified, the input data will be
+decompressed before searching.
+.TP
 .PD
 .SH "REGULAR EXPRESSIONS"
 .PP
