@@ -1,14 +1,17 @@
 # $FreeBSD$
 
+OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
+LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
+
+.PATH:	${OPENSSL_SRC} ${OPENSSL_SRC}/../doc/apps/
+
 PROG=	openssl
 
 MAINTAINER=	kris
 
 LDADD=	-lssl -lcrypto
-NOMAN=	noman 
-
-OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
-LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
+MAN1=	openssl.1
+MLINKS=	openssl.1 ssl.8
 
 CFLAGS+= -DMONOLITH -I${.CURDIR}
 
@@ -23,6 +26,9 @@ SRCS=	app_rand.c apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c \
 	req.c rsa.c s_cb.c s_client.c s_server.c s_socket.c s_time.c \
 	sess_id.c smime.c speed.c spkac.c verify.c version.c x509.c
 
-.PATH:	${OPENSSL_SRC}
-
 .include <bsd.prog.mk>
+
+.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S .pod
+
+.pod.1:
+	pod2man ${.IMPSRC} > ${.TARGET}
