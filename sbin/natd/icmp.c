@@ -72,7 +72,8 @@ int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu)
 /*
  * Calculate checksum.
  */
-	icmp->icmp_cksum = InternetChecksum ((u_short*) icmp, icmpLen);
+	icmp->icmp_cksum = PacketAliasInternetChecksum ((u_short*) icmp,
+							icmpLen);
 /*
  * Add IP header using old IP header as template.
  */
