@@ -213,7 +213,7 @@ done:
 
 		/* register with list of mounted filesystems */
 		simple_lock(&mountlist_slock);
-		CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
+		TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 		simple_unlock(&mountlist_slock);
 
 		/* sanity check system clock against root filesystem timestamp */

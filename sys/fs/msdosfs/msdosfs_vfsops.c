@@ -188,7 +188,7 @@ msdosfs_mountroot()
 		return (error);
 	}
 
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 	mp->mnt_vnodecovered = NULLVP;
 	(void) copystr("/", mp->mnt_stat.f_mntonname, MNAMELEN - 1,
 	    &size);

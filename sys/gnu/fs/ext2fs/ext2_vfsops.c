@@ -144,7 +144,7 @@ ext2_mountroot()
 		bsd_free(mp, M_MOUNT);
 		return (error);
 	}
-	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
+	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	mp->mnt_flag |= MNT_ROOTFS;
 	mp->mnt_vnodecovered = NULLVP;
 	ump = VFSTOUFS(mp);

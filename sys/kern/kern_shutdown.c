@@ -229,7 +229,7 @@ boot(howto)
 			if (((bp->b_flags&B_INVAL) == 0 && BUF_REFCNT(bp)) ||
 			    ((bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI)) {
 				if (bp->b_dev == NODEV) {
-					CIRCLEQ_REMOVE(&mountlist,
+					TAILQ_REMOVE(&mountlist,
 					    bp->b_vp->v_mount, mnt_list);
 					continue;
 				}
