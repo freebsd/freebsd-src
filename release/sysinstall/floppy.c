@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.10 1995/06/05 12:15:47 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.11 1995/06/05 16:59:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,9 +181,10 @@ mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 	    return -1;
 	}
 	
-	var = strdup(val);
 	if (isDebug())
-	    msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib);
+	    msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib, val);
+
+	var = strdup(val);
 	
 	cval1 = strtol(var, &extn, 10);
 	clen1 = strtol(extn, NULL, 10);
