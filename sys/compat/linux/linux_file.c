@@ -201,18 +201,20 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     struct fcntl_args /* {
 	int fd;
 	int cmd;
-	int arg;
-    } */ fcntl_args; 
+	long arg;
+    } */ fcntl_args;
     struct linux_flock linux_flock;
     struct flock *bsd_flock;
+    struct filedesc *fdp;
+    struct file *fp;
     caddr_t sg;
 
     sg = stackgap_init();
     bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(struct flock));
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): fcntl(%d, %08x, *)\n",
-	   p->p_pid, args->fd, args->cmd);
+    printf("Linux-emul(%ld): fcntl(%d, %08x, *)\n", (long)p->p_pid,
+	args->fd, args->cmd);
 #endif
     fcntl_args.fd = args->fd;
 
@@ -291,7 +293,19 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	return fcntl(p, &fcntl_args);
 
     case LINUX_F_SETOWN:
-	fcntl_args.cmd = F_SETOWN;
+	/*
+	 * XXX some Linux applications depend on F_SETOWN having no
+	 * significant effect for pipes (SIGIO is not delivered for
+	 * pipes under Linux-2.2.35 at least).
+	 */
+	fdp = p->p_fd;
+	if ((u_int)args->fd >= fdp->fd_nfiles ||
+	  (fp = fdp->fd_ofiles[args->fd]) == NULL)
+	    return EBADF;
+	if (fp->f_type == DTYPE_PIPE)
+	    return EINVAL;
+
+ 	fcntl_args.cmd = F_SETOWN;
 	fcntl_args.arg = args->arg;
 	return fcntl(p, &fcntl_args);
     }
