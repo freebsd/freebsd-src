@@ -140,14 +140,17 @@ Causes data dirtied via this VM map to be flushed to physical media
 only when necessary (usually by the pager) rather then gratuitously.
 Typically this prevents the update daemons from flushing pages dirtied
 through such maps and thus allows efficient sharing of memory across
-unassociated processes using a file-backed shared memory map.  Without
+unassociated processes using a file-backed shared memory map.
+Without
 this option any VM pages you dirty may be flushed to disk every so often
 (every 30-60 seconds usually) which can create performance problems if you
 do not need that to occur (such as when you are using shared file-backed
-mmap regions for IPC purposes).  Note that VM/filesystem coherency is
+mmap regions for IPC purposes).
+Note that VM/filesystem coherency is
 maintained whether you use
 .Dv MAP_NOSYNC
-or not.  This option is not portable
+or not.
+This option is not portable
 across
 .Ux
 platforms (yet), though some may implement the same behavior
@@ -185,7 +188,8 @@ while reading a large file sequentially, e.g. using
 The
 .Xr fsync 2
 function will flush all dirty data and metadata associated with a file,
-including dirty NOSYNC VM data, to physical media.  The
+including dirty NOSYNC VM data, to physical media.
+The
 .Xr sync 8
 command and
 .Xr sync 2
@@ -194,7 +198,8 @@ The
 .Xr msync 2
 system call is obsolete since
 .Bx
-implements a coherent filesystem buffer cache.  However, it may be
+implements a coherent filesystem buffer cache.
+However, it may be
 used to associate dirty VM pages with filesystem buffers and thus cause
 them to be flushed to physical media sooner rather then later.
 .It Dv MAP_PRIVATE
@@ -218,10 +223,12 @@ and
 This option creates
 a memory region that grows to at most
 .Fa len
-bytes in size, starting from the stack top and growing down.  The
+bytes in size, starting from the stack top and growing down.
+The
 stack top is the starting address returned by the call, plus
 .Fa len
-bytes.  The bottom of the stack at maximum growth is the starting
+bytes.
+The bottom of the stack at maximum growth is the starting
 address returned by the call.
 .El
 .Pp
@@ -302,7 +309,7 @@ below.)
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
-parameter wasn't available. 
+parameter was not available.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
 The system has reached the per-process mmap limit specified in the
@@ -322,7 +329,8 @@ sysctl.
 .Xr make.conf 5
 .Sh BUGS
 .Fa len
-is limited to 2GB.  Mmapping slightly more than 2GB doesn't work, but
+is limited to 2GB.
+Mmapping slightly more than 2GB does not work, but
 it is possible to map a window of size (filesize % 2GB) for file sizes
 of slightly less than 2G, 4GB, 6GB and 8GB.
 .Pp
@@ -338,7 +346,7 @@ uses 32bit page indexes and
 this gives
 .Fx
 a maximum of 8TB filesizes.
-It's actually bugs in
+It is actually bugs in
 the filesystem code that causes the limit to be further restricted to
 1TB (loss of precision when doing blockno calculations).
 .Pp
