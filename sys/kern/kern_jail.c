@@ -59,6 +59,11 @@ SYSCTL_INT(_security_jail, OID_AUTO, getfsstate_getfsstatroot_only, CTLFLAG_RW,
     &jail_getfsstatroot_only, 0,
     "Processes see only their root file system in getfsstat()");
 
+int	jail_allow_raw_sockets = 0;
+SYSCTL_INT(_security_jail, OID_AUTO, allow_raw_sockets, CTLFLAG_RW,
+    &jail_allow_raw_sockets, 0,
+    "Prison root can create raw sockets");
+
 /* allprison, lastprid, and prisoncount are protected by allprison_mtx. */
 struct	prisonlist allprison;
 struct	mtx allprison_mtx;

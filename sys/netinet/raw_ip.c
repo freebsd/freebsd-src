@@ -36,6 +36,7 @@
 #include "opt_random_ip_id.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -206,6 +207,10 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_faddr.s_addr &&
                     inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			goto docontinue;
+		if (jailed(inp->inp_socket->so_cred))
+			if (htonl(prison_getip(inp->inp_socket->so_cred))
+				!= ip->ip_dst.s_addr)
+				goto docontinue;
 		if (last) {
 			struct mbuf *n;
 
@@ -261,7 +266,11 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
-		ip->ip_src = inp->inp_laddr;
+		if (jailed(inp->inp_socket->so_cred))
+			ip->ip_src.s_addr =
+			htonl(prison_getip(inp->inp_socket->so_cred));
+		else
+			ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = inp->inp_ip_ttl;
 	} else {
@@ -270,6 +279,13 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			return(EMSGSIZE);
 		}
 		ip = mtod(m, struct ip *);
+		if (jailed(inp->inp_socket->so_cred)) {
+			if (ip->ip_src.s_addr !=
+			htonl(prison_getip(inp->inp_socket->so_cred))) {
+				m_freem(m);
+				return (EPERM);
+			}
+		}
 		/* don't allow both user specified and setsockopt options,
 		   and don't allow packet length sizes that will crash */
 		if (((ip->ip_hl != (sizeof (*ip) >> 2))
@@ -518,7 +534,11 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return EINVAL;
 	}
-	if (td && (error = suser(td)) != 0) {
+	if (td && jailed(td->td_ucred) && !jail_allow_raw_sockets) {
+		INP_INFO_WUNLOCK(&ripcbinfo);
+		return (EPERM);
+	}
+	if (td && (error = suser_cred(td->td_ucred, PRISON_ROOT)) != 0) {
 		INP_INFO_WUNLOCK(&ripcbinfo);
 		return error;
 	}
@@ -617,6 +637,15 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
+
+	if (jailed(td->td_ucred)) {
+		if (addr->sin_addr.s_addr == INADDR_ANY) 
+			addr->sin_addr.s_addr =
+			htonl(prison_getip(td->td_ucred));
+		if (htonl(prison_getip(td->td_ucred))
+			!= addr->sin_addr.s_addr) 
+			return (EADDRNOTAVAIL);
+	}
 
 	if (TAILQ_EMPTY(&ifnet) ||
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
