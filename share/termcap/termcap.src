@@ -4172,6 +4172,8 @@ linux|Linux Console:\
 linux-m|Linux Console no color:\
 	:pa@:Co@:AF@:AB@:op@:\
 	:tc=linux:
+cygwin:\
+	:xn@:op=\E[39;49m:Km=\E[M:tc=linux:
 # Multilingual Sysinstall (kon2 console)
 # HOSOKAWA, Tatsumi (hosokawa@FreeBSD.org)
 kons25jx|kon3jx|jkons3jx|kons24-jis1983-j:\
