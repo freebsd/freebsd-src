@@ -51,11 +51,11 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef HZ
-#  elif defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#  if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 #    define	HZ 1000
 #  else
 #    define	HZ 100
-#endif
+#  endif
 #endif
 #define	NPROC (20 + 16 * maxusers)
 #ifndef NBUF
