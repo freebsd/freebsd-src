@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.213 1998/08/23 08:26:40 bde Exp $
+ *	$Id: sio.c,v 1.214 1998/08/23 10:16:26 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -41,16 +41,6 @@
 #include "opt_sio.h"
 #include "sio.h"
 #include "pnp.h"
-
-#ifndef EXTRA_SIO
-#if NPNP > 0
-#define EXTRA_SIO 2
-#else
-#define EXTRA_SIO 0
-#endif
-#endif
-
-#define NSIOTOT (NSIO + EXTRA_SIO)
 
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
@@ -105,6 +95,16 @@
 #define disable_intr()	COM_DISABLE_INTR()
 #define enable_intr()	COM_ENABLE_INTR()
 #endif /* SMP */
+
+#ifndef EXTRA_SIO
+#if NPNP > 0
+#define EXTRA_SIO MAX_PNP_CARDS
+#else
+#define EXTRA_SIO 0
+#endif
+#endif
+
+#define NSIOTOT (NSIO + EXTRA_SIO)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RS_IBUFSIZE	256
@@ -2950,13 +2950,11 @@ error:
 
 #if NPNP > 0
 
-static struct siopnp_ids {
-	u_long vend_id;
-	char *id_str;
-} siopnp_ids[] = {
+static pnpid_t siopnp_ids[] = {
 	{ 0x5015f435, "MOT1550"},
 	{ 0x8113b04e, "Supra1381"},
 	{ 0x9012b04e, "Supra1290"},
+	{ 0x7121b04e, "SupraExpress 56i Sp"},
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
 	{ 0 }
@@ -2979,12 +2977,12 @@ DATA_SET (pnpdevice_set, siopnp);
 static char *
 siopnp_probe(u_long csn, u_long vend_id)
 {
-	struct siopnp_ids *ids;
+	pnpid_t *id;
 	char *s = NULL;
 
-	for(ids = siopnp_ids; ids->vend_id != 0; ids++) {
-		if (vend_id == ids->vend_id) {
-			s = ids->id_str;
+	for(id = siopnp_ids; id->vend_id != 0; id++) {
+		if (vend_id == id->vend_id) {
+			s = id->id_str;
 			break;
 		}
 	}
