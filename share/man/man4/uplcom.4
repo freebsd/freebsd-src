@@ -36,12 +36,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2005
+.Dd January 25, 2005
 .Dt UPLCOM 4
 .Os
 .Sh NAME
 .Nm uplcom
-.Nd USB support for Prolific PL-2303 serial adapters driver
+.Nd USB support for Prolific PL-2303/2303X/2303HX serial adapters driver
 .Sh SYNOPSIS
 .Cd "uplcom* at uhub?"
 .Cd "ucom*   at uplcom?"
@@ -83,7 +83,8 @@ Sony Ericsson USB Cable(Susteen USB Data Cable)
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for Prolific PL-2303 USB-to-RS232 Bridge chip.
+driver provides support for various serial adapters based on the Prolific
+PL-2303, PL-2303X and PL-2303HX USB-to-RS232 Bridge chips.
 .Pp
 The device is accessed through the
 .Xr ucom 4
