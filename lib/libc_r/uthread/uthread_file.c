@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_file.c,v 1.5 1998/09/07 21:55:01 alex Exp $
+ * $Id: uthread_file.c,v 1.6 1998/09/09 16:50:33 dt Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor
@@ -310,6 +310,12 @@ _funlockfile(FILE * fp)
 
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
+		/*
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
+
 		/* Lock the hash table: */
 		_SPINLOCK(&hash_lock);
 
@@ -356,6 +362,12 @@ _funlockfile(FILE * fp)
 
 		/* Unlock the hash table: */
 		_SPINUNLOCK(&hash_lock);
+
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
+		 */
+		_thread_kern_sig_undefer();
 	}
 	return;
 }

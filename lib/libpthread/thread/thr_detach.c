@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE
@@ -53,23 +54,25 @@ pthread_detach(pthread_t pthread)
 		pthread->attr.flags |= PTHREAD_DETACHED;
 
 		/*
-		 * Guard against preemption by a scheduling signal.
-		 * A change of thread state modifies the waiting
-		 * and priority queues.
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
 		 */
-		_thread_kern_sched_defer();
+		_thread_kern_sig_defer();
 
 		/* Enter a loop to bring all threads off the join queue: */
-		while ((next_thread = _thread_queue_deq(&pthread->join_queue)) != NULL) {
+		while ((next_thread = TAILQ_FIRST(&pthread->join_queue)) != NULL) {
+			/* Remove the thread from the queue: */
+			TAILQ_REMOVE(&pthread->join_queue, next_thread, qe);
+
 			/* Make the thread run: */
 			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
 		}
 
 		/*
-		 * Reenable preemption and yield if a scheduling signal
-		 * occurred while in the critical region.
+		 * Undefer and handle pending signals, yielding if a
+		 * scheduling signal occurred while in the critical region.
 		 */
-		_thread_kern_sched_undefer();
+		_thread_kern_sig_undefer();
 	} else
 		/* Return an error: */
 		rval = EINVAL;

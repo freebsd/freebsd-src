@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE
@@ -71,7 +72,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
 		/* Add the running thread to the join queue: */
-		_thread_queue_enq(&(pthread->join_queue), _thread_run);
+		TAILQ_INSERT_TAIL(&(pthread->join_queue), _thread_run, qe);
 
 		/* Schedule the next thread: */
 		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);

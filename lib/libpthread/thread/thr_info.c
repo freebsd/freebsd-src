@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <stdio.h>
 #include <fcntl.h>
@@ -55,6 +56,7 @@ static const struct s_thread_info thread_info[] = {
 	{PS_FDR_WAIT	, "Waiting for read"},
 	{PS_FDW_WAIT	, "Waiting for write"},
 	{PS_FILE_WAIT	, "Waiting for FILE lock"},
+	{PS_POLL_WAIT	, "Waiting on poll"},
 	{PS_SELECT_WAIT	, "Waiting on select"},
 	{PS_SLEEP_WAIT	, "Sleeping"},
 	{PS_WAIT_WAIT	, "Waiting process"},
@@ -108,8 +110,7 @@ _thread_dump_info(void)
 		_thread_sys_write(fd, s, strlen(s));
 
 		/* Enter a loop to report each thread in the global list: */
-		for (pthread = _thread_link_list; pthread != NULL;
-		    pthread = pthread->nxt) {
+		TAILQ_FOREACH(pthread, &_thread_list, tle) {
 			/* Find the state: */
 			for (j = 0; j < (sizeof(thread_info) /
 			    sizeof(struct s_thread_info)) - 1; j++)
@@ -214,8 +215,29 @@ _thread_dump_info(void)
 			_thread_sys_write(fd, s, strlen(s));
 		}
 
+		/* Output a header for threads in the work queue: */
+		strcpy(s, "\n\n=============\nTHREADS IN WORKQ\n\n");
+		_thread_sys_write(fd, s, strlen(s));
+
+		/* Enter a loop to report each thread in the waiting queue: */
+		TAILQ_FOREACH (pthread, &_workq, qe) {
+			/* Find the state: */
+			for (j = 0; j < (sizeof(thread_info) /
+			    sizeof(struct s_thread_info)) - 1; j++)
+				if (thread_info[j].state == pthread->state)
+					break;
+			/* Output a record for the current thread: */
+			snprintf(s, sizeof(s),
+			    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+			    pthread, (pthread->name == NULL) ?
+			    "":pthread->name, pthread->base_priority,
+			    thread_info[j].name,
+			    pthread->fname,pthread->lineno);
+			_thread_sys_write(fd, s, strlen(s));
+		}
+
 		/* Check if there are no dead threads: */
-		if (_thread_dead == NULL) {
+		if (TAILQ_FIRST(&_dead_list) == NULL) {
 			/* Output a record: */
 			strcpy(s, "\n\nTHERE ARE NO DEAD THREADS\n");
 			_thread_sys_write(fd, s, strlen(s));
@@ -228,8 +250,7 @@ _thread_dump_info(void)
 			 * Enter a loop to report each thread in the global
 			 * dead thread list: 
 			 */
-			for (pthread = _thread_dead; pthread != NULL;
-			    pthread = pthread->nxt_dead) {
+			TAILQ_FOREACH(pthread, &_dead_list, dle) {
 				/* Output a record for the current thread: */
 				snprintf(s, sizeof(s),
 				    "Thread %p prio %3d [%s:%d]\n",

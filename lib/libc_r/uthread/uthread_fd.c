@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fd.c,v 1.9 1998/09/13 15:33:42 dt Exp $
+ * $Id: uthread_fd.c,v 1.10 1999/03/23 05:07:55 jb Exp $
  *
  */
 #include <errno.h>
@@ -84,14 +84,14 @@ _thread_fd_table_init(int fd)
 		entry->w_owner = NULL;
 		entry->r_fname = NULL;
 		entry->w_fname = NULL;
-		entry->r_lineno = 0;;
-		entry->w_lineno = 0;;
-		entry->r_lockcount = 0;;
-		entry->w_lockcount = 0;;
+		entry->r_lineno = 0;
+		entry->w_lineno = 0;
+		entry->r_lockcount = 0;
+		entry->w_lockcount = 0;
 
 		/* Initialise the read/write queues: */
-		_thread_queue_init(&entry->r_queue);
-		_thread_queue_init(&entry->w_queue);
+		TAILQ_INIT(&entry->r_queue);
+		TAILQ_INIT(&entry->w_queue);
 
 		/* Get the flags for the file: */
 		if (fd >= 3 && (entry->flags =
@@ -169,6 +169,12 @@ _thread_fd_unlock(int fd, int lock_type)
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
 		/*
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
+
+		/*
 		 * Lock the file descriptor table entry to prevent
 		 * other threads for clashing with the current
 		 * thread's accesses:
@@ -195,8 +201,12 @@ _thread_fd_unlock(int fd, int lock_type)
 				 * Get the next thread in the queue for a
 				 * read lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->r_owner = _thread_queue_deq(&_thread_fd_table[fd]->r_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->r_owner = TAILQ_FIRST(&_thread_fd_table[fd]->r_queue)) == NULL) {
 				} else {
+					/* Remove this thread from the queue: */
+					TAILQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+					    _thread_fd_table[fd]->r_owner, qe);
+
 					/*
 					 * Set the state of the new owner of
 					 * the thread to running: 
@@ -233,8 +243,12 @@ _thread_fd_unlock(int fd, int lock_type)
 				 * Get the next thread in the queue for a
 				 * write lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->w_owner = _thread_queue_deq(&_thread_fd_table[fd]->w_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->w_owner = TAILQ_FIRST(&_thread_fd_table[fd]->w_queue)) == NULL) {
 				} else {
+					/* Remove this thread from the queue: */
+					TAILQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+					    _thread_fd_table[fd]->w_owner, qe);
+
 					/*
 					 * Set the state of the new owner of
 					 * the thread to running: 
@@ -254,6 +268,12 @@ _thread_fd_unlock(int fd, int lock_type)
 
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
+
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
+		 */
+		_thread_kern_sig_undefer();
 	}
 
 	/* Nothing to return. */
@@ -295,7 +315,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					_thread_queue_enq(&_thread_fd_table[fd]->r_queue, _thread_run);
+					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->r_queue, _thread_run, qe);
 
 					/*
 					 * Save the file descriptor details
@@ -368,7 +388,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					_thread_queue_enq(&_thread_fd_table[fd]->w_queue, _thread_run);
+					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->w_queue, _thread_run, qe);
 
 					/*
 					 * Save the file descriptor details
@@ -440,6 +460,12 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
 		/*
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
+		 */
+		_thread_kern_sig_defer();
+
+		/*
 		 * Lock the file descriptor table entry to prevent
 		 * other threads for clashing with the current
 		 * thread's accesses:
@@ -466,8 +492,12 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 				 * Get the next thread in the queue for a
 				 * read lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->r_owner = _thread_queue_deq(&_thread_fd_table[fd]->r_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->r_owner = TAILQ_FIRST(&_thread_fd_table[fd]->r_queue)) == NULL) {
 				} else {
+					/* Remove this thread from the queue: */
+					TAILQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+					    _thread_fd_table[fd]->r_owner, qe);
+
 					/*
 					 * Set the state of the new owner of
 					 * the thread to  running: 
@@ -504,8 +534,12 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 				 * Get the next thread in the queue for a
 				 * write lock on this file descriptor: 
 				 */
-				else if ((_thread_fd_table[fd]->w_owner = _thread_queue_deq(&_thread_fd_table[fd]->w_queue)) == NULL) {
+				else if ((_thread_fd_table[fd]->w_owner = TAILQ_FIRST(&_thread_fd_table[fd]->w_queue)) == NULL) {
 				} else {
+					/* Remove this thread from the queue: */
+					TAILQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+					    _thread_fd_table[fd]->w_owner, qe);
+
 					/*
 					 * Set the state of the new owner of
 					 * the thread to running: 
@@ -525,6 +559,12 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
+
+		/*
+		 * Undefer and handle pending signals, yielding if
+		 * necessary.
+		 */
+		_thread_kern_sig_undefer();
 	}
 
 	/* Nothing to return. */
@@ -567,7 +607,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					_thread_queue_enq(&_thread_fd_table[fd]->r_queue, _thread_run);
+					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->r_queue, _thread_run, qe);
 
 					/*
 					 * Save the file descriptor details
@@ -649,7 +689,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					_thread_queue_enq(&_thread_fd_table[fd]->w_queue, _thread_run);
+					TAILQ_INSERT_TAIL(&_thread_fd_table[fd]->w_queue, _thread_run, qe);
 
 					/*
 					 * Save the file descriptor details

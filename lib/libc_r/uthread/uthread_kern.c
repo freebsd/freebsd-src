@@ -29,10 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.17 1999/05/07 07:59:44 jasone Exp $
+ * $Id: uthread_kern.c,v 1.16 1999/03/23 05:07:56 jb Exp $
  *
  */
 #include <errno.h>
+#include <poll.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -51,7 +52,10 @@
 
 /* Static function prototype definitions: */
 static void 
-_thread_kern_select(int wait_reqd);
+_thread_kern_poll(int wait_reqd);
+
+static void
+dequeue_signals(void);
 
 static inline void
 thread_run_switch_hook(pthread_t thread_out, pthread_t thread_in);
@@ -62,14 +66,12 @@ _thread_kern_sched(struct sigcontext * scp)
 #ifndef	__alpha__
 	char           *fdata;
 #endif
-	pthread_t       pthread;
-	pthread_t       pthread_h = NULL;
+	pthread_t       pthread, pthread_h = NULL;
 	pthread_t	last_thread = NULL;
 	struct itimerval itimer;
-	struct timespec ts;
-	struct timespec ts1;
-	struct timeval  tv;
-	struct timeval  tv1;
+	struct timespec ts, ts1;
+	struct timeval  tv, tv1;
+	int		i, set_timer = 0;
 
 	/*
 	 * Flag the pthread kernel as executing scheduler code
@@ -111,6 +113,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			/* Run the installed switch hook: */
 			thread_run_switch_hook(_last_user_thread, _thread_run);
 		}
+
 		return;
 	} else
 		/* Flag the jump buffer was the last state saved: */
@@ -127,238 +130,208 @@ __asm__("fnsave %0": :"m"(*fdata));
 	 * either a sigreturn (if the state was saved as a sigcontext) or a
 	 * longjmp (if the state was saved by a setjmp). 
 	 */
-	while (_thread_link_list != NULL) {
+	while (!(TAILQ_EMPTY(&_thread_list))) {
 		/* Get the current time of day: */
 		gettimeofday(&tv, NULL);
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
 
 		/*
-		 * Poll file descriptors to update the state of threads
-		 * waiting on file I/O where data may be available: 
+		 * Protect the scheduling queues from access by the signal
+		 * handler.
 		 */
-		_thread_kern_select(0);
+		_queue_signals = 1;
 
-		/*
-		 * Define the maximum time before a scheduling signal
-		 * is required: 
-		 */
-		itimer.it_value.tv_sec = 0;
-		itimer.it_value.tv_usec = TIMESLICE_USEC;
-
-		/*
-		 * The interval timer is not reloaded when it
-		 * times out. The interval time needs to be
-		 * calculated every time. 
-		 */
-		itimer.it_interval.tv_sec = 0;
-		itimer.it_interval.tv_usec = 0;
-
-		/*
-		 * Enter a loop to look for sleeping threads that are ready
-		 * or timedout.  While we're at it, also find the smallest
-		 * timeout value for threads waiting for a time.
-		 */
-		_waitingq_check_reqd = 0;	/* reset flag before loop */
-		TAILQ_FOREACH(pthread, &_waitingq, pqe) {
-			/* Check if this thread is ready: */
-			if (pthread->state == PS_RUNNING) {
-				PTHREAD_WAITQ_REMOVE(pthread);
-				PTHREAD_PRIOQ_INSERT_TAIL(pthread);
-			}
-
-			/*
-			 * Check if this thread is blocked by an
-			 * atomic lock:
-			 */
-			else if (pthread->state == PS_SPINBLOCK) {
-				/*
-				 * If the lock is available, let
-				 * the thread run.
-				 */
-				if (pthread->data.spinlock->access_lock == 0) {
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				}
-
-			/* Check if this thread is to timeout: */
-			} else if (pthread->state == PS_COND_WAIT ||
-			    pthread->state == PS_SLEEP_WAIT ||
-			    pthread->state == PS_FDR_WAIT ||
-			    pthread->state == PS_FDW_WAIT ||
-			    pthread->state == PS_SELECT_WAIT) {
-				/* Check if this thread is to wait forever: */
-				if (pthread->wakeup_time.tv_sec == -1) {
-				}
-				/*
-				 * Check if this thread is to wakeup
-				 * immediately or if it is past its wakeup
-				 * time: 
-				 */
-				else if ((pthread->wakeup_time.tv_sec == 0 &&
-					pthread->wakeup_time.tv_nsec == 0) ||
-					 (ts.tv_sec > pthread->wakeup_time.tv_sec) ||
-					 ((ts.tv_sec == pthread->wakeup_time.tv_sec) &&
-					  (ts.tv_nsec >= pthread->wakeup_time.tv_nsec))) {
-					/*
-					 * Check if this thread is waiting on
-					 * select: 
-					 */
-					if (pthread->state == PS_SELECT_WAIT) {
-						/*
-						 * The select has timed out, so
-						 * zero the file descriptor
-						 * sets: 
-						 */
-						FD_ZERO(&pthread->data.select_data->readfds);
-						FD_ZERO(&pthread->data.select_data->writefds);
-						FD_ZERO(&pthread->data.select_data->exceptfds);
-						pthread->data.select_data->nfds = 0;
-                                        }
-					/*
-					 * Return an error as an interrupted
-					 * wait: 
-					 */
-					_thread_seterrno(pthread, EINTR);
-
-					/*
-					 * Flag the timeout in the thread
-					 * structure: 
-					 */
-					pthread->timeout = 1;
-
-					/*
-					 * Change the threads state to allow
-					 * it to be restarted: 
-					 */
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				} else {
-					/*
-					 * Calculate the time until this thread
-					 * is ready, allowing for the clock
-					 * resolution: 
-					 */
-					ts1.tv_sec = pthread->wakeup_time.tv_sec
-					    - ts.tv_sec;
-					ts1.tv_nsec = pthread->wakeup_time.tv_nsec
-					    - ts.tv_nsec + CLOCK_RES_NSEC;
-
-					/*
-					 * Check for underflow of the
-					 * nanosecond field: 
-					 */
-					if (ts1.tv_nsec < 0) {
-						/*
-						 * Allow for the underflow
-						 * of the nanosecond field: 
-						 */
-						ts1.tv_sec--;
-						ts1.tv_nsec += 1000000000;
-					}
-					/*
-					 * Check for overflow of the nanosecond
-					 * field: 
-					 */
-					if (ts1.tv_nsec >= 1000000000) {
-						/*
-						 * Allow for the overflow of
-						 * the nanosecond field: 
-						 */
-						ts1.tv_sec++;
-						ts1.tv_nsec -= 1000000000;
-					}
-					/*
-					 * Convert the timespec structure
-					 * to a timeval structure: 
-					 */
-					TIMESPEC_TO_TIMEVAL(&tv1, &ts1);
-
-					/*
-					 * Check if the thread will be ready
-					 * sooner than the earliest ones found
-					 * so far: 
-					 */
-					if (timercmp(&tv1, &itimer.it_value, <)) {
-						/*
-						 * Update the time value: 
-						 */
-						itimer.it_value.tv_sec = tv1.tv_sec;
-						itimer.it_value.tv_usec = tv1.tv_usec;
-					}
-				}
-
-			}
-		}
-
-		/* Check if there is a current thread: */
 		if (_thread_run != &_thread_kern_thread) {
+
 			/*
 			 * This thread no longer needs to yield the CPU.
 			 */
-			_thread_run->yield_on_sched_undefer = 0;
-
+			_thread_run->yield_on_sig_undefer = 0;
+	
 			/*
 			 * Save the current time as the time that the thread
 			 * became inactive: 
 			 */
 			_thread_run->last_inactive.tv_sec = tv.tv_sec;
 			_thread_run->last_inactive.tv_usec = tv.tv_usec;
+	
+			/*
+			 * Place the currently running thread into the
+			 * appropriate queue(s).
+			 */
+			switch (_thread_run->state) {
+			case PS_DEAD:
+				/*
+				 * Dead threads are not placed in any queue:
+				 */
+				break;
+
+			case PS_RUNNING:
+				/*
+				 * Runnable threads can't be placed in the
+				 * priority queue until after waiting threads
+				 * are polled (to preserve round-robin
+				 * scheduling).
+				 */
+				if ((_thread_run->slice_usec != -1) &&
+				    (_thread_run->attr.sched_policy != SCHED_FIFO)) {
+					/*
+					 * Accumulate the number of microseconds that
+					 * this thread has run for:
+					 */
+					_thread_run->slice_usec +=
+					    (_thread_run->last_inactive.tv_sec -
+					    _thread_run->last_active.tv_sec) * 1000000 +
+					    _thread_run->last_inactive.tv_usec -
+					    _thread_run->last_active.tv_usec;
+	
+					/* Check for time quantum exceeded: */
+					if (_thread_run->slice_usec > TIMESLICE_USEC)
+						_thread_run->slice_usec = -1;
+				}
+				break;
 
 			/*
-			 * Accumulate the number of microseconds that this
-			 * thread has run for:
+			 * States which do not depend on file descriptor I/O
+			 * operations or timeouts: 
 			 */
-			if ((_thread_run->slice_usec != -1) &&
-			    (_thread_run->attr.sched_policy != SCHED_FIFO)) {
-				_thread_run->slice_usec +=
-				    (_thread_run->last_inactive.tv_sec -
-				    _thread_run->last_active.tv_sec) * 1000000 +
-				    _thread_run->last_inactive.tv_usec -
-				    _thread_run->last_active.tv_usec;
-
-				/* Check for time quantum exceeded: */
-				if (_thread_run->slice_usec > TIMESLICE_USEC)
-					_thread_run->slice_usec = -1;
-			}
-			if (_thread_run->state == PS_RUNNING) {
-				if (_thread_run->slice_usec == -1) {
-					/*
-					 * The thread exceeded its time
-					 * quantum or it yielded the CPU;
-					 * place it at the tail of the
-					 * queue for its priority.
-					 */
-					PTHREAD_PRIOQ_INSERT_TAIL(_thread_run);
-				} else {
-					/*
-					 * The thread hasn't exceeded its
-					 * interval.  Place it at the head
-					 * of the queue for its priority.
-					 */
-					PTHREAD_PRIOQ_INSERT_HEAD(_thread_run);
-				}
-			}
-			else if (_thread_run->state == PS_DEAD) {
-				/*
-				 * Don't add dead threads to the waiting
-				 * queue, because when they're reaped, it
-				 * will corrupt the queue.
-				 */
-			}
-			else {
-				/*
-				 * This thread has changed state and needs
-				 * to be placed in the waiting queue.
-				 */
-				PTHREAD_WAITQ_INSERT(_thread_run);
+			case PS_DEADLOCK:
+			case PS_FDLR_WAIT:
+			case PS_FDLW_WAIT:
+			case PS_FILE_WAIT:
+			case PS_JOIN:
+			case PS_MUTEX_WAIT:
+			case PS_SIGSUSPEND:
+			case PS_SIGTHREAD:
+			case PS_SIGWAIT:
+			case PS_SUSPENDED:
+			case PS_WAIT_WAIT:
+				/* No timeouts for these states: */
+				_thread_run->wakeup_time.tv_sec = -1;
+				_thread_run->wakeup_time.tv_nsec = -1;
 
 				/* Restart the time slice: */
 				_thread_run->slice_usec = -1;
+
+				/* Insert into the waiting queue: */
+				PTHREAD_WAITQ_INSERT(_thread_run);
+				break;
+
+			/* States which can timeout: */
+			case PS_COND_WAIT:
+			case PS_SLEEP_WAIT:
+				/* Restart the time slice: */
+				_thread_run->slice_usec = -1;
+
+				/* Insert into the waiting queue: */
+				PTHREAD_WAITQ_INSERT(_thread_run);
+				break;
+	
+			/* States that require periodic work: */
+			case PS_SPINBLOCK:
+				/* No timeouts for this state: */
+				_thread_run->wakeup_time.tv_sec = -1;
+				_thread_run->wakeup_time.tv_nsec = -1;
+
+				/* Increment spinblock count: */
+				_spinblock_count++;
+
+				/* fall through */
+			case PS_FDR_WAIT:
+			case PS_FDW_WAIT:
+			case PS_POLL_WAIT:
+			case PS_SELECT_WAIT:
+				/* Restart the time slice: */
+				_thread_run->slice_usec = -1;
+	
+				/* Insert into the waiting queue: */
+				PTHREAD_WAITQ_INSERT(_thread_run);
+	
+				/* Insert into the work queue: */
+				PTHREAD_WORKQ_INSERT(_thread_run);
+			}
+		}
+
+		/* Unprotect the scheduling queues: */
+		_queue_signals = 0;
+
+		/*
+		 * Poll file descriptors to update the state of threads
+		 * waiting on file I/O where data may be available: 
+		 */
+		_thread_kern_poll(0);
+
+		/* Protect the scheduling queues: */
+		_queue_signals = 1;
+
+		/*
+		 * Wake up threads that have timedout.  This has to be
+		 * done after polling in case a thread does a poll or
+		 * select with zero time.
+		 */
+		PTHREAD_WAITQ_SETACTIVE();
+		while (((pthread = TAILQ_FIRST(&_waitingq)) != NULL) &&
+		    (pthread->wakeup_time.tv_sec != -1) &&
+		    (((pthread->wakeup_time.tv_sec == 0) &&
+		    (pthread->wakeup_time.tv_nsec == 0)) ||
+		    (pthread->wakeup_time.tv_sec < ts.tv_sec) ||
+		    ((pthread->wakeup_time.tv_sec == ts.tv_sec) &&
+		    (pthread->wakeup_time.tv_nsec <= ts.tv_nsec)))) {
+			switch (pthread->state) {
+			case PS_POLL_WAIT:
+			case PS_SELECT_WAIT:
+				/* Return zero file descriptors ready: */
+				pthread->data.poll_data->nfds = 0;
+				/* fall through */
+			default:
+				/*
+				 * Remove this thread from the waiting queue
+				 * (and work queue if necessary) and place it
+				 * in the ready queue.
+				 */
+				PTHREAD_WAITQ_CLEARACTIVE();
+				if (pthread->flags & PTHREAD_FLAGS_IN_WORKQ)
+					PTHREAD_WORKQ_REMOVE(pthread);
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+				PTHREAD_WAITQ_SETACTIVE();
+				break;
+			}
+			/*
+			 * Flag the timeout in the thread structure:
+			 */
+			pthread->timeout = 1;
+		}
+		PTHREAD_WAITQ_CLEARACTIVE();
+
+		/*
+		 * Check if there is a current runnable thread that isn't
+		 * already in the ready queue:
+		 */
+		if ((_thread_run != &_thread_kern_thread) &&
+		    (_thread_run->state == PS_RUNNING) &&
+		    ((_thread_run->flags & PTHREAD_FLAGS_IN_PRIOQ) == 0)) {
+			if (_thread_run->slice_usec == -1) {
+				/*
+				 * The thread exceeded its time
+				 * quantum or it yielded the CPU;
+				 * place it at the tail of the
+				 * queue for its priority.
+				 */
+				PTHREAD_PRIOQ_INSERT_TAIL(_thread_run);
+			} else {
+				/*
+				 * The thread hasn't exceeded its
+				 * interval.  Place it at the head
+				 * of the queue for its priority.
+				 */
+				PTHREAD_PRIOQ_INSERT_HEAD(_thread_run);
 			}
 		}
 
 		/*
 		 * Get the highest priority thread in the ready queue.
 		 */
-		pthread_h = PTHREAD_PRIOQ_FIRST;
+		pthread_h = PTHREAD_PRIOQ_FIRST();
 
 		/* Check if there are no threads ready to run: */
 		if (pthread_h == NULL) {
@@ -369,17 +342,83 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 */
 			_thread_run = &_thread_kern_thread;
 
+			/* Unprotect the scheduling queues: */
+			_queue_signals = 0;
+
 			/*
 			 * There are no threads ready to run, so wait until
 			 * something happens that changes this condition: 
 			 */
-			_thread_kern_select(1);
-		} else {
+			_thread_kern_poll(1);
+		}
+		else {
+			/* Remove the thread from the ready queue: */
+			PTHREAD_PRIOQ_REMOVE(pthread_h);
+
+			/* Get first thread on the waiting list: */
+			pthread = TAILQ_FIRST(&_waitingq);
+
+			/* Check to see if there is more than one thread: */
+			if (pthread_h != TAILQ_FIRST(&_thread_list) ||
+			    TAILQ_NEXT(pthread_h, tle) != NULL)
+				set_timer = 1;
+			else
+				set_timer = 0;
+
+			/* Unprotect the scheduling queues: */
+			_queue_signals = 0;
+
+			/*
+			 * Check for signals queued while the scheduling
+			 * queues were protected:
+			 */
+			while (_sigq_check_reqd != 0) {
+				/* Clear before handling queued signals: */
+				_sigq_check_reqd = 0;
+
+				/* Protect the scheduling queues again: */
+				_queue_signals = 1;
+
+				dequeue_signals();
+
+				/*
+				 * Check for a higher priority thread that
+				 * became runnable due to signal handling.
+				 */
+				if (((pthread = PTHREAD_PRIOQ_FIRST()) != NULL) &&
+				    (pthread->active_priority > pthread_h->active_priority)) {
+					/*
+					 * Insert the lower priority thread
+					 * at the head of its priority list:
+					 */
+					PTHREAD_PRIOQ_INSERT_HEAD(pthread_h);
+
+					/* Remove the thread from the ready queue: */
+					PTHREAD_PRIOQ_REMOVE(pthread);
+
+					/* There's a new thread in town: */
+					pthread_h = pthread;
+				}
+
+				/* Get first thread on the waiting list: */
+				pthread = TAILQ_FIRST(&_waitingq);
+
+				/*
+				 * Check to see if there is more than one
+				 * thread:
+				 */
+				if (pthread_h != TAILQ_FIRST(&_thread_list) ||
+				    TAILQ_NEXT(pthread_h, tle) != NULL)
+					set_timer = 1;
+				else
+					set_timer = 0;
+
+				/* Unprotect the scheduling queues: */
+				_queue_signals = 0;
+			}
+
 			/* Make the selected thread the current thread: */
 			_thread_run = pthread_h;
-
-			/* Remove the thread from the ready queue. */
-			PTHREAD_PRIOQ_REMOVE(_thread_run);
 
 			/*
 			 * Save the current time as the time that the thread
@@ -387,6 +426,76 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 */
 			_thread_run->last_active.tv_sec = tv.tv_sec;
 			_thread_run->last_active.tv_usec = tv.tv_usec;
+
+			/*
+			 * Define the maximum time before a scheduling signal
+			 * is required: 
+			 */
+			itimer.it_value.tv_sec = 0;
+			itimer.it_value.tv_usec = TIMESLICE_USEC;
+
+			/*
+			 * The interval timer is not reloaded when it
+			 * times out. The interval time needs to be
+			 * calculated every time. 
+			 */
+			itimer.it_interval.tv_sec = 0;
+			itimer.it_interval.tv_usec = 0;
+
+			/* Get first thread on the waiting list: */
+			if ((pthread != NULL) &&
+			    (pthread->wakeup_time.tv_sec != -1)) {
+				/*
+				 * Calculate the time until this thread
+				 * is ready, allowing for the clock
+				 * resolution: 
+				 */
+				ts1.tv_sec = pthread->wakeup_time.tv_sec
+				    - ts.tv_sec;
+				ts1.tv_nsec = pthread->wakeup_time.tv_nsec
+				    - ts.tv_nsec + _clock_res_nsec;
+
+				/*
+				 * Check for underflow of the nanosecond field:
+				 */
+				if (ts1.tv_nsec < 0) {
+					/*
+					 * Allow for the underflow of the
+					 * nanosecond field: 
+					 */
+					ts1.tv_sec--;
+					ts1.tv_nsec += 1000000000;
+				}
+				/*
+				 * Check for overflow of the nanosecond field: 
+				 */
+				if (ts1.tv_nsec >= 1000000000) {
+					/*
+					 * Allow for the overflow of the
+					 * nanosecond field: 
+					 */
+					ts1.tv_sec++;
+					ts1.tv_nsec -= 1000000000;
+				}
+				/*
+				 * Convert the timespec structure to a
+				 * timeval structure: 
+				 */
+				TIMESPEC_TO_TIMEVAL(&tv1, &ts1);
+
+				/*
+				 * Check if the thread will be ready
+				 * sooner than the earliest ones found
+				 * so far: 
+				 */
+				if (timercmp(&tv1, &itimer.it_value, <)) {
+					/*
+					 * Update the time value: 
+					 */
+					itimer.it_value.tv_sec = tv1.tv_sec;
+					itimer.it_value.tv_usec = tv1.tv_usec;
+				}
+			}
 
 			/*
 			 * Check if this thread is running for the first time
@@ -399,7 +508,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			}
 
 			/* Check if there is more than one thread: */
-			if (_thread_run != _thread_link_list || _thread_run->nxt != NULL) {
+			if (set_timer != 0) {
 				/*
 				 * Start the interval timer for the
 				 * calculated time interval: 
@@ -462,6 +571,19 @@ __asm__("fnsave %0": :"m"(*fdata));
 void
 _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 {
+	/*
+	 * Flag the pthread kernel as executing scheduler code
+	 * to avoid a scheduler signal from interrupting this
+	 * execution and calling the scheduler again.
+	 */
+	_thread_kern_in_sched = 1;
+
+	/*
+	 * Prevent the signal handler from fiddling with this thread
+	 * before its state is set and is placed into the proper queue.
+	 */
+	_queue_signals = 1;
+
 	/* Change the state of the current thread: */
 	_thread_run->state = state;
 	_thread_run->fname = fname;
@@ -476,6 +598,20 @@ void
 _thread_kern_sched_state_unlock(enum pthread_state state,
     spinlock_t *lock, char *fname, int lineno)
 {
+	/*
+	 * Flag the pthread kernel as executing scheduler code
+	 * to avoid a scheduler signal from interrupting this
+	 * execution and calling the scheduler again.
+	 */
+	_thread_kern_in_sched = 1;
+
+	/*
+	 * Prevent the signal handler from fiddling with this thread
+	 * before its state is set and it is placed into the proper
+	 * queue(s).
+	 */
+	_queue_signals = 1;
+
 	/* Change the state of the current thread: */
 	_thread_run->state = state;
 	_thread_run->fname = fname;
@@ -489,383 +625,192 @@ _thread_kern_sched_state_unlock(enum pthread_state state,
 }
 
 static void
-_thread_kern_select(int wait_reqd)
+_thread_kern_poll(int wait_reqd)
 {
 	char            bufr[128];
-	fd_set          fd_set_except;
-	fd_set          fd_set_read;
-	fd_set          fd_set_write;
 	int             count = 0;
-	int             count_dec;
-	int             found_one;
-	int             i;
-	int             nfds = -1;
-	int             settimeout;
-	pthread_t       pthread;
+	int             i, found;
+	int		kern_pipe_added = 0;
+	int             nfds = 0;
+	int		timeout_ms = 0;
+	struct pthread	*pthread, *pthread_next;
 	ssize_t         num;
 	struct timespec ts;
-	struct timespec ts1;
-	struct timeval *p_tv;
 	struct timeval  tv;
-	struct timeval  tv1;
-
-	/* Zero the file descriptor sets: */
-	FD_ZERO(&fd_set_read);
-	FD_ZERO(&fd_set_write);
-	FD_ZERO(&fd_set_except);
 
 	/* Check if the caller wants to wait: */
-	if (wait_reqd) {
-		/*
-		 * Add the pthread kernel pipe file descriptor to the read
-		 * set: 
-		 */
-		FD_SET(_thread_kern_pipe[0], &fd_set_read);
-		nfds = _thread_kern_pipe[0];
-
+	if (wait_reqd == 0) {
+		timeout_ms = 0;
+	}
+	else {
 		/* Get the current time of day: */
 		gettimeofday(&tv, NULL);
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
+
+		_queue_signals = 1;
+		pthread = TAILQ_FIRST(&_waitingq);
+		_queue_signals = 0;
+
+		if ((pthread == NULL) || (pthread->wakeup_time.tv_sec == -1)) {
+			/*
+			 * Either there are no threads in the waiting queue,
+			 * or there are no threads that can timeout.
+			 */
+			timeout_ms = INFTIM;
+		}
+		else {
+			/*
+			 * Calculate the time left for the next thread to
+			 * timeout allowing for the clock resolution:
+			 */
+			timeout_ms = ((pthread->wakeup_time.tv_sec - ts.tv_sec) *
+			    1000) + ((pthread->wakeup_time.tv_nsec - ts.tv_nsec +
+			    _clock_res_nsec) / 1000000);
+			/*
+			 * Don't allow negative timeouts:
+			 */
+			if (timeout_ms < 0)
+				timeout_ms = 0;
+		}
 	}
-	/* Initialise the time value structure: */
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+			
+	/* Protect the scheduling queues: */
+	_queue_signals = 1;
 
 	/*
-	 * Enter a loop to process threads waiting on either file descriptors
-	 * or times: 
+	 * Check to see if the signal queue needs to be walked to look
+	 * for threads awoken by a signal while in the scheduler.  Only
+	 * do this if a wait is specified; otherwise, the waiting queue
+	 * will be checked after the zero-timed _poll.
 	 */
-	_waitingq_check_reqd = 0;	/* reset flag before loop */
-	TAILQ_FOREACH (pthread, &_waitingq, pqe) {
-		/* Assume that this state does not time out: */
-		settimeout = 0;
+	while ((_sigq_check_reqd != 0) && (timeout_ms != 0)) {
+		/* Reset flag before handling queued signals: */
+		_sigq_check_reqd = 0;
 
-		/* Process according to thread state: */
-		switch (pthread->state) {
+		dequeue_signals();
+
 		/*
-		 * States which do not depend on file descriptor I/O
-		 * operations or timeouts: 
+		 * Check for a thread that became runnable due to
+		 * a signal:
 		 */
-		case PS_DEAD:
-		case PS_DEADLOCK:
-		case PS_FDLR_WAIT:
-		case PS_FDLW_WAIT:
-		case PS_FILE_WAIT:
-		case PS_JOIN:
-		case PS_MUTEX_WAIT:
-		case PS_SIGTHREAD:
-		case PS_SIGWAIT:
-		case PS_STATE_MAX:
-		case PS_WAIT_WAIT:
-		case PS_SUSPENDED:
-			/* Nothing to do here. */
-			break;
-
-		case PS_RUNNING:
+		if (PTHREAD_PRIOQ_FIRST() != NULL) {
 			/*
-			 * A signal occurred and made this thread ready
-			 * while in the scheduler or while the scheduling
-			 * queues were protected.
+			 * Since there is at least one runnable thread,
+			 * disable the wait.
 			 */
-			PTHREAD_WAITQ_REMOVE(pthread);
-			PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+			timeout_ms = 0;
+		}
+	}
+
+	/*
+	 * Form the poll table:
+	 */
+	nfds = 0;
+	if (timeout_ms != 0) {
+		/* Add the kernel pipe to the poll table: */
+		_thread_pfd_table[nfds].fd = _thread_kern_pipe[0];
+		_thread_pfd_table[nfds].events = POLLRDNORM;
+		_thread_pfd_table[nfds].revents = 0;
+		nfds++;
+		kern_pipe_added = 1;
+	}
+
+	PTHREAD_WAITQ_SETACTIVE();
+	TAILQ_FOREACH(pthread, &_workq, qe) {
+		switch (pthread->state) {
+		case PS_SPINBLOCK:
+			/*
+			 * If the lock is available, let the thread run.
+			 */
+			if (pthread->data.spinlock->access_lock == 0) {
+				PTHREAD_WAITQ_CLEARACTIVE();
+				PTHREAD_WORKQ_REMOVE(pthread);
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				PTHREAD_WAITQ_SETACTIVE();
+				/* One less thread in a spinblock state: */
+				_spinblock_count--;
+			}
 			break;
 
 		/* File descriptor read wait: */
 		case PS_FDR_WAIT:
-			/* Add the file descriptor to the read set: */
-			FD_SET(pthread->data.fd.fd, &fd_set_read);
-
-			/*
-			 * Check if this file descriptor is greater than any
-			 * of those seen so far: 
-			 */
-			if (pthread->data.fd.fd > nfds) {
-				/* Remember this file descriptor: */
-				nfds = pthread->data.fd.fd;
+			/* Limit number of polled files to table size: */
+			if (nfds < _thread_dtablesize) {
+				_thread_pfd_table[nfds].events = POLLRDNORM;
+				_thread_pfd_table[nfds].fd = pthread->data.fd.fd;
+				nfds++;
 			}
-			/* Increment the file descriptor count: */
-			count++;
-
-			/* This state can time out: */
-			settimeout = 1;
 			break;
 
 		/* File descriptor write wait: */
 		case PS_FDW_WAIT:
-			/* Add the file descriptor to the write set: */
-			FD_SET(pthread->data.fd.fd, &fd_set_write);
-
-			/*
-			 * Check if this file descriptor is greater than any
-			 * of those seen so far: 
-			 */
-			if (pthread->data.fd.fd > nfds) {
-				/* Remember this file descriptor: */
-				nfds = pthread->data.fd.fd;
+			/* Limit number of polled files to table size: */
+			if (nfds < _thread_dtablesize) {
+				_thread_pfd_table[nfds].events = POLLWRNORM;
+				_thread_pfd_table[nfds].fd = pthread->data.fd.fd;
+				nfds++;
 			}
-			/* Increment the file descriptor count: */
-			count++;
-
-			/* This state can time out: */
-			settimeout = 1;
 			break;
 
-		/* States that time out: */
-		case PS_SLEEP_WAIT:
-		case PS_COND_WAIT:
-			/* Flag a timeout as required: */
-			settimeout = 1;
-			break;
-
-		/* Select wait: */
+		/* File descriptor poll or select wait: */
+		case PS_POLL_WAIT:
 		case PS_SELECT_WAIT:
-			/*
-			 * Enter a loop to process each file descriptor in
-			 * the thread-specific file descriptor sets: 
-			 */
-			for (i = 0; i < pthread->data.select_data->nfds; i++) {
-				/*
-				 * Check if this file descriptor is set for
-				 * exceptions: 
-				 */
-				if (FD_ISSET(i, &pthread->data.select_data->exceptfds)) {
-					/*
-					 * Add the file descriptor to the
-					 * exception set: 
-					 */
-					FD_SET(i, &fd_set_except);
-
-					/*
-					 * Increment the file descriptor
-					 * count: 
-					 */
-					count++;
-
-					/*
-					 * Check if this file descriptor is
-					 * greater than any of those seen so
-					 * far: 
-					 */
-					if (i > nfds) {
-						/*
-						 * Remember this file
-						 * descriptor: 
-						 */
-						nfds = i;
-					}
+			/* Limit number of polled files to table size: */
+			if (pthread->data.poll_data->nfds + nfds <
+			    _thread_dtablesize) {
+				for (i = 0; i < pthread->data.poll_data->nfds; i++) {
+					_thread_pfd_table[nfds + i].fd =
+					    pthread->data.poll_data->fds[i].fd;
+					_thread_pfd_table[nfds + i].events =
+					    pthread->data.poll_data->fds[i].events;
 				}
-				/*
-				 * Check if this file descriptor is set for
-				 * write: 
-				 */
-				if (FD_ISSET(i, &pthread->data.select_data->writefds)) {
-					/*
-					 * Add the file descriptor to the
-					 * write set: 
-					 */
-					FD_SET(i, &fd_set_write);
-
-					/*
-					 * Increment the file descriptor
-					 * count: 
-					 */
-					count++;
-
-					/*
-					 * Check if this file descriptor is
-					 * greater than any of those seen so
-					 * far: 
-					 */
-					if (i > nfds) {
-						/*
-						 * Remember this file
-						 * descriptor: 
-						 */
-						nfds = i;
-					}
-				}
-				/*
-				 * Check if this file descriptor is set for
-				 * read: 
-				 */
-				if (FD_ISSET(i, &pthread->data.select_data->readfds)) {
-					/*
-					 * Add the file descriptor to the
-					 * read set: 
-					 */
-					FD_SET(i, &fd_set_read);
-
-					/*
-					 * Increment the file descriptor
-					 * count: 
-					 */
-					count++;
-
-					/*
-					 * Check if this file descriptor is
-					 * greater than any of those seen so
-					 * far: 
-					 */
-					if (i > nfds) {
-						/*
-						 * Remember this file
-						 * descriptor: 
-						 */
-						nfds = i;
-					}
-				}
+				nfds += pthread->data.poll_data->nfds;
 			}
+			break;
 
-			/* This state can time out: */
-			settimeout = 1;
+		/* Other states do not depend on file I/O. */
+		default:
 			break;
 		}
-
-		/*
-		 * Check if the caller wants to wait and if the thread state
-		 * is one that times out: 
-		 */
-		if (wait_reqd && settimeout) {
-			/* Check if this thread wants to wait forever: */
-			if (pthread->wakeup_time.tv_sec == -1) {
-			}
-			/* Check if this thread doesn't want to wait at all: */
-			else if (pthread->wakeup_time.tv_sec == 0 &&
-				 pthread->wakeup_time.tv_nsec == 0) {
-				/* Override the caller's request to wait: */
-				wait_reqd = 0;
-			} else {
-				/*
-				 * Calculate the time until this thread is
-				 * ready, allowing for the clock resolution: 
-				 */
-				ts1.tv_sec = pthread->wakeup_time.tv_sec - ts.tv_sec;
-				ts1.tv_nsec = pthread->wakeup_time.tv_nsec - ts.tv_nsec +
-					CLOCK_RES_NSEC;
-
-				/*
-				 * Check for underflow of the nanosecond
-				 * field: 
-				 */
-				if (ts1.tv_nsec < 0) {
-					/*
-					 * Allow for the underflow of the
-					 * nanosecond field: 
-					 */
-					ts1.tv_sec--;
-					ts1.tv_nsec += 1000000000;
-				}
-				/*
-				 * Check for overflow of the nanosecond
-				 * field: 
-				 */
-				if (ts1.tv_nsec >= 1000000000) {
-					/*
-					 * Allow for the overflow of the
-					 * nanosecond field: 
-					 */
-					ts1.tv_sec++;
-					ts1.tv_nsec -= 1000000000;
-				}
-				/*
-				 * Convert the timespec structure to a
-				 * timeval structure: 
-				 */
-				TIMESPEC_TO_TIMEVAL(&tv1, &ts1);
-
-				/*
-				 * Check if no time value has been found yet,
-				 * or if the thread will be ready sooner that
-				 * the earliest one found so far: 
-				 */
-				if ((tv.tv_sec == 0 && tv.tv_usec == 0) || timercmp(&tv1, &tv, <)) {
-					/* Update the time value: */
-					tv.tv_sec = tv1.tv_sec;
-					tv.tv_usec = tv1.tv_usec;
-				}
-			}
-		}
 	}
+	PTHREAD_WAITQ_CLEARACTIVE();
 
-	/* Check if the caller wants to wait: */
-	if (wait_reqd) {
-		/* Check if no threads were found with timeouts: */
-		if (tv.tv_sec == 0 && tv.tv_usec == 0) {
-			/* Wait forever: */
-			p_tv = NULL;
-		} else {
-			/*
-			 * Point to the time value structure which contains
-			 * the earliest time that a thread will be ready: 
-			 */
-			p_tv = &tv;
+	/*
+	 * Wait for a file descriptor to be ready for read, write, or
+	 * an exception, or a timeout to occur: 
+	 */
+	count = _thread_sys_poll(_thread_pfd_table, nfds, timeout_ms);
+
+	if (kern_pipe_added != 0)
+		/*
+		 * Remove the pthread kernel pipe file descriptor
+		 * from the pollfd table: 
+		 */
+		nfds = 1;
+	else
+		nfds = 0;
+
+	/*
+	 * Check if it is possible that there are bytes in the kernel
+	 * read pipe waiting to be read:
+	 */
+	if (count < 0 || ((kern_pipe_added != 0) &&
+	    (_thread_pfd_table[0].revents & POLLRDNORM))) {
+		/*
+		 * If the kernel read pipe was included in the
+		 * count: 
+		 */
+		if (count > 0) {
+			/* Decrement the count of file descriptors: */
+			count--;
 		}
 
-		/*
-		 * Flag the pthread kernel as in a select. This is to avoid
-		 * the window between the next statement that unblocks
-		 * signals and the select statement which follows. 
-		 */
-		_thread_kern_in_select = 1;
+		if (_sigq_check_reqd != 0) {
+			/* Reset flag before handling signals: */
+			_sigq_check_reqd = 0;
 
-		/*
-		 * Wait for a file descriptor to be ready for read, write, or
-		 * an exception, or a timeout to occur: 
-		 */
-		count = _thread_sys_select(nfds + 1, &fd_set_read, &fd_set_write, &fd_set_except, p_tv);
-
-		/* Reset the kernel in select flag: */
-		_thread_kern_in_select = 0;
-
-		/*
-		 * Check if it is possible that there are bytes in the kernel
-		 * read pipe waiting to be read: 
-		 */
-		if (count < 0 || FD_ISSET(_thread_kern_pipe[0], &fd_set_read)) {
-			/*
-			 * Check if the kernel read pipe was included in the
-			 * count: 
-			 */
-			if (count > 0) {
-				/*
-				 * Remove the kernel read pipe from the
-				 * count: 
-				 */
-				FD_CLR(_thread_kern_pipe[0], &fd_set_read);
-
-				/* Decrement the count of file descriptors: */
-				count--;
-			}
-			/*
-			 * Enter a loop to read (and trash) bytes from the
-			 * pthread kernel pipe: 
-			 */
-			while ((num = _thread_sys_read(_thread_kern_pipe[0], bufr, sizeof(bufr))) > 0) {
-				/*
-				 * The buffer read contains one byte per
-				 * signal and each byte is the signal number.
-				 * This data is not used, but the fact that
-				 * the signal handler wrote to the pipe *is*
-				 * used to cause the _select call
-				 * to complete if the signal occurred between
-				 * the time when signals were unblocked and
-				 * the _select select call being
-				 * made. 
-				 */
-			}
+			dequeue_signals();
 		}
-	}
-	/* Check if there are file descriptors to poll: */
-	else if (count > 0) {
-		/*
-		 * Point to the time value structure which has been zeroed so
-		 * that the call to _select will not wait: 
-		 */
-		p_tv = &tv;
-
-		/* Poll file descrptors without wait: */
-		count = _thread_sys_select(nfds + 1, &fd_set_read, &fd_set_write, &fd_set_except, p_tv);
 	}
 
 	/*
@@ -875,301 +820,133 @@ _thread_kern_select(int wait_reqd)
 		/*
 		 * Enter a loop to look for threads waiting on file
 		 * descriptors that are flagged as available by the
-		 * _select syscall: 
+		 * _poll syscall: 
 		 */
-		TAILQ_FOREACH (pthread, &_waitingq, pqe) {
-			/* Process according to thread state: */
+		PTHREAD_WAITQ_SETACTIVE();
+		TAILQ_FOREACH(pthread, &_workq, qe) {
 			switch (pthread->state) {
-			/*
-			 * States which do not depend on file
-			 * descriptor I/O operations: 
-			 */
-			case PS_COND_WAIT:
-			case PS_DEAD:
-			case PS_DEADLOCK:
-			case PS_FDLR_WAIT:
-			case PS_FDLW_WAIT:
-			case PS_FILE_WAIT:
-			case PS_JOIN:
-			case PS_MUTEX_WAIT:
-			case PS_SIGWAIT:
-			case PS_SLEEP_WAIT:
-			case PS_WAIT_WAIT:
-			case PS_SIGTHREAD:
-			case PS_STATE_MAX:
-			case PS_SUSPENDED:
-				/* Nothing to do here. */
-				break;
-
-			case PS_RUNNING:
+			case PS_SPINBLOCK:
 				/*
-				 * A signal occurred and made this thread
-				 * ready while in the scheduler.
+				 * If the lock is available, let the thread run.
 				 */
-				PTHREAD_WAITQ_REMOVE(pthread);
-				PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+				if (pthread->data.spinlock->access_lock == 0) {
+					PTHREAD_WAITQ_CLEARACTIVE();
+					PTHREAD_WORKQ_REMOVE(pthread);
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+					PTHREAD_WAITQ_SETACTIVE();
+
+					/*
+					 * One less thread in a spinblock state:
+					 */
+					_spinblock_count--;
+				}
 				break;
 
 			/* File descriptor read wait: */
 			case PS_FDR_WAIT:
-				/*
-				 * Check if the file descriptor is available
-				 * for read: 
-				 */
-				if (FD_ISSET(pthread->data.fd.fd, &fd_set_read)) {
-					/*
-					 * Change the thread state to allow
-					 * it to read from the file when it
-					 * is scheduled next: 
-					 */
-					pthread->state = PS_RUNNING;
-
-					/*
-					 * Remove it from the waiting queue
-					 * and add it to the ready queue:
-					 */
-					PTHREAD_WAITQ_REMOVE(pthread);
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+				if ((nfds < _thread_dtablesize) &&
+				    (_thread_pfd_table[nfds].revents & POLLRDNORM)) {
+					PTHREAD_WAITQ_CLEARACTIVE();
+					PTHREAD_WORKQ_REMOVE(pthread);
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+					PTHREAD_WAITQ_SETACTIVE();
 				}
+				nfds++;
 				break;
 
 			/* File descriptor write wait: */
 			case PS_FDW_WAIT:
-				/*
-				 * Check if the file descriptor is available
-				 * for write: 
-				 */
-				if (FD_ISSET(pthread->data.fd.fd, &fd_set_write)) {
-					/*
-					 * Change the thread state to allow
-					 * it to write to the file when it is
-					 * scheduled next: 
-					 */
-					pthread->state = PS_RUNNING;
-
-					/*
-					 * Remove it from the waiting queue
-					 * and add it to the ready queue:
-					 */
-					PTHREAD_WAITQ_REMOVE(pthread);
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
+				if ((nfds < _thread_dtablesize) &&
+				    (_thread_pfd_table[nfds].revents & POLLWRNORM)) {
+					PTHREAD_WAITQ_CLEARACTIVE();
+					PTHREAD_WORKQ_REMOVE(pthread);
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+					PTHREAD_WAITQ_SETACTIVE();
 				}
+				nfds++;
 				break;
 
-			/* Select wait: */
+			/* File descriptor poll or select wait: */
+			case PS_POLL_WAIT:
 			case PS_SELECT_WAIT:
-				/*
-				 * Reset the flag that indicates if a file
-				 * descriptor is ready for some type of
-				 * operation: 
-				 */
-				count_dec = 0;
+				if (pthread->data.poll_data->nfds + nfds <
+				    _thread_dtablesize) {
+					/*
+					 * Enter a loop looking for I/O
+					 * readiness:
+					 */
+					found = 0;
+					for (i = 0; i < pthread->data.poll_data->nfds; i++) {
+						if (_thread_pfd_table[nfds + i].revents != 0) {
+							pthread->data.poll_data->fds[i].revents =
+							    _thread_pfd_table[nfds + i].revents;
+							found++;
+						}
+					}
 
-				/*
-				 * Enter a loop to search though the
-				 * thread-specific select file descriptors
-				 * for the first descriptor that is ready: 
-				 */
-				for (i = 0; i < pthread->data.select_data->nfds && count_dec == 0; i++) {
-					/*
-					 * Check if this file descriptor does
-					 * not have an exception: 
-					 */
-					if (FD_ISSET(i, &pthread->data.select_data->exceptfds) && FD_ISSET(i, &fd_set_except)) {
-						/*
-						 * Flag this file descriptor
-						 * as ready: 
-						 */
-						count_dec = 1;
-					}
-					/*
-					 * Check if this file descriptor is
-					 * not ready for write: 
-					 */
-					if (FD_ISSET(i, &pthread->data.select_data->writefds) && FD_ISSET(i, &fd_set_write)) {
-						/*
-						 * Flag this file descriptor
-						 * as ready: 
-						 */
-						count_dec = 1;
-					}
-					/*
-					 * Check if this file descriptor is
-					 * not ready for read: 
-					 */
-					if (FD_ISSET(i, &pthread->data.select_data->readfds) && FD_ISSET(i, &fd_set_read)) {
-						/*
-						 * Flag this file descriptor
-						 * as ready: 
-						 */
-						count_dec = 1;
+					/* Increment before destroying: */
+					nfds += pthread->data.poll_data->nfds;
+
+					if (found != 0) {
+						pthread->data.poll_data->nfds = found;
+						PTHREAD_WAITQ_CLEARACTIVE();
+						PTHREAD_WORKQ_REMOVE(pthread);
+						PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+						PTHREAD_WAITQ_SETACTIVE();
 					}
 				}
+				else
+					nfds += pthread->data.poll_data->nfds;
+				break;
 
-				/*
-				 * Check if any file descriptors are ready
-				 * for the current thread: 
-				 */
-				if (count_dec) {
-					/*
-					 * Reset the count of file
-					 * descriptors that are ready for
-					 * this thread: 
-					 */
-					found_one = 0;
-
-					/*
-					 * Enter a loop to search though the
-					 * thread-specific select file
-					 * descriptors: 
-					 */
-					for (i = 0; i < pthread->data.select_data->nfds; i++) {
-						/*
-						 * Reset the count of
-						 * operations for which the
-						 * current file descriptor is
-						 * ready: 
-						 */
-						count_dec = 0;
-
-						/*
-						 * Check if this file
-						 * descriptor is selected for
-						 * exceptions: 
-						 */
-						if (FD_ISSET(i, &pthread->data.select_data->exceptfds)) {
-							/*
-							 * Check if this file
-							 * descriptor has an
-							 * exception: 
-							 */
-							if (FD_ISSET(i, &fd_set_except)) {
-								/*
-								 * Increment
-								 * the count
-								 * for this
-								 * file: 
-								 */
-								count_dec++;
-							} else {
-								/*
-								 * Clear the
-								 * file
-								 * descriptor
-								 * in the
-								 * thread-spec
-								 * ific file
-								 * descriptor
-								 * set: 
-								 */
-								FD_CLR(i, &pthread->data.select_data->exceptfds);
-							}
-						}
-						/*
-						 * Check if this file
-						 * descriptor is selected for
-						 * write: 
-						 */
-						if (FD_ISSET(i, &pthread->data.select_data->writefds)) {
-							/*
-							 * Check if this file
-							 * descriptor is
-							 * ready for write: 
-							 */
-							if (FD_ISSET(i, &fd_set_write)) {
-								/*
-								 * Increment
-								 * the count
-								 * for this
-								 * file: 
-								 */
-								count_dec++;
-							} else {
-								/*
-								 * Clear the
-								 * file
-								 * descriptor
-								 * in the
-								 * thread-spec
-								 * ific file
-								 * descriptor
-								 * set: 
-								 */
-								FD_CLR(i, &pthread->data.select_data->writefds);
-							}
-						}
-						/*
-						 * Check if this file
-						 * descriptor is selected for
-						 * read: 
-						 */
-						if (FD_ISSET(i, &pthread->data.select_data->readfds)) {
-							/*
-							 * Check if this file
-							 * descriptor is
-							 * ready for read: 
-							 */
-							if (FD_ISSET(i, &fd_set_read)) {
-								/*
-								 * Increment
-								 * the count
-								 * for this
-								 * file: 
-								 */
-								count_dec++;
-							} else {
-								/*
-								 * Clear the
-								 * file
-								 * descriptor
-								 * in the
-								 * thread-spec
-								 * ific file
-								 * descriptor
-								 * set: 
-								 */
-								FD_CLR(i, &pthread->data.select_data->readfds);
-							}
-						}
-						/*
-						 * Check if the current file
-						 * descriptor is ready for
-						 * any one of the operations: 
-						 */
-						if (count_dec > 0) {
-							/*
-							 * Increment the
-							 * count of file
-							 * descriptors that
-							 * are ready for the
-							 * current thread: 
-							 */
-							found_one++;
-						}
-					}
-
-					/*
-					 * Return the number of file
-					 * descriptors that are ready: 
-					 */
-					pthread->data.select_data->nfds = found_one;
-
-					/*
-					 * Change the state of the current
-					 * thread to run: 
-					 */
-					pthread->state = PS_RUNNING;
-
-					/*
-					 * Remove it from the waiting queue
-					 * and add it to the ready queue:
-					 */
-					PTHREAD_WAITQ_REMOVE(pthread);
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
-				}
+			/* Other states do not depend on file I/O. */
+			default:
 				break;
 			}
 		}
+		PTHREAD_WAITQ_CLEARACTIVE();
+	}
+	else if (_spinblock_count != 0) {
+		/*
+		 * Enter a loop to look for threads waiting on a spinlock
+		 * that is now available.
+		 */
+		PTHREAD_WAITQ_SETACTIVE();
+		TAILQ_FOREACH(pthread, &_workq, qe) {
+			if (pthread->state == PS_SPINBLOCK) {
+				/*
+				 * If the lock is available, let the thread run.
+				 */
+				if (pthread->data.spinlock->access_lock == 0) {
+					PTHREAD_WAITQ_CLEARACTIVE();
+					PTHREAD_WORKQ_REMOVE(pthread);
+					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+					PTHREAD_WAITQ_SETACTIVE();
+
+					/*
+					 * One less thread in a spinblock state:
+					 */
+					_spinblock_count--;
+				}
+			}
+		}
+		PTHREAD_WAITQ_CLEARACTIVE();
+	}
+
+	/* Unprotect the scheduling queues: */
+	_queue_signals = 0;
+
+	while (_sigq_check_reqd != 0) {
+		/* Handle queued signals: */
+		_sigq_check_reqd = 0;
+
+		/* Protect the scheduling queues: */
+		_queue_signals = 1;
+
+		dequeue_signals();
+
+		/* Unprotect the scheduling queues: */
+		_queue_signals = 0;
 	}
 
 	/* Nothing to return. */
@@ -1219,59 +996,101 @@ _thread_kern_set_timeout(struct timespec * timeout)
 }
 
 void
-_thread_kern_sched_defer(void)
+_thread_kern_sig_defer(void)
 {
-	/* Allow scheduling deferral to be recursive. */
-	_thread_run->sched_defer_count++;
+	/* Allow signal deferral to be recursive. */
+	_thread_run->sig_defer_count++;
 }
 
 void
-_thread_kern_sched_undefer(void)
+_thread_kern_sig_undefer(void)
 {
 	pthread_t pthread;
 	int need_resched = 0;
 
 	/*
 	 * Perform checks to yield only if we are about to undefer
-	 * scheduling.
+	 * signals.
 	 */
-	if (_thread_run->sched_defer_count == 1) {
-		/*
-		 * Check if the waiting queue needs to be examined for
-		 * threads that are now ready:
-		 */
-		while (_waitingq_check_reqd != 0) {
-			/* Clear the flag before checking the waiting queue: */
-			_waitingq_check_reqd = 0;
-
-			TAILQ_FOREACH(pthread, &_waitingq, pqe) {
-				if (pthread->state == PS_RUNNING) {
-					PTHREAD_WAITQ_REMOVE(pthread);
-					PTHREAD_PRIOQ_INSERT_TAIL(pthread);
-				}
-			}
-		}
-
-		/*
-		 * We need to yield if a thread change of state caused a
-		 * higher priority thread to become ready, or if a
-		 * scheduling signal occurred while preemption was disabled.
-		 */
-		if ((((pthread = PTHREAD_PRIOQ_FIRST) != NULL) &&
-		   (pthread->active_priority > _thread_run->active_priority)) ||
-		   (_thread_run->yield_on_sched_undefer != 0)) {
-			_thread_run->yield_on_sched_undefer = 0;
-			need_resched = 1;
-		}
+	if (_thread_run->sig_defer_count > 1) {
+		/* Decrement the signal deferral count. */
+		_thread_run->sig_defer_count--;
 	}
+	else if (_thread_run->sig_defer_count == 1) {
+		/* Reenable signals: */
+		_thread_run->sig_defer_count = 0;
 
-	if (_thread_run->sched_defer_count > 0) {
-		/* Decrement the scheduling deferral count. */
-		_thread_run->sched_defer_count--;
+		/*
+		 * Check if there are queued signals:
+		 */
+		while (_sigq_check_reqd != 0) {
+			/* Defer scheduling while we process queued signals: */
+			_thread_run->sig_defer_count = 1;
+
+			/* Clear the flag before checking the signal queue: */
+			_sigq_check_reqd = 0;
+
+			/* Dequeue and handle signals: */
+			dequeue_signals();
+
+			/*
+			 * Avoiding an unnecessary check to reschedule, check
+			 * to see if signal handling caused a higher priority
+			 * thread to become ready.
+			 */
+			if ((need_resched == 0) &&
+			    (((pthread = PTHREAD_PRIOQ_FIRST()) != NULL) &&
+			    (pthread->active_priority > _thread_run->active_priority))) {
+				need_resched = 1;
+			}
+
+			/* Reenable signals: */
+			_thread_run->sig_defer_count = 0;
+		}
 
 		/* Yield the CPU if necessary: */
-		if (need_resched)
+		if (need_resched || _thread_run->yield_on_sig_undefer != 0) {
+			_thread_run->yield_on_sig_undefer = 0;
 			_thread_kern_sched(NULL);
+		}
+	}
+}
+
+static void
+dequeue_signals(void)
+{
+	char	bufr[128];
+	int	i, num;
+
+	/*
+	 * Enter a loop to read and handle queued signals from the
+	 * pthread kernel pipe: 
+	 */
+	while (((num = _thread_sys_read(_thread_kern_pipe[0], bufr,
+	    sizeof(bufr))) > 0) || (num == -1 && errno == EINTR)) {
+		/*
+		 * The buffer read contains one byte per signal and
+		 * each byte is the signal number.
+		 */
+		for (i = 0; i < num; i++) {
+			if ((int) bufr[i] == _SCHED_SIGNAL) {
+				/*
+				 * Scheduling signals shouldn't ever be
+				 * queued; just ignore it for now.
+				 */
+			}
+			else {
+				/* Handle this signal: */
+				_thread_sig_handle((int) bufr[i], NULL);
+			}
+		}
+	}
+	if ((num < 0) && (errno != EAGAIN)) {
+		/*
+		 * The only error we should expect is if there is
+		 * no data to read.
+		 */
+		PANIC("Unable to read from thread kernel pipe");
 	}
 }
 
