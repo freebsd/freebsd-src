@@ -1,26 +1,27 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 1.2 1994/09/08 02:51:19 wollman Exp $
+ * $Id: mapper.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
  */
 
 /*
  * Copyright (c) Xerox Corporation 1992. All rights reserved.
- *
+ *  
  * License is granted to copy, to use, and to make and to use derivative
  * works for research and evaluation purposes, provided that Xerox is
  * acknowledged in all documentation pertaining to any such copy or derivative
  * work. Xerox grants no other licenses expressed or implied. The Xerox trade
  * name should not be used in any advertising without its written permission.
- *
+ *  
  * XEROX CORPORATION MAKES NO REPRESENTATIONS CONCERNING EITHER THE
  * MERCHANTABILITY OF THIS SOFTWARE OR THE SUITABILITY OF THIS SOFTWARE
  * FOR ANY PARTICULAR PURPOSE.  The software is provided "as is" without
  * express or implied warranty of any kind.
- *
+ *  
  * These notices must be retained in any copies of any part of this software.
  */
 
+#include <string.h>
 #include <netdb.h>
 #include <sys/time.h>
 #include "defs.h"
@@ -33,7 +34,7 @@
 
 typedef struct neighbor {
     struct neighbor    *next;
-    u_long		addr;		/* IP address in NET order */
+    u_int32		addr;		/* IP address in NET order */
     u_char		metric;		/* TTL cost of forwarding */
     u_char		threshold;	/* TTL threshold to forward */
     u_short		flags;		/* flags on connection */
@@ -42,13 +43,13 @@ typedef struct neighbor {
 
 typedef struct interface {
     struct interface *next;
-    u_long	addr;		/* IP address of the interface in NET order */
+    u_int32	addr;		/* IP address of the interface in NET order */
     Neighbor   *neighbors;	/* List of neighbors' IP addresses */
 } Interface;
 
 typedef struct node {
-    u_long	addr;		/* IP address of this entry in NET order */
-    u_long	version;	/* which mrouted version is running */
+    u_int32	addr;		/* IP address of this entry in NET order */
+    u_int32	version;	/* which mrouted version is running */
     int		tries;		/* How many requests sent?  -1 for aliases */
     union {
 	struct node *alias;		/* If alias, to what? */
@@ -59,7 +60,7 @@ typedef struct node {
 
 
 Node   *routers = 0;
-u_long	our_addr, target_addr = 0;		/* in NET order */
+u_int32	our_addr, target_addr = 0;		/* in NET order */
 int	debug = 0;
 int	retries = DEFAULT_RETRIES;
 int	timeout = DEFAULT_TIMEOUT;
@@ -69,7 +70,7 @@ vifi_t  numvifs;		/* to keep loader happy */
 
 
 Node *find_node(addr, ptr)
-    u_long addr;
+    u_int32 addr;
     Node **ptr;
 {
     Node *n = *ptr;
@@ -92,7 +93,7 @@ Node *find_node(addr, ptr)
 
 
 Interface *find_interface(addr, node)
-    u_long addr;
+    u_int32 addr;
     Node *node;
 {
     Interface *ifc;
@@ -112,7 +113,7 @@ Interface *find_interface(addr, node)
 
 
 Neighbor *find_neighbor(addr, node)
-    u_long addr;
+    u_int32 addr;
     Node *node;
 {
     Interface *ifc;
@@ -168,14 +169,14 @@ void log(severity, syserr, format, a, b, c, d, e)
  * Send a neighbors-list request.
  */
 void ask(dst)
-    u_long dst;
+    u_int32 dst;
 {
     send_igmp(our_addr, dst, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS,
 		htonl(MROUTED_LEVEL), 0);
 }
 
 void ask2(dst)
-    u_long dst;
+    u_int32 dst;
 {
     send_igmp(our_addr, dst, IGMP_DVMRP, DVMRP_ASK_NEIGHBORS2,
 		htonl(MROUTED_LEVEL), 0);
@@ -186,7 +187,7 @@ void ask2(dst)
  * Process an incoming group membership report.
  */
 void accept_group_report(src, dst, group)
-    u_long src, dst, group;
+    u_int32 src, dst, group;
 {
     log(LOG_INFO, 0, "ignoring IGMP group membership report from %s to %s",
 	inet_fmt(src, s1), inet_fmt(dst, s2));
@@ -197,7 +198,7 @@ void accept_group_report(src, dst, group)
  * Process an incoming neighbor probe message.
  */
 void accept_probe(src, dst)
-    u_long src, dst;
+    u_int32 src, dst;
 {
     log(LOG_INFO, 0, "ignoring DVMRP probe from %s to %s",
 	inet_fmt(src, s1), inet_fmt(dst, s2));
@@ -208,7 +209,7 @@ void accept_probe(src, dst)
  * Process an incoming route report message.
  */
 void accept_report(src, dst, p, datalen)
-    u_long src, dst;
+    u_int32 src, dst;
     char *p;
     int datalen;
 {
@@ -221,7 +222,7 @@ void accept_report(src, dst, p, datalen)
  * Process an incoming neighbor-list request message.
  */
 void accept_neighbor_request(src, dst)
-    u_long src, dst;
+    u_int32 src, dst;
 {
     if (src != our_addr)
 	log(LOG_INFO, 0,
@@ -230,7 +231,7 @@ void accept_neighbor_request(src, dst)
 }
 
 void accept_neighbor_request2(src, dst)
-    u_long src, dst;
+    u_int32 src, dst;
 {
     if (src != our_addr)
 	log(LOG_INFO, 0,
@@ -243,7 +244,7 @@ void accept_neighbor_request2(src, dst)
  * Process an incoming neighbor-list message.
  */
 void accept_neighbors(src, dst, p, datalen, level)
-    u_long src, dst, level;
+    u_int32 src, dst, level;
     u_char *p;
     int datalen;
 {
@@ -254,8 +255,8 @@ void accept_neighbors(src, dst, p, datalen, level)
     else if (node->tries == -1)	/* follow alias link */
 	node = node->u.alias;
 
-#define GET_ADDR(a) (a = ((u_long)*p++ << 24), a += ((u_long)*p++ << 16),\
-		     a += ((u_long)*p++ << 8), a += *p++)
+#define GET_ADDR(a) (a = ((u_int32)*p++ << 24), a += ((u_int32)*p++ << 16),\
+		     a += ((u_int32)*p++ << 8), a += *p++)
 
     /* if node is running a recent mrouted, ask for additional info */
     if (level != 0) {
@@ -281,7 +282,7 @@ void accept_neighbors(src, dst, p, datalen, level)
     }
 
     while (datalen > 0) {	/* loop through interfaces */
-	u_long		ifc_addr;
+	u_int32		ifc_addr;
 	u_char		metric, threshold, ncount;
 	Node   	       *ifc_node;
 	Interface      *ifc;
@@ -354,13 +355,13 @@ void accept_neighbors(src, dst, p, datalen, level)
 	    ifc_node->tries = -1;
 	    ifc_node->u.alias = node;
 	}
-
+	
 	ifc = find_interface(ifc_addr, node);
 	old_neighbors = ifc->neighbors;
-
+	
 	/* Add the neighbors for this interface */
 	while (ncount--) {
-	    u_long 	neighbor;
+	    u_int32 	neighbor;
 	    Neighbor   *nb;
 	    Node       *n_node;
 
@@ -404,7 +405,7 @@ void accept_neighbors(src, dst, p, datalen, level)
 }
 
 void accept_neighbors2(src, dst, p, datalen)
-    u_long src, dst;
+    u_int32 src, dst;
     u_char *p;
     int datalen;
 {
@@ -416,7 +417,7 @@ void accept_neighbors2(src, dst, p, datalen)
 	node = node->u.alias;
 
     while (datalen > 0) {	/* loop through interfaces */
-	u_long		ifc_addr;
+	u_int32		ifc_addr;
 	u_char		metric, threshold, ncount, flags;
 	Node   	       *ifc_node;
 	Interface      *ifc;
@@ -428,7 +429,7 @@ void accept_neighbors2(src, dst, p, datalen)
 	    return;
 	}
 
-	ifc_addr = *(u_long*)p;
+	ifc_addr = *(u_int32*)p;
 	p += 4;
 	metric = *p++;
 	threshold = *p++;
@@ -490,13 +491,13 @@ void accept_neighbors2(src, dst, p, datalen)
 	    ifc_node->tries = -1;
 	    ifc_node->u.alias = node;
 	}
-
+	
 	ifc = find_interface(ifc_addr, node);
 	old_neighbors = ifc->neighbors;
-
+	
 	/* Add the neighbors for this interface */
 	while (ncount--) {
-	    u_long 	neighbor;
+	    u_int32 	neighbor;
 	    Neighbor   *nb;
 	    Node       *n_node;
 
@@ -506,7 +507,7 @@ void accept_neighbors2(src, dst, p, datalen)
 		return;
 	    }
 
-	    neighbor = *(u_long*)p;
+	    neighbor = *(u_int32*)p;
 	    p += 4;
 	    datalen -= 4;
 	    if (neighbor == 0)
@@ -571,7 +572,7 @@ int retry_requests(node)
 
 
 char *inet_name(addr)
-    u_long addr;
+    u_int32 addr;
 {
     struct hostent *e;
 
@@ -586,7 +587,7 @@ void print_map(node)
 {
     if (node) {
 	char *name, *addr;
-
+	
 	print_map(node->left);
 
 	addr = inet_fmt(node->addr, s1);
@@ -650,7 +651,7 @@ void print_map(node)
 
 
 char *graph_name(addr, buf)
-    u_long addr;
+    u_int32 addr;
     char *buf;
 {
     char *name;
@@ -734,7 +735,7 @@ void elide_aliases(node)
 
 void graph_map()
 {
-    u_long now = time(0);
+    time_t now = time(0);
     char *nowstr = ctime(&now);
 
     nowstr[24] = '\0';		/* Kill the newline at the end */
@@ -771,7 +772,7 @@ int get_number(var, deflt, pargv, pargc)
 }
 
 
-u_long host_addr(name)
+u_int32 host_addr(name)
     char *name;
 {
     struct hostent *e = gethostbyname(name);
@@ -789,12 +790,12 @@ u_long host_addr(name)
 }
 
 
-main(argc, argv)
+int main(argc, argv)
     int argc;
     char *argv[];
 {
     int flood = FALSE, graph = FALSE;
-
+    
 #ifdef SYSV
     setvbuf(stderr, NULL, _IOLBF, 0);
 #else
@@ -837,7 +838,7 @@ main(argc, argv)
     }
 
     if (argc > 1) {
-      usage:
+      usage:	
 	fprintf(stderr,
 		"Usage: map-mbone [-f] [-g] [-n] [-t timeout] %s\n\n",
 		"[-r retries] [-d [debug-level]] [router]");
@@ -862,7 +863,9 @@ main(argc, argv)
 	int addrlen = sizeof(addr);
 
 	addr.sin_family = AF_INET;
+#if (defined(BSD) && (BSD >= 199103))
 	addr.sin_len = sizeof addr;
+#endif
 	addr.sin_addr.s_addr = dvmrp_group;
 	addr.sin_port = htons(2000); /* any port over 1024 will do... */
 	if ((udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0
@@ -913,7 +916,7 @@ main(argc, argv)
 		break;
 	}
 
-	recvlen = recvfrom(igmp_socket, recv_buf, sizeof(recv_buf),
+	recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
 			   0, NULL, &dummy);
 	if (recvlen >= 0)
 	    accept_igmp(recvlen);
@@ -946,9 +949,12 @@ void accept_g_ack()
 void add_table_entry()
 {
 }
-void leave_group_message()
+void accept_leave_message()
 {
 }
-void mtrace()
+void accept_mtrace()
+{
+}
+void accept_membership_query()
 {
 }
