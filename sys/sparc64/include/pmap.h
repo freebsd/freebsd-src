@@ -115,4 +115,23 @@ pmap_track_modified(pmap_t pm, vm_offset_t va)
 		return (1);
 }
 
+#ifdef PMAP_STATS
+
+SYSCTL_DECL(_debug_pmap_stats);
+
+#define	PMAP_STATS_VAR(name) \
+	static long name; \
+	SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, name, CTLFLAG_RD, \
+	    &name, 0, "")
+
+#define	PMAP_STATS_INC(var) \
+	atomic_add_long(&var, 1)
+
+#else
+
+#define	PMAP_STATS_VAR(name)
+#define	PMAP_STATS_INC(var)
+
+#endif
+
 #endif /* !_MACHINE_PMAP_H_ */

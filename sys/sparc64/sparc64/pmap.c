@@ -89,7 +89,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/uma.h>
 
 #include <machine/cache.h>
 #include <machine/frame.h>
@@ -176,50 +175,53 @@ extern int tl1_dmmu_prot_patch_2[];
  */
 #define	PMAP_TSB_THRESH	((TSB_SIZE / 2) * PAGE_SIZE)
 
-#ifdef PMAP_STATS
-static long pmap_enter_nupdate;
-static long pmap_enter_nreplace;
-static long pmap_enter_nnew;
-static long pmap_ncache_enter;
-static long pmap_ncache_enter_c;
-static long pmap_ncache_enter_cc;
-static long pmap_ncache_enter_nc;
-static long pmap_ncache_remove;
-static long pmap_ncache_remove_c;
-static long pmap_ncache_remove_cc;
-static long pmap_ncache_remove_nc;
-static long pmap_niflush;
+SYSCTL_NODE(_debug, OID_AUTO, pmap_stats, CTLFLAG_RD, 0, "");
 
-SYSCTL_NODE(_debug, OID_AUTO, pmap_stats, CTLFLAG_RD, 0, "Statistics");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nupdate, CTLFLAG_RD,
-    &pmap_enter_nupdate, 0, "Number of pmap_enter() updates");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nreplace, CTLFLAG_RD,
-    &pmap_enter_nreplace, 0, "Number of pmap_enter() replacements");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nnew, CTLFLAG_RD,
-    &pmap_enter_nnew, 0, "Number of pmap_enter() additions");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter, CTLFLAG_RD,
-    &pmap_ncache_enter, 0, "Number of pmap_cache_enter() calls");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_c, CTLFLAG_RD,
-    &pmap_ncache_enter_c, 0, "Number of pmap_cache_enter() cacheable");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_cc, CTLFLAG_RD,
-    &pmap_ncache_enter_cc, 0, "Number of pmap_cache_enter() change color");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_nc, CTLFLAG_RD,
-    &pmap_ncache_enter_nc, 0, "Number of pmap_cache_enter() noncacheable");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove, CTLFLAG_RD,
-    &pmap_ncache_remove, 0, "Number of pmap_cache_remove() calls");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_c, CTLFLAG_RD,
-    &pmap_ncache_remove_c, 0, "Number of pmap_cache_remove() cacheable");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_cc, CTLFLAG_RD,
-    &pmap_ncache_remove_cc, 0, "Number of pmap_cache_remove() change color");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_nc, CTLFLAG_RD,
-    &pmap_ncache_remove_nc, 0, "Number of pmap_cache_remove() noncacheable");
-SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_niflush, CTLFLAG_RD,
-    &pmap_niflush, 0, "Number of pmap I$ flushes");
+PMAP_STATS_VAR(pmap_nenter);
+PMAP_STATS_VAR(pmap_nenter_update);
+PMAP_STATS_VAR(pmap_nenter_replace);
+PMAP_STATS_VAR(pmap_nenter_new);
+PMAP_STATS_VAR(pmap_nkenter);
+PMAP_STATS_VAR(pmap_nkremove);
+PMAP_STATS_VAR(pmap_nqenter);
+PMAP_STATS_VAR(pmap_nqremove);
+PMAP_STATS_VAR(pmap_ncache_enter);
+PMAP_STATS_VAR(pmap_ncache_enter_c);
+PMAP_STATS_VAR(pmap_ncache_enter_oc);
+PMAP_STATS_VAR(pmap_ncache_enter_cc);
+PMAP_STATS_VAR(pmap_ncache_enter_coc);
+PMAP_STATS_VAR(pmap_ncache_enter_nc);
+PMAP_STATS_VAR(pmap_ncache_enter_cnc);
+PMAP_STATS_VAR(pmap_ncache_remove);
+PMAP_STATS_VAR(pmap_ncache_remove_c);
+PMAP_STATS_VAR(pmap_ncache_remove_oc);
+PMAP_STATS_VAR(pmap_ncache_remove_cc);
+PMAP_STATS_VAR(pmap_ncache_remove_coc);
+PMAP_STATS_VAR(pmap_ncache_remove_nc);
+PMAP_STATS_VAR(pmap_niflush);
+PMAP_STATS_VAR(pmap_nzero_page);
+PMAP_STATS_VAR(pmap_nzero_page_c);
+PMAP_STATS_VAR(pmap_nzero_page_oc);
+PMAP_STATS_VAR(pmap_nzero_page_nc);
+PMAP_STATS_VAR(pmap_nzero_page_area);
+PMAP_STATS_VAR(pmap_nzero_page_area_c);
+PMAP_STATS_VAR(pmap_nzero_page_area_oc);
+PMAP_STATS_VAR(pmap_nzero_page_area_nc);
+PMAP_STATS_VAR(pmap_nzero_page_idle);
+PMAP_STATS_VAR(pmap_nzero_page_idle_c);
+PMAP_STATS_VAR(pmap_nzero_page_idle_oc);
+PMAP_STATS_VAR(pmap_nzero_page_idle_nc);
+PMAP_STATS_VAR(pmap_ncopy_page);
+PMAP_STATS_VAR(pmap_ncopy_page_c);
+PMAP_STATS_VAR(pmap_ncopy_page_oc);
+PMAP_STATS_VAR(pmap_ncopy_page_nc);
+PMAP_STATS_VAR(pmap_ncopy_page_dc);
+PMAP_STATS_VAR(pmap_ncopy_page_doc);
+PMAP_STATS_VAR(pmap_ncopy_page_sc);
+PMAP_STATS_VAR(pmap_ncopy_page_soc);
 
-#define	PMAP_STATS_INC(var)	atomic_add_long(&var, 1)
-#else
-#define	PMAP_STATS_INC(var)
-#endif
+PMAP_STATS_VAR(pmap_nnew_thread);
+PMAP_STATS_VAR(pmap_nnew_thread_oc);
 
 /*
  * Quick sort callout for comparing memory regions.
@@ -676,7 +678,10 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	if (m->md.color == color) {
 		KASSERT(m->md.colors[DCACHE_OTHER_COLOR(color)] == 0,
 		    ("pmap_cache_enter: cacheable, mappings of other color"));
-		PMAP_STATS_INC(pmap_ncache_enter_c);
+		if (m->md.color == DCACHE_COLOR(VM_PAGE_TO_PHYS(m)))
+			PMAP_STATS_INC(pmap_ncache_enter_c);
+		else
+			PMAP_STATS_INC(pmap_ncache_enter_oc);
 		return (1);
 	}
 
@@ -691,17 +696,22 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		    ("pmap_cache_enter: changing color, not new mapping"));
 		dcache_page_inval(VM_PAGE_TO_PHYS(m));
 		m->md.color = color;
-		PMAP_STATS_INC(pmap_ncache_enter_cc);
+		if (m->md.color == DCACHE_COLOR(VM_PAGE_TO_PHYS(m)))
+			PMAP_STATS_INC(pmap_ncache_enter_cc);
+		else
+			PMAP_STATS_INC(pmap_ncache_enter_coc);
 		return (1);
 	}
-
-	PMAP_STATS_INC(pmap_ncache_enter_nc);
 
 	/*
 	 * If the mapping is already non-cacheable, just return.
 	 */	
-	if (m->md.color == -1)
+	if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_ncache_enter_nc);
 		return (0);
+	}
+
+	PMAP_STATS_INC(pmap_ncache_enter_cnc);
 
 	/*
 	 * Mark all mappings as uncacheable, flush any lines with the other
@@ -741,7 +751,10 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	 * if there are no longer any mappings.
 	 */
 	if (m->md.color != -1) {
-		PMAP_STATS_INC(pmap_ncache_remove_c);
+		if (m->md.color == DCACHE_COLOR(VM_PAGE_TO_PHYS(m)))
+			PMAP_STATS_INC(pmap_ncache_remove_c);
+		else
+			PMAP_STATS_INC(pmap_ncache_remove_oc);
 		return;
 	}
 
@@ -758,8 +771,6 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		return;
 	}
 
-	PMAP_STATS_INC(pmap_ncache_remove_cc);
-
 	/*
 	 * The number of mappings for this color is now zero.  Recache the
 	 * other colored mappings, and change the page color to the other
@@ -771,6 +782,11 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
 	m->md.color = DCACHE_OTHER_COLOR(color);
+
+	if (m->md.color == DCACHE_COLOR(VM_PAGE_TO_PHYS(m)))
+		PMAP_STATS_INC(pmap_ncache_remove_cc);
+	else
+		PMAP_STATS_INC(pmap_ncache_remove_coc);
 }
 
 /*
@@ -785,6 +801,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	vm_page_t m;
 	u_long data;
 
+	PMAP_STATS_INC(pmap_nkenter);
 	tp = tsb_kvtotte(va);
 	m = PHYS_TO_VM_PAGE(pa);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
@@ -833,6 +850,7 @@ pmap_kremove(vm_offset_t va)
 	struct tte *tp;
 	vm_page_t m;
 
+	PMAP_STATS_INC(pmap_nkremove);
 	tp = tsb_kvtotte(va);
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
 	    tp->tte_data);
@@ -881,6 +899,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
 
+	PMAP_STATS_INC(pmap_nqenter);
 	va = sva;
 	while (count-- > 0) {
 		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
@@ -899,6 +918,7 @@ pmap_qremove(vm_offset_t sva, int count)
 {
 	vm_offset_t va;
 
+	PMAP_STATS_INC(pmap_nqremove);
 	va = sva;
 	while (count-- > 0) {
 		pmap_kremove(va);
@@ -925,6 +945,7 @@ pmap_new_thread(struct thread *td, int pages)
 	vm_page_t m;
 	u_int i;
 
+	PMAP_STATS_INC(pmap_nnew_thread);
 	/* Bounds check */
 	if (pages <= 1)
 		pages = KSTACK_PAGES;
@@ -963,6 +984,9 @@ pmap_new_thread(struct thread *td, int pages)
 		m = vm_page_grab(ksobj, i,
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
+		if (DCACHE_COLOR(ks + (i * PAGE_SIZE)) !=
+		    DCACHE_COLOR(VM_PAGE_TO_PHYS(m)))
+			PMAP_STATS_INC(pmap_nnew_thread_oc);
 
 		vm_page_lock_queues();
 		vm_page_wakeup(m);
@@ -1365,6 +1389,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	vm_offset_t pa;
 	u_long data;
 
+	PMAP_STATS_INC(pmap_nenter);
 	pa = VM_PAGE_TO_PHYS(m);
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
@@ -1376,7 +1401,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if ((tp = tsb_tte_lookup(pm, va)) != NULL && TTE_GET_PA(tp) == pa) {
 		CTR0(KTR_PMAP, "pmap_enter: update");
-		PMAP_STATS_INC(pmap_enter_nupdate);
+		PMAP_STATS_INC(pmap_nenter_update);
 
 		/*
 		 * Wiring change, just update stats.
@@ -1434,14 +1459,14 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 */
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
-			PMAP_STATS_INC(pmap_enter_nreplace);
+			PMAP_STATS_INC(pmap_nenter_replace);
 			vm_page_lock_queues();
 			pmap_remove_tte(pm, NULL, tp, va);
 			vm_page_unlock_queues();
 			tlb_page_demap(pm, va);
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: new");
-			PMAP_STATS_INC(pmap_enter_nnew);
+			PMAP_STATS_INC(pmap_nenter_new);
 		}
 
 		/*
@@ -1553,13 +1578,17 @@ pmap_zero_page(vm_page_t m)
 	vm_offset_t va;
 	struct tte *tp;
 
+	PMAP_STATS_INC(pmap_nzero_page);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1)
+	if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_nc);
 		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	else if (m->md.color == DCACHE_COLOR(pa)) {
+	} else if (m->md.color == DCACHE_COLOR(pa)) {
+		PMAP_STATS_INC(pmap_nzero_page_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		bzero((void *)va, PAGE_SIZE);
 	} else {
+		PMAP_STATS_INC(pmap_nzero_page_oc);
 		va = pmap_temp_map_1 + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
@@ -1577,13 +1606,17 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	struct tte *tp;
 
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
+	PMAP_STATS_INC(pmap_nzero_page_area);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1)
+	if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_area_nc);
 		aszero(ASI_PHYS_USE_EC, pa + off, size);
-	else if (m->md.color == DCACHE_COLOR(pa)) {
+	} else if (m->md.color == DCACHE_COLOR(pa)) {
+		PMAP_STATS_INC(pmap_nzero_page_area_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		bzero((void *)(va + off), size);
 	} else {
+		PMAP_STATS_INC(pmap_nzero_page_area_oc);
 		va = pmap_temp_map_1 + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
@@ -1600,13 +1633,17 @@ pmap_zero_page_idle(vm_page_t m)
 	vm_offset_t va;
 	struct tte *tp;
 
+	PMAP_STATS_INC(pmap_nzero_page_idle);
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1)
+	if (m->md.color == -1) {
+		PMAP_STATS_INC(pmap_nzero_page_idle_nc);
 		aszero(ASI_PHYS_USE_EC, pa, PAGE_SIZE);
-	else if (m->md.color == DCACHE_COLOR(pa)) {
+	} else if (m->md.color == DCACHE_COLOR(pa)) {
+		PMAP_STATS_INC(pmap_nzero_page_idle_c);
 		va = TLB_PHYS_TO_DIRECT(pa);
 		bzero((void *)va, PAGE_SIZE);
 	} else {
+		PMAP_STATS_INC(pmap_nzero_page_idle_oc);
 		va = pmap_idle_map + (m->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(va);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP | TD_CV | TD_W;
@@ -1625,21 +1662,26 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	vm_offset_t vsrc;
 	struct tte *tp;
 
+	PMAP_STATS_INC(pmap_ncopy_page);
 	pdst = VM_PAGE_TO_PHYS(mdst);
 	psrc = VM_PAGE_TO_PHYS(msrc);
-	if (msrc->md.color == -1 && mdst->md.color == -1)
+	if (msrc->md.color == -1 && mdst->md.color == -1) {
+		PMAP_STATS_INC(pmap_ncopy_page_nc);
 		ascopy(ASI_PHYS_USE_EC, psrc, pdst, PAGE_SIZE);
-	else if (msrc->md.color == DCACHE_COLOR(psrc) &&
+	} else if (msrc->md.color == DCACHE_COLOR(psrc) &&
 	    mdst->md.color == DCACHE_COLOR(pdst)) {
+		PMAP_STATS_INC(pmap_ncopy_page_c);
 		vdst = TLB_PHYS_TO_DIRECT(pdst);
 		vsrc = TLB_PHYS_TO_DIRECT(psrc);
 		bcopy((void *)vsrc, (void *)vdst, PAGE_SIZE);
 	} else if (msrc->md.color == -1) {
 		if (mdst->md.color == DCACHE_COLOR(pdst)) {
+			PMAP_STATS_INC(pmap_ncopy_page_dc);
 			vdst = TLB_PHYS_TO_DIRECT(pdst);
 			ascopyfrom(ASI_PHYS_USE_EC, psrc, (void *)vdst,
 			    PAGE_SIZE);
 		} else {
+			PMAP_STATS_INC(pmap_ncopy_page_doc);
 			vdst = pmap_temp_map_1 + (mdst->md.color * PAGE_SIZE);
 			tp = tsb_kvtotte(vdst);
 			tp->tte_data =
@@ -1651,10 +1693,12 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 		}
 	} else if (mdst->md.color == -1) {
 		if (msrc->md.color == DCACHE_COLOR(psrc)) {
+			PMAP_STATS_INC(pmap_ncopy_page_sc);
 			vsrc = TLB_PHYS_TO_DIRECT(psrc);
 			ascopyto((void *)vsrc, ASI_PHYS_USE_EC, pdst,
 			    PAGE_SIZE);
 		} else {
+			PMAP_STATS_INC(pmap_ncopy_page_soc);
 			vsrc = pmap_temp_map_1 + (msrc->md.color * PAGE_SIZE);
 			tp = tsb_kvtotte(vsrc);
 			tp->tte_data =
@@ -1665,6 +1709,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 			tlb_page_demap(kernel_pmap, vsrc);
 		}
 	} else {
+		PMAP_STATS_INC(pmap_ncopy_page_oc);
 		vdst = pmap_temp_map_1 + (mdst->md.color * PAGE_SIZE);
 		tp = tsb_kvtotte(vdst);
 		tp->tte_data =
