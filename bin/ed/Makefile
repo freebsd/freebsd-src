@@ -1,5 +1,5 @@
 PROG=	ed
-CFLAGS+=-I${.CURDIR} -DVI_BANG -DGNU_REGEX
+CFLAGS+=-DVI_BANG -DGNU_REGEX
 SRCS=	ed.c re.c buf.c cbc.c 
 LINKS=	${BINDIR}/ed ${BINDIR}/red
 MLINKS=	ed.1 red.1
