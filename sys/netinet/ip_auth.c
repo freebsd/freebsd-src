@@ -6,8 +6,13 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.0.2.21.2.2 1997/11/12 10:45:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.1.1.1 1997/11/16 05:55:52 peter Exp $";
 #endif
+
+#if defined(KERNEL) && !defined(_KERNEL)
+#define _KERNEL
+#endif
+#define __FreeBSD_version 300000	/* just a hack - no <sys/osreldate.h> */
 
 #if !defined(_KERNEL) && !defined(KERNEL)
 # include <stdlib.h>
@@ -42,6 +47,9 @@ static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.0.2.21.2.2 1997/11/12 10:45:
 # include <sys/dditypes.h>
 # include <sys/stream.h>
 # include <sys/kmem.h>
+#endif
+#if defined(KERNEL) && (__FreeBSD_version >= 300000)
+# include <sys/malloc.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
 # include <machine/cpu.h>

@@ -7,15 +7,19 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 1.1.1.6 1998/03/21 10:11:28 peter Exp $";
 #endif
+
+#include "opt_ipfilter.h"
 
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#include <sys/ioctl.h>
+#if !defined(__FreeBSD__)
+# include <sys/ioctl.h>
+#endif
 #if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
 # include <sys/systm.h>
 #else
@@ -31,6 +35,9 @@ static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 d
 # include <sys/byteorder.h>
 # include <sys/dditypes.h>
 # include <sys/stream.h>
+#endif
+#if defined(__FreeBSD__)
+# include <sys/malloc.h>
 #endif
 #ifndef linux
 # include <sys/protosw.h>
@@ -1073,7 +1080,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $
+ * $Id: fil.c,v 1.1.1.6 1998/03/21 10:11:28 peter Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,

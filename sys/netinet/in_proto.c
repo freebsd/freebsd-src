@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- *	$Id: in_proto.c,v 1.44 1997/11/05 20:17:16 joerg Exp $
+ *	$Id: in_proto.c,v 1.45 1997/12/15 20:31:11 eivind Exp $
  */
 
 #include "opt_ipdivert.h"
@@ -79,12 +79,6 @@ int	tp_ctloutput(), tp_usrreq();
 #ifdef EON
 void	eoninput(), eonctlinput(), eonprotoinit();
 #endif /* EON */
-
-#ifdef        IPFILTER
-void	iplinit();
-#define	ip_init	iplinit
-#endif
-
 
 extern	struct domain inetdomain;
 static	struct pr_usrreqs nousrreqs;

@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 2.0.2.13.2.3 1997/11/20 12:41:40 darrenr Exp $
+ * $Id: ip_log.c,v 1.1.1.2 1998/03/21 10:11:54 peter Exp $
  */
 #ifdef	IPFILTER_LOG
 # ifndef SOLARIS
@@ -17,7 +17,7 @@
 # endif
 # ifdef  __FreeBSD__
 #  if defined(_KERNEL) && !defined(IPFILTER_LKM)
-#   include <sys/osreldate.h>
+#   define __FreeBSD_version 300000	/* this will do as a hack */
 #  else
 #   include <osreldate.h>
 #  endif

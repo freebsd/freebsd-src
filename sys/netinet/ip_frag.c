@@ -7,8 +7,13 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.0.2.19.2.1 1997/11/12 10:50:21 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 1.1.1.5 1997/11/16 05:55:34 peter Exp $";
 #endif
+
+#if !defined(_KERNEL) && defined(KERNEL)
+#define _KERNEL
+#endif
+#define __FreeBSD_version 300000	/* it's a hack, but close enough */
 
 #if !defined(_KERNEL) && !defined(KERNEL)
 # include <string.h>
@@ -22,6 +27,7 @@ static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.0.2.19.2.1 1997/11/12 10:50:
 #if defined(KERNEL) && (__FreeBSD_version >= 220000)
 #include <sys/filio.h>
 #include <sys/fcntl.h>
+#include <sys/malloc.h>
 #else
 #include <sys/ioctl.h>
 #endif
@@ -42,6 +48,9 @@ static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.0.2.19.2.1 1997/11/12 10:50:
 # include <sys/dditypes.h>
 # include <sys/stream.h>
 # include <sys/kmem.h>
+#endif
+#if defined(KERNEL) && (__FreeBSD_version >= 300000)
+#include <sys/malloc.h>
 #endif
 
 #include <net/if.h>

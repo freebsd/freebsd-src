@@ -7,8 +7,14 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.4 1997/11/19 11:44:09 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.1.1.6 1998/03/21 10:11:25 peter Exp $";
 #endif
+
+#include "opt_ipfilter.h"
+#if defined(KERNEL) && !defined(_KERNEL)
+#define _KERNEL
+#endif
+#define __FreeBSD_version 300000        /* it's a hack, but close enough */
 
 #if !defined(_KERNEL) && !defined(KERNEL) && !defined(__KERNEL__)
 # include <stdlib.h>
@@ -26,6 +32,7 @@ static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.4 1997/11/19 11:44
 #if defined(KERNEL) && (__FreeBSD_version >= 220000)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
+# include <sys/malloc.h>
 #else
 # include <sys/ioctl.h>
 #endif

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.67 1998/03/14 04:13:50 tegge Exp $
+#	$Id: options,v 1.68 1998/03/19 22:37:37 dyson Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -179,6 +179,9 @@ PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
+IPFILTER		opt_ipfilter.h
+IPFILTER_LOG		opt_ipfilter.h
+IPFILTER_LKM		opt_ipfilter.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
