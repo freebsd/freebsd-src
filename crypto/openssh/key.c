@@ -33,7 +33,6 @@
  */
 #include "includes.h"
 RCSID("$OpenBSD: key.c,v 1.51 2003/02/12 09:33:04 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
 

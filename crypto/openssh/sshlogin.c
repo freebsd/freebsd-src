@@ -40,7 +40,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshlogin.c,v 1.5 2002/08/29 15:57:25 stevesk Exp $");
-RCSID("$FreeBSD$");
 
 #include "loginrec.h"
 

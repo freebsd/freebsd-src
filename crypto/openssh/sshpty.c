@@ -13,7 +13,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshpty.c,v 1.8 2003/02/03 08:56:16 markus Exp $");
-RCSID("$FreeBSD$");
 
 #ifdef HAVE_UTIL_H
 # include <util.h>
