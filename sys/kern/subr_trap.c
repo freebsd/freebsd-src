@@ -163,7 +163,7 @@ ast(struct trapframe *framep)
 	td->td_frame = framep;
 
 	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
-		thread_user_enter(p, td);
+		thread_user_enter(td);
 	/*
 	 * This updates the p_sflag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
