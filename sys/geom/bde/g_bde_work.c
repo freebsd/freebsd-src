@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -70,9 +67,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
 
+#include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
 
@@ -81,6 +81,7 @@ static struct g_bde_sector * g_bde_new_sector(struct g_bde_work *wp, u_int len);
 static void g_bde_release_sector(struct g_bde_work *wp, struct g_bde_sector *sp);
 static struct g_bde_sector *g_bde_get_sector(struct g_bde_work *wp, off_t offset);
 static int g_bde_start_read(struct g_bde_sector *sp);
+static void g_bde_purge_sector(struct g_bde_softc *sc, int fraction);
 
 /*
  * Work item allocation.
@@ -181,6 +182,20 @@ g_bde_new_sector(struct g_bde_work *wp, u_int len)
 static u_int g_bde_ncache;
 SYSCTL_UINT(_debug, OID_AUTO, gbde_ncache, CTLFLAG_RD, &g_bde_ncache, 0, "");
 
+static void
+g_bde_purge_one_sector(struct g_bde_softc *sc, struct g_bde_sector *sp)
+{
+
+	g_trace(G_T_TOPOLOGY, "g_bde_purge_one_sector(%p, %p)", sc, sp);
+	if (sp->ref != 0)
+		return;
+	TAILQ_REMOVE(&sc->freelist, sp, list);
+	g_bde_ncache--;
+	sc->ncache--;
+	bzero(sp->data, sp->size);
+	g_bde_delete_sector(sc, sp);
+}
+
 static struct g_bde_sector *
 g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 {
@@ -189,6 +204,14 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 
 	g_trace(G_T_TOPOLOGY, "g_bde_get_sector(%p, %jd)", wp, (intmax_t)offset);
 	sc = wp->softc;
+
+	if (malloc_last_fail() < g_bde_ncache)
+		g_bde_purge_sector(sc, -1);
+
+	sp = TAILQ_FIRST(&sc->freelist);
+	if (sp != NULL && sp->ref == 0 && sp->used + 300 < time_uptime)
+		g_bde_purge_one_sector(sc, sp);
+
 	TAILQ_FOREACH(sp, &sc->freelist, list) {
 		if (sp->offset == offset)
 			break;
@@ -200,7 +223,12 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 		if (sp->ref == 1)
 			sp->owner = wp;
 	} else {
-		if (!TAILQ_EMPTY(&sc->freelist))
+		if (malloc_last_fail() < g_bde_ncache) {
+			TAILQ_FOREACH(sp, &sc->freelist, list)
+				if (sp->ref == 0)
+					break;
+		}
+		if (sp == NULL && !TAILQ_EMPTY(&sc->freelist))
 			sp = TAILQ_FIRST(&sc->freelist);
 		if (sp != NULL && sp->ref > 0)
 			sp = NULL;
@@ -227,6 +255,12 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 		TAILQ_INSERT_TAIL(&sc->freelist, sp, list);
 	}
 	wp->ksp = sp;
+	if (sp == NULL) {
+		g_bde_purge_sector(sc, -1);
+		sp = g_bde_get_sector(wp, offset);
+	}
+	if (sp != NULL)
+		sp->used = time_uptime;
 	KASSERT(sp != NULL, ("get_sector failed"));
 	return(sp);
 }
@@ -273,7 +307,14 @@ g_bde_purge_sector(struct g_bde_softc *sc, int fraction)
 	int n;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_purge_sector(%p)", sc);
-	n = sc->ncache / fraction + 1;
+	if (fraction > 0)
+		n = sc->ncache / fraction + 1;
+	else 
+		n = g_bde_ncache - malloc_last_fail();
+	if (n < 0)
+		return;
+	if (n > sc->ncache)
+		n = sc->ncache;
 	while(n--) {
 		TAILQ_FOREACH(sp, &sc->freelist, list) {
 			if (sp->ref != 0)

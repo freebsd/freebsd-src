@@ -16,9 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the authors may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -49,51 +46,12 @@
 #include <sys/libkern.h>
 #include <sys/md5.h>
 
+#include <crypto/rijndael/rijndael.h>
+#include <crypto/sha2/sha2.h>
+
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
 
-#include <crypto/rijndael/rijndael.h>
-
-/*
- * These four functions wrap the raw Rijndael functions and make sure we
- * explode if something fails which shouldn't.
- */
-
-static void
-AES_init(cipherInstance *ci)
-{
-	int error;
-
-	error = rijndael_cipherInit(ci, MODE_CBC, NULL);
-	KASSERT(error > 0, ("rijndael_cipherInit %d", error));
-}
-
-static void
-AES_makekey(keyInstance *ki, int dir, u_int len, void *key)
-{
-	int error;
-
-	error = rijndael_makeKey(ki, dir, len, key);
-	KASSERT(error > 0, ("rijndael_makeKey %d", error));
-}
-
-static void
-AES_encrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
-{
-	int error;
-
-	error = rijndael_blockEncrypt(ci, ki, in, len * 8, out);
-	KASSERT(error > 0, ("rijndael_blockEncrypt %d", error));
-}
-
-static void
-AES_decrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
-{
-	int error;
-
-	error = rijndael_blockDecrypt(ci, ki, in, len * 8, out);
-	KASSERT(error > 0, ("rijndael_blockDecrypt %d", error));
-}
 
 /*
  * Derive kkey from mkey + sector offset.
@@ -120,10 +78,14 @@ g_bde_kkey(struct g_bde_softc *sc, keyInstance *ki, int dir, off_t sector)
 	u_int t;
 	MD5_CTX ct;
 	u_char buf[16];
+	u_char buf2[8];
+
+	/* We have to be architecture neutral */
+	g_enc_le8(buf2, sector);
 
 	MD5Init(&ct);
 	MD5Update(&ct, sc->key.salt, 8);
-	MD5Update(&ct, (void *)&sector, sizeof sector);
+	MD5Update(&ct, buf2, sizeof buf2);
 	MD5Update(&ct, sc->key.salt + 8, 8);
 	MD5Final(buf, &ct);
 
@@ -131,8 +93,9 @@ g_bde_kkey(struct g_bde_softc *sc, keyInstance *ki, int dir, off_t sector)
 	for (t = 0; t < 16; t++) {
 		MD5Update(&ct, &sc->key.mkey[buf[t]], 1);
 		if (t == 8)
-			MD5Update(&ct, (void *)&sector, sizeof sector);
+			MD5Update(&ct, buf2, sizeof buf2);
 	}
+	bzero(buf2, sizeof buf2);
 	MD5Final(buf, &ct);
 	bzero(&ct, sizeof ct);
 	AES_makekey(ki, dir, G_BDE_KKEYBITS, buf);
