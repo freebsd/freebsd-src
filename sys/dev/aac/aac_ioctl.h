@@ -1,8 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
- * Copyright (c) 2000-2001 Scott Long
+ * Copyright (c) 2000 Scott Long
  * Copyright (c) 2000 BSDi
- * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,8 +58,7 @@ union aac_statrequest {
  * These bit encodings are actually descended from Windows NT.  Ick.
  */
 
-#define CTL_CODE(devType, func, meth, acc) (((devType) << 16) | ((acc) << 14) \
-					   | ((func) << 2) | (meth))
+#define CTL_CODE(devType, func, meth, acc) (((devType) << 16) | ((acc) << 14) | ((func) << 2) | (meth))
 #define METHOD_BUFFERED                 0
 #define METHOD_IN_DIRECT                1
 #define METHOD_OUT_DIRECT               2
@@ -108,15 +106,15 @@ union aac_statrequest {
 #define FSACTL_LNX_DELETE_DISK		0x163
 #define FSACTL_LNX_QUERY_DISK		0x173
 
-/* Ok, this one is really lame */
+/* Ok, here it gets really lame */
 #define FSACTL_LNX_PROBE_CONTAINERS	2131	/* Just guessing */
 
 /* Do the native version of the ioctls.  Since the BSD encoding scheme
- * conflicts with the 'standard' AAC encoding scheme, the resulting values
- * must be different.  The '8' comes from the fact that the previous scheme
+ * conflicts with the 'standard' AAC encoding scheme, the resulting numbers
+ * will be different.  The '8' comes from the fact that the previous scheme
  * used 12 bits for the number, with the the 12th bit being the only set
  * bit above bit 8.  Thus the value of 8, with the lower 8 bits holding the
- * command number.  9 is used for the odd overflow/collision case.
+ * command number.  9 is used for the odd overflow case.
  */
 #define FSACTL_SENDFIB			_IO('8', 2)
 #define FSACTL_GET_COMM_PERF_DATA	_IO('8', 36)
@@ -161,9 +159,21 @@ struct aac_rev_check_resp {
 /*
  * Context passed in by a consumer looking to collect an AIF.
  */
-#define AAC_AIF_SILLYMAGIC	0xdeadbeef
 struct get_adapter_fib_ioctl {
     u_int32_t	AdapterFibContext;
     int	  	Wait;
     caddr_t	AifFib;
+};
+
+struct aac_query_disk {
+    int32_t	ContainerNumber;
+    int32_t	Bus;
+    int32_t	Target;
+    int32_t	Lun;
+    u_int32_t	Valid;
+    u_int32_t	Locked;
+    u_int32_t	Deleted;
+    int32_t	Instance;
+    char	diskDeviceName[10];
+    u_int32_t	UnMapped;
 };
