@@ -151,9 +151,18 @@ END(mi_startup_trampoline)
  * as described on page 3-9 of the IPF SAL Specification. The difference
  * lies in the contents of register b0. For APs this register holds the
  * return address into the SAL rendezvous routine.
+ *
+ * Note that we're responsible for clearing the IRR bit by reading cr.ivr
+ * and issuing the EOI to the local SAPIC.
  */
 	.align	32
 ENTRY(os_boot_rendez,0)
+	mov	r16=cr.ivr	// clear IRR bit
+	;;
+	srlz.d
+	mov	cr.eoi=r0	// ACK the wake-up
+	;;
+	srlz.d
 	rsm	IA64_PSR_IC|IA64_PSR_I
 	;;
 	srlz.d
@@ -214,18 +223,17 @@ ENTRY(os_boot_rendez,0)
 	mov	cr.pta = r17
 	;;
 	srlz.i
-	ssm	psr.i
 	;;
 	srlz.d
+	movl	r16 = ap_stack
 	mov	ar.rsc = 0
 	movl	gp = __gp
 	;;
-	br.call.sptk.few rp = ia64_ap_get_stack
+	ld8	r16 = [r16]
+	mov	r17 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;;
-	mov	r9 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
-	;;
-	add	sp = r9, r8
-	mov	ar.bspstore = r8
+	add	sp = r17, r16
+	mov	ar.bspstore = r16
 	;;
 	loadrs
 	;;
