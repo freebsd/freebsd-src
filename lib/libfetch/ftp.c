@@ -61,6 +61,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -304,11 +305,124 @@ _ftp_stat(int cd, char *file, struct url_stat *us)
 }
 
 /*
+ * I/O functions for FTP
+ */
+struct ftpio {
+    int		 csd;		/* Control socket descriptor */
+    int		 dsd;		/* Data socket descriptor */
+    int		 dir;		/* Direction */
+    int		 eof;		/* EOF reached */
+    int		 err;		/* Error code */
+};
+
+static int	_ftp_readfn(void *, char *, int);
+static int	_ftp_writefn(void *, const char *, int);
+static fpos_t	_ftp_seekfn(void *, fpos_t, int);
+static int	_ftp_closefn(void *);
+
+static int
+_ftp_readfn(void *v, char *buf, int len)
+{
+    struct ftpio *io;
+    int r;
+
+    io = (struct ftpio *)v;
+    if (io->csd == -1 || io->dsd == -1 || io->dir == O_WRONLY) {
+	errno = EBADF;
+	return -1;
+    }
+    if (io->err) {
+	errno = io->err;
+	return -1;
+    }
+    if (io->eof)
+	return 0;
+    r = read(io->dsd, buf, len);
+    if (r > 0)
+	return r;
+    if (r == 0) {
+	io->eof = 1;
+	return _ftp_closefn(v);
+    }
+    io->err = errno;
+    return -1;
+}
+
+static int
+_ftp_writefn(void *v, const char *buf, int len)
+{
+    struct ftpio *io;
+    int w;
+    
+    io = (struct ftpio *)v;
+    if (io->csd == -1 || io->dsd == -1 || io->dir == O_RDONLY) {
+	errno = EBADF;
+	return -1;
+    }
+    if (io->err) {
+	errno = io->err;
+	return -1;
+    }
+    w = write(io->dsd, buf, len);
+    if (w >= 0)
+	return w;
+    io->err = errno;
+    return -1;
+}
+
+static fpos_t
+_ftp_seekfn(void *v, fpos_t pos, int whence)
+{
+    errno = ESPIPE;
+    return -1;
+}
+
+static int
+_ftp_closefn(void *v)
+{
+    struct ftpio *io;
+
+    io = (struct ftpio *)v;
+    if (io->dir == -1)
+	return 0;
+    if (io->csd == -1 || io->dsd == -1) {
+	errno = EBADF;
+	return -1;
+    }
+    io->err = _ftp_chkerr(io->csd);
+    io->dir = -1;
+    if (close(io->dsd) == -1)
+	return -1;
+    io->dsd = -1;
+    close(io->csd);
+    io->csd = -1;
+    return io->err ? -1 : 0;
+}
+
+static FILE *
+_ftp_setup(int csd, int dsd, int mode)
+{
+    struct ftpio *io;
+    FILE *f;
+
+    if ((io = malloc(sizeof *io)) == NULL)
+	return NULL;
+    io->csd = dup(csd);
+    io->dsd = dsd;
+    io->dir = mode;
+    io->eof = io->err = 0;
+    f = funopen(io, _ftp_readfn, _ftp_writefn, _ftp_seekfn, _ftp_closefn);
+    if (f == NULL)
+	free(io);
+    return f;
+}
+
+/*
  * Transfer file
  */
 static FILE *
 _ftp_transfer(int cd, char *oper, char *file,
-	      char *mode, off_t offset, char *flags)
+	      int mode, off_t offset, char *flags)
 {
     struct sockaddr_storage sin;
     struct sockaddr_in6 *sin6;
@@ -554,7 +668,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 	sd = d;
     }
 
-    if ((df = fdopen(sd, mode)) == NULL)
+    if ((df = _ftp_setup(cd, sd, mode)) == NULL)
 	goto sysouch;
     return df;
 
@@ -798,7 +912,7 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
 	return NULL;
     
     /* initiate the transfer */
-    return _ftp_transfer(cd, "RETR", url->doc, "r", url->offset, flags);
+    return _ftp_transfer(cd, "RETR", url->doc, O_RDONLY, url->offset, flags);
 }
 
 /*
@@ -841,7 +955,7 @@ fetchPutFTP(struct url *url, char *flags)
     
     /* initiate the transfer */
     return _ftp_transfer(cd, (flags && strchr(flags, 'a')) ? "APPE" : "STOR",
-			 url->doc, "w", url->offset, flags);
+			 url->doc, O_WRONLY, url->offset, flags);
 }
 
 /*
