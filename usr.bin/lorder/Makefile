@@ -2,7 +2,7 @@
 
 MAN1=	lorder.1
 
-install:
+beforeinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${.CURDIR}/lorder.sh ${DESTDIR}/${BINDIR}/lorder
 
