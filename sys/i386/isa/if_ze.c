@@ -92,7 +92,7 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 #ifndef SMP
 #include <i386/isa/icu.h>
 #endif
-#include <i386/isa/if_edreg.h>
+#include <dev/ed/if_edreg.h>
 #include <i386/isa/pcic.h>
 
 #include "apm.h"
