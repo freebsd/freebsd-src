@@ -66,9 +66,9 @@ which is a pretty clean way of making front ends for different cards
 using the same driver on the same or different busses.
 For example, the following is allowed:
 .Pp
-.Fn DRIVERMODULE "foo" "isa" "foo_driver" "foo_devclass" "0" "0" ;
+.Fn DRIVER_MODULE "foo" "isa" "foo_driver" "foo_devclass" "0" "0" ;
 .Pp
-.Fn DRIVERMODULE "foo" "pci" "foo_driver" "foo_devclass" "0" "0" ;
+.Fn DRIVER_MODULE "foo" "pci" "foo_driver" "foo_devclass" "0" "0" ;
 .Pp
 .Fa driver
 is the driver of type
