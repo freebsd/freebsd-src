@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.28 1998/05/19 18:55:02 phk Exp $
+ * $Id: time.h,v 1.29 1998/05/28 09:30:28 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -87,8 +87,6 @@ struct timezone {
  *	is expected to be less than 20 msec, but no hard data has been 
  *      collected on this.  16 bit at 5 MHz (31 msec) is known to work.
  *
- * get_timedelta() returns difference between the counter now and offset_count.
- *
  * get_timecount() reads the counter.
  *
  * counter_mask removes unimplemented bits from the count value.
@@ -129,7 +127,7 @@ struct timezone {
  */
 
 struct timecounter;
-typedef unsigned timecounter_get_t __P((void));
+typedef unsigned timecounter_get_t __P((struct timecounter *));
 
 struct timecounter {
 	/* These fields must be initialized by the driver. */
@@ -137,6 +135,7 @@ struct timecounter {
 	unsigned 		counter_mask;
 	u_int32_t		frequency;
 	char			*name;
+	void			*private;
 	/* These fields will be managed by the generic code. */
 	int			cost;
 	int32_t			adjustment;
