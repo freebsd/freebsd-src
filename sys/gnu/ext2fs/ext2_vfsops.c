@@ -732,6 +732,8 @@ ext2_mountfs(devvp, mp, td)
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
+	ump->um_bo = &devvp->v_bufobj;
+	ump->um_cp = cp;
 	/* setting those two parameters allowed us to use
 	   ufs_bmap w/o changse !
 	*/
