@@ -48,8 +48,8 @@
 #define i_block_group		i_spare[0]
 #define i_next_alloc_block	i_spare[1]
 #define i_next_alloc_goal	i_spare[2]
-#define i_prealloc_block	i_spare[3]
-#define i_prealloc_count	i_din.di_spare[0]
+#define i_prealloc_block	i_din.di_spare[0]
+#define i_prealloc_count	i_din.di_spare[1]
 
 /*
  * The second extended filesystem constants/structures
