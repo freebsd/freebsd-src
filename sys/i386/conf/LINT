@@ -2218,7 +2218,6 @@ options 	VM_KMEM_SIZE_SCALE
 
 # Undocumented options covering presently broken code
 #options 	ASUSCOM_IPAC
-#options 	SC_VIDEO_DEBUG
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
