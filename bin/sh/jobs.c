@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: jobs.c,v 1.20 1998/05/18 06:43:47 charnier Exp $";
+	"$Id: jobs.c,v 1.21 1998/08/24 10:20:36 cracauer Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -87,8 +87,8 @@ MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 int initialpgrp;		/* pgrp of shell on invocation */
 int curjob;			/* current job */
 #endif
-int in_waitcmd = 0;		/* Are we in waitcmd? */
-volatile sig_atomic_t breakwaitcmd = 0;	/* Should wait be terminated? */
+int in_waitcmd = 0;		/* are we in waitcmd()? */
+volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 
 #if JOBS
 STATIC void restartjob __P((struct job *));
@@ -97,7 +97,7 @@ STATIC void freejob __P((struct job *));
 STATIC struct job *getjob __P((char *));
 STATIC int dowait __P((int, struct job *));
 #if SYSV
-STATIC volatile int onsigchild __P((void));
+STATIC int onsigchild __P((void));
 #endif
 STATIC int waitproc __P((int, int *));
 STATIC void cmdtxt __P((union node *));
@@ -387,10 +387,14 @@ waitcmd(argc, argv)
 	} else {
 		job = NULL;
 	}
+
+	/*
+	 * Loop until a process is terminated or stopped, or a SIGINT is
+	 * received.
+	 */
+
 	in_waitcmd++;
-	do {	/* loop until process terminated or stopped or SIGINT is
-		 * received 
-		 */
+	do {
 		if (job != NULL) {
 			if (job->state) {
 				status = job->ps[job->nprocs - 1].status;
@@ -404,11 +408,13 @@ waitcmd(argc, argv)
 					retval = WTERMSIG(status) + 128;
 				if (! iflag)
 					freejob(job);
+				in_waitcmd--;
 				return retval;
 			}
 		} else {
 			for (jp = jobtab ; ; jp++) {
 				if (jp >= jobtab + njobs) {	/* no running procs */
+					in_waitcmd--;
 					return 0;
 				}
 				if (jp->used && jp->state == 0)
@@ -418,7 +424,6 @@ waitcmd(argc, argv)
 	} while (dowait(1, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	/* Not reachable */
 	return 0;
 }
 
