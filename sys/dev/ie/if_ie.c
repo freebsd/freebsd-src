@@ -133,8 +133,8 @@ iomem and and with 0xffff.
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
-#include <i386/isa/ic/i82586.h>
 #include <i386/isa/icu.h>
+#include <dev/ic/i82586.h>
 #include <dev/ie/if_iereg.h>
 #include <dev/ie/if_ie507.h>
 #include <dev/ie/if_iee16.h>
