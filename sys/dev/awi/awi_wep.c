@@ -74,7 +74,8 @@
 #include <net/if_ether.h>
 #endif
 #include <net/if_media.h>
-#include <net/if_ieee80211.h>
+
+#include <net80211/ieee80211.h>
 
 #include <machine/cpu.h>
 #include <machine/bus.h>

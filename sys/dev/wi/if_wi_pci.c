@@ -60,7 +60,8 @@
 #include <net/ethernet.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/if_ieee80211.h>
+
+#include <net80211/ieee80211_var.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wivar.h>
