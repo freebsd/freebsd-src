@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.4 1998/09/17 23:52:03 msmith Exp $
+#	$Id: Makefile,v 1.1 1999/02/03 08:39:08 kato Exp $
 
-SUBDIR=	btx btxldr lib # client ldrtst
+SUBDIR=	btx btxldr lib
 
 .include <bsd.subdir.mk>
