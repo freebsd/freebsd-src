@@ -1576,8 +1576,10 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII3112,   0x00, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
-     { ATA_SII3112_1, 0x00, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+    {{ ATA_SII3112,   0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+     { ATA_SII3112_1, 0x02, SIIMEMIO, 0,	 ATA_SA150, "SiI 3112" },
+     { ATA_SII3112,   0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
+     { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,	 ATA_SA150, "SiI 3112" },
      { ATA_SII0680,   0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "SiI 0680" },
      { ATA_CMD649,    0x00, 0,	      SIIINTR,   ATA_UDMA5, "CMD 649" },
      { ATA_CMD648,    0x00, 0,	      SIIINTR,   ATA_UDMA4, "CMD 648" },
@@ -1684,6 +1686,8 @@ ata_sii_mio_allocate(device_t dev, struct ata_channel *ch)
     if (ctlr->chip->max_dma >= ATA_SA150)
 	ch->flags |= ATA_NO_SLAVE;
     ctlr->dmainit(ch);
+    if (ctlr->chip->cfg2 & SIIBUG)
+	ch->dma->boundary = 8 * 1024;
     return 0;
 }
 
