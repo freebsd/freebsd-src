@@ -26,6 +26,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include <arpa/nameser.h>		/* XXX hack for _res */
 #include <resolv.h>			/* XXX hack for _res */
+#include "un-namespace.h"
 
 extern int _ht_gethostbyname(void *, void *, va_list);
 extern int _dns_gethostbyname(void *, void *, va_list);
@@ -83,7 +85,7 @@ gethostbyname2(const char *name, int type)
 		{ 0 }
 	};       
 	
-	rval = nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyname",
+	rval = _nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyname",
 			  default_src, name, type);
 
 	if (rval != NS_SUCCESS)
@@ -105,7 +107,7 @@ gethostbyaddr(const char *addr, int len, int type)
 		{ 0 }
 	};       
 
-	rval = nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyaddr",
+	rval = _nsdispatch((void *)&hp, dtab, NSDB_HOSTS, "gethostbyaddr",
 			  default_src, addr, len, type);
 
 	if (rval != NS_SUCCESS)
