@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 1998/08/07 17:08:56 ache Exp $
+# $Id: Makefile,v 1.15 1998/08/10 09:49:42 phk Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -10,7 +10,11 @@ LOCALES=        de_DE.ISO_8859-1 \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
-		ru_SU.KOI8-R
+		ru_SU.KOI8-R \
+		de_DE.DIS_8859-15 \
+		es_ES.DIS_8859-15 \
+		is_IS.DIS_8859-15 \
+		lt_LN.DIS_8859-15 
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -41,6 +45,11 @@ lt_LN.ISO_8859-1.out:   map.ISO_8859-1
 lt_LN.ISO_8859-2.out:   map.ISO_8859-2
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 de_DE.ISO_8859-1.out:   map.ISO_8859-1
+is_IS.ISO_8859-1.out:   map.ISO_8859-1
+lt_LN.DIS_8859-15.out:  map.DIS_8859-15
+es_ES.DIS_8859-15.out:  map.DIS_8859-15
+de_DE.DIS_8859-15.out:  map.DIS_8859-15
+is_IS.DIS_8859-15.out:  map.DIS_8859-15
 
 .if !defined(_BUILD_TOOLS)
 afterinstall:
@@ -56,6 +65,10 @@ afterinstall:
 	ln -fs ../lt_LN.ISO_8859-1/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
 .endfor
+.for link in ${LATIN1LINKS}
+	ln -fs ../lt_LN.DIS_8859-15/LC_COLLATE \
+	       ${LOCALEDIR}/${link}.DIS_8859-15/LC_COLLATE
+.endfor
 .for link in ${LATIN2LINKS}
 	ln -fs ../lt_LN.ISO_8859-2/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-2/LC_COLLATE
@@ -63,6 +76,10 @@ afterinstall:
 .for link in ${DELINKS}
 	ln -fs ../de_DE.ISO_8859-1/LC_COLLATE \
 	       ${LOCALEDIR}/${link}.ISO_8859-1/LC_COLLATE
+.endfor
+.for link in ${DELINKS}
+	ln -fs ../de_DE.DIS_8859-15/LC_COLLATE \
+	       ${LOCALEDIR}/${link}.DIS_8859-15/LC_COLLATE
 .endfor
 .endif
 
