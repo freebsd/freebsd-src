@@ -376,7 +376,7 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_kse = ke; /* XXXKSE */
-	ke->ke_oncpu = 0;
+	td->td_oncpu = 0;
 	ke->ke_state = KES_THREAD;
 	ke->ke_thread = td;
 	p->p_peers = 0;

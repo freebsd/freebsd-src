@@ -1714,7 +1714,7 @@ witness_list(struct thread *td)
 	 * if td is currently executing on some other CPU and holds spin locks
 	 * as we won't display those locks.  If we had a MI way of getting
 	 * the per-cpu data for a given cpu then we could use
-	 * td->td_kse->ke_oncpu to get the list of spinlocks for this thread
+	 * td->td_oncpu to get the list of spinlocks for this thread
 	 * and "fix" this.
 	 *
 	 * That still wouldn't really fix this unless we locked sched_lock

@@ -287,6 +287,7 @@ struct thread {
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_inktr;	/* (k) Currently handling a KTR. */
 	u_char		td_inktrace;	/* (k) Currently handling a KTRACE. */
+	u_char		td_oncpu;	/* (j) Which cpu we are on. */
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
