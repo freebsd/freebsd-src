@@ -124,18 +124,12 @@ static struct Double ratfun_gam(double, double);
 
 static const double zero = 0., one = 1.0, tiny = 1e-300;
 static int endian;
+
 /*
  * TRUNC sets trailing bits in a floating-point number to zero.
  * is a temporary variable.
  */
-#if defined(vax) || defined(tahoe)
-#define _IEEE		0
-#define TRUNC(x)	x = (double) (float) (x)
-#else
-#define _IEEE		1
 #define TRUNC(x)	*(((int *) &x) + endian) &= 0xf8000000
-#define infnan(x)	0.0
-#endif
 
 double
 tgamma(x)
@@ -155,16 +149,12 @@ tgamma(x)
 		return (smaller_gam(x));
 	else if (x > -1.e-17) {
 		if (x == 0.0)
-			if (!_IEEE) return (infnan(ERANGE));
-			else return (one/x);
+			return (one/x);
 		one+1e-20;		/* Raise inexact flag. */
 		return (one/x);
-	} else if (!finite(x)) {
-		if (_IEEE)		/* x = NaN, -Inf */
-			return (x*x);
-		else
-			return (infnan(EDOM));
-	 } else
+	} else if (!finite(x))
+		return (x*x);		/* x = NaN, -Inf */
+	else
 		return (neg_gam(x));
 }
 /*
@@ -175,7 +165,6 @@ large_gam(x)
 	double x;
 {
 	double z, p;
-	int i;
 	struct Double t, u, v;
 
 	z = one/(x*x);
@@ -204,7 +193,7 @@ static double
 small_gam(x)
 	double x;
 {
-	double y, ym1, t, x1;
+	double y, ym1, t;
 	struct Double yy, r;
 	y = x - one;
 	ym1 = y - one;
@@ -267,7 +256,6 @@ static struct Double
 ratfun_gam(z, c)
 	double z, c;
 {
-	int i;
 	double p, q;
 	struct Double r, t;
 
@@ -301,10 +289,7 @@ neg_gam(x)
 
 	y = floor(x + .5);
 	if (y == x)		/* Negative integer. */
-		if(!_IEEE)
-			return (infnan(ERANGE));
-		else
-			return (one/zero);
+		return (one/zero);
 	z = fabs(x - y);
 	y = .5*ceil(x);
 	if (y == ceil(y))

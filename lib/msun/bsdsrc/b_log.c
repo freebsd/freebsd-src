@@ -77,15 +77,8 @@ __FBSDID("$FreeBSD$");
  *	+Inf	return +Inf
 */
 
-#if defined(vax) || defined(tahoe)
-#define _IEEE		0
-#define TRUNC(x)	x = (double) (float) (x)
-#else
-#define _IEEE		1
 #define endian		(((*(int *) &one)) ? 1 : 0)
 #define TRUNC(x)	*(((int *) &x) + endian) &= 0xf8000000
-#define infnan(x)	0.0
-#endif
 
 #define N 128
 
@@ -381,26 +374,19 @@ log(x) double x;
 
 	/* Catch special cases */
 	if (x <= 0)
-		if (_IEEE && x == zero)	/* log(0) = -Inf */
+		if (x == zero)	/* log(0) = -Inf */
 			return (-one/zero);
-		else if (_IEEE)		/* log(neg) = NaN */
+		else		/* log(neg) = NaN */
 			return (zero/zero);
-		else if (x == zero)	/* NOT REACHED IF _IEEE */
-			return (infnan(-ERANGE));
-		else
-			return (infnan(EDOM));
 	else if (!finite(x))
-		if (_IEEE)		/* x = NaN, Inf */
-			return (x+x);
-		else
-			return (infnan(ERANGE));
+		return (x+x);		/* x = NaN, Inf */
 
 	/* Argument reduction: 1 <= g < 2; x/2^m = g;	*/
 	/* y = F*(1 + f/F) for |f| <= 2^-8		*/
 
 	m = logb(x);
 	g = ldexp(x, -m);
-	if (_IEEE && m == -1022) {
+	if (m == -1022) {
 		j = logb(g), m += j;
 		g = ldexp(g, -j);
 	}
@@ -461,7 +447,7 @@ __log__D(x) double x;
 
 	m = logb(x);
 	g = ldexp(x, -m);
-	if (_IEEE && m == -1022) {
+	if (m == -1022) {
 		j = logb(g), m += j;
 		g = ldexp(g, -j);
 	}
