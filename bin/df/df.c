@@ -73,7 +73,7 @@ void	  prtstat __P((struct statfs *, int));
 int	  ufs_df __P((char *, int));
 void	  usage __P((void));
 
-int	iflag, nflag;
+int	aflag = 0, iflag, nflag;
 struct	ufs_args mdev;
 
 int
@@ -88,8 +88,11 @@ main(argc, argv)
 	char *mntpt, *mntpath, **vfslist;
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "iknt:")) != -1)
+	while ((ch = getopt(argc, argv, "aiknt:")) != -1)
 		switch (ch) {
+		case 'a':
+			aflag = 1;
+			break;
 		case 'i':
 			iflag = 1;
 			break;
@@ -130,8 +133,10 @@ main(argc, argv)
 					maxwidth = width;
 			}
 		}
-		for (i = 0; i < mntsize; i++)
-			prtstat(&mntbuf[i], maxwidth);
+		for (i = 0; i < mntsize; i++) {
+			if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0)
+				prtstat(&mntbuf[i], maxwidth);
+		}
 		exit(rv);
 	}
 
@@ -377,6 +382,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: df [-ikn] [-t type] [file | filesystem ...]\n");
+	    "usage: df [-aikn] [-t type] [file | filesystem ...]\n");
 	exit(1);
 }

@@ -40,7 +40,7 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm df
-.Op Fl ikn
+.Op Fl aikn
 .Op Fl t Ar type
 .Op Ar file | Ar filesystem ...
 .Sh DESCRIPTION
@@ -59,6 +59,9 @@ option below).
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl a
+Show all mount points, including those that were mounted with the MNT_IGNORE
+flag.
 .It Fl i
 Include statistics on the number of free inodes.
 .It Fl k
