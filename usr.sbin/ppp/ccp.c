@@ -61,6 +61,9 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#ifdef HAVE_DES
+#include "mppe.h"
+#endif
 #include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
@@ -106,7 +109,8 @@ protoname(int proto)
     NULL, NULL, NULL, NULL, NULL, NULL,
     "HWPPC",		/* 16: Hewlett-Packard PPC */
     "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
-    "MPPC",		/* 18: Microsoft PPC (rfc2118) */
+    "MPPE",		/* 18: Microsoft PPC (rfc2118) and */
+			/*     Microsoft PPE (draft-ietf-pppext-mppe) */
     "GAND",		/* 19: Gandalf FZA (rfc1993) */
     "V42BIS",		/* 20: ARG->DATA.42bis compression */
     "BSD",		/* 21: BSD LZW Compress */
@@ -130,6 +134,9 @@ static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm
+#ifdef HAVE_DES
+  , &MPPEAlgorithm
+#endif
 };
 
 #define NALGORITHMS (sizeof algorithm/sizeof algorithm[0])
@@ -167,6 +174,11 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
+#ifdef HAVE_DES
+  prompt_Printf(arg->prompt, "           MPPE:       %s\n",
+                command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
+  prompt_Printf(arg->prompt, "Key Size = %d-bits\n", ccp->cfg.mppe.keybits);
+#endif
   return 0;
 }
 
@@ -196,6 +208,10 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
+#ifdef HAVE_DES
+  ccp->cfg.mppe.keybits = 128;
+  ccp->cfg.neg[CCP_NEG_MPPE] = 0;
+#endif
 
   ccp_Setup(ccp);
 }

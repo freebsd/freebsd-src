@@ -29,6 +29,7 @@
 #define	TY_HWPPC	16	/* Hewlett-Packard PPC */
 #define	TY_STAC		17	/* Stac Electronics LZS */
 #define	TY_MSPPC	18	/* Microsoft PPC */
+#define	TY_MPPE		18	/* Microsoft PPE */
 #define	TY_GAND		19	/* Gandalf FZA */
 #define	TY_V42BIS	20	/* V.42bis compression */
 #define	TY_BSD		21	/* BSD LZW Compress */
@@ -38,7 +39,12 @@
 #define CCP_NEG_DEFLATE		0
 #define CCP_NEG_PRED1		1
 #define CCP_NEG_DEFLATE24	2
+#ifdef HAVE_DES
+#define CCP_NEG_MPPE		3
+#define CCP_NEG_TOTAL		4
+#else
 #define CCP_NEG_TOTAL		3
+#endif
 
 struct mbuf;
 struct link;
@@ -49,6 +55,11 @@ struct ccp_config {
       int winsize;
     } in, out;
   } deflate;
+#ifdef HAVE_DES
+  struct {
+    int keybits;
+  } mppe;
+#endif
   struct fsm_retry fsm;	/* How often/frequently to resend requests */
   unsigned neg[CCP_NEG_TOTAL];
 };
