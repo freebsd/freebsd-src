@@ -273,7 +273,6 @@ static const char *fstypenames[] = {
 	"?",
 	"?",
 	"?",
-	"?",
 	"jfs",
 	NULL
 };
