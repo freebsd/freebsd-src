@@ -754,8 +754,8 @@ network_pass3() {
 						;;
 					esac
 
-					amd -p ${amd_flags}\
-						> /var/run/amd.pid 2> /dev/null
+					amd -p ${amd_flags} > /var/run/amd.pid \
+						2> /dev/null &
 					;;
 				esac
 			else
