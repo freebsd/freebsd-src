@@ -62,7 +62,7 @@ register struct ww *w;
 		w->ww_ttyname[_0_9] = '0';
 		if (access(w->ww_ttyname, 0) < 0)
 			break;
-		for (p = "0123456789abcdef"; *p; p++) {
+		for (p = "0123456789abcdefghijklmnopqrstuv"; *p; p++) {
 			w->ww_ttyname[_PT] = 'p';
 			w->ww_ttyname[_0_9] = *p;
 			if ((w->ww_pty = open(w->ww_ttyname, 2)) < 0)
