@@ -144,7 +144,8 @@ nfsm_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos)
 			uiop->uio_iovcnt--;
 			uiop->uio_iov++;
 		} else {
-			uiop->uio_iov->iov_base += uiosiz;
+			uiop->uio_iov->iov_base =
+			    (char *)uiop->uio_iov->iov_base + uiosiz;
 			uiop->uio_iov->iov_len -= uiosiz;
 		}
 		siz -= uiosiz;

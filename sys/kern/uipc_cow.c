@@ -166,7 +166,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	socow_stats.success++;
 
 	iov = uio->uio_iov;
-	iov->iov_base += PAGE_SIZE;
+	iov->iov_base = (char *)iov->iov_base + PAGE_SIZE;
 	iov->iov_len -= PAGE_SIZE;
 	uio->uio_resid -= PAGE_SIZE;
 	uio->uio_offset += PAGE_SIZE;

@@ -114,7 +114,7 @@ ttymsg(struct iovec *iov, int iovcnt, const char *line, int tmout)
 				--iovcnt;
 			}
 			if (wret) {
-				iov->iov_base += wret;
+				iov->iov_base = (char *)iov->iov_base + wret;
 				iov->iov_len -= wret;
 			}
 			continue;

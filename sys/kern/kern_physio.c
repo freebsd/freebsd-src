@@ -116,7 +116,8 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			if (iolen == 0 && !(bp->b_ioflags & BIO_ERROR))
 				goto doerror;	/* EOF */
 			uio->uio_iov[i].iov_len -= iolen;
-			uio->uio_iov[i].iov_base += iolen;
+			uio->uio_iov[i].iov_base =
+			    (char *)uio->uio_iov[i].iov_base + iolen;
 			uio->uio_resid -= iolen;
 			uio->uio_offset += iolen;
 			if( bp->b_ioflags & BIO_ERROR) {

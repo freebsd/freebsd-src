@@ -1135,7 +1135,9 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 					break;
 				} else if (rlen < len) {
 					backup = len - rlen;
-					uiop->uio_iov->iov_base -= backup;
+					uiop->uio_iov->iov_base =
+					    (char *)uiop->uio_iov->iov_base -
+					    backup;
 					uiop->uio_iov->iov_len += backup;
 					uiop->uio_offset -= backup;
 					uiop->uio_resid += backup;
@@ -2027,7 +2029,8 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			left = DIRBLKSIZ - blksiz;
 			if ((tlen + DIRHDSIZ) > left) {
 				dp->d_reclen += left;
-				uiop->uio_iov->iov_base += left;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + left;
 				uiop->uio_iov->iov_len -= left;
 				uiop->uio_offset += left;
 				uiop->uio_resid -= left;
@@ -2046,13 +2049,15 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 					blksiz = 0;
 				uiop->uio_offset += DIRHDSIZ;
 				uiop->uio_resid -= DIRHDSIZ;
-				uiop->uio_iov->iov_base += DIRHDSIZ;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + DIRHDSIZ;
 				uiop->uio_iov->iov_len -= DIRHDSIZ;
 				nfsm_mtouio(uiop, len);
 				cp = uiop->uio_iov->iov_base;
 				tlen -= len;
 				*cp = '\0';	/* null terminate */
-				uiop->uio_iov->iov_base += tlen;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + tlen;
 				uiop->uio_iov->iov_len -= tlen;
 				uiop->uio_offset += tlen;
 				uiop->uio_resid -= tlen;
@@ -2091,7 +2096,8 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	if (blksiz > 0) {
 		left = DIRBLKSIZ - blksiz;
 		dp->d_reclen += left;
-		uiop->uio_iov->iov_base += left;
+		uiop->uio_iov->iov_base =
+		    (char *)uiop->uio_iov->iov_base + left;
 		uiop->uio_iov->iov_len -= left;
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
@@ -2202,7 +2208,8 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			left = DIRBLKSIZ - blksiz;
 			if ((tlen + DIRHDSIZ) > left) {
 				dp->d_reclen += left;
-				uiop->uio_iov->iov_base += left;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + left;
 				uiop->uio_iov->iov_len -= left;
 				uiop->uio_offset += left;
 				uiop->uio_resid -= left;
@@ -2221,7 +2228,8 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 					blksiz = 0;
 				uiop->uio_offset += DIRHDSIZ;
 				uiop->uio_resid -= DIRHDSIZ;
-				uiop->uio_iov->iov_base += DIRHDSIZ;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + DIRHDSIZ;
 				uiop->uio_iov->iov_len -= DIRHDSIZ;
 				cnp->cn_nameptr = uiop->uio_iov->iov_base;
 				cnp->cn_namelen = len;
@@ -2229,7 +2237,8 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				cp = uiop->uio_iov->iov_base;
 				tlen -= len;
 				*cp = '\0';
-				uiop->uio_iov->iov_base += tlen;
+				uiop->uio_iov->iov_base =
+				    (char *)uiop->uio_iov->iov_base + tlen;
 				uiop->uio_iov->iov_len -= tlen;
 				uiop->uio_offset += tlen;
 				uiop->uio_resid -= tlen;
@@ -2314,7 +2323,8 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	if (blksiz > 0) {
 		left = DIRBLKSIZ - blksiz;
 		dp->d_reclen += left;
-		uiop->uio_iov->iov_base += left;
+		uiop->uio_iov->iov_base =
+		    (char *)uiop->uio_iov->iov_base + left;
 		uiop->uio_iov->iov_len -= left;
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
