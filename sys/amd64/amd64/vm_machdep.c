@@ -168,7 +168,7 @@ cpu_fork(p1, p2, flags)
 	pcb2->pcb_edi = 0;
 	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_ebp = 0;
-	pcb2->pcb_esp = (int)p2->p_md.md_regs - sizeof(void *);
+	pcb2->pcb_esp = (int)p2->p_md.md_regs;
 	pcb2->pcb_ebx = (int)p2;		/* fork_trampoline argument */
 	pcb2->pcb_eip = (int)fork_trampoline;
 	/*
