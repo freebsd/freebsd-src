@@ -57,7 +57,7 @@ handle_rval() {
 
 # A simple user-confirmation dialog.
 confirm() {
-	dialog --title "Please Confirm" --msgbox "$*" 10 72
+	dialog --title "Please Confirm" --msgbox "$*" 4 72
 }
 
 # A simple error dialog.
@@ -312,7 +312,7 @@ setup_network()
 	if handle_rval $?; then
 		ifconfig_flags=`cat ${TMP}/inputbox.tmp.$$`
 	fi
-	if ! $IFCONFIG inet $interface netmask $netmask $ifconfig_flags ; then
+	if ! $IFCONFIG inet $interface netmask $netmask $ifconfig_flags 2>/dev/ttyv1 ; then
 		error "Unable to configure interface $interface"
 		ipaddr=""; interface=""
 		continue
@@ -327,7 +327,7 @@ setup_network()
 		if [ "$gateway" = "" ]; then
 			:;
 		else
-			$ROUTE $route_flags $gateway
+			$ROUTE $route_flags $gateway 2>/dev/ttyv1
 		fi
 	fi
 	rm -f ${TMP}/inputbox.tmp.$$
@@ -406,3 +406,4 @@ while [ $installing -eq 1 ]; do
 		installing=0
 	fi
 done
+exec /stand/sh
