@@ -74,8 +74,6 @@ all-man:
 
 .if defined(NOMANCOMPRESS)
 
-COPY=		-c
-
 # Make special arrangements to filter to a temporary file at build time
 # for NOMANCOMPRESS.
 .if defined(MANFILTER)
