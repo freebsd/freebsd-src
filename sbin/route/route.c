@@ -736,6 +736,7 @@ newroute(argc, argv)
 				(void) getaddr(RTA_GATEWAY, *argv, &hp);
 			} else {
 				(void) getaddr(RTA_NETMASK, *argv, 0);
+				forcenet = 1;
 			}
 		}
 	}
@@ -1030,8 +1031,8 @@ getaddr(which, s, hpp)
 		*q = '/';
 	}
 	if ((which != RTA_DST || forcenet == 0) &&
-	    (val = inet_addr(s)) != INADDR_NONE) {
-		su->sin.sin_addr.s_addr = val;
+	    inet_aton(s, &su->sin.sin_addr)) {
+		val = su->sin.sin_addr.s_addr;
 		if (which != RTA_DST ||
 		    inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
 			return (1);
