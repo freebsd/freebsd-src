@@ -5,7 +5,12 @@
 #else /* not __GNUC__ */
 #ifdef sparc
 #include <alloca.h>
+extern char *__builtin_alloca();  /* Stupid include file doesn't declare it */
 #else
-char *alloca ();
+#ifdef __STDC__
+PTR alloca (size_t);
+#else
+PTR alloca ();			/* must agree with functions.def */
+#endif
 #endif /* sparc */
 #endif /* not __GNUC__ */
