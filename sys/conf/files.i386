@@ -186,6 +186,7 @@ i386/i386/dump_machdep.c	standard
 i386/i386/elan-mmcr.c		optional	cpu_elan
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
+i386/i386/geode.c		optional	cpu_geode
 i386/i386/i386-gdbstub.c	optional	ddb
 i386/i386/i686_mem.c		standard
 i386/i386/identcpu.c		standard
