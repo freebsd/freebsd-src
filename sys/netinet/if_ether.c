@@ -445,7 +445,7 @@ arpintr()
 	
                 if (m->m_len < sizeof(struct arphdr) &&
                     ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
-			log(LOG_ERR, "arp: runt packet -- m_pullup failed.");
+			log(LOG_ERR, "arp: runt packet -- m_pullup failed\n");
 			continue;
 		}
 		ar = mtod(m, struct arphdr *);
@@ -453,7 +453,7 @@ arpintr()
 		if (ntohs(ar->ar_hrd) != ARPHRD_ETHER
 		    && ntohs(ar->ar_hrd) != ARPHRD_IEEE802) {
 			log(LOG_ERR,
-			    "arp: unknown hardware address format (%2D)",
+			    "arp: unknown hardware address format (0x%2D)\n",
 			    (unsigned char *)&ar->ar_hrd, "");
 			m_freem(m);
 			continue;
