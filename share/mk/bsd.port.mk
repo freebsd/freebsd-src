@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.293 1998/10/09 01:27:21 asami Exp $
+#	$Id: bsd.port.mk,v 1.294 1998/10/30 08:28:02 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -336,6 +336,8 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #
 # MAKE_ENV		- Additional environment vars passed to sub-make in build
 #				  and install stages (default: see below).
+# MAKE_ARGS		- Any extra arguments to sub-make in build and install
+#				  stages (default: none).
 #
 # For install:
 #
@@ -1080,6 +1082,22 @@ package:
 .endif
 .endif
 
+################################################################
+# Clean directories for ftp or CDROM.
+################################################################
+
+.if defined(RESTRICTED)
+clean-restricted:	delete-distfiles delete-package
+.else
+clean-restricted:
+.endif
+
+.if defined(NO_CDROM)
+clean-for-cdrom:	delete-distfiles delete-package
+.else
+clean-for-cdrom:
+.endif
+
 .if defined(ALL_HOOK)
 all:
 	@cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTNAME=${DISTNAME} \
@@ -1308,9 +1326,9 @@ do-configure:
 .if !target(do-build)
 do-build:
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} ${ALL_TARGET})
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${ALL_TARGET})
+	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} ${ALL_TARGET})
 .endif
 .endif
 
@@ -1319,14 +1337,14 @@ do-build:
 .if !target(do-install)
 do-install:
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} install.man)
 .endif
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${MAKE_ARGS} install.man)
 .endif
 .endif
 .endif
@@ -1624,8 +1642,12 @@ pre-distclean:
 .endif
 
 .if !target(distclean)
-distclean: pre-distclean clean
-	@${ECHO_MSG} "===>  Dist cleaning for ${PKGNAME}"
+distclean: pre-distclean clean delete-distfiles
+.endif
+
+.if !target(delete-distfiles)
+delete-distfiles:
+	@${ECHO_MSG} "===>  Deleting distfiles for ${PKGNAME}"
 	@(if [ "X${DISTFILES}${PATCHFILES}" != "X" -a -d ${_DISTDIR} ]; then \
 		cd ${_DISTDIR}; \
 		${RM} -f ${DISTFILES} ${PATCHFILES}; \
