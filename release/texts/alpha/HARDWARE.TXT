@@ -270,6 +270,7 @@ Features:
 - memory bus: 64 bits 
 - on-board Bcache / L2 cache: COAST-like 256 kByte cache module
 			      233MHz models have 512kByte of cache
+                              166MHz models have soldered-on 256kB caches
 - PS/2 mouse & keyboard port
 - memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
 	  70ns or better,
@@ -278,7 +279,8 @@ Features:
 	  uses ECC 
 - 2x 16550A serial ports, 1x parallel port, floppy interface
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
-- expansion: 1 32 bit PCI slot
+- expansion: 1 32 bit PCI slot, 2x PCMCIA slot
+- onboard Crystal CS4231 sound chip
 - embedded Fast SCSI using a NCR/Symbios 53C810 chip on the PCI riser card
 
 SRM/ARC:
@@ -290,7 +292,13 @@ Multia has only one 32 bit PCI slot for expansion, and it is only
 suitable for a small form factor PCI card too. In sacrificing the PCI slot
 space you can mount a 3.5" hard disk drive. Mounting stuff may have come
 with your Multia. There are also models that do have the riser card, but
-lack the actual PCI connector.
+lack the actual PCI connector. This allows fitting a 3.5" SCSI disk inside
+the case at the expense of the PCI expansion. This is not a recommended
+upgrade due to the limited power rating of the power supply and the marginal
+cooling of the system box.
+
+In addition to the  PCI slot Multia has 2 PCMCIA slots. These are currently
+unsupported.
 
 CPU:
 The CPU might or might not be socketed, check before considering CPU upgrade 
@@ -300,6 +308,11 @@ Graphics:
 It comes with a TGA based graphics on-board. Which is not suitable for
 console use with FreeBSD. Which means you will have to run it using a 
 serial console.
+
+Serial:
+Multia has 2 serial ports but routes both of them to the outside world
+on a single 25 pin sub-D connector. The Multia FAQ explains how to
+build your own Y-cable to allow both ports to be used.
 
 Floppy:
 Although the Multia SRM supports booting from floppy this is problematic. 
