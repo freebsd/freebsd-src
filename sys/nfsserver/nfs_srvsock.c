@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.16 1996/06/14 11:13:18 phk Exp $
+ * $Id: nfs_socket.c,v 1.17 1996/07/11 16:32:45 wollman Exp $
  */
 
 /*
@@ -681,15 +681,17 @@ nfs_reply(myrep)
 		 * sbwait() after someone else has received my reply for me.
 		 * Also necessary for connection based protocols to avoid
 		 * race conditions during a reconnect.
+		 * If nfs_rcvlock() returns EALREADY, that means that
+		 * the reply has already been recieved by another
+		 * process and we can return immediately.  In this
+		 * case, the lock is not taken to avoid races with
+		 * other processes.
 		 */
 		error = nfs_rcvlock(myrep);
+		if (error == EALREADY)
+			return (0);
 		if (error)
 			return (error);
-		/* Already received, bye bye */
-		if (myrep->r_mrep != NULL) {
-			nfs_rcvunlock(&nmp->nm_flag);
-			return (0);
-		}
 		/*
 		 * Get the next Rpc reply off the socket
 		 */
@@ -1494,6 +1496,14 @@ nfs_rcvlock(rep)
 		*flagp |= NFSMNT_WANTRCV;
 		(void) tsleep((caddr_t)flagp, slpflag | (PZERO - 1), "nfsrcvlk",
 			slptimeo);
+		/*
+		 * If our reply was recieved while we were sleeping,
+		 * then just return without taking the lock to avoid a
+		 * situation where a single iod could 'capture' the
+		 * recieve lock.
+		 */
+		if (rep->r_mrep != NULL)
+			return (EALREADY);
 		if (slpflag == PCATCH) {
 			slpflag = 0;
 			slptimeo = 2 * hz;
