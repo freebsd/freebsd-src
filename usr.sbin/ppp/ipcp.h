@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.17 1998/01/11 17:50:33 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.28 1998/05/21 01:26:10 brian Exp $
  *
  *	TODO:
  */
@@ -26,35 +26,15 @@
 #define	TY_COMPPROTO	2
 #define	TY_IPADDR	3
 
-/* MS PPP NameServer and NetBIOS NameServer stuff */
+/* Domain NameServer and NetBIOS NameServer options */
 
-#ifndef NOMSEXT
 #define TY_PRIMARY_DNS		129
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
+#define TY_ADJUST_NS		119 /* subtract from NS val for REJECT bit */
 
-extern struct in_addr ns_entries[2];
-extern struct in_addr nbns_entries[2];
-#endif
-
-struct ipcpstate {
-  struct in_addr his_ipaddr;	/* IP address he is willing to use */
-  u_int32_t his_compproto;
-
-  struct in_addr want_ipaddr;	/* IP address I'm willing to use */
-  u_int32_t want_compproto;
-
-  u_int32_t his_reject;		/* Request codes rejected by peer */
-  u_int32_t my_reject;		/* Request codes I have rejected */
-  int heis1172;			/* True if he is speaking rfc1172 */
-};
-
-struct compreq {
-  u_short proto;
-  u_char slots;
-  u_char compcid;
-};
+struct sticky_route;
 
 struct in_range {
   struct in_addr ipaddr;
@@ -62,22 +42,73 @@ struct in_range {
   int width;
 };
 
-extern struct ipcpstate IpcpInfo;
-extern struct in_range DefMyAddress;
-extern struct in_range DefHisAddress;
-extern struct iplist DefHisChoice;
-extern struct in_addr TriggerAddress;
-extern int HaveTriggerAddress;
-extern struct fsm IpcpFsm;
+struct ipcp {
+  struct fsm fsm;			/* The finite state machine */
 
-extern void IpcpInit(void);
-extern void IpcpDefAddress(void);
-extern void IpcpUp(void);
-extern void IpcpOpen(void);
-extern int  ReportIpcpStatus(struct cmdargs const *);
-extern void IpcpInput(struct mbuf *);
-extern void IpcpAddInOctets(int);
-extern void IpcpAddOutOctets(int);
-extern int  UseHisaddr(const char *, int);
-extern int  SetInitVJ(struct cmdargs const *);
-extern int  ShowInitVJ(struct cmdargs const *);
+  struct {
+    struct {
+      int slots;			/* Maximum VJ slots */
+      unsigned slotcomp : 1;		/* Slot compression */
+      unsigned neg : 2;			/* VJ negotiation */
+    } vj;
+
+    struct in_range  my_range;		/* MYADDR spec */
+    struct in_addr   netmask;		/* netmask (unused by most OSs) */
+    struct in_range  peer_range;	/* HISADDR spec */
+    struct iplist    peer_list;		/* Ranges of HISADDR values */
+
+    struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
+    unsigned HaveTriggerAddress : 1;	/* Trigger address specified */
+
+    struct {
+      struct in_addr dns[2];		/* DNS addresses offered */
+      unsigned dns_neg : 2;		/* dns negotiation */
+      struct in_addr nbns[2];		/* NetBIOS NS addresses offered */
+    } ns;
+
+    u_int fsmretry;			/* FSM retry frequency */
+  } cfg;
+
+  struct {
+    struct slcompress cslc;		/* VJ state */
+    struct slstat slstat;		/* VJ statistics */
+  } vj;
+
+  struct sticky_route *route;		/* List of dynamic routes */
+
+  unsigned heis1172 : 1;		/* True if he is speaking rfc1172 */
+
+  struct in_addr peer_ip;		/* IP address he's willing to use */
+  u_int32_t peer_compproto;		/* VJ params he's willing to use */
+
+  struct in_addr my_ip;			/* IP address I'm willing to use */
+  u_int32_t my_compproto;		/* VJ params I'm willing to use */
+
+  u_int32_t peer_reject;		/* Request codes rejected by peer */
+  u_int32_t my_reject;			/* Request codes I have rejected */
+
+  struct in_addr my_ifip;		/* My configured interface address */
+  struct in_addr peer_ifip;		/* My congigured destination address */
+
+  struct pppThroughput throughput;	/* throughput statistics */
+};
+
+#define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
+
+struct bundle;
+struct link;
+struct cmdargs;
+
+extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *,
+                      const struct fsm_parent *);
+extern void ipcp_Setup(struct ipcp *);
+extern void ipcp_SetLink(struct ipcp *, struct link *);
+
+extern int  ipcp_Show(struct cmdargs const *);
+extern void ipcp_Input(struct ipcp *, struct bundle *, struct mbuf *);
+extern void ipcp_AddInOctets(struct ipcp *, int);
+extern void ipcp_AddOutOctets(struct ipcp *, int);
+extern int  ipcp_UseHisaddr(struct bundle *, const char *, int);
+extern int  ipcp_vjset(struct cmdargs const *);
+extern void ipcp_CleanInterface(struct ipcp *);
+extern int  ipcp_InterfaceUp(struct ipcp *);

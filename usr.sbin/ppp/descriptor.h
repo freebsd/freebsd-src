@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 1989 The Regents of the University of California.
+/*-
+ * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,18 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -30,14 +23,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *
- * $Id: pathnames.h,v 1.7 1997/09/10 02:20:33 brian Exp $
- *
- *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
+ *	$Id: descriptor.h,v 1.1.2.10 1998/04/28 01:25:13 brian Exp $
  */
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-#define _PATH_PPP		"/etc/ppp"
-#else
-#define _PATH_PPP		"/etc"
-#endif
+#define PHYSICAL_DESCRIPTOR (1)
+#define SERVER_DESCRIPTOR (2)
+#define PROMPT_DESCRIPTOR (3)
+#define CHAT_DESCRIPTOR (4)
+#define DATALINK_DESCRIPTOR (5)
+#define BUNDLE_DESCRIPTOR (6)
+#define MPSERVER_DESCRIPTOR (7)
+
+struct bundle;
+
+struct descriptor {
+  int type;
+  struct descriptor *next;
+
+  int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
+  int (*IsSet)(struct descriptor *, const fd_set *);
+  void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
+  void (*Write)(struct descriptor *, struct bundle *, const fd_set *);
+};
+
+#define descriptor_UpdateSet(d, r, w, e, n) ((*(d)->UpdateSet)(d, r, w, e, n))
+#define descriptor_IsSet(d, s) ((*(d)->IsSet)(d, s))
+#define descriptor_Read(d, b, f) ((*(d)->Read)(d, b, f))
+#define descriptor_Write(d, b, f) ((*(d)->Write)(d, b, f))

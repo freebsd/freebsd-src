@@ -17,53 +17,53 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.29 1998/02/19 02:10:06 brian Exp $
+ * $Id: chap.c,v 1.28.2.27 1998/05/01 19:24:03 brian Exp $
  *
  *	TODO:
  */
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
-#include <ctype.h>
-#ifdef HAVE_DES
-#include <md4.h>
-#endif
 #include <md5.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-#ifdef __OpenBSD__
-#include <util.h>
-#else
-#include <libutil.h>
-#endif
-#include <utmp.h>
+#include <termios.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "chap.h"
-#include "chap_ms.h"
 #include "lcpproto.h"
 #include "lcp.h"
+#include "lqr.h"
 #include "hdlc.h"
-#include "phase.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "auth.h"
-#include "id.h"
+#include "chap.h"
+#include "async.h"
+#include "throughput.h"
+#include "descriptor.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "ccp.h"
+#include "link.h"
+#include "physical.h"
+#include "mp.h"
+#include "bundle.h"
+#include "chat.h"
+#include "datalink.h"
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 
 static void
-ChapOutput(u_int code, u_int id, const u_char * ptr, int count)
+ChapOutput(struct physical *physical, u_int code, u_int id,
+	   const u_char * ptr, int count)
 {
   int plen;
   struct fsmheader lh;
@@ -73,42 +73,37 @@ ChapOutput(u_int code, u_int id, const u_char * ptr, int count)
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
-  bp = mballoc(plen, MB_FSM);
+  bp = mbuf_Alloc(plen, MB_FSM);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
-  LogDumpBp(LogDEBUG, "ChapOutput", bp);
-  LogPrintf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
-  HdlcOutput(PRI_LINK, PROTO_CHAP, bp);
+  log_DumpBp(LogDEBUG, "ChapOutput", bp);
+  log_Printf(LogLCP, "ChapOutput: %s\n", chapcodes[code]);
+  hdlc_Output(&physical->link, PRI_LINK, PROTO_CHAP, bp);
 }
 
-
-static char challenge_data[80];
-static int challenge_len;
-
-static void
-SendChapChallenge(int chapid)
+void
+chap_SendChallenge(struct authinfo *auth, int chapid, struct physical *physical)
 {
+  struct chap *chap = auth2chap(auth);
   int len, i;
   char *cp;
 
   randinit();
-  cp = challenge_data;
-  *cp++ = challenge_len = random() % 32 + 16;
-  for (i = 0; i < challenge_len; i++)
+  cp = chap->challenge_data;
+  *cp++ = chap->challenge_len = random() % 32 + 16;
+  for (i = 0; i < chap->challenge_len; i++)
     *cp++ = random() & 0xff;
-  len = strlen(VarAuthName);
-  memcpy(cp, VarAuthName, len);
+  len = strlen(physical->dl->bundle->cfg.auth.name);
+  memcpy(cp, physical->dl->bundle->cfg.auth.name, len);
   cp += len;
-  ChapOutput(CHAP_CHALLENGE, chapid, challenge_data, cp - challenge_data);
+  ChapOutput(physical, CHAP_CHALLENGE, chapid, chap->challenge_data,
+	     cp - chap->challenge_data);
 }
 
-struct authinfo AuthChapInfo = {
-  SendChapChallenge,
-};
-
 static void
-RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
+RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
+             struct physical *physical)
 {
   int valsize, len;
   int arglen, keylen, namelen;
@@ -123,35 +118,35 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
 #endif
 
   len = ntohs(chp->length);
-  LogPrintf(LogDEBUG, "RecvChapTalk: length: %d\n", len);
+  log_Printf(LogDEBUG, "RecvChapTalk: length: %d\n", len);
   arglen = len - sizeof(struct fsmheader);
   cp = (char *) MBUF_CTOP(bp);
   valsize = *cp++ & 255;
   name = cp + valsize;
   namelen = arglen - valsize - 1;
   name[namelen] = 0;
-  LogPrintf(LogLCP, " Valsize = %d, Name = \"%s\"\n", valsize, name);
+  log_Printf(LogLCP, " Valsize = %d, Name = \"%s\"\n", valsize, name);
 
   switch (chp->code) {
   case CHAP_CHALLENGE:
-    keyp = VarAuthKey;
-    keylen = strlen(VarAuthKey);
-    name = VarAuthName;
-    namelen = strlen(VarAuthName);
+    keyp = bundle->cfg.auth.key;
+    keylen = strlen(bundle->cfg.auth.key);
+    name = bundle->cfg.auth.name;
+    namelen = strlen(bundle->cfg.auth.name);
 
 #ifdef HAVE_DES
-    if (VarMSChap)
+    if (physical->dl->chap.using_MSChap)
       argp = malloc(1 + namelen + MS_CHAP_RESPONSE_LEN);
     else
 #endif
       argp = malloc(1 + valsize + namelen + 16);
 
     if (argp == NULL) {
-      ChapOutput(CHAP_FAILURE, chp->id, "Out of memory!", 14);
+      ChapOutput(physical, CHAP_FAILURE, chp->id, "Out of memory!", 14);
       return;
     }
 #ifdef HAVE_DES
-    if (VarMSChap) {
+    if (physical->dl->chap.using_MSChap) {
       digest = argp;     /* this is the response */
       *digest++ = MS_CHAP_RESPONSE_LEN;   /* 49 */
       memset(digest, '\0', 24);
@@ -161,7 +156,7 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
       memcpy(ap, keyp, keylen);
       ap += 2 * keylen;
       memcpy(ap, cp, valsize);
-      LogDumpBuff(LogDEBUG, "recv", ap, valsize);
+      log_DumpBuff(LogDEBUG, "recv", ap, valsize);
       ap += valsize;
       for (ix = keylen; ix > 0 ; ix--) {
           answer[2*ix-2] = answer[ix-1];
@@ -172,9 +167,10 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
       MD4Final(digest, &MD4context);
       memcpy(digest + 25, name, namelen);
       ap += 2 * keylen;
-      ChapMS(digest, answer + 2 * keylen, valsize);
-      LogDumpBuff(LogDEBUG, "answer", digest, 24);
-      ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + MS_CHAP_RESPONSE_LEN + 1);
+      chap_MS(digest, answer + 2 * keylen, valsize);
+      log_DumpBuff(LogDEBUG, "answer", digest, 24);
+      ChapOutput(physical, CHAP_RESPONSE, chp->id, argp,
+		 namelen + MS_CHAP_RESPONSE_LEN + 1);
     } else {
 #endif
       digest = argp;
@@ -184,16 +180,16 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
       memcpy(ap, keyp, keylen);
       ap += keylen;
       memcpy(ap, cp, valsize);
-      LogDumpBuff(LogDEBUG, "recv", ap, valsize);
+      log_DumpBuff(LogDEBUG, "recv", ap, valsize);
       ap += valsize;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
       MD5Final(digest, &MD5context);
-      LogDumpBuff(LogDEBUG, "answer", digest, 16);
+      log_DumpBuff(LogDEBUG, "answer", digest, 16);
       memcpy(digest + 16, name, namelen);
       ap += namelen;
       /* Send answer to the peer */
-      ChapOutput(CHAP_RESPONSE, chp->id, argp, namelen + 17);
+      ChapOutput(physical, CHAP_RESPONSE, chp->id, argp, namelen + 17);
 #ifdef HAVE_DES
     }
 #endif
@@ -203,7 +199,7 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
     /*
      * Get a secret key corresponds to the peer
      */
-    keyp = AuthGetSecret(SECRETFILE, name, namelen, chp->code == CHAP_RESPONSE);
+    keyp = auth_GetSecret(bundle, name, namelen, physical);
     if (keyp) {
       /*
        * Compute correct digest value
@@ -215,31 +211,28 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
       ap += keylen;
       MD5Init(&MD5context);
       MD5Update(&MD5context, answer, ap - answer);
-      MD5Update(&MD5context, challenge_data + 1, challenge_len);
+      MD5Update(&MD5context, physical->dl->chap.challenge_data + 1,
+                physical->dl->chap.challenge_len);
       MD5Final(cdigest, &MD5context);
-      LogDumpBuff(LogDEBUG, "got", cp, 16);
-      LogDumpBuff(LogDEBUG, "expect", cdigest, 16);
+      log_DumpBuff(LogDEBUG, "got", cp, 16);
+      log_DumpBuff(LogDEBUG, "expect", cdigest, 16);
 
       /*
        * Compare with the response
        */
       if (memcmp(cp, cdigest, 16) == 0) {
-	ChapOutput(CHAP_SUCCESS, chp->id, "Welcome!!", 10);
-        if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp)) {
-	  if (Utmp)
-	    LogPrintf(LogERROR, "Oops, already logged in on %s\n",
-		      VarBaseDevice);
-	  else {
-	    struct utmp ut;
-	    memset(&ut, 0, sizeof ut);
-	    time(&ut.ut_time);
-	    strncpy(ut.ut_name, name, sizeof ut.ut_name);
-	    strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-	    ID0login(&ut);
-	    Utmp = 1;
-	  }
-        }
-	NewPhase(PHASE_NETWORK);
+        datalink_GotAuthname(physical->dl, name, namelen);
+	ChapOutput(physical, CHAP_SUCCESS, chp->id, "Welcome!!", 10);
+        if (Enabled(bundle, OPT_UTMP))
+          physical_Login(physical, name);
+
+        if (physical->link.lcp.auth_iwait == 0)
+          /*
+           * Either I didn't need to authenticate, or I've already been
+           * told that I got the answer right.
+           */
+          datalink_AuthOk(physical->dl);
+
 	break;
       }
     }
@@ -247,40 +240,42 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
     /*
      * Peer is not registerd, or response digest is wrong.
      */
-    ChapOutput(CHAP_FAILURE, chp->id, "Invalid!!", 9);
-    reconnect(RECON_FALSE);
-    LcpClose();
+    ChapOutput(physical, CHAP_FAILURE, chp->id, "Invalid!!", 9);
+    datalink_AuthNotOk(physical->dl);
     break;
   }
 }
 
 static void
-RecvChapResult(struct fsmheader *chp, struct mbuf *bp)
+RecvChapResult(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
+	       struct physical *physical)
 {
   int len;
-  struct lcpstate *lcp = &LcpInfo;
 
   len = ntohs(chp->length);
-  LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
+  log_Printf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
-    if (lcp->auth_iwait == PROTO_CHAP) {
-      lcp->auth_iwait = 0;
-      if (lcp->auth_ineed == 0)
-	NewPhase(PHASE_NETWORK);
+    if (physical->link.lcp.auth_iwait == PROTO_CHAP) {
+      physical->link.lcp.auth_iwait = 0;
+      if (physical->link.lcp.auth_ineed == 0)
+        /*
+         * We've succeeded in our ``login''
+         * If we're not expecting  the peer to authenticate (or he already
+         * has), proceed to network phase.
+         */
+        datalink_AuthOk(physical->dl);
     }
   } else {
-
-    /*
-     * Maybe, we shoud close LCP. Of cause, peer may take close action, too.
-     */
-    ;
+    /* CHAP failed - it's not going to get any better */
+    log_Printf(LogPHASE, "Received CHAP_FAILURE\n");
+    datalink_AuthNotOk(physical->dl);
   }
 }
 
 void
-ChapInput(struct mbuf *bp)
+chap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
-  int len = plength(bp);
+  int len = mbuf_Length(bp);
   struct fsmheader *chp;
 
   if (len >= sizeof(struct fsmheader)) {
@@ -288,24 +283,24 @@ ChapInput(struct mbuf *bp)
     if (len >= ntohs(chp->length)) {
       if (chp->code < 1 || chp->code > 4)
 	chp->code = 0;
-      LogPrintf(LogLCP, "ChapInput: %s\n", chapcodes[chp->code]);
+      log_Printf(LogLCP, "chap_Input: %s\n", chapcodes[chp->code]);
 
       bp->offset += sizeof(struct fsmheader);
       bp->cnt -= sizeof(struct fsmheader);
 
       switch (chp->code) {
       case CHAP_RESPONSE:
-	StopAuthTimer(&AuthChapInfo);
+	auth_StopTimer(&physical->dl->chap.auth);
 	/* Fall into.. */
       case CHAP_CHALLENGE:
-	RecvChapTalk(chp, bp);
+	RecvChapTalk(bundle, chp, bp, physical);
 	break;
       case CHAP_SUCCESS:
       case CHAP_FAILURE:
-	RecvChapResult(chp, bp);
+	RecvChapResult(bundle, chp, bp, physical);
 	break;
       }
     }
   }
-  pfree(bp);
+  mbuf_Free(bp);
 }

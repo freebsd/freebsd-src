@@ -1,18 +1,26 @@
-#	$Id: Makefile,v 1.35 1998/01/17 14:21:21 brian Exp $
+#	$Id: Makefile,v 1.36.2.12 1998/05/04 03:01:34 brian Exp $
 
 PROG=	ppp
-SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
-	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
-	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c \
-	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
-	timer.c tun.c vars.c vjcomp.c
-CFLAGS+=-Wall
-LDADD+= -lmd -lcrypt -lutil -lz
-DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
-MAN8=	ppp.8
+SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
+	datalink.c deflate.c defs.c filter.c fsm.c hdlc.c id.c ip.c \
+	ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c mbuf.c modem.c \
+	mp.c pap.c physical.c pred.c prompt.c route.c server.c sig.c \
+	slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
+CFLAGS+=-Wall -Wpointer-arith
+LDADD+= -lutil -lz
+DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4550
 BINOWN=	root
 BINGRP=	network
+
+OPSYS!=	uname -s
+.if (${OPSYS} == "OpenBSD")
+MAN=	ppp.8
+.else
+MAN8=	ppp.8
+LDADD+=	-lmd -lcrypt
+DPADD+= ${LIBMD} ${LIBCRYPT}
+.endif
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH

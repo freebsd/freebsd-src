@@ -17,136 +17,176 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27 1998/01/21 02:15:09 brian Exp $
+ * $Id: auth.c,v 1.27.2.26 1998/05/01 19:23:52 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
  */
-#include <sys/param.h>
+#include <sys/types.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
+#include "throughput.h"
+#include "slcompress.h"
 #include "ipcp.h"
-#include "loadalias.h"
-#include "vars.h"
 #include "auth.h"
-#include "chat.h"
 #include "systems.h"
+#include "lcp.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "ccp.h"
+#include "link.h"
+#include "descriptor.h"
+#include "chat.h"
+#include "lcpproto.h"
+#include "filter.h"
+#include "mp.h"
+#include "bundle.h"
 
-void
-LocalAuthInit()
+const char *
+Auth2Nam(u_short auth)
 {
-  if (!(mode&MODE_DAEMON))
-    /* We're allowed in interactive mode */
-    VarLocalAuth = LOCAL_AUTH;
-  else if (VarHaveLocalAuthKey)
-    VarLocalAuth = *VarLocalAuthKey == '\0' ? LOCAL_AUTH : LOCAL_NO_AUTH;
-  else
-    switch (LocalAuthValidate(SECRETFILE, VarShortHost, "")) {
-    case NOT_FOUND:
-      VarLocalAuth = LOCAL_DENY;
-      break;
-    case VALID:
-      VarLocalAuth = LOCAL_AUTH;
-      break;
-    case INVALID:
-      VarLocalAuth = LOCAL_NO_AUTH;
-      break;
-    }
+  switch (auth) {
+  case PROTO_PAP:
+    return "PAP";
+  case PROTO_CHAP:
+    return "CHAP";
+  case 0:
+    return "none";
+  }
+  return "unknown";
 }
 
-LOCAL_AUTH_VALID
-LocalAuthValidate(const char *fname, const char *system, const char *key)
+static int
+auth_CheckPasswd(const char *name, const char *data, const char *key)
 {
-  FILE *fp;
-  int n;
-  char *vector[3];
-  char buff[LINE_LEN];
-  LOCAL_AUTH_VALID rc;
+  if (!strcmp(data, "*")) {
+    /* Then look up the real password database */
+    struct passwd *pw;
+    int result;
 
-  rc = NOT_FOUND;		/* No system entry */
-  fp = OpenSecret(fname);
-  if (fp == NULL)
-    return (rc);
-  while (fgets(buff, sizeof buff, fp)) {
-    if (buff[0] == '#')
-      continue;
-    buff[strlen(buff) - 1] = 0;
-    memset(vector, '\0', sizeof vector);
-    n = MakeArgs(buff, vector, VECSIZE(vector));
-    if (n < 1)
-      continue;
-    if (strcmp(vector[0], system) == 0) {
-      if ((vector[1] == (char *) NULL && (key == NULL || *key == '\0')) ||
-          (vector[1] != (char *) NULL && strcmp(vector[1], key) == 0)) {
-	rc = VALID;		/* Valid   */
-      } else {
-	rc = INVALID;		/* Invalid */
-      }
-      break;
-    }
+    result = (pw = getpwnam(name)) &&
+             !strcmp(crypt(key, pw->pw_passwd), pw->pw_passwd);
+    endpwent();
+    return result;
   }
-  CloseSecret(fp);
-  return (rc);
+
+  return !strcmp(data, key);
 }
 
 int
-AuthValidate(const char *fname, const char *system, const char *key)
+auth_Select(struct bundle *bundle, const char *name, struct physical *physical)
 {
   FILE *fp;
   int n;
   char *vector[5];
   char buff[LINE_LEN];
-  char passwd[100];
 
-  fp = OpenSecret(fname);
-  if (fp == NULL)
-    return (0);
-  while (fgets(buff, sizeof buff, fp)) {
-    if (buff[0] == '#')
-      continue;
-    buff[strlen(buff) - 1] = 0;
-    memset(vector, '\0', sizeof vector);
-    n = MakeArgs(buff, vector, VECSIZE(vector));
-    if (n < 2)
-      continue;
-    if (strcmp(vector[0], system) == 0) {
-      ExpandString(vector[1], passwd, sizeof passwd, 0);
-      if (strcmp(passwd, key) == 0) {
+  if (*name == '\0') {
+    ipcp_Setup(&bundle->ncp.ipcp);
+    return 1;
+  }
+
+  fp = OpenSecret(SECRETFILE);
+  if (fp != NULL) {
+    while (fgets(buff, sizeof buff, fp)) {
+      if (buff[0] == '#')
+        continue;
+      buff[strlen(buff) - 1] = 0;
+      memset(vector, '\0', sizeof vector);
+      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if (n < 2)
+        continue;
+      if (strcmp(vector[0], name) == 0)
 	CloseSecret(fp);
-	if (n > 2 && !UseHisaddr(vector[2], 1))
-	    return (0);
-	IpcpInit();
+/*
+	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
+               sizeof bundle->ncp.ipcp.cfg.peer_range);
+*/
+	if (n > 2 && !ipcp_UseHisaddr(bundle, vector[2], 1))
+	  return 0;
+	ipcp_Setup(&bundle->ncp.ipcp);
 	if (n > 3)
-	  SetLabel(vector[3]);
-	return (1);		/* Valid */
+	  bundle_SetLabel(bundle, vector[3]);
+	return 1;		/* Valid */
+    }
+    CloseSecret(fp);
+  }
+
+#ifndef NOPASSWDAUTH
+  /* Let 'em in anyway - they must have been in the passwd file */
+  ipcp_Setup(&bundle->ncp.ipcp);
+  return 1;
+#else
+  /* Disappeared from ppp.secret ? */
+  return 0;
+#endif
+}
+
+int
+auth_Validate(struct bundle *bundle, const char *system,
+             const char *key, struct physical *physical)
+{
+  /* Used by PAP routines */
+
+  FILE *fp;
+  int n;
+  char *vector[5];
+  char buff[LINE_LEN];
+
+  fp = OpenSecret(SECRETFILE);
+  if (fp != NULL) {
+    while (fgets(buff, sizeof buff, fp)) {
+      if (buff[0] == '#')
+        continue;
+      buff[strlen(buff) - 1] = 0;
+      memset(vector, '\0', sizeof vector);
+      n = MakeArgs(buff, vector, VECSIZE(vector));
+      if (n < 2)
+        continue;
+      if (strcmp(vector[0], system) == 0) {
+	CloseSecret(fp);
+        return auth_CheckPasswd(vector[0], vector[1], key);
       }
     }
+    CloseSecret(fp);
   }
-  CloseSecret(fp);
-  return (0);			/* Invalid */
+
+#ifndef NOPASSWDAUTH
+  if (Enabled(bundle, OPT_PASSWDAUTH))
+    return auth_CheckPasswd(system, "*", key);
+#endif
+
+  return 0;			/* Invalid */
 }
 
 char *
-AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
+auth_GetSecret(struct bundle *bundle, const char *system, int len,
+              struct physical *physical)
 {
+  /* Used by CHAP routines */
+
   FILE *fp;
   int n;
   char *vector[5];
-  char buff[LINE_LEN];
-  static char passwd[100];
+  static char buff[LINE_LEN];
 
-  fp = OpenSecret(fname);
+  fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
     return (NULL);
+
   while (fgets(buff, sizeof buff, fp)) {
     if (buff[0] == '#')
       continue;
@@ -156,19 +196,8 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
-      ExpandString(vector[1], passwd, sizeof passwd, 0);
-      if (setaddr) {
-	memset(&DefHisAddress, '\0', sizeof DefHisAddress);
-      }
-      if (n > 2 && setaddr) {
-	if (UseHisaddr(vector[2], 1))
-          IpcpInit();
-        else
-          return NULL;
-      }
-      if (n > 3)
-        SetLabel(vector[3]);
-      return (passwd);
+      CloseSecret(fp);
+      return vector[1];
     }
   }
   CloseSecret(fp);
@@ -178,36 +207,42 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
 static void
 AuthTimeout(void *vauthp)
 {
-  struct pppTimer *tp;
   struct authinfo *authp = (struct authinfo *)vauthp;
 
-  tp = &authp->authtimer;
-  StopTimer(tp);
+  timer_Stop(&authp->authtimer);
   if (--authp->retry > 0) {
-    StartTimer(tp);
-    (authp->ChallengeFunc) (++authp->id);
+    timer_Start(&authp->authtimer);
+    (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
   }
 }
 
 void
-StartAuthChallenge(struct authinfo *authp)
+auth_Init(struct authinfo *authinfo)
 {
-  struct pppTimer *tp;
-
-  tp = &authp->authtimer;
-  StopTimer(tp);
-  tp->func = AuthTimeout;
-  tp->load = VarRetryTimeout * SECTICKS;
-  tp->state = TIMER_STOPPED;
-  tp->arg = (void *) authp;
-  StartTimer(tp);
-  authp->retry = 3;
-  authp->id = 1;
-  (authp->ChallengeFunc) (authp->id);
+  memset(authinfo, '\0', sizeof(struct authinfo));
+  authinfo->cfg.fsmretry = DEF_FSMRETRY;
 }
 
 void
-StopAuthTimer(struct authinfo *authp)
+auth_StartChallenge(struct authinfo *authp, struct physical *physical,
+                   void (*fn)(struct authinfo *, int, struct physical *))
 {
-  StopTimer(&authp->authtimer);
+  authp->ChallengeFunc = fn;
+  authp->physical = physical;
+  timer_Stop(&authp->authtimer);
+  authp->authtimer.func = AuthTimeout;
+  authp->authtimer.name = "auth";
+  authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
+  authp->authtimer.arg = (void *) authp;
+  authp->retry = 3;
+  authp->id = 1;
+  (*authp->ChallengeFunc)(authp, authp->id, physical);
+  timer_Start(&authp->authtimer);
+}
+
+void
+auth_StopTimer(struct authinfo *authp)
+{
+  timer_Stop(&authp->authtimer);
+  authp->physical = NULL;
 }

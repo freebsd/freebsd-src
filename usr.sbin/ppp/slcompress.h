@@ -1,8 +1,6 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
- *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
  *
@@ -18,14 +16,16 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
+ * $Id: slcompress.h,v 1.10.2.5 1998/05/01 19:26:00 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 
-#define MAX_STATES 16		/* must be > 2 and < 256 */
-#define MAX_HDR 128		/* XXX 4bsd-ism: should really be 128 */
+#define MIN_VJ_STATES 3
+#define MAX_VJ_STATES 255
+#define DEF_VJ_STATES 16		/* must be > 2 and < 256 */
+#define MAX_HDR 128
 
 /*
  * Compressed packet format:
@@ -120,15 +120,30 @@ struct slcompress {
   u_char last_recv;		/* last rcvd conn. id */
   u_char last_xmit;		/* last sent conn. id */
   u_short flags;
-  struct cstate tstate[MAX_STATES];	/* xmit connection states */
-  struct cstate rstate[MAX_STATES];	/* receive connection states */
+  struct cstate tstate[MAX_VJ_STATES];	/* xmit connection states */
+  struct cstate rstate[MAX_VJ_STATES];	/* receive connection states */
+};
+
+struct slstat {
+  int sls_packets;		/* outbound packets */
+  int sls_compressed;		/* outbound compressed packets */
+  int sls_searches;		/* searches for connection state */
+  int sls_misses;		/* times couldn't find conn. state */
+  int sls_uncompressedin;	/* inbound uncompressed packets */
+  int sls_compressedin;		/* inbound compressed packets */
+  int sls_errorin;		/* inbound unknown type packets */
+  int sls_tossed;		/* inbound packets tossed because of error */
 };
 
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
+struct mbuf;
+struct cmdargs;
+
 extern void sl_compress_init(struct slcompress *, int);
-extern u_char sl_compress_tcp
-  (struct mbuf *, struct ip *, struct slcompress *, int);
-extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
-extern int ReportCompress(struct cmdargs const *);
+extern u_char sl_compress_tcp(struct mbuf *, struct ip *, struct slcompress *,
+                              struct slstat *, int);
+extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *,
+                             struct slstat *);
+extern int sl_Show(struct cmdargs const *);

@@ -15,38 +15,60 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.15 1997/12/04 18:49:28 brian Exp $
+ * $Id: lcp.h,v 1.16.2.23 1998/05/01 19:24:57 brian Exp $
  *
  *	TODO:
  */
 
 #define	REJECTED(p, x)	((p)->his_reject & (1<<(x)))
 
-struct lcpstate {
-  u_int16_t his_mru;
-  u_int32_t his_accmap;
-  u_int32_t his_magic;
-  u_int32_t his_lqrperiod;
-  u_char his_protocomp;
-  u_char his_acfcomp;
-  u_short his_auth;
+struct lcp {
+  struct fsm fsm;		/* The finite state machine */
+  u_int16_t his_mru;		/* Peers maximum packet size */
+  u_int16_t his_mrru;		/* Peers maximum reassembled packet size (MP) */
+  u_int32_t his_accmap;		/* Peeers async char control map */
+  u_int32_t his_magic;		/* Peers magic number */
+  u_int32_t his_lqrperiod;	/* Peers LQR frequency */
+  u_short his_auth;		/* Peer wants this type of authentication */
+  unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
+  unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
+  unsigned his_acfcomp : 1;	/* Does peer do addr & cntrl fld compression */
 
-  u_short want_mru;
-  u_int32_t want_accmap;
-  u_int32_t want_magic;
-  u_int32_t want_lqrperiod;
-  u_char want_protocomp;
-  u_char want_acfcomp;
-  u_short want_auth;
+  u_short want_mru;		/* Our maximum packet size */
+  u_short want_mrru;		/* Our maximum reassembled packet size (MP) */
+  u_int32_t want_accmap;	/* Our async char control map */
+  u_int32_t want_magic;		/* Our magic number */
+  u_int32_t want_lqrperiod;	/* Our LQR frequency */
+  u_short want_auth;		/* We want this type of authentication */
+  unsigned want_shortseq : 1;	/* I'd like only 12bit seqs (MP) */
+  unsigned want_protocomp : 1;	/* Do we do protocol field compression */
+  unsigned want_acfcomp : 1;	/* Do we do addr & cntrl fld compression */
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  u_short auth_iwait;
-  u_short auth_ineed;
+  u_short auth_iwait;		/* I must authenticate to the peer */
+  u_short auth_ineed;		/* I require that the peer authenticates */
+
+  int LcpFailedMagic;		/* Number of `magic is same' errors */
+
+  struct {
+    u_short mru;		/* Preferred MRU value */
+    u_int32_t accmap;		/* Initial ACCMAP value */
+    int openmode;		/* when to start CFG REQs */
+    u_int lqrperiod;		/* LQR frequency */
+    u_int fsmretry;		/* FSM retry frequency */
+
+    unsigned acfcomp : 2;	/* Address & Control Field Compression neg */
+    unsigned chap : 2;		/* Challenge Handshake Authentication proto */
+    unsigned lqr : 2;		/* Link Quality Report */
+    unsigned pap : 2;		/* Password Authentication protocol */
+    unsigned protocomp : 2;	/* Protocol field compression */
+  } cfg;
 };
 
 #define	LCP_MAXCODE	CODE_DISCREQ
+#define	LCP_MINMPCODE	CODE_CODEREJ
 
 #define	TY_MRU		1	/* Maximum-Receive-Unit */
 #define	TY_ACCMAP	2	/* Async-Control-Character-Map */
@@ -58,6 +80,9 @@ struct lcpstate {
 #define	TY_ACFCOMP	8	/* Address-and-Control-Field-Compression */
 #define	TY_FCSALT	9	/* FCS-Alternatives */
 #define	TY_SDP		10	/* Self-Describing-Padding */
+#define	TY_MRRU		17	/* Max Reconstructed Receive Unit (MP) */
+#define	TY_SHORTSEQ	18	/* Want short seqs (12bit) please (see mp.h) */
+#define	TY_ENDDISC	19	/* Endpoint discriminator */
 
 #define MAX_LCP_OPT_LEN 10
 struct lcp_opt {
@@ -66,17 +91,26 @@ struct lcp_opt {
   u_char data[MAX_LCP_OPT_LEN-2];
 };
 
+#define INC_LCP_OPT(ty, length, o)                    \
+  do {                                                \
+    (o)->id = (ty);                                   \
+    (o)->len = (length);                              \
+    (o) = (struct lcp_opt *)((char *)(o) + (length)); \
+  } while (0)
 
-extern struct lcpstate LcpInfo;
-extern struct fsm LcpFsm;
+struct mbuf;
+struct link;
+struct physical;
+struct bundle;
+struct cmdargs;
 
-extern void LcpInit(void);
-extern void LcpUp(void);
-extern void LcpSendProtoRej(u_char *, int);
-extern void LcpOpen(int);
-extern void LcpClose(void);
-extern void LcpDown(void);
-extern int LcpPutConf(int, u_char *, const struct lcp_opt *, const char *,
-                       const char *, ...);
-extern int ReportLcpStatus(struct cmdargs const *);
-extern void LcpInput(struct mbuf *);
+#define fsm2lcp(fp) (fp->proto == PROTO_LCP ? (struct lcp *)fp : NULL)
+
+extern void lcp_Init(struct lcp *, struct bundle *, struct link *,
+                     const struct fsm_parent *);
+extern void lcp_Setup(struct lcp *, int);
+
+extern void lcp_SendProtoRej(struct lcp *, u_char *, int);
+extern int lcp_ReportStatus(struct cmdargs const *);
+extern void lcp_Input(struct lcp *, struct mbuf *);
+extern void lcp_SetupCallbacks(struct lcp *);
