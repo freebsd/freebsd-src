@@ -325,7 +325,7 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
 		matches = 1;
 		if (ent->pp_vendor == PCCARD_VENDOR_ANY &&
-		    ent->pp_product == PCCARD_VENDOR_ANY &&
+		    ent->pp_product == PCCARD_PRODUCT_ANY &&
 		    ent->pp_cis[0] == NULL &&
 		    ent->pp_cis[1] == NULL) {
 			device_printf(dev,
