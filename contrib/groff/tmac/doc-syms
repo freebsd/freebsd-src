@@ -58,7 +58,7 @@
 .nr cZ \\n(.s
 .ds aa \&\f\\n(cF\s\\n(cZ
 .if \\n(aC==0 \{\
-.       ie \\n(.$==0 \&\\*(tNBSD\\*(aa \\*(tNUNIX\\*(aa
+.       ie \\n(.$==0 \&\\*(tNBSD\\*(aa
 .       el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .\}
 .if "\\$1"-alpha" \{\
@@ -111,7 +111,7 @@
 .		el .aZ
 .	\}
 .	el \{\
-.	       as b1 \&\\*(tNBSD\\*(aa U\\*(tNNIX\\*(aa
+.	       as b1 \&\\*(tNBSD\\*(aa
 .	       nR
 .	\}
 .\}
@@ -186,6 +186,7 @@
 .ds Fx*4.1
 .ds Fx*4.1.1
 .ds Fx*4.2
+.ds Fx*4.3
 .ds Fx*5
 .ds Fx*5.0
 .de Fx
@@ -280,11 +281,11 @@
 .	ds aa \&\f\\n(cF\s\\n(cZ
 .	nr aP \\n(aP+1
 .       if "\\*(A\\n(aP"-p1003.1b-93" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.1b-1993\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1b-1993\\*(sV
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.1b" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.1b\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1b\\*(sV
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.1g" \{\
@@ -292,43 +293,43 @@
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.1-90" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.1-1990\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-1990\\*(sV
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.1-88" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.1-1988\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1-1988\\*(sV
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.1" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.1\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.1\\*(sV
 .		as b1 (``\\*(tN\\*(Px\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.2-92" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.2-1992\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2-1992\\*(sV
 .		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-p1003.2" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa1003.2\\*(sV
+.		ds b1 \&\\*(tNIEEE Std \\*(aa1003.2\\*(sV
 .		as b1 (``\\*(tN\\*(Px.2\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-iso9945-1" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9945-1: 1996\\*(sV
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9945-1:1996\\*(sV
 .		as b1 (``\\*(tN\\*(Px.1\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-ansiC" \{\
-.		ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
 .		as b1 (``\\*(tNISO C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-isoC" \{\
-.		ds b1 \&\\*(tNISO \\*(aa9899:\ 1990\\*(sV
+.		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
 .		as b1 (``\\*(tNISO C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-isoC-99" \{\
-.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:\ 1999\\*(sV
+.		ds b1 \&\\*(tNISO/IEC \\*(aa9899:1999\\*(sV
 .		as b1 (``\\*(tNISO C99\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-iso9899" \{\
-.		ds b1 \&\\*(tNISO \\*(aa9899: 1990\\*(sV
+.		ds b1 \&\\*(tNISO \\*(aa9899:1990\\*(sV
 .		as b1 (``\\*(tNISO C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-ansiC-89" \{\
@@ -336,10 +337,10 @@
 .		as b1 (``\\*(tNANSI C\\*(aa'')
 .       \}
 .       if "\\*(A\\n(aP"-ieee754" \{\
-.		ds b1 \&\\*(tNIEEE Std\\*(aa754-1985
+.		ds b1 \&\\*(tNIEEE Std \\*(aa754-1985
 .       \}
 .       if "\\*(A\\n(aP"-iso8802-3" \{\
-.		ds b1 \&\\*(tNISO \\*(aa8802-3: 1989
+.		ds b1 \&\\*(tNISO \\*(aa8802-3:1989
 .\" .		ds b1 \&\\*(tNISO \\*(aa8802-3: 1989\\*(sV
 .\" .		as b1 (``\\*(tNANSI C\\*(aa'')
 .       \}
