@@ -104,6 +104,7 @@ is for the creation and maintenance of libraries suitable for use with
 the loader (see
 .Xr ld 1 )
 although it is not restricted to this purpose.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a
