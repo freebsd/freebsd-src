@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
  *
- *	$Id: i4b_util.c,v 1.22 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_util.c,v 1.26 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:37 1999]
+ *      last edit-date: [Mon May 29 16:55:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,22 +43,17 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
@@ -66,12 +61,9 @@
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
-#include <i4b/layer2/i4b_l2fsm.h>
 
 /*---------------------------------------------------------------------------*
  *	routine ESTABLISH DATA LINK (Q.921 03/93 page 83)
@@ -178,11 +170,11 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 
 	CRIT_BEG;
 
-	DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr = %d\n", nr ));
+	NDBGL2(L2_ERROR, "nr = %d", nr );
 	
 	while(l2sc->vs != nr)
 	{
-		DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("nr(%d) != vs(%d)\n", nr, l2sc->vs));
+		NDBGL2(L2_ERROR, "nr(%d) != vs(%d)", nr, l2sc->vs);
 
 		M128DEC(l2sc->vs);
 
@@ -190,9 +182,9 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 
 		if((l2sc->ua_num != UA_EMPTY) && (l2sc->vs == l2sc->ua_num))
 		{
-			if(IF_QFULL(&l2sc->i_queue))
+			if(_IF_QFULL(&l2sc->i_queue))
 			{
-				DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("ERROR, I-queue full!\n"));
+				NDBGL2(L2_ERROR, "ERROR, I-queue full!");
 			}
 			else
 			{
@@ -202,7 +194,7 @@ i4b_invoke_retransmission(l2_softc_t *l2sc, int nr)
 		}
 		else
 		{
-			DBGL2(L2_ERROR, "i4b_invoke_retransmission", ("ERROR, l2sc->vs = %d, l2sc->ua_num = %d \n",l2sc->vs, l2sc->ua_num));
+			NDBGL2(L2_ERROR, "ERROR, l2sc->vs = %d, l2sc->ua_num = %d ",l2sc->vs, l2sc->ua_num);
 		}
 
 /* XXXXXXXXXXXXXXXXX */
@@ -232,7 +224,7 @@ i4b_acknowledge_pending(l2_softc_t *l2sc)
 void
 i4b_print_frame(int len, u_char *buf)
 {
-#ifdef DO_I4B_DEBUG
+#if DO_I4B_DEBUG
 	int i;
 
 	if (!(i4b_l2_debug & L2_ERROR))		/* XXXXXXXXXXXXXXXXXXXXX */
@@ -250,14 +242,14 @@ i4b_print_frame(int len, u_char *buf)
 void
 i4b_print_l2var(l2_softc_t *l2sc)
 {
-	DBGL2(L2_ERROR, "i4b_print_l2var", ("unit%d V(R)=%d, V(S)=%d, V(A)=%d,ACKP=%d,PBSY=%d,OBSY=%d\n",
+	NDBGL2(L2_ERROR, "unit%d V(R)=%d, V(S)=%d, V(A)=%d,ACKP=%d,PBSY=%d,OBSY=%d",
 		l2sc->unit,
 		l2sc->vr,
 		l2sc->vs,
 		l2sc->va,
 		l2sc->ack_pend,
 		l2sc->peer_busy,
-		l2sc->own_busy));
+		l2sc->own_busy);
 }
 
 /*---------------------------------------------------------------------------*
@@ -268,12 +260,12 @@ i4b_rxd_ack(l2_softc_t *l2sc, int nr)
 {
 
 #ifdef NOTDEF
-	DBGL2(L2_ERROR, "i4b_rxd_ack", ("N(R)=%d, UA=%d, V(R)=%d, V(S)=%d, V(A)=%d\n",
+	NDBGL2(L2_ERROR, "N(R)=%d, UA=%d, V(R)=%d, V(S)=%d, V(A)=%d",
 		nr,
 		l2sc->ua_num,
 		l2sc->vr,
 		l2sc->vs,
-		l2sc->va));
+		l2sc->va);
 #endif
 
 	if(l2sc->ua_num != UA_EMPTY)
@@ -285,7 +277,7 @@ i4b_rxd_ack(l2_softc_t *l2sc, int nr)
 		M128DEC(nr);
 
 		if(l2sc->ua_num != nr)
-			DBGL2(L2_ERROR, "i4b_rxd_ack", ("((N(R)-1)=%d) != (UA=%d) !!!\n", nr, l2sc->ua_num));
+			NDBGL2(L2_ERROR, "((N(R)-1)=%d) != (UA=%d) !!!", nr, l2sc->ua_num);
 			
 		i4b_Dfreembuf(l2sc->ua_frame);
 		l2sc->ua_num = UA_EMPTY;
@@ -317,13 +309,13 @@ i4b_l2_nr_ok(int nr, int va, int vs)
 {
 	if((va > nr) && ((nr != 0) || (va != 127)))
 	{
-		DBGL2(L2_ERROR, "i4b_l2_nr_ok", ("ERROR, va = %d, nr = %d, vs = %d [1]\n", va, nr, vs));
+		NDBGL2(L2_ERROR, "ERROR, va = %d, nr = %d, vs = %d [1]", va, nr, vs);
 		return 0;	/* fail */
 	}
 
 	if((nr > vs) && ((vs != 0) || (nr != 127)))
 	{
-		DBGL2(L2_ERROR, "i4b_l2_nr_ok", ("ERROR, va = %d, nr = %d, vs = %d [2]\n", va, nr, vs));
+		NDBGL2(L2_ERROR, "ERROR, va = %d, nr = %d, vs = %d [2]", va, nr, vs);
 		return 0;	/* fail */
 	}
 	return 1;		/* good */

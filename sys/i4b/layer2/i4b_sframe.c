@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_sframe.c - s frame handling routines
  *	----------------------------------------
  *
- *	$Id: i4b_sframe.c,v 1.12 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_sframe.c,v 1.15 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:17 1999]
+ *      last edit-date: [Mon May 29 16:55:23 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,30 +43,23 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
 #endif
 
 #include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
@@ -98,25 +91,25 @@ i4b_rxd_s_frame(int unit, struct mbuf *m)
 	{
 		case RR:
 			l2sc->stat.rx_rr++; /* update statistics */
-			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd RR, N(R) = %d\n", l2sc->rxd_NR));
+			NDBGL2(L2_S_MSG, "rx'd RR, N(R) = %d", l2sc->rxd_NR);
 			i4b_next_l2state(l2sc, EV_RXRR);
 			break;
 
 		case RNR:
 			l2sc->stat.rx_rnr++; /* update statistics */
-			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd RNR, N(R) = %d\n", l2sc->rxd_NR));
+			NDBGL2(L2_S_MSG, "rx'd RNR, N(R) = %d", l2sc->rxd_NR);
 			i4b_next_l2state(l2sc, EV_RXRNR);
 			break;
 
 		case REJ:
 			l2sc->stat.rx_rej++; /* update statistics */
-			DBGL2(L2_S_MSG, "i4b_rxd_s_frame", ("rx'd REJ, N(R) = %d\n", l2sc->rxd_NR));
+			NDBGL2(L2_S_MSG, "rx'd REJ, N(R) = %d", l2sc->rxd_NR);
 			i4b_next_l2state(l2sc, EV_RXREJ);
 			break;
 
 		default:
 			l2sc->stat.err_rx_bads++; /* update statistics */
-			DBGL2(L2_S_ERR, "i4b_rxd_s_frame", ("ERROR, unknown code, frame = \n"));
+			NDBGL2(L2_S_ERR, "ERROR, unknown code, frame = ");
 			i4b_print_frame(m->m_len, m->m_data);
 			break;
 	}
@@ -131,7 +124,7 @@ i4b_tx_rr_command(l2_softc_t *l2sc, pbit_t pbit)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_S_MSG, "i4b_tx_rr_command", ("tx RR, unit = %d\n", l2sc->unit));
+	NDBGL2(L2_S_MSG, "tx RR, unit = %d", l2sc->unit);
 
 	m = i4b_build_s_frame(l2sc, CR_CMD_TO_NT, pbit, RR);
 
@@ -148,7 +141,7 @@ i4b_tx_rr_response(l2_softc_t *l2sc, fbit_t fbit)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_S_MSG, "i4b_tx_rr_response", ("tx RR, unit = %d\n", l2sc->unit));
+	NDBGL2(L2_S_MSG, "tx RR, unit = %d", l2sc->unit);
 
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, RR);	
 
@@ -165,7 +158,7 @@ i4b_tx_rnr_command(l2_softc_t *l2sc, pbit_t pbit)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_S_MSG, "i4b_tx_rnr_command", ("tx RNR, unit = %d\n", l2sc->unit));
+	NDBGL2(L2_S_MSG, "tx RNR, unit = %d", l2sc->unit);
 
 	m = i4b_build_s_frame(l2sc, CR_CMD_TO_NT, pbit, RNR);	
 
@@ -182,7 +175,7 @@ i4b_tx_rnr_response(l2_softc_t *l2sc, fbit_t fbit)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_S_MSG, "i4b_tx_rnr_response", ("tx RNR, unit = %d\n", l2sc->unit));
+	NDBGL2(L2_S_MSG, "tx RNR, unit = %d", l2sc->unit);
 
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, RNR);
 
@@ -199,7 +192,7 @@ i4b_tx_rej_response(l2_softc_t *l2sc, fbit_t fbit)
 {
 	struct mbuf *m;
 
-	DBGL2(L2_S_MSG, "i4b_tx_rej_response", ("tx REJ, unit = %d\n", l2sc->unit));
+	NDBGL2(L2_S_MSG, "tx REJ, unit = %d", l2sc->unit);
 
 	m = i4b_build_s_frame(l2sc, CR_RSP_TO_NT, fbit, REJ);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_global.h - i4b global include file
  *	--------------------------------------
  *
- *	$Id: i4b_global.h,v 1.23 1999/12/13 21:25:24 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:17 1999]
+ *	last edit-date: [Mon Jan 15 15:47:40 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -41,6 +39,53 @@
 /*---------------------------------------------------------------------------*
  *	hiding OS differences in the kernel
  *---------------------------------------------------------------------------*/ 
+
+/*-------------------------------------------------*/
+/* hide SMP changes in FreeBSD 5.x-current for 4.x */
+/*-------------------------------------------------*/
+
+#if defined(__FreeBSD__) && __FreeBSD__ <= 4
+
+#define IF_LOCK(a)
+#define IF_UNLOCK(a)
+#define _IF_QFULL(a)		IF_QFULL((a))
+#define _IF_ENQUEUE(a, b)	IF_ENQUEUE((a), (b))
+#define _IF_DEQUEUE(a, b)	IF_DEQUEUE((a), (b))
+#define _IF_PREPEND(a, b)	IF_PREPEND((a), (b))
+
+/* get back DELAY() */
+
+#include <machine/clock.h>
+
+#endif
+
+#if defined(__FreeBSD__) && __FreeBSD__ >= 5
+/*
+ * Deprecated LKM interface.
+ */
+#include <sys/module.h>
+#define	PSEUDO_SET(sym, name) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
+	{ \
+		void (*initfunc)(void *) = (void (*)(void *))data; \
+		switch (type) { \
+		case MOD_LOAD: \
+			/* printf(#name " module load\n"); */ \
+			initfunc(NULL); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)sym \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
+#endif
 
 /*---------------*/
 /* time handling */
@@ -77,6 +122,29 @@
 
 #endif /* __NetBSD__ */
 
+/*----------------*/
+/* timer handling */
+/*----------------*/
+
+#if defined(__NetBSD__)
+
+#if __NetBSD_Version__ >= 104230000
+#define START_TIMER(XHANDLE, XF, XSC, XTIME) callout_reset(&XHANDLE, XTIME, (TIMEOUT_FUNC_T)XF, (void*)XSC)
+#define STOP_TIMER(XHANDLE, XF, XSC) callout_stop(&XHANDLE)
+#else
+#define START_TIMER(XHANDLE, XF, XSC, XTIME) timeout((TIMEOUT_FUNC_T)XF, (void*)XSC, XTIME)
+#define STOP_TIMER(XHANDLE, XF, XSC)    untimeout((TIMEOUT_FUNC_T)XF, (void*)XSC)
+#endif
+
+#else
+#define START_TIMER(XHANDLE, XF, XSC, XTIME) XHANDLE = timeout((TIMEOUT_FUNC_T)XF, (void*)XSC, XTIME)
+#ifdef __FreeBSD__
+#define	STOP_TIMER(XHANDLE, XF, XSC)	untimeout((TIMEOUT_FUNC_T)XF, (void*)XSC, XHANDLE)
+#else
+#define STOP_TIMER(XHANDLE, XF, XSC)	untimeout((TIMEOUT_FUNC_T)XF, (void*)XSC)
+#endif
+#endif
+
 /*----------------------*/
 /* poll/select handling */
 /*----------------------*/
@@ -110,28 +178,19 @@
 
 /* definitions for the STATUS indications L1 -> L2 -> L3 */
 
-#define	STI_ATTACH	0	/* attach at boot time	*/
-#define	STI_L1STAT	1	/* layer 1 status	*/
-#define	STI_L2STAT	2	/* layer 2 status	*/
-#define	STI_TEIASG	3	/* TEI assignments	*/
+#define	STI_ATTACH	0	/* attach at boot time			*/
+#define	STI_L1STAT	1	/* layer 1 status			*/
+#define	STI_L2STAT	2	/* layer 2 status			*/
+#define	STI_TEIASG	3	/* TEI assignments			*/
 #define	STI_PDEACT	4	/* Layer 1 T4 expired = persistent deactivation */
-#define STI_NOL1ACC	5	/* no outgoing L1 access possible */
+#define STI_NOL1ACC	5	/* no outgoing L1 access possible	*/
 
 /* definitions for the COMMAND requests L3 -> L2 -> L1 */
 
-#define CMR_DOPEN	0	/* daemon opened /dev/i4b */
-#define CMR_DCLOSE	1	/* daemon closed /dev/i4b */
-
-/*---------------------------------------------------------------------------
- *
- *	Number of max supported passive card units
- *
- *	Teles/Creatix/Neuhaus cards have a hardware limitation
- *	as one is able to set 3 (sometimes 4) different configurations by
- *      jumpers so a maximum of 3 (4) cards per ISA bus is possible.
- *      (Note: there are multiple ISA buses on some architectures)
- *
- *---------------------------------------------------------------------------*/
-#define ISIC_MAXUNIT	3		/* max no of supported units 0..3 */
+#define CMR_DOPEN	0	/* daemon opened /dev/i4b		*/
+#define CMR_DCLOSE	1	/* daemon closed /dev/i4b		*/
+#define CMR_SETTRACE	2	/* set D-channel and B-channel trace	*/
+#define CMR_GCST	3	/* get chipset statistics		*/
+#define CMR_CCST	4	/* clear chipset statistics		*/
 
 #endif /* _I4B_GLOBAL_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_lme.c - layer management entity
  *	-------------------------------------
  *
- *	$Id: i4b_lme.c,v 1.11 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_lme.c,v 1.15 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:03 1999]
+ *      last edit-date: [Mon May 29 16:55:12 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,34 +43,23 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
 #endif
 
-#include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
-#include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
-#include <i4b/layer2/i4b_l2fsm.h>
 
 /*---------------------------------------------------------------------------*
  *	mdl assign indication handler
@@ -78,7 +67,7 @@
 void
 i4b_mdl_assign_ind(l2_softc_t *l2sc)
 {
-	DBGL2(L2_PRIM, "MDL-ASSIGN-IND", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_PRIM, "unit %d", l2sc->unit);
 	
 	i4b_l1_activate(l2sc);
 	
@@ -102,6 +91,7 @@ i4b_mdl_assign_ind(l2_softc_t *l2sc)
 void
 i4b_mdl_error_ind(l2_softc_t *l2sc, char *where, int errorcode)
 {
+#if DO_I4B_DEBUG
 	static char *error_text[] = {
 		"MDL_ERR_A: rx'd unsolicited response - supervisory (F=1)",
 		"MDL_ERR_B: rx'd unsolicited response - DM (F=1)",
@@ -120,12 +110,13 @@ i4b_mdl_error_ind(l2_softc_t *l2sc, char *where, int errorcode)
 		"MDL_ERR_O: other error - N201 error",
 		"MDL_ERR_MAX: i4b_mdl_error_ind called with wrong parameter!!!"
 	};
+#endif
 
 	if(errorcode > MDL_ERR_MAX)
 		errorcode = MDL_ERR_MAX;
 		
-	DBGL2(L2_ERROR, "i4b_mdl_error_ind", ("unit = %d, location = %s\n", l2sc->unit, where));
-	DBGL2(L2_ERROR, "i4b_mdl_error_ind", ("error = %s\n", error_text[errorcode]));
+	NDBGL2(L2_ERROR, "unit = %d, location = %s", l2sc->unit, where);
+	NDBGL2(L2_ERROR, "error = %s", error_text[errorcode]);
 
 	switch(errorcode)
 	{	

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l2timer.c - layer 2 timer handling
  *	--------------------------------------
  *
- *	$Id: i4b_l2timer.c,v 1.17 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l2timer.c,v 1.20 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:03:56 1999]
+ *      last edit-date: [Thu Aug 24 12:48:52 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,31 +43,23 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
 #endif
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_l1l2.h>
-#include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
-#include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
 #include <i4b/layer2/i4b_l2fsm.h>
@@ -78,7 +70,7 @@
 static void
 i4b_T200_timeout(l2_softc_t *l2sc)
 {
-	DBGL2(L2_T_ERR, "i4b_T200_timeout", ("unit %d, RC = %d\n", l2sc->unit, l2sc->RC));
+	NDBGL2(L2_T_ERR, "unit %d, RC = %d", l2sc->unit, l2sc->RC);
 	i4b_next_l2state(l2sc, EV_T200EXP);
 }
 
@@ -91,14 +83,10 @@ i4b_T200_start(l2_softc_t *l2sc)
 	if(l2sc->T200 == TIMER_ACTIVE)
 		return;
 		
-	DBGL2(L2_T_MSG, "i4b_T200_start", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 	l2sc->T200 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
-#else
-	timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
-#endif
+	START_TIMER(l2sc->T200_callout, i4b_T200_timeout, l2sc, T200DEF);
 }
 
 /*---------------------------------------------------------------------------*
@@ -111,15 +99,11 @@ i4b_T200_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, l2sc->T200_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc);
-#endif
+		STOP_TIMER(l2sc->T200_callout, i4b_T200_timeout, l2sc);
 		l2sc->T200 = TIMER_IDLE;
 	}
 	CRIT_END;
-	DBGL2(L2_T_MSG, "i4b_T200_stop", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 }
 
 /*---------------------------------------------------------------------------*
@@ -132,24 +116,16 @@ i4b_T200_restart(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T200 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, l2sc->T200_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc);
-#endif
+		STOP_TIMER(l2sc->T200_callout, i4b_T200_timeout, l2sc);
 	}
 	else
 	{
 		l2sc->T200 = TIMER_ACTIVE;
 	}
 
-#if defined(__FreeBSD__)
-	l2sc->T200_callout = timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
-#else
-	timeout((TIMEOUT_FUNC_T)i4b_T200_timeout, (void *)l2sc, T200DEF);
-#endif
+	START_TIMER(l2sc->T200_callout, i4b_T200_timeout, l2sc, T200DEF);
 	CRIT_END;
-	DBGL2(L2_T_MSG, "i4b_T200_restart", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 }
 
 /*---------------------------------------------------------------------------*
@@ -158,7 +134,7 @@ i4b_T200_restart(l2_softc_t *l2sc)
 static void
 i4b_T202_timeout(l2_softc_t *l2sc)
 {
-	DBGL2(L2_T_ERR, "i4b_T202_timeout", ("unit %d, N202 = %d\n", l2sc->unit, l2sc->N202));
+	NDBGL2(L2_T_ERR, "unit %d, N202 = %d", l2sc->unit, l2sc->N202);
 	
 	if(--(l2sc->N202))
 	{
@@ -175,15 +151,11 @@ i4b_T202_start(l2_softc_t *l2sc)
 	if (l2sc->N202 == TIMER_ACTIVE)
 		return;
 
-	DBGL2(L2_T_MSG, "i4b_T202_start", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 	l2sc->N202 = N202DEF;	
 	l2sc->T202 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	l2sc->T202_callout = timeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, T202DEF);
-#else
-	timeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, T202DEF);
-#endif
+	START_TIMER(l2sc->T202_callout, i4b_T202_timeout, l2sc, T202DEF);
 }
 
 /*---------------------------------------------------------------------------*
@@ -196,15 +168,11 @@ i4b_T202_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T202 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc, l2sc->T202_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)i4b_T202_timeout, (void *)l2sc);
-#endif
+		STOP_TIMER(l2sc->T202_callout, i4b_T202_timeout, l2sc);
 		l2sc->T202 = TIMER_IDLE;
 	}
 	CRIT_END;
-	DBGL2(L2_T_MSG, "i4b_T202_stop", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 }
 
 /*---------------------------------------------------------------------------*
@@ -214,7 +182,7 @@ i4b_T202_stop(l2_softc_t *l2sc)
 static void
 i4b_T203_timeout(l2_softc_t *l2sc)
 {
-	DBGL2(L2_T_ERR, "i4b_T203_timeout", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_ERR, "unit %d", l2sc->unit);
 	i4b_next_l2state(l2sc, EV_T203EXP);
 }
 #endif
@@ -229,14 +197,10 @@ i4b_T203_start(l2_softc_t *l2sc)
 	if (l2sc->T203 == TIMER_ACTIVE)
 		return;
 		
-	DBGL2(L2_T_MSG, "i4b_T203_start", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 	l2sc->T203 = TIMER_ACTIVE;
 
-#if defined(__FreeBSD__)
-	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
-#else
-	timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
-#endif
+	START_TIMER(l2sc->T203_callout, i4b_T203_timeout, l2sc, T203DEF);
 #endif
 }
 
@@ -251,15 +215,11 @@ i4b_T203_stop(l2_softc_t *l2sc)
 	CRIT_BEG;
 	if(l2sc->T203 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, l2sc->T203_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc);
-#endif
+		STOP_TIMER(l2sc->T203_callout, i4b_T203_timeout, l2sc);
 		l2sc->T203 = TIMER_IDLE;
 	}
 	CRIT_END;
-	DBGL2(L2_T_MSG, "i4b_T203_stop", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 #endif
 }
 
@@ -275,24 +235,16 @@ i4b_T203_restart(l2_softc_t *l2sc)
 
 	if(l2sc->T203 != TIMER_IDLE)
 	{
-#if defined(__FreeBSD__)
-		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, l2sc->T203_callout);
-#else
-		untimeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc);
-#endif
+		STOP_TIMER(l2sc->T203_callout, i4b_T203_timerout, l2sc);
 	}
 	else
 	{
 		l2sc->T203 = TIMER_ACTIVE;
 	}
-	
-#if defined(__FreeBSD__)
-	l2sc->T203_callout = timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
-#else
-	timeout((TIMEOUT_FUNC_T)i4b_T203_timeout, (void *)l2sc, T203DEF);
-#endif
+
+	START_TIMER(l2sc->T203_callout, i4b_T203_timerout, l2sc, T203DEF);	
 	CRIT_END;
-	DBGL2(L2_T_MSG, "i4b_T203_restart", ("unit %d\n", l2sc->unit));
+	NDBGL2(L2_T_MSG, "unit %d", l2sc->unit);
 #endif
 }
 

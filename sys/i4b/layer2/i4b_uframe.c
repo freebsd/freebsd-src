@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_uframe.c - routines for handling U-frames
  *	-----------------------------------------------
  *
- *	$Id: i4b_uframe.c,v 1.10 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_uframe.c,v 1.13 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:04:30 1999]
+ *      last edit-date: [Mon May 29 16:55:30 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,22 +43,17 @@
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
 #else
 #include <i4b/i4b_debug.h>
 #include <i4b/i4b_ioctl.h>
@@ -66,7 +61,6 @@
 
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer2/i4b_l2.h>
@@ -94,7 +88,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{
 				l2sc->stat.rx_sabme++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("SABME, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "SABME, sapi = %d, tei = %d", sapi, tei);
 				l2sc->rxd_PF = pfbit;
 				i4b_next_l2state(l2sc, EV_RXSABME);
 			}
@@ -122,7 +116,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			else
 			{
 				l2sc->stat.err_rx_badui++;
-				DBGL2(L2_U_ERR, "i4b_rxd_u_frame", ("unknown UI frame!\n"));
+				NDBGL2(L2_U_ERR, "unknown UI frame!");
 				i4b_Dfreembuf(m);				
 			}
 			break;
@@ -132,7 +126,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{		
 				l2sc->stat.rx_disc++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("DISC, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "DISC, sapi = %d, tei = %d", sapi, tei);
 				l2sc->rxd_PF = pfbit;
 				i4b_next_l2state(l2sc, EV_RXDISC);
 			}
@@ -144,7 +138,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{		
 				l2sc->stat.rx_xid++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("XID, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "XID, sapi = %d, tei = %d", sapi, tei);
 			}
 			i4b_Dfreembuf(m);			
 			break;
@@ -156,7 +150,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{		
 				l2sc->stat.rx_dm++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("DM, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "DM, sapi = %d, tei = %d", sapi, tei);
 				i4b_print_frame(m->m_len, m->m_data);
 				l2sc->rxd_PF = pfbit;
 				i4b_next_l2state(l2sc, EV_RXDM);
@@ -169,7 +163,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{		
 				l2sc->stat.rx_ua++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("UA, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "UA, sapi = %d, tei = %d", sapi, tei);
 				l2sc->rxd_PF = pfbit;
 				i4b_next_l2state(l2sc, EV_RXUA);
 			}
@@ -181,7 +175,7 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{
 				l2sc->stat.rx_frmr++;
-				DBGL2(L2_U_MSG, "i4b_rxd_u_frame", ("FRMR, sapi = %d, tei = %d\n", sapi, tei));
+				NDBGL2(L2_U_MSG, "FRMR, sapi = %d, tei = %d", sapi, tei);
 				l2sc->rxd_PF = pfbit;
 				i4b_next_l2state(l2sc, EV_RXFRMR);
 			}
@@ -192,12 +186,12 @@ i4b_rxd_u_frame(int unit, struct mbuf *m)
 			if((l2sc->tei_valid == TEI_VALID) &&
 			   (l2sc->tei == GETTEI(*(ptr+OFF_TEI))))
 			{		
-				DBGL2(L2_U_ERR, "i4b_rxd_u_frame", ("UNKNOWN TYPE ERROR, sapi = %d, tei = %d, frame = ", sapi, tei));
+				NDBGL2(L2_U_ERR, "UNKNOWN TYPE ERROR, sapi = %d, tei = %d, frame = ", sapi, tei);
 				i4b_print_frame(m->m_len, m->m_data);
 			}
 			else
 			{		
-				DBGL2(L2_U_ERR, "i4b_rxd_u_frame", ("not mine -  UNKNOWN TYPE ERROR, sapi = %d, tei = %d, frame = ", sapi, tei));
+				NDBGL2(L2_U_ERR, "not mine -  UNKNOWN TYPE ERROR, sapi = %d, tei = %d, frame = ", sapi, tei);
 				i4b_print_frame(m->m_len, m->m_data);
 			}
 			l2sc->stat.err_rx_badui++;			
@@ -238,7 +232,7 @@ i4b_tx_sabme(l2_softc_t *l2sc, pbit_t pbit)
 	struct mbuf *m;
 
 	l2sc->stat.tx_sabme++;
-	DBGL2(L2_U_MSG, "i4b_tx_sabme", ("tx SABME, tei = %d\n", l2sc->tei));
+	NDBGL2(L2_U_MSG, "tx SABME, tei = %d", l2sc->tei);
 	m = i4b_build_u_frame(l2sc, CR_CMD_TO_NT, pbit, SABME);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }
@@ -252,7 +246,7 @@ i4b_tx_dm(l2_softc_t *l2sc, fbit_t fbit)
 	struct mbuf *m;
 
 	l2sc->stat.tx_dm++;	
-	DBGL2(L2_U_MSG, "i4b_tx_dm", ("tx DM, tei = %d\n", l2sc->tei));
+	NDBGL2(L2_U_MSG, "tx DM, tei = %d", l2sc->tei);
 	m = i4b_build_u_frame(l2sc, CR_RSP_TO_NT, fbit, DM);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }
@@ -266,7 +260,7 @@ i4b_tx_disc(l2_softc_t *l2sc, pbit_t pbit)
 	struct mbuf *m;
 	
 	l2sc->stat.tx_disc++;
-	DBGL2(L2_U_MSG, "i4b_tx_disc", ("tx DISC, tei = %d\n", l2sc->tei));
+	NDBGL2(L2_U_MSG, "tx DISC, tei = %d", l2sc->tei);
 	m = i4b_build_u_frame(l2sc, CR_CMD_TO_NT, pbit, DISC);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }
@@ -280,7 +274,7 @@ i4b_tx_ua(l2_softc_t *l2sc, fbit_t fbit)
 	struct mbuf *m;
 	
 	l2sc->stat.tx_ua++;
-	DBGL2(L2_U_MSG, "i4b_tx_ua", ("tx UA, tei = %d\n", l2sc->tei));
+	NDBGL2(L2_U_MSG, "tx UA, tei = %d", l2sc->tei);
 	m = i4b_build_u_frame(l2sc, CR_RSP_TO_NT, fbit, UA);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }
@@ -294,7 +288,7 @@ i4b_tx_frmr(l2_softc_t *l2sc, fbit_t fbit)
 	struct mbuf *m;
 	
 	l2sc->stat.tx_frmr++;
-	DBGL2(L2_U_MSG, "i4b_tx_frmr", ("tx FRMR, tei = %d\n", l2sc->tei));
+	NDBGL2(L2_U_MSG, "tx FRMR, tei = %d", l2sc->tei);
 	m = i4b_build_u_frame(l2sc, CR_RSP_TO_NT, fbit, FRMR);
 	PH_Data_Req(l2sc->unit, m, MBUF_FREE);
 }

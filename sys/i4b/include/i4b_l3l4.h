@@ -27,11 +27,11 @@
  *	i4b_l3l4.h - layer 3 / layer 4 interface
  *	------------------------------------------
  *
- *	$Id: i4b_l3l4.h,v 1.27 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_l3l4.h,v 1.32 2000/08/24 11:48:57 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:56 1999]
+ *	last edit-date: [Fri Jun  2 14:29:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +46,8 @@
 #define T313VAL	(hz*4)			/* 4 seconds timeout		*/
 #define T400DEF	(hz*10)			/* 10 seconds timeout		*/
 
-#define N_CALL_DESC (MAX_CONTROLLERS*2)	/* no of call descriptors */
+#define MAX_BCHAN 30
+#define N_CALL_DESC (MAX_CONTROLLERS*MAX_BCHAN)	/* no of call descriptors */
 
 extern int nctrl;		/* number of controllers detected in system */
 
@@ -121,6 +122,12 @@ drvr_link_t *ibc_ret_linktab(int unit);
 void ibc_set_linktab(int unit, isdn_link_t *ilt);
 #endif
 
+/* global linktab functions for ING network driver */
+
+drvr_link_t *ing_ret_linktab(int unit);
+void ing_set_linktab(int unit, isdn_link_t *ilt);
+
+
 /*---------------------------------------------------------------------------*
  *	this structure describes one call/connection on one B-channel
  *	and all its parameters
@@ -150,7 +157,9 @@ typedef struct
 	
 	u_char	dst_telno[TELNO_MAX];	/* destination number	*/
 	u_char	src_telno[TELNO_MAX];	/* source number	*/
+
 	int	scr_ind;		/* screening ind for incoming call */
+	int	prs_ind;		/* presentation ind for incoming call */
 	
 	int	Q931state;		/* Q.931 state for call	*/
 	int	event;			/* event to be processed */
@@ -192,6 +201,17 @@ typedef struct
 	struct	callout_handle	T310_callout;
 	struct	callout_handle	T313_callout;
 	struct	callout_handle	T400_callout;
+	int	callouts_inited;		/* must init before use */
+#endif
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+	struct	callout	idle_timeout_handle;
+	struct	callout	T303_callout;
+	struct	callout	T305_callout;
+	struct	callout	T308_callout;
+	struct	callout	T309_callout;
+	struct	callout	T310_callout;
+	struct	callout	T313_callout;
+	struct	callout	T400_callout;
 	int	callouts_inited;		/* must init before use */
 #endif
 
@@ -244,7 +264,8 @@ typedef struct
 #define DL_DOWN	0
 #define DL_UP	1	
 
-	int	bch_state[2];		/* states of the b channels */
+        int     nbch;                   /* number of b channels */
+	int	bch_state[MAX_BCHAN];	/* states of the b channels */
 #define BCH_ST_FREE	0	/* free to be used, idle */
 #define BCH_ST_RSVD	1	/* reserved, may become free or used */
 #define BCH_ST_USED	2	/* in use for data transfer */
@@ -257,11 +278,9 @@ typedef struct
 	void	(*N_CONNECT_RESPONSE)	(unsigned int, int, int);
 	void	(*N_DISCONNECT_REQUEST)	(unsigned int, int);
 	void	(*N_ALERT_REQUEST)	(unsigned int);	
-	void    (*N_SET_TRACE) 		(int unit, int val);
-	int     (*N_GET_TRACE) 		(int unit);
 	int     (*N_DOWNLOAD)		(int unit, int numprotos, struct isdn_dr_prot *protocols);
 	int     (*N_DIAGNOSTICS)	(int unit, struct isdn_diagnostic_request*);
-	void	(*N_MGMT_COMMAND)	(int unit, int cmd, int parm);
+	void	(*N_MGMT_COMMAND)	(int unit, int cmd, void *);
 } ctrl_desc_t;
 
 extern ctrl_desc_t ctrl_desc[MAX_CONTROLLERS];

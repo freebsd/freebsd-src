@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_l3fsm.c - layer 3 FSM
  *	-------------------------
  *
- *	$Id: i4b_l3fsm.c,v 1.18 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l3fsm.c,v 1.22 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:02 1999]
+ *      last edit-date: [Thu Oct 12 17:58:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,18 +43,12 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -66,15 +60,12 @@
 #include <i4b/i4b_cause.h>
 #endif
 
-#include <i4b/include/i4b_isdnq931.h>
 #include <i4b/include/i4b_l2l3.h>
 #include <i4b/include/i4b_l3l4.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
 #include <i4b/layer3/i4b_l3.h>
 #include <i4b/layer3/i4b_l3fsm.h>
-#include <i4b/layer3/i4b_q931.h>
 
 #include <i4b/layer4/i4b_l4.h>
 
@@ -116,6 +107,9 @@ static void F_309TO(call_desc_t *cd), F_DECF(call_desc_t *cd), F_FCTY(call_desc_
 static void F_DECF1(call_desc_t *cd), F_DECF2(call_desc_t *cd), F_DECF3(call_desc_t *cd);
 static void F_DLRI(call_desc_t *cd), F_DLRIA(call_desc_t *cd), F_DECF4(call_desc_t *cd);
 
+static void F_308TO(call_desc_t *cd);
+
+#if DO_I4B_DEBUG
 static char *l3state_text[N_STATES] = {
 	 "ST_U0 - Null",
 	 "ST_U1 - Out Init",
@@ -178,6 +172,7 @@ static char *l3event_text[N_EVENTS] = {
 
 	"EV_ILL - Illegal event!!" 	/* Illegal */
 };
+#endif
 
 /*---------------------------------------------------------------------------*
  *	layer 3 state transition table
@@ -216,14 +211,14 @@ struct l3state_tab {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*EV_T303EXP*/	{{F_ILL,  ST_ILL},	{F_01U,	 ST_SUSE},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T305EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_11V,	 ST_U19},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
-/*EV_T308EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_19W,	 ST_SUSE},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
+/*EV_T308EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_308TO,ST_ILL},	{F_19W,	 ST_SUSE},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T309EXP*/	{{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T310EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_03Y,  ST_U11},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T313EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_08Z,	 ST_U11},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /* STATE:	ST_U0			ST_U1			ST_U3			ST_U4			ST_U6			ST_U7			ST_U8			ST_U9			ST_U10			ST_U11			ST_U12			ST_U19			ST_IWA			ST_IWR			ST_OW			ST_IWL			ST_SUBSET		ST_ILL	      */
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*EV_DLESTIN*/	{{F_ILL,  ST_ILL},	{F_DLEI, ST_U1},	{F_DLEI, ST_U3},	{F_DLEI, ST_U4},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
-/*EV_DLRELIN*/	{{F_NCNA, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRIA,ST_U10},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
+/*EV_DLRELIN*/	{{F_NCNA, ST_U0},	{F_DLRIA, ST_OW},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRIA,ST_U10},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_DLESTCF*/	{{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF2,ST_U8},	{F_DECF3,ST_U0},	{F_DECF1,ST_U1},	{F_DECF4,ST_U7},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_DLRELCF*/	{{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_ILL    */	{{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}}
@@ -249,10 +244,10 @@ void next_l3state(call_desc_t *cd, int event)
 	if(newstate > N_STATES)
 		panic("i4b_l3fsm.c: newstate > N_STATES\n");	
 	
-	DBGL3(L3_F_MSG, "next_l3state", ("L3 FSM event [%s]: [%s => %s]\n",
+	NDBGL3(L3_F_MSG, "L3 FSM event [%s]: [%s => %s]",
 				l3event_text[event],
                                 l3state_text[currstate],
-                                l3state_text[newstate]));
+                                l3state_text[newstate]);
 
 	/* execute function */
 	
@@ -261,43 +256,49 @@ void next_l3state(call_desc_t *cd, int event)
 	if(newstate == ST_ILL)
 	{
 		newstate = currstate;
-		DBGL3(L3_F_ERR, "next_l3state", ("FSM illegal state, state = %s, event = %s!\n",
+		NDBGL3(L3_F_ERR, "FSM illegal state, state = %s, event = %s!",
 				l3state_text[newstate],
-				l3event_text[event]));
+				l3event_text[event]);
 	}
 
 	if(newstate != ST_SUSE)	
 		cd->Q931state = newstate;        
 }
 
+#if DO_I4B_DEBUG
 /*---------------------------------------------------------------------------*
- *	resturn pointer to current state description
+ *	return pointer to current state description
  *---------------------------------------------------------------------------*/	
 char *print_l3state(call_desc_t *cd)
 {
 	return((char *) l3state_text[cd->Q931state]);
 }
+#endif
 
 /*---------------------------------------------------------------------------*
  *	L3 FSM state U0 event L4 setup req
  *---------------------------------------------------------------------------*/	
 static void F_00A(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_00A", ("FSM function F_00A executing\n"));
+	int s;
+	NDBGL3(L3_F_MSG, "FSM function F_00A executing");
 
+	cd->T303_first_to = 1;
+	T303_start(cd);
+
+	s = SPLI4B();
 	if(i4b_get_dl_stat(cd) == DL_DOWN)
 	{
+		splx(s);
 		DL_Est_Req(ctrl_desc[cd->controller].unit);
 		cd->Q931state = ST_OW;
 	}
 	else
 	{
-		i4b_l3_tx_setup(cd);
 		cd->Q931state = ST_U1;
+		splx(s);
+		i4b_l3_tx_setup(cd);
 	}		
-
-	cd->T303_first_to = 1;
-	T303_start(cd);
 }
 
 /*---------------------------------------------------------------------------*
@@ -305,7 +306,7 @@ static void F_00A(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_00H(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_00H", ("FSM function F_00H executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_00H executing");
 	i4b_l4_connect_ind(cd);	/* tell l4 we have an incoming setup */	
 }
 
@@ -314,7 +315,7 @@ static void F_00H(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_00I(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_00I", ("FSM function F_00I executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_00I executing");
 
 	if(cd->call_state != 0)
 	{
@@ -329,7 +330,7 @@ static void F_00I(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_00J(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_00J", ("FSM function F_00J executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_00J executing");
 	i4b_l3_tx_release_complete(cd, 0);	/* 0 = don't send cause */	
 }
 
@@ -338,7 +339,7 @@ static void F_00J(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01B(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01B", ("FSM function F_01B executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01B executing");
 	/* cause from L4 */
 	i4b_l3_tx_disconnect(cd);
 	T303_stop(cd);
@@ -350,7 +351,7 @@ static void F_01B(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01K(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01K", ("FSM function F_01K executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01K executing");
 	T303_stop(cd);
 	i4b_l4_disconnect_ind(cd);	/* tell l4 we were rejected */
 	freecd_by_cd(cd);	
@@ -361,7 +362,7 @@ static void F_01K(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01L(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01L", ("FSM function F_01L executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01L executing");
 	T303_stop(cd);
 
 	/*
@@ -369,7 +370,7 @@ static void F_01L(call_desc_t *cd)
 	 * we react here as if we received a CALL PROCEEDING because
 	 * several PBX's react with a SETUP ACK even if the called
 	 * number is complete AND we sent a SENDING COMPLETE in the
-	 * preceeding SETUP message. (-hm)
+	 * preceding SETUP message. (-hm)
 	 */
 
 	T310_start(cd);
@@ -381,7 +382,7 @@ static void F_01L(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01M(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01M", ("FSM function F_01M executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01M executing");
 	T303_stop(cd);
 	T310_start(cd);
 	i4b_l4_proceeding_ind(cd);
@@ -392,7 +393,7 @@ static void F_01M(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01N(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01N", ("FSM function F_01N executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01N executing");
 	T303_stop(cd);
 	i4b_l4_alert_ind(cd);
 }
@@ -402,7 +403,7 @@ static void F_01N(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01O(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01O", ("FSM function F_01O executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01O executing");
 	T303_stop(cd);
 	i4b_l3_tx_connect_ack(cd);
 	i4b_l4_connect_active_ind(cd);
@@ -413,7 +414,7 @@ static void F_01O(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_01U(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_01U", ("FSM function F_01U executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_01U executing");
 	if(cd->T303_first_to == 1)
 	{
 		cd->T303_first_to = 0;
@@ -434,7 +435,7 @@ static void F_01U(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_03C(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_03C", ("FSM function F_03C executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_03C executing");
 	T310_stop(cd);
 	cd->cause_out = 6;
 	i4b_l3_tx_release(cd, 1);	/* 0 = don't send cause */	
@@ -447,7 +448,7 @@ static void F_03C(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_03N(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_03N", ("FSM function F_03N executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_03N executing");
 	T310_stop(cd);
 	i4b_l4_alert_ind(cd);
 }
@@ -457,7 +458,7 @@ static void F_03N(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_03O(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_03O", ("FSM function F_03O executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_03O executing");
 	T310_stop(cd);
 	i4b_l3_tx_connect_ack(cd);	/* CONNECT ACK to network */
 	i4b_l4_connect_active_ind(cd);
@@ -468,7 +469,7 @@ static void F_03O(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_03P(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_03P", ("FSM function F_03P executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_03P executing");
 	T310_stop(cd);
 #ifdef NOTDEF
 	i4b_l4_progress_ind(cd);
@@ -480,7 +481,7 @@ static void F_03P(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_03Y(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_03Y", ("FSM function F_03Y executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_03Y executing");
 	cd->cause_out = 102;	/* recovery on timer expiry */
 	i4b_l3_tx_disconnect(cd);
 	T305_start(cd);
@@ -492,7 +493,7 @@ static void F_03Y(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_04O(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_04O", ("FSM function F_04O executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_04O executing");
 	i4b_l3_tx_connect_ack(cd);	/* CONNECT ACK to network */		
 	i4b_l4_connect_active_ind(cd);
 }
@@ -502,7 +503,7 @@ static void F_04O(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06D(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06D", ("FSM function F_06D executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06D executing");
 
 	if(i4b_get_dl_stat(cd) == DL_DOWN)
 	{	
@@ -521,7 +522,7 @@ static void F_06D(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06E(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06E", ("FSM function F_06E executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06E executing");
 
 	if(i4b_get_dl_stat(cd) == DL_DOWN)
 	{	
@@ -541,7 +542,7 @@ static void F_06E(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06F(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06F", ("FSM function F_06F executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06F executing");
 
 	if(i4b_get_dl_stat(cd) == DL_DOWN)
 	{	
@@ -563,7 +564,7 @@ static void F_06F(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06G(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06G", ("FSM function F_06G executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06G executing");
 	freecd_by_cd(cd);
 }
 
@@ -572,7 +573,7 @@ static void F_06G(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06J(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06J", ("FSM function F_06J executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06J executing");
 	i4b_l3_tx_release_complete(cd, 0);
 	i4b_l4_disconnect_ind(cd);	
 	freecd_by_cd(cd);	
@@ -583,7 +584,7 @@ static void F_06J(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_06Q(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_06Q", ("FSM function F_06Q executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_06Q executing");
 	i4b_l4_disconnect_ind(cd);
 }
 
@@ -592,7 +593,7 @@ static void F_06Q(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_07E(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_07E", ("FSM function F_07E executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_07E executing");
 	i4b_l3_tx_connect(cd);
 	T313_start(cd);
 }
@@ -602,7 +603,7 @@ static void F_07E(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_07F(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_07F", ("FSM function F_07F executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_07F executing");
 	i4b_l3_tx_release_complete(cd, 1);
 	freecd_by_cd(cd);
 }
@@ -612,7 +613,7 @@ static void F_07F(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_07G(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_07G", ("FSM function F_07G executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_07G executing");
 	freecd_by_cd(cd);
 }
 
@@ -621,7 +622,7 @@ static void F_07G(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_08R(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_08R", ("FSM function F_08R executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_08R executing");
 	T313_stop(cd);
 	i4b_l4_connect_active_ind(cd);
 }
@@ -631,7 +632,7 @@ static void F_08R(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_08Z(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_08Z", ("FSM function F_08Z executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_08Z executing");
 	cd->cause_out = 102;	/* recovery on timer expiry */
 	i4b_l3_tx_disconnect(cd);
 	T305_start(cd);
@@ -643,7 +644,7 @@ static void F_08Z(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_09D(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_09D", ("FSM function F_09D executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_09D executing");
 	i4b_l3_tx_alert(cd);
 }
 
@@ -652,7 +653,7 @@ static void F_09D(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_09E(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_09E", ("FSM function F_09E executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_09E executing");
 	i4b_l3_tx_connect(cd);
 	T313_start(cd);
 }
@@ -662,7 +663,7 @@ static void F_09E(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_09F(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_09F", ("FSM function F_09F executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_09F executing");
 	i4b_l3_tx_release_complete(cd, 1);
 	freecd_by_cd(cd);
 }
@@ -671,7 +672,7 @@ static void F_09F(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_09G(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_09G", ("FSM function F_09G executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_09G executing");
 	freecd_by_cd(cd);	
 }
 
@@ -680,7 +681,7 @@ static void F_09G(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_11J(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_11J", ("FSM function F_11J executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_11J executing");
 	T305_stop(cd);
 	i4b_l3_tx_release_complete(cd, 0);
 	i4b_l4_disconnect_ind(cd);
@@ -692,7 +693,7 @@ static void F_11J(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_11Q(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_11Q", ("FSM function F_11Q executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_11Q executing");
 	T305_stop(cd);
 	i4b_l3_tx_release(cd, 0);
 	cd->T308_first_to = 1;
@@ -704,7 +705,7 @@ static void F_11Q(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_11V(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_11V", ("FSM function F_11V executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_11V executing");
 	cd->cause_out = 102;
 	i4b_l3_tx_release(cd, 1);
 	cd->T308_first_to = 1;
@@ -716,7 +717,7 @@ static void F_11V(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_12C(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_12C", ("FSM function F_12C executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_12C executing");
 	i4b_l3_tx_release(cd, 1);
 	cd->T308_first_to = 1;
 	T308_start(cd);
@@ -727,7 +728,7 @@ static void F_12C(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_12J(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_12J", ("FSM function F_12J executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_12J executing");
 	i4b_l3_tx_release_complete(cd, 0);
 	i4b_l4_disconnect_ind(cd);	
 	freecd_by_cd(cd);
@@ -738,7 +739,7 @@ static void F_12J(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_19I(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_19I", ("FSM function F_19I executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_19I executing");
 
 	if(cd->call_state == 0)
 	{
@@ -757,7 +758,7 @@ static void F_19I(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_19J(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_19J", ("FSM function F_19J executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_19J executing");
 	T308_stop(cd);
 	i4b_l4_disconnect_ind(cd);
 	freecd_by_cd(cd);
@@ -768,7 +769,7 @@ static void F_19J(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_19K(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_19K", ("FSM function F_19K executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_19K executing");
 	T308_stop(cd);
 	i4b_l4_disconnect_ind(cd);
 	freecd_by_cd(cd);
@@ -779,7 +780,7 @@ static void F_19K(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_19W(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_19W", ("FSM function F_19W executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_19W executing");
 	if(cd->T308_first_to == 0)
 	{
 		cd->T308_first_to = 1;
@@ -808,7 +809,7 @@ static void F_NCNA(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_STENQ(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_STENQ", ("FSM function F_STENQ executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_STENQ executing");
 	i4b_l3_tx_status(cd, CAUSE_Q850_STENQRSP); /* 30, resonse to stat enq */
 }
 
@@ -817,7 +818,7 @@ static void F_STENQ(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_STAT(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_STAT", ("FSM function F_STAT executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_STAT executing");
 	if(cd->call_state == 0)
 	{
 		i4b_l4_status_ind(cd);
@@ -841,9 +842,20 @@ static void F_STAT(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_INFO(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_INFO", ("FSM function F_INFO executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_INFO executing");
 	i4b_l4_info_ind(cd);
 	/* remain in current state */
+}
+
+/*---------------------------------------------------------------------------*
+ *	L3 FSM T308 timeout while expecting RELEASE COMPLETE
+ *---------------------------------------------------------------------------*/	
+static void F_308TO(call_desc_t *cd)
+{
+	NDBGL3(L3_F_MSG, "FSM function F_308TO executing");
+	i4b_l3_stop_all_timers(cd);
+	i4b_l4_disconnect_ind(cd);
+	freecd_by_cd(cd);
 }
 
 /*---------------------------------------------------------------------------*
@@ -851,7 +863,7 @@ static void F_INFO(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_RELCP(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_RELCP", ("FSM function F_RELCP executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_RELCP executing");
 	i4b_l3_stop_all_timers(cd);
 	i4b_l4_disconnect_ind(cd);
 	freecd_by_cd(cd);
@@ -862,7 +874,7 @@ static void F_RELCP(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_REL(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_REL", ("FSM function F_REL executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_REL executing");
 	i4b_l3_stop_all_timers(cd);
 	i4b_l3_tx_release_complete(cd, 0);
 	i4b_l4_disconnect_ind(cd);	
@@ -874,7 +886,7 @@ static void F_REL(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DISC(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DISC", ("FSM function F_DISC executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DISC executing");
 	i4b_l3_stop_all_timers(cd);
 
 	/*
@@ -893,7 +905,7 @@ static void F_DISC(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DCRQ(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DCRQ", ("FSM function F_DCRQ executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DCRQ executing");
 
 	/* stop T310 in case this is the result of an incoming call for a */
 	/* calledback connection */
@@ -912,7 +924,7 @@ static void F_DCRQ(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_UEM(call_desc_t *cd)
 {
-	DBGL3(L3_F_ERR, "F_UEM", ("FSM function F_UEM executing, state = %s\n", print_l3state(cd)));
+	NDBGL3(L3_F_ERR, "FSM function F_UEM executing, state = %s", print_l3state(cd));
 	i4b_l3_tx_status(cd, CAUSE_Q850_MSGNCWCS); /* 101, message not compatible with call state */
 }
 
@@ -921,7 +933,7 @@ static void F_UEM(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_SIGN(call_desc_t *cd)
 {
-	DBGL3(L3_F_ERR, "F_SIGN", ("FSM function F_SIGN executing\n"));
+	NDBGL3(L3_F_ERR, "FSM function F_SIGN executing");
 
 /* XXX */ /* freecd_by_cd(cd); ?????????? XXX */
 }
@@ -931,7 +943,7 @@ static void F_SIGN(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DLEI(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DLEI", ("FSM function F_DLEI executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DLEI executing");
 
 /* XXX */
 
@@ -943,7 +955,7 @@ static void F_DLEI(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_ILL(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_ILL", ("FSM function F_ILL executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_ILL executing");
 }
 
 /*---------------------------------------------------------------------------*
@@ -951,7 +963,7 @@ static void F_ILL(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_309TO(call_desc_t *cd)
 {
-	DBGL3(L3_F_ERR, "F_309TO", ("FSM function F_309TO executing\n"));
+	NDBGL3(L3_F_ERR, "FSM function F_309TO executing");
 
 /* XXX */
 
@@ -967,7 +979,7 @@ static void F_309TO(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_FCTY(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_FCTY", ("FSM function F_FCTY executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_FCTY executing");
 	/* ST_SUSE, no change in state ! */
 }
 
@@ -976,7 +988,7 @@ static void F_FCTY(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DECF1(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DECF1", ("FSM function F_DECF1 executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DECF1 executing");
 	i4b_l3_tx_setup(cd);
 }
 
@@ -985,7 +997,7 @@ static void F_DECF1(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DECF2(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DECF2", ("FSM function F_DECF2 executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DECF2 executing");
 	i4b_l3_tx_connect(cd);
 }
 
@@ -994,7 +1006,7 @@ static void F_DECF2(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DECF3(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DECF3", ("FSM function F_DECF3 executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DECF3 executing");
 	i4b_l3_tx_release_complete(cd, 1);
 	freecd_by_cd(cd);
 }
@@ -1004,7 +1016,7 @@ static void F_DECF3(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DECF4(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DECF4", ("FSM function F_DECF4 executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DECF4 executing");
 	i4b_l3_tx_alert(cd);
 }
 
@@ -1014,7 +1026,7 @@ static void F_DECF4(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DECF(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DECF", ("FSM function F_DECF executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DECF executing");
 	T309_stop(cd);
 	i4b_l3_tx_status(cd, CAUSE_Q850_NORMUNSP); /* 31, normal unspecified */
 }
@@ -1024,7 +1036,7 @@ static void F_DECF(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DLRI(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DLRI", ("FSM function F_DLRI executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DLRI executing");
 	i4b_l3_stop_all_timers(cd);
 	i4b_l4_disconnect_ind(cd);
 	freecd_by_cd(cd);
@@ -1035,7 +1047,7 @@ static void F_DLRI(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_DLRIA(call_desc_t *cd)
 {
-	DBGL3(L3_F_MSG, "F_DLRIA", ("FSM function F_DLRIA executing\n"));
+	NDBGL3(L3_F_MSG, "FSM function F_DLRIA executing");
 
 	if(cd->T309 == TIMER_IDLE)
 		T309_start(cd);

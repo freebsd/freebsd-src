@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_q931.c - Q931 received messages handling
  *	--------------------------------------------
  *
- *	$Id: i4b_q931.c,v 1.23 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_q931.c,v 1.32 2000/08/24 11:48:58 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:33 1999]
+ *      last edit-date: [Mon May 29 16:56:52 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -44,18 +44,12 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
-#include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
+
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
+#include <sys/callout.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
@@ -68,9 +62,7 @@
 #endif
 
 #include <i4b/include/i4b_isdnq931.h>
-#include <i4b/include/i4b_l2l3.h>
 #include <i4b/include/i4b_l3l4.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 
 #include <i4b/layer3/i4b_l3.h>
@@ -99,6 +91,8 @@ unsigned char cause_tab_q931[CAUSE_I4B_MAX] = {
 	CAUSE_Q850_CALLREJ,	/* CAUSE_I4B_REJECT -> call rejected */
 	CAUSE_Q850_DSTOOORDR,	/* CAUSE_I4B_OOO -> destination out of order */
 	CAUSE_Q850_TMPFAIL,	/* CAUSE_I4B_TMPFAIL -> temporary failure */
+	CAUSE_Q850_USRBSY,	/* CAUSE_I4B_L1ERROR -> L1 error / persistent deact XXX */
+	CAUSE_Q850_USRBSY,	/* CAUSE_I4B_LLDIAL -> no dialout on leased line XXX */
 };	
 
 /*---------------------------------------------------------------------------*
@@ -136,9 +130,16 @@ i4b_decode_q931(int unit, int msg_len, u_char *msg_ptr)
 	
 	if(*msg_ptr != PD_Q931)
 	{
-		DBGL3(L3_P_ERR, "i4b_decode_q931", ("protocol discriminator 0x%x != Q.931\n", *msg_ptr));
+		static int protoflag = -1;	/* print only once .. */
+
+		if(*msg_ptr != protoflag)
+		{
+			NDBGL3(L3_P_ERR, "unknown protocol discriminator 0x%x!", *msg_ptr);
+			protoflag = *msg_ptr;
+		}			
 		return;
 	}
+
 	msg_ptr++;
 	msg_len--;
 
@@ -170,7 +171,7 @@ i4b_decode_q931(int unit, int msg_len, u_char *msg_ptr)
 		crflag = 0;
 	}
 			
-	DBGL3(L3_P_MSG, "i4b_decode_q931", ("Call Ref, len %d, val %d, flag %d\n", crlen, crval, crflag));
+	NDBGL3(L3_P_MSG, "Call Ref, len %d, val %d, flag %d", crlen, crval, crflag);
 
 	/* find or allocate calldescriptor */
 
@@ -192,7 +193,7 @@ i4b_decode_q931(int unit, int msg_len, u_char *msg_ptr)
 		{
 /*XXX*/			if(crval != 0)	/* ignore global call references */
 			{
-				DBGL3(L3_P_ERR, "i4b_decode_q931", ("cannot find calldescriptor for cr = 0x%x, crflag = 0x%x, msg = 0x%x, frame = ", crval, crflag, *msg_ptr));
+				NDBGL3(L3_P_ERR, "cannot find calldescriptor for cr = 0x%x, crflag = 0x%x, msg = 0x%x, frame = ", crval, crflag, *msg_ptr);
 				i4b_print_frame(msg_len, msg_ptr);
 			}
 			splx(s);
@@ -225,7 +226,7 @@ i4b_decode_q931(int unit, int msg_len, u_char *msg_ptr)
 			if((shift_flag != SHIFTED) &&
 			   (codeset <= old_codeset))
 			{
-				DBGL3(L3_P_ERR, "i4b_decode_q931", ("Q.931 lockingshift proc violation, shift %d -> %d\n", old_codeset, codeset));
+				NDBGL3(L3_P_ERR, "Q.931 lockingshift proc violation, shift %d -> %d", old_codeset, codeset);
 				codeset = old_codeset;
 			}
 			msg_len--;
@@ -243,7 +244,7 @@ i4b_decode_q931(int unit, int msg_len, u_char *msg_ptr)
 				break;
 				
 			default:
-				DBGL3(L3_P_ERR, "i4b_decode_q931", ("unknown codeset %d, ", codeset));
+				NDBGL3(L3_P_ERR, "unknown codeset %d, ", codeset);
 				i4b_print_frame(msg_len, msg_ptr);
 				msg_len = 0;
 				break;
@@ -271,15 +272,23 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 	
 	switch(*msg_ptr)
 	{
+
+/*********/
+/* Q.931 */
+/*********/
 		/* single byte IE's */
 		
 		case IEI_SENDCOMPL:
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_SENDCOMPL\n"));
+			NDBGL3(L3_P_MSG, "IEI_SENDCOMPL");
 			return(1);
 			break;
 
 		/* multi byte IE's */
 		
+		case IEI_SEGMMSG:	/* segmented message */
+			NDBGL3(L3_P_MSG, "IEI_SEGMENTED_MESSAGE");
+			break;
+			
 		case IEI_BEARERCAP:	/* bearer capability */
 			switch(msg_ptr[2])
 			{
@@ -287,17 +296,17 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				case 0x89:	/* restricted digital info */
 				case 0x90:	/* 3.1KHz audio */
 /* XXX */				cd->bprot = BPROT_NONE;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - Telephony\n"));
+					NDBGL3(L3_P_MSG, "IEI_BEARERCAP - Telephony");
 					break;
 
 				case 0x88:	/* unrestricted digital info */
 /* XXX */				cd->bprot = BPROT_RHDLC;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - Raw HDLC\n"));
+					NDBGL3(L3_P_MSG, "IEI_BEARERCAP - Raw HDLC");
 					break;
 
 				default:
 /* XXX */				cd->bprot = BPROT_NONE;
-					DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_BEARERCAP - No Protocol\n"));
+					NDBGL3(L3_P_ERR, "IEI_BEARERCAP - Unsupported B-Protocol 0x%x", msg_ptr[2]);
 					break;
 			}
 			break;
@@ -306,20 +315,29 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			if(msg_ptr[2] & 0x80)
 			{
 				cd->cause_in = msg_ptr[3] & 0x7f;
-				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CAUSE = %d\n", msg_ptr[3] & 0x7f));
+				NDBGL3(L3_P_MSG, "IEI_CAUSE = %d", msg_ptr[3] & 0x7f);
 			}
 			else
 			{
 				cd->cause_in = msg_ptr[4] & 0x7f;
-				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CAUSE = %d\n", msg_ptr[4] & 0x7f));
+				NDBGL3(L3_P_MSG, "IEI_CAUSE = %d", msg_ptr[4] & 0x7f);
 			}
 			break;
 	
+		case IEI_CALLID:	/* call identity */
+			NDBGL3(L3_P_MSG, "IEI_CALL_IDENTITY");
+			break;
+
+		case IEI_CALLSTATE:	/* call state		*/
+			cd->call_state = msg_ptr[2] & 0x3f;		
+			NDBGL3(L3_P_MSG, "IEI_CALLSTATE = %d", cd->call_state);
+			break;
+			
 		case IEI_CHANNELID:	/* channel id */
 			if((msg_ptr[2] & 0xf4) != 0x80)
 			{
 				cd->channelid = CHAN_NO;
-				DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("IEI_CHANNELID, unsupported value 0x%x\n", msg_ptr[2]));
+				NDBGL3(L3_P_ERR, "IEI_CHANNELID, unsupported value 0x%x", msg_ptr[2]);
 			}
 			else
 			{
@@ -340,7 +358,7 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				}
 				cd->channelexcl = (msg_ptr[2] & 0x08) >> 3;
 
-				DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CHANNELID - channel %d, exclusive = %d\n", cd->channelid, cd->channelexcl));
+				NDBGL3(L3_P_MSG, "IEI_CHANNELID - channel %d, exclusive = %d", cd->channelid, cd->channelexcl);
 
 				/* if this is a setup message, reserve channel */
 				
@@ -351,56 +369,36 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 						if(ctrl_desc[cd->controller].bch_state[cd->channelid] == BCH_ST_FREE)
 							ctrl_desc[cd->controller].bch_state[cd->channelid] = BCH_ST_RSVD;
 						else
-							DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("IE ChannelID, Channel NOT free!!\n"));
+							NDBGL3(L3_P_ERR, "IE ChannelID, Channel NOT free!!");
 					}
 					else if(cd->channelid == CHAN_NO)
 					{
-						DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IE ChannelID, SETUP with channel = No channel (CW)\n"));
+						NDBGL3(L3_P_MSG, "IE ChannelID, SETUP with channel = No channel (CW)");
 					}
 					else /* cd->channelid == CHAN_ANY */
 					{
-						DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("ERROR: IE ChannelID, SETUP with channel = Any channel!\n"));
+						NDBGL3(L3_P_ERR, "ERROR: IE ChannelID, SETUP with channel = Any channel!");
 					}
 				}
 			}
 			break;				
 	
-		case IEI_CALLINGPN:	/* calling party no */
-			if(msg_ptr[2] & 0x80) /* no presentation/screening indicator ? */
-			{
-				memcpy(cd->src_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
-				cd->src_telno[min(TELNO_MAX, msg_ptr[1] - 1)] = '\0';
-				cd->scr_ind = SCR_NONE;
-			}
-			else
-			{
-				memcpy(cd->src_telno, &msg_ptr[4], min(TELNO_MAX, msg_ptr[1]-2));
-				cd->src_telno[min(TELNO_MAX, msg_ptr[1] - 2)] = '\0';
-				cd->scr_ind = (msg_ptr[3] & 0x03) + SCR_USR_NOSC;
-			}
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLINGPN = %s\n", cd->src_telno));
-			break;
-	
-		case IEI_CALLEDPN:	/* called party number */
-			memcpy(cd->dst_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
-			cd->dst_telno[min(TELNO_MAX, msg_ptr [1] - 1)] = '\0';
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLED = %s\n", cd->dst_telno)); 
-			break;
-	
-		case IEI_CALLSTATE:	/* call state		*/
-			cd->call_state = msg_ptr[2] & 0x3f;		
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLSTATE = %d\n", cd->call_state));
+		case IEI_PROGRESSI:	/* progress indicator	*/
+			NDBGL3(L3_P_MSG, "IEI_PROGRESSINDICATOR");
 			break;
 			
-		case IEI_PROGRESSI:	/* progress indicator	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_PROGRESSINDICATOR\n"));
+		case IEI_NETSPCFAC:	/* network specific fac */
+			NDBGL3(L3_P_MSG, "IEI_NETSPCFAC");
+			break;
+			
+		case IEI_NOTIFIND:	/* notification indicator */
+			NDBGL3(L3_P_MSG, "IEI_NOTIFICATION_INDICATOR");
 			break;
 			
 		case IEI_DISPLAY:	/* display		*/
-			/* CHANGED BY <chris@medis.de> */
 			memcpy(cd->display, &msg_ptr[2], min(DISPLAY_MAX, msg_ptr[1]));
 			cd->display[min(DISPLAY_MAX, msg_ptr[1])] = '\0';
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_DISPLAY = %s\n", cd->display));
+			NDBGL3(L3_P_MSG, "IEI_DISPLAY = %s", cd->display);
   			break;
 			
 		case IEI_DATETIME:	/* date/time		*/
@@ -412,41 +410,108 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			for(j = msg_ptr[1]; j > 0; j--, i++)
 				sprintf(p+strlen(p), "%02d", msg_ptr[i]);
 			
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_DATETIME = %s\n", cd->datetime));
+			NDBGL3(L3_P_MSG, "IEI_DATETIME = %s", cd->datetime);
 			break;
 			
+		case IEI_KEYPAD:	/* keypad facility */
+			NDBGL3(L3_P_MSG, "IEI_KEYPAD_FACILITY");
+			break;
+			
+		case IEI_SIGNAL:	/* signal type */
+			NDBGL3(L3_P_MSG, "IEI_SIGNAL = %d", msg_ptr[2]);
+			break;
+
+		case IEI_INFRATE:	/* information rate */
+			NDBGL3(L3_P_MSG, "IEI_INFORMATION_RATE");
+			break;
+
+		case IEI_ETETDEL:	/* end to end transit delay */
+			NDBGL3(L3_P_MSG, "IEI_END_TO_END_TRANSIT_DELAY");
+			break;
+
+		case IEI_CUG:		/* closed user group */
+			NDBGL3(L3_P_MSG, "IEI_CLOSED_USER_GROUP");
+			break;
+
+		case IEI_CALLINGPN:	/* calling party no */
+			if(msg_ptr[2] & 0x80) /* no presentation/screening indicator ? */
+			{
+				memcpy(cd->src_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
+				cd->src_telno[min(TELNO_MAX, msg_ptr[1] - 1)] = '\0';
+				cd->scr_ind = SCR_NONE;
+				cd->prs_ind = PRS_NONE;				
+			}
+			else
+			{
+				memcpy(cd->src_telno, &msg_ptr[4], min(TELNO_MAX, msg_ptr[1]-2));
+				cd->src_telno[min(TELNO_MAX, msg_ptr[1] - 2)] = '\0';
+				cd->scr_ind = (msg_ptr[3] & 0x03) + SCR_USR_NOSC;
+				cd->prs_ind = ((msg_ptr[3] >> 5) & 0x03) + PRS_ALLOWED;
+			}
+			NDBGL3(L3_P_MSG, "IEI_CALLINGPN = %s", cd->src_telno);
+			break;
+	
+		case IEI_CALLINGPS:	/* calling party subaddress */
+			NDBGL3(L3_P_MSG, "IEI_CALLINGPS");
+			break;
+			
+		case IEI_CALLEDPN:	/* called party number */
+			memcpy(cd->dst_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
+			cd->dst_telno[min(TELNO_MAX, msg_ptr [1] - 1)] = '\0';
+			NDBGL3(L3_P_MSG, "IEI_CALLED = %s", cd->dst_telno); 
+			break;
+	
+		case IEI_CALLEDPS:	/* called party subaddress */
+			NDBGL3(L3_P_MSG, "IEI_CALLEDPS");
+			break;
+
+		case IEI_REDIRNO:	/* redirecting number */
+			NDBGL3(L3_P_MSG, "IEI_REDIRECTING_NUMBER");
+			break;
+
+		case IEI_TRNSEL:	/* transit network selection */
+			NDBGL3(L3_P_MSG, "IEI_TRANSIT_NETWORK_SELECTION");
+			break;
+
+		case IEI_RESTARTI:	/* restart indicator */
+			NDBGL3(L3_P_MSG, "IEI_RESTART_INDICATOR");
+			break;
+
+		case IEI_LLCOMPAT:	/* low layer compat */
+			NDBGL3(L3_P_MSG, "IEI_LLCOMPAT");
+			break;
+			
+		case IEI_HLCOMPAT:	/* high layer compat	*/
+			NDBGL3(L3_P_MSG, "IEI_HLCOMPAT");
+			break;
+			
+		case IEI_USERUSER:	/* user-user */
+			NDBGL3(L3_P_MSG, "IEI_USER_USER");
+			break;
+			
+		case IEI_ESCAPE:	/* escape for extension */
+			NDBGL3(L3_P_MSG, "IEI_ESCAPE");
+			break;
+			
+/*********/
+/* Q.932 */
+/*********/
 		case IEI_FACILITY:	/* facility		*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_FACILITY\n"));
+			NDBGL3(L3_P_MSG, "IEI_FACILITY");
 			if(i4b_aoc(msg_ptr, cd) > -1)
 				i4b_l4_charging_ind(cd);
 			break;
 			
+/*********/
+/* Q.95x */
+/*********/
 		case IEI_CONCTDNO:	/* connected number	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CONCTDNO\n"));
+			NDBGL3(L3_P_MSG, "IEI_CONCTDNO");
 			break;
 			
-		case IEI_NETSPCFAC:	/* network specific fac */
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_NETSPCFAC\n"));
-			break;
-			
-		case IEI_LLCOMPAT:	/* low layer compat	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_LLCOMPAT\n"));
-			break;
-			
-		case IEI_HLCOMPAT:	/* high layer compat	*/
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_HLCOMPAT\n"));
-			break;
-			
-		case IEI_CALLINGPS:	/* calling party subaddress */
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLINGPS\n"));
-			break;
-			
-		case IEI_CALLEDPS:	/* called party subaddress */
-			DBGL3(L3_P_MSG, "i4b_decode_q931_cs0_ie", ("IEI_CALLEDPS\n"));
-			break;
 			
 		default:
-			DBGL3(L3_P_ERR, "i4b_decode_q931_cs0_ie", ("Unknown IE %d - ", *msg_ptr));
+			NDBGL3(L3_P_ERR, "Unknown IE %d - ", *msg_ptr);
 			i4b_print_frame(msg_ptr[1]+2, msg_ptr);
 			break;
 	}
@@ -459,29 +524,31 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 void
 i4b_decode_q931_message(int unit, call_desc_t *cd, u_char message_type)
 {
-	cd->event = EV_ILL;
+	char *m = NULL;
 	
+	cd->event = EV_ILL;
+
 	switch(message_type)
 	{
 		/* call establishment */
 
 		case ALERT:
 			cd->event = EV_ALERT;			
-			DBGL3(L3_PRIM, "rx ALERT", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "ALERT";
 			break;
 			
 		case CALL_PROCEEDING:
 			cd->event = EV_CALLPRC;
-			DBGL3(L3_PRIM, "rx CALL-PROC", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "CALL_PROCEEDING";
 			break;
 			
 		case PROGRESS:
 			cd->event = EV_PROGIND;
-			DBGL3(L3_PRIM, "rx PROGRESS", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "PROGRESS";
 			break;
 			
 		case SETUP:
-			DBGL3(L3_PRIM, "rx SETUP", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SETUP";
 			cd->bprot = BPROT_NONE;
 			cd->cause_in = 0;
 			cd->cause_out = 0;			
@@ -495,141 +562,145 @@ i4b_decode_q931_message(int unit, call_desc_t *cd, u_char message_type)
 			break;
 			
 		case CONNECT:
-			DBGL3(L3_PRIM, "rx CONNECT", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "CONNECT";
 			cd->datetime[0] = '\0';		
 			cd->event = EV_CONNECT;			
 			break;
 			
 		case SETUP_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx SETUP-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SETUP_ACKNOWLEDGE";
 			cd->event = EV_SETUPAK;
 			break;
 			
 		case CONNECT_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx CONNECT-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "CONNECT_ACKNOWLEDGE";
 			cd->event = EV_CONACK;
 			break;
 			
 		/* call information */
 
 		case USER_INFORMATION:
-			DBGL3(L3_PRIM, "rx USER-INFO", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "USER_INFORMATION";
 			break;
 	
 		case SUSPEND_REJECT:
-			DBGL3(L3_PRIM, "rx SUSPEND-REJ", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SUSPEND_REJECT";
 			break;
 			
 		case RESUME_REJECT:
-			DBGL3(L3_PRIM, "rx RESUME-REJ", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RESUME_REJECT";
 			break;
 			
 		case HOLD:
-			DBGL3(L3_PRIM, "rx HOLD", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "HOLD";
 			break;
 			
 		case SUSPEND:
-			DBGL3(L3_PRIM, "rx SUSPEND", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SUSPEND";
 			break;
 			
 		case RESUME:
-			DBGL3(L3_PRIM, "rx RESUME", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RESUME";
 			break;
 			
 		case HOLD_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx HOLD-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "HOLD_ACKNOWLEDGE";
 			break;
 			
 		case SUSPEND_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx SUSPEND-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SUSPEND_ACKNOWLEDGE";
 			break;
 			
 		case RESUME_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx RESUME-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RESUME_ACKNOWLEDGE";
 			break;
 			
 		case HOLD_REJECT:
-			DBGL3(L3_PRIM, "rx HOLD-REJ", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "HOLD_REJECT";
 			break;
 			
 		case RETRIEVE:
-			DBGL3(L3_PRIM, "rx RETRIEVE", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RETRIEVE";
 			break;
 			
 		case RETRIEVE_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx RETRIEVE-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RETRIEVE_ACKNOWLEDGE";
 			break;
 			
 		case RETRIEVE_REJECT:
-			DBGL3(L3_PRIM, "rx RETRIEVE-REJ", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RETRIEVE_REJECT";
 			break;
 			
 		/* call clearing */
 
 		case DISCONNECT:
-			DBGL3(L3_PRIM, "rx DISCONNECT", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "DISCONNECT";
 			cd->event = EV_DISCONN;
 			break;
 	
 		case RESTART:
-			DBGL3(L3_PRIM, "rx RESTART", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RESTART";
 			break;
 			
 		case RELEASE:
-			DBGL3(L3_PRIM, "rx RELEASE", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RELEASE";
 			cd->event = EV_RELEASE;
 			break;
 			
 		case RESTART_ACKNOWLEDGE:
-			DBGL3(L3_PRIM, "rx RESTART-ACK", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RESTART_ACKNOWLEDGE";
 			break;
 			
 		case RELEASE_COMPLETE:
-			DBGL3(L3_PRIM, "rx RELEASE-COMPLETE", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "RELEASE_COMPLETE";
 			cd->event = EV_RELCOMP;		
 			break;
 			
 		/* misc messages */
 
 		case SEGMENT:
-			DBGL3(L3_PRIM, "rx SEGMENT", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "SEGMENT";
 			break;
 	
 		case FACILITY:
-			DBGL3(L3_PRIM, "rx FACILITY", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "FACILITY";
 			cd->event = EV_FACILITY;		
 			break;
 			
 		case REGISTER:
-			DBGL3(L3_PRIM, "rx REGISTER", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "REGISTER";
 			break;
 			
 		case NOTIFY:
-			DBGL3(L3_PRIM, "rx NOTIFY", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "NOTIFY";
 			break;
 			
 		case STATUS_ENQUIRY:
-			DBGL3(L3_PRIM, "rx STATUS-ENQ", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "STATUS_ENQUIRY";
 			cd->event = EV_STATENQ;		
 			break;
 			
 		case CONGESTION_CONTROL:
-			DBGL3(L3_PRIM, "rx CONGESTION-CONTROL", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "CONGESTION_CONTROL";
 			break;
 			
 		case INFORMATION:
-			DBGL3(L3_PRIM, "rx INFORMATION", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "INFORMATION";
 			cd->event = EV_INFO;		
 			break;
 			
 		case STATUS:
-			DBGL3(L3_PRIM, "rx STATUS", ("unit %d, cr = 0x%02x\n", unit, cd->cr));
+			m = "STATUS";
 			cd->event = EV_STATUS;		
 			break;
 			
 		default:
-			DBGL3(L3_P_ERR, "rx UNKNOWN msg", ("unit %d, cr = 0x%02x, msg = 0x%02x\n", unit, cd->cr, message_type));
+			NDBGL3(L3_P_ERR, "unit %d, cr = 0x%02x, msg = 0x%02x", unit, cd->cr, message_type);
 			break;
+	}
+	if(m)
+	{
+		NDBGL3(L3_PRIM, "%s: unit %d, cr = 0x%02x\n", m, unit, cd->cr);
 	}
 }
 
