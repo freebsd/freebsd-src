@@ -105,7 +105,7 @@ main(argc, argv)
 	int ch, cnt, lastch, *p;
 	int cflag, dflag, sflag, isstring2;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void)setlocale(LC_ALL, "");
 
 	cflag = dflag = sflag = 0;
 	while ((ch = getopt(argc, argv, "cdsu")) != -1)
