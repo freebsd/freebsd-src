@@ -223,6 +223,7 @@ LIB32OBJC=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/objc \
 # Yes, the flags are redundant.
 LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
+		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
