@@ -510,11 +510,10 @@ again:
 	/* Set up the thread as an active thread (as if runnable). */
 	TAILQ_REMOVE(&kg2->kg_iq, ke2, ke_kgrlist);
 	kg2->kg_idle_kses--;
-	ke2->ke_state = KES_UNQUEUED;
+	ke2->ke_state = KES_THREAD;
 	ke2->ke_thread = td2;
 	td2->td_kse = ke2;
 	td2->td_flags &= ~TDF_UNBOUND; /* For the rest of this syscall. */
-KASSERT((ke2->ke_kgrlist.tqe_next != ke2), ("linked to self!"));
 
 	/* note.. XXXKSE no pcb or u-area yet */
 
@@ -835,7 +834,6 @@ fork_exit(callout, arg, frame)
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
 	td->td_state = TDS_RUNNING; /* Already done in switch() on 386. */
-	td->td_kse->ke_state = KES_RUNNING;
 	/*
 	 * Finish setting up thread glue.  We need to initialize
 	 * the thread into a td_critnest=1 state.  Some platforms

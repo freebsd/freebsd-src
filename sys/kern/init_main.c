@@ -342,7 +342,7 @@ proc0_init(void *dummy __unused)
 	td->td_base_pri = PUSER;
 	td->td_kse = ke; /* XXXKSE */
 	ke->ke_oncpu = 0;
-	ke->ke_state = KES_RUNNING;
+	ke->ke_state = KES_THREAD;
 	ke->ke_thread = td;
 	/* proc_linkup puts it in the idle queue, that's not what we want. */
 	TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);

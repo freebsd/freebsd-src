@@ -327,9 +327,6 @@ thread_exit(void)
 
 	/* Reassign this thread's KSE. */
 	if (ke != NULL) {
-KASSERT((ke->ke_state == KES_RUNNING), ("zapping kse not running"));
-KASSERT((ke->ke_thread == td ), ("kse ke_thread mismatch against curthread"));
-KASSERT((ke->ke_thread->td_state == TDS_RUNNING), ("zapping thread not running"));
 		ke->ke_thread = NULL;
 		td->td_kse = NULL;
 		ke->ke_state = KES_UNQUEUED;

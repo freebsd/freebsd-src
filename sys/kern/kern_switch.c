@@ -155,7 +155,6 @@ choosethread(void)
 	} else {
 		/* Simulate runq_choose() having returned the idle thread */
 		td = PCPU_GET(idlethread);
-		td->td_kse->ke_state = KES_RUNNING; 
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
 	td->td_state = TDS_RUNNING;
@@ -196,7 +195,6 @@ kse_reassign(struct kse *ke)
 		runq_add(&runq, ke);
 		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
 	} else {
-		KASSERT((ke->ke_state != KES_IDLE), ("kse already idle"));
 		ke->ke_state = KES_IDLE;
 		ke->ke_thread = NULL;
 		TAILQ_INSERT_HEAD(&kg->kg_iq, ke, ke_kgrlist);
@@ -239,7 +237,7 @@ remrunqueue(struct thread *td)
 	if ((td->td_flags & TDF_UNBOUND) == 0)  {
 		/* Bring its kse with it, leave the thread attached */
 		runq_remove(&runq, ke);
-		ke->ke_state = KES_UNQUEUED; 
+		ke->ke_state = KES_THREAD; 
 		return;
 	}
 	if (ke) {
@@ -286,8 +284,6 @@ remrunqueue(struct thread *td)
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 }
 
-#if 1 /* use the first version */
-
 void
 setrunqueue(struct thread *td)
 {
@@ -331,7 +327,7 @@ setrunqueue(struct thread *td)
 			 */
 			ke = TAILQ_FIRST(&kg->kg_iq);
 			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-			ke->ke_state = KES_UNQUEUED;
+			ke->ke_state = KES_THREAD;
 			kg->kg_idle_kses--;
 		} else if (tda && (tda->td_priority > td->td_priority)) {
 			/*
@@ -345,8 +341,9 @@ setrunqueue(struct thread *td)
 			runq_remove(&runq, ke);
 		}
 	} else {
-		KASSERT(ke->ke_thread == td, ("KSE/thread mismatch"));
-		KASSERT(ke->ke_state != KES_IDLE, ("KSE unexpectedly idle"));
+		/* 
+		 * Temporarily disassociate so it looks like the other cases.
+		 */
 		ke->ke_thread = NULL;
 		td->td_kse = NULL;
 	}
@@ -374,7 +371,7 @@ setrunqueue(struct thread *td)
 		if (tda == NULL) {
 			/*
 			 * No pre-existing last assigned so whoever is first
-			 * gets the KSE we borught in.. (may be us)
+			 * gets the KSE we brought in.. (maybe us)
 			 */
 			td2 = TAILQ_FIRST(&kg->kg_runq);
 			KASSERT((td2->td_kse == NULL),
@@ -403,121 +400,6 @@ setrunqueue(struct thread *td)
 		runq_add(&runq, ke);
 	}
 }
-
-#else
-
-void
-setrunqueue(struct thread *td)
-{
-	struct kse *ke;
-	struct ksegrp *kg;
-	struct thread *td2;
-
-	CTR1(KTR_RUNQ, "setrunqueue: td%p", td);
-	KASSERT((td->td_state != TDS_RUNQ), ("setrunqueue: bad thread state"));
-	td->td_state = TDS_RUNQ;
-	kg = td->td_ksegrp;
-	kg->kg_runnable++;
-	if ((td->td_flags & TDF_UNBOUND) == 0) {
-		/*
-		 * Common path optimisation: Only one of everything
-		 * and the KSE is always already attached.
-		 * Totally ignore the ksegrp run queue.
-		 */
-		runq_add(&runq, td->td_kse);
-		return;
-	}
-	/*
-	 * First add the thread to the ksegrp's run queue at
-	 * the appropriate place.
-	 */
-	TAILQ_FOREACH(td2, &kg->kg_runq, td_runq) {
-		if (td2->td_priority > td->td_priority) {
-			TAILQ_INSERT_BEFORE(td2, td, td_runq);
-			break;
-		}
-	}
-	if (td2 == NULL) {
-		/* We ran off the end of the TAILQ or it was empty. */
-		TAILQ_INSERT_TAIL(&kg->kg_runq, td, td_runq);
-	}
-
-	/*
-	 * The following could be achieved by simply doing:
-	 * td->td_kse = NULL; kse_reassign(ke);
-	 * but I felt that I'd try do it inline here.
-	 * All this work may not be worth it.
-	 */
-	if ((ke = td->td_kse)) { /* XXXKSE */
-		/*
-		 * We have a KSE already. See whether we can keep it
-		 * or if we need to give it to someone else.
-		 * Either way it will need to be inserted into
-		 * the runq. kse_reassign() will do this as will runq_add().
-		 */
-		if ((kg->kg_last_assigned) &&
-		   (kg->kg_last_assigned->td_priority > td->td_priority)) {
-			/*
-			 * We can definitly keep the KSE
-			 * as the "last assignead thread" has
-			 * less priority than we do.
-			 * The "last assigned" pointer stays the same.
-			 */
-			runq_add(&runq, ke);
-			return;
-
-		}
-		/*
-		 * Give it to the correct thread,
-		 * which may be (often is) us, but may not be.
-		 */
-		td->td_kse = NULL;
-		kse_reassign(ke);
-		return;
-	}
-	/*
-	 * There are two cases where KSE adjustment is needed.
-	 * Usurpation of an already assigned KSE, and assignment
-	 * of a previously IDLE KSE.
-	 */
-	if (kg->kg_idle_kses) {
-		/*
-		 * If there are unassigned KSEs then we definitly
-		 * will be assigned one from the idle KSE list.
-		 * If we are the last, we should get the "last
-		 * assigned" pointer set to us as well.
-		 */
-		ke = TAILQ_FIRST(&kg->kg_iq);
-		TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-		ke->ke_state = KES_UNQUEUED;
-		kg->kg_idle_kses--;
-		ke->ke_thread = td;
-		td->td_kse = ke;
-		runq_add(&runq, ke);
-		if (TAILQ_NEXT(td, td_runq) == NULL) {
-			kg->kg_last_assigned = td;
-		}
-	} else if (kg->kg_last_assigned &&
-		(kg->kg_last_assigned->td_priority > td->td_priority)) {
-		/*
-		 * If there were none last-assigned, all KSEs
-		 * are actually out running as we speak.
-		 * If there was a last assigned, but we didn't see it,
-		 * we must be inserting before it, so take the KSE from
-		 * the last assigned, and back it up one entry. Then,
-		 * assign the KSE to the new thread and adjust its priority.
-		 */
-		td2 = kg->kg_last_assigned;
-		ke = td2->td_kse;
-		kg->kg_last_assigned =
-		    TAILQ_PREV(td2, threadqueue, td_runq);
-		td2->td_kse = NULL;
-		td->td_kse = ke;
-		ke->ke_thread = td;
-		runq_readjust(&runq, ke);
-	}
-}
-#endif
 
 /************************************************************************
  * Critical section marker functions					*
@@ -634,14 +516,11 @@ runq_add(struct runq *rq, struct kse *ke)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
-	KASSERT((ke->ke_thread->td_kse != NULL), ("runq_add: No KSE on thread"));
-	if (ke->ke_state == KES_ONRUNQ)
-		return;
-#if defined(INVARIANTS) && defined(DIAGNOSTIC)
+	KASSERT((ke->ke_thread->td_kse != NULL),
+	    ("runq_add: No KSE on thread"));
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("runq_add: kse %p (%s) already in run queue", ke,
 	    ke->ke_proc->p_comm));
-#endif
 	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
@@ -702,7 +581,7 @@ runq_choose(struct runq *rq)
 			runq_clrbit(rq, pri);
 		}
 
-		ke->ke_state = KES_RUNNING;
+		ke->ke_state = KES_THREAD;
 		KASSERT((ke->ke_thread != NULL),
 		    ("runq_choose: No thread on KSE"));
 		KASSERT((ke->ke_thread->td_kse != NULL),
@@ -737,7 +616,7 @@ runq_remove(struct runq *rq, struct kse *ke)
 		CTR0(KTR_RUNQ, "runq_remove: empty");
 		runq_clrbit(rq, pri);
 	}
-	ke->ke_state = KES_UNQUEUED; 
+	ke->ke_state = KES_THREAD; 
 	ke->ke_ksegrp->kg_runq_kses--;
 }
 
