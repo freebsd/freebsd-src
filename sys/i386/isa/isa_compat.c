@@ -64,11 +64,10 @@ isa_compat_nextid(void)
 static void
 isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 {
-	device_t parent = device_get_parent(dev);
 	int rid;
 	u_long start, count;
 
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_IOPORT, 0,
+	if (bus_get_resource(dev, SYS_RES_IOPORT, 0,
 			     &start, &count) == 0) {
 		rid = 0;
 		res->ports = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -80,7 +79,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 	} else
 		res->ports = 0;
 
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_MEMORY, 0,
+	if (bus_get_resource(dev, SYS_RES_MEMORY, 0,
 			     &start, &count) == 0
 	    && start != 0) {
 		rid = 0;
@@ -93,7 +92,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 	} else
 		res->memory = 0;
 
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_DRQ, 0,
+	if (bus_get_resource(dev, SYS_RES_DRQ, 0,
 			     &start, &count) == 0) {
 		rid = 0;
 		res->drq = bus_alloc_resource(dev, SYS_RES_DRQ,
@@ -105,7 +104,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 	} else
 		res->drq = 0;
 
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
+	if (bus_get_resource(dev, SYS_RES_IRQ, 0,
 			     &start, &count) == 0) {
 		rid = 0;
 		res->irq = bus_alloc_resource(dev, SYS_RES_IRQ,
@@ -144,7 +143,6 @@ isa_compat_release_resources(device_t dev, struct isa_compat_resources *res)
 static int
 isa_compat_probe(device_t dev)
 {
-	device_t parent = device_get_parent(dev);
 	struct isa_device *dvp = device_get_softc(dev);
 	struct isa_compat_resources res;
 	struct old_isa_driver *op;
@@ -161,22 +159,22 @@ isa_compat_probe(device_t dev)
 	op = device_get_driver(dev)->priv;
 	dvp->id_id = isa_compat_nextid();
 	dvp->id_driver = op->driver;
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_IOPORT, 0,
+	if (bus_get_resource(dev, SYS_RES_IOPORT, 0,
 			     &start, &count) == 0)
 		dvp->id_iobase = start;
 	else
 		dvp->id_iobase = -1;
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
+	if (bus_get_resource(dev, SYS_RES_IRQ, 0,
 			     &start, &count) == 0)
 		dvp->id_irq = irqmask(start);
 	else
 		dvp->id_irq = 0;
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_DRQ, 0,
+	if (bus_get_resource(dev, SYS_RES_DRQ, 0,
 			     &start, &count) == 0)
 		dvp->id_drq = start;
 	else
 		dvp->id_drq = -1;
-	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_MEMORY,
+	if (bus_get_resource(dev, SYS_RES_MEMORY,
 			     0, &start, &count) == 0) {
 		dvp->id_maddr = (void *)(uintptr_t)start;
 		dvp->id_msize = count;
@@ -208,25 +206,25 @@ isa_compat_probe(device_t dev)
 		isa_compat_release_resources(dev, &res);
 		if (portsize != 0) {
 			if (portsize > 0 || dvp->id_iobase != old.id_iobase)
-				ISA_SET_RESOURCE(parent, dev, SYS_RES_IOPORT,
+				bus_set_resource(dev, SYS_RES_IOPORT,
 						 0, dvp->id_iobase, portsize);
 			if (dvp->id_irq != old.id_irq)
-				ISA_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
+				bus_set_resource(dev, SYS_RES_IRQ, 0,
 						 ffs(dvp->id_irq) - 1, 1);
 			if (dvp->id_drq != old.id_drq)
-				ISA_SET_RESOURCE(parent, dev, SYS_RES_DRQ, 0,
+				bus_set_resource(dev, SYS_RES_DRQ, 0,
 						 dvp->id_drq, 1);
 			if (dvp->id_maddr != old.id_maddr
 			    || dvp->id_msize != old.id_msize) {
 				maddr = dvp->id_maddr;
 				if (maddr != NULL)
-					ISA_SET_RESOURCE(parent, dev,
+					bus_set_resource(dev,
 							 SYS_RES_MEMORY,
 							 0,
 							 kvtop(maddr),
 							 dvp->id_msize);
 				else
-					ISA_DELETE_RESOURCE(parent, dev,
+					bus_delete_resource(dev,
 							    SYS_RES_MEMORY,
 							    0);
 			}

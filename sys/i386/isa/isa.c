@@ -91,28 +91,40 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
-	struct resource_list *rl;
+	struct isa_device* idev = DEVTOISA(child);
+	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
 	
 	if (!passthrough && !isdefault) {
-		rl = device_get_ivars(child);
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
 			if (*rid < 0)
 				return 0;
-			if (type == SYS_RES_IRQ && *rid >= ISA_NIRQ)
+			switch (type) {
+			case SYS_RES_IRQ:
+				if (*rid >= ISA_NIRQ)
+					return 0;
+				break;
+			case SYS_RES_DRQ:
+				if (*rid >= ISA_NDRQ)
+					return 0;
+				break;
+			case SYS_RES_MEMORY:
+				if (*rid >= ISA_NMEM)
+					return 0;
+				break;
+			case SYS_RES_IOPORT:
+				if (*rid >= ISA_NPORT)
+					return 0;
+				break;
+			default:
 				return 0;
-			if (type == SYS_RES_DRQ && *rid >= ISA_NDRQ)
-				return 0;
-			if (type != SYS_RES_MEMORY && *rid >= ISA_NMEM)
-				return 0;
-			if (type == SYS_RES_IOPORT && *rid >= ISA_NPORT)
-				return 0;
+			}
 			resource_list_add(rl, type, *rid, start, end, count);
 		}
 	}
 
-	return resource_list_alloc(bus, child, type, rid,
+	return resource_list_alloc(rl, bus, child, type, rid,
 				   start, end, count, flags);
 }
 
@@ -120,7 +132,9 @@ int
 isa_release_resource(device_t bus, device_t child, int type, int rid,
 		     struct resource *r)
 {
-	return resource_list_release(bus, child, type, rid, r);
+	struct isa_device* idev = DEVTOISA(child);
+	struct resource_list *rl = &idev->id_resources;
+	return resource_list_release(rl, bus, child, type, rid, r);
 }
 
 /*

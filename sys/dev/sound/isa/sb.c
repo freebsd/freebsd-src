@@ -573,8 +573,7 @@ sb_probe(device_t dev)
 no:
     	i = sb->io_rid;
     	sb_release_resources(sb, dev);
-    	if (allocated) ISA_DELETE_RESOURCE(device_get_parent(dev), dev,
-					   SYS_RES_IOPORT, i);
+    	if (allocated) bus_delete_resource(dev, SYS_RES_IOPORT, i);
     	return error;
 }
 
@@ -647,8 +646,8 @@ sb_attach(device_t dev)
     	int flags = device_get_flags(dev);
 
     	if (flags & DV_F_DUAL_DMA) {
-        	ISA_SET_RESOURCE(device_get_parent(dev), dev, SYS_RES_DRQ, 1,
-    		         	flags & DV_F_DRQ_MASK, 1);
+        	bus_set_resource(dev, SYS_RES_DRQ, 1,
+				 flags & DV_F_DRQ_MASK, 1);
     	}
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
     	if (!sb) return ENXIO;
