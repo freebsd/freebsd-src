@@ -36,7 +36,7 @@
 .\"	@(#)stdarg.3	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2002
+.Dd October 25, 2002
 .Dt STDARG 3
 .Os
 .Sh NAME
@@ -68,6 +68,7 @@ The called function must declare an object of type
 which is used by the macros
 .Fn va_start ,
 .Fn va_arg ,
+.Fn va_copy ,
 and
 .Fn va_end .
 .Pp
@@ -199,10 +200,11 @@ void foo(char *fmt, ...)
 The
 .Fn va_start ,
 .Fn va_arg ,
+.Fn va_copy ,
 and
 .Fn va_end
 macros conform to
-.St -isoC .
+.St -isoC-99 .
 .Sh COMPATIBILITY
 These macros are
 .Em not
