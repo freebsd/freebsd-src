@@ -33,6 +33,7 @@ SUBDIR+=	pam_kerberosIV
 SUBDIR+=	pam_krb5
 .endif
 SUBDIR+=	pam_opie
+SUBDIR+=	pam_opieaccess
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey

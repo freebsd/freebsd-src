@@ -27,7 +27,7 @@
  */
 
 #include <security/pam_modules.h>
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 /*
  * Do a simple conversation which can consist of a message and/or a user
