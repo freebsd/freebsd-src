@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtprio.1,v 1.10 1997/03/07 07:43:19 mpp Exp $
+.\"	$Id: rtprio.1,v 1.11 1997/03/07 07:45:17 mpp Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -41,7 +41,7 @@ or idletime scheduling priority
 .Sh SYNOPSIS
 .Nm [id|rt]prio
 .Nm [id|rt]prio 
-.Ar pid
+.Ar [-]pid
 .Nm [id|rt]prio 
 .Ar priority
 .Ar command
@@ -63,7 +63,7 @@ is used for controlling realtime process scheduling.
 .Nm Idprio
 is used for controlling idletime process scheduling, and can be called
 with the same options as 
-.Nm Rtprio .
+.Nm rtprio .
 .Pp
 A process with a realtime priority is not subject to priority
 degradation, and will only be preempted by another process of equal or
@@ -75,12 +75,12 @@ greater than all other runnable idle priority processes.
 .Pp
 .Nm Rtprio 
 or
-.Nm Idprio 
+.Nm idprio 
 when called without arguments will return the realtime priority
 of the current process.
 .Pp
 If
-.Nm rtprio
+.Nm
 is called with 1 argument, it will return the realtime priority
 of the process with the specified
 .Ar pid .
@@ -95,8 +95,9 @@ process.
 .Pp
 If
 .Ar -pid
-is specified, the process with the process identifier "pid" will be
-modified, else if
+is specified, the process with the process identifier
+.Ar pid
+will be modified, else if
 .Ar command 
 is specified, that program is run with its arguments.
 .Pp
@@ -111,7 +112,7 @@ Only root is allowed to set realtime priorities. Non-root processes may
 set idle priority levels for the current process only.
 .Sh RETURN VALUE
 If
-.Nm rtprio
+.Nm
 execute a command, the exit value is that of the command executed.
 In all other cases,
 .Nm
@@ -154,7 +155,7 @@ To change the realtime priority of process
 .Em 1423
 to
 .Dv RTP_PRIO_NORMAL
-(non-realtime/"normal" priority):
+(non-realtime/normal priority):
 .Bd -literal -offset indent -compact
 .Sy "rtprio -t -1423"
 .Ed
@@ -172,7 +173,7 @@ To make depend while not disturbing other machine usage:
 .Xr renice 8
 .Sh HISTORY
 The
-.Nm rtprio
+.Nm
 utility appeared in
 .Fx 2.0 ,
 but is similar to the HP-UX version.
@@ -185,19 +186,21 @@ There is no way to set/view the realtime priority of process 0
 .Xr ps 1 ) .
 .Pp
 There is in
-.Tn FreeBSD
+.Bx Free
 no way to ensure that a process page is present in memory therefore
-the process may be stopped for pagein. (See
+the process may be stopped for pagein (see
 .Xr mprotect 2 ,
 .Xr madvise 2 ) .
 .Pp
 Under
-.Tn FreeBSD
+.Bx Free
 system calls are currently never preempted, therefore non-realtime
 processes can starve realtime processes, or idletime processes can
 starve normal priority processes.
 .Sh AUTHOR
-Henrik Vestergaard Draboel - hvd@terry.ping.dk is the original author. This
+.An Henrik Vestergaard Draboel Aq hvd@terry.ping.dk
+is the original author. This
 implementation in
-.Tn FreeBSD 
-was substantially rewritten by David Greenman.
+.Bx Free
+was substantially rewritten by
+.An David Greenman .
