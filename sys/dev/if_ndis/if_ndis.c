@@ -2100,7 +2100,7 @@ ndis_watchdog(ifp)
 	device_printf(sc->ndis_dev, "watchdog timeout\n");
 	NDIS_UNLOCK(sc);
 
-	ndis_reset_nic(sc);
+	ndis_sched((void(*)(void *))ndis_reset_nic, sc, NDIS_TASKQUEUE);
 	ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 
 	return;
