@@ -43,7 +43,7 @@
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
  *	from: i386 pmap.h,v 1.54 1997/11/20 19:30:35 bde Exp
- * 	$Id: pmap.h,v 1.2 1998/06/10 10:55:16 dfr Exp $
+ * 	$Id: pmap.h,v 1.3 1998/08/23 16:05:55 dfr Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -143,6 +143,14 @@ pmap_kextract(vm_offset_t va)
 }
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+
+extern vm_offset_t alpha_XXX_dmamap_or;
+
+static __inline vm_offset_t
+alpha_XXX_dmamap(vm_offset_t va)
+{
+       return (pmap_kextract(va) | alpha_XXX_dmamap_or);
+}
 
 #endif /* KERNEL */
 
