@@ -744,7 +744,7 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	case HOOK_INDEX_VJC_VJIP:
 		if (priv->conf.enableCompression
 		    && priv->hooks[HOOK_INDEX_COMPRESS] != NULL) {
-			if ((m = ng_ppp_addproto(m, proto, 1)) == NULL) {
+			if ((m = ng_ppp_addproto(m, proto, 0)) == NULL) {
 				NG_FREE_META(meta);
 				return (ENOBUFS);
 			}
