@@ -341,7 +341,9 @@ nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->buffer = b;
 	ch->buffer->bufsize = NM_BUFFSIZE;
 	ch->buffer->buf = (u_int8_t *)(rman_get_bushandle(sc->buf) + chnbuf);
-	device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)? "play" : "rec", ch->buffer->buf);
+	if (bootverbose)
+		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
+			      "play" : "rec", ch->buffer->buf);
 	ch->parent = sc;
 	ch->channel = c;
 	ch->dir = dir;
@@ -558,8 +560,8 @@ nm_pci_probe(device_t dev)
 			i++;
 		if (i == NUM_BADCARDS)
 			s = "NeoMagic 256AV";
-		else
-			device_printf(dev, "this is a non-ac97 NM256AV, not attaching\n");
+		DEB(else)
+			DEB(device_printf(dev, "this is a non-ac97 NM256AV, not attaching\n"));
 		break;
 
 	case NM256ZX_PCI_ID:
