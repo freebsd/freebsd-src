@@ -69,7 +69,7 @@ static void	sound_mem_init(void);
 
 unsigned
 long
-get_time()
+get_time(void)
 {
 extern struct timeval time;
 struct timeval timecopy;
@@ -324,26 +324,13 @@ sound_mem_init (void)
 	{
 	  dsp_init_mask |= (1 << dev);
 
-#if 1 /* 0 */
 	  if (sound_dma_automode[dev])
-	    {
-	      sound_dma_automode[dev] = 0;	/* Not possible with FreeBSD */
-	    }
-
-	  if (sound_buffcounts[dev] == 1)
-	    {
-	      sound_buffcounts[dev] = 2;
-	      sound_buffsizes[dev] /= 2;
-	    }
-
-	  if (sound_buffsizes[dev] > 65536)	/* Larger is not possible (yet) */
-	    sound_buffsizes[dev] = 65536;
+	    sound_buffcounts[dev] = 1;
 
 	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
 	    dma_pagesize = 65536;
-
 
 	  /* More sanity checks */
 
@@ -352,24 +339,13 @@ sound_mem_init (void)
 	  sound_buffsizes[dev] &= ~0xfff;	/* Truncate to n*4k */
 	  if (sound_buffsizes[dev] < 4096)
 	    sound_buffsizes[dev] = 4096;
-#else
-	dma_pagesize = 4096;
-	sound_buffsizes[dev] = 4096;
-	sound_buffcounts[dev] = 16;	/* -> 64k */
-#endif
 
 	  /* Now allocate the buffers */
 
 	  for (snd_raw_count[dev] = 0; snd_raw_count[dev] < sound_buffcounts[dev]; snd_raw_count[dev]++)
 	    {
-	      /*
-	       * The DMA buffer allocation algorithm hogs memory. We allocate
-	       * a memory area which is two times the requires size. This
-	       * guarantees that it contains at least one valid DMA buffer.
-	       * 
-	       * This really needs some kind of finetuning.
-	       */
-	      char           *tmpbuf = contigmalloc (sound_buffsizes[dev], M_DEVBUF, M_NOWAIT, 0xFFFFFFul, 0ul, 0xFFFFul);
+	      char           *tmpbuf = contigmalloc (sound_buffsizes[dev], M_DEVBUF, M_NOWAIT,
+						     0xFFFFFFul, 0ul, dma_pagesize <= 65536 ? 0xFFFFul : 0x1FFFFul);
 
 	      if (tmpbuf == NULL)
 		{
