@@ -2175,6 +2175,8 @@ ohci_close_pipe(usbd_pipe_handle pipe, ohci_soft_ed_t *head)
 	}
 #endif
 	ohci_rem_ed(sed, head);
+	/* Make sure the host controller is not touching this ED */
+	usb_delay_ms(&sc->sc_bus, 1);
 	splx(s);
 	ohci_free_sed(sc, opipe->sed);
 }
