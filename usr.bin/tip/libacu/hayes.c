@@ -74,6 +74,8 @@ static char rcsid[] = "$OpenBSD: hayes.c,v 1.8 2001/10/24 18:38:58 millert Exp $
 
 #define	min(a,b)	((a < b) ? a : b)
 
+static	void error_rep(char c);
+static	void goodbye(void);
 static	void sigALRM();
 static	int timeout = 0;
 static	jmp_buf timeoutbuf;
@@ -252,8 +254,8 @@ error_rep(c)
 /*
  * set modem back to normal verbose status codes.
  */
-void
-goodbye()
+static void
+goodbye(void)
 {
 	int len;
 	char c;
