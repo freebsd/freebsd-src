@@ -36,10 +36,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* -------------------------------------------------------------------- */
 
-#define EMU10K1_PCI_ID 	0x00021102
-#define EMU10K2_PCI_ID 	0x00041102
-#define EMU_DEFAULT_BUFSZ	4096
-#define EMU_CHANS	4
+#define	EMU10K1_PCI_ID	0x00021102
+#define	EMU10K2_PCI_ID	0x00041102
+#define	EMU_DEFAULT_BUFSZ	4096
+#define	EMU_CHANS	4
 #undef EMUDEBUG
 
 struct emu_memblk {
@@ -55,7 +55,7 @@ struct emu_mem {
 	void *silent_page;
 	bus_addr_t silent_page_addr;
 	bus_addr_t ptb_pages_addr;
-       	SLIST_HEAD(, emu_memblk) blocks;
+	SLIST_HEAD(, emu_memblk) blocks;
 };
 
 struct emu_voice {
@@ -90,7 +90,7 @@ struct sc_rchinfo {
 /* device private data */
 struct sc_info {
 	device_t	dev;
-	u_int32_t 	type, rev;
+	u_int32_t	type, rev;
 	u_int32_t	tos_link:1, APS:1;
 
 	bus_space_tag_t st;
@@ -266,8 +266,8 @@ emu_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 }
 
 static kobj_method_t emu_ac97_methods[] = {
-    	KOBJMETHOD(ac97_read,		emu_rdcd),
-    	KOBJMETHOD(ac97_write,		emu_wrcd),
+	KOBJMETHOD(ac97_read,		emu_rdcd),
+	KOBJMETHOD(ac97_write,		emu_wrcd),
 	{ 0, 0 }
 };
 AC97_DECLARE(emu_ac97);
@@ -328,7 +328,7 @@ emu_enatimer(struct sc_info *sc, int go)
 static void
 emu_enastop(struct sc_info *sc, char channel, int enable)
 {
-	int reg = (channel & 0x20)? SOLEH : SOLEL;
+	int reg = (channel & 0x20) ? SOLEH : SOLEL;
 	channel &= 0x1f;
 	reg |= 1 << 24;
 	reg |= channel << 16;
@@ -469,8 +469,8 @@ emu_vsetup(struct sc_pchinfo *ch)
 	struct emu_voice *v = ch->master;
 
 	if (ch->fmt) {
-		v->b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
-		v->stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+		v->b16 = (ch->fmt & AFMT_16BIT) ? 1 : 0;
+		v->stereo = (ch->fmt & AFMT_STEREO) ? 1 : 0;
 		if (v->slave != NULL) {
 			v->slave->b16 = v->b16;
 			v->slave->stereo = v->stereo;
@@ -490,20 +490,20 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	int l, r, x, y;
 	u_int32_t sa, ea, start, val, silent_page;
 
-	s = (v->stereo? 1 : 0) + (v->b16? 1 : 0);
+	s = (v->stereo ? 1 : 0) + (v->b16 ? 1 : 0);
 
 	sa = v->start >> s;
 	ea = v->end >> s;
 
 	l = r = x = y = v->vol;
 	if (v->stereo) {
-		l = v->ismaster? l : 0;
-		r = v->ismaster? 0 : r;
+		l = v->ismaster ? l : 0;
+		r = v->ismaster ? 0 : r;
 	}
 
-	emu_wrptr(sc, v->vnum, CPF, v->stereo? CPF_STEREO_MASK : 0);
-	val = v->stereo? 28 : 30;
-	val *= v->b16? 1 : 2;
+	emu_wrptr(sc, v->vnum, CPF, v->stereo ? CPF_STEREO_MASK : 0);
+	val = v->stereo ? 28 : 30;
+	val *= v->b16 ? 1 : 2;
 	start = sa + val;
 
 	emu_wrptr(sc, v->vnum, FXRT, 0xd01c0000);
@@ -511,7 +511,7 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, PTRX, (x << 8) | r);
 	emu_wrptr(sc, v->vnum, DSL, ea | (y << 24));
 	emu_wrptr(sc, v->vnum, PSST, sa | (l << 24));
-	emu_wrptr(sc, v->vnum, CCCA, start | (v->b16? 0 : CCCA_8BITSELECT));
+	emu_wrptr(sc, v->vnum, CCCA, start | (v->b16 ? 0 : CCCA_8BITSELECT));
 
 	emu_wrptr(sc, v->vnum, Z1, 0);
 	emu_wrptr(sc, v->vnum, Z2, 0);
@@ -550,10 +550,10 @@ emu_vtrigger(struct sc_info *sc, struct emu_voice *v, int go)
 
 	if (go) {
 		cra = 64;
-		cs = v->stereo? 4 : 2;
-		ccis = v->stereo? 28 : 30;
-		ccis *= v->b16? 1 : 2;
-		sample = v->b16? 0x00000000 : 0x80808080;
+		cs = v->stereo ? 4 : 2;
+		ccis = v->stereo ? 28 : 30;
+		ccis *= v->b16 ? 1 : 2;
+		sample = v->b16 ? 0x00000000 : 0x80808080;
 
 		for (i = 0; i < cs; i++)
 			emu_wrptr(sc, v->vnum, CD0 + i, sample);
@@ -590,7 +590,7 @@ emu_vpos(struct sc_info *sc, struct emu_voice *v)
 {
 	int s, ptr;
 
-	s = (v->b16? 1 : 0) + (v->stereo? 1 : 0);
+	s = (v->b16 ? 1 : 0) + (v->stereo ? 1 : 0);
 	ptr = (emu_rdptr(sc, v->vnum, CCCA_CURRADDR) - (v->start >> s)) << s;
 	return ptr & ~0x0000001f;
 }
@@ -612,7 +612,7 @@ emu_vdump(struct sc_info *sc, struct emu_voice *v)
 		if (regname[i] == NULL)
 			continue;
 		printf("%s\t[%08x]", regname[i], emu_rdptr(sc, v->vnum, i));
-		printf("%s", (x == 2)? "\n" : "\t");
+		printf("%s", (x == 2) ? "\n" : "\t");
 		x++;
 		if (x > 2)
 			x = 0;
@@ -641,7 +641,7 @@ emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->master = emu_valloc(sc);
 	ch->slave = emu_valloc(sc);
 	snd_mtxunlock(sc->lock);
-	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer))? NULL : ch;
+	r = (emu_vinit(sc, ch->master, ch->slave, sc->bufsz, ch->buffer)) ? NULL : ch;
 
 	return r;
 }
@@ -711,14 +711,14 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 		emu_enatimer(sc, 1);
 #ifdef EMUDEBUG
 		printf("start [%d bit, %s, %d hz]\n",
-			ch->master->b16? 16 : 8,
-			ch->master->stereo? "stereo" : "mono",
+			ch->master->b16 ? 16 : 8,
+			ch->master->stereo ? "stereo" : "mono",
 			ch->master->speed);
 		emu_vdump(sc, ch->master);
 		emu_vdump(sc, ch->slave);
 #endif
 	}
-	ch->run = (go == PCMTRIG_START)? 1 : 0;
+	ch->run = (go == PCMTRIG_START) ? 1 : 0;
 	emu_vtrigger(sc, ch->master, ch->run);
 	snd_mtxunlock(sc->lock);
 	return 0;
@@ -745,14 +745,14 @@ emupchan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t emupchan_methods[] = {
-    	KOBJMETHOD(channel_init,		emupchan_init),
-    	KOBJMETHOD(channel_free,		emupchan_free),
-    	KOBJMETHOD(channel_setformat,		emupchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		emupchan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	emupchan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		emupchan_trigger),
-    	KOBJMETHOD(channel_getptr,		emupchan_getptr),
-    	KOBJMETHOD(channel_getcaps,		emupchan_getcaps),
+	KOBJMETHOD(channel_init,		emupchan_init),
+	KOBJMETHOD(channel_free,		emupchan_free),
+	KOBJMETHOD(channel_setformat,		emupchan_setformat),
+	KOBJMETHOD(channel_setspeed,		emupchan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	emupchan_setblocksize),
+	KOBJMETHOD(channel_trigger,		emupchan_trigger),
+	KOBJMETHOD(channel_getptr,		emupchan_getptr),
+	KOBJMETHOD(channel_getcaps,		emupchan_getcaps),
 	{ 0, 0 }
 };
 CHANNEL_DECLARE(emupchan);
@@ -945,13 +945,13 @@ emurchan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t emurchan_methods[] = {
-    	KOBJMETHOD(channel_init,		emurchan_init),
-    	KOBJMETHOD(channel_setformat,		emurchan_setformat),
-    	KOBJMETHOD(channel_setspeed,		emurchan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	emurchan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		emurchan_trigger),
-    	KOBJMETHOD(channel_getptr,		emurchan_getptr),
-    	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
+	KOBJMETHOD(channel_init,		emurchan_init),
+	KOBJMETHOD(channel_setformat,		emurchan_setformat),
+	KOBJMETHOD(channel_setspeed,		emurchan_setspeed),
+	KOBJMETHOD(channel_setblocksize,	emurchan_setblocksize),
+	KOBJMETHOD(channel_trigger,		emurchan_trigger),
+	KOBJMETHOD(channel_getptr,		emurchan_getptr),
+	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
 	{ 0, 0 }
 };
 CHANNEL_DECLARE(emurchan);
@@ -1024,7 +1024,7 @@ emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *phys = arg;
 
-	*phys = error? 0 : (bus_addr_t)segs->ds_addr;
+	*phys = error ? 0 : (bus_addr_t)segs->ds_addr;
 
 	if (bootverbose) {
 		printf("emu: setmap (%lx, %lx), nseg=%d, error=%d\n",
@@ -1242,7 +1242,7 @@ emu_init(struct sc_info *sc)
 {
 	u_int32_t spcs, ch, tmp, i;
 
-   	/* disable audio and lock cache */
+	/* disable audio and lock cache */
 	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
 
 	/* reset recording buffers */
@@ -1400,7 +1400,7 @@ emu_uninit(struct sc_info *sc)
 		emu_wrptr(sc, ch, CPF, 0);
        }
 
-   	/* disable audio and lock cache */
+	/* disable audio and lock cache */
 	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
 
 	emu_wrptr(sc, 0, PTB, 0);
@@ -1504,7 +1504,7 @@ emu_pci_attach(device_t dev)
 
 	codec = AC97_CREATE(dev, sc, emu_ac97);
 	if (codec == NULL) goto bad;
-	gotmic = (ac97_getcaps(codec) & AC97_CAP_MICCHANNEL)? 1 : 0;
+	gotmic = (ac97_getcaps(codec) & AC97_CAP_MICCHANNEL) ? 1 : 0;
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	i = 0;
@@ -1516,10 +1516,10 @@ emu_pci_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld", rman_get_start(sc->reg), rman_get_start(sc->irq));
 
-	if (pcm_register(dev, sc, EMU_CHANS, gotmic? 3 : 2)) goto bad;
+	if (pcm_register(dev, sc, EMU_CHANS, gotmic ? 3 : 2)) goto bad;
 	for (i = 0; i < EMU_CHANS; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
-	for (i = 0; i < (gotmic? 3 : 2); i++)
+	for (i = 0; i < (gotmic ? 3 : 2); i++)
 		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 
 	pcm_setstatus(dev, status);
@@ -1599,7 +1599,7 @@ emujoy_pci_probe(device_t dev)
 	}
 
 	if (s) device_set_desc(dev, s);
-	return s? -1000 : ENXIO;
+	return s ? -1000 : ENXIO;
 }
 
 static int
