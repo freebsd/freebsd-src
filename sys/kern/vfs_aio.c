@@ -543,6 +543,7 @@ aio_proc_rundown(void *arg, struct proc *p)
 	if (ki == NULL)
 		return;
 
+	mtx_lock(&Giant);
 	ki->kaio_flags |= LIOJ_SIGNAL_POSTED;
 	while ((ki->kaio_active_count > 0) || (ki->kaio_buffer_count >
 	    ki->kaio_buffer_finished_count)) {
@@ -643,6 +644,7 @@ restart4:
 
 	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
+	mtx_unlock(&Giant);
 }
 
 /*
