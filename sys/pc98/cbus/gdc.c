@@ -102,6 +102,8 @@ static d_ioctl_t	gdcioctl;
 static d_mmap_t		gdcmmap;
 
 static struct cdevsw gdc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	gdcopen,
 	.d_close =	gdcclose,
 	.d_read =	gdcread,

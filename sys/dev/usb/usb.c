@@ -146,6 +146,8 @@ d_ioctl_t usbioctl;
 d_poll_t usbpoll;
 
 struct cdevsw usb_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	usbopen,
 	.d_close =	usbclose,
 	.d_read =	usbread,

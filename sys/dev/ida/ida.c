@@ -66,6 +66,8 @@ static int ida_wait(struct ida_softc *ida, struct ida_qcb *qcb);
 
 static d_ioctl_t ida_ioctl;
 static struct cdevsw ida_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ida_ioctl,
 	.d_name =	"ida",
 };

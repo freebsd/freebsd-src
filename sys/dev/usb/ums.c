@@ -154,6 +154,8 @@ Static d_poll_t  ums_poll;
 
 
 Static struct cdevsw ums_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ums_open,
 	.d_close =	ums_close,
 	.d_read =	ums_read,

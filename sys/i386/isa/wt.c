@@ -186,6 +186,8 @@ static	d_strategy_t	wtstrategy;
 
 
 static struct cdevsw wt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	wtopen,
 	.d_close =	wtclose,
 	.d_read =	physread,

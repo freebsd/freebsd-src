@@ -64,6 +64,8 @@ static d_poll_t		random_poll;
 #define RANDOM_FIFO_MAX	256	/* How many events to queue up */
 
 static struct cdevsw random_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_close =	random_close,
 	.d_read =	random_read,
 	.d_write =	random_write,

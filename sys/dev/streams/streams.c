@@ -102,6 +102,8 @@ static struct fileops svr4_netops = {
 };
  
 static struct cdevsw streams_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	streamsopen,
 	.d_name =	"streams",
 };

@@ -226,6 +226,8 @@ Static void		ubt_create_device_nodes  (ubt_softc_p);
 Static void		ubt_destroy_device_nodes (ubt_softc_p);
 
 Static struct cdevsw	ubt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ubt_open,
 	.d_close =	ubt_close,
 	.d_read =	ubt_read,

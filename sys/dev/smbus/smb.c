@@ -88,6 +88,8 @@ static	d_read_t	smbread;
 static	d_ioctl_t	smbioctl;
 
 static struct cdevsw smb_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	smbopen,
 	.d_close =	smbclose,
 	.d_read =	smbread,

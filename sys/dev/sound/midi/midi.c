@@ -70,6 +70,8 @@ static int midi_readstatus(char *buf, int *ptr, struct uio *uio);
 
 #define CDEV_MAJOR MIDI_CDEV_MAJOR
 static struct cdevsw midi_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	midiopen,
 	.d_close =	midiclose,
 	.d_read =	midiread,

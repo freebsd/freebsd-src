@@ -108,6 +108,8 @@ static d_ioctl_t apmioctl;
 static d_poll_t apmpoll;
 
 static struct cdevsw apm_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	apmopen,
 	.d_close =	apmclose,
 	.d_write =	apmwrite,

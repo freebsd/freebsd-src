@@ -636,6 +636,8 @@ static d_close_t xptclose;
 static d_ioctl_t xptioctl;
 
 static struct cdevsw xpt_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	xptopen,
 	.d_close =	xptclose,
 	.d_ioctl =	xptioctl,

@@ -67,6 +67,8 @@ static	d_close_t		twe_close;
 static	d_ioctl_t		twe_ioctl_wrapper;
 
 static struct cdevsw twe_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	twe_open,
 	.d_close =	twe_close,
 	.d_ioctl =	twe_ioctl_wrapper,

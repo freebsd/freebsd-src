@@ -58,6 +58,8 @@ static int openprom_node_valid(phandle_t node);
 static int openprom_node_search(phandle_t root, phandle_t node);
 
 static struct cdevsw openprom_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	openprom_open,
 	.d_close =	openprom_close,
 	.d_ioctl =	openprom_ioctl,

@@ -113,6 +113,8 @@ static d_ioctl_t ngdioctl;
 static d_poll_t ngdpoll;
 
 static struct cdevsw ngd_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ngdopen,
 	.d_close =	ngdclose,
 	.d_read =	ngdread,

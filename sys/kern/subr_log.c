@@ -69,6 +69,8 @@ static	void logtimeout(void *arg);
 
 #define CDEV_MAJOR 7
 static struct cdevsw log_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	logopen,
 	.d_close =	logclose,
 	.d_read =	logread,

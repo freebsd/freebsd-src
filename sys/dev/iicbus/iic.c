@@ -93,6 +93,8 @@ static	d_read_t	iicread;
 static	d_ioctl_t	iicioctl;
 
 static struct cdevsw iic_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	iicopen,
 	.d_close =	iicclose,
 	.d_read =	iicread,

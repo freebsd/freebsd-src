@@ -97,6 +97,8 @@ static d_ioctl_t	tapioctl;
 static d_poll_t		tappoll;
 
 static struct cdevsw	tap_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	tapopen,
 	.d_close =	tapclose,
 	.d_read =	tapread,

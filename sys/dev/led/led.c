@@ -211,6 +211,8 @@ led_write(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static struct cdevsw led_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_write =	led_write,
 	.d_name =	"LED",
 };

@@ -85,6 +85,8 @@ static d_ioctl_t	spicioctl;
 static d_poll_t		spicpoll;
 
 static struct cdevsw spic_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	spicopen,
 	.d_close =	spicclose,
 	.d_read =	spicread,

@@ -202,12 +202,19 @@ typedef int dumper_t(
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
-#define D_NOGIANT	0x00400000	/* Doesn't want Giant */
+#define D_NEEDGIANT	0x00400000	/* driver want Giant */
+
+/*
+ * Version numbers.
+ */
+#define D_VERSION_00	0x20011966
+#define D_VERSION	D_VERSION_00
 
 /*
  * Character device switch table
  */
 struct cdevsw {
+	int		d_version;
 	int		d_maj;
 	u_int		d_flags;
 	const char	*d_name;

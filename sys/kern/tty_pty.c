@@ -80,6 +80,7 @@ static	d_poll_t	ptcpoll;
 
 #define	CDEV_MAJOR_S	5
 static struct cdevsw pts_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	ptsopen,
 	.d_close =	ptsclose,
 	.d_read =	ptsread,
@@ -87,11 +88,12 @@ static struct cdevsw pts_cdevsw = {
 	.d_ioctl =	ptyioctl,
 	.d_name =	"pts",
 	.d_maj =	CDEV_MAJOR_S,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 #define	CDEV_MAJOR_C	6
 static struct cdevsw ptc_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	ptcopen,
 	.d_close =	ptcclose,
 	.d_read =	ptcread,
@@ -100,7 +102,7 @@ static struct cdevsw ptc_cdevsw = {
 	.d_poll =	ptcpoll,
 	.d_name =	"ptc",
 	.d_maj =	CDEV_MAJOR_C,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */

@@ -70,6 +70,8 @@ static d_ioctl_t	iir_ioctl;
 
 /* Normally, this is a static structure.  But we need it in pci/iir_pci.c */
 static struct cdevsw iir_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	iir_open,
 	.d_close =	iir_close,
 	.d_read =	iir_read,

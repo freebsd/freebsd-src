@@ -91,6 +91,8 @@ static	d_write_t	ppiwrite;
 static	d_read_t	ppiread;
 
 static struct cdevsw ppi_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ppiopen,
 	.d_close =	ppiclose,
 	.d_read =	ppiread,

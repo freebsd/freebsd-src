@@ -87,6 +87,8 @@ static	 d_open_t  fdopen;
 
 #define	CDEV_MAJOR 22
 static struct cdevsw fildesc_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	fdopen,
 	.d_name =	"FD",
 	.d_maj =	CDEV_MAJOR,

@@ -89,6 +89,8 @@ d_close_t ufmclose;
 d_ioctl_t ufmioctl;
 
 Static struct cdevsw ufm_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ufmopen,
 	.d_close =	ufmclose,
 	.d_ioctl =	ufmioctl,

@@ -128,13 +128,14 @@ Static d_ioctl_t ucomioctl;
 
 
 static struct cdevsw ucom_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	ucomopen,
 	.d_close =	ucomclose,
 	.d_read =	ucomread,
 	.d_write =	ucomwrite,
 	.d_ioctl =	ucomioctl,
 	.d_name =	"ucom",
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 #if __FreeBSD_version < 500014
 	.d_bmaj =	-1,
 #endif

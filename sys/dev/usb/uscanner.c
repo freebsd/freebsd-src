@@ -268,6 +268,8 @@ d_poll_t  uscannerpoll;
 
 
 Static struct cdevsw uscanner_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	uscanneropen,
 	.d_close =	uscannerclose,
 	.d_read =	uscannerread,

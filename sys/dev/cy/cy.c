@@ -386,12 +386,13 @@ static	d_write_t	siowrite;
 static	d_ioctl_t	sioioctl;
 
 static struct cdevsw sio_cdevsw = {
+	.d_version =	D_VERSION,
 	.d_open =	sioopen,
 	.d_close =	sioclose,
 	.d_write =	siowrite,
 	.d_ioctl =	sioioctl,
 	.d_name =	driver_name,
-	.d_flags =	D_TTY,
+	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
 static	int	comconsole = -1;

@@ -42,6 +42,8 @@ static d_poll_t dsp_poll;
 static d_mmap_t dsp_mmap;
 
 struct cdevsw dsp_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	dsp_open,
 	.d_close =	dsp_close,
 	.d_read =	dsp_read,

@@ -143,6 +143,8 @@ static	d_write_t	ctxwrite;
 static	d_ioctl_t	ctxioctl;
 
 static struct cdevsw ctx_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	ctxopen,
 	.d_close =	ctxclose,
 	.d_read =	ctxread,
