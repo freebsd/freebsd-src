@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.22 1995/03/11 22:29:07 davidg Exp $
+ * $Id: vfs_subr.c,v 1.23 1995/03/16 18:12:49 bde Exp $
  */
 
 /*
@@ -508,19 +508,22 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	}
 	splx(s);
 
-	pager = NULL;
-	object = (vm_object_t) vp->v_vmdata;
-	if (object != NULL)
-		pager = object->pager;
-	if (pager != NULL) {
-		object = vm_object_lookup(pager);
-		if (object) {
-			vm_object_lock(object);
-			if (flags & V_SAVE)
-				vm_object_page_clean(object, 0, 0, TRUE, FALSE);
-			vm_object_page_remove(object, 0, object->size);
-			vm_object_unlock(object);
-			vm_object_deallocate(object);
+	/*
+	 * Destroy the copy in the VM cache, too.
+	 */
+	if ((flags & V_SAVE) == 0) {
+		pager = NULL;
+		object = (vm_object_t) vp->v_vmdata;
+		if (object != NULL)
+			pager = object->pager;
+		if (pager != NULL) {
+			object = vm_object_lookup(pager);
+			if (object) {
+				vm_object_lock(object);
+				vm_object_page_remove(object, 0, object->size);
+				vm_object_unlock(object);
+				vm_object_deallocate(object);
+			}
 		}
 	}
 	if (!(flags & V_SAVEMETA) &&
