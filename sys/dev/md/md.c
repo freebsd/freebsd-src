@@ -1183,7 +1183,7 @@ g_md_init(struct g_class *mp __unused)
 		    MD_NAME, mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
 	}
-	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL,
+	status_dev = make_dev(&mdctl_cdevsw, MAXMINOR, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 	g_topology_lock();
 }
