@@ -124,7 +124,7 @@ int	 mbtowc(wchar_t *, const char *, size_t);
 size_t	 wcstombs(char *, const wchar_t *, size_t);
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-extern char *_malloc_options;
+extern const char *_malloc_options;
 extern void (*_malloc_message)(char *p1, char *p2, char *p3, char *p4);
 
 int	 putenv(const char *);
