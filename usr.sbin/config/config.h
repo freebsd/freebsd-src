@@ -169,8 +169,6 @@ extern int	debugging;
 
 extern int	maxusers;
 
-extern	int old_config_present;	/* Old config/build directory still there */
-
 extern char *PREFIX;		/* Config file name - for error messages */
 extern char srcdir[];		/* root of the kernel source tree */
 
