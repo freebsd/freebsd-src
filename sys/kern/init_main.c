@@ -93,6 +93,7 @@ struct	proc *initproc;
 
 int cmask = CMASK;
 extern	struct user *proc0paddr;
+extern int fallback_elf_brand;
 
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
@@ -480,6 +481,8 @@ start_init(void *dummy)
 		strncpy(init_path, var, sizeof init_path);
 		init_path[sizeof init_path - 1] = 0;
 	}
+	if ((var = getenv("kern.fallback_elf_brand")) != NULL)
+		fallback_elf_brand = strtol(var, NULL, 0);
 	
 	for (path = init_path; *path != '\0'; path = next) {
 		while (*path == ':')
