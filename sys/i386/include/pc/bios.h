@@ -54,6 +54,7 @@ struct bios32_SDentry
     u_int32_t	base;			/* base of service */
     u_int32_t	len;			/* service length */
     u_int32_t	entry;			/* entrypoint offset from base */
+    vm_offset_t	ventry;			/* entrypoint in kernel virtual segment */
 };
 
 extern int		bios32_SDlookup(struct bios32_SDentry *ent);
@@ -203,7 +204,76 @@ struct bios_args {
 #define PNP_GET_BOOTFIRST	"sp",		0x65
 #define PNP_SET_BOOTFIRST	"sp",		0x66
 
+/*
+ * PCI BIOS functions
+ */
+#define PCIBIOS_READ_CONFIG_BYTE	0xb108
+#define PCIBIOS_READ_CONFIG_WORD	0xb109
+#define PCIBIOS_READ_CONFIG_DWORD	0xb10a
+#define PCIBIOS_WRITE_CONFIG_BYTE	0xb10b
+#define PCIBIOS_WRITE_CONFIG_WORD	0xb10c
+#define PCIBIOS_WRITE_CONFIG_DWORD	0xb10d
+#define PCIBIOS_GET_IRQ_ROUTING		0xb10e
+#define PCIBIOS_ROUTE_INTERRUPT		0xb10f
+
 extern int bios16(struct bios_args *, char *, ...);
 extern int bios16_call(struct bios_regs *, char *);
 extern int bios32(struct bios_regs *, u_int, u_short);
 extern void set_bios_selectors(struct bios_segments *, int);
+
+/*
+ * PCI interrupt routing table.
+ *
+ * $PIR in the BIOS segment contains a PIR_table
+ * int 1a:b106 returns PIR_table in buffer at es:(e)di 
+ * int 1a:b18e returns PIR_table in buffer at es:(e)di 
+ * int 1a:b406 returns es:di pointing to the BIOS PIR_table
+ */
+struct PIR_header 
+{
+    int8_t	ph_signature[4];
+    u_int16_t	ph_version;
+    u_int16_t	ph_length;
+    u_int8_t	ph_router_bus;
+    u_int8_t	ph_router_dev_fn;
+    u_int16_t	ph_pci_irqs;
+    u_int16_t	ph_router_vendor;
+    u_int16_t	ph_router_device;
+    u_int32_t	ph_miniport;
+    u_int8_t	ph_res[11];
+    u_int8_t	ph_checksum;
+} __attribute__ ((packed));
+
+struct PIR_intpin 
+{
+    u_int8_t	link;
+    u_int16_t	irqs;
+} __attribute__ ((packed));
+
+struct PIR_entry
+{
+    u_int8_t		pe_bus;
+    u_int8_t		pe_res1:3;
+    u_int8_t		pe_device:5;
+    struct PIR_intpin	pe_intpin[4];
+    u_int8_t	pe_slot;
+    u_int8_t	pe_res3;
+} __attribute__ ((packed));
+
+struct PIR_table 
+{
+    struct PIR_header	pt_header;
+    struct PIR_entry	pt_entry[0];
+} __attribute__ ((packed));
+
+/*
+ * Int 15:E820 'SMAP' structure
+ *
+ * XXX add constants for type
+ */
+#define SMAP_SIG	0x534D4150			/* 'SMAP' */
+struct bios_smap {
+    u_int64_t	base;
+    u_int64_t	length;
+    u_int32_t	type;
+} __attribute__ ((packed));

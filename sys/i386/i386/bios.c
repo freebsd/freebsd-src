@@ -166,6 +166,7 @@ bios32_SDlookup(struct bios32_SDentry *ent)
 	ent->base = args.ebx;
 	ent->len = args.ecx;
 	ent->entry = args.edx;
+	ent->ventry = BIOS_PADDRTOVADDR(ent->base + ent->entry);
 	return (0);			/* all OK */
     }
     return (1);				/* failed */
