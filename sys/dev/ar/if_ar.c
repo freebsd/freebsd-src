@@ -70,7 +70,7 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <sys/syslog.h>
-#include <i386/isa/if_ar.h>
+#include <dev/ar/if_ar.h>
 #else /* NETGRAPH */
 #include <net/if_sppp.h>
 #include <net/bpf.h>
@@ -78,8 +78,8 @@
 
 #include <machine/md_var.h>
 
-#include <i386/isa/ic/hd64570.h>
-#include <i386/isa/if_arregs.h>
+#include <dev/ic/hd64570.h>
+#include <dev/ar/if_arregs.h>
 
 #ifdef TRACE
 #define TRC(x)               x
