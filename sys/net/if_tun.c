@@ -59,7 +59,7 @@
 static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
 static int tundebug = 0;
 static struct tun_softc *tunhead = NULL;
-static struct rman tununits[1];
+static struct rman tununits;
 static udev_t tunbasedev = NOUDEV;
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
@@ -107,7 +107,7 @@ tunclone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 
 	if (strcmp(name, TUNNAME) == 0) {
-		r = rman_reserve_resource(tununits, 0, TUN_MAXUNIT, 1,
+		r = rman_reserve_resource(&tununits, 0, TUN_MAXUNIT, 1,
 		    RF_ALLOCATED | RF_ACTIVE, NULL);
 		u = rman_get_start(r);
 		err = rman_release_resource(r);
@@ -154,26 +154,26 @@ tunmodevent(module_t mod, int type, void *data)
 				return (err);
 			}
 		}
-		tununits->rm_type = RMAN_ARRAY;
-		tununits->rm_descr = "open if_tun units";
-		err = rman_init(tununits);
+		tununits.rm_type = RMAN_ARRAY;
+		tununits.rm_descr = "open if_tun units";
+		err = rman_init(&tununits);
 		if (err != 0) {
 			cdevsw_remove(&tun_cdevsw);
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
-		err = rman_manage_region(tununits, 0, TUN_MAXUNIT);
+		err = rman_manage_region(&tununits, 0, TUN_MAXUNIT);
 		if (err != 0) {
 			printf("%s: tununits: rman_manage_region: Failed %d\n",
 			    TUNNAME, err);
-			rman_fini(tununits);
+			rman_fini(&tununits);
 			cdevsw_remove(&tun_cdevsw);
 			EVENTHANDLER_DEREGISTER(dev_clone, tag);
 			return (err);
 		}
 		break; 
 	case MOD_UNLOAD: 
-		err = rman_fini(tununits);
+		err = rman_fini(&tununits);
 		if (err != 0)
 			return (err);
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
@@ -272,7 +272,7 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 	if (unit > TUN_MAXUNIT)
 		return (ENXIO);
 
-	r = rman_reserve_resource(tununits, unit, unit, 1,
+	r = rman_reserve_resource(&tununits, unit, unit, 1,
 	    RF_ALLOCATED | RF_ACTIVE, NULL);
 	if (r == NULL)
 		return (EBUSY);
@@ -386,7 +386,7 @@ tuninit(struct ifnet *ifp)
 /*
  * Process an ioctl request.
  */
-int
+static int
 tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -430,7 +430,7 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 /*
  * tunoutput - queue packets from higher level ready to put out.
  */
-int
+static int
 tunoutput(
 	struct ifnet *ifp,
 	struct mbuf *m0,
