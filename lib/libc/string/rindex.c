@@ -53,8 +53,9 @@ rindex
 (const char *p, int ch)
 {
 	char *save;
-	char c = ch;
+	char c;
 
+	c = ch;
 	for (save = NULL;; ++p) {
 		if (*p == c)
 			save = (char *)p;
