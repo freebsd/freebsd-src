@@ -87,7 +87,7 @@ afdattach(struct ata_device *atadev)
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
 	ata_prtdev(atadev, "out of memory\n");
-	return -1;
+	return 0;
     }
 
     fdp->device = atadev;
@@ -97,7 +97,7 @@ afdattach(struct ata_device *atadev)
 
     if (afd_sense(fdp)) {
 	free(fdp, M_AFD);
-	return -1;
+	return 0;
     }
 
     if (!strncmp(atadev->param->model, "IOMEGA ZIP", 10))
@@ -114,7 +114,7 @@ afdattach(struct ata_device *atadev)
     afd_describe(fdp);
     atadev->flags |= ATA_D_MEDIA_CHANGED;
     atadev->driver = fdp;
-    return 0;
+    return 1;
 }
 
 void
