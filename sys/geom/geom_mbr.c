@@ -432,9 +432,12 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				    buf + DOSPARTOFF + 
 				    i * sizeof(struct dos_partition), dp + i);
 			g_free(buf);
-			printf("MBREXT Slice %d on %s:\n", slice + 5, gp->name);
-			g_mbr_print(0, dp);
-			g_mbr_print(1, dp + 1);
+			if (bootverbose) {
+				printf("MBREXT Slice %d on %s:\n",
+				    slice + 5, gp->name);
+				g_mbr_print(0, dp);
+				g_mbr_print(1, dp + 1);
+			}
 			if ((dp[0].dp_flag & 0x7f) == 0 &&
 			     dp[0].dp_size != 0 && dp[0].dp_typ != 0) {
 				g_topology_lock();
