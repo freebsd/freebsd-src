@@ -1813,10 +1813,10 @@ allowaddr(s)
 	char *cp1, *cp2;
 	struct allowedpeer ap;
 	struct servent *se;
-	int masklen = -1;
+	int masklen = -1, i;
 	struct addrinfo hints, *res;
 	struct in_addr *addrp, *maskp;
-	u_int32_t *mask6p;
+	u_int32_t *addr6p, *mask6p;
 	char ip[NI_MAXHOST];
 
 #ifdef INET6
@@ -1907,6 +1907,11 @@ allowaddr(s)
 				*mask6p++ = 0xffffffff;
 				masklen -= 32;
 			}
+			/* Lose any host bits in the network number. */
+			mask6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_mask)->sin6_addr;
+			addr6p = (u_int32_t *)&((struct sockaddr_in6 *)&ap.a_addr)->sin6_addr;
+			for (i = 0; i < 4; i++)
+				addr6p[i] &= mask6p[i];
 		}
 #endif
 		else {
@@ -2032,8 +2037,8 @@ validate(sa, hname)
 #endif
 				reject = 0;
 				for (j = 0; j < 16; j += 4) {
-					if ((*(u_int32_t *)&sin6->sin6_addr.s6_addr[i] & *(u_int32_t *)&m6p->sin6_addr.s6_addr[i])
-					    != *(u_int32_t *)&a6p->sin6_addr.s6_addr[i]) {
+					if ((*(u_int32_t *)&sin6->sin6_addr.s6_addr[j] & *(u_int32_t *)&m6p->sin6_addr.s6_addr[j])
+					    != *(u_int32_t *)&a6p->sin6_addr.s6_addr[j]) {
 						++reject;
 						break;
 					}
