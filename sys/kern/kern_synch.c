@@ -125,7 +125,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	struct sleepqueue *sq;
 	struct thread *td;
 	struct proc *p;
-	int catch, rval, sig;
+	int catch, rval, sig, flags;
 	WITNESS_SAVE_DECL(mtx);
 
 	td = curthread;
@@ -166,28 +166,19 @@ msleep(ident, mtx, priority, wmesg, timo)
 		sleepq_remove(td, td->td_wchan);
 
 	sq = sleepq_lookup(ident);
-	mtx_lock_spin(&sched_lock);
-
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+	if (catch) {
 		/*
-		 * Just don't bother if we are exiting
-		 * and not the exiting thread or thread was marked as
-		 * interrupted.
+		 * Don't bother sleeping if we are exiting and not the exiting
+		 * thread or if our thread is marked as interrupted.
 		 */
-		if (catch) {
-			if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td) {
-				mtx_unlock_spin(&sched_lock);
-				sleepq_release(ident);
-				return (EINTR);
-			}
-			if (td->td_flags & TDF_INTERRUPT) {
-				mtx_unlock_spin(&sched_lock);
-				sleepq_release(ident);
-				return (td->td_intrval);
-			}
+		mtx_lock_spin(&sched_lock);
+		rval = thread_sleep_check(td);
+		mtx_unlock_spin(&sched_lock);
+		if (rval != 0) {
+			sleepq_release(ident);
+			return (rval);
 		}
 	}
-	mtx_unlock_spin(&sched_lock);
 	CTR5(KTR_PROC, "msleep: thread %p (pid %ld, %s) on %s (%p)",
 	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
 
@@ -207,17 +198,14 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(sq, ident, mtx, wmesg, 0);
+	flags = SLEEPQ_MSLEEP;
+	if (catch)
+		flags |= SLEEPQ_INTERRUPTIBLE;
+	sleepq_add(sq, ident, mtx, wmesg, flags);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 	if (catch) {
 		sig = sleepq_catch_signals(ident);
-		if (sig == 0 && !TD_ON_SLEEPQ(td)) {
-			mtx_lock_spin(&sched_lock);
-			td->td_flags &= ~TDF_SINTR;
-			mtx_unlock_spin(&sched_lock);
-			catch = 0;
-		}
 	} else
 		sig = 0;
 
@@ -262,7 +250,7 @@ wakeup(ident)
 	register void *ident;
 {
 
-	sleepq_broadcast(ident, 0, -1);
+	sleepq_broadcast(ident, SLEEPQ_MSLEEP, -1);
 }
 
 /*
@@ -275,7 +263,7 @@ wakeup_one(ident)
 	register void *ident;
 {
 
-	sleepq_signal(ident, 0, -1);
+	sleepq_signal(ident, SLEEPQ_MSLEEP, -1);
 }
 
 /*
