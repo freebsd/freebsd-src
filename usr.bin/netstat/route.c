@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -637,7 +638,7 @@ routename(in)
 	u_long in;
 {
 	register char *cp;
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	struct hostent *hp;
 
 	cp = 0;
@@ -646,7 +647,7 @@ routename(in)
 			AF_INET);
 		if (hp) {
 			cp = hp->h_name;
-			trimdomain(cp);
+			trimdomain(cp, strlen(cp));
 		}
 	}
 	if (cp) {
@@ -715,7 +716,7 @@ netname(in, mask)
 	u_long in, mask;
 {
 	char *cp = 0;
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
 	u_long net, omask, dmask;
 	register u_long i;
@@ -729,7 +730,7 @@ netname(in, mask)
 			np = getnetbyaddr(net, AF_INET);
 		if (np) {
 			cp = np->n_name;
-			trimdomain(cp);
+			trimdomain(cp, strlen(cp));
 		}
 	}
 	if (cp)
@@ -753,7 +754,7 @@ netname6(sa6, mask)
 	struct sockaddr_in6 *sa6;
 	struct in6_addr *mask;
 {
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	u_char *p = (u_char *)mask;
 	u_char *lim;
 	int masklen, illegal = 0, flag = NI_WITHSCOPEID;
@@ -816,7 +817,7 @@ char *
 routename6(sa6)
 	struct sockaddr_in6 *sa6;
 {
-	static char line[MAXHOSTNAMELEN + 1];
+	static char line[MAXHOSTNAMELEN];
 	int flag = NI_WITHSCOPEID;
 	/* use local variable for safety */
 	struct sockaddr_in6 sa6_local = {AF_INET6, sizeof(sa6_local),};
