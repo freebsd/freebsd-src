@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.7 1998/03/20 19:47:03 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.8 1998/04/03 19:24:04 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1697,14 +1697,32 @@ not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
 .It idcheck
 Default: Enabled.  When
-.Nm Ppp
-responds to an LCP packet, it must set the LCP Identifier field to be the
-same as the Identifier field of the request.  Disabling
-.Ar idcheck
-makes
 .Nm
-ignore the value of the identifier field so that packets are
-processed rather than being dropped.
+exchanges low-level LCP, CCP and IPCP configuration traffic, the
+.Em Identifier
+field of any replies is expected to be the same as that of the request.
+By default,
+.Nm
+drops any reply packets that do not contain the expected identifier
+field, reporting the fact at the respective log level.  If
+.Ar idcheck
+is disabled,
+.Nm
+will ignore the identifier field.
+.It loopback
+Default: Enabled.  When
+.Ar loopback
+is enabled,
+.Nm
+will automatically loop back packets being sent
+out with a destination address equal to that of the
+.Em PPP
+interface.  If disabled,
+.Nm
+will send the packet, probably resulting in an ICMP redirect from
+the other end.  It is convenient to have this option enabled when
+the interface is also the default route as it avoids the necessity
+of a loopback route.
 .El
 .Pp
 .It add[!] dest mask gateway
@@ -2318,19 +2336,6 @@ will wait before resending Finite State Machine (FSM) Request packets.
 The default
 .Ar period
 for all FSMs is 3 seconds (which should suffice in most cases).
-.It set loopback on|off
-When set to
-.Ar on
-(the default),
-.Nm
-will automatically loop back packets being sent
-out with a destination address equal to that of the
-.Em PPP
-interface.  If set to
-.Ar off ,
-.Nm
-will send the packet, probably resulting in an ICMP redirect from
-the other end.
 .It set log [local] [+|-]value...
 This command allows the adjustment of the current log level.  Refer
 to the Logging Facility section for further details.
@@ -2570,8 +2575,6 @@ Show the current HDLC statistics.
 Show the current IPCP statistics.
 .It show lcp
 Show the current LCP statistics.
-.It show loopback
-Show the current loopback status.
 .It show log
 Show the current log values.
 .It show mem

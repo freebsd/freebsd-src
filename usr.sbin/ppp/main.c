@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.39 1998/03/25 18:38:59 brian Exp $
+ * $Id: main.c,v 1.121.2.40 1998/04/03 19:21:36 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -590,7 +590,7 @@ DoLoop(struct bundle *bundle)
       if (((struct ip *)tun.data)->ip_dst.s_addr ==
           bundle->ncp.ipcp.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
-	if (VarLoopback) {
+	if (Enabled(ConfLoopback)) {
 	  pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
 	  if (pri >= 0) {
 	    struct mbuf *bp;

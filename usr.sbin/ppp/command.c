@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.44 1998/04/03 19:21:13 brian Exp $
+ * $Id: command.c,v 1.131.2.45 1998/04/03 19:23:54 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -183,21 +183,6 @@ DialCommand(struct cmdargs const *arg)
   bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL);
 
   return 0;
-}
-
-static int
-SetLoopback(struct cmdargs const *arg)
-{
-  if (arg->argc == 1)
-    if (!strcasecmp(*arg->argv, "on")) {
-      VarLoopback = 1;
-      return 0;
-    }
-    else if (!strcasecmp(*arg->argv, "off")) {
-      VarLoopback = 0;
-      return 0;
-    }
-  return -1;
 }
 
 static int
@@ -387,13 +372,6 @@ static struct cmdtab const Commands[] = {
 };
 
 static int
-ShowLoopback(struct cmdargs const *arg)
-{
-  prompt_Printf(&prompt, "Local loopback is %s\n", VarLoopback ? "on" : "off");
-  return 0;
-}
-
-static int
 ShowLogLevel(struct cmdargs const *arg)
 {
   int i;
@@ -575,8 +553,6 @@ static struct cmdtab const ShowCommands[] = {
   "Show LCP status", "show lcp"},
   {"links", "link", bundle_ShowLinks, LOCAL_AUTH,
   "Show available link names", "show links"},
-  {"loopback", NULL, ShowLoopback, LOCAL_AUTH,
-  "Show loopback setting", "show loopback"},
   {"log", NULL, ShowLogLevel, LOCAL_AUTH,
   "Show log levels", "show log"},
   {"mem", NULL, ShowMemMap, LOCAL_AUTH,
@@ -1452,8 +1428,6 @@ static struct cmdtab const SetCommands[] = {
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   {"filter", NULL, SetFilter, LOCAL_AUTH,
   "Set packet filters", "set filter in|out|dial|alive ..."},
-  {"loopback", NULL, SetLoopback, LOCAL_AUTH,
-  "Set loopback facility", "set loopback on|off"},
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
   "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
