@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_eg.c,v 1.15 1996/08/04 10:58:16 phk Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -335,12 +335,11 @@ egprobe(struct isa_device * id)
 	/* hard reset card */
 	outb(sc->eg_ctl, EG_CTL_RESET); 
 	outb(sc->eg_ctl, 0);
-	for (i = 0; i < 2500; i++) {
+	for (i = 0; i < 1600; i++) {
 		DELAY(10000);
 		if ((inb(sc->eg_stat) & EG_PCB_STAT) == EG_PCB_NULL) 
 			break;
 	}
-printf ("%d\n",i);
 	if ((inb(sc->eg_stat) & EG_PCB_STAT) != EG_PCB_NULL) {
 		dprintf(("eg#: eg: Reset failed\n"));
 		return 0;
