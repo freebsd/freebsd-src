@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.192 1998/04/15 17:45:02 bde Exp $
+ *	$Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp $
  */
 
 /*
@@ -442,6 +442,91 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	invltlb();
 
+}
+
+void
+getmtrr()
+{
+	int i;
+
+	if (cpu_class == CPUCLASS_686) {
+		for(i = 0; i < NPPROVMTRR; i++) {
+			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
+			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
+		}
+	}
+}
+
+void
+putmtrr()
+{
+	int i;
+
+	if (cpu_class == CPUCLASS_686) {
+		wbinvd();
+		for(i = 0; i < NPPROVMTRR; i++) {
+			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
+			wrmsr(PPRO_VMTRRphysMask0 + i * 2, PPro_vmtrr[i].mask);
+		}
+	}
+}
+
+void
+pmap_setvidram(void)
+{
+	if (cpu_class == CPUCLASS_686) {
+		wbinvd();
+		/*
+		 * Set memory between 0-640K to be WB
+		 */
+		wrmsr(0x250, 0x0606060606060606LL);
+		wrmsr(0x258, 0x0606060606060606LL);
+		/*
+		 * Set normal, PC video memory to be WC
+		 */
+		wrmsr(0x259, 0x0101010101010101LL);
+	}
+}
+
+void
+pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
+{
+	int i, free, skip;
+	unsigned basepage, basepaget;
+	unsigned long long base;
+	unsigned long long mask;
+
+	if (cpu_class != CPUCLASS_686)
+		return;
+
+	free = -1;
+	skip = 0;
+	basea &= ~0xfff;
+	base = basea | 0x1;
+	mask = (long long) (0xfffffffffLL - ((long) sizea - 1)) | (long long) 0x800;
+	mask &= ~0x7ff;
+
+	basepage = (long long) (base >> 12);
+	for(i = 0; i < NPPROVMTRR; i++) {
+		PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
+		PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
+		basepaget = (long long) (PPro_vmtrr[i].base >> 12);
+		if (basepage == basepaget)
+			skip = 1;
+		if ((PPro_vmtrr[i].mask & 0x800) == 0) {
+			if (free == -1)
+				free = i;
+		}
+	}
+
+	if (!skip && free != -1) {
+		wbinvd();
+		PPro_vmtrr[free].base = base;
+		PPro_vmtrr[free].mask = mask;
+		wrmsr(PPRO_VMTRRphysBase0 + free * 2, base);
+		wrmsr(PPRO_VMTRRphysMask0 + free * 2, mask);
+		printf("pmap: added WC mapping at page: 0x%x %x, size: %d mask: 0x%x %x\n", base, sizea, mask);
+	}
 }
 
 /*
