@@ -1,7 +1,24 @@
 This is the FreeBSD DiskLabel Editor.
 
-If you would like the label editor to do most of the following *for* you,
-simply type `A' for automatic partitioning of the disk.
+NOTE: If you're entering this editor from the update procedure then
+you probably shouldn't (C)reate anything at all but rather use only
+the (M)ount command to check and mount existing partitions for
+upgrading.
+
+If you would like the label editor to do most of the following *for*
+you, simply type `A' for automatic partitioning of the disk.
+
+If you wish to create partitions manually you may do so by moving the
+selection bar with the arrow keys over the FreeBSD partition(s)
+displayed at the top of the screen.  Typing (C)reate while a partition
+with available free space is selected will allow you to create a BSD
+partition inside of it using some or all of its available space.
+
+Typing (M)ount over an existing partition entry (displayed in the
+middle of the screen) will allow you to set a mount point for it
+without initializing it.  If you want it initialized, use the (T)oggle
+command to flip the Newfs flag.  When Newfs is set to "Y", the
+filesystem in question will be ERASED and rebuilt from scratch!
 
 You should use this editor to create at least the following
 filesystems:

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.21 1995/10/16 09:25:19 jkh Exp $
+ * $Id: menus.c,v 1.42.2.22 1995/10/16 15:14:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,9 +55,9 @@ DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
     "Welcome to FreeBSD!",	/* title */
     "This is the main menu of the FreeBSD installation system.  Please\n\
-	select one of the options below by using the arrow keys or typing the\n\
-	    first character of the option name you're interested in.  Invoke an\n\
-		option by pressing [ENTER].",		/* prompt */
+select one of the options below by using the arrow keys or typing the\n\
+first character of the option name you're interested in.  Invoke an\n\
+option by pressing [ENTER].",		/* prompt */
     "Press F1 for usage instructions",			/* help line */
     "usage",						/* help file */
 { { "Usage",		"Quick start - How to use this menu system.",		/* U */
@@ -160,8 +160,8 @@ To specify a URL not in this list, chose \"other\".",
 "install",
 { { "Primary Site",		"ftp.freebsd.org",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/", 0, 0			},
-  { "Secondary Site",		"freefall.cdrom.com",
-	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/", 0, 0		},
+  { "Secondary Site",		"freefall.freebsd.org",
+	DMENU_SET_VARIABLE,	"ftp=ftp://freefall.freebsd.org/pub/FreeBSD/", 0, 0		},
   { "Other",			"Specify some other ftp site by URL",
 	DMENU_SET_VARIABLE,	"ftp=other", 0, 0						},
   { "Australia",		"ftp.physics.usyd.edu.au",

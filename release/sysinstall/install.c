@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.33 1995/10/16 07:31:01 jkh Exp $
+ * $Id: install.c,v 1.71.2.34 1995/10/16 15:14:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,6 +159,9 @@ installInitial(void)
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return FALSE;
     }
+    /* If it's labelled, assume it's also partitioned */
+    if (!variable_get(DISK_PARTITIONED))
+	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
@@ -323,11 +326,11 @@ installUpgrade(char *str)
 int
 installExpress(char *str)
 {
-    msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\")\n"
-	       "partitioning scheme for your hard disk.  If you simply wish to devote all\n"
-	       "disk space to FreeBSD (overwritting anything else that might be on the disk(s)\n"
-	       "selected), use the (A)ll command to select the default partitioning scheme and\n"
-	       "then (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
+    msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
+	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
+	       "to FreeBSD (overwritting anything else that might be on the disk(s) selected)\n"
+	       "then use the (A)ll command to select the default partitioning scheme followed\n"
+	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
     if (diskPartitionEditor("express") == RET_FAIL)
@@ -336,7 +339,7 @@ installExpress(char *str)
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
-	       "allocate space automatically.  If you have more specific needs, or don't\n"
+	       "allocate space automatically.  If you have more specific needs or just don't\n"
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 
