@@ -86,20 +86,10 @@ struct natmpcb {
 #define	NPCB_CONNECTED	0x02		/* connected */
 #define	NPCB_IP		0x04		/* used by IP */
 #define	NPCB_DRAIN	0x08		/* destory as soon as inq == 0 */
-#define	NPCB_RAW	0x10		/* in 'raw' mode? */
 
 /* flag arg to npcb_free */
 #define	NPCB_REMOVE	0		/* remove from global list */
 #define	NPCB_DESTROY	1		/* destroy and be free */
-
-/*
- * NPCB_RAWCC is a hack which applies to connections in 'raw' mode.   it 
- * is used to override the sbspace() macro when you *really* don't want 
- * to drop rcv data.   the recv socket buffer size is raised to this value.
- *
- * XXX: socket buffering needs to be looked at.
- */
-#define	NPCB_RAWCC (1024*1024)		/* 1MB */
 
 LIST_HEAD(npcblist, natmpcb);
 
@@ -113,13 +103,6 @@ extern	u_int	natm_sodropbytes;	/* account of droppage */
 extern	u_int	natm_sookcnt;
 extern	u_int	natm_sookbytes;		/* account of ok */
 #endif
-
-/* atm_rawioctl: kernel's version of SIOCRAWATM [for internal use only!] */
-struct atm_rawioctl {
-  struct natmpcb *npcb;
-  int rawvalue;
-}; 
-#define	SIOCXRAWATM     _IOWR('a', 125, struct atm_rawioctl)
 
 /* external functions */
 
