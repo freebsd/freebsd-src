@@ -51,7 +51,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-dlmsv] [-help]\n");
+	fprintf(stderr, "usage: killall [-delmsv] [-help]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -132,6 +132,7 @@ main(int ac, char **av)
 	size_t		size;
 	int		matched;
 	int		killed = 0;
+	int		eflag = 0;
 
 	prog = av[0];
 	av++;
@@ -176,6 +177,9 @@ main(int ac, char **av)
 				break;
 			case 'd':
 				dflag++;
+				break;
+			case 'e':
+				eflag++;
 				break;
 			case 'm':
 				mflag++;
@@ -251,7 +255,7 @@ main(int ac, char **av)
 	miblen = 3;
 
 	if (user && mib[2] == KERN_PROC_ALL) {
-		mib[2] = KERN_PROC_RUID;
+		mib[2] = eflag ? KERN_PROC_UID : KERN_PROC_RUID;
 		mib[3] = uid;
 		miblen = 4;
 	}
@@ -291,7 +295,10 @@ main(int ac, char **av)
 		strncpy(thiscmd, procs[i].kp_proc.p_comm, MAXCOMLEN);
 		thiscmd[MAXCOMLEN] = '\0';
 		thistdev = procs[i].kp_eproc.e_tdev;
-		thisuid = procs[i].kp_eproc.e_pcred.p_ruid;	/* real uid */
+		if (eflag)
+			thisuid = procs[i].kp_eproc.e_ucred.cr_uid;	/* effective uid */
+		else
+			thisuid = procs[i].kp_eproc.e_pcred.p_ruid;	/* real uid */
 
 		if (thispid == mypid)
 			continue;

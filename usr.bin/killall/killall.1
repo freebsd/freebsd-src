@@ -32,7 +32,7 @@
 .Nd kill processes by name
 .Sh SYNOPSIS
 .Nm
-.Op Fl dlmsv
+.Op Fl delmsv
 .Op Fl help
 .Op Fl u Ar user
 .Op Fl t Ar tty
@@ -62,6 +62,11 @@ Be more verbose about what will be done.  For a single
 option, a list of the processes that will be sent the signal will be
 printed, or a message indicating that no matching processes have been
 found.
+.It Fl e
+Use the effective user id instead of the (default) real user id for matching
+processes specified with the
+.Fl u
+option.
 .It Fl help
 Give a help on the command usage and exit.
 .It Fl l
