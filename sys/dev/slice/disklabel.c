@@ -23,9 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.1 1998/04/19 23:31:03 julian Exp $
+ *	$Id: disklabel.c,v 1.2 1998/04/22 10:25:09 julian Exp $
  */
-
+#define BAD144
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -35,6 +35,9 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/dkstat.h>
+#ifdef BAD144
+#include <sys/dkbad.h>
+#endif
 #include <sys/malloc.h>
 #include <dev/slice/slice.h>
 
@@ -57,6 +60,9 @@ struct private_data {
 		struct private_data	*pd;
 		u_int32_t       	 offset; /*  all disklabel supports */
 	}               subdevs[MAXPARTITIONS];
+#ifdef BAD144
+	struct dkbad_intern *bad;
+#endif
 };
 
 static sl_h_constructor_t dkl_constructor;	/* constructor (from device) */
@@ -232,7 +238,78 @@ quit:
 	return (error);
 }
 
+#ifdef BAD144
+static int
+dkl_internbad144(struct private_data *pd, struct dkbad *btp, int flag)
+{
+	struct disklabel *lp = &pd->disklabel;
+	struct dkbad_intern *bip = pd->bad;
+	int i;
 
+	if (bip == NULL) {
+		bip = malloc(sizeof *bip, M_DEVBUF, flag);
+		if (bip == NULL)
+			return (ENOMEM);
+		pd->bad = bip;
+	}
+	/*
+	 * Spare sectors are allocated beginning with the last sector of
+	 * the second last track of the disk (the last track is used for
+	 * the bad sector list).
+	 */
+	bip->bi_maxspare = lp->d_secperunit - lp->d_nsectors - 1;
+	bip->bi_nbad = DKBAD_MAXBAD;
+	for (i=0; i < DKBAD_MAXBAD && btp->bt_bad[i].bt_cyl != DKBAD_NOCYL; i++)
+		bip->bi_bad[i] = btp->bt_bad[i].bt_cyl * lp->d_secpercyl
+				 + (btp->bt_bad[i].bt_trksec >> 8)
+				   * lp->d_nsectors
+				 + (btp->bt_bad[i].bt_trksec & 0x00ff);
+	bip->bi_bad[i] = -1;
+#if 1
+	for (i = 0; i < DKBAD_MAXBAD && bip->bi_bad[i] != -1; i++)
+		printf("  %8d => %8d\n", bip->bi_bad[i],
+			bip->bi_maxspare - i);
+#endif
+	return (0);
+}
+
+static int
+dkl_readbad144(struct private_data *pd)
+{
+	sl_p slice = pd->slice_down;
+	struct disklabel *lp = &pd->disklabel;
+	struct dkbad *db;
+	struct buf *bp;
+	int blkno, i, error;
+
+	for (i = 0; i < min(10, lp->d_nsectors); i += 2) {
+		blkno = lp->d_secperunit - lp->d_nsectors + i;
+		if (lp->d_secsize > slice->limits.blksize)
+			blkno *= lp->d_secsize / slice->limits.blksize;
+		else
+			blkno /= slice->limits.blksize / lp->d_secsize;
+		error = slice_readblock(slice, blkno, &bp);
+		if (error)
+			return (error);
+		bp->b_flags |= B_INVAL | B_AGE;
+		db = (struct dkbad *)bp->b_data;
+		if (db->bt_mbz == 0 && db->bt_flag == DKBAD_MAGIC) {
+			printf(" bad144 table found at block %d\n", blkno);
+			error = dkl_internbad144(pd, db, M_NOWAIT);
+			brelse(bp);
+			return (error);
+		}
+		brelse(bp);
+	}
+	return (EINVAL);
+}
+
+static __inline daddr_t
+dkl_transbad144(struct private_data *pd, daddr_t blkno)
+{
+	return transbad144(pd->bad, blkno);
+}
+#endif
 
 /*-
  * look at a slice and figure out if we should be interested in it. (Is it
@@ -357,6 +434,14 @@ dkl_constructor(sl_p slice)
 				return (error);
 			}
 		}
+#ifdef BAD144
+		if (pd->disklabel.d_flags & D_BADSECT) {
+			if ((error = dkl_readbad144(pd))) {
+				free(pd, M_DEVBUF);
+				return (error);
+			}
+		}
+#endif
 		slice->refs++;
 		slice->handler_up = &slicetype;
 		slice->private_up = pd;
@@ -560,6 +645,10 @@ dkl_revoke(void *private)
 	slice->handler_up = NULL;
 	slice->private_up = NULL;
 	slicetype.refs--;
+#ifdef BAD144
+	if (pd->bad)
+		free(pd->bad, M_DEVBUF);
+#endif
 	free(pd, M_DEVBUF);
 	sl_unref(slice);
 	return (0);
@@ -570,24 +659,6 @@ dkl_revoke(void *private)
  */
 static void
 dkl_IOreq(void *private, struct buf * bp)
-{
-	register struct private_data *pd;
-	struct subdev *sdp;
-	register struct slice *slice;
-
-RR;
-	sdp = private;
-	pd = sdp->pd;
-	slice = pd->slice_down;
-	bp->b_pblkno += sdp->offset; /* add the offset for that slice */
-	sliceio(slice, bp, SLW_ABOVE);
-}
-
-/*
- * shift the appropriate IO by the offset for that slice.
- */
-static void
-mbr_IOreq(void *private, struct buf * bp)
 {
 	register struct private_data *pd;
 	struct subdev *sdp;
@@ -730,6 +801,13 @@ dkl_ioctl(void *private, int cmd, caddr_t addr, int flag, struct proc * p)
 		((struct partinfo *)addr)->part = lp->d_partitions + sdp->part;
 		return (0);
 
+#ifdef BAD144
+	case DIOCSBAD:
+		if (!(flag & FWRITE))
+			return (EBADF);
+		return (dkl_internbad144(pd, (struct dkbad *)addr, M_WAITOK));
+#endif
+
 /* These don't really make sense. keep the headers for a reminder */
 	case DIOCSDINFO:
 	case DIOCSYNCSLICEINFO:
@@ -749,6 +827,17 @@ dkl_upconfig(struct slice *slice, int cmd, caddr_t addr, int flag, struct proc *
 	switch (cmd) {
 	case SLCIOCRESET:
 		return (0);
+
+	case SLCIOCTRANSBAD:
+	{
+		struct private_data *pd;
+		daddr_t blkno;
+
+		pd = slice->private_up;
+		if (pd->bad)
+			*(daddr_t*)addr = dkl_transbad144(pd, *(daddr_t*)addr);
+		return (0);
+	}
 
 /* These don't really make sense. keep the headers for a reminder */
 	default:

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: mbr.c,v 1.1 1998/04/19 23:31:05 julian Exp $
+ *	$Id: mbr.c,v 1.2 1998/04/22 10:25:09 julian Exp $
  */
 
 #include <sys/param.h>
@@ -825,10 +825,41 @@ static int
 mbr_upconfig(struct slice *slice, int cmd, caddr_t addr,
 			int flag, struct proc * p)
 {
+	int error;
+
 	RR;
 	switch (cmd) {
 	case SLCIOCRESET:
 		return (0);
+
+	case SLCIOCTRANSBAD:
+	{
+		struct private_data *pd;
+		struct subdev *sdp;
+		daddr_t blkno;
+		int part;
+
+		blkno = *(daddr_t *)addr;
+		pd = slice->private_up;
+		sdp = pd->subdevs;
+		for (part = 0; part < NDOSPART; part++, sdp++) {
+			if (!sdp->slice)
+				continue;
+			if (blkno < sdp->offset)
+				continue;
+			if (blkno >= sdp->offset +
+			    sdp->limit.slicesize / sdp->limit.blksize)
+				continue;
+			blkno -= sdp->offset;
+			slice = sdp->slice;
+			error = (*slice->handler_up->upconf)(slice, cmd,
+					(caddr_t)&blkno, flag, p);
+			if (!error)
+				*(daddr_t *)addr = blkno + sdp->offset;
+			return (error);
+		}
+		return (0);
+	}
 
 /* These don't really make sense. keep the headers for a reminder */
 	default:
