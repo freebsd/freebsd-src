@@ -1,0 +1,1014 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.663.2.5
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; リリースノート</title>
+
+  <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーション
+    プロジェクト</holder>
+  </copyright>
+
+  <abstract>
+    <para>この &os; &release.current; 用リリースノートには、
+<![ %include.historic; [
+      &release.prev; 以降の &os; ベースシステムに対する変更点の概要
+      が含まれています。
+]]>
+<![ %no.include.historic; [
+      &release.branch; 開発ブランチの &os; ベースシステムに対する最近の
+      変更点の概要が含まれています。
+]]>
+      &os; カーネルおよびユーザーランドにおける変更点、
+      前のリリース以降に発行されたセキュリティ勧告が書かれています。
+      また、アップグレードの際の注意点も載せてあります。</para>
+  </abstract>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>はじめに</title>
+
+  <para>この文書は &arch.print; ハードウェアプラットフォーム用
+    &os; &release.current; のリリースノートです。
+    これは &os; に最近追加、変更、削除された機能について解説したものであり、
+    &os; の前のバージョンからのアップグレードについても言及しています。</para>
+
+<![ %release.type.snapshot [
+
+  <para>このリリースノートが対応する &release.type; 配布物は、
+    &release.branch; 開発ブランチの &release.prev; から
+    将来の &release.next; の間に位置します。
+    このブランチのあらかじめコンパイルされたバイナリ &release.type;
+    配布物は <ulink url="&release.url;"></ulink> に公開されています。
+  </para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>この &os; &release.current; 配布物は &release.type; 配布物です。
+    この配布物はあらゆるミラーの <ulink url="&release.url;"></ulink>
+    で見つけることができます。
+    この (もしくは他の) &os; の &release.type; 配布物を取得する方法
+    は
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD ハンドブック</ulink>
+    の
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
+      付録 <quote>FreeBSD を取得する</quote></ulink>
+    を参照してください。</para>
+
+]]>
+
+  <para>&os; &release.type; の &release.branch;
+    系列をはじめて利用するユーザは、まず <quote>&os;
+    &release.current; 初期利用者の手引き</quote> をご覧ください。
+    この文書は (&os; 配布ファイルの一部として、
+    もしくは &os; ウェブサイト上の)
+    リリースノートと同じ場所に置かれており、
+    &os; 4-STABLE
+    開発ブランチをベースにしたリリースと比較して、
+    &os; &release.current;
+    を利用する際の利点と欠点について重要な情報が書かれています。</para>
+
+  <para>&os; をインストールする前に、必ずそのリリースの
+    errata 文書をお読みください。
+    errata 文書には、リリース工程の最後やリリース後に判明した
+    <quote>最新の</quote> 情報が書かれています。
+    通常これに含まれているのは、既知のバグ、セキュリティ勧告、
+    文書の訂正です。&os; &release.current;
+    の最新版 errata 文書は、&os; ウェブサイトから入手できます。</para>
+
+</sect1>
+
+<sect1 id="new">
+  <title>更新情報</title>
+
+  <para>この節では
+<![ %include.historic; [
+    &release.prev; 以降に新たに追加・変更された
+    ユーザに影響する機能について説明します。
+    一般的に、ここに書かれている変更点のうち &merged;
+    という印の付いていないものは &release.branch; に固有のものです。
+]]>
+<![ %no.include.historic; [
+    &release.prev; 以降に新たに追加・変更された
+    ユーザに影響する機能について説明します。
+    これには他のブランチ (&os; &release.prev.historic; 以降) へと
+    最近マージされた機能に加えて、&release.branch; ブランチ
+    に固有の項目も含まれます。
+]]>
+  </para>
+
+  <para>リリースノートには、
+    &release.prev.historic; 以降に出されたセキュリティ勧告、
+    新しいドライバやハードウェア対応、
+    新しいコマンドやオプション、重要なバグフィックスや寄贈ソフトウェア
+    のアップグレード、
+    ports/packages やリリースエンジニアリング工程に関する大きな変更点が
+    書かれています。リリースノートには、リリース間に加えられた
+    &os; の全変更点が書かれているわけではありません。
+    記載されている情報は、セキュリティ勧告、ユーザに影響のある変更、
+    既存の構造に対する大きな改良点が中心としたものです。</para>
+
+  <para>&os; に加えられた変更点のうち、
+    スペースの都合上ここに書かれていないものも多数存在します。
+    それらはたとえば文書の修正や改良、ごく影響の小さいバグの修正、
+    監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正、
+    ソースコードの整理などです。</para>
+
+  <sect2 id="security">
+    <title>セキュリティ勧告</title>
+
+    <para>&man.realpath.3; 関数の実装にあった
+      1 バイトのバッファオーバフローを引き起こすバグが修正されました。
+      この修正は &os; &release.prev; の公開前に行われました
+      (したがって、&release.prev; には影響がありません)
+      が、リリース文書には記載されていませんでした。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>カーネルに不正なシグナルの配送を可能にするバグが修正されました。
+      このバグは、カーネルパニックを引き起こしたり、
+      特定の状況ではカーネルメモリを不正に改変できる可能性があります。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>カーネルメモリの内容が漏洩する可能性がある
+      iBCS2 エミュレーションモジュールのバグが修正されました。
+      なお、このモジュールはデフォルトでは有効になっていません。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>OpenSSH</application> のバッファを管理する
+      コードにあったクラッシュを引き起こす可能性があるバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>sendmail</application>
+      のバッファオーバフロー問題が修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>ARP キャッシュコードにあった、カーネル資源を枯渇させ、
+      システムパニックを発生させる可能性があるバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>OpenSSH</application> の
+      PAM チャレンジ/レスポンス認証サブシステムにあったいくつかの誤りが修正されました。
+      これらのバグの影響には、さまざまなものが存在します。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para>カーネルメモリの内容が漏洩する可能性がある
+      &man.procfs.5; と &man.linprocfs.5; のバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>OpenSSL</application> にあった 4 種類の
+      セキュリティ上の弱点が修正されました。
+      このバグは、リモートの攻撃者が <application>OpenSSL</application>
+      を利用するアプリケーションをクラッシュさせたり、
+      アプリケーションの権限で任意のコードを実行できる可能性があります。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
+      をご覧ください。
+      &merged;</para>
+
+    <para><application>BIND</application>
+      において、サービス妨害の可能性があったバグが修正されました。
+      詳細はセキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>
+      をご覧ください。
+      &merged;</para>
+  </sect2>
+
+  <sect2 id="kernel">
+    <title>カーネルの変更点</title>
+
+    <para arch="i386,ia64,amd64">&man.acpi.4; ドライバの CPU
+      コンポーネントが、単一プロセッサシステム、SMP システムの両方で
+      C1 から C3 のアイドル状態に対応しました。これは、プロセッサが
+      アイドル状態の時に消費電力や発熱を抑制するための機能で、ACPI 2.0
+      に準拠したものです。また、スロットリング制御機能が ACPI 2.0
+      に対応するように更新されています。</para>
+
+    <para arch="i386">コンソールを初期化する際に、
+      AT キーボードが接続されていない時でも
+      &man.atkbd.4; が AT キーボードを登録してしまうバグが修正されました。
+      これにより、USB キーボードのみが接続されているシステムで
+      <command>kbdcontrol -k /dev/kbd1</command>
+      を実行する必要はなくなっています。
+      &merged;</para>
+
+    <para arch="i386">Cronyx-Sigma シリアルインタフェース用の
+      &man.cx.4; ドライバが大きく修正・改良されました。この更新で
+      ユーザランドの設定ユーティリティ cxconfig は、&man.sconfig.8;
+      というユーティリティに置き換えられました。</para>
+
+    <para arch="i386,pc98">DRM カーネルモジュールが
+      DRI CVS リポジトリの 2003 年 11 月 12 日時点のコードに更新されました。
+      この変更には、最近移植された SiS 300/305/540/630/730 ドライバの
+      統合と、SMPng のロック対応が含まれています。</para>
+
+    <para>新しく<quote>ダムコンソール</quote>ドライバ &man.dcons.4;
+      が追加されました。これは、ローカルとリモートコンソールに対応したもので、
+      &man.dcons.crom.4; ドライバを使うことで FireWire
+      経由でアクセスすることが可能です。
+      ユーザからは、&man.dconschat.8; ユーティリティを使うことで
+      &man.dcons.4; デバイスにアクセスすることができます。</para>
+
+    <para>マルチバイト文字集合の変換メソッドに対応する
+      <literal>LIBICONV</literal> カーネルオプションが追加されました。</para>
+
+    <para arch="sparc64">PCI バスの処理を改善する、Open Firmware の新しい
+      PCI フレームワークが導入されました。
+      <literal>OFW_NEWPCI</literal> カーネルオプションで制御することができます。
+      ユーザに見える変更の一つは、検出されたデバイスの数え方が
+      &solaris; に近くなったことです
+      (この変更により、同じ種類のデバイスが二つ以上あると
+      デバイスの番号付けが変わることがあります)。
+      なお、<filename>GENERIC</filename> カーネルでは
+      <literal>OFW_NEWPCI</literal> カーネルオプションが
+      デフォルトで有効になっています。</para>
+
+    <para arch="i386,pc98">&man.hifn.4; ドライバが
+      7955 および 7956 チップセットの対称暗号機能に対応しました。
+      &merged;</para>
+
+    <para arch="amd64,alpha,i386,ia64,pc98">&man.puc.4;
+      (PCI Universal Communications) ドライバが &man.ppc.4; ドライバを
+      経由したパラレルポートへの接続に対応しました。</para>
+
+    <para arch="i386,pc98">&man.safe.4; ドライバが追加されました。
+      これは SafeNet 1141 ベース、1741 ベースの
+      暗号処理アクセラレータに対応しています。
+      &merged;
+
+      <warning>
+	<para>このドライバは試験的なものと考えられています。
+	  使用には注意してください。</para>
+      </warning>
+
+      <note>
+	<para>公開鍵暗号機能には対応していません。</para>
+      </note></para>
+
+    <para arch="sparc64">&man.syscons.4; ドライバが
+      &os;/sparc64 に対応しました。システムコンソールを使ったインストールも
+      可能になっており、Creator3D グラフィックカードを搭載した
+      システム (たとえば Ultra 30) では、<application>XFree86</application>
+      が動作するようになっています。</para>
+
+    <para>新しく &man.uart.4; ドライバが追加されました。
+      これはさまざまな種類の UART (Universal Asynchronous Receiver/Transmitter)
+      デバイスに対応したもので、&man.sio.4; ドライバに似ていますが、
+      対応しているデバイスの数がより多くなっています。
+      このドライバは ia64 や sparc64 といった、
+      いくつかのアーキテクチャでシリアルポートに対応するために必要です。</para>
+
+    <para>カーネルにソフトウェアウォッチドッグ機能が実装されました。
+      詳しくは &man.watchdog.4; と
+      &man.watchdogd.8; をご覧ください。</para>
+
+    <!-- Above this line, sort kernel changes by manpage/keyword-->
+
+    <para>スワップページャの実装が刷新されました。
+      ユーザに見える変更点は、
+      I/O スループット向上のためにレイアウトポリシが
+      固定幅のストライピングから複数デバイスのラウンドロビン方式に変更されたこと、
+      コンパイル時に指定していたスワップデバイス数の上限がなくなったこと、
+      メモリオーバヘッドが減少したことなどがあります。</para>
+
+    <sect3 id="proc">
+      <title>プラットフォーム固有のハードウェアの対応状況</title>
+
+      <para arch="i386">割り込み経路の制御と SMP 対応を改良するため、
+	i386 マシン固有コードに大幅な変更がおこなわれました。
+	ユーザに影響する大きな変更点は、SMP カーネルが単一プロセッサシステムでも
+	動作するようになったこと、SMP 機能が <filename>GENERIC</filename>
+	カーネルで、デフォルトで有効になったことの 2 つです。
+	また、<literal>options APIC_IO</literal> カーネルオプションは
+	<literal>device apic</literal> に置き換えられています。</para>
+
+      <para arch="pc98">割り込み経路の制御と SMP 対応を改良するため、
+	i386 マシン固有コードに大幅な変更がおこなわれました。</para>
+
+      <para arch="i386">PAE 機能をある特定の量のメモリを搭載しているマシンで有効にした場合に、
+        カーネルがパニックさせる原因となる整数演算のオーバフローが修正されました。</para>
+
+      <para arch="i386,pc98">浮動小数点エミュレーションが削除されました。</para>
+
+      <para arch="i386,pc98">一部の Pentium 4 CPU、古い
+        Pentium Pro と Pentium II CPU における問題への対処が追加されました。
+	この不具合による症状は、そのほとんどが
+	メモリ破壊や原因不明のクラッシュとして現れていました。</para>
+
+      <para arch="i386">(HyperThreading 機能における) 論理 CPU  が、
+	BIOS 設定に応じて有効化されるようになりました
+	(従来はデフォルトで無効になっており、
+	明示的に有効にする必要がありました)。</para>
+    </sect3>
+
+    <sect3 id="boot">
+      <title>ブートローダの変更</title>
+
+      <para></para>
+
+       <!-- Above this line, order bootloader changes by keyword-->
+
+    </sect3>
+
+    <sect3 id="net-if">
+      <title>ネットワークインターフェイスの対応状況</title>
+
+      <para>&man.ath.4; および &man.ath.hal.4; ドライバが新しく追加されました。
+        これは、AR5210, AR5211, AR5212 ベースの
+        802.11a/b/g デバイスに対応しています。</para>
+
+      <para>&man.bfe.4; ドライバが新しく追加されました。
+	これは、Broadcom BCM4401 ベースの
+	Fast Ethernet アダプタに対応しています。</para>
+
+      <para>&man.bge.4; が Broadcom 5705 ベースの
+	Gigabit Ethernet NIC に対応しました。
+	&merged;</para>
+
+      <para>&man.bge.4; にあったバグが修正され、
+        10Mbps で正常に動作するようになりました。</para>
+
+      <para>&man.em.4; ドライバが、ドライバを再コンパイルしなくても、
+	割込みの遅延量を sysctl 変数を利用して調整できるようになりました。</para>
+
+      <para>&man.fatm.4; ドライバが新しく追加されました。これは
+       Fore/Marconi PCA200 ATM カードに対応した NATM と NgATM
+       用のドライバです。</para>
+
+      <para arch="i386,pc98,sparc64">&man.harp.4; ドライバが新しく追加されました。
+	これは HARP (Host ATM  Research  Platform)
+        用の仮想的な物理インタフェースドライバです。
+	システムのすべての NetGraph ATM インタフェースにアタッチし、
+	HARP スタックに、
+        各インタフェースに対応する物理インタフェースを提供します。</para>
+
+      <para arch="i386,pc98,sparc64">&man.hatm.4; ドライバが新しく追加されました。
+        これは、Fore/Marconi HE155, HE622 ATM カードに対応しています。</para>
+
+      <para arch="i386">hfa ドライバが、ファームウェアバージョン
+       4.1.12 に更新され、数個の CBR チャネルに対応しました。</para>
+
+      <para arch="i386,pc98,sparc64">&man.patm.4; ドライバが新しく追加されました。
+        これは、IDT77252 ベースの ATM インタフェースに対応しています。</para>
+
+      <para>&man.re.4; ドライバが追加されました。
+	これは、 RealTek RTL8139C+、RTL8169、RTL8169S、RTL8110S
+	PCI Fast Ethernet コントローラおよび
+	Gigabit Ethernet コントローラに対応しています。</para>
+
+      <para>&man.sk.4; ドライバが SK-9521 V2.0 と 3COM 3C940 ベースの
+	Gigabit Ethernet NIC に対応しました。
+        &merged;</para>
+
+      <para>新しく &man.utopia.4; ドライバが追加されました。
+	これは、多くの ATM-PHY チップで使われている
+	25MBit/sec, 155MBit/sec. 622MBit/sec の
+	ATM 物理層の設定、状態・統計の取得に対応したものです。</para>
+
+      <para>&man.wi.4; ドライバのサスペンド/レジューム対応が
+	デバイスを down 状態にしている時にも正しく動作するようになりました。
+	&merged;</para>
+
+      <para>&man.wi.4; ドライバが、Lucent 802.11b
+	インタフェースで正しく動作するようになりました。</para>
+
+      <para>802.11 対応レイヤが、
+        拡張や新機能の追加が可能なように書き直されました。</para>
+
+      <para>&man.xe.4; ドライバが CE2, CEM28, CEM33 カードに対応し、
+        マルチキャスト (&man.multicast.4;) データグラムに対応しました。また、
+        ドライバにあったいくつかのバグも修正されています。</para>
+
+      <para>数多くのネットワークドライバの割り込みハンドラが
+	MPSAFE になりました。MPSAFE とは、ジャイアントロック (Giant lock)
+	なしに動作可能という意味です。そのように変更されたドライバには、
+	&man.ath.4;, &man.em.4;, &man.ep.4;, &man.fxp.4;, &man.sn.4;,
+	&man.wi.4;, &man.sis.4; などがあります。</para>
+    </sect3>
+
+    <sect3 id="net-proto">
+      <title>ネットワークプロトコル</title>
+
+      <para>IPv4 プロトコル実装における <literal>ip_flow</literal> 機能が、
+	<literal>ip_fastforward</literal> 機能で置き換えられました。
+	<literal>ip_fastforward</literal> 機能は、
+	送出インタフェースに向かうパケットをキューや netisr
+	を使わずに処理することで、単純なパケットの回送を高速化しようというものです。
+	処理できないパケットがあった場合、通常の <literal>ip_input</literal>
+	ルーチンに渡されて処理されます。この機能は
+	sysctl 変数 <varname>net.inet.ip.fastforwarding</varname> を
+	<literal>1</literal> にすると有効になります。</para>
+
+      <para><literal>IP_ONESBCAST</literal> オプションが追加されました。
+	これを有効にすると、特定のネットワークインタフェースに送られる
+	すべての &man.ip.4; ブロードキャストを、
+        強制的にリミテッドブロードキャストアドレスに向けることが可能です。</para>
+
+      <para><literal>options IPFILTER</literal> 機能を有効にする際には、
+        <literal>options PFIL_HOOKS</literal>
+	の追加が必要になりました。</para>
+
+      <para>&man.ipfw.4; limit ルールの処理に含まれていた、
+        システムパニックを発生させる可能性のあるバグが修正されました。
+        &merged;</para>
+
+      <para>&man.ipfw.4; ルールに、カンマで区切られたアドレスリスト
+        (たとえば <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>)
+        が使用できるようになりました。また、可読性を向上させるため、
+        カンマの後ろに空白文字を入れることも可能になっています。
+        &merged;</para>
+
+      <para>&man.ipfw.4; ルールに、C++ 風のコメントが書けるようになりました。
+        各コメントはルールと同じ場所に格納され、
+        &man.ipfw.8; <literal>show</literal>
+        コマンドでルールと一緒に表示させることができます。
+        &merged;</para>
+
+      <para>&man.ipfw.8; を使って、ルールセット 31 にある
+        &man.ipfw.4; ルールが変更できるようになりました。
+        従来のルールセット 31 は、デフォルトのルールを格納するために
+        使われる読みとり専用のルールセットでしたが、
+        この変更により <command>ipfw delete set 31</command> という
+        コマンドを使って、ルールセット 31 を削除することができるようになっています。
+        ただし、このルールセットは <command>ipfw flush</command>
+        コマンドでは削除されません。つまり、このルールセットを使うと、
+        一種の <quote>永続ルール</quote> を記述することが可能になります。
+        詳細については、&man.ipfw.8; に書かれています。
+        &merged;</para>
+
+      <para>&man.ng.atmpif.4; NetGraph ノードタイプが追加されました。
+	これは HARP 物理インタフェースをエミュレートし、
+	ハードウェアが実在しなくても
+	HARP ATM スタックを動作させることができます。</para>
+
+      <para>カーネルが
+	Protocol Independent Multicast ルーティング (&man.pim.4;) に対応しました。
+	&merged;</para>
+
+      <para>&os; の Bluetooth プロトコルスタックが更新されました。</para>
+
+      <itemizedlist>
+        <listitem>
+          <para><application>libsdp</application> が
+            BSD 風のライセンスで再実装されました。これは、
+            Linux BlueZ に含まれるコードが GPL で配布されていたためです。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hccontrol.8; ユーティリティが
+            Read/Write_Page_Scan_Mode、Read/Write_Page_Scan_Period_Mode
+            という 4 個の新しいコマンドに対応しました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.hcsecd.8; デーモンが、
+            リンクキーをディスクに保存するようになりました。
+            毎回、デバイスを合わせる必要はなくなっています。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.ng.hci.4; および &man.ng.l2cap.4; カーネルモジュールに含まれていた、
+            解放されたデータ構造体にアクセスする可能性のあった
+            NetGraph タイムアウト問題が修正されました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&os; &release.prev; で構築できなかった
+            &man.ng.ubt.4; モジュールが修正されました。</para>
+        </listitem>
+
+        <listitem>
+          <para>&man.rfcomm.sppd.1; および &man.rfcomm.pppd.8; が、
+            サーバから SDP 経由で RFCOMM チャネルを取得できるようになりました。
+            RFCOMM チャネルを手動で設定すると、これらのユーティリティは SDP
+            経由での取得をおこないません。</para>
+        </listitem>
+
+        <listitem>
+          <para>Linux BlueZ SDP パッケージに含まれる sdptool ユーティリティに似た
+            &man.sdpcontrol.8; ユーティリティが追加されました。</para>
+        </listitem>
+      </itemizedlist>
+
+      <para>IPv6 および IPSec のコードおける数多くの修正と更新が、
+	KAME プロジェクトから統合されました。</para>
+
+      <para>IPv6 Advanced Sockets API 対応が RFC 2292 ではなく
+	RFC 3542 (別名 RFC 2292bis) に準拠しました。
+	この API を使っているアプリケーションも、それに応じて更新されています。</para>
+
+      <para>RFC 3484 に含まれているソースアドレス選択 (source address selection)
+	機能が追加されました。アドレス選択ポリシの設定には、
+	&man.ip6addrctl.8; ユーティリティが使用できます。</para>
+
+      <para>TCP 実装に <literal>tcp_hostcache</literal> 機能が追加されました。
+	これは過去の TCP セションのパラメータをキャッシュし、
+	以降に発生する同一の送信元アドレス・送信先アドレスの接続において、
+	より適切な初期値を与えることを可能にします。
+	経路表に格納されていた、同じような情報は削除されました。</para>
+   </sect3>
+
+    <sect3 id="disks">
+      <title>ディスク・記憶装置</title>
+
+      <para>&man.amr.4; ドライバがクラッシュダンプ機構に対応しました。&merged;</para>
+
+      <para>&man.ata.4; ドライバが大きく書き直されました。
+	大きな変更の一つは、&man.ata.4; ドライバの
+	ジャイアントカーネルロックが外されたことです。
+	従来、ATA のソフトウェア RAID システムは
+        <literal>device atadisk</literal> を指定するだけで
+	自動的に利用できるようになっていましたが、
+	現在は、明示的にカーネルコンフィグファイルに
+	<literal>device ataraid</literal> を追加する必要があります。</para>
+
+      <para>&man.ccd.4; が raw ディスクおよび、その他の
+        &man.geom.4; プロバイダに対して動作するようになりました。</para>
+
+      <para>&man.da.4; ドライバが、USB デバイスと FireWire デバイスに
+	6 バイトコマンドを送出しないようになりました。
+	現在、この回避策は (不要になったと思われるため) 無効にされています。
+	従来の動作に戻すには、<literal>options DA_OLD_QUIRKS</literal> を
+	カーネルコンフィグファイルに追加してください。
+	&merged;</para>
+
+      <para><filename>geom_apple</filename>,
+	<filename>geom_bde</filename>,
+	<filename>geom_bsd</filename>,
+	<filename>geom_gpt</filename>,
+	<filename>geom_mbr</filename>,
+	<filename>geom_pc98</filename>,
+	<filename>geom_sunlabel</filename>,
+	<filename>geom_vol_ffs</filename>
+        といった、さまざまある &man.geom.4; モジュールが、
+        カーネルモジュールとして読み込み可能になりました。</para>
+
+      <para>マルチパスストレージデバイスの検出や、アクセスパス選択を可能にする
+        <literal>GEOM_FOX</literal> モジュールが追加されました。</para>
+
+      <para arch="i386">松下 CR-562 および CR-563 CD ドライブに対応した
+        &man.matcd.4; ドライバが、再び使えるようになりました。</para>
+
+      <para>&man.twe.4; ドライバが 3ware 汎用 API に対応しました。
+	&merged;</para>
+    </sect3>
+
+    <sect3 id="fs">
+      <title>ファイルシステム</title>
+
+      <para>cd9660、msdosfs、ntfs, udf ファイルシステムが
+	マルチバイト文字変換に対応しました。
+	それぞれ、カーネルオプション
+	<literal>CD9660_ICONV</literal>,
+	<literal>MSDOSFS_ICONV</literal>,
+	<literal>NTFS_ICONV</literal>,
+	<literal>UDF_ICONV</literal>
+	をカーネルコンフィグファイルに指定してください。</para>
+
+      <para>smbfs が 15 文字の NetBIOS 名で正しく動作するのを阻害していた
+	いくつかの一つ違い (off-by-one) の誤りが修正されました。</para>
+
+      <para>テラバイトオーダのファイルシステムに対応するため、
+	<literal>statfs</literal>
+	構造体に含まれるいくつかのメンバ変数の大きさが、
+	32 ビットから 64 ビットに変更されました。
+
+      <itemizedlist>
+	<listitem>
+	  <para>この変更の前後でソースを使ってアップグレードする場合は、
+	    次のソースアップグレード手順に従って作業し、
+	    カーネルとユーザランドを同期させていなければなりません。</para>
+	</listitem>
+
+	<listitem>
+	  <para>&man.statfs.2; システムコールの後方互換バージョンは、
+	    <literal>COMPAT_FREEBSD4</literal>
+	    カーネルオプションが追加されている場合にのみ利用できます。
+	    このオプションを追加しておくことを強く推奨します。</para>
+	</listitem>
+
+        <listitem>
+	  <para>&man.statfs.2; を使っているプログラムは、
+	    再構築する必要があります。再構築が必要だと判明しているものには、
+	    <filename role="package">devel/gnomevfs2</filename>,
+	    <filename role="package">mail/postfix</filename>,
+	    <filename role="package">security/cfg</filename>
+	    などがあります。</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>ミシガン大学の Citi NFSv4 クライアント実装が統合され、
+	NFSv4 に対応しました。
+	詳細は、&man.mount.nfs4.8; および
+	&man.idmapd.8; のマニュアルページをご覧ください。</para>
+    </sect3>
+
+    <sect3 id="mm">
+      <title>マルチメディアへの対応状況</title>
+
+      <para></para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>ユーザランドの変更点</title>
+
+    <para arch="i386,pc98">i386 専用の a.out
+      コンパイラツールチェインが完全に削除されました。</para>
+
+    <para>&man.acpiconf.8; に、バッテリの状態を表示する
+      <option>-i</option> オプションが追加されました。</para>
+
+    <para>ACPI DSDT デバッガ &man.acpidb.8; が追加されました。</para>
+
+    <para>&man.arp.8; に、ARP エントリに対する操作の影響範囲を
+      特定のインタフェースに限定する <option>-i</option>
+      オプションが追加されました。このオプションは、
+      情報を表示させる操作にのみ適用されます。多くのインタフェースを
+      搭載したルータなどに有用なオプションです。
+      &merged;</para>
+
+    <para arch="i386,pc98">&man.asf.8;
+      ユーティリティが追加されました。
+      これは、KLD から &man.gdb.1;
+      デバッグ環境にシンボルファイルをロードするためのものです。</para>
+
+    <para>&man.atmconfig.8; が追加されました。
+      ATM ドライバと IP over ATM 機能の設定を行います。</para>
+
+    <para>&man.chroot.8; が、chroot 環境で使うユーザとプライマリグループ、
+      グループリストの設定に対応しました。
+      設定にはそれぞれ、<option>-u</option>, <option>-g</option>,
+      <option>-G</option> オプションを使います。
+      &merged;</para>
+
+    <para><filename>compat4x.i386</filename> ライブラリが、&os;
+      4.9-RELEASE に対応したものに更新されました。</para>
+
+    <para>&man.dhclient.8; が
+      ネットワークインタフェースの状態をポーリングするようになり、
+      動作中のインタフェースに対してのみ DHCP 要求を送出するようになりました。
+      ポーリング間隔は
+      <option>-i</option> オプションで制御することができます。</para>
+
+    <para>&man.fsck.8; で作成される <filename>lost+found</filename>
+      のデフォルトモードが、<literal>01777</literal> から
+      <literal>0700</literal> に変更されました。
+      &merged;</para>
+
+    <para>&man.fsck.ffs.8; および &man.newfs.8; が、
+      各ファイルシステムのルートディレクトリに
+      <groupname>operator</groupname> グループで
+      <filename>.snap</filename> ディレクトリを作成するようになりました。
+      &man.fsck.ffs.8;, &man.mksnap.ffs.8;, &man.dump.8; は、
+      それぞれのファイルシステムスナップショットをこのディレクトリに書き込みます。
+      この変更は、スナップショットの作成中にファイルシステムのルートディレクトリへの
+      アクセスをロックしないようにするため、また、<username>root</username>
+      以外のユーザがスナップショットを作成できるようにするためのものです。</para>
+
+    <para>&man.ffsinfo.8; ユーティリティが
+      UFS2 ファイルシステムを解釈するに更新され、
+      再びベースシステムに含まれるようになりました。</para>
+
+    <para>&man.iasl.8; ユーティリティが追加されました。
+      これは、ACPI Source Language (ASL) と ACPI Machine language (AML) の
+      コンパイラ・逆コンパイラです。</para>
+
+    <para>&man.ifconfig.8; に新しいオプション <option>staticarp</option>
+      が追加されました。これは、そのインタフェースから
+      ARP 要求の送出をしないよう指定するためのものです。</para>
+
+    <para>&man.initgroups.3; ライブラリ関数の修正により、
+      login プロセスがプロセスの権限として、そのユーザが所属する
+      <emphasis>すべての</emphasis> グループが設定できなかった場合、
+      ログインが失敗するようになりました。
+      現在のカーネルにおける制限は、16 グループです。
+      管理者は、ユーザが 16 グループ以上に所属していないことを
+      確認することをおすすめします。もし所属グループ数が 16 を超えていると、
+      ログインすることができなくなります。</para>
+
+    <para>&man.ipfw.8; <literal>list</literal> および <literal>show</literal>
+      コマンドで、ルール番号を範囲で指定することができるようになりました。
+      &merged;</para>
+
+    <para>&man.ipfw.8; に、実際の動作を行なわずにコマンドの文法だけをチェックする
+      <option>-n</option> フラグが追加されました。&merged;</para>
+
+    <para>&man.kdump.1; に、特定のプロセスに対応するイベントのみを追跡する
+      <option>-p</option> オプションと、ダンプ開始時点からの相対的な
+      時刻を表示する <option>-E</option> フラグが追加されました。</para>
+
+    <para>&man.last.1; に、出力の行数を制限する
+      <option>-n</option> フラグが追加されました。</para>
+
+    <para><filename>libalias</filename> ライブラリ、&man.natd.8; および
+      &man.ppp.8; が Cisco Skinny Station プロトコルに対応しました。
+      このプロトコルは Cisco Call Manager と通信するために
+      Cisco 製の IP 電話によって利用されています。
+      ただし現時点では、NAT ゲートウェイの後ろに Call Manager を置く構成には
+      対応していません。&merged;</para>
+
+    <para><filename>libcipher</filename> DES
+      暗号ライブラリが削除されました。
+      これらの機能はすべて <filename>libcrypto</filename> ライブラリで
+      提供されているもので、ベースシステムに含まれている
+      <filename>libcipher</filename> を使っていたプログラムは、
+      すべて <filename>libcrypto</filename>
+      を使うように変更されています。</para>
+
+    <para>カーネルに読み込み可能な文字集合変換テーブルの操作をおこなう
+      <filename>libkiconv</filename> ライブラリが追加されました。</para>
+
+    <para arch="ia64">&os;/ia64 の標準スレッドライブラリが
+      <filename>libkse</filename> になりました。</para>
+
+    <para arch="i386,ia64"><filename>libthr</filename> 1:1
+      スレッドライブラリがデフォルトで構築されるようになりました。</para>
+
+    <para><filename>libwrap</filename> および &man.tcpdchk.8; が、
+      デフォルトで <application>tcp_wrappers</application>
+      拡張文法に対応するようになりました。</para>
+
+    <para>&man.locale.1; ユーティリティが再実装され、POSIX
+      標準に準拠しました。新しく追加された <option>-m</option> オプションは
+      利用可能なすべてのコードセットを表示します。</para>
+
+    <para><option>-v</option> フラグを指定して &man.mount.8; ユーティリティを
+      実行した場合に、通常の情報に加えて各ファイルシステムのファイルシステム ID
+      が表示されるようになりました。このファイルシステム ID は、
+      &man.umount.8; ユーティリティでデバイスファイルや
+      マウントポイントのパス名の代わりに使用することができます。
+      この機能を使うと、同じデバイス名やマウントポイント名を使って
+      複数のファイルシステムをマウントしている場合に、
+      アンマウントするファイルシステムを正確に指定することが可能です。</para>
+
+    <para>&man.mount.cd9660.8;, &man.mount.ntfs.8;, &man.mount.udf.8; ユーティリティに
+      <option>-C</option> オプションが追加されました。
+      これは Unicode ファイル名の変換先になるローカルの文字集合を指定するもので、
+      マルチバイト文字集合を指定することが可能です。</para>
+
+    <para>&man.mount.msdosfs.8; ユーティリティに、
+      ファイルシステム中のディレクトリに対する最大のファイル許可属性を指定する
+      <option>-M</option> オプションが追加されました。
+      &merged;</para>
+
+    <para>&man.mount.msdosfs.8; ユーティリティに、
+      MS-DOS コードページを指定する <option>-D</option> オプションと
+      ローカル文字集合を指定する <option>-L</option> オプションが
+      追加されました。
+      これらのオプションはファイル名の文字集合変換に使われます。
+      これにより、<filename>/usr/libdata/msdosfs</filename> にあった
+      文字集合変換テーブルは廃止されました。</para>
+
+    <para>&man.mount.nwfs.8;, &man.mount.portalfs.8;,
+      &man.mount.smbfs.8; ユーティリティが
+      <filename>/sbin</filename> から <filename>/usr/sbin</filename>
+      に移動しました。</para>
+
+    <para>(以前はシェルスクリプトだった) &man.nologin.8; プログラムが
+      C 言語で再実装されました。</para>
+
+    <para>&man.rc.conf.5; にある、&man.ntpd.8; の起動オプションを設定する変数
+      <varname>ntpd_flags</varname> がデフォルトで
+      <option>-f /var/db/ntpd.drift</option> を含むようになりました。</para>
+
+    <para>ゲストログインに対応する
+      &man.pam.guest.8; PAM モジュールが追加されました。
+      これは pam_ftp(8) モジュールを置き換えるものです。</para>
+
+    <para>&man.ps.1; と &man.top.1; に、各プロセスのカーネルスレッドを表示する
+      <option>-H</option> オプションが追加されました。</para>
+
+    <para>&man.rarpd.8; にあった、
+      着脱可能な Ethernet NIC を認識しないというバグが修正されました。</para>
+
+    <para>&man.repquota.8; に、ユーザとグループを数値で表示する
+      <option>-n</option> フラグが追加されました。</para>
+
+    <para>&man.rtld.1; がデフォルトで
+      <quote>libmap</quote> 機能に対応するようになりました。
+      この変更により、コンパイル時の変数 <varname>WITH_LIBMAP</varname>
+      は不要となり、廃止されています。
+      詳細は &man.libmap.conf.5; をご覧ください。</para>
+
+    <para>&man.savecore.8; に、コアダンプファイルが存在するかどうかのみを
+      表示する <option>-C</option> フラグが追加されました。</para>
+
+    <para>カーネルの全部分が ELF フォーマットに移行したことにより
+      a.out フォーマットのツールチェインが使用されなくなったため、
+      不要になった symorder ユーティリティが削除されました。</para>
+
+    <para>&man.sysinstall.8; にインストール中に
+      代替 MTA を選択する機能が追加されました。
+      現在、<application>exim</application> と
+      <application>Postfix</application> を選択することができます。</para>
+
+    <para>&man.sysinstall.8; の <quote>セキュリティプロファイル</quote>
+      対応が廃止されました。同等の機能は、&man.sshd.8; の項目を個々に設定したり、
+      システムのセキュアレベルを設定することで実現できます。</para>
+
+    <para>&man.systat.1; が
+      IPv6 および ICMPv6 のトラフィックを表示するようになりました。
+      &merged;</para>
+
+    <para>&man.uname.1; に、カーネル識別子を表示する <option>-i</option>
+      フラグが追加されました。この識別子は、<varname>kern.ident</varname>
+      という sysctl 変数からも得ることが可能です。</para>
+
+    <para arch="i386,alpha,amd64,sparc64,pc98"><filename>/bin</filename> および
+      <filename>/sbin</filename> にあった多くのユーティリティは、
+      静的リンクされたクランチバイナリ (crunched binary) として
+      <filename>/rescue</filename> にも置かれるようになりました。
+      このディレクトリの目的は &man.sysinstall.8; でインストールされる
+      <filename>/stand</filename> ディレクトリと同じようなものですが、
+      <filename>/rescue</filename> にはより多くのプログラムが置かれ、
+      <literal>buildworld</literal>/<literal>installworld</literal> の操作で更新されるようになっています。
+      詳細は &man.rescue.8; をご覧ください。</para>
+
+    <para><filename>/bin</filename> ディレクトリおよび
+      <filename>/sbin</filename> ディレクトリにあるたくさんの実行ファイルが、
+      静的リンクではなく動的リンクで構築されるようになりました。
+      これにより、ベースシステムユーティリティが読み込み可能な
+      PAM モジュールや NSS モジュールに対応できるようになりました。
+      また、共有ライブラリを使用することで
+      ルートファイルシステムに必要とされるディスク容量が削減されました。
+      この機能は <literal>buildworld</literal> の際に
+      変数 <varname>NO_DYNAMICROOT</varname>
+      を定義して無効にすることができます。
+      また、システムの修正や復旧作業用に、静的にリンクされ、
+      crunch された実行ファイルが、
+      <filename>/rescue</filename> ディレクトリに置かれています。</para>
+  </sect2>
+
+  <sect2 id="contrib">
+    <title>寄贈ソフトウェア</title>
+
+    <para><application>ACPI-CA</application> コードが、
+      20030228 スナップショットから
+      20030619 スナップショットに更新されました。</para>
+
+    <para><application>amd</application> がバージョン 6.0.7
+      から、バージョン 6.0.9 に更新されました。</para>
+
+    <para>Bell Labs 由来の <application>awk</application> が
+      2003 年 3 月 14 日時点のスナップショットから
+      2003 年 7 月 29 日時点のスナップショットに更新されました。</para>
+
+    <para><application>BIND</application> がバージョン 8.3.4
+      から、バージョン 8.3.7 に更新されました。&merged;</para>
+
+    <para><application>GCC</application> が、バージョン 3.2.2
+      から、2003 年 11 月 6 日における 3.3.3 の
+      post release snapshot に更新されました。
+
+      <note>
+        <para><application>GCC</application> の前のバージョンは、
+	  最適化オプション <literal>-march=pentium4</literal>
+	  が指定されていると誤ったコードを生成してしまいます。
+	  今回の更新によりその問題は修正されたと考えられており、
+	  以前行っていた <literal>CPUTYPE</literal> が
+	  <literal>p4</literal> の場合の回避策は削除されました。</para>
+      </note></para>
+
+    <para><application>GNU Readline</application> がバージョン 4.2
+      から、バージョン 4.3 に更新されました。</para>
+
+    <para><application>GNU Sort</application> が textutils バージョン 2.0.21
+      から、バージョン 2.1 に更新されました。</para>
+
+    <para><application>Heimdal Kerberos</application> がバージョン
+      0.5.1 からバージョン 0.6 に更新されました。</para>
+
+    <para><application>ISC DHCP</application> クライアントがバージョン 3.0.1rc11
+      から、バージョン 3.0.1rc12 に更新されました。</para>
+
+    <para><application>lukemftp</application> がバージョン
+      1.6beta2 から、NetBSD の 2003 年 11 月 11
+      日時点のスナップショットに更新されました。</para>
+
+    <para><application>OpenPAM</application> が
+      <quote>Dogwood</quote> リリースに更新されました。</para>
+
+    <para><application>OpenSSL</application> がバージョン
+      0.9.7a から 0.9.7c に更新されました。
+      &merged;</para>
+
+    <para><application>sendmail</application> がバージョン
+      8.12.9 から 8.12.10 に更新されました。&merged;</para>
+
+    <para><application>texinfo</application> がバージョン 4.5
+      から、バージョン 4.6 に更新されました。
+      &merged;</para>
+
+    <para>タイムゾーンデータベースが <filename>tzdata2003a</filename> リリースから
+      <filename>tzdata2003d</filename> リリースに更新されました。&merged;</para>
+  </sect2>
+
+
+  <sect2 id="ports">
+    <title>Ports/Packages Collection インフラストラクチャ</title>
+
+    <para><makevar>GNU_CONFIGURE</makevar> が定義されている場合、
+      <filename><makevar>WRKDIR</makevar></filename> 以下にある
+      すべての <filename>config.guess</filename> および
+      <filename>config.sub</filename> ファイルが、
+      <filename><makevar>PORTSDIR</makevar>/Template</filename>
+      にあるものと置き換えられるようになりました。
+      これは、古いバージョンのスクリプトを含む ports が、ia64 や amd64
+      などの新しいアーキテクチャで構築できるようにするための措置です。</para>
+  </sect2>
+
+  <sect2 id="releng">
+    <title>リリースエンジニアリングと統合</title>
+
+    <para arch="alpha,amd64,ia64">インストール用のフロッピディスクイメージが
+      alpha、amd64 および ia64 アーキテクチャでは構築されなくなりました。</para>
+
+    <para><application>GNOME</application> の対応リリースが
+      2.2.1 から 2.4 に更新されました。
+      &merged;</para>
+
+    <para><application>KDE</application> の対応リリースが
+      3.1.2 から 3.1.4 に更新されました。
+      &merged;</para>
+  </sect2>
+
+  <sect2 id="doc">
+    <title>ドキュメンテーション</title>
+
+    <para>情報の重複をなくし、内容管理の効率化をはかるため、
+      ハードウェアノートにある、
+      特定デバイスの記述をシステムのマニュアルページに移動しました。
+      このリリースの時点で、この作業はまだ進行中です。</para>
+
+    <para>トルコ語 (tr_TR.ISO8859-9) 翻訳プロジェクトが開始しました。</para>
+  </sect2>
+</sect1>
+
+<sect1 id="upgrade">
+  <title>前のリリースの &os; からのアップグレード</title>
+
+  <para>現存する &os; システムからアップグレードするユーザは
+    <quote>&os; &release.current; 初期利用者のための手引き</quote>
+    を読むことを <emphasis>強く</emphasis> 推奨します。
+    この文書は、通常 <filename>EARLY.TXT</filename> という名前で
+    配布物に収録されており、
+    また、他のリリースノートが置かれているところにも一緒に置かれています。
+    この手引にはアップグレード時に注意を払うべき点に加え、
+    さらに重要な情報として、
+    &os; 4.<replaceable>X</replaceable> システムを使い続ける場合と
+    &os; 5.<replaceable>X</replaceable> へのアップグレードした場合の、
+    それぞれの利点についてのまとめが書かれています。</para>
+
+  <important>
+    <para>&os; のアップグレードは、もちろん、
+      <emphasis>すべての</emphasis> データと設定ファイルを
+      バックアップしてからのみ行うべきです。</para>
+  </important>
+</sect1>
+
+<!--
+     Local Variables:
+     mode: sgml
+     sgml-parent-document: ("../i386/article.sgml" "article" "articleinfo")
+     End:
+-->

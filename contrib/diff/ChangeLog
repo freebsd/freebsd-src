@@ -1,0 +1,1766 @@
+Sat Oct  1 05:24:19 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* Version 2.7 released.
+
+	* configure.in (AC_HEADER_SYS_WAIT): Add.
+	(AC_CHECK_HEADERS): Remove sys/wait.h.
+	(AC_CHECK_FUNCS): Add tmpnam.
+	* system.h (<sys/wait.h>, WEXITSTATUS): Use simpler scheme
+	now that HAVE_SYS_WAIT_H is not set on hosts
+	that are incompatible with Posix applications.
+
+	* util.c (dir_file_pathname): Use filename_lastdirchar not strrchr.
+	* sdiff.c (expand_name): Likewise.
+	(private_tempnam): Use tmpnam if HAVE_TMPNAM; this simplifies porting.
+	(exists, letters): Omit if HAVE_TMPNAM.
+
+	* diff3.c (read_diff): If STAT_BLOCKSIZE yields zero,
+	adjust it to a more reasonable value.
+
+Sat Sep 24 20:36:40 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* sdiff.c (exists, private_tempname): Adopt latest GNU libc algorithm.
+	(private_tempnam): Specialize for sdiff to avoid portability problems.
+
+Thu Sep 22 16:47:00 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (AC_ARG_PROGRAM): Added.
+	(AC_OUTPUT): Add [date > stamp-h].
+
+	* Makefile.in (DEFAULT_EDITOR_PROGRAM, DIFF_PROGRAM, LIBOBJS,
+	NULL_DEVICE, PR_PROGRAM, PROGRAMS): New variables.
+	(check, stamp-h.in, cmp.o, util.o): New targets.
+	(edit_program_name): New variable; replaces old binprefix method.
+	(install, uninstall): Use it.
+	(binprefix): Removed.
+	(distfiles): Add stamp-h.in.
+	(clean): Clean stamp-h.
+	(config.hin, config.h): Use time stamp files.
+	(cmp_o): Add $(LIBOBJS).
+	(install): Install info files from srcdir if they're not in `.'.
+
+	* cmp.c, io.c (word): Don't define if already defined.
+
+	* comp.c (main): Use setmode, not open(..., O_BINARY); this gets stdin.
+	Use NULL_DEVICE instead of "/dev/null".
+	(cmp): Use %lu instead of %ld when it is more likely to be right.
+
+	* diff.h (PR_FILE_NAME): Rename to PR_PROGRAM and move to Makefile.in,
+	util.c.
+
+	* diff3.c (main): Give proper diagnostic if too many labels were given.
+	(read_diff): Use SYSTEM_QUOTE_ARG.
+
+	* system.h: <string.h>: Include if HAVE_STRING_H, too.
+	<ctype.h>: Include here.  All includers changed.
+	(CTYPE_DOMAIN, ISDIGIT, ISPRINT, ISSPACE, ISUPPER): New macros that
+	work around common <ctype.h> problems.
+	(O_BINARY): Remove.
+	(SYSTEM_QUOTE_ARG): New macros.
+
+	* diff.c: Add comment.
+
+	* util.c (PR_PROGRAM): Moved here from diff.h.
+	(begin_output): Use SYSTEM_QUOTE_ARG.
+
+	* io.c (read_files): Set mode to binary before returning 1.
+
+	* sdiff.c (TMPDIR_ENV): New macro.
+	(DEFAULT_EDITOR_PROGRAM): Renamed from DEFAULT_EDITOR for consistency.
+	(expand_name): Change `isdir' to `is_dir' to avoid theoretical ctype
+	namespace contamination.
+	(main): Use SYSTEM_QUOTE_ARG.
+	(private_tempnam): Don't access "/tmp" directly; use PVT_tmpdir.
+
+Tue Sep 13 18:46:43 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (AC_FUNC_MEMCHR): Remove.  Autoconf didn't adopt this,
+	since we need not worry about an old experimental library
+	where memchr didn't work.
+	(AC_FUNC_MEMCMP): Not needed, since we only test for equality.
+	(AC_REPLACE_FUNCS): Add test for memchr.
+	(AC_CHECK_FUNCS): Check for memchr, not memcpy, since it'll be cached.
+	(AC_CHECK_HEADERS): Add string.h; regex.c uses on some old hosts.
+
+	* system.h (memcmp): Define in terms of bcmp.
+	Use HAVE_MEMCHR to test for all mem* routines.
+
+	* Makefile.in (srcs): Remove memcmp.c.
+	We use bcmp if memcmp doesn't work, since we only test for equality.
+
+Mon Sep 12 15:52:22 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in (AC_CONFIG_HEADER): Rename config.h.in to config.hin.
+	(AC_ISC_POSIX, AC_MINIX): Go back to these old names for Autoconf 2.
+	(AC_CHECK_HEADERS): Remove now-redundant check for <string.h>.
+	(AC_CHECK_FUNCS): Check for strchr.
+	(AC_FUNC_MEMCHR, AC_FUNC_MEMCMP, AC_CHECK_FUNCS): Use special-purpose
+	macros when suitable.
+	* memcmp.c: New file.
+	* Makefile.in (CPPFLAGS, DEFS, CFLAGS, LDFLAGS, prefix, exec_prefix):
+	Default to autoconf-specified strings.
+	(COMPILE): Use the defaults.
+	(srcs): Add memcmp.c.
+	(distfiles): Rename config.h.in->config.hin, install.sh->install-sh.
+	(Makefile, config.h, config.hin, config.status): Rework for
+	compatibility with Autoconf 2.
+	* io.c (binary_file_p): Assume non-broken memchr.
+	* memchr.c: Assume compiler understands void *; otherwise
+	we don't match GCC's internal declaration of memchr.
+	* system.h: Use more modern autoconf approach to standard C headers.
+	* version.c: Include <config.h>, not "config.h".
+
+	* diff.c, diff.h (ignore_some_line_changes):
+	New variable; replaces `length_varies'.
+	(line_end_char): Replace with '\n'; it wasn't being used consistently.
+
+	* io.c (find_and_hash_each_line): Fix inconsistencies with -b -w -i and
+	incomplete lines.  Put incomplete lines into their own bucket.
+	This means line_cmp no longer needs line length arguments,
+	and equivalence classes' line lengths no longer need to include \n.
+	Invoke line_cmp only if ignore_some_line_changes.
+	(prepare_text_end): -B no longer ignores missing newlines.
+	(read_files): Allocate another bucket for incomplete lines.
+
+	* util.c (line_cmp): Now takes just two arguments.  No longer
+	optimizes for common case of exact equality; the caller does that
+	optimization now.  The caller is changed accordingly.
+	Optimize for the common case of mostly equality.
+	Use isupper+tolower instead of islower+toupper, for consistency.
+
+	* waitpid.c (waitpid): Fix typo with internal scoping.
+
+Thu Sep  8 08:23:15 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in: Revamp for Autoconf 2.
+	* memchr.c, waitpid.c: New source files for substitute functions.
+	* Makefile.in (diff_o, diff3_o, sdiff_o): Add $(LIBOBJS).
+	(srcs): Add memchr.c, waitpid.c.
+	(distfiles): Add install.sh, memchr.c, waitpid.c, install.sh.
+	* system.h: Use Autoconf 2 style HAVE_DIRENT_H etc. macros for dirs.
+	* dir.c (dir_sort): Prefer NAMLEN (p) to strlen (p->d_name).
+	Change VOID_CLOSEDIR to CLOSEDIR_VOID for Autoconf 2.
+	* sdiff.c, util.c (memchr, waitpid): Remove; use new substitutes.
+	* diff3.c (read_diff): Use new waitpid substitute.
+
+	* cmp.c, diff.c, diff3.c, sdiff.c (check_stdout, try_help): New fns.
+	(usage): Just print more detailed usage message; let caller exit.
+	* diff.c (option_help): New variable.
+	(filetype): Add Posix.1b file types.
+
+Fri Sep  2 16:01:49 1994  Paul Eggert  <eggert@twinsun.com>
+
+	* configure.in: Switch to new autoconf names.  Add sys/file.h test.
+	* Makefile.in (distclean): Clean config.cache, config.log
+	(used by new autoconf).
+
+	* diff.c, diff3.c, (main), sdiff.c (trapsigs): If we'll have children,
+	make sure SIGCHLD isn't ignored.
+
+	* diff3.c (DIFF_CHUNK_SIZE): Removed.  Get size from STAT_BLOCKSIZE.
+	(INT_STRLEN_BOUND): New macro.
+
+	* ifdef.c (format_group, groups_letter_value):
+	Use * instead of [] in prototypes.
+
+	* system.h: Include <sys/file.h> only if HAVE_SYS_FILE_H.
+	(S_IXGRP, S_IXOTH, S_IXUSR): Remove unused macros.
+
+	* util.c (begin_output): Check fdopen result.
+
+	The following changes simplify porting to non-Posix environments.
+	* cmp.c, diff.c, diff3.c, sdiff.c, (main): Call initialize_main first.
+	* diff.c (binary_I_O): New variable for --binary option.
+	(main, usage, compare_files): Support --binary option.
+	(compare_files): Use filename_lastdirchar to find last
+	directory char in a file name.
+	* cmp.c (main), diff.c (compare_files), dir.c (compare_names,
+	diff_dirs): Use filename_cmp to compare file names.
+	Use same_file to determine whether two files are the same.
+	* context.c (print_context_label): Check whether ctime yields 0.
+	* diff3.c (read_diff), sdiff.c (cleanup, main, waitpid),
+	util.c (begin_output): Use popen+pclose if !HAVE_FORK.
+	* io.c (sip): If HAVE_SETMODE, test for binary files in O_BINARY mode.
+	* sdiff.c (ck_fdopen): Function removed.
+	(edit): Use system if !HAVE_FORK.
+	(execdiff): Now assumes caller has pushed all args, plus trailing 0.
+	All callers changed.
+	(private_tempnam): Try TMP if TMPDIR isn't defined.
+	Fit temporary filenames into 8.3 limit.
+	* system.h (STAT_BLOCKSIZE): Don't define if already defined.
+	(min, max): Undef if already defined.
+	(filename_cmp, filename_lastdirchar, HAVE_FORK, HAVE_SETMODE,
+	initialize_main O_BINARY, same_file): New macros.
+
+Fri Jun 17 11:23:53 1994  David J. MacKenzie  (djm@geech.gnu.ai.mit.edu)
+
+	* Makefile.in (info, dvi, diff.dvi): New targets.
+	(clean): Remove TeX output files.
+
+Fri Jun 17 05:37:52 1994  Paul Eggert  (eggert@twinsun.com)
+
+	* cmp.c, io.c (word): Change from typedef to #define, to avoid
+	collision with Unicos 8.0 <sys/types.h>, which also typedefs `word'.
+
+Thu Apr 15 00:53:01 1994  Paul Eggert  (eggert@twinsun.com)
+
+	* diff3.c (scan_diff_line), util.c (print_number_range): Don't
+	rely on promotion to make the old-style parameter type agree
+	with the prototype parameter type; this doesn't work on
+	Apollos running bsd4.3.
+
+Mon Jan  3 02:05:51 1994  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (LDFLAGS): Remove -g.  Change all link commands
+	to use both $(CFLAGS) and $(LDFLAGS).
+
+Mon Dec 13 12:23:27 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* system.h: Don't assume dirent.h exists just because
+	_POSIX_VERSION is defined.
+
+Fri Dec  3 18:39:39 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main): allow -pu.
+
+Tue Nov 23 03:51:08 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (distclean): Remove config.h.
+
+Wed Nov 10 00:28:27 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Version 2.6 released.
+
+	* analyze.c (too_expensive): New variable, for heuristic to
+	limit the worst-case cost to O(N**1.5 log N) at the price of
+	producing suboptimal output for large inputs with many differences.
+	(diff_2_files): Initialize it.
+	(struct partition): New type.
+	(SNAKE_LIMIT): New macro; merely documents already-used number 20.
+	(diag): New `minimal' arg; all callers changed.  Put results into
+	struct partition.  Apply `too_expensive' heuristic.  Tune.
+	(compareseq): New `minimal' arg; all callers changed.  Tune.
+	(shift_boundaries): Improve heuristic to also coalesce adjacent runs
+	of changes more often.
+
+	* diff.c (long_options, main, usage): Add `--help'.
+	(main): Send version number to stdout, not stderr.
+	(usage): Send usage to stdout, not stderr.
+	(compare_files): Initialize `inf' properly.
+
+	* io.c (word): Change to `int'; it makes a big difference on x86.
+	(sip, slurp): Put off allocating room to hold the whole file until we
+	have to read the whole file.  This wins if the file turns out
+	to be binary.
+
+	* util.c (xmalloc, xrealloc): "virtual memory" -> "memory"
+	(primes): Omit large primes if INT_MAX is small.
+
+	* sdiff.c (usage): Send usage to stdout, not stderr.
+	(long_options, main, usage): Add `--help'.
+	(main): Send version number to stdout, not stderr.  Exit afterwards.
+
+	* diff3.c (usage): Send usage to stdout, not stderr.
+	(long_options, main, usage): Add `--help'.
+	(read_diff): Detect integer overflow in buffer size calculations.
+
+	* cmp.c (word): New type.  All uses of `long' for
+	word-at-a-time comparisons changed to `word'.
+	(long_options, main, usage): Add `--help'.
+	(usage): Send usage to stdout, not stderr.
+	(main): Add `-v'.  Send version number to stdout, not stderr.
+
+	* configure.in (AC_HAVE_HEADERS): Add unistd.h; remove AC_UNISTD_H.
+
+Mon Sep 27 07:20:24 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (add_exclude_file): Cast memchr to (char *)
+	to suppress bogus warnings on some nonstandard hosts.
+
+	* Makefile.in (cmp): Add version.o.
+
+	* analyze.c (diff_2_files): Work around memcmp bug with size=0.
+
+	* cmp.c (main, usage, version_string): Add --version option.
+
+	* system.h (malloc, realloc): Declare only if !HAVE_STDLIB_H.
+	(memchr): Declare only if !HAVE_MEMCHR.  These changes are
+	needed to keep some nonstandard hosts happy.
+
+	* util.c (memchr): Make first arg char const *
+	to match standard.
+	(xmalloc, xrealloc): Cast malloc, realloc
+	to (VOID *) to suppress bogus warnings on some nonstandard hosts.
+
+	* diff3.c (xmalloc, xrealloc): Cast malloc, realloc
+	to (VOID *) to suppress bogus warnings on some nonstandard hosts.
+
+	* sdiff.c (xmalloc, xrealloc): Cast malloc, realloc
+	to (VOID *) to suppress bogus warnings on some nonstandard hosts.
+	(lf_copy, lf_skip, lf_snarf): Cast memchr to (char *)
+	to suppress bogus warnings on some nonstandard hosts.
+	(memchr): Make first arg char const *
+	to match standard.
+
+Mon Sep 27 00:23:37 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Version 2.5 released.
+
+	* analyze.c (diff_2_files): Work around memcmp bug with size=0.
+
+	* cmp.c (main, usage, version_string): Add --version option.
+	* Makefile.in (cmp): Add version.o.
+
+	* diff.c (add_exclude_file): Cast memchr to (char *)
+	to suppress bogus warnings on some nonstandard hosts.
+	* sdiff.c (lf_copy, lf_skip, lf_snarf): Likewise.
+
+	* diff3.c, sdiff.c, util.c (xmalloc, xrealloc): Cast malloc, realloc
+	to (VOID *) to suppress bogus warnings on some nonstandard hosts.
+
+	* sdiff.c, util.c (memchr): Make first arg char const *
+	to match standard.
+
+	* system.h (malloc, realloc): Declare only if !HAVE_STDLIB_H.
+	(memchr): Declare only if !HAVE_MEMCHR.  These changes are
+	needed to keep some nonstandard hosts happy.
+
+	* xmalloc.c: Include <sys/types.h> always; some nonstandard hosts
+	need it for size_t even if STDC_HEADERS.
+
+Sat Sep 18 01:33:07 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* configure.in (AC_STAT_MACROS_BROKEN): Add.
+	* system.h (S_IS{BLK,CHR,DIR,FIFO,REG,SOCK}): Fix defns if
+	STAT_MACROS_BROKEN.
+
+	* Makefile.in (diff3, sdiff, cmp): Do not link $(ALLOCA).
+
+	* analyze.c (discard_confusing_lines): Make defn static, like decl.
+	* sdiff.c (xmalloc): Likewise.
+
+	* ifdef.c (format_group): Ensure isdigit argument isn't < 0.
+
+	* side.c (print_half_line): Use isprint, since some hosts lack isgraph.
+	* util.c (output_1_line): Likewise.  Ensure its argument isn't < 0.
+	(xmalloc, xrealloc): Remove needless casts.
+
+	* system.h (volatile, const):
+	Define these before including any system headers,
+	so that they're used consistently in all system includes.
+	(getenv, malloc, realloc): Declare even if HAVE_STDLIB_H, since some
+	<stdlib.h>s don't declare them.
+	(memchr): Likewise for <string.h>.
+
+	* cmp.c, diff3.c, diff.h, sdiff.c: Include "system.h" first.
+	* diff.c: Remove redundant "system.h" inclusion.
+
+	* diff3.c (xmalloc): Now static.
+	(xmalloc, realloc): Remove needless casts.
+	(READNUM): Ensure isdigit argument isn't negative.
+
+Wed Sep 14 07:14:15 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Version 2.4 released.
+
+	* ifdef.c (scan_char_literal): New function, for new %c'x' and
+	%c'\ooo' format specs.
+	(format_group, print_ifdef_lines): Use it.  Remove %0 format spec.
+
+	* cmp.c (cmp): Don't try to read past end of file; this doesn't
+	work on ttys.
+
+	* system.h, version.c: #include <config.h>, not "config.h", to allow
+	configuring in a separate directory when the source directory has
+	already been configured.
+	* Makefile.in (COMPILE): New defn, with proper -I options so that
+	`#include <config.h>' works.
+	(.c.o, diff3.o, sdiff.o): Use it.
+
+Mon Sep 13 06:45:43 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main, longopts): Add --line-format=FORMAT option.
+	(specify_format): Args no longer const pointers.  All callers changed.
+
+	* ifdef.c: Add support for %?c, %(A=B?T:E), PRINTF_SPECn formats.
+	(struct group): New struct.
+	(print_ifdef_lines): Use it to simplify argument passing.
+	Remove the convention that last arg -1 signifies that the lines
+	from file 2 are the same as the lines from file 1; this
+	convention no longer works, now that line numbers might be
+	printed out, since the line numbers may differ.
+	Add first FILE * argument to output to.  All callers changed.
+	Use a faster test for the single-fwrite optimization.
+	(format_group, scan_printf_spec, groups_letter_value): New functions.
+
+	* diff.h (group_format, line_format): No longer const pointers.
+	(format_ifdef): 1st arg is no longer const pointer.
+
+	* configure.in: Configure HAVE_LIMITS_H, HAVE_STDLIB_H.
+	* system.h <limits.h>, <stdlib.h>, <string.h>:
+	Include only if HAVE_LIMITS_H etc.
+
+	* system.h (memcmp, memcpy, strchr, strrchr, struct dirent): Prefer
+	these standard names to the traditional names (bcmp, bcpy, index,
+	rindex, struct direct).  All callers changed.
+
+	* system.h (PARAMS, VOID):
+	Define earlier so that malloc decl can use VOID.
+	(STAT_BLOCKSIZE): Simplify ersatz defn; just use 8K.
+
+Fri Sep  3 00:21:02 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (compare_files): Two files with the same name must be
+	the same file; avoid a needless `stat' in that case.
+
+Fri Aug 27 06:59:03 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Pervasive changes for portability to 64-bit hosts:
+	Add prototypes to function declarations.
+	Use size_t, not int, when needed.
+
+	* Other pervasive changes:
+	Use `const' more often.
+	Use STD{IN,OUT,ERR}_FILENO instead of [012].
+	Use 0, not NULL, for portability to broken hosts.
+
+	* Makefile.in: (srcs, objs, distfiles, cmp): New files cmpbuf.[ch].
+	(distfiles): New files config.h.in, mkinstalldirs.
+	(.c.o): Add -DHAVE_CONFIG_H.
+
+	* analyze.c: (diag): Pacify `gcc -Wall' with a useless assignment.
+	(diff_2_files): Use l.c.m., not max, of files' buffer sizes.
+
+	* cmp.c: Make globals static when possible.
+
+	(file): Now a 2-element array; replaces `file1' and `file2'.
+	(file_desc, buffer): Likewise, for file[12]_desc and buf[12].
+	(main): Likewise, for stat_buf[12].  Index these variables with `i'.
+
+	(ignore_initial): New var.
+	(long_options): Now const.  Add `--ignore-initial'.
+	(usage): Sort options and add `--ignore-initial'.
+	(main, cmp): Add `--ignore-initial' support.
+
+	(main): `cmp - -' now succeeds.
+	When comparing standard input to a file, and using a shortcut (e.g.
+	looking at file sizes or inode numbers), take the lseek offset into
+	account before deciding whether the files are identical.
+	Avoid mentioning `dev_t', `ino_t' for portability to nonstandard hosts.
+	Use l.c.m. of files' buffer sizes, not 8 * 1024.
+	ferror (stdout) does not imply errno has a useful value.
+	If 2nd file is "-", treat it first, in case stdin is closed.
+
+	(cmp): Always compute `char_number', `smaller' for speed and simplicity.
+	Say `cmp: EOF on input', not `/usr/gnu/bin/cmp: EOF on input',
+	as per Posix.2.
+
+	(block_compare_and_count): Increment line_number argument.
+	Remove end_char argument; it's always '\n'.  All callers changed.
+	Do not assume sizeof(long) == 4; this isn't true on some 64-bit hosts.
+	(block_compare): Minimize differences with block_compare_and_count.
+
+	(block_read): Coalesce `bp += nread's.
+
+	(printc): Remove `FILE *' arg; output to stdout.  All callers changed.
+
+	* configure.in: Configure HAVE_SIGACTION, RETSIGTYPE, HAVE_VPRINTF.
+	Configure into config.h.
+
+	* context.c (print_context_label):
+	Standard input's st_mtime is no longer a special case
+	here, since `compare_files' now sets it to the current time.
+
+	* diff.c (usage): Sort options.
+	(filetype): New function.
+	(compare_files): Set stdin's st_mtime to be the current time.
+	Leave its name "-" instead of changing it to "Standard Input";
+	to test whether a file is stdin, we must compare its name to "-" instead
+	of its desc to 0, since if it's closed other file descs may be 0.
+	When comparing standard input to a file, and using a shortcut (e.g.
+	looking at file sizes or inode numbers), take the lseek offset into
+	account before deciding whether the files are identical.
+	Pretend that nonexistent files have the same filetype as existing files.
+	Rename `errorcount' to `failed', since it's boolean.
+	In directory comparisons, if a file is neither a regular file nor a
+	directory, just print its type and the other file's type.
+
+	* diff.h (Is_space, textchar): Remove.
+	(struct msg, msg_chain, msg_chain_end): Move to util.c.
+	(VOID): Move to system.h.
+	(line_cmp, version_string, change_letter, print_number_range,
+	find_change): New decls.
+
+	* diff.texi:
+	whitespace -> white space.  It now stands for whatever isspace yields.
+	Add --ignore-initial.
+
+	* diff3.c (VOID): Move to system.h.
+	(version_string): Now char[].
+	(usage): Sort options.
+	(process_diff): Pacify `gcc -Wall' with a useless assignment.
+	(read_diff): pid is of type pid_t, not int.  Use waitpid if available.
+	(output_diff3): Simplify test for `\ No newline at end of file' message.
+
+	* dir.c (struct dirdata): Rename `files' to `names' to avoid confusion
+	with external struct file_data `files'.
+
+	* io.c (line_cmp): Move declaration to diff.h.
+	(textchar): Remove.
+	(find_and_hash_each_line): Use locale's definition of white space
+	instead of using one hardwired defn for -b and another for -w.
+
+	* normal.c (change_letter, print_number_range, find_change):
+	Move decls to diff.h.
+	(print_normal_hunk): Now static.
+
+	* sdiff.c (SEEK_SET): Move to system.h.
+	(version_string): Now char[], not char*.
+	(private_tempnam): Remove hardcoded limit on temporary file names.
+	(exiterr, perror_fatal, main): When exiting because of a signal,
+	exit with that signal's status.
+	(lf_refill, main, skip_white, edit, interact): Check for signal.
+	(ignore_SIGINT): Renamed from `ignore_signals'.
+	(NUM_SIGS, initial_handler): New macros.
+	(initial_action, signal_received, sigs_trapped): New vars.
+	(catchsig, trapsigs): Use sigaction if possible, since this closes the
+	windows of vulnerability that `signal' has.  Use RETSIGTYPE not void.
+	When a signal comes in, just set a global variable; this is safer.
+	(checksigs, untrapsig): New functions.
+	(edit): Pacify `gcc -Wall' with a useless assignment.
+	Respond to each empty line with help, not to every other empty line.
+	(private_tempnam): Remove hardcoded limit on temporary file name length.
+	Don't assume sizeof (pid_t) <= sizeof (int).
+
+	* system.h: (S_IXOTH, S_IXGRP, S_IXUSR,
+	SEEK_SET, SEEK_CUR,
+	STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO):
+	New macros, if system doesn't define them.
+	(volatile): Don't define if already defined.
+	(PARAMS): New macro.
+	(VOID): Move here from diff.h.
+
+	* util.c (struct msg, msg_chain, msg_chain_end): Moved here from diff.h.
+	(message5): New function.
+	(pr_pid): New var.
+	(begin_output): Allocate `name' more precisely.
+	Put child pid into pr_pid, so that we can wait for it later.
+	Don't check execl's return value, since any return must be an error.
+	(finish_output): Detect and report output errors.
+	Use waitpid if available.  Check pr exit status.
+	(line_cmp): Use locale's definition of white space
+	instead of using one hardwired defn for -b and another for -w.
+	(analyze_cmp): Avoid double negation with `! nontrivial'.
+	Pacify `gcc -Wall' be rewriting for-loop into do-while-loop.
+	(dir_file_pathname): New function.
+
+	* version.c (version_string): Now char[], not char*.
+
+Thu Jul 29 20:44:30 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (config.status): Run config.status --recheck, not
+	configure, to get the right args passed.
+
+Thu Jul 22 10:46:30 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (dist): Replace `if [ ! TEST ]; then ACTION; fi'
+	with `[ TEST ] || ACTION || exit' so that the containing for-loop exits
+	with proper status for `make'.
+
+Thu Jul  8 19:47:22 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in (installdirs): New target.
+	(install): Use it.
+	(Makefile, config.status, configure): New targets.
+
+Sat Jun  5 23:10:40 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (dist): Switch from .z to .gz.
+
+Wed May 26 17:16:02 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main): Cast args to compare_files, for traditional C.
+	* side.c (print_sdiff_common_lines_print_sdiff_hunk): Likewise.
+	* analyze.c, diff3.c, sdiff.c, util.c: Don't assume NULL is defined
+	properly.
+
+Tue May 25 14:54:05 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* analyze.c (diff_2_files):  With -q, do not report that files differ
+	if all their differences are ignored.
+	(briefly_report): New function.
+	* diff.h (ignore_some_changes): New variable.
+	* diff.c (compare_files): Don't use the file size shortcut if
+	ignore_some_changes is nonzero, since the file size may differ
+	merely due to ignored changes.
+	(main):  Set ignore_some_changes if we might ignore some changes.
+	Remove unsystematic assignment of 0 to static vars.
+	* io.c (read_files): New argument PRETEND_BINARY says whether to
+	pretend the files are binary.
+
+	* diff3.c (tab_align_flag): New variable, for new -T option.
+	(main, usage, output_diff3): Add support for -T.
+
+Sun May 23 15:25:29 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* dir.c (dir_sort): Always init `data' to avoid GCC warning.
+
+Sat May 22 15:35:02 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Makefile.in (dist): Change name of package from diff to diffutils.
+	Don't bother to build .Z dist; .z suffices.
+
+Fri May 21 16:35:22 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c: Include "system.h" to get memchr declaration.
+	* system.h (memchr): Declare if !HAVE_MEMCHR, not if
+	!HAVE_MEMCHR && !STDC_HEADERS.
+
+Wed May 19 17:43:55 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* Version 2.3 released.
+
+Fri Apr 23 17:18:44 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* io.c (find_identical_ends): Do not discard the last HORIZON_LINES
+	lines of the prefix, or the first HORIZON_LINES lines of the suffix.
+	* diff.c (main, longopts, usage): Add --horizon-lines option.
+	* diff3.c (main, process_diff, read_diff): Invoke second diff
+	with --horizon-lines determined by the first diff.
+	* diff.h, diff3.c (horizon_lines): New variable.
+
+Mon Mar 22 16:16:00 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* system.h [HAVE_STRING_H || STDC_HEADERS] (bcopy, bcmp, bzero):
+	Don't define if already defined.
+
+Fri Mar  5 00:20:16 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* diff.c (main): Use NULL in arg to compare_files.
+
+Thu Feb 25 15:26:01 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* system.h: Declare memchr #if !HAVE_MEMCHR && !STDC_HEADERS,
+	not #if !HAVE_MEMCHR || !STDC_HEADERS.
+
+Mon Feb 22 15:04:46 1993  Richard Stallman  (rms@geech.gnu.ai.mit.edu)
+
+	* io.c (find_identical_ends): Move complicated arg outside GUESS_LINES.
+
+Mon Feb 22 12:56:12 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* Makefile.in (.c.o): Add -I$(srcdir); put $(CFLAGS) last before $<.
+
+Sat Feb 20 19:18:56 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* io.c (binary_file_p): Return zero if file size is zero.
+
+Fri Feb 19 17:31:32 1993  Roland McGrath  (roland@geech.gnu.ai.mit.edu)
+
+	* Version 2.2 released.
+
+	* system.h [HAVE_STRING_H || STDC_HEADERS] (index, rindex): Don't
+	define if already defined.
+
+Wed Feb 17 17:08:00 1993  Roland McGrath  (roland@churchy.gnu.ai.mit.edu)
+
+	* Makefile.in (srcs): Remove limits.h.
+
+Thu Feb 11 03:36:00 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* diff3.c (xmalloc): No longer static.
+
+	* sdiff.c (edit): Allocate buf dynamically.
+
+	* dir.c (dir_sort): Handle VOID_CLOSEDIR.
+
+Wed Feb 10 00:15:54 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* limits.h: File deleted (should never have been there).
+
+Tue Feb  9 03:53:22 1993  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* Makefile.in (.c.o, diff3.o, sdiff.o): Put $(CFLAGS) last.
+
+Wed Feb  3 15:42:10 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* system.h: Don't #define const; let configure do it.
+
+Mon Feb  1 02:13:23 1993  Paul Eggert  (eggert@hal.gnu.ai.mit.edu)
+
+	* Version 2.1 released.
+
+	* Makefile.in (dist): Survive ln failures.  Create .tar.z
+	(gzipped tar) file as well as .tar.Z (compressed tar) file.
+
+Fri Jan  8 22:31:41 1993  Paul Eggert  (eggert@twinsun.com)
+
+	* side.c (print_half_line): When the input position falls
+	outside the column, do not output a tab even if the output
+	position still falls within the column.
+
+Mon Dec 21 13:54:36 1992  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* Makefile.in (.c.o): Add -I.
+
+Fri Dec 18 14:08:20 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* configure.in: Add HAVE_FCNTL_H, since system.h uses it.
+
+Tue Nov 24 10:06:48 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in: Note change from USG to HAVE_STRING_H.
+
+Mon Nov 23 18:44:00 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* io.c (find_and_hash_each_line): When running out of lines,
+	double the number of allocated lines, instead of just doubling
+	that number minus the prefix lines.  This is more likely to
+	avoid the need for further memory allocation.
+
+Wed Nov 18 20:40:28 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* dir.c (dir_sort): Plug memory leak: space holding directory
+	contents was not being reclaimed.  Get directory size from
+	struct file_data for initial guess at memory needed.
+	Detect errors when reading and closing directory.
+	(diff_dirs): Pass struct file_data to dir_sort.  Finish plugging leak.
+	* diff.c (compare_files): Pass struct file_data to diff_dirs.
+
+	* io.c (find_and_hash_each_line): Don't assume alloc_lines is
+	nonzero when allocating more lines.
+
+Thu Nov 12 16:02:18 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main): Add `-U lines' as an alias for `--unified=lines'.
+
+	* diff3.c (usage): Add third --label option in example.
+
+	* util.c (analyze_hunk): Fix test for ignoring blank lines.
+
+	* configure.in, system.h: Avoid USG; use HAVE_TIME_H etc. instead.
+
+Mon Nov  9 05:13:25 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff3.c (main, usage): Add -A or --show-all.
+	-m now defaults to -A, not -E.  Allow up to three -L options.
+	(output_diff3_edscript, output_diff3_merge):
+	Remove spurious differences between these two functions.
+	Output ||||||| for -A.  Distinguish between conflicts and overlaps.
+	(dotlines, undotlines): New functions that output `Ns', not `N,Ns'.
+	(output_diff3_edscript, output_diff3_merge): Use them.
+
+	* io.c (find_identical_ends): shift_boundaries needs an extra
+	identical line at the end, not at the beginning.
+
+	* sdiff.c (edit): execvp wants char **, not const char **.
+
+Mon Oct 19 04:39:32 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* context.c (print_context_script, find_function): Context
+	line numbers start with - file->prefix_lines, not 0.
+
+	* io.c (binary_file_p): Undo last change; it was a library bug.
+
+Sun Oct 18 00:17:29 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* io.c (binary_file_p): Consider empty file as non-binary.
+
+Mon Oct  5 05:18:46 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff3.c (main, make_3way_diff, using_to_diff3_block): Don't
+	report bogus differences (for one of -mexEX3) just because the
+	file0-file1 diffs don't line up with the file0-file2 diffs.
+	(This is entirely possible since we don't use diff's -n
+	option.)  Always compare file1 to file2, so that diff3 sees
+	those changes directly.  Typically, file2 is now the common
+	file, not file0.
+	(output_diff3_merge): The input file is file 0, not the common file.
+
+	(FC, FO): New macros; they replace FILE1, FILE0 for two-way diffs,
+	to distinguish them from three-way diffs.
+
+	* diff3.c (using_to_diff3_block): Fold repeated code into loops.
+
+	* diff3.c (make_3way_diff, process_diff): Have the *_end
+	variable point to the next field to be changed, not to the last
+	object allocated; this saves an if-then-else.
+
+	* diff3.c (process_diff): Use D_NUMLINES instead of its definiens.
+
+	* diff3.c: Make fns and vars static unless they must be external.
+
+Wed Sep 30 09:21:59 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* analyze.c (diff_2_files): OUTPUT_IFDEF is now robust.
+	* diff.h (ROBUST_OUTPUT_STYLE): Likewise.
+	(default_line_format): Remove.  All refs removed.
+
+	* ifdef.c (print_ifdef_lines): Add %L.  Optimize %l\n even if user
+	specified it, as opposed to its being the default.
+
+Tue Sep 29 19:01:28 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (longopts, main): --{old,new,unchanged,changed}--group-format
+	are new options, so that -D is no longer overloaded.  Set
+	no_diff_means_no_output if --unchanged-{line,group}-format allows it.
+	* diff.h (enum line_class): New type.
+	(group_format, line_format): Use it to regularize option flags.
+	All refs changed.
+
+	* ifdef.c (format_ifdef, print_ifdef_lines): %n is no longer a format.
+
+Mon Sep 28 04:51:42 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main, usage): Replace --line-prefix with the more general
+	--{old,new,unchanged}-line-format options.
+	* ifdef.c (format_ifdef, print_ifdef_lines): Likewise.
+	* diff.h (line_format): Renamed from line_prefix.  All refs changed.
+	* diff.h, ifdef.c (default_line_format): New variable.
+	* util.c (output_1_line): New function.
+	(print_1_line): Use it.
+
+	* ifdef.c: (format_ifdef, print_ifdef_lines): Add %0 format.
+
+Sun Sep 27 05:38:13 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main): Add -E or --line-prefix option.  Add -D'=xxx'
+	for common lines.  Change default -D< format from copy of -D>
+	format to to -D<%<; similarly for default -D> format.
+	* diff.h (common_format, line_prefix): New variables.
+	* ifdef.c (format_ifdef): New function.
+	(print_ifdef_script, print_ifdef_hunk, print_ifdef_lines):
+	Use it for -D'=xxx', -E.
+
+	* context.c (find_hunk): Glue together two non-ignorable changes that
+	are exactly CONTEXT * 2 lines apart.  This shortens output, removes
+	a behavioral discontinuity at CONTEXT = 0, and is more compatible
+	with traditional diff.
+
+	* io.c (find_identical_ends): Slurp stdin at most once.
+
+	* util.c (print_line_line): line_flag is const char *.
+
+Thu Sep 24 15:18:07 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* ifdef.c (print_ifdef_lines): New function, which fwrites a sequence
+	of lines all at once for speed.
+	(print_ifdef_script, print_ifdef_hunk): Use it.
+
+Thu Sep 24 05:54:14 1992  Paul Eggert  (eggert@twinsun.com)
+
+	* diff.c (main): Support new -D options for if-then-else formats.
+	(specify_format): New function.
+	* diff.h (ifndef_format, ifdef_format, ifnelse_format): New variables.
+	* ifdef.c (print_ifdef_hunk): Use the new variables instead of
+	a hardwired format.
+
+	* side.c (print_1sdiff_line): Represent incomplete lines on output.
+	(print_sdiff_script): Likewise.  Don't print 'q' at end,
+	since that doesn't work with incomplete lines.
+	* sdiff.c (interact): Don't assume diff output ends with 'q' line.
+	* diff.h (ROBUST_OUTPUT_STYLE): OUTPUT_SDIFF is now robust.
+
+	* sdiff.c (lf_copy, lf_snarf): Use memchr instead of index,
+	to avoid dumping core when files contain null characters.
+	(memchr): New function (if memchr is missing).
+
+	* io.c (sip): New arg SKIP_TEST to skip test for binary file.
+	(read_files): Don't bother testing second file if first is binary.
+
+Thu Sep 17 21:17:49 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* system.h [!USG && !_POSIX_VERSION]: Protect from conflicting
+	prototype for wait in sys/wait.h.
+
+Wed Sep 16 12:32:18 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* Makefile.in: Include binprefix in -DDIFF_PROGRAM.
+
+Tue Sep 15 14:27:25 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* Version 2.0.
+
+Sat Sep 12 01:31:19 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.c, diff.h, system.h [!HAVE_MEMCHR]: Don't use void *
+	and const when declaring memchr replacement.  Declare memchr
+	if !STDC_HEADERS && !USG.
+
+Thu Sep 10 15:17:32 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* Makefile.in (uninstall): New target.
+
+	* diff.c (excluded_filename): Use fnmatch, not wildmat.
+	(usage): Document -x, -X, --exclude, --exclude-from.
+	Makefile.in: Use fnmatch.c, not wildmat.c.
+
+Sun Sep  6 23:46:25 1992  Paul Eggert (eggert@twinsun.com)
+
+	* configure.in: Add HAVE_MEMCHR.
+	* diff.h, util.c: Use it instead of MEMCHR_MISSING.
+
+Sun Sep  6 07:25:49 1992  Paul Eggert (eggert@twinsun.com)
+
+	* diff.h: (struct line_def): Replace this 3-word struct with char *.
+	This uses less memory, particularly for large files with short lines.
+	(struct file_data): New member linbuf_base counts number of lines
+	in common prefix that are not recorded in linbuf;
+	this uses less memory if files are identical or differ only at end.
+	New member buffered_lines counts possibly differing lines.
+	New member valid_lines counts valid data.
+	New member alloc_lines - linbuf_base replaces old linbufsize.
+	linbuf[0] now always points at first differing line.
+	Remove unused members ltran, suffix_lines.
+	Add const where appropriate.
+	(Is_space): New macro, for consistent definition of `white space'.
+	(excluded_filename, memchr, sip, slurp): New declarations.
+	* ed.c (print_ed_hunk): Adjust to diff.h's struct changes.
+	* context.c (pr_context_hunk): Likewise.
+	* ifdef.c (print_ifdef_script): Likewise.
+	* side.c (print_sdiff_script, print_half_line): Likewise.
+	* util.c (analyze_hunk, line_cmp, print_1_line): Likewise.
+
+	* analyze.c (shift_boundaries): Remove unneeded variable `end' and
+	unnecessary comparisons of `preceding' and `other_preceding' against 0.
+	(diff_2_files): When comparing files byte-by-byte for equality,
+	don't slurp them all in at once; just compare them a buffer at a time.
+	This can win big if they differ early on.
+	Move some code to compare_files to enable this change.
+	Use only one buffer for stdin with `diff - -'.
+	(discard_confusing_lines, diff_2_files): Coalesce malloc/free calls.
+	(build_script): Remove obsolete OUTPUT_RCS code.
+
+	* diff.c (add_exclude, add_exclude_file, excluded_filename): New fns.
+	(main): Use them for the new --exclude and --exclude-from options.
+	(compare_files): Don't open a file unless it must be read.
+	Treat `diff file file' and `diff file dir' similarly.
+	Move some code here from diff_2_files to enable this.
+	Simplify file vs dir warning.
+
+	* dir.c (dir_sort): Support new --exclude* options.
+
+	* io.c (struct equivclass): Put hash code and line length here instead
+	of struct line_def, so that they can be shared.
+	(find_and_hash_each_line): Compute equivalence class as we go,
+	instead of doing it in a separate pass; this thrashes memory less.
+	Make buckets realloc-able, since we can't preallocate them.
+	Record one more line start than there are lines, so that we can compute
+	any line's length by subtracting its start from the next line's,
+	instead of storing the length explicitly.  This saves memory.
+	Move prefix-handling code to find_identical_ends;
+	this wins with large prefixes.
+	Use Is_space, not is_space, for consistent treatment of white space.
+	(prepare_text_end): New function.
+	(find_identical_ends): Move slurping here, so it's only done when
+	needed.  Work even if the buffers are the same (because of `diff - -').
+	Compare prefixes a word at a time for speed.
+	(find_equiv_class): Delete; now done by find_and_hash_each_line.
+	(read_files): Don't slurp unless needed.
+	find_equiv_class's work is now folded into find_and_hash_each_line.
+	Don't copy stdin buffer if `diff - -'.
+	Check for running out of primes.
+	(sip, slurp): Split first part of `slurp' into another function `sip'.
+	`sip' sets things up and perhaps reads the first ST_BLKSIZE buffer to
+	see whether the file is binary; `slurp' now just finishes the job.
+	This lets diff_2_files compare binary files lazily.
+	Allocate a one-word sentinel to allow word-at-a-time prefix comparison.
+	Count prefix lines only if needed, only count the first file's prefix.
+	Don't bother to count suffix lines; it's never needed.
+	Set up linbuf[0] to point at first differing line.
+	(binary_file_p): Change test for binary files:
+	if it has a null byte in its first buffer, it's binary.
+	(primes): Add more primes.
+
+	* util.c (line_cmp): Use bcmp for speed.
+	Use Is_space, not is_space, for consistent treatment of white space.
+	(translate_line_number): Internal line numbers now count from 0
+	starting after the prefix.
+	(memchr): New function (if memchr is missing).
+
+	* Makefile.in: Document HAVE_ST_BLKSIZE.  Link with wildmat.o.
+	* system.h (STAT_BLOCKSIZE): New macro based on HAVE_ST_BLKSIZE.
+	* configure.in: Add AC_ST_BLKSIZE.
+	* wildmat.c: New file.
+
+Fri Sep  4 01:28:51 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* sdiff.c (xmalloc): Renamed from ck_malloc.  Callers changed.
+
+Thu Sep  3 15:28:59 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* diff.h: Don't declare free, index, rindex.
+
+Tue Aug 11 22:18:06 1992  John Gilmore  (gnu at cygnus.com)
+
+	* io.c (binary_file_p):  Use heuristic to avoid declaring info
+	files as binary files.  Allow about 1.5% non-printing
+	characters (in info's case, ^_).
+
+Tue Jul  7 01:09:26 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* diff.h: Replace function_regexp and ignore_regexp with lists
+	of compiled regexps.
+	* analyze.c, context.c, util.c: Test whether the lists, not
+	the old variables, are empty.
+	* util.c (analyze_hunk), context.c (find_function): Compare
+	lines with the lists of regexps.
+	* diff.c (add_regexp): New function.
+	(main): Use it.
+
+	* diff3: Add -v --version option.
+	* Makefile.in: Link with version.o.
+
+	* system.h: New file.
+	* diff.h, cmp.c, diff3.c, sdiff.c: Use it.
+
+	* diff.h, diff3.c: Include string.h or strings.h, as appropriate.
+	Declare malloc and realloc.
+
+	* diff3.c (perror_with_exit): Include program name in message.
+
+	* diff3.c: Lowercase error messages for GNU standards.
+
+	* sdiff.c [USG || STDC_HEADERS]: Define bcopy in terms of memcpy.
+
+	* sdiff.c: Use the version number from version.c.
+	* Makefile.in: Link with version.o.
+
+	* cmp.c error.c xmalloc.c: New files from textutils.
+	* Makefile.in: Add rules for them.
+
+	* diff.c (longopts): --unidirectional-new-file is like -P, not -N.
+	Rename --file-label to --label (leave old name, but undocumented).
+
+	* sdiff.c, diff.c (usage): Condense messages and fix some errors.
+
+	* diff3.c (main, usage): Add long-named options.
+
+Fri Jul  3 14:31:18 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* diff.h, diff3.c, sdiff.c: Change FOO_MISSING macros to HAVE_FOO.
+
+Thu Jun 25 16:59:47 1992  David J. MacKenzie  (djm@apple-gunkies.gnu.ai.mit.edu)
+
+	* diff.c: --reversed-ed -> --forward-ed.
+
+Wed Feb 26 12:17:32 1992  Paul Eggert  (eggert@yata.uucp)
+
+	* analyze.c, diff.c, diff.h, io.c: For -y, compare even if same file.
+
+Fri Feb 14 22:46:38 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* io.c, diff3.c, analyze.c: Add extra parentheses.
+
+Sun Feb  9 00:22:42 1992  Richard Stallman  (rms@mole.gnu.ai.mit.edu)
+
+	* diff.h (unidirectional_new_file_flag): New variable.
+	* diff.c (main): Set that for -P.
+	(compare_files): Support -P, somewhat like -N.
+	(longopts): Support long name for -P.
+
+Sat Jan  4 20:10:34 1992  Paul Eggert (eggert at yata.uucp)
+
+	* Makefile.in: Distribute diff.info-* too.
+
+	* README, sdiff.c: version number now matches version.c.
+
+	* configure: Fix and document vfork test.
+
+	* ifdef.c: Don't dump core if `diff -Dx f f'.
+
+Mon Dec 23 23:36:08 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* diff.h, diff3.c, sdiff.c: Change POSIX ifdefs to
+	HAVE_UNISTD_H and _POSIX_VERSION.
+
+Wed Dec 18 17:00:31 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (srcs): Add sdiff.c.
+	(tapefiles): Add diff.texi and diff.info.
+
+	* diff.h, diff3.c, sdiff.c: Use HAVE_VFORK_H instead of
+	VFORK_HEADER and VFORK_WORKS.
+
+Tue Dec 17 00:02:59 1991  Paul Eggert  (eggert at yata.uucp)
+
+	* Makefile.in (all): Add diff.info, sdiff.
+
+	* configure, diff.c, sdiff.c:
+	Prefix long options with `--', not `+'.
+	* diff.c: Regularize option names.
+
+	* configure: Fix check for vfork.
+	* configure, diff.c, diff.h, diff3.c, sdiff.c:
+	Use Posix definitions when possible.
+
+	* context.c: Align context with tab if -T is given.  Tune.
+	* diff.c, diff.h, side.c: Calculate column widths so that tabs line up.
+	* io.c: Add distinction between white space and printing chars.
+	* side.c: Don't expand tabs unless -t is given.
+	* side.c, util.c: Tab expansion now knows about '\b', '\f', '\r', '\v'.
+	* util.c: -w skips all white space.  Remove lint.  Tune.
+
+	* sdiff.c: Support many more diff options, e.g. `-', `sdiff file dir'.
+	Ignore interrupts while the subsidiary editor is in control.
+	Clean up temporary file and kill subsidiary diff if interrupted.
+	Ensure subsidiary diff doesn't ignore SIGPIPE.
+	Don't get confused while waiting for two subprocesses.
+	Don't let buffers overflow.  Check for I/O errors.
+	Convert to GNU style.  Tune.
+
+	* sdiff.c, util.c: Don't lose errno.
+	Don't confuse sdiff with messages like `Binary files differ'.
+	* sdiff.c, side.c: Don't assume that common lines are identical.
+	Simplify --sdiff-merge-assist format.
+
+Mon Sep 16 16:42:01 1991  Tom Lord  (lord at churchy.gnu.ai.mit.edu)
+
+	* Makefile.in, sdiff.c: introduced sdiff front end to diff.
+
+	* Makefile.in, analyze.c, diff.c, diff.h, io.c, side.c: Added
+	sdiff-style output format to diff.
+
+Mon Aug 26 16:44:55 1991  David J. MacKenzie  (djm at pogo.gnu.ai.mit.edu)
+
+	* Makefile.in, configure: Only put $< in Makefile if using VPATH,
+	because older makes don't understand it.
+
+Fri Aug  2 12:22:30 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* configure: Create config.status.  Remove it and Makefile if
+	interrupted while creating them.
+
+Thu Aug  1 22:24:31 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* configure: Check for +srcdir etc. arg and look for
+	Makefile.in in that directory.  Set VPATH if srcdir is not `.'.
+	* Makefile.in: Get rid of $(archpfx).
+
+Tue Jul 30 21:28:44 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* Makefile.in (prefix): Renamed from DESTDIR.
+
+Wed Jul 24 23:08:56 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* diff.h, diff3.c: Rearrange ifdefs to use POSIX,
+	STDC_HEADERS, VFORK_MISSING, DIRENT.  This way it works on
+	more systems that aren't pure USG or BSD.
+	Don't not define const if __GNUC__ is defined -- that would
+	break with -traditional.
+	* configure: Check for those features.
+
+Wed Jul 10 01:39:23 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* configure, Makefile.in: $(INSTALLPROG) -> $(INSTALL).
+
+Sat Jul  6 16:39:04 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* Replace Makefile with configure and Makefile.in.
+	Update README with current compilation instructions.
+
+Sat Jul  6 14:03:29 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* util.c (setup_output): Just save the args for later use.
+	(begin_output): Do the real work, with the values that were saved.
+	It's safe to call begin_output more than once.
+	Print the special headers for context format here.
+	* analyze.c (diff_2_files): Don't print special headers here.
+	* context.c (pr_context_hunk, pr_unidiff_hunk): Call begin_output.
+	* ed.c (print_ed_hunk, print_forward_ed_hunk, print_rcs_hunk):
+	* normal.c (print_normal_hunk): Likewise.
+	* ifdef.c (print_ifdef_hunk): Likewise.
+	* util.c (finish_output): Don't die if begin_output was not called.
+
+Thu Jun 20 23:10:01 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* Makefile: Add TAGS, distclean, and realclean targets.
+	Set SHELL.
+
+Tue Apr 30 13:54:36 1991  Richard Stallman  (rms at mole.gnu.ai.mit.edu)
+
+	* diff.h (TRUE, FALSE): Undefine these before defining.
+
+Thu Mar 14 18:27:27 1991  Richard Stallman  (rms@mole.ai.mit.edu)
+
+	* Makefile (objs): Include $(ALLOCA).
+
+Sat Mar  9 22:34:03 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.h: Include regex.h.
+
+Thu Feb 28 18:59:53 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* Makefile (diff3): Link with GNU getopt.
+
+Sat Feb 23 12:49:43 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* io.c (find_equiv_class): Make hash code unsigned before mod.
+
+	* diff.h (files): Add EXTERN.
+
+Sun Jan 13 21:33:01 1991  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c: +print option renamed +paginate.  Remove +all-text.
+
+Mon Jan  7 06:18:01 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* Makefile (dist): New target, replacing diff.tar and
+	diff.tar.Z, to encode version number in distribution directory
+	and tar file names.
+
+Sun Jan  6 18:42:23 1991  Michael I Bushnell  (mib at geech.ai.mit.edu)
+
+	* Version 1.15 released.
+
+	* version.c: Updated from 1.15 alpha to 1.15
+
+	* context.c (print_context_number_range,
+	print_unidiff_number_range): Don't print N,M when N=M, print
+	just N instead.
+
+	* README: Updated for version 1.15.
+	Makefile: Updated for version 1.15.
+
+	* diff3.c (main): Don't get confused if one of the arguments
+	is a directory.
+
+	* diff.c (compare_files): Don't get confused if comparing
+	standard input to a directory; print error instead.
+
+	* analyze.c (diff_2_files), context.c (print_context_header,
+	print_context_script), diff.c (main), diff.h (enum
+	output_style): Tread unidiff as an output style in its own
+	right.  This also generates an error when both -u and -c are
+	given.
+
+	* diff.c (main): Better error messages when regexps are bad.
+
+	* diff.c (compare_files): Don't assume stdin is opened.
+
+	* diff3.c (read_diff): Don't assume things about the order of
+	descriptor assignment and closes.
+
+	* util.c (setup_output): Don't assume things about the order
+	of descriptor assignment and closes.
+
+	* diff.c (compare_files): Set a flag so that closes don't
+	happen more than once.
+
+	* diff.c (main): Don't just flush stdout, do a close.  That
+	way on broken systems we can still get errors.
+
+Mon Dec 24 16:24:17 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c (usage): Use = for args of long options.
+
+Mon Dec 17 18:19:20 1990  Michael I Bushnell  (mib at geech.ai.mit.edu)
+
+	* context.c (print_context_label): Labels were interchanged badly.
+
+	* context.c (pr_unidiff_hunk): Changes to deal with files
+	ending in incomplete lines.
+	* util.c (print_1_line): Other half of the changes.
+
+Mon Dec  3 14:23:55 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c (longopts, usage): unidiff => unified.
+
+Wed Nov  7 17:13:08 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* analyze.c (diff_2_files): No warnings about newlines for -D.
+
+	* diff.c (pr_unidiff_hunk): Remove ref to output_patch_flag.
+
+Tue Oct 23 23:19:18 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c (compare_files): For -D, compare even args are same file.
+	* analyze.c (diff_2_files): Likewise.
+	Also, output even if files have no differences.
+
+	* analyze.c (diff_2_files): Print missing newline messages last.
+	Return 2 if a newline is missing.
+	Print them even if files end with identical text.
+
+Mon Oct 22 19:40:09 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c (usage): Return 2.
+
+Wed Oct 10 20:54:04 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.c (longopts): Add +new-files.
+
+Sun Sep 23 22:49:29 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* context.c (print_context_script): Handle unidiff_flag.
+	(print_context_header): Likewise.
+	(print_unidiff_number_range, pr_unidiff_hunk): New functions.
+	* diff.c (longopts): Add element for +unidiff.
+	(main): Handle +unidiff and -u.
+	(usage): Mention them.
+
+Wed Sep  5 16:33:22 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* io.c (find_and_hash_each_line): Deal with missing final newline
+	after buffering necessary context lines.
+
+Sat Sep  1 16:32:32 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* io.c (find_identical_ends): ROBUST_OUTPUT_FORMAT test was backward.
+
+Thu Aug 23 17:17:20 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff3.c (WIFEXITED): Undef it if WEXITSTATUS is not defined.
+	* context.c (find_function): Don't try to return values.
+
+Wed Aug 22 11:54:39 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* diff.h (O_RDONLY): Define if not defined.
+
+Tue Aug 21 13:49:26 1990  Richard Stallman  (rms at mole.ai.mit.edu)
+
+	* Handle -L option.
+	* context.c (print_context_label): New function.
+	(print_context_header): Use that.
+	* diff.c (main): Recognize the option.
+	(usage): Updated.
+	* diff.h (file_label): New variable.
+	* diff3.c (main): Recognize -L instead of -t.
+
+	* diff3.c (main): Support -m without other option.
+
+	* diff3.c (WEXITSTATUS, WIFEXITED): Define whenever not defined.
+
+	* diff3.c (bcopy, index, rindex): Delete definitions; not used.
+	(D_LINENUM, D_LINELEN): Likewise.
+	(struct diff_block): lengths includes newlines.
+	(struct diff3_block): Likewise.
+	(always_text, merge): New variables.
+	(read_diff): Return address of end, not size read.  Calls changed.
+	Pass -a to diff if given to diff3.
+	current_chunk_size now an int.  Detect error in `pipe'.
+	Check for incomplete line of output here.
+	(scan_diff_line): Don't make scan_ptr + 2 before knowing it is valid.
+	No need to check validity of diff output here.
+	Include newline in length of line.
+	(main): Compute rev_mapping here.  Handle -a and -m.
+	Error message if excess -t operands.  Error for incompatible options.
+	Error if `-' given more than once.
+	Fix error storing in tag_strings.
+	(output_diff3): REV_MAPPING is now an arg.  Call changed.
+	Change syntax of "missing newline" message.
+	Expect length of line to include newline.
+	(output_diff3_edscript): Return just 0 or 1.
+	REV_MAPPING is now an arg.  Call changed.
+	(output_diff3_merge): New function.
+	(process_diff): Better error message for bad diff format.
+	(fatal, perror_with_exit): Return status 2.
+
+	* analyze.c (diff_2_files): Report missing newline in either
+	or both files, if not robust output style.
+
+	* util.c (setup_output): Detect error from pipe.
+	No need to close stdin.
+
+	* util.c (print_1_line): Change format of missing-newline msg.
+	Change if statements to switch.
+
+	* io.c (slurp): Don't mention differences in final newline if -B.
+
+	* io.c (binary_file_p): Use ISO char set as criterion, not ASCII.
+
+	* io.c (find_identical_ends): Increase value of BEG0 by 1.
+	Other changes in backwards scan to avoid decrementing pointers
+	before start of array, and set LINES properly.
+
+	* diff.h (ROBUST_OUTPUT_STYLE): New macro.
+	* io.c (find_identical_ends, find_and_hash_each_line): Use that macro.
+
+	* diff.h (dup2): Don't define if XENIX.
+
+	* diff.c (main): Check for write error at end.
+
+	* context.c (find_function): Don't return a value.
+	Use argument FILE rather than global files.
+
+	* analyze.c: Add external function declarations.
+	* analyze.c (build_script): Turn off explicit check for final newline.
+
+	* analyze.c (discard_confusing_lines): Make integers unsigned.
+
+Tue Jul 31 21:37:16 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (find_and_hash_each_line): Correct the criterion
+	for leaving out the newline from the end of the line.
+
+Tue May 29 21:28:16 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* dir.c (diff_dirs): Free things only if nonzero.
+
+Mon Apr 16 18:31:05 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.h (NDIR_IN_SYS): New macro controls location of ndir.h.
+
+	* diff3.c (xmalloc, xrealloc): Don't die if size == 0 returns 0.
+
+Sun Mar 25 15:58:42 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* analyze.c (discard_confusing_lines):
+	`many' wasn't being used; use it.
+	Cancelling provisionals near start of run must handle already
+	cancelled provisionals.
+	Cancelling subruns of provisionals was cancelling last nonprovisional.
+
+Sat Mar 24 14:02:51 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* analyze.c (discard_confusing_lines):
+	Threshold for line occurring many times scales by square root
+	of total lines.
+	Within each run, cancel any long subrun of provisionals.
+	Don't update `provisional' while cancelling provisionals.
+	In big outer loop, handle provisional and nonprovisional separately.
+
+Thu Mar 22 16:35:33 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* analyze.c (discard_confusing_lines):
+	The first loops to discard provisionals from ends failed to step.
+	In second such loops, keep discarding all consecutive provisionals.
+	Increase threshold for stopping discarding, and also check for
+	consecutive nondiscardables as separate threshold.
+
+Fri Mar 16 00:33:08 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (read_diff): Pass -- as first arg to diff.
+
+	* diff3.c: Include wait.h or define equivalent macros.
+	(read_diff): Don't use stdio printing error in the inferior.
+	Remember the pid and wait for it.  Report failing status.
+	Report failure of vfork.
+
+Sun Mar 11 17:10:32 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (main): Accept -t options and pass to output_diff3_edscript.
+	(usage): Mention -t.
+	(read_diff): Use vfork.
+	(vfork): Don't use it on Sparc.
+
+	* diff.h (vfork): Don't use it on Sparc.
+
+Tue Mar  6 22:37:20 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (dup2): Don't define on Xenix.
+
+	* Makefile: Comments for Xenix.
+
+Thu Mar  1 17:19:23 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* analyze.c (diff_2_files): `message' requires three args.
+
+Fri Feb 23 10:56:50 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* diff.h, util.c, diff3.c: Change 'void *' to 'VOID *', with
+	VOID defined as void if __STDC__, char if not.
+
+Sun Feb 18 20:31:58 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* Makefile: Add rules for getopt.c, getopt1.c, getopt.h.
+
+	* getopt.c, getopt.h, getopt1.c: New files.
+
+	* main.c (main, usage): Add long options.
+
+	* analyze.c (shift_boundaries): Remove unused var 'j_end'.
+
+Thu Feb  8 02:43:16 1990  Jim Kingdon  (kingdon at pogo.ai.mit.edu)
+
+	* GNUmakefile: include ../Makerules before Makefile.
+
+Fri Feb  2 23:21:38 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* analyze.c (diif_2_files): If -B or -I, don't return 1
+	if all changes were ignored.
+
+Wed Jan 24 20:43:57 1990  Richard Stallman  (rms at albert.ai.mit.edu)
+
+	* diff3.c (fatal): Output to stderr.
+
+Thu Jan 11 00:25:56 1990  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* diff.c (usage): Mention -v.
+
+Wed Jan 10 16:06:38 1990  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (output_diff3_edscript): Return number of overlaps.
+	(main): If have overlaps, exit with status 1.
+
+Sun Dec 24 10:29:20 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (find_equiv_class): Fix typo that came from changing init of B
+	to an assigment.
+
+	* version.c: New file.
+	* diff.c (main): -v prints version number.
+
+	* io.c (binary_file_p): Null char implies binary file.
+
+Fri Nov 17 23:44:55 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* util.c (print_1_line): Fix off by 1 error.
+
+Thu Nov 16 13:51:10 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* util.c (xcalloc): Function deleted.
+
+	* io.c (slurp): Null-terminate the buffer.
+
+	* io.c (read_files): Delete unused vars.
+
+	* io.c (find_equiv_class): Don't index by N if too low.
+
+	* dir.c (dir_sort): Delete the extra declaration of compare_names.
+
+	* diff.h: Don't declare xcalloc.  Declare some other functions.
+
+	* analyze.c (shift_boundaries):
+	Test for END at end of range before indexing by it.
+	Fix typo `preceeding' in var names.
+
+Sat Nov 11 14:04:16 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (using_to_diff3_block): Delete unused vars.
+	(make_3way_diff, process_diff_control, read_diff, output_diff3): Likewise.
+
+Mon Nov  6 18:15:50 EST 1989 Jay Fenlason (hack@ai.mit.edu)
+
+	* README Fix typo.
+
+Fri Nov  3 15:27:47 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (usage): Mention -D.
+
+	* ifdef.c (print_ifdef_hunk): Write comments on #else and #endif.
+
+Sun Oct 29 16:41:07 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (compare_files): Don't fflush for identical files.
+
+Wed Oct 25 17:57:12 1989  Randy Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* diff3.c (using_to_diff3_block): When defaulting lines from
+	FILE0, only copy up to just under the *lowest* line mentioned
+	in the next diff.
+
+	* diff3.c (fatal): Add \n to error messages.
+
+Wed Oct 25 15:05:49 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile (tapefiles): Add ChangeLog.
+
+Tue Oct  3 00:51:17 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c (process_diff, create_diff3_block): Init ->next field.
+
+Fri Sep 29 08:16:45 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* util.c (line_cmp): Alter end char of line 2, not line 1.
+
+Wed Sep 20 00:12:37 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile (diff.tar): Expect ln to fail on some files;
+	copy them with cp.
+
+Mon Sep 18 02:54:29 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Handle -D option:
+	* io.c (find_and_hash_each_line): Keep all lines of 1st file.
+	* diff.c (main): Handle -D option.
+	(compare_files): Reject -D if files spec'd are directories.
+	* analyze.c (diff_2_files): Handle OUTPUT_IFDEF case.
+
+Fri Sep  1 20:15:50 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (option_list): Rename arg VECTOR as OPTIONVEC.
+
+Mon Aug 28 17:58:27 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (compare_files): Clear entire inf[i].stat.
+
+Wed Aug 23 17:48:47 1989  Richard Stallman  (rms at apple-gunkies.ai.mit.edu)
+
+	* io.c (find_identical_ends): Sign was backward
+	determining where to bound the scan for the suffix.
+
+Wed Aug 16 12:49:16 1989  Richard Stallman  (rms at hobbes.ai.mit.edu)
+
+	* analyze.c (diff_2_files): If -q, treat all files as binary.
+	* diff.c (main): Detect -q, record in no_details_flag.
+
+Sun Jul 30 23:12:00 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (usage): New function.
+	(main): Call it.
+
+Wed Jul 26 02:02:19 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (main): Make -C imply -c.
+
+Thu Jul 20 17:57:51 1989  Chris Hanson  (cph at kleph)
+
+	* io.c (find_and_hash_each_line): Bug fix in context handling,
+	introduced by last change.
+
+Fri Jul 14 17:39:20 1989  Chris Hanson  (cph at kleph)
+
+	* analyze.c: To make RCS work correctly on files that don't
+	necessarily end in newline, introduce some changes that cause
+	diffs to be sensitive to missing final newline.  Because
+	non-RCS modes don't want to be affected by these changes, they
+	are conditional on `output_style == OUTPUT_RCS'.
+	(diff_2_files) [OUTPUT_RCS]: Suppress the "File X missing
+	newline" message.
+	(build_script) [OUTPUT_RCS]: Cause the last line to compare as
+	different if exactly one of the files is missing its final
+	newline.
+
+	* io.c (find_and_hash_each_line): Bug fix in
+	ignore_space_change mode.  Change line's length to include the
+	newline.  For OUTPUT_RCS, decrement last line's length if
+	there is no final newline.
+	(find_identical_ends) [OUTPUT_RCS]: If one of the files is
+	missing a final newline, make sure it's not included in either
+	the prefix or suffix.
+
+	* util.c (print_1_line): Change line output routine to account
+	for line length including the newline.
+
+Tue Jun 27 02:35:28 1989  Roland McGrath  (roland at hobbes.ai.mit.edu)
+
+	* Makefile: Inserted $(archpfx) where appropriate.
+
+Wed May 17 20:18:43 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff3.c [USG]: Include fcntl.h.
+
+	* diff.h [USG]: New compilation flags HAVE_NDIR, HAVE_DIRECT.
+
+Wed Apr 26 15:35:57 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* dir.c (diff_dirs): Two new args, NONEX1 and NONEX2, say to pretend
+	nonex dirs are empty.
+	(dir_sort): New arg NONEX, likewise.
+	* diff.c (compare_files): Pass those args.
+	Sometimes call diff_dirs if subdir exists in just one place.
+
+Wed Apr 12 01:10:27 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (find_identical_ends): Set END0 *after* last char
+	during backward scan for suffix.
+
+Sat Apr  8 15:49:49 1989  Randall Smith  (randy at apple-gunkies.ai.mit.edu)
+
+	* diff3.c (using_to_diff3_block): Now find high marks in files 1
+	and 2 through mapping off of the last difference instead of the
+	first.
+
+	* diff3.c: Many trivial changes to spelling inside comments.
+
+Fri Feb 24 12:38:03 1989  Randall Smith  (randy at gluteus.ai.mit.edu)
+
+	* util.c, normal.c, io.c, ed.c, dir.c, diff.h, diff.c, context.c,
+	analyze.c, Makefile: Changed copyright header to conform with new
+	GNU General Public license.
+	* diff3.c: Changed copyright header to conform with new GNU
+	General Public license.
+	* COPYING: Made a hard link to /gp/rms/COPYING.
+
+Fri Feb 24 10:01:58 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (slurp): Leave 2 chars space at end of buffer, not one.
+	(find_identical_ends): Special case if either file is empty;
+	don't try to make a sentinel since could crash.
+
+Wed Feb 15 14:24:48 1989  Jay Fenlason  (hack at apple-gunkies.ai.mit.edu)
+
+	* diff3.c (message)  Re-wrote routine to avoid using alloca()
+
+Wed Feb 15 06:19:14 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (find_identical_ends): Delete the variable `bytes'.
+
+Sun Feb 12 11:50:36 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* io.c (slurp): ->bufsize is nominal amount we have room for;
+	add room for sentinel when calling xmalloc or xrealloc.
+
+	* io.c (find_identical_ends): Do need overrun check in finding suffix.
+
+Fri Feb 10 01:28:15 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.c (main): -C now takes arg to specify context length.
+	Now -p to show C function name--Damned IEEE!
+	Fatal error if context length spec'd twice.
+
+	* ed.c (print_ed_hunk): Now special treatment only for lines containing
+	precisely a dot and nothing else.  Output `..', end the insert,
+	substitute that one line, then resume the insert if nec.
+
+	* io.c (find_and_hash_lines): When backing up over starting context,
+	don't move past buffer-beg.
+
+	* io.c (find_identical_ends): Use sentinels to make the loops faster.
+	If files are identical, skip the 2nd loop and return quickly.
+	(slurp): Leave 1 char extra space after each buffer.
+
+	* analyze.c (diff_2_files): Mention difference in final newlines.
+
+Wed Jan 25 22:44:44 1989  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* dir.c (diff_dirs): Use * when calling fcn ptr variable.
+
+Sat Dec 17 14:12:06 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* Makefile: New vars INSTALL and LIBS used in some rules;
+	provide default defns plus commented-put defns for sysV.
+
+Thu Nov 17 16:42:53 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* dir.c (dir_sort): Open-trouble not fatal; just say # files is -1.
+	(diff_dirs): If dir_sort does that, give up and return 2.
+
+	* diff.c (compare_files): Don't open directories.
+	Don't close them specially either.
+	Cross-propagate inf[i].dir_p sooner.
+
+Sun Nov 13 11:19:36 1988  Richard Stallman  (rms at sugar-bombs.ai.mit.edu)
+
+	* diff.h: Declare index, rindex.
+
+	* diff.c (compare_files): If comparing foodir with b/f,
+	use foodir/f, not foodir/b/f.
+
+	* diff.c (compare_files): Don't print "are identical" msg for 2 dirs.
+	Status now 1 if one file is a dir and the other isn't, etc.
+
+Thu Nov  3 16:30:24 1988  Randall Smith  (randy at gluteus.ai.mit.edu)
+
+	* Makefile: Added a define for diff3 to define DIFF_PROGRAM.
+
+	* util.c: Added hack to make sure that perror was not called with
+	a null pointer.
+
+	* diff.c: Changed S_IFDIR to S_IFMT in masking type of file bits
+	out.
+
+	* diff3.c: Included USG compatibility defines.
+
+	* diff.h: Moved sys/file.h into #else USG section (not needed or
+	wanted on System V).
+
+	* ed.c, analyze.c, context.c: Shortened names to 12 characters for
+	the sake of System V (too simple not to do).
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+version-control: never
+End:

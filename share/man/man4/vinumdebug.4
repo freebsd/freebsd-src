@@ -1,0 +1,100 @@
+.\" Copyright (c) 2003 Greg Lehey
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 30, 2003
+.Dt VINUMDEBUG 4
+.Os
+.Sh NAME
+.Nm vinumdebug
+.Nd debug macros for
+.Xr vinum 4
+.Sh DESCRIPTION
+This man page describes
+.Xr gdb 4
+macros for debugging the
+.Xr vinum 4
+kernel module.
+See
+.Xr gdb 4
+for the description of the kernel debugging environment.
+No further action is required to access the
+.Xr vinum 4
+debug macros.
+They are loaded automatically along with the other macros.
+.Sh COMMANDS
+.Bl -tag -width ".Ic rrqe Ar rqe"
+.It Ic finfo
+Show recently freed
+.Xr vinum 4
+memory blocks.
+.It Ic meminfo
+Equivalent of the
+.Nm vinum Ic info Fl v
+command.
+.It Ic rq
+Show information about the request pointed to by the variable
+.Va rq
+in the current frame.
+.It Ic rqe
+Show information about the request element pointed to by the variable
+.Va rqe
+in the current frame.
+.It Ic rqi
+Print out a simplified version of the same information as the
+.Nm vinum Ic info Fl V
+command.
+.It Ic rqinfo
+Show the
+.Xr vinum 4
+request log buffer like the
+.Nm vinum Ic info Fl V
+command.
+.It Ic rqq Ar rq
+Show information about the request
+.Pq Vt "struct rq"
+pointed at by
+.Ar rq .
+.It Ic rqq0
+Print information on some
+.Xr vinum 4
+request structures.
+.It Ic rqq1
+Print information on some
+.Xr vinum 4
+request structures.
+.It Ic rrqe Ar rqe
+Show information about the request element
+.Pq Vt "struct rqe"
+pointed at by the parameter
+.Ar rqe .
+.El
+.Sh AUTHORS
+This man page was written by
+.An "Greg Lehey" Aq grog@FreeBSD.org .
+.Sh SEE ALSO
+.Xr gdb 4 ,
+.Xr vinum 4 ,
+.Xr vinum 8

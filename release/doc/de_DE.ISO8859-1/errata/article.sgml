@@ -1,0 +1,402 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.39 2003/05/24 13:23:46 ue Exp $
+	basiert auf: 1.38
+-->
+
+<!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % translators PUBLIC "-//FreeBSD//ENTITIES DocBook Translator Entities//DE">
+%translators;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article lang="de">
+  <articleinfo>
+
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <authorgroup>
+      <corpauthor>Das &os; Projekt</corpauthor>
+    </authorgroup>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:freebsd-doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+
+    <copyright>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:de-bsd-translators@de.FreeBSD.org">The FreeBSD German Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      also wichtige Informationen, die kurz vor bzw. erst nach
+      der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;ren
+      Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
+      Software oder Dokumentation, welche die Stabilit&auml;t und die
+      Nutzung beeintr&auml;chtigen k&ouml;nnten.  Sie sollten immer
+      die aktuelle Version dieses Dokumentes lesen, bevor sie diese
+      Version von &os; installieren.</para>
+
+    <para>Diese Errata f&uuml;r &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      werden bis zum
+      Erscheinen von &os; 5.1-RELEASE weiter aktualisiert
+      werden.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Einleitung</title>
+
+    <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
+      Informationen &uuml;ber &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Bevor Sie diese
+      Version installieren, sollten Sie auf jeden Fall dieses Dokument
+      lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
+      der Ver&ouml;ffentlichung entdeckt (und vielleicht auch schon
+      behoben) wurden.</para>
+
+    <para>Die zusammen mit der Ver&ouml;ffentlichung erschienene
+      Version dieses Dokumentes (zum Beispiel die Version auf der
+      CDROM) ist per Definition veraltet.  Allerdings sind im Internet
+      aktualisierte Versionen verf&uuml;gbar, die die <quote>aktuellen
+      Errata</quote> f&uuml;r diese Version sind.  Diese Versionen
+      sind bei <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      und allen aktuellen Mirrors dieser Webseite
+      verf&uuml;gbar.</para>
+
+    <para>Die Snapshots von &os; &release.branch; (sowohl die der
+      Quelltexte als auch die der ausf&uuml;hrbaren Programme)
+      enthalten ebenfalls die zum Zeitpunkt ihrer
+      Ver&ouml;ffentlichung aktuelle Version dieses
+      Dokumentes.</para>
+
+    <para>Die Liste der &os; CERT security advisories finden Sie bei
+      <ulink url="http://www.FreeBSD.org/security/"></ulink> oder
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+  </sect1>
+
+  <sect1 id="security">
+    <title>Sicherheitshinweise</title>
+
+    <para>Ein &uuml;ber das Netzwerk nutzbarer Fehler in
+      <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
+      da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
+      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+
+    <para>Durch Auswertung der Antwortzeiten von
+      <application>OpenSSL</application> w&auml;re es einem Angreifer
+      mit sehr viel Rechenleistung m&ouml;glich gewesen, unter
+      bestimmten Umst&auml;nden den Klartext der &uuml;bermittelten
+      Daten zu erhalten.  Dieser Fehler wurde in &os;
+      &release.current; durch die neue
+      <application>OpenSSL</application> Version 0.9.7 behoben.  Auf
+      den f&uuml;r Sicherheitsprobleme unterst&uuml;tzten
+      Entwicklungszweigen wurde der Fehler durch die neue
+      <application>OpenSSL</application> Version 0.9.6i behoben.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink></para>
+
+    <para>Es ist theoretisch m&ouml;glich, da&szlig; ein Angreifer den
+      geheimen Schl&uuml;ssel ermittelt, der von der Erweiterung
+      <quote>syncookies</quote> genutzt wird.  Dadurch sinkt deren
+      Effektivit&auml;t beim Schutz vor TCP SYN Flood
+      Denial-of-Service Angriffen.  Hinweise, wie sie das Problem
+      umgehen k&ouml;nnen und weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+
+    <para>Durch diverse Puffer-&Uuml;berl&auml;ufe in den von
+      <application>sendmail</application> genutzten Routinen zum
+      Parsen des Headers war es einen Angreifer m&ouml;glich, eine
+      speziell konstruierte Nachricht an &man.sendmail.8; zu senden
+      und so beliebige Programme ausf&uuml;hren zu lassen.  Diese
+      Programme verf&uuml;gten &uuml;ber die Rechte des Benutzers,
+      unter dessen Kennung &man.sendmail.8; lief, also typischerweise
+      <username>root</username>.  Weitere Informationen und Verweise
+      auf Patches finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>
+      und <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:07.sendmail.asc">FreeBSD-SA-03:07</ulink>.</para>
+
+    <para>Durch einen Puffer-&Uuml;berlauf im XDR Kodierer/Dekodierer
+      war es einem Angreifer m&ouml;glich, den Service zum Absturz zu
+      bringen.  Informationen, wie Sie den Fehler beheben, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+
+    <para><application>OpenSSL</application> enth&auml;lt zwei
+      Schwachstellen, die erst vor kurzer Zeit bekannt gemacht wurden.
+      Informationen, wie Sie die Probleme umgehen k&ouml;nnen und
+      weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Aktuelle Informationen</title>
+
+    <bridgehead renderas="sect3">GEOM</bridgehead>
+
+    <para>Die auf &man.geom.4; basierenden Routinen des Kernel zur
+      Partitionierung erlauben es nicht, eine aktive Partition zu
+      &uuml;berschreiben.  Mit anderen Worten, es ist in der Regel
+      nicht m&ouml;glich, den Bootsektor einer Festplatte mit
+      <command>disklabel -B</command> zu aktualisieren, da die
+      Partition <literal>a</literal> auch den Bereich enth&auml;lt, in
+      dem die Bootsektoren gespeichert sind.  Um dieses Problem zu
+      umgehen, sollten Sie von einer anderen Platte, einer CD oder der
+      Fixit-Diskette booten.</para>
+
+    <bridgehead renderas="sect3">&man.dump.8;</bridgehead>
+
+    <para>Werden Festplatten und &auml;hnliche Medien mit einer
+      Blockgr&ouml;&szlig;e von mehr als 512 Byte benutzt (zum
+      Beispiel mit &man.geom.4; verschl&uuml;sselte Partitionen),
+      behandelt &man.dump.8; die gr&ouml;&szlig;eren Sektoren nicht
+      korrekt und kann daher das Dateisystem nicht dumpen.  Eine
+      M&ouml;glichkeit, das Problem zu umgehen, ist die Erzeugung einer
+      <quote>rohen</quote> Kopie des gesamten Dateisystems, die dann
+      als Eingabedatei f&uuml;r &man.dump.8; dient.  Es ist
+      m&ouml;glich, ein komplettes Dateisystem in einer normalen Datei
+      zu speichern:</para>
+
+    <screen>&prompt.root; <userinput>dd if=/dev/ad0s1d.bde of=/junk/ad0.dd bs=1m</userinput>
+&prompt.root; <userinput>dump 0f - /junk/ad0.dd | ...</userinput></screen>
+
+    <para>Eine etwas einfachere L&ouml;sung ist, &man.tar.1; oder
+      &man.cpio.1; zur Erzeugung des Backups zu verwende.</para>
+
+    <bridgehead renderas="sect3">&man.mly.4;</bridgehead>
+
+    <para>Es gibt Berichte, da&szlig; sich Systeme bei der
+      Installation von &os; 5.0 Snapshots auf RAIDs an
+      &man.mly.4;-kompatiblen Controller aufgeh&auml;ngt haben, obwohl
+      die Systeme problemlos mit 4.7-RELEASE zusammenarbeiten.  Dieser
+      Fehler wurde in &os; &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">NETNCP/Unterst&uuml;tzung des
+      Dateisystems</bridgehead>
+
+    <para>NETNCP und nwfs sind offenbar noch nicht an KSE
+      angepa&szlig;t worden und funktionieren daher nicht.  Dieser
+      Fehler wurde in &os; &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">&man.iir.4; Controller</bridgehead>
+
+    <para>Bei der Installation scheinen &man.iir.4;-Controller korrekt
+      erkannt zu werden, allerdings finden Sie keine der
+      angeschlossenen Festplatten.</para>
+
+    <bridgehead renderas="sect3">Timing-Probleme in
+      &man.truss.1;</bridgehead>
+
+    <para>Es scheint ein Timing-Problem beim Start des Debuggings mit
+      &man.truss.1;  zu geben, durch das &man.truss.1; manchmal nicht
+      in der Lage ist, eine Verbindung zu einem Proze&szlig;
+      aufzubauen, bevor er gestartet wird.  In diesem Fall meldet
+      &man.truss.1;, da&szlig; es die &man.procfs.5; Node f&uuml;r den
+      zu debuggenden Proze&szlig;  nicht &ouml;ffnen kann.  Es scheint
+      einen weiteren Fehler zu geben, durch den &man.truss.1; sich
+      aufh&auml;ngt, wenn &man.execve.2; den Wert
+      <literal>ENOENT</literal> zur&uuml;ckgibt.  Ein weiteres
+      Timing-Problem f&uuml;hrt dazu, da&szlig;  &man.truss.1; beim
+      Start manchmal <errorname>PIOCWAIT:  Input/output
+      error</errorname> meldet.  Es existieren zwar Korrekturen
+      f&uuml;r diese Probleme, da diese aber zu sehr in die Routinen
+      zur Ausf&uuml;hrung von Prozessen eingreifen, werden sie erst
+      nach dem Erscheinen von 5.0 ins System aufgenommen.</para>
+
+    <bridgehead renderas="sect3">Partitionierung von Festplatten durch
+      das Installationsprogramm</bridgehead>
+
+    <para>Es gibt einige Meldungen &uuml;ber Fehler bei der
+      Partitionierung von Festplatten mit &man.sysinstall.8;.  Eines
+      der Probleme ist, da&szlig; &man.sysinstall.8; den freien Platz
+      auf einer Festplatten nicht neu berechnen kann, nachdem der Typ
+      einer FDISK-Partition ge&auml;ndert wurde.</para>
+
+    <bridgehead renderas="sect3">Veraltete Dokumentation</bridgehead>
+
+    <para>In einigen F&auml;llen wurde die Dokumentation (wie zum
+      Beispiel die FAQ und das Handbuch) nicht aktualisiert und geht
+      nicht auf die Neuerungen in &os; &release.prev; ein.  Zum
+      Beispiel fehlt noch Dokumentation zu &man.gbde.8; und den neuen
+      <quote>fast IPsec</quote> Routinen.</para>
+
+    <bridgehead renderas="sect3">SMB Dateisystem</bridgehead>
+
+    <para>Ab und zu kommt beim Versuch, die Verbindung zu einem SMBFS
+      Share zu trennen, die Meldung <errorname>Device
+      busy</errorname>, obwohl das Share nicht benutzt wird.  Die
+      einzige L&ouml;sung f&uuml;r dieses Problem ist, die Operation
+      so lange zu wiederholen, bis die Verbindung getrennt wird.
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
+
+    <para>Der Versuch, die Trennung der Verbindung zu einem SMBFS
+     Share mit <command>umount -f</command> zu erzwingen, kann zu
+     einer Kernel Panic f&uuml;hren.  Dieser Fehler wurde in
+     &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">&man.fstat.2;</bridgehead>
+
+    <para>Wird &man.fstat.2; auf einen Socket angewendet, f&uuml;r den
+      bereits eine Verbindung besteht, sollte es die Anzahl der zum
+      Lesen verf&uuml;gbaren Zeichen in dem Feld
+      <varname>st_size</varname> der Struktur <varname>struct
+      stat</varname> zur&uuml;ckgeben.  Leider wird bei TCP Sockets immer ein
+      <varname>st_size</varname> von <literal>0</literal> gemeldet.
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">Kernel Event Queues</bridgehead>
+
+    <para>Der zu &man.kqueue.2; geh&ouml;rende Filter
+      <literal>EVFILT_READ</literal> meldet f&auml;lschlicherweise
+      immer, da&szlig; an einem TCP Socket <literal>0</literal>
+      Zeichen zum Lesen bereitstehen, auch wenn in Wirklichkeit
+      Zeichen zum Lesen verf&uuml;gbar sind.  Die bei
+      <literal>EVFILT_READ</literal> verf&uuml;gbare Option
+      <literal>NOTE_LOWAT</literal> arbeitet bei TCP Sockets ebenfalls
+      fehlerhaft.  Dieser Fehler wurde in &release.current; bereits
+      behoben.</para>
+
+    <bridgehead renderas="sect3">POSIX Named Semaphores</bridgehead>
+
+    <para>Eine der Neuerungen in &os; &release.prev; ist die
+      Unterst&uuml;tzung f&uuml;r Named Semaphores nach POSIX.  Die
+      Routinen enthalten leider einen Fehler, durch den sich
+      &man.sem.open.3; falsch verhalten kann, wenn eine Semaphore von
+      einem Proze&szlig; mehrfach ge&ouml;ffnet wird und durch den
+      &man.sem.close.3; zum Absturz des Programms f&uuml;hren kann.
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">Zugriffsrechte f&uuml;r
+      <filename>/dev/tty</filename></bridgehead>
+
+    <para>&os; &release.prev; enth&auml;lt einen kleinen Fehler im
+      Bereich der Berechtigungen von <filename>/dev/tty</filename>.
+      Dieser Fehler tritt auf, wenn sich ein Benutzer einloggt, der
+      weder <username>root</username> noch Mitglied der Gruppe
+      <groupname>tty</groupname> ist.  Wechselt dieser Benutzer nun mit
+      &man.su.1; zu einer anderen Benutzerkennung, die ebenfalls
+      weder <username>root</username> noch Mitglied der Gruppe
+      <groupname>tty</groupname> ist, kann er &man.ssh.1; nicht
+      nutzen, da es <filename>/dev/tty</filename> nicht &ouml;ffnen
+      kann.  Dieser Fehler wurde in &release.current; bereits
+      behoben.</para>
+
+    <bridgehead renderas="sect3">&man.growfs.8;</bridgehead>
+
+    <para>&man.growfs.8; funktioniert auf &man.vinum.4; Partitionen
+      nicht mehr, da auf ihnen kein Disklabel mehr emuliert wird und
+      &man.growfs.8; das Disklabel analysieren will.  Das Problem
+      betrifft wahrscheinlich auch alle anderen Massenspeicher,
+      f&uuml;r die &man.geom.4; benutzt wird.</para>
+
+    <bridgehead renderas="sect3">IPFW</bridgehead>
+
+    <para>&man.ipfw.4; <literal>skipto</literal> Regeln funktionieren
+      nicht, wenn gleichzeitig das Schl&uuml;sselwort
+      <literal>log</literal> verwendet wird.  Auch die
+      <literal>uid</literal> funktionieren nicht richtig. Diese Fehler
+      wurden in &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3"> &man.adduser.8; und
+      Pa&szlig;w&ouml;rter</bridgehead>
+
+    <para>&man.adduser.8; kann das Pa&szlig;wort eines neu angelegten
+      Benutzers nicht setzen, wenn dieses Sonderzeichen der Shell
+      enth&auml;lt.  Dieser Fehler wurde in &release.current; bereits
+      behoben.</para>
+
+    <bridgehead renderas="sect3">&man.xl.4;</bridgehead>
+
+    <para>Der Treiber &man.xl.4; enth&auml;lt einen Fehler, der zu
+      einem Absturz des Systems mit der Meldung <errorname>kernel
+      panic</errorname> und anderen Problemen f&uuml;hren kann, wenn
+      man versucht, ein Netzwerk-Interface zu konfigurieren.  Dieser
+      Fehler wurde in &release.current; bereits behoben.</para>
+
+    <bridgehead renderas="sect3">ISC DHCP</bridgehead>
+
+    <para><application>ISC DHCP</application> steht jetzt in der
+      Version 3.0.1rc11 zur Verf&uuml;gung.  Diese Aktualisierung
+      erfolgte bereits in &os;  &release.prev;, wurde aber nicht in
+      den Release Notes dokumentiert.</para>
+
+    <bridgehead renderas="sect3">Kompatibilit&auml;tsprobleme bei
+      &man.amd.8;</bridgehead>
+
+    <para>Der nicht-blockierende Teil der RPC-Routinen in
+      &release.prev; ist fehlerhaft.  Einer der auff&auml;lligsten
+      Effekte dieser Fehler ist, da&szlig; Anwender von &man.amd.8;
+      nicht in der Lage sind, Dateisysteme von einem &release.prev;
+      Server zu mounten.  Dieser Fehler wurde in &release.current;
+      bereits behoben.</para>
+
+    <bridgehead renderas="sect3">nsswitch</bridgehead>
+
+    <para>Im Eintrag f&uuml;r <application>nsswitch</application> in
+      den Release Notes wurde ein falscher Name f&uuml;r die bisher
+      genutzte Konfigurationsdatei genannt.  Die bisher genutzte
+      Konfigurationsdatei ist
+      <filename>/etc/host.conf</filename>.</para>
+
+    <bridgehead renderas="sect3">Mailman</bridgehead>
+
+    <para>Die &os; Mailinglisten werden jetzt mit Mailman und nicht
+      mehr mit Majordomo verwaltet.  Weitere Informationen finden sie
+      auf der <ulink
+      url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD Mailman
+      Info Page</ulink>.</para>
+  </sect1>
+</article>

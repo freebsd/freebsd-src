@@ -1,0 +1,121 @@
+.\" Copyright (C) 2003 The FreeBSD Project. All rights reserved.
+.\" Copyright (c) 2003 Noriaki Mitsunaga. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2004
+.Dt NCV 4
+.Os
+.Sh NAME
+.Nm ncv
+.Nd "NCR 53C500 based SCSI host adapter driver"
+.Sh SYNOPSIS
+.Cd "device ncv"
+.Cd "device scbus"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to the
+.Tn SCSI
+bus
+connected to an NCR 53C500 based
+PC-Card
+.Tn SCSI
+host adapter or an Adaptec AHA-2920 on the
+.Tn PCI
+bus.
+.Sh HARDWARE
+The following devices are currently supported by the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+I-O DATA PCSC-DV
+.It
+KME KXLC002 (TAXAN ICD-400PN, etc.), KXLC004, and UJDCD450
+.It
+Macnica Miracle SCSI-II mPS110
+.It
+Media Intelligent MSC-110, MSC-200
+.It
+NEC PC-9801N-J03R
+.It
+New Media Corporation BASICS SCSI
+.It
+Qlogic Fast SCSI
+.It
+RATOC REX-9530, REX-5572 (SCSI only)
+.El
+.Sh DIAGNOSTICS
+The following error messages are sometimes returned:
+.Bl -diag
+.It "SCSI BUS RESET failed"
+Usually returned when a failure occurs during
+the bus reset.
+.It "CMD_NOP failed"
+No operation or the operation has failed.
+.It "CMD_NOP|CMD_DMA"
+A failure occurred during the
+.Tn DMA
+read/write operations.
+.El
+.Pp
+The
+.Nm
+driver should return
+.Bq Er ENODEV
+when any of the previously noted failures occur.
+.Sh SEE ALSO
+.Xr cardbus 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr pccard 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+device driver has been developed for
+.Nx Ns / Ns Tn pc98
+and ported to
+.Fx .
+The
+.Nm
+driver first appeared in
+.Fx 2.2
+with
+.Tn PAO
+and merged in
+.Fx 4.2 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Naofumi Honda .
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org
+and
+.An Noriaki Mitsunaga Aq non@FreeBSD.org .

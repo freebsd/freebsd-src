@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+XSRCS+=	i386fbsd-nat.c i386bsd-tdep.c i386bsd-nat.c i386-nat.c i386-tdep.c \
+	i387-nat.c i387-tdep.c \
+	core-regset.c core-aout.c
+
+CFLAGS+= -Dprint_insn_i386=print_insn_i386_att
+CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf32_i386_freebsd_vec
+CFLAGS+= -DGDB_XM_FILE

@@ -1,0 +1,368 @@
+# -------+---------+---------+---------+---------+---------+---------+---------+
+
+   The FreeBSD/sparc64 port has now changed time_t from 32-bits to 64-bits.
+   This file explains the exact steps that users should follow to update their
+   sparc64 systems for this change.  People running FreeBSD on other types of
+   hardware, such as CPU's from Intel or AMD, can ignore this file.  For now,
+   this change is only happening for people running FreeBSD on Sparc hardware. 
+
+# -------+---------+---------+---------+---------+---------+---------+---------+
+# Copyright (c) 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+#
+# All rights reserved.
+#
+#  Redistribution, publication, translation and use, with or without     
+#  modification, in full or in part, in any form or format of this      
+#  document are permitted without further permission from the author.
+#
+#  THIS DOCUMENT IS PROVIDED BY GARANCE DROSEHN ``AS IS'' AND ANY EXPRESS
+#  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED     
+#  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED.  IN NO EVENT SHALL GARANCE DROSEHN BE LIABLE FOR ANY DIRECT,
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+# -------+---------+---------+---------+---------+---------+---------+---------+
+# $FreeBSD$
+# -------+---------+---------+---------+---------+---------+---------+---------+
+
+If you are in too much of a hurry to read this file, then this is not the
+time for you to upgrade to a 64-bit time_t.  Period.  Stick with a system
+using 32-bit time_t until you have plenty of time to perform an upgrade.
+
+This statement is true even if you have performed a thousand system upgrades
+in the past, and you are certain that you know everything there is to know
+about upgrades.  This upgrade *will* take you more time than previous system
+upgrades, simply because you must recompile at least some of your ports after
+upgrading the base system.
+
+Do not start this update unless you have the extra time.
+
+As of March 10th, the official value for time_t on sparc64 has changed to
+be 64-bits.  If you really must build system with 32-bit time_t's, then it
+would be best to stick with a snapshot of current from before March 10th.
+With src snapshots after that point, there will soon be ports which assume
+you have a 64-bit time_t based on the value of __FreeBSD_version.
+
+If you are ready to upgrade, then *READ THIS ENTIRE DOCUMENT* at least
+once before starting the upgrade.
+
+# -------+---------+---------+---------+---------+---------+---------+---------+
+
+This is a major change.  This change will *not* be backwards-compatible.
+Any programs which call system-routines for handling time-values will
+have to be recompiled after this change is made.
+
+Because this change is not backwards-compatible, it is important that
+the following steps be used when upgrading the system.  "Shortcuts" that
+have worked for EVERY SINGLE UPGRADE YOU HAVE EVER DONE IN YOUR LIFE are
+probably irrelevant.  This change is more disruptive than most of the
+changes which are normally done on freebsd.
+
+These steps are designed to minimize the chance of you running into any
+trouble.  We can not guarantee that these steps will avoid all possible
+problems, but if you ignore these steps you are very likely to run into
+some very painful and time-consuming headaches when upgrading.
+
+Step Pre-1:  Update to a recent snapshot of -current, and first build
+             that as a system with 32-bit time_t.  To do this, edit
+	     the file  /usr/src/sys/sparc64/include/_types.h 
+             find the line:
+               typedef	__int64_t	__time_t;	/* time()... */
+             and change '__int64_t' to '__int32_t'
+Step Pre-2:  Install that system, using whatever steps you normally
+             use, and make sure that installation seems to work okay.
+Step Pre-3:  While still running that 32-bit time_t system, it would
+             probably be a good idea to cvsup your ports tree, and
+             then upgrade portupgrade (if you use it) and upgrade any
+             shells that you use.  Eg:
+                  portupgrade -Rr -f ruby portupgrade
+                  portupgrade -Rr -f bash
+             That way you know you have the latest versions, and you
+             will also know you have the most-recent distfiles on
+             your machine.
+
+Step Pre-4:  For sparc64 machines which need DHCP:
+             The 'dhclient' in the base system is known to be unreliable
+	     on a system which is upgraded to 64-bit time_t's.  It may
+	     work for you, but it probably will not.
+	     As of March 10th 2004, we have no fix for that.
+	     However, the net/isc-dhcp3-client port does seem to work.
+	     IF your machine needs DHCP, then you should probably install
+	     that port and make sure you can get it working *before* you
+	     make the change to use 64-bit time_t's.
+
+Step Pre-4:  For people using database-related ports:
+	     Ports like PostgreSQL may change how they store data after
+	     they are recompiled for 64-bTT.  So, you may have to do a
+	     full dump of your data while you still have a 32-bTT system,
+	     and do a matching initdb/restore of your data after the port
+	     has been recompiled on the upgraded 64-bTT system.
+
+After you have built and installed that src-snapshot with 32-bit time_t's,
+     edit the file  /usr/src/sys/sparc64/include/_types.h 
+     find the line:
+        typedef	__int32_t	__time_t;	/* time()... */
+     and change '__int32_t' back to '__int64_t'
+
+     For best results, do NOT make any other changes.  Do NOT cvsup the
+     source tree trying to pick up any other changes.  At this point you
+     know that you have a source tree that does work for your system, so
+     stick with that source tree (except for making the above 1-line
+     change, of course).
+
+     At one point in my testing, I did do a 'cvsup' which just happened
+     to pull in one bad commit that broke 'make buildworld', and a second
+     bad commit that broke 'make installworld'.  Believe me, you REALLY
+     REALLY do *not* want to risk problems like that!
+
+     I am not suggesting that you have to do two whole buildworld/
+     installworld cycles in a single day.  You could easily wait a few
+     days, or even a week between them.  What I am suggesting is that
+     you should not 'cvsup' your sources inbetween the two buildworlds.
+
+And then follow these steps to build and install the 64-bit time_t system:
+
+    cd /usr/src                   #-  1.
+    make cleanworld               #-  2.  or 'rm -Rf /usr/obj/usr/src/*'
+    make buildworld               #-  3.
+    make buildkernel              #-  4.  Add KERNCONF if you usually do.
+    NEWSPARC_TIMETYPE=__int64_t   #-  5.  (Used by a safety-check done
+    export NEWSPARC_TIMETYPE      #-  5a.   by installkernel)
+    make installkernel            #-  6.  Add KERNCONF if you usually do.
+    mergemaster -p                #-  7.
+
+        # - - A section required for installs over NFS-mounts  - - #
+    ifconfig -a                   #-  NFS 8a.       See note below.
+    shutdown now                  #-  NFS 8b.  NOT 'shutdown -r now'
+    cd /usr/src                   #-  NFS 8c.
+    sh installworld_oldk           #-  NFS 8d.       See note below.
+        # - -        End of this section for NFS-mounts        - - #
+
+    reboot                        #-  9.  MUST go into single-user mode
+
+For many upgrades, it is true that you can "cheat" at this point, and
+get away without actually going into single-user mode straight from
+the reboot.  But for this upgrade, you REALLY MUST start up straight
+into single user mode.  So, reboot the machine, type a space (or
+anything other than 'Enter') when the boot-loader is counting down.
+And then:
+
+      boot -s                            #- 10.  (command to boot-loader)
+
+The system will ask you if you want to use /bin/sh or some other shell.
+For this upgrade, just hit enter, even if you usually prefer like some
+other shell instead of /bin/sh.
+
+      fsck -p                            #- 11.
+         # - - A section required for installs over NFS-mounts  - - #
+      PATH=/boot/kernel/bin:$PATH        #- NFS 12.
+         # - -        End of this section for NFS-mounts        - - #
+      mount -a -t ufs                    #- 13.
+      swapon -a                          #- 14.
+         # - - A section required for installs over NFS-mounts  - - #
+      ifconfig hme0 inet ....            #- NFS 15a.   See note below.
+      mount_nfs host:srcdir /usr/src     #- NFS 15b.   See note below.
+      mount_nfs host:objdir /usr/obj     #- NFS 15c.
+         # - -        End of this section for NFS-mounts        - - #
+      cd /usr/src                        #- 16.
+      sh installworld_newk               #- 17.  Might want to add -S
+      mergemaster                        #- 18.
+      rm -f /var/db/dhclient.leases      #- 19.  If this host uses DHCP
+      reboot                             #- 20.
+
+At this point, you should be up-and-running on a system that has 64-bit
+values for time_t.  You will have to rebuild anything which depends on
+time_t.  Later in this file is a suggested order for upgrading ports.
+
+If you have a lot of ports which start up daemons or do other processing
+at system-startup, then you might want to have this reboot also go into
+single-user mode for upgrading all of the ports.  In my case, I've always
+done a standard reboot at this point and did not run into problems, but
+then I only have 25 ports installed on my SPARC64 system.
+
+Aside: It is slightly more reasonable to use the 'reboot' command, although
+you may be more familar with using 'shutdown -r now'.  The shutdown command
+just turns around and executes '/sbin/reboot', and with this upgrade it is
+best to avoid such redirection.
+
+# -------+---------+---------  Notes on the above   -------+---------+---------+
+
+General notes on NFS issues:
+
+  For this upgrade to 64-bit time_t's, the change is so disruptive that I
+  couldn't get NFS-mounts to work if I booted a "32-bit time_t system"
+  (ie: 32-bit versions of /bin, /sbin, /lib, ...) on a 64-bit kernel.  So,
+  I added the installworld_oldk script.  This script does two things:
+     1)  Creates a mini-/bin inside /boot/kernel.
+     2)  Does a minimal installworld (while still on the old kernel),
+         thus making it possible for NFS-mounts to work when you reboot.
+
+  The first half is a step that would be perfectly safe to do, for any
+  upgrade (including non-NFS ones), at any time.  It is a generally safe
+  and interesting idea, although it really should be implemented as an
+  official target in /usr/src/Makefile to be done right.
+
+  The second half would USUALLY be a bad idea to do, but I think it's the
+  only way I can get this specific upgrade to work for people that install
+  from NFS-mounted directories.  It is bad because you are clobbering parts
+  of your system even though (in the usual case) you would not know that
+  the new kernel actually works on your system.  It also does not do a
+  full-install, so you end up booting into a system which is part old-
+  world, and part new-world.  It looks like we can get away with that for
+  this upgrade, but the tactic would be too risky for "standard upgrades".
+
+  These instructions assume that you are already familiar with how to do
+  installations over NFS-mounted partitions.  If you are not, you might
+  want to read other references, such as 'man development'.
+
+Notes on step NFS 8a:     ifconfig -a
+
+  This shows to the configuration of all your ethernet interfaces.  Write
+  down the IP address and netmask of your main interface.  This is
+  particularly important if the machine obtains its address via DHCP.
+  You will not be running dhclient after the reboot in step 8, so just
+  re-use the IP address that the machine is using for the present reboot.
+
+Notes on step NFS 8b:     shutdown now
+
+  This will drop you into single-user mode, without rebooting.  It
+  will ask if you want to use /bin/sh for your shell.  You do.
+
+Notes on step NFS 8d:     sh installworld_oldk
+
+  Note that this script only installs *part* of the new world.  You will
+  still have to reboot into single-user mode and do the full installworld.
+  The installworld_oldk script will ask you if you want to build a
+  mini-/bin.  For this upgrade, you should say "yes".
+
+Notes on step NFS 15a:
+  On my Ultra-10, I have the 'hme0' device as my ethernet card.  The output
+  of 'ifconfig -a' (from step 'NFS 7a') included the lines:
+
+      hme0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+            inet 192.168.1.18 netmask 0xffffffe0 broadcast 192.168.1.31
+
+  So for this step, I typed in the command:
+      ifconfig hme0 inet 192.168.1.18 netmask 0xffffff00
+
+Notes on step NFS 15b:    mount_nfs 
+
+  At this step, you may need to specify the host as an IP address instead
+  of a hostname, because the machine will only be able to resolve hostnames
+  that are in /etc/hosts.
+
+  In my case,  I found it easier to create a source file ahead of time
+  which included the ifconfig and mount_nfs commands that I knew I would
+  need, and then I just sourced that file after rebooting into single user
+  mode.  If you made such a source file and put it in your root partition,
+  perhaps under /boot, then that file could also include all of the steps
+  from 11 through 15c.
+
+  Also, it is best use the 'mount_nfs' command, instead of 'mount -t nfs'.
+  If you use the 'mount' command for NFS mounts, it will turn around and
+  directly execute /sbin/mount_nfs, and that is not desirable in this case.
+
+Notes on step 17:         sh installworld_newk 
+
+  This script will do some setup work, and then ask you if want it to run
+  'make installworld'.  Most people should just answer "y" (yes) to that
+  prompt.  You can avoid the prompt by including "-y" or "-n" on the
+  command.  If you say "n" (no), then it will tell you what commands
+  you must type to do the actual installworld.
+
+  The script also recognizes a "-S" parameter, which causes it to use
+  symlinks instead of making copies of programs used by the installation
+  process.  This option will cause less filespace to be used up in /tmp,
+  but it might be slower in some cases (especially for installs using
+  an NFS-mounted directory for /usr/obj).
+
+  Both this script and the installworld_oldk script also recognize a "-M"
+  option.  This option causes the script to use the absolute minimum PATH
+  setting that "should" be needed to complete an install.  This option is
+  mainly just for debugging the scripts, though.  If you request the
+  minimum PATH, and some important file was NOT properly copied, then the
+  installworld will immediately die at that point. This might be painful.
+  Without "-M", the same oversight would mean that you will run the wrong
+  *version* of the command, but that older version might actually work
+  perfectly fine.  I did all my testing with "-M" to make sure I had
+  found all important programs, but there is probably no advantage for
+  using it for standard system upgrades.  Also, if there are no important
+  files overlooked, then "-M" will not make any difference at all.
+
+# -------+---------+---------+  Upgrading Ports  +---------+---------+---------+
+
+Similar to the recommendation for the upgrading the system, I suggest that
+you do not 'cvsup' your local copy of the ports collection before trying to
+rebuild everything for 64-bit time_t.  For one thing, you will have a cvsup
+compiled for 32-bTT (32-bit time_t's), and that will not work well on a
+system which is using 64-bTT.  You might find that you have to 'cvsup' for
+some ports, but you will need to get a 64-bTT version of cvsup before you
+can do that. 
+
+One tactic to use for upgrading ports is to rebuild your already-installed
+ports one-at-a-time.  If you want to do that, and if you use portupgrade
+to upgrade your ports, then I suggest the first thing you should do is:
+
+    portupgrade -Rr -f ruby portupgrade          #- Ports 1.
+        Aside: if you get an error about the "ruby-rdoc" port,
+        then enter:    pkg_deinstall ruby-rdoc
+        and repeat the original command.
+    portupgrade -Rr -f bash                      #- Ports 2.
+        If you have 'bash' installed, or include any other shells
+        which you have installed from the ports collection.  If
+        your session is *using* one of these shells, then logout
+        and log back in after recompiling that shell.
+    portupgrade -Rr -f ezm3 cvsup-without-gui    #- Ports 3 (maybe).
+        If you want to rebuild a 64-bit time_t version of cvsup.
+	Note: ezm3 (modula-3) needs a patch to work correctly after the
+	change to 64-BTT.  That fix has not been commited to the port
+	yet [as of Mar 10th], but hopefully it will be commited soon.
+
+There are pre-built packages available for ezm3 and cvsup-without-gui on
+the new 64-bTT systems.  This ezm3 package *does* include the necessarily
+patch.  These files are available on the standard ftp servers for FreeBSD.
+If you have previous versions installed, then remove them with:
+
+    pkg_delete cvsup\*
+    pkg_delete ezm3\*
+	If you get warnings about "unable to completely remove" some
+	lib/m3 directories when deleting ezm3, then also enter:
+    rm -rf /usr/local/lib/m3
+
+You can install the new packages with:
+
+    pkg_add ftp://ftp3.FreeBSD.org/pub/FreeBSD/ports/local-distfiles/gad/ez...
+    pkg_add ftp://ftp3.FreeBSD.org/pub/FreeBSD/ports/local-distfiles/gad/cv...
+	Replacing "ez..." with "ezm3-64btt-1.1_1.tbz" and "cv..."
+	with "cvsup-without-gui-64btt-16.1h.tbz".  You can also use
+	some other standard ftp server, instead of ftp3.FreeBSD.org.
+
+    "Now look over all the other ports you have installed, and
+    re-compile everything that probably needs to be recompiled".
+
+If you are going to do it piecemeal, the next ports to force-rebuild would
+probably be languages like perl and python, if you have them installed.
+After that, force-rebuild the ports like autoconf and automake, if you
+have them installed.  Or you might want to play it safe at this point,
+and simply recompile *every* port that you have installed.
+
+A different tactic to use for ports is to remove *all* ports before you
+do the installkernel/installworld step (while you're still on a 32-bTT
+system).  Then, once you're up on the 64-bTT system, start making them
+one-by-one.  If you follow this tactic, you might want to save the output
+of a 'pkg_info' command before you start removing ports.
+
+# -------+---------+---------+---------+---------+---------+---------+---------+
+
+If you run into problems when making this change, please report them to
+the mailing list freebsd-sparc64@FreeBSD.org .
+
+# -------+---------+---------+---------+---------+---------+---------+---------+
+#  Notice that the following command can be useful in some settings:
+               grep '#\- ' UPDATING.64BTT

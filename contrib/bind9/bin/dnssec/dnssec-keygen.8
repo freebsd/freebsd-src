@@ -1,0 +1,174 @@
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000-2003  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: dnssec-keygen.8,v 1.19.12.5 2004/06/11 02:32:45 marka Exp $
+.\"
+.TH "DNSSEC-KEYGEN" "8" "June 30, 2000" "BIND9" ""
+.SH NAME
+dnssec-keygen \- DNSSEC key generation tool
+.SH SYNOPSIS
+.sp
+\fBdnssec-keygen\fR \fB-a \fIalgorithm\fB\fR \fB-b \fIkeysize\fB\fR \fB-n \fInametype\fB\fR [ \fB-c \fIclass\fB\fR ]  [ \fB-e\fR ]  [ \fB-f \fIflag\fB\fR ]  [ \fB-g \fIgenerator\fB\fR ]  [ \fB-h\fR ]  [ \fB-k\fR ]  [ \fB-p \fIprotocol\fB\fR ]  [ \fB-r \fIrandomdev\fB\fR ]  [ \fB-s \fIstrength\fB\fR ]  [ \fB-t \fItype\fB\fR ]  [ \fB-v \fIlevel\fB\fR ]  \fBname\fR
+.SH "DESCRIPTION"
+.PP
+\fBdnssec-keygen\fR generates keys for DNSSEC
+(Secure DNS), as defined in RFC 2535 and RFC <TBA\\>. It can also generate
+keys for use with TSIG (Transaction Signatures), as
+defined in RFC 2845.
+.SH "OPTIONS"
+.TP
+\fB-a \fIalgorithm\fB\fR
+Selects the cryptographic algorithm. The value of
+\fBalgorithm\fR must be one of RSAMD5 (RSA) or RSASHA1,
+DSA, DH (Diffie Hellman), or HMAC-MD5. These values
+are case insensitive.
+
+Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement algorithm,
+and DSA is recommended. For TSIG, HMAC-MD5 is mandatory.
+
+Note 2: HMAC-MD5 and DH automatically set the -k flag.
+.TP
+\fB-b \fIkeysize\fB\fR
+Specifies the number of bits in the key. The choice of key
+size depends on the algorithm used. RSAMD5 / RSASHA1 keys must be between
+512 and 2048 bits. Diffie Hellman keys must be between
+128 and 4096 bits. DSA keys must be between 512 and 1024
+bits and an exact multiple of 64. HMAC-MD5 keys must be
+between 1 and 512 bits.
+.TP
+\fB-n \fInametype\fB\fR
+Specifies the owner type of the key. The value of
+\fBnametype\fR must either be ZONE (for a DNSSEC
+zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with a host (KEY)),
+USER (for a key associated with a user(KEY)) or OTHER (DNSKEY). These values are
+case insensitive.
+.TP
+\fB-c \fIclass\fB\fR
+Indicates that the DNS record containing the key should have
+the specified class. If not specified, class IN is used.
+.TP
+\fB-e\fR
+If generating an RSAMD5/RSASHA1 key, use a large exponent.
+.TP
+\fB-f \fIflag\fB\fR
+Set the specified flag in the flag field of the KEY/DNSKEY record.
+The only recognized flag is KSK (Key Signing Key) DNSKEY.
+.TP
+\fB-g \fIgenerator\fB\fR
+If generating a Diffie Hellman key, use this generator.
+Allowed values are 2 and 5. If no generator
+is specified, a known prime from RFC 2539 will be used
+if possible; otherwise the default is 2.
+.TP
+\fB-h\fR
+Prints a short summary of the options and arguments to
+\fBdnssec-keygen\fR.
+.TP
+\fB-k\fR
+Generate KEY records rather than DNSKEY records.
+.TP
+\fB-p \fIprotocol\fB\fR
+Sets the protocol value for the generated key. The protocol
+is a number between 0 and 255. The default is 3 (DNSSEC).
+Other possible values for this argument are listed in
+RFC 2535 and its successors.
+.TP
+\fB-r \fIrandomdev\fB\fR
+Specifies the source of randomness. If the operating
+system does not provide a \fI/dev/random\fR
+or equivalent device, the default source of randomness
+is keyboard input. \fIrandomdev\fR specifies
+the name of a character device or file containing random
+data to be used instead of the default. The special value
+\fIkeyboard\fR indicates that keyboard
+input should be used.
+.TP
+\fB-s \fIstrength\fB\fR
+Specifies the strength value of the key. The strength is
+a number between 0 and 15, and currently has no defined
+purpose in DNSSEC.
+.TP
+\fB-t \fItype\fB\fR
+Indicates the use of the key. \fBtype\fR must be
+one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF. The default
+is AUTHCONF. AUTH refers to the ability to authenticate
+data, and CONF the ability to encrypt data.
+.TP
+\fB-v \fIlevel\fB\fR
+Sets the debugging level.
+.SH "GENERATED KEYS"
+.PP
+When \fBdnssec-keygen\fR completes successfully,
+it prints a string of the form \fIKnnnn.+aaa+iiiii\fR
+to the standard output. This is an identification string for
+the key it has generated. These strings can be used as arguments
+to \fBdnssec-makekeyset\fR.
+.TP 0.2i
+\(bu
+\fInnnn\fR is the key name.
+.TP 0.2i
+\(bu
+\fIaaa\fR is the numeric representation of the
+algorithm.
+.TP 0.2i
+\(bu
+\fIiiiii\fR is the key identifier (or footprint).
+.PP
+\fBdnssec-keygen\fR creates two file, with names based
+on the printed string. \fIKnnnn.+aaa+iiiii.key\fR
+contains the public key, and
+\fIKnnnn.+aaa+iiiii.private\fR contains the private
+key.
+.PP
+.PP
+The \fI.key\fR file contains a DNS KEY record that
+can be inserted into a zone file (directly or with a $INCLUDE
+statement).
+.PP
+.PP
+The \fI.private\fR file contains algorithm specific
+fields. For obvious security reasons, this file does not have
+general read permission.
+.PP
+.PP
+Both \fI.key\fR and \fI.private\fR
+files are generated for symmetric encryption algorithm such as
+HMAC-MD5, even though the public and private key are equivalent.
+.PP
+.SH "EXAMPLE"
+.PP
+To generate a 768-bit DSA key for the domain
+\fBexample.com\fR, the following command would be
+issued:
+.PP
+\fBdnssec-keygen -a DSA -b 768 -n ZONE example.com\fR
+.PP
+The command would print a string of the form:
+.PP
+\fBKexample.com.+003+26160\fR
+.PP
+In this example, \fBdnssec-keygen\fR creates
+the files \fIKexample.com.+003+26160.key\fR and
+\fIKexample.com.+003+26160.private\fR
+.SH "SEE ALSO"
+.PP
+\fBdnssec-signzone\fR(8),
+\fIBIND 9 Administrator Reference Manual\fR,
+\fIRFC 2535\fR,
+\fIRFC 2845\fR,
+\fIRFC 2539\fR.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium

@@ -1,0 +1,348 @@
+#!/bin/sh
+# -------+---------+---------+---------+---------+---------+---------+---------+
+# Copyright (c) 2004  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+#
+# All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+#
+# -------+---------+---------+---------+---------+---------+---------+---------+
+# $FreeBSD$
+# -------+---------+---------+---------+---------+---------+---------+---------+
+#
+#   This script does a 'make installworld' using the *new* versions of all
+# commands to do the work.  This is important when a major incompatible
+# change is made, a change such that the old-binaries won't work when
+# running on the new-kernel.  This script was written for the change to
+# 64-bit time_t on FreeBSD/Sparc64, but it is not specific to that.
+#
+#   IMPORTANT: This script does require that you ARE RUNNING ON the
+# new kernel that matches the 'world' that you want to install.
+#
+# -------+---------+---------+---------+---------+---------+---------+---------+
+
+#   This script expects that it will be run from /usr/src, or an
+#   equivalent (perhaps NFS-mounted) directory.
+if [ -f MAINTAINERS -a -f UPDATING -a -f Makefile -a -f Makefile.inc1 ] ; then
+    SOURCE_BWDIR="`make -V .OBJDIR`"
+else
+    echo "This script must be run from /usr/src!  (or equivalent)"
+    exit 1
+fi
+
+DOMAKE=
+DOMINI=
+SETMINPATH=
+SYMLINKS=
+VERBOSE=
+BADOPT=
+while test $# != 0
+do
+    case "$1" in
+    -M)   SETMINPATH=yes ;;
+    -S)   SYMLINKS=yes ;;
+    -y)   DOMAKE=yes ;;
+    -n)   DOMAKE=no ;;
+    -v)   VERBOSE=yes ;;
+    *)    echo "Invalid option: $1" ; BADOPT=yes ;;
+    esac
+    shift 1
+done
+if [ -n "$BADOPT" ] ; then
+    exit 1
+fi
+
+echo "* + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - *"
+echo "*  This script expects that a 'make installkernel' has already"
+echo "*  been done, and that you HAVE rebooted, and you ARE running"
+echo "*  on that new kernel."
+echo "* + - + - + - + - + - + - + - + - + - + - + - + - + - + - + - *"
+echo ""
+
+#   Start out with no PATH at all.
+PATH=
+
+#   Where all the binaries should be coming from.
+BW_BIN="${SOURCE_BWDIR}/bin"
+BW_SBIN="${SOURCE_BWDIR}/sbin"
+BW_UBIN="${SOURCE_BWDIR}/usr.bin"
+BW_USBIN="${SOURCE_BWDIR}/usr.sbin"
+BW_GUBIN="${SOURCE_BWDIR}/gnu/usr.bin"
+
+MKTEMPCMD=/usr/bin/mktemp
+chkfile="${BW_UBIN}/mktemp/mktemp"
+if [ -f "${chkfile}" -a -x "${chkfile}" ] ; then
+    MKTEMPCMD="${chkfile}"
+else
+    echo "** Cannot find ${chkfile}?"
+    echo "** Will use ${MKTEMPCMD}"
+fi
+
+#   I intentionally prefer to have a shorter name here...  We just need a
+#   unique name, we're not likely to be under attack during installworld!
+TMPHOLD=`"${MKTEMPCMD}" -q -d ${TMPDIR:-/tmp}/install-newk.XXX`
+if [ $? -ne 0 ] ; then
+    echo "** Unable to create temp program-holding directory"
+    exit 1
+fi
+
+#   Set the most-restrictive value for PATH that the user is willing to
+#   shoot for.  The more restrictive we are here, the more likely we
+#   will catch all references to "old version" executables.
+PATH=${TMPHOLD}:/sbin:/bin:/usr/sbin:/usr/bin
+if [ -n "$SETMINPATH" ] ; then
+    PATH=${TMPHOLD}
+fi
+
+#   Find the most-appropriate version of key commands for this script.
+#   XXX - It would be nice if we could reliably find the exact kernel that
+#	we booted up with, and check for the optional mini-/bin in it.
+COPYCMD=/missing/cp
+for chkexec in "${BW_BIN}/cp/cp" /bin/cp ; do
+    if [ -f "${chkexec}" ] ; then
+        COPYCMD="${chkexec} -p"
+        break
+    fi
+done
+LINKCMD=/missing/ln
+for chkexec in "${BW_BIN}/ln/ln" /bin/ln ; do
+    if [ -f "${chkexec}" ] ; then
+        LINKCMD="${chkexec}"
+        break
+    fi
+done
+COPYINFO="Copying"
+
+copy_exec () {
+    srcdir="$1"
+    cmdname="$2"
+    alsoln="$3"
+    srcfile="${srcdir}/${cmdname}"
+
+    if [ -f "${srcfile}" -a -x "${srcfile}" ] ; then
+        if [ -n "$VERBOSE" ] ; then
+	    echo ".. ${COPYINFO} ${srcfile}"
+	fi
+	${COPYCMD} "${srcfile}" "${TMPHOLD}"
+	if [ $? -ne 0 ] ; then
+	    echo "** Error ${COPYINFO} '${srcfile}'"
+	    exit 1
+	fi
+    else
+        echo "** Cannot find ${cmdname} in ${srcdir}?"
+        exit 1
+    fi
+
+    if [ -n "${alsoln}" ] ; then
+	if [ -n "$VERBOSE" ] ; then
+	    echo ".. Linking '${cmdname}' as '${alsoln}' "
+	fi
+	${LINKCMD} "${TMPHOLD}/${cmdname}" "${TMPHOLD}/${alsoln}"
+	if [ $? -ne 0 ] ; then
+	    echo "** Error Linking '${cmdname}'"
+	    exit 1
+	fi
+    fi
+}
+
+# The programs listed in the following `do' loop are all the same programs
+# that the standard 'installworld' target wants to make copies of, except
+# that this has special-cases for `awk', `[', and `egrep'.  This script
+# also adds the commands `cp', `install', `id' and `which', because those
+# are also *used* by the standard `make installworld' target, although
+# that target doesn't bother to make copies of those programs.  The `sleep'
+# command is also added, but only because it is used in this script.  And
+# `script' is included just because it can be useful when testing this script.
+#
+# Note that this means there will be two copies made of these files
+# (because the 'make installworld' target is still going to copy them a
+# second time).
+# XXX - also remember that these are dynamically-linked, so this is not
+#       necessarily a perfect solution for the 'general case', but it
+#       does seem to work correctly for the switch to 64-bit time_t.
+
+#   Do the `cp' command first, because this script does so much with it.
+chkfile="${BW_BIN}/cp/cp"
+if [ -f "${chkfile}" -a -x "${chkfile}" ] ; then
+    if [ -n "$VERBOSE" ] ; then
+        echo ".. Copying ${chkfile}"
+    fi
+    ${COPYCMD} "${chkfile}" ${TMPHOLD}
+else
+    echo "** Cannot find ${chkfile}?"
+    exit 1
+fi
+
+#   Do the `ln' command as the second one, for similar reasons.
+copy_exec "${BW_BIN}/ln" ln
+
+#   Awk is also called 'nawk'
+copy_exec "${BW_UBIN}/awk" nawk awk
+
+#   The `install' comand is also is a special case, because
+#   the program is actually built under the name 'xinstall'.
+copy_exec "${BW_UBIN}/xinstall" xinstall install
+
+#   Mergemaster is another special case, because it's a script which is
+#   pulled from the /usr/src directory (not from /usr/obj/usr/src/...).
+#   Strictly speaking we shouldn't need to pull this in, but I do in
+#   case someone says 'no' to the automatic-installworld at the end
+#   if this script.  If they also specified -M, then they end up with
+#   a PATH which will have only our TMPHOLD directory when they get
+#   to the mergemaster step.
+copy_exec "`pwd`/usr.sbin/mergemaster" mergemaster.sh mergemaster
+
+#   Worried about the extra disk space that this script uses up in /tmp?  Well,
+#   just specify the -S option, and this script will create symlinks instead of
+#   copying the files.  Note that the original files might be NFS-mounted, and
+#   /tmp might be a memory-based file system, so the `installworld' might go
+#   much faster when copies are done here instead of symlinks.
+if [ -n "$SYMLINKS" ] ; then
+    COPYINFO="Linking to"
+    COPYCMD="ln -s"
+    LINKCMD="ln -s"
+fi
+
+for prog in cap_mkdb cat chflags chmod chown date \
+            echo       find grep    make mkdir mtree mv \
+            pwd_mkdb rm sed sh sysctl test true uname wc zic \
+            hostname id ls sleep script umount which xargs
+do
+    gotmatch=
+    for chkdir in "${BW_BIN}" "${BW_SBIN}" "${BW_UBIN}" "${BW_GUBIN}" \
+                   "${BW_USBIN}" "${BW_USBIN}/${prog}"
+    do
+        #  (the above extra-${prog} case is only needed for 'zic')
+        chkdir="${chkdir}/${prog}"
+        if [ -f "${chkdir}/${prog}" -a -x "${chkdir}/${prog}" ] ; then
+            gotmatch=yes
+            copy_exec "${chkdir}" "${prog}"
+            if [ $? -ne 0 ] ; then
+                exit 1
+            fi
+            break
+        fi
+    done
+    if [ -z "$gotmatch" ] ; then
+        echo "** Did not find '${prog}' ?"
+    fi
+done
+
+#   Special case to handle '[', which we know is the same as 'test'
+if [ -x ${TMPHOLD}/test ] ; then
+    if [ -n "$VERBOSE" ] ; then
+        echo ".. Linking 'test' as '[' "
+    fi
+    ${LINKCMD} ${TMPHOLD}/test ${TMPHOLD}/[
+fi
+#   Special case for 'egrep', which is the same as 'grep'
+if [ -x ${TMPHOLD}/grep ] ; then
+    if [ -n "$VERBOSE" ] ; then
+        echo ".. Linking 'grep' as 'egrep' "
+    fi
+    ${LINKCMD} ${TMPHOLD}/grep ${TMPHOLD}/egrep
+fi
+
+#   Have to duplicate the standard makefile, to make a few changes.
+
+#   First find the setting of PATH.  Insert a line in front of that
+#   which uses the (undocumented) .SHELL feature to get 'make' to
+#   use the newer version of /bin/sh that we just made a copy of.
+#   Then alter the PATH setting so that all make targets check our
+#   directory of copied files first.  If '-M' was given, then have
+#   a PATH setting that looks ONLY at our copied files.
+#    
+#   XXX - the .SHELL feature did NOT seem to work the way that I
+#	wanted it to, but that is not a problem for now.  It can
+#	be looked into at some later date...
+nawk '/^PATH=/ { \
+	    print "#   Try to get the make cmd to use an alternate /bin/sh." ; \
+	    print ".SHELL : name=sh path=" TDIR "/sh"  ; \
+	    print "" ; \
+	    if (WANTMIN == "yes") \
+	        sub(/^PATH *=[ \t]*.*/, "PATH=\t" TDIR ); \
+	    else \
+	        sub(/^PATH *=[ \t]*/, "PATH=\t" TDIR ":"); \
+	    } \
+      /-f Makefile.inc1/ { \
+	    sub(/Makefile.inc1/, TDIR "/Makefile.inc1" ); \
+	    } \
+      { print $0 }' \
+    "TDIR=${TMPHOLD}" "WANTMIN=${SETMINPATH}" Makefile > ${TMPHOLD}/Makefile
+
+#   In the case of this script, we also change Makefile.inc1, just to
+#   set the .SHELL target, and to make it (Makefile.inc1) reference
+#   the modified version in 'make -f' references.  Someone recently
+#   committed a total restructuring of Makefile.inc1, so the following
+#   has to be setup such that it works with both formats.
+nawk '/^# Put initial settings/ { \
+	    print "#   Try to get the make cmd to use an alternate /bin/sh." ; \
+	    print ".SHELL : name=sh path=" TDIR "/sh"  ; \
+	    print "" ; \
+	    } \
+      /^SUBDIR=[\t ]*share\/info .*bin/ { \
+	    print "#   Try to get the make cmd to use an alternate /bin/sh." ; \
+	    print ".SHELL : name=sh path=" TDIR "/sh"  ; \
+	    print "" ; \
+	    } \
+      /-f Makefile.inc1/ { \
+	    sub(/Makefile.inc1/, TDIR "/Makefile.inc1" ); \
+	    } \
+     { print $0 }' \
+    "TDIR=${TMPHOLD}" Makefile.inc1 > "${TMPHOLD}/Makefile.inc1"
+
+echo ""
+echo "The key programs needed by 'make installworld' have been copied."
+if [ -n "$VERBOSE" ] ; then
+    ls -C ${TMPHOLD}
+    echo ""
+fi
+
+#   The sparc64_installcheck will want this in the environment.
+NEWSPARC_TIMETYPE=__int64_t
+export NEWSPARC_TIMETYPE
+
+# See if the user wants us to go ahead with 'installworld',
+#     or just tell them what steps they need to do.
+if [ -z "${DOMAKE}" ] ; then
+    echo "Do you want to proceed with 'installworld'? "
+    read -p "(y/n) ? "  DOMAKE remline
+    echo " "
+fi
+if [ -n "`echo /y/yes/okay/ok/ | grep -i \"/${DOMAKE}/\"`" ] ; then
+    echo "Okay then, this script has set:"
+    echo "    NEWSPARC_TIMETYPE=__int64_t"
+    echo "    PATH=${PATH}"
+    echo "and will now execute the command:"
+    echo "    make -f ${TMPHOLD}/Makefile installworld"
+    sleep 4
+    make -f ${TMPHOLD}/Makefile installworld
+else
+    echo "When you are ready to continue, enter the commands:"
+    echo "    PATH=${PATH}"
+    echo "or:"
+    echo "    PATH=${TMPHOLD}:\${PATH}"
+    echo "and:"
+    echo "    NEWSPARC_TIMETYPE=__int64_t"
+    echo "    export NEWSPARC_TIMETYPE"
+    echo "    make -f ${TMPHOLD}/Makefile installworld"
+fi

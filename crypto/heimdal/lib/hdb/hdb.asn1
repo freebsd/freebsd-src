@@ -1,0 +1,70 @@
+-- $Id: hdb.asn1,v 1.9 2001/06/21 14:54:53 joda Exp $
+HDB DEFINITIONS ::=
+BEGIN
+
+IMPORTS EncryptionKey, KerberosTime, Principal FROM krb5;
+
+HDB_DB_FORMAT INTEGER ::= 2	-- format of database, 
+				-- update when making changes
+
+-- these must have the same value as the pa-* counterparts
+hdb-pw-salt	INTEGER	::= 3
+hdb-afs3-salt	INTEGER	::= 10
+
+Salt ::= SEQUENCE {
+	type[0]		INTEGER,
+	salt[1]		OCTET STRING
+}
+
+Key ::= SEQUENCE {
+	mkvno[0]	INTEGER OPTIONAL,	-- master key version number
+	key[1]		EncryptionKey,
+	salt[2]		Salt OPTIONAL
+}
+
+Event ::= SEQUENCE {
+	time[0]		KerberosTime,
+	principal[1]	Principal OPTIONAL
+}
+
+HDBFlags ::= BIT STRING {
+	initial(0),		-- require as-req
+	forwardable(1),		-- may issue forwardable
+	proxiable(2),		-- may issue proxiable
+	renewable(3),		-- may issue renewable
+	postdate(4),		-- may issue postdatable
+	server(5),		-- may be server
+	client(6),		-- may be client
+	invalid(7),		-- entry is invalid
+	require-preauth(8),	-- must use preauth
+	change-pw(9),		-- change password service
+	require-hwauth(10),	-- must use hwauth
+	ok-as-delegate(11),	-- as in TicketFlags
+	user-to-user(12),	-- may use user-to-user auth
+	immutable(13)		-- may not be deleted
+}
+
+GENERATION ::= SEQUENCE {
+	time[0]		KerberosTime,	-- timestamp
+	usec[1]		INTEGER,	-- microseconds
+	gen[2]		INTEGER		-- generation number
+}
+
+hdb_entry ::= SEQUENCE {
+	principal[0]	Principal  OPTIONAL, -- this is optional only 
+					     -- for compatibility with libkrb5
+	kvno[1]		INTEGER,
+	keys[2]		SEQUENCE OF Key,
+	created-by[3]	Event,
+	modified-by[4]	Event OPTIONAL,
+	valid-start[5]	KerberosTime OPTIONAL,
+	valid-end[6]	KerberosTime OPTIONAL,
+	pw-end[7]	KerberosTime OPTIONAL,
+	max-life[8]	INTEGER OPTIONAL,
+	max-renew[9]	INTEGER OPTIONAL,
+	flags[10]	HDBFlags,
+	etypes[11]	SEQUENCE OF INTEGER OPTIONAL,
+	generation[12]	GENERATION OPTIONAL
+}
+
+END

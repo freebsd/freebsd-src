@@ -1,0 +1,66 @@
+.\"
+.\" Copyright (c) 2001 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Fri Jan 12 10:07:04 2001]
+.\"
+.Dd January 12, 2001
+.Dt ITJC 4
+.Os
+.Sh NAME
+.Nm itjc
+.Nd isdn4bsd NETjet-S / Teles PCI-TJ hardware driver
+.Sh SYNOPSIS
+.Cd "device itjc"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides D-channel layer 1 supports as specified in ITU Recommendation
+I.430 and layer 1 support for the B-channel.
+.Pp
+The driver supports passive PCI ISDN cards based on the combination of
+the Siemens/Infineon ISAC chip and the Tiger Jet Network Inc.\& Tiger 300/320
+chip.
+.Pp
+Currently supported cards are the Traverse Technologies NETjet-S PCI ISDN
+card and the Teles PCI-TJ.
+.Sh CAVEATS
+The driver is in an experimental state.
+.Sh BUGS
+Always at least one left.
+.Sh STANDARDS
+CCITT Recommendation I.430
+.Sh SEE ALSO
+.Xr i4bq921 4 ,
+.Xr i4bq931 4
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Sergio de Souza Prallon Aq prallon@tmp.com.br .
+.Pp
+This manpage was written by
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .

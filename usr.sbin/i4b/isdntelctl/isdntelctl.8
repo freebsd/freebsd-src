@@ -1,0 +1,99 @@
+.\"
+.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdntelctl.8,v 1.9 1999/12/13 22:11:55 hm Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 23:06:45 1999]
+.\"
+.Dd April 21, 1999
+.Dt ISDNTELCTL 8
+.Os
+.Sh NAME
+.Nm isdntelctl
+.Nd control isdn4bsd telephone sound format conversion
+.Sh SYNOPSIS
+.Nm
+.Op Fl c
+.Op Fl g
+.Op Fl u Ar unit
+.Op Fl A
+.Op Fl U
+.Op Fl N
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is part of the isdn4bsd package and is used to configure the sound format
+conversion facilities of the /dev/i4btel interfaces.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl c
+Clear the telephone input queue.
+.It Fl g
+Get the sound format currently in use.
+.It Fl u
+Set the /dev/i4btel unit number.
+The default value is zero to access
+device /dev/i4btel0.
+.It Fl A
+Do A-law (ISDN line) -> u-law (userland) conversion.
+.It Fl U
+Do u-law (ISDN line) -> A-law (userland) conversion.
+.It Fl N
+Set sound conversion to do no format conversion.
+.El
+.Pp
+The telephony data stream comes out of the line in a bit-reversed format,
+so the
+.Xr i4btel 4
+driver does the bit-reversion process in any case.
+.Pp
+Additionally, the user can specify to do A-law to u-law, u-law to A-law
+or no conversion at all in the i4btel driver by using the
+.Nm
+utility.
+.Sh FILES
+/dev/i4btel<n>
+.Sh STANDARDS
+A-Law and u-Law are specified in ITU Recommendation G.711.
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+isdntelctl -g
+.Ed
+.Pp
+displays the currently used sound format for device /dev/i4btel0.
+.Sh SEE ALSO
+.Xr g711conv 1 ,
+.Xr i4btel 4 ,
+.Xr isdnd.rc 5 ,
+.Xr isdnd 8
+.Sh AUTHORS
+The
+.Nm
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org .

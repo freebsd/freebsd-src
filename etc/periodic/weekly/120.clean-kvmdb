@@ -1,0 +1,49 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]; then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$weekly_clean_kvmdb_enable" in
+    [Yy][Ee][Ss])
+	if [ ! -d /var/db ]
+	then
+	    echo '$weekly_clean_kvmdb_enable is set but /var/db' \
+		"doesn't exist"
+	    rc=2
+	elif [ -z "$weekly_clean_kvmdb_days" ]
+	then
+	    echo '$weekly_clean_kvmdb_enable is set but' \
+		'$weekly_clean_kvmdb_days is not'
+	    rc=2
+	else
+	    echo ""
+	    echo "Cleaning up kernel database files:"
+
+	    kernel=`sysctl -n kern.bootfile`
+	    kernel=kvm_${kernel##*/}.db
+
+	    case "$weekly_clean_kvmdb_verbose" in
+		[Yy][Ee][Ss])
+		    print=-print;;
+		*)
+		    print=;;
+	    esac
+
+	    rc=$(find /var/db -name "kvm_*.db" ! -name $kernel \
+		-atime +$weekly_clean_kvmdb_days -delete $print |
+		tee /dev/stderr | wc -l)
+	    [ -z "$print" ] && rc=0
+	    [ $rc -gt 1 ] && rc=1
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc

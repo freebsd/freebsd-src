@@ -1,0 +1,259 @@
+.\" Man page for man
+.\"
+.\" Copyright (c) 1990, 1991, John W. Eaton.
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the README file that comes with the man 1.0
+.\" distribution.
+.\"
+.\" John W. Eaton
+.\" jwe@che.utexas.edu
+.\" Department of Chemical Engineering
+.\" The University of Texas at Austin
+.\" Austin, Texas  78712
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 5, 1991
+.Dt MAN 1
+.Os
+.Sh NAME
+.Nm man
+.Nd format and display the on-line manual pages
+.Sh SYNOPSIS
+.Nm
+.Op Fl adfhkotw
+.Op Fl m Ar machine
+.Op Fl p Ar string
+.Op Fl M Ar path
+.Op Fl P Ar pager
+.Op Fl S Ar list
+.Op Ar section
+.Ar name ...
+.Sh DESCRIPTION
+.Nm Man
+formats and displays the on-line manual pages.
+This version knows
+about the
+.Ev MANPATH
+and
+.Ev PAGER
+environment variables, so you can have
+your own set(s) of personal man pages and choose whatever program you
+like to display the formatted pages.
+If section is specified,
+.Nm
+only looks in that section of the manual.
+You may also specify the
+order to search the sections for entries and which preprocessors to
+run on the source files via command line options or environment
+variables.
+If enabled by the system administrator, formatted man
+pages will also be compressed with the `%compress%' command to save
+space.
+.Pp
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl M Ar path
+Specify an alternate manpath.
+By default,
+.Nm
+uses
+.Xr manpath 1
+(which is built into the
+.Nm
+binary)
+to determine the path to search.
+This option overrides the
+.Ev MANPATH
+environment variable.
+.It Fl P Ar pager
+Specify which pager to use.
+By default,
+.Nm
+uses
+.Nm %pager% .
+This option overrides the
+.Ev PAGER
+environment variable.
+.It Fl S Ar list
+List is a colon separated list of manual sections to search.
+This option overrides the
+.Ev MANSECT
+environment variable.
+.It Fl a
+By default,
+.Nm
+will exit after displaying the first manual page it
+finds.
+Using this option forces
+.Nm
+to display all the manual pages
+that match
+.Ar name ,
+not just the first.
+.It Fl d
+Don't actually display the man pages, but do print gobs of debugging
+information.
+.It Fl f
+Equivalent to
+.Nm whatis .
+.It Fl h
+Print a help message and exit.
+.It Fl k
+Equivalent to
+.Nm apropos .
+.It Fl m Ar machine
+As some manual pages are intended only for specific architectures,
+.Nm
+searches any subdirectories,
+with the same name as the current architecture,
+in every directory which it searches.
+Machine specific areas are checked before general areas.
+The current machine type may be overridden using this option
+or by setting the environment variable
+.Ev MACHINE
+to the name of a specific architecture.
+This option overrides the
+.Ev MACHINE
+environment variable.
+.It Fl o
+Look for original, non-localized manpages only.
+.Pp
+By default,
+.Nm
+searches for a localized manpage
+in a set of locale subdirectories of each
+.Xr manpath 1
+component.
+.Pp
+Locale name is taken from the first of three environment variables
+with a nonempty value:
+.Ev LC_ALL , LC_CTYPE ,
+or
+.Ev LANG ,
+in the specified order.
+.Pp
+If the value could not be determined, or is not a valid locale name,
+then only non-localized manpage will be looked up.
+.Pp
+Otherwise,
+.Nm
+will search in the following subdirectories, in the order of precedence:
+.Pp
+.Bl -item -offset indent -compact
+.Sm off
+.It
+.Pa <lang> _ <country> . <charset>
+.It
+.Pa <lang> . <charset>
+.It
+.Pa en . <charset>
+.Sm on
+.El
+.Pp
+For example, for
+.Dq de_DE.ISO8859-1
+locale,
+.Nm
+will search in the following subdirectories of the
+.Pa /usr/share/man
+manpath component:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Pa /usr/share/man/de_DE.ISO8859-1
+.It
+.Pa /usr/share/man/de.ISO8859-1
+.It
+.Pa /usr/share/man/en.ISO8859-1
+.El
+.Pp
+Finally,
+if the search of localized manpage fails,
+it will be looked up in the default
+.Pa /usr/share/man
+directory.
+.It Fl p Ar string
+Specify the sequence of preprocessors to run before nroff or troff.
+Not all installations will have a full set of preprocessors.
+Some of the preprocessors and the letters used to designate them are:
+eqn (e), grap (g), pic (p), tbl (t), vgrind (v), refer (r).
+This option overrides the
+.Ev MANROFFSEQ
+environment variable.
+.It Fl t
+Use
+.Nm %troff%
+to format the manual page, passing the output to stdout.
+The output from
+.Nm %troff%
+may need to be passed through some filter or another before being
+printed.
+.It Fl w
+Don't actually display the man pages, but do print the location(s) of
+the files that would be formatted or displayed.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width MANROFFSEQ
+.It Ev LC_ALL , LC_CTYPE , LANG
+These variables specify the preferred language for manual pages.
+(See the
+.Fl o
+option above.)
+.It Ev MACHINE
+If
+.Ev MACHINE
+is set, its value is used to override the current machine type
+when searching machine specific subdirectories.
+.It Ev MANPATH
+If
+.Ev MANPATH
+is set, its value is used as the path to search for manual pages.
+.It Ev MANROFFSEQ
+If
+.Ev MANROFFSEQ
+is set, its value is used to determine the set of preprocessors run
+before running nroff or troff.
+By default, pages are passed through
+the table preprocessor before nroff.
+.It Ev MANSECT
+If
+.Ev MANSECT
+is set, its value is used to determine which manual sections to search.
+.It Ev PAGER
+If
+.Ev PAGER
+is set, its value is used as the name of the program to use to display
+the man page.
+By default,
+.Nm %pager%
+is used.
+.El
+.Sh EXAMPLES
+.Pp
+Normally, to look at the relevant manpage information for getopt,
+one would use:
+.Pp
+.Dl man getopt
+.Pp
+However, when referring to a specific section of the manual,
+such as
+.Xr getopt 3 ,
+one would use:
+.Pp
+.Dl man 3 getopt
+.Sh SEE ALSO
+.Xr apropos 1 ,
+.Xr groff 1 ,
+.Xr manpath 1 ,
+.Xr more 1 ,
+.Xr whatis 1 ,
+.Xr man 7 ,
+.Xr mdoc 7
+.Sh BUGS
+The
+.Fl t
+option only works if the
+.Xr troff 1 Ns -like
+program is installed.

@@ -1,0 +1,57 @@
+.\"	$Id: dhclient.leases.5,v 1.2.4.4 2004/06/10 17:59:13 dhankins Exp $
+.\"
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1997-2003 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"   Internet Systems Consortium, Inc.
+.\"   950 Charter Street
+.\"   Redwood City, CA 94063
+.\"   <info@isc.org>
+.\"   http://www.isc.org/
+.\"
+.\" This software has been written for Internet Systems Consortium
+.\" by Ted Lemon in cooperation with Vixie
+.\" Enterprises.  To learn more about Internet Systems Consortium,
+.\" see ``http://www.isc.org/isc''.  To learn more about Vixie
+.\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" $Id: dhclient.leases.5,v 1.2.4.3 2002/11/17 02:25:44 dhankins Exp $
+.\" $FreeBSD$
+.\"
+.TH dhclient.leases 5
+.SH NAME
+dhclient.leases - DHCP client lease database
+.SH DESCRIPTION
+The Internet Systems Consortium DHCP client keeps a persistent
+database of leases that it has acquired that are still valid.   The
+database is a free-form ASCII file containing one valid declaration
+per lease.   If more than one declaration appears for a given lease,
+the last one in the file is used.   The file is written as a log, so
+this is not an unusual occurrance.
+.PP
+The format of the lease declarations is described in
+.B dhclient.conf(5).
+.SH FILES
+.B DBDIR/dhclient.leases
+.SH SEE ALSO
+dhclient(8), dhcp-options(5), dhclient.conf(5),
+RFC2132, RFC2131.
+.SH AUTHOR
+.B dhclient(8)
+was written by Ted Lemon
+under a contract with Vixie Labs.   Funding
+for this project was provided by Internet Systems Consortium.
+Information about Internet Systems Consortium can be found at
+.B http://www.isc.org.

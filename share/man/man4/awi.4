@@ -1,0 +1,143 @@
+.\"     $NetBSD: awi.4,v 1.6 2000/03/22 11:24:33 onoe Exp $
+.\" $FreeBSD$
+.\"
+.Dd October 31, 1999
+.Dt AWI 4
+.Os
+.Sh NAME
+.Nm awi
+.Nd "AMD PCnetMobile IEEE 802.11 PCMCIA wireless network driver"
+.Sh SYNOPSIS
+.Cd "device awi"
+.Cd "device wlan"
+.Sh DESCRIPTION
+The
+.Nm
+driver supports various IEEE 802.11 wireless cards
+which run AMD PCnetMobile firmware based on AMD 79c930 controller
+with Intersil (formerly Harris) PRISM radio chipset.
+It provides access to 32kb of memory shared between the controller
+and the host.
+All host/device interaction is via this shared memory, which can be
+accessed either via PCMCIA memory space or I/O space.
+The
+.Nm
+driver encapsulates all IP and ARP traffic as 802.11 frames.
+.Pp
+The driver works both in infrastructure mode and in adhoc (independent
+BSS) mode.
+.Pp
+In infrastructure mode, it communicates with an Access Point
+which serves as a link-layer bridge between an Ethernet and
+the wireless network.
+An access point also provides roaming capability
+which allows wireless nodes to move between access points.
+.Pp
+In adhoc mode, it communicates peer to peer.
+Though it is more efficient to communicate between wireless nodes,
+the coverage is limited spatially due to lack of roaming capability.
+.Pp
+In addition to these two modes in the IEEE 802.11 specification, the
+.Nm
+driver also supports a variant of adhoc mode out of spec for DS radio cards,
+which makes it possible to communicate with adhoc mode of
+.Xr wi 8
+driver.
+The NWID doesn't affect in this mode.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+Cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -tag -width BayStack_650x -offset indent
+.It BayStack 650
+1Mbps Frequency Hopping PCCARD adapter
+.It BayStack 660
+2Mbps Direct Sequence PCCARD adapter
+.It Icom SL-200
+2Mbps Direct Sequence PCCARD adapter
+.It Melco WLI-PCM
+2Mbps Direct Sequence PCCARD adapter
+.It NEL SSMagic
+2Mbps Direct Sequence PCCARD adapter
+.It Netwave AirSurfer Plus
+1Mbps Frequency Hopping PCCARD adapter
+.It Netwave AirSurfer Pro
+2Mbps Direct Sequence PCCARD adapter
+.It Nokia C020 WLAN
+2Mbps Direct Sequence PCCARD adapter
+.It Farallon SkyLINE
+2Mbps Direct Sequence PCCARD adapter
+.El
+.Pp
+The original Xircom Netwave AirSurfer is supported by the
+.Xr cnw 4
+driver.
+.Sh MEDIA SELECTION
+The DS cards support
+.Em DS1
+and
+.Em DS2
+media types, while the FH cards support
+.Em FH1
+media type.
+For each media type,
+.Em adhoc
+mediaopt can be used to indicate the driver to operate in adhoc mode.
+For DS radio cards,
+.Em adhoc , Ns Em flag0
+mediaopt can be used for
+.Xr wi 4
+compatible adhoc mode.
+In addition to these station modes,
+.Em hostap
+mediaopt can be used to create a host-based access point.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "awi0: awi_pccard_probe: bad banner:"
+The device failed to initialize its firmware.
+.It "awi0: failed to complete selftest (%s)"
+The device failed to complete its self test.
+In some circumstances, resetting device after power on fails.
+Re-inserting the card or down-then-up interface may be helpful.
+.It "awi0: transmit timeout"
+The device failed to generate an interrupt to acknowledge a
+transmitted packet.
+.It "awi0: failed to lock interrupt"
+The system was unable to obtain the lock to access shared memory.
+.It "awi0: command %d failed %x"
+The device failed to complete the request from the system.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr card 4 ,
+.Xr cnw 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr pccard 4 ,
+.Xr wi 4 ,
+.Xr wlan 4 ,
+.Xr ifconfig 8
+.Rs
+.%T Am79C930 PCnet Mobile Single-Chip Wireless LAN Media Access Controller
+.%O http://www.amd.com
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Nx 1.5 .
+.Sh AUTHORS
+.An -nosplit
+The initial version of the
+.Nm
+driver was written by
+.An Bill Sommerfeld Aq sommerfeld@netbsd.org .
+Then the
+.Nm
+driver module was completely rewritten to support cards with DS phy and
+to support adhoc mode by
+.An Atsushi Onoe Aq onoe@netbsd.org .

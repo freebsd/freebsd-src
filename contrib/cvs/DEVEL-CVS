@@ -1,0 +1,61 @@
+                        CVS Development Policies
+
+This file, DEVEL-CVS, contains the policies by which the CVS
+development group operates.  Also see the HACKING file.
+
+----------------------------------------------------------------------
+Charter for the devel-cvs mailing list:
+
+The CVS Developers' List <dev@ccvs.cvshome.org> exists to help people
+with access to the CVS source repository co-ordinate changes, make
+releases, and administer the repository.
+
+Everyone who has been given checkin access to the repository for the
+CVS sources should read devel-cvs.  Only those with checkin access may
+send messages to the list.
+
+The devel-cvs list may be used to discuss:
+- administrivia regarding the CVS source repository and release
+  process, and
+- changes and features intended for inclusion in the official CVS
+  release (either source code or documentation), which someone plans
+  to implement, or has implemented.
+
+The devel-cvs list should not be used to discuss:
+- changes or features to packages other than the CVS release
+  (e.g., related packages like tkCVS, RAD/CVS, or other groups'
+  distributions of CVS, like RCVS, etc.),
+- changes which nobody has offered to implement, or
+- the philosophy of CVS (as opposed to a specific change to CVS).
+These topics should either go on info-cvs, or have a new mailing list
+created for them.
+
+The topic restrictions in this charter do not reflect the development
+group's future plans for CVS; rather, they reflect a topic
+classification which the group finds helpful.
+
+----------------------------------------------------------------------
+Policies regarding the CVS source repository:
+
+By checking items into the repository, developers agree to permit
+distribution of such items under the terms of the GNU Public License.
+
+----------------------------------------------------------------------
+Procedure for dealing with people who want to be developers:
+
+People who want checkin access are first requested to send
+patches and have them reviewed by a developer.  If they submit some
+good ones (preferably over a period of time, to demonstrate sustained
+interest), then one of the developers can ask the devel-cvs mailing
+list whether it is OK to make this person a developer (after first
+sending the prospective developer a copy of this file and then having
+the prospective developer say they want to be a developer).  If there
+are no objections, the person will be made a developer.
+
+----------------------------------------------------------------------
+Policy regarding checkout-only access:
+
+Checkout-only access to the CVS repository is available to all, on an
+anonymous basis (no need for registration or other complications).
+The exact technical mechanisms by which it is available are not
+covered by this policy.

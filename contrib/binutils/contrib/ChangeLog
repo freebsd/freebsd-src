@@ -1,0 +1,7 @@
+2002-07-03  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ChangeLog: Newly created.
+	* texi2pod.pl: Imported from FSF GCC sources.
+	
+	
+

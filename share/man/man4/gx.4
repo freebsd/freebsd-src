@@ -1,0 +1,191 @@
+.\" Copyright (c) 2001
+.\"	Jonathan Lemon <jlemon@FreeBSD.org>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 5, 2004
+.Dt GX 4
+.Os
+.Sh NAME
+.Nm gx
+.Nd "Intel PRO/1000 Gigabit Ethernet driver"
+.Sh SYNOPSIS
+.Cd "device miibus"
+.Cd "device gx"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for NICs based on the Intel 82542 and 82543
+Gigabit Ethernet controller chips.
+Both fiber and copper variants of
+the cards are supported.
+.Pp
+The 82542 supports TBI (ten bit interface), while the 82543 supports the
+GMII transceivers, which means it can be used with either copper or
+1000baseX fiber applications.
+Both boards support VLAN tagging/insertion and the 82543 additionally
+supports TCP/IP checksum offload.
+.Pp
+The 82543-T cards use the Marvell 10/100/1000 copper gigabit transceiver
+chip, which supports autonegotiation of 10, 100 and 1000Mbps modes in
+full or half duplex, however half duplex 1000Mbps is not supported.
+.Pp
+The driver also supports jumbo frames, which can be configured
+via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit jumbo frames.
+Using jumbo frames can greatly improve performance for certain tasks,
+such as file transfers and data streaming.
+.Pp
+The
+.Nm
+driver supports the following media types:
+.Bl -tag -width ".Cm 10baseT/UTP"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+User can manually override
+the autoselected mode by adding media options to
+.Xr rc.conf 5 .
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+The
+.Xr ifconfig 8 Ns 's
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
+The
+.Xr ifconfig 8 Ns 's
+.Cm mediaopt
+option can also be used to select either
+.Cm full-duplex
+or
+.Cm half-duplex
+modes.
+.It Cm 1000baseTX
+Set 1000baseTX operation over twisted pair.
+Only
+.Cm full-duplex
+mode is supported.
+.El
+.Pp
+The
+.Nm
+driver supports the following media options:
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Force full duplex operation.
+.It Cm half-duplex
+Force half duplex operation.
+.El
+.Pp
+The
+.Nm
+driver also supports one special link option for 1000baseTX cards:
+.Bl -tag -width ".Cm link0"
+.It Cm link0
+With 1000baseTX cards, establishing a link between two ports requires
+that one port be configured as a master and the other a slave.
+With autonegotiation,
+the master/slave settings should be chosen automatically.
+Setting the
+.Cm link0
+flag with
+.Xr ifconfig 8
+will force the link up instead.
+.El
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Gigabit Ethernet adapters based on the Intel 82542 and
+82543 controller chips:
+.Pp
+.Bl -bullet -compact
+.It
+Intel PRO/1000 Gigabit Server Adapter (82542)
+.It
+Intel PRO/1000 F Server Adapter (82543)
+.It
+Intel PRO/1000 T Server Adapter (82543)
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "gx%d: couldn't map memory"
+A fatal initialization error has occurred.
+.It "gx%d: couldn't map interrupt"
+A fatal initialization error has occurred.
+.It "gx%d: couldn't setup irq"
+A fatal initialization error has occurred.
+.It "gx%d: failed to read station address"
+A fatal initialization error has occurred.
+.It "gx%d: no memory for list buffers!"
+The driver failed to allocate memory for per-device instance information
+during initialization.
+.It "gx%d: failed to enable memory mapping!"
+The driver failed to initialize PCI shared memory mapping.
+This might happen if the card is not in a bus-master slot.
+.It "gx%d: GMII/MII, PHY not detected"
+The MII probe routines failed to detect the PHY.
+This might happen if miibus is not configured.
+.It "gx%d: watchdog timeout"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.It "gx%d: mbuf allocation failed -- packet dropped"
+The driver could not allocate a mbuf for the receive ring.
+.It "gx%d: cluster allocation failed -- packet dropped"
+The driver could not allocate a mbuf cluster for the receive ring.
+.It "gx%d: link down"
+The link status changed from up to down.
+.It "gx%d: link up"
+The link status changed from down to up.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr em 4 ,
+.Xr miibus 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 4.5 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Lemon Aq jlemon@FreeBSD.org .

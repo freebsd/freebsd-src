@@ -1,0 +1,126 @@
+
+#------------------------------------------------------------------------------
+# sinclair:  file(1) sinclair QL
+
+# additions to /etc/magic by Thomas M. Ott (ThMO)
+
+# Sinclair QL floppy disk formats (ThMO)
+0	string	=QL5		QL disk dump data,
+>3	string	=A		720 KB,
+>3	string	=B		1.44 MB,
+>3	string	=C		3.2 MB,
+>4	string	>\0		label:%.10s
+
+# Sinclair QL OS dump (ThMO)
+# (NOTE: if `file' would be able to use indirect references in a endian format
+#	 differing from the natural host format, this could be written more
+#	 reliably and faster...)
+#
+# we *can't* lookup QL OS code dumps, because `file' is UNABLE to read more
+# than the first 8K of a file... #-(
+#
+#0		belong	=0x30000
+#>49124		belong	<47104
+#>>49128		belong	<47104
+#>>>49132	belong	<47104
+#>>>>49136	belong	<47104	QL OS dump data,
+#>>>>>49148	string	>\0	type %.3s,
+#>>>>>49142	string	>\0	version %.4s
+
+# Sinclair QL firmware executables (ThMO)
+0	string	NqNqNq`\004	QL firmware executable (BCPL)
+
+# Sinclair QL libraries (ThMO)
+0	beshort	=0xFB01		QL library archive data
+
+# Sinclair QL executbables (ThMO)
+6	beshort	=0x4AFB		QL executable,
+>10	string	=\0		un-named
+>8	beshort	=1
+>>10	string	>\0		named: %.1s
+>8	beshort	=2
+>>10	string	>\0		named: %.2s
+>8	beshort	=3
+>>10	string	>\0		named: %.3s
+>8	beshort	=4
+>>10	string	>\0		named: %.4s
+>8	beshort	=5
+>>10	string	>\0		named: %.5s
+>8	beshort	=6
+>>10	string	>\0		named: %.6s
+>8	beshort	=7
+>>10	string	>\0		named: %.7s
+>8	beshort	=8
+>>10	string	>\0		named: %.8s
+>8	beshort	=9
+>>10	string	>\0		named: %.9s
+>8	beshort	=10
+>>10	string	>\0		named: %.10s
+>8	beshort	=11
+>>10	string	>\0		named: %.11s
+>8	beshort	=12
+>>10	string	>\0		named: %.12s
+>8	beshort	=13
+>>10	string	>\0		named: %.13s
+>8	beshort	=14
+>>10	string	>\0		named: %.14s
+>8	beshort	=15
+>>10	string	>\0		named: %.15s
+>8	beshort	=16
+>>10	string	>\0		named: %.16s
+>8	beshort	=17
+>>10	string	>\0		named: %.17s
+>8	beshort	=18
+>>10	string	>\0		named: %.18s
+>8	beshort	=19
+>>10	string	>\0		named: %.19s
+>8	beshort	=20
+>>10	string	>\0		named: %.20s
+>8	beshort	>20
+>>10	string	>\0		(truncated) named: %.20s
+
+# Sinclair QL rom (ThMO)
+0	belong	=0x4AFB0001	QL plugin-ROM data,
+>10	string	=\0		un-named
+>8	beshort	=1
+>>10	string	>\0		named: %.1s
+>8	beshort	=2
+>>10	string	>\0		named: %.2s
+>8	beshort	=3
+>>10	string	>\0		named: %.3s
+>8	beshort	=4
+>>10	string	>\0		named: %.4s
+>8	beshort	=5
+>>10	string	>\0		named: %.5s
+>8	beshort	=6
+>>10	string	>\0		named: %.6s
+>8	beshort	=7
+>>10	string	>\0		named: %.7s
+>8	beshort	=8
+>>10	string	>\0		named: %.8s
+>8	beshort	=9
+>>10	string	>\0		named: %.9s
+>8	beshort	=10
+>>10	string	>\0		named: %.10s
+>8	beshort	=11
+>>10	string	>\0		named: %.11s
+>8	beshort	=12
+>>10	string	>\0		named: %.12s
+>8	beshort	=13
+>>10	string	>\0		named: %.13s
+>8	beshort	=14
+>>10	string	>\0		named: %.14s
+>8	beshort	=15
+>>10	string	>\0		named: %.15s
+>8	beshort	=16
+>>10	string	>\0		named: %.16s
+>8	beshort	=17
+>>10	string	>\0		named: %.17s
+>8	beshort	=18
+>>10	string	>\0		named: %.18s
+>8	beshort	=19
+>>10	string	>\0		named: %.19s
+>8	beshort	=20
+>>10	string	>\0		named: %.20s
+>8	beshort	>20
+>>10	string	>\0		(truncated) named: %.20s

@@ -1,0 +1,2 @@
+/* $FreeBSD$ */
+#define	LOCALEDIR	""

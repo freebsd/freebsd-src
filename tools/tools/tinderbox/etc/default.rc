@@ -1,0 +1,21 @@
+#
+# Tinderbox defaults
+#
+# $FreeBSD$
+#
+
+comment		= %%branch%% tinderbox
+
+# Paths
+sandbox		= %%HOME%%/sandbox
+logdir		= %%HOME%%/logs
+
+# Tinderbox options
+tinderbox	= %%HOME%%/bin/tinderbox
+options		= --verbose
+targets		= update, world, generic, lint
+
+# Reporting
+sender		= FreeBSD Tinderbox <tinderbox@freebsd.org>
+recipient	= %%SENDER%%
+subject		= [%%COMMENT%%] failure on %%arch%%/%%machine%%

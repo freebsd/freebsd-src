@@ -1,0 +1,54 @@
+# $FreeBSD$
+# The first chunk is to stop gcc generating stupid assembler output
+# for jump tables.  This change is already in gcc-3.3.
+# The second chunk is to stop gcc doing an ICE on libc/stdio/vfprintf.c.
+# This one has been committed to the gcc mainline and is due to go in
+# gcc-3.3.1, but is *not* in gcc-3.3-release.  Its changelog:
+#       * config/i386/i386.c (ix86_split_long_move): Fix base register
+#       mode for XFmode splits for TARGET_64BIT.
+
+Index: i386-hacked.c
+===========================================================================
+--- i386-hacked.c	2003/05/24 10:50:22	#11
++++ i386-hacked.c	2003/05/24 10:50:22
+@@ -6764,7 +6764,7 @@
+      int value, rel;
+ {
+   if (TARGET_64BIT)
+-    fprintf (file, "%s%s%d-.+(.-%s%d)\n",
++    fprintf (file, "%s%s%d-%s%d\n",
+ 	     ASM_LONG, LPREFIX, value, LPREFIX, rel);
+   else if (HAVE_AS_GOTOFF_IN_DATA)
+     fprintf (file, "%s%s%d@GOTOFF\n", ASM_LONG, LPREFIX, value);
+@@ -8823,15 +8823,24 @@
+ 	 Do an lea to the last part and use only one colliding move.  */
+       else if (collisions > 1)
+ 	{
++	  rtx base;
++
+ 	  collisions = 1;
+-	  emit_insn (gen_rtx_SET (VOIDmode, part[0][nparts - 1],
+-				  XEXP (part[1][0], 0)));
+-	  part[1][0] = change_address (part[1][0],
+-				       TARGET_64BIT ? DImode : SImode,
+-				       part[0][nparts - 1]);
+-	  part[1][1] = adjust_address (part[1][0], VOIDmode, UNITS_PER_WORD);
++
++	  base = part[0][nparts - 1];
++
++	  /* Handle the case when the last part isn't valid for lea.
++	     Happens in 64-bit mode storing the 12-byte XFmode.  */
++	  if (GET_MODE (base) != Pmode)
++	    base = gen_rtx_REG (Pmode, REGNO (base));
++
++	  emit_insn (gen_rtx_SET (VOIDmode, base, XEXP (part[1][0], 0)));
++	  part[1][0] = replace_equiv_address (part[1][0], base);
++	  part[1][1] = replace_equiv_address (part[1][1],
++				      plus_constant (base, UNITS_PER_WORD));
+ 	  if (nparts == 3)
+-	    part[1][2] = adjust_address (part[1][0], VOIDmode, 8);
++	    part[1][2] = replace_equiv_address (part[1][2],
++				      plus_constant (base, 8));
+ 	}
+     }
+ 

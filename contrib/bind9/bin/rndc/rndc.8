@@ -1,0 +1,118 @@
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001  Internet Software Consortium.
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: rndc.8,v 1.24.206.2 2004/06/03 05:35:49 marka Exp $
+.\"
+.TH "RNDC" "8" "June 30, 2000" "BIND9" ""
+.SH NAME
+rndc \- name server control utility
+.SH SYNOPSIS
+.sp
+\fBrndc\fR [ \fB-c \fIconfig-file\fB\fR ]  [ \fB-k \fIkey-file\fB\fR ]  [ \fB-s \fIserver\fB\fR ]  [ \fB-p \fIport\fB\fR ]  [ \fB-V\fR ]  [ \fB-y \fIkey_id\fB\fR ]  \fBcommand\fR
+.SH "DESCRIPTION"
+.PP
+\fBrndc\fR controls the operation of a name
+server. It supersedes the \fBndc\fR utility
+that was provided in old BIND releases. If
+\fBrndc\fR is invoked with no command line
+options or arguments, it prints a short summary of the
+supported commands and the available options and their
+arguments.
+.PP
+\fBrndc\fR communicates with the name server
+over a TCP connection, sending commands authenticated with
+digital signatures. In the current versions of
+\fBrndc\fR and \fBnamed\fR named
+the only supported authentication algorithm is HMAC-MD5,
+which uses a shared secret on each end of the connection.
+This provides TSIG-style authentication for the command
+request and the name server's response. All commands sent
+over the channel must be signed by a key_id known to the
+server.
+.PP
+\fBrndc\fR reads a configuration file to
+determine how to contact the name server and decide what
+algorithm and key it should use.
+.SH "OPTIONS"
+.TP
+\fB-c \fIconfig-file\fB\fR
+Use \fIconfig-file\fR
+as the configuration file instead of the default,
+\fI/etc/rndc.conf\fR.
+.TP
+\fB-k \fIkey-file\fB\fR
+Use \fIkey-file\fR
+as the key file instead of the default,
+\fI/etc/rndc.key\fR. The key in
+\fI/etc/rndc.key\fR will be used to authenticate
+commands sent to the server if the \fIconfig-file\fR
+does not exist.
+.TP
+\fB-s \fIserver\fB\fR
+\fIserver\fR is
+the name or address of the server which matches a
+server statement in the configuration file for
+\fBrndc\fR. If no server is supplied on the
+command line, the host named by the default-server clause
+in the option statement of the configuration file will be
+used.
+.TP
+\fB-p \fIport\fB\fR
+Send commands to TCP port
+\fIport\fR instead
+of BIND 9's default control channel port, 953.
+.TP
+\fB-V\fR
+Enable verbose logging.
+.TP
+\fB-y \fIkeyid\fB\fR
+Use the key \fIkeyid\fR
+from the configuration file.
+\fIkeyid\fR must be
+known by named with the same algorithm and secret string
+in order for control message validation to succeed.
+If no \fIkeyid\fR
+is specified, \fBrndc\fR will first look
+for a key clause in the server statement of the server
+being used, or if no server statement is present for that
+host, then the default-key clause of the options statement.
+Note that the configuration file contains shared secrets
+which are used to send authenticated control commands
+to name servers. It should therefore not have general read
+or write access.
+.PP
+For the complete set of commands supported by \fBrndc\fR,
+see the BIND 9 Administrator Reference Manual or run
+\fBrndc\fR without arguments to see its help message.
+.PP
+.SH "LIMITATIONS"
+.PP
+\fBrndc\fR does not yet support all the commands of
+the BIND 8 \fBndc\fR utility.
+.PP
+There is currently no way to provide the shared secret for a
+\fBkey_id\fR without using the configuration file.
+.PP
+Several error messages could be clearer.
+.SH "SEE ALSO"
+.PP
+\fBrndc.conf\fR(5),
+\fBnamed\fR(8),
+\fBnamed.conf\fR(5)
+\fBndc\fR(8),
+\fIBIND 9 Administrator Reference Manual\fR.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium

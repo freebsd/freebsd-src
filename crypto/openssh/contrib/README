@@ -1,0 +1,60 @@
+Other patches and addons for OpenSSH. Please send submissions to
+djm@mindrot.org
+
+Externally maintained
+---------------------
+
+SSH Proxy Command -- connect.c
+
+Shun-ichi GOTO <gotoh@imasy.or.jp> has written a very useful ProxyCommand
+which allows the use of outbound SSH from behind a SOCKS4, SOCKS5 or
+https CONNECT style proxy server. His page for connect.c has extensive
+documentation on its use as well as compiled versions for Win32.
+
+http://www.taiyo.co.jp/~gotoh/ssh/connect.html
+
+
+X11 SSH Askpass:
+
+Jim Knoble <jmknoble@pobox.com> has written an excellent X11
+passphrase requester. This is highly recommended:
+
+http://www.ntrnet.net/~jmknoble/software/x11-ssh-askpass/index.html
+
+
+In this directory
+-----------------
+
+ssh-copy-id:
+
+Phil Hands' <phil@hands.com> shell script to automate the process of adding
+your public key to a remote machine's ~/.ssh/authorized_keys file.
+
+gnome-ssh-askpass[12]:
+
+A GNOME and Gtk2 passphrase requesters. Use "make gnome-ssh-askpass1" or
+"make gnome-ssh-askpass2" to build.
+
+sshd.pam.generic:
+
+A generic PAM config file which may be useful on your system. YMMV
+
+sshd.pam.freebsd:
+
+A PAM config file which works with FreeBSD's PAM port. Contributed by
+Dominik Brettnacher <domi@saargate.de>
+
+mdoc2man.pl:
+
+Converts mdoc formated manpages into normal manpages.  This can be used
+on Solaris machines to provide manpages that are not preformated.
+Contributed by Mark D. Roth <roth@feep.net>
+
+redhat:
+
+RPM spec file and scripts for building Redhat packages
+
+suse:
+
+RPM spec file and scripts for building SuSE packages
+

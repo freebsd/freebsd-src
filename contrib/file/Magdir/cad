@@ -1,0 +1,36 @@
+
+#------------------------------------------------------------------------------
+# autocad:  file(1) magic for cad files
+#
+
+# AutoCAD DWG versions R13/R14 (www.autodesk.com)
+# Written December 01, 2003 by Lester Hightower
+# Based on the DWG File Format Specifications at http://www.opendwg.org/
+0	string	       \101\103\061\060\061		   AutoCAD
+>5	string	       \062\000\000\000\000		   DWG ver. R13
+>5	string	       \064\000\000\000\000		   DWG ver. R14
+
+# Microstation DGN/CIT Files (www.bentley.com)
+# Written October 30, 2003 by Lester Hightower
+# DGN is the default file extension of Microstation/Intergraph CAD files.
+# CIT is the proprietary raster format (similar to TIFF) used to attach
+# raster underlays to Microstation DGN (vector) drawings.
+# 
+# http://www.wotsit.org/search.asp
+# http://filext.com/detaillist.php?extdetail=DGN
+# http://filext.com/detaillist.php?extdetail=CIT
+#
+# http://www.bentley.com/products/default.cfm?objectid=97F351F5-9C35-4E5E-89C2
+# 3F86C928&method=display&p_objectid=97F351F5-9C35-4E5E-89C280A93F86C928
+# http://www.bentley.com/products/default.cfm?objectid=A5C2FD43-3AC9-4C71-B682
+# 721C479F&method=display&p_objectid=A5C2FD43-3AC9-4C71-B682C7BE721C479F
+0	string	       \010\011\376			   Microstation
+>3	string	       \002
+>>30	string	       \372\104				   DGN File
+>>30	string	       \172\104				   DGN File
+>>30	string	       \026\105				   DGN File
+>4	string	       \030\000\000			   CIT File
+
+# AutoCad, from Nahuel Greco
+0	string AC1012	AutoCad (release 12)
+0	string AC1014	AutoCad (release 14)

@@ -1,0 +1,65 @@
+# $FreeBSD$
+arm/arm/autoconf.c	standard
+arm/arm/bcopy_page.S	standard
+arm/arm/bcopyinout.S		standard
+arm/arm/blockio.S		standard
+arm/arm/bootconfig.c		standard
+arm/arm/bus_space_asm_generic.S	standard
+arm/arm/busdma_machdep.c 	standard
+arm/arm/copystr.S		standard
+arm/arm/cpufunc.c		standard
+arm/arm/cpufunc_asm.S		standard
+arm/arm/cpufunc_asm_sa1.S 	standard
+arm/arm/cpufunc_asm_armv4.S 	standard
+arm/arm/cpufunc_asm_sa11x0.S 	standard
+arm/arm/critical.c		standard
+arm/arm/db_disasm.c		optional	ddb
+arm/arm/db_interface.c		optional	ddb
+arm/arm/db_trace.c		optional	ddb
+arm/arm/disassem.c		standard
+arm/arm/dump_machdep.c		standard
+arm/arm/elf_machdep.c		standard
+arm/arm/exception.S		standard
+arm/arm/fiq.c			standard
+arm/arm/fiq_subr.S		standard
+arm/arm/fusu.S			standard
+arm/arm/identcpu.c		standard
+arm/arm/in_cksum.c		standard
+arm/arm/in_cksum_arm.S		standard
+arm/arm/intr.c			standard
+arm/arm/locore.S		standard	no-obj
+arm/arm/machdep.c		standard
+arm/arm/nexus.c			optional	nexus
+arm/arm/nexus_io.c		optional	nexus
+arm/arm/nexus_io_asm.S		optional	nexus
+arm/arm/pmap.c			standard
+arm/arm/setcpsr.S		standard
+arm/arm/setstack.s		standard
+arm/arm/support.S		standard
+arm/arm/swtch.S			standard
+arm/arm/sys_machdep.c		standard
+arm/arm/trap.c			standard
+arm/arm/uio_machdep.c		standard
+arm/arm/undefined.c		standard
+arm/arm/vectors.S		standard
+arm/arm/vm_machdep.c		standard
+arm/fpe-arm/armfpe_glue.S	optional	armfpe
+arm/fpe-arm/armfpe_init.c	optional	armfpe
+arm/fpe-arm/armfpe.S		optional	armfpe
+libkern/arm/divsi3.S		standard
+libkern/arm/ffs.S		standard
+libkern/arm/muldi3.c		standard
+libkern/ashldi3.c		standard
+libkern/ashrdi3.c		standard
+libkern/bcmp.c			standard
+libkern/divdi3.c		standard
+libkern/ffsl.c			standard
+libkern/flsl.c			standard
+libkern/lshrdi3.c		standard
+libkern/moddi3.c		standard
+libkern/qdivrem.c		standard
+libkern/udivdi3.c		standard
+libkern/umoddi3.c		standard
+#XXX: We can't use these versions, as strcmp.c is included conf/files
+#libkern/arm/strcmp.S		standard
+#libkern/arm/strncmp.S		standard

@@ -1,0 +1,314 @@
+/*	$NetBSD: llib-lposix,v 1.2 1995/07/03 21:25:09 cgd Exp $	*/
+/* $FreeBSD$ */
+
+/*
+ * Copyright (c) 1994, 1995 Jochen Pohl
+ * All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Jochen Pohl for
+ *	The NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* LINTLIBRARY */
+
+#define _POSIX_SOURCE
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
+#include <sys/times.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <math.h>
+#include <time.h>
+#include <assert.h>
+#include <termios.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <pwd.h>
+#include <ctype.h>
+#include <signal.h>
+#include <locale.h>
+#include <setjmp.h>
+#include <string.h>
+#include <utime.h>
+
+
+/* PROTOLIB1 */
+
+
+void	(abort)(void);
+int	(abs)(int j);
+int	(access)(const char *path, int amode);
+double	(acos)(double x);
+unsigned (alarm)(unsigned seconds);
+char	*(asctime)(const struct tm *timeptr);
+double	(asin)(double x);
+void	(__assert)(const char *expression, const char *func, int line,
+		   const char *file);
+double	(atan)(double x);
+double	(atan2)(double y, double x);
+int	(atexit)(void (*func)(void));
+double	(atof)(const char *nptr);
+int	(atoi)(const char *nptr);
+long	(atol)(const char *nptr);
+void	*(bsearch)(const void *key, const void *base, size_t nmemb,
+		   size_t size, int (*compar)(const void *, const void *));
+void	*(calloc)(size_t nmemb, size_t size);
+double	(ceil)(double x);
+speed_t	(cfgetispeed)(const struct termios *p);
+speed_t	(cfgetospeed)(const struct termios *p);
+int	(cfsetispeed)(struct termios *p, speed_t speed);
+int	(cfsetospeed)(struct termios *p, speed_t speed);
+int	(chdir)(const char *path);
+int	(chmod)(const char *path, mode_t mode);
+int	(chown)(const char *path, uid_t owner, gid_t group);
+void	(clearerr)(FILE *stream);
+clock_t	(clock)(void);
+int	(close)(int fildes);
+int	(closedir)(DIR *dirp);
+double	(cos)(double x);
+double	(cosh)(double x);
+int	(creat)(const char *path, mode_t mode);
+char	*(ctermid)(char *s);
+char	*(ctime)(const time_t *timer);
+char	*(cuserid)(char *s);
+double	(difftime)(time_t time1, time_t time0);
+div_t	(div)(int numer, int denom);
+int	(dup)(int fildes);
+int	(dup2)(int fildes, int fildes2);
+int	(errno);
+int	(execl)(const char *path, const char *arg, ...);
+int	(execle)(const char *path, const char *arg, ...);
+int	(execlp)(const char *file, const char *arg, ...);
+int	(execv)(const char *path, char *const argv[]);
+int	(execve)(const char *path, char *const argv[], char *const *envp);
+int	(execvp)(const char *file, char *const argv[]);
+void	(exit)(int status);
+void	(_exit)(int status);
+double	(exp)(double x);
+double	(fabs)(double x);
+int	(fclose)(FILE *stream);
+int	(fcntl)(int fildes, int cmd, ...);
+FILE	*(fdopen)(int fildes, const char *type);
+int	(feof)(FILE *stream);
+int	(ferror)(FILE *stream);
+int	(fflush)(FILE *stream);
+int	(fgetc)(FILE *stream);
+int	(fgetpos)(FILE *stream, fpos_t *pos);
+char	*(fgets)(char *s, int n, FILE *stream);
+int	(fileno)(FILE *stream);
+double	(floor)(double x);
+double	(fmod)(double x, double y);
+FILE	*(fopen)(const char *filename, const char *mode);
+pid_t	(fork)(void);
+long	(fpathconf)(int fildes, int name);
+/* PRINTFLIKE2 */
+int	(fprintf)(FILE *stream, const char *format, ...);
+int	(fputc)(int c, FILE *stream);
+int	(fputs)(const char *s, FILE *stream);
+size_t	(fread)(void *ptr, size_t size, size_t nmemb, FILE *stream);
+void	(free)(void *ptr);
+FILE	*(freopen)(const char *filename, const char *mode, FILE *stream);
+double	(frepx)(double value, int *exp);
+/* SCANFLIKE2 */
+int	(fscanf)(FILE *stream, const char *format, ...);
+int	(fseek)(FILE *stream, long int offset, int whence);
+int	(fsetpos)(FILE *stream, const fpos_t *pos);
+int	(fstat)(int fildes, struct stat *buf);
+long	(ftell)(FILE *stream);
+size_t	(fwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+int	(getc)(FILE *stream);
+int	(getchar)(void);
+char	*(getcwd)(char *buf, size_t size);
+gid_t	(getegid)(void);
+char	*(getenv)(const char *name);
+uid_t	(geteuid)(void);
+gid_t	(getgid)(void);
+struct	group *(getgrgid)(gid_t gid);
+struct	group *(getgrnam)(const char *name);
+int	(getgroups)(int gidsetsize, gid_t grouplist[]);
+char	*(getlogin)(void);
+pid_t	(getpgrp)(void);
+pid_t	(getpid)(void);
+pid_t	(getppid)(void);
+struct	passwd *(getpwnam)(const char *name);
+struct	passwd *(getpwuid)(uid_t uid);
+char	*(gets)(char *s);
+uid_t	(getuid)(void);
+struct	tm *(gmtime)(const time_t *timer);
+int	(isalnum)(int c);
+int	(isalpha)(int c);
+int	(isatty)(int fildes);
+int	(iscntrl)(int c);
+int	(isdigit)(int c);
+int	(isgraph)(int c);
+int	(islower)(int c);
+int	(isprint)(int c);
+int	(ispunct)(int c);
+int	(isspace)(int c);
+int	(isupper)(int c);
+int	(isxdigit)(int c);
+int	(kill)(pid_t pid, int sig);
+long	(labs)(long j);
+double	(ldexp)(double x, int exp);
+ldiv_t	(ldiv)(long numer, long denom);
+int	(link)(const char *existing, const char *new);
+struct	lconv *(localeconv)(void);
+struct	tm *(localtime)(const time_t *timer);
+double	(log)(double x);
+double	(log10)(double x);
+void	(longjmp)(jmp_buf env, int val);
+off_t	(lseek)(int fildes, off_t offset, int whence);
+void	*(malloc)(size_t size);
+int	(mblen)(const char *s, size_t n);
+size_t	(mbstowcs)(wchar_t *pwcs, const char *s, size_t n);
+int	(mbtowc)(wchar_t *pwc, const char *s, size_t n);
+void	*(memchr)(const void *s, int c, size_t n);
+int	(memcmp)(const void *s1, const void *s2, size_t n);
+void	*(memcpy)(void *s1, const void *s2, size_t n);
+void	*(memmove)(void *s1, const void *s2, size_t n);
+void	*(memset)(void *s, int c, size_t n);
+int	(mkdir)(const char *path, mode_t mode);
+int	(mkfifo)(const char *path, mode_t mode);
+time_t	(mktime)(struct tm *timeptr);
+double	(modf)(double value, double *iptr);
+int	(open)(const char *path, int oflag, ...);
+DIR	*(opendir)(const char *dirname);
+long	(pathconf)(const char *path, int name);
+int	(pause)(void);
+void	(perror)(const char *s);
+int	(pipe)(int fildes[2]);
+double	(pow)(double x, double y);
+/* PRINTFLIKE1 */
+int	(printf)(const char *format, ...);
+int	(putc)(int c, FILE *stream);
+int	(putchar)(int c);
+int	(puts)(const char *s);
+void	(qsort)(void *base, size_t nmemb, size_t size,
+	        int (*compar)(const void *, const void *));
+int	(raise)(int sig);
+int	(rand)(void);
+ssize_t	(read)(int fildes, void *buf, size_t nbyte);
+struct	dirent *(readdir)(DIR *dirp);
+void	*(realloc)(void *ptr, size_t size);
+int	(remove)(const char *filename);
+int	(rename)(const char *old, const char *new);
+void	(rewind)(FILE *stream);
+void	(rewinddir)(DIR *dirp);
+int	(rmdir)(const char *path);
+/* SCANFLIKE1 */
+int	(scanf)(const char *format, ...);
+void	(setbuf)(FILE *stream, char *buf);
+int	(setgid)(gid_t gid);
+int	(setjmp)(jmp_buf env);
+char	*(setlocale)(int category, const char *locale);
+int	(setpgid)(pid_t pid, pid_t pgid);
+pid_t	(setsid)(void);
+int	(setuid)(uid_t uid);
+int	(setvbuf)(FILE *stream, char *buf, int mode, size_t size);
+int	(sigaction)(int sig, const struct sigaction *act,
+		    struct sigaction *oact);
+int	(sigaddset)(sigset_t *set, int signo);
+int	(sigdelset)(sigset_t *set, int signo);
+int	(sigemptyset)(sigset_t *set);
+int	(sigfillset)(sigset_t *set);
+int	(sigismember)(const sigset_t *set, int signo);
+void	(siglongjmp)(sigjmp_buf env, int val);
+void	(*(signal)(int sig, void (*func)(int)))(int);
+int	(sigpending)(sigset_t *set);
+int	(sigprocmask)(int how, const sigset_t *set, sigset_t *oset);
+int	(sigsetjmp)(sigjmp_buf env, int savemask);
+int	(sigsuspend)(const sigset_t *sigmask);
+double	(sin)(double x);
+double	(sinh)(double x);
+unsigned (sleep)(unsigned seconds);
+/* PRINTFLIKE2 */
+int	(sprintf)(char *s, const char *format, ...);
+double	(sqrt)(double x);
+void	(srand)(unsigned seed);
+/* SCANFLIKE2 */
+int	(sscanf)(const char *s, const char *format, ...);
+int	(stat)(const char *path, struct stat *buf);
+char	*(strcat)(char *s1, const char *s2);
+char	*(strchr)(const char *s, int c);
+int	(strcmp)(const char *s1, const char *s2);
+int	(strcoll)(const char *s1, const char *s2);
+char	*(strcpy)(char *s1, const char *s2);
+size_t	(strcspn)(const char *s1, const char *s2);
+char	*(strerror)(int errnum);
+size_t	(strftime)(char *s, size_t maxsize, const char *format,
+		    const struct tm *timeptr);
+size_t	(strlen)(const char *s);
+char	*(strncat)(char *s1, const char *s2, size_t n);
+int	(strncmp)(const char *s1, const char *s2, size_t n);
+char	*(strncpy)(char *s1, const char *s2, size_t n);
+char	*(strpbrk)(const char *s1, const char *s2);
+char	*(strrchr)(const char *s, int c);
+size_t	(strspn)(const char *s1, const char *s2);
+char	*(strstr)(const char *s1, const char *s2);
+double	(strtod)(const char *nptr, char **endptr);
+char	*(strtok)(char *s1, const char *s2);
+long	(strtol)(const char *nptr, char **endptr, int base);
+unsigned long (strtoul)(const char *nptr, char **endptr, int base);
+size_t	(strxfrm)(char *s1, const char *s2, size_t n);
+long	(sysconf)(int name);
+int	(system)(const char *string);
+double	(tan)(double x);
+double	(tanh)(double x);
+int	(tcdrain)(int fildes);
+int	(tcflow)(int fildes, int action);
+int	(tcflush)(int fildes, int queue_selector);
+int	(tcgetattr)(int fildes, struct termios *tp);
+pid_t	(tcgetpgrp)(int fildes);
+int	(tcsendbreak)(int fildes, int duration);
+int	(tcsetattr)(int fildes, int options, const struct termios *tp);
+int	(tcsetpgrp)(int fildes, pid_t pgrpid);
+time_t	(time)(time_t *timer);
+clock_t	(times)(struct tms *buffer);
+FILE	*(tmpfile)(void);
+char	*(tmpnam)(char *s);
+int	(tolower)(int c);
+int	(toupper)(int c);
+char	*(ttyname)(int filedes);
+void	(tzset)(void);
+mode_t	(umask)(mode_t cmask);
+int	(uname)(struct utsname *name);
+int	(ungetc)(int c, FILE *stream);
+int	(unlink)(const char *path);
+int	(utime)(const char *path, const struct utimbuf *times);
+int	(vfprintf)(FILE *stream, const char *format, va_list arg);
+int	(vprintf)(const char *format, va_list arg);
+int	(vsprintf)(char *s, const char *format, va_list arg);
+pid_t	(wait)(int *statloc);
+pid_t	(waitpid)(pid_t pid, int *stat_loc, int options);
+size_t	(wcstombs)(char *s, const wchar_t *pwcs, size_t n);
+int	(wctomb)(char *s, wchar_t wchar);
+ssize_t	(write)(int fildes, const void *buf, size_t nbyte);

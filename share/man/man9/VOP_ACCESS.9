@@ -1,0 +1,152 @@
+.\" -*- nroff -*-
+.\" -*- nroff -*-
+.\"
+.\" Copyright (c) 1996 Doug Rabson
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 24, 1996
+.Os
+.Dt VOP_ACCESS 9
+.Sh NAME
+.Nm VOP_ACCESS
+.Nd "check access permissions of a file or Unix domain socket"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/vnode.h
+.Ft int
+.Fn VOP_ACCESS "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td"
+.Sh DESCRIPTION
+This entry point checks the access permissions of the file against the
+given credentials.
+.Pp
+Its arguments are:
+.Bl -tag -width mode
+.It Fa vp
+the vnode of the file to check
+.It Fa mode
+the type of access required
+.It Fa cred
+the user credentials to check
+.It Fa td
+the thread which is checking
+.El
+.Pp
+The
+.Fa mode
+is a mask which can contain
+.Dv VREAD ,
+.Dv VWRITE
+or
+.Dv VEXEC .
+.Sh LOCKS
+The vnode will be locked on entry and should remain locked on return.
+.Sh RETURN VALUES
+If the file is accessible in the specified way, then zero is returned,
+otherwise an appropriate error code is returned.
+.Sh PSEUDOCODE
+.Bd -literal
+int
+vop_access(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
+{
+    int error;
+
+    /*
+     * Disallow write attempts on read-only file systems;
+     * unless the file is a socket, fifo, or a block or
+     * character device resident on the filesystem.
+     */
+    if (mode & VWRITE) {
+	switch (vp->v_type) {
+	case VDIR:
+	case VLNK:
+	case VREG:
+	    if (vp->v_mount->mnt_flag & MNT_RDONLY)
+		return EROFS;
+
+	    break;
+	}
+    }
+
+    /* If immutable bit set, nobody gets to write it. */
+    if ((mode & VWRITE) && vp has immutable bit set)
+	return EPERM;
+
+    /* Otherwise, user id 0 always gets access. */
+    if (cred->cr_uid == 0)
+	return 0;
+
+    mask = 0;
+
+    /* Otherwise, check the owner. */
+    if (cred->cr_uid == owner of vp) {
+	if (mode & VEXEC)
+	    mask |= S_IXUSR;
+	if (mode & VREAD)
+	    mask |= S_IRUSR;
+	if (mode & VWRITE)
+	    mask |= S_IWUSR;
+	return (((mode of vp) & mask) == mask ? 0 : EACCES);
+    }
+
+    /* Otherwise, check the groups. */
+    for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
+	if (group of vp == *gp) {
+	    if (mode & VEXEC)
+		mask |= S_IXGRP;
+	    if (mode & VREAD)
+		mask |= S_IRGRP;
+	    if (mode & VWRITE)
+		mask |= S_IWGRP;
+	    return (((mode of vp) & mask) == mask ? 0 : EACCES);
+	}
+
+    /* Otherwise, check everyone else. */
+    if (mode & VEXEC)
+	mask |= S_IXOTH;
+    if (mode & VREAD)
+	mask |= S_IROTH;
+    if (mode & VWRITE)
+	mask |= S_IWOTH;
+    return (((mode of vp) & mask) == mask ? 0 : EACCES);
+}
+.Ed
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EPERM
+An attempt was made to change an immutable file.
+.It Bq Er EACCES
+The permission bits the file mode or the ACL do not permit the
+requested access.
+.El
+.Sh SEE ALSO
+.Xr vaccess 9 ,
+.Xr vaccess_acl_posix1e 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+This man page was written by
+.An Doug Rabson .

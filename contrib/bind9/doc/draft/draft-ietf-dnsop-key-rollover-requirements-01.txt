@@ -1,0 +1,391 @@
+
+DNSOP                                                          G. Guette
+Internet-Draft                                             IRISA / INRIA
+Expires: February 5, 2005                                     O. Courtay
+                                                             Thomson R&D
+                                                          August 7, 2004
+
+
+           Requirements for Automated Key Rollover in DNSSEC
+           draft-ietf-dnsop-key-rollover-requirements-01.txt
+
+Status of this Memo
+
+   By submitting this Internet-Draft, I certify that any applicable
+   patent or other IPR claims of which I am aware have been disclosed,
+   and any of which I become aware will be disclosed, in accordance with
+   RFC 3668.
+	 
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as
+   Internet-Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time. It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+   This Internet-Draft will expire on February 5, 2005.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2004).  All Rights Reserved.
+
+Abstract
+
+   This document describes problems that appear during an automated
+   rollover and gives the requirements for the design of communication
+   between parent zone and child zone in an automated rollover process.
+   This document is essentially about key rollover, the rollover of
+   another Resource Record present at delegation point (NS RR) is also
+   discussed.
+
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 1]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+Table of Contents
+
+   1.   Introduction . . . . . . . . . . . . . . . . . . . . . . . . . 3
+   2.   The Key Rollover Process . . . . . . . . . . . . . . . . . . . 3
+   3.   Basic Requirements . . . . . . . . . . . . . . . . . . . . . . 4
+   4.   Messages authentication and information exchanged  . . . . . . 4
+   5.   Emergency Rollover . . . . . . . . . . . . . . . . . . . . . . 5
+   6.   Other Resource Record concerned by automatic rollover  . . . . 5
+   7.   Security consideration . . . . . . . . . . . . . . . . . . . . 5
+   8.   Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . . 5
+   9.   Normative References . . . . . . . . . . . . . . . . . . . . . 5
+        Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . 6
+        Intellectual Property and Copyright Statements . . . . . . . . 7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 2]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+1.  Introduction
+
+   The DNS security extensions (DNSSEC) [4][8][7][9] uses public-key
+   cryptography and digital signatures.  It stores the public part of
+   keys in DNSKEY Resource Records (RRs).  Because old keys and
+   frequently used keys are vulnerable, they must be renewed
+   periodically.  In DNSSEC, this is the case for Zone Signing Keys
+   (ZSKs) and Key Signing Keys (KSKs) [1][2].  Automation of key
+   rollover process is necessary for large zones because there are too
+   many changes to handle a manual administration.
+
+   Let us consider for example a zone with 100000 secure delegations.
+   If the child zones change their keys once a year on average, that
+   implies 300 changes per day for the parent zone.  This amount of
+   changes are hard to manage manually.
+
+   Automated rollover is optional and resulting from an agreement
+   between the administrator of the parent zone and the administrator of
+   the child zone.  Of course, key rollover can also be done manually by
+   administrators.
+
+   This document describes the requirements for the design of messages
+   of automated key rollover process and focusses on interaction between
+   parent and child zone.
+
+2.  The Key Rollover Process
+
+   Key rollover consists in renewing the DNSSEC keys used to sign
+   resource records in a given DNS zone file.  There are two types of
+   rollover, ZSK rollovers and KSK rollovers.
+
+   In a ZSK rollover, all changes are local to the zone that renews its
+   key: there is no need to contact other zones (e.g., parent zone) to
+   propagate the performed changes because a ZSK has no associated DS
+   record in the parent zone.
+
+   In a KSK rollover, new DS RR(s) must be created and stored in the
+   parent zone.  In consequence, the child zone must contact its parent
+   zone and must notify it about the KSK change(s).
+
+   Manual key rollover exists and works [3].  The key rollover is built
+   from two parts of different nature:
+   o  An algorithm that generates new keys and signs the zone file.  It
+      could be local to the zone
+   o  The interaction between parent and child zones
+
+   One example of manual key rollover is:
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 3]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+   o  The child zone creates a new KSK
+   o  The child zone waits for the creation of the DS RR in its parent
+      zone
+   o  The child zone deletes the old key.
+
+   In manual rollover, communications are managed by the zone
+   administrators and the security of these communications is out of
+   scope of DNSSEC.
+
+   Automated key rollover should use a secure communication between
+   parent and child zones.  This document concentrates on defining
+   interactions between entities present in key rollover process.
+
+3.  Basic Requirements
+
+   The main constraint to respect during a key rollover is that the
+   chain of trust MUST be preserved, even if a resolver retrieves some
+   RRs from recursive cache server.  Every RR MUST be verifiable at any
+   time, every RRs exchanged during the rollover should be authenticated
+   and their integrity should be guaranteed.
+
+   Two entities act during a KSK rollover: the child zone and its parent
+   zone.  These zones are generally managed by different administrators.
+   These administrators should agree on some parameters like
+   availability of automated rollover, the maximum delay between
+   notification of changes in the child zone and the resigning of the
+   parent zone.  The child zone needs to know this delay to schedule its
+   changes.
+
+4.  Messages authentication and information exchanged
+
+   Every exchanged message MUST be authenticated and the authentication
+   tool MUST be a DNSSEC tool such as TSIG [6], SIG(0) [5] or DNSSEC
+   request with verifiable SIG records.
+
+   Once the changes related to a KSK are made in a child zone, this zone
+   MUST notify its parent zone in order to create the new DS RR and
+   store this DS RR in parent zone file.
+
+   The parent zone MUST receive all the child keys that needs the
+   creation of associated DS RRs in the parent zone.
+
+   Some errors could occur during transmission between child zone and
+   parent zone.  Key rollover solution MUST be fault tolerant, i.e.  at
+   any time the rollover MUST be in a consistent state and all RRs MUST
+   be verifiable, even if an error occurs.  That is to say that it MUST
+   remain a valid chain of trust.
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 4]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+5.  Emergency Rollover
+
+   A key of a zone might be compromised and this key MUST be changed as
+   soon as possible.  Fast changes could break the chain of trust.  The
+   part of DNS tree having this zone as apex can become unverifiable,
+   but the break of the chain of trust is necessary if we want to no one
+   can use the compromised key to spoof DNS data.
+
+   In case of emergency rollover, the administrators of parent and child
+   zones should create new key(s) and DS RR(s) as fast as possible in
+   order to reduce the time the chain of trust is broken.
+
+6.  Other Resource Record concerned by automatic rollover
+
+   NS records are also present at delegation point, so when the child
+   zone renews some NS RR, the corresponding records at delegation point
+   in parent zone (glue) MUST be updated.  NS records are concerned by
+   rollover and this rollover could be automated too.  In this case,
+   when the child zone notifies its parent zone that some NS records
+   have been changed, the parent zone MUST verify that these NS records
+   are present in child zone before doing any changes in its own zone
+   file.  This allows to avoid inconsistency between NS records at
+   delegation point and NS records present in the child zone.
+
+7.  Security consideration
+
+   This document describes requirements to design an automated key
+   rollover in DNSSEC based on DNSSEC security.  In the same way, as
+   plain DNSSEC, the automatic key rollover contains no mechanism
+   protecting against denial of service (DoS).  The security level
+   obtain after an automatic key rollover, is the security level
+   provided by DNSSEC.
+
+8.  Acknowledgments
+
+   The authors want to acknowledge Francis Dupont, Mohsen Souissi,
+   Bernard Cousin, Bertrand L‰onard and members of IDsA project for
+   their contribution to this document.
+
+9  Normative References
+
+   [1]  Gudmundsson, O., "Delegation Signer (DS) Resource Record (RR)",
+        RFC 3658, December 2003.
+
+   [2]  Kolkman, O., Schlyter, J. and E. Lewis, "Domain Name System KEY
+        (DNSKEY) Resource Record (RR) Secure Entry Point (SEP) Flag",
+        RFC 3757, May 2004.
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 5]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+   [3]  Kolkman, O., "DNSSEC Operational Practices",
+        draft-ietf-dnsop-dnssec-operational-practice-01 (work in
+        progress), May 2004.
+
+   [4]  Eastlake, D., "Domain Name System Security Extensions", RFC
+        2535, March 1999.
+
+   [5]  Eastlake, D., "DNS Request and Transaction Signatures (
+        SIG(0)s)", RFC 2931, September 2000.
+
+   [6]  Vixie, P., Gudmundsson, O., Eastlake, D. and B. Wellington,
+        "Secret Key Transaction Authentication for DNS (TSIG)", RFC
+        2845, May 2000.
+
+   [7]  Arends, R., "Resource Records for the DNS Security Extensions",
+        draft-ietf-dnsext-dnssec-records-09 (work in progress), July
+        2004.
+
+   [8]  Arends, R., Austein, R., Massey, D., Larson, M. and S. Rose,
+        "DNS Security Introduction and Requirements",
+        draft-ietf-dnsext-dnssec-intro-11 (work in progress), July 2004.
+
+   [9]  Arends, R., "Protocol Modifications for the DNS Security
+        Extensions", draft-ietf-dnsext-dnssec-protocol-07 (work in
+        progress), July 2004.
+
+
+Authors' Addresses
+
+   Gilles Guette
+   IRISA / INRIA
+   Campus de Beaulieu
+   35042  Rennes CEDEX
+   FR
+
+   EMail: gilles.guette@irisa.fr
+   URI:   http://www.irisa.fr
+
+
+   Olivier Courtay
+   Thomson R&D
+   1, avenue Belle Fontaine
+   35510  Cesson S‰vign‰ CEDEX
+   FR
+
+   EMail: olivier.courtay@thomson.net
+
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 6]
+
+Internet-Draft      Automated Rollover Requirements          August 2004
+
+
+Intellectual Property Statement
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+Disclaimer of Validity
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Copyright Statement
+
+   Copyright (C) The Internet Society (2004).  This document is subject
+   to the rights, licenses and restrictions contained in BCP 78, and
+   except as set forth therein, the authors retain all their rights.
+
+
+Acknowledgment
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+Guette & Courtay        Expires February 5, 2005                [Page 7]
+

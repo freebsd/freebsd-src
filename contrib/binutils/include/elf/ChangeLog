@@ -1,0 +1,39 @@
+2004-01-28  Roland McGrath  <roland@redhat.com>
+
+	* common.h (AT_SECURE): New macro.
+
+2004-01-21  Roland McGrath  <roland@redhat.com>
+
+	* common.h (AT_SUN_UID, AT_SUN_RUID, AT_SUN_GID): New macros.
+	(AT_SUN_RGID, AT_SUN_LDELF, AT_SUN_LDSHDR, AT_SUN_LDNAME,
+	AT_SUN_LPAGESZ, AT_SUN_PLATFORM, AT_SUN_HWCAP, AT_SUN_IFLUSH,
+	AT_SUN_CPU, AT_SUN_EMUL_ENTRY, AT_SUN_EMUL_EXECFD,
+	AT_SUN_EXECNAME) AT_SUN_MMU, AT_SUN_LDDATA): Likewise.
+
+2004-01-17  Mark Kettenis  <kettenis@gnu.org>
+
+	* common.h (NT_OPENBSD_IDENT): Define.
+
+2004-01-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	2003-09-18  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.h (EF_FRV_FDPIC): New macro.
+	(EF_FRV_PIC_FLAGS): Adjust.
+	2003-08-08  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.h (R_FRV_FUNCDESC_VALUE, R_FRV_FUNCDESC_GOTOFF12,
+	R_FRV_FUNCDESC_GOTOFFLO, R_FRV_FUNCDESC_GOTOFFHI, R_FRV_GOTOFF12,
+	R_FRV_GOTOFFLO, R_FRV_GOTOFFHI): New.
+	2003-08-04  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.h (R_FRV_GOT12, R_FRV_GOTHI, R_FRV_GOTLO, R_FRV_FUNCDESC,
+	R_FRV_FUNCDESC_GOT12, R_FRV_FUNCDESC_GOTHI, R_FRV_FUNCDESC_GOTLO):
+	New.
+
+
+For older changes see ChangeLog-9103
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

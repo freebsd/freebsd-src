@@ -1,0 +1,169 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rexecd.8	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
+.\"
+.Dd September 23, 1994
+.Dt REXECD 8
+.Os
+.Sh NAME
+.Nm rexecd
+.Nd remote execution server
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Sh DESCRIPTION
+The
+.Nm
+utility is the server for the
+.Xr rexec 3
+routine.
+The server provides remote execution facilities
+with authentication based on user names and
+passwords.
+.Pp
+The
+.Nm
+utility listens for service requests at the port indicated in
+the ``exec'' service specification; see
+.Xr services 5 .
+When a service request is received the following protocol
+is initiated:
+.Bl -enum
+.It
+The server reads characters from the socket up
+to a NUL
+.Pq Ql \e0
+byte.
+The resultant string is
+interpreted as an
+.Tn ASCII
+number, base 10.
+.It
+If the number received in step 1 is non-zero,
+it is interpreted as the port number of a secondary
+stream to be used for the
+.Em stderr .
+A second connection is then created to the specified
+port on the client's machine.
+.It
+A NUL terminated user name of at most 16 characters
+is retrieved on the initial socket.
+.It
+A NUL terminated, unencrypted password of at most
+16 characters is retrieved on the initial socket.
+.It
+A NUL terminated command to be passed to a
+shell is retrieved on the initial socket.
+The length of
+the command is limited by the upper bound on the size of
+the system's argument list.
+.It
+The
+.Nm
+utility then validates the user as is done at login time
+and, if the authentication was successful, changes
+to the user's home directory, and establishes the user
+and group protections of the user.
+If any of these steps fail the connection is
+aborted with a diagnostic message returned.
+.It
+A NUL byte is returned on the initial socket
+and the command line is passed to the normal login
+shell of the user.
+The
+shell inherits the network connections established
+by
+.Nm .
+.El
+.Sh CAVEATS
+The
+.Nm
+utility will not allow root logins unless the
+.Fl i
+option is given on the command line (typically in
+.Pa /etc/inetd.conf ) .
+It will also disallow access for users listed in
+.Pa /etc/ftpusers ,
+or users with no passwords, which were all serious security holes.
+The entire concept of rexec/rexecd is a major security hole and an example
+of how not to do things.
+The
+.Nm
+utility is disabled by default in
+.Pa /etc/inetd.conf .
+.Sh DIAGNOSTICS
+Except for the last one listed below,
+all diagnostic messages are returned on the initial socket,
+after which any network connections are closed.
+An error is indicated by a leading byte with a value of
+1 (0 is returned in step 7 above upon successful completion
+of all the steps prior to the command execution).
+.Pp
+.Bl -tag -width Ds
+.It Sy username too long
+The name is
+longer than 16 characters.
+.It Sy password too long
+The password is longer than 16 characters.
+.It Sy command too long
+The command line passed exceeds the size of the argument
+list (as configured into the system).
+.It Sy Login incorrect.
+No password file entry for the user name existed.
+.It Sy Password incorrect.
+The wrong password was supplied.
+.It Sy \&No remote directory.
+The
+.Xr chdir 1
+command to the home directory failed.
+.It Sy Try again.
+A
+.Xr fork 2
+by the server failed.
+.It Sy <shellname>: ...
+The user's login shell could not be started.
+This message is returned
+on the connection associated with the
+.Em stderr ,
+and is not preceded by a flag byte.
+.El
+.Sh SEE ALSO
+.Xr rexec 3
+.Sh BUGS
+A facility to allow all data and password exchanges to be encrypted should be
+present.
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .

@@ -1,0 +1,22 @@
+<!-- -*- sgml -*- -->
+
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/install.ent,v 1.1 2004/06/24 07:21:48 den Exp $
+
+     Original revision: 1.2
+-->
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- Files to be included -->
+
+<!ENTITY artheader SYSTEM "artheader.sgml">
+<!ENTITY abstract SYSTEM "abstract.sgml">
+<!ENTITY sect.install SYSTEM "install.sgml">
+<!ENTITY sect.layout SYSTEM "layout.sgml">
+<!ENTITY sect.upgrade SYSTEM "upgrade.sgml">
+<!ENTITY sect.trouble SYSTEM "trouble.sgml">
+

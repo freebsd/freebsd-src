@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: dumpon
+# REQUIRE: initrandom
+# BEFORE: disks savecore
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="dumpon"
+start_cmd="dumpon_start"
+stop_cmd="dumpon_stop"
+
+dumpon_start()
+{
+	# Enable dumpdev so that savecore can see it. Enable it
+	# early so a crash early in the boot process can be caught.
+	#
+	case ${dumpdev} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		/sbin/dumpon -v ${dumpdev}
+		;;
+	esac
+}
+
+dumpon_stop()
+{
+	case ${dumpdev} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		/sbin/dumpon -v off
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

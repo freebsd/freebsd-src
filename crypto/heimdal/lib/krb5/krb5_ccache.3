@@ -1,0 +1,356 @@
+.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden). 
+.\" All rights reserved. 
+.\"
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\"
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors 
+.\"    may be used to endorse or promote products derived from this software 
+.\"    without specific prior written permission. 
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\" 
+.\" $Id: krb5_ccache.3,v 1.7 2003/04/16 13:58:12 lha Exp $
+.\" 
+.Dd March 16, 2003
+.Dt KRB5_CCACHE 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_ccache ,
+.Nm krb5_cc_cursor ,
+.Nm krb5_cc_ops ,
+.Nm krb5_fcc_ops ,
+.Nm krb5_mcc_ops ,
+.Nm krb5_cc_close ,
+.Nm krb5_cc_copy_cache ,
+.Nm krb5_cc_default ,
+.Nm krb5_cc_default_name ,
+.Nm krb5_cc_destroy ,
+.Nm krb5_cc_end_seq_get ,
+.Nm krb5_cc_gen_new ,
+.Nm krb5_cc_get_name ,
+.Nm krb5_cc_get_principal ,
+.Nm krb5_cc_get_type ,
+.Nm krb5_cc_get_ops ,
+.Nm krb5_cc_get_version ,
+.Nm krb5_cc_initialize ,
+.Nm krb5_cc_register ,
+.Nm krb5_cc_resolve ,
+.Nm krb5_cc_retrieve_cred ,
+.Nm krb5_cc_remove_cred ,
+.Nm krb5_cc_set_default_name ,
+.Nm krb5_cc_store_cred ,
+.Nm krb5_cc_set_flags ,
+.Nm krb5_cc_next_cred
+.Nd mange credential cache.
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "struct krb5_ccache;"
+.Pp
+.Li "struct krb5_cc_cursor;"
+.Pp
+.Li "struct krb5_cc_ops;"
+.Pp
+.Li "struct krb5_cc_ops *krb5_fcc_ops;"
+.Pp
+.Li "struct krb5_cc_ops *krb5_mcc_ops;"
+.Pp
+.Ft krb5_error_code
+.Fo krb5_cc_close
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_copy_cache
+.Fa "krb5_context *context"
+.Fa "const krb5_ccache from"
+.Fa "krb5_ccache to"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_default
+.Fa "krb5_context *context"
+.Fa "krb5_ccache *id"
+.Fc
+.Ft "const char *"
+.Fo krb5_cc_default_name
+.Fa "krb5_context *context"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_destroy
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_end_seq_get
+.Fa "krb5_context *context"
+.Fa "const krb5_ccache id"
+.Fa "krb5_cc_cursor *cursor"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_gen_new
+.Fa "krb5_context *context"
+.Fa "const krb5_cc_ops *ops"
+.Fa "krb5_ccache *id"
+.Fc
+.Ft "const char *"
+.Fo krb5_cc_get_name
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_get_principal
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fa "krb5_principal *principal"
+.Fc
+.Ft "const char *"
+.Fo krb5_cc_get_type
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fc
+.Ft "const krb5_cc_ops *"
+.Fo krb5_cc_get_ops
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_get_version
+.Fa "krb5_context *context"
+.Fa "const krb5_ccache id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_initialize
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fa "krb5_principal primary_principal"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_register
+.Fa "krb5_context *context"
+.Fa "const krb5_cc_ops *ops"
+.Fa "krb5_boolean override"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_resolve
+.Fa "krb5_context *context"
+.Fa "const char *name"
+.Fa "krb5_ccache *id"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_retrieve_cred
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fa "krb5_flags whichfields"
+.Fa "const krb5_creds *mcreds"
+.Fa "krb5_creds *creds"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_remove_cred
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fa "krb5_flags which"
+.Fa "krb5_creds *cred"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_set_default_name
+.Fa "krb5_context *context"
+.Fa "const char *name"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_store_cred
+.Fa "krb5_context *context"
+.Fa "krb5_ccache id"
+.Fa "krb5_creds *creds"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_set_flags
+.Fa "krb5_context *context"
+.Fa "krb5_cc_set_flags id"
+.Fa "krb5_flags flags"
+.Fc
+.Ft krb5_error_code
+.Fo krb5_cc_next_cred
+.Fa "krb5_context *context"
+.Fa "const krb5_ccache id"
+.Fa "krb5_cc_cursor *cursor"
+.Fa "krb5_creds *creds"
+.Fc
+.Sh DESCRIPTION
+The
+.Li krb5_ccache
+structure holds a Kerberos credential cache.
+.Pp
+The
+.Li krb5_cc_cursor
+structure holds current position in a credential cache when
+iterating over the cache.
+.Pp
+The
+.Li krb5_cc_ops
+structure holds a set of operations that can me preformed on a
+credential cache.
+.Pp
+There is no component inside
+.Li krb5_ccache ,
+.Li krb5_cc_cursor
+nor
+.Li krb5_fcc_ops
+that is directly referable.
+.Pp
+The
+.Li krb5_creds
+holds a Kerberos credential, see manpage for
+.Xr krb5_creds 3 .
+.Pp
+.Fn krb5_cc_default_name
+and
+.Fn krb5_cc_set_default_name
+gets and sets the default name for the
+.Fa context .
+.Pp
+.Fn krb5_cc_default
+opens the default ccache in 
+.Fa id .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_gen_new
+generates a new ccache of type
+.Fa ops
+in
+.Fa id .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_resolve
+finds and allocates a ccache in 
+.Fa id
+from the specification in 
+.Fa residual .
+If the ccache name doesn't contain any colon (:), interpret it as a
+file name.
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_initialize
+creates a new ccache in
+.Fa id
+for
+.Fa primary_principal .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_close
+stops using the ccache 
+.Fa id
+and frees the related resources.
+Return 0 or an error code.
+.Fn krb5_cc_destroy
+removes the ccache 
+and closes (by calling
+.Fn krb5_cc_close )
+.Fa id .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_copy_cache
+copys the contents of 
+.Fa from
+to 
+.Fa to .
+.Pp
+.Fn krb5_cc_get_name
+returns the name of the ccache 
+.Fa id .
+.Pp
+.Fn krb5_cc_get_principal
+returns the principal of 
+.Fa id
+in
+.Fa principal .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_get_type
+returns the type of the ccache
+.Fa id .
+.Pp
+.Fn krb5_cc_get_ops
+returns the ops of the ccache
+.Fa id .
+.Pp
+.Fn krb5_cc_get_version
+returns the version of
+.Fa id .
+.Pp
+.Fn krb5_cc_register
+Adds a new ccache type with operations 
+.Fa ops ,
+overwriting any existing one if
+.Fa override .
+Return an error code or 0.
+.Pp
+.Fn krb5_cc_remove_cred
+removes the credential identified by
+.Fa ( cred ,
+.Fa which )
+from 
+.Fa id .
+.Pp
+.Fn krb5_cc_store_cred
+stores
+.Fa creds
+in the ccache
+.Fa id .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_set_flags
+sets the flags of
+.Fa id
+to
+.Fa flags .
+.Pp
+.Fn krb5_cc_retrieve_cred ,
+retrieves the credential identified by 
+.Fa mcreds
+(and
+.Fa whichfields )
+from
+.Fa id
+in
+.Fa creds .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_next_cred
+retrieves the next cred pointed to by
+.Fa ( id ,
+.Fa cursor )
+in
+.Fa creds ,
+and advance
+.Fa cursor .
+Return 0 or an error code.
+.Pp
+.Fn krb5_cc_end_seq_get
+Destroys the cursor
+.Fa cursor .
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5.conf 5 ,
+.Xr kerberos 8

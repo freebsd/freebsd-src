@@ -1,0 +1,58 @@
+$FreeBSD$
+
+Using Soft Updates
+
+To enable the soft updates feature in your kernel, add option
+SOFTUPDATES to your kernel configuration.
+
+Once you are running a kernel with soft update support, you need to enable
+it for whichever filesystems you wish to run with the soft update policy.
+This is done with the -n option to tunefs(8) on the UNMOUNTED filesystems,
+e.g. from single-user mode you'd do something like:
+
+	tunefs -n enable /usr
+
+To permanently enable soft updates on the /usr filesystem (or at least
+until a corresponding ``tunefs -n disable'' is done).
+
+
+Soft Updates Copyright Restrictions
+
+As of June 2000 the restrictive copyright has been removed and 
+replaced with a `Berkeley-style' copyright. The files implementing
+soft updates now reside in the sys/ufs/ffs directory and are
+compiled into the generic kernel by default.
+
+
+Soft Updates Status
+
+The soft updates code has been running in production on many
+systems for the past two years generally quite successfully.
+The two current sets of shortcomings are:
+
+1) On filesystems that are chronically full, the two minute lag
+   from the time a file is deleted until its free space shows up
+   will result in premature filesystem full failures. This
+   failure mode is most evident in small filesystems such as
+   the root. For this reason, use of soft updates is not
+   recommended on the root filesystem.
+
+2) If your system routines runs parallel processes each of which
+   remove many files, the kernel memory rate limiting code may
+   not be able to slow removal operations to a level sustainable
+   by the disk subsystem. The result is that the kernel runs out
+   of memory and hangs.
+
+Both of these problems are being addressed, but have not yet
+been resolved. There are no other known problems at this time.
+
+
+How Soft Updates Work
+
+For more general information on soft updates, please see:
+	http://www.mckusick.com/softdep/
+	http://www.ece.cmu.edu/~ganger/papers/CSE-TR-254-95/
+
+--
+Marshall Kirk McKusick <mckusick@mckusick.com>
+July 2000

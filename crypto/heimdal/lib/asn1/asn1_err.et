@@ -1,0 +1,20 @@
+#
+# Error messages for the asn.1 library
+#
+# This might look like a com_err file, but is not
+#
+id "$Id: asn1_err.et,v 1.5 1998/02/16 16:17:17 joda Exp $"
+
+error_table asn1
+prefix ASN1
+error_code BAD_TIMEFORMAT,	"ASN.1 failed call to system time library"
+error_code MISSING_FIELD,	"ASN.1 structure is missing a required field"
+error_code MISPLACED_FIELD,	"ASN.1 unexpected field number"
+error_code TYPE_MISMATCH,	"ASN.1 type numbers are inconsistent"
+error_code OVERFLOW,		"ASN.1 value too large"
+error_code OVERRUN,		"ASN.1 encoding ended unexpectedly"
+error_code BAD_ID,		"ASN.1 identifier doesn't match expected value"
+error_code BAD_LENGTH,		"ASN.1 length doesn't match expected value"
+error_code BAD_FORMAT,		"ASN.1 badly-formatted encoding"
+error_code PARSE_ERROR,		"ASN.1 parse error"
+end

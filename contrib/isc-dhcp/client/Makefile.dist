@@ -1,0 +1,133 @@
+# Makefile.dist
+#
+# Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+# Copyright (c) 1996-2003 by Internet Software Consortium
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+# OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+#   Internet Systems Consortium, Inc.
+#   950 Charter Street
+#   Redwood City, CA 94063
+#   <info@isc.org>
+#   http://www.isc.org/
+
+CATMANPAGES = dhclient.cat8 dhclient.conf.cat5 dhclient-script.cat8 \
+	      dhclient.leases.cat5
+SEDMANPAGES = dhclient.man8 dhclient.conf.man5 dhclient-script.man8 \
+	      dhclient.leases.man5
+SRCS   = dhclient.c clparse.c
+OBJS   = dhclient.o clparse.o
+PROG   = dhclient
+MAN    = dhclient.8 dhclient.conf.5 dhclient-script.8 dhclient.leases.5
+
+INCLUDES = -I$(TOP) $(BINDINC) -I$(TOP)/includes
+DHCPLIB = ../common/libdhcp.a $(BINDLIB) ../omapip/libomapi.a ../dst/libdst.a
+CFLAGS = $(DEBUG) $(PREDEFINES) $(INCLUDES) $(COPTS) \
+		-DCLIENT_PATH=${CLIENT_PATH}
+
+all:	$(PROG) $(CATMANPAGES)
+
+install: all
+	for dir in $(CLIENTBINDIR) $(ETC) $(FFMANDIR) $(ADMMANDIR) $(VARDB); \
+	do \
+	  foo=""; \
+	  for bar in `echo $(DESTDIR)$${dir} |tr / ' '`; do \
+	    foo=$${foo}/$$bar; \
+	    if [ ! -d $$foo ]; then \
+	      mkdir $$foo; \
+	      chmod 755 $$foo; \
+	    fi; \
+	  done; \
+	done
+	$(INSTALL) dhclient $(DESTDIR)$(CLIENTBINDIR)
+	$(CHMOD) 755 $(DESTDIR)$(CLIENTBINDIR)/dhclient
+	if [ x$(SCRIPT) = xnone ]; then \
+	  echo "No client script available."; \
+	else \
+	  $(INSTALL) $(TOP)/client/scripts/$(SCRIPT)\
+				$(DESTDIR)$(CLIENTBINDIR)/dhclient-script; \
+	  $(CHMOD) 700 $(DESTDIR)$(CLIENTBINDIR)/dhclient-script; \
+	fi
+	$(MANINSTALL) $(MANFROM) dhclient.$(MANCAT)8 $(MANTO) \
+			$(DESTDIR)$(ADMMANDIR)/dhclient$(ADMMANEXT)
+	$(MANINSTALL) $(MANFROM) dhclient-script.$(MANCAT)8 $(MANTO) \
+			$(DESTDIR)$(ADMMANDIR)/dhclient-script$(ADMMANEXT)
+	$(MANINSTALL) $(MANFROM) dhclient.conf.$(MANCAT)5 $(MANTO) \
+			$(DESTDIR)$(FFMANDIR)/dhclient.conf$(FFMANEXT)
+	$(MANINSTALL) $(MANFROM) dhclient.leases.$(MANCAT)5 $(MANTO) \
+			$(DESTDIR)$(FFMANDIR)/dhclient.leases$(FFMANEXT)
+
+depend:
+	$(MKDEP) $(INCLUDES) $(PREDEFINES) $(SRCS)
+
+clean:
+	-rm -f $(OBJS)
+
+realclean: clean
+	-rm -f $(PROG) $(CATMANPAGES) $(SEDMANPAGES) *~ #*
+
+distclean: realclean
+	-rm -f Makefile
+
+links:
+	@for foo in $(SRCS) $(MAN); do \
+	  if [ ! -b $$foo ]; then \
+	    rm -f $$foo; \
+	  fi; \
+	  ln -s $(TOP)/client/$$foo $$foo; \
+	done
+
+# These should only be done on 4.4 BSD-based systems, since the mandoc
+# macros aren't available on older unices.   Catted man pages are
+# provided in the distribution so that this doesn't become a problem.
+
+dhclient.cat8:	dhclient.man8
+	nroff -man dhclient.man8 >dhclient.cat8
+
+dhclient.man8: dhclient.8
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#CLIENTBINDIR#$(CLIENTBINDIR)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhclient.8 >dhclient.man8
+
+dhclient-script.cat8:	dhclient-script.man8
+	nroff -man dhclient-script.man8 >dhclient-script.cat8
+
+dhclient-script.man8:	dhclient-script.8
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#CLIENTBINDIR#$(CLIENTBINDIR)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhclient-script.8 \
+						>dhclient-script.man8
+
+dhclient.conf.man5:	dhclient.conf.5
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#CLIENTBINDIR#$(CLIENTBINDIR)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhclient.conf.5 \
+						>dhclient.conf.man5
+
+dhclient.conf.cat5:	dhclient.conf.man5
+	nroff -man dhclient.conf.man5 >dhclient.conf.cat5
+
+dhclient.leases.man5:	dhclient.leases.5
+	sed -e "s#ETCDIR#$(ETC)#g" -e "s#DBDIR#$(VARDB)#g" \
+		-e "s#CLIENTBINDIR#$(CLIENTBINDIR)#g" \
+		-e "s#RUNDIR#$(VARRUN)#g" < dhclient.leases.5 \
+						>dhclient.leases.man5
+
+dhclient.leases.cat5:	dhclient.leases.man5
+	nroff -man dhclient.leases.man5 >dhclient.leases.cat5
+
+
+dhclient:	$(OBJS) $(DHCPLIB)
+	$(CC) $(LFLAGS) -o $(PROG) $(OBJS) $(DHCPLIB) $(LIBS)
+
+# Dependencies (semi-automatically-generated)

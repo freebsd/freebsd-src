@@ -1,0 +1,210 @@
+#!/bin/sh -
+#
+# Copyright (c) 2000  The FreeBSD Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: syscons
+# REQUIRE: LOGIN usbd
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="syscons"
+start_precmd="syscons_precmd"
+start_cmd="syscons_start"
+
+# stdin must be redirected because it might be for a serial console
+#
+kbddev=/dev/ttyv0
+viddev=/dev/ttyv0
+
+syscons_precmd()
+{
+	if [ ! -c $kbddev ]
+	then
+		return 1
+	fi
+	if [ -x /usr/sbin/ispcvt ] && /usr/sbin/ispcvt
+	then
+		return 1
+	fi
+	return 0
+}
+
+syscons_start()
+{
+	echo -n 'Configuring syscons:'
+
+	# keyboard
+	#
+	if [ -n "${keyboard}" ]; then
+		echo -n ' keyboard';	kbdcontrol < ${kbddev} \
+		    -k "${keyboard}" >/dev/null
+	fi
+
+	# keymap
+	#
+	case ${keymap} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' keymap';	kbdcontrol < ${kbddev} -l ${keymap}
+		;;
+	esac
+
+	# keyrate
+	#
+	case ${keyrate} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' keyrate';	kbdcontrol < ${kbddev} -r ${keyrate}
+		;;
+	esac
+
+	# keybell
+	#
+	case ${keybell} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' keybell';	kbdcontrol < ${kbddev} -b ${keybell}
+		;;
+	esac
+
+	# change function keys
+	#
+	case ${keychange} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' keychange'
+		set - ${keychange}
+		while [ $# -gt 0 ]; do
+			kbdcontrol <${kbddev} -f "$1" "$2"
+			shift; shift
+		done
+		;;
+	esac
+
+	# cursor type
+	#
+	case ${cursor} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' cursor';	vidcontrol < ${viddev} -c ${cursor}
+		;;
+	esac
+
+	# screen mapping
+	#
+	case ${scrnmap} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' scrnmap';	vidcontrol < ${viddev} -l ${scrnmap}
+		;;
+	esac
+
+	# font 8x16
+	#
+	case ${font8x16} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' font8x16';	vidcontrol < ${viddev} -f 8x16 ${font8x16}
+		;;
+	esac
+
+	# font 8x14
+	#
+	case ${font8x14} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' font8x14';	vidcontrol < ${viddev} -f 8x14 ${font8x14}
+		;;
+	esac
+
+	# font 8x8
+	#
+	case ${font8x8} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' font8x8';	vidcontrol < ${viddev} -f 8x8 ${font8x8}
+		;;
+	esac
+
+	# blank time
+	#
+	case ${blanktime} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
+		;;
+	esac
+
+	# screen saver
+	#
+	case ${saver} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo -n ' screensaver'
+		for i in `kldstat | awk '$5 ~ "^splash_.*$" { print $5 }'`; do
+			kldunload ${i}
+		done
+		kldstat -v | grep -q _saver || kldload ${saver}_saver
+		;;
+	esac
+
+	# set this mode for all virtual screens
+	#
+	if [ -n "${allscreens_flags}" ]; then
+		echo -n ' allscreens'
+		for ttyv in /dev/ttyv*; do
+			vidcontrol ${allscreens_flags} < ${ttyv} > ${ttyv} 2>&1
+		done
+	fi
+
+	# set this keyboard mode for all virtual terminals
+	#
+	if [ -n "${allscreens_kbdflags}" ]; then
+		echo -n ' allscreens_kbd'
+		for ttyv in /dev/ttyv*; do
+			kbdcontrol ${allscreens_kbdflags} < ${ttyv} > ${ttyv} 2>&1
+		done
+	fi
+
+	echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,159 @@
+.ig
+Copyright (C) 1994-2000, 2001, 2003 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.TH HPFTODIT @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+hpftodit \- create font description files for use with groff \-Tlj4
+.SH SYNOPSIS
+.B hpftodit
+[
+.B \-sv
+]
+[
+.BI \-i n
+]
+.I tfm_file
+.I map_file
+.I font
+.PP
+It is possible to have whitespace between the
+.B \-i
+command line option and its parameter.
+.SH DESCRIPTION
+.B hpftodit
+creates a font file for use with
+.B
+groff \-Tlj4\fR
+from an HP tagged font metric file.
+.I tfm_file
+is the name of the tagged font metric file for the font.
+.I map_file
+is a file giving the groff names for characters in the font;
+this file should consist of a sequence of lines of the form:
+.IP
+.I
+n c1 c2 \fR.\|.\|.
+.LP
+where
+.I n
+is a decimal integer giving the MSL number of the character,
+and
+.IR c1 ,
+.IR c2 ,.\|.\|.
+are the groff names of the character.
+.I font
+is the name of the groff font file.
+The groff font file is written to
+.IR font .
+.LP
+The
+.B \-s
+option should be given if the font is special
+(a font is
+.I special
+if
+.B troff
+should search it whenever
+a character is not found in the current font.)
+If the font is special,
+it should be listed in the
+.B fonts
+command in the DESC file;
+if it is not special, there is no need to list it, since
+.B troff
+can automatically mount it when it's first used.
+.LP
+If the
+.B \-i
+option is used,
+.B hpftodit
+will automatically generate an italic correction,
+a left italic correction and a subscript correction
+for each character
+(the significance of these parameters is explained in
+.BR groff_font (@MAN5EXT@)).
+.SH OPTIONS
+.TP
+.B \-v
+Print the version number.
+.TP
+.B \-s
+The font is special.
+The effect of this option is to add the
+.B special
+command to the font file.
+.TP
+.BI \-i n
+Generate an italic correction for each character so that 
+the character's width plus the character's italic correction
+is equal to
+.I n
+design units
+plus the amount by which the right edge of the character's bounding
+is to the right of the character's origin.
+If this would result in a negative italic correction, use a zero
+italic correction instead.
+There are 8782 design units per em for Intellifont fonts.
+.IP
+Also generate a subscript correction equal to the 
+product of the tangent of the slant of the font and
+four fifths of the x-height of the font.
+If this would result in a subscript correction greater than the italic
+correction, use a subscript correction equal to the italic correction
+instead.
+.IP
+Also generate a left italic correction for each character
+equal to
+.I n
+design units
+plus the amount by which the left edge of the character's bounding box
+is to the left of the character's origin.
+The left italic correction may be negative.
+.IP
+This option is normally needed only with italic (or oblique) fonts.
+.SH FILES
+.Tp \w'\fB@FONTDIR@/devlj4/DESC'u+2n
+.B @FONTDIR@/devlj4/DESC
+Device description file.
+.TP
+.BI @FONTDIR@/devlj4/ F
+Font description file for font
+.IR F .
+.SH BUGS
+.LP
+This program was written without the benefit of complete, official
+documentation on the tagged font metric format.
+It is therefore likely that it will fail to work on tfm files that are
+dissimilar to those for the internal fonts on the Laserjet 4,
+with which it was tested.
+.LP
+TrueType tfm files are not supported.
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@),
+.BR grolj4 (@MAN1EXT@),
+.BR groff_font (@MAN5EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

@@ -1,0 +1,69 @@
+# $FreeBSD$
+#
+# Common Alpha loader build rules
+
+.PATH: ${.CURDIR}/../common
+
+PROG=		${BOOT}.sym
+INTERNALPROG=
+
+# Alpha-specific bootstrap sources
+SRCS=		start.S main.c conf.c vers.c
+.if ${BOOT} == "netboot"
+SRCS+=		dev_net.c
+.endif
+
+.PATH: ${.CURDIR}/../libalpha
+
+.if !defined(NOFORTH)
+# Enable BootForth
+BOOT_FORTH=	yes
+CFLAGS+=	-DBOOT_FORTH
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
+
+# Always add MI sources 
+.PATH: ${.CURDIR}/../../common
+.include "${.CURDIR}/../../common/Makefile.inc"
+CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-DPRIMARY_LOAD_ADDRESS=${PRIMARY_LOAD_ADDRESS} \
+		-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS}
+
+CLEANFILES+=	vers.c ${BOOT} ${BOOT}.sym
+
+CFLAGS+=	-Wall
+
+CFLAGS+=	-I${LIBSTANDDIR}
+CFLAGS+=	-I${.CURDIR}/..
+
+vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+
+LDFLAGS=-e start -Ttext ${LOAD_ADDRESS} -T ${.CURDIR}/../common/ldscript
+
+FILES=	${BOOT}
+# XXX INSTALLFLAGS_${BOOT}= -b
+FILESMODE_${BOOT}= ${BINMODE} -b
+
+${BOOT}: ${BOOT}.sym
+	objcopy -O binary ${BOOT}.sym ${.TARGET}
+
+DPADD=	${LIBALPHA} ${LIBFICL} ${LIBSTAND}
+LDADD=	${LIBALPHA} ${LIBFICL} -lstand
+
+.if defined(INSTALL_HELP)
+FILES+=	${BOOT}.help
+CLEANFILES+=	${BOOT}.help
+${BOOT}.help: help.common help.alpha
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+.endif
+
+.PATH: ${.CURDIR}/../../forth
+.if !exists(${DESTDIR}/boot/loader.rc)
+FILES+=	loader.rc
+.endif
+FILES+=	loader.4th support.4th loader.conf
+FILESDIR_loader.conf= /boot/defaults
+
+.include <bsd.prog.mk>

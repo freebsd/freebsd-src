@@ -1,0 +1,27 @@
+<!--
+    $FreeBSD$
+    Original revision: 1.6
+-->
+
+<sect1 id="intro">
+  <title>はじめに</title>
+
+  <para>この文書は &arch.print; プラットフォーム版 &os; &release.current;
+    (別名 &os;/&arch; &release.current;) のハードウェア互換ノート
+    (hardware comparibility notes) です。
+    これにはこのプラットフォームで動作が確認されたデバイスおよび、
+    新しいデバイスを動作させようとする場合に有用な、
+    起動時のカーネル設定に関する注意が書かれています。</para>
+
+  <note>
+    <para>この文書に書かれている情報は &arch.print;
+      プラットフォームに特有のものです。
+      他のアーキテクチャ用のハードウェア互換ノートとは、
+      細部が異なる可能性があります。</para>
+  </note>
+
+  <para arch="ia64">&os;/&arch; についての詳細は
+    <ulink url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+      プロジェクト</ulink>ページをご覧ください。</para>
+
+</sect1>

@@ -1,0 +1,131 @@
+.\"
+.\" Copyright (c) 1994, Wilko Bulte
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 4, 2004
+.Dt IE 4 i386
+.Os
+.Sh NAME
+.Nm ie
+.Nd Ethernet device driver
+.Sh SYNOPSIS
+.Cd "device ie"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.ie.0.at="isa"
+.Cd hint.ie.0.port="0x300"
+.Cd hint.ie.0.irq="5"
+.Cd hint.ie.0.maddr="0xd0000"
+.Sh HARDWARE
+The
+.Nm
+driver provides supports the following 8 and 16bit ISA Ethernet cards
+that are based on the Intel i82586 chip:
+.Pp
+.Bl -bullet -compact
+.It
+3COM 3C507
+.It
+AT&T EN100
+.It
+AT&T Starlan 10
+.It
+AT&T Starlan Fiber
+.It
+Intel EtherExpress 16
+.It
+RACAL Interlan NI5210
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ie%d: unknown board type code %d"
+An i82586 chip was found, but the driver was unable to determine the actual
+board type during the probe.
+.It "ie%d: kernel configured maddr %x doesn't match board configured maddr %x"
+The device probe detected a different maddr than the one specified in the
+kernel configuration file.
+.It "ie%d: can't find shared memory"
+The device probe could not access the shared memory to determine its size.
+.It "ie%d: kernel configured msize %d doesn't match board configured msize %d"
+The device probe found a different size for the shared memory than the one
+specified in the kernel configuration file.
+.It "ie%d: kernel configured irq %d doesn't match board configured irq %d"
+The device probe detected that the board is configured for a different
+interrupt than the one specified in the kernel configuration file.
+.It "ie%d: reset"
+The Intel i82586 had to be reset by the driver.
+.It "ie%d: transceiver problem"
+The driver has detected a problem with the Ethernet transceiver.
+This is
+usually due to a loose or broken transceiver cable when using an external
+transceiver.
+When you experience this problem with an on-card transceiver
+your card may be incorrectly jumpered for to use an external transceiver.
+Worst case your on-board transceiver may be broken.
+.It "ie%d: TDR detected an open %d clocks away"
+The driver detected an open circuit in the Ethernet cable.
+Check your
+coax cable and terminator resistors.
+.It "ie%d: TDR detected a short %d clocks away"
+The driver detected a short circuit in the Ethernet cable.
+Check your
+coax cable and terminator resistors.
+.It "ie%d: TDR returned unknown status %x"
+The driver got an unknown status from the card during the Ethernet cable
+test.
+.It "ie%d: multicast address setup command failed"
+The card could not be put into multicast mode.
+.It "ie%d: configure command failed"
+The card refused to respond correctly during configuration.
+.It "ie%d: individual address setup command failed"
+The programming of the Ethernet (MAC) address failed.
+.El
+.Sh CAVEATS
+The Racal Interlan NI5210 comes in variants with 8 and 16 kbytes of
+shared memory.
+It is strongly advisable to use the 16 kbyte variant.
+You can upgrade your 8 kbyte card to 16 kbyte by adding an additional
+RAM chip.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr ifconfig 8
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was written by
+.An Garrett A. Wollman ,
+based on code by
+.An William F. Jolitz
+and Lawrence Berkeley Laboratories.
+.Tn 3C507
+support was written by
+.An Charles M. Hannum .
+This manual page was written by
+.An Wilko C. Bulte .

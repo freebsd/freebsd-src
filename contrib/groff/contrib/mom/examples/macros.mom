@@ -1,0 +1,668 @@
+\# Basic page setup
+\#
+.PAGE 8.5i 11i \" Printer sheet size
+.L_MARGIN 1i   \" Left margin 1 inch
+.R_MARGIN 1i   \" Right margin 1 inch (calculates the line length)
+\#
+\# Refinements
+\#
+.KERN          \" Automatic pairwise kerning
+.SS 0          \" No extra space between sentences
+.HY            \" Hyphenate
+.LIGATURES     \" Automatic ligature generation
+.SMARTQUOTES   \" Enable smartquotes
+\#
+\# Basic type parameters
+\#
+.FAM T         \" Times Roman family
+.FT  B         \" Bold font
+.PT_SIZE 12    \" Point size
+.LS  14        \" Leading (line spacing)
+.LEFT          \" Set lines flush left, nofill mode
+\#
+\#
+.ALD |1i-1v    \" Advance 1 inch from top of paper to first baseline
+Example 1\*[BU 2]:
+.ALD .25v      \" Advance an extra 1/4 linespace
+.UNDERSCORE 3.75p "T\*[BU 4]asting notes using padding, string tabs \
+and multi-columns"
+.SP            \" Add an extra line space
+\#
+\#
+.FAM H         \" Helvetica family
+.PT_SIZE 10
+.LS  11        \" New leading
+\#
+\# The following uses a combination of padding, string tabs, and the FWD escape
+\# to set up five tabs with 12-point (1-pica) gutters over the full line length.
+\# 
+.SILENT        \" Don't print the next line
+.PAD "\*[ST1]VIN#\*[ST1X]\*[FWD 12p]\*[ST2]ROBE#\*[ST2X]\*[FWD 12p]\*[ST3]NEZ#\*[ST3X]\*[FWD 12p]\*[ST4]BOUCHE#\*[ST4X]\*[FWD 12p]\*[ST5]COMMENTAIRES\*[ST5X]"
+.SILENT OFF    \" Resume normal printing of text
+\#
+\# Now that the string tabs have been marked off, we "set" them.
+\#
+.ST 1 L        \" First string tab flush left, nofill mode (no need for .BR's between input lines)
+.ST 2 L QUAD   \" Remaining tabs are flush left/rag right, fill mode
+.ST 3 L QUAD
+.ST 4 L QUAD
+.ST 5 L QUAD
+\#
+\#
+.TAB 1         \" Call first tab
+.UNDERSCORE "VIN"
+.TN            \" Move to next tab and stay on the same baseline
+.UNDERSCORE "ROBE"
+.TN            \" Ibid
+.UNDERSCORE "NEZ"
+.TN            \" Ibid
+.UNDERSCORE "BOUCHE"
+.TN            \" Ibid
+.UNDERSCORE "COMMENTAIRES"
+.TQ            \" Quit tabs
+\#
+\#
+.ALD 6p        \" Advance an extra 6 points
+.FT  R         \" Change font to roman (medium)
+.MCO           \" Turn multi-column mode on
+\#
+\#
+.TAB 1                 \" Notice that this tab gets set line-for-line
+\*[IT]Peelee Island    \" Set italic
+\*[PREV]Gewürztraminer \" Revert to former font (roman)
+2000
+(Canada)
+.MCR           \" Return to top of column
+.TAB 2         \" Call tab 2; in multi-column mode, don't use .TN
+Jaune pâle.
+.MCR
+.TB 3          \" Notice that from here on, we use the alias TB instead of TAB
+Frais, fruité, ci\%tronné, arômes fortes de lichee et de fruits
+tropicaux.
+.MCR
+.TB 4
+Doux, fruité, bien équilibré avec une bonne acidité.
+.MCR
+.TB 5
+Bon apéro.  Servir avec des plats
+.RW .1
+indiens ou \%chinois.
+.RW 0
+.BR
+Excellent rapport qualité/prix.
+.MCX 8p        \" Multi-column mode off; advance an extra 8 points
+.MCO           \" Re-invoke multi-columns for next wine description
+.TB 1
+\*[IT]Carau Pujol
+\*[ROM]Tannat
+1995
+(Uraguay)
+.MCR
+.TB 2
+Rubis foncé, vio\%lacée, presque opaque.
+.MCR
+.TB 3
+Belles arômes de fruits foncés (prunes, cerises noires, cassis).
+Odeurs tertiares de cuir, cèdre, violets, eucalyptus, avec une trace
+exotique de Band-Aid*\*[BU 12].
+\#
+\# The \*[BU 12], above, pulls the period back so that it falls
+\# underneath the asterisk. \*[BP<#>] could have been used instead
+\# if you prefer to use points rather than kern units.
+\#
+.MCR
+.TB 4
+Très rond, tannins mûres et veloutés, avec un long finis fruité et
+doucement alcoolique.
+.MCR
+.TB 5
+Superbe\|!  Une aubaine à ne pas manquer.  Prêt à boire maintenant.
+.MCX 1v  \" Multi-columns off; advance an extra linespace
+\#
+\# Now, an example of a hanging indent.  This is excessively fussy
+\# from a typographic standpoint in that it hangs the asterisk outside
+\# the current left margin so that the text following it lines up with
+\# with the text in the tasting notes.  Notice that in order to use a
+\# hanging indent, you must first set a left indent.
+\#
+.FT I          \" Change font to italic
+.PT_SIZE -.5   \" Reduce point size by 1/2 point
+.LS -.5        \" Reduce leading by 1/2 point
+.JUSTIFY       \" Set text justified
+\#
+\# Now, move the left margin back by the width of an asterisk plus 2 points...
+\#
+.L_MARGIN -(\w'*'+2p)
+\#
+\# ...and set a left indent equal to the width of an asterisk plus 2 points
+\#
+.IL \w'*'+2p   
+\#
+\# Now, set the hanging indent equal to the left indent, effectively pulling
+\# the first line of the following text back to the new left margin.
+\# Subsequent output lines will be indented by the .IL amount.
+\# Notice that when using the \w inline escape, there's no need to append
+\# a unit of measure to it.
+\#
+.HI \w'*'+2p
+*\*[FWD 1p]The term "Band-Aid" means the slightly sweet, vaguely chemical
+smell associated with medical-grade plastics.  It is often found in
+wines from terroirs in South America.  Provided a wine has a sufficient
+concentration of fruit
+.RW .04   \" Kern the whole next line slightly, so "lipstick" doesn't hyphenate.
+aromas and complex tertiary characteristics, Band-Aid is a Good Thing.
+Otherwise, it smells like cheap lipstick.
+.RW 0     \" Reset kerning to 0
+\#
+\# Notice, above, that although the values for IL and HI are the width
+\# of an asterisk plus 2 points, when setting the first line of text
+\# (the one with the asterisk at the beginning), we put only 1 point of
+\# space after the *.  This is to compensate for the fact that in the
+\# italic font, the letter T doesn't align visually with the rest of
+\# the text.  As already noted, this is an extremely fussy example. :)
+\#
+\#
+\#
+.IQ CLEAR      \" Cancel and clear stored indent values 
+.L_MARGIN 1i   \" Reset left margin to its original value.
+\#
+\#
+.ALD 2P        \" Add 2-picas extra space before next example
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+Example 2:
+.ALD .25v
+\#
+.COMMENT       \" COMMENT lets you enter comments without using \# or \"
+In the next line, because the string to be underscored must be
+enclosed by double-quotes, you can't use the double-quote character
+itself around the word "Massaging".  We circumvent this by using the
+groff inline escapes \(lq and \(rq (leftquote and rightquote).
+.COMMENT OFF   \" Remember to turn COMMENT off!
+\#
+.UNDERSCORE 3.75p "\(lqMassaging\(rq \*[BCK 1p]a passage of rag right text"
+.SP            \" Add an extra linespace
+\#
+\#
+.PT_SIZE 12.5
+.LS 14
+.PT_SIZE -1   \" Reduce point size by 1 point
+Passage using groff defaults
+.ALD .5v      \" Add an extra 1/2 line space
+.PT_SIZE +1   \" Restore point size
+.QUAD LEFT    \" Set quad left, fill mode
+.IB 3P        \" Indent 3 picas from both the left and right margins
+.FT R
+The thousand injuries of Fortunato I had borne as I best could;
+but when he ventured upon insult, I vowed revenge.  You, who so well
+know the nature of my soul, will not suppose, however, that I gave
+utterance to a threat.  \*[IT]At length\*[PREV] I would be
+avenged; this was a point definitively settled\(embut the very
+definitiveness with which it was resolved, precluded the idea of
+risk.  I must not only punish, but punish with impunity.  A
+wrong is unredressed when retribution overtakes its redresser.
+It is equally unredressed when the avenger fails to make himself
+felt as such to him who has done the wrong.
+.ALD 6p
+\#
+\# The next line is set quad right, nofill mode, 1/2 point smaller
+\# than the preceding text (using the \*S[...] inline escape.
+\#
+.RIGHT
+\*S[-.5]\(emEdgar Allen Poe, \*[IT]The Cask of Amontillado\*[PREV]\*S[+.5]
+.SP            \" Extra linespace
+.IBQ           \" Disable "indent both"
+\#
+\# The passage above, while acceptable in a longer document, exhibits a
+\# few typographic flaws.  The shape of the right margin rag exhibits
+\# a decidedly "rounded" appearance.  The word "I" stands alone at the
+\# end of the third line.  The space between the 1st and 2nd sentences
+\# ("...revenge. You...") is too large, owing to the letter "Y" that
+\# begins the 2nd sentence.  The spacing between "A wrong..." (line 6)
+\# is equally too large because of the way "A" and "w" fit together.
+\# The em-dash before Edgar isn't vertically centered with the letter "E".
+\# And so on.  The most important correction below is fixing the rag
+\# so that longer and shorter lines alternate.  This is accomplished by
+\# manually breaking lines and then slightly lengthening and shortening
+\# them until a pleasing rag is achieved.  The remainder of the little
+\# flaws are fixed with inline escapes.
+\#
+.FT B
+.PT_SIZE -1
+.LEFT
+The same passage, \*[BU 4]"massaged"
+.ALD .5v
+.FT R
+.PT_SIZE +1 
+.QUAD LEFT
+.HY OFF           \" Turn automatic hyphenation off
+.BR_AT_LINE_KERN  \" Automatically insert a line break (.BR) with each invocation of .RW and .EW 
+.WS +1            \" Increase word space slightly
+.IB               \" Turn "indent both" back on; values are the same as before
+\#
+\#
+The thousand injuries of Fortunato I had borne as I best could; but
+when he ventured upon insult, I \*[BU 2]vowed revenge.  \*[BU 4]Y\*[BU 6]ou,
+\*[BU 4]who so \*[BU 2]well know the nature
+.EW .2
+of my soul, \*[BU 2]will not suppose, however, that I gave utterance to
+a threat.  \*[IT]At
+.EW .2
+length\*[PREV] I would be avenged; this was a point definitively
+settled\(embut the
+.EW .2
+v\*[BU 1]ery definitiveness with which it was resolved, precluded the idea
+of risk.
+.EW 0
+I must not only punish, but punish with impunity.  A \*[BCK 1p]wrong is
+unredressed
+.EW .1
+when retribution overtakes its redresser.  It is equally unredressed
+when the
+.RW .1
+avenger fails to make himself felt as such to him \*[BU 2]who has done
+the wrong.
+.RW  0
+.WS  +0        \" Restore normal wordspacing
+.ALD 6p
+.PT_SIZE -.5
+.RIGHT
+\*[UP 1.5p]\(em\*[DOWN 1.5p]\*[BCK 1p]Edgar \*[BCK 1p]Allen Poe, \*[IT]The Cask of Amontillado\*[PREV]
+.IQ CLEAR      \" Cancel and clear stored values of all indents
+\#
+\#
+.NEWPAGE       \" Start a new page
+.T_MARGIN 1i   \" Set top margin to 1i (approx. equivalent to .ALD |1i-1v above
+\#
+\#
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+.LEFT
+Example 3:
+.ALD .25v
+.UNDERSCORE 3.75p "A \*[BU 2]recipe for enumerated lists using indents"
+.SP            \" Add an extra line space
+.FAM N         \" New Century Schoolbook family
+.FT  R
+.PT_SIZE 11
+.LS  13
+.HY            \" Turn hyphenation back on
+.JUSTIFY       \" Justify text
+This example demonstrates the use of left and hanging indents for
+simple enumerated lists.  Nested lists are possible, as the example
+shows; however, the more complex the nesting, the wiser it becomes
+to use (string) tabs, as seen in Example 4.
+\#
+\#
+.JUSTIFY       \" Justify text
+.IL \w'\0.\0'  \" Establish a left indent equal to the width of 2 figure spaces plus a period.
+.HI \w'\0.\0'  \" Establish a hanging indent equal to the size of the left indent.
+.ALD 6p
+\#
+\#
+1.\0This is the first item in the list.  N\*[BU 2]otice how the first line
+"hangs" back from the remaining text, which is otherwise
+indented by the width of by two figure-spaces (digit-width
+spaces) and a period.
+.BR
+.HI            \" Notice that HI doesn't require an argument once the value's been set
+.ALD 6p
+2.\0This is the second item in the list.  As with the above item,
+notice the use of the \*[BU 8]\\0 escape sequence in the input text.  It's
+there to ensure that the space after the number/period combination
+always remains the same (i.e. doesn't stretch when the line is
+justified).  That way, the text of each item always lines up perfectly.
+\#
+\#
+.COMMENT
+Now we're going to set a bullet-point list, indented from the text
+above by 1 pica.  IL arguments are always added to whatever value
+is in already effect for IL, hence all we have to do is tell mom to
+indent (from the current left indent) 1 pica plus the width of the
+bullet character ( \(bu ).  \*[FWD 3p] puts three points of space after
+the bullet so that the bullet and the text are visually separated.
+.COMMENT OFF
+\#
+\#
+.IL 1P+\w'\(bu\*[FWD 3p]'
+\#
+\# Hanging indents are always relative to the current left indent.
+\# The additional 1-pica indent, above, already having been taken
+\# care of, we only want to hang the first lines of bullet list items
+\# back by the width of the bullet character plus its 3 extra
+\# points of space.
+\#
+.ALD 6p
+.HI \w'\(bu\*[FWD 3p]'
+\*[DOWN 1p]\(bu\*[UP 1p]\*[FWD 3p]This is the first line of a sublist with bullets.
+N\*[BU 2]otice how the first line (the one with the bullet) is indented
+exactly one pica from the text of the list item above it, while the
+remaining lines align with the left indent we set above.
+.ALD 6p
+.HI
+\*[DOWN 1p]\(bu\*[UP 1p]\*[FWD 3p]This is the second item of the sublist with bullets.  \*[BU 4]We
+could go on indefinitely, but let's go back to the top level (numbered)
+list...
+\#
+\# The easiest way to return to a previous indent value is by subtraction.
+\# The argument to IL, above, was 1P+\w'\(bu\*[FWD 3p]', so we just reverse
+\# it by putting a minus sign in front.  The parentheses are required
+\# for groff to evaluate the expression properly.
+\#
+.IL -(1P+\w'\(bu\*[FWD 3p]')
+.HI \w'\0.\0'  \" Reset hanging indent for use with numbered items.
+.ALD 6p
+3.\0...and here we are.
+.HI            \" Again, notice that once HI has been set, you don't have to keep passing it an argument.
+.ALD 6p
+4.\0In order not to make the example too long, we'll stop here.
+.IQ CLEAR      \" Don't forget to cancel and/or clear indents!
+\#
+\#
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+.LEFT
+.SP
+\#
+\#
+Example 4:
+.ALD .25v
+.UNDERSCORE 3.75p "A \*[BU 2]recipe for nested lists using string tabs"
+.SP
+.FAM N
+.FT  R
+.PT_SIZE 11
+.LS  13
+.JUSTIFY
+Although setting up string tabs is a bit more complex than setting
+up indents, it's \*[BU 3]well worth the effort, especially for nested lists.
+.ALD 6p
+\#
+.COMMENT
+The PAD line, below, sets up two string tabs.  The first (ST1)
+is exactly the length of two figure spaces and a period.  The
+second (ST2) is simply "the remainder of the line."
+.COMMENT OFF
+\#
+.SILENT
+.PAD "\*[ST1]\0.\0\*[ST1X]\*[ST2]#\*[ST2X]"
+.ST 1 L        \" String tabs must be "set" after being marked off in a line
+.ST 2 J        \" ST 1 will be set flush left, nofill; ST 2 will be justified.
+.SILENT OFF
+\#
+\#
+.TB 1
+1.
+.TN    \" Use .TN here so text stays on the same baseline as the number in tab 1
+This is the first item in the list.  N\*[BU 2]otice how, just as in Example 3,
+the first line hangs back from the remaining text, which is otherwise
+indented.
+.ALD 6p
+.TB  1
+2.
+.TN
+This is the second item in the list.  N\*[BU 2]otice that when setting "lists"
+with tabs, there's no need to use the \*[BU 8]\\0 escape sequence after
+the number/period combination in the input text.
+.ALD 6p
+\#
+.COMMENT
+Now, set up the indented bullet-point sublist.  The PAD line
+says: move forward 12 points (1 pica), then mark off a string
+tab (ST3) that's the length of the bullet character; move foward
+another three points, then make the next string tab (ST4) the
+length of remainder of the line.
+.COMMENT OFF
+\#
+.SILENT
+.PAD "\*[FWD 12p]\*[ST3]\(bu\*[ST3X]\*[FWD 3p]\*[ST4]#\*[ST4X]"
+.ST 3 L
+.ST 4 J
+.SILENT OFF
+.ALD 6p
+.TB  3
+\*[DOWN 1p]\(bu\*[UP 1p]
+.TN
+This is the first line of a sublist with bullets.  N\*[BU 2]otice how the
+bullets and the text line up exactly the same as in Example 3.
+.ALD 6p
+.TB  3
+\*[DOWN 1p]\(bu\*[UP 1p]
+.TN
+This is the second item of the sublist with bullets.  For the fun of
+it, lets add in an
+.SPREAD
+en-dashed sub-sublist.
+.BR  \" We're in a fill mode right now, so you *must* terminate the line with BR
+\#
+\#
+.SILENT
+.PAD "\*[FWD 12p]\*[ST5]\(en\*[ST5X]\*[FWD 4p]\*[ST6]#\*[ST6X]"
+.ST 5 L
+.ST 6 J
+.SILENT OFF
+.ALD 6p
+.TB  5
+\*[UP .75p]\(en\*[DOWN .75p]
+.TN
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat,
+sed diam voluptua.
+.ALD 6p
+.TB  5
+\*[UP .75p]\(en\*[DOWN .75p]
+.TN
+At \*[BU 3]vero eos et accusam et justo duo dolores et ea rebum.  Stet clita
+kasd gubergren, no sea takimata sanctus est lorem ipsum dolor sit amet.
+.ALD 6p
+.TB  1
+3.
+.TN
+And here we are, back at the top-level numbered list with a minimum
+of muss and fuss,
+.ALD 6p
+.TB  1
+4.
+.TN
+Generally speaking, once you get the hang of string tabs and the
+\*[BD]PAD\*[PREV] macro, you'll find setting up complex nested lists
+(or anything similar to them) easier than with hanging indents.
+.TQ
+\#
+.NEWPAGE
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+.LEFT
+Example 5:
+.ALD .25v
+.UNDERSCORE 3.75p "Word spacing"
+.ALD 8p
+.FAM P         \" Palatino family
+.PT_SIZE 11
+.LS  14
+\#
+\# The "label" lines for the following are set in Helvetica bold, one
+\# point smaller than the examples themselves.  This demonstrates the
+\# use of the groff inline escape \f[...] to change both family and
+\# font inline.  It also shows using the mom inline \*S[...].
+\#
+\f[HB]\*S[-1]Normal word spacing\*S[+1]\*[PREV]
+.FT R
+N\*[BU 1]o\*[BU 1]w \*[BU 1]is the time for all good men to come to the aid of the party.
+.ALD 4p
+\f[HB]\*S[-1]Word spacing adjusted by \*[UP 1p]\*[BU 3]+\*[DOWN 1p]\*[BU 1]2\*S[+1]\*[PREV]
+.FT R
+.WS +2
+N\*[BU 1]o\*[BU 1]w \*[BU 1]is the time for all good men to come to the aid of the party.
+.WS  +0
+.ALD 4p
+\f[HB]\*S[-1]Word spacing adjusted by \*[UP 1p]\*[BU 3]+\*[DOWN 1p]4\*S[+1]\*[PREV]
+.FT R
+.WS +4
+N\*[BU 1]o\*[BU 1]w \*[BU 1]is the time for all good men to come to the aid of the party.
+.WS  +0
+.ALD 4p
+\f[HB]\*S[-1]Word spacing adjusted by \*[UP 1p]\*[BU 3]+\*[DOWN 1p]6\*S[+1]\*[PREV]
+.FT R
+.WS +6
+N\*[BU 1]o\*[BU 1]w \*[BU 1]is the time for all good men to come to the aid of the party.
+.WS +0
+.SP 1.5v
+\#
+\#
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+.LEFT
+Example 6:
+.ALD .25v
+.UNDERSCORE 3.75p "Line kerning"
+.ALD 8p
+.FAM P         \" Palatino family
+.FT  R
+.PT_SIZE 11
+.LS  15
+\#
+\# Here, we set up some tabs so the examples can go into facing columns.
+\#
+.TAB_SET 1 0 19.5P L
+.TAB_SET 2 19.5P 19.5P L
+\#
+\#
+.MCO           \" Turn multi-columns on
+.TB 1
+\f[HB]\*S[-1]Unkerned line\*S[+1]\*[PREV]
+.FT R
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\f[HB]\*S[-1]Line "tightened" \(en .RW .1\*S[+1]\*[PREV]
+.RW .1
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\#
+\# In the next line, notice that because it uses a different family
+\# (Helvetica instead of Palatino), the RW macro doesn't affect it.
+\#
+\f[HB]\*S[-1]Line "tightened" \(en .RW .2\*S[+1]\*[PREV]
+.RW .2
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\f[HB]\*S[-1]Line "tightened" \(en .RW .3\*S[+1]\*[PREV]
+.RW .3
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.MCR
+.TB 2
+\f[HB]\*S[-1]Unkerned line\*S[+1]\*[PREV]
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\f[HB]\*S[-1]Line "loosened" \(en .EW .1\*S[+1]\*[PREV]
+.EW .1
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\f[HB]\*S[-1]Line "loosened" \(en .EW .2\*S[+1]\*[PREV]
+.EW .2
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.ALD 4p
+\f[HB]\*S[-1]Line "loosened" \(en .EW .3\*S[+1]\*[PREV]
+.EW .3
+"But this is \*[IT]important!\/"\*[PREV]she exclaimed.
+.MCX 1.5v
+\#
+\#
+.FAM T
+.FT  B
+.PT_SIZE 12
+.LS  14
+.LEFT
+Example 7:
+.ALD .25v
+.UNDERSCORE 3.75p "Cutaround using left\*[FU 2]/right indents, multi columns \
+and a dropcap"
+.SP
+\#
+\#
+.FT R
+.PT_SIZE 11
+.LS 12
+.BR_AT_LINE_KERN OFF    \" In justified text, it's best to have this OFF
+\#
+\#
+.TAB_SET 1  0      18.5P  J
+.TAB_SET 2  20.5P  18.5P  J
+.MCO
+.ALD 5P+9p
+\#
+\# The little picture of tux.
+\#
+.PSPIC penguin.ps
+.MCR
+.TAB 1
+.DROPCAP_FONT B
+.DROPCAP L 3 COND 80 \" i.e. the letter L dropped 3 lines, condensed to 80% of its normal width
+.EW .2
+orem ipsum dolor sit amet, consetetur sa\%dip\%scing elitr, sed diam
+nonumy eir\%mod tempor invidunt ut labore et dolore magna aliquyam erat,
+sed diam voluptua.
+.EW 0
+.TI 1P
+At vero eos et accusam et justo duo dolores et ea rebum.  Stet clita
+kasd gubergren, no sea taki-
+.SPREAD        \" Force justify preceding line before starting indent
+.IR 3.5P
+kimata sanctus est lorem ipsum dolor sit amet.
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
+nonumy eirmod tempor.
+.EW .2
+.TI
+Invidunt ut labore et dolore magna ali\%qu\%yam erat, sed diam voluptua.
+At
+.EW 0
+vero eos et accusam et justo duo dolores et ea rebum.
+.TI
+Stet clita kasd gubergren, no sea ta-
+.SPREAD        \" Force justify preceding line before quitting indent
+.IRQ
+kimata sanctus est lorem ipsum dolor sit amet.  Lorem ipsum dolor
+sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor
+in\%vi\%dunt ut labore et dolore magna aliquyam erat.  Sed diam voluptua,
+at vero eos et accusam et justo duo
+.SPREAD
+.EW .3
+dolores et ea rebum.  Stet clita no kasd guber-
+.SPREAD
+.MCR
+.TB 2
+gren, no sea takimata sanctus est lorem ipsum
+.EW 0
+dolor sit amet.  Consetetur sadipscing elitr, sed diam nonumy eirmod
+tempor invidunt ut labore et dolore.
+.TI
+Magna aliquyam erat, sed diam voluptua, at vero eos et accusam.
+Et justo duo dolores et ea
+.SPREAD
+.IL 3.5P
+rebum, stet clita kasd gubergren.  No sea
+takimata sanctus est, lorem ipsum dolor sit amet.
+.TI
+Sit amet, consetetur sadipscing elitr, sed diam.  Nonumy eirmod tempor
+in\%vi-
+.EW .3
+dunt ut labore et dolore magna.  Ali-
+.EW 0
+quyam erat sed diam voluptua.
+At vero eos et accusam et justo duo dolores et ea rebum stet.
+.ILQ
+.TI
+Dolores et ea rebum stet clita kasd gubergren, no sea takimata
+sanctus.  Sadipscing elitr sed diam, nonumy eirmod tempor, invidunt
+ut labore et dolore magna aliquyam erat.  Sed diam voluptua, at vero
+eos et accusam et justo duo dolores et ea rebum.

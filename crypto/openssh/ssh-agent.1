@@ -1,0 +1,195 @@
+.\" $OpenBSD: ssh-agent.1,v 1.39 2003/06/10 09:12:11 jmc Exp $
+.\"
+.\" Author: Tatu Ylonen <ylo@cs.hut.fi>
+.\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+.\"                    All rights reserved
+.\"
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
+.\"
+.\" Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell.  All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd September 25, 1999
+.Dt SSH-AGENT 1
+.Os
+.Sh NAME
+.Nm ssh-agent
+.Nd authentication agent
+.Sh SYNOPSIS
+.Nm ssh-agent
+.Op Fl a Ar bind_address
+.Op Fl c Li | Fl s
+.Op Fl t Ar life
+.Op Fl d
+.Op Ar command Op Ar args ...
+.Nm ssh-agent
+.Op Fl c Li | Fl s
+.Fl k
+.Sh DESCRIPTION
+.Nm
+is a program to hold private keys used for public key authentication
+(RSA, DSA).
+The idea is that
+.Nm
+is started in the beginning of an X-session or a login session, and
+all other windows or programs are started as clients to the ssh-agent
+program.
+Through use of environment variables the agent can be located
+and automatically used for authentication when logging in to other
+machines using
+.Xr ssh 1 .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a Ar bind_address
+Bind the agent to the unix-domain socket
+.Ar bind_address .
+The default is
+.Pa /tmp/ssh-XXXXXXXX/agent.<ppid> .
+.It Fl c
+Generate C-shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+looks like it's a csh style of shell.
+.It Fl s
+Generate Bourne shell commands on
+.Dv stdout .
+This is the default if
+.Ev SHELL
+does not look like it's a csh style of shell.
+.It Fl k
+Kill the current agent (given by the
+.Ev SSH_AGENT_PID
+environment variable).
+.It Fl t Ar life
+Set a default value for the maximum lifetime of identities added to the agent.
+The lifetime may be specified in seconds or in a time format specified in
+.Xr sshd 8 .
+A lifetime specified for an identity with
+.Xr ssh-add 1
+overrides this value.
+Without this option the default maximum lifetime is forever.
+.It Fl d
+Debug mode.
+When this option is specified
+.Nm
+will not fork.
+.El
+.Pp
+If a commandline is given, this is executed as a subprocess of the agent.
+When the command dies, so does the agent.
+.Pp
+The agent initially does not have any private keys.
+Keys are added using
+.Xr ssh-add 1 .
+When executed without arguments,
+.Xr ssh-add 1
+adds the files
+.Pa $HOME/.ssh/id_rsa ,
+.Pa $HOME/.ssh/id_dsa
+and
+.Pa $HOME/.ssh/identity .
+If the identity has a passphrase,
+.Xr ssh-add 1
+asks for the passphrase (using a small X11 application if running
+under X11, or from the terminal if running without X).
+It then sends the identity to the agent.
+Several identities can be stored in the
+agent; the agent can automatically use any of these identities.
+.Ic ssh-add -l
+displays the identities currently held by the agent.
+.Pp
+The idea is that the agent is run in the user's local PC, laptop, or
+terminal.
+Authentication data need not be stored on any other
+machine, and authentication passphrases never go over the network.
+However, the connection to the agent is forwarded over SSH
+remote logins, and the user can thus use the privileges given by the
+identities anywhere in the network in a secure way.
+.Pp
+There are two main ways to get an agent set up:
+Either the agent starts a new subcommand into which some environment
+variables are exported, or the agent prints the needed shell commands
+(either
+.Xr sh 1
+or
+.Xr csh 1
+syntax can be generated) which can be evalled in the calling shell.
+Later
+.Xr ssh 1
+looks at these variables and uses them to establish a connection to the agent.
+.Pp
+The agent will never send a private key over its request channel.
+Instead, operations that require a private key will be performed
+by the agent, and the result will be returned to the requester.
+This way, private keys are not exposed to clients using the agent.
+.Pp
+A unix-domain socket is created
+and the name of this socket is stored in the
+.Ev SSH_AUTH_SOCK
+environment
+variable.
+The socket is made accessible only to the current user.
+This method is easily abused by root or another instance of the same
+user.
+.Pp
+The
+.Ev SSH_AGENT_PID
+environment variable holds the agent's process ID.
+.Pp
+The agent exits automatically when the command given on the command
+line terminates.
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa $HOME/.ssh/identity
+Contains the protocol version 1 RSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_dsa
+Contains the protocol version 2 DSA authentication identity of the user.
+.It Pa $HOME/.ssh/id_rsa
+Contains the protocol version 2 RSA authentication identity of the user.
+.It Pa /tmp/ssh-XXXXXXXX/agent.<ppid>
+Unix-domain sockets used to contain the connection to the
+authentication agent.
+These sockets should only be readable by the owner.
+The sockets should get automatically removed when the agent exits.
+.El
+.Sh SEE ALSO
+.Xr ssh 1 ,
+.Xr ssh-add 1 ,
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
+.Sh AUTHORS
+OpenSSH is a derivative of the original and free
+ssh 1.2.12 release by Tatu Ylonen.
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
+Theo de Raadt and Dug Song
+removed many bugs, re-added newer features and
+created OpenSSH.
+Markus Friedl contributed the support for SSH
+protocol versions 1.5 and 2.0.

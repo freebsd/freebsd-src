@@ -1,0 +1,138 @@
+.\"-
+.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by ThinkSec AS and
+.\" Network Associates Laboratories, the Security Research Division of
+.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $P4$
+.\"
+.Dd February 10, 2004
+.Dt OPENPAM 3
+.Os
+.Sh NAME
+.Nm openpam_borrow_cred ,
+.Nm openpam_free_data ,
+.Nm openpam_get_option ,
+.Nm openpam_log ,
+.Nm openpam_nullconv ,
+.Nm openpam_readline ,
+.Nm openpam_restore_cred ,
+.Nm openpam_set_option ,
+.Nm openpam_ttyconv ,
+.Nm pam_error ,
+.Nm pam_get_authtok ,
+.Nm pam_info ,
+.Nm pam_prompt ,
+.Nm pam_setenv ,
+.Nm pam_verror ,
+.Nm pam_vinfo ,
+.Nm pam_vprompt
+.Nd Pluggable Authentication Modules Library
+.Sh LIBRARY
+.Lb libpam
+.Sh SYNOPSIS
+.In security/openpam.h
+.Ft "int"
+.Fn openpam_borrow_cred "pam_handle_t *pamh" "const struct passwd *pwd"
+.Ft "void"
+.Fn openpam_free_data "pam_handle_t *pamh" "void *data" "int status"
+.Ft "const char *"
+.Fn openpam_get_option "pam_handle_t *pamh" "const char *option"
+.Ft "void"
+.Fn openpam_log "int level" "const char *fmt" "..."
+.Ft "int"
+.Fn openpam_nullconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
+.Ft "char *"
+.Fn openpam_readline "FILE *f" "int *lineno" "size_t *lenp"
+.Ft "int"
+.Fn openpam_restore_cred "pam_handle_t *pamh"
+.Ft "int"
+.Fn openpam_set_option "pam_handle_t *pamh" "const char *option" "const char *value"
+.Ft "int"
+.Fn openpam_ttyconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
+.Ft "int"
+.Fn pam_error "pam_handle_t *pamh" "const char *fmt" "..."
+.Ft "int"
+.Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
+.Ft "int"
+.Fn pam_info "pam_handle_t *pamh" "const char *fmt" "..."
+.Ft "int"
+.Fn pam_prompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "..."
+.Ft "int"
+.Fn pam_setenv "pam_handle_t *pamh" "const char *name" "const char *value" "int overwrite"
+.Ft "int"
+.Fn pam_verror "pam_handle_t *pamh" "const char *fmt" "va_list ap"
+.Ft "int"
+.Fn pam_vinfo "pam_handle_t *pamh" "const char *fmt" "va_list ap"
+.Ft "int"
+.Fn pam_vprompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "va_list ap"
+.\"
+.\" $P4: //depot/projects/openpam/doc/man/openpam.man#1 $
+.\"
+.Sh DESCRIPTION
+These functions are OpenPAM extensions to the PAM API.  Those named
+.Fn pam_*
+are, in the author's opinion, logical and necessary extensions to the
+standard API, while those named
+.Fn openpam_*
+are either simple convenience functions, or functions intimately tied
+to OpenPAM implementation details, and therefore not well suited to
+standardization.
+.Sh SEE ALSO
+.Xr openpam_borrow_cred 3 ,
+.Xr openpam_free_data 3 ,
+.Xr openpam_get_option 3 ,
+.Xr openpam_log 3 ,
+.Xr openpam_nullconv 3 ,
+.Xr openpam_readline 3 ,
+.Xr openpam_restore_cred 3 ,
+.Xr openpam_set_option 3 ,
+.Xr openpam_ttyconv 3 ,
+.Xr pam_error 3 ,
+.Xr pam_get_authtok 3 ,
+.Xr pam_info 3 ,
+.Xr pam_prompt 3 ,
+.Xr pam_setenv 3 ,
+.Xr pam_verror 3 ,
+.Xr pam_vinfo 3 ,
+.Xr pam_vprompt 3
+.Sh STANDARDS
+.Rs
+.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
+.%D "June 1997"
+.Re
+.Sh AUTHORS
+The OpenPAM library and this manual page were developed for the
+.Fx
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.  under
+DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
+as part of the DARPA CHATS research program.

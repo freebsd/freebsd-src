@@ -1,0 +1,25 @@
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/artheader.sgml,v 1.2 2004/09/06 14:05:03 den Exp $
+
+     Original revision: 1.6
+-->
+
+<articleinfo>
+  <title>Инструкции по установке &os;/&arch; &release.current;</title>
+
+  <corpauthor>
+  Проект &os;
+  </corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
+  </copyright>
+</articleinfo>

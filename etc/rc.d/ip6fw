@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ip6fw
+# REQUIRE: routing
+# BEFORE: network_ipv6
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ip6fw"
+rcvar=`set_rcvar ipv6_firewall`
+start_cmd="ip6fw_start"
+start_precmd="ip6fw_prestart"
+stop_cmd="${SYSCTL_W} net.inet6.ip6.fw.enable=0"
+
+ip6fw_prestart()
+{
+	# Load IPv6 firewall module, if not already loaded
+	if ! ${SYSCTL} net.inet6.ip6.fw.enable > /dev/null 2>&1; then
+		kldload ip6fw && {
+			debug 'Kernel IPv6 firewall module loaded.'
+			return 0
+		}
+		warn 'IPv6 firewall kernel module failed to load.'
+		return 1
+	fi
+}
+
+ip6fw_start()
+{
+	# Specify default rules file if none provided
+	if [ -z "${ipv6_firewall_script}" ]; then
+		ipv6_firewall_script=/etc/rc.firewall6
+	fi
+
+	# Load rules
+	#
+	if [ -r "${ipv6_firewall_script}" ]; then
+		. "${ipv6_firewall_script}"
+		echo 'IPv6 Firewall rules loaded.'
+	elif [ "`ip6fw l 65535`" = "65535 deny ipv6 from any to any" ]; then
+		warn 'IPv6 firewall rules have not been loaded. Default' \
+		    ' to DENY all access.'
+	fi
+
+	# Enable firewall logging
+	#
+	if checkyesno ipv6_firewall_logging; then
+		echo 'IPv6 Firewall logging=YES'
+		sysctl net.inet6.ip6.fw.verbose=1 >/dev/null
+	fi
+
+	# Enable the firewall
+	#
+	${SYSCTL_W} net.inet6.ip6.fw.enable=1
+}
+
+load_rc_config $name
+run_rc_command "$1"

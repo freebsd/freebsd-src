@@ -1,0 +1,714 @@
+2004-01-30  Derek Price  <derek@ximbiot.com>
+
+	Close issue #155.
+	* log_accum.in: Remove unused variables.
+	(Patch from (Ville Skyttä <scop@cvshome.org>.)
+
+2003-10-14  Derek Price  <derek@ximbiot.com>
+
+	Port to pedantic POSIX 1003.1-2001 hosts, such as Debian GNU/Linux
+	testing with _POSIX2_VERSION=200112 in the environment.
+
+	* cvs2vendor.sh: Work with POSIX sort as well as with
+	traditional sort.
+	* rcs2sccs.sh, sccs2rcs.in: Likewise.
+	(Patch from Paul Eggert <eggert@twinsun.com>.)
+
+2003-09-26  Mark D. Baushke  <mdb@cvshome.org>
+
+	* sccs2rcs.in: Use @AWK@ to avoid ancient Solaris awk (no support
+	for the "?" operator). Add support for handling binary SCCS files.
+	(Suggestion from Allan Schrum <agschrum@mindspring.com>.)
+	
+2003-08-06  Derek Price  <derek@ximbiot.com>
+
+	* commit_prep.in, log_accum.in: Port copious changes from Karl Fogel
+	and CollabNet.  These changes add features, generalize, and organize.
+
+2003-07-07  Larry Jones  <lawrence.jones@eds.com>
+
+	* rcs2log.1: New file from Paul Eggert <eggert@twinsun.com>
+	via Eric Seidel <eseidel@apple.com>.
+
+2003-06-20  Derek Price  <derek@ximbiot.com>
+
+	* Don't call CVS with the -l option since CVS no longer accepts it.
+	(Suggestion from Matt Doar <matt@trpz.com>.)
+
+2003-05-21  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerate with Automake version 1.7.5.
+
+2003-04-10  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.in: Regenerated.
+
+2003-03-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notice.
+
+	* Makefile.in: Regenerated.
+
+2003-02-25  Derek Price  <derek@ximbiot.com>
+
+	* rcs2log.sh: Import RedHat 8.0's use of mktemp from the CVS 1.11.2
+	RPM.  Use new MKTEMP variable from configure.
+	* Makefile.in: Regenerated.
+
+2003-02-24  Larry Jones  <lawrence.jones@eds.com>
+	and Donald Sharp <sharpd@cisco.com>
+
+	* check_cvs.in: Filenames with funky characters need to be quoted
+	correctly.  Also needed to modify regex due to locked revisions of
+	files cause output to be different.
+
+	* check_cvs.in: Fixed multiple symlinks in your cvsroot,
+	improved CVSROOT/CVSROOT handling (Patch from Shlomo Reinstein
+	<shlomo.reinstein@intel.com).  Fixed retrieving revisions of ,v
+	files.  Added passwd, readers, and writers to list of files to
+	ignore and sorted list to match the one in src/mkmodules.c.
+
+2002-12-16  Derek Price  <derek@ximbiot.com>
+
+	* cvs_acls.in: Fix split loop error with Perl 5.8.0.
+	(Patch from Ville Skyttä <ville.skytta@iki.fi>.)
+
+2002-12-11  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.am (install-data-local): test -e isn't portable: use -f.
+	* Makefile.in: Regenerated.
+	(Reported by Philip Brown <phil@bolthole.com>.)
+
+2002-11-21  Larry Jones  <lawrence.jones@eds.com>
+
+	* .cvsignore: Add check_cvs.
+
+	* check_cvs.in: New script contributed by Donald Sharp.
+	* Makefile.am (contrib_SCRIPTS): Add check_cvs.
+	* Makefile.in: Regenerated.
+	* README: Add check_cvs and other missing scripts, alphabetize.
+
+2002-11-08  Derek Price  <derek@ximbiot.com>
+
+	* debug_check_log.sh: Simplify some code.  Attempt to default to
+	src/check.log before falling back to ./check.log.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2002-05-20  Derek Price  <oberon@umich.edu>
+
+	* cvs_acls.in: Add note about using checkoutlist with avail
+	in the commentary's INSTALLATION section.
+	(Original patch from Ville Skyttä <ville.skytta@xemacs.org>.)
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* Makefile.in: Regenerated with automake 1.6.
+
+2002-03-21  Derek Price  <oberon@umich.edu>
+
+	* Makefile.am (install-data-local): Import a patch from RedHat which
+	was no longer necessary but causes a FIXME to print - maybe someone
+	will see it and fix it.
+	* Makefile.in: Regenerated.
+
+2001-12-06  Derek Price  <oberon@umich.edu>
+
+	* cvs_acls.in: Allow ACL specification based on branch matching.
+	(Patch from Aaron Voisine <voisine@bytemobile.com>.)
+
+2001-10-16  Derek Price  <dprice@collab.net>
+
+	* sccs2rcs.in: Replace Y2K bug fix with something more succint.
+	(Suggested by SAKAI Hiroaki <sakai.hiroaki@pfu.fujitsu.com>.)
+
+2001-10-16  Derek Price  <dprice@collab.net>
+
+	* rcs2sccs.in: Fix Y2K bug.
+	(Patch from SAKAI Hiroaki <sakai.hiroaki@pfu.fujitsu.com>.)
+
+2001-09-06  Larry Jones  <larry.jones@sdrc.com>
+            for Paul Eggert  <eggert@twinsun.com>
+
+	Sync with revision 1.48 of the GNU Emacs sources.  This
+	incorporates the following changes:
+
+	* rcs2log (Help, mainline code): Add new option -L FILE.
+	(Copyright): Update year.
+
+	(LANG, LANGUAGE, LC_ALL, LC_COLLATE, LC_CTYPE, LC_MESSAGES,
+	LC_NUMERIC, LC_TIME): New shell vars, to make sure we live in the C locale.
+
+	(mainline code): Handle nonstandard -u option differently, by
+	transforming it to standard form.  Check for "Working file: ", not
+	"Working file:".  Allow file names with spaces.
+
+	(SOH, rlogfile): New shell vars.
+	(rlogout): Remove.  Its old functionality is mostly migrated to rlogfile.
+
+	Append ';;' to the last arm of every case statement, for portability to
+	ancient broken BSD shells.
+
+	(logins): Fix bug; was not being computed at all, lowering performance.
+
+	(pository): New var.  This fixes some bugs where repositories are
+	remote, or have trailing slashes.
+
+	(authors): $llogout is never an empty shell var, so don't worry about that
+	possibility.
+
+	(printlogline, mainline code): Fix bug with SOH's being put into the output.
+
+
+	2001-07-20  Gerd Moellmann  <gerd@gnu.org>
+
+	* rcs2log: Update copyright notice.
+
+
+	2001-01-03  Paul Eggert  <eggert@twinsun.com>
+
+	* rcs2log: Avoid security hole allowing attacker to
+	cause user of rcs2log to overwrite arbitrary files, fixing
+	a bug reported by Morten Welinder.
+
+	Don't put "exit 1" at the end of the exit trap; it's
+	ineffective in POSIX shells.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-08-21  Larry Jones  <larry.jones@sdrc.com>
+
+	* sccs2rcs.in: Fix typo: missing quote.
+	(Patch submitted by "Mark D. Baushke" <mdb@cvshome.org>.)
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-05-30  Derek Price  <dprice@collab.net>
+
+	* pvcs2cvs.in: Rename to...
+	* pvcs2rcs.in: here.
+	* .cvsignore: Add pvcs2rcs.
+	* Makefile.am (contrib_SCRIPTS): Change pvcs2cvs to pvcs2rcs.
+
+	* Makefile.in: Regenerated.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+	patch from Pavel Roskin  <proski@gnu.org>
+
+	* Makefile.am (install-data-local): Double hash comment in rule since
+	single hash comments are not portable.
+
+	* Makefile.in: Regenerated.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+
+	* pvcs2cvs.in: New file.
+	* Makefile.am (contrib_SCRIPTS): Add pcvs2cvs.
+
+	* Makefile.in: Regenerated.
+
+2001-05-23  Larry Jones  <larry.jones@sdrc.com>
+
+	* sccs2rcs.in: No need for grep when you're already using awk.
+
+	* sccs2rcs.in: Fix y2k bug correctly.
+	(Reported by "Hayes, Ted (London)" <HayesRog@exchange.uk.ml.com>.)
+
+2001-04-25  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.
+
+2001-04-16  Derek Price  <dprice@collab.net>
+
+	* log.pl: Accept new '-V' option for non-verbose status messages.
+
+2001-03-14  Derek Price  <derek.price@openavenue.com>
+
+        * Makefile.in: Regenerated
+
+2001-01-05  Derek Price  <derek.price@openavenue.com>
+
+	* contrib/Makefile.am (EXTRA_DIST, SUFFIXES, .pl:, .csh:): Move some
+	script targets to configure.in - see ../ChangeLog for more
+
+	* contrib/clmerge.in: Rename from clmerge.pl
+	* contrib/cln_hist.in: Rename from cln_hist.pl
+	* contrib/commit_prep.in: Rename from commit_prep.pl
+	* contrib/cvs_acls.in: Rename from cvs_acls.pl
+	* contrib/log.in: Rename from log.pl
+	* contrib/log_accum.in: Rename from log_accum.pl
+	* contrib/mfpipe.in: Rename from mfpipe.pl
+	* contrib/rcslock.in: Rename from rcslock.pl
+	* contrib/sccs2rcs.in: Rename from scc2rcs.csh
+
+	* contrib/clmerge.pl: Rename to clmerge.in
+	* contrib/cln_hist.pl: Rename to cln_hist.in
+	* contrib/commit_prep.pl: Rename to commit_prep.in
+	* contrib/cvs_acls.pl: Rename to cvs_acls.in
+	* contrib/log.pl: Rename to log.in
+	* contrib/log_accum.pl: Rename to log_accum.in
+	* contrib/mfpipe.pl: Rename to mfpipe.in
+	* contrib/rcslock.pl: Rename to rcslock.in
+	* contrib/sccs2rcs.csh: Rename to sccs2rcs.in
+
+2000-12-22  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.in: Regenerated
+
+2000-12-21  Derek Price  <derek.price@openavenue.com>
+
+	* Makefile.am: New file needed by Automake
+	* Makefile.in: Regenerated
+
+2000-12-14  Derek Price  <derek.price@openavenue.com>
+	    Thomas Maeder  <maeder@glue.ch>
+
+	* sccs2rcs.csh: unkludge a Y2k workaround
+
+2000-10-23  Derek Price  <derek.price@openavenue.com>
+
+	* debug_check_log.sh: added this script for analyzing sanity.sh output
+	* Makefile.in: add above file to DISTFILES and CONTRIB_PROGS
+	* .cvsignore: add debug_check_log
+
+2000-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
+	from autoconf.
+
+2000-02-25  Larry Jones  <larry.jones@sdr.com>
+
+	* log.pl: Get committer from command line instead of getlogin
+	so that client/server works correctly.
+	* loc_accum.pl: Ditto.
+
+2000-01-24  K.J. Paradise <kj@sourcegear.com>
+
+	* sccs2rcs.csh: fixed a y2k bug.  This was submitted 
+	by Ceri Davies <ceri_davies@isdcorp.com>, and looks 
+	okay to me. 
+
+1999-01-19  Graham Stoney <greyham@research.canon.com.au>
+
+	* log.pl: The author commited the canonical perl "localtime" Y2K
+	offence, of printing "19$year" instead of (1900 + $year). Of
+	course, the result is non-compliance in year 2000.  Fix it.
+
+1998-10-14  Jim Kingdon
+
+	* ccvs-rsh.pl: Removed; it was not in DISTFILES so it didn't
+	actually get distributed.  I'm going to move it to the web on the
+	theory that the web is a better place for such things.
+	* README: Don't mention it.
+
+	* Makefile.in (dist-dir, distclean): Remove references to elib.
+	* elib: Remove this subdirectory and all its contents.  It went
+	with pcl-cvs, which is no longer distributed with CVS.
+
+1998-09-22  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pvcs_to_rcs: Removed; it was not in DISTFILES so it didn't
+	actually get distributed.  I'm going to move it to the web on the
+	theory that the web is a better place for such things.
+	* README: Don't mention it.
+
+1998-09-10  Jim Kingdon
+
+	Check in Paul Eggert <eggert@twinsun.com>'s submission of
+	1998-08-15.  I also ran "cvs admin -ko" on this file so that his
+	version number would be intact (not an ideal solution, because
+	people will import it into other repositories, but I don't feel
+	like hacking the master version).
+	* rcs2log.sh: Sync with master version at gnu.org.
+
+1998-08-15  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't mention listener, since it was removed a while
+	ago.
+	* listen2.c, listen2.mak: Removed; because there is no easy way to
+	pass a socket (as opposed to file descriptor) from one process to
+	another on Windows, this isn't a promising approach (at least not
+	in this form).
+	* Makefile.in (DISTFILES): Remove them.
+	* .cvsignore: Remove listen2.ncb listen2.mdp Debug.
+
+1998-05-11  W. Bradley Rubenstein
+
+	* log.pl: Check for errors from open and exec.
+
+Sat Feb 21 21:59:45 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (clean): Change "/bin/rm" to "rm".
+
+Thu Aug  7 22:42:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* pvcs_to_rcs: Remove RCS keywords.  Remove $Log and move the data
+	to this ChangeLog (below).  Add paragraph that David Martin
+	emailed along with the script.
+
+	    Revision 1.6  1997/03/07 16:21:28  divad
+	    Need to explicitly state archive name in PVCS get command for
+ 	    those cases where the case of the workfile and the case of the
+ 	    archive file are different (OS/2)
+
+	    Revision 1.5  1997/03/07 00:31:04  divad
+	    Added capitalized extensions and framemaker files as binaries;
+ 	    also overriding any path specification for workfiles at PVCS
+ 	    checkout (most annoying).
+
+	    Revision 1.4  1997/03/06 21:04:55  divad
+	    Added \n to the end of each comment line to prevent multi-line
+ 	    comments for a single revision from "merging"
+
+	    Revision 1.3  1997/03/06 19:50:25  divad
+	    Corrected bug in binary extensions; correcting processing
+ 	    comment strings with double quotes
+
+	    Revision 1.2  1997/03/06 17:29:10  divad
+	    Provided list of extensions (rather than using Unix file
+ 	    command) to determine which files are binary; also printing
+ 	    version label as they are applied
+
+	    Revision 1.1  1997/02/26 00:04:29  divad
+	    Perl script to convert pvcs archives to rcs archives
+
+	* README: mention pvcs_to_rcs.
+	* pvcs_to_rcs: New file.  This is the file as I got it from David
+	Martin.  Will be checking in the tweaks shortly.
+
+17 May 1997  Jim Kingdon
+
+	* listen2.c: Failed attempt at making this do what it was
+	intended to do.  Will need to rethink the approach.
+	* listen2.mak: The usual involuntary tweaks.
+	* .cvsignore: Add listen2.ncb listen2.mdp.
+
+Mon May 12 11:59:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* listener.c: Removed; see ../ChangeLog for rationale.
+
+10 May 1997  Jim Kingdon
+
+	* listen2.c, listen2.mak: New files.
+	* Makefile.in (DISTFILES): Add them.
+	* .cvsignore: Add Debug.
+
+Thu Feb 20 22:43:45 1997  David J MacKenzie  <djm@va.pubnix.com>
+
+	* rcs-to-cvs.sh: Put temporary files in /var/tmp or /usr/tmp
+	whichever one exists.  Just call "vi" not "/usr/ucb/vi".
+
+Mon Feb 17 08:51:37 1997  Greg A. Woods  <woods@most.weird.com>
+
+	* .cvsignore: added 'cvs2vendor' target from Feb. 12 changes.
+
+	* log_accum.pl (build_header): added "Repository:" to the report
+	header to show the first argument supplied to the script by CVS.
+	[[this value seems spuriously to be wrong when client is used]]
+	($hostdomain): correct order of initialization from the Feb. 12
+	changes.
+	($modulename): add more commentary about using '-M' to to get a
+	meaningful string here.
+	Tweak a few other comments from the Feb. 12 changes.
+
+Wed Feb 12 10:27:48 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cln_hist.pl, commit_prep.pl, cvs2vendor.sh, cvs_acls.pl,
+	cvscheck.man, cvscheck.sh, cvshelp.man, descend.man, descend.sh,
+	log_accum.pl, mfpipe.pl, rcs-to-cvs.sh, rcs2log.sh, rcs2sccs.sh,
+	sccs2rcs.csh: Remove $Id; we decided to get rid of these some
+	time ago.
+
+Wed Feb 12 00:24:33 1997  Greg A. Woods  <woods@most.weird.com>
+
+	* cvs2vendor.sh: new script.
+	* README: noted new cvs2vendor script.
+	* Makefile.in (DISTFILES): added cvs2vendor.sh.
+	(CONTRIB_PROGS): added cvs2vendor.
+
+	* log_accum.pl (show_wd): new variable, initialized to 0.
+	- set $show_wd if '-w' option found while parsing @ARGV.
+	- don't add 'In directory' line to report header unless $show_wd
+	is set.
+	(domainname): prepend a leading '.' if none there so that
+	concatenation with $hostname works (those with a FQDN hostname
+	*and* a domainname still lose).
+	(mail_notification): don't set a "From:" header -- the mailer will.
+
+Wed Jan  8 14:48:58 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, README, log.pl: Remove CVSid; we decided to get rid
+	of these some time ago.
+
+Thu Jan  2 13:30:56 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in: Remove "675" paragraph; see ../ChangeLog for rationale.
+
+Thu Oct 17 18:28:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* patch-2.1-.new-fix: Removed; it was not in DISTFILES so it never
+	made it into distributions.  It also isn't clear what it has to do
+	with CVS.  It is available from
+	    ftp://ftp.weird.com/pub/patch-2.1-.new-fix
+	* README: Remove entry for patch-2.1-.new-fix.
+
+Wed Oct 16 10:22:44 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log.sh: Change date output format to something CVS 1.9
+ 	accepts.  I think this breaks the Sep 29 change, but I don't have
+ 	a copy of CVS 1.5 handy, so I can't find a format that works with
+ 	both, and I think it's more important that it work with the
+ 	version it's distributed with.
+
+Sat Oct 12 21:18:19 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't mention pcl-cvs; it isn't here any more.
+
+Sun Sep 29 19:45:19 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* README: add entry for patch-2.1-.new-fix.
+	
+	* README: re-write the top section a bit.
+
+	* patch-2.1-.new-fix: re-generated using fixed "cvs patch" command.
+
+	* patch-2.1-.new-fix: new file.
+
+Sun Sep 29 14:25:28 1996  Dave Love  <d.love@dl.ac.uk>
+
+	* rcs2log.sh (month_data):  Make default date format acceptable to
+ 	CVS post v1.8 as well as earlier CVSs and RCS.
+	Message-Id: <199609291546.QAA25531@mserv1.dl.ac.uk>
+	To: bug-gnu-emacs@prep.ai.mit.edu
+
+Thu Aug 29 11:58:03 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log: Update FSF address.
+
+	* rcs2log: Be more aggressive about finding the author's full
+	name; try nismatch and ypmatch.
+
+	* rcs2log: If the hostname appears not to be fully qualified, see
+ 	if domainname provides any useful information.
+
+Fri Aug 16 16:02:36 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* Makefile.in (installdirs): support this target
+
+Mon May  6 13:04:57 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (install): Don't tell user to run cvsinit.  It isn't
+	called cvsinit anymore, and it isn't necessary (repositories are,
+	and need to be, compatible between cvs versions).
+
+Sun Apr 14 11:30:36 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * Removed pcl-cvs/ subdir; see tools/ subdir in the top-level from
+        now on.
+        Added elib/ subdir.
+        
+        * Makefile.in (dist-dir): Removed all references to pcl-cvs/
+        subdir.
+
+Wed Mar  6 10:20:28 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* log_accum.pl: ($MAILER): use sendmail directly to allow other
+	headers to be included
+	* log_accum.pl (mail_notification): add support to allow settting
+	of Reply-To and Date header fields in the sent mail; remove $mailto
+	argument and use the global variable (as with $replyto).
+	* log_accum.pl: add -R option for mail_notification()'s optional
+	Reply-To value [default to $login]
+
+Fri Mar  1 01:51:56 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* listener.c: added as mentioned in ../README.VMS
+
+Mon Feb 19 13:37:36 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Don't just tell people "we don't want your script"; tell
+	them what to do instead.
+
+Thu Feb  1 14:28:16 1996  Karl Fogel  <kfogel@floss.red-bean.com>
+
+        * Makefile.in (DISTFILES): added `rcs2sccs.sh', as mentioned in
+        README.
+
+Thu Jan 18 09:39:16 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Talk about submitting changes to contrib directory.
+
+Tue Nov 14 15:28:25 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* README: fix some spelling and other typos
+
+	* Makefile.in: if I need reminding to run cvsinit....
+
+Tue Nov 14 13:47:40 1995  Greg A. Woods  <woods@most.weird.com>
+
+	* log_accum.pl:
+	- Fix 'cvs status' to use global -Qq options
+	- fix up a couple of comments, incl., my proper address
+
+	* log.pl: add a CVSid and fix a couple of comments
+
+Sun Oct  1 02:02:57 1995  Peter Wemm  <peter@haywire.dialix.com>
+
+	* Makefile.in: supply a suffix rule to deal with .sh "source"
+
+Sat Jul 29 17:29:13 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* log.pl: Use global options -Qq, not command options -Qq.
+
+	* Makefile.in (install): Look for $(PROGS) and
+	$(CONTRIB_PROGS) in build dir, not srcdir.
+
+Fri Jul 28 19:48:45 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* rcs2log.sh: Sync with latest Emacs snapshot.
+
+Thu Jul 27 20:29:30 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs2log.sh: import of initial WNT port work
+
+Fri Jul 14 22:38:44 1995  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* rcs-to-cvs.sh: Changes from David J. Mackenzie.
+	Set permissions on new repository files correctly.
+	Ignore *~ files.
+
+Thu Jul 13 23:04:12 CDT 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (.pl, .csh): *Never* redirect output directly to
+	the target (usu $@) of a rule.  Instead, redirect to a temporary
+	file, and then move that temporary to the target.  I chose to
+	name temporary files $@-t.  Remember to be careful that the length
+	of the temporary file name not exceed the 14-character limit.
+
+Sun Jul  9 21:16:53 1995  Karl Fogel  <kfogel@floss.cyclic.com>
+
+        These are actually Greg Woods' changes:
+        
+        * clmerge.pl, cvscheck.sh, descend.sh, dirfns.shar, rcs-to-cvs.sh,
+        rcs2log.sh, sccs2rcs.csh: renamed from the corresponding files
+        sans extensions.
+        
+        * rcs2sccs.sh: new file.
+
+Sun Jul  9 19:03:00 1995  Greg A. Woods  <woods@most.weird.com>
+        
+        * rcs2log.sh: oops, one more thing that should not have been
+        there.
+        - fix interpreter file syntax.
+        - remove "fix" for separating filenames and comments
+
+	* Makefile.in: hmm... thought rcs2log was in RCS-5.7 for some
+        reason -- it's not, so we'll install it from here....
+        - fix typo -- that's what you get for re-doing changes by hand!
+        - updates to support proper transformation and installation of
+        renamed files (from previous local changes)
+
+	* .cvsignore: one more target noted...
+
+	* sccs2rcs.csh: set up the interpreter file for updating by
+        Makefile (from previous local changes)
+
+	* log_accum.pl, log.pl, commit_prep.pl:
+	- set up the interpreter file for updating by Makefile
+	- various modifications, updates, and enhancements
+	(from previous local changes)
+
+	* rcslock.pl, mfpipe.pl, cvs_acls.pl, cln_hist.pl, clmerge.pl:
+	- set up the interpreter file for updating by Makefile
+	(from previous local changes)
+	- include changes from 1.5 here too, if any
+
+	* README:
+	- remove extensions from filenames to match installed names
+	(from previous local changes)
+
+	* .cvsignore: - added $(CONTRIB_PROGS) (from previous local changes)
+
+        
+Thu Jun 29 10:43:07 1995  James Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (distclean): Also remove pcl-cvs/Makefile.
+
+Thu Jun  8 15:32:29 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* intro.doc: Added.
+	* Makefile.in (DISTFILES): Add intro.doc.
+
+Sat May 27 08:46:00 1995  Jim Meyering  (meyering@comco.com)
+
+	* Makefile.in (Makefile): Regenerate only Makefile in current
+	directory when Makefile.in is out of date.  Depend on ../config.status.
+
+Mon May  8 13:06:29 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* README: added an entry for ccvs-rsh.pl.
+
+Sun Apr 30 23:50:32 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* ccvs-rsh.pl: fixed a typo and added more flexible use of
+	CVS_PROXY_USER.
+
+Sun Apr 30 14:56:21 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* clmerge: Changes from Tom Tromey --- fix bug in date comparison
+	function.
+
+Sat Apr 29 20:53:08 1995  Bryan O'Sullivan  <bos@serpentine.com>
+
+	* ccvs-rsh.pl: created.  See the file itself for documentation.
+
+	* Makefile.in (DISTFILES): added ccvs-rsh.pl to the list of
+	files to install.
+
+Fri Apr 28 22:32:45 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* Makefile.in (DISTFILES): Brought up-to-date with current
+	directory contents.
+	(dist-dir): Renamed from dist-dir; use DISTDIR variable, passed
+	from parent.
+
+Mon Feb 13 13:32:07 1995  Jim Blandy  <jimb@totoro.bio.indiana.edu>
+
+	* rcs2log: rcs2log was originally in this tree; how did it get
+	deleted?  Anyway, this is the version distributed with Emacs
+	19.28, hacked to support CVS and Remote CVS.
+
+Mon Jul 26 13:18:23 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* rcs-to-cvs: Rewrite in sh.
+
+Wed Jul 14 21:16:40 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* rcs-to-cvs: Don't source .cshrc or hardcode paths.
+	Make respository dir if needed.  Don't suppress errors
+	(such as prompts) from co.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+

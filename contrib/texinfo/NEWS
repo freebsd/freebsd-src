@@ -1,0 +1,630 @@
+$Id: NEWS,v 1.57 2003/06/10 20:50:03 karl Exp $
+This file records noteworthy changes.
+
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2003,
+  2001, 2002, 2003 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+
+*** IMPORTANT NEWS FOR ALL AUTHORS OF TEXINFO MANUALS ***
+
+As of version 4.2, Texinfo has a new command @copying to define the
+copyright and copying permissions for a manual.  It's important to
+switch to using it as soon as possible (as in your next release),
+because the historical method of doing copyright permissions using
+@ifinfo failed to output copyright information in the HTML (or XML)
+formats.  The manual has detailed explanations and examples.  For
+convenience, here's a url to one of the relevant sections:
+  http://texinfo.org/manual/Document-Permissions.html
+
+-------------------------------------------------------------------------------
+
+4.6 (10 June 2003)
+* Language:
+  . new command @/ specifies an allowable breakpoint within a line.
+  . new command @dofirstparagraphindent to control whether the first
+    paragraph following a section heading is indented.  Default is to
+    omit this indentation, unlike the output up to now.
+  . new command @indent for explicitly indenting a paragraph.
+  . makeinfo writes a new construct for @image in Info output, so that
+    graphical Info browsers (such as Emacs Info under X) can display an
+    actual image.  (Standalone Info ignores this, since it runs in a tty.)
+* makeinfo:
+  . Common:
+    - search for image files in the include file search path.
+    - warns if @value is used on an undefined variable.
+  . Info output:
+    - default --split-size now 300,000 bytes, up from 50,000.
+    - with --enable-encoding and a given @documentencoding,
+      output a Local Variables section specifying that encoding, for use
+      with Emacs.
+  . HTML output:
+    - uses <h3> at the smallest.
+    - a few css <style> definitions are included to better
+      implement @format, @display, @small..., etc.
+    - new option --css-include=FILE includes FILE in the <style>.
+    - @cartouche now outputs a <table> with a border.
+* texinfo.tex:
+  . new Polish translation txi-pl.tex.
+* texi2dvi:
+  . --command=CMD replaces --texinfo=CMD; it inserts CMD at the first
+    line of LaTeX files now, or after the @setfilename for Texinfo files.
+* info:
+  . RET now goes to the nearest xref (rather like Emacs Info),
+    instead of the next xref starting on the current line.
+* Distribution:
+  . new Romanian (ro) translation.
+  . variables now declared const where appropriate.
+  . gettext 0.12.1, automake 1.7.5.
+
+
+4.5 (4 February 2003)
+* info:
+  . a bug in 4.4 prevented compressed info files from being found.
+* Distribution:
+  . detect sys/ptem.h on Solaris.
+
+
+4.4 (31 January 2003)
+* Language:
+  . The ' (ASCII apostrophe/right quote) character is finally allowed in
+    node and anchor names.  Thus, after installing this texinfo.tex,
+    existing .aux files will cause errors!  Remove them and rerun TeX to
+    generate good ones.
+  . @value constructs are now expanded in the filename arguments to
+    @include and @verbatiminclude.
+* makeinfo:
+  . @macro names may no longer include ^ or _, for the sake of math mode.
+  . bug fix: @copying text is now reflected in tag table positions;
+    before, nodes may not have been found with a long-enough @copying.
+  . bug fix: html @verb arg is quoted properly, and does not imply
+    a paragraph break.
+* texinfo.tex:
+  . @smallexample and the like now output in a smaller font (9pt) in all
+    paper formats, not just @smallbook and @afourpaper.
+  . new translation txi-tr.tex.
+  . bug fix: <>| and other characters do not disappear when they are
+    first on a line in @verbatim.
+* install-info:
+  . bug fix: don't translate the `* Menu' info keyword.
+* info:
+  . CTRL-H is treated like DEL in incremental search.
+  . arrow keys once again work in isearch contexts under Solaris.
+* infokey:
+  . use .info key bindings before defaults.
+  . allow prefix keys to be disabled.
+* Distribution:
+  . update to GNU FDL 1.2 (http://www.gnu.org/licenses/fdl.html).
+  . getopt and other common library files updated from gnulib
+    (http://savannah.gnu.org/projects/gnulib/).
+  . autoconf 2.57, automake 1.7.2.
+
+
+4.3 (14 November 2002)
+* Language:
+  . new command @tie{} to do a real tie (unbreakable interword space).
+* makeinfo:
+  . html output for @defun and friends now has font changes.
+  . html output has some class attributes.
+  . xml and docbook output improved in many details.
+* texinfo.tex:
+  . new Italian translations, txi-it.tex.
+  . pdf bookmarks for unnumbered sections work.
+  . type name for @defun and friends no longer extends into margin.
+* info:
+  . automatic-footnotes now off by default, for emacs compatibility.
+  . crash when MALLOC_CHECK_=2 fixed.
+* install-info:
+  . new option --infodir synonym for --info-dir, for compatibility with
+    the Debian install-info.
+  . support for bzip2-compressed files.
+* texindex:
+  . omit initial if the entire index is under one character.
+* Distribution:
+ . development sources now available under CVS, see
+   http://savannah.gnu.org/projects/texinfo/
+ . Turkish message translation.
+ . gettext 0.11.5, autoconf 2.54, automake 1.7.1.
+
+
+4.2 (1 April 2002)
+* Language:
+  . new command @copying to define copying permissions.  See above.
+  . new conditionals @ifplaintext, @ifnotplaintext for the plain text
+    (--no-headers) output format.
+  . new command @\ to produce literal \ inside @math, since \ by itself
+    no longer works.
+* makeinfo:
+  . emit accesskey attributes for keyboard shortcuts to menu items.
+  . @{even,every,odd}{footing,header} are ignored by makeinfo now, so
+    they no longer need to be enclosed in @iftex.
+* texinfo.tex:
+  . bug fix for pdf-format table of contents.
+* info:
+  . bug fixes for -R (--raw-escapes).
+  . --help shows short option names.
+* Distribution:
+  . the doc.c, funs.h, and key.c files in info/ are no longer generated
+    at make time, to appease Automake's make distcheck.
+  . gettext 0.11.1, autoconf 2.53, automake 1.6 (with install-info kludge).
+
+
+4.1 (4 March 2002)
+* Language:
+  . new commands @verbatim and @verb for printing verbatim inserts.
+  . new command @verbatiminclude for verbatim include of files.
+  . new environment @documentdescription for defining the HTML description.
+  . new command @afivepaper for the A5 paper size.
+* makeinfo:
+  . supports xml and docbook output.
+  . supports HTML splitting by node, which is now the default.
+  . new option --split-size to control maximum size of split info files.
+  . new option --enable-encoding to enable
+* info:
+  . user-specified key bindings supported.
+  . ANSI escape sequences (as produced by groff) removed from man output
+    by default; use --raw-escapes to let them through if your terminal
+    supports them.
+  . RET terminates incremental search normally.
+* texinfo.tex:
+  . @math implies @tex, so all the usual plain TeX math is supported.
+  . smaller fonts for @smallexample, in all page sizes.
+  . improvements in the PDF support.
+* texi2dvi:
+  . new option -o to explicitly specify output filename.
+* Distribution:
+  . switch to GNU Free Documentation License (http://www.gnu.org/copyleft/).
+  . update to GNU gettext 0.11, autoconf 2.52, and automake 1.5.
+  . Danish, Swedish, and Hebrew message translations.
+
+
+4.0 (28 September 1999)
+* Language:
+  . New command @anchor for cross references to arbitrary points.
+  . New commands @documentlanguage sets the main document language,
+    and @documentencoding sets the document input encoding (although not
+    much is done yet with either).
+  . New command @pagesizes allows limited control of text area for typesetting.
+  . New command @acronym for abbreviations in all caps, such as `NASA'.
+  . New command @alias for simple command aliases.
+  . New command @definfoenclose for better control of info output.
+  . New commands @deftypeivar for typed instance variables of a class
+    and @deftypeop for typed operations of a class.
+  . New command @novalidate suppresses cross-reference checking and (in
+    TeX) auxiliary file creation.
+  . New commands @setcontentsaftertitlepage and
+    @setshortcontentsaftertitlepage to force printing the table of
+    contents after @end titlepage.  Also, @contents and @shortcontents
+    themselves can now appear at the beginning of the document as
+    well as the end.
+  . New markup commands: @env (for environment variables), @command (for
+    command names), @option (for command-line options).
+  . New commands @smallformat and @smalldisplay, a la @smallexample.
+  . New command @exampleindent to set indentation of example-like
+    environments a la @paragraphindent.
+  . @uref takes an optional third argument of text to show instead of
+    (rather than in addition to) the url for info and dvi output.
+  . @footnote works in an @item for a @table.
+* texinfo.tex:
+  . latest version always at ftp://ftp.gnu.org/gnu/texinfo/texinfo.tex
+    (and mirrors).
+  . implements @macro.
+  . implements @paragraphindent (except asis).
+  . @emph and @i use true italic type (cmti) instead of slanted (cmsl).
+  . implements pdf output when run with pdftex.
+  . better support for internationalization via txi-??.tex files.
+  . footnotes now set in a smaller point size.
+* makeinfo:
+  . supports HTML output with the --html option.
+  . implication of --html: @top nodes should be wrapped in @ifnottex
+    rather than @ifinfo.  @ifinfo conditionals are not expanded with --html.
+  . new option --number-sections to output chapter/section numbers.
+  . dashes and quotes are not treated specially in node names.
+  . new option --commands-in-node-names to allow @-commands in node names.
+    (Not implemented in TeX, and most likely never will be.)
+  . @emph output uses _underscores_.
+  . @image looks for .png files before .jpg.
+  . only output `Making ... file' line when verbose.
+  . allow -v as synonym for --verbose.
+  . new command line options to specify which conditionals to process
+    (but --iftex is not fully implemented).
+  . warns if @var contains any of ,[]().
+  . @quote-arg implicitly done for all one-argument macros, so commas in
+    the argument text are allowed.
+  . \\ required in macro body to get single \, no other `escapes' defined.
+* info:
+  . ISO Latin 1 characters are displayed and input as-is by default.
+  . new option --vi-keys to enable vi-like and less-like key bindings.
+  . new command S does case-sensitive searching.
+  . new commands C-x n and C-x N repeat last search, respectively, in the
+    same and in reverse direction, without prompting for the string.  These
+    commands are bound to n and N under --vi-keys, like in Less.
+  . new command G menu1 menu2 ... searches for menu items from (dir),
+    as allowed on the command line.
+  . new command O (capital o, not zero) goes directly to the node that
+    describes command-line options.
+  . new command-line option --show-options causes the node which
+    describes command-line options to be the first node displayed.
+  . M-prior and M-DEL do new command info-scroll-other-window-backward.
+  . / searches like s does.
+  . If the search string includes upper-case letters, in both incremental
+    and non-incremental search, the search is case-sensitive.
+  . S searches case-sensitively even if the search string is all
+    lower-case.
+  . - makes the argument negative (so e.g. `- /' searches backward).
+  . l restores point in the window returned to.
+  . SPC/DEL do not move outside the current document.
+  . foo.info is found before foo.
+  . `info foo --index-search=bar' now searches for bar in foo's index.
+  . support for files compressed with bzip2.
+* install-info:
+  . handles gzipped dir files.
+  . sort entries into alphabetical order.
+  . install direntries only in preceding dircategory, not in all.
+  . --delete does not require the info file to exist.
+  . --delete can handle XEmacs-style dir entries.
+* texi2dvi:
+  . bug fixed: now uses only the @iftex and @tex parts of the source.
+  . process LaTeX source as well as Texinfo source.
+  . output PDF (using pdftex) with new option --pdf.
+  . handles --OPTION=ARG style of command line arguments.
+  . new option --batch for progress reports but no interaction.
+  . new option --clean to remove all auxiliary files.
+  . new option --quiet for silence (unless there are errors).
+  . new option -I for specifying directories for @include to search.
+  . handles LaTeX files (running BibTeX etc.).
+* Fixes to util/gen-dir-node and util/fix-info-dir (formerly util/update-info).
+* Distribution:
+  . Man pages included.
+  . Czech and Norwegian message translations.
+  . Various translations for texinfo.tex fixed words included.
+  . DJGPP support.
+
+
+3.12 (3 March 1998)
+* Elisp files removed, since they are only usefully distributed with Emacs.
+* Restore inclusion of compile-time $(infodir) to INFOPATH.
+* install-info creates a proper dir file.
+* Various portability fixes.
+
+
+3.11 (31 July 1997)
+* New commands:
+  - @uref to make a reference to a url; @url now only indicates such.
+  - @image to include graphics (epsf for TeX).
+  - @deftypemethod and @deftypemethodx to document methods in strongly
+    typed object-oriented languages, such as C++.
+  - @html for raw HTML.
+  - @ifnothtml @ifnotinfo @ifnottex for more precise conditionals.
+  - @kbdinputstyle to control when @kbd uses the slanted typewriter font.
+  - @email takes second optional argument.
+* texinfo.tex reads texinfo.cnf (if present) for site-wide TeX
+  configuration; for example, A4 paper sizes.
+* info:
+  - arrow keys supported.
+  - trailing : in INFOPATH appends default path.
+  - new option --index-search for online help support.
+* makeinfo:
+  - output files removed if errors unless (new option) --force.
+  - new option -P to prepend to search path.
+  - macro expansion file can be standard output.
+* install-info creates a new dir file if necessary.
+* update-info script to create a dir file from all info files.
+* Elisp: texnfo-tex.el and detexinfo.el removed from the distribution;
+  - texnfo-tex features are now part of standard TeX & Texinfo packages;
+  - makeinfo --no-headers does a better job than detexinfo.el.
+* Documentation:
+  - Updates, revisions, corrections in the manual.
+  - makeinfo.texi removed, as it was a copy of what was in texinfo.texi.
+* gettext support in sources, French and German translations included.
+* info man page removed; use the Texinfo manual.
+* Automake used, other portability fixes.
+
+3.10 (nonexistent)
+
+
+3.9 (4 October 1996)
+* makeinfo:
+  - Give a suppressible (with --no-validate) error for references
+    outside of any node.
+  - Keep track of multitable output correctly for split files; this
+    caused nodes after the first multitable to be ``undefined''.
+* install-info:
+  - Rename --infodir option to --info-dir.
+  - More robust error checking to avoid various crashes.
+* configure: Include replacements for memcpy and memmove functions in
+  the distribution, in case they are missing.
+
+
+3.8 (30 September 1996)
+* Define and/or document new and/or previously existing commands:
+  Accents: @" @' @, @" @= @^ @` @~ @H @d @dotaccent @dotless @ringaccent
+    @tieaccent @u @ubaraccent @v
+  Special characters: @AA @AE @L @O @OE @aa @ae @exclamdown @l @o @oe
+    @pounds @questiondown @ss
+  Special punctuation: @! @? @enddots
+  dir file maintenance: @dircategory @direntry; also new program, install-info
+  HTML support: @email @url @ifhtml...@end ifhtml
+  Macros: @macro @unmacro
+  Tables: @multitable @tab
+  Hyphenation: @- @hyphenation
+  Spacing: @  @<TAB> @<NEWLINE>
+  Sectioning:
+    @headings singleafter/doubleafter (change heading style after current page)
+    @centerchap
+    @setchapterstyle
+  Other:
+    @shorttitlepage (simple title pages)
+    @detailmenu...@end detailmenu (help makeinfo parse master menus)
+* Makeinfo prefers an input file named `foo.texinfo' or `foo.texi' or
+  `foo.txinfo' to just `foo' (the latter most likely being an executable).
+* Makeinfo implements @. @! @? correctly, as end-of-sentence punctuation.
+* @key marks its argument with a lozenge in TeX and <...> in Info.
+* TeX output has substantially decreased interline spacing and other
+  formatting changes.
+* Remove these obsolete and never-documented commands:
+    @infotop
+    @infoappendix @infoappendixsec @infoappendixsubsec @infoappendixsubsubsec
+    @infochapter @infosection @infosubsection @infosubsubsection
+    @infounnumbered @infounnumberedsec @infounnumberedsubsec
+      @infounnumberedsubsubsec
+    @input
+    @smallbreak @medbreak
+    @overfullrule
+    @br
+* Deprecate these obsolete commands, to be removed in the next release:
+    @ctrl
+    @infoinclude
+    @iappendix @iappendixsection @iappendixsec @iappendixsubsec
+      @iappendixsubsubsec
+    @ichapter @isection @isubsection @isubsubsection
+    @iunnumbered @iunnumberedsec @iunnumberedsubsec @iunnumberedsubsubsec
+    @setchapterstyle
+    @titlespec
+
+
+3.7 (24 December 1995)
+* Have --version print texinfo release number as well as the individual
+  program version.
+* Better man page cleaning.
+* Update Elisp files from current Emacs release.
+
+
+3.6 (21 June 1995)
+* Unmatched brace error reporting improved.
+* Missing comment terminator prevented compilation.
+
+
+3.5 (20 June 1995)
+* Autoconf update.
+* Support for parallel makes.
+* make install does not install Elisp files.
+
+
+3.4 (19 June 1995)
+* Handle @ifhtml in Elisp.
+* Update FSF address.
+
+
+3.3 (15 June 1995)
+* Portability changes.
+* Compile Elisp files.
+* Don't distribute .info* files.
+
+
+3.2 (9 June 1995)
+* Standalone Info can read Unix man pages.
+* New commands: @! @? @^ @" @enddots.
+* makeinfo -E does macro expansion (and nothing else).
+
+
+3.1 (23 May 1993)
+Just bug fixes, see ChangeLog for full details.
+
+
+3.0: first release of Texinfo version 2, with many new commands.
+
+
+
+Here is the separate NEWS for old releases of Info:
+
+Version 2.11,     Sat Apr  1 09:15:21 1995
+
+Changes since 2.7 beta:
+
+Although the basic code remains the same, there are numerous nits
+fixed, including some display bugs, and a memory leak.  Some changes
+that have taken place with larger impact include the way in which the
+(dir) node is built; I have added in support for "localdir"
+directories among other things.  Info files may be stored in
+compressed formats, and in their own subdirectories; menu items which
+do not explicitly name the node to which they are attached have the
+menu item name looked up as an Info file if it is not found within the
+current document.  This means that the menu item:
+
+* Info::		The Info documentation reader.
+
+in (dir) refers to the info node "(info)Top".
+
+Please see the ChangeLog and documentation for details on other
+changes.
+
+Version 2.7 beta, Wed Dec 30 02:02:38 1992
+Version 2.6 beta, Tue Dec 22 03:58:07 1992
+Version 2.5 beta, Tue Dec  8 14:50:35 1992
+Version 2.4 beta, Sat Nov 28 14:34:02 1992
+Version 2.3 beta, Fri Nov 27 01:04:13 1992
+Version 2.2 beta, Tue Nov 24 09:36:08 1992
+Version 2.1 beta, Tue Nov 17 23:29:36 1992
+
+Changes since 2.5 beta:
+
+Note that versions 2.6 and 2.7 Beta were only released to a select group.
+
+* "info-" removed from the front of M-x commands.
+
+* Automatic footnote display.  When you enter a node which contains
+  footnotes, and the variable "automatic-footnotes" is "On", Info pops
+  up a window containing the footnotes.  Likewise, when you leave that
+  node, the window containing the footnotes goes away.
+
+* Cleaner built in documentation, and documentation functions.
+
+  Use:
+    o `M-x describe-variable' to read a variable's documenation
+    o `M-x describe-key' to find out what a particular keystroke does.
+    o `M-x describe-function' to read a function's documentation.
+    o `M-x where-is' to find out what keys invoke a particular function.
+
+* Info can "tile" the displayed windows (via "M-x tile-windows").  If
+  the variable "automatic-tiling" is "On", then splitting a window or
+  deleting a window causes the remaining windows to be retiled.
+
+* You can save every keystroke you type in a "dribble file" by using the
+  `--dribble FILENAME' option.  You can initially read keystrokes from an
+  alternate input stream with `--restore FILENAME', or by redirecting
+  input on the command line `info < old-dribble'.
+
+* New behaviour of menu items.  If the label is the same as the
+  target node name, and the node couldn't be found in the current file,
+  treat the label as a file name.  For example, a menu entry in "DIR"
+  might contain:
+
+    * Emacs::		Cool text-editor.
+
+  Info would not find the node "(dir)Emacs", so just plain "(emacs)"
+  would be tried.
+
+* New variable "ISO-Latin" allows you to use European machines with
+  8-bit character sets.
+
+* Cleanups in echo area reading, and redisplay.  Cleanups in handling the
+  window which shows possible completions.
+
+* Info can now read files that have been compressed.  An array in filesys.c
+  maps extensions to programs that can decompress stdin, and write the results
+  to stdout.  Currently, ".Z"/uncompress, ".z"/gunzip, and ".Y"/unyabba are
+  supported.  The modeline for a compressed file shows "zz" in it.
+
+* There is a new variable "gc-compressed-files" which, if non-zero, says
+  it is okay to reclaim the file buffer space allocated to a file which
+  was compressed, if, and only if, that file's contents do not appear in
+  any history node.
+
+* New file `nodemenu.c' implements a few functions for manipulating
+  previously visited nodes.  `C-x C-b' (list-visited-nodes) produces a
+  menu of the nodes that could be reached by info-history-node in some
+  window.  `C-x b' (select-visited-node) is similar, but reads one of
+  the node names with completion.
+
+* Keystroke `M-r' (move_to_screen_line) allows the user to place the cursor at
+  the start of a specific screen line.  Without a numeric argument, place the
+  cursor on the center line; with an arg, place the cursor on that line.
+
+* Interruptible display implemented.  Basic display speedups and hacks.
+* The message "*** Tags Out of Date ***" now means what it says.
+* Index searching with `,' (info-index-next) has been improved.
+* When scrolling with C-v, C-M-v, or M-v, only "Page Only" scrolling
+  will happen.
+
+* Continous scrolling (along with `]' (info-global-next) and `['
+  (info-global-prev) works better.  `]' and `[' accept numeric
+  arguments, moving that many nodes in that case.
+
+* `C-x w' (info-toggle-wrap) controls how lines wider than the width
+  of the screen are displayed.  If a line is too long, a `$' is
+  displayed in the rightmost column of the window.
+
+* There are some new variables for controlling the behaviour of Info
+  interactively.  The current list of variables is as follows:
+
+  Variable Name      Default Value  Description
+  -------------      -------------  -----------
+  `automatic-footnotes' On	    When "On", footnotes appear and
+				    disappear automatically.
+
+  `automatic-tiling'    Off	    When "On", creating of deleting a
+				    window resizes other windows.
+
+  `visible-bell'        Off	    If non-zero, try to use a visible bell.
+
+  `errors-ring-bell'    On	    If non-zero, errors cause a ring.
+
+  `show-index-match'    On	    If non-zero, the portion of the string
+				    matched is highlighted by changing its
+				    case.
+
+  `scroll-behaviour'    Continuous  One of "Continuous", "Next Only", or
+				    "Page Only".  "Page Only" prevents you from
+				    scrolling past the bottom or top of a node.
+				    "Next Only" causes the Next or Prev node to
+				    be selected when you scroll past the bottom
+				    or top of a node.  "Continous" moves
+				    linearly through the files hierchichal
+				    structure.
+
+  `scroll-step'	        0	    Controls how scrolling is done for you when
+				    the cursor moves out of the current window.
+				    Non-zero means it is the number of lines
+				    you would like the screen to shift.  A
+				    value of 0 means to center the line
+				    containing the cursor in the window.
+
+  `gc-compressed-files' Off	    If non-zero means it is okay to reclaim the
+				    file buffer space allocated to a file which
+				    was compressed, if, and only if, that
+				    file's contents do not appear in the node
+				    list of any window.
+
+  `ISO-Latin'	        Off	    Non-zero means that you are using an ISO
+				    Latin character set.  By default, standard
+				    ASCII characters are assumed.
+________________________________________
+This release of Info is version 2.5 beta.
+
+Changes since 2.4 beta:
+
+* Index (i) and (,) commands fully implemented.
+* "configure" script now shipped with Info.
+* New function "set-variable" allows users to set various variables.
+* User-settable behaviour on end or beginning of node scrolling.  This
+  supercedes the SPC and DEL changes in 2.3 beta.
+
+________________________________________
+This release of Info is version 2.4 beta.
+
+Changes since 2.3 beta:
+
+* info-last-node now means move to the last node of this info file.
+* info-history-node means move backwards through this window's node history.
+* info-first-node moves to the first node in the Info file.  This node is
+  not necessarily "Top"!
+* SPC and DEL can select the Next or Prev node after printing an informative
+  message when pressed at the end/beg of a node.
+
+----------------------------------------
+This release of Info is version 2.3 beta.
+
+Changes since 2.2 beta:
+
+* M-x command lines if NAMED_COMMANDS is #defined.  Variable in Makefile.
+* Screen height changes made quite robust.
+* Interactive function "set-screen-height" implements user height changes.
+* Scrolling on some terminals is faster now.
+* C-l with numeric arguement is fixed.
+
+----------------------------------------
+This release of Info is version 2.2 beta.
+
+Changes since 2.0:
+
+* C-g can now interrupt multi-file searches.
+* Incremental search is fully implemented.
+* Loading large tag tables is much faster now.
+* makedoc.c replaces shell script, speeding incremental builds.
+* Scrolling in redisplay is implemented.
+* Recursive uses of the echo area made more robust.
+* Garbage collection of unreferenced nodes.

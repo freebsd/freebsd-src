@@ -1,0 +1,170 @@
+ $FreeBSD$
+
+;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
+; System call name/number master file (or rather, slave, from IBCS2).
+; Processed to created ibcs2_sysent.c, ibcs2_syscalls.c and ibcs2_syscall.h.
+
+; Columns: number type nargs name alt{name,tag,rtyp}/comments
+;	number	system call number, must be in order
+;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	name	psuedo-prototype of syscall routine
+;		If one of the following alts is different, then all appear:
+;	altname	name of system call if different
+;	alttag	name of args struct tag if different from [o]`name'"_args"
+;	altrtyp	return type if not int (bogus - syscalls always return int)
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+0	NOPROTO	{ int nosys(void); } syscall nosys_args int
+1	MNOPROTO { void sys_exit(int rval); } exit sys_exit_args void
+2	MNOPROTO { int fork(void); }
+3	STD	{ int ibcs2_read(int fd, char *buf, u_int nbytes); }
+4	MNOPROTO { int write(int fd, char *buf, u_int nbytes); }
+5	STD	{ int ibcs2_open(char *path, int flags, int mode); }
+6	MNOPROTO { int close(int fd); }
+7	MSTD	{ int ibcs2_wait(int a1, int a2, int a3); }
+8	STD	{ int ibcs2_creat(char *path, int mode); }
+9	NOPROTO	{ int link(char *path, char *link); }
+10	STD	{ int ibcs2_unlink(char *path); }
+11	STD	{ int ibcs2_execv(char *path, char **argp); }
+12	STD	{ int ibcs2_chdir(char *path); }
+13	STD	{ int ibcs2_time(ibcs2_time_t *tp); }
+14	STD	{ int ibcs2_mknod(char* path, int mode, int dev); }
+15	STD	{ int ibcs2_chmod(char *path, int mode); }
+16	STD	{ int ibcs2_chown(char *path, int uid, int gid); }
+17	NOPROTO	{ int obreak(caddr_t nsize); }
+18	STD	{ int ibcs2_stat(char* path, struct ibcs2_stat *st); }
+19	STD	{ long ibcs2_lseek(int fd, long offset, int whence); }
+20	MNOPROTO { pid_t getpid(void); }
+21	STD	{ int ibcs2_mount(char *special, char *dir, int flags, \
+		    int fstype, char *data, int len); }
+22	STD	{ int ibcs2_umount(char *name); }
+23	MSTD	{ int ibcs2_setuid(int uid); }
+24	MNOPROTO { uid_t getuid(void); }
+25	STD	{ int ibcs2_stime(long *timep); }
+26	MNOPROTO { int ptrace(int req, pid_t pid, caddr_t addr, int data); }
+27	STD	{ int ibcs2_alarm(unsigned sec); }
+28	STD	{ int ibcs2_fstat(int fd, struct ibcs2_stat *st); }
+29	MSTD	{ int ibcs2_pause(void); }
+30	STD	{ int ibcs2_utime(char *path, struct ibcs2_utimbuf *buf); }
+31	STD	{ int ibcs2_stty(int fd, struct sgttyb *buf); }
+32	STD	{ int ibcs2_gtty(int fd, struct sgttyb *buf); }
+33	STD	{ int ibcs2_access(char *path, int flags); }
+34	MSTD	{ int ibcs2_nice(int incr); }
+35	STD	{ int ibcs2_statfs(char *path, struct ibcs2_statfs *buf, \
+		    int len, int fstype); }
+36	NOPROTO	{ int sync(void); }
+37	MSTD	{ int ibcs2_kill(int pid, int signo); }
+38	STD	{ int ibcs2_fstatfs(int fd, struct ibcs2_statfs *buf, \
+		    int len, int fstype); }
+39	MSTD	{ int ibcs2_pgrpsys(int type, caddr_t dummy, int pid, \
+		    int pgid); }
+40	STD	{ int ibcs2_xenix(int a1, int a2, int a3, int a4, int a5); }
+41	MNOPROTO { int dup(u_int fd); }
+42	MNOPROTO { int pipe(void); }
+43	STD	{ int ibcs2_times(struct tms *tp); }
+44	MNOPROTO { int profil(caddr_t samples, u_int size, u_int offset, \
+		    u_int scale); }
+45	STD	{ int ibcs2_plock(int cmd); }
+46	MSTD	{ int ibcs2_setgid(int gid); }
+47	MNOPROTO { gid_t getgid(void); }
+48	STD	{ int ibcs2_sigsys(int sig, ibcs2_sig_t fp); }
+49	STD	{ int ibcs2_msgsys(int which, int a2, int a3, int a4, int a5, \
+		    int a6); }
+50	STD	{ int ibcs2_sysi86(int cmd, int *arg); }
+51	UNIMPL	ibcs2_acct
+52	STD	{ int ibcs2_shmsys(int which, int a2, int a3, int a4); }
+53	STD	{ int ibcs2_semsys(int which, int a2, int a3, int a4, int a5); }
+54	STD	{ int ibcs2_ioctl(int fd, int cmd, caddr_t data); }
+55	STD	{ int ibcs2_uadmin(int cmd, int func, caddr_t data); }
+56	UNIMPL	nosys
+57	STD	{ int ibcs2_utssys(int a1, int a2, int flag); }
+58      NOPROTO { int fsync(int fd); }
+59	STD	{ int ibcs2_execve(char *path, char **argp, char **envp); }
+60	MNOPROTO { int umask(int newmask); }
+61	NOPROTO	{ int chroot(char *path); }
+62	MSTD	{ int ibcs2_fcntl(int fd, int cmd, char *arg); }
+63	MSTD	{ long ibcs2_ulimit(int cmd, int newlimit); }
+64	UNIMPL	reserved for unix/pc
+65	UNIMPL	reserved for unix/pc
+66	UNIMPL	reserved for unix/pc
+67	UNIMPL	reserved for unix/pc
+68	UNIMPL	reserved for unix/pc
+69	UNIMPL	reserved for unix/pc
+70	OBSOL	rfs_advfs
+71	OBSOL	rfs_unadvfs
+72	OBSOL	rfs_rmount
+73	OBSOL	rfs_rumount
+74	OBSOL	rfs_rfstart
+75	OBSOL	rfs_sigret
+76	OBSOL	rfs_rdebug
+77	OBSOL	rfs_rfstop
+78	UNIMPL	rfs_rfsys
+79	STD	{ int ibcs2_rmdir(char *path); }
+80	STD	{ int ibcs2_mkdir(char *path, int mode); }
+81	STD	{ int ibcs2_getdents(int fd, char *buf, int nbytes); }
+82	UNIMPL	nosys
+83	UNIMPL	nosys
+84	STD	{ int ibcs2_sysfs(int cmd, caddr_t d1, char *buf); }
+85	STD	{ int ibcs2_getmsg(int fd, struct ibcs2_stropts *ctl, \
+		    struct ibcs2_stropts *dat, int *flags); }
+86	STD	{ int ibcs2_putmsg(int fd, struct ibcs2_stropts *ctl, \
+		    struct ibcs2_stropts *dat, int flags); }
+87	STD	{ int ibcs2_poll(struct ibcs2_poll *fds, long nfds, \
+		    int timeout); }
+88	UNIMPL	nosys
+89	STD	{ int ibcs2_secure(int cmd, int a1, int a2, int a3, int a4, \
+		    int a5); }
+90	STD	{ int ibcs2_symlink(char *path, char *link); }
+91	STD	{ int ibcs2_lstat(char *path, struct ibcs2_stat *st); }
+92	STD	{ int ibcs2_readlink(char *path, char *buf, int count); }
+93	UNIMPL	nosys
+94	UNIMPL	nosys
+95	UNIMPL	nosys
+96	UNIMPL	nosys
+97	UNIMPL	nosys
+98	UNIMPL	nosys
+99	UNIMPL	nosys
+100	UNIMPL	nosys
+101	UNIMPL	nosys
+102	UNIMPL	nosys
+103	MNOPROTO { int sigreturn(struct sigcontext *sigcntxp); }
+104	UNIMPL	nosys
+105	STD	{ int ibcs2_isc(void); }
+106	UNIMPL	nosys
+107	UNIMPL	nosys
+108	UNIMPL	nosys
+109	UNIMPL	nosys
+110	UNIMPL	nosys
+111	UNIMPL	nosys
+112	UNIMPL	nosys
+113	UNIMPL	nosys
+114	UNIMPL	nosys
+115	UNIMPL	nosys
+116	UNIMPL	nosys
+117	UNIMPL	nosys
+118	UNIMPL	nosys
+119	UNIMPL	nosys
+120	UNIMPL	nosys
+121	UNIMPL	nosys
+122	UNIMPL	nosys
+123	UNIMPL	nosys
+124	UNIMPL	nosys
+125	UNIMPL	nosys
+126	UNIMPL	nosys
+127	UNIMPL	nosys

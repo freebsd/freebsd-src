@@ -1,0 +1,275 @@
+.\" Copyright (c) 1983, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt RSHD 8
+.Os
+.Sh NAME
+.Nm rshd
+.Nd remote shell server
+.Sh SYNOPSIS
+.Nm
+.Op Fl \&?DLaln
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is the server for the
+.Xr rcmd 3
+routine and, consequently, for the
+.Xr rsh 1
+utility.
+The server provides remote execution facilities
+with authentication based on privileged port numbers from trusted hosts.
+.Pp
+The
+.Nm
+utility listens for service requests at the port indicated in
+the
+.Dq cmd
+service specification; see
+.Xr services 5 .
+When a service request is received the following protocol
+is initiated:
+.Bl -enum
+.It
+The server checks the client's source port.
+If the port is not in the range 512-1023, the server
+aborts the connection.
+.It
+The server reads characters from the socket up
+to a
+.Tn NUL
+(`\e0') byte.
+The resultant string is
+interpreted as an
+.Tn ASCII
+number, base 10.
+.It
+If the number received in step 2 is non-zero,
+it is interpreted as the port number of a secondary
+stream to be used for the
+.Em stderr .
+A second connection is then created to the specified
+port on the client's machine.
+The source port of this
+second connection is also in the range 512-1023.
+.It
+The server checks the client's source address
+and requests the corresponding host name (see
+.Xr gethostbyaddr 3 ,
+.Xr hosts 5
+and
+.Xr named 8 ) .
+If the hostname cannot be determined or the hostname and address do
+not match after verification,
+the dot-notation representation of the host address is used.
+.It
+A null terminated user name of at most 16 characters
+is retrieved on the initial socket.
+This user name
+is interpreted as the user identity on the
+.Em client Ns 's
+machine.
+.It
+A null terminated user name of at most 16 characters
+is retrieved on the initial socket.
+This user name
+is interpreted as a user identity to use on the
+.Em server Ns 's
+machine.
+.It
+A null terminated command to be passed to a
+shell is retrieved on the initial socket.
+The length of
+the command is limited by the upper bound on the size of
+the system's argument list.
+.It
+The
+.Nm
+utility then validates the user using
+.Xr ruserok 3 ,
+which uses the file
+.Pa /etc/hosts.equiv
+and the
+.Pa .rhosts
+file found in the user's home directory.
+The
+.Fl l
+option prevents
+.Xr ruserok 3
+from doing any validation based on the user's
+.Pa .rhosts
+file,
+unless the user is the superuser.
+.It
+A
+.Tn NUL
+byte is returned on the initial socket
+and the command line is passed to the normal login
+shell of the user.
+The
+shell inherits the network connections established
+by
+.Nm .
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl \&?
+Display the usage message, and exit.
+.It Fl D
+Sets the TCP_NODELAY socket option, which improves the performance
+of small back-to-back writes at the expense of additional network
+traffic.
+.It Fl L
+Causes all successful accesses to be logged to
+.Xr syslogd 8
+as
+.Li auth.info
+messages.
+.It Fl a
+This flag is ignored, and is present for compatability purposes.
+.It Fl l
+Do not use the user's
+.Pa .rhosts
+file for authentication, unless the user is the superuser.
+.It Fl n
+Turn off transport level keepalive messages.
+This will prevent sessions
+from timing out if the client crashes or becomes unreachable.
+.El
+.Sh DIAGNOSTICS
+Except for the last one listed below,
+all diagnostic messages
+are returned on the initial socket,
+after which any network connections are closed.
+An error is indicated by a leading byte with a value of
+1 (0 is returned in step 10 above upon successful completion
+of all the steps prior to the execution of the login shell).
+.Bl -tag -width indent
+.It Sy Locuser too long.
+The name of the user on the client's machine is
+longer than 16 characters.
+.It Sy Ruser too long.
+The name of the user on the remote machine is
+longer than 16 characters.
+.It Sy Command too long.
+The command line passed exceeds the size of the argument
+list (as configured into the system).
+.It Sy Login incorrect.
+No password file entry for the user name existed
+or the authentication procedure described above failed.
+.It Sy Remote directory.
+The
+.Xr chdir 2
+function to the home directory failed.
+.It Sy Logins not available right now.
+The
+.Xr rsh 1
+utility was attempted outside the allowed hours defined in
+.Pa /etc/login.conf
+for the local user's login class.
+.It Sy Can't make pipe.
+The pipe needed for the
+.Em stderr ,
+wasn't created.
+.It Sy Can't fork; try again.
+A
+.Xr fork 2
+by the server failed.
+.It Sy <shellname>: ...
+The user's login shell could not be started.
+This message is returned
+on the connection associated with the
+.Em stderr ,
+and is not preceded by a flag byte.
+.El
+.Sh SEE ALSO
+.Xr rlogin 1 ,
+.Xr rsh 1 ,
+.Xr gethostbyaddr 3 ,
+.Xr rcmd 3 ,
+.Xr ruserok 3 ,
+.Xr auth.conf 5 ,
+.Xr hosts 5 ,
+.Xr hosts.equiv 5 ,
+.Xr login.conf 5 ,
+.Xr services 5 ,
+.Xr named 8 ,
+.Xr rlogind 8 ,
+.Xr syslogd 8
+.Sh FILES
+.Bl -tag -width /var/run/nologin -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa /etc/login.conf
+.It Ev $HOME Ns Pa /.rhosts
+.Pp
+.It Pa /etc/pam.conf
+.Nm
+uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq rsh .
+Authentication modules requiring passwords (such as
+.Nm pam_unix )
+are not supported.
+.El
+.Sh BUGS
+The authentication procedure used here assumes the integrity
+of each client machine and the connecting medium.
+This is
+insecure, but is useful in an
+.Dq open
+environment.
+.Pp
+A facility to allow all data exchanges to be encrypted should be
+present.
+.Pp
+Post-PAM,
+.Fx
+also needs the following patch applied besides properly configuring
+.Pa .rhosts :
+.Bd -literal -offset indent
+--- etc/pam.d/rsh.orig  Wed Dec 17 14:36:20 2003
++++ etc/pam.d/rsh       Wed Dec 17 14:30:43 2003
+@@ -9 +9 @@
+-auth	required	pam_rhosts.so	no_warn
++auth	required	pam_rhosts.so	no_warn	allow_root
+.Ed
+.Pp
+A more extensible protocol (such as Telnet) should be used.
+.Sh HISTORY
+IPv6 support was added by WIDE/KAME project.

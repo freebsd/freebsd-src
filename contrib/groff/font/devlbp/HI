@@ -1,0 +1,401 @@
+slant 18.49
+name  HI
+lbpname  Swiss-Oblique
+special
+spacewidth 927
+slant 0
+ligatures fi fl 0
+charset
+ha	1110	2	0x4c3	 0,94	 # asciicircum
+ti	1110	0	0x4c4	 0,126	 # asciitilde
+vS	2223	2	0x169	 1,176	 # Scaron
+vZ	2037	2	0x16e	 1,206	 # Zcaron
+vs	1667	2	0x173	 1,177	 # scaron
+vz	1667	2	0x174	 1,207	 # zcaron
+:Y	2223	2	0x16d	 1,74	 # Ydieresis
+tm	3333	2	0x170	 4,41	 # trademark
+aq	637	2	0x27	 0,39	 # quotesingle
+space	927	0	0x20	 0,32
+!	927	2	0x21	 0,33	 # exclam
+"	1183	2	0x22	 0,34	 # quotedbl
+dq	1183	2	0x22	 0,34	 # quotedbl
+#	1853	2	0x23	 0,35	 # numbersign
+sh	1853	2	0x23	 0,35	 # "
+$	1853	2	0x24	 0,36	 # dollar
+Do	1853	2	0x24	 0,36	 # "
+%	2963	2	0x25	 0,37	 # percent
+&	2223	2	0x26	 0,38	 # ampersand
+'	637	2	0x27	 0,39	 # quoteright
+cq	637	2	0x27	 0,39	 # quoteright
+(	1110	2	0x28	 0,40	 # parenleft
+)	1110	2	0x29	 0,41	 # parenright
+*	1297	2	0x2a	 0,42	 # asterisk
++	1947	0	0x2b	 0,43	 # plus
+,	927	0	0x2c	 0,44	 # comma
+-	1947	0	0x2d	 0,45	 # hyphen
+hy	1947	0	0x2d	 0,45	 # "
+.	927	0	0x2e	 0,46	 # period
+/	927	2	0x2f	 0,47	 # slash
+sl	927	2	0x2f	 0,47	 # "
+0	1853	2	0x30	 0,48	 # zero
+1	1853	2	0x31	 0,49	 # one
+2	1853	2	0x32	 0,50	 # two
+3	1853	2	0x33	 0,51	 # three
+4	1853	2	0x34	 0,52	 # four
+5	1853	2	0x35	 0,53	 # five
+6	1853	2	0x36	 0,54	 # six
+7	1853	2	0x37	 0,55	 # seven
+8	1853	2	0x38	 0,56	 # eight
+9	1853	2	0x39	 0,57	 # nine
+:	927	0	0x3a	 0,58	 # colon
+;	927	0	0x3b	 0,59	 # semicolon
+<	1947	0	0x3c	 0,60	 # less
+=	1947	0	0x3d	 0,61	 # equal
+>	1947	0	0x3e	 0,62	 # greater
+?	1853	2	0x3f	 0,63	 # question
+@	3383	2	0x40	 0,64	 # at
+at	3383	2	0x40	 0,64	 # "
+A	2223	2	0x41	 0,65	 # A
+B	2223	2	0x42	 0,66	 # B
+C	2407	2	0x43	 0,67	 # C
+D	2407	2	0x44	 0,68	 # D
+E	2223	2	0x45	 0,69	 # E
+F	2037	2	0x46	 0,70	 # F
+G	2593	2	0x47	 0,71	 # G
+H	2407	2	0x48	 0,72	 # H
+I	927	2	0x49	 0,73	 # I
+J	1667	2	0x4a	 0,74	 # J
+K	2223	2	0x4b	 0,75	 # K
+L	1853	2	0x4c	 0,76	 # L
+M	2777	2	0x4d	 0,77	 # M
+N	2407	2	0x4e	 0,78	 # N
+O	2593	2	0x4f	 0,79	 # O
+P	2223	2	0x50	 0,80	 # P
+Q	2593	2	0x51	 0,81	 # Q
+R	2407	2	0x52	 0,82	 # R
+S	2223	2	0x53	 0,83	 # S
+T	2037	2	0x54	 0,84	 # T
+U	2407	2	0x55	 0,85	 # U
+V	2223	2	0x56	 0,86	 # V
+W	3147	2	0x57	 0,87	 # W
+X	2223	2	0x58	 0,88	 # X
+Y	2223	2	0x59	 0,89	 # Y
+Z	2037	2	0x5a	 0,90	 # Z
+[	927	2	0x5b	 0,91	 # bracketleft
+lB	927	2	0x5b	 0,91	 # "
+\	927	2	0x5c	 0,92	 # backslash
+rs	927	2	0x5c	 0,92	 # "
+]	927	2	0x5d	 0,93	 # bracketright
+rB	927	2	0x5d	 0,93	 # "
+a^	1110	2	0x5e	 0,94	 # circumflex
+^	1110	2	0x5e	 0,94	 # "
+_	1853	0	0x5f	 0,95	 # underscore
+`	1110	2	0x60	 0,96	 # quoteleft
+oq	1110	2	0x60	 0,96	 # "
+a	1853	0	0x61	 0,97	 # a
+b	1853	2	0x62	 0,98	 # b
+c	1667	0	0x63	 0,99	 # c
+d	1853	2	0x64	 0,100	 # d
+e	1853	0	0x65	 0,101	 # e
+f	927	2	0x66	 0,102	 # f
+g	1853	1	0x67	 0,103	 # g
+h	1853	2	0x68	 0,104	 # h
+i	740	2	0x69	 0,105	 # i
+j	740	2	0x6a	 0,106	 # j
+k	1667	2	0x6b	 0,107	 # k
+l	740	2	0x6c	 0,108	 # l
+m	2777	0	0x6d	 0,109	 # m
+n	1853	0	0x6e	 0,110	 # n
+o	1853	0	0x6f	 0,111	 # o
+p	1853	1	0x70	 0,112	 # p
+q	1853	1	0x71	 0,113	 # q
+r	1110	0	0x72	 0,114	 # r
+s	1667	0	0x73	 0,115	 # s
+t	927	2	0x74	 0,116	 # t
+u	1853	0	0x75	 0,117	 # u
+v	1667	0	0x76	 0,118	 # v
+w	2407	0	0x77	 0,119	 # w
+x	1667	0	0x78	 0,120	 # x
+y	1667	1	0x79	 0,121	 # y
+z	1667	0	0x7a	 0,122	 # z
+lC	1113	2	0x7b	 0,123	 # braceleft
+{	1113	2	0x7b	 0,123	 # "
+|	867	2	0x7c	 0,124	 # "
+rC	1113	2	0x7d	 0,125	 # braceright
+}	1113	2	0x7d	 0,125	 # "
+a~	1110	2	0x7e	 0,126	 # tilde
+~	1110	2	0x7e	 0,126	 # "
+-D	2407	2	0x13d	 1,78	 # Eth "Icelandic uppercase eth"
+Sd	1853	2	0x148	 1,87	 # eth "Icelandic lowercase eth"
+TP	2223	2	0x13e	 1,88	 # Thorn "Icelandic uppercase thorn"
+Tp	1853	3	0x143	 1,89	 # thorn "Icelandic lowercase thorn"
+AE	3333	2	0x92	 1,36	 # AE
+ae	2963	0	0x91	 1,37	 # ae
+OE	3333	2	0x141	 1,166	 # OE
+oe	3147	0	0x146	 1,167	 # oe
+ij	1437	0	0x150	 1,139	 # ij "Dutch ij ligature"
+ss	2037	2	0x147	 1,23	 # germandbls
+'A	2223	2	0x15a	 1,26	 # Aacute
+'E	2223	2	0x90	 1,40	 # Eacute
+'I	927	2	0x161	 1,48	 # Iacute
+'O	2593	2	0x165	 1,58	 # Oacute
+'U	2407	2	0x16a	 1,66	 # Uacute
+'a	1853	2	0xa0	 1,27	 # aacute
+'e	1853	2	0x82	 1,41	 # eacute
+'i	927	2	0xa1	 1,49	 # iacute
+'o	1853	2	0xa2	 1,59	 # oacute
+'u	1853	2	0x95	 1,65	 # uacute
+:A	2223	2	0x8e	 1,30	 # Adieresis
+:E	2223	2	0x15f	 1,44	 # Edieresis
+:I	927	2	0x163	 1,52	 # Idieresis
+:O	2593	2	0x99	 1,62	 # Odieresis
+:U	2407	2	0x9a	 1,70	 # Udieresis
+:Y	2223	2	0x16d	 1,74	 # Ydieresis
+:a	1853	2	0x84	 1,31	 # adieresis
+:e	1853	2	0x89	 1,45	 # edieresis
+:i	927	2	0x8b	 1,53	 # idieresis
+:o	1853	2	0x94	 1,63	 # odieresis
+:u	1853	2	0x81	 1,71	 # udieresis
+:y	1667	3	0x98	 1,75	 # ydieresis
+^A	2223	2	0x15b	 1,28	 # Acircumflex
+^E	2223	2	0x15e	 1,42	 # Ecircumflex
+^I	927	2	0x162	 1,50	 # Icircumflex
+^O	2593	2	0x166	 1,60	 # Ocircumflex
+^U	2407	2	0x16b	 1,68	 # Ucircumflex
+^a	1853	2	0x83	 1,29	 # acircumflex
+^e	1853	2	0x88	 1,43	 # ecircumflex
+^i	927	2	0x8c	 1,51	 # icircumflex
+^o	1853	2	0x93	 1,61	 # ocircumflex
+^u	1853	2	0x96	 1,69	 # ucircumflex
+`A	2223	2	0x15c	 1,32	 # Agrave
+`E	2223	2	0x160	 1,46	 # Egrave
+`I	927	2	0x164	 1,54	 # Igrave
+`O	2593	2	0x167	 1,64	 # Ograve
+`U	2407	2	0x16c	 1,72	 # Ugrave
+`a	1853	2	0x85	 1,33	 # agrave
+~a	1853	2	0x284	 ---	 # atilde
+`e	1853	2	0x8a	 1,47	 # egrave
+`i	927	2	0x8d	 1,55	 # igrave
+`o	1853	2	0x95	 1,65	 # ograve
+`u	1853	2	0x97	 1,73	 # ugrave
+~A	2223	2	0x28e	 1,26	 # Atilde
+~N	2407	2	0xa5	 1,56	 # Ntilde
+~O	2593	2	0x168	 1,82	 # Otilde
+~n	1853	2	0xa4	 1,57	 # ntilde
+~o	1853	2	0x172	 1,83	 # otilde
+vS	2223	2	0x169	 1,176	 # Scaron
+vs	1667	2	0x173	 1,177	 # scaron
+vZ	2037	2	0x16e	 1,206	 # Zcaron
+vz	1667	2	0x174	 1,207	 # zcaron
+,C	2407	2	0x80	 1,38	 # Ccedilla
+,c	1667	0	0x87	 1,39	 # ccedilla
+/L	1853	2	0x13f	 1,152	 # Lslash "Polish L with a slash"
+/l	740	2	0x144	 1,153	 # lslash "Polish l with a slash"
+/O	2593	2	0x140	 1,80	 # Oslash
+/o	2037	0	0x145	 1,81	 # oslash
+oA	2223	2	0x8f	 1,34	 # Aring
+oa	1853	2	0x86	 1,35	 # aring
+a"	1110	2	0x13a	 1,16	 # hungarumlaut "Hungarian umlaut"
+a-	1110	2	0x135	 1,8	 # macron "macron or bar accent"
+a.	1110	2	0x137	 1,15	 # dotaccent "dot accent"
+a^	1110	2	0x5e	 1,3	 # circumflex "circumflex accent"
+aa	1110	2	0x120	 1,6	 # acute "acute accent"
+ga	1110	2	0x121	 1,0	 # grave "grave accent"
+ab	1110	2	0x136	 1,22	 # breve "breve accent"
+ac	1110	0	0x139	 1,17	 # cedilla "cedilla accent"
+ad	1110	2	0x122	 1,7	 # dieresis "umlaut or dieresis"
+ah	1110	2	0x13c	 1,19	 # caron "h\('a\(vcek accent"
+ao	1110	2	0x138	 1,14	 # ring "ring or circle accent"
+a~	1110	2	0x7e	 1,2	 # tilde "tilde accent"
+ho	1110	0	0x13b	 1,18	 # ogonek "hook or ogonek accent"
+.i	927	0	0x142	 1,239	 # dotlessi "i without a dot"
+Cs	1853	2	0x12f	 4,24	 # currency "Scandinavian currency sign"
+Do	1853	2	0x24	 0,36	 # dollar
+Po	1853	2	0x9c	 4,11	 # sterling
+Ye	1853	2	0x9d	 4,12	 # yen
+Fn	1853	2	0x9f	 4,14	 # florin
+ct	1853	2	0x9b	 4,19	 # cent
+Fo	1853	0	0xae	 4,9	 # guillemotleft
+Fc	1110	0	0x4bb	 4,20	 # guillemotright
+fo	1110	0	0x127	 4,35	 # guilsinglleft
+fc	1110	0	0x128	 4,36	 # guilsinglright
+r!	1110	1	0xad	 4,7	 # exclamdown
+r?	2037	1	0xa8	 4,8	 # questiondown
+fi	1667	2	0x130	 4,54	 # fi "fi ligature"
+fl	1667	2	0x131	 4,55	 # fl "fl ligature"
+OK	1667	0	0x3d6	 ---	 # \& "check mark, tick"
+Of	1233	2	0xa6	 4,15	 # ordfeminine
+Om	1217	2	0xa7	 4,16	 # ordmasculine
+S1	1110	2	0x156	 4,78	 # onesuperior
+S2	1110	2	0xfd	 4,20	 # twosuperior
+S3	1110	2	0x14d	 4,26	 # threesuperior
+<-	3290	0	0x1b	 6,22	 # arrowleft
+->	3290	0	0x1a	 6,21	 # arrowright
+<>	3473	0	0x1d	 6,25	 # arrowboth "horizontal double-headed arrow"
+da	2010	0	0x19	 6,24	 # arrowdown
+ua	2010	0	0x18	 6,23	 # arrowup
+va	2010	0	0x12	 6,26	 # \& "vertical double-headed arrow"
+lA	2010	0	0x3dc	 6,57	 # arrowdblleft
+rA	2010	0	0x3de	 6,56	 # arrowdblright
+hA	2010	0	0x3db	 6,60	 # arrowdblboth "horizontal double-headed double arrow"
+dA	2010	0	0x3df	 6,59	 # arrowdbldown
+uA	2010	0	0x3dd	 6,58	 # arrowdblup
+ba	3333	2	0xb3	 3,9	 # bar
+bb	867	2	0x7c	 0,124	 # brokenbar
+br	3333	0	0x1db	 3,9	 # br "box rule with traditional troff metrics"
+ru	3333	0	0x123	 4,34	 # ru "baseline rule"
+ul	1853	0	0x5f	 0,95	 # ul "underline with traditional troff metrics"
+bv	3333	0	0x3f4	 3,9	 # bv "bold vertical"
+ci	2843	0	0x9	 4,1	 # circle
+bu	2120	0	0x7	 4,0	 # bullet
+co	2457	2	0x154	 4,23	 # copyright
+rg	2457	2	0x155	 4,22	 # registered
+tm	3333	2	0x170	 4,41	 # trademark
+dd	1853	2	0x12b	 4,40	 # daggerdbl "double dagger sign"
+dg	1853	2	0x12a	 4,39	 # dagger
+ps	1790	2	0x14	 4,5	 # paragraph
+sc	1853	2	0x15	 4,6	 # section
+de	1333	2	0xf8	 6,36	 # degree
+em	3333	0	0x123	 4,34	 # emdash "em dash"
+en	1853	0	0x132	 4,33	 # endash "en dash"
+%0	3333	2	0x129	 4,75	 # perthousand "per thousand, per mille sign"
+12	2780	2	0xab	 4,17	 # onehalf
+14	2780	2	0xac	 4,18	 # onequarter
+34	2780	2	0x12e	 4,25	 # threequarters
+f/	557	2	0x158	 6,6	 # fraction "bar for fractions"
+fm	557	0	0x3a2	 6,45	 # minute "footmark, prime"
+sd	557	0	0x3b2	 6,46	 # second
+ha	557	2	0x4c3	 6,85	 # asciicircum "\s-2ASCII\s+2 circumflex, hat, caret"
+ti	557	0	0x4c4	 6,12	 # asciitilde "\s-2ASCII\s0 tilde, large tilde"
+hy	1947	0	0x2d	 6,0	 # hyphen
+lB	927	2	0x5b	 0,91	 # bracketleft
+rB	927	2	0x5d	 0,93	 # bracketright
+lC	1113	2	0x7b	 0,123	 # braceleft
+rC	1113	2	0x7d	 0,125	 # braceright
+la	1113	0	0x3e1	 6,10	 # angleleft "left angle bracket"
+ra	1113	0	0x3f1	 6,11	 # angleright "right angle bracket"
+Bq	1110	0	0x4b9	 4,63	 # quotedblbase "low double comma quote"
+bq	1110	0	0x4b8	 6,62	 # quotesinglbase "low single comma quote"
+lq	1110	2	0x125	 4,32	 # quotedblleft
+rq	1110	2	0x4ba	 6,31	 # quotedblright
+oq	740	2	0x176	 4,29	 # quoteleft "single open quote"
+aq	637	2	0x27	 0,39	 # quotesingle "apostrophe quote"
+at	3383	2	0x40	 0,64	 # at
+.C1	1947	0	0x2d	 0,45	 # - minus "minus sign from current font"
+sh	1853	2	0x23	 0,35	 # numbersign
+sl	927	2	0x2f	 0,47	 # slash
+rs	927	2	0x5c	 0,92	 # backslash
+3d	927	0	0x35c	 6,102	 # therefore
+tf	927	0	0x35c	 6,102	 # therefore
+*A	927	0	0x341	 8,0	 # Alpha
+*B	927	0	0x342	 8,2	 # Beta
+*C	927	0	0x358	 8,28	 # Xi
+*D	927	0	0x344	 8,8	 # Delta
+*E	927	0	0x345	 8,10	 # Epsilon
+*F	2377	0	0x346	 8,44	 # Phi
+*G	1907	0	0x347	 8,6	 # Gamma
+*H	1907	0	0x351	 8,16	 # Theta
+*I	1907	0	0x349	 8,18	 # Iota
+*K	1907	0	0x34b	 8,20	 # Kappa
+*L	1907	0	0x34c	 8,22	 # Lambda
+*M	1907	0	0x34d	 8,24	 # Mu
+*N	1907	0	0x34e	 8,26	 # Nu
+*O	1907	0	0x34f	 8,30	 # Omicron
+*P	1907	0	0x350	 8,32	 # Pi
+*Q	1907	0	0x359	 8,48	 # Psi
+*R	1907	0	0x352	 8,34	 # Rho
+*S	1973	0	0x353	 8,36	 # Sigma
+*T	1973	0	0x354	 8,40	 # Tau
+*U	1973	0	0x3a1	 8,76	 # Upsilon
+*W	2547	0	0x357	 8,50	 # Omega
+*X	1973	0	0x343	 8,36	 # Chi
+*Y	1973	0	0x348	 8,14	 # Eta
+*Z	1973	0	0x35a	 8,12	 # Zeta
+*a	2023	0	0xe0	 8,1	 # alpha
+*b	1893	0	0xe1	 8,3	 # beta
+*c	1893	0	0x378	 8,29	 # xi
+*d	1890	0	0xeb	 8,9	 # delta
+*e	1890	0	0x36e	 8,70	 # epsilon
+*f	1890	0	0x366	 8,45	 # phi
++f	1890	0	0x36a	 8,77	 # phi1 "variant phi"
+*g	1890	0	0x367	 8,7	 # gamma
+*h	1853	0	0xe9	 8,17	 # theta
++h	1853	0	0x375	 8,71	 # theta1 "variant theta"
+*i	1853	0	0x369	 8,19	 # iota
+*k	1853	0	0x36b	 8,21	 # kappa
+*l	1853	0	0x36c	 8,23	 # lambda
+*m	1853	0	0xe6	 8,25	 # mu
+*n	1853	0	0x36e	 8,27	 # nu
+*o	1853	0	0x36f	 8,31	 # omicron
+*p	1963	0	0xe3	 8,33	 # pi
++p	1963	0	0x376	 8,78	 # omega1 "variant pi, looking like omega"
+*q	1963	0	0x379	 8,49	 # psi
+*r	1963	0	0x372	 8,35	 # rho
+*s	2037	0	0xe5	 8,37	 # sigma
+*t	1463	0	0xe7	 8,41	 # tau
+*u	1463	0	0x375	 8,27	 # upsilon
+*w	1463	0	0x377	 8,51	 # omega
+*x	1463	0	0x363	 8,47	 # chi
+*y	1463	0	0x368	 8,15	 # eta
+*z	1463	0	0x37a	 8,13	 # zeta
+ts	1463	0	0x356	 8,39	 # sigma1 "terminal sigma"
+~~	2663	0	0xf7	 6,13	 # approxequal
+~=	2663	0	0xf7	 6,13	 # approxequal
+!=	2663	0	0x3b9	 6,99	 # notequal
+**	927	0	0x32a	 0,32	 # asteriskmath
++-	1947	0	0xf1	 6,1	 # plusminus
+<=	2413	0	0xf3	 6,2	 # lessequal
+==	2413	0	0x3ba	 8,14	 # equivalence
+=~	2413	0	0x340	 8,116	 # congruent
+>=	1893	0	0x3b3	 8,3	 # greaterequal
+AN	1893	0	0x3d9	 8,85	 # logicaland
+OR	1893	0	0x3da	 8,86	 # logicalor
+no	1893	0	0x3d8	 8,20	 # logicalnot
+te	1893	0	0x324	 8,121	 # existential "there exists, existential quantifier"
+fa	1893	0	0x322	 8,122	 # universal "for all, universal quantifier"
+Ah	1893	0	0x3c0	 9,0	 # aleph
+Im	1893	0	0x3c1	 8,21	 # Ifraktur "Fraktur I, imaginary"
+Re	1893	0	0x3c2	 8,22	 # Rfraktur "Fraktur R, real"
+if	1893	0	0x3a5	 8,19	 # infinity
+md	1893	0	0x3b7	 8,32	 # dotmath
+mo	1893	0	0x3ce	 8,15	 # element
+mu	1893	0	0x3b4	 8,39	 # multiply
+nc	1893	0	0x3cb	 8,197	 # uni2285
+nm	1893	0	0x3cf	 8,209	 # notelement
+pl	927	0	0x32b	 0,93	 # plusmath "plus sign in special font"
+eq	1947	0	0x33d	 0,61	 # equalmath "equals sign in special font"
+pt	1947	0	0x3b5	 6,4	 # proportional
+pp	1947	0	0x35e	 8,89	 # perpendicular
+sb	1947	0	0x3cc	 6,67	 # propersubset
+sp	1947	0	0x3c9	 6,68	 # propersuperset
+ib	1947	0	0x3cd	 6,69	 # reflexsubset
+ip	1947	0	0x3ca	 6,70	 # reflexsuperset
+ap	1947	0	0x37e	 6,12	 # similar
+pd	1947	0	0x3b6	 6,34	 # partialdiff "partial differentiation sign"
+c*	1947	0	0x3c4	 6,80	 # circlemultiply "multiply sign in a circle"
+c+	1947	0	0x3c5	 6,81	 # circleplus "plus sign in a circle"
+ca	2620	0	0xef	 6,16	 # intersection "intersection, cap"
+cu	2620	0	0x3c8	 6,66	 # union "union, cup"
+di	1947	0	0x3b8	 6,8	 # divide "division sign"
+-h	3333	0	0xc4	 3,8	 # hbar
+hbar	"
+gr	3333	0	0x3d1	 6,33	 # gradient
+es	2593	0	0x3c6	 0,79	 # emptyset
+CL	2510	0	0x5	 5,168	 # club "club suit"
+SP	2510	0	0x6	 5,171	 # spade "spade suit"
+HE	2510	0	0x3	 5,170	 # heart "heart suit"
+DI	2510	0	0x4	 5,169	 # diamond "diamond suit"
+CR	2510	0	0x3bf	 5,20	 # carriagereturn "carriage return symbol"
+st	2510	0	0x327	 6,71	 # suchthat
+/_	2510	0	0x3d0	 6,79	 # angle
+<<	1853	0	0xae	 6,77	 # "" "much less"
+>>	1853	0	0xaf	 6,78	 # "" "much greater"
+wp	1853	0	0x3c3	 6,53	 # weierstrass "Weierstrass p"
+lz	1853	0	0x3e0	 6,95	 # lozenge
+an	3333	0	0x3be	 3,8	 # arrowhorizex "horizontal arrow extension"
+pc	927	0	0xfa	 6,32	 # periodcentered
+mc	1853	0	0xe6	 8,25	 # mu
+t+-	1947	0	0xf1	 6,1	 # plusminus
+tmu	1893	0	0x3b4	 8,39	 # multiply
+tdi	1947	0	0x3b8	 6,8	 # divide "division sign"
+tno	1893	0	0x3d8	 8,20	 # logicalnot

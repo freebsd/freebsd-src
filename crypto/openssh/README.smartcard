@@ -1,0 +1,93 @@
+How to use smartcards with OpenSSH?
+
+OpenSSH contains experimental support for authentication using
+Cyberflex smartcards and TODOS card readers, in addition to the cards
+with PKCS#15 structure supported by OpenSC. To enable this you
+need to:
+
+Using libsectok:
+
+(1) enable sectok support in OpenSSH:
+
+	$ ./configure --with-sectok
+
+(2) If you have used a previous version of ssh with your card, you
+    must remove the old applet and keys.
+
+	$ sectok
+	sectok> login -d
+	sectok> junload Ssh.bin
+	sectok> delete 0012
+	sectok> delete sh
+	sectok> quit
+
+(3) load the Java Cardlet to the Cyberflex card and set card passphrase:
+
+	$ sectok
+	sectok> login -d
+	sectok> jload /usr/libdata/ssh/Ssh.bin
+	sectok> setpass
+	Enter new AUT0 passphrase:
+	Re-enter passphrase:
+	sectok> quit
+
+	Do not forget the passphrase.  There is no way to
+	recover if you do.
+
+	IMPORTANT WARNING: If you attempt to login with the
+	wrong passphrase three times in a row, you will
+	destroy your card.
+
+(4) load a RSA key to the card:
+
+	$ ssh-keygen -f /path/to/rsakey -U 1
+	(where 1 is the reader number, you can also try 0)
+
+	In spite of the name, this does not generate a key.
+	It just loads an already existing key on to the card.
+
+(5) Optional: If you don't want to use a card passphrase, change the
+    acl on the private key file:
+
+	$ sectok
+	sectok> login -d
+	sectok> acl 0012 world: w
+	 world: w
+	 AUT0: w inval
+	sectok> quit
+
+	If you do this, anyone who has access to your card
+	can assume your identity.  This is not recommended.
+
+
+Using OpenSC:
+
+(1) install OpenSC:
+
+	Sources and instructions are available from
+	http://www.opensc.org/
+
+(2) enable OpenSC support in OpenSSH:
+
+	$ ./configure --with-opensc[=/path/to/opensc] [options]
+
+(3) load a RSA key to the card:
+
+	Not supported yet.
+
+
+Common operations:
+
+(1) tell the ssh client to use the card reader:
+
+	$ ssh -I 1 otherhost
+
+(2) or tell the agent (don't forget to restart) to use the smartcard:
+
+	$ ssh-add -s 1
+
+
+-markus,
+Tue Jul 17 23:54:51 CEST 2001
+
+$OpenBSD: README.smartcard,v 1.9 2003/11/21 11:57:02 djm Exp $

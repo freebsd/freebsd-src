@@ -1,0 +1,24 @@
+@section 
+ELF backends
+
+BFD support for ELF formats is being worked on.
+Currently, the best supported back ends are for sparc and i386
+(running svr4 or Solaris 2).
+
+Documentation of the internals of the support code still needs
+to be written.  The code is changing quickly enough that we
+haven't bothered yet.
+
+@findex bfd_elf_find_section
+@subsubsection @code{bfd_elf_find_section}
+@strong{Synopsis}
+@example
+struct elf_internal_shdr *bfd_elf_find_section (bfd *abfd, char *name);
+@end example
+@strong{Description}@*
+Helper functions for GDB to locate the string tables.
+Since BFD hides string tables from callers, GDB needs to use an
+internal hook to find them.  Sun's .stabstr, in particular,
+isn't even pointed to by the .stab section, so ordinary
+mechanisms wouldn't work to find it, even if we had some.
+

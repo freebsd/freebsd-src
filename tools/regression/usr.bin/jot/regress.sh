@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+REGRESSION_START($1)
+
+REGRESSION_TEST_ONE(`jot -w "%X" -s , 100 1 200')
+
+REGRESSION_END()

@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $NetBSD: swap1,v 1.8 2002/03/24 15:52:41 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: localswap
+# REQUIRE: disks
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="swap1"
+stop_precmd='checkyesno swapoff || [ -n "$rc_force" ]'
+start_cmd='swapon -a'
+stop_cmd='swapoff -a'
+
+load_rc_config swap
+run_rc_command "$1"

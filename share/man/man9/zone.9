@@ -1,0 +1,215 @@
+.\"-
+.\" Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 2003
+.Dt ZONE 9
+.Os
+.Sh NAME
+.Nm uma_zcreate ,
+.Nm uma_zalloc ,
+.Nm uma_zfree ,
+.Nm uma_zdestroy ,
+.Nm uma_zone_set_max
+.Nd zone allocator
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/queue.h
+.In vm/uma.h
+.Ft uma_zone_t
+.Fo uma_zcreate
+.Fa "char *name" "int size"
+.Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init uminit" "uma_fini fini"
+.Fa "int align" "u_int16_t flags"
+.Fc
+.Ft "void *"
+.Fn uma_zalloc "uma_zone_t zone" "int flags"
+.Ft void
+.Fn uma_zfree "uma_zone_t zone" "void *item"
+.Ft void
+.Fn uma_zdestroy "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
+.Sh DESCRIPTION
+The zone allocator provides an efficient interface for managing
+dynamically-sized collections of items of similar size.
+The zone allocator can work with preallocated zones as well as with
+runtime-allocated ones, and is therefore available much earlier in the
+boot process than other memory management routines.
+.Pp
+A zone is an extensible collection of items of identical size.
+The zone allocator keeps track of which items are in use and which
+are not, and provides functions for allocating items from the zone and
+for releasing them back (which makes them available for later use).
+.Pp
+The zone allocator stores state information inside the items proper
+while they are not allocated,
+so structures that will be managed by the zone allocator
+and wish to use the type stable property of zones by leaving some fields
+pre-filled between allocations, must reserve
+two pointers at the very beginning for internal use by the zone
+allocator, as follows:
+.Bd -literal -offset indent
+struct my_item {
+        struct my_item  *z_rsvd1;
+        struct my_item  *z_rsvd2;
+        /* rest of structure */
+};
+.Ed
+.Pp
+Alternatively they should assume those entries corrupted
+after each allocation.
+After the first allocation of an item,
+it will have been cleared to zeroes, however subsequent allocations
+will retain the contents as of the last free, with the exception of the
+fields mentioned above.
+.Pp
+The
+.Fn uma_zcreate
+function creates a new zone from which items may then be allocated from.
+The
+.Fa name
+argument is a text name of the zone for debugging and stats; this memory
+should not be freed until the zone has been deallocated.
+.Pp
+The
+.Fa ctor
+and
+.Fa dtor
+arguments are callback functions that are called by
+the uma subsystem at the time of the call to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+respectively.
+Their purpose is to provide hooks for initializing or
+destroying things that need to be done at the time of the allocation
+or release of a resource.
+A good usage for the
+.Fa ctor
+and
+.Fa dtor
+callbacks
+might be to adjust a global count of the number of objects allocated.
+.Pp
+The
+.Fa uminit
+and
+.Fa fini
+arguments are used to optimize the allocation of
+objects from the zone.
+They are called by the uma subsystem whenever
+it needs to allocate or free several items to satisfy requests or memory
+pressure.
+A good use for the
+.Fa uminit
+and
+.Fa fini
+callbacks might be to
+initialize and destroy mutexes contained within the object.
+This would
+allow one to re-use already initialized mutexes when an object is returned
+from the uma subsystem's object cache.
+They are not called on each call to
+.Fn uma_zalloc
+and
+.Fn uma_zfree
+but rather in a batch mode on several objects.
+.Pp
+To allocate an item from a zone, simply call
+.Fn uma_zalloc
+with a pointer to that zone
+and set the
+.Fa flags
+argument to selected flags as documented in
+.Xr malloc 9 .
+It will return a pointer to an item if successful,
+or
+.Dv NULL
+in the rare case where all items in the zone are in use and the
+allocator is unable to grow the zone
+or when
+.Dv M_NOWAIT
+is specified.
+.Pp
+Items are released back to the zone from which they were allocated by
+calling
+.Fn uma_zfree
+with a pointer to the zone and a pointer to the item.
+.Pp
+Created zones,
+which are empty,
+can be destroyed using
+.Fn uma_zdestroy ,
+freeing all memory that was allocated for the zone.
+All items allocated from the zone with
+.Fn uma_zalloc
+must have been freed with
+.Fn uma_zfree
+before.
+.Pp
+The purpose of
+.Fn uma_zone_set_max
+is to limit the maximum amount of memory that the system can dedicated
+toward the zone specified by the
+.Fa zone
+argument.
+The
+.Fa nitems
+argument gives the upper limit of items in the zone.
+This limits the total number of items in the zone which includes:
+allocated items, free items and free items in the per-cpu caches.
+On systems with more than one CPU it may not be possible to allocate
+the specified number of items even when there is no shortage of memory,
+because all of the remaining free items may be in the caches of the
+other CPUs when the limit is hit.
+.Sh RETURN VALUES
+The
+.Fn uma_zalloc
+function returns a pointer to an item, or
+.Dv NULL
+if the zone ran out of unused items and the allocator was unable to
+enlarge it.
+.Sh SEE ALSO
+.Xr malloc 9
+.Sh HISTORY
+The zone allocator first appeared in
+.Fx 3.0 .
+It was radically changed in
+.Fx 5.0
+to function as a slab allocator.
+.Sh AUTHORS
+.An -nosplit
+The zone allocator was written by
+.An John S. Dyson .
+The zone allocator was rewritten in large parts by
+.An Jeff Roberson Aq jeff@FreeBSD.org
+to function as a slab allocator.
+.Pp
+This manual page was written by
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+Changes for UMA by
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org .

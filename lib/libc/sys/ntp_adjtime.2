@@ -1,0 +1,150 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 1, 2003
+.Dt NTP_ADJTIME 2
+.Os
+.Sh NAME
+.Nm ntp_adjtime
+.Nd NTP daemon application interface
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/timex.h
+.Ft int
+.Fn ntp_adjtime "struct timex *tp"
+.Sh DESCRIPTION
+The
+.Fn ntp_adjtime
+system call is used as a kernel interface
+for the Network Time Protocol daemon,
+.Xr ntpd 8 .
+Certain fields of the
+.Vt timex
+structure are interpreted in either
+microseconds or nanoseconds, according to the state of the
+.Dv STA_NANO
+bit in the
+.Va status
+word.
+.Pp
+In the
+.Fx
+kernel, the
+.Fn ntp_adjtime
+and
+.Xr ntp_gettime 2
+system calls can be used to determine which
+resolution is in use, and to select either one at any time.
+The resolution selected affects the scaling of certain fields in the
+.Fn ntp_gettime
+and
+.Fn ntp_adjtime
+system calls.
+.Pp
+Take note that this
+.Tn API
+is extremely complex and stateful.
+Users should not attempt modification without first
+reviewing the
+.Xr ntpd 8
+sources in depth.
+.Bd -literal
+/*
+ * NTP daemon interface (ntp_adjtime()) - used to discipline CPU clock
+ * oscillator and determine status.
+ *
+ * Note: The offset, precision and jitter members are in microseconds if
+ * STA_NANO is zero and nanoseconds if not.
+ */
+struct timex {
+	unsigned int modes;	/* clock mode bits (wo) */
+	long	offset;		/* time offset (ns/us) (rw) */
+	long	freq;		/* frequency offset (scaled PPM) (rw) */
+	long	maxerror;	/* maximum error (us) (rw) */
+	long	esterror;	/* estimated error (us) (rw) */
+	int	status;		/* clock status bits (rw) */
+	long	constant;	/* poll interval (log2 s) (rw) */
+	long	precision;	/* clock precision (ns/us) (ro) */
+	long	tolerance;	/* clock frequency tolerance (scaled
+				 * PPM) (ro) */
+	/*
+	 * The following read-only structure members are implemented
+	 * only if the PPS signal discipline is configured in the
+	 * kernel. They are included in all configurations to insure
+	 * portability.
+	 */
+	long	ppsfreq;	/* PPS frequency (scaled PPM) (ro) */
+	long	jitter;		/* PPS jitter (ns/us) (ro) */
+	int	shift;		/* interval duration (s) (shift) (ro) */
+	long	stabil;		/* PPS stability (scaled PPM) (ro) */
+	long	jitcnt;		/* jitter limit exceeded (ro) */
+	long	calcnt;		/* calibration intervals (ro) */
+	long	errcnt;		/* calibration errors (ro) */
+	long	stbcnt;		/* stability limit exceeded (ro) */
+};
+.Ed
+.Pp
+Upon successful completion,
+.Fn ntp_adjtime
+will fill the
+.Fa tp
+argument with the current clock state.
+.Sh RETURN VALUES
+Upon successful completion the clock state is returned.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
+.Pp
+Possible states of the clock are:
+.Pp
+.Bl -tag -compact -width ".Dv TIME_ERROR"
+.It Dv TIME_OK
+Everything okay, no leap second warning.
+.It Dv TIME_INS
+insert leap second warning.
+.It Dv TIME_DEL
+delete leap second warning.
+.It Dv TIME_OOP
+Leap second in progress.
+.It Dv TIME_WAIT
+Leap second has occurred.
+.It Dv TIME_ERROR
+Clock not synchronized.
+.El
+.Sh ERRORS
+The
+.Fn ntp_gettime
+system call may return
+.Er EPERM
+if the caller
+does not have sufficient permissions.
+.Sh SEE ALSO
+.Xr ntp_gettime 2 ,
+.Xr ntpd 8
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .

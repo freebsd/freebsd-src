@@ -1,0 +1,8 @@
+# $FreeBSD$
+# a very simple makefile...
+pmake:
+	@echo 'make started.'
+	cc -DDEFSHELL=1 -I. -c *.c
+	cd lst.lib; cc -I.. -c *.c
+	cc *.o lst.lib/*.o -o pmake
+	@echo 'make completed.'

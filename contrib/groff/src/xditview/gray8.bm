@@ -1,0 +1,4 @@
+#define gray8_width 3
+#define gray8_height 3
+static char gray8_bits[] = {
+   0x05, 0x07, 0x07};

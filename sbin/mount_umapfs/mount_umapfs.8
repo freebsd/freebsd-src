@@ -1,0 +1,146 @@
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry and from John Heidemann of the UCLA Ficus project.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mount_umap.8	8.4 (Berkeley) 5/1/95
+.\" $FreeBSD$
+.\"
+.Dd May 1, 1995
+.Dt MOUNT_UMAPFS 8
+.Os
+.Sh NAME
+.Nm mount_umapfs
+.Nd sample file system layer
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Fl u Ar uid-mapfile
+.Fl g Ar gid-mapfile
+.Ar target
+.Ar mount-point
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to mount a sub-tree of an existing file system
+that uses a different set of uids and gids than the local system.
+Such a file system could be mounted from a remote site via NFS or
+it could be a file system on removable media brought from some
+foreign location that uses a different password file.
+.Pp
+The
+.Nm
+utility uses a set of files provided by the user to make correspondences
+between uids and gids in the sub-tree's original environment and
+some other set of ids in the local environment.
+For instance, user
+smith might have uid 1000 in the original environment, while having
+uid 2000 in the local environment.
+The
+.Nm
+utility allows the subtree from smith's original environment to be
+mapped in such a way that all files with owning uid 1000 look like
+they are actually owned by uid 2000.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.It Ar target
+Should be the current location of the sub-tree in the
+local system's name space.
+.It Ar mount-point
+Should be a directory
+where the mapped subtree is to be placed.
+.It Fl u Ar uid-mapfile
+.It Fl g Ar gid-mapfile
+Describe the mappings to be made between identifiers.
+Briefly, the format of these files is a count of the number of
+mappings on the first line, with each subsequent line containing
+a single mapping.
+Each of these mappings consists of an id in
+the local environment and the corresponding id from the original environment,
+separated by white space.
+.Ar Uid-mapfile
+should contain all uid
+mappings, and
+.Ar gid-mapfile
+should contain all gid mappings.
+Any uids not mapped in
+.Ar uid-mapfile
+will be treated as user NOBODY,
+and any gids not mapped in
+.Ar gid-mapfile
+will be treated as group
+NULLGROUP.
+At most 64 uids can be mapped for a given subtree, and
+at most 16 groups can be mapped by a given subtree.
+.El
+.Pp
+The mapfiles can be located anywhere in the file hierarchy, but they
+must be owned by root, and they must be writable only by root.
+The
+.Nm
+utility will refuse to map the sub-tree if the ownership or permissions on
+these files are improper.
+It will also balk if the count of mappings
+in the first line of the map files is not correct.
+.Pp
+The layer created by the
+.Nm
+utility is meant to serve as a simple example of file system layering.
+It is not meant for production use.
+The implementation is not very
+sophisticated.
+.Sh SEE ALSO
+.Xr mount 8 ,
+.Xr mount_nullfs 8
+.Sh BUGS
+THIS FILE SYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.
+USE AT YOUR
+OWN RISK.
+BEWARE OF DOG.
+SLIPPERY WHEN WET.
+.Pp
+This code also needs an owner in order to be less dangerous - serious
+hackers can apply by sending mail to
+.Aq hackers@FreeBSD.org
+and announcing
+their intent to take it over.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

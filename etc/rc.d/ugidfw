@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# $FreeBSD$
+
+# PROVIDE: ugidfw
+# REQUIRE:
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ugidfw"
+rcvar="ugidfw_enable"
+start_cmd="ugidfw_start"
+start_precmd="ugidfw_precmd"
+stop_cmd="ugidfw_stop"
+
+ugidfw_precmd()
+{
+	if ! sysctl security.mac.bsdextended
+          then kldload mac_bsdextended
+	    if [ "$?" -ne "0" ]
+	      then warn Unable to load the mac_bsdextended module.
+	      return 1
+	else
+	  return 0
+	  fi
+	fi
+	return 0
+}
+
+ugidfw_start()
+{
+	# set the default policy script if none was specified
+	[ -z "${bsdextended_script}" ] && bsdextended_script=/etc/rc.bsdextended
+
+	if [ -r "${bsdextended_script}" ]; then
+		. "${bsdextended_script}"
+		echo -n 'MAC bsdextended rules loaded sucessfully.'
+	fi
+	echo '.'
+}
+
+ugidfw_stop()
+{
+	# Disable the policy
+	#
+	kldunload mac_bsdextended
+}
+
+load_rc_config $name
+run_rc_command "$1"

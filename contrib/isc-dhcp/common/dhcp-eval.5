@@ -1,0 +1,477 @@
+.\"	$Id: dhcp-eval.5,v 1.17.2.7 2004/06/10 17:59:15 dhankins Exp $
+.\"
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1996-2003 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"   Internet Systems Consortium, Inc.
+.\"   950 Charter Street
+.\"   Redwood City, CA 94063
+.\"   <info@isc.org>
+.\"   http://www.isc.org/
+.\"
+.\" This software has been written for Internet Systems Consortium
+.\" by Ted Lemon in cooperation with Vixie Enterprises and Nominum, Inc.
+.\" To learn more about Internet Systems Consortium, see
+.\" ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
+.\" see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
+.\" ``http://www.nominum.com''.
+.TH dhcp-eval 5
+.SH NAME
+dhcp-eval - ISC DHCP conditional evaluation
+.SH DESCRIPTION
+The Internet Systems Consortium DHCP client and server both provide
+the ability to perform conditional behavior depending on the contents
+of packets they receive.   The syntax for specifying this conditional
+behaviour is documented here.
+.SH REFERENCE: CONDITIONAL BEHAVIOUR
+Conditional behaviour is specified using the if statement and the else
+or elsif statements.   A conditional statement can appear anywhere
+that a regular statement (e.g., an option statement) can appear, and
+can enclose one or more such statements.   A typical conditional
+statement in a server might be:
+.PP
+.nf
+if option dhcp-user-class = "accounting" {
+  max-lease-time 17600;
+  option domain-name "accounting.example.org";
+  option domain-name-servers ns1.accounting.example.org, 
+			     ns2.accounting.example.org;
+} elsif option dhcp-user-class = "sales" {
+  max-lease-time 17600;
+  option domain-name "sales.example.org";
+  option domain-name-servers ns1.sales.example.org, 
+			     ns2.sales.example.org;
+} elsif option dhcp-user-class = "engineering" {
+  max-lease-time 17600;
+  option domain-name "engineering.example.org";
+  option domain-name-servers ns1.engineering.example.org, 
+			     ns2.engineering.example.org;
+} else {
+  max-lease-time 600;
+  option domain-name "misc.example.org";
+  option domain-name-servers ns1.misc.example.org, 
+			     ns2.misc.example.org;
+}
+.fi
+.PP
+On the client side, an example of conditional evaluation might be:
+.PP
+.nf
+# example.org filters DNS at its firewall, so we have to use their DNS
+# servers when we connect to their network.   If we are not at
+# example.org, prefer our own DNS server.
+if not option domain-name = "example.org" {
+  prepend domain-name-servers 127.0.0.1;
+}
+.fi  
+.PP
+The
+.B if
+statement and the
+.B elsif
+continuation statement both take boolean expressions as their
+arguments.   That is, they take expressions that, when evaluated,
+produce a boolean result.   If the expression evaluates to true, then
+the statements enclosed in braces following the 
+.B if
+statement are executed, and all subsequent
+.B elsif
+and
+.B else
+clauses are skipped.   Otherwise, each subsequent 
+.B elsif
+clause's expression is checked, until an elsif clause is encountered
+whose test evaluates to true.   If such a clause is found, the
+statements in braces following it are executed, and then any
+subsequent
+.B elsif
+and
+.B else
+clauses are skipped.   If all the 
+.B if
+and
+.B elsif
+clauses are checked but none
+of their expressions evaluate true, then if there is an
+.B else
+clause, the statements enclosed in braces following the
+.B else
+are evaluated.   Boolean expressions that evaluate to null are
+treated as false in conditionals.
+.SH BOOLEAN EXPRESSIONS
+The following is the current list of boolean expressions that are
+supported by the DHCP distribution.
+.PP
+.I data-expression-1 \fB=\fI data-expression-2\fR
+.RS 0.25i
+.PP
+The \fB=\fR operator compares the values of two data expressions,
+returning true if they are the same, false if they are not.   If
+either the left-hand side or the right-hand side are null, the
+result is also null.
+.RE
+.PP
+.I boolean-expression-1 \fBand\fI boolean-expression-2\fR
+.PP
+.RS 0.25i
+The \fBand\fR operator evaluates to true if the boolean expression on
+the left-hand side and the boolean expression on the right-hand side
+both evaluate to true.  Otherwise, it evaluates to false.  If either
+the expression on the left-hand side or the expression on the
+right-hand side are null, the result is null.
+.RE
+.PP
+.I boolean-expression-1 \fBor\fI boolean-expression-2\fR
+.PP
+.RS 0.25i
+The \fBor\fR operator evaluates to true if either the boolean
+expression on the left-hand side or the boolean expression on the
+right-hand side evaluate to true.  Otherwise, it evaluates to false.
+If either the expression on the left-hand side or the expression on
+the right-hand side are null, the result is null.
+.RE
+.PP
+.B not \fIboolean-expression
+.PP
+.RS 0.25i
+The \fBnot\fR operator evaluates to true if \fIboolean-expression\fR
+evaluates to false, and returns false if \fIboolean-expression\fR evaluates
+to true.   If \fIboolean-expression\fR evaluates to null, the result
+is also null.
+.RE
+.PP
+.B exists \fIoption-name\fR
+.PP
+.RS 0.25i
+The \fBexists\fR expression returns true if the specified option
+exists in the incoming DHCP packet being processed.
+.RE
+.B known
+.PP
+.RS 0.25i
+The \fBknown\fR expression returns true if the client whose request is
+currently being processed is known - that is, if there's a host
+declaration for it.
+.RE
+.B static
+.PP
+.RS 0.25i
+The \fBstatic\fR expression returns true if the lease assigned to the
+client whose request is currently being processed is derived from a static
+address assignment.
+.RE
+.SH DATA EXPRESSIONS
+Several of the boolean expressions above depend on the results of
+evaluating data expressions.   A list of these expressions is provided
+here.
+.PP
+.B substring (\fIdata-expr\fB, \fIoffset\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+The \fBsubstring\fR operator evaluates the data expression and returns
+the substring of the result of that evaluation that starts
+\fIoffset\fR bytes from the beginning, continuing for \fIlength\fR
+bytes.  \fIOffset\fR and \fIlength\fR are both numeric expressions.
+If \fIdata-expr\fR, \fIoffset\fR or \fIlength\fR evaluate to null,
+then the result is also null.  If \fIoffset\fR is greater than or
+equal to the length of the evaluated data, then a zero-length data
+string is returned.  If \fIlength\fI is greater then the remaining
+length of the evaluated data after \fIoffset\fR, then a data string
+containing all data from \fIoffset\fR to the end of the evaluated data
+is returned.
+.RE
+.PP
+.B suffix (\fIdata-expr\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+The \fBsuffix\fR operator evaluates \fIdata-expr\fR and returns the
+last \fIlength\fR bytes of the result of that evaluation. \fILength\fR
+is a numeric expression.  If \fIdata-expr\fR or \fIlength\fR evaluate
+to null, then the result is also null.  If \fIsuffix\fR evaluates to a
+number greater than the length of the evaluated data, then the
+evaluated data is returned.
+.RE
+.PP
+.B option \fIoption-name\fR
+.PP
+.RS 0.25i
+The \fBoption\fR operator returns the contents of the specified option in
+the packet to which the server is responding.
+.RE
+.PP
+.B config-option \fIoption-name\fR
+.PP
+.RS 0.25i
+The \fBconfig-option\fR operator returns the value for the specified option
+that the DHCP client or server has been configured to send.
+.RE
+.PP
+.B hardware
+.PP
+.RS 0.25i
+The \fBhardware\fR operator returns a data string whose first element
+is the type of network interface indicated in packet being considered,
+and whose subsequent elements are client's link-layer address.   If
+there is no packet, or if the RFC2131 \fIhlen\fR field is invalid,
+then the result is null.   Hardware types include ethernet (1),
+token-ring (6), and fddi (8).   Hardware types are specified by the
+IETF, and details on how the type numbers are defined can be found in
+RFC2131 (in the ISC DHCP distribution, this is included in the doc/
+subdirectory).
+.RE
+.PP
+.B packet (\fIoffset\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+The \fBpacket\fR operator returns the specified portion of the packet
+being considered, or null in contexts where no packet is being
+considered.   \fIOffset\fR and \fIlength\fR are applied to the
+contents packet as in the \fBsubstring\fR operator.
+.RE
+.PP
+.I string
+.PP
+.RS 0.25i
+A string, enclosed in quotes, may be specified as a data expression,
+and returns the text between the quotes, encoded in ASCII.   The
+backslash ('\\') character is treated specially, as in C programming:
+'\\t' means TAB, '\\r' means carriage return, '\\n' means newline, and
+'\\b' means bell.   Any octal value can be specified with '\\nnn',
+where nnn is any positive octal number less than 0400.  Any
+hexadecimal value can be specified with '\xnn', where nn is any
+positive hexadecimal number less than 0xff.
+.RE
+.PP
+.I colon-separated hexadecimal list
+.PP
+.RS 0.25i
+A list of hexadecimal octet values, separated by colons, may be
+specified as a data expression.
+.RE
+.PP
+.B concat (\fIdata-expr1\fB, ..., \fIdata-exprN\fB)\fR
+.RS 0.25i
+The expressions are evaluated, and the results of each evaluation are
+concatenated in the sequence that the subexpressions are listed.   If
+any subexpression evaluates to null, the result of the concatenation
+is null.
+.RE
+.PP
+.B reverse (\fInumeric-expr1\fB, \fIdata-expr2\fB)\fR
+.RS 0.25i
+The two expressions are evaluated, and then the result of evaluating
+the data expression is reversed in place, using hunks of the size
+specified in the numeric expression.   For example, if the numeric
+expression evaluates to four, and the data expression evaluates to 
+twelve bytes of data, then the reverse expression will evaluate to
+twelve bytes of data, consisting of the last four bytes of the the
+input data, followed by the middle four bytes, followed by the first
+four bytes.
+.RE
+.PP
+.B leased-address
+.RS 0.25i
+In any context where the client whose request is being processed has
+been assigned an IP address, this data expression returns that IP
+address.
+.RE
+.PP
+.B binary-to-ascii (\fInumeric-expr1\fB, \fInumeric-expr2\fB,
+.B \fIdata-expr1\fB,\fR \fIdata-expr2\fB)\fR
+.RS 0.25i
+Converts the result of evaluating data-expr2 into a text string
+containing one number for each element of the result of evaluating
+data-expr2.   Each number is separated from the other by the result of
+evaluating data-expr1.   The result of evaluating numeric-expr1
+specifies the base (2 through 16) into which the numbers should be
+converted.   The result of evaluating numeric-expr2 specifies the
+width in bits of each number, which may be either 8, 16 or 32.
+.PP
+As an example of the preceding three types of expressions, to produce
+the name of a PTR record for the IP address being assigned to a
+client, one could write the following expression:
+.RE
+.PP
+.nf
+        concat (binary-to-ascii (10, 8, ".",
+                                 reverse (1, leased-address)),
+                ".in-addr.arpa.");
+
+.fi
+.PP
+.B encode-int (\fInumeric-expr\fB, \fIwidth\fB)\fR
+.RS 0.25i
+Numeric-expr is evaluated and encoded as a data string of the
+specified width, in network byte order (most significant byte first).
+If the numeric expression evaluates to the null value, the result is
+also null.
+.PP
+.B pick-first-value (\fIdata-expr1\fR [ ... \fIexpr\fRn ] \fB)\fR
+.RS 0.25i
+The pick-first-value function takes any number of data expressions as
+its arguments.   Each expression is evaluated, starting with the first
+in the list, until an expression is found that does not evaluate to a
+null value.   That expression is returned, and none of the subsequent
+expressions are evaluated.   If all expressions evaluate to a null
+value, the null value is returned.
+.RE
+.PP
+.B host-decl-name
+.RS 0.25i
+The host-decl-name function returns the name of the host declaration
+that matched the client whose request is currently being processed, if
+any.   If no host declaration matched, the result is the null value.
+.RE
+.SH NUMERIC EXPRESSIONS
+Numeric expressions are expressions that evaluate to an integer.   In
+general, the maximum size of such an integer should not be assumed to
+be representable in fewer than 32 bits, but the precision of such
+integers may be more than 32 bits.
+.PP
+.B extract-int (\fIdata-expr\fB, \fIwidth\fB)\fR
+.PP
+.RS 0.25i
+The \fBextract-int\fR operator extracts an integer value in network
+byte order from the result of evaluating the specified data
+expression.   Width is the width in bits of the integer to extract.
+Currently, the only supported widths are 8, 16 and 32.   If the
+evaluation of the data expression doesn't provide sufficient bits to
+extract an integer of the specified size, the null value is returned.
+.RE
+.PP
+.B lease-time
+.PP
+.RS 0.25i
+The duration of the current lease - that is, the difference between
+the current time and the time that the lease expires.
+.RE
+.PP
+.I number
+.PP
+.RS 0.25i
+Any number between zero and the maximum representable size may be
+specified as a numeric expression.
+.RE
+.PP
+.B client-state
+.PP
+.RS 0.25i
+The current state of the client instance being processed.   This is
+only useful in DHCP client configuration files.   Possible values are:
+.TP 2
+.I \(bu
+Booting - DHCP client is in the INIT state, and does not yet have an
+IP address.   The next message transmitted will be a DHCPDISCOVER,
+which will be broadcast.
+.TP
+.I \(bu
+Reboot - DHCP client is in the INIT-REBOOT state.   It has an IP
+address, but is not yet using it.   The next message to be transmitted
+will be a DHCPREQUEST, which will be broadcast.   If no response is
+heard, the client will bind to its address and move to the BOUND state.
+.TP
+.I \(bu
+Select - DHCP client is in the SELECTING state - it has received at
+least one DHCPOFFER message, but is waiting to see if it may receive
+other DHCPOFFER messages from other servers.   No messages are sent in
+the SELECTING state.
+.TP
+.I \(bu
+Request - DHCP client is in the REQUESTING state - it has received at
+least one DHCPOFFER message, and has chosen which one it will
+request.   The next message to be sent will be a DHCPREQUEST message,
+which will be broadcast.
+.TP
+.I \(bu
+Bound - DHCP client is in the BOUND state - it has an IP address.   No
+messages are transmitted in this state.
+.TP
+.I \(bu
+Renew - DHCP client is in the RENEWING state - it has an IP address,
+and is trying to contact the server to renew it.   The next message to
+be sent will be a DHCPREQUEST message, which will be unicast directly
+to the server.
+.TP
+.I \(bu
+Rebind - DHCP client is in the REBINDING state - it has an IP address,
+and is trying to contact any server to renew it.   The next message to
+be sent will be a DHCPREQUEST, which will be broadcast.
+.RE
+.SH REFERENCE: LOGGING
+Logging statements may be used to send information to the standard logging
+channels.  A logging statement includes an optional priority (\fBfatal\fR,
+\fBerror\fR, \fBinfo\fR, or \fBdebug\fR), and a data expression.
+.PP
+.B log (\fIpriority\fB, \fIdata-expr\fB)\fR
+.PP
+Logging statements take only a single data expression argument, so if you
+want to output multiple data values, you will need to use the \fBconcat\fR
+operator to concatenate them.
+.RE
+.SH REFERENCE: DYNAMIC DNS UPDATES
+.PP
+The DHCP client and server have the ability to dynamically update the
+Domain Name System.  Within the configuration files, you can define
+how you want the Domain Name System to be updated.  These updates are
+RFC 2136 compliant so any DNS server supporting RFC 2136 should be
+able to accept updates from the DHCP server.
+.SH SECURITY
+Support for TSIG and DNSSEC is not yet available.  When you set your
+DNS server up to allow updates from the DHCP server or client, you may
+be exposing it to unauthorized updates.  To avoid this, the best you
+can do right now is to use IP address-based packet filtering to
+prevent unauthorized hosts from submitting update requests.
+Obviously, there is currently no way to provide security for client
+updates - this will require TSIG or DNSSEC, neither of which is yet
+available in the DHCP distribution.
+.PP
+Dynamic DNS (DDNS) updates are performed by using the \fBdns-update\fR
+expression.  The \fBdns-update\fR expression is a boolean expression
+that takes four parameters.  If the update succeeds, the result is
+true.  If it fails, the result is false.  The four parameters that the
+are the resource record type (RR), the left hand side of the RR, the
+right hand side of the RR and the ttl that should be applied to the
+record.  The simplest example of the use of the function can be found
+in the reference section of the dhcpd.conf file, where events are
+described.  In this example several statements are being used to make
+the arguments to the \fBdns-update\f\R.
+.PP
+In the example, the first argument to the first \f\Bdns-update\fR
+expression is a data expression that evaluates to the A RR type.  The
+second argument is constructed by concatenating the DHCP host-name
+option with a text string containing the local domain, in this case
+"ssd.example.net".  The third argument is constructed by converting
+the address the client has been assigned from a 32-bit number into an
+ascii string with each byte separated by a ".".  The fourth argument,
+the TTL, specifies the amount of time remaining in the lease (note
+that this isn't really correct, since the DNS server will pass this
+TTL out whenever a request comes in, even if that is only a few
+seconds before the lease expires).
+.PP
+If the first \fBdns-update\fR statement succeeds, it is followed up
+with a second update to install a PTR RR.  The installation of a PTR
+record is similar to installing an A RR except that the left hand side
+of the record is the leased address, reversed, with ".in-addr.arpa"
+concatenated.  The right hand side is the fully qualified domain name
+of the client to which the address is being leased.
+.SH SEE ALSO
+dhcpd.conf(5), dhcpd.leases(5), dhclient.conf(5), dhcp-eval(5), dhcpd(8),
+dhclient(8), RFC2132, RFC2131.
+.SH AUTHOR
+The Internet Systems Consortium DHCP Distribution was written by Ted
+Lemon under a contract with Vixie Labs.  Funding for
+this project was provided through Internet Systems Consortium.
+Information about Internet Systems Consortium can be found at
+.B http://www.isc.org.

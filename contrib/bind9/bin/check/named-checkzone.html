@@ -1,0 +1,367 @@
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001, 2002  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: named-checkzone.html,v 1.5.2.2.4.5 2004/08/22 23:38:57 marka Exp $ -->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML
+><HEAD
+><TITLE
+>named-checkzone</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.7"></HEAD
+><BODY
+CLASS="REFENTRY"
+BGCOLOR="#FFFFFF"
+TEXT="#000000"
+LINK="#0000FF"
+VLINK="#840084"
+ALINK="#0000FF"
+><H1
+><A
+NAME="AEN1"
+></A
+><SPAN
+CLASS="APPLICATION"
+>named-checkzone</SPAN
+></H1
+><DIV
+CLASS="REFNAMEDIV"
+><A
+NAME="AEN9"
+></A
+><H2
+>Name</H2
+><SPAN
+CLASS="APPLICATION"
+>named-checkzone</SPAN
+>&nbsp;--&nbsp;zone file validity checking tool</DIV
+><DIV
+CLASS="REFSYNOPSISDIV"
+><A
+NAME="AEN13"
+></A
+><H2
+>Synopsis</H2
+><P
+><B
+CLASS="COMMAND"
+>named-checkzone</B
+>  [<VAR
+CLASS="OPTION"
+>-d</VAR
+>] [<VAR
+CLASS="OPTION"
+>-j</VAR
+>] [<VAR
+CLASS="OPTION"
+>-q</VAR
+>] [<VAR
+CLASS="OPTION"
+>-v</VAR
+>] [<VAR
+CLASS="OPTION"
+>-c <VAR
+CLASS="REPLACEABLE"
+>class</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-k <VAR
+CLASS="REPLACEABLE"
+>mode</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-n <VAR
+CLASS="REPLACEABLE"
+>mode</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-o <VAR
+CLASS="REPLACEABLE"
+>filename</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-w <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></VAR
+>] [<VAR
+CLASS="OPTION"
+>-D</VAR
+>] {zonename} {filename}</P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN46"
+></A
+><H2
+>DESCRIPTION</H2
+><P
+>        <B
+CLASS="COMMAND"
+>named-checkzone</B
+> checks the syntax and integrity of
+	a zone file.  It performs the same checks as <B
+CLASS="COMMAND"
+>named</B
+>
+	does when loading a zone.  This makes
+	<B
+CLASS="COMMAND"
+>named-checkzone</B
+> useful for checking zone
+	files before configuring them into a name server.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN52"
+></A
+><H2
+>OPTIONS</H2
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+>-d</DT
+><DD
+><P
+>	      Enable debugging.
+	  </P
+></DD
+><DT
+>-q</DT
+><DD
+><P
+>	      Quiet mode - exit code only.
+	  </P
+></DD
+><DT
+>-v</DT
+><DD
+><P
+>	      Print the version of the <B
+CLASS="COMMAND"
+>named-checkzone</B
+>
+	      program and exit.
+	  </P
+></DD
+><DT
+>-j</DT
+><DD
+><P
+>              When loading the zone file read the journal if it exists.
+          </P
+></DD
+><DT
+>-c <VAR
+CLASS="REPLACEABLE"
+>class</VAR
+></DT
+><DD
+><P
+>	      Specify the class of the zone.  If not specified "IN" is assumed.
+	  </P
+></DD
+><DT
+>-k <VAR
+CLASS="REPLACEABLE"
+>mode</VAR
+></DT
+><DD
+><P
+>	      Perform <B
+CLASS="COMMAND"
+>"check-name"</B
+> checks with the specified failure mode.
+	      Possible modes are <B
+CLASS="COMMAND"
+>"fail"</B
+>,
+	      <B
+CLASS="COMMAND"
+>"warn"</B
+> (default) and
+	      <B
+CLASS="COMMAND"
+>"ignore"</B
+>.
+	  </P
+></DD
+><DT
+>-n <VAR
+CLASS="REPLACEABLE"
+>mode</VAR
+></DT
+><DD
+><P
+>	      Specify whether NS records should be checked to see if they
+	      are addresses.  Possible modes are <B
+CLASS="COMMAND"
+>"fail"</B
+>,
+	      <B
+CLASS="COMMAND"
+>"warn"</B
+> (default) and
+	      <B
+CLASS="COMMAND"
+>"ignore"</B
+>.
+	  </P
+></DD
+><DT
+>-o <VAR
+CLASS="REPLACEABLE"
+>filename</VAR
+></DT
+><DD
+><P
+>	      Write zone output to <TT
+CLASS="FILENAME"
+>directory</TT
+>.
+          </P
+></DD
+><DT
+>-t <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></DT
+><DD
+><P
+>              chroot to <TT
+CLASS="FILENAME"
+>directory</TT
+> so that include
+              directives in the configuration file are processed as if
+              run by a similarly chrooted named.
+          </P
+></DD
+><DT
+>-w <VAR
+CLASS="REPLACEABLE"
+>directory</VAR
+></DT
+><DD
+><P
+>              chdir to <TT
+CLASS="FILENAME"
+>directory</TT
+> so that relative
+	      filenames in master file $INCLUDE directives work.  This
+	      is similar to the directory clause in
+	      <TT
+CLASS="FILENAME"
+>named.conf</TT
+>.
+          </P
+></DD
+><DT
+>-D</DT
+><DD
+><P
+>	      Dump zone file in canonical format.
+	  </P
+></DD
+><DT
+>zonename</DT
+><DD
+><P
+>	       The domain name of the zone being checked.
+	  </P
+></DD
+><DT
+>filename</DT
+><DD
+><P
+>	       The name of the zone file.
+	  </P
+></DD
+></DL
+></DIV
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN125"
+></A
+><H2
+>RETURN VALUES</H2
+><P
+>        <B
+CLASS="COMMAND"
+>named-checkzone</B
+> returns an exit status of 1 if
+	errors were detected and 0 otherwise.
+  </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN129"
+></A
+><H2
+>SEE ALSO</H2
+><P
+>      <SPAN
+CLASS="CITEREFENTRY"
+><SPAN
+CLASS="REFENTRYTITLE"
+>named</SPAN
+>(8)</SPAN
+>,
+      <I
+CLASS="CITETITLE"
+>RFC 1035</I
+>,
+      <I
+CLASS="CITETITLE"
+>BIND 9 Administrator Reference Manual</I
+>.
+    </P
+></DIV
+><DIV
+CLASS="REFSECT1"
+><A
+NAME="AEN137"
+></A
+><H2
+>AUTHOR</H2
+><P
+>        Internet Systems Consortium
+    </P
+></DIV
+></BODY
+></HTML
+>

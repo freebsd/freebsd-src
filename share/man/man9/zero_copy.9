@@ -1,0 +1,170 @@
+.\"
+.\" Copyright (c) 2002 Kenneth D. Merry.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 23, 2002
+.Dt ZERO_COPY 9
+.Os
+.Sh NAME
+.Nm zero_copy ,
+.Nm zero_copy_sockets
+.Nd "zero copy sockets code"
+.Sh SYNOPSIS
+.Cd "options ZERO_COPY_SOCKETS"
+.Sh DESCRIPTION
+The
+.Fx
+kernel includes a facility for eliminating data copies on
+socket reads and writes.
+.Pp
+This code is collectively known as the zero copy sockets code, because during
+normal network I/O, data will not be copied by the CPU at all.
+Rather it
+will be DMAed from the user's buffer to the NIC (for sends), or DMAed from
+the NIC to a buffer that will then be given to the user (receives).
+.Pp
+The zero copy sockets code uses the standard socket read and write
+semantics, and therefore has some limitations and restrictions that
+programmers should be aware of when trying to take advantage of this
+functionality.
+.Pp
+For sending data, there are no special requirements or capabilities that
+the sending NIC must have.
+The data written to the socket, though, must be
+at least a page in size and page aligned in order to be mapped into the
+kernel.
+If it does not meet the page size and alignment constraints, it
+will be copied into the kernel, as is normally the case with socket I/O.
+.Pp
+The user should be careful not to overwrite buffers that have been written
+to the socket before the data has been freed by the kernel, and the
+copy-on-write mapping cleared.
+If a buffer is overwritten before it has
+been given up by the kernel, the data will be copied, and no savings in CPU
+utilization and memory bandwidth utilization will be realized.
+.Pp
+The
+.Xr socket 2
+API does not really give the user any indication of when his data has
+actually been sent over the wire, or when the data has been freed from
+kernel buffers.
+For protocols like TCP, the data will be kept around in
+the kernel until it has been acknowledged by the other side; it must be
+kept until the acknowledgement is received in case retransmission is required.
+.Pp
+From an application standpoint, the best way to guarantee that the data has
+been sent out over the wire and freed by the kernel (for TCP-based sockets)
+is to set a socket buffer size (see the
+.Dv SO_SNDBUF
+socket option in the
+.Xr setsockopt 2
+man page) appropriate for the application and network environment and then
+make sure you have sent out twice as much data as the socket buffer size
+before reusing a buffer.
+For TCP, the send and receive socket buffer sizes
+generally directly correspond to the TCP window size.
+.Pp
+For receiving data, in order to take advantage of the zero copy receive
+code, the user must have a NIC that is configured for an MTU greater than
+the architecture page size.
+(E.g., for alpha this would be 8KB, for i386,
+it would be 4KB.)
+Additionally, in order for zero copy receive to work,
+packet payloads must be at least a page in size and page aligned.
+.Pp
+Achieving page aligned payloads requires a NIC that can split an incoming
+packet into multiple buffers.
+It also generally requires some sort of
+intelligence on the NIC to make sure that the payload starts in its own
+buffer.
+This is called
+.Dq "header splitting" .
+Currently the only NICs with
+support for header splitting are Alteon Tigon 2 based boards running
+slightly modified firmware.
+The
+.Fx
+.Xr ti 4
+driver includes modified firmware for Tigon 2 boards only.
+Header
+splitting code can be written, however, for any NIC that allows putting
+received packets into multiple buffers and that has enough programmability
+to determine that the header should go into one buffer and the payload into
+another.
+.Pp
+You can also do a form of header splitting that does not require any NIC
+modifications if your NIC is at least capable of splitting packets into
+multiple buffers.
+This requires that you optimize the NIC driver for your
+most common packet header size.
+If that size (ethernet + IP + TCP headers)
+is generally 66 bytes, for instance, you would set the first buffer in a
+set for a particular packet to be 66 bytes long, and then subsequent
+buffers would be a page in size.
+For packets that have headers that are
+exactly 66 bytes long, your payload will be page aligned.
+.Pp
+The other requirement for zero copy receive to work is that the buffer that
+is the destination for the data read from a socket must be at least a page
+in size and page aligned.
+.Pp
+Obviously the requirements for receive side zero copy are impossible to
+meet without NIC hardware that is programmable enough to do header
+splitting of some sort.
+Since most NICs are not that programmable, or their
+manufacturers will not share the source code to their firmware, this approach
+to zero copy receive is not widely useful.
+.Pp
+There are other approaches, such as RDMA and TCP Offload, that may
+potentially help alleviate the CPU overhead associated with copying data
+out of the kernel.
+Most known techniques require some sort of support at
+the NIC level to work, and describing such techniques is beyond the scope
+of this manual page.
+.Pp
+The zero copy send and zero copy receive code can be individually turned
+off via the
+.Va kern.ipc.zero_copy.send
+and
+.Va kern.ipc.zero_copy.receive
+.Nm sysctl
+variables respectively.
+.Sh SEE ALSO
+.Xr sendfile 2 ,
+.Xr socket 2 ,
+.Xr ti 4 ,
+.Xr jumbo 9
+.Sh HISTORY
+The zero copy sockets code first appeared in
+.Fx 5.0 ,
+although it has
+been in existence in patch form since at least mid-1999.
+.Sh AUTHORS
+.An -nosplit
+The zero copy sockets code was originally written by
+.An Andrew Gallatin Aq gallatin@FreeBSD.org
+and substantially modified and updated by
+.An Kenneth Merry Aq ken@FreeBSD.org .

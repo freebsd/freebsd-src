@@ -1,0 +1,30 @@
+$FreeBSD$
+
+This directory is for regression test programs.
+
+A regression test program is one that will exercise a particular bit of the
+system to check that we have not reintroduced an old bug.
+
+Tests that are for parts of the base system should go into a directory here
+which is the same as their path relative to src/, for example the uuencode(1)
+utility resides in src/usr.bin/uuencode so its regression test resides in
+src/tools/regression/usr.bin/uuencode.
+
+Base system regression tests should prefix their test results with 'PASS' or
+'FAIL' accordingly, to make checking for failed tests easier.  For now the
+tests are very free-form, and it's up to you to do that.  Eventually, it
+should be a part of the regression test framework.
+
+Please make a subdir per other regression test, and add a brief description to
+this file.
+
+geom		Some tests and an out-of-kernel simulator for the GEOM code
+ia64_unaligned	Tests unaligned reads on the IA64
+nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
+p1003_1b	Exercise 1003.1B scheduler
+pipe		Pipe code regression test
+fsx		General filesystem exerciser
+sysvmsg 	SysV IPC Message Queue Regression Utility
+sysvsem 	SysV IPC Semaphore Regression Utility
+sysvshm 	SysV IPC Shared Memory Regression Utility
+gaithrstress	General threaded getaddrinfo(3) exerciser

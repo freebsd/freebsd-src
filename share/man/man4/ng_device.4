@@ -1,0 +1,121 @@
+.\" Copyright (c) 2002 Mark Santcroos <marks@ripe.net>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 15, 2002
+.Dt NG_DEVICE 4
+.Os
+.Sh NAME
+.Nm ng_device
+.Nd device netgraph node type
+.Sh SYNOPSIS
+.In netgraph/ng_device.h
+.Sh DESCRIPTION
+A
+.Nm device
+node is both a netgraph node and a system device interface.
+When a
+.Nm device
+node is created, a new device entry appears which is accessible via the
+regular file operators such as
+.Xr open 2 ,
+.Xr close 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+etc.
+.Pp
+The first node is created as
+.Pa /dev/ngd0 ,
+all subsequent nodes
+.Pa /dev/ngd1 , /dev/ngd2 ,
+etc.
+The only way a
+.Nm device
+node can be created is by a connection to the main
+.Nm device
+node by another type of
+.Xr netgraph 4
+node.
+.Pp
+When a node is shut down, the corresponding device is removed
+and the device name becomes available for reuse by future
+.Nm device
+nodes.
+.Pp
+A
+.Nm device
+node has a single hook to which it connects to the requesting
+.Xr netgraph 4
+node.
+All data coming in over the hook will be presented to the device
+for
+.Xr read 2 .
+All data coming in from the device entry by
+.Xr write 2
+will be forwarded to the hook.
+.Sh HOOKS
+The
+.Nm device
+node has no named hooks.
+There is one hook which is used for all interactions.
+This is the hook created by the calling node.
+.Sh CONTROL MESSAGES
+The
+.Nm device
+node supports no special control messages.
+All incoming messages from the
+hook will be returned to the sender.
+Additionally the node accepts
+.Xr ioctl 2 Ns s
+from the device entry.
+These will be encapsulated into
+.Xr netgraph 4
+messages and send out to the hook.
+.Sh SHUTDOWN
+This node shuts down upon receipt of a
+.Dv NGM_SHUTDOWN
+control message.
+The associated interface is removed and becomes available
+for use by future
+.Nm device
+nodes.
+.Pp
+Unlike most other node types, a
+.Nm device
+node does
+.Em not
+go away when all hooks have been disconnected; rather, an explicit
+.Dv NGM_SHUTDOWN
+control message is required.
+.Sh SEE ALSO
+.Xr netgraph 4 ,
+.Xr ngctl 8
+.Sh HISTORY
+The
+.Nm device
+node type was first implemented in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Mark Santcroos Aq marks@ripe.net
