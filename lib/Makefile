@@ -7,7 +7,7 @@
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libkrb, libpam and libss.
 # libcrypt must be built before libkrb, libpam and libskey.
-# libm must be built before libg++ and libstdc++.
+# msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey, and
 # libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
@@ -18,7 +18,7 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd \
+SUBDIR=	${_csu} libcom_err ${_libcrypt} msun libmd \
 	libncurses libradius libskey libtacplus libutil \
 	${_compat} libalias libatm ${_libbind} libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
@@ -53,12 +53,6 @@ _libcrypt+=	../secure/lib/libcrypt
 _compat=	compat
 _libncp=	libncp
 _libvgl=	libvgl
-.endif
-
-.if defined(WANT_CSRG_LIBM)
-_libm=		libm
-.else
-_libm=		msun
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
