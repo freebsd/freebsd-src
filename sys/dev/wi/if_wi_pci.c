@@ -96,13 +96,13 @@ static struct {
 	int bus_type;
 	char *desc;
 } pci_ids[] = {
-	{0x1638, 0x1100, WI_BUS_PCI_PLX, "PRISM2STA PCI WaveLAN/IEEE 802.11"},
-	{0x1385, 0x4100, WI_BUS_PCI_PLX, "Netgear MA301 PCI IEEE 802.11b"},
-	{0x16ab, 0x1101, WI_BUS_PCI_PLX, "GLPRISM2 PCI WaveLAN/IEEE 802.11"},
-	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11 PCI IEEE 802.11b"},
-	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Linksys WMP11 PCI Prism2.5"},
-	{0x10b7, 0x7770, WI_BUS_PCI_PLX, "3Com Airconnect IEEE 802.11b"},
-	{0x111a, 0x1023, WI_BUS_PCI_PLX, "Siemens SpeedStream IEEE 802.11b"},
+	{0x1638, 0x1100, WI_BUS_PCI_PLX, "PRISM2STA PCI WaveLAN"},
+	{0x1385, 0x4100, WI_BUS_PCI_PLX, "Netgear MA301 PCI"},
+	{0x16ab, 0x1101, WI_BUS_PCI_PLX, "GLPRISM2 PCI WaveLAN"},
+	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11 PCI"},
+	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Intersil Prism2.5 PCI"},
+	{0x10b7, 0x7770, WI_BUS_PCI_PLX, "3Com Airconnect"},
+	{0x111a, 0x1023, WI_BUS_PCI_PLX, "Siemens SpeedStream"},
 	{0, 0, 0, NULL}
 };
 
