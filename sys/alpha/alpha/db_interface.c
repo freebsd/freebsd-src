@@ -50,14 +50,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/reboot.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/cons.h>
-#include <sys/ktr.h>
-#include <sys/lock.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
@@ -73,209 +71,104 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
-#include <machine/setjmp.h>
 
-static jmp_buf *db_nofault = 0;
-extern jmp_buf	db_jmpbuf;
-
-extern void	gdb_handle_exception(db_regs_t *, int, int);
-
-#if 0
-extern char *trap_type[];
-extern int trap_types;
-#endif
-
-int	db_active;
-
-void	ddbprinttrap(unsigned long, unsigned long, unsigned long,
-	    unsigned long);
+static db_varfcn_t db_frame;
 
 struct db_variable db_regs[] = {
-	{	"v0",	&ddb_regs.tf_regs[FRAME_V0],	FCN_NULL	},
-	{	"t0",	&ddb_regs.tf_regs[FRAME_T0],	FCN_NULL	},
-	{	"t1",	&ddb_regs.tf_regs[FRAME_T1],	FCN_NULL	},
-	{	"t2",	&ddb_regs.tf_regs[FRAME_T2],	FCN_NULL	},
-	{	"t3",	&ddb_regs.tf_regs[FRAME_T3],	FCN_NULL	},
-	{	"t4",	&ddb_regs.tf_regs[FRAME_T4],	FCN_NULL	},
-	{	"t5",	&ddb_regs.tf_regs[FRAME_T5],	FCN_NULL	},
-	{	"t6",	&ddb_regs.tf_regs[FRAME_T6],	FCN_NULL	},
-	{	"t7",	&ddb_regs.tf_regs[FRAME_T7],	FCN_NULL	},
-	{	"s0",	&ddb_regs.tf_regs[FRAME_S0],	FCN_NULL	},
-	{	"s1",	&ddb_regs.tf_regs[FRAME_S1],	FCN_NULL	},
-	{	"s2",	&ddb_regs.tf_regs[FRAME_S2],	FCN_NULL	},
-	{	"s3",	&ddb_regs.tf_regs[FRAME_S3],	FCN_NULL	},
-	{	"s4",	&ddb_regs.tf_regs[FRAME_S4],	FCN_NULL	},
-	{	"s5",	&ddb_regs.tf_regs[FRAME_S5],	FCN_NULL	},
-	{	"s6",	&ddb_regs.tf_regs[FRAME_S6],	FCN_NULL	},
-	{	"a0",	&ddb_regs.tf_regs[FRAME_A0],	FCN_NULL	},
-	{	"a1",	&ddb_regs.tf_regs[FRAME_A1],	FCN_NULL	},
-	{	"a2",	&ddb_regs.tf_regs[FRAME_A2],	FCN_NULL	},
-	{	"a3",	&ddb_regs.tf_regs[FRAME_A3],	FCN_NULL	},
-	{	"a4",	&ddb_regs.tf_regs[FRAME_A4],	FCN_NULL	},
-	{	"a5",	&ddb_regs.tf_regs[FRAME_A5],	FCN_NULL	},
-	{	"t8",	&ddb_regs.tf_regs[FRAME_T8],	FCN_NULL	},
-	{	"t9",	&ddb_regs.tf_regs[FRAME_T9],	FCN_NULL	},
-	{	"t10",	&ddb_regs.tf_regs[FRAME_T10],	FCN_NULL	},
-	{	"t11",	&ddb_regs.tf_regs[FRAME_T11],	FCN_NULL	},
-	{	"ra",	&ddb_regs.tf_regs[FRAME_RA],	FCN_NULL	},
-	{	"t12",	&ddb_regs.tf_regs[FRAME_T12],	FCN_NULL	},
-	{	"at",	&ddb_regs.tf_regs[FRAME_AT],	FCN_NULL	},
-	{	"gp",	&ddb_regs.tf_regs[FRAME_GP],	FCN_NULL	},
-	{	"sp",	&ddb_regs.tf_regs[FRAME_SP],	FCN_NULL	},
-	{	"pc",	&ddb_regs.tf_regs[FRAME_PC],	FCN_NULL	},
-	{	"ps",	&ddb_regs.tf_regs[FRAME_PS],	FCN_NULL	},
-	{	"ai",	&ddb_regs.tf_regs[FRAME_T11],	FCN_NULL	},
-	{	"pv",	&ddb_regs.tf_regs[FRAME_T12],	FCN_NULL	},
+	{ "v0",		(db_expr_t *)FRAME_V0,	db_frame },
+	{ "t0",		(db_expr_t *)FRAME_T0,	db_frame },
+	{ "t1",		(db_expr_t *)FRAME_T1,	db_frame },
+	{ "t2",		(db_expr_t *)FRAME_T2,	db_frame },
+	{ "t3",		(db_expr_t *)FRAME_T3,	db_frame },
+	{ "t4",		(db_expr_t *)FRAME_T4,	db_frame },
+	{ "t5",		(db_expr_t *)FRAME_T5,	db_frame },
+	{ "t6",		(db_expr_t *)FRAME_T6,	db_frame },
+	{ "t7",		(db_expr_t *)FRAME_T7,	db_frame },
+	{ "s0",		(db_expr_t *)FRAME_S0,	db_frame },
+	{ "s1",		(db_expr_t *)FRAME_S1,	db_frame },
+	{ "s2",		(db_expr_t *)FRAME_S2,	db_frame },
+	{ "s3",		(db_expr_t *)FRAME_S3,	db_frame },
+	{ "s4",		(db_expr_t *)FRAME_S4,	db_frame },
+	{ "s5",		(db_expr_t *)FRAME_S5,	db_frame },
+	{ "s6",		(db_expr_t *)FRAME_S6,	db_frame },
+	{ "a0",		(db_expr_t *)FRAME_A0,	db_frame },
+	{ "a1",		(db_expr_t *)FRAME_A1,	db_frame },
+	{ "a2",		(db_expr_t *)FRAME_A2,	db_frame },
+	{ "a3",		(db_expr_t *)FRAME_A3,	db_frame },
+	{ "a4",		(db_expr_t *)FRAME_A4,	db_frame },
+	{ "a5",		(db_expr_t *)FRAME_A5,	db_frame },
+	{ "t8",		(db_expr_t *)FRAME_T8,	db_frame },
+	{ "t9",		(db_expr_t *)FRAME_T9,	db_frame },
+	{ "t10",	(db_expr_t *)FRAME_T10,	db_frame },
+	{ "t11",	(db_expr_t *)FRAME_T11,	db_frame },
+	{ "ra",		(db_expr_t *)FRAME_RA,	db_frame },
+	{ "t12",	(db_expr_t *)FRAME_T12,	db_frame },
+	{ "at",		(db_expr_t *)FRAME_AT,	db_frame },
+	{ "gp",		(db_expr_t *)FRAME_GP,	db_frame },
+	{ "sp",		(db_expr_t *)FRAME_SP,	db_frame },
+	{ "pc",		(db_expr_t *)FRAME_PC,	db_frame },
+	{ "ps",		(db_expr_t *)FRAME_PS,	db_frame },
+	{ "ai",		(db_expr_t *)FRAME_T11,	db_frame },
+	{ "pv",		(db_expr_t *)FRAME_T12,	db_frame },
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
-/*
- * Print trap reason.
- */
-void
-ddbprinttrap(a0, a1, a2, entry)
-	unsigned long a0, a1, a2, entry;
+static int
+db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 
-	/* XXX Implement. */
-
-	printf("ddbprinttrap(0x%lx, 0x%lx, 0x%lx, 0x%lx)\n", a0, a1, a2,
-	    entry);
-}
-
-/*
- *  ddb_trap - field a kernel trap
- */
-int
-kdb_trap(a0, a1, a2, entry, regs)
-	unsigned long a0, a1, a2, entry;
-	db_regs_t *regs;
-{
-	int ddb_mode = !(boothowto & RB_GDB);
-	register_t s;
-
-	/*
-	 * Don't bother checking for usermode, since a benign entry
-	 * by the kernel (call to Debugger() or a breakpoint) has
-	 * already checked for usermode.  If neither of those
-	 * conditions exist, something Bad has happened.
-	 */
-
-	if (entry != ALPHA_KENTRY_IF ||
-	    (a0 != ALPHA_IF_CODE_BUGCHK && a0 != ALPHA_IF_CODE_BPT
-		&& a0 != ALPHA_IF_CODE_GENTRAP)) {
-#if 0
-		if (ddb_mode) {
-			db_printf("ddbprinttrap from 0x%lx\n",	/* XXX */
-				  regs->tf_regs[FRAME_PC]);
-			ddbprinttrap(a0, a1, a2, entry);
-			/*
-			 * Tell caller "We did NOT handle the trap."
-			 * Caller should panic, or whatever.
-			 */
-			return (0);
-		}
-#endif
-		if (db_nofault) {
-			jmp_buf *no_fault = db_nofault;
-			db_nofault = 0;
-			longjmp(*no_fault, 1);
-		}
-	}
-
-	/*
-	 * XXX Should switch to DDB's own stack, here.
-	 */
-
-	ddb_regs = *regs;
-
-	s = intr_disable();
-
-#ifdef SMP
-#ifdef DIAGNOSTIC
-	db_printf("stopping %x\n", PCPU_GET(other_cpus));
-#endif
-	stop_cpus(PCPU_GET(other_cpus));
-#ifdef DIAGNOSTIC
-	db_printf("stopped_cpus=%x\n", stopped_cpus);
-#endif
-#endif
-
-	db_active++;
-
-	if (ddb_mode) {
-	    cndbctl(TRUE);	/* DDB active, unblank video */
-	    db_trap(entry, a0);	/* Where the work happens */
-	    cndbctl(FALSE);	/* DDB inactive */
-	} else
-	    gdb_handle_exception(&ddb_regs, entry, a0);
-
-	db_active--;
-
-#ifdef SMP 
-	restart_cpus(stopped_cpus);
-#endif
-
-	intr_restore(s);
-
-	*regs = ddb_regs;
-
-	/*
-	 * Tell caller "We HAVE handled the trap."
-	 */
+	if (kdb_frame == NULL)
+		return (0);
+	if (op == DB_VAR_GET)
+		*valuep = kdb_frame->tf_regs[(uintptr_t)vp->valuep];
+	else
+		kdb_frame->tf_regs[(uintptr_t)vp->valuep] = *valuep;
 	return (1);
 }
 
 /*
  * Read bytes from kernel address space for debugger.
  */
-void
-db_read_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+int
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
-	register char	*src;
+	jmp_buf jb;
+	void *prev_jb;
+	char *src;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-
-	src = (char *)addr;
-	while (size-- > 0)
-		*data++ = *src++;
-
-	db_nofault = 0;
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		src = (char *)addr;
+		while (size-- > 0)
+			*data++ = *src++;
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
 /*
  * Write bytes to kernel address space for debugger.
  */
-void
-db_write_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+int
+db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
-	register char	*dst;
+	jmp_buf jb;
+	void *prev_jb;
+	char *dst;
+	int ret;
 
-	db_nofault = &db_jmpbuf;
-
-	dst = (char *)addr;
-	while (size-- > 0)
-		*dst++ = *data++;
-	alpha_pal_imb();
-
-	db_nofault = 0;
-}
-
-void
-Debugger(const char* msg)
-{
-	u_int	saveintr;
-
-	printf("%s\n", msg);
-	saveintr = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
-	__asm("call_pal 0x81");		/* XXX bugchk */
-	alpha_pal_swpipl(saveintr);
+	prev_jb = kdb_jmpbuf(jb);
+	ret = setjmp(jb);
+	if (ret == 0) {
+		dst = (char *)addr;
+		while (size-- > 0)
+			*dst++ = *data++;
+		alpha_pal_imb();
+	}
+	(void)kdb_jmpbuf(prev_jb);
+	return (ret);
 }
 
 /*
@@ -338,9 +231,7 @@ static int reg_to_frame[32] = {
 };
 
 u_long
-db_register_value(regs, regno)
-	db_regs_t *regs;
-	int regno;
+db_register_value(int regno)
 {
 
 	if (regno > 31 || regno < 0) {
@@ -351,7 +242,7 @@ db_register_value(regs, regno)
 	if (regno == 31)
 		return (0);
 
-	return (regs->tf_regs[reg_to_frame[regno]]);
+	return (kdb_frame->tf_regs[reg_to_frame[regno]]);
 }
 
 /*
@@ -446,19 +337,6 @@ db_inst_unconditional_flow_transfer(ins)
 	return (FALSE);
 }
 
-#if 0
-boolean_t
-db_inst_spill(ins, regn)
-	int ins, regn;
-{
-	alpha_instruction insn;
-
-	insn.bits = ins;
-	return ((insn.mem_format.opcode == op_stq) &&
-	    (insn.mem_format.rd == regn));
-}
-#endif
-
 boolean_t
 db_inst_load(ins)
 	int ins;
@@ -520,10 +398,7 @@ db_inst_store(ins)
 }
 
 db_addr_t
-db_branch_taken(ins, pc, regs)
-	int ins;
-	db_addr_t pc;
-	db_regs_t *regs;
+db_branch_taken(int ins, db_addr_t pc)
 {
 	alpha_instruction insn;
 	db_addr_t newpc;
@@ -534,7 +409,7 @@ db_branch_taken(ins, pc, regs)
 	 * Jump format: target PC is (contents of instruction's "RB") & ~3.
 	 */
 	case op_j:
-		newpc = db_register_value(regs, insn.jump_format.rs) & ~3;
+		newpc = db_register_value(insn.jump_format.rs) & ~3;
 		break;
 
 	/*

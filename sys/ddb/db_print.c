@@ -37,33 +37,33 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
+
+#include <machine/pcb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_sym.h>
 
 void
-db_show_regs(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+db_show_regs(db_expr_t _1, boolean_t _2, db_expr_t _3, char *_4)
 {
-	register struct db_variable *regp;
-	db_expr_t	value, offset;
-	const char *	name;
+	struct db_variable *regp;
+	db_expr_t value, offset;
+	const char *name;
 
 	for (regp = db_regs; regp < db_eregs; regp++) {
-	    db_read_variable(regp, &value);
-	    db_printf("%-12s%#10lr", regp->name, (unsigned long)value);
-	    db_find_xtrn_sym_and_offset((db_addr_t)value, &name, &offset);
-	    if (name != NULL && offset <= (unsigned long)db_maxoff &&
-		offset != value) {
-		db_printf("\t%s", name);
-		if (offset != 0)
-		    db_printf("+%+#lr", (long)offset);
-	    }
-	    db_printf("\n");
+		if (!db_read_variable(regp, &value))
+			continue;
+		db_printf("%-12s%#10lr", regp->name, (unsigned long)value);
+		db_find_xtrn_sym_and_offset((db_addr_t)value, &name, &offset);
+		if (name != NULL && offset <= (unsigned long)db_maxoff &&
+		    offset != value) {
+			db_printf("\t%s", name);
+			if (offset != 0)
+				db_printf("+%+#lr", (long)offset);
+		}
+		db_printf("\n");
 	}
-	db_print_loc_and_inst(PC_REGS(DDB_REGS));
+	db_print_loc_and_inst(PC_REGS());
 }
