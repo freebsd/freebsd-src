@@ -1836,6 +1836,10 @@ ginode(ino_t inumber, int fsi, int cg)
 	DBG_ENTER;
 
 	inumber += (cg * sblock.fs_ipg);
+	if (isclr(cg_inosused(&aocg), inumber)) {
+		DBG_LEAVE;
+		return NULL;
+	}
 	if (inumber < ROOTINO || inumber > maxino)
 		errx(8, "bad inode number %d to ginode", inumber);
 	if (startinum == 0 ||
@@ -2374,6 +2378,10 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 	 *     here by using the bitmap.
 	 */
 	ino = ginode(in, fsi, cg);
+	if (ino == NULL) {
+		DBG_LEAVE;
+		return;
+	}
 	mode = DIP(ino, di_mode) & IFMT;
 	if (mode != IFDIR && mode != IFREG && mode != IFLNK) {
 		DBG_LEAVE;
