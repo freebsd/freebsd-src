@@ -51,7 +51,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <dev/ccdvar.h>
+#include <sys/ccdvar.h>
 
 #include "pathnames.h"
 
@@ -622,31 +622,13 @@ print_ccd_info(cs, kd)
 static int
 getmaxpartitions()
 {
-	int maxpart, mib[2];
-	size_t varlen;
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_MAXPARTITIONS;
-	varlen = sizeof(maxpart);
-	if (sysctl(mib, 2, &maxpart, &varlen, NULL, 0) < 0)
-		return (-1);
-
-	return (maxpart);
+    return (MAXPARTITIONS);
 }
 
 static int
 getrawpartition()
 {
-	int rawpart, mib[2];
-	size_t varlen;
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_RAWPARTITION;
-	varlen = sizeof(rawpart);
-	if (sysctl(mib, 2, &rawpart, &varlen, NULL, 0) < 0)
-		return (-1);
-
-	return (rawpart);
+	return (RAW_PART);
 }
 
 static int
@@ -721,3 +703,8 @@ usage()
 	    "[ccd [...]]");
 	exit(1);
 }
+
+/* Local Variables: */
+/* c-argdecl-indent: 8 */
+/* c-indent-level: 8 */
+/* End: */
