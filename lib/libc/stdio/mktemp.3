@@ -43,6 +43,8 @@
 .Fn mktemp "char *template"
 .Ft int
 .Fn mkstemp "char *template"
+.Ft int
+.Fn mkstemps "char *template, int suffixlen"
 .Ft char *
 .Fn mkdtemp "char *template"
 .Sh DESCRIPTION
@@ -80,6 +82,16 @@ makes the same replacement to the template and creates the template file,
 mode 0600, returning a file descriptor opened for reading and writing.
 This avoids the race between testing for a file's existence and opening it
 for use.
+.Pp
+The
+.Fn mkstemps
+function acts the same as
+.Fn mkstemp ,
+except it permits a suffix to exist in the template.  The template
+should be of the form
+.Pa /tmp/tmpXXXXXXsuffix .
+.Fn mkstemps
+is told the length of the suffix string, ie. strlen("suffix");
 .Pp
 The
 .Fn mkdtemp
