@@ -2517,6 +2517,8 @@ mac_check_proc_debug(struct ucred *cred, struct proc *proc)
 {
 	int error;
 
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
 	if (!mac_enforce_process)
 		return (0);
 
@@ -2530,6 +2532,8 @@ mac_check_proc_sched(struct ucred *cred, struct proc *proc)
 {
 	int error;
 
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
+
 	if (!mac_enforce_process)
 		return (0);
 
@@ -2542,6 +2546,8 @@ int
 mac_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 {
 	int error;
+
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
 	if (!mac_enforce_process)
 		return (0);
