@@ -4,7 +4,7 @@
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"	Updated by Robert Eckardt <roberte@mep.ruhr-uni-bochum.de>
 .\"
-.\"	$Id: tar.1,v 1.17 1998/09/09 03:04:53 jkoshy Exp $
+.\"	$Id: tar.1,v 1.18 1998/09/22 09:55:09 roberto Exp $
 .\"
 .Dd 25 August 1997
 .Os FreeBSD
@@ -292,6 +292,11 @@ Exclude files matching the
 .It Fl -exclude-from Ar file
 Exclude files listed in
 .Ar file .
+.It Fl y
+.It Fl -bzip2
+.It Fl -bunzip2
+Filter the archive through
+.Xr bzip2 1 .
 .It Fl Z
 .It Fl -compress
 .It Fl -uncompress
@@ -403,6 +408,7 @@ The default tape drive.
 .\"     (command return values (to shell) and fprintf/stderr type diagnostics)
 .\" .Sh DIAGNOSTICS
 .Sh SEE ALSO
+.Xr bzip2 1 ,
 .Xr compress 1 ,
 .Xr gzip 1 ,
 .Xr pax 1 ,
