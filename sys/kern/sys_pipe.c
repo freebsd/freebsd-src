@@ -1093,9 +1093,10 @@ pipe_stat(fp, ub, p)
 	ub->st_atimespec = pipe->pipe_atime;
 	ub->st_mtimespec = pipe->pipe_mtime;
 	ub->st_ctimespec = pipe->pipe_ctime;
+	ub->st_uid = fp->f_cred->cr_uid;
+	ub->st_gid = fp->f_cred->cr_gid;
 	/*
-	 * Left as 0: st_dev, st_ino, st_nlink, st_uid, st_gid, st_rdev,
-	 * st_flags, st_gen.
+	 * Left as 0: st_dev, st_ino, st_nlink, st_rdev, st_flags, st_gen.
 	 * XXX (st_dev, st_ino) should be unique.
 	 */
 	return 0;
