@@ -38,7 +38,7 @@ if [ -f /etc/sysctl.conf ]; then
 		\#*|'')
 			;;
 		*)
-			sysctl -w ${var}
+			sysctl ${var}
 			;;
 		esac
 	done < /etc/sysctl.conf
