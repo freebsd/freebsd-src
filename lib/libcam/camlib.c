@@ -660,7 +660,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 			"%s: %s", func_name, func_name, strerror(errno));
 		goto crod_bailout;
 	}
-	device->pd_type = ccb.cgd.pd_type;
+	device->pd_type = SID_TYPE(&ccb.cgd.inq_data);
 	bcopy(&ccb.cgd.inq_data, &device->inq_data, 
 	      sizeof(struct scsi_inquiry_data));
 	device->serial_num_len = ccb.cgd.serial_num_len;
