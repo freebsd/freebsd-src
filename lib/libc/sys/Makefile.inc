@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.29 1997/05/03 03:50:05 jb Exp $
+#	$Id: Makefile.inc,v 1.20.2.4 1997/06/24 19:23:09 julian Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -19,7 +19,7 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
 	getpgrp.o getpid.o getppid.o getpriority.o \
 	getrlimit.o getrusage.o gettimeofday.o \
-	getuid.o kill.o ktrace.o lchown.o \
+	getuid.o issetugid.o kill.o ktrace.o lchown.o \
 	lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o lstat.o \
 	madvise.o mincore.o minherit.o mkdir.o mlock.o \
@@ -89,7 +89,8 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/getgid.2 sys/getgroups.2 sys/getitimer.2 sys/getlogin.2 \
 	sys/getpeername.2 sys/getpgrp.2 sys/getpid.2 sys/getpriority.2 \
 	sys/getrlimit.2 sys/getrusage.2 sys/getsockname.2 sys/getsockopt.2 \
-	sys/gettimeofday.2 sys/getuid.2 sys/intro.2 sys/ioctl.2 sys/kill.2 \
+	sys/gettimeofday.2 sys/getuid.2 sys/intro.2 sys/ioctl.2 \
+	sys/issetugid.2 sys/kill.2 \
 	sys/ktrace.2 sys/link.2 sys/listen.2 sys/lseek.2 sys/mkdir.2 \
 	sys/mkfifo.2 sys/mknod.2 sys/madvise.2 sys/mincore.2 sys/minherit.2 \
 	sys/mlock.2 \
