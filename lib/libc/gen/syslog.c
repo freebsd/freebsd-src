@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
 */
 static const char rcsid[] =
-  "$Id: syslog.c,v 1.8 1996/03/02 19:56:16 peter Exp $";
+  "$Id: syslog.c,v 1.9 1996/07/12 18:54:07 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -273,9 +273,6 @@ vsyslog(pri, fmt, ap)
 		(void)close(fd);
 	}
 }
-
-static struct sockaddr SyslogAddr;	/* AF_UNIX address of local logger */
-
 static void
 disconnectlog()
 {
@@ -294,20 +291,36 @@ disconnectlog()
 static void
 connectlog()
 {
+	struct sockaddr SyslogAddr;	/* AF_UNIX address of local logger */
+
 	if (LogFile == -1) {
-		SyslogAddr.sa_family = AF_UNIX;
-		(void)strncpy(SyslogAddr.sa_data, _PATH_LOG,
-		    sizeof(SyslogAddr.sa_data));
 		if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
 			return;
 		(void)fcntl(LogFile, F_SETFD, 1);
 	}
 	if (LogFile != -1 && !connected) {
-		if (connect(LogFile, &SyslogAddr, sizeof(SyslogAddr)) == -1) {
+		SyslogAddr.sa_len = sizeof(SyslogAddr);
+		SyslogAddr.sa_family = AF_UNIX;
+		(void)strncpy(SyslogAddr.sa_data, _PATH_LOG,
+		    sizeof(SyslogAddr.sa_data));
+		connected = connect(LogFile, &SyslogAddr,
+			sizeof(SyslogAddr)) != -1;
+
+		if (!connected) {
+			/*
+			 * Try the old "/dev/log" path, for backward
+			 * compatibility.
+			 */
+			(void)strncpy(SyslogAddr.sa_data, _PATH_OLDLOG,
+			    sizeof(SyslogAddr.sa_data));
+			connected = connect(LogFile, &SyslogAddr,
+				sizeof(SyslogAddr)) != -1;
+		}
+
+		if (!connected) {
 			(void)close(LogFile);
 			LogFile = -1;
-		} else
-			connected = 1;
+		}
 	}
 }
 
