@@ -178,12 +178,12 @@ usbd_status usbd_interface_count
 #if 0
 u_int8_t usbd_bus_count __P((void));
 usbd_status usbd_get_bus_handle __P((u_int8_t index, usbd_bus_handle *bus));
-#endif
 usbd_status usbd_get_root_hub 
 	__P((usbd_bus_handle bus, usbd_device_handle *dev));
 usbd_status usbd_port_count __P((usbd_device_handle hub, u_int8_t *nports));
 usbd_status usbd_hub2device_handle
 	__P((usbd_device_handle hub, u_int8_t port, usbd_device_handle *dev));
+#endif
 usbd_status usbd_request2pipe_handle
 	__P((usbd_request_handle reqh, usbd_pipe_handle *pipe));
 usbd_status usbd_pipe2interface_handle
