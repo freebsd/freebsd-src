@@ -668,42 +668,42 @@ Suff_AddTransform(char *line)
 int
 Suff_EndTransform(void *gnp, void *dummy __unused)
 {
-    GNode *gn = (GNode *)gnp;
+	GNode	*gn = (GNode *)gnp;
 
-    if ((gn->type & OP_TRANSFORM) && Lst_IsEmpty(&gn->commands) &&
-	Lst_IsEmpty(&gn->children))
-    {
-	Suff	*s, *t;
+	if ((gn->type & OP_TRANSFORM) && Lst_IsEmpty(&gn->commands) &&
+	    Lst_IsEmpty(&gn->children)) {
+		Suff	*s, *t;
 
-	/*
-	 * SuffParseTransform() may fail for special rules which are not
-	 * actual transformation rules (e.g., .DEFAULT).
-	 */
-	if (!SuffParseTransform(gn->name, &s, &t))
-	    return (0);
+		/*
+		 * SuffParseTransform() may fail for special rules which are not
+		 * actual transformation rules (e.g., .DEFAULT).
+		 */
+		if (!SuffParseTransform(gn->name, &s, &t))
+			return (0);
 
-	DEBUGF(SUFF, ("deleting transformation from `%s' to `%s'\n",
-	       s->name, t->name));
+		DEBUGF(SUFF, ("deleting transformation from `%s' to `%s'\n",
+		    s->name, t->name));
 
-	/*
-	 * Remove the source from the target's children list. We check for a
-	 * NULL return to handle a beanhead saying something like
-	 *  .c.o .c.o:
-	 *
-	 * We'll be called twice when the next target is seen, but .c and .o
-	 * are only linked once...
-	 */
-	SuffRemove(&t->children, s);
+		/*
+		 * Remove the source from the target's children list. We check
+		 * for a NULL return to handle a beanhead saying something like
+		 *  .c.o .c.o:
+		 *
+		 * We'll be called twice when the next target is seen, but .c
+		 * and .o are only linked once...
+		 */
+		SuffRemove(&t->children, s);
 
-	/*
-	 * Remove the target from the source's parents list
-	 */
-	SuffRemove(&s->parents, t);
-    } else if (gn->type & OP_TRANSFORM) {
-	DEBUGF(SUFF, ("transformation %s complete\n", gn->name));
-    }
+		/*
+		 * Remove the target from the source's parents list
+		 */
+		SuffRemove(&s->parents, t);
 
-    return (0);
+	} else if (gn->type & OP_TRANSFORM) {
+		DEBUGF(SUFF, ("transformation %s complete\n", gn->name));
+	}
+
+	return (0);
 }
 
 /*-
