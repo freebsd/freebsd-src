@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.39 1997/04/27 21:18:58 fsmp Exp $
+ *	$Id: isa_device.h,v 1.40 1997/05/26 14:42:24 se Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -47,13 +47,6 @@
  * Type of the first (asm) part of an interrupt handler.
  */
 typedef void inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
-
-/*
- * Usual type of the second (C) part of an interrupt handler.  Some bogus
- * ones need the arg to be the interrupt frame (and not a copy of it, which
- * is all that is possible in C).
- */
-typedef void inthand2_t __P((int unit));
 
 /*
  * Per device structure.
