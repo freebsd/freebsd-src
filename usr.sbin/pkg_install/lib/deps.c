@@ -88,9 +88,7 @@ chkifdepends(char *pkgname1, char *pkgname2)
     char *tmp;
     int retval;
 
-    sprintf(fname, "%s/%s/%s",
-	    (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-	    pkgname2, REQUIRED_BY_FNAME);
+    sprintf(fname, "%s/%s/%s", LOG_DIR, pkgname2, REQUIRED_BY_FNAME);
     fp = fopen(fname, "r");
     if (fp == NULL) {
 	/* Probably pkgname2 doesn't have any packages that depend on it */
