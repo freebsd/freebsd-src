@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.3 1996/06/14 11:02:07 asami Exp $
+ *	$Id: if_ed_p.c,v 1.4 1996/08/28 18:54:26 bde Exp $
  */
 
 #include "pci.h"
@@ -30,7 +30,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <ed.h>
+#include "ed.h"
 
 #define PCI_DEVICE_ID_NE2000	0x802910ec
 
