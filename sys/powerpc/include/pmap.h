@@ -35,6 +35,9 @@
 #ifndef	_MACHINE_PMAP_H_
 #define	_MACHINE_PMAP_H_
 
+#include <sys/queue.h>
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 #include <machine/sr.h>
 #include <machine/pte.h>
 
@@ -43,6 +46,7 @@
 #endif /* !defined(NPMAPS) */
 
 struct	pmap {
+	struct	mtx	pm_mtx;
 	u_int		pm_sr[16];
 	u_int		pm_active;
 	u_int		pm_context;
@@ -71,6 +75,17 @@ extern	struct pmap kernel_pmap_store;
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
 
 #ifdef _KERNEL
+
+#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_ASSERT(pmap, type) \
+				mtx_assert(&(pmap)->pm_mtx, (type))
+#define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
+				    NULL, MTX_DEF)
+#define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
+#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
+#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
+#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
 void		pmap_kenter(vm_offset_t va, vm_offset_t pa);
