@@ -79,7 +79,7 @@ will so indicate.
 The following options are available:
 .Bl -tag -width indent-two
 .It Fl Ar n
-Limits the report to
+Limit the report to
 .Ar n
 lines.
 .It Fl d Ar date
@@ -88,7 +88,9 @@ All users logged in at the snapshot date and time will
 be reported.
 This may be used with the
 .Fl f
-option to derive the results from stored wtmp files.
+option to derive the results from stored
+.Pa wtmp
+files.
 When this argument is provided, all other options except for
 .Fl f
 and
@@ -206,12 +208,14 @@ login data base
 .Xr ac 8
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
-that a logout record won't be written to the wtmp file.
+that a logout record won't be written to the
+.Pa wtmp
+file.
 In this case,
 .Nm
 will indicate the logout time as "shutdown".
 .Sh HISTORY
 A
 .Nm
-utility last appeared in
+utility appeared in
 .Bx 3.0 .
