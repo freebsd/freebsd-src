@@ -179,7 +179,8 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 
 	default:
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", p->type, p->name);
+	    errx(2, "%s: unknown command type %d (%s)",
+		__FUNCTION__, p->type, p->name);
 	    break;
 	}
 	p = p->next;
