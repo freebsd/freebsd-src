@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG =	rpc.sprayd
 SRCS =	sprayd.c

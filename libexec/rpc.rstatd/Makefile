@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG =	rpc.rstatd
 SRCS =	rstatd.c rstat_proc.c

@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/param.h>

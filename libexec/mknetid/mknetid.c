@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] = "$Id$";
 #endif
 
 #define LINSIZ 1024

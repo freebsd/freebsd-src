@@ -71,7 +71,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 static debug = 0;
 
 void perr(const char *a);

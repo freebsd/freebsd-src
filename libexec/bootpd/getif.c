@@ -1,7 +1,7 @@
 /*
  * getif.c : get an interface structure
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/types.h>

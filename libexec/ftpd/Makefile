@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ftpd
 MAN8=	ftpd.8
