@@ -670,8 +670,11 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 		}
 
 		sdp = (struct ACPIsdt *)acpi_map_sdt(addr);
-		if (acpi_checksum(sdp, sdp->len))
-			errx(1, "RSDT entry %d is corrupt", i);
+		if (acpi_checksum(sdp, sdp->len)) {
+			warnx("RSDT entry %d (sig %.4s) is corrupt", i,
+			    sdp->signature);
+			continue;
+		}
 		if (!memcmp(sdp->signature, "FACP", 4))
 			acpi_handle_fadt(sdp);
 		else if (!memcmp(sdp->signature, "APIC", 4))
