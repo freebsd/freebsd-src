@@ -63,12 +63,12 @@ static const struct lc_time_T	_C_time_locale = {
 	** Using just numbers (as here) makes Quakers happier;
 	** it's also compatible with SVR4.
 	*/
-	"%m/%d/%Y",
+	"%m/%d/%y",
 
 	/*
-	** c_fmt (ctime-compatible)
+	** c_fmt
 	*/
-	"%a %b %e %T %Y",
+	"%a %b %e %H:%M:%S %Y",
 
 	/* am */
 	"AM",
@@ -77,7 +77,7 @@ static const struct lc_time_T	_C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %b %e %X %Z %Y",
+	"%a %b %e %H:%M:%S %Z %Y",
 	
 	/* alt_month
 	** Standalone months forms for %OB
