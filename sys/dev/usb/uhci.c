@@ -4,6 +4,7 @@
  *	$NetBSD: uhci.c,v 1.172 2003/02/23 04:19:26 simonb Exp $
  *	$NetBSD: uhci.c,v 1.173 2003/05/13 04:41:59 gson Exp $
  *	$NetBSD: uhci.c,v 1.175 2003/09/12 16:18:08 mycroft Exp $
+ *	$NetBSD: uhci.c,v 1.176 2003/11/04 19:11:21 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1433,6 +1434,15 @@ uhci_idone(uhci_intr_info_t *ii)
 		if (UHCI_TD_GET_PID(le32toh(std->td.td_token)) !=
 			UHCI_TD_PID_SETUP)
 			actlen += UHCI_TD_GET_ACTLEN(status);
+		else {
+			/*
+			 * UHCI will report CRCTO in addition to a STALL or NAK
+			 * for a SETUP transaction.  See section 3.2.2, "TD
+			 * CONTROL AND STATUS".
+			 */
+			if (status & (UHCI_TD_STALLED | UHCI_TD_NAK))
+				status &= ~UHCI_TD_CRCTO;
+		}
 	}
 	/* If there are left over TDs we need to update the toggle. */
 	if (std != NULL)
