@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.10 1997/09/17 09:08:26 kato Exp $
+#	$Id: options.pc98,v 1.8.2.11 1997/11/04 09:46:07 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -23,12 +23,8 @@ COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 I586_CTR_GUPROF		opt_i586_guprof.h
 I586_PMC_GUPROF		opt_i586_guprof.h
-FAT_CURSOR		opt_pcvt.h
-PCVT_FREEBSD		opt_pcvt.h
-PCVT_SCANSET		opt_pcvt.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
-XSERVER			opt_pcvt.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
@@ -84,3 +80,18 @@ EISA_SLOTS		opt_eisa.h
 
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
+
+# pcvt(4) has a bunch of options
+FAT_CURSOR		opt_pcvt.h
+XSERVER			opt_pcvt.h
+PCVT_24LINESDEF		opt_pcvt.h
+PCVT_CTRL_ALT_DEL	opt_pcvt.h
+PCVT_EMU_MOUSE		opt_pcvt.h
+PCVT_FREEBSD		opt_pcvt.h
+PCVT_META_ESC		opt_pcvt.h
+PCVT_NSCREENS		opt_pcvt.h
+PCVT_PRETTYSCRNS	opt_pcvt.h
+PCVT_SCANSET		opt_pcvt.h
+PCVT_SCREENSAVER	opt_pcvt.h
+PCVT_USEKBDSEC		opt_pcvt.h
+PCVT_VT220KEYB		opt_pcvt.h
