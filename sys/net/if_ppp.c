@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.61 1999/07/06 19:23:13 des Exp $ */
+/* $Id: if_ppp.c,v 1.62 1999/08/06 13:53:02 brian Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -618,13 +618,9 @@ pppsioctl(ifp, cmd, data)
 	if (ifr->ifr_mtu > PPP_MAXMTU)
 	    error = EINVAL;
 	else {
-	    if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
-		error = EINVAL;
-	    else {
-		sc->sc_if.if_mtu = ifr->ifr_mtu;
-		if (sc->sc_setmtu)
+	    sc->sc_if.if_mtu = ifr->ifr_mtu;
+	    if (sc->sc_setmtu)
 		    (*sc->sc_setmtu)(sc);
-	    }
 	}
 	break;
 
