@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.203 1999/03/19 10:17:44 bde Exp $
+ * $Id: vfs_bio.c,v 1.204 1999/04/05 19:38:30 julian Exp $
  */
 
 /*
@@ -1132,32 +1132,6 @@ getnewbuf(struct vnode *vp, daddr_t blkno,
 	int countawrites = 0;
 	
 restart:
-
-	/*
-	 * Setup for scan.  If we do not have enough free buffers,
-	 * we setup a degenerate case that falls through the while.
-	 *
-	 * If we are in the middle of a flush, we can dip into the
-	 * emergency reserve.
-	 */
-
-	if ((curproc->p_flag & P_FLSINPROG) == 0 &&
-	    numfreebuffers < lofreebuffers
-	) {
-		nqindex = QUEUE_LRU;
-		nbp = NULL;
-	} else {
-		nqindex = QUEUE_EMPTY;
-		if ((nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY])) == NULL) {
-			nqindex = QUEUE_AGE;
-			nbp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
-			if (nbp == NULL) {
-				nqindex = QUEUE_LRU;
-				nbp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]);
-			}
-		}
-	}
-
 	/*
 	 * Calculate whether we are out of buffer space.  This state is
 	 * recalculated on every restart.  If we are out of space, we
@@ -1181,6 +1155,36 @@ restart:
 	 * defragging.  -1 means we actually defragged something.
 	 */
 	/* nop */
+
+	/*
+	 * Setup for scan.  If we do not have enough free buffers,
+	 * we setup a degenerate case that falls through the while.
+	 *
+	 * If we are in the middle of a flush, we can dip into the
+	 * emergency reserve.
+	 *
+	 * If we are out of space, we skip trying to scan QUEUE_EMPTY
+	 * because those buffers are, well, empty.
+	 */
+
+	if ((curproc->p_flag & P_FLSINPROG) == 0 &&
+	    numfreebuffers < lofreebuffers
+	) {
+		nqindex = QUEUE_LRU;
+		nbp = NULL;
+	} else {
+		nqindex = QUEUE_EMPTY;
+		if (outofspace || 
+		    (nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY])) == NULL
+		) {
+			nqindex = QUEUE_AGE;
+			nbp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
+			if (nbp == NULL) {
+				nqindex = QUEUE_LRU;
+				nbp = TAILQ_FIRST(&bufqueues[QUEUE_LRU]);
+			}
+		}
+	}
 
 	/*
 	 * Run scan, possibly freeing data and/or kva mappings on the fly
