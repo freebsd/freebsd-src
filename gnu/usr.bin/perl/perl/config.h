@@ -764,6 +764,6 @@
  *	execution path, but it should be accessible by the world.  The program
  *	should be prepared to do ~ expansion.
  */
-#define PRIVLIB "/usr/lib/perl"		/**/
+#define PRIVLIB "/usr/share/perl"		/**/
 
 #endif
