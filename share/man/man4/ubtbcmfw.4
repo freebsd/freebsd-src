@@ -1,8 +1,6 @@
-.\" ubtbcmfw.4
-.\" 
 .\" Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,9 +21,10 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $Id: ubtbcmfw.4,v 1.1 2003/04/28 17:09:46 max Exp $
 .\" $FreeBSD$
+.\"
 .Dd April 28, 2003
 .Dt UBTBCMFW 4
 .Os
@@ -39,37 +38,40 @@ is a firmware driver for Broadcom BCM2033 chip based Bluetooth USB devices.
 It provides minimal access to the parts of the device required to download
 firmware.
 .Pp
+The
 .Nm
 driver creates three fixed endpoint device nodes.
 .Pp
 The control transfers can only happen on the control endpoint which
-is always endpoint 0. Control request are issued by
+is always endpoint 0.
+Control request are issued by
 .Xr ioctl 2
 calls.
 .Pp
-Only incoming transfers are supported on an interrupt endpoint. To perform I/O 
-on an interrupt endpoint
+Only incoming transfers are supported on an interrupt endpoint.
+To perform I/O on an interrupt endpoint,
 .Xr read 2
-should be used.  All I/O operations on a interrupt endpoint are unbuffered.
+should be used.
+All I/O operations on a interrupt endpoint are unbuffered.
 Interrupt endpoint is always endpoint 1.
 .Pp
-Only outgoing bulk transfers are supported on a bulk endpoint. To perform 
-I/O on a bulk endpoint
+Only outgoing bulk transfers are supported on a bulk endpoint.
+To perform I/O on a bulk endpoint,
 .Xr write 2
-should be used. All I/O operations on a bulk endpoint are unbuffered. Outgoing
-bulk endpoint is always enpoint 2.
+should be used.
+All I/O operations on a bulk endpoint are unbuffered.
+Outgoing bulk endpoint is always enpoint 2.
 .Pp
 The control endpoint (endpoint 0) handles the following
 .Xr ioctl 2
 calls:
-.Bl -tag -width foo
+.Bl -tag -width indent
 .It Dv USB_GET_DEVICE_DESC Pq Vt usb_device_descriptor_t
 Return the device descriptor.
 .El
 .Sh BUGS
-This code
-.Em was not
-tested on a real BCM2033 based hardware.
+Most likely.
+Please report if found.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ubtbcmfw Ns Ar N Ns Pa \&. Ns Ar EE" -compact
 .It Pa /dev/ubtbcmfw Ns Ar N Ns Pa \&. Ns Ar EE
@@ -79,9 +81,9 @@ of device
 .Ar N .
 .El
 .Sh SEE ALSO
-.Xr usb 4 ,
-.Xr ugen 4 ,
 .Xr ng_ubt 4 ,
+.Xr ugen 4 ,
+.Xr usb 4 ,
 .Xr bcmfw 8
 .Sh HISTORY
 The

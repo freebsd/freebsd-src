@@ -1,8 +1,6 @@
-.\" hcseriald.8
-.\" 
 .\" Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -11,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,9 +21,10 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $Id: hcseriald.8,v 1.2 2003/04/27 19:45:33 max Exp $
 .\" $FreeBSD$
+.\"
 .Dd June 14, 2002
 .Dt HCSERIALD 8
 .Os
@@ -34,51 +33,54 @@
 .Nd supervise serial Bluetooth devices
 .Sh SYNOPSIS
 .Nm
-.Op Fl f Ar device
-.Op Fl n Ar node name
+.Op Fl dh
+.Fl f Ar device
+.Fl n Ar node_name
 .Op Fl s Ar speed
-.Op Fl d 
-.Op Fl h 
 .Sh DESCRIPTION
 The
 .Nm
-handles serial Bluetooth devices. It does one simple thing. It opens 
-specified serial device, sets device parameters and pushes 
-.Em H4 
+utility handles serial Bluetooth devices.
+It does one simple thing:
+it opens the specified serial device, sets the device parameters, and pushes
+the
+.Dv H4
 line discipline.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl f Ar device
-Callout device name. Example:
-.Fl f
-.Pa /dev/cuaa0 .
-.It Fl n Ar node name
-Set H4 Netgraph node name. Example:
-.Fl n Ar sio0 .
-.It Fl s Ar speed
-Set serial device speed to
-.Em speed .
-Example:
-.Fl s Ar 115200 .
 .It Fl d
-Do not disassociate from the controlling terminal, i.e. run in foreground.
+Do not disassociate from the controlling terminal, i.e., run in foreground.
+.It Fl f Ar device
+Callout device name.
+Example:
+.Fl f Pa /dev/cuaa0 .
 .It Fl h
 Display usage message and exit.
+.It Fl n Ar node_name
+Set H4 Netgraph node name.
+Example:
+.Fl n Li sio0 .
+.It Fl s Ar speed
+Set serial device speed to
+.Ar speed .
+Example:
+.Fl s Li 115200 .
 .El
 .Sh FILES
-.Bl -tag -width /dev/consolectl -compact
-.It Pa /var/run/hcserial.*.pid
-process id of the currently running
+.Bl -tag -width ".Pa /var/run/hcserial. Ns Ar * Ns Pa .pid" -compact
+.It Pa /var/run/hcserial. Ns Ar * Ns Pa .pid
+Process ID of the currently running
 .Nm
-daemon. Where 
-.Dq *
-is a H4 Netgraph node name.
+daemon.
+Where
+.Ar *
+is an H4 Netgraph node name.
 .El
 .Sh SEE ALSO
-.Xr tty 4 ,
 .Xr ng_h4 4 ,
 .Xr ng_hci 4 ,
+.Xr tty 4 ,
 .Xr hccontrol 8
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
