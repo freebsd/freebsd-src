@@ -116,7 +116,7 @@ void		kobj_class_compile_static(kobj_class_t cls, kobj_ops_t ops);
 void		kobj_class_free(kobj_class_t cls);
 
 /*
- * Allocate memory for and initalise a new object.
+ * Allocate memory for and initialise a new object.
  */
 kobj_t		kobj_create(kobj_class_t cls,
 			    struct malloc_type *mtype,

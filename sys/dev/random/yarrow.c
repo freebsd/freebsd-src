@@ -214,7 +214,7 @@ random_init(void)
 
 #ifdef DEBUG
 	mtx_enter(&Giant, MTX_DEF);
-	printf("Random initalise finish\n");
+	printf("Random initialise finish\n");
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 
@@ -226,7 +226,7 @@ random_deinit(void)
 {
 #ifdef DEBUG
 	mtx_enter(&Giant, MTX_DEF);
-	printf("Random deinitalise\n");
+	printf("Random deinitialise\n");
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 
@@ -235,7 +235,7 @@ random_deinit(void)
 
 #ifdef DEBUG
 	mtx_enter(&Giant, MTX_DEF);
-	printf("Random deinitalise waiting for thread to terminate\n");
+	printf("Random deinitialise waiting for thread to terminate\n");
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 
@@ -248,7 +248,7 @@ random_deinit(void)
 
 #ifdef DEBUG
 	mtx_enter(&Giant, MTX_DEF);
-	printf("Random deinitalise removing mutexes\n");
+	printf("Random deinitialise removing mutexes\n");
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 
@@ -258,7 +258,7 @@ random_deinit(void)
 
 #ifdef DEBUG
 	mtx_enter(&Giant, MTX_DEF);
-	printf("Random deinitalise finish\n");
+	printf("Random deinitialise finish\n");
 	mtx_exit(&Giant, MTX_DEF);
 #endif
 }
