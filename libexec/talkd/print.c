@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /* debug print routines */
@@ -42,8 +44,8 @@ static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <protocols/talkd.h>
-#include <syslog.h>
 #include <stdio.h>
+#include <syslog.h>
 
 static	char *types[] =
     { "leave_invite", "look_up", "delete", "announce" };
@@ -53,6 +55,7 @@ static	char *answers[] =
       "unknown_request", "badversion", "badaddr", "badctladdr" };
 #define	NANSWERS	(sizeof (answers) / sizeof (answers[0]))
 
+void
 print_request(cp, mp)
 	char *cp;
 	register CTL_MSG *mp;
@@ -68,6 +71,7 @@ print_request(cp, mp)
 	    cp, tp, mp->id_num, mp->l_name, mp->r_name, mp->r_tty);
 }
 
+void
 print_response(cp, rp)
 	char *cp;
 	register CTL_RESPONSE *rp;
