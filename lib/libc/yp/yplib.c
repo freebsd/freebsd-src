@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.4 1995/03/24 21:21:37 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.6 1995/04/09 21:52:31 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -167,6 +167,25 @@ int *vallen;
 	return 0;
 }
 #endif
+
+char *
+ypbinderr_string(incode)
+int incode;
+{
+	static char err[80];
+	switch(incode) {
+	case 0:
+		return "Success";
+	case 1:
+		return "Internal ypbind error";
+	case 2:
+		return "Domain not bound";
+	case 3:
+		return "System resource allocation failure";
+	}
+	sprintf(err, "Unknown ypbind error %d\n", incode);
+	return err;
+}
 
 int
 _yp_dobind(dom, ypdb)
@@ -329,6 +348,12 @@ skipit:
 			clnt_destroy(client);
 			ysd->dom_vers = -1;
 			goto again;
+		} else {
+			if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
+				fprintf(stderr, "yp_bind: %s\n",
+					ypbinderr_string(ypbr.ypbind_status));
+				return YPERR_YPBIND;
+			}
 		}
 		clnt_destroy(client);
 

@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.5 1995/04/02 03:10:55 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.6 1995/04/15 23:35:46 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -132,6 +132,7 @@ CLIENT *clnt;
 
 	bzero((char *)&res, sizeof res);
 	res.ypbind_status = YPBIND_FAIL_VAL;
+	res.ypbind_respbody.ypbind_error = YPBIND_ERR_NOSERV;
 
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
 		if( strcmp(ypdb->dom_domain, argp) == 0)
@@ -148,11 +149,11 @@ CLIENT *clnt;
 		unlink(path);
 		ypdb->dom_pnext = ypbindlist;
 		ypbindlist = ypdb;
-		return NULL;
+		return &res;
 	}
 
 	if(ypdb->dom_alive==0)
-		return NULL;
+		return &res;
 
 #if 0
 	delta = ypdb->dom_check_t - ypdb->dom_ask_t;
