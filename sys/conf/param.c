@@ -82,6 +82,7 @@ int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = MAXFILES;			/* system wide open files limit */
 int	maxfilesperproc = MAXFILES;		/* per-process open files limit */
 int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
+int	mbuf_wait = 32;				/* mbuf sleep time */
 
 /* maximum # of mbuf clusters */
 #ifndef NMBCLUSTERS

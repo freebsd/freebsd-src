@@ -35,12 +35,12 @@
  */
 
 #ifndef _SYS_MBUF_H_
-#define _SYS_MBUF_H_
+#define	_SYS_MBUF_H_
 
 /*
- * Mbufs are of a single size, MSIZE (machine/machparam.h), which
+ * Mbufs are of a single size, MSIZE (machine/param.h), which
  * includes overhead.  An mbuf may add a single "mbuf cluster" of size
- * MCLBYTES (also in machine/machparam.h), which has no additional overhead
+ * MCLBYTES (also in machine/param.h), which has no additional overhead
  * and is used instead of the internal data area; this is done when
  * at least MINCLSIZE of data must be stored.
  */
@@ -48,17 +48,17 @@
 #define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
 #define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
 
-#define	MINCLSIZE	(MHLEN + MLEN)	/* smallest amount to put in cluster */
+#define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
 /*
  * Macros for type conversion
- * mtod(m,t) -	convert mbuf pointer to data pointer of correct type
+ * mtod(m, t) -	convert mbuf pointer to data pointer of correct type
  * dtom(x) -	convert data pointer within mbuf to mbuf pointer (XXX)
  * mtocl(x) -	convert pointer within cluster to cluster index #
  * cltom(x) -	convert cluster # to ptr to beginning of cluster
  */
-#define	mtod(m,t)	((t)((m)->m_data))
+#define	mtod(m, t)	((t)((m)->m_data))
 #define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
 #define	mtocl(x)	(((uintptr_t)(x) - (uintptr_t)mbutl) >> MCLSHIFT)
 #define	cltom(x)	((caddr_t)((uintptr_t)mbutl + \
@@ -75,12 +75,11 @@ struct m_hdr {
 };
 
 /* record/packet header in first mbuf of chain; valid if M_PKTHDR set */
-struct	pkthdr {
+struct pkthdr {
 	struct	ifnet *rcvif;		/* rcv interface */
 	int	len;			/* total packet length */
-
 	/* variables for ip and tcp reassembly */
-	void	*header;		/* pointer to packet header */
+	caddr_t	header;			/* pointer to packet header */
 };
 
 /* description of external storage mapped into mbuf, valid if M_EXT set */
@@ -123,260 +122,45 @@ struct mbuf {
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
 #define	M_PROTO1	0x0008	/* protocol-specific */
+#define	M_PROTO2	0x0010	/* protocol-specific */
+#define	M_PROTO3	0x0020	/* protocol-specific */
+#define	M_PROTO4	0x0040	/* protocol-specific */
+#define	M_PROTO5	0x0080	/* protocol-specific */
 
 /* mbuf pkthdr flags, also in m_flags */
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
-#define M_FRAG		0x0400	/* packet is a fragment of a larger packet */
+#define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
 
 /* flags copied when copying m_pkthdr */
-#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_BCAST|M_MCAST)
+#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
+			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG)
 
 /* mbuf types */
 #define	MT_FREE		0	/* should be on free list */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	2	/* packet header */
-/*efine	MT_SOCKET	3*/	/* socket structure */
-/*efine	MT_PCB		4*/	/* protocol control block */
-/*efine	MT_RTABLE	5*/	/* routing tables */
-/*efine	MT_HTABLE	6*/	/* IMP host tables */
-/*efine	MT_ATABLE	7*/	/* address resolution tables */
+#if 0
+#define	MT_SOCKET	3	/* socket structure */
+#define	MT_PCB		4	/* protocol control block */
+#define	MT_RTABLE	5	/* routing tables */
+#define	MT_HTABLE	6	/* IMP host tables */
+#define	MT_ATABLE	7	/* address resolution tables */
+#endif
 #define	MT_SONAME	8	/* socket name */
-/*efine	MT_SOOPTS	10*/	/* socket options */
+#if 0
+#define	MT_SOOPTS	10	/* socket options */
+#endif
 #define	MT_FTABLE	11	/* fragment reassembly header */
-/*efine	MT_RIGHTS	12*/	/* access rights */
-/*efine	MT_IFADDR	13*/	/* interface address */
-#define MT_CONTROL	14	/* extra-data protocol message */
-#define MT_OOBDATA	15	/* expedited data  */
-
-/* flags to m_get/MGET */
-#define	M_DONTWAIT	1
-#define	M_WAIT		0
-
-/* Freelists:
- *
- * Normal mbuf clusters are normally treated as character arrays
- * after allocation, but use the first word of the buffer as a free list
- * pointer while on the free list.
- */
-union mcluster {
-	union	mcluster *mcl_next;
-	char	mcl_buf[MCLBYTES];
-};
+#if 0
+#define	MT_RIGHTS	12	/* access rights */
+#define	MT_IFADDR	13	/* interface address */
+#endif
+#define	MT_CONTROL	14	/* extra-data protocol message */
+#define	MT_OOBDATA	15	/* expedited data  */
 
 /*
- * mbuf utility macros:
- *
- *	MBUFLOCK(code)
- * prevents a section of code from from being interrupted by network
- * drivers.
- */
-#define	MBUFLOCK(code) \
-	do { int ms = splimp(); \
-	  { code } \
-	  splx(ms); \
-	} while(0)
-
-/*
- * mbuf allocation/deallocation macros:
- *
- *	MGET(struct mbuf *m, int how, int type)
- * allocates an mbuf and initializes it to contain internal data.
- *
- *	MGETHDR(struct mbuf *m, int how, int type)
- * allocates an mbuf and initializes it to contain a packet header
- * and internal data.
- */
-#define	MGET(m, how, type) { \
-	  int _ms = splimp(); \
-	  if (mmbfree == 0) \
-		(void)m_mballoc(1, (how)); \
-	  if (((m) = mmbfree) != 0) { \
-		mmbfree = (m)->m_next; \
-		mbstat.m_mtypes[MT_FREE]--; \
-		(m)->m_type = (type); \
-		mbstat.m_mtypes[type]++; \
-		(m)->m_next = (struct mbuf *)NULL; \
-		(m)->m_nextpkt = (struct mbuf *)NULL; \
-		(m)->m_data = (m)->m_dat; \
-		(m)->m_flags = 0; \
-		splx(_ms); \
-	} else { \
-		splx(_ms); \
-		(m) = m_retry((how), (type)); \
-	} \
-}
-
-#define	MGETHDR(m, how, type) { \
-	  int _ms = splimp(); \
-	  if (mmbfree == 0) \
-		(void)m_mballoc(1, (how)); \
-	  if (((m) = mmbfree) != 0) { \
-		mmbfree = (m)->m_next; \
-		mbstat.m_mtypes[MT_FREE]--; \
-		(m)->m_type = (type); \
-		mbstat.m_mtypes[type]++; \
-		(m)->m_next = (struct mbuf *)NULL; \
-		(m)->m_nextpkt = (struct mbuf *)NULL; \
-		(m)->m_data = (m)->m_pktdat; \
-		(m)->m_flags = M_PKTHDR; \
-		(m)->m_pkthdr.rcvif = NULL; \
-		splx(_ms); \
-	} else { \
-		splx(_ms); \
-		(m) = m_retryhdr((how), (type)); \
-	} \
-}
-
-/*
- * Mbuf cluster macros.
- * MCLALLOC(caddr_t p, int how) allocates an mbuf cluster.
- * MCLGET adds such clusters to a normal mbuf;
- * the flag M_EXT is set upon success.
- * MCLFREE releases a reference to a cluster allocated by MCLALLOC,
- * freeing the cluster if the reference count has reached 0.
- */
-#define	MCLALLOC(p, how) \
-	MBUFLOCK( \
-	  if (mclfree == 0) \
-		(void)m_clalloc(1, (how)); \
-	  if (((p) = (caddr_t)mclfree) != 0) { \
-		++mclrefcnt[mtocl(p)]; \
-		mbstat.m_clfree--; \
-		mclfree = ((union mcluster *)(p))->mcl_next; \
-	  } \
-	)
-
-#define	MCLGET(m, how) \
-	{ MCLALLOC((m)->m_ext.ext_buf, (how)); \
-	  if ((m)->m_ext.ext_buf != NULL) { \
-		(m)->m_data = (m)->m_ext.ext_buf; \
-		(m)->m_flags |= M_EXT; \
-		(m)->m_ext.ext_free = NULL;  \
-		(m)->m_ext.ext_ref = NULL;  \
-		(m)->m_ext.ext_size = MCLBYTES;  \
-	  } \
-	}
-
-#define	MCLFREE1(p) \
-	do { \
-	  	if (--mclrefcnt[mtocl(p)] == 0) { \
-			((union mcluster *)(p))->mcl_next = mclfree; \
-			mclfree = (union mcluster *)(p); \
-			mbstat.m_clfree++; \
-	  	} \
-	} while (0)
-
-#define	MCLFREE(p) \
-	MBUFLOCK( \
-		MCLFREE1(p); \
-	)
-
-#define	MEXTFREE1(m) \
-	do { \
-		if ((m)->m_ext.ext_free) \
-			(*((m)->m_ext.ext_free))((m)->m_ext.ext_buf, \
-		    	(m)->m_ext.ext_size); \
-		else { \
-			char *p = (m)->m_ext.ext_buf; \
-			MCLFREE1(p); \
-		} \
-	} while (0)
-
-#define	MEXTFREE(m) \
-	MBUFLOCK( \
-		MCLEXTFREE1(m); \
-	)
-
-/*
- * MFREE(struct mbuf *m, struct mbuf *n)
- * Free a single mbuf and associated external storage.
- * Place the successor, if any, in n.
- */
-#define	MFREE(m, n) \
-	MBUFLOCK(  \
-	  mbstat.m_mtypes[(m)->m_type]--; \
-	  if ((m)->m_flags & M_EXT) { \
-		MEXTFREE1(m); \
-	  } \
-	  (n) = (m)->m_next; \
-	  (m)->m_type = MT_FREE; \
-	  mbstat.m_mtypes[MT_FREE]++; \
-	  (m)->m_next = mmbfree; \
-	  mmbfree = (m); \
-	)
-
-/*
- * Copy mbuf pkthdr from from to to.
- * from must have M_PKTHDR set, and to must be empty.
- */
-#define	M_COPY_PKTHDR(to, from) { \
-	(to)->m_pkthdr = (from)->m_pkthdr; \
-	(to)->m_flags = (from)->m_flags & M_COPYFLAGS; \
-	(to)->m_data = (to)->m_pktdat; \
-}
-
-/*
- * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
- * an object of the specified size at the end of the mbuf, longword aligned.
- */
-#define	M_ALIGN(m, len) \
-	{ (m)->m_data += (MLEN - (len)) &~ (sizeof(long) - 1); }
-/*
- * As above, for mbufs allocated with m_gethdr/MGETHDR
- * or initialized by M_COPY_PKTHDR.
- */
-#define	MH_ALIGN(m, len) \
-	{ (m)->m_data += (MHLEN - (len)) &~ (sizeof(long) - 1); }
-
-/*
- * Compute the amount of space available
- * before the current start of data in an mbuf.
- */
-#define	M_LEADINGSPACE(m) \
-	((m)->m_flags & M_EXT ? /* (m)->m_data - (m)->m_ext.ext_buf */ 0 : \
-	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat : \
-	    (m)->m_data - (m)->m_dat)
-
-/*
- * Compute the amount of space available
- * after the end of data in an mbuf.
- */
-#define	M_TRAILINGSPACE(m) \
-	((m)->m_flags & M_EXT ? (m)->m_ext.ext_buf + (m)->m_ext.ext_size - \
-	    ((m)->m_data + (m)->m_len) : \
-	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len))
-
-/*
- * Arrange to prepend space of size plen to mbuf m.
- * If a new mbuf must be allocated, how specifies whether to wait.
- * If how is M_DONTWAIT and allocation fails, the original mbuf chain
- * is freed and m is set to NULL.
- */
-#define	M_PREPEND(m, plen, how) { \
-	if (M_LEADINGSPACE(m) >= (plen)) { \
-		(m)->m_data -= (plen); \
-		(m)->m_len += (plen); \
-	} else \
-		(m) = m_prepend((m), (plen), (how)); \
-	if ((m) && (m)->m_flags & M_PKTHDR) \
-		(m)->m_pkthdr.len += (plen); \
-}
-
-/* change mbuf to new type */
-#define MCHTYPE(m, t) do { \
-	MBUFLOCK(mbstat.m_mtypes[(m)->m_type]--; mbstat.m_mtypes[t]++;); \
-	(m)->m_type = t;\
-} while(0)
-
-/* length to m_copy to copy all */
-#define	M_COPYALL	1000000000
-
-/* compatibility with 4.3 */
-#define  m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
-
-/*
- * Mbuf statistics.
+ * mbuf statistics
  */
 struct mbstat {
 	u_long	m_mbufs;	/* mbufs obtained from page pool */
@@ -396,41 +180,365 @@ struct mbstat {
 	u_long	m_mhlen;	/* length of data in a header mbuf */
 };
 
-#ifdef	KERNEL
-extern struct mbuf *mbutl;		/* virtual address of mclusters */
-extern char	*mclrefcnt;		/* cluster reference counts */
-extern struct mbstat mbstat;
-extern int	nmbclusters;
-extern int	nmbufs;
-extern int	nsfbufs;
-extern struct mbuf *mmbfree;
-extern union mcluster *mclfree;
-extern int	max_linkhdr;		/* largest link-level header */
-extern int	max_protohdr;		/* largest protocol header */
-extern int	max_hdr;		/* largest link+protocol header */
-extern int	max_datalen;		/* MHLEN - max_hdr */
+/* flags to m_get/MGET */
+#define	M_DONTWAIT	1
+#define	M_WAIT		0
 
+/* Freelists:
+ *
+ * Normal mbuf clusters are normally treated as character arrays
+ * after allocation, but use the first word of the buffer as a free list
+ * pointer while on the free list.
+ */
+union mcluster {
+	union	mcluster *mcl_next;
+	char	mcl_buf[MCLBYTES];
+};
+
+
+/*
+ * These are identifying numbers passed to the m_mballoc_wait function,
+ * allowing us to determine whether the call came from an MGETHDR or
+ * an MGET.
+ */
+#define	MGETHDR_C      1
+#define	MGET_C         2
+
+/*
+ * Wake up the next instance (if any) of m_mballoc_wait() which is
+ * waiting for an mbuf to be freed.  This should be called at splimp().
+ *
+ * XXX: If there is another free mbuf, this routine will be called [again]
+ * from the m_mballoc_wait routine in order to wake another sleep instance.
+ */
+#define	MMBWAKEUP() do {						\
+	if (m_mballoc_wid) {						\
+		m_mballoc_wid--;					\
+		wakeup_one(&m_mballoc_wid); 				\
+	}								\
+} while (0)
+
+/*
+ * Same as above, but for mbuf cluster(s).
+ */
+#define	MCLWAKEUP() do {						\
+	if (m_clalloc_wid) {						\
+		m_clalloc_wid--;					\
+		wakeup_one(&m_clalloc_wid);				\
+	}								\
+} while (0)
+
+/*
+ * mbuf utility macros:
+ *
+ *	MBUFLOCK(code)
+ * prevents a section of code from from being interrupted by network
+ * drivers.
+ */
+#define	MBUFLOCK(code) do {						\
+	int _ms = splimp();						\
+									\
+	{ code }							\
+	splx(_ms);							\
+} while (0)
+
+/*
+ * mbuf allocation/deallocation macros:
+ *
+ *	MGET(struct mbuf *m, int how, int type)
+ * allocates an mbuf and initializes it to contain internal data.
+ *
+ *	MGETHDR(struct mbuf *m, int how, int type)
+ * allocates an mbuf and initializes it to contain a packet header
+ * and internal data.
+ */
+#define	MGET(m, how, type) do {						\
+	struct mbuf *_mm;						\
+	int _mhow = (how);						\
+	int _mtype = (type);						\
+	int _ms = splimp();						\
+									\
+	if (mmbfree == NULL)						\
+		(void)m_mballoc(1, _mhow);				\
+	_mm = mmbfree;							\
+	if (_mm != NULL) {						\
+		mmbfree = _mm->m_next;					\
+		mbstat.m_mtypes[MT_FREE]--;				\
+		_mm->m_type = _mtype;					\
+		mbstat.m_mtypes[_mtype]++;				\
+		_mm->m_next = NULL;					\
+		_mm->m_nextpkt = NULL;					\
+		_mm->m_data = _mm->m_dat;				\
+		_mm->m_flags = 0;					\
+		(m) = _mm;						\
+		splx(_ms);						\
+	} else {							\
+		splx(_ms);						\
+		_mm = m_retry(_mhow, _mtype);				\
+		if (_mm == NULL && _mhow == M_WAIT)			\
+			(m) = m_mballoc_wait(MGET_C, _mtype);		\
+		else							\
+			(m) = _mm;					\
+	}								\
+} while (0)
+
+#define	MGETHDR(m, how, type) do {					\
+	struct mbuf *_mm;						\
+	int _mhow = (how);						\
+	int _mtype = (type);						\
+	int _ms = splimp();						\
+									\
+	if (mmbfree == NULL)						\
+		(void)m_mballoc(1, _mhow);				\
+	_mm = mmbfree;							\
+	if (_mm != NULL) {						\
+		mmbfree = _mm->m_next;					\
+		mbstat.m_mtypes[MT_FREE]--;				\
+		_mm->m_type = _mtype;					\
+		mbstat.m_mtypes[_mtype]++;				\
+		_mm->m_next = NULL;					\
+		_mm->m_nextpkt = NULL;					\
+		_mm->m_data = _mm->m_pktdat;				\
+		_mm->m_flags = M_PKTHDR;				\
+		_mm->m_pkthdr.rcvif = NULL;				\
+		(m) = _mm;						\
+		splx(_ms);						\
+	} else {							\
+		splx(_ms);						\
+		_mm = m_retryhdr(_mhow, _mtype);			\
+		if (_mm == NULL && _mhow == M_WAIT)			\
+			(m) = m_mballoc_wait(MGETHDR_C, _mtype);	\
+		else							\
+			(m) = _mm;					\
+	}								\
+} while (0)
+
+/*
+ * Mbuf cluster macros.
+ * MCLALLOC(caddr_t p, int how) allocates an mbuf cluster.
+ * MCLGET adds such clusters to a normal mbuf;
+ * the flag M_EXT is set upon success.
+ * MCLFREE releases a reference to a cluster allocated by MCLALLOC,
+ * freeing the cluster if the reference count has reached 0.
+ */
+#define	MCLALLOC(p, how) do {						\
+	caddr_t _mp;							\
+	int _mhow = (how);						\
+	int _ms = splimp();						\
+									\
+	if (mclfree == NULL)						\
+		(void)m_clalloc(1, _mhow);				\
+	_mp = (caddr_t)mclfree;						\
+	if (_mp != NULL) {						\
+		mclrefcnt[mtocl(_mp)]++;				\
+		mbstat.m_clfree--;					\
+		mclfree = ((union mcluster *)_mp)->mcl_next;		\
+		(p) = _mp;						\
+		splx(_ms);						\
+	} else {							\
+		splx(_ms);						\
+		if (_mhow == M_WAIT)					\
+			(p) = m_clalloc_wait();				\
+		else							\
+			(p) = NULL;					\
+	}								\
+} while (0)	
+
+#define	MCLGET(m, how) do {						\
+	struct mbuf *_mm = (m);						\
+									\
+	MCLALLOC(_mm->m_ext.ext_buf, (how));				\
+	if (_mm->m_ext.ext_buf != NULL) {				\
+		_mm->m_data = _mm->m_ext.ext_buf;			\
+		_mm->m_flags |= M_EXT;					\
+		_mm->m_ext.ext_free = NULL;				\
+		_mm->m_ext.ext_ref = NULL;				\
+		_mm->m_ext.ext_size = MCLBYTES;				\
+	}								\
+} while (0)
+
+#define	MCLFREE1(p) do {						\
+	union mcluster *_mp = (union mcluster *)(p);			\
+									\
+	if (--mclrefcnt[mtocl(_mp)] == 0) {				\
+		_mp->mcl_next = mclfree;				\
+		mclfree = _mp;						\
+		mbstat.m_clfree++;					\
+		MCLWAKEUP();						\
+	}								\
+} while (0)
+
+#define	MCLFREE(p) MBUFLOCK(						\
+	MCLFREE1(p);							\
+)
+
+#define	MEXTFREE1(m) do {						\
+		struct mbuf *_mm = (m);					\
+									\
+		if (_mm->m_ext.ext_free != NULL)			\
+			(*_mm->m_ext.ext_free)(_mm->m_ext.ext_buf,	\
+		    	    _mm->m_ext.ext_size);			\
+		else							\
+			MCLFREE1(_mm->m_ext.ext_buf);			\
+} while (0)
+
+#define	MEXTFREE(m) MBUFLOCK(						\
+	MEXTFREE1(m);							\
+)
+
+/*
+ * MFREE(struct mbuf *m, struct mbuf *n)
+ * Free a single mbuf and associated external storage.
+ * Place the successor, if any, in n.
+ */
+#define	MFREE(m, n) MBUFLOCK(						\
+	struct mbuf *_mm = (m);						\
+									\
+	mbstat.m_mtypes[_mm->m_type]--;					\
+	if (_mm->m_flags & M_EXT)					\
+		MEXTFREE1(m);						\
+	(n) = _mm->m_next;						\
+	_mm->m_type = MT_FREE;						\
+	mbstat.m_mtypes[MT_FREE]++;					\
+	_mm->m_next = mmbfree;						\
+	mmbfree = _mm;							\
+	MMBWAKEUP();							\
+)
+
+/*
+ * Copy mbuf pkthdr from "from" to "to".
+ * from must have M_PKTHDR set, and to must be empty.
+ */
+#define	M_COPY_PKTHDR(to, from) do {					\
+	struct mbuf *_mfrom = (from);					\
+	struct mbuf *_mto = (to);					\
+									\
+	_mto->m_data = _mto->m_pktdat;					\
+	_mto->m_flags = _mfrom->m_flags & M_COPYFLAGS;			\
+	_mto->m_pkthdr = _mfrom->m_pkthdr;				\
+} while (0)
+
+/*
+ * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place
+ * an object of the specified size at the end of the mbuf, longword aligned.
+ */
+#define	M_ALIGN(m, len) do {						\
+	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);		\
+} while (0)
+
+/*
+ * As above, for mbufs allocated with m_gethdr/MGETHDR
+ * or initialized by M_COPY_PKTHDR.
+ */
+#define	MH_ALIGN(m, len) do {						\
+	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
+} while (0)
+
+/*
+ * Compute the amount of space available
+ * before the current start of data in an mbuf.
+ */
+#define	M_LEADINGSPACE(m)						\
+	((m)->m_flags & M_EXT ?						\
+	    /* (m)->m_data - (m)->m_ext.ext_buf */ 0 :			\
+	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat :	\
+	    (m)->m_data - (m)->m_dat)
+
+/*
+ * Compute the amount of space available
+ * after the end of data in an mbuf.
+ */
+#define	M_TRAILINGSPACE(m)						\
+	((m)->m_flags & M_EXT ? (m)->m_ext.ext_buf +			\
+	    (m)->m_ext.ext_size - ((m)->m_data + (m)->m_len) :		\
+	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len))
+
+/*
+ * Arrange to prepend space of size plen to mbuf m.
+ * If a new mbuf must be allocated, how specifies whether to wait.
+ * If how is M_DONTWAIT and allocation fails, the original mbuf chain
+ * is freed and m is set to NULL.
+ */
+#define	M_PREPEND(m, plen, how) do {					\
+	struct mbuf **_mmp = &(m);					\
+	struct mbuf *_mm = *_mmp;					\
+	int _mplen = (plen);						\
+	int __mhow = (how);						\
+									\
+	if (_mm == NULL) {						\
+		MGET(_mm, __mhow, MT_DATA);				\
+		if (_mm == NULL)					\
+			break;						\
+	}								\
+	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
+		_mm->m_data -= _mplen;					\
+		_mm->m_len += _mplen;					\
+	} else								\
+		_mm = m_prepend(_mm, _mplen, __mhow);			\
+	if (_mm != NULL && _mm->m_flags & M_PKTHDR)			\
+		_mm->m_pkthdr.len += _mplen;				\
+	*_mmp = _mm;							\
+} while (0)
+
+/* change mbuf to new type */
+#define	MCHTYPE(m, t) do {						\
+	struct mbuf *_mm = (m);						\
+	int _mt = (t);							\
+	int _ms = splimp();						\
+									\
+	mbstat.m_mtypes[_mm->m_type]--;					\
+	mbstat.m_mtypes[_mt]++;						\
+	splx(_ms);							\
+	_mm->m_type = (_mt);						\
+} while (0)
+
+/* length to m_copy to copy all */
+#define	M_COPYALL	1000000000
+
+/* compatibility with 4.3 */
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+
+#ifdef KERNEL
+extern	u_int		 m_clalloc_wid;	/* mbuf cluster wait count */
+extern	u_int		 m_mballoc_wid;	/* mbuf wait count */
+extern	int		 max_linkhdr;	/* largest link-level header */
+extern	int		 max_protohdr;	/* largest protocol header */
+extern	int		 max_hdr;	/* largest link+protocol header */
+extern	int		 max_datalen;	/* MHLEN - max_hdr */
+extern	struct mbstat	 mbstat;
+extern	int		 mbuf_wait;	/* mbuf sleep time */
+extern	struct mbuf	*mbutl;		/* virtual address of mclusters */
+extern	char		*mclrefcnt;	/* cluster reference counts */
+extern	union mcluster	*mclfree;
+extern	struct mbuf	*mmbfree;
+extern	int		 nmbclusters;
+extern	int		 nmbufs;
+extern	int		 nsfbufs;
+
+void	m_adj __P((struct mbuf *, int));
+void	m_cat __P((struct mbuf *,struct mbuf *));
+int	m_clalloc __P((int, int));
+caddr_t	m_clalloc_wait __P((void));
+void	m_copyback __P((struct mbuf *, int, int, caddr_t));
+void	m_copydata __P((struct mbuf *,int,int,caddr_t));
 struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
 struct	mbuf *m_copypacket __P((struct mbuf *, int));
 struct	mbuf *m_devget __P((char *, int, int, struct ifnet *,
-			    void (*copy)(char *, caddr_t, u_int)));
+    void (*copy)(char *, caddr_t, u_int)));
 struct	mbuf *m_dup __P((struct mbuf *, int));
 struct	mbuf *m_free __P((struct mbuf *));
+void	m_freem __P((struct mbuf *));
 struct	mbuf *m_get __P((int, int));
 struct	mbuf *m_getclr __P((int, int));
 struct	mbuf *m_gethdr __P((int, int));
+int	m_mballoc __P((int, int));
+struct	mbuf *m_mballoc_wait __P((int, int));
 struct	mbuf *m_prepend __P((struct mbuf *,int,int));
+void	m_print __P((const struct mbuf *m));
 struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
 struct	mbuf *m_split __P((struct mbuf *,int,int));
-void	m_adj __P((struct mbuf *, int));
-void	m_cat __P((struct mbuf *,struct mbuf *));
-int	m_mballoc __P((int, int));
-int	m_clalloc __P((int, int));
-void	m_copyback __P((struct mbuf *, int, int, caddr_t));
-void	m_copydata __P((struct mbuf *,int,int,caddr_t));
-void	m_freem __P((struct mbuf *));
 #endif /* KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */

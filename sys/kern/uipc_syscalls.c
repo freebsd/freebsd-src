@@ -1620,6 +1620,10 @@ retry_lookup:
 		 * Get an mbuf header and set it up as having external storage.
 		 */
 		MGETHDR(m, M_WAIT, MT_DATA);
+		if (m == NULL) {
+			error = ENOBUFS;
+			goto done;
+		}
 		m->m_ext.ext_free = sf_buf_free;
 		m->m_ext.ext_ref = sf_buf_ref;
 		m->m_ext.ext_buf = (void *)sf->kva;

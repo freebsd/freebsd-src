@@ -47,6 +47,10 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
+#ifdef INVARIANTS
+#include <machine/cpu.h>
+#endif
+
 static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
@@ -59,6 +63,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
+u_int	m_mballoc_wid = 0;
+u_int	m_clalloc_wid = 0;
 
 SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
 	   &max_linkhdr, 0, "");
@@ -67,6 +73,8 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,
 SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW,
+	   &mbuf_wait, 0, "");
 SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RW, &mbstat, mbstat, "");
 
 static void	m_reclaim __P((void));
@@ -121,10 +129,23 @@ m_mballoc(nmb, how)
 	register int i;
 	int nbytes;
 
-	/* Once we run out of map space, it will be impossible to get
-	 * any more (nothing is ever freed back to the map) (XXX which
-	 * is dumb). (however you are not dead as m_reclaim might
-	 * still be able to free a substantial amount of space).
+	/*
+	 * If we've hit the mbuf limit, stop allocating from mb_map,
+	 * (or trying to) in order to avoid dipping into the section of
+	 * mb_map which we've "reserved" for clusters.
+	 */
+	if ((nmb + mbstat.m_mbufs) > nmbufs)
+		return (0);
+
+	/*
+	 * Once we run out of map space, it will be impossible to get
+	 * any more (nothing is ever freed back to the map)
+	 * -- however you are not dead as m_reclaim might
+	 * still be able to free a substantial amount of space.
+	 *
+	 * XXX Furthermore, we can also work with "recycled" mbufs (when
+	 * we're calling with M_WAIT the sleep procedure will be woken
+	 * up when an mbuf is freed. See m_mballoc_wait()).
 	 */
 	if (mb_map_full)
 		return (0);
@@ -151,6 +172,52 @@ m_mballoc(nmb, how)
 	}
 	mbstat.m_mbufs += nmb;
 	return (1);
+}
+
+/*
+ * Once the mb_map has been exhausted and if the call to the allocation macros
+ * (or, in some cases, functions) is with M_WAIT, then it is necessary to rely
+ * solely on reclaimed mbufs. Here we wait for an mbuf to be freed for a 
+ * designated (mbuf_wait) time. 
+ */
+struct mbuf *
+m_mballoc_wait(int caller, int type)
+{
+	struct mbuf *p;
+	int s;
+
+	m_mballoc_wid++;
+	if ((tsleep(&m_mballoc_wid, PVM, "mballc", mbuf_wait)) == EWOULDBLOCK)
+		m_mballoc_wid--;
+
+	/*
+	 * Now that we (think) that we've got something, we will redo an
+	 * MGET, but avoid getting into another instance of m_mballoc_wait()
+	 * XXX: We retry to fetch _even_ if the sleep timed out. This is left
+	 *      this way, purposely, in the [unlikely] case that an mbuf was
+	 *      freed but the sleep was not awakened in time. 
+	 */
+	p = NULL;
+	switch (caller) {
+	case MGET_C:
+		MGET(p, M_DONTWAIT, type);
+		break;
+	case MGETHDR_C:
+		MGETHDR(p, M_DONTWAIT, type);
+		break;
+	default:
+		panic("m_mballoc_wait: invalid caller (%d)", caller);
+	}
+
+	s = splimp();
+	if (p != NULL) {		/* We waited and got something... */
+		mbstat.m_wait++;
+		/* Wake up another if we have more free. */
+		if (mmbfree != NULL)
+			MMBWAKEUP();
+	}
+	splx(s);
+	return (p);
 }
 
 #if MCLBYTES > PAGE_SIZE
@@ -197,9 +264,20 @@ m_clalloc(ncl, how)
 	int npg;
 
 	/*
+	 * If we've hit the mcluster number limit, stop allocating from
+	 * mb_map, (or trying to) in order to avoid dipping into the section
+	 * of mb_map which we've "reserved" for mbufs.
+	 */
+	if ((ncl + mbstat.m_clusters) > nmbclusters) {
+		mbstat.m_drops++;
+		return (0);
+	}
+
+	/*
 	 * Once we run out of map space, it will be impossible
 	 * to get any more (nothing is ever freed back to the
-	 * map).
+	 * map). From this point on, we solely rely on freed 
+	 * mclusters.
 	 */
 	if (mb_map_full) {
 		mbstat.m_drops++;
@@ -242,6 +320,47 @@ m_clalloc(ncl, how)
 }
 
 /*
+ * Once the mb_map submap has been exhausted and the allocation is called with
+ * M_WAIT, we rely on the mclfree union pointers. If nothing is free, we will
+ * sleep for a designated amount of time (mbuf_wait) or until we're woken up
+ * due to sudden mcluster availability.
+ */
+caddr_t
+m_clalloc_wait(void)
+{
+	caddr_t p;
+	int s;
+
+#ifdef __i386__
+	/* If in interrupt context, and INVARIANTS, maintain sanity and die. */
+	KASSERT(intr_nesting_level == 0, ("CLALLOC: CANNOT WAIT IN INTERRUPT"));
+#endif
+
+	/* Sleep until something's available or until we expire. */
+	m_clalloc_wid++;
+	if ((tsleep(&m_clalloc_wid, PVM, "mclalc", mbuf_wait)) == EWOULDBLOCK)
+		m_clalloc_wid--;
+
+	/*
+	 * Now that we (think) that we've got something, we will redo and
+	 * MGET, but avoid getting into another instance of m_clalloc_wait()
+	 */
+	p = NULL;
+	MCLALLOC(p, M_DONTWAIT);
+
+	s = splimp();
+	if (p != NULL) {	/* We waited and got something... */
+		mbstat.m_wait++;
+		/* Wake up another if we have more free. */
+		if (mclfree != NULL)
+			MCLWAKEUP();
+	}
+
+	splx(s);
+	return (p);
+}
+
+/*
  * When MGET fails, ask protocols to free space when short of memory,
  * then re-attempt to allocate an mbuf.
  */
@@ -254,19 +373,30 @@ m_retry(i, t)
 	/*
 	 * Must only do the reclaim if not in an interrupt context.
 	 */
-	if (i == M_WAIT)
+	if (i == M_WAIT) {
+#ifdef __i386__
+		KASSERT(intr_nesting_level == 0,
+		    ("MBALLOC: CANNOT WAIT IN INTERRUPT"));
+#endif
 		m_reclaim();
+	}
+
+	/*
+	 * Both m_mballoc_wait and m_retry must be nulled because
+	 * when the MGET macro is run from here, we deffinately do _not_
+	 * want to enter an instance of m_mballoc_wait() or m_retry() (again!)
+	 */
+#define m_mballoc_wait(caller,type)    (struct mbuf *)0
 #define m_retry(i, t)	(struct mbuf *)0
 	MGET(m, i, t);
 #undef m_retry
-	if (m != NULL) {
+#undef m_mballoc_wait
+
+	if (m != NULL)
 		mbstat.m_wait++;
-	} else {
-		if (i == M_DONTWAIT)
-			mbstat.m_drops++;
-		else
-			panic("Out of mbuf clusters");
-	}
+	else
+		mbstat.m_drops++;
+
 	return (m);
 }
 
@@ -282,19 +412,25 @@ m_retryhdr(i, t)
 	/*
 	 * Must only do the reclaim if not in an interrupt context.
 	 */
-	if (i == M_WAIT)
+	if (i == M_WAIT) {
+#ifdef __i386__
+		KASSERT(intr_nesting_level == 0,
+		    ("MBALLOC: CANNOT WAIT IN INTERRUPT"));
+#endif
 		m_reclaim();
+	}
+
+#define m_mballoc_wait(caller,type)    (struct mbuf *)0
 #define m_retryhdr(i, t) (struct mbuf *)0
 	MGETHDR(m, i, t);
 #undef m_retryhdr
-	if (m != NULL) {
+#undef m_mballoc_wait
+
+	if (m != NULL)  
 		mbstat.m_wait++;
-	} else {
-		if (i == M_DONTWAIT)
-			mbstat.m_drops++;
-		else
-			panic("Out of mbuf clusters");
-	}
+	else    
+		mbstat.m_drops++;
+	
 	return (m);
 }
 
