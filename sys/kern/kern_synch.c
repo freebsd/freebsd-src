@@ -420,6 +420,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
+	DROP_GIANT_NOSWITCH();
 	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
 
@@ -533,6 +534,7 @@ out:
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
 #endif
+	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_enter(mtx, MTX_DEF);
 		WITNESS_RESTORE(mtx, mtx);
@@ -610,6 +612,7 @@ mawait(struct mtx *mtx, int priority, int timo)
 	int s;
 	WITNESS_SAVE_DECL(mtx);
 
+	DROP_GIANT_NOSWITCH();
 	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (mtx != NULL) {
@@ -724,6 +727,7 @@ resume:
 	p->p_asleep.as_priority = 0;
 
 out:
+	PICKUP_GIANT();
 	if (mtx != NULL) {
 		mtx_enter(mtx, MTX_DEF);
 		WITNESS_RESTORE(mtx, mtx);
@@ -881,9 +885,7 @@ mi_switch()
 	struct timeval new_switchtime;
 	register struct proc *p = curproc;	/* XXX */
 	register struct rlimit *rlim;
-	int giantreleased;
 	int x;
-	WITNESS_SAVE_DECL(Giant);
 
 	/*
 	 * XXX this spl is almost unnecessary.  It is partly to allow for
@@ -904,14 +906,7 @@ mi_switch()
 	 */
 	x = splstatclock();
 
-	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
-		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
-	mtx_enter(&sched_lock, MTX_SPIN | MTX_RLIKELY);
-
-	if (mtx_owned(&Giant))
-		WITNESS_SAVE(&Giant, Giant);
-	for (giantreleased = 0; mtx_owned(&Giant); giantreleased++)
-		mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+	mtx_assert(&sched_lock, MA_OWNED);
 
 #ifdef SIMPLELOCK_DEBUG
 	if (p->p_simple_locks)
@@ -965,12 +960,6 @@ mi_switch()
 	if (switchtime.tv_sec == 0)
 		microuptime(&switchtime);
 	switchticks = ticks;
-	mtx_exit(&sched_lock, MTX_SPIN);
-	while (giantreleased--)
-		mtx_enter(&Giant, MTX_DEF);
-	if (mtx_owned(&Giant))
-		WITNESS_RESTORE(&Giant, Giant);
-
 	splx(x);
 }
 

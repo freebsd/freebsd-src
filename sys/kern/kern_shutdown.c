@@ -254,6 +254,7 @@ boot(int howto)
 			pbusy = nbusy;
 			sync(&proc0, NULL);
  			if (curproc != NULL) {
+				DROP_GIANT_NOSWITCH();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
      					mtx_enter(&sched_lock, MTX_SPIN);
      					setrunqueue(curproc);
@@ -261,6 +262,7 @@ boot(int howto)
      					mtx_exit(&sched_lock, MTX_SPIN);
      					DELAY(1000);
    				}
+				PICKUP_GIANT();
  			} else
 			DELAY(50000 * iter);
 		}
