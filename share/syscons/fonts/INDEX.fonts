@@ -23,7 +23,7 @@
 # Archive-name: internationalization/iso-8859-1-charset
 #
 # ISO 8859-1 supports the following languages:
-# Afrikaans, Catalan, Danish, Dutch, English, Faeroese, Finnish, French,
+# Afrikaans, Catalan, Danish, Dutch, English, Faroese, Finnish, French,
 # German, Galician, Irish, Icelandic, Italian, Norwegian, Portuguese,
 # Spanish and Swedish. 
 # 
@@ -43,7 +43,7 @@
 # 8859-8  Hebrew
 # 8859-9  Latin5, same as 8859-1 except for Turkish instead of Icelandic
 # 8859-10 Latin6, for Eskimo/Scandinavian languages
-# 8859-15 Latin9, same as 8859-1 except for new haracters incl. Euro/OE/oe.
+# 8859-15 Latin9, same as 8859-1 except for new characters incl. Euro/OE/oe.
 #
 ################################
 # Language support: MENU, FONT
