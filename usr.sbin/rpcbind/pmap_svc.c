@@ -215,8 +215,9 @@ pmapproc_change(struct svc_req *rqstp, SVCXPRT *xprt, unsigned long op)
 	if (op == PMAPPROC_SET) {
 		char buf[32];
 
-		sprintf(buf, "0.0.0.0.%d.%d", (int)((reg.pm_port >> 8) & 0xff),
-			(int)(reg.pm_port & 0xff));
+		snprintf(buf, sizeof buf, "0.0.0.0.%d.%d",
+		    (int)((reg.pm_port >> 8) & 0xff),
+		    (int)(reg.pm_port & 0xff));
 		rpcbreg.r_addr = buf;
 		if (reg.pm_prot == IPPROTO_UDP) {
 			rpcbreg.r_netid = udptrans;
@@ -310,8 +311,8 @@ pmapproc_getport(struct svc_req *rqstp, SVCXPRT *xprt)
 				&h4, &p1, &p2) == 6) {
 			p1 = (fnd->pml_map.pm_port >> 8) & 0xff;
 			p2 = (fnd->pml_map.pm_port) & 0xff;
-			sprintf(serveuaddr, "%d.%d.%d.%d.%d.%d",
-				h1, h2, h3, h4, p1, p2);
+			snprintf(serveuaddr, sizeof serveuaddr,
+			    "%d.%d.%d.%d.%d.%d", h1, h2, h3, h4, p1, p2);
 			if (is_bound(netid, serveuaddr)) {
 				port = fnd->pml_map.pm_port;
 			} else { /* this service is dead; delete it */
