@@ -91,6 +91,7 @@ MLINKS+=	archive_read.3 archive_read_data_into_buffer.3
 MLINKS+=	archive_read.3 archive_read_data_into_file.3
 MLINKS+=	archive_read.3 archive_read_data_skip.3
 MLINKS+=	archive_read.3 archive_read_extract.3
+MLINKS+=	archive_read.3 archive_read_extract_set_progress_callback.3
 MLINKS+=	archive_read.3 archive_read_finish.3
 MLINKS+=	archive_read.3 archive_read_new.3
 MLINKS+=	archive_read.3 archive_read_next_header.3
