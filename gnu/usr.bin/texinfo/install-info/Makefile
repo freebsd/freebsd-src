@@ -2,15 +2,16 @@
 # $Id$
 #
 
-MAKEINFODIR= ${.CURDIR}/../../../../contrib/texinfo/makeinfo
+INSTALLINFODIR= ${.CURDIR}/../../../../contrib/texinfo/util
 TXIDIR= ${.CURDIR}/../../../../contrib/texinfo/libtxi
 LIBTXI=	${.CURDIR}/../libtxi/libtxi.a
 BINDIR= /usr/bin
 
-PROG= makeinfo
+PROG= install-info
 NOMAN=yes
-SRCS+=	makeinfo.c multi.c
+SRCS+= install-info.c
 
+CFLAGS+= -g
 CFLAGS+= -DSTDC_HEADERS=1 -DHAVE_UNISTD_H=1 -DHAVE_TERMIOS_H=1 -DHAVE_STRINGS_H=1 -DHAVE_STRING_H=1
 CFLAGS+= -DHAVE_VARARGS_H=1 -DHAVE_SYS_TIME_H=1 -DHAVE_SYS_FCNTL_H=1 -DHAVE_SYS_FILE_H=1 -DHAVE_ALLOCA=1
 CFLAGS+= -DHAVE_SETVBUF=1 -DHAVE_GETCWD=1 -DHAVE_MEMSET=1 -DHAVE_BZERO=1 -DHAVE_STRCHR=1
@@ -20,6 +21,6 @@ CFLAGS+= -DHAVE_SIGSETMASK=1 -I../libtxi -I$(TXIDIR)
 LDADD+= -L../libtxi -ltxi
 DPADD+= ${LIBTXI}
 
-.PATH: $(MAKEINFODIR)
+.PATH: $(INSTALLINFODIR)
 
 .include <bsd.prog.mk>
