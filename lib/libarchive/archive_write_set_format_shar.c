@@ -275,13 +275,13 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 			break;
 		case S_IFCHR:
 			shar_printf(a, "mknod %s c %d %d\n", name,
-			    archive_entry_devmajor(entry),
-			    archive_entry_devminor(entry));
+			    archive_entry_rdevmajor(entry),
+			    archive_entry_rdevminor(entry));
 			break;
 		case S_IFBLK:
 			shar_printf(a, "mknod %s b %d %d\n", name,
-			    archive_entry_devmajor(entry),
-			    archive_entry_devminor(entry));
+			    archive_entry_rdevmajor(entry),
+			    archive_entry_rdevminor(entry));
 			break;
 		default:
 			return (ARCHIVE_WARN);
