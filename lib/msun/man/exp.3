@@ -217,10 +217,7 @@ They also provide accurate inverse hyperbolic functions.
 The function
 .Fn pow x 0
 returns x**0 = 1 for all x including x = 0,
-.if n \
-Infinity
-.if t \
-\(if
+\*(If
 (not found on a
 .Tn VAX ) ,
 and
@@ -265,10 +262,7 @@ x(0) = y(0) = 0, then x(z)**y(z) \(-> 1 as z \(-> 0.
 .Ed
 .It
 If 0**0 = 1, then
-.if n \
-infinity**0 = 1/0**0 = 1 too; and
-.if t \
-\(if**0 = 1/0**0 = 1 too; and
+\*(If**0 = 1/0**0 = 1 too; and
 then \*(Na**0 = 1 too because x**0 = 1 for all finite
 and infinite x, i.e., independently of x.
 .El
