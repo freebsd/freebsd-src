@@ -1,15 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 
-MAN7=	ascii.0 environ.0 eqnchar.0 hier.0 hostname.0 intro.0 mailaddr.0 \
-	man.0 mdoc.0 mdoc.samples.0 ms.0 operator.0 term.0
+#MISSING: eqnchar.7 man.7 ms.7 term.7
+MAN7=	ascii.7 environ.7 hier.7 hostname.7 intro.7 mailaddr.7 \
+	mdoc.7 mdoc.samples.7 operator.7 
 MLINKS=	intro.7 miscellaneous.7
 
-all: ${MAN7}
-
 clean depend lint tags:
-
-cleandir:
-	rm -f ${MAN7}
 
 install: maninstall
 
