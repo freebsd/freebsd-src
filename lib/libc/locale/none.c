@@ -148,8 +148,15 @@ _none_wcsrtombs(char * __restrict dst, const wchar_t ** __restrict src,
 	const wchar_t *s;
 	size_t nchr;
 
-	if (dst == NULL)
-		return (wcslen(*src));
+	if (dst == NULL) {
+		for (s = *src; *s != L'\0'; s++) {
+			if (*s < 0 || *s > UCHAR_MAX) {
+				errno = EILSEQ;
+				return ((size_t)-1);
+			}
+		}
+		return (s - *src);
+	}
 
 	s = *src;
 	nchr = 0;
