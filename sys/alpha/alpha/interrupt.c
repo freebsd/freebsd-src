@@ -117,6 +117,7 @@ interrupt(a0, a1, a2, framep)
 		CTR0(KTR_INTR, "clock interrupt");
 		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
 			CTR0(KTR_INTR, "ignoring clock on secondary");
+			atomic_subtract_int(&PCPU_GET(intr_nesting_level), 1);
 			return;
 		}
 			
