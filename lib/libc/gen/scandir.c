@@ -96,7 +96,8 @@ scandir(dirname, namelist, select, dcomp)
 		p = (struct dirent *)malloc(DIRSIZ(d));
 		if (p == NULL)
 			return(-1);
-		p->d_ino = d->d_ino;
+		p->d_fileno = d->d_fileno;
+		p->d_type = d->d_type;
 		p->d_reclen = d->d_reclen;
 		p->d_namlen = d->d_namlen;
 		bcopy(d->d_name, p->d_name, p->d_namlen + 1);
