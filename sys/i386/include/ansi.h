@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.14 1998/01/08 00:27:30 alex Exp $
+ * $Id: ansi.h,v 1.15 1998/06/14 14:00:47 bde Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_
@@ -54,9 +54,6 @@
 #define	_BSD_SSIZE_T_	int			/* byte count or error */
 #define	_BSD_TIME_T_	long			/* time()... */
 #define	_BSD_TIMER_T_	int			/* timer_gettime()... */
-#define	_BSD_UINT8_T_	unsigned char		/* unsigned exactly 8 bits */
-#define	_BSD_UINT16_T_	unsigned short		/* unsigned exactly 16 bits */
-#define	_BSD_UINT32_T_	unsigned int		/* unsigned exactly 32 bits */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
 
 /*
@@ -109,5 +106,18 @@ typedef	unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
 typedef	long long					 __int64_t;
 typedef	unsigned long long				__uint64_t;
 #endif
+/*
+ * Internal names for basic integral types.  Omit the typedef if
+ * not possible for a machine/compiler combination.
+ */
+typedef	__signed char		   __int8_t;
+typedef	unsigned char		  __uint8_t;
+typedef	short			  __int16_t;
+typedef	unsigned short		 __uint16_t;
+typedef	int			  __int32_t;
+typedef	unsigned int		 __uint32_t;
+
+typedef	int			 __intptr_t;
+typedef	unsigned int		__uintptr_t;
 
 #endif /* !_MACHINE_ANSI_H_ */

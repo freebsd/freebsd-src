@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.7 1998/07/10 02:34:50 bde Exp $ */
+/* $Id: types.h,v 1.8 1998/07/14 05:09:42 bde Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -56,34 +56,16 @@ typedef	long		vm_ooffset_t;
 typedef	unsigned long	vm_pindex_t;
 typedef	unsigned long	vm_size_t;
 
-/*
- * Basic integral types.  Omit the typedef if
- * not possible for a machine/compiler combination.
- */
-#define __BIT_TYPES_DEFINED__
-typedef	__signed char		   int8_t;
-typedef	unsigned char		 u_int8_t;
-typedef	short			  int16_t;
-typedef	unsigned short		u_int16_t;
-typedef	int			  int32_t;
-typedef	unsigned int		u_int32_t;
-typedef	long			  int64_t;
-typedef	unsigned long		u_int64_t;
 
-typedef int64_t			register_t;
-
-typedef int32_t			ufs_daddr_t;
+typedef __int64_t		register_t;
 
 #ifdef KERNEL
 typedef	long		intfptr_t;
 typedef	unsigned long	uintfptr_t;
-typedef	long		intptr_t;
-typedef	unsigned long	uintptr_t;
-typedef	unsigned long	uoff_t;
 #endif
 
 /* Interrupt mask (spl, xxx_imask, etc) */
-typedef u_int32_t		intrmask_t;
+typedef __uint32_t		intrmask_t;
 
 /* Interrupt handler function type - arg should be "void *" one day */
 typedef void			inthand2_t(int _unit);
