@@ -1,6 +1,7 @@
 #	  fs: /
 #	  by: rgrimes
 #	date: Fri Jul 16 22:24:17 1993
+#	$Id$
 #
 
 # top-level files are owned by root.wheel
@@ -16,6 +17,8 @@ dev	type=dir
 ..
 
 etc	type=dir
+	config	type=dir
+	..
 	mtree	type=dir
 	..
 	namedb	type=dir
