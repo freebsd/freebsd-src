@@ -379,10 +379,12 @@ WRITE(ap)
 	struct proc *p;
 	ufs_daddr_t lbn;
 	off_t osize;
+	int seqcount;
 	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
 	vm_object_t object;
 
 	extended = 0;
+	seqcount = ap->a_ioflag >> 16;
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
@@ -492,7 +494,7 @@ WRITE(ap)
 		} else if (xfersize + blkoffset == fs->fs_bsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
-				cluster_write(bp, ip->i_size);
+				cluster_write(bp, ip->i_size, seqcount);
 			} else {
 				bawrite(bp);
 			}
