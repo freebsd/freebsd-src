@@ -519,7 +519,11 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 		wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 		IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
 		IEEE80211_ADDR_COPY(wh->i_addr2, eh.ether_shost);
-		IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
+		/*
+		 * NB: always use the bssid from ic_bss as the
+		 *     neighbor's may be stale after an ibss merge
+		 */
+		IEEE80211_ADDR_COPY(wh->i_addr3, ic->ic_bss->ni_bssid);
 		break;
 	case IEEE80211_M_HOSTAP:
 		wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
