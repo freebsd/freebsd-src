@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.32 1994/09/11 12:06:34 jkh Exp $
+# $Id: bsd.port.mk,v 1.33 1994/09/11 12:55:54 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -126,9 +126,9 @@ PKG_CMD?=		pkg_create
 PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
 PKG_SUFX?=		.tgz
 
-# I guess we're in the master distribution business! :)
-MASTER_SITE?=	ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles
-HOME_LOCATION?=	<original site unknown>
+# I guess we're in the master distribution business! :)  As we gain mirror
+# sites for distfiles, add them to this list.
+MASTER_SITES+=	ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports/distfiles
 
 # Derived names so that they're easily overridable.
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
@@ -285,12 +285,16 @@ fetch: pre-fetch
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file ]; then \
 			echo ">> $$file doesn't seem to exist on this system."; \
-			echo ">> Attempting to fetch it from master site."; \
-			if ${NCFTP} ${NCFTPFLAGS} ${MASTER_SITE}/$$file; then \
-				echo ">> $$file Fetched!" ; \
-			else \
-				echo ">> Couldn't fetch it - please try to manually retreive";\
-				echo ">> ${HOME_LOCATION}/$$file into ${DISTDIR} and try again."; \
+			echo ">> Attempting to fetch it from a master site."; \
+			for site in ${MASTER_SITES}; do \
+				if ${NCFTP} ${NCFTPFLAGS} $$site/$$file; then \
+					echo ">> $$file Fetched!" ; \
+					break; \
+				fi \
+			done \
+			if [ ! -f $$file ]; then \
+				echo ">> Couldn't fetch it - please try to retreive this";\
+				echo ">> port manually into ${DISTDIR} and try again."; \
 				exit 1; \
 			fi; \
 	    fi \
