@@ -38,12 +38,15 @@
  * Apply relocations to the values we got from the file.
  */
 int
-ef_reloc(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
+ef_reloc(struct elf_file *ef, const void *data, int type, Elf_Off offset,
+    size_t len, void *dest)
 {
 	const Elf_Rela *a;
 	Elf_Word w;
 
-	for (a = ef->ef_rela; a < &ef->ef_rela[ef->ef_relasz]; a++) {
+	switch (type) {
+	case EF_RELOC_RELA:
+		a = data;
 		if (a->r_offset >= offset && a->r_offset < offset + len) {
 			switch (ELF_R_TYPE(a->r_info)) {
 			case R_SPARC_RELATIVE:
@@ -58,6 +61,7 @@ ef_reloc(elf_file_t ef, Elf_Off offset, size_t len, void *dest)
 				break;
 			}
 		}
+		break;
 	}
 	return (0);
 }
