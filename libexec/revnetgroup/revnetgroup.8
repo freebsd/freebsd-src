@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: revnetgroup.8,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
 .\"
 .Dd October 24, 1995
 .Dt REVNETGROUP 8
@@ -39,10 +39,12 @@
 .Sh SYNOPSIS
 .Nm revnetgroup
 .Fl u
+.Op Fl f Ar netgroup_file
+.Nm revnetgroup
 .Fl h
 .Op Fl f Ar netgroup_file
 .Sh DESCRIPTION
-.Nm revnetgroup
+.Nm Revnetgroup
 processes the contents of a file in
 .Xr netgroup 5
 format into what is called
@@ -51,23 +53,24 @@ form. That is, where the original file shows
 netgroup memberships in terms of which members reside in a particular
 group, the reverse netgroup format specifies what groups are associated
 with a particular member. This information is used to generate the
-.Nm netgroup.byuser
+.Pa netgroup.byuser
 and
-.Nm netgroup.byhosts
-NIS maps. These reverse netgroup maps are used to help speed up
+.Pa netgroup.byhosts
+.Tn NIS
+maps. These reverse netgroup maps are used to help speed up
 netgroup lookups, particularly for the
 .Fn innetgr
 library function.
 .Pp
 For example, the standard
-.Nm /etc/netgroup
+.Pa /etc/netgroup
 file may list a netgroup and a list of its members. Here, the
 netgroup is considered the
-.Pa key
+.Em key
 and the member names are the
-.Pa data .
+.Em data .
 By contrast, the reverse
-.Nm netgroup.byusers
+.Pa netgroup.byusers
 database lists each unique
 member as the key and the netgroups to which the members belong become
 the data. Seperate databases are created to hold information pertaining
@@ -75,7 +78,8 @@ to users and hosts; this allows netgroup username lookups
 and netgroup hostname lookups to be performed using independent keyspaces.
 .Pp
 By constructing these reverse netgroup databases (and the corresponding
-NIS maps) in advance, the
+.Tn NIS
+maps) in advance, the
 .Xr getnetgrent 3
 library functions are spared from having to work out the dependencies
 themselves on the fly. This is important on networks with large numbers
@@ -83,22 +87,28 @@ of users and hosts, since it can take a considerable amount of time
 to process very large netgroup databases.
 .Pp
 The
-.Nm revnetgroup
+.Nm
 command prints its results on the standard output. It is usually called
 only by
-.Nm /var/yp/Makefile
-when rebuilding the NIS netgroup maps.
+.Pa /var/yp/Makefile
+when rebuilding the
+.Tn NIS
+netgroup maps.
 .Pp
 .Sh OPTIONS
 The
-.Nm revnetgroup
+.Nm
 command supports the following options:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl u
-Generate netgroup.byuser output; only username information in the
+Generate
+.Pa netgroup.byuser
+output; only username information in the
 original netgroup file is processed.
 .It Fl h
-Generate netgroup.byhost output; only hostname information in the
+Generate
+.Pa netgroup.byhost
+output; only hostname information in the
 original netgroup file is processed. (Note at least one of the
 .Fl u
 or
@@ -106,27 +116,31 @@ or
 flags must be specified.)
 .It Op Fl f Ar netgroup_file
 The
-.Nm revnetgroup
+.Nm
 command uses
-.Nm /etc/netgroup
+.Pa /etc/netgroup
 as its default input file. The
 .Fl f
 flag allows the user to specify an alternate input file. Specifying ``-''
 as the input file causes
-.Nm revnetgroup
+.Nm
 to read from the standard input.
 .El
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width /var/yp/Makefile -compact
 .It Pa /var/yp/Makefile
-The Makefile that calls
+the Makefile that calls
 .Nm yp_mkdb
 and
 .Nm revnetgroup
-to build the NIS databases.
+to build the
+.Tn NIS
+databases
 .It Pa /etc/netgroup
-The default netgroup database file. This file is most often found
-only on the NIS master server.
+the default netgroup database file. This file is most often found
+only on the
+.Tn NIS
+master server
 .El
 .Sh SEE ALSO
 .Xr yp 4 ,
@@ -134,4 +148,4 @@ only on the NIS master server.
 .Xr yp_mkdb 8 ,
 .Xr getnetgrent 3
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul Aq wpaul@ctr.columbia.edu
