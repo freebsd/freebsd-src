@@ -120,7 +120,7 @@ static struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
 static struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver = {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
-static struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
+struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
 struct isa_driver sscapedriver = {sndprobe, sndattach, "sscape"};
 struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
