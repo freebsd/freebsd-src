@@ -35,7 +35,7 @@ crypt_md5(const char *pw, const char *salt)
 						 * This string is magic for
 						 * this algorithm.  Having
 						 * it this way, we can get
-						 * get better later on
+						 * better later on.
 						 */
 
 	/* Refine the Salt first */
