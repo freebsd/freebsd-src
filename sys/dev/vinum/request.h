@@ -178,6 +178,7 @@ enum rqinfo_type {
     loginfo_raid5_parity,				    /* write RAID-5 parity block */
     loginfo_sdio,					    /* subdisk I/O */
     loginfo_sdiol,					    /* subdisk I/O launch */
+    loginfo_sdiodone,					    /* subdisk iodone */
     loginfo_lockwait,					    /* wait for range lock */
     loginfo_lock,					    /* lock range */
     loginfo_unlock,					    /* unlock range */
