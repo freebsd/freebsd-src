@@ -133,7 +133,7 @@ aac_printstate0(void)
 {
 	struct aac_softc *sc;
 
-	sc = devclass_get_softc(aac_devclass, 0);
+	sc = devclass_get_softc(devclass_find("aac"), 0);
 
 	aac_print_queues(sc);
 	switch (sc->aac_hwif) {
@@ -163,7 +163,7 @@ aac_intr0(void)
 {
 	struct aac_softc *sc;
 
-	sc = devclass_get_softc(aac_devclass, 0);
+	sc = devclass_get_softc(devclass_find("aac"), 0);
 
 	aac_intr(sc);
 }
