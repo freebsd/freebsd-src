@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.101 1995/02/02 08:03:24 ache Exp $
+#	$Id: Makefile,v 1.102 1995/02/02 12:29:03 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -28,8 +28,6 @@ CPIO1+= ftp rsh sed telnet rlogin grep
 
 CPIO2=  etc/services etc/protocols
 
-# bininst MUST be the last file on the cpio floppy.  It's used to detect
-# a successful extraction.
 CPIO3=	scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
@@ -37,7 +35,7 @@ CPIO4=	/usr/sbin/tzsetup
 CPIO4B=	tzsetup
 
 # Somewhat on the rough side...
-CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} ${CPIO2} ${CPIO3} ${CPIO4B}
+CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} ${CPIO2} ${CPIO4B}
 CLEANFILES+=	*.flp *.gz 
 CLEANFILES+=	boot_flp cpio_flp_1 kernel.* kernel *.core
 
