@@ -61,6 +61,10 @@
 #define ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
 #define ACPI_BUS_HANDLE		0
 #endif
+#ifdef __amd64__
+#define ACPI_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define ACPI_BUS_HANDLE		0
+#endif
 
 ACPI_STATUS
 AcpiOsReadPort (
