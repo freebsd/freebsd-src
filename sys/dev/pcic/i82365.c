@@ -62,6 +62,8 @@ int	pcic_debug = 0;
 #else
 #define	DPRINTF(arg)
 #endif
+/* To later turn into debug */
+#define DEVPRINTF(arg) device_printf arg;
 
 #define DETACH_FORCE	0x1
 
@@ -80,11 +82,15 @@ int	pcic_debug = 0;
 
 static void	pcic_init_socket(struct pcic_handle *);
 
-int	pcic_intr_socket(struct pcic_handle *);
+static void	pcic_intr_socket(struct pcic_handle *);
 
-void	pcic_attach_card(struct pcic_handle *);
-void	pcic_detach_card(struct pcic_handle *, int);
-void	pcic_deactivate_card(struct pcic_handle *);
+static void	pcic_deactivate(device_t dev);
+static int	pcic_activate(device_t dev);
+static void	pcic_intr(void *arg);
+
+void		pcic_attach_card(struct pcic_handle *);
+void		pcic_detach_card(struct pcic_handle *, int);
+void		pcic_deactivate_card(struct pcic_handle *);
 
 static void	pcic_chip_do_mem_map(struct pcic_handle *, int);
 static void	pcic_chip_do_io_map(struct pcic_handle *, int);
@@ -172,21 +178,104 @@ pcic_vendor_to_string(int vendor)
 	return ("Unknown controller");
 }
 
-void
+static int
+pcic_activate(device_t dev)
+{
+	struct pcic_softc *sc = (struct pcic_softc *)
+	    device_get_softc(dev);
+	int err;
+
+	sc->port_rid = 0;
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    0, ~0, PCIC_IOSIZE, RF_ACTIVE);
+	if (!sc->port_res) {
+#ifdef PCIC_DEBUG
+		device_printf(dev, "Cannot allocate ioport\n");
+#endif		
+		return ENOMEM;
+	}
+
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+#ifdef PCIC_DEBUG
+		device_printf(dev, "Cannot allocate irq\n");
+#endif
+		pcic_deactivate(dev);
+		return ENOMEM;
+	}
+	sc->irq = rman_get_start(sc->irq_res);
+	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, pcic_intr,
+	    sc, &sc->intrhand)) != 0) {
+		pcic_deactivate(dev);
+		return err;
+	}
+
+	sc->mem_rid = 0;
+	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid, 
+	    0, ~0, 1 << 13, RF_ACTIVE);
+	if (!sc->mem_res) {
+#ifdef PCIC_DEBUG
+		device_printf(dev, "Cannot allocate mem\n");
+#endif
+		pcic_deactivate(dev);
+		return ENOMEM;
+	}
+	sc->subregionmask = (1 << 
+	    ((rman_get_end(sc->mem_res) - rman_get_start(sc->mem_res) + 1) / 
+		PCIC_MEM_PAGESIZE)) - 1;
+
+	sc->iot = rman_get_bustag(sc->port_res);
+	sc->ioh = rman_get_bushandle(sc->port_res);;
+	sc->memt = rman_get_bustag(sc->mem_res);
+	sc->memh = rman_get_bushandle(sc->mem_res);;
+	
+	return (0);
+}
+
+static void
+pcic_deactivate(device_t dev)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+	
+	if (sc->intrhand)
+		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+	sc->intrhand = 0;
+	if (sc->port_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
+		    sc->port_res);
+	sc->port_res = 0;
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
+		    sc->irq_res);
+	sc->irq_res = 0;
+	if (sc->mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, 
+		    sc->mem_res);
+	sc->mem_res = 0;
+	return;
+}
+
+int
 pcic_attach(device_t dev)
 {
 	struct pcic_softc *sc = (struct pcic_softc *)
 	    device_get_softc(dev);
 	struct pcic_handle *h;
-	int vendor, count, i, reg;
+	int vendor, count, i, reg, error;
 
 	sc->dev = dev;
+
+	/* Activate our resources */
+	if ((error = pcic_activate(dev)) != 0)
+		return error;
 
 	/* now check for each controller/socket */
 
 	/*
 	 * this could be done with a loop, but it would violate the
-	 * abstraction
+	 * abstraction...  so? --imp
 	 */
 
 	count = 0;
@@ -349,6 +438,14 @@ pcic_attach(device_t dev)
 		device_set_ivars(h->dev, h);
 		pcic_init_socket(h);
 	}
+
+	/*
+	 * Probe and attach any children as were configured above.
+	 */
+	error = bus_generic_attach(dev);
+	if (error)
+		pcic_deactivate(dev);
+	return error;
 }
 
 void
@@ -512,22 +609,20 @@ pcic_init_socket(struct pcic_handle *h)
 	}
 }
 
-int
+static void
 pcic_intr(void *arg)
 {
 	struct pcic_softc *sc = arg;
-	int i, ret = 0;
+	int i;
 
-	DPRINTF(("%s: intr\n", sc->dev.dv_xname));
+	DEVPRINTF((sc->dev, "intr\n"));
 
 	for (i = 0; i < PCIC_NSLOTS; i++)
 		if (sc->handle[i].flags & PCIC_FLAG_SOCKETP)
-			ret += pcic_intr_socket(&sc->handle[i]);
-
-	return (ret ? 1 : 0);
+			pcic_intr_socket(&sc->handle[i]);
 }
 
-int
+static void
 pcic_intr_socket(struct pcic_handle *h)
 {
 	int cscreg;
@@ -581,7 +676,6 @@ pcic_intr_socket(struct pcic_handle *h)
 	if (cscreg & PCIC_CSC_BATTDEAD) {
 		DPRINTF(("%s: %02x BATTDEAD\n", h->ph_parent->dv_xname, h->sock));
 	}
-	return (cscreg ? 1 : 0);
 }
 
 void
@@ -1375,6 +1469,27 @@ pcic_release_resource(device_t dev, device_t child, int type, int rid,
 		break;
 	}
 	return bus_generic_release_resource(dev, child, type, rid, r);
+}
+
+int
+pcic_suspend(device_t dev)
+{
+	/*
+	 * Do nothing for now, maybe in time do what FreeBSD's current 
+	 * pccard code does and detach my children.  That's the safest thing
+	 * to do since we don't want to wake up and have different hardware
+	 * in the slots.
+	 */
+
+	return 0;
+}
+
+int
+pcic_resume(device_t dev)
+{
+	/* Need to port pcic_power from newer netbsd versions of this file */
+
+	return 0;
 }
 
 static void
