@@ -545,6 +545,32 @@ only effects data transmission (uploading / server-side).  It does not
 effect data reception (downloading).
 .Pp
 The
+.Va net.inet.ip.portrange.*
+sysctls control the port number ranges automatically bound to TCP and UDP
+sockets.  There are three ranges:  A low range, a default range, and a
+high range, selectable via an IP_PORTRANGE setsockopt() call.  Most 
+network programs use the default range which is controlled by
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last ,
+which defaults to 1024 and 5000 respectively.  Bound port ranges are
+used for outgoing connections and it is possible to run the system out
+of ports under certain circumstances.  This most commonly occurs when you are
+running a heavily loaded web proxy.  The port range is not an issue
+when running serves which handle mainly incoming connections such as a
+normal web server, or has a limited number of outgoing connections such
+as a mail relay.  For situations where you may run yourself out of
+ports we recommend increasing
+.Va net.inet.ip.portrange.last
+modestly.  A value of 10000 or 20000 or 30000 may be reasonable.  You should
+also consider firewall effects when changing the port range.  Some firewalls
+may block large ranges of ports (usually low-numbered ports) and expect systems
+to use higher ranges of ports for outgoing connections.  For this reason
+we do not recommend that
+.Va net.inet.ip.portrange.first
+be lowered.
+.Pp
+The
 .Va kern.ipc.somaxconn
 sysctl limits the size of the listen queue for accepting new TCP connections.
 The default value of 128 is typically too low for robust handling of new
