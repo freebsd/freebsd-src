@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.16 1995/05/24 20:33:42 davidg Exp $
+ * $Id: if_ze.c,v 1.17 1995/05/30 08:02:27 rgrimes Exp $
  */
 
 #include "ze.h"
@@ -209,11 +209,11 @@ ze_check_cis (unsigned char *scratch)
 		card_info[k++] = scratch[j] == '\0' ? '~' : scratch[j];
 	    card_info[k++] = '\0';
 #if 0
-	    return (memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0);
+	    return (bcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0);
 #else
-	    if ((memcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0) ||
-		(memcmp (card_info, CARD2_INFO, sizeof(CARD2_INFO)-1) == 0) ||
-		(memcmp (card_info, CARD3_INFO, sizeof(CARD3_INFO)-1) == 0)) {
+	    if ((bcmp (card_info, CARD_INFO, sizeof(CARD_INFO)-1) == 0) ||
+		(bcmp (card_info, CARD2_INFO, sizeof(CARD2_INFO)-1) == 0) ||
+		(bcmp (card_info, CARD3_INFO, sizeof(CARD3_INFO)-1) == 0)) {
 		return 1;
 	    }
 	    return 0;
