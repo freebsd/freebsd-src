@@ -942,6 +942,13 @@ main(int argc, char **argv)
 				if (fds[ndevs] > maxfd)
 					maxfd = fds[ndevs];
 				ndevs++;
+			} else if (errno != ENXIO) {
+				/* there was an error, on a device that does
+				 * exist (device is configured)
+				 */
+				fprintf(stderr, "%s: Could not open %s, %s\n",
+					__progname, buf, strerror(errno));
+				exit(1);
 			}
 		}
 	} else {
