@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.45 1996/09/29 15:00:19 bde Exp $
+ * $Id: systm.h,v 1.46 1996/10/12 15:54:04 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -179,5 +179,12 @@ int rm_at_fork(forklist_fn function);
 typedef void (*exitlist_fn)(struct proc *procp);
 int at_exit(exitlist_fn function);
 int rm_at_exit(exitlist_fn function);
+
+/* 
+ * Common `proc' functions are declared here so that proc.h can be included
+ * less often.
+ */
+int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
+void	wakeup __P((void *chan));
 
 #endif /* !_SYS_SYSTM_H_ */
