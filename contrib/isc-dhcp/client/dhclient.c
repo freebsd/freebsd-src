@@ -56,7 +56,7 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.44.2.44 2000/01/26 12:51:11 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n"
+"$Id: dhclient.c,v 1.44.2.45 2000/07/20 05:06:41 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n"
 "$FreeBSD$\n";
 #endif /* not lint */
 
@@ -141,6 +141,10 @@ int main (argc, argv, envp)
 			no_daemon = 1;
 		} else if (!strcmp (argv [i], "-D")) {
 			save_scripts = 1;
+		} else if (!strcmp (argv [i], "-cf")) {
+			if (++i == argc)
+				usage (s);
+			path_dhclient_conf = argv [i];
 		} else if (!strcmp (argv [i], "-pf")) {
 			if (++i == argc)
 				usage (s);
@@ -164,7 +168,7 @@ int main (argc, argv, envp)
  			error ("Insufficient memory to %s %s",
  			       "record interface", argv [i]);
  		    memset (tmp, 0, sizeof *tmp);
- 		    strcpy (tmp -> name, argv [i]);
+ 		    strlcpy (tmp -> name, argv [i], IFNAMSIZ);
  		    tmp -> next = interfaces;
  		    tmp -> flags = INTERFACE_REQUESTED;
 		    interfaces_requested = 1;
@@ -297,12 +301,14 @@ static void usage (appname)
 	note (url);
 	note ("");
 
-	warn ("Usage: %s [-D] [-d] [-p <port>] [-lf lease-file]", appname);
-	error ("       [-pf pidfile] [-q] [-1] [interface]");
+	warn ("Usage: %s [-D] [-d] [-p <port>] [-cf conf-file]", appname);
+	error ("       [-lf lease-file] [-pf pidfile] [-q] [-1] [interface]");
 }
 
 void cleanup ()
 {
+	/* Make sure the pidfile is gone. */
+	unlink (path_dhclient_pid);
 }
 
 /* Individual States:
@@ -1907,38 +1913,24 @@ void script_init (ip, reason, medium)
 	char *reason;
 	struct string_list *medium;
 {
-	int fd;
-#ifndef HAVE_MKSTEMP
+	struct string_list *sl, *next;
 
-	do {
-#endif
-		strcpy (scriptName, "/tmp/dcsXXXXXX");
-#ifdef HAVE_MKSTEMP
-		fd = mkstemp (scriptName);
-#else
-		if (!mktemp (scriptName))
-			error ("can't create temporary client script %s: %m",
-			       scriptName);
-		fd = open (scriptName, O_EXCL | O_CREAT | O_WRONLY, 0600);
-	} while (fd < 0 && errno == EEXIST);
-#endif
-	if (fd < 0)
-		error ("can't create temporary script %s: %m", scriptName);
-
-	scriptFile = fdopen (fd, "w");
-	if (!scriptFile)
-		error ("can't write script file: %m");
-	fprintf (scriptFile, "#!/bin/sh\n\n");
 	if (ip) {
-		fprintf (scriptFile, "interface=\"%s\"\n", ip -> name);
-		fprintf (scriptFile, "export interface\n");
+		for (sl = ip -> client -> env; sl; sl = next) {
+			next = sl -> next;
+			dfree (sl, "script_init");
+		}
+		ip -> client -> env = (struct string_list *)0;
+		ip -> client -> envc = 0;
+		
+		client_envadd (ip -> client, "", "interface", "%s",
+			       ip -> name);
+		if (medium)
+			client_envadd (ip -> client,
+				       "", "medium", "%s", medium -> string);
+
+		client_envadd (ip -> client, "", "reason", "%s", reason);
 	}
-	if (medium) {
-		fprintf (scriptFile, "medium=\"%s\"\n", medium -> string);
-		fprintf (scriptFile, "export medium\n");
-	}
-	fprintf (scriptFile, "reason=\"%s\"\n", reason);
-	fprintf (scriptFile, "export reason\n");
 }
 
 void script_write_params (ip, prefix, lease)
@@ -1950,9 +1942,8 @@ void script_write_params (ip, prefix, lease)
 	u_int8_t dbuf [1500];
 	int len;
 
-	fprintf (scriptFile, "%sip_address=\"%s\"\n",
-		 prefix, piaddr (lease -> address));
-	fprintf (scriptFile, "export %sip_address\n", prefix);
+	client_envadd (ip -> client,
+		       prefix, "ip_address", "%s", piaddr (lease -> address));
 
 	/* For the benefit of Linux (and operating systems which may
 	   have similar needs), compute the network address based on
@@ -1973,36 +1964,26 @@ void script_write_params (ip, prefix, lease)
 
 		subnet = subnet_number (lease -> address, netmask);
 		if (subnet.len) {
-			fprintf (scriptFile, "%snetwork_number=\"%s\";\n",
-				 prefix, piaddr (subnet));
-			fprintf (scriptFile, "export %snetwork_number\n",
-				 prefix);
+			client_envadd (ip -> client, prefix, "network_number",
+				       "%s", piaddr (subnet));
 
 			if (!lease -> options [DHO_BROADCAST_ADDRESS].len) {
 				broadcast = broadcast_addr (subnet, netmask);
 				if (broadcast.len) {
-					fprintf (scriptFile,
-						 "%s%s=\"%s\";\n", prefix,
-						 "broadcast_address",
-						 piaddr (broadcast));
-					fprintf (scriptFile,
-						 "export %s%s\n", prefix,
-						 "broadcast_address");
+				    client_envadd (ip -> client,
+						   prefix, "broadcast_address",
+						   "%s", piaddr (subnet));
 				}
 			}
 		}
 	}
 
-	if (lease -> filename) {
-		fprintf (scriptFile, "%sfilename=\"%s\";\n",
-			 prefix, lease -> filename);
-		fprintf (scriptFile, "export %sfilename\n", prefix);
-	}
-	if (lease -> server_name) {
-		fprintf (scriptFile, "%sserver_name=\"%s\";\n",
-			 prefix, lease -> server_name);
-		fprintf (scriptFile, "export %sserver_name\n", prefix);
-	}
+	if (lease -> filename)
+		client_envadd (ip -> client,
+			       prefix, "filename", "%s", lease -> filename);
+	if (lease -> server_name)
+		client_envadd (ip -> client, prefix, "server_name",
+			       "%s", lease -> server_name);
 	for (i = 0; i < 256; i++) {
 		u_int8_t *dp;
 
@@ -2075,57 +2056,141 @@ void script_write_params (ip, prefix, lease)
 			len = 0;
 		}
 		if (len) {
-			char *s = dhcp_option_ev_name (&dhcp_options [i]);
-				
-			fprintf (scriptFile, "%s%s=\"%s\"\n", prefix, s,
-				 pretty_print_option (i, dp, len, 0, 0));
-			fprintf (scriptFile, "export %s%s\n", prefix, s);
+			char name [256];
+			if (dhcp_option_ev_name (name, sizeof name,
+						 &dhcp_options [i])) {
+			    client_envadd (ip -> client, prefix, name, "%s",
+					   (pretty_print_option (i, dp,
+								 len, 0, 0)));
+			}
 		}
 	}
-	fprintf (scriptFile, "%sexpiry=\"%d\"\n",
-		 prefix, (int)lease -> expiry); /* XXX */
-	fprintf (scriptFile, "export %sexpiry\n", prefix);
+	client_envadd (ip -> client,
+		       prefix, "expiry", "%d", (int)(lease -> expiry));
 }
 
 int script_go (ip)
 	struct interface_info *ip;
 {
 	int rval;
-
-	if (ip)
-		fprintf (scriptFile, "%s\n",
-			 ip -> client -> config -> script_name);
-	else
-		fprintf (scriptFile, "%s\n",
-			 top_level_config.script_name);
-	fprintf (scriptFile, "exit $?\n");
-	fclose (scriptFile);
-	chmod (scriptName, 0700);
-	rval = system (scriptName);	
-	if (!save_scripts)
-		unlink (scriptName);
-	return rval;
-}
-
-char *dhcp_option_ev_name (option)
-	struct option *option;
-{
-	static char evbuf [256];
+	char *scriptName;
+	char *argv [2];
+	char **envp;
+	char *epp [3];
+	char reason [] = "REASON=NBI";
+	static char client_path [] = CLIENT_PATH;
 	int i;
+	struct string_list *sp, *next;
+	int pid, wpid, wstatus;
 
-	if (strlen (option -> name) + 1 > sizeof evbuf)
-		error ("option %s name is larger than static buffer.");
-	for (i = 0; option -> name [i]; i++) {
-		if (option -> name [i] == '-')
-			evbuf [i] = '_';
-		else
-			evbuf [i] = option -> name [i];
+	if (ip) {
+		scriptName = ip -> client -> config -> script_name;
+		envp = dmalloc ((ip -> client -> envc + 2) * sizeof (char *),
+				"script_go");
+		if (!envp) {
+			error ("No memory for client script environment.");
+			return 0;
+		}
+		i = 0;
+		for (sp = ip -> client -> env; sp; sp = sp -> next) {
+			envp [i++] = sp -> string;
+		}
+		envp [i++] = client_path;
+		envp [i] = (char *)0;
+	} else {
+		scriptName = top_level_config.script_name;
+		epp [0] = reason;
+		epp [1] = client_path;
+		epp [2] = (char *)0;
+		envp = epp;
 	}
 
-	evbuf [i] = 0;
-	return evbuf;
+	argv [0] = scriptName;
+	argv [1] = (char *)0;
+
+	pid = fork ();
+	if (pid < 0) {
+		error ("fork: %m");
+		wstatus = 0;
+	} else if (pid) {
+		do {
+			wpid = wait (&wstatus);
+		} while (wpid != pid && wpid > 0);
+		if (wpid < 0) {
+			error ("wait: %m");
+			wstatus = 0;
+		}
+	} else {
+		execve (scriptName, argv, envp);
+		error ("execve (%s, ...): %m", scriptName);
+		exit (0);
+	}
+
+	if (ip) {
+		for (sp = ip -> client -> env; sp; sp = next) {
+			next = sp -> next;
+			dfree (sp, "script_go");
+		}
+		ip -> client -> env = (struct string_list *)0;
+		ip -> client -> envc = 0;
+		dfree (envp, "script_go");
+	}
+	return wstatus & 0xff;
 }
 
+void client_envadd (struct client_state *client,
+		    const char *prefix, const char *name, const char *fmt, ...)
+{
+	char spbuf [1024];
+	char *s;
+	unsigned len, i;
+	struct string_list *val;
+	va_list list;
+
+	va_start (list, fmt);
+	len = vsnprintf (spbuf, sizeof spbuf, fmt, list);
+	va_end (list);
+
+	val = dmalloc (strlen (prefix) + strlen (name) + 1 /* = */ +
+		       len + sizeof *val, "client_envadd");
+	if (!val)
+		return;
+	s = val -> string;
+	strcpy (s, prefix);
+	strcat (s, name);
+	s += strlen (s);
+	*s++ = '=';
+	if (len >= sizeof spbuf) {
+		va_start (list, fmt);
+		vsnprintf (s, len + 1, fmt, list);
+		va_end (list);
+	} else
+		strcpy (s, spbuf);
+	val -> next = client -> env;
+	client -> env = val;
+	client -> envc++;
+}
+
+int dhcp_option_ev_name (buf, buflen, option)
+	char *buf;
+	unsigned buflen;
+	struct option *option;
+{
+	int i;
+
+	for (i = 0; option -> name [i]; i++) {
+		if (i + 1 == buflen)
+			return 0;
+		if (option -> name [i] == '-')
+			buf [i] = '_';
+		else
+			buf [i] = option -> name [i];
+	}
+
+	buf [i] = 0;
+	return 1;
+}
+  
 void go_daemon ()
 {
 	static int state = 0;
