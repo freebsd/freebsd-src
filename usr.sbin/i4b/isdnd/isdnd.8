@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.8,v 1.25 1999/05/20 13:30:36 hm Exp $ 
+.\"	$Id: isdnd.8,v 1.4 1999/08/06 14:04:35 hm Exp $ 
 .\"
 .\"	last edit-date: [Thu May 20 14:37:42 1999]
 .\"
 .Dd February 23, 1999
-.Dt isdnd 8
+.Dt ISDND 8
+.Os
 .Sh NAME
 .Nm isdnd
 .Nd isdn4bsd ISDN connection management daemon
@@ -396,25 +397,26 @@ will start
 with reasonable debugging messages enabled, full-screen mode of operation, 
 full-screen display redirected to /dev/ttyv03 and using a termcap entry
 for vt100 on this display.
-
 .Sh DIAGNOSTICS
 Exit status is 0 on success, 1 on error.
 .Pp
 
 .Sh SEE ALSO
-.Xr syslogd 8 ,
-.Xr isdntrace 8 ,
-.Xr isdntel 8 ,
-.Xr isdnd.rc 5 ,
-.Xr isdnd.rates 5 ,
+.Xr i4bipr 4 ,
 .Xr i4bisppp 4 ,
-.Xr i4bipr 4
-
+.Xr isdnd.rates 5 ,
+.Xr isdnd.rc 5 ,
+.Xr isdntel 8 ,
+.Xr isdntrace 8 ,
+.Xr syslogd 8
 .Sh BUGS
 Still one or more left.
-
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-daemon and this manual page were written by Hellmuth Michaelis. He can
-be contacted at hm@kts.org or hm@hcs.de.
+daemon and this manual page were written by
+.An Hellmuth Michaelis .
+He can be contacted at
+.Aq hm@kts.org
+or
+.Aq hm@hcs.de .
