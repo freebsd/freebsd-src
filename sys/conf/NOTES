@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.314 1997/02/22 09:31:37 peter Exp $
+#	$Id: LINT,v 1.315 1997/03/12 17:41:33 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -613,6 +613,12 @@ disk		wd3	at wdc1 drive 1
 
 #
 # Options for `wdc':
+#
+# CMD640 enables serializing access to primary and secondary channel
+# of the CMD640B IDE Chip. The serializing will only take place
+# if this option is set *and* the chip is probed by the pci-system.
+#
+options         "CMD640"	#Enable work around for CMD640 h/w bug
 #
 # ATAPI enables the support for ATAPI-compatible IDE devices
 #
