@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.31 1997/08/30 09:26:53 phk Exp $
+#     $Id: BSD.local.dist,v 1.32 1997/09/12 05:44:11 asami Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -161,6 +161,8 @@
             ..
             ja_JP.EUC
             ..
+            ja_JP.SJIS
+            ..
 	    ko_KR.EUC
             ..
 	    lt_LN.ASCII
@@ -174,6 +176,8 @@
 	    nl_NL.ISO_8859-1
             ..
 	    no_NO.ISO_8859-1
+            ..
+	    pl_PL.ISO_8859-2
             ..
 	    pt_PT.ISO_8859-1
             ..
