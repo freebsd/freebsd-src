@@ -94,18 +94,13 @@
 /*
  * interfaces to the outside world
  */
-static int pipe_read(struct file *fp, struct uio *uio, 
-		struct ucred *active_cred, int flags, struct thread *td);
-static int pipe_write(struct file *fp, struct uio *uio, 
-		struct ucred *active_cred, int flags, struct thread *td);
-static int pipe_close(struct file *fp, struct thread *td);
-static int pipe_poll(struct file *fp, int events, struct ucred *active_cred,
-		struct thread *td);
-static int pipe_kqfilter(struct file *fp, struct knote *kn);
-static int pipe_stat(struct file *fp, struct stat *sb,
-		struct ucred *active_cred, struct thread *td);
-static int pipe_ioctl(struct file *fp, u_long cmd, void *data,
-		struct ucred *active_cred, struct thread *td);
+static fo_rdwr_t pipe_read;
+static fo_rdwr_t pipe_write;
+static fo_ioctl_t pipe_ioctl;
+static fo_poll_t pipe_poll;
+static fo_kqfilter_t pipe_kqfilter;
+static fo_stat_t pipe_stat;
+static fo_close_t pipe_close;
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
