@@ -26,5 +26,6 @@
 #
 # In case you want to be able to connect to the Internet, you need
 # real official assigned numbers.  Do not try to invent your own network
-# numbers but instead get one from your network provider (if any).
+# numbers but instead get one from your network provider (if any) or
+# from your regional registry (ARIN, APNIC, LACNIC, RIPE NCC, or AfriNIC.)
 #
