@@ -1,11 +1,15 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/4/93
+# From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
+# $Id$
 
 PROG=	rshd
-#CFLAGS+=-DKERBEROS -DCRYPT
-SRCS=	rshd.c #des_rw.c
+SRCS=	rshd.c
 MAN8=	rshd.8
-#DPADD=	${LIBKRB} ${LIBDES}
-#LDADD=	-lkrb -ldes
-.PATH: ${.CURDIR}/../../usr.bin/rlogin
+
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
+	|| defined(MAKE_EBONES))
+CFLAGS+=-DKERBEROS -DCRYPT
+DPADD=	${LIBKRB} ${LIBDES}
+LDADD=	-lkrb -ldes
+.endif
 
 .include <bsd.prog.mk>

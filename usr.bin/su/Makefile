@@ -2,9 +2,15 @@
 
 PROG=	su
 LDADD=	-lcrypt
-#CFLAGS+=-DKERBEROS
-#DPADD=	${LIBKRB} ${LIBDES}
-#LDADD+=-lkrb -ldes
+DPADD=	${LIBCRYPT}
+
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
+	|| defined(MAKE_EBONES))
+CFLAGS+=-DKERBEROS
+DPADD+=	${LIBKRB} ${LIBDES}
+LDADD+=	-lkrb -ldes
+.endif
+
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
