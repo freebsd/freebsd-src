@@ -33,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dkio.h	5.2 (Berkeley) 1/18/91
+ *	from: @(#)dkio.h	5.2 (Berkeley) 1/18/91
+ *	$Id$
  */
 
 /*

@@ -33,15 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)npx.h	5.3 (Berkeley) 1/18/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- *
+ *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
+ *	$Id$
  */
 
 /*

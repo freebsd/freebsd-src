@@ -22,21 +22,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log:	eflags.h,v $
- * Revision 2.4  91/05/14  16:06:35  mrt
- * 	Correcting copyright
- * 
- * Revision 2.3  91/02/05  17:11:26  mrt
- * 	Changed to new Mach copyright
- * 	[91/02/01  17:31:41  mrt]
- * 
- * Revision 2.2  90/05/03  15:25:03  dbg
- * 	Created.
- * 	[90/02/08            dbg]
- * 
+ *
+ *	$Id$
  */
 
 #ifndef	_I386_EFLAGS_H_

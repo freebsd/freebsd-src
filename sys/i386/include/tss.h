@@ -33,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tss.h	5.4 (Berkeley) 1/18/91
+ *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
+ *	$Id$
  */
 
 /*
