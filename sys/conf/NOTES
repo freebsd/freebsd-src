@@ -1891,7 +1891,6 @@ device		lge
 device		nge
 device		sk
 device		ti
-device		wx
 device		fpa	1
 
 #
