@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.5 1998/10/13 09:25:27 peter Exp $
+ *	$Id: load_elf.c,v 1.6 1998/10/14 00:41:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -373,13 +373,13 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	lastaddr += sizeof(long);
 
 #ifdef ELF_VERBOSE
-	printf("%s: 0x%x@0x%x -> 0x%x-0x%x\n", secname,
+	printf("%s: 0x%lx@0x%lx -> 0x%lx-0x%lx\n", secname,
 	    shdr[i].sh_size, shdr[i].sh_offset,
 	    lastaddr, lastaddr + shdr[i].sh_size);
 #else
 	if (i == symstrindex)
 	    printf("+");
-	printf("0x%x+0x%lx", sizeof(size), size);
+	printf("0x%lx+0x%lx", sizeof(size), size);
 #endif
 
 	if (lseek(fd, shdr[i].sh_offset, SEEK_SET) == -1) {
