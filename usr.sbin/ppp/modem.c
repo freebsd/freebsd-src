@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.13 1996/03/08 09:03:07 ache Exp $
+ * $Id: modem.c,v 1.14 1996/03/08 12:34:40 ache Exp $
  *
  *  TODO:
  */
@@ -457,6 +457,8 @@ int mode;
 #else
     rstio.c_cflag = (CS8 | CREAD | CLOCAL);
 #endif
+    if (!(mode & MODE_DEDICATED))
+      rstio.c_cflag |= HUPCL;
     if ((mode & MODE_DIRECT) == 0) {
       /*
        * If we are working as direct mode, don't change tty speed.
@@ -532,6 +534,8 @@ int modem;
   modemios = rstio;
   rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
   rstio.c_cflag |= CS8;
+  if (!(mode & MODE_DEDICATED))
+    rstio.c_cflag |= HUPCL;
   rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|BRKINT|ICRNL|INLCR);
   tcsetattr(modem, TCSADRAIN, &rstio);
   oldflag = fcntl(modem, F_GETFL, 0);
