@@ -1167,6 +1167,8 @@ vm_page_wire(vm_page_t m)
 	 */
 	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (m->flags & PG_FICTITIOUS)
+		return;
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
@@ -1212,6 +1214,8 @@ vm_page_unwire(vm_page_t m, int activate)
 
 	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (m->flags & PG_FICTITIOUS)
+		return;
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
