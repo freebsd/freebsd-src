@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.11 1998/06/02 13:11:04 thepish Exp $
+ *	$Id: var.c,v 1.12 1999/04/19 07:30:04 imp Exp $
  */
 
 #ifndef lint
@@ -218,6 +218,7 @@ VarFind (name, ctxt, flags)
 				 * FIND_ENV set means to look in the
 				 * environment */
 {
+    Boolean		localCheckEnvFirst;
     LstNode         	var;
     Var		  	*v;
 
@@ -256,6 +257,20 @@ VarFind (name, ctxt, flags)
 				name = TARGET;
 			break;
 		}
+
+    /*
+     * Note whether this is one of the specific variables we were told through
+     * the -E flag to use environment-variable-override for.
+     */
+    if (Lst_Find (envFirstVars, (ClientData)name,
+		  (int (*)(ClientData, ClientData)) strcmp) != NILLNODE)
+    {
+	localCheckEnvFirst = TRUE;
+    }
+    else {
+	localCheckEnvFirst = FALSE;
+    }
+
     /*
      * First look for the variable in the given context. If it's not there,
      * look for it in VAR_CMD, VAR_GLOBAL and the environment, in that order,
@@ -266,8 +281,8 @@ VarFind (name, ctxt, flags)
     if ((var == NILLNODE) && (flags & FIND_CMD) && (ctxt != VAR_CMD)) {
 	var = Lst_Find (VAR_CMD->context, (ClientData)name, VarCmp);
     }
-    if (!checkEnvFirst && (var == NILLNODE) && (flags & FIND_GLOBAL) &&
-	(ctxt != VAR_GLOBAL))
+    if ((var == NILLNODE) && (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
+	!checkEnvFirst && !localCheckEnvFirst)
     {
 	var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
     }
@@ -287,8 +302,8 @@ VarFind (name, ctxt, flags)
 
 	    v->flags = VAR_FROM_ENV;
 	    return (v);
-	} else if (checkEnvFirst && (flags & FIND_GLOBAL) &&
-		   (ctxt != VAR_GLOBAL))
+	} else if ((checkEnvFirst || localCheckEnvFirst) &&
+		   (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL))
 	{
 	    var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
 	    if (var == NILLNODE) {
