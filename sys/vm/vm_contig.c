@@ -315,6 +315,6 @@ contigmalloc(
 void
 contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
-	GIANT_REQUIRED;
+
 	kmem_free(kernel_map, (vm_offset_t)addr, size);
 }
