@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.83 1995/02/17 02:22:37 phk Exp $
+#	$Id: files.i386,v 1.84 1995/02/17 08:45:59 bde Exp $
 #
 aic7xxx				optional	ahc	device-driver	   \
 	dependancy 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
@@ -63,7 +63,7 @@ i386/isa/cronyx.c		optional	cx	device-driver
 i386/isa/ctx.c			optional	ctx	device-driver
 i386/isa/cx.c			optional	cx	device-driver
 i386/isa/cy.c			optional	cy	device-driver
-i386/isa/diskslice_machdep.c	optional	diskslice
+i386/isa/diskslice_machdep.c	standard
 i386/isa/elink.c		optional	ep	device-driver
 i386/isa/elink.c		optional	ie	device-driver
 i386/isa/fd.c			optional	fd	device-driver
