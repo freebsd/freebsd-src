@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.10 1995/11/03 12:02:22 jkh Exp $
+ * $Id: apache.c,v 1.11 1995/11/05 01:00:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -60,7 +60,7 @@
 /* These change if the package uses different defaults */
 
 #define APACHE_BASE	"/usr/local/www"
-#define DATA_SUBDIR	"htdocs"
+#define DATA_SUBDIR	"data"
 #define CONFIG_SUBDIR	"config"
 
 /* Set up the structure to hold configuration information */
@@ -241,7 +241,7 @@ apacheOpenDialog()
     strcpy(tconf.userdir, "public_html");
     strcpy(tconf.welcome, "index.html");
     strcpy(tconf.maxcon, "150");
-    sprintf(tconf.docroot, "%s/%s", APACHE_BASE,DATA_SUBDIR);
+    sprintf(tconf.docroot, "%s/%s", APACHE_BASE, DATA_SUBDIR);
     
     /* Loop over the layout list, create the objects, and add them
        onto the chain of objects that dialog uses for traversal*/
@@ -445,7 +445,7 @@ configApache(char *unused)
 	tconf.docroot[strlen(tconf.docroot)-1] = '\0';
     
     if (!tconf.docroot[0])
-	sprintf(tconf.docroot,"%s/%s",APACHE_BASE,DATA_SUBDIR);
+	sprintf(tconf.docroot,"%s/%s",APACHE_BASE, DATA_SUBDIR);
     
     /*** If DocRoot does not exist, create it ***/
     
