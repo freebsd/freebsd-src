@@ -44,6 +44,7 @@
 #include <isa/isavar.h>
 
 #include <dev/cs/if_csvar.h>
+#include <dev/cs/if_csreg.h>
 
 static int		cs_isa_probe	(device_t);
 static int		cs_isa_attach	(device_t);
@@ -75,6 +76,7 @@ cs_isa_probe(device_t dev)
 
 	error = cs_cs89x0_probe(dev);
 end:
+	/* Make sure IRQ is assigned for probe message and available */
 	if (error == 0)
                 error = cs_alloc_irq(dev, 0, 0);
 
@@ -89,8 +91,8 @@ cs_isa_attach(device_t dev)
         int flags = device_get_flags(dev);
         int error;
         
-        if (sc->port_used > 0)
-                cs_alloc_port(dev, sc->port_rid, sc->port_used);
+	cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
+	/* XXX mem appears to not be used at all */
         if (sc->mem_used)
                 cs_alloc_memory(dev, sc->mem_rid, sc->mem_used);
         cs_alloc_irq(dev, sc->irq_rid, 0);
