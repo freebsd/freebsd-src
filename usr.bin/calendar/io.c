@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 
 const char *calendarFile = "calendar";  /* default calendar file */
-const char *calendarHome = ".calendar"; /* HOME */
+const char *calendarHomes[] = { ".calendar", _PATH_INCLUDE }; /* HOME */
 const char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
 
 struct fixs neaster, npaskha;
@@ -236,13 +236,14 @@ FILE *
 opencal()
 {
 	uid_t uid;
-	int fd, pdes[2];
+	size_t i;
+	int fd, found, pdes[2];
 	struct stat sbuf;
 
 	/* open up calendar file as stdin */
 	if (!freopen(calendarFile, "r", stdin)) {
 		if (doall) {
-		    if (chdir(calendarHome) != 0)
+		    if (chdir(calendarHomes[0]) != 0)
 			return (NULL);
 		    if (stat(calendarNoMail, &sbuf) == 0)
 		        return (NULL);
@@ -250,9 +251,15 @@ opencal()
 		        return (NULL);
 		} else {
 		        chdir(getenv("HOME"));
-			if (!(chdir(calendarHome) == 0 &&
-			      freopen(calendarFile, "r", stdin))) 
-				errx(1, "no calendar file: ``%s'' or ``~/%s/%s\n", calendarFile, calendarHome, calendarFile);
+			for (found = i = 0; i < sizeof(calendarHomes) /
+			    sizeof(calendarHomes[0]); i++)
+			    if (chdir(calendarHomes[i]) == 0 &&
+			          freopen(calendarFile, "r", stdin)) {
+				    found = 1;
+				    break;
+			    }
+			if (!found)
+			    errx(1, "no calendar file: ``%s''", calendarFile);
 		}
 	}
 	if (pipe(pdes) < 0)
