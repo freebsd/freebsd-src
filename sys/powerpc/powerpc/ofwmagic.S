@@ -43,33 +43,33 @@
 
 	.section ".note"
 
-	# note header
+	/*# note header */
 
-	# length of name
+	/*# length of name */
 	.long	8
 
-	# note descriptor size
+	/*# note descriptor size */
 	.long	20
 
-	# note type (IEEE 1275)
+	/*# note type (IEEE 1275) */
 	.long	0x1275
 
-	# name of owner
+	/*# name of owner */
 	.asciz	"PowerPC"
 	.balign	4
 
 
-	# note descriptor
+	/*# note descriptor */
 
-	# real mode (-1) or virtual mode (0)
+	/*# real mode (-1) or virtual mode (0) */
 	.long	0
 
-	# real-base
+	/*# real-base */
 	.long	-1
-	# real-size
+	/*# real-size */
 	.long	-1
 
-	# virt-base
+	/*# virt-base */
 	.long	-1
-	# virt-size
+	/*# virt-size */
 	.long	-1
