@@ -31,7 +31,6 @@
 
 #include "opt_devfs.h"
 #include "opt_mac.h"
-#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -455,4 +454,3 @@ devfs_init(void *junk)
 
 SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_init, NULL);
 
-#endif
