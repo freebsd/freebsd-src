@@ -3,7 +3,7 @@
 PROG=	ftpd
 CFLAGS+=-DSETPROCTITLE
 SRCS=	ftpd.c ftpcmd.c logwtmp.c popen.c
-MAN8=	ftpd.0
+MAN8=	ftpd.8
 CLEANFILES+=ftpcmd.c y.tab.h
 
 .include <bsd.prog.mk>
