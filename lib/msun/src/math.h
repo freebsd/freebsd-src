@@ -95,12 +95,12 @@ struct exception {
 #endif /* !_XOPEN_SOURCE */
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 
-
 #include <sys/cdefs.h>
+
+__BEGIN_DECLS
 /*
  * ANSI/POSIX
  */
-__BEGIN_DECLS
 double	acos(double);
 double	asin(double);
 double	atan(double);
