@@ -34,15 +34,17 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1992, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
+__COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
+__RCSID("$NetBSD: test.c,v 1.8 1999/09/21 00:07:03 lukem Exp $");
+__FBSDID("$FreeBSD$");
 
 /*
  * test.c: A little test program
@@ -63,179 +65,200 @@ static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 static int continuation = 0;
 static EditLine *el = NULL;
 
+static	u_char	complete(EditLine *, int);
+	int	main(int, char **);
+static	char   *prompt(EditLine *);
+static	void	sig(int);
+
 static char *
-/*ARGSUSED*/
-prompt(el)
-    EditLine *el;
+prompt(EditLine *el)
 {
-    static char a[] = "Edit$";
-    static char b[] = "Edit>";
-    return continuation ? b : a;
+	static char a[] = "Edit$";
+	static char b[] = "Edit>";
+
+	return (continuation ? b : a);
 }
 
 static void
-sig(i)
-    int i;
+sig(int i)
 {
-    (void) fprintf(stderr, "Got signal %d.\n", i);
-    el_reset(el);
+
+	(void) fprintf(stderr, "Got signal %d.\n", i);
+	el_reset(el);
 }
 
 static unsigned char
-/*ARGSUSED*/
-complete(el, ch)
-    EditLine *el;
-    int ch;
+complete(EditLine *el, int ch)
 {
-    DIR *dd = opendir(".");
-    struct dirent *dp;
-    const char* ptr;
-    const LineInfo *lf = el_line(el);
-    int len;
+	DIR *dd = opendir(".");
+	struct dirent *dp;
+	const char* ptr;
+	const LineInfo *lf = el_line(el);
+	int len;
 
-    /*
-     * Find the last word
-     */
-    for (ptr = lf->cursor - 1; !isspace(*ptr) && ptr > lf->buffer; ptr--)
-	continue;
-    len = lf->cursor - ++ptr;
+	/*
+	 * Find the last word
+	 */
+	for (ptr = lf->cursor - 1; !isspace(*ptr) && ptr > lf->buffer; ptr--)
+		continue;
+	len = lf->cursor - ++ptr;
 
-    for (dp = readdir(dd); dp != NULL; dp = readdir(dd)) {
-	if (len > strlen(dp->d_name))
-	    continue;
-	if (strncmp(dp->d_name, ptr, len) == 0) {
-	    closedir(dd);
-	    if (el_insertstr(el, &dp->d_name[len]) == -1)
-		return CC_ERROR;
-	    else
-		return CC_REFRESH;
+	for (dp = readdir(dd); dp != NULL; dp = readdir(dd)) {
+		if (len > strlen(dp->d_name))
+			continue;
+		if (strncmp(dp->d_name, ptr, len) == 0) {
+			closedir(dd);
+			if (el_insertstr(el, &dp->d_name[len]) == -1)
+				return (CC_ERROR);
+			else
+				return (CC_REFRESH);
+		}
 	}
-    }
 
-    closedir(dd);
-    return CC_ERROR;
+	closedir(dd);
+	return (CC_ERROR);
 }
 
 int
-/*ARGSUSED*/
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
-    int num;
-    const char *buf;
-    Tokenizer *tok;
-    History *hist;
+	int num;
+	const char *buf;
+	Tokenizer *tok;
+	int lastevent = 0, ncontinuation;
+	History *hist;
+	HistEvent ev;
 
-    (void) signal(SIGINT, sig);
-    (void) signal(SIGQUIT, sig);
-    (void) signal(SIGHUP, sig);
-    (void) signal(SIGTERM, sig);
+	(void) signal(SIGINT, sig);
+	(void) signal(SIGQUIT, sig);
+	(void) signal(SIGHUP, sig);
+	(void) signal(SIGTERM, sig);
 
-    hist = history_init();		/* Init the builtin history	*/
-    history(hist, H_EVENT, 100);	/* Remember 100 events		*/
+	hist = history_init();		/* Init the builtin history	*/
+					/* Remember 100 events		*/
+	history(hist, &ev, H_SETSIZE, 100);
 
-    tok  = tok_init(NULL);		/* Initialize the tokenizer	*/
+	tok  = tok_init(NULL);		/* Initialize the tokenizer	*/
 
-    el = el_init(*argv, stdin, stdout);	/* Initialize editline		*/
+					/* Initialize editline		*/
+	el = el_init(*argv, stdin, stdout, stderr);
 
-    el_set(el, EL_EDITOR, "vi");	/* Default editor is vi 	*/
-    el_set(el, EL_SIGNAL, 1);		/* Handle signals gracefully	*/
-    el_set(el, EL_PROMPT, prompt);	/* Set the prompt function	*/
+	el_set(el, EL_EDITOR, "vi");	/* Default editor is vi		*/
+	el_set(el, EL_SIGNAL, 1);	/* Handle signals gracefully	*/
+	el_set(el, EL_PROMPT, prompt);	/* Set the prompt function	*/
 
-    /* Tell editline to use this history interface			*/
-    el_set(el, EL_HIST, history, hist);
+			/* Tell editline to use this history interface	*/
+	el_set(el, EL_HIST, history, hist);
 
-    /* Add a user-defined function 					*/
-    el_set(el, EL_ADDFN, "ed-complete", "Complete argument", complete);
+					/* Add a user-defined function	*/
+	el_set(el, EL_ADDFN, "ed-complete", "Complete argument", complete);
 
-    el_set(el, EL_BIND, "^I", "ed-complete", NULL);/* Bind tab to it 	*/
+					/* Bind tab to it 		*/
+	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
 
-    /*
-     * Bind j, k in vi command mode to previous and next line, instead
-     * of previous and next history.
-     */
-    el_set(el, EL_BIND, "-a", "k", "ed-prev-line", NULL);
-    el_set(el, EL_BIND, "-a", "j", "ed-next-line", NULL);
+	/*
+	 * Bind j, k in vi command mode to previous and next line, instead
+	 * of previous and next history.
+	 */
+	el_set(el, EL_BIND, "-a", "k", "ed-prev-line", NULL);
+	el_set(el, EL_BIND, "-a", "j", "ed-next-line", NULL);
 
-    /*
-     * Source the user's defaults file.
-     */
-    el_source(el, NULL);
+	/*
+	 * Source the user's defaults file.
+	 */
+	el_source(el, NULL);
 
-    while ((buf = el_gets(el, &num)) != NULL && num != 0)  {
-	int ac;
-	char **av;
+	while ((buf = el_gets(el, &num)) != NULL && num != 0)  {
+		int ac;
+		char **av;
 #ifdef DEBUG
-	(void) fprintf(stderr, "got %d %s", num, buf);
+		(void) fprintf(stderr, "got %d %s", num, buf);
 #endif
-	if (!continuation && num == 1)
-	    continue;
-	if (tok_line(tok, buf, &ac, &av) > 0) {
-	    history(hist, continuation ? H_ADD : H_ENTER, buf);
-	    continuation = 1;
-	    continue;
+		if (!continuation && num == 1)
+			continue;
+
+		if (tok_line(tok, buf, &ac, &av) > 0)
+			ncontinuation = 1;
+
+#if 0
+		if (continuation) {
+			/*
+			 * Append to the right event in case the user
+			 * moved around in history.
+			 */
+			if (history(hist, &ev, H_SET, lastevent) == -1)
+				err(1, "%d: %s\n", lastevent, ev.str);
+			history(hist, &ev, H_ADD , buf);
+		} else {
+			history(hist, &ev, H_ENTER, buf);
+			lastevent = ev.num;
+		}
+#else
+				/* Simpler */
+		history(hist, &ev, continuation ? H_APPEND : H_ENTER, buf);
+#endif
+
+		continuation = ncontinuation;
+		ncontinuation = 0;
+
+		if (strcmp(av[0], "history") == 0) {
+			int rv;
+
+			switch (ac) {
+			case 1:
+				for (rv = history(hist, &ev, H_LAST); rv != -1;
+				    rv = history(hist, &ev, H_PREV))
+					(void) fprintf(stdout, "%4d %s",
+					    ev.num, ev.str);
+				break;
+
+			case 2:
+				if (strcmp(av[1], "clear") == 0)
+					 history(hist, &ev, H_CLEAR);
+				else
+					 goto badhist;
+				break;
+
+			case 3:
+				if (strcmp(av[1], "load") == 0)
+					 history(hist, &ev, H_LOAD, av[2]);
+				else if (strcmp(av[1], "save") == 0)
+					 history(hist, &ev, H_SAVE, av[2]);
+				break;
+
+			badhist:
+			default:
+				(void) fprintf(stderr,
+				    "Bad history arguments\n");
+				break;
+			}
+		} else if (el_parse(el, ac, av) == -1) {
+			switch (fork()) {
+			case 0:
+				execvp(av[0], av);
+				perror(av[0]);
+				_exit(1);
+				/*NOTREACHED*/
+				break;
+
+			case -1:
+				perror("fork");
+				break;
+
+			default:
+				if (wait(&num) == -1)
+					perror("wait");
+				(void) fprintf(stderr, "Exit %x\n", num);
+				break;
+			}
+		}
+
+		tok_reset(tok);
 	}
-	history(hist, continuation ? H_ADD : H_ENTER, buf);
 
-	continuation = 0;
+	el_end(el);
+	tok_end(tok);
+	history_end(hist);
 
-	if (strcmp(av[0], "history") == 0) {
-	    const struct HistEvent *he;
-
-	    switch (ac) {
-	    case 1:
-		for (he = history(hist, H_LAST); he;
-		     he = history(hist, H_PREV))
-		    (void) fprintf(stdout, "%4d %s", he->num, he->str);
-		break;
-
-	    case 2:
-		if (strcmp(av[1], "clear") == 0)
-		     history(hist, H_CLEAR);
-		else
-		     goto badhist;
-		break;
-
-	    case 3:
-		if (strcmp(av[1], "load") == 0)
-		     history(hist, H_LOAD, av[2]);
-		else if (strcmp(av[1], "save") == 0)
-		     history(hist, H_SAVE, av[2]);
-		break;
-
-	    badhist:
-	    default:
-		(void) fprintf(stderr, "Bad history arguments\n");
-		break;
-	    }
-	}
-	else if (el_parse(el, ac, av) == -1) {
-	    switch (fork()) {
-	    case 0:
-		execvp(av[0], av);
-		perror(av[0]);
-		_exit(1);
-		/*NOTREACHED*/
-		break;
-
-	    case -1:
-		perror("fork");
-		break;
-
-	    default:
-		if (wait(&num) == -1)
-		    perror("wait");
-		(void) fprintf(stderr, "Exit %x\n", num);
-		break;
-	    }
-	}
-	tok_reset(tok);
-    }
-
-    el_end(el);
-    tok_end(tok);
-    history_end(hist);
-
-    return 0;
+	return (0);
 }

@@ -34,20 +34,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)tokenizer.h	8.1 (Berkeley) 6/4/93
+ *	$NetBSD: tokenizer.h,v 1.3 1999/07/02 15:21:27 simonb Exp $
+ * $FreeBSD$
  */
 
 /*
  * tokenizer.h: Header file for tokenizer routines
  */
 #ifndef _h_tokenizer
-#define _h_tokenizer
+#define	_h_tokenizer
 
 typedef struct tokenizer Tokenizer;
 
-Tokenizer 	*tok_init	__P((const char *));
-void		 tok_reset	__P((Tokenizer *));
-void		 tok_end	__P((Tokenizer *));
-int		 tok_line	__P((Tokenizer *, const char *,
-				     int *, char ***));
+Tokenizer	*tok_init(const char *);
+void		 tok_reset(Tokenizer *);
+void		 tok_end(Tokenizer *);
+int		 tok_line(Tokenizer *, const char *, int *, char ***);
 
 #endif /* _h_tokenizer */

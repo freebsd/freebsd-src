@@ -1,6 +1,7 @@
-.\"	$NetBSD: editline.3,v 1.4 1997/01/14 04:17:23 lukem Exp $
+.\"	$NetBSD: editline.3,v 1.20 2000/02/28 17:41:05 chopps Exp $
+.\" $FreeBSD$
 .\"
-.\" Copyright (c) 1997 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
@@ -24,8 +25,8 @@
 .\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
 .\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 .\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
-.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 .\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
 .\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
 .\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -33,9 +34,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
-.Dd January 11, 1997
+.Dd November 12, 1999
 .Os
 .Dt EDITLINE 3
 .Sh NAME
@@ -53,8 +52,6 @@
 .Nm el_line ,
 .Nm el_insertstr ,
 .Nm el_deletestr ,
-.Nm el_data_set ,
-.Nm el_data_get ,
 .Nm history_init ,
 .Nm history_end ,
 .Nm history
@@ -64,7 +61,7 @@
 .Sh SYNOPSIS
 .Fd #include <histedit.h>
 .Ft EditLine *
-.Fn el_init "const char *prog" "FILE *fin" "FILE *fout"
+.Fn el_init "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr"
 .Ft void
 .Fn el_end "EditLine *e"
 .Ft void
@@ -80,25 +77,23 @@
 .Ft int
 .Fn el_set "EditLine *e" "int op" "..."
 .Ft int
+.Fn el_get "EditLine *e" "int op" "void *result"
+.Ft int
 .Fn el_source "EditLine *e" "const char *file"
 .Ft void
 .Fn el_resize "EditLine *e"
 .Ft const LineInfo *
 .Fn el_line "EditLine *e"
 .Ft int
-.Fn el_insertstr "EditLine *e" "char *str"
+.Fn el_insertstr "EditLine *e" "const char *str"
 .Ft void
 .Fn el_deletestr "EditLine *e" "int count"
-.Ft void
-.Fn el_data_set "EditLine *e" "void *data"
-.Ft void *
-.Fn el_data_get "EditLine *e"
 .Ft History *
 .Fn history_init
 .Ft void
 .Fn history_end "History *h"
-.Ft const HistEvent *
-.Fn history "History *h" "int op" "..."
+.Ft int
+.Fn history "History *h" "HistEvent *ev" "int op" "..."
 .Sh DESCRIPTION
 The
 .Nm
@@ -130,10 +125,11 @@ to be used by all other line editing functions.
 is the name of the invoking program, used when reading the
 .Xr editrc 5
 file to determine which settings to use.
-.Fa fin
-and
+.Fa fin ,
 .Fa fout
-are the input and output streams (respectively) to use.
+and
+.Fa ferr
+are the input, output, and error streams (respectively) to use.
 In this documentation, references to
 .Dq the tty
 are actually to this input/output stream combination.
@@ -197,17 +193,6 @@ didn't match, or
 Refer to
 .Xr editrc 5
 for more information.
-.Pp
-.Em NOTE :
-.Va argv[0]
-may be modified by
-.Fn el_parse .
-The colon between
-.Dq prog
-and the command,
-.Ar command ,
-will be replaced with a NUL
-.Pq Dq \e0 .
 .It Fn el_set
 Set
 .Nm
@@ -222,6 +207,10 @@ are supported, along with the required argument list:
 .Bl -tag -width 4n
 .It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)"
 Define prompt printing function as
+.Fa f ,
+which is to return a string that contains the prompt.
+.It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)"
+Define right side prompt printing function as
 .Fa f ,
 which is to return a string that contains the prompt.
 .It Dv EL_TERMINAL , Fa "const char *type"
@@ -344,9 +333,11 @@ EOF was entered.
 Expecting further command input as arguments, do nothing visually.
 .It Dv CC_REFRESH
 Refresh display.
+.It Dv CC_REFRESH_BEEP
+Refresh display, and beep.
 .It Dv CC_CURSOR
 Cursor moved, so update and perform
-.Dv CC_REFRESH .
+.Dv CC_REFRESH.
 .It Dv CC_REDISPLAY
 Redisplay entire input line.
 This is useful if a key binding outputs extra information.
@@ -365,6 +356,50 @@ Defines which history function to use, which is usually
 .Fa ptr
 should be the value returned by
 .Fn history_init .
+.It Dv EL_EDITMODE , Fa "int flag"
+If
+.Fa flag
+is non-zero,
+editing is enabled (the default).
+Note that this is only an indication, and does not
+affect the operation of
+.Nm "" .
+At this time, it is the caller's responsibility to
+check this
+(using
+.Fn el_get )
+to determine if editing should be enabled or not.
+.El
+.It Fn el_get
+Get
+.Nm
+parameters.
+.Fa op
+determines which parameter to retrieve into
+.Fa result .
+.Pp
+The following values for
+.Fa op
+are supported, along with actual type of
+.Fa result :
+.Bl -tag -width 4n
+.It Dv EL_PROMPT , Fa "char *(*f)(EditLine *)"
+Return a pointer to the function that displays the prompt.
+.It Dv EL_RPROMPT , Fa "char *(*f)(EditLine *)"
+Return a pointer to the function that displays the rightside prompt.
+.It Dv EL_EDITOR , Fa "const char *"
+Return the name of the editor, which will be one of
+.Dq emacs
+or
+.Dq vi .
+.It Dv EL_SIGNAL , Fa "int *"
+Return non-zero if
+.Nm
+has installed private signal handlers (see
+.Fn el_get
+above).
+.It Dv EL_EDITMODE, Fa "int *"
+Return non-zero if editing is enabled.
 .El
 .It Fn el_source
 Initialise
@@ -379,6 +414,8 @@ If
 is
 .Dv NULL ,
 try
+.Pa $PWD/.editrc
+then
 .Pa $HOME/.editrc .
 Refer to
 .Xr editrc 5
@@ -416,11 +453,6 @@ is empty or won't fit, and 0 otherwise.
 Delete
 .Fa num
 characters before the cursor.
-.It Fn el_data_set
-Set the user data to
-.Fa data .
-.It Fn el_data_get
-Get the user data.
 .El
 .Sh HISTORY LIST FUNCTIONS
 The history functions use a common data structure,
@@ -445,14 +477,18 @@ Perform operation
 .Fa op
 on the history list, with optional arguments as needed by the
 operation.
+.Fa ev
+is changed accordingly to operation.
 The following values for
 .Fa op
 are supported, along with the required argument list:
 .Bl -tag -width 4n
-.It Dv H_EVENT , Fa "int size"
+.It Dv H_SETSIZE , Fa "int size"
 Set size of history to
 .Fa size
 elements.
+.It Dv H_GETSIZE
+Get number of events currently in history.
 .It Dv H_END
 Cleans up and finishes with
 .Fa h ,
@@ -467,6 +503,7 @@ Clear the history.
 .Fa "history_gfun_t last" ,
 .Fa "history_gfun_t prev" ,
 .Fa "history_gfun_t curr" ,
+.Fa "history_sfun_t set" ,
 .Fa "history_vfun_t clear" ,
 .Fa "history_efun_t enter" ,
 .Fa "history_efun_t add"
@@ -484,12 +521,16 @@ Return the previous element in the history.
 Return the next element in the history.
 .It Dv H_CURR
 Return the current element in the history.
+.It Dv H_SET
+Set the cursor to point to the requested element.
 .It Dv H_ADD , Fa "const char *str"
 Append
 .Fa str
 to the current element of the history, or create an element with
-.Dv H_ENTER
-if there isn't one.
+.It Dv H_APPEND , Fa "const char *str"
+Append
+.Fa str
+to the last new element of the history.
 .It Dv H_ENTER , Fa "const char *str"
 Add
 .Fa str
@@ -514,33 +555,66 @@ Load the history list stored in
 Save the history list to
 .Fa file .
 .El
+.Pp
+.Fn history
+returns 0 if the operation
+.Fa op
+succeeds. Otherwise, -1 is returned and
+.Fa ev
+is updated to contain more details about the error.
 .El
 .\"XXX.Sh EXAMPLES
 .\"XXX: provide some examples
 .Sh SEE ALSO
+.Xr editrc 5 ,
 .Xr sh 1 ,
 .Xr signal 3 ,
-.Xr termcap 3 ,
-.Xr editrc 5
+.Xr termcap 3
 .Sh HISTORY
 The
 .Nm
 library first appeared in
 .Bx 4.4 .
+.Dv CC_REDISPLAY
+appeared in
+.Nx 1.3 .
+.Dv CC_REFRESH_BEEP ,
+.Dv EL_EDITMODE
+and the readline emulation appeared in
+.Nx 1.4 .
+.Dv EL_RPROMPT
+appeared in
+.Nx 1.5 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
-library was written by
-.An Christos Zoulas ,
-and this manual was written by
-.An Luke Mewburn .
+library was written by Christos Zoulas.
+Luke Mewburn wrote this manual and implemented
+.Dv CC_REDISPLAY ,
+.Dv CC_REFRESH_BEEP ,
+.Dv EL_EDITMODE ,
+and
+.Dv EL_RPROMPT .
+Jaromir Dolecek implemented the readline emulation.
 .Sh BUGS
-This documentation is probably incomplete.
+The tokenization functions are not publically defined in
+.Fd <histedit.h>.
 .Pp
-.Fn el_parse
-should not modify the supplied
-.Va argv[0] .
-.Pp
-The tokenization functions are not publicly defined in
-.Li <histedit.h> .
+At this time, it is the responsibility of the caller to
+check the result of the
+.Dv EL_EDITMODE
+operation of
+.Fn el_get
+(after an
+.Fn el_source
+or
+.Fn el_parse )
+to determine if
+.Nm
+should be used for further input.
+I.e.,
+.Dv EL_EDITMODE
+is purely an indication of the result of the most recent
+.Xr editrc 5
+.Ic edit
+command.

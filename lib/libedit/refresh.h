@@ -34,27 +34,30 @@
  * SUCH DAMAGE.
  *
  *	@(#)refresh.h	8.1 (Berkeley) 6/4/93
+ *	$NetBSD: refresh.h,v 1.3 2000/09/04 22:06:32 lukem Exp $
+ * $FreeBSD$
  */
 
 /*
  * el.refresh.h: Screen refresh functions
  */
 #ifndef _h_el_refresh
-#define _h_el_refresh
+#define	_h_el_refresh
 
 #include "histedit.h"
 
 typedef struct {
-    coord_t 	 r_cursor;	/* Refresh cursor position	*/
-    int r_oldcv, r_newcv;	/* Vertical locations		*/
+	coord_t	r_cursor;	/* Refresh cursor position	*/
+	int	r_oldcv;	/* Vertical locations		*/
+	int	r_newcv;
 } el_refresh_t;
 
-protected void	re_putc 		__P((EditLine *, int));
-protected void	re_clear_lines		__P((EditLine *));
-protected void	re_clear_display	__P((EditLine *));
-protected void	re_refresh		__P((EditLine *));
-protected void	re_refresh_cursor	__P((EditLine *));
-protected void	re_fastaddc		__P((EditLine *));
-protected void	re_goto_bottom		__P((EditLine *));
+protected void	re_putc(EditLine *, int, int);
+protected void	re_clear_lines(EditLine *);
+protected void	re_clear_display(EditLine *);
+protected void	re_refresh(EditLine *);
+protected void	re_refresh_cursor(EditLine *);
+protected void	re_fastaddc(EditLine *);
+protected void	re_goto_bottom(EditLine *);
 
 #endif /* _h_el_refresh */
