@@ -35,6 +35,7 @@
 #if defined(__RCSID) && !defined(lint)
 __RCSID("$NetBSD: main1.c,v 1.11 2002/01/29 02:43:38 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -123,8 +124,6 @@ main(int argc, char *argv[])
 	int	c;
 	char	*ptr;
 
-	setprogname(argv[0]);
-
 	ERR_ZERO(&msgset);
 	while ((c = getopt(argc, argv, "abcdeghmprstuvwyzFX:")) != -1) {
 		switch (c) {
@@ -209,8 +208,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "Usage: %s [-abcdeghmprstuvwyzF] [-X <id>[,<id>]... src dest\n",
-	    getprogname());
+	    "Usage: lint1 [-abcdeghmprstuvwyzF] [-X <id>[,<id>]... src dest\n");
 	exit(1);
 }
 
