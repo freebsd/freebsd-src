@@ -58,7 +58,7 @@
 static const char SCCSid[] =
 	"@(#) mytinfo tconv.c 3.2 92/02/01 public domain, By Ross Ridge";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tconv.c,v 1.3 1997/08/13 06:58:45 charnier Exp $";
 #endif
 
 /* the right margin of the output */
@@ -743,7 +743,7 @@ char *name; {
 		} else if (badname(s)) {
 			if (lineno)
 				warn();
-			fprintf(stderr, "bad terminal name '%s', ingored.\n",
+			fprintf(stderr, "bad terminal name '%s', ignored.\n",
 				s);
 		} else {
 			if (access(bindir(s), 2) == -1) {
@@ -790,7 +790,7 @@ char *name; {
 		} else if (badname(s)) {
 			if (lineno)
 				warn();
-			fprintf(stderr, "bad terminal name '%s', ingored.\n",
+			fprintf(stderr, "bad terminal name '%s', ignored.\n",
 				s);
 		} else {
 			if (access(bindir(s), 2) == -1) {
