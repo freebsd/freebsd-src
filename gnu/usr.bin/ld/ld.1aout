@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.18 1997/05/31 04:28:53 jdp Exp $
+.\"	$Id: ld.1,v 1.19 1997/08/23 21:59:41 steve Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -265,6 +265,7 @@ options and preceding the built-in path.
 .El
 .Sh FILES
 .Sh SEE ALSO
+.Xr ldd 1 ,
 .Xr rtld 1 ,
 .Xr link 5 ,
 .Xr ldconfig 8
