@@ -897,7 +897,19 @@
       3.41. &merged;</para>
 
     <para><application>GCC</application> has been updated to
-      3.2.2 (release version).</para>
+      3.2.2 (release version).
+
+      <note arch="i386">
+	<para><application>GCC</application> is known to produce
+	  broken code with the <option>-march=pentium4</option> option
+	  set.  As a workaround to avoid this problem, setting the
+	  <varname>CPUTYPE=p4</varname> Makefile variable (for example, in
+	  &man.make.conf.5;) enables GCC's
+	  <option>-march=pentium3</option> option instead.  This
+	  situation is expected to be resolved when GCC 3.3 is
+	  imported.</para>
+      </note>
+      </para>
 
     <para>The <application>gdtoa</application> library, for
       conversions between strings and floating point, has been imported.  These sources
