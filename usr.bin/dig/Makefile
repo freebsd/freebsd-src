@@ -1,11 +1,12 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $Id$
+
+.include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
+
+.PATH:	${BIND_DIR}/tools
+.PATH:	${BIND_DIR}/tools/nslookup
+.PATH:	${BIND_DIR}/man
 
 PROG=	dig
-MAN1=	dig.1
-SRCS=	dig.c debug.c list.c send.c subr.c
-
-NSLOOKUP=${.CURDIR}/../../usr.sbin/nslookup
-CFLAGS+=-I${NSLOOKUP}
-.PATH:	 ${NSLOOKUP}
+SRCS=	dig.c list.c subr.c debug.c send.c
 
 .include <bsd.prog.mk>
