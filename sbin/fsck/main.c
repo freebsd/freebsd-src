@@ -42,12 +42,13 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.13 1998/03/08 09:55:26 julian Exp $";
+	"$Id: main.c,v 1.14 1998/06/15 07:07:16 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -73,7 +74,12 @@ main(argc, argv)
 {
 	int ch;
 	int ret, maxrun = 0;
+	struct rlimit rlim;
 
+ 	if (getrlimit(RLIMIT_DATA, &rlim) == 0) {
+ 		rlim.rlim_cur = rlim.rlim_max;
+ 		(void) setrlimit(RLIMIT_DATA, &rlim);
+ 	}
 	sync();
 	while ((ch = getopt(argc, argv, "dfpnNyYb:c:l:m:")) != -1) {
 		switch (ch) {
