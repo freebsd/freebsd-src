@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.8 1995/01/09 16:04:53 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.9 1995/01/24 10:00:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <miscfs/specfs/specdev.h>
+#include <vm/vm.h>
+#include <vm/vm_pageout.h>
 
 #ifdef DEBUG
 #include <vm/vm.h>
@@ -131,13 +133,15 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 		int i;
 
 		if (!ISSEQREAD(vp, origlblkno)) {
+			vp->v_maxra = bp->b_lblkno + bp->b_bcount / size;
 			vp->v_ralen >>= 1;
 			return 0;
-		} else if( vp->v_maxra > origlblkno) {
+		} else if( vp->v_maxra >= origlblkno) {
 			if ((vp->v_ralen + 1) < (MAXPHYS / size))
 				vp->v_ralen++;
-			if ( vp->v_maxra > (origlblkno + 2*vp->v_ralen))
+			if ( vp->v_maxra >= (origlblkno + vp->v_ralen))
 				return 0;
+			lblkno = vp->v_maxra;
 		} 
 		bp = NULL;
 	} else {
@@ -181,12 +185,17 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 					vp->v_ralen >>= 1;
 					alreadyincore = 1;
 				} else {
-					if (inmem(vp, rablkno))
+					if (inmem(vp, rablkno)) {
+						if( vp->v_maxra < rablkno)
+							vp->v_maxra = rablkno + 1;
 						continue;
+					}
 					if ((vp->v_ralen + 1) < MAXPHYS / size)
 						vp->v_ralen++;
 				}
 				break;
+			} else if( vp->v_maxra < rablkno) {
+				vp->v_maxra = rablkno + 1;
 			}
 		}
 	}
@@ -203,8 +212,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 		if (num_ra > vp->v_ralen)
 			num_ra = vp->v_ralen;
 
-		if (num_ra &&
-		    ((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min)) {
+		if (num_ra) {
 			rbp = cluster_rbuild(vp, filesize,
 			    NULL, rablkno, blkno, size, num_ra, B_READ | B_ASYNC);
 		} else {
@@ -225,7 +233,6 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 			vfs_busy_pages(bp, 0);
 			error = VOP_STRATEGY(bp);
 			vp->v_maxra = bp->b_lblkno + bp->b_bcount / size;
-			/* printf("r:(%d, %d)", bp->b_lblkno, bp->b_bcount / size);  */
 			totreads++;
 			totreadblocks += bp->b_bcount / size;
 			curproc->p_stats->p_ru.ru_inblock++;
@@ -235,14 +242,13 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	 * and if we have read-aheads, do them too
 	 */
 	if (rbp) {
+		vp->v_maxra = rbp->b_lblkno + rbp->b_bcount / size;
 		if (error || (rbp->b_flags & B_CACHE)) {
 			rbp->b_flags &= ~(B_ASYNC | B_READ);
 			brelse(rbp);
 		} else {
 			vfs_busy_pages(rbp, 0);
 			(void) VOP_STRATEGY(rbp);
-			vp->v_maxra = rbp->b_lblkno + rbp->b_bcount / size;
-			/* printf("ra:(%d, %d)", rbp->b_lblkno, rbp->b_bcount / size); */
 			totreads++;
 			totreadblocks += rbp->b_bcount / size;
 			curproc->p_stats->p_ru.ru_inblock++;
@@ -321,11 +327,6 @@ cluster_rbuild(vp, filesize, bp, lbn, blkno, size, run, flags)
 	inc = btodb(size);
 	for (bn = blkno, i = 0; i <= run; ++i, bn += inc) {
 		if (i != 0) {
-/*
-			if (inmem(vp, lbn + i)) {
-				break;
-			}
-*/
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 			if ((tbp->b_flags & B_CACHE) ||
 			    (tbp->b_flags & B_VMIO) != (bp->b_flags & B_VMIO)) {
@@ -346,7 +347,7 @@ cluster_rbuild(vp, filesize, bp, lbn, blkno, size, run, flags)
 		bp->b_bcount += size;
 		bp->b_bufsize += size;
 	}
-	pmap_qenter(bp->b_data, bp->b_pages, bp->b_npages);
+	pmap_qenter((vm_offset_t) bp->b_data, (vm_page_t *)bp->b_pages, bp->b_npages);
 	return (bp);
 }
 
@@ -372,7 +373,7 @@ cluster_callback(bp)
 		error = bp->b_error;
 
 	b_save = (struct cluster_save *) (bp->b_saveaddr);
-	pmap_qremove(bp->b_data, bp->b_npages);
+	pmap_qremove((vm_offset_t) bp->b_data, bp->b_npages);
 	/*
 	 * Move memory from the large cluster buffer into the component
 	 * buffers and mark IO as done on these.
@@ -606,7 +607,7 @@ redo:
 		b_save->bs_children[i] = tbp;
 	}
 	b_save->bs_nchildren = i;
-	pmap_qenter(bp->b_data, bp->b_pages, bp->b_npages);
+	pmap_qenter((vm_offset_t) bp->b_data, (vm_page_t *) bp->b_pages, bp->b_npages);
 	bawrite(bp);
 
 	if (i < len) {
