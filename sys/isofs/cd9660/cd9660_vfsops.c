@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.50 1999/01/30 12:26:22 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.51 1999/01/31 11:54:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
+#include <sys/syslog.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/iso_rrip.h>
@@ -281,15 +282,18 @@ iso_mountfs(devvp, mp, p, argp)
 {
 	register struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
+	struct buf *pribp = NULL, *supbp = NULL;
 	dev_t dev = devvp->v_rdev;
 	int error = EINVAL;
 	int needclose = 0;
 	int high_sierra = 0;
 	int iso_bsize;
 	int iso_blknum;
+	int joliet_level;
 	struct iso_volume_descriptor *vdp = 0;
-	struct iso_primary_descriptor *pri;
-	struct iso_sierra_primary_descriptor *pri_sierra;
+	struct iso_primary_descriptor *pri = NULL;
+	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
+	struct iso_supplementary_descriptor *sup = NULL;
 	struct iso_directory_record *rootp;
 	int logical_block_size;
 
@@ -319,6 +323,7 @@ iso_mountfs(devvp, mp, p, argp)
 	 */
 	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
 
+	joliet_level = 0;
 	for (iso_blknum = 16 + argp->ssector;
 	     iso_blknum < 100 + argp->ssector;
 	     iso_blknum++) {
@@ -335,24 +340,58 @@ iso_mountfs(devvp, mp, p, argp)
 			} else
 				high_sierra = 1;
 		}
-
-		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_END) {
-			error = EINVAL;
-			goto out;
-		}
-
-		if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) == ISO_VD_PRIMARY)
+		switch (isonum_711 (high_sierra? vdp->type_sierra: vdp->type)){
+		case ISO_VD_PRIMARY:
+			if (pribp == NULL) {
+				pribp = bp;
+				bp = NULL;
+				pri = (struct iso_primary_descriptor *)vdp;
+				pri_sierra =
+				  (struct iso_sierra_primary_descriptor *)vdp;
+			}
 			break;
+
+		case ISO_VD_SUPPLEMENTARY:
+			if (supbp == NULL) {
+				supbp = bp;
+				bp = NULL;
+				sup = (struct iso_supplementary_descriptor *)vdp;
+
+				if (!(argp->flags & ISOFSMNT_NOJOLIET)) {
+					if (bcmp(sup->escape, "%/@", 3) == 0)
+						joliet_level = 1;
+					if (bcmp(sup->escape, "%/C", 3) == 0)
+						joliet_level = 2;
+					if (bcmp(sup->escape, "%/E", 3) == 0)
+						joliet_level = 3;
+
+					if (isonum_711 (sup->flags) & 1)
+						joliet_level = 0;
+				}
+			}
+			break;
+
+		case ISO_VD_END:
+			goto vd_end;
+
+		default:
+			break;
+		}
+		if (bp) {
+			brelse(bp);
+			bp = NULL;
+		}
+	}
+ vd_end:
+	if (bp) {
 		brelse(bp);
+		bp = NULL;
 	}
 
-	if (isonum_711 (high_sierra? vdp->type_sierra: vdp->type) != ISO_VD_PRIMARY) {
+	if (pri == NULL) {
 		error = EINVAL;
 		goto out;
 	}
-
-	pri = (struct iso_primary_descriptor *)vdp;
-	pri_sierra = (struct iso_sierra_primary_descriptor *)vdp;
 
 	logical_block_size =
 		isonum_723 (high_sierra?
@@ -377,6 +416,7 @@ iso_mountfs(devvp, mp, p, argp)
 		isonum_733 (high_sierra?
 			    pri_sierra->volume_space_size:
 			    pri->volume_space_size);
+	isomp->joliet_level = 0;
 	/*
 	 * Since an ISO9660 multi-session CD can also access previous
 	 * sessions, we have to include them into the space consider-
@@ -391,13 +431,11 @@ iso_mountfs(devvp, mp, p, argp)
 	isomp->root_size = isonum_733 (rootp->size);
 
 	isomp->im_bmask = logical_block_size - 1;
-	isomp->im_bshift = 0;
-	while ((1 << isomp->im_bshift) < isomp->logical_block_size)
-		isomp->im_bshift++;
+	isomp->im_bshift = ffs(logical_block_size) - 1;
 
-	bp->b_flags |= B_AGE;
-	brelse(bp);
-	bp = NULL;
+	pribp->b_flags |= B_AGE;
+	brelse(pribp);
+	pribp = NULL;
 
 	mp->mnt_data = (qaddr_t)isomp;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
@@ -434,12 +472,14 @@ iso_mountfs(devvp, mp, p, argp)
 		brelse(bp);
 		bp = NULL;
 	}
-	isomp->im_flags = argp->flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS|ISOFSMNT_EXTATT);
+	isomp->im_flags = argp->flags & (ISOFSMNT_NORRIP | ISOFSMNT_GENS |
+					 ISOFSMNT_EXTATT | ISOFSMNT_NOJOLIET);
 
-	if(high_sierra)
+	if (high_sierra) {
 		/* this effectively ignores all the mount flags */
+		log(LOG_INFO, "cd9660: High Sierra Format\n");
 		isomp->iso_ftype = ISO_FTYPE_HIGH_SIERRA;
-	else
+	} else
 		switch (isomp->im_flags&(ISOFSMNT_NORRIP|ISOFSMNT_GENS)) {
 		  default:
 			  isomp->iso_ftype = ISO_FTYPE_DEFAULT;
@@ -448,15 +488,38 @@ iso_mountfs(devvp, mp, p, argp)
 			  isomp->iso_ftype = ISO_FTYPE_9660;
 			  break;
 		  case 0:
+			  log(LOG_INFO, "cd9660: RockRidge Extension\n");
 			  isomp->iso_ftype = ISO_FTYPE_RRIP;
 			  break;
 		}
+
+	/* Decide whether to use the Joliet descriptor */
+
+	if (isomp->iso_ftype != ISO_FTYPE_RRIP && joliet_level) {
+		log(LOG_INFO, "cd9660: Joliet Extension\n");
+		rootp = (struct iso_directory_record *)
+			sup->root_directory_record;
+		bcopy (rootp, isomp->root, sizeof isomp->root);
+		isomp->root_extent = isonum_733 (rootp->extent);
+		isomp->root_size = isonum_733 (rootp->size);
+		isomp->joliet_level = joliet_level;
+		supbp->b_flags |= B_AGE;
+	}
+
+	if (supbp) {
+		brelse(supbp);
+		supbp = NULL;
+	}
 
 	return 0;
 out:
 	devvp->v_specmountpoint = NULL;
 	if (bp)
 		brelse(bp);
+	if (pribp)
+		brelse(pribp);
+	if (supbp)
+		brelse(supbp);
 	if (needclose)
 		(void)VOP_CLOSE(devvp, FREAD, NOCRED, p);
 	if (isomp) {
