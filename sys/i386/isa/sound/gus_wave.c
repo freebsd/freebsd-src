@@ -210,7 +210,7 @@ static void     compute_and_set_volume(int voice, int volume, int ramp_time);
 extern u_short gus_adagio_vol(int vel, int mainv, int xpn, int voicev);
 extern u_short gus_linear_vol(int vol, int mainvol);
 static void     compute_volume(int voice, int volume);
-void            do_volume_irq(int voice);
+static void     do_volume_irq(int voice);
 static void     set_input_volumes(void);
 static void     gus_tmr_install(int io_base);
 
