@@ -398,6 +398,15 @@ assign_io(struct slot *sp)
 		if (!cisconf->iospace)
 			cp = defconf;
 		iosize = sp->card->iosize;
+
+		/* iosize auto */
+		if (iosize < 0) {
+			if (cp->io)
+				iosize = cp->io->size;
+			else
+				iosize = 1 << cp->io_addr;
+		}
+
 		/*
  		* If # of I/O lines decoded == 10, then card does its
  		* own decoding.
