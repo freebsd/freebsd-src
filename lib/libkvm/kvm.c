@@ -54,7 +54,6 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/swap_pager.h>
 
 #include <machine/vmparam.h>
 
