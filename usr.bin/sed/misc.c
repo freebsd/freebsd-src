@@ -68,7 +68,7 @@ strregerror(errcode, preg)
 
 	if (oe != NULL)
 		free(oe);
-	s = regerror(errcode, preg, "", 0);
+	s = regerror(errcode, preg, NULL, 0);
 	if ((oe = malloc(s)) == NULL)
 		err(1, "malloc");
 	(void)regerror(errcode, preg, oe, s);
