@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.22 1999/01/05 03:53:06 peter Exp $
+ *	$Id: procfs_subr.c,v 1.23 1999/01/27 22:42:07 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -182,6 +182,7 @@ loop:
 	case Pmap:
 	case Pstatus:
 	case Pcmdline:
+	case Prlimit:
 		pfs->pfs_mode = (VREAD) |
 				(VREAD >> 3) |
 				(VREAD >> 6);
@@ -285,6 +286,10 @@ procfs_rw(ap)
 
 	case Pcmdline:
 		rtval = procfs_docmdline(curp, p, pfs, uio);
+		break;
+
+	case Prlimit:
+		rtval = procfs_dorlimit(curp, p, pfs, uio);
 		break;
 
 	default:

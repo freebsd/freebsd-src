@@ -1,4 +1,4 @@
-.\" $Id: procfs.5,v 1.9 1998/03/12 07:30:48 charnier Exp $
+.\" $Id: procfs.5,v 1.10 1998/06/28 21:33:42 hoek Exp $
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
@@ -109,6 +109,12 @@ defined in
 .Pa <machine/reg.h> .
 .Pa regs
 can only be written when the process is stopped.
+.It Pa rlimit
+This is a read-only file containing the process current and maximum
+limits. Each line is of the format 
+.Ar rlimit current max
+, with -1 
+indicating infinity.
 .It Pa status
 The process status.
 This file is read-only and returns a single line containing
@@ -192,6 +198,8 @@ directory containing process information for process
 .Pa pid .
 .It Pa /proc/curproc
 directory containing process information for the current process
+.It Pa /proc/curproc/cmdline
+the process executable name
 .It Pa /proc/curproc/ctl
 used to send control messages to the process
 .It Pa /proc/curproc/etype
@@ -210,6 +218,8 @@ used for signaling the process
 used for signaling the process group
 .It Pa /proc/curproc/regs
 the process register set
+.It Pa /proc/curproc/rlimit
+the process current and maximum rlimit
 .It Pa /proc/curproc/status
 the process' current status
 .El
