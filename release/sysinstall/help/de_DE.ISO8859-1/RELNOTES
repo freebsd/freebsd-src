@@ -428,6 +428,11 @@ weiterhin Arbeiten im Gange, um ELF- und XOUT-Programme starten zu kön-
 nen.  Der Großteil der ,,system call wrapper'' für SVR4 ist bereits ge-
 schrieben.
 
+FreeBSD implementiert mittlerweile auch genügend Linux-Kompatibilität,
+um DOOM laufen zu lassen!  Für eine vollständige Dokumentation, wie
+dies einzurichten ist, kann man im Verzeichnis ,,xperimnt'' (auf dem
+lokalen FTP-Server oder der CDROM) nachsehen.
+
 Verantwortlich:         Søren Schmidt (sos) & Sean Eric Fagan (sef)
 Betroffene Dateien:     sys/i386/ibcs2/* sowie diverse Kernelmodifikationen
 =======
@@ -750,5 +755,5 @@ allgemeinen Anklang findet!
 
                         Das FreeBSD Core-Team
 
-$Id$
+$Id: RELNOTES,v 1.1 1995/06/06 01:24:51 jkh Exp $
 =======================================================================

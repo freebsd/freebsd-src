@@ -1,9 +1,9 @@
 This is the Main Partition (or ``Slice'') Editor.
 
-Possible commands are printed at the bottom, the Master Boot Record
-contents at the top.  You can move up and down with the arrow keys
+Possible commands are printed at the bottom, and the Master Boot Record
+contents are at the top.  You can move up and down with the arrow keys
 and can (C)reate a new partition whenever the "bar" is over a partition
-who's type is set to "unused".
+whose type is set to "unused".
 
 The flags field has the following legend:
 
