@@ -408,6 +408,7 @@ SIMOS			opt_simos.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h
+DEVICE_SYSCTLS		opt_bus.h
 
 # options for USB support
 UHCI_DEBUG		opt_usb.h
