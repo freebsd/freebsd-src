@@ -7,11 +7,13 @@ SRCS=	ifconfig.c
 #comment out to exclude SIOC[GS]IFMEDIA support
 SRCS+=	ifmedia.c
 CFLAGS+=-DUSE_IF_MEDIA
+.if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DINET6
 
 #comment out to exclude SIOC[GS]ETVLAN support
 SRCS+=	ifvlan.c
 CFLAGS+=-DUSE_VLANS
+.endif
 
 MAN8=	ifconfig.8
 DPADD=	${LIBIPX}
