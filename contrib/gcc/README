@@ -1,6 +1,9 @@
-This directory contains the version 2.7.2 release of the GNU C
+This directory contains the version 2.7.2.3 release of the GNU C
 compiler.  It includes all of the support for compiling C++ and
 Objective C, including a run-time library for Objective C.
+
+The reason for the 2.7.2.3 release is to correct the support for GNU C
+library version 2 on GNU/Linux systems.
 
 The GNU C compiler is free software.  See the file COPYING for copying
 permission.

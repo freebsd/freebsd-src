@@ -814,9 +814,15 @@ Use this configuration to generate a.out binaries on Linux-based GNU
 systems.  This configuration is being superseded.  You must use
 gas/binutils version 2.5.2 or later.
 
+@item i386-*-linux-gnulibc1
+Use this configuration to generate ELF binaries on Linux-based GNU
+systems using the Linux libc version 5.  You must use gas/binutils
+version 2.5.2 or later.
+
 @item i386-*-linux
 Use this configuration to generate ELF binaries on Linux-based GNU
-systems.  You must use gas/binutils version 2.5.2 or later.
+systems using glibc 2.  You must use gas/binutils version 2.8.1 or
+later.
 
 @item i386-*-sco
 Compilation with RCC is recommended.  Also, it may be a good idea to
@@ -933,6 +939,19 @@ installed tools, which produce a.out format executables.
 HP 9000 series 200 running BSD.  Note that the C compiler that comes
 with this system cannot compile GNU CC; contact @code{law@@cs.utah.edu}
 to get binaries of GNU CC for bootstrapping.
+
+@item m68k-*-linuxaout
+Use this configuration to generate a.out binaries on Linux. This configuration
+is being superseded. You must use gas/binutils version 2.5.2 or later.
+   
+@item m68k-*-linux-gnulibc1
+Use this configuration to generate ELF binaries on Linux with the
+Linux C library 5.x.x. You must use gas/binutils version 2.8.1 later.
+      
+@item m68k-*-linux
+Use this configuration to generate ELF binaries on Linux-based GNU
+systems with the GNU C library 2. You must use gas/binutils version
+2.8.1 or later.
 
 @item m68k-altos
 Altos 3068.  You must use the GNU assembler, linker and debugger.
