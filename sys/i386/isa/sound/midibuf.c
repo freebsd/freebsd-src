@@ -1,10 +1,10 @@
 /*
  * sound/midibuf.c
- *
+ * 
  * Device file manager for /dev/midi#
- *
+ * 
  * Copyright by Hannu Savolainen 1993
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,14 +24,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
+ * 
  */
 
 #include <i386/isa/sound/sound_config.h>
 
-static void drain_midi_queue __P((int dev));
 
-#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_MIDI)
+#if defined(CONFIG_MIDI)
 
 /*
  * Don't make MAX_QUEUE_SIZE larger than 4000
@@ -39,412 +38,359 @@ static void drain_midi_queue __P((int dev));
 
 #define MAX_QUEUE_SIZE	4000
 
-DEFINE_WAIT_QUEUES (midi_sleeper[MAX_MIDI_DEV], midi_sleep_flag[MAX_MIDI_DEV]);
-DEFINE_WAIT_QUEUES (input_sleeper[MAX_MIDI_DEV], input_sleep_flag[MAX_MIDI_DEV]);
+static int     *midi_sleeper[MAX_MIDI_DEV] = {NULL};
+static volatile struct snd_wait midi_sleep_flag[MAX_MIDI_DEV] = { {0}};
+static int     *input_sleeper[MAX_MIDI_DEV] = {NULL};
+static volatile struct snd_wait input_sleep_flag[MAX_MIDI_DEV] = { {0}};
 
-struct midi_buf
-  {
-    int             len, head, tail;
-    unsigned char   queue[MAX_QUEUE_SIZE];
-  };
+struct midi_buf {
+	int             len, head, tail;
+	u_char   queue[MAX_QUEUE_SIZE];
+};
 
-struct midi_parms
-  {
-    int             prech_timeout;	/*
-					 * Timeout before the first ch
-					 */
-  };
+struct midi_parms {
+	int             prech_timeout;	/* Timeout before the first ch */
+};
 
-static struct midi_buf *midi_out_buf[MAX_MIDI_DEV] =
-{NULL};
-static struct midi_buf *midi_in_buf[MAX_MIDI_DEV] =
-{NULL};
+static struct midi_buf *midi_out_buf[MAX_MIDI_DEV] = {NULL};
+static struct midi_buf *midi_in_buf[MAX_MIDI_DEV] = {NULL};
 static struct midi_parms parms[MAX_MIDI_DEV];
 
-static void     midi_poll (void *dummy);
+static void     midi_poll(void  *dummy);
 
-DEFINE_TIMER (poll_timer, midi_poll);
 static volatile int open_devs = 0;
 
 #define DATA_AVAIL(q) (q->len)
 #define SPACE_AVAIL(q) (MAX_QUEUE_SIZE - q->len)
 
 #define QUEUE_BYTE(q, data) \
-	if (SPACE_AVAIL(q)) \
-	{ \
-	  unsigned long flags; \
-	  DISABLE_INTR(flags); \
+	if (SPACE_AVAIL(q)) { \
+	  u_long flags; \
+	  flags = splhigh(); \
 	  q->queue[q->tail] = (data); \
 	  q->len++; q->tail = (q->tail+1) % MAX_QUEUE_SIZE; \
-	  RESTORE_INTR(flags); \
+	  splx(flags); \
 	}
 
 #define REMOVE_BYTE(q, data) \
-	if (DATA_AVAIL(q)) \
-	{ \
-	  unsigned long flags; \
-	  DISABLE_INTR(flags); \
+	if (DATA_AVAIL(q)) { \
+	  u_long flags; \
+	  flags = splhigh(); \
 	  data = q->queue[q->head]; \
 	  q->len--; q->head = (q->head+1) % MAX_QUEUE_SIZE; \
-	  RESTORE_INTR(flags); \
+	  splx(flags); \
 	}
 
-static void
-drain_midi_queue (int dev)
+void
+drain_midi_queue(int dev)
 {
 
-  /*
-   * Give the Midi driver time to drain its output queues
-   */
+    /*
+     * Give the Midi driver time to drain its output queues
+     */
 
-  if (midi_devs[dev]->buffer_status != NULL)
-    while (!PROCESS_ABORTING (midi_sleeper[dev], midi_sleep_flag[dev]) &&
-	   midi_devs[dev]->buffer_status (dev))
-      DO_SLEEP (midi_sleeper[dev], midi_sleep_flag[dev], HZ / 10);
+    if (midi_devs[dev]->buffer_status != NULL)
+	while (!(PROCESS_ABORTING (midi_sleep_flag[dev])) &&
+		   midi_devs[dev]->buffer_status(dev)) {
+	    int    chn;
+
+	    midi_sleeper[dev] = &chn;
+	    DO_SLEEP(chn, midi_sleep_flag[dev], hz / 10);
+
+	};
 }
 
 static void
-midi_input_intr (int dev, unsigned char data)
+midi_input_intr(int dev, u_char data)
 {
-  if (midi_in_buf[dev] == NULL)
-    return;
+	if (midi_in_buf[dev] == NULL)
+		return;
 
-  if (data == 0xfe)		/*
-				 * Active sensing
-				 */
-    return;			/*
-				 * Ignore
-				 */
+	if (data == 0xfe)	/* Active sensing */
+		return;		/* Ignore */
 
-  if (SPACE_AVAIL (midi_in_buf[dev]))
-    {
-      QUEUE_BYTE (midi_in_buf[dev], data);
-      if (SOMEONE_WAITING (input_sleeper[dev], input_sleep_flag[dev]))
-	WAKE_UP (input_sleeper[dev], input_sleep_flag[dev]);
-    }
-#if defined(__FreeBSD__)
-  if (selinfo[dev].si_pid)
-    selwakeup(&selinfo[dev]);
-#endif
+	if (SPACE_AVAIL(midi_in_buf[dev])) {
+		QUEUE_BYTE(midi_in_buf[dev], data);
+		if ((input_sleep_flag[dev].mode & WK_SLEEP)) {
+			input_sleep_flag[dev].mode = WK_WAKEUP;
+			wakeup(input_sleeper[dev]);
+		};
+	}
 }
 
 static void
-midi_output_intr (int dev)
+midi_output_intr(int dev)
 {
-  /*
-   * Currently NOP
-   */
-#if defined(__FreeBSD__)
-  if (selinfo[dev].si_pid)
-    selwakeup(&selinfo[dev]);
-#endif
+	/*
+	 * Currently NOP
+	 */
 }
 
 static void
-midi_poll (void *dummy)
+midi_poll(void *dummy)
 {
-  unsigned long   flags;
-  int             dev;
+	u_long   flags;
+	int             dev;
 
-  DISABLE_INTR (flags);
-  if (open_devs)
-    {
-      for (dev = 0; dev < num_midis; dev++)
-	if (midi_out_buf[dev] != NULL)
-	  {
-	    while (DATA_AVAIL (midi_out_buf[dev]) &&
-		   midi_devs[dev]->putc (dev,
-			 midi_out_buf[dev]->queue[midi_out_buf[dev]->head]))
-	      {
-		midi_out_buf[dev]->head = (midi_out_buf[dev]->head + 1) % MAX_QUEUE_SIZE;
-		midi_out_buf[dev]->len--;
-	      }
+	flags = splhigh();
+	if (open_devs) {
+		for (dev = 0; dev < num_midis; dev++)
+			if (midi_out_buf[dev] != NULL) {
+				while (DATA_AVAIL(midi_out_buf[dev]) &&
+				       midi_devs[dev]->putc(dev,
+							    midi_out_buf[dev]->queue[midi_out_buf[dev]->head])) {
+					midi_out_buf[dev]->head = (midi_out_buf[dev]->head + 1) % MAX_QUEUE_SIZE;
+					midi_out_buf[dev]->len--;
+				}
 
-	    if (DATA_AVAIL (midi_out_buf[dev]) < 100 &&
-		SOMEONE_WAITING (midi_sleeper[dev], midi_sleep_flag[dev]))
-	      WAKE_UP (midi_sleeper[dev], midi_sleep_flag[dev]);
-	  }
-      ACTIVATE_TIMER (poll_timer, midi_poll, 1);	/*
-							 * Come back later
-							 */
-    }
-  RESTORE_INTR (flags);
+				if (DATA_AVAIL(midi_out_buf[dev]) < 100 &&
+				    (midi_sleep_flag[dev].mode & WK_SLEEP)) {
+					midi_sleep_flag[dev].mode = WK_WAKEUP;
+					wakeup(midi_sleeper[dev]);
+				};
+			}
+		timeout( midi_poll, 0, 1);;	/* Come back later */
+	}
+	splx(flags);
 }
 
 int
-MIDIbuf_open (int dev, struct fileinfo *file)
+MIDIbuf_open(int dev, struct fileinfo * file)
 {
-  int             mode, err;
-  unsigned long   flags;
+	int             mode, err;
 
-  dev = dev >> 4;
-  mode = file->mode & O_ACCMODE;
+	dev = dev >> 4;
+	mode = file->mode & O_ACCMODE;
 
-  if (num_midis > MAX_MIDI_DEV)
-    {
-      printk ("Sound: FATAL ERROR: Too many midi interfaces\n");
-      num_midis = MAX_MIDI_DEV;
-    }
+	if (num_midis > MAX_MIDI_DEV) {
+		printf("Sound: FATAL ERROR: Too many midi interfaces\n");
+		num_midis = MAX_MIDI_DEV;
+	}
+	if (dev < 0 || dev >= num_midis) {
+		printf("Sound: Nonexistent MIDI interface %d\n", dev);
+		return -(ENXIO);
+	}
+	/*
+	 * Interrupts disabled. Be careful
+	 */
 
-  if (dev < 0 || dev >= num_midis)
-    {
-      printk ("Sound: Nonexistent MIDI interface %d\n", dev);
-      return RET_ERROR (ENXIO);
-    }
+	if ((err = midi_devs[dev]->open(dev, mode,
+				  midi_input_intr, midi_output_intr)) < 0) {
+		return err;
+	}
+	parms[dev].prech_timeout = 0;
 
-  /*
-     *    Interrupts disabled. Be careful
-   */
+	midi_in_buf[dev] = (struct midi_buf *) malloc(sizeof(struct midi_buf), M_TEMP, M_WAITOK);
 
-  DISABLE_INTR (flags);
-  if ((err = midi_devs[dev]->open (dev, mode,
-				   midi_input_intr, midi_output_intr)) < 0)
-    {
-      RESTORE_INTR (flags);
-      return err;
-    }
+	if (midi_in_buf[dev] == NULL) {
+		printf("midi: Can't allocate buffer\n");
+		midi_devs[dev]->close(dev);
+		return -(EIO);
+	}
+	midi_in_buf[dev]->len = midi_in_buf[dev]->head = midi_in_buf[dev]->tail = 0;
 
-  parms[dev].prech_timeout = 0;
+	midi_out_buf[dev] = (struct midi_buf *) malloc(sizeof(struct midi_buf), M_TEMP, M_WAITOK);
 
-  RESET_WAIT_QUEUE (midi_sleeper[dev], midi_sleep_flag[dev]);
-  RESET_WAIT_QUEUE (input_sleeper[dev], input_sleep_flag[dev]);
+	if (midi_out_buf[dev] == NULL) {
+		printf("midi: Can't allocate buffer\n");
+		midi_devs[dev]->close(dev);
+		free(midi_in_buf[dev], M_TEMP);
+		midi_in_buf[dev] = NULL;
+		return -(EIO);
+	}
+	midi_out_buf[dev]->len = midi_out_buf[dev]->head = midi_out_buf[dev]->tail = 0;
+	open_devs++;
 
-  midi_in_buf[dev] = (struct midi_buf *) KERNEL_MALLOC (sizeof (struct midi_buf));
+	{
+		midi_sleep_flag[dev].aborting = 0;
+		midi_sleep_flag[dev].mode = WK_NONE;
+	};
+	{
+		input_sleep_flag[dev].aborting = 0;
+		input_sleep_flag[dev].mode = WK_NONE;
+	};
 
-  if (midi_in_buf[dev] == NULL)
-    {
-      printk ("midi: Can't allocate buffer\n");
-      midi_devs[dev]->close (dev);
-      RESTORE_INTR (flags);
-      return RET_ERROR (EIO);
-    }
-  midi_in_buf[dev]->len = midi_in_buf[dev]->head = midi_in_buf[dev]->tail = 0;
+	if (open_devs < 2) {	/* This was first open */
+		{
+		};
 
-  midi_out_buf[dev] = (struct midi_buf *) KERNEL_MALLOC (sizeof (struct midi_buf));
-
-  if (midi_out_buf[dev] == NULL)
-    {
-      printk ("midi: Can't allocate buffer\n");
-      midi_devs[dev]->close (dev);
-      KERNEL_FREE (midi_in_buf[dev]);
-      midi_in_buf[dev] = NULL;
-      RESTORE_INTR (flags);
-      return RET_ERROR (EIO);
-    }
-  midi_out_buf[dev]->len = midi_out_buf[dev]->head = midi_out_buf[dev]->tail = 0;
-  if (!open_devs)
-    ACTIVATE_TIMER (poll_timer, midi_poll, 1);	/*
-						 * Come back later
-						 */
-  open_devs++;
-  RESTORE_INTR (flags);
-
-  return err;
+		timeout( midi_poll, 0, 1);;	/* Start polling */
+	}
+	return err;
 }
 
 void
-MIDIbuf_release (int dev, struct fileinfo *file)
+MIDIbuf_release(int dev, struct fileinfo * file)
 {
-  int             mode;
-  unsigned long   flags;
+	int             mode;
+	u_long   flags;
 
-  dev = dev >> 4;
-  mode = file->mode & O_ACCMODE;
+	dev = dev >> 4;
+	mode = file->mode & O_ACCMODE;
 
-  DISABLE_INTR (flags);
+	if (dev < 0 || dev >= num_midis)
+		return;
 
-  /*
-     * Wait until the queue is empty
-   */
+	flags = splhigh();
 
-  if (mode != OPEN_READ)
-    {
-      midi_devs[dev]->putc (dev, 0xfe);		/*
-						   * Active sensing to shut the
-						   * devices
-						 */
+	/*
+	 * Wait until the queue is empty
+	 */
 
-      while (!PROCESS_ABORTING (midi_sleeper[dev], midi_sleep_flag[dev]) &&
-	     DATA_AVAIL (midi_out_buf[dev]))
-	DO_SLEEP (midi_sleeper[dev], midi_sleep_flag[dev], 0);	/*
-								 * Sync
-								 */
+	if (mode != OPEN_READ) {
+		midi_devs[dev]->putc(dev, 0xfe);	/* Active sensing to
+							 * shut the devices */
 
-      drain_midi_queue (dev);	/*
-				 * Ensure the output queues are empty
-				 */
-    }
+		while (!(PROCESS_ABORTING (midi_sleep_flag[dev])) &&
+		       DATA_AVAIL(midi_out_buf[dev])) {
+			int   chn;
+			midi_sleeper[dev] = &chn;
+			DO_SLEEP(chn, midi_sleep_flag[dev], 0);
 
-  midi_devs[dev]->close (dev);
-  KERNEL_FREE (midi_in_buf[dev]);
-  KERNEL_FREE (midi_out_buf[dev]);
-  midi_in_buf[dev] = NULL;
-  midi_out_buf[dev] = NULL;
-  open_devs--;
-  RESTORE_INTR (flags);
+		};		/* Sync */
+
+		drain_midi_queue(dev);	/* Ensure the output queues are empty */
+	}
+	splx(flags);
+
+	midi_devs[dev]->close(dev);
+
+	free(midi_in_buf[dev], M_TEMP);
+	free(midi_out_buf[dev], M_TEMP);
+	midi_in_buf[dev] = NULL;
+	midi_out_buf[dev] = NULL;
+	if (open_devs < 2) {
+	};
+	open_devs--;
 }
 
 int
-MIDIbuf_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
+MIDIbuf_write(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 {
-  unsigned long   flags;
-  int             c, n, i;
-  unsigned char   tmp_data;
+	u_long   flags;
+	int             c, n, i;
+	u_char   tmp_data;
 
-  dev = dev >> 4;
+	dev = dev >> 4;
 
-  if (!count)
-    return 0;
+	if (!count)
+		return 0;
 
-  DISABLE_INTR (flags);
+	flags = splhigh();
 
-  c = 0;
+	c = 0;
 
-  while (c < count)
-    {
-      n = SPACE_AVAIL (midi_out_buf[dev]);
+	while (c < count) {
+		n = SPACE_AVAIL(midi_out_buf[dev]);
 
-      if (n == 0)		/*
-				 * No space just now. We have to sleep
-				 */
-	{
-	  DO_SLEEP (midi_sleeper[dev], midi_sleep_flag[dev], 0);
-	  if (PROCESS_ABORTING (midi_sleeper[dev], midi_sleep_flag[dev]))
-	    {
-	      RESTORE_INTR (flags);
-	      return RET_ERROR (EINTR);
-	    }
+		if (n == 0) {	/* No space just now. We have to sleep */
 
-	  n = SPACE_AVAIL (midi_out_buf[dev]);
+			{
+				int  chn;
+
+				midi_sleeper[dev] = &chn;
+				DO_SLEEP(chn, midi_sleep_flag[dev], 0);
+			};
+
+			if (PROCESS_ABORTING(midi_sleep_flag[dev])) {
+				splx(flags);
+				return -(EINTR);
+			}
+			n = SPACE_AVAIL(midi_out_buf[dev]);
+		}
+		if (n > (count - c))
+			n = count - c;
+
+		for (i = 0; i < n; i++) {
+
+			if (uiomove((char *) &tmp_data, 1, buf)) {
+				printf("sb: Bad copyin()!\n");
+			};
+			QUEUE_BYTE(midi_out_buf[dev], tmp_data);
+			c++;
+		}
 	}
 
-      if (n > (count - c))
-	n = count - c;
+	splx(flags);
 
-      for (i = 0; i < n; i++)
-	{
-	  COPY_FROM_USER (&tmp_data, buf, c, 1);
-	  QUEUE_BYTE (midi_out_buf[dev], tmp_data);
-	  c++;
+	return c;
+}
+
+
+int
+MIDIbuf_read(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
+{
+	int             n, c = 0;
+	u_long   flags;
+	u_char   tmp_data;
+
+	dev = dev >> 4;
+
+	flags = splhigh();
+
+	if (!DATA_AVAIL(midi_in_buf[dev])) {	/* No data yet, wait */
+
+		{
+			int   chn;
+
+
+			input_sleeper[dev] = &chn;
+			DO_SLEEP(chn, input_sleep_flag[dev],  
+				 parms[dev].prech_timeout);
+
+		};
+		if (PROCESS_ABORTING(input_sleep_flag[dev]))
+			c = -(EINTR);	/* The user is getting restless */
 	}
-    }
+	if (c == 0 && DATA_AVAIL(midi_in_buf[dev])) {	/* Got some bytes */
+		n = DATA_AVAIL(midi_in_buf[dev]);
+		if (n > count)
+			n = count;
+		c = 0;
 
-  RESTORE_INTR (flags);
+		while (c < n) {
+			REMOVE_BYTE(midi_in_buf[dev], tmp_data);
 
-  return c;
-}
-
-
-int
-MIDIbuf_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
-{
-  int             n, c = 0;
-  unsigned long   flags;
-  unsigned char   tmp_data;
-
-  dev = dev >> 4;
-
-  DISABLE_INTR (flags);
-
-  if (!DATA_AVAIL (midi_in_buf[dev]))	/*
-					 * No data yet, wait
-					 */
-    {
-      DO_SLEEP (input_sleeper[dev], input_sleep_flag[dev],
-		parms[dev].prech_timeout);
-      if (PROCESS_ABORTING (input_sleeper[dev], input_sleep_flag[dev]))
-	c = RET_ERROR (EINTR);	/*
-				 * The user is getting restless
-				 */
-    }
-
-  if (c == 0 && DATA_AVAIL (midi_in_buf[dev]))	/*
-						 * Got some bytes
-						 */
-    {
-      n = DATA_AVAIL (midi_in_buf[dev]);
-      if (n > count)
-	n = count;
-      c = 0;
-
-      while (c < n)
-	{
-	  REMOVE_BYTE (midi_in_buf[dev], tmp_data);
-	  COPY_TO_USER (buf, c, &tmp_data, 1);
-	  c++;
+			if (uiomove((char *) &tmp_data, 1, buf)) {
+				printf("sb: Bad copyout()!\n");
+			};
+			c++;
+		}
 	}
-    }
+	splx(flags);
 
-  RESTORE_INTR (flags);
-
-  return c;
+	return c;
 }
 
 int
-MIDIbuf_ioctl (int dev, struct fileinfo *file,
-	       unsigned int cmd, unsigned int arg)
+MIDIbuf_ioctl(int dev, struct fileinfo * file, u_int cmd, ioctl_arg arg)
 {
-  int             val;
+	int             val;
 
-  dev = dev >> 4;
+	dev = dev >> 4;
 
-  if (((cmd >> 8) & 0xff) == 'C')
-    {
-      if (midi_devs[dev]->coproc)	/* Coprocessor ioctl */
-	return midi_devs[dev]->coproc->ioctl (midi_devs[dev]->coproc->devc, cmd, arg, 0);
-      else
-	printk ("/dev/midi%d: No coprocessor for this device\n", dev);
+	if (((cmd >> 8) & 0xff) == 'C') {
+		if (midi_devs[dev]->coproc)	/* Coprocessor ioctl */
+			return midi_devs[dev]->coproc->ioctl(midi_devs[dev]->coproc->devc, cmd, arg, 0);
+		else
+			printf("/dev/midi%d: No coprocessor for this device\n", dev);
 
-      return RET_ERROR (EREMOTEIO);
-    }
-  else
-    switch (cmd)
-      {
+		return -(ENXIO);
+	} else
+		switch (cmd) {
 
-      case SNDCTL_MIDI_PRETIME:
-	val = IOCTL_IN (arg);
-	if (val < 0)
-	  val = 0;
+		case SNDCTL_MIDI_PRETIME:
+			val = (int) (*(int *) arg);
+			if (val < 0)
+				val = 0;
 
-	val = (HZ * val) / 10;
-	parms[dev].prech_timeout = val;
-	return IOCTL_OUT (arg, val);
-	break;
+			val = (hz * val) / 10;
+			parms[dev].prech_timeout = val;
+			return *(int *) arg = val;
+			break;
 
-      default:
-	return midi_devs[dev]->ioctl (dev, cmd, arg);
-      }
+		default:
+			return midi_devs[dev]->ioctl(dev, cmd, arg);
+		}
 }
-
-#ifdef ALLOW_SELECT
-int
-MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait)
-{
-  int revents = 0;
-
-  dev = dev >> 4;
-
-  if (events & (POLLIN | POLLRDNORM))
-    if (!DATA_AVAIL (midi_in_buf[dev]))
-      selrecord(wait, &selinfo[dev]);
-    else
-      revents |= events & (POLLIN | POLLRDNORM);
-
-  if (events & (POLLOUT | POLLWRNORM))
-    if (SPACE_AVAIL (midi_out_buf[dev]))
-      selrecord(wait, &selinfo[dev]);
-    else
-      revents |= events & (POLLOUT | POLLWRNORM);
-
-  return revents;
-}
-
-#endif /* ALLOW_SELECT */
-
-long
-MIDIbuf_init (long mem_start)
-{
-  return mem_start;
-}
-
 #endif

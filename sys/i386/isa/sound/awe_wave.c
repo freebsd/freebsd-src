@@ -31,8 +31,8 @@
 /* if you're using obsolete VoxWare 3.0.x on Linux 1.2.x (or FreeBSD),
  * uncomment the following line
  */
-#define AWE_OBSOLETE_VOXWARE
 
+#define AWE_OBSOLETE_VOXWARE
 
 #ifdef AWE_OBSOLETE_VOXWARE
 
@@ -88,9 +88,6 @@
 #include <i386/isa/sound/awe_voice.h>
 
 #ifdef AWE_OBSOLETE_VOXWARE
-#ifdef __FreeBSD__
-#define SEQUENCER_C
-#endif
 #include <i386/isa/sound/tuning.h>
 #else
 #include "../tuning.h"
@@ -333,11 +330,25 @@ static void awe_set_reverb_mode(int mode);
 #define awe_request_region()	/* nothing */
 #define awe_release_region()	/* nothing */
 
+#ifdef __FreeBSD__
+#  ifndef PERMANENT_MALLOC
+#    define PERMANENT_MALLOC(typecast, mem_ptr, size) \
+       {mem_ptr = (typecast)malloc(size, M_DEVBUF, M_NOWAIT); \
+        if (!mem_ptr)panic("SOUND: Cannot allocate memory\n");}
+#  endif
+#  ifndef printk
+#    define printk printf
+#  endif
+#  ifndef RET_ERROR
+#    define RET_ERROR(err)          -(err)
+#  endif
+#endif
+
 #else /* AWE_OBSOLETE_VOXWARE */
 
 /* the following macros are osbolete */
 
-#define PERMANENT_MALLOC(type,var,size,memptr) \
+#define PERMANENT_MALLOC(type,var,size) \
 	var = (type)(sound_mem_blocks[sound_nblocks++] = vmalloc(size))
 #define RET_ERROR(err)			-err
 
@@ -431,8 +442,8 @@ static struct synth_operations awe_operations =
  * attach / unload interface
  *================================================================*/
 
-#ifdef AWE_OBSOLETE_VOXWARE
-long attach_awe_obsolete(long mem_start, struct address_info *hw_config)
+#if defined(AWE_OBSOLETE_VOXWARE) || defined(__FreeBSD__)
+void attach_awe_obsolete(struct address_info *hw_config)
 #else
 int attach_awe(void)
 #endif
@@ -440,23 +451,23 @@ int attach_awe(void)
 	/* check presence of AWE32 card */
 	if (! awe_detect()) {
 		printk("AWE32: not detected\n");
-		return 0;
+		return ;
 	}
 
 	/* check AWE32 ports are available */
 	if (awe_check_port()) {
 		printk("AWE32: I/O area already used.\n");
-		return 0;
+		return ;
 	}
 
 	/* allocate sample tables */
 	PERMANENT_MALLOC(awe_sample_info *, samples,
-			 AWE_MAX_SAMPLES * sizeof(awe_sample_info), mem_start);
+			 AWE_MAX_SAMPLES * sizeof(awe_sample_info) );
 	PERMANENT_MALLOC(awe_voice_list *, infos,
-			 AWE_MAX_INFOS * sizeof(awe_voice_list), mem_start);
+			 AWE_MAX_INFOS * sizeof(awe_voice_list) );
 	if (samples == NULL || infos == NULL) {
 		printk("AWE32: can't allocate sample tables\n");
-		return 0;
+		return ;
 	}
 
 	if (num_synths >= MAX_SYNTH_DEV)
@@ -488,29 +499,19 @@ int attach_awe(void)
 	awe_present = 1;
 
 #ifdef AWE_OBSOLETE_VOXWARE
-	return mem_start;
+	return ;
 #else
 	return 1;
 #endif
 }
 
-
-void unload_awe(void)
-{
-	if (awe_present) {
-		awe_reset_samples();
-		awe_release_region();
-	}
-}
-
-
 #ifdef AWE_OBSOLETE_VOXWARE
-int probe_awe_obsolete(struct address_info *hw_config)
+int
+probe_awe_obsolete(struct address_info *hw_config)
 {
 	return 1;
 	/*return awe_detect();*/
 }
-
 #endif
 
 /*================================================================

@@ -102,12 +102,12 @@
  *
  *	AM/VIB/EG/KSR/Multiple (0x20 to 0x35)
  */
- #define AM_VIB					0x20
- #define   TREMOLO_ON			0x80
- #define   VIBRATO_ON			0x40
- #define   SUSTAIN_ON			0x20
- #define   KSR				0x10 	/* Key scaling rate */
- #define   MULTIPLE_MASK		0x0f	/* Frequency multiplier */
+#define AM_VIB					0x20
+#define   TREMOLO_ON			0x80
+#define   VIBRATO_ON			0x40
+#define   SUSTAIN_ON			0x20
+#define   KSR				0x10 	/* Key scaling rate */
+#define   MULTIPLE_MASK		0x0f	/* Frequency multiplier */
 
  /*
   *	KSL/Total level (0x40 to 0x55)
@@ -231,7 +231,7 @@ struct physical_voice_info {
 #define USE_LEFT	0
 #define USE_RIGHT	1
 
-static struct physical_voice_info physical_voices[18] =
+static struct physical_voice_info pv_map[18] =
 {
 /*       No Mode Side		OP1	OP2	OP3   OP4	*/
 /*	---------------------------------------------------	*/
