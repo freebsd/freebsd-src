@@ -517,7 +517,7 @@ dateconv(char *arg)
                 t->tm_year = ATOI2(arg);
                 t->tm_year *= 100;
                 yearset = 1;
-                /* FALLTHOUGH */
+                /* FALLTHROUGH */
         case 10:                	/* YYMMDDhhmm */
                 if (yearset) {
                         yearset = ATOI2(arg);
