@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2004
+.Dd September 13, 2004
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -672,10 +672,7 @@ Send a copy of packets matching this rule to the
 .Xr divert 4
 socket bound to port
 .Ar port .
-The search terminates and the original packet is accepted
-(but see Section
-.Sx BUGS
-below).
+The search continues with the next rule.
 .It Cm unreach Ar code
 Discard packets that match this rule, and try to send an ICMP
 unreachable notice with code
@@ -2297,17 +2294,9 @@ regain control of it.
 .Pp
 Incoming packet fragments diverted by
 .Cm divert
-or
-.Cm tee
 are reassembled before delivery to the socket.
 The action used on those packet is the one from the
 rule which matches the first fragment of the packet.
-.Pp
-Packets that match a
-.Cm tee
-rule should not be immediately accepted, but should continue
-going through the rule list.
-This may be fixed in a later version.
 .Pp
 Packets diverted to userland, and then reinserted by a userland process
 may lose various packet attributes.
