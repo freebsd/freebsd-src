@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.48 1997/10/14 18:17:59 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.49 1998/03/07 09:09:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -641,6 +641,7 @@ extern char	*sstrncpy(char *dst, const char *src, int size);
 
 /* mouse.c */
 extern int	mousedTest(dialogMenuItem *self);
+extern int	mousedDisable(dialogMenuItem *self);
 
 /* msg.c */
 extern Boolean	isDebug(void);
