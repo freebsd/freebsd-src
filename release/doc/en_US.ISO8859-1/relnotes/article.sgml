@@ -332,12 +332,12 @@
 	Davicom cards that store their MAC address in
 	OpenFirmware.</para>
 
+      <para>A short hiccup in the &man.em.4; during parameter
+	reconfiguration, has been fixed.  &merged;</para>
+
       <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
 	driver has been removed due to breakage.  Its functionality
 	has been subsumed into the &man.en.4; driver.</para>
-
-      <para>A short hiccup in the &man.em.4; during parameter
-	reconfiguration, has been fixed.  &merged;</para>
 
       <para arch="i386">The lmc (LAN Media Corp. PCI WAN adapter) driver has been
 	removed due to breakage and lack of maintainership.</para>
