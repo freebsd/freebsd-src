@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.6 1998/09/23 05:08:54 wpaul Exp $
+ *	$Id: if_tlreg.h,v 1.8 1999/03/30 17:07:20 wpaul Exp $
  */
 
 
@@ -111,11 +111,8 @@ struct tl_chain_data {
 struct tl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
-#ifdef TL_USEIOSPACE
-	u_int32_t		iobase;
-#else
-	volatile caddr_t	csr;		/* pointer to register map */
-#endif
+	bus_space_handle_t	tl_bhandle;
+	bus_space_tag_t		tl_btag;
 	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	struct tl_type		*tl_pinfo;	/* PHY info struct */
 	u_int8_t		tl_ctlr;	/* chip number */
@@ -131,10 +128,8 @@ struct tl_softc {
 	caddr_t			tl_ldata_ptr;
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;
-	int			tl_txeoc;
-#ifdef TL_DEBUG
-	u_int8_t		tl_event[20];
-#endif
+	u_int8_t		tl_txeoc;
+	u_int8_t		tl_bitrate;
 	struct callout_handle	tl_stat_ch;
 };
 
@@ -532,38 +527,30 @@ struct tl_stats {
 };
 
 /*
+ * ACOMMIT register bits. These are used only when a bitrate
+ * PHY is selected ('bitrate' bit in netconfig register is set).
+ */
+#define TL_AC_MTXER		0x01	/* reserved */
+#define TL_AC_MTXD1		0x02	/* 0 == 10baseT 1 == AUI */
+#define TL_AC_MTXD2		0x04	/* loopback disable */
+#define TL_AC_MTXD3		0x08	/* full duplex disable */
+
+/*
  * register space access macros
  */
-#ifdef TL_USEIOSPACE
 #define CSR_WRITE_4(sc, reg, val)	\
-	outl(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_4(sc->tl_btag, sc->tl_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	outw(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_2(sc->tl_btag, sc->tl_bhandle, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	outb(sc->iobase + (u_int32_t)(reg), val)
+	bus_space_write_1(sc->tl_btag, sc->tl_bhandle, reg, val)
 
-#define CSR_READ_4(sc, reg)	\
-	inl(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_2(sc, reg)	\
-	inw(sc->iobase + (u_int32_t)(reg))
-#define CSR_READ_1(sc, reg)	\
-	inb(sc->iobase + (u_int32_t)(reg))
-#else
-#define CSR_WRITE_4(sc, reg, val)	\
-	((*(u_int32_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int32_t)(val))
-#define CSR_WRITE_2(sc, reg, val)	\
-	((*(u_int16_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int16_t)(val))
-#define CSR_WRITE_1(sc, reg, val)	\
-	((*(u_int8_t*)((sc)->csr + (u_int32_t)(reg))) = (u_int8_t)(val))
-
-#define CSR_READ_4(sc, reg)	\
-	(*(u_int32_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_2(sc, reg)	\
-	(*(u_int16_t *)((sc)->csr + (u_int32_t)(reg)))
-#define CSR_READ_1(sc, reg)	\
-	(*(u_int8_t *)((sc)->csr + (u_int32_t)(reg)))
-#endif
-
+#define CSR_READ_4(sc, reg)		\
+	bus_space_read_4(sc->tl_btag, sc->tl_bhandle, reg)
+#define CSR_READ_2(sc, reg)		\
+	bus_space_read_2(sc->tl_btag, sc->tl_bhandle, reg)
+#define CSR_READ_1(sc, reg)		\
+	bus_space_read_1(sc->tl_btag, sc->tl_bhandle, reg)
 
 #define CMD_PUT(sc, x) CSR_WRITE_4(sc, TL_HOSTCMD, x)
 #define CMD_SET(sc, x)	\
