@@ -18,13 +18,16 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.6 1995/11/21 12:52:49 bde Exp $
+ *	$Id: eisaconf.h,v 1.8 1996/01/30 22:53:51 mpp Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
 #define _I386_EISA_EISACONF_H_ 1
 
+#include <sys/queue.h>
+
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
+#define EISA_SLOT_SIZE 0x1000
 
 #define EISA_MFCTR_CHAR0(ID) (char)(((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
 #define EISA_MFCTR_CHAR1(ID) (char)(((ID>>21) & 0x1F) | '@')  /* Bits 21-25 */
@@ -35,15 +38,27 @@
 
 extern struct linker_set eisadriver_set;
 
-typedef u_long eisa_id_t;   /* Should use u_int32? */
+typedef u_int32_t eisa_id_t;
+
+typedef struct resvaddr {
+        u_long	addr;				/* start address */
+        u_long	size;				/* size of reserved area */
+	int	flags;
+#define		RESVADDR_NONE		0x00
+#define		RESVADDR_BITMASK	0x01	/* size is a mask of reserved 
+						 * bits at addr
+						 */
+#define		RESVADDR_RELOCATABLE	0x02
+	LIST_ENTRY(resvaddr) links;		/* List links */
+} resvaddr_t;
+
+LIST_HEAD(resvlist, resvaddr);
 
 struct eisa_ioconf {
-	int	slot;
-        u_long	iobase;      /* base i/o address */
-        int	iosize;      /* size of i/o space */
-        u_short irq;         /* interrupt request */
-        caddr_t maddr;       /* physical i/o memory address on bus (if any)*/
-        int     msize;       /* size of i/o memory */
+	int		slot;
+	struct resvlist	ioaddrs;	/* list of reserved I/O ranges */
+	struct resvlist maddrs;		/* list of reserved memory ranges */
+	u_short		irq;		/* bitmask of interrupt */
 };
 
 struct kern_devconf;
@@ -59,7 +74,7 @@ struct eisa_driver {
 					/* Return the device to a safe
 					 * state before shutdown
 					 */
-	u_long  *unit;			/* Next availible unit */
+	u_long  *unit;			/* Next available unit */
 };
 
 /* To be replaced by the "super device" generic device structure... */
@@ -81,16 +96,19 @@ int eisa_add_intr __P((struct eisa_device *, int));
 int eisa_reg_intr __P((struct eisa_device *, int, void (*)(void *), void *, u_int *, int));
 int eisa_release_intr __P((struct eisa_device *, int, void (*)(void *)));
 int eisa_enable_intr __P((struct eisa_device *, int));
-int eisa_add_iospace __P((struct eisa_device *, u_long, int));
-int eisa_reg_iospace __P((struct eisa_device *, u_long, int));
+int eisa_add_iospace __P((struct eisa_device *, u_long, u_long, int));
+int eisa_reg_iospace __P((struct eisa_device *, resvaddr_t *));
+int eisa_add_mspace __P((struct eisa_device *, u_long, u_long, int));
+int eisa_reg_mspace __P((struct eisa_device *, resvaddr_t *));
 int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *, struct kern_devconf *));
 
 
 struct sysctl_req;
-int eisa_externalize (struct eisa_device *, void *userp, size_t *maxlen);
 
-int eisa_generic_externalize (struct proc *p, struct kern_devconf *kdc,
-			      void *userp, size_t l);
+extern int eisa_generic_externalize __P(( struct proc *p,
+					  struct kern_devconf *kdc,
+					  void *userp,
+					  size_t l));
 extern struct kern_devconf kdc_eisa0;
 
 #define EISA_EXTERNALLEN (sizeof(struct eisa_device))

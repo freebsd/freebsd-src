@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.1 1996/02/26 01:01:37 gibbs Exp $
+ *	$Id: 3c5x9.c,v 1.2 1996/02/28 17:18:55 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -241,7 +241,7 @@ ep_eisa_attach(e_dev)
 
 	sc->stat = 0;
 	sc->kdc = e_dev->kdc;
-	level_intr = FALSE;
+	level_intr = 0;
 	switch(e_dev->id) {
 		case EISA_DEVICE_ID_3COM_3C509_TP:
 			sc->ep_connectors = UTP|AUI;
@@ -252,12 +252,12 @@ ep_eisa_attach(e_dev)
 		case EISA_DEVICE_ID_3COM_3C579_TP:
 			sc->ep_connectors = UTP|AUI;
 			sc->stat = F_ACCESS_32_BITS;
-			level_intr = TRUE;
+			level_intr = 1;
 			break;
 		case EISA_DEVICE_ID_3COM_3C579_BNC:
 			sc->ep_connectors = BNC|AUI;
 			sc->stat = F_ACCESS_32_BITS;
-			level_intr = TRUE;
+			level_intr = 1;
 			break;
 		case EISA_DEVICE_ID_3COM_3C509_COMBO:
 			sc->ep_connectors = UTP|BNC|AUI;
