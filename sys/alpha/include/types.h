@@ -1,4 +1,4 @@
-/* $Id: types.h,v 1.3 1998/03/23 08:17:16 jb Exp $ */
+/* $Id: types.h,v 1.4 1998/06/14 15:26:03 bde Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -75,7 +75,7 @@ typedef int64_t			register_t;
 typedef int32_t			ufs_daddr_t;
 
 #ifdef KERNEL
-typedef	uint64_t		uoff_t;		/* unsigned file offset */
+typedef u_int64_t		uoff_t;		/* unsigned file offset */
 #endif
 
 /* Interrupt mask (spl, xxx_imask, etc) */
