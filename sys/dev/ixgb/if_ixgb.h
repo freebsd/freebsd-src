@@ -42,6 +42,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
 
