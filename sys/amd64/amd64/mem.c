@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.31 1996/03/27 19:04:55 bde Exp $
+ *	$Id: mem.c,v 1.32 1996/04/01 21:02:14 scrappy Exp $
  */
 
 /*
@@ -124,7 +124,7 @@ memdevfs_init()
 			 UID_ROOT, GID_WHEEL, 0666, "zero");
     io_devfs_token = 
 	devfs_add_devswf(&mem_cdevsw, 14, DV_CHR, 
-			 UID_ROOT, GID_KMEM, 0640, "io");
+			 UID_ROOT, GID_WHEEL, 0600, "io");
 #ifdef PERFMON
     perfmon_devfs_token = 
 	devfs_add_devswf(&mem_cdevsw, 32, DV_CHR, 
