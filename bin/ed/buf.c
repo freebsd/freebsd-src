@@ -45,8 +45,7 @@ line_t buffer_head;			/* incore buffer */
 /* get_sbuf_line: get a line of text from the scratch file; return pointer
    to the text */
 char *
-get_sbuf_line(lp)
-	line_t *lp;
+get_sbuf_line(line_t *lp)
 {
 	static char *sfbuf = NULL;	/* buffer */
 	static int sfbufsz = 0;		/* buffer size */
@@ -81,8 +80,7 @@ get_sbuf_line(lp)
 /* put_sbuf_line: write a line of text to the scratch file and add a line node
    to the editor buffer;  return a pointer to the end of the text */
 const char *
-put_sbuf_line(cs)
-	const char *cs;
+put_sbuf_line(const char *cs)
 {
 	line_t *lp;
 	int len, ct;
@@ -128,8 +126,7 @@ put_sbuf_line(cs)
 
 /* add_line_node: add a line node in the editor buffer after the current line */
 void
-add_line_node(lp)
-	line_t *lp;
+add_line_node(line_t *lp)
 {
 	line_t *cp;
 
@@ -142,8 +139,7 @@ add_line_node(lp)
 
 /* get_line_node_addr: return line number of pointer */
 long
-get_line_node_addr(lp)
-	line_t *lp;
+get_line_node_addr(line_t *lp)
 {
 	line_t *cp = &buffer_head;
 	long n = 0;
@@ -160,8 +156,7 @@ get_line_node_addr(lp)
 
 /* get_addressed_line_node: return pointer to a line node in the editor buffer */
 line_t *
-get_addressed_line_node(n)
-	long n;
+get_addressed_line_node(long n)
 {
 	static line_t *lp = &buffer_head;
 	static long on = 0;
@@ -196,7 +191,7 @@ char sfn[15] = "";				/* scratch file name */
 
 /* open_sbuf: open scratch file */
 int
-open_sbuf()
+open_sbuf(void)
 {
 	int fd = -1;
 	int u;
@@ -220,7 +215,7 @@ open_sbuf()
 
 /* close_sbuf: close scratch file */
 int
-close_sbuf()
+close_sbuf(void)
 {
 	if (sfp) {
 		if (fclose(sfp) < 0) {
@@ -238,8 +233,7 @@ close_sbuf()
 
 /* quit: remove_lines scratch file and exit */
 void
-quit(n)
-	int n;
+quit(int n)
 {
 	if (sfp) {
 		fclose(sfp);
@@ -253,7 +247,7 @@ unsigned char ctab[256];		/* character translation table */
 
 /* init_buffers: open scratch buffer; initialize line queue */
 void
-init_buffers()
+init_buffers(void)
 {
 	int i = 0;
 
@@ -278,11 +272,7 @@ init_buffers()
 
 /* translit_text: translate characters in a string */
 char *
-translit_text(s, len, from, to)
-	char *s;
-	int len;
-	int from;
-	int to;
+translit_text(char *s, int len, int from, int to)
 {
 	static int i = 0;
 

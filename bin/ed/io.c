@@ -37,9 +37,7 @@ extern int scripted;
 
 /* read_file: read a named file/pipe into the buffer; return line count */
 long
-read_file(fn, n)
-	char *fn;
-	long n;
+read_file(char *fn, long n)
 {
 	FILE *fp;
 	long size;
@@ -70,9 +68,7 @@ int newline_added;		/* if set, newline appended to input file */
 
 /* read_stream: read a stream into the editor buffer; return status */
 long
-read_stream(fp, n)
-	FILE *fp;
-	long n;
+read_stream(FILE *fp, long n)
 {
 	line_t *lp = get_addressed_line_node(n);
 	undo_t *up = NULL;
@@ -121,8 +117,7 @@ read_stream(fp, n)
 
 /* get_stream_line: read a line of text from a stream; return line length */
 int
-get_stream_line(fp)
-	FILE *fp;
+get_stream_line(FILE *fp)
 {
 	int c;
 	int i = 0;
@@ -151,11 +146,7 @@ get_stream_line(fp)
 
 /* write_file: write a range of lines to a named file/pipe; return line count */
 long
-write_file(fn, mode, n, m)
-	char *fn;
-	const char *mode;
-	long n;
-	long m;
+write_file(char *fn, const char *mode, long n, long m)
 {
 	FILE *fp;
 	long size;
@@ -179,10 +170,7 @@ write_file(fn, mode, n, m)
 
 /* write_stream: write a range of lines to a stream; return status */
 long
-write_stream(fp, n, m)
-	FILE *fp;
-	long n;
-	long m;
+write_stream(FILE *fp, long n, long m)
 {
 	line_t *lp = get_addressed_line_node(n);
 	unsigned long size = 0;
@@ -211,10 +199,7 @@ write_stream(fp, n, m)
 
 /* put_stream_line: write a line of text to a stream; return status */
 int
-put_stream_line(fp, s, len)
-	FILE *fp;
-	const char *s;
-	int len;
+put_stream_line(FILE *fp, const char *s, int len)
 {
 	while (len--)
 		if ((des ? put_des_char(*s++, fp) : fputc(*s++, fp)) < 0) {
@@ -227,9 +212,7 @@ put_stream_line(fp, s, len)
 
 /* get_extended_line: get a an extended line from stdin */
 char *
-get_extended_line(sizep, nonl)
-	int *sizep;
-	int nonl;
+get_extended_line(int *sizep, int nonl)
 {
 	static char *cvbuf = NULL;		/* buffer */
 	static int cvbufsz = 0;			/* buffer size */
@@ -272,7 +255,7 @@ get_extended_line(sizep, nonl)
 
 /* get_tty_line: read a line of text from stdin; return line length */
 int
-get_tty_line()
+get_tty_line(void)
 {
 	int oi = 0;
 	int i = 0;
@@ -320,11 +303,7 @@ extern int cols;
 
 /* put_tty_line: print text to stdout */
 int
-put_tty_line(s, l, n, gflag)
-	const char *s;
-	int l;
-	long n;
-	int gflag;
+put_tty_line(const char *s, int l, long n, int gflag)
 {
 	int col = 0;
 	int lc = 0;
