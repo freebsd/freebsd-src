@@ -104,7 +104,7 @@ check_access(SVCXPRT *xprt, rpcproc_t proc, void *args, unsigned int rpcbvers)
 	case RPCBPROC_GETADDRLIST:
 	case RPCBPROC_GETSTAT:
 	default:
-		;
+		break;
 	}
 
 #ifdef LIBWRAP
@@ -149,7 +149,7 @@ is_loopback(struct netbuf *nbuf)
 	case AF_LOCAL:
 		return 1;
 	default:
-		;
+		break;
 	}
 	
 	return 0;
@@ -269,10 +269,10 @@ check_callit(SVCXPRT *xprt, struct r_rmtcall_args *args, int versnum __unused)
 		case YPPROC_NEXT:
 			goto deny;
 		default:
-			;
+			break;
 		}
 	default:
-		;
+		break;
 	}
 
 	return 1;
