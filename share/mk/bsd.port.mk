@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.74 1994/11/25 17:04:02 ache Exp $
+# $Id: bsd.port.mk,v 1.75 1994/12/10 18:07:38 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -57,7 +57,7 @@
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
-						target.
+#						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
