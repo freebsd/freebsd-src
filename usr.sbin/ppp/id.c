@@ -214,7 +214,7 @@ ID0login(struct utmp *ut)
 }
 
 void
-ID0logout(const char *device)
+ID0logout(const char *device, int nologout)
 {
   struct utmp ut;
 
@@ -222,7 +222,7 @@ ID0logout(const char *device)
   ut.ut_line[sizeof ut.ut_line - 1] = '\0';
 
   ID0set0();
-  if (logout(ut.ut_line)) {
+  if (nologout || logout(ut.ut_line)) {
     log_Printf(LogID0, "logout(\"%s\")\n", ut.ut_line);
     logwtmp(ut.ut_line, "", ""); 
     log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut.ut_line);
