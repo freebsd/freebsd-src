@@ -98,14 +98,12 @@ Otherwise, it returns
 The following options may be passed to the authentication module:
 .Bl -tag -width ".Cm allow_local"
 .It Cm allow_local
-Always allow local logins.
-If this option is not specified, local logins are treated as remote
-logins from
-.Dq localhost ,
-and will be refused unless an appropriate
-.Dq allow
-entry exists in
-.Pa /etc/opieaccess .
+Normally, local logins are subjected to the same restrictions as
+remote logins from
+.Dq localhost .
+This option causes
+.Nm
+to always allow local logins.
 .It Cm debug
 .Xr syslog 3
 debugging information at
