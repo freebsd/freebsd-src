@@ -208,11 +208,6 @@ typedef struct pv_entry {
 	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
-#define	PV_ENTRY_NULL	((pv_entry_t) 0)
-
-#define	PV_CI		0x01	/* all entries must be cache inhibited */
-#define	PV_PTPAGE	0x02	/* entry maps a page table page */
-
 #ifdef	_KERNEL
 
 extern caddr_t	CADDR1;
@@ -234,7 +229,6 @@ int	pmap_uses_prom_console(void);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
-vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
 void	pmap_set_opt	(unsigned *);
 void	pmap_set_opt_bsp	(void);
 void	pmap_deactivate(struct thread *td);
