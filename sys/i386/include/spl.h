@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.8 1995/05/11 07:44:16 bde Exp $
+ *	$Id: spl.h,v 1.9 1995/08/08 04:50:50 dyson Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -105,7 +105,7 @@ static __inline int name(void)			\
 {						\
 	unsigned x;				\
 						\
-	asm volatile("":::"memory");		\
+	__asm __volatile("":::"memory");		\
 	x = cpl;				\
 	set_cpl;				\
 	return (x);				\
