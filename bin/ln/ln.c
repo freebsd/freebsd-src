@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ln.c,v 1.9 1997/02/22 14:03:49 peter Exp $
+ *	$Id: ln.c,v 1.10 1997/03/28 15:24:22 imp Exp $
  */
 
 #ifndef lint
@@ -157,7 +157,8 @@ linkit(target, source, isdir)
 void
 usage()
 {
-	(void)fprintf(stderr,
-	    "usage:\tln [-fs] file1 file2\n\tln [-fs] file ... directory\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: ln [-fs] file1 file2",
+	    "       ln [-fs] file ... directory");
 	exit(1);
 }
