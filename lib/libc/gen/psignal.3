@@ -44,12 +44,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <signal.h>
+.In signal.h
 .Ft void
 .Fn psignal "unsigned sig" "const char *s"
 .Vt extern const char * const sys_siglist[] ;
 .Vt extern const char * const sys_signame[] ;
-.Fd #include <string.h>
+.In string.h
 .Ft "char *"
 .Fn strsignal "int sig"
 .Sh DESCRIPTION

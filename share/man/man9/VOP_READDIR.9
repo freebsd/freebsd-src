@@ -35,9 +35,9 @@
 .Nm VOP_READDIR
 .Nd read contents of a directory
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/dirent.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/dirent.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_READDIR "struct vnode *vp" "struct uio *uio" "struct ucred *cred" "int *eofflag" "int *ncookies" "u_long **cookies"
 .Sh DESCRIPTION

@@ -39,9 +39,9 @@
 .Nm dbopen
 .Nd "database access methods"
 .Sh SYNOPSIS
-.Fd "#include <sys/types.h>"
-.Fd "#include <limits.h>"
-.Fd "#include <db.h>"
+.In sys/types.h
+.In limits.h
+.In db.h
 .Ft DB *
 .Fn dbopen "const char *file" "int flags" "int mode" "DBTYPE type" "const void *openinfo"
 .Sh DESCRIPTION

@@ -36,9 +36,9 @@
 .Nm VOP_PUTPAGES
 .Nd read or write VM pages from a file
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
-.Fd #include <vm/vm.h>
+.In sys/param.h
+.In sys/vnode.h
+.In vm/vm.h
 .Ft int
 .Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *m" "int count" "int reqpage" "vm_ooffset_t offset"
 .Ft int
