@@ -61,6 +61,7 @@ rdlocs.c
 rdperm.c
 reliab.c
 remunk.c
+runuxq.c
 sinfo.c
 snams.c
 split.c

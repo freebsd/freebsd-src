@@ -11,8 +11,7 @@
 #include <ftw.h>
 #endif
 
-static int iswalk_dir P((const char *zname, const struct stat *qstat,
-			 int iflag));
+static int iswalk_dir P((const char *zname, struct stat *qstat, int iflag));
 
 /* Walk a directory tree.  */
 
@@ -41,7 +40,7 @@ usysdep_walk_tree (zdir, pufn, pinfo)
 static int
 iswalk_dir (zname, qstat, iflag)
      const char *zname;
-     const struct stat *qstat;
+     struct stat *qstat;
      int iflag;
 {
   char *zcopy;

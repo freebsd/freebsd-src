@@ -29,15 +29,14 @@ fsysdep_make_dirs (zfile, fpublic)
       if (*z == '/' && z != zcopy)
 	{
 	  *z = '\0';
-	  if (! fsysdep_directory (zcopy))
+	  if (mkdir (zcopy, imode) != 0
+	      && errno != EEXIST
+	      && (errno != EACCES || ! fsysdep_directory (zcopy)))
 	    {
-	      if (mkdir (zcopy, imode) != 0)
-		{
-		  ulog (LOG_ERROR, "mkdir (%s): %s", zcopy,
-			strerror (errno));
-		  ubuffree (zcopy);
-		  return FALSE;
-		}
+	      ulog (LOG_ERROR, "mkdir (%s): %s", zcopy,
+		    strerror (errno));
+	      ubuffree (zcopy);
+	      return FALSE;
 	    }
 	  *z = '/';
 	}

@@ -24,14 +24,17 @@ fsysdep_needs_cwd (zfile)
    consistent with other UUCP packages.  */
 
 char *
-zsysdep_local_file_cwd (zfile, zpubdir)
+zsysdep_local_file_cwd (zfile, zpubdir, pfbadname)
      const char *zfile;
      const char *zpubdir;
+     boolean *pfbadname;
 {
+  if (pfbadname != NULL)
+    *pfbadname = FALSE;
   if (*zfile == '/')
     return zbufcpy (zfile);
   else if (*zfile == '~')
-    return zsysdep_local_file (zfile, zpubdir);
+    return zsysdep_local_file (zfile, zpubdir, pfbadname);
   else
     return zsysdep_add_cwd (zfile);
 }      

@@ -8,8 +8,9 @@ basnam.c
 bytfre.c
 chmod.c
 cohtty.c
-cwd.c
+corrup.c
 cusub.c
+cwd.c
 detach.c
 dirent.c
 dup2.c
@@ -40,7 +41,9 @@ move.c
 opensr.c
 pause.c
 picksb.c
+pipe.c
 portnm.c
+priv.c
 proctm.c
 recep.c
 remove.c

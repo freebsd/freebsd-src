@@ -1,11 +1,11 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 # uutraf.pl -- UUCP Traffic Analyzer
-# SCCS Status     : @(#)@ uutraf	1.7
+# SCCS Status     : @(#)@ uutraf	1.8
 # Author          : Johan Vromans
 # Created On      : ***
 # Last Modified By: Johan Vromans
-# Last Modified On: Wed Feb 26 08:52:56 1992
-# Update Count    : 4
+# Last Modified On: Mon Aug 30 15:02:22 1993
+# Update Count    : 6
 # Status          : OK
 # Requires:       : Perl V4 or later
 
@@ -52,7 +52,7 @@ if ( $ARGV[0] =~ /^-/ ) {
 }
 
 if ( $uucp_type eq "taylor" || $uucp_type eq "gnu" ) {
-    @ARGV = ("/usr/spool/uucp/Stats") unless $#ARGV >= 0;
+    @ARGV = ("/usr/local/spool/uucp/Stats") unless $#ARGV >= 0;
     $pat = "^[^ ]+ ([^ ]+) \\(([-0-9:\\/ .]+)\\) " .
 	"(sent|received) (\\d+) bytes in (\\d+)\\.(\\d+) seconds";
     $uucp_type = 0;
@@ -73,16 +73,17 @@ elsif ( $uucp_type eq "bsd" || $uucp_type eq "v7" ) {
     $recv = "received";
 }
 else {
-    die ("Unknown UUCP type: $uucp_type\n");
+    die ("FATAL: Unknown UUCP type: $uucp_type\n");
 }
 
 $garbage = 0;
 
 while ( <> ) {
     unless ( /$pat/o ) {
-	print STDERR "Possible garbage: $_";
+	print STDERR "$_";
+	next if /failed/;
 	if ( $garbage++ > 10 ) {
-	    die ("Too much garbage; wrong UUCP type?\n");
+	    die ("FATAL: Too much garbage; wrong UUCP type?\n");
 	}
 	next;
     }
@@ -90,10 +91,10 @@ while ( <> ) {
     # gather timestamps
     $last_date = $2;
     $first_date = $last_date unless defined $first_date;
-
+	
     # initialize new hosts
     unless ( defined $hosts{$1} ) {
-	$hosts{$1} = $files_in{$1} = $files_out{$1} =
+	$hosts{$1} = $files_in{$1} = $files_out{$1} = 
 	    $bytes_in{$1} = $bytes_out{$1} =
 		$secs_in{$1} = $secs_out{$1} = 0;
     }
@@ -162,9 +163,9 @@ foreach $host (@hosts) {
 
 sub print_line {
   reset "Z";		# reset print fields
-  local ($Zhost,
-	 $Zi_bytes, $Zo_bytes,
-	 $Zi_secs, $Zo_secs,
+  local ($Zhost, 
+	 $Zi_bytes, $Zo_bytes, 
+	 $Zi_secs, $Zo_secs, 
 	 $Zi_count, $Zo_count) = @_;
   $Ti_bytes += $Zi_bytes;
   $To_bytes += $Zo_bytes;
@@ -186,7 +187,7 @@ sub print_line {
 
 sub print_dashes {
   $Zhost = $Zi_bytes = $Zo_bytes = $Zt_bytes =
-    $Zi_hrs = $Zo_hrs = $Zi_acps = $Zo_acps = $Zi_count = $Zo_count =
+    $Zi_hrs = $Zo_hrs = $Zi_acps = $Zo_acps = $Zi_count = $Zo_count = 
       "------------";
   write;
   # easy, isn't it?
@@ -196,6 +197,12 @@ sub print_dashes {
 
 sub gethostname {
   $ENV{"SHELL"} = "/bin/sh";
+  $try = `hostname 2>/dev/null`;
+  chop $try;
+  return $+ if $try =~ /^[-.\w]+$/;
+  $try = `uname -n 2>/dev/null`;
+  chop $try;
+  return $+ if $try =~ /^[-.\w]+$/;
   $try = `uuname -l 2>/dev/null`;
   chop $try;
   return $+ if $try =~ /^[-.\w]+$/;
