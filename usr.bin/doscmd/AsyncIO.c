@@ -164,7 +164,8 @@ printf("Closed file descriptor %d\n", x);
 	}
 }
 
-static void HandleIO(struct sigframe *sf)
+static void
+HandleIO(struct sigframe *sf)
 {
 	static struct timeval tv;
 	fd_set readset, writeset;
@@ -247,7 +248,7 @@ again:
 		 */
 		if (as->func) {
 			(*handlers[fd].func)(fd, cond, handlers[fd].arg, 
-			    (regcontext_t*)&sf->sf_uc);
+			    (regcontext_t *)&sf->sf_uc.uc_mcontext);
 		} else {
 			/*
 			 * Otherwise deregister this guy.
