@@ -151,8 +151,8 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # advantages for UP as well.  It is intended to replace the 4BSD scheduler
 # over time.
 #
-#options 	SCHED_4BSD
-options		SCHED_ULE
+options 	SCHED_4BSD
+#options 	SCHED_ULE
 
 #####################################################################
 # SMP OPTIONS:
