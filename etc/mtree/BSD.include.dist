@@ -1,4 +1,6 @@
-#	$Id: BSD.include.dist,v 1.23 1998/12/13 04:31:15 dillon Exp $
+#	$Id: BSD.include.dist,v 1.24 1998/12/13 04:38:28 dillon Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755
