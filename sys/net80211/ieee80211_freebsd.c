@@ -209,18 +209,18 @@ ieee80211_notify_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, i
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_join_event iev;
 
+	memset(&iev, 0, sizeof(iev));
 	if (ni == ic->ic_bss) {
-		memset(&iev, 0, sizeof(iev));
 		IEEE80211_ADDR_COPY(iev.iev_addr, ni->ni_bssid);
 		rt_ieee80211msg(ifp, newassoc ?
 			RTM_IEEE80211_ASSOC : RTM_IEEE80211_REASSOC,
 			&iev, sizeof(iev));
 		if_link_state_change(ifp, LINK_STATE_UP);
-	} else if (newassoc) {
-		/* fire off wireless event only for new station */
-		memset(&iev, 0, sizeof(iev));
+	} else {
 		IEEE80211_ADDR_COPY(iev.iev_addr, ni->ni_macaddr);
-		rt_ieee80211msg(ifp, RTM_IEEE80211_JOIN, &iev, sizeof(iev));
+		rt_ieee80211msg(ifp, newassoc ?
+			RTM_IEEE80211_JOIN : RTM_IEEE80211_REJOIN,
+			&iev, sizeof(iev));
 	}
 }
 
