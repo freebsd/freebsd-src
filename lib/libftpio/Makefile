@@ -4,6 +4,9 @@ SRCS=		ftpio.c ftperr.c
 MAN3=		ftpio.3
 CLEANFILES+=	ftperr.c
 
+SHLIB_MAJOR=	3
+SHLIB_MINOR=	0
+
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/ftpio.h \
 		${DESTDIR}/usr/include
