@@ -188,7 +188,10 @@ THIS SOFTWARE.
 #include "stdlib.h"
 #include "string.h"
 #include "libc_private.h"
-#include "spinlock.h"
+
+#include "namespace.h"
+#include <pthread.h>
+#include "un-namespace.h"
 
 #ifdef KR_headers
 #define Char char
@@ -465,14 +468,14 @@ extern double rnd_prod(double, double), rnd_quot(double, double);
 #endif
 
 #define MULTIPLE_THREADS
-extern spinlock_t __gdtoa_locks[2];
-#define ACQUIRE_DTOA_LOCK(n)	do {		\
-	if (__isthreaded)			\
-		_SPINLOCK(&__gdtoa_locks[n]);	\
+extern pthread_mutex_t __gdtoa_locks[2];
+#define ACQUIRE_DTOA_LOCK(n)	do {				\
+	if (__isthreaded)					\
+		_pthread_mutex_lock(&__gdtoa_locks[n]);		\
 } while(0)
-#define FREE_DTOA_LOCK(n)	do {		\
-	if (__isthreaded)			\
-		_SPINUNLOCK(&__gdtoa_locks[n]);	\
+#define FREE_DTOA_LOCK(n)	do {				\
+	if (__isthreaded)					\
+		_pthread_mutex_unlock(&__gdtoa_locks[n]);	\
 } while(0)
 
 #define Kmax 15
