@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# $Id: linux,v 1.4 1997/02/22 12:48:25 peter Exp $
+# $Id: linux,v 1.5 1998/09/07 16:15:59 cracauer Exp $
 
-if modstat -n linux_mod > /dev/null ; then
-	echo Linux lkm already loaded
+FOUND=`kldstat -v | egrep 'linux(aout|elf)'`
+
+if [ "x$FOUND" != x ] ; then           
+	echo Linux driver already loaded
 	exit 1
-else
-	modload -e linux_mod -u -q -o /tmp/linux_mod /lkm/linux_mod.o
+else    
+	kldload linux                                                
 fi
