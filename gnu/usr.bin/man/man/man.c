@@ -25,6 +25,7 @@
 #include <errno.h>
 #ifdef __FreeBSD__
 #include <locale.h>
+#include <langinfo.h>
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -92,8 +93,8 @@ static char *alt_system_name;
 #endif
 
 #ifdef __FreeBSD__
-/* short_locale without country suffix */
-static char *locale, *short_locale, *locale_opts, *locale_nroff;
+static char *locale, *locale_opts, *locale_nroff, *locale_codeset;
+static char locale_terr[3], locale_lang[3];
 static int use_original;
 struct ltable {
 	char *lcode;
@@ -102,9 +103,7 @@ struct ltable {
 static struct ltable ltable[] = {
 	{"KOI8-R", "koi8-r"},
 	{"ISO8859-1", "latin1"},
-	{"ISO_8859-1", "latin1"},
 	{"ISO8859-15", "latin1"},
-	{"ISO_8859-15", "latin1"},
 	{NULL}
 };
 #endif
@@ -458,44 +457,64 @@ man_getopt (argc, argv)
     }
 
 #ifdef __FreeBSD__
-  if (!use_original && (locale = setlocale(LC_CTYPE, NULL)) != NULL) {
-	char *tmp;
+  /* "" intentionally used to catch error */
+  if ((locale = setlocale(LC_CTYPE, "")) != NULL)
+	locale_codeset = nl_langinfo(CODESET);
+  if (!use_original && locale != NULL && *locale_codeset != '\0' &&
+      strcmp(locale_codeset, "US-ASCII") != 0
+     ) {
+	char *tmp, *short_locale;
 	struct ltable *pltable;
 
-	if ((tmp = strchr(locale, '_')) == NULL
-	    || tmp != locale + 2
-	    || strlen(tmp + 1) < 4
-	    || tmp[3] != '.') {
-		if (debug) {
-			if (strcmp(locale, "C") != 0 &&
-			    strcmp(locale, "POSIX") != 0 &&
-			    strcmp(locale, "ASCII") != 0 &&
-			    strcmp(locale, "US-ASCII") != 0) {
-				errno = EINVAL;
-				perror ("ctype locale env");
-			}
-		}
+	*locale_lang = '\0';
+	*locale_terr = '\0';
+
+	if ((short_locale = strdup(locale)) == NULL) {
+		perror ("ctype locale strdup");
+		exit (1);
+	}
+	if ((tmp = strchr(short_locale, '.')) != NULL)
+		*tmp = '\0';
+
+	if (strlen(short_locale) == 2)
+		strcpy(locale_lang, short_locale);
+	else if ((tmp = strchr(short_locale, '_')) == NULL ||
+		 tmp != short_locale + 2 ||
+		 strlen(tmp + 1) != 2
+		) {
+		errno = EINVAL;
+		perror ("ctype locale format");
 		locale = NULL;
 	} else {
-		if ((short_locale = strdup(locale)) == NULL) {
-			perror ("ctype locale strdup");
-			exit (1);
-		}
-		tmp = short_locale + 3;
-		tmp[0] = short_locale[0];
-		tmp[1] = short_locale[1];
-		short_locale = tmp;
+		strncpy(locale_terr, short_locale + 3, 2);
+		locale_terr[2] = '\0';
+		strncpy(locale_lang, short_locale, 2);
+		locale_lang[2] = '\0';
+	}
 
-		tmp = short_locale + 3;
+	free(short_locale);
+
+	if (locale != NULL) {
 		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
-			if (strcmp(pltable->lcode, tmp) == 0) {
+			if (strcmp(pltable->lcode, locale_codeset) == 0) {
 				locale_nroff = pltable->nroff;
 				break;
 			}
 		}
 	}
+  } else {
+	if (locale == NULL) {
+		errno = EINVAL;
+		perror ("ctype locale");
+	} else {
+		locale = NULL;
+		if (*locale_codeset == '\0') {
+			errno = EINVAL;
+			perror ("ctype codeset");
+		}
+	}
   }
-#endif
+#endif /* __FreeBSD__ */
 
   if (pager == NULL || *pager == '\0')
     if ((pager = getenv ("PAGER")) == NULL)
@@ -1630,15 +1649,22 @@ man (name)
 	  l_found = 0;
 	  if (locale != NULL) {
 	    locale_opts = locale_nroff;
-	    snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-	    if (is_directory (buf) == 1)
-	      l_found = try_section (buf, section, name, glob);
-	    if (!l_found) {
-	      snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
+	    if (*locale_lang != '\0' && *locale_terr != '\0') {
+	      snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
+		       locale_lang, locale_terr, locale_codeset);
 	      if (is_directory (buf) == 1)
 		l_found = try_section (buf, section, name, glob);
-	      if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
-		snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+	    }
+	    if (!l_found) {
+	      if (*locale_lang != '\0') {
+		snprintf(buf, sizeof(buf), "%s/%s.%s", *mp,
+			 locale_lang, locale_codeset);
+		if (is_directory (buf) == 1)
+		  l_found = try_section (buf, section, name, glob);
+	      }
+	      if (!l_found && strcmp(locale_lang, "en") != 0) {
+		snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
+			 locale_codeset);
 		if (is_directory (buf) == 1)
 		  l_found = try_section (buf, section, name, glob);
 	      }
@@ -1672,15 +1698,22 @@ man (name)
 	      l_found = 0;
 	      if (locale != NULL) {
 		locale_opts = locale_nroff;
-		snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-		if (is_directory (buf) == 1)
-		  l_found = try_section (buf, *sp, name, glob);
-		if (!l_found) {
-		  snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
+		if (*locale_lang != '\0' && *locale_terr != '\0') {
+		  snprintf(buf, sizeof(buf), "%s/%s_%s.%s", *mp,
+			   locale_lang, locale_terr, locale_codeset);
 		  if (is_directory (buf) == 1)
 		    l_found = try_section (buf, *sp, name, glob);
-		  if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
-		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
+		}
+		if (!l_found) {
+		  if (*locale_lang != '\0') {
+		    snprintf(buf, sizeof(buf), "%s/%s.%s", *mp,
+			     locale_lang, locale_codeset);
+		    if (is_directory (buf) == 1)
+		      l_found = try_section (buf, *sp, name, glob);
+		  }
+		  if (!l_found && strcmp(locale_lang, "en") != 0) {
+		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp,
+			     locale_codeset);
 		    if (is_directory (buf) == 1)
 		      l_found = try_section (buf, *sp, name, glob);
 		  }
