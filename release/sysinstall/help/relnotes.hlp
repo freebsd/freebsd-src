@@ -144,6 +144,7 @@ ATA
 
 Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
 Adaptec 152x series ISA SCSI controllers
+Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI

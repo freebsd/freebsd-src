@@ -62,7 +62,7 @@ wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
-aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
+aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
