@@ -223,25 +223,13 @@ mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	return (ENOIOCTL);
 }
 
-static void
-mdstart_malloc(struct md_s *sc)
+static int
+mdstart_malloc(struct md_s *sc, struct bio *bp)
 {
 	int i;
-	struct bio *bp;
 	devstat_trans_flags dop;
 	u_char *secp, **secpp, *dst;
 	unsigned secno, nsec, secval, uc;
-
-	for (;;) {
-		/* XXX: LOCK(unique unit numbers) */
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
-		/* XXX: UNLOCK(unique unit numbers) */
-		if (!bp)
-			break;
-
-		devstat_start_transaction(&sc->stats);
 
 		if (bp->bio_cmd == BIO_DELETE)
 			dop = DEVSTAT_NO_DATA;
@@ -306,28 +294,14 @@ mdstart_malloc(struct md_s *sc)
 			dst += sc->secsize;
 		}
 		bp->bio_resid = 0;
-		biofinish(bp, &sc->stats, 0);
-	}
-	return;
+	return (0);
 }
 
 
-static void
-mdstart_preload(struct md_s *sc)
+static int
+mdstart_preload(struct md_s *sc, struct bio *bp)
 {
-	struct bio *bp;
 	devstat_trans_flags dop;
-
-	for (;;) {
-		/* XXX: LOCK(unique unit numbers) */
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
-		/* XXX: UNLOCK(unique unit numbers) */
-		if (!bp)
-			break;
-
-		devstat_start_transaction(&sc->stats);
 
 		if (bp->bio_cmd == BIO_DELETE) {
 			dop = DEVSTAT_NO_DATA;
@@ -339,16 +313,13 @@ mdstart_preload(struct md_s *sc)
 			bcopy(bp->bio_data, sc->pl_ptr + (bp->bio_pblkno << DEV_BSHIFT), bp->bio_bcount);
 		}
 		bp->bio_resid = 0;
-		biofinish(bp, &sc->stats, 0);
-	}
-	return;
+	return (0);
 }
 
-static void
-mdstart_vnode(struct md_s *sc)
+static int
+mdstart_vnode(struct md_s *sc, struct bio *bp)
 {
 	int error;
-	struct bio *bp;
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
@@ -360,17 +331,6 @@ mdstart_vnode(struct md_s *sc)
 	 * B_INVAL because (for a write anyway), the buffer is 
 	 * still valid.
 	 */
-
-	for (;;) {
-		/* XXX: LOCK(unique unit numbers) */
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
-		/* XXX: UNLOCK(unique unit numbers) */
-		if (!bp)
-			break;
-
-		devstat_start_transaction(&sc->stats);
 
 		bzero(&auio, sizeof(auio));
 
@@ -402,45 +362,25 @@ mdstart_vnode(struct md_s *sc)
 		}
 		VOP_UNLOCK(sc->vnode, 0, curthread);
 		bp->bio_resid = auio.uio_resid;
-		biofinish(bp, &sc->stats, error);
-	}
-	return;
+	return (error);
 }
 
-static void
-mdstart_swap(struct md_s *sc)
+static int
+mdstart_swap(struct md_s *sc, struct bio *bp)
 {
-	struct bio *bp;
-
-	for (;;) {
-		/* XXX: LOCK(unique unit numbers) */
-		bp = bioq_first(&sc->bio_queue);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
-		/* XXX: UNLOCK(unique unit numbers) */
-		if (!bp)
-			break;
-
-#if 0
-		devstat_start_transaction(&sc->stats);
-#endif
 
 		if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE)) 
 			biodone(bp);
 		else
 			vm_pager_strategy(sc->object, bp);
-
-#if 0
-		devstat_end_transaction_bio(&sc->stats, bp);
-#endif
-	}
-	return;
+	return (-1);
 }
 
 static void
 mdstrategy(struct bio *bp)
 {
 	struct md_s *sc;
+	int error;
 
 	if (md_debug > 1)
 		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
@@ -456,22 +396,39 @@ mdstrategy(struct bio *bp)
 	if (atomic_cmpset_int(&sc->busy, 0, 1) == 0)
 		return;
 
+	for (;;) {
+		/* XXX: LOCK(unique unit numbers) */
+		bp = bioq_first(&sc->bio_queue);
+		if (bp)
+			bioq_remove(&sc->bio_queue, bp);
+		/* XXX: UNLOCK(unique unit numbers) */
+		if (!bp)
+			break;
+
+
 	switch (sc->type) {
 	case MD_MALLOC:
-		mdstart_malloc(sc);
+			devstat_start_transaction(&sc->stats);
+			error = mdstart_malloc(sc, bp);
 		break;
 	case MD_PRELOAD:
-		mdstart_preload(sc);
+			devstat_start_transaction(&sc->stats);
+			error = mdstart_preload(sc, bp);
 		break;
 	case MD_VNODE:
-		mdstart_vnode(sc);
+			devstat_start_transaction(&sc->stats);
+			error = mdstart_vnode(sc, bp);
 		break;
 	case MD_SWAP:
-		mdstart_swap(sc);
+			error = mdstart_swap(sc, bp);
 		break;
 	default:
 		panic("Impossible md(type)");
 		break;
+		}
+
+		if (error != -1)
+			biofinish(bp, &sc->stats, error);
 	}
 	sc->busy = 0;
 }
