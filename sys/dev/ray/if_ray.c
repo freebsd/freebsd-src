@@ -491,26 +491,24 @@ ray_attach(device_t dev)
 	/*
 	 * Initialise the network interface structure
 	 */
-	if (!ifp->if_name) {
-		bcopy((char *)&ep->e_station_addr,
-		    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-		ifp->if_softc = sc;
-		ifp->if_name = "ray";
-		ifp->if_unit = device_get_unit(dev);
-		ifp->if_timer = 0;
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-		ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 
-		    sizeof(struct ether_header);
-		ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
-		ifp->if_output = ether_output;
-		ifp->if_start = ray_tx;
-		ifp->if_ioctl = ray_ioctl;
-		ifp->if_watchdog = ray_watchdog;
-		ifp->if_init = ray_init_user;
-		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	bcopy((char *)&ep->e_station_addr,
+	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	ifp->if_softc = sc;
+	ifp->if_name = "ray";
+	ifp->if_unit = device_get_unit(dev);
+	ifp->if_timer = 0;
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	ifp->if_hdrlen = sizeof(struct ieee80211_frame) + 
+	    sizeof(struct ether_header);
+	ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
+	ifp->if_output = ether_output;
+	ifp->if_start = ray_tx;
+	ifp->if_ioctl = ray_ioctl;
+	ifp->if_watchdog = ray_watchdog;
+	ifp->if_init = ray_init_user;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	}
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	/*
 	 * Initialise the timers and driver
@@ -518,7 +516,6 @@ ray_attach(device_t dev)
 	callout_handle_init(&sc->com_timerh);
 	callout_handle_init(&sc->tx_timerh);
 	TAILQ_INIT(&sc->sc_comq);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	/*
 	 * Print out some useful information
@@ -587,7 +584,7 @@ ray_detach(device_t dev)
 	sc->gone = 1;
 	sc->sc_havenet = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	/*
 	 * Stop the runq and wake up anyone sleeping for us.
