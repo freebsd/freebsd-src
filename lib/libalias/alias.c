@@ -259,7 +259,7 @@ static int	IcmpAliasIn1(struct libalias *, struct ip *);
 static int	IcmpAliasIn2(struct libalias *, struct ip *);
 static int	IcmpAliasIn(struct libalias *, struct ip *);
 
-static int	IcmpAliasOut1(struct libalias *, struct ip *);
+static int	IcmpAliasOut1(struct libalias *, struct ip *, int create);
 static int	IcmpAliasOut2(struct libalias *, struct ip *);
 static int	IcmpAliasOut(struct libalias *, struct ip *, int create);
 
@@ -452,7 +452,7 @@ IcmpAliasIn(struct libalias *la, struct ip *pip)
 
 
 static int
-IcmpAliasOut1(struct libalias *la, struct ip *pip)
+IcmpAliasOut1(struct libalias *la, struct ip *pip, int create)
 {
 /*
     Alias outgoing echo and timestamp requests.
@@ -464,7 +464,7 @@ IcmpAliasOut1(struct libalias *la, struct ip *pip)
 	ic = (struct icmp *)ip_next(pip);
 
 /* Save overwritten data for when echo packet returns */
-	lnk = FindIcmpOut(la, pip->ip_src, pip->ip_dst, ic->icmp_id, 1);
+	lnk = FindIcmpOut(la, pip->ip_src, pip->ip_dst, ic->icmp_id, create);
 	if (lnk != NULL) {
 		u_short alias_id;
 		int accumulate;
@@ -614,7 +614,7 @@ IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
 	case ICMP_ECHO:
 	case ICMP_TSTAMP:
 		if (ic->icmp_code == 0) {
-			iresult = IcmpAliasOut1(la, pip);
+			iresult = IcmpAliasOut1(la, pip, create);
 		}
 		break;
 	case ICMP_UNREACH:
@@ -625,7 +625,7 @@ IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
 		break;
 	case ICMP_ECHOREPLY:
 	case ICMP_TSTAMPREPLY:
-		iresult = IcmpAliasOut1(la, pip);
+		iresult = IcmpAliasOut1(la, pip, create);
 	}
 	return (iresult);
 }
