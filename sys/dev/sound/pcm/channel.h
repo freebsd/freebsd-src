@@ -79,3 +79,12 @@ extern pcm_feeder feeder_root;
 
 
 #define CHN_F_RESET		(CHN_F_BUSY)
+
+/*
+ * This should be large enough to hold all pcm data between
+ * tsleeps in chn_{read,write} at the highest sample rate.
+ * (which is usually 48kHz * 16bit * stereo = 192000 bytes/sec)
+ */
+#define CHN_2NDBUFBLKSIZE	(12 * 1024)
+/* The total number of blocks per secondary buffer. */
+#define CHN_2NDBUFBLKNUM	(3)
