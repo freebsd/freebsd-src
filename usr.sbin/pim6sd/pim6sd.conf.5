@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pim6sd.conf.5,v 1.9 2000/05/05 14:57:14 sumikawa Exp $
+.\"	KAME Id: pim6sd.conf.5,v 1.10 2000/07/09 17:28:42 itojun Exp
 .\"	$FreeBSD$
 .\"
 .Dd Oct 6, 1999
@@ -37,7 +37,7 @@
 .\"
 .Sh DESCRIPTION
 The
-.Nm pim6sd
+.Nm
 configuration file consists of a sequence of statements terminated
 by a semi-colon (`;'), each of which specifies how the daemon treats
 each interface on the system, specifies some parameters of the PIM
@@ -50,7 +50,7 @@ Lines beginning with
 are comments.
 .\".Pp
 .\"Note that
-.\".Nm pim6sd
+.\".Xr pim6sd 8
 .\"works even without the configuration file, although the daemon
 .\"will warn that there is no configuration file.
 .\"In such a case, the daemon will automatically set the default value
@@ -104,7 +104,7 @@ By default, a hostname is not resolved.
 .Ic ;
 .Xc
 Specifies
-.Nm
+.Xr pim6sd 8
 to ignore the interface even if the interface is multicast-capable.
 Note that PIM will be activated on all interfaces by default(including
 the case where there is no configuration file).
@@ -125,7 +125,7 @@ assert message on the interface.
 If another optional parameter
 .Ic nolistener
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will not send any MLD packets on the interface.
 This option is usually meaningless but will be useful when
 MLD messages are noisy (e.g. when debugging) and there is surely no
@@ -137,7 +137,7 @@ listner on the interface.
 Specifies a default preference value when sending a PIM assert message.
 Preferences are used by assert elections to determine upstream routers.
 Currently
-.Nm pim6sd
+.Xr pim6sd 8
 cannot reliably obtain preferences and metrics from the
 unicast routing protocols, so a default value may be configured.
 The default preference is 1024.
@@ -229,7 +229,7 @@ All other parameters are optional and will be set automatically.
 If an
 .Ar interface
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will search for a global address on the specified interface
 and set the address in Candidate RP Advertisements.
 An optional parameter
@@ -267,7 +267,7 @@ All other parameters are optional and will be set automatically.
 If an
 .Ar interface
 is specified,
-.Nm pim6sd
+.Xr pim6sd 8
 will search for a global address on the specified interface
 and set the address in Bootstrap messages.
 An optional parameter
@@ -322,14 +322,14 @@ cand_rp;
 .Xr pim6sd 8
 .Sh HISTORY
 The
-.Nm pim6sd
+.Xr pim6sd 8
 command is developed by Mickael Hoerdt at LSIIT Laboratory.
 It is based on IPv4 PIM sparse-mode
 .Nm pimd
 developed at University of Southern California,
 which has also been derived from
-.Nm mrouted.
-.Nm Mrouted
+.Nm mrouted .
+.Nm mrouted
 is COPYRIGHT 1989 by The Board of Trustees of
 Leland Stanford Junior University.
 .Pp
