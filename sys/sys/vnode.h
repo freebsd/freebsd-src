@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.12 1994/10/08 22:23:00 phk Exp $
+ * $Id: vnode.h,v 1.13 1994/10/21 01:19:23 wollman Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -391,6 +391,7 @@ int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 	    struct proc *p, int slpflag, int slptimeo));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
+int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
 int 	vget __P((struct vnode *vp, int lockflag));
 void 	vgone __P((struct vnode *vp));
 void 	vgoneall __P((struct vnode *vp));
