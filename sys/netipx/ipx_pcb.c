@@ -182,7 +182,7 @@ ipx_pcbconnect(ipxp, nam, td)
 		    ro->ro_dst.sa_len = sizeof(ro->ro_dst);
 		    *dst = sipx->sipx_addr;
 		    dst->x_port = 0;
-		    rtalloc(ro);
+		    rtalloc_ign(ro, 0);
 	}
 	if (ipx_neteqnn(ipxp->ipxp_laddr.x_net, ipx_zeronet)) {
 		/* 
