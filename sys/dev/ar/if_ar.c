@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.19 1998/06/07 17:10:24 dfr Exp $
+ * $Id: if_ar.c,v 1.20 1998/06/17 13:54:56 bde Exp $
  */
 
 /*
@@ -71,8 +71,6 @@
 #include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
 #include <i386/isa/isa_device.h>
-
-#include "ioconf.h"
 
 #include "sppp.h"
 #if NSPPP <= 0
