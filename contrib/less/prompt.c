@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (C) 1984-2000  Mark Nudelman
  *
@@ -111,7 +112,7 @@ ap_pos(pos)
 {
 	char buf[MAX_PRINT_POSITION];
 
-	sprintf(buf, PR_POSITION, pos);
+	sprintf(buf, PR_POSITION, (long long)pos);
 	ap_str(buf);
 }
 
