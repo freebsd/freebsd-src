@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.if	${MACHINE_ARCH} == "powerpc"
+.if	${TARGET_ARCH} == "powerpc"
 HOST=		powerpc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_powerpc\"
 CFLAGS+=	-DTARGET=\"powerpc-unknown-freebsd\"

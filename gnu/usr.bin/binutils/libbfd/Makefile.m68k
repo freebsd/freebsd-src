@@ -30,7 +30,7 @@ VECS+=		bfd_elf32_m68k_vec	\
 		m68knetbsd_vec		\
 		m68ksysvcoff_vec	\
 		sunos_big_vec
-.if ${MACHINE_ARCH} == "m68k"
+.if ${TARGET_ARCH} == "m68k"
 CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_m68k_vec
 .endif
 CFLAGS+=	-DHAVE_bfd_elf32_m68k_vec
