@@ -54,6 +54,8 @@
 #define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 #endif
 
+#define STACKALIGNBYTES	(8 - 1)
+#define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 #ifndef	_MACHINE
 #define	_MACHINE	"arm"
 #endif
