@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.154 2002/11/23 17:29:28 ue Exp $
-  basiert auf: 1.455
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.158 2002/12/01 12:36:35 ue Exp $
+  basiert auf: 1.460
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -109,7 +109,7 @@
     Unterst&uuml;tzung f&uuml;r neue Hardware, neue Befehle oder
     Optionen, die Behebung wichtiger Fehler, und Aktualisierungen von
     Dritt-Software.  Sicherheitshinweise, die nach dem Erscheinen von
-    &release.prev; herausgegeben wurden, sind ebenfalls
+    &release.prev.historic; herausgegeben wurden, sind ebenfalls
     aufgef&uuml;hrt.</para>
 
   <para>Viele weiter &Auml;nderungen an &os; sind hier aus
@@ -147,7 +147,7 @@
       Verf&uuml;gung, Benutzerprogramme erhalten Zugriff auf
       Verschl&uuml;sselungs-Hardware.  Treiber f&uuml;r Karten auf
       Basis von hifn (&man.hifn.4;) und Braodcom (&man.ubsec.4;)
-      stehen zur Verf&uuml;gung.</para>
+      stehen zur Verf&uuml;gung.  &merged;</para>
 
     <para>Der neue &man.ddb.4; Befehl <command>show pcpu</command>
       gibt einen Teil der CPU-spezifischen Daten aus.</para>
@@ -163,7 +163,7 @@
     <para>Das neue <filename>devctl</filename> Interface bietet
       Benutzerprogrammen die M&ouml;glichkeit, Informationen &uuml;ber
       neue und entfernte Ger&auml;te zu erhalten.  Zur Zeit wird diese
-      Option haupts&auml;chlich von &man.devd.8;  genutzt.</para>
+      Option haupts&auml;chlich von &man.devd.8; genutzt.</para>
 
     <para>&man.devfs.5;, mit dem Eintr&auml;ge im Verzeichnis
       <filename>/dev</filename> automatisch erstellt werden
@@ -171,9 +171,7 @@
       Betrieb erlaubt, wurde &uuml;berarbeitet.  &man.devfs.5; ist
       jetzt standardm&auml;&szlig;ig aktiviert und kann mit der
       Kernel-Option <literal>NODEVFS</literal> abgeschaltet
-      werden.</para>
-
-    <para>Das neue &man.devfs.5; Subsystem "rule" (Regel) erlaubt es
+      werden.  Das Subsystem "rule" (Regel) erlaubt es
       dem Administrator, bestimmte Eigenschaften von neuen devfs
       festzulegen, bevor Sie f&uuml;r Benutzerprogramme sichtbar
       werden.  Dabei werden sowohl statische (wie z.B.
@@ -184,15 +182,13 @@
       wie z.B. jails m&ouml;glich.  Zur Manipulation der Regeln und
       Regelwerke dient das Tool &man.devfs.8;.</para>
 
-    <para>Der Treiber dgm wurde durch den Treiber digi
-      ersetzt.</para>
-
     <para>Der neue Treiber digi wurde hinzugef&uuml;gt, um
-      Unterst&uuml;tzung f&uuml;r PCI Xr-basierte und ISA Xem Digiboard
-      Karten zu bieten.  Der neue Befehl &man.digictl.8; wird
-      (haupts&auml;chlich) dazu genutzt, um Karten wie die PC/Xem neu
-      zu initialisieren, nachdem externe Port Module angeschlossen
-      wurden.</para>
+      Unterst&uuml;tzung f&uuml;r PCI Xr-basierte und ISA Xem
+      Digiboard Karten zu bieten.  Der neue Befehl &man.digictl.8;
+      wird (haupts&auml;chlich) dazu genutzt, um Karten wie die PC/Xem
+      neu zu initialisieren, nachdem externe Port Module angeschlossen
+      wurden.  Dieser Treiber ersetzt den &auml;lteren Treiber
+      dgm.</para>
 
     <para>Die neue Systemfunktion &man.eaccess.2; arbeitet &auml;hnlich
       wie &man.access.2;, benutzt aber die effektiven Benutzerrechte
@@ -465,8 +461,9 @@
 
     <para>Der neue Treiber &man.ucom.4; unterst&uuml;tzt USB Modems,
       serielle Schnittstellen und andere Programme, die sich wie ein
-      TTY verhalten sollen.  Die beiden neuen Treiber &man.uplcom.4;
-      und &man.uvscom.4; bauen darauf auf und unterst&uuml;tzen den
+      TTY verhalten sollen.  Die neuen Treiber &man.uftdi.4;, &man.uplcom.4;
+      und &man.uvscom.4; bauen darauf auf und unterst&uuml;tzen die
+      seriellen Adapter von FTDI, den
       Prolific PL-2303 bzw. den Slipper U VS-10U.  &merged;</para>
 
     <para>Bei der Konfiguration des Kernels kann die Option
@@ -1137,7 +1134,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Wird in der Konfigurationsdatei f&uuml;r den
 	angepa&szlig;ten die Option <literal>FAST_IPSEC</literal>
-	verwendet, nutzt IPsec die Verschl&uuml;sselungs-Infrastruktur
+	verwendet, nutzt IPsec die &man.crypto.4;-Infrastruktur
 	des Kernels, inklusive der Unterst&uuml;tzung f&uuml;r
 	Hardware-Verschl&uuml;sselung.
 	<note>
@@ -1173,6 +1170,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &uuml;ber die Sysctl-Variable
         <varname>net.inet.tcp.icmp_may_rst</varname>
         eingestellt.  &merged;</para>
+
+      <para>F&uuml;r weitergeleitete Pakete werden jetzt keine ICMP
+	Source Quench Nachrichten mehr erzeugt.  Mit der
+	Sysctl-Variablen
+	<varname>net.inet.ip.sendsourcequench</varname> kann wieder
+	auf das bisherige Verhalten umgestellt werden.</para>
 
       <para>Auf VLAN Ger&auml;ten funktioniert jetzt IP Multicast,
         auch andere Fehler in den VLAN-Routinen wurden
@@ -1508,8 +1511,9 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	    Dateisystems die Angabe der MBR-Partition wegzulassen
 	    (also z.B.  <filename>/dev/ad0a</filename>); der Kernel
 	    suchte dann automatisch die erste &os;-Partition und
-	    f&uuml;llte den Namen auf.  Ein GEOM-Kernel
-	    unterst&uuml;tzt nur noch die vollen Namen (also z.B.
+	    f&uuml;llte den Namen auf.  Nutzt der Kernel GEOM (was
+	    inzwischen die Standardeinstellung ist), unterst&uuml;tzt
+	    er nur noch die vollen Namen (also z.B.
 	    <filename>/dev/ad0s1a</filename>), wenn MBR-Partitionen
 	    benutzt werden.  Diese &Auml;nderung sollte allerdings nur
 	    wenige Anwender betreffen.</para>
@@ -1644,10 +1648,6 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         <literal>filesystem snapshots</literal>.  Genauere
         Informationen finden Sie in
         <filename>/usr/src/sys/ufs/ffs/README.snapshot</filename>.</para>
-
-<!-- The following note needs to be made more specific or eliminated. -->
-      <para>Bei den Softupdates f&uuml;r FFS wurden Fehler beseitigt
-        und Verbesserungen eingef&uuml;hrt.</para>
 
       <para>&man.statfs.2; und &man.df.1; halten nach, wie viele
         Bl&ouml;cke und Dateien noch freigegeben werden m&uuml;ssen,
@@ -1827,14 +1827,14 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
       <para arch="i386">NEWCARD enth&auml;lt jetzt eine erste Version
-        der Routinen zur Unterst&uuml;tzung von Cardbus.  Zur Zeit
-        werden die TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
-        95/97/100 und Cirrus Logic PD683X unterst&uuml;tzt.  Die
-        Unterst&uuml;tzung f&uuml;r 16-Bit PC Card funktioniert noch
-        nicht.</para>
+        der Routinen zur Unterst&uuml;tzung von Cardbus.  Es werden
+	sowohl 32-Bit als auch 16-Bit Karten unterst&uuml;tzt.
+	Neben allen bekannten CardBus Bridges wird auch die TI-1030
+	PCMCIA-PCI Bridge unterst&uuml;tzt.  Andere PCMCIA-PCI und
+	ISA Bridges werden noch nicht unterst&uuml;tzt.</para>
 
       <para>Der Standard-Kernel nutzt jetzt standardm&auml;&szlig;ig
-        NEWCARD f&uuml;r pccard/cardbus.</para>
+        NEWCARD f&uuml;r PCCARD/CardBus.</para>
     </sect3>
 
     <sect3>
@@ -1927,7 +1927,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Advanced Configuration und Power Interface wird jetzt
         unterst&uuml;tzt.  Die Routinen stammen vom <application>Intel
         ACPI Component Architecture</application> Projekt, und sind
-        auf dem Stand des 20020815 Snapshots.  In einigen Punkten wird
+        auf dem Stand des 20021118 Snapshots.  In einigen Punkten wird
         die Funktionalit&auml;t des alten Standard APM
         unterst&uuml;tzt, damit alte Applikationen weiterverwendet
         werden k&ouml;nnen.</para>
@@ -2044,45 +2044,45 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       ein- oder ausgeschaltet, wodurch der Grad der Systemsicherheit
       voreingestellt wird.  &merged;</para>
 
-    <para>Defekte ELF Programme konnten das System zum Stillstand
+    <para role="historic">Defekte ELF Programme konnten das System zum Stillstand
       bringen, dieser Fehler wurde behoben (siehe FreeBSD-SA-00:41).
       &merged;</para>
 
-    <para>Eine Sicherheitsl&uuml;cke in der Linux-Emulation wurde
+    <para role="historic">Eine Sicherheitsl&uuml;cke in der Linux-Emulation wurde
       beseitigt (siehe FreeBSD-SA-00:42). &merged;</para>
 
     <para role="historic">Die Aufrufe von Bibliotheksfunktionen zur Bearbeitung von Zeichenketten wurden in vielen
       Programmen korrigiert, um die Gefahr durch &uuml;berlaufende
       Puffer zu reduzieren.  &merged;</para>
 
-    <para>Die initialen Sequenznummern bei TCP-Verbindungen sind jetzt
+    <para role="historic">Die initialen Sequenznummern bei TCP-Verbindungen sind jetzt
       zuf&auml;lliger (siehe FreeBSD-SA-00:52).  &merged;</para>
 
-    <para>Mehrere Buffer Overflows in &man.tcpdump.1; wurden
+    <para role="historic">Mehrere Buffer Overflows in &man.tcpdump.1; wurden
       korrigiert (siehe FreeBSD-SA-00:61). &merged;</para>
 
-    <para>Eine Sicherheitsl&uuml;cke in &man.top.1; wurde gestopft
+    <para role="historic">Eine Sicherheitsl&uuml;cke in &man.top.1; wurde gestopft
       (siehe FreeBSD-SA-00:62). &merged;</para>
 
-    <para>Eine potentielle Sicherheitsl&uuml;cke durch einen
+    <para role="historic">Eine potentielle Sicherheitsl&uuml;cke durch einen
       off-by-one-error in &man.gethostbyname.3; wurde geschlossen
       (siehe FreeBSD-SA-00:63). &merged;</para>
 
-    <para>In der Bibliothek &man.ncurses.3; bestand die Gefahr eines
+    <para role="historic">In der Bibliothek &man.ncurses.3; bestand die Gefahr eines
       Buffer Overflows, durch den ein Angreifer in der Lage gewesen
       w&auml;re, beliebige Programme aus &man.systat.1; heraus
       ausf&uuml;hren zu lassen, dieser Fehler wurde behoben.  (siehe
       FreeBSD-SA-00:68). &merged;</para>
 
-    <para>Eine Schwachstelle von &man.telnetd.8;, die zu erh&ouml;hten
+    <para role="historic">Eine Schwachstelle von &man.telnetd.8;, die zu erh&ouml;hten
       Verbrauch an Systemressourcen f&uuml;hren konnte, wurde
       beseitigt.  (siehe FreeBSD-SA-00:69).  &merged;</para>
 
-    <para>Der &man.ppp.8;-Befehl <literal>nat deny_incoming</literal>
+    <para role="historic">Der &man.ppp.8;-Befehl <literal>nat deny_incoming</literal>
       funktioniert jetzt richtig (siehe FreeBSD-SA-00:70).
       &merged;</para>
 
-    <para>Eine Sicherheitsl&uuml;cke bei der Behandlung von
+    <para role="historic">Eine Sicherheitsl&uuml;cke bei der Behandlung von
       tempor&auml;ren Dateien durch &man.csh.1;/&man.tcsh.1;
       h&auml;tte dazu genutzt werden k&ouml;nnen, beliebige vom Benutzer
       beschreibbare Dateien zu &uuml;berschreiben; dieser Fehler wurde
@@ -2099,37 +2099,37 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para role="historic">&man.telnet.1; initialisiert sein Environment jetzt besser.
       &merged;</para>
 
-    <para>In &man.procfs.5; wurden mehrere Schwachstellen beseitigt
+    <para role="historic">In &man.procfs.5; wurden mehrere Schwachstellen beseitigt
       (siehe FreeBSD-SA-00:77). &merged;</para>
 
-    <para>Eine Fehler in <application>OpenSSH</application> hatte zur
+    <para role="historic">Eine Fehler in <application>OpenSSH</application> hatte zur
       Folge, da&szlig; der Server weder &man.ssh-agent.1; noch
       <literal>X11Forwarding</literal> deaktivieren konnte, dieser
       Fehler wurde beseitigt (siehe FreeBSD-SA-01:01).
       &merged;</para>
 
-    <para>Durch einen Fehler in &man.ipfw.8; und &man.ip6fw.8; war es
+    <para role="historic">Durch einen Fehler in &man.ipfw.8; und &man.ip6fw.8; war es
       m&ouml;glich, da&szlig; ankommende TCP f&auml;lschlicherweise
       f&uuml;r einen Teil einer bestehenden Verbindung gehalten wurde,
       dieser Fehler wurde beseitigt (siehe FreeBSD-SA-01:08).
       &merged;</para>
 
-    <para>Durch einen Fehler in &man.crontab.1; konnten Benutzer jede
+    <para role="historic">Durch einen Fehler in &man.crontab.1; konnten Benutzer jede
       Datei auf dem System lesen, die die in &man.crontab.5;
       definierte Syntax hatte;  dieser Fehler wurde beseitigt.  (siehe
       FreeBSD-SA-01:09). &merged;</para>
 
-    <para>Eine Sicherheitsl&uuml;cke in &man.inetd.8; konnte dazu
+    <para role="historic">Eine Sicherheitsl&uuml;cke in &man.inetd.8; konnte dazu
       genutzt werden, die ersten 16 Byte aller Datei zu lesen, auf die
       die Gruppe <groupname>wheel</groupname> Lesezugriff hatte;
       dieser Fehler wurde beseitigt (siehe FreeBSD-SA-01:11).
       &merged;</para>
 
-    <para>&man.periodic.8; nutzte unsichere tempor&auml;re Dateien,
+    <para role="historic">&man.periodic.8; nutzte unsichere tempor&auml;re Dateien,
       dieser Fehler wurde beseitigt (siehe 
       FreeBSD-SA-01:12). &merged;</para>
 
-    <para><application>OpenSSH</application> ist jetzt in der Lage,
+    <para role="historic"><application>OpenSSH</application> ist jetzt in der Lage,
       die Aussp&auml;hung des Server Keys (nicht des Host Keys) zu
       verhindern (und nicht nur durch die Begrenzung der Anzahl der
       Verbindungen unwahrscheinlicher zu machen), indem es den Server
@@ -2147,30 +2147,30 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       TCP und UDP <quote>sessions</quote> st&ouml;ren konnte.
       &merged;</para>
 
-    <para>Durch einen Fehler in &man.timed.8; war es m&ouml;glich, das
+    <para role="historic">Durch einen Fehler in &man.timed.8; war es m&ouml;glich, das
       Programm durch bestimmte falsche Datenpakete abst&uuml;rzen zu
       lassen, dieser Fehler wurde beseitigt (siehe FreeBSD-SA-01:28).
       &merged;</para>
 
-    <para>In &man.rwhod.8; wurde ein Fehler beseitigt, durch den es
+    <para role="historic">In &man.rwhod.8; wurde ein Fehler beseitigt, durch den es
       m&ouml;glich gewesen w&auml;re, das Programm durch bestimmte
       falsche Datenpakete zum Absturz zu bringen (siehe
       FreeBSD-SA-01:29). &merged;</para>
 
-    <para>In den FFS- und EXT2FS Implementierungen von &os; wurde ein
+    <para role="historic">In den FFS- und EXT2FS Implementierungen von &os; wurde ein
       Fehler beseitigt, durch den es in bestimmten Situation
       m&ouml;glich gewesen w&auml;re, unbefugten Zugriff auf Daten zu
       erhalten (siehe FreeBSD-SA-01:30). &merged;</para>
 
-    <para>Eine &uuml;ber das Netzwerk nutzbare
+    <para role="historic">Eine &uuml;ber das Netzwerk nutzbare
       Sicherheitsl&uuml;cke in &man.ntpd.8; wurde korrigiert (siehe
       FreeBSD-SA-01:31). &merged;</para>
 
-    <para>Im fragment cache von <application>IPFilter</application>
+    <para role="historic">Im fragment cache von <application>IPFilter</application>
       wurde eine Sicherheitsl&uuml;cke geschlossen (siehe
       FreeBSD-SA-01:32).  &merged;</para>
 
-    <para>In &man.glob.3; wurde ein Buffer Overflows korrigiert, durch
+    <para role="historic">In &man.glob.3; wurde ein Buffer Overflows korrigiert, durch
       en es m&ouml;glich gewesen w&auml;re, auf einem FTP-Server
       beliebige Programme ausf&uuml;hren zu lassen.  Um einige
       Varianten von DoS-Angriffen zu verhindern, kann die Anzahl der
@@ -2179,14 +2179,14 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       &man.ftpd.8; genutzt (siehe FreeBSD-SA-01:33).
       &merged;</para>
 
-    <para>Die von TCP verwendeten initialen Sequenznummern sind jetzt
+    <para role="historic">Die von TCP verwendeten initialen Sequenznummern sind jetzt
       zuf&auml;lliger (siehe FreeBSD-SA-01:39).  Da dies zu
       Kompatibilit&auml;tsproblemen f&uuml;hren kann, kann dieses
       Verhalten mit der Sysctl-Variablen
       <varname>net.inet.tcp.tcp_seq_genscheme</varname> ein- und
       ausgeschaltet werden.  &merged;</para>
 
-    <para>In den zur rekursiven Bearbeitung von Dateisystemen
+    <para role="historic">In den zur rekursiven Bearbeitung von Dateisystemen
       verwendeten &man.fts.3; Routinen wurde ein Fehler beseitigt,
       durch es m&ouml;glich gewesen w&auml;re, da&szlig; ein Programm
       auf Dateien au&szlig;erhalb des vorgesehenen Verzeichnisbaums
@@ -2197,21 +2197,21 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Authentication Forwarding entfernt, dadurch wird eine
       Sicherheitsl&uuml;cke geschlossen.</para>
 
-    <para>Durch einen Fehler war es m&ouml;glich, da&szlig;
+    <para role="historic">Durch einen Fehler war es m&ouml;glich, da&szlig;
       Signal-Handler auf einen Subproze&szlig; vererbt wurden.  Dadurch
       konnte ein Angreifer beliebige Programme im Kontext eines
       SUID-Programmes ausf&uuml;hren lassen.  Dieser Fehler wurde
       beseitigt (siehe FreeBSD-SA-01:42). &merged;</para>
 
-    <para>Ein &uuml;ber das Netzwerk nutzbarer Buffer Overflow in
+    <para role="historic">Ein &uuml;ber das Netzwerk nutzbarer Buffer Overflow in
       &man.tcpdump.1; wurde korrigiert (siehe FreeBSD-SA-01:48).
       &merged;</para>
 
-    <para>Ein &uuml;ber das Netzwerk nutzbarer Buffer Overflow in
+    <para role="historic">Ein &uuml;ber das Netzwerk nutzbarer Buffer Overflow in
       &man.telnetd.8; wurde korrigiert (siehe FreeBSD-SA-01:49).
       &merged;</para>
 
-    <para>Mit den neuen Sysctl-Variablen
+    <para role="historic">Mit den neuen Sysctl-Variablen
       <varname>net.inet.ip.maxfragpackets</varname> und
       <varname>net.inet.ip6.maxfragpackets</varname> kann eingestellt
       werden, wieviel Speicher maximal f&uuml;r Fragmente von IPv4 und
@@ -2226,7 +2226,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       au&szlig;erdem ist es m&ouml;glich, die
       <filename>inetd.conf</filename> zu bearbeiten.  &merged;</para>
 
-    <para>Bei &man.ipfw.8; wurde ein Fehler in der Behandlung von
+    <para role="historic">Bei &man.ipfw.8; wurde ein Fehler in der Behandlung von
       <literal>me</literal> Regeln f&uuml;r Punkt-zu-Punkt
       Verbindungen beseitigt.  In der alten Version wurden die
       <literal>me</literal> Regeln auch auf Pakete angewendet, die die
@@ -2234,29 +2234,29 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       nur auf Pakete mit der lokalen IP-Adresse (siehe
       FreeBSD-SA-01:53). &merged;</para>
 
-    <para>In &man.procfs.5; wurde ein Fehler korrigiert, durch den es
+    <para role="historic">In &man.procfs.5; wurde ein Fehler korrigiert, durch den es
       einem Proze&szlig; m&ouml;glich war, vertrauliche Informationen aus
       dem Speicherbereich eines anderen Prozesses zu lesen (siehe
       FreeBSD-SA-01:55).  &merged;</para>
 
-    <para>Bei <application>tcp_wrappers</application> funktioniert die
+    <para role="historic">Bei <application>tcp_wrappers</application> funktioniert die
       Einstellung <literal>PARANOID</literal> f&uuml;r die
       &Uuml;berpr&uuml;fung der Hostnamen jetzt wie dokumentiert
       (siehe FreeBSD-SA-01:56). &merged;</para>
 
-    <para>Ein auf dem lokalen System nutzbarer Root-Exploit in
+    <para role="historic">Ein auf dem lokalen System nutzbarer Root-Exploit in
       &man.sendmail.8; wurde korrigiert (siehe FreeBSD-SA-01:57).
       &merged;</para>
 
-    <para>In &man.lpd.8; wurde ein remote Root-Exploit unm&ouml;glich
+    <para role="historic">In &man.lpd.8; wurde ein remote Root-Exploit unm&ouml;glich
       gemacht (siehe FreeBSD-SA-01:58).  &merged;</para>
 
-    <para>In &man.rmuser.8; wurde eine race condition beseitigt, durch
+    <para role="historic">In &man.rmuser.8; wurde eine race condition beseitigt, durch
       die <filename>/etc/master.passwd</filename> kurzzeitig von alle
       Benutzern ge&auml;ndert werden konnte (siehe FreeBSD-SA-01:59).
       &merged;</para>
 
-    <para>In <application>UUCP</application> wurde eine
+    <para role="historic">In <application>UUCP</application> wurde eine
       Sicherheitsl&uuml;cke geschlossen (siehe FreeBSD-SA-01:62).  Bei
       allen Programmen, die in Standard-Verzeichnissen f&uuml;r
       ausf&uuml;hrbare Programme liegen und die nicht dem Benutzer
@@ -2276,41 +2276,41 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para role="historic">Ein Buffer Overflow in &man.semop.2; wurde korrigiert.
       &merged;</para>
 
-    <para>In <application>OpenSSH</application> wurde ein Fehler
+    <para role="historic">In <application>OpenSSH</application> wurde ein Fehler
       beseitigt, durch den ein Benutzer Programme mit beliebigen
       Privilegien ausf&uuml;hren konnte, wenn <literal>UseLogin
       yes</literal> konfiguriert werden.  Allerdings verwendet &os;
       standardm&auml;&szlig;ig <literal>UseLogin no</literal> (siehe
-      FreeBSD-SA-01:63.) &merged;</para>
+      FreeBSD-SA-01:63).  &merged;</para>
 
-    <para>In &man.pkg.add.1; wurde ein Fehler bei der Benutzung eines
+    <para role="historic">In &man.pkg.add.1; wurde ein Fehler bei der Benutzung eines
       tempor&auml;ren Verzeichnisses korrigiert, durch den ein
       Angreifer die Inhalte eines Packages w&auml;hrend der
-      Installation modifizieren konnte (siehe FreeBSD-SA-02:01.)
+      Installation modifizieren konnte (siehe FreeBSD-SA-02:01).
       &merged;</para>
 
-    <para>In &man.pw.8; wurde ein Fehler korrigiert, durch den der
+    <para role="historic">In &man.pw.8; wurde ein Fehler korrigiert, durch den der
       Inhalt von <filename>/etc/master.passwd</filename> kurzfristig
       f&uuml;r alle Anwender sichtbar war (siehe FreeBSD-SA-02:02).
       &merged;</para>
 
-    <para>In &man.k5su.8; wurde ein Fehler, durch den es einem Prozess
+    <para role="historic">In &man.k5su.8; wurde ein Fehler, durch den es einem Prozess
       m&ouml;glich gewesen, Superuser-Rechte wieder zu erlangen,
-      nachdem er sie aufgegeben hatte (siehe FreeBSD-SA-02:07.)
+      nachdem er sie aufgegeben hatte (siehe FreeBSD-SA-02:07).
       &merged;</para>
 
-    <para>In der Multiplexer-Routine von
+    <para role="historic">In der Multiplexer-Routine von
       <application>OpenSSH</application> wurde ein
       <quote>off-by-one</quote> Fehler beseitigt.  Durch diesen Fehler
       w&auml;re ein authentifizierten Benutzer in der Lage gewesen,
       auf dem Server beliebige Programme mit root-Rechten
       ausf&uuml;hren zu lassen; ein Server w&auml;re in der Lage
       gewesen, auf dem Client beliebige Programme mit den
-      Berechtigungen des Benutzers auszuf&uuml;hren (siehe <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>).
+      Berechtigungen des Benutzers auszuf&uuml;hren (siehe
+      FreeBSD-SA-02:13).
       &merged;</para>
 
-    <para>Durch einen Fehler in <application>zlib</application> war es
+    <para role="historic">Durch einen Fehler in <application>zlib</application> war es
       m&ouml;glich, da&szlig; Speicher doppelt freigegeben wurde.  Die
       &man.malloc.3;/&man.free.3; Routinen von &os; sind von diesem
       Fehler nicht betroffen, einzelne Anwendungen k&ouml;nnten aber
@@ -2318,77 +2318,68 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       beeintr&auml;chtigt oder zum Absturz gebracht werden.  Der
       Fehler in <application>zlib</application> wurde mittlerweile
       beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
-      beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.
+      beseitigen k&ouml;nnen, finden Sie in FreeBSD-SA-02:18.
       &merged;</para>
 
-    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
+    <para role="historic">Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
       und SYN Cookie (<quote>syncookie</quote>) Routinen war es
       m&ouml;glich, da&szlig; normale TCP/IP Datenpakete das System
       abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
       beseitigt; Informationen, wie Sie die Problem umgehen bzw.
-      beseitigen k&ouml;nnen, finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.
+      beseitigen k&ouml;nnen, finden Sie in FreeBSD-SA-02:20.
       &merged;</para>
 
-    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
+    <para role="historic">In den Routinen zur Behandlung der Routing-Tabelle wurde ein
       Speicherleck gestopft, durch das ein Angreifer den gesamten
       Speicher eines System verbrauchen konnte.  Informationen, wie
       Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
-      in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
+      in FreeBSD-SA-02:21.
       &merged;</para>
 
-    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
+    <para role="historic">Bei der Behandlung von memory-mapped I/O wurde ein Fehler
       beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
-      Weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+      Weitere Informationen finden Sie in FreeBSD-SA-02:22.
       &merged;</para>
 
-    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
+    <para role="historic">SUID Programme konnten durch Manipulation Ihrer Standard-I/O
       File-Descriptoren dazu gebracht werden, die falschen Dateien zu
       lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
-      Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      Informationen finden Sie in FreeBSD-SA-02:23.
       &merged;</para>
 
-    <para>Bei der Benutzung von &man.k5su.8; konnte es zu unerwarteten
+    <para role="historic">Bei der Benutzung von &man.k5su.8; konnte es zu unerwarteten
       Seiteneffekten kommen, da ein Benutzer nicht in der Gruppe
       <groupname>wheel</groupname> eingetragen sein mu&szlig;, um mit
       diesem Programm zum Super-User zu werden (so wie das bei
       &man.su.1; der Fall ist).  Um Probleme zu vermeiden, wird
       &man.k5su.8; standardm&auml;&szlig;ig nicht mehr SUID root
       installiert und damit wirkungslos gemacht.  Weitere
-      Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.
+      Informationen finden Sie in FreeBSD-SA-02:24.
       &merged;</para>
 
-    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
+    <para role="historic">In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
       es m&ouml;glich war, da&szlig; Dateien ohne Warnung
       &uuml;berschrieben werden konnten; au&szlig;erdem war es
       m&ouml;glich, da&szlig; lokale Benutzer Zugriff auf f&uuml;r sie
       eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
       Fehler wurden durch den Import einer neuen Version von
       <application>bzip2</application> behoben.  Weitere Informationen
-      finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
+      finden Sie in FreeBSD-SA-02:25.
       &merged;</para>
 
-    <para>Ein Fehler in der Implementation des TCP SYN Cache
+    <para role="historic">Ein Fehler in der Implementation des TCP SYN Cache
       (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
       Denial-of-Service Angriff durchzuf&uuml;hren, wenn
       &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
-      beseitigt, weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.
+      beseitigt, weitere Informationen finden Sie in FreeBSD-SA-02:26.
       &merged;</para>
 
-    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
+    <para role="historic">Durch einen Fehler bei der Behandlung der Shell-Wildcards in
       &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
       Dateien zu l&ouml;schen, wenn das Verzeichnis
       <filename>/tmp/.X11-unix</filename> nicht existierte und sie
       einen Neustart des Systems erzwingen konnten.  Dieser Fehler
-      wurde beseitigt, weitere Informationen finden Sie in <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).
+      wurde beseitigt, weitere Informationen finden Sie in FreeBSD-SA-02:27.
       &merged;</para>
 
     <para>Im Resolver existierte ein Buffer-&Uuml;berlauf, der von
@@ -2494,15 +2485,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <title>Benutzerprogramme</title>
 
     <para>Die Unterst&uuml;tzung f&uuml;r ausf&uuml;hrbare Programme
-      im Format &man.a.out.5; wurde zum gr&ouml;&szlig;ten Teil aus
-      dem Compiler und den zugeh&ouml;rigen Programmen entfernt.
-      <note>
-        <para>Die Arbeiten auf diesem Gebiet sind noch nicht
-          abgeschlossen.  Endziel ist, die Unterst&uuml;tzung f&uuml;r
-          &man.a.out.5; in eine Gruppe von Ports/Packages
-          auszulagern.</para>
-      </note>
-    </para>
+      im Format &man.a.out.5; wurde aus dem Compiler und den
+      zugeh&ouml;rigen Programmen entfernt.</para>
 
     <para role="historic">Wenn der erste Parameter von &man.ancontrol.8; und
       &man.wicontrol.8; nicht mit <literal>-</literal> einem beginnt,
@@ -2574,8 +2558,8 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.burncd.8; kann jetzt VCDs/SVCDs erzeugen.  &merged;</para>
 
     <para>Bei &man.burncd.8; kann bei <option>-s</option> jetzt der
-      Wert max angegeben werden, um die maximal m&ouml;glich
-      Geschwindigkeit zu nutzen.</para>
+      Wert max angegeben werden, um die maximal m&ouml;gliche
+      Geschwindigkeit zu nutzen.  &merged;</para>
 
     <para>Die neuen Programme &man.bzgrep.1;, &man.bzegrep.1; und
       &man.bzfgrep.1; stellen die von &man.grep.1; bekannte
@@ -2624,7 +2608,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       CD-ROM-Zugriffs mit dem Kommando <literal>speed</literal>
       eingestellt werden.  Wird der Wert <literal>max</literal>
       angegeben, wird die h&ouml;chste m&ouml;gliche Geschwindigkeit
-      verwendet.</para>
+      verwendet.  &merged;</para>
 
     <para>Die Standard-Bibliothek <filename>libc</filename> wurde um
       die Funktion &man.check.utility.compat.3; erweitert.  Mit dieser
@@ -3977,7 +3961,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Bei neu installierten Systeme aktiviert &man.sysinstall.8;
       das &man.procfs.5; Dateisystemen standardm&auml;&szlig;ig nicht
-      mehr.</para>
+      mehr, um die Sicherheit des System zu erh&ouml;hen.  Es ist
+      allerdings weiterhin m&ouml;glich, &man.procfs.5; manuell oder
+      &uuml;ber eine entsprechende Zeile in &man.fstab.5; zu
+      aktivieren.</para>
 
     <para role="historic">&man.sysinstall.8; verf&uuml;gt jetzt &uuml;ber minimale
       Unterst&uuml;tzung f&uuml;r die Behandlung mehrerer Medien bei
@@ -4286,22 +4273,18 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Bibliothek enth&auml;lt normalerweise Angaben, ob das Programm
       einem bestimmten Standard erf&uuml;llt.</para>
 
-    <para>Die meisten Spiele wurden aus dem Standardsystem entfernt,
-      betroffen sind:  adventure(6), arithmetic(6), atc(6),
-      backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
-      fish(6), hack(6), hangman(6), larn(6), mille(6), phantasia(6),
-      piano(6), pig(6), quiz(6), rain(6), robots(6), rogue(6),
-      sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6),
-      wump(6).  dm(8) diente zur Steuerung des Zugriffes auf diese
-      Spiele und wurde ebenfalls entfernt.  Die
-      <quote>n&uuml;tzlichen</quote> Spiele und &man.fortune.6;,
-      verbleiben im System.
-      <note>
-	<para>Die Spiele werden in Zukunft Bestandteil der Ports
-	  Collection sein.  Wenn der entsprechende Port fertig ist,
-	  wird hier ein Verweis auf diesen Port stehen.</para>
-      </note>
-    </para>
+    <para>Die meisten traditionellen BSD-Spiele wurden aus dem
+      Standardsystem entfernt und sind jetzt nur noch &uuml;ber den
+      Port <filename role="package">games/freebsd-games</filename>
+      verf&uuml;gbar.  Betroffen sind die folgenden Spiele:
+      adventure(6), arithmetic(6), atc(6), backgammon(6),
+      battlestar(6), bs(6), canfield(6), cribbage(6), fish(6),
+      hack(6), hangman(6), larn(6), mille(6), phantasia(6), piano(6),
+      pig(6), quiz(6), rain(6), robots(6), rogue(6), sail(6),
+      snake(6), trek(6), wargames(6), worm(6), worms(6), wump(6).
+      dm(8) diente zur Steuerung des Zugriffes auf diese Spiele und
+      wurde ebenfalls entfernt.  Die <quote>n&uuml;tzlichen</quote>
+      Spiele und &man.fortune.6;, verbleiben im System.</para>
 
     <sect3>
       <title>Zus&auml;tzliche Software</title>
@@ -4383,8 +4366,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         aktualisiert.</para>
 
       <para><application>Heimdal Kerberos</application> wurde auf
-	eine pr&auml;-0.5 Zwischenversion mit Stand 16. September 2002
-	aktualisiert.</para>
+	Version 0.5.1 aktualisiert.</para>
 
       <para role="historic">Die von &os; genutzte Version von
         <application>IPFilter</application> enth&auml;lt jetzt auch
@@ -4439,10 +4421,6 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         Environment-Variablen und Optionen f&uuml;r die Kommandozeile
         haben sich ebenfalls ge&auml;ndert.</para>
 
-      <para>Der von NetBSD genutzte FTP D&aelig;mon
-        <application>lukemftpd</application> 1.2 beta 1 steht jetzt als
-        &man.lukemftpd.8; zur Verf&uuml;gung.</para>
-
       <para>Die von OpenBSD am 26. April 2002 genutzte Version von
 	&man.m4.1; wurde importiert.  &merged;</para>
 
@@ -4470,16 +4448,12 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	Basisystems von Perl-Abh&auml;ngigkeiten zu befreien, wurden
 	viele in Perl geschriebene Utilities durch C-Programme und
 	Shellskripte ersetzt (f&uuml;r jedes dieser Utilities
-	existiert ein eigener Eintrag in den Release Notes).
-	<filename>/usr/bin/perl</filename> ist jetzt nur noch ein
-	<quote>wrapper program</quote>, dadurch wird sichergestellt,
-	da&szlig; alle Programme einen Perl-Interpreter finden
-	k&ouml;nnen.</para>
+	existiert ein eigener Eintrag in den Release Notes).</para>
 
-      <warning>
+      <note>
 	<para>Die Arbeiten zur Entfernung von Perl und Integration des
 	  Packages sind noch nicht abgeschlossen.</para>
-      </warning>
+      </note>
 
       <para><application>GNU ptx</application> wurde aus dem
 	Basissystem entfernt, da es von keinem Teil des Basissystem
@@ -4656,7 +4630,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	  <application>SOCKS4</application> proxy verf&uuml;gbar.
 	  &merged;</para>
 
-	<para><application>OpenSSH</application> wurde auf Version 3.1
+	<para><application>OpenSSH</application> wurde auf Version 3.4p1
 	  aktualisiert.  &merged; Die wichtigsten &Auml;nderungen:</para>
 
 	<itemizedlist>
@@ -4685,13 +4659,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	      mehr, der Typ der Schl&uuml;ssels mu&szlig; mit der
 	      Option <option>-t</option> angegeben werden.</para>
 	  </listitem>
-	</itemizedlist>
 
-        <para><application>OpenSSH</application> wurde auf Version
-          3.4p1 aktualisiert.  &merged; Die wichtigsten &Auml;nderungen
-	  sind:</para>
-	  
-        <itemizedlist>
           <listitem>
             <para>Das neue Feature <quote>privilege separation</quote>
               nutzt unprivilegierte Prozesse, um die Auswirkungen von
@@ -4979,7 +4947,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         entsprechen.  &merged;</para>
 
       <para>&man.pkg.version.1; war fr&uuml;her ein Perl Skript und
-        wurde jetzt in C neu geschrieben.</para>
+	wurde jetzt in C neu geschrieben.  Die oft falsch eingesetzte
+	Option <option>-c</option> wurde entfernt.  Der Port <filename
+	role="package">sysutils/portupgrade</filename> bietet eine
+	unterst&uuml;tzte und sichere Alternative f&uuml;r die
+	Aktualisierung der installierten Ports/Packages.</para>
 
 <!-- XXX <filename>Makefile</filename>s, wuerg -->
 
