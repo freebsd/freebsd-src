@@ -51,8 +51,8 @@
 #include <machine/resource.h>
 
 #include <sys/pciio.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "pcib_if.h"
 #include "pci_if.h"

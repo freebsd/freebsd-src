@@ -36,7 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 static int	ignore_pci_probe(device_t dev);
 

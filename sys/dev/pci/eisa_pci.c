@@ -38,8 +38,8 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 static int	eisab_probe(device_t dev);
 static int	eisab_attach(device_t dev);
