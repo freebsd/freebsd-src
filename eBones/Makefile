@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.21 1996/02/13 12:25:32 markm Exp $
+#	$Id: Makefile,v 1.22 1996/10/01 14:07:34 jkh Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin man
 
@@ -29,9 +29,10 @@ kprog:
 bootstrap:
 	( cd ${.CURDIR}/include; ${MAKE} ${MFLAGS} install )
 	( cd ${.CURDIR}/lib; ${MAKE} ${MFLAGS} depend all install )
-	${MAKE} ${MFLAGS} cleandir
-	${MAKE} ${MFLAGS} obj
-	${MAKE} ${MFLAGS} depend all install kprog
+	( cd ${.CURDIR}; \
+	  ${MAKE} ${MFLAGS} cleandir; \
+	  ${MAKE} ${MFLAGS} obj; \
+	  ${MAKE} ${MFLAGS} depend all install kprog )
 
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
