@@ -62,6 +62,8 @@
 
 USB_DECLARE_DRIVER(ubt);
 
+Static int         ubt_modevent		 (module_t, int, void *);
+
 Static usbd_status ubt_request_start     (ubt_softc_p, struct mbuf *);
 Static void        ubt_request_complete  (usbd_xfer_handle, 
 					  usbd_private_handle, usbd_status);
@@ -191,20 +193,53 @@ Static struct ng_type	typestruct = {
 	ng_ubt_disconnect,	/* disconnect hook */
 	ng_ubt_cmdlist		/* node command list */
 };
-NETGRAPH_INIT(ubt, &typestruct);
 
 /*
  * Module
  */
 
-DRIVER_MODULE(ubt, uhub, ubt_driver, ubt_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ubt, uhub, ubt_driver, ubt_devclass, ubt_modevent, 0);
 MODULE_VERSION(ng_ubt, NG_BLUETOOTH_VERSION);
+MODULE_DEPEND(ng_ubt, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 
 /****************************************************************************
  ****************************************************************************
  **                              USB specific
  ****************************************************************************
  ****************************************************************************/
+
+/*
+ * Load/Unload the driver module
+ */
+
+Static int
+ubt_modevent(module_t mod, int event, void *data)
+{
+	int	error;
+
+	switch (event) {
+	case MOD_LOAD:
+		error = ng_newtype(&typestruct);
+		if (error != 0)
+			printf("%s: Could not register Netgraph node type, " \
+				"error=%d\n", NG_UBT_NODE_TYPE, error);
+		else
+			error = usbd_driver_load(mod, event, data);
+		break;
+
+	case MOD_UNLOAD:
+		error = ng_rmtype(&typestruct);
+		if (error == 0)
+			error = usbd_driver_load(mod, event, data);
+		break;
+
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+
+	return (error);
+} /* ubt_modevent */
 
 /*
  * Probe for a USB Bluetooth device
@@ -2039,6 +2074,7 @@ ng_ubt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			error = EINVAL;
 			break;
 		}
+		break;
 
 	default:
 		error = EINVAL;
