@@ -367,7 +367,7 @@ restart:
 	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
 	copy_fs->fs_csp = space;
 	bcopy(fs->fs_csp, copy_fs->fs_csp, fs->fs_cssize);
-	(char *)space += fs->fs_cssize;
+	space = (char *)space + fs->fs_cssize;
 	loc = howmany(fs->fs_cssize, fs->fs_fsize);
 	i = fs->fs_frag - loc % fs->fs_frag;
 	len = (i == fs->fs_frag) ? 0 : i * fs->fs_fsize;
@@ -381,7 +381,7 @@ restart:
 			goto out1;
 		}
 		bcopy(bp->b_data, space, (u_int)len);
-		(char *)space += len;
+		space = (char *)space + len;
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);
 	}
