@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
- * $Id: ufs_ihash.c,v 1.3 1994/10/06 21:07:01 davidg Exp $
+ * $Id: ufs_ihash.c,v 1.4 1994/10/08 06:57:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -99,9 +99,15 @@ ufs_ihashget(device, inum)
 				return (NULL);
 			if (inum == ip->i_number && device == ip->i_dev) {
 				if (ip->i_flag & IN_LOCKED) {
-					ip->i_flag |= IN_WANTED;
-					(void) tsleep(ip, PINOD, "uihget", 0);
-					break;
+					if( curproc->p_pid != ip->i_lockholder) {
+						ip->i_flag |= IN_WANTED;
+						(void) tsleep(ip, PINOD, "uihget", 0);
+						break;
+					} else if (ip->i_flag & IN_RECURSE) {
+						ip->i_lockcount++;
+					} else {
+						panic("ufs_ihashget: recursive lock not expected -- pid %d\n", ip->i_lockholder);
+					}
 				}
 				vp = ITOV(ip);
 				if (!vget(vp, 1))
@@ -128,12 +134,16 @@ ufs_ihashins(ip)
 	ip->i_next = iq;
 	ip->i_prev = ipp;
 	*ipp = ip;
-	if (ip->i_flag & IN_LOCKED)
+	if ((ip->i_flag & IN_LOCKED) &&
+		((ip->i_flag & IN_RECURSE) == 0 ||
+			(!curproc || (curproc && (ip->i_lockholder != curproc->p_pid)))))
 		panic("ufs_ihashins: already locked");
-	if (curproc)
+	if (curproc)  {
+		ip->i_lockcount += 1;
 		ip->i_lockholder = curproc->p_pid;
-	else
+	} else {
 		ip->i_lockholder = -1;
+	}
 	ip->i_flag |= IN_LOCKED;
 }
 
