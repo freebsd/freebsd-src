@@ -73,14 +73,14 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE_MODE	9	/* 8086 mode */
 #else /* IBM-PC */
 #ifdef AUTO_EOI_1
-#define	MASTER_MODE	(2 | 1)	/* Auto EOI, 8086 mode */
+#define	MASTER_MODE	(ICW4_8086 | ICW4_AEOI)
 #else
-#define	MASTER_MODE	1	/* 8086 mode */
+#define	MASTER_MODE	ICW4_8086
 #endif
 #ifdef AUTO_EOI_2
-#define	SLAVE_MODE	(2 | 1)	/* Auto EOI, 8086 mode */
+#define	SLAVE_MODE	(ICW4_8086 | ICW4_AEOI)
 #else
-#define	SLAVE_MODE	1	/* 8086 mode */
+#define	SLAVE_MODE	ICW4_8086
 #endif
 #endif /* PC98 */
 
@@ -263,11 +263,12 @@ i8259_init(struct atpic *pic, int slave)
 	/* Reset the PIC and program with next four bytes. */
 	mtx_lock_spin(&icu_lock);
 #ifdef DEV_MCA
+	/* MCA uses level triggered interrupts. */
 	if (MCA_system)
-		outb(pic->at_ioaddr, 0x19);
+		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4 | ICW1_LTIM);
 	else
 #endif
-		outb(pic->at_ioaddr, 0x11);
+		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
 	imr_addr = pic->at_ioaddr + ICU_IMR_OFFSET;
 
 	/* Start vector. */
@@ -293,12 +294,12 @@ i8259_init(struct atpic *pic, int slave)
 	outb(imr_addr, *pic->at_imen);
 
 	/* Reset is finished, default to IRR on read. */
-	outb(pic->at_ioaddr, 0x0a);
+	outb(pic->at_ioaddr, OCW3_SEL | OCW3_RR);
 
 #ifndef PC98
-	/* Set priority order to 3-7, 0-2 (com2 first). */
+	/* OCW2_L1 sets priority order to 3-7, 0-2 (com2 first). */
 	if (!slave)
-		outb(pic->at_ioaddr, 0xc0 | (3 - 1));
+		outb(pic->at_ioaddr, OCW2_R | OCW2_SL | OCW2_L1);
 #endif
 	mtx_unlock_spin(&icu_lock);
 }
