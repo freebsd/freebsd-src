@@ -103,6 +103,7 @@ static char     *locale;        /* pr'ing locale */
 static int	 userid;	/* user id */
 static char	*Uflag;		/* user name specified with -U flag */
 static char	*width;		/* width for versatec printing */
+static char	*Zflag;		/* extra filter options for LPRng servers */
 
 static struct stat statb;
 
@@ -154,7 +155,8 @@ main(argc, argv)
 
 	errs = 0;
 	while ((c = getopt(argc, argv,
-			   ":#:1:2:3:4:C:J:L:P:T:U:cdfghi:lnmprstvw:")) != -1)
+			   ":#:1:2:3:4:C:J:L:P:T:U:Z:cdfghi:lnmprstvw:"))
+	       != -1)
 		switch (c) {
 		case '#':		/* n copies */
 			i = strtol(optarg, &p, 10);
@@ -196,6 +198,10 @@ main(argc, argv)
 		case 'U':		/* user name */
 			hdr++;
 			Uflag = optarg;
+			break;
+
+		case 'Z':
+			Zflag = optarg;
 			break;
 
 		case 'c':		/* print cifplot output */
@@ -332,6 +338,8 @@ main(argc, argv)
 		card('C', class);
 		card('L', person);
 	}
+	if (format != 'p' && Zflag != 0)
+		card('Z', Zflag);
 	if (iflag)
 		card('I', itoa(indent));
 	if (mailflg)
@@ -342,6 +350,12 @@ main(argc, argv)
 				card('1'+i, fonts[i]);
 	if (width != NULL)
 		card('W', width);
+	/*
+	 * XXX
+	 * Our use of `Z' here is incompatible with LPRng's
+	 * use.  We assume that the only use of our existing
+	 * `Z' card is as shown for `p' format (pr) files.
+	 */
 	if (format == 'p') {
 		char *s;
 
@@ -734,9 +748,10 @@ chkprinter(s, pp)
 static void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n",
-"usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]",
-"[-i[numcols]] [-1234 font] [-L locale] [-wnum] [-cdfghlnmprstv] [name ...]");
+	fprintf(stderr, "%s\n",
+"usage: lpr [-Pprinter] [-#num] [-C class] [-J job] [-T title] [-U user]\n"
+	"\t[-Z daemon-options] [-i[numcols]] [-i[numcols]] [-1234 font]\n"
+	"\t[-L locale] [-wnum] [-cdfghlnmprstv] [name ...]");
 	exit(1);
 }
 
