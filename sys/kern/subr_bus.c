@@ -2017,7 +2017,8 @@ void
 device_unbusy(device_t dev)
 {
 	if (dev->state != DS_BUSY)
-		panic("device_unbusy: called for non-busy device");
+		panic("device_unbusy: called for non-busy device %s",
+		    device_get_nameunit(dev));
 	dev->busy--;
 	if (dev->busy == 0) {
 		if (dev->parent)
