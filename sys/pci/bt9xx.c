@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.1 1995/12/12 08:58:04 gibbs Exp $
+ *	$Id: bt9xx.c,v 1.2 1995/12/14 09:53:56 phk Exp $
  */
 
 #include <pci.h>
@@ -122,7 +122,7 @@ static int
 bt_pci_intr(arg)
 	void *arg;
 {       
-        btintr(arg);
+        bt_intr(arg);
 	return (1);  /*
 		      * XXX: Always say we handle the interrupt.
 		      * won't work with edge-triggered ints.

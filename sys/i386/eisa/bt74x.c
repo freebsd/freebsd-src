@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: bt74x.c,v 1.1 1995/12/12 08:47:11 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -220,7 +220,7 @@ bt_eisa_attach(e_dev)
 		return -1;
 	}
 
-	if(eisa_reg_intr(e_dev, irq, btintr, (void *)bt, &bio_imask,
+	if(eisa_reg_intr(e_dev, irq, bt_intr, (void *)bt, &bio_imask,
 			 /*shared ==*/level_intr)) {
 		bt_free(bt);
 		return -1;
@@ -238,7 +238,7 @@ bt_eisa_attach(e_dev)
 		 * if we can't intialize correctly, so its safe
 		 * to release the irq.
 		 */
-		eisa_release_intr(e_dev, irq, btintr);
+		eisa_release_intr(e_dev, irq, bt_intr);
 		return -1;
 	}
 
@@ -249,7 +249,7 @@ bt_eisa_attach(e_dev)
 
 	if(eisa_enable_intr(e_dev, irq)) {
 		bt_free(bt);
-		eisa_release_intr(e_dev, irq, btintr);
+		eisa_release_intr(e_dev, irq, bt_intr);
 		return -1;
 	}
 
