@@ -1,4 +1,4 @@
-# @(#)solar89	7.3
+# @(#)solar89	7.4
 
 # Apparent noon times below are for Riyadh; they're a bit off for other places.
 # Times were computed using a formula provided by the U. S. Naval Observatory:
@@ -390,4 +390,4 @@ Zone	Asia/Riyadh89	3:07:04	-		??	1989
 			3:07:04	sol89		??	1990
 			3:07:04	-		??
 # For backward compatibility...
-Link	Asia/Riyadh88	Mideast/Riyadh88
+Link	Asia/Riyadh89	Mideast/Riyadh89
