@@ -67,8 +67,8 @@ static __inline void
 usage(void)
 {
   fprintf(stderr, "%s\n%s\n",
-	"usage: truss [-fS] [-o file] -p pid",
-	"       truss [-fS] [-o file] command [args]");
+	"usage: truss [-fdDS] [-o file] -p pid",
+	"       truss [-fdDS] [-o file] command [args]");
   exit(1);
 }
 
@@ -145,13 +145,19 @@ main(int ac, char **av) {
   bzero(trussinfo, sizeof(struct trussinfo));
   trussinfo->outfile = stderr;
 
-  while ((c = getopt(ac, av, "p:o:fS")) != -1) {
+  while ((c = getopt(ac, av, "p:o:fdDS")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
       trussinfo->pid = atoi(optarg);
       break;
     case 'f': /* Follow fork()'s */
       trussinfo->flags |= FOLLOWFORKS;
+      break;
+    case 'd': /* Absolute timestamps */
+      trussinfo->flags |= ABSOLUTETIMESTAMPS;
+      break;
+    case 'D': /* Relative timestamps */
+      trussinfo->flags |= RELATIVETIMESTAMPS;
       break;
     case 'o':	/* Specified output file */
       fname = optarg;
@@ -215,6 +221,8 @@ START_TRACE:
    * All of the grunt work is done in the support routines.
    */
 
+  gettimeofday(&trussinfo->start_time, (struct timezone *)NULL);
+
   do {
     int val = 0;
 
@@ -224,8 +232,10 @@ START_TRACE:
       switch(i = pfs.why) {
       case S_SCE:
 	funcs->enter_syscall(trussinfo, pfs.val);
+	gettimeofday(&trussinfo->before, (struct timezone *)NULL);
 	break;
       case S_SCX:
+	gettimeofday(&trussinfo->after, (struct timezone *)NULL);
 	/*
 	 * This is so we don't get two messages for an exec -- one
 	 * for the S_EXEC, and one for the syscall exit.  It also,

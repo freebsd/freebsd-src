@@ -40,6 +40,7 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
@@ -358,8 +359,26 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s
   int i;
   int len = 0;
 
+  struct timeval timediff;
+
   if (trussinfo->flags & FOLLOWFORKS)
     len += fprintf(trussinfo->outfile, "%5d:  ", trussinfo->pid);
+
+  if (!strcmp(name, "execve") || !strcmp(name, "exit")) {
+    gettimeofday(&trussinfo->after, (struct timezone *)NULL);
+  }
+
+  if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
+    timersub(&trussinfo->after, &trussinfo->start_time, &timediff);
+    len += fprintf(trussinfo->outfile, "%d.%0.7d ",
+		   timediff.tv_sec, timediff.tv_usec);
+  }
+
+  if (trussinfo->flags & RELATIVETIMESTAMPS) {
+    timersub(&trussinfo->after, &trussinfo->before, &timediff);
+    len += fprintf(trussinfo->outfile, "%d.%0.7d ",
+		   timediff.tv_sec, timediff.tv_usec);
+  }
 
   len += fprintf(trussinfo->outfile, "%s(", name);
 
