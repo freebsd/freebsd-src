@@ -120,8 +120,6 @@ sbrk(td, uap)
 	struct sbrk_args *uap;
 {
 	/* Not yet implemented */
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
@@ -141,8 +139,6 @@ sstk(td, uap)
 	struct sstk_args *uap;
 {
 	/* Not yet implemented */
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
@@ -1119,7 +1115,6 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		/*
 		 * Force device mappings to be shared.
 		 */
-		flags &= ~(MAP_PRIVATE|MAP_COPY);
 		flags |= MAP_SHARED;
 	} else {
 		error = EINVAL;
