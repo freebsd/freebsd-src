@@ -1,4 +1,4 @@
-/* $Id: tc.c,v 1.2 1999/04/16 21:21:40 peter Exp $ */
+/* $Id: tc.c,v 1.3 1999/05/08 21:58:49 dfr Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -224,7 +224,7 @@ tc_3000_300_intr_establish(tcadev, cookie, level, func, arg)
 #endif
 
         if (tc_3000_300_intr[dev].tci_func != tc_intrnull)
-                panic("tc_3000_300_intr_establish: cookie %d twice", dev);
+                panic("tc_3000_300_intr_establish: cookie %ld twice", dev);
 
         tc_3000_300_intr[dev].tci_func = func;
         tc_3000_300_intr[dev].tci_arg = arg;
@@ -256,7 +256,7 @@ tc_3000_300_intr_disestablish(tcadev, cookie)
 #endif
 
         if (tc_3000_300_intr[dev].tci_func == tc_intrnull)
-                panic("tc_3000_300_intr_disestablish: cookie %d bad intr",
+                panic("tc_3000_300_intr_disestablish: cookie %ld bad intr",
                     dev);
 
         imskp = (volatile u_int32_t *)IOASIC_REG_IMSK(DEC_3000_300_IOASIC_ADDR);
@@ -394,7 +394,7 @@ tc_3000_500_intr_establish(tcadev, cookie, level, func, arg)
 #endif
 
         if (tc_3000_500_intr[dev].tci_func != tc_intrnull)
-                panic("tc_3000_500_intr_establish: cookie %d twice", dev);
+                panic("tc_3000_500_intr_establish: cookie %ld twice", dev);
 
         tc_3000_500_intr[dev].tci_func = func;
         tc_3000_500_intr[dev].tci_arg = arg;
@@ -416,7 +416,7 @@ tc_3000_500_intr_disestablish(tcadev, cookie)
 #endif
 
         if (tc_3000_500_intr[dev].tci_func == tc_intrnull)
-                panic("tc_3000_500_intr_disestablish: cookie %d bad intr",
+                panic("tc_3000_500_intr_disestablish: cookie %ld bad intr",
                     dev);
 
         tc_3000_500_imask |= tc_3000_500_intrbits[dev];
@@ -556,11 +556,8 @@ static int
 tc_attach(device_t dev)
 {
 	struct tc_softc* sc = TC_SOFTC(dev);
-	device_t parent = device_get_parent(dev);
-	vm_offset_t regs;
 	tc_addr_t tcaddr;
 	const struct tc_builtin *builtin;
-	struct tc_slotdesc *slot;
 	struct tc_attach_args *ta;
 	int i;
 	device_t child = NULL;
