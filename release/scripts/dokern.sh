@@ -2,10 +2,61 @@
 
 # $FreeBSD$
 
+if [ $# -lt 1 ]; then
+	FDSIZE=NORMAL
+else
+	FDSIZE=$1
+fi
+
 ARCH="`uname -m`"
 
 # First check for the standard x86 PC class.
 if [ "${ARCH}" = "i386" ]; then
+
+if [ "${FDSIZE}" = "SMALL" ]; then
+
+sed	-e '/	pci/d' \
+	-e '/	adv/d' \
+	-e '/	ahc/d' \
+	-e '/	amd/d' \
+	-e '/	isp/d' \
+	-e '/	ncr/d' \
+	-e '/	sym/d' \
+	-e '/	de/d' \
+	-e '/	fxp/d' \
+	-e '/	tx/d' \
+	-e '/	vx/d' \
+	-e '/	wx/d' \
+	-e '/	miibus/d' \
+	-e '/	dc/d' \
+	-e '/	rl/d' \
+	-e '/	sf/d' \
+	-e '/	sis/d' \
+	-e '/	ste/d' \
+	-e '/	tl/d' \
+	-e '/	vr/d' \
+	-e '/	wb/d' \
+	-e '/	xl/d' \
+	-e '/pty/d' \
+	-e '/pass/d' \
+	-e '/apm0/d' \
+	-e '/ppp/d' \
+	-e '/gif/d' \
+	-e '/faith/d' \
+	-e '/gzip/d' \
+	-e '/splash/d' \
+	-e '/PROCFS/d' \
+	-e '/KTRACE/d' \
+	-e '/SYSVMSG/d' \
+	-e '/SOFTUPDATES/d' \
+	-e '/MFS/d' \
+	-e '/NFS_ROOT/d' \
+	-e '/RANDOMDEV/d' \
+	-e '/atapist/d' \
+	-e '/maxusers/d' \
+	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+
+else
 
 sed	-e '/pty/d' \
 	-e '/pass/d' \
@@ -25,6 +76,8 @@ sed	-e '/pty/d' \
 	-e '/atapist/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+
+fi
 
 echo "options  NETGRAPH"
 echo "options  NETGRAPH_PPPOE"
