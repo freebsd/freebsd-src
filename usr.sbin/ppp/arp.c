@@ -302,7 +302,7 @@ arp_EtherAddr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr,
         if ((ifa->sin_addr.s_addr & netmask->sin_addr.s_addr) ==
             (ipaddr.s_addr & netmask->sin_addr.s_addr)) {
           log_Printf(verbose ? LogPHASE : LogDEBUG,
-                     "Found interface %.*s for %s\n", dl->sdl_alen,
+                     "Found interface %.*s for %s\n", dl->sdl_nlen,
                      dl->sdl_data, inet_ntoa(ipaddr));
           memcpy(hwaddr, dl, dl->sdl_len);
           free(buf);
