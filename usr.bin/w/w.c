@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.34 1999/04/22 23:40:56 ache Exp $";
+	"$Id: w.c,v 1.35 1999/07/04 17:26:12 billf Exp $";
 #endif /* not lint */
 
 /*
@@ -98,7 +98,7 @@ int		header = 1;	/* true if -h flag: don't print heading */
 int		nflag;		/* true if -n flag: don't convert addrs */
 int		dflag;		/* true if -d flag: output debug info */
 int		sortidle;	/* sort by idle time */
-char	       *sel_user;	/* login of particular user selected */
+char	      **sel_users;	/* login array of particular users selected */
 char		domain[MAXHOSTNAMELEN];
 
 /*
@@ -114,11 +114,12 @@ struct	entry {
 	struct	kinfo_proc *dkp;	/* debug option proc list */
 } *ep, *ehead = NULL, **nextp = &ehead;
 
-static void	pr_header __P((time_t *, int));
-static struct stat
-		*ttystat __P((char *, int));
-static void	usage __P((int));
-static int	this_is_uptime __P((const char *s));
+#define debugproc(p) *((struct kinfo_proc **)&(p)->kp_eproc.e_spare[0])
+
+static void		 pr_header __P((time_t *, int));
+static struct stat	*ttystat __P((char *, int));
+static void		 usage __P((int));
+static int		 this_is_uptime __P((const char *s));
 
 char *fmt_argv __P((char **, char *, int));	/* ../../bin/ps/fmt.c */
 
@@ -137,7 +138,7 @@ main(argc, argv)
 	char *memf, *nlistf, *p, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
-	(void) setlocale(LC_ALL, "");
+	(void)setlocale(LC_ALL, "");
 
 	/* Are we w(1) or uptime(1)? */
 	if (this_is_uptime(argv[0]) == 0) {
@@ -200,7 +201,7 @@ main(argc, argv)
 		err(1, "%s", _PATH_UTMP);
 
 	if (*argv)
-		sel_user = *argv;
+		sel_users = argv;
 
 	for (nusers = 0; fread(&utmp, sizeof(utmp), 1, ut);) {
 		if (utmp.ut_name[0] == '\0')
@@ -208,14 +209,24 @@ main(argc, argv)
 		if (!(stp = ttystat(utmp.ut_line, UT_LINESIZE)))
 			continue;	/* corrupted record */
 		++nusers;
-		if (wcmd == 0 || (sel_user &&
-		    strncmp(utmp.ut_name, sel_user, UT_NAMESIZE) != 0))
+		if (wcmd == 0)
 			continue;
+		if (sel_users) {
+			int usermatch;
+			char **user;
+
+			usermatch = 0;
+			for (user = sel_users; !usermatch && *user; user++)
+				if (!strncmp(utmp.ut_name, *user, UT_NAMESIZE))
+					usermatch = 1;
+			if (!usermatch)
+				continue;
+		}
 		if ((ep = calloc(1, sizeof(struct entry))) == NULL)
 			errx(1, "calloc");
 		*nextp = ep;
-		nextp = &(ep->next);
-		memmove(&(ep->utmp), &utmp, sizeof(struct utmp));
+		nextp = &ep->next;
+		memmove(&ep->utmp, &utmp, sizeof(struct utmp));
 		ep->tdev = stp->st_rdev;
 #ifdef CPU_CONSDEV
 		/*
@@ -229,7 +240,7 @@ main(argc, argv)
 			mib[0] = CTL_MACHDEP;
 			mib[1] = CPU_CONSDEV;
 			size = sizeof(dev_t);
-			(void) sysctl(mib, 2, &ep->tdev, &size, NULL, 0);
+			(void)sysctl(mib, 2, &ep->tdev, &size, NULL, 0);
 		}
 #endif
 		if ((ep->idle = now - stp->st_atime) < 0)
@@ -240,7 +251,7 @@ main(argc, argv)
 	if (header || wcmd == 0) {
 		pr_header(&now, nusers);
 		if (wcmd == 0)
-			exit (0);
+			exit(0);
 
 #define HEADER_USER		"USER"
 #define HEADER_TTY		"TTY"
@@ -285,7 +296,7 @@ main(argc, argv)
 				 */
 				dkp = ep->dkp;
 				ep->dkp = kp;
-				*((struct kinfo_proc **)(&kp->kp_eproc.e_spare[0])) = dkp;
+				debugproc(kp) = dkp;
 			}
 		}
 	}
@@ -310,8 +321,9 @@ main(argc, argv)
 	}
 	/* sort by idle time */
 	if (sortidle && ehead != NULL) {
-		struct entry *from = ehead, *save;
+		struct entry *from, *save;
 
+		from = ehead;
 		ehead = NULL;
 		while (from != NULL) {
 			for (nextp = &ehead;
@@ -327,7 +339,7 @@ main(argc, argv)
 
 	if (!nflag) {
 		if (gethostname(domain, sizeof(domain) - 1) < 0 ||
-		    (p = strchr(domain, '.')) == 0)
+		    (p = strchr(domain, '.')) == NULL)
 			domain[0] = '\0';
 		else {
 			domain[sizeof(domain) - 1] = '\0';
@@ -343,8 +355,7 @@ main(argc, argv)
 		p = *host_buf ? host_buf : "-";
 		if ((x = strchr(p, ':')) != NULL)
 			*x++ = '\0';
-		if (!nflag && isdigit(*p) &&
-		    (long)(l = inet_addr(p)) != -1 &&
+		if (!nflag && isdigit(*p) && (l = inet_addr(p)) != -1 &&
 		    (hp = gethostbyaddr((char *)&l, sizeof(l), AF_INET))) {
 			if (domain[0] != '\0') {
 				p = hp->h_name;
@@ -371,13 +382,15 @@ main(argc, argv)
 			p = buf;
 		}
 		if (dflag) {
-			for (dkp = ep->dkp; dkp != NULL; dkp = *((struct kinfo_proc **)(&dkp->kp_eproc.e_spare[0]))) {
+			for (dkp = ep->dkp; dkp != NULL; dkp = debugproc(dkp)) {
 				char *ptr;
+
 				ptr = fmt_argv(kvm_getargv(kd, dkp, argwidth),
-					    dkp->kp_proc.p_comm, MAXCOMLEN);
+				    dkp->kp_proc.p_comm, MAXCOMLEN);
 				if (ptr == NULL)
 					ptr = "-";
-				(void)printf( "\t\t%-9d %s\n", dkp->kp_proc.p_pid, ptr);
+				(void)printf("\t\t%-9d %s\n",
+				    dkp->kp_proc.p_pid, ptr);
 			}
 		}
 		(void)printf("%-*.*s %-*.*s %-*.*s ",
@@ -408,12 +421,8 @@ pr_header(nowp, nusers)
 
 	/*
 	 * Print time of day.
-	 *
-	 * SCCS forces the string manipulation below, as it replaces
-	 * %, M, and % in a character string with the file name.
 	 */
-	(void)strftime(buf, sizeof(buf) - 1,
-	    __CONCAT("%l:%","M%p"), localtime(nowp));
+	(void)strftime(buf, sizeof(buf) - 1, "%l:%M%p", localtime(nowp));
 	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%s ", buf);
 
@@ -440,14 +449,11 @@ pr_header(nowp, nusers)
 		if (hrs > 0 && mins > 0)
 			(void)printf(" %2d:%02d,", hrs, mins);
 		else if (hrs > 0)
-			(void)printf(" %d hr%s,",
-				     hrs, hrs > 1 ? "s" : "");
+			(void)printf(" %d hr%s,", hrs, hrs > 1 ? "s" : "");
 		else if (mins > 0)
-			(void)printf(" %d min%s,",
-				     mins, mins > 1 ? "s" : "");
+			(void)printf(" %d min%s,", mins, mins > 1 ? "s" : "");
 		else
-			(void)printf(" %d sec%s,",
-				     secs, secs > 1 ? "s" : "");
+			(void)printf(" %d sec%s,", secs, secs > 1 ? "s" : "");
 	}
 
 	/* Print number of users logged in to system */
@@ -460,11 +466,8 @@ pr_header(nowp, nusers)
 		(void)printf(", no load average information available\n");
 	else {
 		(void)printf(", load averages:");
-		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++) {
-			if (i > 0)
-				(void)printf(",");
-			(void)printf(" %.2f", avenrun[i]);
-		}
+		for (i = 0; i < (sizeof(avenrun) / sizeof(avenrun[0])); i++)
+			(void)printf("%s %.2f", i > 0 ? "," : "", avenrun[i]);
 		(void)printf("\n");
 	}
 }
@@ -480,7 +483,7 @@ ttystat(line, sz)
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
 	if (stat(ttybuf, &sb)) {
 		warn("%s", ttybuf);
-		return NULL;
+		return (NULL);
 	}
 	return (&sb);
 }
@@ -491,11 +494,10 @@ usage(wcmd)
 {
 	if (wcmd)
 		(void)fprintf(stderr,
-		    "usage: w [-dhin] [-M core] [-N system] [user]\n");
+		    "usage: w [-dhin] [-M core] [-N system] [user ...]\n");
 	else
-		(void)fprintf(stderr,
-			"usage: uptime\n");
-	exit (1);
+		(void)fprintf(stderr, "usage: uptime\n");
+	exit(1);
 }
 
 static int 
@@ -509,7 +511,6 @@ this_is_uptime(s)
 	else
 		u = s;
 	if (strcmp(u, "uptime") == 0)
-		return(0);
-	return(-1);
+		return (0);
+	return (-1);
 }
-
