@@ -11,7 +11,6 @@ SUBDIR=	3dfx \
 	aha \
 	amr \
 	an \
-	apm \
 	aue \
 	bge \
 	bridge \
@@ -111,6 +110,7 @@ SUBDIR+=aac \
 	acpi \
 	aic \
 	ar \
+	apm \
 	asr \
 	atspeaker \
 	bktr \
@@ -137,8 +137,9 @@ SUBDIR+=aac \
 #	smbfs \
 
 .if ${MACHINE} == "pc98"
-SUBDIR+=pmc
-SUBDIR+=snc
+SUBDIR+=apm \
+	pmc \
+	snc
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
