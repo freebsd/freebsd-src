@@ -186,7 +186,12 @@ fwe_attach(device_t dev)
 	ifp = &fwe->fwe_if;
 	ifp->if_softc = &fwe->eth_softc;
 
+#if __FreeBSD_version >= 501113
 	if_initname(ifp, device_get_name(dev), unit);
+#else
+	ifp->if_unit = unit;
+	ifp->if_name = "fwe";
+#endif
 	ifp->if_init = fwe_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = fwe_start;
