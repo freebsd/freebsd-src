@@ -210,8 +210,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
-	if (error != 0)
+	if (error != 0) {
+		g_wither_geom(gp);
 		return (NULL);
+	}
 
 	do {
 		error = g_label_read_metadata(cp, &md);
