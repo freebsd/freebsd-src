@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.75.2.1 1996/11/12 09:07:49 phk Exp $
+ *	$Id: locore.s,v 1.75.2.2 1997/02/01 12:10:54 davidg Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -192,6 +192,21 @@ _bdb_exists:	.long	0
  */
 NON_GPROF_ENTRY(btext)
 
+#ifdef PC98
+	jmp	1f
+	.globl	_pc98_system_parameter
+	.org	0x400
+_pc98_system_parameter:
+	.space	0x240		/* BIOS parameter block */
+1:
+	/* save SYSTEM PARAMETER for resume (NS/T or other) */
+	movl	$0xa1000,%esi
+	movl	$0x100000,%edi
+	movl	$0x0630,%ecx
+	cld
+	rep
+	movsb
+#else	/* IBM-PC */
 #ifdef BDE_DEBUGGER
 #ifdef BIOS_STEALS_3K
 	cmpl	$0x0375c339,0x95504
@@ -205,6 +220,7 @@ NON_GPROF_ENTRY(btext)
 
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
+#endif	/* PC98 */
 
 /* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
@@ -231,6 +247,28 @@ NON_GPROF_ENTRY(btext)
  * returns via the old frame.
  */
 	movl	$R(tmpstk),%esp
+
+#ifdef PC98
+	testb	$0x02,0x100620		/* pc98_machine_type & M_EPSON_PC98 */
+	jz	3f
+	cmpb	$0x0b,0x100624		/* epson_machine_id <= 0x0b */
+	ja	3f
+
+	/* count up memory */
+	movl	$0x100000,%eax		/* next, talley remaining memory */
+	movl	$0xFFF-0x100,%ecx
+1:	movl	0(%eax),%ebx		/* save location to check */
+	movl	$0xa55a5aa5,0(%eax)	/* write test pattern */
+	cmpl	$0xa55a5aa5,0(%eax)	/* does not check yet for rollover */
+	jne	2f
+	movl	%ebx,0(%eax)		/* restore memory */
+	addl	$PAGE_SIZE,%eax
+	loop	1b
+2:	subl	$0x100000,%eax
+	shrl	$17,%eax
+	movb	%al,0x100401
+3:
+#endif
 
 	call	identify_cpu
 
@@ -326,7 +364,7 @@ begin:
 	addl	$(13*4),%esp			/* back to a frame we can return with */
 
 	/*
-	 * now we've run main() and determined what cpu-type we are, we can
+	 * Now we've run main() and determined what cpu-type we are, we can
 	 * enable write protection and alignment checking on i486 cpus and
 	 * above.
 	 */
@@ -524,7 +562,11 @@ olddiskboot:
 	movl	%eax,R(_bootdev)
 
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+#ifdef PC98
+	movl	$0x90200, %esi
+#else
 	movl	$0x10200, %esi
+#endif
 	movl	$R(_userconfig_from_boot),%edi
 	movl	$512,%ecx
 	cld
@@ -557,11 +599,29 @@ identify_cpu:
 	popfl
 
 	testl	%eax,%eax
-	jnz	1f
+	jnz	try486
+
+	/* NexGen CPU does not have aligment check flag. */
+	pushfl
+	movl	$0x5555, %eax
+	xorl	%edx, %edx
+	movl	$2, %ecx
+	clc
+	divl	%ecx
+	jz	trynexgen
+	popfl
 	movl	$CPU_386,R(_cpu)
 	jmp	3f
 
-1:	/* Try to toggle identification flag; does not exist on early 486s. */
+trynexgen:
+	movl	$CPU_NX586,R(_cpu)
+	movl	$0x4778654e,R(_cpu_vendor)	# store vendor string
+	movl	$0x72446e65,R(_cpu_vendor+4)
+	movl	$0x6e657669,R(_cpu_vendor+8)
+	movl	$0,R(_cpu_vendor+12)
+	jmp	3f
+
+try486:	/* Try to toggle identification flag; does not exist on early 486s. */
 	pushfl
 	popl	%eax
 	movl	%eax,%ecx
@@ -576,89 +636,40 @@ identify_cpu:
 	popfl
 
 	testl	%eax,%eax
-	jnz	1f
+	jnz	trycpuid
 	movl	$CPU_486,R(_cpu)
 
-	/* check for Cyrix 486DLC -- based on check routine  */
-	/* documented in "Cx486SLC/e SMM Programmer's Guide" */
-	xorw	%dx,%dx
-	cmpw	%dx,%dx			# set flags to known state
-	pushfw
-	popw	%cx			# store flags in ecx
-	movw	$0xffff,%ax
-	movw	$0x0004,%bx
-	divw	%bx
-	pushfw
-	popw	%ax
-	andw	$0x08d5,%ax		# mask off important bits
-	andw	$0x08d5,%cx
-	cmpw	%ax,%cx
+	/*
+	 * Check Cyrix CPU
+	 * Cyrix CPUs do not change the undefined flags following
+	 * execution of the divide instruction which divides 5 by 2.
+	 *
+	 * Note: CPUID is enabled on M2, so it passes another way.
+	 */
+	pushfl
+	movl	$0x5555, %eax
+	xorl	%edx, %edx
+	movl	$2, %ecx
+	clc
+	divl	%ecx
+	jnc	trycyrix
+	popfl
+	jmp	3f		/* You may use Intel CPU. */
 
-	jnz	3f			# if flags changed, Intel chip
-
-	movl	$CPU_486DLC,R(_cpu) # set CPU value for Cyrix
+trycyrix:
+	popfl
+	/*
+	 * IBM Bluelighting CPU also doesn't change the undefined flags.
+	 * Because IBM doesn't disclose the information for Bluelighting
+	 * CPU, we couldn't distinguish it from Cyrix's (including IBM
+	 * brand of Cyrix CPUs).
+	 */
 	movl	$0x69727943,R(_cpu_vendor)	# store vendor string
-	movw	$0x0078,R(_cpu_vendor+4)
-
-#ifndef CYRIX_CACHE_WORKS
-	/* Disable caching of the ISA hole only. */
-	invd
-	movb	$CCR0,%al		# Configuration Register index (CCR0)
-	outb	%al,$0x22
-	inb	$0x23,%al
-	orb	$(CCR0_NC1|CCR0_BARB),%al
-	movb	%al,%ah
-	movb	$CCR0,%al
-	outb	%al,$0x22
-	movb	%ah,%al
-	outb	%al,$0x23
-	invd
-#else /* CYRIX_CACHE_WORKS */
-	/* Set cache parameters */
-	invd				# Start with guaranteed clean cache
-	movb	$CCR0,%al		# Configuration Register index (CCR0)
-	outb	%al,$0x22
-	inb	$0x23,%al
-	andb	$~CCR0_NC0,%al
-#ifndef CYRIX_CACHE_REALLY_WORKS
-	orb	$(CCR0_NC1|CCR0_BARB),%al
-#else /* CYRIX_CACHE_REALLY_WORKS */
-	orb	$CCR0_NC1,%al
-#endif /* !CYRIX_CACHE_REALLY_WORKS */
-	movb	%al,%ah
-	movb	$CCR0,%al
-	outb	%al,$0x22
-	movb	%ah,%al
-	outb	%al,$0x23
-	/* clear non-cacheable region 1	*/
-	movb	$(NCR1+2),%al
-	outb	%al,$0x22
-	movb	$NCR_SIZE_0K,%al
-	outb	%al,$0x23
-	/* clear non-cacheable region 2	*/
-	movb	$(NCR2+2),%al
-	outb	%al,$0x22
-	movb	$NCR_SIZE_0K,%al
-	outb	%al,$0x23
-	/* clear non-cacheable region 3	*/
-	movb	$(NCR3+2),%al
-	outb	%al,$0x22
-	movb	$NCR_SIZE_0K,%al
-	outb	%al,$0x23
-	/* clear non-cacheable region 4	*/
-	movb	$(NCR4+2),%al
-	outb	%al,$0x22
-	movb	$NCR_SIZE_0K,%al
-	outb	%al,$0x23
-	/* enable caching in CR0 */
-	movl	%cr0,%eax
-	andl	$~(CR0_CD|CR0_NW),%eax
-	movl	%eax,%cr0
-	invd
-#endif /* !CYRIX_CACHE_WORKS */
+	movl	$0x736e4978,R(_cpu_vendor+4)
+	movl	$0x64616574,R(_cpu_vendor+8)
 	jmp	3f
 
-1:	/* Use the `cpuid' instruction. */
+trycpuid:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
 	.byte	0x0f,0xa2			# cpuid 0
 	movl	%eax,R(_cpu_high)		# highest capability

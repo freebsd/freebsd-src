@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.9 1997/02/14 01:11:30 bde Exp $
+ *	$Id: machdep.c,v 1.209.2.10 1997/04/03 06:37:31 davidg Exp $
  */
 
 #include "npx.h"
@@ -122,8 +122,11 @@ extern int ptrace_single_step __P((struct proc *p));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
-extern void identifycpu(void);	/* XXX header file */
+extern void printcpuinfo(void);	/* XXX header file */
 extern void earlysetcpuclass(void);	/* same header file */
+extern void finishidentcpu(void);
+extern void panicifcpuunsupported(void);
+extern void initializecpu(void);
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -208,7 +211,8 @@ cpu_startup(dummy)
 	printf(version);
 	earlysetcpuclass();
 	startrtclock();
-	identifycpu();
+	printcpuinfo();
+	panicifcpuunsupported();
 #ifdef PERFMON
 	perfmon_init();
 #endif
@@ -1056,6 +1060,10 @@ init386(first)
 	if (boothowto & RB_KDB)
 		Debugger("Boot flags requested debugger");
 #endif
+
+	finishidentcpu();	/* Final stage of CPU initialization */
+	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	initializecpu();	/* Initialize CPU registers */
 
 	/* Use BIOS values stored in RTC CMOS RAM, since probing
 	 * breaks certain 386 AT relics.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.8.2.1 1996/12/21 18:27:28 bde Exp $
+ *	$Id: trap.c,v 1.8.2.2 1997/02/13 12:32:37 kato Exp $
  */
 
 /*
@@ -91,7 +91,7 @@ extern void trap __P((struct trapframe frame));
 extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
 
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 #else
 static int trap_pfault __P((struct trapframe *, int));
@@ -192,14 +192,14 @@ trap(frame)
 #ifdef DEBUG
 	u_long eva;
 #endif
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 	vm_offset_t va;
 #endif
 
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 	/* XXX:
 	 * CYRIX 486 CPU FIX.
 	 * If you use cyrix cpu, you often encouter strange signal 11's?
@@ -210,7 +210,7 @@ trap(frame)
 	va = (vm_offset_t)(rcr2());
 	if( type == T_PAGEFLT && ( frame.tf_eflags & PSL_I ) )
 		asm("sti");
-#endif	/* CYRIX_486DLC || CYRIX_5X86 */
+#endif	/* CPU_BUGGY_CYRIX */
 
 	if (ISPL(frame.tf_cs) == SEL_UPL) {
 		/* user trap */
@@ -256,7 +256,7 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 			i = trap_pfault(&frame, TRUE, va);
 #else
 			i = trap_pfault(&frame, TRUE);
@@ -332,7 +332,7 @@ trap(frame)
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 			(void) trap_pfault(&frame, FALSE, va);
 #else
 			(void) trap_pfault(&frame, FALSE);
@@ -495,7 +495,7 @@ out:
  * debugging code.
  */
 static int
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 trap_pfault(frame, usermode,faultva)
 	struct trapframe *frame;
 	int usermode;
@@ -519,7 +519,7 @@ trap_pfault(frame, usermode)
 	else
 		ftype = VM_PROT_READ;
 
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 	eva = faultva;
 #else
 	eva = rcr2();
@@ -606,7 +606,7 @@ nogo:
 #endif
 
 int
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 trap_pfault(frame, usermode,faultva)
 	struct trapframe *frame;
 	int usermode;
@@ -625,7 +625,7 @@ trap_pfault(frame, usermode)
 	int eva;
 	struct proc *p = curproc;
 
-#if defined(CYRIX_486DLC) || defined(CYRIX_5X86)
+#ifdef CPU_BUGGY_CYRIX
 	eva = faultva;
 #else
 	eva = rcr2();

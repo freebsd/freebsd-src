@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.7 1997/03/12 17:45:56 joerg Exp $
+#	$Id: options.i386,v 1.26.2.8 1997/04/28 19:33:19 se Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -37,10 +37,23 @@ CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
-I386_CPU		opt_cpu.h
-I486_CPU		opt_cpu.h
-I586_CPU		opt_cpu.h
-I686_CPU		opt_cpu.h
+CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
+CPU_BLUELIGHTNING_3X		opt_cpu.h
+CPU_BTB_EN			opt_cpu.h
+CPU_DISABLE_5X86_LSSER		opt_cpu.h
+CPU_FASTER_5X86_FPU		opt_cpu.h
+CPU_I486_ON_386			opt_cpu.h
+CPU_IORT			opt_cpu.h
+CPU_LOOP_EN			opt_cpu.h
+CPU_RSTK_EN			opt_cpu.h
+CPU_SUSP_HLT			opt_cpu.h
+CPU_UPGRADE_HW_CACHE		opt_cpu.h
+CYRIX_CACHE_WORKS		opt_cpu.h
+CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
+I386_CPU			opt_cpu.h
+I486_CPU			opt_cpu.h
+I586_CPU			opt_cpu.h
+I686_CPU			opt_cpu.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h

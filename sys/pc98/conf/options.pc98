@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8.2.6 1997/03/13 17:06:19 kato Exp $
+#	$Id: options.pc98,v 1.8.2.7 1997/05/12 09:12:47 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -37,10 +37,21 @@ CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
-I386_CPU		opt_cpu.h
-I486_CPU		opt_cpu.h
-I586_CPU		opt_cpu.h
-I686_CPU		opt_cpu.h
+CPU_BTB_EN		 opt_cpu.h
+CPU_DISABLE_5X86_LSSER	 opt_cpu.h
+CPU_FASTER_5X86_FPU	 opt_cpu.h
+CPU_I486_ON_386		 opt_cpu.h
+CPU_IORT		 opt_cpu.h
+CPU_LOOP_EN		 opt_cpu.h
+CPU_RSTK_EN		 opt_cpu.h
+CPU_SUSP_HLT		 opt_cpu.h
+CPU_UPGRADE_HW_CACHE	 opt_cpu.h
+CYRIX_CACHE_WORKS	 opt_cpu.h
+CYRIX_CACHE_REALLY_WORKS opt_cpu.h
+I386_CPU		 opt_cpu.h
+I486_CPU		 opt_cpu.h
+I586_CPU		 opt_cpu.h
+I686_CPU		 opt_cpu.h
 
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
