@@ -197,6 +197,16 @@
       smooth load peaks appearing when a lot of jobs are scheduled
       for a particular moment.</para>
 
+      <para>The LQM, Link Quality Monitoring support in &man.ppp.8;
+	has been reimplemented.  The LQM, which is described
+	in RFC 1989, allows PPP to keep track of the quality
+	of a running connection.</para>
+
+    <para>The userland &man.ppp.8; implementation now supports a <quote>set rad_alive
+	<replaceable>N</replaceable></quote> command
+      to enable periodic RADIUS accounting information
+      being sent to the RADIUS server.</para>
+
     <para>A bug in &man.rarpd.8; that prevents it from working properly
       when a interface has more than one IP address has been fixed.</para>
 
