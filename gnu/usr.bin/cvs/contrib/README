@@ -1,9 +1,9 @@
 $CVSid: @(#)README 1.12 94/09/25 $
 
 This "contrib" directory is a place holder for code/scripts sent to
-me by contributors around the world.  This READM file will be kept
+me by contributors around the world.  This README file will be kept
 up-to-date from release to release.  BUT, I must point out that these
-contributions are really, REALLY UNSSUPPORTED.  In fact, I probably
+contributions are really, REALLY UNSUPPORTED.  In fact, I probably
 don't even know what they do.  Nor do I guarantee to have tried them,
 or ported them to work with this CVS distribution.  If you have questions,
 you might contact the author, but you should not necessarily expect
@@ -12,7 +12,7 @@ a reply.  USE AT YOUR OWN RISK -- and all that stuff.
 Contents of this directory:
 
 	README		This file.
-	log.pl		A perl script suitable for including in your
+	log		A perl script suitable for including in your
 			$CVSROOT/CVSROOT/loginfo file for logging commit
 			changes.  Includes the RCS revision of the change
 			as part of the log.
@@ -20,15 +20,15 @@ Contents of this directory:
 	pcl-cvs		A directory that contains GNU Emacs lisp code which
 			implements a CVS-mode for emacs.
 			Contributed by Per Cederqvist <ceder@lysator.liu.se>.
-	commit_prep.pl	A perl script, to be combined with log_accum.pl, to
-	log_accum.pl	provide for a way to combine the individual log
+	commit_prep	A perl script, to be combined with log_accum.pl, to
+	log_accum	provide for a way to combine the individual log
 			messages of a multi-directory "commit" into a
 			single log message, and mail the result somewhere.
-			Also does other checks for $Id and that you are
+			Can also do other checks for $Id and that you are
 			committing the correct revision of the file.
 			Read the comments carefully.
 			Contributed by David Hampton <hampton@cisco.com>.
-	mfpipe.pl	Another perl script for logging.  Allows you to
+	mfpipe		Another perl script for logging.  Allows you to
 			pipe the log message to a file and/or send mail
 			to some alias.
 			Contributed by John Clyne <clyne@niwot.scd.ucar.edu>.
@@ -46,12 +46,15 @@ Contents of this directory:
 			help your system support opendir/readdir/closedir,
 			if it does not already.
 			Copied from the C-News distribution.
-	rcslock.pl	A perl script that can be added to your commitinfo
+	rcslock		A perl script that can be added to your commitinfo
 			file that tries to determine if your RCS file is
 			currently locked by someone else, as might be the
 			case for a binary file.
 			Contributed by John Rouillard <rouilj@cs.umb.edu>.
-	cvs_acls.pl	A perl script that implements Access Control Lists
+	ccvs-rsh	A Perl script which allows "rsh pipelines" to
+			be built in order to use Cyclic CVS from
+			behind some varieties of firewall.
+	cvs_acls	A perl script that implements Access Control Lists
 			by using the "commitinfo" hook provided with the
 			"cvs commit" command.
 			Contributed by David G. Grubbs <dgg@ksr.com>.
@@ -62,7 +65,7 @@ Contents of this directory:
 			the commands are recursive.  However, this may still
 			come in handy.
 			Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
-	cln_hist.pl	A perl script to compress your
+	cln_hist	A perl script to compress your
 			$CVSROOT/CVSROOT/history file, as it can grow quite
 			large after extended use.
 			Contributed by David G. Grubbs <dgg@ksr.com>

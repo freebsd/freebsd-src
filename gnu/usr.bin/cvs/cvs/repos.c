@@ -13,8 +13,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)repos.c 1.32 94/09/23 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)repos.c 1.32 94/09/23 $";
+USE(rcsid);
 #endif
 
 char *
@@ -28,9 +28,7 @@ Name_Repository (dir, update_dir)
     char path[PATH_MAX];
     char tmp[PATH_MAX];
     char cvsadm[PATH_MAX];
-    char ocvsadm[PATH_MAX];
     char *cp;
-    int has_cvsadm = 0, has_ocvsadm = 0;
 
     if (update_dir && *update_dir)
 	xupdate_dir = update_dir;
@@ -38,45 +36,16 @@ Name_Repository (dir, update_dir)
 	xupdate_dir = ".";
 
     if (dir != NULL)
-    {
 	(void) sprintf (cvsadm, "%s/%s", dir, CVSADM);
-	(void) sprintf (ocvsadm, "%s/%s", dir, OCVSADM);
-    }
     else
-    {
 	(void) strcpy (cvsadm, CVSADM);
-	(void) strcpy (ocvsadm, OCVSADM);
-    }
 
     /* sanity checks */
-    if (!(has_cvsadm = isdir (cvsadm)) && !(has_ocvsadm = isdir (ocvsadm)))
+    if (!isdir (cvsadm))
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (1, 0, "there is no version here; do '%s checkout' first",
 	       program_name);
-    }
-
-    if (has_ocvsadm)
-    {
-	if (has_cvsadm)
-	{
-	    error (0, 0, "in directory %s:", xupdate_dir);
-	    error (1, 0, "error: both `%s' and `%s' exist; I give up",
-		   CVSADM, OCVSADM);
-	}
-	if (rename (ocvsadm, cvsadm) < 0)
-	{
-	    error (0, 0, "in directory %s:", xupdate_dir);
-	    error (1, errno, "cannot rename `%s' to `%s'; I give up",
-		   OCVSADM, CVSADM);
-	}
-
-	/*
-	 * We have converted the old CVS.adm directory to the new CVS
-	 * directory.  Now, convert the Entries file to the new format, if
-	 * necessary.
-	 */
-	check_entries (dir);
     }
 
     if (dir != NULL)
@@ -127,7 +96,7 @@ Name_Repository (dir, update_dir)
 	error (0, 0, "`..'-relative repositories are not supported.");
 	error (1, 0, "illegal source repository");
     }
-    if (repos[0] != '/')
+    if (! isabsolute(repos))
     {
 	if (CVSroot == NULL)
 	{
@@ -139,7 +108,11 @@ Name_Repository (dir, update_dir)
 	(void) strcpy (path, repos);
 	(void) sprintf (repos, "%s/%s", CVSroot, path);
     }
+#ifdef CLIENT_SUPPORT
+    if (!client_active && !isdir (repos))
+#else
     if (!isdir (repos))
+#endif
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (1, 0, "there is no repository %s", repos);
@@ -162,9 +135,13 @@ Short_Repository (repository)
     if (repository == NULL)
 	return (NULL);
 
-    /* if repository matches CVSroot at the beginning, strip off CVSroot */
+    /* If repository matches CVSroot at the beginning, strip off CVSroot */
+    /* And skip leading '/' in rep, in case CVSroot ended with '/'. */
     if (strncmp (CVSroot, repository, strlen (CVSroot)) == 0)
-	return (repository + strlen (CVSroot) + 1);
+    {
+	char *rep = repository + strlen (CVSroot);
+	return (*rep == '/') ? rep+1 : rep;
+    }
     else
 	return (repository);
 }

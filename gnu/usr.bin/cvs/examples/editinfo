@@ -1,5 +1,5 @@
 #
-# $Id: editinfo,v 1.1 1992/03/21 06:49:39 berliner Exp $
+#ident	"@(#)cvs/examples:$Name:  $:$Id: editinfo,v 1.2 1995/11/14 23:30:07 woods Exp $"
 #
 # The "editinfo" file is used to allow verification of logging
 # information.  It works best when a template (as specified in the
@@ -26,5 +26,7 @@
 # One thing that should be noted  is the the ALL keyword is not
 # supported. There can be only one entry that matches a given
 # repository.
+#
+# Note there is no "edit" example script currently available....
 #
 DEFAULT			$CVSROOT/CVSROOT/edit "%s"
