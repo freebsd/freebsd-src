@@ -207,6 +207,7 @@ label:	ASCIZ msg;				\
 
 #endif /* _KERNEL */
 
+#undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
 #define __FBSDID(s)	.ident s
 #else
