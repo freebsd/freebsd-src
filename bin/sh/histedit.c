@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: histedit.c,v 1.9 1997/02/22 13:58:27 peter Exp $
+ *	$Id: histedit.c,v 1.10 1997/03/28 15:24:38 imp Exp $
  */
 
 #ifndef lint
@@ -57,7 +57,6 @@ static char const sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #include "mystring.h"
 #ifndef NO_HISTORY
 #include "myhistedit.h"
-#endif
 #include "error.h"
 #include "eval.h"
 #include "memalloc.h"
@@ -420,7 +419,7 @@ not_fcnumber(s)
 	char *s;
 {
 	if (s == NULL)
-		return (1);
+		return (0);
 	if (*s == '-')
 		s++;
 	return (!is_number(s));
@@ -475,3 +474,17 @@ str_to_event(str, last)
 	}
 	return (he->num);
 }
+#else
+#include "error.h"
+
+int
+histcmd(argc, argv)
+	int argc;
+	char **argv;
+{
+
+	error("not compiled with history support");
+	/*NOTREACHED*/
+	return (0);
+}
+#endif
