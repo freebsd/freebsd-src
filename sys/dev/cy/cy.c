@@ -554,9 +554,9 @@ cyattach_common(cy_iobase, cy_align)
 	splx(s);
 
 	if (sio_fast_ih == NULL) {
-		swi_add(&tty_ithd, "tty:cy", siopoll, NULL, SWI_TTY, 0,
+		swi_add(&tty_ithd, "cy", siopoll, NULL, SWI_TTY, 0,
 			&sio_fast_ih);
-		swi_add(&clk_ithd, "tty:cy", siopoll, NULL, SWI_TTY, 0,
+		swi_add(&clk_ithd, "cy", siopoll, NULL, SWI_CLOCK, 0,
 			&sio_slow_ih);
 	}
 	minorbase = UNIT_TO_MINOR(unit);
