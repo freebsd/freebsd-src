@@ -375,14 +375,13 @@ nfsmout:
  * - build the rootfs mount point and call mountnfs() to do the rest.
  */
 int
-nfs_mountroot(struct mount *mp)
+nfs_mountroot(struct mount *mp, struct thread *td)
 {
 	struct mount  *swap_mp;
 	struct nfsmount *nmp = VFSTONFS(mp);
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
-	struct thread *td = curthread;		/* XXX */
 	int error, i;
 	u_long l;
 	char buf[128];
@@ -737,7 +736,7 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 	u_char nfh[NFSX_V3FHMAX];
 
 	if (path == NULL) {
-		nfs_mountroot(mp);
+		nfs_mountroot(mp, td);
 		return (0);
 	}
 	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
