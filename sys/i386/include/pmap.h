@@ -236,6 +236,8 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t v)
 
 #define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
 
+#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+
 #else /* PAE */
 
 static __inline pt_entry_t
@@ -252,17 +254,27 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 {
 	pt_entry_t r;
 
-	r = *ptep;
-	*ptep = pte;
+	__asm __volatile(
+	    "xchgl %0,%1"
+	    : "=m" (*ptep),
+	      "=r" (r)
+	    : "1" (pte),
+	      "m" (*ptep));
 	return (r);
 }
 
 #define	pte_load_clear(pte)	atomic_readandclear_int(pte)
 
+static __inline void
+pte_store(pt_entry_t *ptep, pt_entry_t pte)
+{
+
+	*ptep = pte;
+}
+
 #endif /* PAE */
 
-#define	pte_clear(ptep)		pte_load_store((ptep), (pt_entry_t)0ULL)
-#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
 
 #define	pde_store(pdep, pde)	pte_store((pdep), (pde))
 
@@ -302,7 +314,7 @@ extern struct pmap	kernel_pmap_store;
 				mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
-				    NULL, MTX_DEF)
+				    NULL, MTX_DEF | MTX_DUPOK)
 #define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
