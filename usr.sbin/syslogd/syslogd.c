@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.3 1997/01/03 07:24:16 jkh Exp $";
+	"$Id: syslogd.c,v 1.12.2.4 1997/03/02 14:59:49 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -1016,8 +1016,10 @@ die(signo)
 	int signo;
 {
 	struct filed *f;
+	int was_initialized;
 	char buf[100];
 
+	was_initialized = Initialized;
 	Initialized = 0;	/* Don't log SIGCHLDs. */
 	for (f = Files; f != NULL; f = f->f_next) {
 		/* flush any pending output */
@@ -1026,6 +1028,7 @@ die(signo)
 		if (f->f_type == F_PIPE)
 			(void)close(f->f_file);
 	}
+	Initialized = was_initialized;
 	if (signo) {
 		dprintf("syslogd: exiting on signal %d\n", signo);
 		(void)sprintf(buf, "exiting on signal %d", signo);
