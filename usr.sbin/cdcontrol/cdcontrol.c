@@ -282,7 +282,6 @@ int run (int cmd, char *arg)
 {
 	long speed;
 	int l, r, rc;
-	char *ep;
 
 	switch (cmd) {
 
@@ -435,9 +434,11 @@ int run (int cmd, char *arg)
 			return (0);
 
 		errno = 0;
-		speed = strtol(arg, &ep, 10);
-		if (*ep || ep == arg || speed <= 0 || speed > INT_MAX ||
-		    errno != 0) {
+		if (strcasecmp("max", arg) == 0)
+			speed = CDR_MAX_SPEED;
+		else
+			speed = strtol(arg, NULL, 10) * 177;
+		if (speed <= 0 || speed > INT_MAX) {
 			warnx("invalid command arguments %s", arg);
 			return (0);
 		}
