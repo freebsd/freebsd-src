@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
+ * $Id: mount_fs.c,v 1.1.1.2 1999/01/13 19:20:28 obrien Exp $
  *
  */
 
@@ -528,12 +528,16 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
      * conf/nfs_prot/nfs_prot_*.h files.
      */
 # ifdef USE_UNCONNECTED_NFS_SOCKETS
-    nap->flags |= MNT2_NFS_OPT_NOCONN;
-    plog(XLOG_WARNING, "noconn option exists, and was turned ON! (May cause NFS hangs on some systems...)");
+    if (!(nap->flags & MNT2_NFS_OPT_NOCONN)) {
+      nap->flags |= MNT2_NFS_OPT_NOCONN;
+      plog(XLOG_WARNING, "noconn option not specified, and was just turned ON (OS override)! (May cause NFS hangs on some systems...)");
+    }
 # endif /* USE_UNCONNECTED_NFS_SOCKETS */
 # ifdef USE_CONNECTED_NFS_SOCKETS
-    nap->flags &= ~MNT2_NFS_OPT_NOCONN;
-    plog(XLOG_WARNING, "noconn option exists, and was turned OFF! (May cause NFS hangs on some systems...)");
+    if (nap->flags & MNT2_NFS_OPT_NOCONN) {
+      nap->flags &= ~MNT2_NFS_OPT_NOCONN;
+      plog(XLOG_WARNING, "noconn option specified, and was just turned OFF (OS override)! (May cause NFS hangs on some systems...)");
+    }
 # endif /* USE_CONNECTED_NFS_SOCKETS */
   }
 #endif /* MNT2_NFS_OPT_NOCONN */
