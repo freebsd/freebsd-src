@@ -3,8 +3,63 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.91
+    Original revision: 1.22.2.101
 -->
+
+<articleinfo>
+  <title>&os; &release.current; &arch; リリースノート</title>
+
+  <pubdate>$FreeBSD$</pubdate>
+  
+  <corpauthor>FreeBSD プロジェクト</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+  </copyright>
+</articleinfo>
+
+<abstract>
+  <para>この &os; &release.current; リリースノートには,
+    &os; &release.prev; のリリース以降に &os;
+    ベースシステムに対して加えられた変更点がまとめられています.
+    変更点はカーネル, ユーザランドにおけるものだけでなく,
+    前回のリリース以降に発行され, 影響のあるセキュリティ勧告も含まれています.
+    また, アップグレードの際の注意点についても簡単に説明しています.</para>
+</abstract>
+
+<sect1>
+  <title>はじめに</title>
+
+  <para>この文書は &arch; アーキテクチャ版 &os; &release.current;
+    のリリースノートです.
+    これには &release.prev; 以降に追加 (変更)
+    された新機能および, 前のバージョンの &os;
+    からアップグレードする場合におけるいくつかの注意点か書かれています.</para>
+
+<![ %release.type.snapshot [
+
+  <para>リリースノートが対象としているこの &release.type; は,
+    &release.branch; 開発ブランチの
+    &release.prev; と &release.next; の中間点に対応します.
+    このブランチにおける構築済みのバイナリ &release.type;
+    は <ulink url="&release.url;"></ulink> から入手可能です.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>この &os; &release.current は &release.type; 版であり,
+    <ulink url="&release.url;"></ulink>
+    および各ミラーサイトで公開されています.
+    &os; の &release.type; 版 (またはそれ以外) の入手法については
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+      ハンドブック</ulink>の<ulink url="http://www.FreeBSD.org/handbook/mirrors.html">付録
+      <quote>&os; を入手するには</quote></ulink>をご覧ください.</para>
+
+]]>
+</sect1>
 
 <!--
        The "What's New" section of the release notes.  
@@ -21,14 +76,15 @@
 -->
 
 <sect1>
-  <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
-
   <title>更新情報</title>
 
   <para>この節では &release.prev; 以降に新たに追加・変更された
-    ユーザに影響する機能について説明します.</para>
+    ユーザに影響する機能について説明します.
+    リリースノートの項目には通常, 新しいドライバや新しいハードウェアへの対応,
+    新しいコマンドや新しいオプションの導入,
+    大規模なバグ修正, 寄贈ソフトウェアのアップグレードが含まれており,
+    それに加えて
+    &release.prev; 以降に発行されたセキュリティ勧告も記載されています.</para>
 
   <para>&os; に加えられた変更点のうち,
     スペースの都合上ここに書かれていないものも多数存在します.
@@ -53,6 +109,25 @@
       これにより, 異なるアドレスでコンパイルされたカーネルに対しても
       &man.ps.1; が正しく動作可能になっています.</para>
 
+    <para>巨大なプロセス (あるいは非常に多数のプロセス) のコアダンプの際に,
+      長い間マシンが停止してしまう症状が起こらなくなりました.</para>
+
+    <para arch="i386">
+      カーネルの状態を保持するためにプロセスごとに割り当てられるメモリページの数が
+      2 から 3 に増加しました.  これにより, カーネルスタックのオーバフロー
+      (および, その後ろにあるプロセス固有のデータ構造体の破壊)
+      の発生が起こりにくくなっています.</para>
+
+    <para arch="i386">新しいカーネルオプション
+      <varname>KVA_SPACE</varname> が追加されました.
+      これは, カーネルの仮想アドレス空間の大きさを再設定できるようにするためのものです.</para>
+
+    <para arch="alpha"><varname>hw.physmem</varname>
+      環境変数に加えて <varname>MAXMEM</varname>
+      カーネルオプションが追加されました.
+      これは試験目的などに利用されるもので,
+      マシンに搭載されているメモリサイズを人為的に減らすことができます.</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -62,7 +137,23 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
       
-      <para></para>
+      <para>&man.an.4; ドライバが新しく <quote>monitor</quote>
+        モードに対応しました.  &man.ancontrol.8; に
+        <option>-M</option> オプションを指定することで,
+        このモードに設定することが可能です.</para>
+
+      <para arch="i386">
+        &man.bge.4; ドライバが追加されました.
+        これは 3Com 3c996-T,
+        SysKonnect SK-9D21, SK-9D41 および
+        Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
+        などに使われている Broadcom BCM570x
+        ファミリのギガビットイーサネットコントローラ用ドライバで,
+        TCP/IP チェックサムのオフロード,
+        ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
+        割り込み低減機能に対応しています.</para>
+
+      <para>dgm ドライバが &os; -CURRENT の変更を受けて更新されました.</para>
     </sect3>
 
     <sect3>
@@ -74,7 +165,10 @@
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para></para>
+      <para>&man.aac.4; ドライバが &os; -CURRENT の変更を受けて更新されました.
+        この更新には, アダプタの発行するコマンドの正しい処理,
+        ディスクデバイスの脱着, クラッシュダンプ機能, CLI 管理に必要な
+        &man.ioctl.2; コマンドの追加が含まれています.</para>
     </sect3>
 
     <sect3>
@@ -95,7 +189,10 @@
     <sect3>
       <title>マルチメディアへの対応状況</title>
       
-      <para></para>
+      <para>MP3 プレーヤ Diamond Rio シリーズ用の
+        &man.urio.4; ドライバが新しく追加されました
+        (このドライバのマニュアルページだけはなぜか
+        &os; 4.3-RELEASEは に追加されていました).</para>
     </sect3>
 
     <sect3>
@@ -118,6 +215,14 @@
 
     <para>&man.find.1; のオプション <option>-[acm]time</option> において,
       さまざまな時間単位が使えるようになりました.</para>
+
+    <para>&man.fmt.1; が書き直されました.  この書き換えにより,
+      以前のものに含まれていた多数のバグが修正されています.</para>
+
+    <para>&man.lpd.8; の制御ファイルに新しく,
+      <literal>o</literal> という型のプリントファイル動作指定が追加されました.
+      これは <application>MacOS</application> 10.1
+      で生成した PostScript ファイルを印刷に対応したものです.</para>
     
     <para>&man.netstat.1; に, 統計情報をリセットする新しいオプション
       <option>-z</option> が追加されました.</para>
@@ -125,9 +230,31 @@
     <para>&man.netstat.1; に, アドレスを数字で,
       ポート番号をシンボルで表示する新しいオプション
       <option>-S</option> が追加されました.</para>
-    
+
+    <para>新しく行番号フィルタプログラム &man.nl.1; が追加されました.</para>    
+
+    <para>&man.ping.8; に新しいオプション <option>-A</option> が追加されました.
+      これは, パケットが失われた時にビープ音が鳴るようにするものです./para>
+
     <sect3>
       <title>寄贈ソフトウェア</title>
+
+      <para><application>OpenSSH</application> が
+        バージョン 2.9 に更新されました.
+        これには新しい 2 つのプログラム &man.sftp.1;
+        &man.ssh-keyscan.1; が含まれています.
+        また, 既存の SSH セションの暗号鍵変更や
+        &man.ssh-agent.1; が新たに DSA 暗号鍵の転送に対応したこと,
+        実験的な <application>SOCKS4</application> プロキシ機能といった
+        さまざまな改良が &man.ssh.1; に追加されています.
+
+        <note>
+         <para><filename>/etc/ssh/ssh_config</filename> の標準設定は
+            <literal>Protocol 1,2</literal> のままになっています.
+            &os; -CURRENT の標準設定は
+            <literal>Protocol 2,1</literal> です.</para>
+       </note>
+      </para>
 
       <sect4>
         <title>CVS</title>
@@ -148,4 +275,58 @@
       <para></para>
     </sect3>
   </sect2>
+</sect1>
+
+<sect1>
+  <title>以前の &os; リリース版からのアップグレード</title>
+
+  <para>以前の &os; リリース版からのアップグレードを行なうには,
+    主に次の 3 つの方法があります.</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>&man.sysinstall.8; のバイナリアップグレード機能を使う方法.
+        おそらくこの方法が最も時間のかからない方法なのですが,
+        これは &os; のインストール時に
+        特別なコンパイルオプションを指定していないことを前提としています.</para>
+    </listitem>
+    
+    <listitem>
+      <para>&os; を完全に再インストールする方法.
+        技術的にはアップグレード手段の一つとは言えませんし,
+        <filename>/etc</filename>
+        の内容を手動で退避・復元したりする必要があるなど,
+        大抵の場合はバイナリアップグレード機能を使うより手間がかかります.
+        しかし, ディスクのパーティション分割を変更したい (とか,
+        変更しなければならない) 場合などには便利な方法でしょう.</para>
+    </listitem>
+    
+    <listitem>
+      <para><filename>/usr/src</filename> のソースコードから構築する方法.
+        この手段は非常に柔軟な対応が可能ですが,
+        ディスク空間と時間, そして専門的なノウハウを必要とします.
+        また, 非常に古いバージョンの &os;
+        からのアップグレードは問題が発生することが多いため,
+        そのような場合にはバイナリアップグレード,
+        もしくは完全な再インストールを行なった方が効果的でしょう.</para>
+    </listitem>
+  </itemizedlist>
+  
+  <para>なるべくアップグレードを始める前に詳細について
+    <filename>INSTALL.TXT</filename> をご覧ください.
+    ソースからアップグレードする場合は
+    <filename>/usr/src/UPDATING</filename> にも目を通す必要があります.</para>
+
+  <para>最後になりますが, &os; の -STABLE もしくは -CURRENT
+    ブランチを追いかけるために用意された手段の一つをとりたいと考えているなら,
+    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+      ハンドブック</ulink>の
+    <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+        vs. -STABLE</quote></ulink> の節をご覧になるようお願いします.</para>
+
+  <important>
+    <para>もちろん言うまでもないことですが,
+      &os; のアップグレードは, データと設定ファイルを
+      <emphasis>すべて</emphasis>退避させた後に行なうべきです.</para>
+  </important>
 </sect1>
