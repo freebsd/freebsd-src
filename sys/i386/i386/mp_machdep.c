@@ -1013,6 +1013,105 @@ revoke_apic_irq(int irq)
 	}
 }
 
+
+
+static void
+swap_apic_id(int apic, int oldid, int newid)
+{
+	int x;
+	int oapic;
+	
+
+	if (oldid == newid)
+		return;			/* Nothing to do */
+	
+	printf("Changing APIC ID for IO APIC #%d from %d to %d in MP table\n",
+	       apic, oldid, newid);
+	
+	/* Swap physical APIC IDs in interrupt entries */
+	for (x = 0; x < nintrs; x++) {
+		if (io_apic_ints[x].dst_apic_id == oldid)
+			io_apic_ints[x].dst_apic_id = newid;
+		else if (io_apic_ints[x].dst_apic_id == newid)
+			io_apic_ints[x].dst_apic_id = oldid;
+	}
+	
+	/* Swap physical APIC IDs in IO_TO_ID mappings */
+	for (oapic = 0; oapic < mp_napics; oapic++)
+		if (IO_TO_ID(oapic) == newid)
+			break;
+	
+	if (oapic < mp_napics) {
+		printf("Changing APIC ID for IO APIC #%d from "
+		       "%d to %d in MP table\n",
+		       oapic, newid, oldid);
+		IO_TO_ID(oapic) = oldid;
+	}
+	IO_TO_ID(apic) = newid;
+}
+
+
+static void
+fix_id_to_io_mapping(void)
+{
+	int x;
+
+	for (x = 0; x < NAPICID; x++)
+		ID_TO_IO(x) = -1;
+	
+	for (x = 0; x <= mp_naps; x++)
+		if (CPU_TO_ID(x) < NAPICID)
+			ID_TO_IO(CPU_TO_ID(x)) = x;
+	
+	for (x = 0; x < mp_napics; x++)
+		if (IO_TO_ID(x) < NAPICID)
+			ID_TO_IO(IO_TO_ID(x)) = x;
+}
+
+
+static int
+first_free_apic_id(void)
+{
+	int freeid, x;
+	
+	for (freeid = 0; freeid < NAPICID; freeid++) {
+		for (x = 0; x <= mp_naps; x++)
+			if (CPU_TO_ID(x) == freeid)
+				break;
+		if (x <= mp_naps)
+			continue;
+		for (x = 0; x < mp_napics; x++)
+			if (IO_TO_ID(x) == freeid)
+				break;
+		if (x < mp_napics)
+			continue;
+		return freeid;
+	}
+	return freeid;
+}
+
+
+static int
+io_apic_id_acceptable(int apic, int id)
+{
+	int cpu;		/* Logical CPU number */
+	int oapic;		/* Logical IO APIC number for other IO APIC */
+
+	if (id >= NAPICID)
+		return 0;	/* Out of range */
+	
+	for (cpu = 0; cpu <= mp_naps; cpu++)
+		if (CPU_TO_ID(cpu) == id)
+			return 0;	/* Conflict with CPU */
+	
+	for (oapic = 0; oapic < mp_napics && oapic < apic; oapic++)
+		if (IO_TO_ID(oapic) == id)
+			return 0;	/* Conflict with other APIC */
+	
+	return 1;		/* ID is acceptable for IO APIC */
+}
+
+
 /*
  * parse an Intel MP specification table
  */
@@ -1024,6 +1123,9 @@ fix_mp_table(void)
 	int	bus_0 = 0;	/* Stop GCC warning */
 	int	bus_pci = 0;	/* Stop GCC warning */
 	int	num_pci_bus;
+	int	apic;		/* IO APIC unit number */
+	int     freeid;		/* Free physical APIC ID */
+	int	physid;		/* Current physical IO APIC ID */
 
 	/*
 	 * Fix mis-numbering of the PCI bus and its INT entries if the BIOS
@@ -1053,12 +1155,10 @@ fix_mp_table(void)
 	 */
 
 	/* check the 1 PCI bus case for sanity */
-	if (num_pci_bus == 1) {
-
-		/* if it is number 0 all is well */
-		if (bus_data[bus_pci].bus_id == 0)
-			return;
-
+	/* if it is number 0 all is well */
+	if (num_pci_bus == 1 &&
+	    bus_data[bus_pci].bus_id != 0) {
+		
 		/* mis-numbered, swap with whichever bus uses slot 0 */
 
 		/* swap the bus entry types */
@@ -1076,6 +1176,42 @@ fix_mp_table(void)
 			}
 		}
 	}
+
+	/* Assign IO APIC IDs.
+	 * 
+	 * First try the existing ID. If a conflict is detected, try
+	 * the ID in the MP table.  If a conflict is still detected, find
+	 * a free id.
+	 *
+	 * We cannot use the ID_TO_IO table before all conflicts has been
+	 * resolved and the table has been corrected.
+	 */
+	for (apic = 0; apic < mp_napics; ++apic) { /* For all IO APICs */
+		
+		/* First try to use the value set by the BIOS */
+		physid = io_apic_get_id(apic);
+		if (io_apic_id_acceptable(apic, physid)) {
+			if (IO_TO_ID(apic) != physid)
+				swap_apic_id(apic, IO_TO_ID(apic), physid);
+			continue;
+		}
+
+		/* Then check if the value in the MP table is acceptable */
+		if (io_apic_id_acceptable(apic, IO_TO_ID(apic)))
+			continue;
+
+		/* Last resort, find a free APIC ID and use it */
+		freeid = first_free_apic_id();
+		if (freeid >= NAPICID)
+			panic("No free physical APIC IDs found");
+		
+		if (io_apic_id_acceptable(apic, freeid)) {
+			swap_apic_id(apic, IO_TO_ID(apic), freeid);
+			continue;
+		}
+		panic("Free physical APIC ID not usable");
+	}
+	fix_id_to_io_mapping();
 }
 
 
@@ -1159,6 +1295,8 @@ processor_entry(proc_entry_ptr entry, int cpu)
 	if (!(entry->cpu_flags & PROCENTRY_FLAG_EN))
 		return 0;
 
+	if(entry->apic_id >= NAPICID)
+		panic("CPU APIC ID out of range (0..%d)", NAPICID - 1);
 	/* check for BSP flag */
 	if (entry->cpu_flags & PROCENTRY_FLAG_BP) {
 		boot_cpu_id = entry->apic_id;
@@ -1209,7 +1347,8 @@ io_apic_entry(io_apic_entry_ptr entry, int apic)
 		return 0;
 
 	IO_TO_ID(apic) = entry->apic_id;
-	ID_TO_IO(entry->apic_id) = apic;
+	if (entry->apic_id < NAPICID)
+		ID_TO_IO(entry->apic_id) = apic;
 
 	return 1;
 }
@@ -1602,7 +1741,6 @@ default_mp_table(int type)
 {
 	int     ap_cpu_id;
 #if defined(APIC_IO)
-	u_int32_t ux;
 	int     io_apic_id;
 	int     pin;
 #endif	/* APIC_IO */
