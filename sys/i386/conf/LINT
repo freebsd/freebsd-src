@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.562 1999/03/04 09:53:19 sos Exp $
+#	$Id: LINT,v 1.563 1999/03/09 00:24:27 brian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -852,7 +852,7 @@ options 	"TUNE_1542"
 
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
-# More info in ftp://ftp.udel.edu/pub/ntp/kernel.tar.Z
+# More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
 
 options		PPS_SYNC
 
@@ -861,6 +861,7 @@ options		PPS_SYNC
 # for too long.  You can make the system more resistant to this by
 # choosing a high value for NTIMECOUNTER.  The default is 5, there
 # is no upper limit but more than a couple of hundred are not productive.
+# A better strategy may be to sysctl -w kern.timecounter.method=1
 
 options		"NTIMECOUNTER=20"
 
@@ -1951,6 +1952,7 @@ options		DEBUG_LOCKS
 options		CLK_CALIBRATION_LOOP
 options		"CLK_USE_I8254_CALIBRATION"
 options		CLK_USE_TSC_CALIBRATION
+options		"TIMER_FREQ=((14318182+6)/12)"
 options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
