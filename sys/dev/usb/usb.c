@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.53 2001/01/23 17:04:30 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.54 2001/11/09 14:59:11 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -767,6 +767,7 @@ usb_add_event(int type, struct usb_event *uep)
 void
 usb_schedsoftintr(usbd_bus_handle bus)
 {
+	DPRINTFN(10,("usb_schedsoftintr: polling=%d\n", bus->use_polling));
 #ifdef USB_USE_SOFTINTR
 	if (bus->use_polling) {
 		bus->methods->soft_intr(bus);
