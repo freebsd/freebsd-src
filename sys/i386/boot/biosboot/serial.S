@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.1 1995/01/20 07:48:27 wpaul Exp $
+ *	$Id: serial.S,v 1.2 1995/03/19 06:10:32 phk Exp $
  */
 
 /*
@@ -84,7 +84,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
- * void serial_putc(char ch)
+ * void serial_putc(ch) char ch;
  *	send ch to serial port
  *
  */
