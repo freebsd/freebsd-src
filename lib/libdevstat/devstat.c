@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devstat.c,v 1.1 1998/09/15 06:23:21 gibbs Exp $
+ *	$Id: devstat.c,v 1.2 1998/09/18 02:35:25 ken Exp $
  */
 
 #include <sys/types.h>
@@ -101,14 +101,14 @@ getnumdevs(void)
  * the device list and the generation could change between the time that
  * this function is called and the device list is retreived.
  */
-int
+long
 getgeneration(void)
 {
 	size_t gensize;
-	int generation;
+	long generation;
 	char *func_name = "getgeneration";
 
-	gensize = sizeof(int);
+	gensize = sizeof(long);
 
 	/*
 	 * Get the current generation number.
@@ -234,7 +234,8 @@ getdevs(struct statinfo *stats)
 {
 	int error;
 	size_t dssize;
-	int oldnumdevs, oldgeneration;
+	int oldnumdevs;
+	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
 	char *func_name = "getdevs";
@@ -266,10 +267,10 @@ getdevs(struct statinfo *stats)
 		 * number, as well as all the devices.  So we need four
 		 * bytes more.
 		 */
-		dssize =(dinfo->numdevs * sizeof(struct devstat)) + sizeof(int);
+		dssize =(dinfo->numdevs * sizeof(struct devstat)) +sizeof(long);
 		dinfo->mem_ptr = (u_int8_t *)malloc(dssize);
 	} else
-		dssize =(dinfo->numdevs * sizeof(struct devstat)) + sizeof(int);
+		dssize =(dinfo->numdevs * sizeof(struct devstat)) +sizeof(long);
 
 	/* Get the current time when we get the stats */
 	gettimeofday(&stats->busy_time, NULL);
@@ -298,7 +299,7 @@ getdevs(struct statinfo *stats)
 				return(-1);
 
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
-				sizeof(int);
+				sizeof(long);
 			dinfo->mem_ptr = (u_int8_t *)realloc(dinfo->mem_ptr,
 							     dssize);
 			if ((error = sysctlbyname("kern.devstat.all", 
@@ -322,7 +323,7 @@ getdevs(struct statinfo *stats)
 	 * The sysctl spits out the generation as the first four bytes,
 	 * then all of the device statistics structures.
 	 */
-	dinfo->generation = *(int *)dinfo->mem_ptr;
+	dinfo->generation = *(long *)dinfo->mem_ptr;
 
 	/*
 	 * If the generation has changed, and if the current number of
@@ -344,14 +345,14 @@ getdevs(struct statinfo *stats)
 			if ((dinfo->numdevs = getnumdevs()) < 0)
 				return(-1);
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
-				sizeof(int);
+				sizeof(long);
 			dinfo->mem_ptr = (u_int8_t *)realloc(dinfo->mem_ptr,
 							     dssize);
 		}
 		retval = 1;
 	}
 
-	dinfo->devices = (struct devstat *)(dinfo->mem_ptr + sizeof(int));
+	dinfo->devices = (struct devstat *)(dinfo->mem_ptr + sizeof(long));
 
 	return(retval);
 }
@@ -419,8 +420,8 @@ getdevs(struct statinfo *stats)
  */
 int
 selectdevs(struct device_selection **dev_select, int *num_selected,
-	   int *num_selections, int *select_generation, 
-	   int current_generation, struct devstat *devices, int numdevs,
+	   int *num_selections, long *select_generation, 
+	   long current_generation, struct devstat *devices, int numdevs,
 	   struct devstat_match *matches, int num_matches,
 	   char **dev_selections, int num_dev_selections,
 	   devstat_select_mode select_mode, int maxshowdevs, int perf_select)

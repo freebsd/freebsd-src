@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devicestat.h,v 1.1 1998/09/15 08:16:17 gibbs Exp $
  */
 
 #ifndef _DEVICESTAT_H
@@ -45,7 +45,7 @@
  * userland utilities to determine whether or not they are in sync with the
  * kernel.
  */
-#define DEVSTAT_VERSION	   1
+#define DEVSTAT_VERSION	   2
 
 /*
  * These flags specify which statistics features are supported or not
