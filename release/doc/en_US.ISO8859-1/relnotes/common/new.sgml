@@ -175,7 +175,9 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>Buffer overflows in kadmind(8) and k5admin have been
+      corrected.  More details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.</para>
 
   </sect2>
 
