@@ -8,11 +8,12 @@ all:
 	@echo "make tags, make links or init_sysent.c only"
 
 init_sysent.c syscalls.c ../sys/syscall.h ../sys/syscall-hide.h \
-../sys/sysproto.h: makesyscalls.sh syscalls.master
+../sys/syscall.mk ../sys/sysproto.h: makesyscalls.sh syscalls.master
 	-mv -f init_sysent.c init_sysent.c.bak
 	-mv -f syscalls.c syscalls.c.bak
 	-mv -f ../sys/syscall.h ../sys/syscall.h.bak
 	-mv -f ../sys/syscall-hide.h ../sys/syscall-hide.h.bak
+	-mv -f ../sys/syscall.mk ../sys/syscall.mk.bak
 	-mv -f ../sys/sysproto.h ../sys/sysproto.h.bak
 	sh makesyscalls.sh syscalls.master
 
