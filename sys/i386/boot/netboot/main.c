@@ -132,11 +132,15 @@ load()
 	nfsdiskless.myif.ifra_broadaddr.sa_family = AF_INET;
 	bcopy(&broadcast, &nfsdiskless.myif.ifra_broadaddr.sa_data[2], 4);
 	addr = htonl(arptable[ARP_GATEWAY].ipaddr);
-	nfsdiskless.mygateway.sin_len = sizeof(struct sockaddr);
-	nfsdiskless.mygateway.sin_family = AF_INET;
-	bcopy(&addr, &nfsdiskless.mygateway.sin_addr, 4);
-        nfsdiskless.myif.ifra_mask.sa_len = sizeof(struct sockaddr);
-        nfsdiskless.myif.ifra_mask.sa_family = AF_UNSPEC;
+	if (addr) {
+		nfsdiskless.mygateway.sin_len = sizeof(struct sockaddr);
+		nfsdiskless.mygateway.sin_family = AF_INET;
+		bcopy(&addr, &nfsdiskless.mygateway.sin_addr, 4);
+	} else {
+		nfsdiskless.mygateway.sin_len = 0;
+	}
+	nfsdiskless.myif.ifra_mask.sa_len = sizeof(struct sockaddr);
+	nfsdiskless.myif.ifra_mask.sa_family = AF_UNSPEC;
 	bcopy(&netmask, &nfsdiskless.myif.ifra_mask.sa_data[2], 4);
 
 	rpc_id = currticks();
