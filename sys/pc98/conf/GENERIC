@@ -18,7 +18,7 @@
 #
 # $FreeBSD$
 
-machine		pc98
+machine		pc98 i386
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
