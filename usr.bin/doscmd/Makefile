@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.11 1998/05/26 20:12:55 sos Exp $
+# $Id: Makefile,v 1.12 1998/05/31 11:32:38 bde Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -9,7 +9,11 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
 	tty.c xms.c
 
+.if ${OBJFORMAT} == "aout"
 CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o redir.com emsdriv.sys
+.else
+CLEANFILES=     redir.com emsdriv.sys
+.endif
 
 BINGRP=	kmem
 EXEGRP=	bin
@@ -23,15 +27,20 @@ DPADD= ${X11BASE}/lib/libX11.a
 .else
 CFLAGS+= -I. -DDISASSEMBLER -DNO_X
 .endif
+.if ${OBJFORMAT} == "aout"
 LDADD+= -L${DESTDIR}${LIBDIR} -lgcc -lc
 DPADD+= ${LIBGCC} ${LIBC}
+.endif
 
 beforeinstall:
+.if ${OBJFORMAT} == "aout"
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 	    doscmd.kernel ${DESTDIR}/usr/libexec/
+.endif
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 	    emsdriv.sys redir.com ${DESTDIR}/usr/libdata/doscmd/
 
+.if ${OBJFORMAT} == "aout"
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
 	ld -e start -dc -dp ${LDFLAGS:M-static:S/-static/-Bstatic/} \
 	    -o doscmd ${LIBCRT0} doscmd_loader.o -L${DESTDIR}${LIBDIR} -lgcc -lc
@@ -41,6 +50,9 @@ doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
 
 # Bogus dependencies to get more than one binary created by `make all'.
 doscmd: doscmd.kernel emsdriv.sys redir.com
+.else
+doscmd: emsdriv.sys redir.com
+.endif
 
 redir.com: redir.com.uu
 	uudecode ${.CURDIR}/redir.com.uu
@@ -55,8 +67,10 @@ emsdriv.sys: emsdriv.sys.uu
 
 .include <bsd.prog.mk>
 
+.if ${OBJFORMAT} == "aout"
 # This must be after bsd.prog.mk is included so that ${OBJS} in the
 # dependency gets expanded.
 doscmd.kernel: crt0.o ${OBJS} ${DPADD}
 	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} \
 	    crt0.o ${OBJS} ${LDADD}
+.endif
