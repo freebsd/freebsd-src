@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.3 1995/11/20 12:42:28 phk Exp $
+ *	$Id: od.c,v 1.4 1995/11/29 10:48:57 julian Exp $
  */
 
 /*
@@ -840,8 +840,8 @@ static void 	od_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"od",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(oddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,od_drvinit,NULL)

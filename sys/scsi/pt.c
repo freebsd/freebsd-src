@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.6 1995/11/19 22:22:23 dyson Exp $
+ *      $Id: pt.c,v 1.7 1995/11/29 10:48:59 julian Exp $
  */
 
 /*
@@ -283,8 +283,8 @@ static void 	pt_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"pt",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(ptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pt_drvinit,NULL)

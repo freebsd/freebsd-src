@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.6 1995/11/16 10:22:29 bde Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.7 1995/11/29 10:47:08 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.6 1995/11/16 10:22:29 bde Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.7  1995/11/29  10:47:08  julian
+ * OK, that's it..
+ * That's EVERY SINGLE driver that has an entry in conf.c..
+ * my next trick will be to define cdevsw[] and bdevsw[]
+ * as empty arrays and remove all those DAMNED defines as well..
+ *
  * Revision 1.6  1995/11/16  10:22:29  bde
  * Fixed the type of itel_input().  A trailing arg was missing.
  *
@@ -294,8 +300,8 @@ static void 	itel_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"itel",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(iteldev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,itel_drvinit,NULL)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.34 1995/09/10 21:34:49 bde Exp $
+ *	$Id: cons.c,v 1.35 1995/11/29 10:47:17 julian Exp $
  */
 
 #include <sys/param.h>
@@ -332,8 +332,9 @@ static void 	cn_drvinit(void *unused)
 		cn_devsw_installed = 1;
 #ifdef DEVFS
 	/*                path,name,major,minor,type,uid,gid,perm */
-	x=devfs_add_devsw("/","console",major(dev),0,DV_CHR,0,0,0640);
+		x=devfs_add_devsw("/","console",major(dev),0,DV_CHR,0,0,0640);
 #endif
+	}
 }
 
 SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)

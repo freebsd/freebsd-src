@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.14 1995/11/14 08:58:35 phk Exp $
+ * $Id: kern_descrip.c,v 1.15 1995/11/29 10:48:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -1049,8 +1049,8 @@ static void 	fildesc_drvinit(void *unused)
 			x=devfs_add_devsw("/","stderr",major(dev),2,DV_CHR,
 					0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(fildescdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,

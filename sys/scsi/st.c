@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.44 1995/11/20 12:42:34 phk Exp $
+ * $Id: st.c,v 1.45 1995/11/29 10:49:05 julian Exp $
  */
 
 /*
@@ -2110,8 +2110,8 @@ static void 	st_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"rst",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(stdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,st_drvinit,NULL)

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.49 1995/11/28 09:41:22 julian Exp $
+ *	$Id: mcd.c,v 1.50 1995/11/29 10:47:44 julian Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1703,8 +1703,8 @@ static void 	mcd_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"mcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(mcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mcd_drvinit,NULL)

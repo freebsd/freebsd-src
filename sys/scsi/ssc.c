@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.4 1995/11/04 11:12:41 bde Exp $
+ * $Id: ssc.c,v 1.5 1995/11/29 10:49:03 julian Exp $
  */
 
 #include <sys/types.h>
@@ -156,8 +156,8 @@ static void 	ssc_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"ssc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ssc_drvinit,NULL)

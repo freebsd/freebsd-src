@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.10 1995/11/28 09:41:36 julian Exp $ */
+/* $Id: scd.c,v 1.11 1995/11/29 10:47:50 julian Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -1563,8 +1563,8 @@ static void 	scd_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"scd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(scddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,scd_drvinit,NULL)

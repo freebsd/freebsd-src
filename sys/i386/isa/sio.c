@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.120 1995/11/28 09:41:47 julian Exp $
+ *	$Id: sio.c,v 1.121 1995/11/29 10:47:54 julian Exp $
  */
 
 #include "sio.h"
@@ -2589,8 +2589,8 @@ static void 	sio_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"sio",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(siodev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sio_drvinit,NULL)

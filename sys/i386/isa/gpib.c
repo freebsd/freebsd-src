@@ -1288,8 +1288,8 @@ static void 	gp_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"gp",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(gpdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gp_drvinit,NULL)

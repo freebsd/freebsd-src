@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.21 1995/11/05 20:25:59 bde Exp $
+ * $Id: conf.h,v 1.22 1995/11/06 00:36:14 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -153,6 +153,12 @@ d_devtotty_t	nodevtotty;
 d_select_t	noselect;
 d_mmap_t	nommap;
 
+#ifdef JREMOD
+/* Bogus defines for compatibility. */
+#define	noioc		noioctl
+#define	nostrat		nostrategy
+#define zerosize	nopsize
+#endif /*JREMOD*/
 /*
  * XXX d_strategy seems to be unused for cdevs that aren't associated with
  * bdevs and called without checking for it being non-NULL for bdevs.

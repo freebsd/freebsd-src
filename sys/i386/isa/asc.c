@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.6 1995/11/28 09:40:39 julian Exp $
+ * $Id: asc.c,v 1.7 1995/11/29 10:47:24 julian Exp $
  */
 
 #include "asc.h"
@@ -894,8 +894,8 @@ static void 	asc_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"asc",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(ascdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,asc_drvinit,NULL)
