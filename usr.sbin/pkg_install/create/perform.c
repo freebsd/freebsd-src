@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.25 1995/04/26 15:06:58 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26 1995/05/10 20:46:06 jkh Exp $";
 #endif
 
 /*
@@ -180,7 +180,7 @@ pkg_perform(char **pkgs)
  * arguments you can have, only how long the maximum list can be.
  * Shamelessly guess at what seems to be a conservative value.
  */
-#define MAX_NUM_ARGS	4096
+#define MAX_NUM_ARGS	16384
 
 static void
 make_dist(char *home, char *pkg, char *suffix, Package *plist)
