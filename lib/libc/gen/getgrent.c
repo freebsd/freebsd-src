@@ -1,6 +1,8 @@
+/*	$NetBSD: getgrent.c,v 1.34.2.1 1999/04/27 14:10:58 perry Exp $	*/
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Portions Copyright (c) 1994, Jason Downs. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,13 +35,18 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
+static char rcsid[] =
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <errno.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <grp.h>
+#include <syslog.h>
 
 static FILE *_gr_fp;
 static struct group _gr_group;
@@ -65,7 +72,7 @@ static char *line;		/* temp buffer for group line */
 static int maxlinelength;       /* current length of *line */
 
 /* 
- * Lines longer than MAXLINELENGTHLIMIT will be count as an error.
+ * Lines longer than MAXLINELENGTHLIMIT will be counted as an error.
  * <= 0 disable check for maximum line length
  * 256K is enough for 64,000 uids
  */
@@ -124,16 +131,12 @@ getgrnam(name)
 #endif
 	if (!_gr_stayopen)
 		endgrent();
-	return(rval ? &_gr_group : NULL);
+	return (rval) ? &_gr_group : NULL;
 }
 
 struct group *
-#ifdef __STDC__
-getgrgid(gid_t gid)
-#else
 getgrgid(gid)
 	gid_t gid;
-#endif
 {
 	int rval;
 
@@ -153,7 +156,7 @@ getgrgid(gid)
 #endif
 	if (!_gr_stayopen)
 		endgrent();
-	return(rval ? &_gr_group : NULL);
+	return (rval) ? &_gr_group : NULL;
 }
 
 static int
@@ -190,16 +193,15 @@ start_gr()
 #endif
 
 	if (maxlinelength == 0) {
-		if ((line = (char *)malloc(sizeof(char) * 
-					   MAXLINELENGTH)) == NULL)
-			return(0);
+		if ((line = (char *)malloc(MAXLINELENGTH)) == NULL)
+			return 0;
 		maxlinelength += MAXLINELENGTH;
 	}
 
 	if (maxgrp == 0) {
-		if ((members = (char **)malloc(sizeof(char **) * 
+		if ((members = (char **) malloc(sizeof(char **) * 
 					       MAXGRP)) == NULL)
-			return(0);
+			return 0;
 		maxgrp += MAXGRP;
 	}
 
@@ -207,9 +209,9 @@ start_gr()
 }
 
 int
-setgrent()
+setgrent(void)
 {
-	return(setgroupent(0));
+	return setgroupent(0);
 }
 
 int
@@ -217,12 +219,12 @@ setgroupent(stayopen)
 	int stayopen;
 {
 	if (!start_gr())
-		return(0);
+		return 0;
 	_gr_stayopen = stayopen;
 #ifdef YP
 	_gr_stepping_yp = 0;
 #endif
-	return(1);
+	return 1;
 }
 
 void
