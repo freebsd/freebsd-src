@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.11 1997/08/30 02:52:04 kato Exp $
+ * $Id: kern_mib.c,v 1.12 1997/10/19 18:45:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,9 @@
 #include <sys/unistd.h>
 
 #include <machine/cpu.h>
+#if defined(SMP)
+#include <machine/smp.h>
+#endif
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
@@ -103,7 +106,11 @@ char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile,
 	CTLFLAG_RW, kernelname, sizeof kernelname, "");
 
+#ifdef SMP
+SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, &mp_ncpus, 0, "");
+#else
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
+#endif
 
 SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 0, BYTE_ORDER, "");
 
