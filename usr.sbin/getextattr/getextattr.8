@@ -27,19 +27,20 @@
 .\"
 .Dd March 30, 2000
 .Dt GETEXTATTR 8
-.Os FreeBSD 5.0
+.Os
 .Sh NAME
 .Nm getextattr
 .Nd retrieve a named extended attribute
 .Sh SYNOPSIS
 .Nm getextattr
 .Op Fl s
-.Op Ar attrname
-.Op Ar filename ...
+.Ar attrname
+.Ar filename Op ...
 .Sh DESCRIPTION
 .Nm
 is a user tool to retrieve a named extended attribute on a file or
-directory.  The
+directory.
+The
 .Ar attrname
 argument should be the name of the attribute, and
 .Ar filename
@@ -61,7 +62,6 @@ In order for
 to succeed, the attribute service must be available on the file system,
 and the attribute must of defined for the file queried.
 .Sh EXAMPLES
-.Pp
 .Bd -literal -offset indent
 # getextattr md5 /kernel
 /kernel:
@@ -73,7 +73,8 @@ and the attribute must of defined for the file queried.
 .Pp
 Retrieve the
 .Dq md5
-extended attribute for the file /kernel.
+extended attribute for the file
+.Pa /kernel .
 .Sh SEE ALSO
 .Xr extattrctl 8 ,
 .Xr setextattr 8 ,

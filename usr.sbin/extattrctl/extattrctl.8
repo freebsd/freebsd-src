@@ -27,10 +27,10 @@
 .\"
 .Dd March 30, 2000
 .Dt EXTATTRCTL 8
-.Os FreeBSD 5.0
+.Os
 .Sh NAME
 .Nm extattrctl
-.Nd Manage FFS extended attributes
+.Nd manage FFS extended attributes
 .Sh SYNOPSIS
 .Nm extattrctl
 .Cm start
@@ -109,8 +109,7 @@ read or written, and
 .Dq q
 allows any user to perform the attribute operation.
 The default is to limit activities to the root user, or
-.Dq r
-.
+.Dq r .
 .Pp
 This file should not exist before running
 .Cm initattr.
