@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.21 1997/03/23 04:39:51 bde Exp $
+ * $Id: seagate.c,v 1.22 1997/03/24 11:24:02 bde Exp $
  */
 
 /*
@@ -1109,7 +1109,7 @@ void sea_data_output (adapter_t *z, u_char **pdata, u_long *plen)
 #endif
 	PRINT (("sea (DATAOUT) send %ld bytes\n", *plen - len));
 	*plen = len;
-	*pdata = data;
+	*pdata = (u_char *)data;
 }
 
 /*
@@ -1179,7 +1179,7 @@ void sea_data_input (adapter_t *z, u_char **pdata, u_long *plen)
 #endif
 	PRINT (("sea (DATAIN) got %ld bytes\n", *plen - len));
 	*plen = len;
-	*pdata = data;
+	*pdata = (u_char *)data;
 }
 
 /*
