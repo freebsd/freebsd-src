@@ -144,6 +144,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	meteor/test-n.c \
 	meteor/yuvpk.c \
 	meteor/yuvpl.c \
+	netgraph/bluetooth/rc.bluetooth \
 	netgraph/ether.bridge \
 	netgraph/frame_relay \
 	netgraph/ngctl \
