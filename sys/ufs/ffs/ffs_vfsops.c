@@ -101,9 +101,9 @@ VFS_SET(ufs_vfsops, ufs, 0);
 static b_strategy_t ffs_geom_strategy;
 
 static struct buf_ops ffs_ops = {
-	.bop_name =     "FFS",
-	.bop_write =    bufwrite,
-	.bop_strategy = ffs_geom_strategy,
+	.bop_name =	"FFS",
+	.bop_write =	bufwrite,
+	.bop_strategy =	ffs_geom_strategy,
 };
 
 /*
@@ -670,8 +670,7 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_pendinginodes = 0;
 	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
-	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT,
-	    M_WAITOK);
+	ump->um_fs = malloc((u_long)fs->fs_sbsize, M_UFSMNT, M_WAITOK);
 	if (fs->fs_magic == FS_UFS1_MAGIC) {
 		ump->um_fstype = UFS1;
 		ump->um_balloc = ffs_balloc_ufs1;
@@ -1538,7 +1537,7 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 	uma_zfree(uma_inode, ip);
 }
 
-void
+static void
 ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 {
 	int i = 0;
