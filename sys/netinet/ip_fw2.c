@@ -398,6 +398,48 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 	return(0);	/* no match, fail ... */
 }
 
+/*
+ * The 'verrevpath' option checks that the interface that an IP packet
+ * arrives on is the same interface that traffic destined for the
+ * packet's source address would be routed out of. This is a measure
+ * to block forged packets. This is also commonly known as "anti-spoofing"
+ * or Unicast Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The
+ * name of the knob is purposely reminisent of the Cisco IOS command,
+ *
+ *   ip verify unicast reverse-path
+ *
+ * which implements the same functionality. But note that syntax is
+ * misleading. The check may be performed on all IP packets whether unicast,
+ * multicast, or broadcast.
+ */
+static int
+verify_rev_path(struct in_addr src, struct ifnet *ifp)
+{
+	static struct route ro;
+	struct sockaddr_in *dst;
+
+	dst = (struct sockaddr_in *)&(ro.ro_dst);
+
+	/* Check if we've cached the route from the previous call. */
+	if (src.s_addr != dst->sin_addr.s_addr) {
+		ro.ro_rt = NULL;
+
+		bzero(dst, sizeof(*dst));
+		dst->sin_family = AF_INET;
+		dst->sin_len = sizeof(*dst);
+		dst->sin_addr = src;
+
+		rtalloc_ign(&ro, RTF_CLONING|RTF_PRCLONING);
+	}
+
+	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
+	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+		return 0;
+
+	return 1;
+}
+
+
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
@@ -684,7 +726,7 @@ next_pass:
 					goto next;
 				if (FORCE && q->count != 0 ) {
 					/* XXX should not happen! */
-					printf( "ipfw: OUCH! cannot remove rule,"
+					printf("ipfw: OUCH! cannot remove rule,"
 					     " count %d\n", q->count);
 				}
 			} else {
@@ -1684,17 +1726,30 @@ check_body:
 				match = (hlen > 0 && cmd->arg1 == ip->ip_v);
 				break;
 
-			case O_IPTTL:
-				match = (hlen > 0 && cmd->arg1 == ip->ip_ttl);
-				break;
-
 			case O_IPID:
-				match = (hlen > 0 &&
-				    cmd->arg1 == ntohs(ip->ip_id));
-				break;
-
 			case O_IPLEN:
-				match = (hlen > 0 && cmd->arg1 == ip_len);
+			case O_IPTTL:
+				if (hlen > 0) {	/* only for IP packets */
+				    uint16_t x;
+				    uint16_t *p;
+				    int i;
+
+				    if (cmd->opcode == O_IPLEN)
+					x = ip_len;
+				    else if (cmd->opcode == O_IPTTL)
+					x = ip->ip_ttl;
+				    else /* must be IPID */
+					x = ntohs(ip->ip_id);
+				    if (cmdlen == 1) {
+					match = (cmd->arg1 == x);
+					break;
+				    }
+				    /* otherwise we have ranges */
+				    p = ((ipfw_insn_u16 *)cmd)->ports;
+				    i = cmdlen - 1;
+				    for (; !match && i>0; i--, p += 2)
+					match = (x >= p[0] && x <= p[1]);
+				}
 				break;
 
 			case O_IPPRECEDENCE:
@@ -1752,6 +1807,13 @@ check_body:
 
 			case O_PROB:
 				match = (random()<((ipfw_insn_u32 *)cmd)->d[0]);
+				break;
+
+			case O_VERREVPATH:
+				/* Outgoing packets automatically pass/match */
+				match = ((oif != NULL) ||
+				    (m->m_pkthdr.rcvif == NULL) ||
+				    verify_rev_path(src_ip, m->m_pkthdr.rcvif));
 				break;
 
 			/*
@@ -1967,8 +2029,15 @@ flush_pipe_ptrs(struct dn_flow_set *match)
 
 		if (cmd->o.opcode != O_PIPE && cmd->o.opcode != O_QUEUE)
 			continue;
-		if (match == NULL || cmd->pipe_ptr == match)
-			cmd->pipe_ptr = NULL;
+		/*
+		 * XXX Use bcmp/bzero to handle pipe_ptr to overcome
+		 * possible alignment problems on 64-bit architectures.
+		 * This code is seldom used so we do not worry too
+		 * much about efficiency.
+		 */
+		if (match == NULL ||
+		    !bcmp(&cmd->pipe_ptr, &match, sizeof(match)) )
+			bzero(&cmd->pipe_ptr, sizeof(cmd->pipe_ptr));
 	}
 }
 
@@ -2311,16 +2380,14 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IN:
 		case O_FRAG:
 		case O_IPOPT:
-		case O_IPLEN:
-		case O_IPID:
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
-		case O_IPTTL:
 		case O_IPVER:
 		case O_TCPWIN:
 		case O_TCPFLAGS:
 		case O_TCPOPTS:
 		case O_ESTAB:
+		case O_VERREVPATH:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
@@ -2379,6 +2446,12 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 			break;
 
+		case O_IPID:
+		case O_IPTTL:
+		case O_IPLEN:
+			if (cmdlen < 1 || cmdlen > 31)
+				goto bad_size;
+			break;
 		case O_MAC_TYPE:
 		case O_IP_SRCPORT:
 		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
@@ -2508,11 +2581,8 @@ ipfw_ctl(struct sockopt *sopt)
 		for (rule = layer3_chain; rule ; rule = rule->next) {
 			int i = RULESIZE(rule);
 			bcopy(rule, bp, i);
-			/*
-			 * abuse 'next_rule' to store the set_disable word
-			 */
-			(u_int32_t)(((struct ip_fw *)bp)->next_rule) =
-				set_disable;
+			bcopy(&set_disable, &(bp->next_rule),
+			    sizeof(set_disable));
 			bp = (struct ip_fw *)((char *)bp + i);
 		}
 		if (ipfw_dyn_v) {
@@ -2524,21 +2594,22 @@ ipfw_ctl(struct sockopt *sopt)
 				for ( p = ipfw_dyn_v[i] ; p != NULL ;
 				    p = p->next, dst++ ) {
 					bcopy(p, dst, sizeof *p);
-					(int)dst->rule = p->rule->rulenum ;
+					bcopy(&(p->rule->rulenum), &(dst->rule),
+					    sizeof(p->rule->rulenum));
 					/*
 					 * store a non-null value in "next".
 					 * The userland code will interpret a
 					 * NULL here as a marker
 					 * for the last dynamic rule.
 					 */
-					dst->next = dst ;
+					bcopy(&dst, &dst->next, sizeof(dst));
 					last = dst ;
 					dst->expire =
 					    TIME_LEQ(dst->expire, time_second) ?
 						0 : dst->expire - time_second ;
 				}
 			if (last != NULL) /* mark last dynamic rule */
-				last->next = NULL;
+				bzero(&last->next, sizeof(last));
 		}
 		splx(s);
 

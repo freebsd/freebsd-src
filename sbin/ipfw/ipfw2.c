@@ -223,6 +223,7 @@ enum tokens {
 	TOK_ICMPTYPES,
 	TOK_MAC,
 	TOK_MACTYPE,
+	TOK_VERREVPATH,
 
 	TOK_PLR,
 	TOK_NOERROR,
@@ -332,6 +333,7 @@ struct _s_x rule_options[] = {
 	{ "MAC",		TOK_MAC },
 	{ "mac",		TOK_MAC },
 	{ "mac-type",		TOK_MACTYPE },
+	{ "verrevpath",		TOK_VERREVPATH },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
 	{ "!", /* escape ? */	TOK_NOT },		/* pseudo option */
@@ -343,6 +345,14 @@ struct _s_x rule_options[] = {
 	{ ")",			TOK_ENDBRACE },		/* pseudo option */
 	{ NULL,			TOK_NULL },
 	{ NULL, 0 }
+};
+
+static __inline u_int64_t
+align_uint64(u_int64_t *pll) {
+	u_int64_t ret;
+
+	bcopy (pll, &ret, sizeof(ret));
+	return ret;
 };
 
 /**
@@ -407,13 +417,37 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 {
 	u_int16_t *p = cmd->ports;
 	int i;
-	char *sep= " ";
+	char *sep;
 
 	if (cmd->o.len & F_NOT)
 		printf(" not");
-	if (opcode != 0)
-		printf ("%s", opcode == O_MAC_TYPE ? " mac-type" :
-		    (opcode == O_IP_DSTPORT ? " dst-port" : " src-port"));
+	if (opcode != 0) {
+		switch (opcode) {
+		case O_IP_DSTPORT:
+			sep = "dst-port";
+			break;
+		case O_IP_SRCPORT:
+			sep = "src-port";
+			break;
+		case O_IPID:
+			sep = "ipid";
+			break;
+		case O_IPLEN:
+			sep = "iplen";
+			break;
+		case O_IPTTL:
+			sep = "ipttl";
+			break;
+		case O_MAC_TYPE:
+			sep = "mac-type";
+			break;
+		default:
+			sep = "???";
+			break;
+		}
+		printf (" %s", sep);
+	}
+	sep = " ";
 	for (i = F_LEN((ipfw_insn *)cmd) - 1; i > 0; i--, p += 2) {
 		printf(sep);
 		print_port(proto, p[0]);
@@ -652,7 +686,7 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 	}
 	if (cmd->o.opcode == O_IP_SRC_SET || cmd->o.opcode == O_IP_DST_SET) {
 		u_int32_t x, *d;
-		int i;
+		int i, j;
 		char comma = '{';
 
 		x = cmd->o.arg1 - 1;
@@ -663,9 +697,22 @@ print_ip(ipfw_insn_ip *cmd, char *s)
 		x = cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		x &= 0xff; /* base */
 		d = (u_int32_t *)&(cmd->mask);
+		/*
+		 * Print bits and ranges.
+		 * Locate first bit set (i), then locate first bit unset (j).
+		 * If we have 3+ consecutive bits set, then print them as a
+		 * range, otherwise only print the initial bit and rescan.
+		 */
 		for (i=0; i < cmd->o.arg1; i++)
-			if (d[ i/32] & (1<<(i & 31))) {
+			if (d[i/32] & (1<<(i & 31))) {
+				for (j=i+1; j < cmd->o.arg1; j++)
+					if (!(d[ j/32] & (1<<(j & 31))))
+						break;
 				printf("%c%d", comma, i+x);
+				if (j>i+2) { /* range has at least 3 elements */
+					printf("-%d", j-1+x);
+					i = j-1;
+				}
 				comma = ',';
 			}
 		printf("}");
@@ -810,8 +857,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	int or_block = 0;	/* we are in an or block */
+	u_int32_t set_disable;
 
-	u_int32_t set_disable = (u_int32_t)(rule->next_rule);
+	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
 
 	if (set_disable & (1 << rule->set)) { /* disabled */
 		if (!show_sets)
@@ -822,8 +870,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	printf("%05u ", rule->rulenum);
 
 	if (do_acct)
-		printf("%*llu %*llu ", pcwidth, rule->pcnt, bcwidth,
-		    rule->bcnt);
+		printf("%*llu %*llu ", pcwidth, align_uint64(&rule->pcnt),
+		    bcwidth, align_uint64(&rule->bcnt));
 
 	if (do_time) {
 		char timestr[30];
@@ -844,7 +892,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			*strchr(timestr, '\n') = '\0';
 			printf("%s ", timestr);
 		} else {
-			printf("%*s ", twidth, " ");
+			printf("%*s", twidth, " ");
 		}
 	}
 
@@ -1087,11 +1135,19 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_IPID:
-				printf(" ipid %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" ipid %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPID);
 				break;
 
 			case O_IPTTL:
-				printf(" ipttl %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" ipttl %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPTTL);
 				break;
 
 			case O_IPVER:
@@ -1103,7 +1159,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_IPLEN:
-				printf(" iplen %u", cmd->arg1 );
+				if (F_LEN(cmd) == 1)
+				    printf(" iplen %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_IPLEN);
 				break;
 
 			case O_IPOPT:
@@ -1164,6 +1224,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			    }
 				break;
 
+			case O_VERREVPATH:
+				printf(" verrevpath");
+				break;
+
 			case O_KEEP_STATE:
 				printf(" keep-state");
 				break;
@@ -1209,14 +1273,16 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 {
 	struct protoent *pe;
 	struct in_addr a;
+	uint16_t rulenum;
 
 	if (!do_expired) {
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
 			return;
 	}
-
-	printf("%05d %*llu %*llu (%ds)", (int)(d->rule), pcwidth, d->pcnt,
-	    bcwidth, d->bcnt, d->expire);
+	bcopy(&d->rule, &rulenum, sizeof(rulenum));
+	printf("%05d %*llu %*llu (%ds)", rulenum, pcwidth,
+	    align_uint64(&d->pcnt), bcwidth,
+	    align_uint64(&d->bcnt), d->expire);
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
 		printf(" PARENT %d", d->count);
@@ -1450,7 +1516,8 @@ sets_handler(int ac, char *av[])
 			err(EX_OSERR, "malloc");
 		if (getsockopt(s, IPPROTO_IP, IP_FW_GET, data, &nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
-		set_disable = (u_int32_t)(((struct ip_fw *)data)->next_rule);
+		bcopy(&((struct ip_fw *)data)->next_rule,
+			&set_disable, sizeof(set_disable));
 
 		for (i = 0, msg = "disable" ; i < 31; i++)
 			if (  (set_disable & (1<<i))) {
@@ -1621,23 +1688,27 @@ list(int ac, char *av[])
 		for (n = 0, r = data; n < nstat;
 		    n++, r = (void *)r + RULESIZE(r)) {
 			/* packet counter */
-			width = snprintf(NULL, 0, "%llu", r->pcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&r->pcnt));
 			if (width > pcwidth)
 				pcwidth = width;
 
 			/* byte counter */
-			width = snprintf(NULL, 0, "%llu", r->bcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&r->bcnt));
 			if (width > bcwidth)
 				bcwidth = width;
 		}
 	}
 	if (do_dynamic && ndyn) {
 		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-			width = snprintf(NULL, 0, "%llu", d->pcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&d->pcnt));
 			if (width > pcwidth)
 				pcwidth = width;
 
-			width = snprintf(NULL, 0, "%llu", d->bcnt);
+			width = snprintf(NULL, 0, "%llu",
+			    align_uint64(&d->bcnt));
 			if (width > bcwidth)
 				bcwidth = width;
 		}
@@ -1691,9 +1762,12 @@ list(int ac, char *av[])
 				/* already warned */
 				continue;
 			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				if ((int)(d->rule) > rnum)
+				uint16_t rulenum;
+
+				bcopy(&d->rule, &rulenum, sizeof(rulenum));
+				if (rulenum > rnum)
 					break;
-				if ((int)(d->rule) == rnum)
+				if (rulenum == rnum)
 					show_dyn_ipfw(d, pcwidth, bcwidth);
 			}
 		}
@@ -1849,6 +1923,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		av = p+1;
 		low = cmd->addr.s_addr & 0xff;
 		high = low + cmd->o.arg1 - 1;
+		i = -1;	/* previous value in a range */
 		while (isdigit(*av)) {
 			char *s;
 			u_int16_t a = strtol(av, &s, 0);
@@ -1861,9 +1936,22 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 			    exit(0);
 			}
 			a -= low;
-			d[ a/32] |= 1<<(a & 31);
-			if (*s != ',')
-				break;
+			if (i == -1)	/* no previous in range */
+			    i = a;
+			else {		/* check that range is valid */
+			    if (i > a)
+				errx(EX_DATAERR, "invalid range %d-%d",
+					i+low, a+low);
+			    if (*s == '-')
+				errx(EX_DATAERR, "double '-' in range");
+			}
+			for (; i <= a; i++)
+			    d[i/32] |= 1<<(i & 31);
+			i = -1;
+			if (*s == '-')
+			    i = a;
+			else if (*s != ',')
+			    break;
 			av = s+1;
 		}
 		return;
@@ -2950,19 +3038,31 @@ read_options:
 
 		case TOK_IPTTL:
 			NEED1("ipttl requires TTL");
-			fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPTTL))
+				errx(EX_DATAERR, "invalid ipttl %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPTTL, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
 		case TOK_IPID:
-			NEED1("ipid requires length");
-			fill_cmd(cmd, O_IPID, 0, strtoul(*av, NULL, 0));
+			NEED1("ipid requires id");
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPID))
+				errx(EX_DATAERR, "invalid ipid %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPID, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
 		case TOK_IPLEN:
 			NEED1("iplen requires length");
-			fill_cmd(cmd, O_IPLEN, 0, strtoul(*av, NULL, 0));
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_IPLEN))
+				errx(EX_DATAERR, "invalid ip len %s", *av);
+			} else
+			    fill_cmd(cmd, O_IPLEN, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 
@@ -3166,6 +3266,10 @@ read_options:
 			if (!add_mactype(cmd, ac, *av))
 				errx(EX_DATAERR, "invalid mac type %s", *av);
 			ac--; av++;
+			break;
+
+		case TOK_VERREVPATH:
+			fill_cmd(cmd, O_VERREVPATH, 0, 0);
 			break;
 
 		default:
@@ -3492,28 +3596,8 @@ ipfw_readfile(int ac, char *av[])
 	pid_t	preproc = 0;
 	int	c;
 
-	while ((c = getopt(ac, av, "D:U:p:q")) != -1)
+	while ((c = getopt(ac, av, "p:q")) != -1) {
 		switch(c) {
-		case 'D':
-			if (!pflag)
-				errx(EX_USAGE, "-D requires -p");
-			if (i > MAX_ARGS - 2)
-				errx(EX_USAGE,
-				     "too many -D or -U options");
-			args[i++] = "-D";
-			args[i++] = optarg;
-			break;
-
-		case 'U':
-			if (!pflag)
-				errx(EX_USAGE, "-U requires -p");
-			if (i > MAX_ARGS - 2)
-				errx(EX_USAGE,
-				     "too many -D or -U options");
-			args[i++] = "-U";
-			args[i++] = optarg;
-			break;
-
 		case 'p':
 			pflag = 1;
 			cmd = optarg;
@@ -3529,6 +3613,19 @@ ipfw_readfile(int ac, char *av[])
 			errx(EX_USAGE, "bad arguments, for usage"
 			     " summary ``ipfw''");
 		}
+
+		if (pflag)
+			break;
+	}
+
+	if (pflag) {
+		/* Pass all but the last argument to the preprocessor. */
+		while (optind < ac - 1) {
+			if (i >= MAX_ARGS)
+				errx(EX_USAGE, "too many preprocessor options");
+			args[i++] = av[optind++];
+		}
+	}
 
 	av += optind;
 	ac -= optind;

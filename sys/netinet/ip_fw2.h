@@ -32,11 +32,16 @@
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
- * (or its metatada) should be analysed.
+ * (or its metadata) should be analysed.
  *
  * Each instruction is stored in a structure which begins with
  * "ipfw_insn", and can contain extra fields depending on the
  * instruction type (listed below).
+ * Note that the code is written so that individual instructions
+ * have a size which is a multiple of 32 bits. This means that, if
+ * such structures contain pointers or other 64-bit entities,
+ * (there is just one instance now) they may end up unaligned on
+ * 64-bit architectures, so the must be handled with care.
  *
  * "enum ipfw_opcodes" are the opcodes supported. We can have up
  * to 256 different opcodes.
@@ -88,6 +93,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_TCPACK,		/* u32 = desired seq.		*/
 	O_ICMPTYPE,		/* u32 = icmp bitmap		*/
 	O_TCPOPTS,		/* arg1 = 2*u8 bitmap		*/
+
+	O_VERREVPATH,		/* none				*/
 
 	O_PROBE_STATE,		/* none				*/
 	O_KEEP_STATE,		/* none				*/
@@ -209,7 +216,7 @@ typedef struct	_ipfw_insn_if {
 	ipfw_insn o;
 	union {
 		struct in_addr ip;
-		int unit;
+		int32_t unit;
 	} p;
 	char name[IFNAMSIZ];
 } ipfw_insn_if;
@@ -218,10 +225,13 @@ typedef struct	_ipfw_insn_if {
  * This is used for pipe and queue actions, which need to store
  * a single pointer (which can have different size on different
  * architectures.
+ * Note that, because of previous instructions, pipe_ptr might
+ * be unaligned in the overall structure, so it needs to be
+ * manipulated with care.
  */
 typedef struct	_ipfw_insn_pipe {
 	ipfw_insn	o;
-	void		*pipe_ptr;
+	void		*pipe_ptr;	/* XXX */
 } ipfw_insn_pipe;
 
 /*
@@ -316,12 +326,12 @@ typedef struct _ipfw_dyn_rule ipfw_dyn_rule;
 
 struct _ipfw_dyn_rule {
 	ipfw_dyn_rule	*next;		/* linked list of rules.	*/
-	struct ipfw_flow_id id;		/* (masked) flow id		*/
 	struct ip_fw *rule;		/* pointer to rule		*/
 	ipfw_dyn_rule *parent;		/* pointer to parent rule	*/
-	u_int32_t	expire;		/* expire time			*/
 	u_int64_t	pcnt;		/* packet match counter		*/
 	u_int64_t	bcnt;		/* byte match counter		*/
+	struct ipfw_flow_id id;		/* (masked) flow id		*/
+	u_int32_t	expire;		/* expire time			*/
 	u_int32_t	bucket;		/* which bucket in hash table	*/
 	u_int32_t	state;		/* state of this rule (typically a
 					 * combination of TCP flags)

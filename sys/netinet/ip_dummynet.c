@@ -1034,7 +1034,11 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 
     if (cmd->opcode == O_LOG)
 	cmd += F_LEN(cmd);
+#ifdef __i386__
     fs = ((ipfw_insn_pipe *)cmd)->pipe_ptr;
+#else
+    bcopy(& ((ipfw_insn_pipe *)cmd)->pipe_ptr, &fs, sizeof(fs));
+#endif
 
     if (fs != NULL)
 	return fs;
@@ -1056,7 +1060,11 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
     }
     /* record for the future */
 #if IPFW2
+#ifdef __i386__
     ((ipfw_insn_pipe *)cmd)->pipe_ptr = fs;
+#else
+    bcopy(&fs, & ((ipfw_insn_pipe *)cmd)->pipe_ptr, sizeof(fs));
+#endif
 #else
     if (fs != NULL)
 	rule->pipe_ptr = fs;
@@ -1103,7 +1111,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     pipe_nr &= 0xffff ;
 
     /*
-     * this is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
+     * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
      */
     fs = locate_flowset(pipe_nr, fwa->rule);
     if (fs == NULL)
