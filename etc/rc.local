@@ -1,13 +1,13 @@
 #
 # site-specific startup actions, daemons
 #
-#	$Id: rc.local,v 1.23 1997/02/23 09:20:47 peter Exp $
+#	$Id: rc.local,v 1.24 1997/06/25 12:17:17 ache Exp $
 #
 
 # If there is a global system configuration file, suck it in.
-if [ -f /etc/rc.conf ]; then
-	. /etc/rc.conf
-fi
+#if [ -f /etc/rc.conf ]; then
+#	. /etc/rc.conf
+#fi
 
 T=/tmp/_motd
 rm -f $T
