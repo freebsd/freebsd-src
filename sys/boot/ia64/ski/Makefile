@@ -41,6 +41,7 @@ CFLAGS+= -I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/../../.. -I.
 CFLAGS+= -I${.CURDIR}/../libski
 CFLAGS+= -DLOADER
+CFLAGS+= -ffreestanding
 
 LDFLAGS=	-nostdlib -T ${.CURDIR}/ldscript.ia64
 
