@@ -73,12 +73,13 @@ struct ath_stats {
 	u_int32_t	ast_rx_nombuf;	/* rx setup failed 'cuz no mbuf */
 	u_int32_t	ast_rx_busdma;	/* rx setup failed for dma resrcs */
 	u_int32_t	ast_rx_orn;	/* rx failed 'cuz of desc overrun */
-	u_int32_t	ast_rx_tooshort;/* rx failed 'cuz frame too short */
 	u_int32_t	ast_rx_crcerr;	/* rx failed 'cuz of bad CRC */
 	u_int32_t	ast_rx_fifoerr;	/* rx failed 'cuz of FIFO overrun */
 	u_int32_t	ast_rx_badcrypt;/* rx failed 'cuz decryption */
 	u_int32_t	ast_rx_phyerr;	/* rx failed 'cuz of PHY err */
 	u_int32_t	ast_rx_phy[32];	/* rx PHY error per-code counts */
+	u_int32_t	ast_rx_tooshort;/* rx discarded 'cuz frame too short */
+	u_int32_t	ast_rx_ctl;	/* rx discarded 'cuz ctl frame */
 	u_int32_t	ast_be_nombuf;	/* beacon setup failed 'cuz no mbuf */
 	u_int32_t	ast_per_cal;	/* periodic calibration calls */
 	u_int32_t	ast_per_calfail;/* periodic calibration failed */

@@ -1455,7 +1455,8 @@ ath_rx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 	struct ath_buf *bf;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct mbuf *m;
@@ -1512,11 +1513,13 @@ ath_rx_proc(void *arg, int npending)
 
 		wh = mtod(m, struct ieee80211_frame *);
 		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-		    IEEE80211_FC0_TYPE_CTL) {
+		    IEEE80211_FC0_TYPE_CTL &&
+		    ic->ic_opmode != IEEE80211_M_MONITOR) {
 			/*
 			 * Ignore control frame received in promisc mode.
 			 */
 			DPRINTF(("ath_rx_proc: control frame\n"));
+			sc->sc_stats.ast_rx_ctl++;
 			goto rx_next;
 		}
 
