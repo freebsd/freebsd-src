@@ -96,6 +96,9 @@ struct kse_mailbox {
 /* These flags are kept in tm_flags */
 #define	TMF_NOUPCALL		0x01
 
+/* Flags for kse_switchin */
+#define KSE_SWITCHIN_SETTMBX	0x01
+
 /* Commands for kse_thr_interrupt */
 #define	KSE_INTR_INTERRUPT	0x01
 #define	KSE_INTR_RESTART	0x02
@@ -108,7 +111,7 @@ int	kse_exit(void);
 int	kse_release(struct timespec *);
 int	kse_thr_interrupt(struct kse_thr_mailbox *, int, long);
 int	kse_wakeup(struct kse_mailbox *);
-int	kse_switchin(mcontext_t *, long, long *);
+int	kse_switchin(struct kse_thr_mailbox *, int flags);
 #endif	/* !_KERNEL */
 
 #endif	/* !_SYS_KSE_H_ */
