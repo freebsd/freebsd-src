@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.46 1998/12/05 06:28:58 asami Exp $";
+	"$Id: perform.c,v 1.48 1999/08/11 20:55:38 billf Exp $";
 #endif
 
 /*
@@ -46,7 +46,7 @@ pkg_perform(char **pkgs)
     Package plist;
     int len;
     char *suf;
-    int compress;
+    int compress = 0;
 
     /* Preliminary setup */
     sanity_check();
@@ -67,7 +67,7 @@ pkg_perform(char **pkgs)
 
     /* chop suffix off if already specified, remembering if we want to compress  */
     len = strlen(pkg);
-    if (len > 4)
+    if (len > 4) {
 	if (!strcmp(&pkg[len - 4], ".tgz")) {
 	    compress = TRUE;
 	    pkg[len - 4] = '\0';
@@ -79,6 +79,7 @@ pkg_perform(char **pkgs)
 	else
 	    /* default is to compress packages */
 	    compress = TRUE;
+    }
     if (compress)
 	suf = "tgz";
     else
