@@ -1223,7 +1223,7 @@ config_subdisk(int update)
     if (sd->sectors < 0)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
-    sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_SD_TYPE, sdno),
+    sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_SD_TYPE),
 	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/sd/%s", sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
 	sd->state = state;				    /* do it now */
@@ -1382,7 +1382,7 @@ config_plex(int update)
     if (plex->organization == plex_disorg)
 	throw_rude_remark(EINVAL, "No plex organization specified");
 
-    plex->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_PLEX_TYPE, plexno),
+    plex->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
 	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/plex/%s", plex->name);
 
     if ((plex->volno < 0)				    /* we don't have a volume */
@@ -1544,7 +1544,7 @@ config_volume(int update)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
 
     vinum_conf.volumes_used++;				    /* one more in use */
-    vol->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(VINUM_VOLUME_TYPE, volno),
+    vol->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
 	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, "vinum/vol/%s", vol->name);
 }
 
