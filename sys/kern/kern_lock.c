@@ -35,6 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
+ * $Id$
  */
 
 #include <sys/param.h>
