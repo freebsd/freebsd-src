@@ -114,7 +114,6 @@
 #include <machine/sgmap.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)

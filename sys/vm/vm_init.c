@@ -73,7 +73,6 @@
 #include <sys/systm.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

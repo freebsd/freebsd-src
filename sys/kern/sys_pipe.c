@@ -66,7 +66,6 @@
 #include <sys/uio.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_param.h>
 #include <sys/lock.h>
 #include <vm/vm_object.h>

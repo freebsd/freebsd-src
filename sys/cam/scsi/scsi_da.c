@@ -44,7 +44,6 @@
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/pmap.h>
 
 #include <cam/cam.h>

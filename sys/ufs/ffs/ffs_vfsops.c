@@ -58,7 +58,6 @@
 #include <ufs/ffs/ffs_extern.h>
 
 #include <vm/vm.h>
-#include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
