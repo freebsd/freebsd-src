@@ -859,14 +859,14 @@ AcpiSetSystemSleepState (
     /*
      * Clear wake status
      */
-    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, WAK_STS, 1);
+    AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, WAK_STS, 1);
 
     /*
      * Set ACPI_SLP_TYPA/b and ACPI_SLP_EN
      */
-    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_A, Slp_TypA);
-    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_B, Slp_TypB);
-    AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_EN, 1);
+    AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_A, Slp_TypA);
+    AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_TYPE_B, Slp_TypB);
+    AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_DO_NOT_LOCK, SLP_EN, 1);
 
     /* 
      *  For S0 we don't wait for the WAK_STS bit.
@@ -878,7 +878,7 @@ AcpiSetSystemSleepState (
 	 */
 
 	Count = 0;
-	while (!(AcpiHwRegisterAccess (ACPI_READ, ACPI_MTX_DO_NOT_LOCK, WAK_STS)))
+	while (!(AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_DO_NOT_LOCK, WAK_STS)))
 	{
 #if 1
 	    AcpiOsSleepUsec(1000);	/* should we have OsdFunc for sleep or halt? */
