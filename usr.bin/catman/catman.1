@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2002
+.Dd December 22, 2004
 .Dt CATMAN 1
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd "preformat man pages"
 .Sh SYNOPSIS
 .Nm
-.Op Fl fnrvL
+.Op Fl fLnrv
 .Op Ar directories ...
 .Sh DESCRIPTION
 The
@@ -72,11 +72,14 @@ Cause
 to be more verbose about what it is doing.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width ".Ev MANPATH" -compact
+.Bl -tag -width ".Ev MANPATH"
 .It Ev LC_ALL , LC_CTYPE , LANG
 These variables control what subdirectories will be processed if the
 .Fl L
 option is used.
+.It Ev MACHINE
+If set, overrides the current machine type when searching for
+machine specific man page subdirectories.
 .It Ev MANPATH
 Determines the set of directories to be processed if none are given on
 the command line.
@@ -100,4 +103,4 @@ A previous version of the
 command appeared in
 .Fx 2.1 .
 .Sh AUTHORS
-.An John Rochester .
+.An John Rochester

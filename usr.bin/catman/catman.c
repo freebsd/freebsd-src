@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <locale.h>
 #include <langinfo.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +65,7 @@ static int force;		/* -f flag: force overwriting all cat pages */
 static int rm_junk;		/* -r flag: remove garbage pages */
 static char *locale;		/* user's locale if -L is used */
 static char *lang_locale;	/* short form of locale */
+static const char *machine;
 static int exit_code;		/* exit code to use when finished */
 
 /*
@@ -269,22 +271,6 @@ get_cat_section(char *section)
 	cat_section = strdup(section);
 	strncpy(cat_section, "cat", 3);
 	return cat_section;
-}
-
-/*
- * Converts .../man/manXXX to .../man.
- */
-static char *
-get_mandir(char *section)
-{
-	char *slash;
-	char *mandir;
-
-	slash = strrchr(section, '/');
-	mandir = (char *) malloc(slash - section + 1);
-	strncpy(mandir, section, slash - section);
-	mandir[slash - section] = '\0';
-	return mandir;
 }
 
 /*
@@ -578,7 +564,11 @@ scan_section(char *mandir, char *section, char *cat_section)
 		if (cmp == 0)
 			continue;
 		/* we have an unexpected page */
+		snprintf(cat_path, sizeof cat_path, "%s/%s", cat_section,
+		    page_name);
 		if (!is_manpage_name(page_name)) {
+			if (test_path(cat_path, NULL) & TEST_DIR)
+				continue;
 			junk_reason = "invalid cat page name";
 		} else if (!is_gzipped(page_name) && e + 1 < nexpected &&
 		    strncmp(page_name, expected[e + 1], strlen(page_name)) == 0 &&
@@ -586,8 +576,6 @@ scan_section(char *mandir, char *section, char *cat_section)
 			junk_reason = "cat page unused due to existing " GZ_EXT;
 		} else
 			junk_reason = "cat page without man page";
-		snprintf(cat_path, sizeof cat_path, "%s/%s", cat_section,
-		    page_name);
 		junk(mandir, cat_path, junk_reason);
 	}
 	free(entries);
@@ -612,6 +600,7 @@ process_section(char *mandir, char *section)
 	cat_section = get_cat_section(section);
 	if (make_writable_dir(mandir, cat_section))
 		scan_section(mandir, section, cat_section);
+	free(cat_section);
 }
 
 static int
@@ -645,6 +634,7 @@ process_mandir(char *dir_name, char *section)
 		process_section(dir_name, section);
 	} else {
 		struct dirent **entries;
+		char *machine_dir;
 		int nsections;
 		int i;
 
@@ -656,6 +646,11 @@ process_mandir(char *dir_name, char *section)
 		}
 		for (i = 0; i < nsections; i++) {
 			process_section(dir_name, entries[i]->d_name);
+			asprintf(&machine_dir, "%s/%s", entries[i]->d_name,
+			    machine);
+			if (test_path(machine_dir, NULL) & TEST_DIR)
+				process_section(dir_name, machine_dir);
+			free(machine_dir);
 			free(entries[i]);
 		}
 		free(entries);
@@ -671,6 +666,7 @@ process_argument(const char *arg)
 {
 	char *dir;
 	char *mandir;
+	char *section;
 	char *parg;
 
 	parg = strdup(arg);
@@ -694,8 +690,11 @@ process_argument(const char *arg)
 			}
 			break;
 		case MAN_SECTION_DIR: {
-			mandir = get_mandir(dir);
-			process_mandir(mandir, dir);
+			mandir = strdup(dirname(dir));
+			section = strdup(basename(dir));
+			process_mandir(mandir, section);
+			free(mandir);
+			free(section);
 			break;
 			}
 		default:
@@ -718,7 +717,8 @@ determine_locale(void)
 	sep = strchr(locale, '_');
 	if (sep != NULL && isupper((unsigned char)sep[1])
 			&& isupper((unsigned char)sep[2])) {
-		asprintf(&lang_locale, "%.*s%s", sep - locale, locale, &sep[3]);
+		asprintf(&lang_locale, "%.*s%s", (int)(sep - locale),
+		    locale, &sep[3]);
 	}
 	sep = nl_langinfo(CODESET);
 	if (sep != NULL && *sep != '\0' && strcmp(sep, "US-ASCII") != 0) {
@@ -789,6 +789,10 @@ main(int argc, char **argv)
 	signal(SIGHUP, trap_signal);
 	signal(SIGQUIT, trap_signal);
 	signal(SIGTERM, trap_signal);
+
+	if ((machine = getenv("MACHINE")) == NULL)
+		machine = MACHINE;
+
 	if (optind == argc) {
 		const char *manpath = getenv("MANPATH");
 		if (manpath == NULL)
