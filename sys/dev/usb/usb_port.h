@@ -284,6 +284,15 @@ __CONCAT(dname,_detach)(self, flags) \
 
 #include "opt_usb.h"
 
+#if defined(_KERNEL)
+#include <sys/malloc.h>
+
+MALLOC_DECLARE(M_USB);
+MALLOC_DECLARE(M_USBDEV);
+MALLOC_DECLARE(M_USBHC);
+
+#endif
+
 #define USBVERBOSE
 
 #define Static static
