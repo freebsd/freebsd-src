@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.23 2000/10/27 14:06:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.28 2001/01/08 14:04:46 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -307,8 +307,8 @@ int mode;
 		break;
 	case FIONREAD :
 #ifdef	IPFILTER_LOG
-		error = IWCOPY((caddr_t)&iplused[IPL_LOGSTATE], (caddr_t)data,
-			       sizeof(iplused[IPL_LOGSTATE]));
+		arg = (int)iplused[IPL_LOGSTATE];
+		error = IWCOPY((caddr_t)&arg, (caddr_t)data, sizeof(arg));
 #endif
 		break;
 	case SIOCSTLCK :
@@ -787,8 +787,6 @@ tcphdr_t *tcp;
 		}
 
 		ATOMIC_INCL(ips_stats.iss_hits);
-		is->is_pkts++;
-		is->is_bytes += fin->fin_dlen + fin->fin_hlen;
 		/*
 		 * Nearing end of connection, start timeout.
 		 */
@@ -1148,10 +1146,6 @@ fr_info_t *fin;
 		    fr_matchsrcdst(is, src, dst, &ofin, tcp)) {
 			fr = is->is_rule;
 			ips_stats.iss_hits++;
-			/*
-			 * we must swap src and dst here because the icmp
-			 * comes the other way around
-			 */
 			is->is_pkts++;
 			is->is_bytes += fin->fin_plen;
 			/*
@@ -1379,6 +1373,9 @@ void *ifp;
 }
 
 
+/*
+ * Must always be called with fr_ipfstate held as a write lock.
+ */
 static void fr_delstate(is)
 ipstate_t *is;
 {
@@ -1397,9 +1394,10 @@ ipstate_t *is;
 
 	fr = is->is_rule;
 	if (fr != NULL) {
-		ATOMIC_DEC32(fr->fr_ref);
-		if (fr->fr_ref == 0)
+		fr->fr_ref--;
+		if (fr->fr_ref == 0) {
 			KFREE(fr);
+		}
 	}
 #ifdef	_KERNEL
 	MUTEX_DESTROY(&is->is_lock);
@@ -1452,12 +1450,12 @@ void fr_timeoutstate()
 			fr_delstate(is);
 		} else
 			isp = &is->is_next;
-	RWLOCK_EXIT(&ipf_state);
-	SPL_X(s);
 	if (fr_state_doflush) {
 		(void) fr_state_flush(1);
 		fr_state_doflush = 0;
 	}
+	RWLOCK_EXIT(&ipf_state);
+	SPL_X(s);
 }
 
 
