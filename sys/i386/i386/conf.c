@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.18 1993/11/26 22:44:17 wollman Exp $
+ *	$Id: conf.c,v 1.19 1993/11/27 06:50:45 rich Exp $
  */
 
 #include "param.h"
@@ -49,8 +49,7 @@ d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
 
 #include "wd.h"
-#include "wx.h"
-#if (NWD > 0) || (NWX > 0)
+#if (NWD > 0)
 d_open_t wdopen;
 d_close_t wdclose;
 d_strategy_t wdstrategy;
