@@ -166,9 +166,7 @@ eisa_probe(device_t dev)
 			 * We abort the probe early in this case since
 			 * continuing on causes a hang on some systems.
 			 * Interestingly enough, the inb has been seen to
-			 * cause the hang.  However, aborting here causes
-			 * the Adaptec 2842 probe to fail so that driver
-			 * needs to be fixed separately.
+			 * cause the hang.
 			 */
 			if (slot == 0)
 				break;
