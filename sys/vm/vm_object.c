@@ -296,6 +296,7 @@ void
 vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (i)
 		object->paging_in_progress -= i;
 	if ((object->flags & OBJ_PIPWNT) && object->paging_in_progress == 0) {
