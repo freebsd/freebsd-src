@@ -506,29 +506,29 @@ udp_ctlinput(cmd, sa, vip)
 {
 	register struct ip *ip = vip;
 	register struct udphdr *uh;
+	void (*notify) __P((struct inpcb *, int)) = udp_notify;
 
-	if (!PRC_IS_REDIRECT(cmd) &&
-	    ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0))
+	if (PRC_IS_REDIRECT(cmd)) {
+		/*
+		 * Redirects go to all references to the destination,
+		 * and use in_rtchange to invalidate the route cache.
+		 */
+		ip = 0;
+		notify = in_rtchange;
+	} else if (cmd == PRC_HOSTDEAD)
+		/*
+		 * Dead host indications: notify all references to the
+		 * destination.
+		 */
+		ip = 0;
+	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
 	if (ip) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
-		/*
-		 * Only call in_pcbnotify if the src port number != 0, as we 
-		 * treat 0 as a wildcard in src/sys/in_pbc.c:in_pcbnotify()
-		 *
-		 * It's sufficient to check for src|local port, as we'll have no 
-		 * sessions with src|local port == 0
-		 *
-		 * Without this a attacker sending ICMP messages, where the attached    
-		 * IP header (+ 8 bytes) has the address and port numbers == 0, would
-		 * have the ICMP message applied to all sessions.
-		 */
-		if (uh->uh_sport == 0)
-			return;
 		in_pcbnotify(&udb, sa, uh->uh_dport, ip->ip_src, uh->uh_sport,
-			cmd, udp_notify, 0, 0);
+			cmd, notify, 0, 0);
 	} else
-		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify, 0, 0);
+		in_pcbnotifyall(&udb, sa, cmd, notify);
 }
 
 static int
