@@ -1038,6 +1038,7 @@ pmap_new_thread(struct thread *td, int pages)
 	 * For the length of the stack, link in a real page of ram for each
 	 * page of stack.
 	 */
+	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		/*
 		 * Get a kernel stack page
@@ -1052,6 +1053,7 @@ pmap_new_thread(struct thread *td, int pages)
 		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 }
 
@@ -1073,6 +1075,7 @@ pmap_dispose_thread(td)
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
 	pmap_qremove(ks, pages);
+	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
@@ -1083,6 +1086,7 @@ pmap_dispose_thread(td)
 		vm_page_free(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(ksobj);
 	/*
 	 * Free the space that this stack was mapped to in the kernel
 	 * address map.
@@ -1142,6 +1146,7 @@ pmap_swapout_thread(td)
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
 	pmap_qremove(ks, pages);
+	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
@@ -1151,6 +1156,7 @@ pmap_swapout_thread(td)
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(ksobj);
 }
 
 /*
@@ -1170,6 +1176,7 @@ pmap_swapin_thread(td)
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
+	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		if (m->valid != VM_PAGE_BITS_ALL) {
@@ -1185,6 +1192,7 @@ pmap_swapin_thread(td)
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 }
 
