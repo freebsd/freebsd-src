@@ -123,7 +123,7 @@ uprintf(const char *fmt, ...)
 
 tpr_t
 tprintf_open(p)
-	register struct proc *p;
+	struct proc *p;
 {
 
 	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
@@ -149,7 +149,7 @@ tprintf_close(sess)
 int
 tprintf(tpr_t tpr, const char *fmt, ...)
 {
-	register struct session *sess = (struct session *)tpr;
+	struct session *sess = (struct session *)tpr;
 	struct tty *tp = NULL;
 	int flags = TOLOG;
 	va_list ap;
@@ -197,15 +197,16 @@ extern	int log_open;
  * called by interrupt routines).  If there is no process reading the
  * log yet, it writes to the console also.
  */
-int
+void
 log(int level, const char *fmt, ...)
 {
-	register int s;
+	int s;
 	va_list ap;
 	int retval;
 
 	s = splhigh();
-	logpri(level);
+	if (level != -1)
+		logpri(level);
 	va_start(ap, fmt);
 
 	retval = kvprintf(fmt, msglogchar, NULL, 10, ap);
@@ -229,7 +230,7 @@ logpri(level)
 	int level;
 {
 	char nbuf[MAXNBUF];
-	register char *p;
+	char *p;
 
 	msglogchar('<', NULL);
 	for (p = ksprintn(nbuf, (u_long)level, 10, NULL); *p;)
@@ -238,34 +239,10 @@ logpri(level)
 }
 
 int
-addlog(const char *fmt, ...)
-{
-	register int s;
-	va_list ap;
-	int retval;
-
-	s = splhigh();
-	va_start(ap, fmt);
-	retval = kvprintf(fmt, msglogchar, NULL, 10, ap);
-	splx(s);
-	va_end(ap);
-	if (!log_open) {
-		struct putchar_arg pca;
-		va_start(ap, fmt);
-		pca.tty = NULL;
-		pca.flags = TOCONS;
-		retval += kvprintf(fmt, putchar, &pca, 10, ap);
-		va_end(ap);
-	}
-	logwakeup();
-	return (retval);
-}
-
-int
 printf(const char *fmt, ...)
 {
 	va_list ap;
-	register int savintr;
+	int savintr;
 	struct putchar_arg pca;
 	int retval;
 
@@ -285,7 +262,7 @@ printf(const char *fmt, ...)
 int
 vprintf(const char *fmt, va_list ap)
 {
-	register int savintr;
+	int savintr;
 	struct putchar_arg pca;
 	int retval;
 
@@ -407,10 +384,10 @@ snprintf_func(int ch, void *arg)
 static char *
 ksprintn(nbuf, ul, base, lenp)
 	char *nbuf;
-	register u_long ul;
-	register int base, *lenp;
+	u_long ul;
+	int base, *lenp;
 {
-	register char *p;
+	char *p;
 
 	p = nbuf;
 	*p = '\0';
@@ -425,10 +402,10 @@ ksprintn(nbuf, ul, base, lenp)
 static char *
 ksprintqn(nbuf, uq, base, lenp)
 	char *nbuf;
-	register u_quad_t uq;
-	register int base, *lenp;
+	u_quad_t uq;
+	int base, *lenp;
 {
-	register char *p;
+	char *p;
 
 	p = nbuf;
 	*p = '\0';
