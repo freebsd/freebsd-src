@@ -429,7 +429,6 @@ pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
 	struct session *savesess;
-	int i;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
@@ -447,16 +446,8 @@ pgdelete(pgrp)
 		pgrp->pg_session->s_ttyp->t_pgrp = NULL;
 	LIST_REMOVE(pgrp, pg_hash);
 	savesess = pgrp->pg_session;
-	SESS_LOCK(savesess);
-	i = --savesess->s_count;
-	SESS_UNLOCK(savesess);
+	SESSRELE(savesess);
 	PGRP_UNLOCK(pgrp);
-	if (i == 0) {
-		if (savesess->s_ttyp != NULL)
-			ttyrel(savesess->s_ttyp);
-		mtx_destroy(&savesess->s_mtx);
-		FREE(savesess, M_SESSION);
-	}
 	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
 }
@@ -557,6 +548,22 @@ orphanpg(pg)
 			return;
 		}
 		PROC_UNLOCK(p);
+	}
+}
+
+void
+sessrele(struct session *s)
+{
+	int i;
+
+	SESS_LOCK(s);
+	i = --s->s_count;
+	SESS_UNLOCK(s);
+	if (i == 0) {
+		if (s->s_ttyp != NULL)
+			ttyrel(s->s_ttyp);
+		mtx_destroy(&s->s_mtx);
+		FREE(s, M_SESSION);
 	}
 }
 
