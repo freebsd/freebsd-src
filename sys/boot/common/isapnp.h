@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.h,v 1.6 1998/01/10 07:41:43 kato Exp $
+ *      $Id: isapnp.h,v 1.1 1998/09/18 00:24:25 msmith Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_
@@ -209,6 +209,12 @@
 	***/
 
 /*** 32-bit memory accesses are at 0x76 ***/
+
+/* Macros to parse Resource IDs */
+#define PNP_RES_TYPE(a)		(a >> 7)
+#define PNP_SRES_NUM(a)		(a >> 3)
+#define PNP_SRES_LEN(a)		(a & 0x07)
+#define PNP_LRES_NUM(a)		(a & 0x7f)
 
 /* Small Resource Item names */
 #define PNP_VERSION		0x1
