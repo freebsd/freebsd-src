@@ -9,7 +9,6 @@ GFB_NO_MODE_CHANGE	opt_gfb.h
 PSYCHO_DEBUG		opt_psycho.h
 DEBUGGER_ON_POWERFAIL	opt_psycho.h
 OFW_PCI_DEBUG		opt_ofw_pci.h
-OFW_NEWPCI		opt_ofw_pci.h
 # Debug IOMMU inserts/removes using diagnostic accesses. Very loud.
 IOMMU_DIAG		opt_iommu.h
 PMAP_STATS		opt_pmap.h

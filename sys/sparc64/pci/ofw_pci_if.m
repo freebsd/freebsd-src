@@ -34,7 +34,6 @@ INTERFACE ofw_pci;
 
 CODE {
 	static ofw_pci_intr_pending_t ofw_pci_default_intr_pending;
-	static ofw_pci_guess_ino_t ofw_pci_default_guess_ino;
 	static ofw_pci_get_bus_handle_t ofw_pci_default_get_bus_handle;
 	static ofw_pci_get_node_t ofw_pci_default_get_node;
 	static ofw_pci_adjust_busrange_t ofw_pci_default_adjust_busrange;
@@ -44,15 +43,6 @@ CODE {
 	{
 
 		return (OFW_PCI_INTR_PENDING(device_get_parent(dev), intr));
-	}
-
-	static ofw_pci_intr_t
-	ofw_pci_default_guess_ino(device_t dev, phandle_t node, u_int slot,
-	    u_int pin)
-	{
-
-		return (OFW_PCI_GUESS_INO(device_get_parent(dev), node, slot,
-		    pin));
 	}
 
 	static bus_space_handle_t
@@ -85,18 +75,6 @@ METHOD int intr_pending {
 	ofw_pci_intr_t intr;
 } DEFAULT ofw_pci_default_intr_pending;
 
-# Let the bus driver guess the INO of the device at the given slot and intpin
-# on the bus described by the node if it could not be determined from the
-# firmware properties. Returns 255 if no INO could be found (mapping will
-# continue at the parent), or the desired INO.
-# This method is only used in the !OFW_NEWPCI case, and will go away soon.
-METHOD ofw_pci_intr_t guess_ino {
-	device_t dev;
-	phandle_t node;
-	u_int slot;
-	u_int pin;
-} DEFAULT ofw_pci_default_guess_ino;
-
 # Get the bustag for the root bus. This is needed for ISA old-stlye
 # in[bwl]()/out[bwl]() support, where no tag retrieved from a resource is
 # passed. The returned tag is used to construct a tag for the whole ISA bus.
@@ -107,8 +85,8 @@ METHOD bus_space_handle_t get_bus_handle {
 	bus_space_tag_t *tag;
 } DEFAULT ofw_pci_default_get_bus_handle;
 
-# Get the firmware node for the device dev on the bus bus. The default mthod
-# will return 0, which signals that there is no such node.
+# Get the firmware node for the device dev on the bus. The default method will
+# return 0, which signals that there is no such node.
 # This could be an ivar, but isn't to avoid numbering conflicts with standard
 # pci/pcib ones.
 METHOD phandle_t get_node {
