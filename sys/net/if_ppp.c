@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.14.2.2 1995/09/14 07:10:18 davidg Exp $ */
+/* $Id: if_ppp.c,v 1.14.2.3 1995/10/07 12:55:50 davidg Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -248,6 +248,7 @@ pppalloc(pid)
     sl_compress_init(&sc->sc_comp);
 #endif
     sc->sc_if.if_flags |= IFF_RUNNING;
+    microtime(sc->if.if_lastchange);
 
     return sc;
 }
@@ -277,6 +278,7 @@ pppdealloc(sc)
 	m_freem(m);
     }
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
+    microtime(sc->sc_if.if_lastchange);
 }
 
 /*
@@ -312,6 +314,7 @@ pppopen(dev, tp)
 
     if (pppgetm(sc) == 0) {
 	sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
+	microtime(sc->sc_if.if_lastchange);
 	return (ENOBUFS);
     }
 
@@ -555,7 +558,10 @@ ppptioctl(tp, cmd, data, flag, p)
 		error = ENOBUFS;
 		sc->sc_mru = PPP_MRU;
 		if (pppgetm(sc) == 0)
+		{
 		    sc->sc_if.if_flags &= ~IFF_UP;
+		    microtime(sc->sc_if.if_lastchange);
+		}
 	    }
 	}
 	break;
@@ -1137,7 +1143,10 @@ ppp_btom(sc)
     if (pppgetm(sc) == 0) {
 	m_freem(top);
 	if (pppgetm(sc) == 0)
+	{
 	    sc->sc_if.if_flags &= ~IFF_UP;
+	    microtime(sc->sc_if.if_lastchange);
+	}
 	return (NULL);
     }
 
