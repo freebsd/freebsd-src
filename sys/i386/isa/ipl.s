@@ -123,10 +123,10 @@ doreti_next2:
 	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	doreti_unpend
 	movl	%eax,_cpl
-	MPLOCKED decb _intr_nesting_level
+	decb	_intr_nesting_level
 
 	/* Check for ASTs that can be handled now. */
-	cmpb	$0,_astpending
+	cmpl	$0,_astpending
 	je	doreti_exit
 	testb	$SEL_RPL_MASK,TF_CS(%esp)
 	jne	doreti_ast
@@ -271,7 +271,7 @@ doreti_swi:
 
 	ALIGN_TEXT
 doreti_ast:
-	movl	$0,_astpending
+	andl	$~AST_PENDING,_astpending
 	sti
 	movl	$T_ASTFLT,TF_TRAPNO(%esp)
 	call	_trap
