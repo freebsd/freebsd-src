@@ -242,8 +242,8 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 	while (!TAILQ_EMPTY(&_thread_list)) {
 
 		/* Get the current time of day. */
-		gettimeofday((struct timeval *) &_sched_tod, NULL);
-		TIMEVAL_TO_TIMESPEC(&_sched_tod, &ts);
+		ts = km->km_timeofday;
+		TIMESPEC_TO_TIMEVAL(&_sched_tod, &ts);
 		current_tick = _sched_ticks;
 
 		/*
