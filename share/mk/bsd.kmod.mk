@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.40 1997/07/21 16:04:41 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.41 1997/11/09 15:03:13 wosch Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -90,13 +90,12 @@ MODUNLOAD?=	/sbin/modunload
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-#
-# Assume that we are in /usr/src/foo/bar, so /sys is
-# ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
-# actually lives in /sys directly.
-#
-CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
-	${CWARNFLAGS}
+CFLAGS+=	${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL ${CWARNFLAGS}
+
+# Add -I paths for system headers.  Individual LKM makefiles don't need any
+# -I paths for this.  Most of them need .PATH statement(s) for non-headers.
+CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
+
 .if defined(DESTDIR)
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
@@ -104,7 +103,7 @@ CFLAGS+=	-I${DESTDIR}/usr/include
 EXPORT_SYMS?= _${KMOD}
 
 .if defined(VFS_LKM)
-CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops -I.
+CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops
 SRCS+=	vnode_if.h
 CLEANFILES+=	vnode_if.h vnode_if.c
 .endif
@@ -141,10 +140,36 @@ maninstall: _SUBDIR
 all-man:
 .endif
 
-.MAIN: all
-all: objwarn ${PROG} all-man _SUBDIR
+_ILINKS=@ machine
 
-CLEANFILES+= ${KMOD} ${PROG} ${OBJS} 
+.MAIN: all
+all: ${_ILINKS} objwarn ${PROG} all-man _SUBDIR
+
+beforedepend: ${_ILINKS}
+
+# The search for the link targets works best if we are in a normal src
+# tree, and not too deeply below src/lkm.  If we are near "/", then
+# we may find /sys - this is harmless.  Other abnormal "sys" directories
+# found in the search are likely to cause problems.  If nothing is found,
+# then the links default to /usr/include and /usr/include/machine.
+${_ILINKS}:
+	@for up in ../.. ../../.. ; do \
+		case ${.TARGET} in \
+		machine) \
+			path=${.CURDIR}/$$up/sys/${MACHINE_ARCH}/include ; \
+			defaultpath=/usr/include/machine ;; \
+		@) \
+			path=${.CURDIR}/$$up/sys ; \
+			defaultpath=/usr/include ;; \
+		esac ; \
+		if [ -d $$path ] ; then break ; fi ; \
+		path=$$defaultpath ; \
+	done ; \
+	path=`(cd $$path && /bin/pwd)` ; \
+	${ECHO} ${.TARGET} "->" $$path ; \
+	ln -s $$path ${.TARGET}
+
+CLEANFILES+= ${KMOD} ${PROG} ${OBJS} ${_ILINKS}
 
 .if !target(install)
 .if !target(beforeinstall)
