@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.3 1994/08/02 07:43:31 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.4 1994/08/20 16:03:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1096,18 +1096,48 @@ olstat(p, uap, retval)
 	register struct olstat_args *uap;
 	int *retval;
 {
-	struct stat sb;
+	struct vnode *vp, *dvp;
+	struct stat sb, sb1;
 	struct ostat osb;
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, p);
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	    uap->path, p);
 	if (error = namei(&nd))
 		return (error);
-	error = vn_stat(nd.ni_vp, &sb, p);
-	vput(nd.ni_vp);
-	if (error)
-		return (error);
+	/*
+	 * For symbolic links, always return the attributes of its
+	 * containing directory, except for mode, size, and links.
+	 */
+	vp = nd.ni_vp;
+	dvp = nd.ni_dvp;
+	if (vp->v_type != VLNK) {
+		if (dvp == vp)
+			vrele(dvp);
+		else
+			vput(dvp);
+		error = vn_stat(vp, &sb, p);
+		vput(vp);
+		if (error)
+			return (error);
+	} else {
+		error = vn_stat(dvp, &sb, p);
+		vput(dvp);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
+		error = vn_stat(vp, &sb1, p);
+		vput(vp);
+		if (error)
+			return (error);
+		sb.st_mode &= ~S_IFDIR;
+		sb.st_mode |= S_IFLNK;
+		sb.st_nlink = sb1.st_nlink;
+		sb.st_size = sb1.st_size;
+		sb.st_blocks = sb1.st_blocks;
+	}
 	cvtstat(&sb, &osb);
 	error = copyout((caddr_t)&osb, (caddr_t)uap->ub, sizeof (osb));
 	return (error);
