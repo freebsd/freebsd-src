@@ -24,7 +24,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: vasprintf.c,v 1.5 1997/02/22 15:02:39 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>
@@ -111,9 +111,11 @@ vasprintf(str, fmt, ap)
 	if (h.base == NULL)	/* failed to realloc in writehook */
 		return (-1);
 
-	h.base[h.size - h.left] = '\0';
 	*str = realloc(h.base, (size_t)(h.size - h.left + 1));
-	if (*str == NULL)	/* failed to realloc it to actual size */
-		*str = h.base;	/* return oversize buffer */
+	if (*str == NULL) {	/* failed to realloc it to actual size */
+		free(h.base);
+		return (-1);
+	}
+	(*str)[h.size - h.left] = '\0';
 	return (ret);
 }
