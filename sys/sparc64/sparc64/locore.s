@@ -48,8 +48,8 @@ ENTRY(_start)
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 
-	setx	kstack0 + KSTACK_PAGES * PAGE_SIZE - SPOFF, %l0, %o5
-	save	%o5, -CCFSZ, %sp
+	set	kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %o0
+	sub	%o0, SPOFF + CCFSZ, %sp
 
 	mov	%g1, %o0
 	call	sparc64_init
