@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.4 1998/02/13 01:27:33 julian Exp $
+ * $Id: uthread_write.c,v 1.5 1998/04/29 09:59:33 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -44,15 +44,42 @@
 ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
-	int	ret;
+	int	blocking;
+	int	status;
+	ssize_t n;
+	ssize_t num = 0;
+	ssize_t	ret;
 
 	/* Lock the file descriptor for write: */
 	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
 	    __FILE__, __LINE__)) == 0) {
-		/* Perform a non-blocking write syscall: */
-		while ((ret = _thread_sys_write(fd, buf, nbytes)) < 0) {
-			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
-			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
+		/* Check if file operations are to block */
+		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
+
+		/*
+		 * Loop while no error occurs and until the expected number
+		 * of bytes are written if performing a blocking write:
+		 */
+		while (ret == 0) {
+			/* Perform a non-blocking write syscall: */
+			n = _thread_sys_write(fd, buf + num, nbytes - num);
+
+			/* Check if one or more bytes were written: */
+			if (n > 0)
+				/*
+				 * Keep a count of the number of bytes
+				 * written:
+				 */
+				num += n;
+
+			/*
+			 * If performing a blocking write, check if the
+			 * write would have blocked or if some bytes
+			 * were written but there are still more to
+			 * write:
+			 */
+			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
+			    errno == EAGAIN)) || num < nbytes)) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -67,13 +94,24 @@ write(int fd, const void *buf, size_t nbytes)
 				 * interrupted by a signal
 				 */
 				if (_thread_run->interrupted) {
-					errno = EINTR;
+					/* Return an error: */
 					ret = -1;
-					break;
 				}
-			} else {
+
+			/*
+			 * If performing a non-blocking write or if an
+			 * error occurred, just return whatever the write
+			 * syscall did:
+			 */
+			} else if (!blocking || n < 0) {
+				/* A non-blocking call might return zero: */
+				ret = n;
 				break;
-			}
+
+			/* Check if the write has completed: */
+			} else if (num >= nbytes)
+				/* Return the number of bytes written: */
+				ret = num;
 		}
 		_thread_fd_unlock(fd, FD_RDWR);
 	}
