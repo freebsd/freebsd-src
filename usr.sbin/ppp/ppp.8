@@ -470,7 +470,7 @@ operation, you should configure your resolver so that it works correctly.
 This can be done by configuring a local DNS
 .Pq using Xr named 8
 or by adding the correct
-.Sq name-server
+.Sq nameserver
 lines to the file
 .Pa /etc/resolv.conf .
 Refer to the
