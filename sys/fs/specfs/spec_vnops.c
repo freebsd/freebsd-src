@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.47 1997/10/16 10:48:46 phk Exp $
+ * $Id: spec_vnops.c,v 1.48 1997/10/16 20:32:29 phk Exp $
  */
 
 #include <sys/param.h>
@@ -90,10 +90,8 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_inactive_desc,		(vop_t *) spec_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) nullop },
 	{ &vop_link_desc,		(vop_t *) spec_badop },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) spec_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) spec_badop },
 	{ &vop_mknod_desc,		(vop_t *) spec_badop },
@@ -112,7 +110,6 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) spec_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_badop },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.32 1997/10/16 10:48:25 phk Exp $
+ * $Id: fifo_vnops.c,v 1.33 1997/10/16 20:32:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -87,10 +87,8 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) fifo_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) nullop },
 	{ &vop_link_desc,		(vop_t *) fifo_badop },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) fifo_badop },
 	{ &vop_mknod_desc,		(vop_t *) fifo_badop },
@@ -108,7 +106,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) fifo_badop },
 	{ &vop_setattr_desc,		(vop_t *) fifo_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) fifo_badop },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };

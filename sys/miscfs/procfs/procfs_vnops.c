@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.36 1997/10/16 10:48:40 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.37 1997/10/16 20:32:28 phk Exp $
  */
 
 /*
@@ -893,9 +893,7 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) procfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) procfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_link_desc,		(vop_t *) procfs_badop },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) procfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) procfs_badop },
 	{ &vop_mknod_desc,		(vop_t *) procfs_badop },
@@ -911,7 +909,6 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) procfs_badop },
 	{ &vop_setattr_desc,		(vop_t *) procfs_setattr },
 	{ &vop_symlink_desc,		(vop_t *) procfs_badop },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) procfs_rw },
 	{ NULL, NULL }
 };

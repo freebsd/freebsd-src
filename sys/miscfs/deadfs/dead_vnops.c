@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.18 1997/10/16 10:48:06 phk Exp $
+ * $Id: dead_vnops.c,v 1.19 1997/10/16 20:32:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,6 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) dead_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) nullop },
 	{ &vop_ioctl_desc,		(vop_t *) dead_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_link_desc,		(vop_t *) dead_badop },
 	{ &vop_lock_desc,		(vop_t *) dead_lock },
 	{ &vop_lookup_desc,		(vop_t *) dead_lookup },
@@ -84,7 +83,6 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) dead_badop },
 	{ &vop_setattr_desc,		(vop_t *) dead_ebadf },
 	{ &vop_symlink_desc,		(vop_t *) dead_badop },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) dead_write },
 	{ NULL, NULL }
 };

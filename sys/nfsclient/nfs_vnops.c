@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.67 1997/10/16 10:49:01 phk Exp $
+ * $Id: nfs_vnops.c,v 1.68 1997/10/16 20:32:32 phk Exp $
  */
 
 
@@ -145,7 +145,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lease_desc,		(vop_t *) nullop },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
@@ -166,7 +165,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) nfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) nfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfs_write },
 	{ NULL, NULL }
 };
@@ -178,47 +176,43 @@ VNODEOP_SET(nfsv2_vnodeop_opv_desc);
  * Special device vnode ops
  */
 vop_t **spec_nfsv2nodeop_p;
-static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
+static struct vnodeopv_entry_desc nfsv2_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
 	{ &vop_close_desc,		(vop_t *) nfsspec_close },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfsspec_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
-	{ &spec_nfsv2nodeop_p, spec_nfsv2nodeop_entries };
+	{ &spec_nfsv2nodeop_p, nfsv2_specop_entries };
 VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
 
 vop_t **fifo_nfsv2nodeop_p;
-static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
+static struct vnodeopv_entry_desc nfsv2_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
 	{ &vop_close_desc,		(vop_t *) nfsfifo_close },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
-	{ &fifo_nfsv2nodeop_p, fifo_nfsv2nodeop_entries };
+	{ &fifo_nfsv2nodeop_p, nfsv2_fifoop_entries };
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
 
 static int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt,
