@@ -1222,6 +1222,7 @@ again:
 				 * we consider the rule a non-match.
 				 */
 				if (f->fw_nports != 0 ||
+				    f->fw_tcpopt != f->fw_tcpnopt ||
 				    f->fw_tcpf != f->fw_tcpnf)
 					continue;
 
