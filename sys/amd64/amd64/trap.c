@@ -592,7 +592,7 @@ trap_fatal(frame, eva)
 	}
 	printf("stack pointer	        = 0x%x:0x%lx\n", ss, esp);
 	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
-	printf("code segment		= base 0x%lx, limit 0x%x, type 0x%x\n",
+	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
 	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
 	printf("			= DPL %d, pres %d, long %d, def32 %d, gran %d\n",
 	       softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_long, softseg.ssd_def32,
