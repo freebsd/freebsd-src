@@ -157,7 +157,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
-			    error, mediasize);
+			    error, (long long)mediasize);
 		}
 		g_topology_lock();
 		g_access_rel(cp, -1, 0, 0);
@@ -169,7 +169,8 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	mtx_lock(&Giant);
 	if (mediasize != 0)
 		printf("GEOM: \"%s\" %lld bytes in %lld sectors of %u bytes\n",
-		    pp->name, mediasize, mediasize / secsize, secsize);
+		    pp->name, (long long)mediasize, 
+		    (long long)mediasize / secsize, secsize);
 	else
 		printf("GEOM: \"%s\" (size unavailable)\n", pp->name);
 	dev = make_dev(&g_dev_cdevsw, unit++,
