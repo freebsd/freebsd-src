@@ -415,6 +415,9 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 
 	case ATARAIDDELETE:
 	    return ata_raid_delete(iocmd->channel);
+
+	case ATARAIDSTATUS:
+	    return ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	case ATAPICMD: {
