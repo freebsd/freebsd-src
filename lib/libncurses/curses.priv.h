@@ -46,7 +46,7 @@ extern char *visbuf(const char *);
 #define TR(n, a)
 #endif
 
-extern int _outch(char);
+extern int _outch(int);
 extern void init_acs(void);
 extern void tstp(int);
 extern WINDOW *makenew(int, int, int, int);
