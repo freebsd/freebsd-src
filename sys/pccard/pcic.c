@@ -53,7 +53,6 @@
 #include <sys/lkm.h>
 
 #include <machine/clock.h>
-#include <machine/laptops.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
