@@ -1,8 +1,8 @@
 #	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
-#	$Id: Makefile.inc,v 1.24 1997/10/15 16:15:41 bde Exp $
+#	$Id: Makefile.inc,v 1.25 1997/10/21 08:41:08 bde Exp $
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/net ${.CURDIR}/../libc/net
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net ${.CURDIR}/../libc/net
 
 SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
@@ -18,7 +18,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c \
 # not supported: iso_addr.c 
 
 # machine-dependent net sources
-.include "${.CURDIR}/../libc/${MACHINE}/net/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/net/Makefile.inc"
 
 .if ${LIB} == "c"
 MAN3+=	addr2ascii.3 byteorder.3 ethers.3 gethostbyname.3 \
