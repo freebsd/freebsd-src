@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -530,11 +531,13 @@ prmount(sfp)
 	}
 	if (verbose) {
 		if (sfp->f_syncwrites != 0 || sfp->f_asyncwrites != 0)
-			(void)printf(", writes: sync %ld async %ld",
-			    (long)sfp->f_syncwrites, (long)sfp->f_asyncwrites);
+			(void)printf(", writes: sync %ju async %ju",
+			    (uintmax_t)sfp->f_syncwrites,
+			    (uintmax_t)sfp->f_asyncwrites);
 		if (sfp->f_syncreads != 0 || sfp->f_asyncreads != 0)
-			(void)printf(", reads: sync %ld async %ld",
-			    (long)sfp->f_syncreads, (long)sfp->f_asyncreads);
+			(void)printf(", reads: sync %ju async %ju",
+			    (uintmax_t)sfp->f_syncreads,
+			    (uintmax_t)sfp->f_asyncreads);
 		if (sfp->f_fsid.val[0] != 0 || sfp->f_fsid.val[1] != 0) {
 			printf(", fsid ");
 			for (i = 0; i < sizeof(sfp->f_fsid); i++)
