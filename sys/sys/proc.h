@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.73 1999/03/03 18:15:29 julian Exp $
+ * $Id: proc.h,v 1.74 1999/03/05 16:38:12 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -262,10 +262,11 @@ struct	proc {
 #define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
 
 /* Marked a kernel thread */
+#define P_FLSINPROG	0x100000 /* dirty buffers flush is in progress */
 #define P_KTHREADP	0x200000 /* Process is really a kernel thread */
 
 #define	P_NOCLDWAIT	0x400000 /* No zombies if child dies */
-
+#define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 
 /*
  * MOVE TO ucred.h?
@@ -336,7 +337,7 @@ extern struct timeval switchtime;	/* Uptime at last context switch */
 LIST_HEAD(proclist, proc);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
-extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
+extern struct proc *initproc, *pageproc, *updateproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
 extern struct prochd qs[];

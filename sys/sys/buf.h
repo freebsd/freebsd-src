@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.63 1999/01/21 13:41:12 peter Exp $
+ * $Id: buf.h,v 1.64 1999/03/02 04:04:28 mckusick Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -127,6 +127,10 @@ struct buf {
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 	struct	workhead b_dep;		/* List of filesystem dependencies. */
+	struct chain_info {		/* buffer chaining */
+		struct buf *parent;
+		int count;
+	} b_chain;
 };
 
 #define b_spc	b_pager.pg_spc
@@ -184,12 +188,12 @@ struct buf {
 #define B_RAM		0x10000000	/* Read ahead mark (flag) */
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
-#define B_AVAIL1	0x80000000	/* Available flag */
+#define B_AUTOCHAINDONE	0x80000000	/* Available flag */
 
-#define PRINT_BUF_FLAGS "\20\40avail1\37cluster\36vmio\35ram\34ordered" \
+#define PRINT_BUF_FLAGS "\20\40autochain\37cluster\36vmio\35ram\34ordered" \
 	"\33paging\32xxx\31writeinprog\30wanted\27relbuf\26dirty" \
 	"\25read\24raw\23phys\22clusterok\21malloc\20nocache" \
-	"\17locked\16inval\15avail2\14error\13eintr\12done\11freebuf" \
+	"\17locked\16inval\15scanned\14error\13eintr\12done\11freebuf" \
 	"\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age"
 
 /*
@@ -315,7 +319,6 @@ extern char	*buffers;		/* The buffer contents. */
 extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
-extern int	needsbuffer, numdirtybuffers;
 extern TAILQ_HEAD(swqueue, buf) bswlist;
 extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 
@@ -331,6 +334,7 @@ int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	bdirty __P((struct buf *));
+void	bundirty __P((struct buf *));
 int	bowrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	bqrelse __P((struct buf *));
@@ -367,7 +371,6 @@ int	allocbuf __P((struct buf *bp, int size));
 void	reassignbuf __P((struct buf *, struct vnode *));
 void	pbreassignbuf __P((struct buf *, struct vnode *));
 struct	buf *trypbuf __P((int *));
-void	vfs_bio_need_satisfy __P((void));
 #endif /* KERNEL */
 
 #endif /* !_SYS_BUF_H_ */
