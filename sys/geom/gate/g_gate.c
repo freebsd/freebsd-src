@@ -235,7 +235,6 @@ g_gate_find(u_int unit)
 {
 	struct g_gate_softc *sc;
 
-	mtx_assert(&g_gate_list_mtx, MA_OWNED);
 	LIST_FOREACH(sc, &g_gate_list, sc_next) {
 		if (sc->sc_unit == unit)
 			break;
