@@ -83,6 +83,8 @@ O_TRUNC		truncate size to 0
 O_EXCL		error if create and file exists
 O_SHLOCK	atomically obtain a shared lock
 O_EXLOCK	atomically obtain an exclusive lock
+O_FSYNC		synchronous writes
+O_NOFOLLOW	do not follow symlinks
 .Ed
 .Pp
 Opening a file with
@@ -119,6 +121,22 @@ carrier on a dialup line),
 returns immediately.
 The first time the process attempts to perform I/O on the open
 file it will block (not currently implemented).
+.Pp
+If
+.Dv O_FSYNC
+is used in the mask, all writes will
+immediately be written to disk,
+the kernel will not cache written data
+and all writes on the descriptor will not return until
+the data to be written completes.
+.Pp
+If
+.Dv O_NOFOLLOW
+is used in the mask and the target file passed to
+.Fn open
+is a symbolic link then the
+.Fn open
+will fail.
 .Pp
 When opening a file, a lock with
 .Xr flock 2
@@ -216,6 +234,9 @@ and the file is to be modified.
 The process has already reached its limit for open file descriptors.
 .It Bq Er ENFILE
 The system file table is full.
+.It Bq Er EMLINK
+.Dv O_NOFOLLOW
+was specified and the target is a symbolic link.
 .It Bq Er ENXIO
 The named file is a character special or block
 special file, and the device associated with this special file
