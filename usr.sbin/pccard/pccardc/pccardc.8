@@ -35,7 +35,8 @@
 .Nm pccardc
 .Nd PC-CARD (PCMCIA) management and monitoring tool
 .Sh SYNOPSIS
-.Nm pccardc Ar subcommand
+.Nm
+.Ar subcommand
 .Op Ar arg ...
 .Sh DESCRIPTION
 .Nm
@@ -147,7 +148,7 @@ However, beware that it frequently cannot recognize new cards properly.
 .Ic help
 .Pp
 Prints help for
-.Nm pccardc .
+.Nm .
 .It
 .Ic pccardmem Ar addr
 .Pp
@@ -249,6 +250,7 @@ configuration file
 .Xr rc.conf 5 ,
 .Xr pccardd 8
 .Sh AUTHORS
+.An -nosplit
 The original version was written by
 .An Andrew McRae Aq andrew@mega.com.au .
 .An Tatsumi Hosokawa Aq hosokawa@mt.cs.keio.ac.jp

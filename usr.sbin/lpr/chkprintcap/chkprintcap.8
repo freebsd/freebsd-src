@@ -33,7 +33,7 @@
 .Nm chkprintcap
 .Nd check validity of entries in the print spooler database
 .Sh SYNOPSIS
-.Nm chkprintcap
+.Nm
 .Op Fl d
 .Op Fl f Ar printcap
 .Sh DESCRIPTION
@@ -70,7 +70,7 @@ entire file is scanned.)
 If the
 .Fl d
 flag is given,
-.Nm chkprintcap
+.Nm
 will attempt to create any missing spool directories, giving them
 .Sq Li u=rwx,go=rx
 (0755) mode, group
@@ -85,7 +85,7 @@ capability in the database (default 1, which corresponds to user
 .Xr lpd 8
 .Sh AUTHORS
 The
-.Nm chkprintcap
+.Nm
 command was written by
 .An Garrett A. Wollman Aq wollman@lcs.mit.edu .
 .Sh BUGS

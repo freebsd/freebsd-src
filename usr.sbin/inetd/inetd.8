@@ -40,7 +40,7 @@
 .Nd internet
 .Dq super-server
 .Sh SYNOPSIS
-.Nm inetd
+.Nm
 .Op Fl d
 .Op Fl l
 .Op Fl w
@@ -87,7 +87,7 @@ See the
 section for more information on TCP Wrappers support.
 .It Fl W
 Turn on TCP Wrapping for internal services which are built in to
-.Nm inetd .
+.Nm .
 .It Fl c Ar maximum
 Specify the default maximum number of
 simultaneous invocations of each service;
@@ -349,7 +349,7 @@ use the
 .Dq nowait
 entry.
 Connection requests for these services are accepted by
-.Nm Ns ,
+.Nm ,
 and the server is given only the newly-accepted socket connected
 to a client of the service.
 Most stream-based services operate in this manner.

@@ -37,14 +37,14 @@
 .Nd is used to load fonts into EGA or VGA boards for use by the 'pcvt' video
 driver.
 .Sh SYNOPSIS
-.Nm loadfont
+.Nm
 .Op Fl c Ar charsetno
 .Op Fl d Ar devicefile
 .Op Fl f Ar fontfilename
 .Op Fl i
 .Sh DESCRIPTION
 The
-.Nm loadfont
+.Nm
 utility is used to load fonts needed for proper operation of the pcvt
 VT220 driver on EGA and VGA boards into the font ram of this boards.
 .Pp
@@ -67,8 +67,7 @@ This utility is used only on EGA and VGA boards, as MDA, HCG and CGA boards
 do not have downloadable charactersets available.
 .Sh FILES
 The following fontfiles are available in the pcvt distribution:
-
-.nf
+.Bd -literal
 /usr/share/misc/pcvtfonts/vt220l.808:	8x8  IBM II font
 /usr/share/misc/pcvtfonts/vt220h.808:	8x8  Extension font
 /usr/share/misc/pcvtfonts/vt220l.810:	8x10 IBM II font
@@ -77,7 +76,7 @@ The following fontfiles are available in the pcvt distribution:
 /usr/share/misc/pcvtfonts/vt220h.814:	8x14 Extension font
 /usr/share/misc/pcvtfonts/vt220l.816:	8x16 IBM II font
 /usr/share/misc/pcvtfonts/vt220h.816:	8x16 Extension font
-.fi
+.Ed
 .Sh EXAMPLES
 The command
 .Dq Li loadfont -c0 -f/usr/share/misc/pcvtfonts/vt220l.816

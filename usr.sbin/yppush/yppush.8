@@ -38,7 +38,7 @@
 .Nm yppush
 .Nd "force propagation of updated NIS databases"
 .Sh SYNOPSIS
-.Nm yppush
+.Nm
 .Op Fl d Ar domain
 .Op Fl t Ar timeout
 .Op Fl j Ar #parallel jobs
@@ -60,7 +60,7 @@ Note that
 does not invoke
 .Nm
 by default: the
-.Nm NOPUSH=True
+.Dq Li NOPUSH=True
 entry in the Makefile must first be commented out
 (the default
 .Fx

@@ -61,9 +61,9 @@ the host is considered to be down for a short period (normally 20 seconds),
 allowing an error to be returned to transmission attempts during this
 interval.
 The error is
-.Li EHOSTDOWN
+.Er EHOSTDOWN
 for a non-responding destination host, and
-.Li EHOSTUNREACH
+.Er EHOSTUNREACH
 for a non-responding router.
 .Pp
 The ARP cache is stored in the system routing table as
@@ -128,7 +128,6 @@ routing table.  It can also occur if the kernel cannot allocate memory.
 .Xr arp 8 ,
 .Xr ifconfig 8 ,
 .Xr route 8
-.sp
 .Rs
 .%A Plummer, D.
 .%B "An Ethernet Address Resolution Protocol"
@@ -140,4 +139,3 @@ routing table.  It can also occur if the kernel cannot allocate memory.
 .%B "Trailer Encapsulations
 .%T RFC893
 .Re
-

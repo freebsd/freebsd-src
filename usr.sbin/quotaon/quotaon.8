@@ -42,12 +42,12 @@
 .Nm quotaoff
 .Nd turn filesystem quotas on and off
 .Sh SYNOPSIS
-.Nm quotaon
+.Nm
 .Op Fl g
 .Op Fl u
 .Op Fl v
 .Ar filesystem Ar ...
-.Nm quotaon
+.Nm
 .Op Fl g
 .Op Fl u
 .Op Fl v
@@ -87,7 +87,7 @@ Available options:
 .Bl -tag -width indent
 .It Fl a
 If supplied in place of any filesystem names,
-.Nm quotaon Ns / Ns Nm quotaoff
+.Nm Ns / Ns Nm quotaoff
 will enable/disable all the filesystems indicated in
 .Pa /etc/fstab
 to be read-write with disk quotas.
@@ -104,7 +104,7 @@ Only user quotas listed in
 should be enabled/disabled.
 .It Fl v
 Cause
-.Nm quotaon
+.Nm
 and
 .Nm quotaoff
 to print a message for each filesystem where quotas are turned on or off.

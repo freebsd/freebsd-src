@@ -69,7 +69,7 @@
 .Tn I/O
 statistics
 .Sh SYNOPSIS
-.Nm iostat
+.Nm
 .Op Fl CdhKIoT?
 .Op Fl c Ar count
 .Op Fl M Ar core
@@ -123,7 +123,7 @@ instead of the default
 Display up to
 .Ar devs
 number of devices.
-.Nm iostat
+.Nm
 will display fewer devices if there aren't
 .Ar devs
 devices present.
@@ -132,7 +132,7 @@ Extract the name list from the specified system instead of the default
 .Dq Pa /kernel .
 .It Fl o
 Display old-style
-.Nm iostat
+.Nm
 device statistics.  Sectors per second, transfers per second, and miliseconds
 per seek are displayed.  If
 .Fl I
@@ -203,7 +203,7 @@ all devices in the system are compared.  Any device that fully matches
 any
 .Fl t
 argument will be included in the 
-.Nm iostat
+.Nm
 output, up to the number of devices that can be displayed in
 80 columns, or the maximum number of devices specified by the user.
 .It Fl T
@@ -233,17 +233,17 @@ characters written to terminals
 .El
 .It devices
 Device operations.  The header of the field is the device name and unit number.
-.Nm iostat
+.Nm
 will display as many devices as will fit in a standard 80 column screen, or
 the maximum number of devices in the system, whichever is smaller.  If
 .Fl n
 is specified on the command line, iostat will display the smaller of the
 requested number of devices, and the maximum number of devices in the system.
 To force
-.Nm iostat
+.Nm
 to display specific drives, their names may be supplied on the command
 line.
-.Nm iostat
+.Nm
 will not display more devices than will fit in an 80 column screen, unless
 the
 .Fl n
@@ -253,7 +253,7 @@ than will fit in an 80 column screen, iostat will show only the specified
 devices.
 .Pp
 The standard
-.Nm iostat
+.Nm
 device display shows the following statistics:
 .Pp
 .Bl -tag -width indent -compact
@@ -266,7 +266,7 @@ megabytes per second
 .El
 .Pp
 The standard
-.Nm iostat
+.Nm
 device display, with the
 .Fl I
 flag specified, shows the following statistics:
@@ -281,7 +281,7 @@ total number of megabytes transferred
 .El
 .Pp
 The old-style
-.Nm iostat
+.Nm
 display (using
 .Fl o )
 shows the following statistics:
@@ -296,7 +296,7 @@ average milliseconds per transaction
 .El
 .Pp
 The old-style
-.Nm iostat
+.Nm
 display, with the
 .Fl I
 flag specified, shows the following statistics:
@@ -387,7 +387,7 @@ The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
 .Sh HISTORY
 This version of
-.Nm iostat
+.Nm
 first appeared in
 .Fx 3.0 .
 .Sh BUGS

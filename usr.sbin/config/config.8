@@ -39,7 +39,7 @@
 .Nm config
 .Nd build system configuration files
 .Sh SYNOPSIS
-.Nm config
+.Nm
 .Op Fl gpr
 .Op Fl d Ar destdir
 .Ar SYSTEM_NAME
@@ -108,7 +108,8 @@ subdirectory of the system source (usually
 .Pa /sys/ARCH/conf ) ,
 where
 .Pa ARCH
-represents one of the architectures supported by FreeBSD.
+represents one of the architectures supported by
+.Fx .
 .Nm Config
 creates the directory
 .Pa ../../compile/SYSTEM_NAME
@@ -136,7 +137,7 @@ definitions of
 the number of various devices that will be compiled into the system.
 .Pp
 After running
-.Nm Ns ,
+.Nm ,
 it is necessary to run
 .Dq Li make depend
 in the directory where the new makefile
@@ -145,7 +146,7 @@ was created.
 prints a reminder of this when it completes.
 .Pp
 If any other error messages are produced by
-.Nm Ns ,
+.Nm ,
 the problems in the configuration file should be corrected and
 .Nm
 should be run again.
@@ -163,8 +164,7 @@ strings kernel | grep ___
 .Sh DEBUG KERNELS
 Traditional BSD kernels compiled without symbols due to the heavy load on the
 system when compiling a
-.if n "debug"
-.if t ``debug''
+.Dq debug
 kernel.  A debug kernel contains complete symbols for all the source files, and
 enables an experienced kernel programmer to analyse the cause of a problem.  The
 debuggers available prior to 4.4BSD-Lite were able to find some information
@@ -174,7 +174,9 @@ provides very little support for normal kernels, and a debug kernel is needed
 for any meaningful analysis.
 .Pp
 For reasons of history, time and space, building a debug kernel is not the
-default with FreeBSD: a debug kernel takes up to 30% longer to build and
+default with
+.Fx :
+a debug kernel takes up to 30% longer to build and
 requires about 30 MB of disk storage in the build directory, compared to about 6
 MB for a non-debug kernel.  A debug kernel is about 11 MB in size, compared to
 about 2 MB for a non-debug kernel.  This space is used both in the root file

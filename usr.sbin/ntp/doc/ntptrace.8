@@ -8,7 +8,7 @@
 .Nm ntptrace
 .Nd "trace a chain of NTP servers back to the primary source"
 .Sh SYNOPSIS
-.Nm ntptrace
+.Nm
 .Op Fl vdn
 .Op Fl r Ar retries
 .Op Fl t Ar timeout
@@ -22,7 +22,7 @@ If given no arguments, it starts with
 .Dq localhost .
 .Pp
 Here is an example of the output from
-.Nm Ns :
+.Nm :
 .Bd -literal
 % ntptrace
 localhost: stratum 4, offset 0.0019529, synch distance 0.144135
@@ -34,7 +34,7 @@ On each line, the fields are (left to right): the host name, the
 host stratum,
 the time offset between that host and the local host
 (as measured by
-.Nm Ns ;
+.Nm ;
 this is why it is not always zero for
 .Dq localhost ) ,
 the host

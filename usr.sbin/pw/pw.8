@@ -31,7 +31,7 @@
 .Nm pw
 .Nd create, remove, modify & display system users and groups
 .Sh SYNOPSIS
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
@@ -54,7 +54,7 @@
 .Op Fl N
 .Op Fl P
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
@@ -72,7 +72,7 @@
 .Op Fl w Ar method
 .Op Fl s Ar shell
 .Op Fl y Ar path
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar userdel
 .Op name|uid
@@ -80,7 +80,7 @@
 .Op Fl u Ar uid
 .Op Fl r
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar usermod
 .Op name|uid
@@ -104,7 +104,7 @@
 .Op Fl N
 .Op Fl P
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar usershow
 .Op name|uid
@@ -113,12 +113,12 @@
 .Op Fl F
 .Op Fl P
 .Op Fl a
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar usernext
 .Op Fl C Ar config
 .Op Fl q
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar groupadd
 .Op group|gid
@@ -132,14 +132,14 @@
 .Op Fl N
 .Op Fl P
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar groupdel
 .Op group|gid
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar groupmod
 .Op group|gid
@@ -155,7 +155,7 @@
 .Op Fl N
 .Op Fl P
 .Op Fl Y
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar groupshow
 .Op group|gid
@@ -164,7 +164,7 @@
 .Op Fl F
 .Op Fl P
 .Op Fl a
-.Nm pw
+.Nm
 .Op Fl V Ar etcdir
 .Ar groupnext
 .Op Fl C Ar config
@@ -458,7 +458,7 @@ for details.
 .It Fl h Ar fd
 This option provides a special interface by which interactive scripts can
 set an account password using
-.Nm pw .
+.Nm .
 Because the command line and environment are fundamentally insecure mechanisms
 by which programs can accept information,
 .Nm
@@ -482,7 +482,7 @@ for use by a script rather than for interactive use.
 If you wish to have new password confirmation along the lines of
 .Xr passwd 1 ,
 this must be implemented as part of an interactive script that calls
-.Nm pw .
+.Nm .
 .Pp
 If a value of
 .Ql \&-
@@ -578,7 +578,7 @@ creates a user's home directory.
 .It Fl u Ar min,max , Fl i Ar min,max
 These options set the minimum and maximum user and group ids allocated for new accounts
 and groups created by
-.Nm pw .
+.Nm .
 The default values for each is 1000 minimum and 32000 maximum.
 .Ar min
 and
@@ -683,7 +683,7 @@ The command
 returns the next available user and group ids separated by a colon.
 This is normally of interest only to interactive scripts or front-ends
 that use
-.Nm pw .
+.Nm .
 .Pp
 .Sh GROUP OPTIONS
 The

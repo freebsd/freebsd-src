@@ -4,12 +4,12 @@
 .\"
 .Dd May 8, 1995
 .Dt MROUTED 8
-.UC 5
+.Os
 .Sh NAME
 .Nm mrouted
 .Nd IP multicast routing daemon
 .Sh SYNOPSIS
-.Nm mrouted 
+.Nm
 .Op Fl c Ar config_file
 .Op Fl d Op Ar debug_level
 .Op Fl p
@@ -67,7 +67,7 @@ routing protocol, and does not (yet) support hierarchical multicast routing.
 .Nm Mrouted 
 handles multicast routing only; there may or may not be unicast routing
 software running on the same machine as 
-.Nm mrouted .
+.Nm .
 With the use of tunnels, it
 is not necessary for 
 .Nm 
@@ -145,7 +145,7 @@ option).
 The file format is free-form; whitespace (including newlines) is not
 significant.
 The file begins with commands that apply to
-.Nm mrouted Ns 's
+.Nm Ns 's
 overall operation or set defaults.
 .Bl -tag -width indent
 .It cache_lifetime Ar secs
@@ -186,7 +186,7 @@ Turning on noflood can cause black holes on restart, which will generally
 last approximately one full route report interval.
 The noflood keyword can also be specified on individual interfaces.
 .It rexmit_prunes Ar [on|off]
-.Nm Mrouted 's
+.Nm Mrouted Ns 's
 default is to retransmit prunes on all point-to-point interfaces
 (including tunnels) but no multi-access interfaces.  This option
 may be used to make the default on (or off) for all interfaces.
@@ -259,7 +259,7 @@ interface specified by the
 .Ar "local-addr|ifname"
 argument.  Some UNIX
 kernels rewrite the source address of
-.Nm mrouted 's
+.Nm Ns 's
 packets on their way out to contain the address of the transmission
 interface.  This is best assured via a static host route.
 .El
@@ -386,8 +386,8 @@ direct tunnels (i.e. eliminate the middle man).
 .Sh "EXAMPLE CONFIGURATION"
 This is an example configuration for a mythical multicast router at a big
 school.
-.sp
-.nf
+.Pp
+.Bd -literal
 #
 # mrouted.conf example
 #
@@ -420,14 +420,14 @@ tunnel 192.168.5.4 192.168.55.101 metric 1 threshold 1
 # Careful with those boundaries, Eugene.
 tunnel 192.168.5.4 10.11.12.13 metric 1 threshold 32
 	boundary LOCAL boundary EE
-.fi
+.Ed
 .Sh SIGNALS
 .Nm Mrouted 
 responds to the following signals:
 .Bl -tag -width indent
 .It HUP
 Restarts
-.Nm mrouted .
+.Nm .
 The configuration file is reread every time this signal is evoked.
 .It INT
 Terminate execution gracefully (i.e., by sending
@@ -451,11 +451,10 @@ For convenience in sending signals,
 writes its pid to
 .Pa /var/run/mrouted.pid
 upon startup.
-.Sh EXAMPLE
+.Sh EXAMPLES
 The routing tables look like this:
-.nf
-.ft C
-
+.Pp
+.Bd -literal
 Virtual Interface Table
  Vif  Local-Address                    Metric  Thresh  Flags
   0   36.2.0.8      subnet: 36.2/16       1       1    querier
@@ -488,8 +487,7 @@ Multicast Routing Table (1136 entries)
  .
  .
  .
-
-.fi
+.Ed
 .Pp
 In this example, there are four vifs connecting to two subnets and two
 tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
@@ -517,12 +515,11 @@ outgoing vif only if there are members of the destination group on that leaf.
 also maintains a copy of the kernel forwarding cache table.
 Entries
 are created and deleted by 
-.Nm mrouted .
+.Nm .
 .Pp
 The cache tables look like this:
-.nf
-.ft C
-
+.Pp
+.Bd -literal
 Multicast Routing Cache Table (147 entries)
  Origin             Mcast-group     CTmr  Age Ptmr IVif Forwvifs
  13.2.116/22        224.2.127.255     3m   2m    -  0    1 
@@ -534,8 +531,7 @@ Multicast Routing Cache Table (147 entries)
 >128.9.160.45
  198.106.194/24     224.2.135.190     9m  28s   9m  0P  
 >198.106.194.22
-
-.fi 
+.Ed 
 .Pp
 Each entry is characterized by the origin subnet number and mask and the
 destination multicast group.
