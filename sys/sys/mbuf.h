@@ -185,7 +185,7 @@ struct mbuf {
 /*
  * mbuf types
  */
-#define	MT_FREE		0	/* should be on free list */
+#define	MT_NOTMBUF	0	/* USED INTERNALLY ONLY! Object is not mbuf */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	2	/* packet header */
 #if 0
@@ -216,11 +216,12 @@ struct mbpstat {
 	u_long	mb_mbpgs;
 	u_long	mb_clfree;
 	u_long	mb_clpgs;
+	long	mb_mbtypes[MT_NTYPES];
 	short	mb_active;
 };
 
 /*
- * General mbuf statistics structure.
+ * General mbuf allocator statistics structure.
  * XXX: Modifications of these are not protected by any mutex locks nor by
  *	any atomic() manipulations. As a result, we may occasionally lose
  *	a count or two. Luckily, not all of these fields are modified at all
@@ -231,13 +232,15 @@ struct mbstat {
 	u_long	m_drops;	/* times failed to allocate */
 	u_long	m_wait;		/* times succesfully returned from wait */
 	u_long	m_drain;	/* times drained protocols for space */
-	u_long	m_mcfail;	/* times m_copym failed */
-	u_long	m_mpfail;	/* times m_pullup failed */
+	u_long	m_mcfail;	/* XXX: times m_copym failed */
+	u_long	m_mpfail;	/* XXX: times m_pullup failed */
 	u_long	m_msize;	/* length of an mbuf */
 	u_long	m_mclbytes;	/* length of an mbuf cluster */
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
+	short	m_numtypes;	/* number of mbtypes (gives # elems in mbpstat's
+				   mb_mbtypes[] array. */
 };
 
 /*
@@ -393,9 +396,10 @@ struct mbstat {
 } while (0)
 
 /*
- * change mbuf to new type
+ * Change mbuf to new type.
+ * This is a relatively expensive operation and should be avoided.
  */
-#define	MCHTYPE(m, t)	(m)->m_type = (t)
+#define	MCHTYPE(m, t)	m_chtype((m), (t))
 
 /* length to m_copy to copy all */
 #define	M_COPYALL	1000000000
@@ -430,6 +434,7 @@ void		 m_aux_delete(struct mbuf *, struct mbuf *);
 struct	mbuf 	*m_aux_find(struct mbuf *, int, int);
 struct	mbuf 	*m_aux_find2(struct mbuf *, int, int, void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
+void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*free)(caddr_t, void *), void *, short, int);

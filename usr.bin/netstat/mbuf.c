@@ -54,10 +54,8 @@ static const char rcsid[] =
 #define	YES	1
 typedef int bool;
 
-/* XXX: mbtypes stats temporarily disactivated. */
-#if 0
 static struct mbtypenames {
-	int	mt_type;
+	short	mt_type;
 	char	*mt_name;
 } mbtypenames[] = {
 	{ MT_DATA,	"data" },
@@ -92,7 +90,6 @@ static struct mbtypenames {
 #endif
 	{ 0, 0 }
 };
-#endif	/* 0 */
 
 /*
  * Print mbuf statistics.
@@ -102,41 +99,16 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
     u_long mblimaddr, u_long cllimaddr, u_long cpusaddr, u_long pgsaddr,
     u_long mbpaddr)
 {
-	int i, nmbufs, nmbclusters, page_size, num_objs;
+	int i, j, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_limit, clust_limit;
 	u_long totspace[2], totused[2], totnum, totfree;
+	short nmbtypes;
 	size_t mlen;
+	long *mbtypes = NULL;
 	struct mbstat *mbstat = NULL;
 	struct mbpstat **mbpstat = NULL;
-
-/* XXX: mbtypes stats temporarily disabled. */
-#if 0
-	int nmbtypes;
-	size_t mbtypeslen;
 	struct mbtypenames *mp;
-	u_long *mbtypes = NULL;
 	bool *seen = NULL;
-
-	/*
-	 * XXX
-	 * We can't kread() mbtypeslen from a core image so we'll
-	 * bogusly assume it's the same as in the running kernel.
-	 */
-	if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
-		warn("sysctl: retrieving mbtypes length");
-		goto err;
-	}
-	if ((mbtypes = malloc(mbtypeslen)) == NULL) {
-		warn("malloc: %lu bytes for mbtypes", (u_long)mbtypeslen);
-		goto err;
-	}
-
-	nmbtypes = mbtypeslen / sizeof(*mbtypes);
-	if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
-		warn("calloc");
-		goto err;
-	}
-#endif
 
 	mlen = sizeof *mbstat;
 	if ((mbstat = malloc(mlen)) == NULL) {
@@ -168,10 +140,6 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			goto err; 
 		if (kread(mbaddr, (char *)mbstat, sizeof mbstat))
 			goto err;
-#if 0
-		if (kread(mbtaddr, (char *)mbtypes, mbtypeslen))
-			goto err;
-#endif
 		if (kread(nmbcaddr, (char *)&nmbclusters, sizeof(int)))
 			goto err;
 		if (kread(nmbufaddr, (char *)&nmbufs, sizeof(int)))
@@ -194,13 +162,6 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 			warn("sysctl: retrieving mbstat");
 			goto err;
 		}
-#if 0
-		if (sysctlbyname("kern.ipc.mbtypes", mbtypes, &mbtypeslen, NULL,
-		    0) < 0) {
-			warn("sysctl: retrieving mbtypes");
-			goto err;
-		}
-#endif
 		mlen = sizeof(int);
 		if (sysctlbyname("kern.ipc.nmbclusters", &nmbclusters, &mlen,
 		    NULL, 0) < 0) {
@@ -233,6 +194,16 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 		}
 	}
 
+	nmbtypes = mbstat->m_numtypes;
+	if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
+		warn("calloc: cannot allocate memory for mbtypes seen flag");
+		goto err;
+	}
+	if ((mbtypes = calloc(nmbtypes, sizeof(long *))) == NULL) { 
+		warn("calloc: cannot allocate memory for mbtypes");
+		goto err;
+	}
+
 	for (i = 0; i < num_objs; i++)
 		mbpstat[i] = mbpstat[0] + i;
 
@@ -250,6 +221,8 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	    (mbpstat[GENLST]->mb_mbpgs * MBPERPG));
 	totnum = mbpstat[GENLST]->mb_mbpgs * MBPERPG;
 	totfree = mbpstat[GENLST]->mb_mbfree;
+	for (j = 1; j < nmbtypes; j++)
+		mbtypes[j] += mbpstat[GENLST]->mb_mbtypes[j];
 	totspace[0] = mbpstat[GENLST]->mb_mbpgs * page_size;
 	for (i = 0; i < (num_objs - 1); i++) {
 		if (mbpstat[i]->mb_active == 0)
@@ -260,11 +233,26 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 		totspace[0] += mbpstat[i]->mb_mbpgs * page_size;
 		totnum += mbpstat[i]->mb_mbpgs * MBPERPG;
 		totfree += mbpstat[i]->mb_mbfree;
+		for (j = 1; j < nmbtypes; j++)
+			mbtypes[j] += mbpstat[i]->mb_mbtypes[j]; 
 	}
 	totused[0] = totnum - totfree;
 	printf("\tTotal:\t\t%lu/%lu (in use/in pool)\n", totused[0], totnum);
 	printf("\tMaximum number allowed on each CPU list: %d\n", mbuf_limit);
 	printf("\tMaximum possible: %d\n", nmbufs);
+	printf("\tAllocated mbuf types:\n");
+	for (mp = mbtypenames; mp->mt_name; mp++) {
+		if (mbtypes[mp->mt_type]) {
+			seen[mp->mt_type] = YES;
+			printf("\t  %lu mbufs allocated to %s\n",
+				mbtypes[mp->mt_type], mp->mt_name);
+		}
+	}
+	for (i = 1; i < nmbtypes; i++) {
+		if (!seen[i] && mbtypes[i])
+			printf("\t  %lu mbufs allocated to <mbuf type: %d>\n",
+			    mbtypes[i], i);
+	}
 	printf("\t%lu%% of mbuf map consumed\n", ((totspace[0] * 100) / (nmbufs
 	    * MSIZE)));
 
@@ -300,12 +288,10 @@ mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
 	printf("%lu calls to protocol drain routines\n", mbstat->m_drain);
 
 err:
-#if 0
 	if (mbtypes != NULL)
 		free(mbtypes);
 	if (seen != NULL)
 		free(seen);
-#endif
 	if (mbstat != NULL)
 		free(mbstat);
 	if (mbpstat != NULL) {
