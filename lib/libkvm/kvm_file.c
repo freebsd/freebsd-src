@@ -50,7 +50,6 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 #undef KERNEL
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <nlist.h>
 #include <kvm.h>
 
