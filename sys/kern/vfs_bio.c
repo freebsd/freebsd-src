@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.167 1998/07/13 07:05:55 bde Exp $
+ * $Id: vfs_bio.c,v 1.168 1998/08/06 08:33:18 dfr Exp $
  */
 
 /*
@@ -366,7 +366,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 int
 bwrite(struct buf * bp)
 {
-	int oldflags;
+	int oldflags, s;
 	struct vnode *vp;
 	struct mount *mp;
 
@@ -386,6 +386,7 @@ bwrite(struct buf * bp)
 	bp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
 	bp->b_flags |= B_WRITEINPROG;
 
+	s = splbio();
 	if ((oldflags & B_DELWRI) == B_DELWRI) {
 		--numdirtybuffers;
 		reassignbuf(bp, bp->b_vp);
@@ -395,6 +396,7 @@ bwrite(struct buf * bp)
 	vfs_busy_pages(bp, 1);
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
+	splx(s);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
