@@ -86,9 +86,9 @@ int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
 			    int * prealloc_block));
 ino_t	ext2_new_inode __P ((const struct inode * dir, int mode));
 unsigned long ext2_count_free __P((struct buf *map, unsigned int numchars));
-void	ext2_free_blocks (struct mount * mp, unsigned long block,
-		       unsigned long count);
-void	ext2_free_inode (struct inode * inode);
+void	ext2_free_blocks __P((struct mount * mp, unsigned long block,
+			      unsigned long count));
+void	ext2_free_inode __P((struct inode * inode));
 void	ext2_ei2di __P((struct ext2_inode *ei, struct dinode *di));
 void	ext2_di2ei __P((struct dinode *di, struct ext2_inode *ei));
 void	mark_buffer_dirty __P((struct buf *bh));

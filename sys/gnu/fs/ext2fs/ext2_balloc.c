@@ -135,8 +135,8 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 				printf("nsize %d(%d) > osize %d(%d) nb %d\n", 
 					(int)nsize, (int)size, (int)osize, 
 					(int)ip->i_size, (int)nb);
-				panic("ext2_balloc: "
-					"Something is terribly wrong\n");
+				panic(
+				    "ext2_balloc: Something is terribly wrong");
 /*
  * please note there haven't been any changes from here on -
  * FFS seems to work.
@@ -174,7 +174,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 		return(error);
 #if DIAGNOSTIC
 	if (num < 1)
-		panic ("ext2_balloc: ufs_bmaparray returned indirect block\n");
+		panic ("ext2_balloc: ufs_bmaparray returned indirect block");
 #endif
 	/*
 	 * Fetch the first indirect block allocating if necessary.
