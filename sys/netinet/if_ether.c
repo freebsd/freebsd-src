@@ -722,6 +722,7 @@ match:
 				m->m_pkthdr.len += rif_len;
 			} else {
 				th->iso88025_shost[0] &= ~TR_RII;
+				trld->trld_rcf = 0;
 			}
 			m->m_data -= 8;
 			m->m_len  += 8;
