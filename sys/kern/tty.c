@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.40 1995/03/29 19:22:37 ache Exp $
+ * $Id: tty.c,v 1.41 1995/03/29 19:24:46 ache Exp $
  */
 
 #include "snp.h"
@@ -66,6 +66,7 @@
 
 
 static int	proc_compare __P((struct proc *p1, struct proc *p2));
+static int	ttnread __P((struct tty *));
 static void	ttyblock __P((struct tty *tp));
 static void	ttyecho __P((int, struct tty *tp));
 static void	ttyrubo __P((struct tty *, int));
@@ -1005,7 +1006,7 @@ ttselect(dev, rw, p)
  * This is now exported to the cy driver as well; if you hack this code,
  * then be sure to keep /sys/i386/isa/cy.c properly advised! -jkh
  */
-int
+static int
 ttnread(tp)
 	struct tty *tp;
 {
@@ -1486,7 +1487,44 @@ read:
 	 * Input present, check for input mapping and processing.
 	 */
 	first = 1;
-	while ((c = getc(qp)) >= 0) {
+	if (ISSET(lflag, ICANON | ISIG))
+		goto slowcase;
+	for (;;) {
+		char ibuf[IBUFSIZ];
+		int icc;
+
+		icc = min(uio->uio_resid, IBUFSIZ);
+		icc = q_to_b(qp, ibuf, icc);
+		if (icc <= 0) {
+			if (first)
+				goto loop;
+			break;
+		}
+		error = uiomove(ibuf, icc, uio);
+		/*
+		 * XXX if there was an error then we should ungetc() the
+		 * unmoved chars and reduce icc here.
+		 */
+#if NSNP > 0
+		if (ISSET(tp->t_lflag, ECHO) &&
+		    ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
+			snpin((struct snoop *)tp->t_sc, ibuf, icc);
+#endif
+		if (error)
+			break;
+ 		if (uio->uio_resid == 0)
+			break;
+		first = 0;
+	}
+	goto out;
+slowcase:
+	for (;;) {
+		c = getc(qp);
+		if (c < 0) {
+			if (first)
+				goto loop;
+			break;
+		}
 		/*
 		 * delayed suspend (^Y)
 		 */
@@ -1506,24 +1544,22 @@ read:
 		 */
 		if (CCEQ(cc[VEOF], c) && ISSET(lflag, ICANON))
 			break;
-		
-#if NSNP > 0
-		/*
-		 * Only when tty echoes characters , we want to
-		 * feed them to the snoop device.Else they will come
-		 * there if the application would like to.
-		 */
-                if (ISSET(tp->t_lflag, ECHO))
-                        if (ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
-                                snpinc((struct snoop *)tp->t_sc, (char)c);
-#endif
-
 		/*
 		 * Give user character.
 		 */
  		error = ureadc(c, uio);
 		if (error)
+			/* XXX should ungetc(c, qp). */
 			break;
+#if NSNP > 0
+		/*
+		 * Only snoop directly on input in echo mode.  Non-echoed
+		 * input will be snooped later iff the application echoes it.
+		 */
+		if (ISSET(tp->t_lflag, ECHO) &&
+		    ISSET(tp->t_state, TS_SNOOP) && tp->t_sc != NULL)
+			snpinc((struct snoop *)tp->t_sc, (char)c);
+#endif
  		if (uio->uio_resid == 0)
 			break;
 		/*
@@ -1535,9 +1571,10 @@ read:
 		first = 0;
 	}
 	/*
-	 * Look to unblock output now that (presumably)
+	 * Look to unblock input now that (presumably)
 	 * the input queue has gone down.
 	 */
+out:
 	s = spltty();
 	if (ISSET(tp->t_state, TS_TBLOCK) && tp->t_rawq.c_cc < TTYHOG/5) {
 		int queue_full = 0;
