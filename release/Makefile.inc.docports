@@ -12,9 +12,11 @@
 MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/archivers/unzip \
+	ports/converters/libiconv
 	ports/devel/gettext \
 	ports/devel/gmake \
 	ports/devel/libtool \
+	ports/devel/pkgconfig \
 	ports/graphics/peps \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
@@ -32,6 +34,8 @@ MINIMALDOCPORTS= \
 	ports/textproc/html \
 	ports/textproc/iso8879 \
 	ports/textproc/jade \
+	ports/textproc/libxml2 \
+	ports/textproc/libxslt \
 	ports/textproc/linuxdoc \
 	ports/textproc/mkcatalog \
 	ports/textproc/sgmlformat \
