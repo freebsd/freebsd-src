@@ -137,7 +137,6 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 static struct g_class g_vol_ffs_class	= {
 	.name = VOL_FFS_CLASS_NAME,
 	.taste = g_vol_ffs_taste,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_vol_ffs_class, g_vol_ffs);

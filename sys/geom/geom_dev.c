@@ -74,7 +74,6 @@ static g_orphan_t g_dev_orphan;
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.taste = g_dev_taste,
-	G_CLASS_INITIALIZER
 };
 
 int

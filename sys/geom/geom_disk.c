@@ -61,7 +61,6 @@ static g_access_t g_disk_access;
 
 struct g_class g_disk_class = {
 	.name = "DISK",
-	G_CLASS_INITIALIZER
 };
 
 static void

@@ -262,7 +262,6 @@ g_apple_taste(struct g_class *mp, struct g_provider *pp, int insist)
 static struct g_class g_apple_class	= {
 	.name = APPLE_CLASS_NAME,
 	.taste = g_apple_taste,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_apple_class, g_apple);
