@@ -1,24 +1,45 @@
-#       @(#)Makefile	8.3 (Berkeley) 2/27/94
+#       @(#)Makefile	8.12 (Berkeley) 5/29/95
 
-SUBDIR= src mailstats makemap praliases
-FTPDIR=	barad-dur:/disks/barad-dur/ftp/sendmail/.
 VER=	XX
+SUBDIR= src mailstats makemap praliases cf/cf
+FTPDIR=	mastodon:/disks/barad-dur/ftp/sendmail/.
+DISTFILES=sendmail.${VER}.tar.Z sendmail.${VER}.tar.gz \
+	RELEASE_NOTES FAQ KNOWNBUGS
+FILES=	Files.base Files.cf Files.misc Files.xdoc
 
-tar: Files.base Files.cf Files.misc Files.xdoc
+tar: sccs-check compile-world run-pax
+
+sccs-check:
+	sccs check
+	(cd src; sccs check)
+	(cd doc/op; sccs check)
+	(cd doc/intro; sccs check)
+	(cd doc/usenix; sccs check)
+	(cd cf; sccs check)
+	(cd cf/m4; sccs check)
+	(cd cf/mailer; sccs check)
+	(cd cf/feature; sccs check)
+	(cd cf/cf; sccs check)
+	(cd cf/ostype; sccs check)
+	(cd cf/domain; sccs check)
+
+compile-world:
 	(cd src; ${MAKE})
 	(cd doc; PRINTER=ps ${MAKE})
 	(cd doc; chmod 444 op/op.ps intro/intro.ps usenix/usenix.ps)
 	(cd cf/cf; ${MAKE})
-	pax -w -x tar -L -f sendmail.${VER}.base.tar `grep -v ^# Files.base`
-	compress sendmail.${VER}.base.tar
-	pax -w -x tar -L -f sendmail.${VER}.cf.tar `grep -v ^# Files.cf`
-	compress sendmail.${VER}.cf.tar
-	pax -w -x tar -L -f sendmail.${VER}.misc.tar `grep -v ^# Files.misc`
-	compress sendmail.${VER}.misc.tar
-	pax -w -x tar -L -f sendmail.${VER}.xdoc.tar `grep -v ^# Files.xdoc`
-	compress sendmail.${VER}.xdoc.tar
 
-ftp: sendmail.${VER}.base.tar.Z sendmail.${VER}.cf.tar.Z sendmail.${VER}.misc.tar.Z sendmail.${VER}.xdoc.tar.Z
-	rcp sendmail.${VER}.*.tar.Z RELEASE_NOTES FAQ KNOWNBUGS ${FTPDIR}
+run-pax: Files.base Files.cf Files.misc Files.xdoc
+	chmod +x src/makesendmail
+	pax -w -x tar -L \
+		-s ",cf/domain/unspecified-domain,sendmail-${VER}/cf/domain/berkeley-only,p" \
+		-s ",^,sendmail-${VER}/," \
+		-f sendmail.${VER}.tar \
+		`cat ${FILES} | grep -v ^#`
+	gzip -c sendmail.${VER}.tar > sendmail.${VER}.tar.gz
+	compress sendmail.${VER}.tar
+
+ftp: sendmail.${VER}.tar.Z
+	rcp ${DISTFILES} ${FTPDIR}
 
 .include <bsd.subdir.mk>
