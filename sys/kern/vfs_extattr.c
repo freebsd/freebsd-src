@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.81 1997/11/12 05:42:17 julian Exp $
+ * $Id: vfs_syscalls.c,v 1.82 1997/11/13 00:28:50 julian Exp $
  */
 
 /*
@@ -274,10 +274,11 @@ update:
 		if (mp->mnt_kern_flag & MNTK_WANTRDWR)
 			mp->mnt_flag &= ~MNT_RDONLY;
 		mp->mnt_flag &=~ (MNT_UPDATE | MNT_RELOAD | MNT_FORCE);
-		mp->mnt_kern_flag &=~ (MNTK_WANTRDWR);
-		if (error)
+		mp->mnt_kern_flag &=~ MNTK_WANTRDWR;
+		if (error) {
 			mp->mnt_flag = flag;
 			mp->mnt_kern_flag = flag2;
+		}
 		vfs_unbusy(mp, p);
 		return (error);
 	}
