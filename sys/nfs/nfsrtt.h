@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrtt.h	8.2 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfsrtt.h,v 1.7 1997/02/22 09:42:50 peter Exp $
  */
 
 
@@ -58,7 +58,7 @@
 struct nfsrtt {
 	int pos;			/* Position in array for next entry */
 	struct rttl {
-		int	proc;		/* NFS procedure number */
+		u_int32_t proc;		/* NFS procedure number */
 		int	rtt;		/* Measured round trip time */
 		int	rto;		/* Round Trip Timeout */
 		int	sent;		/* # rpcs in progress */
@@ -94,7 +94,7 @@ struct nfsdrt {
 	int pos;			/* Position of next log entry */
 	struct drt {
 		int	flag;		/* Bits as defined above */
-		int	proc;		/* NFS procedure number */
+		u_int32_t proc;		/* NFS procedure number */
 		u_long	ipadr;		/* IP address of client */
 		int	resptime;	/* Response time (usec) */
 		struct timeval tstamp;	/* Timestamp of log entry */
