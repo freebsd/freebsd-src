@@ -281,13 +281,6 @@ DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 
-static int fxp_rnr;
-SYSCTL_INT(_hw, OID_AUTO, fxp_rnr, CTLFLAG_RW, &fxp_rnr, 0, "fxp rnr events");
-
-static int fxp_noflow;
-SYSCTL_INT(_hw, OID_AUTO, fxp_noflow, CTLFLAG_RW, &fxp_noflow, 0, "fxp flow control disabled");
-TUNABLE_INT("hw.fxp_noflow", &fxp_noflow);
-
 /*
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
@@ -412,7 +405,6 @@ fxp_attach(device_t dev)
 
 	sc->dev = dev;
 	callout_init(&sc->stat_ch, CALLOUT_MPSAFE);
-	sysctl_ctx_init(&sc->sysctl_ctx);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
@@ -496,34 +488,38 @@ fxp_attach(device_t dev)
 	    (data & FXP_PHY_SERIAL_ONLY))
 		sc->flags |= FXP_FLAG_SERIAL_MEDIA;
 
-	/*
-	 * Create the sysctl tree
-	 */
-	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
-	    device_get_nameunit(dev), CTLFLAG_RD, 0, "");
-	if (sc->sysctl_tree == NULL) {
-		error = ENXIO;
-		goto fail;
-	}
-	SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "int_delay", CTLTYPE_INT | CTLFLAG_RW,
 	    &sc->tunable_int_delay, 0, sysctl_hw_fxp_int_delay, "I",
 	    "FXP driver receive interrupt microcode bundling delay");
-	SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "bundle_max", CTLTYPE_INT | CTLFLAG_RW,
 	    &sc->tunable_bundle_max, 0, sysctl_hw_fxp_bundle_max, "I",
 	    "FXP driver receive interrupt microcode bundle size limit");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "rnr", CTLFLAG_RD, &sc->rnr, 0,
+	    "FXP RNR events");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "noflow", CTLFLAG_RW, &sc->tunable_noflow, 0,
+	    "FXP flow control disabled");
 
 	/*
 	 * Pull in device tunables.
 	 */
 	sc->tunable_int_delay = TUNABLE_INT_DELAY;
 	sc->tunable_bundle_max = TUNABLE_BUNDLE_MAX;
+	sc->tunable_noflow = 0;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "int_delay", &sc->tunable_int_delay);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "bundle_max", &sc->tunable_bundle_max);
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "noflow", &sc->tunable_noflow);
+	sc->rnr = 0;
 
 	/*
 	 * Find out the chip revision; lump all 82557 revs together.
@@ -922,8 +918,6 @@ fxp_release(struct fxp_softc *sc)
 		bus_dma_tag_destroy(sc->cbl_tag);
 	if (sc->mcs_tag)
 		bus_dma_tag_destroy(sc->mcs_tag);
-
-        sysctl_ctx_free(&sc->sysctl_ctx);
 
 	mtx_destroy(&sc->sc_mtx);
 }
@@ -1642,7 +1636,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	if (rnr)
-		fxp_rnr++;
+		sc->rnr++;
 #ifdef DEVICE_POLLING
 	/* Pick up a deferred RNR condition if `count' ran out last time. */
 	if (sc->flags & FXP_FLAG_DEFERRED_RNR) {
@@ -2129,7 +2123,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
 	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 
-	if (fxp_noflow || sc->revision == FXP_REV_82557) {
+	if (sc->tunable_noflow || sc->revision == FXP_REV_82557) {
 		/*
 		 * The 82557 has no hardware flow control, the values
 		 * below are the defaults for the chip.

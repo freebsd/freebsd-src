@@ -180,10 +180,10 @@ struct fxp_softc {
 	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
-	struct sysctl_ctx_list sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
 	int tunable_int_delay;		/* interrupt delay value for ucode */
 	int tunable_bundle_max;		/* max # frames per interrupt (ucode) */
+	int tunable_noflow;		/* flow control disabled */
+	int rnr;			/* RNR events */
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended or dead */
 	int cu_resume_bug;
