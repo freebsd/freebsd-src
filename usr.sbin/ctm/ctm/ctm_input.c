@@ -77,10 +77,6 @@ Fbytecnt(FILE *fd, MD5_CTX *ctx, u_char term)
 	u_chars *= 10;
 	u_chars += (*q - '0');
     }
-    if(u_chars > MAXSIZE) {
-	Fatal("Bytecount too large.");
-	return -1;
-    }
     return u_chars;
 }
 
