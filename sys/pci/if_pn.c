@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.32 1998/11/29 06:40:07 wpaul Exp $
+ *	$Id: if_pn.c,v 1.1 1998/12/04 18:01:21 wpaul Exp $
  */
 
 /*
@@ -95,7 +95,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_pn.c,v 1.32 1998/11/29 06:40:07 wpaul Exp $";
+	"$Id: if_pn.c,v 1.1 1998/12/04 18:01:21 wpaul Exp $";
 #endif
 
 /*
@@ -1489,6 +1489,12 @@ static void pn_start(ifp)
 			bpf_mtap(ifp, cur_tx->pn_mbuf);
 #endif
 	}
+
+	/*
+	 * If there are no packets queued, bail.
+	 */
+	if (cur_tx == NULL)
+		return;
 
 	/*
 	 * Place the request for the upload interrupt

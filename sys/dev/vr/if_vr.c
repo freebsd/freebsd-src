@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.13 1998/12/01 22:08:11 wpaul Exp $
+ *	$Id: if_vr.c,v 1.1 1998/12/04 18:01:21 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_vr.c,v 1.13 1998/12/01 22:08:11 wpaul Exp $";
+	"$Id: if_vr.c,v 1.1 1998/12/04 18:01:21 wpaul Exp $";
 #endif
 
 /*
@@ -1625,6 +1625,12 @@ static void vr_start(ifp)
 			bpf_mtap(ifp, cur_tx->vr_mbuf);
 #endif
 	}
+
+	/*
+	 * If there are no frames queued, bail.
+	 */
+	if (cur_tx == NULL)
+		return;
 
 	/*
 	 * Place the request for the upload interrupt

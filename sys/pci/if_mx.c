@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.28 1998/12/04 21:34:33 wpaul Exp $
+ *	$Id: if_mx.c,v 1.2 1998/12/04 21:48:12 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_mx.c,v 1.28 1998/12/04 21:34:33 wpaul Exp $";
+	"$Id: if_mx.c,v 1.2 1998/12/04 21:48:12 wpaul Exp $";
 #endif
 
 /*
@@ -2026,6 +2026,12 @@ static void mx_start(ifp)
 			bpf_mtap(ifp, cur_tx->mx_mbuf);
 #endif
 	}
+
+	/*
+	 * If there are no frames queued, bail.
+	 */
+	if (cur_tx == NULL)
+		return;
 
 	/*
 	 * Place the request for the upload interrupt

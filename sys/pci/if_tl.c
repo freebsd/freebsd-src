@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.18 1998/10/08 15:45:36 wpaul Exp $
+ *	$Id: if_tl.c,v 1.19 1998/10/31 17:23:48 wpaul Exp $
  */
 
 /*
@@ -218,7 +218,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.18 1998/10/08 15:45:36 wpaul Exp $";
+	"$Id: if_tl.c,v 1.19 1998/10/31 17:23:48 wpaul Exp $";
 #endif
 
 #ifdef TL_DEBUG
@@ -2438,6 +2438,12 @@ static void tl_start(ifp)
 			bpf_mtap(ifp, cur_tx->tl_mbuf);
 #endif
 	}
+
+	/*
+	 * If there are no packets queued, bail.
+	 */
+	if (cur_tx == NULL)
+		return;
 
 	/*
 	 * That's all we can stands, we can't stands no more.
