@@ -234,7 +234,7 @@ label:
 				pt = _fmt("%H:%M", t, pt, ptlim);
 				continue;
 			case 'r':
-				pt = _fmt("%I:%M:%S %p", t, pt, ptlim);
+				pt = _fmt(tptr->ampm_fmt, t, pt, ptlim);
 				continue;
 			case 'S':
 				pt = _conv(t->tm_sec, "%02d", pt, ptlim);

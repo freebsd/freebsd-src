@@ -181,7 +181,7 @@ label:
 			break;
 
 		case 'r':
-			buf = _strptime(buf, "%I:%M:%S %p", tm);
+			buf = _strptime(buf, tptr->ampm_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
