@@ -172,25 +172,25 @@ extern vm_object_t kmem_object;
 #ifdef _KERNEL
 
 static __inline void
-vm_object_set_flag(vm_object_t object, u_int bits)
+vm_object_set_flag(vm_object_t object, u_short bits)
 {
 	atomic_set_short(&object->flags, bits);
 }
 
 static __inline void
-vm_object_clear_flag(vm_object_t object, u_int bits)
+vm_object_clear_flag(vm_object_t object, u_short bits)
 {
 	atomic_clear_short(&object->flags, bits);
 }
 
 static __inline void
-vm_object_pip_add(vm_object_t object, int i)
+vm_object_pip_add(vm_object_t object, short i)
 {
 	atomic_add_short(&object->paging_in_progress, i);
 }
 
 static __inline void
-vm_object_pip_subtract(vm_object_t object, int i)
+vm_object_pip_subtract(vm_object_t object, short i)
 {
 	atomic_subtract_short(&object->paging_in_progress, i);
 }
@@ -206,7 +206,7 @@ vm_object_pip_wakeup(vm_object_t object)
 }
 
 static __inline void
-vm_object_pip_wakeupn(vm_object_t object, int i)
+vm_object_pip_wakeupn(vm_object_t object, short i)
 {
 	if (i)
 		atomic_subtract_short(&object->paging_in_progress, i);
