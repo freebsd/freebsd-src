@@ -69,9 +69,6 @@ __FBSDID("$FreeBSD$");
  *   if in fact he did me much of a favor)
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>

@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * 3Com 3c90x Etherlink XL PCI NIC driver
  *
@@ -71,7 +74,6 @@
  * Electrical Engineering Department
  * Columbia University, New York City
  */
-
 /*
  * The 3c90x series chips use a bus-master DMA interface for transfering
  * packets to and from the controller chip. Some of the "vortex" cards
@@ -98,9 +100,6 @@
  * This driver is in the /sys/pci directory because it only supports
  * PCI-based NICs.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
