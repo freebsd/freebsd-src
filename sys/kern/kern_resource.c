@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.18 1996/01/16 18:10:19 phk Exp $
+ * $Id: kern_resource.c,v 1.19 1996/03/11 06:04:20 hsu Exp $
  */
 
 #include <sys/param.h>
@@ -490,11 +490,8 @@ calcru(p, up, sp, ip)
 
 	tot = st + ut + it;
 	if (tot == 0) {
-		up->tv_sec = up->tv_usec = 0;
-		sp->tv_sec = sp->tv_usec = 0;
-		if (ip != NULL)
-			ip->tv_sec = ip->tv_usec = 0;
-		return;
+		st = 1;
+		tot = 1;
 	}
 
 	sec = p->p_rtime.tv_sec;
@@ -511,7 +508,8 @@ calcru(p, up, sp, ip)
 	}
 	totusec = (quad_t)sec * 1000000 + usec;
 	if (totusec < 0) {
-		printf("calcru: negative time: %d usec\n", totusec);
+		/* XXX no %qd in kernel.  Truncate. */
+		printf("calcru: negative time: %ld usec\n", (long)totusec);
 		totusec = 0;
 	}
 	u = totusec;
