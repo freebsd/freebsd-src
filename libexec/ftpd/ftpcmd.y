@@ -166,6 +166,10 @@ cmd
 			pass($3);
 			free($3);
 		}
+	| PASS CRLF
+		{
+			pass("");
+		}
 	| PORT check_login SP host_port CRLF
 		{
 			if (epsvall) {
@@ -1028,7 +1032,7 @@ extern jmp_buf errcatch;
 #define	STR1	2	/* expect SP followed by STRING */
 #define	STR2	3	/* expect STRING */
 #define	OSTR	4	/* optional SP then STRING */
-#define	ZSTR1	5	/* SP then optional STRING */
+#define	ZSTR1	5	/* optional SP then optional STRING */
 #define	ZSTR2	6	/* optional STRING after SP */
 #define	SITECMD	7	/* SITE command */
 #define	NSTR	8	/* Number followed by a string */
@@ -1043,7 +1047,7 @@ struct tab {
 
 struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "USER", USER, STR1, 1,	"<sp> username" },
-	{ "PASS", PASS, ZSTR1, 1,	"<sp> password" },
+	{ "PASS", PASS, ZSTR1, 1,	"[<sp> [password]]" },
 	{ "ACCT", ACCT, STR1, 0,	"(specify account)" },
 	{ "SMNT", SMNT, ARGS, 0,	"(structure mount)" },
 	{ "REIN", REIN, ARGS, 0,	"(reinitialize server state)" },
@@ -1298,6 +1302,7 @@ yylex()
 			state = CMD;
 			break;
 
+		case ZSTR1:
 		case OSTR:
 			if (cbuf[cpos] == '\n') {
 				state = CMD;
@@ -1306,7 +1311,6 @@ yylex()
 			/* FALLTHROUGH */
 
 		case STR1:
-		case ZSTR1:
 		dostr1:
 			if (cbuf[cpos] == ' ') {
 				cpos++;
