@@ -2666,7 +2666,7 @@ process_command (argc, argv)
     }
 
   GET_ENV_PATH_LIST (temp, "LIBRARY_PATH");
-  if (temp && *cross_compile == '0')
+  if (temp)
     {
       const char *startp, *endp;
       char *nstore = (char *) alloca (strlen (temp) + 3);
@@ -3083,11 +3083,11 @@ process_command (argc, argv)
     {
     case OBJFMT_AOUT:
       n_switches++;		/* add implied -maout */
-      add_prefix (&exec_prefixes, "/usr/libexec/aout/", "BINUTILS",
+      add_prefix (&exec_prefixes, PREFIX"/libexec/aout/", "BINUTILS",
 		  0, 0, NULL_PTR);
       break;
     case OBJFMT_ELF:
-      add_prefix (&exec_prefixes, "/usr/libexec/elf/", "BINUTILS",
+      add_prefix (&exec_prefixes, PREFIX"/libexec/elf/", "BINUTILS",
 		  0, 0, NULL_PTR);
       break;
     case OBJFMT_UNKNOWN:
