@@ -320,10 +320,6 @@ startprofclock(p)
 	 * cover psdiv, etc. as well.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_sflag & PS_STOPPROF) {
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
 	if ((p->p_sflag & PS_PROFIL) == 0) {
 		p->p_sflag |= PS_PROFIL;
 		if (++profprocs == 1 && stathz != 0) {
@@ -345,19 +341,9 @@ stopprofclock(p)
 {
 	int s;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-retry:
 	mtx_lock_spin(&sched_lock);
 	if (p->p_sflag & PS_PROFIL) {
-		if (p->p_profthreads) {
-			p->p_sflag |= PS_STOPPROF;
-			mtx_unlock_spin(&sched_lock);
-			msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
-			       "stopprof", NULL);
-			goto retry;
-		}
-		p->p_sflag &= ~(PS_PROFIL|PS_STOPPROF);
+		p->p_sflag &= ~PS_PROFIL;
 		if (--profprocs == 0 && stathz != 0) {
 			s = splstatclock();
 			psdiv = pscnt = 1;
@@ -377,7 +363,10 @@ retry:
  * this function's relationship to statclock.
  */
 void
-statclock_process(struct thread *td, register_t pc, int user)
+statclock_process(ke, pc, user)
+	struct kse *ke;
+	register_t pc;
+	int user;
 {
 #ifdef GPROF
 	struct gmonparam *g;
@@ -387,31 +376,27 @@ statclock_process(struct thread *td, register_t pc, int user)
 	long rss;
 	struct rusage *ru;
 	struct vmspace *vm;
-	struct proc *p = td->td_proc;
+	struct proc *p = ke->ke_proc;
+	struct thread *td = ke->ke_thread; /* current thread */
 
+	KASSERT(ke == curthread->td_kse, ("statclock_process: td != curthread"));
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (user) {
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
 		 */
-		if (p->p_sflag & PS_PROFIL) {
-			/* Only when thread is not in transition */
-			if (!(td->td_flags & TDF_UPCALLING))
-				addupc_intr(td, pc, 1);
-		}
+		if (p->p_sflag & PS_PROFIL)
+			addupc_intr(ke, pc, 1);
 		if (pscnt < psdiv)
 			return;
 		/*
 		 * Charge the time as appropriate.
 		 */
 		if (p->p_flag & P_KSES)
-			thread_statclock(1);
-		/*
-		    td->td_uticks++;
-		*/
-		p->p_uticks++;
-		if (td->td_ksegrp->kg_nice > NZERO)
+			thread_add_ticks_intr(1, 1);
+		ke->ke_uticks++;
+		if (ke->ke_ksegrp->kg_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
 			cp_time[CP_USER]++;
@@ -444,16 +429,12 @@ statclock_process(struct thread *td, register_t pc, int user)
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
 		if ((td->td_ithd != NULL) || td->td_intr_nesting_level >= 2) {
-			p->p_iticks++;
-			/*
-			    td->td_iticks++;
-			*/
+			ke->ke_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
 			if (p->p_flag & P_KSES)
-				thread_statclock(0);
-			td->td_sticks++;
-			p->p_sticks++;
+				thread_add_ticks_intr(0, 1);
+			ke->ke_sticks++;
 			if (p != PCPU_GET(idlethread)->td_proc)
 				cp_time[CP_SYS]++;
 			else
@@ -461,7 +442,7 @@ statclock_process(struct thread *td, register_t pc, int user)
 		}
 	}
 
-	sched_clock(td);
+	sched_clock(ke->ke_thread);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&
@@ -491,7 +472,7 @@ statclock(frame)
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	if (--pscnt == 0)
 		pscnt = psdiv;
-	statclock_process(curthread, CLKF_PC(frame), CLKF_USERMODE(frame));
+	statclock_process(curthread->td_kse, CLKF_PC(frame), CLKF_USERMODE(frame));
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 }
 

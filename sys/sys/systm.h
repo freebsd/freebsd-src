@@ -202,7 +202,7 @@ void	hardclock(struct clockframe *frame);
 void	hardclock_process(struct thread *td, int user);
 void	softclock(void *);
 void	statclock(struct clockframe *frame);
-void	statclock_process(struct thread *td, register_t pc, int user);
+void	statclock_process(struct kse *ke, register_t pc, int user);
 
 void	startprofclock(struct proc *);
 void	stopprofclock(struct proc *);

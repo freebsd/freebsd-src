@@ -353,7 +353,7 @@ BUF_KERNPROC(struct buf *bp)
 	struct thread *td = curthread;
 
 	if ((td != PCPU_GET(idlethread))
-	&& bp->b_lock.lk_lockholder == td)
+	&& bp->b_lock.lk_lockholder == td->td_proc->p_pid)
 		td->td_locks--;
 	bp->b_lock.lk_lockholder = LK_KERNPROC;
 }

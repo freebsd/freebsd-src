@@ -285,7 +285,7 @@ cpu_set_upcall(struct thread *td, void *pcb)
 }
 
 void
-cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
+cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 {
 
 	return;
