@@ -1,0 +1,34 @@
+# rc.diskless2
+#
+
+# If there is a global system configuration file, suck it in.
+#
+
+if [ -f /etc/rc.conf ]; then
+        . /etc/rc.conf
+fi
+
+mount_mfs -s ${var_run_sectors:=2048} -T qp120at dummy /var/run
+mount_mfs -s ${var_db_sectors:=16384} -T qp120at dummy /var/db
+mount_mfs -s ${var_tmp_sectors:=65536} -T qp120at dummy /var/tmp
+mount_mfs -s ${var_spool_sectors:=65536} -T qp120at dummy /var/spool
+chmod 755 /var/run
+chmod 755 /var/db
+chmod 755 /var/spool
+chmod 1777 /var/tmp
+
+if [ ! -h /tmp -a ! -h /var/tmp ]; then
+	mount_null /var/tmp /tmp
+fi
+
+mkdir /var/spool/mqueue
+mkdir /var/spool/lpd
+mkdir /var/spool/output
+mkdir /var/spool/output/lpd
+chown -R root.daemon /var/spool/output
+chgrp daemon /var/spool/lpd
+
+( cd /; find -x dev | cpio -o -H newc ) > /tmp/dev.tmp
+mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+( cd /; cpio -i -H newc -d < /tmp/dev.tmp )
+

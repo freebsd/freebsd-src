@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.175 1999/01/31 04:28:51 grog Exp $
+#	$Id: rc,v 1.176 1999/02/09 05:20:46 dillon Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -23,14 +23,12 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
-# handle read-only NFS mounts, where the various config files
-# in /etc often don't apply.   rc.diskless typically sets skip_diskconf=YES
-# on return.
+# retarget various config files.
 #
-if [ -f /etc/rc.diskless ]; then
+if [ -f /etc/rc.diskless1 ]; then
 	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 	if [ ${dlv:=0} != 0 ]; then
-		. /etc/rc.diskless
+		. /etc/rc.diskless1
 	fi
 fi
 
@@ -41,19 +39,17 @@ if [ -f /etc/rc.conf ]; then
 fi
 
 # Configure ccd devices.
-if [ "X$skip_diskconf" != "XYES" -a -f /etc/ccd.conf ]; then
+if [ -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
-if [ "X$skip_diskconf" != "XYES" -a -n "$vinum_drives" ]; then
+if [ -n "$vinum_drives" ]; then
 	vinum read $vinum_drives
 fi
 
-if [ "X$skip_diskconf" != "XYES" ]; then
-	swapon -a
-fi
+swapon -a
 
-if [ "X$skip_diskconf" != "XYES" -a $1x = autobootx ]; then
+if [ $1x = autobootx ]; then
 	echo Automatic reboot in progress...
 	fsck -p
 	case $? in
@@ -94,30 +90,35 @@ trap "echo 'Reboot interrupted'; exit 1" 3
 # diskless boot it does not have to be.
 #
 
-if [ "X$skip_diskconf" != "XYES" ]; then
+if [ "X$root_rw_mount" != "XNO" ]; then
 	mount -u -o rw /
+fi
 
-	if [ $? != 0 ]; then
-		echo "Filesystem mount failed, startup aborted"
-		exit 1
-	fi
+if [ $? != 0 ]; then
+	echo "Filesystem mount failed, startup aborted"
+	exit 1
+fi
 
-	umount -a >/dev/null 2>&1
+umount -a >/dev/null 2>&1
 
+if [ "X$early_nfs_mounts" != "XYES" ]; then
 	mount -a -t nonfs
-	if [ $? != 0 ]; then
-		echo "Filesystem mount failed, startup aborted"
-		exit 1
-	fi
+else
+	mount -a
+fi
+if [ $? != 0 ]; then
+	echo "Filesystem mount failed, startup aborted"
+	exit 1
 fi
 
 # Run custom disk mounting function here
 #
 
-if [ "X$diskless_mount_func" != "X" ]; then
-        $diskless_mount_func
+if [ "X$diskless_mount" != "X" ]; then
+	if [ -f $diskless_mount ]; then
+		sh $diskless_mount
+	fi
 fi
-
 
 # If old file exists, whine until they fix it.
 if [ -f /etc/sysconfig ]; then
