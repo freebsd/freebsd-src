@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.21 1996/03/12 06:12:43 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.22 1996/06/20 18:33:51 jkh Exp $";
 #endif
 
 /*
@@ -255,8 +255,6 @@ fileGetURL(char *base, char *spec)
 	    if (!tpid) {
 		dup2(fileno(ftp), 0);
 		i = execl("/usr/bin/tar", "tar", Verbose ? "-xzvf" : "-xzf", "-", 0);
-		if (Verbose)
-		    printf("tar command returns %d status\n", i);
 		exit(i);
 	    }
 	    else {
@@ -264,6 +262,8 @@ fileGetURL(char *base, char *spec)
 
 		fclose(ftp);
 		tpid = waitpid(tpid, &pstat, 0);
+		if (Verbose)
+		    printf("tar command returns %d status\n", WEXITSTATUS(pstat));
 	    }
 	}
 	else
