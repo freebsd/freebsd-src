@@ -197,13 +197,6 @@ echo "${host} refused connections:"
 n=$(catmsgs | grep -i "^$yesterday.*refused connect" | tee /dev/stderr | wc -l)
 [ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
-# Show denied secondary bind transfer attempts
-#
-separator
-echo "$host checking for denied secondary zone transfers:"
-n=$(catmsgs | grep -i -E "denied (AXFR|IXFR) from" | tee /dev/stderr | wc -l)
-[ $n -gt 0 -a $rc -lt 1 ] && rc=1
-
 rm -f ${TMP}
 
 exit $rc
