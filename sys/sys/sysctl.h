@@ -117,13 +117,18 @@ struct ctlname {
 #define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
 	struct sysctl_req *req
 
+/* definitions for sysctl_req 'lock' member */
+#define REQ_UNLOCKED	0	/* not locked and not wired */
+#define REQ_LOCKED	1	/* locked and not wired */
+#define REQ_WIRED	2	/* locked and wired */
+
 /*
  * This describes the access space for a sysctl request.  This is needed
  * so that we can use the interface from the kernel or from user-space.
  */
 struct sysctl_req {
 	struct thread	*td;		/* used for access checking */
-	int		lock;
+	int		lock;		/* locking/wiring state */
 	void		*oldptr;
 	size_t		oldlen;
 	size_t		oldidx;
