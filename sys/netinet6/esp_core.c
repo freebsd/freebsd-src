@@ -517,7 +517,8 @@ esp_cast128_schedule(algo, sav)
 	struct secasvar *sav;
 {
 
-	set_cast128_subkey((u_int32_t *)sav->sched, _KEYBUF(sav->key_enc));
+	set_cast128_subkey((u_int32_t *)sav->sched, _KEYBUF(sav->key_enc),
+		_KEYLEN(sav->key_enc));
 	return 0;
 }
 
