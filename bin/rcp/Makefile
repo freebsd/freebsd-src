@@ -1,9 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.11 1998/08/06 21:35:04 markm Exp $
+#	$Id: Makefile,v 1.12 1998/10/09 06:31:45 markm Exp $
 
 PROG=	rcp
 SRCS=	rcp.c util.c
-CFLAGS+=-Wall
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c encrypt.c
