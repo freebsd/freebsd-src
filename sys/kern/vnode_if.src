@@ -355,7 +355,7 @@ vop_reclaim {
 };
 
 #
-#% lock		vp	U L U
+#% lock		vp	? ? ?
 #
 vop_lock {
 	IN struct vnode *vp;
