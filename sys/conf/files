@@ -88,6 +88,7 @@ dev/advansys/adwcam.c	optional adw
 dev/advansys/adwlib.c	optional adw
 dev/advansys/adwmcode.c	optional adw
 dev/aha/aha.c		optional aha
+dev/aha/aha_isa.c	optional aha isa
 dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc
@@ -97,6 +98,11 @@ dev/ccd/ccd.c		optional ccd
 dev/dpt/dpt_scsi.c	optional dpt
 dev/ed/if_ed.c		optional ed
 dev/ed/if_ed_pci.c	optional ed pci
+dev/ep/if_ep.c		optional ep
+dev/ep/if_ep_isa.c	optional ep isa
+dev/ep/if_ep_eisa.c	optional ep eisa
+dev/ep/if_ep_mca.c	optional ep mca
+dev/ep/if_ep_pccard.c	optional ep pccard
 dev/en/midway.c		optional en
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
