@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.67 2000/11/19 13:37:20 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.69 2001/11/12 21:57:06 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -940,7 +940,10 @@ opt_stmt(s, val, alter)
 		op = BPF_OP(s->code);
 		if (alter) {
 			if (s->k == 0) {
-				if (op == BPF_ADD || op == BPF_SUB ||
+				/* don't optimize away "sub #0"
+				 * as it may be needed later to
+				 * fixup the generated math code */
+				if (op == BPF_ADD ||
 				    op == BPF_LSH || op == BPF_RSH ||
 				    op == BPF_OR) {
 					s->code = NOP;
@@ -1578,8 +1581,10 @@ opt_loop(root, do_stmts)
 {
 
 #ifdef BDEBUG
-	if (dflag > 1)
+	if (dflag > 1) {
+		printf("opt_loop(root, %d) begin\n", do_stmts);
 		opt_dump(root);
+	}
 #endif
 	do {
 		done = 1;
@@ -1590,8 +1595,10 @@ opt_loop(root, do_stmts)
 		find_edom(root);
 		opt_blks(root, do_stmts);
 #ifdef BDEBUG
-		if (dflag > 1)
+		if (dflag > 1) {
+			printf("opt_loop(root, %d) bottom, done=%d\n", do_stmts, done);
 			opt_dump(root);
+		}
 #endif
 	} while (!done);
 }
@@ -1611,7 +1618,19 @@ bpf_optimize(rootp)
 	opt_loop(root, 0);
 	opt_loop(root, 1);
 	intern_blocks(root);
+#ifdef BDEBUG
+	if (dflag > 1) {
+		printf("after intern_blocks()\n");
+		opt_dump(root);
+	}
+#endif
 	opt_root(rootp);
+#ifdef BDEBUG
+	if (dflag > 1) {
+		printf("after opt_root()\n");
+		opt_dump(root);
+	}
+#endif
 	opt_cleanup();
 }
 
@@ -2075,7 +2094,7 @@ icode_to_fcode(root, lenp)
 	struct bpf_insn *fp;
 
 	/*
-	 * Loop doing convert_codr_r() until no branches remain
+	 * Loop doing convert_code_r() until no branches remain
 	 * with too-large offsets.
 	 */
 	while (1) {

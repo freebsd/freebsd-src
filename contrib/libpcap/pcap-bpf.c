@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.44 2000/10/28 00:01:28 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.48 2001/12/10 07:14:14 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,6 +35,16 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 
 #include <net/if.h>
+#ifdef _AIX
+/*
+ * XXX - I'm guessing here AIX defines IFT_ values in <net/if_types.h>,
+ * as BSD does.  If not, this code won't compile, but, if not, you
+ * want to send us a bug report and fall back on using DLPI.
+ * It's not as if BPF used to work right on AIX before this change;
+ * this change attempts to fix the fact that it didn't....
+ */
+#include <net/if_types.h>		/* for IFT_ values */
+#endif
 
 #include <ctype.h>
 #include <errno.h>
@@ -57,6 +67,19 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 {
 	struct bpf_stat s;
 
+	/*
+	 * "ps_recv" counts packets handed to the filter, not packets
+	 * that passed the filter.  This includes packets later dropped
+	 * because we ran out of buffer space.
+	 *
+	 * "ps_drop" counts packets dropped inside the BPF device
+	 * because we ran out of buffer space.  It doesn't count
+	 * packets dropped by the interface driver.  It counts
+	 * only packets that passed the filter.
+	 *
+	 * Both statistics include packets not yet read from the kernel
+	 * by libpcap, and thus not yet seen by the application.
+	 */
 	if (ioctl(p->fd, BIOCGSTATS, (caddr_t)&s) < 0) {
 		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCGSTATS: %s",
 		    pcap_strerror(errno));
@@ -123,6 +146,20 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		/*
 		 * XXX A bpf_hdr matches a pcap_pkthdr.
 		 */
+#ifdef _AIX
+		/*
+		 * AIX's BPF returns seconds/nanoseconds time stamps, not
+		 * seconds/microseconds time stamps.
+		 *
+		 * XXX - I'm guessing here that it's a "struct timestamp";
+		 * if not, this code won't compile, but, if not, you
+		 * want to send us a bug report and fall back on using
+		 * DLPI.  It's not as if BPF used to work right on
+		 * AIX before this change; this change attempts to fix
+		 * the fact that it didn't....
+		 */
+		bhp->bh_tstamp.tv_usec = bhp->bh_tstamp.tv_usec/1000;
+#endif
 		(*callback)(user, (struct pcap_pkthdr*)bp, bp + hdrlen);
 		bp += BPF_WORDALIGN(caplen + hdrlen);
 		if (++n >= cnt && cnt > 0) {
@@ -235,17 +272,32 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		    pcap_strerror(errno));
 		goto bad;
 	}
-#ifdef __OpenBSD__
+#ifdef _AIX
+	/*
+	 * AIX's BPF returns IFF_ types, not DLT_ types, in BIOCGDLT.
+	 */
 	switch (v) {
-	case DLT_LOOP:
-		/*
-		 * XXX - DLT_LOOP has a network-byte-order, rather than
-		 * a host-byte-order, AF_ value as the link-layer
-		 * header; will the BPF code generator handle that
-		 * correctly on little-endian machines?
-		 */
-		v = DLT_NULL;
+
+	case IFT_ETHER:
+	case IFT_ISO88023:
+		v = DLT_EN10MB;
 		break;
+
+	case IFT_FDDI:
+		v = DLT_FDDI;
+		break;
+
+	case IFT_ISO88025:
+		v = DLT_IEEE802;
+		break;
+
+	default:
+		/*
+		 * We don't know what to map this to yet.
+		 */
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "unknown interface type %lu",
+		    v);
+		goto bad;
 	}
 #endif
 #if _BSDI_VERSION - 0 >= 199510
@@ -340,9 +392,13 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 #endif	/* BIOCIMMEDIATE */
 #endif	/* _AIX */
 
-	if (promisc)
+	if (promisc) {
 		/* set promiscuous mode, okay if it fails */
-		(void)ioctl(p->fd, BIOCPROMISC, NULL);
+		if (ioctl(p->fd, BIOCPROMISC, NULL) < 0) {
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCPROMISC: %s",
+			    pcap_strerror(errno));
+		}
+	}
 
 	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) {
 		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCGBLEN: %s",
