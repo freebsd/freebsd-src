@@ -178,6 +178,11 @@ cpu_startup(void *dummy)
 {
 
 	/*
+	 * Initialise the decrementer-based clock.
+	 */
+	decr_init();
+
+	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	identifycpu();
