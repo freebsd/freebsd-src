@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.13 1997/12/26 20:41:37 phk Exp $
+ *	$Id: perfmon.c,v 1.14 1997/12/28 17:33:01 phk Exp $
  */
 
 #include <sys/param.h>
@@ -35,8 +35,8 @@
 
 #ifndef SMP
 #include <machine/cputypes.h>
-#include <machine/clock.h>
 #endif
+#include <machine/clock.h>
 #include <machine/perfmon.h>
 
 static int perfmon_inuse;
