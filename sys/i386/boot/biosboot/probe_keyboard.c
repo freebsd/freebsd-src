@@ -42,7 +42,7 @@
  *
  * This grody hack brought to you by Bill Paul (wpaul@ctr.columbia.edu)
  *
- *	$Id: probe_keyboard.c,v 1.5 1995/04/20 23:15:10 joerg Exp $
+ *	$Id: probe_keyboard.c,v 1.6 1996/03/08 06:29:07 bde Exp $
  */
 
 #ifdef PROBE_KEYBOARD
@@ -75,7 +75,7 @@ probe_keyboard(void)
 			delay1ms();
 			val = inb(KB_DATA);
 			if (val == KB_ACK || val == KB_ECHO)
-				goto gotres;
+				goto gotack;
 			if (val == KB_RESEND)
 				break;
 		}
@@ -85,12 +85,9 @@ gotres:
 	printf("gotres\n");
 #endif
 	if (!retries) {
-		if (val == KB_RESEND) {
 #ifdef DEBUG
-			printf("gave up\n");
+		printf("gave up\n");
 #endif
-			return(0);
-		}
 		return(1);
 	}
 gotack:
