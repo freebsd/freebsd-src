@@ -2260,9 +2260,9 @@ socheckuid(struct socket *so, uid_t uid)
 
 	if (so == NULL)
 		return (EPERM);
-	if (so->so_cred->cr_uid == uid)
-		return (0);
-	return (EPERM);
+	if (so->so_cred->cr_uid != uid)
+		return (EPERM);
+	return (0);
 }
 
 static int
