@@ -32,12 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
+static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif /* not lint */
 
 #define DKTYPENAMES
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
@@ -80,7 +79,7 @@ setup(dev)
 
 	havesb = 0;
 	fswritefd = -1;
-	skipclean = preen;
+	skipclean = fflag ? 0 : preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
 		return (0);
@@ -112,7 +111,7 @@ setup(dev)
 	asblk.b_un.b_buf = malloc(SBSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
-	if (lp = getdisklabel(NULL, fsreadfd))
+	if ((lp = getdisklabel(NULL, fsreadfd)))
 		dev_bsize = secsize = lp->d_secsize;
 	else
 		dev_bsize = secsize = DEV_BSIZE;
@@ -138,9 +137,11 @@ setup(dev)
 				"LOCATION OF AN ALTERNATE",
 				"SUPER-BLOCK TO SUPPLY NEEDED",
 				"INFORMATION; SEE fsck(8).");
+			bflag = 0;
 			return(0);
 		}
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
+		bflag = 0;
 	}
 	if (skipclean && sblock.fs_clean) {
 		pwarn("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
@@ -166,7 +167,7 @@ setup(dev)
 			sbdirty();
 		}
 	}
-	if (sblock.fs_interleave < 1 || 
+	if (sblock.fs_interleave < 1 ||
 	    sblock.fs_interleave > sblock.fs_nsect) {
 		pwarn("IMPOSSIBLE INTERLEAVE=%d IN SUPERBLOCK",
 			sblock.fs_interleave);
@@ -178,7 +179,7 @@ setup(dev)
 			dirty(&asblk);
 		}
 	}
-	if (sblock.fs_npsect < sblock.fs_nsect || 
+	if (sblock.fs_npsect < sblock.fs_nsect ||
 	    sblock.fs_npsect > sblock.fs_nsect*2) {
 		pwarn("IMPOSSIBLE NPSECT=%d IN SUPERBLOCK",
 			sblock.fs_npsect);
@@ -256,8 +257,10 @@ setup(dev)
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
-			if (reply("CONTINUE") == 0)
+			if (reply("CONTINUE") == 0) {
+				ckfini(0);
 				exit(EEXIT);
+			}
 			asked++;
 		}
 	}
@@ -271,25 +274,18 @@ setup(dev)
 		    (unsigned)bmapsize);
 		goto badsb;
 	}
-	statemap = calloc((unsigned)(maxino + 1), sizeof(char));
-	if (statemap == NULL) {
-		printf("cannot alloc %u bytes for statemap\n",
-		    (unsigned)(maxino + 1));
-		goto badsb;
-	}
-	typemap = calloc((unsigned)(maxino + 1), sizeof(char));
-	if (typemap == NULL) {
-		printf("cannot alloc %u bytes for typemap\n",
-		    (unsigned)(maxino + 1));
-		goto badsb;
-	}
-	lncntp = (short *)calloc((unsigned)(maxino + 1), sizeof(short));
-	if (lncntp == NULL) {
-		printf("cannot alloc %u bytes for lncntp\n", 
-		    (unsigned)(maxino + 1) * sizeof(short));
+	inostathead = calloc((unsigned)(sblock.fs_ncg),
+	    sizeof(struct inostatlist));
+	if (inostathead == NULL) {
+		printf("cannot alloc %u bytes for inostathead\n",
+		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
 		goto badsb;
 	}
 	numdirs = sblock.fs_cstotal.cs_ndir;
+	if (numdirs == 0) {
+		printf("numdirs is zero, try using an alternate superblock\n");
+		goto badsb;
+	}
 	inplast = 0;
 	listmax = numdirs + 10;
 	inpsort = (struct inoinfo **)calloc((unsigned)listmax,
@@ -297,11 +293,15 @@ setup(dev)
 	inphead = (struct inoinfo **)calloc((unsigned)numdirs,
 	    sizeof(struct inoinfo *));
 	if (inpsort == NULL || inphead == NULL) {
-		printf("cannot alloc %u bytes for inphead\n", 
+		printf("cannot alloc %u bytes for inphead\n",
 		    (unsigned)numdirs * sizeof(struct inoinfo *));
 		goto badsb;
 	}
 	bufinit();
+	if (sblock.fs_flags & FS_DOSOFTDEP)
+		usedsoftdep = 1;
+	else
+		usedsoftdep = 0;
 	return (1);
 
 badsb:
@@ -398,7 +398,8 @@ readsb(listerr)
 			for ( ; olp < endlp; olp++, nlp++) {
 				if (*olp == *nlp)
 					continue;
-				printf("offset %d, original %d, alternate %d\n",
+				printf(
+				    "offset %d, original %ld, alternate %ld\n",
 				    olp - (long *)&sblock, *olp, *nlp);
 			}
 		}
@@ -454,6 +455,13 @@ calcsb(dev, devfd, fs)
 		pfatal("%s: NOT LABELED AS A BSD FILE SYSTEM (%s)\n",
 			dev, pp->p_fstype < FSMAXTYPES ?
 			fstypenames[pp->p_fstype] : "unknown");
+		return (0);
+	}
+	if (pp->p_fsize == 0 || pp->p_frag == 0 ||
+	    pp->p_cpg == 0 || pp->p_size == 0) {
+		pfatal("%s: %s: type %s fsize %d, frag %d, cpg %d, size %d\n",
+		    dev, "INCOMPLETE LABEL", fstypenames[pp->p_fstype],
+		    pp->p_fsize, pp->p_frag, pp->p_cpg, pp->p_size);
 		return (0);
 	}
 	memset(fs, 0, sizeof(struct fs));

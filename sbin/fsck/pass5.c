@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,12 +49,13 @@ static char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 void
 pass5()
 {
-	int c, blk, frags, basesize, sumsize, mapsize, savednrpos;
+	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
+	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
 	ufs_daddr_t dbase, dmax;
 	ufs_daddr_t d;
-	long i, j;
+	long i, j, k;
 	struct csum *cs;
 	struct csum cstotal;
 	struct inodesc idesc[3];
@@ -62,7 +63,7 @@ pass5()
 	register struct cg *newcg = (struct cg *)buf;
 	struct ocg *ocg = (struct ocg *)buf;
 
-	statemap[WINO] = USTATE;
+	inoinfo(WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
 	newcg->cg_niblk = fs->fs_ipg;
 	if (cvtlevel >= 3) {
@@ -112,6 +113,8 @@ pass5()
 		sumsize = &ocg->cg_iused[0] - (u_int8_t *)(&ocg->cg_btot[0]);
 		mapsize = &ocg->cg_free[howmany(fs->fs_fpg, NBBY)] -
 			(u_char *)&ocg->cg_iused[0];
+		blkmapsize = howmany(fs->fs_fpg, NBBY);
+		inomapsize = &ocg->cg_free[0] - (u_char *)&ocg->cg_iused[0];
 		ocg->cg_magic = CG_MAGIC;
 		savednrpos = fs->fs_nrpos;
 		fs->fs_nrpos = 8;
@@ -121,22 +124,22 @@ pass5()
 		newcg->cg_btotoff =
 		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
 		newcg->cg_boff =
-		    newcg->cg_btotoff + fs->fs_cpg * sizeof(long);
-		newcg->cg_iusedoff = newcg->cg_boff + 
-		    fs->fs_cpg * fs->fs_nrpos * sizeof(short);
+		    newcg->cg_btotoff + fs->fs_cpg * sizeof(int32_t);
+		newcg->cg_iusedoff = newcg->cg_boff +
+		    fs->fs_cpg * fs->fs_nrpos * sizeof(u_int16_t);
 		newcg->cg_freeoff =
 		    newcg->cg_iusedoff + howmany(fs->fs_ipg, NBBY);
-		if (fs->fs_contigsumsize <= 0) {
-			newcg->cg_nextfreeoff = newcg->cg_freeoff +
-			    howmany(fs->fs_cpg * fs->fs_spc / NSPF(fs), NBBY);
-		} else {
-			newcg->cg_clustersumoff = newcg->cg_freeoff +
-			    howmany(fs->fs_cpg * fs->fs_spc / NSPF(fs), NBBY) -
-			    sizeof(long);
+		inomapsize = newcg->cg_freeoff - newcg->cg_iusedoff;
+		newcg->cg_nextfreeoff = newcg->cg_freeoff +
+		    howmany(fs->fs_cpg * fs->fs_spc / NSPF(fs), NBBY);
+		blkmapsize = newcg->cg_nextfreeoff - newcg->cg_freeoff;
+		if (fs->fs_contigsumsize > 0) {
+			newcg->cg_clustersumoff = newcg->cg_nextfreeoff -
+			    sizeof(u_int32_t);
 			newcg->cg_clustersumoff =
-			    roundup(newcg->cg_clustersumoff, sizeof(long));
+			    roundup(newcg->cg_clustersumoff, sizeof(u_int32_t));
 			newcg->cg_clusteroff = newcg->cg_clustersumoff +
-			    (fs->fs_contigsumsize + 1) * sizeof(long);
+			    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
 			newcg->cg_nextfreeoff = newcg->cg_clusteroff +
 			    howmany(fs->fs_cpg * fs->fs_spc / NSPB(fs), NBBY);
 		}
@@ -148,7 +151,7 @@ pass5()
 		break;
 
 	default:
-		sumsize = 0;	/* keep lint happy */
+		inomapsize = blkmapsize = sumsize = 0;	/* keep lint happy */
 		errx(EEXIT, "UNKNOWN ROTATIONAL TABLE FORMAT %d",
 			fs->fs_postblformat);
 	}
@@ -201,8 +204,8 @@ pass5()
 		if (fs->fs_postblformat == FS_42POSTBLFMT)
 			ocg->cg_magic = CG_MAGIC;
 		j = fs->fs_ipg * c;
-		for (i = 0; i < fs->fs_ipg; j++, i++) {
-			switch (statemap[j]) {
+		for (i = 0; i < inostathead[c].il_numalloced; j++, i++) {
+			switch (inoinfo(j)->ino_state) {
 
 			case USTATE:
 				break;
@@ -222,8 +225,8 @@ pass5()
 			default:
 				if (j < ROOTINO)
 					break;
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-				    statemap[j], j);
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%ld",
+				    inoinfo(j)->ino_state, j);
 			}
 		}
 		if (c == 0)
@@ -299,13 +302,6 @@ pass5()
 			cgdirty();
 			continue;
 		}
-		if (memcmp(cg_inosused(newcg),
-			 cg_inosused(cg), mapsize) != 0 &&
-		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
-			memmove(cg_inosused(cg), cg_inosused(newcg),
-			      (size_t)mapsize);
-			cgdirty();
-		}
 		if ((memcmp(newcg, cg, basesize) != 0 ||
 		     memcmp(&cg_blktot(newcg)[0],
 			  &cg_blktot(cg)[0], sumsize) != 0) &&
@@ -313,6 +309,40 @@ pass5()
 			memmove(cg, newcg, (size_t)basesize);
 			memmove(&cg_blktot(cg)[0],
 			       &cg_blktot(newcg)[0], (size_t)sumsize);
+			cgdirty();
+		}
+		if (usedsoftdep) {
+			for (i = 0; i < inomapsize; i++) {
+				j = cg_inosused(newcg)[i];
+				if ((cg_inosused(cg)[i] & j) == j)
+					continue;
+				for (k = 0; k < NBBY; k++) {
+					if ((j & (1 << k)) == 0)
+						continue;
+					if (cg_inosused(cg)[i] & (1 << k))
+						continue;
+					pwarn("ALLOCATED INODE %d MARKED FREE\n",
+					    c * fs->fs_ipg + i * NBBY + k);
+				}
+			}
+			for (i = 0; i < blkmapsize; i++) {
+				j = cg_blksfree(cg)[i];
+				if ((cg_blksfree(newcg)[i] & j) == j)
+					continue;
+				for (k = 0; k < NBBY; k++) {
+					if ((j & (1 << k)) == 0)
+						continue;
+					if (cg_blksfree(newcg)[i] & (1 << k))
+						continue;
+					pwarn("ALLOCATED FRAG %d MARKED FREE\n",
+					    c * fs->fs_fpg + i * NBBY + k);
+				}
+			}
+		}
+		if (memcmp(cg_inosused(newcg), cg_inosused(cg), mapsize) != 0 &&
+		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
+			memmove(cg_inosused(cg), cg_inosused(newcg),
+			      (size_t)mapsize);
 			cgdirty();
 		}
 	}
