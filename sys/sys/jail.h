@@ -47,6 +47,7 @@ struct prison {
  * Sysctl-set variables that determine global jail policy
  */
 extern int	jail_set_hostname_allowed;
+extern int	jail_socket_unixiproute_only;
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */

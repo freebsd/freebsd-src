@@ -53,6 +53,7 @@
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/jail.h>
 #include <vm/vm_zone.h>
 
 #include <machine/limits.h>
@@ -135,6 +136,14 @@ socreate(dom, aso, type, proto, p)
 		prp = pffindproto(dom, proto, type);
 	else
 		prp = pffindtype(dom, type);
+
+	if (p->p_prison && jail_socket_unixiproute_only &&
+	    prp->pr_domain->dom_family != PF_LOCAL &&
+	    prp->pr_domain->dom_family != PF_INET &&
+	    prp->pr_domain->dom_family != PF_ROUTE) {
+		return (EPROTONOSUPPORT);
+	}
+
 	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
 		return (EPROTONOSUPPORT);
 	if (prp->pr_type != type)
