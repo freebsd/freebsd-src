@@ -36,7 +36,11 @@
 #else
 #include <sys/types.h>
 #include <stdlib.h>
+#ifdef __NetBSD__
+#include <openssl/des.h>
+#else
 #include <des.h>
+#endif
 #include <openssl/sha.h>
 #endif
 #include <md4.h>
