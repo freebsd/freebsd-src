@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 1.1.1.3 1995/10/23 09:26:19 peter Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 8.12 1995/12/29 07:16:18 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -62,12 +62,12 @@ static char rcsid[] = "$Id: ns_main.c,v 1.1.1.3 1995/10/23 09:26:19 peter Exp $"
 char copyright[] =
 "@(#) Copyright (c) 1986, 1989, 1990 The Regents of the University of California.\n\
  portions Copyright (c) 1993 Digital Equipment Corporation\n\
- portions Copyright (c) 1993 Berkeley Network Software Consortium\n\
+ portions Copyright (c) 1995 Internet Software Consortium\n\
  All rights reserved.\n";
 #endif /* not lint */
 
 /*
- * Internet Name server (see rfc883 & others).
+ * Internet Name server (see RCF1035 & others).
  */
 
 #include <sys/param.h>
@@ -389,19 +389,14 @@ main(argc, argv, envp)
   	/*
 	 * named would be terminated if one of these is sent and no handler.
 	 */
-	(void) signal(SIGINT, setdumpflg);
-	(void) signal(SIGQUIT, setchkptflg);
-	(void) signal(SIGIOT, setstatsflg);
-#if defined(SIGUSR1) && defined(SIGUSR2)
-	(void) signal(SIGUSR1, setIncrDbgFlg);
-	(void) signal(SIGUSR2, setNoDbgFlg);
-#else /* SIGUSR1&&SIGUSR2 */
-	(void) signal(SIGEMT, setIncrDbgFlg);
-	(void) signal(SIGFPE, setNoDbgFlg);
-#endif /* SIGUSR1&&SIGUSR2 */
+	setsignal(SIGINT, -1, setdumpflg);
+	setsignal(SIGQUIT, -1, setchkptflg);
+	setsignal(SIGIOT, -1, setstatsflg);
+	setsignal(SIGUSR1, -1, setIncrDbgFlg);
+	setsignal(SIGUSR2, -1, setNoDbgFlg);
 
 #if defined(SIGWINCH) && defined(QRYLOG)
-	(void) signal(SIGWINCH, setQrylogFlg);
+	setsignal(SIGWINCH, -1, setQrylogFlg);
 #endif
 
 	/*
@@ -428,50 +423,29 @@ main(argc, argv, envp)
 	time(&boottime);
 	resettime = boottime;
 
-	(void) signal(SIGHUP, onhup);
+	setsignal(SIGALRM, SIGCHLD, maint_alarm);
+	setsignal(SIGCHLD, SIGALRM, reapchild);
+	setsignal(SIGPIPE, -1, (SIG_FN (*)())SIG_IGN);
+	setsignal(SIGHUP, -1, onhup);
+
 #if defined(SIGXFSZ)
-	(void) signal(SIGXFSZ, onhup);	/* wierd DEC Hesiodism, harmless */
+	/* Wierd DEC Hesiodism, harmless. */
+	setsignal(SIGXFSZ, -1, onhup);
 #endif
-#if defined(POSIX_SIGNALS)
-	bzero((char *)&sact, sizeof(sact));
-	sact.sa_handler = maint_alarm;
-	sigemptyset(&sact.sa_mask);
-	sigaddset(&sact.sa_mask, SIGCHLD);
-	(void) sigaction(SIGALRM, &sact, (struct sigaction *)NULL);
 
-	sact.sa_handler = endxfer;
-	sigemptyset(&sact.sa_mask);
-	sigaddset(&sact.sa_mask, SIGALRM);
-	(void) sigaction(SIGCHLD, &sact, (struct sigaction *)NULL);
-#else 
-#if defined(SYSV)
-	(void) signal(SIGCLD, (SIG_FN (*)()) endxfer);
-	(void) signal(SIGALRM, maint_alarm);
-#else
-	bzero((char *)&vec, sizeof(vec));
-	vec.sv_handler = maint_alarm;
-	vec.sv_mask = sigmask(SIGCHLD);
-	(void) sigvec(SIGALRM, &vec, (struct sigvec *)NULL);
-
-	vec.sv_handler = endxfer;
-	vec.sv_mask = sigmask(SIGALRM);
-	(void) sigvec(SIGCHLD, &vec, (struct sigvec *)NULL);
-#endif /* SYSV */
-#endif /* POSIX_SIGNALS */
-	(void) signal(SIGPIPE, SIG_IGN);
 #ifdef SIGSYS
-	(void) signal(SIGSYS, sigprof);
+	setsignal(SIGSYS, -1, sigprof);
 #endif /* SIGSYS */
 
 #ifdef ALLOW_UPDATES
         /* Catch SIGTERM so we can dump the database upon shutdown if it
            has changed since it was last dumped/booted */
-        (void) signal(SIGTERM, onintr);
+	setsignal(SIGTERM, -1, onintr);
 #endif
 
 #ifdef XSTATS
         /* Catch SIGTERM so we can write stats before exiting. */
-        (void) signal(SIGTERM, onintr);
+	setsignal(SIGTERM, -1, onintr);
 #endif
 
 	dprintf(1, (ddt, "database initialized\n"));
@@ -617,6 +591,12 @@ main(argc, argv, envp)
 			needStatsDump = 0;
 			ns_stats();
 		}
+		if (needendxfer) {
+			holdsigchld();
+			needendxfer = 0; /* should be safe even if not held */
+			endxfer(); /* releases SIGCHLD */
+		}
+		releasesigchld();
 		if (needzoneload) {
 			needzoneload = 0;
 			loadxfer();
@@ -845,11 +825,11 @@ main(argc, argv, envp)
 			        }
 			        if ((sp->s_bufp - (u_char *)&sp->s_tempsize) ==
 					INT16SZ) {
-					sp->s_size = htons(sp->s_tempsize);
+					sp->s_size = ntohs(sp->s_tempsize);
 					if (sp->s_bufsize == 0) {
-					    if ( (sp->s_buf = (u_char *)
+					    if (!(sp->s_buf = (u_char *)
 						  malloc(rbufsize))
-						== NULL) {
+						) {
 						    sp->s_buf = buf;
 						    sp->s_size  = sizeof(buf);
 					    } else {
@@ -953,7 +933,7 @@ getnetconf()
 		exit(1);
 	}
 	ntp = NULL;
-#if defined(AF_LINK) && !defined(RISCOS_BSD)
+#if defined(AF_LINK) && !defined(RISCOS_BSD) && !defined(M_UNIX)
 #define my_max(a, b) (a > b ? a : b)
 #define my_size(p)	my_max((p).sa_len, sizeof(p))
 #else
@@ -1035,6 +1015,8 @@ getnetconf()
 		 */
 		if (ntp == NULL) {
 			ntp = (struct netinfo *)malloc(sizeof(struct netinfo));
+			if (!ntp)
+				panic(errno, "malloc(netinfo)");
 		}
 		ntp->my_addr = ((struct sockaddr_in *)
 				&ifreq.ifr_addr)->sin_addr;
@@ -1109,10 +1091,8 @@ getnetconf()
 	 * wildcard address.
 	 */
 	if (first) {
-		if (!(dqp = (struct qdatagram *)calloc(1, sizeof(*dqp)))) {
-			syslog(LOG_ERR, "getnetconf: malloc: %m");
-			exit(12);
-		}
+		if (!(dqp = (struct qdatagram *)calloc(1, sizeof(*dqp))))
+			panic(errno, "malloc(qdatagram)");
 		dqp->dq_next = datagramq;
 		datagramq = dqp;
 		dqp->dq_addr.s_addr = INADDR_ANY;
@@ -1131,11 +1111,9 @@ getnetconf()
 			if (findnetinfo(ntp->my_addr))
 				continue;
 			ontp = (struct netinfo *)
-			       malloc(sizeof(struct netinfo));
-			if (ontp == NULL) {
-				syslog(LOG_ERR, "getnetconf: malloc: %m");
-				exit(12);
-			}
+				malloc(sizeof(struct netinfo));
+			if (!ontp)
+				panic(errno, "malloc(netinfo)");
 			ontp->my_addr = ntp->my_addr;
 			ontp->mask = nm;
 			ontp->addr = ontp->my_addr.s_addr & nm;
@@ -1247,9 +1225,8 @@ static SIG_FN
 onhup()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGHUP, (SIG_FN (*)())onhup);
-#endif /* SYSV */
+
+	resignal(SIGHUP, -1, onhup);
 	needreload = 1;
 	errno = save_errno;
 }
@@ -1264,9 +1241,8 @@ static SIG_FN
 maint_alarm()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGALRM, (SIG_FN (*)())maint_alarm);
-#endif /* SYSV */
+
+	resignal(SIGALRM, SIGCHLD, maint_alarm);
 	needmaint = 1;
 	errno = save_errno;
 }
@@ -1280,7 +1256,11 @@ maint_alarm()
 static SIG_FN
 onintr()
 {
+	int save_errno = errno;
+
+	resignal(SIGTERM, -1, onintr);
         needToExit = 1;
+	errno = save_errno;
 }
 #endif /* ALLOW_UPDATES */
 
@@ -1291,7 +1271,11 @@ onintr()
 static SIG_FN
 onintr()
 {
-        needToExit = 1;
+	int save_errno = errno;
+
+	resignal(SIGTERM, -1, onintr);
+        needToExit = 1;		/* XXX variable reuse */
+	errno = save_errno;
 }
 #endif /* XSTATS */
 
@@ -1305,9 +1289,8 @@ static SIG_FN
 setdumpflg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGINT, (SIG_FN (*)())setdumpflg);
-#endif /* SYSV */
+
+	resignal(SIGINT, -1, setdumpflg);
         needToDoadump = 1;
 	errno = save_errno;
 }
@@ -1364,9 +1347,8 @@ static SIG_FN
 setIncrDbgFlg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGUSR1, (SIG_FN (*)())setIncrDbgFlg);
-#endif /* SYSV */
+
+	resignal(SIGUSR1, -1, setIncrDbgFlg);
 #ifdef DEBUG
 	if (debug == 0) {
 		debug++;
@@ -1388,9 +1370,8 @@ static SIG_FN
 setNoDbgFlg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGUSR2, (SIG_FN (*)())setNoDbgFlg);
-#endif /* SYSV */
+
+	resignal(SIGUSR2, -1, setNoDbgFlg);
 	setdebug(0);
 	errno = save_errno;
 }
@@ -1403,9 +1384,8 @@ static SIG_FN
 setQrylogFlg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGWINCH, (SIG_FN (*)())setQrylogFlg);
-#endif /* SYSV */
+
+	resignal(SIGWINCH, -1, setQrylogFlg);
 	qrylog = !qrylog;
 	syslog(LOG_NOTICE, "query log %s\n", qrylog ?"on" :"off");
 	errno = save_errno;
@@ -1419,9 +1399,8 @@ static SIG_FN
 setstatsflg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGIOT, (SIG_FN (*)())setstatsflg);
-#endif /* SYSV */
+
+	resignal(SIGIOT, -1, setstatsflg);
 	needStatsDump = 1;
 	errno = save_errno;
 }
@@ -1430,9 +1409,8 @@ static SIG_FN
 setchkptflg()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGQUIT, (SIG_FN (*)())setchkptflg);
-#endif /* SYSV */
+
+	resignal(SIGQUIT, -1, setchkptflg);
 	needToChkpt = 1;
 	errno = save_errno;
 }
@@ -1449,9 +1427,8 @@ static SIG_FN
 sigprof()
 {
 	int save_errno = errno;
-#if defined(SYSV)
-	(void)signal(SIGSYS, (SIG_FN (*)())sigprof);
-#endif /* SYSV */
+
+	resignal(SIGSYS, -1, sigprof);
 	dprintf(1, (ddt, "sigprof()\n"));
 	if (fork() == 0)
 	{

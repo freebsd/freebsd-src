@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_sort.c	4.10 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_sort.c,v 8.2 1995/06/29 09:26:17 vixie Exp $";
+static char rcsid[] = "$Id: ns_sort.c,v 8.3 1995/12/22 10:20:30 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -73,6 +73,7 @@ static char rcsid[] = "$Id: ns_sort.c,v 8.2 1995/06/29 09:26:17 vixie Exp $";
 
 static int sort_rr __P((u_char *cp, int count, struct netinfo *ntp, u_char *eom));
 
+#ifdef SORT_RESPONSE
 struct netinfo *
 local(from)
 	struct sockaddr_in *from;
@@ -167,3 +168,4 @@ sort_rr(cp, count, ntp, eom)
 	}
 	return (0);
 }
+#endif

@@ -1,6 +1,6 @@
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 8.5 1995/06/19 08:34:49 vixie Exp $
+ * $Id: db_func.h,v 8.7 1995/12/22 10:20:30 vixie Exp $
  */
 
 /* ++from db_update.c++ */
@@ -48,7 +48,7 @@ extern void		endline __P((FILE *)),
 			get_netlist __P((FILE *, struct netinfo **,
 					 int, char *)),
 			free_netlist __P((struct netinfo **));
-extern int		getword __P((char *, int, FILE *)),
+extern int		getword __P((char *, int, FILE *, int)),
 			getnum __P((FILE *, const char *, int)),
 			db_load __P((const char *, const char *,
 				     struct zoneinfo *, const char *)),
@@ -79,7 +79,6 @@ extern int		servicenumber __P((char *)),
 extern char		*protocolname __P((int)),
 			*servicename __P((u_int16_t, char *)),
 			*savestr __P((const char *));
-extern const char	*inet_etoa __P((const struct sockaddr_in *));
 #ifndef BSD
 extern int		getdtablesize __P((void));
 #endif
@@ -100,6 +99,8 @@ extern char *		loc_ntoa __P((const u_char *binary, char *ascii));
 #endif
 extern char *		ctimel __P((long));
 extern struct in_addr	data_inaddr __P((const u_char *data));
+extern void		setsignal __P((int, int, SIG_FN (*)())),
+			resignal __P((int, int, SIG_FN (*)()));
 /* --from db_glue.c-- */
 
 /* ++from db_lookup.c++ */

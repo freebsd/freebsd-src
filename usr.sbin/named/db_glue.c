@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_glue.c	4.4 (Berkeley) 6/1/90";
-static char rcsid[] = "$Id: db_glue.c,v 1.1.1.3 1995/10/23 09:26:04 peter Exp $";
+static char rcsid[] = "$Id: db_glue.c,v 8.10 1995/12/22 10:20:30 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -80,7 +80,8 @@ struct valuelist {
 	char	*name;
 	char	*proto;
 	int	port;
-} *servicelist, *protolist;
+};
+static struct valuelist *servicelist, *protolist;
 
 #if defined(ultrix)
 /* ultrix 4.0 has some icky packaging details.  work around them here.
@@ -98,13 +99,14 @@ const char *
 sin_ntoa(sin)
 	const struct sockaddr_in *sin;
 {
-	static char ret[sizeof("[111.222.333.444].55555")];
+	static char ret[sizeof "[111.222.333.444].55555"];
 
 	if (!sin)
 		strcpy(ret, "[sin_ntoa(NULL)]");
 	else
 		sprintf(ret, "[%s].%u",
-			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			inet_ntoa(sin->sin_addr),
+			ntohs(sin->sin_port));
 	return (ret);
 }
 
@@ -120,7 +122,7 @@ panic(err, msg)
 		syslog(LOG_CRIT, "%s - ABORT", msg);
 	else
 		syslog(LOG_CRIT, "%s: %s - ABORT", msg, strerror(err));
-	signal(SIGIOT, SIG_DFL);
+	signal(SIGIOT, SIG_DFL);	/* no POSIX needed here. */
 	abort();
 }
 
@@ -137,9 +139,11 @@ buildservicelist()
 #endif
 	while (sp = getservent()) {
 		slp = (struct valuelist *)malloc(sizeof(struct valuelist));
+		if (!slp)
+			panic(errno, "malloc(servent)");
 		slp->name = savestr(sp->s_name);
 		slp->proto = savestr(sp->s_proto);
-		slp->port = ntohs((u_int16_t)sp->s_port);
+		slp->port = ntohs((u_int16_t)sp->s_port);  /* host byt order */
 		slp->next = servicelist;
 		slp->prev = NULL;
 		if (servicelist)
@@ -162,8 +166,10 @@ buildprotolist()
 #endif
 	while (pp = getprotoent()) {
 		slp = (struct valuelist *)malloc(sizeof(struct valuelist));
+		if (!slp)
+			panic(errno, "malloc(protoent)");
 		slp->name = savestr(pp->p_name);
-		slp->port = pp->p_proto;
+		slp->port = pp->p_proto;	/* host byte order */
 		slp->next = protolist;
 		slp->prev = NULL;
 		if (protolist)
@@ -191,7 +197,7 @@ findservice(s, list)
 				lp->next = *list;
 				*list = lp;
 			}
-			return (lp->port);
+			return (lp->port);	/* host byte order */
 		}
 	if (sscanf(s, "%d", &n) != 1 || n <= 0)
 		n = -1;
@@ -220,12 +226,12 @@ protocolnumber(p)
 
 #if defined(__STDC__) || defined(__GNUC__)
 static struct servent *
-cgetservbyport(u_int16_t port,
+cgetservbyport(u_int16_t port,		/* net byte order */
 	       char *proto)
 #else
 static struct servent *
 cgetservbyport(port, proto)
-	u_int16_t port;
+	u_int16_t port;			/* net byte order */
 	char *proto;
 #endif
 {
@@ -233,9 +239,9 @@ cgetservbyport(port, proto)
 	register struct valuelist *lp = *list;
 	static struct servent serv;
 
-	port = htons(port);
+	port = ntohs(port);
 	for (; lp != NULL; lp = lp->next) {
-		if (port != (u_int16_t)lp->port)
+		if (port != (u_int16_t)lp->port)	/* host byte order */
 			continue;
 		if (strcasecmp(lp->proto, proto) == 0) {
 			if (lp != *list) {
@@ -257,14 +263,14 @@ cgetservbyport(port, proto)
 
 static struct protoent *
 cgetprotobynumber(proto)
-	register int proto;
+	register int proto;	/* host byte order */
 {
 	register struct valuelist **list = &protolist;
 	register struct valuelist *lp = *list;
 	static struct protoent prot;
 
 	for (; lp != NULL; lp = lp->next)
-		if (lp->port == proto) {
+		if (lp->port == proto) {	/* host byte order */
 			if (lp != *list) {
 				lp->prev->next = lp->next;
 				if (lp->next)
@@ -274,7 +280,7 @@ cgetprotobynumber(proto)
 				*list = lp;
 			}
 			prot.p_name = lp->name;
-			prot.p_proto = lp->port;
+			prot.p_proto = lp->port;  /* host byte order */
 			return (&prot);
 		}
 	return (0);
@@ -297,11 +303,11 @@ protocolname(num)
 
 #if defined(__STDC__) || defined(__GNUC__)
 char *
-servicename(u_int16_t port, char *proto)
+servicename(u_int16_t port, char *proto)	/* host byte order */
 #else
 char *
 servicename(port, proto)
-	u_int16_t port;
+	u_int16_t port;				/* host byte order */
 	char *proto;
 #endif
 {
@@ -428,25 +434,10 @@ savestr(str)
 	char *cp;
 
 	cp = (char *)malloc(strlen(str) + 1);
-	if (cp == NULL)
-		panic(errno, "savestr: malloc");
-	(void) strcpy(cp, str);
+	if (!cp)
+		panic(errno, "malloc(savestr)");
+	strcpy(cp, str);
 	return (cp);
-}
-
-/*
- * Uniform formatting of IP/UDP addresses.
- */
-const char *
-inet_etoa(sin)
-	const struct sockaddr_in *sin;
-{
-	static char retbuf[sizeof("[xxx.xxx.xxx.xxx].xxxxx")];
-
-	(void) sprintf(retbuf, "[%s].%u",
-		       inet_ntoa(sin->sin_addr),
-		       ntohs(sin->sin_port));
-	return (retbuf);
 }
 
 int
@@ -654,10 +645,8 @@ saveinv()
 	register struct invbuf *ip;
 
 	ip = (struct invbuf *) malloc(sizeof(struct invbuf));
-	if (ip == NULL) {
-		syslog(LOG_ERR, "saveinv: malloc: %m");
-		exit(1);
-	}
+	if (!ip)
+		panic(errno, "malloc(saveinv)");
 	ip->i_next = NULL;
 	bzero((char *)ip->i_dname, sizeof(ip->i_dname));
 	return (ip);
@@ -1059,7 +1048,7 @@ loc_ntoa(binary,ascii)
 	const u_char *binary;
 	char *ascii;
 {
-	char tmpbuf[255*3];
+	static char tmpbuf[255*3];
 
 	register char *cp;
 	register const u_char *rcp;
@@ -1078,12 +1067,7 @@ loc_ntoa(binary,ascii)
 	char *sizestr, *hpstr, *vpstr;
 
 	rcp = binary;
-	if (ascii)
-		cp = ascii;
-	else {
-		ascii = tmpbuf;
-		cp = tmpbuf;
-	}
+	cp = (ascii != NULL) ? ascii : tmpbuf;
 
 	versionval = *rcp++;
 
@@ -1192,4 +1176,49 @@ data_inaddr(data)
 	bcopy((char *)data, (char *)&tmp, INADDRSZ);
 	ret.s_addr = tmp;
 	return (ret);
+}
+
+/* Signal abstraction. */
+
+void
+setsignal(catch, block, handler)
+	int catch, block;
+	SIG_FN (*handler)();
+{
+#ifdef POSIX_SIGNALS
+	/* Modern system - preferred. */
+	struct sigaction sa;
+	memset(&sa, 0, sizeof sa);
+	sa.sa_handler = handler;
+	sigemptyset(&sa.sa_mask);
+	if (block != -1)
+		sigaddset(&sa.sa_mask, block);
+	(void) sigaction(catch, &sa, NULL);
+#else /*POSIX_SIGNALS*/
+#ifdef SYSV
+	/* Ancient system - ugly. */
+	if (block != -1)
+		syslog(LOG_DEBUG, "danger - unable to block signal %d from %d",
+		       block, catch);
+	(void) signal(catch, handler);
+#else /*SYSV*/
+	/* BSD<=4.3 system - odd. */
+	struct sigvec sv;
+	bzero(&sv, sizeof sv);
+	sv.sv_handler = handler;
+	sv.sv_mask = sigmask(block);
+	(void) sigvec(catch, &sv, NULL);
+#endif /*SYSV*/
+#endif /*POSIX_SIGNALS*/
+}
+
+void
+resignal(catch, block, handler)
+	int catch, block;
+	SIG_FN (*handler)();
+{
+#if !defined(POSIX_SIGNALS) && defined(SYSV)
+	/* Unreliable signals.  Set it back up again. */
+	setsignal(catch, block, handler);
+#endif
 }

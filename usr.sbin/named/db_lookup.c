@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_lookup.c	4.18 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_lookup.c,v 8.2 1995/06/29 09:26:17 vixie Exp $";
+static char rcsid[] = "$Id: db_lookup.c,v 8.3 1995/12/06 20:34:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -90,12 +90,13 @@ nlookup(name, htpp, fname, insert)
 	register unsigned hval;
 	register struct hashbuf *htp;
 	struct namebuf *parent = NULL;
+	int escaped = 0;
 
 	htp = *htpp;
 	hval = 0;
 	*fname = "???";
 	for (cp = name; c = *cp++; ) {
-		if (c == '.') {
+		if (!escaped && (c == '.')) {
 			parent = np = nlookup(cp, htpp, fname, insert);
 			if (np == NULL)
 				return (NULL);
@@ -116,6 +117,10 @@ nlookup(name, htpp, fname, insert)
 		}
 		hval <<= HASHSHIFT;
 		hval += (isupper(c) ? tolower(c) : c) & HASHMASK;
+		if (escaped)
+			escaped = 0;
+		else if (c == '\\')
+			escaped = 1;
 	}
 	cp--;
 	/*

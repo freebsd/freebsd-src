@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_dump.c	4.33 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: db_dump.c,v 8.7 1995/06/29 09:26:17 vixie Exp $";
+static char rcsid[] = "$Id: db_dump.c,v 8.8 1995/12/06 20:34:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -305,8 +305,14 @@ zt_dump(fp)
 		char *pre, buf[64];
 		u_int cnt;
 
+		if (!zp->z_origin)
+			continue;
+
 		fprintf(fp, "; %s (type %d, class %d, source %s)\n",
-			zp->z_origin, zp->z_type, zp->z_class,
+			zp->z_origin
+			  ? (*zp->z_origin ? zp->z_origin : ".")
+			  : "Nil",
+			zp->z_type, zp->z_class,
 			zp->z_source ? zp->z_source : "Nil");
 		fprintf(fp, ";\ttime=%ld, lastupdate=%ld, serial=%u,\n",
 			zp->z_time, zp->z_lastupdate, zp->z_serial);
@@ -478,12 +484,12 @@ db_dump(htp, fp, zone, origin)
 
 			case T_HINFO:
 			case T_ISDN:
-				if (n = *cp++) {
+				if ((n = *cp++) != '\0') {
 					fprintf(fp, "\"%.*s\"", (int)n, cp);
 					cp += n;
 				} else
 					fprintf(fp, "\"\"");
-				if (n = *cp++)
+				if ((n = *cp++) != '\0')
 					fprintf(fp, " \"%.*s\"", (int)n, cp);
 				else
 					fprintf(fp, " \"\"");
@@ -536,7 +542,7 @@ db_dump(htp, fp, zone, origin)
 				end = (u_char *)dp->d_data + dp->d_size;
 				(void) putc('"', fp);
 				while (cp < end) {
-				    if (n = *cp++) {
+				    if ((n = *cp++) != '\0') {
 					for (j = n ; j > 0 && cp < end ; j--)
 					    if (*cp == '\n') {
 						(void) putc('\\', fp);
