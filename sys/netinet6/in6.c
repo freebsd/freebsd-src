@@ -667,6 +667,8 @@ in6_control(so, cmd, data, ifp, td)
 			 */
 			pfxlist_onlink_check();
 		}
+		if (error == 0 && ia)
+			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
 
@@ -714,6 +716,7 @@ in6_control(so, cmd, data, ifp, td)
 
 	  purgeaddr:
 		in6_purgeaddr(&ia->ia_ifa);
+		EVENTHANDLER_INVOKE(ifaddr_event, ifp);
 		break;
 	}
 
