@@ -73,8 +73,11 @@ msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size)
         mbp->msg_ptr = ptr;
 	cksum = msgbuf_cksum(mbp);
 	if (cksum != mbp->msg_cksum) {
-		printf("msgbuf cksum mismatch (read %x, calc %x)\n",
-		    mbp->msg_cksum, cksum);
+		if (bootverbose) {
+			printf("msgbuf cksum mismatch (read %x, calc %x)\n",
+			    mbp->msg_cksum, cksum);
+			printf("Old msgbuf not recovered\n");
+		}
 		msgbuf_clear(mbp);
 	}
 }
