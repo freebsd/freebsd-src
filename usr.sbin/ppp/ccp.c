@@ -306,7 +306,7 @@ ccp_Required(struct ccp *ccp)
 int
 ccp_MTUOverhead(struct ccp *ccp)
 {
-  if (ccp->fsm.state == ST_OPENED)
+  if (ccp->fsm.state == ST_OPENED && ccp->out.algorithm >= 0)
     return algorithm[ccp->out.algorithm]->o.MTUOverhead;
 
   return 0;
