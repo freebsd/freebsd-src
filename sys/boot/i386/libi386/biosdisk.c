@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.5 1998/09/19 01:33:29 msmith Exp $
+ *	$Id: biosdisk.c,v 1.6 1998/09/26 01:30:20 msmith Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ bd_int13probe(int unit)
     v86int();
     
     if (!(v86.efl & 0x1) &&			/* carry clear */
-	((v86.edx & 0xff) > unit & 0x7f))	/* unit # OK */
+	((v86.edx & 0xff) > (unit & 0x7f)))	/* unit # OK */
 	return(1);
     return(0);
 }
