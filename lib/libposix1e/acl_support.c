@@ -429,7 +429,7 @@ acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 {
 	struct acl_entry	*e;
 
-	if (acl->acl_cnt >= MAX_ACL_ENTRIES) {
+	if (acl->acl_cnt >= ACL_MAX_ENTRIES) {
 		errno = ENOMEM;
 		return (-1);
 	}

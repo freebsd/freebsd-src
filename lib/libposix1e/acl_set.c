@@ -54,7 +54,7 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 		}
 	}
 
-	return (acl_syscall_set_file(path_p, type, acl));
+	return (__acl_set_file(path_p, type, acl));
 }
 
 
@@ -71,5 +71,5 @@ acl_set_fd(int fd, acl_t acl, acl_type_t type)
 		}
 	}
 
-	return (acl_syscall_set_fd(fd, type, acl));
+	return (__acl_set_fd(fd, type, acl));
 }
