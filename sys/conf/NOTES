@@ -701,7 +701,8 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	SMBFS			#SMB/CIFS filesystem
 options 	UDF			#Universal Disk Format
-options 	UMAPFS			#UID map filesystem
+#umapfs is seriously (functionally) broken at this point.
+#options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
 options 	NFS_ROOT		#NFS usable as root device

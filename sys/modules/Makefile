@@ -222,7 +222,6 @@ SUBDIR=	${_3dfx} \
 	uhid \
 	ukbd \
 	ulpt \
-	umapfs \
 	umass \
 	umct \
 	umodem \

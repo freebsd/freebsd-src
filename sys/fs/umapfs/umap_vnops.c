@@ -363,6 +363,15 @@ umap_lock(ap)
 	} */ *ap;
 {
 
+	/*
+	 * vop_nolock no longer exists.  I could have pasted the code
+	 * in so that it compiles, but that would be doing our users a
+	 * great disservice.  umapfs is about 5 years behind the nullfs
+	 * code that it is derived from.  The stub locking here guarantees
+	 * a deadlock the moment a VOP_INACTIVE arrives.  There is no point
+	 * pasting the code that makes it compile either, because that just
+	 * makes it Even More Wrong.
+	 */
 	vop_nolock(ap);
 	if ((ap->a_flags & LK_TYPE_MASK) == LK_DRAIN)
 		return (0);
