@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.12 1995/01/12 13:06:31 ugen Exp $
+ * $Id: ip_output.c,v 1.13 1995/03/16 18:14:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -790,6 +790,7 @@ ip_setmoptions(optname, imop, m)
 	register struct ip_moptions *imo = *imop;
 	struct route ro;
 	register struct sockaddr_in *dst;
+	int s;
 
 	if (imo == NULL) {
 		/*
@@ -851,12 +852,14 @@ ip_setmoptions(optname, imop, m)
 		 * IP address.  Find the interface and confirm that
 		 * it supports multicasting.
 		 */
+		s = splnet();
 		INADDR_TO_IFP(addr, ifp);
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
 			error = EADDRNOTAVAIL;
 			break;
 		}
 		imo->imo_multicast_ifp = ifp;
+		splx(s);
 		break;
 
 	case IP_MULTICAST_TTL:
@@ -897,6 +900,7 @@ ip_setmoptions(optname, imop, m)
 			error = EINVAL;
 			break;
 		}
+		s = splnet();
 		/*
 		 * If no interface address was provided, use the interface of
 		 * the route to the given multicast address.
@@ -910,6 +914,7 @@ ip_setmoptions(optname, imop, m)
 			rtalloc(&ro);
 			if (ro.ro_rt == NULL) {
 				error = EADDRNOTAVAIL;
+				splx(s);
 				break;
 			}
 			ifp = ro.ro_rt->rt_ifp;
@@ -918,12 +923,14 @@ ip_setmoptions(optname, imop, m)
 		else {
 			INADDR_TO_IFP(mreq->imr_interface, ifp);
 		}
+
 		/*
 		 * See if we found an interface, and confirm that it
 		 * supports multicast.
 		 */
 		if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
 			error = EADDRNOTAVAIL;
+			splx(s);
 			break;
 		}
 		/*
@@ -938,10 +945,12 @@ ip_setmoptions(optname, imop, m)
 		}
 		if (i < imo->imo_num_memberships) {
 			error = EADDRINUSE;
+			splx(s);
 			break;
 		}
 		if (i == IP_MAX_MEMBERSHIPS) {
 			error = ETOOMANYREFS;
+			splx(s);
 			break;
 		}
 		/*
@@ -951,9 +960,11 @@ ip_setmoptions(optname, imop, m)
 		if ((imo->imo_membership[i] =
 		    in_addmulti(&mreq->imr_multiaddr, ifp)) == NULL) {
 			error = ENOBUFS;
+			splx(s);
 			break;
 		}
 		++imo->imo_num_memberships;
+		splx(s);
 		break;
 
 	case IP_DROP_MEMBERSHIP:
@@ -970,6 +981,8 @@ ip_setmoptions(optname, imop, m)
 			error = EINVAL;
 			break;
 		}
+
+		s = splnet();
 		/*
 		 * If an interface address was specified, get a pointer
 		 * to its ifnet structure.
@@ -980,6 +993,7 @@ ip_setmoptions(optname, imop, m)
 			INADDR_TO_IFP(mreq->imr_interface, ifp);
 			if (ifp == NULL) {
 				error = EADDRNOTAVAIL;
+				splx(s);
 				break;
 			}
 		}
@@ -995,6 +1009,7 @@ ip_setmoptions(optname, imop, m)
 		}
 		if (i == imo->imo_num_memberships) {
 			error = EADDRNOTAVAIL;
+			splx(s);
 			break;
 		}
 		/*
@@ -1008,6 +1023,7 @@ ip_setmoptions(optname, imop, m)
 		for (++i; i < imo->imo_num_memberships; ++i)
 			imo->imo_membership[i-1] = imo->imo_membership[i];
 		--imo->imo_num_memberships;
+		splx(s);
 		break;
 
 	default:
