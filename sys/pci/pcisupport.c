@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.72 1998/09/16 20:29:22 msmith Exp $
+**  $Id: pcisupport.c,v 1.73 1998/10/31 10:35:24 dfr Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -208,16 +208,12 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c601");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
-	case 0x70208086:
-		return ("Intel 82371SB USB host controller");
 	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x71008086:
 		return ("Intel 82439TX System Controller (MTXC)");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
-	case 0x71128086:
-		return ("Intel 82371AB USB host controller");
 	case 0x71138086:
 		return ("Intel 82371AB Power management controller");
 	case 0x71908086:
