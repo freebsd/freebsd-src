@@ -279,7 +279,7 @@ rip6_ctlinput(cmd, sa, d)
 		sa6_src = &sa6_any;
 	}
 
-	(void) in6_pcbnotify(&ripcb, sa, 0, (struct sockaddr *)sa6_src,
+	(void) in6_pcbnotify(&ripcb, sa, 0, (const struct sockaddr *)sa6_src,
 			     0, cmd, notify);
 }
 

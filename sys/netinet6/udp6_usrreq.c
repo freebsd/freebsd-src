@@ -453,7 +453,8 @@ udp6_ctlinput(cmd, sa, d)
 				     (struct sockaddr *)ip6cp->ip6c_src, 
 				     uh.uh_sport, cmd, notify);
 	} else
-		(void) in6_pcbnotify(&udb, sa, 0, (struct sockaddr *)sa6_src,
+		(void) in6_pcbnotify(&udb, sa, 0,
+				     (const struct sockaddr *)sa6_src,
 				     0, cmd, notify);
 }
 
