@@ -1,4 +1,4 @@
-/*	$NetBSD: ruserpass.c,v 1.27 2000/07/18 06:47:02 lukem Exp $	*/
+/*	$NetBSD: ruserpass.c,v 1.28 2000/11/15 00:11:04 lukem Exp $	*/
 
 /*
  * Copyright (c) 1985, 1993, 1994
@@ -66,25 +66,19 @@ static struct toktab {
 
 int
 ruserpass(const char *host, const char **aname, const char **apass,
-	    const char **aacct)
+	const char **aacct)
 {
-	char *hdir, buf[BUFSIZ], *tmp;
+	char *tmp;
 	char myname[MAXHOSTNAMELEN + 1], *mydomain;
 	int t, i, c, usedefault = 0;
 	struct stat stb;
 
-	hdir = getenv("HOME");
-	if (hdir == NULL)
-		hdir = ".";
-	if (strlcpy(buf, hdir,      sizeof(buf)) >= sizeof(buf) ||
-	    strlcat(buf, "/.netrc", sizeof(buf)) >= sizeof(buf)) {
-		warnx("%s/.netrc: %s", hdir, strerror(ENAMETOOLONG));
+	if (netrc[0] == '\0')
 		return (0);
-	}
-	cfile = fopen(buf, "r");
+	cfile = fopen(netrc, "r");
 	if (cfile == NULL) {
 		if (errno != ENOENT)
-			warn("%s", buf);
+			warn("%s", netrc);
 		return (0);
 	}
 	if (gethostname(myname, sizeof(myname)) < 0)

@@ -2,7 +2,7 @@ Whilst a lot of the work in lukemftp (both the original sources in NetBSD
 and this port) was done by me (Luke Mewburn), it would not be as useable
 without the enhancements, fixes, or input from the following people:
 
-Brian Stark			<bstark@siemens-psc.com>
+Brian Stark			<bstark1990@netscape.net>
 Chris G. Demetriou		<cgd@netbsd.org>
 Christos Zoulas			<christos@netbsd.org>
 Dan Winship			<danw@mit.edu>

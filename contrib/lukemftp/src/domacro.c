@@ -1,4 +1,4 @@
-/*	$NetBSD: domacro.c,v 1.17 2000/07/18 06:45:03 lukem Exp $	*/
+/*	$NetBSD: domacro.c,v 1.19 2002/02/01 05:04:43 itojun Exp $	*/
 
 /*
  * Copyright (c) 1985, 1993, 1994
@@ -41,7 +41,7 @@ void
 domacro(int argc, char *argv[])
 {
 	int i, j, count = 2, loopflg = 0;
-	char *cp1, *cp2, line2[200];
+	char *cp1, *cp2, line2[FTPBUFLEN];
 	struct cmd *c;
 
 	if ((argc == 0 && argv != NULL) ||
@@ -59,7 +59,7 @@ domacro(int argc, char *argv[])
 		code = -1;
 		return;
 	}
-	(void)strcpy(line2, line);
+	(void)strlcpy(line2, line, sizeof(line2));
  TOP:
 	cp1 = macros[i].mac_start;
 	while (cp1 != macros[i].mac_end) {
@@ -78,7 +78,8 @@ domacro(int argc, char *argv[])
 						j = 10*j +  *cp1 - '0';
 					cp1--;
 					if (argc - 2 >= j) {
-						(void)strcpy(cp2, argv[j+1]);
+						(void)strlcpy(cp2, argv[j+1],
+						    sizeof(line) - (cp2 - line));
 						cp2 += strlen(argv[j+1]);
 					}
 					break;
@@ -87,7 +88,8 @@ domacro(int argc, char *argv[])
 					loopflg = 1;
 					cp1++;
 					if (count < argc) {
-						(void)strcpy(cp2, argv[count]);
+						(void)strlcpy(cp2, argv[count],
+						    sizeof(line) - (cp2 - line));
 						cp2 += strlen(argv[count]);
 					}
 					break;
@@ -117,10 +119,11 @@ domacro(int argc, char *argv[])
 				fputs(line, ttyout);
 				putc('\n', ttyout);
 			}
+			margv[0] = c->c_name;
 			(*c->c_handler)(margc, margv);
 			if (bell && c->c_bell)
 				(void)putc('\007', ttyout);
-			(void)strcpy(line, line2);
+			(void)strlcpy(line, line2, sizeof(line));
 			makeargv();
 			argc = margc;
 			argv = margv;
