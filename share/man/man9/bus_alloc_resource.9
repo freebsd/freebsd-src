@@ -32,7 +32,8 @@
 .Dt BUS_ALLOC_RESOURCE 9
 .Os
 .Sh NAME
-.Nm bus_alloc_resource
+.Nm bus_alloc_resource ,
+.Nm bus_alloc_resource_any
 .Nd alloc resources on a bus
 .Sh SYNOPSIS
 .In sys/param.h
@@ -43,13 +44,28 @@
 .In machine/resource.h
 .Ft struct resource *
 .Fn bus_alloc_resource "device_t dev" "int type" "int *rid" "u_long start" "u_long end" "u_long count" "u_int flags"
+.Ft struct resource *
+.Fn bus_alloc_resource_any "device_t dev" "int type" "int *rid" "u_int flags"
 .Sh DESCRIPTION
 This is an easy interface to the resource-management functions.
 It hides the indirection through the parent's method table.
 This function generally should be called in attach, but (except in some
 race cases) never earlier.
 .Pp
-Its arguments are as follows:
+The
+.Fn bus_alloc_resource_any
+function is a convenience wrapper for
+.Fn bus_alloc_resource .
+It sets the values for
+.Fa start ,
+.Fa end ,
+and
+.Fa count
+to the default resource (see description of
+.Fa start
+below).
+.Pp
+The arguments are as follows:
 .Bl -item
 .It
 .Fa dev
@@ -144,8 +160,8 @@ should be saved in the softc of the device after these calls.
 	irqid = 0;
 	portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &portid,
 			0ul, ~0ul, 32, RF_ACTIVE);
-	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
-			0ul, ~0ul, 1, RF_ACTIVE | RF_SHAREABLE);
+	irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &irqid,
+			RF_ACTIVE | RF_SHAREABLE);
 .Ed
 .Sh SEE ALSO
 .Xr bus_release_resource 9 ,

@@ -229,6 +229,12 @@ u_long	bus_get_resource_start(device_t dev, int type, int rid);
 u_long	bus_get_resource_count(device_t dev, int type, int rid);
 void	bus_delete_resource(device_t dev, int type, int rid);
 
+static __inline struct resource *
+bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
+{
+	return (bus_alloc_resource(dev, type, rid, 0ul, ~0ul, 1, flags));
+}
+
 /*
  * Access functions for device.
  */
