@@ -29,7 +29,7 @@
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_svcout.c 1.6 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_svcout.c,v 1.1 1993/09/13 23:20:19 jtc Exp $";
+static char rcsid[] = "$Id: rpc_svcout.c,v 1.1 1994/08/07 18:01:36 wollman Exp $";
 #endif
 
 /*
@@ -222,7 +222,7 @@ write_program(def, storage)
 		f_print(fout, "\t}\n");
 
  		f_print(fout, "\tbzero((char *)&%s, sizeof(%s));\n", ARG, ARG);
-		printif("getargs", TRANSP, "&", ARG);
+		printif("getargs", TRANSP, "(caddr_t)&", ARG);
 		printerr("decode", TRANSP);
 		f_print(fout, "\t\treturn;\n");
 		f_print(fout, "\t}\n");
@@ -235,7 +235,7 @@ write_program(def, storage)
 		printerr("systemerr", TRANSP);
 		f_print(fout, "\t}\n");
 
-		printif("freeargs", TRANSP, "&", ARG);
+		printif("freeargs", TRANSP, "(caddr_t)&", ARG);
  		f_print(fout, "\t\t(void)fprintf(stderr, \"unable to free arguments\\n\");\n");
 		f_print(fout, "\t\texit(1);\n");
 		f_print(fout, "\t}\n");
