@@ -115,6 +115,9 @@ acpi_pcib_acpi_probe(device_t dev)
 	!acpi_disabled("pci") &&
 	acpi_MatchHid(dev, "PNP0A03")) {
 
+	if (!pci_cfgregopen())
+		return(ENXIO);
+
 	/*
 	 * Set device description 
 	 */
