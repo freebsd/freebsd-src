@@ -13,8 +13,8 @@ SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	find finger fmt fold fpr from fsplit fstat ftp gcore gencat getopt \
 	gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit killall lam last \
-	lastcomm leave lex locate lock lockf logger login logname lorder \
-	lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr mk_cmds \
+	lastcomm leave lex limits locate lock lockf logger login logname \
+	lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr mk_cmds \
 	modstat more msgs mt netstat nfsstat nice \
 	nm nohup pagesize passwd paste pr printenv \
 	printf quota ranlib rdist renice rev rlogin rpcgen \
