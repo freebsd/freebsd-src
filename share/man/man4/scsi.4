@@ -159,23 +159,46 @@ so they appear as a particular device unit or
 .Em counted
 so that they appear as the next available unused unit.
 .Pp
-To configure a driver in the kernel without wiring down the device use a
-config line similar to
-.Cd "device ch0"
-to include the changer driver.
+Units are wired down by setting kernel environment hints.
+This is usually done either interactively from the loader, or automatically via the
+.Pa /boot/device.hints
+file.  The basic syntax is:
+.Bd -literal -offset indent
+hint.device.unit.property="value"
+.Ed
 .Pp
-To wire down a unit use a config line similar to
-.Cd "device ch1 at scbus0 target 4 unit 0"
-to assign changer 1 as the changer with SCSI ID 4,
-SCSI logical unit 0 on SCSI bus 0.
-Individual scbuses can be wired down to specific controllers with
-a config line similar to
-.Cd "device scbus0 at ahc0"
-which assigns scsi bus 0 to the first unit using the ahc driver.
-For controllers supporting more than one bus,
-the particular bus can be specified as in
-.Cd "device scbus3 at ahc1 bus 1"
-which assigns scbus 1 to the second bus probed on the ahc1 device.
+Individual scsi bus numbers can be wired down to specific controllers with
+a config line similar to the following:
+.Bd -literal -offset indent
+hint.scbus.0.at="ahd1"
+.Ed
+.Pp
+This assigns scsi bus number 0 to the
+.Em ahd1
+driver instance.
+For controllers supporting more than one bus, a particular bus can be assigned
+as follows:
+.Bd -literal -offset indent
+hint.scbus.0.at="ahc1"
+hint.scbus.0.bus="1"
+.Ed
+.Pp
+This assigns scsi bus 0 to the bus 1 instance on
+.Em ahc0 .
+Peripheral drivers can be wired to a specific bus, target, and lun as so:
+.Bd -literal -offset indent
+hint.da.0.at="scbus0"
+hint.da.0.target="0"
+hint.da.0.unit="0"
+.Ed
+.Pp
+This assigns
+.Em da0
+to target 0, unit (lun) 0 of scbus 0.
+Omitting the target or unit hints will instruct CAM to treat them as wildcards
+and use the first respective counted instances.
+These examples can be combined together to allow a peripheral device to be
+wired to any particular controller, bus, target, and/or unit instance.
 .Pp
 When you have a mixture of wired down and counted devices then the
 counting begins with the first non-wired down unit for a particular
